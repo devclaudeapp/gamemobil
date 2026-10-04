@@ -1,0 +1,26 @@
+<div id="probe" aria-hidden="true"></div>
+<canvas id="marais" aria-label="Plan du marais salant. Touche une parcelle pour sa fiche, un mur pour sa trappe, glisse sur un œillet blanc pour tirer le sel."></canvas>
+<header id="ciel" aria-live="off">
+  <div class="col">
+    <div id="heure" class="big">—</div>
+    <div id="maree-txt" class="lig">—</div>
+    <div id="meteo" class="lig pale">—</div>
+  </div>
+  <div class="col mid"></div>
+  <div class="col d">
+    <div id="cash" class="big">0<small>€</small></div>
+    <div id="mulon" class="lig">—</div>
+    <div id="reserve" class="lig pale">—</div>
+  </div>
+</header>
+<div id="bandeau" hidden></div>
+<p id="marge"><em id="marge-txt"></em></p>
+<nav id="barre" aria-label="Actions">
+  <button id="b-carnet" type="button">Carnet</button>
+  <button id="b-coop" type="button">Coopérative</button>
+  <button id="b-creuser" type="button">Creuser</button>
+</nav>
+<div id="voile" hidden></div>
+<div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
+<section id="page" hidden><div id="page-contenu" class="inner"></div></section>
+<div id="hiver-bar" class="hiver-bar" hidden></div>

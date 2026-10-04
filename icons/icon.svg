@@ -1,23 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <defs>
-    <radialGradient id="bg" cx="50%" cy="38%" r="78%">
-      <stop offset="0" stop-color="#0e3a48"/>
-      <stop offset="1" stop-color="#03111a"/>
-    </radialGradient>
-    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
-      <feGaussianBlur stdDeviation="12"/>
-    </filter>
-  </defs>
-  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M86 424 C 190 384 292 340 336 268 C 378 198 346 118 268 120 C 182 122 150 222 214 266 C 280 312 380 302 444 246" stroke="#5ef2d6" stroke-width="44" opacity="0.5" filter="url(#glow)"/>
-    <path d="M86 424 C 190 384 292 340 336 268 C 378 198 346 118 268 120 C 182 122 150 222 214 266 C 280 312 380 302 444 246" stroke="#d4fff6" stroke-width="15"/>
-  </g>
-  <circle cx="444" cy="246" r="18" fill="#ffffff"/>
-  <g fill="#5ef2d6">
-    <circle cx="262" cy="190" r="13"/>
-    <circle cx="300" cy="222" r="10"/>
-    <circle cx="238" cy="232" r="9"/>
-  </g>
-  <circle cx="290" cy="170" r="8" fill="#ffc857"/>
+  <rect width="512" height="512" rx="110" fill="#F1E8D6"/>
+  <rect x="64" y="72" width="384" height="104" fill="#1F8A8A"/>
+  <rect x="70" y="66" width="384" height="104" fill="none" stroke="#2A2B33" stroke-width="12"/>
+  <rect x="64" y="208" width="184" height="168" fill="#1F8A8A"/>
+  <rect x="64" y="208" width="184" height="168" fill="#F26BA6" opacity=".55"/>
+  <rect x="70" y="202" width="184" height="168" fill="none" stroke="#2A2B33" stroke-width="12"/>
+  <rect x="264" y="208" width="184" height="168" fill="#F26BA6"/>
+  <rect x="270" y="202" width="184" height="168" fill="none" stroke="#2A2B33" stroke-width="12"/>
+  <g fill="#FFFDF6"><circle cx="300" cy="250" r="9"/><circle cx="356" cy="296" r="9"/><circle cx="410" cy="240" r="9"/><circle cx="318" cy="340" r="9"/><circle cx="392" cy="334" r="9"/><circle cx="360" cy="250" r="7"/></g>
+  <rect x="232" y="162" width="48" height="18" fill="#F7C843" stroke="#2A2B33" stroke-width="6" transform="rotate(-60 256 171)"/>
+  <rect x="236" y="272" width="42" height="16" fill="#F7C843" stroke="#2A2B33" stroke-width="6" transform="rotate(-70 257 280)"/>
+  <text x="256" y="452" text-anchor="middle" font-family="Big Shoulders Stencil Text, Arial Narrow, Impact, sans-serif" font-weight="900" font-size="64" letter-spacing="4" fill="#2A2B33">ŒILLETS</text>
 </svg>

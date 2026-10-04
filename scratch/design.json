@@ -1,0 +1,878 @@
+{
+  "title": "Œillets",
+  "pitch": "Tu es paludier sur la presqu'île de Guérande. La mer monte deux fois par jour avec la vraie lune, le soleil évapore, et le sel ne vient que si tu as compris comment l'eau circule dans ton marais. Pas de multiplicateur, pas de minuteur : ta seule montée en puissance, c'est la géométrie de tes bassins, la réserve d'eau que tu gardes pour les mortes-eaux et ta lecture du ciel.",
+  "elevator": "Œillets est un jeu de patience sur une page de carnet imprimée en risographie : trois encres sur papier kraft, un plan cadastral de marais salant, et une simulation d'eau qui tourne à l'heure réelle. La mer entre dans ta vasière quand la marée dépasse le seuil de l'étier (les marées sont les vraies : elles glissent de cinquante minutes par jour et faiblissent aux mortes-eaux, selon la vraie lune), l'eau descend de bassin en bassin par les trappes que tu ouvres, le soleil la concentre, et quand une parcelle passe de bleu-canard à violet puis à rose, puis se couvre de pointillés blancs, tu tires le sel avec le las d'un geste du pouce et tu le portes à la coopérative. Tout ce que tu achètes est une parcelle de plus ou une réserve plus profonde, jamais un pourcentage : un œillet creusé au mauvais endroit ne rend rien. La météo est la même pour tout le monde (tirée de la date), l'absence est un état stable que tu choisis (« mettre en eau »), et chaque mois lunaire la saison se ferme : l'hiver noie le marais, on inscrit le record sur un sac, et on redessine la géométrie librement pour affronter le climat d'une nouvelle année. Le seul score est le kilo de sel par œillet et par jour : une mesure de compréhension, pas d'heures passées.",
+  "artDirection": {
+    "metaphor": "Le carnet de terrain d'un paludier, imprimé en risographie : trois encres en aplat (bleu-canard, rose fluo, noir) plus un jaune soleil, sur papier kraft granuleux. Le marais est dessiné comme un plan cadastral de Guérande : rectangles irréguliers tracés à la règle d'une main un peu tremblante, étiquettes au pochoir comme sur les sacs de jute SEL DE GUÉRANDE. La salinité est littéralement une surimpression : encre bleue à 100 % pour l'eau de mer, trame de points rose de plus en plus dense par-dessus pour la saumure moyenne (le violet naît du chevauchement des deux encres, comme sur une vraie riso), rose plein à saturation, puis papier nu avec pointillé d'encre blanche pour le sel. Décalage de repérage volontaire de 1 à 2 px entre les couches, grain de papier visible, aucun dégradé, aucune ombre, aucun halo. Références : fanzines riso, affiches régionales de Pierre Péron, la vraie couleur rose des saumures à Dunaliella, le cloisonnisme plat de l'école de Pont-Aven. De jour c'est une page au soleil ; la nuit, une surimpression bleu-canard glisse sur toute la page (bichromie nocturne), jamais un fond noir.",
+    "tokens": [
+      {
+        "name": "papier",
+        "hex": "#F1E8D6",
+        "role": "Fond général (kraft), toute surface non encrée ; l'œillet « blanc » est du papier nu moucheté"
+      },
+      {
+        "name": "encre",
+        "hex": "#2A2B33",
+        "role": "Contours des talus, texte courant, chiffres, avocettes, trait du las, hachures des fissures"
+      },
+      {
+        "name": "canard",
+        "hex": "#1F8A8A",
+        "role": "Eau de mer et eau jeune (< 80 g/L), bande de mer, aiguille de marée, voile de nuit (multiply, alpha 0,35)"
+      },
+      {
+        "name": "rose",
+        "hex": "#F26BA6",
+        "role": "Saumure 220-258 g/L en aplat, trames de points par-dessus le canard entre 80 et 220 g/L, algues, pastille d'alerte douce"
+      },
+      {
+        "name": "violet",
+        "hex": "#6B5B95",
+        "role": "Couleur résultante (rose en multiply sur canard) pour 80-220 g/L : ne jamais la peindre directement, elle doit naître de la superposition"
+      },
+      {
+        "name": "argile",
+        "hex": "#8E7D6D",
+        "role": "Talus (trait 5 px), ponts, parcelle à sec, pochoir des sacs ; encre pâlie des pages anciennes du carnet"
+      },
+      {
+        "name": "soleil",
+        "hex": "#F7C843",
+        "role": "Disque du soleil, étiquettes de prix, baromètre, bandeau « Première journée en accéléré », et l'unique anneau-pointeur de l'action suggérée"
+      },
+      {
+        "name": "sel",
+        "hex": "#FFFDF6",
+        "role": "Pointillé des cristaux, fleur de sel, lettres au pochoir sur les sacs, liseré fin des œillets saturés (indice de forme, pas de couleur)"
+      }
+    ],
+    "typography": "Big Shoulders Stencil Text 700/900 (Google Fonts) pour le titre, les heures de marée, les kg et les euros : le pochoir des sacs de jute, lisible au pouce en plein soleil, chiffres tabulaires (font-variant-numeric: tabular-nums) pour les compteurs à bascule. Archivo Narrow 400/600 pour toutes les étiquettes d'interface et la fiche de parcelle : un grotesque condensé qui fait tenir « salinité » ou « coopérative » dans 52 px. Instrument Serif italique uniquement pour le carnet, les dictons et la ligne de marge (une seule ligne à la fois). Si le budget serre : supprimer Instrument Serif et passer les dictons en Archivo Narrow italique. Trois fichiers de police maximum, display=swap, repli Georgia/Arial Narrow.",
+    "motion": "De l'imprimé, pas des pixels : rien ne s'anime en douceur sauf l'aiguille de la marée. Redessin du canvas à 2 images/s plus à chaque entrée tactile. La surface de l'eau est une trame dont les points dérivent de 1 px toutes les 2 s. Le sel apparaît point par point (un point blanc par 4 kg, position pseudo-aléatoire stable). Les trappes basculent en deux images (0° puis 70°). La pluie est une hachure diagonale canard à alpha 0,5 sur toute la page, et pendant qu'elle dure la couche rose est décalée de 2 px (l'impression prend l'humidité). La nuit est un rectangle canard en multiply qui glisse du haut vers le bas en 60 s. Les avocettes sont trois segments noirs avec un battement d'aile en deux images, elles ne se posent que sur les parcelles roses. Le ratissage laisse un trait noir court qui s'efface comme un pinceau sec et pousse les points de sel vers le coin de la ladure où ils s'empilent en mulon. Les chiffres (heure de la prochaine pleine mer, kg sur le mulon) roulent par pas de 60 ms sans easing, comme un compteur mécanique.",
+    "drawingApproach": "Canvas 2D unique pour le marais, le ciel, la pluie, la nuit et les oiseaux ; DOM pour tout le texte, les feuilles, le carnet et la coopérative. (1) Papier : fillRect #F1E8D6, puis un canvas hors écran 256x256 de points 1 px noirs et blancs à alpha 0,06 utilisé en createPattern et composé en multiply : le grain, calculé une fois. (2) Parcelles : polygones dont chaque sommet est décalé de ±2 px par un hash déterministe de son index (plan tracé à la main) ; remplissage canard à alpha = min(profondeur / 6 cm, 1) ; par-dessus, une des quatre trames 8x8 prérendues (10/30/60/100 % de points roses) choisie par palier de salinité (< 80 : rien ; 80-150 : 30 % ; 150-220 : 60 % ; 220-258 : 100 %) dessinée en globalCompositeOperation multiply, ce qui donne le violet gratuitement ; à saturation (≥ 258) aplat rose plus liseré blanc 1 px. (3) Sel : nombre de points = kg / 4, rayon 1,2 px, blanc, positions issues d'un hash (index de parcelle, index de point), dessinés après les encres en source-over. (4) Talus : stroke #8E7D6D 5 px, puis #2A2B33 2 px décalé de (1,5 ; -1) px : le faux repérage. Argile fissurée : hachures noires courtes dont le nombre suit la perte d'intégrité ; parcelle à sec : aplat #8E7D6D. (5) Trappes : planche de 10 px sur le mur partagé, rotation 0° (fermée) ou 70° (ouverte) ; un mur dont le dénivelé dépasse 10 cm n'a pas de trappe et se dessine en double trait (talus haut). (6) Bande de ciel : papier, disque soleil jaune avec contour noir décalé de 2 px, lune en deux arcs selon la phase, jauge de marée en bande graduée avec aiguille noire et repère du seuil. (7) Pluie : motif de lignes diagonales canard à alpha 0,5 sur toute la page, translate(2,0) de la couche rose. (8) Nuit : rectangle plein canard alpha 0,35 en multiply. (9) Avocettes, mulon, las : chemins de 3 à 6 segments. Deux glyphes au pochoir (sac, las) en SVG inline écrit à la main pour les boutons DOM. Aucun fichier image.",
+    "mustNot": [
+      "Jamais de fond noir ni de halo (shadowBlur) ni de dégradé : la nuit est une surimpression bleu-canard sur papier clair",
+      "Jamais de pastel « cosy » : les encres sont saturées et en aplat, le rose est fluo, le papier est kraft",
+      "Ne jamais peindre le violet directement : il doit résulter de la trame rose en multiply sur le canard",
+      "Pas d'icônes génériques (engrenage, pièce d'or, éclair) : les glyphes sont des objets du marais au pochoir (sac, las, trappe, lousse)",
+      "Pas de particules, pas d'easing élastique, pas de confettis ; les changements d'état se font en une ou deux images",
+      "Pas de mode sombre : c'est du papier",
+      "Pas de chiffres exponentiels ni d'abréviations K/M : tout reste en cm, g/L, kg, tonnes et euros avec espace fine et virgule (1 234 kg, 36,80 EUR)",
+      "Pas de texte dans le canvas sauf les étiquettes au pochoir des parcelles ; tout le reste est en DOM pour la lisibilité et l'accessibilité"
+    ]
+  },
+  "coreLoop": "UNE SEULE SIMULATION. Le marais est une grille (7 colonnes ; 5 rangées la première saison, jusqu'à 11). La rangée 0 entière est la vasière (un seul grand bassin de 7 cases, fond 0 cm, 40 cm de profondeur). Chaque autre case est vide ou creusée en cobier (fond -5 cm, 20 cm max), fare (-10, 10 cm), aderne (-15, 5 cm) ou œillet (-20, 2 cm). Chaque parcelle a trois nombres : profondeur, salinité, algues ; plus l'intégrité de son argile. L'eau passe d'une parcelle à sa voisine par une trappe ouverte, du fond haut vers le fond bas, au débit proportionnel à la différence de niveau, et une trappe n'existe que si le dénivelé des fonds est de 10 cm au plus (vasière -> cobier ou fare ; cobier -> fare ou aderne ; fare -> aderne ou œillet ; aderne -> œillet ; œillet -> œillet au même niveau, par simple différence de hauteur d'eau, donc un chapelet s'assèche au bout). Les bassins sont en cascade plafonnée : une parcelle pleine n'accepte plus rien, le surplus reste en amont. La mer remplit la vasière seulement quand la marée dépasse le seuil de l'étier. Le soleil évapore toutes les parcelles mouillées (formule exacte dans simulation.formulas) ; l'évaporation enlève l'eau, pas le sel, donc la salinité monte ; au-dessus de 260 g/L le sel précipite : croûte blanche dans un œillet (ratissable), croûte perdue ailleurs. Les algues roses prospèrent entre 150 et 280 g/L et accélèrent l'évaporation de 25 % mais meurent si l'eau redevient douce. Une parcelle à sec fissure (lentement pour les bassins profonds, en 6 h pour un œillet) et fuit jusqu'au rhabillage. La pluie dilue tout et redissout une partie du sel encore couché dans l'œillet (plafonnée par la saturation : une averse coûte 3 à 10 kg par œillet non tiré). La fleur de sel ne se forme que sur un œillet saturé, par temps chaud (> 22 °C), calme (vent < 0,4) et sec, entre 15 h et 20 h réelles.\\n\\nCE QUE LA SIMULATION ENSEIGNE (mesuré, voir simulation.results) : (1) le rendement total du marais est l'évaporation totale fois 35 g/L : chaque parcelle mouillée produit, mais seul l'œillet récolte ; un marais sans œillet rend zéro et croûte en amont. (2) Un œillet rend ce que l'eau qu'il reçoit lui apporte : nourri à 35 g/L il fait 8 kg/jour, à 150 g/L 45 kg, à 250 g/L 80 kg ; il faut environ six parts de surface en amont pour une part d'œillet pour qu'il tourne au plein ; au-delà de ce ratio, l'amont croûte et le sel est perdu ; en dessous, les œillets tournent au ralenti. (3) Les parcelles profondes (vasière, cobiers) sont la réserve : aux mortes-eaux la mer n'apporte plus qu'un quart de l'eau pendant trois ou quatre jours, et un marais qui n'a pas trois à cinq jours d'évaporation en réserve se vide, blanchit puis fissure. (4) Les œillets en chapelet (œillet nourri par un œillet) ne reçoivent qu'un filet : le deuxième tient, le troisième s'assèche. (5) Avant la pluie : tirer le sel, et fermer les trappes des adernes roses pour garder leurs algues.\\n\\n30 SECONDES : ouvrir. Les couleurs disent tout : canard = eau jeune, violet = en chemin, rose = presque, points blancs = sel. Regarder la jauge (la mer est-elle au-dessus du seuil ?) et le baromètre (il baisse ?). La marge du carnet suggère une seule action en italique. Glisser le pouce sur un œillet blanc : le sel file au mulon. Fermer.\\n\\n5 MINUTES : planifier les douze prochaines heures d'eau. Ouvrir la fiche d'une parcelle (niveau, salinité, température, argile, débit de la trappe, « saturé vers 16 h »). Ouvrir ou fermer deux trappes. Écumer la fleur si c'est une belle fin d'après-midi. Vendre à la coopérative. Creuser : choisir le type sur une case libre, lire pourquoi un choix est impossible (« Trop de dénivelé : il faut une aderne entre les deux »). Lire l'observation que le carnet a écrite sur ton marais.\\n\\nUNE SEMAINE : vivre un demi-mois lunaire. Vives-eaux : la vasière déborde, tout est ouvert, abondance. Mortes-eaux : la mer effleure le seuil, le marais vit sur sa réserve, un cobier ou une vasière plus profonde devient la bonne dépense. Un front de pluie partagé par tous les joueurs le même jour. Découvrir le ratio amont/œillets en lisant le record kg/œillet/jour. Vers le jour 29 la lune revient à sa phase de départ : hivernage, puis rhabillage (voir prestige).",
+  "timeModel": "Le jeu tourne à l'heure réelle du téléphone. Une seule mise à l'échelle, annoncée nulle part parce qu'elle est le jeu : l'évaporation est environ dix fois plus rapide que dans la nature (2,6 mm/h à 25 °C au lieu de 0,3), pour qu'un cycle inondation -> sel prenne un jour réel au lieu de deux semaines. Marée : hauteur(t) = A(t) × sin(2π t / 12 h 25 min 14 s) avec A(t) = 1,05 + 0,25 × cos(2π t / 14,765 j), ancrée sur la nouvelle lune du 6 janvier 2000 18 h 14 UTC : vives-eaux (1,30) à la nouvelle et à la pleine lune, mortes-eaux (0,80) aux quartiers ; seuil de l'étier à 0,72 : aux mortes-eaux la mer passe à peine et n'apporte qu'un quart de l'eau. Jour et nuit : température par l'heure locale réelle (minimum 4 h, maximum 16 h), nuit de 21 h 30 à 6 h 30 avec évaporation × 0,3 et bichromie bleue. Saison : 29,53 jours (un mois synodique) depuis le premier jour ; la température moyenne va de 20 °C (juin) à 27 °C (jour 18, août) puis 23,5 °C (septembre) ; la saison se ferme quand la lune revient à sa phase du premier jour, ou avant par choix dès le jour 14. Météo : pression = 1013 + quatre sinusoïdes (périodes 2,3 ; 4,1 ; 7,9 ; 13,7 jours) dont les phases viennent d'un hash de la date réelle (identique pour tous les joueurs : même averse le même mardi), vent tiré de la pente de pression et du creux, pluie quand P < 1005 et baisse, baromètre lisible 24 h à l'avance une fois acheté. Garantie des trois premiers jours : pendant les 72 h qui suivent la journée accélérée, la pression est forcée ≥ 1012 (beau fixe) sauf une averse scriptée de 2 h au jour 3 à 14 h ; ensuite la météo partagée reprend telle quelle. Absence : la simulation est rejouée par pas de 10 minutes sur l'intervalle écoulé (une semaine = 1 008 pas, 77 parcelles au plus) ; rien n'accumule linéairement, les limites physiques font le travail. Première journée : la seule exception, annoncée par un bandeau jaune : dix minutes réelles = 24 h simulées (× 144), de 6 h à 6 h, puis l'heure réelle pour toujours.",
+  "resources": [
+    {
+      "id": "eau",
+      "nameFr": "Eau (par parcelle : niveau en cm, salinité en g/L, algues 0-1)",
+      "role": "L'état de la simulation. Jamais un stock global : chaque parcelle porte sa profondeur, sa masse de sel dissous et ses algues. C'est ce que les couleurs montrent."
+    },
+    {
+      "id": "reserve",
+      "nameFr": "Réserve (cm·unités d'eau stockée)",
+      "role": "Somme des profondeurs × surfaces des parcelles pleines. Le carnet la traduit en jours d'évaporation : la grandeur qui décide si le marais passe les mortes-eaux."
+    },
+    {
+      "id": "gros_sel_oeillet",
+      "nameFr": "Gros sel couché (kg, dans l'œillet)",
+      "role": "Produit par la précipitation au-dessus de 260 g/L. Exposé : la pluie en redissout une partie. Se tire d'un glissé vers le mulon."
+    },
+    {
+      "id": "mulon",
+      "nameFr": "Mulon (kg de gros sel en sécurité)",
+      "role": "Le sel tiré, hors d'atteinte de la pluie. Se vend à la coopérative à 0,80 EUR/kg. Le mulon est aussi l'objet-mémoire de la saison : chaque ratissage ajoute une strate colorée selon le temps qu'il faisait."
+    },
+    {
+      "id": "fleur",
+      "nameFr": "Fleur de sel (kg)",
+      "role": "Se forme en surface des œillets saturés les fins d'après-midi chaudes et calmes, s'écume à la lousse (achat), se vend 12 EUR/kg. Une pluie la renvoie dans la croûte."
+    },
+    {
+      "id": "euros",
+      "nameFr": "Euros",
+      "role": "Monnaie unique, prix fixes pour la saison, imprimés sur étiquette jaune. Sert uniquement à creuser, approfondir, outiller et rhabiller. Reporté d'une saison à l'autre."
+    },
+    {
+      "id": "argile",
+      "nameFr": "Argile (intégrité 0-1 par parcelle)",
+      "role": "Baisse quand une parcelle reste à sec (6 h pour un œillet, 48 h pour la vasière), ce qui la fait fuir. Rhabillage 60 EUR. Une parcelle sous 0,5 à l'hivernage est perdue au rhabillage d'hiver."
+    },
+    {
+      "id": "terres",
+      "nameFr": "Terres (rangées de la grille)",
+      "role": "5 rangées la première saison (28 cases + la vasière), +2 par hiver jusqu'à 11 (70 cases). La contrainte de place est la vraie limite de fin de saison."
+    }
+  ],
+  "producers": [
+    {
+      "id": "oeillet",
+      "nameFr": "Œillet",
+      "descFr": "La parcelle de récolte : 2 cm d'eau, fond à -20 cm. Le sel y précipite au-dessus de 260 g/L et se tire au las. Il rend ce que sa voisine lui apporte : 8 kg/jour nourri à l'eau de mer, 45 kg à 150 g/L, 80 kg à 250 g/L.",
+      "baseCost": 60,
+      "costGrowth": 0.1,
+      "baseRate": 45,
+      "unlockCondition": "Dès le début. Case libre voisine d'une aderne ou d'un fare (dénivelé ≤ 10 cm), ou d'un œillet lui-même nourri par une aderne ou un fare. Coût = 60 × (1 + 0,10 × nombre d'œillets déjà creusés) : linéaire, jamais exponentiel. baseRate ci-dessus = kg/jour affichés pour un œillet nourri à ~150 g/L par temps moyen.",
+      "visual": "Petit rectangle au bas de la grille (zone du pouce). Canard presque transparent quand il se remplit, rose plein à saturation avec liseré blanc 1 px, puis points blancs qui apparaissent un par un (1 point = 4 kg). Coin de ladure marqué d'un petit carré argile où le mulon s'empile. À sec : aplat argile, hachures noires si fissuré."
+    },
+    {
+      "id": "aderne",
+      "nameFr": "Aderne",
+      "descFr": "Le bassin de distribution : 5 cm d'eau, fond à -15 cm, surface double d'un œillet. C'est lui qui garde la saumure rose (150-280 g/L, algues) et nourrit jusqu'à trois œillets voisins.",
+      "baseCost": 110,
+      "costGrowth": 0.1,
+      "baseRate": 12,
+      "unlockCondition": "Dès le début. Case voisine d'un fare ou d'un cobier (dénivelé 5 ou 10 cm). baseRate = kg/jour ajoutés au marais par son évaporation (2 unités × 35 g/L), à condition qu'un œillet soit là pour les récolter.",
+      "visual": "Rectangle moyen, trame rose dense sur canard (violet puis rose) ; c'est la parcelle où se posent les avocettes. Étiquette au pochoir « ADERNE 3 »."
+    },
+    {
+      "id": "fare",
+      "nameFr": "Fare",
+      "descFr": "Le bassin de chauffe : 10 cm d'eau, fond à -10 cm, trois fois la surface d'un œillet. Il monte l'eau de 50 à 150 g/L et peut nourrir directement un œillet ou une aderne.",
+      "baseCost": 150,
+      "costGrowth": 0.1,
+      "baseRate": 18,
+      "unlockCondition": "Dès le début. Case voisine de la vasière ou d'un cobier. baseRate = kg/jour ajoutés par son évaporation (3 unités × 35 g/L). Réserve : 30 cm·unités.",
+      "visual": "Rectangle large, trame rose 30 % sur canard (violet), bords tracés à la règle, étiquette « FARE »."
+    },
+    {
+      "id": "cobier",
+      "nameFr": "Cobier",
+      "descFr": "Le bassin de réserve : 20 cm d'eau, fond à -5 cm, quatre fois la surface d'un œillet. Il évapore beaucoup et surtout il garde l'eau pour les mortes-eaux (80 cm·unités).",
+      "baseCost": 180,
+      "costGrowth": 0.1,
+      "baseRate": 24,
+      "unlockCondition": "Dès le début. Case voisine de la vasière (première rangée sous elle). baseRate = kg/jour ajoutés par son évaporation (4 unités × 35 g/L).",
+      "visual": "Grand rectangle sous la vasière, canard à pleine densité (eau profonde), trame rose légère en fin de saison, étiquette « COBIER »."
+    },
+    {
+      "id": "vasiere",
+      "nameFr": "Agrandir la vasière",
+      "descFr": "La vasière occupe toute la rangée du haut (40 cm, 8 unités de surface). L'agrandir la creuse : capacité × 1,5 et étier élargi (débit d'entrée × 1,25). C'est l'assurance mortes-eaux.",
+      "baseCost": 300,
+      "costGrowth": 1.5,
+      "baseRate": 0,
+      "unlockCondition": "Toujours disponible, 4 fois au plus. Coût = 300 × 1,5^n (300, 450, 675, 1 012). Ne produit rien directement : réserve 320 -> 480 -> 720 -> 1 080 -> 1 620 cm·unités. Le carnet l'indique quand la réserve couvre moins de 5 jours d'évaporation.",
+      "visual": "La bande canard sous la mer, trame plus serrée à chaque agrandissement et chiffre de profondeur au pochoir (40, 60, 90 cm). L'étier est une planche jaune-cerclée au milieu de son talus haut, avec le clapet dessiné comme un petit triangle noir une fois acheté."
+    }
+  ],
+  "upgradesOrChoices": [
+    {
+      "id": "trappes",
+      "nameFr": "Ouvrir / fermer une trappe",
+      "effect": "Le seul levier gratuit et permanent. Toucher un mur partagé bascule sa planche. Débit = 3 000 L/h par cm de différence de niveau. Fermer isole une parcelle (garder une aderne rose pendant la pluie, laisser un œillet saturer sans dilution, arrêter un chapelet qui vide son amont).",
+      "cost": "0",
+      "when": "Dès le début ; chaque trappe nouvelle est fermée à la création."
+    },
+    {
+      "id": "clapet",
+      "nameFr": "Clapet d'étier",
+      "effect": "L'étier admet la mer quand elle dépasse le seuil et se ferme seul quand elle redescend : la vasière ne se vide plus. Ouvrir reste un rituel, fermer n'est plus un rendez-vous. Retire la laisse.",
+      "cost": "25 EUR",
+      "when": "Proposé par le carnet à la fin de la première journée (le joueur a 29,54 EUR) ; acheté le jour 0 par tous les profils simulés."
+    },
+    {
+      "id": "barometre",
+      "nameFr": "Baromètre enregistreur",
+      "effect": "Remplace l'aiguille par la courbe de pression des 24 prochaines heures : la pluie se lit à l'avance. L'information est l'amélioration.",
+      "cost": "80 EUR",
+      "when": "Jour 2 à 3 pour un joueur qui le veut (le carnet le suggère la veille de la première averse scriptée)."
+    },
+    {
+      "id": "lousse",
+      "nameFr": "Lousse à fleur",
+      "effect": "Permet d'écumer la fleur de sel (toucher un œillet au liseré blanc entre 15 h et 20 h). 0,25 kg/h par œillet saturé par soirée chaude et calme, 1,5 kg max par œillet, 12 EUR/kg.",
+      "cost": "120 EUR",
+      "when": "Jour 3 à 6 dans les simulations ; rentabilisé en 4 à 8 jours avec 3 œillets."
+    },
+    {
+      "id": "rhabillage",
+      "nameFr": "Rhabiller un talus",
+      "effect": "Remet l'intégrité d'une parcelle à 1 (plus de fuite, plus de hachures). Action de la fiche de parcelle.",
+      "cost": "60 EUR par parcelle",
+      "when": "Quand l'argile passe sous 0,7 ; le carnet l'écrit. Dans les simulations avec réserve suffisante : 0 rhabillage par saison ; c'est le coût d'une négligence, pas une taxe."
+    },
+    {
+      "id": "mise_en_eau",
+      "nameFr": "Mettre en eau",
+      "effect": "État sûr avant une absence : toutes les trappes et l'étier ouverts, les œillets acceptent 8 cm au lieu de 2, aucune fissure ne se forme tant que l'eau est mise. Le sel continue de se faire mais lentement (œillets lents à saturer). « Lever l'eau » au retour rend l'excédent des œillets aux adernes.",
+      "cost": "0",
+      "when": "Toujours ; proposé automatiquement à l'ouverture après 20 h et dans la fiche. Un seul toucher."
+    },
+    {
+      "id": "fermer",
+      "nameFr": "Fermer le marais (hivernage anticipé)",
+      "effect": "Déclenche l'hivernage avant la fin du mois lunaire : record inscrit, rhabillage d'hiver, deux rangées de plus.",
+      "cost": "0",
+      "when": "Dès le jour 14 de la saison, depuis le carnet, avec confirmation."
+    },
+    {
+      "id": "notif",
+      "nameFr": "Me prévenir : « la mer est haute dans 30 min »",
+      "effect": "Une seule notification locale possible, jamais précochée, désactivable d'un geste.",
+      "cost": "0",
+      "when": "Réglage dans le carnet, page de garde."
+    }
+  ],
+  "prestige": {
+    "nameFr": "L'hivernage, puis le rhabillage",
+    "trigger": "Quand la lune revient à sa phase du premier jour (29,53 jours après le début de saison), ou par le bouton « Fermer le marais » dès le jour 14, ou automatiquement si une absence dépasse la fin de saison (le joueur revient alors sur un marais sous l'eau d'hiver, jamais sur une ruine).",
+    "formula": "record_saison = kgGrosSelTirés / Σ_jours(nbŒillets) en kg/œillet/jour ; tonnage = (kgGrosSel + kgFleur) / 1000 ; rangéesSaisonSuivante = min(11, 5 + 2 × saisonsTerminées) ; argent reporté intégralement ; parcellesPerdues = celles dont intégrité < 0,5 à la fermeture ; climatSuivant = CLIMATS[hash(dateDébut, saisonIndex) % 5] en évitant le précédent ; aucune multiplication de quoi que ce soit.",
+    "whatResets": "Toute l'eau, toute la saumure et toutes les algues (la mémoire du système : les adernes roses qu'il faudra refaire), le sel couché non tiré, la fleur en attente, les trappes (toutes fermées), les prix de la saison (réimprimés, identiques), les parcelles dont l'argile était sous 0,5 (effacées du plan).",
+    "whatPersists": "Les euros, les parcelles saines et leur type (redessinables gratuitement pendant l'hiver : déplacer, fusionner, changer de type, repositionner les trappes, avec l'argile déjà possédée), les objets (clapet, baromètre, lousse), le carnet avec toutes ses observations (encre qui pâlit avec l'âge des pages), le mur de sacs de la coopérative (un sac au pochoir par saison : année, climat, tonnage, record), les mulons des saisons passées en vignettes.",
+    "bonus": "Deux rangées de terres de plus (jusqu'à 7 × 11), un climat nommé pour la nouvelle année (« 1976, été de sécheresse » : +3 °C, pluie seulement sous 1 001 hPa, vent +0,1 ; « 1983, été pourri » : -2 °C, pluie dès 1 008 hPa ; « 2003, canicule » : +5 °C, fissures × 2, fleur presque chaque soir ; « 1999, été de vent » : vent +0,25, fleur rare ; « 2012, été ordinaire » ; la première saison est toujours ordinaire), et le plan de l'an passé en vignette dans le carnet pour le comparer. On recommence parce que le dessin auquel on croyait rencontre un climat qui le punit, et parce que le seul score, kg/œillet/jour, mesure la compréhension, pas les heures."
+  },
+  "idleModel": "À l'ouverture, catchUp(lastSeen) rejoue la simulation par pas de 10 minutes de lastSeen à maintenant (plafonné à 60 jours ; au-delà la saison était finie de toute façon et l'hivernage automatique s'applique), avec la marée, la météo partagée et l'heure locale de chaque pas : en une semaine d'absence, 1 008 pas sur au plus 77 parcelles, quelques millisecondes. Rien n'accumule linéairement : un œillet sans eau ne fait plus de sel ; le sel tiré sur le mulon est en sécurité ; le sel couché dans un œillet peut être partiellement redissous par une vraie pluie (3 à 10 kg par averse et par œillet, plafonné par la saturation) ; une parcelle à sec fissure après 6 h (œillet) à 48 h (vasière), à 0,006 d'intégrité par heure, ce qui coûte un rhabillage à 60 EUR : c'est le seul coût réel d'une longue absence et il est bon marché. Mesuré : 8 h d'absence rendent exactement le sel qu'aurait donné un ratissage horaire (ratio 1,00 sans pluie) ; 7 jours d'absence sur un marais de 22 parcelles avec réserve suffisante : zéro fissure avec ou sans mise en eau, 1 500 à 1 700 EUR de sel au retour. L'état sûr explicite est « Mettre en eau » (gratuit, un toucher, proposé après 20 h) : œillets inondés à 8 cm, toutes trappes ouvertes, aucune fissure possible ; le marais reste inerte des semaines. Si l'absence dépasse la fin de saison, l'hivernage se fait seul. Au retour, une page de carnet glisse : un glyphe par marée (soleil, nuage, pluie, phase de lune), puis des lignes en français simple (voir copyFr.retour_*), puis le marais lui-même dans ses nouvelles couleurs, qui est le vrai rapport.",
+  "dailyRitual": "Trois rythmes que le joueur n'a pas choisis et ne peut pas acheter. QUOTIDIEN : la pleine mer glisse d'environ 50 minutes par jour, donc l'heure d'ouvrir l'étier fait le tour de l'horloge ; regarder les heures de marée de demain dans le carnet est un petit plaisir, comme un annuaire des marées. Le matin on lit le baromètre et on règle les trappes ; entre 15 h et 20 h, s'il fait chaud et calme, on écume la fleur (12 jours sur 30 dans la météo simulée : assez rare pour être un événement, assez fréquent pour devenir une habitude). HEBDOMADAIRE : la lune. Vives-eaux autour des nouvelle et pleine lunes : la vasière déborde, on ouvre tout, c'est l'abondance. Mortes-eaux une semaine plus tard : la mer n'apporte plus qu'un quart, le marais vit sur sa réserve, on voit la vasière baisser et on comprend à quoi servent les cobiers. MÉTÉO PARTAGÉE : tout le monde a la même averse le même mardi à 14 h, donc le jeu se raconte (« tu as rentré ton sel avant la pluie ? »). MENSUEL : la saison se ferme avec la lune, le sac du record est pochoiré, et le redessin d'hiver est une soirée créative calme. Aucune notification par défaut (une seule, optionnelle, jamais précochée). Rien n'est perdu à sauter un jour : le marais a simplement fait moins de sel, et s'il était mis en eau il ne s'est rien passé du tout, ce qui est aussi très bien. Mesuré : avec une seule visite par jour à 19 h 15, le joueur occasionnel finit la saison avec le même marais plein (35 parcelles) et 90 % des revenus du joueur à trois visites.",
+  "events": [
+    "La mer franchit le seuil (deux fois par jour, heure qui glisse de 50 min/j) : l'anneau jaune se pose sur l'étier s'il n'est pas ouvert ; avec le clapet, la vasière se remplit seule et l'aiguille monte",
+    "Vives-eaux (A > 1,2, autour des nouvelle et pleine lunes) : la vasière déborde, l'eau cascade dans tout le marais, dicton d'abondance",
+    "Mortes-eaux (A < 0,9, 3 à 4 jours autour des quartiers) : la mer effleure le seuil, le carnet écrit la réserve en jours (« La vasière tiendra 2 jours »), les cobiers se vident à vue",
+    "Front de pluie partagé (P < 1005 et baisse ; 5 à 7 épisodes par mois, 40 à 75 mm) : hachure sur la page, couche rose décalée, sel couché redissous (3 à 10 kg par œillet non tiré), adernes diluées, algues qui pâlissent",
+    "Soirée à fleur (15 h-20 h, T > 22 °C, vent < 0,4, sec ; 8 à 12 jours par mois) : liseré blanc épais sur les œillets saturés, écumage à la lousse",
+    "Première averse scriptée (jour 3, 14 h, 2 h) après 72 h de beau fixe garanti : la leçon de la pluie à heure fixe",
+    "Floraison : une aderne passe le seuil des 150 g/L et rosit ; deux avocettes se posent ; les algues font +25 % d'évaporation tant qu'elle reste entre 150 et 280",
+    "Croûte perdue : un fare ou une aderne dépasse 260 g/L (trop d'amont pour trop peu d'œillets) : points blancs ternes non ratissables, observation du carnet « Le fare 2 croûte : il lui manque un œillet »",
+    "Chapelet qui s'assèche : un œillet nourri par un œillet lui-même nourri par un œillet tombe à 0 cm ; hachures après 6 h",
+    "Fissure : parcelle à sec au-delà du délai de son type ; hachures noires, fuite, suggestion « Rhabiller (60 EUR) »",
+    "Nuit (21 h 30 -> 6 h 30) : surimpression canard qui glisse en 60 s, évaporation × 0,3, dicton du soir",
+    "Retour après absence : page de carnet avec glyphes de marées et bilan en français, puis le marais",
+    "Fin de saison : la lune revient à sa phase du premier jour ; l'eau d'hiver noie la page en canard, le sac du record se pochoire à la coopérative, le rhabillage d'hiver s'ouvre",
+    "Climat de l'année suivante annoncé sur la page de garde (« 1983, été pourri ») et deux rangées de terres accordées par la commune",
+    "Observation auto-écrite du carnet (une par jour au plus, à partir de faits mesurés sur le marais du joueur : meilleur œillet, ratio amont/œillets, heures de sec, kg redissous)"
+  ],
+  "screens": [
+    {
+      "name": "Page de garde",
+      "content": "« ŒILLETS » au pochoir, « Marais de Kerbrun. Juin. » en italique, phase de lune du jour, bouton tactile plein écran « Toucher pour ouvrir le carnet ». Au retour : la page de retour (bilan d'absence) remplace la garde.",
+      "canvasOrDom": "DOM (texte) + canvas pour le grain et la lune"
+    },
+    {
+      "name": "Marais (écran de jeu unique, portrait, sans défilement)",
+      "content": "Bande de ciel 150 px (jauge de marée avec seuil et heure de la prochaine pleine mer en pochoir, soleil/lune avec heure et température, baromètre à aiguille ou courbe 24 h, euros et kg du mulon à chiffres roulants) ; grille 7 × N à ~52 px par case (mer tout en haut, vasière en rangée 0, œillets en bas dans la zone du pouce par construction) ; ligne de marge italique avec l'unique action suggérée ; barre basse 56 px : Carnet, Coopérative, Creuser. Gestes : toucher un mur = trappe ; toucher une case = fiche ; glisser horizontalement sur un œillet blanc = tirer le sel ; toucher un œillet au liseré épais entre 15 h et 20 h = écumer. Cibles ≥ 44 px (murs : 14 px de large étendus à 44 px le long du mur).",
+      "canvasOrDom": "Canvas (marais, ciel, pluie, nuit, oiseaux, mulon) + DOM (tous les textes, barre, marge)"
+    },
+    {
+      "name": "Fiche de parcelle (feuille basse)",
+      "content": "Nom au pochoir (« ŒILLET 3 »), niveau 1,8 cm, salinité 212 g/L, température 24 °C, argile 92 %, algues ; pour chaque trappe de la parcelle : état et « débit 1,2 cm/h » ; projection « saturé vers 16 h » ou « à sec dans 5 h » ; actions : Rhabiller (60 EUR), Mettre en eau / Lever l'eau ; raisons en clair quand une action est impossible. Glisser vers le bas pour fermer.",
+      "canvasOrDom": "DOM"
+    },
+    {
+      "name": "Mode Creuser",
+      "content": "Les cases libres se hachurent en jaune ; toucher une case fait défiler les cinq types avec le prix sur étiquette jaune ; un type impossible reste affiché barré avec sa raison (« Trop de dénivelé : il faut une aderne entre les deux », « Aucune eau en amont », « Trop loin de l'aderne : cet œillet s'assécherait »). Bouton Creuser confirme. Agrandir la vasière se fait en touchant la vasière dans ce mode.",
+      "canvasOrDom": "Canvas (surlignage) + DOM (étiquettes, confirmation)"
+    },
+    {
+      "name": "Carnet (page plein écran)",
+      "content": "Page du jour : heures des deux prochaines pleines mers, prévision 24 h en une ligne, réserve en jours, lune, record en cours kg/œillet/jour ; observations auto-écrites (une par jour, les plus anciennes en encre pâlie) ; dictons ; réglage de la notification ; bouton « Fermer le marais » dès le jour 14 ; pages des saisons passées (vignette du plan, sac, climat).",
+      "canvasOrDom": "DOM (texte) + petits canvas pour les vignettes de plans"
+    },
+    {
+      "name": "Coopérative (mur de sacs)",
+      "content": "Étiquette jaune des prix (gros sel 0,80 EUR/kg, fleur 12 EUR/kg), bouton « Vendre » avec le calcul tamponné (37 kg × 0,80 = 29,60 EUR), étagère des objets (clapet, baromètre, lousse, rhabillage) avec une ligne d'explication chacun, et le mur des sacs des saisons closes au pochoir.",
+      "canvasOrDom": "DOM + SVG inline (sac, las, lousse)"
+    },
+    {
+      "name": "Retour (page de carnet glissante)",
+      "content": "Une ligne de glyphes (un par marée : soleil, nuage, pluie, lune), puis le bilan en français (copyFr.retour_*), puis « Voir le marais ».",
+      "canvasOrDom": "DOM"
+    },
+    {
+      "name": "Hivernage et rhabillage d'hiver",
+      "content": "La page se noie en canard sur 3 s ; le sac du record se pochoire ; puis le plan sous l'eau d'hiver en mode édition : toucher une case pour changer son type ou l'effacer, glisser une parcelle sur une case libre pour la déplacer, toucher un mur pour poser ou retirer une trappe, tout gratuit avec l'argile possédée ; compteur de parcelles disponibles ; bouton « Ouvrir la saison ».",
+      "canvasOrDom": "Canvas (plan éditable) + DOM (compteur, sac, bouton)"
+    }
+  ],
+  "firstTenMinutes": "La seule entorse au temps réel, annoncée par un bandeau jaune « Première journée, en accéléré » : dix minutes réelles = 24 heures, de 6 h à 6 h (× 144), puis l'heure réelle pour toujours. Horaires mesurés dans la simulation avec les constantes finales.\\n\\n0:00 Page kraft, « ŒILLETS » au pochoir, dessous en italique « Marais de Kerbrun. Juin. ». Toucher.\\n0:04 Le plan apparaît : la vasière vide sur toute la rangée du haut, un cobier à sec, et deux bassins qui tiennent encore les eaux vieilles de l'automne : le fare violet (130 g/L), l'aderne rose (190 g/L) où deux avocettes dorment, un œillet à sec aux fines fissures (argile 92 %). Marge : « Le vieux Le Goff t'a laissé ses eaux vieilles. La mer monte : ouvre l'étier. » Anneau jaune sur l'étier ; l'aiguille de la jauge grimpe vers le repère du seuil.\\n0:29 Toucher : la planche bascule, la trame canard coule dans la vasière pendant 40 s. Dicton : « À marée haute on prend, à marée basse on attend. »\\n1:05 La mer redescend sous le seuil ; la vasière (14 cm) commence à repartir vers la mer : on le voit avant qu'on le dise. Marge : « L'eau repart avec la mer. Ferme l'étier. » 1:11 Toucher.\\n1:44 Marge : « Fais descendre l'eau. » Anneau sur le mur vasière-cobier. Le joueur ouvre les quatre trappes de la chaîne (vasière -> cobier -> fare -> aderne -> œillet) ; l'eau descend en escalier, chaque bassin un peu moins profond.\\n1:48 L'œillet se remplit de l'eau rose de l'aderne (223 g/L). Deux avocettes s'y posent. Dicton : « Quand l'eau rosit, le sel n'est pas loin. »\\n2:13 (11 h, 24 °C) L'œillet passe en aplat rose puis les premiers points blancs apparaissent : 0,2 kg. Marge, rien. Le soleil monte sur le papier.\\n2:59 (13 h, 27 °C) 8,7 kg de points blancs ; l'aderne tourne au rose vif (220 g/L), la vasière vire au violet (elle se concentre, trop peu d'eau).\\n4:50 (17 h 30, 28 °C) 35 kg. Marge : « Le sel est là. Tire-le avec le las, d'un geste. » Le glissé pousse les points vers la ladure ; le mulon apparaît : 36,9 kg.\\n5:12 Marge : « Porte-le à la coopérative. » Étiquette jaune tamponnée : 36,9 kg × 0,80 = 29,54 EUR.\\n5:38 (19 h 25) Deuxième pleine mer : l'anneau revient sur l'étier. « La mer remonte. Reprends de l'eau. » Toucher : la vasière se remplit.\\n6:27 (21 h 30) Le soir tombe : la surimpression canard glisse sur la page en 60 s. Dicton : « La nuit, l'eau se repose. » 6:36 « Ferme l'étier avant qu'elle ne redescende » : second rendez-vous manuel, volontairement un peu pénible.\\n7:05 (23 h) Le baromètre bascule à gauche, la page se hachure sous la nuit bleue : averse. L'œillet, à moitié rechargé de saumure, perd des points : la fiche dit « 5,6 kg redissous ». Marge : « La pluie dissout. Avant la pluie : tire le sel, ferme les trappes des adernes. » Le joueur ferme la trappe de l'aderne ; l'averse passe en 40 s.\\n8:30 (2 h 30) Nuit calme ; les points reviennent lentement dans l'œillet (17,9 kg au matin) ; l'aderne a gardé son rose (233 g/L).\\n9:30 Le bandeau jaune pâlit : « Le marais vit maintenant au rythme de la mer. Prochaine pleine mer : {heure réelle}. Il fera beau jusqu'à demain midi. » Le carnet s'ouvre sur sa première page, déjà écrite : les deux vraies heures de marée, la prévision, et deux lignes : « Clapet d'étier : 25 EUR. La mer n'emportera plus ton eau. » et « Creuser un second œillet : 60 EUR. » Le joueur a 29,54 EUR : il peut acheter le clapet tout de suite, et il a une raison de penser à l'eau qui nourrirait un second œillet.\\n10:00 (6 h, deuxième aube) Fin de l'accéléré : l'aube réelle viendra à son heure.",
+  "simulation": {
+    "scriptPath": "/tmp/claude-0/-home-user-gamemobil/41d35c83-7751-5490-8f33-9fca376790e6/scratchpad/econ-sim.js",
+    "targets": [
+      "T1 Journée accélérée (10 min réelles) : un changement d'état visible au moins toutes les 60 s ; œillet rose avant 2:30, premiers cristaux avant 3:00, ≥ 25 kg tirés vers 5:00, première vente ≥ 20 EUR ; l'averse nocturne redissout 3 à 10 kg ; cash final ≥ 25 EUR pour acheter le clapet à 9:30",
+      "T2 Démarrage temps réel : premier achat structurel (2e œillet) dans les 36 h ; au moins un achat chaque jour de la semaine 1 ; aucune visite de la semaine 1 « sans rien à faire » (ni 5 kg à tirer, ni fleur, ni achat) ; aucune plage éveillée de plus de 6 h sans événement pendant les 3 premiers jours",
+      "T3 Croissance : ≥ 10 œillets au jour 14 ; grille de la saison 1 remplie (35 cases dans la simulation) entre le jour 20 et le jour 28 ; aucune parcelle sans trappe possible",
+      "T4 Revenu : jour 1 entre 40 et 80 EUR ; jour 7 ≥ 140 ; meilleur jour de la saison ≥ 350 ; saison 1 entre 6 000 et 10 000 EUR et 7 à 12 tonnes ; aucun nombre affiché au-dessus de 100 000",
+      "T5 La géométrie compte : sans œillet = 0 kg ; un œillet nourri par la vasière seule rend ≤ 50 % de celui nourri par une chaîne complète pendant les jours de vive-eau ; un marais surchargé en œillets rend ≤ 60 % par œillet et ≤ 85 % par case du marais équilibré ; une chaîne complète pour un seul œillet perd ≥ 300 kg en croûte amont (trop d'amont)",
+      "T6 Absence : 8 h d'absence rendent 90 à 110 % du ratissage horaire ; 7 jours d'absence : aucune parcelle perdue, ≤ 1 rhabillage, le sel du retour est vendable ; la mise en eau laisse une intégrité ≥ 0,9",
+      "T7 Mortes-eaux : avec la politique d'achat qui garde ≥ 5 jours de réserve, ≤ 24 h d'œillet à sec cumulées sur la saison et 0 rhabillage ; la mer franchit le seuil presque tous les jours mais apporte ≤ 25 % aux mortes-eaux",
+      "T8 Rituel : 5 à 8 averses par mois (40 à 75 mm), 8 à 14 soirées à fleur par mois, le joueur à une visite par jour atteint ≥ 85 % du revenu du joueur à trois visites"
+    ],
+    "results": [
+      "T1 mesuré (seed 7) : 14 beats scriptés ou émergents en 10 min, le plus long silence 1:48 -> 2:13 ; œillet rose à 1:48, premiers cristaux à 2:13 (0,2 kg), 8,7 kg à 2:59, 36,9 kg tirés à 5:00, vente 29,54 EUR ; averse 23 h-0 h 30 : 5,6 kg redissous ; cash final 29,54 EUR ≥ clapet 25 EUR. ATTEINT",
+      "T2 mesuré : clapet acheté jour 0,1 ; 2e œillet jour 1,1 (seed 7), 0,9 (seed 3), 2,4 (seed 11, début pluvieux : d'où la garantie de beau fixe 72 h) ; 7/7 jours avec achat en semaine 1 (9 achats) ; 0/21 visites sans rien à faire ; mur max 5,7 h sur les 3 premiers jours (= l'écart entre deux visites). ATTEINT",
+      "T3 mesuré : 11 œillets au jour 14 ; 35 parcelles atteintes au jour 24 (seed 7), 22 (seed 3), 26 (seed 11) ; composition finale 15 œ / 8 ad / 8 fa / 3 co / vasière × 3. ATTEINT",
+      "T4 mesuré (seed 7) : revenu j1 61, j2 75, j3 123, j7 152, j14 15 (17 mm de pluie toute la journée), j21 395, j29 327 ; meilleur jour 419 EUR ; saison 7 418 EUR = 8 483 kg de gros sel + 52,6 kg de fleur (8,5 t) ; seeds 3 et 11 : 8 920 EUR / 10,2 t et 7 272 EUR / 8,5 t ; plus grand nombre affiché 10 232 kg. ATTEINT (le j29 est plus bas que le j21 : septembre refroidit, et la grille est pleine ; l'argent s'accumule pour l'an prochain, 1 336 EUR)",
+      "T5 mesuré (15 jours, même météo, kg par œillet et par jour) : sans œillet 0 (2 639 kg de croûte amont) ; court vasière->fare->œillet 55 kg (36 en vive-eau) ; ligne complète pour 1 œillet 77 kg (78 en vive-eau) mais 647 kg perdus en croûte amont ; ferme 3 œillets sur un fare 29 kg/œ ; chapelet de 4 œillets 26 kg/œ et saturé 38 % du temps seulement ; surchargé 9 œillets 23 kg/œ, 15,8 kg par case ; équilibré 6 œillets 42 kg/œ, 19,5 kg par case (+23 % par case) ; citerne 43 kg/œ. Rendement par 100 EUR investis : ferme 24,6, chapelet 23,7, court 22,8, surchargé 21,1, équilibré 19,2, citerne 15,2, ligne 13,1 EUR/jour. ATTEINT : les dispositions bon marché démarrent plus vite, les dispositions équilibrées rendent plus par case quand la terre est la limite ; ni l'une ni l'autre n'est triviale",
+      "T6 mesuré : 8 h d'absence au jour 5 : 107,6 kg retrouvés = 100 % du ratissage horaire (pas de pluie) ; 7 jours d'absence j8-j15 sur 22 parcelles : sans mise en eau intégrité mini 0,92, 0 rhabillage, 1 727 EUR vendus au retour ; avec mise en eau 0,92, 0 rhabillage, 1 504 EUR (les œillets inondés saturent plus lentement : la sécurité coûte 13 %). ATTEINT",
+      "T7 mesuré : 6 h d'œillet à sec sur toute la saison (seed 7 ; 9 h seed 3 ; 0 h seed 11), 0 rhabillage ; la vasière a été agrandie 3 fois (jours 9, 17, 26) ; entrée d'eau quotidienne entre 86 cm·unités (mortes-eaux) et 1 126 (vive-eau après creusement) ; 59 marées sur 60 franchissent le seuil. ATTEINT",
+      "T8 mesuré : 5 averses, 42 h, 73 mm (seed 7) ; 6 averses 37 mm (seed 3) ; 7 averses 62 mm (seed 11) ; soirées à fleur 37 h sur 12 jours (seed 7), 11 et 8 jours (seeds 3, 11) ; joueur à 1 visite/jour : 35 parcelles, 6 690 EUR, 7,8 t = 90 % du joueur à 3 visites ; à 2 visites : 6 196 EUR dans l'itération précédente. ATTEINT"
+    ],
+    "tuningNotes": "Cinq itérations. (1) Première version : la politique d'achat restait bloquée (un œillet ne pouvait être creusé que sous une aderne, et la formule marginale donnait 0 aux bassins amont en régime limité par les œillets) : 3 500 EUR non dépensés. Correction : règle physique « dénivelé ≤ 10 cm » à la place de l'arbre de types, et valeur d'ouverture (une parcelle vaut la moitié de ce qu'elle permet de creuser ensuite). (2) La vasière de départ se vidait et fissurait à chaque morte-eau : tout le marais mourait 5 jours sur 15. Corrections : étier à 300 000 L/h par unité de hauteur (était 90 000), amplitude de marée 0,80-1,30 (était 0,70-1,30), seuil 0,72, délais de fissure par type (48 h vasière -> 6 h œillet), et une politique qui valorise la réserve (agrandir la vasière = protéger un tiers du revenu) jusqu'à 5 jours d'évaporation. (3) Les œillets en chapelet s'asséchaient (filet d'eau par simple différence de niveau sur 2 cm) : conservé comme physique du jeu, mais le creusement interdit l'œillet nourri par un œillet lui-même nourri par un œillet, avec une raison affichée. (4) Pluie trop abondante (135 mm/mois) : intensité 0,6 × (1005 - P) plafonnée à 4 mm/h -> 40-75 mm. Vent presque toujours fort : formule 0,1 + 0,9|dP| + (1010 - P)/20. Fleur introuvable : seuil 22 °C et vent < 0,4 -> 8 à 12 soirées par mois. (5) Échelle des kilos : YIELD_DIV = 14 pour qu'un œillet saturé bien nourri fasse 60-80 kg/jour (la promesse du pitch) ; les coûts par unité de surface sont presque égaux (œillet 60, aderne 55, fare 50, cobier 45 EUR par unité) pour que le choix soit un choix de forme (réserve, distribution, récolte) et pas de prix ; croissance linéaire + 10 % par parcelle du même type pour que les dernières cases coûtent 2 à 3 fois les premières sans jamais exploser. Ce qui n'est PAS dans le script et qu'il faut tester dans le jeu : la garantie de beau fixe des 72 premières heures (seed 11 montre un départ pluvieux à 28, 21, 48 EUR/jour qui la justifie), les climats nommés des saisons suivantes (multiplier Tmid, seuil de pluie et CRACK_RATE comme indiqué dans prestige.bonus), le rhabillage d'hiver (la simulation ne redessine pas), et l'adjacence réelle en grille (le script utilise un arbre avec 3 voisins aval par bassin et la vasière sur toute la rangée 0 ; dans la grille la vasière touche 7 cases, ce qui ne peut qu'aider). Risque restant : si un testeur trouve le démarrage temps réel trop lent, baisser COST.oeillet à 45 avant de toucher à autre chose ; si le marais se remplit avant le jour 18, passer GROWTH à 0,15. Lancer : node econ-sim.js [--seed N] [--casual] [--days N].",
+    "formulas": "// ─── TEMPS, LUNE, MARÉE ───\nconst EPOCH = Date.UTC(2000,0,6,18,14);                 // nouvelle lune de référence\nconst SYNODIC_H = 29.530588*24, TIDE_H = 12.4206;        // heures\nconst tH = (ms) => (ms - EPOCH)/3.6e6;                   // heures depuis l'époque\nconst moonPhase = (t) => ((t/SYNODIC_H)%1+1)%1;         // 0 nouvelle, 0.5 pleine\nconst tideAmp = (t) => 1.05 + 0.25*Math.cos(2*Math.PI*t/(SYNODIC_H/2)); // 0.80 morte-eau .. 1.30 vive-eau\nconst tide = (t) => tideAmp(t)*Math.sin(2*Math.PI*t/TIDE_H);           // hauteur ; seuil SILL = 0.72\nconst SILL = 0.72;\nconst localHour = (ms) => { const d = new Date(ms); return d.getHours() + d.getMinutes()/60; };\nconst isNight = (h) => h < 6.5 || h >= 21.5;\nconst seasonEndMs = (startMs) => startMs + SYNODIC_H*3.6e6;   // la lune revient à sa phase du premier jour\nconst clamp = (x,a,b) => Math.max(a, Math.min(b, x));\n// ─── MÉTÉO PARTAGÉE (phases = hash de la date de début de saison, identiques pour tous) ───\nconst phases = (seed) => { let s = seed*9301+49297; const o=[]; for (let i=0;i<4;i++){ s=(s*9301+49297)%233280; o.push(2*Math.PI*s/233280);} return o; };\nconst pressure = (t, ph) => 1013 + 6*Math.sin(2*Math.PI*t/55.2+ph[0]) + 5*Math.sin(2*Math.PI*t/98.4+ph[1]) + 4*Math.sin(2*Math.PI*t/190+ph[2]) + 3*Math.sin(2*Math.PI*t/329+ph[3]);\nconst rainMmH = (P, dP) => (P < 1005 && dP < 0) ? Math.min(4, (1005-P)*0.6) : 0;   // dP = pression(t+1h) - pression(t)\nconst wind01 = (P, dP) => clamp(0.1 + 0.9*Math.abs(dP) + Math.max(0, 1010-P)/20, 0, 1);\nconst Tmid = (day) => 20 + 7*Math.sin(Math.PI*Math.min(day,30)/36);               // 20 (juin) -> 27 (jour 18) -> 23.5\nconst tempC = (day, hour, P, rain) => Tmid(day) + 6*Math.cos(2*Math.PI*(hour-16)/24) - (P<1008?4:0) - (rain>0?2:0);\n// garantie 72 h : if (t - tutorialEnd < 72) P = Math.max(P, 1012); et averse scriptée jour 3, 14h-16h : P = 1002, dP = -0.3\n// ─── PARCELLES ───\nconst TYPES = { vasiere:{floor:0,max:40,area:8}, cobier:{floor:-5,max:20,area:4}, fare:{floor:-10,max:10,area:3}, aderne:{floor:-15,max:5,area:2}, oeillet:{floor:-20,max:2,area:1} };\nconst L_PER_CM = 700;                                        // litres par cm pour 1 unité (70 m²)\nconst cap = (c) => TYPES[c.type].area*L_PER_CM;              // L par cm\nconst maxDepth = (c, st) => c.type==='vasiere' ? 40*Math.pow(1.5, st.vasEnl) : (c.type==='oeillet' && st.enEau ? 8 : TYPES[c.type].max);\nconst salinity = (c) => c.depth > 0 ? c.salt/(c.depth*cap(c)) : 0;   // g/L ; c.salt en grammes\nconst canFeed = (pt, ct) => { const d = TYPES[pt].floor - TYPES[ct].floor; return (d>0 && d<=10) || (d===0 && ct==='oeillet'); }; // une trappe existe si vrai\nconst bucket = (S) => S<=0 ? 'sec' : S<80 ? 'canard' : S<150 ? 'violet30' : S<220 ? 'violet60' : S<258 ? 'rose' : 'blanc';\n// ─── UN PAS dt (heures ; dt = 1/6 en rattrapage, 1/360 en jeu à 2 fps... ou simplement dt réel écoulé plafonné à 1/6) ───\nconst evapMmH = (T, w, algae, night, raining) => 2.6*clamp((T-10)/15, 0, 1.25)*(1+0.6*w)*(1+0.25*algae)*(night?0.3:1)*(raining?0.2:1);\n// 1. mer -> vasière, si étier ouvert : kSea = 300000*Math.pow(1.25, st.vasEnl)\n//    si h > SILL : V = Math.min(kSea*(h-SILL)*dt, (maxDepth(vas)-vas.depth)*cap(vas)); vas.depth += V/cap(vas); vas.salt += V*35; vas.algae *= V0/(V0+V)\n//    sinon si !clapet && h < SILL-0.05 : V = Math.min(kSea*(SILL-h)*dt*0.5, vas.depth*cap(vas)); f = V/(vas.depth*cap(vas)); vas.salt *= 1-f; vas.depth -= V/cap(vas)\n// 2. trappe ouverte u->v (u = fond plus haut, ou œillet->œillet dans le sens de la pente d'eau) :\n//    head = (floor_u+depth_u) - (floor_v+depth_v); if (head<=0) rien;\n//    V = Math.min(3000*head*dt, 0.5*head*Cu*Cv/(Cu+Cv), depth_u*Cu, (maxDepth_v-depth_v)*Cv);  // Cu, Cv = cap()\n//    f = V/(depth_u*Cu); salt_v += salt_u*f; salt_u -= salt_u*f; algae_v = (algae_v*Vv + algae_u*V)/(Vv+V); depth_u -= V/Cu; depth_v += V/Cv\n// 3. par parcelle : depth = max(0, depth - evapMmH/10*dt); if (integ<0.8) depth = max(0, depth - 0.4*(1-integ)*dt)\n//    pluie : depth += rain/10*dt; if (depth > md) { salt *= md/depth; depth = md; } fleur -> crust (fleur*1000*14)\n//    V = depth*cap; if (V<=0.5) { crust += salt; salt = 0; depth = 0 }\n//    else { S = salt/V; if (S>260) { ex = salt-260*V; crust += ex; salt -= ex } else if (crust>0) { d = min(crust,(260-S)*V); crust -= d; salt += d; redissous += d (si œillet) } }\n//    algues : if (depth>0 && S>=150 && S<=280 && T>18 && !night) algae = min(1, algae+0.06*dt); else if (depth<=0 || S<100 || S>290) algae = max(0, algae-0.25*dt)\n//    argile : CRACK_AFTER = {vasiere:48, cobier:24, fare:12, aderne:8, oeillet:6}; if (depth<=0.02) { dryH += dt; if (dryH > CRACK_AFTER[type] && !st.enEau) integ = max(0, integ-0.006*dt) } else dryH = 0\n//    fleur (œillet) : if (depth>0 && S>=250 && T>22 && w<0.4 && rain===0 && hour>=15 && hour<20) fleur = min(1.5, fleur + 0.25*dt)\n// ─── AFFICHAGE, ÉCONOMIE ───\nconst YIELD_DIV = 14;                                        // grammes simulés -> kg affichés\nconst kgDisplay = (g) => g/1000/YIELD_DIV;                   // œillet saturé nourri à 250 g/L ≈ 60-80 kg/jour\nconst saltDots = (kg) => Math.floor(kg/4);                   // points blancs dessinés\nconst PRICE = { gros: 0.80, fleur: 12 };                     // EUR/kg, fixes pour la saison\nconst COST = { oeillet:60, aderne:110, fare:150, cobier:180, vasiere:300, clapet:25, barometre:80, lousse:120, rhabillage:60 };\nconst plotCost = (type, nOwned) => type==='vasiere' ? 300*Math.pow(1.5, nOwned) : COST[type]*(1 + 0.10*nOwned);\nconst storageDays = (cells, st) => cells.reduce((a,c)=>a+maxDepth(c,st)*TYPES[c.type].area,0) / cells.reduce((a,c)=>a+3.5*TYPES[c.type].area,0); // le carnet écrit « réserve : N jours »\nconst yieldEurDay = (Aup, N) => (3.5*700*0.80/(YIELD_DIV*1000)) * Math.min((Aup+N)*35, N*258); // Aup = surface amont en unités, N = œillets ; régime permanent, pour la projection du carnet\nconst recordKgParOeilletJour = (kgSaison, sommeJournaliereDesOeillets) => kgSaison / sommeJournaliereDesOeillets;\nconst rowsForSeason = (seasonsDone) => Math.min(11, 5 + 2*seasonsDone);\n// ─── RATTRAPAGE ───\n// for (let t = lastSeen; t < now; t += 10 min) { env = weatherAt(t); step(env, 1/6) } ; plafonner à 60 jours ; si t dépasse seasonEnd -> hivernage automatique\n// première journée : horloge virtuelle 06:00 -> 06:00, dt = 1/6 toutes les 4,17 s réelles (x144), marée A = 1.2 pleine mer à 7h00 et 19h25, T = 22 + 7cos(2π(h-16)/24), vent 0.5, P 1018, averse 3 mm/h de 23h00 à 0h30"
+  },
+  "copyFr": [
+    {
+      "key": "titre",
+      "text": "ŒILLETS"
+    },
+    {
+      "key": "sous_titre",
+      "text": "Marais de Kerbrun. Juin."
+    },
+    {
+      "key": "garde_toucher",
+      "text": "Toucher pour ouvrir le carnet"
+    },
+    {
+      "key": "bandeau_accelere",
+      "text": "Première journée, en accéléré"
+    },
+    {
+      "key": "bandeau_fin",
+      "text": "Le marais vit maintenant au rythme de la mer. Prochaine pleine mer : {heure}. {prevision}"
+    },
+    {
+      "key": "btn_carnet",
+      "text": "Carnet"
+    },
+    {
+      "key": "btn_cooperative",
+      "text": "Coopérative"
+    },
+    {
+      "key": "btn_creuser",
+      "text": "Creuser"
+    },
+    {
+      "key": "btn_vendre",
+      "text": "Vendre"
+    },
+    {
+      "key": "btn_rhabiller",
+      "text": "Rhabiller · 60 EUR"
+    },
+    {
+      "key": "btn_mettre_en_eau",
+      "text": "Mettre en eau"
+    },
+    {
+      "key": "btn_lever_eau",
+      "text": "Lever l'eau"
+    },
+    {
+      "key": "btn_fermer_marais",
+      "text": "Fermer le marais"
+    },
+    {
+      "key": "btn_ouvrir_saison",
+      "text": "Ouvrir la saison"
+    },
+    {
+      "key": "btn_voir_marais",
+      "text": "Voir le marais"
+    },
+    {
+      "key": "btn_confirmer",
+      "text": "Creuser ici"
+    },
+    {
+      "key": "btn_annuler",
+      "text": "Laisser"
+    },
+    {
+      "key": "hud_pleine_mer",
+      "text": "Pleine mer {heure}"
+    },
+    {
+      "key": "hud_seuil",
+      "text": "seuil"
+    },
+    {
+      "key": "hud_reserve",
+      "text": "Réserve {jours} j"
+    },
+    {
+      "key": "hud_mulon",
+      "text": "{kg} kg"
+    },
+    {
+      "key": "type_vasiere",
+      "text": "Vasière"
+    },
+    {
+      "key": "type_cobier",
+      "text": "Cobier"
+    },
+    {
+      "key": "type_fare",
+      "text": "Fare"
+    },
+    {
+      "key": "type_aderne",
+      "text": "Aderne"
+    },
+    {
+      "key": "type_oeillet",
+      "text": "Œillet"
+    },
+    {
+      "key": "fiche_niveau",
+      "text": "Niveau {cm} cm"
+    },
+    {
+      "key": "fiche_salinite",
+      "text": "Salinité {gl} g/L"
+    },
+    {
+      "key": "fiche_temperature",
+      "text": "Eau à {c} °C"
+    },
+    {
+      "key": "fiche_argile",
+      "text": "Argile {pct} %"
+    },
+    {
+      "key": "fiche_algues",
+      "text": "Eaux {etat}"
+    },
+    {
+      "key": "fiche_algues_etats",
+      "text": "claires | qui rosissent | roses | rose vif"
+    },
+    {
+      "key": "fiche_sel",
+      "text": "Sel couché {kg} kg"
+    },
+    {
+      "key": "fiche_fleur",
+      "text": "Fleur en surface {kg} kg"
+    },
+    {
+      "key": "fiche_trappe",
+      "text": "Trappe {direction} : {etat}, {debit} cm/h"
+    },
+    {
+      "key": "fiche_trappe_etats",
+      "text": "ouverte | fermée"
+    },
+    {
+      "key": "fiche_projection_saturation",
+      "text": "Saturé vers {heure}"
+    },
+    {
+      "key": "fiche_projection_sec",
+      "text": "À sec dans {h} h"
+    },
+    {
+      "key": "fiche_projection_stable",
+      "text": "Niveau tenu par l'aderne"
+    },
+    {
+      "key": "fiche_a_sec",
+      "text": "À sec depuis {h} h"
+    },
+    {
+      "key": "fiche_fissure",
+      "text": "L'argile fissure : la parcelle fuit."
+    },
+    {
+      "key": "creuser_prix",
+      "text": "{type} · {prix} EUR"
+    },
+    {
+      "key": "creuser_vasiere",
+      "text": "Agrandir la vasière · {prix} EUR · réserve +50 %, étier élargi"
+    },
+    {
+      "key": "creuser_impossible_denivele",
+      "text": "Trop de dénivelé : il faut une aderne ou un fare entre les deux."
+    },
+    {
+      "key": "creuser_impossible_amont",
+      "text": "Aucune eau en amont : rien ne viendrait remplir cette parcelle."
+    },
+    {
+      "key": "creuser_impossible_chapelet",
+      "text": "Trop loin de l'aderne : cet œillet s'assécherait."
+    },
+    {
+      "key": "creuser_impossible_argent",
+      "text": "Il manque {eur} EUR. Le marais y pourvoira."
+    },
+    {
+      "key": "creuser_impossible_place",
+      "text": "Plus de terre libre. La commune en accordera à l'hiver."
+    },
+    {
+      "key": "creuser_conseil_oeillet",
+      "text": "Un œillet rend ce que sa voisine lui apporte."
+    },
+    {
+      "key": "creuser_conseil_cobier",
+      "text": "Un cobier garde l'eau pour les mortes-eaux."
+    },
+    {
+      "key": "creuser_conseil_fare",
+      "text": "Un fare chauffe l'eau avant les adernes."
+    },
+    {
+      "key": "creuser_conseil_aderne",
+      "text": "Une aderne tient la saumure rose et nourrit trois œillets."
+    },
+    {
+      "key": "coop_etiquette",
+      "text": "GROS SEL 0,80 EUR/kg · FLEUR DE SEL 12 EUR/kg · prix de la saison"
+    },
+    {
+      "key": "coop_vente",
+      "text": "{kg} kg × {prix} = {eur} EUR"
+    },
+    {
+      "key": "coop_vide",
+      "text": "Le mulon est vide. Tire le sel d'un geste sur un œillet blanc."
+    },
+    {
+      "key": "coop_clapet",
+      "text": "Clapet d'étier · 25 EUR — La mer n'emportera plus ton eau : l'étier se ferme seul quand elle redescend."
+    },
+    {
+      "key": "coop_barometre",
+      "text": "Baromètre enregistreur · 80 EUR — La courbe des 24 prochaines heures. La pluie se lit avant de tomber."
+    },
+    {
+      "key": "coop_lousse",
+      "text": "Lousse à fleur · 120 EUR — Pour écumer la fleur de sel les soirs chauds et calmes, entre 15 h et 20 h."
+    },
+    {
+      "key": "coop_rhabillage",
+      "text": "Rhabillage d'un talus · 60 EUR — Depuis la fiche d'une parcelle fissurée."
+    },
+    {
+      "key": "coop_mur_vide",
+      "text": "Aucun sac encore. Le premier sera pochoiré à l'hivernage."
+    },
+    {
+      "key": "sac_record",
+      "text": "SAISON {n} · {climat} · {tonnes} t · {record} kg/œillet/jour"
+    },
+    {
+      "key": "marge_ouvre_etier",
+      "text": "La mer monte. Ouvre l'étier."
+    },
+    {
+      "key": "marge_eaux_vieilles",
+      "text": "Le vieux Le Goff t'a laissé ses eaux vieilles : le fare est violet, l'aderne encore rose."
+    },
+    {
+      "key": "marge_ferme_etier",
+      "text": "L'eau repart avec la mer. Ferme l'étier."
+    },
+    {
+      "key": "marge_descendre",
+      "text": "Fais descendre l'eau."
+    },
+    {
+      "key": "marge_tirer",
+      "text": "Le sel est là. Tire-le avec le las, d'un geste."
+    },
+    {
+      "key": "marge_porter",
+      "text": "Porte-le à la coopérative."
+    },
+    {
+      "key": "marge_remonte",
+      "text": "La mer remonte. Reprends de l'eau."
+    },
+    {
+      "key": "marge_pluie",
+      "text": "La pluie dissout. Avant la pluie : tire le sel, ferme les trappes des adernes."
+    },
+    {
+      "key": "marge_fleur",
+      "text": "Soir chaud et calme : écume la fleur avant 20 h."
+    },
+    {
+      "key": "marge_reserve",
+      "text": "Mortes-eaux dans {j} jours : la réserve tiendra {jours} jours."
+    },
+    {
+      "key": "marge_a_sec",
+      "text": "L'œillet {n} est à sec depuis {h} h."
+    },
+    {
+      "key": "marge_croute",
+      "text": "Le fare {n} croûte : il lui manque un œillet."
+    },
+    {
+      "key": "marge_mise_en_eau",
+      "text": "Il est tard. Mettre le marais en eau avant de partir ?"
+    },
+    {
+      "key": "marge_rien",
+      "text": "Rien à faire. Regarde l'eau."
+    },
+    {
+      "key": "dicton_01",
+      "text": "À marée haute on prend, à marée basse on attend."
+    },
+    {
+      "key": "dicton_02",
+      "text": "Quand l'eau rosit, le sel n'est pas loin."
+    },
+    {
+      "key": "dicton_03",
+      "text": "La nuit, l'eau se repose."
+    },
+    {
+      "key": "dicton_04",
+      "text": "Vent d'est, sel de fête."
+    },
+    {
+      "key": "dicton_05",
+      "text": "Baromètre qui tombe, sel qu'on rentre."
+    },
+    {
+      "key": "dicton_06",
+      "text": "Un œillet ne rend que ce qu'on lui porte."
+    },
+    {
+      "key": "dicton_07",
+      "text": "Six parts d'eau pour une part de sel."
+    },
+    {
+      "key": "dicton_08",
+      "text": "Aux mortes-eaux, le marais boit dans ses poches."
+    },
+    {
+      "key": "dicton_09",
+      "text": "Vive-eau de lune neuve, vasière qui déborde."
+    },
+    {
+      "key": "dicton_10",
+      "text": "Argile sèche, talus qui pleure."
+    },
+    {
+      "key": "dicton_11",
+      "text": "La fleur vient au soir, quand le vent dort."
+    },
+    {
+      "key": "dicton_12",
+      "text": "Chapelet trop long, dernier grain à sec."
+    },
+    {
+      "key": "dicton_13",
+      "text": "Eaux vieilles au fare, printemps au marais."
+    },
+    {
+      "key": "dicton_14",
+      "text": "Un fare qui blanchit a trop peu d'enfants."
+    },
+    {
+      "key": "dicton_15",
+      "text": "Septembre ferme ce que juin a ouvert."
+    },
+    {
+      "key": "dicton_16",
+      "text": "Ce que la lune donne, la lune reprend."
+    },
+    {
+      "key": "carnet_titre_jour",
+      "text": "{jour_semaine} {date} · lune {phase}"
+    },
+    {
+      "key": "carnet_marees",
+      "text": "Pleines mers : {h1} et {h2}. La mer {franchit_ou_non} le seuil."
+    },
+    {
+      "key": "carnet_marees_etats",
+      "text": "franchira largement | franchira de peu | n'atteindra pas"
+    },
+    {
+      "key": "carnet_prevision",
+      "text": "{prevision} jusqu'à {heure}."
+    },
+    {
+      "key": "carnet_previsions",
+      "text": "Il fera beau | Le temps se couvre | Pluie probable | Vent fort | Soir à fleur"
+    },
+    {
+      "key": "carnet_reserve",
+      "text": "Réserve : {jours} jours d'eau."
+    },
+    {
+      "key": "carnet_record",
+      "text": "Cette saison : {kg} kg par œillet et par jour. Record : {best}."
+    },
+    {
+      "key": "carnet_vide",
+      "text": "Rien d'écrit encore. Le marais parlera le premier."
+    },
+    {
+      "key": "obs_meilleur_oeillet",
+      "text": "L'œillet {n} a fait {kg} kg hier : il reçoit l'eau de l'aderne {m} à {gl} g/L."
+    },
+    {
+      "key": "obs_ratio",
+      "text": "Tu as {aup} parts d'eau en amont pour {n} œillets. Vers six pour un, ils tournent au plein."
+    },
+    {
+      "key": "obs_croute",
+      "text": "Le fare {n} a dépassé 260 g/L : {kg} kg se sont perdus en croûte. Un œillet de plus l'aurait pris."
+    },
+    {
+      "key": "obs_sec",
+      "text": "L'œillet {n} est resté à sec {h} h cette semaine. Il n'a qu'un œillet pour le nourrir."
+    },
+    {
+      "key": "obs_pluie",
+      "text": "L'averse de {jour} {heure} a redissous {kg} kg dans les œillets non tirés."
+    },
+    {
+      "key": "obs_rose",
+      "text": "L'aderne {n} est restée rose {j} jours : ses algues font évaporer un quart plus vite."
+    },
+    {
+      "key": "obs_mortes_eaux",
+      "text": "Aux mortes-eaux, la vasière est tombée à {cm} cm. Un cobier de plus aurait tenu."
+    },
+    {
+      "key": "obs_fleur",
+      "text": "{n} soirs à fleur ce mois : {kg} kg, {eur} EUR. Autant que {kg_gros} kg de gros sel."
+    },
+    {
+      "key": "obs_premiere",
+      "text": "Première journée : {kg} kg tirés, {eur} EUR. L'aderne a tenu son rose malgré l'averse."
+    },
+    {
+      "key": "retour_titre",
+      "text": "Depuis {jour} {heure}"
+    },
+    {
+      "key": "retour_corps",
+      "text": "{n_marees} marées, {n_averses} averse{s} ({detail_pluie}), {kg} kg de gros sel formés, {fleur_kg} kg de fleur en surface. {ligne_aderne} {ligne_sec}"
+    },
+    {
+      "key": "retour_detail_pluie",
+      "text": "{jour} {heure}, {kg} kg redissous dans l'œillet {n}"
+    },
+    {
+      "key": "retour_aucune_averse",
+      "text": "pas une goutte"
+    },
+    {
+      "key": "retour_ligne_aderne",
+      "text": "L'aderne {n} est restée rose."
+    },
+    {
+      "key": "retour_ligne_sec",
+      "text": "L'œillet {n} est à sec depuis {h} h."
+    },
+    {
+      "key": "retour_en_eau",
+      "text": "Le marais était en eau : rien n'a bougé, rien ne s'est fissuré."
+    },
+    {
+      "key": "retour_hivernage",
+      "text": "La lune a fait son tour pendant ton absence. L'hiver a noyé le marais : {tonnes} t cette saison. Le rhabillage t'attend."
+    },
+    {
+      "key": "mise_en_eau_confirm",
+      "text": "Mettre tout le marais en eau ? Les œillets seront noyés à 8 cm, les trappes ouvertes, l'argile à l'abri. Le sel reviendra quand tu lèveras l'eau."
+    },
+    {
+      "key": "lever_eau_confirm",
+      "text": "Lever l'eau : les œillets retrouvent 2 cm, le surplus retourne aux adernes."
+    },
+    {
+      "key": "fermer_confirm",
+      "text": "Fermer le marais au jour {j} ? L'hiver noiera les bassins. Tu gardes {eur} EUR, tes parcelles saines, tes outils et ton carnet. L'eau, la saumure et les algues repartent de zéro. La commune accorde deux rangées de plus."
+    },
+    {
+      "key": "fermer_trop_tot",
+      "text": "On ne ferme pas avant la mi-saison (jour 14)."
+    },
+    {
+      "key": "hivernage_titre",
+      "text": "Hivernage"
+    },
+    {
+      "key": "hivernage_corps",
+      "text": "Saison {n}, {climat}. {tonnes} tonnes, {record} kg par œillet et par jour. {perdues}"
+    },
+    {
+      "key": "hivernage_perdues",
+      "text": "{n} parcelle{s} fissurée{s} rendue{s} à la vase."
+    },
+    {
+      "key": "hivernage_aucune_perdue",
+      "text": "Aucune parcelle perdue."
+    },
+    {
+      "key": "rhabillage_titre",
+      "text": "Rhabillage d'hiver · {n} parcelles à placer, {rows} rangées"
+    },
+    {
+      "key": "rhabillage_aide",
+      "text": "Touche une case pour changer son type, glisse une parcelle pour la déplacer, touche un mur pour poser une trappe. Tout est gratuit : c'est ton argile."
+    },
+    {
+      "key": "climat_annonce",
+      "text": "L'an prochain : {climat}."
+    },
+    {
+      "key": "climat_1976",
+      "text": "1976, été de sécheresse"
+    },
+    {
+      "key": "climat_1983",
+      "text": "1983, été pourri"
+    },
+    {
+      "key": "climat_2003",
+      "text": "2003, canicule"
+    },
+    {
+      "key": "climat_1999",
+      "text": "1999, été de vent"
+    },
+    {
+      "key": "climat_2012",
+      "text": "2012, été ordinaire"
+    },
+    {
+      "key": "notif_label",
+      "text": "Me prévenir : « la mer est haute dans 30 min »"
+    },
+    {
+      "key": "notif_texte",
+      "text": "La mer est haute dans 30 min."
+    },
+    {
+      "key": "format_nombre",
+      "text": "1 234 kg · 36,80 EUR · 212 g/L · 1,8 cm (espace fine insécable, virgule décimale)"
+    },
+    {
+      "key": "sauvegarde_perdue",
+      "text": "Le carnet a été mouillé : nouvelle page. Le marais recommence en juin."
+    },
+    {
+      "key": "premiere_page_carnet",
+      "text": "Pleines mers : {h1} et {h2}. {prevision} Clapet d'étier : 25 EUR. La mer n'emportera plus ton eau. Creuser un second œillet : 60 EUR."
+    }
+  ],
+  "buildNotes": "ÉTAT (un seul objet, sérialisé tel quel) : state = { v: 1, installMs, seasonStartMs, seasonIndex, climate: 'ordinaire'|'1976'|..., rows: 5, cols: 7, lastSeenMs, tutorialDone: bool, cash, mulon (kg), mulonStripes: [{kg, weatherCode}], fleurStock, items: {clapet, barometre, lousse}, notif: false, vasEnl: 0, enEau: false, etierOpen: bool, cells: [{ r, c, type: 'vasiere'|'cobier'|'fare'|'aderne'|'oeillet', depth (cm), salt (g), algae, crust (g), fleur (kg), integ, dryH }], gates: { 'r,c|r2,c2': 0|1 } (clé triée, seules les paires valides par canFeed existent), stats: { kgRaked, kgFleur, eurSold, kgRedissolved, oeilletDays, repairs }, carnet: [{dayIndex, key, vars}], records: [{season, climate, tonnes, kgPerOeilletDay, planThumb: [types]}], seenEvents: {} }. La vasière est une seule cellule logique de type vasiere (area 8) dessinée sur toute la rangée 0 ; les cases de la rangée 1 lui sont toutes adjacentes.\\n\\nTICK : la simulation est une fonction pure step(state, env, dtHours) (ordre : mer -> trappes -> évaporation/pluie/précipitation/algues/argile/fleur, formules dans simulation.formulas). En jeu : requestAnimationFrame limité à 2 fps ; à chaque image, dt = (now - lastSim)/3.6e6 plafonné à 1/6 h ; si l'écart dépasse 10 min (retour d'arrière-plan), appeler catchUp. catchUp(lastSeenMs, nowMs) : boucle par pas de 10 min sur au plus 60 jours avec env = weatherAt(t) (marée, pression, heure locale via new Date(t)), puis si t franchit seasonEndMs : hivernage automatique. Première journée : horloge virtuelle (06:00 -> 06:00, ×144) avec un env scripté ; à la fin, state.lastSeenMs = now et le temps réel prend le relais sans rattrapage. Les trappes/gestes modifient l'état immédiatement puis marquent dirty.\\n\\nSAUVEGARDE : localStorage 'oeillets.v1' = JSON.stringify(state), écrit à chaque action du joueur, toutes les 60 s, et sur visibilitychange/pagehide ; lecture au démarrage avec try/catch ; migrate(state) par numéro de version (v1 -> v2 : ajouter les champs manquants avec leurs défauts, jamais effacer) ; si JSON invalide : nouvelle partie avec le message copyFr.sauvegarde_perdue. Déterminisme : les positions des points de sel et le tremblé des sommets viennent d'un hash (index) pour ne rien stocker.\\n\\nRENDU : un canvas plein largeur (devicePixelRatio ≤ 2) pour ciel + marais + pluie + nuit + oiseaux ; prérendus une fois : grain 256×256, quatre trames 8×8 (10/30/60/100 %), polygones des cases (tableau de points) ; redessin complet seulement si dirty (toute action, tout changement de palier de salinité, de profondeur arrondie au mm, de kg arrondi à 4, de minute d'horloge) ou toutes les 500 ms pour la dérive de trame ; coût mesuré à viser : < 4 ms par redessin sur un téléphone de 2019 pour 77 cases (une case = 1 fill + 1 pattern fill multiply + 2 strokes + N points). DOM : bande de ciel (texte), ligne de marge, barre basse, feuille basse, carnet, coopérative, pages de retour et d'hivernage ; chiffres roulants = colonnes de 10 chiffres translatées par pas de 60 ms (transition: none, setTimeout). Hit-test : murs = segments avec hitbox 14 px épaissie à 44 px dans la longueur, testés avant les cases ; glissé horizontal > 24 px sur un œillet = ratissage ; pointer events uniquement, touch-action: none sur le canvas.\\n\\nORDRE DE CONSTRUCTION (≈ 3 000 lignes) : 1. sim.js pur (step, weatherAt, tide, canFeed, catchUp, économie : ~650 lignes) testable dans node : reprendre econ-sim.js. 2. Rendu (~750). 3. Entrées, fiche, creuser, carnet, coopérative, tutoriel (~650). 4. Saison, hivernage, rhabillage d'hiver, climats, records (~400). 5. Persistance, textes, dictons, observations, formats (~300). Reste ~250 lignes de marge pour les constantes et l'ajustement.\\n\\nPERFORMANCE ET ROBUSTESSE : jamais de shadowBlur ni de filtre CSS plein écran ; patterns créés une fois ; pas de setInterval multiple ; catchUp d'une semaine = 1 008 × 77 pas, < 50 ms ; plafonner dt pour éviter l'instabilité du flux (le 0,5 × head × CuCv/(Cu+Cv) rend le schéma stable à dt = 1/6 h) ; heure locale via Date (le fuseau du téléphone est l'heure vraie du marais) ; fonts avec display=swap et tailles minimales 15 px Archivo, 22 px Big Shoulders ; respecter prefers-reduced-motion en figeant la dérive de trame et le glissement de nuit.",
+  "cutList": [
+    "Trappe réglable à 3 positions (le levier ouvert/fermé suffit ; la simulation n'en a jamais eu besoin)",
+    "Grades de qualité du sel, prix variables, offre et demande à la coopérative (prix fixes imprimés sur étiquette)",
+    "Écologie des crevettes et des oiseaux au-delà des avocettes cosmétiques sur les parcelles roses",
+    "Plusieurs sites de marais (Kerbrun seulement ; les climats nommés et les rangées supplémentaires portent la rejouabilité)",
+    "Son et musique (le jeu est une page silencieuse ; un vibrate(8) au basculement d'une trappe au plus)",
+    "Succès, trophées, séries, récompenses quotidiennes (le mur de sacs et le record kg/œillet/jour sont les seuls souvenirs)",
+    "Export image de la page (canvas.toBlob + navigator.share) : à ajouter seulement si 60 lignes restent",
+    "Strates colorées du mulon selon la météo : garder un mulon simple si le budget serre",
+    "Vignettes des plans passés et encre pâlie du carnet : une couleur CSS par saison suffit, pas de rendu des anciens plans si le temps manque",
+    "Mode rhabillage d'hiver complet (déplacer/fusionner) : au minimum, changer le type d'une case et effacer une case ; le déplacement par glissé vient en dernier",
+    "Instrument Serif : passer les dictons en Archivo Narrow italique si la troisième police coûte trop",
+    "Thème sombre, réglages, langues, tutoriel rejouable : aucun"
+  ],
+  "buildNotes_unused": "x"
+}

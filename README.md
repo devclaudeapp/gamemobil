@@ -1,70 +1,77 @@
-# Filament des abysses
+# Œillets
 
-Un jeu mobile à un seul doigt. Tu es un filament de lumière dans les abysses : glisse le doigt pour tracer, **croise ta propre traîne pour fermer une boucle**, et tout ce qui se trouve à l'intérieur est capturé. Chaque capture joue une note calée sur le tempo : ta partie compose sa propre musique.
+Un jeu mobile de patience sur une page de carnet imprimée en risographie. Tu es paludier sur la presqu'île de Guérande : **la mer monte deux fois par jour avec la vraie lune, le soleil évapore, et le sel ne vient que si tu as compris comment l'eau circule dans ton marais.** Pas de multiplicateur, pas de minuteur : ta seule montée en puissance, c'est la géométrie de tes bassins, la réserve d'eau que tu gardes pour les mortes-eaux et ta lecture du ciel.
 
-## Pourquoi il ne ressemble pas aux autres
+## Ce qui le distingue des idle/tycoon habituels
 
-| Ce que font la plupart des jeux mobiles | Ce que fait Filament |
+| Dans la plupart des jeux idle | Dans Œillets |
 | --- | --- |
-| Bouton « tap », joystick virtuel | Un geste unique, le **lasso**, avec une vraie profondeur : forme, taille et timing de chaque boucle |
-| Musique de fond en boucle | **Musique générative** : les captures sont quantifiées à la double-croche, sur l'accord en cours. Plus la boucle est grosse et le combo haut, plus l'arpège monte |
-| Niveaux fixes, améliorations « +5 % » | **16 mutations qui changent les règles** (écho fantôme, réaction en chaîne, sonar rythmique, onde de gel…) : chaque plongée se construit différemment |
-| Ennemis à éviter | Un **écosystème** : on attire les baudroies qui nous chassent pour mieux les encercler, on laisse les méduses pondre du plancton pour faire une énorme boucle, on brise les nautiles en groupe |
-| Pubs, énergie, compte, notifications | Rien de tout ça. Hors ligne, gratuit, parties de 2 à 5 minutes. **Lâcher l'écran suspend le temps**, le jeu ne punit jamais une interruption |
-| Défis quotidiens à débloquer | **Défi du jour** : la même plongée pour tout le monde, avec une « loi du jour » différente chaque jour, et une série de jours consécutifs |
+| Des producteurs avec un débit et des multiplicateurs à acheter | **Une seule simulation d'eau** : profondeur, salinité et algues par parcelle. Le rendement est une propriété émergente de la forme du marais. Un œillet creusé au mauvais endroit ne rend rien |
+| Un chronomètre interne | **L'heure réelle du téléphone.** Les marées sont les vraies (elles glissent de 50 min par jour, faiblissent aux mortes-eaux, selon la vraie lune). La nuit, l'eau se repose |
+| Une météo décorative ou aléatoire | **Une météo partagée**, tirée de la date : tout le monde a la même averse le même mardi à 14 h. Le baromètre se lit 24 h à l'avance |
+| Des gains hors ligne qui s'accumulent linéairement | **L'absence est rejouée** pas à pas par la simulation. Le sel tiré au mulon est à l'abri, le sel couché dans un œillet se redissout sous la pluie. « Mettre en eau » est un état sûr que tu choisis avant de partir |
+| Un prestige qui multiplie tout | **L'hivernage** : quand la lune revient à sa phase de départ, l'hiver noie le marais, le record est pochoiré sur un sac, et tu redessines librement ta géométrie pour affronter un **climat nommé** (1976 sécheresse, 1983 été pourri, 2003 canicule…) |
+| Un score en heures passées | Le seul score est le **kilo de sel par œillet et par jour** : une mesure de compréhension |
 
 ## Comment jouer
 
-- **Glisse** n'importe où : le filament suit ton geste (comme un pavé tactile), ton doigt ne cache jamais l'action.
-- **Ferme une boucle** en recroisant ta traîne. Points = valeur des prises × nombre de prises × combo.
-- **Enchaîne** les boucles en moins de 3 s pour faire monter le combo.
-- **Descends** : chaque prise remplit la jauge. Tous les 100 m, choisis une mutation parmi trois.
-- **Lâche l'écran** : le temps s'arrête. Repose le doigt pour reprendre.
+- **Ouvre l'étier** quand la mer dépasse le seuil : la vasière se remplit. Sans clapet (25 €), referme-le quand la mer redescend.
+- **Ouvre les trappes** : l'eau descend de bassin en bassin, du fond haut vers le fond bas. Vasière → cobier → fare → aderne → œillet. Une trappe n'existe que si le dénivelé est de 10 cm au plus.
+- Les couleurs disent tout : **canard** = eau jeune, **violet** (trame rose sur canard) = en chemin, **rose** = presque, **points blancs** = sel.
+- **Glisse le pouce sur un œillet blanc** : le sel file au mulon. **Porte-le à la coopérative** (0,80 €/kg ; fleur de sel 12 €/kg).
+- **Creuse** avec tes euros : chaque type de bassin a un rôle (réserve, chauffe, distribution, récolte). Environ six parts d'eau en amont pour une part d'œillet.
+- **Lis le carnet** : heures des pleines mers, prévision, réserve en jours, observations écrites à partir de ton propre marais.
 
-### Bestiaire
+La première journée se joue en dix minutes (× 144). Ensuite, le marais vit à l'heure réelle.
 
-| Créature | Valeur | Comportement |
-| --- | --- | --- |
-| Plancton | 1 | Inoffensif, arrive parfois en bancs |
-| Baudroie | 2 | Te traque. La toucher coûte une vie, l'encercler rapporte |
-| Méduse | 3 | Pond du plancton tant qu'elle vit (dès −100 m) |
-| Espadon | 3 | Vise, puis fonce sur toi et tranche ta traîne (dès −200 m) |
-| Nautile | 5 | Coquille : il faut l'encercler avec au moins deux autres créatures (dès −300 m) |
-| Calmar doré | 6 | Rare et fuyant, s'échappe au bout de 10 s. Le capturer rend une vie |
+### Bestiaire des bassins
 
-## Lancer le jeu
+| Bassin | Fond | Eau max | Surface | Rôle |
+| --- | --- | --- | --- | --- |
+| Vasière | 0 cm | 40 cm (×1,5 par agrandissement) | 8 parts | Réserve d'eau de mer, remplie par l'étier |
+| Cobier | −5 cm | 20 cm | 4 parts | Réserve pour les mortes-eaux |
+| Fare | −10 cm | 10 cm | 3 parts | Chauffe l'eau de 50 à 150 g/L |
+| Aderne | −15 cm | 5 cm | 2 parts | Tient la saumure rose, nourrit jusqu'à trois œillets |
+| Œillet | −20 cm | 2 cm | 1 part | La récolte : le sel précipite au-dessus de 260 g/L |
 
-Tout tient dans `index.html`, sans dépendance ni étape de build.
+## Lancer, tester, construire
+
+Tout tient dans `index.html`, sans dépendance. Les sources sont dans `src/` et assemblées par :
 
 ```bash
-npx serve .            # ou : python3 -m http.server 8000
+node build.js          # produit index.html et dist/artifact.html
+node test/sim.test.js  # vérifie la simulation hors navigateur
+npx serve .            # puis ouvre l'adresse sur un téléphone du même réseau
 ```
 
-Puis ouvre l'adresse affichée, idéalement sur un téléphone du même réseau.
+`test/play.cjs` rejoue un parcours complet sur un iPhone simulé (Playwright) et produit des captures dans `test/shots/`.
+
+**Horloge de test** : ouvrir `index.html#x120` fait tourner la simulation 120 fois plus vite (une journée en douze minutes), pour voir une saison entière sans attendre un mois. `#x1` rétablit l'heure réelle.
 
 ### L'installer sur un téléphone
 
-1. Héberge le dossier en HTTPS, par exemple avec GitHub Pages : *Settings → Pages → Deploy from a branch → `master` / racine*.
+1. Héberge le dossier en HTTPS, par exemple avec GitHub Pages (*Settings → Pages → Deploy from a branch → `master` / racine*).
 2. Ouvre l'URL sur le téléphone, puis :
    - iPhone (Safari) : Partager → **Sur l'écran d'accueil** ;
    - Android (Chrome) : menu ⋮ → **Installer l'application**.
 
-Le jeu s'ouvre alors en plein écran et fonctionne hors ligne grâce au service worker (`sw.js`).
+Le service worker (`sw.js`) garde le jeu consultable hors ligne.
 
 ## Structure
 
 | Fichier | Rôle |
 | --- | --- |
-| `index.html` | Le jeu complet : rendu Canvas 2D, simulation, musique Web Audio, interface |
-| `manifest.webmanifest` | Installation en application (PWA) |
-| `sw.js` | Cache hors ligne |
-| `icons/` | Icônes de l'application (SVG source et PNG générés) |
-
-Dans `index.html`, le script est découpé en sections : outils géométriques, stockage local, moteur musical, créatures et mutations, monde, traîne et boucles, simulation, rendu, interface, entrées, boucle principale.
+| `src/sim.js` | Simulation pure : marée, lune, météo partagée, hydrologie, économie, absence, hivernage. Tourne aussi dans Node |
+| `src/render.js` | Rendu Canvas 2D : papier kraft, trois encres en aplat, trames en surimpression, repérage décalé |
+| `src/sheets.js` | Feuilles et pages : fiche de parcelle, creuser, carnet, coopérative, retour, hivernage, garde |
+| `src/ui.js` | Horloge, boucle, HUD, action suggérée (marge et anneau), tutoriel, entrées tactiles, sauvegarde |
+| `src/copy.js` | Tous les textes français, dictons, climats |
+| `src/style.css`, `src/page.html` | Mise en page |
+| `scratch/econ-sim.js` | Simulateur économique headless qui a servi à régler les constantes |
 
 ## Pistes pour la suite
 
-- Publier sur l'App Store et le Play Store en enveloppant le jeu avec Capacitor.
-- Classement en ligne du défi du jour.
-- Nouveaux paliers visuels sous −1 000 m (zone hadale), nouvelles créatures.
-- Mode « composition » sans ennemis, pour jouer de la musique en traçant.
+- Strates colorées du mulon selon la météo, export image du marais à l'hivernage.
+- Notification locale optionnelle « la mer est haute dans 30 min » (jamais précochée).
+- D'autres sites de marais avec une silhouette de grille différente.
+- Publication App Store / Play Store en enveloppant la page avec Capacitor.
