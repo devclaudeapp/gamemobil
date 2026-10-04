@@ -1,0 +1,19 @@
+{
+  "name": "Filament des abysses",
+  "short_name": "Filament",
+  "description": "Trace des boucles de lumière dans les abysses. Tout ce que tu encercles est capturé, et chaque prise joue une note.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "orientation": "any",
+  "background_color": "#03111a",
+  "theme_color": "#03111a",
+  "categories": ["games"],
+  "icons": [
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
