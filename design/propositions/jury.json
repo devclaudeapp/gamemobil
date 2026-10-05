@@ -1,0 +1,276 @@
+{
+ "juges": [
+  {
+   "scores": [
+    {
+     "id": "A",
+     "lisibilite": 8,
+     "ergonomie_pouce": 8,
+     "decouvrabilite": 9,
+     "qualite_graphique": 7,
+     "coherence_da": 8,
+     "faisabilite": 9,
+     "total": 49,
+     "forces": "La hiérarchie est la plus propre des quatre : en-tête réduit au solde + pastille étoiles, scène dégagée, pilule de modes + Bonus, puis les cartes ; la barre d'onglets blanche à grand rayon reprend exactement le vocabulaire des cartes et ses cinq icônes (devanture, cible, toque, livre, engrenage) partagent trait brun 2 px et aplat pastel, lisibles à 24 px, avec des pastilles cerclées de blanc bien dosées (compteur fraise, point lavande, point beurre). La bannière d'événement fraise→orange avec tuile blanche 44 px et chrono Fredoka 24 px est le meilleur rendu d'événement du lot, et la page Défis (carte menthe, demi-cartes Pain du jour / Semaine, carte Événements) a un rythme d'espacement très régulier.",
+     "faiblesses": "C'est aussi la proposition la plus « générique » : barre d'onglets iOS standard, cartes inchangées, peu de personnalité boulangerie au-delà de l'icône devanture ; on ne sent pas le jeu dans le chrome. La bannière superposée masque tout le comptoir et le bas du boulanger, le titre « Pain au chocolat » passe sur deux lignes dans la carte, et les libellés d'onglets à 13 px sont sous la règle de 15 px. La tuile pêche active + 98 px de barre pèsent un peu sur un écran où la liste n'affiche plus que 2,5 cartes."
+    },
+    {
+     "id": "B",
+     "lisibilite": 5,
+     "ergonomie_pouce": 7,
+     "decouvrabilite": 9,
+     "qualite_graphique": 7,
+     "coherence_da": 8,
+     "faisabilite": 7,
+     "total": 43,
+     "forces": "La rangée de six ronds pastel posée sur le bord de la scène est une belle idée de « tableau de bord » : code couleur par fonction (lavande bonus, fraise défis, pêche boulanger, beurre trophées/étoiles, gris réglages), liseré blanc, ombre pleine 4 px, badges 20 px lisibles ; tout est trouvable d'un coup d'œil. La scène à 32 % respire, le toast de trophée brun en haut est élégant, et la feuille Défis (vue 2) avec ses onglets en pilule et sa carte réussie cerclée menthe est très soignée.",
+     "faiblesses": "La lisibilité craque partout en vue 1 : « Croissant ... », « +14 k € / fournée · ... », « Objectifs du jou... », « Croissants ×1,5 · Se... » sont tronqués, les libellés du tableau de bord sont à 12 px et le sous-libellé « Améliorer ×1 » à 10,5 px tient à peine dans sa colonne de 64 px. La carte d'événement dans la scène a une collision de texte visible (« ×3 » chevauche « restantes »), cache la moitié basse du boulanger et pousse « 1 talent » contre l'enseigne : la zone scène devient chargée (toast + bulle + carte sur 268 px)."
+    },
+    {
+     "id": "C",
+     "lisibilite": 6,
+     "ergonomie_pouce": 8,
+     "decouvrabilite": 9,
+     "qualite_graphique": 8,
+     "coherence_da": 6,
+     "faisabilite": 5,
+     "total": 42,
+     "forces": "La plus charmante et la plus « jeu » : caisse enregistreuse avec ticket qui dépasse, enseigne en bois suspendue, affichette punaisée inclinée, ticket dentelé des objectifs, planches beurre/bois sous chaque carte avec étiquette-prix et apprenti debout dessus ; c'est l'écran qui donne le plus envie de revenir chaque jour. La reprise de l'ardoise en bandeau d'onglets dans la feuille (onglet actif élargi, autres en pictos badgés) et les anneaux de carnet sont une vraie idée de navigation et de style.",
+     "faiblesses": "L'ardoise brun foncé est un bloc sombre de 77 px qui contredit « lumineux et doux », et ses cinq libellés 15 px se touchent littéralement (« Défis Événements Boulanger Trophées Réglages » sans respiration) ; les pictos craie blancs sur disque pastel translucide (menthe, fraise) manquent de contraste à 24 px. Troncatures visibles : « Léo s'en occ », « Série : 4 jour », « Coup de feu / ! » sur deux lignes dans l'affichette qui couvre fenêtre et cloche. Les planches ajoutent 22 px par carte, deux colorations d'icônes coexistent, et le tout (dégradés bois, rotation, filets brillants) est la variante la plus coûteuse à implémenter proprement."
+    },
+    {
+     "id": "D",
+     "lisibilite": 6,
+     "ergonomie_pouce": 8,
+     "decouvrabilite": 5,
+     "qualite_graphique": 8,
+     "coherence_da": 7,
+     "faisabilite": 6,
+     "total": 40,
+     "forces": "Le meilleur système d'icônes du lot : la planche de 13 pictos (cible, toque, coupe, étincelle, étoile, engrenage, cloche, nuage, haut-parleur, téléphone, crayon, flèche circulaire, partage) est parfaitement unie en trait brun 2 px sur rond pastel 44 px, six aplats seulement. Le volet du boulanger (carte crème avec queue de bulle, grille 2×3 de tuiles blanches à épaisseur, badges « Prime ! », « Nouveau », compteurs) est très élégant, et les cartes produits avec icône 68 px et barre 34 px sont les plus lisibles des quatre.",
+     "faiblesses": "La découvrabilité régresse : six fonctions derrière un seul bouton portrait, tout est à un toucher de plus et un badge « 3 » agrégé ne dit pas quoi. En vue 1, la bannière d'événement est lourde (titre « Coup de / feu ! » cassé sur deux lignes, consigne sur quatre lignes, ~110 px), le FAB recouvre le bouton Améliorer de la troisième carte, et la scène a été redessinée avec des contours épais et un boulanger renfrogné qui ne ressemblent pas au Canvas existant ; l'enseigne fraise saturée heurte le badge « n°2 ». Le verre flouté est un nouveau vocabulaire étranger au reste de la DA, coûteux sur canvas animé, et la maquette n'a pas été vérifiée en navigateur."
+    }
+   ],
+   "classement": [
+    "A",
+    "B",
+    "C",
+    "D"
+   ],
+   "commentaire": "Vu en directeur artistique casual : A est la plus solide en exécution (hiérarchie nette, icônes unies, badges discrets, bannière d'événement exemplaire) mais la moins personnelle ; elle gagnerait à emprunter à C son enseigne en bois, son ticket dentelé et l'étiquette « Du jour » sur la carte, et à D sa planche d'icônes complète. B a la meilleure idée d'accès (six ronds pastel sur le bord de la scène) mais sa vue 1 est truffée de troncatures et d'une collision de texte dans l'événement, à retravailler avant d'être crédible. C est la plus charmante et la plus « boulangerie », mais son ardoise sombre et ses libellés collés trahissent la DA lumineuse et la lisibilité ; en l'éclaircissant (ardoise crème cerclée de bois, pictos bruns) elle pourrait passer devant. D a le plus beau système d'icônes et le plus bel écran de cartes, mais cache tout derrière un bouton, redessine la scène hors du style existant et introduit un verre flouté qui n'appartient pas à l'univers. Recommandation : partir de A, lui greffer les objets-boutique de C (enseigne, ticket, étiquettes) et la planche d'icônes de D."
+  },
+  {
+   "scores": [
+    {
+     "id": "A",
+     "lisibilite": 8,
+     "ergonomie_pouce": 9,
+     "decouvrabilite": 9,
+     "qualite_graphique": 8,
+     "coherence_da": 9,
+     "faisabilite": 8,
+     "total": 51,
+     "forces": "Barre d'onglets fixe de 98 px en bas d'écran : les cinq cibles (~78×56 px) tombent exactement sous le pouce droit, et chaque fonction (Défis, Boulanger, Journal, Réglages, Bonus dans la barre collante, Étoiles en en-tête) est à un seul toucher avec une icône et un libellé lisibles. Les badges sont les plus clairs des quatre (compteur fraise « 1 » sur Défis, point lavande sur Boulanger, point beurre sur Journal, « 2 » sur Bonus) et aucune troncature n'apparaît dans la maquette ; les cartes produits (nom 18 px, Niv. 15 px) restent celles du jeu actuel. La bannière d'événement superposée au bas de la scène (titre 17 px, chrono 24 px) ne fait plus sauter la liste.",
+     "faiblesses": "La zone de jeu est la plus courte : sous la scène de 228 px, la barre collante et la barre d'onglets, seules deux cartes et demie sont visibles (Baguette, Croissant, le haut de Pain au chocolat) ; sur un iPhone SE (667 px) il ne resterait qu'environ 150 px de liste, soit une carte. Les libellés d'onglet sont à 13 px et le sous-titre de la bannière (« Affluence · ventes ×2 ») aussi, juste au seuil toléré. La bannière couvre le comptoir et le bas des personnages pendant l'événement, et les événements n'ont pas d'entrée permanente hors de l'onglet Défis (2 touchers + défilement pour l'historique)."
+    },
+    {
+     "id": "D",
+     "lisibilite": 7,
+     "ergonomie_pouce": 8,
+     "decouvrabilite": 5,
+     "qualite_graphique": 8,
+     "coherence_da": 8,
+     "faisabilite": 7,
+     "total": 43,
+     "forces": "Écran principal le plus aéré : sans événement, la scène de 244 px avec solde en capsule translucide et le titre « Recettes 5 / 8 » laissent près de trois cartes visibles, avec les textes les plus grands des quatre (nom 20 px, « Léo cuit tout seul » 15 px, boutons 44 px). Le bouton flottant de 66 px en bas à droite et le volet 2×3 ancré au-dessus sont dans la zone idéale du pouce ; les tuiles (icône 44 px, libellé 15 px, badges « Prime ! », « Nouveau », « 1 », « 2 ») sont lisibles et bien espacées. La planche d'icônes unifiée est la plus aboutie.",
+     "faiblesses": "Tout passe à deux touchers : Défis, Bonus, Journal, Boulanger, Étoiles et Réglages exigent d'ouvrir le volet, et le badge agrégé « 3 » sur le portrait ne dit pas ce qui attend ; les objectifs du jour disparaissent totalement de l'écran principal. Le bouton flottant recouvre le bouton Améliorer de la troisième carte (visible sur la maquette, « Am… 3,4 » masqué), source de touchers ratés. La bannière d'événement fait ~130 px avec un titre « Coup de feu ! » coupé sur deux lignes et une consigne sur quatre lignes, et la cloche en haut à droite place le seul accès aux événements dans la zone la plus dure à atteindre ; le bouton « Servir » n'a que 40 px de haut. Le sous-titre « Son, sauvegarde… » est tronqué et la géométrie n'a pas été vérifiée au rendu."
+    },
+    {
+     "id": "C",
+     "lisibilite": 6,
+     "ergonomie_pouce": 6,
+     "decouvrabilite": 9,
+     "qualite_graphique": 8,
+     "coherence_da": 6,
+     "faisabilite": 5,
+     "total": 40,
+     "forces": "La meilleure découvrabilité : cinq fonctions nommées sur l'ardoise (cibles 44 px minimum, libellés 15 px), plus Bonus à droite, Étoiles sur le tiroir de la caisse, le ticket d'objectifs, et des raccourcis contextuels (enseigne → renommer, boulanger avec pastille « 1 », affichette → événements) ; tout est à un toucher et l'ardoise réapparaît en onglets dans la feuille, ce qui permet de passer de Défis à Boulanger sans refermer. Les événements ont leur propre entrée permanente (cloche avec point fraise). Les textes de la feuille sont à 15 px et la craie blanche sur brun contraste bien.",
+     "faiblesses": "Les cinq libellés « Défis Événements Boulanger Trophées Réglages » se touchent bord à bord sans espace, et plusieurs textes sont coupés net : « Léo s'en occ », « Sema… » dans le ticket, « Série : 4 jour » dans le carnet, « Coup de feu / ! » sur l'affichette inclinée. L'ardoise est posée au milieu de l'écran (vers 400–480 px), pas sous le pouce, et le bloc brun foncé pèse sur la DA lumineuse. Les planches ajoutent 22 px par carte (jusqu'à 146 px) : avec caisse 72 px, scène, ardoise 77 px, barre d'achat 54 px et ticket 73 px, seules deux cartes sont visibles et une seule tiendrait sur un iPhone SE. Le skeuomorphisme (ticket dentelé, affichette, planches, onglets dynamiques) est le plus coûteux à implémenter."
+    },
+    {
+     "id": "B",
+     "lisibilite": 4,
+     "ergonomie_pouce": 6,
+     "decouvrabilite": 8,
+     "qualite_graphique": 6,
+     "coherence_da": 7,
+     "faisabilite": 6,
+     "total": 37,
+     "forces": "Quatre cartes produits complètes visibles sans défiler (76 px chacune), et la scène gagne 40 px de hauteur. Les six ronds du tableau de bord sont tous à un toucher, avec badges différenciés par couleur (menthe sur Défis, lavande sur Boulanger, beurre sur Trophées, « +1 » fraise sur Étoiles) ; la pilule « Prime 2,1 M € » double le badge pour qu'une prime ne soit pas ratée. La feuille Défis à trois onglets est claire, avec des cibles de 52 px.",
+     "faiblesses": "La lisibilité est sacrifiée : troncatures sur presque toutes les lignes (« Objectifs du jou… », « Croissants ×1,5 · Se… », « Croissant … », « Tarte aux pom… », « +14 k € / fournée · … » sur chaque carte), libellés du tableau de bord à 12 px et sous-libellés « Améliorer ×1 » à 10,5–11 px sur deux lignes dans une colonne de 64 px, et la carte d'événement a un texte qui se chevauche (« ×3 » entre dans « restantes »). La scène est surchargée : toast de trophée, bulle « 1 talent », carte d'événement qui masque le boulanger et la cliente. Le tableau de bord est au milieu de l'écran (~390–470 px), hors zone du pouce, et sur un iPhone SE il ne resterait que deux cartes et demie. Le chevauchement du canvas et le recalcul des zones touchables compliquent l'intégration."
+    }
+   ],
+   "classement": [
+    "A",
+    "D",
+    "C",
+    "B"
+   ],
+   "commentaire": "A l'emporte nettement sous la lentille mobile : c'est la seule proposition qui met le menu dans la zone du pouce (barre d'onglets fixe en bas), garde tout à un toucher avec des badges sans ambiguïté et n'affiche aucune troncature, tout en restant au plus près de la DA et du code actuels. Son vrai défaut, partagé avec C, est la hauteur de liste : deux cartes et demie sur 844 px et une seule sur un iPhone SE ; il faudrait y greffer la densité des cartes de B (ou de D) et envisager de replier la scène au défilement. D est le plus confortable à lire et à jouer, mais le bouton flottant unique rend tout à deux touchers, masque le bouton Améliorer de la dernière carte visible et relègue les événements chronométrés en haut à droite. C a la meilleure découvrabilité et beaucoup de charme, mais son ardoise à mi-hauteur, ses textes coupés, son bloc brun et ses planches gourmandes en hauteur le pénalisent. B gagne des cartes visibles au prix d'une lisibilité inacceptable (textes à 10,5–12 px, ellipses partout, chevauchement dans la carte d'événement) et d'une scène trop chargée. Recommandation : partir de A, y intégrer les cartes compactes de B et la cloche/bannière d'événement escamotable de D, et vérifier le rendu à 667 px."
+  },
+  {
+   "scores": [
+    {
+     "id": "A",
+     "lisibilite": 8,
+     "ergonomie_pouce": 8,
+     "decouvrabilite": 9,
+     "qualite_graphique": 8,
+     "coherence_da": 8,
+     "faisabilite": 6,
+     "total": 47,
+     "forces": "Le rendu est le plus propre des quatre : aucune troncature visible, noms 18 px, solde 32 px, trois cartes produits et la barre de modes tiennent sous la scène. Les cinq onglets portent une icône, un libellé et un badge distinct (compteur fraise « 1 » sur Défis, point lavande sur Boulanger, point beurre sur Journal), et l'onglet Défis regroupe objectifs, pain du jour, semaine, événements et trophée neuf en une seule page lisible. Techniquement, la bannière d'événement et la pilule d'enseigne ne demandent qu'un conteneur positionné autour du canvas, et les feuilles existantes (sheetObjectifs, sheetBoulanger, sheetJournal) peuvent être rendues telles quelles dans la page d'onglet.",
+     "faiblesses": "La bannière posée au bas de la scène (de ~146 à ~216 px pour H = 228) tombe exactement sur la zone de toucher du client mystère (y = 0,78·H − 30 ≈ 148 px dans play.cjs) et masque le comptoir et les clients : il faut pointer-events:none sur la bannière sauf son bouton, ou la replier. Retirer la carte Objectifs de l'écran principal casse trois étapes de play.cjs (#objectifs innerText, tap) et la cible de l'indice n°4 du tutoriel ; il faut un routeur d'onglets dans ui.js, un état « vu » par onglet dans st pour éteindre les pastilles, supprimer enseigne() du canvas et retrancher 98 px dans layout(). Libellés d'onglets à 13 px sous le seuil annoncé, et la barre de 98 px retire ~30 px à la liste sur iPhone SE."
+    },
+    {
+     "id": "B",
+     "lisibilite": 5,
+     "ergonomie_pouce": 7,
+     "decouvrabilite": 9,
+     "qualite_graphique": 6,
+     "coherence_da": 7,
+     "faisabilite": 7,
+     "total": 41,
+     "forces": "La proposition la moins coûteuse en logique : #b-etoiles, #b-ameliorations et #objectifs gardent leur id et leur place dans le DOM, les six boutons ouvrent des feuilles qui existent déjà (seule sheetReglages est à extraire de sheetEtoiles), la bulle « 1 talent » au-dessus du boulanger est déjà dessinée par scene.js (pts > 0) et le toast de trophée existe. Les six ronds à aplat pastel avec badges (1, 1, 1, +1) rendent toutes les fonctions visibles d'un coup, et quatre cartes produits tiennent sans défiler. Pas de flou, ombres pleines simples : aucun risque de performance.",
+     "faiblesses": "La maquette tronque partout à 390 px : « Objectifs du jou… », « Croissants ×1,5 · Se… », « Croissant … », « Tarte aux pom… », « +14 k € / fournée · … », et dans la carte d'événement le « ×3 » de « Toutes les ventes » vient heurter le chrono « 0:42 » ; libellés du tableau de bord à 12 px, sous-libellés Améliorer à 10,5 px. Le tableau de bord qui chevauche le canvas de 26 px recouvre le paillasson (0,9·H) et l'ardoise décor (0,97·H) et les pieds des clients : il faut ajouter ces 26 px dans layout() ou accepter la coupe. Le toast de trophée empiète sur le haut de la scène, et renderCards est à réécrire pour le format 76 px (niveau en pastille sur l'icône, boutons empilés). Six emplacements maximum, aucune extension possible sans refaire la rangée."
+    },
+    {
+     "id": "C",
+     "lisibilite": 6,
+     "ergonomie_pouce": 7,
+     "decouvrabilite": 8,
+     "qualite_graphique": 7,
+     "coherence_da": 6,
+     "faisabilite": 4,
+     "total": 38,
+     "forces": "Le thème boulangerie est le plus narratif : la caisse, l'ardoise, le ticket dentelé et les planches racontent la boutique, et les cinq pictogrammes de l'ardoise réapparaissent en bandeau d'onglets dans la feuille, ce qui permet de passer de Défis à Boulanger sans fermer. Les libellés de l'ardoise sont à 15 px, les badges (menthe 1, point fraise, lavande 1, étoile) sont distincts, et le bouton Bonus reste à droite sous le pouce. L'affichette d'événement ne masque ni le boulanger (0,33·W) ni la zone de toucher du client mystère (0,5·W).",
+     "faiblesses": "C'est le chantier le plus lourd : en-tête → caisse, renderCards restructuré (planche de 22 px avec étiquettes Niv./Du jour/apprenti sous chaque carte, cartes jusqu'à 146 px), renderObjectifs → ticket, nouveau routeur d'onglets dans la feuille, enseigne HTML en haut à gauche qui remplace enseigne() du canvas et recouvre l'étagère de pains (0,04–0,48·W, 0,16·H), et surtout l'affichette qui couvre entièrement la fenêtre du canvas (fx = 0,56·W, fy = 0,08–0,42·H) : vue saisonnière, ciel, passants et diplôme (0,92·W) disparaissent pendant chaque événement, à moins de déplacer la fenêtre dans scene.js. Dans l'image : « Léo s'en occ » et « Sema… » tronqués, « Série : 4 jour » coupé au bord, les cinq libellés de l'ardoise se touchent presque (« Événements » collé à « Boulanger ») et dépendent de Fredoka chargée. L'ardoise brun foncé et les dégradés bois pèsent sur la DA « lumineuse », comme la proposition l'admet elle-même."
+    },
+    {
+     "id": "D",
+     "lisibilite": 7,
+     "ergonomie_pouce": 8,
+     "decouvrabilite": 5,
+     "qualite_graphique": 8,
+     "coherence_da": 7,
+     "faisabilite": 5,
+     "total": 40,
+     "forces": "L'écran principal le plus aéré : scène pleine largeur, cartes 22 px avec icône 68 px, barre 34 px et boutons 44 px en colonne, aucune troncature dans les cartes visibles. Le bouton flottant 66 px en bas à droite est la meilleure cible pour le pouce, le volet 2×3 à tuiles blanches avec badges (Prime !, 1, Nouveau, 2) est net, et la planche d'icônes finale montre un système cohérent (trait 2 px, aplat pastel). La bannière d'événement sous la scène est quasiment le composant .ev actuel : #evenement et ses boutons data-a se réutilisent tels quels.",
+     "faiblesses": "Défis, Bonus, Journal, Étoiles et Réglages ne sont plus visibles ni nommés sur l'écran principal, seulement un « 3 » sur un portrait : découvrabilité la plus faible, et deux touchers pour la prime ou un bonus abordable. Dans l'image, la capsule solde recouvre le bord gauche de l'enseigne « Chez Mamie », la bannière fait tenir « Coup de feu ! » sur deux lignes et sa consigne sur quatre, et le FAB cache le bouton Améliorer de la carte Pain au chocolat. Côté code : scène sous la barre d'état (padding-top safe-area du body et layout() à revoir), six backdrop-filter dont deux en permanence au-dessus d'un canvas animé (le compositeur refloute à chaque frame, repli opaque obligatoire), nouveau composant volet avec son propre voile flouté à empiler sur #voile/#feuille, badges agrégés avec drapeaux « vu », enseigne déplacée à droite dans le canvas où elle entre en collision avec la fenêtre (0,56–0,86·W) et la cloche avec le diplôme (0,92·W), capsule qui masque l'étagère et la lampe (0,3·W). Les taps play.cjs sur #b-ameliorations, #b-etoiles et #objectifs échouent (éléments en display:none dans le volet fermé ou supprimés) : cinq étapes et l'indice n°4 à réécrire."
+    }
+   ],
+   "classement": [
+    "A",
+    "B",
+    "D",
+    "C"
+   ],
+   "commentaire": "Lentille faisabilité et risques dans le code existant (page.html 26 lignes, style.css 230, ui.js 479, scene.js 396). Points communs aux quatre : (1) toutes déplacent « Sauvegarde et transfert » hors de la feuille Étoiles, donc les trois étapes de play.cjs qui tapent #b-etoiles puis [data-a=\\\"sauvegarde\\\"] (lignes 206, 215, 221) cassent partout ; (2) toutes supposent un badge « trophée neuf » ou « onglet vu » qui n'existe pas dans st (il faut ajouter des drapeaux vuJournal/vuTalent et les sauvegarder) ; (3) toute superposition HTML sur la scène demande d'envelopper #scene dans un conteneur position:relative, et de ne pas intercepter les pointerdown du canvas (hit du client mystère à 0,5·W / 0,78·H, hitBoulanger à 0,33·W / 0,62·H − 112…+4) : pointer-events:none sauf sur les boutons ; (4) les textes d'événements raccourcis doivent garder les mots que les tests cherchent dans #evenement (pétrissage, anniversaire, critique, Livrer). Travail relatif : A = moyen à grand (HTML + CSS + routeur d'onglets dans ui.js, pages pleines réutilisant les générateurs de feuilles, suppression de enseigne() dans scene.js, layout() −98 px, 3 étapes de test + indice tutoriel à adapter ; aucun risque de performance, bonne base pour étendre tant qu'on reste à 5 onglets). B = moyen (HTML + CSS surtout, une seule nouvelle feuille Réglages, ids conservés, renderCards réécrit pour 76 px, 26 px à ajouter dans layout() pour le chevauchement ; perf sans souci ; plafonné à six boutons). D = moyen à grand (nouveau composant volet + voile, scène sous la barre d'état, backdrop-filter permanents au-dessus du canvas avec repli obligatoire, enseigne et cloche à repositionner dans scene.js, 5 étapes de test à réécrire ; extensible seulement en ajoutant une tuile au volet). C = grand (en-tête, cartes, objectifs, feuille à onglets et enseigne tous refaits, fenêtre du canvas à déplacer pour l'affichette, 18 positions absolues à maintenir ; perf acceptable mais le bloc sombre et les dégradés bois sont un écart de DA). Accessibilité : A et B déclarent role=group/tab/status et aria-label, C un role=dialog, D des aria-expanded pour le FAB ; aucune ne gère le piège de focus du volet ou des pages d'onglet, à ajouter avec le :focus-visible lavande existant. Classement final : A pour le meilleur équilibre lisibilité/découvrabilité avec un coût maîtrisable, B pour sa faisabilité immédiate malgré une maquette trop dense qui tronque, D pour son écran soigné mais sa navigation cachée et ses coûts techniques (flou, tests), C en dernier pour l'ampleur du chantier et les conflits avec la scène."
+  }
+ ],
+ "synth": {
+  "recommandation": "Partir de la proposition A (barre d'onglets « Le comptoir » en bas d'écran) comme base, et lui greffer : la planche d'icônes unifiée de D, la cloche d'événement permanente de D avec une bannière escamotable, les cartes produits compactes de B (en respectant 15 px minimum), et trois objets-boutique de C (enseigne en bois dans la scène, ticket dentelé d'objectifs réduit, étiquette « Du jour » sur la carte).",
+  "pourquoi": "A est classée première par les trois jurés (147 points, 24 d'avance sur D) et c'est la seule proposition qui met le menu dans la zone du pouce avec tout à un seul toucher, des badges non ambigus et aucune troncature visible sur la maquette ; elle est aussi la plus proche du code actuel (les générateurs de feuilles sheetObjectifs/sheetBoulanger/sheetJournal se réutilisent tels quels dans des pages d'onglet). Ses deux vrais défauts sont corrigeables par greffe : la liste courte (2,5 cartes à 844 px, une seule sur iPhone SE) se règle avec les cartes compactes de B et une scène qui se réduit au défilement, et la bannière d'événement qui couvre le comptoir et la zone du client mystère se règle avec la cloche de D plus une bannière compacte en pointer-events:none. D est le plus beau et le plus aéré mais cache six fonctions derrière un bouton à deux touchers, masque le bouton Améliorer et introduit un flou coûteux sur canvas animé ; on lui prend seulement son système d'icônes, le meilleur du lot. B apporte la densité de cartes mais sacrifie la lisibilité (12 px, ellipses partout, collision de texte dans l'événement) ; C est la plus charmante mais son ardoise sombre contredit la DA lumineuse, ses libellés se touchent et c'est le chantier le plus lourd avec des conflits directs avec la fenêtre du canvas. Le mélange A + greffes garde donc le meilleur score sur chaque critère sans hériter d'un risque majeur.",
+  "totaux": [
+   {
+    "id": "A",
+    "total": 147
+   },
+   {
+    "id": "D",
+    "total": 123
+   },
+   {
+    "id": "B",
+    "total": 121
+   },
+   {
+    "id": "C",
+    "total": 120
+   }
+  ],
+  "greffes": [
+   {
+    "de": "D",
+    "idee": "Adopter la planche de 13 pictos de D (trait brun 2 px arrondi sur rond pastel, six aplats) comme unique famille d'icônes : onglets, titres de pages, lignes de Réglages, tuiles d'événement et badges. À dessiner en SVG inline dans src/icons.js."
+   },
+   {
+    "de": "D",
+    "idee": "Ajouter une cloche d'événement permanente (dans l'en-tête à droite du solde, ou en haut à droite de la scène) : neutre au repos, rose avec point fraise et animation de sonnerie pendant un événement ; elle ouvre la carte Événements de l'onglet Défis (en cours + 20 derniers du journal). Cela donne aux 7 types une entrée à un toucher sans occuper de hauteur hors événement."
+   },
+   {
+    "de": "D",
+    "idee": "Rendre la bannière d'événement de A escamotable : forme compacte de 40–44 px (icône, titre, chrono ou bouton « Tapote/Livrer ») posée en bas de la scène à 8 px du bord, qui s'étend au toucher ; conteneur en pointer-events:none, seul le bouton capte. Ainsi elle ne recouvre plus la zone du client mystère (y ≈ 0,78·H ± 30) ni le boulanger (x = 0,33·W, y ≤ 0,62·H + 4)."
+   },
+   {
+    "de": "B",
+    "idee": "Reprendre le format de carte compact de B (76–88 px) : niveau en pastille brune sur le coin de l'icône, une seule ligne de méta, boutons Améliorer/Embaucher en colonne de 64 px, mais avec nom 17–18 px et textes ≥ 15 px, et ellipse interdite sur le nom (deux lignes autorisées). Objectif mesurable : 3 cartes complètes visibles à 844 px, 2 à 667 px."
+   },
+   {
+    "de": "B",
+    "idee": "Garder la bulle lavande « 1 talent » au-dessus du boulanger dans la scène (déjà dessinée par scene.js quand pts > 0) en complément du point lavande de l'onglet : deux signaux cohérents pour le même état."
+   },
+   {
+    "de": "B",
+    "idee": "Pilule menthe « Prime 2,1 M € » en plus du compteur fraise sur l'onglet Défis quand une prime attend (par exemple dans la barre collante à gauche du bouton Bonus), pour qu'une prime ne soit jamais ratée même si l'onglet n'est pas regardé."
+   },
+   {
+    "de": "C",
+    "idee": "Remplacer la pilule blanche d'enseigne de A par la petite enseigne en bois suspendue de C en haut à gauche de la scène (HTML au-dessus du canvas, enseigne() retirée de scene.js), touchable pour renommer ; attention à ne pas couvrir l'étagère de pains (0,04–0,48·W, 0,16·H) : la placer dans les 40 premiers px de hauteur."
+   },
+   {
+    "de": "C",
+    "idee": "Ajouter sous la barre collante un rappel d'objectifs d'une seule ligne au style ticket dentelé (≈ 48 px) : trois coches 1/3, « Du jour : croissants ×1,5 · Semaine 3/8 », pilule « Prime » pulsante, qui ouvre l'onglet Défis. Il conserve l'id #objectifs et le texte attendu par play.cjs et le tutoriel, tout en coûtant 100 px de moins que la carte actuelle."
+   },
+   {
+    "de": "C",
+    "idee": "Étiquette beurre « Du jour ×1,5 » avec le petit soleil de A sur la carte du pain du jour, et pastille lavande « 1 » au-dessus de la toque du boulanger dans la scène quand un point de talent attend."
+   },
+   {
+    "de": "C",
+    "idee": "Dans les pages d'onglet, reprendre l'idée du bandeau d'onglets contextuels (Aujourd'hui / Pain du jour / Semaine / Événements dans Défis ; Trophées / Carnet / Records dans Journal) pour passer d'une section à l'autre sans fermer."
+   },
+   {
+    "de": "A",
+    "idee": "Replier la scène au défilement de la liste (de 228 px à ~120 px, comptoir et boulanger restant visibles) pour rendre 100 px à la liste sur les petits écrans, avec retour à la hauteur pleine quand on remonte en haut."
+   }
+  ],
+  "a_eviter": [
+   "Le bouton flottant unique de D : tout passe à deux touchers, le badge agrégé « 3 » ne dit pas ce qui attend, et il recouvre le bouton Améliorer de la dernière carte visible.",
+   "Le verre flouté (backdrop-filter) permanent au-dessus du canvas animé de D : le compositeur refloute à chaque image, coût réel sur les vieux iPhone ; si on veut une capsule translucide, utiliser un blanc opaque à 92 %.",
+   "L'ardoise brun foncé de C en bloc de 77 px au milieu de l'écran : contredit la DA « lumineux et doux », n'est pas sous le pouce et ses cinq libellés se touchent bord à bord.",
+   "Les planches sous chaque carte de C (+22 px par carte, jusqu'à 146 px) et l'affichette qui couvre toute la fenêtre du canvas pendant un événement (ciel, saisons, passants, diplôme disparaissent).",
+   "Les textes sous 15 px de B (libellés 12 px, sous-libellés 10,5 px) et toute ellipse sur les noms de produits, les titres d'objectifs ou les sous-titres de bannière ; préférer un retour à la ligne ou un raccourci de texte.",
+   "Le tableau de bord à six ronds de B qui chevauche le canvas de 26 px : il coupe le paillasson et les pieds des clients et plafonne à six fonctions sans extension possible.",
+   "Superposer dans la scène plusieurs incrustations en même temps (toast de trophée + bulle de talent + carte d'événement comme en B) : la scène doit rester lisible, un seul overlay à la fois hors enseigne.",
+   "Retirer complètement les objectifs du jour de l'écran principal (A pure et D) : garder un rappel d'une ligne avec l'id #objectifs pour le tutoriel, les tests et le joueur.",
+   "Mettre l'accès aux événements chronométrés uniquement en haut à droite ou à deux touchers : le bouton à tapoter doit rester sous le pouce droit, dans la bannière.",
+   "Changer les textes d'événement cherchés par les tests (pétrissage, anniversaire, critique, Livrer) ou les ids #b-etoiles, #b-ameliorations, #objectifs, [data-a=\"sauvegarde\"] sans adapter play.cjs en même temps.",
+   "Libellés d'onglets à 13 px : passer à 15 px Fredoka (ça tient dans 78 px pour « Boulanger » et « Réglages ») ou prévoir des libellés courts de repli."
+  ],
+  "iconographie": "Une seule famille, celle de la planche D affinée par A : pictogrammes SVG inline (src/icons.js, zéro emoji), trait brun #4A3328 de 2 px à bouts et jointures ronds, dessinés dans une grille de 24 px, posés sur un rond ou une tuile pastel (rayon 12–14 px) avec un seul accent de couleur par icône ; six aplats seulement : pêche, rose fraise pâle, jaune beurre pâle, menthe pâle, lavande pâle, gris chaud. Les mêmes formes servent partout (onglet, titre de page, ligne de réglage, tuile, badge), seule la taille change (24 px dans la barre, 32–44 px en tête de page). Badges : disque 18–20 px fraise (compteur) ou point 10 px coloré, cerclés de blanc 2 px. Formes par fonction — Quêtes/Défis : cible à trois cercles concentriques, centre fraise, anneau pêche (sous-icônes : presse-papiers à coche menthe pour les objectifs du jour, petit soleil brun à huit rayons pour le pain du jour, calendrier à deux anneaux avec étoile beurre pour le défi de la semaine, petite flamme pour la série de jours). Boulanger : toque de chef, nuage blanc à trois bosses sur bandeau pêche, badge lavande pour le point de talent. Journal/trophées : coupe à deux anses sur socle, calice beurre (plus lisible que le livre à 24 px) ; le livre ouvert crème sert d'icône interne à la section Carnet. Bonus : étincelle blanche à quatre branches plus une petite, sur lavande. Étoiles/nouvelle boutique : étoile à cinq branches blanche à contour doré sur pastille beurre pleine (celle de l'en-tête actuel, conservée). Réglages : engrenage à huit crans arrondis, moyeu blanc, aplat gris chaud. Événements : cloche à battant sur rose pâle, point fraise pulsant quand un événement est actif ; par type : flamme orange à cœur jaune (coup de feu), sac en papier lavande (commande spéciale), carnet à lignes lavande (critique), sac de farine ou moulin (meunier), pâte ronde existante (pétrissage), four avec éclair (panne), gâteau à une bougie (anniversaire). Sauvegarde et transfert : nuage avec flèche vers le bas sur menthe, et une petite clé pour le code à copier. Son : haut-parleur avec deux ondes (celui de l'en-tête actuel, réutilisé dans Réglages). Vibrations : téléphone avec deux arcs de chaque côté, lavande. Renommer : crayon incliné posé sur une étiquette, beurre pâle. Recommencer : flèche circulaire ouverte, sans aplat coloré (gris), libellé en texte fraise, isolé en bas de la page. Partager : boîte avec flèche sortante vers le haut, menthe pâle. Boutique (onglet actif) : devanture à auvent fraise à quatre festons et porte pêche ; l'onglet actif se signale par une tuile pêche derrière l'icône, pas par un simple changement de couleur du trait.",
+  "plan": [
+   "1. Icônes et jetons (src/icons.js, src/style.css) : dessiner les 20 pictos SVG de la famille unifiée (fonctions, réglages, 7 types d'événement) et les classes .picto, .aplat-*, .badge (compteur fraise, point lavande/beurre, cerclé blanc) ; aucun changement de comportement, vérifier le rendu dans une page de planche à 390 px.",
+   "2. Squelette (src/page.html) : envelopper #scene dans <div id=\"scene-wrap\"> position:relative qui reçoit #enseigne (enseigne bois, touchable → renommer), #evenement déplacé en overlay compact et la cloche #b-evenements ; ajouter <nav id=\"onglets\" role=\"tablist\"> avec cinq boutons data-page (boutique, defis, boulanger, journal, reglages) chacun avec picto, libellé 15 px et emplacement de badge ; retirer #b-son de l'en-tête, garder #b-etoiles, #b-ameliorations et #objectifs (celui-ci devient le rappel-ticket d'une ligne) ; ajouter des conteneurs <section data-page> vides pour les quatre pages.",
+   "3. Mise en page (src/style.css) : barre d'onglets fixe (98 px dont safe-area-inset-bottom, carte blanche rayon 28 px, ombre vers le haut), padding-bottom équivalent sur #liste et les pages ; bannière d'événement compacte 44 px / étendue, pointer-events:none sauf .btn ; cartes compactes 76–88 px (pastille de niveau sur l'icône, boutons en colonne 64 px) sans ellipse sur le nom ; règle de repli de la scène au défilement via une variable --h-scene.",
+   "4. Routeur et pages (src/ui.js) : fonction showPage(id) qui bascule les sections, aria-selected, et éteint le badge correspondant ; transformer sheetObjectifs/sheetBoulanger/sheetJournal en renderX(conteneur) utilisables à la fois en page et en feuille ; nouvelle pageReglages (interrupteurs Son et Vibrations, Renommer, Spécialité, Sauvegarde et transfert, Recommencer séparé en bas) ; sheetEtoiles réduite à « Ta boutique » + nouvelle boutique ; sheetSauvegarde dont le bouton Retour renvoie à la page Réglages et non à sheetEtoiles.",
+   "5. État et badges (src/game.js, src/ui.js) : ajouter st.vu = { defis, boulanger, journal } (plus st.nouveauTrophee) sauvegardés avec le reste ; dans hud(), calculer les badges : prime récupérable → compteur fraise Défis, points de talent → point lavande Boulanger, trophée non consulté → point beurre Journal, bonus abordables → compteur sur Bonus, événement actif → point fraise sur la cloche ; les éteindre à l'ouverture de l'onglet ou à la récupération.",
+   "6. Scène (src/scene.js, ui.js layout()) : supprimer l'appel enseigne() (ou le conditionner), recalculer layout() : hauteur scène = clamp(150, innerHeight − 105 (en-tête) − 60 (barre collante) − 98 (onglets) − 2 cartes, 240) avec repli à ~120 px au défilement ; vérifier que la bannière compacte ne touche ni hitBoulanger (0,33·W, 0,62·H − 112…+4) ni la zone du client mystère (0,5·W, 0,78·H ± 30) ; garder la bulle « 1 talent » existante.",
+   "7. Événements (src/ui.js renderEvenement) : réécrire les 7 gabarits pour le format compact (icône tuile 44 px, titre 17 px, sous-titre 15 px, chrono 24 px ou bouton data-a=livrer/petrir/reparer) en conservant les mots-clés testés (pétrissage, anniversaire, critique, Livrer) ; ajouter la carte Événements (en cours + carnetEv) dans la page Défis et le lien depuis la cloche.",
+   "8. Tutoriel (src/ui.js INDICES) : l'indice n°4 cible désormais le rappel #objectifs d'une ligne ou l'onglet Défis ; vérifier que la bulle d'indice se positionne au-dessus de la barre d'onglets (innerHeight − 98) et qu'aucun indice ne pointe un élément masqué dans une page fermée.",
+   "9. Tests (test/play.cjs) : remplacer les trois séquences tap('#b-etoiles') → tap('[data-a=\"sauvegarde\"]') (lignes 206, 215, 221) par tap('[data-page=\"reglages\"]') → tap('[data-a=\"sauvegarde\"]') ; aux lignes 58–60 et 87–89 lire #objectifs (rappel) puis ouvrir la page Défis pour la capture ; ajouter des assertions : aucun élément avec scrollWidth > clientWidth dans les cartes et la barre d'onglets, au moins 3 cartes complètes visibles à 390×844 et 2 à 375×667, badge Défis présent quand une prime attend, et captures des quatre pages aux deux tailles.",
+   "10. Greffes graphiques et finitions : enseigne bois, ticket dentelé, étiquette « Du jour », pilule « Prime » ; accessibilité (role=tab/tabpanel, aria-selected, focus-visible lavande, piège de focus dans #feuille) ; build (node build.js → dist, sw.js version) et essai sur appareil réel pour la fluidité du canvas et la zone du pouce ; relecture finale avec le joueur avant de retirer l'ancienne feuille Étoiles à liens."
+  ],
+  "resume_pour_le_joueur": "Quatre façons de réorganiser Le Fournil ont été comparées par trois jurés (confort du pouce, beauté, facilité à coder). La proposition A met une barre de cinq onglets en bas de l'écran (Boutique, Défis, Boulanger, Journal, Réglages) avec des petits points de couleur quand quelque chose t'attend ; c'est la plus claire, tout est à un seul toucher sous le pouce, et elle remporte largement le vote (147 points contre 123, 121 et 120). La proposition D est la plus jolie et la plus aérée, mais elle cache tout derrière un seul bouton rond, donc il faut toujours un toucher de plus et le bouton gêne la dernière carte. La proposition B affiche quatre produits d'un coup mais ses textes sont trop petits et coupés partout. La proposition C transforme l'écran en vraie boulangerie (caisse, ardoise, étagères) : charmante, mais son ardoise sombre au milieu de l'écran et ses textes qui se touchent la rendent moins agréable, et c'est la plus longue à fabriquer. Je conseille donc de partir de A et de lui emprunter le meilleur des autres : les jolies icônes de D, une cloche pour les événements, des cartes produits un peu plus compactes comme B pour voir trois recettes sans défiler, et l'enseigne en bois et le petit ticket d'objectifs de C pour garder le charme de la boutique. Résultat : la même boutique, mais avec les quêtes, les trophées, le boulanger et les réglages enfin visibles et à portée de pouce."
+ }
+}
