@@ -26,7 +26,21 @@ const ICONS = (() => {
   const PATE = `<svg viewBox="0 0 48 48" aria-hidden="true"><ellipse cx="24" cy="30" rx="15" ry="10" fill="#FFF3C4" stroke="${L}" stroke-width="2"/><ellipse cx="20" cy="26" rx="4" ry="2.5" fill="#fff" opacity=".8"/><rect x="8" y="8" width="32" height="7" rx="3.5" fill="#C8863A" stroke="${L}" stroke-width="2"/><rect x="2" y="9" width="7" height="5" rx="2.5" fill="#8B5A3C"/><rect x="39" y="9" width="7" height="5" rx="2.5" fill="#8B5A3C"/></svg>`;
   const PANNE = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 8a9 9 0 00-9 11L9 31a3 3 0 004 4l12-12a9 9 0 0011-9l-5 5-4-1-1-4z" fill="#D9CCC2" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="36" cy="36" r="5" fill="#FF9F4A" stroke="${L}" stroke-width="2"/><path d="M36 30v-4M42 36h4" stroke="#FF6B8B" stroke-width="2.5" stroke-linecap="round"/></svg>`;
   const BALLON = `<svg viewBox="0 0 48 48" aria-hidden="true"><ellipse cx="19" cy="17" rx="10" ry="12" fill="#FF9FB2" stroke="${L}" stroke-width="2"/><ellipse cx="31" cy="20" rx="9" ry="11" fill="#9BD0FF" stroke="${L}" stroke-width="2"/><path d="M19 29c-2 6 2 10 0 14M31 31c2 5-1 8 0 12" stroke="${L}" stroke-width="1.8" fill="none" stroke-linecap="round"/><ellipse cx="15" cy="12" rx="2.5" ry="4" fill="#fff" opacity=".7"/></svg>`;
+  // le portrait du boulanger selon son titre : calot, toque, haute toque, foulard et moustache, liseré doré, col tricolore
+  function boulanger(rang) {
+    const th = rang === 0 ? 6 : rang === 1 ? 12 : 12 + Math.min(8, (rang - 1) * 3);
+    return S(`<rect x="10" y="30" width="28" height="18" rx="8" fill="#fff"/><rect x="18" y="30" width="12" height="14" rx="4" fill="#FF6B8B"/>
+      ${rang >= 4 ? '<rect x="10" y="44" width="28" height="3" rx="1.5" fill="#FFC84A"/>' : ''}
+      ${rang >= 5 ? `<rect x="10" y="30" width="9" height="5" rx="2" fill="#2B5BD7"/><rect x="19.5" y="30" width="9" height="5" rx="2" fill="#fff" stroke="${L}" stroke-width=".8"/><rect x="29" y="30" width="9" height="5" rx="2" fill="#E1496C"/>` : ''}
+      ${rang >= 3 ? '<rect x="15" y="27" width="18" height="5" rx="2.5" fill="#E1496C"/>' : ''}
+      <circle cx="24" cy="21" r="10" fill="#FFD7B5" stroke="${L}" stroke-width="2"/>
+      <rect x="13" y="${14 - th}" width="22" height="${th}" rx="${rang === 0 ? 3 : 6}" fill="#fff" stroke="${L}" stroke-width="2"/><rect x="12" y="12" width="24" height="4" rx="2" fill="#fff" stroke="${L}" stroke-width="2"/>
+      ${rang >= 4 ? '<rect x="12" y="12" width="24" height="2" rx="1" fill="#FFC84A"/>' : ''}
+      <circle cx="20" cy="21" r="1.4" fill="${L}"/><circle cx="28" cy="21" r="1.4" fill="${L}"/><path d="M20 25c2 2 6 2 8 0" stroke="${L}" stroke-width="1.8" stroke-linecap="round" fill="none"/>
+      ${rang >= 3 ? '<path d="M19.5 24.5q2.5-2 4.5 0q2-2 4.5 0" stroke="#8C5A3C" stroke-width="1.8" fill="none" stroke-linecap="round"/>' : ''}
+      <circle cx="16" cy="24" r="1.6" fill="#FFB3B3"/><circle cx="32" cy="24" r="1.6" fill="#FFB3B3"/>`);
+  }
   const AMELIORATION = S(`<path d="M24 6l3.5 10.5L38 20l-10.5 3.5L24 34l-3.5-10.5L10 20l10.5-3.5z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`);
   const ETOILE = S(`<path d="M24 5l5.8 12.2 13.2 1.6-9.8 9.2 2.6 13.2L24 34.6l-11.8 6.6 2.6-13.2L5 18.8l13.2-1.6z" fill="#FFC84A" stroke="#E0A61E" stroke-width="2" stroke-linejoin="round"/>`);
-  return { PRODUITS, apprenti, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON };
+  return { PRODUITS, apprenti, boulanger, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON };
 })();

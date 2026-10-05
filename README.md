@@ -11,6 +11,7 @@ Ta boulangerie de quartier, en jeu idle/tycoon simple et lumineux : **tu cuis, t
 5. **Bonus** : des recettes et des équipements qui multiplient tes gains pour toujours.
 6. **Étoiles** : quand ta boutique a bien gagné, ouvre-en une nouvelle. Tu repars de zéro mais tu gardes tes étoiles, et chaque étoile donne +5 % de gains pour toujours.
 7. **Objectifs du jour** : trois défis par jour, calibrés sur ta boutique (gagner tant, vendre tant de fournées, embaucher, débloquer une recette…). Chaque défi réussi donne une prime en euros ; les trois réussis donnent **une étoile** et prolongent ta série de jours.
+8. **Le boulanger** : touche-le dans la boutique. Il gagne du **savoir-faire** à chaque défi, événement réussi, recette, embauche et nouvelle boutique, monte de niveau (Apprenti, Mitron, Boulanger, Compagnon, Maître boulanger, Meilleur Ouvrier de France) et reçoit **un point de talent par niveau**. Les neuf talents sont permanents, ils survivent aux changements de boutique : Bouche-à-oreille (fournées à la main ×1,5 par cran, pour des débuts plus rapides), Mains rapides (fournées −5 % de temps par cran), Mémoire des recettes (chaque nouvelle boutique démarre avec plus de recettes), Lève-tôt (absence 8 h → 12 h), Apprentis zélés, Négociateur, Charme (événements plus fréquents, primes +25 %), Pourboires, Carnet de commandes. Sa toque, sa moustache et son col changent avec son titre.
 
 ## Ce qui se passe en jouant
 
@@ -56,9 +57,9 @@ La boutique est enregistrée dans le téléphone toutes les 5 secondes, à chaqu
 
 | Fichier | Rôle |
 | --- | --- |
-| `src/game.js` | Économie et état : produits, paliers, bonus, étoiles, objectifs du jour, événements, absence, formats de nombres. Tourne aussi dans Node |
+| `src/game.js` | Économie et état : produits, paliers, bonus, étoiles, boulanger (savoir-faire, niveaux, talents), objectifs du jour, événements, absence, formats de nombres. Tourne aussi dans Node |
 | `src/scene.js` | La boutique en Canvas 2D : boulanger, clients, client mystère, coup de feu, four en panne, vitrine, décor, lumière du jour |
-| `src/ui.js` | Cartes des produits, achats, carte des objectifs, cartes d'événement, indices du tutoriel, feuilles (bonus, étoiles, objectifs, absence, sauvegarde), sons, sauvegarde double et code de transfert |
+| `src/ui.js` | Cartes des produits, achats, carte des objectifs, cartes d'événement, indices du tutoriel, feuilles (bonus, étoiles, boulanger et talents, objectifs, absence, sauvegarde), sons, sauvegarde double et code de transfert |
 | `src/icons.js` | Icônes SVG en ligne (pâtisseries, apprentis) |
 | `src/style.css`, `src/page.html` | Mise en page |
 

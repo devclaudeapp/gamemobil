@@ -5,7 +5,7 @@ const SCENE = (() => {
   let cv, ctx, W = 1, H = 1, DPR = 1;
   const TAU = Math.PI * 2;
   const clients = [], textes = [], vapeurs = [];
-  let hop = 0, blink = 0, nextSpawn = 2, t = 0, confetti = [], rush = false;
+  let hop = 0, blink = 0, nextSpawn = 2, t = 0, confetti = [], rush = false, rang = 0, pts = 0, affl = 0;
   const PASTEL = ['#FF9FB2', '#8FE3C2', '#C7B8FF', '#FFD98A', '#9BD0FF', '#FFB48A', '#B5E88A'];
   const PEAUX = ['#FFD7B5', '#F1B990', '#C68B59', '#8D5A3C', '#FFE3C9'];
   const CHEVEUX = ['#4A3328', '#2B2118', '#B8762E', '#E7C27A', '#8C8C8C', '#D9534F'];
@@ -26,10 +26,10 @@ const SCENE = (() => {
     return { haut: '#7C6BB8', bas: '#F0A7A0', nuit: false };
   }
   // ─── événements venus du jeu ───
-  function vente(i, montant, texte) {
+  function vente(i, montant, texte, main) {
     const x = W * 0.62 + Math.random() * W * 0.1, y = H * 0.52;
     textes.push({ x, y, txt: texte, life: 1, col: '#3FB889' });
-    if (clients.length < (rush ? 8 : 5) && Math.random() < 0.6) spawn();
+    for (let k = 0; k < (main ? 1 + affl : 1); k++) if (clients.length < (rush ? 8 : 5) + affl && (k > 0 || Math.random() < 0.6)) spawn(); // le bouche-à-oreille amène du monde
     hop = 1;
     if (textes.length > 6) textes.shift();
   }
@@ -46,6 +46,8 @@ const SCENE = (() => {
   }
   // le client mystère : doré, il attend 8 s devant le comptoir ; touché, il laisse un pourboire
   function mystere() { if (clients.some((c) => c.or)) return false; spawn(true); return true; }
+  // le boulanger, au comptoir : on le touche pour ouvrir sa fiche
+  function hitBoulanger(x, y) { const bx = W * 0.33, by = H * 0.62; return Math.abs(x - bx) < 34 && y > by - 112 && y < by + 4; }
   function hit(x, y) {
     for (const c of clients) {
       if (!c.or || c.pris || c.etat !== 'attend') continue;
@@ -59,10 +61,11 @@ const SCENE = (() => {
     t += dt;
     const d = new Date(now), hour = d.getHours() + d.getMinutes() / 60;
     const taux = G.tauxParSeconde(st);
+    rang = G.rangTitre(st); pts = G.ptsTalents(st); affl = G.talent(st, 'affluence');
     nextSpawn -= dt;
     if (nextSpawn <= 0) {
       nextSpawn = rush ? 0.7 : taux > 0 ? Math.max(1.5, 6 - Math.log10(taux + 1)) : 7;
-      if (clients.length < (rush ? 8 : 4) && (rush || taux > 0 || Math.random() < 0.3)) spawn();
+      if (clients.length < (rush ? 8 : 4) + affl && (rush || taux > 0 || Math.random() < 0.3)) spawn();
     }
     for (const c of clients) {
       c.phase += dt * 9;
@@ -144,12 +147,24 @@ const SCENE = (() => {
     const peau = '#FFD7B5';
     ctx.fillStyle = '#fff'; rr(x - 22, y - 44, 44, 44, 14); ctx.fill();
     ctx.fillStyle = '#FF6B8B'; rr(x - 10, y - 44, 20, 26, 6); ctx.fill();
+    if (rang >= 4) { ctx.fillStyle = '#FFC84A'; rr(x - 22, y - 8, 44, 5, 2); ctx.fill(); } // le maître : liseré doré au tablier
+    if (rang >= 5) { ctx.fillStyle = '#2B5BD7'; rr(x - 22, y - 44, 14, 8, 3); ctx.fill(); ctx.fillStyle = '#fff'; rr(x - 7, y - 44, 14, 8, 3); ctx.fill(); ctx.fillStyle = '#E1496C'; rr(x + 8, y - 44, 14, 8, 3); ctx.fill(); } // le col bleu-blanc-rouge du MOF
+    if (rang >= 3) { ctx.fillStyle = '#E1496C'; rr(x - 14, y - 46, 28, 7, 3); ctx.fill(); } // le compagnon : foulard rouge
     ctx.fillStyle = peau; ctx.beginPath(); ctx.arc(x, y - 58, 16, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#fff'; rr(x - 17, y - 86, 34, 22, 10); ctx.fill(); rr(x - 19, y - 68, 38, 7, 4); ctx.fill();
+    // la toque grandit avec le titre : calot d'apprenti, toque, haute toque
+    const th = rang === 0 ? 10 : rang === 1 ? 22 : 22 + Math.min(14, (rang - 1) * 5);
+    ctx.fillStyle = '#fff'; rr(x - 17, y - 64 - th, 34, th, rang === 0 ? 5 : 10); ctx.fill(); rr(x - 19, y - 68, 38, 7, 4); ctx.fill();
+    if (rang >= 4) { ctx.fillStyle = '#FFC84A'; rr(x - 19, y - 68, 38, 3, 2); ctx.fill(); } // bande dorée
+    if (pts > 0) { // un point de talent à dépenser : une bulle au-dessus de la toque
+      const by = y - 78 - th + Math.sin(t * 3) * 2;
+      ctx.fillStyle = '#fff'; rr(x + 10, by - 12, 26, 20, 8); ctx.fill(); ctx.beginPath(); ctx.moveTo(x + 14, by + 7); ctx.lineTo(x + 10, by + 14); ctx.lineTo(x + 20, by + 8); ctx.fill();
+      ctx.fillStyle = '#9A84F0'; etincelle(x + 23, by - 2, 7);
+    }
     ctx.fillStyle = L;
     if (blink > 3.2) { ctx.fillRect(x - 8, y - 60, 5, 2); ctx.fillRect(x + 3, y - 60, 5, 2); }
     else { ctx.beginPath(); ctx.arc(x - 6, y - 60, 2, 0, TAU); ctx.arc(x + 6, y - 60, 2, 0, TAU); ctx.fill(); }
     ctx.strokeStyle = L; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(x, y - 55, 6, 0.2, Math.PI - 0.2); ctx.stroke();
+    if (rang >= 3) { ctx.strokeStyle = '#8C5A3C'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(x - 7, y - 53); ctx.quadraticCurveTo(x - 3, y - 56, x, y - 53); ctx.quadraticCurveTo(x + 3, y - 56, x + 7, y - 53); ctx.stroke(); } // moustache
     ctx.fillStyle = '#FFB3B3'; ctx.beginPath(); ctx.arc(x - 11, y - 54, 2.5, 0, TAU); ctx.arc(x + 11, y - 54, 2.5, 0, TAU); ctx.fill();
     ctx.strokeStyle = peau; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(x - 20, y - 32); ctx.lineTo(x - 30, y - 12); ctx.moveTo(x + 20, y - 32); ctx.lineTo(x + 30, y - 12); ctx.stroke();
     if (rush) { ctx.fillStyle = '#9BD0FF'; ctx.beginPath(); ctx.arc(x + 19, y - 66, 2.2, 0, TAU); ctx.fill(); } // une goutte de sueur pendant le coup de feu
@@ -198,5 +213,5 @@ const SCENE = (() => {
   function guirlande() { ctx.strokeStyle = '#C8864F'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, 6); ctx.quadraticCurveTo(W / 2, 34, W, 6); ctx.stroke(); for (let i = 0; i < 9; i++) { const u = (i + 0.5) / 9, x = u * W, y = 6 + 4 * (1 - Math.pow(2 * u - 1, 2)) * 7; ctx.fillStyle = PASTEL[i % PASTEL.length]; ctx.beginPath(); ctx.moveTo(x - 6, y); ctx.lineTo(x + 6, y); ctx.lineTo(x, y + 12); ctx.closePath(); ctx.fill(); } }
   function chat(x, y) { ctx.fillStyle = '#F2A65A'; rr(x - 16, y - 12, 30, 12, 6); ctx.fill(); ctx.beginPath(); ctx.arc(x + 14, y - 12, 7, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.moveTo(x + 9, y - 16); ctx.lineTo(x + 11, y - 22); ctx.lineTo(x + 14, y - 17); ctx.moveTo(x + 15, y - 17); ctx.lineTo(x + 18, y - 22); ctx.lineTo(x + 19, y - 16); ctx.fill(); ctx.strokeStyle = '#F2A65A'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - 16, y - 6); ctx.quadraticCurveTo(x - 26, y - 6, x - 24, y - 16); ctx.stroke(); ctx.fillStyle = L; ctx.fillRect(x + 11, y - 13, 2, 1.5); ctx.fillRect(x + 16, y - 13, 2, 1.5); }
 
-  return { init, resize, frame, vente, texte, tap, fete, setRush, mystere, hit, get clients() { return clients.length; }, get mystereVisible() { return clients.some((c) => c.or && !c.pris && c.etat === 'attend'); } };
+  return { init, resize, frame, vente, texte, tap, fete, setRush, mystere, hit, hitBoulanger, get clients() { return clients.length; }, get mystereVisible() { return clients.some((c) => c.or && !c.pris && c.etat === 'attend'); } };
 })();

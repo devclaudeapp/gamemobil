@@ -65,6 +65,24 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   check(apres.reclame && apres.coins >= coinsObj + apres.prime - 1, 'prime du premier objectif récupérée : +' + apres.prime);
   await page.screenshot({ path: out + '/05c-objectif-recupere.png' });
   await page.tap('[data-a="close"]'); await sleep(300);
+  // le boulanger : touche-le dans la boutique, gagne du savoir-faire, apprends un talent
+  const bk = await page.evaluate(() => { const r = document.querySelector('#scene').getBoundingClientRect(); return { x: r.left + r.width * 0.33, y: r.top + r.height * 0.62 - 50 }; });
+  await page.touchscreen.tap(bk.x, bk.y); await sleep(400);
+  const fiche = await page.evaluate(() => document.querySelector('#feuille-contenu').innerText);
+  check(/Niveau \d/.test(fiche) && /Bouche-à-oreille/.test(fiche) && /Mains rapides/.test(fiche), 'touche le boulanger : sa fiche s’ouvre (' + fiche.split('\n').slice(0, 2).join(' / ') + ')');
+  await page.screenshot({ path: out + '/05n-boulanger.png' });
+  await page.tap('[data-a="close"]'); await sleep(200);
+  const manque = await page.evaluate(() => { const f = window.__fournil, np = f.G.niveauPour(f.st.xp); return np.prochain - np.reste; });
+  await page.evaluate((n) => window.__fournil.xp(n), manque); await sleep(500);
+  const toastNiv = await page.evaluate(() => (document.querySelector('.toast') || {}).textContent || '');
+  check(/Niveau \d+ :/.test(toastNiv), 'passage de niveau annoncé : ' + toastNiv);
+  const pts = await page.evaluate(() => window.__fournil.G.ptsTalents(window.__fournil.st));
+  check(pts >= 1, pts + ' point(s) de talent à dépenser');
+  await page.touchscreen.tap(bk.x, bk.y); await sleep(400);
+  await page.tap('[data-t="mains"]', { force: true }); await sleep(400);
+  check(await page.evaluate(() => { const f = window.__fournil; return f.G.talent(f.st, 'mains') === 1 && Math.abs(f.G.temps(f.st, 0) - 0.95) < 1e-9; }), 'Mains rapides appris : la baguette cuit en 0,95 s');
+  await page.screenshot({ path: out + '/05o-talent.png' });
+  await page.tap('[data-a="close"]'); await sleep(300);
   // coup de feu
   await page.evaluate(() => window.__fournil.rush()); await sleep(700);
   const rushTxt = await page.evaluate(() => ({ hidden: document.querySelector('#evenement').hidden, txt: document.querySelector('#evenement').innerText }));

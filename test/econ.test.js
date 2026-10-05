@@ -115,6 +115,22 @@ console.log('── événements ──');
   for (let k = 0; k < 60; k++) { st.now = T0 + k * 1000; const e = G.lancerEvenement(st, r2); if (e.type === prev) repete = true; prev = e.type; vus[e.type] = true; st.ev = null; }
   check(!repete && Object.keys(vus).length === 7, 'tirage : jamais deux fois le même type d’affilée, les sept sortent');
 }
+console.log('── le boulanger ──');
+{
+  const st = G.newState(T0); st.now = T0;
+  check(G.niveau(st) === 1 && G.titre(st) === 'Apprenti' && G.ptsTalents(st) === 0 && !G.apprendre(st, 'mains').ok, 'départ : apprenti niveau 1, aucun point, rien à apprendre');
+  G.gagnerXp(st, G.XP_NIVEAU(1)); check(G.niveau(st) === 2 && G.ptsTalents(st) === 1, 'premier niveau : un point de talent');
+  const t0 = G.temps(st, 1); check(G.apprendre(st, 'mains').ok && Math.abs(G.temps(st, 1) / t0 - 0.95) < 1e-9 && G.ptsTalents(st) === 0, 'mains rapides : fournées 5 % plus rapides, point dépensé');
+  st.xp = 1e6; check(G.niveau(st) >= 26 && G.titre(st) === 'Meilleur Ouvrier de France', 'beaucoup de savoir-faire : Meilleur Ouvrier de France');
+  for (const t of G.TALENTS) while (G.talent(st, t.id) < t.max) G.apprendre(st, t.id);
+  check(G.TALENTS.every((t) => G.talent(st, t.id) === t.max) && !G.apprendre(st, 'mains').ok, 'tous les talents au maximum, plus rien à apprendre');
+  check(Math.abs(G.tempsMult(st) - 0.75) < 1e-9 && G.heuresAbsence(st) === 12 && Math.abs(G.affluenceMult(st) - 3) < 1e-9, 'au maximum : fournées −25 %, absence 12 h, fournées à la main ×3');
+  check(Math.abs(G.prixStaff(st, 0) / PRODUITS[0].staff - 0.6) < 1e-9 && Math.abs(G.prixBonus(st, G.AMELIORATIONS[0]) / G.AMELIORATIONS[0].cout - 0.68) < 1e-9 && Math.abs(G.primeMult(st) - 1.75) < 1e-9, 'embauches −40 %, bonus −32 %, primes d’événement +75 %');
+  st.lifetimeRun = 1e12; G.nouvelleBoutique(st, T0); check(st.stations.filter((s) => s.niv > 0).length === 5 && G.talent(st, 'mains') === 5 && st.xp > 1e6, 'nouvelle boutique : 5 recettes d’emblée, talents gardés, savoir-faire gagné');
+  st.stations[0].actif = true; st.stations[0].prog = 0.99; const avant = st.coins; G.tick(st, 0.02, T0 + 20);
+  check(Math.abs(st.coins - avant - G.revenu(st, 0) * 3) < 1e-6, 'bouche-à-oreille : la fournée à la main rapporte ×3');
+  const s2 = G.newState(T0); s2.now = T0; s2.coins = 1e9; G.acheter(s2, 1); G.embaucher(s2, 0); check(s2.xp === 25, 'débloquer les croissants : +20 de savoir-faire ; embaucher Léo : +5');
+}
 console.log('── absence de 8 h après 1 h de jeu ──');
 const R1 = run(1, greedy);
 const before = R1.st.coins;

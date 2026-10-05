@@ -3,7 +3,7 @@ const UI = (() => {
   'use strict';
   const G = GAME, $ = (s) => document.querySelector(s), KEY = 'fournil.v2';
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let st, lastFrame = 0, lastSave = 0, cards = [], lastHud = '', lastObj = '', lastEv = '', hintStep = -1, hintUntil = 0, toastTimer = 0;
+  let st, lastFrame = 0, lastSave = 0, cards = [], lastHud = '', lastObj = '', lastEv = '', hintStep = -1, hintUntil = 0, toastTimer = 0, lastNiveau = 0, vuBoulanger = false;
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   // ─── sauvegarde : localStorage et IndexedDB en double (le second résiste mieux quand l'app est tuée), on relit la plus récente ───
@@ -98,13 +98,13 @@ const UI = (() => {
         cls = 'carte' + (s.staff ? ' auto' : ' manuel') + (s.actif ? ' actif' : '') + (critique.includes(i) ? ' gouter' : '');
         html = `${critique.includes(i) ? '<span class="badge-critique">Sers le critique !</span>' : ''}<div class="icone">${ICONS.PRODUITS[p.id]}</div>
           <div class="corps"><h3>${esc(p.nom)} <span class="niv">Niv. ${s.niv}${pal ? ` <i>· palier ${pal}</i>` : ''}</span></h3>
-            <div class="barre"><i class="${rapide ? 'rapide' : ''}"></i><span class="rev">+${G.fmtEur(G.revenu(st, i))}</span>${s.staff || s.actif ? `<span class="tps">${G.fmtDuree(p.temps)}</span>` : '<span class="cuire">Touche !</span>'}</div></div>
+            <div class="barre"><i class="${rapide ? 'rapide' : ''}"></i><span class="rev">+${G.fmtEur(G.revenuFournee(st, i))}</span>${s.staff || s.actif ? `<span class="tps">${G.fmtDuree(G.temps(st, i))}</span>` : '<span class="cuire">Touche !</span>'}</div></div>
           <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'} ${remise < 1 ? 'promo' : ''}" data-a="ameliorer"><small>${remise < 1 ? `−${Math.round((1 - remise) * 100)} % ×${n}` : `Améliorer ×${n}`}</small><b>${G.fmtEur(prix)}</b></button>
-            ${s.staff ? `<div class="staff-ok">${ICONS.apprenti(i)}<span>${esc(p.staffNom.split(' ').pop())}<br>s’en occupe</span></div>` : `<button type="button" class="btn beurre ${st.coins >= p.staff ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${G.fmtEur(p.staff)}</b></button>`}</div>`;
+            ${s.staff ? `<div class="staff-ok">${ICONS.apprenti(i)}<span>${esc(p.staffNom.split(' ').pop())}<br>s’en occupe</span></div>` : `<button type="button" class="btn beurre ${st.coins >= G.prixStaff(st, i) ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${G.fmtEur(G.prixStaff(st, i))}</b></button>`}</div>`;
       }
       if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); }
       else if (c.el.className !== cls) c.el.className = cls;
-      if (c.bar && !c.bar.classList.contains('rapide')) c.bar.style.width = (s.niv > 0 && s.actif ? Math.min(100, s.prog / G.PRODUITS[i].temps * 100) : 0).toFixed(1) + '%';
+      if (c.bar && !c.bar.classList.contains('rapide')) c.bar.style.width = (s.niv > 0 && s.actif ? Math.min(100, s.prog / G.temps(st, i) * 100) : 0).toFixed(1) + '%';
     });
   }
   function onCardClick(e) {
@@ -144,7 +144,7 @@ const UI = (() => {
     $('#taux').innerHTML = (taux > 0 ? `<b>+${G.fmtEur(taux)}</b> par seconde` : 'Touche la baguette !') + (marche || boost ? '<br>' : '') + (marche ? '<span class="marche">Marché ×1,5</span>' : '') + (boost ? `<span class="marche">Bonne critique ×${boost}</span>` : '');
     $('#etoiles-n').textContent = gain > 0 ? `${st.etoiles} · +${gain}` : st.etoiles;
     $('#b-etoiles').classList.toggle('pret', gain >= 3);
-    $('#b-ameliorations').classList.toggle('pret', G.AMELIORATIONS.some((a) => !st.ameliorations[a.id] && st.coins >= a.cout));
+    $('#b-ameliorations').classList.toggle('pret', G.AMELIORATIONS.some((a) => !st.ameliorations[a.id] && st.coins >= G.prixBonus(st, a)));
   }
   function toast(txt) { let el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); } el.textContent = txt; clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 2400); }
   function flottant(x, y, txt) { const el = document.createElement('div'); el.className = 'flottant'; el.textContent = txt; el.style.left = x + 'px'; el.style.top = y + 'px'; document.body.appendChild(el); setTimeout(() => el.remove(), 900); }
@@ -215,6 +215,7 @@ const UI = (() => {
     { txt: 'Débloque les croissants : 20 € la fournée !', cible: () => cards[1].el.querySelector('[data-a="debloquer"]'), pret: () => st.coins >= G.PRODUITS[1].cout, fini: () => st.stations[1].niv >= 1 },
     { txt: 'Embauche Léo : il cuit les baguettes tout seul, même quand tu n’es pas là.', cible: () => cards[0].el.querySelector('[data-a="embaucher"]'), pret: () => st.coins >= G.PRODUITS[0].staff, fini: () => st.stations[0].staff },
     { txt: 'Bravo ! Au niveau 25, 50, 100… les gains doublent. Et regarde tes objectifs du jour : trois défis, une étoile à la clé.', cible: () => $('#objectifs'), pret: () => true, fini: () => performance.now() > hintUntil },
+    { txt: 'Le boulanger a un point de talent ! Touche-le dans la boutique pour l’apprendre.', cible: () => $('#scene'), pret: () => G.ptsTalents(st) > 0, fini: () => vuBoulanger },
   ];
   function indices() {
     const el = $('#indice');
@@ -245,11 +246,11 @@ const UI = (() => {
   const on = (sel, fn) => fc.querySelectorAll(sel).forEach((b) => b.addEventListener('click', () => fn(b)));
   function sheetAmeliorations() {
     const items = G.AMELIORATIONS.map((a) => {
-      const fait = st.ameliorations[a.id], ok = st.coins >= a.cout;
-      return `<div class="am ${fait ? 'fait' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p></div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${G.fmtEur(a.cout)}</b></button>`}</div>`;
+      const fait = st.ameliorations[a.id], prix = G.prixBonus(st, a), ok = st.coins >= prix;
+      return `<div class="am ${fait ? 'fait' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p></div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${G.fmtEur(prix)}</b></button>`}</div>`;
     }).join('');
     openSheet(`<h2>Bonus</h2><p class="sous">Des recettes et des équipements qui multiplient tes gains, pour toujours (jusqu’à la prochaine boutique).</p><div class="liste-am">${items}</div>`);
-    on('[data-id]', (b) => { const r = G.amelioration(st, b.dataset.id); if (!r.ok) { son.non(); toast(`Il manque ${G.fmtEur(G.AMELIORATIONS.find((a) => a.id === b.dataset.id).cout - st.coins)}`); return; } son.deblocage(); buzz([10, 30, 10]); toast(`${r.a.nom} : ${r.a.desc}`); renderCards(true); hud(); save(); sheetAmeliorations(); });
+    on('[data-id]', (b) => { const r = G.amelioration(st, b.dataset.id); if (!r.ok) { son.non(); toast(`Il manque ${G.fmtEur(r.prix - st.coins)}`); return; } son.deblocage(); buzz([10, 30, 10]); toast(`${r.a.nom} : ${r.a.desc}`); renderCards(true); hud(); save(); sheetAmeliorations(); });
   }
   function sheetSauvegarde() {
     save();
@@ -271,15 +272,30 @@ const UI = (() => {
     on('[data-a="charger"]', () => {
       const s2 = lireCode(fc.querySelector('[data-r="entree"]').value);
       if (!s2) { son.non(); toast('Ce code n’est pas valide.'); return; }
-      const plus = s2.etoiles > st.etoiles;
+      const plus = s2.etoiles > st.etoiles || (s2.xp || 0) > (st.xp || 0);
       openSheet(`<h2>Charger cette boutique ?</h2><p class="sous">Ta boutique actuelle : ${G.fmtEur(st.coins)}, ${st.etoiles} étoile${st.etoiles > 1 ? 's' : ''}, boutique n°${st.boutiques}. Dans le code :</p>
         <div class="stat"><span>Euros</span><b>${G.fmtEur(s2.coins)}</b></div><div class="stat"><span>Étoiles</span><b>${s2.etoiles}</b></div><div class="stat"><span>Boutique</span><b>n°${s2.boutiques}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(s2.lifetime)}</b></div>
         <button type="button" class="btn large lavande" data-a="oui" style="margin-top:14px"><small>Remplacer ma boutique</small><b>Charger tout</b></button>
-        ${plus ? `<button type="button" class="btn large beurre" data-a="etoiles" style="margin-top:8px"><small>Garder ma boutique</small><b>Prendre les ${s2.etoiles} étoiles</b></button>` : ''}
+        ${plus ? `<button type="button" class="btn large beurre" data-a="etoiles" style="margin-top:8px"><small>Garder ma boutique</small><b>Prendre ${s2.etoiles} étoiles et le savoir-faire</b></button>` : ''}
         <button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, ne rien changer</b></button>`);
       on('[data-a="non"]', sheetSauvegarde);
       on('[data-a="oui"]', () => { st = s2; save(); fige = true; setTimeout(() => location.reload(), 150); });
-      on('[data-a="etoiles"]', () => { st.etoiles = Math.max(st.etoiles, s2.etoiles); son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`${st.etoiles} étoiles : +${Math.round(st.etoiles * G.ETOILE_BONUS * 100)} % de gains`); renderCards(true); hud(); save(); sheetEtoiles(); });
+      on('[data-a="etoiles"]', () => { st.etoiles = Math.max(st.etoiles, s2.etoiles); if ((s2.xp || 0) > (st.xp || 0)) { st.xp = s2.xp; st.talents = s2.talents || {}; } lastNiveau = G.niveau(st); son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`${st.etoiles} étoiles : +${Math.round(st.etoiles * G.ETOILE_BONUS * 100)} % de gains`); renderCards(true); hud(); save(); sheetEtoiles(); });
+    });
+  }
+  function sheetBoulanger() {
+    vuBoulanger = true;
+    const np = G.niveauPour(st.xp), pts = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n);
+    openSheet(`<div class="boulanger-tete">${ICONS.boulanger(rang)}<div><h2>${esc(G.titre(st))}</h2><p class="sous">Niveau ${np.n} · ${G.fmt(np.reste)} / ${G.fmt(np.prochain)} savoir-faire${suivant ? ` · ${esc(suivant[1])} au niveau ${suivant[0]}` : ''}</p><div class="mini xp"><i style="width:${(np.reste / np.prochain * 100).toFixed(0)}%"></i></div></div></div>
+      <div class="encadre doux">Le savoir-faire vient des défis du jour, des événements réussis, des recettes, des embauches et des nouvelles boutiques. Chaque niveau donne <b>un point de talent</b>. Les talents sont à toi pour toujours, même en changeant de boutique.</div>
+      <h3 class="titre-section">Talents${pts ? ` · <span class="pts">${pts} point${pts > 1 ? 's' : ''} à dépenser</span>` : ''}</h3>
+      <div class="liste-am">${G.TALENTS.map((t) => { const k = G.talent(st, t.id), max = k >= t.max; return `<div class="am talent ${k ? 'appris' : ''}"><div><h3>${esc(t.nom)} <span class="crans">${'●'.repeat(k)}${'○'.repeat(t.max - k)}</span></h3><p>${k ? esc(t.desc(k)) : 'Cran 1 : ' + esc(t.desc(1))}${k && !max ? `<br><em>Cran suivant : ${esc(t.desc(k + 1))}</em>` : ''}</p></div>${max ? '<span class="ok">Maîtrisé ✓</span>' : `<button type="button" class="btn ${pts ? 'lavande' : 'non'}" data-t="${t.id}"><small>Apprendre</small><b>1 point</b></button>`}</div>`; }).join('')}</div>
+      <button type="button" class="btn large" data-a="close" style="margin-top:14px;background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
+    on('[data-a="close"]', closeSheet);
+    on('[data-t]', (b) => {
+      const r = G.apprendre(st, b.dataset.t);
+      if (!r.ok) { son.non(); toast(G.ptsTalents(st) ? 'Ce talent est déjà au maximum.' : 'Pas encore de point : gagne du savoir-faire.'); return; }
+      son.deblocage(); buzz([10, 30, 10]); toast(`${r.talent.nom} : ${r.talent.desc(r.cran)}`); renderCards(true); hud(); save(); sheetBoulanger();
     });
   }
   function sheetEtoiles() {
@@ -292,10 +308,12 @@ const UI = (() => {
       <div class="stat"><span>Fournées vendues</span><b>${G.fmt(st.stats.ventes)}</b></div><div class="stat"><span>Clients servis</span><b>${G.fmt(st.stats.clients)}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(st.lifetime)}</b></div><div class="stat"><span>Série d’objectifs</span><b>${serie} jour${serie > 1 ? 's' : ''}</b></div>
       <div class="ligne-reglage"><span>Vibrations</span><button type="button" class="interrupteur" role="switch" aria-checked="${st.vibre}" data-a="vibre"></button></div>
       <button type="button" class="btn large" data-a="close" style="background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>
+      <button type="button" class="lien" data-a="boulanger">Le boulanger et ses talents</button>
       <button type="button" class="lien" data-a="sauvegarde">Sauvegarde et transfert</button>
       <button type="button" class="lien" data-a="reset">Recommencer une partie de zéro</button>`);
     on('[data-a="close"]', closeSheet);
     on('[data-a="sauvegarde"]', sheetSauvegarde);
+    on('[data-a="boulanger"]', sheetBoulanger);
     on('[data-a="vibre"]', (b) => { st.vibre = !st.vibre; b.setAttribute('aria-checked', st.vibre); save(); });
     on('[data-a="reset"]', () => { openSheet(`<h2>Tout effacer ?</h2><p class="sous">Euros, recettes, apprentis, bonus et étoiles : tout repart de la première baguette. Impossible de revenir en arrière.</p><button type="button" class="btn large" data-a="oui" style="background:var(--fraise);box-shadow:0 4px 0 var(--fraise-sombre)"><b>Oui, tout effacer</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde ma boutique</b></button>`); on('[data-a="non"]', sheetEtoiles); on('[data-a="oui"]', () => { fige = true; effacer().then(() => location.reload()); }); });
     on('[data-a="prestige"]', () => {
@@ -320,12 +338,14 @@ const UI = (() => {
     const out = G.tick(st, dt, Date.now());
     if (out.ventes.length) {
       const gros = out.ventes.reduce((a, v) => a + v.montant, 0), first = out.ventes[0];
-      if (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros)); son.vente(gros); }
+      if (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), !st.stations[first.i].staff); son.vente(gros); }
       if (!st.stations[first.i].staff) { const r = cards[first.i].el.querySelector('.barre').getBoundingClientRect(); flottant(r.left + r.width / 2 - 30, r.top - 10, '+' + G.fmtEur(first.montant)); }
     }
     if (out.nouvelEv) { son.evenement(); buzz([15, 40, 15]); toast(TXT_EV[out.nouvelEv.type]); }
     if (out.finEv) { toast(FIN_EV[out.finEv.type]); if (out.finEv.type === 'critique' || out.finEv.type === 'petrissage') son.non(); }
     if (out.mystere && $('#feuille').hidden) { if (SCENE.mystere()) toast('Un client mystère ! Touche-le vite.'); }
+    const nv = G.niveau(st);
+    if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); SCENE.fete(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
     renderCards(); hud(); renderObjectifs(); renderEvenement();
     SCENE.frame(dt, st, Date.now());
     indices();
@@ -353,7 +373,9 @@ const UI = (() => {
     $('#scene').addEventListener('pointerdown', (e) => {
       audio();
       const r = $('#scene').getBoundingClientRect();
-      if (SCENE.hit(e.clientX - r.left, e.clientY - r.top)) { const tip = G.pourboire(st); G.gagner(st, tip, true); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
+      const sx = e.clientX - r.left, sy = e.clientY - r.top;
+      if (SCENE.hit(sx, sy)) { const tip = G.encaisserPourboire(st); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
+      else if (SCENE.hitBoulanger(sx, sy)) sheetBoulanger();
       else SCENE.tap();
     });
     document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); } });
@@ -365,10 +387,11 @@ const UI = (() => {
     window.addEventListener('resize', layout);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
     if (!fresh) { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) sheetRetour(abs); }
+    lastNiveau = G.niveau(st);
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere() };
+    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), boulanger: () => sheetBoulanger() };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);
