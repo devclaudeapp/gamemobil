@@ -253,7 +253,7 @@ const UI = (() => {
   }
   function sheetSauvegarde() {
     save();
-    openSheet(`<h2>Sauvegarde</h2><p class="sous">Ta boutique est enregistrée dans ce téléphone toutes les 5 secondes et à chaque achat. Pour la mettre à l’abri ou la transférer (autre téléphone, autre navigateur), copie ce code et garde-le quelque part.</p>
+    openSheet(`<h2>Sauvegarde</h2><p class="sous">Ta boutique est enregistrée ici toutes les 5 secondes et à chaque achat. Attention : Safari et l’app installée ont chacun leur sauvegarde, et supprimer l’app efface la sienne. Pour la mettre à l’abri ou la transférer, copie ce code et garde-le quelque part.</p>
       <h3 style="margin:14px 0 6px;font:700 16px/1 var(--titre)">Ton code</h3>
       <textarea class="code" readonly data-r="code" aria-label="Code de sauvegarde">${esc(codeSauvegarde())}</textarea>
       <button type="button" class="btn large menthe" data-a="copier"><b>Copier le code</b></button>
@@ -271,11 +271,15 @@ const UI = (() => {
     on('[data-a="charger"]', () => {
       const s2 = lireCode(fc.querySelector('[data-r="entree"]').value);
       if (!s2) { son.non(); toast('Ce code n’est pas valide.'); return; }
-      openSheet(`<h2>Charger cette boutique ?</h2><p class="sous">Elle remplace ta boutique actuelle (${G.fmtEur(st.coins)}, ${st.etoiles} étoile${st.etoiles > 1 ? 's' : ''}, boutique n°${st.boutiques}).</p>
+      const plus = s2.etoiles > st.etoiles;
+      openSheet(`<h2>Charger cette boutique ?</h2><p class="sous">Ta boutique actuelle : ${G.fmtEur(st.coins)}, ${st.etoiles} étoile${st.etoiles > 1 ? 's' : ''}, boutique n°${st.boutiques}. Dans le code :</p>
         <div class="stat"><span>Euros</span><b>${G.fmtEur(s2.coins)}</b></div><div class="stat"><span>Étoiles</span><b>${s2.etoiles}</b></div><div class="stat"><span>Boutique</span><b>n°${s2.boutiques}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(s2.lifetime)}</b></div>
-        <button type="button" class="btn large lavande" data-a="oui" style="margin-top:14px"><b>Oui, charger</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, garder la mienne</b></button>`);
+        <button type="button" class="btn large lavande" data-a="oui" style="margin-top:14px"><small>Remplacer ma boutique</small><b>Charger tout</b></button>
+        ${plus ? `<button type="button" class="btn large beurre" data-a="etoiles" style="margin-top:8px"><small>Garder ma boutique</small><b>Prendre les ${s2.etoiles} étoiles</b></button>` : ''}
+        <button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, ne rien changer</b></button>`);
       on('[data-a="non"]', sheetSauvegarde);
       on('[data-a="oui"]', () => { st = s2; save(); fige = true; setTimeout(() => location.reload(), 150); });
+      on('[data-a="etoiles"]', () => { st.etoiles = Math.max(st.etoiles, s2.etoiles); son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`${st.etoiles} étoiles : +${Math.round(st.etoiles * G.ETOILE_BONUS * 100)} % de gains`); renderCards(true); hud(); save(); sheetEtoiles(); });
     });
   }
   function sheetEtoiles() {
@@ -353,6 +357,7 @@ const UI = (() => {
       else SCENE.tap();
     });
     document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); } });
+    document.addEventListener('pointerdown', () => { try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* rien */ } }, { once: true });
     window.addEventListener('pagehide', save);
     window.addEventListener('beforeunload', save);
     document.addEventListener('freeze', save);

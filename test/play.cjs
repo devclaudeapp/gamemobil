@@ -147,7 +147,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   check(/Pendant ton absence/.test(absTxt) && /3 h/.test(absTxt), 'feuille d’absence : ' + absTxt.split('\n').slice(0, 3).join(' / '));
   await page.tap('[data-a="close"]'); await sleep(300);
   // étoiles
-  await page.evaluate(() => { window.__fournil.st.lifetimeRun = 5e9; }); await sleep(100);
+  await page.evaluate(() => { window.__fournil.st.lifetimeRun = 2e11; }); await sleep(100);
   await page.tap('#b-etoiles', { force: true }); await sleep(400); await page.screenshot({ path: out + '/08-etoiles.png' });
   await page.tap('[data-a="prestige"]'); await sleep(400); await page.tap('[data-a="oui"]'); await sleep(600);
   const s2 = await W(); console.log('boutique 2', s2);
@@ -174,6 +174,10 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.tap('#b-etoiles', { force: true }); await sleep(300); await page.tap('[data-a="sauvegarde"]'); await sleep(300);
   await page.fill('[data-r="entree"]', code); await page.tap('[data-a="charger"]'); await sleep(300);
   await page.screenshot({ path: out + '/09c-charger-code.png' });
+  await page.tap('[data-a="etoiles"]'); await sleep(500);
+  const fusion = await page.evaluate(() => ({ etoiles: window.__fournil.st.etoiles, boutiques: window.__fournil.st.boutiques }));
+  check(fusion.etoiles === s3.etoiles && fusion.boutiques === 1, 'étoiles récupérées du code, boutique gardée : ' + JSON.stringify(fusion));
+  await page.tap('[data-a="sauvegarde"]'); await sleep(300); await page.fill('[data-r="entree"]', code); await page.tap('[data-a="charger"]'); await sleep(300);
   await page.tap('[data-a="oui"]'); await sleep(1500);
   const s6 = await page.evaluate(() => ({ etoiles: window.__fournil.st.etoiles, boutiques: window.__fournil.st.boutiques }));
   check(s6.boutiques === 2 && s6.etoiles === s3.etoiles, 'boutique rechargée depuis le code : ' + JSON.stringify(s6));

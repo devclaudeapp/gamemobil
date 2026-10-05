@@ -48,7 +48,9 @@ Ouvre l'URL sur le téléphone, puis : iPhone (Safari) → Partager → **Sur l'
 
 ### La sauvegarde
 
-La boutique est enregistrée dans le téléphone toutes les 5 secondes, à chaque achat et quand l'app passe en arrière-plan, en double : localStorage et IndexedDB (le second résiste mieux quand iOS tue l'application). Au lancement, la plus avancée des deux est relue. Elle tient tant que l'application n'est pas supprimée. Dans la feuille Étoiles → **Sauvegarde et transfert**, un code de sauvegarde se copie en un geste et se recharge sur un autre téléphone ou navigateur. Attention : ouvert dans un autre contexte (une page intégrée dans une autre app, une fenêtre privée), le navigateur peut ne rien garder ; l'application installée depuis Safari ou Chrome, elle, garde tout.
+La boutique est enregistrée dans le téléphone toutes les 5 secondes, à chaque achat et quand l'app passe en arrière-plan, en double : localStorage et IndexedDB (le second résiste mieux quand iOS tue l'application). Au lancement, la plus avancée des deux est relue, et le jeu demande au navigateur un stockage persistant.
+
+À savoir sur iPhone : **Safari et l'app installée sur l'écran d'accueil ont chacun leur propre sauvegarde**, et **supprimer l'app efface la sienne**. Pour mettre le jeu à jour, il suffit de le rouvrir (jamais besoin de le réinstaller). Pour passer d'un contexte à l'autre, la feuille Étoiles → **Sauvegarde et transfert** donne un code à copier ; au chargement, on peut soit remplacer toute la boutique, soit garder la sienne et ne récupérer que les étoiles du code. Ouvert dans une page intégrée à une autre app ou en navigation privée, le navigateur peut ne rien garder du tout.
 
 ## Structure
 
