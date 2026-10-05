@@ -13,6 +13,14 @@ Ta boulangerie de quartier, en jeu idle/tycoon simple et lumineux : **tu cuis, t
 7. **Objectifs du jour** : trois défis par jour, calibrés sur ta boutique (gagner tant, vendre tant de fournées, embaucher, débloquer une recette…). Chaque défi réussi donne une prime en euros ; les trois réussis donnent **une étoile** et prolongent ta série de jours.
 8. **Le boulanger** : touche-le dans la boutique. Il gagne du **savoir-faire** à chaque défi, événement réussi, recette, embauche et nouvelle boutique, monte de niveau (Apprenti, Mitron, Boulanger, Compagnon, Maître boulanger, Meilleur Ouvrier de France) et reçoit **un point de talent par niveau**. Les neuf talents sont permanents, ils survivent aux changements de boutique : Bouche-à-oreille (fournées à la main ×1,5 par cran, pour des débuts plus rapides), Mains rapides (fournées −5 % de temps par cran), Mémoire des recettes (chaque nouvelle boutique démarre avec plus de recettes), Lève-tôt (absence 8 h → 12 h), Apprentis zélés, Négociateur, Charme (événements plus fréquents, primes +25 %), Pourboires, Carnet de commandes. Sa toque, sa moustache et son col changent avec son titre.
 
+## Chaque jour, chaque semaine
+
+- **Pain du jour** : un produit tiré selon la date rapporte ×1,5 toute la journée (étiquette sur sa carte).
+- **Défi de la semaine** : un seul défi plus long, du lundi au dimanche (livrer 8 commandes, conquérir 3 critiques, 12 pourboires, 15 événements, 4 jours aux trois objectifs, ouvrir une boutique). Réussi : une étoile, du savoir-faire et une prime.
+- **Les habitués** : Mme Dupuis le matin, Marco le midi, Léna en fin de journée. Chacun passe une fois par jour pendant son créneau, avec son étiquette et sa phrase. Servi cinq jours de suite, il offre un cadeau.
+- **La spécialité** : à chaque ouverture de boutique, tu choisis son produit fétiche, qui rapporte ×2 le temps de la boutique.
+- **Journal, trophées et partage** (depuis la feuille Étoiles) : records, fidélité des habitués, 28 trophées qui donnent du savoir-faire, les vingt derniers événements, et un bouton pour partager une image de ta boutique avec sa légende.
+
 ## Ce qui se passe en jouant
 
 - **Coup de feu** : pendant 60 s, toutes les ventes sont ×3 et les clients affluent. Plus fréquent aux vraies heures de pointe (le matin, midi, la sortie du travail).

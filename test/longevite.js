@@ -71,6 +71,7 @@ function simuler(nomProfil, jours, opts = {}) {
       const gain = G.etoilesGagnables(st);
       const stagne = gain < 1.5 * (M.gainHier || 0) || M.attenteDerniere > 0.7;
       if (gain >= 5 && gain >= 0.25 * st.etoiles && stagne) { const run = st.lifetimeRun; G.nouvelleBoutique(st, now); M.prestiges.push({ t: now, gain, etoiles: st.etoiles, run, duree: (now - (M.debutRun || T0)) / 864e5 }); M.debutRun = now; M.gainHier = 0; }
+      if (st.specialite == null) G.choisirSpecialite(st, Math.min(7, 1 + st.boutiques)); // la spécialité de la boutique : une recette de plus en plus avancée
       let enAttente = 0, attenteSession = 0;
       for (let s = 0; s < minutes * 60; s++) {
         now = debut + s * 1000;
@@ -79,6 +80,8 @@ function simuler(nomProfil, jours, opts = {}) {
         const out = G.tick(st, 1, now, rnd);
         if (s % 4 === 0 && (G.tauxParSeconde(st) > 0 || st.stats.ventes > 0)) { st.stats.clients++; G.noter(st, 'clients', 1); } // la scène sert un client toutes les ~4 s
         if (out.mystere && pr(0.7)) G.encaisserPourboire(st);
+        if (out.habitue) G.servirHabitue(st, out.habitue.id);
+        if (st.semaine && st.semaine.fait && !st.semaine.reclame) G.reclamerSemaine(st);
         if (st.ev && st.ev.type === 'commande' && st.ev.fait >= st.ev.n) G.livrer(st);
         if (st.ev && st.ev.type === 'critique' && pr(0.5)) G.servir(st, st.ev.restants[0]);
         if (st.ev && st.ev.type === 'petrissage') { G.petrir(st); if (pr(0.7)) G.petrir(st); } // ~1,7 touche par seconde
@@ -121,7 +124,7 @@ function resume(nom, R) {
 // pour une nouvelle boutique au bout de 2 à 4 jours puis tous les 2 à 4 jours, achète le dernier bonus en 3 à 7 semaines,
 // n'attend pas trop souvent sans rien pouvoir acheter, réussit la plupart des objectifs du jour, et les chiffres restent lisibles.
 const CIBLES = {
-  occasionnel: { piece: [8, 21], premierPrestige: [3, 6], etoilesJ30: [150, 1500], franchise: [25, 60], attente: 0.3, joursComplets: 0.6, niveauJ30: [6, 20], niveauFin: [10, 28] },
+  occasionnel: { piece: [6, 21], premierPrestige: [3, 6], etoilesJ30: [150, 1500], franchise: [25, 60], attente: 0.3, joursComplets: 0.6, niveauJ30: [6, 20], niveauFin: [10, 28] },
   regulier: { tarte: [1, 1], eclair: [1, 2], macaron: [1, 3], millefeuille: [2, 5], piece: [6, 12], premierPrestige: [2, 4], etoilesJ7: [20, 100], etoilesJ14: [60, 400], etoilesJ30: [300, 2000], franchise: [20, 45], attente: 0.35, joursComplets: 0.7, niveauJ30: [10, 24], niveauFin: [16, 34] },
   assidu: { piece: [4, 10], premierPrestige: [2, 4], etoilesJ30: [500, 3000], franchise: [15, 40], attente: 0.5, joursComplets: 0.7, niveauJ30: [12, 30], niveauFin: [18, 40] },
 };

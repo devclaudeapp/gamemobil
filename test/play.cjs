@@ -83,6 +83,23 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   check(await page.evaluate(() => { const f = window.__fournil; return f.G.talent(f.st, 'mains') === 1 && Math.abs(f.G.temps(f.st, 0) - 0.95) < 1e-9; }), 'Mains rapides appris : la baguette cuit en 0,95 s');
   await page.screenshot({ path: out + '/05o-talent.png' });
   await page.tap('[data-a="close"]'); await sleep(300);
+  // pain du jour, défi de la semaine, trophées, journal, habitué
+  const pdj = await page.evaluate(() => { const f = window.__fournil, p = f.st.jour.pain; return { p, tag: document.querySelectorAll('.carte .tag').length, texte: document.querySelector('#objectifs').innerText, debloque: f.st.stations[p].niv > 0, semaine: f.st.semaine && f.st.semaine.txt }; });
+  check(/Pain du jour/.test(pdj.texte) && /Défi de la semaine/.test(pdj.texte) && (!pdj.debloque || pdj.tag >= 1), 'pain du jour et défi de la semaine affichés (' + pdj.semaine + ')');
+  await page.tap('#objectifs', { force: true }); await sleep(400);
+  check(await page.evaluate(() => /Défi de la semaine/.test(document.querySelector('#feuille-contenu').innerText) && !!document.querySelector('[data-a="semaine"]')), 'la feuille des objectifs montre le défi de la semaine');
+  await page.screenshot({ path: out + '/05p-defi-semaine.png' });
+  await page.tap('[data-a="close"]'); await sleep(200);
+  check(await page.evaluate(() => !!window.__fournil.st.trophees.premiere && !!window.__fournil.st.trophees.equipe), 'trophées gagnés en jouant : première fournée, une équipe');
+  await page.evaluate(() => window.__fournil.journal()); await sleep(400);
+  const journal = await page.evaluate(() => document.querySelector('#feuille-contenu').innerText);
+  check(/Records/.test(journal) && /Mme Dupuis/.test(journal) && /Trophées · \d+\/\d+/.test(journal) && /Première fournée/.test(journal), 'le journal : records, habitués, trophées, événements');
+  await page.screenshot({ path: out + '/05q-journal.png' });
+  await page.tap('[data-a="partager"]', { force: true }); await sleep(400);
+  check(await page.evaluate(() => /copié|Le Fournil|boutique/i.test((document.querySelector('.toast') || {}).textContent || '')), 'partager : repli sur le texte');
+  await page.tap('[data-a="retour"]'); await sleep(200); await page.tap('[data-a="close"]'); await sleep(200);
+  await page.evaluate(() => window.__fournil.habitue('dupuis')); await sleep(1500); await page.screenshot({ path: out + '/05r-habitue.png' }); await sleep(7000);
+  check(await page.evaluate(() => window.__fournil.st.habitues.dupuis && window.__fournil.st.habitues.dupuis.jours === 1), 'Mme Dupuis est passée et a été servie');
   // coup de feu
   await page.evaluate(() => window.__fournil.rush()); await sleep(700);
   const rushTxt = await page.evaluate(() => ({ hidden: document.querySelector('#evenement').hidden, txt: document.querySelector('#evenement').innerText }));
@@ -171,8 +188,9 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const nomSheet = await page.evaluate(() => ({ txt: document.querySelector('#feuille-contenu').innerText, val: (document.querySelector('.champ') || {}).value }));
   check(/Boutique n°2/.test(nomSheet.txt) && nomSheet.val === 'Le Fournil de la Rue', 'nouvelle boutique : on choisit son nom (' + nomSheet.val + ')');
   await page.screenshot({ path: out + '/08b-nom.png' });
-  await page.fill('.champ', 'Chez Mamie'); await page.tap('[data-a="ok"]'); await sleep(400);
-  check(await page.evaluate(() => window.__fournil.st.nomBoutique === 'Chez Mamie' && window.__fournil.G.quartier(window.__fournil.st) === 1), 'boutique nommée « Chez Mamie », dans le quartier parisien');
+  check(await page.evaluate(() => document.querySelectorAll('.spe-grille [data-s]').length === 8), 'on choisit aussi la spécialité de la boutique');
+  await page.fill('.champ', 'Chez Mamie'); await page.tap('[data-s="1"]', { force: true }); await page.tap('[data-a="ok"]'); await sleep(400);
+  check(await page.evaluate(() => window.__fournil.st.nomBoutique === 'Chez Mamie' && window.__fournil.G.quartier(window.__fournil.st) === 1 && window.__fournil.st.specialite === 1), 'boutique nommée « Chez Mamie », dans le quartier parisien, spécialité croissants');
   const s2 = await W(); console.log('boutique 2', s2);
   check(s2.niv === '1,0,0,0,0,0,0,0' && await page.evaluate(() => window.__fournil.st.etoiles > 0), 'nouvelle boutique : produits remis à zéro, étoiles gardées');
   await page.screenshot({ path: out + '/09-boutique2.png' });

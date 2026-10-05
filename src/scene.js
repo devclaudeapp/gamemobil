@@ -59,6 +59,8 @@ const SCENE = (() => {
   }
   // le client mystère : doré, il attend 8 s devant le comptoir ; touché, il laisse un pourboire
   function mystere() { if (clients.some((c) => c.or)) return false; spawn(true); return true; }
+  // un habitué : silhouette fixe, étiquette avec son prénom, il reste un peu plus longtemps
+  function habitue(hb) { if (!hb || clients.some((c) => c.hab === hb.id)) return false; const c = spawn(false); c.hab = hb.id; c.nom = hb.nom; c.haut = hb.haut; c.cheveux = hb.cheveux; c.peau = hb.peau; c.coiffure = hb.coiffure; c.lunettes = hb.id === 'dupuis'; c.taille = 1.05; c.wait = 3; return true; }
   // le boulanger, au comptoir : on le touche pour ouvrir sa fiche
   function hitBoulanger(x, y) { const bx = W * 0.33, by = H * 0.62; return Math.abs(x - bx) < 34 && y > by - 112 && y < by + 4; }
   function hit(x, y) {
@@ -84,7 +86,7 @@ const SCENE = (() => {
     for (const c of clients) {
       c.phase += dt * 9;
       if (c.etat === 'entre') { c.x += c.vx * dt * (rush ? 1.4 : 1); if (c.x <= c.cible) { c.x = c.cible; c.etat = 'attend'; } }
-      else if (c.etat === 'attend') { c.wait -= dt; if (c.wait <= 0) { c.etat = 'sort'; c.sac = !c.or || c.pris; st.stats.clients++; G.noter(st, 'clients', 1); } }
+      else if (c.etat === 'attend') { c.wait -= dt; if (c.wait <= 0) { c.etat = 'sort'; c.sac = !c.or || c.pris; st.stats.clients++; G.noter(st, 'clients', 1); if (c.hab) { const r = G.servirHabitue(st, c.hab); if (r.ok && API.surServi) API.surServi(r); } } }
       else { c.x += (c.or ? 90 : 70) * dt; }
     }
     for (let i = clients.length - 1; i >= 0; i--) if (clients[i].etat === 'sort' && clients[i].x > W + 30) clients.splice(i, 1);
@@ -358,6 +360,10 @@ const SCENE = (() => {
     ctx.strokeStyle = L; ctx.lineWidth = 1.8; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(0, -49, 4, 0.3, Math.PI - 0.3); ctx.stroke();
     if (c.sac) { ctx.fillStyle = c.sacCol; rr(12, -28, 14, 18, 3); ctx.fill(); ctx.strokeStyle = Q.bois; ctx.lineWidth = 1.5; ctx.strokeRect(12, -28, 14, 18); ctx.fillStyle = '#E8B46A'; rr(15, -34, 8, 8, 3); ctx.fill(); }
     ctx.restore();
+    if (c.hab) { // l'étiquette de l'habitué
+      ctx.font = '700 10px Nunito, sans-serif'; ctx.textAlign = 'center'; const w = ctx.measureText(c.nom).width + 12, ty = y - bob - 82 * s;
+      ctx.fillStyle = '#fff'; rr(x - w / 2, ty - 8, w, 15, 7); ctx.fill(); ctx.fillStyle = L; ctx.fillText(c.nom, x, ty + 3);
+    }
   }
   function etincelle(x, y, r) { ctx.beginPath(); ctx.moveTo(x, y - r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.quadraticCurveTo(x, y, x, y + r); ctx.quadraticCurveTo(x, y, x - r, y); ctx.quadraticCurveTo(x, y, x, y - r); ctx.fill(); }
   // ─── petits décors ───
@@ -385,5 +391,6 @@ const SCENE = (() => {
   function glaces(x, y) { for (let k = 0; k < 2; k++) { ctx.fillStyle = '#E8B46A'; ctx.beginPath(); ctx.moveTo(x + k * 10 - 4, y - 8); ctx.lineTo(x + k * 10 + 4, y - 8); ctx.lineTo(x + k * 10, y + 2); ctx.fill(); ctx.fillStyle = k ? '#FF9FB2' : '#9BE8C2'; ctx.beginPath(); ctx.arc(x + k * 10, y - 10, 4.5, 0, TAU); ctx.fill(); } }
   function sapin(x, y) { ctx.fillStyle = '#8B5A3C'; ctx.fillRect(x - 3, y - 6, 6, 8); ctx.fillStyle = '#2F6B4F'; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(x - 16 + k * 3, y - 6 - k * 12); ctx.lineTo(x, y - 24 - k * 12); ctx.lineTo(x + 16 - k * 3, y - 6 - k * 12); ctx.fill(); } for (let k = 0; k < 6; k++) { ctx.fillStyle = Math.sin(t * 4 + k) > 0 ? ['#FF6B8B', '#FFC84A', '#9BD0FF'][k % 3] : '#fff'; ctx.beginPath(); ctx.arc(x - 9 + (k * 7) % 18, y - 12 - k * 5, 2, 0, TAU); ctx.fill(); } ctx.fillStyle = '#FFC84A'; etincelle(x, y - 50, 4); }
 
-  return { init, resize, frame, vente, texte, tap, fete, setRush, mystere, hit, hitBoulanger, forcer, get clients() { return clients.length; }, get mystereVisible() { return clients.some((c) => c.or && !c.pris && c.etat === 'attend'); } };
+  const API = { init, resize, frame, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, forcer, surServi: null, get clients() { return clients.length; }, get mystereVisible() { return clients.some((c) => c.or && !c.pris && c.etat === 'attend'); } };
+  return API;
 })();

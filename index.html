@@ -225,6 +225,28 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 /* le nom de la boutique */
 .champ { display: block; width: 100%; padding: 12px 14px; border: 2px solid var(--ligne); border-radius: 14px; background: #fff; color: var(--texte); font: 800 16px/1.2 var(--texte-font); -webkit-appearance: none; appearance: none; }
 .champ:focus { outline: none; border-color: var(--beurre); }
+
+/* pain du jour, spécialité, défi de la semaine, journal, trophées */
+.tag { display: inline-block; margin-left: 4px; padding: 2px 7px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 800 10px/1.3 var(--texte-font); vertical-align: middle; white-space: nowrap; }
+.tag.spe { background: var(--lavande); }
+.obj-extra { margin: -2px 0 6px; font: 700 12px/1.3 var(--texte-font); color: var(--texte-2); }
+.obj-extra b { color: var(--texte); }
+.am.pain { grid-template-columns: 44px minmax(0, 1fr); }
+.am.pain > svg { width: 44px; height: 44px; background: var(--peche); border-radius: 14px; padding: 4px; }
+.spe-grille { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0 4px; }
+.spe-grille button { display: grid; place-items: center; gap: 2px; padding: 8px 4px 6px; border-radius: 16px; background: var(--carte); box-shadow: 0 3px 8px var(--ombre); font: 700 11px/1.1 var(--texte-font); color: var(--texte-2); }
+.spe-grille button svg { width: 36px; height: 36px; }
+.spe-grille button.actif { outline: 3px solid var(--lavande-sombre); color: var(--texte); background: #EFEAFF; }
+.am.habitue { grid-template-columns: 18px minmax(0, 1fr); }
+.pastille-hab { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .6); }
+.trophees { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.troph { padding: 10px 12px; border-radius: 16px; background: var(--gris); color: var(--gris-texte); }
+.troph.gagne { background: #FFF3C4; color: var(--texte); box-shadow: 0 3px 8px var(--ombre); }
+.troph b { display: block; font: 700 13px/1.2 var(--titre); margin-bottom: 2px; }
+.troph span { font-size: 11px; line-height: 1.3; }
+.carnet { display: grid; gap: 6px; }
+.carnet div { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
+.carnet small { color: var(--gris-texte); white-space: nowrap; }
 </style>
 </head>
 <body>
@@ -273,7 +295,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     { id: 'eclair', pl: 'éclairs au café', nom: 'Éclair au café', cout: 2e7, rev: 10000, temps: 24, croiss: 1.12, staff: 8e7, staffNom: 'Pâtissier Malik', desc: 'Glacé, fondant, parfait.' },
     { id: 'macaron', pl: 'macarons', nom: 'Macarons', cout: 1e9, rev: 90000, temps: 96, croiss: 1.11, staff: 4e9, staffNom: 'Cheffe Agathe', desc: 'Six parfums, zéro regret.' },
     { id: 'millefeuille', pl: 'mille-feuilles', nom: 'Mille-feuille', cout: 5e10, rev: 8e5, temps: 384, croiss: 1.1, staff: 2e11, staffNom: 'Chef Augustin', desc: 'Mille, on a compté.' },
-    { id: 'piece', pl: 'pièces montées', nom: 'Pièce montée', cout: 2e12, rev: 7e6, temps: 1536, croiss: 1.09, staff: 8e12, staffNom: 'Maître Paulin', desc: 'Pour les grands jours.' },
+    { id: 'piece', pl: 'pièces montées', nom: 'Pièce montée', cout: 4e12, rev: 7e6, temps: 1536, croiss: 1.09, staff: 1.6e13, staffNom: 'Maître Paulin', desc: 'Pour les grands jours.' },
   ];
   const PALIERS = [25, 50, 100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
   const AMELIORATIONS = [
@@ -293,7 +315,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     { id: 'franchise', nom: 'Réseau de franchises', cout: 5e14, cible: null, mult: 5, desc: 'Tout ×5' },
   ];
   const ETOILE_BONUS = 0.05;     // +5 % par étoile, pour toujours
-  const ETOILE_BASE = 2e9;       // la première étoile demande ~2 Md € gagnés dans la boutique
+  const ETOILE_BASE = 3e9;       // la première étoile demande ~3 Md € gagnés dans la boutique
   const ETOILE_FREIN = 25;       // chaque tranche de 25 étoiles possédées rend les suivantes 2 fois plus chères (pas d'emballement)
   const ABSENCE_MAX_H = 8;       // les apprentis travaillent 8 h au plus pendant une absence
   const RUSH = { duree: 60, mult: 3 };          // coup de feu : toutes les ventes ×3 pendant 60 s
@@ -305,6 +327,8 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
   const ANNIVERSAIRE = { duree: 120, mult: 5 }; // goûter d'anniversaire : un produit ×5 pendant 2 min
   const EVENEMENTS = { rush: RUSH, commande: COMMANDE, critique: CRITIQUE, meunier: MEUNIER, petrissage: PETRISSAGE, panne: PANNE, anniversaire: ANNIVERSAIRE };
   const MARCHE_MULT = 1.5;                      // jour de marché (samedi, dimanche) : ×1,5
+  const PAIN_DU_JOUR_MULT = 1.5;                // le pain du jour : un produit ×1,5 toute la journée
+  const SPECIALITE_MULT = 2;                    // la spécialité de la boutique : un produit ×2 le temps de la boutique
 
   // ─── les quartiers : chaque nouvelle boutique change de décor ; le nom de la boutique ; les saisons selon la date réelle ───
   const QUARTIERS = [
@@ -314,6 +338,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     { id: 'montagne', nom: 'le chalet de montagne', enseigne: 'Le Fournil du Chalet' },
     { id: 'ville', nom: 'la grande ville', enseigne: 'Le Grand Fournil' },
   ];
+  const inc = (st, k, n) => { st.stats[k] = (st.stats[k] || 0) + (n == null ? 1 : n); };
   const quartier = (st) => (Math.max(1, st.boutiques || 1) - 1) % QUARTIERS.length;
   const nomBoutique = (st) => st.nomBoutique || QUARTIERS[quartier(st)].enseigne;
   function renommer(st, nom) { const n = String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24); st.nomBoutique = n; return nomBoutique(st); }
@@ -373,8 +398,9 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     return {
       v: 2, coins: 0, lifetime: 0, lifetimeRun: 0, etoiles: 0, boutiques: 1, xp: 0, talents: {}, nomBoutique: '',
       stations: stationsNeuves(), ameliorations: {}, tuto: 0, lastSeen: nowMs, created: nowMs, son: true, vibre: true, mode: 1, now: nowMs,
-      stats: { taps: 0, ventes: 0, clients: 0 },
+      stats: { taps: 0, ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false },
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
+      semaine: null, trophees: {}, habitues: {}, specialite: null,
     };
   }
 
@@ -400,6 +426,8 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     let m = 1;
     const ev = st.ev;
     if (ev && ev.fin > st.now) { if (ev.type === 'rush') m *= RUSH.mult; if (ev.type === 'anniversaire' && i != null && ev.i === i) m *= ANNIVERSAIRE.mult; }
+    if (i != null && st.jour && st.jour.pain === i) m *= PAIN_DU_JOUR_MULT; // le pain du jour
+    if (i != null && st.specialite === i) m *= SPECIALITE_MULT;   // la spécialité de la boutique
     if (st.boost && st.boost.fin > st.now) m *= st.boost.mult;
     if (jourDeMarche(st.now)) m *= MARCHE_MULT;
     return m;
@@ -466,11 +494,41 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
       }
     });
   }
+  const painDuJour = (st, key) => hashStr(key + ':pain:' + st.created) % PRODUITS.length; // un produit ×2 toute la journée
   function objectifsDuJour(st, nowMs) {
     const key = dayKey(nowMs);
-    if (!st.jour || st.jour.date !== key) st.jour = { date: key, objectifs: tirerObjectifs(st, key), etoileDonnee: false };
+    if (!st.jour || st.jour.date !== key) st.jour = { date: key, objectifs: tirerObjectifs(st, key), etoileDonnee: false, pain: painDuJour(st, key) };
+    if (st.jour.pain == null) st.jour.pain = painDuJour(st, key);
     remplacerImpossibles(st);
+    semaineEnCours(st, nowMs);
     return st.jour;
+  }
+  // ─── le défi de la semaine : un seul, plus long, du lundi au dimanche ; réussi : une étoile, du savoir-faire, une prime ───
+  const semaineKey = (ms) => { const d = new Date(ms), j = (d.getDay() + 6) % 7; return dayKey(new Date(d.getFullYear(), d.getMonth(), d.getDate() - j, 12).getTime()); };
+  const TYPES_SEM = {
+    commandes: () => ({ cible: 8, txt: 'Livre 8 commandes spéciales' }),
+    critiques: () => ({ cible: 3, txt: 'Conquiers 3 critiques' }),
+    pourboires: () => ({ cible: 12, txt: 'Reçois 12 pourboires du client mystère' }),
+    evenements: () => ({ cible: 15, txt: 'Réussis 15 événements' }),
+    jours: () => ({ cible: 4, txt: 'Réussis les trois objectifs du jour 4 jours' }),
+    boutique: () => ({ cible: 1, txt: 'Ouvre une nouvelle boutique' }),
+  };
+  function semaineEnCours(st, nowMs) {
+    const key = semaineKey(nowMs);
+    if (!st.semaine || st.semaine.key !== key) {
+      const types = Object.keys(TYPES_SEM), type = types[hashStr(key + ':sem:' + st.created) % types.length], d = TYPES_SEM[type]();
+      st.semaine = { key, type, cible: d.cible, txt: d.txt, progres: 0, fait: false, reclame: false };
+    }
+    return st.semaine;
+  }
+  function noterSemaine(st, type, n) {
+    const sm = st.semaine; if (!sm || sm.fait) return;
+    if (sm.type === type || (sm.type === 'evenements' && ['commandes', 'critiques', 'petrissages', 'pannes'].includes(type))) { sm.progres = Math.min(sm.cible, sm.progres + (n == null ? 1 : n)); if (sm.progres >= sm.cible) sm.fait = true; }
+  }
+  function reclamerSemaine(st) {
+    const sm = st.semaine; if (!sm || !sm.fait || sm.reclame) return { ok: false };
+    sm.reclame = true; st.etoiles++; inc(st, 'semaines'); const prime = arrondi(Math.max(100, rythme(st) * 1800)); gagner(st, prime, true); gagnerXp(st, 150); note(st, `Défi de la semaine réussi : ${fmtEur(prime)} et une étoile`);
+    return { ok: true, prime };
   }
   function noter(st, type, n, i) {
     if (!st.jour) return;
@@ -487,8 +545,8 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     o.reclame = true; gagner(st, o.prime, true); gagnerXp(st, 15);
     let etoile = false;
     if (st.jour.objectifs.every((x) => x.reclame) && !st.jour.etoileDonnee) {
-      st.jour.etoileDonnee = true; st.etoiles++; etoile = true; gagnerXp(st, 40);
-      st.serie = st.dernierJourComplet === hier(st.now) ? st.serie + 1 : 1; st.dernierJourComplet = st.jour.date;
+      st.jour.etoileDonnee = true; st.etoiles++; etoile = true; gagnerXp(st, 40); noterSemaine(st, 'jours');
+      st.serie = st.dernierJourComplet === hier(st.now) ? st.serie + 1 : 1; st.dernierJourComplet = st.jour.date; st.stats.serieMax = Math.max(st.stats.serieMax || 0, st.serie);
     }
     return { ok: true, prime: o.prime, etoile };
   }
@@ -546,19 +604,19 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     const k = ev.restants.indexOf(i); if (k < 0) return { ok: false };
     ev.restants.splice(k, 1);
     if (ev.restants.length) return { ok: true, fini: false, restants: ev.restants.length };
-    donnerBoost(st, CRITIQUE.mult, CRITIQUE.boost); gagnerXp(st, 20); note(st, `Bonne critique : tout ×${CRITIQUE.mult} pendant ${CRITIQUE.boost / 60} min`); st.ev = null;
+    donnerBoost(st, CRITIQUE.mult, CRITIQUE.boost); gagnerXp(st, 20); inc(st, 'critiques'); noterSemaine(st, 'critiques'); note(st, `Bonne critique : tout ×${CRITIQUE.mult} pendant ${CRITIQUE.boost / 60} min`); st.ev = null;
     return { ok: true, fini: true };
   }
   function petrir(st) {
     const ev = st.ev; if (!ev || ev.type !== 'petrissage' || ev.fin <= st.now) return { ok: false };
     ev.taps++; if (ev.taps < ev.n) return { ok: true, fini: false, taps: ev.taps };
-    gagner(st, ev.prime, true); gagnerXp(st, 10); note(st, `Concours de pétrissage gagné : ${fmtEur(ev.prime)}`); st.ev = null;
+    gagner(st, ev.prime, true); gagnerXp(st, 10); inc(st, 'petrissages'); noterSemaine(st, 'petrissages'); const duree = (st.now - ev.debut) / 1000; if (!st.stats.petrissageRecord || duree < st.stats.petrissageRecord) st.stats.petrissageRecord = duree; note(st, `Concours de pétrissage gagné : ${fmtEur(ev.prime)}`); st.ev = null;
     return { ok: true, fini: true, prime: ev.prime };
   }
   function reparer(st) {
     const ev = st.ev; if (!ev || ev.type !== 'panne') return { ok: false };
     ev.coups++; if (ev.coups < ev.n) return { ok: true, fini: false, coups: ev.coups };
-    gagner(st, ev.prime, true); gagnerXp(st, 8); note(st, `Four réparé : ${fmtEur(ev.prime)}`); st.ev = null;
+    gagner(st, ev.prime, true); gagnerXp(st, 8); inc(st, 'pannes'); noterSemaine(st, 'pannes'); note(st, `Four réparé : ${fmtEur(ev.prime)}`); st.ev = null;
     return { ok: true, fini: true, prime: ev.prime };
   }
   function lancerCommande(st, rnd) {
@@ -572,12 +630,70 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
   function livrer(st) {
     const ev = st.ev;
     if (!ev || ev.type !== 'commande' || ev.fait < ev.n || ev.livree) return { ok: false };
-    ev.livree = true; gagner(st, ev.prime, true); gagnerXp(st, 10); note(st, `Commande livrée : ${fmtEur(ev.prime)}`);
+    ev.livree = true; gagner(st, ev.prime, true); gagnerXp(st, 10); inc(st, 'commandes'); st.stats.meilleureCommande = Math.max(st.stats.meilleureCommande || 0, ev.prime); noterSemaine(st, 'commandes'); note(st, `Commande livrée : ${fmtEur(ev.prime)}`);
     st.ev = null;
     return { ok: true, prime: ev.prime };
   }
   const pourboire = (st) => arrondi(Math.max(20, rythme(st) * 120) * (1 + 0.5 * talent(st, 'pourboire')));
-  function encaisserPourboire(st) { const tip = pourboire(st); gagner(st, tip, true); gagnerXp(st, 3); note(st, `Pourboire du client mystère : ${fmtEur(tip)}`); return tip; }
+  function encaisserPourboire(st) { const tip = pourboire(st); gagner(st, tip, true); gagnerXp(st, 3); inc(st, 'pourboires'); st.stats.meilleurPourboire = Math.max(st.stats.meilleurPourboire || 0, tip); noterSemaine(st, 'pourboires'); note(st, `Pourboire du client mystère : ${fmtEur(tip)}`); return tip; }
+  // ─── les habitués : trois clients fidèles qui passent à heure fixe, une fois par jour ; cinq jours de suite, un cadeau ───
+  const HABITUES = [
+    { id: 'dupuis', nom: 'Mme Dupuis', debut: 7, fin: 10, haut: '#8A2B3A', cheveux: '#D9D9D9', peau: '#FFD7B5', coiffure: 2, phrase: 'Ma baguette bien cuite, comme toujours !' },
+    { id: 'marco', nom: 'Marco', debut: 12, fin: 14.5, haut: '#2B5BD7', cheveux: '#2B2118', peau: '#C68B59', coiffure: 0, phrase: 'Deux croissants, et vite, j’ai une réunion.' },
+    { id: 'lena', nom: 'Léna', debut: 17, fin: 20, haut: '#5FD3A4', cheveux: '#B8762E', peau: '#F1B990', coiffure: 1, phrase: 'Un éclair pour fêter la fin de la journée !' },
+  ];
+  function habitueAttendu(st, nowMs) {
+    const d = new Date(nowMs), h = d.getHours() + d.getMinutes() / 60, key = dayKey(nowMs);
+    st.habitues = st.habitues || {};
+    return HABITUES.find((x) => h >= x.debut && h < x.fin && (!st.habitues[x.id] || st.habitues[x.id].vuLe !== key)) || null;
+  }
+  function servirHabitue(st, id) {
+    const hb = HABITUES.find((x) => x.id === id); if (!hb) return { ok: false };
+    st.habitues = st.habitues || {}; const e = st.habitues[id] || (st.habitues[id] = { jours: 0, dernier: '', vuLe: '' });
+    const key = dayKey(st.now); if (e.dernier === key) return { ok: false };
+    e.jours = e.dernier === hier(st.now) ? e.jours + 1 : 1; e.dernier = key; gagnerXp(st, 8);
+    let cadeau = 0;
+    if (e.jours % 5 === 0) { cadeau = arrondi(Math.max(50, rythme(st) * 600)); gagner(st, cadeau, true); note(st, `${hb.nom}, fidèle depuis ${e.jours} jours : cadeau de ${fmtEur(cadeau)}`); }
+    return { ok: true, jours: e.jours, cadeau, hb };
+  }
+  // ─── la spécialité de la boutique : un produit ×2 le temps de cette boutique, choisi à l'ouverture ───
+  function choisirSpecialite(st, i) { if (st.specialite != null || i < 0 || i >= PRODUITS.length) return { ok: false }; st.specialite = i; note(st, `Spécialité de la boutique : ${PRODUITS[i].nom}`); return { ok: true }; }
+  // ─── les trophées : des succès permanents, chacun offre du savoir-faire ───
+  const TROPHEES = [
+    { id: 'premiere', nom: 'Première fournée', desc: 'Vendre une fournée', xp: 10, cond: (st) => st.stats.ventes >= 1 },
+    { id: 'cent', nom: 'Cent fournées', desc: 'Vendre 100 fournées', xp: 20, cond: (st) => st.stats.ventes >= 100 },
+    { id: 'dixmille', nom: 'Dix mille fournées', desc: 'Vendre 10 000 fournées', xp: 40, cond: (st) => st.stats.ventes >= 1e4 },
+    { id: 'million', nom: 'Le million', desc: 'Vendre un million de fournées', xp: 100, cond: (st) => st.stats.ventes >= 1e6 },
+    { id: 'equipe', nom: 'Une équipe', desc: 'Embaucher 4 apprentis', xp: 20, cond: (st) => (st.stats.embauches || 0) >= 4 },
+    { id: 'grande-equipe', nom: 'Grande équipe', desc: 'Embaucher 24 apprentis en tout', xp: 50, cond: (st) => (st.stats.embauches || 0) >= 24 },
+    { id: 'livreur', nom: 'Livreur', desc: 'Livrer 10 commandes spéciales', xp: 30, cond: (st) => (st.stats.commandes || 0) >= 10 },
+    { id: 'traiteur', nom: 'Traiteur', desc: 'Livrer 100 commandes spéciales', xp: 80, cond: (st) => (st.stats.commandes || 0) >= 100 },
+    { id: 'presse', nom: 'Bonne presse', desc: 'Conquérir un critique', xp: 20, cond: (st) => (st.stats.critiques || 0) >= 1 },
+    { id: 'etoile', nom: 'Table étoilée', desc: 'Conquérir 10 critiques', xp: 60, cond: (st) => (st.stats.critiques || 0) >= 10 },
+    { id: 'bras', nom: 'Bras d’acier', desc: 'Gagner 10 concours de pétrissage', xp: 30, cond: (st) => (st.stats.petrissages || 0) >= 10 },
+    { id: 'eclair', nom: 'Rapide comme l’éclair', desc: 'Un pétrissage en moins de 8 s', xp: 40, cond: (st) => st.stats.petrissageRecord > 0 && st.stats.petrissageRecord <= 8 },
+    { id: 'bricoleur', nom: 'Bricoleur', desc: 'Réparer 10 fours', xp: 30, cond: (st) => (st.stats.pannes || 0) >= 10 },
+    { id: 'mystere', nom: 'Un mystère résolu', desc: '10 pourboires du client mystère', xp: 30, cond: (st) => (st.stats.pourboires || 0) >= 10 },
+    { id: 'genereux', nom: 'Clients généreux', desc: '100 pourboires du client mystère', xp: 80, cond: (st) => (st.stats.pourboires || 0) >= 100 },
+    { id: 'etoiles10', nom: 'Dix étoiles', desc: 'Posséder 10 étoiles', xp: 20, cond: (st) => st.etoiles >= 10 },
+    { id: 'etoiles100', nom: 'Cent étoiles', desc: 'Posséder 100 étoiles', xp: 50, cond: (st) => st.etoiles >= 100 },
+    { id: 'etoiles1000', nom: 'Mille étoiles', desc: 'Posséder 1 000 étoiles', xp: 100, cond: (st) => st.etoiles >= 1000 },
+    { id: 'boutique2', nom: 'On déménage', desc: 'Ouvrir une deuxième boutique', xp: 20, cond: (st) => st.boutiques >= 2 },
+    { id: 'boutique5', nom: 'Petite chaîne', desc: 'Ouvrir cinq boutiques', xp: 50, cond: (st) => st.boutiques >= 5 },
+    { id: 'boutique10', nom: 'Dix boutiques', desc: 'Ouvrir dix boutiques', xp: 100, cond: (st) => st.boutiques >= 10 },
+    { id: 'semaine', nom: 'Semaine parfaite', desc: 'Les trois objectifs du jour 7 jours d’affilée', xp: 60, cond: (st) => (st.stats.serieMax || 0) >= 7 },
+    { id: 'defi', nom: 'Défi relevé', desc: 'Réussir un défi de la semaine', xp: 30, cond: (st) => (st.stats.semaines || 0) >= 1 },
+    { id: 'piece', nom: 'Pièce montée', desc: 'Débloquer la pièce montée', xp: 40, cond: (st) => (st.stats.recetteMax || 0) >= 7 },
+    { id: 'franchise', nom: 'Franchisé', desc: 'Acheter le Réseau de franchises', xp: 60, cond: (st) => !!st.stats.franchise },
+    { id: 'compagnon', nom: 'Compagnon', desc: 'Atteindre le titre de Compagnon', xp: 40, cond: (st) => niveau(st) >= 13 },
+    { id: 'mof', nom: 'Meilleur Ouvrier de France', desc: 'Atteindre le titre suprême', xp: 150, cond: (st) => niveau(st) >= 26 },
+    { id: 'fidele', nom: 'Habitué fidèle', desc: 'Servir un habitué 5 jours de suite', xp: 40, cond: (st) => Object.values(st.habitues || {}).some((e) => e.jours >= 5) },
+  ];
+  function verifierTrophees(st) {
+    st.trophees = st.trophees || {}; const neufs = [];
+    for (const t of TROPHEES) if (!st.trophees[t.id] && t.cond(st)) { st.trophees[t.id] = st.now; gagnerXp(st, t.xp); note(st, `Trophée : ${t.nom}`); neufs.push(t); }
+    return neufs;
+  }
   function donnerBoost(st, mult, secs) { st.boost = { mult, fin: st.now + secs * 1000 }; }
 
   // ─── actions ───
@@ -587,7 +703,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     if (st.coins < prix) return { ok: false, prix };
     st.coins -= prix;
     let xp = 0;
-    if (s.niv === 0) { noter(st, 'recette', 1); xp = 10 + 10 * i; } else { noter(st, 'niveaux', n); xp = 8 * (PALIERS.filter((p) => s.niv + n >= p).length - PALIERS.filter((p) => s.niv >= p).length); }
+    if (s.niv === 0) { noter(st, 'recette', 1); xp = 10 + 10 * i; st.stats.recetteMax = Math.max(st.stats.recetteMax || 0, i); } else { noter(st, 'niveaux', n); xp = 8 * (PALIERS.filter((p) => s.niv + n >= p).length - PALIERS.filter((p) => s.niv >= p).length); }
     s.niv += n;
     if (xp) gagnerXp(st, xp);
     return { ok: true, n, prix, xp };
@@ -595,7 +711,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
   function embaucher(st, i) {
     const s = st.stations[i], prix = prixStaff(st, i);
     if (s.staff || s.niv <= 0 || st.coins < prix) return { ok: false, prix };
-    st.coins -= prix; s.staff = true; s.actif = true; noter(st, 'embaucher', 1); gagnerXp(st, 5 + 3 * i);
+    st.coins -= prix; s.staff = true; s.actif = true; noter(st, 'embaucher', 1); gagnerXp(st, 5 + 3 * i); inc(st, 'embauches');
     return { ok: true, prix };
   }
   function lancer(st, i) {
@@ -607,13 +723,13 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
   function amelioration(st, id) {
     const a = AMELIORATIONS.find((x) => x.id === id), prix = a ? prixBonus(st, a) : 0;
     if (!a || st.ameliorations[id] || st.coins < prix) return { ok: false, prix };
-    st.coins -= prix; st.ameliorations[id] = true; noter(st, 'bonus', 1); gagnerXp(st, 6);
+    st.coins -= prix; st.ameliorations[id] = true; noter(st, 'bonus', 1); gagnerXp(st, 6); if (id === 'franchise') st.stats.franchise = true;
     return { ok: true, a, prix };
   }
   function nouvelleBoutique(st, nowMs) {
     const gain = etoilesGagnables(st);
     if (gain <= 0) return { ok: false };
-    st.etoiles += gain; st.boutiques++; st.nomBoutique = ''; gagnerXp(st, 80 + Math.min(120, 2 * gain));
+    st.etoiles += gain; st.boutiques++; st.nomBoutique = ''; st.specialite = null; gagnerXp(st, 80 + Math.min(120, 2 * gain)); noterSemaine(st, 'boutique');
     st.coins = 0; st.lifetimeRun = 0; st.ameliorations = {}; st.stations = stationsNeuves(1 + talent(st, 'memoire')); st.ev = null; st.boost = null;
     st.lastSeen = nowMs;
     // les objectifs du jour pas encore réclamés sont retirés à la taille de la nouvelle boutique (les réussis restent acquis)
@@ -624,7 +740,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
   // ─── un pas de jeu ; rend {ventes, nouvelEv, finEv, mystere} ───
   function tick(st, dt, nowMs, rnd) {
     st.now = nowMs; rnd = rnd || Math.random;
-    const out = { ventes: [], nouvelEv: null, finEv: null, mystere: false };
+    const out = { ventes: [], nouvelEv: null, finEv: null, mystere: false, habitue: null, trophees: [] };
     objectifsDuJour(st, nowMs);
     st.stations.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
@@ -648,6 +764,9 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     if (st.boost && st.boost.fin <= nowMs) st.boost = null;
     st.mystereTimer -= dt;
     if (st.mystereTimer <= 0) { st.mystereTimer = (150 + rnd() * 200) * (1 - 0.15 * talent(st, 'pourboire')); out.mystere = true; }
+    const hb = habitueAttendu(st, nowMs); // un habitué passe une fois par jour, pendant son créneau, après quelques secondes de jeu
+    if (hb && rnd() < dt / 25) { st.habitues[hb.id] = st.habitues[hb.id] || { jours: 0, dernier: '', vuLe: '' }; st.habitues[hb.id].vuLe = dayKey(nowMs); out.habitue = hb; }
+    out.trophees = verifierTrophees(st);
     return out;
   }
   // ─── absence : les apprentis ont travaillé (8 h au plus), les fournées en cours se terminent ; pas d'événement sans toi ───
@@ -685,10 +804,10 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
   function fmtDuree(s) { if (s < 60) return Math.round(s) + ' s'; if (s < 3600) return Math.round(s / 60) + ' min'; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; }
   const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
-  return { PRODUITS, PALIERS, AMELIORATIONS, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
+  return { PRODUITS, PALIERS, AMELIORATIONS, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
-    objectifsDuJour, noter, reclamer, serieEnCours, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost,
+    objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost,
     gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono };
 });
 
@@ -802,6 +921,8 @@ const SCENE = (() => {
   }
   // le client mystère : doré, il attend 8 s devant le comptoir ; touché, il laisse un pourboire
   function mystere() { if (clients.some((c) => c.or)) return false; spawn(true); return true; }
+  // un habitué : silhouette fixe, étiquette avec son prénom, il reste un peu plus longtemps
+  function habitue(hb) { if (!hb || clients.some((c) => c.hab === hb.id)) return false; const c = spawn(false); c.hab = hb.id; c.nom = hb.nom; c.haut = hb.haut; c.cheveux = hb.cheveux; c.peau = hb.peau; c.coiffure = hb.coiffure; c.lunettes = hb.id === 'dupuis'; c.taille = 1.05; c.wait = 3; return true; }
   // le boulanger, au comptoir : on le touche pour ouvrir sa fiche
   function hitBoulanger(x, y) { const bx = W * 0.33, by = H * 0.62; return Math.abs(x - bx) < 34 && y > by - 112 && y < by + 4; }
   function hit(x, y) {
@@ -827,7 +948,7 @@ const SCENE = (() => {
     for (const c of clients) {
       c.phase += dt * 9;
       if (c.etat === 'entre') { c.x += c.vx * dt * (rush ? 1.4 : 1); if (c.x <= c.cible) { c.x = c.cible; c.etat = 'attend'; } }
-      else if (c.etat === 'attend') { c.wait -= dt; if (c.wait <= 0) { c.etat = 'sort'; c.sac = !c.or || c.pris; st.stats.clients++; G.noter(st, 'clients', 1); } }
+      else if (c.etat === 'attend') { c.wait -= dt; if (c.wait <= 0) { c.etat = 'sort'; c.sac = !c.or || c.pris; st.stats.clients++; G.noter(st, 'clients', 1); if (c.hab) { const r = G.servirHabitue(st, c.hab); if (r.ok && API.surServi) API.surServi(r); } } }
       else { c.x += (c.or ? 90 : 70) * dt; }
     }
     for (let i = clients.length - 1; i >= 0; i--) if (clients[i].etat === 'sort' && clients[i].x > W + 30) clients.splice(i, 1);
@@ -1101,6 +1222,10 @@ const SCENE = (() => {
     ctx.strokeStyle = L; ctx.lineWidth = 1.8; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(0, -49, 4, 0.3, Math.PI - 0.3); ctx.stroke();
     if (c.sac) { ctx.fillStyle = c.sacCol; rr(12, -28, 14, 18, 3); ctx.fill(); ctx.strokeStyle = Q.bois; ctx.lineWidth = 1.5; ctx.strokeRect(12, -28, 14, 18); ctx.fillStyle = '#E8B46A'; rr(15, -34, 8, 8, 3); ctx.fill(); }
     ctx.restore();
+    if (c.hab) { // l'étiquette de l'habitué
+      ctx.font = '700 10px Nunito, sans-serif'; ctx.textAlign = 'center'; const w = ctx.measureText(c.nom).width + 12, ty = y - bob - 82 * s;
+      ctx.fillStyle = '#fff'; rr(x - w / 2, ty - 8, w, 15, 7); ctx.fill(); ctx.fillStyle = L; ctx.fillText(c.nom, x, ty + 3);
+    }
   }
   function etincelle(x, y, r) { ctx.beginPath(); ctx.moveTo(x, y - r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.quadraticCurveTo(x, y, x, y + r); ctx.quadraticCurveTo(x, y, x - r, y); ctx.quadraticCurveTo(x, y, x, y - r); ctx.fill(); }
   // ─── petits décors ───
@@ -1128,7 +1253,8 @@ const SCENE = (() => {
   function glaces(x, y) { for (let k = 0; k < 2; k++) { ctx.fillStyle = '#E8B46A'; ctx.beginPath(); ctx.moveTo(x + k * 10 - 4, y - 8); ctx.lineTo(x + k * 10 + 4, y - 8); ctx.lineTo(x + k * 10, y + 2); ctx.fill(); ctx.fillStyle = k ? '#FF9FB2' : '#9BE8C2'; ctx.beginPath(); ctx.arc(x + k * 10, y - 10, 4.5, 0, TAU); ctx.fill(); } }
   function sapin(x, y) { ctx.fillStyle = '#8B5A3C'; ctx.fillRect(x - 3, y - 6, 6, 8); ctx.fillStyle = '#2F6B4F'; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.moveTo(x - 16 + k * 3, y - 6 - k * 12); ctx.lineTo(x, y - 24 - k * 12); ctx.lineTo(x + 16 - k * 3, y - 6 - k * 12); ctx.fill(); } for (let k = 0; k < 6; k++) { ctx.fillStyle = Math.sin(t * 4 + k) > 0 ? ['#FF6B8B', '#FFC84A', '#9BD0FF'][k % 3] : '#fff'; ctx.beginPath(); ctx.arc(x - 9 + (k * 7) % 18, y - 12 - k * 5, 2, 0, TAU); ctx.fill(); } ctx.fillStyle = '#FFC84A'; etincelle(x, y - 50, 4); }
 
-  return { init, resize, frame, vente, texte, tap, fete, setRush, mystere, hit, hitBoulanger, forcer, get clients() { return clients.length; }, get mystereVisible() { return clients.some((c) => c.or && !c.pris && c.etat === 'attend'); } };
+  const API = { init, resize, frame, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, forcer, surServi: null, get clients() { return clients.length; }, get mystereVisible() { return clients.some((c) => c.or && !c.pris && c.etat === 'attend'); } };
+  return API;
 })();
 
 /* ── ui.js ── */
@@ -1231,7 +1357,7 @@ const UI = (() => {
         const rapide = p.temps <= 1.5 && s.staff;
         cls = 'carte' + (s.staff ? ' auto' : ' manuel') + (s.actif ? ' actif' : '') + (critique.includes(i) ? ' gouter' : '');
         html = `${critique.includes(i) ? '<span class="badge-critique">Sers le critique !</span>' : ''}<div class="icone">${ICONS.PRODUITS[p.id]}</div>
-          <div class="corps"><h3>${esc(p.nom)} <span class="niv">Niv. ${s.niv}${pal ? ` <i>· palier ${pal}</i>` : ''}</span></h3>
+          <div class="corps"><h3>${esc(p.nom)}${st.jour && st.jour.pain === i ? ' <span class="tag">Pain du jour ×1,5</span>' : ''}${st.specialite === i ? ' <span class="tag spe">Spécialité ×2</span>' : ''} <span class="niv">Niv. ${s.niv}${pal ? ` <i>· palier ${pal}</i>` : ''}</span></h3>
             <div class="barre"><i class="${rapide ? 'rapide' : ''}"></i><span class="rev">+${G.fmtEur(G.revenuFournee(st, i))}</span>${s.staff || s.actif ? `<span class="tps">${G.fmtDuree(G.temps(st, i))}</span>` : '<span class="cuire">Touche !</span>'}</div></div>
           <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'} ${remise < 1 ? 'promo' : ''}" data-a="ameliorer"><small>${remise < 1 ? `−${Math.round((1 - remise) * 100)} % ×${n}` : `Améliorer ×${n}`}</small><b>${G.fmtEur(prix)}</b></button>
             ${s.staff ? `<div class="staff-ok">${ICONS.apprenti(i)}<span>${esc(p.staffNom.split(' ').pop())}<br>s’en occupe</span></div>` : `<button type="button" class="btn beurre ${st.coins >= G.prixStaff(st, i) ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${G.fmtEur(G.prixStaff(st, i))}</b></button>`}</div>`;
@@ -1285,22 +1411,29 @@ const UI = (() => {
 
   // ─── objectifs du jour : carte compacte, feuille détaillée ───
   function renderObjectifs() {
-    const j = G.objectifsDuJour(st, st.now), faits = j.objectifs.filter((o) => o.fait).length, aReclamer = j.objectifs.some((o) => o.fait && !o.reclame);
-    const key = JSON.stringify(j.objectifs.map((o) => [o.progres, o.fait, o.reclame])) + faits;
+    const j = G.objectifsDuJour(st, st.now), sm = st.semaine, faits = j.objectifs.filter((o) => o.fait).length, aReclamer = j.objectifs.some((o) => o.fait && !o.reclame) || (sm && sm.fait && !sm.reclame);
+    const key = JSON.stringify(j.objectifs.map((o) => [o.progres, o.fait, o.reclame])) + faits + '|' + j.pain + '|' + (sm ? sm.progres + ':' + sm.fait + ':' + sm.reclame : '');
     if (key === lastObj) return; lastObj = key;
     const el = $('#objectifs');
     el.className = 'obj' + (aReclamer ? ' pret' : '') + (j.etoileDonnee ? ' complet' : '');
     el.innerHTML = `<div class="obj-tete"><span class="obj-titre">${ICONS.CIBLE}Objectifs du jour</span><span class="obj-compte">${aReclamer ? 'Prime à récupérer !' : j.etoileDonnee ? 'Terminés ★' : `${faits}/3`}</span></div>
+      <div class="obj-extra">Pain du jour : <b>${esc(G.PRODUITS[j.pain].pl)}</b> ×1,5${sm ? ` · Défi de la semaine : <b>${sm.reclame ? 'réussi ★' : `${G.fmt(sm.progres)}/${G.fmt(sm.cible)}`}</b>` : ''}</div>
       <div class="obj-lignes">${j.objectifs.map((o) => `<div class="obj-ligne ${o.fait ? 'fait' : ''}"><span>${esc(o.txt)}</span><em>${o.fait ? '✓' : `${G.fmt(Math.floor(o.progres))}/${G.fmt(o.cible)}`}</em><i style="width:${Math.min(100, o.progres / o.cible * 100).toFixed(0)}%"></i></div>`).join('')}</div>`;
   }
   function sheetObjectifs() {
-    const j = G.objectifsDuJour(st, st.now), serie = G.serieEnCours(st);
+    const j = G.objectifsDuJour(st, st.now), serie = G.serieEnCours(st), sm = st.semaine;
     openSheet(`<h2>Objectifs du jour</h2><p class="sous">Trois défis par jour, calibrés sur ta boutique. Les trois réussis : <b>+1 étoile</b>.${serie > 0 ? ` Série : <b>${serie} jour${serie > 1 ? 's' : ''}</b>.` : ''}</p>
       <div class="liste-am">${j.objectifs.map((o, k) => `<div class="am ${o.reclame ? 'fait' : ''}"><div><h3>${esc(o.txt)}</h3><p>${o.fait ? 'Réussi !' : `${G.fmt(Math.floor(o.progres))} / ${G.fmt(o.cible)}`}</p><div class="mini"><i style="width:${Math.min(100, o.progres / o.cible * 100).toFixed(0)}%"></i></div></div>
         ${o.reclame ? '<span class="ok">Récupéré ✓</span>' : `<button type="button" class="btn ${o.fait ? 'menthe' : 'non'}" data-k="${k}"><small>${o.fait ? 'Récupérer' : 'Prime'}</small><b>${G.fmtEur(o.prime)}</b></button>`}</div>`).join('')}</div>
       ${j.etoileDonnee ? '<div class="encadre doux">Bravo, les trois objectifs sont réussis : une étoile de plus pour toujours. De nouveaux défis demain !</div>' : ''}
-      <button type="button" class="btn large" data-a="close" style="background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
+      <h3 class="titre-section">Pain du jour</h3>
+      <div class="am pain">${ICONS.PRODUITS[G.PRODUITS[j.pain].id]}<div><h3>${esc(G.PRODUITS[j.pain].nom)} ×1,5</h3><p>Toute la journée, chaque fournée de ${esc(G.PRODUITS[j.pain].pl)} rapporte moitié plus. Demain, un autre produit.</p></div></div>
+      ${sm ? `<h3 class="titre-section">Défi de la semaine</h3>
+      <div class="am ${sm.reclame ? 'fait' : ''}"><div><h3>${esc(sm.txt)}</h3><p>${sm.reclame ? 'Réussi ! Un nouveau défi lundi.' : sm.fait ? 'Réussi !' : `${G.fmt(sm.progres)} / ${G.fmt(sm.cible)} · jusqu’à dimanche`}</p><div class="mini"><i style="width:${Math.min(100, sm.progres / sm.cible * 100).toFixed(0)}%"></i></div></div>
+        ${sm.reclame ? '<span class="ok">Récupéré ✓</span>' : `<button type="button" class="btn ${sm.fait ? 'beurre' : 'non'}" data-a="semaine"><small>${sm.fait ? 'Récupérer' : 'Récompense'}</small><b>+1 ★</b></button>`}</div>` : ''}
+      <button type="button" class="btn large" data-a="close" style="margin-top:14px;background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
     on('[data-a="close"]', closeSheet);
+    on('[data-a="semaine"]', () => { const r = G.reclamerSemaine(st); if (!r.ok) { son.non(); return; } reussite(`Défi de la semaine : +${G.fmtEur(r.prime)} et +1 ★ !`); sheetObjectifs(); });
     on('[data-k]', (b) => { const r = G.reclamer(st, +b.dataset.k); if (!r.ok) { son.non(); return; } son.deblocage(); buzz([10, 30, 10]); toast(r.etoile ? `+${G.fmtEur(r.prime)} et +1 ★ : objectifs du jour réussis !` : `+${G.fmtEur(r.prime)} de prime`); if (r.etoile) SCENE.fete(); renderCards(true); hud(); save(); sheetObjectifs(); });
   }
 
@@ -1435,15 +1568,66 @@ const UI = (() => {
   // le nom de la boutique : demandé à chaque ouverture, modifiable depuis la feuille des étoiles
   function sheetNom(nouvelle) {
     const q = G.QUARTIERS[G.quartier(st)], actuel = st.nomBoutique || q.enseigne;
+    const choixSpe = nouvelle && st.specialite == null; let spe = choixSpe ? (st.boutiques + 1) % G.PRODUITS.length : null;
     openSheet(`<h2>${nouvelle ? `Boutique n°${st.boutiques}` : 'Le nom de ta boutique'}</h2><p class="sous">${nouvelle ? `Tu t’installes dans ${esc(q.nom)}. ` : ''}Comment s’appelle ta boutique ? Le nom s’affiche sur l’enseigne.</p>
       <input class="champ" type="text" maxlength="24" value="${esc(actuel)}" aria-label="Nom de la boutique" autocomplete="off" autocorrect="off">
+      ${choixSpe ? `<h3 class="titre-section">Sa spécialité</h3><p class="sous">Le produit fétiche de cette boutique rapporte <b>×2</b> le temps de la boutique. On choisit une fois.</p>${grilleSpecialite(spe)}` : ''}
       <button type="button" class="btn large beurre" data-a="ok" style="margin-top:12px"><b>${nouvelle ? 'C’est parti !' : 'Garder ce nom'}</b></button>
       ${nouvelle ? '' : '<button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Annuler</b></button>'}`);
     const champ = fc.querySelector('.champ');
-    const valider = () => { G.renommer(st, champ.value); save(); closeSheet(); toast(`${G.nomBoutique(st)} : bienvenue !`); };
+    const valider = () => { G.renommer(st, champ.value); if (choixSpe && spe != null) G.choisirSpecialite(st, spe); save(); renderCards(true); closeSheet(); toast(`${G.nomBoutique(st)} : bienvenue !${choixSpe && spe != null ? ` Spécialité : ${G.PRODUITS[spe].pl}.` : ''}`); };
     on('[data-a="ok"]', valider); on('[data-a="non"]', sheetEtoiles);
+    on('[data-s]', (b) => { spe = +b.dataset.s; fc.querySelectorAll('[data-s]').forEach((x) => x.classList.toggle('actif', x === b)); son.tap(); });
     champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') valider(); });
     if (!nouvelle) setTimeout(() => { champ.focus(); champ.select(); }, 50);
+  }
+  const grilleSpecialite = (sel) => `<div class="spe-grille">${G.PRODUITS.map((p, i) => `<button type="button" class="${i === sel ? 'actif' : ''}" data-s="${i}">${ICONS.PRODUITS[p.id]}<span>${esc(p.nom.split(' ')[0])}</span></button>`).join('')}</div>`;
+  function sheetSpecialite() {
+    let spe = (st.boutiques + 1) % G.PRODUITS.length;
+    openSheet(`<h2>La spécialité</h2><p class="sous">Le produit fétiche de cette boutique rapporte <b>×2</b> le temps de la boutique. On choisit une fois par boutique.</p>${grilleSpecialite(spe)}
+      <button type="button" class="btn large lavande" data-a="ok" style="margin-top:12px"><b>Choisir</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Plus tard</b></button>`);
+    on('[data-s]', (b) => { spe = +b.dataset.s; fc.querySelectorAll('[data-s]').forEach((x) => x.classList.toggle('actif', x === b)); son.tap(); });
+    on('[data-a="ok"]', () => { if (G.choisirSpecialite(st, spe).ok) { reussite(`Spécialité : ${G.PRODUITS[spe].pl} ×2 !`); } sheetEtoiles(); });
+    on('[data-a="non"]', sheetEtoiles);
+  }
+  const ilYA = (ms) => { const s = Math.max(0, (Date.now() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
+  function sheetJournal() {
+    const S = st.stats, tr = st.trophees || {}, gagnes = G.TROPHEES.filter((t) => tr[t.id]).length;
+    openSheet(`<h2>Journal</h2><p class="sous">${esc(G.nomBoutique(st))} · ${G.fmt(S.ventes)} fournées, ${G.fmt(S.clients)} clients depuis le début.</p>
+      <h3 class="titre-section">Records</h3>
+      <div class="stat"><span>Plus grosse commande livrée</span><b>${S.meilleureCommande ? G.fmtEur(S.meilleureCommande) : '—'}</b></div>
+      <div class="stat"><span>Meilleur pourboire</span><b>${S.meilleurPourboire ? G.fmtEur(S.meilleurPourboire) : '—'}</b></div>
+      <div class="stat"><span>Pétrissage le plus rapide</span><b>${S.petrissageRecord ? S.petrissageRecord.toFixed(1).replace('.', ',') + ' s' : '—'}</b></div>
+      <div class="stat"><span>Meilleure série d’objectifs</span><b>${S.serieMax || 0} jour${(S.serieMax || 0) > 1 ? 's' : ''}</b></div>
+      <div class="stat"><span>Commandes · critiques · pétrissages · fours</span><b>${S.commandes || 0} · ${S.critiques || 0} · ${S.petrissages || 0} · ${S.pannes || 0}</b></div>
+      <h3 class="titre-section">Les habitués</h3>
+      <div class="liste-am">${G.HABITUES.map((h) => { const e = (st.habitues || {})[h.id]; return `<div class="am habitue"><span class="pastille-hab" style="background:${h.haut}"></span><div><h3>${esc(h.nom)}</h3><p>Passe entre ${h.debut}h et ${Math.floor(h.fin)}h${h.fin % 1 ? '30' : ''} · ${e && e.jours ? `fidèle depuis ${e.jours} jour${e.jours > 1 ? 's' : ''}` : 'première visite à venir'}</p></div></div>`; }).join('')}</div>
+      <p class="sous" style="margin-top:6px">Sers un habitué cinq jours de suite : il t’offre un cadeau.</p>
+      <h3 class="titre-section">Trophées · ${gagnes}/${G.TROPHEES.length}</h3>
+      <div class="trophees">${G.TROPHEES.map((t) => `<div class="troph ${tr[t.id] ? 'gagne' : ''}"><b>${esc(t.nom)}</b><span>${esc(t.desc)}</span></div>`).join('')}</div>
+      <h3 class="titre-section">Derniers événements</h3>
+      <div class="carnet">${(st.carnetEv || []).slice().reverse().map((e) => `<div><span>${esc(e.txt)}</span><small>${ilYA(e.t)}</small></div>`).join('') || '<p class="sous">Rien encore : joue un peu !</p>'}</div>
+      <button type="button" class="btn large lavande" data-a="partager" style="margin-top:14px"><b>Partager ma boutique</b></button>
+      <button type="button" class="btn large" data-a="retour" style="margin-top:8px;background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
+    on('[data-a="retour"]', sheetEtoiles);
+    on('[data-a="partager"]', partager);
+  }
+  // partager : une image de la boutique avec une légende, sinon le texte, sinon le presse-papiers
+  async function partager() {
+    const texte = `${G.nomBoutique(st)} · boutique n°${st.boutiques} · ${st.etoiles} ★ · ${G.titre(st)} niveau ${G.niveau(st)} · ${G.fmtEur(st.lifetime)} gagnés — Le Fournil`;
+    const url = location.href.split('#')[0];
+    try {
+      if (navigator.share) {
+        const cv = $('#scene'), c2 = document.createElement('canvas'); c2.width = cv.width; c2.height = cv.height + 56 * (cv.width / cv.clientWidth);
+        const x = c2.getContext('2d'), k = cv.width / cv.clientWidth; x.fillStyle = '#FFF7EC'; x.fillRect(0, 0, c2.width, c2.height); x.drawImage(cv, 0, 0);
+        x.fillStyle = '#4A3328'; x.font = `700 ${16 * k}px Fredoka, Nunito, sans-serif`; x.textAlign = 'center'; x.fillText(texte.replace(' — Le Fournil', ''), c2.width / 2, cv.height + 34 * k, c2.width - 20 * k);
+        const blob = await new Promise((r) => c2.toBlob(r, 'image/png'));
+        const files = blob ? [new File([blob], 'ma-boutique.png', { type: 'image/png' })] : [];
+        if (files.length && navigator.canShare && navigator.canShare({ files })) { await navigator.share({ files, title: 'Le Fournil', text: texte, url }); return; }
+        await navigator.share({ title: 'Le Fournil', text: texte, url }); return;
+      }
+    } catch (e) { if (e && e.name === 'AbortError') return; }
+    try { await navigator.clipboard.writeText(`${texte}\n${url}`); toast('Texte copié : colle-le où tu veux.'); } catch (e) { toast(texte); }
   }
   function sheetEtoiles() {
     const gain = G.etoilesGagnables(st), bonus = Math.round(st.etoiles * G.ETOILE_BONUS * 100), serie = G.serieEnCours(st), q = G.QUARTIERS[G.quartier(st)];
@@ -1456,6 +1640,8 @@ const UI = (() => {
       <div class="ligne-reglage"><span>Vibrations</span><button type="button" class="interrupteur" role="switch" aria-checked="${st.vibre}" data-a="vibre"></button></div>
       <button type="button" class="btn large" data-a="close" style="background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>
       <button type="button" class="lien" data-a="boulanger">Le boulanger et ses talents</button>
+      <button type="button" class="lien" data-a="journal">Journal, trophées et partage</button>
+      ${st.specialite == null ? '<button type="button" class="lien" data-a="specialite">Choisir la spécialité de cette boutique</button>' : ''}
       <button type="button" class="lien" data-a="nom">Renommer la boutique</button>
       <button type="button" class="lien" data-a="sauvegarde">Sauvegarde et transfert</button>
       <button type="button" class="lien" data-a="reset">Recommencer une partie de zéro</button>`);
@@ -1463,6 +1649,8 @@ const UI = (() => {
     on('[data-a="sauvegarde"]', sheetSauvegarde);
     on('[data-a="boulanger"]', sheetBoulanger);
     on('[data-a="nom"]', () => sheetNom(false));
+    on('[data-a="journal"]', sheetJournal);
+    on('[data-a="specialite"]', sheetSpecialite);
     on('[data-a="vibre"]', (b) => { st.vibre = !st.vibre; b.setAttribute('aria-checked', st.vibre); save(); });
     on('[data-a="reset"]', () => { openSheet(`<h2>Tout effacer ?</h2><p class="sous">Euros, recettes, apprentis, bonus et étoiles : tout repart de la première baguette. Impossible de revenir en arrière.</p><button type="button" class="btn large" data-a="oui" style="background:var(--fraise);box-shadow:0 4px 0 var(--fraise-sombre)"><b>Oui, tout effacer</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde ma boutique</b></button>`); on('[data-a="non"]', sheetEtoiles); on('[data-a="oui"]', () => { fige = true; effacer().then(() => location.reload()); }); });
     on('[data-a="prestige"]', () => {
@@ -1493,6 +1681,8 @@ const UI = (() => {
     if (out.nouvelEv) { son.evenement(); buzz([15, 40, 15]); toast(TXT_EV[out.nouvelEv.type]); }
     if (out.finEv) { toast(FIN_EV[out.finEv.type]); if (out.finEv.type === 'critique' || out.finEv.type === 'petrissage') son.non(); }
     if (out.mystere && $('#feuille').hidden) { if (SCENE.mystere()) toast('Un client mystère ! Touche-le vite.'); }
+    if (out.habitue) { SCENE.habitue(out.habitue); son.achat(); toast(`${out.habitue.nom} : « ${out.habitue.phrase} »`); }
+    if (out.trophees && out.trophees.length) { const t0 = out.trophees[0]; son.deblocage(); buzz([10, 30, 10, 30, 10]); SCENE.fete(); toast(`Trophée : ${t0.nom} !${out.trophees.length > 1 ? ` (+${out.trophees.length - 1})` : ''}`); }
     const nv = G.niveau(st);
     if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); SCENE.fete(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
     renderCards(); hud(); renderObjectifs(); renderEvenement();
@@ -1510,6 +1700,7 @@ const UI = (() => {
     if (fresh) st = G.newState(Date.now());
     st.now = Date.now();
     SCENE.init($('#scene'));
+    SCENE.surServi = (r) => { if (r.cadeau) { reussite(`${r.hb.nom}, fidèle depuis ${r.jours} jours, t’offre ${G.fmtEur(r.cadeau)} !`); } else if (r.jours > 1) toast(`${r.hb.nom} : ${r.jours}e jour de suite !`); };
     layout();
     buildCards();
     document.querySelectorAll('.modes button').forEach((b) => { b.classList.toggle('actif', String(st.mode) === b.dataset.mode); b.addEventListener('click', () => { st.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; document.querySelectorAll('.modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCards(true); save(); }); });
@@ -1540,7 +1731,7 @@ const UI = (() => {
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), boulanger: () => sheetBoulanger(), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o) };
+    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), boulanger: () => sheetBoulanger(), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => sheetJournal(), habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

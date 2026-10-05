@@ -42,7 +42,7 @@ check(R.staffAt[0] < 180, 'premier apprenti en moins de 3 min');
 check(R.unlockAt[3] != null && R.unlockAt[3] < 30 * 60, 'tarte en moins de 30 min');
 check(R.unlockAt[4] != null && R.unlockAt[4] < 3 * 3600, 'éclairs en moins de 3 h');
 check(G.etoilesGagnables(R.st) <= 2 && R.st.lifetime > 5e8, 'après 3 h, la première boutique a gagné plus de 500 M € mais pas encore de quoi repartir (au plus 2 étoiles)');
-check(G.etoilesPour(2e9, 0) === 1 && G.etoilesPour(2e11, 0) === 10 && G.etoilesPour(2e11, 25) === 7 && G.etoilesPour(2e11, 100) === 4, 'étoiles : 1 à 2 Md €, 10 à 200 Md €, et plus chères quand on en possède déjà');
+check(G.etoilesPour(3e9, 0) === 1 && G.etoilesPour(3e11, 0) === 10 && G.etoilesPour(3e11, 25) === 7 && G.etoilesPour(3e11, 100) === 4, 'étoiles : 1 à 3 Md €, 10 à 300 Md €, et plus chères quand on en possède déjà');
 const TYPES = ['rush', 'commande', 'critique', 'meunier', 'petrissage', 'panne', 'anniversaire'], nEv = TYPES.reduce((a, t) => a + (R.evs[t] || 0), 0);
 check(nEv >= 20 && nEv <= 60, `entre 20 et 60 événements en 3 h (${nEv})`);
 check(TYPES.every((t) => R.evs[t] >= 1), 'chacun des sept types d’événement est arrivé au moins une fois');
@@ -108,7 +108,7 @@ console.log('── événements ──');
   const rep = G.reparer(st); check(rep.fini && !st.ev && st.coins === pa.prime, `réparé : prime ${G.fmtEur(pa.prime)}`);
   G.tick(st, 0.3, T0 + 1300); check(Math.abs(sta.prog - 0.8) < 1e-9, 'la production repart');
   // goûter d'anniversaire : un seul produit ×5
-  st.now = T0; const an = G.lancerAnniversaire(st, () => 0.99); const autre = st.stations.findIndex((x, i) => x.niv > 0 && i !== an.i);
+  st.now = T0; st.jour.pain = 99; st.specialite = null; const an = G.lancerAnniversaire(st, () => 0.99); const autre = st.stations.findIndex((x, i) => x.niv > 0 && i !== an.i);
   check(Math.abs(G.revenu(st, an.i) / G.revenuBase(st, an.i) - 5) < 1e-9 && Math.abs(G.revenu(st, autre) / G.revenuBase(st, autre) - 1) < 1e-9, `anniversaire : ${PRODUITS[an.i].nom} ×5, les autres ×1`); st.ev = null;
   // jamais deux fois le même d'affilée, et tous les types finissent par sortir
   const vus = {}, r2 = seeded(3); let prev = ''; let repete = false;
@@ -140,6 +140,30 @@ console.log('── quartiers, nom, saisons ──');
   check(G.renommer(st, '  <b>Chez  Mamie</b>  ') === 'bChez Mamie/b' && G.renommer(st, 'x'.repeat(40)).length === 24 && G.renommer(st, '') === 'Au Fournil du Village', 'nom nettoyé, 24 caractères au plus, vide → nom par défaut');
   const tags = (y, m, d) => G.saison(new Date(y, m - 1, d, 12).getTime()).join(',');
   check(tags(2026, 12, 20) === 'neige,noel' && tags(2026, 1, 10) === 'neige,galette' && tags(2026, 2, 14) === 'neige,coeurs' && tags(2026, 4, 5) === 'paques' && tags(2026, 7, 14) === 'ete,fete' && tags(2026, 10, 25) === 'halloween,feuilles' && tags(2026, 5, 3) === '', `saisons : ${tags(2026, 12, 20)} / ${tags(2026, 1, 10)} / ${tags(2026, 7, 14)} / ${tags(2026, 10, 25)}`);
+}
+console.log('── pain du jour, défi de la semaine, habitués, spécialité, trophées ──');
+{
+  const st = G.newState(T0); st.now = T0; st.coins = 1e9; for (const i of [1, 2, 3]) G.acheter(st, i);
+  const j = G.objectifsDuJour(st, T0), pain = j.pain;
+  check(pain >= 0 && pain < 8 && G.objectifsDuJour(G.newState(T0), T0).pain === pain, `pain du jour : ${PRODUITS[pain].nom}, le même pour la même date`);
+  st.specialite = null; check(st.stations[pain].niv > 0 ? Math.abs(G.revenu(st, pain) / G.revenuBase(st, pain) - 1.5) < 1e-9 : true, 'le pain du jour rapporte ×1,5');
+  const autre = [0, 1, 2, 3].find((i) => i !== pain); check(Math.abs(G.revenu(st, autre) / G.revenuBase(st, autre) - 1) < 1e-9, 'les autres produits ×1');
+  check(G.choisirSpecialite(st, autre).ok && !G.choisirSpecialite(st, 0).ok && Math.abs(G.revenu(st, autre) / G.revenuBase(st, autre) - 2) < 1e-9, `spécialité : ${PRODUITS[autre].nom} ×2, choisie une seule fois`);
+  const sm = G.semaineEnCours(st, T0); check(sm && sm.key === '2026-10-05' && sm.cible >= 1 && !sm.fait, `défi de la semaine du lundi 5 : ${sm.txt}`);
+  check(G.semaineKey(Date.UTC(2026, 9, 11, 20, 0)) === '2026-10-05' && G.semaineKey(Date.UTC(2026, 9, 12, 6, 0)) === '2026-10-12', 'la semaine va du lundi au dimanche');
+  sm.type = 'commandes'; sm.cible = 2; sm.progres = 0; G.noterSemaine(st, 'commandes'); G.noterSemaine(st, 'critiques'); check(sm.progres === 1 && !sm.fait, 'seul le type du défi compte'); G.noterSemaine(st, 'commandes'); check(sm.fait, 'défi réussi');
+  const et = st.etoiles, c0 = st.coins, r = G.reclamerSemaine(st); check(r.ok && st.etoiles === et + 1 && st.coins > c0 && !G.reclamerSemaine(st).ok && st.stats.semaines === 1, `récompense : +1 étoile, ${G.fmtEur(r.prime)}, une seule fois`);
+  // les habitués
+  const h8 = Date.UTC(2026, 9, 7, 6, 30); st.now = h8; const hb = G.habitueAttendu(st, h8); check(hb && hb.id === 'dupuis', 'à 8 h 30, Mme Dupuis est attendue');
+  check(G.habitueAttendu(st, Date.UTC(2026, 9, 7, 9, 0)) === null, 'à 11 h, personne');
+  const s1 = G.servirHabitue(st, 'dupuis'); check(s1.ok && s1.jours === 1 && !G.servirHabitue(st, 'dupuis').ok, 'servie une fois par jour');
+  for (let d = 1; d <= 4; d++) { st.now = h8 + d * 864e5; G.servirHabitue(st, 'dupuis'); }
+  check(st.habitues.dupuis.jours === 5 && st.coins > 0 && /fidèle depuis 5 jours/.test(st.carnetEv[st.carnetEv.length - 1].txt), 'cinq jours de suite : un cadeau');
+  st.now = h8 + 7 * 864e5; check(G.servirHabitue(st, 'dupuis').jours === 1, 'un jour manqué : la série repart');
+  // les trophées
+  const s2 = G.newState(T0); s2.now = T0; check(G.verifierTrophees(s2).length === 0, 'au départ, aucun trophée');
+  s2.stats.ventes = 1; const tr = G.verifierTrophees(s2); check(tr.length === 1 && tr[0].id === 'premiere' && s2.xp === 10 && s2.trophees.premiere, 'première fournée : trophée et savoir-faire');
+  s2.etoiles = 150; s2.boutiques = 5; check(G.verifierTrophees(s2).map((t) => t.id).join(',') === 'etoiles10,etoiles100,boutique2,boutique5', 'plusieurs trophées d’un coup, chacun une seule fois');
 }
 console.log('── absence de 8 h après 1 h de jeu ──');
 const R1 = run(1, greedy);
