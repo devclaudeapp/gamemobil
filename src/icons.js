@@ -1,0 +1,25 @@
+/* LE FOURNIL — icônes SVG en ligne : les pâtisseries, les apprentis, les améliorations. Aucun fichier image. */
+const ICONS = (() => {
+  'use strict';
+  const S = (inner) => `<svg viewBox="0 0 48 48" aria-hidden="true">${inner}</svg>`;
+  const L = '#4A3328';
+  const PRODUITS = {
+    baguette: S(`<path d="M8 34 L34 10" stroke="#C8863A" stroke-width="13" stroke-linecap="round"/><path d="M8 34 L34 10" stroke="#E8B46A" stroke-width="9" stroke-linecap="round"/><path d="M14 26l4 2M19 21l4 2M24 16l4 2" stroke="#A8621F" stroke-width="2.2" stroke-linecap="round"/><path d="M8 34 L34 10" stroke="${L}" stroke-width="13" stroke-linecap="round" fill="none" opacity="0" />`),
+    croissant: S(`<path d="M10 30c-3-8 3-17 12-18 8-1 15 5 16 12 1 5-2 7-5 6-2-1-3-4-3-6-2 4-6 7-11 8-4 1-8-1-9-2z" fill="#E8A54A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M16 27c3-1 6-3 8-6M24 18c2-1 5-1 8 0" stroke="#B9732A" stroke-width="2" stroke-linecap="round"/>`),
+    painchoc: S(`<rect x="8" y="14" width="32" height="22" rx="7" fill="#EBB15A" stroke="${L}" stroke-width="2"/><rect x="12" y="17" width="24" height="16" rx="5" fill="#F4C978"/><rect x="15" y="19" width="4" height="12" rx="2" fill="#5B3A29"/><rect x="29" y="19" width="4" height="12" rx="2" fill="#5B3A29"/>`),
+    tarte: S(`<ellipse cx="24" cy="28" rx="18" ry="11" fill="#E9A95C" stroke="${L}" stroke-width="2"/><ellipse cx="24" cy="25" rx="15" ry="8" fill="#F7C96B"/><path d="M12 25l24 0M16 20l16 10M16 30l16-10" stroke="#D08A3A" stroke-width="2.2" stroke-linecap="round"/><circle cx="24" cy="25" r="3" fill="#E85A4F"/>`),
+    eclair: S(`<rect x="6" y="18" width="36" height="16" rx="8" fill="#F1C27A" stroke="${L}" stroke-width="2"/><rect x="8" y="16" width="32" height="10" rx="5" fill="#8B5A3C"/><path d="M12 21h22" stroke="#B37A52" stroke-width="2" stroke-linecap="round"/>`),
+    macaron: S(`<ellipse cx="18" cy="30" rx="11" ry="5" fill="#C9A3F5" stroke="${L}" stroke-width="2"/><ellipse cx="18" cy="26" rx="11" ry="5" fill="#E7D4FF"/><ellipse cx="18" cy="24" rx="11" ry="5" fill="#C9A3F5" stroke="${L}" stroke-width="2"/><ellipse cx="31" cy="21" rx="10" ry="4.5" fill="#F79AB5" stroke="${L}" stroke-width="2"/><ellipse cx="31" cy="17.5" rx="10" ry="4.5" fill="#FFE1EA"/><ellipse cx="31" cy="15.5" rx="10" ry="4.5" fill="#F79AB5" stroke="${L}" stroke-width="2"/>`),
+    millefeuille: S(`<rect x="8" y="30" width="32" height="7" rx="2" fill="#F1C27A" stroke="${L}" stroke-width="2"/><rect x="8" y="24" width="32" height="6" fill="#FFF3C4"/><rect x="8" y="18" width="32" height="6" rx="1" fill="#F1C27A" stroke="${L}" stroke-width="2"/><rect x="8" y="12" width="32" height="6" fill="#FFF3C4"/><rect x="8" y="7" width="32" height="6" rx="2" fill="#FFFFFF" stroke="${L}" stroke-width="2"/><path d="M10 10c4-2 8 2 12 0s8 2 12 0" stroke="#5B3A29" stroke-width="1.8" fill="none"/>`),
+    piece: S(`<path d="M24 6l12 32H12z" fill="#F7C96B" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="24" cy="12" r="3" fill="#FFE1EA" stroke="${L}" stroke-width="1.5"/><circle cx="20" cy="19" r="3" fill="#C9A3F5" stroke="${L}" stroke-width="1.5"/><circle cx="28" cy="19" r="3" fill="#FFE1EA" stroke="${L}" stroke-width="1.5"/><circle cx="16" cy="26" r="3" fill="#FFE1EA" stroke="${L}" stroke-width="1.5"/><circle cx="24" cy="26" r="3" fill="#C9A3F5" stroke="${L}" stroke-width="1.5"/><circle cx="32" cy="26" r="3" fill="#FFE1EA" stroke="${L}" stroke-width="1.5"/><circle cx="14" cy="33" r="3" fill="#C9A3F5" stroke="${L}" stroke-width="1.5"/><circle cx="21" cy="33" r="3" fill="#FFE1EA" stroke="${L}" stroke-width="1.5"/><circle cx="28" cy="33" r="3" fill="#C9A3F5" stroke="${L}" stroke-width="1.5"/><circle cx="34" cy="33" r="3" fill="#FFE1EA" stroke="${L}" stroke-width="1.5"/><path d="M22 4h4" stroke="#FF6B8B" stroke-width="3" stroke-linecap="round"/>`),
+  };
+  const PEAUX = ['#FFD7B5', '#F1B990', '#C68B59', '#8D5A3C', '#FFE3C9', '#5C3A21'];
+  const HAUTS = ['#FF6B8B', '#5FD3A4', '#B8A6FF', '#FFC84A', '#6CB8FF', '#FF9A62'];
+  function apprenti(i) {
+    const peau = PEAUX[i % PEAUX.length], haut = HAUTS[(i * 2 + 1) % HAUTS.length];
+    return S(`<circle cx="24" cy="44" r="16" fill="${haut}"/><circle cx="24" cy="22" r="11" fill="${peau}" stroke="${L}" stroke-width="2"/><path d="M12 19c0-7 6-11 12-11s12 4 12 11v2H12z" fill="#fff" stroke="${L}" stroke-width="2"/><rect x="11" y="19" width="26" height="4" rx="2" fill="#fff" stroke="${L}" stroke-width="2"/><circle cx="20" cy="24" r="1.6" fill="${L}"/><circle cx="28" cy="24" r="1.6" fill="${L}"/><path d="M20 29c2 2 6 2 8 0" stroke="${L}" stroke-width="2" stroke-linecap="round" fill="none"/>`);
+  }
+  const AMELIORATION = S(`<path d="M24 6l3.5 10.5L38 20l-10.5 3.5L24 34l-3.5-10.5L10 20l10.5-3.5z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`);
+  const ETOILE = S(`<path d="M24 5l5.8 12.2 13.2 1.6-9.8 9.2 2.6 13.2L24 34.6l-11.8 6.6 2.6-13.2L5 18.8l13.2-1.6z" fill="#FFC84A" stroke="#E0A61E" stroke-width="2" stroke-linejoin="round"/>`);
+  return { PRODUITS, apprenti, AMELIORATION, ETOILE };
+})();

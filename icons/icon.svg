@@ -1,14 +1,8 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="110" fill="#F1E8D6"/>
-  <rect x="64" y="72" width="384" height="104" fill="#1F8A8A"/>
-  <rect x="70" y="66" width="384" height="104" fill="none" stroke="#2A2B33" stroke-width="12"/>
-  <rect x="64" y="208" width="184" height="168" fill="#1F8A8A"/>
-  <rect x="64" y="208" width="184" height="168" fill="#F26BA6" opacity=".55"/>
-  <rect x="70" y="202" width="184" height="168" fill="none" stroke="#2A2B33" stroke-width="12"/>
-  <rect x="264" y="208" width="184" height="168" fill="#F26BA6"/>
-  <rect x="270" y="202" width="184" height="168" fill="none" stroke="#2A2B33" stroke-width="12"/>
-  <g fill="#FFFDF6"><circle cx="300" cy="250" r="9"/><circle cx="356" cy="296" r="9"/><circle cx="410" cy="240" r="9"/><circle cx="318" cy="340" r="9"/><circle cx="392" cy="334" r="9"/><circle cx="360" cy="250" r="7"/></g>
-  <rect x="232" y="162" width="48" height="18" fill="#F7C843" stroke="#2A2B33" stroke-width="6" transform="rotate(-60 256 171)"/>
-  <rect x="236" y="272" width="42" height="16" fill="#F7C843" stroke="#2A2B33" stroke-width="6" transform="rotate(-70 257 280)"/>
-  <text x="256" y="452" text-anchor="middle" font-family="Big Shoulders Stencil Text, Arial Narrow, Impact, sans-serif" font-weight="900" font-size="64" letter-spacing="4" fill="#2A2B33">ŒILLETS</text>
+  <rect width="512" height="512" rx="112" fill="#FFF7EC"/>
+  <circle cx="256" cy="256" r="176" fill="#FFE0C7"/>
+  <path d="M120 300c-30-80 40-170 130-180 85-10 160 50 170 120 10 50-20 70-50 60-20-10-30-40-30-60-20 40-60 70-110 80-40 10-90-10-110-20z" fill="#E8A54A" stroke="#4A3328" stroke-width="16" stroke-linejoin="round"/>
+  <path d="M180 270c30-10 60-30 80-60M260 180c20-10 50-10 80 0" stroke="#B9732A" stroke-width="16" stroke-linecap="round" fill="none"/>
+  <circle cx="400" cy="120" r="34" fill="#FFC84A" stroke="#E0A61E" stroke-width="8"/>
+  <text x="400" y="132" text-anchor="middle" font-family="Fredoka, Nunito, Arial Rounded MT Bold, sans-serif" font-weight="700" font-size="34" fill="#8C6F62">€</text>
 </svg>

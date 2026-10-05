@@ -1,27 +1,24 @@
 <div id="probe" aria-hidden="true"></div>
-<canvas id="marais" aria-label="Plan du marais salant. Touche une parcelle pour sa fiche, un mur pour sa trappe, glisse sur un œillet blanc pour tirer le sel."></canvas>
-<header id="ciel" aria-live="off">
-  <div class="col">
-    <div id="heure" class="big">—</div>
-    <div id="maree-txt" class="lig">—</div>
-    <div id="meteo" class="lig pale">—</div>
+<header id="haut">
+  <div class="solde">
+    <span class="piece" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="20" cy="22" r="17" fill="#E0A61E"/><circle cx="20" cy="19" r="17" fill="#FFC84A"/><circle cx="20" cy="19" r="12" fill="none" stroke="#E0A61E" stroke-width="2.5"/><text x="20" y="25" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-weight="700" font-size="16" fill="#8C6F62">€</text></svg></span>
+    <div><b id="coins">0 €</b><small id="taux">—</small></div>
   </div>
-  <div class="col mid"></div>
-  <div class="col d">
-    <div id="cash" class="big">0<small>€</small></div>
-    <div id="mulon" class="lig">—</div>
-    <div id="reserve" class="lig pale">—</div>
+  <div class="haut-btns">
+    <button id="b-etoiles" class="pastille etoile" type="button" aria-label="Étoiles et nouvelle boutique"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6L2.5 9.4l6.6-.8z" fill="#fff" stroke="#E0A61E" stroke-width="1.5" stroke-linejoin="round"/></svg><span id="etoiles-n">0</span></button>
+    <button id="b-son" class="pastille" type="button" aria-label="Son" aria-pressed="true"><svg id="son-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" fill="#4A3328"/><path d="M16 8.5a5 5 0 010 7M18.5 6a8.5 8.5 0 010 12" fill="none" stroke="#4A3328" stroke-width="2" stroke-linecap="round"/></svg><svg id="son-off" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M4 9v6h4l5 4V5L8 9z" fill="#B5A49A"/><path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="#B5A49A" stroke-width="2" stroke-linecap="round"/></svg></button>
   </div>
 </header>
-<span id="lbl-seuil" class="lbl">Seuil</span><span id="lbl-mer" class="lbl">Mer</span><span id="lbl-etier" class="lbl">Étier</span><span id="lbl-baro" class="lbl pale">Baromètre</span>
-<div id="bandeau" hidden></div>
-<p id="marge"><em id="marge-txt"></em></p>
-<nav id="barre" aria-label="Actions">
-  <button id="b-carnet" type="button">Carnet</button>
-  <button id="b-coop" type="button">Coopérative</button>
-  <button id="b-creuser" type="button">Creuser</button>
-</nav>
+<canvas id="scene" aria-label="La boutique : les clients entrent, achètent et repartent."></canvas>
+<main id="liste">
+  <div class="barre-achat">
+    <div class="modes" role="group" aria-label="Quantité à acheter">
+      <button type="button" data-mode="1" class="actif">×1</button><button type="button" data-mode="10">×10</button><button type="button" data-mode="100">×100</button><button type="button" data-mode="max">Max</button>
+    </div>
+    <button id="b-ameliorations" class="btn-am" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.8 5.6L19.5 9l-5.7 1.4L12 16l-1.8-5.6L4.5 9l5.7-1.4z" fill="#fff"/><path d="M19 15l.9 2.6 2.6.9-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9z" fill="#fff"/></svg>Bonus</button>
+  </div>
+  <div id="cartes"></div>
+</main>
+<div id="indice" hidden><div class="bulle"><span id="indice-txt"></span></div><svg class="main" viewBox="0 0 36 36" aria-hidden="true"><path d="M14 33c-3 0-5-2-6-5l-3-8c-.5-1.4.3-2.7 1.6-3 1.1-.3 2.2.3 2.7 1.3l1.7 3.4V8.5c0-1.4 1.1-2.5 2.5-2.5S16 7.1 16 8.5V18h1v-8c0-1.4 1.1-2.5 2.5-2.5S22 8.6 22 10v8h1v-6c0-1.4 1.1-2.5 2.5-2.5S28 10.6 28 12v6h1v-3c0-1.4 1.1-2.5 2.5-2.5S34 13.6 34 15v9c0 5-4 9-9 9z" fill="#FFD7B5" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/></svg></div>
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
-<section id="page" hidden><div id="page-contenu" class="inner"></div></section>
-<div id="hiver-bar" class="hiver-bar" hidden></div>

@@ -1,1774 +1,788 @@
-<title>Œillets</title>
+<title>Le Fournil</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil+Text:wght@700;900&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Stencil:opsz,wght@10..72,700;10..72,900&display=swap">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:ital,wght@0,400;0,600;1,400&family=Instrument+Serif:ital@0;1&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800&display=swap">
 <style>
-/* ŒILLETS — carnet de paludier imprimé en risographie : trois encres en aplat sur kraft. Une seule page, portrait, sans défilement. */
+/* LE FOURNIL — lumineux et doux : crème, fraise, beurre, menthe ; formes rondes, gros chiffres, boutons à épaisseur. */
 :root {
-  --papier: #F1E8D6; --encre: #2A2B33; --canard: #1F8A8A; --rose: #F26BA6; --violet: #6B5B95; --argile: #8E7D6D; --soleil: #F7C843; --sel: #FFFDF6;
-  --encre-pale: #6E6A6B;
-  --pochoir: "Big Shoulders Stencil Text", "Big Shoulders Stencil", "Arial Narrow", Impact, "Helvetica Neue", sans-serif;
-  --etiquette: "Archivo Narrow", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
-  --carnet: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --creme: #FFF7EC; --carte: #FFFFFF; --texte: #4A3328; --texte-2: #8C6F62; --ligne: #F0E4D8;
+  --fraise: #FF6B8B; --fraise-sombre: #E1496C; --beurre: #FFC84A; --beurre-sombre: #E0A61E; --menthe: #5FD3A4; --menthe-sombre: #3FB889;
+  --lavande: #B8A6FF; --lavande-sombre: #9A84F0; --peche: #FFE0C7; --gris: #EADFD6; --gris-texte: #B5A49A; --gris-sombre: #D9CCC2;
+  --ombre: rgba(74, 51, 40, .10);
+  --titre: "Fredoka", "Nunito", "Segoe UI", system-ui, sans-serif;
+  --texte-font: "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
   color-scheme: light;
 }
 *, *::before, *::after { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html, body { height: 100%; margin: 0; overflow: hidden; background: var(--papier); color: var(--encre); }
-body {
-  font: 400 15px/1.35 var(--etiquette); -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;
+html, body { height: 100%; margin: 0; background: var(--creme); color: var(--texte); overflow: hidden; }
+body { font: 700 15px/1.35 var(--texte-font); -webkit-font-smoothing: antialiased; -webkit-text-size-adjust: 100%;
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; overscroll-behavior: none;
-}
+  display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
-:focus-visible { outline: 2px solid var(--soleil); outline-offset: 2px; }
+:focus-visible { outline: 3px solid var(--lavande); outline-offset: 2px; }
 #probe { position: fixed; left: -9999px; top: 0; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
-#marais { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; background: var(--papier); }
-.pochoir { font-family: var(--pochoir); font-weight: 900; letter-spacing: .02em; font-variant-numeric: tabular-nums; text-transform: uppercase; }
-.etq { font-family: var(--etiquette); }
-.carnet-i { font-family: var(--carnet); font-style: italic; }
+svg { display: block; }
 
-/* ─── bande de ciel (textes) ─── */
-#ciel { position: fixed; left: 0; right: 0; top: 0; z-index: 2; pointer-events: none; padding: calc(env(safe-area-inset-top, 0px) + 8px) 14px 0;
-  display: grid; grid-template-columns: 1fr auto 1fr; column-gap: 8px; align-items: start; }
-#ciel .col { display: flex; flex-direction: column; gap: 0; min-width: 0; }
-#ciel .col.d { text-align: right; align-items: flex-end; }
-#ciel .big { font: 900 34px/1 var(--pochoir); font-variant-numeric: tabular-nums; letter-spacing: .01em; white-space: nowrap; }
-#ciel .big small { font-size: 20px; margin-left: 2px; }
-#ciel .lig { font-size: 13px; line-height: 1.3; color: var(--encre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 44vw; }
-#ciel .lig b { font-weight: 600; }
-#ciel .lig.pale { color: var(--encre-pale); }
-#maree-txt { font: 700 13px/1.3 var(--pochoir); letter-spacing: .06em; }
-#maree-txt b { font-size: 15px; }
-#bandeau { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 76px); transform: translateX(-50%); z-index: 3; pointer-events: none; text-align: center; padding: 4px 12px; background: var(--soleil); color: var(--encre);
-  font: 700 12px/1.25 var(--pochoir); letter-spacing: .12em; text-transform: uppercase; white-space: nowrap; border: 2px solid var(--encre); box-shadow: 2px 2px 0 var(--encre); }
+/* ─── en-tête ─── */
+#haut { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 14px 6px; }
+.solde { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.solde .piece { width: 40px; height: 40px; flex: 0 0 auto; }
+.solde b { display: block; font: 700 clamp(26px, 7.6vw, 34px)/1 var(--titre); letter-spacing: -.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.solde small { display: block; margin-top: 2px; font-size: 13px; color: var(--texte-2); white-space: nowrap; }
+.solde small b { display: inline; font: 800 13px/1 var(--texte-font); color: var(--menthe-sombre); }
+.haut-btns { display: flex; gap: 8px; flex: 0 0 auto; }
+.pastille { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; padding: 0 12px; border-radius: 999px; background: var(--carte);
+  box-shadow: 0 3px 0 var(--gris-sombre); font: 700 16px/1 var(--titre); color: var(--texte); }
+.pastille:active { transform: translateY(3px); box-shadow: none; }
+.pastille svg { width: 22px; height: 22px; }
+.pastille.etoile { background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); }
+.pastille.etoile.pret { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 
-/* ─── marge et barre ─── */
-#marge { position: fixed; left: 0; right: 0; z-index: 2; margin: 0; padding: 4px 18px; pointer-events: none; text-align: center; min-height: 44px;
-  display: flex; align-items: center; justify-content: center; }
-#marge em { font: italic 400 clamp(16px, 4.6vw, 19px)/1.25 var(--carnet); color: var(--encre); text-wrap: balance; }
-#marge em.dicton { color: var(--encre-pale); }
-#marge em.action { pointer-events: auto; text-decoration: underline dotted; text-underline-offset: 3px; cursor: pointer; }
-#barre { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px;
-  padding: 6px 12px calc(env(safe-area-inset-bottom, 0px) + 8px); background: transparent; border-top: 2px solid var(--encre); }
-#barre button { min-height: 46px; border: 2px solid var(--encre); background: transparent; font: 700 13px/1 var(--pochoir); letter-spacing: .12em; text-transform: uppercase;
-  box-shadow: 2px 2px 0 var(--encre); position: relative; }
-#barre button:active, #barre button.actif { background: var(--encre); color: var(--papier); box-shadow: none; transform: translate(2px, 2px); }
-#barre button.anneau::after { content: ""; position: absolute; inset: -8px; border: 3px solid var(--soleil); border-radius: 999px; pointer-events: none; }
-#barre button b { display: block; font: 400 11px/1 var(--etiquette); letter-spacing: .02em; text-transform: none; margin-top: 3px; color: inherit; opacity: .8; }
+/* ─── scène ─── */
+#scene { flex: 0 0 auto; width: 100%; display: block; touch-action: none; }
 
-/* ─── feuille basse et pages ─── */
-#voile { position: fixed; inset: 0; z-index: 7; background: rgba(42, 43, 51, .18); }
-#feuille { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; max-height: 78%; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y;
-  background: var(--papier); border-top: 2px solid var(--encre); box-shadow: 0 -2px 0 var(--papier), 0 -4px 0 var(--encre);
-  padding: 10px 18px calc(env(safe-area-inset-bottom, 0px) + 16px); animation: monte .2s steps(2, end); }
-#feuille .poignee { width: 48px; height: 4px; margin: 0 auto 10px; background: var(--encre); }
-#page { position: fixed; inset: 0; z-index: 6; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y; background: var(--papier);
-  padding: calc(env(safe-area-inset-top, 0px) + 18px) 20px calc(env(safe-area-inset-bottom, 0px) + 20px); }
-#page .inner, #feuille .inner { max-width: 520px; margin: 0 auto; }
-@keyframes monte { from { transform: translateY(16px); opacity: .6; } to { transform: none; opacity: 1; } }
+/* ─── liste des produits ─── */
+#liste { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 0 12px calc(env(safe-area-inset-bottom, 0px) + 24px); }
+.barre-achat { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 8px 2px 10px; background: var(--creme); }
+.barre-achat .modes { display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: var(--carte); box-shadow: 0 3px 0 var(--gris-sombre); }
+.barre-achat .modes button { min-width: 42px; min-height: 38px; padding: 0 8px; border-radius: 999px; font: 700 14px/1 var(--titre); color: var(--texte-2); }
+.barre-achat .modes button.actif { background: var(--texte); color: #fff; }
+.btn-am { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 42px; padding: 0 14px; border-radius: 999px; background: var(--lavande); color: #fff;
+  box-shadow: 0 3px 0 var(--lavande-sombre); font: 700 14px/1 var(--titre); white-space: nowrap; }
+.btn-am:active { transform: translateY(3px); box-shadow: none; }
+.btn-am svg { width: 18px; height: 18px; }
+.btn-am.pret { animation: pulse 1.2s ease-in-out infinite; }
+#cartes { display: grid; gap: 10px; }
+.carte { display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 12px; border-radius: 22px; background: var(--carte);
+  box-shadow: 0 6px 16px var(--ombre); position: relative; }
+.carte .icone { width: 60px; height: 60px; border-radius: 18px; background: var(--peche); display: grid; place-items: center; }
+.carte .icone svg { width: 46px; height: 46px; }
+.carte .corps { min-width: 0; display: grid; gap: 6px; }
+.carte h3 { margin: 0; font: 700 18px/1.1 var(--titre); letter-spacing: -.01em; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.carte h3 .niv { font: 800 12px/1 var(--texte-font); color: var(--texte-2); padding: 3px 7px; border-radius: 999px; background: var(--creme); white-space: nowrap; }
+.carte h3 .niv i { font-style: normal; color: var(--gris-texte); }
+.carte .barre { position: relative; height: 30px; border-radius: 999px; background: var(--creme); overflow: hidden; }
+.carte .barre i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 999px; background: var(--menthe); }
+.carte .barre i.rapide { background: linear-gradient(90deg, var(--menthe), var(--menthe-sombre)); width: 100% !important; }
+.carte .barre span { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; font: 800 13px/1 var(--texte-font); white-space: nowrap; }
+.carte .barre .rev { left: 10px; color: var(--texte); }
+.carte .barre .tps { right: 10px; color: var(--texte-2); font-weight: 700; }
+.carte .barre .cuire { right: 10px; color: var(--fraise-sombre); font: 700 13px/1 var(--titre); letter-spacing: .02em; }
+.carte.manuel:not(.actif) .barre { outline: 2px dashed var(--fraise); outline-offset: -2px; }
+.carte.manuel:not(.actif):active .barre { background: #FFE9EE; }
+.boutons { display: grid; gap: 6px; width: 118px; }
+.btn { display: grid; justify-items: center; gap: 2px; min-height: 48px; padding: 6px 8px; border-radius: 16px; background: var(--fraise); color: #fff; box-shadow: 0 4px 0 var(--fraise-sombre); transition: transform .05s; }
+.btn small { font: 700 11px/1 var(--texte-font); opacity: .9; letter-spacing: .02em; }
+.btn b { font: 700 16px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.btn:active { transform: translateY(4px); box-shadow: none; }
+.btn.menthe { background: var(--menthe); box-shadow: 0 4px 0 var(--menthe-sombre); }
+.btn.beurre { background: var(--beurre); color: var(--texte); box-shadow: 0 4px 0 var(--beurre-sombre); }
+.btn.lavande { background: var(--lavande); box-shadow: 0 4px 0 var(--lavande-sombre); }
+.btn.non { background: var(--gris); color: var(--gris-texte); box-shadow: 0 4px 0 var(--gris-sombre); }
+.btn.non:active { transform: none; box-shadow: 0 4px 0 var(--gris-sombre); }
+.btn.large { width: 100%; min-height: 56px; border-radius: 20px; }
+.btn.large b { font-size: 19px; }
+.staff-ok { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 4px 8px; border-radius: 14px; background: var(--creme); font: 700 12px/1.15 var(--texte-font); color: var(--texte-2); }
+.staff-ok svg { width: 28px; height: 28px; flex: 0 0 auto; }
+.carte.verrou { grid-template-columns: 60px minmax(0, 1fr); background: #FFFBF4; box-shadow: none; border: 2px dashed var(--gris-sombre); }
+.carte.verrou .icone { background: var(--creme); }
+.carte.verrou .icone svg { opacity: .45; filter: grayscale(1); }
+.carte.verrou p { margin: 0; font-size: 13px; color: var(--texte-2); font-weight: 700; }
+.carte.verrou .btn { margin-top: 6px; width: 100%; }
+.carte.verrou.secret { opacity: .55; }
+.carte.verrou.secret h3 { color: var(--texte-2); }
+
+/* ─── indice (tutoriel) ─── */
+#indice { position: fixed; z-index: 6; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px; width: min(78vw, 320px); }
+#indice .bulle { padding: 10px 14px; border-radius: 18px; background: var(--texte); color: #fff; font: 700 15px/1.3 var(--texte-font); text-align: center; box-shadow: 0 6px 16px var(--ombre); text-wrap: balance; }
+#indice .main { width: 36px; height: 36px; animation: tape .9s ease-in-out infinite; }
+#indice.haut { flex-direction: column-reverse; }
+#indice.haut .main { transform: rotate(180deg); animation-name: tapeHaut; }
+@keyframes tape { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(8px); } }
+@keyframes tapeHaut { 0%, 100% { transform: rotate(180deg) translateY(0); } 50% { transform: rotate(180deg) translateY(8px); } }
+
+/* ─── feuilles ─── */
+#voile { position: fixed; inset: 0; z-index: 7; background: rgba(74, 51, 40, .35); }
+#feuille { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; max-height: 84%; overflow-y: auto; -webkit-overflow-scrolling: touch; touch-action: pan-y;
+  background: var(--creme); border-radius: 28px 28px 0 0; padding: 10px 18px calc(env(safe-area-inset-bottom, 0px) + 18px); animation: monte .25s cubic-bezier(.2, .8, .2, 1); }
+#feuille .poignee { width: 44px; height: 5px; margin: 0 auto 12px; border-radius: 3px; background: var(--gris-sombre); }
+#feuille .inner { max-width: 520px; margin: 0 auto; }
+@keyframes monte { from { transform: translateY(40px); opacity: .5; } to { transform: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
-
-h1.titre { margin: 0; font: 900 clamp(44px, 15.5vw, 96px)/.9 var(--pochoir); letter-spacing: -.02em; text-transform: uppercase; }
-h2 { margin: 0 0 6px; font: 900 26px/1 var(--pochoir); letter-spacing: .03em; text-transform: uppercase; text-wrap: balance; }
-h3 { margin: 16px 0 6px; font: 700 12px/1.3 var(--pochoir); letter-spacing: .16em; text-transform: uppercase; color: var(--encre-pale); }
-.sur { margin: 0 0 4px; font: 700 12px/1.3 var(--pochoir); letter-spacing: .16em; text-transform: uppercase; color: var(--encre-pale); }
-.sur.canard { color: var(--canard); }
-p { margin: 6px 0; }
-.ital { font: italic 400 17px/1.3 var(--carnet); }
-.pale { color: var(--encre-pale); }
-.ligne { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 7px 0; border-bottom: 1px solid rgba(42, 43, 51, .18); }
-.ligne:last-child { border-bottom: 0; }
-.ligne .val { font: 700 17px/1 var(--pochoir); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.etiquette { display: inline-block; padding: 3px 8px; background: var(--soleil); border: 2px solid var(--encre); font: 700 13px/1.2 var(--pochoir); letter-spacing: .06em;
-  text-transform: uppercase; font-variant-numeric: tabular-nums; }
-.etiquette.grande { font-size: 18px; padding: 6px 12px; box-shadow: 2px 2px 0 var(--encre); }
-.tampon { display: inline-block; transform: rotate(-2deg); padding: 6px 10px; border: 3px solid var(--rose); color: var(--rose); font: 900 20px/1 var(--pochoir);
-  letter-spacing: .06em; text-transform: uppercase; font-variant-numeric: tabular-nums; }
-.btn { display: block; width: 100%; min-height: 48px; padding: 10px 14px; margin-top: 10px; border: 2px solid var(--encre); background: var(--papier);
-  font: 700 14px/1.2 var(--pochoir); letter-spacing: .1em; text-transform: uppercase; text-align: center; box-shadow: 2px 2px 0 var(--encre); }
-.btn:active { transform: translate(2px, 2px); box-shadow: none; }
-.btn.plein { background: var(--encre); color: var(--papier); }
-.btn.jaune { background: var(--soleil); }
-.btn[disabled] { opacity: .45; box-shadow: none; cursor: default; }
-.btn.petit { display: inline-block; width: auto; min-height: 44px; padding: 10px 12px; font-size: 12px; margin-top: 0; }
-.rang { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-.rang > .btn { flex: 1; }
-.liste { list-style: none; margin: 0; padding: 0; }
-.liste li { padding: 8px 0; border-bottom: 1px solid rgba(42, 43, 51, .18); }
-.liste li:last-child { border-bottom: 0; }
-.trappe { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.trappe span { flex: 1; min-width: 0; }
-.trappe .btn.petit { min-width: 92px; }
-.choix { display: grid; gap: 8px; margin-top: 8px; }
-.choix button { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; text-align: left; padding: 10px 12px; border: 2px solid var(--encre);
-  background: var(--papier); box-shadow: 2px 2px 0 var(--encre); }
-.choix button:active { transform: translate(2px, 2px); box-shadow: none; }
-.choix button.non { box-shadow: none; border-color: var(--argile); color: var(--encre-pale); }
-.choix button.non .nom { text-decoration: line-through; text-decoration-thickness: 2px; }
-.choix .nom { font: 700 16px/1.1 var(--pochoir); letter-spacing: .06em; text-transform: uppercase; }
-.choix .pourquoi { grid-column: 1 / -1; font-size: 13px; line-height: 1.3; }
-.choix .pourquoi.conseil { font: italic 400 14px/1.3 var(--carnet); color: var(--encre-pale); }
-.choix .pourquoi.rouge { color: var(--encre); }
-.choix .pourquoi.rouge::before { content: "— "; }
-.glyphes { font-size: 22px; letter-spacing: .12em; line-height: 1.4; word-break: break-all; color: var(--canard); }
-.sacs { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 8px; }
-.sac { padding: 12px 10px 14px; border: 2px solid var(--argile); background: color-mix(in srgb, var(--argile) 16%, var(--papier)); color: var(--encre); text-align: center; position: relative; }
-.sac::before { content: ""; position: absolute; left: 10px; right: 10px; top: 6px; border-top: 2px dashed var(--argile); }
-.sac b { display: block; font: 900 22px/1 var(--pochoir); margin: 8px 0 4px; }
-.sac span { display: block; font: 700 10px/1.3 var(--pochoir); letter-spacing: .1em; text-transform: uppercase; color: var(--argile); }
-.sac .cl { font: 400 12px/1.3 var(--etiquette); text-transform: none; letter-spacing: 0; color: var(--encre); margin-top: 3px; }
-.obs { padding: 8px 0; border-bottom: 1px solid rgba(42, 43, 51, .18); font: italic 400 16px/1.3 var(--carnet); }
-.obs small { display: block; font: 700 11px/1.4 var(--pochoir); font-style: normal; letter-spacing: .12em; color: var(--encre-pale); }
-.obs.vieille { color: var(--argile); }
-.garde { min-height: 100%; display: flex; flex-direction: column; justify-content: space-between; gap: 18px; }
-.garde .bas { padding-bottom: 12px; }
-.garde .lune-ligne { display: flex; align-items: center; gap: 10px; margin-top: 10px; font: italic 400 18px/1.3 var(--carnet); }
-.toucher { display: block; width: 100%; padding: 18px 0 8px; text-align: left; font: 700 13px/1.3 var(--pochoir); letter-spacing: .18em; text-transform: uppercase; }
-.toucher::before { content: "→ "; }
-.confirm p { font: italic 400 17px/1.35 var(--carnet); }
-.courbe { width: 100%; height: 56px; display: block; border: 1px solid var(--argile); background: var(--papier); }
-.retour-marais { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 14px); transform: translateX(-50%); z-index: 7; width: min(90vw, 440px); }
-.hiver-bar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; padding: 10px 14px calc(env(safe-area-inset-bottom, 0px) + 10px); background: var(--papier); border-top: 2px solid var(--encre); }
-.hiver-bar .compteur { font: 700 13px/1.3 var(--pochoir); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; }
-.hiver-bar p { margin: 0 0 8px; font-size: 13px; line-height: 1.3; }
-.hiver-bar .rang { display: flex; gap: 8px; align-items: stretch; }
-.hiver-bar .rang .menu-types { flex: 1; margin: 0; }
-.hiver-bar .rang .btn { width: auto; flex: 0 0 auto; margin: 0; padding: 8px 12px; font-size: 12px; }
-.hiver-bar .rouge { color: var(--encre); font-weight: 600; }
-.menu-types { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 8px; }
-.menu-types button { flex: 1; min-width: 56px; min-height: 44px; border: 2px solid var(--encre); background: var(--papier); font: 700 11px/1.1 var(--pochoir); letter-spacing: .08em; text-transform: uppercase; }
-.menu-types button.actif { background: var(--encre); color: var(--papier); }
-
-/* ─── étiquettes des éléments dessinés (DOM, pas de texte dans le canvas) ─── */
-.lbl { position: fixed; z-index: 1; pointer-events: none; font: 600 12px/1 var(--etiquette); letter-spacing: .1em; text-transform: uppercase; color: var(--encre); white-space: nowrap; }
-.lbl.pale { color: var(--encre-pale); }
+h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
+.sous { margin: 0 0 14px; color: var(--texte-2); font-weight: 700; }
+.grand-nombre { font: 700 44px/1 var(--titre); color: var(--menthe-sombre); margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
+.liste-am { display: grid; gap: 8px; }
+.am { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 18px; background: var(--carte); box-shadow: 0 4px 12px var(--ombre); }
+.am h3 { margin: 0; font: 700 16px/1.15 var(--titre); }
+.am p { margin: 2px 0 0; font-size: 13px; color: var(--texte-2); }
+.am .btn { min-width: 108px; }
+.am.fait { opacity: .6; box-shadow: none; background: #FFFBF4; }
+.am .ok { font: 700 14px/1 var(--titre); color: var(--menthe-sombre); padding: 0 8px; }
+.stat { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--ligne); }
+.stat:last-child { border-bottom: 0; }
+.stat b { font: 700 16px/1 var(--titre); font-variant-numeric: tabular-nums; }
+.detail { list-style: none; margin: 10px 0 14px; padding: 0; display: grid; gap: 4px; font-weight: 700; color: var(--texte-2); }
+.detail li { display: flex; justify-content: space-between; gap: 8px; }
+.detail li b { color: var(--texte); }
+.ligne-reglage { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; }
+.interrupteur { width: 56px; height: 32px; border-radius: 999px; background: var(--gris); position: relative; transition: background .15s; flex: 0 0 auto; }
+.interrupteur::after { content: ""; position: absolute; top: 4px; left: 4px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px var(--ombre); transition: transform .15s; }
+.interrupteur[aria-checked="true"] { background: var(--menthe); }
+.interrupteur[aria-checked="true"]::after { transform: translateX(24px); }
+.encadre { padding: 12px 14px; border-radius: 18px; background: var(--peche); margin: 10px 0 14px; font-weight: 700; }
+.encadre.doux { background: #EFEAFF; }
+.flottant { position: fixed; z-index: 5; pointer-events: none; font: 700 18px/1 var(--titre); color: var(--menthe-sombre); animation: monteFlotte .9s ease-out forwards; text-shadow: 0 2px 0 #fff; }
+@keyframes monteFlotte { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-46px); opacity: 0; } }
+.toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 64px); transform: translateX(-50%); z-index: 9; padding: 10px 16px; border-radius: 999px; background: var(--texte); color: #fff;
+  font: 700 14px/1.2 var(--texte-font); box-shadow: 0 6px 16px var(--ombre); white-space: nowrap; animation: monte .25s ease-out; }
 </style>
 <div id="probe" aria-hidden="true"></div>
-<canvas id="marais" aria-label="Plan du marais salant. Touche une parcelle pour sa fiche, un mur pour sa trappe, glisse sur un œillet blanc pour tirer le sel."></canvas>
-<header id="ciel" aria-live="off">
-  <div class="col">
-    <div id="heure" class="big">—</div>
-    <div id="maree-txt" class="lig">—</div>
-    <div id="meteo" class="lig pale">—</div>
+<header id="haut">
+  <div class="solde">
+    <span class="piece" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="20" cy="22" r="17" fill="#E0A61E"/><circle cx="20" cy="19" r="17" fill="#FFC84A"/><circle cx="20" cy="19" r="12" fill="none" stroke="#E0A61E" stroke-width="2.5"/><text x="20" y="25" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-weight="700" font-size="16" fill="#8C6F62">€</text></svg></span>
+    <div><b id="coins">0 €</b><small id="taux">—</small></div>
   </div>
-  <div class="col mid"></div>
-  <div class="col d">
-    <div id="cash" class="big">0<small>€</small></div>
-    <div id="mulon" class="lig">—</div>
-    <div id="reserve" class="lig pale">—</div>
+  <div class="haut-btns">
+    <button id="b-etoiles" class="pastille etoile" type="button" aria-label="Étoiles et nouvelle boutique"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6L2.5 9.4l6.6-.8z" fill="#fff" stroke="#E0A61E" stroke-width="1.5" stroke-linejoin="round"/></svg><span id="etoiles-n">0</span></button>
+    <button id="b-son" class="pastille" type="button" aria-label="Son" aria-pressed="true"><svg id="son-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" fill="#4A3328"/><path d="M16 8.5a5 5 0 010 7M18.5 6a8.5 8.5 0 010 12" fill="none" stroke="#4A3328" stroke-width="2" stroke-linecap="round"/></svg><svg id="son-off" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M4 9v6h4l5 4V5L8 9z" fill="#B5A49A"/><path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="#B5A49A" stroke-width="2" stroke-linecap="round"/></svg></button>
   </div>
 </header>
-<span id="lbl-seuil" class="lbl">Seuil</span><span id="lbl-mer" class="lbl">Mer</span><span id="lbl-etier" class="lbl">Étier</span><span id="lbl-baro" class="lbl pale">Baromètre</span>
-<div id="bandeau" hidden></div>
-<p id="marge"><em id="marge-txt"></em></p>
-<nav id="barre" aria-label="Actions">
-  <button id="b-carnet" type="button">Carnet</button>
-  <button id="b-coop" type="button">Coopérative</button>
-  <button id="b-creuser" type="button">Creuser</button>
-</nav>
+<canvas id="scene" aria-label="La boutique : les clients entrent, achètent et repartent."></canvas>
+<main id="liste">
+  <div class="barre-achat">
+    <div class="modes" role="group" aria-label="Quantité à acheter">
+      <button type="button" data-mode="1" class="actif">×1</button><button type="button" data-mode="10">×10</button><button type="button" data-mode="100">×100</button><button type="button" data-mode="max">Max</button>
+    </div>
+    <button id="b-ameliorations" class="btn-am" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.8 5.6L19.5 9l-5.7 1.4L12 16l-1.8-5.6L4.5 9l5.7-1.4z" fill="#fff"/><path d="M19 15l.9 2.6 2.6.9-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9z" fill="#fff"/></svg>Bonus</button>
+  </div>
+  <div id="cartes"></div>
+</main>
+<div id="indice" hidden><div class="bulle"><span id="indice-txt"></span></div><svg class="main" viewBox="0 0 36 36" aria-hidden="true"><path d="M14 33c-3 0-5-2-6-5l-3-8c-.5-1.4.3-2.7 1.6-3 1.1-.3 2.2.3 2.7 1.3l1.7 3.4V8.5c0-1.4 1.1-2.5 2.5-2.5S16 7.1 16 8.5V18h1v-8c0-1.4 1.1-2.5 2.5-2.5S22 8.6 22 10v8h1v-6c0-1.4 1.1-2.5 2.5-2.5S28 10.6 28 12v6h1v-3c0-1.4 1.1-2.5 2.5-2.5S34 13.6 34 15v9c0 5-4 9-9 9z" fill="#FFD7B5" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/></svg></div>
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
-<section id="page" hidden><div id="page-contenu" class="inner"></div></section>
-<div id="hiver-bar" class="hiver-bar" hidden></div>
 
 <script>
-/* ── sim.js ── */
-/* ŒILLETS — simulation pure : marée, météo, hydrologie du marais, économie.
-   Aucune dépendance au DOM : le même fichier tourne dans Node (tests, réglage) et dans le jeu. */
+/* ── game.js ── */
+/* LE FOURNIL — économie, état, sauvegarde, absence, étoiles. Aucune dépendance au DOM : tourne aussi dans Node. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.SIM = factory();
+  else root.GAME = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
-  const clamp = (x, a, b) => (x < a ? a : x > b ? b : x);
 
-  // ─────────────────────────── constantes (réglées par simulation) ───────────────────────────
-  const P = {
-    E0: 2.6, NIGHT: 0.3, RAIN_EVAP: 0.2, SAT: 260, SEA_S: 35, SILL: 0.72,
-    K_SEA: 300000, K_GATE: 3000, L_PER_CM: 700, MAX_DROP: 10, YIELD_DIV: 14,
-    FLEUR_RATE: 0.25, FLEUR_CAP: 1.5, ALGAE_GROW: 0.06, ALGAE_DIE: 0.25, ALGAE_EVAP: 0.25,
-    CRACK_AFTER: { vasiere: 48, cobier: 24, fare: 12, aderne: 8, oeillet: 6 },
-    CRACK_RATE: 0.006, LEAK_RATE: 0.4, REPAIR_BELOW: 0.8, LOST_BELOW: 0.5,
-    PRICE_GROS: 0.8, PRICE_FLEUR: 12,
-    COST: { oeillet: 60, aderne: 110, fare: 150, cobier: 180, vasiere: 300, clapet: 25, barometre: 80, lousse: 120, rhabillage: 60 },
-    GROWTH: 0.1, VAS_GROWTH: 1.5, VAS_MAX: 4, COLS: 7, ROWS0: 5, ROWS_MAX: 11,
-    EVAP_DAY_CM: 3.5, // évaporation moyenne (cm/jour) servant à exprimer la réserve en jours
-  };
-  const TYPES = {
-    vasiere: { floor: 0, max: 40, area: 8 },
-    cobier: { floor: -5, max: 20, area: 4 },
-    fare: { floor: -10, max: 10, area: 3 },
-    aderne: { floor: -15, max: 5, area: 2 },
-    oeillet: { floor: -20, max: 2, area: 1 },
-  };
-  const DIG_TYPES = ['cobier', 'fare', 'aderne', 'oeillet'];
-  const CLIMATES = {
-    ordinaire: { dT: 0, rainP: 1005, dWind: 0, crack: 1, fleurT: 22 },
-    secheresse: { dT: 3, rainP: 1001, dWind: 0.1, crack: 1, fleurT: 22 },
-    pourri: { dT: -2, rainP: 1008, dWind: 0, crack: 1, fleurT: 22 },
-    canicule: { dT: 5, rainP: 1005, dWind: 0, crack: 2, fleurT: 19 },
-    vent: { dT: 0, rainP: 1005, dWind: 0.25, crack: 1, fleurT: 22 },
-  };
-  const CLIMATE_ORDER = ['secheresse', 'pourri', 'canicule', 'vent', 'ordinaire'];
+  // ─── les produits, dans l'ordre où on les débloque ───
+  const PRODUITS = [
+    { id: 'baguette', nom: 'Baguette', cout: 4, rev: 1, temps: 1, croiss: 1.07, staff: 1000, staffNom: 'Apprenti Léo', desc: 'Croustillante, chaude, la base.' },
+    { id: 'croissant', nom: 'Croissant', cout: 60, rev: 20, temps: 3, croiss: 1.15, staff: 15000, staffNom: 'Apprentie Inès', desc: 'Pur beurre, feuilleté.' },
+    { id: 'painchoc', nom: 'Pain au chocolat', cout: 720, rev: 150, temps: 6, croiss: 1.14, staff: 100000, staffNom: 'Mitron Sami', desc: 'Deux barres, pas une.' },
+    { id: 'tarte', nom: 'Tarte aux pommes', cout: 8640, rev: 1200, temps: 12, croiss: 1.13, staff: 500000, staffNom: 'Pâtissière Rose', desc: 'La recette de mamie.' },
+    { id: 'eclair', nom: 'Éclair au café', cout: 103680, rev: 10000, temps: 24, croiss: 1.12, staff: 1.2e6, staffNom: 'Pâtissier Malik', desc: 'Glacé, fondant, parfait.' },
+    { id: 'macaron', nom: 'Macarons', cout: 1.24e6, rev: 90000, temps: 96, croiss: 1.11, staff: 1e7, staffNom: 'Cheffe Agathe', desc: 'Six parfums, zéro regret.' },
+    { id: 'millefeuille', nom: 'Mille-feuille', cout: 1.5e7, rev: 8e5, temps: 384, croiss: 1.1, staff: 1.11e8, staffNom: 'Chef Augustin', desc: 'Mille, on a compté.' },
+    { id: 'piece', nom: 'Pièce montée', cout: 1.8e8, rev: 7e6, temps: 1536, croiss: 1.09, staff: 5.55e8, staffNom: 'Maître Paulin', desc: 'Pour les grands jours.' },
+  ];
+  const PALIERS = [25, 50, 100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
+  // ─── améliorations : une seule fois chacune ───
+  const AMELIORATIONS = [
+    { id: 'farine', nom: 'Farine de tradition', cout: 25000, cible: ['baguette'], mult: 3, desc: 'Baguettes ×3' },
+    { id: 'beurre', nom: 'Beurre AOP', cout: 300000, cible: ['croissant'], mult: 3, desc: 'Croissants ×3' },
+    { id: 'enseigne', nom: 'Enseigne lumineuse', cout: 1.5e6, cible: null, mult: 2, desc: 'Tout ×2' },
+    { id: 'chocolat', nom: 'Chocolat noir 70 %', cout: 4e6, cible: ['painchoc'], mult: 3, desc: 'Pains au chocolat ×3' },
+    { id: 'pommes', nom: 'Pommes du verger', cout: 4e7, cible: ['tarte'], mult: 3, desc: 'Tartes ×3' },
+    { id: 'four', nom: 'Four à sole', cout: 1e8, cible: ['baguette', 'croissant'], mult: 5, desc: 'Baguettes et croissants ×5' },
+    { id: 'terrasse', nom: 'Terrasse ensoleillée', cout: 2.5e8, cible: null, mult: 2, desc: 'Tout ×2' },
+    { id: 'cafe', nom: 'Café torréfié maison', cout: 6e8, cible: ['eclair'], mult: 3, desc: 'Éclairs ×3' },
+    { id: 'amandes', nom: 'Amandes de Provence', cout: 7e9, cible: ['macaron'], mult: 3, desc: 'Macarons ×3' },
+    { id: 'vitrine', nom: 'Vitrine réfrigérée', cout: 1e10, cible: ['tarte', 'eclair', 'macaron'], mult: 5, desc: 'Tartes, éclairs, macarons ×5' },
+    { id: 'fidelite', nom: 'Carte de fidélité', cout: 2.5e10, cible: null, mult: 3, desc: 'Tout ×3' },
+    { id: 'feuilletage', nom: 'Pâte feuilletée maison', cout: 9e10, cible: ['millefeuille'], mult: 3, desc: 'Mille-feuilles ×3' },
+    { id: 'robot', nom: 'Robot pâtissier', cout: 1e12, cible: ['piece'], mult: 3, desc: 'Pièces montées ×3' },
+    { id: 'franchise', nom: 'Réseau de franchises', cout: 2.5e13, cible: null, mult: 5, desc: 'Tout ×5' },
+  ];
+  const ETOILE_BONUS = 0.05;     // +5 % par étoile, pour toujours
+  const ABSENCE_MAX_H = 8;       // les apprentis travaillent 8 h au plus pendant une absence
 
-  // ─────────────────────────── temps, lune, marée, météo partagée ───────────────────────────
-  const EPOCH_MS = Date.UTC(2000, 0, 6, 18, 14);
-  const SYNODIC_H = 29.530588 * 24, TIDE_H = 12.4206, H_MS = 3.6e6;
-  const tH = (ms) => (ms - EPOCH_MS) / H_MS;
-  const moonPhase = (ms) => ((tH(ms) / SYNODIC_H) % 1 + 1) % 1;
-  const tideAmp = (ms) => 1.05 + 0.25 * Math.cos(2 * Math.PI * tH(ms) / (SYNODIC_H / 2));
-  const tide = (ms) => tideAmp(ms) * Math.sin(2 * Math.PI * tH(ms) / TIDE_H);
-  const isNight = (hour) => hour < 6.5 || hour >= 21.5;
-  function localHour(ms) { const d = new Date(ms); return d.getHours() + d.getMinutes() / 60 + d.getSeconds() / 3600; }
-  // prochaines pleines mers (ms) après `ms`
-  function nextHighTides(ms, n) {
-    const t = tH(ms), out = [];
-    let k = Math.ceil((t - 0.25 * TIDE_H) / TIDE_H);
-    while (out.length < n) { out.push(EPOCH_MS + (k + 0.25) * TIDE_H * H_MS); k++; }
-    return out;
-  }
-  function hashStr(s) {
-    let h = 2166136261;
-    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-    return h >>> 0;
-  }
-  // Les phases de pression sont fixes : la même averse le même mardi pour tout le monde.
-  const PH = (() => { let s = 2026 * 9301 + 49297; const o = []; for (let i = 0; i < 4; i++) { s = (s * 9301 + 49297) % 233280; o.push(2 * Math.PI * s / 233280); } return o; })();
-  const pressureRaw = (t) => 1013 + 6 * Math.sin(2 * Math.PI * t / 55.2 + PH[0]) + 5 * Math.sin(2 * Math.PI * t / 98.4 + PH[1])
-    + 4 * Math.sin(2 * Math.PI * t / 190 + PH[2]) + 3 * Math.sin(2 * Math.PI * t / 329 + PH[3]);
-  function pressureAt(st, ms) {
-    let p = pressureRaw(tH(ms));
-    if (st && st.tutorialEndMs && (ms - st.tutorialEndMs) / H_MS < 72) p = Math.max(p, 1012); // beau fixe garanti trois jours
-    return p;
-  }
-  // L'averse scriptée : le surlendemain de la première journée, de 14 h à 16 h (date locale), la leçon de la pluie à heure fixe.
-  function scriptedShower(st, ms) {
-    if (!st.tutorialEndMs) return false;
-    const d = new Date(st.tutorialEndMs); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 2);
-    const start = d.getTime() + 14 * H_MS;
-    return ms >= start && ms < start + 2 * H_MS;
-  }
-  function envAt(st, ms) {
-    const hour = localHour(ms);
-    const day = clamp((ms - st.seasonStartMs) / 864e5, 0, 30);
-    const scripted = scriptedShower(st, ms);
-    const Pn = scripted ? 1002 : pressureAt(st, ms), dP = scripted ? -0.3 : pressureAt(st, ms + H_MS) - Pn;
-    const cl = CLIMATES[st.climate] || CLIMATES.ordinaire;
-    const rain = scripted ? 1.8 : (Pn < cl.rainP && dP < 0) ? Math.min(4, (cl.rainP - Pn) * 0.6) : 0;
-    const wind = clamp(0.1 + 0.9 * Math.abs(dP) + Math.max(0, 1010 - Pn) / 20 + cl.dWind, 0, 1);
-    const Tmid = 20 + 7 * Math.sin(Math.PI * day / 36) + cl.dT;
-    const T = Tmid + 6 * Math.cos(2 * Math.PI * (hour - 16) / 24) - (Pn < 1008 ? 4 : 0) - (rain > 0 ? 2 : 0);
-    return { ms, hour, day, T, wind, rain, P: Pn, dP, night: isNight(hour), h: tide(ms), A: tideAmp(ms), moon: moonPhase(ms), fleurT: cl.fleurT, crack: cl.crack };
-  }
-  // Première journée : horloge virtuelle 06:00 -> 06:00, ciel scripté.
-  function tutorialEnv(vh, holdTide) {
-    const hour = vh % 24, rain = (vh >= 23 && vh < 24.5) ? 3 : 0;
-    let h = 1.2 * Math.sin(2 * Math.PI * (vh - 7 + TIDE_H / 4) / TIDE_H);
-    if (holdTide && vh > 6.7 && vh < 12) h = Math.max(h, 0.95); // la première marée attend que l'étier soit ouvert une fois
-    return { ms: 0, hour, day: 0, T: 22 + 7 * Math.cos(2 * Math.PI * (hour - 16) / 24) - (rain ? 5 : 0), wind: 0.5, rain,
-      P: rain ? 1003 : 1018, dP: rain ? -0.3 : 0.05, night: isNight(hour), h, A: 1.2, moon: 0.05, fleurT: 22, crack: 1 };
-  }
-  const evapMmH = (env, algae) => P.E0 * clamp((env.T - 10) / 15, 0, 1.25) * (1 + 0.6 * env.wind) * (1 + P.ALGAE_EVAP * algae)
-    * (env.night ? P.NIGHT : 1) * (env.rain > 0 ? P.RAIN_EVAP : 1);
-  const fleurOK = (env) => env.T > env.fleurT && env.wind < 0.4 && env.rain === 0 && env.hour >= 15 && env.hour < 20;
-
-  // ─────────────────────────── grille, parcelles, trappes ───────────────────────────
-  const canFeed = (pt, ct) => { const d = TYPES[pt].floor - TYPES[ct].floor; return (d > 0 && d <= P.MAX_DROP) || (d === 0 && ct === 'oeillet'); };
-  const posKey = (r, c) => r === 0 ? '0,0' : r + ',' + c;
-  const gateKey = (a, b) => { const ka = posKey(a.r, a.c), kb = posKey(b.r, b.c); return ka < kb ? ka + '|' + kb : kb + '|' + ka; };
-  const cap = (c) => TYPES[c.type].area * P.L_PER_CM;
-  const salinity = (c) => c.depth > 0 ? c.salt / (c.depth * cap(c)) : 0;
-  const kgOf = (g) => g / 1000 / P.YIELD_DIV;
-  const maxDepth = (st, c) => c.type === 'vasiere' ? TYPES.vasiere.max * Math.pow(P.VAS_GROWTH, st.vasEnl) : (c.type === 'oeillet' && st.enEau ? 8 : TYPES[c.type].max);
-  const bucket = (S) => S <= 0 ? 'sec' : S < 80 ? 'canard' : S < 150 ? 'violet30' : S < 220 ? 'violet60' : S < P.SAT - 2 ? 'rose' : 'blanc';
-
-  // Cache (hors sauvegarde) de la grille et des trappes, invalidé dès que les parcelles changent.
-  const CACHE = new WeakMap();
-  function cacheOf(st) {
-    let k = CACHE.get(st);
-    if (!k || k.cells !== st.cells || k.n !== st.cells.length) { k = { cells: st.cells, n: st.cells.length, grid: null, gates: null }; CACHE.set(st, k); }
-    return k;
-  }
-  const touch = (st) => CACHE.delete(st);
-  function cellAt(st, r, c) {
-    const k = cacheOf(st);
-    if (!k.grid) { k.grid = new Map(); for (const x of st.cells) k.grid.set(x.type === 'vasiere' ? '0,0' : x.r + ',' + x.c, x); }
-    return k.grid.get(r === 0 ? '0,0' : r + ',' + c) || null;
-  }
-  function neighborsOf(st, cell) {
-    const out = [];
-    if (cell.type === 'vasiere') { for (let c = 0; c < P.COLS; c++) { const n = cellAt(st, 1, c); if (n) out.push(n); } return out; }
-    const cand = [[cell.r - 1, cell.c], [cell.r + 1, cell.c], [cell.r, cell.c - 1], [cell.r, cell.c + 1]];
-    for (const [r, c] of cand) {
-      if (r < 0 || r >= st.rows || c < 0 || c >= P.COLS) continue;
-      const n = cellAt(st, r, c); if (n) out.push(n);
-    }
-    return out;
-  }
-  function neighborPositions(st, r, c) {
-    const out = [];
-    for (const [rr, cc] of [[r - 1, c], [r + 1, c], [r, c - 1], [r, c + 1]]) {
-      if (rr < 0 || rr >= st.rows || cc < 0 || cc >= P.COLS) continue;
-      out.push([rr, cc]);
-    }
-    return out;
-  }
-  // Toutes les trappes existantes : [{key, a, b, from, to}] ; from/to = sens de l'eau (null si œillet-œillet : par la pente)
-  function gatesOf(st) {
-    const k = cacheOf(st);
-    if (k.gates) return k.gates;
-    const out = [], seen = new Set();
-    for (const a of st.cells) for (const b of neighborsOf(st, a)) {
-      const key = gateKey(a, b);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      if (a.type === 'oeillet' && b.type === 'oeillet') out.push({ key, a, b, from: null, to: null }); // par la pente d'eau
-      else if (canFeed(a.type, b.type)) out.push({ key, a, b, from: a, to: b });
-      else if (canFeed(b.type, a.type)) out.push({ key, a, b, from: b, to: a });
-    }
-    k.gates = out;
-    return out;
-  }
-  const gateOpen = (st, key) => st.gates[key] === 1;
-  function cellGates(st, cell) { return gatesOf(st).filter((g) => g.a === cell || g.b === cell); }
-  // Un œillet est « nourri » s'il a une trappe possible vers une aderne ou un fare
-  const hasBasinFeeder = (st, cell) => neighborsOf(st, cell).some((n) => n.type !== 'oeillet' && canFeed(n.type, 'oeillet'));
-
-  // ─────────────────────────── un pas de simulation ───────────────────────────
-  function step(st, env, dt) {
-    const cells = st.cells, vas = cells.find((c) => c.type === 'vasiere');
-    const S = st.stats;
-    // 1. la mer et l'étier
-    if (vas && (st.etierOpen || st.enEau || st.items.clapet)) {
-      const kSea = P.K_SEA * Math.pow(1.25, st.vasEnl), C = cap(vas);
-      if (env.h > P.SILL) {
-        let V = kSea * (env.h - P.SILL) * dt;
-        V = Math.min(V, Math.max(0, (maxDepth(st, vas) - vas.depth) * C));
-        if (V > 0) {
-          const V0 = vas.depth * C;
-          vas.algae = V0 + V > 0 ? vas.algae * V0 / (V0 + V) : 0;
-          vas.depth += V / C; vas.salt += V * P.SEA_S; S.intake += V / P.L_PER_CM;
-        }
-      } else if (!st.items.clapet && !st.enEau && st.etierOpen && env.h < P.SILL - 0.05 && vas.depth > 0) {
-        const V = Math.min(kSea * (P.SILL - env.h) * dt * 0.5, vas.depth * C);
-        const f = V / (vas.depth * C);
-        vas.salt *= 1 - f; vas.depth -= V / C;
-      }
-    }
-    // 2. écoulements par les trappes ouvertes
-    for (const g of gatesOf(st)) {
-      if (!gateOpen(st, g.key)) continue;
-      let u = g.from, v = g.to;
-      if (!u) { // œillet -> œillet : par la pente d'eau
-        if (g.a.depth > g.b.depth) { u = g.a; v = g.b; } else { u = g.b; v = g.a; }
-      }
-      const head = (TYPES[u.type].floor + u.depth) - (TYPES[v.type].floor + v.depth);
-      if (head <= 0 || u.depth <= 0) continue;
-      const Cu = cap(u), Cv = cap(v);
-      let V = Math.min(P.K_GATE * head * dt, 0.5 * head * Cu * Cv / (Cu + Cv));
-      V = Math.min(V, u.depth * Cu, Math.max(0, (maxDepth(st, v) - v.depth) * Cv));
-      if (V <= 0) continue;
-      const fu = V / (u.depth * Cu), moved = u.salt * fu, Vv = v.depth * Cv;
-      v.algae = (v.algae * Vv + u.algae * V) / (Vv + V);
-      u.salt -= moved; u.depth -= V / Cu; v.salt += moved; v.depth += V / Cv;
-    }
-    // 3. évaporation, fuites, pluie, précipitation, algues, argile, fleur
-    let nOe = 0;
-    for (const c of cells) {
-      const C = cap(c), md = maxDepth(st, c);
-      c.depth = Math.max(0, c.depth - evapMmH(env, c.algae) / 10 * dt);
-      if (c.integ < 0.8 && c.depth > 0) c.depth = Math.max(0, c.depth - P.LEAK_RATE * (1 - c.integ) * dt);
-      if (env.rain > 0) {
-        c.depth += env.rain / 10 * dt;
-        if (c.depth > md) { c.salt *= md / c.depth; c.depth = md; }
-        if (c.fleur > 0) { c.crust += c.fleur * 1000 * P.YIELD_DIV; c.fleur = 0; }
-      }
-      const V = c.depth * C;
-      if (V <= 0.5) { c.crust += c.salt; c.salt = 0; c.depth = 0; }
-      else {
-        const s = c.salt / V;
-        if (s > P.SAT) { const ex = c.salt - P.SAT * V; c.crust += ex; c.salt -= ex; if (c.type === 'oeillet') { S.gFormed += ex; c.gDay += ex; } else S.gLostUpstream += ex; }
-        else if (c.crust > 0) {
-          const d = Math.min(c.crust, (P.SAT - s) * V);
-          c.crust -= d; c.salt += d;
-          if (c.type === 'oeillet') { S.gRedissolved += d; if (env.rain > 0) S.gRainRedissolved += d; }
-        }
-      }
-      const s2 = salinity(c);
-      if (c.depth > 0 && s2 >= 150 && s2 <= 280 && env.T > 18 && !env.night) c.algae = Math.min(1, c.algae + P.ALGAE_GROW * dt);
-      else if (c.depth <= 0 || s2 < 100 || s2 > 290) c.algae = Math.max(0, c.algae - P.ALGAE_DIE * dt);
-      if (c.depth <= 0.02) {
-        c.dryH += dt;
-        if (c.dryH > P.CRACK_AFTER[c.type] && !st.enEau) c.integ = Math.max(0, c.integ - P.CRACK_RATE * env.crack * dt);
-      } else c.dryH = 0;
-      if (c.type === 'oeillet') {
-        nOe++;
-        if (c.depth > 0 && s2 >= 250 && fleurOK(env)) c.fleur = Math.min(P.FLEUR_CAP, c.fleur + P.FLEUR_RATE * dt);
-        if (c.algae >= 0.5 && s2 >= 150) c.pinkH += dt;
-      } else if (c.type === 'aderne') { if (c.algae >= 0.5 && s2 >= 150) c.pinkH += dt; }
-    }
-    S.oeilletDays += nOe * dt / 24;
-    S.simH += dt;
-  }
-
-  // ─────────────────────────── réserve, projections ───────────────────────────
-  function reserveDays(st) { // jours d'évaporation couverts par l'eau présente
-    let stock = 0, area = 0;
-    for (const c of st.cells) { stock += c.depth * TYPES[c.type].area; area += TYPES[c.type].area; }
-    return area ? stock / (P.EVAP_DAY_CM * area) : 0;
-  }
-  function storageDays(st, vasEnl) { // capacité : jours d'évaporation que le marais plein peut tenir
-    let stock = 0, area = 0;
-    for (const c of st.cells) { const md = c.type === 'vasiere' ? TYPES.vasiere.max * Math.pow(P.VAS_GROWTH, vasEnl == null ? st.vasEnl : vasEnl) : TYPES[c.type].max; stock += md * TYPES[c.type].area; area += TYPES[c.type].area; }
-    return area ? stock / (P.EVAP_DAY_CM * area) : 0;
-  }
-  function upstreamArea(st) { return st.cells.filter((c) => c.type !== 'oeillet').reduce((a, c) => a + TYPES[c.type].area, 0); }
-  const countType = (st, type) => st.cells.filter((c) => c.type === type).length;
-  // Régime permanent : EUR/jour que le marais peut rendre (pour le carnet)
-  function yieldEurDay(Aup, N) { const unit = P.EVAP_DAY_CM * P.L_PER_CM * P.PRICE_GROS / (P.YIELD_DIV * 1000); return unit * Math.min((Aup + N) * P.SEA_S, N * (P.SAT - 2)); }
-  function projection(st, env, c) {
-    // {kind:'sature'|'sec'|'tenu'|'rien', hours}
-    const gates = cellGates(st, c).filter((g) => gateOpen(st, g.key));
-    const fed = gates.some((g) => { const f = gateFlow(st, g); return f.v === c && f.cmH > 0; });
-    if (c.depth <= 0) return { kind: 'rien' };
-    const E = evapMmH(env, c.algae) / 10; // cm/h
-    if (E <= 0) return { kind: 'rien' };
-    const s = salinity(c);
-    if (fed && c.type === 'oeillet') return { kind: 'tenu' };
-    if (s >= P.SAT) return { kind: 'sec', hours: c.depth / E };
-    const x = c.depth * (1 - s / P.SAT);
-    return { kind: 'sature', hours: x / E, thenDry: (c.depth - x) / E };
-  }
-  function gateFlow(st, g) { // cm/h reçus par la parcelle aval, pour la fiche
-    let u = g.from, v = g.to;
-    if (!u) { if (g.a.depth > g.b.depth) { u = g.a; v = g.b; } else { u = g.b; v = g.a; } }
-    const head = (TYPES[u.type].floor + u.depth) - (TYPES[v.type].floor + v.depth);
-    if (head <= 0 || u.depth <= 0) return { u, v, cmH: 0 };
-    const Cu = cap(u), Cv = cap(v);
-    const LH = Math.min(P.K_GATE * head, 0.5 * head * Cu * Cv / (Cu + Cv) * 6);
-    return { u, v, cmH: LH / Cv };
-  }
-
-  // ─────────────────────────── état, nouvelle partie ───────────────────────────
-  function newCell(type, r, c, init) {
-    return Object.assign({ id: 0, r, c, type, depth: 0, salt: 0, algae: 0, crust: 0, fleur: 0, integ: 1, dryH: 0, gDay: 0, pinkH: 0, num: 0 }, init || {});
-  }
-  function withS(cell, S) { cell.salt = S * cell.depth * cap(cell); return cell; }
-  function numberCells(st) {
-    const n = {};
-    for (const c of st.cells) { if (c.type === 'vasiere') continue; n[c.type] = (n[c.type] || 0) + 1; if (!c.num) c.num = n[c.type]; else n[c.type] = Math.max(n[c.type], c.num); }
-  }
-  function addCell(st, cell) {
-    cell.id = ++st.nextId;
-    if (cell.type !== 'vasiere') { let mx = 0; for (const o of st.cells) if (o.type === cell.type) mx = Math.max(mx, o.num); cell.num = mx + 1; }
-    st.cells.push(cell); touch(st);
-    return cell;
-  }
+  // ─── état ───
   function newState(nowMs) {
-    const st = {
-      v: 1, installMs: nowMs, seasonStartMs: nowMs, seasonIndex: 1, climate: 'ordinaire', rows: P.ROWS0, nextId: 0,
-      lastSimMs: nowMs, tutorialDone: false, tutorialEndMs: 0, tutorialVh: 6, tutoFlags: {}, winterBank: 0, phase: 'garde',
-      cash: 0, mulon: 0, mulonStripes: [], fleurStock: 0, items: { clapet: false, barometre: false, lousse: false },
-      vasEnl: 0, enEau: false, etierOpen: false, cells: [], gates: {},
-      stats: freshStats(), carnet: [], records: [], seenObs: {}, lastObsDay: -1, lastReturnMs: nowMs,
-      clock: { anchorReal: nowMs, anchorSim: nowMs, speed: 1 },
+    return {
+      v: 2, coins: 0, lifetime: 0, lifetimeRun: 0, etoiles: 0, boutiques: 1,
+      stations: PRODUITS.map((p, i) => ({ niv: i === 0 ? 1 : 0, staff: false, prog: 0, actif: false })), // on commence avec une fournée de baguettes
+      ameliorations: {}, tuto: 0, lastSeen: nowMs, created: nowMs, son: true, vibre: true, mode: 1,
+      stats: { taps: 0, ventes: 0, clients: 0 },
     };
-    addCell(st, newCell('vasiere', 0, 0));
-    addCell(st, newCell('cobier', 1, 3));
-    addCell(st, withS(newCell('fare', 2, 3, { depth: 10, algae: 0.2 }), 130));
-    addCell(st, withS(newCell('aderne', 3, 3, { depth: 5, algae: 0.9 }), 190));
-    addCell(st, newCell('oeillet', 4, 3, { integ: 0.92 }));
-    for (const g of gatesOf(st)) st.gates[g.key] = 0;
-    return st;
-  }
-  function freshStats() { return { kgRaked: 0, kgFleur: 0, eurSold: 0, gRedissolved: 0, gRainRedissolved: 0, gFormed: 0, gLostUpstream: 0, repairs: 0, spent: 0, intake: 0, oeilletDays: 0, simH: 0, fleurEvenings: 0 }; }
-
-  // ─────────────────────────── actions ───────────────────────────
-  function plotCost(st, type) { return type === 'vasiere' ? P.COST.vasiere * Math.pow(P.VAS_GROWTH, st.vasEnl) : P.COST[type] * (1 + P.GROWTH * countType(st, type)); }
-  // Peut-on creuser `type` en (r,c) ? -> {ok, reason, cost}
-  function canDig(st, r, c, type) {
-    const cost = plotCost(st, type);
-    if (r <= 0 || r >= st.rows || c < 0 || c >= P.COLS || cellAt(st, r, c)) return { ok: false, reason: 'occupe', cost };
-    const ns = neighborPositions(st, r, c).map(([rr, cc]) => cellAt(st, rr, cc)).filter(Boolean);
-    if (!ns.length) return { ok: false, reason: 'amont', cost };
-    const feeders = ns.filter((n) => canFeed(n.type, type));
-    if (!feeders.length) {
-      const anyHigher = ns.some((n) => TYPES[n.type].floor > TYPES[type].floor);
-      return { ok: false, reason: anyHigher ? 'denivele' : 'amont', cost };
-    }
-    if (type === 'oeillet' && feeders.every((n) => n.type === 'oeillet') && !feeders.some((n) => hasBasinFeeder(st, n))) return { ok: false, reason: 'chapelet', cost };
-    if (st.cash < cost) return { ok: false, reason: 'argent', cost, missing: cost - st.cash };
-    return { ok: true, cost };
-  }
-  function dig(st, r, c, type) {
-    const chk = canDig(st, r, c, type);
-    if (!chk.ok) return chk;
-    st.cash -= chk.cost; st.stats.spent += chk.cost;
-    const cell = addCell(st, newCell(type, r, c));
-    for (const g of gatesOf(st)) if (!(g.key in st.gates)) st.gates[g.key] = st.enEau ? 1 : 0;
-    return { ok: true, cell };
-  }
-  function enlargeVasiere(st) {
-    if (st.vasEnl >= P.VAS_MAX) return { ok: false, reason: 'max' };
-    const cost = plotCost(st, 'vasiere');
-    if (st.cash < cost) return { ok: false, reason: 'argent', cost, missing: cost - st.cash };
-    st.cash -= cost; st.stats.spent += cost; st.vasEnl++;
-    return { ok: true };
-  }
-  function buyItem(st, id) {
-    if (st.items[id]) return { ok: false, reason: 'possede' };
-    const cost = P.COST[id];
-    if (st.cash < cost) return { ok: false, reason: 'argent', cost, missing: cost - st.cash };
-    st.cash -= cost; st.stats.spent += cost; st.items[id] = true;
-    if (id === 'clapet') st.etierOpen = true;
-    return { ok: true };
-  }
-  function repair(st, cell) {
-    if (st.cash < P.COST.rhabillage) return { ok: false, reason: 'argent', cost: P.COST.rhabillage, missing: P.COST.rhabillage - st.cash };
-    st.cash -= P.COST.rhabillage; st.stats.spent += P.COST.rhabillage; st.stats.repairs++; cell.integ = 1; cell.dryH = 0;
-    return { ok: true };
-  }
-  function rakeCell(st, cell, weatherCode) {
-    if (cell.type !== 'oeillet' || cell.crust <= 0) return 0;
-    const kg = kgOf(cell.crust); cell.crust = 0;
-    st.mulon += kg; st.stats.kgRaked += kg;
-    const last = st.mulonStripes[st.mulonStripes.length - 1];
-    if (last && last.w === weatherCode) last.kg += kg; else st.mulonStripes.push({ kg, w: weatherCode });
-    if (st.mulonStripes.length > 60) st.mulonStripes.shift();
-    return kg;
-  }
-  function skimCell(st, cell) {
-    if (!st.items.lousse || cell.type !== 'oeillet' || cell.fleur <= 0) return 0;
-    const kg = cell.fleur; cell.fleur = 0; st.fleurStock += kg; st.stats.kgFleur += kg;
-    return kg;
-  }
-  function sell(st) {
-    const eur = st.mulon * P.PRICE_GROS + st.fleurStock * P.PRICE_FLEUR;
-    const r = { kg: st.mulon, fleur: st.fleurStock, eur };
-    st.cash += eur; st.stats.eurSold += eur; st.mulon = 0; st.fleurStock = 0; st.mulonStripes = [];
-    return r;
-  }
-  function toggleGate(st, key) { st.gates[key] = st.gates[key] === 1 ? 0 : 1; return st.gates[key]; }
-  function toggleEtier(st) { if (st.items.clapet) return null; st.etierOpen = !st.etierOpen; return st.etierOpen; }
-  function miseEnEau(st) { st.enEau = true; for (const k in st.gates) st.gates[k] = 1; st.etierOpen = true; }
-  function leverEau(st) {
-    st.enEau = false;
-    for (const c of st.cells) {
-      if (c.type !== 'oeillet' || c.depth <= 2) continue;
-      const feeders = neighborsOf(st, c).filter((n) => n.type !== 'oeillet' && canFeed(n.type, 'oeillet')).sort((a, b) => (maxDepth(st, b) - b.depth) - (maxDepth(st, a) - a.depth));
-      let V = (c.depth - 2) * cap(c);
-      for (const p of feeders) { // l'excédent retourne aux adernes et fares voisins, tant qu'il y a de la place ; le reste reste dans l'œillet
-        if (V <= 0) break;
-        const room = Math.max(0, (maxDepth(st, p) - p.depth) * cap(p)), Vm = Math.min(V, room);
-        if (Vm <= 0) continue;
-        const f = Vm / (c.depth * cap(c));
-        p.depth += Vm / cap(p); p.salt += c.salt * f; c.salt -= c.salt * f; c.depth -= Vm / cap(c); V -= Vm;
-      }
-    }
   }
 
-  // ─────────────────────────── rattrapage (absence) ───────────────────────────
-  // Rejoue la simulation de st.lastSimMs à nowMs par pas de 10 min. Rend un rapport.
-  function catchUp(st, nowMs, onEvent) {
-    const DT_MS = 600000, DT = 1 / 6;
-    const rep = { fromMs: st.lastSimMs, toMs: nowMs, tides: 0, rains: [], glyphs: [], kgFormed: 0, fleur: 0, enEau: st.enEau, hivernage: false,
-      adernePink: null, oeilletDry: null, steps: 0 };
-    const start = Math.max(st.lastSimMs, nowMs - 60 * 864e5);
-    const g0 = st.stats.gFormed, f0 = st.cells.filter((c) => c.type === 'oeillet').reduce((a, c) => a + c.fleur, 0);
-    const pinkStart = st.cells.filter((c) => c.type === 'aderne' && c.algae >= 0.5).map((c) => c.id);
-    let t = start, lastH = tide(start), inRain = false, chunkStart = start, chunk = { rain: 0, night: 0, cloud: 0, n: 0 };
-    const seasonEnd = seasonEndMs(st);
-    while (t < nowMs) {
-      const t2 = Math.min(t + DT_MS, nowMs);
-      if (t2 > seasonEnd && st.phase === 'play') { rep.hivernage = true; rep.toMs = seasonEnd; st.pendingHivernage = true; break; }
-      const env = envAt(st, t);
-      step(st, env, (t2 - t) / H_MS);
-      rep.steps++;
-      if (lastH <= P.SILL && env.h > P.SILL) rep.tides++;
-      lastH = env.h;
-      if (env.rain > 0) { if (!inRain) { inRain = true; rep.rains.push({ ms: t, g0: st.stats.gRainRedissolved }); } }
-      else if (inRain) { inRain = false; const r = rep.rains[rep.rains.length - 1]; r.kg = kgOf(st.stats.gRainRedissolved - r.g0); }
-      chunk.n++; if (env.rain > 0) chunk.rain++; if (env.night) chunk.night++; if (env.P < 1008) chunk.cloud++;
-      if (t2 - chunkStart >= TIDE_H * H_MS || t2 >= nowMs) {
-        rep.glyphs.push(chunk.rain > chunk.n * 0.15 ? 'pluie' : chunk.night > chunk.n * 0.6 ? 'lune' : chunk.cloud > chunk.n * 0.5 ? 'nuage' : 'soleil');
-        chunkStart = t2; chunk = { rain: 0, night: 0, cloud: 0, n: 0 };
-      }
-      if (onEvent) onEvent(t2, env);
-      t = t2;
-    }
-    if (inRain) { const r = rep.rains[rep.rains.length - 1]; r.kg = kgOf(st.stats.gRainRedissolved - r.g0); }
-    st.lastSimMs = rep.hivernage ? nowMs : rep.toMs;
-    rep.kgFormed = kgOf(st.stats.gFormed - g0);
-    rep.fleur = Math.max(0, st.cells.filter((c) => c.type === 'oeillet').reduce((a, c) => a + c.fleur, 0) - f0);
-    const stillPink = st.cells.find((c) => pinkStart.includes(c.id) && c.algae >= 0.5);
-    if (stillPink) rep.adernePink = stillPink;
-    const dry = st.cells.filter((c) => c.type === 'oeillet' && c.dryH >= 6).sort((a, b) => b.dryH - a.dryH)[0];
-    if (dry) rep.oeilletDry = dry;
-    if (rep.glyphs.length > 28) rep.glyphs = rep.glyphs.slice(-28);
-    return rep;
+  // ─── calculs ───
+  const palierMult = (niv) => Math.pow(2, PALIERS.filter((p) => niv >= p).length);
+  const prochainPalier = (niv) => PALIERS.find((p) => p > niv) || null;
+  function ameliorationMult(st, i) {
+    let m = 1;
+    for (const a of AMELIORATIONS) if (st.ameliorations[a.id] && (a.cible === null || a.cible.includes(PRODUITS[i].id))) m *= a.mult;
+    return m;
   }
+  const etoileMult = (st) => 1 + st.etoiles * ETOILE_BONUS;
+  function revenu(st, i) { // par fournée
+    const s = st.stations[i];
+    if (s.niv <= 0) return 0;
+    return PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st);
+  }
+  const coutNiveau = (i, niv) => PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv); // prix du niveau niv+1
+  function coutNiveaux(i, niv, n) { const r = PRODUITS[i].croiss; return PRODUITS[i].cout * Math.pow(r, niv) * (Math.pow(r, n) - 1) / (r - 1); }
+  function maxNiveaux(i, niv, coins) {
+    const r = PRODUITS[i].croiss, a = PRODUITS[i].cout * Math.pow(r, niv);
+    if (coins < a) return 0;
+    return Math.floor(Math.log(coins * (r - 1) / a + 1) / Math.log(r));
+  }
+  function quantite(st, i) { // combien de niveaux pour le mode d'achat courant
+    const s = st.stations[i];
+    if (s.niv === 0) return 1; // débloquer = toujours un seul niveau
+    if (st.mode === 'max') return Math.max(1, maxNiveaux(i, s.niv, st.coins));
+    return st.mode;
+  }
+  function tauxParSeconde(st) { let t = 0; st.stations.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenu(st, i) / PRODUITS[i].temps; }); return t; }
+  function etoilesPour(lifetimeRun) { return Math.floor(Math.sqrt(Math.max(0, lifetimeRun) / 8e6)); }
+  const etoilesGagnables = (st) => Math.max(0, etoilesPour(st.lifetimeRun) - etoilesPour(st.lifetimeRunDebut || 0));
 
-  // ─────────────────────────── saison, hivernage, rhabillage ───────────────────────────
-  const seasonEndMs = (st) => st.seasonStartMs + SYNODIC_H * H_MS;
-  const seasonDay = (st, ms) => Math.floor((ms - st.seasonStartMs) / 864e5) + 1; // jour 1 = premier jour
-  function recordKgPerOeilletDay(st) { return st.stats.oeilletDays > 0.25 ? st.stats.kgRaked / st.stats.oeilletDays : 0; }
-  function nextClimate(st) {
-    const h = hashStr('climat:' + st.seasonStartMs + ':' + st.seasonIndex);
-    const pool = CLIMATE_ORDER.filter((k) => k !== st.climate);
-    return pool[h % pool.length];
+  // ─── actions ───
+  function gagner(st, montant) { st.coins += montant; st.lifetime += montant; st.lifetimeRun += montant; }
+  function acheter(st, i) {
+    const s = st.stations[i], n = quantite(st, i), prix = coutNiveaux(i, s.niv, n);
+    if (st.coins < prix) return { ok: false, prix };
+    st.coins -= prix; s.niv += n;
+    return { ok: true, n, prix };
   }
-  // Ferme la saison : vend le mulon, inscrit le sac, retire les parcelles perdues, noie le marais. phase -> 'hiver'
-  function hivernage(st, nowMs, auto) {
-    const sold = sell(st);
-    for (const c of st.cells) if (c.type === 'oeillet') { st.stats.kgRaked += 0; }
-    const lost = st.cells.filter((c) => c.type !== 'vasiere' && c.integ < P.LOST_BELOW);
-    st.cells = st.cells.filter((c) => !lost.includes(c));
-    const rec = {
-      season: st.seasonIndex, climate: st.climate, tonnes: (st.stats.kgRaked + st.stats.kgFleur) / 1000, kg: st.stats.kgRaked, fleur: st.stats.kgFleur,
-      record: recordKgPerOeilletDay(st), eur: st.stats.eurSold, lost: lost.length, rows: st.rows, auto: !!auto,
-      plan: st.cells.filter((c) => c.type !== 'vasiere').map((c) => [c.r, c.c, c.type]), startMs: st.seasonStartMs, endMs: nowMs,
-      rains: 0, pinkDays: Math.max(0, ...st.cells.filter((c) => c.type === 'aderne').map((c) => c.pinkH / 24)),
-    };
-    st.records.push(rec);
-    st.lastSeason = { sold, lost: lost.length, rec };
-    st.phase = 'hiver'; st.pendingHivernage = false; touch(st);
-    st.enEau = false;
-    for (const c of st.cells) { c.depth = c.type === 'vasiere' ? 0 : 0; c.salt = 0; c.algae = 0; c.crust = 0; c.fleur = 0; c.dryH = 0; c.gDay = 0; c.pinkH = 0; }
-    st.rows = Math.min(P.ROWS_MAX, P.ROWS0 + 2 * st.seasonIndex);
-    st.nextClimate = nextClimate(st);
-    return rec;
+  function embaucher(st, i) {
+    const s = st.stations[i], prix = PRODUITS[i].staff;
+    if (s.staff || s.niv <= 0 || st.coins < prix) return { ok: false, prix };
+    st.coins -= prix; s.staff = true; s.actif = true;
+    return { ok: true };
   }
-  // Rhabillage : poser/changer/effacer librement, dans la limite des parcelles possédées
-  function winterSet(st, r, c, type) {
-    if (r <= 0 || r >= st.rows || c < 0 || c >= P.COLS) return false;
-    const cur = cellAt(st, r, c);
-    if (type === null) { if (cur) { st.cells = st.cells.filter((x) => x !== cur); st.winterBank++; touch(st); } return true; }
-    if (cur) { if (cur.type === type) return true; cur.type = type; cur.num = 0; cur.integ = Math.max(cur.integ, 0.9); touch(st); numberCells(st); return true; }
-    if (st.winterBank <= 0) return false;
-    st.winterBank--;
-    addCell(st, newCell(type, r, c));
+  function lancer(st, i) { // touche sur un produit sans apprenti
+    const s = st.stations[i];
+    if (s.niv <= 0 || s.actif) return false;
+    s.actif = true; s.prog = 0; st.stats.taps++;
     return true;
   }
-  function winterProblems(st) { // parcelles sans eau possible en amont
-    return st.cells.filter((c) => c.type !== 'vasiere' && !neighborsOf(st, c).some((n) => canFeed(n.type, c.type)));
+  function amelioration(st, id) {
+    const a = AMELIORATIONS.find((x) => x.id === id);
+    if (!a || st.ameliorations[id] || st.coins < a.cout) return { ok: false };
+    st.coins -= a.cout; st.ameliorations[id] = true;
+    return { ok: true, a };
   }
-  function openSeason(st, nowMs) {
-    st.seasonIndex++;
-    st.climate = st.nextClimate || 'ordinaire';
-    st.seasonStartMs = nowMs; st.lastSimMs = nowMs; st.tutorialEndMs = 0;
-    st.stats = freshStats();
-    st.gates = {};
-    for (const g of gatesOf(st)) st.gates[g.key] = 0;
-    st.etierOpen = !!st.items.clapet; st.enEau = false; st.lastObsDay = 1; st.seenObs = {};
-    st.daySnap = { gLost: 0, gRain: 0 };
-    for (const c of st.cells) { c.integ = Math.max(c.integ, 0.9); c.num = 0; }
-    touch(st); numberCells(st);
-    st.phase = 'play'; st.pendingHivernage = false;
+  function nouvelleBoutique(st, nowMs) {
+    const gain = etoilesGagnables(st);
+    if (gain <= 0) return { ok: false };
+    st.etoiles += gain; st.boutiques++;
+    st.coins = 0; st.lifetimeRun = 0; st.lifetimeRunDebut = 0; st.ameliorations = {};
+    st.stations = PRODUITS.map((p, i) => ({ niv: i === 0 ? 1 : 0, staff: false, prog: 0, actif: false }));
+    st.lastSeen = nowMs;
+    return { ok: true, gain };
   }
 
-  return {
-    P, TYPES, DIG_TYPES, CLIMATES, EPOCH_MS, SYNODIC_H, TIDE_H, H_MS,
-    tH, moonPhase, tideAmp, tide, isNight, localHour, nextHighTides, hashStr, pressureAt, envAt, tutorialEnv, evapMmH, fleurOK,
-    canFeed, posKey, gateKey, cap, salinity, kgOf, maxDepth, bucket, cellAt, touch, scriptedShower, neighborsOf, neighborPositions, gatesOf, gateOpen, cellGates, hasBasinFeeder,
-    step, reserveDays, storageDays, upstreamArea, countType, yieldEurDay, projection, gateFlow,
-    newState, newCell, addCell, numberCells, freshStats,
-    plotCost, canDig, dig, enlargeVasiere, buyItem, repair, rakeCell, skimCell, sell, toggleGate, toggleEtier, miseEnEau, leverEau,
-    catchUp, seasonEndMs, seasonDay, recordKgPerOeilletDay, nextClimate, hivernage, winterSet, winterProblems, openSeason, clamp,
-  };
+  // ─── un pas de jeu ; rend les ventes réalisées [{i, montant}] ───
+  function tick(st, dt) {
+    const ventes = [];
+    st.stations.forEach((s, i) => {
+      if (s.niv <= 0 || !s.actif) return;
+      const T = PRODUITS[i].temps;
+      s.prog += dt;
+      if (s.prog < T) return;
+      let n = Math.floor(s.prog / T);
+      if (!s.staff) { n = 1; s.prog = 0; s.actif = false; } else s.prog -= n * T;
+      const montant = revenu(st, i) * n;
+      gagner(st, montant); st.stats.ventes += n;
+      ventes.push({ i, montant, n });
+    });
+    return ventes;
+  }
+  // ─── absence : les apprentis ont travaillé (8 h au plus), les fournées en cours se terminent ───
+  function absence(st, nowMs) {
+    const secs = Math.min(ABSENCE_MAX_H * 3600, Math.max(0, (nowMs - st.lastSeen) / 1000));
+    let total = 0; const detail = [];
+    st.stations.forEach((s, i) => {
+      if (s.niv <= 0 || !s.actif) return;
+      const T = PRODUITS[i].temps;
+      if (s.staff) {
+        const n = Math.floor((s.prog + secs) / T);
+        s.prog = (s.prog + secs) % T;
+        if (n > 0) { const m = revenu(st, i) * n; total += m; detail.push({ i, n, m }); st.stats.ventes += n; }
+      } else if (s.prog + secs >= T) { const m = revenu(st, i); total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; st.stats.ventes++; }
+      else s.prog += secs;
+    });
+    if (total > 0) gagner(st, total);
+    st.lastSeen = nowMs;
+    return { secs, total, detail };
+  }
+
+  // ─── format des nombres : 1 234 €, 12,5 k €, 3,4 M €, 2,1 Md € ───
+  const SUFF = ['', 'k', 'M', 'Md', 'Bn', 'Bd', 'Tn', 'Td', 'Qa', 'Qi'];
+  function fmt(n) {
+    if (!Number.isFinite(n)) return '∞';
+    if (n < 0) return '−' + fmt(-n);
+    if (n < 1000) return (n < 10 && n !== Math.floor(n) ? n.toFixed(1) : Math.floor(n).toString()).replace('.', ',');
+    let k = 0; let v = n;
+    while (v >= 1000 && k < SUFF.length - 1) { v /= 1000; k++; }
+    if (v >= 1000) return n.toExponential(1).replace('.', ',').replace('e+', ' e');
+    return (v >= 100 ? v.toFixed(0) : v.toFixed(1)).replace('.0', '').replace('.', ',') + ' ' + SUFF[k];
+  }
+  const fmtEur = (n) => fmt(n) + ' €';
+  function fmtDuree(s) { if (s < 60) return Math.round(s) + ' s'; if (s < 3600) return Math.round(s / 60) + ' min'; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; }
+
+  return { PRODUITS, PALIERS, AMELIORATIONS, ETOILE_BONUS, ABSENCE_MAX_H, newState, palierMult, prochainPalier, ameliorationMult, etoileMult, revenu, coutNiveau, coutNiveaux, maxNiveaux, quantite, tauxParSeconde, etoilesPour, etoilesGagnables, gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree };
 });
 
-/* ── copy.js ── */
-/* ŒILLETS — textes français. t(cle, variables) remplace {var}. */
-const COPY = (() => {
+/* ── icons.js ── */
+/* LE FOURNIL — icônes SVG en ligne : les pâtisseries, les apprentis, les améliorations. Aucun fichier image. */
+const ICONS = (() => {
   'use strict';
-  const T = {
-    titre: 'ŒILLETS', sous_titre: 'Marais de Kerbrun. Juin.', garde_toucher: 'Toucher pour ouvrir le carnet',
-    bandeau_accelere: 'Première journée, en accéléré', bandeau_fin: 'Le marais vit maintenant au rythme de la mer. Prochaine pleine mer : {heure}. {prevision}',
-    btn_carnet: 'Carnet', btn_cooperative: 'Coopérative', btn_creuser: 'Creuser', btn_vendre: 'Vendre', btn_rhabiller: 'Rhabiller · 60 €',
-    btn_mettre_en_eau: 'Mettre en eau', btn_lever_eau: 'Lever l’eau', btn_fermer_marais: 'Fermer le marais', btn_ouvrir_saison: 'Ouvrir la saison',
-    btn_voir_marais: 'Voir le marais', btn_confirmer: 'Creuser ici', btn_annuler: 'Laisser', btn_fermer: 'Retour', btn_retour: 'Retour au marais',
-    hud_pleine_mer: 'Pleine mer {heure}', hud_seuil: 'seuil', hud_reserve: 'Réserve {jours} j', hud_mulon: '{kg} kg au mulon',
-    type_vasiere: 'Vasière', type_cobier: 'Cobier', type_fare: 'Fare', type_aderne: 'Aderne', type_oeillet: 'Œillet',
-    fiche_niveau: 'Niveau {cm} cm', fiche_fleur_fenetre: 'écumable entre 15 h et 20 h', fiche_clapet: 'Clapet : l’étier s’ouvre et se ferme seul avec la mer.', fiche_salinite: 'Salinité {gl} g/L', fiche_temperature: 'Eau à {c} °C', fiche_argile: 'Argile {pct} %',
-    fiche_algues: 'Eaux {etat}', fiche_sel: 'Sel couché {kg} kg', fiche_fleur: 'Fleur en surface {kg} kg', fiche_surface: '{n} part{s} d’eau',
-    fiche_trappe: 'Trappe {direction} : {etat}, {debit} cm/h', fiche_projection_saturation: 'Saturé vers {heure}', fiche_projection_sec: 'À sec dans {h} h',
-    fiche_projection_stable: 'Niveau tenu par l’amont', fiche_a_sec: 'À sec depuis {h} h', fiche_fissure: 'L’argile fissure : la parcelle fuit.',
-    fiche_vasiere: 'Profondeur {cm} cm sur {max} cm · étier {etat}', fiche_croute: 'Croûte perdue {kg} kg : il manque un œillet en aval.',
-    creuser_titre: 'Creuser en {r}·{c}', creuser_prix: '{type} · {prix} €', creuser_vasiere: 'Agrandir la vasière · {prix} € · réserve +50 %, étier élargi',
-    creuser_vasiere_max: 'La vasière est à sa taille maximale.',
-    creuser_impossible_denivele: 'Trop de dénivelé : il faut une aderne ou un fare entre les deux.',
-    creuser_impossible_amont: 'Aucune eau en amont : rien ne viendrait remplir cette parcelle.',
-    creuser_impossible_chapelet: 'Trop loin de l’aderne : cet œillet s’assécherait.',
-    creuser_impossible_argent: 'Il manque {eur} €. Le marais y pourvoira.', creuser_impossible_place: 'Plus de terre libre. La commune en accordera à l’hiver.',
-    creuser_conseil_oeillet: 'Un œillet rend ce que sa voisine lui apporte.', creuser_conseil_cobier: 'Un cobier garde l’eau pour les mortes-eaux.',
-    creuser_conseil_fare: 'Un fare chauffe l’eau avant les adernes.', creuser_conseil_aderne: 'Une aderne tient la saumure rose et nourrit trois œillets.',
-    creuser_aide: 'Touche une case libre, hachurée en jaune. Les trappes se créent fermées.',
-    coop_etiquette: 'GROS SEL 0,80 €/kg · FLEUR DE SEL 12 €/kg · prix de la saison', coop_vente: '{kg} kg × 0,80 € = {eur} €',
-    coop_vente_fleur: '+ {kg} kg de fleur × 12 € = {eur} €', coop_vide: 'Le mulon est vide. Tire le sel d’un geste sur un œillet blanc.',
-    coop_clapet: 'La mer n’emportera plus ton eau : l’étier se ferme seul quand elle redescend.',
-    coop_barometre: 'La courbe des 24 prochaines heures. La pluie se lit avant de tomber.',
-    coop_lousse: 'Pour écumer la fleur de sel les soirs chauds et calmes, entre 15 h et 20 h.',
-    coop_rhabillage: 'Rhabillage d’un talus · 60 € — depuis la fiche d’une parcelle fissurée.',
-    coop_mur_vide: 'Aucun sac encore. Le premier sera pochoiré à l’hivernage.', coop_possede: 'Acquis', coop_acheter: 'Acheter · {prix} €',
-    sac_record: 'SAISON {n} · {climat} · {tonnes} t · {record} kg/œillet/jour',
-    marge_ouvre_etier: 'La mer monte. Ouvre l’étier.', marge_eaux_vieilles: 'Le vieux Le Goff t’a laissé ses eaux vieilles : le fare est violet, l’aderne encore rose.',
-    marge_ferme_etier: 'L’eau repart avec la mer. Ferme l’étier.', marge_clapet: 'Le clapet d’étier s’ouvre et se ferme seul avec la mer.',
-    marge_maree_ratee: 'La mer est redescendue. Laisse l’étier ouvert : la prochaine pleine mer est à 19 h 25.',
-    marge_lever: 'Le marais est en eau. Touche ici pour lever l’eau : le sel reviendra.', marge_fleur_lousse: 'La fleur est là. Il te faut une lousse (120 €) à la coopérative.',
-    marge_reserve_maintenant: 'Mortes-eaux : la réserve tiendra {jours} jour{s}.', marge_descendre: 'Fais descendre l’eau : ouvre les trappes, de la vasière jusqu’à l’œillet.',
-    marge_tirer: 'Le sel est là. Tire-le avec le las, d’un geste.', marge_porter: 'Porte-le à la coopérative.', marge_remonte: 'La mer remonte. Reprends de l’eau.',
-    marge_pluie: 'La pluie dissout. Avant la pluie : tire le sel, ferme les trappes des adernes.', marge_fleur: 'Soir chaud et calme : écume la fleur avant 20 h.',
-    marge_reserve: 'Mortes-eaux dans {j} jour{s_j} : la réserve tiendra {jours} jour{s}.', marge_a_sec: '{nom} est à sec depuis {h} h.',
-    marge_croute: '{nom} croûte : il lui manque un œillet.', marge_mise_en_eau: 'Il est tard. Touche ici pour mettre le marais en eau avant de partir.',
-    noms_def: { vasiere: 'La vasière', cobier: 'Le cobier', fare: 'Le fare', aderne: 'L’aderne', oeillet: 'L’œillet' },
-    marge_rien: 'Rien à faire. Regarde l’eau.', marge_sel: '{kg} kg de sel attendent dans l’œillet {n}.', marge_pluie_vient: 'Le baromètre baisse : la pluie vient. Tire le sel.',
-    marge_creuser: 'Tu as {eur} € : de quoi creuser.', marge_fin_journee: 'Le marais vit au rythme de la mer. Prochaine pleine mer : {heure}.',
-    marge_hiver: 'L’eau d’hiver couvre le marais. Redessine-le, puis ouvre la saison.',
-    carnet_titre: 'Carnet', carnet_titre_jour: '{jour} · lune {phase}', carnet_marees: 'Pleines mers : {h1} et {h2}. La mer {etat} le seuil.',
-    carnet_marees_etats: ['franchira largement', 'franchira de peu', 'n’atteindra pas'],
-    carnet_prevision: '{prevision} jusqu’à {heure}.', carnet_reserve: 'Réserve : {jours} jours d’eau.',
-    carnet_record: 'Cette saison : {kg} kg par œillet et par jour. Record : {best}.', carnet_vide: 'Rien d’écrit encore. Le marais parlera le premier.',
-    carnet_saison: 'Saison {n} · {climat} · jour {jour}', carnet_observations: 'Observations', carnet_saisons_passees: 'Saisons passées',
-    carnet_fermer_trop_tot: 'On ne ferme pas avant la mi-saison (jour 14).', carnet_premiere_page: 'Pleines mers : {h1} et {h2}. {prevision} Clapet d’étier : {clapet} €. La mer n’emportera plus ton eau. Creuser un second œillet : {prix} €.',
-    obs_meilleur_oeillet: 'L’œillet {n} a fait {kg} kg hier.', obs_ratio: 'Tu as {aup} parts d’eau en amont pour {n} œillet{s}. Vers six pour un, ils tournent au plein.',
-    obs_croute: 'Un bassin a dépassé 260 g/L : {kg} kg se sont perdus en croûte. Un œillet de plus l’aurait pris.',
-    obs_sec: 'L’œillet {n} est resté à sec {h} h. Il manque une aderne pour le nourrir.',
-    obs_pluie: 'La pluie a redissous {kg} kg dans les œillets non tirés.', obs_rose: 'L’aderne {n} est rose depuis {j} jours : ses algues font évaporer un quart plus vite.',
-    obs_mortes_eaux: 'Mortes-eaux : la vasière est tombée à {cm} cm. Un cobier de plus aurait tenu.',
-    obs_fleur: '{kg} kg de fleur écumés cette saison : {eur} €. Autant que {kg_gros} kg de gros sel.',
-    obs_premiere: 'Première journée : {kg} kg tirés, {eur} €. L’aderne a tenu son rose malgré l’averse.',
-    retour_titre: 'Depuis {jour}', retour_corps: '{n_marees} marée{s1}, {averses}, {kg} kg de gros sel formés, {fleur} kg de fleur en surface.',
-    retour_averses: '{n} averse{s} ({detail})', retour_detail_pluie: '{jour} {heure}, {kg} kg redissous', retour_aucune_averse: 'pas une goutte',
-    retour_ligne_aderne: 'L’aderne {n} est restée rose.', retour_ligne_sec: 'L’œillet {n} est à sec depuis {h} h.',
-    retour_en_eau: 'Le marais était en eau : rien n’a bougé, rien ne s’est fissuré.',
-    retour_hivernage: 'La lune a fait son tour pendant ton absence. L’hiver a noyé le marais : {tonnes} t cette saison. Le rhabillage t’attend.',
-    mise_en_eau_confirm: 'Mettre tout le marais en eau ? Les œillets seront noyés à 8 cm, les trappes ouvertes, l’argile à l’abri. Le sel reviendra quand tu lèveras l’eau.',
-    lever_eau_confirm: 'Lever l’eau : les œillets retrouvent 2 cm, le surplus retourne aux adernes.',
-    fermer_confirm: 'Fermer le marais au jour {j} ? L’hiver noiera les bassins. Tu gardes {eur} €, tes parcelles saines, tes outils et ton carnet. L’eau, la saumure et les algues repartent de zéro. La commune accorde deux rangées de plus.',
-    hivernage_titre: 'Hivernage', hivernage_corps: 'Saison {n}, {climat}. {tonnes} t, {record} kg par œillet et par jour. {perdues}',
-    hivernage_perdues: '{n} parcelle{s} fissurée{s} rendue{s} à la vase.', hivernage_aucune_perdue: 'Aucune parcelle perdue.',
-    rhabillage_titre: 'Rhabillage d’hiver', rhabillage_compteur: '{n} parcelle{s} à placer · {rows} rangées',
-    rhabillage_aide: 'Touche une case pour changer son type ou la rendre à la vase, touche une case libre pour y poser une parcelle. Tout est gratuit : c’est ton argile.',
-    rhabillage_probleme: '{n} parcelle{s} sans eau en amont (hachurée{s} en rose) : rends-{la} à la vase et repose-{la} à côté d’un bassin, ou change le type d’une voisine.',
-    climat_annonce: 'L’an prochain : {climat}.',
-    climats: { ordinaire: '2012, été ordinaire', secheresse: '1976, été de sécheresse', pourri: '1983, été pourri', canicule: '2003, canicule', vent: '1999, été de vent' },
-    climat_effets: { ordinaire: 'Rien de particulier.', secheresse: '+3 °C, pluie rare, un peu de vent.', pourri: '−2 °C, pluie dès que le baromètre fléchit.', canicule: '+5 °C, l’argile fissure deux fois plus vite, fleur presque chaque soir.', vent: 'Vent soutenu : évaporation forte, fleur rare.' },
-    sauvegarde_perdue: 'Le carnet a été mouillé : nouvelle page. Le marais recommence en juin.',
-    lunes: ['nouvelle', 'premier croissant', 'premier quartier', 'gibbeuse croissante', 'pleine', 'gibbeuse décroissante', 'dernier quartier', 'dernier croissant'],
-    previsions: { beau: 'Il fera beau', couvert: 'Le temps se couvre', pluie: 'Pluie probable', vent: 'Vent fort', fleur: 'Soir à fleur' },
-    algues_etats: ['claires', 'qui rosissent', 'roses', 'rose vif'],
-    directions: { N: 'nord', S: 'sud', E: 'est', O: 'ouest' },
-    etier: 'Étier', etier_ouvert: 'ouvert', etier_ferme: 'fermé', clapet_court: 'clapet',
-    glyphes: { soleil: '☼', nuage: '☁', pluie: '☂', lune: '☾' },
-    objets: { clapet: 'Clapet d’étier', barometre: 'Baromètre enregistreur', lousse: 'Lousse à fleur' },
-    lousse_absente: 'Il te faut une lousse pour écumer la fleur (coopérative, 120 €).',
-    sac_vide: 'premier sac à l’hivernage',
+  const S = (inner) => `<svg viewBox="0 0 48 48" aria-hidden="true">${inner}</svg>`;
+  const L = '#4A3328';
+  const PRODUITS = {
+    baguette: S(`<path d="M8 34 L34 10" stroke="#C8863A" stroke-width="13" stroke-linecap="round"/><path d="M8 34 L34 10" stroke="#E8B46A" stroke-width="9" stroke-linecap="round"/><path d="M14 26l4 2M19 21l4 2M24 16l4 2" stroke="#A8621F" stroke-width="2.2" stroke-linecap="round"/><path d="M8 34 L34 10" stroke="${L}" stroke-width="13" stroke-linecap="round" fill="none" opacity="0" />`),
+    croissant: S(`<path d="M10 30c-3-8 3-17 12-18 8-1 15 5 16 12 1 5-2 7-5 6-2-1-3-4-3-6-2 4-6 7-11 8-4 1-8-1-9-2z" fill="#E8A54A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M16 27c3-1 6-3 8-6M24 18c2-1 5-1 8 0" stroke="#B9732A" stroke-width="2" stroke-linecap="round"/>`),
+    painchoc: S(`<rect x="8" y="14" width="32" height="22" rx="7" fill="#EBB15A" stroke="${L}" stroke-width="2"/><rect x="12" y="17" width="24" height="16" rx="5" fill="#F4C978"/><rect x="15" y="19" width="4" height="12" rx="2" fill="#5B3A29"/><rect x="29" y="19" width="4" height="12" rx="2" fill="#5B3A29"/>`),
+    tarte: S(`<ellipse cx="24" cy="28" rx="18" ry="11" fill="#E9A95C" stroke="${L}" stroke-width="2"/><ellipse cx="24" cy="25" rx="15" ry="8" fill="#F7C96B"/><path d="M12 25l24 0M16 20l16 10M16 30l16-10" stroke="#D08A3A" stroke-width="2.2" stroke-linecap="round"/><circle cx="24" cy="25" r="3" fill="#E85A4F"/>`),
+    eclair: S(`<rect x="6" y="18" width="36" height="16" rx="8" fill="#F1C27A" stroke="${L}" stroke-width="2"/><rect x="8" y="16" width="32" height="10" rx="5" fill="#8B5A3C"/><path d="M12 21h22" stroke="#B37A52" stroke-width="2" stroke-linecap="round"/>`),
+    macaron: S(`<ellipse cx="18" cy="30" rx="11" ry="5" fill="#C9A3F5" stroke="${L}" stroke-width="2"/><ellipse cx="18" cy="26" rx="11" ry="5" fill="#E7D4FF"/><ellipse cx="18" cy="24" rx="11" ry="5" fill="#C9A3F5" stroke="${L}" stroke-width="2"/><ellipse cx="31" cy="21" rx="10" ry="4.5" fill="#F79AB5" stroke="${L}" stroke-width="2"/><ellipse cx="31" cy="17.5" rx="10" ry="4.5" fill="#FFE1EA"/><ellipse cx="31" cy="15.5" rx="10" ry="4.5" fill="#F79AB5" stroke="${L}" stroke-width="2"/>`),
+    millefeuille: S(`<rect x="8" y="30" width="32" height="7" rx="2" fill="#F1C27A" stroke="${L}" stroke-width="2"/><rect x="8" y="24" width="32" height="6" fill="#FFF3C4"/><rect x="8" y="18" width="32" height="6" rx="1" fill="#F1C27A" stroke="${L}" stroke-width="2"/><rect x="8" y="12" width="32" height="6" fill="#FFF3C4"/><rect x="8" y="7" width="32" height="6" rx="2" fill="#FFFFFF" stroke="${L}" stroke-width="2"/><path d="M10 10c4-2 8 2 12 0s8 2 12 0" stroke="#5B3A29" stroke-width="1.8" fill="none"/>`),
+    piece: S(`<path d="M24 6l12 32H12z" fill="#F7C96B" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="24" cy="12" r="3" fill="#FFE1EA" stroke="${L}" stroke-width="1.5"/><circle cx="20" cy="19" r="3" fill="#C9A3F5" stroke="${L}" stroke-width="1.5"/><circle cx="28" cy="19" r="3" fill="#FFE1EA" stroke="${L}" stroke-width="1.5"/><circle cx="16" cy="26" r="3" fill="#FFE1EA" stroke="${L}" stroke-width="1.5"/><circle cx="24" cy="26" r="3" fill="#C9A3F5" stroke="${L}" stroke-width="1.5"/><circle cx="32" cy="26" r="3" fill="#FFE1EA" stroke="${L}" stroke-width="1.5"/><circle cx="14" cy="33" r="3" fill="#C9A3F5" stroke="${L}" stroke-width="1.5"/><circle cx="21" cy="33" r="3" fill="#FFE1EA" stroke="${L}" stroke-width="1.5"/><circle cx="28" cy="33" r="3" fill="#C9A3F5" stroke="${L}" stroke-width="1.5"/><circle cx="34" cy="33" r="3" fill="#FFE1EA" stroke="${L}" stroke-width="1.5"/><path d="M22 4h4" stroke="#FF6B8B" stroke-width="3" stroke-linecap="round"/>`),
   };
-  const DICTONS = [
-    'À marée haute on prend, à marée basse on attend.', 'Quand l’eau rosit, le sel n’est pas loin.', 'La nuit, l’eau se repose.',
-    'Vent d’est, sel de fête.', 'Baromètre qui tombe, sel qu’on rentre.', 'Un œillet ne rend que ce qu’on lui porte.', 'Six parts d’eau pour une part de sel.',
-    'Aux mortes-eaux, le marais boit dans ses poches.', 'Vive-eau de lune neuve, vasière qui déborde.', 'Argile sèche, talus qui pleure.',
-    'La fleur vient au soir, quand le vent dort.', 'Chapelet trop long, dernier grain à sec.', 'Eaux vieilles au fare, printemps au marais.',
-    'Un fare qui blanchit a trop peu d’enfants.', 'Septembre ferme ce que juin a ouvert.', 'Ce que la lune donne, la lune reprend.',
-  ];
-  // Espaces insécables avant : ; ? ! » et entre un nombre et son unité.
-  const typo = (s) => String(s).replace(/ ([:;?!»])/g, '\u202f$1').replace(/« /g, '«\u202f').replace(/(\d) (€|°C|g\/L|cm|kg|km|h|j|t|m)\b/g, '$1\u202f$2');
-  function t(key, vars) {
-    let s = T[key];
-    if (s == null) return key;
-    if (typeof s !== 'string') return s;
-    if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? vars[k] : m));
-    return typo(s);
+  const PEAUX = ['#FFD7B5', '#F1B990', '#C68B59', '#8D5A3C', '#FFE3C9', '#5C3A21'];
+  const HAUTS = ['#FF6B8B', '#5FD3A4', '#B8A6FF', '#FFC84A', '#6CB8FF', '#FF9A62'];
+  function apprenti(i) {
+    const peau = PEAUX[i % PEAUX.length], haut = HAUTS[(i * 2 + 1) % HAUTS.length];
+    return S(`<circle cx="24" cy="44" r="16" fill="${haut}"/><circle cx="24" cy="22" r="11" fill="${peau}" stroke="${L}" stroke-width="2"/><path d="M12 19c0-7 6-11 12-11s12 4 12 11v2H12z" fill="#fff" stroke="${L}" stroke-width="2"/><rect x="11" y="19" width="26" height="4" rx="2" fill="#fff" stroke="${L}" stroke-width="2"/><circle cx="20" cy="24" r="1.6" fill="${L}"/><circle cx="28" cy="24" r="1.6" fill="${L}"/><path d="M20 29c2 2 6 2 8 0" stroke="${L}" stroke-width="2" stroke-linecap="round" fill="none"/>`);
   }
-  const pl = (n) => (n > 1 ? 's' : '');
-  return { T, DICTONS, t, pl, typo };
+  const AMELIORATION = S(`<path d="M24 6l3.5 10.5L38 20l-10.5 3.5L24 34l-3.5-10.5L10 20l10.5-3.5z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`);
+  const ETOILE = S(`<path d="M24 5l5.8 12.2 13.2 1.6-9.8 9.2 2.6 13.2L24 34.6l-11.8 6.6 2.6-13.2L5 18.8l13.2-1.6z" fill="#FFC84A" stroke="#E0A61E" stroke-width="2" stroke-linejoin="round"/>`);
+  return { PRODUITS, apprenti, AMELIORATION, ETOILE };
 })();
 
-/* ── render.js ── */
-/* ŒILLETS — rendu Canvas 2D : papier kraft, trois encres en aplat, trames en surimpression (multiply), repérage décalé.
-   Aucun texte dans le canvas sauf les étiquettes au pochoir des parcelles ; les autres mots sont des éléments DOM placés par l'interface. */
-const RENDER = (() => {
+/* ── scene.js ── */
+/* LE FOURNIL — la boutique en Canvas 2D : vitrine, boulanger, clients qui entrent et repartent, lumière du jour selon l'heure réelle. */
+const SCENE = (() => {
   'use strict';
-  const S = SIM, TYPES = S.TYPES;
-  const C = { papier: '#F1E8D6', encre: '#2A2B33', canard: '#1F8A8A', rose: '#F26BA6', argile: '#8E7D6D', soleil: '#F7C843', sel: '#FFFDF6', pale: '#E8E0CC' };
-  let cv, ctx, W = 1, H = 1, DPR = 1, safeTop = 0, safeBottom = 0, bottomInset = 0;
-  let geo = null, pat = {}, lastRows = 0;
+  const G = GAME;
+  let cv, ctx, W = 1, H = 1, DPR = 1;
   const TAU = Math.PI * 2;
-  const hash = (a, b, c) => { let h = (a * 374761393 + b * 668265263 + (c | 0) * 2246822519) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
-  const ABR = { cobier: 'CO', fare: 'FA', aderne: 'AD', oeillet: 'Œ' };
+  const clients = [], textes = [], vapeurs = [];
+  let hop = 0, blink = 0, nextSpawn = 2, t = 0, confetti = [];
+  const PASTEL = ['#FF9FB2', '#8FE3C2', '#C7B8FF', '#FFD98A', '#9BD0FF', '#FFB48A', '#B5E88A'];
+  const PEAUX = ['#FFD7B5', '#F1B990', '#C68B59', '#8D5A3C', '#FFE3C9'];
+  const CHEVEUX = ['#4A3328', '#2B2118', '#B8762E', '#E7C27A', '#8C8C8C', '#D9534F'];
+  const L = '#4A3328';
 
-  function init(canvas, probe) {
-    cv = canvas; ctx = cv.getContext('2d');
-    const cs = getComputedStyle(probe);
-    safeTop = parseFloat(cs.paddingTop) || 0; safeBottom = parseFloat(cs.paddingBottom) || 0;
-    resize();
-  }
-  function resize() {
+  function init(canvas) { cv = canvas; ctx = cv.getContext('2d'); }
+  function resize(width, height) {
     DPR = Math.min(2, window.devicePixelRatio || 1);
-    W = Math.max(1, window.innerWidth); H = Math.max(1, window.innerHeight);
+    W = width; H = height;
+    cv.style.height = H + 'px';
     cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
-    makePatterns();
-    geo = null;
   }
-  function setBottomInset(px) { if (px !== bottomInset) { bottomInset = px; geo = null; } }
-  function tile(size, draw) { const c = document.createElement('canvas'); c.width = c.height = size; draw(c.getContext('2d'), size); return c; }
-  function dotsTile(frac) {
-    return tile(8, (g, n) => {
-      g.clearRect(0, 0, n, n); g.fillStyle = C.rose;
-      const r = frac >= 0.6 ? 2.5 : 1.5;
-      g.beginPath(); g.arc(2, 2, r, 0, TAU); g.fill(); g.beginPath(); g.arc(6, 6, r, 0, TAU); g.fill();
-      if (frac >= 0.6) { g.beginPath(); g.arc(6, 2, 1.6, 0, TAU); g.fill(); g.beginPath(); g.arc(2, 6, 1.6, 0, TAU); g.fill(); }
-    });
+  // ─── couleurs du jour ───
+  function ciel(hour) {
+    if (hour < 6 || hour >= 21) return { haut: '#4B5A9E', bas: '#8E7CC3', nuit: true };
+    if (hour < 8) return { haut: '#FFC2A8', bas: '#FFE8B8', nuit: false };
+    if (hour < 18) return { haut: '#9ED8FF', bas: '#DDF3FF', nuit: false };
+    if (hour < 20) return { haut: '#FFB37A', bas: '#FFE1B0', nuit: false };
+    return { haut: '#7C6BB8', bas: '#F0A7A0', nuit: false };
   }
-  function makePatterns() {
-    const grain = tile(256, (g, n) => { g.clearRect(0, 0, n, n); for (let i = 0; i < 9000; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(42,43,51,0.07)' : 'rgba(255,255,255,0.08)'; g.fillRect(Math.random() * n, Math.random() * n, 1, 1); } });
-    const hatch = (col, alpha, gap) => tile(gap * 2, (g, n) => { g.clearRect(0, 0, n, n); g.strokeStyle = col; g.globalAlpha = alpha; g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, n); g.lineTo(n, 0); g.moveTo(-n / 2, n / 2); g.lineTo(n / 2, -n / 2); g.moveTo(n / 2, n * 1.5); g.lineTo(n * 1.5, n / 2); g.stroke(); });
-    pat = {
-      grain: ctx.createPattern(grain, 'repeat'),
-      dots30: ctx.createPattern(dotsTile(0.3), 'repeat'), dots60: ctx.createPattern(dotsTile(0.6), 'repeat'),
-      pluie: ctx.createPattern(hatch(C.canard, 0.5, 7), 'repeat'), jaune: ctx.createPattern(hatch(C.soleil, 0.9, 5), 'repeat'), rose: ctx.createPattern(hatch(C.rose, 0.9, 5), 'repeat'),
-    };
+  // ─── événements ───
+  function vente(i, montant, texte) {
+    const x = W * 0.62 + Math.random() * W * 0.1, y = H * 0.52;
+    textes.push({ x, y, txt: texte, life: 1 });
+    if (clients.length < 5 && Math.random() < 0.6) spawn();
+    hop = 1;
+    if (montant > 0 && textes.length > 6) textes.shift();
+  }
+  function tap() { hop = 1; for (let i = 0; i < 3; i++) vapeurs.push({ x: W * 0.13 + (Math.random() - 0.5) * 16, y: H * 0.5, r: 4 + Math.random() * 4, life: 1 }); }
+  function fete() { for (let i = 0; i < 40; i++) confetti.push({ x: Math.random() * W, y: -10 - Math.random() * 40, vx: (Math.random() - 0.5) * 40, vy: 40 + Math.random() * 60, c: PASTEL[i % PASTEL.length], a: Math.random() * TAU, life: 1 }); }
+  function spawn() {
+    const c = { x: W + 20, y: H * 0.78 - Math.random() * 6, vx: -(50 + Math.random() * 30), etat: 'entre', wait: 1.2 + Math.random() * 1.5, haut: PASTEL[Math.floor(Math.random() * PASTEL.length)],
+      peau: PEAUX[Math.floor(Math.random() * PEAUX.length)], cheveux: CHEVEUX[Math.floor(Math.random() * CHEVEUX.length)], taille: 0.9 + Math.random() * 0.25, sac: false, phase: Math.random() * TAU, cible: W * 0.58 + clients.length * 26 };
+    clients.push(c);
   }
 
-  // ─── géométrie : le bloc mer + vasière + grille est ancré en bas, dans la zone du pouce ───
-  function layout(st) {
-    if (geo && lastRows === st.rows) return geo;
-    lastRows = st.rows;
-    const court = H < 720;
-    const skyH = (court ? 112 : 132) + safeTop, seaH = 16, vasH = court ? 46 : (st.rows <= 7 ? 64 : 56), margeH = court ? 40 : 46;
-    const barH = Math.max(62 + safeBottom, bottomInset);
-    const availH = H - skyH - seaH - vasH - margeH - barH - 10;
-    const cs = Math.max(30, Math.floor(Math.min(56, (W - 20) / S.P.COLS)));
-    const ch = Math.max(42, Math.floor(Math.min(cs * 2.05, availH / (st.rows - 1))));
-    const gw = cs * S.P.COLS, gx = Math.round((W - gw) / 2);
-    let gridBottom = H - barH - margeH - 8;
-    let gy = gridBottom - (st.rows - 1) * ch, vasY = gy - vasH, seaY = vasY - seaH;
-    if (seaY < skyH) { seaY = skyH; vasY = seaY + seaH; gy = vasY + vasH; gridBottom = gy + (st.rows - 1) * ch; }
-    const gaugeY = skyH - 30, gaugeX0 = 16, gaugeX1 = W - 108;
-    const pos = (h) => gaugeX0 + (gaugeX1 - gaugeX0) * (h + 1.3) / 2.6;
-    geo = { skyH, seaH, vasH, cs, ch, gx, gw, seaY, vasY, gy, gridBottom, W, H, safeTop, safeBottom, barH, margeH,
-      gauge: { x0: gaugeX0, x1: gaugeX1, y: gaugeY, sillX: pos(S.P.SILL), pos }, baro: { x: W - 96, y: gaugeY - 12, w: 80, h: 30 }, etier: { x: gx + gw / 2, y: vasY } };
-    return geo;
-  }
-  function cellRect(st, cell) {
-    const g = layout(st);
-    if (cell.type === 'vasiere') return { x: g.gx, y: g.vasY, w: g.gw, h: g.vasH };
-    return { x: g.gx + cell.c * g.cs, y: g.gy + (cell.r - 1) * g.ch, w: g.cs, h: g.ch };
-  }
-  function freeRect(st, r, c) { const g = layout(st); return { x: g.gx + c * g.cs, y: g.gy + (r - 1) * g.ch, w: g.cs, h: g.ch }; }
-  function gateSegment(st, g) {
-    const ra = cellRect(st, g.a), rb = cellRect(st, g.b);
-    if (Math.abs((ra.y + ra.h) - rb.y) < 1 || Math.abs((rb.y + rb.h) - ra.y) < 1) {
-      const y = ra.y + ra.h <= rb.y + 1 ? ra.y + ra.h : rb.y + rb.h;
-      const x0 = Math.max(ra.x, rb.x), x1 = Math.min(ra.x + ra.w, rb.x + rb.w);
-      return { x0, y0: y, x1, y1: y, horiz: true, mx: (x0 + x1) / 2, my: y };
+  // ─── boucle ───
+  function frame(dt, st, now) {
+    t += dt;
+    const d = new Date(now), hour = d.getHours() + d.getMinutes() / 60;
+    const taux = G.tauxParSeconde(st);
+    nextSpawn -= dt;
+    if (nextSpawn <= 0) { nextSpawn = taux > 0 ? Math.max(1.5, 6 - Math.log10(taux + 1)) : 7; if (clients.length < 4 && (taux > 0 || Math.random() < 0.3)) spawn(); }
+    for (const c of clients) {
+      c.phase += dt * 9;
+      if (c.etat === 'entre') { c.x += c.vx * dt; if (c.x <= c.cible) { c.x = c.cible; c.etat = 'attend'; } }
+      else if (c.etat === 'attend') { c.wait -= dt; if (c.wait <= 0) { c.etat = 'sort'; c.sac = true; st.stats.clients++; } }
+      else { c.x += 70 * dt; }
     }
-    const x = ra.x + ra.w <= rb.x + 1 ? ra.x + ra.w : rb.x + rb.w;
-    const y0 = Math.max(ra.y, rb.y), y1 = Math.min(ra.y + ra.h, rb.y + rb.h);
-    return { x0: x, y0, x1: x, y1, horiz: false, mx: x, my: (y0 + y1) / 2 };
-  }
-  function etierPoint(st) { return layout(st).etier; }
-  // Cible d'une trappe : une boîte autour du levier (44 px le long du mur, 18 px en travers), pas tout le mur.
-  function hit(st, x, y) {
-    const g = layout(st), e = g.etier;
-    if (Math.hypot(x - e.x, y - e.y) < 24) return { kind: 'etier' };
-    let best = null, bd = Infinity;
-    for (const gt of S.gatesOf(st)) {
-      const sg = gateSegment(st, gt);
-      const along = sg.horiz ? Math.abs(x - sg.mx) : Math.abs(y - sg.my), across = sg.horiz ? Math.abs(y - sg.my) : Math.abs(x - sg.mx);
-      if (along <= 22 && across <= 9 && across < bd) { bd = across; best = gt; }
-    }
-    if (best) return { kind: 'gate', gate: best };
-    for (const cell of st.cells) { const r = cellRect(st, cell); if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) return { kind: 'cell', cell }; }
-    if (x >= g.gx && x < g.gx + g.gw && y >= g.gy && y < g.gridBottom) {
-      const c = Math.floor((x - g.gx) / g.cs), r = 1 + Math.floor((y - g.gy) / g.ch);
-      return { kind: 'free', r, c };
-    }
-    return null;
-  }
-  // ─── primitives ───
-  function jitterPoly(r, seed) {
-    const pts = [[r.x, r.y], [r.x + r.w, r.y], [r.x + r.w, r.y + r.h], [r.x, r.y + r.h]];
-    return pts.map((p, i) => [p[0] + (hash(seed, i, 1) - 0.5) * 3, p[1] + (hash(seed, i, 2) - 0.5) * 3]);
-  }
-  function pathPoly(poly) { ctx.beginPath(); ctx.moveTo(poly[0][0], poly[0][1]); for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]); ctx.closePath(); }
-  function stencil(txt, x, y, size, col, align) { ctx.font = `900 ${size}px "Big Shoulders Stencil Text","Big Shoulders Stencil","Arial Narrow",Impact,sans-serif`; ctx.fillStyle = col; ctx.textAlign = align || 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText(txt, x, y); }
-  // étiquette au pochoir sur un cartouche papier : lisible sur toute encre, sans halo
-  function label(txt, x, y, size, align) {
-    ctx.font = `900 ${size}px "Big Shoulders Stencil Text","Big Shoulders Stencil","Arial Narrow",Impact,sans-serif`;
-    const w = ctx.measureText(txt).width + 6, h = size + 2;
-    const bx = align === 'right' ? x - w + 3 : align === 'center' ? x - w / 2 : x - 3;
-    ctx.fillStyle = C.papier; ctx.fillRect(bx, y - size + 1, w, h);
-    stencil(txt, x, y, size, C.encre, align);
+    for (let i = clients.length - 1; i >= 0; i--) if (clients[i].etat === 'sort' && clients[i].x > W + 30) clients.splice(i, 1);
+    for (const x of textes) { x.life -= dt * 0.9; x.y -= 28 * dt; }
+    for (let i = textes.length - 1; i >= 0; i--) if (textes[i].life <= 0) textes.splice(i, 1);
+    for (const v of vapeurs) { v.life -= dt * 0.8; v.y -= 22 * dt; v.r += 6 * dt; }
+    for (let i = vapeurs.length - 1; i >= 0; i--) if (vapeurs[i].life <= 0) vapeurs.splice(i, 1);
+    for (const k of confetti) { k.x += k.vx * dt; k.y += k.vy * dt; k.a += dt * 6; k.life -= dt * 0.35; }
+    confetti = confetti.filter((k) => k.life > 0 && k.y < H + 10);
+    if (hop > 0) hop = Math.max(0, hop - dt * 4);
+    blink = (blink + dt) % 3.4;
+    draw(st, hour, taux);
   }
 
   // ─── dessin ───
-  function draw(st, env, ui) {
-    const g = layout(st);
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+  function draw(st, hour, taux) {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
-    ctx.fillStyle = C.papier; ctx.fillRect(0, 0, W, H);
-    drawSky(st, env, ui, g);
-    drawSea(st, env, g);
-    for (const cell of st.cells) drawCell(st, env, ui, cell);
-    if (ui.mode === 'creuser' || ui.mode === 'hiver') drawFree(st, ui, g);
-    drawWalls(st, ui);
-    drawGates(st, ui);
-    drawEtier(st, env, ui);
-    drawBirds(st, env, ui);
-    for (const cell of st.cells) drawLabel(st, env, ui, cell);
-    if (ui.strokes) drawStrokes(ui);
-    if (ui.ring) drawRing(st, ui);
-    if (env.rain > 0) { ctx.fillStyle = pat.pluie; ctx.fillRect(0, g.skyH - 30, W, H); }
-    const nf = ui.mode === 'hiver' ? 0 : nightFrac(env, ui);
-    if (nf > 0) { ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = 0.35; ctx.fillStyle = C.canard; ctx.fillRect(0, 0, W, H * nf); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
-    if (ui.flood > 0) { ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = Math.min(ui.mode === 'hiver' ? 0.3 : 0.8, ui.flood); ctx.fillStyle = C.canard; ctx.fillRect(0, g.seaY, W, H); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
-    ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = 0.9; ctx.fillStyle = pat.grain; ctx.fillRect(0, 0, W, H);
-    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    const sk = ciel(hour);
+    // mur
+    ctx.fillStyle = '#FFF1E3'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#FBE2CC'; for (let y = 0; y < H * 0.62; y += 18) ctx.fillRect(0, y, W, 1);
+    // fenêtre avec le ciel du moment
+    const fx = W * 0.56, fy = H * 0.08, fw = W * 0.3, fh = H * 0.34;
+    const g = ctx.createLinearGradient(0, fy, 0, fy + fh); g.addColorStop(0, sk.haut); g.addColorStop(1, sk.bas);
+    rr(fx, fy, fw, fh, 14); ctx.fillStyle = g; ctx.fill();
+    if (sk.nuit) { ctx.fillStyle = '#FFF4C2'; for (let i = 0; i < 7; i++) { ctx.beginPath(); ctx.arc(fx + 10 + ((i * 37) % (fw - 20)), fy + 8 + ((i * 23) % (fh * 0.5)), 1.4, 0, TAU); ctx.fill(); } ctx.beginPath(); ctx.arc(fx + fw * 0.75, fy + fh * 0.3, 8, 0, TAU); ctx.fill(); }
+    else { ctx.fillStyle = 'rgba(255,255,255,.85)'; const cx = fx + fw * 0.3 + Math.sin(t * 0.05) * 6; for (const [ox, oy, r] of [[0, 0, 9], [10, -3, 11], [20, 1, 8], [8, 5, 8]]) { ctx.beginPath(); ctx.arc(cx + ox, fy + fh * 0.4 + oy, r, 0, TAU); ctx.fill(); } }
+    ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 6; rr(fx, fy, fw, fh, 14); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(fx + fw / 2, fy); ctx.lineTo(fx + fw / 2, fy + fh); ctx.moveTo(fx, fy + fh / 2); ctx.lineTo(fx + fw, fy + fh / 2); ctx.stroke();
+    // décor débloqué
+    const niv = (i) => st.stations[i].niv;
+    if (niv(1) > 0) plante(fx - 26, fy + fh + 4);
+    if (niv(2) > 0) lampe(W * 0.36, 0);
+    if (niv(3) > 0) cadre(W * 0.4, fy + 6);
+    if (niv(5) > 0) guirlande();
+    // étagères de pains derrière le comptoir
+    const pains = Math.min(10, Math.floor(niv(0) / 10));
+    etagere(W * 0.04, H * 0.16, W * 0.44, pains);
+    // four
+    four(W * 0.04, H * 0.42, W * 0.18, H * 0.36, st.stations[0].actif || taux > 0);
+    for (const v of vapeurs) { ctx.globalAlpha = Math.max(0, v.life) * 0.7; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(v.x, v.y, v.r, 0, TAU); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    // sol
+    ctx.fillStyle = '#F3D9C0'; ctx.fillRect(0, H * 0.62, W, H * 0.38);
+    ctx.fillStyle = '#E8C7A8'; ctx.fillRect(0, H * 0.62, W, 4);
+    ctx.fillStyle = 'rgba(255,255,255,.35)'; for (let x = 0; x < W; x += 34) ctx.fillRect(x, H * 0.64, 17, H * 0.36);
+    // boulanger derrière le comptoir
+    boulanger(W * 0.33, H * 0.62 - hop * 6);
+    // comptoir et vitrine
+    const cy = H * 0.58, ch = H * 0.3;
+    rr(W * 0.24, cy, W * 0.52, ch, 10); ctx.fillStyle = '#D9915C'; ctx.fill();
+    rr(W * 0.24, cy, W * 0.52, 14, 7); ctx.fillStyle = '#F2B98A'; ctx.fill();
+    rr(W * 0.27, cy + 20, W * 0.46, ch - 34, 8); ctx.fillStyle = 'rgba(222,244,255,.75)'; ctx.fill(); ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 3; ctx.stroke();
+    vitrine(st, W * 0.27, cy + 20, W * 0.46, ch - 34);
+    if (niv(4) > 0) chat(W * 0.7, cy - 2);
+    // clients
+    for (const c of clients) client(c);
+    // textes flottants
+    for (const x of textes) { ctx.globalAlpha = Math.max(0, Math.min(1, x.life * 1.4)); ctx.font = `700 ${Math.round(15 * Math.min(1.3, 1 + x.txt.length / 40))}px Fredoka, Nunito, sans-serif`; ctx.fillStyle = '#3FB889'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.textAlign = 'center'; ctx.strokeText(x.txt, x.x, x.y); ctx.fillText(x.txt, x.x, x.y); }
+    ctx.globalAlpha = 1;
+    for (const k of confetti) { ctx.save(); ctx.translate(k.x, k.y); ctx.rotate(k.a); ctx.globalAlpha = Math.min(1, k.life * 2); ctx.fillStyle = k.c; ctx.fillRect(-4, -2.5, 8, 5); ctx.restore(); }
+    ctx.globalAlpha = 1;
   }
-  function nightFrac(env, ui) {
-    if (ui.reduceMotion) return env.night ? 1 : 0;
-    const h = env.hour;
-    if (h >= 21.5) return Math.min(1, (h - 21.5) * 60);
-    if (h < 6.5) return Math.max(0, 1 - Math.max(0, (h - 6.5 + 1 / 60) * 60));
-    return 0;
-  }
-  function drawSky(st, env, ui, g) {
-    // soleil ou lune sur un petit arc dans la colonne centrale, entre les textes ; contour décalé, pas d'ombre
-    const day = env.hour >= 6 && env.hour < 21.5;
-    const cx = W / 2, top = safeTop + 10, arcW = Math.min(W * 0.11, 44);
-    const t = day ? (env.hour - 6) / 15.5 : env.hour >= 21.5 ? (env.hour - 21.5) / 9 : (env.hour + 2.5) / 9;
-    const lift = Math.sin(t * Math.PI);
-    if (lift > 0.12) {
-      const x = cx - arcW + 2 * arcW * t, y = top + 30 - lift * 18;
-      if (day) {
-        ctx.fillStyle = C.soleil; ctx.beginPath(); ctx.arc(x, y, 11, 0, TAU); ctx.fill();
-        ctx.strokeStyle = C.encre; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x + 1.5, y + 1, 11, 0, TAU); ctx.stroke();
-      } else drawMoon(x, y, 10, env.moon);
-    }
-    // jauge de marée : bande, repère du seuil, aiguille
-    const J = g.gauge, gy = J.y, gw = J.x1 - J.x0;
-    ctx.fillStyle = C.papier; ctx.fillRect(J.x0, gy, gw, 10);
-    ctx.fillStyle = C.canard; ctx.fillRect(J.x0, gy, Math.max(0, J.pos(env.h) - J.x0), 10);
-    ctx.strokeStyle = C.encre; ctx.lineWidth = 1.5; ctx.strokeRect(J.x0 + 0.5, gy + 0.5, gw - 1, 9);
-    for (let h = -1; h <= 1; h += 0.5) { const x = J.pos(h); ctx.beginPath(); ctx.moveTo(x, gy + 10); ctx.lineTo(x, gy + 14); ctx.stroke(); }
-    ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(J.sillX, gy - 4); ctx.lineTo(J.sillX, gy + 16); ctx.stroke();
-    const nx = J.pos(env.h);
-    ctx.fillStyle = C.encre; ctx.beginPath(); ctx.moveTo(nx, gy - 2); ctx.lineTo(nx - 5, gy - 9); ctx.lineTo(nx + 5, gy - 9); ctx.closePath(); ctx.fill();
-    if (ui.baro) drawBaro(ui.baro, g.baro);
-  }
-  function drawBaro(baro, r) {
-    const { x, y, w, h } = r;
-    ctx.fillStyle = C.papier; ctx.fillRect(x, y, w, h);
-    ctx.strokeStyle = C.argile; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
-    const ry = (p) => y + h - (S.clamp((p - 995) / 30, 0, 1)) * (h - 4) - 2;
-    if (baro.curve) {
-      ctx.strokeStyle = C.argile; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(x, ry(1005)); ctx.lineTo(x + w, ry(1005)); ctx.stroke(); ctx.setLineDash([]);
-      ctx.strokeStyle = C.encre; ctx.lineWidth = 1.5; ctx.beginPath();
-      baro.curve.forEach((p, i) => { const px = x + (i / (baro.curve.length - 1)) * w; if (i) ctx.lineTo(px, ry(p)); else ctx.moveTo(px, ry(p)); }); ctx.stroke();
-    } else {
-      const cx = x + w - 16, cy = y + h / 2;
-      ctx.strokeStyle = C.encre; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx, cy, 12, 0, TAU); ctx.stroke();
-      const a = Math.PI * 1.25 - S.clamp((baro.P - 995) / 30, 0, 1) * Math.PI * 1.5;
-      ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * 10, cy - Math.sin(a) * 10); ctx.stroke();
-      ctx.fillStyle = C.encre; ctx.beginPath(); ctx.arc(cx, cy, 1.8, 0, TAU); ctx.fill();
-    }
-  }
-  function drawMoon(x, y, r, phase) {
-    ctx.fillStyle = C.papier; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
-    const k = Math.cos(phase * TAU); // 1 nouvelle (sombre), -1 pleine
-    ctx.fillStyle = C.soleil; ctx.beginPath();
-    if (phase < 0.5) { ctx.arc(x, y, r, -Math.PI / 2, Math.PI / 2); ctx.ellipse(x, y, Math.abs(k) * r, r, 0, Math.PI / 2, -Math.PI / 2, k < 0); }
-    else { ctx.arc(x, y, r, Math.PI / 2, -Math.PI / 2); ctx.ellipse(x, y, Math.abs(k) * r, r, 0, -Math.PI / 2, Math.PI / 2, k < 0); }
-    ctx.fill();
-    ctx.strokeStyle = C.encre; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x + 1.5, y + 1, r, 0, TAU); ctx.stroke();
-  }
-  function drawSea(st, env, g) {
-    const level = 0.35 + 0.65 * (env.h + 1.3) / 2.6;
-    const h = g.seaH * level, y = g.vasY - h;
-    ctx.fillStyle = C.canard; ctx.fillRect(g.gx - 6, y, g.gw + 12, h);
-    ctx.strokeStyle = C.papier; ctx.lineWidth = 1.2; ctx.beginPath();
-    for (let x = g.gx - 6; x <= g.gx + g.gw + 6; x += 6) { const yy = y + 5 + Math.sin(x / 9 + (env.ms / 4000)) * 1.5; if (x === g.gx - 6) ctx.moveTo(x, yy); else ctx.lineTo(x, yy); }
-    ctx.stroke();
-  }
-  // Eau : canard dont l'alpha suit la profondeur ; sous les trames roses il est plafonné à 0,6 pour que
-  // rose × canard tombe dans le violet (#6D4A6D) et non dans un bleu nuit.
-  function drawCell(st, env, ui, cell) {
-    const r = cellRect(st, cell), poly = jitterPoly(r, cell.id * 7 + 3), Sg = S.salinity(cell), b = S.bucket(Sg);
-    const inset = { x: r.x + 2, y: r.y + 2, w: r.w - 4, h: r.h - 4 };
-    const wet = cell.depth > 0.02;
-    ctx.save();
-    pathPoly(poly); ctx.clip();
-    if (!wet) {
-      ctx.globalAlpha = 0.55; ctx.fillStyle = C.argile; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.globalAlpha = 1;
-    } else {
-      const base = Math.min(1, cell.depth / 6) * 0.95 + 0.05, tramee = b === 'violet30' || b === 'violet60';
-      ctx.globalAlpha = tramee ? Math.min(base, 0.6) : base; ctx.fillStyle = C.canard; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.globalAlpha = 1;
-      const off = env.rain > 0 ? 3.5 : 1.5;
-      if (tramee) {
-        ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = b === 'violet30' ? pat.dots30 : pat.dots60;
-        ctx.save(); ctx.translate(off, 1); ctx.fillRect(r.x - off, r.y - 1, r.w, r.h); ctx.restore();
-        ctx.globalCompositeOperation = 'source-over';
-      } else if (b === 'rose' || b === 'blanc') {
-        ctx.globalAlpha = b === 'rose' ? 0.82 : 1; ctx.fillStyle = C.rose; ctx.fillRect(r.x + off, r.y + 1, r.w, r.h); ctx.globalAlpha = 1;
-        if (b === 'rose') { ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = pat.dots30; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.globalCompositeOperation = 'source-over'; }
-      }
-    }
-    ctx.restore();
-    const kg = S.kgOf(cell.crust);
-    if (kg > 0.5) {
-      const n = Math.min(160, Math.floor(kg / 2) + 1);
-      ctx.fillStyle = cell.type === 'oeillet' ? C.sel : C.pale;
-      for (let i = 0; i < n; i++) {
-        const px = inset.x + 2 + hash(cell.id, i, 11) * (inset.w - 4), py = inset.y + 2 + hash(cell.id, i, 12) * (inset.h - 4);
-        ctx.fillRect(px, py, 2.2, 2.2);
-      }
-    }
-    if (cell.type === 'oeillet' && wet && (b === 'blanc' || cell.fleur > 0.15)) {
-      ctx.strokeStyle = C.sel; ctx.lineWidth = cell.fleur > 0.15 ? 3 : 1.2; ctx.strokeRect(r.x + 3.5, r.y + 3.5, r.w - 7, r.h - 7);
-    }
-    if (cell.integ < 0.8) {
-      const n = Math.round((0.8 - cell.integ) * 40) + 2;
-      ctx.strokeStyle = C.encre; ctx.lineWidth = 1.2; ctx.beginPath();
-      for (let i = 0; i < n; i++) { const px = inset.x + hash(cell.id, i, 21) * inset.w, py = inset.y + hash(cell.id, i, 22) * inset.h, a = hash(cell.id, i, 23) * TAU; ctx.moveTo(px, py); ctx.lineTo(px + Math.cos(a) * 7, py + Math.sin(a) * 7); }
-      ctx.stroke();
-    }
-    if (ui.mode === 'hiver' && ui.problems && ui.problems.includes(cell)) { ctx.fillStyle = pat.rose; ctx.fillRect(r.x, r.y, r.w, r.h); }
-    if (ui.selected === cell) { ctx.setLineDash([4, 3]); ctx.strokeStyle = C.encre; ctx.lineWidth = 2; ctx.strokeRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4); ctx.setLineDash([]); }
-  }
-  function drawLabel(st, env, ui, cell) {
-    const r = cellRect(st, cell), g = layout(st);
-    if (cell.type === 'vasiere') {
-      label(`VASIÈRE · ${Math.round(cell.depth)} CM${st.vasEnl ? ' · ×' + st.vasEnl : ''}${st.enEau ? ' · EN EAU' : ''}`, r.x + 8, r.y + 19, 13, 'left');
-      return;
-    }
-    const size = Math.round(S.clamp(g.ch * 0.28, 12, 15));
-    label(ABR[cell.type] + cell.num, r.x + 7, r.y + size + 5, size, 'left');
-  }
-  function drawFree(st, ui, g) {
-    for (let r = 1; r < st.rows; r++) for (let c = 0; c < S.P.COLS; c++) {
-      if (S.cellAt(st, r, c)) continue;
-      const fr = freeRect(st, r, c);
-      ctx.fillStyle = pat.jaune; ctx.fillRect(fr.x + 3, fr.y + 3, fr.w - 6, fr.h - 6);
-      if (ui.selFree && ui.selFree[0] === r && ui.selFree[1] === c) { ctx.setLineDash([4, 3]); ctx.strokeStyle = C.encre; ctx.lineWidth = 2; ctx.strokeRect(fr.x + 2, fr.y + 2, fr.w - 4, fr.h - 4); ctx.setLineDash([]); }
-    }
-  }
-  function drawWalls(st) {
-    ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    for (const cell of st.cells) { pathPoly(jitterPoly(cellRect(st, cell), cell.id * 7 + 3)); ctx.strokeStyle = C.argile; ctx.lineWidth = 5; ctx.stroke(); }
-    ctx.save(); ctx.translate(1.5, -1);
-    for (const cell of st.cells) { pathPoly(jitterPoly(cellRect(st, cell), cell.id * 7 + 3)); ctx.strokeStyle = C.encre; ctx.lineWidth = 1.8; ctx.stroke(); }
-    ctx.restore();
-  }
-  // Trappe : planche argile fermée (à plat sur le mur), relevée à 70° quand elle est ouverte ; l'eau qui passe se voit à la couleur des bassins.
-  function drawGates(st) {
-    for (const g of S.gatesOf(st)) {
-      const sg = gateSegment(st, g), open = S.gateOpen(st, g.key);
-      ctx.save(); ctx.translate(sg.mx, sg.my);
-      ctx.rotate(sg.horiz ? 0 : Math.PI / 2);
-      if (open) ctx.rotate(-70 * Math.PI / 180);
-      ctx.fillStyle = open ? C.papier : C.argile; ctx.strokeStyle = C.encre; ctx.lineWidth = 1.5;
-      ctx.fillRect(-9, -3, 18, 6); ctx.strokeRect(-9, -3, 18, 6);
-      ctx.restore();
-      ctx.fillStyle = C.encre; ctx.beginPath(); ctx.arc(sg.mx, sg.my, 1.6, 0, TAU); ctx.fill();
-    }
-  }
-  function drawEtier(st, env, ui) {
-    const e = etierPoint(st), open = st.etierOpen || st.items.clapet;
-    ctx.save(); ctx.translate(e.x, e.y);
-    if (open) ctx.rotate(-70 * Math.PI / 180);
-    ctx.fillStyle = open ? C.papier : C.argile; ctx.strokeStyle = C.encre; ctx.lineWidth = 2;
-    ctx.fillRect(-11, -4, 22, 8); ctx.strokeRect(-11, -4, 22, 8);
-    ctx.restore();
-    if (st.items.clapet) { ctx.fillStyle = C.encre; ctx.beginPath(); ctx.moveTo(e.x + 16, e.y - 5); ctx.lineTo(e.x + 24, e.y); ctx.lineTo(e.x + 16, e.y + 5); ctx.closePath(); ctx.fill(); }
-  }
-  function drawBirds(st, env, ui) {
-    const flap = Math.floor(env.ms / 500) % 2 === 0;
-    for (const cell of st.cells) {
-      if (cell.type !== 'aderne' || cell.algae < 0.5 || S.salinity(cell) < 150 || env.night) continue;
-      const r = cellRect(st, cell);
-      for (let i = 0; i < 2; i++) {
-        const x = r.x + 12 + hash(cell.id, i, 31) * (r.w - 24), y = r.y + r.h * 0.55 + hash(cell.id, i, 32) * (r.h * 0.25);
-        ctx.strokeStyle = C.encre; ctx.lineWidth = 1.4; ctx.lineCap = 'round'; ctx.beginPath();
-        ctx.ellipse(x, y, 5, 2.2, 0, 0, TAU);
-        ctx.moveTo(x + 4, y - 1); ctx.lineTo(x + 6, y - 6); ctx.lineTo(x + 10, y - 7.5);
-        ctx.moveTo(x - 1, y + 2); ctx.lineTo(x - 2, y + 8); ctx.moveTo(x + 2, y + 2); ctx.lineTo(x + 2, y + 8);
-        if (flap) { ctx.moveTo(x - 2, y - 2); ctx.lineTo(x - 4, y - 7); }
-        ctx.stroke();
+  function etagere(x, y, w, n) {
+    for (let r = 0; r < 2; r++) {
+      const yy = y + r * 26;
+      ctx.fillStyle = '#C8864F'; rr(x, yy + 14, w, 5, 2); ctx.fill();
+      for (let i = 0; i < Math.min(5, n - r * 5); i++) {
+        const px = x + 8 + i * (w / 5);
+        ctx.fillStyle = i % 2 ? '#E8B46A' : '#D99A4E'; rr(px, yy, w / 5 - 12, 13, 6); ctx.fill();
+        ctx.strokeStyle = '#A8621F'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(px + 6, yy + 3); ctx.lineTo(px + 10, yy + 9); ctx.moveTo(px + 14, yy + 3); ctx.lineTo(px + 18, yy + 9); ctx.stroke();
       }
     }
   }
-  function drawStrokes(ui) {
-    for (const s of ui.strokes) {
-      ctx.globalAlpha = Math.max(0, s.life); ctx.strokeStyle = C.encre; ctx.lineWidth = 3; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(s.x0, s.y0); ctx.lineTo(s.x1, s.y1); ctx.stroke(); ctx.globalAlpha = 1;
+  function four(x, y, w, h, chaud) {
+    rr(x, y, w, h, 10); ctx.fillStyle = '#6E5A52'; ctx.fill();
+    rr(x + 6, y + 8, w - 12, h * 0.45, 8); ctx.fillStyle = chaud ? '#FF9F4A' : '#8C7A72'; ctx.fill();
+    if (chaud) { ctx.fillStyle = '#FFD36B'; rr(x + 10, y + 14, w - 20, h * 0.3, 6); ctx.fill(); ctx.fillStyle = '#E8B46A'; rr(x + 14, y + h * 0.3, w - 28, 8, 4); ctx.fill(); }
+    ctx.fillStyle = '#D9CCC2'; ctx.beginPath(); ctx.arc(x + w * 0.3, y + h * 0.75, 4, 0, TAU); ctx.arc(x + w * 0.7, y + h * 0.75, 4, 0, TAU); ctx.fill();
+  }
+  function boulanger(x, y) {
+    const peau = '#FFD7B5';
+    ctx.fillStyle = '#fff'; rr(x - 22, y - 44, 44, 44, 14); ctx.fill();           // corps / tablier
+    ctx.fillStyle = '#FF6B8B'; rr(x - 10, y - 44, 20, 26, 6); ctx.fill();         // bavette
+    ctx.fillStyle = peau; ctx.beginPath(); ctx.arc(x, y - 58, 16, 0, TAU); ctx.fill();
+    ctx.fillStyle = '#fff'; rr(x - 17, y - 86, 34, 22, 10); ctx.fill(); rr(x - 19, y - 68, 38, 7, 4); ctx.fill(); // toque
+    ctx.fillStyle = L;
+    if (blink > 3.2) { ctx.fillRect(x - 8, y - 60, 5, 2); ctx.fillRect(x + 3, y - 60, 5, 2); }
+    else { ctx.beginPath(); ctx.arc(x - 6, y - 60, 2, 0, TAU); ctx.arc(x + 6, y - 60, 2, 0, TAU); ctx.fill(); }
+    ctx.strokeStyle = L; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(x, y - 55, 6, 0.2, Math.PI - 0.2); ctx.stroke();
+    ctx.fillStyle = '#FFB3B3'; ctx.beginPath(); ctx.arc(x - 11, y - 54, 2.5, 0, TAU); ctx.arc(x + 11, y - 54, 2.5, 0, TAU); ctx.fill();
+    ctx.strokeStyle = peau; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(x - 20, y - 32); ctx.lineTo(x - 30, y - 12); ctx.moveTo(x + 20, y - 32); ctx.lineTo(x + 30, y - 12); ctx.stroke();
+  }
+  function vitrine(st, x, y, w, h) {
+    const ouverts = st.stations.map((s, i) => i).filter((i) => st.stations[i].niv > 0);
+    const n = Math.max(1, ouverts.length), cw = w / Math.max(3, n), s = Math.min(h - 6, cw - 6);
+    ouverts.forEach((i, k) => patisserie(i, x + 4 + k * cw + (cw - s) / 2, y + (h - s) / 2, s, s));
+  }
+  function patisserie(i, x, y, w, h) {
+    const s = Math.min(w, h);
+    ctx.save(); ctx.translate(x + w / 2, y + h / 2); ctx.scale(s / 48, s / 48); ctx.translate(-24, -24);
+    switch (i) {
+      case 0: ctx.strokeStyle = '#E8B46A'; ctx.lineWidth = 11; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(10, 34); ctx.lineTo(36, 12); ctx.stroke(); ctx.strokeStyle = '#A8621F'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(16, 27); ctx.lineTo(20, 29); ctx.moveTo(24, 20); ctx.lineTo(28, 22); ctx.stroke(); break;
+      case 1: ctx.fillStyle = '#E8A54A'; ctx.beginPath(); ctx.moveTo(10, 30); ctx.bezierCurveTo(6, 20, 14, 12, 22, 12); ctx.bezierCurveTo(32, 11, 40, 18, 38, 26); ctx.bezierCurveTo(37, 31, 31, 30, 30, 26); ctx.bezierCurveTo(26, 31, 18, 34, 10, 30); ctx.fill(); ctx.strokeStyle = L; ctx.lineWidth = 2; ctx.stroke(); break;
+      case 2: ctx.fillStyle = '#EBB15A'; rr(8, 14, 32, 22, 7); ctx.fill(); ctx.strokeStyle = L; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#5B3A29'; rr(15, 19, 4, 12, 2); ctx.fill(); rr(29, 19, 4, 12, 2); ctx.fill(); break;
+      case 3: ctx.fillStyle = '#E9A95C'; ctx.beginPath(); ctx.ellipse(24, 28, 18, 11, 0, 0, TAU); ctx.fill(); ctx.strokeStyle = L; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#F7C96B'; ctx.beginPath(); ctx.ellipse(24, 25, 15, 8, 0, 0, TAU); ctx.fill(); ctx.fillStyle = '#E85A4F'; ctx.beginPath(); ctx.arc(24, 25, 3, 0, TAU); ctx.fill(); break;
+      case 4: ctx.fillStyle = '#F1C27A'; rr(6, 18, 36, 16, 8); ctx.fill(); ctx.strokeStyle = L; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#8B5A3C'; rr(8, 16, 32, 10, 5); ctx.fill(); break;
+      case 5: for (const [cx, cy, col, col2] of [[18, 28, '#C9A3F5', '#E7D4FF'], [31, 19, '#F79AB5', '#FFE1EA']]) { ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(cx, cy + 4, 11, 5, 0, 0, TAU); ctx.fill(); ctx.fillStyle = col2; ctx.beginPath(); ctx.ellipse(cx, cy + 1, 11, 5, 0, 0, TAU); ctx.fill(); ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(cx, cy - 2, 11, 5, 0, 0, TAU); ctx.fill(); ctx.strokeStyle = L; ctx.lineWidth = 1.5; ctx.stroke(); } break;
+      case 6: for (let k = 0; k < 3; k++) { ctx.fillStyle = k === 2 ? '#fff' : '#F1C27A'; rr(8, 30 - k * 11, 32, 7, 2); ctx.fill(); ctx.strokeStyle = L; ctx.lineWidth = 1.5; ctx.stroke(); if (k < 2) { ctx.fillStyle = '#FFF3C4'; ctx.fillRect(8, 26 - k * 11, 32, 4); } } break;
+      default: ctx.fillStyle = '#F7C96B'; ctx.beginPath(); ctx.moveTo(24, 6); ctx.lineTo(36, 38); ctx.lineTo(12, 38); ctx.closePath(); ctx.fill(); ctx.strokeStyle = L; ctx.lineWidth = 2; ctx.stroke(); ctx.fillStyle = '#FFE1EA'; for (const [cx, cy] of [[24, 13], [20, 20], [28, 20], [16, 28], [24, 28], [32, 28]]) { ctx.beginPath(); ctx.arc(cx, cy, 3, 0, TAU); ctx.fill(); }
     }
+    ctx.restore();
   }
-  function ringTarget(st, ring) {
-    if (!ring) return null;
-    if (ring.kind === 'etier') { const e = etierPoint(st); return { x: e.x, y: e.y, r: 20 }; }
-    if (ring.kind === 'gate') { const g = S.gatesOf(st).find((x) => x.key === ring.key); if (!g) return null; const sg = gateSegment(st, g); return { x: sg.mx, y: sg.my, r: 18 }; }
-    if (ring.kind === 'cell') { const cell = st.cells.find((c) => c.id === ring.id); if (!cell) return null; const r = cellRect(st, cell); return { x: r.x + r.w / 2, y: r.y + r.h / 2, r: Math.min(r.w, r.h) / 2 + 4 }; }
-    return null;
+  function client(c) {
+    const x = c.x, y = c.y, s = c.taille, bob = c.etat === 'attend' ? 0 : Math.abs(Math.sin(c.phase)) * 3;
+    ctx.save(); ctx.translate(x, y - bob); ctx.scale(s, s);
+    ctx.fillStyle = c.haut; rr(-13, -40, 26, 32, 10); ctx.fill();                         // corps
+    ctx.fillStyle = '#4A3328'; rr(-11, -10, 9, 12, 3); ctx.fill(); rr(2, -10, 9, 12, 3); ctx.fill(); // jambes
+    ctx.fillStyle = c.peau; ctx.beginPath(); ctx.arc(0, -52, 13, 0, TAU); ctx.fill();   // tête
+    ctx.fillStyle = c.cheveux; ctx.beginPath(); ctx.arc(0, -56, 13, Math.PI, TAU); ctx.fill(); // cheveux
+    ctx.fillStyle = L; ctx.beginPath(); ctx.arc(-5, -52, 1.8, 0, TAU); ctx.arc(5, -52, 1.8, 0, TAU); ctx.fill();
+    ctx.strokeStyle = L; ctx.lineWidth = 1.8; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(0, -49, 4, 0.3, Math.PI - 0.3); ctx.stroke();
+    if (c.sac) { ctx.fillStyle = '#F2D7B6'; rr(12, -28, 14, 18, 3); ctx.fill(); ctx.strokeStyle = '#C8864F'; ctx.lineWidth = 1.5; ctx.strokeRect(12, -28, 14, 18); ctx.fillStyle = '#E8B46A'; rr(15, -34, 8, 8, 3); ctx.fill(); }
+    ctx.restore();
   }
-  function drawRing(st, ui) {
-    const t = ringTarget(st, ui.ring);
-    if (!t) return;
-    const pulse = Math.floor(Date.now() / 600) % 2 === 0 ? 0 : 3;
-    ctx.strokeStyle = C.soleil; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(t.x, t.y, t.r + pulse, 0, TAU); ctx.stroke();
-    ctx.strokeStyle = C.encre; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(t.x + 1.5, t.y + 1, t.r + pulse, 0, TAU); ctx.stroke();
-  }
-  // vignette d'un plan passé : même recette riso, à petite échelle (canard à 0,6 sous les trames roses, jamais de violet peint)
-  function drawThumb(canvas, rec, cols) {
-    const g = canvas.getContext('2d'), rows = rec.rows, cs = Math.floor(Math.min(canvas.width / cols, canvas.height / rows));
-    const d30 = g.createPattern(dotsTile(0.3), 'repeat'), d60 = g.createPattern(dotsTile(0.6), 'repeat');
-    g.fillStyle = C.papier; g.fillRect(0, 0, canvas.width, canvas.height);
-    g.fillStyle = C.canard; g.fillRect(0, 0, cs * cols, cs);
-    for (const [r, c, type] of rec.plan) {
-      const x = c * cs + 1, y = r * cs + 1, w = cs - 2;
-      if (type === 'oeillet') { g.globalAlpha = 1; g.fillStyle = C.rose; g.fillRect(x, y, w, w); continue; }
-      g.globalAlpha = type === 'cobier' ? 1 : 0.6; g.fillStyle = C.canard; g.fillRect(x, y, w, w); g.globalAlpha = 1;
-      if (type !== 'cobier') { g.globalCompositeOperation = 'multiply'; g.fillStyle = type === 'fare' ? d30 : d60; g.fillRect(x, y, w, w); g.globalCompositeOperation = 'source-over'; }
-    }
-    g.strokeStyle = C.argile; g.lineWidth = 1; g.strokeRect(0.5, 0.5, cs * cols - 1, cs * rows - 1);
-  }
-  return { init, resize, setBottomInset, layout, cellRect, freeRect, gateSegment, etierPoint, hit, draw, drawThumb, C, get W() { return W; }, get H() { return H; } };
-})();
+  function plante(x, y) { ctx.fillStyle = '#D9915C'; rr(x - 10, y, 20, 16, 5); ctx.fill(); ctx.fillStyle = '#5FD3A4'; for (const [ox, oy, r] of [[0, -8, 9], [-9, -2, 7], [9, -2, 7], [0, -18, 7]]) { ctx.beginPath(); ctx.arc(x + ox, y + oy, r, 0, TAU); ctx.fill(); } }
+  function lampe(x, y) { ctx.strokeStyle = L; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 22); ctx.stroke(); ctx.fillStyle = '#FFC84A'; ctx.beginPath(); ctx.moveTo(x - 16, y + 40); ctx.lineTo(x + 16, y + 40); ctx.lineTo(x + 8, y + 22); ctx.lineTo(x - 8, y + 22); ctx.closePath(); ctx.fill(); ctx.fillStyle = 'rgba(255,230,150,.35)'; ctx.beginPath(); ctx.arc(x, y + 48, 16, 0, TAU); ctx.fill(); }
+  function cadre(x, y) { ctx.fillStyle = '#fff'; rr(x - 16, y, 32, 26, 4); ctx.fill(); ctx.strokeStyle = '#C8864F'; ctx.lineWidth = 3; ctx.strokeRect(x - 16, y, 32, 26); ctx.fillStyle = '#9ED8FF'; ctx.fillRect(x - 12, y + 4, 24, 12); ctx.fillStyle = '#5FD3A4'; ctx.beginPath(); ctx.moveTo(x - 12, y + 22); ctx.lineTo(x - 2, y + 10); ctx.lineTo(x + 6, y + 18); ctx.lineTo(x + 12, y + 12); ctx.lineTo(x + 12, y + 22); ctx.closePath(); ctx.fill(); }
+  function guirlande() { ctx.strokeStyle = '#C8864F'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, 6); ctx.quadraticCurveTo(W / 2, 34, W, 6); ctx.stroke(); for (let i = 0; i < 9; i++) { const u = (i + 0.5) / 9, x = u * W, y = 6 + 4 * (1 - Math.pow(2 * u - 1, 2)) * 7; ctx.fillStyle = PASTEL[i % PASTEL.length]; ctx.beginPath(); ctx.moveTo(x - 6, y); ctx.lineTo(x + 6, y); ctx.lineTo(x, y + 12); ctx.closePath(); ctx.fill(); } }
+  function chat(x, y) { ctx.fillStyle = '#F2A65A'; rr(x - 16, y - 12, 30, 12, 6); ctx.fill(); ctx.beginPath(); ctx.arc(x + 14, y - 12, 7, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.moveTo(x + 9, y - 16); ctx.lineTo(x + 11, y - 22); ctx.lineTo(x + 14, y - 17); ctx.moveTo(x + 15, y - 17); ctx.lineTo(x + 18, y - 22); ctx.lineTo(x + 19, y - 16); ctx.fill(); ctx.strokeStyle = '#F2A65A'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - 16, y - 6); ctx.quadraticCurveTo(x - 26, y - 6, x - 24, y - 16); ctx.stroke(); ctx.fillStyle = L; ctx.fillRect(x + 11, y - 13, 2, 1.5); ctx.fillRect(x + 16, y - 13, 2, 1.5); }
 
-/* ── sheets.js ── */
-/* ŒILLETS — feuilles basses et pages (DOM) : fiche de parcelle, creuser, carnet, coopérative, retour, hivernage, garde, confirmations. */
-const SHEETS = (() => {
-  'use strict';
-  const S = SIM, t = COPY.t, pl = COPY.pl, $ = (s) => document.querySelector(s);
-  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const feuille = $('#feuille'), fc = $('#feuille-contenu'), page = $('#page'), pc = $('#page-contenu'), voile = $('#voile');
-  let onCloseSheet = null, openedAt = 0;
-
-  function openSheet(html, onClose) {
-    const prev = onCloseSheet; onCloseSheet = onClose || prev || null;
-    fc.innerHTML = html; feuille.hidden = false; voile.hidden = false; feuille.scrollTop = 0; openedAt = performance.now();
-  }
-  function closeSheet() { if (feuille.hidden) return; feuille.hidden = true; voile.hidden = true; fc.innerHTML = ''; const f = onCloseSheet; onCloseSheet = null; if (f) f(); }
-  function openPage(html) { pc.innerHTML = html; page.hidden = false; page.scrollTop = 0; }
-  function closePage() { page.hidden = true; pc.innerHTML = ''; }
-  const isOpen = () => !feuille.hidden || !page.hidden;
-  voile.addEventListener('pointerdown', (e) => { if (performance.now() - openedAt > 350) { e.preventDefault(); closeSheet(); } });
-  const on = (root, sel, fn) => root.querySelectorAll(sel).forEach((el) => el.addEventListener('click', (e) => { UI.buzz(6); fn(el, e); }));
-  const bouton = (id, txt, cls) => `<button type="button" class="btn ${cls || ''}" data-a="${id}">${txt}</button>`;
-  const typeName = (type) => t('type_' + type);
-
-  // ─── fiche de parcelle ───
-  function fiche(cell) {
-    const st = UI.st, env = UI.env, Sg = S.salinity(cell), kg = S.kgOf(cell.crust);
-    const nom = cell.type === 'vasiere' ? t('type_vasiere').toUpperCase() : `${typeName(cell.type).toUpperCase()} ${cell.num}`;
-    const alg = COPY.T.algues_etats[cell.algae < 0.15 ? 0 : cell.algae < 0.45 ? 1 : cell.algae < 0.8 ? 2 : 3];
-    let lignes = '';
-    if (cell.type === 'vasiere') lignes += ligne(t('fiche_vasiere', { cm: UI.fmt(cell.depth, 0), max: UI.fmt(S.maxDepth(st, cell), 0), etat: st.items.clapet ? t('clapet_court') : st.etierOpen ? t('etier_ouvert') : t('etier_ferme') }), st.items.clapet ? t('fiche_clapet') : '');
-    else lignes += ligne(t('fiche_niveau', { cm: UI.fmt(cell.depth, 1) }), `${UI.fmt(S.maxDepth(st, cell), 0)}\u202fcm max${st.enEau ? ' · en eau' : ''}`);
-    lignes += ligne(t('fiche_salinite', { gl: UI.fmt(Sg, 0) }), Sg >= S.P.SAT - 2 ? 'saturée' : Sg >= 220 ? 'presque' : Sg >= 150 ? 'rose' : Sg >= 80 ? 'en chemin' : 'eau jeune');
-    lignes += ligne(t('fiche_temperature', { c: UI.fmt(env.T, 0) }), t('fiche_surface', { n: S.TYPES[cell.type].area, s: pl(S.TYPES[cell.type].area) }));
-    lignes += ligne(t('fiche_argile', { pct: UI.fmt(cell.integ * 100, 0) }), cell.integ < 0.8 ? `<span style="color:var(--rouge)">${t('fiche_fissure')}</span>` : '');
-    lignes += ligne(t('fiche_algues', { etat: alg }), cell.algae >= 0.5 ? '+25 % d’évaporation' : '');
-    if (cell.type === 'oeillet') { lignes += ligne(t('fiche_sel', { kg: UI.fmt(kg, 1) }), kg > 0 ? 'glisse pour tirer' : ''); if (cell.fleur > 0.05) lignes += ligne(t('fiche_fleur', { kg: UI.fmt(cell.fleur, 2) }), st.items.lousse ? 'touche l’œillet pour écumer' : t('lousse_absente')); else if (S.salinity(cell) >= 250 && !(env.hour >= 15 && env.hour < 20)) lignes += ligne('Fleur', t('fiche_fleur_fenetre')); }
-    else if (kg > 1) lignes += ligne(t('fiche_croute', { kg: UI.fmt(kg, 0) }), '');
-    if (cell.depth <= 0.02 && cell.dryH > 0.5) lignes += ligne(t('fiche_a_sec', { h: UI.fmt(cell.dryH, 0) }), cell.dryH > S.P.CRACK_AFTER[cell.type] ? 'l’argile fissure' : `fissures après ${S.P.CRACK_AFTER[cell.type]} h`);
-    const pr = S.projection(st, env, cell);
-    let proj = '';
-    if (pr.kind === 'sature') proj = t('fiche_projection_saturation', { heure: UI.fmtHeure(UI.simNow() + pr.hours * 3.6e6) });
-    else if (pr.kind === 'sec') proj = t('fiche_projection_sec', { h: UI.fmt(pr.hours, 0) });
-    else if (pr.kind === 'tenu') proj = t('fiche_projection_stable');
-    // trappes
-    let trappes = '';
-    for (const g of S.cellGates(st, cell)) {
-      const other = g.a === cell ? g.b : g.a, open = S.gateOpen(st, g.key), fl = S.gateFlow(st, g);
-      const dir = other.type === 'vasiere' ? 'N' : other.r < cell.r ? 'N' : other.r > cell.r ? 'S' : other.c < cell.c ? 'O' : 'E';
-      const vers = other.type === 'vasiere' ? t('type_vasiere') : `${typeName(other.type)} ${other.num}`;
-      const debit = open && fl.cmH > 0 ? `${UI.fmt(Math.min(fl.cmH, 99), 1)} cm/h vers ${fl.v === cell ? 'ici' : 'l’aval'}` : open ? 'rien ne coule' : '';
-      trappes += `<li class="trappe"><span><b>${t('directions.' + dir) === 'directions.' + dir ? COPY.T.directions[dir] : ''}</b> · ${esc(vers)}<br><span class="pale">${open ? 'ouverte' : 'fermée'}${debit ? ' · ' + debit : ''}</span></span>${bouton('gate:' + g.key, open ? 'Fermer' : 'Ouvrir', 'petit ' + (open ? '' : 'jaune'))}</li>`;
-    }
-    const actions = [];
-    if (cell.type !== 'vasiere' && cell.integ < S.P.REPAIR_BELOW) actions.push(bouton('repair', t('btn_rhabiller'), st.cash >= S.P.COST.rhabillage ? 'jaune' : ''));
-    if (cell.type === 'vasiere' && !st.items.clapet) actions.push(bouton('etier', st.etierOpen ? 'Fermer l’étier' : 'Ouvrir l’étier', 'jaune'));
-    actions.push(bouton(st.enEau ? 'lever' : 'eneau', st.enEau ? t('btn_lever_eau') : t('btn_mettre_en_eau'), ''));
-    openSheet(`<p class="sur">${esc(typeName(cell.type))}${cell.type === 'oeillet' ? ' · ' + t('creuser_conseil_oeillet') : ''}</p><h2>${esc(nom)}</h2>
-      ${proj ? `<p class="ital">${esc(proj)}</p>` : ''}
-      <div>${lignes}</div>
-      ${trappes ? `<h3>Trappes</h3><ul class="liste">${trappes}</ul>` : ''}
-      <div class="rang" style="margin-top:12px">${actions.join('')}</div>${bouton('close', t('btn_fermer'), 'plein')}`, () => { UI.select(null); });
-    UI.select(cell);
-    on(fc, '[data-a]', (el) => {
-      const a = el.dataset.a;
-      if (a === 'close') closeSheet();
-      else if (a.startsWith('gate:')) { S.toggleGate(st, a.slice(5)); UI.changed(); fiche(cell); }
-      else if (a === 'repair') { const r = S.repair(st, cell); if (!r.ok) UI.flash(t('creuser_impossible_argent', { eur: UI.fmt(r.missing, 0) })); UI.changed(); fiche(cell); }
-      else if (a === 'etier') { S.toggleEtier(st); UI.changed(); fiche(cell); }
-      else if (a === 'eneau') confirm(t('mise_en_eau_confirm'), () => { S.miseEnEau(st); UI.changed(); });
-      else if (a === 'lever') confirm(t('lever_eau_confirm'), () => { S.leverEau(st); UI.changed(); });
-    });
-  }
-  const ligne = (a, b) => `<div class="ligne"><span>${a}</span><span class="pale" style="text-align:right">${b}</span></div>`;
-
-  // ─── creuser ───
-  function creuser(r, c) {
-    const st = UI.st;
-    let choix = '', sel = null;
-    for (const type of S.DIG_TYPES) {
-      const chk = S.canDig(st, r, c, type), prix = UI.fmt(chk.cost, 0);
-      const raison = chk.ok ? `<span class="pourquoi conseil">${t('creuser_conseil_' + type)}</span>`
-        : `<span class="pourquoi rouge">${chk.reason === 'argent' ? t('creuser_impossible_argent', { eur: UI.fmt(chk.missing, 0) }) : t('creuser_impossible_' + chk.reason)}</span>`;
-      choix += `<button type="button" data-type="${type}" class="${chk.ok ? '' : 'non'}"><span class="nom">${esc(typeName(type))}</span><span class="etiquette">${prix} €</span>${raison}</button>`;
-    }
-    openSheet(`<p class="sur">${t('btn_creuser')}</p><h2>${t('creuser_titre', { r, c: c + 1 })}</h2><p class="pale">${t('creuser_aide')}</p>
-      <div class="choix">${choix}</div>${bouton('dig', t('btn_confirmer'), 'plein')}${bouton('close', t('btn_annuler'), '')}`, () => { UI.selectFree(null); });
-    UI.selectFree([r, c]);
-    const digBtn = fc.querySelector('[data-a="dig"]'); digBtn.disabled = true;
-    on(fc, '[data-type]', (el) => {
-      if (el.classList.contains('non')) return;
-      fc.querySelectorAll('[data-type]').forEach((b) => b.classList.remove('actif'));
-      el.classList.add('actif'); sel = el.dataset.type; digBtn.disabled = false;
-      digBtn.textContent = `${t('btn_confirmer')} · ${esc(typeName(sel))} · ${UI.fmt(S.plotCost(st, sel), 0)} €`;
-    });
-    on(fc, '[data-a]', (el) => {
-      if (el.dataset.a === 'close') closeSheet();
-      else if (el.dataset.a === 'dig' && sel) { const res = S.dig(st, r, c, sel); if (res.ok) { UI.buzz(12); UI.changed(); closeSheet(); } else UI.flash(t('creuser_impossible_' + res.reason, { eur: UI.fmt(res.missing || 0, 0) })); }
-    });
-  }
-  function agrandir() {
-    const st = UI.st, max = st.vasEnl >= S.P.VAS_MAX, prix = UI.fmt(S.plotCost(st, 'vasiere'), 0);
-    openSheet(`<p class="sur">${t('type_vasiere')}</p><h2>Agrandir la vasière</h2>
-      <p>${max ? t('creuser_vasiere_max') : t('creuser_vasiere', { prix })}</p>
-      <p class="pale">${COPY.typo(`Vasière de ${UI.fmt(S.TYPES.vasiere.max * Math.pow(1.5, st.vasEnl), 0)} cm : le marais plein tient ${UI.fmt(S.storageDays(st), 1)} jours d’évaporation${max ? '' : `, ${UI.fmt(S.storageDays(st, st.vasEnl + 1), 1)} après agrandissement`}. Eau présente : ${UI.fmt(S.reserveDays(st), 1)} jours.`)}</p>
-      ${max ? '' : bouton('go', `Agrandir · ${prix} €`, 'plein')}${bouton('close', t('btn_annuler'), '')}`);
-    on(fc, '[data-a]', (el) => {
-      if (el.dataset.a === 'close') closeSheet();
-      else { const r = S.enlargeVasiere(st); if (r.ok) { UI.buzz(12); UI.changed(); closeSheet(); } else UI.flash(t('creuser_impossible_argent', { eur: UI.fmt(r.missing || 0, 0) })); }
-    });
-  }
-
-  // ─── confirmation ───
-  function confirm(texte, oui, labelOui, non) {
-    openSheet(`<div class="confirm"><p>${esc(texte)}</p><div class="rang">${bouton('oui', labelOui || 'Oui', 'plein')}${bouton('non', t('btn_annuler'), '')}</div></div>`);
-    on(fc, '[data-a]', (el) => { closeSheet(); if (el.dataset.a === 'oui') oui(); else if (non) non(); });
-  }
-
-  // ─── carnet ───
-  function carnet(premiere) {
-    const st = UI.st, now = UI.simNow(), env = UI.env;
-    const hts = S.nextHighTides(now, 2), A = S.tideAmp(hts[0]);
-    const etat = COPY.T.carnet_marees_etats[A > 1.0 ? 0 : A > S.P.SILL ? 1 : 2];
-    const prev = UI.forecast();
-    const day = S.seasonDay(st, now), rec = S.recordKgPerOeilletDay(st), best = Math.max(rec, ...st.records.map((r) => r.record));
-    let obs = '';
-    const list = st.carnet.slice().reverse();
-    for (const o of list.slice(0, 40)) obs += `<div class="obs ${o.season < st.seasonIndex ? 'vieille' : ''}"><small>Saison ${o.season} · jour ${o.day}</small>${esc(o.text)}</div>`;
-    let sacs = '';
-    for (const r of st.records.slice().reverse()) sacs += sac(r);
-    const dicton = COPY.DICTONS[(day + st.seasonIndex * 3) % COPY.DICTONS.length];
-    const fermer = st.phase === 'play' ? (day >= 14 ? bouton('fermer', t('btn_fermer_marais'), '') : `<p class="pale">${t('carnet_fermer_trop_tot')}</p>`) : '';
-    openPage(`<p class="sur canard">${t('carnet_saison', { n: st.seasonIndex, climat: COPY.T.climats[st.climate], jour: day })}</p><h2>${t('carnet_titre')}</h2>
-      <p class="ital">${t('carnet_titre_jour', { jour: UI.fmtJour(now), phase: UI.lune(now) })}</p>
-      ${premiere ? `<p class="ital" style="background:var(--soleil);padding:8px 10px;border:2px solid var(--encre)">${t('carnet_premiere_page', { h1: UI.fmtHeure(hts[0]), h2: UI.fmtHeure(hts[1]), prevision: prev.phrase, clapet: UI.fmt(S.P.COST.clapet, 0), prix: UI.fmt(S.plotCost(st, 'oeillet'), 0) })}</p>` : ''}
-      <p>${t('carnet_marees', { h1: UI.fmtHeure(hts[0]), h2: UI.fmtHeure(hts[1]), etat })}</p>
-      <p>${esc(prev.phrase)}</p>
-      <p>${t('carnet_reserve', { jours: UI.fmt(S.reserveDays(st), 1) })}${env.A < 0.9 ? ' <span class="pale">Mortes-eaux.</span>' : env.A > 1.2 ? ' <span class="pale">Vives-eaux.</span>' : ''}</p>
-      <p>${t('carnet_record', { kg: UI.fmt(rec, 1), best: best > 0 ? UI.fmt(best, 1) : '—' })}</p>
-      <p class="ital pale">« ${esc(dicton)} »</p>
-      ${UI.speed !== 1 ? `<p class="pale">Horloge accélérée ×${UI.speed} (test).</p>` : ''}
-      ${fermer}
-      <h3>${t('carnet_observations')}</h3>${obs || `<p class="ital pale">${t('carnet_vide')}</p>`}
-      <h3>${t('carnet_saisons_passees')}</h3>${sacs ? `<div class="sacs">${sacs}</div>` : `<p class="pale">${t('coop_mur_vide')}</p>`}
-      ${bouton('close', t('btn_retour'), 'plein')}`);
-    pc.querySelectorAll('canvas[data-rec]').forEach((cv) => { const r = st.records[+cv.dataset.rec]; if (r) RENDER.drawThumb(cv, r, S.P.COLS); });
-    on(pc, '[data-a]', (el) => {
-      if (el.dataset.a === 'close') closePage();
-      else if (el.dataset.a === 'fermer') { closePage(); confirm(t('fermer_confirm', { j: day, eur: UI.fmt(st.cash, 0) }), () => UI.startHivernage(false), t('btn_fermer_marais'), () => carnet(false)); }
-    });
-  }
-  function sac(r) {
-    const idx = UI.st.records.indexOf(r);
-    return `<div class="sac"><span>Saison ${r.season}</span><b>${UI.fmt(r.tonnes, 1)} t</b><span>${UI.fmt(r.record, 1)} kg/œ/j</span><span class="cl">${esc(COPY.T.climats[r.climate] || r.climate)}</span><canvas data-rec="${idx}" width="84" height="${Math.max(36, r.rows * 10)}" style="width:84px;margin-top:6px"></canvas></div>`;
-  }
-
-  // ─── coopérative ───
-  function coop() {
-    const st = UI.st, eurGros = st.mulon * S.P.PRICE_GROS, eurFleur = st.fleurStock * S.P.PRICE_FLEUR;
-    let items = '';
-    for (const id of ['clapet', 'barometre', 'lousse']) {
-      const owned = st.items[id], prix = S.P.COST[id];
-      items += `<li><div class="trappe"><span><b class="pochoir" style="font-size:15px">${esc(COPY.T.objets[id])}</b><br><span class="pale">${t('coop_' + id)}</span></span>
-        ${owned ? `<span class="etiquette">${t('coop_possede')}</span>` : bouton('buy:' + id, `${UI.fmt(prix, 0)} €`, 'petit ' + (st.cash >= prix ? 'jaune' : ''))}</div></li>`;
-    }
-    let sacs = '';
-    for (const r of st.records.slice().reverse()) sacs += sac(r);
-    openPage(`<p class="sur canard">Kerbrun</p><h2>${t('btn_cooperative')}</h2>
-      <p><span class="etiquette">${t('coop_etiquette')}</span></p>
-      <div style="margin:14px 0">
-        ${st.mulon > 0.05 || st.fleurStock > 0.005 ? `<p class="tampon">${t('coop_vente', { kg: UI.fmt(st.mulon, 1), eur: UI.fmt(eurGros, 2) })}</p>${st.fleurStock > 0.005 ? `<p class="tampon" style="transform:rotate(1.5deg)">${t('coop_vente_fleur', { kg: UI.fmt(st.fleurStock, 2), eur: UI.fmt(eurFleur, 2) })}</p>` : ''}
-          ${bouton('sell', `${t('btn_vendre')} · ${UI.fmt(eurGros + eurFleur, 2)} €`, 'plein')}` : `<p class="ital pale">${t('coop_vide')}</p>`}
-      </div>
-      <h3>Étagère</h3><ul class="liste">${items}<li><span class="pale">${t('coop_rhabillage')}</span></li></ul>
-      <h3>Mur des sacs</h3>${sacs ? `<div class="sacs">${sacs}</div>` : `<p class="pale">${t('coop_mur_vide')}</p>`}
-      ${bouton('close', t('btn_retour'), 'plein')}`);
-    pc.querySelectorAll('canvas[data-rec]').forEach((cv) => { const r = st.records[+cv.dataset.rec]; if (r) RENDER.drawThumb(cv, r, S.P.COLS); });
-    on(pc, '[data-a]', (el) => {
-      const a = el.dataset.a;
-      if (a === 'close') closePage();
-      else if (a === 'sell') { const r = S.sell(st); UI.buzz([10, 30, 10]); UI.onSold(r); UI.changed(); coop(); }
-      else if (a.startsWith('buy:')) { const r = S.buyItem(st, a.slice(4)); if (!r.ok) UI.flash(t('creuser_impossible_argent', { eur: UI.fmt(r.missing || 0, 0) })); else UI.buzz(12); UI.changed(); coop(); }
-    });
-  }
-
-  // ─── retour d'absence ───
-  function retour(rep) {
-    const st = UI.st;
-    const glyphes = rep.glyphs.map((g) => COPY.T.glyphes[g]).join(' ');
-    let averses = t('retour_aucune_averse');
-    if (rep.rains.length) {
-      const det = rep.rains.slice(0, 3).map((r) => t('retour_detail_pluie', { jour: UI.fmtJourCourt(r.ms), heure: UI.fmtHeure(r.ms), kg: UI.fmt(r.kg || 0, 0) })).join(' ; ');
-      averses = t('retour_averses', { n: rep.rains.length, s: pl(rep.rains.length), detail: det });
-    }
-    let corps = rep.enEau ? t('retour_en_eau') + ' ' : '';
-    corps += t('retour_corps', { n_marees: rep.tides, s1: pl(rep.tides), averses, kg: UI.fmt(rep.kgFormed, 0), fleur: UI.fmt(rep.fleur, 1) });
-    if (rep.adernePink) corps += ' ' + t('retour_ligne_aderne', { n: rep.adernePink.num });
-    if (rep.oeilletDry) corps += ' ' + t('retour_ligne_sec', { n: rep.oeilletDry.num, h: UI.fmt(rep.oeilletDry.dryH, 0) });
-    if (rep.hivernage) corps += ' ' + t('retour_hivernage', { tonnes: UI.fmt((st.stats.kgRaked + st.stats.kgFleur) / 1000, 1) });
-    openPage(`<p class="sur canard">${t('retour_titre', { jour: UI.fmtJour(rep.fromMs) + ' ' + UI.fmtHeure(rep.fromMs) })}</p><h2>Pendant ton absence</h2>
-      <p class="glyphes">${glyphes}</p><p class="ital">${esc(corps)}</p>${bouton('close', t('btn_voir_marais'), 'plein')}`);
-    on(pc, '[data-a]', () => { closePage(); if (rep.hivernage) UI.startHivernage(true); });
-  }
-
-  // ─── hivernage ───
-  function hivernagePage() {
-    const st = UI.st, ls = st.lastSeason, rec = ls.rec;
-    const perdues = ls.lost ? t('hivernage_perdues', { n: ls.lost, s: pl(ls.lost) }) : t('hivernage_aucune_perdue');
-    openPage(`<p class="sur canard">${t('carnet_saison', { n: rec.season, climat: COPY.T.climats[rec.climate], jour: Math.round((rec.endMs - rec.startMs) / 864e5) })}</p><h2>${t('hivernage_titre')}</h2>
-      <p class="ital">${t('hivernage_corps', { n: rec.season, climat: COPY.T.climats[rec.climate], tonnes: UI.fmt(rec.tonnes, 1), record: UI.fmt(rec.record, 1), perdues })}</p>
-      <p>Vendu à la coopérative : <b>${UI.fmt(rec.eur, 0)} €</b>. Tu gardes <b>${UI.fmt(st.cash, 0)} €</b>.</p>
-      <div class="sacs" style="max-width:160px">${sac(rec)}</div>
-      <p class="ital" style="margin-top:14px">${t('climat_annonce', { climat: COPY.T.climats[st.nextClimate] })} <span class="pale">${esc(COPY.T.climat_effets[st.nextClimate])}</span> La commune accorde ${st.rows - 1} rangées.</p>
-      ${bouton('go', t('rhabillage_titre'), 'plein')}`);
-    pc.querySelectorAll('canvas[data-rec]').forEach((cv) => { const r = st.records[+cv.dataset.rec]; if (r) RENDER.drawThumb(cv, r, S.P.COLS); });
-    on(pc, '[data-a]', () => { closePage(); UI.setMode('hiver'); });
-  }
-  function hiverBar() {
-    const st = UI.st, bar = $('#hiver-bar'), probs = S.winterProblems(st);
-    const types = ['cobier', 'fare', 'aderne', 'oeillet', 'vase'];
-    bar.innerHTML = `<div class="compteur">${t('rhabillage_compteur', { n: st.winterBank, s: pl(st.winterBank), rows: st.rows - 1 })}</div>
-      <div class="rang"><div class="menu-types">${types.map((ty) => `<button type="button" data-ty="${ty}" class="${UI.winterType === ty ? 'actif' : ''}">${ty === 'vase' ? 'Vase' : esc(typeName(ty))}</button>`).join('')}</div>
-      <button type="button" class="btn plein" data-a="open" ${probs.length ? 'disabled' : ''}>${t('btn_ouvrir_saison')}</button></div>
-      <p class="${probs.length ? 'rouge' : ''}" style="margin:8px 0 0">${probs.length ? t('rhabillage_probleme', { n: probs.length, s: pl(probs.length), la: probs.length > 1 ? 'les' : 'la' }) : t('rhabillage_aide')}</p>`;
-    bar.hidden = false;
-    on(bar, '[data-ty]', (el) => { UI.winterType = el.dataset.ty; hiverBar(); });
-    on(bar, '[data-a="open"]', () => { if (S.winterProblems(st).length) return; bar.hidden = true; UI.openSeasonUI(); });
-  }
-
-  // ─── page de garde ───
-  function garde(msg) {
-    const now = Date.now();
-    openPage(`<div class="garde"><div><p class="sur">Carnet de paludier · ${esc(UI.fmtJour(now))}</p><h1 class="titre">${t('titre')}</h1><p class="ital" style="font-size:22px;margin-top:8px">${t('sous_titre')}</p>${msg ? `<p class="ital pale">${esc(msg)}</p>` : ''}
-      <div class="lune-ligne"><canvas id="lune-garde" width="44" height="44" style="width:44px;height:44px"></canvas><span>lune ${UI.lune(now)} · pleine mer ${UI.fmtHeure(S.nextHighTides(now, 1)[0])}</span></div></div>
-      <div class="bas"><p class="ital">Tu es paludier. La mer monte deux fois par jour avec la vraie lune, le soleil évapore, et le sel ne vient que si tu comprends comment l’eau circule dans ton marais. Pas de multiplicateur, pas de minuteur : seulement la géométrie de tes bassins et ta lecture du ciel.</p>
-      <p class="pale">La première journée se joue en dix minutes. Ensuite, le marais vit à l’heure réelle de ton téléphone : reviens voir la mer quand elle monte.</p>
-      <button type="button" class="toucher" data-a="go">${t('garde_toucher')}</button></div></div>`);
-    const cv = $('#lune-garde'), g = cv.getContext('2d'), ph = S.moonPhase(now);
-    g.fillStyle = '#2A2B33'; g.beginPath(); g.arc(23, 23, 18, 0, Math.PI * 2); g.fill();
-    g.fillStyle = '#F7C843'; g.beginPath(); const k = Math.cos(ph * Math.PI * 2);
-    if (ph < 0.5) { g.arc(22, 22, 18, -Math.PI / 2, Math.PI / 2); g.ellipse(22, 22, Math.abs(k) * 18, 18, 0, Math.PI / 2, -Math.PI / 2, k < 0); } else { g.arc(22, 22, 18, Math.PI / 2, -Math.PI / 2); g.ellipse(22, 22, Math.abs(k) * 18, 18, 0, -Math.PI / 2, Math.PI / 2, k < 0); }
-    g.fill();
-    page.addEventListener('click', function h() { page.removeEventListener('click', h); closePage(); UI.startTutorial(); }, { once: false });
-  }
-
-  return { openSheet, closeSheet, openPage, closePage, isOpen, fiche, creuser, agrandir, confirm, carnet, coop, retour, hivernagePage, hiverBar, garde, esc };
+  return { init, resize, frame, vente, tap, fete, get clients() { return clients.length; } };
 })();
 
 /* ── ui.js ── */
-/* ŒILLETS — cœur de l'interface : état, horloge, boucle, HUD, marge et anneau, tutoriel, entrées, sauvegarde. */
+/* LE FOURNIL — interface : cartes des produits, achats, indices du tutoriel, feuilles, sons, sauvegarde, boucle. */
 const UI = (() => {
   'use strict';
-  const S = SIM, R = RENDER, t = COPY.t, pl = COPY.pl, $ = (s) => document.querySelector(s);
-  const KEY = 'oeillets.v1';
+  const G = GAME, $ = (s) => document.querySelector(s), KEY = 'fournil.v2';
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let st = null, env = null, mode = 'play', selected = null, selFree = null, ring = null, strokes = [], flood = 0;
-  let tutoVh = 6, tutoSimVh = 6, tutoEnv = null, lastFrame = 0, lastDraw = 0, dirty = true, lastSave = 0, flashUntil = 0, flashText = '', bannerUntil = 0;
-  let margeText = '', margeDicton = false, margeAction = null, speed = 1, winterType = 'oeillet', ringBtn = null, lastGridBottom = -1, corrupt = false;
-
-  // ─── formats ───
-  const fmt = (n, d = 0) => (Number.isFinite(n) ? n : 0).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
-  const fmtHeure = (ms) => new Date(ms).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
-  const fmtJour = (ms) => new Date(ms).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
-  const fmtJourCourt = (ms) => new Date(ms).toLocaleDateString('fr-FR', { weekday: 'short' });
-  const lune = (ms) => COPY.T.lunes[Math.round(S.moonPhase(ms) * 8) % 8];
-  const fmtVh = (vh) => { const h = Math.floor(vh % 24), m = Math.floor((vh % 1) * 60); return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`; };
-
-  // ─── horloge (vitesse de test via #x120) ───
-  const simNow = () => st.clock.anchorSim + (Date.now() - st.clock.anchorReal) * st.clock.speed;
-  function setSpeed(s) { const now = simNow(); st.clock = { anchorSim: now, anchorReal: Date.now(), speed: s }; speed = s; save(); }
-  function resetClock() { st.clock = { anchorSim: Date.now(), anchorReal: Date.now(), speed: 1 }; speed = 1; st.lastSimMs = Date.now(); }
+  let st, lastFrame = 0, lastSave = 0, cards = [], lastHud = '', hintStep = -1, hintUntil = 0, toastTimer = 0;
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   // ─── sauvegarde ───
-  function save() { try { st.lastSave = Date.now(); localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* stockage indisponible */ } lastSave = performance.now(); }
+  function save() { try { st.lastSeen = Date.now(); localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* stockage indisponible */ } lastSave = performance.now(); }
   function load() {
     try {
-      const raw = localStorage.getItem(KEY);
-      if (!raw) return null;
-      const s = JSON.parse(raw);
-      if (!s || s.v !== 1 || !Array.isArray(s.cells)) { corrupt = true; return null; }
-      return migrate(s);
-    } catch (e) { corrupt = true; return null; }
+      const raw = localStorage.getItem(KEY); if (!raw) return null;
+      const s = JSON.parse(raw); if (!s || s.v !== 2 || !Array.isArray(s.stations)) return null;
+      const fresh = G.newState(Date.now());
+      for (const k in fresh) if (!(k in s)) s[k] = fresh[k];
+      while (s.stations.length < G.PRODUITS.length) s.stations.push({ niv: 0, staff: false, prog: 0, actif: false });
+      return s;
+    } catch (e) { return null; }
   }
-  function migrate(s) {
-    const fresh = S.newState(Date.now());
-    for (const k in fresh) if (!(k in s)) s[k] = fresh[k];
-    for (const c of s.cells) for (const k of ['gDay', 'pinkH', 'fleur', 'dryH']) if (c[k] == null) c[k] = 0;
-    if (!s.clock || !s.clock.speed) s.clock = { anchorSim: Date.now(), anchorReal: Date.now(), speed: 1 };
-    if (s.clock.speed === 1) { s.clock.anchorSim = Date.now(); s.clock.anchorReal = Date.now(); }
-    else { s.clock.anchorReal = Date.now(); } // l'horloge accélérée reprend là où elle était
-    if (s.winterBank == null) s.winterBank = 0;
-    if (!s.tutoFlags) s.tutoFlags = {};
-    if (s.pendingHivernage == null) s.pendingHivernage = false;
-    return s;
-  }
-  function buzz(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* pas de vibreur */ } }
-  const changed = () => { dirty = true; save(); };
-  const flash = (txt, ms) => { flashText = txt; flashUntil = performance.now() + (ms || 3200); dirty = true; };
 
-  // ─── prévision 24 h (carnet, bandeau) ───
-  function forecast() {
-    const now = simNow();
-    let rainAt = null, cloudAt = null, windH = 0, fleurTonight = false;
-    for (let h = 0; h <= 24; h++) {
-      const e = S.envAt(st, now + h * 3.6e6);
-      if (e.rain > 0 && rainAt == null) rainAt = now + h * 3.6e6;
-      if (e.P < 1008 && cloudAt == null) cloudAt = now + h * 3.6e6;
-      if (e.wind > 0.6) windH++;
-      if (S.fleurOK(e) && h < 12) fleurTonight = true;
+  // ─── sons (Web Audio, sans fichier) ───
+  let actx = null;
+  function audio() { if (actx) { if (actx.state === 'suspended') actx.resume().catch(() => {}); return; } const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; try { actx = new AC(); } catch (e) { actx = null; } }
+  function beep(freq, dur, type, vol, delay) {
+    if (!actx || !st.son || actx.state !== 'running') return;
+    const t0 = actx.currentTime + (delay || 0), o = actx.createOscillator(), g = actx.createGain();
+    o.type = type || 'sine'; o.frequency.value = freq; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol || 0.08, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  const son = {
+    tap: () => beep(520, 0.08, 'triangle', 0.06),
+    vente: (m) => { const k = Math.min(6, Math.floor(Math.log10(Math.max(1, m)))); beep(660 + k * 80, 0.12, 'sine', 0.05); beep(990 + k * 80, 0.16, 'sine', 0.04, 0.06); },
+    achat: () => { beep(440, 0.1, 'triangle', 0.06); beep(660, 0.14, 'triangle', 0.06, 0.08); },
+    deblocage: () => { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.18, 'triangle', 0.07, i * 0.09)); },
+    embauche: () => { [784, 988].forEach((f, i) => beep(f, 0.2, 'sine', 0.06, i * 0.12)); },
+    non: () => beep(200, 0.12, 'square', 0.03),
+  };
+  function buzz(p) { if (!st.vibre) return; try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* pas de vibreur */ } }
+
+  // ─── cartes ───
+  function buildCards() {
+    const box = $('#cartes'); box.innerHTML = ''; cards = [];
+    G.PRODUITS.forEach((p, i) => {
+      const el = document.createElement('article'); el.className = 'carte'; el.dataset.i = i;
+      box.appendChild(el); cards.push({ el, html: '' });
+    });
+    renderCards(true);
+  }
+  function renderCards(force) {
+    G.PRODUITS.forEach((p, i) => {
+      const s = st.stations[i], c = cards[i];
+      let html, cls;
+      if (s.niv === 0) {
+        const prev = i === 0 || st.stations[i - 1].niv > 0, ok = st.coins >= p.cout;
+        cls = 'carte verrou' + (prev ? '' : ' secret');
+        html = `<div class="icone">${ICONS.PRODUITS[p.id]}</div><div class="corps"><h3>${esc(p.nom)}</h3><p>${esc(p.desc)} Rapporte ${G.fmtEur(p.rev)} la fournée.</p>
+          <button type="button" class="btn ${ok ? 'menthe' : 'non'}" data-a="debloquer"><small>Débloquer</small><b>${G.fmtEur(p.cout)}</b></button></div>`;
+      } else {
+        const n = G.quantite(st, i), prix = G.coutNiveaux(i, s.niv, n), ok = st.coins >= prix, pal = G.prochainPalier(s.niv);
+        const rapide = p.temps <= 1.5 && s.staff;
+        cls = 'carte' + (s.staff ? ' auto' : ' manuel') + (s.actif ? ' actif' : '');
+        html = `<div class="icone">${ICONS.PRODUITS[p.id]}</div>
+          <div class="corps"><h3>${esc(p.nom)} <span class="niv">Niv. ${s.niv}${pal ? ` <i>· palier ${pal}</i>` : ''}</span></h3>
+            <div class="barre"><i class="${rapide ? 'rapide' : ''}"></i><span class="rev">+${G.fmtEur(G.revenu(st, i))}</span>${s.staff || s.actif ? `<span class="tps">${G.fmtDuree(p.temps)}</span>` : '<span class="cuire">Touche !</span>'}</div></div>
+          <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'}" data-a="ameliorer"><small>Améliorer ×${n}</small><b>${G.fmtEur(prix)}</b></button>
+            ${s.staff ? `<div class="staff-ok">${ICONS.apprenti(i)}<span>${esc(p.staffNom.split(' ').pop())}<br>s’en occupe</span></div>` : `<button type="button" class="btn beurre ${st.coins >= p.staff ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${G.fmtEur(p.staff)}</b></button>`}</div>`;
+      }
+      if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); }
+      else if (c.el.className !== cls) c.el.className = cls;
+      if (c.bar && !c.bar.classList.contains('rapide')) c.bar.style.width = (s.niv > 0 && s.actif ? Math.min(100, s.prog / G.PRODUITS[i].temps * 100) : 0).toFixed(1) + '%';
+    });
+  }
+  function onCardClick(e) {
+    const art = e.target.closest('.carte'); if (!art) return;
+    const i = +art.dataset.i, btn = e.target.closest('button[data-a]');
+    audio();
+    if (btn) {
+      const a = btn.dataset.a;
+      if (a === 'debloquer' || a === 'ameliorer') {
+        const r = G.acheter(st, i);
+        if (!r.ok) { son.non(); toast(`Il manque ${G.fmtEur(r.prix - st.coins)}`); return; }
+        if (a === 'debloquer') { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`${G.PRODUITS[i].nom} : nouvelle recette !`); } else { son.achat(); buzz(8); }
+        renderCards(true); hud(); save(); return;
+      }
+      if (a === 'embaucher') {
+        const r = G.embaucher(st, i);
+        if (!r.ok) { son.non(); toast(`Il manque ${G.fmtEur(r.prix - st.coins)}`); return; }
+        son.embauche(); buzz([10, 30, 10]); toast(`${G.PRODUITS[i].staffNom} rejoint l’équipe !`);
+        renderCards(true); hud(); save(); return;
+      }
     }
-    const until = (ms) => fmtHeure(ms);
-    if (rainAt != null) return { key: 'pluie', phrase: `${COPY.T.previsions.pluie} vers ${until(rainAt)}.`, court: `pluie vers ${until(rainAt)}`, rainAt };
-    if (fleurTonight && env && env.hour < 20) return { key: 'fleur', phrase: `${COPY.T.previsions.fleur} : écume avant 20 h.`, court: 'soir à fleur' };
-    if (windH >= 6) return { key: 'vent', phrase: `${COPY.T.previsions.vent} une bonne partie de la journée.`, court: 'vent' };
-    if (cloudAt != null) return { key: 'couvert', phrase: t('carnet_prevision', { prevision: COPY.T.previsions.couvert, heure: until(cloudAt) }), court: 'couvert' };
-    return { key: 'beau', phrase: t('carnet_prevision', { prevision: COPY.T.previsions.beau, heure: until(now + 24 * 3.6e6) }), court: 'beau' };
-  }
-  function baroData() {
-    if (!env) return null;
-    if (!st.items.barometre) return { P: env.P, dP: env.dP };
-    const now = simNow(), curve = [];
-    for (let h = 0; h <= 24; h += 2) curve.push(S.pressureAt(st, now + h * 3.6e6));
-    return { curve };
+    if (st.stations[i].niv > 0 && !st.stations[i].staff) { if (G.lancer(st, i)) { son.tap(); buzz(6); SCENE.tap(); renderCards(); } }
   }
 
-  // ─── HUD ───
-  const rollers = {};
-  function roll(id, value, fmtFn) {
-    const el = $(id), r = rollers[id] || (rollers[id] = { v: value, timer: null });
-    if (r.v === value) { el.innerHTML = fmtFn(value); return; }
-    if (reduceMotion || Math.abs(value - r.v) < 0.005) { r.v = value; el.innerHTML = fmtFn(value); return; }
-    const steps = 10, d = (value - r.v) / steps; let i = 0;
-    clearInterval(r.timer);
-    r.timer = setInterval(() => { i++; r.v = i >= steps ? value : r.v + d; el.innerHTML = fmtFn(r.v); if (i >= steps) clearInterval(r.timer); }, 60);
-  }
+  // ─── en-tête ───
   function hud() {
-    if (!env) return;
-    $('#heure').textContent = st.phase === 'tuto' ? fmtVh(tutoVh) : fmtHeure(simNow());
-    const prev = st.phase === 'play' ? forecast() : null;
-    const meteo = `${fmt(env.T, 0)} °C${env.rain > 0 ? ' · pluie' : env.wind > 0.6 ? ' · vent' : ''}${prev && env.rain <= 0 ? ' · ' + prev.court : ''}`;
-    $('#meteo').textContent = meteo;
-    const ht = st.phase === 'tuto' ? null : S.nextHighTides(simNow(), 1)[0];
-    $('#maree-txt').innerHTML = st.phase === 'tuto'
-      ? `PLEINE MER <b>${tutoVh % 24 < 7 ? '07:00' : tutoVh % 24 < 19.42 ? '19:25' : '07:00'}</b>`
-      : `PLEINE MER <b>${fmtHeure(ht)}</b>`;
-    roll('#cash', st.cash, (v) => `${fmt(v, v < 100 ? 2 : 0)}<small>\u202f€</small>`);
-    const fleur = st.fleurStock > 0.005 ? ` · ${fmt(st.fleurStock, 2)} kg fleur` : '';
-    $('#mulon').innerHTML = `<b>${fmt(st.mulon, st.mulon < 10 ? 1 : 0)}</b> kg au mulon${fleur}`;
-    if (st.phase === 'tuto') $('#reserve').innerHTML = '<span class="etiquette" style="font-size:11px;padding:2px 6px">1re journée · ×144</span>';
-    else $('#reserve').textContent = t('hud_reserve', { jours: fmt(S.reserveDays(st), 1) }) + (env.A < 0.9 ? ' · mortes-eaux' : env.A > 1.2 ? ' · vives-eaux' : '');
+    const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st);
+    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}`;
+    if (key === lastHud) return; lastHud = key;
+    $('#coins').textContent = G.fmtEur(st.coins);
+    $('#taux').innerHTML = taux > 0 ? `<b>+${G.fmtEur(taux)}</b> par seconde` : 'Touche la baguette !';
+    $('#etoiles-n').textContent = gain > 0 ? `${st.etoiles} · +${gain}` : st.etoiles;
+    $('#b-etoiles').classList.toggle('pret', gain >= 3);
+    $('#b-ameliorations').classList.toggle('pret', G.AMELIORATIONS.some((a) => !st.ameliorations[a.id] && st.coins >= a.cout));
   }
-  function placeDom() {
-    const g = R.layout(st), marge = $('#marge');
-    marge.style.top = (g.gridBottom + 2) + 'px';
-    const put = (id, x, y, right) => { const el = $(id); el.style.top = y + 'px'; if (right) { el.style.right = (g.W - x) + 'px'; el.style.left = 'auto'; } else el.style.left = x + 'px'; };
-    put('#lbl-seuil', g.gauge.sillX - 5, g.gauge.y + 18, true);
-    put('#lbl-mer', g.gx - 4, g.seaY - 15);
-    put('#lbl-etier', g.etier.x - 18, g.vasY - 20, true);
-    put('#lbl-baro', g.baro.x + g.baro.w, g.baro.y + g.baro.h + 4, true);
-    lastGridBottom = g.gridBottom;
-  }
-  function baroWord() { if (!env) return ''; return st.items.barometre ? 'Baro · 24 h' : env.dP < -0.15 ? 'Baro · baisse' : env.dP > 0.15 ? 'Baro · monte' : 'Baro · stable'; }
-  const nomParcelle = (c) => COPY.T.noms_def[c.type] + (c.type === 'vasiere' ? '' : ' ' + c.num);
+  function toast(txt) { let el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); } el.textContent = txt; clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 2200); }
+  function flottant(x, y, txt) { const el = document.createElement('div'); el.className = 'flottant'; el.textContent = txt; el.style.left = x + 'px'; el.style.top = y + 'px'; document.body.appendChild(el); setTimeout(() => el.remove(), 900); }
 
-  // ─── marge et anneau : une seule action suggérée ───
-  function setMarge(txt, dicton, action) {
-    if (txt !== margeText || dicton !== margeDicton || action !== margeAction) {
-      margeText = txt; margeDicton = !!dicton; margeAction = action || null;
-      const em = $('#marge-txt'); em.textContent = dicton ? `«\u202f${txt}\u202f»` : txt; em.classList.toggle('dicton', !!dicton); em.classList.toggle('action', !!action);
-    }
+  // ─── indices : une seule consigne à la fois, qui pointe l'élément concerné ───
+  const INDICES = [
+    { txt: 'Touche la baguette pour la cuire et la vendre !', cible: () => cards[0].el.querySelector('.barre'), fini: () => st.stats.ventes >= 1 },
+    { txt: 'Avec tes euros, améliore la baguette : chaque niveau rapporte plus.', cible: () => cards[0].el.querySelector('[data-a="ameliorer"]'), pret: () => st.coins >= G.coutNiveau(0, st.stations[0].niv), fini: () => st.stations[0].niv >= 2 },
+    { txt: 'Débloque les croissants : 20 € la fournée !', cible: () => cards[1].el.querySelector('[data-a="debloquer"]'), pret: () => st.coins >= G.PRODUITS[1].cout, fini: () => st.stations[1].niv >= 1 },
+    { txt: 'Embauche Léo : il cuit les baguettes tout seul, même quand tu n’es pas là.', cible: () => cards[0].el.querySelector('[data-a="embaucher"]'), pret: () => st.coins >= G.PRODUITS[0].staff, fini: () => st.stations[0].staff },
+    { txt: 'Bravo ! Au niveau 25, 50, 100… les gains doublent. Continue d’améliorer et d’embaucher.', cible: () => null, pret: () => true, fini: () => performance.now() > hintUntil },
+  ];
+  function indices() {
+    const el = $('#indice');
+    if (st.tuto >= INDICES.length || !$('#feuille').hidden) { el.hidden = true; return; }
+    const h = INDICES[st.tuto];
+    if (h.fini()) { st.tuto++; hintUntil = performance.now() + 6000; save(); el.hidden = true; return; }
+    if (h.pret && !h.pret()) { el.hidden = true; return; }
+    if (st.tuto !== hintStep) { hintStep = st.tuto; $('#indice-txt').textContent = h.txt; if (st.tuto === 4) hintUntil = performance.now() + 6000; }
+    const cible = h.cible();
+    el.hidden = false;
+    if (!cible) { el.classList.remove('haut'); el.style.left = '50%'; el.style.transform = 'translateX(-50%)'; el.style.top = (window.innerHeight * 0.42) + 'px'; el.querySelector('.main').hidden = true; return; }
+    el.querySelector('.main').hidden = false;
+    const r = cible.getBoundingClientRect(), bw = Math.min(window.innerWidth * 0.78, 320);
+    let x = r.left + r.width / 2 - bw / 2; x = Math.max(8, Math.min(window.innerWidth - bw - 8, x));
+    el.style.left = x + 'px'; el.style.transform = 'none';
+    const hauteur = el.offsetHeight || 90;
+    if (r.bottom + hauteur + 6 < window.innerHeight - 20) { el.classList.add('haut'); el.style.top = (r.bottom + 6) + 'px'; } // de préférence sous la cible, pour ne rien cacher
+    else { el.classList.remove('haut'); el.style.top = (r.top - hauteur - 6) + 'px'; }
+    if (r.bottom < 0 || r.top > window.innerHeight) el.hidden = true;
   }
-  function margeTap() {
-    if (!margeAction) return;
-    if (margeAction === 'eneau') SHEETS.confirm(t('mise_en_eau_confirm'), () => { S.miseEnEau(st); changed(); });
-    else if (margeAction === 'lever') SHEETS.confirm(t('lever_eau_confirm'), () => { S.leverEau(st); changed(); });
-  }
-  function setRing(r) { ring = r && r.kind !== 'btn' ? r : null; const b = r && r.kind === 'btn' ? r.id : null; if (b !== ringBtn) { if (ringBtn) $('#' + ringBtn).classList.remove('anneau'); ringBtn = b; if (b) $('#' + b).classList.add('anneau'); } }
-  function suggest() {
-    const nowP = performance.now();
-    if (flashUntil > nowP) { setMarge(flashText, false); setRing(null); return; }
-    if (st.phase === 'hiver') { setMarge(t('marge_hiver'), false); setRing(null); return; }
-    if (st.phase === 'tuto') { tutorial(); return; }
-    const vas = st.cells.find((c) => c.type === 'vasiere'), oes = st.cells.filter((c) => c.type === 'oeillet');
-    const prev = forecast();
-    if (!st.items.clapet && env.h > S.P.SILL && !st.etierOpen && !st.enEau) return pick(t('marge_ouvre_etier'), { kind: 'etier' });
-    if (!st.items.clapet && env.h < S.P.SILL - 0.05 && st.etierOpen && vas.depth > 1 && !st.enEau) return pick(t('marge_ferme_etier'), { kind: 'etier' });
-    if (st.enEau && env.hour >= 6.5 && env.hour < 20) return pick(t('marge_lever'), null, false, 'lever');
-    const salted = oes.filter((c) => S.kgOf(c.crust) >= 5).sort((a, b) => b.crust - a.crust);
-    if (salted.length && prev.rainAt && prev.rainAt - simNow() < 3 * 3.6e6) return pick(t('marge_pluie_vient'), { kind: 'cell', id: salted[0].id });
-    if (salted.length && S.kgOf(salted[0].crust) >= 20) return pick(t('marge_sel', { kg: fmt(S.kgOf(salted[0].crust), 0), n: salted[0].num }), { kind: 'cell', id: salted[0].id });
-    const fl = oes.find((c) => c.fleur > 0.3);
-    if (fl && st.items.lousse && env.hour >= 15 && env.hour < 20) return pick(t('marge_fleur'), { kind: 'cell', id: fl.id });
-    if (fl && !st.items.lousse) return pick(t('marge_fleur_lousse'), { kind: 'btn', id: 'b-coop' });
-    const dry = st.cells.filter((c) => c.type !== 'vasiere' && c.depth <= 0.02 && c.dryH > S.P.CRACK_AFTER[c.type] && !st.enEau).sort((a, b) => b.dryH - a.dryH)[0];
-    if (dry) return pick(t('marge_a_sec', { nom: nomParcelle(dry), h: fmt(dry.dryH, 0) }), { kind: 'cell', id: dry.id });
-    const crusty = st.cells.find((c) => c.type !== 'vasiere' && c.type !== 'oeillet' && S.kgOf(c.crust) > 30);
-    if (crusty) return pick(t('marge_croute', { nom: nomParcelle(crusty) }), { kind: 'cell', id: crusty.id });
-    if (env.hour >= 20.5 && !st.enEau && mode === 'play') return pick(t('marge_mise_en_eau'), null, false, 'eneau');
-    if (st.mulon * S.P.PRICE_GROS + st.fleurStock * S.P.PRICE_FLEUR >= 20) return pick(t('marge_porter'), { kind: 'btn', id: 'b-coop' });
-    if (env.A < 0.95 && S.reserveDays(st) < 2) {
-      const j = daysToNeap(), jours = S.reserveDays(st);
-      return pick(j <= 0 ? t('marge_reserve_maintenant', { jours: fmt(jours, 1), s: pl(jours) }) : t('marge_reserve', { j, s_j: pl(j), jours: fmt(jours, 1), s: pl(jours) }), null);
-    }
-    if (st.cash >= 60 && S.DIG_TYPES.some((ty) => anyDig(ty))) return pick(t('marge_creuser', { eur: fmt(st.cash, 0) }), { kind: 'btn', id: 'b-creuser' });
-    const day = S.seasonDay(st, simNow()), slot = Math.floor(env.hour / 6);
-    if ((day + slot) % 3 === 0) return pick(t('marge_rien'), null);
-    return pick(COPY.DICTONS[(day * 7 + slot) % COPY.DICTONS.length], null, true);
-  }
-  function pick(txt, r, dicton, action) { setMarge(txt, dicton, action); setRing(r); }
-  function anyDig(type) { for (let r = 1; r < st.rows; r++) for (let c = 0; c < S.P.COLS; c++) if (S.canDig(st, r, c, type).ok) return true; return false; }
-  function daysToNeap() { const now = simNow(); if (S.tideAmp(now) < 0.9) return 0; for (let d = 1; d < 15; d++) if (S.tideAmp(now + d * 864e5) < 0.9) return d; return 0; }
 
-  // ─── tutoriel : première journée en accéléré ───
-  const CHAIN = ['0,0|1,3', '1,3|2,3', '2,3|3,3', '3,3|4,3'];
-  function tutorial() {
-    const vas = st.cells.find((c) => c.type === 'vasiere'), oe = st.cells.find((c) => c.type === 'oeillet'), f = st.tutoFlags;
-    const kg = S.kgOf(oe.crust), e = tutoEnv;
-    if (S.salinity(oe) >= 150 && !f.rosit) { f.rosit = true; flash(COPY.DICTONS[1]); }
-    if (e.night && tutoVh > 21.5 && tutoVh < 22 && !f.nuit) { f.nuit = true; flash(COPY.DICTONS[2]); }
-    if (tutoVh < 6.7) return pick(t('marge_eaux_vieilles'), null);
-    if (e.rain > 0 && S.gateOpen(st, '3,3|4,3') && !f.pluieFaite) return pick(t('marge_pluie'), { kind: 'gate', key: '3,3|4,3' });
-    if (e.rain > 0) f.pluieFaite = true;
-    if (st.etierOpen) f.etierOnce = true;
-    if (e.h > S.P.SILL && !st.etierOpen && !st.items.clapet) return pick(t(tutoVh > 12 ? 'marge_remonte' : 'marge_ouvre_etier'), { kind: 'etier' });
-    if (e.h < S.P.SILL - 0.02 && st.etierOpen && !st.items.clapet && vas.depth > 1) return pick(t('marge_ferme_etier'), { kind: 'etier' });
-    if (vas.depth < 1 && !st.etierOpen && !st.items.clapet && tutoVh > 9 && tutoVh < 18) return pick(t('marge_maree_ratee'), { kind: 'etier' });
-    const closed = CHAIN.find((k) => !S.gateOpen(st, k));
-    if (closed && vas.depth > 3 && tutoVh < 22) return pick(t('marge_descendre'), { kind: 'gate', key: closed });
-    if (kg >= 20 || (tutoVh >= 17 && kg >= 5)) return pick(t('marge_tirer'), { kind: 'cell', id: oe.id });
-    if (st.mulon > 0.5) return pick(t('marge_porter'), { kind: 'btn', id: 'b-coop' });
-    if (tutoVh >= 29) return pick(t('marge_fin_journee', { heure: fmtHeure(S.nextHighTides(Date.now(), 1)[0]) }), null);
-    return pick(COPY.DICTONS[tutoVh < 12 ? 0 : tutoVh < 21.5 ? 5 : 2], null, true);
+  // ─── feuilles ───
+  const feuille = $('#feuille'), fc = $('#feuille-contenu'), voile = $('#voile');
+  let openedAt = 0;
+  function openSheet(html) { fc.innerHTML = html; feuille.hidden = false; voile.hidden = false; feuille.scrollTop = 0; openedAt = performance.now(); }
+  function closeSheet() { feuille.hidden = true; voile.hidden = true; fc.innerHTML = ''; }
+  voile.addEventListener('pointerdown', (e) => { if (performance.now() - openedAt > 300) { e.preventDefault(); closeSheet(); } });
+  const on = (sel, fn) => fc.querySelectorAll(sel).forEach((b) => b.addEventListener('click', () => fn(b)));
+  function sheetAmeliorations() {
+    const items = G.AMELIORATIONS.map((a) => {
+      const fait = st.ameliorations[a.id], ok = st.coins >= a.cout;
+      return `<div class="am ${fait ? 'fait' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p></div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${G.fmtEur(a.cout)}</b></button>`}</div>`;
+    }).join('');
+    openSheet(`<h2>Améliorations</h2><p class="sous">Des recettes et des équipements qui multiplient tes gains, pour toujours.</p><div class="liste-am">${items}</div>`);
+    on('[data-id]', (b) => { const r = G.amelioration(st, b.dataset.id); if (!r.ok) { son.non(); toast(`Il manque ${G.fmtEur(G.AMELIORATIONS.find((a) => a.id === b.dataset.id).cout - st.coins)}`); return; } son.deblocage(); buzz([10, 30, 10]); toast(`${r.a.nom} : ${r.a.desc}`); renderCards(true); hud(); save(); sheetAmeliorations(); });
   }
-  function startTutorial() {
-    st.phase = 'tuto'; tutoVh = 6; tutoSimVh = 6; st.tutorialVh = 6; dirty = true; save();
+  function sheetEtoiles() {
+    const gain = G.etoilesGagnables(st), bonus = Math.round(st.etoiles * G.ETOILE_BONUS * 100);
+    openSheet(`<h2>Étoiles</h2><p class="sous">Boutique n°${st.boutiques} · ${st.etoiles} étoile${st.etoiles > 1 ? 's' : ''} · +${bonus} % sur tous les gains</p>
+      <div class="encadre doux">Ouvrir une <b>nouvelle boutique</b> remet les produits et les euros à zéro, mais tu gardes tes étoiles pour toujours. Chaque étoile : <b>+${Math.round(G.ETOILE_BONUS * 100)} %</b> de gains. Plus tu as gagné dans cette boutique, plus tu en récoltes.</div>
+      <div class="grand-nombre">+${gain} ★</div><p class="sous">à récolter maintenant (${G.fmtEur(st.lifetimeRun)} gagnés dans cette boutique)</p>
+      <button type="button" class="btn large ${gain > 0 ? 'beurre' : 'non'}" data-a="prestige"><small>${gain > 0 ? 'Repartir avec' : 'Pas encore'}</small><b>${gain > 0 ? `+${gain} étoile${gain > 1 ? 's' : ''}` : 'Vends encore un peu'}</b></button>
+      <h3 style="margin:18px 0 6px;font:700 16px/1 var(--titre)">Ta boutique</h3>
+      <div class="stat"><span>Fournées vendues</span><b>${G.fmt(st.stats.ventes)}</b></div><div class="stat"><span>Clients servis</span><b>${G.fmt(st.stats.clients)}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(st.lifetime)}</b></div>
+      <div class="ligne-reglage"><span>Vibrations</span><button type="button" class="interrupteur" role="switch" aria-checked="${st.vibre}" data-a="vibre"></button></div>
+      <button type="button" class="btn large" data-a="close" style="background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
+    on('[data-a="close"]', closeSheet);
+    on('[data-a="vibre"]', (b) => { st.vibre = !st.vibre; b.setAttribute('aria-checked', st.vibre); save(); });
+    on('[data-a="prestige"]', () => {
+      if (G.etoilesGagnables(st) <= 0) { son.non(); return; }
+      openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les améliorations achetées sont perdues.</p>
+        <button type="button" class="btn large beurre" data-a="oui"><b>Ouvrir la boutique n°${st.boutiques + 1}</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Rester ici</b></button>`);
+      on('[data-a="non"]', sheetEtoiles);
+      on('[data-a="oui"]', () => { const r = G.nouvelleBoutique(st, Date.now()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); closeSheet(); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★`); st.tuto = Math.max(st.tuto, INDICES.length); renderCards(true); hud(); save(); } });
+    });
   }
-  function endTutorial() {
-    const now = Date.now();
-    st.phase = 'play'; st.tutorialDone = true; st.tutorialEndMs = now; st.seasonStartMs = now; st.lastSimMs = now; resetClock();
-    st.carnet.push({ season: st.seasonIndex, day: 1, text: t('obs_premiere', { kg: fmt(st.stats.kgRaked, 0), eur: fmt(st.stats.eurSold, 0) }) });
-    st.lastObsDay = 1;
-    flash(t('marge_fin_journee', { heure: fmtHeure(S.nextHighTides(now, 1)[0]) }), 20000);
-    save();
-    SHEETS.carnet(true);
-  }
-  function showBanner(txt) { const b = $('#bandeau'); b.textContent = txt; b.hidden = false; b.style.whiteSpace = txt.length > 40 ? 'normal' : 'nowrap'; }
-
-  // ─── observations du carnet (une par jour au plus) ───
-  function observe(day) {
-    if (st.lastObsDay === day) return;
-    st.lastObsDay = day;
-    const snap = st.daySnap || { gLost: st.stats.gLostUpstream, gRain: st.stats.gRainRedissolved };
-    const oes = st.cells.filter((c) => c.type === 'oeillet'), ads = st.cells.filter((c) => c.type === 'aderne'), vas = st.cells.find((c) => c.type === 'vasiere');
-    const cands = [];
-    const best = oes.slice().sort((a, b) => b.gDay - a.gDay)[0];
-    if (best && S.kgOf(best.gDay) >= 5) cands.push(['obs_meilleur_oeillet', { n: best.num, kg: fmt(S.kgOf(best.gDay), 0) }]);
-    if (S.kgOf(st.stats.gRainRedissolved - snap.gRain) >= 3) cands.push(['obs_pluie', { kg: fmt(S.kgOf(st.stats.gRainRedissolved - snap.gRain), 0) }]);
-    if (S.kgOf(st.stats.gLostUpstream - snap.gLost) >= 20) cands.push(['obs_croute', { kg: fmt(S.kgOf(st.stats.gLostUpstream - snap.gLost), 0) }]);
-    const dry = oes.filter((c) => c.dryH >= 6).sort((a, b) => b.dryH - a.dryH)[0];
-    if (dry) cands.push(['obs_sec', { n: dry.num, h: fmt(dry.dryH, 0) }]);
-    if (env.A < 0.9 && vas && vas.depth < 8) cands.push(['obs_mortes_eaux', { cm: fmt(vas.depth, 0) }]);
-    const pink = ads.filter((c) => c.pinkH >= 48).sort((a, b) => b.pinkH - a.pinkH)[0];
-    if (pink) cands.push(['obs_rose', { n: pink.num, j: fmt(pink.pinkH / 24, 0) }]);
-    if (st.stats.kgFleur >= 5) cands.push(['obs_fleur', { kg: fmt(st.stats.kgFleur, 1), eur: fmt(st.stats.kgFleur * 12, 0), kg_gros: fmt(st.stats.kgFleur * 15, 0) }]);
-    if (oes.length) cands.push(['obs_ratio', { aup: S.upstreamArea(st), n: oes.length, s: pl(oes.length) }]);
-    const choice = cands.find(([k]) => !(k in st.seenObs) || day - st.seenObs[k] >= 5);
-    if (choice) { st.seenObs[choice[0]] = day; st.carnet.push({ season: st.seasonIndex, day, text: t(choice[0], choice[1]) }); if (st.carnet.length > 120) st.carnet.shift(); }
-    for (const c of oes) c.gDay = 0;
-    st.daySnap = { gLost: st.stats.gLostUpstream, gRain: st.stats.gRainRedissolved };
+  function sheetRetour(abs) {
+    const detail = abs.detail.slice().sort((a, b) => b.m - a.m).map((d) => `<li><span>${esc(G.PRODUITS[d.i].nom)} × ${G.fmt(d.n)}</span><b>${G.fmtEur(d.m)}</b></li>`).join('');
+    openSheet(`<h2>Pendant ton absence</h2><p class="sous">${G.fmtDuree(abs.secs)}${abs.secs >= G.ABSENCE_MAX_H * 3600 ? ' (les apprentis s’arrêtent après 8 h)' : ''}</p>
+      <div class="grand-nombre">+${G.fmtEur(abs.total)}</div><p class="sous">vendus par tes apprentis</p><ul class="detail">${detail}</ul>
+      <button type="button" class="btn large menthe" data-a="close"><b>Super !</b></button>`);
+    on('[data-a="close"]', closeSheet);
   }
 
   // ─── boucle ───
   function frame(now) {
-    const rdt = Math.min(0.6, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
-    if (st.phase === 'tuto') {
-      const target = Math.min(30, tutoVh + rdt * 0.04); // ×144 : 24 h simulées en 10 min réelles
-      let guard = 0;
-      while (tutoSimVh < target - 1e-9 && guard++ < 400) { // rattrape aussi un saut d'horloge (test, image en retard)
-        const d = Math.min(1 / 6, target - tutoSimVh); tutoSimVh += d;
-        tutoEnv = S.tutorialEnv(tutoSimVh, !st.tutoFlags.etierOnce && !st.etierOpen); S.step(st, tutoEnv, d);
-      }
-      tutoVh = target; st.tutorialVh = tutoVh;
-      tutoEnv = S.tutorialEnv(tutoVh, !st.tutoFlags.etierOnce && !st.etierOpen); env = tutoEnv; env.ms = Date.now();
-      dirty = true;
-      if (tutoVh >= 30) endTutorial();
-    } else if (st.phase === 'play') {
-      const simMs = simNow(), gapMs = simMs - st.lastSimMs;
-      if (gapMs > 10 * 60000) {
-        const rep = S.catchUp(st, simMs);
-        env = S.envAt(st, simNow());
-        save();
-        if (!SHEETS.isOpen() && (rep.hivernage || gapMs / st.clock.speed >= 45 * 60000)) SHEETS.retour(rep);
-        dirty = true;
-      } else if (gapMs > 0) {
-        env = S.envAt(st, simMs);
-        S.step(st, env, gapMs / 3.6e6);
-        st.lastSimMs = simMs;
-      } else env = S.envAt(st, simMs);
-      const day = S.seasonDay(st, simMs);
-      if (day !== st.lastObsDay && st.tutorialDone) observe(day);
-      if ((st.pendingHivernage || simMs >= S.seasonEndMs(st)) && !SHEETS.isOpen()) startHivernage(true);
-    } else {
-      env = S.envAt(st, simNow());
-    }
-    if (flood > 0 && flood < 0.8) { flood = Math.min(0.8, flood + rdt * 0.3); dirty = true; if (flood >= 0.8) SHEETS.hivernagePage(); }
-    for (const s of strokes) s.life -= rdt * 1.6;
-    if (strokes.length) { strokes = strokes.filter((s) => s.life > 0); dirty = true; }
-    if (bannerUntil !== Infinity && bannerUntil && now > bannerUntil) { $('#bandeau').hidden = true; bannerUntil = 0; }
-    if (flashUntil && now > flashUntil) { flashUntil = 0; dirty = true; }
-    if (R.layout(st).gridBottom !== lastGridBottom) placeDom();
-    if (dirty || now - lastDraw > (reduceMotion ? 1000 : 480)) {
-      lastDraw = now; dirty = false;
-      $('#lbl-baro').textContent = baroWord();
-      suggest();
-      R.draw(st, env, { mode, selected, selFree, ring, strokes, flood, baro: baroData(), reduceMotion, problems: mode === 'hiver' ? S.winterProblems(st) : null });
-      hud();
-    }
-    if (now - lastSave > 30000 && st.phase !== 'garde') save();
+    const dt = Math.min(0.25, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
+    const ventes = G.tick(st, dt);
+    if (ventes.length) {
+      const gros = ventes.reduce((a, v) => a + v.montant, 0);
+      const first = ventes[0];
+      if (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros)); son.vente(gros); }
+      if (!st.stations[first.i].staff) { const r = cards[first.i].el.querySelector('.barre').getBoundingClientRect(); flottant(r.left + r.width / 2 - 30, r.top - 10, '+' + G.fmtEur(first.montant)); }
+      renderCards();
+    } else renderCards();
+    hud();
+    SCENE.frame(dt, st, Date.now());
+    indices();
+    if (now - lastSave > 5000) save();
     requestAnimationFrame(frame);
   }
-
-  // ─── hivernage ───
-  function startHivernage(auto) {
-    if (st.phase !== 'play') return;
-    SHEETS.closeSheet(); SHEETS.closePage();
-    S.hivernage(st, simNow(), auto);
-    st.winterBank = 0; mode = 'play'; setRing(null);
-    flood = 0.01; dirty = true; save();
-  }
-  function setMode(m) {
-    mode = m; selected = null; selFree = null; dirty = true;
-    $('#b-creuser').classList.toggle('actif', m === 'creuser');
-    $('#barre').hidden = m === 'hiver'; $('#marge').hidden = false;
-    if (m === 'hiver') { SHEETS.hiverBar(); R.setBottomInset($('#hiver-bar').offsetHeight + 4); }
-    else { $('#hiver-bar').hidden = true; R.setBottomInset(0); }
-    placeDom();
-  }
-  function openSeasonUI() {
-    S.openSeason(st, Date.now()); resetClock(); flood = 0; setMode('play'); changed();
-    flash(t('marge_fin_journee', { heure: fmtHeure(S.nextHighTides(simNow(), 1)[0]) }), 8000);
-  }
-
-  // ─── entrées tactiles ───
-  function input() {
-    const cv = $('#marais');
-    let down = null, dragged = false, raked = new Set();
-    cv.addEventListener('pointerdown', (e) => {
-      if (SHEETS.isOpen() || st.phase === 'garde' || down || e.isPrimary === false) return;
-      down = { x: e.clientX, y: e.clientY, id: e.pointerId, hit: R.hit(st, e.clientX, e.clientY), lx: e.clientX, ly: e.clientY };
-      dragged = false; raked = new Set();
-      try { cv.setPointerCapture(e.pointerId); } catch (err) { /* capture indisponible */ }
-      e.preventDefault();
-    });
-    cv.addEventListener('pointermove', (e) => {
-      if (!down || e.pointerId !== down.id) return;
-      if (!dragged && Math.hypot(e.clientX - down.x, e.clientY - down.y) > 18) dragged = true;
-      if (dragged && mode !== 'hiver') {
-        const h = R.hit(st, e.clientX, e.clientY);
-        if (h && h.kind === 'cell' && h.cell.type === 'oeillet' && !raked.has(h.cell.id) && h.cell.crust > 0) {
-          raked.add(h.cell.id);
-          const kg = S.rakeCell(st, h.cell, env.rain > 0 ? 'p' : env.night ? 'n' : 's');
-          strokes.push({ x0: down.lx, y0: down.ly, x1: e.clientX, y1: e.clientY, life: 1 });
-          buzz(10); flash(`+${fmt(kg, 1)} kg au mulon`); changed();
-        }
-        down.lx = e.clientX; down.ly = e.clientY;
-      }
-      e.preventDefault();
-    });
-    const up = (e) => {
-      if (!down || e.pointerId !== down.id) return;
-      const h = down.hit; down = null;
-      if (dragged || !h) return;
-      tap(h);
-    };
-    cv.addEventListener('pointerup', up);
-    const cancel = (e) => { if (down && e.pointerId === down.id) down = null; };
-    cv.addEventListener('pointercancel', cancel); cv.addEventListener('lostpointercapture', cancel);
-    $('#marge-txt').addEventListener('click', margeTap);
-    cv.addEventListener('contextmenu', (e) => e.preventDefault());
-    $('#b-carnet').addEventListener('click', () => { buzz(6); if (mode === 'creuser') setMode('play'); SHEETS.carnet(false); });
-    $('#b-coop').addEventListener('click', () => { buzz(6); if (mode === 'creuser') setMode('play'); SHEETS.coop(); });
-    $('#b-creuser').addEventListener('click', () => { buzz(6); setMode(mode === 'creuser' ? 'play' : 'creuser'); if (mode === 'creuser') flash(t('creuser_aide')); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { SHEETS.closeSheet(); SHEETS.closePage(); } });
-  }
-  function tap(h) {
-    if (mode === 'hiver') {
-      if (h.kind === 'free') { if (winterType === 'vase') return; if (!S.winterSet(st, h.r, h.c, winterType)) flash('Plus de parcelle à placer : rends-en une à la vase d’abord.'); }
-      else if (h.kind === 'cell' && h.cell.type !== 'vasiere') S.winterSet(st, h.cell.r, h.cell.c, winterType === 'vase' ? null : winterType);
-      else return;
-      buzz(8); changed(); SHEETS.hiverBar(); return;
-    }
-    if (h.kind === 'etier') { if (st.items.clapet) { flash(t('marge_clapet')); return; } S.toggleEtier(st); buzz(8); changed(); return; }
-    if (h.kind === 'gate') { S.toggleGate(st, h.gate.key); buzz(8); changed(); return; }
-    if (h.kind === 'free') { if (mode === 'creuser') SHEETS.creuser(h.r, h.c); else { setMode('creuser'); SHEETS.creuser(h.r, h.c); } return; }
-    if (h.kind === 'cell') {
-      const c = h.cell;
-      if (mode === 'creuser' && c.type === 'vasiere') { SHEETS.agrandir(); return; }
-      if (c.type === 'oeillet' && c.fleur > 0.15 && st.items.lousse) { const kg = S.skimCell(st, c); buzz([8, 20, 8]); flash(`+${fmt(kg, 2)} kg de fleur`); changed(); return; }
-      if (c.type === 'oeillet' && c.fleur > 0.15 && !st.items.lousse) flash(t('lousse_absente'));
-      SHEETS.fiche(c);
-    }
+  function layout() {
+    const h = Math.max(150, Math.min(240, Math.round(window.innerHeight * 0.27)));
+    SCENE.resize(window.innerWidth, h);
   }
 
   // ─── démarrage ───
   function boot() {
-    R.init($('#marais'), $('#probe'));
     st = load();
     const fresh = !st;
-    if (fresh) st = S.newState(Date.now());
-    speed = st.clock.speed;
-    const m = /^#x(\d+)$/.exec(location.hash);
-    if (m) setSpeed(Math.max(1, Math.min(2000, +m[1])));
-    env = st.phase === 'tuto' ? S.tutorialEnv(st.tutorialVh || 6) : S.envAt(st, simNow());
-    tutoVh = st.tutorialVh || 6; tutoSimVh = tutoVh;
-    placeDom();
-    input();
-    window.addEventListener('resize', () => { R.resize(); placeDom(); dirty = true; });
-    document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else { lastFrame = performance.now(); dirty = true; } });
+    if (fresh) st = G.newState(Date.now());
+    SCENE.init($('#scene'));
+    layout();
+    buildCards();
+    document.querySelectorAll('.modes button').forEach((b) => { b.classList.toggle('actif', String(st.mode) === b.dataset.mode); b.addEventListener('click', () => { st.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; document.querySelectorAll('.modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCards(true); save(); }); });
+    $('#cartes').addEventListener('click', onCardClick);
+    $('#b-ameliorations').addEventListener('click', () => { audio(); sheetAmeliorations(); });
+    $('#b-etoiles').addEventListener('click', () => { audio(); sheetEtoiles(); });
+    $('#b-son').addEventListener('click', () => { audio(); st.son = !st.son; $('#b-son').setAttribute('aria-pressed', st.son); $('#son-on').hidden = !st.son; $('#son-off').hidden = st.son; save(); if (st.son) son.tap(); });
+    $('#son-on').hidden = !st.son; $('#son-off').hidden = st.son; $('#b-son').setAttribute('aria-pressed', st.son);
+    $('#scene').addEventListener('pointerdown', () => { audio(); SCENE.tap(); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); } });
     window.addEventListener('pagehide', save);
-    if (st.phase === 'garde') SHEETS.garde(corrupt ? t('sauvegarde_perdue') : '');
-    else if (st.phase === 'hiver') { SHEETS.hivernagePage(); flood = 0.8; }
+    window.addEventListener('resize', layout);
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
+    if (!fresh) { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) sheetRetour(abs); }
+    renderCards(true); hud();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__oeillets = { get st() { return st; }, get env() { return env; }, SIM: S, R, simNow, setSpeed, save, catchUp: (ms) => S.catchUp(st, ms), setVh: (v) => { tutoVh = v; }, startHivernage, setMode, redraw: () => { dirty = true; }, reset: () => { try { localStorage.removeItem(KEY); } catch (e) { /* rien */ } location.reload(); } };
+    window.__fournil = { get st() { return st; }, G, save, reset: () => { try { localStorage.removeItem(KEY); } catch (e) { /* rien */ } location.reload(); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n); renderCards(true); hud(); } };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);
-
-  return {
-    get st() { return st; }, get env() { return env; }, get speed() { return speed; }, get winterType() { return winterType; }, set winterType(v) { winterType = v; },
-    fmt, fmtHeure, fmtJour, fmtJourCourt, lune, simNow, save, changed, buzz, flash, forecast, resetClock, setMode, openSeasonUI, startTutorial, startHivernage, nomParcelle,
-    select(c) { selected = c; dirty = true; }, selectFree(p) { selFree = p; dirty = true; },
-    onSold(r) { if (r.eur > 0) flash(`Vendu : ${fmt(r.eur, 2)} €`); },
-  };
+  return { get st() { return st; } };
 })();
 
 </script>
