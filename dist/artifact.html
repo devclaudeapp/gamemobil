@@ -1490,7 +1490,7 @@ const UI = (() => {
     const g = R.layout(st), marge = $('#marge');
     marge.style.top = (g.gridBottom + 2) + 'px';
     const put = (id, x, y, right) => { const el = $(id); el.style.top = y + 'px'; if (right) { el.style.right = (g.W - x) + 'px'; el.style.left = 'auto'; } else el.style.left = x + 'px'; };
-    put('#lbl-seuil', g.gauge.sillX + 5, g.gauge.y + 18);
+    put('#lbl-seuil', g.gauge.sillX - 5, g.gauge.y + 18, true);
     put('#lbl-mer', g.gx - 4, g.seaY - 15);
     put('#lbl-etier', g.etier.x - 18, g.vasY - 20, true);
     put('#lbl-baro', g.baro.x + g.baro.w, g.baro.y + g.baro.h + 4, true);
