@@ -54,6 +54,44 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   for (const i of [1, 2, 3]) { await page.tap(`.carte[data-i="${i}"] [data-a="embaucher"]`); await sleep(250); }
   await sleep(1500);
   await page.screenshot({ path: out + '/05-boutique.png' });
+  // objectifs du jour : carte compacte puis feuille, on réclame une prime
+  const obj = await page.evaluate(() => ({ hidden: document.querySelector('#objectifs').hidden, txt: document.querySelector('#objectifs').innerText, n: window.__fournil.st.jour.objectifs.length }));
+  check(!obj.hidden && obj.n === 3 && /Objectifs du jour/i.test(obj.txt), 'carte des objectifs du jour : ' + obj.txt.split('\n').slice(0, 2).join(' / '));
+  await page.tap('#objectifs', { force: true }); await sleep(400); await page.screenshot({ path: out + '/05b-objectifs.png' });
+  await page.evaluate(() => { const o = window.__fournil.st.jour.objectifs[0]; o.progres = o.cible; o.fait = true; });
+  const coinsObj = await page.evaluate(() => window.__fournil.st.coins);
+  await page.tap('[data-k="0"]', { force: true }); await sleep(400);
+  const apres = await page.evaluate(() => ({ coins: window.__fournil.st.coins, reclame: window.__fournil.st.jour.objectifs[0].reclame, prime: window.__fournil.st.jour.objectifs[0].prime }));
+  check(apres.reclame && apres.coins >= coinsObj + apres.prime - 1, 'prime du premier objectif récupérée : +' + apres.prime);
+  await page.screenshot({ path: out + '/05c-objectif-recupere.png' });
+  await page.tap('[data-a="close"]'); await sleep(300);
+  // coup de feu
+  await page.evaluate(() => window.__fournil.rush()); await sleep(700);
+  const rushTxt = await page.evaluate(() => ({ hidden: document.querySelector('#evenement').hidden, txt: document.querySelector('#evenement').innerText }));
+  check(!rushTxt.hidden && /Coup de feu/.test(rushTxt.txt) && /×3/.test(rushTxt.txt), 'carte du coup de feu : ' + rushTxt.txt.replace(/\n/g, ' / '));
+  await page.screenshot({ path: out + '/05d-coup-de-feu.png' });
+  await page.evaluate(() => { window.__fournil.st.ev.fin = Date.now() - 1; }); await sleep(500);
+  check(await page.evaluate(() => document.querySelector('#evenement').hidden && !window.__fournil.st.ev), 'le coup de feu se termine et la carte disparaît');
+  // commande spéciale puis livraison
+  await page.evaluate(() => window.__fournil.commande()); await sleep(700);
+  const cmd = await page.evaluate(() => ({ txt: document.querySelector('#evenement').innerText, n: window.__fournil.st.ev.n, livrer: !!document.querySelector('[data-a="livrer"]') }));
+  check(/Commande spéciale/.test(cmd.txt) && !cmd.livrer, 'carte de la commande : ' + cmd.txt.replace(/\n/g, ' / '));
+  await page.screenshot({ path: out + '/05e-commande.png' });
+  await page.evaluate(() => { window.__fournil.st.ev.fait = window.__fournil.st.ev.n; }); await sleep(500);
+  check(await page.evaluate(() => !!document.querySelector('[data-a="livrer"]')), 'le bouton Livrer apparaît quand la commande est prête');
+  await page.screenshot({ path: out + '/05f-commande-prete.png' });
+  const coinsCmd = await page.evaluate(() => ({ c: window.__fournil.st.coins, p: window.__fournil.st.ev.prime }));
+  await page.tap('[data-a="livrer"]', { force: true }); await sleep(500);
+  const livree = await page.evaluate(() => ({ coins: window.__fournil.st.coins, ev: window.__fournil.st.ev, hidden: document.querySelector('#evenement').hidden }));
+  check(!livree.ev && livree.hidden && livree.coins >= coinsCmd.c + coinsCmd.p - 1, 'commande livrée : +' + coinsCmd.p);
+  // client mystère : il arrive, on le touche, pourboire
+  await page.evaluate(() => window.__fournil.mystere()); await sleep(4800);
+  await page.screenshot({ path: out + '/05g-client-mystere.png' });
+  const pos = await page.evaluate(() => { const r = document.querySelector('#scene').getBoundingClientRect(); return { x: r.left + r.width * 0.5, y: r.top + r.height * 0.78 - 30 }; });
+  const coinsMys = await page.evaluate(() => window.__fournil.st.coins);
+  await page.touchscreen.tap(pos.x, pos.y); await sleep(400);
+  const tip = await page.evaluate(() => window.__fournil.st.coins) - coinsMys;
+  check(tip >= 20, 'pourboire du client mystère : +' + Math.round(tip));
   // améliorations
   await page.tap('#b-ameliorations', { force: true }); await sleep(400); await page.screenshot({ path: out + '/06-ameliorations.png' });
   await page.tap('[data-id="farine"]'); await sleep(300);

@@ -19,7 +19,9 @@ const ICONS = (() => {
     const peau = PEAUX[i % PEAUX.length], haut = HAUTS[(i * 2 + 1) % HAUTS.length];
     return S(`<circle cx="24" cy="44" r="16" fill="${haut}"/><circle cx="24" cy="22" r="11" fill="${peau}" stroke="${L}" stroke-width="2"/><path d="M12 19c0-7 6-11 12-11s12 4 12 11v2H12z" fill="#fff" stroke="${L}" stroke-width="2"/><rect x="11" y="19" width="26" height="4" rx="2" fill="#fff" stroke="${L}" stroke-width="2"/><circle cx="20" cy="24" r="1.6" fill="${L}"/><circle cx="28" cy="24" r="1.6" fill="${L}"/><path d="M20 29c2 2 6 2 8 0" stroke="${L}" stroke-width="2" stroke-linecap="round" fill="none"/>`);
   }
+  const CIBLE = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#FF6B8B" stroke-width="2.5"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="#FF6B8B" stroke-width="2.5"/><circle cx="12" cy="12" r="1.5" fill="#FF6B8B"/></svg>`;
+  const FEU = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4c2 8 10 12 10 22a10 10 0 01-20 0c0-5 3-8 4-12 2 3 4 4 6 3-1-5 0-9 0-13z" fill="#FF9F4A" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/><path d="M24 22c1 4 5 6 5 10a5 5 0 01-10 0c0-3 2-4 2-7 1 1 2 1 3-3z" fill="#FFD36B"/></svg>`;
   const AMELIORATION = S(`<path d="M24 6l3.5 10.5L38 20l-10.5 3.5L24 34l-3.5-10.5L10 20l10.5-3.5z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`);
   const ETOILE = S(`<path d="M24 5l5.8 12.2 13.2 1.6-9.8 9.2 2.6 13.2L24 34.6l-11.8 6.6 2.6-13.2L5 18.8l13.2-1.6z" fill="#FFC84A" stroke="#E0A61E" stroke-width="2" stroke-linejoin="round"/>`);
-  return { PRODUITS, apprenti, AMELIORATION, ETOILE };
+  return { PRODUITS, apprenti, AMELIORATION, ETOILE, CIBLE, FEU };
 })();

@@ -138,6 +138,44 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 @keyframes monteFlotte { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-46px); opacity: 0; } }
 .toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 64px); transform: translateX(-50%); z-index: 9; padding: 10px 16px; border-radius: 999px; background: var(--texte); color: #fff;
   font: 700 14px/1.2 var(--texte-font); box-shadow: 0 6px 16px var(--ombre); white-space: nowrap; animation: monte .25s ease-out; }
+
+/* ─── objectifs du jour ─── */
+.obj { display: block; width: 100%; text-align: left; padding: 10px 12px 8px; border-radius: 20px; background: var(--carte); box-shadow: 0 6px 16px var(--ombre); margin-bottom: 10px; }
+.obj:active { transform: translateY(2px); }
+.obj.pret { outline: 3px solid var(--menthe); animation: pulse 1.2s ease-in-out infinite; }
+.obj-tete { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
+.obj-titre { display: inline-flex; align-items: center; gap: 6px; font: 700 15px/1 var(--titre); }
+.obj-titre svg { width: 18px; height: 18px; }
+.obj-compte { font: 800 12px/1 var(--texte-font); color: var(--texte-2); padding: 4px 8px; border-radius: 999px; background: var(--creme); }
+.obj.pret .obj-compte { background: var(--menthe); color: #fff; }
+.obj.complet .obj-compte { background: var(--beurre); color: var(--texte); }
+.obj-lignes { display: grid; gap: 4px; }
+.obj-ligne { position: relative; display: flex; justify-content: space-between; gap: 8px; padding: 4px 0 6px; font-size: 13px; }
+.obj-ligne span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.obj-ligne em { font-style: normal; color: var(--texte-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.obj-ligne i { position: absolute; left: 0; bottom: 0; height: 3px; border-radius: 2px; background: var(--menthe); }
+.obj-ligne.fait span { color: var(--menthe-sombre); }
+.obj-ligne.fait em { color: var(--menthe-sombre); }
+.mini { height: 6px; margin-top: 6px; border-radius: 3px; background: var(--creme); overflow: hidden; }
+.mini i { display: block; height: 100%; background: var(--menthe); }
+.marche { display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 800 11px/1.3 var(--texte-font); }
+.lien { display: block; width: 100%; margin-top: 14px; text-align: center; font: 700 13px/1.2 var(--texte-font); color: var(--texte-2); text-decoration: underline; min-height: 40px; }
+
+/* ─── événements ─── */
+#evenement { margin-bottom: 10px; }
+.ev { position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px 14px; border-radius: 20px; overflow: hidden; color: #fff; }
+.ev.rush { background: linear-gradient(135deg, #FF6B8B, #FF9A62); box-shadow: 0 6px 16px rgba(255, 107, 139, .35); }
+.ev.commande { background: linear-gradient(135deg, #B8A6FF, #8FB8FF); box-shadow: 0 6px 16px rgba(184, 166, 255, .4); }
+.ev.commande.prete { background: linear-gradient(135deg, #5FD3A4, #8FE3C2); }
+.ev > svg { width: 44px; height: 44px; }
+.ev.commande > svg { background: #fff; border-radius: 14px; padding: 4px; }
+.ev-txt { display: grid; gap: 2px; min-width: 0; }
+.ev-txt b { font: 700 16px/1.1 var(--titre); }
+.ev-txt span { font-size: 13px; line-height: 1.3; }
+.ev-txt span b { font-size: 13px; font-family: var(--texte-font); font-weight: 800; }
+.ev-chrono { font: 700 22px/1 var(--titre); font-variant-numeric: tabular-nums; }
+.ev .btn { min-width: 96px; }
+.ev-barre { position: absolute; left: 0; bottom: 0; height: 5px; background: rgba(255, 255, 255, .7); border-radius: 0 3px 3px 0; transition: width .5s linear; }
 </style>
 <div id="probe" aria-hidden="true"></div>
 <header id="haut">
@@ -158,6 +196,8 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     </div>
     <button id="b-ameliorations" class="btn-am" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.8 5.6L19.5 9l-5.7 1.4L12 16l-1.8-5.6L4.5 9l5.7-1.4z" fill="#fff"/><path d="M19 15l.9 2.6 2.6.9-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9z" fill="#fff"/></svg>Bonus</button>
   </div>
+  <div id="evenement" hidden></div>
+  <button id="objectifs" class="obj" type="button" aria-label="Objectifs du jour"></button>
   <div id="cartes"></div>
 </main>
 <div id="indice" hidden><div class="bulle"><span id="indice-txt"></span></div><svg class="main" viewBox="0 0 36 36" aria-hidden="true"><path d="M14 33c-3 0-5-2-6-5l-3-8c-.5-1.4.3-2.7 1.6-3 1.1-.3 2.2.3 2.7 1.3l1.7 3.4V8.5c0-1.4 1.1-2.5 2.5-2.5S16 7.1 16 8.5V18h1v-8c0-1.4 1.1-2.5 2.5-2.5S22 8.6 22 10v8h1v-6c0-1.4 1.1-2.5 2.5-2.5S28 10.6 28 12v6h1v-3c0-1.4 1.1-2.5 2.5-2.5S34 13.6 34 15v9c0 5-4 9-9 9z" fill="#FFD7B5" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/></svg></div>
@@ -166,7 +206,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 
 <script>
 /* ── game.js ── */
-/* LE FOURNIL — économie, état, sauvegarde, absence, étoiles. Aucune dépendance au DOM : tourne aussi dans Node. */
+/* LE FOURNIL — économie, état, absence, étoiles, objectifs du jour, événements. Aucune dépendance au DOM : tourne aussi dans Node. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.GAME = factory();
@@ -175,17 +215,16 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 
   // ─── les produits, dans l'ordre où on les débloque ───
   const PRODUITS = [
-    { id: 'baguette', nom: 'Baguette', cout: 4, rev: 1, temps: 1, croiss: 1.07, staff: 1000, staffNom: 'Apprenti Léo', desc: 'Croustillante, chaude, la base.' },
-    { id: 'croissant', nom: 'Croissant', cout: 60, rev: 20, temps: 3, croiss: 1.15, staff: 15000, staffNom: 'Apprentie Inès', desc: 'Pur beurre, feuilleté.' },
-    { id: 'painchoc', nom: 'Pain au chocolat', cout: 720, rev: 150, temps: 6, croiss: 1.14, staff: 100000, staffNom: 'Mitron Sami', desc: 'Deux barres, pas une.' },
-    { id: 'tarte', nom: 'Tarte aux pommes', cout: 8640, rev: 1200, temps: 12, croiss: 1.13, staff: 500000, staffNom: 'Pâtissière Rose', desc: 'La recette de mamie.' },
-    { id: 'eclair', nom: 'Éclair au café', cout: 103680, rev: 10000, temps: 24, croiss: 1.12, staff: 1.2e6, staffNom: 'Pâtissier Malik', desc: 'Glacé, fondant, parfait.' },
-    { id: 'macaron', nom: 'Macarons', cout: 1.24e6, rev: 90000, temps: 96, croiss: 1.11, staff: 1e7, staffNom: 'Cheffe Agathe', desc: 'Six parfums, zéro regret.' },
-    { id: 'millefeuille', nom: 'Mille-feuille', cout: 1.5e7, rev: 8e5, temps: 384, croiss: 1.1, staff: 1.11e8, staffNom: 'Chef Augustin', desc: 'Mille, on a compté.' },
-    { id: 'piece', nom: 'Pièce montée', cout: 1.8e8, rev: 7e6, temps: 1536, croiss: 1.09, staff: 5.55e8, staffNom: 'Maître Paulin', desc: 'Pour les grands jours.' },
+    { id: 'baguette', pl: 'baguettes', nom: 'Baguette', cout: 4, rev: 1, temps: 1, croiss: 1.07, staff: 1000, staffNom: 'Apprenti Léo', desc: 'Croustillante, chaude, la base.' },
+    { id: 'croissant', pl: 'croissants', nom: 'Croissant', cout: 60, rev: 20, temps: 3, croiss: 1.15, staff: 15000, staffNom: 'Apprentie Inès', desc: 'Pur beurre, feuilleté.' },
+    { id: 'painchoc', pl: 'pains au chocolat', nom: 'Pain au chocolat', cout: 720, rev: 150, temps: 6, croiss: 1.14, staff: 100000, staffNom: 'Mitron Sami', desc: 'Deux barres, pas une.' },
+    { id: 'tarte', pl: 'tartes aux pommes', nom: 'Tarte aux pommes', cout: 8640, rev: 1200, temps: 12, croiss: 1.13, staff: 500000, staffNom: 'Pâtissière Rose', desc: 'La recette de mamie.' },
+    { id: 'eclair', pl: 'éclairs au café', nom: 'Éclair au café', cout: 103680, rev: 10000, temps: 24, croiss: 1.12, staff: 1.2e6, staffNom: 'Pâtissier Malik', desc: 'Glacé, fondant, parfait.' },
+    { id: 'macaron', pl: 'macarons', nom: 'Macarons', cout: 1.24e6, rev: 90000, temps: 96, croiss: 1.11, staff: 1e7, staffNom: 'Cheffe Agathe', desc: 'Six parfums, zéro regret.' },
+    { id: 'millefeuille', pl: 'mille-feuilles', nom: 'Mille-feuille', cout: 1.5e7, rev: 8e5, temps: 384, croiss: 1.1, staff: 1.11e8, staffNom: 'Chef Augustin', desc: 'Mille, on a compté.' },
+    { id: 'piece', pl: 'pièces montées', nom: 'Pièce montée', cout: 1.8e8, rev: 7e6, temps: 1536, croiss: 1.09, staff: 5.55e8, staffNom: 'Maître Paulin', desc: 'Pour les grands jours.' },
   ];
   const PALIERS = [25, 50, 100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
-  // ─── améliorations : une seule fois chacune ───
   const AMELIORATIONS = [
     { id: 'farine', nom: 'Farine de tradition', cout: 25000, cible: ['baguette'], mult: 3, desc: 'Baguettes ×3' },
     { id: 'beurre', nom: 'Beurre AOP', cout: 300000, cible: ['croissant'], mult: 3, desc: 'Croissants ×3' },
@@ -204,16 +243,29 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
   ];
   const ETOILE_BONUS = 0.05;     // +5 % par étoile, pour toujours
   const ABSENCE_MAX_H = 8;       // les apprentis travaillent 8 h au plus pendant une absence
+  const RUSH = { duree: 60, mult: 3 };          // coup de feu : toutes les ventes ×3 pendant 60 s
+  const COMMANDE = { duree: 180, prime: 6 };    // commande spéciale : N fournées en 3 min, payées 6 fois le prix
+  const MARCHE_MULT = 1.5;                      // jour de marché (samedi, dimanche) : ×1,5
 
   // ─── état ───
+  function stationsNeuves() { return PRODUITS.map((p, i) => ({ niv: i === 0 ? 1 : 0, staff: false, prog: 0, actif: false })); }
   function newState(nowMs) {
     return {
       v: 2, coins: 0, lifetime: 0, lifetimeRun: 0, etoiles: 0, boutiques: 1,
-      stations: PRODUITS.map((p, i) => ({ niv: i === 0 ? 1 : 0, staff: false, prog: 0, actif: false })), // on commence avec une fournée de baguettes
-      ameliorations: {}, tuto: 0, lastSeen: nowMs, created: nowMs, son: true, vibre: true, mode: 1,
+      stations: stationsNeuves(), ameliorations: {}, tuto: 0, lastSeen: nowMs, created: nowMs, son: true, vibre: true, mode: 1, now: nowMs,
       stats: { taps: 0, ventes: 0, clients: 0 },
+      jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 240, boost: null, mystereTimer: 150, carnetEv: [],
     };
   }
+
+  // ─── temps, hasard déterministe ───
+  const dayKey = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  const hier = (ms) => dayKey(ms - 864e5);
+  function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+  function mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  const jourDeMarche = (ms) => { const d = new Date(ms).getDay(); return d === 0 || d === 6; };
+  const heureDePointe = (ms) => { const h = new Date(ms).getHours(); return (h >= 7 && h < 9) || (h >= 12 && h < 14) || (h >= 17 && h < 19); };
+  function arrondi(n) { if (n < 10) return Math.max(1, Math.round(n)); const p = Math.pow(10, Math.floor(Math.log10(n)) - 1); return Math.round(n / p) * p; }
 
   // ─── calculs ───
   const palierMult = (niv) => Math.pow(2, PALIERS.filter((p) => niv >= p).length);
@@ -224,67 +276,136 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     return m;
   }
   const etoileMult = (st) => 1 + st.etoiles * ETOILE_BONUS;
-  function revenu(st, i) { // par fournée
-    const s = st.stations[i];
-    if (s.niv <= 0) return 0;
-    return PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st);
+  function boostMult(st) { // événements et bonus temporaires, à l'instant st.now
+    let m = 1;
+    if (st.ev && st.ev.type === 'rush' && st.ev.fin > st.now) m *= RUSH.mult;
+    if (st.boost && st.boost.fin > st.now) m *= st.boost.mult;
+    if (jourDeMarche(st.now)) m *= MARCHE_MULT;
+    return m;
   }
-  const coutNiveau = (i, niv) => PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv); // prix du niveau niv+1
+  function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st); }
+  function revenu(st, i) { return revenuBase(st, i) * boostMult(st); } // par fournée, maintenant
+  const coutNiveau = (i, niv) => PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv);
   function coutNiveaux(i, niv, n) { const r = PRODUITS[i].croiss; return PRODUITS[i].cout * Math.pow(r, niv) * (Math.pow(r, n) - 1) / (r - 1); }
-  function maxNiveaux(i, niv, coins) {
-    const r = PRODUITS[i].croiss, a = PRODUITS[i].cout * Math.pow(r, niv);
-    if (coins < a) return 0;
-    return Math.floor(Math.log(coins * (r - 1) / a + 1) / Math.log(r));
-  }
-  function quantite(st, i) { // combien de niveaux pour le mode d'achat courant
+  function maxNiveaux(i, niv, coins) { const r = PRODUITS[i].croiss, a = PRODUITS[i].cout * Math.pow(r, niv); if (coins < a) return 0; return Math.floor(Math.log(coins * (r - 1) / a + 1) / Math.log(r)); }
+  function quantite(st, i) {
     const s = st.stations[i];
-    if (s.niv === 0) return 1; // débloquer = toujours un seul niveau
+    if (s.niv === 0) return 1;
     if (st.mode === 'max') return Math.max(1, maxNiveaux(i, s.niv, st.coins));
     return st.mode;
   }
   function tauxParSeconde(st) { let t = 0; st.stations.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenu(st, i) / PRODUITS[i].temps; }); return t; }
+  function tauxBase(st) { let t = 0; st.stations.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenuBase(st, i) / PRODUITS[i].temps; }); return t; }
+  // rythme de référence pour calibrer objectifs et primes : les apprentis, sinon la première fournée à la main
+  function rythme(st) { const t = tauxBase(st); if (t > 0) return t; let best = 0; st.stations.forEach((s, i) => { if (s.niv > 0) best = Math.max(best, revenuBase(st, i) / Math.max(1, PRODUITS[i].temps) * 0.5); }); return Math.max(0.5, best); }
   function etoilesPour(lifetimeRun) { return Math.floor(Math.sqrt(Math.max(0, lifetimeRun) / 8e6)); }
-  const etoilesGagnables = (st) => Math.max(0, etoilesPour(st.lifetimeRun) - etoilesPour(st.lifetimeRunDebut || 0));
+  const etoilesGagnables = (st) => Math.max(0, etoilesPour(st.lifetimeRun));
+
+  // ─── objectifs du jour : trois par jour, tirés de la date, calibrés sur ta boutique ───
+  const TYPES_OBJ = {
+    gagner: (st, r) => ({ cible: arrondi(Math.max(50, r * 900)), txt: (c) => `Gagne ${fmtEur(c)}` }),
+    vendre: (st, r, rnd) => { const idx = st.stations.map((s, i) => i).filter((i) => st.stations[i].niv > 0); const i = idx[Math.floor(rnd() * idx.length)]; const s = st.stations[i]; const n = Math.max(5, Math.min(s.staff ? 2000 : 40, arrondi(1200 / PRODUITS[i].temps * (s.staff ? 1 : 0.4)))); return { i, cible: n, txt: (c) => `Vends ${fmt(c)} fournées de ${PRODUITS[i].pl}` }; },
+    niveaux: (st) => ({ cible: Math.min(80, 10 + 5 * st.stations.filter((s) => s.niv > 0).length), txt: (c) => `Achète ${c} niveaux` }),
+    clients: () => ({ cible: 30, txt: (c) => `Sers ${c} clients` }),
+    mains: (st) => (st.stations.some((s) => s.niv > 0 && !s.staff) ? { cible: 25, txt: (c) => `Cuis ${c} fournées à la main` } : null),
+    embaucher: (st) => (st.stations.some((s) => s.niv > 0 && !s.staff) ? { cible: 1, txt: () => 'Embauche un apprenti' } : null),
+    bonus: (st, r) => (AMELIORATIONS.some((a) => !st.ameliorations[a.id] && a.cout < st.coins + r * 3600) ? { cible: 1, txt: () => 'Achète un bonus' } : null),
+    recette: (st, r) => { const i = st.stations.findIndex((s) => s.niv === 0); return i > 0 && PRODUITS[i].cout < st.coins + r * 3600 ? { cible: 1, txt: () => `Débloque : ${PRODUITS[i].nom}` } : null; },
+  };
+  function objectifsDuJour(st, nowMs) {
+    const key = dayKey(nowMs);
+    if (st.jour && st.jour.date === key) return st.jour;
+    const rnd = mulberry32(hashStr(key + ':' + st.boutiques + ':' + st.created)), r = rythme(st);
+    const choix = ['gagner'], pool = ['vendre', 'niveaux', 'clients', 'mains', 'embaucher', 'bonus', 'recette'];
+    while (choix.length < 3 && pool.length) { const k = pool.splice(Math.floor(rnd() * pool.length), 1)[0]; if (TYPES_OBJ[k](st, r, rnd)) choix.push(k); }
+    const objectifs = choix.map((type) => { const o = TYPES_OBJ[type](st, r, rnd); return { type, i: o.i, cible: o.cible, txt: o.txt(o.cible), progres: 0, fait: false, reclame: false, prime: arrondi(Math.max(40, r * 600)) }; });
+    st.jour = { date: key, objectifs, etoileDonnee: false };
+    return st.jour;
+  }
+  function noter(st, type, n, i) {
+    if (!st.jour) return;
+    for (const o of st.jour.objectifs) {
+      if (o.fait || o.type !== type) continue;
+      if (type === 'vendre' && o.i !== i) continue;
+      o.progres = Math.min(o.cible, o.progres + n);
+      if (o.progres >= o.cible) o.fait = true;
+    }
+  }
+  function reclamer(st, k) {
+    const o = st.jour && st.jour.objectifs[k];
+    if (!o || !o.fait || o.reclame) return { ok: false };
+    o.reclame = true; gagner(st, o.prime, true);
+    let etoile = false;
+    if (st.jour.objectifs.every((x) => x.reclame) && !st.jour.etoileDonnee) {
+      st.jour.etoileDonnee = true; st.etoiles++; etoile = true;
+      st.serie = st.dernierJourComplet === hier(st.now) ? st.serie + 1 : 1; st.dernierJourComplet = st.jour.date;
+    }
+    return { ok: true, prime: o.prime, etoile };
+  }
+  const serieEnCours = (st) => (st.dernierJourComplet === dayKey(st.now) || st.dernierJourComplet === hier(st.now)) ? st.serie : 0;
+
+  // ─── événements ───
+  function lancerRush(st) { st.ev = { type: 'rush', debut: st.now, fin: st.now + RUSH.duree * 1000 }; return st.ev; }
+  function lancerCommande(st, rnd) {
+    const idx = st.stations.map((s, i) => i).filter((i) => st.stations[i].niv > 0 && PRODUITS[i].temps <= 60);
+    if (!idx.length) return lancerRush(st);
+    const i = idx[Math.floor(rnd() * idx.length)], s = st.stations[i];
+    const n = Math.max(3, Math.min(s.staff ? 500 : 30, arrondi(COMMANDE.duree / PRODUITS[i].temps * (s.staff ? 0.7 : 0.35))));
+    st.ev = { type: 'commande', i, n, fait: 0, debut: st.now, fin: st.now + COMMANDE.duree * 1000, prime: arrondi(revenuBase(st, i) * n * COMMANDE.prime), livree: false };
+    return st.ev;
+  }
+  function livrer(st) {
+    const ev = st.ev;
+    if (!ev || ev.type !== 'commande' || ev.fait < ev.n || ev.livree) return { ok: false };
+    ev.livree = true; gagner(st, ev.prime, true); st.carnetEv.push({ t: st.now, txt: `Commande livrée : ${fmtEur(ev.prime)}` }); if (st.carnetEv.length > 20) st.carnetEv.shift();
+    st.ev = null;
+    return { ok: true, prime: ev.prime };
+  }
+  const pourboire = (st) => arrondi(Math.max(20, rythme(st) * 120));
+  function donnerBoost(st, mult, secs) { st.boost = { mult, fin: st.now + secs * 1000 }; }
 
   // ─── actions ───
-  function gagner(st, montant) { st.coins += montant; st.lifetime += montant; st.lifetimeRun += montant; }
+  function gagner(st, montant, horsObjectif) { st.coins += montant; st.lifetime += montant; st.lifetimeRun += montant; if (!horsObjectif) noter(st, 'gagner', montant); }
   function acheter(st, i) {
     const s = st.stations[i], n = quantite(st, i), prix = coutNiveaux(i, s.niv, n);
     if (st.coins < prix) return { ok: false, prix };
-    st.coins -= prix; s.niv += n;
+    st.coins -= prix;
+    if (s.niv === 0) noter(st, 'recette', 1); else noter(st, 'niveaux', n);
+    s.niv += n;
     return { ok: true, n, prix };
   }
   function embaucher(st, i) {
     const s = st.stations[i], prix = PRODUITS[i].staff;
     if (s.staff || s.niv <= 0 || st.coins < prix) return { ok: false, prix };
-    st.coins -= prix; s.staff = true; s.actif = true;
+    st.coins -= prix; s.staff = true; s.actif = true; noter(st, 'embaucher', 1);
     return { ok: true };
   }
-  function lancer(st, i) { // touche sur un produit sans apprenti
+  function lancer(st, i) {
     const s = st.stations[i];
     if (s.niv <= 0 || s.actif) return false;
-    s.actif = true; s.prog = 0; st.stats.taps++;
+    s.actif = true; s.prog = 0; st.stats.taps++; noter(st, 'mains', 1);
     return true;
   }
   function amelioration(st, id) {
     const a = AMELIORATIONS.find((x) => x.id === id);
     if (!a || st.ameliorations[id] || st.coins < a.cout) return { ok: false };
-    st.coins -= a.cout; st.ameliorations[id] = true;
+    st.coins -= a.cout; st.ameliorations[id] = true; noter(st, 'bonus', 1);
     return { ok: true, a };
   }
   function nouvelleBoutique(st, nowMs) {
     const gain = etoilesGagnables(st);
     if (gain <= 0) return { ok: false };
     st.etoiles += gain; st.boutiques++;
-    st.coins = 0; st.lifetimeRun = 0; st.lifetimeRunDebut = 0; st.ameliorations = {};
-    st.stations = PRODUITS.map((p, i) => ({ niv: i === 0 ? 1 : 0, staff: false, prog: 0, actif: false }));
+    st.coins = 0; st.lifetimeRun = 0; st.ameliorations = {}; st.stations = stationsNeuves(); st.ev = null; st.boost = null;
     st.lastSeen = nowMs;
     return { ok: true, gain };
   }
 
-  // ─── un pas de jeu ; rend les ventes réalisées [{i, montant}] ───
-  function tick(st, dt) {
-    const ventes = [];
+  // ─── un pas de jeu ; rend {ventes, nouvelEv, finEv, mystere} ───
+  function tick(st, dt, nowMs, rnd) {
+    st.now = nowMs; rnd = rnd || Math.random;
+    const out = { ventes: [], nouvelEv: null, finEv: null, mystere: false };
+    objectifsDuJour(st, nowMs);
     st.stations.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
       const T = PRODUITS[i].temps;
@@ -293,13 +414,28 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
       let n = Math.floor(s.prog / T);
       if (!s.staff) { n = 1; s.prog = 0; s.actif = false; } else s.prog -= n * T;
       const montant = revenu(st, i) * n;
-      gagner(st, montant); st.stats.ventes += n;
-      ventes.push({ i, montant, n });
+      gagner(st, montant); st.stats.ventes += n; noter(st, 'vendre', n, i);
+      if (st.ev && st.ev.type === 'commande' && st.ev.i === i) st.ev.fait = Math.min(st.ev.n, st.ev.fait + n);
+      out.ventes.push({ i, montant, n });
     });
-    return ventes;
+    // événements : un toutes les 4 à 8 minutes de jeu actif, coup de feu plus probable aux heures de pointe
+    if (st.ev && st.ev.fin <= nowMs && !(st.ev.type === 'commande' && st.ev.fait >= st.ev.n)) { out.finEv = st.ev; st.ev = null; }
+    if (!st.ev) {
+      st.evTimer -= dt;
+      if (st.evTimer <= 0) {
+        st.evTimer = 240 + rnd() * 240;
+        const pRush = heureDePointe(nowMs) ? 0.7 : 0.45;
+        out.nouvelEv = rnd() < pRush || st.stations.filter((s) => s.niv > 0).length < 2 ? lancerRush(st) : lancerCommande(st, rnd);
+      }
+    }
+    if (st.boost && st.boost.fin <= nowMs) st.boost = null;
+    st.mystereTimer -= dt;
+    if (st.mystereTimer <= 0) { st.mystereTimer = 150 + rnd() * 200; out.mystere = true; }
+    return out;
   }
-  // ─── absence : les apprentis ont travaillé (8 h au plus), les fournées en cours se terminent ───
+  // ─── absence : les apprentis ont travaillé (8 h au plus), les fournées en cours se terminent ; pas d'événement sans toi ───
   function absence(st, nowMs) {
+    st.now = nowMs; st.ev = null; st.boost = null;
     const secs = Math.min(ABSENCE_MAX_H * 3600, Math.max(0, (nowMs - st.lastSeen) / 1000));
     let total = 0; const detail = [];
     st.stations.forEach((s, i) => {
@@ -312,7 +448,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
       } else if (s.prog + secs >= T) { const m = revenu(st, i); total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; st.stats.ventes++; }
       else s.prog += secs;
     });
-    if (total > 0) gagner(st, total);
+    if (total > 0) gagner(st, total, true);
     st.lastSeen = nowMs;
     return { secs, total, detail };
   }
@@ -330,8 +466,12 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
   }
   const fmtEur = (n) => fmt(n) + ' €';
   function fmtDuree(s) { if (s < 60) return Math.round(s) + ' s'; if (s < 3600) return Math.round(s / 60) + ' min'; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; }
+  const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
-  return { PRODUITS, PALIERS, AMELIORATIONS, ETOILE_BONUS, ABSENCE_MAX_H, newState, palierMult, prochainPalier, ameliorationMult, etoileMult, revenu, coutNiveau, coutNiveaux, maxNiveaux, quantite, tauxParSeconde, etoilesPour, etoilesGagnables, gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree };
+  return { PRODUITS, PALIERS, AMELIORATIONS, ETOILE_BONUS, ABSENCE_MAX_H, RUSH, COMMANDE, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
+    palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, coutNiveau, coutNiveaux, maxNiveaux, quantite, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
+    objectifsDuJour, noter, reclamer, serieEnCours, lancerRush, lancerCommande, livrer, pourboire, donnerBoost,
+    gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono };
 });
 
 /* ── icons.js ── */
@@ -356,20 +496,22 @@ const ICONS = (() => {
     const peau = PEAUX[i % PEAUX.length], haut = HAUTS[(i * 2 + 1) % HAUTS.length];
     return S(`<circle cx="24" cy="44" r="16" fill="${haut}"/><circle cx="24" cy="22" r="11" fill="${peau}" stroke="${L}" stroke-width="2"/><path d="M12 19c0-7 6-11 12-11s12 4 12 11v2H12z" fill="#fff" stroke="${L}" stroke-width="2"/><rect x="11" y="19" width="26" height="4" rx="2" fill="#fff" stroke="${L}" stroke-width="2"/><circle cx="20" cy="24" r="1.6" fill="${L}"/><circle cx="28" cy="24" r="1.6" fill="${L}"/><path d="M20 29c2 2 6 2 8 0" stroke="${L}" stroke-width="2" stroke-linecap="round" fill="none"/>`);
   }
+  const CIBLE = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#FF6B8B" stroke-width="2.5"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="#FF6B8B" stroke-width="2.5"/><circle cx="12" cy="12" r="1.5" fill="#FF6B8B"/></svg>`;
+  const FEU = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4c2 8 10 12 10 22a10 10 0 01-20 0c0-5 3-8 4-12 2 3 4 4 6 3-1-5 0-9 0-13z" fill="#FF9F4A" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/><path d="M24 22c1 4 5 6 5 10a5 5 0 01-10 0c0-3 2-4 2-7 1 1 2 1 3-3z" fill="#FFD36B"/></svg>`;
   const AMELIORATION = S(`<path d="M24 6l3.5 10.5L38 20l-10.5 3.5L24 34l-3.5-10.5L10 20l10.5-3.5z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`);
   const ETOILE = S(`<path d="M24 5l5.8 12.2 13.2 1.6-9.8 9.2 2.6 13.2L24 34.6l-11.8 6.6 2.6-13.2L5 18.8l13.2-1.6z" fill="#FFC84A" stroke="#E0A61E" stroke-width="2" stroke-linejoin="round"/>`);
-  return { PRODUITS, apprenti, AMELIORATION, ETOILE };
+  return { PRODUITS, apprenti, AMELIORATION, ETOILE, CIBLE, FEU };
 })();
 
 /* ── scene.js ── */
-/* LE FOURNIL — la boutique en Canvas 2D : vitrine, boulanger, clients qui entrent et repartent, lumière du jour selon l'heure réelle. */
+/* LE FOURNIL — la boutique en Canvas 2D : vitrine, boulanger, clients, coup de feu, client mystère, lumière du jour selon l'heure réelle. */
 const SCENE = (() => {
   'use strict';
   const G = GAME;
   let cv, ctx, W = 1, H = 1, DPR = 1;
   const TAU = Math.PI * 2;
   const clients = [], textes = [], vapeurs = [];
-  let hop = 0, blink = 0, nextSpawn = 2, t = 0, confetti = [];
+  let hop = 0, blink = 0, nextSpawn = 2, t = 0, confetti = [], rush = false;
   const PASTEL = ['#FF9FB2', '#8FE3C2', '#C7B8FF', '#FFD98A', '#9BD0FF', '#FFB48A', '#B5E88A'];
   const PEAUX = ['#FFD7B5', '#F1B990', '#C68B59', '#8D5A3C', '#FFE3C9'];
   const CHEVEUX = ['#4A3328', '#2B2118', '#B8762E', '#E7C27A', '#8C8C8C', '#D9534F'];
@@ -382,7 +524,6 @@ const SCENE = (() => {
     cv.style.height = H + 'px';
     cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
   }
-  // ─── couleurs du jour ───
   function ciel(hour) {
     if (hour < 6 || hour >= 21) return { haut: '#4B5A9E', bas: '#8E7CC3', nuit: true };
     if (hour < 8) return { haut: '#FFC2A8', bas: '#FFE8B8', nuit: false };
@@ -390,20 +531,33 @@ const SCENE = (() => {
     if (hour < 20) return { haut: '#FFB37A', bas: '#FFE1B0', nuit: false };
     return { haut: '#7C6BB8', bas: '#F0A7A0', nuit: false };
   }
-  // ─── événements ───
+  // ─── événements venus du jeu ───
   function vente(i, montant, texte) {
     const x = W * 0.62 + Math.random() * W * 0.1, y = H * 0.52;
-    textes.push({ x, y, txt: texte, life: 1 });
-    if (clients.length < 5 && Math.random() < 0.6) spawn();
+    textes.push({ x, y, txt: texte, life: 1, col: '#3FB889' });
+    if (clients.length < (rush ? 8 : 5) && Math.random() < 0.6) spawn();
     hop = 1;
-    if (montant > 0 && textes.length > 6) textes.shift();
+    if (textes.length > 6) textes.shift();
   }
+  function texte(txt, col) { textes.push({ x: W * 0.5, y: H * 0.45, txt, life: 1.4, col: col || '#E0A61E' }); }
   function tap() { hop = 1; for (let i = 0; i < 3; i++) vapeurs.push({ x: W * 0.13 + (Math.random() - 0.5) * 16, y: H * 0.5, r: 4 + Math.random() * 4, life: 1 }); }
   function fete() { for (let i = 0; i < 40; i++) confetti.push({ x: Math.random() * W, y: -10 - Math.random() * 40, vx: (Math.random() - 0.5) * 40, vy: 40 + Math.random() * 60, c: PASTEL[i % PASTEL.length], a: Math.random() * TAU, life: 1 }); }
-  function spawn() {
-    const c = { x: W + 20, y: H * 0.78 - Math.random() * 6, vx: -(50 + Math.random() * 30), etat: 'entre', wait: 1.2 + Math.random() * 1.5, haut: PASTEL[Math.floor(Math.random() * PASTEL.length)],
-      peau: PEAUX[Math.floor(Math.random() * PEAUX.length)], cheveux: CHEVEUX[Math.floor(Math.random() * CHEVEUX.length)], taille: 0.9 + Math.random() * 0.25, sac: false, phase: Math.random() * TAU, cible: W * 0.58 + clients.length * 26 };
+  function setRush(on) { rush = on; if (on) for (let k = 0; k < 3; k++) spawn(); }
+  function spawn(or) {
+    const c = { x: W + 20, y: H * 0.78 - Math.random() * 6, vx: -(50 + Math.random() * 30), etat: 'entre', wait: or ? 8 : 1.2 + Math.random() * 1.5, haut: or ? '#FFC84A' : PASTEL[Math.floor(Math.random() * PASTEL.length)],
+      peau: PEAUX[Math.floor(Math.random() * PEAUX.length)], cheveux: or ? '#E0A61E' : CHEVEUX[Math.floor(Math.random() * CHEVEUX.length)], taille: or ? 1.15 : 0.9 + Math.random() * 0.25, sac: false, phase: Math.random() * TAU,
+      cible: or ? W * 0.5 : W * 0.56 + (clients.length % 5) * 24, or: !!or, pris: false };
     clients.push(c);
+    return c;
+  }
+  // le client mystère : doré, il attend 8 s devant le comptoir ; touché, il laisse un pourboire
+  function mystere() { if (clients.some((c) => c.or)) return false; spawn(true); return true; }
+  function hit(x, y) {
+    for (const c of clients) {
+      if (!c.or || c.pris || c.etat !== 'attend') continue;
+      if (Math.abs(x - c.x) < 28 * c.taille && y > c.y - 75 * c.taille && y < c.y + 8) { c.pris = true; c.wait = 0.2; return true; }
+    }
+    return false;
   }
 
   // ─── boucle ───
@@ -412,12 +566,15 @@ const SCENE = (() => {
     const d = new Date(now), hour = d.getHours() + d.getMinutes() / 60;
     const taux = G.tauxParSeconde(st);
     nextSpawn -= dt;
-    if (nextSpawn <= 0) { nextSpawn = taux > 0 ? Math.max(1.5, 6 - Math.log10(taux + 1)) : 7; if (clients.length < 4 && (taux > 0 || Math.random() < 0.3)) spawn(); }
+    if (nextSpawn <= 0) {
+      nextSpawn = rush ? 0.7 : taux > 0 ? Math.max(1.5, 6 - Math.log10(taux + 1)) : 7;
+      if (clients.length < (rush ? 8 : 4) && (rush || taux > 0 || Math.random() < 0.3)) spawn();
+    }
     for (const c of clients) {
       c.phase += dt * 9;
-      if (c.etat === 'entre') { c.x += c.vx * dt; if (c.x <= c.cible) { c.x = c.cible; c.etat = 'attend'; } }
-      else if (c.etat === 'attend') { c.wait -= dt; if (c.wait <= 0) { c.etat = 'sort'; c.sac = true; st.stats.clients++; } }
-      else { c.x += 70 * dt; }
+      if (c.etat === 'entre') { c.x += c.vx * dt * (rush ? 1.4 : 1); if (c.x <= c.cible) { c.x = c.cible; c.etat = 'attend'; } }
+      else if (c.etat === 'attend') { c.wait -= dt; if (c.wait <= 0) { c.etat = 'sort'; c.sac = !c.or || c.pris; st.stats.clients++; G.noter(st, 'clients', 1); } }
+      else { c.x += (c.or ? 90 : 70) * dt; }
     }
     for (let i = clients.length - 1; i >= 0; i--) if (clients[i].etat === 'sort' && clients[i].x > W + 30) clients.splice(i, 1);
     for (const x of textes) { x.life -= dt * 0.9; x.y -= 28 * dt; }
@@ -436,10 +593,8 @@ const SCENE = (() => {
   function draw(st, hour, taux) {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     const sk = ciel(hour);
-    // mur
-    ctx.fillStyle = '#FFF1E3'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = rush ? '#FFF0E0' : '#FFF1E3'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#FBE2CC'; for (let y = 0; y < H * 0.62; y += 18) ctx.fillRect(0, y, W, 1);
-    // fenêtre avec le ciel du moment
     const fx = W * 0.56, fy = H * 0.08, fw = W * 0.3, fh = H * 0.34;
     const g = ctx.createLinearGradient(0, fy, 0, fy + fh); g.addColorStop(0, sk.haut); g.addColorStop(1, sk.bas);
     rr(fx, fy, fw, fh, 14); ctx.fillStyle = g; ctx.fill();
@@ -447,36 +602,28 @@ const SCENE = (() => {
     else { ctx.fillStyle = 'rgba(255,255,255,.85)'; const cx = fx + fw * 0.3 + Math.sin(t * 0.05) * 6; for (const [ox, oy, r] of [[0, 0, 9], [10, -3, 11], [20, 1, 8], [8, 5, 8]]) { ctx.beginPath(); ctx.arc(cx + ox, fy + fh * 0.4 + oy, r, 0, TAU); ctx.fill(); } }
     ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 6; rr(fx, fy, fw, fh, 14); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(fx + fw / 2, fy); ctx.lineTo(fx + fw / 2, fy + fh); ctx.moveTo(fx, fy + fh / 2); ctx.lineTo(fx + fw, fy + fh / 2); ctx.stroke();
-    // décor débloqué
     const niv = (i) => st.stations[i].niv;
     if (niv(1) > 0) plante(fx - 26, fy + fh + 4);
     if (niv(2) > 0) lampe(W * 0.36, 0);
     if (niv(3) > 0) cadre(W * 0.4, fy + 6);
-    if (niv(5) > 0) guirlande();
-    // étagères de pains derrière le comptoir
+    if (niv(5) > 0 || rush) guirlande();
     const pains = Math.min(10, Math.floor(niv(0) / 10));
     etagere(W * 0.04, H * 0.16, W * 0.44, pains);
-    // four
     four(W * 0.04, H * 0.42, W * 0.18, H * 0.36, st.stations[0].actif || taux > 0);
     for (const v of vapeurs) { ctx.globalAlpha = Math.max(0, v.life) * 0.7; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(v.x, v.y, v.r, 0, TAU); ctx.fill(); }
     ctx.globalAlpha = 1;
-    // sol
     ctx.fillStyle = '#F3D9C0'; ctx.fillRect(0, H * 0.62, W, H * 0.38);
     ctx.fillStyle = '#E8C7A8'; ctx.fillRect(0, H * 0.62, W, 4);
     ctx.fillStyle = 'rgba(255,255,255,.35)'; for (let x = 0; x < W; x += 34) ctx.fillRect(x, H * 0.64, 17, H * 0.36);
-    // boulanger derrière le comptoir
     boulanger(W * 0.33, H * 0.62 - hop * 6);
-    // comptoir et vitrine
     const cy = H * 0.58, ch = H * 0.3;
     rr(W * 0.24, cy, W * 0.52, ch, 10); ctx.fillStyle = '#D9915C'; ctx.fill();
     rr(W * 0.24, cy, W * 0.52, 14, 7); ctx.fillStyle = '#F2B98A'; ctx.fill();
     rr(W * 0.27, cy + 20, W * 0.46, ch - 34, 8); ctx.fillStyle = 'rgba(222,244,255,.75)'; ctx.fill(); ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = 3; ctx.stroke();
     vitrine(st, W * 0.27, cy + 20, W * 0.46, ch - 34);
     if (niv(4) > 0) chat(W * 0.7, cy - 2);
-    // clients
     for (const c of clients) client(c);
-    // textes flottants
-    for (const x of textes) { ctx.globalAlpha = Math.max(0, Math.min(1, x.life * 1.4)); ctx.font = `700 ${Math.round(15 * Math.min(1.3, 1 + x.txt.length / 40))}px Fredoka, Nunito, sans-serif`; ctx.fillStyle = '#3FB889'; ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.textAlign = 'center'; ctx.strokeText(x.txt, x.x, x.y); ctx.fillText(x.txt, x.x, x.y); }
+    for (const x of textes) { ctx.globalAlpha = Math.max(0, Math.min(1, x.life * 1.4)); ctx.font = `700 ${Math.round(15 * Math.min(1.3, 1 + x.txt.length / 40))}px Fredoka, Nunito, sans-serif`; ctx.fillStyle = x.col; ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.textAlign = 'center'; ctx.strokeText(x.txt, x.x, x.y); ctx.fillText(x.txt, x.x, x.y); }
     ctx.globalAlpha = 1;
     for (const k of confetti) { ctx.save(); ctx.translate(k.x, k.y); ctx.rotate(k.a); ctx.globalAlpha = Math.min(1, k.life * 2); ctx.fillStyle = k.c; ctx.fillRect(-4, -2.5, 8, 5); ctx.restore(); }
     ctx.globalAlpha = 1;
@@ -500,16 +647,17 @@ const SCENE = (() => {
   }
   function boulanger(x, y) {
     const peau = '#FFD7B5';
-    ctx.fillStyle = '#fff'; rr(x - 22, y - 44, 44, 44, 14); ctx.fill();           // corps / tablier
-    ctx.fillStyle = '#FF6B8B'; rr(x - 10, y - 44, 20, 26, 6); ctx.fill();         // bavette
+    ctx.fillStyle = '#fff'; rr(x - 22, y - 44, 44, 44, 14); ctx.fill();
+    ctx.fillStyle = '#FF6B8B'; rr(x - 10, y - 44, 20, 26, 6); ctx.fill();
     ctx.fillStyle = peau; ctx.beginPath(); ctx.arc(x, y - 58, 16, 0, TAU); ctx.fill();
-    ctx.fillStyle = '#fff'; rr(x - 17, y - 86, 34, 22, 10); ctx.fill(); rr(x - 19, y - 68, 38, 7, 4); ctx.fill(); // toque
+    ctx.fillStyle = '#fff'; rr(x - 17, y - 86, 34, 22, 10); ctx.fill(); rr(x - 19, y - 68, 38, 7, 4); ctx.fill();
     ctx.fillStyle = L;
     if (blink > 3.2) { ctx.fillRect(x - 8, y - 60, 5, 2); ctx.fillRect(x + 3, y - 60, 5, 2); }
     else { ctx.beginPath(); ctx.arc(x - 6, y - 60, 2, 0, TAU); ctx.arc(x + 6, y - 60, 2, 0, TAU); ctx.fill(); }
     ctx.strokeStyle = L; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(x, y - 55, 6, 0.2, Math.PI - 0.2); ctx.stroke();
     ctx.fillStyle = '#FFB3B3'; ctx.beginPath(); ctx.arc(x - 11, y - 54, 2.5, 0, TAU); ctx.arc(x + 11, y - 54, 2.5, 0, TAU); ctx.fill();
     ctx.strokeStyle = peau; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(x - 20, y - 32); ctx.lineTo(x - 30, y - 12); ctx.moveTo(x + 20, y - 32); ctx.lineTo(x + 30, y - 12); ctx.stroke();
+    if (rush) { ctx.fillStyle = '#9BD0FF'; ctx.beginPath(); ctx.arc(x + 19, y - 66, 2.2, 0, TAU); ctx.fill(); } // une goutte de sueur pendant le coup de feu
   }
   function vitrine(st, x, y, w, h) {
     const ouverts = st.stations.map((s, i) => i).filter((i) => st.stations[i].niv > 0);
@@ -534,31 +682,37 @@ const SCENE = (() => {
   function client(c) {
     const x = c.x, y = c.y, s = c.taille, bob = c.etat === 'attend' ? 0 : Math.abs(Math.sin(c.phase)) * 3;
     ctx.save(); ctx.translate(x, y - bob); ctx.scale(s, s);
-    ctx.fillStyle = c.haut; rr(-13, -40, 26, 32, 10); ctx.fill();                         // corps
-    ctx.fillStyle = '#4A3328'; rr(-11, -10, 9, 12, 3); ctx.fill(); rr(2, -10, 9, 12, 3); ctx.fill(); // jambes
-    ctx.fillStyle = c.peau; ctx.beginPath(); ctx.arc(0, -52, 13, 0, TAU); ctx.fill();   // tête
-    ctx.fillStyle = c.cheveux; ctx.beginPath(); ctx.arc(0, -56, 13, Math.PI, TAU); ctx.fill(); // cheveux
+    if (c.or && !c.pris && c.etat === 'attend') { // halo et étincelles du client mystère
+      ctx.fillStyle = 'rgba(255,200,74,.28)'; ctx.beginPath(); ctx.ellipse(0, -30, 30, 44, 0, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#FFC84A'; for (let k = 0; k < 4; k++) { const a = t * 2 + k * 1.6, px = Math.cos(a) * 26, py = -30 + Math.sin(a * 1.3) * 34; etincelle(px, py, 4 + Math.sin(t * 6 + k) * 1.5); }
+    }
+    ctx.fillStyle = c.haut; rr(-13, -40, 26, 32, 10); ctx.fill();
+    ctx.fillStyle = '#4A3328'; rr(-11, -10, 9, 12, 3); ctx.fill(); rr(2, -10, 9, 12, 3); ctx.fill();
+    ctx.fillStyle = c.peau; ctx.beginPath(); ctx.arc(0, -52, 13, 0, TAU); ctx.fill();
+    ctx.fillStyle = c.cheveux; ctx.beginPath(); ctx.arc(0, -56, 13, Math.PI, TAU); ctx.fill();
+    if (c.or) { ctx.fillStyle = '#4A3328'; rr(-15, -58, 30, 5, 2); ctx.fill(); rr(-9, -72, 18, 15, 3); ctx.fill(); } // chapeau
     ctx.fillStyle = L; ctx.beginPath(); ctx.arc(-5, -52, 1.8, 0, TAU); ctx.arc(5, -52, 1.8, 0, TAU); ctx.fill();
     ctx.strokeStyle = L; ctx.lineWidth = 1.8; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(0, -49, 4, 0.3, Math.PI - 0.3); ctx.stroke();
     if (c.sac) { ctx.fillStyle = '#F2D7B6'; rr(12, -28, 14, 18, 3); ctx.fill(); ctx.strokeStyle = '#C8864F'; ctx.lineWidth = 1.5; ctx.strokeRect(12, -28, 14, 18); ctx.fillStyle = '#E8B46A'; rr(15, -34, 8, 8, 3); ctx.fill(); }
     ctx.restore();
   }
+  function etincelle(x, y, r) { ctx.beginPath(); ctx.moveTo(x, y - r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.quadraticCurveTo(x, y, x, y + r); ctx.quadraticCurveTo(x, y, x - r, y); ctx.quadraticCurveTo(x, y, x, y - r); ctx.fill(); }
   function plante(x, y) { ctx.fillStyle = '#D9915C'; rr(x - 10, y, 20, 16, 5); ctx.fill(); ctx.fillStyle = '#5FD3A4'; for (const [ox, oy, r] of [[0, -8, 9], [-9, -2, 7], [9, -2, 7], [0, -18, 7]]) { ctx.beginPath(); ctx.arc(x + ox, y + oy, r, 0, TAU); ctx.fill(); } }
   function lampe(x, y) { ctx.strokeStyle = L; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + 22); ctx.stroke(); ctx.fillStyle = '#FFC84A'; ctx.beginPath(); ctx.moveTo(x - 16, y + 40); ctx.lineTo(x + 16, y + 40); ctx.lineTo(x + 8, y + 22); ctx.lineTo(x - 8, y + 22); ctx.closePath(); ctx.fill(); ctx.fillStyle = 'rgba(255,230,150,.35)'; ctx.beginPath(); ctx.arc(x, y + 48, 16, 0, TAU); ctx.fill(); }
   function cadre(x, y) { ctx.fillStyle = '#fff'; rr(x - 16, y, 32, 26, 4); ctx.fill(); ctx.strokeStyle = '#C8864F'; ctx.lineWidth = 3; ctx.strokeRect(x - 16, y, 32, 26); ctx.fillStyle = '#9ED8FF'; ctx.fillRect(x - 12, y + 4, 24, 12); ctx.fillStyle = '#5FD3A4'; ctx.beginPath(); ctx.moveTo(x - 12, y + 22); ctx.lineTo(x - 2, y + 10); ctx.lineTo(x + 6, y + 18); ctx.lineTo(x + 12, y + 12); ctx.lineTo(x + 12, y + 22); ctx.closePath(); ctx.fill(); }
   function guirlande() { ctx.strokeStyle = '#C8864F'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(0, 6); ctx.quadraticCurveTo(W / 2, 34, W, 6); ctx.stroke(); for (let i = 0; i < 9; i++) { const u = (i + 0.5) / 9, x = u * W, y = 6 + 4 * (1 - Math.pow(2 * u - 1, 2)) * 7; ctx.fillStyle = PASTEL[i % PASTEL.length]; ctx.beginPath(); ctx.moveTo(x - 6, y); ctx.lineTo(x + 6, y); ctx.lineTo(x, y + 12); ctx.closePath(); ctx.fill(); } }
   function chat(x, y) { ctx.fillStyle = '#F2A65A'; rr(x - 16, y - 12, 30, 12, 6); ctx.fill(); ctx.beginPath(); ctx.arc(x + 14, y - 12, 7, 0, TAU); ctx.fill(); ctx.beginPath(); ctx.moveTo(x + 9, y - 16); ctx.lineTo(x + 11, y - 22); ctx.lineTo(x + 14, y - 17); ctx.moveTo(x + 15, y - 17); ctx.lineTo(x + 18, y - 22); ctx.lineTo(x + 19, y - 16); ctx.fill(); ctx.strokeStyle = '#F2A65A'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - 16, y - 6); ctx.quadraticCurveTo(x - 26, y - 6, x - 24, y - 16); ctx.stroke(); ctx.fillStyle = L; ctx.fillRect(x + 11, y - 13, 2, 1.5); ctx.fillRect(x + 16, y - 13, 2, 1.5); }
 
-  return { init, resize, frame, vente, tap, fete, get clients() { return clients.length; } };
+  return { init, resize, frame, vente, texte, tap, fete, setRush, mystere, hit, get clients() { return clients.length; }, get mystereVisible() { return clients.some((c) => c.or && !c.pris && c.etat === 'attend'); } };
 })();
 
 /* ── ui.js ── */
-/* LE FOURNIL — interface : cartes des produits, achats, indices du tutoriel, feuilles, sons, sauvegarde, boucle. */
+/* LE FOURNIL — interface : cartes des produits, objectifs du jour, événements, indices du tutoriel, feuilles, sons, sauvegarde, boucle. */
 const UI = (() => {
   'use strict';
   const G = GAME, $ = (s) => document.querySelector(s), KEY = 'fournil.v2';
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let st, lastFrame = 0, lastSave = 0, cards = [], lastHud = '', hintStep = -1, hintUntil = 0, toastTimer = 0;
+  let st, lastFrame = 0, lastSave = 0, cards = [], lastHud = '', lastObj = '', lastEv = '', hintStep = -1, hintUntil = 0, toastTimer = 0;
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   // ─── sauvegarde ───
@@ -589,17 +743,16 @@ const UI = (() => {
     achat: () => { beep(440, 0.1, 'triangle', 0.06); beep(660, 0.14, 'triangle', 0.06, 0.08); },
     deblocage: () => { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.18, 'triangle', 0.07, i * 0.09)); },
     embauche: () => { [784, 988].forEach((f, i) => beep(f, 0.2, 'sine', 0.06, i * 0.12)); },
+    evenement: () => { [659, 784, 659, 988].forEach((f, i) => beep(f, 0.14, 'square', 0.035, i * 0.1)); },
+    pourboire: () => { [1047, 1319, 1568].forEach((f, i) => beep(f, 0.2, 'sine', 0.06, i * 0.07)); },
     non: () => beep(200, 0.12, 'square', 0.03),
   };
   function buzz(p) { if (!st.vibre) return; try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* pas de vibreur */ } }
 
-  // ─── cartes ───
+  // ─── cartes des produits ───
   function buildCards() {
     const box = $('#cartes'); box.innerHTML = ''; cards = [];
-    G.PRODUITS.forEach((p, i) => {
-      const el = document.createElement('article'); el.className = 'carte'; el.dataset.i = i;
-      box.appendChild(el); cards.push({ el, html: '' });
-    });
+    G.PRODUITS.forEach((p, i) => { const el = document.createElement('article'); el.className = 'carte'; el.dataset.i = i; box.appendChild(el); cards.push({ el, html: '' }); });
     renderCards(true);
   }
   function renderCards(force) {
@@ -650,17 +803,60 @@ const UI = (() => {
 
   // ─── en-tête ───
   function hud() {
-    const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st);
-    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}`;
+    const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st), marche = G.jourDeMarche(st.now);
+    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}`;
     if (key === lastHud) return; lastHud = key;
     $('#coins').textContent = G.fmtEur(st.coins);
-    $('#taux').innerHTML = taux > 0 ? `<b>+${G.fmtEur(taux)}</b> par seconde` : 'Touche la baguette !';
+    $('#taux').innerHTML = (taux > 0 ? `<b>+${G.fmtEur(taux)}</b> par seconde` : 'Touche la baguette !') + (marche ? ' <span class="marche">Jour de marché ×1,5</span>' : '');
     $('#etoiles-n').textContent = gain > 0 ? `${st.etoiles} · +${gain}` : st.etoiles;
     $('#b-etoiles').classList.toggle('pret', gain >= 3);
     $('#b-ameliorations').classList.toggle('pret', G.AMELIORATIONS.some((a) => !st.ameliorations[a.id] && st.coins >= a.cout));
   }
-  function toast(txt) { let el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); } el.textContent = txt; clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 2200); }
+  function toast(txt) { let el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); } el.textContent = txt; clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 2400); }
   function flottant(x, y, txt) { const el = document.createElement('div'); el.className = 'flottant'; el.textContent = txt; el.style.left = x + 'px'; el.style.top = y + 'px'; document.body.appendChild(el); setTimeout(() => el.remove(), 900); }
+
+  // ─── objectifs du jour : carte compacte, feuille détaillée ───
+  function renderObjectifs() {
+    const j = G.objectifsDuJour(st, st.now), faits = j.objectifs.filter((o) => o.fait).length, aReclamer = j.objectifs.some((o) => o.fait && !o.reclame);
+    const key = JSON.stringify(j.objectifs.map((o) => [o.progres, o.fait, o.reclame])) + faits;
+    if (key === lastObj) return; lastObj = key;
+    const el = $('#objectifs');
+    el.className = 'obj' + (aReclamer ? ' pret' : '') + (j.etoileDonnee ? ' complet' : '');
+    el.innerHTML = `<div class="obj-tete"><span class="obj-titre">${ICONS.CIBLE}Objectifs du jour</span><span class="obj-compte">${aReclamer ? 'Prime à récupérer !' : j.etoileDonnee ? 'Terminés ★' : `${faits}/3`}</span></div>
+      <div class="obj-lignes">${j.objectifs.map((o) => `<div class="obj-ligne ${o.fait ? 'fait' : ''}"><span>${esc(o.txt)}</span><em>${o.fait ? '✓' : `${G.fmt(Math.floor(o.progres))}/${G.fmt(o.cible)}`}</em><i style="width:${Math.min(100, o.progres / o.cible * 100).toFixed(0)}%"></i></div>`).join('')}</div>`;
+  }
+  function sheetObjectifs() {
+    const j = G.objectifsDuJour(st, st.now), serie = G.serieEnCours(st);
+    openSheet(`<h2>Objectifs du jour</h2><p class="sous">Trois défis par jour, calibrés sur ta boutique. Les trois réussis : <b>+1 étoile</b>.${serie > 0 ? ` Série : <b>${serie} jour${serie > 1 ? 's' : ''}</b>.` : ''}</p>
+      <div class="liste-am">${j.objectifs.map((o, k) => `<div class="am ${o.reclame ? 'fait' : ''}"><div><h3>${esc(o.txt)}</h3><p>${o.fait ? 'Réussi !' : `${G.fmt(Math.floor(o.progres))} / ${G.fmt(o.cible)}`}</p><div class="mini"><i style="width:${Math.min(100, o.progres / o.cible * 100).toFixed(0)}%"></i></div></div>
+        ${o.reclame ? '<span class="ok">Récupéré ✓</span>' : `<button type="button" class="btn ${o.fait ? 'menthe' : 'non'}" data-k="${k}"><small>${o.fait ? 'Récupérer' : 'Prime'}</small><b>${G.fmtEur(o.prime)}</b></button>`}</div>`).join('')}</div>
+      ${j.etoileDonnee ? '<div class="encadre doux">Bravo, les trois objectifs sont réussis : une étoile de plus pour toujours. De nouveaux défis demain !</div>' : ''}
+      <button type="button" class="btn large" data-a="close" style="background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
+    on('[data-a="close"]', closeSheet);
+    on('[data-k]', (b) => { const r = G.reclamer(st, +b.dataset.k); if (!r.ok) { son.non(); return; } son.deblocage(); buzz([10, 30, 10]); toast(r.etoile ? `+${G.fmtEur(r.prime)} et +1 ★ : objectifs du jour réussis !` : `+${G.fmtEur(r.prime)} de prime`); if (r.etoile) SCENE.fete(); renderCards(true); hud(); save(); sheetObjectifs(); });
+  }
+
+  // ─── événements : coup de feu, commande spéciale ───
+  function renderEvenement() {
+    const ev = st.ev, box = $('#evenement');
+    if (!ev) { if (lastEv) { lastEv = ''; box.hidden = true; box.innerHTML = ''; SCENE.setRush(false); } return; }
+    const reste = Math.max(0, (ev.fin - st.now) / 1000), pct = Math.min(100, reste / (ev.type === 'rush' ? G.RUSH.duree : G.COMMANDE.duree) * 100);
+    if (ev.type === 'rush') {
+      if (lastEv !== 'rush') { lastEv = 'rush'; box.hidden = false; SCENE.setRush(true); box.innerHTML = `<div class="ev rush">${ICONS.FEU}<div class="ev-txt"><b>Coup de feu !</b><span>Toutes les ventes ×${G.RUSH.mult}</span></div><b class="ev-chrono"></b><i class="ev-barre"></i></div>`; }
+      box.querySelector('.ev-chrono').textContent = G.fmtChrono(reste); box.querySelector('.ev-barre').style.width = pct + '%';
+      return;
+    }
+    const p = G.PRODUITS[ev.i], prete = ev.fait >= ev.n, key = 'commande' + ev.debut + (prete ? 'p' : '');
+    if (lastEv !== key) {
+      lastEv = key; box.hidden = false; SCENE.setRush(false);
+      box.innerHTML = `<div class="ev commande ${prete ? 'prete' : ''}">${ICONS.PRODUITS[p.id]}<div class="ev-txt"><b>Commande spéciale</b><span>${G.fmt(ev.n)} ${esc(ev.n > 1 ? p.pl : p.nom.toLowerCase())} · prime <b>${G.fmtEur(ev.prime)}</b></span><span class="ev-prog"></span></div>
+        ${prete ? `<button type="button" class="btn menthe" data-a="livrer"><small>C’est prêt</small><b>Livrer !</b></button>` : '<b class="ev-chrono"></b>'}<i class="ev-barre"></i></div>`;
+      const b = box.querySelector('[data-a="livrer"]'); if (b) b.addEventListener('click', () => { audio(); const r = G.livrer(st); if (!r.ok) return; son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`Commande livrée : +${G.fmtEur(r.prime)}`); renderCards(true); hud(); save(); });
+    }
+    box.querySelector('.ev-prog').textContent = prete ? 'Le client attend sa commande.' : `${G.fmt(ev.fait)} / ${G.fmt(ev.n)} fournées${st.stations[ev.i].staff ? '' : ' · touche pour cuire !'}`;
+    const ch = box.querySelector('.ev-chrono'); if (ch) ch.textContent = G.fmtChrono(reste);
+    box.querySelector('.ev-barre').style.width = (prete ? 100 : pct) + '%';
+  }
 
   // ─── indices : une seule consigne à la fois, qui pointe l'élément concerné ───
   const INDICES = [
@@ -668,15 +864,15 @@ const UI = (() => {
     { txt: 'Avec tes euros, améliore la baguette : chaque niveau rapporte plus.', cible: () => cards[0].el.querySelector('[data-a="ameliorer"]'), pret: () => st.coins >= G.coutNiveau(0, st.stations[0].niv), fini: () => st.stations[0].niv >= 2 },
     { txt: 'Débloque les croissants : 20 € la fournée !', cible: () => cards[1].el.querySelector('[data-a="debloquer"]'), pret: () => st.coins >= G.PRODUITS[1].cout, fini: () => st.stations[1].niv >= 1 },
     { txt: 'Embauche Léo : il cuit les baguettes tout seul, même quand tu n’es pas là.', cible: () => cards[0].el.querySelector('[data-a="embaucher"]'), pret: () => st.coins >= G.PRODUITS[0].staff, fini: () => st.stations[0].staff },
-    { txt: 'Bravo ! Au niveau 25, 50, 100… les gains doublent. Continue d’améliorer et d’embaucher.', cible: () => null, pret: () => true, fini: () => performance.now() > hintUntil },
+    { txt: 'Bravo ! Au niveau 25, 50, 100… les gains doublent. Et regarde tes objectifs du jour : trois défis, une étoile à la clé.', cible: () => $('#objectifs'), pret: () => true, fini: () => performance.now() > hintUntil },
   ];
   function indices() {
     const el = $('#indice');
     if (st.tuto >= INDICES.length || !$('#feuille').hidden) { el.hidden = true; return; }
     const h = INDICES[st.tuto];
-    if (h.fini()) { st.tuto++; hintUntil = performance.now() + 6000; save(); el.hidden = true; return; }
+    if (h.fini()) { st.tuto++; hintUntil = performance.now() + 8000; save(); el.hidden = true; return; }
     if (h.pret && !h.pret()) { el.hidden = true; return; }
-    if (st.tuto !== hintStep) { hintStep = st.tuto; $('#indice-txt').textContent = h.txt; if (st.tuto === 4) hintUntil = performance.now() + 6000; }
+    if (st.tuto !== hintStep) { hintStep = st.tuto; $('#indice-txt').textContent = h.txt; if (st.tuto === 4) hintUntil = performance.now() + 8000; }
     const cible = h.cible();
     el.hidden = false;
     if (!cible) { el.classList.remove('haut'); el.style.left = '50%'; el.style.transform = 'translateX(-50%)'; el.style.top = (window.innerHeight * 0.42) + 'px'; el.querySelector('.main').hidden = true; return; }
@@ -685,7 +881,7 @@ const UI = (() => {
     let x = r.left + r.width / 2 - bw / 2; x = Math.max(8, Math.min(window.innerWidth - bw - 8, x));
     el.style.left = x + 'px'; el.style.transform = 'none';
     const hauteur = el.offsetHeight || 90;
-    if (r.bottom + hauteur + 6 < window.innerHeight - 20) { el.classList.add('haut'); el.style.top = (r.bottom + 6) + 'px'; } // de préférence sous la cible, pour ne rien cacher
+    if (r.bottom + hauteur + 6 < window.innerHeight - 20) { el.classList.add('haut'); el.style.top = (r.bottom + 6) + 'px'; }
     else { el.classList.remove('haut'); el.style.top = (r.top - hauteur - 6) + 'px'; }
     if (r.bottom < 0 || r.top > window.innerHeight) el.hidden = true;
   }
@@ -702,24 +898,26 @@ const UI = (() => {
       const fait = st.ameliorations[a.id], ok = st.coins >= a.cout;
       return `<div class="am ${fait ? 'fait' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p></div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${G.fmtEur(a.cout)}</b></button>`}</div>`;
     }).join('');
-    openSheet(`<h2>Améliorations</h2><p class="sous">Des recettes et des équipements qui multiplient tes gains, pour toujours.</p><div class="liste-am">${items}</div>`);
+    openSheet(`<h2>Bonus</h2><p class="sous">Des recettes et des équipements qui multiplient tes gains, pour toujours (jusqu’à la prochaine boutique).</p><div class="liste-am">${items}</div>`);
     on('[data-id]', (b) => { const r = G.amelioration(st, b.dataset.id); if (!r.ok) { son.non(); toast(`Il manque ${G.fmtEur(G.AMELIORATIONS.find((a) => a.id === b.dataset.id).cout - st.coins)}`); return; } son.deblocage(); buzz([10, 30, 10]); toast(`${r.a.nom} : ${r.a.desc}`); renderCards(true); hud(); save(); sheetAmeliorations(); });
   }
   function sheetEtoiles() {
-    const gain = G.etoilesGagnables(st), bonus = Math.round(st.etoiles * G.ETOILE_BONUS * 100);
+    const gain = G.etoilesGagnables(st), bonus = Math.round(st.etoiles * G.ETOILE_BONUS * 100), serie = G.serieEnCours(st);
     openSheet(`<h2>Étoiles</h2><p class="sous">Boutique n°${st.boutiques} · ${st.etoiles} étoile${st.etoiles > 1 ? 's' : ''} · +${bonus} % sur tous les gains</p>
-      <div class="encadre doux">Ouvrir une <b>nouvelle boutique</b> remet les produits et les euros à zéro, mais tu gardes tes étoiles pour toujours. Chaque étoile : <b>+${Math.round(G.ETOILE_BONUS * 100)} %</b> de gains. Plus tu as gagné dans cette boutique, plus tu en récoltes.</div>
+      <div class="encadre doux">Ouvrir une <b>nouvelle boutique</b> remet les produits et les euros à zéro, mais tu gardes tes étoiles pour toujours. Chaque étoile : <b>+${Math.round(G.ETOILE_BONUS * 100)} %</b> de gains. Plus tu as gagné dans cette boutique, plus tu en récoltes. Les objectifs du jour en donnent une aussi.</div>
       <div class="grand-nombre">+${gain} ★</div><p class="sous">à récolter maintenant (${G.fmtEur(st.lifetimeRun)} gagnés dans cette boutique)</p>
       <button type="button" class="btn large ${gain > 0 ? 'beurre' : 'non'}" data-a="prestige"><small>${gain > 0 ? 'Repartir avec' : 'Pas encore'}</small><b>${gain > 0 ? `+${gain} étoile${gain > 1 ? 's' : ''}` : 'Vends encore un peu'}</b></button>
       <h3 style="margin:18px 0 6px;font:700 16px/1 var(--titre)">Ta boutique</h3>
-      <div class="stat"><span>Fournées vendues</span><b>${G.fmt(st.stats.ventes)}</b></div><div class="stat"><span>Clients servis</span><b>${G.fmt(st.stats.clients)}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(st.lifetime)}</b></div>
+      <div class="stat"><span>Fournées vendues</span><b>${G.fmt(st.stats.ventes)}</b></div><div class="stat"><span>Clients servis</span><b>${G.fmt(st.stats.clients)}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(st.lifetime)}</b></div><div class="stat"><span>Série d’objectifs</span><b>${serie} jour${serie > 1 ? 's' : ''}</b></div>
       <div class="ligne-reglage"><span>Vibrations</span><button type="button" class="interrupteur" role="switch" aria-checked="${st.vibre}" data-a="vibre"></button></div>
-      <button type="button" class="btn large" data-a="close" style="background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
+      <button type="button" class="btn large" data-a="close" style="background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>
+      <button type="button" class="lien" data-a="reset">Recommencer une partie de zéro</button>`);
     on('[data-a="close"]', closeSheet);
     on('[data-a="vibre"]', (b) => { st.vibre = !st.vibre; b.setAttribute('aria-checked', st.vibre); save(); });
+    on('[data-a="reset"]', () => { openSheet(`<h2>Tout effacer ?</h2><p class="sous">Euros, recettes, apprentis, bonus et étoiles : tout repart de la première baguette. Impossible de revenir en arrière.</p><button type="button" class="btn large" data-a="oui" style="background:var(--fraise);box-shadow:0 4px 0 var(--fraise-sombre)"><b>Oui, tout effacer</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde ma boutique</b></button>`); on('[data-a="non"]', sheetEtoiles); on('[data-a="oui"]', () => { try { localStorage.removeItem(KEY); } catch (e) { /* rien */ } location.reload(); }); });
     on('[data-a="prestige"]', () => {
       if (G.etoilesGagnables(st) <= 0) { son.non(); return; }
-      openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les améliorations achetées sont perdues.</p>
+      openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les bonus achetés sont perdus.</p>
         <button type="button" class="btn large beurre" data-a="oui"><b>Ouvrir la boutique n°${st.boutiques + 1}</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Rester ici</b></button>`);
       on('[data-a="non"]', sheetEtoiles);
       on('[data-a="oui"]', () => { const r = G.nouvelleBoutique(st, Date.now()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); closeSheet(); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★`); st.tuto = Math.max(st.tuto, INDICES.length); renderCards(true); hud(); save(); } });
@@ -736,30 +934,29 @@ const UI = (() => {
   // ─── boucle ───
   function frame(now) {
     const dt = Math.min(0.25, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
-    const ventes = G.tick(st, dt);
-    if (ventes.length) {
-      const gros = ventes.reduce((a, v) => a + v.montant, 0);
-      const first = ventes[0];
+    const out = G.tick(st, dt, Date.now());
+    if (out.ventes.length) {
+      const gros = out.ventes.reduce((a, v) => a + v.montant, 0), first = out.ventes[0];
       if (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros)); son.vente(gros); }
       if (!st.stations[first.i].staff) { const r = cards[first.i].el.querySelector('.barre').getBoundingClientRect(); flottant(r.left + r.width / 2 - 30, r.top - 10, '+' + G.fmtEur(first.montant)); }
-      renderCards();
-    } else renderCards();
-    hud();
+    }
+    if (out.nouvelEv) { son.evenement(); buzz([15, 40, 15]); toast(out.nouvelEv.type === 'rush' ? 'Coup de feu : les clients affluent !' : 'Un client passe une commande spéciale !'); }
+    if (out.finEv) toast(out.finEv.type === 'rush' ? 'Le coup de feu est passé.' : 'Trop tard, le client reviendra une autre fois.');
+    if (out.mystere && $('#feuille').hidden) { if (SCENE.mystere()) toast('Un client mystère ! Touche-le vite.'); }
+    renderCards(); hud(); renderObjectifs(); renderEvenement();
     SCENE.frame(dt, st, Date.now());
     indices();
     if (now - lastSave > 5000) save();
     requestAnimationFrame(frame);
   }
-  function layout() {
-    const h = Math.max(150, Math.min(240, Math.round(window.innerHeight * 0.27)));
-    SCENE.resize(window.innerWidth, h);
-  }
+  function layout() { SCENE.resize(window.innerWidth, Math.max(150, Math.min(240, Math.round(window.innerHeight * 0.27)))); }
 
   // ─── démarrage ───
   function boot() {
     st = load();
     const fresh = !st;
     if (fresh) st = G.newState(Date.now());
+    st.now = Date.now();
     SCENE.init($('#scene'));
     layout();
     buildCards();
@@ -767,18 +964,24 @@ const UI = (() => {
     $('#cartes').addEventListener('click', onCardClick);
     $('#b-ameliorations').addEventListener('click', () => { audio(); sheetAmeliorations(); });
     $('#b-etoiles').addEventListener('click', () => { audio(); sheetEtoiles(); });
+    $('#objectifs').addEventListener('click', () => { audio(); sheetObjectifs(); });
     $('#b-son').addEventListener('click', () => { audio(); st.son = !st.son; $('#b-son').setAttribute('aria-pressed', st.son); $('#son-on').hidden = !st.son; $('#son-off').hidden = st.son; save(); if (st.son) son.tap(); });
     $('#son-on').hidden = !st.son; $('#son-off').hidden = st.son; $('#b-son').setAttribute('aria-pressed', st.son);
-    $('#scene').addEventListener('pointerdown', () => { audio(); SCENE.tap(); });
+    $('#scene').addEventListener('pointerdown', (e) => {
+      audio();
+      const r = $('#scene').getBoundingClientRect();
+      if (SCENE.hit(e.clientX - r.left, e.clientY - r.top)) { const tip = G.pourboire(st); G.gagner(st, tip, true); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
+      else SCENE.tap();
+    });
     document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); } });
     window.addEventListener('pagehide', save);
     window.addEventListener('resize', layout);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
     if (!fresh) { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) sheetRetour(abs); }
-    renderCards(true); hud();
+    renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, G, save, reset: () => { try { localStorage.removeItem(KEY); } catch (e) { /* rien */ } location.reload(); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n); renderCards(true); hud(); } };
+    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { try { localStorage.removeItem(KEY); } catch (e) { /* rien */ } location.reload(); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), mystere: () => SCENE.mystere() };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);
