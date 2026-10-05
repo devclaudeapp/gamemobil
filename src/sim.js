@@ -13,7 +13,7 @@
     K_SEA: 300000, K_GATE: 3000, L_PER_CM: 700, MAX_DROP: 10, YIELD_DIV: 14,
     FLEUR_RATE: 0.25, FLEUR_CAP: 1.5, ALGAE_GROW: 0.06, ALGAE_DIE: 0.25, ALGAE_EVAP: 0.25,
     CRACK_AFTER: { vasiere: 48, cobier: 24, fare: 12, aderne: 8, oeillet: 6 },
-    CRACK_RATE: 0.006, LEAK_RATE: 0.4, REPAIR_BELOW: 0.7, LOST_BELOW: 0.5,
+    CRACK_RATE: 0.006, LEAK_RATE: 0.4, REPAIR_BELOW: 0.8, LOST_BELOW: 0.5,
     PRICE_GROS: 0.8, PRICE_FLEUR: 12,
     COST: { oeillet: 60, aderne: 110, fare: 150, cobier: 180, vasiere: 300, clapet: 25, barometre: 80, lousse: 120, rhabillage: 60 },
     GROWTH: 0.1, VAS_GROWTH: 1.5, VAS_MAX: 4, COLS: 7, ROWS0: 5, ROWS_MAX: 11,
@@ -63,31 +63,35 @@
     + 4 * Math.sin(2 * Math.PI * t / 190 + PH[2]) + 3 * Math.sin(2 * Math.PI * t / 329 + PH[3]);
   function pressureAt(st, ms) {
     let p = pressureRaw(tH(ms));
-    if (st && st.tutorialEndMs) {
-      const since = (ms - st.tutorialEndMs) / H_MS;
-      const day = Math.floor((ms - st.seasonStartMs) / 864e5), hour = localHour(ms);
-      if (day === 2 && hour >= 14 && hour < 16) return 1002 - (hour - 14) * 0.3; // l'averse scriptée du troisième jour
-      if (since < 72) p = Math.max(p, 1012);                                      // beau fixe garanti
-    }
+    if (st && st.tutorialEndMs && (ms - st.tutorialEndMs) / H_MS < 72) p = Math.max(p, 1012); // beau fixe garanti trois jours
     return p;
+  }
+  // L'averse scriptée : le surlendemain de la première journée, de 14 h à 16 h (date locale), la leçon de la pluie à heure fixe.
+  function scriptedShower(st, ms) {
+    if (!st.tutorialEndMs) return false;
+    const d = new Date(st.tutorialEndMs); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + 2);
+    const start = d.getTime() + 14 * H_MS;
+    return ms >= start && ms < start + 2 * H_MS;
   }
   function envAt(st, ms) {
     const hour = localHour(ms);
     const day = clamp((ms - st.seasonStartMs) / 864e5, 0, 30);
-    const Pn = pressureAt(st, ms), dP = pressureAt(st, ms + H_MS) - Pn;
+    const scripted = scriptedShower(st, ms);
+    const Pn = scripted ? 1002 : pressureAt(st, ms), dP = scripted ? -0.3 : pressureAt(st, ms + H_MS) - Pn;
     const cl = CLIMATES[st.climate] || CLIMATES.ordinaire;
-    const rain = (Pn < cl.rainP && dP < 0) ? Math.min(4, (cl.rainP - Pn) * 0.6) : 0;
+    const rain = scripted ? 1.8 : (Pn < cl.rainP && dP < 0) ? Math.min(4, (cl.rainP - Pn) * 0.6) : 0;
     const wind = clamp(0.1 + 0.9 * Math.abs(dP) + Math.max(0, 1010 - Pn) / 20 + cl.dWind, 0, 1);
     const Tmid = 20 + 7 * Math.sin(Math.PI * day / 36) + cl.dT;
     const T = Tmid + 6 * Math.cos(2 * Math.PI * (hour - 16) / 24) - (Pn < 1008 ? 4 : 0) - (rain > 0 ? 2 : 0);
     return { ms, hour, day, T, wind, rain, P: Pn, dP, night: isNight(hour), h: tide(ms), A: tideAmp(ms), moon: moonPhase(ms), fleurT: cl.fleurT, crack: cl.crack };
   }
   // Première journée : horloge virtuelle 06:00 -> 06:00, ciel scripté.
-  function tutorialEnv(vh) {
+  function tutorialEnv(vh, holdTide) {
     const hour = vh % 24, rain = (vh >= 23 && vh < 24.5) ? 3 : 0;
+    let h = 1.2 * Math.sin(2 * Math.PI * (vh - 7 + TIDE_H / 4) / TIDE_H);
+    if (holdTide && vh > 6.7 && vh < 12) h = Math.max(h, 0.95); // la première marée attend que l'étier soit ouvert une fois
     return { ms: 0, hour, day: 0, T: 22 + 7 * Math.cos(2 * Math.PI * (hour - 16) / 24) - (rain ? 5 : 0), wind: 0.5, rain,
-      P: rain ? 1003 : 1018, dP: rain ? -0.3 : 0.05, night: isNight(hour),
-      h: 1.2 * Math.sin(2 * Math.PI * (vh - 7 + TIDE_H / 4) / TIDE_H), A: 1.2, moon: 0.05, fleurT: 22, crack: 1 };
+      P: rain ? 1003 : 1018, dP: rain ? -0.3 : 0.05, night: isNight(hour), h, A: 1.2, moon: 0.05, fleurT: 22, crack: 1 };
   }
   const evapMmH = (env, algae) => P.E0 * clamp((env.T - 10) / 15, 0, 1.25) * (1 + 0.6 * env.wind) * (1 + P.ALGAE_EVAP * algae)
     * (env.night ? P.NIGHT : 1) * (env.rain > 0 ? P.RAIN_EVAP : 1);
@@ -103,9 +107,18 @@
   const maxDepth = (st, c) => c.type === 'vasiere' ? TYPES.vasiere.max * Math.pow(P.VAS_GROWTH, st.vasEnl) : (c.type === 'oeillet' && st.enEau ? 8 : TYPES[c.type].max);
   const bucket = (S) => S <= 0 ? 'sec' : S < 80 ? 'canard' : S < 150 ? 'violet30' : S < 220 ? 'violet60' : S < P.SAT - 2 ? 'rose' : 'blanc';
 
+  // Cache (hors sauvegarde) de la grille et des trappes, invalidé dès que les parcelles changent.
+  const CACHE = new WeakMap();
+  function cacheOf(st) {
+    let k = CACHE.get(st);
+    if (!k || k.cells !== st.cells || k.n !== st.cells.length) { k = { cells: st.cells, n: st.cells.length, grid: null, gates: null }; CACHE.set(st, k); }
+    return k;
+  }
+  const touch = (st) => CACHE.delete(st);
   function cellAt(st, r, c) {
-    if (r === 0) return st.cells.find((x) => x.type === 'vasiere') || null;
-    return st.cells.find((x) => x.r === r && x.c === c) || null;
+    const k = cacheOf(st);
+    if (!k.grid) { k.grid = new Map(); for (const x of st.cells) k.grid.set(x.type === 'vasiere' ? '0,0' : x.r + ',' + x.c, x); }
+    return k.grid.get(r === 0 ? '0,0' : r + ',' + c) || null;
   }
   function neighborsOf(st, cell) {
     const out = [];
@@ -127,14 +140,18 @@
   }
   // Toutes les trappes existantes : [{key, a, b, from, to}] ; from/to = sens de l'eau (null si œillet-œillet : par la pente)
   function gatesOf(st) {
+    const k = cacheOf(st);
+    if (k.gates) return k.gates;
     const out = [], seen = new Set();
     for (const a of st.cells) for (const b of neighborsOf(st, a)) {
       const key = gateKey(a, b);
       if (seen.has(key)) continue;
       seen.add(key);
-      if (canFeed(a.type, b.type)) out.push({ key, a, b, from: a, to: b });
+      if (a.type === 'oeillet' && b.type === 'oeillet') out.push({ key, a, b, from: null, to: null }); // par la pente d'eau
+      else if (canFeed(a.type, b.type)) out.push({ key, a, b, from: a, to: b });
       else if (canFeed(b.type, a.type)) out.push({ key, a, b, from: b, to: a });
     }
+    k.gates = out;
     return out;
   }
   const gateOpen = (st, key) => st.gates[key] === 1;
@@ -147,7 +164,7 @@
     const cells = st.cells, vas = cells.find((c) => c.type === 'vasiere');
     const S = st.stats;
     // 1. la mer et l'étier
-    if (vas && (st.etierOpen || st.enEau)) {
+    if (vas && (st.etierOpen || st.enEau || st.items.clapet)) {
       const kSea = P.K_SEA * Math.pow(1.25, st.vasEnl), C = cap(vas);
       if (env.h > P.SILL) {
         let V = kSea * (env.h - P.SILL) * dt;
@@ -157,7 +174,7 @@
           vas.algae = V0 + V > 0 ? vas.algae * V0 / (V0 + V) : 0;
           vas.depth += V / C; vas.salt += V * P.SEA_S; S.intake += V / P.L_PER_CM;
         }
-      } else if (!st.items.clapet && !st.enEau && env.h < P.SILL - 0.05 && vas.depth > 0) {
+      } else if (!st.items.clapet && !st.enEau && st.etierOpen && env.h < P.SILL - 0.05 && vas.depth > 0) {
         const V = Math.min(kSea * (P.SILL - env.h) * dt * 0.5, vas.depth * C);
         const f = V / (vas.depth * C);
         vas.salt *= 1 - f; vas.depth -= V / C;
@@ -220,9 +237,14 @@
   }
 
   // ─────────────────────────── réserve, projections ───────────────────────────
-  function reserveDays(st) {
+  function reserveDays(st) { // jours d'évaporation couverts par l'eau présente
     let stock = 0, area = 0;
     for (const c of st.cells) { stock += c.depth * TYPES[c.type].area; area += TYPES[c.type].area; }
+    return area ? stock / (P.EVAP_DAY_CM * area) : 0;
+  }
+  function storageDays(st, vasEnl) { // capacité : jours d'évaporation que le marais plein peut tenir
+    let stock = 0, area = 0;
+    for (const c of st.cells) { const md = c.type === 'vasiere' ? TYPES.vasiere.max * Math.pow(P.VAS_GROWTH, vasEnl == null ? st.vasEnl : vasEnl) : TYPES[c.type].max; stock += md * TYPES[c.type].area; area += TYPES[c.type].area; }
     return area ? stock / (P.EVAP_DAY_CM * area) : 0;
   }
   function upstreamArea(st) { return st.cells.filter((c) => c.type !== 'oeillet').reduce((a, c) => a + TYPES[c.type].area, 0); }
@@ -232,7 +254,7 @@
   function projection(st, env, c) {
     // {kind:'sature'|'sec'|'tenu'|'rien', hours}
     const gates = cellGates(st, c).filter((g) => gateOpen(st, g.key));
-    const fed = gates.some((g) => (g.to === c || (!g.from && g.a !== c ? g.a.depth > c.depth : g.b !== c && g.b.depth > c.depth)) && (g.from || g.a) !== c && ((g.from && g.from.depth > 0) || (!g.from)));
+    const fed = gates.some((g) => { const f = gateFlow(st, g); return f.v === c && f.cmH > 0; });
     if (c.depth <= 0) return { kind: 'rien' };
     const E = evapMmH(env, c.algae) / 10; // cm/h
     if (E <= 0) return { kind: 'rien' };
@@ -264,7 +286,7 @@
   function addCell(st, cell) {
     cell.id = ++st.nextId;
     if (cell.type !== 'vasiere') { let mx = 0; for (const o of st.cells) if (o.type === cell.type) mx = Math.max(mx, o.num); cell.num = mx + 1; }
-    st.cells.push(cell);
+    st.cells.push(cell); touch(st);
     return cell;
   }
   function newState(nowMs) {
@@ -352,19 +374,21 @@
     return r;
   }
   function toggleGate(st, key) { st.gates[key] = st.gates[key] === 1 ? 0 : 1; return st.gates[key]; }
-  function toggleEtier(st) { st.etierOpen = !st.etierOpen; return st.etierOpen; }
+  function toggleEtier(st) { if (st.items.clapet) return null; st.etierOpen = !st.etierOpen; return st.etierOpen; }
   function miseEnEau(st) { st.enEau = true; for (const k in st.gates) st.gates[k] = 1; st.etierOpen = true; }
   function leverEau(st) {
     st.enEau = false;
     for (const c of st.cells) {
       if (c.type !== 'oeillet' || c.depth <= 2) continue;
       const feeders = neighborsOf(st, c).filter((n) => n.type !== 'oeillet' && canFeed(n.type, 'oeillet')).sort((a, b) => (maxDepth(st, b) - b.depth) - (maxDepth(st, a) - a.depth));
-      const extra = c.depth - 2, f = extra / c.depth, V = extra * cap(c);
-      if (feeders.length) {
-        const p = feeders[0], room = Math.max(0, (maxDepth(st, p) - p.depth) * cap(p)), Vm = Math.min(V, room);
-        p.depth += Vm / cap(p); p.salt += c.salt * f * (Vm / V);
+      let V = (c.depth - 2) * cap(c);
+      for (const p of feeders) { // l'excédent retourne aux adernes et fares voisins, tant qu'il y a de la place ; le reste reste dans l'œillet
+        if (V <= 0) break;
+        const room = Math.max(0, (maxDepth(st, p) - p.depth) * cap(p)), Vm = Math.min(V, room);
+        if (Vm <= 0) continue;
+        const f = Vm / (c.depth * cap(c));
+        p.depth += Vm / cap(p); p.salt += c.salt * f; c.salt -= c.salt * f; c.depth -= Vm / cap(c); V -= Vm;
       }
-      c.salt *= 1 - f; c.depth = 2;
     }
   }
 
@@ -381,7 +405,7 @@
     const seasonEnd = seasonEndMs(st);
     while (t < nowMs) {
       const t2 = Math.min(t + DT_MS, nowMs);
-      if (t2 > seasonEnd && st.phase === 'play') { rep.hivernage = true; rep.toMs = seasonEnd; break; }
+      if (t2 > seasonEnd && st.phase === 'play') { rep.hivernage = true; rep.toMs = seasonEnd; st.pendingHivernage = true; break; }
       const env = envAt(st, t);
       step(st, env, (t2 - t) / H_MS);
       rep.steps++;
@@ -398,7 +422,7 @@
       t = t2;
     }
     if (inRain) { const r = rep.rains[rep.rains.length - 1]; r.kg = kgOf(st.stats.gRainRedissolved - r.g0); }
-    st.lastSimMs = rep.toMs;
+    st.lastSimMs = rep.hivernage ? nowMs : rep.toMs;
     rep.kgFormed = kgOf(st.stats.gFormed - g0);
     rep.fleur = Math.max(0, st.cells.filter((c) => c.type === 'oeillet').reduce((a, c) => a + c.fleur, 0) - f0);
     const stillPink = st.cells.find((c) => pinkStart.includes(c.id) && c.algae >= 0.5);
@@ -432,7 +456,7 @@
     };
     st.records.push(rec);
     st.lastSeason = { sold, lost: lost.length, rec };
-    st.phase = 'hiver';
+    st.phase = 'hiver'; st.pendingHivernage = false; touch(st);
     st.enEau = false;
     for (const c of st.cells) { c.depth = c.type === 'vasiere' ? 0 : 0; c.salt = 0; c.algae = 0; c.crust = 0; c.fleur = 0; c.dryH = 0; c.gDay = 0; c.pinkH = 0; }
     st.rows = Math.min(P.ROWS_MAX, P.ROWS0 + 2 * st.seasonIndex);
@@ -443,8 +467,8 @@
   function winterSet(st, r, c, type) {
     if (r <= 0 || r >= st.rows || c < 0 || c >= P.COLS) return false;
     const cur = cellAt(st, r, c);
-    if (type === null) { if (cur) { st.cells = st.cells.filter((x) => x !== cur); st.winterBank++; } return true; }
-    if (cur) { cur.type = type; cur.num = 0; cur.integ = Math.max(cur.integ, 0.9); numberCells(st); return true; }
+    if (type === null) { if (cur) { st.cells = st.cells.filter((x) => x !== cur); st.winterBank++; touch(st); } return true; }
+    if (cur) { if (cur.type === type) return true; cur.type = type; cur.num = 0; cur.integ = Math.max(cur.integ, 0.9); touch(st); numberCells(st); return true; }
     if (st.winterBank <= 0) return false;
     st.winterBank--;
     addCell(st, newCell(type, r, c));
@@ -460,17 +484,18 @@
     st.stats = freshStats();
     st.gates = {};
     for (const g of gatesOf(st)) st.gates[g.key] = 0;
-    st.etierOpen = !!st.items.clapet; st.enEau = false; st.lastObsDay = -1; st.seenObs = {};
+    st.etierOpen = !!st.items.clapet; st.enEau = false; st.lastObsDay = 1; st.seenObs = {};
+    st.daySnap = { gLost: 0, gRain: 0 };
     for (const c of st.cells) { c.integ = Math.max(c.integ, 0.9); c.num = 0; }
-    numberCells(st);
-    st.phase = 'play';
+    touch(st); numberCells(st);
+    st.phase = 'play'; st.pendingHivernage = false;
   }
 
   return {
     P, TYPES, DIG_TYPES, CLIMATES, EPOCH_MS, SYNODIC_H, TIDE_H, H_MS,
     tH, moonPhase, tideAmp, tide, isNight, localHour, nextHighTides, hashStr, pressureAt, envAt, tutorialEnv, evapMmH, fleurOK,
-    canFeed, posKey, gateKey, cap, salinity, kgOf, maxDepth, bucket, cellAt, neighborsOf, neighborPositions, gatesOf, gateOpen, cellGates, hasBasinFeeder,
-    step, reserveDays, upstreamArea, countType, yieldEurDay, projection, gateFlow,
+    canFeed, posKey, gateKey, cap, salinity, kgOf, maxDepth, bucket, cellAt, touch, scriptedShower, neighborsOf, neighborPositions, gatesOf, gateOpen, cellGates, hasBasinFeeder,
+    step, reserveDays, storageDays, upstreamArea, countType, yieldEurDay, projection, gateFlow,
     newState, newCell, addCell, numberCells, freshStats,
     plotCost, canDig, dig, enlargeVasiere, buyItem, repair, rakeCell, skimCell, sell, toggleGate, toggleEtier, miseEnEau, leverEau,
     catchUp, seasonEndMs, seasonDay, recordKgPerOeilletDay, nextClimate, hivernage, winterSet, winterProblems, openSeason, clamp,

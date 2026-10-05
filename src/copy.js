@@ -9,7 +9,7 @@ const COPY = (() => {
     btn_voir_marais: 'Voir le marais', btn_confirmer: 'Creuser ici', btn_annuler: 'Laisser', btn_fermer: 'Retour', btn_retour: 'Retour au marais',
     hud_pleine_mer: 'Pleine mer {heure}', hud_seuil: 'seuil', hud_reserve: 'Réserve {jours} j', hud_mulon: '{kg} kg au mulon',
     type_vasiere: 'Vasière', type_cobier: 'Cobier', type_fare: 'Fare', type_aderne: 'Aderne', type_oeillet: 'Œillet',
-    fiche_niveau: 'Niveau {cm} cm', fiche_salinite: 'Salinité {gl} g/L', fiche_temperature: 'Eau à {c} °C', fiche_argile: 'Argile {pct} %',
+    fiche_niveau: 'Niveau {cm} cm', fiche_fleur_fenetre: 'écumable entre 15 h et 20 h', fiche_clapet: 'Clapet : l’étier s’ouvre et se ferme seul avec la mer.', fiche_salinite: 'Salinité {gl} g/L', fiche_temperature: 'Eau à {c} °C', fiche_argile: 'Argile {pct} %',
     fiche_algues: 'Eaux {etat}', fiche_sel: 'Sel couché {kg} kg', fiche_fleur: 'Fleur en surface {kg} kg', fiche_surface: '{n} part{s} d’eau',
     fiche_trappe: 'Trappe {direction} : {etat}, {debit} cm/h', fiche_projection_saturation: 'Saturé vers {heure}', fiche_projection_sec: 'À sec dans {h} h',
     fiche_projection_stable: 'Niveau tenu par l’amont', fiche_a_sec: 'À sec depuis {h} h', fiche_fissure: 'L’argile fissure : la parcelle fuit.',
@@ -32,11 +32,15 @@ const COPY = (() => {
     coop_mur_vide: 'Aucun sac encore. Le premier sera pochoiré à l’hivernage.', coop_possede: 'Acquis', coop_acheter: 'Acheter · {prix} €',
     sac_record: 'SAISON {n} · {climat} · {tonnes} t · {record} kg/œillet/jour',
     marge_ouvre_etier: 'La mer monte. Ouvre l’étier.', marge_eaux_vieilles: 'Le vieux Le Goff t’a laissé ses eaux vieilles : le fare est violet, l’aderne encore rose.',
-    marge_ferme_etier: 'L’eau repart avec la mer. Ferme l’étier.', marge_descendre: 'Fais descendre l’eau : ouvre les trappes, de la vasière jusqu’à l’œillet.',
+    marge_ferme_etier: 'L’eau repart avec la mer. Ferme l’étier.', marge_clapet: 'Le clapet d’étier s’ouvre et se ferme seul avec la mer.',
+    marge_maree_ratee: 'La mer est redescendue. Laisse l’étier ouvert : la prochaine pleine mer est à 19 h 25.',
+    marge_lever: 'Le marais est en eau. Touche ici pour lever l’eau : le sel reviendra.', marge_fleur_lousse: 'La fleur est là. Il te faut une lousse (120 €) à la coopérative.',
+    marge_reserve_maintenant: 'Mortes-eaux : la réserve tiendra {jours} jour{s}.', marge_descendre: 'Fais descendre l’eau : ouvre les trappes, de la vasière jusqu’à l’œillet.',
     marge_tirer: 'Le sel est là. Tire-le avec le las, d’un geste.', marge_porter: 'Porte-le à la coopérative.', marge_remonte: 'La mer remonte. Reprends de l’eau.',
     marge_pluie: 'La pluie dissout. Avant la pluie : tire le sel, ferme les trappes des adernes.', marge_fleur: 'Soir chaud et calme : écume la fleur avant 20 h.',
-    marge_reserve: 'Mortes-eaux dans {j} jours : la réserve tiendra {jours} jours.', marge_a_sec: 'L’œillet {n} est à sec depuis {h} h.',
-    marge_croute: 'Le {type} {n} croûte : il lui manque un œillet.', marge_mise_en_eau: 'Il est tard. Mettre le marais en eau avant de partir ?',
+    marge_reserve: 'Mortes-eaux dans {j} jour{s_j} : la réserve tiendra {jours} jour{s}.', marge_a_sec: '{nom} est à sec depuis {h} h.',
+    marge_croute: '{nom} croûte : il lui manque un œillet.', marge_mise_en_eau: 'Il est tard. Touche ici pour mettre le marais en eau avant de partir.',
+    noms_def: { vasiere: 'La vasière', cobier: 'Le cobier', fare: 'Le fare', aderne: 'L’aderne', oeillet: 'L’œillet' },
     marge_rien: 'Rien à faire. Regarde l’eau.', marge_sel: '{kg} kg de sel attendent dans l’œillet {n}.', marge_pluie_vient: 'Le baromètre baisse : la pluie vient. Tire le sel.',
     marge_creuser: 'Tu as {eur} € : de quoi creuser.', marge_fin_journee: 'Le marais vit au rythme de la mer. Prochaine pleine mer : {heure}.',
     marge_hiver: 'L’eau d’hiver couvre le marais. Redessine-le, puis ouvre la saison.',
@@ -45,7 +49,7 @@ const COPY = (() => {
     carnet_prevision: '{prevision} jusqu’à {heure}.', carnet_reserve: 'Réserve : {jours} jours d’eau.',
     carnet_record: 'Cette saison : {kg} kg par œillet et par jour. Record : {best}.', carnet_vide: 'Rien d’écrit encore. Le marais parlera le premier.',
     carnet_saison: 'Saison {n} · {climat} · jour {jour}', carnet_observations: 'Observations', carnet_saisons_passees: 'Saisons passées',
-    carnet_fermer_trop_tot: 'On ne ferme pas avant la mi-saison (jour 14).', carnet_premiere_page: 'Pleines mers : {h1} et {h2}. {prevision} Clapet d’étier : 25 €. La mer n’emportera plus ton eau. Creuser un second œillet : 60 €.',
+    carnet_fermer_trop_tot: 'On ne ferme pas avant la mi-saison (jour 14).', carnet_premiere_page: 'Pleines mers : {h1} et {h2}. {prevision} Clapet d’étier : {clapet} €. La mer n’emportera plus ton eau. Creuser un second œillet : {prix} €.',
     obs_meilleur_oeillet: 'L’œillet {n} a fait {kg} kg hier.', obs_ratio: 'Tu as {aup} parts d’eau en amont pour {n} œillet{s}. Vers six pour un, ils tournent au plein.',
     obs_croute: 'Un bassin a dépassé 260 g/L : {kg} kg se sont perdus en croûte. Un œillet de plus l’aurait pris.',
     obs_sec: 'L’œillet {n} est resté à sec {h} h. Il manque une aderne pour le nourrir.',
@@ -65,7 +69,7 @@ const COPY = (() => {
     hivernage_perdues: '{n} parcelle{s} fissurée{s} rendue{s} à la vase.', hivernage_aucune_perdue: 'Aucune parcelle perdue.',
     rhabillage_titre: 'Rhabillage d’hiver', rhabillage_compteur: '{n} parcelle{s} à placer · {rows} rangées',
     rhabillage_aide: 'Touche une case pour changer son type ou la rendre à la vase, touche une case libre pour y poser une parcelle. Tout est gratuit : c’est ton argile.',
-    rhabillage_probleme: '{n} parcelle{s} sans eau en amont (hachurée{s} en rouge). Déplace-la ou donne-lui un bassin voisin.',
+    rhabillage_probleme: '{n} parcelle{s} sans eau en amont (hachurée{s} en rose) : rends-{la} à la vase et repose-{la} à côté d’un bassin, ou change le type d’une voisine.',
     climat_annonce: 'L’an prochain : {climat}.',
     climats: { ordinaire: '2012, été ordinaire', secheresse: '1976, été de sécheresse', pourri: '1983, été pourri', canicule: '2003, canicule', vent: '1999, été de vent' },
     climat_effets: { ordinaire: 'Rien de particulier.', secheresse: '+3 °C, pluie rare, un peu de vent.', pourri: '−2 °C, pluie dès que le baromètre fléchit.', canicule: '+5 °C, l’argile fissure deux fois plus vite, fleur presque chaque soir.', vent: 'Vent soutenu : évaporation forte, fleur rare.' },
@@ -87,13 +91,15 @@ const COPY = (() => {
     'La fleur vient au soir, quand le vent dort.', 'Chapelet trop long, dernier grain à sec.', 'Eaux vieilles au fare, printemps au marais.',
     'Un fare qui blanchit a trop peu d’enfants.', 'Septembre ferme ce que juin a ouvert.', 'Ce que la lune donne, la lune reprend.',
   ];
+  // Espaces insécables avant : ; ? ! » et entre un nombre et son unité.
+  const typo = (s) => String(s).replace(/ ([:;?!»])/g, '\u202f$1').replace(/« /g, '«\u202f').replace(/(\d) (€|°C|g\/L|cm|kg|km|h|j|t|m)\b/g, '$1\u202f$2');
   function t(key, vars) {
     let s = T[key];
     if (s == null) return key;
     if (typeof s !== 'string') return s;
     if (vars) s = s.replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? vars[k] : m));
-    return s;
+    return typo(s);
   }
   const pl = (n) => (n > 1 ? 's' : '');
-  return { T, DICTONS, t, pl };
+  return { T, DICTONS, t, pl, typo };
 })();

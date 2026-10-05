@@ -1,9 +1,10 @@
-/* ŒILLETS — rendu Canvas 2D : papier kraft, trois encres en aplat, trames en surimpression (multiply), repérage décalé. */
+/* ŒILLETS — rendu Canvas 2D : papier kraft, trois encres en aplat, trames en surimpression (multiply), repérage décalé.
+   Aucun texte dans le canvas sauf les étiquettes au pochoir des parcelles ; les autres mots sont des éléments DOM placés par l'interface. */
 const RENDER = (() => {
   'use strict';
   const S = SIM, TYPES = S.TYPES;
-  const C = { papier: '#F1E8D6', encre: '#2A2B33', canard: '#1F8A8A', rose: '#F26BA6', argile: '#8E7D6D', soleil: '#F7C843', sel: '#FFFDF6', pale: '#E8E0CC', rouge: '#D7442C' };
-  let cv, ctx, W = 1, H = 1, DPR = 1, safeTop = 0, safeBottom = 0;
+  const C = { papier: '#F1E8D6', encre: '#2A2B33', canard: '#1F8A8A', rose: '#F26BA6', argile: '#8E7D6D', soleil: '#F7C843', sel: '#FFFDF6', pale: '#E8E0CC' };
+  let cv, ctx, W = 1, H = 1, DPR = 1, safeTop = 0, safeBottom = 0, bottomInset = 0;
   let geo = null, pat = {}, lastRows = 0;
   const TAU = Math.PI * 2;
   const hash = (a, b, c) => { let h = (a * 374761393 + b * 668265263 + (c | 0) * 2246822519) | 0; h = Math.imul(h ^ (h >>> 13), 1274126177); return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
@@ -22,27 +23,44 @@ const RENDER = (() => {
     makePatterns();
     geo = null;
   }
+  function setBottomInset(px) { if (px !== bottomInset) { bottomInset = px; geo = null; } }
   function tile(size, draw) { const c = document.createElement('canvas'); c.width = c.height = size; draw(c.getContext('2d'), size); return c; }
+  function dotsTile(frac) {
+    return tile(8, (g, n) => {
+      g.clearRect(0, 0, n, n); g.fillStyle = C.rose;
+      const r = frac >= 0.6 ? 2.5 : 1.5;
+      g.beginPath(); g.arc(2, 2, r, 0, TAU); g.fill(); g.beginPath(); g.arc(6, 6, r, 0, TAU); g.fill();
+      if (frac >= 0.6) { g.beginPath(); g.arc(6, 2, 1.6, 0, TAU); g.fill(); g.beginPath(); g.arc(2, 6, 1.6, 0, TAU); g.fill(); }
+    });
+  }
   function makePatterns() {
     const grain = tile(256, (g, n) => { g.clearRect(0, 0, n, n); for (let i = 0; i < 9000; i++) { g.fillStyle = Math.random() < 0.5 ? 'rgba(42,43,51,0.07)' : 'rgba(255,255,255,0.08)'; g.fillRect(Math.random() * n, Math.random() * n, 1, 1); } });
-    const dots = (frac) => tile(8, (g, n) => { g.clearRect(0, 0, n, n); g.fillStyle = C.rose; const r = frac >= 0.6 ? 2.1 : 1.45; g.beginPath(); g.arc(2, 2, r, 0, TAU); g.fill(); g.beginPath(); g.arc(6, 6, r, 0, TAU); g.fill(); if (frac >= 0.6) { g.beginPath(); g.arc(6, 2, 1.2, 0, TAU); g.fill(); g.beginPath(); g.arc(2, 6, 1.2, 0, TAU); g.fill(); } });
     const hatch = (col, alpha, gap) => tile(gap * 2, (g, n) => { g.clearRect(0, 0, n, n); g.strokeStyle = col; g.globalAlpha = alpha; g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, n); g.lineTo(n, 0); g.moveTo(-n / 2, n / 2); g.lineTo(n / 2, -n / 2); g.moveTo(n / 2, n * 1.5); g.lineTo(n * 1.5, n / 2); g.stroke(); });
     pat = {
       grain: ctx.createPattern(grain, 'repeat'),
-      dots30: ctx.createPattern(dots(0.3), 'repeat'), dots60: ctx.createPattern(dots(0.6), 'repeat'),
-      pluie: ctx.createPattern(hatch(C.canard, 0.5, 7), 'repeat'), jaune: ctx.createPattern(hatch(C.soleil, 0.9, 5), 'repeat'), rouge: ctx.createPattern(hatch(C.rouge, 0.8, 5), 'repeat'),
+      dots30: ctx.createPattern(dotsTile(0.3), 'repeat'), dots60: ctx.createPattern(dotsTile(0.6), 'repeat'),
+      pluie: ctx.createPattern(hatch(C.canard, 0.5, 7), 'repeat'), jaune: ctx.createPattern(hatch(C.soleil, 0.9, 5), 'repeat'), rose: ctx.createPattern(hatch(C.rose, 0.9, 5), 'repeat'),
     };
   }
-  // ─── géométrie ───
+
+  // ─── géométrie : le bloc mer + vasière + grille est ancré en bas, dans la zone du pouce ───
   function layout(st) {
     if (geo && lastRows === st.rows) return geo;
     lastRows = st.rows;
-    const skyH = 138 + safeTop, seaH = 18, vasH = 60, margeH = 48, barH = 62 + safeBottom;
-    const availH = H - skyH - seaH - vasH - margeH - barH - 12;
+    const court = H < 720;
+    const skyH = (court ? 112 : 132) + safeTop, seaH = 16, vasH = court ? 46 : (st.rows <= 7 ? 64 : 56), margeH = court ? 40 : 46;
+    const barH = Math.max(62 + safeBottom, bottomInset);
+    const availH = H - skyH - seaH - vasH - margeH - barH - 10;
     const cs = Math.max(30, Math.floor(Math.min(56, (W - 20) / S.P.COLS)));
-    const ch = Math.max(30, Math.floor(Math.min(cs * 1.8, availH / (st.rows - 1))));
-    const gw = cs * S.P.COLS, gx = Math.round((W - gw) / 2), seaY = skyH, vasY = skyH + seaH, gy = vasY + vasH;
-    geo = { skyH, seaH, vasH, cs, ch, gx, gw, seaY, vasY, gy, gridBottom: gy + (st.rows - 1) * ch, W, H, safeTop, safeBottom };
+    const ch = Math.max(42, Math.floor(Math.min(cs * 2.05, availH / (st.rows - 1))));
+    const gw = cs * S.P.COLS, gx = Math.round((W - gw) / 2);
+    let gridBottom = H - barH - margeH - 8;
+    let gy = gridBottom - (st.rows - 1) * ch, vasY = gy - vasH, seaY = vasY - seaH;
+    if (seaY < skyH) { seaY = skyH; vasY = seaY + seaH; gy = vasY + vasH; gridBottom = gy + (st.rows - 1) * ch; }
+    const gaugeY = skyH - 30, gaugeX0 = 16, gaugeX1 = W - 108;
+    const pos = (h) => gaugeX0 + (gaugeX1 - gaugeX0) * (h + 1.3) / 2.6;
+    geo = { skyH, seaH, vasH, cs, ch, gx, gw, seaY, vasY, gy, gridBottom, W, H, safeTop, safeBottom, barH, margeH,
+      gauge: { x0: gaugeX0, x1: gaugeX1, y: gaugeY, sillX: pos(S.P.SILL), pos }, baro: { x: W - 96, y: gaugeY - 12, w: 80, h: 30 }, etier: { x: gx + gw / 2, y: vasY } };
     return geo;
   }
   function cellRect(st, cell) {
@@ -53,7 +71,6 @@ const RENDER = (() => {
   function freeRect(st, r, c) { const g = layout(st); return { x: g.gx + c * g.cs, y: g.gy + (r - 1) * g.ch, w: g.cs, h: g.ch }; }
   function gateSegment(st, g) {
     const ra = cellRect(st, g.a), rb = cellRect(st, g.b);
-    // mur partagé : horizontal si l'un est au-dessus de l'autre
     if (Math.abs((ra.y + ra.h) - rb.y) < 1 || Math.abs((rb.y + rb.h) - ra.y) < 1) {
       const y = ra.y + ra.h <= rb.y + 1 ? ra.y + ra.h : rb.y + rb.h;
       const x0 = Math.max(ra.x, rb.x), x1 = Math.min(ra.x + ra.w, rb.x + rb.w);
@@ -63,17 +80,16 @@ const RENDER = (() => {
     const y0 = Math.max(ra.y, rb.y), y1 = Math.min(ra.y + ra.h, rb.y + rb.h);
     return { x0: x, y0, x1: x, y1, horiz: false, mx: x, my: (y0 + y1) / 2 };
   }
-  function etierPoint(st) { const g = layout(st); return { x: g.gx + g.gw / 2, y: g.vasY }; }
-  const distSeg = (px, py, ax, ay, bx, by) => { const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy; const t = l2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / l2)) : 0; return Math.hypot(px - ax - t * dx, py - ay - t * dy); };
+  function etierPoint(st) { return layout(st).etier; }
+  // Cible d'une trappe : une boîte autour du levier (44 px le long du mur, 18 px en travers), pas tout le mur.
   function hit(st, x, y) {
-    const g = layout(st);
-    const e = etierPoint(st);
+    const g = layout(st), e = g.etier;
     if (Math.hypot(x - e.x, y - e.y) < 24) return { kind: 'etier' };
-    let best = null, bd = 13;
+    let best = null, bd = Infinity;
     for (const gt of S.gatesOf(st)) {
       const sg = gateSegment(st, gt);
-      const d = distSeg(x, y, sg.x0, sg.y0, sg.x1, sg.y1);
-      if (d < bd) { bd = d; best = gt; }
+      const along = sg.horiz ? Math.abs(x - sg.mx) : Math.abs(y - sg.my), across = sg.horiz ? Math.abs(y - sg.my) : Math.abs(x - sg.mx);
+      if (along <= 22 && across <= 9 && across < bd) { bd = across; best = gt; }
     }
     if (best) return { kind: 'gate', gate: best };
     for (const cell of st.cells) { const r = cellRect(st, cell); if (x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) return { kind: 'cell', cell }; }
@@ -90,6 +106,14 @@ const RENDER = (() => {
   }
   function pathPoly(poly) { ctx.beginPath(); ctx.moveTo(poly[0][0], poly[0][1]); for (let i = 1; i < poly.length; i++) ctx.lineTo(poly[i][0], poly[i][1]); ctx.closePath(); }
   function stencil(txt, x, y, size, col, align) { ctx.font = `900 ${size}px "Big Shoulders Stencil Text","Big Shoulders Stencil","Arial Narrow",Impact,sans-serif`; ctx.fillStyle = col; ctx.textAlign = align || 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillText(txt, x, y); }
+  // étiquette au pochoir sur un cartouche papier : lisible sur toute encre, sans halo
+  function label(txt, x, y, size, align) {
+    ctx.font = `900 ${size}px "Big Shoulders Stencil Text","Big Shoulders Stencil","Arial Narrow",Impact,sans-serif`;
+    const w = ctx.measureText(txt).width + 6, h = size + 2;
+    const bx = align === 'right' ? x - w + 3 : align === 'center' ? x - w / 2 : x - 3;
+    ctx.fillStyle = C.papier; ctx.fillRect(bx, y - size + 1, w, h);
+    stencil(txt, x, y, size, C.encre, align);
+  }
 
   // ─── dessin ───
   function draw(st, env, ui) {
@@ -105,13 +129,13 @@ const RENDER = (() => {
     drawGates(st, ui);
     drawEtier(st, env, ui);
     drawBirds(st, env, ui);
+    for (const cell of st.cells) drawLabel(st, env, ui, cell);
     if (ui.strokes) drawStrokes(ui);
     if (ui.ring) drawRing(st, ui);
     if (env.rain > 0) { ctx.fillStyle = pat.pluie; ctx.fillRect(0, g.skyH - 30, W, H); }
     const nf = ui.mode === 'hiver' ? 0 : nightFrac(env, ui);
     if (nf > 0) { ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = 0.35; ctx.fillStyle = C.canard; ctx.fillRect(0, 0, W, H * nf); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
     if (ui.flood > 0) { ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = Math.min(ui.mode === 'hiver' ? 0.3 : 0.8, ui.flood); ctx.fillStyle = C.canard; ctx.fillRect(0, g.seaY, W, H); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; }
-    // grain du papier, une fois calculé
     ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = 0.9; ctx.fillStyle = pat.grain; ctx.fillRect(0, 0, W, H);
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
   }
@@ -123,33 +147,31 @@ const RENDER = (() => {
     return 0;
   }
   function drawSky(st, env, ui, g) {
-    // soleil / lune sur un arc, derrière les textes
+    // soleil ou lune sur un petit arc dans la colonne centrale, entre les textes ; contour décalé, pas d'ombre
     const day = env.hour >= 6 && env.hour < 21.5;
-    const cx = W / 2, top = safeTop + 10, arcW = Math.min(W * 0.26, 110);
-    if (day) {
-      const t = (env.hour - 6) / 15.5, x = cx - arcW + 2 * arcW * t, y = top + 34 - Math.sin(t * Math.PI) * 24;
-      ctx.fillStyle = C.encre; ctx.beginPath(); ctx.arc(x + 2, y + 1.5, 11, 0, TAU); ctx.fill();
-      ctx.fillStyle = C.soleil; ctx.beginPath(); ctx.arc(x, y, 11, 0, TAU); ctx.fill();
-    } else {
-      const t = env.hour >= 21.5 ? (env.hour - 21.5) / 9 : (env.hour + 2.5) / 9, x = cx - arcW + 2 * arcW * t, y = top + 34 - Math.sin(t * Math.PI) * 24;
-      drawMoon(x, y, 10, env.moon);
+    const cx = W / 2, top = safeTop + 10, arcW = Math.min(W * 0.11, 44);
+    const t = day ? (env.hour - 6) / 15.5 : env.hour >= 21.5 ? (env.hour - 21.5) / 9 : (env.hour + 2.5) / 9;
+    const lift = Math.sin(t * Math.PI);
+    if (lift > 0.12) {
+      const x = cx - arcW + 2 * arcW * t, y = top + 30 - lift * 18;
+      if (day) {
+        ctx.fillStyle = C.soleil; ctx.beginPath(); ctx.arc(x, y, 11, 0, TAU); ctx.fill();
+        ctx.strokeStyle = C.encre; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x + 1.5, y + 1, 11, 0, TAU); ctx.stroke();
+      } else drawMoon(x, y, 10, env.moon);
     }
-    // jauge de marée (à gauche) et baromètre (à droite)
-    const gy = g.skyH - 34, x0 = 16, x1 = W - 108, gw = x1 - x0;
-    const pos = (h) => x0 + gw * (h + 1.3) / 2.6;
-    ctx.fillStyle = C.papier; ctx.fillRect(x0, gy, gw, 10);
-    ctx.fillStyle = C.canard; ctx.fillRect(x0, gy, Math.max(0, pos(env.h) - x0), 10);
-    ctx.strokeStyle = C.encre; ctx.lineWidth = 1.5; ctx.strokeRect(x0 + 0.5, gy + 0.5, gw - 1, 9);
-    for (let h = -1; h <= 1; h += 0.5) { const x = pos(h); ctx.beginPath(); ctx.moveTo(x, gy + 10); ctx.lineTo(x, gy + 14); ctx.stroke(); }
-    const sx = pos(S.P.SILL);
-    ctx.strokeStyle = C.encre; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx, gy - 5); ctx.lineTo(sx, gy + 15); ctx.stroke();
-    stencil('SEUIL', sx + 4, gy - 1, 9, C.encre, 'left');
-    const nx = pos(env.h);
+    // jauge de marée : bande, repère du seuil, aiguille
+    const J = g.gauge, gy = J.y, gw = J.x1 - J.x0;
+    ctx.fillStyle = C.papier; ctx.fillRect(J.x0, gy, gw, 10);
+    ctx.fillStyle = C.canard; ctx.fillRect(J.x0, gy, Math.max(0, J.pos(env.h) - J.x0), 10);
+    ctx.strokeStyle = C.encre; ctx.lineWidth = 1.5; ctx.strokeRect(J.x0 + 0.5, gy + 0.5, gw - 1, 9);
+    for (let h = -1; h <= 1; h += 0.5) { const x = J.pos(h); ctx.beginPath(); ctx.moveTo(x, gy + 10); ctx.lineTo(x, gy + 14); ctx.stroke(); }
+    ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(J.sillX, gy - 4); ctx.lineTo(J.sillX, gy + 16); ctx.stroke();
+    const nx = J.pos(env.h);
     ctx.fillStyle = C.encre; ctx.beginPath(); ctx.moveTo(nx, gy - 2); ctx.lineTo(nx - 5, gy - 9); ctx.lineTo(nx + 5, gy - 9); ctx.closePath(); ctx.fill();
-    // baromètre : aiguille, ou courbe 24 h si enregistreur
-    if (ui.baro) drawBaro(ui.baro, W - 96, gy - 12, 80, 30);
+    if (ui.baro) drawBaro(ui.baro, g.baro);
   }
-  function drawBaro(baro, x, y, w, h) {
+  function drawBaro(baro, r) {
+    const { x, y, w, h } = r;
     ctx.fillStyle = C.papier; ctx.fillRect(x, y, w, h);
     ctx.strokeStyle = C.argile; ctx.lineWidth = 1; ctx.strokeRect(x + 0.5, y + 0.5, w - 1, h - 1);
     const ry = (p) => y + h - (S.clamp((p - 995) / 30, 0, 1)) * (h - 4) - 2;
@@ -157,27 +179,22 @@ const RENDER = (() => {
       ctx.strokeStyle = C.argile; ctx.setLineDash([2, 3]); ctx.beginPath(); ctx.moveTo(x, ry(1005)); ctx.lineTo(x + w, ry(1005)); ctx.stroke(); ctx.setLineDash([]);
       ctx.strokeStyle = C.encre; ctx.lineWidth = 1.5; ctx.beginPath();
       baro.curve.forEach((p, i) => { const px = x + (i / (baro.curve.length - 1)) * w; if (i) ctx.lineTo(px, ry(p)); else ctx.moveTo(px, ry(p)); }); ctx.stroke();
-      stencil('24 H', x + 3, y + 9, 8, C.argile, 'left');
     } else {
       const cx = x + w - 16, cy = y + h / 2;
       ctx.strokeStyle = C.encre; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(cx, cy, 12, 0, TAU); ctx.stroke();
       const a = Math.PI * 1.25 - S.clamp((baro.P - 995) / 30, 0, 1) * Math.PI * 1.5;
       ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(a) * 10, cy - Math.sin(a) * 10); ctx.stroke();
-      stencil(baro.dP < -0.15 ? '↓' : baro.dP > 0.15 ? '↑' : '→', x + 4, cy + 5, 14, C.encre, 'left');
-      stencil('BARO', x + 20, cy + 4, 8, C.argile, 'left');
+      ctx.fillStyle = C.encre; ctx.beginPath(); ctx.arc(cx, cy, 1.8, 0, TAU); ctx.fill();
     }
   }
   function drawMoon(x, y, r, phase) {
-    ctx.fillStyle = C.encre; ctx.beginPath(); ctx.arc(x + 1.5, y + 1, r, 0, TAU); ctx.fill();
     ctx.fillStyle = C.papier; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
-    ctx.strokeStyle = C.encre; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.stroke();
-    // partie éclairée en encre claire : croissant selon la phase
     const k = Math.cos(phase * TAU); // 1 nouvelle (sombre), -1 pleine
-    ctx.fillStyle = C.soleil;
-    ctx.beginPath();
+    ctx.fillStyle = C.soleil; ctx.beginPath();
     if (phase < 0.5) { ctx.arc(x, y, r, -Math.PI / 2, Math.PI / 2); ctx.ellipse(x, y, Math.abs(k) * r, r, 0, Math.PI / 2, -Math.PI / 2, k < 0); }
     else { ctx.arc(x, y, r, Math.PI / 2, -Math.PI / 2); ctx.ellipse(x, y, Math.abs(k) * r, r, 0, -Math.PI / 2, Math.PI / 2, k < 0); }
     ctx.fill();
+    ctx.strokeStyle = C.encre; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x + 1.5, y + 1, r, 0, TAU); ctx.stroke();
   }
   function drawSea(st, env, g) {
     const level = 0.35 + 0.65 * (env.h + 1.3) / 2.6;
@@ -186,8 +203,9 @@ const RENDER = (() => {
     ctx.strokeStyle = C.papier; ctx.lineWidth = 1.2; ctx.beginPath();
     for (let x = g.gx - 6; x <= g.gx + g.gw + 6; x += 6) { const yy = y + 5 + Math.sin(x / 9 + (env.ms / 4000)) * 1.5; if (x === g.gx - 6) ctx.moveTo(x, yy); else ctx.lineTo(x, yy); }
     ctx.stroke();
-    stencil('MER', g.gx - 4, g.vasY - h - 3, 9, C.canard, 'left');
   }
+  // Eau : canard dont l'alpha suit la profondeur ; sous les trames roses il est plafonné à 0,6 pour que
+  // rose × canard tombe dans le violet (#6D4A6D) et non dans un bleu nuit.
   function drawCell(st, env, ui, cell) {
     const r = cellRect(st, cell), poly = jitterPoly(r, cell.id * 7 + 3), Sg = S.salinity(cell), b = S.bucket(Sg);
     const inset = { x: r.x + 2, y: r.y + 2, w: r.w - 4, h: r.h - 4 };
@@ -197,9 +215,10 @@ const RENDER = (() => {
     if (!wet) {
       ctx.globalAlpha = 0.55; ctx.fillStyle = C.argile; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.globalAlpha = 1;
     } else {
-      ctx.globalAlpha = Math.min(1, cell.depth / 6) * 0.95 + 0.05; ctx.fillStyle = C.canard; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.globalAlpha = 1;
+      const base = Math.min(1, cell.depth / 6) * 0.95 + 0.05, tramee = b === 'violet30' || b === 'violet60';
+      ctx.globalAlpha = tramee ? Math.min(base, 0.6) : base; ctx.fillStyle = C.canard; ctx.fillRect(r.x, r.y, r.w, r.h); ctx.globalAlpha = 1;
       const off = env.rain > 0 ? 3.5 : 1.5;
-      if (b === 'violet30' || b === 'violet60') {
+      if (tramee) {
         ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = b === 'violet30' ? pat.dots30 : pat.dots60;
         ctx.save(); ctx.translate(off, 1); ctx.fillRect(r.x - off, r.y - 1, r.w, r.h); ctx.restore();
         ctx.globalCompositeOperation = 'source-over';
@@ -209,7 +228,6 @@ const RENDER = (() => {
       }
     }
     ctx.restore();
-    // sel : un point par 4 kg ; croûte perdue en points ternes
     const kg = S.kgOf(cell.crust);
     if (kg > 0.5) {
       const n = Math.min(160, Math.floor(kg / 2) + 1);
@@ -219,28 +237,26 @@ const RENDER = (() => {
         ctx.fillRect(px, py, 2.2, 2.2);
       }
     }
-    // liseré blanc : fin à saturation, épais si fleur
     if (cell.type === 'oeillet' && wet && (b === 'blanc' || cell.fleur > 0.15)) {
       ctx.strokeStyle = C.sel; ctx.lineWidth = cell.fleur > 0.15 ? 3 : 1.2; ctx.strokeRect(r.x + 3.5, r.y + 3.5, r.w - 7, r.h - 7);
     }
-    // fissures
     if (cell.integ < 0.8) {
       const n = Math.round((0.8 - cell.integ) * 40) + 2;
       ctx.strokeStyle = C.encre; ctx.lineWidth = 1.2; ctx.beginPath();
       for (let i = 0; i < n; i++) { const px = inset.x + hash(cell.id, i, 21) * inset.w, py = inset.y + hash(cell.id, i, 22) * inset.h, a = hash(cell.id, i, 23) * TAU; ctx.moveTo(px, py); ctx.lineTo(px + Math.cos(a) * 7, py + Math.sin(a) * 7); }
       ctx.stroke();
     }
-    // étiquette au pochoir
-    const col = wet && (b === 'violet60' || b === 'rose' || b === 'blanc') ? C.papier : C.encre;
+    if (ui.mode === 'hiver' && ui.problems && ui.problems.includes(cell)) { ctx.fillStyle = pat.rose; ctx.fillRect(r.x, r.y, r.w, r.h); }
+    if (ui.selected === cell) { ctx.setLineDash([4, 3]); ctx.strokeStyle = C.encre; ctx.lineWidth = 2; ctx.strokeRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4); ctx.setLineDash([]); }
+  }
+  function drawLabel(st, env, ui, cell) {
+    const r = cellRect(st, cell), g = layout(st);
     if (cell.type === 'vasiere') {
-      stencil(`VASIÈRE · ${Math.round(cell.depth)} CM`, r.x + 6, r.y + 15, 11, col, 'left');
-      if (st.vasEnl) stencil(`×${st.vasEnl}`, r.x + r.w - 6, r.y + 15, 11, col, 'right');
-      if (st.enEau) stencil('EN EAU', r.x + r.w / 2, r.y + r.h - 6, 10, col, 'center');
-    } else {
-      stencil(ABR[cell.type] + cell.num, r.x + 5, r.y + 12, 10, col, 'left');
-      if (ui.selected === cell) { ctx.setLineDash([4, 3]); ctx.strokeStyle = C.encre; ctx.lineWidth = 2; ctx.strokeRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4); ctx.setLineDash([]); }
-      if (ui.mode === 'hiver' && ui.problems && ui.problems.includes(cell)) { ctx.fillStyle = pat.rouge; ctx.fillRect(r.x, r.y, r.w, r.h); }
+      label(`VASIÈRE · ${Math.round(cell.depth)} CM${st.vasEnl ? ' · ×' + st.vasEnl : ''}${st.enEau ? ' · EN EAU' : ''}`, r.x + 8, r.y + 19, 13, 'left');
+      return;
     }
+    const size = Math.round(S.clamp(g.ch * 0.28, 12, 15));
+    label(ABR[cell.type] + cell.num, r.x + 7, r.y + size + 5, size, 'left');
   }
   function drawFree(st, ui, g) {
     for (let r = 1; r < st.rows; r++) for (let c = 0; c < S.P.COLS; c++) {
@@ -252,38 +268,32 @@ const RENDER = (() => {
   }
   function drawWalls(st) {
     ctx.lineJoin = 'round'; ctx.lineCap = 'round';
-    for (const cell of st.cells) {
-      const poly = jitterPoly(cellRect(st, cell), cell.id * 7 + 3);
-      pathPoly(poly); ctx.strokeStyle = C.argile; ctx.lineWidth = 5; ctx.stroke();
-    }
+    for (const cell of st.cells) { pathPoly(jitterPoly(cellRect(st, cell), cell.id * 7 + 3)); ctx.strokeStyle = C.argile; ctx.lineWidth = 5; ctx.stroke(); }
     ctx.save(); ctx.translate(1.5, -1);
-    for (const cell of st.cells) {
-      const poly = jitterPoly(cellRect(st, cell), cell.id * 7 + 3);
-      pathPoly(poly); ctx.strokeStyle = C.encre; ctx.lineWidth = 1.8; ctx.stroke();
-    }
+    for (const cell of st.cells) { pathPoly(jitterPoly(cellRect(st, cell), cell.id * 7 + 3)); ctx.strokeStyle = C.encre; ctx.lineWidth = 1.8; ctx.stroke(); }
     ctx.restore();
   }
+  // Trappe : planche argile fermée (à plat sur le mur), relevée à 70° quand elle est ouverte ; l'eau qui passe se voit à la couleur des bassins.
   function drawGates(st) {
     for (const g of S.gatesOf(st)) {
       const sg = gateSegment(st, g), open = S.gateOpen(st, g.key);
       ctx.save(); ctx.translate(sg.mx, sg.my);
       ctx.rotate(sg.horiz ? 0 : Math.PI / 2);
       if (open) ctx.rotate(-70 * Math.PI / 180);
-      ctx.fillStyle = open ? C.soleil : C.argile; ctx.strokeStyle = C.encre; ctx.lineWidth = 1.5;
-      ctx.fillRect(-8, -3, 16, 6); ctx.strokeRect(-8, -3, 16, 6);
+      ctx.fillStyle = open ? C.papier : C.argile; ctx.strokeStyle = C.encre; ctx.lineWidth = 1.5;
+      ctx.fillRect(-9, -3, 18, 6); ctx.strokeRect(-9, -3, 18, 6);
       ctx.restore();
-      if (!open) { ctx.fillStyle = C.encre; ctx.beginPath(); ctx.arc(sg.mx, sg.my, 1.6, 0, TAU); ctx.fill(); }
+      ctx.fillStyle = C.encre; ctx.beginPath(); ctx.arc(sg.mx, sg.my, 1.6, 0, TAU); ctx.fill();
     }
   }
   function drawEtier(st, env, ui) {
-    const e = etierPoint(st), open = st.etierOpen;
+    const e = etierPoint(st), open = st.etierOpen || st.items.clapet;
     ctx.save(); ctx.translate(e.x, e.y);
     if (open) ctx.rotate(-70 * Math.PI / 180);
-    ctx.fillStyle = open ? C.soleil : C.argile; ctx.strokeStyle = C.encre; ctx.lineWidth = 2;
+    ctx.fillStyle = open ? C.papier : C.argile; ctx.strokeStyle = C.encre; ctx.lineWidth = 2;
     ctx.fillRect(-11, -4, 22, 8); ctx.strokeRect(-11, -4, 22, 8);
     ctx.restore();
     if (st.items.clapet) { ctx.fillStyle = C.encre; ctx.beginPath(); ctx.moveTo(e.x + 16, e.y - 5); ctx.lineTo(e.x + 24, e.y); ctx.lineTo(e.x + 16, e.y + 5); ctx.closePath(); ctx.fill(); }
-    stencil('ÉTIER', e.x - 16, e.y - 9, 9, C.encre, 'right');
   }
   function drawBirds(st, env, ui) {
     const flap = Math.floor(env.ms / 500) % 2 === 0;
@@ -291,11 +301,11 @@ const RENDER = (() => {
       if (cell.type !== 'aderne' || cell.algae < 0.5 || S.salinity(cell) < 150 || env.night) continue;
       const r = cellRect(st, cell);
       for (let i = 0; i < 2; i++) {
-        const x = r.x + 10 + hash(cell.id, i, 31) * (r.w - 20), y = r.y + r.h * 0.55 + hash(cell.id, i, 32) * (r.h * 0.25);
+        const x = r.x + 12 + hash(cell.id, i, 31) * (r.w - 24), y = r.y + r.h * 0.55 + hash(cell.id, i, 32) * (r.h * 0.25);
         ctx.strokeStyle = C.encre; ctx.lineWidth = 1.4; ctx.lineCap = 'round'; ctx.beginPath();
-        ctx.ellipse(x, y, 5, 2.2, 0, 0, TAU);                                   // corps
-        ctx.moveTo(x + 4, y - 1); ctx.lineTo(x + 6, y - 6); ctx.lineTo(x + 10, y - 7.5); // cou, bec retroussé
-        ctx.moveTo(x - 1, y + 2); ctx.lineTo(x - 2, y + 8); ctx.moveTo(x + 2, y + 2); ctx.lineTo(x + 2, y + 8); // pattes
+        ctx.ellipse(x, y, 5, 2.2, 0, 0, TAU);
+        ctx.moveTo(x + 4, y - 1); ctx.lineTo(x + 6, y - 6); ctx.lineTo(x + 10, y - 7.5);
+        ctx.moveTo(x - 1, y + 2); ctx.lineTo(x - 2, y + 8); ctx.moveTo(x + 2, y + 2); ctx.lineTo(x + 2, y + 8);
         if (flap) { ctx.moveTo(x - 2, y - 2); ctx.lineTo(x - 4, y - 7); }
         ctx.stroke();
       }
@@ -321,14 +331,19 @@ const RENDER = (() => {
     ctx.strokeStyle = C.soleil; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(t.x, t.y, t.r + pulse, 0, TAU); ctx.stroke();
     ctx.strokeStyle = C.encre; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(t.x + 1.5, t.y + 1, t.r + pulse, 0, TAU); ctx.stroke();
   }
-  // vignette d'un plan passé (carnet), dessinée dans un petit canvas
+  // vignette d'un plan passé : même recette riso, à petite échelle (canard à 0,6 sous les trames roses, jamais de violet peint)
   function drawThumb(canvas, rec, cols) {
     const g = canvas.getContext('2d'), rows = rec.rows, cs = Math.floor(Math.min(canvas.width / cols, canvas.height / rows));
+    const d30 = g.createPattern(dotsTile(0.3), 'repeat'), d60 = g.createPattern(dotsTile(0.6), 'repeat');
     g.fillStyle = C.papier; g.fillRect(0, 0, canvas.width, canvas.height);
     g.fillStyle = C.canard; g.fillRect(0, 0, cs * cols, cs);
-    const COL = { cobier: C.canard, fare: '#5B6F9E', aderne: C.violet, oeillet: C.rose };
-    for (const [r, c, type] of rec.plan) { g.fillStyle = COL[type] || C.argile; g.fillRect(c * cs + 1, r * cs + 1, cs - 2, cs - 2); }
+    for (const [r, c, type] of rec.plan) {
+      const x = c * cs + 1, y = r * cs + 1, w = cs - 2;
+      if (type === 'oeillet') { g.globalAlpha = 1; g.fillStyle = C.rose; g.fillRect(x, y, w, w); continue; }
+      g.globalAlpha = type === 'cobier' ? 1 : 0.6; g.fillStyle = C.canard; g.fillRect(x, y, w, w); g.globalAlpha = 1;
+      if (type !== 'cobier') { g.globalCompositeOperation = 'multiply'; g.fillStyle = type === 'fare' ? d30 : d60; g.fillRect(x, y, w, w); g.globalCompositeOperation = 'source-over'; }
+    }
     g.strokeStyle = C.argile; g.lineWidth = 1; g.strokeRect(0.5, 0.5, cs * cols - 1, cs * rows - 1);
   }
-  return { init, resize, layout, cellRect, freeRect, gateSegment, etierPoint, hit, draw, drawThumb, C, get W() { return W; }, get H() { return H; } };
+  return { init, resize, setBottomInset, layout, cellRect, freeRect, gateSegment, etierPoint, hit, draw, drawThumb, C, get W() { return W; }, get H() { return H; } };
 })();

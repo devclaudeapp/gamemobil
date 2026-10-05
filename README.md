@@ -69,9 +69,14 @@ Le service worker (`sw.js`) garde le jeu consultable hors ligne.
 | `src/style.css`, `src/page.html` | Mise en page |
 | `scratch/econ-sim.js` | Simulateur économique headless qui a servi à régler les constantes |
 
+## Coupes volontaires
+
+- Pas de notification (« la mer est haute dans 30 min ») : le jeu ne réclame rien, et une page web installée ne peut pas la garantir. La marge et le carnet donnent les heures de marée.
+- Pas de son, pas de succès, pas de récompenses quotidiennes : le mur de sacs et le record kg/œillet/jour sont les seuls souvenirs.
+- Sur les très petits écrans, les cellules descendent à 42 px quand la grille atteint 11 rangées (saison 4 et au-delà).
+
 ## Pistes pour la suite
 
 - Strates colorées du mulon selon la météo, export image du marais à l'hivernage.
-- Notification locale optionnelle « la mer est haute dans 30 min » (jamais précochée).
 - D'autres sites de marais avec une silhouette de grille différente.
 - Publication App Store / Play Store en enveloppant la page avec Capacitor.

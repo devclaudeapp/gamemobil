@@ -4,14 +4,17 @@ const SHEETS = (() => {
   const S = SIM, t = COPY.t, pl = COPY.pl, $ = (s) => document.querySelector(s);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const feuille = $('#feuille'), fc = $('#feuille-contenu'), page = $('#page'), pc = $('#page-contenu'), voile = $('#voile');
-  let onCloseSheet = null;
+  let onCloseSheet = null, openedAt = 0;
 
-  function openSheet(html, onClose) { fc.innerHTML = html; feuille.hidden = false; voile.hidden = false; feuille.scrollTop = 0; onCloseSheet = onClose || null; }
+  function openSheet(html, onClose) {
+    const prev = onCloseSheet; onCloseSheet = onClose || prev || null;
+    fc.innerHTML = html; feuille.hidden = false; voile.hidden = false; feuille.scrollTop = 0; openedAt = performance.now();
+  }
   function closeSheet() { if (feuille.hidden) return; feuille.hidden = true; voile.hidden = true; fc.innerHTML = ''; const f = onCloseSheet; onCloseSheet = null; if (f) f(); }
   function openPage(html) { pc.innerHTML = html; page.hidden = false; page.scrollTop = 0; }
   function closePage() { page.hidden = true; pc.innerHTML = ''; }
   const isOpen = () => !feuille.hidden || !page.hidden;
-  voile.addEventListener('click', closeSheet);
+  voile.addEventListener('pointerdown', (e) => { if (performance.now() - openedAt > 350) { e.preventDefault(); closeSheet(); } });
   const on = (root, sel, fn) => root.querySelectorAll(sel).forEach((el) => el.addEventListener('click', (e) => { UI.buzz(6); fn(el, e); }));
   const bouton = (id, txt, cls) => `<button type="button" class="btn ${cls || ''}" data-a="${id}">${txt}</button>`;
   const typeName = (type) => t('type_' + type);
@@ -22,13 +25,13 @@ const SHEETS = (() => {
     const nom = cell.type === 'vasiere' ? t('type_vasiere').toUpperCase() : `${typeName(cell.type).toUpperCase()} ${cell.num}`;
     const alg = COPY.T.algues_etats[cell.algae < 0.15 ? 0 : cell.algae < 0.45 ? 1 : cell.algae < 0.8 ? 2 : 3];
     let lignes = '';
-    if (cell.type === 'vasiere') lignes += ligne(t('fiche_vasiere', { cm: UI.fmt(cell.depth, 0), max: UI.fmt(S.maxDepth(st, cell), 0), etat: st.etierOpen ? t('etier_ouvert') : t('etier_ferme') }), '');
-    else lignes += ligne(t('fiche_niveau', { cm: UI.fmt(cell.depth, 1) }), `${UI.fmt(S.TYPES[cell.type].max, 0)} cm max`);
+    if (cell.type === 'vasiere') lignes += ligne(t('fiche_vasiere', { cm: UI.fmt(cell.depth, 0), max: UI.fmt(S.maxDepth(st, cell), 0), etat: st.items.clapet ? t('clapet_court') : st.etierOpen ? t('etier_ouvert') : t('etier_ferme') }), st.items.clapet ? t('fiche_clapet') : '');
+    else lignes += ligne(t('fiche_niveau', { cm: UI.fmt(cell.depth, 1) }), `${UI.fmt(S.maxDepth(st, cell), 0)}\u202fcm max${st.enEau ? ' · en eau' : ''}`);
     lignes += ligne(t('fiche_salinite', { gl: UI.fmt(Sg, 0) }), Sg >= S.P.SAT - 2 ? 'saturée' : Sg >= 220 ? 'presque' : Sg >= 150 ? 'rose' : Sg >= 80 ? 'en chemin' : 'eau jeune');
     lignes += ligne(t('fiche_temperature', { c: UI.fmt(env.T, 0) }), t('fiche_surface', { n: S.TYPES[cell.type].area, s: pl(S.TYPES[cell.type].area) }));
     lignes += ligne(t('fiche_argile', { pct: UI.fmt(cell.integ * 100, 0) }), cell.integ < 0.8 ? `<span style="color:var(--rouge)">${t('fiche_fissure')}</span>` : '');
     lignes += ligne(t('fiche_algues', { etat: alg }), cell.algae >= 0.5 ? '+25 % d’évaporation' : '');
-    if (cell.type === 'oeillet') { lignes += ligne(t('fiche_sel', { kg: UI.fmt(kg, 1) }), kg > 0 ? 'glisse pour tirer' : ''); if (cell.fleur > 0.05) lignes += ligne(t('fiche_fleur', { kg: UI.fmt(cell.fleur, 2) }), st.items.lousse ? 'touche pour écumer' : t('lousse_absente')); }
+    if (cell.type === 'oeillet') { lignes += ligne(t('fiche_sel', { kg: UI.fmt(kg, 1) }), kg > 0 ? 'glisse pour tirer' : ''); if (cell.fleur > 0.05) lignes += ligne(t('fiche_fleur', { kg: UI.fmt(cell.fleur, 2) }), st.items.lousse ? 'touche l’œillet pour écumer' : t('lousse_absente')); else if (S.salinity(cell) >= 250 && !(env.hour >= 15 && env.hour < 20)) lignes += ligne('Fleur', t('fiche_fleur_fenetre')); }
     else if (kg > 1) lignes += ligne(t('fiche_croute', { kg: UI.fmt(kg, 0) }), '');
     if (cell.depth <= 0.02 && cell.dryH > 0.5) lignes += ligne(t('fiche_a_sec', { h: UI.fmt(cell.dryH, 0) }), cell.dryH > S.P.CRACK_AFTER[cell.type] ? 'l’argile fissure' : `fissures après ${S.P.CRACK_AFTER[cell.type]} h`);
     const pr = S.projection(st, env, cell);
@@ -47,7 +50,7 @@ const SHEETS = (() => {
     }
     const actions = [];
     if (cell.type !== 'vasiere' && cell.integ < S.P.REPAIR_BELOW) actions.push(bouton('repair', t('btn_rhabiller'), st.cash >= S.P.COST.rhabillage ? 'jaune' : ''));
-    if (cell.type === 'vasiere') actions.push(bouton('etier', st.etierOpen ? 'Fermer l’étier' : 'Ouvrir l’étier', 'jaune'));
+    if (cell.type === 'vasiere' && !st.items.clapet) actions.push(bouton('etier', st.etierOpen ? 'Fermer l’étier' : 'Ouvrir l’étier', 'jaune'));
     actions.push(bouton(st.enEau ? 'lever' : 'eneau', st.enEau ? t('btn_lever_eau') : t('btn_mettre_en_eau'), ''));
     openSheet(`<p class="sur">${esc(typeName(cell.type))}${cell.type === 'oeillet' ? ' · ' + t('creuser_conseil_oeillet') : ''}</p><h2>${esc(nom)}</h2>
       ${proj ? `<p class="ital">${esc(proj)}</p>` : ''}
@@ -96,7 +99,7 @@ const SHEETS = (() => {
     const st = UI.st, max = st.vasEnl >= S.P.VAS_MAX, prix = UI.fmt(S.plotCost(st, 'vasiere'), 0);
     openSheet(`<p class="sur">${t('type_vasiere')}</p><h2>Agrandir la vasière</h2>
       <p>${max ? t('creuser_vasiere_max') : t('creuser_vasiere', { prix })}</p>
-      <p class="pale">Réserve actuelle : ${UI.fmt(S.TYPES.vasiere.max * Math.pow(1.5, st.vasEnl), 0)} cm · ${t('carnet_reserve', { jours: UI.fmt(S.reserveDays(st), 1) })}</p>
+      <p class="pale">${COPY.typo(`Vasière de ${UI.fmt(S.TYPES.vasiere.max * Math.pow(1.5, st.vasEnl), 0)} cm : le marais plein tient ${UI.fmt(S.storageDays(st), 1)} jours d’évaporation${max ? '' : `, ${UI.fmt(S.storageDays(st, st.vasEnl + 1), 1)} après agrandissement`}. Eau présente : ${UI.fmt(S.reserveDays(st), 1)} jours.`)}</p>
       ${max ? '' : bouton('go', `Agrandir · ${prix} €`, 'plein')}${bouton('close', t('btn_annuler'), '')}`);
     on(fc, '[data-a]', (el) => {
       if (el.dataset.a === 'close') closeSheet();
@@ -105,9 +108,9 @@ const SHEETS = (() => {
   }
 
   // ─── confirmation ───
-  function confirm(texte, oui, labelOui) {
+  function confirm(texte, oui, labelOui, non) {
     openSheet(`<div class="confirm"><p>${esc(texte)}</p><div class="rang">${bouton('oui', labelOui || 'Oui', 'plein')}${bouton('non', t('btn_annuler'), '')}</div></div>`);
-    on(fc, '[data-a]', (el) => { closeSheet(); if (el.dataset.a === 'oui') oui(); });
+    on(fc, '[data-a]', (el) => { closeSheet(); if (el.dataset.a === 'oui') oui(); else if (non) non(); });
   }
 
   // ─── carnet ───
@@ -126,7 +129,7 @@ const SHEETS = (() => {
     const fermer = st.phase === 'play' ? (day >= 14 ? bouton('fermer', t('btn_fermer_marais'), '') : `<p class="pale">${t('carnet_fermer_trop_tot')}</p>`) : '';
     openPage(`<p class="sur canard">${t('carnet_saison', { n: st.seasonIndex, climat: COPY.T.climats[st.climate], jour: day })}</p><h2>${t('carnet_titre')}</h2>
       <p class="ital">${t('carnet_titre_jour', { jour: UI.fmtJour(now), phase: UI.lune(now) })}</p>
-      ${premiere ? `<p class="ital" style="background:var(--soleil);padding:8px 10px;border:2px solid var(--encre)">${t('carnet_premiere_page', { h1: UI.fmtHeure(hts[0]), h2: UI.fmtHeure(hts[1]), prevision: prev.phrase })}</p>` : ''}
+      ${premiere ? `<p class="ital" style="background:var(--soleil);padding:8px 10px;border:2px solid var(--encre)">${t('carnet_premiere_page', { h1: UI.fmtHeure(hts[0]), h2: UI.fmtHeure(hts[1]), prevision: prev.phrase, clapet: UI.fmt(S.P.COST.clapet, 0), prix: UI.fmt(S.plotCost(st, 'oeillet'), 0) })}</p>` : ''}
       <p>${t('carnet_marees', { h1: UI.fmtHeure(hts[0]), h2: UI.fmtHeure(hts[1]), etat })}</p>
       <p>${esc(prev.phrase)}</p>
       <p>${t('carnet_reserve', { jours: UI.fmt(S.reserveDays(st), 1) })}${env.A < 0.9 ? ' <span class="pale">Mortes-eaux.</span>' : env.A > 1.2 ? ' <span class="pale">Vives-eaux.</span>' : ''}</p>
@@ -140,7 +143,7 @@ const SHEETS = (() => {
     pc.querySelectorAll('canvas[data-rec]').forEach((cv) => { const r = st.records[+cv.dataset.rec]; if (r) RENDER.drawThumb(cv, r, S.P.COLS); });
     on(pc, '[data-a]', (el) => {
       if (el.dataset.a === 'close') closePage();
-      else if (el.dataset.a === 'fermer') confirm(t('fermer_confirm', { j: day, eur: UI.fmt(st.cash, 0) }), () => { closePage(); UI.startHivernage(false); }, t('btn_fermer_marais'));
+      else if (el.dataset.a === 'fermer') { closePage(); confirm(t('fermer_confirm', { j: day, eur: UI.fmt(st.cash, 0) }), () => UI.startHivernage(false), t('btn_fermer_marais'), () => carnet(false)); }
     });
   }
   function sac(r) {
@@ -213,18 +216,18 @@ const SHEETS = (() => {
     const st = UI.st, bar = $('#hiver-bar'), probs = S.winterProblems(st);
     const types = ['cobier', 'fare', 'aderne', 'oeillet', 'vase'];
     bar.innerHTML = `<div class="compteur">${t('rhabillage_compteur', { n: st.winterBank, s: pl(st.winterBank), rows: st.rows - 1 })}</div>
-      <div class="menu-types">${types.map((ty) => `<button type="button" data-ty="${ty}" class="${UI.winterType === ty ? 'actif' : ''}">${ty === 'vase' ? 'Vase' : esc(typeName(ty))}</button>`).join('')}</div>
-      <p class="${probs.length ? 'rouge' : ''}">${probs.length ? t('rhabillage_probleme', { n: probs.length, s: pl(probs.length) }) : t('rhabillage_aide')}</p>
-      <button type="button" class="btn plein" data-a="open" ${probs.length ? 'disabled' : ''} style="margin-top:0">${t('btn_ouvrir_saison')}</button>`;
+      <div class="rang"><div class="menu-types">${types.map((ty) => `<button type="button" data-ty="${ty}" class="${UI.winterType === ty ? 'actif' : ''}">${ty === 'vase' ? 'Vase' : esc(typeName(ty))}</button>`).join('')}</div>
+      <button type="button" class="btn plein" data-a="open" ${probs.length ? 'disabled' : ''}>${t('btn_ouvrir_saison')}</button></div>
+      <p class="${probs.length ? 'rouge' : ''}" style="margin:8px 0 0">${probs.length ? t('rhabillage_probleme', { n: probs.length, s: pl(probs.length), la: probs.length > 1 ? 'les' : 'la' }) : t('rhabillage_aide')}</p>`;
     bar.hidden = false;
     on(bar, '[data-ty]', (el) => { UI.winterType = el.dataset.ty; hiverBar(); });
-    on(bar, '[data-a="open"]', () => { if (S.winterProblems(st).length) return; S.openSeason(st, Date.now()); UI.resetClock(); bar.hidden = true; UI.setMode('play'); UI.changed(); UI.flash(t('marge_fin_journee', { heure: UI.fmtHeure(S.nextHighTides(UI.simNow(), 1)[0]) })); });
+    on(bar, '[data-a="open"]', () => { if (S.winterProblems(st).length) return; bar.hidden = true; UI.openSeasonUI(); });
   }
 
   // ─── page de garde ───
-  function garde() {
+  function garde(msg) {
     const now = Date.now();
-    openPage(`<div class="garde"><div><p class="sur">Carnet de paludier · ${esc(UI.fmtJour(now))}</p><h1 class="titre">${t('titre')}</h1><p class="ital" style="font-size:22px;margin-top:8px">${t('sous_titre')}</p>
+    openPage(`<div class="garde"><div><p class="sur">Carnet de paludier · ${esc(UI.fmtJour(now))}</p><h1 class="titre">${t('titre')}</h1><p class="ital" style="font-size:22px;margin-top:8px">${t('sous_titre')}</p>${msg ? `<p class="ital pale">${esc(msg)}</p>` : ''}
       <div class="lune-ligne"><canvas id="lune-garde" width="44" height="44" style="width:44px;height:44px"></canvas><span>lune ${UI.lune(now)} · pleine mer ${UI.fmtHeure(S.nextHighTides(now, 1)[0])}</span></div></div>
       <div class="bas"><p class="ital">Tu es paludier. La mer monte deux fois par jour avec la vraie lune, le soleil évapore, et le sel ne vient que si tu comprends comment l’eau circule dans ton marais. Pas de multiplicateur, pas de minuteur : seulement la géométrie de tes bassins et ta lecture du ciel.</p>
       <p class="pale">La première journée se joue en dix minutes. Ensuite, le marais vit à l’heure réelle de ton téléphone : reviens voir la mer quand elle monte.</p>

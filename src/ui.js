@@ -6,7 +6,7 @@ const UI = (() => {
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let st = null, env = null, mode = 'play', selected = null, selFree = null, ring = null, strokes = [], flood = 0;
   let tutoVh = 6, tutoSimVh = 6, tutoEnv = null, lastFrame = 0, lastDraw = 0, dirty = true, lastSave = 0, flashUntil = 0, flashText = '', bannerUntil = 0;
-  let margeText = '', margeDicton = false, speed = 1, winterType = 'oeillet', ringBtn = null;
+  let margeText = '', margeDicton = false, margeAction = null, speed = 1, winterType = 'oeillet', ringBtn = null, lastGridBottom = -1, corrupt = false;
 
   // ─── formats ───
   const fmt = (n, d = 0) => (Number.isFinite(n) ? n : 0).toLocaleString('fr-FR', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -28,9 +28,9 @@ const UI = (() => {
       const raw = localStorage.getItem(KEY);
       if (!raw) return null;
       const s = JSON.parse(raw);
-      if (!s || s.v !== 1 || !Array.isArray(s.cells)) return null;
+      if (!s || s.v !== 1 || !Array.isArray(s.cells)) { corrupt = true; return null; }
       return migrate(s);
-    } catch (e) { return null; }
+    } catch (e) { corrupt = true; return null; }
   }
   function migrate(s) {
     const fresh = S.newState(Date.now());
@@ -41,6 +41,7 @@ const UI = (() => {
     else { s.clock.anchorReal = Date.now(); } // l'horloge accélérée reprend là où elle était
     if (s.winterBank == null) s.winterBank = 0;
     if (!s.tutoFlags) s.tutoFlags = {};
+    if (s.pendingHivernage == null) s.pendingHivernage = false;
     return s;
   }
   function buzz(p) { try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* pas de vibreur */ } }
@@ -93,18 +94,37 @@ const UI = (() => {
     $('#maree-txt').innerHTML = st.phase === 'tuto'
       ? `PLEINE MER <b>${tutoVh % 24 < 7 ? '07:00' : tutoVh % 24 < 19.42 ? '19:25' : '07:00'}</b>`
       : `PLEINE MER <b>${fmtHeure(ht)}</b>`;
-    roll('#cash', st.cash, (v) => `${fmt(v, v < 100 ? 2 : 0)}<small>€</small>`);
+    roll('#cash', st.cash, (v) => `${fmt(v, v < 100 ? 2 : 0)}<small>\u202f€</small>`);
     const fleur = st.fleurStock > 0.005 ? ` · ${fmt(st.fleurStock, 2)} kg fleur` : '';
     $('#mulon').innerHTML = `<b>${fmt(st.mulon, st.mulon < 10 ? 1 : 0)}</b> kg au mulon${fleur}`;
-    $('#reserve').textContent = st.phase === 'tuto' ? `lune ${lune(Date.now())}` : t('hud_reserve', { jours: fmt(S.reserveDays(st), 1) }) + (env.A < 0.9 ? ' · mortes-eaux' : env.A > 1.2 ? ' · vives-eaux' : '');
+    if (st.phase === 'tuto') $('#reserve').innerHTML = '<span class="etiquette" style="font-size:11px;padding:2px 6px">1re journée · ×144</span>';
+    else $('#reserve').textContent = t('hud_reserve', { jours: fmt(S.reserveDays(st), 1) }) + (env.A < 0.9 ? ' · mortes-eaux' : env.A > 1.2 ? ' · vives-eaux' : '');
   }
   function placeDom() {
     const g = R.layout(st), marge = $('#marge');
     marge.style.top = (g.gridBottom + 2) + 'px';
+    const put = (id, x, y, right) => { const el = $(id); el.style.top = y + 'px'; if (right) { el.style.right = (g.W - x) + 'px'; el.style.left = 'auto'; } else el.style.left = x + 'px'; };
+    put('#lbl-seuil', g.gauge.sillX + 5, g.gauge.y + 18);
+    put('#lbl-mer', g.gx - 4, g.seaY - 15);
+    put('#lbl-etier', g.etier.x - 18, g.vasY - 20, true);
+    put('#lbl-baro', g.baro.x + g.baro.w, g.baro.y + g.baro.h + 4, true);
+    lastGridBottom = g.gridBottom;
   }
+  function baroWord() { if (!env) return ''; return st.items.barometre ? 'Baro · 24 h' : env.dP < -0.15 ? 'Baro · baisse' : env.dP > 0.15 ? 'Baro · monte' : 'Baro · stable'; }
+  const nomParcelle = (c) => COPY.T.noms_def[c.type] + (c.type === 'vasiere' ? '' : ' ' + c.num);
 
   // ─── marge et anneau : une seule action suggérée ───
-  function setMarge(txt, dicton) { if (txt !== margeText || dicton !== margeDicton) { margeText = txt; margeDicton = !!dicton; const em = $('#marge-txt'); em.textContent = txt; em.classList.toggle('dicton', !!dicton); } }
+  function setMarge(txt, dicton, action) {
+    if (txt !== margeText || dicton !== margeDicton || action !== margeAction) {
+      margeText = txt; margeDicton = !!dicton; margeAction = action || null;
+      const em = $('#marge-txt'); em.textContent = dicton ? `«\u202f${txt}\u202f»` : txt; em.classList.toggle('dicton', !!dicton); em.classList.toggle('action', !!action);
+    }
+  }
+  function margeTap() {
+    if (!margeAction) return;
+    if (margeAction === 'eneau') SHEETS.confirm(t('mise_en_eau_confirm'), () => { S.miseEnEau(st); changed(); });
+    else if (margeAction === 'lever') SHEETS.confirm(t('lever_eau_confirm'), () => { S.leverEau(st); changed(); });
+  }
   function setRing(r) { ring = r && r.kind !== 'btn' ? r : null; const b = r && r.kind === 'btn' ? r.id : null; if (b !== ringBtn) { if (ringBtn) $('#' + ringBtn).classList.remove('anneau'); ringBtn = b; if (b) $('#' + b).classList.add('anneau'); } }
   function suggest() {
     const nowP = performance.now();
@@ -113,27 +133,33 @@ const UI = (() => {
     if (st.phase === 'tuto') { tutorial(); return; }
     const vas = st.cells.find((c) => c.type === 'vasiere'), oes = st.cells.filter((c) => c.type === 'oeillet');
     const prev = forecast();
-    if (!st.items.clapet && env.h > S.P.SILL && !st.etierOpen) return pick(t('marge_ouvre_etier'), { kind: 'etier' });
-    if (!st.items.clapet && env.h < S.P.SILL - 0.05 && st.etierOpen && vas.depth > 1) return pick(t('marge_ferme_etier'), { kind: 'etier' });
+    if (!st.items.clapet && env.h > S.P.SILL && !st.etierOpen && !st.enEau) return pick(t('marge_ouvre_etier'), { kind: 'etier' });
+    if (!st.items.clapet && env.h < S.P.SILL - 0.05 && st.etierOpen && vas.depth > 1 && !st.enEau) return pick(t('marge_ferme_etier'), { kind: 'etier' });
+    if (st.enEau && env.hour >= 6.5 && env.hour < 20) return pick(t('marge_lever'), null, false, 'lever');
     const salted = oes.filter((c) => S.kgOf(c.crust) >= 5).sort((a, b) => b.crust - a.crust);
     if (salted.length && prev.rainAt && prev.rainAt - simNow() < 3 * 3.6e6) return pick(t('marge_pluie_vient'), { kind: 'cell', id: salted[0].id });
     if (salted.length && S.kgOf(salted[0].crust) >= 20) return pick(t('marge_sel', { kg: fmt(S.kgOf(salted[0].crust), 0), n: salted[0].num }), { kind: 'cell', id: salted[0].id });
     const fl = oes.find((c) => c.fleur > 0.3);
     if (fl && st.items.lousse && env.hour >= 15 && env.hour < 20) return pick(t('marge_fleur'), { kind: 'cell', id: fl.id });
-    const dry = st.cells.filter((c) => c.type !== 'vasiere' && c.depth <= 0.02 && c.dryH > S.P.CRACK_AFTER[c.type]).sort((a, b) => b.dryH - a.dryH)[0];
-    if (dry) return pick(t('marge_a_sec', { n: dry.num, h: fmt(dry.dryH, 0) }), { kind: 'cell', id: dry.id });
+    if (fl && !st.items.lousse) return pick(t('marge_fleur_lousse'), { kind: 'btn', id: 'b-coop' });
+    const dry = st.cells.filter((c) => c.type !== 'vasiere' && c.depth <= 0.02 && c.dryH > S.P.CRACK_AFTER[c.type] && !st.enEau).sort((a, b) => b.dryH - a.dryH)[0];
+    if (dry) return pick(t('marge_a_sec', { nom: nomParcelle(dry), h: fmt(dry.dryH, 0) }), { kind: 'cell', id: dry.id });
     const crusty = st.cells.find((c) => c.type !== 'vasiere' && c.type !== 'oeillet' && S.kgOf(c.crust) > 30);
-    if (crusty) return pick(t('marge_croute', { type: t('type_' + crusty.type).toLowerCase(), n: crusty.num }), { kind: 'cell', id: crusty.id });
+    if (crusty) return pick(t('marge_croute', { nom: nomParcelle(crusty) }), { kind: 'cell', id: crusty.id });
+    if (env.hour >= 20.5 && !st.enEau && mode === 'play') return pick(t('marge_mise_en_eau'), null, false, 'eneau');
     if (st.mulon * S.P.PRICE_GROS + st.fleurStock * S.P.PRICE_FLEUR >= 20) return pick(t('marge_porter'), { kind: 'btn', id: 'b-coop' });
-    if (env.A < 0.95 && env.A > S.P.SILL && S.reserveDays(st) < 2) return pick(t('marge_reserve', { j: fmt(daysToNeap(), 0), jours: fmt(S.reserveDays(st), 1) }), null);
+    if (env.A < 0.95 && S.reserveDays(st) < 2) {
+      const j = daysToNeap(), jours = S.reserveDays(st);
+      return pick(j <= 0 ? t('marge_reserve_maintenant', { jours: fmt(jours, 1), s: pl(jours) }) : t('marge_reserve', { j, s_j: pl(j), jours: fmt(jours, 1), s: pl(jours) }), null);
+    }
     if (st.cash >= 60 && S.DIG_TYPES.some((ty) => anyDig(ty))) return pick(t('marge_creuser', { eur: fmt(st.cash, 0) }), { kind: 'btn', id: 'b-creuser' });
-    if (env.hour >= 20.5 && !st.enEau && mode === 'play') return pick(t('marge_mise_en_eau'), null);
-    const day = S.seasonDay(st, simNow());
-    return pick(COPY.DICTONS[(day * 7 + Math.floor(env.hour / 6)) % COPY.DICTONS.length], null, true);
+    const day = S.seasonDay(st, simNow()), slot = Math.floor(env.hour / 6);
+    if ((day + slot) % 3 === 0) return pick(t('marge_rien'), null);
+    return pick(COPY.DICTONS[(day * 7 + slot) % COPY.DICTONS.length], null, true);
   }
-  function pick(txt, r, dicton) { setMarge(txt, dicton); setRing(r); }
+  function pick(txt, r, dicton, action) { setMarge(txt, dicton, action); setRing(r); }
   function anyDig(type) { for (let r = 1; r < st.rows; r++) for (let c = 0; c < S.P.COLS; c++) if (S.canDig(st, r, c, type).ok) return true; return false; }
-  function daysToNeap() { const now = simNow(); for (let d = 0; d < 15; d++) if (S.tideAmp(now + d * 864e5) < 0.9) return d; return 0; }
+  function daysToNeap() { const now = simNow(); if (S.tideAmp(now) < 0.9) return 0; for (let d = 1; d < 15; d++) if (S.tideAmp(now + d * 864e5) < 0.9) return d; return 0; }
 
   // ─── tutoriel : première journée en accéléré ───
   const CHAIN = ['0,0|1,3', '1,3|2,3', '2,3|3,3', '3,3|4,3'];
@@ -145,8 +171,10 @@ const UI = (() => {
     if (tutoVh < 6.7) return pick(t('marge_eaux_vieilles'), null);
     if (e.rain > 0 && S.gateOpen(st, '3,3|4,3') && !f.pluieFaite) return pick(t('marge_pluie'), { kind: 'gate', key: '3,3|4,3' });
     if (e.rain > 0) f.pluieFaite = true;
+    if (st.etierOpen) f.etierOnce = true;
     if (e.h > S.P.SILL && !st.etierOpen && !st.items.clapet) return pick(t(tutoVh > 12 ? 'marge_remonte' : 'marge_ouvre_etier'), { kind: 'etier' });
     if (e.h < S.P.SILL - 0.02 && st.etierOpen && !st.items.clapet && vas.depth > 1) return pick(t('marge_ferme_etier'), { kind: 'etier' });
+    if (vas.depth < 1 && !st.etierOpen && !st.items.clapet && tutoVh > 9 && tutoVh < 18) return pick(t('marge_maree_ratee'), { kind: 'etier' });
     const closed = CHAIN.find((k) => !S.gateOpen(st, k));
     if (closed && vas.depth > 3 && tutoVh < 22) return pick(t('marge_descendre'), { kind: 'gate', key: closed });
     if (kg >= 20 || (tutoVh >= 17 && kg >= 5)) return pick(t('marge_tirer'), { kind: 'cell', id: oe.id });
@@ -155,14 +183,13 @@ const UI = (() => {
     return pick(COPY.DICTONS[tutoVh < 12 ? 0 : tutoVh < 21.5 ? 5 : 2], null, true);
   }
   function startTutorial() {
-    st.phase = 'tuto'; tutoVh = 6; tutoSimVh = 6; st.tutorialVh = 6; bannerUntil = Infinity; showBanner(t('bandeau_accelere')); dirty = true; save();
+    st.phase = 'tuto'; tutoVh = 6; tutoSimVh = 6; st.tutorialVh = 6; dirty = true; save();
   }
   function endTutorial() {
     const now = Date.now();
     st.phase = 'play'; st.tutorialDone = true; st.tutorialEndMs = now; st.seasonStartMs = now; st.lastSimMs = now; resetClock();
     st.carnet.push({ season: st.seasonIndex, day: 1, text: t('obs_premiere', { kg: fmt(st.stats.kgRaked, 0), eur: fmt(st.stats.eurSold, 0) }) });
     st.lastObsDay = 1;
-    $('#bandeau').hidden = true; bannerUntil = 0;
     flash(t('marge_fin_journee', { heure: fmtHeure(S.nextHighTides(now, 1)[0]) }), 20000);
     save();
     SHEETS.carnet(true);
@@ -201,10 +228,10 @@ const UI = (() => {
       let guard = 0;
       while (tutoSimVh < target - 1e-9 && guard++ < 400) { // rattrape aussi un saut d'horloge (test, image en retard)
         const d = Math.min(1 / 6, target - tutoSimVh); tutoSimVh += d;
-        tutoEnv = S.tutorialEnv(tutoSimVh); S.step(st, tutoEnv, d);
+        tutoEnv = S.tutorialEnv(tutoSimVh, !st.tutoFlags.etierOnce && !st.etierOpen); S.step(st, tutoEnv, d);
       }
       tutoVh = target; st.tutorialVh = tutoVh;
-      tutoEnv = S.tutorialEnv(tutoVh); env = tutoEnv; env.ms = Date.now();
+      tutoEnv = S.tutorialEnv(tutoVh, !st.tutoFlags.etierOnce && !st.etierOpen); env = tutoEnv; env.ms = Date.now();
       dirty = true;
       if (tutoVh >= 30) endTutorial();
     } else if (st.phase === 'play') {
@@ -212,8 +239,8 @@ const UI = (() => {
       if (gapMs > 10 * 60000) {
         const rep = S.catchUp(st, simMs);
         env = S.envAt(st, simNow());
-        if (rep.hivernage) { save(); SHEETS.retour(rep); }
-        else if (gapMs / st.clock.speed >= 45 * 60000 && !SHEETS.isOpen()) SHEETS.retour(rep);
+        save();
+        if (!SHEETS.isOpen() && (rep.hivernage || gapMs / st.clock.speed >= 45 * 60000)) SHEETS.retour(rep);
         dirty = true;
       } else if (gapMs > 0) {
         env = S.envAt(st, simMs);
@@ -222,7 +249,7 @@ const UI = (() => {
       } else env = S.envAt(st, simMs);
       const day = S.seasonDay(st, simMs);
       if (day !== st.lastObsDay && st.tutorialDone) observe(day);
-      if (simMs >= S.seasonEndMs(st) && !SHEETS.isOpen()) startHivernage(true);
+      if ((st.pendingHivernage || simMs >= S.seasonEndMs(st)) && !SHEETS.isOpen()) startHivernage(true);
     } else {
       env = S.envAt(st, simNow());
     }
@@ -231,8 +258,10 @@ const UI = (() => {
     if (strokes.length) { strokes = strokes.filter((s) => s.life > 0); dirty = true; }
     if (bannerUntil !== Infinity && bannerUntil && now > bannerUntil) { $('#bandeau').hidden = true; bannerUntil = 0; }
     if (flashUntil && now > flashUntil) { flashUntil = 0; dirty = true; }
+    if (R.layout(st).gridBottom !== lastGridBottom) placeDom();
     if (dirty || now - lastDraw > (reduceMotion ? 1000 : 480)) {
       lastDraw = now; dirty = false;
+      $('#lbl-baro').textContent = baroWord();
       suggest();
       R.draw(st, env, { mode, selected, selFree, ring, strokes, flood, baro: baroData(), reduceMotion, problems: mode === 'hiver' ? S.winterProblems(st) : null });
       hud();
@@ -253,7 +282,13 @@ const UI = (() => {
     mode = m; selected = null; selFree = null; dirty = true;
     $('#b-creuser').classList.toggle('actif', m === 'creuser');
     $('#barre').hidden = m === 'hiver'; $('#marge').hidden = false;
-    if (m === 'hiver') SHEETS.hiverBar(); else $('#hiver-bar').hidden = true;
+    if (m === 'hiver') { SHEETS.hiverBar(); R.setBottomInset($('#hiver-bar').offsetHeight + 4); }
+    else { $('#hiver-bar').hidden = true; R.setBottomInset(0); }
+    placeDom();
+  }
+  function openSeasonUI() {
+    S.openSeason(st, Date.now()); resetClock(); flood = 0; setMode('play'); changed();
+    flash(t('marge_fin_journee', { heure: fmtHeure(S.nextHighTides(simNow(), 1)[0]) }), 8000);
   }
 
   // ─── entrées tactiles ───
@@ -261,7 +296,7 @@ const UI = (() => {
     const cv = $('#marais');
     let down = null, dragged = false, raked = new Set();
     cv.addEventListener('pointerdown', (e) => {
-      if (SHEETS.isOpen() || st.phase === 'garde') return;
+      if (SHEETS.isOpen() || st.phase === 'garde' || down || e.isPrimary === false) return;
       down = { x: e.clientX, y: e.clientY, id: e.pointerId, hit: R.hit(st, e.clientX, e.clientY), lx: e.clientX, ly: e.clientY };
       dragged = false; raked = new Set();
       try { cv.setPointerCapture(e.pointerId); } catch (err) { /* capture indisponible */ }
@@ -288,7 +323,10 @@ const UI = (() => {
       if (dragged || !h) return;
       tap(h);
     };
-    cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', (e) => { if (down && e.pointerId === down.id) down = null; });
+    cv.addEventListener('pointerup', up);
+    const cancel = (e) => { if (down && e.pointerId === down.id) down = null; };
+    cv.addEventListener('pointercancel', cancel); cv.addEventListener('lostpointercapture', cancel);
+    $('#marge-txt').addEventListener('click', margeTap);
     cv.addEventListener('contextmenu', (e) => e.preventDefault());
     $('#b-carnet').addEventListener('click', () => { buzz(6); if (mode === 'creuser') setMode('play'); SHEETS.carnet(false); });
     $('#b-coop').addEventListener('click', () => { buzz(6); if (mode === 'creuser') setMode('play'); SHEETS.coop(); });
@@ -302,13 +340,13 @@ const UI = (() => {
       else return;
       buzz(8); changed(); SHEETS.hiverBar(); return;
     }
-    if (h.kind === 'etier') { S.toggleEtier(st); buzz(8); changed(); return; }
+    if (h.kind === 'etier') { if (st.items.clapet) { flash(t('marge_clapet')); return; } S.toggleEtier(st); buzz(8); changed(); return; }
     if (h.kind === 'gate') { S.toggleGate(st, h.gate.key); buzz(8); changed(); return; }
     if (h.kind === 'free') { if (mode === 'creuser') SHEETS.creuser(h.r, h.c); else { setMode('creuser'); SHEETS.creuser(h.r, h.c); } return; }
     if (h.kind === 'cell') {
       const c = h.cell;
       if (mode === 'creuser' && c.type === 'vasiere') { SHEETS.agrandir(); return; }
-      if (c.type === 'oeillet' && c.fleur > 0.15 && st.items.lousse && env.hour >= 15 && env.hour < 20) { const kg = S.skimCell(st, c); buzz([8, 20, 8]); flash(`+${fmt(kg, 2)} kg de fleur`); changed(); return; }
+      if (c.type === 'oeillet' && c.fleur > 0.15 && st.items.lousse) { const kg = S.skimCell(st, c); buzz([8, 20, 8]); flash(`+${fmt(kg, 2)} kg de fleur`); changed(); return; }
       if (c.type === 'oeillet' && c.fleur > 0.15 && !st.items.lousse) flash(t('lousse_absente'));
       SHEETS.fiche(c);
     }
@@ -330,8 +368,7 @@ const UI = (() => {
     window.addEventListener('resize', () => { R.resize(); placeDom(); dirty = true; });
     document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else { lastFrame = performance.now(); dirty = true; } });
     window.addEventListener('pagehide', save);
-    if (st.phase === 'garde') SHEETS.garde();
-    else if (st.phase === 'tuto') { bannerUntil = Infinity; showBanner(t('bandeau_accelere')); }
+    if (st.phase === 'garde') SHEETS.garde(corrupt ? t('sauvegarde_perdue') : '');
     else if (st.phase === 'hiver') { SHEETS.hivernagePage(); flood = 0.8; }
     lastFrame = performance.now();
     requestAnimationFrame(frame);
@@ -342,7 +379,7 @@ const UI = (() => {
 
   return {
     get st() { return st; }, get env() { return env; }, get speed() { return speed; }, get winterType() { return winterType; }, set winterType(v) { winterType = v; },
-    fmt, fmtHeure, fmtJour, fmtJourCourt, lune, simNow, save, changed, buzz, flash, forecast, resetClock, setMode, startTutorial, startHivernage,
+    fmt, fmtHeure, fmtJour, fmtJourCourt, lune, simNow, save, changed, buzz, flash, forecast, resetClock, setMode, openSeasonUI, startTutorial, startHivernage, nomParcelle,
     select(c) { selected = c; dirty = true; }, selectFree(p) { selFree = p; dirty = true; },
     onSold(r) { if (r.eur > 0) flash(`Vendu : ${fmt(r.eur, 2)} €`); },
   };
