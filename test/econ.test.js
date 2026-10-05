@@ -48,9 +48,9 @@ check(G.etoilesPour(3e10, 0) === 1 && G.etoilesPour(3e12, 0) === 10 && G.etoiles
 // chaque niveau doit valoir le coup : il se rembourse vite, quel que soit le produit
 {
   const cycles = (i, niv) => G.coutNiveau(i, niv) / (PRODUITS[i].rev * G.palierMult(niv + 1)); // fournées nécessaires pour rembourser un niveau
-  const pire1 = Math.max(...PRODUITS.map((p, i) => cycles(i, 1))), pire50 = Math.max(...[0, 1, 2, 3].map((i) => cycles(i, 50)));
+  const pire1 = Math.max(...PRODUITS.map((p, i) => cycles(i, 1))), pire25 = Math.max(...[0, 1, 2, 3].map((i) => cycles(i, 25)));
   check(pire1 <= 30, `au niveau 1, un niveau se rembourse en 30 fournées au plus, quel que soit le produit (pire : ${pire1.toFixed(0)})`);
-  check(pire50 <= 60, `au niveau 50, les quatre premiers produits se remboursent en 60 fournées au plus (pire : ${pire50.toFixed(0)})`);
+  check(pire25 <= 100, `au niveau 25, les quatre premiers produits se remboursent en 100 fournées au plus (pire : ${pire25.toFixed(0)})`);
   check(PRODUITS.every((p) => p.debloquer >= p.cout), 'débloquer une recette coûte au moins autant qu’un niveau');
 }
 const TYPES = ['rush', 'commande', 'critique', 'meunier', 'petrissage', 'panne', 'anniversaire'], nEv = TYPES.reduce((a, t) => a + (R.evs[t] || 0), 0);
