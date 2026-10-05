@@ -47,6 +47,31 @@
   const EVENEMENTS = { rush: RUSH, commande: COMMANDE, critique: CRITIQUE, meunier: MEUNIER, petrissage: PETRISSAGE, panne: PANNE, anniversaire: ANNIVERSAIRE };
   const MARCHE_MULT = 1.5;                      // jour de marché (samedi, dimanche) : ×1,5
 
+  // ─── les quartiers : chaque nouvelle boutique change de décor ; le nom de la boutique ; les saisons selon la date réelle ───
+  const QUARTIERS = [
+    { id: 'village', nom: 'le village', enseigne: 'Au Fournil du Village' },
+    { id: 'paris', nom: 'le coin de rue parisien', enseigne: 'Le Fournil de la Rue' },
+    { id: 'mer', nom: 'le bord de mer', enseigne: 'Le Fournil de la Plage' },
+    { id: 'montagne', nom: 'le chalet de montagne', enseigne: 'Le Fournil du Chalet' },
+    { id: 'ville', nom: 'la grande ville', enseigne: 'Le Grand Fournil' },
+  ];
+  const quartier = (st) => (Math.max(1, st.boutiques || 1) - 1) % QUARTIERS.length;
+  const nomBoutique = (st) => st.nomBoutique || QUARTIERS[quartier(st)].enseigne;
+  function renommer(st, nom) { const n = String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24); st.nomBoutique = n; return nomBoutique(st); }
+  function saison(ms) {
+    const d = new Date(ms), m = d.getMonth() + 1, j = d.getDate(), tags = [];
+    if (m === 12 || m <= 2) tags.push('neige');
+    if (m === 12) tags.push('noel');
+    if (m === 1 && j <= 20) tags.push('galette');
+    if (m === 2 && j >= 10 && j <= 15) tags.push('coeurs');
+    if (m === 4) tags.push('paques');
+    if (m >= 6 && m <= 8) tags.push('ete');
+    if (m === 7 && j >= 10 && j <= 16) tags.push('fete');
+    if (m === 10 && j >= 15) tags.push('halloween');
+    if (m === 10 || m === 11) tags.push('feuilles');
+    return tags;
+  }
+
   // ─── le boulanger : savoir-faire, niveaux, titres et talents permanents (rien de tout ça ne se perd en changeant de boutique) ───
   const TITRES = [[1, 'Apprenti'], [4, 'Mitron'], [8, 'Boulanger'], [13, 'Compagnon'], [19, 'Maître boulanger'], [26, 'Meilleur Ouvrier de France']];
   const XP_NIVEAU = (n) => Math.round(40 * Math.pow(n, 1.4)); // savoir-faire pour passer du niveau n au suivant
@@ -87,7 +112,7 @@
   function stationsNeuves(ouvertes) { const n = Math.max(1, ouvertes || 1); return PRODUITS.map((p, i) => ({ niv: i < n ? 1 : 0, staff: false, prog: 0, actif: false })); }
   function newState(nowMs) {
     return {
-      v: 2, coins: 0, lifetime: 0, lifetimeRun: 0, etoiles: 0, boutiques: 1, xp: 0, talents: {},
+      v: 2, coins: 0, lifetime: 0, lifetimeRun: 0, etoiles: 0, boutiques: 1, xp: 0, talents: {}, nomBoutique: '',
       stations: stationsNeuves(), ameliorations: {}, tuto: 0, lastSeen: nowMs, created: nowMs, son: true, vibre: true, mode: 1, now: nowMs,
       stats: { taps: 0, ventes: 0, clients: 0 },
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
@@ -329,7 +354,7 @@
   function nouvelleBoutique(st, nowMs) {
     const gain = etoilesGagnables(st);
     if (gain <= 0) return { ok: false };
-    st.etoiles += gain; st.boutiques++; gagnerXp(st, 80 + Math.min(120, 2 * gain));
+    st.etoiles += gain; st.boutiques++; st.nomBoutique = ''; gagnerXp(st, 80 + Math.min(120, 2 * gain));
     st.coins = 0; st.lifetimeRun = 0; st.ameliorations = {}; st.stations = stationsNeuves(1 + talent(st, 'memoire')); st.ev = null; st.boost = null;
     st.lastSeen = nowMs;
     // les objectifs du jour pas encore réclamés sont retirés à la taille de la nouvelle boutique (les réussis restent acquis)
@@ -401,7 +426,7 @@
   function fmtDuree(s) { if (s < 60) return Math.round(s) + ' s'; if (s < 3600) return Math.round(s / 60) + ' min'; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; }
   const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
-  return { PRODUITS, PALIERS, AMELIORATIONS, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
+  return { PRODUITS, PALIERS, AMELIORATIONS, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
     objectifsDuJour, noter, reclamer, serieEnCours, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost,

@@ -131,6 +131,16 @@ console.log('── le boulanger ──');
   check(Math.abs(st.coins - avant - G.revenu(st, 0) * 3) < 1e-6, 'bouche-à-oreille : la fournée à la main rapporte ×3');
   const s2 = G.newState(T0); s2.now = T0; s2.coins = 1e9; G.acheter(s2, 1); G.embaucher(s2, 0); check(s2.xp === 25, 'débloquer les croissants : +20 de savoir-faire ; embaucher Léo : +5');
 }
+console.log('── quartiers, nom, saisons ──');
+{
+  const st = G.newState(T0);
+  check(G.quartier(st) === 0 && G.nomBoutique(st) === 'Au Fournil du Village', 'première boutique : le village, nom par défaut');
+  st.boutiques = 2; check(G.QUARTIERS[G.quartier(st)].id === 'paris' && G.nomBoutique(st) === 'Le Fournil de la Rue', 'deuxième boutique : le coin de rue parisien');
+  st.boutiques = 6; check(G.quartier(st) === 0, 'sixième boutique : retour au village');
+  check(G.renommer(st, '  <b>Chez  Mamie</b>  ') === 'bChez Mamie/b' && G.renommer(st, 'x'.repeat(40)).length === 24 && G.renommer(st, '') === 'Au Fournil du Village', 'nom nettoyé, 24 caractères au plus, vide → nom par défaut');
+  const tags = (y, m, d) => G.saison(new Date(y, m - 1, d, 12).getTime()).join(',');
+  check(tags(2026, 12, 20) === 'neige,noel' && tags(2026, 1, 10) === 'neige,galette' && tags(2026, 2, 14) === 'neige,coeurs' && tags(2026, 4, 5) === 'paques' && tags(2026, 7, 14) === 'ete,fete' && tags(2026, 10, 25) === 'halloween,feuilles' && tags(2026, 5, 3) === '', `saisons : ${tags(2026, 12, 20)} / ${tags(2026, 1, 10)} / ${tags(2026, 7, 14)} / ${tags(2026, 10, 25)}`);
+}
 console.log('── absence de 8 h après 1 h de jeu ──');
 const R1 = run(1, greedy);
 const before = R1.st.coins;

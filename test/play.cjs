@@ -168,6 +168,11 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.evaluate(() => { window.__fournil.st.lifetimeRun = 2e11; }); await sleep(100);
   await page.tap('#b-etoiles', { force: true }); await sleep(400); await page.screenshot({ path: out + '/08-etoiles.png' });
   await page.tap('[data-a="prestige"]'); await sleep(400); await page.tap('[data-a="oui"]'); await sleep(600);
+  const nomSheet = await page.evaluate(() => ({ txt: document.querySelector('#feuille-contenu').innerText, val: (document.querySelector('.champ') || {}).value }));
+  check(/Boutique n°2/.test(nomSheet.txt) && nomSheet.val === 'Le Fournil de la Rue', 'nouvelle boutique : on choisit son nom (' + nomSheet.val + ')');
+  await page.screenshot({ path: out + '/08b-nom.png' });
+  await page.fill('.champ', 'Chez Mamie'); await page.tap('[data-a="ok"]'); await sleep(400);
+  check(await page.evaluate(() => window.__fournil.st.nomBoutique === 'Chez Mamie' && window.__fournil.G.quartier(window.__fournil.st) === 1), 'boutique nommée « Chez Mamie », dans le quartier parisien');
   const s2 = await W(); console.log('boutique 2', s2);
   check(s2.niv === '1,0,0,0,0,0,0,0' && await page.evaluate(() => window.__fournil.st.etoiles > 0), 'nouvelle boutique : produits remis à zéro, étoiles gardées');
   await page.screenshot({ path: out + '/09-boutique2.png' });

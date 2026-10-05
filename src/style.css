@@ -202,3 +202,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .crans { font-size: 12px; color: var(--lavande-sombre); letter-spacing: 1px; white-space: nowrap; }
 .am.talent em { font-style: normal; color: var(--lavande-sombre); font-size: 12px; }
 .am.talent.appris { box-shadow: 0 0 0 2px var(--lavande), 0 4px 12px var(--ombre); }
+
+/* le nom de la boutique */
+.champ { display: block; width: 100%; padding: 12px 14px; border: 2px solid var(--ligne); border-radius: 14px; background: #fff; color: var(--texte); font: 800 16px/1.2 var(--texte-font); -webkit-appearance: none; appearance: none; }
+.champ:focus { outline: none; border-color: var(--beurre); }

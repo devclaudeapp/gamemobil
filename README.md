@@ -26,7 +26,7 @@ Ta boulangerie de quartier, en jeu idle/tycoon simple et lumineux : **tu cuis, t
 - **Jour de marché** : le samedi et le dimanche, tous les gains sont ×1,5.
 - Un événement toutes les 3 à 7 minutes de jeu actif, jamais deux fois le même d'affilée ; en absence, les apprentis vendent au rythme normal.
 
-Le haut de l'écran montre ta boutique : les clients entrent, achètent et repartent avec leur sac ; la lumière de la fenêtre suit l'heure réelle ; chaque recette débloquée ajoute un élément de décor.
+Le haut de l'écran montre ta boutique, dessinée en direct. **Chaque nouvelle boutique change de quartier** : le village (bois et crème, collines par la fenêtre), le coin de rue parisien (zinc, damier noir et blanc, immeubles et tour Eiffel), le bord de mer (bleu et blanc, vagues, voilier, mouette), le chalet de montagne (rondins, sommets enneigés, neige qui tombe), la grande ville (marbre, laiton, gratte-ciel allumés la nuit). Tu nommes chaque boutique à son ouverture, le nom s'affiche sur l'enseigne. La boutique grandit avec toi : pains sur les étagères, plante, lampe, cadre, chat, horloge à l'heure réelle, diplôme du boulanger, ardoise, fleurs sur le comptoir, boîtes à gâteaux. La lumière suit l'heure réelle (aube, jour, soir, crépuscule, nuit avec les lampes allumées et les fenêtres éclairées dehors), des passants traversent devant la vitrine, et **les saisons suivent la date** : neige et guirlande de Noël en décembre, galette des rois en janvier, cœurs à la Saint-Valentin, œufs et pétales à Pâques, glaces l'été, fanions du 14 juillet, citrouille et feuilles mortes à l'automne.
 
 ## Lancer, tester, construire
 
@@ -58,7 +58,7 @@ La boutique est enregistrée dans le téléphone toutes les 5 secondes, à chaqu
 | Fichier | Rôle |
 | --- | --- |
 | `src/game.js` | Économie et état : produits, paliers, bonus, étoiles, boulanger (savoir-faire, niveaux, talents), objectifs du jour, événements, absence, formats de nombres. Tourne aussi dans Node |
-| `src/scene.js` | La boutique en Canvas 2D : boulanger, clients, client mystère, coup de feu, four en panne, vitrine, décor, lumière du jour |
+| `src/scene.js` | La boutique en Canvas 2D : cinq quartiers, vue par la fenêtre, boutique qui grandit, saisons, lumière du jour et de la nuit, boulanger selon son titre, clients variés, passants, client mystère, coup de feu, four en panne |
 | `src/ui.js` | Cartes des produits, achats, carte des objectifs, cartes d'événement, indices du tutoriel, feuilles (bonus, étoiles, boulanger et talents, objectifs, absence, sauvegarde), sons, sauvegarde double et code de transfert |
 | `src/icons.js` | Icônes SVG en ligne (pâtisseries, apprentis) |
 | `src/style.css`, `src/page.html` | Mise en page |
