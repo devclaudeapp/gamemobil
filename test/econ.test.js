@@ -38,7 +38,8 @@ check(R.unlockAt[1] < 90, 'croissants en moins de 90 s');
 check(R.staffAt[0] < 180, 'premier apprenti en moins de 3 min');
 check(R.unlockAt[3] != null && R.unlockAt[3] < 30 * 60, 'tarte en moins de 30 min');
 check(R.unlockAt[4] != null && R.unlockAt[4] < 3 * 3600, 'éclairs en moins de 3 h');
-check(G.etoilesGagnables(R.st) >= 3, 'au moins 3 étoiles gagnables après 3 h');
+check(G.etoilesGagnables(R.st) <= 2 && R.st.lifetime > 5e8, 'après 3 h, la première boutique a gagné plus de 500 M € mais pas encore de quoi repartir (au plus 2 étoiles)');
+check(G.etoilesPour(2e9, 0) === 1 && G.etoilesPour(2e11, 0) === 10 && G.etoilesPour(2e11, 25) === 7 && G.etoilesPour(2e11, 100) === 4, 'étoiles : 1 à 2 Md €, 10 à 200 Md €, et plus chères quand on en possède déjà');
 check(R.evs.rush + R.evs.commande >= 15 && R.evs.rush + R.evs.commande <= 50, 'entre 15 et 50 événements en 3 h');
 check(R.evs.mystere >= 20, 'client mystère régulier');
 

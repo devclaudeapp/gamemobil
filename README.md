@@ -29,6 +29,7 @@ Tout tient dans `index.html`, sans dépendance. Les sources sont dans `src/` et 
 ```bash
 node build.js            # produit index.html et dist/artifact.html
 node test/econ.test.js   # rythme de l'économie, objectifs du jour, événements, absence, formats
+node test/longevite.js   # 60 jours de jeu simulés pour trois profils de joueur (--test : garde-fous du rythme)
 npx serve .              # puis ouvre l'adresse sur un téléphone du même réseau
 ```
 
@@ -54,6 +55,22 @@ La boutique est enregistrée dans le téléphone toutes les 5 secondes, à chaqu
 | `src/icons.js` | Icônes SVG en ligne (pâtisseries, apprentis) |
 | `src/style.css`, `src/page.html` | Mise en page |
 
-## Réglages de l'économie
+## Rythme et durabilité
 
-Huit produits, coût de niveau multiplié par 1,07 à 1,15 à chaque achat, gains doublés à chaque palier. Un joueur attentif débloque les croissants en 30 s, la tarte en 4 min, les éclairs en 10 min, les macarons en 35 min, le mille-feuille vers 1 h 15 ; la pièce montée demande plusieurs sessions. En 3 h de jeu actif, il croise une vingtaine de coups de feu et de commandes et une quarantaine de clients mystères. Une absence de 8 h rapporte à peu près ce qu'une session active de même durée aurait donné.
+Huit produits, coût de niveau multiplié par 1,07 à 1,15 à chaque achat, gains doublés à chaque palier (25, 50, 100, 200…). Les trois premières recettes arrivent dans les dix premières minutes ; les suivantes s'étalent sur une dizaine de jours. `test/longevite.js` fait jouer trois profils pendant 60 jours, avec des sessions réalistes et des absences (gains plafonnés à 8 h) :
+
+| | Occasionnel (17 min/jour) | Régulier (36 min/jour) | Assidu (80 min/jour) |
+| --- | --- | --- | --- |
+| Tarte aux pommes | jour 1 | jour 1 | jour 1 |
+| Éclair au café | jour 1 | jour 1 | jour 1 |
+| Macarons | jour 2 | jour 1 | jour 1 |
+| Mille-feuille | jour 3 | jour 2 | jour 2 |
+| Pièce montée | jour 13 | jour 9 | jour 8 |
+| Première nouvelle boutique | jour 4 (+10 ★) | jour 3 (+10 ★) | jour 3 (+12 ★) |
+| Boutiques suivantes | tous les 3 à 6 jours | tous les 2 à 6 jours | tous les 2 à 9 jours |
+| Dernier bonus (franchise) | jour 41 | jour 37 | jour 28 |
+| Étoiles au jour 30 | ~500 | ~900 | ~1 400 |
+| Temps sans rien à acheter | 10 % | 22 % | 42 % |
+| Jours aux trois objectifs | 54/60 | 57/60 | 56/60 |
+
+Les étoiles d'une boutique valent √(gagné ÷ 2 Md €), et chaque tranche de 25 étoiles déjà possédées rend les suivantes deux fois plus chères : la boule de neige reste maîtrisée (en 60 jours, les montants restent sous le million de milliards de milliards, donc lisibles). Un objectif du jour devenu impossible (tout le monde embauché, toutes les recettes débloquées…) est remplacé par un autre ; en changeant de boutique, les objectifs pas encore réclamés sont retirés à la taille de la nouvelle. `node test/longevite.js --test` vérifie ces garde-fous à chaque déploiement.
