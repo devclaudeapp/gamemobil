@@ -39,6 +39,12 @@
   const ABSENCE_MAX_H = 8;       // les apprentis travaillent 8 h au plus pendant une absence
   const RUSH = { duree: 60, mult: 3 };          // coup de feu : toutes les ventes ×3 pendant 60 s
   const COMMANDE = { duree: 180, prime: 6 };    // commande spéciale : N fournées en 3 min, payées 6 fois le prix
+  const CRITIQUE = { duree: 120, mult: 2, boost: 300 }; // le critique : vends trois recettes différentes en 2 min → tout ×2 pendant 5 min
+  const MEUNIER = { duree: 90, remise: 0.4 };   // le meunier passe : niveaux et recettes à −40 % pendant 90 s
+  const PETRISSAGE = { duree: 20, n: 30 };      // concours de pétrissage : 30 touches en 20 s → prime
+  const PANNE = { duree: 60, n: 8 };            // panne de four : un produit à l'arrêt ; 8 touches pour réparer (prime), sinon réparé seul après 60 s
+  const ANNIVERSAIRE = { duree: 120, mult: 5 }; // goûter d'anniversaire : un produit ×5 pendant 2 min
+  const EVENEMENTS = { rush: RUSH, commande: COMMANDE, critique: CRITIQUE, meunier: MEUNIER, petrissage: PETRISSAGE, panne: PANNE, anniversaire: ANNIVERSAIRE };
   const MARCHE_MULT = 1.5;                      // jour de marché (samedi, dimanche) : ×1,5
 
   // ─── état ───
@@ -48,7 +54,7 @@
       v: 2, coins: 0, lifetime: 0, lifetimeRun: 0, etoiles: 0, boutiques: 1,
       stations: stationsNeuves(), ameliorations: {}, tuto: 0, lastSeen: nowMs, created: nowMs, son: true, vibre: true, mode: 1, now: nowMs,
       stats: { taps: 0, ventes: 0, clients: 0 },
-      jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 240, boost: null, mystereTimer: 150, carnetEv: [],
+      jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
     };
   }
 
@@ -70,22 +76,25 @@
     return m;
   }
   const etoileMult = (st) => 1 + st.etoiles * ETOILE_BONUS;
-  function boostMult(st) { // événements et bonus temporaires, à l'instant st.now
+  function boostMult(st, i) { // événements et bonus temporaires, à l'instant st.now (i : pour les bonus propres à un produit)
     let m = 1;
-    if (st.ev && st.ev.type === 'rush' && st.ev.fin > st.now) m *= RUSH.mult;
+    const ev = st.ev;
+    if (ev && ev.fin > st.now) { if (ev.type === 'rush') m *= RUSH.mult; if (ev.type === 'anniversaire' && i != null && ev.i === i) m *= ANNIVERSAIRE.mult; }
     if (st.boost && st.boost.fin > st.now) m *= st.boost.mult;
     if (jourDeMarche(st.now)) m *= MARCHE_MULT;
     return m;
   }
   function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st); }
-  function revenu(st, i) { return revenuBase(st, i) * boostMult(st); } // par fournée, maintenant
+  function revenu(st, i) { return revenuBase(st, i) * boostMult(st, i); } // par fournée, maintenant
   const coutNiveau = (i, niv) => PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv);
   function coutNiveaux(i, niv, n) { const r = PRODUITS[i].croiss; return PRODUITS[i].cout * Math.pow(r, niv) * (Math.pow(r, n) - 1) / (r - 1); }
   function maxNiveaux(i, niv, coins) { const r = PRODUITS[i].croiss, a = PRODUITS[i].cout * Math.pow(r, niv); if (coins < a) return 0; return Math.floor(Math.log(coins * (r - 1) / a + 1) / Math.log(r)); }
+  const remise = (st) => (st.ev && st.ev.type === 'meunier' && st.ev.fin > st.now ? 1 - MEUNIER.remise : 1); // le meunier : tout moins cher
+  const prixNiveaux = (st, i, n) => coutNiveaux(i, st.stations[i].niv, n) * remise(st); // prix réel maintenant (remise comprise)
   function quantite(st, i) {
     const s = st.stations[i];
     if (s.niv === 0) return 1;
-    if (st.mode === 'max') return Math.max(1, maxNiveaux(i, s.niv, st.coins));
+    if (st.mode === 'max') return Math.max(1, maxNiveaux(i, s.niv, st.coins / remise(st)));
     return st.mode;
   }
   function tauxParSeconde(st) { let t = 0; st.stations.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenu(st, i) / PRODUITS[i].temps; }); return t; }
@@ -163,8 +172,73 @@
   }
   const serieEnCours = (st) => (st.dernierJourComplet === dayKey(st.now) || st.dernierJourComplet === hier(st.now)) ? st.serie : 0;
 
-  // ─── événements ───
+  // ─── événements : sept types, un toutes les 3 à 7 minutes de jeu actif, jamais deux fois le même d'affilée ───
+  const rapides = (st) => st.stations.map((s, i) => i).filter((i) => st.stations[i].niv > 0 && PRODUITS[i].temps <= 120);
+  const TYPES_EV = [
+    { type: 'rush', poids: (st) => (heureDePointe(st.now) ? 5 : 2.5), ok: () => true },
+    { type: 'commande', poids: 2, ok: (st) => st.stations.some((s, i) => s.niv > 0 && PRODUITS[i].temps <= 60) },
+    { type: 'critique', poids: 1.5, ok: (st) => rapides(st).length >= 3 },
+    { type: 'meunier', poids: 1.5, ok: () => true },
+    { type: 'petrissage', poids: 1.5, ok: () => true },
+    { type: 'panne', poids: 1, ok: (st) => st.stations.some((s) => s.staff) },
+    { type: 'anniversaire', poids: 1.5, ok: (st) => st.stations.filter((s) => s.niv > 0).length >= 2 },
+  ];
+  function note(st, txt) { st.carnetEv.push({ t: st.now, txt }); if (st.carnetEv.length > 20) st.carnetEv.shift(); }
+  function lancerEvenement(st, rnd, type) {
+    rnd = rnd || Math.random;
+    if (!type) {
+      const choix = TYPES_EV.filter((t) => t.ok(st) && t.type !== st.dernierEv);
+      let total = 0; const poids = choix.map((t) => { const w = typeof t.poids === 'function' ? t.poids(st) : t.poids; total += w; return w; });
+      let r = rnd() * total; type = choix[choix.length - 1].type;
+      for (let k = 0; k < choix.length; k++) { r -= poids[k]; if (r <= 0) { type = choix[k].type; break; } }
+    }
+    st.dernierEv = type;
+    const L = { rush: lancerRush, commande: lancerCommande, critique: lancerCritique, meunier: lancerMeunier, petrissage: lancerPetrissage, panne: lancerPanne, anniversaire: lancerAnniversaire };
+    return (L[type] || lancerRush)(st, rnd);
+  }
   function lancerRush(st) { st.ev = { type: 'rush', debut: st.now, fin: st.now + RUSH.duree * 1000 }; return st.ev; }
+  function lancerCritique(st, rnd) {
+    const idx = rapides(st), restants = [];
+    while (restants.length < 3 && idx.length) restants.push(idx.splice(Math.floor((rnd || Math.random)() * idx.length), 1)[0]);
+    st.ev = { type: 'critique', restants, debut: st.now, fin: st.now + CRITIQUE.duree * 1000 };
+    return st.ev;
+  }
+  function lancerMeunier(st) { st.ev = { type: 'meunier', debut: st.now, fin: st.now + MEUNIER.duree * 1000 }; return st.ev; }
+  function lancerPetrissage(st) { st.ev = { type: 'petrissage', n: PETRISSAGE.n, taps: 0, debut: st.now, fin: st.now + PETRISSAGE.duree * 1000, prime: arrondi(Math.max(30, rythme(st) * 240)) }; return st.ev; }
+  function lancerPanne(st, rnd) {
+    const idx = st.stations.map((s, i) => i).filter((i) => st.stations[i].staff);
+    if (!idx.length) return lancerRush(st);
+    const i = idx[Math.floor((rnd || Math.random)() * idx.length)];
+    st.ev = { type: 'panne', i, coups: 0, n: PANNE.n, debut: st.now, fin: st.now + PANNE.duree * 1000, prime: arrondi(Math.max(20, rythme(st) * 90)) };
+    return st.ev;
+  }
+  function lancerAnniversaire(st, rnd) {
+    const idx = st.stations.map((s, i) => i).filter((i) => st.stations[i].niv > 0);
+    const i = idx[Math.floor((rnd || Math.random)() * idx.length)];
+    st.ev = { type: 'anniversaire', i, mult: ANNIVERSAIRE.mult, debut: st.now, fin: st.now + ANNIVERSAIRE.duree * 1000 };
+    return st.ev;
+  }
+  // le critique : on lui sert chaque recette demandée en touchant sa carte ; les trois servies → tout ×2 pendant 5 min
+  function servir(st, i) {
+    const ev = st.ev; if (!ev || ev.type !== 'critique' || ev.fin <= st.now) return { ok: false };
+    const k = ev.restants.indexOf(i); if (k < 0) return { ok: false };
+    ev.restants.splice(k, 1);
+    if (ev.restants.length) return { ok: true, fini: false, restants: ev.restants.length };
+    donnerBoost(st, CRITIQUE.mult, CRITIQUE.boost); note(st, `Bonne critique : tout ×${CRITIQUE.mult} pendant ${CRITIQUE.boost / 60} min`); st.ev = null;
+    return { ok: true, fini: true };
+  }
+  function petrir(st) {
+    const ev = st.ev; if (!ev || ev.type !== 'petrissage' || ev.fin <= st.now) return { ok: false };
+    ev.taps++; if (ev.taps < ev.n) return { ok: true, fini: false, taps: ev.taps };
+    gagner(st, ev.prime, true); note(st, `Concours de pétrissage gagné : ${fmtEur(ev.prime)}`); st.ev = null;
+    return { ok: true, fini: true, prime: ev.prime };
+  }
+  function reparer(st) {
+    const ev = st.ev; if (!ev || ev.type !== 'panne') return { ok: false };
+    ev.coups++; if (ev.coups < ev.n) return { ok: true, fini: false, coups: ev.coups };
+    gagner(st, ev.prime, true); note(st, `Four réparé : ${fmtEur(ev.prime)}`); st.ev = null;
+    return { ok: true, fini: true, prime: ev.prime };
+  }
   function lancerCommande(st, rnd) {
     const idx = st.stations.map((s, i) => i).filter((i) => st.stations[i].niv > 0 && PRODUITS[i].temps <= 60);
     if (!idx.length) return lancerRush(st);
@@ -176,7 +250,7 @@
   function livrer(st) {
     const ev = st.ev;
     if (!ev || ev.type !== 'commande' || ev.fait < ev.n || ev.livree) return { ok: false };
-    ev.livree = true; gagner(st, ev.prime, true); st.carnetEv.push({ t: st.now, txt: `Commande livrée : ${fmtEur(ev.prime)}` }); if (st.carnetEv.length > 20) st.carnetEv.shift();
+    ev.livree = true; gagner(st, ev.prime, true); note(st, `Commande livrée : ${fmtEur(ev.prime)}`);
     st.ev = null;
     return { ok: true, prime: ev.prime };
   }
@@ -186,7 +260,7 @@
   // ─── actions ───
   function gagner(st, montant, horsObjectif) { st.coins += montant; st.lifetime += montant; st.lifetimeRun += montant; if (!horsObjectif) noter(st, 'gagner', montant); }
   function acheter(st, i) {
-    const s = st.stations[i], n = quantite(st, i), prix = coutNiveaux(i, s.niv, n);
+    const s = st.stations[i], n = quantite(st, i), prix = prixNiveaux(st, i, n);
     if (st.coins < prix) return { ok: false, prix };
     st.coins -= prix;
     if (s.niv === 0) noter(st, 'recette', 1); else noter(st, 'niveaux', n);
@@ -229,6 +303,7 @@
     objectifsDuJour(st, nowMs);
     st.stations.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
+      if (st.ev && st.ev.type === 'panne' && st.ev.i === i) return; // le four est en panne
       const T = PRODUITS[i].temps;
       s.prog += dt;
       if (s.prog < T) return;
@@ -239,15 +314,11 @@
       if (st.ev && st.ev.type === 'commande' && st.ev.i === i) st.ev.fait = Math.min(st.ev.n, st.ev.fait + n);
       out.ventes.push({ i, montant, n });
     });
-    // événements : un toutes les 4 à 8 minutes de jeu actif, coup de feu plus probable aux heures de pointe
+    // fin d'événement (la commande prête attend sa livraison) ; puis le suivant dans 3 à 7 minutes
     if (st.ev && st.ev.fin <= nowMs && !(st.ev.type === 'commande' && st.ev.fait >= st.ev.n)) { out.finEv = st.ev; st.ev = null; }
     if (!st.ev) {
       st.evTimer -= dt;
-      if (st.evTimer <= 0) {
-        st.evTimer = 240 + rnd() * 240;
-        const pRush = heureDePointe(nowMs) ? 0.7 : 0.45;
-        out.nouvelEv = rnd() < pRush || st.stations.filter((s) => s.niv > 0).length < 2 ? lancerRush(st) : lancerCommande(st, rnd);
-      }
+      if (st.evTimer <= 0) { st.evTimer = 180 + rnd() * 240; out.nouvelEv = lancerEvenement(st, rnd); }
     }
     if (st.boost && st.boost.fin <= nowMs) st.boost = null;
     st.mystereTimer -= dt;
@@ -289,8 +360,8 @@
   function fmtDuree(s) { if (s < 60) return Math.round(s) + ' s'; if (s < 3600) return Math.round(s / 60) + ' min'; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; }
   const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
-  return { PRODUITS, PALIERS, AMELIORATIONS, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, RUSH, COMMANDE, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
-    palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, coutNiveau, coutNiveaux, maxNiveaux, quantite, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
-    objectifsDuJour, noter, reclamer, serieEnCours, lancerRush, lancerCommande, livrer, pourboire, donnerBoost,
+  return { PRODUITS, PALIERS, AMELIORATIONS, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
+    palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, quantite, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
+    objectifsDuJour, noter, reclamer, serieEnCours, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, donnerBoost,
     gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono };
 });

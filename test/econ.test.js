@@ -10,14 +10,17 @@ const seeded = (a) => { let s = a; return () => { s = (s * 9301 + 49297) % 23328
 
 function run(hours, policy, start = T0) {
   const st = G.newState(start); st.mode = 'max';
-  const unlockAt = {}, staffAt = {}, dt = 0.5; let t = 0, taps = 0, evs = { rush: 0, commande: 0, mystere: 0 };
+  const unlockAt = {}, staffAt = {}, dt = 0.5; let t = 0, taps = 0, evs = { mystere: 0 };
   const rnd = seeded(7);
   while (t < hours * 3600) {
     st.stations.forEach((s, i) => { if (s.niv > 0 && !s.staff && !s.actif) { G.lancer(st, i); taps++; } });
     const out = G.tick(st, dt, start + t * 1000, rnd); t += dt;
-    if (out.nouvelEv) evs[out.nouvelEv.type]++;
+    if (out.nouvelEv) evs[out.nouvelEv.type] = (evs[out.nouvelEv.type] || 0) + 1;
     if (out.mystere) evs.mystere++;
     if (st.ev && st.ev.type === 'commande' && st.ev.fait >= st.ev.n) G.livrer(st);
+    if (st.ev && st.ev.type === 'critique') st.ev.restants.slice().forEach((i) => G.servir(st, i));
+    if (st.ev && st.ev.type === 'petrissage') { G.petrir(st); G.petrir(st); } // 4 touches par seconde
+    if (st.ev && st.ev.type === 'panne') G.reparer(st);
     if (Math.round(t / dt) % 4 === 0) policy(st, t, { unlockAt, staffAt });
   }
   return { st, unlockAt, staffAt, taps, evs };
@@ -40,7 +43,9 @@ check(R.unlockAt[3] != null && R.unlockAt[3] < 30 * 60, 'tarte en moins de 30 mi
 check(R.unlockAt[4] != null && R.unlockAt[4] < 3 * 3600, 'éclairs en moins de 3 h');
 check(G.etoilesGagnables(R.st) <= 2 && R.st.lifetime > 5e8, 'après 3 h, la première boutique a gagné plus de 500 M € mais pas encore de quoi repartir (au plus 2 étoiles)');
 check(G.etoilesPour(2e9, 0) === 1 && G.etoilesPour(2e11, 0) === 10 && G.etoilesPour(2e11, 25) === 7 && G.etoilesPour(2e11, 100) === 4, 'étoiles : 1 à 2 Md €, 10 à 200 Md €, et plus chères quand on en possède déjà');
-check(R.evs.rush + R.evs.commande >= 15 && R.evs.rush + R.evs.commande <= 50, 'entre 15 et 50 événements en 3 h');
+const TYPES = ['rush', 'commande', 'critique', 'meunier', 'petrissage', 'panne', 'anniversaire'], nEv = TYPES.reduce((a, t) => a + (R.evs[t] || 0), 0);
+check(nEv >= 20 && nEv <= 60, `entre 20 et 60 événements en 3 h (${nEv})`);
+check(TYPES.every((t) => R.evs[t] >= 1), 'chacun des sept types d’événement est arrivé au moins une fois');
 check(R.evs.mystere >= 20, 'client mystère régulier');
 
 console.log('── objectifs du jour ──');
@@ -80,6 +85,35 @@ console.log('── événements ──');
   ev.fait = ev.n; const l = G.livrer(st); check(l.ok && !st.ev, 'livraison : prime versée, événement clos');
   const sam = Date.UTC(2026, 9, 10, 12, 0); st.now = sam; check(G.jourDeMarche(sam) && Math.abs(G.boostMult(st) - 1.5) < 1e-9, 'samedi : jour de marché ×1,5');
   check(G.pourboire(st) >= 20, 'pourboire du client mystère ≥ 20 €');
+  // le critique : trois recettes vendues → tout ×2 pendant 5 min
+  st.now = T0; st.ev = null; st.boost = null; [0, 1, 2].forEach((i) => { st.stations[i].niv = 1; st.stations[i].staff = true; st.stations[i].actif = true; st.stations[i].prog = PRODUITS[i].temps - 0.01; });
+  const cr = G.lancerCritique(st, () => 0); check(cr.type === 'critique' && cr.restants.length === 3, 'le critique demande trois recettes : ' + cr.restants.map((i) => PRODUITS[i].nom).join(', '));
+  G.tick(st, 0.05, T0 + 50); check(st.ev && st.ev.restants.length === 3, 'les ventes automatiques ne comptent pas : il faut le servir');
+  check(!G.servir(st, 7).ok && G.servir(st, cr.restants[0]).ok && st.ev.restants.length === 2, 'on sert une recette en touchant sa carte');
+  cr.restants.slice().forEach((i) => G.servir(st, i)); check(!st.ev && st.boost && st.boost.mult === 2 && Math.abs(G.boostMult(st) - 2) < 1e-9, 'le critique conquis : tout ×2');
+  st.now = T0 + 301000; check(Math.abs(G.boostMult(st) - 1) < 1e-9, 'la bonne critique dure 5 min'); st.boost = null;
+  // le meunier : −40 %
+  st.now = T0; const plein = G.coutNiveaux(0, st.stations[0].niv, 1); G.lancerMeunier(st);
+  check(Math.abs(G.prixNiveaux(st, 0, 1) / plein - 0.6) < 1e-9, 'le meunier : niveaux à −40 %');
+  st.coins = plein * 0.7; st.mode = 1; check(G.acheter(st, 0).ok && st.coins < plein * 0.2, 'on achète au prix remisé');
+  st.now = T0 + 91000; check(Math.abs(G.prixNiveaux(st, 0, 1) / G.coutNiveaux(0, st.stations[0].niv, 1) - 1) < 1e-9, 'la remise s’arrête après 90 s'); st.ev = null;
+  // pétrissage : 30 touches
+  st.now = T0; st.coins = 0; const pe = G.lancerPetrissage(st); for (let k = 0; k < 29; k++) G.petrir(st);
+  check(st.ev && st.ev.taps === 29, '29 touches : pas encore'); const fin = G.petrir(st); check(fin.fini && !st.ev && st.coins === pe.prime && pe.prime >= 30, `30 touches : prime ${G.fmtEur(pe.prime)}`);
+  st.now = T0 + 21000; G.lancerPetrissage(st); st.now = T0 + 42000; check(!G.petrir(st).ok, 'trop tard, plus de touches comptées'); st.ev = null;
+  // panne de four : le produit s'arrête, 8 touches pour réparer
+  st.now = T0; st.coins = 0; const pa = G.lancerPanne(st, () => 0); const sta = st.stations[pa.i]; sta.prog = 0.5;
+  G.tick(st, 1, T0 + 1000); check(sta.prog === 0.5, `panne : ${PRODUITS[pa.i].nom} à l’arrêt`);
+  for (let k = 0; k < 7; k++) G.reparer(st); check(st.ev && st.ev.coups === 7, '7 touches : toujours en panne');
+  const rep = G.reparer(st); check(rep.fini && !st.ev && st.coins === pa.prime, `réparé : prime ${G.fmtEur(pa.prime)}`);
+  G.tick(st, 0.3, T0 + 1300); check(Math.abs(sta.prog - 0.8) < 1e-9, 'la production repart');
+  // goûter d'anniversaire : un seul produit ×5
+  st.now = T0; const an = G.lancerAnniversaire(st, () => 0.99); const autre = st.stations.findIndex((x, i) => x.niv > 0 && i !== an.i);
+  check(Math.abs(G.revenu(st, an.i) / G.revenuBase(st, an.i) - 5) < 1e-9 && Math.abs(G.revenu(st, autre) / G.revenuBase(st, autre) - 1) < 1e-9, `anniversaire : ${PRODUITS[an.i].nom} ×5, les autres ×1`); st.ev = null;
+  // jamais deux fois le même d'affilée, et tous les types finissent par sortir
+  const vus = {}, r2 = seeded(3); let prev = ''; let repete = false;
+  for (let k = 0; k < 60; k++) { st.now = T0 + k * 1000; const e = G.lancerEvenement(st, r2); if (e.type === prev) repete = true; prev = e.type; vus[e.type] = true; st.ev = null; }
+  check(!repete && Object.keys(vus).length === 7, 'tirage : jamais deux fois le même type d’affilée, les sept sortent');
 }
 console.log('── absence de 8 h après 1 h de jeu ──');
 const R1 = run(1, greedy);

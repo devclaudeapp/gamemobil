@@ -73,6 +73,7 @@ const SCENE = (() => {
     for (let i = clients.length - 1; i >= 0; i--) if (clients[i].etat === 'sort' && clients[i].x > W + 30) clients.splice(i, 1);
     for (const x of textes) { x.life -= dt * 0.9; x.y -= 28 * dt; }
     for (let i = textes.length - 1; i >= 0; i--) if (textes[i].life <= 0) textes.splice(i, 1);
+    if (st.ev && st.ev.type === 'panne' && Math.random() < dt * 6) vapeurs.push({ x: W * 0.13 + (Math.random() - 0.5) * 22, y: H * 0.5, r: 5 + Math.random() * 5, life: 1.2, gris: true });
     for (const v of vapeurs) { v.life -= dt * 0.8; v.y -= 22 * dt; v.r += 6 * dt; }
     for (let i = vapeurs.length - 1; i >= 0; i--) if (vapeurs[i].life <= 0) vapeurs.splice(i, 1);
     for (const k of confetti) { k.x += k.vx * dt; k.y += k.vy * dt; k.a += dt * 6; k.life -= dt * 0.35; }
@@ -104,7 +105,7 @@ const SCENE = (() => {
     const pains = Math.min(10, Math.floor(niv(0) / 10));
     etagere(W * 0.04, H * 0.16, W * 0.44, pains);
     four(W * 0.04, H * 0.42, W * 0.18, H * 0.36, st.stations[0].actif || taux > 0);
-    for (const v of vapeurs) { ctx.globalAlpha = Math.max(0, v.life) * 0.7; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(v.x, v.y, v.r, 0, TAU); ctx.fill(); }
+    for (const v of vapeurs) { ctx.globalAlpha = Math.max(0, v.life) * 0.7; ctx.fillStyle = v.gris ? '#8C8C8C' : '#fff'; ctx.beginPath(); ctx.arc(v.x, v.y, v.r, 0, TAU); ctx.fill(); }
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#F3D9C0'; ctx.fillRect(0, H * 0.62, W, H * 0.38);
     ctx.fillStyle = '#E8C7A8'; ctx.fillRect(0, H * 0.62, W, 4);

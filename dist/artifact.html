@@ -137,7 +137,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .flottant { position: fixed; z-index: 5; pointer-events: none; font: 700 18px/1 var(--titre); color: var(--menthe-sombre); animation: monteFlotte .9s ease-out forwards; text-shadow: 0 2px 0 #fff; }
 @keyframes monteFlotte { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-46px); opacity: 0; } }
 .toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 64px); transform: translateX(-50%); z-index: 9; padding: 10px 16px; border-radius: 999px; background: var(--texte); color: #fff;
-  font: 700 14px/1.2 var(--texte-font); box-shadow: 0 6px 16px var(--ombre); white-space: nowrap; animation: monte .25s ease-out; }
+  font: 700 14px/1.2 var(--texte-font); box-shadow: 0 6px 16px var(--ombre); max-width: calc(100vw - 32px); text-align: center; border-radius: 22px; animation: monte .25s ease-out; }
 
 /* ─── objectifs du jour ─── */
 .obj { display: block; width: 100%; text-align: left; padding: 10px 12px 8px; border-radius: 20px; background: var(--carte); box-shadow: 0 6px 16px var(--ombre); margin-bottom: 10px; }
@@ -158,7 +158,8 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .obj-ligne.fait em { color: var(--menthe-sombre); }
 .mini { height: 6px; margin-top: 6px; border-radius: 3px; background: var(--creme); overflow: hidden; }
 .mini i { display: block; height: 100%; background: var(--menthe); }
-.marche { display: inline-block; margin-left: 6px; padding: 2px 7px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 800 11px/1.3 var(--texte-font); }
+.marche { display: inline-block; margin: 2px 4px 0 0; padding: 2px 7px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 800 11px/1.3 var(--texte-font); white-space: nowrap; }
+#taux { display: block; }
 .lien { display: block; width: 100%; margin-top: 14px; text-align: center; font: 700 13px/1.2 var(--texte-font); color: var(--texte-2); text-decoration: underline; min-height: 40px; }
 
 /* ─── événements ─── */
@@ -167,8 +168,17 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .ev.rush { background: linear-gradient(135deg, #FF6B8B, #FF9A62); box-shadow: 0 6px 16px rgba(255, 107, 139, .35); }
 .ev.commande { background: linear-gradient(135deg, #B8A6FF, #8FB8FF); box-shadow: 0 6px 16px rgba(184, 166, 255, .4); }
 .ev.commande.prete { background: linear-gradient(135deg, #5FD3A4, #8FE3C2); }
+.ev.critique { background: linear-gradient(135deg, #9A84F0, #C9A3F5); box-shadow: 0 6px 16px rgba(154, 132, 240, .4); }
+.ev.meunier { background: linear-gradient(135deg, #C8863A, #E8B46A); box-shadow: 0 6px 16px rgba(200, 134, 58, .35); }
+.ev.petrissage { background: linear-gradient(135deg, #E0A61E, #FFC84A); box-shadow: 0 6px 16px rgba(224, 166, 30, .35); }
+.ev.panne { background: linear-gradient(135deg, #6E5A50, #9C8577); box-shadow: 0 6px 16px rgba(110, 90, 80, .35); }
+.ev.anniversaire { background: linear-gradient(135deg, #FF6B8B, #B8A6FF); box-shadow: 0 6px 16px rgba(255, 107, 139, .35); }
 .ev > svg { width: 44px; height: 44px; }
-.ev.commande > svg { background: #fff; border-radius: 14px; padding: 4px; }
+.ev.commande > svg, .ev.critique > svg, .ev.meunier > svg, .ev.petrissage > svg, .ev.panne > svg, .ev.anniversaire > svg { background: #fff; border-radius: 14px; padding: 4px; }
+.ev .btn.tapote { background: #fff; color: var(--texte); box-shadow: 0 4px 0 rgba(0, 0, 0, .18); min-width: 92px; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.ev .btn.tapote:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0, 0, 0, .18); }
+.ev-compte { font-variant-numeric: tabular-nums; }
+.btn.promo { background: linear-gradient(135deg, #C8863A, #E8B46A); box-shadow: 0 4px 0 #A8621F; }
 .ev-txt { display: grid; gap: 2px; min-width: 0; }
 .ev-txt b { font: 700 16px/1.1 var(--titre); }
 .ev-txt span { font-size: 13px; line-height: 1.3; }
@@ -180,6 +190,11 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 /* code de sauvegarde */
 .code { display: block; width: 100%; min-height: 84px; margin: 0 0 10px; padding: 10px 12px; border: 2px solid var(--ligne); border-radius: 14px; background: #fff; color: var(--texte-2); font: 600 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; resize: none; -webkit-appearance: none; }
 .code:focus { outline: none; border-color: var(--lavande); }
+
+/* le critique : les cartes à lui servir */
+.carte.gouter { position: relative; box-shadow: 0 0 0 3px var(--lavande), 0 6px 16px rgba(154, 132, 240, .3); }
+.carte.gouter .icone { background: #EFEAFF; }
+.badge-critique { position: absolute; top: -9px; left: 14px; z-index: 1; background: var(--lavande-sombre); color: #fff; font: 800 11px/1 var(--texte-font); padding: 5px 9px; border-radius: 999px; box-shadow: 0 2px 6px rgba(0, 0, 0, .15); }
 </style>
 <div id="probe" aria-hidden="true"></div>
 <header id="haut">
@@ -251,6 +266,12 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
   const ABSENCE_MAX_H = 8;       // les apprentis travaillent 8 h au plus pendant une absence
   const RUSH = { duree: 60, mult: 3 };          // coup de feu : toutes les ventes ×3 pendant 60 s
   const COMMANDE = { duree: 180, prime: 6 };    // commande spéciale : N fournées en 3 min, payées 6 fois le prix
+  const CRITIQUE = { duree: 120, mult: 2, boost: 300 }; // le critique : vends trois recettes différentes en 2 min → tout ×2 pendant 5 min
+  const MEUNIER = { duree: 90, remise: 0.4 };   // le meunier passe : niveaux et recettes à −40 % pendant 90 s
+  const PETRISSAGE = { duree: 20, n: 30 };      // concours de pétrissage : 30 touches en 20 s → prime
+  const PANNE = { duree: 60, n: 8 };            // panne de four : un produit à l'arrêt ; 8 touches pour réparer (prime), sinon réparé seul après 60 s
+  const ANNIVERSAIRE = { duree: 120, mult: 5 }; // goûter d'anniversaire : un produit ×5 pendant 2 min
+  const EVENEMENTS = { rush: RUSH, commande: COMMANDE, critique: CRITIQUE, meunier: MEUNIER, petrissage: PETRISSAGE, panne: PANNE, anniversaire: ANNIVERSAIRE };
   const MARCHE_MULT = 1.5;                      // jour de marché (samedi, dimanche) : ×1,5
 
   // ─── état ───
@@ -260,7 +281,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
       v: 2, coins: 0, lifetime: 0, lifetimeRun: 0, etoiles: 0, boutiques: 1,
       stations: stationsNeuves(), ameliorations: {}, tuto: 0, lastSeen: nowMs, created: nowMs, son: true, vibre: true, mode: 1, now: nowMs,
       stats: { taps: 0, ventes: 0, clients: 0 },
-      jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 240, boost: null, mystereTimer: 150, carnetEv: [],
+      jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
     };
   }
 
@@ -282,22 +303,25 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     return m;
   }
   const etoileMult = (st) => 1 + st.etoiles * ETOILE_BONUS;
-  function boostMult(st) { // événements et bonus temporaires, à l'instant st.now
+  function boostMult(st, i) { // événements et bonus temporaires, à l'instant st.now (i : pour les bonus propres à un produit)
     let m = 1;
-    if (st.ev && st.ev.type === 'rush' && st.ev.fin > st.now) m *= RUSH.mult;
+    const ev = st.ev;
+    if (ev && ev.fin > st.now) { if (ev.type === 'rush') m *= RUSH.mult; if (ev.type === 'anniversaire' && i != null && ev.i === i) m *= ANNIVERSAIRE.mult; }
     if (st.boost && st.boost.fin > st.now) m *= st.boost.mult;
     if (jourDeMarche(st.now)) m *= MARCHE_MULT;
     return m;
   }
   function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st); }
-  function revenu(st, i) { return revenuBase(st, i) * boostMult(st); } // par fournée, maintenant
+  function revenu(st, i) { return revenuBase(st, i) * boostMult(st, i); } // par fournée, maintenant
   const coutNiveau = (i, niv) => PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv);
   function coutNiveaux(i, niv, n) { const r = PRODUITS[i].croiss; return PRODUITS[i].cout * Math.pow(r, niv) * (Math.pow(r, n) - 1) / (r - 1); }
   function maxNiveaux(i, niv, coins) { const r = PRODUITS[i].croiss, a = PRODUITS[i].cout * Math.pow(r, niv); if (coins < a) return 0; return Math.floor(Math.log(coins * (r - 1) / a + 1) / Math.log(r)); }
+  const remise = (st) => (st.ev && st.ev.type === 'meunier' && st.ev.fin > st.now ? 1 - MEUNIER.remise : 1); // le meunier : tout moins cher
+  const prixNiveaux = (st, i, n) => coutNiveaux(i, st.stations[i].niv, n) * remise(st); // prix réel maintenant (remise comprise)
   function quantite(st, i) {
     const s = st.stations[i];
     if (s.niv === 0) return 1;
-    if (st.mode === 'max') return Math.max(1, maxNiveaux(i, s.niv, st.coins));
+    if (st.mode === 'max') return Math.max(1, maxNiveaux(i, s.niv, st.coins / remise(st)));
     return st.mode;
   }
   function tauxParSeconde(st) { let t = 0; st.stations.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenu(st, i) / PRODUITS[i].temps; }); return t; }
@@ -375,8 +399,73 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
   }
   const serieEnCours = (st) => (st.dernierJourComplet === dayKey(st.now) || st.dernierJourComplet === hier(st.now)) ? st.serie : 0;
 
-  // ─── événements ───
+  // ─── événements : sept types, un toutes les 3 à 7 minutes de jeu actif, jamais deux fois le même d'affilée ───
+  const rapides = (st) => st.stations.map((s, i) => i).filter((i) => st.stations[i].niv > 0 && PRODUITS[i].temps <= 120);
+  const TYPES_EV = [
+    { type: 'rush', poids: (st) => (heureDePointe(st.now) ? 5 : 2.5), ok: () => true },
+    { type: 'commande', poids: 2, ok: (st) => st.stations.some((s, i) => s.niv > 0 && PRODUITS[i].temps <= 60) },
+    { type: 'critique', poids: 1.5, ok: (st) => rapides(st).length >= 3 },
+    { type: 'meunier', poids: 1.5, ok: () => true },
+    { type: 'petrissage', poids: 1.5, ok: () => true },
+    { type: 'panne', poids: 1, ok: (st) => st.stations.some((s) => s.staff) },
+    { type: 'anniversaire', poids: 1.5, ok: (st) => st.stations.filter((s) => s.niv > 0).length >= 2 },
+  ];
+  function note(st, txt) { st.carnetEv.push({ t: st.now, txt }); if (st.carnetEv.length > 20) st.carnetEv.shift(); }
+  function lancerEvenement(st, rnd, type) {
+    rnd = rnd || Math.random;
+    if (!type) {
+      const choix = TYPES_EV.filter((t) => t.ok(st) && t.type !== st.dernierEv);
+      let total = 0; const poids = choix.map((t) => { const w = typeof t.poids === 'function' ? t.poids(st) : t.poids; total += w; return w; });
+      let r = rnd() * total; type = choix[choix.length - 1].type;
+      for (let k = 0; k < choix.length; k++) { r -= poids[k]; if (r <= 0) { type = choix[k].type; break; } }
+    }
+    st.dernierEv = type;
+    const L = { rush: lancerRush, commande: lancerCommande, critique: lancerCritique, meunier: lancerMeunier, petrissage: lancerPetrissage, panne: lancerPanne, anniversaire: lancerAnniversaire };
+    return (L[type] || lancerRush)(st, rnd);
+  }
   function lancerRush(st) { st.ev = { type: 'rush', debut: st.now, fin: st.now + RUSH.duree * 1000 }; return st.ev; }
+  function lancerCritique(st, rnd) {
+    const idx = rapides(st), restants = [];
+    while (restants.length < 3 && idx.length) restants.push(idx.splice(Math.floor((rnd || Math.random)() * idx.length), 1)[0]);
+    st.ev = { type: 'critique', restants, debut: st.now, fin: st.now + CRITIQUE.duree * 1000 };
+    return st.ev;
+  }
+  function lancerMeunier(st) { st.ev = { type: 'meunier', debut: st.now, fin: st.now + MEUNIER.duree * 1000 }; return st.ev; }
+  function lancerPetrissage(st) { st.ev = { type: 'petrissage', n: PETRISSAGE.n, taps: 0, debut: st.now, fin: st.now + PETRISSAGE.duree * 1000, prime: arrondi(Math.max(30, rythme(st) * 240)) }; return st.ev; }
+  function lancerPanne(st, rnd) {
+    const idx = st.stations.map((s, i) => i).filter((i) => st.stations[i].staff);
+    if (!idx.length) return lancerRush(st);
+    const i = idx[Math.floor((rnd || Math.random)() * idx.length)];
+    st.ev = { type: 'panne', i, coups: 0, n: PANNE.n, debut: st.now, fin: st.now + PANNE.duree * 1000, prime: arrondi(Math.max(20, rythme(st) * 90)) };
+    return st.ev;
+  }
+  function lancerAnniversaire(st, rnd) {
+    const idx = st.stations.map((s, i) => i).filter((i) => st.stations[i].niv > 0);
+    const i = idx[Math.floor((rnd || Math.random)() * idx.length)];
+    st.ev = { type: 'anniversaire', i, mult: ANNIVERSAIRE.mult, debut: st.now, fin: st.now + ANNIVERSAIRE.duree * 1000 };
+    return st.ev;
+  }
+  // le critique : on lui sert chaque recette demandée en touchant sa carte ; les trois servies → tout ×2 pendant 5 min
+  function servir(st, i) {
+    const ev = st.ev; if (!ev || ev.type !== 'critique' || ev.fin <= st.now) return { ok: false };
+    const k = ev.restants.indexOf(i); if (k < 0) return { ok: false };
+    ev.restants.splice(k, 1);
+    if (ev.restants.length) return { ok: true, fini: false, restants: ev.restants.length };
+    donnerBoost(st, CRITIQUE.mult, CRITIQUE.boost); note(st, `Bonne critique : tout ×${CRITIQUE.mult} pendant ${CRITIQUE.boost / 60} min`); st.ev = null;
+    return { ok: true, fini: true };
+  }
+  function petrir(st) {
+    const ev = st.ev; if (!ev || ev.type !== 'petrissage' || ev.fin <= st.now) return { ok: false };
+    ev.taps++; if (ev.taps < ev.n) return { ok: true, fini: false, taps: ev.taps };
+    gagner(st, ev.prime, true); note(st, `Concours de pétrissage gagné : ${fmtEur(ev.prime)}`); st.ev = null;
+    return { ok: true, fini: true, prime: ev.prime };
+  }
+  function reparer(st) {
+    const ev = st.ev; if (!ev || ev.type !== 'panne') return { ok: false };
+    ev.coups++; if (ev.coups < ev.n) return { ok: true, fini: false, coups: ev.coups };
+    gagner(st, ev.prime, true); note(st, `Four réparé : ${fmtEur(ev.prime)}`); st.ev = null;
+    return { ok: true, fini: true, prime: ev.prime };
+  }
   function lancerCommande(st, rnd) {
     const idx = st.stations.map((s, i) => i).filter((i) => st.stations[i].niv > 0 && PRODUITS[i].temps <= 60);
     if (!idx.length) return lancerRush(st);
@@ -388,7 +477,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
   function livrer(st) {
     const ev = st.ev;
     if (!ev || ev.type !== 'commande' || ev.fait < ev.n || ev.livree) return { ok: false };
-    ev.livree = true; gagner(st, ev.prime, true); st.carnetEv.push({ t: st.now, txt: `Commande livrée : ${fmtEur(ev.prime)}` }); if (st.carnetEv.length > 20) st.carnetEv.shift();
+    ev.livree = true; gagner(st, ev.prime, true); note(st, `Commande livrée : ${fmtEur(ev.prime)}`);
     st.ev = null;
     return { ok: true, prime: ev.prime };
   }
@@ -398,7 +487,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
   // ─── actions ───
   function gagner(st, montant, horsObjectif) { st.coins += montant; st.lifetime += montant; st.lifetimeRun += montant; if (!horsObjectif) noter(st, 'gagner', montant); }
   function acheter(st, i) {
-    const s = st.stations[i], n = quantite(st, i), prix = coutNiveaux(i, s.niv, n);
+    const s = st.stations[i], n = quantite(st, i), prix = prixNiveaux(st, i, n);
     if (st.coins < prix) return { ok: false, prix };
     st.coins -= prix;
     if (s.niv === 0) noter(st, 'recette', 1); else noter(st, 'niveaux', n);
@@ -441,6 +530,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     objectifsDuJour(st, nowMs);
     st.stations.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
+      if (st.ev && st.ev.type === 'panne' && st.ev.i === i) return; // le four est en panne
       const T = PRODUITS[i].temps;
       s.prog += dt;
       if (s.prog < T) return;
@@ -451,15 +541,11 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
       if (st.ev && st.ev.type === 'commande' && st.ev.i === i) st.ev.fait = Math.min(st.ev.n, st.ev.fait + n);
       out.ventes.push({ i, montant, n });
     });
-    // événements : un toutes les 4 à 8 minutes de jeu actif, coup de feu plus probable aux heures de pointe
+    // fin d'événement (la commande prête attend sa livraison) ; puis le suivant dans 3 à 7 minutes
     if (st.ev && st.ev.fin <= nowMs && !(st.ev.type === 'commande' && st.ev.fait >= st.ev.n)) { out.finEv = st.ev; st.ev = null; }
     if (!st.ev) {
       st.evTimer -= dt;
-      if (st.evTimer <= 0) {
-        st.evTimer = 240 + rnd() * 240;
-        const pRush = heureDePointe(nowMs) ? 0.7 : 0.45;
-        out.nouvelEv = rnd() < pRush || st.stations.filter((s) => s.niv > 0).length < 2 ? lancerRush(st) : lancerCommande(st, rnd);
-      }
+      if (st.evTimer <= 0) { st.evTimer = 180 + rnd() * 240; out.nouvelEv = lancerEvenement(st, rnd); }
     }
     if (st.boost && st.boost.fin <= nowMs) st.boost = null;
     st.mystereTimer -= dt;
@@ -501,9 +587,9 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
   function fmtDuree(s) { if (s < 60) return Math.round(s) + ' s'; if (s < 3600) return Math.round(s / 60) + ' min'; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; }
   const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
-  return { PRODUITS, PALIERS, AMELIORATIONS, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, RUSH, COMMANDE, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
-    palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, coutNiveau, coutNiveaux, maxNiveaux, quantite, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
-    objectifsDuJour, noter, reclamer, serieEnCours, lancerRush, lancerCommande, livrer, pourboire, donnerBoost,
+  return { PRODUITS, PALIERS, AMELIORATIONS, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
+    palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, quantite, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
+    objectifsDuJour, noter, reclamer, serieEnCours, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, donnerBoost,
     gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono };
 });
 
@@ -531,9 +617,14 @@ const ICONS = (() => {
   }
   const CIBLE = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#FF6B8B" stroke-width="2.5"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="#FF6B8B" stroke-width="2.5"/><circle cx="12" cy="12" r="1.5" fill="#FF6B8B"/></svg>`;
   const FEU = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4c2 8 10 12 10 22a10 10 0 01-20 0c0-5 3-8 4-12 2 3 4 4 6 3-1-5 0-9 0-13z" fill="#FF9F4A" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/><path d="M24 22c1 4 5 6 5 10a5 5 0 01-10 0c0-3 2-4 2-7 1 1 2 1 3-3z" fill="#FFD36B"/></svg>`;
+  const CRITIQUE = `<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="10" y="8" width="26" height="32" rx="4" fill="#fff" stroke="${L}" stroke-width="2"/><path d="M16 16h14M16 22h14M16 28h9" stroke="#B8A6FF" stroke-width="2.5" stroke-linecap="round"/><path d="M30 36l8-14 3 2-8 14z" fill="#FFC84A" stroke="${L}" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
+  const SAC = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M14 16c-4 8-4 16-2 24h24c2-8 2-16-2-24z" fill="#F4E4C8" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M16 10h16l2 6H14z" fill="#E8B46A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M19 26c2-3 8-3 10 0" stroke="#C8863A" stroke-width="2" stroke-linecap="round" fill="none"/><circle cx="24" cy="31" r="2" fill="#C8863A"/></svg>`;
+  const PATE = `<svg viewBox="0 0 48 48" aria-hidden="true"><ellipse cx="24" cy="30" rx="15" ry="10" fill="#FFF3C4" stroke="${L}" stroke-width="2"/><ellipse cx="20" cy="26" rx="4" ry="2.5" fill="#fff" opacity=".8"/><rect x="8" y="8" width="32" height="7" rx="3.5" fill="#C8863A" stroke="${L}" stroke-width="2"/><rect x="2" y="9" width="7" height="5" rx="2.5" fill="#8B5A3C"/><rect x="39" y="9" width="7" height="5" rx="2.5" fill="#8B5A3C"/></svg>`;
+  const PANNE = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 8a9 9 0 00-9 11L9 31a3 3 0 004 4l12-12a9 9 0 0011-9l-5 5-4-1-1-4z" fill="#D9CCC2" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="36" cy="36" r="5" fill="#FF9F4A" stroke="${L}" stroke-width="2"/><path d="M36 30v-4M42 36h4" stroke="#FF6B8B" stroke-width="2.5" stroke-linecap="round"/></svg>`;
+  const BALLON = `<svg viewBox="0 0 48 48" aria-hidden="true"><ellipse cx="19" cy="17" rx="10" ry="12" fill="#FF9FB2" stroke="${L}" stroke-width="2"/><ellipse cx="31" cy="20" rx="9" ry="11" fill="#9BD0FF" stroke="${L}" stroke-width="2"/><path d="M19 29c-2 6 2 10 0 14M31 31c2 5-1 8 0 12" stroke="${L}" stroke-width="1.8" fill="none" stroke-linecap="round"/><ellipse cx="15" cy="12" rx="2.5" ry="4" fill="#fff" opacity=".7"/></svg>`;
   const AMELIORATION = S(`<path d="M24 6l3.5 10.5L38 20l-10.5 3.5L24 34l-3.5-10.5L10 20l10.5-3.5z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`);
   const ETOILE = S(`<path d="M24 5l5.8 12.2 13.2 1.6-9.8 9.2 2.6 13.2L24 34.6l-11.8 6.6 2.6-13.2L5 18.8l13.2-1.6z" fill="#FFC84A" stroke="#E0A61E" stroke-width="2" stroke-linejoin="round"/>`);
-  return { PRODUITS, apprenti, AMELIORATION, ETOILE, CIBLE, FEU };
+  return { PRODUITS, apprenti, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON };
 })();
 
 /* ── scene.js ── */
@@ -612,6 +703,7 @@ const SCENE = (() => {
     for (let i = clients.length - 1; i >= 0; i--) if (clients[i].etat === 'sort' && clients[i].x > W + 30) clients.splice(i, 1);
     for (const x of textes) { x.life -= dt * 0.9; x.y -= 28 * dt; }
     for (let i = textes.length - 1; i >= 0; i--) if (textes[i].life <= 0) textes.splice(i, 1);
+    if (st.ev && st.ev.type === 'panne' && Math.random() < dt * 6) vapeurs.push({ x: W * 0.13 + (Math.random() - 0.5) * 22, y: H * 0.5, r: 5 + Math.random() * 5, life: 1.2, gris: true });
     for (const v of vapeurs) { v.life -= dt * 0.8; v.y -= 22 * dt; v.r += 6 * dt; }
     for (let i = vapeurs.length - 1; i >= 0; i--) if (vapeurs[i].life <= 0) vapeurs.splice(i, 1);
     for (const k of confetti) { k.x += k.vx * dt; k.y += k.vy * dt; k.a += dt * 6; k.life -= dt * 0.35; }
@@ -643,7 +735,7 @@ const SCENE = (() => {
     const pains = Math.min(10, Math.floor(niv(0) / 10));
     etagere(W * 0.04, H * 0.16, W * 0.44, pains);
     four(W * 0.04, H * 0.42, W * 0.18, H * 0.36, st.stations[0].actif || taux > 0);
-    for (const v of vapeurs) { ctx.globalAlpha = Math.max(0, v.life) * 0.7; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(v.x, v.y, v.r, 0, TAU); ctx.fill(); }
+    for (const v of vapeurs) { ctx.globalAlpha = Math.max(0, v.life) * 0.7; ctx.fillStyle = v.gris ? '#8C8C8C' : '#fff'; ctx.beginPath(); ctx.arc(v.x, v.y, v.r, 0, TAU); ctx.fill(); }
     ctx.globalAlpha = 1;
     ctx.fillStyle = '#F3D9C0'; ctx.fillRect(0, H * 0.62, W, H * 0.38);
     ctx.fillStyle = '#E8C7A8'; ctx.fillRect(0, H * 0.62, W, 4);
@@ -825,22 +917,23 @@ const UI = (() => {
     renderCards(true);
   }
   function renderCards(force) {
+    const remise = G.remise(st), critique = st.ev && st.ev.type === 'critique' ? st.ev.restants : [];
     G.PRODUITS.forEach((p, i) => {
       const s = st.stations[i], c = cards[i];
       let html, cls;
       if (s.niv === 0) {
-        const prev = i === 0 || st.stations[i - 1].niv > 0, ok = st.coins >= p.cout;
+        const prev = i === 0 || st.stations[i - 1].niv > 0, ok = st.coins >= p.cout * remise;
         cls = 'carte verrou' + (prev ? '' : ' secret');
         html = `<div class="icone">${ICONS.PRODUITS[p.id]}</div><div class="corps"><h3>${esc(p.nom)}</h3><p>${esc(p.desc)} Rapporte ${G.fmtEur(p.rev)} la fournée.</p>
-          <button type="button" class="btn ${ok ? 'menthe' : 'non'}" data-a="debloquer"><small>Débloquer</small><b>${G.fmtEur(p.cout)}</b></button></div>`;
+          <button type="button" class="btn ${ok ? 'menthe' : 'non'}" data-a="debloquer"><small>${remise < 1 ? `Débloquer −${Math.round((1 - remise) * 100)} %` : 'Débloquer'}</small><b>${G.fmtEur(p.cout * remise)}</b></button></div>`;
       } else {
-        const n = G.quantite(st, i), prix = G.coutNiveaux(i, s.niv, n), ok = st.coins >= prix, pal = G.prochainPalier(s.niv);
+        const n = G.quantite(st, i), prix = G.prixNiveaux(st, i, n), ok = st.coins >= prix, pal = G.prochainPalier(s.niv);
         const rapide = p.temps <= 1.5 && s.staff;
-        cls = 'carte' + (s.staff ? ' auto' : ' manuel') + (s.actif ? ' actif' : '');
-        html = `<div class="icone">${ICONS.PRODUITS[p.id]}</div>
+        cls = 'carte' + (s.staff ? ' auto' : ' manuel') + (s.actif ? ' actif' : '') + (critique.includes(i) ? ' gouter' : '');
+        html = `${critique.includes(i) ? '<span class="badge-critique">Sers le critique !</span>' : ''}<div class="icone">${ICONS.PRODUITS[p.id]}</div>
           <div class="corps"><h3>${esc(p.nom)} <span class="niv">Niv. ${s.niv}${pal ? ` <i>· palier ${pal}</i>` : ''}</span></h3>
             <div class="barre"><i class="${rapide ? 'rapide' : ''}"></i><span class="rev">+${G.fmtEur(G.revenu(st, i))}</span>${s.staff || s.actif ? `<span class="tps">${G.fmtDuree(p.temps)}</span>` : '<span class="cuire">Touche !</span>'}</div></div>
-          <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'}" data-a="ameliorer"><small>Améliorer ×${n}</small><b>${G.fmtEur(prix)}</b></button>
+          <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'} ${remise < 1 ? 'promo' : ''}" data-a="ameliorer"><small>${remise < 1 ? `−${Math.round((1 - remise) * 100)} % ×${n}` : `Améliorer ×${n}`}</small><b>${G.fmtEur(prix)}</b></button>
             ${s.staff ? `<div class="staff-ok">${ICONS.apprenti(i)}<span>${esc(p.staffNom.split(' ').pop())}<br>s’en occupe</span></div>` : `<button type="button" class="btn beurre ${st.coins >= p.staff ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${G.fmtEur(p.staff)}</b></button>`}</div>`;
       }
       if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); }
@@ -867,16 +960,22 @@ const UI = (() => {
         renderCards(true); hud(); save(); return;
       }
     }
+    if (st.ev && st.ev.type === 'critique' && st.ev.restants.includes(i)) { // on sert le critique
+      const r = G.servir(st, i); if (!r.ok) return;
+      if (r.fini) reussite(`Le critique est conquis : tout ×${G.CRITIQUE.mult} pendant ${G.CRITIQUE.boost / 60} minutes !`);
+      else { son.achat(); buzz(8); toast(`Le critique goûte… encore ${r.restants} recette${r.restants > 1 ? 's' : ''}.`); renderCards(true); }
+      return;
+    }
     if (st.stations[i].niv > 0 && !st.stations[i].staff) { if (G.lancer(st, i)) { son.tap(); buzz(6); SCENE.tap(); renderCards(); } }
   }
 
   // ─── en-tête ───
   function hud() {
-    const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st), marche = G.jourDeMarche(st.now);
-    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}`;
+    const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st), marche = G.jourDeMarche(st.now), boost = st.boost && st.boost.fin > st.now ? st.boost.mult : 0;
+    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}`;
     if (key === lastHud) return; lastHud = key;
     $('#coins').textContent = G.fmtEur(st.coins);
-    $('#taux').innerHTML = (taux > 0 ? `<b>+${G.fmtEur(taux)}</b> par seconde` : 'Touche la baguette !') + (marche ? ' <span class="marche">Jour de marché ×1,5</span>' : '');
+    $('#taux').innerHTML = (taux > 0 ? `<b>+${G.fmtEur(taux)}</b> par seconde` : 'Touche la baguette !') + (marche || boost ? '<br>' : '') + (marche ? '<span class="marche">Marché ×1,5</span>' : '') + (boost ? `<span class="marche">Bonne critique ×${boost}</span>` : '');
     $('#etoiles-n').textContent = gain > 0 ? `${st.etoiles} · +${gain}` : st.etoiles;
     $('#b-etoiles').classList.toggle('pret', gain >= 3);
     $('#b-ameliorations').classList.toggle('pret', G.AMELIORATIONS.some((a) => !st.ameliorations[a.id] && st.coins >= a.cout));
@@ -905,27 +1004,43 @@ const UI = (() => {
     on('[data-k]', (b) => { const r = G.reclamer(st, +b.dataset.k); if (!r.ok) { son.non(); return; } son.deblocage(); buzz([10, 30, 10]); toast(r.etoile ? `+${G.fmtEur(r.prime)} et +1 ★ : objectifs du jour réussis !` : `+${G.fmtEur(r.prime)} de prime`); if (r.etoile) SCENE.fete(); renderCards(true); hud(); save(); sheetObjectifs(); });
   }
 
-  // ─── événements : coup de feu, commande spéciale ───
+  // ─── événements : sept cartes, une interaction différente chacune ───
+  const TXT_EV = { rush: 'Coup de feu : les clients affluent !', commande: 'Un client passe une commande spéciale !', critique: 'Le critique gastronomique entre dans la boutique !', meunier: 'Le meunier passe : tout à −40 % !', petrissage: 'Concours de pétrissage : touche vite !', panne: 'Un four tombe en panne !', anniversaire: 'Un goûter d’anniversaire dans la boutique !' };
+  const FIN_EV = { rush: 'Le coup de feu est passé.', commande: 'Trop tard, le client reviendra une autre fois.', critique: 'Le critique est reparti sans conclure…', meunier: 'Le meunier est reparti.', petrissage: 'Trop tard, la pâte a trop levé.', panne: 'Le four s’est réparé tout seul.', anniversaire: 'Le goûter est terminé.' };
+  const Maj = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  function reussite(txt) { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(txt); renderCards(true); hud(); save(); }
   function renderEvenement() {
     const ev = st.ev, box = $('#evenement');
     if (!ev) { if (lastEv) { lastEv = ''; box.hidden = true; box.innerHTML = ''; SCENE.setRush(false); } return; }
-    const reste = Math.max(0, (ev.fin - st.now) / 1000), pct = Math.min(100, reste / (ev.type === 'rush' ? G.RUSH.duree : G.COMMANDE.duree) * 100);
-    if (ev.type === 'rush') {
-      if (lastEv !== 'rush') { lastEv = 'rush'; box.hidden = false; SCENE.setRush(true); box.innerHTML = `<div class="ev rush">${ICONS.FEU}<div class="ev-txt"><b>Coup de feu !</b><span>Toutes les ventes ×${G.RUSH.mult}</span></div><b class="ev-chrono"></b><i class="ev-barre"></i></div>`; }
-      box.querySelector('.ev-chrono').textContent = G.fmtChrono(reste); box.querySelector('.ev-barre').style.width = pct + '%';
-      return;
-    }
-    const p = G.PRODUITS[ev.i], prete = ev.fait >= ev.n, key = 'commande' + ev.debut + (prete ? 'p' : '');
+    const reste = Math.max(0, (ev.fin - st.now) / 1000), pct = Math.min(100, reste / G.EVENEMENTS[ev.type].duree * 100);
+    const p = ev.i != null ? G.PRODUITS[ev.i] : null, prete = ev.type === 'commande' && ev.fait >= ev.n, key = ev.type + ev.debut + (prete ? 'p' : '');
     if (lastEv !== key) {
-      lastEv = key; box.hidden = false; SCENE.setRush(false);
-      box.innerHTML = `<div class="ev commande ${prete ? 'prete' : ''}">${ICONS.PRODUITS[p.id]}<div class="ev-txt"><b>Commande spéciale</b><span>${G.fmt(ev.n)} ${esc(ev.n > 1 ? p.pl : p.nom.toLowerCase())} · prime <b>${G.fmtEur(ev.prime)}</b></span><span class="ev-prog"></span></div>
-        ${prete ? `<button type="button" class="btn menthe" data-a="livrer"><small>C’est prêt</small><b>Livrer !</b></button>` : '<b class="ev-chrono"></b>'}<i class="ev-barre"></i></div>`;
-      const b = box.querySelector('[data-a="livrer"]'); if (b) b.addEventListener('click', () => { audio(); const r = G.livrer(st); if (!r.ok) return; son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`Commande livrée : +${G.fmtEur(r.prime)}`); renderCards(true); hud(); save(); });
+      lastEv = key; box.hidden = false; SCENE.setRush(ev.type === 'rush');
+      const chrono = '<b class="ev-chrono"></b>', barre = '<i class="ev-barre"></i>';
+      const html = {
+        rush: () => `<div class="ev rush">${ICONS.FEU}<div class="ev-txt"><b>Coup de feu !</b><span>Toutes les ventes ×${G.RUSH.mult}</span></div>${chrono}${barre}</div>`,
+        commande: () => `<div class="ev commande ${prete ? 'prete' : ''}">${ICONS.PRODUITS[p.id]}<div class="ev-txt"><b>Commande spéciale</b><span>${G.fmt(ev.n)} ${esc(ev.n > 1 ? p.pl : p.nom.toLowerCase())} · prime <b>${G.fmtEur(ev.prime)}</b></span><span class="ev-prog"></span></div>${prete ? '<button type="button" class="btn menthe" data-a="livrer"><small>C’est prêt</small><b>Livrer !</b></button>' : chrono}${barre}</div>`,
+        critique: () => `<div class="ev critique">${ICONS.CRITIQUE}<div class="ev-txt"><b>Le critique est là !</b><span>Sers-lui trois recettes : tout ×${G.CRITIQUE.mult} pendant ${G.CRITIQUE.boost / 60} min</span><span class="ev-prog"></span></div>${chrono}${barre}</div>`,
+        meunier: () => `<div class="ev meunier">${ICONS.SAC}<div class="ev-txt"><b>Le meunier passe</b><span>Niveaux et recettes à −${Math.round(G.MEUNIER.remise * 100)} % : c’est le moment d’acheter !</span></div>${chrono}${barre}</div>`,
+        petrissage: () => `<div class="ev petrissage">${ICONS.PATE}<div class="ev-txt"><b>Concours de pétrissage</b><span>${ev.n} touches en ${G.PETRISSAGE.duree} s · prime <b>${G.fmtEur(ev.prime)}</b></span></div><button type="button" class="btn tapote" data-a="petrir"><small>Pétris !</small><b class="ev-compte">0/${ev.n}</b></button>${barre}</div>`,
+        panne: () => `<div class="ev panne">${ICONS.PANNE}<div class="ev-txt"><b>Panne de four !</b><span>${esc(Maj(p.pl))} à l’arrêt · répare pour <b>${G.fmtEur(ev.prime)}</b></span></div><button type="button" class="btn tapote" data-a="reparer"><small>Répare !</small><b class="ev-compte">0/${ev.n}</b></button>${barre}</div>`,
+        anniversaire: () => `<div class="ev anniversaire">${ICONS.BALLON}<div class="ev-txt"><b>Goûter d’anniversaire</b><span>${esc(Maj(p.pl))} ×${ev.mult}${st.stations[ev.i].staff ? '' : ' · touche pour cuire !'}</span></div>${chrono}${barre}</div>`,
+      };
+      box.innerHTML = html[ev.type]();
+      const livrer = box.querySelector('[data-a="livrer"]');
+      if (livrer) livrer.addEventListener('click', () => { audio(); const r = G.livrer(st); if (r.ok) reussite(`Commande livrée : +${G.fmtEur(r.prime)}`); });
+      const petrir = box.querySelector('[data-a="petrir"]');
+      if (petrir) petrir.addEventListener('pointerdown', (e) => { e.preventDefault(); audio(); const r = G.petrir(st); if (!r.ok) return; son.tap(); buzz(8); if (r.fini) reussite(`Pétrissage gagné : +${G.fmtEur(r.prime)}`); else petrir.querySelector('.ev-compte').textContent = `${r.taps}/${ev.n}`; });
+      const reparer = box.querySelector('[data-a="reparer"]');
+      if (reparer) reparer.addEventListener('pointerdown', (e) => { e.preventDefault(); audio(); const r = G.reparer(st); if (!r.ok) return; son.tap(); buzz(8); if (r.fini) reussite(`Four réparé : +${G.fmtEur(r.prime)}`); else reparer.querySelector('.ev-compte').textContent = `${r.coups}/${ev.n}`; });
     }
-    box.querySelector('.ev-prog').textContent = prete ? 'Le client attend sa commande.' : `${G.fmt(ev.fait)} / ${G.fmt(ev.n)} fournées${st.stations[ev.i].staff ? '' : ' · touche pour cuire !'}`;
+    const prog = box.querySelector('.ev-prog');
+    if (prog && ev.type === 'commande') prog.textContent = prete ? 'Le client attend sa commande.' : `${G.fmt(ev.fait)} / ${G.fmt(ev.n)} fournées${st.stations[ev.i].staff ? '' : ' · touche pour cuire !'}`;
+    if (prog && ev.type === 'critique') prog.textContent = 'Touche les cartes : ' + ev.restants.map((i) => G.PRODUITS[i].nom.toLowerCase()).join(', ');
     const ch = box.querySelector('.ev-chrono'); if (ch) ch.textContent = G.fmtChrono(reste);
     box.querySelector('.ev-barre').style.width = (prete ? 100 : pct) + '%';
   }
+
 
   // ─── indices : une seule consigne à la fois, qui pointe l'élément concerné ───
   const INDICES = [
@@ -1038,8 +1153,8 @@ const UI = (() => {
       if (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros)); son.vente(gros); }
       if (!st.stations[first.i].staff) { const r = cards[first.i].el.querySelector('.barre').getBoundingClientRect(); flottant(r.left + r.width / 2 - 30, r.top - 10, '+' + G.fmtEur(first.montant)); }
     }
-    if (out.nouvelEv) { son.evenement(); buzz([15, 40, 15]); toast(out.nouvelEv.type === 'rush' ? 'Coup de feu : les clients affluent !' : 'Un client passe une commande spéciale !'); }
-    if (out.finEv) toast(out.finEv.type === 'rush' ? 'Le coup de feu est passé.' : 'Trop tard, le client reviendra une autre fois.');
+    if (out.nouvelEv) { son.evenement(); buzz([15, 40, 15]); toast(TXT_EV[out.nouvelEv.type]); }
+    if (out.finEv) { toast(FIN_EV[out.finEv.type]); if (out.finEv.type === 'critique' || out.finEv.type === 'petrissage') son.non(); }
     if (out.mystere && $('#feuille').hidden) { if (SCENE.mystere()) toast('Un client mystère ! Touche-le vite.'); }
     renderCards(); hud(); renderObjectifs(); renderEvenement();
     SCENE.frame(dt, st, Date.now());
@@ -1082,7 +1197,7 @@ const UI = (() => {
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), mystere: () => SCENE.mystere() };
+    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere() };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

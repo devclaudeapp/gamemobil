@@ -84,6 +84,48 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.tap('[data-a="livrer"]', { force: true }); await sleep(500);
   const livree = await page.evaluate(() => ({ coins: window.__fournil.st.coins, ev: window.__fournil.st.ev, hidden: document.querySelector('#evenement').hidden }));
   check(!livree.ev && livree.hidden && livree.coins >= coinsCmd.c + coinsCmd.p - 1, 'commande livrée : +' + coinsCmd.p);
+  // concours de pétrissage : 30 touches
+  await page.evaluate(() => window.__fournil.ev('petrissage')); await sleep(600);
+  check(await page.evaluate(() => /pétrissage/i.test(document.querySelector('#evenement').innerText)), 'carte du concours de pétrissage');
+  await page.screenshot({ path: out + '/05h-petrissage.png' });
+  const coinsPet = await page.evaluate(() => ({ c: window.__fournil.st.coins, p: window.__fournil.st.ev.prime }));
+  for (let k = 0; k < 30; k++) await page.tap('[data-a="petrir"]', { force: true });
+  await sleep(400);
+  check(await page.evaluate((c) => !window.__fournil.st.ev && window.__fournil.st.coins >= c, coinsPet.c + coinsPet.p - 1), 'pétrissage gagné : +' + coinsPet.p);
+  // panne de four : le produit s'arrête, 8 touches pour réparer
+  await page.evaluate(() => window.__fournil.ev('panne')); await sleep(600);
+  const panne = await page.evaluate(() => ({ txt: document.querySelector('#evenement').innerText, i: window.__fournil.st.ev.i, prog: window.__fournil.st.stations[window.__fournil.st.ev.i].prog }));
+  await sleep(1200);
+  check(/Panne de four/.test(panne.txt) && await page.evaluate(([i, prog]) => window.__fournil.st.stations[i].prog === prog, [panne.i, panne.prog]), 'panne : la production est à l’arrêt (' + panne.txt.split('\n')[1] + ')');
+  await page.screenshot({ path: out + '/05i-panne.png' });
+  for (let k = 0; k < 8; k++) await page.tap('[data-a="reparer"]', { force: true });
+  await sleep(400);
+  check(await page.evaluate(() => !window.__fournil.st.ev), 'four réparé en 8 touches');
+  // le meunier : prix à −40 %
+  const prixAvant = await page.evaluate(() => window.__fournil.G.coutNiveaux(0, window.__fournil.st.stations[0].niv, 1));
+  await page.evaluate(() => window.__fournil.ev('meunier')); await sleep(600);
+  const promo = await page.evaluate(() => ({ txt: document.querySelector('.carte[data-i="0"] [data-a="ameliorer"]').innerText, prix: window.__fournil.G.prixNiveaux(window.__fournil.st, 0, 1), ev: document.querySelector('#evenement').innerText }));
+  check(/−40 %/.test(promo.txt) && Math.abs(promo.prix / prixAvant - 0.6) < 0.01 && /meunier/i.test(promo.ev), 'meunier : niveaux à −40 % (' + promo.txt.replace(/\n/g, ' ') + ')');
+  await page.screenshot({ path: out + '/05j-meunier.png' });
+  await page.evaluate(() => { window.__fournil.st.ev = null; }); await sleep(300);
+  // goûter d'anniversaire et critique
+  await page.evaluate(() => window.__fournil.ev('anniversaire')); await sleep(600);
+  check(await page.evaluate(() => { const f = window.__fournil, i = f.st.ev.i; return /anniversaire/i.test(document.querySelector('#evenement').innerText) && f.G.revenu(f.st, i) / f.G.revenuBase(f.st, i) >= 5; }), 'goûter d’anniversaire : un produit ×5');
+  await page.screenshot({ path: out + '/05k-anniversaire.png' });
+  await page.evaluate(() => { window.__fournil.st.ev = null; window.__fournil.ev('critique'); }); await sleep(600);
+  const restants = await page.evaluate(() => window.__fournil.st.ev.restants.slice());
+  check(await page.evaluate(() => /critique/i.test(document.querySelector('#evenement').innerText) && document.querySelectorAll('.carte.gouter').length === 3), 'le critique demande trois recettes, les trois cartes sont marquées');
+  await page.screenshot({ path: out + '/05l-critique.png' });
+  await page.tap(`.carte[data-i="${restants[0]}"] .icone`, { force: true }); await sleep(300);
+  check(await page.evaluate(() => window.__fournil.st.ev.restants.length === 2 && document.querySelectorAll('.carte.gouter').length === 2), 'une recette servie en touchant sa carte');
+  for (const i of restants.slice(1)) { // comme un joueur : on fait défiler jusqu'à la carte, puis on la touche
+    await page.evaluate((i) => document.querySelector(`.carte[data-i="${i}"]`).scrollIntoView({ block: 'center' }), i); await sleep(200);
+    await page.tap(`.carte[data-i="${i}"] .icone`, { force: true }); await sleep(300);
+  }
+  const conquis = await page.evaluate(() => ({ ev: window.__fournil.st.ev && window.__fournil.st.ev.type, boost: window.__fournil.st.boost && window.__fournil.st.boost.mult, taux: document.querySelector('#taux').textContent }));
+  check(!conquis.ev && conquis.boost === 2 && /Bonne critique/.test(conquis.taux), 'le critique conquis : tout ×2, affiché en haut ' + JSON.stringify(conquis));
+  await page.screenshot({ path: out + '/05m-bonne-critique.png' });
+  await page.evaluate(() => { window.__fournil.st.boost = null; }); await sleep(300);
   // client mystère : il arrive, on le touche, pourboire
   await page.evaluate(() => window.__fournil.mystere()); await sleep(4800);
   await page.screenshot({ path: out + '/05g-client-mystere.png' });

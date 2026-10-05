@@ -16,9 +16,14 @@ Ta boulangerie de quartier, en jeu idle/tycoon simple et lumineux : **tu cuis, t
 
 - **Coup de feu** : pendant 60 s, toutes les ventes sont ×3 et les clients affluent. Plus fréquent aux vraies heures de pointe (le matin, midi, la sortie du travail).
 - **Commande spéciale** : un client commande N fournées d'un produit à livrer en 3 min, pour une prime qui vaut six fois leur prix. Cuis-les, puis touche **Livrer**.
+- **Le critique est là** : sers-lui trois recettes en touchant leurs cartes (elles sont marquées) avant 2 min. Conquis, il publie une bonne critique : **tout ×2 pendant 5 min**.
+- **Le meunier passe** : pendant 90 s, niveaux et recettes sont à **−40 %**. C'est le moment d'acheter.
+- **Concours de pétrissage** : 30 touches en 20 s sur le bouton **Pétris !** pour une prime (quatre minutes de gains).
+- **Panne de four** : un produit s'arrête et le four fume. Huit touches sur **Répare !** le remettent en route avec une petite prime ; sinon il repart tout seul au bout d'une minute.
+- **Goûter d'anniversaire** : un produit rapporte **×5 pendant 2 min**.
 - **Client mystère** : un client doré entre et attend 8 s devant le comptoir. Touche-le dans la boutique : il laisse un gros pourboire.
 - **Jour de marché** : le samedi et le dimanche, tous les gains sont ×1,5.
-- Les événements n'arrivent que quand tu joues (toutes les 4 à 8 min) ; en absence, les apprentis vendent au rythme normal.
+- Un événement toutes les 3 à 7 minutes de jeu actif, jamais deux fois le même d'affilée ; en absence, les apprentis vendent au rythme normal.
 
 Le haut de l'écran montre ta boutique : les clients entrent, achètent et repartent avec leur sac ; la lumière de la fenêtre suit l'heure réelle ; chaque recette débloquée ajoute un élément de décor.
 
@@ -50,7 +55,7 @@ La boutique est enregistrée dans le téléphone toutes les 5 secondes, à chaqu
 | Fichier | Rôle |
 | --- | --- |
 | `src/game.js` | Économie et état : produits, paliers, bonus, étoiles, objectifs du jour, événements, absence, formats de nombres. Tourne aussi dans Node |
-| `src/scene.js` | La boutique en Canvas 2D : boulanger, clients, client mystère, coup de feu, vitrine, décor, lumière du jour |
+| `src/scene.js` | La boutique en Canvas 2D : boulanger, clients, client mystère, coup de feu, four en panne, vitrine, décor, lumière du jour |
 | `src/ui.js` | Cartes des produits, achats, carte des objectifs, cartes d'événement, indices du tutoriel, feuilles (bonus, étoiles, objectifs, absence, sauvegarde), sons, sauvegarde double et code de transfert |
 | `src/icons.js` | Icônes SVG en ligne (pâtisseries, apprentis) |
 | `src/style.css`, `src/page.html` | Mise en page |

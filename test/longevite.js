@@ -71,6 +71,9 @@ function simuler(nomProfil, jours, opts = {}) {
         if (s % 4 === 0 && (G.tauxParSeconde(st) > 0 || st.stats.ventes > 0)) { st.stats.clients++; G.noter(st, 'clients', 1); } // la scène sert un client toutes les ~4 s
         if (out.mystere && pr(0.7)) G.gagner(st, G.pourboire(st), true);
         if (st.ev && st.ev.type === 'commande' && st.ev.fait >= st.ev.n) G.livrer(st);
+        if (st.ev && st.ev.type === 'critique' && pr(0.5)) G.servir(st, st.ev.restants[0]);
+        if (st.ev && st.ev.type === 'petrissage') { G.petrir(st); if (pr(0.7)) G.petrir(st); } // ~1,7 touche par seconde
+        if (st.ev && st.ev.type === 'panne' && pr(0.8)) G.reparer(st);
         if (st.jour) st.jour.objectifs.forEach((o, k) => { if (o.fait && !o.reclame) { const r = G.reclamer(st, k); if (r.ok) { M.objectifsFaits++; dayInfo.objectifs++; } } });
         if (s % 3 === 0) { if (decider(st)) { lastAchat = now; enAttente = 0; } else enAttente += 3; }
         if (enAttente > 60) { M.attente++; dayInfo.attente++; attenteSession++; }
