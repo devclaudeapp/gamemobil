@@ -16,7 +16,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });
-  page.on('console', (m) => { if (m.type() === 'error' && !/ERR_CERT|googleapis|gstatic|404/.test(m.text())) errors.push(m.text()); });
+  page.on('console', (m) => { if (m.type() === 'error' && !/ERR_CERT|googleapis|gstatic|404/.test(m.text() + (m.location() && m.location().url))) errors.push(m.text() + ' @ ' + (m.location() && m.location().url)); });
   await page.goto('http://localhost:8781/'); await sleep(800);
   await page.screenshot({ path: out + '/01-debut.png' });
   const W = () => page.evaluate(() => { const s = window.__fournil.st; return { coins: +s.coins.toFixed(1), niv: s.stations.map((x) => x.niv).join(','), staff: s.stations.map((x) => +x.staff).join(''), tuto: s.tuto, ventes: s.stats.ventes, indice: document.querySelector('#indice').hidden ? '' : document.querySelector('#indice-txt').textContent }; });
@@ -115,6 +115,26 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.reload(); await sleep(800);
   const s3 = await page.evaluate(() => ({ etoiles: window.__fournil.st.etoiles, boutiques: window.__fournil.st.boutiques }));
   check(s3.boutiques === 2 && s3.etoiles > 0, 'sauvegarde rechargée : ' + JSON.stringify(s3));
+  // la sauvegarde tient même si localStorage est vidé (copie IndexedDB)
+  await page.evaluate(() => localStorage.removeItem('fournil.v2')); await page.reload(); await sleep(900);
+  const s4 = await page.evaluate(() => ({ etoiles: window.__fournil.st.etoiles, boutiques: window.__fournil.st.boutiques }));
+  check(s4.boutiques === 2 && s4.etoiles === s3.etoiles, 'relue depuis IndexedDB sans localStorage : ' + JSON.stringify(s4));
+  // code de sauvegarde : copier, tout effacer, recharger le code
+  await page.tap('#b-etoiles', { force: true }); await sleep(300); await page.tap('[data-a="sauvegarde"]'); await sleep(300);
+  await page.screenshot({ path: out + '/09b-sauvegarde.png' });
+  const code = await page.evaluate(() => document.querySelector('[data-r="code"]').value);
+  check(code.startsWith('FOURNIL1.') && code.length > 200, 'code de sauvegarde produit (' + code.length + ' caractères)');
+  await page.fill('[data-r="entree"]', 'pas un code'); await page.tap('[data-a="charger"]'); await sleep(300);
+  check(await page.evaluate(() => /pas valide/.test((document.querySelector('.toast') || {}).textContent || '')), 'un code invalide est refusé');
+  await page.evaluate(() => { window.__fournil.reset(); }); await sleep(1200);
+  const s5 = await page.evaluate(() => ({ etoiles: window.__fournil.st.etoiles, boutiques: window.__fournil.st.boutiques }));
+  check(s5.boutiques === 1 && s5.etoiles === 0, 'tout effacé : ' + JSON.stringify(s5));
+  await page.tap('#b-etoiles', { force: true }); await sleep(300); await page.tap('[data-a="sauvegarde"]'); await sleep(300);
+  await page.fill('[data-r="entree"]', code); await page.tap('[data-a="charger"]'); await sleep(300);
+  await page.screenshot({ path: out + '/09c-charger-code.png' });
+  await page.tap('[data-a="oui"]'); await sleep(1500);
+  const s6 = await page.evaluate(() => ({ etoiles: window.__fournil.st.etoiles, boutiques: window.__fournil.st.boutiques }));
+  check(s6.boutiques === 2 && s6.etoiles === s3.etoiles, 'boutique rechargée depuis le code : ' + JSON.stringify(s6));
   // petit écran
   const p2 = await (await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR' })).newPage();
   await p2.goto('http://localhost:8781/'); await sleep(700); await p2.screenshot({ path: out + '/10-petit-ecran.png' });

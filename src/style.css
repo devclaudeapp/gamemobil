@@ -171,3 +171,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .ev-chrono { font: 700 22px/1 var(--titre); font-variant-numeric: tabular-nums; }
 .ev .btn { min-width: 96px; }
 .ev-barre { position: absolute; left: 0; bottom: 0; height: 5px; background: rgba(255, 255, 255, .7); border-radius: 0 3px 3px 0; transition: width .5s linear; }
+
+/* code de sauvegarde */
+.code { display: block; width: 100%; min-height: 84px; margin: 0 0 10px; padding: 10px 12px; border: 2px solid var(--ligne); border-radius: 14px; background: #fff; color: var(--texte-2); font: 600 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; resize: none; -webkit-appearance: none; }
+.code:focus { outline: none; border-color: var(--lavande); }

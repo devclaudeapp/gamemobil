@@ -38,7 +38,11 @@ npx serve .              # puis ouvre l'adresse sur un téléphone du même rés
 
 Le jeu est en ligne sur **https://devclaudeapp.github.io/gamemobil/** : le workflow `.github/workflows/pages.yml` le redéploie à chaque push sur `master` (dans *Settings → Pages*, la source doit être **GitHub Actions**).
 
-Ouvre l'URL sur le téléphone, puis : iPhone (Safari) → Partager → **Sur l'écran d'accueil** ; Android (Chrome) → menu ⋮ → **Installer l'application**. Le jeu s'ouvre alors en plein écran, avec son icône, et le service worker (`sw.js`) le garde jouable hors ligne. La sauvegarde est dans le téléphone (localStorage) : elle tient tant que tu ne supprimes pas l'application.
+Ouvre l'URL sur le téléphone, puis : iPhone (Safari) → Partager → **Sur l'écran d'accueil** ; Android (Chrome) → menu ⋮ → **Installer l'application**. Le jeu s'ouvre alors en plein écran, avec son icône, et le service worker (`sw.js`) le garde jouable hors ligne.
+
+### La sauvegarde
+
+La boutique est enregistrée dans le téléphone toutes les 5 secondes, à chaque achat et quand l'app passe en arrière-plan, en double : localStorage et IndexedDB (le second résiste mieux quand iOS tue l'application). Au lancement, la plus avancée des deux est relue. Elle tient tant que l'application n'est pas supprimée. Dans la feuille Étoiles → **Sauvegarde et transfert**, un code de sauvegarde se copie en un geste et se recharge sur un autre téléphone ou navigateur. Attention : ouvert dans un autre contexte (une page intégrée dans une autre app, une fenêtre privée), le navigateur peut ne rien garder ; l'application installée depuis Safari ou Chrome, elle, garde tout.
 
 ## Structure
 
@@ -46,7 +50,7 @@ Ouvre l'URL sur le téléphone, puis : iPhone (Safari) → Partager → **Sur l'
 | --- | --- |
 | `src/game.js` | Économie et état : produits, paliers, bonus, étoiles, objectifs du jour, événements, absence, formats de nombres. Tourne aussi dans Node |
 | `src/scene.js` | La boutique en Canvas 2D : boulanger, clients, client mystère, coup de feu, vitrine, décor, lumière du jour |
-| `src/ui.js` | Cartes des produits, achats, carte des objectifs, cartes d'événement, indices du tutoriel, feuilles (bonus, étoiles, objectifs, absence), sons, sauvegarde |
+| `src/ui.js` | Cartes des produits, achats, carte des objectifs, cartes d'événement, indices du tutoriel, feuilles (bonus, étoiles, objectifs, absence, sauvegarde), sons, sauvegarde double et code de transfert |
 | `src/icons.js` | Icônes SVG en ligne (pâtisseries, apprentis) |
 | `src/style.css`, `src/page.html` | Mise en page |
 

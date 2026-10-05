@@ -176,6 +176,10 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .ev-chrono { font: 700 22px/1 var(--titre); font-variant-numeric: tabular-nums; }
 .ev .btn { min-width: 96px; }
 .ev-barre { position: absolute; left: 0; bottom: 0; height: 5px; background: rgba(255, 255, 255, .7); border-radius: 0 3px 3px 0; transition: width .5s linear; }
+
+/* code de sauvegarde */
+.code { display: block; width: 100%; min-height: 84px; margin: 0 0 10px; padding: 10px 12px; border: 2px solid var(--ligne); border-radius: 14px; background: #fff; color: var(--texte-2); font: 600 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; resize: none; -webkit-appearance: none; }
+.code:focus { outline: none; border-color: var(--lavande); }
 </style>
 <div id="probe" aria-hidden="true"></div>
 <header id="haut">
@@ -715,16 +719,52 @@ const UI = (() => {
   let st, lastFrame = 0, lastSave = 0, cards = [], lastHud = '', lastObj = '', lastEv = '', hintStep = -1, hintUntil = 0, toastTimer = 0;
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-  // ─── sauvegarde ───
-  function save() { try { st.lastSeen = Date.now(); localStorage.setItem(KEY, JSON.stringify(st)); } catch (e) { /* stockage indisponible */ } lastSave = performance.now(); }
-  function load() {
+  // ─── sauvegarde : localStorage et IndexedDB en double (le second résiste mieux quand l'app est tuée), on relit la plus récente ───
+  const DB = 'fournil', STORE = 'sauvegarde';
+  const idb = () => new Promise((res) => {
     try {
-      const raw = localStorage.getItem(KEY); if (!raw) return null;
+      if (!window.indexedDB) return res(null);
+      const r = indexedDB.open(DB, 1);
+      r.onupgradeneeded = () => r.result.createObjectStore(STORE);
+      r.onsuccess = () => res(r.result); r.onerror = () => res(null); r.onblocked = () => res(null);
+      setTimeout(() => res(null), 1500);
+    } catch (e) { res(null); }
+  });
+  function idbEcrire(raw) { idb().then((db) => { if (!db) return; try { db.transaction(STORE, 'readwrite').objectStore(STORE).put(raw, KEY); } catch (e) { /* rien */ } }); }
+  function idbLire() { return idb().then((db) => new Promise((res) => { if (!db) return res(null); try { const r = db.transaction(STORE).objectStore(STORE).get(KEY); r.onsuccess = () => res(typeof r.result === 'string' ? r.result : null); r.onerror = () => res(null); setTimeout(() => res(null), 1500); } catch (e) { res(null); } })); }
+  function idbEffacer() { return idb().then((db) => new Promise((res) => { if (!db) return res(); try { const t = db.transaction(STORE, 'readwrite'); t.objectStore(STORE).delete(KEY); t.oncomplete = () => res(); t.onerror = () => res(); setTimeout(res, 1500); } catch (e) { res(); } })); }
+  let fige = false; // après « tout effacer » ou le chargement d'un code : plus aucune écriture jusqu'au rechargement
+  function save() {
+    if (fige) return;
+    st.lastSeen = Date.now(); lastSave = performance.now();
+    let raw; try { raw = JSON.stringify(st); } catch (e) { return; }
+    try { localStorage.setItem(KEY, raw); } catch (e) { /* stockage indisponible */ }
+    idbEcrire(raw);
+  }
+  function lire(raw) {
+    try {
+      if (!raw) return null;
       const s = JSON.parse(raw); if (!s || s.v !== 2 || !Array.isArray(s.stations)) return null;
       const fresh = G.newState(Date.now());
       for (const k in fresh) if (!(k in s)) s[k] = fresh[k];
       while (s.stations.length < G.PRODUITS.length) s.stations.push({ niv: 0, staff: false, prog: 0, actif: false });
       return s;
+    } catch (e) { return null; }
+  }
+  async function load() {
+    let a = null, b = null;
+    try { a = lire(localStorage.getItem(KEY)); } catch (e) { /* stockage indisponible */ }
+    try { b = lire(await idbLire()); } catch (e) { /* rien */ }
+    if (a && b) return (b.lifetime > a.lifetime || (b.lifetime === a.lifetime && b.lastSeen > a.lastSeen)) ? b : a;
+    return a || b;
+  }
+  function effacer() { try { localStorage.removeItem(KEY); } catch (e) { /* rien */ } return idbEffacer(); }
+  // code de sauvegarde : l'état en base64, à copier pour le garder ailleurs ou le transférer
+  function codeSauvegarde() { try { const bytes = new TextEncoder().encode(JSON.stringify(st)); let bin = ''; for (const b of bytes) bin += String.fromCharCode(b); return 'FOURNIL1.' + btoa(bin); } catch (e) { return ''; } }
+  function lireCode(code) {
+    try {
+      const t = String(code || '').replace(/\s+/g, ''); const b64 = t.startsWith('FOURNIL1.') ? t.slice(9) : t;
+      const bin = atob(b64); return lire(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
     } catch (e) { return null; }
   }
 
@@ -901,6 +941,33 @@ const UI = (() => {
     openSheet(`<h2>Bonus</h2><p class="sous">Des recettes et des équipements qui multiplient tes gains, pour toujours (jusqu’à la prochaine boutique).</p><div class="liste-am">${items}</div>`);
     on('[data-id]', (b) => { const r = G.amelioration(st, b.dataset.id); if (!r.ok) { son.non(); toast(`Il manque ${G.fmtEur(G.AMELIORATIONS.find((a) => a.id === b.dataset.id).cout - st.coins)}`); return; } son.deblocage(); buzz([10, 30, 10]); toast(`${r.a.nom} : ${r.a.desc}`); renderCards(true); hud(); save(); sheetAmeliorations(); });
   }
+  function sheetSauvegarde() {
+    save();
+    openSheet(`<h2>Sauvegarde</h2><p class="sous">Ta boutique est enregistrée dans ce téléphone toutes les 5 secondes et à chaque achat. Pour la mettre à l’abri ou la transférer (autre téléphone, autre navigateur), copie ce code et garde-le quelque part.</p>
+      <h3 style="margin:14px 0 6px;font:700 16px/1 var(--titre)">Ton code</h3>
+      <textarea class="code" readonly data-r="code" aria-label="Code de sauvegarde">${esc(codeSauvegarde())}</textarea>
+      <button type="button" class="btn large menthe" data-a="copier"><b>Copier le code</b></button>
+      <h3 style="margin:18px 0 6px;font:700 16px/1 var(--titre)">Charger un code</h3>
+      <textarea class="code" data-r="entree" placeholder="Colle un code ici" aria-label="Code à charger"></textarea>
+      <button type="button" class="btn large lavande" data-a="charger"><b>Charger ce code</b></button>
+      <button type="button" class="btn large" data-a="retour" style="margin-top:8px;background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
+    on('[data-a="retour"]', sheetEtoiles);
+    on('[data-a="copier"]', () => {
+      const ta = fc.querySelector('[data-r="code"]'); ta.focus(); ta.select();
+      const fait = () => { son.deblocage(); toast('Code copié. Colle-le dans tes notes.'); };
+      if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(ta.value).then(fait, () => { try { document.execCommand('copy'); fait(); } catch (e) { toast('Sélectionne le code et copie-le.'); } });
+      else { try { document.execCommand('copy'); fait(); } catch (e) { toast('Sélectionne le code et copie-le.'); } }
+    });
+    on('[data-a="charger"]', () => {
+      const s2 = lireCode(fc.querySelector('[data-r="entree"]').value);
+      if (!s2) { son.non(); toast('Ce code n’est pas valide.'); return; }
+      openSheet(`<h2>Charger cette boutique ?</h2><p class="sous">Elle remplace ta boutique actuelle (${G.fmtEur(st.coins)}, ${st.etoiles} étoile${st.etoiles > 1 ? 's' : ''}, boutique n°${st.boutiques}).</p>
+        <div class="stat"><span>Euros</span><b>${G.fmtEur(s2.coins)}</b></div><div class="stat"><span>Étoiles</span><b>${s2.etoiles}</b></div><div class="stat"><span>Boutique</span><b>n°${s2.boutiques}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(s2.lifetime)}</b></div>
+        <button type="button" class="btn large lavande" data-a="oui" style="margin-top:14px"><b>Oui, charger</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, garder la mienne</b></button>`);
+      on('[data-a="non"]', sheetSauvegarde);
+      on('[data-a="oui"]', () => { st = s2; save(); fige = true; setTimeout(() => location.reload(), 150); });
+    });
+  }
   function sheetEtoiles() {
     const gain = G.etoilesGagnables(st), bonus = Math.round(st.etoiles * G.ETOILE_BONUS * 100), serie = G.serieEnCours(st);
     openSheet(`<h2>Étoiles</h2><p class="sous">Boutique n°${st.boutiques} · ${st.etoiles} étoile${st.etoiles > 1 ? 's' : ''} · +${bonus} % sur tous les gains</p>
@@ -911,10 +978,12 @@ const UI = (() => {
       <div class="stat"><span>Fournées vendues</span><b>${G.fmt(st.stats.ventes)}</b></div><div class="stat"><span>Clients servis</span><b>${G.fmt(st.stats.clients)}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(st.lifetime)}</b></div><div class="stat"><span>Série d’objectifs</span><b>${serie} jour${serie > 1 ? 's' : ''}</b></div>
       <div class="ligne-reglage"><span>Vibrations</span><button type="button" class="interrupteur" role="switch" aria-checked="${st.vibre}" data-a="vibre"></button></div>
       <button type="button" class="btn large" data-a="close" style="background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>
+      <button type="button" class="lien" data-a="sauvegarde">Sauvegarde et transfert</button>
       <button type="button" class="lien" data-a="reset">Recommencer une partie de zéro</button>`);
     on('[data-a="close"]', closeSheet);
+    on('[data-a="sauvegarde"]', sheetSauvegarde);
     on('[data-a="vibre"]', (b) => { st.vibre = !st.vibre; b.setAttribute('aria-checked', st.vibre); save(); });
-    on('[data-a="reset"]', () => { openSheet(`<h2>Tout effacer ?</h2><p class="sous">Euros, recettes, apprentis, bonus et étoiles : tout repart de la première baguette. Impossible de revenir en arrière.</p><button type="button" class="btn large" data-a="oui" style="background:var(--fraise);box-shadow:0 4px 0 var(--fraise-sombre)"><b>Oui, tout effacer</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde ma boutique</b></button>`); on('[data-a="non"]', sheetEtoiles); on('[data-a="oui"]', () => { try { localStorage.removeItem(KEY); } catch (e) { /* rien */ } location.reload(); }); });
+    on('[data-a="reset"]', () => { openSheet(`<h2>Tout effacer ?</h2><p class="sous">Euros, recettes, apprentis, bonus et étoiles : tout repart de la première baguette. Impossible de revenir en arrière.</p><button type="button" class="btn large" data-a="oui" style="background:var(--fraise);box-shadow:0 4px 0 var(--fraise-sombre)"><b>Oui, tout effacer</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde ma boutique</b></button>`); on('[data-a="non"]', sheetEtoiles); on('[data-a="oui"]', () => { fige = true; effacer().then(() => location.reload()); }); });
     on('[data-a="prestige"]', () => {
       if (G.etoilesGagnables(st) <= 0) { son.non(); return; }
       openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les bonus achetés sont perdus.</p>
@@ -952,8 +1021,8 @@ const UI = (() => {
   function layout() { SCENE.resize(window.innerWidth, Math.max(150, Math.min(240, Math.round(window.innerHeight * 0.27)))); }
 
   // ─── démarrage ───
-  function boot() {
-    st = load();
+  async function boot() {
+    st = await load();
     const fresh = !st;
     if (fresh) st = G.newState(Date.now());
     st.now = Date.now();
@@ -975,13 +1044,16 @@ const UI = (() => {
     });
     document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); } });
     window.addEventListener('pagehide', save);
+    window.addEventListener('beforeunload', save);
+    document.addEventListener('freeze', save);
+    window.addEventListener('blur', save);
     window.addEventListener('resize', layout);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
     if (!fresh) { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) sheetRetour(abs); }
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { try { localStorage.removeItem(KEY); } catch (e) { /* rien */ } location.reload(); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), mystere: () => SCENE.mystere() };
+    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), mystere: () => SCENE.mystere() };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);
