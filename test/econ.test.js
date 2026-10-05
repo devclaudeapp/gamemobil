@@ -27,8 +27,10 @@ function run(hours, policy, start = T0) {
 }
 const greedy = (st, t, m) => {
   for (let i = 0; i < PRODUITS.length; i++) { const s = st.stations[i]; if (s.niv > 0 && !s.staff && st.coins >= PRODUITS[i].staff) { G.embaucher(st, i); m.staffAt[i] = m.staffAt[i] || t; } }
-  for (let i = 0; i < PRODUITS.length; i++) { const s = st.stations[i]; if (s.niv === 0 && st.coins >= PRODUITS[i].cout) { G.acheter(st, i); m.unlockAt[i] = t; break; } }
+  for (let i = 0; i < PRODUITS.length; i++) { const s = st.stations[i]; if (s.niv === 0 && st.coins >= PRODUITS[i].debloquer) { G.acheter(st, i); m.unlockAt[i] = t; break; } }
   for (const a of G.AMELIORATIONS) if (!st.ameliorations[a.id] && st.coins >= a.cout * 1.2) G.amelioration(st, a.id);
+  const next = st.stations.findIndex((s) => s.niv === 0), taux = G.tauxParSeconde(st);
+  if (next > 0 && st.coins < PRODUITS[next].debloquer && st.coins + taux * 600 >= PRODUITS[next].debloquer) return; // on économise pour la prochaine recette
   let best = -1, bestRatio = 0;
   for (let i = 0; i < PRODUITS.length; i++) { const s = st.stations[i]; if (s.niv === 0) continue; const n = G.quantite(st, i), prix = G.coutNiveaux(i, s.niv, n); if (prix > st.coins) continue; const gain = PRODUITS[i].rev * n * G.palierMult(s.niv + n) * G.ameliorationMult(st, i) / PRODUITS[i].temps; const r = gain / prix; if (r > bestRatio) { bestRatio = r; best = i; } }
   if (best >= 0) G.acheter(st, best);
@@ -42,7 +44,15 @@ check(R.staffAt[0] < 180, 'premier apprenti en moins de 3 min');
 check(R.unlockAt[3] != null && R.unlockAt[3] < 30 * 60, 'tarte en moins de 30 min');
 check(R.unlockAt[4] != null && R.unlockAt[4] < 3 * 3600, 'éclairs en moins de 3 h');
 check(G.etoilesGagnables(R.st) <= 2 && R.st.lifetime > 5e8, 'après 3 h, la première boutique a gagné plus de 500 M € mais pas encore de quoi repartir (au plus 2 étoiles)');
-check(G.etoilesPour(3e9, 0) === 1 && G.etoilesPour(3e11, 0) === 10 && G.etoilesPour(3e11, 25) === 7 && G.etoilesPour(3e11, 100) === 4, 'étoiles : 1 à 3 Md €, 10 à 300 Md €, et plus chères quand on en possède déjà');
+check(G.etoilesPour(3e10, 0) === 1 && G.etoilesPour(3e12, 0) === 10 && G.etoilesPour(3e12, 25) === 7 && G.etoilesPour(3e12, 100) === 4, 'étoiles : 1 à 30 Md €, 10 à 3 Bn €, et plus chères quand on en possède déjà');
+// chaque niveau doit valoir le coup : il se rembourse vite, quel que soit le produit
+{
+  const cycles = (i, niv) => G.coutNiveau(i, niv) / (PRODUITS[i].rev * G.palierMult(niv + 1)); // fournées nécessaires pour rembourser un niveau
+  const pire1 = Math.max(...PRODUITS.map((p, i) => cycles(i, 1))), pire50 = Math.max(...[0, 1, 2, 3].map((i) => cycles(i, 50)));
+  check(pire1 <= 30, `au niveau 1, un niveau se rembourse en 30 fournées au plus, quel que soit le produit (pire : ${pire1.toFixed(0)})`);
+  check(pire50 <= 60, `au niveau 50, les quatre premiers produits se remboursent en 60 fournées au plus (pire : ${pire50.toFixed(0)})`);
+  check(PRODUITS.every((p) => p.debloquer >= p.cout), 'débloquer une recette coûte au moins autant qu’un niveau');
+}
 const TYPES = ['rush', 'commande', 'critique', 'meunier', 'petrissage', 'panne', 'anniversaire'], nEv = TYPES.reduce((a, t) => a + (R.evs[t] || 0), 0);
 check(nEv >= 20 && nEv <= 60, `entre 20 et 60 événements en 3 h (${nEv})`);
 check(TYPES.every((t) => R.evs[t] >= 1), 'chacun des sept types d’événement est arrivé au moins une fois');

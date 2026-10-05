@@ -34,12 +34,12 @@ function simuler(nomProfil, jours, opts = {}) {
     apprendre(st);
     for (let i = 0; i < PRODUITS.length; i++) { const s = st.stations[i]; if (s.niv > 0 && !s.staff && st.coins >= G.prixStaff(st, i)) { G.embaucher(st, i); M.staff[i] = M.staff[i] || now; fait = true; } }
     const next = st.stations.findIndex((s) => s.niv === 0);
-    if (next > 0 && st.coins >= PRODUITS[next].cout) { G.acheter(st, next); M.unlock[next] = M.unlock[next] || now; fait = true; }
+    if (next > 0 && st.coins >= PRODUITS[next].debloquer) { G.acheter(st, next); M.unlock[next] = M.unlock[next] || now; fait = true; }
     for (const a of AMELIORATIONS) if (!st.ameliorations[a.id] && st.coins >= G.prixBonus(st, a)) { G.amelioration(st, a.id); M.bonus[a.id] = M.bonus[a.id] || now; fait = true; }
     // économiser si un débloquage, une embauche ou un bonus est à moins de 5 min de revenus
     const taux = G.tauxParSeconde(st);
     let cible = Infinity;
-    if (next > 0) cible = Math.min(cible, PRODUITS[next].cout);
+    if (next > 0) cible = Math.min(cible, PRODUITS[next].debloquer);
     st.stations.forEach((s, i) => { if (s.niv > 0 && !s.staff) cible = Math.min(cible, G.prixStaff(st, i)); });
     for (const a of AMELIORATIONS) if (!st.ameliorations[a.id]) cible = Math.min(cible, G.prixBonus(st, a));
     const economise = cible < Infinity && cible > st.coins && cible <= st.coins + taux * 300;

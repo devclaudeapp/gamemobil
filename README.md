@@ -73,20 +73,19 @@ La boutique est enregistrée dans le téléphone toutes les 5 secondes, à chaqu
 
 ## Rythme et durabilité
 
-Huit produits, coût de niveau multiplié par 1,07 à 1,15 à chaque achat, gains doublés à chaque palier (25, 50, 100, 200…). Les trois premières recettes arrivent dans les dix premières minutes ; les suivantes s'étalent sur une dizaine de jours. `test/longevite.js` fait jouer trois profils pendant 60 jours, avec des sessions réalistes et des absences (gains plafonnés à 8 h) :
+Huit produits. Débloquer une recette est un cap (de 60 € pour les croissants à 20 Bn € pour la pièce montée), mais ensuite chaque niveau coûte quelques fournées seulement et se rembourse vite : 4 fournées pour la baguette, 11 pour l'éclair, 28 pour la pièce montée au premier niveau. Le coût d'un niveau est multiplié par 1,07 à 1,15 à chaque achat, et les gains doublent à chaque palier (25, 50, 100, 200…) : un produit finit toujours par plafonner, c'est le suivant qui prend le relais. `test/longevite.js` fait jouer trois profils pendant 60 jours, avec des sessions réalistes, des absences (gains plafonnés à 8 h) et les talents du boulanger :
 
 | | Occasionnel (17 min/jour) | Régulier (36 min/jour) | Assidu (80 min/jour) |
 | --- | --- | --- | --- |
-| Tarte aux pommes | jour 1 | jour 1 | jour 1 |
-| Éclair au café | jour 1 | jour 1 | jour 1 |
-| Macarons | jour 2 | jour 1 | jour 1 |
-| Mille-feuille | jour 3 | jour 2 | jour 2 |
-| Pièce montée | jour 13 | jour 9 | jour 8 |
-| Première nouvelle boutique | jour 4 (+10 ★) | jour 3 (+10 ★) | jour 3 (+12 ★) |
-| Boutiques suivantes | tous les 3 à 6 jours | tous les 2 à 6 jours | tous les 2 à 9 jours |
-| Dernier bonus (franchise) | jour 41 | jour 37 | jour 28 |
-| Étoiles au jour 30 | ~500 | ~900 | ~1 400 |
-| Temps sans rien à acheter | 10 % | 22 % | 42 % |
-| Jours aux trois objectifs | 54/60 | 57/60 | 56/60 |
+| Éclair au café | jour 2 | jour 1 | jour 1 |
+| Macarons | jour 2 | jour 2 | jour 1 |
+| Mille-feuille | jour 4 | jour 3 | jour 4 |
+| Pièce montée | jour 12 | jour 8 | jour 7 |
+| Première nouvelle boutique | jour 5 (+7 ★) | jour 4 (+8 ★) | jour 3 (+7 ★) |
+| Dernier bonus (franchise) | jour 33 | jour 27 | jour 21 |
+| Étoiles au jour 30 | ~450 | ~670 | ~1 270 |
+| Boulanger au jour 30 | niveau 16 | niveau 17 | niveau 19 |
+| Temps sans rien à acheter | 12 % | 25 % | 43 % |
+| Jours aux trois objectifs | 53/60 | 58/60 | 56/60 |
 
-Les étoiles d'une boutique valent √(gagné ÷ 2 Md €), et chaque tranche de 25 étoiles déjà possédées rend les suivantes deux fois plus chères : la boule de neige reste maîtrisée (en 60 jours, les montants restent sous le million de milliards de milliards, donc lisibles). Un objectif du jour devenu impossible (tout le monde embauché, toutes les recettes débloquées…) est remplacé par un autre ; en changeant de boutique, les objectifs pas encore réclamés sont retirés à la taille de la nouvelle. `node test/longevite.js --test` vérifie ces garde-fous à chaque déploiement.
+Les étoiles d'une boutique valent √(gagné ÷ 30 Md €), et chaque tranche de 25 étoiles déjà possédées rend les suivantes deux fois plus chères : la boule de neige reste maîtrisée. Un objectif du jour devenu impossible est remplacé par un autre ; en changeant de boutique, les objectifs pas encore réclamés sont retirés à la taille de la nouvelle. `node test/longevite.js --test` vérifie ces garde-fous à chaque déploiement, et `test/econ.test.js` vérifie qu'un niveau se rembourse toujours en 30 fournées au plus au premier niveau.

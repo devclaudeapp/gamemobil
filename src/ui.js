@@ -88,10 +88,10 @@ const UI = (() => {
       const s = st.stations[i], c = cards[i];
       let html, cls;
       if (s.niv === 0) {
-        const prev = i === 0 || st.stations[i - 1].niv > 0, ok = st.coins >= p.cout * remise;
+        const prev = i === 0 || st.stations[i - 1].niv > 0, ok = st.coins >= p.debloquer * remise;
         cls = 'carte verrou' + (prev ? '' : ' secret');
         html = `<div class="icone">${ICONS.PRODUITS[p.id]}</div><div class="corps"><h3>${esc(p.nom)}</h3><p>${esc(p.desc)} Rapporte ${G.fmtEur(p.rev)} la fournée.</p>
-          <button type="button" class="btn ${ok ? 'menthe' : 'non'}" data-a="debloquer"><small>${remise < 1 ? `Débloquer −${Math.round((1 - remise) * 100)} %` : 'Débloquer'}</small><b>${G.fmtEur(p.cout * remise)}</b></button></div>`;
+          <button type="button" class="btn ${ok ? 'menthe' : 'non'}" data-a="debloquer"><small>${remise < 1 ? `Débloquer −${Math.round((1 - remise) * 100)} %` : 'Débloquer'}</small><b>${G.fmtEur(p.debloquer * remise)}</b></button></div>`;
       } else {
         const n = G.quantite(st, i), prix = G.prixNiveaux(st, i, n), ok = st.coins >= prix, pal = G.prochainPalier(s.niv);
         const rapide = p.temps <= 1.5 && s.staff;
@@ -219,7 +219,7 @@ const UI = (() => {
   const INDICES = [
     { txt: 'Touche la baguette pour la cuire et la vendre !', cible: () => cards[0].el.querySelector('.barre'), fini: () => st.stats.ventes >= 1 },
     { txt: 'Avec tes euros, améliore la baguette : chaque niveau rapporte plus.', cible: () => cards[0].el.querySelector('[data-a="ameliorer"]'), pret: () => st.coins >= G.coutNiveau(0, st.stations[0].niv), fini: () => st.stations[0].niv >= 2 },
-    { txt: 'Débloque les croissants : 20 € la fournée !', cible: () => cards[1].el.querySelector('[data-a="debloquer"]'), pret: () => st.coins >= G.PRODUITS[1].cout, fini: () => st.stations[1].niv >= 1 },
+    { txt: 'Débloque les croissants : 20 € la fournée !', cible: () => cards[1].el.querySelector('[data-a="debloquer"]'), pret: () => st.coins >= G.PRODUITS[1].debloquer, fini: () => st.stations[1].niv >= 1 },
     { txt: 'Embauche Léo : il cuit les baguettes tout seul, même quand tu n’es pas là.', cible: () => cards[0].el.querySelector('[data-a="embaucher"]'), pret: () => st.coins >= G.PRODUITS[0].staff, fini: () => st.stations[0].staff },
     { txt: 'Bravo ! Au niveau 25, 50, 100… les gains doublent. Et regarde tes objectifs du jour : trois défis, une étoile à la clé.', cible: () => $('#objectifs'), pret: () => true, fini: () => performance.now() > hintUntil },
     { txt: 'Le boulanger a un point de talent ! Touche-le dans la boutique pour l’apprendre.', cible: () => $('#scene'), pret: () => G.ptsTalents(st) > 0, fini: () => vuBoulanger },

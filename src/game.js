@@ -7,14 +7,14 @@
 
   // ─── les produits, dans l'ordre où on les débloque ───
   const PRODUITS = [
-    { id: 'baguette', pl: 'baguettes', nom: 'Baguette', cout: 4, rev: 1, temps: 1, croiss: 1.07, staff: 1000, staffNom: 'Apprenti Léo', desc: 'Croustillante, chaude, la base.' },
-    { id: 'croissant', pl: 'croissants', nom: 'Croissant', cout: 60, rev: 20, temps: 3, croiss: 1.15, staff: 15000, staffNom: 'Apprentie Inès', desc: 'Pur beurre, feuilleté.' },
-    { id: 'painchoc', pl: 'pains au chocolat', nom: 'Pain au chocolat', cout: 720, rev: 150, temps: 6, croiss: 1.14, staff: 100000, staffNom: 'Mitron Sami', desc: 'Deux barres, pas une.' },
-    { id: 'tarte', pl: 'tartes aux pommes', nom: 'Tarte aux pommes', cout: 8640, rev: 1200, temps: 12, croiss: 1.13, staff: 500000, staffNom: 'Pâtissière Rose', desc: 'La recette de mamie.' },
-    { id: 'eclair', pl: 'éclairs au café', nom: 'Éclair au café', cout: 2e7, rev: 10000, temps: 24, croiss: 1.12, staff: 8e7, staffNom: 'Pâtissier Malik', desc: 'Glacé, fondant, parfait.' },
-    { id: 'macaron', pl: 'macarons', nom: 'Macarons', cout: 1e9, rev: 90000, temps: 96, croiss: 1.11, staff: 4e9, staffNom: 'Cheffe Agathe', desc: 'Six parfums, zéro regret.' },
-    { id: 'millefeuille', pl: 'mille-feuilles', nom: 'Mille-feuille', cout: 5e10, rev: 8e5, temps: 384, croiss: 1.1, staff: 2e11, staffNom: 'Chef Augustin', desc: 'Mille, on a compté.' },
-    { id: 'piece', pl: 'pièces montées', nom: 'Pièce montée', cout: 4e12, rev: 7e6, temps: 1536, croiss: 1.09, staff: 1.6e13, staffNom: 'Maître Paulin', desc: 'Pour les grands jours.' },
+    { id: 'baguette', pl: 'baguettes', nom: 'Baguette', cout: 4, debloquer: 4, rev: 1, temps: 1, croiss: 1.07, staff: 1000, staffNom: 'Apprenti Léo', desc: 'Croustillante, chaude, la base.' },
+    { id: 'croissant', pl: 'croissants', nom: 'Croissant', cout: 60, debloquer: 60, rev: 20, temps: 3, croiss: 1.15, staff: 15000, staffNom: 'Apprentie Inès', desc: 'Pur beurre, feuilleté.' },
+    { id: 'painchoc', pl: 'pains au chocolat', nom: 'Pain au chocolat', cout: 720, debloquer: 720, rev: 150, temps: 6, croiss: 1.14, staff: 100000, staffNom: 'Mitron Sami', desc: 'Deux barres, pas une.' },
+    { id: 'tarte', pl: 'tartes aux pommes', nom: 'Tarte aux pommes', cout: 8640, debloquer: 8640, rev: 1200, temps: 12, croiss: 1.13, staff: 500000, staffNom: 'Pâtissière Rose', desc: 'La recette de mamie.' },
+    { id: 'eclair', pl: 'éclairs au café', nom: 'Éclair au café', cout: 1e5, debloquer: 1e8, rev: 10000, temps: 24, croiss: 1.12, staff: 4e8, staffNom: 'Pâtissier Malik', desc: 'Glacé, fondant, parfait.' },
+    { id: 'macaron', pl: 'macarons', nom: 'Macarons', cout: 1.2e6, debloquer: 1e10, rev: 90000, temps: 96, croiss: 1.11, staff: 4e10, staffNom: 'Cheffe Agathe', desc: 'Six parfums, zéro regret.' },
+    { id: 'millefeuille', pl: 'mille-feuilles', nom: 'Mille-feuille', cout: 1.5e7, debloquer: 5e11, rev: 8e5, temps: 384, croiss: 1.1, staff: 2e12, staffNom: 'Chef Augustin', desc: 'Mille, on a compté.' },
+    { id: 'piece', pl: 'pièces montées', nom: 'Pièce montée', cout: 1.8e8, debloquer: 2e13, rev: 7e6, temps: 1536, croiss: 1.09, staff: 8e13, staffNom: 'Maître Paulin', desc: 'Pour les grands jours.' },
   ];
   const PALIERS = [25, 50, 100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
   const AMELIORATIONS = [
@@ -25,16 +25,16 @@
     { id: 'pommes', nom: 'Pommes du verger', cout: 4e7, cible: ['tarte'], mult: 3, desc: 'Tartes ×3' },
     { id: 'four', nom: 'Four à sole', cout: 1e8, cible: ['baguette', 'croissant'], mult: 5, desc: 'Baguettes et croissants ×5' },
     { id: 'terrasse', nom: 'Terrasse ensoleillée', cout: 2.5e8, cible: null, mult: 2, desc: 'Tout ×2' },
-    { id: 'cafe', nom: 'Café torréfié maison', cout: 2e9, cible: ['eclair'], mult: 3, desc: 'Éclairs ×3' },
-    { id: 'amandes', nom: 'Amandes de Provence', cout: 5e10, cible: ['macaron'], mult: 3, desc: 'Macarons ×3' },
-    { id: 'vitrine', nom: 'Vitrine réfrigérée', cout: 2e11, cible: ['tarte', 'eclair', 'macaron'], mult: 5, desc: 'Tartes, éclairs, macarons ×5' },
-    { id: 'fidelite', nom: 'Carte de fidélité', cout: 1e12, cible: null, mult: 3, desc: 'Tout ×3' },
-    { id: 'feuilletage', nom: 'Pâte feuilletée maison', cout: 5e12, cible: ['millefeuille'], mult: 3, desc: 'Mille-feuilles ×3' },
-    { id: 'robot', nom: 'Robot pâtissier', cout: 5e13, cible: ['piece'], mult: 3, desc: 'Pièces montées ×3' },
-    { id: 'franchise', nom: 'Réseau de franchises', cout: 5e14, cible: null, mult: 5, desc: 'Tout ×5' },
+    { id: 'cafe', nom: 'Café torréfié maison', cout: 5e9, cible: ['eclair'], mult: 3, desc: 'Éclairs ×3' },
+    { id: 'amandes', nom: 'Amandes de Provence', cout: 1.5e11, cible: ['macaron'], mult: 3, desc: 'Macarons ×3' },
+    { id: 'vitrine', nom: 'Vitrine réfrigérée', cout: 6e11, cible: ['tarte', 'eclair', 'macaron'], mult: 5, desc: 'Tartes, éclairs, macarons ×5' },
+    { id: 'fidelite', nom: 'Carte de fidélité', cout: 3e12, cible: null, mult: 3, desc: 'Tout ×3' },
+    { id: 'feuilletage', nom: 'Pâte feuilletée maison', cout: 1.5e13, cible: ['millefeuille'], mult: 3, desc: 'Mille-feuilles ×3' },
+    { id: 'robot', nom: 'Robot pâtissier', cout: 1.5e14, cible: ['piece'], mult: 3, desc: 'Pièces montées ×3' },
+    { id: 'franchise', nom: 'Réseau de franchises', cout: 1e15, cible: null, mult: 5, desc: 'Tout ×5' },
   ];
   const ETOILE_BONUS = 0.05;     // +5 % par étoile, pour toujours
-  const ETOILE_BASE = 3e9;       // la première étoile demande ~3 Md € gagnés dans la boutique
+  const ETOILE_BASE = 3e10;      // la première étoile demande ~30 Md € gagnés dans la boutique
   const ETOILE_FREIN = 25;       // chaque tranche de 25 étoiles possédées rend les suivantes 2 fois plus chères (pas d'emballement)
   const ABSENCE_MAX_H = 8;       // les apprentis travaillent 8 h au plus pendant une absence
   const RUSH = { duree: 60, mult: 3 };          // coup de feu : toutes les ventes ×3 pendant 60 s
@@ -153,8 +153,9 @@
   }
   function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st); }
   function revenu(st, i) { return revenuBase(st, i) * boostMult(st, i); } // par fournée, maintenant
-  const coutNiveau = (i, niv) => PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv);
-  function coutNiveaux(i, niv, n) { const r = PRODUITS[i].croiss; return PRODUITS[i].cout * Math.pow(r, niv) * (Math.pow(r, n) - 1) / (r - 1); }
+  // niv 0 : débloquer la recette (un cap, cher) ; ensuite chaque niveau coûte quelques fournées de plus que le précédent
+  const coutNiveau = (i, niv) => (niv === 0 ? PRODUITS[i].debloquer : PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv));
+  function coutNiveaux(i, niv, n) { if (niv === 0) return PRODUITS[i].debloquer; const r = PRODUITS[i].croiss; return PRODUITS[i].cout * Math.pow(r, niv) * (Math.pow(r, n) - 1) / (r - 1); }
   function maxNiveaux(i, niv, coins) { const r = PRODUITS[i].croiss, a = PRODUITS[i].cout * Math.pow(r, niv); if (coins < a) return 0; return Math.floor(Math.log(coins * (r - 1) / a + 1) / Math.log(r)); }
   const remise = (st) => (st.ev && st.ev.type === 'meunier' && st.ev.fin > st.now ? 1 - MEUNIER.remise : 1); // le meunier : tout moins cher
   const prixNiveaux = (st, i, n) => coutNiveaux(i, st.stations[i].niv, n) * remise(st); // prix réel maintenant (remise comprise)
@@ -183,7 +184,7 @@
     mains: (st) => (st.stations.some((s) => s.niv > 0 && !s.staff) ? { cible: 25, txt: (c) => `Cuis ${c} fournées à la main` } : null),
     embaucher: (st) => (st.stations.some((s) => s.niv > 0 && !s.staff) ? { cible: 1, txt: () => 'Embauche un apprenti' } : null),
     bonus: (st, r) => (AMELIORATIONS.some((a) => !st.ameliorations[a.id] && a.cout < st.coins + r * 3600) ? { cible: 1, txt: () => 'Achète un bonus' } : null),
-    recette: (st, r) => { const i = st.stations.findIndex((s) => s.niv === 0); return i > 0 && PRODUITS[i].cout < st.coins + r * 3600 ? { cible: 1, txt: () => `Débloque : ${PRODUITS[i].nom}` } : null; },
+    recette: (st, r) => { const i = st.stations.findIndex((s) => s.niv === 0); return i > 0 && PRODUITS[i].debloquer < st.coins + r * 3600 ? { cible: 1, txt: () => `Débloque : ${PRODUITS[i].nom}` } : null; },
   };
   function tirerObjectifs(st, key) {
     const rnd = mulberry32(hashStr(key + ':' + st.boutiques + ':' + st.created)), r = rythme(st);
