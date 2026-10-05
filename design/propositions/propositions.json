@@ -1,0 +1,451 @@
+[
+ {
+  "id": "A",
+  "nom": "Barre d’onglets « Le comptoir »",
+  "accroche": "Cinq onglets sous le pouce, un écran Boutique qui ne fait plus que jouer, et une pastille qui dit quand quelque chose t’attend.",
+  "concept": "Aujourd’hui tout ce qui n’est pas une carte produit est entassé dans la feuille Étoiles sous forme de liens texte, et l’écran principal mélange jeu (cartes), information (objectifs) et alerte (événement). La proposition sépare ces trois rôles : l’écran Boutique garde scène, modes et cartes ; une barre d’onglets fixe en bas range Défis, Boulanger, Journal et Réglages derrière une icône dédiée chacun ; les pastilles de notification remplacent les cartes « pense-bête » qui poussaient les produits vers le bas. L’en-tête ne garde que le solde et les étoiles.",
+  "zones": [
+   {
+    "zone": "En-tête (47 px barre d’état + 58 px)",
+    "contenu": "Pièce dorée 42 px, solde 32 px Fredoka « 33,5 M € », ligne « +162 k € par seconde » avec une mini-flèche menthe. À droite, la pastille beurre Étoiles « 8 » (ouvre la feuille Étoiles / nouvelle boutique). Le bouton Son part dans Réglages."
+   },
+   {
+    "zone": "Scène (228 px, 27 %)",
+    "contenu": "Canvas inchangé (mur, fenêtre, étagères, comptoir, boulanger, clients). L’enseigne « Chez Mamie · n°2 » devient une pilule blanche posée en haut au centre de la scène : le nom et le numéro de boutique quittent l’en-tête. Toucher le boulanger ouvre toujours sa fiche."
+   },
+   {
+    "zone": "Bannière d’événement (superposée, 12 px des bords, bas de la scène)",
+    "contenu": "Pilule 20 px de rayon, dégradé fraise→orange pour le coup de feu, icône dans une tuile blanche 44 px, titre 17 px, sous-titre 13 px, chrono 24 px à droite avec l’étiquette « EN COURS », barre de temps blanche au ras du bas. Les 7 types gardent leurs dégradés actuels ; absente, la scène est entièrement visible. Elle ne décale plus la liste."
+   },
+   {
+    "zone": "Barre collante (60 px)",
+    "contenu": "Modes ×1 ×10 ×100 Max dans la pilule blanche (mode actif brun, 15 px) et à droite le bouton Bonus lavande 44 px avec un compteur fraise « 2 » (bonus achetables). Même position qu’aujourd’hui : la main droite y arrive sans bouger."
+   },
+   {
+    "zone": "Liste des cartes produits (défilante, fondu crème en bas)",
+    "contenu": "Les 8 cartes actuelles, inchangées dans leur grille 60 / 1fr / 118 px : icône pêche, nom 18 px, pastille Niv., barre de cuisson avec revenu, boutons Améliorer (fraise) et Embaucher (beurre) ou « Léo s’en occupe ». Le badge « Pain du jour ×1,5 » gagne une petite icône soleil. L’état « Touche ! » reste la barre pointillée fraise."
+   },
+   {
+    "zone": "Barre d’onglets (98 px dont 34 px d’indicateur maison)",
+    "contenu": "Carte blanche arrondie 28 px en haut, ombre portée vers le haut. Cinq onglets 56 px de haut : icône 24 px dans une tuile 48×32 (pêche quand actif), libellé 13 px Fredoka. Pastilles : compteur fraise sur Défis (1 prime), point lavande sur Boulanger (point de talent), point beurre sur Journal (trophée neuf)."
+   }
+  ],
+  "navigation": "Un seul niveau : la barre d’onglets fixe en bas, toujours visible, remplace la feuille Étoiles comme menu. Boutique est la page de jeu ; Défis, Boulanger, Journal et Réglages sont des pages pleines (sans scène) qui gardent le même en-tête solde + étoiles, pour que le joueur voie ses gains défiler partout. Les feuilles qui montent du bas restent pour les confirmations et sous-écrans (bonus, nouvelle boutique, charger un code, tout effacer, renommer). Les pastilles s’éteignent dès que l’onglet concerné est visité ou la récompense prise.",
+  "icones": [
+   {
+    "fonction": "Boutique (onglet)",
+    "forme": "Devanture : façade blanche, auvent fraise à 4 festons, porte pêche."
+   },
+   {
+    "fonction": "Défis / objectifs (onglet)",
+    "forme": "Cible : trois cercles concentriques, centre fraise, anneau pêche."
+   },
+   {
+    "fonction": "Boulanger et talents (onglet)",
+    "forme": "Toque : nuage blanc à trois bosses sur un bandeau pêche."
+   },
+   {
+    "fonction": "Journal et trophées (onglet)",
+    "forme": "Livre ouvert crème avec une petite étoile beurre sur la page droite."
+   },
+   {
+    "fonction": "Réglages (onglet)",
+    "forme": "Engrenage : cercle lavande pâle, huit crans en traits ronds, moyeu blanc."
+   },
+   {
+    "fonction": "Événements (section)",
+    "forme": "Cloche beurre avec battant et petit pompon."
+   },
+   {
+    "fonction": "Coup de feu (événement)",
+    "forme": "Flamme orange à cœur jaune, déjà dans le jeu."
+   },
+   {
+    "fonction": "Commande spéciale (événement)",
+    "forme": "Sac en papier lavande pâle à poignée."
+   },
+   {
+    "fonction": "Critique (événement)",
+    "forme": "Carnet blanc à lignes lavande."
+   },
+   {
+    "fonction": "Objectifs du jour (carte)",
+    "forme": "Presse-papiers à pince menthe avec coche et ligne."
+   },
+   {
+    "fonction": "Pain du jour (étiquette)",
+    "forme": "Petit soleil brun à huit rayons devant le texte « Pain du jour »."
+   },
+   {
+    "fonction": "Défi de la semaine (carte)",
+    "forme": "Calendrier blanc à deux anneaux avec une étoile beurre dans la grille."
+   },
+   {
+    "fonction": "Trophée",
+    "forme": "Coupe beurre à deux anses sur un socle pêche."
+   },
+   {
+    "fonction": "Bonus",
+    "forme": "Étincelle blanche à quatre branches plus une petite, sur fond lavande."
+   },
+   {
+    "fonction": "Étoiles / nouvelle boutique",
+    "forme": "Étoile blanche à contour doré sur pastille beurre."
+   },
+   {
+    "fonction": "Série de jours",
+    "forme": "Petite flamme dans une pilule blanche « Série : 4 jours »."
+   },
+   {
+    "fonction": "Sauvegarde et transfert (Réglages)",
+    "forme": "Nuage blanc avec flèche vers le bas."
+   },
+   {
+    "fonction": "Son / Vibrations / Renommer / Recommencer (Réglages)",
+    "forme": "Haut-parleur avec deux ondes ; téléphone avec deux arcs de chaque côté ; crayon posé sur une étiquette ; flèche circulaire."
+   }
+  ],
+  "evenements": "Un événement actif s’affiche en bannière superposée au bas de la scène, dans la couleur du type (le coup de feu fraise→orange de la maquette, chrono 0:42, barre de temps). Les événements à toucher (pétrissage, panne) y gardent leur bouton blanc « tapote » à droite à la place du chrono. L’onglet Défis contient une carte Événements qui liste l’événement en cours et les suivants (« bientôt », « vu hier ») pour que le joueur comprenne les 7 types sans qu’ils encombrent la Boutique.",
+  "quetes": "Tout vit dans l’onglet Défis : carte Objectifs du jour (3 lignes, coche menthe sur la ligne réussie et bouton « Récupérer 1,2 M € », barres fines pour les deux autres, compteur « 1/3 · prime ! »), puis deux demi-cartes Pain du jour (icône croissant, ×1,5) et Défi de la semaine (3/8, barre beurre, +1 étoile), puis Événements et un rappel du trophée tout juste gagné. La pilule « Série : 4 jours » en haut à droite valorise la régularité. Sur la Boutique, seul le compteur fraise de l’onglet signale la prime.",
+  "trophees": "Onglet Journal : en-tête avec le nom de la boutique et les totaux (fournées, clients), grille de 28 trophées en tuiles 2 colonnes (coupe beurre pour les gagnés, gris pour les autres, le dernier gagné surligné jaune), puis le carnet des entrées datées et le bouton « Partager ma boutique ». Un trophée neuf allume le point beurre sur l’onglet et apparaît aussi comme carte jaune en bas de Défis avec un bouton « Voir ».",
+  "reglages": "Onglet Réglages : liste de lignes 56 px avec icône pastel à gauche, libellé 16 px et interrupteur à droite pour Son et Vibrations ; puis des lignes à chevron Renommer la boutique (crayon), Spécialité (étoile lavande, grisée si déjà choisie), Sauvegarde et transfert (nuage, ouvre la feuille avec code à copier et champ à coller). Tout en bas, séparé, « Recommencer de zéro » en texte fraise avec icône flèche circulaire, qui ouvre la confirmation actuelle. Le son quitte l’en-tête, ce qui libère la place à droite du solde.",
+  "boulanger": "Onglet Boulanger : portrait 76 px dans une tuile pêche, titre « Boulanger · niveau 9 », barre de savoir-faire lavande, puis la liste des 9 talents en cartes avec crans ● ○ et bouton « Apprendre » lavande quand un point est disponible. Le point lavande sur l’onglet et la pulsation du portrait dans la scène signalent le point de talent à dépenser. Toucher le boulanger dans la scène ouvre directement cet onglet.",
+  "style": "Même DA « lumineux et doux » : crème #FFF7EC, cartes blanches 22 px avec ombre 0 6px 16px, boutons à épaisseur 4 px, Fredoka pour les chiffres et titres, Nunito pour le reste. Les icônes partagent un seul langage : trait brun #4A3328 de 2 px à bouts ronds, aplat pastel (pêche, crème, lavande pâle, jaune pâle) et un seul accent couleur par icône. La barre d’onglets reprend le vocabulaire des cartes (blanc, grand rayon, ombre douce) et la pastille active est une tuile pêche, pas un simple changement de couleur. Les badges de notification sont cerclés de blanc pour se détacher du fond.",
+  "points_forts": [
+   "La zone de jeu gagne de la hauteur : plus de carte Objectifs ni d’événement qui repoussent les produits ; trois cartes produits et la barre de modes sont visibles sous la scène.",
+   "Chaque fonction cachée (talents, trophées, réglages, sauvegarde) a maintenant une place et une icône visibles en permanence, atteignables d’un pouce à la même position.",
+   "Les pastilles (compteur fraise, points lavande et beurre) disent sans texte où quelque chose attend : prime, point de talent, trophée.",
+   "La bannière d’événement superposée reste très visible sans toucher la mise en page, et sa disparition ne fait plus sauter la liste."
+  ],
+  "risques": [
+   "La barre d’onglets prend 98 px (dont indicateur maison) : la liste défilante visible passe d’environ 360 à 330 px, à vérifier sur les petits iPhone (SE : 667 px de haut).",
+   "La bannière d’événement couvre le bas de la scène (comptoir) pendant l’événement : le client mystère ne doit jamais apparaître dans cette bande, ou la bannière doit se replier au toucher.",
+   "Les libellés d’onglets sont à 13 px, sous le minimum de 15 px fixé ; l’icône porte le sens, mais c’est un écart à la règle.",
+   "Déplacer le son dans Réglages l’éloigne d’un geste : prévoir un appui long sur l’onglet Réglages ou un raccourci dans la scène si les joueurs s’en plaignent."
+  ],
+  "fichier": "/home/user/gamemobil/design/propositions/A.html"
+ },
+ {
+  "id": "B",
+  "nom": "Tableau de bord",
+  "accroche": "Six ronds à icône posés sur le bord de la boutique : tout ce qui n'est pas « cuire, améliorer, embaucher » vit là, à portée de pouce, avec un badge quand quelque chose t'attend.",
+  "concept": "L'écran principal ne garde que deux choses au premier plan : la boutique dessinée (plus haute, 268 px soit 32 %) et les cartes produits. Toutes les autres fonctions sont rassemblées dans une rangée de six boutons ronds qui chevauche le bas de la scène comme une étagère : Bonus, Défis, Boulanger, Trophées, Réglages, Étoiles. L'en-tête ne montre plus que l'argent (solde, gains/s) et la puce « Boutique n°2 » ; le son quitte l'en-tête pour Réglages. Les événements s'incrustent dans la scène elle-même, là où ils se passent.",
+  "zones": [
+   {
+    "zone": "En-tête (60 px)",
+    "contenu": "Pièce dorée, solde 33,5 M € en Fredoka 28 px, « +162 k € par seconde » en menthe. À droite une puce blanche « Boutique n°2 » (le nom de la boutique est déjà sur l'enseigne). Plus de boutons ici : rien ne concurrence la lecture du solde."
+   },
+   {
+    "zone": "Scène (268 px, 32 %)",
+    "contenu": "Mur rayé pêche, fenêtre sur les collines du village, enseigne « Chez Mamie », étagères de pains, comptoir, boulanger derrière, cliente devant, plante. Trois incrustations HTML : le toast de trophée en haut, la bulle lavande « 1 talent » au-dessus de la tête du boulanger (qui reste touchable), et la carte d'événement « Coup de feu ! » en bas à droite avec chrono 0:42 et barre de temps."
+   },
+   {
+    "zone": "Tableau de bord (52 px de ronds + libellés 12 px, chevauche la scène de 26 px)",
+    "contenu": "Six boutons ronds à aplat pastel et liseré blanc, ombre pleine 4 px dessous : Bonus (lavande), Défis (fraise pâle, badge 1 = prime à récupérer), Boulanger (pêche, badge 1 = point de talent), Trophées (beurre pâle, badge 1 = trophée gagné), Réglages (gris), Étoiles (beurre plein, badge « +1 » = étoile récoltable)."
+   },
+   {
+    "zone": "Barre Quantité (48 px)",
+    "contenu": "Libellé « Quantité » à gauche, segment ×1 ×10 ×100 Max à droite sous le pouce. Le bouton Bonus en est parti : la barre ne sert plus qu'au multiplicateur d'achat."
+   },
+   {
+    "zone": "Objectifs du jour repliés (58 px)",
+    "contenu": "Une seule ligne : icône cible, « Objectifs du jour 1/3 », sous-ligne « Croissants ×1,5 · Semaine 3/8 », pilule menthe « Prime 2,1 M € » quand une prime attend, chevron pour déplier. Liseré menthe quand il y a quelque chose à récupérer."
+   },
+   {
+    "zone": "Cartes produits (76 px chacune, 4 visibles sans défiler)",
+    "contenu": "Icône 44 px avec le niveau en pastille brune dans le coin, nom + étiquette « Du jour ×1,5 », barre de cuisson fine 8 px, méta « +86 k € / fournée · 3 s ». À droite deux colonnes de 64 px : Améliorer (fraise, libellé + prix empilés) et Embaucher (beurre) ou, une fois l'apprenti recruté, une puce crème avec son portrait et « Inès s'en occupe ». La cinquième carte (Éclair, cuisson manuelle, boutons grisés) dépasse en bas pour inviter à défiler."
+   }
+  ],
+  "navigation": "Un seul écran principal ; chaque bouton du tableau de bord ouvre une feuille qui monte du bas (84 % max), avec en tête une icône dans son aplat pastel, le titre, un bouton rond Fermer et, si besoin, des onglets en pilule. Les feuilles sont plates : plus de liens texte cachés en bas de la feuille Étoiles, chaque fonction a sa porte d'entrée visible. Les badges du tableau de bord sont la seule « boîte de réception » du jeu : un chiffre = quelque chose à faire là-dedans. La vue 2 de la maquette montre la feuille Défis ouverte avec ses trois onglets.",
+  "icones": [
+   {
+    "fonction": "Défis / objectifs du jour",
+    "forme": "Cible à trois cercles concentriques, centre fraise pâle"
+   },
+   {
+    "fonction": "Boulanger et talents",
+    "forme": "Toque de chef (nuage à trois bosses sur un bandeau), aplat pêche"
+   },
+   {
+    "fonction": "Trophées et journal",
+    "forme": "Coupe à deux anses sur son socle, coupe remplie beurre"
+   },
+   {
+    "fonction": "Bonus",
+    "forme": "Étincelle à quatre branches accompagnée d'une petite étincelle, aplat lavande"
+   },
+   {
+    "fonction": "Réglages",
+    "forme": "Engrenage à huit dents, moyeu gris"
+   },
+   {
+    "fonction": "Étoiles / nouvelle boutique",
+    "forme": "Étoile à cinq branches blanche sur rond beurre plein"
+   },
+   {
+    "fonction": "Événement générique (journal)",
+    "forme": "Cloche avec son battant"
+   },
+   {
+    "fonction": "Coup de feu",
+    "forme": "Flamme remplie beurre dans un carré blanc arrondi"
+   },
+   {
+    "fonction": "Sauvegarde et transfert",
+    "forme": "Flèche qui descend dans un plateau"
+   },
+   {
+    "fonction": "Son",
+    "forme": "Haut-parleur avec deux ondes"
+   },
+   {
+    "fonction": "Vibrations",
+    "forme": "Téléphone avec un trait de chaque côté"
+   },
+   {
+    "fonction": "Renommer la boutique",
+    "forme": "Crayon incliné"
+   },
+   {
+    "fonction": "Recommencer",
+    "forme": "Flèche circulaire ouverte"
+   },
+   {
+    "fonction": "Partager",
+    "forme": "Flèche qui sort d'un plateau"
+   },
+   {
+    "fonction": "Boutique (en-tête)",
+    "forme": "Façade avec auvent festonné et porte"
+   },
+   {
+    "fonction": "Spécialité",
+    "forme": "Médaille ronde à deux rubans"
+   }
+  ],
+  "evenements": "L'événement en cours s'affiche dans la scène, en bas à droite, sur une carte dégradée (fraise→orange pour le coup de feu, lavande pour la commande, etc.) : icône dans un carré blanc, titre et effet, gros chrono Fredoka 24 px et barre de temps. Pour les événements à action (Livrer, Pétris !, Répare !), le chrono laisse sa place à un bouton blanc à épaisseur, toujours sous le pouce droit. Le critique marque toujours ses cartes dans la liste. L'historique des vingt derniers événements vit dans la feuille Trophées, avec l'icône cloche.",
+  "quetes": "Sur l'écran principal, une seule ligne repliée résume tout : avancement du jour (1/3), pain du jour, défi de la semaine (3/8), et une pilule menthe « Prime 2,1 M € » dès qu'une prime attend. Toucher la ligne ou le bouton Défis ouvre la feuille Défis avec trois onglets en pilule : Aujourd'hui (trois défis en cartes, bouton Récupérer menthe ou Prime grisé), Pain du jour (croissants ×1,5), Semaine (livrer 8 commandes, barre beurre, récompense +1 ★ grisée tant que ce n'est pas réussi). Le badge « 1 » sur Défis double la pilule pour qu'on ne rate pas une prime même liste défilée.",
+  "trophees": "Le bouton Trophées (coupe) ouvre une feuille « Trophées et journal » : la grille des 28 trophées en tête, puis records, habitués, derniers événements et le bouton Partager. Un trophée gagné déclenche le toast brun avec coupe dorée en haut de la scène et pose un badge beurre « 1 » sur le bouton jusqu'à l'ouverture de la feuille. Le journal cesse d'être un lien texte caché sous Étoiles.",
+  "reglages": "Le bouton Réglages (engrenage) regroupe ce qui était dispersé : interrupteurs Son et Vibrations (icônes haut-parleur et téléphone), Sauvegarde et transfert (plateau, code à copier et champ pour charger), Renommer la boutique (crayon), et tout en bas, séparé et en gris, Recommencer de zéro (flèche circulaire) avec confirmation. Le son quitte l'en-tête : un réglage qu'on change une fois ne mérite pas une place permanente.",
+  "boulanger": "Deux portes d'entrée cohérentes : le bouton Boulanger (toque, aplat pêche) dans le tableau de bord et le personnage dans la scène. Quand un point de talent est disponible, une bulle lavande « 1 talent » flotte au-dessus de sa tête et le bouton porte un badge lavande « 1 ». La feuille garde la structure actuelle (portrait, niveau 9, barre de savoir-faire, neuf talents en cartes avec leurs crans) et accueille aussi le choix de spécialité (icône médaille).",
+  "style": "DA conservée à l'identique : fond crème, cartes blanches 20–22 px, ombres douces rgba(74,51,40,.10), boutons à épaisseur 4 px, Fredoka pour les chiffres et titres, Nunito pour le reste. Nouveauté : un système d'icônes unifié, trait 2 px arrondi brun, 24–26 px, chacune posée sur un aplat pastel qui identifie la fonction (lavande = bonus, fraise = défis, pêche = boulanger, beurre = trophées/étoiles, gris = réglages). Badges 20 px à bord blanc, pastilles de niveau brunes sur les icônes produits, portraits d'apprentis 26 px. Tout est dessiné en SVG inline, zéro emoji.",
+  "points_forts": [
+   "Une seule rangée dit où tout se trouve ; les badges remplacent les liens texte enfouis et le joueur sait d'un coup d'œil s'il a quelque chose à récupérer.",
+   "La scène gagne 15 % de hauteur et accueille l'événement là où il se passe ; la carte d'événement ne pousse plus la liste.",
+   "Quatre produits visibles sans défiler (cartes 76 px) sans perdre de cible tactile : boutons 52 px, puces d'apprenti 52 px.",
+   "Les actions fréquentes restent à droite et en bas : multiplicateur d'achat, Améliorer/Embaucher, bouton d'événement, pilule de prime.",
+   "Vérifié au rendu avec les vraies polices : aucun débordement de texte, 4e carte complète à 822 px sur 844, HTML équilibré."
+  ],
+  "risques": [
+   "Les libellés du tableau de bord (12 px) et les sous-libellés des boutons (10,5 px) passent sous les 15 px recommandés ; sur une boutique renommée longuement, l'enseigne devra tronquer.",
+   "La carte d'événement masque le bas du boulanger et une partie du comptoir : la zone touchable du personnage doit être recalculée sur sa tête, et le client mystère ne doit pas apparaître sous la carte.",
+   "Six boutons sur 390 px laissent 59 px par emplacement : un septième (par ex. Spécialité) ne tient pas, il faut rester à six et loger le reste dans les feuilles.",
+   "Le tableau de bord chevauchant le canvas (marge négative) demande d'ajuster la hauteur de scène et les coordonnées de la scène dans scene.js.",
+   "La maquette est une page de deux vues empilées (body non limité à 844 px) pour montrer la feuille Défis ouverte."
+  ],
+  "fichier": "/home/user/gamemobil/design/propositions/B.html"
+ },
+ {
+  "id": "C",
+  "nom": "Tout dans la boutique",
+  "accroche": "L’interface devient le mobilier de la boulangerie : la caisse affiche le solde, l’ardoise en bois sert de menu, l’événement est une affichette punaisée au mur et les produits sont posés sur des étagères avec leur étiquette-prix.",
+  "concept": "Chaque fonction cachée aujourd’hui derrière un lien texte dans la feuille Étoiles devient un objet visible de la boutique, à un endroit où le joueur s’attend à le trouver. Le menu principal est une ardoise à cinq pictogrammes à la craie posée au pied de la scène, donc toujours à portée de pouce ; les mêmes pictogrammes réapparaissent en brun sur pastel dans les feuilles pour que l’on reconnaisse la fonction d’un coup d’œil. Le skeuomorphisme reste doux : planches en dégradé beurre/bois, ombres pleines, aucune texture, palette pastel inchangée.",
+  "zones": [
+   {
+    "zone": "Caisse enregistreuse (en-tête, 72 px)",
+    "contenu": "Un boîtier blanc à ombre pleine avec un afficheur crème en creux : pièce, solde 33,5 M € en Fredoka 30 px, gains +162 k €/s en menthe avec une flèche ; un petit ticket dépasse du haut. À droite, le tiroir beurre « ★ 8 » ouvre la feuille Étoiles et nouvelle boutique."
+   },
+   {
+    "zone": "La boutique (scène Canvas, 228 px)",
+    "contenu": "Mur rayé, fenêtre sur la campagne, étagère murale, comptoir, boulanger avec une pastille lavande « 1 » au-dessus de la toque quand un point de talent attend, cliente avec son sac. L’enseigne en bois « Chez Mamie · n°2 » pend en haut à gauche (toucher = renommer). L’affichette « Coup de feu ! · Ventes ×3 · 0:42 » est punaisée en haut à droite avec sa jauge."
+   },
+   {
+    "zone": "L’ardoise (menu, 77 px, chevauche le bas de la scène)",
+    "contenu": "Panneau brun encadré de bois, cinq boutons de 44 px minimum avec disque pastel et pictogramme craie : Défis (carnet, badge menthe 1), Événements (cloche, point fraise pulsant), Boulanger (toque, badge lavande 1), Trophées (coupe, badge étoile beurre), Réglages (engrenage)."
+   },
+   {
+    "zone": "Barre d’achat (54 px)",
+    "contenu": "Pilule blanche ×1 ×10 ×100 Max avec le mode actif en brun, et à droite, pour le pouce, le bouton Bonus lavande avec le bocal et un badge « 2 » quand des bonus sont abordables."
+   },
+   {
+    "zone": "Ticket des objectifs (73 px)",
+    "contenu": "Un ticket de caisse blanc à bord dentelé : « Objectifs du jour » avec trois coches (1/3), la ligne « Du jour : croissants ×1,5 · Semaine 3/8 », et une pilule menthe « ✓ Prime » qui pulse quand une prime est à récupérer. Il ouvre le carnet."
+   },
+   {
+    "zone": "Les étagères (liste des produits, défilante)",
+    "contenu": "Chaque produit est une carte blanche posée sur une planche de bois : icône sur fond pêche, nom, barre de cuisson avec revenu et temps (ou « Touche ! » en fraise pointillé pour les recettes manuelles), bouton Améliorer ×N à droite et Embaucher dessous quand il n’y a pas d’apprenti. Sur la planche : l’étiquette-prix « Niv. 212 · palier 250 », l’étiquette beurre « Du jour ×1,5 », et l’apprenti debout sur l’étagère (« Léo s’en occupe »)."
+   }
+  ],
+  "navigation": "Un seul écran principal, aucun onglet permanent : la caisse, la scène et les étagères restent toujours visibles et l’ardoise ouvre une feuille unique qui monte du bas. En tête de cette feuille, la même ardoise réapparaît en bandeau d’onglets : l’onglet actif s’élargit avec son nom, les autres restent des pictogrammes avec leur badge, si bien que l’on passe des Défis au Boulanger sans refermer. Les raccourcis contextuels (affichette, ticket, boulanger dans la scène, enseigne, tiroir à étoiles) ouvrent directement l’onglet concerné. Le bouton sombre « Retour à la boutique » ferme la feuille.",
+  "icones": [
+   {
+    "fonction": "Défis (objectifs du jour, pain du jour, défi de la semaine)",
+    "forme": "Carnet à spirale : rectangle arrondi, trois anneaux à gauche, deux lignes d’écriture. Disque menthe."
+   },
+   {
+    "fonction": "Événements",
+    "forme": "Cloche à battant : dôme en trait, petit arc pour le battant, tige en haut. Disque fraise, point fraise pulsant pendant un événement."
+   },
+   {
+    "fonction": "Boulanger et talents",
+    "forme": "Toque : trois bosses nuageuses sur un bandeau avec deux plis verticaux. Disque lavande, badge « 1 » quand un point de talent attend."
+   },
+   {
+    "fonction": "Trophées et journal",
+    "forme": "Coupe : calice à deux anses, pied et socle trapézoïdal. Disque beurre, badge étoile quand un trophée vient d’être gagné."
+   },
+   {
+    "fonction": "Réglages (son, vibrations, sauvegarde, renommer, recommencer)",
+    "forme": "Engrenage : cercle, huit crans radiaux, moyeu central. Disque pêche."
+   },
+   {
+    "fonction": "Bonus (améliorations)",
+    "forme": "Bocal à couvercle avec une petite étoile dessinée dedans. Sur fond lavande du bouton, trait blanc."
+   },
+   {
+    "fonction": "Étoiles et nouvelle boutique",
+    "forme": "Étoile à cinq branches, aplat blanc contour beurre sombre, sur le tiroir beurre de la caisse."
+   },
+   {
+    "fonction": "Sauvegarde et code de transfert (dans Réglages)",
+    "forme": "Coffre : boîte arrondie avec poignée et fente, pour la sauvegarde ; clé à anneau et deux dents pour le code à copier. Dessinés dans le sprite du fichier."
+   },
+   {
+    "fonction": "Recette verrouillée (dans la liste)",
+    "forme": "Cadenas fermé, anse ronde, point de serrure. Dans le sprite du fichier."
+   }
+  ],
+  "evenements": "L’événement en cours vit dans la scène sous forme d’affichette blanche punaisée au mur (punaise fraise, légère rotation, titre Fredoka 15 px, sous-titre, chrono 22 px, jauge fine), ce qui libère la liste sans masquer le boulanger ni la cliente. Pour les événements interactifs (pétrissage, panne, commande prête), l’affichette porte le bouton à tapoter ou « Livrer ! ». La cloche de l’ardoise pulse pendant l’événement et ouvre l’onglet Événements : détail de l’événement en cours, règles des sept événements et les derniers événements du journal.",
+  "quetes": "Au repos, les objectifs tiennent dans le ticket de caisse sous la barre d’achat : compte 1/3 par trois coches, pain du jour et avancement du défi de la semaine, pilule « Prime » qui pulse quand il y a quelque chose à récupérer. Le détail est l’onglet Défis, présenté comme une page de carnet à anneaux : série de jours, trois lignes de défi avec barre et bouton Récupérer (menthe) ou Prime grisé, encadré beurre « Pain du jour : croissants ×1,5 », puis « Défi de la semaine » avec sa récompense +1 ★ datée « Dimanche ». Le pain du jour est aussi rappelé par l’étiquette beurre sur la planche du croissant.",
+  "trophees": "La coupe de l’ardoise ouvre l’onglet Trophées : les 28 trophées en vitrine (grille 2 colonnes, les gagnés en beurre pâle, les autres en gris), avec le trophée fraîchement gagné mis en avant en tête, puis le journal des faits marquants et le bouton Partager. Le badge étoile sur la coupe signale un trophée non encore consulté et disparaît à l’ouverture.",
+  "reglages": "L’engrenage regroupe tout ce qui est administratif : interrupteurs Son et Vibrations (le son quitte l’en-tête), « Sauvegarde et transfert » avec l’icône coffre et le code à copier derrière l’icône clé, « Renommer la boutique » (aussi accessible via l’enseigne), le choix de spécialité, et en bas, séparé et en fraise, « Recommencer de zéro » avec confirmation. Chaque ligne a son icône brun-sur-pastel pour rester lisible.",
+  "boulanger": "Le boulanger reste touchable dans la scène et porte une pastille lavande « 1 » au-dessus de la toque dès qu’un point de talent est disponible ; la toque de l’ardoise porte le même badge. L’onglet Boulanger montre le portrait sur fond pêche, le titre (« Boulanger », niveau 9), la barre de savoir-faire lavande, puis les neuf talents en liste avec crans ● ○ et bouton « Apprendre · 1 point » en lavande.",
+  "style": "DA conservée : fond crème, cartes blanches à 22 px, brun #4A3328, Fredoka pour les titres et chiffres, Nunito pour le texte, boutons à ombre pleine de 4 px. Le skeuomorphisme est léger : planches en dégradé beurre/bois avec un filet brillant, ardoise brune cerclée de bois, ticket dentelé, affichette avec punaise, enseigne suspendue à deux ficelles ; aucune texture bitmap. Les icônes partagent un seul système (trait 2 px arrondi, 24 px) avec deux colorations : craie blanche sur disque pastel translucide sur l’ardoise, brun sur disque pastel partout ailleurs.",
+  "points_forts": [
+   "Les huit fonctions cachées deviennent visibles et nommées sur l’écran principal, chacune avec son icône et son badge d’état.",
+   "L’ardoise au pied de la scène et le bouton Bonus à droite placent les actions fréquentes dans la zone du pouce droit.",
+   "La liste des produits gagne de la place : l’événement monte dans la scène, les objectifs se compressent en un ticket, et les cartes avec apprenti ne font que 104 px.",
+   "Le thème boulangerie (caisse, ardoise, étagères, étiquettes, affichette) est charmant et lisible sans toucher à la palette ni aux polices.",
+   "Les mêmes pictogrammes servent de menu et d’onglets dans la feuille, ce qui rend la navigation prévisible et sans retour arrière."
+  ],
+  "risques": [
+   "Les cinq libellés de l’ardoise à 15 px tiennent tout juste dans 374 px avec Fredoka ; une police de secours plus large ferait déborder « Événements », il faudra charger la police localement ou prévoir « Imprévus » en repli.",
+   "L’affichette couvre la partie droite de la scène : les clients et le client mystère doivent être dessinés dans la moitié gauche ou sous la ligne du comptoir pendant un événement.",
+   "L’ardoise en brun foncé est le seul bloc sombre de l’écran : à tester sur l’appareil pour vérifier qu’il ne pèse pas trop sur la DA « lumineuse ».",
+   "La planche avec étiquettes ajoute 22 px par carte ; les cartes sans apprenti et à titre long (Pain au chocolat) montent à 146 px, ce qui réduit le nombre de produits visibles sur un écran."
+  ],
+  "fichier": "/home/user/gamemobil/design/propositions/C.html"
+ },
+ {
+  "id": "D",
+  "nom": "Minimal + boulanger",
+  "accroche": "L'écran ne montre que ce qui fait jouer : le solde, la boutique, les recettes. Tout le reste tient dans le boulanger, un bouton rond en bas à droite, sous le pouce.",
+  "concept": "L'écran principal est réduit à trois zones : une scène immersive qui monte jusqu'au bord haut avec le solde posé dessus en capsule translucide, la liste des recettes (zone de jeu), et un seul bouton flottant portant le portrait du boulanger. Ce bouton déploie un volet à six tuiles (Défis, Boulanger, Journal, Bonus, Étoiles, Réglages) avec badges, ce qui remplace la feuille Étoiles et ses liens texte. Les événements n'occupent de la place que lorsqu'ils existent : une cloche en haut à droite s'anime et une bannière glisse sous la scène le temps de l'événement. Les cartes produits gagnent l'espace libéré : icône 68 px, barre de cuisson 34 px, boutons 44 px.",
+  "zones": [
+   {
+    "zone": "Scène (0–244 px)",
+    "contenu": "La boutique dessinée plein cadre, coins bas arrondis 30 px, barre d'état par-dessus. L'enseigne « Chez Mamie n°2 » est dans le décor, à droite pour ne pas passer sous la capsule."
+   },
+   {
+    "zone": "Capsule solde (flottante, haut gauche)",
+    "contenu": "Pièce 38 px, « 33,5 M € » en Fredoka 26, « +162 k €/s » en menthe 15 px, fond blanc 78 % flouté, liseré blanc. Elle lit le solde sans voler de hauteur à la scène."
+   },
+   {
+    "zone": "Cloche (flottante, haut droite)",
+    "contenu": "Bouton rond 48 px, même verre translucide. Pendant un événement : fond rose pâle, point fraise, animation de sonnerie ; au repos : neutre, sans point. Le toucher ouvre la feuille Événements (en cours + historique)."
+   },
+   {
+    "zone": "Bannière d'événement (sous la scène, seulement pendant)",
+    "contenu": "Dégradé fraise→orange 22 px, icône 44 px, titre « Coup de feu ! », consigne, chrono 0:42 et bouton blanc « Servir » à épaisseur, barre de temps en bas. Elle glisse vers le bas à l'arrivée et disparaît à la fin."
+   },
+   {
+    "zone": "Liste des recettes (zone de jeu)",
+    "contenu": "En-tête « Recettes 5 / 8 » à gauche et pilule des modes ×1 ×10 ×100 Max à droite (le Bonus quitte cette barre). Cartes 22 px : icône 68 px sur pêche, nom + tag (Pain du jour ×2, Spécialité ×2) + pastille niveau, barre 34 px avec revenu et temps, colonne de deux boutons 44 px (Améliorer fraise ; Embaucher menthe, apprenti en place, ou gris désactivé)."
+   },
+   {
+    "zone": "Bouton boulanger (FAB, bas droite)",
+    "contenu": "66 px, blanc, anneau beurre, double ombre (épaisseur 5 px + portée), portrait du boulanger selon son titre, badge fraise « 3 » qui somme les nouveautés (prime, talent, trophée). Ouvert, il devient brun avec une croix."
+   },
+   {
+    "zone": "Volet du boulanger (vue 2)",
+    "contenu": "Carte crème 296 px ancrée au-dessus du bouton avec une queue de bulle, en-tête « Marcel, Chef boulanger · Niveau 9 · 1 talent à apprendre », puis grille 2×3 de tuiles blanches à épaisseur : icône pastel 44 px, libellé 15 px, sous-titre d'état, badge en coin."
+   }
+  ],
+  "navigation": "Un seul niveau de profondeur : écran principal → volet du boulanger → feuille (sheet) qui monte du bas, et retour par le voile ou la poignée. Le volet est modal avec voile brun flouté, se ferme par un toucher dehors ou sur la croix. Les cartes produits restent manipulables sans passer par aucun menu ; la cloche est le seul autre point d'entrée, réservé aux événements. Les badges remontent jusqu'au bouton flottant pour qu'on sache sans ouvrir s'il y a quelque chose à faire.",
+  "icones": [
+   {
+    "fonction": "Défis (objectifs du jour, pain du jour, défi de la semaine)",
+    "forme": "Cible : deux cercles concentriques, cœur fraise, point brun ; aplat rose pâle."
+   },
+   {
+    "fonction": "Boulanger et talents",
+    "forme": "Toque de chef avec bandeau fraise ; aplat pêche. Le bouton flottant utilise le portrait, la tuile utilise la toque."
+   },
+   {
+    "fonction": "Journal et trophées",
+    "forme": "Coupe à deux anses, bol beurre, socle ; aplat jaune pâle."
+   },
+   {
+    "fonction": "Bonus",
+    "forme": "Étincelle à quatre branches lavande accompagnée d'une petite étoile beurre ; aplat lavande pâle."
+   },
+   {
+    "fonction": "Étoiles et nouvelle boutique",
+    "forme": "Étoile à cinq branches pleine beurre, contour brun ; aplat jaune pâle."
+   },
+   {
+    "fonction": "Réglages",
+    "forme": "Engrenage à huit dents gris, moyeu blanc ; aplat gris."
+   },
+   {
+    "fonction": "Événements",
+    "forme": "Cloche à battant, rose pâle, point fraise de notification ; aplat rose pâle, animation de sonnerie quand un événement est actif."
+   },
+   {
+    "fonction": "Sauvegarde et code de transfert",
+    "forme": "Nuage menthe pâle avec flèche vers le bas ; aplat menthe."
+   },
+   {
+    "fonction": "Son",
+    "forme": "Haut-parleur pêche avec deux ondes."
+   },
+   {
+    "fonction": "Vibrations",
+    "forme": "Téléphone lavande avec traits de vibration de part et d'autre."
+   },
+   {
+    "fonction": "Renommer la boutique",
+    "forme": "Crayon incliné beurre pâle."
+   },
+   {
+    "fonction": "Recommencer",
+    "forme": "Flèche circulaire ouverte, sans aplat coloré (gris) pour signaler une action rare."
+   },
+   {
+    "fonction": "Partager",
+    "forme": "Boîte menthe pâle avec flèche sortante vers le haut."
+   }
+  ],
+  "evenements": "Ils vivent dans la cloche et dans la bannière. Hors événement, l'écran ne leur réserve aucune hauteur : la cloche est neutre. Quand un événement commence, la cloche passe en rose, gagne un point fraise et sonne, et la bannière colorée (une couleur par type : coup de feu, commande, critique, meunier, pétrissage, panne, anniversaire) glisse sous la scène avec chrono et action principale. Toucher la cloche ouvre une feuille avec l'événement en cours et les derniers événements du journal.",
+  "quetes": "La tuile Défis du volet remplace la carte « Objectifs du jour » de l'écran principal. Son sous-titre affiche l'état (« Jour 1 / 3 · semaine 3 / 8 ») et un badge menthe « Prime ! » quand une récompense attend ; le badge remonte dans le compteur du bouton flottant. Le pain du jour reste visible sur la carte produit concernée via le tag beurre « Pain du jour ×2 », parce que c'est là que le joueur agit. La feuille Défis garde la structure actuelle : trois défis, pain du jour, défi de la semaine.",
+  "trophees": "La tuile Journal regroupe records, habitués, 28 trophées et partage, avec le compteur « Trophées 12 / 28 » en sous-titre. Un trophée tout juste gagné affiche un badge beurre « Nouveau » sur la tuile et incrémente le badge du bouton flottant, en plus du toast existant. Dans la feuille, le trophée frais est mis en avant en tête de grille.",
+  "reglages": "Une seule tuile Réglages ouvre une feuille à lignes iconisées : Son (haut-parleur, interrupteur), Vibrations (téléphone, interrupteur), Renommer la boutique (crayon), Sauvegarde et code de transfert (nuage), Partager (boîte), et tout en bas Recommencer (flèche circulaire) en gris, séparé des autres. Le son quitte l'en-tête, qui ne garde que le solde et la cloche. Le bouton Spécialité rejoint la feuille Étoiles avec « Ta boutique » et la nouvelle boutique.",
+  "boulanger": "Il est le menu lui-même : son portrait, qui change avec les titres, est le bouton flottant, et l'en-tête du volet affiche son nom, son titre et son niveau. La tuile Boulanger porte un badge lavande avec le nombre de points de talent à dépenser (ici 1), et ouvre la feuille existante (XP, 9 talents, titres). Le toucher sur le boulanger dans la scène reste et mène au même endroit, ce qui rend le lien évident.",
+  "style": "La DA « lumineux et doux » est conservée et renforcée : crème, cartes blanches 22 px, Fredoka pour les chiffres et titres, Nunito pour le texte, boutons à épaisseur 4–5 px. Nouveautés : le verre translucide (blanc 78 %, flou 14 px, liseré blanc) pour la capsule et la cloche ; les icônes fonctionnelles unifiées en trait 2 px brun arrondi sur rond pastel 44 px ; les badges à liseré blanc 2,5 px ; une double ombre (épaisseur + portée) sur le bouton flottant. Six aplats pastel seulement : rose, jaune, menthe, lavande, pêche, gris.",
+  "points_forts": [
+   "Écran principal le plus aéré des quatre angles : la scène gagne de la hauteur et les cartes produits gagnent de la largeur et de la lisibilité.",
+   "Tout est joignable au pouce droit : bouton flottant, volet ancré en bas à droite, boutons d'action à droite des cartes.",
+   "Les événements ne coûtent de la place que lorsqu'ils existent, et la cloche donne un point d'entrée permanent pour les relire.",
+   "Un seul système d'icônes cohérent remplace les liens texte ; les badges agrégés sur le portrait disent d'un coup d'œil s'il y a quelque chose à récupérer.",
+   "La maquette reproduit toutes les données demandées (solde, gains, étoiles, événement, objectifs, pain du jour, semaine, talent, trophée) avec les états désactivé, prêt et verrouillé."
+  ],
+  "risques": [
+   "Les défis et le bonus sont à un toucher de plus qu'aujourd'hui ; les badges sur le portrait doivent être fiables, sinon les primes et les bonus abordables passent inaperçus.",
+   "Le bouton flottant recouvre le coin bas droit de la dernière carte visible : la liste doit garder un rembourrage bas d'environ 100 px et le bouton se réduire légèrement pendant le défilement.",
+   "Le flou d'arrière-plan (backdrop-filter) sur un canvas animé peut coûter en performance sur les vieux iPhone ; prévoir un repli en blanc opaque à 92 %.",
+   "Quelques textes secondaires (sous-titres de tuiles, pastilles niveau, légendes de boutons) sont à 11–13 px, sous le seuil de 15 px demandé ; ce sont des compléments, mais à surveiller.",
+   "La maquette n'a pas pu être capturée en navigateur sans tête (téléchargement de Chromium bloqué) : la géométrie a été vérifiée par calcul, pas à l'écran."
+  ],
+  "fichier": "/home/user/gamemobil/design/propositions/D.html"
+ }
+]
