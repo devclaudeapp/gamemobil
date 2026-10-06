@@ -31,6 +31,8 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   check((await W()).indice.includes('améliore'), 'indice : améliorer');
   await page.tap('.carte[data-i="0"] [data-a="ameliorer"]'); await sleep(300);
   check((await W()).niv.startsWith('2'), 'baguette niveau 2');
+  const palier = await page.evaluate(() => ({ txt: document.querySelector('.carte[data-i="0"] .palier').innerText.replace(/\n/g, ' '), larg: document.querySelector('.carte[data-i="0"] .palier i').style.width }));
+  check(/Palier 25/.test(palier.txt) && /×2/.test(palier.txt) && /23 niveaux/.test(palier.txt) && palier.larg === '8%', 'la carte montre le prochain palier et la progression : ' + palier.txt + ' (' + palier.larg + ')');
   // accélérer : on crédite 5 000 € et on suit les indices
   await page.evaluate(() => window.__fournil.give(5000)); await sleep(400);
   console.log('crédité', await W());
@@ -47,6 +49,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.screenshot({ path: out + '/04-apprenti.png' });
   // mode ×10 puis Max, achats
   await page.tap('.modes [data-mode="max"]'); await sleep(200);
+  check(await page.evaluate(() => { const f = window.__fournil, n = f.G.quantite(f.st, 1); return n >= 24 ? !!document.querySelector('.carte[data-i="1"] [data-a="ameliorer"] .pal-badge') : true; }), 'en Max, le bouton annonce le palier ×2 quand l’achat le franchit');
   await page.tap('.carte[data-i="1"] [data-a="ameliorer"]'); await sleep(300);
   console.log('max', await W());
   await page.tap('.modes [data-mode="1"]'); await sleep(200);
@@ -55,6 +58,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   for (const i of [1, 2, 3]) { await page.tap(`.carte[data-i="${i}"] [data-a="embaucher"]`); await sleep(250); }
   await sleep(1500);
   await page.screenshot({ path: out + '/05-boutique.png' });
+  check(await page.evaluate(() => [...document.querySelectorAll('.carte')].every((c) => { const r = c.getBoundingClientRect(); return [...c.querySelectorAll('.corps, .corps > *, .boutons, .boutons > *')].every((el) => el.getBoundingClientRect().right <= r.right + 0.5); })), 'aucune carte ne déborde de son cadre');
   // objectifs du jour : carte compacte puis feuille, on réclame une prime
   check(await page.evaluate(() => document.querySelectorAll('#onglets button').length === 5 && document.querySelectorAll('#onglets .ico svg').length === 5), 'cinq onglets avec leurs icônes');
   const obj = await page.evaluate(() => ({ hidden: document.querySelector('#objectifs').hidden, txt: document.querySelector('#objectifs').innerText, n: window.__fournil.st.jour.objectifs.length }));
@@ -250,6 +254,8 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await p2.goto('http://localhost:8781/'); await sleep(700); await p2.screenshot({ path: out + '/10-petit-ecran.png' });
   const overflow = await p2.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   check(!overflow, 'pas de défilement horizontal à 360 px');
+  const dans = await p2.evaluate(() => { const c = document.querySelector('.carte[data-i="0"]').getBoundingClientRect(); return [...document.querySelectorAll('.carte[data-i="0"] .corps, .carte[data-i="0"] .corps > *, .carte[data-i="0"] .boutons')].every((el) => el.getBoundingClientRect().right <= c.right + 0.5) && document.querySelector('.carte[data-i="0"] .corps').getBoundingClientRect().right < document.querySelector('.carte[data-i="0"] .boutons').getBoundingClientRect().left; });
+  check(dans, 'à 360 px, le corps de la carte ne chevauche pas les boutons');
   console.log(errors.length ? 'ERRORS ' + errors.join(' | ') : 'ERRORS none');
   await browser.close(); server.close();
   console.log(fails ? `${fails} échec(s)` : 'Tout passe.');

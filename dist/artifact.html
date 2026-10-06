@@ -168,10 +168,19 @@ body.replie #enseigne { opacity: 0; pointer-events: none; transform: translateX(
 .carte .icone { position: relative; width: 54px; height: 54px; border-radius: 16px; background: var(--peche); display: grid; place-items: center; }
 .carte .icone svg { width: 42px; height: 42px; }
 .carte .icone .niv { position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); min-width: 26px; padding: 3px 6px; border-radius: 999px; background: var(--texte); color: #fff; font: 800 11px/1 var(--texte-font); text-align: center; box-shadow: 0 0 0 2px #fff; }
-.carte .corps { min-width: 0; display: grid; gap: 6px; }
+.carte .corps { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); gap: 5px; }
 .carte h3 { margin: 0; font: 700 17px/1.1 var(--titre); letter-spacing: -.01em; display: flex; align-items: center; gap: 4px 6px; flex-wrap: wrap; min-width: 0; }
 .carte h3 .nom { min-width: 0; }
-.carte h3 .pal { margin-left: auto; font: 800 11px/1 var(--texte-font); color: var(--gris-texte); font-style: normal; white-space: nowrap; }
+.carte .palier { position: relative; display: flex; justify-content: space-between; gap: 8px; padding-bottom: 7px; font: 800 11px/1 var(--texte-font); color: var(--texte-2); white-space: nowrap; }
+.carte .palier span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.carte .palier span + span { color: var(--gris-texte); flex: 0 0 auto; }
+@media (max-width: 370px) { .carte .palier span + span { display: none; } }
+.carte .palier b { color: var(--texte); }
+.carte .palier::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; border-radius: 2px; background: var(--creme); }
+.carte .palier i { position: absolute; left: 0; bottom: 0; height: 4px; border-radius: 2px; background: var(--beurre); transition: width .3s; }
+.carte .palier.bientot span + span { color: var(--beurre-sombre); }
+.btn { position: relative; }
+.btn .pal-badge { position: absolute; top: -8px; right: -4px; padding: 3px 6px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 800 10px/1 var(--texte-font); font-style: normal; white-space: nowrap; box-shadow: 0 0 0 2px #fff; }
 .carte .barre { position: relative; height: 26px; border-radius: 999px; background: var(--creme); overflow: hidden; }
 .carte .barre i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 999px; background: var(--menthe); }
 .carte .barre i.rapide { background: linear-gradient(90deg, var(--menthe), var(--menthe-sombre)); width: 100% !important; }
@@ -1458,12 +1467,14 @@ const UI = (() => {
           <button type="button" class="btn ${ok ? 'menthe' : 'non'}" data-a="debloquer"><small>${remise < 1 ? `Débloquer −${Math.round((1 - remise) * 100)} %` : 'Débloquer'}</small><b>${G.fmtEur(p.debloquer * remise)}</b></button></div>`;
       } else {
         const n = G.quantite(st, i), prix = G.prixNiveaux(st, i, n), ok = st.coins >= prix, pal = G.prochainPalier(s.niv);
+        const prec = G.PALIERS.filter((x) => x <= s.niv).pop() || 0, franchit = pal && s.niv + n >= pal; // le palier : les gains doublent à 25, 50, 100…
         const rapide = p.temps <= 1.5 && s.staff;
         cls = 'carte' + (s.staff ? ' auto' : ' manuel') + (s.actif ? ' actif' : '') + (critique.includes(i) ? ' gouter' : '');
         html = `${critique.includes(i) ? '<span class="badge-critique">Sers le critique !</span>' : ''}<div class="icone">${ICONS.PRODUITS[p.id]}<span class="niv">${s.niv}</span></div>
-          <div class="corps"><h3><span class="nom">${esc(p.nom)}${st.jour && st.jour.pain === i ? ' <span class="tag">×1,5</span>' : ''}${st.specialite === i ? ' <span class="tag spe">×2</span>' : ''}</span>${pal && pal - s.niv <= 10 ? `<i class="pal">palier ${pal}</i>` : ''}</h3>
+          <div class="corps"><h3><span class="nom">${esc(p.nom)}${st.jour && st.jour.pain === i ? ' <span class="tag">×1,5</span>' : ''}${st.specialite === i ? ' <span class="tag spe">×2</span>' : ''}</span></h3>
+            <div class="palier ${franchit ? 'bientot' : ''}">${pal ? `<span title="Au niveau ${pal}, les gains sont multipliés par ${G.palierMult(pal)}">Palier <b>${pal}</b> · ×${G.palierMult(pal)}</span><span>${pal - s.niv === 1 ? '1 niveau' : `${pal - s.niv} niveaux`}</span><i style="width:${((s.niv - prec) / (pal - prec) * 100).toFixed(0)}%"></i>` : `<span>Dernier palier atteint · ×${G.palierMult(s.niv)}</span><i style="width:100%"></i>`}</div>
             <div class="barre"><i class="${rapide ? 'rapide' : ''}"></i><span class="rev">+${G.fmtEur(G.revenuFournee(st, i))}</span>${s.staff || s.actif ? `<span class="tps">${G.fmtDuree(G.temps(st, i))}</span>` : '<span class="cuire">Touche !</span>'}</div></div>
-          <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'} ${remise < 1 ? 'promo' : ''}" data-a="ameliorer"><small>${remise < 1 ? `−${Math.round((1 - remise) * 100)} % ×${n}` : `Améliorer ×${n}`}</small><b>${G.fmtEur(prix)}</b></button>
+          <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'} ${remise < 1 ? 'promo' : ''}" data-a="ameliorer"><small>${remise < 1 ? `−${Math.round((1 - remise) * 100)} % ×${n}` : `Améliorer ×${n}`}</small><b>${G.fmtEur(prix)}</b>${franchit ? `<i class="pal-badge">palier ×${G.palierMult(pal)}</i>` : ''}</button>
             ${s.staff ? `<div class="staff-ok" title="${esc(p.staffNom)} s’en occupe">${ICONS.apprenti(i)}<span>${esc(p.staffNom.split(' ').pop())}</span><i class="ico coche">${ICONS.UI.coche}</i></div>` : `<button type="button" class="btn beurre ${st.coins >= G.prixStaff(st, i) ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${G.fmtEur(G.prixStaff(st, i))}</b></button>`}</div>`;
       }
       if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); }

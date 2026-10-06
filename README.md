@@ -11,7 +11,7 @@ Ta boulangerie de quartier, en jeu idle/tycoon simple et lumineux : **tu cuis, t
 ## Comment on joue
 
 1. **Touche la baguette** : elle cuit, un client l'achète, tu gagnes 1 €.
-2. **Améliore** un produit : chaque niveau rapporte plus. Aux niveaux 25, 50, 100, 200… les gains **doublent**.
+2. **Améliore** un produit : chaque niveau rapporte plus. Aux niveaux 25, 50, 100, 200… les gains **doublent** : chaque carte montre le prochain palier, le multiplicateur qu'il apporte et une jauge de progression, et le bouton Améliorer annonce quand l'achat franchit le palier.
 3. **Débloque** de nouvelles recettes : croissant, pain au chocolat, tarte aux pommes, éclair, macarons, mille-feuille, pièce montée.
 4. **Embauche** un apprenti par produit : il cuit tout seul, même pendant ton absence (jusqu'à 8 h).
 5. **Bonus** : des recettes et des équipements qui multiplient tes gains pour toujours.
