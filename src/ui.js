@@ -1,10 +1,13 @@
-/* LE FOURNIL — interface : cartes des produits, objectifs du jour, événements, indices du tutoriel, feuilles, sons, sauvegarde, boucle. */
+/* LE FOURNIL — interface : barre d'onglets (Boutique, Défis, Boulanger, Journal, Réglages), cartes compactes, ticket des objectifs,
+   bannière d'événement sur la scène, cloche, badges, feuilles, sons, sauvegarde, boucle. */
 const UI = (() => {
   'use strict';
   const G = GAME, $ = (s) => document.querySelector(s), KEY = 'fournil.v2';
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let st, lastFrame = 0, lastSave = 0, cards = [], lastHud = '', lastObj = '', lastEv = '', hintStep = -1, hintUntil = 0, toastTimer = 0, lastNiveau = 0, vuBoulanger = false;
+  let st, lastFrame = 0, lastSave = 0, cards = [], lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, toastTimer = 0, lastNiveau = 0, vuBoulanger = false;
+  let pageActive = 'boutique', evEtendu = false;
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const PAGES = ['boutique', 'defis', 'boulanger', 'journal', 'reglages'];
 
   // ─── sauvegarde : localStorage et IndexedDB en double (le second résiste mieux quand l'app est tuée), on relit la plus récente ───
   const DB = 'fournil', STORE = 'sauvegarde';
@@ -76,7 +79,7 @@ const UI = (() => {
   };
   function buzz(p) { if (!st.vibre) return; try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* pas de vibreur */ } }
 
-  // ─── cartes des produits ───
+  // ─── cartes des produits (compactes : niveau sur l'icône, barre fine, deux boutons de 44 px) ───
   function buildCards() {
     const box = $('#cartes'); box.innerHTML = ''; cards = [];
     G.PRODUITS.forEach((p, i) => { const el = document.createElement('article'); el.className = 'carte'; el.dataset.i = i; box.appendChild(el); cards.push({ el, html: '' }); });
@@ -96,11 +99,11 @@ const UI = (() => {
         const n = G.quantite(st, i), prix = G.prixNiveaux(st, i, n), ok = st.coins >= prix, pal = G.prochainPalier(s.niv);
         const rapide = p.temps <= 1.5 && s.staff;
         cls = 'carte' + (s.staff ? ' auto' : ' manuel') + (s.actif ? ' actif' : '') + (critique.includes(i) ? ' gouter' : '');
-        html = `${critique.includes(i) ? '<span class="badge-critique">Sers le critique !</span>' : ''}<div class="icone">${ICONS.PRODUITS[p.id]}</div>
-          <div class="corps"><h3>${esc(p.nom)}${st.jour && st.jour.pain === i ? ' <span class="tag">Pain du jour ×1,5</span>' : ''}${st.specialite === i ? ' <span class="tag spe">Spécialité ×2</span>' : ''} <span class="niv">Niv. ${s.niv}${pal ? ` <i>· palier ${pal}</i>` : ''}</span></h3>
+        html = `${critique.includes(i) ? '<span class="badge-critique">Sers le critique !</span>' : ''}<div class="icone">${ICONS.PRODUITS[p.id]}<span class="niv">${s.niv}</span></div>
+          <div class="corps"><h3><span class="nom">${esc(p.nom)}${st.jour && st.jour.pain === i ? ' <span class="tag">×1,5</span>' : ''}${st.specialite === i ? ' <span class="tag spe">×2</span>' : ''}</span>${pal && pal - s.niv <= 10 ? `<i class="pal">palier ${pal}</i>` : ''}</h3>
             <div class="barre"><i class="${rapide ? 'rapide' : ''}"></i><span class="rev">+${G.fmtEur(G.revenuFournee(st, i))}</span>${s.staff || s.actif ? `<span class="tps">${G.fmtDuree(G.temps(st, i))}</span>` : '<span class="cuire">Touche !</span>'}</div></div>
           <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'} ${remise < 1 ? 'promo' : ''}" data-a="ameliorer"><small>${remise < 1 ? `−${Math.round((1 - remise) * 100)} % ×${n}` : `Améliorer ×${n}`}</small><b>${G.fmtEur(prix)}</b></button>
-            ${s.staff ? `<div class="staff-ok">${ICONS.apprenti(i)}<span>${esc(p.staffNom.split(' ').pop())}<br>s’en occupe</span></div>` : `<button type="button" class="btn beurre ${st.coins >= G.prixStaff(st, i) ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${G.fmtEur(G.prixStaff(st, i))}</b></button>`}</div>`;
+            ${s.staff ? `<div class="staff-ok" title="${esc(p.staffNom)} s’en occupe">${ICONS.apprenti(i)}<span>${esc(p.staffNom.split(' ').pop())}</span><i class="ico coche">${ICONS.UI.coche}</i></div>` : `<button type="button" class="btn beurre ${st.coins >= G.prixStaff(st, i) ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${G.fmtEur(G.prixStaff(st, i))}</b></button>`}</div>`;
       }
       if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); }
       else if (c.el.className !== cls) c.el.className = cls;
@@ -135,49 +138,198 @@ const UI = (() => {
     if (st.stations[i].niv > 0 && !st.stations[i].staff) { if (G.lancer(st, i)) { son.tap(); buzz(6); SCENE.tap(); renderCards(); } }
   }
 
-  // ─── en-tête ───
+  // ─── en-tête, enseigne, cloche et badges des onglets ───
+  const trophesGagnes = () => G.TROPHEES.filter((t) => (st.trophees || {})[t.id]).length;
+  const primesAReclamer = () => { const j = G.objectifsDuJour(st, st.now), sm = st.semaine; return j.objectifs.filter((o) => o.fait && !o.reclame).length + (sm && sm.fait && !sm.reclame ? 1 : 0); };
+  function badge(el, n, cls) { const b = el.querySelector('.badge'); if (!b) return; b.hidden = !n; b.textContent = n > 0 && cls !== 'point' ? n : ''; b.className = 'badge' + (cls ? ' ' + cls : ''); }
   function hud() {
     const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st), marche = G.jourDeMarche(st.now), boost = st.boost && st.boost.fin > st.now ? st.boost.mult : 0;
-    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}`;
+    const bonus = G.AMELIORATIONS.filter((a) => !st.ameliorations[a.id] && st.coins >= G.prixBonus(st, a)).length, primes = primesAReclamer(), pts = G.ptsTalents(st);
+    const nouveaux = Math.max(0, trophesGagnes() - (st.vu ? st.vu.trophees : 0)), nom = G.nomBoutique(st), ev = st.ev ? st.ev.type : '';
+    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}`;
     if (key === lastHud) return; lastHud = key;
     $('#coins').textContent = G.fmtEur(st.coins);
     $('#taux').innerHTML = (taux > 0 ? `<b>+${G.fmtEur(taux)}</b> par seconde` : 'Touche la baguette !') + (marche || boost ? '<br>' : '') + (marche ? '<span class="marche">Marché ×1,5</span>' : '') + (boost ? `<span class="marche">Bonne critique ×${boost}</span>` : '');
     $('#etoiles-n').textContent = gain > 0 ? `${st.etoiles} · +${gain}` : st.etoiles;
     $('#b-etoiles').classList.toggle('pret', gain >= 3);
-    $('#b-ameliorations').classList.toggle('pret', G.AMELIORATIONS.some((a) => !st.ameliorations[a.id] && st.coins >= G.prixBonus(st, a)));
+    $('#b-ameliorations').classList.toggle('pret', bonus > 0); badge($('#b-ameliorations'), bonus);
+    $('#enseigne span').textContent = nom;
+    $('#b-cloche').classList.toggle('actif', !!ev); $('#b-cloche .point').hidden = !ev;
+    badge($('#onglets [data-page="defis"]'), primes);
+    badge($('#onglets [data-page="boulanger"]'), pts, 'lavande');
+    badge($('#onglets [data-page="journal"]'), nouveaux, 'beurre');
   }
   function toast(txt) { let el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); } el.textContent = txt; clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 2400); }
   function flottant(x, y, txt) { const el = document.createElement('div'); el.className = 'flottant'; el.textContent = txt; el.style.left = x + 'px'; el.style.top = y + 'px'; document.body.appendChild(el); setTimeout(() => el.remove(), 900); }
 
-  // ─── objectifs du jour : carte compacte, feuille détaillée ───
+  // ─── pages : une seule visible, la scène se replie hors de la Boutique ou quand on fait défiler ───
+  function showPage(id) {
+    if (!PAGES.includes(id)) return;
+    pageActive = id;
+    document.querySelectorAll('#pages .page').forEach((p) => { p.hidden = p.dataset.page !== id; });
+    document.querySelectorAll('#onglets button').forEach((b) => { const on = b.dataset.page === id; b.classList.toggle('actif', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    $('#pages').scrollTop = 0;
+    if (id === 'boulanger') vuBoulanger = true;
+    if (id === 'journal' && st.vu) { st.vu.trophees = trophesGagnes(); }
+    lastPage = ''; renderPage(true);
+    replier();
+    hud();
+  }
+  function replier() { document.body.classList.toggle('replie', pageActive !== 'boutique' || $('#pages').scrollTop > 40); }
+  const PAGE_HEAD = (id, titre, droite) => `<div class="page-tete"><h2><span class="pic">${ICONS.UI[id]}</span>${titre}</h2>${droite || ''}</div>`;
+  function renderPage(force) {
+    if (pageActive === 'boutique') return;
+    const sec = $(`#page-${pageActive}`);
+    const p = { defis: pageDefis, boulanger: pageBoulanger, journal: pageJournal, reglages: pageReglages }[pageActive];
+    const key = p.key();
+    if (force || key !== lastPage) { lastPage = key; sec.innerHTML = p.html(); p.bind(sec); }
+    if (p.maj) p.maj(sec);
+  }
+  const onIn = (sec, sel, fn) => sec.querySelectorAll(sel).forEach((b) => b.addEventListener('click', () => { audio(); fn(b); }));
+  const pct = (a, b) => Math.min(100, a / b * 100).toFixed(0) + '%';
+
+  // Défis : objectifs du jour (primes à récupérer), pain du jour, défi de la semaine, les sept événements
+  const EV_LISTE = [
+    ['rush', () => ICONS.FEU, 'Coup de feu', `toutes les ventes ×${G.RUSH.mult} pendant ${G.RUSH.duree} s`],
+    ['commande', () => ICONS.PRODUITS.baguette, 'Commande spéciale', `des fournées à livrer en ${G.COMMANDE.duree / 60} min, payées ${G.COMMANDE.prime} fois`],
+    ['critique', () => ICONS.CRITIQUE, 'Le critique', `trois recettes en ${G.CRITIQUE.duree / 60} min, puis tout ×${G.CRITIQUE.mult} pendant ${G.CRITIQUE.boost / 60} min`],
+    ['meunier', () => ICONS.SAC, 'Le meunier', `niveaux et recettes à −${Math.round(G.MEUNIER.remise * 100)} % pendant ${G.MEUNIER.duree} s`],
+    ['petrissage', () => ICONS.PATE, 'Concours de pétrissage', `${G.PETRISSAGE.n} touches en ${G.PETRISSAGE.duree} s`],
+    ['panne', () => ICONS.PANNE, 'Panne de four', `${G.PANNE.n} touches pour réparer, prime à la clé`],
+    ['anniversaire', () => ICONS.BALLON, 'Goûter d’anniversaire', `un produit ×${G.ANNIVERSAIRE.mult} pendant ${G.ANNIVERSAIRE.duree / 60} min`],
+  ];
+  const pageDefis = {
+    key: () => { const j = G.objectifsDuJour(st, st.now), sm = st.semaine; return JSON.stringify([j.objectifs.map((o) => [o.fait, o.reclame]), j.pain, j.etoileDonnee, sm && [sm.fait, sm.reclame, sm.txt], st.ev && st.ev.type, G.serieEnCours(st)]); },
+    html: () => {
+      const j = G.objectifsDuJour(st, st.now), sm = st.semaine, serie = G.serieEnCours(st), faits = j.objectifs.filter((o) => o.fait).length, aReclamer = j.objectifs.some((o) => o.fait && !o.reclame), pain = G.PRODUITS[j.pain];
+      return `${PAGE_HEAD('defis', 'Défis', serie > 0 ? `<span class="serie">${ICONS.UI.soleil}${serie} jour${serie > 1 ? 's' : ''}</span>` : '')}
+      <div class="bloc">
+        <div class="card ${aReclamer ? 'pret' : ''}"><div class="c-tete"><span class="pic peche">${ICONS.CIBLE}</span><h3>Objectifs du jour</h3><span class="compte ${aReclamer ? 'ok' : j.etoileDonnee ? 'or' : ''}">${aReclamer ? 'Prime !' : j.etoileDonnee ? 'Terminés ★' : `${faits}/3`}</span></div>
+          ${j.objectifs.map((o, k) => `<div class="ligne ${o.fait ? 'fait' : ''}"><div class="t"><span>${esc(o.txt)}</span><span class="p" data-p="${k}"></span></div>
+            ${o.reclame ? '<span class="ok">Récupéré ✓</span>' : `<button type="button" class="btn ${o.fait ? 'menthe' : 'non'}" data-k="${k}"><small>${o.fait ? 'Récupérer' : 'Prime'}</small><b>${G.fmtEur(o.prime)}</b></button>`}
+            <div class="mini"><i data-b="${k}"></i></div></div>`).join('')}
+          <p class="note">${j.etoileDonnee ? 'Bravo : une étoile de plus pour toujours. De nouveaux défis demain !' : 'Les trois réussis : <b>+1 étoile</b>, pour toujours.'}</p></div>
+        <div class="card pain"><span class="icone">${ICONS.PRODUITS[pain.id]}</span><div><b>Pain du jour : ${esc(pain.nom)} ×${G.PAIN_DU_JOUR_MULT.toString().replace('.', ',')}</b><span>Toute la journée, chaque fournée de ${esc(pain.pl)} rapporte moitié plus. Demain, un autre produit.</span></div></div>
+        ${sm ? `<div class="card ${sm.fait && !sm.reclame ? 'pret' : ''}"><div class="c-tete"><span class="pic lav">${ICONS.UI.etoile}</span><h3>Défi de la semaine</h3><span class="compte ${sm.reclame ? 'or' : sm.fait ? 'ok' : ''}">${sm.reclame ? 'Réussi ★' : sm.fait ? 'Prime !' : 'jusqu’à dimanche'}</span></div>
+          <div class="ligne ${sm.fait ? 'fait' : ''}"><div class="t"><span>${esc(sm.txt)}</span><span class="p" data-p="s"></span></div>
+            ${sm.reclame ? '<span class="ok">Récupéré ✓</span>' : `<button type="button" class="btn ${sm.fait ? 'beurre' : 'non'}" data-a="semaine"><small>${sm.fait ? 'Récupérer' : 'Récompense'}</small><b>+1 ★</b></button>`}
+            <div class="mini beurre"><i data-b="s"></i></div></div></div>` : ''}
+        <div class="card ev-liste"><div class="c-tete"><span class="pic rose">${ICONS.UI.cloche}</span><h3>Événements</h3><span class="compte" data-p="ev"></span></div>
+          ${EV_LISTE.map(([type, ico, nom, desc]) => `<div class="ligne ${st.ev && st.ev.type === type ? 'en-cours' : ''}"><div class="t"><span class="ev-ico">${ico()}</span><span><b>${nom}</b><small>${desc}</small></span></div>${st.ev && st.ev.type === type ? '<span class="chrono-pill" data-p="chrono"></span>' : ''}</div>`).join('')}
+          <p class="note">Ils arrivent tout seuls pendant que tu joues, toutes les quelques minutes. La cloche en haut te prévient.</p></div>
+      </div>`;
+    },
+    bind: (sec) => {
+      onIn(sec, '[data-k]', (b) => { const r = G.reclamer(st, +b.dataset.k); if (!r.ok) { son.non(); return; } son.deblocage(); buzz([10, 30, 10]); toast(r.etoile ? `+${G.fmtEur(r.prime)} et +1 ★ : objectifs du jour réussis !` : `+${G.fmtEur(r.prime)} de prime`); if (r.etoile) SCENE.fete(); renderCards(true); hud(); save(); renderPage(true); });
+      onIn(sec, '[data-a="semaine"]', () => { const r = G.reclamerSemaine(st); if (!r.ok) { son.non(); return; } reussite(`Défi de la semaine : +${G.fmtEur(r.prime)} et +1 ★ !`); renderPage(true); });
+    },
+    maj: (sec) => {
+      const j = G.objectifsDuJour(st, st.now), sm = st.semaine;
+      j.objectifs.forEach((o, k) => { const p = sec.querySelector(`[data-p="${k}"]`), b = sec.querySelector(`[data-b="${k}"]`); if (p) p.textContent = o.fait ? '✓' : `${G.fmt(Math.floor(o.progres))} / ${G.fmt(o.cible)}`; if (b) b.style.width = pct(o.progres, o.cible); });
+      if (sm) { const p = sec.querySelector('[data-p="s"]'), b = sec.querySelector('[data-b="s"]'); if (p) p.textContent = sm.fait ? '✓' : `${G.fmt(sm.progres)} / ${G.fmt(sm.cible)}`; if (b) b.style.width = pct(sm.progres, sm.cible); }
+      const e = sec.querySelector('[data-p="ev"]'); if (e) e.textContent = st.ev ? 'en cours' : `prochain dans ~${Math.max(1, Math.ceil(st.evTimer / 60))} min`;
+      const c = sec.querySelector('[data-p="chrono"]'); if (c && st.ev) c.textContent = G.fmtChrono(Math.max(0, (st.ev.fin - st.now) / 1000));
+    },
+  };
+  // Boulanger : niveau, savoir-faire, talents permanents
+  const pageBoulanger = {
+    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}`,
+    html: () => {
+      const np = G.niveauPour(st.xp), pts = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n);
+      return `${PAGE_HEAD('boulanger', 'Boulanger', pts ? `<span class="serie lav">${pts} point${pts > 1 ? 's' : ''}</span>` : '')}
+      <div class="bloc">
+        <div class="card boulanger-tete">${ICONS.boulanger(rang)}<div><h3>${esc(G.titre(st))}</h3><p class="sous">Niveau ${np.n} · ${G.fmt(np.reste)} / ${G.fmt(np.prochain)} savoir-faire${suivant ? `<br>${esc(suivant[1])} au niveau ${suivant[0]}` : ''}</p><div class="mini xp"><i style="width:${pct(np.reste, np.prochain)}"></i></div></div></div>
+        <div class="encadre doux">Le savoir-faire vient des défis du jour, des événements réussis, des recettes, des embauches et des nouvelles boutiques. Chaque niveau donne <b>un point de talent</b>. Les talents sont à toi pour toujours, même en changeant de boutique.</div>
+        <h3 class="titre-section">Talents${pts ? ` · <span class="pts">${pts} point${pts > 1 ? 's' : ''} à dépenser</span>` : ''}</h3>
+        <div class="liste-am">${G.TALENTS.map((t) => { const k = G.talent(st, t.id), max = k >= t.max; return `<div class="am talent ${k ? 'appris' : ''}"><div><h3>${esc(t.nom)} <span class="crans">${'●'.repeat(k)}${'○'.repeat(t.max - k)}</span></h3><p>${k ? esc(t.desc(k)) : 'Cran 1 : ' + esc(t.desc(1))}${k && !max ? `<br><em>Cran suivant : ${esc(t.desc(k + 1))}</em>` : ''}</p></div>${max ? '<span class="ok">Maîtrisé ✓</span>' : `<button type="button" class="btn ${pts ? 'lavande' : 'non'}" data-t="${t.id}"><small>Apprendre</small><b>1 point</b></button>`}</div>`; }).join('')}</div>
+      </div>`;
+    },
+    bind: (sec) => {
+      onIn(sec, '[data-t]', (b) => {
+        const r = G.apprendre(st, b.dataset.t);
+        if (!r.ok) { son.non(); toast(G.ptsTalents(st) ? 'Ce talent est déjà au maximum.' : 'Pas encore de point : gagne du savoir-faire.'); return; }
+        son.deblocage(); buzz([10, 30, 10]); toast(`${r.talent.nom} : ${r.talent.desc(r.cran)}`); renderCards(true); hud(); save(); renderPage(true);
+      });
+    },
+  };
+  // Journal : records, habitués, trophées, derniers événements, partage
+  const ilYA = (ms) => { const s = Math.max(0, (Date.now() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
+  const pageJournal = {
+    key: () => `${trophesGagnes()}|${(st.carnetEv || []).length}|${JSON.stringify(st.habitues)}|${st.stats.commandes}|${st.stats.critiques}|${st.stats.petrissages}|${st.stats.pannes}`,
+    html: () => {
+      const S = st.stats, tr = st.trophees || {}, gagnes = trophesGagnes();
+      return `${PAGE_HEAD('journal', 'Journal', `<span class="serie or">${ICONS.UI.trophee}${gagnes}/${G.TROPHEES.length}</span>`)}
+      <div class="bloc">
+        <p class="sous">${esc(G.nomBoutique(st))} · ${G.fmt(S.ventes)} fournées, ${G.fmt(S.clients)} clients depuis le début.</p>
+        <div class="card"><div class="c-tete"><span class="pic peche">${ICONS.UI.etoile}</span><h3>Records</h3></div>
+          <div class="stat"><span>Plus grosse commande livrée</span><b>${S.meilleureCommande ? G.fmtEur(S.meilleureCommande) : '—'}</b></div>
+          <div class="stat"><span>Meilleur pourboire</span><b>${S.meilleurPourboire ? G.fmtEur(S.meilleurPourboire) : '—'}</b></div>
+          <div class="stat"><span>Pétrissage le plus rapide</span><b>${S.petrissageRecord ? S.petrissageRecord.toFixed(1).replace('.', ',') + ' s' : '—'}</b></div>
+          <div class="stat"><span>Meilleure série d’objectifs</span><b>${S.serieMax || 0} jour${(S.serieMax || 0) > 1 ? 's' : ''}</b></div>
+          <div class="stat"><span>Commandes · critiques · pétrissages · fours</span><b>${S.commandes || 0} · ${S.critiques || 0} · ${S.petrissages || 0} · ${S.pannes || 0}</b></div></div>
+        <div class="card"><div class="c-tete"><span class="pic lav">${ICONS.UI.boulanger}</span><h3>Les habitués</h3></div>
+          ${G.HABITUES.map((h) => { const e = (st.habitues || {})[h.id]; return `<div class="ligne habitue"><span class="pastille-hab" style="background:${h.haut}"></span><div class="t"><span><b>${esc(h.nom)}</b><small>Passe entre ${h.debut}h et ${Math.floor(h.fin)}h${h.fin % 1 ? '30' : ''} · ${e && e.jours ? `fidèle depuis ${e.jours} jour${e.jours > 1 ? 's' : ''}` : 'première visite à venir'}</small></span></div></div>`; }).join('')}
+          <p class="note">Sers un habitué cinq jours de suite : il t’offre un cadeau.</p></div>
+        <h3 class="titre-section">Trophées · ${gagnes}/${G.TROPHEES.length}</h3>
+        <div class="trophees">${G.TROPHEES.map((t) => `<div class="troph ${tr[t.id] ? 'gagne' : ''}"><b>${esc(t.nom)}</b><span>${esc(t.desc)}</span></div>`).join('')}</div>
+        <h3 class="titre-section">Derniers événements</h3>
+        <div class="carnet">${(st.carnetEv || []).slice().reverse().map((e) => `<div><span>${esc(e.txt)}</span><small>${ilYA(e.t)}</small></div>`).join('') || '<p class="sous">Rien encore : joue un peu !</p>'}</div>
+        <button type="button" class="btn large lavande" data-a="partager" style="margin-top:14px"><b>Partager ma boutique</b></button>
+      </div>`;
+    },
+    bind: (sec) => { onIn(sec, '[data-a="partager"]', partager); },
+  };
+  // Réglages : son, vibrations, nom, spécialité, sauvegarde, partage, remise à zéro
+  const pageReglages = {
+    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}`,
+    html: () => {
+      const q = G.QUARTIERS[G.quartier(st)];
+      const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
+      const sw = (on) => `<span class="interrupteur" role="switch" aria-checked="${on}"></span>`, chev = `<i class="ico chev">${ICONS.UI.chevron}</i>`;
+      return `${PAGE_HEAD('reglages', 'Réglages')}
+      <div class="bloc">
+        <div class="card reglages">
+          ${ligne('son', st.son ? ICONS.UI.son : ICONS.UI.sonOff, 'Sons', 'Petites notes à chaque vente et achat', sw(st.son))}
+          ${ligne('vibre', ICONS.UI.vibre, 'Vibrations', 'Un léger retour sous le doigt', sw(st.vibre))}
+        </div>
+        <div class="card reglages">
+          ${ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)}
+          ${st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, '')}
+          ${ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)}
+          ${ligne('partager', ICONS.UI.partager, 'Partager ma boutique', 'Une image de la boutique et ton score', chev)}
+        </div>
+        <div class="card reglages">
+          ${ligne('reset', ICONS.UI.recommencer, 'Recommencer de zéro', 'Efface tout, étoiles comprises', chev)}
+        </div>
+        <p class="note centre">Le Fournil · boutique n°${st.boutiques} · ${esc(q.nom)}<br>Ta boutique est enregistrée toutes les 5 secondes et à chaque achat.</p>
+      </div>`;
+    },
+    bind: (sec) => {
+      onIn(sec, '[data-a="son"]', () => { st.son = !st.son; save(); renderPage(true); if (st.son) son.tap(); });
+      onIn(sec, '[data-a="vibre"]', () => { st.vibre = !st.vibre; save(); renderPage(true); buzz(8); });
+      onIn(sec, '[data-a="nom"]', () => sheetNom(false));
+      onIn(sec, '[data-a="specialite"]', sheetSpecialite);
+      onIn(sec, '[data-a="sauvegarde"]', sheetSauvegarde);
+      onIn(sec, '[data-a="partager"]', partager);
+      onIn(sec, '[data-a="reset"]', () => {
+        openSheet(`<h2>Tout effacer ?</h2><p class="sous">Euros, recettes, apprentis, bonus et étoiles : tout repart de la première baguette. Impossible de revenir en arrière.</p><button type="button" class="btn large" data-a="oui" style="background:var(--fraise);box-shadow:0 4px 0 var(--fraise-sombre)"><b>Oui, tout effacer</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde ma boutique</b></button>`);
+        on('[data-a="non"]', closeSheet); on('[data-a="oui"]', () => { fige = true; effacer().then(() => location.reload()); });
+      });
+    },
+  };
+
+  // ─── le ticket des objectifs : une ligne sous la barre d'achat, qui mène aux Défis ───
   function renderObjectifs() {
-    const j = G.objectifsDuJour(st, st.now), sm = st.semaine, faits = j.objectifs.filter((o) => o.fait).length, aReclamer = j.objectifs.some((o) => o.fait && !o.reclame) || (sm && sm.fait && !sm.reclame);
-    const key = JSON.stringify(j.objectifs.map((o) => [o.progres, o.fait, o.reclame])) + faits + '|' + j.pain + '|' + (sm ? sm.progres + ':' + sm.fait + ':' + sm.reclame : '');
+    const j = G.objectifsDuJour(st, st.now), sm = st.semaine, faits = j.objectifs.filter((o) => o.fait).length, aReclamer = primesAReclamer() > 0;
+    const key = `${faits}|${aReclamer}|${j.etoileDonnee}|${j.pain}|${sm ? sm.reclame + ':' + sm.fait + ':' + G.fmt(sm.progres) + '/' + G.fmt(sm.cible) : ''}`;
     if (key === lastObj) return; lastObj = key;
     const el = $('#objectifs');
-    el.className = 'obj' + (aReclamer ? ' pret' : '') + (j.etoileDonnee ? ' complet' : '');
-    el.innerHTML = `<div class="obj-tete"><span class="obj-titre">${ICONS.CIBLE}Objectifs du jour</span><span class="obj-compte">${aReclamer ? 'Prime à récupérer !' : j.etoileDonnee ? 'Terminés ★' : `${faits}/3`}</span></div>
-      <div class="obj-extra">Pain du jour : <b>${esc(G.PRODUITS[j.pain].pl)}</b> ×1,5${sm ? ` · Défi de la semaine : <b>${sm.reclame ? 'réussi ★' : `${G.fmt(sm.progres)}/${G.fmt(sm.cible)}`}</b>` : ''}</div>
-      <div class="obj-lignes">${j.objectifs.map((o) => `<div class="obj-ligne ${o.fait ? 'fait' : ''}"><span>${esc(o.txt)}</span><em>${o.fait ? '✓' : `${G.fmt(Math.floor(o.progres))}/${G.fmt(o.cible)}`}</em><i style="width:${Math.min(100, o.progres / o.cible * 100).toFixed(0)}%"></i></div>`).join('')}</div>`;
-  }
-  function sheetObjectifs() {
-    const j = G.objectifsDuJour(st, st.now), serie = G.serieEnCours(st), sm = st.semaine;
-    openSheet(`<h2>Objectifs du jour</h2><p class="sous">Trois défis par jour, calibrés sur ta boutique. Les trois réussis : <b>+1 étoile</b>.${serie > 0 ? ` Série : <b>${serie} jour${serie > 1 ? 's' : ''}</b>.` : ''}</p>
-      <div class="liste-am">${j.objectifs.map((o, k) => `<div class="am ${o.reclame ? 'fait' : ''}"><div><h3>${esc(o.txt)}</h3><p>${o.fait ? 'Réussi !' : `${G.fmt(Math.floor(o.progres))} / ${G.fmt(o.cible)}`}</p><div class="mini"><i style="width:${Math.min(100, o.progres / o.cible * 100).toFixed(0)}%"></i></div></div>
-        ${o.reclame ? '<span class="ok">Récupéré ✓</span>' : `<button type="button" class="btn ${o.fait ? 'menthe' : 'non'}" data-k="${k}"><small>${o.fait ? 'Récupérer' : 'Prime'}</small><b>${G.fmtEur(o.prime)}</b></button>`}</div>`).join('')}</div>
-      ${j.etoileDonnee ? '<div class="encadre doux">Bravo, les trois objectifs sont réussis : une étoile de plus pour toujours. De nouveaux défis demain !</div>' : ''}
-      <h3 class="titre-section">Pain du jour</h3>
-      <div class="am pain">${ICONS.PRODUITS[G.PRODUITS[j.pain].id]}<div><h3>${esc(G.PRODUITS[j.pain].nom)} ×1,5</h3><p>Toute la journée, chaque fournée de ${esc(G.PRODUITS[j.pain].pl)} rapporte moitié plus. Demain, un autre produit.</p></div></div>
-      ${sm ? `<h3 class="titre-section">Défi de la semaine</h3>
-      <div class="am ${sm.reclame ? 'fait' : ''}"><div><h3>${esc(sm.txt)}</h3><p>${sm.reclame ? 'Réussi ! Un nouveau défi lundi.' : sm.fait ? 'Réussi !' : `${G.fmt(sm.progres)} / ${G.fmt(sm.cible)} · jusqu’à dimanche`}</p><div class="mini"><i style="width:${Math.min(100, sm.progres / sm.cible * 100).toFixed(0)}%"></i></div></div>
-        ${sm.reclame ? '<span class="ok">Récupéré ✓</span>' : `<button type="button" class="btn ${sm.fait ? 'beurre' : 'non'}" data-a="semaine"><small>${sm.fait ? 'Récupérer' : 'Récompense'}</small><b>+1 ★</b></button>`}</div>` : ''}
-      <button type="button" class="btn large" data-a="close" style="margin-top:14px;background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
-    on('[data-a="close"]', closeSheet);
-    on('[data-a="semaine"]', () => { const r = G.reclamerSemaine(st); if (!r.ok) { son.non(); return; } reussite(`Défi de la semaine : +${G.fmtEur(r.prime)} et +1 ★ !`); sheetObjectifs(); });
-    on('[data-k]', (b) => { const r = G.reclamer(st, +b.dataset.k); if (!r.ok) { son.non(); return; } son.deblocage(); buzz([10, 30, 10]); toast(r.etoile ? `+${G.fmtEur(r.prime)} et +1 ★ : objectifs du jour réussis !` : `+${G.fmtEur(r.prime)} de prime`); if (r.etoile) SCENE.fete(); renderCards(true); hud(); save(); sheetObjectifs(); });
+    el.className = 'ticket' + (aReclamer ? ' pret' : '') + (j.etoileDonnee ? ' complet' : '');
+    el.innerHTML = `<i class="ico">${ICONS.UI.defis}</i><span class="tk-txt"><b>Objectifs du jour · ${j.etoileDonnee ? 'terminés ★' : `${faits}/3`}</b><small>Pain du jour : ${esc(G.PRODUITS[j.pain].pl)} ×1,5${sm ? ` · Semaine : ${sm.reclame ? 'réussi ★' : `${G.fmt(sm.progres)}/${G.fmt(sm.cible)}`}` : ''}</small></span>
+      <span class="tk-pill">${aReclamer ? 'Prime !' : `<i class="ico">${ICONS.UI.chevron}</i>`}</span>`;
   }
 
-  // ─── événements : sept cartes, une interaction différente chacune ───
+  // ─── événements : une bannière compacte posée sur la scène, qu'on déplie en la touchant ───
   const TXT_EV = { rush: 'Coup de feu : les clients affluent !', commande: 'Un client passe une commande spéciale !', critique: 'Le critique gastronomique entre dans la boutique !', meunier: 'Le meunier passe : tout à −40 % !', petrissage: 'Concours de pétrissage : touche vite !', panne: 'Un four tombe en panne !', anniversaire: 'Un goûter d’anniversaire dans la boutique !' };
   const FIN_EV = { rush: 'Le coup de feu est passé.', commande: 'Trop tard, le client reviendra une autre fois.', critique: 'Le critique est reparti sans conclure…', meunier: 'Le meunier est reparti.', petrissage: 'Trop tard, la pâte a trop levé.', panne: 'Le four s’est réparé tout seul.', anniversaire: 'Le goûter est terminé.' };
   const Maj = (t) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -188,32 +340,34 @@ const UI = (() => {
     const reste = Math.max(0, (ev.fin - st.now) / 1000), pct = Math.min(100, reste / G.EVENEMENTS[ev.type].duree * 100);
     const p = ev.i != null ? G.PRODUITS[ev.i] : null, prete = ev.type === 'commande' && ev.fait >= ev.n, key = ev.type + ev.debut + (prete ? 'p' : '');
     if (lastEv !== key) {
+      if (!lastEv || lastEv.slice(0, -1) !== key.slice(0, -1)) evEtendu = false;
       lastEv = key; box.hidden = false; SCENE.setRush(ev.type === 'rush');
       const chrono = '<b class="ev-chrono"></b>', barre = '<i class="ev-barre"></i>';
       const html = {
-        rush: () => `<div class="ev rush">${ICONS.FEU}<div class="ev-txt"><b>Coup de feu !</b><span>Toutes les ventes ×${G.RUSH.mult}</span></div>${chrono}${barre}</div>`,
-        commande: () => `<div class="ev commande ${prete ? 'prete' : ''}">${ICONS.PRODUITS[p.id]}<div class="ev-txt"><b>Commande spéciale</b><span>${G.fmt(ev.n)} ${esc(ev.n > 1 ? p.pl : p.nom.toLowerCase())} · prime <b>${G.fmtEur(ev.prime)}</b></span><span class="ev-prog"></span></div>${prete ? '<button type="button" class="btn menthe" data-a="livrer"><small>C’est prêt</small><b>Livrer !</b></button>' : chrono}${barre}</div>`,
-        critique: () => `<div class="ev critique">${ICONS.CRITIQUE}<div class="ev-txt"><b>Le critique est là !</b><span>Sers-lui trois recettes : tout ×${G.CRITIQUE.mult} pendant ${G.CRITIQUE.boost / 60} min</span><span class="ev-prog"></span></div>${chrono}${barre}</div>`,
-        meunier: () => `<div class="ev meunier">${ICONS.SAC}<div class="ev-txt"><b>Le meunier passe</b><span>Niveaux et recettes à −${Math.round(G.MEUNIER.remise * 100)} % : c’est le moment d’acheter !</span></div>${chrono}${barre}</div>`,
-        petrissage: () => `<div class="ev petrissage">${ICONS.PATE}<div class="ev-txt"><b>Concours de pétrissage</b><span>${ev.n} touches en ${G.PETRISSAGE.duree} s · prime <b>${G.fmtEur(ev.prime)}</b></span></div><button type="button" class="btn tapote" data-a="petrir"><small>Pétris !</small><b class="ev-compte">0/${ev.n}</b></button>${barre}</div>`,
-        panne: () => `<div class="ev panne">${ICONS.PANNE}<div class="ev-txt"><b>Panne de four !</b><span>${esc(Maj(p.pl))} à l’arrêt · répare pour <b>${G.fmtEur(ev.prime)}</b></span></div><button type="button" class="btn tapote" data-a="reparer"><small>Répare !</small><b class="ev-compte">0/${ev.n}</b></button>${barre}</div>`,
-        anniversaire: () => `<div class="ev anniversaire">${ICONS.BALLON}<div class="ev-txt"><b>Goûter d’anniversaire</b><span>${esc(Maj(p.pl))} ×${ev.mult}${st.stations[ev.i].staff ? '' : ' · touche pour cuire !'}</span></div>${chrono}${barre}</div>`,
+        rush: () => `<div class="ev rush"><span class="ev-ico">${ICONS.FEU}</span><div class="ev-txt"><b>Coup de feu !</b><span>Toutes les ventes ×${G.RUSH.mult}</span></div>${chrono}${barre}</div>`,
+        commande: () => `<div class="ev commande ${prete ? 'prete' : ''}"><span class="ev-ico">${ICONS.PRODUITS[p.id]}</span><div class="ev-txt"><b>Commande spéciale</b><span>${G.fmt(ev.n)} ${esc(ev.n > 1 ? p.pl : p.nom.toLowerCase())} · prime <b>${G.fmtEur(ev.prime)}</b> · <span class="ev-prog"></span></span></div>${prete ? '<button type="button" class="btn menthe" data-a="livrer"><small>C’est prêt</small><b>Livrer !</b></button>' : chrono}${barre}</div>`,
+        critique: () => `<div class="ev critique"><span class="ev-ico">${ICONS.CRITIQUE}</span><div class="ev-txt"><b>Le critique est là !</b><span>Tout ×${G.CRITIQUE.mult} pendant ${G.CRITIQUE.boost / 60} min s’il est conquis · <span class="ev-prog"></span></span></div>${chrono}${barre}</div>`,
+        meunier: () => `<div class="ev meunier"><span class="ev-ico">${ICONS.SAC}</span><div class="ev-txt"><b>Le meunier passe</b><span>Niveaux et recettes à −${Math.round(G.MEUNIER.remise * 100)} % : c’est le moment d’acheter !</span></div>${chrono}${barre}</div>`,
+        petrissage: () => `<div class="ev petrissage"><span class="ev-ico">${ICONS.PATE}</span><div class="ev-txt"><b>Concours de pétrissage</b><span>${ev.n} touches en ${G.PETRISSAGE.duree} s · prime <b>${G.fmtEur(ev.prime)}</b></span></div><button type="button" class="btn tapote" data-a="petrir"><small>Pétris !</small><b class="ev-compte">0/${ev.n}</b></button>${barre}</div>`,
+        panne: () => `<div class="ev panne"><span class="ev-ico">${ICONS.PANNE}</span><div class="ev-txt"><b>Panne de four !</b><span>${esc(Maj(p.pl))} à l’arrêt · répare pour <b>${G.fmtEur(ev.prime)}</b></span></div><button type="button" class="btn tapote" data-a="reparer"><small>Répare !</small><b class="ev-compte">0/${ev.n}</b></button>${barre}</div>`,
+        anniversaire: () => `<div class="ev anniversaire"><span class="ev-ico">${ICONS.BALLON}</span><div class="ev-txt"><b>Goûter d’anniversaire</b><span>${esc(Maj(p.pl))} ×${ev.mult}${st.stations[ev.i].staff ? '' : ' · touche pour cuire !'}</span></div>${chrono}${barre}</div>`,
       };
       box.innerHTML = html[ev.type]();
+      box.classList.toggle('etendu', evEtendu);
       const livrer = box.querySelector('[data-a="livrer"]');
-      if (livrer) livrer.addEventListener('click', () => { audio(); const r = G.livrer(st); if (r.ok) reussite(`Commande livrée : +${G.fmtEur(r.prime)}`); });
+      if (livrer) livrer.addEventListener('click', (e) => { e.stopPropagation(); audio(); const r = G.livrer(st); if (r.ok) reussite(`Commande livrée : +${G.fmtEur(r.prime)}`); });
       const petrir = box.querySelector('[data-a="petrir"]');
-      if (petrir) petrir.addEventListener('pointerdown', (e) => { e.preventDefault(); audio(); const r = G.petrir(st); if (!r.ok) return; son.tap(); buzz(8); if (r.fini) reussite(`Pétrissage gagné : +${G.fmtEur(r.prime)}`); else petrir.querySelector('.ev-compte').textContent = `${r.taps}/${ev.n}`; });
+      if (petrir) petrir.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); audio(); const r = G.petrir(st); if (!r.ok) return; son.tap(); buzz(8); if (r.fini) reussite(`Pétrissage gagné : +${G.fmtEur(r.prime)}`); else petrir.querySelector('.ev-compte').textContent = `${r.taps}/${ev.n}`; });
       const reparer = box.querySelector('[data-a="reparer"]');
-      if (reparer) reparer.addEventListener('pointerdown', (e) => { e.preventDefault(); audio(); const r = G.reparer(st); if (!r.ok) return; son.tap(); buzz(8); if (r.fini) reussite(`Four réparé : +${G.fmtEur(r.prime)}`); else reparer.querySelector('.ev-compte').textContent = `${r.coups}/${ev.n}`; });
+      if (reparer) reparer.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); audio(); const r = G.reparer(st); if (!r.ok) return; son.tap(); buzz(8); if (r.fini) reussite(`Four réparé : +${G.fmtEur(r.prime)}`); else reparer.querySelector('.ev-compte').textContent = `${r.coups}/${ev.n}`; });
     }
     const prog = box.querySelector('.ev-prog');
-    if (prog && ev.type === 'commande') prog.textContent = prete ? 'Le client attend sa commande.' : `${G.fmt(ev.fait)} / ${G.fmt(ev.n)} fournées${st.stations[ev.i].staff ? '' : ' · touche pour cuire !'}`;
-    if (prog && ev.type === 'critique') prog.textContent = 'Touche les cartes : ' + ev.restants.map((i) => G.PRODUITS[i].nom.toLowerCase()).join(', ');
+    if (prog && ev.type === 'commande') prog.textContent = prete ? 'le client attend' : `${G.fmt(ev.fait)} / ${G.fmt(ev.n)} fournées${st.stations[ev.i].staff ? '' : ' · touche pour cuire !'}`;
+    if (prog && ev.type === 'critique') prog.textContent = 'touche les cartes : ' + ev.restants.map((i) => G.PRODUITS[i].nom.toLowerCase()).join(', ');
     const ch = box.querySelector('.ev-chrono'); if (ch) ch.textContent = G.fmtChrono(reste);
     box.querySelector('.ev-barre').style.width = (prete ? 100 : pct) + '%';
   }
-
+  function basculerEvenement() { evEtendu = !evEtendu; $('#evenement').classList.toggle('etendu', evEtendu); }
 
   // ─── indices : une seule consigne à la fois, qui pointe l'élément concerné ───
   const INDICES = [
@@ -222,11 +376,11 @@ const UI = (() => {
     { txt: 'Débloque les croissants : 20 € la fournée !', cible: () => cards[1].el.querySelector('[data-a="debloquer"]'), pret: () => st.coins >= G.PRODUITS[1].debloquer, fini: () => st.stations[1].niv >= 1 },
     { txt: 'Embauche Léo : il cuit les baguettes tout seul, même quand tu n’es pas là.', cible: () => cards[0].el.querySelector('[data-a="embaucher"]'), pret: () => st.coins >= G.PRODUITS[0].staff, fini: () => st.stations[0].staff },
     { txt: 'Bravo ! Au niveau 25, 50, 100… les gains doublent. Et regarde tes objectifs du jour : trois défis, une étoile à la clé.', cible: () => $('#objectifs'), pret: () => true, fini: () => performance.now() > hintUntil },
-    { txt: 'Le boulanger a un point de talent ! Touche-le dans la boutique pour l’apprendre.', cible: () => $('#scene'), pret: () => G.ptsTalents(st) > 0, fini: () => vuBoulanger },
+    { txt: 'Le boulanger a un point de talent ! Touche-le dans la boutique, ou ouvre l’onglet Boulanger.', cible: () => $('#onglets [data-page="boulanger"]'), pret: () => G.ptsTalents(st) > 0, fini: () => vuBoulanger },
   ];
   function indices() {
     const el = $('#indice');
-    if (st.tuto >= INDICES.length || !$('#feuille').hidden) { el.hidden = true; return; }
+    if (st.tuto >= INDICES.length || !$('#feuille').hidden || pageActive !== 'boutique') { el.hidden = true; return; }
     const h = INDICES[st.tuto];
     if (h.fini()) { st.tuto++; hintUntil = performance.now() + 8000; save(); el.hidden = true; return; }
     if (h.pret && !h.pret()) { el.hidden = true; return; }
@@ -244,13 +398,14 @@ const UI = (() => {
     if (r.bottom < 0 || r.top > window.innerHeight) el.hidden = true;
   }
 
-  // ─── feuilles ───
+  // ─── feuilles : bonus, étoiles, sauvegarde, nom, spécialité, retour d'absence ───
   const feuille = $('#feuille'), fc = $('#feuille-contenu'), voile = $('#voile');
   let openedAt = 0;
   function openSheet(html) { fc.innerHTML = html; feuille.hidden = false; voile.hidden = false; feuille.scrollTop = 0; openedAt = performance.now(); }
   function closeSheet() { feuille.hidden = true; voile.hidden = true; fc.innerHTML = ''; }
   voile.addEventListener('pointerdown', (e) => { if (performance.now() - openedAt > 300) { e.preventDefault(); closeSheet(); } });
   const on = (sel, fn) => fc.querySelectorAll(sel).forEach((b) => b.addEventListener('click', () => fn(b)));
+  const btnRetour = (a) => `<button type="button" class="btn large sombre" data-a="${a || 'close'}" style="margin-top:14px"><b>Retour</b></button>`;
   function sheetAmeliorations() {
     const items = G.AMELIORATIONS.map((a) => {
       const fait = st.ameliorations[a.id], prix = G.prixBonus(st, a), ok = st.coins >= prix;
@@ -262,14 +417,13 @@ const UI = (() => {
   function sheetSauvegarde() {
     save();
     openSheet(`<h2>Sauvegarde</h2><p class="sous">Ta boutique est enregistrée ici toutes les 5 secondes et à chaque achat. Attention : Safari et l’app installée ont chacun leur sauvegarde, et supprimer l’app efface la sienne. Pour la mettre à l’abri ou la transférer, copie ce code et garde-le quelque part.</p>
-      <h3 style="margin:14px 0 6px;font:700 16px/1 var(--titre)">Ton code</h3>
+      <h3 class="titre-section">Ton code</h3>
       <textarea class="code" readonly data-r="code" aria-label="Code de sauvegarde">${esc(codeSauvegarde())}</textarea>
       <button type="button" class="btn large menthe" data-a="copier"><b>Copier le code</b></button>
-      <h3 style="margin:18px 0 6px;font:700 16px/1 var(--titre)">Charger un code</h3>
+      <h3 class="titre-section">Charger un code</h3>
       <textarea class="code" data-r="entree" placeholder="Colle un code ici" aria-label="Code à charger"></textarea>
-      <button type="button" class="btn large lavande" data-a="charger"><b>Charger ce code</b></button>
-      <button type="button" class="btn large" data-a="retour" style="margin-top:8px;background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
-    on('[data-a="retour"]', sheetEtoiles);
+      <button type="button" class="btn large lavande" data-a="charger"><b>Charger ce code</b></button>${btnRetour()}`);
+    on('[data-a="close"]', closeSheet);
     on('[data-a="copier"]', () => {
       const ta = fc.querySelector('[data-r="code"]'); ta.focus(); ta.select();
       const fait = () => { son.deblocage(); toast('Code copié. Colle-le dans tes notes.'); };
@@ -287,25 +441,10 @@ const UI = (() => {
         <button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, ne rien changer</b></button>`);
       on('[data-a="non"]', sheetSauvegarde);
       on('[data-a="oui"]', () => { st = s2; save(); fige = true; setTimeout(() => location.reload(), 150); });
-      on('[data-a="etoiles"]', () => { st.etoiles = Math.max(st.etoiles, s2.etoiles); if ((s2.xp || 0) > (st.xp || 0)) { st.xp = s2.xp; st.talents = s2.talents || {}; } lastNiveau = G.niveau(st); son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`${st.etoiles} étoiles : +${Math.round(st.etoiles * G.ETOILE_BONUS * 100)} % de gains`); renderCards(true); hud(); save(); sheetEtoiles(); });
+      on('[data-a="etoiles"]', () => { st.etoiles = Math.max(st.etoiles, s2.etoiles); if ((s2.xp || 0) > (st.xp || 0)) { st.xp = s2.xp; st.talents = s2.talents || {}; } lastNiveau = G.niveau(st); son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`${st.etoiles} étoiles : +${Math.round(st.etoiles * G.ETOILE_BONUS * 100)} % de gains`); renderCards(true); hud(); save(); closeSheet(); renderPage(true); });
     });
   }
-  function sheetBoulanger() {
-    vuBoulanger = true;
-    const np = G.niveauPour(st.xp), pts = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n);
-    openSheet(`<div class="boulanger-tete">${ICONS.boulanger(rang)}<div><h2>${esc(G.titre(st))}</h2><p class="sous">Niveau ${np.n} · ${G.fmt(np.reste)} / ${G.fmt(np.prochain)} savoir-faire${suivant ? ` · ${esc(suivant[1])} au niveau ${suivant[0]}` : ''}</p><div class="mini xp"><i style="width:${(np.reste / np.prochain * 100).toFixed(0)}%"></i></div></div></div>
-      <div class="encadre doux">Le savoir-faire vient des défis du jour, des événements réussis, des recettes, des embauches et des nouvelles boutiques. Chaque niveau donne <b>un point de talent</b>. Les talents sont à toi pour toujours, même en changeant de boutique.</div>
-      <h3 class="titre-section">Talents${pts ? ` · <span class="pts">${pts} point${pts > 1 ? 's' : ''} à dépenser</span>` : ''}</h3>
-      <div class="liste-am">${G.TALENTS.map((t) => { const k = G.talent(st, t.id), max = k >= t.max; return `<div class="am talent ${k ? 'appris' : ''}"><div><h3>${esc(t.nom)} <span class="crans">${'●'.repeat(k)}${'○'.repeat(t.max - k)}</span></h3><p>${k ? esc(t.desc(k)) : 'Cran 1 : ' + esc(t.desc(1))}${k && !max ? `<br><em>Cran suivant : ${esc(t.desc(k + 1))}</em>` : ''}</p></div>${max ? '<span class="ok">Maîtrisé ✓</span>' : `<button type="button" class="btn ${pts ? 'lavande' : 'non'}" data-t="${t.id}"><small>Apprendre</small><b>1 point</b></button>`}</div>`; }).join('')}</div>
-      <button type="button" class="btn large" data-a="close" style="margin-top:14px;background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
-    on('[data-a="close"]', closeSheet);
-    on('[data-t]', (b) => {
-      const r = G.apprendre(st, b.dataset.t);
-      if (!r.ok) { son.non(); toast(G.ptsTalents(st) ? 'Ce talent est déjà au maximum.' : 'Pas encore de point : gagne du savoir-faire.'); return; }
-      son.deblocage(); buzz([10, 30, 10]); toast(`${r.talent.nom} : ${r.talent.desc(r.cran)}`); renderCards(true); hud(); save(); sheetBoulanger();
-    });
-  }
-  // le nom de la boutique : demandé à chaque ouverture, modifiable depuis la feuille des étoiles
+  // le nom de la boutique : demandé à chaque ouverture, modifiable depuis l'enseigne ou les Réglages
   function sheetNom(nouvelle) {
     const q = G.QUARTIERS[G.quartier(st)], actuel = st.nomBoutique || q.enseigne;
     const choixSpe = nouvelle && st.specialite == null; let spe = choixSpe ? (st.boutiques + 1) % G.PRODUITS.length : null;
@@ -315,8 +454,8 @@ const UI = (() => {
       <button type="button" class="btn large beurre" data-a="ok" style="margin-top:12px"><b>${nouvelle ? 'C’est parti !' : 'Garder ce nom'}</b></button>
       ${nouvelle ? '' : '<button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Annuler</b></button>'}`);
     const champ = fc.querySelector('.champ');
-    const valider = () => { G.renommer(st, champ.value); if (choixSpe && spe != null) G.choisirSpecialite(st, spe); save(); renderCards(true); closeSheet(); toast(`${G.nomBoutique(st)} : bienvenue !${choixSpe && spe != null ? ` Spécialité : ${G.PRODUITS[spe].pl}.` : ''}`); };
-    on('[data-a="ok"]', valider); on('[data-a="non"]', sheetEtoiles);
+    const valider = () => { G.renommer(st, champ.value); if (choixSpe && spe != null) G.choisirSpecialite(st, spe); save(); renderCards(true); hud(); closeSheet(); renderPage(true); toast(`${G.nomBoutique(st)} : bienvenue !${choixSpe && spe != null ? ` Spécialité : ${G.PRODUITS[spe].pl}.` : ''}`); };
+    on('[data-a="ok"]', valider); on('[data-a="non"]', closeSheet);
     on('[data-s]', (b) => { spe = +b.dataset.s; fc.querySelectorAll('[data-s]').forEach((x) => x.classList.toggle('actif', x === b)); son.tap(); });
     champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') valider(); });
     if (!nouvelle) setTimeout(() => { champ.focus(); champ.select(); }, 50);
@@ -327,30 +466,8 @@ const UI = (() => {
     openSheet(`<h2>La spécialité</h2><p class="sous">Le produit fétiche de cette boutique rapporte <b>×2</b> le temps de la boutique. On choisit une fois par boutique.</p>${grilleSpecialite(spe)}
       <button type="button" class="btn large lavande" data-a="ok" style="margin-top:12px"><b>Choisir</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Plus tard</b></button>`);
     on('[data-s]', (b) => { spe = +b.dataset.s; fc.querySelectorAll('[data-s]').forEach((x) => x.classList.toggle('actif', x === b)); son.tap(); });
-    on('[data-a="ok"]', () => { if (G.choisirSpecialite(st, spe).ok) { reussite(`Spécialité : ${G.PRODUITS[spe].pl} ×2 !`); } sheetEtoiles(); });
-    on('[data-a="non"]', sheetEtoiles);
-  }
-  const ilYA = (ms) => { const s = Math.max(0, (Date.now() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
-  function sheetJournal() {
-    const S = st.stats, tr = st.trophees || {}, gagnes = G.TROPHEES.filter((t) => tr[t.id]).length;
-    openSheet(`<h2>Journal</h2><p class="sous">${esc(G.nomBoutique(st))} · ${G.fmt(S.ventes)} fournées, ${G.fmt(S.clients)} clients depuis le début.</p>
-      <h3 class="titre-section">Records</h3>
-      <div class="stat"><span>Plus grosse commande livrée</span><b>${S.meilleureCommande ? G.fmtEur(S.meilleureCommande) : '—'}</b></div>
-      <div class="stat"><span>Meilleur pourboire</span><b>${S.meilleurPourboire ? G.fmtEur(S.meilleurPourboire) : '—'}</b></div>
-      <div class="stat"><span>Pétrissage le plus rapide</span><b>${S.petrissageRecord ? S.petrissageRecord.toFixed(1).replace('.', ',') + ' s' : '—'}</b></div>
-      <div class="stat"><span>Meilleure série d’objectifs</span><b>${S.serieMax || 0} jour${(S.serieMax || 0) > 1 ? 's' : ''}</b></div>
-      <div class="stat"><span>Commandes · critiques · pétrissages · fours</span><b>${S.commandes || 0} · ${S.critiques || 0} · ${S.petrissages || 0} · ${S.pannes || 0}</b></div>
-      <h3 class="titre-section">Les habitués</h3>
-      <div class="liste-am">${G.HABITUES.map((h) => { const e = (st.habitues || {})[h.id]; return `<div class="am habitue"><span class="pastille-hab" style="background:${h.haut}"></span><div><h3>${esc(h.nom)}</h3><p>Passe entre ${h.debut}h et ${Math.floor(h.fin)}h${h.fin % 1 ? '30' : ''} · ${e && e.jours ? `fidèle depuis ${e.jours} jour${e.jours > 1 ? 's' : ''}` : 'première visite à venir'}</p></div></div>`; }).join('')}</div>
-      <p class="sous" style="margin-top:6px">Sers un habitué cinq jours de suite : il t’offre un cadeau.</p>
-      <h3 class="titre-section">Trophées · ${gagnes}/${G.TROPHEES.length}</h3>
-      <div class="trophees">${G.TROPHEES.map((t) => `<div class="troph ${tr[t.id] ? 'gagne' : ''}"><b>${esc(t.nom)}</b><span>${esc(t.desc)}</span></div>`).join('')}</div>
-      <h3 class="titre-section">Derniers événements</h3>
-      <div class="carnet">${(st.carnetEv || []).slice().reverse().map((e) => `<div><span>${esc(e.txt)}</span><small>${ilYA(e.t)}</small></div>`).join('') || '<p class="sous">Rien encore : joue un peu !</p>'}</div>
-      <button type="button" class="btn large lavande" data-a="partager" style="margin-top:14px"><b>Partager ma boutique</b></button>
-      <button type="button" class="btn large" data-a="retour" style="margin-top:8px;background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
-    on('[data-a="retour"]', sheetEtoiles);
-    on('[data-a="partager"]', partager);
+    on('[data-a="ok"]', () => { if (G.choisirSpecialite(st, spe).ok) reussite(`Spécialité : ${G.PRODUITS[spe].pl} ×2 !`); closeSheet(); renderPage(true); });
+    on('[data-a="non"]', closeSheet);
   }
   // partager : une image de la boutique avec une légende, sinon le texte, sinon le presse-papiers
   async function partager() {
@@ -369,36 +486,23 @@ const UI = (() => {
     } catch (e) { if (e && e.name === 'AbortError') return; }
     try { await navigator.clipboard.writeText(`${texte}\n${url}`); toast('Texte copié : colle-le où tu veux.'); } catch (e) { toast(texte); }
   }
+  // les étoiles : la nouvelle boutique, et rien d'autre (le reste vit dans les onglets)
   function sheetEtoiles() {
-    const gain = G.etoilesGagnables(st), bonus = Math.round(st.etoiles * G.ETOILE_BONUS * 100), serie = G.serieEnCours(st), q = G.QUARTIERS[G.quartier(st)];
+    const gain = G.etoilesGagnables(st), bonus = Math.round(st.etoiles * G.ETOILE_BONUS * 100), q = G.QUARTIERS[G.quartier(st)];
     openSheet(`<h2>Étoiles</h2><p class="sous"><b>${esc(G.nomBoutique(st))}</b> · boutique n°${st.boutiques}, ${esc(q.nom)} · ${st.etoiles} étoile${st.etoiles > 1 ? 's' : ''} · +${bonus} % sur tous les gains</p>
       <div class="encadre doux">Ouvrir une <b>nouvelle boutique</b> remet les produits et les euros à zéro, mais tu gardes tes étoiles pour toujours. Chaque étoile : <b>+${Math.round(G.ETOILE_BONUS * 100)} %</b> de gains. Plus tu as gagné dans cette boutique, plus tu en récoltes. Les objectifs du jour en donnent une aussi.</div>
       <div class="grand-nombre">+${gain} ★</div><p class="sous">à récolter maintenant (${G.fmtEur(st.lifetimeRun)} gagnés dans cette boutique)</p>
       <button type="button" class="btn large ${gain > 0 ? 'beurre' : 'non'}" data-a="prestige"><small>${gain > 0 ? 'Repartir avec' : 'Pas encore'}</small><b>${gain > 0 ? `+${gain} étoile${gain > 1 ? 's' : ''}` : 'Vends encore un peu'}</b></button>
-      <h3 style="margin:18px 0 6px;font:700 16px/1 var(--titre)">Ta boutique</h3>
-      <div class="stat"><span>Fournées vendues</span><b>${G.fmt(st.stats.ventes)}</b></div><div class="stat"><span>Clients servis</span><b>${G.fmt(st.stats.clients)}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(st.lifetime)}</b></div><div class="stat"><span>Série d’objectifs</span><b>${serie} jour${serie > 1 ? 's' : ''}</b></div>
-      <div class="ligne-reglage"><span>Vibrations</span><button type="button" class="interrupteur" role="switch" aria-checked="${st.vibre}" data-a="vibre"></button></div>
-      <button type="button" class="btn large" data-a="close" style="background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>
-      <button type="button" class="lien" data-a="boulanger">Le boulanger et ses talents</button>
-      <button type="button" class="lien" data-a="journal">Journal, trophées et partage</button>
-      ${st.specialite == null ? '<button type="button" class="lien" data-a="specialite">Choisir la spécialité de cette boutique</button>' : ''}
-      <button type="button" class="lien" data-a="nom">Renommer la boutique</button>
-      <button type="button" class="lien" data-a="sauvegarde">Sauvegarde et transfert</button>
-      <button type="button" class="lien" data-a="reset">Recommencer une partie de zéro</button>`);
+      <h3 class="titre-section">Ta boutique</h3>
+      <div class="stat"><span>Fournées vendues</span><b>${G.fmt(st.stats.ventes)}</b></div><div class="stat"><span>Clients servis</span><b>${G.fmt(st.stats.clients)}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(st.lifetime)}</b></div>
+      ${btnRetour()}`);
     on('[data-a="close"]', closeSheet);
-    on('[data-a="sauvegarde"]', sheetSauvegarde);
-    on('[data-a="boulanger"]', sheetBoulanger);
-    on('[data-a="nom"]', () => sheetNom(false));
-    on('[data-a="journal"]', sheetJournal);
-    on('[data-a="specialite"]', sheetSpecialite);
-    on('[data-a="vibre"]', (b) => { st.vibre = !st.vibre; b.setAttribute('aria-checked', st.vibre); save(); });
-    on('[data-a="reset"]', () => { openSheet(`<h2>Tout effacer ?</h2><p class="sous">Euros, recettes, apprentis, bonus et étoiles : tout repart de la première baguette. Impossible de revenir en arrière.</p><button type="button" class="btn large" data-a="oui" style="background:var(--fraise);box-shadow:0 4px 0 var(--fraise-sombre)"><b>Oui, tout effacer</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde ma boutique</b></button>`); on('[data-a="non"]', sheetEtoiles); on('[data-a="oui"]', () => { fige = true; effacer().then(() => location.reload()); }); });
     on('[data-a="prestige"]', () => {
       if (G.etoilesGagnables(st) <= 0) { son.non(); return; }
       openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les bonus achetés sont perdus.</p>
         <button type="button" class="btn large beurre" data-a="oui"><b>Ouvrir la boutique n°${st.boutiques + 1}</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Rester ici</b></button>`);
       on('[data-a="non"]', sheetEtoiles);
-      on('[data-a="oui"]', () => { const r = G.nouvelleBoutique(st, Date.now()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★`); st.tuto = Math.max(st.tuto, INDICES.length); renderCards(true); hud(); save(); sheetNom(true); } });
+      on('[data-a="oui"]', () => { const r = G.nouvelleBoutique(st, Date.now()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★`); st.tuto = Math.max(st.tuto, INDICES.length); renderCards(true); hud(); save(); showPage('boutique'); sheetNom(true); } });
     });
   }
   function sheetRetour(abs) {
@@ -416,7 +520,7 @@ const UI = (() => {
     if (out.ventes.length) {
       const gros = out.ventes.reduce((a, v) => a + v.montant, 0), first = out.ventes[0];
       if (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), !st.stations[first.i].staff); son.vente(gros); }
-      if (!st.stations[first.i].staff) { const r = cards[first.i].el.querySelector('.barre').getBoundingClientRect(); flottant(r.left + r.width / 2 - 30, r.top - 10, '+' + G.fmtEur(first.montant)); }
+      if (!st.stations[first.i].staff && pageActive === 'boutique') { const r = cards[first.i].el.querySelector('.barre').getBoundingClientRect(); flottant(r.left + r.width / 2 - 30, r.top - 10, '+' + G.fmtEur(first.montant)); }
     }
     if (out.nouvelEv) { son.evenement(); buzz([15, 40, 15]); toast(TXT_EV[out.nouvelEv.type]); }
     if (out.finEv) { toast(FIN_EV[out.finEv.type]); if (out.finEv.type === 'critique' || out.finEv.type === 'petrissage') son.non(); }
@@ -425,13 +529,17 @@ const UI = (() => {
     if (out.trophees && out.trophees.length) { const t0 = out.trophees[0]; son.deblocage(); buzz([10, 30, 10, 30, 10]); SCENE.fete(); toast(`Trophée : ${t0.nom} !${out.trophees.length > 1 ? ` (+${out.trophees.length - 1})` : ''}`); }
     const nv = G.niveau(st);
     if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); SCENE.fete(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
-    renderCards(); hud(); renderObjectifs(); renderEvenement();
+    renderCards(); hud(); renderObjectifs(); renderEvenement(); renderPage();
     SCENE.frame(dt, st, Date.now());
     indices();
     if (now - lastSave > 5000) save();
     requestAnimationFrame(frame);
   }
-  function layout() { SCENE.resize(window.innerWidth, Math.max(150, Math.min(240, Math.round(window.innerHeight * 0.27)))); }
+  function layout() {
+    const h = Math.max(150, Math.min(240, Math.round(window.innerHeight * 0.27)));
+    document.documentElement.style.setProperty('--scene-h', h + 'px');
+    SCENE.resize(window.innerWidth, h);
+  }
 
   // ─── démarrage ───
   async function boot() {
@@ -439,6 +547,8 @@ const UI = (() => {
     const fresh = !st;
     if (fresh) st = G.newState(Date.now());
     st.now = Date.now();
+    if (!st.vu) st.vu = { trophees: trophesGagnes() };
+    document.querySelectorAll('[data-ico]').forEach((el) => { el.innerHTML = ICONS.UI[el.dataset.ico] || ''; });
     SCENE.init($('#scene'));
     SCENE.surServi = (r) => { if (r.cadeau) { reussite(`${r.hb.nom}, fidèle depuis ${r.jours} jours, t’offre ${G.fmtEur(r.cadeau)} !`); } else if (r.jours > 1) toast(`${r.hb.nom} : ${r.jours}e jour de suite !`); };
     layout();
@@ -447,15 +557,18 @@ const UI = (() => {
     $('#cartes').addEventListener('click', onCardClick);
     $('#b-ameliorations').addEventListener('click', () => { audio(); sheetAmeliorations(); });
     $('#b-etoiles').addEventListener('click', () => { audio(); sheetEtoiles(); });
-    $('#objectifs').addEventListener('click', () => { audio(); sheetObjectifs(); });
-    $('#b-son').addEventListener('click', () => { audio(); st.son = !st.son; $('#b-son').setAttribute('aria-pressed', st.son); $('#son-on').hidden = !st.son; $('#son-off').hidden = st.son; save(); if (st.son) son.tap(); });
-    $('#son-on').hidden = !st.son; $('#son-off').hidden = st.son; $('#b-son').setAttribute('aria-pressed', st.son);
+    $('#objectifs').addEventListener('click', () => { audio(); showPage('defis'); });
+    $('#enseigne').addEventListener('click', () => { audio(); sheetNom(false); });
+    $('#b-cloche').addEventListener('click', () => { audio(); if (st.ev) { if (pageActive !== 'boutique') showPage('boutique'); if (!evEtendu) basculerEvenement(); } else showPage('defis'); });
+    $('#evenement').addEventListener('click', (e) => { if (e.target.closest('button')) return; audio(); basculerEvenement(); });
+    document.querySelectorAll('#onglets button').forEach((b) => b.addEventListener('click', () => { audio(); if (b.dataset.page === pageActive) $('#pages').scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }); else { son.tap(); showPage(b.dataset.page); } }));
+    $('#pages').addEventListener('scroll', replier, { passive: true });
     $('#scene').addEventListener('pointerdown', (e) => {
       audio();
       const r = $('#scene').getBoundingClientRect();
       const sx = e.clientX - r.left, sy = e.clientY - r.top;
       if (SCENE.hit(sx, sy)) { const tip = G.encaisserPourboire(st); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
-      else if (SCENE.hitBoulanger(sx, sy)) sheetBoulanger();
+      else if (SCENE.hitBoulanger(sx, sy)) showPage('boulanger');
       else SCENE.tap();
     });
     document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); } });
@@ -471,7 +584,7 @@ const UI = (() => {
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), boulanger: () => sheetBoulanger(), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => sheetJournal(), habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager };
+    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

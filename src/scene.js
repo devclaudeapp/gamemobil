@@ -6,7 +6,7 @@ const SCENE = (() => {
   let cv, ctx, W = 1, H = 1, DPR = 1;
   const TAU = Math.PI * 2;
   const clients = [], textes = [], vapeurs = [], flocons = [], passants = [];
-  let hop = 0, blink = 0, nextSpawn = 2, nextPassant = 5, t = 0, confetti = [], rush = false, rang = 0, pts = 0, affl = 0, Q = null, tags = [], force = {}, nom = '';
+  let hop = 0, blink = 0, nextSpawn = 2, nextPassant = 5, t = 0, confetti = [], rush = false, rang = 0, pts = 0, affl = 0, Q = null, tags = [], force = {};
   const L = '#4A3328';
   const PASTEL = ['#FF9FB2', '#8FE3C2', '#C7B8FF', '#FFD98A', '#9BD0FF', '#FFB48A', '#B5E88A'];
   const PEAUX = ['#FFD7B5', '#F1B990', '#C68B59', '#8D5A3C', '#FFE3C9'];
@@ -77,7 +77,7 @@ const SCENE = (() => {
     const d = new Date(now), hour = force.heure != null ? force.heure : d.getHours() + d.getMinutes() / 60;
     const taux = G.tauxParSeconde(st);
     rang = G.rangTitre(st); pts = G.ptsTalents(st); affl = G.talent(st, 'affluence');
-    Q = DECORS[G.QUARTIERS[G.quartier(st)].id] || DECORS.village; tags = force.saison || G.saison(now); nom = G.nomBoutique(st);
+    Q = DECORS[G.QUARTIERS[G.quartier(st)].id] || DECORS.village; tags = force.saison || G.saison(now);
     nextSpawn -= dt;
     if (nextSpawn <= 0) {
       nextSpawn = rush ? 0.7 : taux > 0 ? Math.max(1.5, 6 - Math.log10(taux + 1)) : 7;
@@ -148,7 +148,6 @@ const SCENE = (() => {
     if (tags.includes('galette')) galette(W * 0.3 + (bonus >= 3 ? 30 : 0), cy - 4);
     if (tags.includes('paques')) oeufs(W * 0.56, cy - 4);
     if (tags.includes('ete') && !tags.includes('fete')) glaces(W * 0.6, cy - 6);
-    enseigne();
     for (const c of clients) client(c);
     lumiere(sk, niv(2) > 0);
     for (const x of textes) { ctx.globalAlpha = Math.max(0, Math.min(1, x.life * 1.4)); ctx.font = `700 ${Math.round(15 * Math.min(1.3, 1 + x.txt.length / 40))}px Fredoka, Nunito, sans-serif`; ctx.fillStyle = x.col; ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.textAlign = 'center'; ctx.strokeText(x.txt, x.x, x.y); ctx.fillText(x.txt, x.x, x.y); }
@@ -298,13 +297,7 @@ const SCENE = (() => {
     }
     ctx.restore();
   }
-  function enseigne() { // le nom de la boutique, sur une plaque en haut
-    ctx.font = '700 11px Fredoka, Nunito, sans-serif'; ctx.textAlign = 'center';
-    const pw = Math.min(W * 0.5, ctx.measureText(nom).width + 26), x = W * 0.5 - pw / 2;
-    ctx.fillStyle = 'rgba(0,0,0,.12)'; rr(x + 1, 5, pw, 18, 7); ctx.fill();
-    ctx.fillStyle = Q.bois; rr(x, 3, pw, 18, 7); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; rr(x + 2, 5, pw - 4, 14, 5); ctx.stroke();
-    ctx.fillStyle = Q.vue === 'mer' ? '#2B4C7E' : '#FFF3DC'; ctx.fillText(nom, W * 0.5, 16, pw - 16);
-  }
+
   // ─── le boulanger : sa toque, son foulard, sa moustache, son col changent avec son titre ───
   function boulanger(x, y) {
     const peau = '#FFD7B5', resp = 1 + Math.sin(t * 1.6) * 0.012;

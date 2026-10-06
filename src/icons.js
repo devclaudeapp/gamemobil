@@ -40,7 +40,33 @@ const ICONS = (() => {
       ${rang >= 3 ? '<path d="M19.5 24.5q2.5-2 4.5 0q2-2 4.5 0" stroke="#8C5A3C" stroke-width="1.8" fill="none" stroke-linecap="round"/>' : ''}
       <circle cx="16" cy="24" r="1.6" fill="#FFB3B3"/><circle cx="32" cy="24" r="1.6" fill="#FFB3B3"/>`);
   }
+  // les icônes d'interface : une par fonction, même trait (brun 2 px, bouts ronds), un seul accent pastel chacune, grille de 24 px
+  const U = (inner) => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="${L}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+  const dents = () => { let d = ''; for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, x1 = 12 + Math.cos(a) * 7.2, y1 = 12 + Math.sin(a) * 7.2, x2 = 12 + Math.cos(a) * 10, y2 = 12 + Math.sin(a) * 10; d += `<path d="M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}"/>`; } return d; };
+  const UI = {
+    boutique: U(`<path d="M4 10.5V20h16v-9.5" fill="#fff"/><path d="M3 6.5h18l1 4H2z" fill="#FF9FB2"/><path d="M6.5 10.5v-4M12 10.5v-4M17.5 10.5v-4"/><path d="M9.5 20v-5.5h5V20" fill="#FFE0C7"/>`),
+    defis: U(`<circle cx="12" cy="12" r="9" fill="#fff"/><circle cx="12" cy="12" r="5.2" fill="#FFE0C7"/><circle cx="12" cy="12" r="1.8" fill="#FF6B8B" stroke="none"/>`),
+    boulanger: U(`<path d="M6 11c-2.2 0-3.5-1.6-3.5-3.3C2.5 5.8 4 4.4 5.8 4.6 6.4 2.9 8 1.8 9.8 2.2 10.6 1.4 11.6 1 12.6 1c1.8 0 3.3 1.1 3.8 2.7 1.9-.3 3.6 1 3.9 2.8.3 2-1.2 3.6-3 3.8V11z" fill="#fff"/><path d="M6 11h12v4.5H6z" fill="#FFE0C7"/><path d="M9 11v4.5M15 11v4.5"/>`),
+    journal: U(`<path d="M3 5.5c3-1.3 6-1.3 9 .5 3-1.8 6-1.8 9-.5V19c-3-1.3-6-1.3-9 .5-3-1.8-6-1.8-9-.5z" fill="#fff"/><path d="M12 6v13.5"/><path d="M16.5 9.2l.8 1.7 1.8.2-1.3 1.3.3 1.8-1.6-.9-1.6.9.3-1.8-1.3-1.3 1.8-.2z" fill="#FFC84A" stroke="none"/>`),
+    reglages: U(`<circle cx="12" cy="12" r="7.2" fill="#EFEAFF"/>${dents()}<circle cx="12" cy="12" r="2.6" fill="#fff"/>`),
+    cloche: U(`<path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15z" fill="#FFF3C4"/><path d="M10 20.5a2 2 0 004 0"/><path d="M12 3.5v1.5"/>`),
+    bonus: U(`<path d="M11 3l1.8 5.2L18 10l-5.2 1.8L11 17l-1.8-5.2L4 10l5.2-1.8z" fill="#fff"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" fill="#FFC84A" stroke="none"/>`),
+    etoile: U(`<path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6L2.5 9.4l6.6-.8z" fill="#FFC84A"/>`),
+    sauvegarde: U(`<path d="M7 18a4 4 0 01-.6-7.9A6 6 0 0118 9.5a3.8 3.8 0 01-.5 7.5z" fill="#DDF3FF"/><path d="M12 12v8M9 17l3 3 3-3"/>`),
+    son: U(`<path d="M4 9.5v5h3.5l5 4v-13l-5 4z" fill="#FFE0C7"/><path d="M16 9a4 4 0 010 6M18.5 6.5a7.5 7.5 0 010 11"/>`),
+    sonOff: U(`<path d="M4 9.5v5h3.5l5 4v-13l-5 4z" fill="#EADFD6"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/>`),
+    vibre: U(`<rect x="8" y="3.5" width="8" height="17" rx="2.5" fill="#fff"/><path d="M11 17.5h2"/><path d="M4.5 9c-1 2-1 4 0 6M19.5 9c1 2 1 4 0 6"/>`),
+    crayon: U(`<path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 013 3L8 18.5z" fill="#FFF3C4"/><path d="M13.5 7l3 3"/>`),
+    recommencer: U(`<path d="M20 12a8 8 0 11-2.3-5.7"/><path d="M20 4v4.5h-4.5"/>`),
+    partager: U(`<path d="M5 12v8h14v-8" fill="#fff"/><path d="M12 3.5v11M8.5 7l3.5-3.5L15.5 7"/>`),
+    specialite: U(`<circle cx="12" cy="9" r="6.5" fill="#EFEAFF"/><path d="M12 5.5l1.1 2.2 2.4.3-1.8 1.7.5 2.4L12 11l-2.2 1.1.5-2.4-1.8-1.7 2.4-.3z" fill="#B8A6FF" stroke="none"/><path d="M9 14.5l-1.5 6L12 18l4.5 2.5-1.5-6"/>`),
+    soleil: U(`<circle cx="12" cy="12" r="4" fill="#FFC84A"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>`),
+    trophee: U(`<path d="M7 4h10v5a5 5 0 01-10 0z" fill="#FFC84A"/><path d="M7 6H4.5a2.5 2.5 0 002.5 3.5M17 6h2.5A2.5 2.5 0 0117 9.5"/><path d="M12 14v3M8.5 20h7l-.8-3H9.3z" fill="#FFE0C7"/>`),
+    chevron: U(`<path d="M9.5 6l6 6-6 6"/>`),
+    coche: U(`<path d="M5 12.5l4.5 4.5L19 7.5"/>`),
+    fermer: U(`<path d="M6 6l12 12M18 6L6 18"/>`),
+  };
   const AMELIORATION = S(`<path d="M24 6l3.5 10.5L38 20l-10.5 3.5L24 34l-3.5-10.5L10 20l10.5-3.5z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`);
   const ETOILE = S(`<path d="M24 5l5.8 12.2 13.2 1.6-9.8 9.2 2.6 13.2L24 34.6l-11.8 6.6 2.6-13.2L5 18.8l13.2-1.6z" fill="#FFC84A" stroke="#E0A61E" stroke-width="2" stroke-linejoin="round"/>`);
-  return { PRODUITS, apprenti, boulanger, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON };
+  return { PRODUITS, apprenti, boulanger, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI };
 })();

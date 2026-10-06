@@ -17,7 +17,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800&display=swap">
 <style>
-/* LE FOURNIL — lumineux et doux : crème, fraise, beurre, menthe ; formes rondes, gros chiffres, boutons à épaisseur. */
+/* LE FOURNIL — lumineux et doux : crème, fraise, beurre, menthe ; formes rondes, gros chiffres, boutons à épaisseur.
+   Structure : en-tête, scène (qui se replie), pages à onglets, barre d'onglets. */
 :root {
   --creme: #FFF7EC; --carte: #FFFFFF; --texte: #4A3328; --texte-2: #8C6F62; --ligne: #F0E4D8;
   --fraise: #FF6B8B; --fraise-sombre: #E1496C; --beurre: #FFC84A; --beurre-sombre: #E0A61E; --menthe: #5FD3A4; --menthe-sombre: #3FB889;
@@ -25,6 +26,7 @@
   --ombre: rgba(74, 51, 40, .10);
   --titre: "Fredoka", "Nunito", "Segoe UI", system-ui, sans-serif;
   --texte-font: "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --scene-h: 200px;
   color-scheme: light;
 }
 *, *::before, *::after { box-sizing: border-box; }
@@ -37,47 +39,154 @@ button { font: inherit; color: inherit; background: none; border: 0; padding: 0;
 :focus-visible { outline: 3px solid var(--lavande); outline-offset: 2px; }
 #probe { position: fixed; left: -9999px; top: 0; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 svg { display: block; }
+.ico { display: inline-grid; place-items: center; flex: 0 0 auto; }
+.ico svg { width: 24px; height: 24px; }
 
-/* ─── en-tête ─── */
-#haut { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 14px 6px; }
+/* ─── en-tête : solde, cloche, étoiles ─── */
+#haut { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 14px 6px; }
 .solde { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .solde .piece { width: 40px; height: 40px; flex: 0 0 auto; }
-.solde b { display: block; font: 700 clamp(26px, 7.6vw, 34px)/1 var(--titre); letter-spacing: -.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.solde b { display: block; font: 700 clamp(24px, 7.2vw, 32px)/1 var(--titre); letter-spacing: -.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .solde small { display: block; margin-top: 2px; font-size: 13px; color: var(--texte-2); white-space: nowrap; }
 .solde small b { display: inline; font: 800 13px/1 var(--texte-font); color: var(--menthe-sombre); }
-.haut-btns { display: flex; gap: 8px; flex: 0 0 auto; }
-.pastille { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; padding: 0 12px; border-radius: 999px; background: var(--carte);
-  box-shadow: 0 3px 0 var(--gris-sombre); font: 700 16px/1 var(--titre); color: var(--texte); }
+#taux { display: block; }
+.marche { display: inline-block; margin: 2px 4px 0 0; padding: 2px 7px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 800 11px/1.3 var(--texte-font); white-space: nowrap; }
+.haut-btns { display: flex; gap: 8px; flex: 0 0 auto; align-items: center; }
+.pastille { position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; min-width: 44px; padding: 0 12px; border-radius: 999px; background: var(--carte);
+  box-shadow: 0 3px 0 var(--gris-sombre); font: 700 17px/1 var(--titre); color: var(--texte); }
 .pastille:active { transform: translateY(3px); box-shadow: none; }
 .pastille svg { width: 22px; height: 22px; }
+.pastille.cloche { padding: 0 10px; }
+.pastille.cloche .point { position: absolute; top: 6px; right: 8px; width: 11px; height: 11px; border-radius: 50%; background: var(--fraise); box-shadow: 0 0 0 2.5px #fff; }
+.pastille.cloche.actif { background: #FFE9EE; box-shadow: 0 3px 0 #F3B6C4; animation: cloche 1.6s ease-in-out infinite; }
+@keyframes cloche { 0%, 70%, 100% { transform: rotate(0); } 75% { transform: rotate(-12deg); } 85% { transform: rotate(10deg); } 95% { transform: rotate(-5deg); } }
 .pastille.etoile { background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); }
 .pastille.etoile.pret { animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 
-/* ─── scène ─── */
-#scene { flex: 0 0 auto; width: 100%; display: block; touch-action: none; }
+/* ─── scène : pleine hauteur dans la Boutique, repliée ailleurs ou quand on fait défiler ─── */
+#scene-wrap { position: relative; flex: 0 0 auto; height: var(--scene-h); overflow: hidden; transition: height .25s cubic-bezier(.2, .8, .2, 1); }
+body.replie #scene-wrap { height: 112px; }
+#scene { position: absolute; left: 0; bottom: 0; width: 100%; display: block; touch-action: none; }
+#enseigne { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 2; display: inline-flex; align-items: center; gap: 6px; max-width: 70%; min-height: 34px; padding: 0 14px; border-radius: 999px;
+  background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 15px/1 var(--titre); color: var(--texte); white-space: nowrap; transition: opacity .2s, transform .2s; }
+#enseigne span { overflow: hidden; text-overflow: ellipsis; }
+#enseigne:active { transform: translateX(-50%) translateY(3px); box-shadow: none; }
+body.replie #enseigne { opacity: 0; pointer-events: none; transform: translateX(-50%) translateY(-10px); }
 
-/* ─── liste des produits ─── */
-#liste { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 0 12px calc(env(safe-area-inset-bottom, 0px) + 24px); }
-.barre-achat { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 8px 2px 10px; background: var(--creme); }
+/* ─── pages ─── */
+#pages { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 0 12px calc(env(safe-area-inset-bottom, 0px) + 20px); }
+.page { padding-bottom: 8px; }
+.page-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 2px 10px; }
+.page-tete h2 { margin: 0; display: flex; align-items: center; gap: 10px; font: 700 24px/1.1 var(--titre); }
+.page-tete h2 .pic { width: 40px; height: 40px; border-radius: 13px; background: var(--peche); display: grid; place-items: center; }
+.page-tete h2 .pic svg { width: 24px; height: 24px; }
+.serie { display: inline-flex; align-items: center; gap: 6px; padding: 0 12px 0 8px; min-height: 36px; border-radius: 999px; background: var(--carte); box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); white-space: nowrap; }
+.serie svg { width: 20px; height: 20px; }
+.serie.lav { background: var(--lavande); color: #fff; box-shadow: 0 3px 0 var(--lavande-sombre); }
+.serie.or { background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); }
+.bloc { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.card { padding: 12px 14px; border-radius: 22px; background: var(--carte); box-shadow: 0 6px 16px var(--ombre); }
+.card.pret { box-shadow: 0 0 0 3px var(--menthe), 0 6px 16px var(--ombre); }
+.c-tete { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.c-tete .pic { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; flex: 0 0 auto; background: var(--creme); }
+.c-tete .pic.peche { background: var(--peche); } .c-tete .pic.lav { background: #EFEAFF; } .c-tete .pic.rose { background: #FFE9EE; }
+.c-tete .pic svg { width: 22px; height: 22px; }
+.c-tete h3 { margin: 0; font: 700 18px/1.1 var(--titre); flex: 1 1 auto; min-width: 0; }
+.c-tete .compte { font: 800 13px/1 var(--texte-font); color: var(--texte-2); padding: 5px 9px; border-radius: 999px; background: var(--creme); white-space: nowrap; }
+.c-tete .compte.ok { background: var(--menthe); color: #fff; }
+.c-tete .compte.or { background: var(--beurre); color: var(--texte); }
+.ligne { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--ligne); }
+.ligne:last-of-type { border-bottom: 0; }
+.ligne .t { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 15px; }
+.ligne .t > span:first-child { min-width: 0; }
+.ligne .t > span b { display: block; font: 700 15px/1.2 var(--titre); }
+.ligne .t > span small { display: block; font-size: 12px; line-height: 1.3; color: var(--texte-2); }
+.ligne .p { display: block; margin-top: 2px; font: 800 13px/1 var(--texte-font); color: var(--texte-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ligne .t { flex-direction: column; align-items: flex-start; gap: 0; }
+.ligne.habitue .t, .ev-liste .ligne .t { flex-direction: row; align-items: center; gap: 10px; }
+.ligne .btn { min-width: 108px; min-height: 44px; border-radius: 14px; }
+.ligne .btn b { font-size: 15px; }
+.ligne .ok { font: 700 14px/1 var(--titre); color: var(--menthe-sombre); padding: 0 8px; white-space: nowrap; }
+.ligne.fait .t, .ligne.fait .p { color: var(--menthe-sombre); }
+.ligne .mini { grid-column: 1 / -1; margin-top: 0; }
+.ligne.habitue { grid-template-columns: 18px minmax(0, 1fr); }
+.ev-liste .ligne { grid-template-columns: minmax(0, 1fr) auto; }
+.ev-liste .ev-ico { width: 34px; height: 34px; border-radius: 11px; background: var(--creme); display: grid; place-items: center; flex: 0 0 auto; }
+.ev-liste .ev-ico svg { width: 26px; height: 26px; }
+.ev-liste .ligne.en-cours .ev-ico { background: #FFE9EE; }
+.chrono-pill { font: 700 15px/1 var(--titre); padding: 7px 10px; border-radius: 999px; background: #FFE9EE; color: var(--fraise-sombre); font-variant-numeric: tabular-nums; }
+.note { margin: 8px 0 0; font: 700 12px/1.35 var(--texte-font); color: var(--texte-2); }
+.note.centre { text-align: center; margin-top: 4px; }
+.card.pain { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 10px; align-items: center; }
+.card.pain .icone { width: 48px; height: 48px; border-radius: 14px; background: var(--peche); display: grid; place-items: center; }
+.card.pain .icone svg { width: 38px; height: 38px; }
+.card.pain b { display: block; font: 700 16px/1.1 var(--titre); }
+.card.pain span { display: block; font-size: 13px; color: var(--texte-2); margin-top: 3px; }
+.card.boulanger-tete { display: flex; gap: 12px; align-items: center; }
+.card.boulanger-tete > svg { width: 76px; height: 76px; flex: 0 0 auto; background: var(--peche); border-radius: 24px; padding: 6px; }
+.card.boulanger-tete > div { min-width: 0; flex: 1 1 auto; }
+.card.boulanger-tete h3 { margin: 0 0 2px; font: 700 22px/1.1 var(--titre); }
+.card.boulanger-tete .sous { margin: 0 0 6px; font-size: 13px; }
+.card.reglages { padding: 4px 6px; }
+.reglage { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 8px; align-items: center; width: 100%; min-height: 60px; padding: 8px 8px; text-align: left; border-bottom: 1px solid var(--ligne); border-radius: 14px; }
+.reglage:last-child { border-bottom: 0; }
+.reglage:active { background: var(--creme); }
+.reglage > .ico { width: 40px; height: 40px; border-radius: 13px; background: var(--creme); }
+.reglage > span { min-width: 0; }
+.reglage > span b { display: block; font: 700 16px/1.15 var(--titre); }
+.reglage > span small { display: block; margin-top: 2px; font-size: 12px; line-height: 1.3; color: var(--texte-2); }
+.reglage .chev { width: 24px; height: 24px; background: none; opacity: .5; }
+
+/* ─── barre d'onglets ─── */
+#onglets { flex: 0 0 auto; z-index: 5; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 6px 6px calc(env(safe-area-inset-bottom, 0px) + 6px); background: var(--carte);
+  border-radius: 24px 24px 0 0; box-shadow: 0 -8px 24px rgba(74, 51, 40, .10); }
+#onglets button { position: relative; display: grid; justify-items: center; gap: 2px; min-height: 56px; padding: 2px 0 0; color: var(--texte-2); font: 700 12px/1 var(--titre); }
+#onglets button .ico { width: 48px; height: 32px; border-radius: 12px; transition: background .15s; }
+#onglets button.actif { color: var(--texte); }
+#onglets button.actif .ico { background: var(--peche); }
+#onglets button:active .ico { transform: scale(.94); }
+.badge { position: absolute; top: -4px; right: calc(50% - 26px); min-width: 20px; height: 20px; padding: 0 5px; border-radius: 999px; background: var(--fraise); color: #fff; font: 800 12px/20px var(--texte-font); text-align: center; box-shadow: 0 0 0 2.5px #fff; font-style: normal; }
+.badge.lavande { background: var(--lavande-sombre); }
+.badge.beurre { background: var(--beurre); color: var(--texte); }
+.badge.point { min-width: 12px; width: 12px; height: 12px; padding: 0; }
+
+/* ─── boutique : barre d'achat, ticket des objectifs, cartes ─── */
+.barre-achat { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 8px; padding: 8px 2px 8px; background: var(--creme); }
 .barre-achat .modes { display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: var(--carte); box-shadow: 0 3px 0 var(--gris-sombre); }
 .barre-achat .modes button { min-width: 42px; min-height: 38px; padding: 0 8px; border-radius: 999px; font: 700 14px/1 var(--titre); color: var(--texte-2); }
 .barre-achat .modes button.actif { background: var(--texte); color: #fff; }
-.btn-am { margin-left: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 42px; padding: 0 14px; border-radius: 999px; background: var(--lavande); color: #fff;
-  box-shadow: 0 3px 0 var(--lavande-sombre); font: 700 14px/1 var(--titre); white-space: nowrap; }
+.btn-am { position: relative; margin-left: auto; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 16px 0 12px; border-radius: 999px; background: var(--lavande); color: #fff;
+  box-shadow: 0 3px 0 var(--lavande-sombre); font: 700 15px/1 var(--titre); white-space: nowrap; }
 .btn-am:active { transform: translateY(3px); box-shadow: none; }
-.btn-am svg { width: 18px; height: 18px; }
+.btn-am .ico svg { width: 22px; height: 22px; stroke: #fff; }
+.btn-am .badge { top: -6px; right: -4px; box-shadow: 0 0 0 3px var(--creme); }
 .btn-am.pret { animation: pulse 1.2s ease-in-out infinite; }
-#cartes { display: grid; gap: 10px; }
-.carte { display: grid; grid-template-columns: 60px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 12px; border-radius: 22px; background: var(--carte);
+.ticket { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; min-height: 52px; margin: 0 0 10px; padding: 6px 10px 6px 8px; border-radius: 18px; text-align: left;
+  background: var(--carte); box-shadow: 0 4px 12px var(--ombre); }
+.ticket:active { transform: translateY(2px); }
+.ticket > .ico { width: 36px; height: 36px; border-radius: 12px; background: var(--peche); }
+.ticket > .ico svg { width: 22px; height: 22px; }
+.ticket .tk-txt { min-width: 0; display: grid; gap: 2px; }
+.ticket .tk-txt b { font: 700 15px/1.1 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ticket .tk-txt small { font: 700 12px/1.25 var(--texte-font); color: var(--texte-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ticket .tk-pill { display: inline-flex; align-items: center; justify-content: center; min-height: 30px; min-width: 30px; padding: 0 6px; border-radius: 999px; font: 800 13px/1 var(--texte-font); color: var(--texte-2); }
+.ticket .tk-pill .ico svg { width: 20px; height: 20px; opacity: .5; }
+.ticket.pret { box-shadow: 0 0 0 3px var(--menthe), 0 4px 12px var(--ombre); animation: pulse 1.2s ease-in-out infinite; }
+.ticket.pret .tk-pill { background: var(--menthe); color: #fff; padding: 0 10px; }
+.ticket.complet > .ico { background: #FFF3C4; }
+#cartes { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
+.carte, .card, .am { min-width: 0; }
+.carte { display: grid; grid-template-columns: 54px minmax(0, 1fr) 106px; gap: 10px; align-items: center; padding: 10px 10px 10px 12px; border-radius: 20px; background: var(--carte);
   box-shadow: 0 6px 16px var(--ombre); position: relative; }
-.carte .icone { width: 60px; height: 60px; border-radius: 18px; background: var(--peche); display: grid; place-items: center; }
-.carte .icone svg { width: 46px; height: 46px; }
+.carte .icone { position: relative; width: 54px; height: 54px; border-radius: 16px; background: var(--peche); display: grid; place-items: center; }
+.carte .icone svg { width: 42px; height: 42px; }
+.carte .icone .niv { position: absolute; left: 50%; bottom: -7px; transform: translateX(-50%); min-width: 26px; padding: 3px 6px; border-radius: 999px; background: var(--texte); color: #fff; font: 800 11px/1 var(--texte-font); text-align: center; box-shadow: 0 0 0 2px #fff; }
 .carte .corps { min-width: 0; display: grid; gap: 6px; }
-.carte h3 { margin: 0; font: 700 18px/1.1 var(--titre); letter-spacing: -.01em; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.carte h3 .niv { font: 800 12px/1 var(--texte-font); color: var(--texte-2); padding: 3px 7px; border-radius: 999px; background: var(--creme); white-space: nowrap; }
-.carte h3 .niv i { font-style: normal; color: var(--gris-texte); }
-.carte .barre { position: relative; height: 30px; border-radius: 999px; background: var(--creme); overflow: hidden; }
+.carte h3 { margin: 0; font: 700 17px/1.1 var(--titre); letter-spacing: -.01em; display: flex; align-items: center; gap: 4px 6px; flex-wrap: wrap; min-width: 0; }
+.carte h3 .nom { min-width: 0; }
+.carte h3 .pal { margin-left: auto; font: 800 11px/1 var(--texte-font); color: var(--gris-texte); font-style: normal; white-space: nowrap; }
+.carte .barre { position: relative; height: 26px; border-radius: 999px; background: var(--creme); overflow: hidden; }
 .carte .barre i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 999px; background: var(--menthe); }
 .carte .barre i.rapide { background: linear-gradient(90deg, var(--menthe), var(--menthe-sombre)); width: 100% !important; }
 .carte .barre span { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; font: 800 13px/1 var(--texte-font); white-space: nowrap; }
@@ -86,27 +195,61 @@ svg { display: block; }
 .carte .barre .cuire { right: 10px; color: var(--fraise-sombre); font: 700 13px/1 var(--titre); letter-spacing: .02em; }
 .carte.manuel:not(.actif) .barre { outline: 2px dashed var(--fraise); outline-offset: -2px; }
 .carte.manuel:not(.actif):active .barre { background: #FFE9EE; }
-.boutons { display: grid; gap: 6px; width: 118px; }
-.btn { display: grid; justify-items: center; gap: 2px; min-height: 48px; padding: 6px 8px; border-radius: 16px; background: var(--fraise); color: #fff; box-shadow: 0 4px 0 var(--fraise-sombre); transition: transform .05s; }
-.btn small { font: 700 11px/1 var(--texte-font); opacity: .9; letter-spacing: .02em; }
-.btn b { font: 700 16px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.boutons { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; width: 106px; min-width: 0; }
+.btn { display: grid; justify-items: center; gap: 2px; min-height: 44px; padding: 5px 8px; border-radius: 14px; background: var(--fraise); color: #fff; box-shadow: 0 4px 0 var(--fraise-sombre); transition: transform .05s; }
+.btn small { font: 700 11px/1 var(--texte-font); opacity: .92; letter-spacing: .02em; }
+.btn b { font: 700 15px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .btn:active { transform: translateY(4px); box-shadow: none; }
 .btn.menthe { background: var(--menthe); box-shadow: 0 4px 0 var(--menthe-sombre); }
 .btn.beurre { background: var(--beurre); color: var(--texte); box-shadow: 0 4px 0 var(--beurre-sombre); }
 .btn.lavande { background: var(--lavande); box-shadow: 0 4px 0 var(--lavande-sombre); }
+.btn.sombre { background: var(--texte); box-shadow: 0 4px 0 #2b1d16; }
 .btn.non { background: var(--gris); color: var(--gris-texte); box-shadow: 0 4px 0 var(--gris-sombre); }
 .btn.non:active { transform: none; box-shadow: 0 4px 0 var(--gris-sombre); }
 .btn.large { width: 100%; min-height: 56px; border-radius: 20px; }
 .btn.large b { font-size: 19px; }
-.staff-ok { display: flex; align-items: center; gap: 6px; min-height: 40px; padding: 4px 8px; border-radius: 14px; background: var(--creme); font: 700 12px/1.15 var(--texte-font); color: var(--texte-2); }
-.staff-ok svg { width: 28px; height: 28px; flex: 0 0 auto; }
-.carte.verrou { grid-template-columns: 60px minmax(0, 1fr); background: #FFFBF4; box-shadow: none; border: 2px dashed var(--gris-sombre); }
+.btn.promo { background: linear-gradient(135deg, #C8863A, #E8B46A); box-shadow: 0 4px 0 #A8621F; }
+.staff-ok { display: flex; align-items: center; gap: 4px; min-height: 28px; min-width: 0; padding: 2px 6px 2px 3px; border-radius: 999px; background: var(--creme); font: 800 12px/1.1 var(--texte-font); color: var(--texte-2); white-space: nowrap; overflow: hidden; }
+.staff-ok svg { width: 22px; height: 22px; flex: 0 0 auto; }
+.staff-ok span { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.staff-ok .coche svg { width: 14px; height: 14px; stroke: var(--menthe-sombre); stroke-width: 3; }
+.carte.verrou { grid-template-columns: 54px minmax(0, 1fr); background: #FFFBF4; box-shadow: none; border: 2px dashed var(--gris-sombre); }
 .carte.verrou .icone { background: var(--creme); }
 .carte.verrou .icone svg { opacity: .45; filter: grayscale(1); }
 .carte.verrou p { margin: 0; font-size: 13px; color: var(--texte-2); font-weight: 700; }
-.carte.verrou .btn { margin-top: 6px; width: 100%; }
+.carte.verrou .btn { margin-top: 4px; width: 100%; }
 .carte.verrou.secret { opacity: .55; }
 .carte.verrou.secret h3 { color: var(--texte-2); }
+.carte.gouter { box-shadow: 0 0 0 3px var(--lavande), 0 6px 16px rgba(154, 132, 240, .3); }
+.carte.gouter .icone { background: #EFEAFF; }
+.badge-critique { position: absolute; top: -9px; left: 14px; z-index: 1; background: var(--lavande-sombre); color: #fff; font: 800 11px/1 var(--texte-font); padding: 5px 9px; border-radius: 999px; box-shadow: 0 2px 6px rgba(0, 0, 0, .15); }
+.tag { display: inline-block; padding: 2px 6px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 800 10px/1.3 var(--texte-font); vertical-align: middle; white-space: nowrap; flex: 0 0 auto; }
+.tag.spe { background: var(--lavande); color: #fff; }
+
+/* ─── bannière d'événement, posée sur la scène ─── */
+#evenement { position: absolute; left: 10px; right: 10px; bottom: 8px; z-index: 3; }
+.ev { position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 56px; padding: 8px 10px 10px 8px; border-radius: 18px; overflow: hidden; color: #fff; }
+.ev.rush { background: linear-gradient(135deg, #FF6B8B, #FF9A62); box-shadow: 0 8px 20px rgba(255, 107, 139, .38); }
+.ev.commande { background: linear-gradient(135deg, #B8A6FF, #8FB8FF); box-shadow: 0 8px 20px rgba(184, 166, 255, .4); }
+.ev.commande.prete { background: linear-gradient(135deg, #5FD3A4, #8FE3C2); }
+.ev.critique { background: linear-gradient(135deg, #9A84F0, #C9A3F5); box-shadow: 0 8px 20px rgba(154, 132, 240, .4); }
+.ev.meunier { background: linear-gradient(135deg, #C8863A, #E8B46A); box-shadow: 0 8px 20px rgba(200, 134, 58, .35); }
+.ev.petrissage { background: linear-gradient(135deg, #E0A61E, #FFC84A); box-shadow: 0 8px 20px rgba(224, 166, 30, .35); }
+.ev.panne { background: linear-gradient(135deg, #6E5A50, #9C8577); box-shadow: 0 8px 20px rgba(110, 90, 80, .35); }
+.ev.anniversaire { background: linear-gradient(135deg, #FF6B8B, #B8A6FF); box-shadow: 0 8px 20px rgba(255, 107, 139, .35); }
+.ev .ev-ico { width: 36px; height: 36px; border-radius: 12px; background: rgba(255, 255, 255, .92); display: grid; place-items: center; }
+.ev .ev-ico svg { width: 28px; height: 28px; }
+.ev-txt { display: grid; gap: 1px; min-width: 0; }
+.ev-txt b { font: 700 15px/1.1 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev-txt > span { font-size: 12px; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ev-txt > span b { font: 800 12px/1 var(--texte-font); display: inline; white-space: inherit; }
+#evenement.etendu .ev-txt b, #evenement.etendu .ev-txt > span { white-space: normal; }
+.ev-chrono { font: 700 20px/1 var(--titre); font-variant-numeric: tabular-nums; }
+.ev .btn { min-width: 92px; min-height: 44px; }
+.ev .btn.tapote { background: #fff; color: var(--texte); box-shadow: 0 4px 0 rgba(0, 0, 0, .18); touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.ev .btn.tapote:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0, 0, 0, .18); }
+.ev-compte { font-variant-numeric: tabular-nums; }
+.ev-barre { position: absolute; left: 0; bottom: 0; height: 4px; background: rgba(255, 255, 255, .75); border-radius: 0 3px 3px 0; transition: width .5s linear; }
 
 /* ─── indice (tutoriel) ─── */
 #indice { position: fixed; z-index: 6; pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px; width: min(78vw, 320px); }
@@ -127,124 +270,62 @@ svg { display: block; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .sous { margin: 0 0 14px; color: var(--texte-2); font-weight: 700; }
+.bloc > .sous { margin: -4px 2px 0; font-size: 13px; }
 .grand-nombre { font: 700 44px/1 var(--titre); color: var(--menthe-sombre); margin: 6px 0 2px; font-variant-numeric: tabular-nums; }
-.liste-am { display: grid; gap: 8px; }
+.liste-am { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .am { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border-radius: 18px; background: var(--carte); box-shadow: 0 4px 12px var(--ombre); }
 .am h3 { margin: 0; font: 700 16px/1.15 var(--titre); }
 .am p { margin: 2px 0 0; font-size: 13px; color: var(--texte-2); }
 .am .btn { min-width: 108px; }
 .am.fait { opacity: .6; box-shadow: none; background: #FFFBF4; }
 .am .ok { font: 700 14px/1 var(--titre); color: var(--menthe-sombre); padding: 0 8px; }
-.stat { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--ligne); }
+.stat { display: flex; justify-content: space-between; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--ligne); font-size: 14px; }
 .stat:last-child { border-bottom: 0; }
-.stat b { font: 700 16px/1 var(--titre); font-variant-numeric: tabular-nums; }
+.stat b { font: 700 16px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .detail { list-style: none; margin: 10px 0 14px; padding: 0; display: grid; gap: 4px; font-weight: 700; color: var(--texte-2); }
 .detail li { display: flex; justify-content: space-between; gap: 8px; }
 .detail li b { color: var(--texte); }
-.ligne-reglage { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; }
-.interrupteur { width: 56px; height: 32px; border-radius: 999px; background: var(--gris); position: relative; transition: background .15s; flex: 0 0 auto; }
-.interrupteur::after { content: ""; position: absolute; top: 4px; left: 4px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px var(--ombre); transition: transform .15s; }
+.interrupteur { display: block; width: 52px; height: 30px; border-radius: 999px; background: var(--gris); position: relative; transition: background .15s; flex: 0 0 auto; }
+.interrupteur::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; box-shadow: 0 2px 4px var(--ombre); transition: transform .15s; }
 .interrupteur[aria-checked="true"] { background: var(--menthe); }
-.interrupteur[aria-checked="true"]::after { transform: translateX(24px); }
-.encadre { padding: 12px 14px; border-radius: 18px; background: var(--peche); margin: 10px 0 14px; font-weight: 700; }
+.interrupteur[aria-checked="true"]::after { transform: translateX(22px); }
+.encadre { padding: 12px 14px; border-radius: 18px; background: var(--peche); margin: 0; font-weight: 700; font-size: 14px; }
 .encadre.doux { background: #EFEAFF; }
 .flottant { position: fixed; z-index: 5; pointer-events: none; font: 700 18px/1 var(--titre); color: var(--menthe-sombre); animation: monteFlotte .9s ease-out forwards; text-shadow: 0 2px 0 #fff; }
 @keyframes monteFlotte { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-46px); opacity: 0; } }
-.toast { position: fixed; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 64px); transform: translateX(-50%); z-index: 9; padding: 10px 16px; border-radius: 999px; background: var(--texte); color: #fff;
-  font: 700 14px/1.2 var(--texte-font); box-shadow: 0 6px 16px var(--ombre); max-width: calc(100vw - 32px); text-align: center; border-radius: 22px; animation: monte .25s ease-out; }
-
-/* ─── objectifs du jour ─── */
-.obj { display: block; width: 100%; text-align: left; padding: 10px 12px 8px; border-radius: 20px; background: var(--carte); box-shadow: 0 6px 16px var(--ombre); margin-bottom: 10px; }
-.obj:active { transform: translateY(2px); }
-.obj.pret { outline: 3px solid var(--menthe); animation: pulse 1.2s ease-in-out infinite; }
-.obj-tete { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; }
-.obj-titre { display: inline-flex; align-items: center; gap: 6px; font: 700 15px/1 var(--titre); }
-.obj-titre svg { width: 18px; height: 18px; }
-.obj-compte { font: 800 12px/1 var(--texte-font); color: var(--texte-2); padding: 4px 8px; border-radius: 999px; background: var(--creme); }
-.obj.pret .obj-compte { background: var(--menthe); color: #fff; }
-.obj.complet .obj-compte { background: var(--beurre); color: var(--texte); }
-.obj-lignes { display: grid; gap: 4px; }
-.obj-ligne { position: relative; display: flex; justify-content: space-between; gap: 8px; padding: 4px 0 6px; font-size: 13px; }
-.obj-ligne span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.obj-ligne em { font-style: normal; color: var(--texte-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.obj-ligne i { position: absolute; left: 0; bottom: 0; height: 3px; border-radius: 2px; background: var(--menthe); }
-.obj-ligne.fait span { color: var(--menthe-sombre); }
-.obj-ligne.fait em { color: var(--menthe-sombre); }
+.toast { position: fixed; pointer-events: none; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 64px); transform: translateX(-50%); z-index: 9; padding: 10px 16px; border-radius: 22px; background: var(--texte); color: #fff;
+  font: 700 14px/1.2 var(--texte-font); box-shadow: 0 6px 16px var(--ombre); max-width: calc(100vw - 32px); text-align: center; animation: monte .25s ease-out; }
 .mini { height: 6px; margin-top: 6px; border-radius: 3px; background: var(--creme); overflow: hidden; }
-.mini i { display: block; height: 100%; background: var(--menthe); }
-.marche { display: inline-block; margin: 2px 4px 0 0; padding: 2px 7px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 800 11px/1.3 var(--texte-font); white-space: nowrap; }
-#taux { display: block; }
-.lien { display: block; width: 100%; margin-top: 14px; text-align: center; font: 700 13px/1.2 var(--texte-font); color: var(--texte-2); text-decoration: underline; min-height: 40px; }
+.mini i { display: block; height: 100%; border-radius: 3px; background: var(--menthe); transition: width .3s; }
+.mini.beurre i { background: var(--beurre); }
+.mini.xp i { background: var(--lavande-sombre); }
 
-/* ─── événements ─── */
-#evenement { margin-bottom: 10px; }
-.ev { position: relative; display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px 14px; border-radius: 20px; overflow: hidden; color: #fff; }
-.ev.rush { background: linear-gradient(135deg, #FF6B8B, #FF9A62); box-shadow: 0 6px 16px rgba(255, 107, 139, .35); }
-.ev.commande { background: linear-gradient(135deg, #B8A6FF, #8FB8FF); box-shadow: 0 6px 16px rgba(184, 166, 255, .4); }
-.ev.commande.prete { background: linear-gradient(135deg, #5FD3A4, #8FE3C2); }
-.ev.critique { background: linear-gradient(135deg, #9A84F0, #C9A3F5); box-shadow: 0 6px 16px rgba(154, 132, 240, .4); }
-.ev.meunier { background: linear-gradient(135deg, #C8863A, #E8B46A); box-shadow: 0 6px 16px rgba(200, 134, 58, .35); }
-.ev.petrissage { background: linear-gradient(135deg, #E0A61E, #FFC84A); box-shadow: 0 6px 16px rgba(224, 166, 30, .35); }
-.ev.panne { background: linear-gradient(135deg, #6E5A50, #9C8577); box-shadow: 0 6px 16px rgba(110, 90, 80, .35); }
-.ev.anniversaire { background: linear-gradient(135deg, #FF6B8B, #B8A6FF); box-shadow: 0 6px 16px rgba(255, 107, 139, .35); }
-.ev > svg { width: 44px; height: 44px; }
-.ev.commande > svg, .ev.critique > svg, .ev.meunier > svg, .ev.petrissage > svg, .ev.panne > svg, .ev.anniversaire > svg { background: #fff; border-radius: 14px; padding: 4px; }
-.ev .btn.tapote { background: #fff; color: var(--texte); box-shadow: 0 4px 0 rgba(0, 0, 0, .18); min-width: 92px; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
-.ev .btn.tapote:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0, 0, 0, .18); }
-.ev-compte { font-variant-numeric: tabular-nums; }
-.btn.promo { background: linear-gradient(135deg, #C8863A, #E8B46A); box-shadow: 0 4px 0 #A8621F; }
-.ev-txt { display: grid; gap: 2px; min-width: 0; }
-.ev-txt b { font: 700 16px/1.1 var(--titre); }
-.ev-txt span { font-size: 13px; line-height: 1.3; }
-.ev-txt span b { font-size: 13px; font-family: var(--texte-font); font-weight: 800; }
-.ev-chrono { font: 700 22px/1 var(--titre); font-variant-numeric: tabular-nums; }
-.ev .btn { min-width: 96px; }
-.ev-barre { position: absolute; left: 0; bottom: 0; height: 5px; background: rgba(255, 255, 255, .7); border-radius: 0 3px 3px 0; transition: width .5s linear; }
-
-/* code de sauvegarde */
+/* code de sauvegarde, nom de la boutique */
 .code { display: block; width: 100%; min-height: 84px; margin: 0 0 10px; padding: 10px 12px; border: 2px solid var(--ligne); border-radius: 14px; background: #fff; color: var(--texte-2); font: 600 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; resize: none; -webkit-appearance: none; }
 .code:focus { outline: none; border-color: var(--lavande); }
-
-/* le critique : les cartes à lui servir */
-.carte.gouter { position: relative; box-shadow: 0 0 0 3px var(--lavande), 0 6px 16px rgba(154, 132, 240, .3); }
-.carte.gouter .icone { background: #EFEAFF; }
-.badge-critique { position: absolute; top: -9px; left: 14px; z-index: 1; background: var(--lavande-sombre); color: #fff; font: 800 11px/1 var(--texte-font); padding: 5px 9px; border-radius: 999px; box-shadow: 0 2px 6px rgba(0, 0, 0, .15); }
+.champ { display: block; width: 100%; padding: 12px 14px; border: 2px solid var(--ligne); border-radius: 14px; background: #fff; color: var(--texte); font: 800 16px/1.2 var(--texte-font); -webkit-appearance: none; appearance: none; }
+.champ:focus { outline: none; border-color: var(--beurre); }
 
 /* le boulanger et ses talents */
-.boulanger-tete { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
-.boulanger-tete > svg { width: 76px; height: 76px; flex: 0 0 auto; background: var(--peche); border-radius: 24px; padding: 6px; }
-.boulanger-tete h2 { margin: 0 0 2px; }
-.boulanger-tete .sous { margin: 0 0 6px; }
-.mini.xp i { background: var(--lavande-sombre); }
-.titre-section { margin: 16px 0 8px; font: 700 16px/1.2 var(--titre); }
+.titre-section { margin: 14px 0 8px; font: 700 16px/1.2 var(--titre); }
+.bloc > .titre-section { margin: 4px 2px 0; }
 .titre-section .pts { color: var(--lavande-sombre); }
 .crans { font-size: 12px; color: var(--lavande-sombre); letter-spacing: 1px; white-space: nowrap; }
 .am.talent em { font-style: normal; color: var(--lavande-sombre); font-size: 12px; }
 .am.talent.appris { box-shadow: 0 0 0 2px var(--lavande), 0 4px 12px var(--ombre); }
 
-/* le nom de la boutique */
-.champ { display: block; width: 100%; padding: 12px 14px; border: 2px solid var(--ligne); border-radius: 14px; background: #fff; color: var(--texte); font: 800 16px/1.2 var(--texte-font); -webkit-appearance: none; appearance: none; }
-.champ:focus { outline: none; border-color: var(--beurre); }
-
-/* pain du jour, spécialité, défi de la semaine, journal, trophées */
-.tag { display: inline-block; margin-left: 4px; padding: 2px 7px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 800 10px/1.3 var(--texte-font); vertical-align: middle; white-space: nowrap; }
-.tag.spe { background: var(--lavande); }
-.obj-extra { margin: -2px 0 6px; font: 700 12px/1.3 var(--texte-font); color: var(--texte-2); }
-.obj-extra b { color: var(--texte); }
-.am.pain { grid-template-columns: 44px minmax(0, 1fr); }
-.am.pain > svg { width: 44px; height: 44px; background: var(--peche); border-radius: 14px; padding: 4px; }
+/* spécialité, habitués, trophées, carnet */
 .spe-grille { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 10px 0 4px; }
 .spe-grille button { display: grid; place-items: center; gap: 2px; padding: 8px 4px 6px; border-radius: 16px; background: var(--carte); box-shadow: 0 3px 8px var(--ombre); font: 700 11px/1.1 var(--texte-font); color: var(--texte-2); }
 .spe-grille button svg { width: 36px; height: 36px; }
 .spe-grille button.actif { outline: 3px solid var(--lavande-sombre); color: var(--texte); background: #EFEAFF; }
-.am.habitue { grid-template-columns: 18px minmax(0, 1fr); }
 .pastille-hab { width: 18px; height: 18px; border-radius: 50%; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .6); }
 .trophees { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
 .troph { padding: 10px 12px; border-radius: 16px; background: var(--gris); color: var(--gris-texte); }
 .troph.gagne { background: #FFF3C4; color: var(--texte); box-shadow: 0 3px 8px var(--ombre); }
 .troph b { display: block; font: 700 13px/1.2 var(--titre); margin-bottom: 2px; }
 .troph span { font-size: 11px; line-height: 1.3; }
-.carnet { display: grid; gap: 6px; }
+.carnet { display: grid; gap: 6px; padding: 0 2px; }
 .carnet div { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
 .carnet small { color: var(--gris-texte); white-space: nowrap; }
 </style>
@@ -257,22 +338,38 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     <div><b id="coins">0 €</b><small id="taux">—</small></div>
   </div>
   <div class="haut-btns">
+    <button id="b-cloche" class="pastille cloche" type="button" aria-label="Événements"><i class="ico" data-ico="cloche"></i><i class="point" hidden></i></button>
     <button id="b-etoiles" class="pastille etoile" type="button" aria-label="Étoiles et nouvelle boutique"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6L2.5 9.4l6.6-.8z" fill="#fff" stroke="#E0A61E" stroke-width="1.5" stroke-linejoin="round"/></svg><span id="etoiles-n">0</span></button>
-    <button id="b-son" class="pastille" type="button" aria-label="Son" aria-pressed="true"><svg id="son-on" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9z" fill="#4A3328"/><path d="M16 8.5a5 5 0 010 7M18.5 6a8.5 8.5 0 010 12" fill="none" stroke="#4A3328" stroke-width="2" stroke-linecap="round"/></svg><svg id="son-off" viewBox="0 0 24 24" aria-hidden="true" hidden><path d="M4 9v6h4l5 4V5L8 9z" fill="#B5A49A"/><path d="M16 9l5 6M21 9l-5 6" fill="none" stroke="#B5A49A" stroke-width="2" stroke-linecap="round"/></svg></button>
   </div>
 </header>
-<canvas id="scene" aria-label="La boutique : les clients entrent, achètent et repartent."></canvas>
-<main id="liste">
-  <div class="barre-achat">
-    <div class="modes" role="group" aria-label="Quantité à acheter">
-      <button type="button" data-mode="1" class="actif">×1</button><button type="button" data-mode="10">×10</button><button type="button" data-mode="100">×100</button><button type="button" data-mode="max">Max</button>
-    </div>
-    <button id="b-ameliorations" class="btn-am" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l1.8 5.6L19.5 9l-5.7 1.4L12 16l-1.8-5.6L4.5 9l5.7-1.4z" fill="#fff"/><path d="M19 15l.9 2.6 2.6.9-2.6.9L19 22l-.9-2.6-2.6-.9 2.6-.9z" fill="#fff"/></svg>Bonus</button>
-  </div>
+<div id="scene-wrap">
+  <canvas id="scene" aria-label="La boutique : les clients entrent, achètent et repartent."></canvas>
+  <button id="enseigne" type="button" aria-label="Renommer la boutique"><span>Le Fournil</span></button>
   <div id="evenement" hidden></div>
-  <button id="objectifs" class="obj" type="button" aria-label="Objectifs du jour"></button>
-  <div id="cartes"></div>
+</div>
+<main id="pages">
+  <section class="page" id="page-boutique" data-page="boutique">
+    <div class="barre-achat">
+      <div class="modes" role="group" aria-label="Quantité à acheter">
+        <button type="button" data-mode="1" class="actif">×1</button><button type="button" data-mode="10">×10</button><button type="button" data-mode="100">×100</button><button type="button" data-mode="max">Max</button>
+      </div>
+      <button id="b-ameliorations" class="btn-am" type="button"><i class="ico" data-ico="bonus"></i>Bonus<i class="badge" hidden></i></button>
+    </div>
+    <button id="objectifs" class="ticket" type="button" aria-label="Objectifs du jour"></button>
+    <div id="cartes"></div>
+  </section>
+  <section class="page" id="page-defis" data-page="defis" hidden></section>
+  <section class="page" id="page-boulanger" data-page="boulanger" hidden></section>
+  <section class="page" id="page-journal" data-page="journal" hidden></section>
+  <section class="page" id="page-reglages" data-page="reglages" hidden></section>
 </main>
+<nav id="onglets" aria-label="Navigation">
+  <button type="button" data-page="boutique" class="actif" aria-current="page"><i class="ico" data-ico="boutique"></i><span>Boutique</span><i class="badge" hidden></i></button>
+  <button type="button" data-page="defis"><i class="ico" data-ico="defis"></i><span>Défis</span><i class="badge" hidden></i></button>
+  <button type="button" data-page="boulanger"><i class="ico" data-ico="boulanger"></i><span>Boulanger</span><i class="badge" hidden></i></button>
+  <button type="button" data-page="journal"><i class="ico" data-ico="journal"></i><span>Journal</span><i class="badge" hidden></i></button>
+  <button type="button" data-page="reglages"><i class="ico" data-ico="reglages"></i><span>Réglages</span><i class="badge" hidden></i></button>
+</nav>
 <div id="indice" hidden><div class="bulle"><span id="indice-txt"></span></div><svg class="main" viewBox="0 0 36 36" aria-hidden="true"><path d="M14 33c-3 0-5-2-6-5l-3-8c-.5-1.4.3-2.7 1.6-3 1.1-.3 2.2.3 2.7 1.3l1.7 3.4V8.5c0-1.4 1.1-2.5 2.5-2.5S16 7.1 16 8.5V18h1v-8c0-1.4 1.1-2.5 2.5-2.5S22 8.6 22 10v8h1v-6c0-1.4 1.1-2.5 2.5-2.5S28 10.6 28 12v6h1v-3c0-1.4 1.1-2.5 2.5-2.5S34 13.6 34 15v9c0 5-4 9-9 9z" fill="#FFD7B5" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/></svg></div>
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
@@ -855,9 +952,35 @@ const ICONS = (() => {
       ${rang >= 3 ? '<path d="M19.5 24.5q2.5-2 4.5 0q2-2 4.5 0" stroke="#8C5A3C" stroke-width="1.8" fill="none" stroke-linecap="round"/>' : ''}
       <circle cx="16" cy="24" r="1.6" fill="#FFB3B3"/><circle cx="32" cy="24" r="1.6" fill="#FFB3B3"/>`);
   }
+  // les icônes d'interface : une par fonction, même trait (brun 2 px, bouts ronds), un seul accent pastel chacune, grille de 24 px
+  const U = (inner) => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="${L}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
+  const dents = () => { let d = ''; for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, x1 = 12 + Math.cos(a) * 7.2, y1 = 12 + Math.sin(a) * 7.2, x2 = 12 + Math.cos(a) * 10, y2 = 12 + Math.sin(a) * 10; d += `<path d="M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}"/>`; } return d; };
+  const UI = {
+    boutique: U(`<path d="M4 10.5V20h16v-9.5" fill="#fff"/><path d="M3 6.5h18l1 4H2z" fill="#FF9FB2"/><path d="M6.5 10.5v-4M12 10.5v-4M17.5 10.5v-4"/><path d="M9.5 20v-5.5h5V20" fill="#FFE0C7"/>`),
+    defis: U(`<circle cx="12" cy="12" r="9" fill="#fff"/><circle cx="12" cy="12" r="5.2" fill="#FFE0C7"/><circle cx="12" cy="12" r="1.8" fill="#FF6B8B" stroke="none"/>`),
+    boulanger: U(`<path d="M6 11c-2.2 0-3.5-1.6-3.5-3.3C2.5 5.8 4 4.4 5.8 4.6 6.4 2.9 8 1.8 9.8 2.2 10.6 1.4 11.6 1 12.6 1c1.8 0 3.3 1.1 3.8 2.7 1.9-.3 3.6 1 3.9 2.8.3 2-1.2 3.6-3 3.8V11z" fill="#fff"/><path d="M6 11h12v4.5H6z" fill="#FFE0C7"/><path d="M9 11v4.5M15 11v4.5"/>`),
+    journal: U(`<path d="M3 5.5c3-1.3 6-1.3 9 .5 3-1.8 6-1.8 9-.5V19c-3-1.3-6-1.3-9 .5-3-1.8-6-1.8-9-.5z" fill="#fff"/><path d="M12 6v13.5"/><path d="M16.5 9.2l.8 1.7 1.8.2-1.3 1.3.3 1.8-1.6-.9-1.6.9.3-1.8-1.3-1.3 1.8-.2z" fill="#FFC84A" stroke="none"/>`),
+    reglages: U(`<circle cx="12" cy="12" r="7.2" fill="#EFEAFF"/>${dents()}<circle cx="12" cy="12" r="2.6" fill="#fff"/>`),
+    cloche: U(`<path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15z" fill="#FFF3C4"/><path d="M10 20.5a2 2 0 004 0"/><path d="M12 3.5v1.5"/>`),
+    bonus: U(`<path d="M11 3l1.8 5.2L18 10l-5.2 1.8L11 17l-1.8-5.2L4 10l5.2-1.8z" fill="#fff"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" fill="#FFC84A" stroke="none"/>`),
+    etoile: U(`<path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6L2.5 9.4l6.6-.8z" fill="#FFC84A"/>`),
+    sauvegarde: U(`<path d="M7 18a4 4 0 01-.6-7.9A6 6 0 0118 9.5a3.8 3.8 0 01-.5 7.5z" fill="#DDF3FF"/><path d="M12 12v8M9 17l3 3 3-3"/>`),
+    son: U(`<path d="M4 9.5v5h3.5l5 4v-13l-5 4z" fill="#FFE0C7"/><path d="M16 9a4 4 0 010 6M18.5 6.5a7.5 7.5 0 010 11"/>`),
+    sonOff: U(`<path d="M4 9.5v5h3.5l5 4v-13l-5 4z" fill="#EADFD6"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/>`),
+    vibre: U(`<rect x="8" y="3.5" width="8" height="17" rx="2.5" fill="#fff"/><path d="M11 17.5h2"/><path d="M4.5 9c-1 2-1 4 0 6M19.5 9c1 2 1 4 0 6"/>`),
+    crayon: U(`<path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 013 3L8 18.5z" fill="#FFF3C4"/><path d="M13.5 7l3 3"/>`),
+    recommencer: U(`<path d="M20 12a8 8 0 11-2.3-5.7"/><path d="M20 4v4.5h-4.5"/>`),
+    partager: U(`<path d="M5 12v8h14v-8" fill="#fff"/><path d="M12 3.5v11M8.5 7l3.5-3.5L15.5 7"/>`),
+    specialite: U(`<circle cx="12" cy="9" r="6.5" fill="#EFEAFF"/><path d="M12 5.5l1.1 2.2 2.4.3-1.8 1.7.5 2.4L12 11l-2.2 1.1.5-2.4-1.8-1.7 2.4-.3z" fill="#B8A6FF" stroke="none"/><path d="M9 14.5l-1.5 6L12 18l4.5 2.5-1.5-6"/>`),
+    soleil: U(`<circle cx="12" cy="12" r="4" fill="#FFC84A"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>`),
+    trophee: U(`<path d="M7 4h10v5a5 5 0 01-10 0z" fill="#FFC84A"/><path d="M7 6H4.5a2.5 2.5 0 002.5 3.5M17 6h2.5A2.5 2.5 0 0117 9.5"/><path d="M12 14v3M8.5 20h7l-.8-3H9.3z" fill="#FFE0C7"/>`),
+    chevron: U(`<path d="M9.5 6l6 6-6 6"/>`),
+    coche: U(`<path d="M5 12.5l4.5 4.5L19 7.5"/>`),
+    fermer: U(`<path d="M6 6l12 12M18 6L6 18"/>`),
+  };
   const AMELIORATION = S(`<path d="M24 6l3.5 10.5L38 20l-10.5 3.5L24 34l-3.5-10.5L10 20l10.5-3.5z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`);
   const ETOILE = S(`<path d="M24 5l5.8 12.2 13.2 1.6-9.8 9.2 2.6 13.2L24 34.6l-11.8 6.6 2.6-13.2L5 18.8l13.2-1.6z" fill="#FFC84A" stroke="#E0A61E" stroke-width="2" stroke-linejoin="round"/>`);
-  return { PRODUITS, apprenti, boulanger, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON };
+  return { PRODUITS, apprenti, boulanger, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI };
 })();
 
 /* ── scene.js ── */
@@ -869,7 +992,7 @@ const SCENE = (() => {
   let cv, ctx, W = 1, H = 1, DPR = 1;
   const TAU = Math.PI * 2;
   const clients = [], textes = [], vapeurs = [], flocons = [], passants = [];
-  let hop = 0, blink = 0, nextSpawn = 2, nextPassant = 5, t = 0, confetti = [], rush = false, rang = 0, pts = 0, affl = 0, Q = null, tags = [], force = {}, nom = '';
+  let hop = 0, blink = 0, nextSpawn = 2, nextPassant = 5, t = 0, confetti = [], rush = false, rang = 0, pts = 0, affl = 0, Q = null, tags = [], force = {};
   const L = '#4A3328';
   const PASTEL = ['#FF9FB2', '#8FE3C2', '#C7B8FF', '#FFD98A', '#9BD0FF', '#FFB48A', '#B5E88A'];
   const PEAUX = ['#FFD7B5', '#F1B990', '#C68B59', '#8D5A3C', '#FFE3C9'];
@@ -940,7 +1063,7 @@ const SCENE = (() => {
     const d = new Date(now), hour = force.heure != null ? force.heure : d.getHours() + d.getMinutes() / 60;
     const taux = G.tauxParSeconde(st);
     rang = G.rangTitre(st); pts = G.ptsTalents(st); affl = G.talent(st, 'affluence');
-    Q = DECORS[G.QUARTIERS[G.quartier(st)].id] || DECORS.village; tags = force.saison || G.saison(now); nom = G.nomBoutique(st);
+    Q = DECORS[G.QUARTIERS[G.quartier(st)].id] || DECORS.village; tags = force.saison || G.saison(now);
     nextSpawn -= dt;
     if (nextSpawn <= 0) {
       nextSpawn = rush ? 0.7 : taux > 0 ? Math.max(1.5, 6 - Math.log10(taux + 1)) : 7;
@@ -1011,7 +1134,6 @@ const SCENE = (() => {
     if (tags.includes('galette')) galette(W * 0.3 + (bonus >= 3 ? 30 : 0), cy - 4);
     if (tags.includes('paques')) oeufs(W * 0.56, cy - 4);
     if (tags.includes('ete') && !tags.includes('fete')) glaces(W * 0.6, cy - 6);
-    enseigne();
     for (const c of clients) client(c);
     lumiere(sk, niv(2) > 0);
     for (const x of textes) { ctx.globalAlpha = Math.max(0, Math.min(1, x.life * 1.4)); ctx.font = `700 ${Math.round(15 * Math.min(1.3, 1 + x.txt.length / 40))}px Fredoka, Nunito, sans-serif`; ctx.fillStyle = x.col; ctx.strokeStyle = '#fff'; ctx.lineWidth = 4; ctx.textAlign = 'center'; ctx.strokeText(x.txt, x.x, x.y); ctx.fillText(x.txt, x.x, x.y); }
@@ -1161,13 +1283,7 @@ const SCENE = (() => {
     }
     ctx.restore();
   }
-  function enseigne() { // le nom de la boutique, sur une plaque en haut
-    ctx.font = '700 11px Fredoka, Nunito, sans-serif'; ctx.textAlign = 'center';
-    const pw = Math.min(W * 0.5, ctx.measureText(nom).width + 26), x = W * 0.5 - pw / 2;
-    ctx.fillStyle = 'rgba(0,0,0,.12)'; rr(x + 1, 5, pw, 18, 7); ctx.fill();
-    ctx.fillStyle = Q.bois; rr(x, 3, pw, 18, 7); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; rr(x + 2, 5, pw - 4, 14, 5); ctx.stroke();
-    ctx.fillStyle = Q.vue === 'mer' ? '#2B4C7E' : '#FFF3DC'; ctx.fillText(nom, W * 0.5, 16, pw - 16);
-  }
+
   // ─── le boulanger : sa toque, son foulard, sa moustache, son col changent avec son titre ───
   function boulanger(x, y) {
     const peau = '#FFD7B5', resp = 1 + Math.sin(t * 1.6) * 0.012;
@@ -1259,13 +1375,16 @@ const SCENE = (() => {
 })();
 
 /* ── ui.js ── */
-/* LE FOURNIL — interface : cartes des produits, objectifs du jour, événements, indices du tutoriel, feuilles, sons, sauvegarde, boucle. */
+/* LE FOURNIL — interface : barre d'onglets (Boutique, Défis, Boulanger, Journal, Réglages), cartes compactes, ticket des objectifs,
+   bannière d'événement sur la scène, cloche, badges, feuilles, sons, sauvegarde, boucle. */
 const UI = (() => {
   'use strict';
   const G = GAME, $ = (s) => document.querySelector(s), KEY = 'fournil.v2';
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let st, lastFrame = 0, lastSave = 0, cards = [], lastHud = '', lastObj = '', lastEv = '', hintStep = -1, hintUntil = 0, toastTimer = 0, lastNiveau = 0, vuBoulanger = false;
+  let st, lastFrame = 0, lastSave = 0, cards = [], lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, toastTimer = 0, lastNiveau = 0, vuBoulanger = false;
+  let pageActive = 'boutique', evEtendu = false;
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const PAGES = ['boutique', 'defis', 'boulanger', 'journal', 'reglages'];
 
   // ─── sauvegarde : localStorage et IndexedDB en double (le second résiste mieux quand l'app est tuée), on relit la plus récente ───
   const DB = 'fournil', STORE = 'sauvegarde';
@@ -1337,7 +1456,7 @@ const UI = (() => {
   };
   function buzz(p) { if (!st.vibre) return; try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* pas de vibreur */ } }
 
-  // ─── cartes des produits ───
+  // ─── cartes des produits (compactes : niveau sur l'icône, barre fine, deux boutons de 44 px) ───
   function buildCards() {
     const box = $('#cartes'); box.innerHTML = ''; cards = [];
     G.PRODUITS.forEach((p, i) => { const el = document.createElement('article'); el.className = 'carte'; el.dataset.i = i; box.appendChild(el); cards.push({ el, html: '' }); });
@@ -1357,11 +1476,11 @@ const UI = (() => {
         const n = G.quantite(st, i), prix = G.prixNiveaux(st, i, n), ok = st.coins >= prix, pal = G.prochainPalier(s.niv);
         const rapide = p.temps <= 1.5 && s.staff;
         cls = 'carte' + (s.staff ? ' auto' : ' manuel') + (s.actif ? ' actif' : '') + (critique.includes(i) ? ' gouter' : '');
-        html = `${critique.includes(i) ? '<span class="badge-critique">Sers le critique !</span>' : ''}<div class="icone">${ICONS.PRODUITS[p.id]}</div>
-          <div class="corps"><h3>${esc(p.nom)}${st.jour && st.jour.pain === i ? ' <span class="tag">Pain du jour ×1,5</span>' : ''}${st.specialite === i ? ' <span class="tag spe">Spécialité ×2</span>' : ''} <span class="niv">Niv. ${s.niv}${pal ? ` <i>· palier ${pal}</i>` : ''}</span></h3>
+        html = `${critique.includes(i) ? '<span class="badge-critique">Sers le critique !</span>' : ''}<div class="icone">${ICONS.PRODUITS[p.id]}<span class="niv">${s.niv}</span></div>
+          <div class="corps"><h3><span class="nom">${esc(p.nom)}${st.jour && st.jour.pain === i ? ' <span class="tag">×1,5</span>' : ''}${st.specialite === i ? ' <span class="tag spe">×2</span>' : ''}</span>${pal && pal - s.niv <= 10 ? `<i class="pal">palier ${pal}</i>` : ''}</h3>
             <div class="barre"><i class="${rapide ? 'rapide' : ''}"></i><span class="rev">+${G.fmtEur(G.revenuFournee(st, i))}</span>${s.staff || s.actif ? `<span class="tps">${G.fmtDuree(G.temps(st, i))}</span>` : '<span class="cuire">Touche !</span>'}</div></div>
           <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'} ${remise < 1 ? 'promo' : ''}" data-a="ameliorer"><small>${remise < 1 ? `−${Math.round((1 - remise) * 100)} % ×${n}` : `Améliorer ×${n}`}</small><b>${G.fmtEur(prix)}</b></button>
-            ${s.staff ? `<div class="staff-ok">${ICONS.apprenti(i)}<span>${esc(p.staffNom.split(' ').pop())}<br>s’en occupe</span></div>` : `<button type="button" class="btn beurre ${st.coins >= G.prixStaff(st, i) ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${G.fmtEur(G.prixStaff(st, i))}</b></button>`}</div>`;
+            ${s.staff ? `<div class="staff-ok" title="${esc(p.staffNom)} s’en occupe">${ICONS.apprenti(i)}<span>${esc(p.staffNom.split(' ').pop())}</span><i class="ico coche">${ICONS.UI.coche}</i></div>` : `<button type="button" class="btn beurre ${st.coins >= G.prixStaff(st, i) ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${G.fmtEur(G.prixStaff(st, i))}</b></button>`}</div>`;
       }
       if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); }
       else if (c.el.className !== cls) c.el.className = cls;
@@ -1396,49 +1515,198 @@ const UI = (() => {
     if (st.stations[i].niv > 0 && !st.stations[i].staff) { if (G.lancer(st, i)) { son.tap(); buzz(6); SCENE.tap(); renderCards(); } }
   }
 
-  // ─── en-tête ───
+  // ─── en-tête, enseigne, cloche et badges des onglets ───
+  const trophesGagnes = () => G.TROPHEES.filter((t) => (st.trophees || {})[t.id]).length;
+  const primesAReclamer = () => { const j = G.objectifsDuJour(st, st.now), sm = st.semaine; return j.objectifs.filter((o) => o.fait && !o.reclame).length + (sm && sm.fait && !sm.reclame ? 1 : 0); };
+  function badge(el, n, cls) { const b = el.querySelector('.badge'); if (!b) return; b.hidden = !n; b.textContent = n > 0 && cls !== 'point' ? n : ''; b.className = 'badge' + (cls ? ' ' + cls : ''); }
   function hud() {
     const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st), marche = G.jourDeMarche(st.now), boost = st.boost && st.boost.fin > st.now ? st.boost.mult : 0;
-    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}`;
+    const bonus = G.AMELIORATIONS.filter((a) => !st.ameliorations[a.id] && st.coins >= G.prixBonus(st, a)).length, primes = primesAReclamer(), pts = G.ptsTalents(st);
+    const nouveaux = Math.max(0, trophesGagnes() - (st.vu ? st.vu.trophees : 0)), nom = G.nomBoutique(st), ev = st.ev ? st.ev.type : '';
+    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}`;
     if (key === lastHud) return; lastHud = key;
     $('#coins').textContent = G.fmtEur(st.coins);
     $('#taux').innerHTML = (taux > 0 ? `<b>+${G.fmtEur(taux)}</b> par seconde` : 'Touche la baguette !') + (marche || boost ? '<br>' : '') + (marche ? '<span class="marche">Marché ×1,5</span>' : '') + (boost ? `<span class="marche">Bonne critique ×${boost}</span>` : '');
     $('#etoiles-n').textContent = gain > 0 ? `${st.etoiles} · +${gain}` : st.etoiles;
     $('#b-etoiles').classList.toggle('pret', gain >= 3);
-    $('#b-ameliorations').classList.toggle('pret', G.AMELIORATIONS.some((a) => !st.ameliorations[a.id] && st.coins >= G.prixBonus(st, a)));
+    $('#b-ameliorations').classList.toggle('pret', bonus > 0); badge($('#b-ameliorations'), bonus);
+    $('#enseigne span').textContent = nom;
+    $('#b-cloche').classList.toggle('actif', !!ev); $('#b-cloche .point').hidden = !ev;
+    badge($('#onglets [data-page="defis"]'), primes);
+    badge($('#onglets [data-page="boulanger"]'), pts, 'lavande');
+    badge($('#onglets [data-page="journal"]'), nouveaux, 'beurre');
   }
   function toast(txt) { let el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); } el.textContent = txt; clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 2400); }
   function flottant(x, y, txt) { const el = document.createElement('div'); el.className = 'flottant'; el.textContent = txt; el.style.left = x + 'px'; el.style.top = y + 'px'; document.body.appendChild(el); setTimeout(() => el.remove(), 900); }
 
-  // ─── objectifs du jour : carte compacte, feuille détaillée ───
+  // ─── pages : une seule visible, la scène se replie hors de la Boutique ou quand on fait défiler ───
+  function showPage(id) {
+    if (!PAGES.includes(id)) return;
+    pageActive = id;
+    document.querySelectorAll('#pages .page').forEach((p) => { p.hidden = p.dataset.page !== id; });
+    document.querySelectorAll('#onglets button').forEach((b) => { const on = b.dataset.page === id; b.classList.toggle('actif', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
+    $('#pages').scrollTop = 0;
+    if (id === 'boulanger') vuBoulanger = true;
+    if (id === 'journal' && st.vu) { st.vu.trophees = trophesGagnes(); }
+    lastPage = ''; renderPage(true);
+    replier();
+    hud();
+  }
+  function replier() { document.body.classList.toggle('replie', pageActive !== 'boutique' || $('#pages').scrollTop > 40); }
+  const PAGE_HEAD = (id, titre, droite) => `<div class="page-tete"><h2><span class="pic">${ICONS.UI[id]}</span>${titre}</h2>${droite || ''}</div>`;
+  function renderPage(force) {
+    if (pageActive === 'boutique') return;
+    const sec = $(`#page-${pageActive}`);
+    const p = { defis: pageDefis, boulanger: pageBoulanger, journal: pageJournal, reglages: pageReglages }[pageActive];
+    const key = p.key();
+    if (force || key !== lastPage) { lastPage = key; sec.innerHTML = p.html(); p.bind(sec); }
+    if (p.maj) p.maj(sec);
+  }
+  const onIn = (sec, sel, fn) => sec.querySelectorAll(sel).forEach((b) => b.addEventListener('click', () => { audio(); fn(b); }));
+  const pct = (a, b) => Math.min(100, a / b * 100).toFixed(0) + '%';
+
+  // Défis : objectifs du jour (primes à récupérer), pain du jour, défi de la semaine, les sept événements
+  const EV_LISTE = [
+    ['rush', () => ICONS.FEU, 'Coup de feu', `toutes les ventes ×${G.RUSH.mult} pendant ${G.RUSH.duree} s`],
+    ['commande', () => ICONS.PRODUITS.baguette, 'Commande spéciale', `des fournées à livrer en ${G.COMMANDE.duree / 60} min, payées ${G.COMMANDE.prime} fois`],
+    ['critique', () => ICONS.CRITIQUE, 'Le critique', `trois recettes en ${G.CRITIQUE.duree / 60} min, puis tout ×${G.CRITIQUE.mult} pendant ${G.CRITIQUE.boost / 60} min`],
+    ['meunier', () => ICONS.SAC, 'Le meunier', `niveaux et recettes à −${Math.round(G.MEUNIER.remise * 100)} % pendant ${G.MEUNIER.duree} s`],
+    ['petrissage', () => ICONS.PATE, 'Concours de pétrissage', `${G.PETRISSAGE.n} touches en ${G.PETRISSAGE.duree} s`],
+    ['panne', () => ICONS.PANNE, 'Panne de four', `${G.PANNE.n} touches pour réparer, prime à la clé`],
+    ['anniversaire', () => ICONS.BALLON, 'Goûter d’anniversaire', `un produit ×${G.ANNIVERSAIRE.mult} pendant ${G.ANNIVERSAIRE.duree / 60} min`],
+  ];
+  const pageDefis = {
+    key: () => { const j = G.objectifsDuJour(st, st.now), sm = st.semaine; return JSON.stringify([j.objectifs.map((o) => [o.fait, o.reclame]), j.pain, j.etoileDonnee, sm && [sm.fait, sm.reclame, sm.txt], st.ev && st.ev.type, G.serieEnCours(st)]); },
+    html: () => {
+      const j = G.objectifsDuJour(st, st.now), sm = st.semaine, serie = G.serieEnCours(st), faits = j.objectifs.filter((o) => o.fait).length, aReclamer = j.objectifs.some((o) => o.fait && !o.reclame), pain = G.PRODUITS[j.pain];
+      return `${PAGE_HEAD('defis', 'Défis', serie > 0 ? `<span class="serie">${ICONS.UI.soleil}${serie} jour${serie > 1 ? 's' : ''}</span>` : '')}
+      <div class="bloc">
+        <div class="card ${aReclamer ? 'pret' : ''}"><div class="c-tete"><span class="pic peche">${ICONS.CIBLE}</span><h3>Objectifs du jour</h3><span class="compte ${aReclamer ? 'ok' : j.etoileDonnee ? 'or' : ''}">${aReclamer ? 'Prime !' : j.etoileDonnee ? 'Terminés ★' : `${faits}/3`}</span></div>
+          ${j.objectifs.map((o, k) => `<div class="ligne ${o.fait ? 'fait' : ''}"><div class="t"><span>${esc(o.txt)}</span><span class="p" data-p="${k}"></span></div>
+            ${o.reclame ? '<span class="ok">Récupéré ✓</span>' : `<button type="button" class="btn ${o.fait ? 'menthe' : 'non'}" data-k="${k}"><small>${o.fait ? 'Récupérer' : 'Prime'}</small><b>${G.fmtEur(o.prime)}</b></button>`}
+            <div class="mini"><i data-b="${k}"></i></div></div>`).join('')}
+          <p class="note">${j.etoileDonnee ? 'Bravo : une étoile de plus pour toujours. De nouveaux défis demain !' : 'Les trois réussis : <b>+1 étoile</b>, pour toujours.'}</p></div>
+        <div class="card pain"><span class="icone">${ICONS.PRODUITS[pain.id]}</span><div><b>Pain du jour : ${esc(pain.nom)} ×${G.PAIN_DU_JOUR_MULT.toString().replace('.', ',')}</b><span>Toute la journée, chaque fournée de ${esc(pain.pl)} rapporte moitié plus. Demain, un autre produit.</span></div></div>
+        ${sm ? `<div class="card ${sm.fait && !sm.reclame ? 'pret' : ''}"><div class="c-tete"><span class="pic lav">${ICONS.UI.etoile}</span><h3>Défi de la semaine</h3><span class="compte ${sm.reclame ? 'or' : sm.fait ? 'ok' : ''}">${sm.reclame ? 'Réussi ★' : sm.fait ? 'Prime !' : 'jusqu’à dimanche'}</span></div>
+          <div class="ligne ${sm.fait ? 'fait' : ''}"><div class="t"><span>${esc(sm.txt)}</span><span class="p" data-p="s"></span></div>
+            ${sm.reclame ? '<span class="ok">Récupéré ✓</span>' : `<button type="button" class="btn ${sm.fait ? 'beurre' : 'non'}" data-a="semaine"><small>${sm.fait ? 'Récupérer' : 'Récompense'}</small><b>+1 ★</b></button>`}
+            <div class="mini beurre"><i data-b="s"></i></div></div></div>` : ''}
+        <div class="card ev-liste"><div class="c-tete"><span class="pic rose">${ICONS.UI.cloche}</span><h3>Événements</h3><span class="compte" data-p="ev"></span></div>
+          ${EV_LISTE.map(([type, ico, nom, desc]) => `<div class="ligne ${st.ev && st.ev.type === type ? 'en-cours' : ''}"><div class="t"><span class="ev-ico">${ico()}</span><span><b>${nom}</b><small>${desc}</small></span></div>${st.ev && st.ev.type === type ? '<span class="chrono-pill" data-p="chrono"></span>' : ''}</div>`).join('')}
+          <p class="note">Ils arrivent tout seuls pendant que tu joues, toutes les quelques minutes. La cloche en haut te prévient.</p></div>
+      </div>`;
+    },
+    bind: (sec) => {
+      onIn(sec, '[data-k]', (b) => { const r = G.reclamer(st, +b.dataset.k); if (!r.ok) { son.non(); return; } son.deblocage(); buzz([10, 30, 10]); toast(r.etoile ? `+${G.fmtEur(r.prime)} et +1 ★ : objectifs du jour réussis !` : `+${G.fmtEur(r.prime)} de prime`); if (r.etoile) SCENE.fete(); renderCards(true); hud(); save(); renderPage(true); });
+      onIn(sec, '[data-a="semaine"]', () => { const r = G.reclamerSemaine(st); if (!r.ok) { son.non(); return; } reussite(`Défi de la semaine : +${G.fmtEur(r.prime)} et +1 ★ !`); renderPage(true); });
+    },
+    maj: (sec) => {
+      const j = G.objectifsDuJour(st, st.now), sm = st.semaine;
+      j.objectifs.forEach((o, k) => { const p = sec.querySelector(`[data-p="${k}"]`), b = sec.querySelector(`[data-b="${k}"]`); if (p) p.textContent = o.fait ? '✓' : `${G.fmt(Math.floor(o.progres))} / ${G.fmt(o.cible)}`; if (b) b.style.width = pct(o.progres, o.cible); });
+      if (sm) { const p = sec.querySelector('[data-p="s"]'), b = sec.querySelector('[data-b="s"]'); if (p) p.textContent = sm.fait ? '✓' : `${G.fmt(sm.progres)} / ${G.fmt(sm.cible)}`; if (b) b.style.width = pct(sm.progres, sm.cible); }
+      const e = sec.querySelector('[data-p="ev"]'); if (e) e.textContent = st.ev ? 'en cours' : `prochain dans ~${Math.max(1, Math.ceil(st.evTimer / 60))} min`;
+      const c = sec.querySelector('[data-p="chrono"]'); if (c && st.ev) c.textContent = G.fmtChrono(Math.max(0, (st.ev.fin - st.now) / 1000));
+    },
+  };
+  // Boulanger : niveau, savoir-faire, talents permanents
+  const pageBoulanger = {
+    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}`,
+    html: () => {
+      const np = G.niveauPour(st.xp), pts = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n);
+      return `${PAGE_HEAD('boulanger', 'Boulanger', pts ? `<span class="serie lav">${pts} point${pts > 1 ? 's' : ''}</span>` : '')}
+      <div class="bloc">
+        <div class="card boulanger-tete">${ICONS.boulanger(rang)}<div><h3>${esc(G.titre(st))}</h3><p class="sous">Niveau ${np.n} · ${G.fmt(np.reste)} / ${G.fmt(np.prochain)} savoir-faire${suivant ? `<br>${esc(suivant[1])} au niveau ${suivant[0]}` : ''}</p><div class="mini xp"><i style="width:${pct(np.reste, np.prochain)}"></i></div></div></div>
+        <div class="encadre doux">Le savoir-faire vient des défis du jour, des événements réussis, des recettes, des embauches et des nouvelles boutiques. Chaque niveau donne <b>un point de talent</b>. Les talents sont à toi pour toujours, même en changeant de boutique.</div>
+        <h3 class="titre-section">Talents${pts ? ` · <span class="pts">${pts} point${pts > 1 ? 's' : ''} à dépenser</span>` : ''}</h3>
+        <div class="liste-am">${G.TALENTS.map((t) => { const k = G.talent(st, t.id), max = k >= t.max; return `<div class="am talent ${k ? 'appris' : ''}"><div><h3>${esc(t.nom)} <span class="crans">${'●'.repeat(k)}${'○'.repeat(t.max - k)}</span></h3><p>${k ? esc(t.desc(k)) : 'Cran 1 : ' + esc(t.desc(1))}${k && !max ? `<br><em>Cran suivant : ${esc(t.desc(k + 1))}</em>` : ''}</p></div>${max ? '<span class="ok">Maîtrisé ✓</span>' : `<button type="button" class="btn ${pts ? 'lavande' : 'non'}" data-t="${t.id}"><small>Apprendre</small><b>1 point</b></button>`}</div>`; }).join('')}</div>
+      </div>`;
+    },
+    bind: (sec) => {
+      onIn(sec, '[data-t]', (b) => {
+        const r = G.apprendre(st, b.dataset.t);
+        if (!r.ok) { son.non(); toast(G.ptsTalents(st) ? 'Ce talent est déjà au maximum.' : 'Pas encore de point : gagne du savoir-faire.'); return; }
+        son.deblocage(); buzz([10, 30, 10]); toast(`${r.talent.nom} : ${r.talent.desc(r.cran)}`); renderCards(true); hud(); save(); renderPage(true);
+      });
+    },
+  };
+  // Journal : records, habitués, trophées, derniers événements, partage
+  const ilYA = (ms) => { const s = Math.max(0, (Date.now() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
+  const pageJournal = {
+    key: () => `${trophesGagnes()}|${(st.carnetEv || []).length}|${JSON.stringify(st.habitues)}|${st.stats.commandes}|${st.stats.critiques}|${st.stats.petrissages}|${st.stats.pannes}`,
+    html: () => {
+      const S = st.stats, tr = st.trophees || {}, gagnes = trophesGagnes();
+      return `${PAGE_HEAD('journal', 'Journal', `<span class="serie or">${ICONS.UI.trophee}${gagnes}/${G.TROPHEES.length}</span>`)}
+      <div class="bloc">
+        <p class="sous">${esc(G.nomBoutique(st))} · ${G.fmt(S.ventes)} fournées, ${G.fmt(S.clients)} clients depuis le début.</p>
+        <div class="card"><div class="c-tete"><span class="pic peche">${ICONS.UI.etoile}</span><h3>Records</h3></div>
+          <div class="stat"><span>Plus grosse commande livrée</span><b>${S.meilleureCommande ? G.fmtEur(S.meilleureCommande) : '—'}</b></div>
+          <div class="stat"><span>Meilleur pourboire</span><b>${S.meilleurPourboire ? G.fmtEur(S.meilleurPourboire) : '—'}</b></div>
+          <div class="stat"><span>Pétrissage le plus rapide</span><b>${S.petrissageRecord ? S.petrissageRecord.toFixed(1).replace('.', ',') + ' s' : '—'}</b></div>
+          <div class="stat"><span>Meilleure série d’objectifs</span><b>${S.serieMax || 0} jour${(S.serieMax || 0) > 1 ? 's' : ''}</b></div>
+          <div class="stat"><span>Commandes · critiques · pétrissages · fours</span><b>${S.commandes || 0} · ${S.critiques || 0} · ${S.petrissages || 0} · ${S.pannes || 0}</b></div></div>
+        <div class="card"><div class="c-tete"><span class="pic lav">${ICONS.UI.boulanger}</span><h3>Les habitués</h3></div>
+          ${G.HABITUES.map((h) => { const e = (st.habitues || {})[h.id]; return `<div class="ligne habitue"><span class="pastille-hab" style="background:${h.haut}"></span><div class="t"><span><b>${esc(h.nom)}</b><small>Passe entre ${h.debut}h et ${Math.floor(h.fin)}h${h.fin % 1 ? '30' : ''} · ${e && e.jours ? `fidèle depuis ${e.jours} jour${e.jours > 1 ? 's' : ''}` : 'première visite à venir'}</small></span></div></div>`; }).join('')}
+          <p class="note">Sers un habitué cinq jours de suite : il t’offre un cadeau.</p></div>
+        <h3 class="titre-section">Trophées · ${gagnes}/${G.TROPHEES.length}</h3>
+        <div class="trophees">${G.TROPHEES.map((t) => `<div class="troph ${tr[t.id] ? 'gagne' : ''}"><b>${esc(t.nom)}</b><span>${esc(t.desc)}</span></div>`).join('')}</div>
+        <h3 class="titre-section">Derniers événements</h3>
+        <div class="carnet">${(st.carnetEv || []).slice().reverse().map((e) => `<div><span>${esc(e.txt)}</span><small>${ilYA(e.t)}</small></div>`).join('') || '<p class="sous">Rien encore : joue un peu !</p>'}</div>
+        <button type="button" class="btn large lavande" data-a="partager" style="margin-top:14px"><b>Partager ma boutique</b></button>
+      </div>`;
+    },
+    bind: (sec) => { onIn(sec, '[data-a="partager"]', partager); },
+  };
+  // Réglages : son, vibrations, nom, spécialité, sauvegarde, partage, remise à zéro
+  const pageReglages = {
+    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}`,
+    html: () => {
+      const q = G.QUARTIERS[G.quartier(st)];
+      const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
+      const sw = (on) => `<span class="interrupteur" role="switch" aria-checked="${on}"></span>`, chev = `<i class="ico chev">${ICONS.UI.chevron}</i>`;
+      return `${PAGE_HEAD('reglages', 'Réglages')}
+      <div class="bloc">
+        <div class="card reglages">
+          ${ligne('son', st.son ? ICONS.UI.son : ICONS.UI.sonOff, 'Sons', 'Petites notes à chaque vente et achat', sw(st.son))}
+          ${ligne('vibre', ICONS.UI.vibre, 'Vibrations', 'Un léger retour sous le doigt', sw(st.vibre))}
+        </div>
+        <div class="card reglages">
+          ${ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)}
+          ${st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, '')}
+          ${ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)}
+          ${ligne('partager', ICONS.UI.partager, 'Partager ma boutique', 'Une image de la boutique et ton score', chev)}
+        </div>
+        <div class="card reglages">
+          ${ligne('reset', ICONS.UI.recommencer, 'Recommencer de zéro', 'Efface tout, étoiles comprises', chev)}
+        </div>
+        <p class="note centre">Le Fournil · boutique n°${st.boutiques} · ${esc(q.nom)}<br>Ta boutique est enregistrée toutes les 5 secondes et à chaque achat.</p>
+      </div>`;
+    },
+    bind: (sec) => {
+      onIn(sec, '[data-a="son"]', () => { st.son = !st.son; save(); renderPage(true); if (st.son) son.tap(); });
+      onIn(sec, '[data-a="vibre"]', () => { st.vibre = !st.vibre; save(); renderPage(true); buzz(8); });
+      onIn(sec, '[data-a="nom"]', () => sheetNom(false));
+      onIn(sec, '[data-a="specialite"]', sheetSpecialite);
+      onIn(sec, '[data-a="sauvegarde"]', sheetSauvegarde);
+      onIn(sec, '[data-a="partager"]', partager);
+      onIn(sec, '[data-a="reset"]', () => {
+        openSheet(`<h2>Tout effacer ?</h2><p class="sous">Euros, recettes, apprentis, bonus et étoiles : tout repart de la première baguette. Impossible de revenir en arrière.</p><button type="button" class="btn large" data-a="oui" style="background:var(--fraise);box-shadow:0 4px 0 var(--fraise-sombre)"><b>Oui, tout effacer</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde ma boutique</b></button>`);
+        on('[data-a="non"]', closeSheet); on('[data-a="oui"]', () => { fige = true; effacer().then(() => location.reload()); });
+      });
+    },
+  };
+
+  // ─── le ticket des objectifs : une ligne sous la barre d'achat, qui mène aux Défis ───
   function renderObjectifs() {
-    const j = G.objectifsDuJour(st, st.now), sm = st.semaine, faits = j.objectifs.filter((o) => o.fait).length, aReclamer = j.objectifs.some((o) => o.fait && !o.reclame) || (sm && sm.fait && !sm.reclame);
-    const key = JSON.stringify(j.objectifs.map((o) => [o.progres, o.fait, o.reclame])) + faits + '|' + j.pain + '|' + (sm ? sm.progres + ':' + sm.fait + ':' + sm.reclame : '');
+    const j = G.objectifsDuJour(st, st.now), sm = st.semaine, faits = j.objectifs.filter((o) => o.fait).length, aReclamer = primesAReclamer() > 0;
+    const key = `${faits}|${aReclamer}|${j.etoileDonnee}|${j.pain}|${sm ? sm.reclame + ':' + sm.fait + ':' + G.fmt(sm.progres) + '/' + G.fmt(sm.cible) : ''}`;
     if (key === lastObj) return; lastObj = key;
     const el = $('#objectifs');
-    el.className = 'obj' + (aReclamer ? ' pret' : '') + (j.etoileDonnee ? ' complet' : '');
-    el.innerHTML = `<div class="obj-tete"><span class="obj-titre">${ICONS.CIBLE}Objectifs du jour</span><span class="obj-compte">${aReclamer ? 'Prime à récupérer !' : j.etoileDonnee ? 'Terminés ★' : `${faits}/3`}</span></div>
-      <div class="obj-extra">Pain du jour : <b>${esc(G.PRODUITS[j.pain].pl)}</b> ×1,5${sm ? ` · Défi de la semaine : <b>${sm.reclame ? 'réussi ★' : `${G.fmt(sm.progres)}/${G.fmt(sm.cible)}`}</b>` : ''}</div>
-      <div class="obj-lignes">${j.objectifs.map((o) => `<div class="obj-ligne ${o.fait ? 'fait' : ''}"><span>${esc(o.txt)}</span><em>${o.fait ? '✓' : `${G.fmt(Math.floor(o.progres))}/${G.fmt(o.cible)}`}</em><i style="width:${Math.min(100, o.progres / o.cible * 100).toFixed(0)}%"></i></div>`).join('')}</div>`;
-  }
-  function sheetObjectifs() {
-    const j = G.objectifsDuJour(st, st.now), serie = G.serieEnCours(st), sm = st.semaine;
-    openSheet(`<h2>Objectifs du jour</h2><p class="sous">Trois défis par jour, calibrés sur ta boutique. Les trois réussis : <b>+1 étoile</b>.${serie > 0 ? ` Série : <b>${serie} jour${serie > 1 ? 's' : ''}</b>.` : ''}</p>
-      <div class="liste-am">${j.objectifs.map((o, k) => `<div class="am ${o.reclame ? 'fait' : ''}"><div><h3>${esc(o.txt)}</h3><p>${o.fait ? 'Réussi !' : `${G.fmt(Math.floor(o.progres))} / ${G.fmt(o.cible)}`}</p><div class="mini"><i style="width:${Math.min(100, o.progres / o.cible * 100).toFixed(0)}%"></i></div></div>
-        ${o.reclame ? '<span class="ok">Récupéré ✓</span>' : `<button type="button" class="btn ${o.fait ? 'menthe' : 'non'}" data-k="${k}"><small>${o.fait ? 'Récupérer' : 'Prime'}</small><b>${G.fmtEur(o.prime)}</b></button>`}</div>`).join('')}</div>
-      ${j.etoileDonnee ? '<div class="encadre doux">Bravo, les trois objectifs sont réussis : une étoile de plus pour toujours. De nouveaux défis demain !</div>' : ''}
-      <h3 class="titre-section">Pain du jour</h3>
-      <div class="am pain">${ICONS.PRODUITS[G.PRODUITS[j.pain].id]}<div><h3>${esc(G.PRODUITS[j.pain].nom)} ×1,5</h3><p>Toute la journée, chaque fournée de ${esc(G.PRODUITS[j.pain].pl)} rapporte moitié plus. Demain, un autre produit.</p></div></div>
-      ${sm ? `<h3 class="titre-section">Défi de la semaine</h3>
-      <div class="am ${sm.reclame ? 'fait' : ''}"><div><h3>${esc(sm.txt)}</h3><p>${sm.reclame ? 'Réussi ! Un nouveau défi lundi.' : sm.fait ? 'Réussi !' : `${G.fmt(sm.progres)} / ${G.fmt(sm.cible)} · jusqu’à dimanche`}</p><div class="mini"><i style="width:${Math.min(100, sm.progres / sm.cible * 100).toFixed(0)}%"></i></div></div>
-        ${sm.reclame ? '<span class="ok">Récupéré ✓</span>' : `<button type="button" class="btn ${sm.fait ? 'beurre' : 'non'}" data-a="semaine"><small>${sm.fait ? 'Récupérer' : 'Récompense'}</small><b>+1 ★</b></button>`}</div>` : ''}
-      <button type="button" class="btn large" data-a="close" style="margin-top:14px;background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
-    on('[data-a="close"]', closeSheet);
-    on('[data-a="semaine"]', () => { const r = G.reclamerSemaine(st); if (!r.ok) { son.non(); return; } reussite(`Défi de la semaine : +${G.fmtEur(r.prime)} et +1 ★ !`); sheetObjectifs(); });
-    on('[data-k]', (b) => { const r = G.reclamer(st, +b.dataset.k); if (!r.ok) { son.non(); return; } son.deblocage(); buzz([10, 30, 10]); toast(r.etoile ? `+${G.fmtEur(r.prime)} et +1 ★ : objectifs du jour réussis !` : `+${G.fmtEur(r.prime)} de prime`); if (r.etoile) SCENE.fete(); renderCards(true); hud(); save(); sheetObjectifs(); });
+    el.className = 'ticket' + (aReclamer ? ' pret' : '') + (j.etoileDonnee ? ' complet' : '');
+    el.innerHTML = `<i class="ico">${ICONS.UI.defis}</i><span class="tk-txt"><b>Objectifs du jour · ${j.etoileDonnee ? 'terminés ★' : `${faits}/3`}</b><small>Pain du jour : ${esc(G.PRODUITS[j.pain].pl)} ×1,5${sm ? ` · Semaine : ${sm.reclame ? 'réussi ★' : `${G.fmt(sm.progres)}/${G.fmt(sm.cible)}`}` : ''}</small></span>
+      <span class="tk-pill">${aReclamer ? 'Prime !' : `<i class="ico">${ICONS.UI.chevron}</i>`}</span>`;
   }
 
-  // ─── événements : sept cartes, une interaction différente chacune ───
+  // ─── événements : une bannière compacte posée sur la scène, qu'on déplie en la touchant ───
   const TXT_EV = { rush: 'Coup de feu : les clients affluent !', commande: 'Un client passe une commande spéciale !', critique: 'Le critique gastronomique entre dans la boutique !', meunier: 'Le meunier passe : tout à −40 % !', petrissage: 'Concours de pétrissage : touche vite !', panne: 'Un four tombe en panne !', anniversaire: 'Un goûter d’anniversaire dans la boutique !' };
   const FIN_EV = { rush: 'Le coup de feu est passé.', commande: 'Trop tard, le client reviendra une autre fois.', critique: 'Le critique est reparti sans conclure…', meunier: 'Le meunier est reparti.', petrissage: 'Trop tard, la pâte a trop levé.', panne: 'Le four s’est réparé tout seul.', anniversaire: 'Le goûter est terminé.' };
   const Maj = (t) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -1449,32 +1717,34 @@ const UI = (() => {
     const reste = Math.max(0, (ev.fin - st.now) / 1000), pct = Math.min(100, reste / G.EVENEMENTS[ev.type].duree * 100);
     const p = ev.i != null ? G.PRODUITS[ev.i] : null, prete = ev.type === 'commande' && ev.fait >= ev.n, key = ev.type + ev.debut + (prete ? 'p' : '');
     if (lastEv !== key) {
+      if (!lastEv || lastEv.slice(0, -1) !== key.slice(0, -1)) evEtendu = false;
       lastEv = key; box.hidden = false; SCENE.setRush(ev.type === 'rush');
       const chrono = '<b class="ev-chrono"></b>', barre = '<i class="ev-barre"></i>';
       const html = {
-        rush: () => `<div class="ev rush">${ICONS.FEU}<div class="ev-txt"><b>Coup de feu !</b><span>Toutes les ventes ×${G.RUSH.mult}</span></div>${chrono}${barre}</div>`,
-        commande: () => `<div class="ev commande ${prete ? 'prete' : ''}">${ICONS.PRODUITS[p.id]}<div class="ev-txt"><b>Commande spéciale</b><span>${G.fmt(ev.n)} ${esc(ev.n > 1 ? p.pl : p.nom.toLowerCase())} · prime <b>${G.fmtEur(ev.prime)}</b></span><span class="ev-prog"></span></div>${prete ? '<button type="button" class="btn menthe" data-a="livrer"><small>C’est prêt</small><b>Livrer !</b></button>' : chrono}${barre}</div>`,
-        critique: () => `<div class="ev critique">${ICONS.CRITIQUE}<div class="ev-txt"><b>Le critique est là !</b><span>Sers-lui trois recettes : tout ×${G.CRITIQUE.mult} pendant ${G.CRITIQUE.boost / 60} min</span><span class="ev-prog"></span></div>${chrono}${barre}</div>`,
-        meunier: () => `<div class="ev meunier">${ICONS.SAC}<div class="ev-txt"><b>Le meunier passe</b><span>Niveaux et recettes à −${Math.round(G.MEUNIER.remise * 100)} % : c’est le moment d’acheter !</span></div>${chrono}${barre}</div>`,
-        petrissage: () => `<div class="ev petrissage">${ICONS.PATE}<div class="ev-txt"><b>Concours de pétrissage</b><span>${ev.n} touches en ${G.PETRISSAGE.duree} s · prime <b>${G.fmtEur(ev.prime)}</b></span></div><button type="button" class="btn tapote" data-a="petrir"><small>Pétris !</small><b class="ev-compte">0/${ev.n}</b></button>${barre}</div>`,
-        panne: () => `<div class="ev panne">${ICONS.PANNE}<div class="ev-txt"><b>Panne de four !</b><span>${esc(Maj(p.pl))} à l’arrêt · répare pour <b>${G.fmtEur(ev.prime)}</b></span></div><button type="button" class="btn tapote" data-a="reparer"><small>Répare !</small><b class="ev-compte">0/${ev.n}</b></button>${barre}</div>`,
-        anniversaire: () => `<div class="ev anniversaire">${ICONS.BALLON}<div class="ev-txt"><b>Goûter d’anniversaire</b><span>${esc(Maj(p.pl))} ×${ev.mult}${st.stations[ev.i].staff ? '' : ' · touche pour cuire !'}</span></div>${chrono}${barre}</div>`,
+        rush: () => `<div class="ev rush"><span class="ev-ico">${ICONS.FEU}</span><div class="ev-txt"><b>Coup de feu !</b><span>Toutes les ventes ×${G.RUSH.mult}</span></div>${chrono}${barre}</div>`,
+        commande: () => `<div class="ev commande ${prete ? 'prete' : ''}"><span class="ev-ico">${ICONS.PRODUITS[p.id]}</span><div class="ev-txt"><b>Commande spéciale</b><span>${G.fmt(ev.n)} ${esc(ev.n > 1 ? p.pl : p.nom.toLowerCase())} · prime <b>${G.fmtEur(ev.prime)}</b> · <span class="ev-prog"></span></span></div>${prete ? '<button type="button" class="btn menthe" data-a="livrer"><small>C’est prêt</small><b>Livrer !</b></button>' : chrono}${barre}</div>`,
+        critique: () => `<div class="ev critique"><span class="ev-ico">${ICONS.CRITIQUE}</span><div class="ev-txt"><b>Le critique est là !</b><span>Tout ×${G.CRITIQUE.mult} pendant ${G.CRITIQUE.boost / 60} min s’il est conquis · <span class="ev-prog"></span></span></div>${chrono}${barre}</div>`,
+        meunier: () => `<div class="ev meunier"><span class="ev-ico">${ICONS.SAC}</span><div class="ev-txt"><b>Le meunier passe</b><span>Niveaux et recettes à −${Math.round(G.MEUNIER.remise * 100)} % : c’est le moment d’acheter !</span></div>${chrono}${barre}</div>`,
+        petrissage: () => `<div class="ev petrissage"><span class="ev-ico">${ICONS.PATE}</span><div class="ev-txt"><b>Concours de pétrissage</b><span>${ev.n} touches en ${G.PETRISSAGE.duree} s · prime <b>${G.fmtEur(ev.prime)}</b></span></div><button type="button" class="btn tapote" data-a="petrir"><small>Pétris !</small><b class="ev-compte">0/${ev.n}</b></button>${barre}</div>`,
+        panne: () => `<div class="ev panne"><span class="ev-ico">${ICONS.PANNE}</span><div class="ev-txt"><b>Panne de four !</b><span>${esc(Maj(p.pl))} à l’arrêt · répare pour <b>${G.fmtEur(ev.prime)}</b></span></div><button type="button" class="btn tapote" data-a="reparer"><small>Répare !</small><b class="ev-compte">0/${ev.n}</b></button>${barre}</div>`,
+        anniversaire: () => `<div class="ev anniversaire"><span class="ev-ico">${ICONS.BALLON}</span><div class="ev-txt"><b>Goûter d’anniversaire</b><span>${esc(Maj(p.pl))} ×${ev.mult}${st.stations[ev.i].staff ? '' : ' · touche pour cuire !'}</span></div>${chrono}${barre}</div>`,
       };
       box.innerHTML = html[ev.type]();
+      box.classList.toggle('etendu', evEtendu);
       const livrer = box.querySelector('[data-a="livrer"]');
-      if (livrer) livrer.addEventListener('click', () => { audio(); const r = G.livrer(st); if (r.ok) reussite(`Commande livrée : +${G.fmtEur(r.prime)}`); });
+      if (livrer) livrer.addEventListener('click', (e) => { e.stopPropagation(); audio(); const r = G.livrer(st); if (r.ok) reussite(`Commande livrée : +${G.fmtEur(r.prime)}`); });
       const petrir = box.querySelector('[data-a="petrir"]');
-      if (petrir) petrir.addEventListener('pointerdown', (e) => { e.preventDefault(); audio(); const r = G.petrir(st); if (!r.ok) return; son.tap(); buzz(8); if (r.fini) reussite(`Pétrissage gagné : +${G.fmtEur(r.prime)}`); else petrir.querySelector('.ev-compte').textContent = `${r.taps}/${ev.n}`; });
+      if (petrir) petrir.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); audio(); const r = G.petrir(st); if (!r.ok) return; son.tap(); buzz(8); if (r.fini) reussite(`Pétrissage gagné : +${G.fmtEur(r.prime)}`); else petrir.querySelector('.ev-compte').textContent = `${r.taps}/${ev.n}`; });
       const reparer = box.querySelector('[data-a="reparer"]');
-      if (reparer) reparer.addEventListener('pointerdown', (e) => { e.preventDefault(); audio(); const r = G.reparer(st); if (!r.ok) return; son.tap(); buzz(8); if (r.fini) reussite(`Four réparé : +${G.fmtEur(r.prime)}`); else reparer.querySelector('.ev-compte').textContent = `${r.coups}/${ev.n}`; });
+      if (reparer) reparer.addEventListener('pointerdown', (e) => { e.preventDefault(); e.stopPropagation(); audio(); const r = G.reparer(st); if (!r.ok) return; son.tap(); buzz(8); if (r.fini) reussite(`Four réparé : +${G.fmtEur(r.prime)}`); else reparer.querySelector('.ev-compte').textContent = `${r.coups}/${ev.n}`; });
     }
     const prog = box.querySelector('.ev-prog');
-    if (prog && ev.type === 'commande') prog.textContent = prete ? 'Le client attend sa commande.' : `${G.fmt(ev.fait)} / ${G.fmt(ev.n)} fournées${st.stations[ev.i].staff ? '' : ' · touche pour cuire !'}`;
-    if (prog && ev.type === 'critique') prog.textContent = 'Touche les cartes : ' + ev.restants.map((i) => G.PRODUITS[i].nom.toLowerCase()).join(', ');
+    if (prog && ev.type === 'commande') prog.textContent = prete ? 'le client attend' : `${G.fmt(ev.fait)} / ${G.fmt(ev.n)} fournées${st.stations[ev.i].staff ? '' : ' · touche pour cuire !'}`;
+    if (prog && ev.type === 'critique') prog.textContent = 'touche les cartes : ' + ev.restants.map((i) => G.PRODUITS[i].nom.toLowerCase()).join(', ');
     const ch = box.querySelector('.ev-chrono'); if (ch) ch.textContent = G.fmtChrono(reste);
     box.querySelector('.ev-barre').style.width = (prete ? 100 : pct) + '%';
   }
-
+  function basculerEvenement() { evEtendu = !evEtendu; $('#evenement').classList.toggle('etendu', evEtendu); }
 
   // ─── indices : une seule consigne à la fois, qui pointe l'élément concerné ───
   const INDICES = [
@@ -1483,11 +1753,11 @@ const UI = (() => {
     { txt: 'Débloque les croissants : 20 € la fournée !', cible: () => cards[1].el.querySelector('[data-a="debloquer"]'), pret: () => st.coins >= G.PRODUITS[1].debloquer, fini: () => st.stations[1].niv >= 1 },
     { txt: 'Embauche Léo : il cuit les baguettes tout seul, même quand tu n’es pas là.', cible: () => cards[0].el.querySelector('[data-a="embaucher"]'), pret: () => st.coins >= G.PRODUITS[0].staff, fini: () => st.stations[0].staff },
     { txt: 'Bravo ! Au niveau 25, 50, 100… les gains doublent. Et regarde tes objectifs du jour : trois défis, une étoile à la clé.', cible: () => $('#objectifs'), pret: () => true, fini: () => performance.now() > hintUntil },
-    { txt: 'Le boulanger a un point de talent ! Touche-le dans la boutique pour l’apprendre.', cible: () => $('#scene'), pret: () => G.ptsTalents(st) > 0, fini: () => vuBoulanger },
+    { txt: 'Le boulanger a un point de talent ! Touche-le dans la boutique, ou ouvre l’onglet Boulanger.', cible: () => $('#onglets [data-page="boulanger"]'), pret: () => G.ptsTalents(st) > 0, fini: () => vuBoulanger },
   ];
   function indices() {
     const el = $('#indice');
-    if (st.tuto >= INDICES.length || !$('#feuille').hidden) { el.hidden = true; return; }
+    if (st.tuto >= INDICES.length || !$('#feuille').hidden || pageActive !== 'boutique') { el.hidden = true; return; }
     const h = INDICES[st.tuto];
     if (h.fini()) { st.tuto++; hintUntil = performance.now() + 8000; save(); el.hidden = true; return; }
     if (h.pret && !h.pret()) { el.hidden = true; return; }
@@ -1505,13 +1775,14 @@ const UI = (() => {
     if (r.bottom < 0 || r.top > window.innerHeight) el.hidden = true;
   }
 
-  // ─── feuilles ───
+  // ─── feuilles : bonus, étoiles, sauvegarde, nom, spécialité, retour d'absence ───
   const feuille = $('#feuille'), fc = $('#feuille-contenu'), voile = $('#voile');
   let openedAt = 0;
   function openSheet(html) { fc.innerHTML = html; feuille.hidden = false; voile.hidden = false; feuille.scrollTop = 0; openedAt = performance.now(); }
   function closeSheet() { feuille.hidden = true; voile.hidden = true; fc.innerHTML = ''; }
   voile.addEventListener('pointerdown', (e) => { if (performance.now() - openedAt > 300) { e.preventDefault(); closeSheet(); } });
   const on = (sel, fn) => fc.querySelectorAll(sel).forEach((b) => b.addEventListener('click', () => fn(b)));
+  const btnRetour = (a) => `<button type="button" class="btn large sombre" data-a="${a || 'close'}" style="margin-top:14px"><b>Retour</b></button>`;
   function sheetAmeliorations() {
     const items = G.AMELIORATIONS.map((a) => {
       const fait = st.ameliorations[a.id], prix = G.prixBonus(st, a), ok = st.coins >= prix;
@@ -1523,14 +1794,13 @@ const UI = (() => {
   function sheetSauvegarde() {
     save();
     openSheet(`<h2>Sauvegarde</h2><p class="sous">Ta boutique est enregistrée ici toutes les 5 secondes et à chaque achat. Attention : Safari et l’app installée ont chacun leur sauvegarde, et supprimer l’app efface la sienne. Pour la mettre à l’abri ou la transférer, copie ce code et garde-le quelque part.</p>
-      <h3 style="margin:14px 0 6px;font:700 16px/1 var(--titre)">Ton code</h3>
+      <h3 class="titre-section">Ton code</h3>
       <textarea class="code" readonly data-r="code" aria-label="Code de sauvegarde">${esc(codeSauvegarde())}</textarea>
       <button type="button" class="btn large menthe" data-a="copier"><b>Copier le code</b></button>
-      <h3 style="margin:18px 0 6px;font:700 16px/1 var(--titre)">Charger un code</h3>
+      <h3 class="titre-section">Charger un code</h3>
       <textarea class="code" data-r="entree" placeholder="Colle un code ici" aria-label="Code à charger"></textarea>
-      <button type="button" class="btn large lavande" data-a="charger"><b>Charger ce code</b></button>
-      <button type="button" class="btn large" data-a="retour" style="margin-top:8px;background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
-    on('[data-a="retour"]', sheetEtoiles);
+      <button type="button" class="btn large lavande" data-a="charger"><b>Charger ce code</b></button>${btnRetour()}`);
+    on('[data-a="close"]', closeSheet);
     on('[data-a="copier"]', () => {
       const ta = fc.querySelector('[data-r="code"]'); ta.focus(); ta.select();
       const fait = () => { son.deblocage(); toast('Code copié. Colle-le dans tes notes.'); };
@@ -1548,25 +1818,10 @@ const UI = (() => {
         <button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, ne rien changer</b></button>`);
       on('[data-a="non"]', sheetSauvegarde);
       on('[data-a="oui"]', () => { st = s2; save(); fige = true; setTimeout(() => location.reload(), 150); });
-      on('[data-a="etoiles"]', () => { st.etoiles = Math.max(st.etoiles, s2.etoiles); if ((s2.xp || 0) > (st.xp || 0)) { st.xp = s2.xp; st.talents = s2.talents || {}; } lastNiveau = G.niveau(st); son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`${st.etoiles} étoiles : +${Math.round(st.etoiles * G.ETOILE_BONUS * 100)} % de gains`); renderCards(true); hud(); save(); sheetEtoiles(); });
+      on('[data-a="etoiles"]', () => { st.etoiles = Math.max(st.etoiles, s2.etoiles); if ((s2.xp || 0) > (st.xp || 0)) { st.xp = s2.xp; st.talents = s2.talents || {}; } lastNiveau = G.niveau(st); son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`${st.etoiles} étoiles : +${Math.round(st.etoiles * G.ETOILE_BONUS * 100)} % de gains`); renderCards(true); hud(); save(); closeSheet(); renderPage(true); });
     });
   }
-  function sheetBoulanger() {
-    vuBoulanger = true;
-    const np = G.niveauPour(st.xp), pts = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n);
-    openSheet(`<div class="boulanger-tete">${ICONS.boulanger(rang)}<div><h2>${esc(G.titre(st))}</h2><p class="sous">Niveau ${np.n} · ${G.fmt(np.reste)} / ${G.fmt(np.prochain)} savoir-faire${suivant ? ` · ${esc(suivant[1])} au niveau ${suivant[0]}` : ''}</p><div class="mini xp"><i style="width:${(np.reste / np.prochain * 100).toFixed(0)}%"></i></div></div></div>
-      <div class="encadre doux">Le savoir-faire vient des défis du jour, des événements réussis, des recettes, des embauches et des nouvelles boutiques. Chaque niveau donne <b>un point de talent</b>. Les talents sont à toi pour toujours, même en changeant de boutique.</div>
-      <h3 class="titre-section">Talents${pts ? ` · <span class="pts">${pts} point${pts > 1 ? 's' : ''} à dépenser</span>` : ''}</h3>
-      <div class="liste-am">${G.TALENTS.map((t) => { const k = G.talent(st, t.id), max = k >= t.max; return `<div class="am talent ${k ? 'appris' : ''}"><div><h3>${esc(t.nom)} <span class="crans">${'●'.repeat(k)}${'○'.repeat(t.max - k)}</span></h3><p>${k ? esc(t.desc(k)) : 'Cran 1 : ' + esc(t.desc(1))}${k && !max ? `<br><em>Cran suivant : ${esc(t.desc(k + 1))}</em>` : ''}</p></div>${max ? '<span class="ok">Maîtrisé ✓</span>' : `<button type="button" class="btn ${pts ? 'lavande' : 'non'}" data-t="${t.id}"><small>Apprendre</small><b>1 point</b></button>`}</div>`; }).join('')}</div>
-      <button type="button" class="btn large" data-a="close" style="margin-top:14px;background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
-    on('[data-a="close"]', closeSheet);
-    on('[data-t]', (b) => {
-      const r = G.apprendre(st, b.dataset.t);
-      if (!r.ok) { son.non(); toast(G.ptsTalents(st) ? 'Ce talent est déjà au maximum.' : 'Pas encore de point : gagne du savoir-faire.'); return; }
-      son.deblocage(); buzz([10, 30, 10]); toast(`${r.talent.nom} : ${r.talent.desc(r.cran)}`); renderCards(true); hud(); save(); sheetBoulanger();
-    });
-  }
-  // le nom de la boutique : demandé à chaque ouverture, modifiable depuis la feuille des étoiles
+  // le nom de la boutique : demandé à chaque ouverture, modifiable depuis l'enseigne ou les Réglages
   function sheetNom(nouvelle) {
     const q = G.QUARTIERS[G.quartier(st)], actuel = st.nomBoutique || q.enseigne;
     const choixSpe = nouvelle && st.specialite == null; let spe = choixSpe ? (st.boutiques + 1) % G.PRODUITS.length : null;
@@ -1576,8 +1831,8 @@ const UI = (() => {
       <button type="button" class="btn large beurre" data-a="ok" style="margin-top:12px"><b>${nouvelle ? 'C’est parti !' : 'Garder ce nom'}</b></button>
       ${nouvelle ? '' : '<button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Annuler</b></button>'}`);
     const champ = fc.querySelector('.champ');
-    const valider = () => { G.renommer(st, champ.value); if (choixSpe && spe != null) G.choisirSpecialite(st, spe); save(); renderCards(true); closeSheet(); toast(`${G.nomBoutique(st)} : bienvenue !${choixSpe && spe != null ? ` Spécialité : ${G.PRODUITS[spe].pl}.` : ''}`); };
-    on('[data-a="ok"]', valider); on('[data-a="non"]', sheetEtoiles);
+    const valider = () => { G.renommer(st, champ.value); if (choixSpe && spe != null) G.choisirSpecialite(st, spe); save(); renderCards(true); hud(); closeSheet(); renderPage(true); toast(`${G.nomBoutique(st)} : bienvenue !${choixSpe && spe != null ? ` Spécialité : ${G.PRODUITS[spe].pl}.` : ''}`); };
+    on('[data-a="ok"]', valider); on('[data-a="non"]', closeSheet);
     on('[data-s]', (b) => { spe = +b.dataset.s; fc.querySelectorAll('[data-s]').forEach((x) => x.classList.toggle('actif', x === b)); son.tap(); });
     champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') valider(); });
     if (!nouvelle) setTimeout(() => { champ.focus(); champ.select(); }, 50);
@@ -1588,30 +1843,8 @@ const UI = (() => {
     openSheet(`<h2>La spécialité</h2><p class="sous">Le produit fétiche de cette boutique rapporte <b>×2</b> le temps de la boutique. On choisit une fois par boutique.</p>${grilleSpecialite(spe)}
       <button type="button" class="btn large lavande" data-a="ok" style="margin-top:12px"><b>Choisir</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Plus tard</b></button>`);
     on('[data-s]', (b) => { spe = +b.dataset.s; fc.querySelectorAll('[data-s]').forEach((x) => x.classList.toggle('actif', x === b)); son.tap(); });
-    on('[data-a="ok"]', () => { if (G.choisirSpecialite(st, spe).ok) { reussite(`Spécialité : ${G.PRODUITS[spe].pl} ×2 !`); } sheetEtoiles(); });
-    on('[data-a="non"]', sheetEtoiles);
-  }
-  const ilYA = (ms) => { const s = Math.max(0, (Date.now() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
-  function sheetJournal() {
-    const S = st.stats, tr = st.trophees || {}, gagnes = G.TROPHEES.filter((t) => tr[t.id]).length;
-    openSheet(`<h2>Journal</h2><p class="sous">${esc(G.nomBoutique(st))} · ${G.fmt(S.ventes)} fournées, ${G.fmt(S.clients)} clients depuis le début.</p>
-      <h3 class="titre-section">Records</h3>
-      <div class="stat"><span>Plus grosse commande livrée</span><b>${S.meilleureCommande ? G.fmtEur(S.meilleureCommande) : '—'}</b></div>
-      <div class="stat"><span>Meilleur pourboire</span><b>${S.meilleurPourboire ? G.fmtEur(S.meilleurPourboire) : '—'}</b></div>
-      <div class="stat"><span>Pétrissage le plus rapide</span><b>${S.petrissageRecord ? S.petrissageRecord.toFixed(1).replace('.', ',') + ' s' : '—'}</b></div>
-      <div class="stat"><span>Meilleure série d’objectifs</span><b>${S.serieMax || 0} jour${(S.serieMax || 0) > 1 ? 's' : ''}</b></div>
-      <div class="stat"><span>Commandes · critiques · pétrissages · fours</span><b>${S.commandes || 0} · ${S.critiques || 0} · ${S.petrissages || 0} · ${S.pannes || 0}</b></div>
-      <h3 class="titre-section">Les habitués</h3>
-      <div class="liste-am">${G.HABITUES.map((h) => { const e = (st.habitues || {})[h.id]; return `<div class="am habitue"><span class="pastille-hab" style="background:${h.haut}"></span><div><h3>${esc(h.nom)}</h3><p>Passe entre ${h.debut}h et ${Math.floor(h.fin)}h${h.fin % 1 ? '30' : ''} · ${e && e.jours ? `fidèle depuis ${e.jours} jour${e.jours > 1 ? 's' : ''}` : 'première visite à venir'}</p></div></div>`; }).join('')}</div>
-      <p class="sous" style="margin-top:6px">Sers un habitué cinq jours de suite : il t’offre un cadeau.</p>
-      <h3 class="titre-section">Trophées · ${gagnes}/${G.TROPHEES.length}</h3>
-      <div class="trophees">${G.TROPHEES.map((t) => `<div class="troph ${tr[t.id] ? 'gagne' : ''}"><b>${esc(t.nom)}</b><span>${esc(t.desc)}</span></div>`).join('')}</div>
-      <h3 class="titre-section">Derniers événements</h3>
-      <div class="carnet">${(st.carnetEv || []).slice().reverse().map((e) => `<div><span>${esc(e.txt)}</span><small>${ilYA(e.t)}</small></div>`).join('') || '<p class="sous">Rien encore : joue un peu !</p>'}</div>
-      <button type="button" class="btn large lavande" data-a="partager" style="margin-top:14px"><b>Partager ma boutique</b></button>
-      <button type="button" class="btn large" data-a="retour" style="margin-top:8px;background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>`);
-    on('[data-a="retour"]', sheetEtoiles);
-    on('[data-a="partager"]', partager);
+    on('[data-a="ok"]', () => { if (G.choisirSpecialite(st, spe).ok) reussite(`Spécialité : ${G.PRODUITS[spe].pl} ×2 !`); closeSheet(); renderPage(true); });
+    on('[data-a="non"]', closeSheet);
   }
   // partager : une image de la boutique avec une légende, sinon le texte, sinon le presse-papiers
   async function partager() {
@@ -1630,36 +1863,23 @@ const UI = (() => {
     } catch (e) { if (e && e.name === 'AbortError') return; }
     try { await navigator.clipboard.writeText(`${texte}\n${url}`); toast('Texte copié : colle-le où tu veux.'); } catch (e) { toast(texte); }
   }
+  // les étoiles : la nouvelle boutique, et rien d'autre (le reste vit dans les onglets)
   function sheetEtoiles() {
-    const gain = G.etoilesGagnables(st), bonus = Math.round(st.etoiles * G.ETOILE_BONUS * 100), serie = G.serieEnCours(st), q = G.QUARTIERS[G.quartier(st)];
+    const gain = G.etoilesGagnables(st), bonus = Math.round(st.etoiles * G.ETOILE_BONUS * 100), q = G.QUARTIERS[G.quartier(st)];
     openSheet(`<h2>Étoiles</h2><p class="sous"><b>${esc(G.nomBoutique(st))}</b> · boutique n°${st.boutiques}, ${esc(q.nom)} · ${st.etoiles} étoile${st.etoiles > 1 ? 's' : ''} · +${bonus} % sur tous les gains</p>
       <div class="encadre doux">Ouvrir une <b>nouvelle boutique</b> remet les produits et les euros à zéro, mais tu gardes tes étoiles pour toujours. Chaque étoile : <b>+${Math.round(G.ETOILE_BONUS * 100)} %</b> de gains. Plus tu as gagné dans cette boutique, plus tu en récoltes. Les objectifs du jour en donnent une aussi.</div>
       <div class="grand-nombre">+${gain} ★</div><p class="sous">à récolter maintenant (${G.fmtEur(st.lifetimeRun)} gagnés dans cette boutique)</p>
       <button type="button" class="btn large ${gain > 0 ? 'beurre' : 'non'}" data-a="prestige"><small>${gain > 0 ? 'Repartir avec' : 'Pas encore'}</small><b>${gain > 0 ? `+${gain} étoile${gain > 1 ? 's' : ''}` : 'Vends encore un peu'}</b></button>
-      <h3 style="margin:18px 0 6px;font:700 16px/1 var(--titre)">Ta boutique</h3>
-      <div class="stat"><span>Fournées vendues</span><b>${G.fmt(st.stats.ventes)}</b></div><div class="stat"><span>Clients servis</span><b>${G.fmt(st.stats.clients)}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(st.lifetime)}</b></div><div class="stat"><span>Série d’objectifs</span><b>${serie} jour${serie > 1 ? 's' : ''}</b></div>
-      <div class="ligne-reglage"><span>Vibrations</span><button type="button" class="interrupteur" role="switch" aria-checked="${st.vibre}" data-a="vibre"></button></div>
-      <button type="button" class="btn large" data-a="close" style="background:var(--texte);box-shadow:0 4px 0 #2b1d16"><b>Retour</b></button>
-      <button type="button" class="lien" data-a="boulanger">Le boulanger et ses talents</button>
-      <button type="button" class="lien" data-a="journal">Journal, trophées et partage</button>
-      ${st.specialite == null ? '<button type="button" class="lien" data-a="specialite">Choisir la spécialité de cette boutique</button>' : ''}
-      <button type="button" class="lien" data-a="nom">Renommer la boutique</button>
-      <button type="button" class="lien" data-a="sauvegarde">Sauvegarde et transfert</button>
-      <button type="button" class="lien" data-a="reset">Recommencer une partie de zéro</button>`);
+      <h3 class="titre-section">Ta boutique</h3>
+      <div class="stat"><span>Fournées vendues</span><b>${G.fmt(st.stats.ventes)}</b></div><div class="stat"><span>Clients servis</span><b>${G.fmt(st.stats.clients)}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(st.lifetime)}</b></div>
+      ${btnRetour()}`);
     on('[data-a="close"]', closeSheet);
-    on('[data-a="sauvegarde"]', sheetSauvegarde);
-    on('[data-a="boulanger"]', sheetBoulanger);
-    on('[data-a="nom"]', () => sheetNom(false));
-    on('[data-a="journal"]', sheetJournal);
-    on('[data-a="specialite"]', sheetSpecialite);
-    on('[data-a="vibre"]', (b) => { st.vibre = !st.vibre; b.setAttribute('aria-checked', st.vibre); save(); });
-    on('[data-a="reset"]', () => { openSheet(`<h2>Tout effacer ?</h2><p class="sous">Euros, recettes, apprentis, bonus et étoiles : tout repart de la première baguette. Impossible de revenir en arrière.</p><button type="button" class="btn large" data-a="oui" style="background:var(--fraise);box-shadow:0 4px 0 var(--fraise-sombre)"><b>Oui, tout effacer</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde ma boutique</b></button>`); on('[data-a="non"]', sheetEtoiles); on('[data-a="oui"]', () => { fige = true; effacer().then(() => location.reload()); }); });
     on('[data-a="prestige"]', () => {
       if (G.etoilesGagnables(st) <= 0) { son.non(); return; }
       openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les bonus achetés sont perdus.</p>
         <button type="button" class="btn large beurre" data-a="oui"><b>Ouvrir la boutique n°${st.boutiques + 1}</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Rester ici</b></button>`);
       on('[data-a="non"]', sheetEtoiles);
-      on('[data-a="oui"]', () => { const r = G.nouvelleBoutique(st, Date.now()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★`); st.tuto = Math.max(st.tuto, INDICES.length); renderCards(true); hud(); save(); sheetNom(true); } });
+      on('[data-a="oui"]', () => { const r = G.nouvelleBoutique(st, Date.now()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★`); st.tuto = Math.max(st.tuto, INDICES.length); renderCards(true); hud(); save(); showPage('boutique'); sheetNom(true); } });
     });
   }
   function sheetRetour(abs) {
@@ -1677,7 +1897,7 @@ const UI = (() => {
     if (out.ventes.length) {
       const gros = out.ventes.reduce((a, v) => a + v.montant, 0), first = out.ventes[0];
       if (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), !st.stations[first.i].staff); son.vente(gros); }
-      if (!st.stations[first.i].staff) { const r = cards[first.i].el.querySelector('.barre').getBoundingClientRect(); flottant(r.left + r.width / 2 - 30, r.top - 10, '+' + G.fmtEur(first.montant)); }
+      if (!st.stations[first.i].staff && pageActive === 'boutique') { const r = cards[first.i].el.querySelector('.barre').getBoundingClientRect(); flottant(r.left + r.width / 2 - 30, r.top - 10, '+' + G.fmtEur(first.montant)); }
     }
     if (out.nouvelEv) { son.evenement(); buzz([15, 40, 15]); toast(TXT_EV[out.nouvelEv.type]); }
     if (out.finEv) { toast(FIN_EV[out.finEv.type]); if (out.finEv.type === 'critique' || out.finEv.type === 'petrissage') son.non(); }
@@ -1686,13 +1906,17 @@ const UI = (() => {
     if (out.trophees && out.trophees.length) { const t0 = out.trophees[0]; son.deblocage(); buzz([10, 30, 10, 30, 10]); SCENE.fete(); toast(`Trophée : ${t0.nom} !${out.trophees.length > 1 ? ` (+${out.trophees.length - 1})` : ''}`); }
     const nv = G.niveau(st);
     if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); SCENE.fete(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
-    renderCards(); hud(); renderObjectifs(); renderEvenement();
+    renderCards(); hud(); renderObjectifs(); renderEvenement(); renderPage();
     SCENE.frame(dt, st, Date.now());
     indices();
     if (now - lastSave > 5000) save();
     requestAnimationFrame(frame);
   }
-  function layout() { SCENE.resize(window.innerWidth, Math.max(150, Math.min(240, Math.round(window.innerHeight * 0.27)))); }
+  function layout() {
+    const h = Math.max(150, Math.min(240, Math.round(window.innerHeight * 0.27)));
+    document.documentElement.style.setProperty('--scene-h', h + 'px');
+    SCENE.resize(window.innerWidth, h);
+  }
 
   // ─── démarrage ───
   async function boot() {
@@ -1700,6 +1924,8 @@ const UI = (() => {
     const fresh = !st;
     if (fresh) st = G.newState(Date.now());
     st.now = Date.now();
+    if (!st.vu) st.vu = { trophees: trophesGagnes() };
+    document.querySelectorAll('[data-ico]').forEach((el) => { el.innerHTML = ICONS.UI[el.dataset.ico] || ''; });
     SCENE.init($('#scene'));
     SCENE.surServi = (r) => { if (r.cadeau) { reussite(`${r.hb.nom}, fidèle depuis ${r.jours} jours, t’offre ${G.fmtEur(r.cadeau)} !`); } else if (r.jours > 1) toast(`${r.hb.nom} : ${r.jours}e jour de suite !`); };
     layout();
@@ -1708,15 +1934,18 @@ const UI = (() => {
     $('#cartes').addEventListener('click', onCardClick);
     $('#b-ameliorations').addEventListener('click', () => { audio(); sheetAmeliorations(); });
     $('#b-etoiles').addEventListener('click', () => { audio(); sheetEtoiles(); });
-    $('#objectifs').addEventListener('click', () => { audio(); sheetObjectifs(); });
-    $('#b-son').addEventListener('click', () => { audio(); st.son = !st.son; $('#b-son').setAttribute('aria-pressed', st.son); $('#son-on').hidden = !st.son; $('#son-off').hidden = st.son; save(); if (st.son) son.tap(); });
-    $('#son-on').hidden = !st.son; $('#son-off').hidden = st.son; $('#b-son').setAttribute('aria-pressed', st.son);
+    $('#objectifs').addEventListener('click', () => { audio(); showPage('defis'); });
+    $('#enseigne').addEventListener('click', () => { audio(); sheetNom(false); });
+    $('#b-cloche').addEventListener('click', () => { audio(); if (st.ev) { if (pageActive !== 'boutique') showPage('boutique'); if (!evEtendu) basculerEvenement(); } else showPage('defis'); });
+    $('#evenement').addEventListener('click', (e) => { if (e.target.closest('button')) return; audio(); basculerEvenement(); });
+    document.querySelectorAll('#onglets button').forEach((b) => b.addEventListener('click', () => { audio(); if (b.dataset.page === pageActive) $('#pages').scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }); else { son.tap(); showPage(b.dataset.page); } }));
+    $('#pages').addEventListener('scroll', replier, { passive: true });
     $('#scene').addEventListener('pointerdown', (e) => {
       audio();
       const r = $('#scene').getBoundingClientRect();
       const sx = e.clientX - r.left, sy = e.clientY - r.top;
       if (SCENE.hit(sx, sy)) { const tip = G.encaisserPourboire(st); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
-      else if (SCENE.hitBoulanger(sx, sy)) sheetBoulanger();
+      else if (SCENE.hitBoulanger(sx, sy)) showPage('boulanger');
       else SCENE.tap();
     });
     document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); } });
@@ -1732,7 +1961,7 @@ const UI = (() => {
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), boulanger: () => sheetBoulanger(), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => sheetJournal(), habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager };
+    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);
