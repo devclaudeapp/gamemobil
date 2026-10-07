@@ -290,6 +290,21 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .mini.beurre i { background: var(--beurre); }
 .mini.xp i { background: var(--lavande-sombre); }
 
+/* bonus et mobilier : le sélecteur, les lignes de meubles, la fiche d'un meuble */
+.segments { display: flex; gap: 4px; padding: 3px; margin: 0 0 12px; border-radius: 999px; background: var(--carte); box-shadow: 0 3px 0 var(--gris-sombre); }
+.segments button { flex: 1 1 0; min-height: 40px; border-radius: 999px; font: 700 15px/1 var(--titre); color: var(--texte-2); }
+.segments button.actif { background: var(--texte); color: #fff; }
+.am.meuble { grid-template-columns: 44px minmax(0, 1fr) auto; }
+.am.meuble > svg { width: 44px; height: 44px; background: var(--peche); border-radius: 14px; padding: 4px; }
+.am.meuble em { font-style: normal; color: var(--lavande-sombre); font-size: 12px; }
+.meuble-fiche { display: flex; gap: 12px; align-items: center; margin-bottom: 10px; }
+.meuble-fiche > svg { width: 76px; height: 76px; flex: 0 0 auto; background: var(--peche); border-radius: 24px; padding: 8px; }
+.meuble-fiche h2 { margin: 0 0 2px; }
+.meuble-fiche .sous { margin: 0; }
+.encadre.espace { margin: 0 0 12px; }
+.encadre b { color: var(--texte); }
+.lien { display: block; width: 100%; margin-top: 14px; text-align: center; font: 700 13px/1.2 var(--texte-font); color: var(--texte-2); text-decoration: underline; min-height: 40px; }
+
 /* code de sauvegarde, nom de la boutique */
 .code { display: block; width: 100%; min-height: 84px; margin: 0 0 10px; padding: 10px 12px; border: 2px solid var(--ligne); border-radius: 14px; background: #fff; color: var(--texte-2); font: 600 12px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all; resize: none; -webkit-appearance: none; }
 .code:focus { outline: none; border-color: var(--lavande); }

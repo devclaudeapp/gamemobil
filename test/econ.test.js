@@ -10,7 +10,7 @@ const seeded = (a) => { let s = a; return () => { s = (s * 9301 + 49297) % 23328
 
 function run(hours, policy, start = T0) {
   const st = G.newState(start); st.mode = 'max';
-  const unlockAt = {}, staffAt = {}, dt = 0.5; let t = 0, taps = 0, evs = { mystere: 0 };
+  const unlockAt = {}, staffAt = {}, m = { unlockAt, staffAt, meubleAt: {} }, dt = 0.5; let t = 0, taps = 0, evs = { mystere: 0 };
   const rnd = seeded(7);
   while (t < hours * 3600) {
     st.stations.forEach((s, i) => { if (s.niv > 0 && !s.staff && !s.actif) { G.lancer(st, i); taps++; } });
@@ -21,14 +21,15 @@ function run(hours, policy, start = T0) {
     if (st.ev && st.ev.type === 'critique') st.ev.restants.slice().forEach((i) => G.servir(st, i));
     if (st.ev && st.ev.type === 'petrissage') { G.petrir(st); G.petrir(st); } // 4 touches par seconde
     if (st.ev && st.ev.type === 'panne') G.reparer(st);
-    if (Math.round(t / dt) % 4 === 0) policy(st, t, { unlockAt, staffAt });
+    if (Math.round(t / dt) % 4 === 0) policy(st, t, m);
   }
-  return { st, unlockAt, staffAt, taps, evs };
+  return { st, unlockAt, staffAt, taps, evs, meubleAt: m.meubleAt };
 }
 const greedy = (st, t, m) => {
   for (let i = 0; i < PRODUITS.length; i++) { const s = st.stations[i]; if (s.niv > 0 && !s.staff && st.coins >= PRODUITS[i].staff) { G.embaucher(st, i); m.staffAt[i] = m.staffAt[i] || t; } }
   for (let i = 0; i < PRODUITS.length; i++) { const s = st.stations[i]; if (s.niv === 0 && st.coins >= PRODUITS[i].debloquer) { G.acheter(st, i); m.unlockAt[i] = t; break; } }
   for (const a of G.AMELIORATIONS) if (!st.ameliorations[a.id] && st.coins >= a.cout * 1.2) G.amelioration(st, a.id);
+  for (const mb of G.MOBILIER) if (G.mobilierCran(st, mb.id) < mb.max && st.coins >= G.prixMeuble(st, mb.id) * 1.2) { G.ameliorerMeuble(st, mb.id); m.meubleAt[mb.id] = m.meubleAt[mb.id] || t; }
   const next = st.stations.findIndex((s) => s.niv === 0), taux = G.tauxParSeconde(st);
   if (next > 0 && st.coins < PRODUITS[next].debloquer && st.coins + taux * 600 >= PRODUITS[next].debloquer) return; // on économise pour la prochaine recette
   let best = -1, bestRatio = 0;
@@ -44,7 +45,7 @@ check(R.staffAt[0] < 180, 'premier apprenti en moins de 3 min');
 check(R.unlockAt[3] != null && R.unlockAt[3] < 30 * 60, 'tarte en moins de 30 min');
 check(R.unlockAt[4] != null && R.unlockAt[4] < 3 * 3600, 'éclairs en moins de 3 h');
 check(G.etoilesGagnables(R.st) <= 2 && R.st.lifetime > 5e8, 'après 3 h, la première boutique a gagné plus de 500 M € mais pas encore de quoi repartir (au plus 2 étoiles)');
-check(G.etoilesPour(3e10, 0) === 1 && G.etoilesPour(3e12, 0) === 10 && G.etoilesPour(3e12, 25) === 7 && G.etoilesPour(3e12, 100) === 4, 'étoiles : 1 à 30 Md €, 10 à 3 Bn €, et plus chères quand on en possède déjà');
+check(G.etoilesPour(4e10, 0) === 1 && G.etoilesPour(4e12, 0) === 10 && G.etoilesPour(4e12, 25) === 7 && G.etoilesPour(4e12, 100) === 4, 'étoiles : 1 à 40 Md €, 10 à 4 Bn €, et plus chères quand on en possède déjà');
 // chaque niveau doit valoir le coup : il se rembourse vite, quel que soit le produit
 {
   const cycles = (i, niv) => G.coutNiveau(i, niv) / (PRODUITS[i].rev * G.palierMult(niv + 1)); // fournées nécessaires pour rembourser un niveau
@@ -57,6 +58,9 @@ const TYPES = ['rush', 'commande', 'critique', 'meunier', 'petrissage', 'panne',
 check(nEv >= 20 && nEv <= 60, `entre 20 et 60 événements en 3 h (${nEv})`);
 check(TYPES.every((t) => R.evs[t] >= 1), 'chacun des sept types d’événement est arrivé au moins une fois');
 check(R.evs.mystere >= 20, 'client mystère régulier');
+console.log('  mobilier : ' + G.MOBILIER.map((mb) => `${mb.id} ${R.meubleAt[mb.id] != null ? fmtT(R.meubleAt[mb.id]) : '—'} (cran ${G.mobilierCran(R.st, mb.id)})`).join(' · '));
+check(R.meubleAt.tables != null && R.meubleAt.tables < 300, 'les premières tables arrivent en moins de 5 min');
+check(G.MOBILIER.every((mb) => G.mobilierCran(R.st, mb.id) >= 1), 'après 3 h, chaque meuble a été amélioré au moins une fois');
 
 console.log('── objectifs du jour ──');
 {
@@ -140,6 +144,22 @@ console.log('── le boulanger ──');
   st.stations[0].actif = true; st.stations[0].prog = 0.99; const avant = st.coins; G.tick(st, 0.02, T0 + 20);
   check(Math.abs(st.coins - avant - G.revenu(st, 0) * 3) < 1e-6, 'bouche-à-oreille : la fournée à la main rapporte ×3');
   const s2 = G.newState(T0); s2.now = T0; s2.coins = 1e9; G.acheter(s2, 1); G.embaucher(s2, 0); check(s2.xp === 25, 'débloquer les croissants : +20 de savoir-faire ; embaucher Léo : +5');
+}
+console.log('── le mobilier ──');
+{
+  const st = G.newState(T0); st.now = T0;
+  check(G.MOBILIER.length === 6 && G.MOBILIER.every((m) => m.max >= 3 && m.cout > 0 && m.croiss > 1), 'six meubles, au moins trois crans chacun');
+  check(G.mobilierMult(st) === 1 && G.tempsMult(st) === 1 && G.affluenceMult(st) === 1 && G.heuresAbsence(st) === 8 && G.primeMult(st) === 1, 'boutique neuve : aucun effet de mobilier');
+  check(G.prixMeuble(st, 'tables') === 6000 && !G.ameliorerMeuble(st, 'tables').ok, 'tables : 6 000 €, refusées sans argent');
+  st.coins = 1e12; const base = G.revenuBase(st, 0), r = G.ameliorerMeuble(st, 'tables');
+  check(r.ok && r.cran === 1 && st.mobilier.tables === 1 && Math.abs(G.revenuBase(st, 0) / base - 1.08) < 1e-9 && Math.abs(G.revenu(st, 0) / G.revenuBase(st, 0) - 1) < 1e-9 && G.prixMeuble(st, 'tables') === 6000 * 40 && st.stats.meubles === 1 && st.xp === 3, 'premier cran de tables : gains ×1,08, prix suivant ×40, savoir-faire');
+  for (const m of G.MOBILIER) while (G.mobilierCran(st, m.id) < m.max) G.ameliorerMeuble(st, m.id);
+  check(Math.abs(G.tempsMult(st) - 0.88) < 1e-9 && G.heuresAbsence(st) === 11 && Math.abs(G.affluenceMult(st) - 1.75) < 1e-9 && Math.abs(G.primeMult(st) - 1.6) < 1e-9 && Math.abs(G.mobilierMult(st) - 1.32) < 1e-9, 'tout au maximum : fournées −12 %, absence 11 h, main ×1,75, primes +60 %, gains ×1,32');
+  check(st.stats.meubles === 21 && !G.ameliorerMeuble(st, 'four').ok && 1e12 - st.coins < 3e10, '21 crans en tout pour moins de 30 Md €, plus rien à améliorer');
+  check(G.verifierTrophees(st).some((t) => t.id === 'salon'), 'trophée Salon de thé');
+  const p0 = G.pourboire(st); st.mobilier.caisse = 0; check(Math.abs(p0 / G.pourboire(st) - 1.9) < 0.02, 'caisse au maximum : pourboires ×1,9'); st.mobilier.caisse = 3;
+  for (const t of G.TALENTS) st.talents[t.id] = t.max; check(Math.abs(G.prixMeuble(st, 'froid') / (600000 * 50 * 50 * 50) - 0.68) < 1e-9, 'négociateur : meubles −32 %');
+  st.lifetimeRun = 1e12; G.nouvelleBoutique(st, T0); check(Object.keys(st.mobilier).length === 0 && G.mobilierMult(st) === 1 && G.heuresAbsence(st) === 12, 'nouvelle boutique : le mobilier repart de zéro, les talents restent');
 }
 console.log('── quartiers, nom, saisons ──');
 {

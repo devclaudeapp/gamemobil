@@ -13,8 +13,8 @@ Ta boulangerie de quartier, en jeu idle/tycoon simple et lumineux : **tu cuis, t
 1. **Touche la baguette** : elle cuit, un client l'achète, tu gagnes 1 €.
 2. **Améliore** un produit : chaque niveau rapporte plus. Aux niveaux 25, 50, 100, 200… les gains **doublent** : chaque carte montre le prochain palier, le multiplicateur qu'il apporte et une jauge de progression, et le bouton Améliorer annonce quand l'achat franchit le palier.
 3. **Débloque** de nouvelles recettes : croissant, pain au chocolat, tarte aux pommes, éclair, macarons, mille-feuille, pièce montée.
-4. **Embauche** un apprenti par produit : il cuit tout seul, même pendant ton absence (jusqu'à 8 h).
-5. **Bonus** : des recettes et des équipements qui multiplient tes gains pour toujours.
+4. **Embauche** un apprenti par produit : il cuit tout seul, même pendant ton absence (8 h, davantage avec le talent Lève-tôt et la chambre froide). Dans la boutique, chaque apprenti fait la navette entre le four et le comptoir avec son plateau.
+5. **Bonus et mobilier** : des recettes et des équipements qui multiplient tes gains (jusqu'à la prochaine boutique), et **six meubles à améliorer cran par cran** en les touchant dans la boutique ou depuis le volet Mobilier de la feuille Bonus : tables et chaises (un vrai salon de thé où les clients s'assoient, tous les gains ×1,08 par cran), four (fournées 3 % plus rapides par cran), vitrine (fournées à la main +25 % de clients), caisse enregistreuse (pourboires ×1,3 et client mystère plus fréquent), chambre froide (+1 h d'absence), décoration (primes +15 %). Chaque meuble change d'aspect à chaque cran ; une pastille jaune signale un cran abordable. Le mobilier repart de zéro à chaque nouvelle boutique.
 6. **Étoiles** : quand ta boutique a bien gagné, ouvre-en une nouvelle. Tu repars de zéro mais tu gardes tes étoiles, et chaque étoile donne +5 % de gains pour toujours.
 7. **Objectifs du jour** : trois défis par jour, calibrés sur ta boutique (gagner tant, vendre tant de fournées, embaucher, débloquer une recette…). Chaque défi réussi donne une prime en euros ; les trois réussis donnent **une étoile** et prolongent ta série de jours.
 8. **Le boulanger** : touche-le dans la boutique, ou ouvre l'onglet Boulanger. Il gagne du **savoir-faire** à chaque défi, événement réussi, recette, embauche et nouvelle boutique, monte de niveau (Apprenti, Mitron, Boulanger, Compagnon, Maître boulanger, Meilleur Ouvrier de France) et reçoit **un point de talent par niveau**. Les neuf talents sont permanents, ils survivent aux changements de boutique : Bouche-à-oreille (fournées à la main ×1,5 par cran, pour des débuts plus rapides), Mains rapides (fournées −5 % de temps par cran), Mémoire des recettes (chaque nouvelle boutique démarre avec plus de recettes), Lève-tôt (absence 8 h → 12 h), Apprentis zélés, Négociateur, Charme (événements plus fréquents, primes +25 %), Pourboires, Carnet de commandes. Sa toque, sa moustache et son col changent avec son titre.
@@ -25,7 +25,7 @@ Ta boulangerie de quartier, en jeu idle/tycoon simple et lumineux : **tu cuis, t
 - **Défi de la semaine** : un seul défi plus long, du lundi au dimanche (livrer 8 commandes, conquérir 3 critiques, 12 pourboires, 15 événements, 4 jours aux trois objectifs, ouvrir une boutique). Réussi : une étoile, du savoir-faire et une prime.
 - **Les habitués** : Mme Dupuis le matin, Marco le midi, Léna en fin de journée. Chacun passe une fois par jour pendant son créneau, avec son étiquette et sa phrase. Servi cinq jours de suite, il offre un cadeau.
 - **La spécialité** : à chaque ouverture de boutique, tu choisis son produit fétiche, qui rapporte ×2 le temps de la boutique.
-- **Journal, trophées et partage** (onglet Journal) : records, fidélité des habitués, 28 trophées qui donnent du savoir-faire, les vingt derniers événements, et un bouton pour partager une image de ta boutique avec sa légende.
+- **Journal, trophées et partage** (onglet Journal) : records, fidélité des habitués, 30 trophées qui donnent du savoir-faire, les vingt derniers événements, et un bouton pour partager une image de ta boutique avec sa légende.
 
 ## Ce qui se passe en jouant
 
@@ -40,7 +40,7 @@ Ta boulangerie de quartier, en jeu idle/tycoon simple et lumineux : **tu cuis, t
 - **Jour de marché** : le samedi et le dimanche, tous les gains sont ×1,5.
 - Un événement toutes les 3 à 7 minutes de jeu actif, jamais deux fois le même d'affilée ; en absence, les apprentis vendent au rythme normal.
 
-Le haut de l'écran montre ta boutique, dessinée en direct. **Chaque nouvelle boutique change de quartier** : le village (bois et crème, collines par la fenêtre), le coin de rue parisien (zinc, damier noir et blanc, immeubles et tour Eiffel), le bord de mer (bleu et blanc, vagues, voilier, mouette), le chalet de montagne (rondins, sommets enneigés, neige qui tombe), la grande ville (marbre, laiton, gratte-ciel allumés la nuit). Tu nommes chaque boutique à son ouverture, le nom s'affiche sur l'enseigne. La boutique grandit avec toi : pains sur les étagères, plante, lampe, cadre, chat, horloge à l'heure réelle, diplôme du boulanger, ardoise, fleurs sur le comptoir, boîtes à gâteaux. La lumière suit l'heure réelle (aube, jour, soir, crépuscule, nuit avec les lampes allumées et les fenêtres éclairées dehors), des passants traversent devant la vitrine, et **les saisons suivent la date** : neige et guirlande de Noël en décembre, galette des rois en janvier, cœurs à la Saint-Valentin, œufs et pétales à Pâques, glaces l'été, fanions du 14 juillet, citrouille et feuilles mortes à l'automne.
+Le haut de l'écran montre ta boutique **vue d'en haut, en plongée 3/4**, dessinée en direct : le fournil à gauche (chambre froide, four, plan de travail), le comptoir et sa vitrine au centre avec le boulanger derrière, le salon de thé à droite, la porte au fond. Les clients entrent par la porte, font la queue devant la vitrine, repartent avec leur sac ou vont s'asseoir à une table ; le client mystère attend près du comptoir, les habitués portent leur prénom. Les apprentis font la navette four → comptoir avec leurs plateaux. Toucher le boulanger ouvre sa page, toucher un meuble ouvre sa fiche. **Chaque nouvelle boutique change de quartier** : le village (bois et crème, collines par la fenêtre), le coin de rue parisien (zinc, damier noir et blanc, immeubles et tour Eiffel), le bord de mer (bleu et blanc, vagues, voilier, mouette), le chalet de montagne (rondins, sommets enneigés, neige qui tombe), la grande ville (marbre, laiton, gratte-ciel allumés la nuit). Tu nommes chaque boutique à son ouverture, le nom s'affiche sur l'enseigne. La boutique grandit avec toi : pains sur les étagères, plante, lampe, cadre, chat, horloge à l'heure réelle, diplôme du boulanger, ardoise, fleurs sur le comptoir, boîtes à gâteaux, et le mobilier qui monte en gamme cran par cran. La lumière suit l'heure réelle (aube, jour, soir, crépuscule, nuit avec les lampes allumées et les fenêtres éclairées dehors), des passants traversent devant la fenêtre, et **les saisons suivent la date** : neige et guirlande de Noël en décembre, galette des rois en janvier, cœurs à la Saint-Valentin, œufs et pétales à Pâques, glaces l'été, fanions du 14 juillet, citrouille et feuilles mortes à l'automne.
 
 ## Lancer, tester, construire
 
@@ -53,7 +53,7 @@ node test/longevite.js   # 60 jours de jeu simulés pour trois profils de joueur
 npx serve .              # puis ouvre l'adresse sur un téléphone du même réseau
 ```
 
-`test/play.cjs` rejoue un parcours complet sur un iPhone simulé (Playwright) et produit des captures dans `test/shots/`.
+`test/play.cjs` rejoue un parcours complet sur un iPhone simulé (Playwright) et produit des captures dans `test/shots/` ; `test/scene.cjs` capture la boutique dans les cinq quartiers, à quatre heures de la journée et aux saisons, repliée, avec bannière et sur petit écran.
 
 ### L'installer sur un téléphone
 
@@ -71,27 +71,25 @@ La boutique est enregistrée dans le téléphone toutes les 5 secondes, à chaqu
 
 | Fichier | Rôle |
 | --- | --- |
-| `src/game.js` | Économie et état : produits, paliers, bonus, étoiles, boulanger (savoir-faire, niveaux, talents), objectifs du jour, événements, absence, formats de nombres. Tourne aussi dans Node |
-| `src/scene.js` | La boutique en Canvas 2D : cinq quartiers, vue par la fenêtre, boutique qui grandit, saisons, lumière du jour et de la nuit, boulanger selon son titre, clients variés, passants, client mystère, coup de feu, four en panne |
-| `src/ui.js` | Barre d'onglets et pages (Boutique, Défis, Boulanger, Journal, Réglages), cartes des produits, ticket des objectifs, bannière d'événement et cloche, badges, indices du tutoriel, feuilles (bonus, étoiles, nom, spécialité, absence, sauvegarde), sons, sauvegarde double et code de transfert |
-| `src/icons.js` | Icônes SVG en ligne : pâtisseries, apprentis, boulanger, et la famille d'icônes d'interface (onglets, cloche, bonus, réglages…) au même trait |
+| `src/game.js` | Économie et état : produits, paliers, bonus, mobilier, étoiles, boulanger (savoir-faire, niveaux, talents), objectifs du jour, événements, absence, formats de nombres. Tourne aussi dans Node |
+| `src/scene.js` | La boutique en Canvas 2D, vue 3/4 plongeante : plan de la boutique, meubles par cran, apprentis en navette, clients en file et à table, zones de touche, cinq quartiers, vue par la fenêtre et la porte, boutique qui grandit, saisons, lumière du jour et de la nuit, boulanger selon son titre, clients variés, passants, client mystère, coup de feu, four en panne |
+| `src/ui.js` | Barre d'onglets et pages (Boutique, Défis, Boulanger, Journal, Réglages), cartes des produits, fiches des meubles et volet Mobilier, ticket des objectifs, bannière d'événement et cloche, badges, indices du tutoriel, feuilles (bonus, étoiles, nom, spécialité, absence, sauvegarde), sons, sauvegarde double et code de transfert |
+| `src/icons.js` | Icônes SVG en ligne : pâtisseries, apprentis, boulanger, meubles, et la famille d'icônes d'interface (onglets, cloche, bonus, réglages…) au même trait |
 | `src/style.css`, `src/page.html` | Mise en page |
 
 ## Rythme et durabilité
 
-Huit produits. Débloquer une recette est un cap (de 60 € pour les croissants à 20 Bn € pour la pièce montée), mais ensuite chaque niveau coûte quelques fournées seulement et se rembourse vite : 4 fournées pour la baguette, 11 pour l'éclair, 28 pour la pièce montée au premier niveau. Le coût d'un niveau est multiplié par 1,07 à 1,15 à chaque achat, et les gains doublent à chaque palier (25, 50, 100, 200…) : un produit finit toujours par plafonner, c'est le suivant qui prend le relais. `test/longevite.js` fait jouer trois profils pendant 60 jours, avec des sessions réalistes, des absences (gains plafonnés à 8 h) et les talents du boulanger :
+Huit produits. Débloquer une recette est un cap (de 120 € pour les croissants à 40 Bn € pour la pièce montée), mais ensuite chaque niveau coûte quelques fournées seulement et se rembourse vite : 4 fournées pour la baguette, 11 pour l'éclair, 28 pour la pièce montée au premier niveau. Le coût d'un niveau est multiplié par 1,07 à 1,15 à chaque achat, et les gains doublent à chaque palier (25, 50, 100, 200…) : un produit finit toujours par plafonner, c'est le suivant qui prend le relais. `test/longevite.js` fait jouer trois profils pendant 60 jours, avec des sessions réalistes, des absences (gains plafonnés à 8 h, plus avec Lève-tôt et la chambre froide), les talents du boulanger et le mobilier (acheté quand il ne coûte qu'une petite part de la cagnotte) :
 
 | | Occasionnel (17 min/jour) | Régulier (36 min/jour) | Assidu (80 min/jour) |
 | --- | --- | --- | --- |
-| Éclair au café | jour 2 | jour 1 | jour 1 |
-| Macarons | jour 2 | jour 2 | jour 1 |
-| Mille-feuille | jour 4 | jour 3 | jour 4 |
-| Pièce montée | jour 12 | jour 8 | jour 7 |
-| Première nouvelle boutique | jour 5 (+7 ★) | jour 4 (+8 ★) | jour 3 (+7 ★) |
-| Dernier bonus (franchise) | jour 33 | jour 27 | jour 21 |
-| Étoiles au jour 30 | ~450 | ~670 | ~1 270 |
-| Boulanger au jour 30 | niveau 16 | niveau 17 | niveau 19 |
-| Temps sans rien à acheter | 12 % | 25 % | 43 % |
-| Jours aux trois objectifs | 53/60 | 58/60 | 56/60 |
+| Mille-feuille | — | jour 3 | — |
+| Pièce montée | jour 8 | jour 7 | jour 8 |
+| Première nouvelle boutique | jour 5 (+9 ★) | jour 4 (+8 ★) | jour 3 (+7 ★) |
+| Dernier bonus (franchise) | jour 27 | jour 21 | jour 20 |
+| Étoiles au jour 30 | ~650 | ~1 020 | ~1 140 |
+| Boulanger au jour 30 | niveau 16 | niveau 18 | niveau 20 |
+| Temps sans rien à acheter | 12 % | 26 % | 42 % |
+| Jours aux trois objectifs | 56/60 | 56/60 | 53/60 |
 
-Les étoiles d'une boutique valent √(gagné ÷ 30 Md €), et chaque tranche de 25 étoiles déjà possédées rend les suivantes deux fois plus chères : la boule de neige reste maîtrisée. Un objectif du jour devenu impossible est remplacé par un autre ; en changeant de boutique, les objectifs pas encore réclamés sont retirés à la taille de la nouvelle. `node test/longevite.js --test` vérifie ces garde-fous à chaque déploiement, et `test/econ.test.js` vérifie qu'un niveau se rembourse toujours en 30 fournées au plus au premier niveau, et en 100 au plus au niveau 25 pour les quatre premiers produits.
+Les étoiles d'une boutique valent √(gagné ÷ 40 Md €), et chaque tranche de 25 étoiles déjà possédées rend les suivantes deux fois plus chères : la boule de neige reste maîtrisée. Un objectif du jour devenu impossible est remplacé par un autre ; en changeant de boutique, les objectifs pas encore réclamés sont retirés à la taille de la nouvelle. `node test/longevite.js --test` vérifie ces garde-fous à chaque déploiement, et `test/econ.test.js` vérifie qu'un niveau se rembourse toujours en 30 fournées au plus au premier niveau, et en 100 au plus au niveau 25 pour les quatre premiers produits.

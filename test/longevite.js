@@ -18,7 +18,7 @@ const jourDe = (ms) => Math.floor((ms - T0) / 864e5) + 1;
 function simuler(nomProfil, jours, opts = {}) {
   const prof = PROFILS[nomProfil], rnd = seeded(opts.seed || 11);
   const st = G.newState(T0); st.mode = 10;
-  const M = { unlock: {}, staff: {}, bonus: {}, prestiges: [], parJour: [], attente: 0, actif: 0, achats: 0, objectifsFaits: 0, joursComplets: 0, tauxMax: 0 };
+  const M = { unlock: {}, staff: {}, bonus: {}, meubles: {}, achatsMeubles: 0, prestiges: [], parJour: [], attente: 0, actif: 0, achats: 0, objectifsFaits: 0, joursComplets: 0, tauxMax: 0 };
   let now = T0, lastAchat = 0;
   const pr = (p) => rnd() < p;
   const ORDRE_TALENTS = ['affluence', 'mains', 'memoire', 'levetot', 'zele', 'negoce', 'charme', 'pourboire', 'carnet'];
@@ -36,6 +36,11 @@ function simuler(nomProfil, jours, opts = {}) {
     const next = st.stations.findIndex((s) => s.niv === 0);
     if (next > 0 && st.coins >= PRODUITS[next].debloquer) { G.acheter(st, next); M.unlock[next] = M.unlock[next] || now; fait = true; }
     for (const a of AMELIORATIONS) if (!st.ameliorations[a.id] && st.coins >= G.prixBonus(st, a)) { G.amelioration(st, a.id); M.bonus[a.id] = M.bonus[a.id] || now; fait = true; }
+    // le mobilier : le cran le moins cher, quand il ne coûte qu'une petite part de la cagnotte (ou qu'un défi du jour le demande) ; ne compte pas comme « quelque chose à attendre »
+    { let mm = null, mp = Infinity;
+      for (const m of G.MOBILIER) if (G.mobilierCran(st, m.id) < m.max) { const p = G.prixMeuble(st, m.id); if (p < mp) { mp = p; mm = m; } }
+      const defi = st.jour && st.jour.objectifs.some((o) => o.type === 'meuble' && !o.fait);
+      if (mm && (mp <= st.coins * 0.2 || (defi && mp <= st.coins))) { G.ameliorerMeuble(st, mm.id); M.meubles[mm.id] = M.meubles[mm.id] || now; M.achatsMeubles++; } }
     // économiser si un débloquage, une embauche ou un bonus est à moins de 5 min de revenus
     const taux = G.tauxParSeconde(st);
     let cible = Infinity;
@@ -108,6 +113,7 @@ function rapport(nom, jours, R) {
   console.log('  recette            débloquée      apprenti');
   PRODUITS.forEach((p, i) => console.log(`  ${p.nom.padEnd(18)} ${(i === 0 ? 'départ' : M.unlock[i] ? fmtJ(M.unlock[i]) : '—').padEnd(14)} ${M.staff[i] ? fmtJ(M.staff[i]) : '—'}`));
   console.log('  bonus : ' + AMELIORATIONS.map((a) => `${a.id} ${M.bonus[a.id] ? fmtJ(M.bonus[a.id]) : '—'}`).join(' · '));
+  console.log('  mobilier (premier cran) : ' + G.MOBILIER.map((m) => `${m.id} ${M.meubles[m.id] ? fmtJ(M.meubles[m.id]) : '—'}`).join(' · ') + ` · ${M.achatsMeubles} crans achetés en tout`);
   console.log(`  nouvelles boutiques : ${M.prestiges.length}` + (M.prestiges.length ? ' → ' + M.prestiges.slice(0, 10).map((p) => `${fmtJ(p.t)} (+${p.gain}, ${p.duree.toFixed(1)} j, ${G.fmtEur(p.run)})`).join(', ') + (M.prestiges.length > 10 ? ' …' : '') : ''));
   console.log(`  objectifs réclamés : ${M.objectifsFaits} · jours aux 3 objectifs : ${M.joursComplets}/${jours} · attente sans achat possible : ${(M.attente / M.actif * 100).toFixed(0)} % du temps de jeu · achats de niveaux : ${M.achats}`);
   console.log(`  boulanger : niveau ${M.parJour[M.parJour.length - 1].niveau} (${G.titre(st)}) · talents ${JSON.stringify(st.talents)}`);
@@ -118,14 +124,14 @@ function rapport(nom, jours, R) {
 function resume(nom, R) {
   const { M } = R, d = (ms) => (ms ? jourDe(ms) : null), at = (j) => M.parJour[Math.min(j, M.parJour.length) - 1];
   return { profil: nom, tarte: d(M.unlock[3]), eclair: d(M.unlock[4]), macaron: d(M.unlock[5]), millefeuille: d(M.unlock[6]), piece: d(M.unlock[7]), premierPrestige: M.prestiges[0] ? { jour: jourDe(M.prestiges[0].t), gain: M.prestiges[0].gain } : null,
-    etoiles: { j7: at(7).etoiles, j14: at(14).etoiles, j30: at(30).etoiles, fin: at(M.parJour.length).etoiles }, niveau: { j7: at(7).niveau, j14: at(14).niveau, j30: at(30).niveau, fin: at(M.parJour.length).niveau }, franchise: d(M.bonus.franchise), bonusJ7: at(7).bonus, attente: +(M.attente / M.actif).toFixed(2), joursComplets: M.joursComplets, rates: M.rates || {}, jours: M.parJour.length, lifetimeFin: at(M.parJour.length).lifetime, prestiges: M.prestiges.length };
+    etoiles: { j7: at(7).etoiles, j14: at(14).etoiles, j30: at(30).etoiles, fin: at(M.parJour.length).etoiles }, niveau: { j7: at(7).niveau, j14: at(14).niveau, j30: at(30).niveau, fin: at(M.parJour.length).niveau }, franchise: d(M.bonus.franchise), bonusJ7: at(7).bonus, meubles: M.achatsMeubles, attente: +(M.attente / M.actif).toFixed(2), joursComplets: M.joursComplets, rates: M.rates || {}, jours: M.parJour.length, lifetimeFin: at(M.parJour.length).lifetime, prestiges: M.prestiges.length };
 }
 // garde-fous du rythme : un joueur régulier (36 min par jour) découvre les 8 recettes en une dizaine de jours, repart
 // pour une nouvelle boutique au bout de 2 à 4 jours puis tous les 2 à 4 jours, achète le dernier bonus en 3 à 7 semaines,
 // n'attend pas trop souvent sans rien pouvoir acheter, réussit la plupart des objectifs du jour, et les chiffres restent lisibles.
 const CIBLES = {
   occasionnel: { piece: [6, 21], premierPrestige: [3, 6], etoilesJ30: [150, 1500], franchise: [25, 60], attente: 0.3, joursComplets: 0.6, niveauJ30: [6, 20], niveauFin: [10, 28] },
-  regulier: { tarte: [1, 1], eclair: [1, 2], macaron: [1, 3], millefeuille: [2, 5], piece: [6, 12], premierPrestige: [2, 4], etoilesJ7: [20, 100], etoilesJ14: [60, 400], etoilesJ30: [300, 2000], franchise: [20, 45], attente: 0.35, joursComplets: 0.7, niveauJ30: [10, 24], niveauFin: [16, 34] },
+  regulier: { tarte: [1, 1], eclair: [1, 2], macaron: [1, 3], millefeuille: [2, 5], piece: [6, 12], premierPrestige: [2, 4], etoilesJ7: [12, 100], etoilesJ14: [60, 400], etoilesJ30: [300, 2000], franchise: [20, 45], attente: 0.35, joursComplets: 0.7, niveauJ30: [10, 24], niveauFin: [16, 34] },
   assidu: { piece: [4, 10], premierPrestige: [2, 4], etoilesJ30: [500, 3000], franchise: [15, 40], attente: 0.5, joursComplets: 0.7, niveauJ30: [12, 30], niveauFin: [18, 40] },
 };
 function tester(jours) {

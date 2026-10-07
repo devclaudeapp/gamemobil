@@ -146,7 +146,7 @@ const UI = (() => {
   function badge(el, n, cls) { const b = el.querySelector('.badge'); if (!b) return; b.hidden = !n; b.textContent = n > 0 && cls !== 'point' ? n : ''; b.className = 'badge' + (cls ? ' ' + cls : ''); }
   function hud() {
     const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st), marche = G.jourDeMarche(st.now), boost = st.boost && st.boost.fin > st.now ? st.boost.mult : 0;
-    const bonus = G.AMELIORATIONS.filter((a) => !st.ameliorations[a.id] && st.coins >= G.prixBonus(st, a)).length, primes = primesAReclamer(), pts = G.ptsTalents(st);
+    const bonus = G.AMELIORATIONS.filter((a) => !st.ameliorations[a.id] && st.coins >= G.prixBonus(st, a)).length + G.MOBILIER.filter((m) => G.mobilierCran(st, m.id) < m.max && st.coins >= G.prixMeuble(st, m.id)).length, primes = primesAReclamer(), pts = G.ptsTalents(st);
     const nouveaux = Math.max(0, trophesGagnes() - (st.vu ? st.vu.trophees : 0)), nom = G.nomBoutique(st), ev = st.ev ? st.ev.type : '';
     const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}`;
     if (key === lastHud) return; lastHud = key;
@@ -379,7 +379,14 @@ const UI = (() => {
     { txt: 'Embauche Léo : il cuit les baguettes tout seul, même quand tu n’es pas là.', cible: () => cards[0].el.querySelector('[data-a="embaucher"]'), pret: () => st.coins >= G.PRODUITS[0].staff, fini: () => st.stations[0].staff },
     { txt: 'Bravo ! Au niveau 25, 50, 100… les gains doublent. Et regarde tes objectifs du jour : trois défis, une étoile à la clé.', cible: () => $('#objectifs'), pret: () => true, fini: () => performance.now() > hintUntil },
     { txt: 'Le boulanger a un point de talent ! Touche-le dans la boutique, ou ouvre l’onglet Boulanger.', cible: () => $('#onglets [data-page="boulanger"]'), pret: () => G.ptsTalents(st) > 0, fini: () => vuBoulanger },
+    { txt: 'Ton salon de thé ! Touche un meuble dans la boutique (les tables, le four, la vitrine…) pour l’améliorer : chaque meuble donne un bonus.', cible: () => zoneCible('tables'), pret: () => pageActive === 'boutique' && !document.body.classList.contains('replie') && G.MOBILIER.some((m) => G.mobilierCran(st, m.id) < m.max && st.coins >= G.prixMeuble(st, m.id)), fini: () => (st.stats.meubles || 0) > 0 },
   ];
+  // une cible d'indice posée sur une zone de la scène (le canvas n'a pas d'éléments)
+  function zoneCible(id) {
+    const z = SCENE.zones && SCENE.zones()[id]; if (!z) return $('#scene');
+    const r = $('#scene').getBoundingClientRect();
+    return { getBoundingClientRect: () => ({ left: r.left + z.x, top: r.top + z.y, right: r.left + z.x + z.w, bottom: r.top + z.y + z.h, width: z.w, height: z.h }) };
+  }
   function indices() {
     const el = $('#indice');
     if (st.tuto >= INDICES.length || !$('#feuille').hidden || pageActive !== 'boutique') { el.hidden = true; return; }
@@ -408,13 +415,40 @@ const UI = (() => {
   voile.addEventListener('pointerdown', (e) => { if (performance.now() - openedAt > 300) { e.preventDefault(); closeSheet(); } });
   const on = (sel, fn) => fc.querySelectorAll(sel).forEach((b) => b.addEventListener('click', () => fn(b)));
   const btnRetour = (a) => `<button type="button" class="btn large sombre" data-a="${a || 'close'}" style="margin-top:14px"><b>Retour</b></button>`;
-  function sheetAmeliorations() {
-    const items = G.AMELIORATIONS.map((a) => {
+  let ongletBonus = 'bonus';
+  const crans = (k, max) => `<span class="crans">${'●'.repeat(k)}${'○'.repeat(max - k)}</span>`;
+  function sheetAmeliorations(tab) {
+    if (tab) ongletBonus = tab;
+    const bonus = G.AMELIORATIONS.map((a) => {
       const fait = st.ameliorations[a.id], prix = G.prixBonus(st, a), ok = st.coins >= prix;
       return `<div class="am ${fait ? 'fait' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p></div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${G.fmtEur(prix)}</b></button>`}</div>`;
     }).join('');
-    openSheet(`<h2>Bonus</h2><p class="sous">Des recettes et des équipements qui multiplient tes gains, pour toujours (jusqu’à la prochaine boutique).</p><div class="liste-am">${items}</div>`);
+    const meubles = G.MOBILIER.map((m) => {
+      const k = G.mobilierCran(st, m.id), max = k >= m.max, prix = G.prixMeuble(st, m.id), ok = !max && st.coins >= prix;
+      return `<div class="am meuble ${max ? 'fait' : ''}">${ICONS.MEUBLES[m.id]}<div><h3>${esc(m.nom)} ${crans(k, m.max)}</h3><p>${k ? esc(m.desc(k)) : 'Pas encore installé'}${max ? '' : `<br><em>Cran suivant : ${esc(m.desc(k + 1))}</em>`}</p></div>${max ? '<span class="ok">Au max ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-m="${m.id}"><small>Améliorer</small><b>${G.fmtEur(prix)}</b></button>`}</div>`;
+    }).join('');
+    openSheet(`<div class="segments" role="tablist"><button type="button" role="tab" data-tab="bonus" aria-selected="${ongletBonus === 'bonus'}" class="${ongletBonus === 'bonus' ? 'actif' : ''}">Bonus</button><button type="button" role="tab" data-tab="mobilier" aria-selected="${ongletBonus === 'mobilier'}" class="${ongletBonus === 'mobilier' ? 'actif' : ''}">Mobilier</button></div>
+      ${ongletBonus === 'bonus' ? `<h2>Bonus</h2><p class="sous">Des recettes et des équipements qui multiplient tes gains, pour toujours (jusqu’à la prochaine boutique).</p><div class="liste-am">${bonus}</div>`
+    : `<h2>Mobilier</h2><p class="sous">Les meubles de la boutique, à améliorer cran par cran : chacun donne un bonus. Tu peux aussi les toucher directement dans la boutique. Tout repart de zéro à la prochaine boutique.</p><div class="liste-am">${meubles}</div>`}`);
+    on('[data-tab]', (b) => { son.tap(); sheetAmeliorations(b.dataset.tab); });
     on('[data-id]', (b) => { const r = G.amelioration(st, b.dataset.id); if (!r.ok) { son.non(); toast(`Il manque ${G.fmtEur(r.prix - st.coins)}`); return; } son.deblocage(); buzz([10, 30, 10]); toast(`${r.a.nom} : ${r.a.desc}`); renderCards(true); hud(); save(); sheetAmeliorations(); });
+    on('[data-m]', (b) => acheterMeuble(b.dataset.m, () => sheetAmeliorations()));
+  }
+  function acheterMeuble(id, apres) {
+    const r = G.ameliorerMeuble(st, id);
+    if (!r.ok) { son.non(); toast(r.m && r.cran >= r.m.max ? 'Ce meuble est déjà au maximum.' : `Il manque ${G.fmtEur(r.prix - st.coins)}`); return; }
+    son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`${r.m.nom} : ${r.m.desc(r.cran)}`); renderCards(true); hud(); save(); if (apres) apres();
+  }
+  // la fiche d'un meuble, ouverte en le touchant dans la boutique
+  function sheetMeuble(id) {
+    const m = G.MOBILIER.find((x) => x.id === id); if (!m) return;
+    const k = G.mobilierCran(st, id), max = k >= m.max, prix = G.prixMeuble(st, id), ok = !max && st.coins >= prix;
+    openSheet(`<div class="meuble-fiche">${ICONS.MEUBLES[id]}<div><h2>${esc(m.nom)}</h2><p class="sous">${crans(k, m.max)} cran ${k} sur ${m.max}</p></div></div>
+      <div class="encadre espace">${k ? `<b>Maintenant :</b> ${esc(m.desc(k))}` : 'Pas encore installé.'}${max ? '' : `<br><b>Cran suivant :</b> ${esc(m.desc(k + 1))}`}</div>
+      ${max ? '<p class="sous">Ce meuble est au maximum ✓</p>' : `<button type="button" class="btn large ${ok ? 'lavande' : 'non'}" data-m="${id}"><small>Améliorer</small><b>${G.fmtEur(prix)}</b></button>`}
+      <button type="button" class="lien" data-a="tous">Tous les bonus et le mobilier</button>${btnRetour()}`);
+    on('[data-a="close"]', closeSheet); on('[data-a="tous"]', () => sheetAmeliorations('mobilier'));
+    on('[data-m]', (b) => acheterMeuble(b.dataset.m, () => sheetMeuble(id)));
   }
   function sheetSauvegarde() {
     save();
@@ -509,7 +543,7 @@ const UI = (() => {
   }
   function sheetRetour(abs) {
     const detail = abs.detail.slice().sort((a, b) => b.m - a.m).map((d) => `<li><span>${esc(G.PRODUITS[d.i].nom)} × ${G.fmt(d.n)}</span><b>${G.fmtEur(d.m)}</b></li>`).join('');
-    openSheet(`<h2>Pendant ton absence</h2><p class="sous">${G.fmtDuree(abs.secs)}${abs.secs >= G.ABSENCE_MAX_H * 3600 ? ' (les apprentis s’arrêtent après 8 h)' : ''}</p>
+    openSheet(`<h2>Pendant ton absence</h2><p class="sous">${G.fmtDuree(abs.secs)}${abs.secs >= G.heuresAbsence(st) * 3600 ? ` (les apprentis s’arrêtent après ${G.heuresAbsence(st)} h)` : ''}</p>
       <div class="grand-nombre">+${G.fmtEur(abs.total)}</div><p class="sous">vendus par tes apprentis</p><ul class="detail">${detail}</ul>
       <button type="button" class="btn large menthe" data-a="close"><b>Super !</b></button>`);
     on('[data-a="close"]', closeSheet);
@@ -571,7 +605,7 @@ const UI = (() => {
       const sx = e.clientX - r.left, sy = e.clientY - r.top;
       if (SCENE.hit(sx, sy)) { const tip = G.encaisserPourboire(st); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
       else if (SCENE.hitBoulanger(sx, sy)) showPage('boulanger');
-      else SCENE.tap();
+      else { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) sheetMeuble(id); else SCENE.tap(); }
     });
     document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); } });
     document.addEventListener('pointerdown', () => { try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* rien */ } }, { once: true });
@@ -586,7 +620,7 @@ const UI = (() => {
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager };
+    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

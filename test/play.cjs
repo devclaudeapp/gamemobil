@@ -76,12 +76,14 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.tap('#onglets [data-page="boutique"]'); await sleep(400);
   check(await page.evaluate((n) => { const b = document.querySelector('#onglets [data-page="defis"] .badge'); return !document.querySelector('#page-boutique').hidden && !document.body.classList.contains('replie') && (n === 1 ? b.hidden : +b.textContent === n - 1); }, primes), 'retour à la Boutique : scène dépliée, badge décompté');
   // le boulanger : touche-le dans la boutique, gagne du savoir-faire, apprends un talent
-  const bk = await page.evaluate(() => { const r = document.querySelector('#scene').getBoundingClientRect(); return { x: r.left + r.width * 0.33, y: r.top + r.height * 0.62 - 50 }; });
+  const zone = async (id) => page.evaluate((id) => { const r = document.querySelector('#scene').getBoundingClientRect(), z = window.__fournil.SCENE.zones()[id]; return { x: r.left + z.x + z.w / 2, y: r.top + z.y + z.h / 2 }; }, id);
+  await haut(); const bk = await zone('boulanger');
   await page.touchscreen.tap(bk.x, bk.y); await sleep(400);
   const fiche = await page.evaluate(() => document.querySelector('#page-boulanger').hidden ? '' : document.querySelector('#page-boulanger').innerText);
   check(/Niveau \d/.test(fiche) && /Bouche-à-oreille/.test(fiche) && /Mains rapides/.test(fiche), 'touche le boulanger : sa page s’ouvre (' + fiche.split('\n').slice(0, 2).join(' / ') + ')');
   await page.screenshot({ path: out + '/05n-boulanger.png' });
   await page.tap('#onglets [data-page="boutique"]'); await sleep(200);
+  check(await page.evaluate(() => window.__fournil.SCENE.apprentis === 3), 'trois apprentis s’affairent entre le four et le comptoir');
   const manque = await page.evaluate(() => { const f = window.__fournil, np = f.G.niveauPour(f.st.xp); return np.prochain - np.reste; });
   await page.evaluate((n) => window.__fournil.xp(n), manque); await sleep(500);
   const toastNiv = await page.evaluate(() => (document.querySelector('.toast') || {}).textContent || '');
@@ -181,13 +183,30 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   // client mystère : il arrive, on le touche, pourboire
   await page.evaluate(() => window.__fournil.mystere()); await sleep(4800);
   await page.screenshot({ path: out + '/05g-client-mystere.png' });
-  const pos = await page.evaluate(() => { const r = document.querySelector('#scene').getBoundingClientRect(); return { x: r.left + r.width * 0.5, y: r.top + r.height * 0.78 - 30 }; });
+  await haut(); const pos = await zone('mystere');
   const coinsMys = await page.evaluate(() => window.__fournil.st.coins);
   await page.touchscreen.tap(pos.x, pos.y); await sleep(400);
   const tip = await page.evaluate(() => window.__fournil.st.coins) - coinsMys;
   check(tip >= 20, 'pourboire du client mystère : +' + Math.round(tip));
-  // améliorations
-  await page.tap('#b-ameliorations', { force: true }); await sleep(400); await page.screenshot({ path: out + '/06-ameliorations.png' });
+  // le mobilier : on touche l'emplacement des tables dans la boutique, on achète, un client vient s'asseoir
+  await page.evaluate(() => window.__fournil.scene({ assis: true })); await haut();
+  const tz = await zone('tables'); await page.touchscreen.tap(tz.x, tz.y); await sleep(400);
+  const ficheTables = await page.evaluate(() => document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText);
+  check(/Tables et chaises/.test(ficheTables) && /Pas encore installé/.test(ficheTables) && /Cran suivant/.test(ficheTables), 'toucher les tables ouvre leur fiche : ' + ficheTables.split('\n').slice(0, 2).join(' / '));
+  await page.screenshot({ path: out + '/05s-fiche-tables.png' });
+  await page.tap('[data-m="tables"]'); await sleep(400);
+  check(await page.evaluate(() => window.__fournil.st.mobilier.tables === 1 && /cran 1 sur 4/.test(document.querySelector('#feuille-contenu').innerText)), 'tables cran 1 achetées, la fiche se met à jour');
+  await page.tap('[data-a="close"]'); await sleep(200);
+  for (const id of ['four', 'vitrine']) await page.evaluate((id) => window.__fournil.meuble(id), id);
+  let assis = 0; for (let k = 0; k < 30 && !assis; k++) { await sleep(500); assis = await page.evaluate(() => window.__fournil.SCENE.assis); }
+  check(assis > 0, 'un client vient s’asseoir au salon de thé');
+  await page.screenshot({ path: out + '/05t-salon.png' });
+  await page.evaluate(() => window.__fournil.scene({}));
+  // bonus et mobilier dans la même feuille
+  await page.tap('#b-ameliorations', { force: true }); await sleep(400);
+  await page.tap('[data-tab="mobilier"]'); await sleep(300); await page.screenshot({ path: out + '/06b-mobilier.png' });
+  check(await page.evaluate(() => document.querySelectorAll('#feuille-contenu .am.meuble').length === 6 && /Tables et chaises/.test(document.querySelector('#feuille-contenu').innerText)), 'le volet Mobilier liste les six meubles');
+  await page.tap('[data-tab="bonus"]'); await sleep(300); await page.screenshot({ path: out + '/06-ameliorations.png' });
   await page.tap('[data-id="farine"]'); await sleep(300);
   check(await page.evaluate(() => !!window.__fournil.st.ameliorations.farine), 'farine de tradition achetée');
   await page.touchscreen.tap(195, 40); await sleep(300);
@@ -213,7 +232,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   check(await page.evaluate(() => !document.querySelector('#feuille').hidden && (document.querySelector('.champ') || {}).value === 'Chez Mamie'), 'toucher l’enseigne ouvre le renommage');
   await page.tap('[data-a="non"]'); await sleep(200);
   const s2 = await W(); console.log('boutique 2', s2);
-  check(s2.niv === '1,0,0,0,0,0,0,0' && await page.evaluate(() => window.__fournil.st.etoiles > 0), 'nouvelle boutique : produits remis à zéro, étoiles gardées');
+  check(s2.niv === '1,0,0,0,0,0,0,0' && await page.evaluate(() => window.__fournil.st.etoiles > 0 && Object.keys(window.__fournil.st.mobilier).length === 0 && window.__fournil.SCENE.apprentis === 0), 'nouvelle boutique : produits et mobilier remis à zéro, étoiles gardées, apprentis repartis');
   await page.screenshot({ path: out + '/09-boutique2.png' });
   // rechargement : la sauvegarde tient
   await page.reload(); await sleep(800);

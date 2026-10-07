@@ -7,34 +7,34 @@
 
   // ─── les produits, dans l'ordre où on les débloque ───
   const PRODUITS = [
-    { id: 'baguette', pl: 'baguettes', nom: 'Baguette', cout: 4, debloquer: 4, rev: 1, temps: 1, croiss: 1.07, staff: 1000, staffNom: 'Apprenti Léo', desc: 'Croustillante, chaude, la base.' },
-    { id: 'croissant', pl: 'croissants', nom: 'Croissant', cout: 60, debloquer: 60, rev: 20, temps: 3, croiss: 1.15, staff: 15000, staffNom: 'Apprentie Inès', desc: 'Pur beurre, feuilleté.' },
-    { id: 'painchoc', pl: 'pains au chocolat', nom: 'Pain au chocolat', cout: 720, debloquer: 720, rev: 150, temps: 6, croiss: 1.14, staff: 100000, staffNom: 'Mitron Sami', desc: 'Deux barres, pas une.' },
-    { id: 'tarte', pl: 'tartes aux pommes', nom: 'Tarte aux pommes', cout: 8640, debloquer: 8640, rev: 1200, temps: 12, croiss: 1.13, staff: 500000, staffNom: 'Pâtissière Rose', desc: 'La recette de mamie.' },
-    { id: 'eclair', pl: 'éclairs au café', nom: 'Éclair au café', cout: 1e5, debloquer: 1e8, rev: 10000, temps: 24, croiss: 1.12, staff: 4e8, staffNom: 'Pâtissier Malik', desc: 'Glacé, fondant, parfait.' },
-    { id: 'macaron', pl: 'macarons', nom: 'Macarons', cout: 1.2e6, debloquer: 1e10, rev: 90000, temps: 96, croiss: 1.11, staff: 4e10, staffNom: 'Cheffe Agathe', desc: 'Six parfums, zéro regret.' },
-    { id: 'millefeuille', pl: 'mille-feuilles', nom: 'Mille-feuille', cout: 1.5e7, debloquer: 5e11, rev: 8e5, temps: 384, croiss: 1.1, staff: 2e12, staffNom: 'Chef Augustin', desc: 'Mille, on a compté.' },
-    { id: 'piece', pl: 'pièces montées', nom: 'Pièce montée', cout: 1.8e8, debloquer: 2e13, rev: 7e6, temps: 1536, croiss: 1.09, staff: 8e13, staffNom: 'Maître Paulin', desc: 'Pour les grands jours.' },
+    { id: 'baguette', pl: 'baguettes', nom: 'Baguette', cout: 4, debloquer: 4, rev: 1, temps: 1, croiss: 1.07, staff: 1500, staffNom: 'Apprenti Léo', desc: 'Croustillante, chaude, la base.' },
+    { id: 'croissant', pl: 'croissants', nom: 'Croissant', cout: 60, debloquer: 120, rev: 20, temps: 3, croiss: 1.15, staff: 22500, staffNom: 'Apprentie Inès', desc: 'Pur beurre, feuilleté.' },
+    { id: 'painchoc', pl: 'pains au chocolat', nom: 'Pain au chocolat', cout: 720, debloquer: 1440, rev: 150, temps: 6, croiss: 1.14, staff: 150000, staffNom: 'Mitron Sami', desc: 'Deux barres, pas une.' },
+    { id: 'tarte', pl: 'tartes aux pommes', nom: 'Tarte aux pommes', cout: 8640, debloquer: 17280, rev: 1200, temps: 12, croiss: 1.13, staff: 750000, staffNom: 'Pâtissière Rose', desc: 'La recette de mamie.' },
+    { id: 'eclair', pl: 'éclairs au café', nom: 'Éclair au café', cout: 1e5, debloquer: 2e8, rev: 10000, temps: 24, croiss: 1.12, staff: 6e8, staffNom: 'Pâtissier Malik', desc: 'Glacé, fondant, parfait.' },
+    { id: 'macaron', pl: 'macarons', nom: 'Macarons', cout: 1.2e6, debloquer: 2e10, rev: 90000, temps: 96, croiss: 1.11, staff: 6e10, staffNom: 'Cheffe Agathe', desc: 'Six parfums, zéro regret.' },
+    { id: 'millefeuille', pl: 'mille-feuilles', nom: 'Mille-feuille', cout: 1.5e7, debloquer: 6e11, rev: 8e5, temps: 384, croiss: 1.1, staff: 3e12, staffNom: 'Chef Augustin', desc: 'Mille, on a compté.' },
+    { id: 'piece', pl: 'pièces montées', nom: 'Pièce montée', cout: 1.8e8, debloquer: 4e13, rev: 7e6, temps: 1536, croiss: 1.09, staff: 1.2e14, staffNom: 'Maître Paulin', desc: 'Pour les grands jours.' },
   ];
   const PALIERS = [25, 50, 100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
   const AMELIORATIONS = [
-    { id: 'farine', nom: 'Farine de tradition', cout: 25000, cible: ['baguette'], mult: 3, desc: 'Baguettes ×3' },
-    { id: 'beurre', nom: 'Beurre AOP', cout: 300000, cible: ['croissant'], mult: 3, desc: 'Croissants ×3' },
-    { id: 'enseigne', nom: 'Enseigne lumineuse', cout: 1.5e6, cible: null, mult: 2, desc: 'Tout ×2' },
-    { id: 'chocolat', nom: 'Chocolat noir 70 %', cout: 4e6, cible: ['painchoc'], mult: 3, desc: 'Pains au chocolat ×3' },
-    { id: 'pommes', nom: 'Pommes du verger', cout: 4e7, cible: ['tarte'], mult: 3, desc: 'Tartes ×3' },
-    { id: 'four', nom: 'Four à sole', cout: 1e8, cible: ['baguette', 'croissant'], mult: 5, desc: 'Baguettes et croissants ×5' },
-    { id: 'terrasse', nom: 'Terrasse ensoleillée', cout: 2.5e8, cible: null, mult: 2, desc: 'Tout ×2' },
-    { id: 'cafe', nom: 'Café torréfié maison', cout: 5e9, cible: ['eclair'], mult: 3, desc: 'Éclairs ×3' },
-    { id: 'amandes', nom: 'Amandes de Provence', cout: 1.5e11, cible: ['macaron'], mult: 3, desc: 'Macarons ×3' },
-    { id: 'vitrine', nom: 'Vitrine réfrigérée', cout: 6e11, cible: ['tarte', 'eclair', 'macaron'], mult: 5, desc: 'Tartes, éclairs, macarons ×5' },
-    { id: 'fidelite', nom: 'Carte de fidélité', cout: 3e12, cible: null, mult: 3, desc: 'Tout ×3' },
-    { id: 'feuilletage', nom: 'Pâte feuilletée maison', cout: 1.5e13, cible: ['millefeuille'], mult: 3, desc: 'Mille-feuilles ×3' },
-    { id: 'robot', nom: 'Robot pâtissier', cout: 1.5e14, cible: ['piece'], mult: 3, desc: 'Pièces montées ×3' },
-    { id: 'franchise', nom: 'Réseau de franchises', cout: 1e15, cible: null, mult: 5, desc: 'Tout ×5' },
+    { id: 'farine', nom: 'Farine de tradition', cout: 50000, cible: ['baguette'], mult: 3, desc: 'Baguettes ×3' },
+    { id: 'beurre', nom: 'Beurre AOP', cout: 600000, cible: ['croissant'], mult: 3, desc: 'Croissants ×3' },
+    { id: 'enseigne', nom: 'Enseigne lumineuse', cout: 3e6, cible: null, mult: 2, desc: 'Tout ×2' },
+    { id: 'chocolat', nom: 'Chocolat noir 70 %', cout: 8e6, cible: ['painchoc'], mult: 3, desc: 'Pains au chocolat ×3' },
+    { id: 'pommes', nom: 'Pommes du verger', cout: 8e7, cible: ['tarte'], mult: 3, desc: 'Tartes ×3' },
+    { id: 'four', nom: 'Levain maison', cout: 2e8, cible: ['baguette', 'croissant'], mult: 5, desc: 'Baguettes et croissants ×5' },
+    { id: 'terrasse', nom: 'Terrasse ensoleillée', cout: 5e8, cible: null, mult: 2, desc: 'Tout ×2' },
+    { id: 'cafe', nom: 'Café torréfié maison', cout: 1e10, cible: ['eclair'], mult: 3, desc: 'Éclairs ×3' },
+    { id: 'amandes', nom: 'Amandes de Provence', cout: 3e11, cible: ['macaron'], mult: 3, desc: 'Macarons ×3' },
+    { id: 'vitrine', nom: 'Crème fraîche fermière', cout: 1.2e12, cible: ['tarte', 'eclair', 'macaron'], mult: 5, desc: 'Tartes, éclairs, macarons ×5' },
+    { id: 'fidelite', nom: 'Carte de fidélité', cout: 6e12, cible: null, mult: 3, desc: 'Tout ×3' },
+    { id: 'feuilletage', nom: 'Pâte feuilletée maison', cout: 3e13, cible: ['millefeuille'], mult: 3, desc: 'Mille-feuilles ×3' },
+    { id: 'robot', nom: 'Robot pâtissier', cout: 3e14, cible: ['piece'], mult: 3, desc: 'Pièces montées ×3' },
+    { id: 'franchise', nom: 'Réseau de franchises', cout: 2e15, cible: null, mult: 5, desc: 'Tout ×5' },
   ];
   const ETOILE_BONUS = 0.05;     // +5 % par étoile, pour toujours
-  const ETOILE_BASE = 3e10;      // la première étoile demande ~30 Md € gagnés dans la boutique
+  const ETOILE_BASE = 4e10;      // la première étoile demande ~40 Md € gagnés dans la boutique (le mobilier accélère chaque boutique)
   const ETOILE_FREIN = 25;       // chaque tranche de 25 étoiles possédées rend les suivantes 2 fois plus chères (pas d'emballement)
   const ABSENCE_MAX_H = 8;       // les apprentis travaillent 8 h au plus pendant une absence
   const RUSH = { duree: 60, mult: 3 };          // coup de feu : toutes les ventes ×3 pendant 60 s
@@ -82,7 +82,7 @@
     { id: 'affluence', nom: 'Bouche-à-oreille', max: 4, desc: (k) => `Les fournées cuites à la main servent plus de clients : ×${1 + k * 0.5}`.replace('.', ',') },
     { id: 'mains', nom: 'Mains rapides', max: 5, desc: (k) => `Toutes les fournées cuisent ${k * 5} % plus vite` },
     { id: 'memoire', nom: 'Mémoire des recettes', max: 4, desc: (k) => `Chaque nouvelle boutique démarre avec ${k + 1} recette${k ? 's' : ''}` },
-    { id: 'levetot', nom: 'Lève-tôt', max: 4, desc: (k) => `Les apprentis travaillent ${ABSENCE_MAX_H + k} h pendant ton absence` },
+    { id: 'levetot', nom: 'Lève-tôt', max: 4, desc: (k) => `Les apprentis travaillent ${k} h de plus pendant ton absence` },
     { id: 'zele', nom: 'Apprentis zélés', max: 4, desc: (k) => `Embauches ${k * 10} % moins chères` },
     { id: 'negoce', nom: 'Négociateur', max: 4, desc: (k) => `Bonus ${k * 8} % moins chers` },
     { id: 'charme', nom: 'Charme', max: 3, desc: (k) => `Événements ${k * 12} % plus fréquents, primes +${k * 25} %` },
@@ -102,22 +102,43 @@
     st.talents = st.talents || {}; st.talents[id] = talent(st, id) + 1;
     return { ok: true, cran: st.talents[id], talent: t };
   }
-  // effets des talents
-  const tempsMult = (st) => 1 - 0.05 * talent(st, 'mains');
+  // ─── le mobilier : six meubles de la boutique, améliorables cran par cran ; tout repart de zéro à chaque boutique ───
+  const virg = (x) => String(+x.toFixed(2)).replace('.', ',');
+  const MOBILIER = [
+    { id: 'tables', nom: 'Tables et chaises', max: 4, cout: 6000, croiss: 40, desc: (k) => `Salon de thé : ${k} table${k > 1 ? 's' : ''}, tous les gains ×${virg(1 + 0.08 * k)}` },
+    { id: 'four', nom: 'Four', max: 4, cout: 20000, croiss: 40, desc: (k) => `Toutes les fournées cuisent ${3 * k} % plus vite` },
+    { id: 'vitrine', nom: 'Vitrine', max: 3, cout: 30000, croiss: 40, desc: (k) => `Les fournées à la main servent ${25 * k} % de clients en plus` },
+    { id: 'caisse', nom: 'Caisse enregistreuse', max: 3, cout: 120000, croiss: 50, desc: (k) => `Pourboires ×${virg(1 + 0.3 * k)}, client mystère ${8 * k} % plus fréquent` },
+    { id: 'froid', nom: 'Chambre froide', max: 3, cout: 600000, croiss: 50, desc: (k) => `Les apprentis travaillent ${k} h de plus pendant ton absence` },
+    { id: 'deco', nom: 'Décoration', max: 4, cout: 300000, croiss: 40, desc: (k) => `Primes des événements et des défis +${15 * k} %` },
+  ];
+  const mobilierCran = (st, id) => (st.mobilier && st.mobilier[id]) || 0;
+  const prixMeuble = (st, id) => { const m = MOBILIER.find((x) => x.id === id); return m.cout * Math.pow(m.croiss, mobilierCran(st, id)) * (1 - 0.08 * talent(st, 'negoce')); };
+  const mobilierMult = (st) => 1 + 0.08 * mobilierCran(st, 'tables');
+  function ameliorerMeuble(st, id) {
+    const m = MOBILIER.find((x) => x.id === id); if (!m) return { ok: false };
+    const cran = mobilierCran(st, id), prix = prixMeuble(st, id);
+    if (cran >= m.max || st.coins < prix) return { ok: false, prix, cran, m };
+    st.mobilier = st.mobilier || {}; st.coins -= prix; st.mobilier[id] = cran + 1;
+    noter(st, 'meuble', 1); gagnerXp(st, 3); inc(st, 'meubles');
+    return { ok: true, m, cran: cran + 1, prix };
+  }
+  // effets des talents et du mobilier
+  const tempsMult = (st) => (1 - 0.05 * talent(st, 'mains')) * (1 - 0.03 * mobilierCran(st, 'four'));
   const temps = (st, i) => PRODUITS[i].temps * tempsMult(st);
-  const heuresAbsence = (st) => ABSENCE_MAX_H + talent(st, 'levetot');
-  const affluenceMult = (st) => 1 + 0.5 * talent(st, 'affluence');
+  const heuresAbsence = (st) => ABSENCE_MAX_H + talent(st, 'levetot') + mobilierCran(st, 'froid');
+  const affluenceMult = (st) => 1 + 0.5 * talent(st, 'affluence') + 0.25 * mobilierCran(st, 'vitrine');
   const prixStaff = (st, i) => PRODUITS[i].staff * (1 - 0.1 * talent(st, 'zele'));
   const prixBonus = (st, a) => a.cout * (1 - 0.08 * talent(st, 'negoce'));
-  const primeMult = (st) => 1 + 0.25 * talent(st, 'charme');
+  const primeMult = (st) => (1 + 0.25 * talent(st, 'charme')) * (1 + 0.15 * mobilierCran(st, 'deco'));
 
   // ─── état ───
   function stationsNeuves(ouvertes) { const n = Math.max(1, ouvertes || 1); return PRODUITS.map((p, i) => ({ niv: i < n ? 1 : 0, staff: false, prog: 0, actif: false })); }
   function newState(nowMs) {
     return {
       v: 2, coins: 0, lifetime: 0, lifetimeRun: 0, etoiles: 0, boutiques: 1, xp: 0, talents: {}, nomBoutique: '',
-      stations: stationsNeuves(), ameliorations: {}, tuto: 0, lastSeen: nowMs, created: nowMs, son: true, vibre: true, mode: 1, now: nowMs,
-      stats: { taps: 0, ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false },
+      stations: stationsNeuves(), ameliorations: {}, mobilier: {}, tuto: 0, lastSeen: nowMs, created: nowMs, son: true, vibre: true, mode: 1, now: nowMs,
+      stats: { taps: 0, ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false, meubles: 0 },
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null,
     };
@@ -151,7 +172,7 @@
     if (jourDeMarche(st.now)) m *= MARCHE_MULT;
     return m;
   }
-  function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st); }
+  function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st) * mobilierMult(st); }
   function revenu(st, i) { return revenuBase(st, i) * boostMult(st, i); } // par fournée, maintenant
   // niv 0 : débloquer la recette (un cap, cher) ; ensuite chaque niveau coûte quelques fournées de plus que le précédent
   const coutNiveau = (i, niv) => (niv === 0 ? PRODUITS[i].debloquer : PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv));
@@ -184,18 +205,20 @@
     mains: (st) => (st.stations.some((s) => s.niv > 0 && !s.staff) ? { cible: 25, txt: (c) => `Cuis ${c} fournées à la main` } : null),
     embaucher: (st) => (st.stations.some((s) => s.niv > 0 && !s.staff) ? { cible: 1, txt: () => 'Embauche un apprenti' } : null),
     bonus: (st, r) => (AMELIORATIONS.some((a) => !st.ameliorations[a.id] && a.cout < st.coins + r * 3600) ? { cible: 1, txt: () => 'Achète un bonus' } : null),
+    meuble: (st, r) => (MOBILIER.some((m) => mobilierCran(st, m.id) < m.max && prixMeuble(st, m.id) < st.coins + r * 3600) ? { cible: 1, txt: () => 'Améliore un meuble de la boutique' } : null),
     recette: (st, r) => { const i = st.stations.findIndex((s) => s.niv === 0); return i > 0 && PRODUITS[i].debloquer < st.coins + r * 3600 ? { cible: 1, txt: () => `Débloque : ${PRODUITS[i].nom}` } : null; },
   };
   function tirerObjectifs(st, key) {
     const rnd = mulberry32(hashStr(key + ':' + st.boutiques + ':' + st.created)), r = rythme(st);
-    const choix = ['gagner'], pool = ['vendre', 'niveaux', 'clients', 'mains', 'embaucher', 'bonus', 'recette'];
+    const choix = ['gagner'], pool = ['vendre', 'niveaux', 'clients', 'mains', 'embaucher', 'bonus', 'recette', 'meuble'];
     while (choix.length < 3 && pool.length) { const k = pool.splice(Math.floor(rnd() * pool.length), 1)[0]; if (TYPES_OBJ[k](st, r, rnd)) choix.push(k); }
-    return choix.map((type) => { const o = TYPES_OBJ[type](st, r, rnd); return { type, i: o.i, cible: o.cible, txt: o.txt(o.cible), progres: 0, fait: false, reclame: false, prime: arrondi(Math.max(40, r * 600) * (1 + 0.5 * talent(st, 'carnet'))) }; });
+    return choix.map((type) => { const o = TYPES_OBJ[type](st, r, rnd); return { type, i: o.i, cible: o.cible, txt: o.txt(o.cible), progres: 0, fait: false, reclame: false, prime: arrondi(Math.max(40, r * 600) * (1 + 0.5 * talent(st, 'carnet')) * (1 + 0.15 * mobilierCran(st, 'deco'))) }; });
   }
   function possible(st, o) {
     if (o.type === 'mains' || o.type === 'embaucher') return st.stations.some((s) => s.niv > 0 && !s.staff);
     if (o.type === 'recette') return st.stations.some((s) => s.niv === 0);
     if (o.type === 'bonus') return AMELIORATIONS.some((a) => !st.ameliorations[a.id]);
+    if (o.type === 'meuble') return MOBILIER.some((m) => mobilierCran(st, m.id) < m.max);
     if (o.type === 'vendre') return st.stations[o.i] && st.stations[o.i].niv > 0;
     return true;
   }
@@ -354,7 +377,7 @@
     st.ev = null;
     return { ok: true, prime: ev.prime };
   }
-  const pourboire = (st) => arrondi(Math.max(20, rythme(st) * 120) * (1 + 0.5 * talent(st, 'pourboire')));
+  const pourboire = (st) => arrondi(Math.max(20, rythme(st) * 120) * (1 + 0.5 * talent(st, 'pourboire')) * (1 + 0.3 * mobilierCran(st, 'caisse')));
   function encaisserPourboire(st) { const tip = pourboire(st); gagner(st, tip, true); gagnerXp(st, 3); inc(st, 'pourboires'); st.stats.meilleurPourboire = Math.max(st.stats.meilleurPourboire || 0, tip); noterSemaine(st, 'pourboires'); note(st, `Pourboire du client mystère : ${fmtEur(tip)}`); return tip; }
   // ─── les habitués : trois clients fidèles qui passent à heure fixe, une fois par jour ; cinq jours de suite, un cadeau ───
   const HABITUES = [
@@ -408,6 +431,8 @@
     { id: 'compagnon', nom: 'Compagnon', desc: 'Atteindre le titre de Compagnon', xp: 40, cond: (st) => niveau(st) >= 13 },
     { id: 'mof', nom: 'Meilleur Ouvrier de France', desc: 'Atteindre le titre suprême', xp: 150, cond: (st) => niveau(st) >= 26 },
     { id: 'fidele', nom: 'Habitué fidèle', desc: 'Servir un habitué 5 jours de suite', xp: 40, cond: (st) => Object.values(st.habitues || {}).some((e) => e.jours >= 5) },
+    { id: 'salon', nom: 'Salon de thé', desc: 'Tables et chaises au maximum', xp: 30, cond: (st) => mobilierCran(st, 'tables') >= 4 },
+    { id: 'decorateur', nom: 'Décorateur', desc: 'Améliorer 40 meubles en tout', xp: 50, cond: (st) => (st.stats.meubles || 0) >= 40 },
   ];
   function verifierTrophees(st) {
     st.trophees = st.trophees || {}; const neufs = [];
@@ -450,7 +475,7 @@
     const gain = etoilesGagnables(st);
     if (gain <= 0) return { ok: false };
     st.etoiles += gain; st.boutiques++; st.nomBoutique = ''; st.specialite = null; gagnerXp(st, 80 + Math.min(120, 2 * gain)); noterSemaine(st, 'boutique');
-    st.coins = 0; st.lifetimeRun = 0; st.ameliorations = {}; st.stations = stationsNeuves(1 + talent(st, 'memoire')); st.ev = null; st.boost = null;
+    st.coins = 0; st.lifetimeRun = 0; st.ameliorations = {}; st.mobilier = {}; st.stations = stationsNeuves(1 + talent(st, 'memoire')); st.ev = null; st.boost = null;
     st.lastSeen = nowMs;
     // les objectifs du jour pas encore réclamés sont retirés à la taille de la nouvelle boutique (les réussis restent acquis)
     if (st.jour) { const neufs = tirerObjectifs(st, st.jour.date); st.jour.objectifs = st.jour.objectifs.map((o, k) => (o.reclame ? o : neufs[k])); }
@@ -483,7 +508,7 @@
     }
     if (st.boost && st.boost.fin <= nowMs) st.boost = null;
     st.mystereTimer -= dt;
-    if (st.mystereTimer <= 0) { st.mystereTimer = (150 + rnd() * 200) * (1 - 0.15 * talent(st, 'pourboire')); out.mystere = true; }
+    if (st.mystereTimer <= 0) { st.mystereTimer = (150 + rnd() * 200) * (1 - 0.15 * talent(st, 'pourboire')) * (1 - 0.08 * mobilierCran(st, 'caisse')); out.mystere = true; }
     const hb = habitueAttendu(st, nowMs); // un habitué passe une fois par jour, pendant son créneau, après quelques secondes de jeu
     if (hb && rnd() < dt / 25) { st.habitues[hb.id] = st.habitues[hb.id] || { jours: 0, dernier: '', vuLe: '' }; st.habitues[hb.id].vuLe = dayKey(nowMs); out.habitue = hb; }
     out.trophees = verifierTrophees(st);
@@ -524,7 +549,7 @@
   function fmtDuree(s) { if (s < 60) return Math.round(s) + ' s'; if (s < 3600) return Math.round(s / 60) + ' min'; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; }
   const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
-  return { PRODUITS, PALIERS, AMELIORATIONS, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
+  return { PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost,
