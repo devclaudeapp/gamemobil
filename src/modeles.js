@@ -1,7 +1,7 @@
 /* LE FOURNIL — les briques de la 3D : géométries arrondies mises en cache, matériaux mats partagés, fusion de pièces colorées,
    textures peintes sur canvas. Low-poly arrondi pastel : des formes simples aux arêtes biseautées, des couleurs plates, pas de photo.
    Repère : 1 unité = 1 px d'écran en largeur ; Y vers le haut ; les objets sont posés sur y = 0. */
-const MODELES = (() => {
+const MODELES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (fichier non chargé), le module vaut null et le jeu démarre sans 3D
   'use strict';
   const TAU = Math.PI * 2;
   const GEOS = new Map(), MATS = new Map(), PARTAGES = new Set();
@@ -95,6 +95,7 @@ const MODELES = (() => {
       for (const m of ms) if (!PARTAGES.has(m)) { if (m.map && !m.map.userData.partagee) m.map.dispose(); m.dispose(); }
     });
   }
-  return { TAU, boite, boiteSimple, sphere, capsule, cylindre, cone, tore, plan, anneau, disque, extrusion, mat, MAT, part, matrice, assembler, maille, mesh, texture, melange, eclaircir, assombrir, dispose, GEOS, MATS };
+  const partager = (m) => { PARTAGES.add(m); return m; }; // un matériau tenu en cache ailleurs : dispose ne le libère jamais
+  return { TAU, partager, boite, boiteSimple, sphere, capsule, cylindre, cone, tore, plan, anneau, disque, extrusion, mat, MAT, part, matrice, assembler, maille, mesh, texture, melange, eclaircir, assombrir, dispose, GEOS, MATS };
 })();
 if (typeof module !== 'undefined') module.exports = MODELES;

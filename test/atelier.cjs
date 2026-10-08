@@ -1,6 +1,6 @@
 // L'atelier 3D : rend des meubles, des personnages ou la salle à chaque cran et les photographie dans test/shots/atelier/.
 // Usage : NODE_PATH=/opt/node22/lib/node_modules node test/atelier.cjs [fichier-de-specs.json]   (sans argument : la liste SPECS ci-dessous)
-// Une spec : { nom, faire: 'MEUBLES.four', args: [3, '$ctx'], q: 'paris', position?: [x,y,z], ctx?: {…}, t?: secondes, zone?: true }
+// Une spec : { nom, faire: 'MEUBLES.four', args: [3, '$ctx'], q: 'paris', position?: [x,y,z], ctx?: {…}, t?: secondes, zone?: true, sansSol?: true }
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');

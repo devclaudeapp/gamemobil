@@ -23,7 +23,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_CERT|googleapis|gstatic|404/.test(m.text() + (m.location() && m.location().url))) errors.push(m.text() + ' @ ' + (m.location() && m.location().url)); });
   await page.goto('http://localhost:8781/'); await sleep(800);
   await page.screenshot({ path: out + '/01-debut.png' });
-  const trois = await page.evaluate(() => { const s = window.__fournil.stats(), ui = document.querySelector('#scene-ui').getBoundingClientRect(), sc = document.querySelector('#scene').getBoundingClientRect(); return { ...s, calque: Math.abs(ui.width - sc.width) < 1 && Math.abs(ui.height - sc.height) < 1 }; });
+  const trois = await page.evaluate(() => { const s = window.__fournil.stats(), u = document.querySelector('#scene-ui'), ui = u.getBoundingClientRect(), sc = document.querySelector('#scene').getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1); return { ...s, calque: Math.abs(ui.width - sc.width) < 1 && Math.abs(ui.height - sc.height) < 1 && Math.abs(u.width - Math.round(u.clientWidth * d)) <= 1 && Math.abs(u.height - Math.round(u.clientHeight * d)) <= 1 && getComputedStyle(u).display !== 'none' }; }); // le tampon du calque suit sa taille à l'écran
   check(trois.webgl && trois.calls > 0 && trois.calque, `la boutique est rendue en 3D (WebGL, ${trois.calls} appels de dessin, qualité ${trois.qualite}) sous un calque 2D de même taille`);
   const W = () => page.evaluate(() => { const s = window.__fournil.st; return { coins: +s.coins.toFixed(1), niv: s.stations.map((x) => x.niv).join(','), staff: s.stations.map((x) => +x.staff).join(''), tuto: s.tuto, ventes: s.stats.ventes, indice: document.querySelector('#indice').hidden ? '' : document.querySelector('#indice-txt').textContent }; });
   console.log('début', await W());
@@ -317,6 +317,13 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const vendu = await p3.evaluate(() => window.__fournil.st.stats.ventes);
   check(!sans.webgl && sans.panneau && sans.cartes === 8 && vendu >= 1 && !err3.length, `sans WebGL : panneau affiché, pas d’erreur, une fournée vendue quand même (${vendu})`);
   await b3.close();
+  // sans Three.js (le fichier n'arrive pas) : le jeu démarre quand même, sans 3D
+  const p4 = await (await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR' })).newPage();
+  const err4 = []; p4.on('pageerror', (e) => err4.push(e.message));
+  await p4.route('**/vendor/three.min.js', (r) => r.abort());
+  await p4.goto('http://localhost:8781/'); await sleep(1500);
+  const sansThree = await p4.evaluate(() => ({ ok: !!window.__fournil, webgl: window.__fournil && window.__fournil.stats().webgl, panneau: !document.querySelector('#sans-3d').hidden, cartes: document.querySelectorAll('.carte').length }));
+  check(sansThree.ok && !sansThree.webgl && sansThree.panneau && sansThree.cartes === 8 && !err4.length, `sans Three.js : le jeu démarre, panneau affiché, huit cartes${err4.length ? ' — ' + err4[0] : ''}`);
   console.log(errors.length ? 'ERRORS ' + errors.join(' | ') : 'ERRORS none');
   await browser.close(); server.close();
   console.log(fails ? `${fails} échec(s)` : 'Tout passe.');

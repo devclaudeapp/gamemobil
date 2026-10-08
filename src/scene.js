@@ -12,26 +12,35 @@ const SCENE = (() => {
   const projeterY = (Y, Z) => LAY.murH - Y * CY + Z * SY; // la hauteur d'écran d'un point monde (son X est son x d'écran)
   // ─── la qualité : trois paliers, adaptés au temps de frame mesuré ───
   const PALIERS = { haute: { dpr: 2, ombres: 1024, saute: false }, moyenne: { dpr: 1.5, ombres: 512, saute: false }, eco: { dpr: 1, ombres: 0, saute: true } };
-  const QUAL = { niveau: 'haute', fixe: false, mesures: 0, somme: 0, calme: 0 };
+  const QUAL = { niveau: 'haute', fixe: false, mesures: 0, somme: 0, calme: 0, echecs: {}, verif: null };
+  const ORDRE_Q = ['eco', 'moyenne', 'haute'];
+  const recompiler = () => scene.traverse((o) => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; }); // les tableaux de matériaux (le mur) compris
   function qualite(niveau) {
     if (!PALIERS[niveau] || QUAL.niveau === niveau) return; QUAL.niveau = niveau; const p = PALIERS[niveau];
     if (!renderer) return;
     DPR = Math.min(p.dpr, window.devicePixelRatio || 1); renderer.setPixelRatio(DPR); renderer.setSize(W, H, false);
-    const ombres = p.ombres > 0; if (renderer.shadowMap.enabled !== ombres) { renderer.shadowMap.enabled = ombres; scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; }); }
-    if (ombres && dir.shadow.mapSize.x !== p.ombres) { dir.shadow.mapSize.set(p.ombres, p.ombres); if (dir.shadow.map) { dir.shadow.map.dispose(); dir.shadow.map = null; } }
+    const ombres = p.ombres > 0; if (renderer.shadowMap.enabled !== ombres) { renderer.shadowMap.enabled = ombres; recompiler(); }
+    if ((!ombres || dir.shadow.mapSize.x !== p.ombres) && dir.shadow.map) { dir.shadow.map.dispose(); dir.shadow.map = null; } // une carte d'ombre inutile ou à la mauvaise taille est rendue
+    if (ombres) dir.shadow.mapSize.set(p.ombres, p.ombres);
   }
-  function mesurer(ms) { // l'intervalle réel entre deux images (le travail du processeur graphique compris) : au-dessus de 28 ms en moyenne on descend, dix secondes sous 18 ms on remonte
+  // l'intervalle réel entre deux images (le travail du processeur graphique compris), par fenêtres de 60 images :
+  // au-dessus de 28 ms on descend d'un palier ; si la fenêtre suivante ne va pas 10 % plus vite, c'est l'écran qui plafonne la cadence (30 Hz,
+  // mode économie d'énergie) : on remonte et on ne bouge plus. Sous 18 ms pendant dix fenêtres on tente de remonter, puis une minute, puis plus jamais.
+  function mesurer(ms) {
     if (QUAL.fixe || !(ms > 0) || ms > 200) return; // un onglet en veille ou un à-coup isolé ne compte pas
     QUAL.somme += ms; if (++QUAL.mesures < 60) return;
     const moy = QUAL.somme / QUAL.mesures; QUAL.moy = moy; QUAL.mesures = 0; QUAL.somme = 0;
-    if (moy > 28) { QUAL.calme = 0; qualite(QUAL.niveau === 'haute' ? 'moyenne' : 'eco'); }
-    else if (moy < 18) { if (++QUAL.calme >= 10) { QUAL.calme = 0; qualite(QUAL.niveau === 'eco' ? 'moyenne' : 'haute'); } }
+    const v = QUAL.verif; QUAL.verif = null;
+    if (v) { if (v.sens < 0 && moy > v.avant * 0.9) { qualite(v.de); QUAL.fixe = true; return; } if (v.sens > 0 && moy > 28) { QUAL.echecs[QUAL.niveau] = (QUAL.echecs[QUAL.niveau] || 0) + 1; qualite(v.de); QUAL.calme = 0; return; } }
+    const k = ORDRE_Q.indexOf(QUAL.niveau);
+    if (moy > 28 && k > 0) { QUAL.calme = 0; QUAL.verif = { de: QUAL.niveau, avant: moy, sens: -1 }; qualite(ORDRE_Q[k - 1]); }
+    else if (moy < 18 && k < 2) { const vers = ORDRE_Q[k + 1], n = QUAL.echecs[vers] || 0; if (n < 2 && ++QUAL.calme >= 10 * Math.pow(6, n)) { QUAL.calme = 0; QUAL.verif = { de: QUAL.niveau, avant: moy, sens: 1 }; qualite(vers); } }
     else QUAL.calme = 0;
   }
   // ─── mise en route ───
   function init(canvas, ui) {
     cv = canvas; cvUi = ui; ctx2 = ui ? ui.getContext('2d') : null;
-    if (typeof THREE === 'undefined' || !ctx2) return false;
+    if (typeof THREE === 'undefined' || !M || !MEUBLES || !PERSOS || !ctx2) return false; // Three.js absent (fichier non chargé) : la boutique vit sans image
     try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: false, powerPreference: 'low-power', preserveDrawingBuffer: false }); } catch (e) { renderer = null; return false; }
     const gl = renderer.getContext(); if (!gl) return false;
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.setClearColor('#F3D9C0');
@@ -39,22 +48,25 @@ const SCENE = (() => {
     const q = /[?&]qualite=(haute|moyenne|eco)/.exec(location.search);
     if (q) { QUAL.niveau = q[1]; QUAL.fixe = true; } else if (/SwiftShader|llvmpipe|Software/i.test(nom)) { QUAL.niveau = 'eco'; QUAL.fixe = true; } // un rendu logiciel reste en éco
     cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); perdu = performance.now(); });
-    cv.addEventListener('webglcontextrestored', () => { perdu = 0; toutRebatir(); });
+    cv.addEventListener('webglcontextrestored', () => { perdu = 0; panneau(false); toutRebatir(); });
+    _c1 = new THREE.Color(); _c2 = new THREE.Color(); _v = new THREE.Vector3(); _b = new THREE.Box3();
     scene = new THREE.Scene();
     camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 4000);
     hemi = new THREE.HemisphereLight('#DDF3FF', '#8C6F62', 1.3);
     dir = new THREE.DirectionalLight('#FFF4E0', 2.2); dir.castShadow = true; dir.shadow.mapSize.set(PALIERS[QUAL.niveau].ombres || 512, PALIERS[QUAL.niveau].ombres || 512); dir.shadow.bias = -0.0005; dir.shadow.normalBias = 1.5;
     scene.add(hemi, dir, dir.target);
     for (let k = 0; k < 3; k++) { const p = new THREE.PointLight('#FFD98A', 0, 1, 1); p.castShadow = false; lampes.push(p); scene.add(p); }
-    ext.tex = new THREE.CanvasTexture(ext.cv); ext.tex.colorSpace = THREE.SRGBColorSpace;
+    ext.tex = new THREE.CanvasTexture(ext.cv); ext.tex.colorSpace = THREE.SRGBColorSpace; ext.tex.userData.partagee = true; // le paysage vit toute la partie
     webgl = true; return true;
   }
+  let tailleC = '';
   function resize(width, height, mi) {
+    const t = `${width}x${height}x${mi}`; if (t === tailleC && LAY) return; tailleC = t; // même taille : rien à reconstruire
     W = width; H = height; V.resize(W, H, mi); LAY = V.LAY;
     if (!webgl) return;
     const p = PALIERS[QUAL.niveau]; DPR = Math.min(p.dpr, window.devicePixelRatio || 1);
     renderer.setPixelRatio(DPR); renderer.setSize(W, H, false); DPRui = Math.min(2, window.devicePixelRatio || 1); cvUi.width = Math.round(W * DPRui); cvUi.height = Math.round(H * DPRui);
-    if (renderer.shadowMap.enabled !== (p.ombres > 0)) { renderer.shadowMap.enabled = p.ombres > 0; scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; }); }
+    if (renderer.shadowMap.enabled !== (p.ombres > 0)) { renderer.shadowMap.enabled = p.ombres > 0; recompiler(); }
     camera.left = -W / 2; camera.right = W / 2; camera.top = H / 2; camera.bottom = -H / 2; camera.updateProjectionMatrix();
     const Zc = (H / 2 - LAY.murH) / SY;
     camera.position.set(W / 2, 1500 * SY, Zc + 1500 * CY); camera.up.set(0, 1, 0); camera.lookAt(W / 2, 0, Zc); camera.updateMatrixWorld();
@@ -62,14 +74,17 @@ const SCENE = (() => {
     const sc = dir.shadow.camera; sc.left = -W * 0.75; sc.right = W * 0.75; sc.top = 650; sc.bottom = -650; sc.near = 10; sc.far = 3000; sc.updateProjectionMatrix();
     toutRebatir();
   }
-  function visible(y) { visH = y; }
+  let visCible = 0, visFin = 0;
+  function visible(y) { // le tiroir qui descend découvre la scène tout de suite ; celui qui monte ne la cache qu'à la fin de sa course (0,28 s)
+    if (y >= visH) { visH = y; visFin = 0; } else { visCible = y; visFin = performance.now() + 320; }
+  }
   const hauteurUtile = () => V.hauteurUtile();
   function setAmenager(on) { amenager = !!on; }
   const forcer = (o) => V.forcer(o);
 
   // ─── ce qui est construit : la salle, les meubles par cran, les petits décors conditionnels, les produits de la vitrine, le boulanger ───
   const cles = {}, groupes = {}, animes = [], lampes = []; let salle = null, boulangerG = null, ctxC = null, Qc = null, zonesCache = null, pool = new Map(); const acteurs = new Map();
-  function toutRebatir() { for (const k of Object.keys(cles)) cles[k] = null; Qc = null; zonesCache = null; for (const g of acteurs.values()) { scene.remove(g); M.dispose(g); } acteurs.clear(); for (const l of pool.values()) for (const g of l) M.dispose(g); pool.clear(); if (ext.tex) ext.tex.needsUpdate = true; ext.der = -1; } // tout sera reconstruit à la frame suivante, à la nouvelle taille
+  function toutRebatir() { for (const k of Object.keys(cles)) delete cles[k]; Qc = null; zonesCache = null; if (ext.tex) ext.tex.needsUpdate = true; ext.der = -1; } // tout le décor sera reconstruit à la frame suivante ; les personnages ne dépendent pas de la taille
   function remplacer(id, g) { // pose (ou retire) un groupe nommé, en libérant l'ancien
     const vieux = groupes[id]; if (vieux) { scene.remove(vieux); M.dispose(vieux); }
     groupes[id] = g || null; if (g) scene.add(g); zonesCache = null; recenserAnimes();
@@ -116,7 +131,7 @@ const SCENE = (() => {
       remplacer('produits', g);
     }
     const kb = `${E.rang}|${base}`;
-    if (cles.boulanger !== kb) { cles.boulanger = kb; boulangerG = PERSOS.boulanger(E.rang); boulangerG.userData.yaw = 0; boulangerG.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y)); boulangerG.scale.setScalar(0.9 * V.K); remplacer('boulanger', boulangerG); }
+    if (cles.boulanger !== kb) { cles.boulanger = kb; boulangerG = PERSOS.boulanger(E.rang); boulangerG.userData.yaw = 0; boulangerG.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y)); boulangerG.scale.setScalar(0.9 * V.K); boulangerG.updateMatrixWorld(true); boulangerG.userData.zoneBoite = new THREE.Box3().setFromObject(boulangerG, true); remplacer('boulanger', boulangerG); } // la zone de touche : la pose de repos
   }
 
   // ─── la lumière : cinq phases du ciel, fondues autour de chaque borne ; les lampes la nuit ; le coup de feu réchauffe ───
@@ -128,7 +143,7 @@ const SCENE = (() => {
     crepuscule: { hemi: ['#E4DAF6', '#4A3E58', 1.0], dir: ['#D6C6FF', 1.2], lampes: 1, tache: 0.02 },
   };
   const BORNES = [[6, 'nuit', 'aube'], [8, 'aube', 'jour'], [18, 'jour', 'soir'], [20, 'soir', 'crepuscule'], [21, 'crepuscule', 'nuit']];
-  const _c1 = new THREE.Color(), _c2 = new THREE.Color(); let lampesNiv = 0;
+  let _c1, _c2, lampesNiv = 0;
   function eclairer(E) {
     let a = E.sk.phase, b = a, k = 0;
     for (const [h, p, q] of BORNES) { const d = E.hour - h; if (Math.abs(d) < 0.25) { a = p; b = q; k = (d + 0.25) / 0.5; } }
@@ -201,7 +216,7 @@ const SCENE = (() => {
   const angleCourt = (a) => Math.atan2(Math.sin(a), Math.cos(a));
   const cleClient = (c) => `${c.haut}|${c.peau}|${c.cheveux}|${c.coiffure}|${c.bonnet}|${c.lunettes ? 1 : 0}|${c.or ? 1 : 0}|${c.mariniere ? 1 : 0}|${c.hab || ''}`;
   function prendre(cle, fabrique) { const l = pool.get(cle); if (l && l.length) return l.pop(); const g = fabrique(); g.userData.cle = cle; g.userData.yaw = 0; return g; }
-  function rendreAuPool(g) { const l = pool.get(g.userData.cle) || []; if (l.length < 4) { l.push(g); pool.set(g.userData.cle, l); } else M.dispose(g); }
+  function rendreAuPool(g) { const k = g.userData.cle; if (!/^apprenti/.test(k)) { M.dispose(g); return; } const l = pool.get(k) || []; if (l.length < 1) { l.push(g); pool.set(k, l); } else M.dispose(g); } // les clients sont presque tous uniques : on les libère ; un apprenti par produit est gardé
   function synchroniser(E, dt) {
     vus.clear();
     for (const c of V.clients) {
@@ -238,6 +253,7 @@ const SCENE = (() => {
   const EA = { t: 0, chaud: false, caisseFlash: 0, nuit: false, lampes: 0, rush: false, d: null, sk: null, tags: [] };
   function frame(dt, st, now) {
     const E = V.frame(dt, st, now); LAY = V.LAY; dernier = E;
+    if (visFin && performance.now() >= visFin) { visH = visCible; visFin = 0; }
     if (!webgl) return;
     const t0 = performance.now();
     try {
@@ -247,15 +263,16 @@ const SCENE = (() => {
       EA.t = E.t; EA.chaud = E.chaud; EA.caisseFlash = E.caisseFlash; EA.nuit = E.sk.nuit; EA.lampes = lampesNiv; EA.rush = E.rush; EA.d = E.d; EA.sk = E.sk; EA.tags = E.tags;
       for (const o of animes) o.userData.anime(EA);
       const tb = groupes.tables; if (tb && tb.userData.couverts) LAY.tables.forEach((table, i) => { const m = tb.userData.couverts[i]; if (m) m.visible = table.sieges.some((s) => !!s.occ); });
-      if (perdu) return;
+      if (perdu) { if (performance.now() - perdu > 3000) panneau(true); if (visH > 48) calque(E, Math.min(H, visH + 24)); return; } // contexte perdu : on attend sa restauration ; s'il ne revient pas, on le dit
       nFrame++;
       if (visH > 48) { mesurer(dt * 1000); if (!(PALIERS[QUAL.niveau].saute && (nFrame & 1))) rendre(E, false); }
       QUAL.cpu = performance.now() - t0;
     } catch (e) { panne(e); }
   }
+  function panneau(on) { const p = document.getElementById('sans-3d'); if (p) p.hidden = !on; }
   function panne(e) { // la 3D casse : on l'arrête, la boutique continue de vivre sans image plutôt que de figer le jeu
     webgl = false; console.error('Scène 3D arrêtée :', e);
-    const p = document.getElementById('sans-3d'); if (p) p.hidden = false;
+    panneau(true);
     if (ctx2) { ctx2.setTransform(1, 0, 0, 1, 0, 0); ctx2.clearRect(0, 0, cvUi.width, cvUi.height); }
   }
   function rendre(E, complet) {
@@ -265,10 +282,14 @@ const SCENE = (() => {
     renderer.setScissorTest(false);
     calque(E, hv);
   }
-  function rendu() { if (dernier && webgl) rendre(dernier, true); } // un rendu complet, pour le partage et les captures
+  function rendu() { // un rendu complet, pour le partage et les captures, à la finesse de l'écran (le palier revient à la tâche suivante)
+    if (!dernier || !webgl) return;
+    if (DPR < DPRui) { renderer.setPixelRatio(DPRui); renderer.setSize(W, H, false); setTimeout(() => { renderer.setPixelRatio(DPR); renderer.setSize(W, H, false); }, 0); }
+    rendre(dernier, true);
+  }
 
   // ─── les zones de touche : les boîtes projetées des meubles, les rectangles du plan pour le reste ───
-  const _v = new THREE.Vector3(), _b = new THREE.Box3();
+  let _v, _b; // créés dans init (Three.js peut manquer)
   function rectDe(obj, marge) { // le rectangle d'écran d'un objet (ou d'une boîte monde déjà calculée : userData.zoneBoite)
     if (!obj) return null; if (obj.isBox3) _b.copy(obj); else _b.setFromObject(obj, true); if (_b.isEmpty()) return null;
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
@@ -282,9 +303,9 @@ const SCENE = (() => {
     if (zonesCache) return zonesCache;
     const K = V.K, k = V.crans.tables;
     const boite = (g) => (g && g.userData.zoneBoite) || g; // la déco et le comptoir désignent leur partie touchable (la plante, la face vitrée)
-    const four = rectDe(groupes.four, 2), fr = rectDe(groupes.froid, 2), vit = rectDe(boite(groupes.comptoir), 2), ca = rectDe(groupes.caisse, 6), tb = k > 0 ? rectDe(groupes.tables, 4) : null, bo = rectDe(boulangerG, 4), de = V.crans.deco > 0 ? rectDe(boite(groupes.deco), 6) : null;
+    const four = rectDe(groupes.four, 2), fr = rectDe(groupes.froid, 2), vit = rectDe(boite(groupes.comptoir), 2), ca = rectDe(groupes.caisse, 6), tb = k > 0 ? rectDe(groupes.tables, 4) : null, bo = rectDe(boite(boulangerG), 4), de = V.crans.deco > 0 ? rectDe(boite(groupes.deco), 6) : null;
     zonesCache = {
-      boulanger: auMoins(bo, 52 * K, 68 * K) || z.boulanger,
+      boulanger: (() => { const r = auMoins(bo, 52 * K, 68 * K) || z.boulanger; if (vit && r.y + r.h > vit.y) r.h = Math.max(8, vit.y - r.y); return r; })(), // il ne mord pas sur la vitrine
       four: four ? (four.y < z.four.y - 12 ? { x: four.x, y: z.four.y - 12, w: four.w, h: four.y + four.h - (z.four.y - 12) } : four) : z.four, froid: fr ? { x: 0, y: fr.y, w: Math.max(44, fr.x + fr.w), h: fr.h } : z.froid,
       vitrine: vit || z.vitrine,
       caisse: auMoins(ca, 44, 44) || z.caisse, deco: auMoins(de, 44, 44) || z.deco,
@@ -360,9 +381,9 @@ const SCENE = (() => {
   }
 
   const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
-    vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: V.mystere, habitue: V.habitue,
+    vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get amenager() { return amenager; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
-    get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length }; } };
+    get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length, geometries: renderer ? renderer.info.memory.geometries : 0, textures: renderer ? renderer.info.memory.textures : 0 }; } };
   return API;
 })();

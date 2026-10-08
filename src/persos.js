@@ -4,7 +4,7 @@
    transparente), deux bras, et les accessoires (sac, plateau + pâtisserie fusionnés, clé, halo). Aucune échelle n'est appliquée :
    les cotes sont exprimées directement en unités monde, les proportions du dessin 2D y sont intégrées (73 de haut ≈ 45 px à
    l'écran en plongée 52°, tête r = 10, corps 22 de large). Budget : ≤ 8 appels de dessin par personnage (7 de base + 1 accessoire). */
-const PERSOS = (() => {
+const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (fichier non chargé), le module vaut null et le jeu démarre sans 3D
   'use strict';
   const M = MODELES, TAU = Math.PI * 2, HP = Math.PI / 2, CY = Math.cos(52 * Math.PI / 180);
   const L = '#4A3328', JOUE = '#FFB3B3', BLANC = '#FFFFFF', OR = '#FFC84A', ROUGE = '#E1496C', GRIS = '#8C8C8C';
