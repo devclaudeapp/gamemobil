@@ -20,15 +20,14 @@ const SCENE = (() => {
     const ombres = p.ombres > 0; if (renderer.shadowMap.enabled !== ombres) { renderer.shadowMap.enabled = ombres; scene.traverse((o) => { if (o.material) o.material.needsUpdate = true; }); }
     if (ombres && dir.shadow.mapSize.x !== p.ombres) { dir.shadow.mapSize.set(p.ombres, p.ombres); if (dir.shadow.map) { dir.shadow.map.dispose(); dir.shadow.map = null; } }
   }
-  function mesurer(ms) { // la moyenne de 60 frames décide : au-dessus de 20 ms on descend, dix secondes sous 8 ms on remonte
-    if (QUAL.fixe) return;
+  function mesurer(ms) { // l'intervalle réel entre deux images (le travail du processeur graphique compris) : au-dessus de 28 ms en moyenne on descend, dix secondes sous 18 ms on remonte
+    if (QUAL.fixe || !(ms > 0) || ms > 200) return; // un onglet en veille ou un à-coup isolé ne compte pas
     QUAL.somme += ms; if (++QUAL.mesures < 60) return;
-    const moy = QUAL.somme / QUAL.mesures; QUAL.mesures = 0; QUAL.somme = 0;
-    if (moy > 20) { QUAL.calme = 0; qualite(QUAL.niveau === 'haute' ? 'moyenne' : 'eco'); }
-    else if (moy < 8) { if (++QUAL.calme >= 10) { QUAL.calme = 0; qualite(QUAL.niveau === 'eco' ? 'moyenne' : 'haute'); } }
+    const moy = QUAL.somme / QUAL.mesures; QUAL.moy = moy; QUAL.mesures = 0; QUAL.somme = 0;
+    if (moy > 28) { QUAL.calme = 0; qualite(QUAL.niveau === 'haute' ? 'moyenne' : 'eco'); }
+    else if (moy < 18) { if (++QUAL.calme >= 10) { QUAL.calme = 0; qualite(QUAL.niveau === 'eco' ? 'moyenne' : 'haute'); } }
     else QUAL.calme = 0;
   }
-
   // ─── mise en route ───
   function init(canvas, ui) {
     cv = canvas; cvUi = ui; ctx2 = ui ? ui.getContext('2d') : null;
@@ -38,7 +37,7 @@ const SCENE = (() => {
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.setClearColor('#F3D9C0');
     const dbg = gl.getExtension('WEBGL_debug_renderer_info'), nom = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
     const q = /[?&]qualite=(haute|moyenne|eco)/.exec(location.search);
-    if (q) { QUAL.niveau = q[1]; QUAL.fixe = true; } else if (/SwiftShader|llvmpipe|Software/i.test(nom)) QUAL.niveau = 'eco';
+    if (q) { QUAL.niveau = q[1]; QUAL.fixe = true; } else if (/SwiftShader|llvmpipe|Software/i.test(nom)) { QUAL.niveau = 'eco'; QUAL.fixe = true; } // un rendu logiciel reste en éco
     cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); perdu = performance.now(); });
     cv.addEventListener('webglcontextrestored', () => { perdu = 0; toutRebatir(); });
     scene = new THREE.Scene();
@@ -70,7 +69,7 @@ const SCENE = (() => {
 
   // ─── ce qui est construit : la salle, les meubles par cran, les petits décors conditionnels, les produits de la vitrine, le boulanger ───
   const cles = {}, groupes = {}, animes = [], lampes = []; let salle = null, boulangerG = null, ctxC = null, Qc = null, zonesCache = null, pool = new Map(); const acteurs = new Map();
-  function toutRebatir() { for (const k of Object.keys(cles)) cles[k] = null; Qc = null; zonesCache = null; for (const g of acteurs.values()) { scene.remove(g); } acteurs.clear(); pool.clear(); if (ext.tex) ext.tex.needsUpdate = true; ext.der = -1; }
+  function toutRebatir() { for (const k of Object.keys(cles)) cles[k] = null; Qc = null; zonesCache = null; for (const g of acteurs.values()) { scene.remove(g); M.dispose(g); } acteurs.clear(); for (const l of pool.values()) for (const g of l) M.dispose(g); pool.clear(); if (ext.tex) ext.tex.needsUpdate = true; ext.der = -1; } // tout sera reconstruit à la frame suivante, à la nouvelle taille
   function remplacer(id, g) { // pose (ou retire) un groupe nommé, en libérant l'ancien
     const vieux = groupes[id]; if (vieux) { scene.remove(vieux); M.dispose(vieux); }
     groupes[id] = g || null; if (g) scene.add(g); zonesCache = null; recenserAnimes();
@@ -106,7 +105,7 @@ const SCENE = (() => {
     const c = contexte(E), base = `${E.Q.id}|${W}x${H}`;
     if (Qc !== E.Q) { Qc = E.Q; renderer.setClearColor(E.Q.sol); salle = MEUBLES.salle(c); remplacer('salle', salle); }
     for (const id of MEUBLES_IDS) { // les six meubles (le comptoir porte la vitrine), reconstruits quand leur cran change
-      const cran = E.crans[id === 'comptoir' ? 'vitrine' : id], k = `${cran}|${base}${id === 'tables' ? '|' + E.crans.deco : ''}`;
+      const cran = E.crans[id === 'comptoir' ? 'vitrine' : id], k = `${cran}|${base}${id === 'tables' ? '|' + E.crans.deco : ''}${id === 'deco' && E.tags.includes('noel') ? '|noel' : ''}${id === 'comptoir' ? '|' + E.niv.filter((n) => n > 0).length : ''}`;
       if (cles[id] !== k) { cles[id] = k; remplacer(id, MEUBLES[id](cran, c)); if (id === 'comptoir') { cles.produits = null; cles.caisse = null; const cp = groupes.comptoir; if (cp && cp.userData.dessusY != null) { c.dessusY = cp.userData.dessusY; c.dessusZ = cp.userData.dessusZ; } } }
     }
     for (const d of CONDS) { const k = d.cle(E), kk = k == null ? null : `${k}|${base}`; if (cles[d.id] !== kk) { cles[d.id] = kk; remplacer(d.id, kk == null ? null : d.faire(k, c)); } }
@@ -121,12 +120,12 @@ const SCENE = (() => {
   }
 
   // ─── la lumière : cinq phases du ciel, fondues autour de chaque borne ; les lampes la nuit ; le coup de feu réchauffe ───
-  const PHASES = {
-    nuit: { hemi: ['#5C6BB0', '#2A2238', 0.75], dir: ['#9FB3FF', 0.7], lampes: 1, tache: 0.0, fond: '#2E2A3A' },
-    aube: { hemi: ['#FFC2A8', '#6B4A3A', 1.0], dir: ['#FFD2B0', 1.6], lampes: 0.2, tache: 0.06 },
+  const PHASES = { // des teintes douces : le dessin d'origine ne posait qu'un voile de 8 à 22 %
+    nuit: { hemi: ['#A3ADE0', '#3A3248', 0.9], dir: ['#B0BEFF', 0.55], lampes: 1, tache: 0.0 },
+    aube: { hemi: ['#FFF0E6', '#8C6F62', 1.2], dir: ['#FFE0C8', 1.9], lampes: 0.2, tache: 0.06 },
     jour: { hemi: ['#DDF3FF', '#8C6F62', 1.3], dir: ['#FFF4E0', 2.2], lampes: 0, tache: 0.10 },
-    soir: { hemi: ['#FFB37A', '#6B4A3A', 1.1], dir: ['#FFB070', 1.7], lampes: 0.4, tache: 0.05 },
-    crepuscule: { hemi: ['#8E7CC8', '#3A2E48', 0.9], dir: ['#C8B0FF', 1.0], lampes: 1, tache: 0.02 },
+    soir: { hemi: ['#FFEADB', '#7A5C4E', 1.15], dir: ['#FFCE9E', 1.9], lampes: 0.4, tache: 0.05 },
+    crepuscule: { hemi: ['#E4DAF6', '#4A3E58', 1.0], dir: ['#D6C6FF', 1.2], lampes: 1, tache: 0.02 },
   };
   const BORNES = [[6, 'nuit', 'aube'], [8, 'aube', 'jour'], [18, 'jour', 'soir'], [20, 'soir', 'crepuscule'], [21, 'crepuscule', 'nuit']];
   const _c1 = new THREE.Color(), _c2 = new THREE.Color(); let lampesNiv = 0;
@@ -138,10 +137,11 @@ const SCENE = (() => {
     dir.color.set(A.dir[0]).lerp(_c1.set(B.dir[0]), k); dir.intensity = mix(A.dir[1], B.dir[1]);
     if (E.rush) { hemi.color.lerp(_c2.set('#FFF0E0'), 0.5); dir.intensity *= 1.1; }
     lampesNiv = mix(A.lampes, B.lampes);
-    const allumees = [E.crans.deco >= 2, E.crans.deco >= 2, E.niv[2] > 0 || E.crans.deco >= 4];
-    const pos = [[LAY.appliques[0].x, wy(LAY.murH - LAY.appliques[0].y), 14], [LAY.appliques[1].x, wy(LAY.murH - LAY.appliques[1].y), 14], [W * 0.5, wy(LAY.murH) - 24, wz(LAY.T * 0.5)]];
-    lampes.forEach((p, i) => { p.position.set(pos[i][0], pos[i][1], pos[i][2]); p.distance = W * 0.8; p.intensity = allumees[i] ? 90 * lampesNiv : 0; });
+    const salon = E.crans.deco >= 4 && E.crans.tables > 0, tb = LAY.tables, allumees = [E.crans.deco >= 2, E.crans.deco >= 2, E.niv[2] > 0 || salon];
+    const pos = [[LAY.appliques[0].x, wy(LAY.murH - LAY.appliques[0].y), 18], [LAY.appliques[1].x, wy(LAY.murH - LAY.appliques[1].y), 18], salon ? [(tb[0].x + tb[1].x) / 2, 60, wz((tb[0].y + tb[2].y) / 2)] : [LAY.lampe.x, wy(LAY.murH - LAY.lampe.y) - 10, 20]];
+    lampes.forEach((p, i) => { p.position.set(pos[i][0], pos[i][1], pos[i][2]); p.distance = W * 0.9; p.intensity = allumees[i] ? 150 * lampesNiv : 0; });
     const taches = salle && salle.userData.taches; if (taches) for (const m of taches) m.material.opacity = mix(A.tache, B.tache);
+    const mm = salle && salle.userData.murMat; if (mm) { mm.emissive.copy(hemi.color); mm.emissiveIntensity = 0.42 * hemi.intensity / 1.3; } // le mur suit la lumière (sa lueur compense les faces verticales, pas la nuit)
   }
 
   // ─── dehors : une texture repeinte dix fois par seconde, vue par la fenêtre et la porte ───
@@ -249,7 +249,8 @@ const SCENE = (() => {
       const tb = groupes.tables; if (tb && tb.userData.couverts) LAY.tables.forEach((table, i) => { const m = tb.userData.couverts[i]; if (m) m.visible = table.sieges.some((s) => !!s.occ); });
       if (perdu) return;
       nFrame++;
-      if (visH > 48 && !(PALIERS[QUAL.niveau].saute && (nFrame & 1))) { rendre(E, false); mesurer(performance.now() - t0); }
+      if (visH > 48) { mesurer(dt * 1000); if (!(PALIERS[QUAL.niveau].saute && (nFrame & 1))) rendre(E, false); }
+      QUAL.cpu = performance.now() - t0;
     } catch (e) { panne(e); }
   }
   function panne(e) { // la 3D casse : on l'arrête, la boutique continue de vivre sans image plutôt que de figer le jeu
@@ -268,8 +269,8 @@ const SCENE = (() => {
 
   // ─── les zones de touche : les boîtes projetées des meubles, les rectangles du plan pour le reste ───
   const _v = new THREE.Vector3(), _b = new THREE.Box3();
-  function rectDe(obj, marge) {
-    if (!obj) return null; _b.setFromObject(obj, true); if (_b.isEmpty()) return null;
+  function rectDe(obj, marge) { // le rectangle d'écran d'un objet (ou d'une boîte monde déjà calculée : userData.zoneBoite)
+    if (!obj) return null; if (obj.isBox3) _b.copy(obj); else _b.setFromObject(obj, true); if (_b.isEmpty()) return null;
     let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
     for (let k = 0; k < 8; k++) { _v.set(k & 1 ? _b.max.x : _b.min.x, k & 2 ? _b.max.y : _b.min.y, k & 4 ? _b.max.z : _b.min.z).project(camera); const sx = (_v.x + 1) / 2 * W, sy = (1 - _v.y) / 2 * H; x0 = Math.min(x0, sx); y0 = Math.min(y0, sy); x1 = Math.max(x1, sx); y1 = Math.max(y1, sy); }
     marge = marge || 0; return { x: x0 - marge, y: y0 - marge, w: x1 - x0 + 2 * marge, h: y1 - y0 + 2 * marge };
@@ -280,12 +281,13 @@ const SCENE = (() => {
     const z = V.zones(); if (!webgl) return z;
     if (zonesCache) return zonesCache;
     const K = V.K, k = V.crans.tables;
-    const four = rectDe(groupes.four, 2), fr = rectDe(groupes.froid, 2), vit = rectDe(groupes.comptoir, 2), ca = rectDe(groupes.caisse, 6), tb = k > 0 ? rectDe(groupes.tables, 4) : null, bo = rectDe(boulangerG, 4);
+    const boite = (g) => (g && g.userData.zoneBoite) || g; // la déco et le comptoir désignent leur partie touchable (la plante, la face vitrée)
+    const four = rectDe(groupes.four, 2), fr = rectDe(groupes.froid, 2), vit = rectDe(boite(groupes.comptoir), 2), ca = rectDe(groupes.caisse, 6), tb = k > 0 ? rectDe(groupes.tables, 4) : null, bo = rectDe(boulangerG, 4), de = V.crans.deco > 0 ? rectDe(boite(groupes.deco), 6) : null;
     zonesCache = {
       boulanger: auMoins(bo, 52 * K, 68 * K) || z.boulanger,
-      four: four || z.four, froid: fr ? { x: 0, y: fr.y, w: Math.max(44, fr.x + fr.w), h: fr.h } : z.froid,
-      vitrine: vit ? { x: vit.x, y: vit.y, w: vit.w * 0.75, h: vit.h } : z.vitrine,
-      caisse: auMoins(ca, 44, 44) || z.caisse, deco: { x: z.deco.x, y: z.deco.y - 24 * K, w: z.deco.w, h: z.deco.h + 24 * K },
+      four: four ? (four.y < z.four.y - 12 ? { x: four.x, y: z.four.y - 12, w: four.w, h: four.y + four.h - (z.four.y - 12) } : four) : z.four, froid: fr ? { x: 0, y: fr.y, w: Math.max(44, fr.x + fr.w), h: fr.h } : z.froid,
+      vitrine: vit || z.vitrine,
+      caisse: auMoins(ca, 44, 44) || z.caisse, deco: auMoins(de, 44, 44) || z.deco,
       tables: tb ? { x: tb.x, y: tb.y, w: k >= 2 ? Math.max(tb.w, W - tb.x) : tb.w, h: tb.h } : z.tables,
       mystere: z.mystere, entree: z.entree,
     };
@@ -313,7 +315,7 @@ const SCENE = (() => {
       if (cl.or && !cl.pris && cl.etat === 'attend') { const s = s0 * cl.taille, cy = cl.y - 24 * s; c.fillStyle = '#FFC84A'; for (let k = 0; k < 4; k++) { const a = E.t * 2 + k * 1.6; etincelle(cl.x + Math.cos(a) * 22 * s, cy + Math.sin(a * 1.3) * 26 * s, (4 + Math.sin(E.t * 6 + k) * 1.5) * s); } }
       if (cl.hab && cl.alpha > 0.5) { const s = s0 * cl.taille, ty = projeterY((cl.etat === 'assis' ? hp * 0.75 : hp) * s, wz(cl.y)) - 10; c.font = '700 10px Nunito, sans-serif'; c.textAlign = 'center'; const w = c.measureText(cl.nom).width + 12; c.fillStyle = '#fff'; rr(cl.x - w / 2, ty - 8, w, 15, 7); c.fill(); c.fillStyle = L; c.fillText(cl.nom, cl.x, ty + 3); }
     }
-    if (E.pts > 0 && boulangerG) { const r = rectDe(boulangerG, 0), by = (r ? r.y : LAY.boulanger.y - 80 * s0) - 8 + Math.sin(E.t * 3) * 2, bx = LAY.boulanger.x; c.fillStyle = '#fff'; rr(bx + 8, by - 10, 24, 18, 8); c.fill(); c.beginPath(); c.moveTo(bx + 12, by + 7); c.lineTo(bx + 8, by + 13); c.lineTo(bx + 18, by + 8); c.fill(); c.fillStyle = '#9A84F0'; etincelle(bx + 20, by - 1, 6); }
+    if (E.pts > 0 && boulangerG) { const r = zones().boulanger, by = (r ? r.y + 4 : LAY.boulanger.y - 80 * s0) - 8 + Math.sin(E.t * 3) * 2, bx = LAY.boulanger.x; c.fillStyle = '#fff'; rr(bx + 8, by - 10, 24, 18, 8); c.fill(); c.beginPath(); c.moveTo(bx + 12, by + 7); c.lineTo(bx + 8, by + 13); c.lineTo(bx + 18, by + 8); c.fill(); c.fillStyle = '#9A84F0'; etincelle(bx + 20, by - 1, 6); }
     if (V.crans.tables === 0) { const tb = LAY.tables[0]; c.fillStyle = 'rgba(74,51,40,.45)'; c.font = `700 ${Math.round(9 * s0)}px Nunito, sans-serif`; c.textAlign = 'center'; c.fillText('tables', tb.x, tb.y - 7 * s0); }
     for (const x of V.textes) { c.globalAlpha = Math.max(0, Math.min(1, x.life * 1.4)); c.font = `700 ${Math.round(15 * Math.min(1.3, 1 + x.txt.length / 40))}px Fredoka, Nunito, sans-serif`; c.fillStyle = x.col; c.strokeStyle = '#fff'; c.lineWidth = 4; c.textAlign = 'center'; c.strokeText(x.txt, x.x, x.y); c.fillText(x.txt, x.x, x.y); }
     c.globalAlpha = 1;
@@ -361,6 +363,6 @@ const SCENE = (() => {
     vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: V.mystere, habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get amenager() { return amenager; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
-    get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.mesures ? QUAL.somme / QUAL.mesures : 0, acteurs: acteurs.size, animes: animes.length }; } };
+    get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length }; } };
   return API;
 })();
