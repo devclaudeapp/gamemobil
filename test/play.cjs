@@ -23,6 +23,8 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_CERT|googleapis|gstatic|404/.test(m.text() + (m.location() && m.location().url))) errors.push(m.text() + ' @ ' + (m.location() && m.location().url)); });
   await page.goto('http://localhost:8781/'); await sleep(800);
   await page.screenshot({ path: out + '/01-debut.png' });
+  const trois = await page.evaluate(() => { const s = window.__fournil.stats(), ui = document.querySelector('#scene-ui').getBoundingClientRect(), sc = document.querySelector('#scene').getBoundingClientRect(); return { ...s, calque: Math.abs(ui.width - sc.width) < 1 && Math.abs(ui.height - sc.height) < 1 }; });
+  check(trois.webgl && trois.calls > 0 && trois.calque, `la boutique est rendue en 3D (WebGL, ${trois.calls} appels de dessin, qualité ${trois.qualite}) sous un calque 2D de même taille`);
   const W = () => page.evaluate(() => { const s = window.__fournil.st; return { coins: +s.coins.toFixed(1), niv: s.stations.map((x) => x.niv).join(','), staff: s.stations.map((x) => +x.staff).join(''), tuto: s.tuto, ventes: s.stats.ventes, indice: document.querySelector('#indice').hidden ? '' : document.querySelector('#indice-txt').textContent }; });
   console.log('début', await W());
   check((await W()).indice.includes('Touche la baguette'), 'premier indice : toucher la baguette');
@@ -305,6 +307,16 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const petit = await p2.evaluate(() => { const t = document.querySelector('#tiroir'), tr = t.getBoundingClientRect(), o = document.querySelector('#onglets').getBoundingClientRect(), c = document.querySelector('.carte[data-i="0"]').getBoundingClientRect(), s = document.querySelector('#scene').getBoundingClientRect(), z = window.__fournil.SCENE.zones(); return { pos: t.dataset.pos, carte: c.top >= tr.top + 36 && c.bottom <= o.top, file: z.mystere.y + z.mystere.h <= tr.top - s.top + 1, haut: Math.round(tr.top - s.top) }; });
   check(petit.pos === 'mi' && petit.carte && petit.file, 'à 360×640, tiroir à mi (' + petit.haut + ' px de scène) : première carte entière, file et client mystère visibles');
   await p2.evaluate(() => window.__fournil.tiroir('ferme')); await sleep(400); await p2.screenshot({ path: out + '/10b-petit-ecran-entier.png' });
+  // sans WebGL : la boutique vit sans image, le jeu reste jouable
+  const b3 = await chromium.launch({ args: ['--disable-webgl', '--disable-webgl2'] });
+  const p3 = await (await b3.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR' })).newPage();
+  const err3 = []; p3.on('pageerror', (e) => err3.push(e.message));
+  await p3.goto('http://localhost:8781/'); await sleep(1500);
+  const sans = await p3.evaluate(() => ({ webgl: window.__fournil.stats().webgl, panneau: !document.querySelector('#sans-3d').hidden, cartes: document.querySelectorAll('.carte').length, coins: window.__fournil.st.coins }));
+  await p3.tap('.carte[data-i="0"] .barre'); await sleep(1300);
+  const vendu = await p3.evaluate(() => window.__fournil.st.stats.ventes);
+  check(!sans.webgl && sans.panneau && sans.cartes === 8 && vendu >= 1 && !err3.length, `sans WebGL : panneau affiché, pas d’erreur, une fournée vendue quand même (${vendu})`);
+  await b3.close();
   console.log(errors.length ? 'ERRORS ' + errors.join(' | ') : 'ERRORS none');
   await browser.close(); server.close();
   console.log(fails ? `${fails} échec(s)` : 'Tout passe.');

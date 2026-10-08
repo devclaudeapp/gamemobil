@@ -566,8 +566,8 @@ const UI = (() => {
     try {
       if (navigator.share) {
         SCENE.rendu();
-        const cv = $('#scene'), k = cv.width / cv.clientWidth, hu = Math.round(Math.min(cv.height, SCENE.hauteurUtile() * k)), c2 = document.createElement('canvas'); c2.width = cv.width; c2.height = hu + 56 * k;
-        const x = c2.getContext('2d'); x.fillStyle = '#FFF7EC'; x.fillRect(0, 0, c2.width, c2.height); x.drawImage(cv, 0, 0, cv.width, hu, 0, 0, cv.width, hu);
+        const cv = $('#scene'), ui = $('#scene-ui'), k = cv.width / cv.clientWidth, hu = Math.round(Math.min(cv.height, SCENE.hauteurUtile() * k)), c2 = document.createElement('canvas'); c2.width = cv.width; c2.height = hu + 56 * k;
+        const x = c2.getContext('2d'); x.fillStyle = '#FFF7EC'; x.fillRect(0, 0, c2.width, c2.height); x.drawImage(cv, 0, 0, cv.width, hu, 0, 0, cv.width, hu); if (ui.width) x.drawImage(ui, 0, 0, ui.width, Math.round(hu * ui.height / cv.height), 0, 0, cv.width, hu); // la 3D puis le calque 2D
         x.fillStyle = '#4A3328'; x.font = `700 ${16 * k}px Fredoka, Nunito, sans-serif`; x.textAlign = 'center'; x.fillText(texte.replace(' — Le Fournil', ''), c2.width / 2, hu + 34 * k, c2.width - 20 * k);
         const blob = await new Promise((r) => c2.toBlob(r, 'image/png'));
         const files = blob ? [new File([blob], 'ma-boutique.png', { type: 'image/png' })] : [];
@@ -641,7 +641,7 @@ const UI = (() => {
     st.now = Date.now();
     if (!st.vu) st.vu = { trophees: trophesGagnes() };
     document.querySelectorAll('[data-ico]').forEach((el) => { el.innerHTML = ICONS.UI[el.dataset.ico] || ''; });
-    SCENE.init($('#scene'));
+    if (!SCENE.init($('#scene'), $('#scene-ui'))) $('#sans-3d').hidden = false; // sans WebGL : la boutique vit quand même, sans image
     SCENE.surServi = (r) => { if (r.cadeau) { reussite(`${r.hb.nom}, fidèle depuis ${r.jours} jours, t’offre ${G.fmtEur(r.cadeau)} !`); } else if (r.jours > 1) toast(`${r.hb.nom} : ${r.jours}e jour de suite !`); };
     tiroir.init();
     layout();
@@ -679,7 +679,7 @@ const UI = (() => {
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager };
+    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q) };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

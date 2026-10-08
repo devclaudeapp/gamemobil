@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><title>Atelier 3D</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800&display=swap">
+<style>html,body{margin:0;background:#FFF7EC}#wrap{position:relative;width:390px;height:714px;overflow:hidden}canvas{position:absolute;inset:0;width:100%;height:100%;display:block}#info{position:absolute;left:6px;bottom:4px;font:12px monospace;color:#4A3328;background:rgba(255,255,255,.7);padding:2px 6px;border-radius:6px}</style>
+</head><body>
+<div id="wrap"><canvas id="scene"></canvas><canvas id="ui"></canvas><div id="info"></div></div>
+<script src="../vendor/three.min.js"></script>
+<script src="../src/game.js"></script><script src="../src/vie.js"></script><script src="../src/modeles.js"></script>
+<script src="../src/meubles.js"></script><script src="../src/persos.js"></script>
+<script>
+// L'atelier : la caméra et la lumière de la vraie scène, pour regarder un meuble, un personnage ou la salle entière, à n'importe quel cran.
+window.atelier = (() => {
+  const W = 390, H = 714, DPR = 2, PITCH = 52 * Math.PI / 180, SY = Math.sin(PITCH), CY = Math.cos(PITCH);
+  const cv = document.querySelector('#scene'), renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: false });
+  renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.setPixelRatio(DPR); renderer.setSize(W, H, false); renderer.setClearColor('#FFF7EC');
+  const scene = new THREE.Scene(); const camera = new THREE.OrthographicCamera(-W / 2, W / 2, H / 2, -H / 2, 1, 4000);
+  VIE.resize(W, H, 354); const LAY = VIE.LAY;
+  const wz = (ys) => (ys - LAY.murH) / SY, wy = (px) => px / CY, wd = (px) => px / SY;
+  const Zc = (H / 2 - LAY.murH) / SY; camera.position.set(W / 2, 1500 * SY, Zc + 1500 * CY); camera.lookAt(new THREE.Vector3(W / 2, 0, Zc)); camera.updateProjectionMatrix();
+  const hemi = new THREE.HemisphereLight('#DDF3FF', '#8C6F62', 1.3), dir = new THREE.DirectionalLight('#FFF4E0', 2.2);
+  dir.position.set(W * 0.75, 900, Zc + 500); dir.target.position.set(W / 2, 0, Zc); dir.castShadow = true; dir.shadow.mapSize.set(1024, 1024);
+  Object.assign(dir.shadow.camera, { left: -W * 0.7, right: W * 0.7, top: 700, bottom: -700, near: 10, far: 3000 }); dir.shadow.bias = -0.0005; dir.shadow.normalBias = 1.5;
+  scene.add(hemi, dir, dir.target);
+  let groupe = null, courant = null, t = 0;
+  const ctxDe = (q, extra) => Object.assign({ LAY, K: VIE.K, W, H, Q: VIE.DECORS[q || 'village'], wz, wy, wd, SY, CY, tags: [], rush: false, t: 0, sk: VIE.ciel(13), crans: { tables: 0, four: 0, vitrine: 0, caisse: 0, froid: 0, deco: 0 }, niv: [1, 1, 1, 1, 0, 0, 0, 0], staffs: 2, bonus: 0, rang: 2 }, extra || {});
+  function montrer(spec) {
+    if (groupe) { scene.remove(groupe); MODELES.dispose(groupe); }
+    groupe = new THREE.Group(); courant = spec; const ctx = ctxDe(spec.q, spec.ctx);
+    const sol = new THREE.Mesh(new THREE.PlaneGeometry(W * 2, 2000), new THREE.MeshLambertMaterial({ color: ctx.Q.sol })); sol.rotation.x = -Math.PI / 2; sol.position.set(W / 2, -0.5, 800); sol.receiveShadow = true;
+    if (!spec.sansSol) groupe.add(sol);
+    const faire = spec.faire; // 'MEUBLES.four' etc.
+    const [mod, fn] = faire.split('.'); const M = { MEUBLES, PERSOS, MODELES }[mod];
+    const objs = [].concat(M[fn](...(spec.args || []).map((a) => (a === '$ctx' ? ctx : a))));
+    for (const o of objs) if (o) groupe.add(o);
+    if (spec.position) for (const o of objs) o.position.set(...spec.position);
+    scene.add(groupe); t = 0; animer(spec.t || 0.4);
+    document.querySelector('#info').textContent = spec.nom || faire;
+    const b = new THREE.Box3().setFromObject(groupe, true); return { min: b.min.toArray(), max: b.max.toArray(), enfants: groupe.children.length, calls: renderer.info.render.calls };
+  }
+  function animer(dt) { t += dt; groupe.traverse((o) => { if (o.userData && typeof o.userData.anime === 'function') o.userData.anime({ t, chaud: true, caisseFlash: 0, nuit: false, lampes: 0, rush: false, d: new Date(2026, 9, 8, 10, 10) }); }); renderer.render(scene, camera); }
+  function rect(obj) { const b = new THREE.Box3().setFromObject(obj, true), v = new THREE.Vector3(); let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9; for (let k = 0; k < 8; k++) { v.set(k & 1 ? b.max.x : b.min.x, k & 2 ? b.max.y : b.min.y, k & 4 ? b.max.z : b.min.z).project(camera); const sx = (v.x + 1) / 2 * W, sy = (1 - v.y) / 2 * H; x0 = Math.min(x0, sx); y0 = Math.min(y0, sy); x1 = Math.max(x1, sx); y1 = Math.max(y1, sy); } return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 }; }
+  return { montrer, animer, rect, scene, camera, renderer, LAY, wz, wy, wd, get groupe() { return groupe; }, get info() { return renderer.info.render; } };
+})();
+</script></body></html>

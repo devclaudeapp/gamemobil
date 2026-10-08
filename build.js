@@ -1,16 +1,19 @@
 #!/usr/bin/env node
 // Assemble index.html (page autonome, installable) et dist/artifact.html (contenu seul, pour la page Claude).
+// Three.js (vendor/three.min.js) est chargé par une balise <script src> dans index.html et inliné dans l'artefact.
 'use strict';
 const fs = require('fs'), path = require('path');
 const read = (f) => fs.readFileSync(path.join(__dirname, 'src', f), 'utf8');
 const css = read('style.css'), body = read('page.html');
-const js = ['game.js', 'icons.js', 'scene.js', 'ui.js'].map((f) => `/* ── ${f} ── */\n${read(f)}`).join('\n');
+const js = ['game.js', 'icons.js', 'vie.js', 'modeles.js', 'meubles.js', 'persos.js', 'scene.js', 'ui.js'].map((f) => `/* ── ${f} ── */\n${read(f)}`).join('\n');
+const three = fs.readFileSync(path.join(__dirname, 'vendor', 'three.min.js'), 'utf8'); // Three.js r158 (UMD), vendu dans le dépôt
 const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800&display=swap">`;
 const headInner = `<title>Le Fournil</title>\n${fonts}\n<style>\n${css}</style>`;
-const bodyInner = `${body}\n<script>\n${js}\n</script>`;
-const artifact = `${headInner}\n${bodyInner}`;
+const script = `<script>\n${js}\n</script>`;
+const bodyInner = `${body}\n<script src="vendor/three.min.js"></script>\n${script}`; // la page : Three.js en fichier séparé, mis en cache par le service worker
+const artifact = `${headInner}\n${body}\n<script>\n${three}\n</script>\n${script}`; // l'artefact : fragment autonome, Three.js inline
 const full = `<!doctype html>
 <html lang="fr">
 <head>

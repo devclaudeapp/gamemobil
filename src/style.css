@@ -49,6 +49,9 @@ svg { display: block; }
 #corps { position: relative; flex: 1 1 auto; min-height: 0; overflow: clip; }
 #scene-wrap { position: absolute; inset: 0; overflow: clip; }
 #scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#scene-ui { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; } /* le calque 2D : textes, pastilles, mode Aménager */
+#sans-3d { position: absolute; left: 16px; right: 16px; top: 56px; padding: 14px 16px; background: #fff; border-radius: 16px; box-shadow: 0 6px 20px rgba(74,51,40,.12); display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #8C6F62; }
+#sans-3d b { color: #4A3328; font-family: Fredoka, Nunito, sans-serif; font-size: 15px; }
 #b-amenager { position: absolute; top: 8px; right: 10px; z-index: 2; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); transition: opacity .2s; }
 #b-amenager .ico svg { width: 22px; height: 22px; }
 #b-amenager:active { transform: translateY(3px); box-shadow: none; }
