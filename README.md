@@ -5,7 +5,7 @@ Ta boulangerie de quartier, en jeu idle/tycoon simple et lumineux : **tu cuis, t
 ## L'écran
 
 - **En haut** : ton solde et le gain par seconde, la **cloche** (elle s'anime quand un événement est en cours, et mène aux Défis sinon), le compteur d'**étoiles** (il ouvre la nouvelle boutique).
-- **La scène** : ta boutique dessinée en direct, avec son **enseigne** (touche-la pour renommer). Quand un événement arrive, une **bannière** se pose au bas de la scène : un chrono ou un bouton à marteler, et elle se déplie d'une touche pour lire la consigne. La scène se replie quand tu fais défiler la liste ou quand tu changes d'onglet, pour laisser la place.
+- **La boutique remplit l'écran** entre l'en-tête et les onglets, avec son **enseigne** (touche-la pour renommer) et le bouton **Aménager** en haut à droite, qui entoure chaque meuble améliorable de son nom, de ses crans et du prix du cran suivant ; hors de ce mode, chaque meuble porte une petite pastille de niveau, et une pastille jaune quand un cran est abordable. Les pages vivent dans **un tiroir que tu tires par sa poignée**, avec trois crans : fermé (toute la boutique), mi-hauteur, ouvert (la page prend tout). Toucher un onglet ou le ticket des objectifs ouvre le tiroir au moins à mi-hauteur ; retoucher l'onglet actif remonte sa page. Quand un événement arrive, une **bannière** se pose au-dessus du tiroir : un chrono ou un bouton à marteler, et elle se déplie d'une touche pour lire la consigne. La position du tiroir est mémorisée.
 - **Cinq onglets** en bas, chacun avec son icône et un badge quand quelque chose t'attend : **Boutique** (les produits, la barre ×1/×10/×100/Max, le bouton Bonus, et le ticket des objectifs du jour), **Défis** (objectifs du jour et leurs primes, pain du jour, défi de la semaine, la liste des sept événements), **Boulanger** (niveau, savoir-faire et talents ; un point à dépenser allume un badge lavande), **Journal** (records, habitués, trophées, derniers événements, partage ; un badge jaune compte les trophées pas encore vus), **Réglages** (sons, vibrations, nom et spécialité de la boutique, sauvegarde et transfert, partage, remise à zéro).
 
 ## Comment on joue
@@ -53,7 +53,7 @@ node test/longevite.js   # 60 jours de jeu simulés pour trois profils de joueur
 npx serve .              # puis ouvre l'adresse sur un téléphone du même réseau
 ```
 
-`test/play.cjs` rejoue un parcours complet sur un iPhone simulé (Playwright) et produit des captures dans `test/shots/` ; `test/scene.cjs` capture la boutique dans les cinq quartiers, à quatre heures de la journée et aux saisons, repliée, avec bannière et sur petit écran.
+`test/play.cjs` rejoue un parcours complet sur un iPhone simulé (Playwright) et produit des captures dans `test/shots/` ; `test/scene.cjs` capture la boutique dans les cinq quartiers, à quatre heures de la journée et aux saisons, tiroir fermé, à mi-hauteur et ouvert, en mode Aménager, avec bannière et sur petits écrans.
 
 ### L'installer sur un téléphone
 
@@ -72,8 +72,8 @@ La boutique est enregistrée dans le téléphone toutes les 5 secondes, à chaqu
 | Fichier | Rôle |
 | --- | --- |
 | `src/game.js` | Économie et état : produits, paliers, bonus, mobilier, étoiles, boulanger (savoir-faire, niveaux, talents), objectifs du jour, événements, absence, formats de nombres. Tourne aussi dans Node |
-| `src/scene.js` | La boutique en Canvas 2D, vue 3/4 plongeante : plan de la boutique, meubles par cran, apprentis en navette, clients en file et à table, zones de touche, cinq quartiers, vue par la fenêtre et la porte, boutique qui grandit, saisons, lumière du jour et de la nuit, boulanger selon son titre, clients variés, passants, client mystère, coup de feu, four en panne |
-| `src/ui.js` | Barre d'onglets et pages (Boutique, Défis, Boulanger, Journal, Réglages), cartes des produits, fiches des meubles et volet Mobilier, ticket des objectifs, bannière d'événement et cloche, badges, indices du tutoriel, feuilles (bonus, étoiles, nom, spécialité, absence, sauvegarde), sons, sauvegarde double et code de transfert |
+| `src/scene.js` | La boutique en Canvas 2D, vue 3/4 plongeante, qui s'étale sur toute la hauteur disponible : plan de la boutique (bloc haut à l'échelle, salon qui descend dans le sol en plus), meubles par cran, mode Aménager, apprentis en navette, clients en file et à table, zones de touche, cinq quartiers, vue par la fenêtre et la porte, boutique qui grandit, saisons, lumière du jour et de la nuit, boulanger selon son titre, clients variés, passants, client mystère, coup de feu, four en panne |
+| `src/ui.js` | Le tiroir des pages (poignée, trois crans, geste au doigt), barre d'onglets et pages (Boutique, Défis, Boulanger, Journal, Réglages), cartes des produits, fiches des meubles et volet Mobilier, ticket des objectifs, bannière d'événement et cloche, badges, indices du tutoriel, feuilles (bonus, étoiles, nom, spécialité, absence, sauvegarde), sons, sauvegarde double et code de transfert |
 | `src/icons.js` | Icônes SVG en ligne : pâtisseries, apprentis, boulanger, meubles, et la famille d'icônes d'interface (onglets, cloche, bonus, réglages…) au même trait |
 | `src/style.css`, `src/page.html` | Mise en page |
 

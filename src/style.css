@@ -1,5 +1,5 @@
 /* LE FOURNIL — lumineux et doux : crème, fraise, beurre, menthe ; formes rondes, gros chiffres, boutons à épaisseur.
-   Structure : en-tête, scène (qui se replie), pages à onglets, barre d'onglets. */
+   Structure : en-tête, la boutique en plein corps, un tiroir de pages qu'on tire par sa poignée, barre d'onglets. */
 :root {
   --creme: #FFF7EC; --carte: #FFFFFF; --texte: #4A3328; --texte-2: #8C6F62; --ligne: #F0E4D8;
   --fraise: #FF6B8B; --fraise-sombre: #E1496C; --beurre: #FFC84A; --beurre-sombre: #E0A61E; --menthe: #5FD3A4; --menthe-sombre: #3FB889;
@@ -7,7 +7,7 @@
   --ombre: rgba(74, 51, 40, .10);
   --titre: "Fredoka", "Nunito", "Segoe UI", system-ui, sans-serif;
   --texte-font: "Nunito", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --scene-h: 200px;
+  --tiroir-y: 300px;
   color-scheme: light;
 }
 *, *::before, *::after { box-sizing: border-box; }
@@ -45,18 +45,29 @@ svg { display: block; }
 .pastille.etoile.pret { animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
 
-/* ─── scène : pleine hauteur dans la Boutique, repliée ailleurs ou quand on fait défiler ─── */
-#scene-wrap { position: relative; flex: 0 0 auto; height: var(--scene-h); overflow: hidden; transition: height .25s cubic-bezier(.2, .8, .2, 1); }
-body.replie #scene-wrap { height: 112px; }
-#scene { position: absolute; left: 0; bottom: 0; width: 100%; display: block; touch-action: none; }
+/* ─── le corps : la boutique remplit tout ; les pages glissent par-dessus dans un tiroir qu'on tire soi-même ─── */
+#corps { position: relative; flex: 1 1 auto; min-height: 0; overflow: clip; }
+#scene-wrap { position: absolute; inset: 0; overflow: clip; }
+#scene { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#b-amenager { position: absolute; top: 8px; right: 10px; z-index: 2; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); transition: opacity .2s; }
+#b-amenager .ico svg { width: 22px; height: 22px; }
+#b-amenager:active { transform: translateY(3px); box-shadow: none; }
+#b-amenager.actif { background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); }
+body[data-tiroir="ouvert"] #b-amenager { opacity: 0; pointer-events: none; }
+#tiroir { position: absolute; left: 0; right: 0; top: 0; height: 100%; z-index: 3; transform: translateY(var(--tiroir-y)); transition: transform .28s cubic-bezier(.2, .8, .2, 1); will-change: transform;
+  background: var(--creme); border-radius: 24px 24px 0 0; box-shadow: 0 -8px 24px rgba(74, 51, 40, .12); }
+#tiroir.glisse { transition: none; }
+#poignee { display: grid; place-items: center; height: 36px; touch-action: none; cursor: grab; }
+#poignee i { width: 56px; height: 5px; border-radius: 3px; background: var(--gris-sombre); }
+#poignee:active { cursor: grabbing; }
+#tiroir[data-pos="ouvert"] #evenement { opacity: 0; pointer-events: none; }
 #enseigne { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 2; display: inline-flex; align-items: center; gap: 6px; max-width: 70%; min-height: 34px; padding: 0 14px; border-radius: 999px;
   background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 15px/1 var(--titre); color: var(--texte); white-space: nowrap; transition: opacity .2s, transform .2s; }
 #enseigne span { overflow: hidden; text-overflow: ellipsis; }
 #enseigne:active { transform: translateX(-50%) translateY(3px); box-shadow: none; }
-body.replie #enseigne { opacity: 0; pointer-events: none; transform: translateX(-50%) translateY(-10px); }
 
 /* ─── pages ─── */
-#pages { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 0 12px calc(env(safe-area-inset-bottom, 0px) + 20px); }
+#pages { height: calc(100% - var(--tiroir-y) - 36px); overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; padding: 0 12px 20px; }
 .page { padding-bottom: 8px; }
 .page-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 2px 10px; }
 .page-tete h2 { margin: 0; display: flex; align-items: center; gap: 10px; font: 700 24px/1.1 var(--titre); }
@@ -216,8 +227,8 @@ body.replie #enseigne { opacity: 0; pointer-events: none; transform: translateX(
 .tag { display: inline-block; padding: 2px 6px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 800 10px/1.3 var(--texte-font); vertical-align: middle; white-space: nowrap; flex: 0 0 auto; }
 .tag.spe { background: var(--lavande); color: #fff; }
 
-/* ─── bannière d'événement, posée sur la scène ─── */
-#evenement { position: absolute; left: 10px; right: 10px; bottom: 8px; z-index: 3; }
+/* ─── bannière d'événement : posée sur la scène, juste au-dessus du tiroir qu'elle suit ─── */
+#evenement { position: absolute; left: 10px; right: 10px; bottom: calc(100% + 8px); z-index: 3; transition: opacity .2s; }
 .ev { position: relative; display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 56px; padding: 8px 10px 10px 8px; border-radius: 18px; overflow: hidden; color: #fff; }
 .ev.rush { background: linear-gradient(135deg, #FF6B8B, #FF9A62); box-shadow: 0 8px 20px rgba(255, 107, 139, .38); }
 .ev.commande { background: linear-gradient(135deg, #B8A6FF, #8FB8FF); box-shadow: 0 8px 20px rgba(184, 166, 255, .4); }

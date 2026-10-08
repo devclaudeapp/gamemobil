@@ -9,12 +9,16 @@
     <button id="b-etoiles" class="pastille etoile" type="button" aria-label="Étoiles et nouvelle boutique"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6L2.5 9.4l6.6-.8z" fill="#fff" stroke="#E0A61E" stroke-width="1.5" stroke-linejoin="round"/></svg><span id="etoiles-n">0</span></button>
   </div>
 </header>
-<div id="scene-wrap">
-  <canvas id="scene" aria-label="La boutique : les clients entrent, achètent et repartent."></canvas>
-  <button id="enseigne" type="button" aria-label="Renommer la boutique"><span>Le Fournil</span></button>
-  <div id="evenement" hidden></div>
-</div>
-<main id="pages">
+<div id="corps">
+  <div id="scene-wrap">
+    <canvas id="scene" aria-label="La boutique vue d’en haut : le fournil, le comptoir, le salon de thé ; les clients entrent, achètent, s’attablent et repartent."></canvas>
+    <button id="enseigne" type="button" aria-label="Renommer la boutique"><span>Le Fournil</span></button>
+    <button id="b-amenager" type="button" aria-label="Aménager : voir les meubles à améliorer" aria-pressed="false"><i class="ico" data-ico="amenager"></i></button>
+  </div>
+  <div id="tiroir" data-pos="mi">
+    <div id="evenement" hidden></div>
+    <div id="poignee" role="button" tabindex="0" aria-label="Déplier ou replier les pages" aria-expanded="true"><i></i></div>
+    <main id="pages">
   <section class="page" id="page-boutique" data-page="boutique">
     <div class="barre-achat">
       <div class="modes" role="group" aria-label="Quantité à acheter">
@@ -29,7 +33,9 @@
   <section class="page" id="page-boulanger" data-page="boulanger" hidden></section>
   <section class="page" id="page-journal" data-page="journal" hidden></section>
   <section class="page" id="page-reglages" data-page="reglages" hidden></section>
-</main>
+    </main>
+  </div>
+</div>
 <nav id="onglets" aria-label="Navigation">
   <button type="button" data-page="boutique" class="actif" aria-current="page"><i class="ico" data-ico="boutique"></i><span>Boutique</span><i class="badge" hidden></i></button>
   <button type="button" data-page="defis"><i class="ico" data-ico="defis"></i><span>Défis</span><i class="badge" hidden></i></button>

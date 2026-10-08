@@ -1,4 +1,4 @@
-// Captures de la scène vue d'en haut : cinq quartiers, quatre heures, cinq saisons, repliée, avec bannière, petit écran.
+// Captures de la scène vue d'en haut : cinq quartiers, quatre heures, cinq saisons, tiroir fermé / à mi / ouvert, mode Aménager, bannière, petits écrans.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');
@@ -14,7 +14,7 @@ const SAISONS = { aucune: [], noel: ['neige', 'noel'], paques: ['paques'], ete: 
   await page.goto('http://localhost:8784/'); await sleep(600);
   // une boutique bien installée : tout le mobilier, quatre recettes, trois apprentis
   await page.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st; f.give(1e12); for (let i = 1; i < 4; i++) G.acheter(st, i); for (let i = 0; i < 4; i++) G.embaucher(st, i); for (const m of G.MOBILIER) while (G.mobilierCran(st, m.id) < m.max) f.meuble(m.id); st.tuto = 99; f.scene({ assis: true }); });
-  await sleep(2500);
+  await page.evaluate(() => window.__fournil.tiroir('ferme')); await sleep(2500);
   const quartiers = ['village', 'paris', 'mer', 'montagne', 'ville'];
   for (let q = 0; q < 5; q++) {
     await page.evaluate((q) => { window.__fournil.st.boutiques = q + 1; }, q);
@@ -28,15 +28,20 @@ const SAISONS = { aucune: [], noel: ['neige', 'noel'], paques: ['paques'], ete: 
   // les crans de départ : la boutique neuve
   await page.evaluate(() => { const st = window.__fournil.st; st.mobilier = {}; }); await sleep(800); await page.locator('#scene').screenshot({ path: `${out}/village-neuf.png` });
   await page.evaluate(() => { const f = window.__fournil; for (const m of f.G.MOBILIER) while (f.G.mobilierCran(f.st, m.id) < m.max) f.meuble(m.id); });
-  // le coup de feu et sa bannière, puis la scène repliée
-  await page.evaluate(() => window.__fournil.rush()); await sleep(1500); await page.screenshot({ path: `${out}/rush-banniere.png`, clip: { x: 0, y: 0, width: 390, height: 360 } });
-  await page.evaluate(() => { window.__fournil.st.ev.fin = Date.now() - 1; }); await sleep(400);
-  await page.evaluate(() => document.querySelector('#pages').scrollTo(0, 200)); await sleep(600); await page.screenshot({ path: `${out}/repliee.png`, clip: { x: 0, y: 0, width: 390, height: 260 } });
-  // petit écran : la scène fait 150 px
-  const p2 = await (await browser.newContext({ viewport: { width: 360, height: 555 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris' })).newPage();
-  await p2.goto('http://localhost:8784/'); await sleep(600);
-  await p2.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st; f.give(1e12); for (let i = 1; i < 4; i++) G.acheter(st, i); for (let i = 0; i < 3; i++) G.embaucher(st, i); for (const m of G.MOBILIER) while (G.mobilierCran(st, m.id) < m.max) f.meuble(m.id); st.tuto = 99; f.scene({ heure: 13, assis: true }); });
-  await sleep(2500); await p2.locator('#scene').screenshot({ path: `${out}/petit-ecran-h150.png` });
+  // le mode Aménager, le coup de feu et sa bannière (tiroir fermé puis à mi), le tiroir à mi et ouvert
+  await page.evaluate(() => window.__fournil.amenager(true)); await sleep(400); await page.locator('#scene').screenshot({ path: `${out}/amenager.png` }); await page.evaluate(() => window.__fournil.amenager(false));
+  await page.evaluate(() => window.__fournil.rush()); await sleep(1500); await page.screenshot({ path: `${out}/rush-ferme.png` });
+  await page.evaluate(() => window.__fournil.tiroir('mi')); await sleep(600); await page.screenshot({ path: `${out}/rush-mi.png` });
+  await page.evaluate(() => { window.__fournil.st.ev.fin = Date.now() - 1; }); await sleep(600); await page.screenshot({ path: `${out}/mi.png` });
+  await page.evaluate(() => window.__fournil.tiroir('ouvert')); await sleep(600); await page.screenshot({ path: `${out}/ouvert.png` });
+  // petits écrans : 360×640 (tiroir fermé puis à mi) et 360×555 (fermé)
+  for (const [w, h] of [[360, 640], [360, 555]]) {
+    const p2 = await (await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris' })).newPage();
+    await p2.goto('http://localhost:8784/'); await sleep(600);
+    await p2.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st; f.give(1e12); for (let i = 1; i < 4; i++) G.acheter(st, i); for (let i = 0; i < 3; i++) G.embaucher(st, i); for (const m of G.MOBILIER) while (G.mobilierCran(st, m.id) < m.max) f.meuble(m.id); st.tuto = 99; f.scene({ heure: 13, assis: true }); f.tiroir('ferme'); });
+    await sleep(2500); await p2.screenshot({ path: `${out}/petit-${w}x${h}-ferme.png` });
+    if (h === 640) { await p2.evaluate(() => window.__fournil.tiroir('mi')); await sleep(600); await p2.screenshot({ path: `${out}/petit-${w}x${h}-mi.png` }); }
+  }
   console.log('captures dans', out);
   await browser.close(); server.close();
 })().catch((e) => { console.error('FAIL', e); server.close(); process.exit(1); });

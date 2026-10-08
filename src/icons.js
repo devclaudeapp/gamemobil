@@ -65,6 +65,7 @@ const ICONS = (() => {
     chevron: U(`<path d="M9.5 6l6 6-6 6"/>`),
     coche: U(`<path d="M5 12.5l4.5 4.5L19 7.5"/>`),
     fermer: U(`<path d="M6 6l12 12M18 6L6 18"/>`),
+    amenager: U(`<rect x="3.5" y="4" width="13" height="7" rx="2.5" fill="#FFC84A"/><path d="M16.5 7.5h3.5v5h-8v3"/><rect x="10.5" y="15.5" width="3" height="6" rx="1.3" fill="#fff"/>`),
   };
   const AMELIORATION = S(`<path d="M24 6l3.5 10.5L38 20l-10.5 3.5L24 34l-3.5-10.5L10 20l10.5-3.5z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`);
   const ETOILE = S(`<path d="M24 5l5.8 12.2 13.2 1.6-9.8 9.2 2.6 13.2L24 34.6l-11.8 6.6 2.6-13.2L5 18.8l13.2-1.6z" fill="#FFC84A" stroke="#E0A61E" stroke-width="2" stroke-linejoin="round"/>`);

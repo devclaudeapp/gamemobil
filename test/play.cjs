@@ -9,7 +9,10 @@ const server = http.createServer((req, res) => {
 }).listen(8781);
 const out = path.join(__dirname, 'shots'); fs.mkdirSync(out, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-let page; const haut = async () => { await page.evaluate(() => document.querySelector('#pages').scrollTo(0, 0)); await sleep(450); }; // remonter la liste : la scène se redéploie, on attend la fin de l'animation
+let page;
+const tiroir = async (p) => { await page.evaluate((p) => window.__fournil.tiroir(p), p); await sleep(350); }; // le tiroir des pages : ouvert, mi, ferme
+const haut = async () => { await page.evaluate(() => document.querySelector('#pages').scrollTo(0, 0)); await tiroir('mi'); }; // la liste en haut, le tiroir à mi-hauteur
+const scene = () => tiroir('ferme'); // toute la boutique visible, pour toucher ses zones
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
 (async () => {
   const browser = await chromium.launch();
@@ -67,20 +70,39 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const primes = await page.evaluate(() => { const b = document.querySelector('#onglets [data-page="defis"] .badge'); return !b.hidden && document.querySelector('#objectifs').classList.contains('pret') ? +b.textContent : 0; });
   check(primes >= 1, 'badge « ' + primes + ' » sur l’onglet Défis et ticket en vert : une prime attend');
   await haut(); await page.tap('#objectifs', { force: true }); await sleep(500); await page.screenshot({ path: out + '/05b-defis.png' });
-  check(await page.evaluate(() => !document.querySelector('#page-defis').hidden && document.querySelector('#page-boutique').hidden && document.body.classList.contains('replie') && /Objectifs du jour/.test(document.querySelector('#page-defis').innerText)), 'le ticket ouvre la page Défis, la scène se replie');
+  check(await page.evaluate(() => !document.querySelector('#page-defis').hidden && document.querySelector('#page-boutique').hidden && document.querySelector('#tiroir').dataset.pos === 'mi' && /Objectifs du jour/.test(document.querySelector('#page-defis').innerText)), 'le ticket ouvre la page Défis dans le tiroir');
   const coinsObj = await page.evaluate(() => window.__fournil.st.coins);
   await page.tap('#page-defis [data-k="0"]', { force: true }); await sleep(400);
   const apres = await page.evaluate(() => ({ coins: window.__fournil.st.coins, reclame: window.__fournil.st.jour.objectifs[0].reclame, prime: window.__fournil.st.jour.objectifs[0].prime }));
   check(apres.reclame && apres.coins >= coinsObj + apres.prime - 1, 'prime du premier objectif récupérée : +' + apres.prime);
   await page.screenshot({ path: out + '/05c-objectif-recupere.png' });
   await page.tap('#onglets [data-page="boutique"]'); await sleep(400);
-  check(await page.evaluate((n) => { const b = document.querySelector('#onglets [data-page="defis"] .badge'); return !document.querySelector('#page-boutique').hidden && !document.body.classList.contains('replie') && (n === 1 ? b.hidden : +b.textContent === n - 1); }, primes), 'retour à la Boutique : scène dépliée, badge décompté');
+  check(await page.evaluate((n) => { const b = document.querySelector('#onglets [data-page="defis"] .badge'); return !document.querySelector('#page-boutique').hidden && document.querySelector('#tiroir').dataset.pos !== 'ferme' && (n === 1 ? b.hidden : +b.textContent === n - 1); }, primes), 'retour à la Boutique : badge décompté');
+  // le tiroir : fermé → toute la boutique ; un onglet l'ouvre à mi ; l'onglet actif remonte la liste ; on le tire par sa poignée
+  await scene();
+  const plein = await page.evaluate(() => { const t = document.querySelector('#tiroir').getBoundingClientRect(), c = document.querySelector('#corps').getBoundingClientRect(), s = document.querySelector('#scene').getBoundingClientRect(), z = window.__fournil.SCENE.zones(); return { ok: t.top >= c.bottom - 37 && Math.abs(s.height - c.height) < 1 && Object.values(z).every((r) => r.y + r.h <= t.top + 1), h: Math.round(s.height) }; });
+  check(plein.ok, 'tiroir fermé : la boutique entière est visible (' + plein.h + ' px de haut), toutes ses zones au-dessus du tiroir');
+  await page.screenshot({ path: out + '/05v-boutique-entiere.png' });
+  await page.tap('#onglets [data-page="defis"]'); await sleep(450);
+  check(await page.evaluate(() => document.querySelector('#tiroir').dataset.pos === 'mi' && !document.querySelector('#page-defis').hidden), 'un onglet ouvre le tiroir à mi-hauteur');
+  await page.evaluate(() => document.querySelector('#pages').scrollTo(0, 300)); await sleep(100); await page.tap('#onglets [data-page="defis"]'); await sleep(700);
+  check(await page.evaluate(() => document.querySelector('#pages').scrollTop === 0), 'le même onglet remonte sa page');
+  const cdp = await page.context().newCDPSession(page);
+  const glisser = async (dy) => { const r = await page.evaluate(() => { const r = document.querySelector('#poignee').getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; });
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: r.x, y: r.y }] });
+    for (let k = 1; k <= 8; k++) { await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: r.x, y: r.y + dy * k / 8 }] }); await sleep(30); }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await sleep(450); };
+  await glisser(-300); check(await page.evaluate(() => document.querySelector('#tiroir').dataset.pos === 'ouvert'), 'tiré vers le haut : tiroir ouvert, la page prend tout');
+  await page.screenshot({ path: out + '/05w-tiroir-ouvert.png' });
+  await glisser(600); check(await page.evaluate(() => document.querySelector('#tiroir').dataset.pos === 'ferme'), 'tiré vers le bas : tiroir fermé, boutique entière');
+  await page.tap('#poignee'); await sleep(450); check(await page.evaluate(() => document.querySelector('#tiroir').dataset.pos === 'mi' && window.__fournil.st.tiroir === 'mi'), 'une touche sur la poignée : mi-hauteur, position mémorisée');
+  await page.tap('#onglets [data-page="boutique"]'); await sleep(300);
   // le boulanger : touche-le dans la boutique, gagne du savoir-faire, apprends un talent
   const zone = async (id) => page.evaluate((id) => { const r = document.querySelector('#scene').getBoundingClientRect(), z = window.__fournil.SCENE.zones()[id]; return { x: r.left + z.x + z.w / 2, y: r.top + z.y + z.h / 2 }; }, id);
-  await haut(); const bk = await zone('boulanger');
+  await scene(); const bk = await zone('boulanger');
   await page.touchscreen.tap(bk.x, bk.y); await sleep(400);
   const fiche = await page.evaluate(() => document.querySelector('#page-boulanger').hidden ? '' : document.querySelector('#page-boulanger').innerText);
-  check(/Niveau \d/.test(fiche) && /Bouche-à-oreille/.test(fiche) && /Mains rapides/.test(fiche), 'touche le boulanger : sa page s’ouvre (' + fiche.split('\n').slice(0, 2).join(' / ') + ')');
+  check(/Niveau \d/.test(fiche) && /Bouche-à-oreille/.test(fiche) && /Mains rapides/.test(fiche) && await page.evaluate(() => document.querySelector('#tiroir').dataset.pos === 'mi'), 'touche le boulanger : sa page s’ouvre à mi-hauteur (' + fiche.split('\n').slice(0, 2).join(' / ') + ')');
   await page.screenshot({ path: out + '/05n-boulanger.png' });
   await page.tap('#onglets [data-page="boutique"]'); await sleep(200);
   check(await page.evaluate(() => window.__fournil.SCENE.apprentis === 3), 'trois apprentis s’affairent entre le four et le comptoir');
@@ -183,13 +205,18 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   // client mystère : il arrive, on le touche, pourboire
   await page.evaluate(() => window.__fournil.mystere()); await sleep(4800);
   await page.screenshot({ path: out + '/05g-client-mystere.png' });
-  await haut(); const pos = await zone('mystere');
+  await scene(); const pos = await zone('mystere');
   const coinsMys = await page.evaluate(() => window.__fournil.st.coins);
   await page.touchscreen.tap(pos.x, pos.y); await sleep(400);
   const tip = await page.evaluate(() => window.__fournil.st.coins) - coinsMys;
   check(tip >= 20, 'pourboire du client mystère : +' + Math.round(tip));
   // le mobilier : on touche l'emplacement des tables dans la boutique, on achète, un client vient s'asseoir
-  await page.evaluate(() => window.__fournil.scene({ assis: true })); await haut();
+  await page.evaluate(() => window.__fournil.scene({ assis: true })); await scene();
+  await page.tap('#b-amenager'); await sleep(300);
+  check(await page.evaluate(() => window.__fournil.SCENE.amenager === true && document.querySelector('#b-amenager').classList.contains('actif')), 'le mode Aménager s’allume : les meubles sont entourés, nommés et chiffrés');
+  await page.screenshot({ path: out + '/05u-amenager.png' });
+  await page.tap('#b-amenager'); await sleep(200);
+  check(await page.evaluate(() => window.__fournil.SCENE.amenager === false), 'le mode Aménager s’éteint');
   const tz = await zone('tables'); await page.touchscreen.tap(tz.x, tz.y); await sleep(400);
   const ficheTables = await page.evaluate(() => document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText);
   check(/Tables et chaises/.test(ficheTables) && /Pas encore installé/.test(ficheTables) && /Cran suivant/.test(ficheTables), 'toucher les tables ouvre leur fiche : ' + ficheTables.split('\n').slice(0, 2).join(' / '));
@@ -203,7 +230,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.screenshot({ path: out + '/05t-salon.png' });
   await page.evaluate(() => window.__fournil.scene({}));
   // bonus et mobilier dans la même feuille
-  await page.tap('#b-ameliorations', { force: true }); await sleep(400);
+  await haut(); await page.tap('#b-ameliorations', { force: true }); await sleep(400);
   await page.tap('[data-tab="mobilier"]'); await sleep(300); await page.screenshot({ path: out + '/06b-mobilier.png' });
   check(await page.evaluate(() => document.querySelectorAll('#feuille-contenu .am.meuble').length === 6 && /Tables et chaises/.test(document.querySelector('#feuille-contenu').innerText)), 'le volet Mobilier liste les six meubles');
   await page.tap('[data-tab="bonus"]'); await sleep(300); await page.screenshot({ path: out + '/06-ameliorations.png' });
@@ -228,7 +255,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.fill('.champ', 'Chez Mamie'); await page.tap('[data-s="1"]', { force: true }); await page.tap('[data-a="ok"]'); await sleep(400);
   check(await page.evaluate(() => window.__fournil.st.nomBoutique === 'Chez Mamie' && window.__fournil.G.quartier(window.__fournil.st) === 1 && window.__fournil.st.specialite === 1), 'boutique nommée « Chez Mamie », dans le quartier parisien, spécialité croissants');
   check(await page.evaluate(() => document.querySelector('#enseigne span').textContent === 'Chez Mamie'), 'le nom s’affiche sur l’enseigne au-dessus de la scène');
-  await haut(); await page.tap('#enseigne', { force: true }); await sleep(300);
+  await scene(); await page.tap('#enseigne', { force: true }); await sleep(300);
   check(await page.evaluate(() => !document.querySelector('#feuille').hidden && (document.querySelector('.champ') || {}).value === 'Chez Mamie'), 'toucher l’enseigne ouvre le renommage');
   await page.tap('[data-a="non"]'); await sleep(200);
   const s2 = await W(); console.log('boutique 2', s2);
@@ -275,6 +302,9 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   check(!overflow, 'pas de défilement horizontal à 360 px');
   const dans = await p2.evaluate(() => { const c = document.querySelector('.carte[data-i="0"]').getBoundingClientRect(); return [...document.querySelectorAll('.carte[data-i="0"] .corps, .carte[data-i="0"] .corps > *, .carte[data-i="0"] .boutons')].every((el) => el.getBoundingClientRect().right <= c.right + 0.5) && document.querySelector('.carte[data-i="0"] .corps').getBoundingClientRect().right < document.querySelector('.carte[data-i="0"] .boutons').getBoundingClientRect().left; });
   check(dans, 'à 360 px, le corps de la carte ne chevauche pas les boutons');
+  const petit = await p2.evaluate(() => { const t = document.querySelector('#tiroir'), tr = t.getBoundingClientRect(), o = document.querySelector('#onglets').getBoundingClientRect(), c = document.querySelector('.carte[data-i="0"]').getBoundingClientRect(), s = document.querySelector('#scene').getBoundingClientRect(), z = window.__fournil.SCENE.zones(); return { pos: t.dataset.pos, carte: c.top >= tr.top + 36 && c.bottom <= o.top, file: z.mystere.y + z.mystere.h <= tr.top - s.top + 1, haut: Math.round(tr.top - s.top) }; });
+  check(petit.pos === 'mi' && petit.carte && petit.file, 'à 360×640, tiroir à mi (' + petit.haut + ' px de scène) : première carte entière, file et client mystère visibles');
+  await p2.evaluate(() => window.__fournil.tiroir('ferme')); await sleep(400); await p2.screenshot({ path: out + '/10b-petit-ecran-entier.png' });
   console.log(errors.length ? 'ERRORS ' + errors.join(' | ') : 'ERRORS none');
   await browser.close(); server.close();
   console.log(fails ? `${fails} échec(s)` : 'Tout passe.');
