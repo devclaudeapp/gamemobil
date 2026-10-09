@@ -1005,13 +1005,15 @@ async function inventaire() {
     const caps = (await telecharger(`${CONFIG.wmts}?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0`, { delai: 180000, valider: (b) => /Capabilities/.test(b.toString('utf8', 0, 6000)) ? true : 'pas des capacités WMTS' })).toString('utf8');
     for (const b of caps.split(/<Layer>/).slice(1)) {
       const id = (b.match(/<ows:Identifier>([^<]+)<\/ows:Identifier>/) || [])[1]; if (!id) continue;
-      const pm = b.split(/<TileMatrixSetLink>/).find((x) => /<TileMatrixSet>PM<\/TileMatrixSet>/.test(x)); if (!pm) continue;
-      const z = [...pm.matchAll(/<TileMatrix>(?:PM:)?(\d+)<\/TileMatrix>/g)].map((m) => +m[1]), fmt = (b.match(/<Format>([^<]+)<\/Format>/) || [])[1];
-      CAPS.wmts[id] = { min: z.length ? Math.min(...z) : 0, max: z.length ? Math.max(...z) : 21, format: fmt };
+      const pm = b.split(/<TileMatrixSetLink>/).find((x) => /<TileMatrixSet>PM[^<]*<\/TileMatrixSet>/.test(x)); if (!pm) continue;
+      const tms = pm.match(/<TileMatrixSet>(PM[^<]*)<\/TileMatrixSet>/)[1], nz = tms.match(/^PM_(\d+)_(\d+)$/);
+      const z = [...pm.matchAll(/<TileMatrix>(?:[^<]*:)?(\d+)<\/TileMatrix>/g)].map((m) => +m[1]), fmt = (b.match(/<Format>([^<]+)<\/Format>/) || [])[1];
+      CAPS.wmts[id] = { tms, min: z.length ? Math.min(...z) : nz ? +nz[1] : 0, max: z.length ? Math.max(...z) : nz ? +nz[2] : 21, format: fmt };
     }
     const photos = Object.keys(CAPS.wmts).filter((x) => /ORTHO|IRC|LIDAR|MNH|MNS/i.test(x));
+    if (!Object.keys(CAPS.wmts).length) { const i = caps.indexOf('ORTHOIMAGERY.ORTHOPHOTOS<'); console.log('  WMTS (extrait) : ' + caps.slice(Math.max(0, i - 600), i + 1800).replace(/\s+/g, ' ')); }
     console.log(`  WMTS : ${Object.keys(CAPS.wmts).length} couches en PM ; photos et LiDAR :`);
-    for (const x of photos.slice(0, 60)) console.log(`    ${x} (zoom ${CAPS.wmts[x].min}–${CAPS.wmts[x].max}, ${CAPS.wmts[x].format})`);
+    for (const x of photos.slice(0, 80)) console.log(`    ${x} (${CAPS.wmts[x].tms}, zoom ${CAPS.wmts[x].min}–${CAPS.wmts[x].max}, ${CAPS.wmts[x].format})`);
   } catch (e) { alerte(`inventaire WMTS : ${e.message.slice(0, 200)}`); }
   console.log('');
 }
