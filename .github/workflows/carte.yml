@@ -1,0 +1,51 @@
+# Construit la vraie carte de Poncin (IGN Géoplateforme + OpenStreetMap) sur les machines de GitHub, qui ont Internet,
+# puis commite poncin/carte/ sur la branche carte. Les commits faits avec GITHUB_TOKEN ne relancent pas de workflow.
+name: Carte de Poncin
+on:
+  push:
+    branches: [carte]
+    paths:
+      - 'outils/carte/**'
+      - '.github/workflows/carte.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: carte
+  cancel-in-progress: false
+jobs:
+  carte:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      # les réponses brutes déjà téléchargées (dossier ignoré par git) : une reconstruction ne refait pas les mêmes requêtes
+      - uses: actions/cache/restore@v4
+        with:
+          path: outils/carte/cache
+          key: carte-brut-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: carte-brut-
+      - name: jpeg-js (seule dépendance)
+        run: npm i --no-save --no-package-lock --prefix outils/carte jpeg-js@0.4.4
+      - name: Essai hors ligne (fausses réponses)
+        run: node outils/carte/construire.js --essai
+      - name: Construire la carte
+        run: node outils/carte/construire.js
+      - uses: actions/cache/save@v4
+        if: always()
+        continue-on-error: true
+        with:
+          path: outils/carte/cache
+          key: carte-brut-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Commiter poncin/carte
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add poncin/carte
+          if git diff --cached --quiet; then echo "Carte inchangée : rien à commiter."; exit 0; fi
+          git commit -m "Carte de Poncin : données IGN + OpenStreetMap du $(date -u +%F)"
+          git pull --rebase origin carte
+          git push origin HEAD:carte
