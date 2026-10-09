@@ -943,12 +943,17 @@ async function etapeArbres(R, L, carte, info, o) {
   // le tronc : jamais dans un bâtiment, dans l'eau ni sur la chaussée (décalé de moins d'un rayon, sinon l'arbre est écarté)
   const surPont = (q) => carte.ponts.some((p) => distSeg(q[0], q[1], p.l[0][0], p.l[0][1], p.l[1][0], p.l[1][1]) <= p.w / 2 + 0.5);
   const placer = (c) => { // → [x, z] | 'bâtiment' | 'eau' | 'chaussée' | 'bord'
-    let q = [c.x, c.z]; const lim = Math.max(1.2, c.r), limEau = Math.max(4, 2.5 * c.r); // au bord de l'eau, la rive OSM passe souvent sous les couronnes : l'arbre est ramené sur la berge
+    let q = [c.x, c.z], rive = false; const lim = Math.max(1.2, c.r), limEau = Math.max(4, 2.5 * c.r); // au bord de l'eau, la rive OSM passe souvent sous les couronnes : l'arbre est ramené sur la berge
     for (let essai = 0; essai < 4; essai++) {
       if (Math.abs(q[0]) > h - 0.6 || Math.abs(q[1]) > h - 0.6) return 'bord';
       const b = DANS_BATI(ctx, q); if (b) { q = sortirDe(q, b.p, 0.6); if (!q || dist(q, [c.x, c.z]) > lim) return 'bâtiment'; continue; }
-      const e = carte.eau.find((x) => dedans(q[0], q[1], x.p)); if (e) { if (surPont(q)) return 'eau'; q = sortirDe(q, e.p, 0.8); if (!q || dist(q, [c.x, c.z]) > limEau) return 'eau'; continue; }
-      const pr = pointRue(ctx, q[0], q[1], 12); if (pr && pr.d < pr.r.w / 2 + 0.3) { const a = pr.r.l[pr.i], b2 = pr.r.l[pr.i + 1], l = dist(a, b2) || 1; let nx = -(b2[1] - a[1]) / l, nz = (b2[0] - a[0]) / l; if ((q[0] - pr.q[0]) * nx + (q[1] - pr.q[1]) * nz < 0) { nx = -nx; nz = -nz; } q = [pr.q[0] + nx * (pr.r.w / 2 + 0.6), pr.q[1] + nz * (pr.r.w / 2 + 0.6)]; if (dist(q, [c.x, c.z]) > lim) return 'chaussée'; continue; }
+      const e = carte.eau.find((x) => dedans(q[0], q[1], x.p)); if (e) { if (surPont(q)) return 'eau'; q = sortirDe(q, e.p, 0.8); if (!q || dist(q, [c.x, c.z]) > limEau) return 'eau'; rive = true; continue; }
+      const pr = pointRue(ctx, q[0], q[1], 12); if (pr && pr.d < pr.r.w / 2 + 0.3) {
+        const a = pr.r.l[pr.i], b2 = pr.r.l[pr.i + 1], l = dist(a, b2) || 1; let nx = -(b2[1] - a[1]) / l, nz = (b2[0] - a[0]) / l; if ((q[0] - pr.q[0]) * nx + (q[1] - pr.q[1]) * nz < 0) { nx = -nx; nz = -nz; }
+        let q2 = [pr.q[0] + nx * (pr.r.w / 2 + 0.6), pr.q[1] + nz * (pr.r.w / 2 + 0.6)];
+        if (carte.eau.some((x) => dedans(q2[0], q2[1], x.p))) { if (pr.r.t === 'chemin') return q; q2 = [pr.q[0] - nx * (pr.r.w / 2 + 0.6), pr.q[1] - nz * (pr.r.w / 2 + 0.6)]; } // entre l'eau et un sentier de berge : le tronc reste au bord du sentier
+        if (dist(q2, [c.x, c.z]) > (rive ? limEau : lim)) return 'chaussée'; q = q2; continue;
+      }
       return q;
     }
     return 'bâtiment';
