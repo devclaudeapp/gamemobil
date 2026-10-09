@@ -109,13 +109,12 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.tap('#onglets [data-page="boutique"]'); await sleep(200);
   check(await page.evaluate(() => window.__fournil.SCENE.apprentis === 3), 'trois apprentis s’affairent entre le four et le comptoir');
   // les apprentis montent en grade
-  await haut(); const grade = await page.evaluate(() => window.__fournil.apprentiXp(0, 180000)); await sleep(400);
-  const puce = await page.evaluate(() => { const b = document.querySelector('.carte[data-i="0"] [data-a="apprenti"]'); return b ? b.innerText : ''; });
-  const toastGrade = await page.evaluate(() => (document.querySelector('.toast') || {}).textContent || '');
-  check(grade === 3 && /3/.test(puce) && /grade 3/.test(toastGrade), `Léo passe au grade 3 : pastille sur sa carte, toast « ${toastGrade} »`);
-  await page.tap('.carte[data-i="0"] [data-a="apprenti"]'); await sleep(300);
+  await haut(); const grade = await page.evaluate(() => { const g = window.__fournil.apprentiXp(1, 180000); return { g, toast: (document.querySelector('.toast') || {}).textContent || '' }; }); await sleep(400); // Inès (croissants) : la baguette de Léo reste au grade 1 pour le test des talents
+  const puce = await page.evaluate(() => { const b = document.querySelector('.carte[data-i="1"] [data-a="apprenti"]'); return b ? b.innerText : ''; });
+  check(grade.g === 3 && /3/.test(puce) && /grade 3/.test(grade.toast), `Inès passe au grade 3 : pastille sur sa carte, toast « ${grade.toast} »`);
+  await page.tap('.carte[data-i="1"] [data-a="apprenti"]'); await sleep(300);
   const ficheApp = await page.evaluate(() => (document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText));
-  check(/Léo/.test(ficheApp) && /Grade 3/.test(ficheApp) && /Pétrin bien réglé/.test(ficheApp) && /Grade 4/.test(ficheApp), 'sa fiche : grade, talent, temps avant le grade suivant');
+  check(/Inès/.test(ficheApp) && /Grade 3/.test(ficheApp) && /Tourage express/.test(ficheApp) && /Grade 4/.test(ficheApp), 'sa fiche : grade, talent, temps avant le grade suivant');
   await page.screenshot({ path: out + '/05s-apprenti.png' });
   await page.tap('[data-a="close"]'); await sleep(300);
   // le chat de la boutique
@@ -140,10 +139,6 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const fsaison = await page.evaluate(() => window.__fournil.st.stats.fourneesSaison || 0);
   check(fsaison >= 1, 'préparée, puis cuite à la main : une fournée de saison vendue');
   await page.screenshot({ path: out + '/05u-saison.png' });
-  await page.tap('#onglets [data-page="journal"]'); await sleep(400);
-  const jtxt = await page.evaluate(() => document.querySelector('#page-journal').innerText);
-  check(/Recettes de saison/.test(jtxt) && /Tarte à la citrouille/.test(jtxt) && /Caresses à Brioche/.test(jtxt), 'le Journal : collection des saisons et caresses au chat');
-  await page.tap('#onglets [data-page="boutique"]'); await sleep(300);
   const manque = await page.evaluate(() => { const f = window.__fournil, np = f.G.niveauPour(f.st.xp); return np.prochain - np.reste; });
   await page.evaluate((n) => window.__fournil.xp(n), manque); await sleep(500);
   const toastNiv = await page.evaluate(() => (document.querySelector('.toast') || {}).textContent || '');
@@ -169,6 +164,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const journal = await page.evaluate(() => document.querySelector('#page-journal').innerText);
   check(/Records/.test(journal) && /Mme Dupuis/.test(journal) && /Trophées · \d+\/\d+/.test(journal) && /Première fournée/.test(journal), 'le journal : records, habitués, trophées, événements');
   check(await page.evaluate(() => document.querySelector('#onglets [data-page="journal"] .badge').hidden), 'le badge du Journal s’efface une fois la page vue');
+  check(await page.evaluate(() => { const t = document.querySelector('#page-journal').innerText; return /Recettes de saison/.test(t) && /Tarte à la citrouille/.test(t) && /Caresses à Brioche/.test(t); }), 'le Journal : collection des saisons et caresses au chat');
   await page.screenshot({ path: out + '/05q-journal.png' });
   await page.tap('#page-journal [data-a="partager"]', { force: true }); await sleep(400);
   check(await page.evaluate(() => /copié|Le Fournil|boutique/i.test((document.querySelector('.toast') || {}).textContent || '')), 'partager : repli sur le texte');
