@@ -1,29 +1,37 @@
 /* OPÉRATION PONCIN — la végétation « réaliste stylisée » : arbres par espèce, haies, rangs de vigne, vergers, herbe et fleurs autour du joueur.
-   Données (voir src-poncin/ARCHITECTURE.md, « Authenticité ») : carte.arbres [[x, z, h, r?, e?], …] (r : rayon de la couronne, déduit de h
-   et de l'espèce s'il manque ; e : feuillu | platane | tilleul | peuplier | saule | fruitier | conifere ; une vieille entrée [x, z, h] devient
-   un feuillu, ou un conifère dans un bois de conifères) ; carte.haies [{ l, h?, w? }] ; carte.vegetation [{ p, t, sens?, e? }] : t 'bois'
-   (semé d'arbres tous les ~7,5 m dans son polygone ; e : 'conifere' | 'mixte' | 'feuillu', défaut feuillu), 'vigne' (rangs tous les 2 m),
-   'verger' (fruitiers en grille s'il n'a aucun arbre réel), 'pre' | 'jardin' (herbe, fleurs) ; sens = direction des rangs, angle compté de
-   +x vers +z (défaut : l'axe long du polygone) ; carte.surfaces (herbe, terrain… ; jamais d'herbe sur l'asphalte, les pavés, le gravier) ;
-   la photo aérienne (carte.sol.petite, lue une fois, en tâche de fond) dit où l'herbe pousse et de quelle couleur est le sol. Jamais d'herbe
-   sur les rues, dans les bâtiments ni dans l'eau. Rien d'inventé : les espèces, positions et tailles viennent des données ; seuls les bois
-   et les vergers vides sont semés, et les dessins (feuilles, écorces) sont des choix de style.
+   Données (voir src-poncin/ARCHITECTURE.md, « Authenticité ») : carte.arbres [[x, z, h, r?, e?], …] (h : hauteur LiDAR, r : rayon de la
+   couronne — disque de même aire —, déduit de h et de l'espèce s'il manque ; e : feuillu | platane | tilleul | peuplier | saule | fruitier |
+   conifere ; une vieille entrée [x, z, h] devient un feuillu, ou un conifère dans un bois de conifères) ; carte.haies [{ l, h?, w? }] ;
+   carte.vegetation [{ p, t, sens?, e? }] : t 'bois', 'vigne' (rangs tous les 2 m), 'verger', 'pre' | 'jardin' (herbe, fleurs) ; sens =
+   direction des rangs, angle compté de +x vers +z (défaut : l'axe long du polygone) ; carte.surfaces (herbe, terrain… ; jamais d'herbe sur
+   l'asphalte, les pavés, le gravier, les parkings) ; la photo aérienne (carte.sol.petite, lue une fois, en tâche de fond) dit où l'herbe
+   pousse et de quelle couleur est le sol. Jamais d'herbe sur les rues, dans les bâtiments ni dans l'eau (marges comprises).
+   Rien d'inventé : les espèces, positions, hauteurs et rayons viennent des données, et l'arbre rendu les respecte (sommet à h, bout des
+   grappes à ~1,12 r, tronc de rayon clamp(0,12 + 0,025·h ; 0,2 ; 0,6) : celui des collisions de monde.js). La carte réelle a tous ses
+   arbres (LiDAR, 5 valeurs) : on ne sème rien. Sur une vieille carte (arbres à 3 valeurs, carte provisoire), les bois sont semés tous les
+   ~7,5 m (e : 'conifere' | 'mixte' | 'feuillu') et les vergers vides plantés en grille. Les haies hautes (> 2,5 m) deviennent des rangées
+   de buissons serrés le long de leur tracé, les basses des tronçons taillés. Les dessins (feuilles, aiguilles, écorces) sont des choix de style.
    Rendu (Three r158) : UNE texture pour tout (atlas peint sur canvas une fois, puis gardé en mémoire : grappes de feuilles par espèce à
-   découpe alpha, écorces, imposteurs, haie, vigne, touffes d'herbe, fleurs et fougères ; couleurs prolongées sous l'alpha et alpha
-   conservé dans les mipmaps : pas de liseré noir, pas de feuillage qui fond au loin). Matériaux Lambert (lumières, brouillard et ombres de
-   la scène) retouchés par onBeforeCompile : grappes en panneaux tournés vers la caméra (ou pendants, pour le saule) aux normales arrondies
-   (la couronne s'éclaire comme une boule, lumière enveloppante, un peu de transparence à contre-jour), troncs et branches avec écorce,
-   vent dans le vertex shader (balancement, frémissement des feuilles, des herbes), couleur variée arbre par arbre.
+   découpe alpha, étages d'épicéa en cloche, rideaux de saule, écorces, imposteurs, haie, vigne, plaques de gazon fleuri, épis, trèfle,
+   fougères ; couleurs prolongées sous l'alpha et alpha conservé dans les mipmaps : pas de liseré noir, pas de feuillage qui fond au loin ;
+   1024 px, 5,3 Mo avec les mipmaps ; 512 px en éco). Matériaux Lambert (lumières, brouillard et ombres de la scène) retouchés par
+   onBeforeCompile : grappes en panneaux tournés vers la caméra (ou pendants, pour le saule) aux normales arrondies (la couronne s'éclaire
+   comme une boule, lumière enveloppante, un peu de transparence à contre-jour), troncs et branches ronds avec écorce (sommets sur l'axe,
+   poussés au bon rayon dans le shader), vent dans le vertex shader (balancement, frémissement des feuilles, des herbes), couleur variée
+   arbre par arbre, silhouettes tournées et en miroir.
    Niveaux de détail, chacun un InstancedMesh (frustumCulled = false : on élimine nous-mêmes, hors du champ élargi de 24°), recopiés seulement
-   quand la caméra a bougé de 2 m ou tourné de 5° : proche (≤ 60 m en haute ; une géométrie par silhouette : boule — feuillu, platane, tilleul,
-   fruitier —, colonne — peuplier —, pleureur — saule —, cône — conifère), moyen (≤ 170 m : une géométrie générique déformée par espèce dans
-   le shader), loin (un panneau vertical imposteur par arbre) ; haies et vignes : un maillage de tronçons ; herbe : touffes recyclées autour
-   de la caméra, qui s'enfoncent avec la distance. Plafonds par niveau (les plus proches d'abord). Ombres (arbres proches, haies, vignes)
-   seulement en haute. Budget en haute : ≤ 8 appels + ≤ 5 d'ombre (≤ 14 en tout), ≤ 80k triangles ; moins en moyenne et en éco.
-   Aucune allocation par image dans maj (tableaux préparés ; les recopies écrivent dans les tampons des InstancedMesh).
-   API : creer(carte, monde, { qualite, dossier, photo }) → { groupe, maj(camera, t), qualite(q?), liberer(), stats } (groupe à ajouter à la
-   scène ; maj après avoir placé la caméra ; dossier : où lire carte.sol, défaut window.PONCIN_CARTE_DOSSIER ou 'carte/' ; photo: false pour
-   ne pas la lire) ; ESPECES ; QUALITES ; OK (false sans THREE ni document). */
+   quand la caméra a bougé de 2 m ou tourné de 8° : proche (≤ 70 m en haute ; une géométrie par silhouette : boule — feuillu, platane, tilleul,
+   fruitier —, colonne — peuplier —, pleureur — saule —, cône — conifère ; allégée en éco), moyen (≤ 170 m : une couronne générique déformée
+   par espèce dans le shader ; les buissons des haies hautes, même de près), loin (un panneau imposteur par arbre, qui bascule face au regard
+   quand on le voit d'en haut) ; haies basses et vignes : un maillage de tronçons ; herbe : plaques et touffes recyclées autour de la caméra,
+   qui s'enfoncent avec la distance (pas d'herbe en éco). Plafonds par niveau (les plus proches d'abord). Ombres (arbres proches, haies,
+   vignes) seulement en haute. Budgets de toute la végétation visible, ombres comprises : haute ≤ 14 appels et ≤ 80k triangles ; moyenne
+   ≤ 10 et ≤ 50k ; éco ≤ 7 et ≤ 25k (vérifiés par test/poncin-vegetation.cjs). Aucune allocation par image dans maj (tableaux préparés ; les
+   recopies écrivent dans les tampons des InstancedMesh).
+   API : creer(carte, monde, { qualite, dossier, photo }) → { groupe, maj(camera, t), qualite(q?), liberer(), stats } | null (groupe à ajouter
+   à la scène ; maj après avoir placé la caméra, t en secondes pour le vent ; dossier : où lire carte.sol, défaut window.PONCIN_CARTE_DOSSIER
+   ou 'carte/' ; photo: false pour ne pas la lire ; stats : arbres, semes, buissons, especes, instances par niveau, appels, triangles (et
+   d'ombre), temps des recopies, atlas, memoire) ; ESPECES ; QUALITES ; OK (false sans THREE ni document). */
 const PVEGETATION = (() => {
   'use strict';
   const OK = typeof THREE !== 'undefined' && typeof document !== 'undefined';
@@ -49,8 +57,8 @@ const PVEGETATION = (() => {
   const GRAPPE_M = [[1, 1], [1.08, 1], [1.05, 1], [1.4, 1.8], [1.05, 1.2], [1, 1], [1.35, 1.25], [1.05, 1.1]]; // niveau moyen : taille des grappes (× r), étirement vertical
   const RTRONC = (h) => borne(0.12 + 0.025 * h, 0.2, 0.6);               // rayon du tronc (m), le même que les collisions de monde.js
   const QUALITES = { // simple : silhouettes proches allégées ; nHerbe 0 : pas d'herbe
-    haute: { proche: 60, nProche: 72, moyen: 170, nMoyen: 380, nLoin: 3600, lignes: 150, nLignes: 420, herbe: 22, pas: 0.78, nHerbe: 2600, ombres: true, simple: false, atlas: 1024 },
-    moyenne: { proche: 45, nProche: 56, moyen: 130, nMoyen: 300, nLoin: 2800, lignes: 120, nLignes: 320, herbe: 17, pas: 0.95, nHerbe: 1400, ombres: false, simple: false, atlas: 1024 },
+    haute: { proche: 70, nProche: 96, moyen: 170, nMoyen: 380, nLoin: 3600, lignes: 150, nLignes: 420, herbe: 21, pas: 0.62, nHerbe: 2800, ombres: true, simple: false, atlas: 1024 },
+    moyenne: { proche: 45, nProche: 56, moyen: 130, nMoyen: 300, nLoin: 2800, lignes: 120, nLignes: 320, herbe: 16, pas: 0.8, nHerbe: 1500, ombres: false, simple: false, atlas: 1024 },
     eco: { proche: 32, nProche: 40, moyen: 95, nMoyen: 200, nLoin: 1800, lignes: 85, nLignes: 200, herbe: 0, pas: 1, nHerbe: 0, ombres: false, simple: true, atlas: 512 },
   };
 
@@ -319,15 +327,17 @@ const PVEGETATION = (() => {
   function touffe(c, r0, type, rnd, k) { // une touffe d'herbe vue de côté, posée en bas de la cellule
     const [x0, y0, W, H] = rect(r0, k), VERTS = [[78, 118, 46], [92, 132, 52], [66, 104, 40], [104, 140, 58], [86, 124, 60]], SEC = [[176, 160, 102], [156, 146, 92], [190, 176, 120]];
     c.save(); c.beginPath(); c.rect(x0, y0, W, H); c.clip();
-    const brin = (bx, len, ang, w, col) => { const tx = bx + Math.sin(ang) * len, ty = y0 + H - Math.cos(ang) * len * 0.96, mx = bx + Math.sin(ang) * len * 0.3, my = y0 + H - len * 0.62, g = c.createLinearGradient(bx, y0 + H, tx, ty); g.addColorStop(0, rgb(col, 0.5)); g.addColorStop(1, rgb(col, 1.12)); c.fillStyle = g; c.beginPath(); c.moveTo(bx - w / 2, y0 + H); c.quadraticCurveTo(mx - w * 0.3, my, tx, ty); c.quadraticCurveTo(mx + w * 0.3, my, bx + w / 2, y0 + H); c.closePath(); c.fill(); return [tx, ty]; };
-    const brins = (n, pal, h0, h1, ouv) => { for (let i = 0; i < n; i++) brin(x0 + W / 2 + (rnd() - 0.5) * W * 0.36, H * (h0 + rnd() * (h1 - h0)), (rnd() - 0.5) * ouv, W * (0.022 + rnd() * 0.02), pal[(rnd() * pal.length) | 0]); };
+    const brin = (bx, len, ang, w, col) => { const tx = bx + Math.sin(ang) * len, ty = y0 + H - Math.cos(ang) * len * 0.96, mx = bx + Math.sin(ang) * len * 0.3, my = y0 + H - len * 0.62, g = c.createLinearGradient(bx, y0 + H, tx, ty); g.addColorStop(0, rgb(col, 0.68)); g.addColorStop(1, rgb(col, 1.12)); c.fillStyle = g; c.beginPath(); c.moveTo(bx - w / 2, y0 + H); c.quadraticCurveTo(mx - w * 0.3, my, tx, ty); c.quadraticCurveTo(mx + w * 0.3, my, bx + w / 2, y0 + H); c.closePath(); c.fill(); return [tx, ty]; };
+    const brins = (n, pal, h0, h1, ouv, large) => { // large : une plaque de gazon (pieds sur toute la largeur, brins couchés vers les bords), sinon une touffe
+      for (let i = 0; i < n; i++) { const u = (rnd() - 0.5) * (large || 0.36); brin(x0 + W / 2 + u * W, H * (h0 + rnd() * (h1 - h0)) * (large ? 1 - Math.abs(u) * 0.6 : 1), (rnd() - 0.5) * ouv + (large ? u * 0.9 : 0), W * (large ? 0.015 + rnd() * 0.014 : 0.022 + rnd() * 0.02), pal[(rnd() * pal.length) | 0]); }
+    };
     if (type === 4) { // fougère : frondes arquées aux pinnules alternées
       for (let f = 0; f < 9; f++) { const a = (f / 8 - 0.5) * 2.2 + (rnd() - 0.5) * 0.3, l = H * (0.6 + rnd() * 0.32), col = [[70, 112, 44], [84, 126, 50], [62, 100, 40]][f % 3], bx = x0 + W / 2;
         let px = bx, py = y0 + H; c.strokeStyle = rgb(col, 0.7); c.lineWidth = 1.2 * k + 0.3;
         for (let s = 1; s <= 16; s++) { const t = s / 16, ang = a * (0.4 + t * 0.9), nx = bx + Math.sin(ang) * l * t, ny = y0 + H - Math.cos(ang) * l * t + l * 0.25 * t * t * Math.abs(Math.sin(a)); c.beginPath(); c.moveTo(px, py); c.lineTo(nx, ny); c.stroke(); const pl = (1 - t * 0.8) * l * 0.16; for (const sg of [-1, 1]) { c.fillStyle = rgb(col, 0.85 + t * 0.3); c.beginPath(); c.ellipse(nx + Math.cos(ang) * sg * pl * 0.5, ny + Math.sin(ang) * sg * pl * 0.5, pl * 0.55, pl * 0.18 + 0.5, ang + sg * 0.3, 0, TAU); c.fill(); } px = nx; py = ny; } }
     } else if (type === 5) brins(34, SEC.concat([[120, 128, 70]]), 0.4, 0.8, 1.3);
     else {
-      brins(type === 3 ? 26 : 38, VERTS, type === 3 ? 0.3 : 0.45, type === 3 ? 0.62 : 0.92, 1.1);
+      if (type === 1) brins(38, VERTS, 0.45, 0.92, 1.1); else brins(type === 3 ? 46 : 74, VERTS, type === 3 ? 0.3 : 0.4, type === 3 ? 0.62 : 0.92, 0.8, 0.8);
       if (type === 1) for (let i = 0; i < 6; i++) { const [tx, ty] = brin(x0 + W / 2 + (rnd() - 0.5) * W * 0.3, H * (0.8 + rnd() * 0.18), (rnd() - 0.5) * 0.7, W * 0.012, [150, 150, 90]); c.fillStyle = rgb([196, 182, 122], 0.85 + rnd() * 0.3); c.beginPath(); c.ellipse(tx, ty + 6 * k, 2.4 * k, 7 * k, 0, 0, TAU); c.fill(); }
       if (type === 2) for (let i = 0; i < 7; i++) { // pâquerettes et boutons d'or
         const fx = x0 + W * (0.2 + rnd() * 0.6), fy = y0 + H * (0.18 + rnd() * 0.4), jaune = i % 3 === 2;
@@ -361,7 +371,7 @@ const PVEGETATION = (() => {
     c.fillStyle = rgb(FEUILLES[esp].pal[0], 0.5);
     for (const g of ordre) { if (g.mode === 2) continue; c.beginPath(); c.ellipse(X(g.x), Y(g.y), g.s * g.ax * sx * 0.3, g.s * g.ay * rh * sy * 0.3, 0, 0, TAU); c.fill(); }
     for (const g of ordre) {
-      const prof = (g.z / Rm + 1) / 2, lum = borne((0.6 + 0.4 * prof) * (0.66 + 0.34 * g.occ), 0, 1), cv = src.niveaux[Math.min(niv - 1, Math.round(lum * (niv - 1)))];
+      const prof = (g.z / Rm + 1) / 2, lum = borne((0.6 + 0.4 * prof) * (0.66 + 0.34 * g.occ) * (0.8 + 0.4 * borne((g.y / ym - 0.35) / 0.6, 0, 1)), 0, 1), cv = src.niveaux[Math.min(niv - 1, Math.round(lum * (niv - 1)))]; // plus clair en haut (le soleil, le ciel)
       if (g.mode === 2) { const w = g.s * g.ax * sx, h = g.s * rh * sy; c.drawImage(src.rideau ? cv.rideau : cv, X(g.x) - w / 2, Y(g.y), w, h); continue; }
       const w = g.s * g.ax * sx * 1.1, h = g.s * g.ay * rh * sy * 1.1, ca = Math.cos(g.rot), sa = Math.sin(g.rot);
       c.setTransform(ca, sa, -sa, ca, X(g.x), Y(g.y)); c.drawImage(cv, -w / 2, -h / 2, w, h); c.setTransform(1, 0, 0, 1, 0, 0);
@@ -386,11 +396,12 @@ const PVEGETATION = (() => {
     bande(c, CEL.haie, HAIE, rnd, k, false); bande(c, CEL.vigne, VIGNE, rnd, k, true);
     ECORCES.forEach((nom, i) => ecorce(c, CEL.ecorce[i], nom, rnd, k));
     CEL.herbe.forEach((r, i) => touffe(c, r, i, rnd, k));
-    // les imposteurs : copies assombries des grappes (pas de filtre canvas : Safari ne le connaît pas)
+    // les imposteurs : copies assombries des grappes (pas de filtre canvas : Safari ne le connaît pas) ; canvas en mémoire centrale comme
+    // l'atlas (willReadFrequently) : sinon chaque drawImage relit un canvas du GPU (~1 ms pièce, 0,5 s pour les imposteurs)
     const sources = FEUILLES.map((P, e) => {
       const [x, y, w, h] = rect(CEL.feuilles[e], k), niveaux = [];
-      for (const l of [0.5, 0.62, 0.75, 0.88, 1]) { const t = document.createElement('canvas'); t.width = w; t.height = h; const tc = t.getContext('2d'); tc.drawImage(cv, x, y, w, h, 0, 0, w, h); tc.globalCompositeOperation = 'source-atop'; tc.fillStyle = `rgba(0,0,0,${1 - l})`; tc.fillRect(0, 0, w, h);
-        if (e === 4) { const [rx, ry, rw, rh2] = rect(CEL.rideau, k), t2 = document.createElement('canvas'); t2.width = rw; t2.height = rh2; const c2 = t2.getContext('2d'); c2.drawImage(cv, rx, ry, rw, rh2, 0, 0, rw, rh2); c2.globalCompositeOperation = 'source-atop'; c2.fillStyle = `rgba(0,0,0,${1 - l})`; c2.fillRect(0, 0, rw, rh2); t.rideau = t2; }
+      for (const l of [0.5, 0.62, 0.75, 0.88, 1]) { const t = document.createElement('canvas'); t.width = w; t.height = h; const tc = t.getContext('2d', { willReadFrequently: true }); tc.drawImage(cv, x, y, w, h, 0, 0, w, h); tc.globalCompositeOperation = 'source-atop'; tc.fillStyle = `rgba(0,0,0,${1 - l})`; tc.fillRect(0, 0, w, h);
+        if (e === 4) { const [rx, ry, rw, rh2] = rect(CEL.rideau, k), t2 = document.createElement('canvas'); t2.width = rw; t2.height = rh2; const c2 = t2.getContext('2d', { willReadFrequently: true }); c2.drawImage(cv, rx, ry, rw, rh2, 0, 0, rw, rh2); c2.globalCompositeOperation = 'source-atop'; c2.fillStyle = `rgba(0,0,0,${1 - l})`; c2.fillRect(0, 0, rw, rh2); t.rideau = t2; }
         niveaux.push(t); }
       return { niveaux, rideau: e === 4 };
     });
@@ -463,7 +474,7 @@ if (aFeu.w > 0.5 && aFeu.w < 1.5) transformedNormal = normalize(normalize(transf
 attribute vec4 iDon; varying float vEnv;\n` + vs.replace('#include <uv_vertex>', `#ifdef USE_MAP
 vMapUv = uCelI[int(iDon.x + 0.5)].xy + uv * uCelI[int(iDon.x + 0.5)].zw;
 #endif`).replace('#include <defaultnormal_vertex>', `vec3 b0_ = (modelMatrix * vec4(instanceMatrix[3].xyz, 1.0)).xyz; vec3 v0_ = cameraPosition - b0_; v0_.y = 0.0; v0_ = normalize(v0_ + vec3(1e-5, 0.0, 0.0));
-vec3 transformedNormal = normalize((viewMatrix * vec4(normalize(v0_ * 0.75 + vec3(v0_.z, 0.0, -v0_.x) * position.x * 1.3 + vec3(0.0, 0.2 + position.y * 0.6, 0.0)), 0.0)).xyz);
+vec3 transformedNormal = normalize((viewMatrix * vec4(normalize(v0_ * 0.75 + vec3(v0_.z, 0.0, -v0_.x) * position.x * 1.3 + vec3(0.0, 0.1 + position.y * 1.0, 0.0)), 0.0)).xyz);
 vEnv = 0.5;`).replace('#include <project_vertex>', `vec3 sc_ = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), 0.0); vec4 lk_ = uLoinK[int(iDon.x + 0.5)];
 vec3 vc_ = cameraPosition - b0_; vec3 dr_ = normalize(vec3(vc_.z, 0.0, -vc_.x) + vec3(1e-5, 0.0, 0.0));
 ${VENT}
@@ -471,7 +482,9 @@ float hN_ = transformed.y * lk_.y, yc_ = 0.6 * sc_.y;
 vec3 vv_ = normalize(b0_ + vec3(0.0, yc_, 0.0) - cameraPosition), up_ = normalize(vec3(0.0, 1.0, 0.0) + vv_ * max(-vv_.y, 0.0)); // Y moins sa part le long du regard
 vec4 vegM = vec4(b0_ + dr_ * (transformed.x * 2.0 * lk_.x * sc_.x) + vec3(0.0, yc_, 0.0) + up_ * (hN_ * sc_.y - yc_), 1.0);
 vegM.xz += iDon.yz * (hN_ * hN_ * sc_.y) + uVent * (bal_ * 0.011 * hN_ * hN_ * sc_.y);
-vec4 mvPosition = viewMatrix * vegM; gl_Position = projectionMatrix * mvPosition;`).replace('#include <worldpos_vertex>', WORLDPOS);
+vec4 mvPosition = viewMatrix * vegM; gl_Position = projectionMatrix * mvPosition;`).replace('#include <color_vertex>', `#ifdef USE_INSTANCING_COLOR
+vColor = instanceColor.rgb * 1.1;
+#endif`).replace('#include <worldpos_vertex>', WORLDPOS);
   }
   function vertexLigne(vs, ombre) { // les tronçons de haie et de vigne : feuillage (de la base iDon.y au sommet), piquet et cep en bois
     vs = `uniform float uTemps; uniform vec2 uVent; uniform vec4 uCelL[2]; uniform vec4 uCelP;
@@ -540,7 +553,7 @@ if ( diffuseColor.a < alphaTest ) discard;
     const H0 = (x, z) => { try { const h = monde.hauteur(x, z); return fini(h) ? h : 0; } catch (e) { return 0; } };
     let nomQ = QUALITES[opts.qualite] ? opts.qualite : 'moyenne', Q = QUALITES[nomQ], libere = false;
     const dossier = typeof opts.dossier === 'string' ? opts.dossier : typeof window !== 'undefined' && window.PONCIN_CARTE_DOSSIER ? window.PONCIN_CARTE_DOSSIER : 'carte/';
-    const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
+    const maintenant0 = () => (typeof performance !== 'undefined' ? performance.now() : 0), t0 = maintenant0();
 
     // ─── le masque du sol (1 case par mètre) : bloqué (rues, bâtiments, eau, sols durs), densité et genre de l'herbe ───
     const PAS = Math.max(1, L / 1024), N = Math.ceil(L / PAS), BLOQ = new Uint8Array(N * N), DENS = new Uint8Array(N * N), GENRE = new Uint8Array(N * N);
@@ -571,7 +584,7 @@ if ( diffuseColor.a < alphaTest ) discard;
     for (const pt of carte.ponts || []) if (pt && Array.isArray(pt.l)) trait(pt.l, (fini(+pt.w) ? +pt.w : 6) + 2 * PAS + 1, (k) => { BLOQ[k] |= 1; });
     for (const b of monde.batiments || carte.batiments || []) { const p = b && poly(b.p); if (p) remplir(p, (k) => { BLOQ[k] |= 2; }); }
     for (const e of carte.eau || []) { const p = e && poly(e.p); if (p) remplir(p, (k) => { BLOQ[k] |= 4; }); }
-    { const B2 = BLOQ.slice(); for (let j = 1; j < N - 1; j++) for (let i = 1; i < N - 1; i++) { const k = j * N + i; let m = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) m |= B2[k + dj * N + di] & 6; BLOQ[k] |= m; } } // bâtiments et eau élargis d'une case
+    { const B2 = BLOQ.slice(); for (let j = 1; j < N - 1; j++) for (let i = 1; i < N - 1; i++) { const k = j * N + i; let m = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) m |= B2[k + dj * N + di] & 6; if (m) BLOQ[k] |= 16; } } // 16 : le bord des bâtiments et de l'eau, élargi d'une case (pour l'herbe ; les arbres regardent l'emprise exacte)
     const bloque = (x, z, m) => { const k = caseDe(x, z); return k < 0 || (BLOQ[k] & m) !== 0; };
 
     // ─── les arbres : réels ; sur une vieille carte (arbres [x, z, h] sans espèce), vergers vides et bois semés ───
@@ -653,7 +666,7 @@ if ( diffuseColor.a < alphaTest ) discard;
 
     // ─── les silhouettes (normales ; allégées pour l'éco, faites à la demande), l'atlas, les matériaux ───
     const moy = geoMoyen(), loin = geoLoin(), lig = geoLigne(), herbe = geoHerbe();
-    let A = ATLAS.get(Q.atlas), atlasNeuf = false; if (!A) { A = peindreAtlas(Q.atlas, sils); ATLAS.set(Q.atlas, A); atlasNeuf = true; }
+    const tA = maintenant0(); let A = ATLAS.get(Q.atlas), atlasNeuf = false; if (!A) { A = peindreAtlas(Q.atlas, sils); ATLAS.set(Q.atlas, A); atlasNeuf = true; } const msAtlas = Math.round((maintenant0() - tA) * 10) / 10;
     const S = A.S, tex = new THREE.DataTexture(A.data, S, S, THREE.RGBAFormat, THREE.UnsignedByteType);
     tex.colorSpace = THREE.SRGBColorSpace; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter; tex.anisotropy = 4; tex.flipY = false; tex.needsUpdate = true;
     const V8 = (f) => [0, 1, 2, 3, 4, 5, 6, 7].map(f), E7 = (e) => (e === 7 ? 0 : e); // les buissons des haies prennent les feuilles et le bois du feuillu
@@ -760,7 +773,7 @@ if ( diffuseColor.a < alphaTest ) discard;
         const y = H0(x, z); if (!dansChamp(x, y + 0.3, z, 0.8)) continue;
         const g = GENRE[c], u = h3(i, j, 4); let t;
         if (g === 3) t = u < 0.45 ? 4 : u < 0.8 ? 0 : 5; else if (g === 2) t = u < 0.55 ? 0 : u < 0.75 ? 2 : u < 0.9 ? 3 : 1; else if (g === 4) t = u < 0.6 ? 0 : u < 0.85 ? 5 : 3; else t = u < 0.5 ? 0 : u < 0.68 ? 1 : u < 0.78 ? 2 : u < 0.88 ? 3 : 5;
-        const a = h3(i, j, 5) * TAU, s = (t === 4 ? 0.8 : 0.44) * (0.7 + h3(i, j, 6) * 0.6), sy = s * (t === 4 ? 0.9 : 0.85) * (0.8 + h3(i, j, 7) * 0.45), co = Math.cos(a) * s, si = Math.sin(a) * s, m = k * 16;
+        const pl = t === 0 || t === 2 || t === 3, a = h3(i, j, 5) * TAU, s = (t === 4 ? 0.8 : pl ? 0.66 : 0.44) * (0.7 + h3(i, j, 6) * 0.6), sy = s * (t === 4 ? 0.9 : pl ? 0.56 : 0.85) * (0.8 + h3(i, j, 7) * 0.45), co = Math.cos(a) * s, si = Math.sin(a) * s, m = k * 16;
         ma[m] = co; ma[m + 1] = 0; ma[m + 2] = -si; ma[m + 3] = 0; ma[m + 4] = 0; ma[m + 5] = sy; ma[m + 6] = 0; ma[m + 7] = 0; ma[m + 8] = si; ma[m + 9] = 0; ma[m + 10] = co; ma[m + 11] = 0; ma[m + 12] = x; ma[m + 13] = y - 0.03; ma[m + 14] = z; ma[m + 15] = 1;
         da[k * 4] = t; da[k * 4 + 3] = h3(i, j, 8);
         const v = 0.9 + h3(i, j, 9) * 0.2; let r = v, gg = v, b = v;
@@ -828,7 +841,7 @@ if ( diffuseColor.a < alphaTest ) discard;
         return { qualite: nomQ, arbres: NR, semes, buissons: NA - NR, especes: ESPECES.reduce((o, n, e) => { if (comptes[e]) o[n] = comptes[e]; return o; }, {}), troncons: NL,
           instances: { proche: ST.proche[0] + ST.proche[1] + ST.proche[2] + ST.proche[3], parSilhouette: ST.proche.slice(), moyen: ST.moyen, loin: ST.loin, lignes: ST.lignes, herbe: ST.herbe },
           appels: ST.appels, appelsOmbre: ST.appelsOmbre, triangles: ST.triangles, trianglesOmbre: ST.trianglesOmbre, majs: ST.majs, majsHerbe: ST.majsHerbe,
-          ms: r2(ST.ms), msHerbe: r2(ST.msHerbe), msMoy: r2(ST.majs ? ST.msTot / ST.majs : 0), msMax: r2(ST.msMax), msHerbeMoy: r2(ST.majsHerbe ? ST.msHerbeTot / ST.majsHerbe : 0), creation: tCree,
+          ms: r2(ST.ms), msHerbe: r2(ST.msHerbe), msMoy: r2(ST.majs ? ST.msTot / ST.majs : 0), msMax: r2(ST.msMax), msHerbeMoy: r2(ST.majsHerbe ? ST.msHerbeTot / ST.majsHerbe : 0), creation: tCree, creationAtlas: msAtlas,
           atlas: S, atlasNeuf, memoire: Math.round(S * S * 4 * 4 / 3), photo: !!PHOTO, trianglesParArbre: TRIS.proche.slice(), simple: !!Q.simple };
       },
     };

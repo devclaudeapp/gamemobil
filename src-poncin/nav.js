@@ -76,9 +76,10 @@
       // les liens serrés : une arête à moins de RL du segment qui joint les centres de deux cases libres voisines (un coin qui dépasse entre
       // deux centres, un mur plus fin que la grille) bloque la case la plus proche de l'arête. Ensuite, tout trajet de centre en centre de
       // cases libres (droit, ou en diagonale entre quatre cases libres) laisse au moins RL aux murs.
-      const E = monde._interne && monde._interne.E, aBloquer = []; serres = 0;
+      // (une arête épaisse — tronc, mur — compte avec sa demi-épaisseur EW : un tronc est un point de rayon w)
+      const E = monde._interne && monde._interne.E, EW = monde._interne && monde._interne.EW, aBloquer = []; serres = 0;
       if (E) for (let k = 0; k + 3 < E.length; k += 4) {
-        const ax = E[k], az = E[k + 1], bx = E[k + 2], bz = E[k + 3], m = RL + pas;
+        const ax = E[k], az = E[k + 1], bx = E[k + 2], bz = E[k + 3], w = EW ? EW[k >> 2] : 0, m = RL + pas + w, rl2 = w > 0 ? (RL + w) * (RL + w) : RL2;
         const i0 = Math.max(1, Math.ceil((Math.min(ax, bx) - m - X0) / pas - 0.5)), i1 = Math.min(W - 2, Math.floor((Math.max(ax, bx) + m - X0) / pas - 0.5));
         const j0 = Math.max(1, Math.ceil((Math.min(az, bz) - m - Z0) / pas - 0.5)), j1 = Math.min(W - 2, Math.floor((Math.max(az, bz) + m - Z0) / pas - 0.5));
         for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
@@ -87,7 +88,7 @@
           for (let q = 0; q < 2; q++) { // le lien vers +x, puis vers +z
             const v = q ? c + W : c + 1; if (!FIXE[v]) continue;
             const x2 = q ? x : x + pas, z2 = q ? z + pas : z, dv = d2PtSeg(x2, z2, ax, az, bx, bz);
-            if (croise(x, z, x2, z2, ax, az, bx, bz) || Math.min(d2PtSeg(ax, az, x, z, x2, z2), d2PtSeg(bx, bz, x, z, x2, z2), dc, dv) < RL2) aBloquer.push(dc <= dv ? c : v);
+            if (croise(x, z, x2, z2, ax, az, bx, bz) || Math.min(d2PtSeg(ax, az, x, z, x2, z2), d2PtSeg(bx, bz, x, z, x2, z2), dc, dv) < rl2) aBloquer.push(dc <= dv ? c : v);
           }
         }
       }

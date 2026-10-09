@@ -6,14 +6,14 @@
 // textures stables après 50 maj, et qu'une seconde création ne repeint rien. Captures (place Xavier-Bichat sous les platanes, rive de
 // l'Ain, bois de la colline à l'est, un pré, vue d'ensemble) dans le dossier --sortie (défaut test/shots/poncin-vegetation/).
 // Le rendu est logiciel (SwiftShader) : on juge les budgets et l'image, pas les images par seconde.
-// Usage : node test/poncin-vegetation.cjs [--qualite=haute,moyenne,eco] [--vues=place,ain,bois,herbe,haut] [--sortie=dossier]
+// Usage : node test/poncin-vegetation.cjs [--qualite=haute,moyenne,eco] [--vues=place,ain,saules,bois,herbe,haut] [--sortie=dossier]
 // (NODE_PATH=/opt/node22/lib/node_modules si Playwright est installé globalement).
 'use strict';
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const racine = path.join(__dirname, '..');
 const arg = (k, d) => { const a = process.argv.find((x) => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
-const QUALITES = arg('qualite', 'haute,moyenne,eco').split(','), VUES = arg('vues', 'place,ain,bois,herbe,haut').split(',');
+const QUALITES = arg('qualite', 'haute,moyenne,eco').split(','), VUES = arg('vues', 'place,ain,saules,bois,herbe,haut').split(',');
 const out = path.resolve(arg('sortie', path.join(__dirname, 'shots', 'poncin-vegetation'))); fs.mkdirSync(out, { recursive: true });
 const BUDGETS = { haute: { appels: 14, triangles: 80000 }, moyenne: { appels: 10, triangles: 50000 }, eco: { appels: 7, triangles: 25000 } };
 const CAPTURES = { haute: VUES, moyenne: [], eco: VUES };
@@ -49,8 +49,10 @@ const k = (n) => (n / 1000).toFixed(1) + 'k';
       const r = await page.evaluate(() => ({ e: window.__veg.erreurs, s: window.__veg.stats, c: window.__veg.creation }));
       verif(r.e.length === 0, `la page se construit sans exception${r.e.length ? ' : ' + r.e[0].slice(0, 400) : ''}`);
       if (!r.s) { verif(false, 'pas de stats : on arrête cette qualité'); await ctx.close(); continue; }
-      console.log(`  info création ${r.c} ms ; atlas ${r.s.atlas} px ; ${r.s.troncons} tronçons de haie ; triangles par arbre proche ${r.s.trianglesParArbre.join(' / ')}`);
-      verif(r.s.arbres === carte.arbres.length, `les ${carte.arbres.length} arbres réels, et rien de semé (${r.s.arbres} arbres)`);
+      console.log(`  info création ${r.c} ms (dont l'atlas ${r.s.creationAtlas} ms) ; atlas ${r.s.atlas} px ; ${r.s.troncons} tronçons de haie ; triangles par arbre proche ${r.s.trianglesParArbre.join(' / ')}`);
+      verif(r.s.arbres === carte.arbres.length && r.s.semes === 0, `les ${carte.arbres.length} arbres réels, et rien de semé (${r.s.arbres} arbres, ${r.s.semes} semés ; ${r.s.buissons} buissons pour ${carte.haies.length} haies hautes)`);
+      const sm = await page.evaluate(() => window.__veg.semis());
+      verif(sm.vieille.semes > 50 && sm.neuve.semes === 0 && sm.vide.semes > 50, `on ne sème les bois que sur une vieille carte (arbres à 3 valeurs : ${sm.vieille.semes} semés ; à 5 valeurs : ${sm.neuve.semes} ; sans arbre : ${sm.vide.semes})`);
       verif(Object.keys(especes).every((e) => r.s.especes[e] === especes[e]), `les espèces de la carte (${Object.entries(r.s.especes).map(([e, n]) => e + ' ' + n).join(', ')})`);
       verif(r.s.photo, 'la photo aérienne est lue (où pousse l\'herbe, couleur du sol)');
       verif(r.s.memoire <= 8 * 1048576, `mémoire de textures ≤ 8 Mo (${(r.s.memoire / 1048576).toFixed(1)} Mo)`);
@@ -67,8 +69,15 @@ const k = (n) => (n / 1000).toFixed(1) + 'k';
       // l'herbe : jamais sur une rue, dans un bâtiment ni dans l'eau
       const h = await page.evaluate(() => window.__veg.herbeInterdite ? window.__veg.herbeInterdite() : null);
       if (h) verif(h.mal === 0, `herbe : ${h.n} touffes contrôlées dans les vues, aucune sur une rue, dans un bâtiment ou dans l'eau (${h.mal}${h.ex ? ' : ' + h.ex : ''})`);
+      if (qualite !== 'eco') { // changer de qualité en jeu : silhouettes allégées et pas d'herbe en éco, puis retour ; aucune erreur
+        const q = await page.evaluate((nom) => { const V = window.__veg, a = V.qualite('eco'), e = V.vue('saules'), b = V.qualite(nom), r = V.vue('saules'); return { a, b, e: { s: e.stats, v: e.veg }, r: { s: r.stats, v: r.veg } }; }, qualite);
+        verif(q.a === 'eco' && q.e.s.simple && q.e.s.instances.herbe === 0 && q.e.v.calls <= BUDGETS.eco.appels && q.e.v.triangles <= BUDGETS.eco.triangles && q.b === qualite && !q.r.s.simple && q.r.s.instances.herbe > 0,
+          `changer de qualité en jeu : éco (${q.e.v.calls} appels, ${k(q.e.v.triangles)}, silhouettes allégées ${q.e.s.trianglesParArbre.join('/')}, pas d'herbe), puis ${qualite} (${q.r.v.calls} appels, ${k(q.r.v.triangles)}, herbe ${q.r.s.instances.herbe})`);
+      }
       const m = await page.evaluate(() => window.__veg.majs(50));
       verif(m.max === m.avant && m.apres === m.avant && m.texApres === m.texAvant, `géométries stables après 50 maj (${m.avant} → ${m.min}..${m.max} → ${m.apres}), textures ${m.texAvant} → ${m.texApres}`);
+      console.log(`  info recopies : ${m.stats.majs} des arbres, en moyenne ${m.stats.msMoy} ms (au plus ${m.stats.msMax}) ; ${m.stats.majsHerbe} de l'herbe, en moyenne ${m.stats.msHerbeMoy} ms (processeur de bureau ; un téléphone : ×3 à ×5)`);
+      verif(m.stats.msMoy < 2.5 && m.stats.msHerbeMoy < 2.5, `recopies rapides sur cette machine (arbres ${m.stats.msMoy} ms, herbe ${m.stats.msHerbeMoy} ms en moyenne)`);
       const d = await page.evaluate(() => window.__veg.recreer());
       verif(d.atlasPartage && d.ms < r.c, `une seconde création ne repeint pas l'atlas (${d.ms} ms contre ${r.c}) et libérer rend tout (${d.geoAvant} → ${d.geoApres} géométries)`);
       verif(d.geoApres <= d.geoAvant, 'libérer ne laisse rien derrière');

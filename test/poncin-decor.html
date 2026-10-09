@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Décor · Opération Poncin</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#BCD9EE;font:11px/1.25 system-ui,sans-serif;color:#F4EFE6}
+#vue{position:fixed;inset:0;width:100%;height:100%;display:block}
+#info{position:fixed;left:6px;bottom:4px;background:rgba(43,42,76,.72);padding:2px 6px;border-radius:6px;font-family:monospace;font-size:10px;max-width:70%}
+#info[hidden]{display:none}
+</style>
+</head><body>
+<canvas id="vue"></canvas><div id="info" hidden></div>
+<script src="../vendor/three.min.js"></script>
+<script src="../src/modeles.js"></script>
+<script src="../src-poncin/regles.js"></script>
+<script src="../src-poncin/monde.js"></script>
+<script src="../src-poncin/textures.js"></script>
+<script src="../src-poncin/vegetation.js"></script>
+<script src="../src-poncin/decor.js"></script>
+<script>
+// La page de test du décor (test/poncin-decor.cjs) sur la VRAIE carte (poncin/carte/poncin.json). La scène imite le jeu : relief maillé
+// avec la triangulation de monde.hauteur, photo aérienne (et la photo fine de l'arène), bâtiments extrudés avec les matières de
+// PTEXTURES.bati et les ouvertures de PTEXTURES.details (travées de 3 m, étages de 2,85 m, comme la rue de démonstration des textures),
+// la végétation réelle (PVEGETATION), le ciel, la brume et les lumières de rendu.js ; puis PDECOR. ?qualite=haute | moyenne | eco,
+// ?vue=mairie | tabac | banque | poste | bar | place | plaque | horizon | survol | commerces, ?mode=bati | moellons | sans (textures du décor),
+// ?info=1 (les comptes à l'écran).
+'use strict';
+const P = new URLSearchParams(location.search), QUAL = P.get('qualite') || 'haute', VUE = P.get('vue') || 'mairie', MODE = P.get('mode') || 'bati', DOSSIER = '../poncin/carte/';
+const ETAT = window.__decor = { pret: false, erreurs: [], mesures: {} };
+window.addEventListener('error', (e) => ETAT.erreurs.push(String(e.message)));
+const PALIERS = { haute: { dpr: 2, ombres: 1024, brume: [170, 640] }, moyenne: { dpr: 1.5, ombres: 0, brume: [120, 430] }, eco: { dpr: 1, ombres: 0, brume: [80, 280] } }; // ceux de rendu.js
+const C = { brume: '#E2EBEE', cielHemi: '#E2F1FF', solHemi: '#C8B29A', soleil: '#FFE9CC' }, SOLEIL = (() => { const x = -0.52, y = 0.66, z = 0.54, l = Math.hypot(x, y, z); return [x / l, y / l, z / l]; })();
+let carte, monde, renderer, scene, camera, soleil, ciel, veg = null, decor = null, B = null, Dt = null, sol = null, bats = null, fenetres = null;
+const charger = (src) => new Promise((ok, ko) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => ko(new Error('image ' + src)); i.src = src; });
+const LIN = (hex, k) => { const c = new THREE.Color(hex); return [c.r * (k || 1), c.g * (k || 1), c.b * (k || 1)]; };
+function hash(s) { s = String(s); let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
+
+// ─── le sol : le relief avec la triangulation partagée, la grande photo et, dans l'arène, la photo fine ───
+async function construireSol() {
+  const R = carte.relief, n = R.n, pas = R.pas, L = carte.taille, X0 = -L / 2, pos = new Float32Array(n * n * 3), idx = [];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i; pos[3 * k] = X0 + i * pas; pos[3 * k + 1] = +R.h[k]; pos[3 * k + 2] = X0 + j * pas; }
+  for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) { const a = j * n + i, b = a + 1, c = a + n, d = c + 1; idx.push(a, c, b, c, d, b); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setIndex(idx); g.computeVertexNormals();
+  const [im, ia] = await Promise.all([charger(DOSSIER + carte.sol.image), charger(DOSSIER + carte.sol.arene.image)]);
+  const t1 = new THREE.Texture(im), t2 = new THREE.Texture(ia); for (const t of [t1, t2]) { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; t.needsUpdate = true; }
+  const A = carte.sol.arene, m = new THREE.MeshLambertMaterial({ map: t1 });
+  m.onBeforeCompile = (sh) => {
+    sh.uniforms.tArene = { value: t2 }; sh.uniforms.uArene = { value: new THREE.Vector4(A.centre[0] - A.taille / 2, A.centre[1] - A.taille / 2, A.taille, L) };
+    sh.vertexShader = 'varying vec2 vXZ;\n' + sh.vertexShader.replace('#include <uv_vertex>', '#include <uv_vertex>\n\tvXZ = position.xz;');
+    sh.fragmentShader = 'uniform sampler2D tArene;\nuniform vec4 uArene;\nvarying vec2 vXZ;\n' + sh.fragmentShader.replace('#include <map_fragment>', [
+      'vec2 uvG = vec2( ( vXZ.x + uArene.w * 0.5 ) / uArene.w, 1.0 - ( vXZ.y + uArene.w * 0.5 ) / uArene.w );', 'vec4 cG = texture2D( map, uvG );',
+      'vec2 uvA = ( vXZ - uArene.xy ) / uArene.z; float kA = smoothstep( 0.0, 0.03, min( min( uvA.x, uvA.y ), min( 1.0 - uvA.x, 1.0 - uvA.y ) ) );',
+      'vec4 cA = texture2D( tArene, vec2( uvA.x, 1.0 - uvA.y ) ); diffuseColor *= mix( cG, cA, kA );'].join('\n'));
+  };
+  m.customProgramCacheKey = () => 'sol-test';
+  sol = new THREE.Mesh(g, m); sol.receiveShadow = true; sol.name = 'sol'; scene.add(sol);
+}
+// ─── les bâtiments : murs texturés (PTEXTURES.bati), toits en pavillon (convexes) ou plats, fenêtres et volets (PTEXTURES.details) ───
+function Lot() { this.p = []; this.n = []; this.c = []; this.u = []; this.k = []; }
+Lot.prototype.v = function (x, y, z, n, c, u, v, k) { this.p.push(x, y, z); this.n.push(n[0], n[1], n[2]); this.c.push(c[0], c[1], c[2]); this.u.push(u, v); this.k.push(k); };
+Lot.prototype.tri = function (a, b, c, ca, cb, cc, ua, ub, uc, k) { const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2]; let n = [uy * vz - uz * vy, uz * vx - ux * vz, ux * vy - uy * vx]; const l = Math.hypot(...n) || 1; n = n.map((x) => x / l); this.v(...a, n, ca, ...ua, k); this.v(...b, n, cb, ...ub, k); this.v(...c, n, cc, ...uc, k); };
+Lot.prototype.maille = function (mat) { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(this.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(this.n, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(this.c, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(this.u, 2)); g.setAttribute('couche', new THREE.Float32BufferAttribute(this.k, 1)); const m = new THREE.Mesh(g, mat); m.castShadow = true; m.receiveShadow = true; return m; };
+function construireBatiments() {
+  const T = PTEXTURES, bat = new Lot(), det = new Lot(), cel = Dt.cellules, teintes = Object.values(T.TEINTES.crepi), volets = ['vert', 'bleu', 'gris', 'brun', 'bordeaux'];
+  const dans = (x, z, sauf) => monde.batiments.some((b, k) => k !== sauf && x >= b.aabb[0] && x <= b.aabb[2] && z >= b.aabb[1] && z <= b.aabb[3] && PMONDE.dansPoly(b.p, x, z));
+  const habille = new Map(); for (const f of decor ? decor.facades : []) { const k = f.a.join(',') + '|' + f.c.join(','); if (!habille.has(k)) habille.set(k, []); habille.get(k).push([f.s0, f.s1]); }
+  const quad = (L, a, b, c, d, cb, ch, uv, k) => { L.tri(a, b, c, cb, cb, ch, [uv[0], uv[1]], [uv[2], uv[1]], [uv[2], uv[3]], k); L.tri(a, c, d, cb, ch, ch, [uv[0], uv[1]], [uv[2], uv[3]], [uv[0], uv[3]], k); };
+  monde.batiments.forEach((b, bi) => {
+    const p = b.p, n = p.length, h = b.sommet, base = b.base, hs = hash(bi + '|' + p[0].join(',')), mur = b.mur === 'mixte' ? 'mixte' : b.mur === 'pierre' ? (b.t === 'eglise' || b.t === 'chateau' ? 'taille' : 'pierre') : b.mur === 'brique' ? 'brique' : b.mur === 'beton' ? 'beton' : b.mur === 'bois' ? 'bois' : 'crepi';
+    const teinte = mur === 'crepi' ? teintes[hs % teintes.length] : null, km = B.couche(mur), toit = b.toit === 'ardoise' ? 'ardoise' : b.toit === 'zinc' ? 'zinc' : b.toit === 'beton' ? 'plat' : (hs >>> 5) % 3 === 0 ? 'canal' : 'tuiles', kt = B.couche(toit), vol = 'volet-' + volets[(hs >>> 8) % volets.length];
+    let s0 = 0;
+    for (let i = 0; i < n; i++) {
+      const a = p[i], c = p[(i + 1) % n], len = Math.hypot(c[0] - a[0], c[1] - a[1]); if (len < 0.01) continue; const ux = (c[0] - a[0]) / len, uz = (c[1] - a[1]) / len, nx = uz, nz = -ux;
+      const yb = Math.min(h, base + 1.6); quad(bat, [c[0], base, c[1]], [a[0], base, a[1]], [a[0], yb, a[1]], [c[0], yb, c[1]], B.couleur(mur, teinte, 0.6), B.couleur(mur, teinte, 0.95), [s0 / 3 + len / 3, 0, s0 / 3, 1.6 / 3], km);
+      quad(bat, [c[0], yb, c[1]], [a[0], yb, a[1]], [a[0], h, a[1]], [c[0], h, c[1]], B.couleur(mur, teinte, 0.95), B.couleur(mur, teinte, 1), [s0 / 3 + len / 3, 1.6 / 3, s0 / 3, (h - base) / 3], km);
+      s0 += len;
+      // les ouvertures : travées de 3 m, étages de 2,85 m (comme la rue de démonstration des textures) ; rien sous les façades habillées par le décor
+      const m = [(a[0] + c[0]) / 2 + nx * 0.5, (a[1] + c[1]) / 2 + nz * 0.5]; if (len < 2.4 || b.t === 'eglise' || b.t === 'annexe' || dans(m[0], m[1], bi)) continue;
+      const nf = Math.max(1, Math.floor((len - 0.6) / 3)), pf = len / nf, spans = habille.get(a.join(',') + '|' + c.join(',')) || [];
+      for (let k = 0; k < nf; k++) {
+        const s = (k + 0.5) * pf, g = Math.max(monde.hauteur(a[0] + ux * s + nx * 0.3, a[1] + uz * s + nz * 0.3), base);
+        for (let e = 0; ; e++) {
+          const y0 = g + e * 2.85 + 0.87; if (y0 + 1.7 > h - 0.4) break; if (e === 0 && spans.some(([u0, u1]) => s > u0 - 0.8 && s < u1 + 0.8)) continue;
+          const nom = e === 0 && k === Math.floor(nf / 2) && (hs & 1) ? 'porte-peinte' : 'fenetre', ce = cel[nom], yy = nom === 'fenetre' ? y0 : g - 0.02, P = (ds, y, o) => [a[0] + ux * ds + nx * o, y, a[1] + uz * ds + nz * o];
+          const uv = ce.uv; quad(det, P(s + ce.l / 2, yy, 0.04), P(s - ce.l / 2, yy, 0.04), P(s - ce.l / 2, yy + ce.h, 0.04), P(s + ce.l / 2, yy + ce.h, 0.04), [1, 1, 1], [1, 1, 1], [uv[0], uv[1], uv[2], uv[3]], 0);
+          if (nom === 'fenetre' && pf > 2.1) { const v = cel[vol], ou = ce.ouverture, yo = yy + ou[1] - 0.03, ho = ou[3] - ou[1] + 0.06; quad(det, P(s + ce.l / 2 + v.l - 0.07, yo, 0.05), P(s + ce.l / 2 - 0.07, yo, 0.05), P(s + ce.l / 2 - 0.07, yo + ho, 0.05), P(s + ce.l / 2 + v.l - 0.07, yo + ho, 0.05), [1, 1, 1], [1, 1, 1], v.uv, 0); quad(det, P(s - ce.l / 2 + 0.07, yo, 0.05), P(s - ce.l / 2 - v.l + 0.07, yo, 0.05), P(s - ce.l / 2 - v.l + 0.07, yo + ho, 0.05), P(s - ce.l / 2 + 0.07, yo + ho, 0.05), [1, 1, 1], [1, 1, 1], [v.uv[2], v.uv[1], v.uv[0], v.uv[3]], 0); }
+        }
+      }
+    }
+    // le toit : pavillon (polygone ramené vers son centre) pour les convexes de ≤ 8 sommets, sinon plat
+    let cvx = n <= 8; for (let i = 0; i < n && cvx; i++) { const A0 = p[i], B0 = p[(i + 1) % n], C0 = p[(i + 2) % n]; if ((B0[0] - A0[0]) * (C0[1] - B0[1]) - (B0[1] - A0[1]) * (C0[0] - B0[0]) > 1e-6) cvx = false; }
+    const cx = p.reduce((s, q) => s + q[0], 0) / n, cz = p.reduce((s, q) => s + q[1], 0) / n, ct = B.couleur(toit, b.teinteToit), ctb = B.couleur(toit, b.teinteToit, 0.78);
+    if (cvx) {
+      const rmin = Math.min(...p.map((q) => Math.hypot(q[0] - cx, q[1] - cz))), f = Math.max(0.12, 1 - Math.min(3.2, rmin * 0.75) / rmin), deb = 0.35, pente = 0.62;
+      const ext = p.map((q) => { const dx = q[0] - cx, dz = q[1] - cz, l = Math.hypot(dx, dz) || 1; return [q[0] + dx / l * deb, q[1] + dz / l * deb]; }), inn = p.map((q) => [cx + (q[0] - cx) * f, cz + (q[1] - cz) * f]);
+      const yF = h + Math.min(3.2, rmin * 0.75) * pente, yE = h - deb * pente;
+      for (let i = 0; i < n; i++) { const a = ext[i], c = ext[(i + 1) % n], ia = inn[i], ic = inn[(i + 1) % n], l = Math.hypot(c[0] - a[0], c[1] - a[1]); quad(bat, [c[0], yE, c[1]], [a[0], yE, a[1]], [ia[0], yF, ia[1]], [ic[0], yF, ic[1]], ctb, ct, [l / 3, 0, 0, 1.2], kt); }
+      for (let i = 1; i + 1 < n; i++) bat.tri([inn[0][0], yF, inn[0][1]], [inn[i + 1][0], yF, inn[i + 1][1]], [inn[i][0], yF, inn[i][1]], ct, ct, ct, [0, 0], [1, 0], [0, 1], kt);
+      // les pignons : sous l'égout, la frise de mur entre h et l'égout
+    } else {
+      const tr = THREE.ShapeUtils.triangulateShape(p.map((q) => new THREE.Vector2(q[0], q[1])), []), cp = B.couleur('plat', null);
+      for (const t of tr) bat.tri([p[t[0]][0], h, p[t[0]][1]], [p[t[2]][0], h, p[t[2]][1]], [p[t[1]][0], h, p[t[1]][1]], cp, cp, cp, [p[t[0]][0] / 3, p[t[0]][1] / 3], [p[t[2]][0] / 3, p[t[2]][1] / 3], [p[t[1]][0] / 3, p[t[1]][1] / 3], B.couche('plat'));
+    }
+  });
+  const mb = bat.maille(B.materiau()); mb.name = 'batiments'; scene.add(mb);
+  const md = det.maille(Dt.materiau()); md.name = 'ouvertures-batiments'; md.castShadow = false; scene.add(md);
+  bats = mb; fenetres = md;
+}
+function construireCiel() { // le ciel de rendu.js : dégradé vers la brume, qui suit la caméra
+  const cv = document.createElement('canvas'); cv.width = 16; cv.height = 256; const c = cv.getContext('2d'), g = c.createLinearGradient(0, 0, 0, 128);
+  g.addColorStop(0, '#78BFF0'); g.addColorStop(0.5, '#AEDBF7'); g.addColorStop(0.85, '#D6EAF4'); g.addColorStop(1, C.brume); c.fillStyle = g; c.fillRect(0, 0, 16, 128); c.fillStyle = C.brume; c.fillRect(0, 128, 16, 128);
+  const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace;
+  ciel = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.MeshBasicMaterial({ map: tx, side: THREE.BackSide, fog: false, depthWrite: false })); ciel.frustumCulled = false; ciel.renderOrder = -10; ciel.name = 'ciel'; scene.add(ciel);
+}
+// ─── les vues : calculées depuis les données (decor.remarquables), l'œil au sol (1,65 m) ───
+function libre(x, z) { return !monde.bloque(x, z, 0.5); }
+function vueSur(r, dist, cote, haut, regardY) {
+  let ex = r.x + r.nx * dist + r.nz * cote, ez = r.z + r.nz * dist - r.nx * cote;
+  for (let k = 0; k < 30 && !libre(ex, ez); k++) { ex -= r.nx * 0.5; ez -= r.nz * 0.5; }
+  return { oeil: [ex, monde.hauteur(ex, ez) + (haut || 1.65), ez], cible: [r.x, (regardY != null ? r.y + regardY : r.y + 2.4), r.z] };
+}
+const trouver = (quoi, n) => decor.remarquables.find((r) => r.quoi === quoi && (!n || r.n === n));
+function vues() {
+  const A = carte.zones.arene.centre, l = {};
+  const mairie = trouver('mairie'); if (mairie) { l.mairie = vueSur(mairie, 13, 2.5, 1.65, 3.0); l.entree = vueSur(mairie, 6.5, 0.6, 1.65, 2.6); l.lettres = vueSur(mairie, 2.6, 0.3, 3.8, 3.85); }
+  const tabac = trouver('tabac'); if (tabac) l.tabac = vueSur(tabac, 8.5, -3.5, 1.65, 2.0);
+  const banque = trouver('banque'); if (banque) l.banque = vueSur(banque, 7.5, 2.8, 1.65, 1.8);
+  const poste = trouver('poste'); if (poste) l.poste = vueSur(poste, 8, -2.5, 1.65, 1.8);
+  const bar = trouver('terrasse', 'Bar des Sports') || trouver('bar'); if (bar) l.bar = vueSur(bar, 9, -4.5, 1.65, 1.2);
+  const commerces = trouver('boulangerie'); if (commerces) l.commerces = vueSur(commerces, 9, 3, 1.65, 1.6);
+  const pl = decor.remarquables.filter((r) => r.quoi === 'plaque').sort((a, b) => Math.hypot(a.x - A[0], a.z - A[1]) - Math.hypot(b.x - A[0], b.z - A[1]))[0]; if (pl) l.plaque = vueSur(pl, 3.2, 1.4, 1.65, 0.1);
+  const bancs = decor.stats.bancs || []; if (bancs.length) { const b = bancs[0], dx = b[0] - A[0], dz = b[1] - A[1], d = Math.hypot(dx, dz) || 1; const ox = A[0] - dx / d * 4 + 3, oz = A[1] - dz / d * 4; l.place = { oeil: [ox, monde.hauteur(ox, oz) + 1.65, oz], cible: [b[0], monde.hauteur(b[0], b[1]) + 1.2, b[1]] }; }
+  // l'horizon : depuis un point dégagé de la carte, au sol, le regard vers l'est (le Bugey) puis vers l'ouest — le point qui voit le plus loin sans obstacle
+  const arbres = carte.arbres.filter((t) => t[2] > 4), d2s = (px, pz, ax, az, bx, bz) => { const ex = bx - ax, ez = bz - az, l = ex * ex + ez * ez, t = Math.max(0, Math.min(1, ((px - ax) * ex + (pz - az) * ez) / l)); return (ax + t * ex - px) ** 2 + (az + t * ez - pz) ** 2; };
+  const libreVers = (x, y, z, tx, tz) => monde.vue(x, y, z, tx, monde.hauteur(tx, tz) + 12, tz) && !arbres.some((t) => d2s(t[0], t[1], x, z, tx, tz) < (t[3] || 3) ** 2 * 0.8 && Math.hypot(t[0] - x, t[1] - z) > 1);
+  const degage = (dx, dz) => { // le point au sol d'où un éventail de 50° vers (dx, dz) passe libre (bâtiments, arbres) jusqu'au bord du carré
+    let best = null; const a0 = Math.atan2(dz, dx);
+    for (let z = -360; z <= 360; z += 24) for (let x = -360; x <= 360; x += 24) {
+      if (monde.bloque(x, z, 1.5) || arbres.some((t) => Math.hypot(t[0] - x, t[1] - z) < (t[3] || 3) + 1)) continue; const y = monde.hauteur(x, z) + 1.65; let n = 0;
+      for (let k = -3; k <= 3; k++) { const a = a0 + k * 0.15, tx = Math.max(-399, Math.min(399, x + Math.cos(a) * 900)), tz = Math.max(-399, Math.min(399, z + Math.sin(a) * 900)); if (libreVers(x, y, z, tx, tz)) n++; }
+      const sc = n + (y - monde.hauteur(A[0], A[1])) / 8 - Math.hypot(x - A[0], z - A[1]) / 900; if (!best || sc > best.sc) best = { sc, x, z, y }; // dégagé et en hauteur
+    }
+    return best;
+  };
+  // la direction où les montagnes lointaines (au-delà de 1,5 km, carte.horizon) montent le plus haut au-dessus du carré
+  const H = carte.horizon, hz = (x, z) => { const n = H.n, p = H.pas, fi = x / p + (n - 1) / 2, fj = z / p + (n - 1) / 2, i = Math.floor(fi), j = Math.floor(fj), a = fi - i, b = fj - j; return H.h[j * n + i] * (1 - a) * (1 - b) + H.h[j * n + i + 1] * a * (1 - b) + H.h[(j + 1) * n + i] * (1 - a) * b + H.h[(j + 1) * n + i + 1] * a * b; };
+  let az = 0, azMax = -1; for (let a = 0; a < 360; a += 10) { const r = a * Math.PI / 180; let m = -9; for (let d = 1500; d < 7400; d += 100) m = Math.max(m, Math.atan2(hz(Math.cos(r) * d, Math.sin(r) * d) - monde.hauteur(A[0], A[1]), d)); if (m > azMax) { azMax = m; az = r; } }
+  const e = degage(Math.cos(az), Math.sin(az)); l.horizon = { oeil: [e.x, e.y, e.z], cible: [e.x + Math.cos(az) * 1000, e.y + 55, e.z + Math.sin(az) * 1000] };
+  const o = degage(-Math.cos(az), -Math.sin(az)); l.horizonOuest = { oeil: [o.x, o.y, o.z], cible: [o.x - Math.cos(az) * 1000, o.y + 35, o.z - Math.sin(az) * 1000] };
+  l.survol = { oeil: [A[0] - 160, monde.hauteur(A[0], A[1]) + 95, A[1] + 170], cible: [A[0] + 40, monde.hauteur(A[0], A[1]), A[1] - 20] };
+  l.bord = { oeil: [330, monde.hauteur(330, 40) + 1.65, 40], cible: [900, monde.hauteur(330, 40) + 40, 60] };
+  return l;
+}
+let VUES = {};
+function placer(nom) { const v = VUES[nom] || VUES.mairie; camera.position.set(...v.oeil); camera.lookAt(...v.cible); camera.updateMatrixWorld(); return v; }
+function rendre(nom, t) {
+  placer(nom); const far = PALIERS[QUAL].brume[1] * (nom === 'survol' ? 1.45 : 1); scene.fog.far = far; scene.fog.near = PALIERS[QUAL].brume[0] * (nom === 'survol' ? 1.45 : 1); camera.far = far + 40; camera.updateProjectionMatrix();
+  ciel.position.copy(camera.position); const r = camera.far * 0.92; ciel.scale.set(r, r, r);
+  const cx = Math.round(camera.position.x), cz = Math.round(camera.position.z); soleil.target.position.set(cx, camera.position.y - 2, cz); soleil.position.set(cx + SOLEIL[0] * 160, camera.position.y + SOLEIL[1] * 160, cz + SOLEIL[2] * 160); soleil.target.updateMatrixWorld();
+  if (veg) veg.maj(camera, t || 0); decor.maj(camera, t || 0);
+  renderer.info.reset(); renderer.render(scene, camera); const i = renderer.info;
+  return { calls: i.render.calls, triangles: i.render.triangles, geometries: i.memory.geometries, textures: i.memory.textures, gl: renderer.getContext().getError() };
+}
+// le décor seul : appels de dessin et triangles (ombres comprises) dans une vue
+function seul(nom) {
+  const cach = []; scene.children.forEach((o) => { if (o !== decor.groupe && !o.isLight && o.visible) { cach.push(o); o.visible = false; } });
+  const r = rendre(nom, 1.2); cach.forEach((o) => { o.visible = true; }); return r;
+}
+ETAT.vue = (nom, t) => rendre(nom, t); ETAT.seul = seul; ETAT.noms = () => Object.keys(VUES);
+ETAT.stats = () => decor.stats;
+ETAT.qualite = (q) => { decor.qualite(q); decor.maj(camera, 0); return decor.stats; };
+ETAT.changerQualite = (q) => { // comme rendu.js : PTEXTURES vidé puis refait à la nouvelle qualité, le décor reconstruit au maj suivant
+  PTEXTURES.vider(); PTEXTURES.qualite(q); B = PTEXTURES.bati(); Dt = PTEXTURES.details(); decor.qualite(q); const r = rendre(VUE, 0.5); return { r, s: decor.stats };
+};
+ETAT.liberer = () => { const g0 = renderer.info.memory.geometries; decor.liberer(); rendre(VUE, 0); return { avant: g0, apres: renderer.info.memory.geometries }; };
+Object.defineProperty(ETAT, 'scene', { get: () => scene }); Object.defineProperty(ETAT, 'renderer', { get: () => renderer }); Object.defineProperty(ETAT, 'camera', { get: () => camera });
+ETAT.atlas = () => decor.atlas ? decor.atlas.toDataURL('image/png') : null;
+ETAT.remarquables = () => decor.remarquables; ETAT.facades = () => decor.facades;
+ETAT.recreer = (mode) => { // un autre décor (sans texture, ou pierre en moellons), construit et rendu sans erreur
+  const d = PDECOR.creer(carte, monde, { qualite: QUAL, textures: mode === 'sans' ? null : PTEXTURES, bati: mode === 'bati' ? B : null, dossier: DOSSIER, photo: false });
+  scene.add(d.groupe); d.maj(camera, 0); const vis = decor.groupe.visible; decor.groupe.visible = false; placer(VUE); renderer.render(scene, camera); const err = renderer.getContext().getError(); decor.groupe.visible = vis; const st = d.stats; d.liberer(); return { gl: err, stats: st };
+};
+ETAT.photoBord = async () => { for (let k = 0; k < 50 && !decor.stats.photo; k++) await new Promise((r) => setTimeout(r, 100)); return decor.stats.photo; };
+// le raccord de l'horizon : couleur rendue de part et d'autre du bord du carré, vu d'en haut
+ETAT.raccord = () => {
+  const L = carte.taille, x = L / 2, z = 40, y = monde.hauteur(x - 1, z);
+  camera.position.set(x - 60, y + 70, z); camera.lookAt(x + 10, y, z); camera.updateMatrixWorld(); scene.fog.near = 170; scene.fog.far = 640; camera.far = 680; camera.updateProjectionMatrix();
+  ciel.position.copy(camera.position); ciel.scale.setScalar(600); if (veg) veg.groupe.visible = false; decor.maj(camera, 0); renderer.render(scene, camera); if (veg) veg.groupe.visible = true;
+  const gl = renderer.getContext(), lire = (px, pz, py) => { const v = new THREE.Vector3(px, py, pz).project(camera), W = gl.drawingBufferWidth, H = gl.drawingBufferHeight, u = Math.round((v.x + 1) / 2 * W), w = Math.round((v.y + 1) / 2 * H), o = new Uint8Array(4 * 9); gl.readPixels(u - 1, w - 1, 3, 3, gl.RGBA, gl.UNSIGNED_BYTE, o); let r = 0, g = 0, b = 0; for (let k = 0; k < 9; k++) { r += o[4 * k]; g += o[4 * k + 1]; b += o[4 * k + 2]; } return [r / 9 | 0, g / 9 | 0, b / 9 | 0]; };
+  const res = []; for (let zz = -60; zz <= 140; zz += 25) { res.push([lire(x - 4, zz, monde.hauteur(x - 4, zz)), lire(x + 4, zz, monde.hauteur(x - 1, zz))]); } return res;
+};
+async function lancer() {
+  try {
+    carte = await (await fetch(DOSSIER + 'poncin.json')).json(); monde = PMONDE.creer(carte);
+    const cv = document.getElementById('vue'); renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
+    renderer.setPixelRatio(Math.min(PALIERS[QUAL].dpr, devicePixelRatio || 1)); renderer.setSize(innerWidth, innerHeight, false); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.setClearColor(C.brume);
+    renderer.shadowMap.enabled = !!PALIERS[QUAL].ombres; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    PTEXTURES.init(renderer); PTEXTURES.qualite(QUAL);
+    scene = new THREE.Scene(); scene.fog = new THREE.Fog(C.brume, PALIERS[QUAL].brume[0], PALIERS[QUAL].brume[1]);
+    camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, PALIERS[QUAL].brume[1] + 40); camera.rotation.order = 'YXZ'; scene.add(camera);
+    scene.add(new THREE.HemisphereLight(C.cielHemi, C.solHemi, 2.0)); soleil = new THREE.DirectionalLight(C.soleil, 2.0); soleil.castShadow = !!PALIERS[QUAL].ombres; soleil.shadow.mapSize.set(1024, 1024); soleil.shadow.bias = -0.0006; soleil.shadow.normalBias = 0.04;
+    const sc = soleil.shadow.camera; sc.left = -40; sc.right = 40; sc.top = 40; sc.bottom = -40; sc.near = 1; sc.far = 400; sc.updateProjectionMatrix(); scene.add(soleil, soleil.target);
+    B = PTEXTURES.bati(); Dt = PTEXTURES.details();
+    construireCiel(); await construireSol();
+    const t0 = performance.now(); decor = PDECOR.creer(carte, monde, { qualite: QUAL, textures: MODE === 'sans' ? null : PTEXTURES, bati: MODE === 'bati' ? () => B : null, dossier: DOSSIER }); ETAT.mesures.creer = +(performance.now() - t0).toFixed(1);
+    scene.add(decor.groupe);
+    if (P.get('batiments') !== '0') construireBatiments();
+    if (P.get('vegetation') !== '0') { veg = PVEGETATION.creer(carte, monde, { qualite: QUAL, dossier: DOSSIER }); if (veg) scene.add(veg.groupe); }
+    VUES = vues(); await ETAT.photoBord();
+    const r = rendre(VUE, 1.5); ETAT.rendu = r;
+    if (P.get('info')) { const el = document.getElementById('info'); el.hidden = false; const s = decor.stats; el.textContent = `${VUE} · ${QUAL} · scène ${r.calls} appels ${(r.triangles / 1000).toFixed(1)}k · décor ${s.appels} appels ${(s.triangles / 1000).toFixed(1)}k`; }
+  } catch (e) { ETAT.erreurs.push(String(e && e.stack || e)); }
+  ETAT.pret = true;
+}
+lancer();
+</script>
+</body></html>

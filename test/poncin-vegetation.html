@@ -17,8 +17,10 @@ html,body{margin:0;height:100%;overflow:hidden;background:#E2EBEE;font:11px/1.25
 <script>
 // La page de test de la végétation (test/poncin-vegetation.cjs) : la VRAIE carte (poncin/carte/poncin.json), le sol en photo aérienne
 // (la photo fine autour de l'arène), des bâtiments extrudés avec les matières de PTEXTURES, l'eau, un ciel, la brume, les lumières et
-// les ombres comme rendu.js ; puis PVEGETATION. ?vue=place | ain | bois | haut | herbe, ?qualite=haute | moyenne | eco ;
-// ?x=&z=&yaw=&pitch=&h= pour viser ailleurs ; ?info=1 affiche les stats. window.__veg : pret, erreurs, stats, rendu, vue(nom), majs(n).
+// les ombres comme rendu.js ; puis PVEGETATION. ?vue=place | ain | saules | bois | herbe | haut (sur la vraie carte), planche (chaque
+// espèce à 25, 95 et 220 m sur une carte de démonstration), atlas (la texture, ?zoom=x,y,k) ; ?qualite=haute | moyenne | eco ;
+// ?x=&z=&yaw=&pitch=&h=&fov= pour viser ailleurs ; ?forcer=moyen | loin (tout à ce niveau de détail) ; ?info=1 affiche les stats.
+// window.__veg : pret, erreurs, creation, stats, etat, vue(nom), majs(n), qualite(q), herbeInterdite(), semis(), recreer().
 'use strict';
 const P = new URLSearchParams(location.search), QUAL = P.get('qualite') || 'haute', VUE = P.get('vue') || 'place';
 const V = window.__veg = { pret: false, erreurs: [] };
@@ -30,6 +32,7 @@ const SOLEIL = (() => { const x = -0.52, y = 0.66, z = 0.54, l = Math.hypot(x, y
 const VUES = {
   place: { x: 109, z: 13, h: 1.6, yaw: 0.86, pitch: 0.12 },        // sous les platanes de la place Xavier-Bichat
   ain: { x: -316, z: 156, h: 1.6, yaw: 0.52, pitch: 0.1 },          // la rive de l'Ain : peupliers en file, saules
+  saules: { x: -305, z: 75, h: 1.6, yaw: 1.35, pitch: 0.12 },       // les saules de la rive, parmi les grands feuillus
   bois: { x: 260, z: -100, h: 1.6, yaw: -1.28, pitch: 0.08 },       // les bois de la colline à l'est
   herbe: { x: -200, z: 60, h: 1.6, yaw: 1.2, pitch: -0.12 },        // un pré : l'herbe et les fleurs autour du joueur
   haut: { x: 2, z: 135, h: 0, y: 323.5, vers: [69, 271.5, 2.7] },   // la vue d'ensemble, comme le survol de rendu.js (165 m de la place, 58 m au-dessus)
@@ -134,6 +137,15 @@ function herbeInterdite() {
   }
   return { n, mal, ex };
 }
+// le semis des bois : seulement sur une vieille carte (arbres [x, z, h] sans espèce) ; la carte réelle (5 valeurs) n'en a pas besoin
+function semis() {
+  const bois = { p: [[-60, -60], [60, -60], [60, 60], [-60, 60]], t: 'bois' }, base = { v: 1, taille: 400, relief: { pas: 400, n: 2, h: [0, 0, 0, 0] }, batiments: [], rues: [], eau: [], vegetation: [bois], sol: null, zones: null };
+  const m = PMONDE.creer(base), r = {};
+  for (const [nom, arbres] of [['vieille', [[0, 0, 12], [20, 5, 9]]], ['neuve', [[0, 0, 12, 4, 'feuillu'], [20, 5, 9, 3, 'tilleul']]], ['vide', []]]) {
+    const v = PVEGETATION.creer(Object.assign({}, base, { arbres }), m, { qualite: QUAL, photo: false }); r[nom] = { arbres: v.stats.arbres, semes: v.stats.semes }; v.liberer();
+  }
+  return r;
+}
 // une seconde végétation : l'atlas n'est pas repeint ; libérer rend ses géométries
 function recreer() {
   rendre(); const geoAvant = renderer.info.memory.geometries, t0 = performance.now(), v2 = PVEGETATION.creer(carte, monde, { qualite: QUAL, dossier: '../poncin/carte/', photo: false }), ms = +(performance.now() - t0).toFixed(1);
@@ -164,7 +176,7 @@ async function demarrer() {
     const z = (P.get('zoom') || '0,0,1').split(',').map(Number), out = document.createElement('canvas'); out.width = innerWidth * 2; out.height = innerHeight * 2; out.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;background:repeating-conic-gradient(#8a8aa0 0 25%,#6d6d86 0 50%) 0 0/16px 16px';
     const o = out.getContext('2d'), k = out.height / S * z[2]; o.drawImage(cv, -z[0] * k, -z[1] * k, S * k, S * k); document.body.append(out);
   }
-  V.vue = vue; V.majs = majs; V.rendre = rendre; V.qualite = (q) => veg.qualite(q); V.herbeInterdite = herbeInterdite; V.recreer = recreer;
+  V.vue = vue; V.majs = majs; V.rendre = rendre; V.qualite = (q) => veg.qualite(q); V.herbeInterdite = herbeInterdite; V.recreer = recreer; V.semis = semis;
   V.etat = vue(VUE); V.stats = veg.stats;
   if (P.get('info')) { const i = document.getElementById('info'); i.hidden = false; const s = V.etat.veg; i.textContent = `${QUAL} · ${VUE} · végétation ${s.calls} appels, ${(s.triangles / 1000).toFixed(1)}k tri · ${JSON.stringify(veg.stats.instances)}`; }
   V.pret = true;
