@@ -833,7 +833,7 @@ function tas(n) { // file de priorité (le plus grand d'abord)
     tirer() { const k = id[0], v = p[--t], kk = id[t]; let i = 0; for (;;) { let c = 2 * i + 1; if (c >= t) break; if (c + 1 < t && p[c + 1] > p[c]) c++; if (p[c] <= v) break; p[i] = p[c]; id[i] = id[c]; i = c; } p[i] = v; id[i] = kk; return k; },
   };
 }
-function detecterCouronnes({ N, L, rgb, irc, mnh, batiments }) { // → { couronnes: [{ x, z, r, h, nir, v }], seuilV, pixels }
+function detecterCouronnes({ N, L, rgb, irc, mnh, batiments, eau = [], ponts = [] }) { // → { couronnes: [{ x, z, r, h, nir, v }], seuilV, pixels }
   const ps = L / N, h = L / 2, NN = N * N, A = CONFIG.arbres, bat = masqueBatiments(batiments, L, N);
   const V = new Float32Array(NN), lum = new Float32Array(NN); // indice de végétation : (PIR − R) / (PIR + R) sur l'infrarouge, sinon un indice de vert
   for (let k = 0; k < NN; k++) {
@@ -847,7 +847,10 @@ function detecterCouronnes({ N, L, rgb, irc, mnh, batiments }) { // → { couron
     const m1 = flouGauss(lum, N, 1.2 / ps), m2 = flouGauss(lum.map((x) => x * x), N, 1.2 / ps); tex = new Float32Array(NN); for (let k = 0; k < NN; k++) tex[k] = Math.sqrt(Math.max(0, m2[k] - m1[k] * m1[k]));
     const e2 = []; for (let k = 0; k < NN; k += 7) if (V[k] > sV && bat[k] < 0.3) e2.push(tex[k]); sT = Math.max(6, otsu(e2, 0, 60));
   }
-  for (let k = 0; k < NN; k++) { if (bat[k] >= 0.3) continue; T[k] = mnh ? (mnh[k] >= 2.5 && (V[k] > sV - 0.08 || (mnh[k] >= 6 && V[k] > sV - 0.18)) ? 1 : 0) : (V[k] > sV && tex[k] > sT ? 1 : 0); }
+  // au-dessus de l'eau, le LiDAR ne voit rien d'autre que les couronnes qui la surplombent (la photo, elle, y montre souvent l'eau : arbres penchés, prise de vue oblique)
+  const surEau = mnh && eau.length ? rasterPolys(eau.map((e) => e.p), L, N) : null;
+  if (surEau) for (const p of ponts) { const m = p.w / 2 + 2; for (let v = Math.max(0, Math.floor((Math.min(p.l[0][1], p.l[1][1]) - m + h) / ps)); v <= Math.min(N - 1, Math.ceil((Math.max(p.l[0][1], p.l[1][1]) + m + h) / ps)); v++) for (let u = Math.max(0, Math.floor((Math.min(p.l[0][0], p.l[1][0]) - m + h) / ps)); u <= Math.min(N - 1, Math.ceil((Math.max(p.l[0][0], p.l[1][0]) + m + h) / ps)); u++) if (distSeg(-h + (u + 0.5) * ps, -h + (v + 0.5) * ps, p.l[0][0], p.l[0][1], p.l[1][0], p.l[1][1]) < m) surEau[v * N + u] = 0; }
+  for (let k = 0; k < NN; k++) { if (bat[k] >= 0.3) continue; T[k] = mnh ? (mnh[k] >= 2.5 && (V[k] > sV - 0.08 || (mnh[k] >= 6 && V[k] > sV - 0.18) || (surEau && surEau[k] && mnh[k] >= 5)) ? 1 : 0) : (V[k] > sV && tex[k] > sT ? 1 : 0); }
   const M = morpho(morpho(T, N, true), N, false); enleverPetits(M, N, Math.round(3 / (ps * ps))); // ouverture, puis les taches de moins de 3 m²
   let S; // la surface dont les sommets sont les cimes
   if (mnh) { const hm = new Float32Array(NN); for (let k = 0; k < NN; k++) hm[k] = M[k] ? mnh[k] : 0; S = flouGauss(hm, N, 0.5 / ps); for (let k = 0; k < NN; k++) if (!M[k]) S[k] = 0; }
@@ -929,7 +932,7 @@ async function etapeArbres(R, L, carte, info, o) {
   const mnhAu = (q, r = 1.5) => { if (!mnh) return 0; let m = 0; const u0 = Math.floor((q[0] + h) / ps), v0 = Math.floor((q[1] + h) / ps), k = Math.ceil(r / ps); for (let v = v0 - k; v <= v0 + k; v++) for (let u = u0 - k; u <= u0 + k; u++) if (u >= 0 && v >= 0 && u < N && v < N && mnh[v * N + u] > m) m = mnh[v * N + u]; return m; };
   let cs = [];
   if (o && (mnh || irc)) {
-    const d = detecterCouronnes({ N, L, rgb: o.brut, irc, mnh, batiments: carte.batiments }); cs = d.couronnes; st.couronnes = cs.length;
+    const d = detecterCouronnes({ N, L, rgb: o.brut, irc, mnh, batiments: carte.batiments, eau: carte.eau, ponts: carte.ponts }); cs = d.couronnes; st.couronnes = cs.length;
     log(`arbres : ${cs.length} couronnes détectées (${mnh ? 'LiDAR HD' : 'texture'} + ${irc ? 'infrarouge' : 'photo couleur'} ; seuil de végétation ${d.seuilV.toFixed(3)}${mnh ? '' : `, de texture ${d.seuilTex.toFixed(1)}`} ; ${(d.pixels * ps * ps / 1e4).toFixed(2)} ha de couronnes)`);
   } else repli('ni LiDAR ni infrarouge : arbres OSM, rangées et semis dans les bois');
   // les zones : BD TOPO (nature) et OSM (vergers, bois et leaf_type)
@@ -1738,6 +1741,7 @@ function essai() {
   for (let z = 10; z <= 110; z += 10) arbre(106.5, z, 3, 11, 'tilleul'); // l'alignement de la Rue B
   for (let x = -106; x <= -64; x += 7) for (let z = -296; z <= -254; z += 7) arbre(x, z, 2, 4.5, 'fruitier'); // un verger (BD TOPO)
   for (const [x, z] of [[-112, 12], [62, 186], [196, 52]]) arbre(x, z, 4.2, 13, 'feuillu'); // des arbres isolés dans les jardins
+  const surplomb = []; for (let z = 120; z <= 150; z += 10) surplomb.push({ x: xAin(z) + 29, z, r: 3.5, h: 12 }); // des couronnes au-dessus de l'Ain : le LiDAR les voit, les photos montrent l'eau
   chemin(rect(250, -320, 330, -220), { landuse: 'forest' }, true);
   chemin(rect(-200, -300, -120, -220), { landuse: 'vineyard' }, true);
   chemin(rect(150, 150, 260, 250), { landuse: 'meadow' }, true);
@@ -1763,6 +1767,7 @@ function essai() {
   const idxB = grille(20); peints.forEach((p) => idxB.ajouter(boite(p), { p, ardoise: ardoises.includes(p) }));
   const hauteurVraie = (x, z) => { // le MNH : couronnes (dôme ou cône), bâtiments, haies
     let hh = 0; for (const a of idxV.autour(x, z, 0)) { const d = Math.hypot(x - a.x, z - a.z); if (d < a.r) hh = Math.max(hh, a.cone ? a.h * (1 - d / a.r) + 2 : a.h * Math.sqrt(1 - (d / a.r) ** 2)); }
+    for (const a of surplomb) { const d = Math.hypot(x - a.x, z - a.z); if (d < a.r) hh = Math.max(hh, a.h * Math.sqrt(1 - (d / a.r) ** 2)); }
     for (const b of idxB.autour(x, z, 0)) if (dedans(x, z, b.p)) hh = Math.max(hh, 8);
     for (const hz of haiesBD) if (distBord(x, z, hz.l, false) < 0.5) hh = Math.max(hh, 2);
     if (distBord(x, z, haieOSM, false) < 0.6) hh = Math.max(hh, 1.6);
@@ -1831,7 +1836,7 @@ function essai() {
     }
     return rep(404, 'inconnu');
   };
-  return { appels, relief, reliefLL, Rc, C, vrais, attendu };
+  return { appels, relief, reliefLL, Rc, C, vrais, attendu, surplomb };
 }
 async function verifierEssai(m, res) {
   const { carte: c, info, R, ortho: o } = res, ok = [], ko = [];
@@ -1900,7 +1905,9 @@ async function verifierEssai(m, res) {
   const proche = (q, l, f) => { let b = null, bd = Infinity; for (const a of l) { const d = Math.hypot(f(a)[0] - q[0], f(a)[1] - q[1]); if (d < bd) { bd = d; b = a; } } return [b, bd]; };
   const trouves = vrais.map((a) => { const [b, d] = proche(a.q, c.arbres, (x) => x); return { a, b, d }; }).filter((x) => x.d < 2);
   t(trouves.length >= vrais.length * 0.9, `arbres retrouvés : ${trouves.length}/${vrais.length} à moins de 2 m`);
-  const faux = c.arbres.filter((b) => proche(b, vrais, (a) => a.q)[1] > 2.5); t(faux.length <= c.arbres.length * 0.08, `fausses couronnes : ${faux.length}/${c.arbres.length}`);
+  const surpl = m.surplomb.map((a) => VX([a.x, a.z])), faux = c.arbres.filter((b) => proche(b, vrais, (a) => a.q)[1] > 2.5 && proche(b, surpl, (q) => q)[1] > 6); t(faux.length <= c.arbres.length * 0.08, `fausses couronnes : ${faux.length}/${c.arbres.length}`);
+  const rive = surpl.filter((q) => { const [b, d] = proche(q, c.arbres, (x) => x); return d < 6 && !c.eau.some((e) => dedans(b[0], b[1], e.p)); });
+  t(rive.length >= surpl.length - 1, `couronnes au-dessus de l'eau (LiDAR seul) : ${rive.length}/${surpl.length} gardées, troncs ramenés sur la berge`);
   const med = (l) => l.slice().sort((x, y) => x - y)[l.length >> 1], er = med(trouves.map((x) => Math.abs(x.b[3] - x.a.r) / x.a.r)), eh = med(trouves.map((x) => Math.abs(x.b[2] - x.a.h) / x.a.h));
   t(er < 0.3 && eh < 0.12, `rayons des couronnes (écart médian ${(100 * er).toFixed(0)} %) et hauteurs LiDAR (${(100 * eh).toFixed(0)} %)`);
   const parEsp = {}; for (const x of trouves) { const k = x.a.e; parEsp[k] = parEsp[k] || [0, 0]; parEsp[k][1]++; if (x.b[4] === k) parEsp[k][0]++; }
