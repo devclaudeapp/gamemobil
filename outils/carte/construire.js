@@ -681,12 +681,20 @@ function mursSol(ctx) { // murs, clôtures, portails (OSM barrier=*, BD TOPO con
   return { murs: res, stats };
 }
 function haiesSol(ctx) { // haies : BD TOPO (hauteur, largeur) et OSM barrier=hedge ; coupées aux voies et aux bâtiments
-  const { h, objets, autres } = ctx, res = [], stats = { bdtopo: 0, osm: 0 };
+  const { h, objets, autres } = ctx, res = [], stats = { bdtopo: 0, zone: 0, osm: 0 };
   const poser = (l0, H, W, src, mesure) => {
     const coupes = croisementsRues(ctx, l0), bon = (q) => !DANS_BATI(ctx, q, 0.1) && !coupes.some((c) => dist(c.q, q) < c.w / 2 + 0.5);
     for (const m of couperLigne(l0, h)) for (const morceau of decouperLigne(m.l, bon, 0.5, 1.5)) { const l = nettoyer(dp(morceau, 0.3), false); if (l.length >= 2) { res.push({ l, h: r1(H), w: r1(W), mesure }); stats[src]++; } }
   };
   for (const o of autres.haies || []) { const H = +o.props.hauteur, W = +o.props.largeur; for (const l of o.lignes) poser(l, H >= 0.5 && H <= 8 ? H : 1.8, W >= 0.4 && W <= 8 ? W : 1.0, 'bdtopo', !(H >= 0.5 && H <= 8)); }
+  for (const z of autres.vegetation || []) { // les zones de végétation « Haie » de la BD TOPO : leur grand axe, quand elles sont allongées
+    if (!/haie/i.test(z.props.nature || '')) continue;
+    for (const p of z.polys) {
+      const r = rectangle(p); if (!r) continue; const lg = dist(r.l[0], r.l[1]); if (r.w > 8 || lg < 3 * r.w || Math.abs(aire(p)) < 0.6 * lg * r.w) continue;
+      const d = densifier(r.l, 1); if (d.filter((q) => res.some((x) => distBord(q[0], q[1], x.l, false) < 3)).length > d.length * 0.6) continue;
+      poser(r.l, 1.8, clamp(r.w, 0.6, 6), 'zone', true);
+    }
+  }
   const bd = res.slice();
   for (const o of objets) {
     if (o.tags.barrier !== 'hedge' || o.type === 'node') continue; const H = parseFloat(o.tags.height), W = parseFloat(o.tags.width);
@@ -1648,7 +1656,7 @@ function rapport(c, info, R) {
     `végétation : ${c.vegetation.length} ${JSON.stringify(compter(c.vegetation, (v) => v.t))} (sens des rangs : ${T.sensPhoto || 0} par la photo, ${T.sensAxe || 0} par le grand axe) ; interdit : ${c.interdit.map((z) => z.n).join(', ') || 'aucun'}`,
     `arbres : ${c.arbres.length} ${JSON.stringify(A.especes)} — ${A.couronnes} couronnes détectées (${A.sources ? `${A.sources.hauteur || 'sans LiDAR'} ; ${A.sources.vegetation || 'sans infrarouge'}` : ''}), ${A.fusionOSM} reconnues par un arbre OSM, ${A.osm} arbres OSM ajoutés, ${A.rangees} de rangées OSM, ${A.semes} semés (repli), ${A.ecartes} écartés ${JSON.stringify(A.raisons || {})}, ${A.haies} haies basses`,
     `BD TOPO (autres couches) : ${['vegetation', 'haies', 'ponctuel', 'lineaire', 'cimetiere', 'sport'].map((k) => `${k} ${(info.autres[k] || []).length}${(info.autres[k] || []).length && info.autres[k][0].props.nature !== undefined ? ' [' + histo(info.autres[k], (o) => o.props.nature, 8) + ']' : ''}`).join(' ; ')}`,
-    `haies : ${c.haies.length} (BD TOPO ${info.stHaies.bdtopo}, OSM ${info.stHaies.osm} ; hauteur mesurée sur le LiDAR : ${A.haiesMesurees || 0}) ; murs : ${c.murs.length} ${JSON.stringify(compter(c.murs, (m) => m.t))} (OSM ${info.stMurs.osm}, BD TOPO ${info.stMurs.bdtopo}, portails ${info.stMurs.portails})`,
+    `haies : ${c.haies.length} (BD TOPO ${info.stHaies.bdtopo} + ${info.stHaies.zone} zones « Haie », OSM ${info.stHaies.osm} ; hauteur mesurée sur le LiDAR : ${A.haiesMesurees || 0}) ; murs : ${c.murs.length} ${JSON.stringify(compter(c.murs, (m) => m.t))} (OSM ${info.stMurs.osm}, BD TOPO ${info.stMurs.bdtopo}, portails ${info.stMurs.portails})`,
     `surfaces : ${c.surfaces.length} ${JSON.stringify(compter(c.surfaces, (s) => s.t))} ; mobilier : ${c.mobilier.length} ${JSON.stringify(compter(c.mobilier, (m) => m.t))} (OSM ${info.stMob.osm}, BD TOPO ${info.stMob.bdtopo})`,
     `enseignes (${c.enseignes.length}) : ${c.enseignes.map((e) => `${e.n} [${e.t}]`).join(' · ')}`,
     `objets nommés : église ${JSON.stringify(c.batiments.filter((b) => b.t === 'eglise').map((b) => b.n || '(sans nom)'))}, mairie ${JSON.stringify(c.batiments.filter((b) => b.t === 'mairie').map((b) => b.n || '(sans nom)'))}, château ${JSON.stringify([...new Set(c.batiments.filter((b) => b.t === 'chateau').map((b) => b.n || '(sans nom)'))])}`,
@@ -1728,7 +1736,7 @@ function essai() {
   chemin(rect(250, -320, 330, -220), { landuse: 'forest' }, true);
   chemin(rect(-200, -300, -120, -220), { landuse: 'vineyard' }, true);
   chemin(rect(150, 150, 260, 250), { landuse: 'meadow' }, true);
-  const zonesVeg = [{ p: rect(118, -342, 224, -258), nature: 'Forêt fermée de conifères' }, { p: rect(-110, -300, -60, -250), nature: 'Verger' }];
+  const zonesVeg = [{ p: rect(118, -342, 224, -258), nature: 'Forêt fermée de conifères' }, { p: rect(-110, -300, -60, -250), nature: 'Verger' }, { p: rect(-60, -232, 0, -230), nature: 'Haie' }];
   const haiesBD = [{ l: [[-100, -200], [-20, -200]], hauteur: 2, largeur: 1 }], haieOSM = [[60, 240], [95, 240]];
   chemin(haieOSM, { barrier: 'hedge' });
   // les murs, un portail, une clôture, un mur de soutènement ; un mur qui traverse la Rue A (il doit être coupé)
@@ -1894,7 +1902,8 @@ async function verifierEssai(m, res) {
   t(['conifere', 'peuplier', 'tilleul', 'fruitier', 'platane'].every((k) => parEsp[k] && parEsp[k][0] >= parEsp[k][1] * 0.7), `espèces : ${Object.entries(parEsp).map(([k, v]) => `${k} ${v[0]}/${v[1]}`).join(', ')}`);
   t(c.arbres.every((a) => a.length === 5 && ESPECES.includes(a[4])) && c.arbres.every((a) => !c.batiments.some((b) => dedans(a[0], a[1], b.p)) && !c.eau.some((e) => dedans(a[0], a[1], e.p))), 'arbres [x, z, h, r, e] : aucun tronc dans un bâtiment ni dans l’eau');
   // les haies, les murs, le mobilier, les enseignes, les surfaces
-  const hBD = c.haies.find((x) => Math.abs(x.h - 2) < 0.05 && x.w === 1), hOSM = c.haies.find((x) => x !== hBD);
+  const hBD = c.haies.find((x) => Math.abs(x.h - 2) < 0.05 && x.w === 1), hOSM = c.haies.find((x) => x !== hBD && x.w !== 2);
+  t(c.haies.length === 3 && c.haies.some((x) => x.w === 2 && Math.abs(dist(x.l[0], x.l[x.l.length - 1]) - 60) < 1), 'haies : la zone de végétation « Haie » de la BD TOPO devient une haie (son grand axe)');
   t(!!hBD && !!hOSM && Math.abs(hOSM.h - 1.6) < 0.35 && !c.arbres.some((a) => c.haies.some((x) => distBord(a[0], a[1], x.l, false) < 1)), `haies : BD TOPO (2 m) et OSM (hauteur mesurée sur le LiDAR : ${hOSM && hOSM.h} m) ; aucun arbre dessus`);
   const ts = new Set(c.surfaces.map((s) => s.t)); t(['paves', 'parking', 'cimetiere', 'gravier', 'herbe'].every((x) => ts.has(x)), `surfaces : ${[...ts].join(', ')}`);
   const rueA = VX([-30, 120]), mursRueA = c.murs.filter((w) => w.l.some((q) => Math.abs(q[1] - rueA[1]) < 1)), coupe = mursRueA.length >= 2 && mursRueA.every((w) => w.l.every((q) => Math.abs(q[0] - rueA[0]) > 3));
