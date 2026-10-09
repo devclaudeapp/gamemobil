@@ -5,7 +5,15 @@
    bâtiments, clôtures des zones interdites, berges (sauf dans le couloir des ponts, dont les côtés deviennent des parapets au-dessus de
    l'eau) et bord du carré. Chaque arête est inscrite dans toutes les cellules à moins de MARGE d'elle : un cercle de rayon ≤ MARGE n'a
    besoin que de sa propre cellule. L'intérieur des polygones (est-on dedans ?) se lit par pair-impair, sauf dans les cellules sans
-   arête, dont l'état (libre ou plein) est calculé une fois pour toutes. Aucune allocation dans les chemins chauds hors du résultat rendu. */
+   arête, dont l'état (libre ou plein) est calculé une fois pour toutes. Aucune allocation dans les chemins chauds hors du résultat rendu.
+   Une position déjà DANS une région pleine (téléportation ratée : jamais en jeu normal) est rendue par deplacer au point libre le plus proche.
+   L'API (contrat) : monde.L, hauteur(x, z), bloque(x, z, r), deplacer(x, z, dx, dz, r) → [x, z], rayon(o…, d…, max) → { t, x, y, z,
+   nx, ny, nz, quoi: 'mur' | 'toit' | 'sol', i } | null (i : indice du bâtiment, −1 pour le sol ; normale tournée vers le tireur),
+   vue(a…, b…), libre(rnd, centre?, rayon?) → [x, z], limite, batiments [{ p, h, t, base, sommet, aabb, … }] (p dans le sens d'aire signée
+   Σ(x_i·z_{i+1} − x_{i+1}·z_i) > 0 : la normale extérieure de l'arête a→b est (bz − az, ax − bx) / longueur).
+   En plus : passe(ax, az, bx, bz, r) (la capsule du segment ne touche rien), dedans(x, z) (dans une région pleine), pente(x, z) →
+   [dh/dx, dh/dz] (tableau partagé, à copier), couloirs (les ponts), interdits, stats ; accessible (x, z) → bool, branché par PNAV.creer :
+   libre() préfère alors la composante principale de la navigation (jamais une cour fermée). */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'));
   else root.PMONDE = factory(root.PREGLES);
@@ -343,10 +351,18 @@
       if (LM >= 0) { const dx = qx - LCX, dz = qz - LCZ; if (dx * dx + dz * dz > (LM + 1e-6) * (LM + 1e-6)) return false; }
       QX = qx; QZ = qz; return true;
     }
+    function ejecter(x, z, r) { // le point libre le plus proche d'une position perdue dans une région pleine (jamais en jeu normal)
+      for (let d = 0.25; d <= 40; d += 0.25) {
+        const n = Math.max(8, Math.ceil(d * 6));
+        for (let a = 0; a < n; a++) { const qx = x + Math.cos(a * 2 * Math.PI / n) * d, qz = z + Math.sin(a * 2 * Math.PI / n) * d; if (!bloque(qx, qz, r)) return [qx, qz]; }
+      }
+      return secours();
+    }
     function deplacer(x, z, dx, dz, r) {
       if (!fini(x) || !fini(z)) { const s = secours(); return [s[0], s[1]]; }
       if (!fini(dx) || !fini(dz)) { dx = 0; dz = 0; }
       r = fini(r) && r > 0.01 ? +r : 0.01;
+      if (dedans(x, z)) return ejecter(x, z, r); // dans un mur, dans l'eau, hors du carré : on ressort au plus près plutôt que d'y rester
       let lg = Math.sqrt(dx * dx + dz * dz);
       if (lg < 1e-12) return [x, z];
       const pas = 0.9 * r; let n = Math.ceil(lg / pas);
@@ -389,11 +405,11 @@
 
     // ─── rayon : le premier mur, toit ou bout de terrain touché (bâtiments = prismes de base à sommet, toits plats) ───
     const H = { t: 0, x: 0, y: 0, z: 0, nx: 0, ny: 0, nz: 0, quoi: '', i: -1 };
-    function solEn(ox, oy, oz, dx, dy, dz, tFin) { // la marche sur le terrain (pas bornés par la pente, puis dichotomie) ; renvoie t ou −1
-      if (!rh || !(tFin > 0)) return -1;
+    function solEn(ox, oy, oz, dx, dy, dz, tDeb, tFin) { // la marche sur le terrain (pas bornés par la pente, puis dichotomie) ; renvoie t ou −1
+      if (!rh || !(tFin > tDeb)) return -1;
       const f = (t) => oy + dy * t - hauteur(ox + dx * t, oz + dz * t);
-      let a = 0, fa = f(0);
-      if (fa < 0) return 0;
+      let a = tDeb, fa = f(a);
+      if (fa < 0) return a;
       if (dy >= 0 && oy > hMax) return -1;
       if (dy < 0) { const tb = (oy - hMin) / -dy; if (tb < tFin) tFin = tb + 1e-6; } // sous le point le plus bas, plus rien à toucher
       const K = Math.abs(dy) + penteMax * Math.sqrt(dx * dx + dz * dz) + 1e-9;
@@ -411,10 +427,10 @@
     function lancer(ox, oy, oz, dx, dy, dz, max) { // remplit H, renvoie vrai si quelque chose est touché avant max
       let best = max, quoi = 0, bi = -1, bnx = 0, bny = 0, bnz = 0;
       const hl = Math.sqrt(dx * dx + dz * dz), t = nouveauTour();
-      // la sortie du carré borne la recherche (au-delà, il n'y a plus de monde)
-      let tSort = max;
-      if (dx > 0) tSort = Math.min(tSort, (X1 - ox) / dx); else if (dx < 0) tSort = Math.min(tSort, (X0 - ox) / dx);
-      if (dz > 0) tSort = Math.min(tSort, (X1 - oz) / dz); else if (dz < 0) tSort = Math.min(tSort, (X0 - oz) / dz);
+      // l'entrée dans le carré et sa sortie bornent la recherche sur le terrain (au-delà, il n'y a plus de monde)
+      let tSort = max, tEnt = 0;
+      if (dx > 0) { tSort = Math.min(tSort, (X1 - ox) / dx); tEnt = Math.max(tEnt, (X0 - ox) / dx); } else if (dx < 0) { tSort = Math.min(tSort, (X0 - ox) / dx); tEnt = Math.max(tEnt, (X1 - ox) / dx); } else if (ox < X0 || ox > X1) tSort = -1;
+      if (dz > 0) { tSort = Math.min(tSort, (X1 - oz) / dz); tEnt = Math.max(tEnt, (X0 - oz) / dz); } else if (dz < 0) { tSort = Math.min(tSort, (X0 - oz) / dz); tEnt = Math.max(tEnt, (X1 - oz) / dz); } else if (oz < X0 || oz > X1) tSort = -1;
       const n = hl > 1e-9 ? traverser(ox, oz, ox + dx * max, oz + dz * max) : (ox >= X0 && ox <= X1 && oz >= X0 && oz <= X1 ? (LC[0] = ci(oz) * G + ci(ox), LT[0] = 0, 1) : 0);
       for (let s = 0; s < n; s++) {
         if (LT[s] * max > best) break;
@@ -438,7 +454,7 @@
           best = tt; quoi = 2; bi = k; bnx = 0; bny = dy < 0 ? 1 : -1; bnz = 0;
         }
       }
-      const ts = solEn(ox, oy, oz, dx, dy, dz, Math.min(best, tSort));
+      const ts = solEn(ox, oy, oz, dx, dy, dz, tEnt, Math.min(best, tSort));
       if (ts >= 0 && ts <= best) {
         best = ts; quoi = 3; bi = -1; const g = pente(ox + dx * ts, oz + dz * ts); bnx = -g[0]; bny = 1; bnz = -g[1];
       }
@@ -450,7 +466,7 @@
       return true;
     }
     function rayon(ox, oy, oz, dx, dy, dz, max) {
-      if (![ox, oy, oz, dx, dy, dz].every(fini)) return null;
+      if (!(fini(ox) && fini(oy) && fini(oz) && fini(dx) && fini(dy) && fini(dz))) return null;
       const l = Math.sqrt(dx * dx + dy * dy + dz * dz); if (l < 1e-12) return null;
       if (Math.abs(l - 1) > 1e-9) { dx /= l; dy /= l; dz /= l; }
       max = fini(max) && max > 0 ? +max : L * 2;
@@ -458,7 +474,7 @@
       return { t: H.t, x: H.x, y: H.y, z: H.z, nx: H.nx, ny: H.ny, nz: H.nz, quoi: H.quoi, i: H.i };
     }
     function vue(ax, ay, az, bx, by, bz) {
-      if (![ax, ay, az, bx, by, bz].every(fini)) return false;
+      if (!(fini(ax) && fini(ay) && fini(az) && fini(bx) && fini(by) && fini(bz))) return false;
       const dx = bx - ax, dy = by - ay, dz = bz - az, l = Math.sqrt(dx * dx + dy * dy + dz * dz);
       if (l < 0.05) return true;
       return !lancer(ax, ay, az, dx / l, dy / l, dz / l, l - 0.02);
@@ -487,8 +503,7 @@
       }
       return [cx, cz];
     }
-    let pointSecours = null;
-    const secours = () => pointSecours || (pointSecours = libre(REGLES && REGLES.mulberry32 ? REGLES.mulberry32(7) : rndDefaut, [0, 0], L / 2));
+    const secours = () => limiteOk(monde.limite) ? libre(rndDefaut) : libre(rndDefaut, [0, 0], L / 2); // une position perdue (NaN) revient sur un point libre
 
     const monde = {
       L, limite: null, batiments, interdits, couloirs,

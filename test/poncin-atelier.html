@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Atelier 3D · Opération Poncin</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#EEF0E6;font:12px/1.3 system-ui,sans-serif;color:#2B2A4C}
+#vue3d{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
+#noms{position:fixed;inset:0;pointer-events:none}
+.nom{position:absolute;left:0;top:0;padding:2px 8px;border-radius:9px;background:rgba(255,255,255,.92);font-weight:700;white-space:nowrap;box-shadow:0 1px 0 rgba(43,42,76,.25)}
+#info{position:fixed;left:6px;bottom:4px;background:rgba(255,255,255,.75);padding:2px 6px;border-radius:6px;font-family:monospace;font-size:11px}
+#info[hidden],.nom[hidden]{display:none}
+</style>
+</head><body>
+<canvas id="vue3d"></canvas><div id="noms"></div><div id="info" hidden></div>
+<script src="../vendor/three.min.js"></script>
+<script src="../src/modeles.js"></script>
+<script src="../src/persos.js"></script>
+<script src="../src-poncin/regles.js"></script>
+<script src="../src-poncin/carte-provisoire.js"></script>
+<script src="../src-poncin/monde.js"></script>
+<script src="../src-poncin/avatars.js"></script>
+<script src="../src-poncin/rendu.js"></script>
+<script>
+// L'atelier du rendu : la vraie carte (?carte=reelle, par défaut si poncin/carte/poncin.json se charge) ou la carte provisoire
+// (?carte=provisoire&graine=1), un faux « jeu » au format du contrat (moi + un ami joueur + trois robots), des crochets pour poser la
+// caméra, tirer, éliminer et avancer le temps image par image (captures reproductibles, test/poncin-scene.cjs).
+// Servir la racine du dépôt (npx http-server .) puis ouvrir test/poncin-atelier.html ; paramètres : ?qualite=haute|moyenne|eco,
+// ?scene=rue|place|chateau|eglise|pont|haut|persos|tir|confettis|survol, ?boucle=1 (le voir vivre ; &marche=0 : robots immobiles),
+// ?noms=0 (sans étiquettes). Dans la console : atelier.scene('tir'), atelier.tir('moi', [x, y, z], 'pompe'), atelier.eliminer('b1', 'moi')…
+window.atelier = (() => {
+  'use strict';
+  const q = new URLSearchParams(location.search), R = PREGLES;
+  let carte = null, monde = null, jeu = null, t = 0, pret = null, ok = false;
+  const ent = (o) => Object.assign({ id: '?', nom: '?', couleur: '#FF6B8B', equipe: 0, humain: false, bot: true, x: 0, y: 0, z: 0, vy: 0, yaw: 0, pitch: 0, auSol: true, accroupi: false, vie: 100, armure: 0, vivant: true, mortDepuis: -1, invincible: 0, arme: 'rafale', armes: ['rafale'], munitions: { rafale: 30 }, reserve: { rafale: 90 }, rechargeJusqua: 0, prochainTir: 0, score: { kills: 0, morts: 0, points: 0 }, serie: 0 }, o);
+  async function charger() {
+    const voulu = q.get('carte') || 'reelle';
+    if (voulu !== 'provisoire') { try { const r = await fetch('../poncin/carte/poncin.json'); if (r.ok) carte = await r.json(); } catch (e) { carte = null; } }
+    if (!carte) carte = PCARTEPROV.creer(+(q.get('graine') || 1));
+    monde = PMONDE.creer(carte);
+    const A = carte.zones && carte.zones.arene; if (A) monde.limite = { centre: A.centre.slice(), rayon: A.rayon };
+    const [cx, cz] = A ? A.centre : [0, 0], h = (x, z) => monde.hauteur(x, z);
+    jeu = { temps: 0, fini: false, monde, options: { bots: 3, niveau: 'normal', equipes: false }, entites: [
+      ent({ id: 'moi', nom: 'Toi', couleur: '#FFC84A', humain: true, bot: false, x: cx, z: cz + 8, yaw: 0 }),
+      ent({ id: 'ami', nom: 'Léa', couleur: '#7FB3FF', humain: true, bot: false, x: cx - 2, z: cz, yaw: Math.PI }),
+      ent({ id: 'b1', nom: 'Boulon', couleur: '#FF6B8B', x: cx + 2, z: cz - 1, yaw: Math.PI }),
+      ent({ id: 'b2', nom: 'Pixel', couleur: '#5FD3A4', x: cx + 4.5, z: cz + 1, yaw: Math.PI * 0.8, arme: 'pompe' }),
+      ent({ id: 'b3', nom: 'Turbo', couleur: '#B8A6FF', x: cx - 5, z: cz + 2, yaw: -Math.PI * 0.8, arme: 'precision' }),
+    ], mode: { id: 'arene', objets: () => objets } };
+    for (const e of jeu.entites) e.y = h(e.x, e.z);
+    // les objets à ramasser, autour de la place
+    const Z = carte.zones || {}; objets = (Z.armes || []).slice(0, 8).map((a, i) => ({ id: 'o' + i, x: a.x, z: a.z, objet: a.arme, dispo: i % 3 !== 2 }));
+    const cv = document.getElementById('vue3d');
+    ok = PRENDU.init(cv, carte, monde, { qualite: q.get('qualite') || undefined, dossier: '../poncin/carte/', capture: true });
+    PRENDU.taille(innerWidth, innerHeight); addEventListener('resize', () => PRENDU.taille(innerWidth, innerHeight));
+    await attendreSol();
+    image(0);
+    if (q.get('scene')) scene(q.get('scene'));
+    if (q.get('boucle')) boucle();
+    return { ok, source: carte.source, taille: carte.taille, stats: PRENDU.stats };
+  }
+  let objets = [];
+  const attendreSol = () => new Promise((res) => { const t0 = performance.now(); const f = () => { const s = PRENDU.stats.sol; if (s !== 'attente' || performance.now() - t0 > 8000) res(s); else setTimeout(f, 50); }; f(); });
+  const trouver = (id) => jeu.entites.find((e) => e.id === id);
+  // les robots se promènent (un cercle chacun) quand on avance le temps avec marche = true
+  const balades = { b1: [0, 3.2, 0.8], b2: [2, 2.5, -0.6], b3: [4, 2.8, 0.7], ami: [1, 2, 0.5] };
+  let marche = false, centres = {};
+  function bouger(dt) {
+    if (!marche) return;
+    for (const id in balades) {
+      const e = trouver(id); if (!e || !e.vivant) continue; const [ph, r, w] = balades[id], c = centres[id] || (centres[id] = [e.x, e.z]);
+      const a = ph + jeu.temps * w, nx = c[0] + Math.cos(a) * r, nz = c[1] + Math.sin(a) * r;
+      e.yaw = Math.atan2(-(nx - e.x), -(nz - e.z)); e.x = nx; e.z = nz; e.y = monde.hauteur(nx, nz);
+    }
+  }
+  function image(dt, sansJeu) {
+    t += dt; if (jeu) jeu.temps += dt; bouger(dt);
+    PRENDU.image(sansJeu ? null : jeu, 'moi', dt, t);
+    noms();
+  }
+  // des étiquettes au-dessus des têtes, posées avec PRENDU.projeter (comme le HUD)
+  const elNoms = document.getElementById('noms'), tags = new Map();
+  function noms() {
+    if (q.get('noms') === '0' || !jeu) { elNoms.hidden = true; return; } elNoms.hidden = false;
+    for (const e of jeu.entites) {
+      if (e.id === 'moi') continue; let el = tags.get(e.id); if (!el) { el = document.createElement('div'); el.className = 'nom'; el.textContent = e.nom; el.style.color = e.couleur; elNoms.appendChild(el); tags.set(e.id, el); }
+      const p = PRENDU.projeter(e.x, e.y + 2.15, e.z), m = trouver('moi'), vu = !!p && p.devant && e.vivant && !atelier.titre && monde.vue(m.x, m.y + 1.6, m.z, e.x, e.y + 1.4, e.z), vis = vu;
+      el.hidden = !vis; if (vis) el.style.transform = `translate(${p.x.toFixed(1)}px, ${p.y.toFixed(1)}px) translate(-50%, -100%)`;
+    }
+  }
+  function boucle() { let der = performance.now(); const f = (now) => { requestAnimationFrame(f); const dt = Math.min(0.05, (now - der) / 1000); der = now; marche = q.get('marche') !== '0'; image(dt, atelier.titre); const s = PRENDU.stats, i = document.getElementById('info'); i.hidden = false; i.textContent = `${s.qualite} · ${s.calls} appels · ${(s.triangles / 1000).toFixed(0)}k tri · ${s.ms} ms`; }; requestAnimationFrame(f); }
+  // ─── les crochets ───
+  function camera(x, z, yaw, pitch, y) { const e = trouver('moi'); e.x = x; e.z = z; e.yaw = yaw || 0; e.pitch = pitch || 0; e.y = y == null ? monde.hauteur(x, z) : y; e.vivant = true; return e; }
+  function regarder(x, y, z) { const e = trouver('moi'), ox = e.x, oy = e.y + 1.6, oz = e.z; e.yaw = Math.atan2(-(x - ox), -(z - oz)); e.pitch = Math.atan2(y - oy, Math.hypot(x - ox, z - oz)); return [e.yaw, e.pitch]; }
+  function poser(id, o) { const e = trouver(id); if (!e) return null; Object.assign(e, o); if (o.y == null && (o.x != null || o.z != null)) e.y = monde.hauteur(e.x, e.z); return e; }
+  function devant(d, cote, faceA) { // une position à d m devant la caméra (et cote m à sa droite), tournée vers la caméra
+    const m = trouver('moi'), fx = -Math.sin(m.yaw), fz = -Math.cos(m.yaw), rx = Math.cos(m.yaw), rz = -Math.sin(m.yaw), x = m.x + fx * d + rx * (cote || 0), z = m.z + fz * d + rz * (cote || 0);
+    return { x, z, y: monde.hauteur(x, z), yaw: faceA === false ? m.yaw : Math.atan2(-(m.x - x), -(m.z - z)) };
+  }
+  // un tir au format du contrat : de l'œil du tireur vers une cible [x, y, z] (monde.rayon trouve l'impact)
+  function tir(id, cible, arme) {
+    const e = trouver(id), oy = e.y + (e.accroupi ? 1.0 : 1.6); arme = arme || e.arme; e.arme = arme;
+    let dx = cible[0] - e.x, dy = cible[1] - oy, dz = cible[2] - e.z; const l = Math.hypot(dx, dy, dz); dx /= l; dy /= l; dz /= l;
+    if (id !== 'moi') { e.yaw = Math.atan2(-dx, -dz); e.pitch = Math.asin(dy); }
+    const A = R.arme(arme), evs = [];
+    for (let k = 0; k < A.plombs; k++) {
+      const s = A.plombs > 1 ? A.dispersion : 0, a = k * 2.39996, r = s * Math.sqrt((k + 0.5) / A.plombs);
+      const ex = dx + Math.cos(a) * r * dz, ey = dy + Math.sin(a) * r, ez = dz - Math.cos(a) * r * dx, n = Math.hypot(ex, ey, ez);
+      const h = monde.rayon(e.x, oy, e.z, ex / n, ey / n, ez / n, A.portee), fin = h ? [h.x, h.y, h.z] : [e.x + ex / n * A.portee, oy + ey / n * A.portee, e.z + ez / n * A.portee];
+      evs.push({ t: 'tir', id, arme, o: [e.x, oy, e.z], fin, impact: h ? { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, quoi: h.quoi } : null });
+    }
+    PRENDU.evenements(evs, jeu); return evs.length;
+  }
+  function touche(de, a, tete) { PRENDU.evenements([{ t: 'touche', de, a, degats: 13, tete: !!tete, mort: false }], jeu); }
+  function eliminer(a, par) { const e = trouver(a); e.vivant = false; e.mortDepuis = jeu.temps; PRENDU.evenements([{ t: 'mort', a, par, arme: 'rafale' }], jeu); }
+  function revivre(a) { const e = trouver(a); e.vivant = true; e.invincible = 0; PRENDU.evenements([{ t: 'reapparition', id: a }], jeu); }
+  function etape(dt, n, sansJeu) { for (let i = 0; i < (n || 1); i++) image(dt, sansJeu); return PRENDU.stats; }
+  // ─── des points de vue tirés de la carte (calculés une fois, hors de la limite de l'arène) ───
+  function centroide(p) { let x = 0, z = 0; for (const v of p) { x += v[0]; z += v[1]; } return [x / p.length, z / p.length]; }
+  let V = null;
+  function vues() { if (V) return V; const lim = monde.limite; monde.limite = null; try { V = vues0(); } finally { monde.limite = lim; } return V; }
+  const libre = (x, z) => !monde.bloque(x, z, 0.6);
+  const oeil = (x, z) => monde.hauteur(x, z) + 1.6;
+  const portee = (x, z, yaw, max) => { const h = monde.rayon(x, oeil(x, z), z, -Math.sin(yaw), 0, -Math.cos(yaw), max || 200); return h ? h.t : max || 200; };
+  function vues0() {
+    const A = carte.zones.arene, c = A.centre, R = {};
+    const bat = (t) => monde.batiments.filter((b) => b.t === t).sort((a, b) => (b.aabb[2] - b.aabb[0]) * (b.aabb[3] - b.aabb[1]) - (a.aabb[2] - a.aabb[0]) * (a.aabb[3] - a.aabb[1]))[0];
+    for (const t of ['chateau', 'eglise', 'mairie']) { const b = bat(t); if (b) R[t] = { x: centroide(b.p)[0], z: centroide(b.p)[1], h: b.sommet }; }
+    const tours = monde.batiments.filter((b) => b.t === 'tour' || (b.t === 'eglise' && (b.aabb[2] - b.aabb[0]) * (b.aabb[3] - b.aabb[1]) < 200));
+    if (R.eglise) { const cl = tours.map((b) => ({ b, d: Math.hypot(centroide(b.p)[0] - R.eglise.x, centroide(b.p)[1] - R.eglise.z) })).sort((a, b) => a.d - b.d)[0]; if (cl && cl.d < 45) R.clocher = { x: centroide(cl.b.p)[0], z: centroide(cl.b.p)[1], h: cl.b.sommet }; }
+    const points = (pas, filtre) => { const l = []; for (const r of carte.rues) { if (filtre && !filtre(r)) continue; for (let i = 0; i + 1 < r.l.length; i++) { const [a, b] = [r.l[i], r.l[i + 1]], n = Math.max(1, Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1]) / pas)); for (let k = 0; k <= n; k++) l.push({ x: a[0] + (b[0] - a[0]) * k / n, z: a[1] + (b[1] - a[1]) * k / n, yaw: Math.atan2(-(b[0] - a[0]), -(b[1] - a[1])), r }); } } return l; };
+    const tous = points(3);
+    // un bâtiment vu de la rue : le point libre le plus proche, à bonne distance, d'où l'on voit son sommet
+    const vueDe = (cible, dmin, dmax) => { let best = null; for (const p of tous) { const d = Math.hypot(p.x - cible.x, p.z - cible.z); if (d < dmin || d > dmax || (best && d >= best.d) || !libre(p.x, p.z)) continue; if (!monde.vue(p.x, oeil(p.x, p.z), p.z, cible.x, cible.h + 2, cible.z)) continue; best = { x: p.x, z: p.z, d }; } return best; };
+    if (R.chateau) R.vueChateau = vueDe(R.chateau, 45, 150);
+    const cl = R.clocher || R.eglise; if (cl) R.vueEglise = vueDe(cl, 22, 90);
+    // la place : à 14–24 m du centre, tournée vers lui, avec des façades à 25–70 m derrière
+    let bp = null; for (let k = 0; k < 24; k++) for (const d of [16, 20, 24, 12]) { const a = k / 24 * Math.PI * 2, x = c[0] + Math.cos(a) * d, z = c[1] + Math.sin(a) * d; if (!libre(x, z)) continue; const yaw = Math.atan2(-(c[0] - x), -(c[1] - z)), l = portee(x, z, yaw, 120); if (l < d + 6) continue; const sc = Math.abs(l - d - 35); if (!bp || sc < bp.sc) bp = { x, z, yaw, sc }; }
+    R.place = bp || { x: c[0], z: c[1] + 15, yaw: 0 };
+    // une rue du bourg : étroite (des murs à moins de 9 m de chaque côté) et qui porte loin devant
+    let br = null; for (const p of tous) { if (p.r.t === 'chemin') continue; const d = Math.hypot(p.x - c[0], p.z - c[1]); if (d < 20 || d > 110 || !libre(p.x, p.z)) continue; for (const s of [0, Math.PI]) { const yaw = p.yaw + s, l = portee(p.x, p.z, yaw, 120), g = portee(p.x, p.z, yaw + Math.PI / 2, 30), dr = portee(p.x, p.z, yaw - Math.PI / 2, 30); if (g > 12 || dr > 12 || l < 30) continue; const sc = Math.min(l, 90) - (g + dr) * 2; if (!br || sc > br.sc) br = { x: p.x, z: p.z, yaw, sc }; } }
+    R.rue = br || R.place;
+    // le pont : vu de côté, depuis une berge libre
+    const pt = carte.ponts[0];
+    if (pt) { const [a, b] = [pt.l[0], pt.l[pt.l.length - 1]], mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2, ux = b[0] - a[0], uz = b[1] - a[1], ul = Math.hypot(ux, uz); let best = null;
+      for (const d of [16, 22, 28, 36, 46]) { for (let k = 0; k < 32; k++) { const an = k / 32 * Math.PI * 2, x = mx + Math.cos(an) * d, z = mz + Math.sin(an) * d; if (!libre(x, z)) continue; const cote = Math.abs((Math.cos(an) * ux + Math.sin(an) * uz) / ul); if (cote > 0.75 || !monde.vue(x, oeil(x, z), z, mx, monde.hauteur(mx, mz) + 1.5, mz)) continue; if (!best || cote < best.cote) best = { x, z, cote }; } if (best) break; }
+      R.pont = { x: mx, z: mz, depuis: best || { x: a[0] - ux / ul * 8, z: a[1] - uz / ul * 8 } }; }
+    return R;
+  }
+  // ─── les scènes des captures (test/poncin-scene.cjs) : chacune repart d'un état propre ───
+  const loin = (d, c) => devant(d, c);
+  function remettre() { centres = {}; for (const e of jeu.entites) { e.vivant = true; e.invincible = 0; e.accroupi = false; e.auSol = true; e.pitch = 0; e.rechargeJusqua = 0; } poser('moi', { arme: 'rafale' }); poser('ami', { arme: 'rafale' }); poser('b1', { arme: 'rafale' }); poser('b2', { arme: 'pompe' }); poser('b3', { arme: 'precision' }); marche = false; atelier.titre = false; }
+  function groupe(pts) { ['ami', 'b1', 'b2', 'b3'].forEach((id, i) => { const p = pts[i] || [60, 0]; const q = loin(p[0], p[1]); if (p[2] != null) q.yaw += p[2]; poser(id, q); }); }
+  function murDevant(min, max) { const m = trouver('moi'); for (let k = 0; k < 64; k++) { const yaw = m.yaw + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.1, h = monde.rayon(m.x, m.y + 1.6, m.z, -Math.sin(yaw), 0, -Math.cos(yaw), max); if (h && h.quoi === 'mur' && h.t > min) { m.yaw = yaw; return h; } } return null; }
+  const SCENES = {
+    rue(R) { const r = R.rue; camera(r.x, r.z, r.yaw, -0.02); groupe([[14, -1.4, 0.4], [19, 1.2], [25, -0.4, -0.5], [11, 1.8, 2.6]]); marche = true; image(0.4); marche = false; },
+    place(R) { const p = R.place; camera(p.x, p.z, p.yaw, -0.03); groupe([[9, -2.5, 0.8], [13, 1.5], [16, -1, 2], [11, 4, -1]]); },
+    chateau(R) { const p = R.vueChateau || R.place; camera(p.x, p.z, 0, 0); regarder(R.chateau.x, R.chateau.h - 1, R.chateau.z); groupe([]); },
+    eglise(R) { const c = R.clocher || R.eglise, p = R.vueEglise || R.place; camera(p.x, p.z, 0, 0); regarder(c.x, Math.min(c.h - 2, monde.hauteur(p.x, p.z) + 1.6 + Math.hypot(c.x - p.x, c.z - p.z) * 0.45), c.z); groupe([]); },
+    pont(R) { const p = R.pont; if (!p) return SCENES.place(R); camera(p.depuis.x, p.depuis.z, 0, 0); regarder(p.x, monde.hauteur(p.x, p.z) + 0.5, p.z); groupe([]); },
+    haut() { atelier.titre = true; PRENDU.survol({ rayon: 95, hauteur: 85 }); t = 21; }, // la vue d'en haut : le survol, plus près et plus haut
+
+    persos(R) { const p = R.place; camera(p.x, p.z, p.yaw, -0.12); groupe([[2.7, -0.7, 1.0], [3.3, 1.1, -0.9], [5.4, -2.6, 0.4], [5.8, 2.9, -0.3]]); poser('ami', { arme: 'rafale' }); poser('b3', { accroupi: true }); },
+    tir(R) { const p = R.place; camera(p.x, p.z, p.yaw, 0); const h = murDevant(7, 22); groupe([[7, 3.2, 0.5], [9.5, -3.4, -0.6], [40, 0], [40, 5]]); image(1 / 60);
+      if (h) { const m = trouver('moi'), ux = Math.cos(m.yaw), uz = -Math.sin(m.yaw); let k = 0; for (const [dx, dy] of [[0, 0.2], [-1.3, 0.8], [1.2, -0.3], [0.5, 1.4], [-0.7, -0.6], [2.1, 1]]) { tir('moi', [h.x + ux * dx, h.y + dy, h.z + uz * dx], ['rafale', 'pompe', 'precision'][k++ % 3]); image(0.03); image(0.03); } }
+      const m = trouver('moi'); tir('b1', [m.x - Math.sin(m.yaw) * 3 + 0.8, m.y, m.z - Math.cos(m.yaw) * 3]); tir('b2', [m.x + 1.2, m.y + 1.9, m.z]); touche('moi', 'b2'); tir('moi', h ? [h.x, h.y + 0.6, h.z] : [m.x, m.y + 1, m.z - 20], 'rafale'); },
+    confettis(R) { const p = R.place; camera(p.x, p.z, p.yaw, -0.05); groupe([[5, 0.4], [9, -3], [40, 0], [40, 4]]); image(1 / 60); touche('moi', 'b1', true); image(0.05); eliminer('b1', 'moi'); for (let i = 0; i < 5; i++) image(0.05); },
+    survol() { atelier.titre = true; PRENDU.survol({ rayon: 165, hauteur: 58 }); t = 9; },
+  };
+  function scene(nom) {
+    if (!SCENES[nom]) return null;
+    remettre(); const R = vues(); SCENES[nom](R);
+    etape(1 / 60, 2, atelier.titre); return PRENDU.stats;
+  }
+  // le contexte WebGL perdu puis retrouvé (extension WEBGL_lose_context)
+  let extPerte = null; // gardée : getExtension rend null une fois le contexte perdu
+  const ext = () => { try { return extPerte || (extPerte = PRENDU._interne.renderer.getContext().getExtension('WEBGL_lose_context')); } catch (e) { return null; } };
+  function perdre() { const x = ext(); if (!x) return false; x.loseContext(); return true; }
+  function retrouver() { const x = ext(); if (!x) return false; x.restoreContext(); return true; }
+  pret = charger();
+  return { pret, get carte() { return carte; }, get monde() { return monde; }, get jeu() { return jeu; }, get t() { return t; }, set marche(v) { marche = !!v; }, titre: false, SCENES: Object.keys(SCENES),
+    camera, regarder, poser, devant, tir, touche, eliminer, revivre, etape, image, vues, trouver, scene, perdre, retrouver, stats: () => PRENDU.stats };
+})();
+</script></body></html>

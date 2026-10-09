@@ -3,6 +3,8 @@
 // apparitions et objets libres et accessibles, arène assez couverte), puis la carte provisoire (PCARTEPROV : contenu, déterminisme de la
 // graine) et, si elle existe, la vraie carte poncin/carte/poncin.json. Pour une vraie carte, les critères de qualité (pensés pour la carte
 // dessinée) sont seulement signalés (« note ») ; les règles du contrat, elles, comptent toujours.
+// node test/poncin-carte.test.js → « ok / FAIL », code de sortie 1 en cas d'échec. Importé (require), il expose valider(carte, { strict })
+// et rasterArene(carte, marge), pour passer d'autres graines ou d'autres cartes au crible.
 'use strict';
 const fs = require('fs'), path = require('path');
 let fails = 0;
@@ -37,7 +39,14 @@ function recouvre(A, B, tol) { // les intérieurs de deux polygones se recouvren
   }
   for (const q of A) if (dedans(B, q[0], q[1]) && dBord(B, q[0], q[1]) > tol) return true;
   for (const q of B) if (dedans(A, q[0], q[1]) && dBord(A, q[0], q[1]) > tol) return true;
-  return false;
+  const a = interieur(A, tol), b = interieur(B, tol); // deux emprises identiques : aucune arête ne se coupe, aucun sommet n'est dedans
+  return (!!a && dedans(B, a[0], a[1]) && dBord(B, a[0], a[1]) > tol) || (!!b && dedans(A, b[0], b[1]) && dBord(A, b[0], b[1]) > tol);
+}
+function interieur(p, tol) { // un point bien à l'intérieur du polygone (le centre, ou le milieu d'une diagonale)
+  let x = 0, z = 0; for (const q of p) { x += q[0]; z += q[1]; } const c = [x / p.length, z / p.length];
+  if (dedans(p, c[0], c[1]) && dBord(p, c[0], c[1]) > tol) return c;
+  for (let i = 0; i < p.length; i++) for (let j = i + 2; j < p.length; j++) { const m = [(p[i][0] + p[j][0]) / 2, (p[i][1] + p[j][1]) / 2]; if (dedans(p, m[0], m[1]) && dBord(p, m[0], m[1]) > tol) return m; }
+  return null;
 }
 const bb = (p) => { const xs = p.map((q) => q[0]), zs = p.map((q) => q[1]); return [Math.min(...xs), Math.min(...zs), Math.max(...xs), Math.max(...zs)]; };
 const estPoint = (q) => Array.isArray(q) && q.length === 2 && Number.isFinite(q[0]) && Number.isFinite(q[1]);
@@ -82,8 +91,8 @@ function valider(c, o) {
   const champs = ['batiments', 'rues', 'eau', 'ponts', 'vegetation', 'arbres', 'interdit', 'noms'];
   if (!check(champs.every((k) => Array.isArray(c[k])) && c.zones && typeof c.zones === 'object', 'tableaux et zones présents')) return;
   check(JSON.stringify(JSON.parse(JSON.stringify(c))) === JSON.stringify(c), 'sérialisable en JSON sans perte');
-  const malB = c.batiments.filter((b) => !(Array.isArray(b.p) && b.p.length >= 3 && b.p.every(estPoint) && fini(b.h) && b.h >= 2 && b.h <= 80 && TYPES_BAT.includes(b.t)));
-  check(!malB.length, `bâtiments bien formés (p, h entre 2 et 80 m, t connu) : ${c.batiments.length}${exemples(malB.map((b) => JSON.stringify(b).slice(0, 60)))}`);
+  const malB = c.batiments.filter((b) => !(Array.isArray(b.p) && b.p.length >= 3 && b.p.every(estPoint) && fini(b.h) && b.h >= 2 && b.h <= 80 && TYPES_BAT.includes(b.t) && (b.n === undefined || typeof b.n === 'string')));
+  check(!malB.length, `bâtiments bien formés (p, h entre 2 et 80 m, t connu, n facultatif) : ${c.batiments.length}${exemples(malB.map((b) => JSON.stringify(b).slice(0, 60)))}`);
   const malR = c.rues.filter((r) => !(Array.isArray(r.l) && r.l.length >= 2 && r.l.every(estPoint) && fini(r.w) && r.w > 0 && r.w <= 40 && TYPES_RUE.includes(r.t) && (r.n === undefined || typeof r.n === 'string')));
   check(!malR.length, `rues bien formées (l, w, t, n) : ${c.rues.length}${exemples(malR.map((r) => JSON.stringify(r).slice(0, 60)))}`);
   check(c.eau.every((e) => Array.isArray(e.p) && e.p.length >= 3 && e.p.every(estPoint) && TYPES_EAU.includes(e.t)), `eau bien formée : ${c.eau.length}`);
@@ -95,7 +104,7 @@ function valider(c, o) {
   check(c.sol === null || (c.sol && typeof c.sol.image === 'string' && typeof c.sol.petite === 'string'), 'sol : null ou { image, petite }');
   if (c.sol && o.dossier) check(fs.existsSync(path.join(o.dossier, c.sol.image)) && fs.existsSync(path.join(o.dossier, c.sol.petite)), `images du sol présentes (${c.sol.image}, ${c.sol.petite})`);
   const Z = c.zones, A = Z.arene;
-  if (!check(A && estPoint(A.centre) && fini(A.rayon) && A.rayon > 0 && Array.isArray(Z.apparitions) && Z.apparitions.every(estPoint) && Array.isArray(Z.armes) && Z.armes.every((a) => fini(a.x) && fini(a.z) && ARMES.includes(a.arme)) && Array.isArray(Z.extraction) && Z.extraction.every(estPoint) && estPoint(Z.base), 'zones : arène, apparitions, armes, extraction, base')) return;
+  if (!check(A && estPoint(A.centre) && fini(A.rayon) && A.rayon > 0 && (A.n === undefined || typeof A.n === 'string') && Array.isArray(Z.apparitions) && Z.apparitions.every(estPoint) && Array.isArray(Z.armes) && Z.armes.every((a) => fini(a.x) && fini(a.z) && ARMES.includes(a.arme)) && Array.isArray(Z.extraction) && Z.extraction.every(estPoint) && estPoint(Z.base), 'zones : arène, apparitions, armes, extraction, base')) return;
   // bornes
   const D = L / 2 + 0.01, dans = (q) => Math.abs(q[0]) <= D && Math.abs(q[1]) <= D, hors = [];
   for (const k of ['batiments', 'eau', 'vegetation', 'interdit']) c[k].forEach((e, i) => { if (!e.p.every(dans)) hors.push(`${k}[${i}]`); });
@@ -131,6 +140,8 @@ function valider(c, o) {
   qualite(!chev.length, `bâtiments sans recouvrement (${chev.length} paires)${exemples(chev)}`);
   const eauxChev = []; for (let i = 0; i < c.eau.length; i++) for (let j = i + 1; j < c.eau.length; j++) if (recouvre(c.eau[i].p, c.eau[j].p, 0.1)) eauxChev.push(`${i}/${j}`);
   qualite(!eauxChev.length, `les eaux se touchent sans se recouvrir (pas de double transparence)${exemples(eauxChev)}`);
+  const vegEau = c.vegetation.filter((v) => c.eau.some((e) => recouvre(v.p, e.p, 1))).map((v) => v.t);
+  qualite(!vegEau.length, `la végétation ne recouvre pas l'eau (${vegEau.length})${exemples(vegEau)}`);
   const intrus = c.batiments.filter((b) => !['chateau', 'tour'].includes(b.t) && c.interdit.some((z) => b.p.some((q) => dedans(z.p, q[0], q[1]))));
   qualite(!intrus.length, `rien dans la zone interdite sauf le château et sa tour (${intrus.length})`);
   // les zones de jeu : libres, dans l'arène, accessibles depuis le centre
@@ -177,69 +188,84 @@ function valider(c, o) {
   qualite(ouverts / ech >= 0.1 && serres / ech >= 0.1, `des endroits dégagés (${(100 * ouverts / ech).toFixed(0)} % des points voient à 40 m dans 4 directions sur 16) et des coins serrés (${(100 * serres / ech).toFixed(0)} % bouchés à 12 m dans 12 directions sur 16), 10 % de chaque au moins`);
 }
 
-// ─── la carte provisoire ───
-console.log('── carte provisoire (PCARTEPROV) ──');
-const PROV = require('../src-poncin/carte-provisoire.js');
-const aleatoire = Math.random; let hasard = 0; Math.random = () => { hasard++; return aleatoire(); };
-const t0 = process.hrtime.bigint(), c1 = PROV.creer(), ms = Number(process.hrtime.bigint() - t0) / 1e6;
-const c1b = PROV.creer(1), c2 = PROV.creer(2), c7 = PROV.creer(7);
-Math.random = aleatoire;
-check(hasard === 0, 'aucun appel à Math.random()');
-check(JSON.stringify(c1) === JSON.stringify(c1b), 'même graine, même carte (creer() = creer(1))');
-check(JSON.stringify(c1) !== JSON.stringify(c2) && JSON.stringify(c2) !== JSON.stringify(c7), 'une autre graine donne une autre carte');
-check(ms < 1000, `construite en ${ms.toFixed(0)} ms (< 1 s)`);
-{
-  const c = c1, t = (k) => c.batiments.filter((b) => b.t === k), cB = (p) => { let x = 0, z = 0; for (const q of p) { x += q[0]; z += q[1]; } return [x / p.length, z / p.length]; };
-  check(c.source === 'provisoire' && c.taille === 600 && c.relief.pas === 10 && c.relief.n === 61, 'source provisoire, carré de 600 m, relief 61 × 61 au pas de 10 m');
-  check(c.batiments.length >= 250 && c.batiments.length <= 450, `250 à 450 bâtiments (${c.batiments.length})`);
-  check(t('maison').every((b) => b.h >= 5 && b.h <= 12), 'maisons de 5 à 12 m');
-  check(['eglise', 'mairie', 'chateau', 'commerce', 'annexe'].every((k) => t(k).length >= 1) && t('tour').length >= 2, 'église, mairie, château, tours, commerces, annexes');
-  check(c.batiments.filter((b) => b.p.length !== 4 || Math.abs(Math.abs(aire(b.p)) - Math.hypot(b.p[1][0] - b.p[0][0], b.p[1][1] - b.p[0][1]) * Math.hypot(b.p[2][0] - b.p[1][0], b.p[2][1] - b.p[1][1])) > 1).length >= 60, 'des emprises qui ne sont pas des rectangles');
-  const eg = t('eglise')[0], clocher = t('tour').find((b) => Math.min(...b.p.map((q) => dBord(eg.p, q[0], q[1]))) < 1.5);
-  check(!!clocher && clocher.h >= 20 && clocher.h > eg.h && eg.h >= 10, `l'église (${eg.h} m) et son clocher accolé (${clocher && clocher.h} m)`);
-  const ch = t('chateau')[0], zi = c.interdit[0];
-  check(!!zi && /Château/.test(zi.n) && ch.p.every((q) => dedans(zi.p, q[0], q[1])) && ch.h >= 12, 'le château (haut) est dans sa zone interdite');
-  check(c.batiments.filter((b) => b.t === 'tour').some((b) => b.p.every((q) => dedans(zi.p, q[0], q[1]))), 'une tour au château');
-  check(c.vegetation.some((v) => v.t === 'jardin' && dedans(zi.p, ...cB(v.p))), 'des jardins dans le domaine du château');
-  const noms = c.noms.map((n) => n.n);
-  check(['Place Bichat', 'Église Saint-Martin', 'Château de Poncin', "L'Ain", 'Le Veyron'].every((n) => noms.includes(n)), 'les noms : place Bichat, église, château, l\'Ain, le Veyron');
-  const mairie = cB(t('mairie')[0].p), egC = cB(eg.p), chC = cB(ch.p);
-  check(Math.hypot(...mairie) < 40 && Math.hypot(...egC) < 110 && chC[0] > 150 && chC[1] < 20, `mairie sur la place, église dans le bourg, château à l'est (${chC.map(Math.round)})`);
-  // l'eau : l'Ain large à l'ouest, le Veyron plus étroit au sud ; les routes ne la franchissent que sur des ponts
-  const largeur = (x0, z0, dx, dz) => { let n = 0; for (let s = -300; s <= 300; s += 0.25) if (c.eau.some((e) => dedans(e.p, x0 + dx * s, z0 + dz * s))) n++; return n * 0.25; };
-  const lAin = largeur(-150, 0, 1, 0) /* ligne z = 0 */, lVey = largeur(100, 0, 0, 1);
-  check(lAin >= 40 && lAin <= 60, `l'Ain fait ${lAin.toFixed(0)} m de large (40 à 60)`);
-  check(lVey >= 8 && lVey <= 13, `le Veyron fait ${lVey.toFixed(1)} m de large (8 à 12)`);
-  check(c.eau.some((e) => e.p.every((q) => q[0] < -150)), "l'Ain coule dans la partie ouest");
-  const pontsOk = c.ponts.filter((p) => { const m = [(p.l[0][0] + p.l[1][0]) / 2, (p.l[0][1] + p.l[1][1]) / 2]; return dansEauC(c, m) && !dansEauC(c, p.l[0]) && !dansEauC(c, p.l[1]); });
-  check(c.ponts.length >= 2 && pontsOk.length === c.ponts.length, `${c.ponts.length} ponts qui enjambent l'eau d'une berge à l'autre`);
-  const gues = []; for (const r of c.rues) for (let i = 0; i + 1 < r.l.length; i++) { const a = r.l[i], b = r.l[i + 1], n = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1])); for (let k = 0; k <= n; k++) { const x = a[0] + (b[0] - a[0]) * k / n, z = a[1] + (b[1] - a[1]) * k / n; if (dansEauC(c, [x, z]) && !c.ponts.some((p) => dSeg(x, z, p.l[0][0], p.l[0][1], p.l[1][0], p.l[1][1]) <= p.w / 2)) { gues.push(r.n || r.t); break; } } }
-  check(!gues.length, `aucune rue ne traverse l'eau hors d'un pont${exemples([...new Set(gues)])}`);
-  // le relief
-  const H = c.relief.h, n = c.relief.n, h = (i, j) => H[j * n + i], X = (i) => -300 + i * 10;
-  const moy = (f) => { let s = 0, k = 0; for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) if (f(X(i), X(j))) { s += h(i, j); k++; } return s / k; };
-  const est = moy((x) => x > 200), ouest = moy((x) => x > -190 && x < -100);
-  check(Math.min(...H) >= -3 && Math.max(...H) >= 40 && Math.max(...H) <= 70, `relief de ${Math.min(...H)} à ${Math.max(...H)} m`);
-  check(est - ouest >= 25, `le relief monte vers l'est (coteaux ${est.toFixed(0)} m, plaine ${ouest.toFixed(0)} m)`);
-  let pente = 0; for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) if (Math.hypot(X(i), X(j)) < 100) pente = Math.max(pente, Math.abs(h(i + 1, j) - h(i, j)), Math.abs(h(i, j + 1) - h(i, j)));
-  check(pente <= 2, `doux dans le bourg (au plus ${pente.toFixed(1)} m de dénivelé tous les 10 m)`);
-  const placeH = h(30, 30); check(placeH > 5 && placeH < 25, `la place Bichat à +${placeH} m au-dessus de la rivière`);
-  check(c.arbres.length >= 200 && c.arbres.length <= 900, `quelques centaines d'arbres (${c.arbres.length})`);
-  check(TYPES_VEG.every((k) => c.vegetation.some((v) => v.t === k)), 'prés, bois, vignes et jardins');
-  const arbresMal = c.arbres.filter(([x, z]) => dansEauC(c, [x, z]) || c.batiments.some((b) => dedans(b.p, x, z)));
-  check(!arbresMal.length, `aucun arbre dans l'eau ou dans un bâtiment${exemples(arbresMal.map((a) => `[${a}]`))}`);
-  check(Math.hypot(...c.zones.arene.centre) < 10 && c.zones.arene.rayon === 110, 'l\'arène : la place Bichat, rayon 110 m');
-}
+// ─── la carte provisoire, puis la vraie carte si elle est là ───
 function dansEauC(c, q) { return c.eau.some((e) => dedans(e.p, q[0], q[1])); }
-for (const [nom, c] of [['graine 1', c1], ['graine 2', c2], ['graine 7', c7]]) { console.log(`── carte provisoire, ${nom} : validation v1 ──`); valider(c, { strict: true }); }
+function principal() {
+  console.log('── carte provisoire (PCARTEPROV) ──');
+  const PROV = require('../src-poncin/carte-provisoire.js');
+  const aleatoire = Math.random; let hasard = 0; Math.random = () => { hasard++; return aleatoire(); };
+  const t0 = process.hrtime.bigint(), c1 = PROV.creer(), ms = Number(process.hrtime.bigint() - t0) / 1e6;
+  const c1b = PROV.creer(1), c2 = PROV.creer(2), c7 = PROV.creer(7);
+  Math.random = aleatoire;
+  check(hasard === 0, 'aucun appel à Math.random()');
+  check(JSON.stringify(c1) === JSON.stringify(c1b), 'même graine, même carte (creer() = creer(1))');
+  check(JSON.stringify(c1) !== JSON.stringify(c2) && JSON.stringify(c2) !== JSON.stringify(c7), 'une autre graine donne une autre carte');
+  check(ms < 1000, `construite en ${ms.toFixed(0)} ms (< 1 s)`);
+  { // chargée comme dans la page (gabarit UMD, globales PREGLES puis PCARTEPROV), elle donne la même carte ; sans regles.js aussi
+    const vm = require('vm'), lire = (f) => fs.readFileSync(path.join(__dirname, '..', 'src-poncin', f), 'utf8'), page = {}, nue = {};
+    page.self = page; vm.createContext(page); vm.runInContext(lire('regles.js'), page); vm.runInContext(lire('carte-provisoire.js'), page);
+    nue.self = nue; vm.createContext(nue); vm.runInContext(lire('carte-provisoire.js'), nue);
+    check(!!page.PCARTEPROV && JSON.stringify(page.PCARTEPROV.creer()) === JSON.stringify(c1) && JSON.stringify(nue.PCARTEPROV.creer()) === JSON.stringify(c1), 'globale PCARTEPROV dans la page : même carte (avec ou sans PREGLES)');
+  }
+  check(['abc', NaN, -5, 1e12, Infinity].every((g) => { try { return PROV.creer(g).batiments.length > 0; } catch (e) { return false; } }), 'aucune graine ne la fait planter');
+  check(JSON.stringify(c1).length < 200000, `légère (${(JSON.stringify(c1).length / 1024).toFixed(0)} Ko en JSON)`);
+  {
+    const c = c1, t = (k) => c.batiments.filter((b) => b.t === k), cB = (p) => { let x = 0, z = 0; for (const q of p) { x += q[0]; z += q[1]; } return [x / p.length, z / p.length]; };
+    check(c.source === 'provisoire' && c.taille === 600 && c.relief.pas === 10 && c.relief.n === 61, 'source provisoire, carré de 600 m, relief 61 × 61 au pas de 10 m');
+    check(c.batiments.length >= 250 && c.batiments.length <= 450, `250 à 450 bâtiments (${c.batiments.length})`);
+    check(t('maison').every((b) => b.h >= 5 && b.h <= 12), 'maisons de 5 à 12 m');
+    check(['eglise', 'mairie', 'chateau', 'commerce', 'annexe'].every((k) => t(k).length >= 1) && t('tour').length >= 2, 'église, mairie, château, tours, commerces, annexes');
+    check(c.batiments.filter((b) => b.p.length !== 4 || Math.abs(Math.abs(aire(b.p)) - Math.hypot(b.p[1][0] - b.p[0][0], b.p[1][1] - b.p[0][1]) * Math.hypot(b.p[2][0] - b.p[1][0], b.p[2][1] - b.p[1][1])) > 1).length >= 60, 'des emprises qui ne sont pas des rectangles');
+    const mitoyens = c.batiments.filter((b, i) => i < 200 && c.batiments.some((o, j) => j !== i && b.p.some((q) => o.p.some((u) => u[0] === q[0] && u[1] === q[1])))).length;
+    check(mitoyens >= 60, `des rangées mitoyennes dans le bourg (${mitoyens} maisons partagent un mur parmi les 200 premières)`);
+    const eg = t('eglise')[0], clocher = t('tour').find((b) => Math.min(...b.p.map((q) => dBord(eg.p, q[0], q[1]))) < 1.5);
+    check(!!clocher && clocher.h >= 20 && clocher.h > eg.h && eg.h >= 10, `l'église (${eg.h} m) et son clocher accolé (${clocher && clocher.h} m)`);
+    const ch = t('chateau')[0], zi = c.interdit[0];
+    check(!!zi && /Château/.test(zi.n) && ch.p.every((q) => dedans(zi.p, q[0], q[1])) && ch.h >= 12, 'le château (haut) est dans sa zone interdite');
+    check(t('tour').some((b) => b.p.every((q) => dedans(zi.p, q[0], q[1]))), 'une tour au château');
+    check(c.vegetation.some((v) => v.t === 'jardin' && dedans(zi.p, ...cB(v.p))), 'des jardins dans le domaine du château');
+    check(c.rues.some((r) => r.t !== 'chemin' && r.l.some((q) => dBord(zi.p, q[0], q[1]) < 20 && !dedans(zi.p, q[0], q[1]))), 'le château se voit d\'une rue qui longe son domaine');
+    const noms = c.noms.map((n) => n.n);
+    check(['Place Bichat', 'Église Saint-Martin', 'Château de Poncin', "L'Ain", 'Le Veyron'].every((n) => noms.includes(n)), 'les noms : place Bichat, église, château, l\'Ain, le Veyron');
+    const mairie = cB(t('mairie')[0].p), egC = cB(eg.p), chC = cB(ch.p);
+    check(Math.hypot(...mairie) < 40 && Math.hypot(...egC) < 110 && chC[0] > 150 && chC[1] < 20, `mairie sur la place, église dans le bourg, château à l'est (${chC.map(Math.round)})`);
+    // l'eau : l'Ain large à l'ouest, le Veyron plus étroit au sud ; les routes ne la franchissent que sur des ponts
+    const largeur = (x0, z0, dx, dz) => { let k = 0; for (let s = -300; s <= 300; s += 0.25) if (c.eau.some((e) => dedans(e.p, x0 + dx * s, z0 + dz * s))) k++; return k * 0.25; };
+    const lAin = largeur(-150, 0, 1, 0) /* la ligne z = 0 */, lVey = largeur(100, 0, 0, 1) /* la ligne x = 100 */;
+    check(lAin >= 40 && lAin <= 60, `l'Ain fait ${lAin.toFixed(0)} m de large (40 à 60)`);
+    check(lVey >= 8 && lVey <= 13, `le Veyron fait ${lVey.toFixed(1)} m de large (8 à 12)`);
+    check(c.eau.some((e) => e.p.every((q) => q[0] < -150)), "l'Ain coule dans la partie ouest");
+    const pontsOk = c.ponts.filter((p) => { const m = [(p.l[0][0] + p.l[1][0]) / 2, (p.l[0][1] + p.l[1][1]) / 2]; return dansEauC(c, m) && !dansEauC(c, p.l[0]) && !dansEauC(c, p.l[1]); });
+    check(c.ponts.length >= 2 && pontsOk.length === c.ponts.length, `${c.ponts.length} ponts qui enjambent l'eau d'une berge à l'autre`);
+    const gues = []; for (const r of c.rues) for (let i = 0; i + 1 < r.l.length; i++) { const a = r.l[i], b = r.l[i + 1], k = Math.ceil(Math.hypot(b[0] - a[0], b[1] - a[1])); for (let s = 0; s <= k; s++) { const x = a[0] + (b[0] - a[0]) * s / k, z = a[1] + (b[1] - a[1]) * s / k; if (dansEauC(c, [x, z]) && !c.ponts.some((p) => dSeg(x, z, p.l[0][0], p.l[0][1], p.l[1][0], p.l[1][1]) <= p.w / 2)) { gues.push(r.n || r.t); break; } } }
+    check(!gues.length, `aucune rue ne traverse l'eau hors d'un pont${exemples([...new Set(gues)])}`);
+    // le relief
+    const H = c.relief.h, n = c.relief.n, h = (i, j) => H[j * n + i], X = (i) => -300 + i * 10;
+    const moy = (f) => { let s = 0, k = 0; for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) if (f(X(i), X(j))) { s += h(i, j); k++; } return s / k; };
+    const est = moy((x) => x > 200), ouest = moy((x) => x > -190 && x < -100);
+    check(Math.min(...H) >= -3 && Math.max(...H) >= 40 && Math.max(...H) <= 70, `relief de ${Math.min(...H)} à ${Math.max(...H)} m`);
+    check(est - ouest >= 25, `le relief monte vers l'est (coteaux ${est.toFixed(0)} m, plaine ${ouest.toFixed(0)} m)`);
+    let pente = 0; for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) if (Math.hypot(X(i), X(j)) < 100) pente = Math.max(pente, Math.abs(h(i + 1, j) - h(i, j)), Math.abs(h(i, j + 1) - h(i, j)));
+    check(pente <= 2, `doux dans le bourg (au plus ${pente.toFixed(1)} m de dénivelé tous les 10 m)`);
+    const placeH = h(30, 30); check(placeH > 5 && placeH < 25, `la place Bichat à +${placeH} m au-dessus de la rivière`);
+    check(c.arbres.length >= 200 && c.arbres.length <= 900, `quelques centaines d'arbres (${c.arbres.length})`);
+    check(TYPES_VEG.every((k) => c.vegetation.some((v) => v.t === k)), 'prés, bois, vignes et jardins');
+    const arbresMal = c.arbres.filter(([x, z]) => dansEauC(c, [x, z]) || c.batiments.some((b) => dedans(b.p, x, z)));
+    check(!arbresMal.length, `aucun arbre dans l'eau ou dans un bâtiment${exemples(arbresMal.map((a) => `[${a}]`))}`);
+    const place = c.rues.find((r) => r.n === 'Place Bichat');
+    check(!!place && c.zones.arene.rayon === 110 && dSeg(...c.zones.arene.centre, ...place.l[0], ...place.l[place.l.length - 1]) < place.w / 2, "l'arène est centrée sur la place Bichat, rayon 110 m");
+  }
+  for (const [nom, c] of [['graine 1', c1], ['graine 2', c2], ['graine 7', c7]]) { console.log(`── carte provisoire, ${nom} : validation v1 ──`); valider(c, { strict: true }); }
 
-// ─── la vraie carte, si elle est là ───
-const VRAIE = path.join(__dirname, '..', 'poncin', 'carte', 'poncin.json');
-if (fs.existsSync(VRAIE)) {
-  console.log('── poncin/carte/poncin.json : validation v1 ──');
-  let c = null; try { c = JSON.parse(fs.readFileSync(VRAIE, 'utf8')); } catch (e) { check(false, `JSON lisible (${e.message})`); }
-  if (c) { check(c.source === 'ign-osm', 'source ign-osm'); valider(c, { strict: false, dossier: path.dirname(VRAIE) }); }
-} else note('poncin/carte/poncin.json absente : seule la carte provisoire est validée');
+  const VRAIE = path.join(__dirname, '..', 'poncin', 'carte', 'poncin.json');
+  if (fs.existsSync(VRAIE)) {
+    console.log('── poncin/carte/poncin.json : validation v1 ──');
+    let c = null; try { c = JSON.parse(fs.readFileSync(VRAIE, 'utf8')); } catch (e) { check(false, `JSON lisible (${e.message})`); }
+    if (c) { check(c.source === 'ign-osm', 'source ign-osm'); valider(c, { strict: false, dossier: path.dirname(VRAIE) }); }
+  } else note('poncin/carte/poncin.json absente : seule la carte provisoire est validée');
 
-console.log(fails ? `\n${fails} vérification(s) en échec` : '\nCartes OK.');
-process.exit(fails ? 1 : 0);
+  console.log(fails ? `\n${fails} vérification(s) en échec` : '\nCartes OK.');
+  process.exit(fails ? 1 : 0);
+}
+if (require.main === module) principal();
+else module.exports = { valider, rasterArene, recouvre, dedans, echecs: () => fails }; // pour explorer d'autres graines à la main
