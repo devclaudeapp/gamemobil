@@ -134,12 +134,11 @@ jobs:
                       os.makedirs(os.path.dirname(os.path.join(OUT, uri)) or OUT, exist_ok=True)
                       shutil.copy2(src, os.path.join(OUT, uri)); copies.add(uri); print('texture', uri, '<-', os.path.relpath(src, X))
                   else: print('::warning::texture manquante', uri, 'pour', os.path.basename(g))
-          # les autres textures du dossier Textures voisin (variantes de couleurs)
-          for g in glbs[:1]:
-              t = os.path.join(os.path.dirname(g), 'Textures')
-              if os.path.isdir(t):
-                  for f in sorted(os.listdir(t)):
-                      if 'Textures/' + f not in copies: os.makedirs(os.path.join(OUT, 'Textures'), exist_ok=True); shutil.copy2(os.path.join(t, f), os.path.join(OUT, 'Textures', f)); print('texture (variante)', f)
+          # les autres textures du pack (variantes de couleurs, ex. Models/Textures/variation-a.png), à côté de colormap.png
+          for t in sorted(tous):
+              f = os.path.basename(t)
+              if os.path.basename(os.path.dirname(t)).lower() == 'textures' and f.lower().endswith('.png') and 'Textures/' + f not in copies:
+                  os.makedirs(os.path.join(OUT, 'Textures'), exist_ok=True); shutil.copy2(t, os.path.join(OUT, 'Textures', f)); copies.add('Textures/' + f); print('texture (variante)', f, '<-', os.path.relpath(t, X))
           lic = [t for t in tous if os.path.basename(t).lower() in ('license.txt', 'licence.txt')]
           if lic: shutil.copy2(lic[0], os.path.join(OUT, 'License.txt'))
           else: print('::warning::pas de License.txt dans le pack')
