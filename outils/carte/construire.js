@@ -458,10 +458,13 @@ async function etapeBDTOPO(R, L) {
       const polys = g.type === 'Polygon' ? [g.coordinates] : g.type === 'MultiPolygon' ? g.coordinates : [];
       for (const pol of polys) if (pol[0] && pol[0].length >= 4) {
         const p = pol[0].slice(0, -1).map(vers);
-        res.push({ p, props: { hauteur: pr.hauteur, nombre_d_etages: pr.nombre_d_etages, altitude_minimale_sol: pr.altitude_minimale_sol, nature: pr.nature, usage_1: pr.usage_1, cleabs: pr.cleabs } });
+        res.push({ p, props: { hauteur: pr.hauteur, nombre_d_etages: pr.nombre_d_etages, altitude_minimale_sol: pr.altitude_minimale_sol, nature: pr.nature, usage_1: pr.usage_1, cleabs: pr.cleabs, murs: pr.materiaux_des_murs, toiture: pr.materiaux_de_la_toiture } });
       }
     }
     log(`BD TOPO : ${feats.length} bâtiments en ${pages} page(s), BBOX en ${ordre}, coordonnées rendues en ${latPremier ? 'lat,lon' : 'lon,lat'}`);
+    const histo = (k) => { const c = {}; for (const f of feats) { const v = String((f.properties || {})[k]); c[v] = (c[v] || 0) + 1; } return Object.entries(c).sort((a, b) => b[1] - a[1]).slice(0, 25).map(([v, n]) => `${v}×${n}`).join(' '); };
+    log(`BD TOPO : attributs ${Object.keys(feats[0].properties || {}).join(' ')}`);
+    for (const k of Object.keys(feats[0].properties || {}).filter((x) => /materiau|etage|nature|usage|toit/i.test(x))) log(`BD TOPO : ${k} = ${histo(k)}`);
     RAPPORT.sources.bdtopoAxes = latPremier ? 'lat,lon' : 'lon,lat'; RAPPORT.sources.bdtopoPages = pages;
     return res;
   }
@@ -969,8 +972,53 @@ Le jeu l'affiche dans ses crédits.
 `;
 }
 
+
+// ─── 0. inventaire : ce que les services de la Géoplateforme proposent vraiment (couches, attributs, niveaux de zoom), imprimé dans les journaux ───
+const CAPS = { wfs: [], attributs: {}, wmsr: [], wmts: {} };
+async function inventaire() {
+  console.log('\n── Inventaire des services IGN (GetCapabilities / DescribeFeatureType) ──');
+  try { // WFS : les couches de la BD TOPO qui nous servent, et leurs attributs
+    const caps = (await telecharger(`${CONFIG.wfs}?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetCapabilities`, { delai: 180000, valider: (b) => /WFS_Capabilities/.test(b.toString('utf8', 0, 4000)) ? true : 'pas des capacités WFS' })).toString('utf8');
+    CAPS.wfs = [...caps.matchAll(/<(?:wfs:)?Name>([^<]+)<\/(?:wfs:)?Name>/g)].map((m) => m[1].trim());
+    const utiles = CAPS.wfs.filter((x) => /^BDTOPO_V3:/i.test(x) && /batiment|vegetation|haie|arbre|cimetiere|terrain_de_sport|construction_|mur|equipement|zone_d_activite|toponymie/i.test(x));
+    console.log(`  WFS : ${CAPS.wfs.length} couches ; BD TOPO utiles : ${utiles.join(', ') || 'aucune'}`);
+    for (const c of utiles.filter((x) => /:(batiment|zone_de_vegetation|haie|construction_ponctuelle|construction_lineaire|cimetiere|terrain_de_sport)$/i.test(x))) {
+      try {
+        const d = (await telecharger(`${CONFIG.wfs}?SERVICE=WFS&VERSION=2.0.0&REQUEST=DescribeFeatureType&TYPENAMES=${encodeURIComponent(c)}`, { delai: 90000, valider: (b) => /element/i.test(b.toString('utf8', 0, 20000)) ? true : 'pas un schéma' })).toString('utf8');
+        CAPS.attributs[c] = [...d.matchAll(/<(?:xsd?:)?element[^>]*\bname="([^"]+)"[^>]*\btype="([^"]+)"/g)].map((m) => m[1] + ':' + m[2].replace(/^.*:/, ''));
+        console.log(`  ${c} : ${CAPS.attributs[c].join(' ')}`);
+      } catch (e) { alerte(`DescribeFeatureType ${c} : ${e.message.slice(0, 160)}`); }
+    }
+  } catch (e) { alerte(`inventaire WFS : ${e.message.slice(0, 200)}`); }
+  try { // WMS-R : les couches d'altitude (dont le LiDAR HD : MNT, MNS, MNH) et leurs systèmes de coordonnées
+    let caps = null;
+    for (const b0 of [CONFIG.wmsr, CONFIG.wmsr.replace(/\/$/, '') + '/wms']) { try { caps = (await telecharger(`${b0}?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities`, { delai: 180000, essais: 3, valider: (b) => /WMS_Capabilities/.test(b.toString('utf8', 0, 6000)) ? true : 'pas des capacités WMS' })).toString('utf8'); CAPS.wmsrBase = b0; break; } catch (e) { /* l'autre adresse */ } }
+    if (caps) {
+      const blocs = caps.split(/<Layer[\s>]/).slice(1);
+      for (const b of blocs) { const n = (b.match(/^[^<]*<Name>([^<]+)<\/Name>/) || b.match(/<Name>([^<]+)<\/Name>/) || [])[1]; if (!n) continue; const crs = [...b.split(/<Layer[\s>]/)[0].matchAll(/<CRS>([^<]+)<\/CRS>/g)].map((m) => m[1]); CAPS.wmsr.push({ nom: n.trim(), crs }); }
+      const formats = [...new Set([...caps.matchAll(/<Format>([^<]+)<\/Format>/g)].map((m) => m[1]))];
+      console.log(`  WMS-R : ${CAPS.wmsr.length} couches ; formats ${formats.join(' ')}`);
+      for (const l of CAPS.wmsr.filter((x) => /ELEVATION|LIDAR|MNH|MNS|MNT|HAUTEUR|CANOP|DSM|DTM|CHM/i.test(x.nom))) console.log(`    ${l.nom} [${l.crs.slice(0, 6).join(' ')}${l.crs.length > 6 ? ' …' : ''}]`);
+    }
+  } catch (e) { alerte(`inventaire WMS-R : ${e.message.slice(0, 200)}`); }
+  try { // WMTS : les photographies (couleur, infrarouge) et leurs niveaux de zoom en PM
+    const caps = (await telecharger(`${CONFIG.wmts}?SERVICE=WMTS&REQUEST=GetCapabilities&VERSION=1.0.0`, { delai: 180000, valider: (b) => /Capabilities/.test(b.toString('utf8', 0, 6000)) ? true : 'pas des capacités WMTS' })).toString('utf8');
+    for (const b of caps.split(/<Layer>/).slice(1)) {
+      const id = (b.match(/<ows:Identifier>([^<]+)<\/ows:Identifier>/) || [])[1]; if (!id) continue;
+      const pm = b.split(/<TileMatrixSetLink>/).find((x) => /<TileMatrixSet>PM<\/TileMatrixSet>/.test(x)); if (!pm) continue;
+      const z = [...pm.matchAll(/<TileMatrix>(?:PM:)?(\d+)<\/TileMatrix>/g)].map((m) => +m[1]), fmt = (b.match(/<Format>([^<]+)<\/Format>/) || [])[1];
+      CAPS.wmts[id] = { min: z.length ? Math.min(...z) : 0, max: z.length ? Math.max(...z) : 21, format: fmt };
+    }
+    const photos = Object.keys(CAPS.wmts).filter((x) => /ORTHO|IRC|LIDAR|MNH|MNS/i.test(x));
+    console.log(`  WMTS : ${Object.keys(CAPS.wmts).length} couches en PM ; photos et LiDAR :`);
+    for (const x of photos.slice(0, 60)) console.log(`    ${x} (zoom ${CAPS.wmts[x].min}–${CAPS.wmts[x].max}, ${CAPS.wmts[x].format})`);
+  } catch (e) { alerte(`inventaire WMTS : ${e.message.slice(0, 200)}`); }
+  console.log('');
+}
+
 // ─── le pipeline ───
 async function construire() {
+  await inventaire();
   const dec = await decouvrir(), R = repere(dec.lat, dec.lon), L = dec.taille;
   const objets = await etapeOSM(R, L);
   let bdtopo = [];
