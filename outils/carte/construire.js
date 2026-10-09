@@ -335,17 +335,25 @@ function procheDeLigne(o, q) { let best = null, bd = Infinity; for (const l of o
 async function decouvrir() {
   const { lat, lon } = CONFIG.approx, R0 = repere(lat, lon), A = `(around:2000,${lat},${lon})`;
   const q = `[out:json][timeout:90];
+nwr(around:600,${lat},${lon})->.voisins;
 (
   node[place][name="Poncin"](around:5000,${lat},${lon});
   nwr[historic=castle]${A};
   nwr[amenity~"^(townhall|place_of_worship)$"]${A};
   nwr[place=square]${A};
-  nwr[name~"^Place "](around:600,${lat},${lon});
+  nwr.voisins[name~"^Place "];
   way[waterway~"^(river|stream)$"]${A};
 );
 out body geom;`;
   let objets = [];
-  try { objets = formes((await overpass(q, 'découverte')).elements, R0); } catch (e) { repli(`découverte impossible (${e.message.slice(0, 160)}) : centre approché ${lat}, ${lon}`); }
+  try { objets = formes((await overpass(q, 'découverte')).elements, R0); } catch (e) {
+    let prec = null; try { prec = JSON.parse(fs.readFileSync(path.join(SORTIE, 'poncin.json'), 'utf8')); } catch (e2) { /* pas de carte précédente */ }
+    if (prec && prec.origine && prec.taille && CONFIG.centre === 'auto') { // mieux vaut le cadrage déjà validé que le point approché
+      repli(`découverte impossible (${e.message.slice(0, 160)}) : centre et taille de la carte précédente (${prec.origine.lat}, ${prec.origine.lon}, ${prec.taille} m)`);
+      return { lat: prec.origine.lat, lon: prec.origine.lon, taille: prec.taille };
+    }
+    repli(`découverte impossible (${e.message.slice(0, 160)}) : centre approché ${lat}, ${lon}`);
+  }
   const cap = (q2) => { const a = Math.atan2(q2[0], -q2[1]) / RAD; return ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'][Math.round(((a + 360) % 360) / 45) % 8]; };
   const cat = (t) => t.historic === 'castle' ? 'château' : t.amenity === 'townhall' ? 'mairie' : t.amenity === 'place_of_worship' ? 'culte' : t.place === 'square' || /^place /i.test(t.name || '') ? 'place' : t.waterway === 'river' ? 'rivière' : t.waterway ? 'ruisseau' : t.place ? 'lieu' : '?';
   console.log(`\n── Découverte autour de ${lat}, ${lon} (${objets.length} objets) ──`);
