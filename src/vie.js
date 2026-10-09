@@ -138,6 +138,7 @@ const VIE = (() => {
   }
   function servi(st, c) { // au comptoir : le client est compté, l'habitué noté — exactement comme avant
     c.sac = !c.or || c.pris;
+    if (c.or) chasseChat(); // le chat court voir le client mystère
     st.stats.clients++; G.noter(st, 'clients', 1);
     if (c.hab) { const r = G.servirHabitue(st, c.hab); if (r.ok && API.surServi) API.surServi(r); }
     const slotLibre = c.slot; c.slot = -2;
@@ -173,7 +174,7 @@ const VIE = (() => {
     for (let k = apprentis.length - 1; k >= 0; k--) if (!staffes.includes(apprentis[k].i)) apprentis.splice(k, 1);
     staffes.forEach((i) => { if (!apprentis.some((a) => a.i === i)) { const lane = [0, 1, 2].find((l) => !apprentis.some((a) => a.lane === l)); apprentis.push({ i, lane, x: LAY.fourSlots[lane], y: LAY.lanes[lane], etat: 'four', t: tCuisson(st, i), plateau: false, dir: 1, phase: Math.random() * TAU }); } });
     for (const a of apprentis) {
-      a.phase += dt * 9;
+      a.phase += dt * 9; a.grade = force.grades || G.gradeApprenti(st, a.i);
       const v = 70 * K * (rush ? 1.5 : 1) * dt;
       if (a.etat === 'four') { a.t -= dt; a.dir = 2; if (panneI === a.i) a.etat = 'panne'; else if (a.t <= 0) { a.plateau = true; a.etat = 'porte'; } }
       else if (a.etat === 'porte') { a.dir = 1; const cible = LAY.comptoirSlots[a.lane]; a.x = Math.min(cible, a.x + v); if (a.x >= cible) { a.etat = 'depose'; a.t = 0.5; a.dir = 0; } }
@@ -183,6 +184,34 @@ const VIE = (() => {
       if (a.etat === 'four' && Math.random() < 0.04) vapeurs.push({ x: a.x + (Math.random() - 0.5) * 10, y: a.y - 40 * K, r: 2 + Math.random() * 2, life: 0.6 }); // la vapeur des fournées
     }
   }
+  // ─── le chat : il dort sur le comptoir, saute, fait le tour (la plante, l'allée, le salon), s'assoit, remonte ; il court voir le client mystère ───
+  // chat.haut : sur le comptoir ; chat.saut : 0 → 1 pendant un saut (descente ou montée) ; (x, y) : le point du sol (au pied du comptoir quand il est en haut)
+  let chat = null;
+  const piedComptoir = () => ({ x: LAY.chat.x, y: LAY.comptoir.y + LAY.comptoir.hTop + LAY.comptoir.hFace + 12 * K });
+  const spotsChat = () => [{ x: LAY.plante.x + 24 * K, y: LAY.plante.y + 8 * K }, { x: LAY.allee - 34 * K, y: LAY.T * 0.64 }, { x: LAY.tables[0].x - 42 * K, y: LAY.tables[0].y + 12 * K }, { x: W * 0.47, y: LAY.T * 0.92 }];
+  function versChat(cible, vite) { const c = chat; c.cible = cible; c.etat = 'marche'; c.vite = !!vite; }
+  function majChat(st, dt) {
+    if (!st.chat) { chat = null; return; }
+    if (!chat) { const p = piedComptoir(); chat = { x: p.x, y: p.y, etat: 'dort', haut: true, saut: 0, t: 12 + Math.random() * 18, phase: 0, dir: 1, cible: null, vite: false, tours: 0, coeurs: [] }; }
+    const c = chat; c.phase += dt * 8; c.t -= dt;
+    for (let i = c.coeurs.length - 1; i >= 0; i--) { const h = c.coeurs[i]; h.y -= 20 * dt; h.life -= dt; if (h.life <= 0) c.coeurs.splice(i, 1); }
+    if (force.chat) { // les captures : endormi sur le comptoir, ou assis dans l'allée
+      if (force.chat === 'assis') { const sp = spotsChat()[1]; c.x = sp.x; c.y = sp.y; c.haut = false; c.etat = 'assis'; } else { const p = piedComptoir(); c.x = p.x; c.y = p.y; c.haut = true; c.etat = 'dort'; }
+      c.saut = 0; return;
+    }
+    if (c.etat === 'dort') { if (c.t <= 0) { c.etat = 'descend'; c.saut = 0; } }
+    else if (c.etat === 'descend' || c.etat === 'monte') { c.saut = Math.min(1, c.saut + dt / 0.45); if (c.saut >= 1) { c.saut = 0; if (c.etat === 'descend') { c.haut = false; c.tours = 0; versChat(spotsChat()[Math.floor(Math.random() * 4)]); } else { c.haut = true; c.etat = 'dort'; c.t = 18 + Math.random() * 25; } } }
+    else if (c.etat === 'marche') {
+      const v = (c.vite ? 95 : 42) * K * dt, dx = c.cible.x - c.x, dy = c.cible.y - c.y, d = Math.hypot(dx, dy);
+      c.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : -1) : (dy < 0 ? 2 : 0);
+      if (d <= v) { c.x = c.cible.x; c.y = c.cible.y; if (c.cible.retour) { c.etat = 'monte'; c.saut = 0; c.dir = 2; } else { c.etat = 'assis'; c.dir = 0; c.t = c.vite ? 2.5 : 4 + Math.random() * 5; } }
+      else { c.x += dx / d * v; c.y += dy / d * v; }
+    }
+    else if (c.etat === 'assis') { if (c.t <= 0) { if (++c.tours >= 3) { const p = piedComptoir(); versChat({ x: p.x, y: p.y, retour: true }); } else versChat(spotsChat()[Math.floor(Math.random() * 4)]); } }
+  }
+  function chasseChat() { if (chat && !chat.haut && chat.etat !== 'monte' && chat.etat !== 'descend' && LAY) { versChat({ x: LAY.mystere.x + 16 * K, y: LAY.mystere.y + 6 * K }, true); chat.tours = Math.min(chat.tours, 2); } }
+  function ronron() { if (!chat) return; const x = chat.x, y = (chat.haut ? LAY.chat.y : chat.y) - 26 * K; for (let k = 0; k < 3; k++) chat.coeurs.push({ x: x + (k - 1) * 9, y: y - k * 4, life: 1 + k * 0.15 }); }
+
   let etat = null; // l'instantané de la dernière frame, pour la vue
   function frame(dt, st, now) {
     if (!LAY) calculer();
@@ -201,6 +230,7 @@ const VIE = (() => {
     }
     majClients(st, dt);
     majApprentis(st, dt);
+    majChat(st, dt);
     // dehors : des passants devant la fenêtre et la météo de saison, en fractions de la fenêtre (u : 0 → 1 de gauche à droite, v : 0 → 1 de haut en bas)
     nextPassant -= dt;
     if (nextPassant <= 0 && Q.vue !== 'mer' && Q.vue !== 'montagne') { nextPassant = 6 + Math.random() * 10; const g = Math.random() < 0.5; passants.push({ u: g ? -0.15 : 1.15, vu: (g ? 1 : -1) * (0.17 + Math.random() * 0.13), s: 0.7 + Math.random() * 0.3, col: ['#2B3A55', '#6B4A3A', '#3D5A4A', '#7A3B4A'][Math.floor(Math.random() * 4)], phase: Math.random() * TAU }); }
@@ -225,10 +255,10 @@ const VIE = (() => {
     return etat;
   }
 
-  const API = { hautBloc, resize, frame, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, surServi: null,
+  const API = { hautBloc, resize, frame, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, piedComptoir, surServi: null,
     DECORS, PASTEL, PEAUX6, HAUTS6, CHEVEUX, TAU,
     get LAY() { return LAY; }, get K() { return K; }, get W() { return W; }, get H() { return H; }, get t() { return t; }, get rush() { return rush; }, get Q() { return Q; }, get tags() { return tags; }, get force() { return force; }, get etat() { return etat; },
-    get clients() { return clients; }, get apprentis() { return apprentis; }, get textes() { return textes; }, get vapeurs() { return vapeurs; }, get confetti() { return confetti; }, get flocons() { return flocons; }, get passants() { return passants; }, get crans() { return crans; }, get abordables() { return abordables; }, get prixDe() { return prixDe; },
+    get clients() { return clients; }, get apprentis() { return apprentis; }, get textes() { return textes; }, get vapeurs() { return vapeurs; }, get confetti() { return confetti; }, get flocons() { return flocons; }, get passants() { return passants; }, get chat() { return chat; }, get crans() { return crans; }, get abordables() { return abordables; }, get prixDe() { return prixDe; },
     get nClients() { return clients.length; }, get nApprentis() { return apprentis.length; }, get assis() { let n = 0; for (const c of clients) if (c.etat === 'assis') n++; return n; }, get mystereVisible() { return !!mystereEnAttente(); } };
   return API;
 })();

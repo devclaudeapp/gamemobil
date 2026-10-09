@@ -217,6 +217,16 @@ body[data-tiroir="ouvert"] #b-amenager { opacity: 0; pointer-events: none; }
 .staff-ok svg { width: 22px; height: 22px; flex: 0 0 auto; }
 .staff-ok span { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
 .staff-ok .coche svg { width: 14px; height: 14px; stroke: var(--menthe-sombre); stroke-width: 3; }
+button.staff-ok { border: 0; cursor: pointer; font: inherit; font: 800 12px/1.1 var(--texte-font); }
+button.staff-ok:active { transform: translateY(1px); }
+.staff-ok .grade { flex: 0 0 auto; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--lavande); color: #fff; font: 800 11px/17px var(--texte-font); font-style: normal; text-align: center; }
+.staff-ok .grade.g1 { background: #C9B8AE; } .staff-ok .grade.g3, .staff-ok .grade.g4 { background: var(--menthe-sombre); } .staff-ok .grade.g5 { background: var(--beurre-sombre); }
+.carte.saison { box-shadow: 0 0 0 2px #FFB46A inset, 0 3px 0 rgba(74,51,40,.08); }
+.tag.saison { background: #FFB46A; color: #4A3328; }
+.apprenti-tete, .chat-tete { display: flex; align-items: center; gap: 12px; }
+.apprenti-tete svg { width: 64px; height: 64px; flex: 0 0 auto; }
+.chat-tete { justify-content: center; } .chat-tete svg { width: 72px; height: 72px; }
+.ligne.saison .ev-ico svg { width: 30px; height: 30px; }
 .carte.verrou { grid-template-columns: 54px minmax(0, 1fr); background: #FFFBF4; box-shadow: none; border: 2px dashed var(--gris-sombre); }
 .carte.verrou .icone { background: var(--creme); }
 .carte.verrou .icone svg { opacity: .45; filter: grayscale(1); }

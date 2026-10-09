@@ -222,6 +222,16 @@ body[data-tiroir="ouvert"] #b-amenager { opacity: 0; pointer-events: none; }
 .staff-ok svg { width: 22px; height: 22px; flex: 0 0 auto; }
 .staff-ok span { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
 .staff-ok .coche svg { width: 14px; height: 14px; stroke: var(--menthe-sombre); stroke-width: 3; }
+button.staff-ok { border: 0; cursor: pointer; font: inherit; font: 800 12px/1.1 var(--texte-font); }
+button.staff-ok:active { transform: translateY(1px); }
+.staff-ok .grade { flex: 0 0 auto; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--lavande); color: #fff; font: 800 11px/17px var(--texte-font); font-style: normal; text-align: center; }
+.staff-ok .grade.g1 { background: #C9B8AE; } .staff-ok .grade.g3, .staff-ok .grade.g4 { background: var(--menthe-sombre); } .staff-ok .grade.g5 { background: var(--beurre-sombre); }
+.carte.saison { box-shadow: 0 0 0 2px #FFB46A inset, 0 3px 0 rgba(74,51,40,.08); }
+.tag.saison { background: #FFB46A; color: #4A3328; }
+.apprenti-tete, .chat-tete { display: flex; align-items: center; gap: 12px; }
+.apprenti-tete svg { width: 64px; height: 64px; flex: 0 0 auto; }
+.chat-tete { justify-content: center; } .chat-tete svg { width: 72px; height: 72px; }
+.ligne.saison .ev-ico svg { width: 30px; height: 30px; }
 .carte.verrou { grid-template-columns: 54px minmax(0, 1fr); background: #FFFBF4; box-shadow: none; border: 2px dashed var(--gris-sombre); }
 .carte.verrou .icone { background: var(--creme); }
 .carte.verrou .icone svg { opacity: .45; filter: grayscale(1); }
@@ -484,6 +494,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     if (m === 12 || m <= 2) tags.push('neige');
     if (m === 12) tags.push('noel');
     if (m === 1 && j <= 20) tags.push('galette');
+    if (m === 2 && j <= 9) tags.push('chandeleur');
     if (m === 2 && j >= 10 && j <= 15) tags.push('coeurs');
     if (m === 4) tags.push('paques');
     if (m >= 6 && m <= 8) tags.push('ete');
@@ -520,6 +531,85 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     st.talents = st.talents || {}; st.talents[id] = talent(st, id) + 1;
     return { ok: true, cran: st.talents[id], talent: t };
   }
+  // ─── les apprentis montent en grade : leur savoir-faire grandit avec leurs fournées (hors ligne compris) et les suit d'une boutique à l'autre ───
+  const APPRENTI_NIVEAUX = [0, 43200, 172800, 518400, 1620000]; // grades 1 à 5 : 12 h, 48 h, 144 h puis 450 h de fournil (réglés sur les garde-fous de longévité)
+  const APPRENTI_VITESSE = 0.02;                                 // −2 % de temps de cuisson par grade au-delà du premier
+  const APPRENTIS = [ // le talent propre de chacun, acquis au grade 3 : tantôt des gains, tantôt de la vitesse
+    { prenom: 'Léo', talent: 'Pétrin bien réglé', rev: 1.1 }, { prenom: 'Inès', talent: 'Tourage express', temps: 0.92 },
+    { prenom: 'Sami', talent: 'Deux barres, toujours', rev: 1.1 }, { prenom: 'Rose', talent: 'La pâte de mamie', temps: 0.92 },
+    { prenom: 'Malik', talent: 'Glaçage parfait', rev: 1.1 }, { prenom: 'Agathe', talent: 'Coques régulières', temps: 0.92 },
+    { prenom: 'Augustin', talent: 'Mille couches', rev: 1.1 }, { prenom: 'Paulin', talent: 'Main sûre', temps: 0.92 },
+  ];
+  const effetTalentApprenti = (i) => { const a = APPRENTIS[i], pl = PRODUITS[i].pl; return a.rev ? `${pl[0].toUpperCase() + pl.slice(1)} ×${virgule(a.rev)}` : `${pl[0].toUpperCase() + pl.slice(1)} : cuisson ${Math.round((1 - a.temps) * 100)} % plus rapide`; };
+  const virgule = (x) => String(+x.toFixed(2)).replace('.', ',');
+  const xpApprenti = (st, i) => (st.apprentis && st.apprentis[PRODUITS[i].id] && st.apprentis[PRODUITS[i].id].xp) || 0;
+  function gradeApprenti(st, i) { const x = xpApprenti(st, i); let n = 1; while (n < 5 && x >= APPRENTI_NIVEAUX[n]) n++; return n; }
+  function progresApprenti(st, i) { const n = gradeApprenti(st, i), x = xpApprenti(st, i); return { n, reste: x - APPRENTI_NIVEAUX[n - 1], prochain: n < 5 ? APPRENTI_NIVEAUX[n] - APPRENTI_NIVEAUX[n - 1] : 0 }; }
+  function creditApprenti(st, i, n) { // n fournées cuites par l'apprenti du produit i ; rend { i, niv, talent } s'il monte de grade
+    st.apprentis = st.apprentis || {}; const a = st.apprentis[PRODUITS[i].id] || (st.apprentis[PRODUITS[i].id] = { xp: 0 });
+    const avant = gradeApprenti(st, i); a.xp += n * PRODUITS[i].temps; const niv = gradeApprenti(st, i);
+    if (niv <= avant) return null;
+    gagnerXp(st, 10 * niv); inc(st, 'gradesApprentis');
+    note(st, `${APPRENTIS[i].prenom} passe au grade ${niv}${niv === 3 ? ' : ' + APPRENTIS[i].talent : ''}`);
+    return { i, niv, talent: niv === 3 };
+  }
+  // seulement quand l'apprenti est là : à la main, rien ne change
+  const apprentiTempsMult = (st, i) => { if (!st.stations[i] || !st.stations[i].staff) return 1; const n = gradeApprenti(st, i), t = APPRENTIS[i].temps; return (1 - APPRENTI_VITESSE * (n - 1)) * (n >= 3 && t ? t : 1); };
+  const apprentiRevMult = (st, i) => { if (!st.stations[i] || !st.stations[i].staff) return 1; const r = APPRENTIS[i].rev; return gradeApprenti(st, i) >= 3 && r ? r : 1; };
+
+  // ─── le chat de la boutique : il miaule à la porte quand les éclairs sont au menu ; adopté, on le caresse et il porte chance ───
+  const CHAT = { chance: 0.2, attente: 60e3, defaut: 'Brioche', apparition: 45, rappel: 30 };
+  const nomChat = (nom) => String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16) || CHAT.defaut;
+  const chatPossible = (st) => !st.chat && !!st.stations[4] && st.stations[4].niv > 0 && st.chatRefuse !== dayKey(st.now);
+  function adopterChat(st, nom) { if (st.chat) return { ok: false }; st.chat = { nom: nomChat(nom), caresses: 0, dernier: 0, adopte: st.now }; gagnerXp(st, 10); note(st, `${st.chat.nom} a adopté la boutique`); return { ok: true, chat: st.chat }; }
+  function refuserChat(st) { st.chatRefuse = dayKey(st.now); st.chatAttente = CHAT.apparition; }
+  function renommerChat(st, nom) { if (!st.chat) return null; st.chat.nom = nomChat(nom); return st.chat.nom; }
+  function caresser(st) { // une caresse ; au plus une fois par minute, il porte chance : le client mystère arrive 20 % plus tôt
+    if (!st.chat) return { ok: false };
+    st.chat.caresses++; let chance = false;
+    if (st.now - (st.chat.dernier || 0) >= CHAT.attente) { st.chat.dernier = st.now; st.mystereTimer *= 1 - CHAT.chance; gagnerXp(st, 1); chance = true; }
+    return { ok: true, chance, caresses: st.chat.caresses };
+  }
+
+  // ─── les recettes de saison : une station à part, cuite à la main, le temps de sa saison ; cent fournées pour la maîtriser ───
+  const RECETTES_SAISON = [
+    { id: 'galette', nom: 'Galette des rois', pl: 'galettes', tag: 'galette', temps: 8, fin: [1, 20], desc: 'Qui aura la fève ?' },
+    { id: 'crepe', nom: 'Crêpes de la Chandeleur', pl: 'crêpes', tag: 'chandeleur', temps: 6, fin: [2, 9], desc: 'Sautées d’une main, la pièce dans l’autre.' },
+    { id: 'paques', nom: 'Chocolats de Pâques', pl: 'chocolats', tag: 'paques', temps: 10, fin: [4, 30], desc: 'Des œufs, des poules et des cloches.' },
+    { id: 'glace', nom: 'Glaces artisanales', pl: 'glaces', tag: 'ete', temps: 6, fin: [8, 31], desc: 'Deux boules, un cornet.' },
+    { id: 'citrouille', nom: 'Tarte à la citrouille', pl: 'tartes à la citrouille', tag: 'halloween', temps: 10, fin: [10, 31], desc: 'Épicée, orange, un peu effrayante.' },
+    { id: 'buche', nom: 'Bûche de Noël', pl: 'bûches', tag: 'noel', temps: 12, fin: [12, 31], desc: 'Chocolat, meringue et houx.' },
+  ];
+  const SAISON = { revSec: 30, coutSec: 300, croiss: 1.5, nivMax: 10, maitrise: 100 };
+  let recetteForcee = null;
+  const forcerRecette = (id) => { recetteForcee = id || null; }; // tests et captures seulement
+  const recetteDeSaison = (ms) => (recetteForcee && RECETTES_SAISON.find((r) => r.id === recetteForcee)) || RECETTES_SAISON.find((r) => saison(ms).includes(r.tag)) || null;
+  const recetteSaison = (st) => (st.saison ? RECETTES_SAISON.find((r) => r.id === st.saison.id) || null : null);
+  function saisonDuJour(st, nowMs) { // la recette de la saison en cours ; une nouvelle saison repart du niveau 0
+    const r = recetteDeSaison(nowMs);
+    if (!r) { st.saison = null; return null; }
+    if (!st.saison || st.saison.id !== r.id) st.saison = { id: r.id, annee: new Date(nowMs).getFullYear(), niv: 0, prog: 0, actif: false };
+    return st.saison;
+  }
+  const tempsSaison = (st) => { const r = recetteSaison(st); return r ? r.temps * tempsMult(st) : 0; };
+  const revenuSaison = (st) => { const s = st.saison; return s && s.niv > 0 ? rythme(st) * SAISON.revSec * (1 + 0.15 * (s.niv - 1)) * boostMult(st) * affluenceMult(st) : 0; };
+  const coutSaison = (st) => arrondi(rythme(st) * SAISON.coutSec * Math.pow(SAISON.croiss, st.saison ? st.saison.niv : 0)) * remise(st);
+  function preparerSaison(st) { // niveau 0 → 1 : préparer la recette ; ensuite l'améliorer, jusqu'au niveau 10
+    const s = st.saison; if (!s || s.niv >= SAISON.nivMax) return { ok: false };
+    const prix = coutSaison(st); if (st.coins < prix) return { ok: false, prix };
+    st.coins -= prix; s.niv++; noter(st, 'niveaux', 1); if (s.niv === 1) gagnerXp(st, 6);
+    return { ok: true, prix, niv: s.niv };
+  }
+  function lancerSaison(st) { const s = st.saison; if (!s || s.niv <= 0 || s.actif) return false; s.actif = true; s.prog = 0; st.stats.taps++; noter(st, 'mains', 1); return true; }
+  function cuireSaison(st, out, differe) { // une fournée de saison sortie du four : gains (sauf si l'absence les compte elle-même), collection, maîtrise
+    const s = st.saison, r = recetteSaison(st), m = revenuSaison(st);
+    s.prog = 0; s.actif = false; if (!differe) gagner(st, m); st.stats.ventes++; inc(st, 'fourneesSaison');
+    st.collection = st.collection || {}; const c = st.collection[s.id] || (st.collection[s.id] = { annee: s.annee, fournees: 0, maitrisee: false });
+    c.fournees++; c.annee = s.annee;
+    if (!c.maitrisee && c.fournees >= SAISON.maitrise) { c.maitrisee = true; gagnerXp(st, 50); note(st, `${r.nom} : recette maîtrisée`); if (out) out.maitrise = r; }
+    return m;
+  }
+
   // ─── le mobilier : six meubles de la boutique, améliorables cran par cran ; tout repart de zéro à chaque boutique ───
   const virg = (x) => String(+x.toFixed(2)).replace('.', ',');
   const MOBILIER = [
@@ -543,7 +633,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   }
   // effets des talents et du mobilier
   const tempsMult = (st) => (1 - 0.05 * talent(st, 'mains')) * (1 - 0.03 * mobilierCran(st, 'four'));
-  const temps = (st, i) => PRODUITS[i].temps * tempsMult(st);
+  const temps = (st, i) => PRODUITS[i].temps * tempsMult(st) * apprentiTempsMult(st, i);
   const heuresAbsence = (st) => ABSENCE_MAX_H + talent(st, 'levetot') + mobilierCran(st, 'froid');
   const affluenceMult = (st) => 1 + 0.5 * talent(st, 'affluence') + 0.25 * mobilierCran(st, 'vitrine');
   const prixStaff = (st, i) => PRODUITS[i].staff * (1 - 0.1 * talent(st, 'zele'));
@@ -559,6 +649,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       stats: { taps: 0, ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false, meubles: 0 },
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null, tiroir: 'mi',
+      apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, saison: null, collection: {},
     };
   }
 
@@ -590,7 +681,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     if (jourDeMarche(st.now)) m *= MARCHE_MULT;
     return m;
   }
-  function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st) * mobilierMult(st); }
+  function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st) * mobilierMult(st) * apprentiRevMult(st, i); }
   function revenu(st, i) { return revenuBase(st, i) * boostMult(st, i); } // par fournée, maintenant
   // niv 0 : débloquer la recette (un cap, cher) ; ensuite chaque niveau coûte quelques fournées de plus que le précédent
   const coutNiveau = (i, niv) => (niv === 0 ? PRODUITS[i].debloquer : PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv));
@@ -662,6 +753,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     if (st.jour.pain == null) st.jour.pain = painDuJour(st, key);
     remplacerImpossibles(st);
     semaineEnCours(st, nowMs);
+    saisonDuJour(st, nowMs);
     return st.jour;
   }
   // ─── le défi de la semaine : un seul, plus long, du lundi au dimanche ; réussi : une étoile, du savoir-faire, une prime ───
@@ -851,6 +943,11 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     { id: 'fidele', nom: 'Habitué fidèle', desc: 'Servir un habitué 5 jours de suite', xp: 40, cond: (st) => Object.values(st.habitues || {}).some((e) => e.jours >= 5) },
     { id: 'salon', nom: 'Salon de thé', desc: 'Tables et chaises au maximum', xp: 30, cond: (st) => mobilierCran(st, 'tables') >= 4 },
     { id: 'decorateur', nom: 'Décorateur', desc: 'Améliorer 40 meubles en tout', xp: 50, cond: (st) => (st.stats.meubles || 0) >= 40 },
+    { id: 'grade', nom: 'Chef de partie', desc: 'Un apprenti au grade 3', xp: 30, cond: (st) => PRODUITS.some((p, i) => gradeApprenti(st, i) >= 3) },
+    { id: 'brigade', nom: 'Brigade étoilée', desc: 'Quatre apprentis au grade 5', xp: 100, cond: (st) => PRODUITS.filter((p, i) => gradeApprenti(st, i) >= 5).length >= 4 },
+    { id: 'ronron', nom: 'Ronron', desc: 'Caresser le chat 100 fois', xp: 30, cond: (st) => !!st.chat && st.chat.caresses >= 100 },
+    { id: 'saison1', nom: 'Recette de saison', desc: 'Maîtriser une recette de saison', xp: 30, cond: (st) => Object.values(st.collection || {}).some((c) => c.maitrisee) },
+    { id: 'saisons4', nom: 'Quatre saisons', desc: 'Maîtriser quatre recettes de saison', xp: 80, cond: (st) => Object.values(st.collection || {}).filter((c) => c.maitrisee).length >= 4 },
   ];
   function verifierTrophees(st) {
     st.trophees = st.trophees || {}; const neufs = [];
@@ -894,6 +991,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     if (gain <= 0) return { ok: false };
     st.etoiles += gain; st.boutiques++; st.nomBoutique = ''; st.specialite = null; gagnerXp(st, 80 + Math.min(120, 2 * gain)); noterSemaine(st, 'boutique');
     st.coins = 0; st.lifetimeRun = 0; st.ameliorations = {}; st.mobilier = {}; st.stations = stationsNeuves(1 + talent(st, 'memoire')); st.ev = null; st.boost = null;
+    if (st.saison) st.saison = { id: st.saison.id, annee: st.saison.annee, niv: 0, prog: 0, actif: false }; // les grades des apprentis, le chat et la collection restent
     st.lastSeen = nowMs;
     // les objectifs du jour pas encore réclamés sont retirés à la taille de la nouvelle boutique (les réussis restent acquis)
     if (st.jour) { const neufs = tirerObjectifs(st, st.jour.date); st.jour.objectifs = st.jour.objectifs.map((o, k) => (o.reclame ? o : neufs[k])); }
@@ -903,8 +1001,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   // ─── un pas de jeu ; rend {ventes, nouvelEv, finEv, mystere} ───
   function tick(st, dt, nowMs, rnd) {
     st.now = nowMs; rnd = rnd || Math.random;
-    const out = { ventes: [], nouvelEv: null, finEv: null, mystere: false, habitue: null, trophees: [] };
+    const out = { ventes: [], nouvelEv: null, finEv: null, mystere: false, habitue: null, trophees: [], grades: [], chat: false, saison: null, venteSaison: null, maitrise: null };
+    const saisonAvant = st.saison && st.saison.id;
     objectifsDuJour(st, nowMs);
+    if (st.saison && st.saison.id !== saisonAvant) out.saison = recetteSaison(st); // une nouvelle recette de saison
     st.stations.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
       if (st.ev && st.ev.type === 'panne' && st.ev.i === i) return; // le four est en panne
@@ -915,6 +1015,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       if (!s.staff) { n = 1; s.prog = 0; s.actif = false; } else s.prog -= n * T;
       const montant = revenuFournee(st, i) * n;
       gagner(st, montant); st.stats.ventes += n; noter(st, 'vendre', n, i);
+      if (s.staff) { const g = creditApprenti(st, i, n); if (g) out.grades.push(g); }
       if (st.ev && st.ev.type === 'commande' && st.ev.i === i) st.ev.fait = Math.min(st.ev.n, st.ev.fait + n);
       out.ventes.push({ i, montant, n });
     });
@@ -925,6 +1026,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       if (st.evTimer <= 0) { st.evTimer = (180 + rnd() * 240) * (1 - 0.12 * talent(st, 'charme')); out.nouvelEv = lancerEvenement(st, rnd); }
     }
     if (st.boost && st.boost.fin <= nowMs) st.boost = null;
+    const ss = st.saison; // la fournée de saison
+    if (ss && ss.actif) { ss.prog += dt; if (ss.prog >= tempsSaison(st)) out.venteSaison = { id: ss.id, montant: cuireSaison(st, out) }; }
+    if (chatPossible(st)) { st.chatAttente = (st.chatAttente == null ? CHAT.apparition : st.chatAttente) - dt; if (st.chatAttente <= 0) { st.chatAttente = CHAT.rappel; out.chat = true; } } // un chat miaule à la porte
     st.mystereTimer -= dt;
     if (st.mystereTimer <= 0) { st.mystereTimer = (150 + rnd() * 200) * (1 - 0.15 * talent(st, 'pourboire')) * (1 - 0.08 * mobilierCran(st, 'caisse')); out.mystere = true; }
     const hb = habitueAttendu(st, nowMs); // un habitué passe une fois par jour, pendant son créneau, après quelques secondes de jeu
@@ -936,20 +1040,22 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   function absence(st, nowMs) {
     st.now = nowMs; st.ev = null; st.boost = null;
     const secs = Math.min(heuresAbsence(st) * 3600, Math.max(0, (nowMs - st.lastSeen) / 1000));
-    let total = 0; const detail = [];
+    let total = 0; const detail = [], grades = [];
     st.stations.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
       const T = temps(st, i);
       if (s.staff) {
         const n = Math.floor((s.prog + secs) / T);
         s.prog = (s.prog + secs) % T;
-        if (n > 0) { const m = revenu(st, i) * n; total += m; detail.push({ i, n, m }); st.stats.ventes += n; }
+        if (n > 0) { const m = revenu(st, i) * n; total += m; detail.push({ i, n, m }); st.stats.ventes += n; const g = creditApprenti(st, i, n); if (g) grades.push(g); }
       } else if (s.prog + secs >= T) { const m = revenuFournee(st, i); total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; st.stats.ventes++; }
       else s.prog += secs;
     });
+    const ss = st.saison; // une fournée de saison lancée avant de partir se termine
+    if (ss && ss.actif && ss.prog + secs >= tempsSaison(st)) { const r = recetteSaison(st), m = cuireSaison(st, null, true); total += m; detail.push({ i: -1, nom: r.nom, n: 1, m }); } else if (ss && ss.actif) ss.prog += secs;
     if (total > 0) gagner(st, total, true);
     st.lastSeen = nowMs;
-    return { secs, total, detail };
+    return { secs, total, detail, grades };
   }
 
   // ─── format des nombres : 1 234 €, 12,5 k €, 3,4 M €, 2,1 Md € ───
@@ -967,7 +1073,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   function fmtDuree(s) { if (s < 60) return Math.round(s) + ' s'; if (s < 3600) return Math.round(s / 60) + ' min'; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; }
   const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
-  return { PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
+  return { APPRENTIS, APPRENTI_NIVEAUX, APPRENTI_VITESSE, xpApprenti, gradeApprenti, progresApprenti, creditApprenti, apprentiTempsMult, apprentiRevMult, effetTalentApprenti,
+    CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser,
+    RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
+    PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost,
@@ -992,10 +1101,21 @@ const ICONS = (() => {
   };
   const PEAUX = ['#FFD7B5', '#F1B990', '#C68B59', '#8D5A3C', '#FFE3C9', '#5C3A21'];
   const HAUTS = ['#FF6B8B', '#5FD3A4', '#B8A6FF', '#FFC84A', '#6CB8FF', '#FF9A62'];
-  function apprenti(i) {
-    const peau = PEAUX[i % PEAUX.length], haut = HAUTS[(i * 2 + 1) % HAUTS.length];
-    return S(`<circle cx="24" cy="44" r="16" fill="${haut}"/><circle cx="24" cy="22" r="11" fill="${peau}" stroke="${L}" stroke-width="2"/><path d="M12 19c0-7 6-11 12-11s12 4 12 11v2H12z" fill="#fff" stroke="${L}" stroke-width="2"/><rect x="11" y="19" width="26" height="4" rx="2" fill="#fff" stroke="${L}" stroke-width="2"/><circle cx="20" cy="24" r="1.6" fill="${L}"/><circle cx="28" cy="24" r="1.6" fill="${L}"/><path d="M20 29c2 2 6 2 8 0" stroke="${L}" stroke-width="2" stroke-linecap="round" fill="none"/>`);
+  function apprenti(i, grade) { // le portrait d'un apprenti ; son grade se voit : bande au tablier (2), étoile (3), toque plus haute (4), liseré doré (5)
+    const peau = PEAUX[i % PEAUX.length], haut = HAUTS[(i * 2 + 1) % HAUTS.length], g = grade || 1;
+    const toque = g >= 4 ? 'M12 19c0-10 6-15 12-15s12 5 12 15v2H12z' : 'M12 19c0-7 6-11 12-11s12 4 12 11v2H12z';
+    return S(`<circle cx="24" cy="44" r="16" fill="${haut}"/>${g >= 2 ? `<rect x="13" y="34.5" width="22" height="3.2" rx="1.6" fill="${L}" opacity=".28"/>` : ''}${g >= 3 ? `<path d="M31.5 37.5l1.3 2.6 2.9.4-2.1 2 .5 2.9-2.6-1.4-2.6 1.4.5-2.9-2.1-2 2.9-.4z" fill="#FFC84A" stroke="${L}" stroke-width="1" stroke-linejoin="round"/>` : ''}<circle cx="24" cy="22" r="11" fill="${peau}" stroke="${L}" stroke-width="2"/><path d="${toque}" fill="#fff" stroke="${L}" stroke-width="2"/><rect x="11" y="19" width="26" height="4" rx="2" fill="${g >= 5 ? '#FFC84A' : '#fff'}" stroke="${g >= 5 ? '#E0A61E' : L}" stroke-width="2"/><circle cx="20" cy="24" r="1.6" fill="${L}"/><circle cx="28" cy="24" r="1.6" fill="${L}"/><path d="M20 29c2 2 6 2 8 0" stroke="${L}" stroke-width="2" stroke-linecap="round" fill="none"/>`);
   }
+  // les recettes de saison, au même trait que les pâtisseries
+  const SAISON = {
+    citrouille: S(`<ellipse cx="24" cy="30" rx="18" ry="10" fill="#E9A95C" stroke="${L}" stroke-width="2"/><ellipse cx="24" cy="27" rx="15" ry="7.5" fill="#F28C28"/><path d="M14 27h20M18 22l12 10M18 32l12-10" stroke="#D9701C" stroke-width="1.8" stroke-linecap="round"/><path d="M24 21c0-3 2-5 4-5" stroke="#3FB889" stroke-width="2.4" stroke-linecap="round" fill="none"/>`),
+    buche: S(`<rect x="6" y="18" width="34" height="16" rx="8" fill="#6B3E26" stroke="${L}" stroke-width="2"/><path d="M10 22c6 2 12-2 18 0s8 2 10 0M10 28c6 2 12-2 18 0s8 2 10 0" stroke="#8B5A3C" stroke-width="1.8" fill="none"/><ellipse cx="38" cy="26" rx="4" ry="7.5" fill="#E8C39A" stroke="${L}" stroke-width="2"/><path d="M38 23a2.5 2.5 0 11-1 4" stroke="#8B5A3C" stroke-width="1.4" fill="none"/><path d="M14 16c2-4 6-4 8 0-2 1-6 1-8 0z" fill="#3FB889" stroke="${L}" stroke-width="1.4"/><circle cx="22" cy="15" r="2" fill="#E1496C"/><path d="M8 18c4-2 10-1 14-2" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>`),
+    crepe: S(`<ellipse cx="22" cy="34" rx="17" ry="7" fill="#E8B46A" stroke="${L}" stroke-width="2"/><ellipse cx="22" cy="30" rx="16" ry="6.5" fill="#F2C77A" stroke="${L}" stroke-width="2"/><ellipse cx="22" cy="26" rx="15" ry="6" fill="#F7D594" stroke="${L}" stroke-width="2"/><circle cx="17" cy="25" r="1.2" fill="#D9A056"/><circle cx="26" cy="27" r="1.2" fill="#D9A056"/><path d="M34 14a7 7 0 0110 4l-10 2z" fill="#FFE27A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`),
+    paques: S(`<ellipse cx="17" cy="30" rx="9" ry="11" fill="#7A4A2A" stroke="${L}" stroke-width="2"/><circle cx="17" cy="17" r="6" fill="#7A4A2A" stroke="${L}" stroke-width="2"/><path d="M23 17l4 1.5-4 1.5z" fill="#FFC84A"/><path d="M15 11l2-3 2 3" fill="#E1496C"/><circle cx="18.5" cy="16" r="1.2" fill="#fff"/><ellipse cx="33" cy="33" rx="6.5" ry="8.5" fill="#FF9FB2" stroke="${L}" stroke-width="2"/><path d="M27 33h12" stroke="#fff" stroke-width="2"/><ellipse cx="40" cy="22" rx="5" ry="6.5" fill="#9BD0FF" stroke="${L}" stroke-width="2"/>`),
+    galette: S(`<ellipse cx="24" cy="31" rx="18" ry="9" fill="#E8B46A" stroke="${L}" stroke-width="2"/><path d="M12 28l24 6M14 34l22-8M18 25l10 12" stroke="#A8621F" stroke-width="1.6" stroke-linecap="round"/><path d="M15 18l3-8 4 5 2-6 2 6 4-5 3 8z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="24" cy="15" r="1.4" fill="#E1496C"/>`),
+    glace: S(`<path d="M10 22l6 20 6-20z" fill="#E8B46A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M26 22l6 20 6-20z" fill="#E8B46A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="16" cy="18" r="7" fill="#9BE8C2" stroke="${L}" stroke-width="2"/><circle cx="32" cy="18" r="7" fill="#FF9FB2" stroke="${L}" stroke-width="2"/><path d="M13 27l6 3M29 27l6 3" stroke="#C8863A" stroke-width="1.4"/>`),
+  };
+  const CHAT = S(`<path d="M10 20l3-12 8 7M38 20l-3-12-8 7" fill="#F2A65A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="24" cy="27" rx="15" ry="13" fill="#F2A65A" stroke="${L}" stroke-width="2"/><path d="M20 16l1 5M24 15v5M28 16l-1 5" stroke="#D9853B" stroke-width="2" stroke-linecap="round"/><ellipse cx="24" cy="32" rx="7" ry="5" fill="#FFE3C9"/><path d="M17 26c1.5-1.5 3.5-1.5 5 0M26 26c1.5-1.5 3.5-1.5 5 0" stroke="${L}" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M22 31l2 1.5 2-1.5" fill="#FF9FB2" stroke="${L}" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 30h7M8 34l7-1M40 30h-7M40 34l-7-1" stroke="${L}" stroke-width="1.2" stroke-linecap="round"/>`);
   const CIBLE = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#FF6B8B" stroke-width="2.5"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="#FF6B8B" stroke-width="2.5"/><circle cx="12" cy="12" r="1.5" fill="#FF6B8B"/></svg>`;
   const FEU = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4c2 8 10 12 10 22a10 10 0 01-20 0c0-5 3-8 4-12 2 3 4 4 6 3-1-5 0-9 0-13z" fill="#FF9F4A" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/><path d="M24 22c1 4 5 6 5 10a5 5 0 01-10 0c0-3 2-4 2-7 1 1 2 1 3-3z" fill="#FFD36B"/></svg>`;
   const CRITIQUE = `<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="10" y="8" width="26" height="32" rx="4" fill="#fff" stroke="${L}" stroke-width="2"/><path d="M16 16h14M16 22h14M16 28h9" stroke="#B8A6FF" stroke-width="2.5" stroke-linecap="round"/><path d="M30 36l8-14 3 2-8 14z" fill="#FFC84A" stroke="${L}" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
@@ -1055,7 +1175,7 @@ const ICONS = (() => {
     froid: S(`<rect x="12" y="5" width="24" height="38" rx="5" fill="#EEF6FB" stroke="${L}" stroke-width="2"/><path d="M12 19h24" stroke="${L}" stroke-width="2"/><rect x="29" y="9" width="3" height="6" rx="1.5" fill="#8FB8FF"/><rect x="29" y="23" width="3" height="10" rx="1.5" fill="#8FB8FF"/><path d="M18 30l4 0M20 28v4" stroke="#6CB8FF" stroke-width="1.5" stroke-linecap="round"/><path d="M17 36c3 2 7 2 10 0" stroke="#6CB8FF" stroke-width="1.5" stroke-linecap="round" fill="none"/>`),
     deco: S(`<rect x="8" y="10" width="18" height="14" rx="2" fill="#fff" stroke="${L}" stroke-width="2"/><rect x="11" y="13" width="12" height="6" fill="#9ED8FF"/><path d="M11 21l4-4 3 3 2-2 3 3" stroke="#5FD3A4" stroke-width="1.8" fill="none"/><rect x="31" y="30" width="12" height="12" rx="3" fill="#D9915C" stroke="${L}" stroke-width="1.5"/><circle cx="37" cy="24" r="6" fill="#5FD3A4"/><circle cx="32" cy="27" r="4" fill="#5FD3A4"/><circle cx="42" cy="27" r="4" fill="#5FD3A4"/><path d="M30 8l1.5 3 3.5.5-2.5 2.5.6 3.4-3.1-1.6-3.1 1.6.6-3.4L25 11.5l3.5-.5z" fill="#FFC84A"/><path d="M8 32c4 6 10 8 16 6" stroke="#FF9FB2" stroke-width="2" stroke-linecap="round" fill="none"/>`),
   };
-  return { PRODUITS, apprenti, boulanger, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES };
+  return { PRODUITS, SAISON, CHAT, apprenti, boulanger, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES };
 })();
 
 /* ── vie.js ── */
@@ -2390,7 +2510,7 @@ const UI = (() => {
   'use strict';
   const G = GAME, $ = (s) => document.querySelector(s), KEY = 'fournil.v2';
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let st, lastFrame = 0, lastSave = 0, cards = [], lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, hintDefile = -1, toastTimer = 0, lastNiveau = 0, vuBoulanger = false;
+  let st, lastFrame = 0, lastSave = 0, cards = [], carteSaison = null, lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, hintDefile = -1, toastTimer = 0, lastNiveau = 0, vuBoulanger = false;
   let pageActive = 'boutique', evEtendu = false;
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const PAGES = ['boutique', 'defis', 'boulanger', 'journal', 'reglages'];
@@ -2462,16 +2582,34 @@ const UI = (() => {
     evenement: () => { [659, 784, 659, 988].forEach((f, i) => beep(f, 0.14, 'square', 0.035, i * 0.1)); },
     pourboire: () => { [1047, 1319, 1568].forEach((f, i) => beep(f, 0.2, 'sine', 0.06, i * 0.07)); },
     non: () => beep(200, 0.12, 'square', 0.03),
+    ronron: () => { beep(300, 0.25, 'sine', 0.05); beep(420, 0.28, 'sine', 0.04, 0.12); },
   };
   function buzz(p) { if (!st.vibre) return; try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* pas de vibreur */ } }
 
   // ─── cartes des produits (compactes : niveau sur l'icône, barre fine, deux boutons de 44 px) ───
   function buildCards() {
     const box = $('#cartes'); box.innerHTML = ''; cards = [];
+    const sa = document.createElement('article'); sa.className = 'carte saison'; sa.dataset.saison = '1'; sa.hidden = true; box.appendChild(sa); carteSaison = { el: sa, html: '' }; // la recette de saison, avant les huit produits
     G.PRODUITS.forEach((p, i) => { const el = document.createElement('article'); el.className = 'carte'; el.dataset.i = i; box.appendChild(el); cards.push({ el, html: '' }); });
     renderCards(true);
   }
+  const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+  function renderSaison(force) { // la carte de la recette de saison : préparer, améliorer, cuire à la main ; la collection en barre
+    const c = carteSaison; if (!c) return; const s = st.saison, r = G.recetteSaison(st);
+    if (!s || !r) { if (!c.el.hidden) { c.el.hidden = true; c.html = ''; } return; }
+    const coll = (st.collection || {})[r.id], f = coll ? coll.fournees : 0, prix = G.coutSaison(st), ok = st.coins >= prix, max = s.niv >= G.SAISON.nivMax;
+    const html = `<div class="icone">${ICONS.SAISON[r.id]}${s.niv ? `<span class="niv">${s.niv}</span>` : ''}</div>
+      <div class="corps"><h3><span class="nom">${esc(r.nom)} <span class="tag saison">jusqu’au ${r.fin[1]} ${MOIS[r.fin[0] - 1]}</span></span></h3>
+        ${s.niv ? `<div class="palier"><span>Collection <b>${Math.min(f, G.SAISON.maitrise)}</b>/${G.SAISON.maitrise}${coll && coll.maitrisee ? ' · maîtrisée ✓' : ''}</span><span>niveau ${s.niv}</span><i style="width:${pct(Math.min(f, G.SAISON.maitrise), G.SAISON.maitrise)}"></i></div>
+        <div class="barre"><i></i><span class="rev">+${G.fmtEur(G.revenuSaison(st))}</span>${s.actif ? `<span class="tps">${G.fmtDuree(G.tempsSaison(st))}</span>` : '<span class="cuire">Touche !</span>'}</div>` : `<p>${esc(r.desc)} Une recette de saison, à cuire à la main : cent fournées pour la maîtriser.</p>`}</div>
+      <div class="boutons">${max ? '<div class="staff-ok"><span>Niveau max</span></div>' : `<button type="button" class="btn ${s.niv ? '' : 'beurre'} ${ok ? '' : 'non'}" data-a="${s.niv ? 'saison-niv' : 'preparer'}"><small>${s.niv ? 'Améliorer ×1' : 'Préparer'}</small><b>${G.fmtEur(prix)}</b></button>`}</div>`;
+    const cls = 'carte saison' + (s.niv ? ' manuel' : '') + (s.actif ? ' actif' : '');
+    c.el.hidden = false;
+    if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); } else if (c.el.className !== cls) c.el.className = cls;
+    if (c.bar) c.bar.style.width = (s.actif ? Math.min(100, s.prog / Math.max(0.01, G.tempsSaison(st)) * 100) : 0).toFixed(1) + '%';
+  }
   function renderCards(force) {
+    renderSaison(force);
     const remise = G.remise(st), critique = st.ev && st.ev.type === 'critique' ? st.ev.restants : [];
     G.PRODUITS.forEach((p, i) => {
       const s = st.stations[i], c = cards[i];
@@ -2491,7 +2629,7 @@ const UI = (() => {
             <div class="palier ${franchit ? 'bientot' : ''}">${pal ? `<span title="Au niveau ${pal}, les gains sont multipliés par ${G.palierMult(pal)}">Palier <b>${pal}</b> · ×${G.palierMult(pal)}</span><span>${pal - s.niv === 1 ? '1 niveau' : `${pal - s.niv} niveaux`}</span><i style="width:${((s.niv - prec) / (pal - prec) * 100).toFixed(0)}%"></i>` : `<span>Dernier palier atteint · ×${G.palierMult(s.niv)}</span><i style="width:100%"></i>`}</div>
             <div class="barre"><i class="${rapide ? 'rapide' : ''}"></i><span class="rev">+${G.fmtEur(G.revenuFournee(st, i))}</span>${s.staff || s.actif ? `<span class="tps">${G.fmtDuree(G.temps(st, i))}</span>` : '<span class="cuire">Touche !</span>'}</div></div>
           <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'} ${remise < 1 ? 'promo' : ''}" data-a="ameliorer"><small>${remise < 1 ? `−${Math.round((1 - remise) * 100)} % ×${n}` : `Améliorer ×${n}`}</small><b>${G.fmtEur(prix)}</b>${franchit ? `<i class="pal-badge">palier ×${G.palierMult(pal)}</i>` : ''}</button>
-            ${s.staff ? `<div class="staff-ok" title="${esc(p.staffNom)} s’en occupe">${ICONS.apprenti(i)}<span>${esc(p.staffNom.split(' ').pop())}</span><i class="ico coche">${ICONS.UI.coche}</i></div>` : `<button type="button" class="btn beurre ${st.coins >= G.prixStaff(st, i) ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${G.fmtEur(G.prixStaff(st, i))}</b></button>`}</div>`;
+            ${s.staff ? (() => { const g = G.gradeApprenti(st, i); return `<button type="button" class="staff-ok" data-a="apprenti" aria-label="${esc(p.staffNom)}, grade ${g} : voir sa fiche">${ICONS.apprenti(i, g)}<span>${esc(p.staffNom.split(' ').pop())}</span><i class="grade g${g}">${g}</i></button>`; })() : `<button type="button" class="btn beurre ${st.coins >= G.prixStaff(st, i) ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${G.fmtEur(G.prixStaff(st, i))}</b></button>`}</div>`;
       }
       if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); }
       else if (c.el.className !== cls) c.el.className = cls;
@@ -2500,10 +2638,12 @@ const UI = (() => {
   }
   function onCardClick(e) {
     const art = e.target.closest('.carte'); if (!art) return;
+    if (art.dataset.saison) { clicSaison(e); return; }
     const i = +art.dataset.i, btn = e.target.closest('button[data-a]');
     audio();
     if (btn) {
       const a = btn.dataset.a;
+      if (a === 'apprenti') { son.tap(); sheetApprenti(i); return; }
       if (a === 'debloquer' || a === 'ameliorer') {
         const r = G.acheter(st, i);
         if (!r.ok) { son.non(); toast(`Il manque ${G.fmtEur(r.prix - st.coins)}`); return; }
@@ -2525,6 +2665,50 @@ const UI = (() => {
     }
     if (st.stations[i].niv > 0 && !st.stations[i].staff) { if (G.lancer(st, i)) { son.tap(); buzz(6); SCENE.tap(); renderCards(); } }
   }
+
+  function clicSaison(e) { // préparer ou améliorer la recette de saison, ou lancer une fournée en touchant la carte
+    audio(); const btn = e.target.closest('button[data-a]'), r = G.recetteSaison(st); if (!r) return;
+    if (btn) {
+      const res = G.preparerSaison(st);
+      if (!res.ok) { son.non(); if (res.prix) toast(`Il manque ${G.fmtEur(res.prix - st.coins)}`); return; }
+      if (res.niv === 1) { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`${r.nom} : au menu jusqu’au ${r.fin[1]} ${MOIS[r.fin[0] - 1]} ! Touche la carte pour en cuire.`); } else { son.achat(); buzz(8); }
+      renderCards(true); hud(); save(); return;
+    }
+    if (G.lancerSaison(st)) { son.tap(); buzz(6); SCENE.tap(); renderCards(); }
+  }
+  // la fiche d'un apprenti : son grade, ce qu'il apporte, son talent, le temps avant le grade suivant
+  function sheetApprenti(i) {
+    const p = G.PRODUITS[i], a = G.APPRENTIS[i], pr = G.progresApprenti(st, i), g = pr.n, vit = Math.round(G.APPRENTI_VITESSE * (g - 1) * 100), staffe = st.stations[i].staff;
+    const restant = g < 5 ? (pr.prochain - pr.reste) * G.temps(st, i) / p.temps : 0;
+    openSheet(`<div class="apprenti-tete">${ICONS.apprenti(i, g)}<div><h2>${esc(p.staffNom)}</h2><p class="sous">Grade <b>${g}</b> sur 5 · s’occupe des ${esc(p.pl)}</p></div></div>
+      <div class="encadre doux"><div class="stat"><span>Fournées</span><b>${vit ? `${vit} % plus rapides` : 'à la vitesse normale'}</b></div>
+        <div class="stat"><span>Talent au grade 3 : ${esc(a.talent)}</span><b>${g >= 3 ? '✓ ' : ''}${esc(G.effetTalentApprenti(i))}</b></div></div>
+      ${g < 5 ? `<div class="stat"><span>Grade ${g + 1}</span><b>${staffe ? `encore ≈ ${G.fmtDuree(restant)} de fournil` : 'à l’embauche, il reprend où il en était'}</b></div><div class="mini xp"><i style="width:${pct(pr.reste, pr.prochain)}"></i></div>` : '<p class="note">Grade maximum : un pilier de la boutique.</p>'}
+      <p class="note">Un apprenti prend du métier à chaque fournée, même pendant ton absence, et garde son grade d’une boutique à l’autre : −2 % de temps de cuisson par grade, et son talent au grade 3.</p>${btnRetour()}`);
+    on('[data-a="close"]', closeSheet);
+  }
+  function annoncerGrade(g) { const a = G.APPRENTIS[g.i]; son.embauche(); buzz([10, 30, 10]); toast(`${a.prenom} passe au grade ${g.niv}${g.talent ? ` : ${a.talent} !` : ' !'}`); renderCards(true); }
+  // le chat qui miaule à la porte : on l'adopte et on le nomme, ou il repassera
+  function sheetChat() {
+    st.chatAttente = 300; // fermée sans choisir, la feuille revient dans cinq minutes
+    openSheet(`<div class="chat-tete">${ICONS.CHAT}</div><h2>Un chat miaule à la porte</h2><p class="sous">Il a senti les éclairs et veut rester. Comment l’appelles-tu ?</p>
+      <input class="champ" type="text" maxlength="16" value="${G.CHAT.defaut}" aria-label="Nom du chat" autocomplete="off" autocorrect="off">
+      <button type="button" class="btn large beurre" data-a="adopter" style="margin-top:12px"><b>L’adopter</b></button>
+      <button type="button" class="btn large non" data-a="plus-tard" style="margin-top:8px"><b>Pas aujourd’hui</b></button>`);
+    const champ = fc.querySelector('.champ');
+    const ok = () => { const r = G.adopterChat(st, champ.value); closeSheet(); if (r.ok) { reussite(`${r.chat.nom} a adopté la boutique ! Caresse-le : il porte chance.`); renderPage(true); } };
+    on('[data-a="adopter"]', ok); on('[data-a="plus-tard"]', () => { G.refuserChat(st); save(); closeSheet(); toast('Le chat repassera demain.'); });
+    champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
+  }
+  function sheetNomChat() {
+    if (!st.chat) return;
+    openSheet(`<div class="chat-tete">${ICONS.CHAT}</div><h2>Le nom du chat</h2><input class="champ" type="text" maxlength="16" value="${esc(st.chat.nom)}" aria-label="Nom du chat" autocomplete="off" autocorrect="off">
+      <button type="button" class="btn large beurre" data-a="ok" style="margin-top:12px"><b>Garder ce nom</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Annuler</b></button>`);
+    const champ = fc.querySelector('.champ'), ok = () => { G.renommerChat(st, champ.value); save(); closeSheet(); renderPage(true); toast(`${st.chat.nom} ronronne.`); };
+    on('[data-a="ok"]', ok); on('[data-a="non"]', closeSheet); champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
+    setTimeout(() => { champ.focus(); champ.select(); }, 50);
+  }
+  function caresserChat() { const r = G.caresser(st); if (!r.ok) return; son.ronron(); buzz(6); if (SCENE.ronron) SCENE.ronron(); if (r.chance) toast(`Rrrr… ${st.chat.nom} porte chance : le client mystère passera plus tôt.`); }
 
   // ─── en-tête, enseigne, cloche et badges des onglets ───
   const trophesGagnes = () => G.TROPHEES.filter((t) => (st.trophees || {})[t.id]).length;
@@ -2688,10 +2872,11 @@ const UI = (() => {
       });
     },
   };
-  // Journal : records, habitués, trophées, derniers événements, partage
+  const QUAND_SAISON = { galette: 'en janvier', crepe: 'début février', paques: 'en avril', glace: 'cet été', citrouille: 'à la mi-octobre', buche: 'en décembre' };
+  // Journal : records, collection des saisons, habitués, trophées, derniers événements, partage
   const ilYA = (ms) => { const s = Math.max(0, (Date.now() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
   const pageJournal = {
-    key: () => `${trophesGagnes()}|${(st.carnetEv || []).length}|${JSON.stringify(st.habitues)}|${st.stats.commandes}|${st.stats.critiques}|${st.stats.petrissages}|${st.stats.pannes}`,
+    key: () => `${trophesGagnes()}|${(st.carnetEv || []).length}|${(st.carnetEv || []).length ? st.carnetEv[st.carnetEv.length - 1].t : 0}|${JSON.stringify(st.habitues)}|${st.stats.commandes}|${st.stats.critiques}|${st.stats.petrissages}|${st.stats.pannes}|${JSON.stringify(st.collection)}|${st.saison ? st.saison.id + st.saison.niv : ''}|${st.chat ? st.chat.nom + st.chat.caresses : ''}`,
     html: () => {
       const S = st.stats, tr = st.trophees || {}, gagnes = trophesGagnes();
       return `${PAGE_HEAD('journal', 'Journal', `<span class="serie or">${ICONS.UI.trophee}${gagnes}/${G.TROPHEES.length}</span>`)}
@@ -2702,7 +2887,11 @@ const UI = (() => {
           <div class="stat"><span>Meilleur pourboire</span><b>${S.meilleurPourboire ? G.fmtEur(S.meilleurPourboire) : '—'}</b></div>
           <div class="stat"><span>Pétrissage le plus rapide</span><b>${S.petrissageRecord ? S.petrissageRecord.toFixed(1).replace('.', ',') + ' s' : '—'}</b></div>
           <div class="stat"><span>Meilleure série d’objectifs</span><b>${S.serieMax || 0} jour${(S.serieMax || 0) > 1 ? 's' : ''}</b></div>
-          <div class="stat"><span>Commandes · critiques · pétrissages · fours</span><b>${S.commandes || 0} · ${S.critiques || 0} · ${S.petrissages || 0} · ${S.pannes || 0}</b></div></div>
+          <div class="stat"><span>Commandes · critiques · pétrissages · fours</span><b>${S.commandes || 0} · ${S.critiques || 0} · ${S.petrissages || 0} · ${S.pannes || 0}</b></div>${st.chat ? `
+          <div class="stat"><span>Caresses à ${esc(st.chat.nom)}</span><b>${G.fmt(st.chat.caresses)}</b></div>` : ''}</div>
+        <div class="card"><div class="c-tete"><span class="pic peche">${ICONS.SAISON.citrouille}</span><h3>Recettes de saison</h3></div>
+          ${G.RECETTES_SAISON.map((r) => { const c = (st.collection || {})[r.id], enCours = st.saison && st.saison.id === r.id; return `<div class="ligne saison"><span class="ev-ico">${ICONS.SAISON[r.id]}</span><div class="t"><span><b>${esc(r.nom)}</b><small>${c && c.maitrisee ? `maîtrisée ✓ (${c.annee})` : c ? `${c.fournees}/${G.SAISON.maitrise} fournées${enCours ? ', en ce moment' : ''}` : enCours ? 'en ce moment : prépare-la !' : `revient ${QUAND_SAISON[r.id]}`}</small></span></div>${c && !c.maitrisee ? `<div class="mini beurre"><i style="width:${pct(c.fournees, G.SAISON.maitrise)}"></i></div>` : ''}</div>`; }).join('')}
+          <p class="note">Chaque saison sa recette, cuite à la main : cent fournées pour la maîtriser.</p></div>
         <div class="card"><div class="c-tete"><span class="pic lav">${ICONS.UI.boulanger}</span><h3>Les habitués</h3></div>
           ${G.HABITUES.map((h) => { const e = (st.habitues || {})[h.id]; return `<div class="ligne habitue"><span class="pastille-hab" style="background:${h.haut}"></span><div class="t"><span><b>${esc(h.nom)}</b><small>Passe entre ${h.debut}h et ${Math.floor(h.fin)}h${h.fin % 1 ? '30' : ''} · ${e && e.jours ? `fidèle depuis ${e.jours} jour${e.jours > 1 ? 's' : ''}` : 'première visite à venir'}</small></span></div></div>`; }).join('')}
           <p class="note">Sers un habitué cinq jours de suite : il t’offre un cadeau.</p></div>
@@ -2717,7 +2906,7 @@ const UI = (() => {
   };
   // Réglages : son, vibrations, nom, spécialité, sauvegarde, partage, remise à zéro
   const pageReglages = {
-    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}`,
+    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}`,
     html: () => {
       const q = G.QUARTIERS[G.quartier(st)];
       const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
@@ -2731,6 +2920,7 @@ const UI = (() => {
         <div class="card reglages">
           ${ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)}
           ${st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, '')}
+          ${st.chat ? ligne('chat', ICONS.CHAT, `Renommer ${esc(st.chat.nom)}`, 'Le chat de la boutique', chev) : ''}
           ${ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)}
           ${ligne('partager', ICONS.UI.partager, 'Partager ma boutique', 'Une image de la boutique et ton score', chev)}
         </div>
@@ -2744,6 +2934,7 @@ const UI = (() => {
       onIn(sec, '[data-a="son"]', () => { st.son = !st.son; save(); renderPage(true); if (st.son) son.tap(); });
       onIn(sec, '[data-a="vibre"]', () => { st.vibre = !st.vibre; save(); renderPage(true); buzz(8); });
       onIn(sec, '[data-a="nom"]', () => sheetNom(false));
+      onIn(sec, '[data-a="chat"]', sheetNomChat);
       onIn(sec, '[data-a="specialite"]', sheetSpecialite);
       onIn(sec, '[data-a="sauvegarde"]', sheetSauvegarde);
       onIn(sec, '[data-a="partager"]', partager);
@@ -2984,9 +3175,10 @@ const UI = (() => {
     });
   }
   function sheetRetour(abs) {
-    const detail = abs.detail.slice().sort((a, b) => b.m - a.m).map((d) => `<li><span>${esc(G.PRODUITS[d.i].nom)} × ${G.fmt(d.n)}</span><b>${G.fmtEur(d.m)}</b></li>`).join('');
+    const detail = abs.detail.slice().sort((a, b) => b.m - a.m).map((d) => `<li><span>${esc(d.nom || G.PRODUITS[d.i].nom)} × ${G.fmt(d.n)}</span><b>${G.fmtEur(d.m)}</b></li>`).join('');
+    const grades = (abs.grades || []).map((g) => `${G.APPRENTIS[g.i].prenom} passe au grade ${g.niv}`).join(' · ');
     openSheet(`<h2>Pendant ton absence</h2><p class="sous">${G.fmtDuree(abs.secs)}${abs.secs >= G.heuresAbsence(st) * 3600 ? ` (les apprentis s’arrêtent après ${G.heuresAbsence(st)} h)` : ''}</p>
-      <div class="grand-nombre">+${G.fmtEur(abs.total)}</div><p class="sous">vendus par tes apprentis</p><ul class="detail">${detail}</ul>
+      <div class="grand-nombre">+${G.fmtEur(abs.total)}</div><p class="sous">vendus par tes apprentis</p><ul class="detail">${detail}</ul>${grades ? `<p class="sous">${esc(grades)} !</p>` : ''}
       <button type="button" class="btn large menthe" data-a="close"><b>Super !</b></button>`);
     on('[data-a="close"]', closeSheet);
   }
@@ -3004,6 +3196,11 @@ const UI = (() => {
     if (out.finEv) { toast(FIN_EV[out.finEv.type]); if (out.finEv.type === 'critique' || out.finEv.type === 'petrissage') son.non(); }
     if (out.mystere && $('#feuille').hidden) { if (SCENE.mystere()) toast('Un client mystère ! Touche-le vite.'); }
     if (out.habitue) { SCENE.habitue(out.habitue); son.achat(); toast(`${out.habitue.nom} : « ${out.habitue.phrase} »`); }
+    if (out.grades && out.grades.length) annoncerGrade(out.grades[0]);
+    if (out.chat && $('#feuille').hidden) sheetChat();
+    if (out.saison) { son.evenement(); toast(`Nouvelle recette de saison : ${out.saison.nom.toLowerCase()}, jusqu’au ${out.saison.fin[1]} ${MOIS[out.saison.fin[0] - 1]} !`); renderCards(true); }
+    if (out.venteSaison) { SCENE.vente(0, out.venteSaison.montant, '+' + G.fmtEur(out.venteSaison.montant), true); son.vente(out.venteSaison.montant); }
+    if (out.maitrise) reussite(`${out.maitrise.nom} : recette maîtrisée !`);
     if (out.trophees && out.trophees.length) { const t0 = out.trophees[0]; son.deblocage(); buzz([10, 30, 10, 30, 10]); SCENE.fete(); toast(`Trophée : ${t0.nom} !${out.trophees.length > 1 ? ` (+${out.trophees.length - 1})` : ''}`); }
     const nv = G.niveau(st);
     if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); SCENE.fete(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
@@ -3050,6 +3247,7 @@ const UI = (() => {
       const r = $('#scene').getBoundingClientRect();
       const sx = e.clientX - r.left, sy = e.clientY - r.top;
       if (SCENE.hit(sx, sy)) { const tip = G.encaisserPourboire(st); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
+      else if (SCENE.hitChat && SCENE.hitChat(sx, sy)) caresserChat(); // le chat dort dans la zone du boulanger : il passe avant
       else if (SCENE.hitBoulanger(sx, sy)) showPage('boulanger');
       else { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) sheetMeuble(id); else SCENE.tap(); }
     });
@@ -3066,7 +3264,9 @@ const UI = (() => {
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q) };
+    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
+      apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.PRODUITS[i].temps); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
+      chat: () => sheetChat(), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, Date.now()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q) };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

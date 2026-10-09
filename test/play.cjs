@@ -108,6 +108,42 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.screenshot({ path: out + '/05n-boulanger.png' });
   await page.tap('#onglets [data-page="boutique"]'); await sleep(200);
   check(await page.evaluate(() => window.__fournil.SCENE.apprentis === 3), 'trois apprentis s’affairent entre le four et le comptoir');
+  // les apprentis montent en grade
+  await haut(); const grade = await page.evaluate(() => window.__fournil.apprentiXp(0, 180000)); await sleep(400);
+  const puce = await page.evaluate(() => { const b = document.querySelector('.carte[data-i="0"] [data-a="apprenti"]'); return b ? b.innerText : ''; });
+  const toastGrade = await page.evaluate(() => (document.querySelector('.toast') || {}).textContent || '');
+  check(grade === 3 && /3/.test(puce) && /grade 3/.test(toastGrade), `Léo passe au grade 3 : pastille sur sa carte, toast « ${toastGrade} »`);
+  await page.tap('.carte[data-i="0"] [data-a="apprenti"]'); await sleep(300);
+  const ficheApp = await page.evaluate(() => (document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText));
+  check(/Léo/.test(ficheApp) && /Grade 3/.test(ficheApp) && /Pétrin bien réglé/.test(ficheApp) && /Grade 4/.test(ficheApp), 'sa fiche : grade, talent, temps avant le grade suivant');
+  await page.screenshot({ path: out + '/05s-apprenti.png' });
+  await page.tap('[data-a="close"]'); await sleep(300);
+  // le chat de la boutique
+  await page.evaluate(() => window.__fournil.chat()); await sleep(300);
+  check(await page.evaluate(() => /miaule/.test(document.querySelector('#feuille-contenu').innerText)), 'un chat miaule à la porte : la feuille d’adoption');
+  await page.fill('.champ', 'Brioche'); await page.tap('[data-a="adopter"]'); await sleep(500);
+  check(await page.evaluate(() => !!window.__fournil.st.chat && window.__fournil.st.chat.nom === 'Brioche'), 'Brioche est adoptée');
+  await page.evaluate(() => window.__fournil.scene({ chat: 'dort' })); await scene(); await sleep(700);
+  const cz = await zone('chat'), avantChance = await page.evaluate(() => window.__fournil.st.mystereTimer);
+  await page.touchscreen.tap(cz.x, cz.y); await sleep(300);
+  const caresse = await page.evaluate(() => ({ n: window.__fournil.st.chat.caresses, t: window.__fournil.st.mystereTimer, boulanger: !document.querySelector('#page-boulanger').hidden }));
+  check(caresse.n === 1 && caresse.t < avantChance * 0.85 && !caresse.boulanger, 'une caresse au chat endormi sur le comptoir (et pas la page du boulanger) : il porte chance');
+  await page.screenshot({ path: out + '/05t-chat.png' });
+  await page.evaluate(() => window.__fournil.scene({ chat: 'assis' })); await sleep(700); await page.screenshot({ path: out + '/05t-chat-assis.png' });
+  await page.evaluate(() => window.__fournil.scene({}));
+  // la recette de saison
+  await haut(); await page.evaluate(() => window.__fournil.saison('citrouille')); await sleep(300);
+  const carteS = await page.evaluate(() => { const c = document.querySelector('#cartes .carte.saison'); return c && !c.hidden ? { txt: c.innerText, premiere: document.querySelector('#cartes').firstElementChild === c } : null; });
+  check(!!carteS && carteS.premiere && /citrouille/i.test(carteS.txt) && /31 oct/.test(carteS.txt), 'la recette de saison en tête des cartes : tarte à la citrouille, jusqu’au 31 oct.');
+  await page.tap('.carte.saison [data-a="preparer"]'); await sleep(300);
+  await page.tap('.carte.saison .barre'); await sleep(12500);
+  const fsaison = await page.evaluate(() => window.__fournil.st.stats.fourneesSaison || 0);
+  check(fsaison >= 1, 'préparée, puis cuite à la main : une fournée de saison vendue');
+  await page.screenshot({ path: out + '/05u-saison.png' });
+  await page.tap('#onglets [data-page="journal"]'); await sleep(400);
+  const jtxt = await page.evaluate(() => document.querySelector('#page-journal').innerText);
+  check(/Recettes de saison/.test(jtxt) && /Tarte à la citrouille/.test(jtxt) && /Caresses à Brioche/.test(jtxt), 'le Journal : collection des saisons et caresses au chat');
+  await page.tap('#onglets [data-page="boutique"]'); await sleep(300);
   const manque = await page.evaluate(() => { const f = window.__fournil, np = f.G.niveauPour(f.st.xp); return np.prochain - np.reste; });
   await page.evaluate((n) => window.__fournil.xp(n), manque); await sleep(500);
   const toastNiv = await page.evaluate(() => (document.querySelector('.toast') || {}).textContent || '');
@@ -312,7 +348,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const p3 = await (await b3.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR' })).newPage();
   const err3 = []; p3.on('pageerror', (e) => err3.push(e.message));
   await p3.goto('http://localhost:8781/'); await sleep(1500);
-  const sans = await p3.evaluate(() => ({ webgl: window.__fournil.stats().webgl, panneau: !document.querySelector('#sans-3d').hidden, cartes: document.querySelectorAll('.carte').length, coins: window.__fournil.st.coins }));
+  const sans = await p3.evaluate(() => ({ webgl: window.__fournil.stats().webgl, panneau: !document.querySelector('#sans-3d').hidden, cartes: document.querySelectorAll('.carte[data-i]').length, coins: window.__fournil.st.coins }));
   await p3.tap('.carte[data-i="0"] .barre'); await sleep(1300);
   const vendu = await p3.evaluate(() => window.__fournil.st.stats.ventes);
   check(!sans.webgl && sans.panneau && sans.cartes === 8 && vendu >= 1 && !err3.length, `sans WebGL : panneau affiché, pas d’erreur, une fournée vendue quand même (${vendu})`);
@@ -322,7 +358,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const err4 = []; p4.on('pageerror', (e) => err4.push(e.message));
   await p4.route('**/vendor/three.min.js', (r) => r.abort());
   await p4.goto('http://localhost:8781/'); await sleep(1500);
-  const sansThree = await p4.evaluate(() => ({ ok: !!window.__fournil, webgl: window.__fournil && window.__fournil.stats().webgl, panneau: !document.querySelector('#sans-3d').hidden, cartes: document.querySelectorAll('.carte').length }));
+  const sansThree = await p4.evaluate(() => ({ ok: !!window.__fournil, webgl: window.__fournil && window.__fournil.stats().webgl, panneau: !document.querySelector('#sans-3d').hidden, cartes: document.querySelectorAll('.carte[data-i]').length }));
   check(sansThree.ok && !sansThree.webgl && sansThree.panneau && sansThree.cartes === 8 && !err4.length, `sans Three.js : le jeu démarre, panneau affiché, huit cartes${err4.length ? ' — ' + err4[0] : ''}`);
   console.log(errors.length ? 'ERRORS ' + errors.join(' | ') : 'ERRORS none');
   await browser.close(); server.close();

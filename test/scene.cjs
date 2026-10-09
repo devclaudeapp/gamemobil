@@ -31,6 +31,15 @@ const SAISONS = { aucune: [], noel: ['neige', 'noel'], paques: ['paques'], ete: 
   // les crans de départ : la boutique neuve
   await page.evaluate(() => { const st = window.__fournil.st; st.mobilier = {}; }); await sleep(800); await page.locator('#scene-wrap').screenshot({ path: `${out}/village-neuf.png` });
   await page.evaluate(() => { const f = window.__fournil; for (const m of f.G.MOBILIER) while (f.G.mobilierCran(f.st, m.id) < m.max) f.meuble(m.id); });
+  // le lot 1 : apprentis au grade 5, le chat endormi puis assis, les six recettes de saison sur le comptoir
+  await page.evaluate(() => { const f = window.__fournil; f.G.adopterChat(f.st, 'Brioche'); f.scene({ heure: 13, assis: true, grades: 5, chat: 'dort' }); }); await sleep(1300); await page.locator('#scene-wrap').screenshot({ path: `${out}/grades-chat-dort.png` });
+  await page.evaluate(() => window.__fournil.scene({ heure: 13, assis: true, grades: 5, chat: 'assis' })); await sleep(1300); await page.locator('#scene-wrap').screenshot({ path: `${out}/chat-assis.png` });
+  for (const id of ['citrouille', 'buche', 'galette', 'crepe', 'paques', 'glace']) {
+    await page.evaluate((id) => { const f = window.__fournil; f.saison(id); f.st.saison.niv = Math.max(1, f.st.saison.niv); f.scene({ heure: 13, assis: true }); }, id); await sleep(1100);
+    const r = await page.evaluate(() => { const b = document.querySelector('#scene-wrap').getBoundingClientRect(); return { x: b.left, y: b.top, width: b.width, height: Math.min(300, b.height) }; });
+    await page.screenshot({ path: `${out}/saison-${id}.png`, clip: r });
+  }
+  await page.evaluate(() => { window.__fournil.G.forcerRecette(null); window.__fournil.scene({ heure: 13, assis: true }); });
   // le mode Aménager, le coup de feu et sa bannière (tiroir fermé puis à mi), le tiroir à mi et ouvert
   await page.evaluate(() => window.__fournil.amenager(true)); await sleep(400); await page.locator('#scene-wrap').screenshot({ path: `${out}/amenager.png` }); await page.evaluate(() => window.__fournil.amenager(false));
   await page.evaluate(() => window.__fournil.rush()); await sleep(1500); await page.screenshot({ path: `${out}/rush-ferme.png` });

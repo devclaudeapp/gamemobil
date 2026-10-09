@@ -2,6 +2,8 @@
 // Durabilité : un joueur simulé sur plusieurs semaines, avec des sessions réalistes et des absences.
 // Mesure à quel moment il débloque chaque recette, embauche, achète les bonus, ouvre de nouvelles boutiques,
 // combien de temps il attend sans rien pouvoir acheter, et si les objectifs du jour sont tenables.
+// Les apprentis montent en grade tout seuls (leurs fournées comptent, absences comprises) : leur effet est mesuré ici.
+// Les recettes de saison et le chat se jouent à la main : le simulateur n'y touche pas.
 'use strict';
 const G = require('../src/game.js');
 const { PRODUITS, AMELIORATIONS } = G;

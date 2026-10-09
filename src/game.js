@@ -66,6 +66,7 @@
     if (m === 12 || m <= 2) tags.push('neige');
     if (m === 12) tags.push('noel');
     if (m === 1 && j <= 20) tags.push('galette');
+    if (m === 2 && j <= 9) tags.push('chandeleur');
     if (m === 2 && j >= 10 && j <= 15) tags.push('coeurs');
     if (m === 4) tags.push('paques');
     if (m >= 6 && m <= 8) tags.push('ete');
@@ -102,6 +103,85 @@
     st.talents = st.talents || {}; st.talents[id] = talent(st, id) + 1;
     return { ok: true, cran: st.talents[id], talent: t };
   }
+  // ─── les apprentis montent en grade : leur savoir-faire grandit avec leurs fournées (hors ligne compris) et les suit d'une boutique à l'autre ───
+  const APPRENTI_NIVEAUX = [0, 43200, 172800, 518400, 1620000]; // grades 1 à 5 : 12 h, 48 h, 144 h puis 450 h de fournil (réglés sur les garde-fous de longévité)
+  const APPRENTI_VITESSE = 0.02;                                 // −2 % de temps de cuisson par grade au-delà du premier
+  const APPRENTIS = [ // le talent propre de chacun, acquis au grade 3 : tantôt des gains, tantôt de la vitesse
+    { prenom: 'Léo', talent: 'Pétrin bien réglé', rev: 1.1 }, { prenom: 'Inès', talent: 'Tourage express', temps: 0.92 },
+    { prenom: 'Sami', talent: 'Deux barres, toujours', rev: 1.1 }, { prenom: 'Rose', talent: 'La pâte de mamie', temps: 0.92 },
+    { prenom: 'Malik', talent: 'Glaçage parfait', rev: 1.1 }, { prenom: 'Agathe', talent: 'Coques régulières', temps: 0.92 },
+    { prenom: 'Augustin', talent: 'Mille couches', rev: 1.1 }, { prenom: 'Paulin', talent: 'Main sûre', temps: 0.92 },
+  ];
+  const effetTalentApprenti = (i) => { const a = APPRENTIS[i], pl = PRODUITS[i].pl; return a.rev ? `${pl[0].toUpperCase() + pl.slice(1)} ×${virgule(a.rev)}` : `${pl[0].toUpperCase() + pl.slice(1)} : cuisson ${Math.round((1 - a.temps) * 100)} % plus rapide`; };
+  const virgule = (x) => String(+x.toFixed(2)).replace('.', ',');
+  const xpApprenti = (st, i) => (st.apprentis && st.apprentis[PRODUITS[i].id] && st.apprentis[PRODUITS[i].id].xp) || 0;
+  function gradeApprenti(st, i) { const x = xpApprenti(st, i); let n = 1; while (n < 5 && x >= APPRENTI_NIVEAUX[n]) n++; return n; }
+  function progresApprenti(st, i) { const n = gradeApprenti(st, i), x = xpApprenti(st, i); return { n, reste: x - APPRENTI_NIVEAUX[n - 1], prochain: n < 5 ? APPRENTI_NIVEAUX[n] - APPRENTI_NIVEAUX[n - 1] : 0 }; }
+  function creditApprenti(st, i, n) { // n fournées cuites par l'apprenti du produit i ; rend { i, niv, talent } s'il monte de grade
+    st.apprentis = st.apprentis || {}; const a = st.apprentis[PRODUITS[i].id] || (st.apprentis[PRODUITS[i].id] = { xp: 0 });
+    const avant = gradeApprenti(st, i); a.xp += n * PRODUITS[i].temps; const niv = gradeApprenti(st, i);
+    if (niv <= avant) return null;
+    gagnerXp(st, 10 * niv); inc(st, 'gradesApprentis');
+    note(st, `${APPRENTIS[i].prenom} passe au grade ${niv}${niv === 3 ? ' : ' + APPRENTIS[i].talent : ''}`);
+    return { i, niv, talent: niv === 3 };
+  }
+  // seulement quand l'apprenti est là : à la main, rien ne change
+  const apprentiTempsMult = (st, i) => { if (!st.stations[i] || !st.stations[i].staff) return 1; const n = gradeApprenti(st, i), t = APPRENTIS[i].temps; return (1 - APPRENTI_VITESSE * (n - 1)) * (n >= 3 && t ? t : 1); };
+  const apprentiRevMult = (st, i) => { if (!st.stations[i] || !st.stations[i].staff) return 1; const r = APPRENTIS[i].rev; return gradeApprenti(st, i) >= 3 && r ? r : 1; };
+
+  // ─── le chat de la boutique : il miaule à la porte quand les éclairs sont au menu ; adopté, on le caresse et il porte chance ───
+  const CHAT = { chance: 0.2, attente: 60e3, defaut: 'Brioche', apparition: 45, rappel: 30 };
+  const nomChat = (nom) => String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16) || CHAT.defaut;
+  const chatPossible = (st) => !st.chat && !!st.stations[4] && st.stations[4].niv > 0 && st.chatRefuse !== dayKey(st.now);
+  function adopterChat(st, nom) { if (st.chat) return { ok: false }; st.chat = { nom: nomChat(nom), caresses: 0, dernier: 0, adopte: st.now }; gagnerXp(st, 10); note(st, `${st.chat.nom} a adopté la boutique`); return { ok: true, chat: st.chat }; }
+  function refuserChat(st) { st.chatRefuse = dayKey(st.now); st.chatAttente = CHAT.apparition; }
+  function renommerChat(st, nom) { if (!st.chat) return null; st.chat.nom = nomChat(nom); return st.chat.nom; }
+  function caresser(st) { // une caresse ; au plus une fois par minute, il porte chance : le client mystère arrive 20 % plus tôt
+    if (!st.chat) return { ok: false };
+    st.chat.caresses++; let chance = false;
+    if (st.now - (st.chat.dernier || 0) >= CHAT.attente) { st.chat.dernier = st.now; st.mystereTimer *= 1 - CHAT.chance; gagnerXp(st, 1); chance = true; }
+    return { ok: true, chance, caresses: st.chat.caresses };
+  }
+
+  // ─── les recettes de saison : une station à part, cuite à la main, le temps de sa saison ; cent fournées pour la maîtriser ───
+  const RECETTES_SAISON = [
+    { id: 'galette', nom: 'Galette des rois', pl: 'galettes', tag: 'galette', temps: 8, fin: [1, 20], desc: 'Qui aura la fève ?' },
+    { id: 'crepe', nom: 'Crêpes de la Chandeleur', pl: 'crêpes', tag: 'chandeleur', temps: 6, fin: [2, 9], desc: 'Sautées d’une main, la pièce dans l’autre.' },
+    { id: 'paques', nom: 'Chocolats de Pâques', pl: 'chocolats', tag: 'paques', temps: 10, fin: [4, 30], desc: 'Des œufs, des poules et des cloches.' },
+    { id: 'glace', nom: 'Glaces artisanales', pl: 'glaces', tag: 'ete', temps: 6, fin: [8, 31], desc: 'Deux boules, un cornet.' },
+    { id: 'citrouille', nom: 'Tarte à la citrouille', pl: 'tartes à la citrouille', tag: 'halloween', temps: 10, fin: [10, 31], desc: 'Épicée, orange, un peu effrayante.' },
+    { id: 'buche', nom: 'Bûche de Noël', pl: 'bûches', tag: 'noel', temps: 12, fin: [12, 31], desc: 'Chocolat, meringue et houx.' },
+  ];
+  const SAISON = { revSec: 30, coutSec: 300, croiss: 1.5, nivMax: 10, maitrise: 100 };
+  let recetteForcee = null;
+  const forcerRecette = (id) => { recetteForcee = id || null; }; // tests et captures seulement
+  const recetteDeSaison = (ms) => (recetteForcee && RECETTES_SAISON.find((r) => r.id === recetteForcee)) || RECETTES_SAISON.find((r) => saison(ms).includes(r.tag)) || null;
+  const recetteSaison = (st) => (st.saison ? RECETTES_SAISON.find((r) => r.id === st.saison.id) || null : null);
+  function saisonDuJour(st, nowMs) { // la recette de la saison en cours ; une nouvelle saison repart du niveau 0
+    const r = recetteDeSaison(nowMs);
+    if (!r) { st.saison = null; return null; }
+    if (!st.saison || st.saison.id !== r.id) st.saison = { id: r.id, annee: new Date(nowMs).getFullYear(), niv: 0, prog: 0, actif: false };
+    return st.saison;
+  }
+  const tempsSaison = (st) => { const r = recetteSaison(st); return r ? r.temps * tempsMult(st) : 0; };
+  const revenuSaison = (st) => { const s = st.saison; return s && s.niv > 0 ? rythme(st) * SAISON.revSec * (1 + 0.15 * (s.niv - 1)) * boostMult(st) * affluenceMult(st) : 0; };
+  const coutSaison = (st) => arrondi(rythme(st) * SAISON.coutSec * Math.pow(SAISON.croiss, st.saison ? st.saison.niv : 0)) * remise(st);
+  function preparerSaison(st) { // niveau 0 → 1 : préparer la recette ; ensuite l'améliorer, jusqu'au niveau 10
+    const s = st.saison; if (!s || s.niv >= SAISON.nivMax) return { ok: false };
+    const prix = coutSaison(st); if (st.coins < prix) return { ok: false, prix };
+    st.coins -= prix; s.niv++; noter(st, 'niveaux', 1); if (s.niv === 1) gagnerXp(st, 6);
+    return { ok: true, prix, niv: s.niv };
+  }
+  function lancerSaison(st) { const s = st.saison; if (!s || s.niv <= 0 || s.actif) return false; s.actif = true; s.prog = 0; st.stats.taps++; noter(st, 'mains', 1); return true; }
+  function cuireSaison(st, out, differe) { // une fournée de saison sortie du four : gains (sauf si l'absence les compte elle-même), collection, maîtrise
+    const s = st.saison, r = recetteSaison(st), m = revenuSaison(st);
+    s.prog = 0; s.actif = false; if (!differe) gagner(st, m); st.stats.ventes++; inc(st, 'fourneesSaison');
+    st.collection = st.collection || {}; const c = st.collection[s.id] || (st.collection[s.id] = { annee: s.annee, fournees: 0, maitrisee: false });
+    c.fournees++; c.annee = s.annee;
+    if (!c.maitrisee && c.fournees >= SAISON.maitrise) { c.maitrisee = true; gagnerXp(st, 50); note(st, `${r.nom} : recette maîtrisée`); if (out) out.maitrise = r; }
+    return m;
+  }
+
   // ─── le mobilier : six meubles de la boutique, améliorables cran par cran ; tout repart de zéro à chaque boutique ───
   const virg = (x) => String(+x.toFixed(2)).replace('.', ',');
   const MOBILIER = [
@@ -125,7 +205,7 @@
   }
   // effets des talents et du mobilier
   const tempsMult = (st) => (1 - 0.05 * talent(st, 'mains')) * (1 - 0.03 * mobilierCran(st, 'four'));
-  const temps = (st, i) => PRODUITS[i].temps * tempsMult(st);
+  const temps = (st, i) => PRODUITS[i].temps * tempsMult(st) * apprentiTempsMult(st, i);
   const heuresAbsence = (st) => ABSENCE_MAX_H + talent(st, 'levetot') + mobilierCran(st, 'froid');
   const affluenceMult = (st) => 1 + 0.5 * talent(st, 'affluence') + 0.25 * mobilierCran(st, 'vitrine');
   const prixStaff = (st, i) => PRODUITS[i].staff * (1 - 0.1 * talent(st, 'zele'));
@@ -141,6 +221,7 @@
       stats: { taps: 0, ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false, meubles: 0 },
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null, tiroir: 'mi',
+      apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, saison: null, collection: {},
     };
   }
 
@@ -172,7 +253,7 @@
     if (jourDeMarche(st.now)) m *= MARCHE_MULT;
     return m;
   }
-  function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st) * mobilierMult(st); }
+  function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st) * mobilierMult(st) * apprentiRevMult(st, i); }
   function revenu(st, i) { return revenuBase(st, i) * boostMult(st, i); } // par fournée, maintenant
   // niv 0 : débloquer la recette (un cap, cher) ; ensuite chaque niveau coûte quelques fournées de plus que le précédent
   const coutNiveau = (i, niv) => (niv === 0 ? PRODUITS[i].debloquer : PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv));
@@ -244,6 +325,7 @@
     if (st.jour.pain == null) st.jour.pain = painDuJour(st, key);
     remplacerImpossibles(st);
     semaineEnCours(st, nowMs);
+    saisonDuJour(st, nowMs);
     return st.jour;
   }
   // ─── le défi de la semaine : un seul, plus long, du lundi au dimanche ; réussi : une étoile, du savoir-faire, une prime ───
@@ -433,6 +515,11 @@
     { id: 'fidele', nom: 'Habitué fidèle', desc: 'Servir un habitué 5 jours de suite', xp: 40, cond: (st) => Object.values(st.habitues || {}).some((e) => e.jours >= 5) },
     { id: 'salon', nom: 'Salon de thé', desc: 'Tables et chaises au maximum', xp: 30, cond: (st) => mobilierCran(st, 'tables') >= 4 },
     { id: 'decorateur', nom: 'Décorateur', desc: 'Améliorer 40 meubles en tout', xp: 50, cond: (st) => (st.stats.meubles || 0) >= 40 },
+    { id: 'grade', nom: 'Chef de partie', desc: 'Un apprenti au grade 3', xp: 30, cond: (st) => PRODUITS.some((p, i) => gradeApprenti(st, i) >= 3) },
+    { id: 'brigade', nom: 'Brigade étoilée', desc: 'Quatre apprentis au grade 5', xp: 100, cond: (st) => PRODUITS.filter((p, i) => gradeApprenti(st, i) >= 5).length >= 4 },
+    { id: 'ronron', nom: 'Ronron', desc: 'Caresser le chat 100 fois', xp: 30, cond: (st) => !!st.chat && st.chat.caresses >= 100 },
+    { id: 'saison1', nom: 'Recette de saison', desc: 'Maîtriser une recette de saison', xp: 30, cond: (st) => Object.values(st.collection || {}).some((c) => c.maitrisee) },
+    { id: 'saisons4', nom: 'Quatre saisons', desc: 'Maîtriser quatre recettes de saison', xp: 80, cond: (st) => Object.values(st.collection || {}).filter((c) => c.maitrisee).length >= 4 },
   ];
   function verifierTrophees(st) {
     st.trophees = st.trophees || {}; const neufs = [];
@@ -476,6 +563,7 @@
     if (gain <= 0) return { ok: false };
     st.etoiles += gain; st.boutiques++; st.nomBoutique = ''; st.specialite = null; gagnerXp(st, 80 + Math.min(120, 2 * gain)); noterSemaine(st, 'boutique');
     st.coins = 0; st.lifetimeRun = 0; st.ameliorations = {}; st.mobilier = {}; st.stations = stationsNeuves(1 + talent(st, 'memoire')); st.ev = null; st.boost = null;
+    if (st.saison) st.saison = { id: st.saison.id, annee: st.saison.annee, niv: 0, prog: 0, actif: false }; // les grades des apprentis, le chat et la collection restent
     st.lastSeen = nowMs;
     // les objectifs du jour pas encore réclamés sont retirés à la taille de la nouvelle boutique (les réussis restent acquis)
     if (st.jour) { const neufs = tirerObjectifs(st, st.jour.date); st.jour.objectifs = st.jour.objectifs.map((o, k) => (o.reclame ? o : neufs[k])); }
@@ -485,8 +573,10 @@
   // ─── un pas de jeu ; rend {ventes, nouvelEv, finEv, mystere} ───
   function tick(st, dt, nowMs, rnd) {
     st.now = nowMs; rnd = rnd || Math.random;
-    const out = { ventes: [], nouvelEv: null, finEv: null, mystere: false, habitue: null, trophees: [] };
+    const out = { ventes: [], nouvelEv: null, finEv: null, mystere: false, habitue: null, trophees: [], grades: [], chat: false, saison: null, venteSaison: null, maitrise: null };
+    const saisonAvant = st.saison && st.saison.id;
     objectifsDuJour(st, nowMs);
+    if (st.saison && st.saison.id !== saisonAvant) out.saison = recetteSaison(st); // une nouvelle recette de saison
     st.stations.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
       if (st.ev && st.ev.type === 'panne' && st.ev.i === i) return; // le four est en panne
@@ -497,6 +587,7 @@
       if (!s.staff) { n = 1; s.prog = 0; s.actif = false; } else s.prog -= n * T;
       const montant = revenuFournee(st, i) * n;
       gagner(st, montant); st.stats.ventes += n; noter(st, 'vendre', n, i);
+      if (s.staff) { const g = creditApprenti(st, i, n); if (g) out.grades.push(g); }
       if (st.ev && st.ev.type === 'commande' && st.ev.i === i) st.ev.fait = Math.min(st.ev.n, st.ev.fait + n);
       out.ventes.push({ i, montant, n });
     });
@@ -507,6 +598,9 @@
       if (st.evTimer <= 0) { st.evTimer = (180 + rnd() * 240) * (1 - 0.12 * talent(st, 'charme')); out.nouvelEv = lancerEvenement(st, rnd); }
     }
     if (st.boost && st.boost.fin <= nowMs) st.boost = null;
+    const ss = st.saison; // la fournée de saison
+    if (ss && ss.actif) { ss.prog += dt; if (ss.prog >= tempsSaison(st)) out.venteSaison = { id: ss.id, montant: cuireSaison(st, out) }; }
+    if (chatPossible(st)) { st.chatAttente = (st.chatAttente == null ? CHAT.apparition : st.chatAttente) - dt; if (st.chatAttente <= 0) { st.chatAttente = CHAT.rappel; out.chat = true; } } // un chat miaule à la porte
     st.mystereTimer -= dt;
     if (st.mystereTimer <= 0) { st.mystereTimer = (150 + rnd() * 200) * (1 - 0.15 * talent(st, 'pourboire')) * (1 - 0.08 * mobilierCran(st, 'caisse')); out.mystere = true; }
     const hb = habitueAttendu(st, nowMs); // un habitué passe une fois par jour, pendant son créneau, après quelques secondes de jeu
@@ -518,20 +612,22 @@
   function absence(st, nowMs) {
     st.now = nowMs; st.ev = null; st.boost = null;
     const secs = Math.min(heuresAbsence(st) * 3600, Math.max(0, (nowMs - st.lastSeen) / 1000));
-    let total = 0; const detail = [];
+    let total = 0; const detail = [], grades = [];
     st.stations.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
       const T = temps(st, i);
       if (s.staff) {
         const n = Math.floor((s.prog + secs) / T);
         s.prog = (s.prog + secs) % T;
-        if (n > 0) { const m = revenu(st, i) * n; total += m; detail.push({ i, n, m }); st.stats.ventes += n; }
+        if (n > 0) { const m = revenu(st, i) * n; total += m; detail.push({ i, n, m }); st.stats.ventes += n; const g = creditApprenti(st, i, n); if (g) grades.push(g); }
       } else if (s.prog + secs >= T) { const m = revenuFournee(st, i); total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; st.stats.ventes++; }
       else s.prog += secs;
     });
+    const ss = st.saison; // une fournée de saison lancée avant de partir se termine
+    if (ss && ss.actif && ss.prog + secs >= tempsSaison(st)) { const r = recetteSaison(st), m = cuireSaison(st, null, true); total += m; detail.push({ i: -1, nom: r.nom, n: 1, m }); } else if (ss && ss.actif) ss.prog += secs;
     if (total > 0) gagner(st, total, true);
     st.lastSeen = nowMs;
-    return { secs, total, detail };
+    return { secs, total, detail, grades };
   }
 
   // ─── format des nombres : 1 234 €, 12,5 k €, 3,4 M €, 2,1 Md € ───
@@ -549,7 +645,10 @@
   function fmtDuree(s) { if (s < 60) return Math.round(s) + ' s'; if (s < 3600) return Math.round(s / 60) + ' min'; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; }
   const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
-  return { PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
+  return { APPRENTIS, APPRENTI_NIVEAUX, APPRENTI_VITESSE, xpApprenti, gradeApprenti, progresApprenti, creditApprenti, apprentiTempsMult, apprentiRevMult, effetTalentApprenti,
+    CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser,
+    RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
+    PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost,
