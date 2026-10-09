@@ -156,3 +156,29 @@ Le décor : sol = relief maillé (triangulation partagée) avec la photo aérien
 
 - `test/poncin.test.js` (Node, dans la CI) : règles, collisions, rayons, A*, bots, une partie d'Arène simulée de bout en bout (bots contre bots, sans erreur, scores cohérents, rejouable à l'identique avec la même graine).
 - `test/poncin-play.cjs` (Playwright, iPhone simulé) et `test/poncin-scene.cjs` (captures).
+
+## Authenticité (extension du format de carte v1 : champs facultatifs, rétrocompatibles)
+
+Le but : que Poncin ressemble au vrai, avec des données réelles et ouvertes (jamais Google ni Street View). Les personnages et les blasters restent cartoon ; le décor devient « réaliste stylisé » (matériaux, végétation, mobilier vrais, couleurs justes, un peu saturées). Chaque champ ci-dessous est **facultatif** : le rendu garde un repli propre quand il manque (carte provisoire, vieille carte).
+
+```js
+batiments[i]: { …, mur: 'pierre' | 'crepi' | 'brique' | 'beton' | 'bois' | 'mixte',      // BD TOPO materiaux_des_murs, sinon déduit
+                   toit: 'tuiles' | 'ardoise' | 'zinc' | 'beton' | 'verre',                 // BD TOPO materiaux_de_la_toiture, sinon couleur de la photo
+                   teinteToit: '#rrggbb', etages: 2, forme: '2pans' | 'croupe' | 'plat' | 'pavillon' | 'fleche' }   // forme : OSM roof:shape s'il existe
+arbres: [[x, z, h, r, e], …]   // r = rayon de la couronne (m), e = 'feuillu' | 'conifere' | 'peuplier' | 'platane' | 'tilleul' | 'fruitier' | 'saule' ; les anciennes entrées [x, z, h] restent valides
+haies: [{ l: [[x, z], …], h: 1.6, w: 1.0 }]
+vegetation[i].sens: angle (rad) des rangs pour t: 'vigne' | 'verger'
+surfaces: [{ p: [[x, z], …], t: 'asphalte' | 'paves' | 'gravier' | 'herbe' | 'terre' | 'parking' | 'cimetiere' | 'terrain' }]   // le sol sous la photo, pour les textures de détail de près
+murs: [{ l: [[x, z], …], h: 1.8, e: 0.5, t: 'pierre' | 'cloture' | 'soutenement' | 'enceinte' | 'portail' }]   // OSM barrier=wall|city_wall|retaining_wall|fence|gate
+mobilier: [{ x, z, t: 'lampadaire' | 'banc' | 'fontaine' | 'monument' | 'abribus' | 'poubelle' | 'borne' | 'croix' | 'panneau' | 'boite' | 'table', yaw, n }]   // OSM, rien d'inventé
+enseignes: [{ b: indexBatiment, n: 'Bar des Sports', t: 'bar' | 'boulangerie' | 'poste' | 'banque' | 'pharmacie' | 'mairie' | 'tabac' | 'commerce' | …, x, z, yaw }]   // sur la façade la plus proche du point OSM, face à la rue
+horizon: { pas: 125, n: 129, h: [/* altitudes absolues, n*n, centré sur (0, 0) */] }   // le relief lointain (≈ 16 km de côté) pour les vraies montagnes du Bugey à l'horizon
+sol.arene: { image: 'sol-arene-2048.jpg', centre: [x, z], taille: 400 }   // photo aérienne fine (~0,2 m/px) autour de l'arène
+```
+
+Modules de rendu de l'authenticité (navigateur, THREE ; chacun avec son API, appelés par `rendu.js`) :
+- `textures.js` → `PTEXTURES` : textures procédurales sur canvas, carrelables, mises en cache et partagées (`M.partager`), avec mipmaps : `facade(mur, teinte)`, `toit(toit, teinte)`, `sol(type)` (asphalte, pavés, gravier, herbe, terre), `details()` (encadrements, volets, chaînes d'angle) ; un atlas d'enseignes `enseigne(texte, type)` ; aucune image externe.
+- `vegetation.js` → `PVEGETATION.creer(carte, monde, { qualite }) → { groupe, maj(camera, t), liberer(), stats }` : arbres par espèce (troncs avec écorce, couronnes en grappes de feuillage texturé à découpe alpha, conifères en étages), instanciés, avec niveaux de détail (proche détaillé, loin en imposteur) et vent dans le vertex shader ; haies, rangs de vigne, vergers ; touffes d'herbe instanciées près de la caméra.
+- `decor.js` → `PDECOR.creer(carte, monde, { qualite }) → { groupe, maj(camera, t), liberer(), stats }` : murs de pierre et clôtures, mobilier urbain (lampadaires anciens, bancs, fontaine, monument aux morts, abribus…), enseignes des commerces (vrais noms OSM) sur leurs façades, plaques de rue bleues aux angles (noms OSM), montagnes de l'horizon (relief réel, couleur de brume).
+- `rendu.js` reste le chef d'orchestre : il applique `PTEXTURES` aux murs et aux toits (UV en mètres), mélange les textures de détail au sol selon `surfaces` (de près seulement) sous la photo, charge `sol.arene`, et branche `PVEGETATION` et `PDECOR`. Les murs et les troncs bloquent aussi les déplacements et les tirs (`monde.js`).
+- Budgets inchangés (≤ 110 / 90 / 70 appels de dessin ; ≤ 300k / 200k / 120k triangles), plus un budget de mémoire de textures (≤ 96 / 64 / 32 Mo) ; en éco, la végétation et le mobilier se simplifient.
