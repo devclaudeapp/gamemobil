@@ -98,7 +98,8 @@ function valider(c, o) {
   check(c.eau.every((e) => Array.isArray(e.p) && e.p.length >= 3 && e.p.every(estPoint) && TYPES_EAU.includes(e.t)), `eau bien formée : ${c.eau.length}`);
   check(c.ponts.every((p) => Array.isArray(p.l) && p.l.length === 2 && p.l.every(estPoint) && fini(p.w) && p.w > 0), `ponts bien formés : ${c.ponts.length}`);
   check(c.vegetation.every((v) => Array.isArray(v.p) && v.p.length >= 3 && v.p.every(estPoint) && TYPES_VEG.includes(v.t)), `végétation bien formée : ${c.vegetation.length}`);
-  check(c.arbres.every((a) => Array.isArray(a) && a.length === 3 && a.every(fini) && a[2] > 0 && a[2] <= 40), `arbres [x, z, h] : ${c.arbres.length}`);
+  const ESPECES = ['feuillu', 'conifere', 'peuplier', 'platane', 'tilleul', 'fruitier', 'saule'];
+  check(c.arbres.every((a) => Array.isArray(a) && (a.length === 3 || a.length === 5) && a.slice(0, 3).every(fini) && a[2] > 0 && a[2] <= 45 && (a.length === 3 || (fini(a[3]) && a[3] > 0 && a[3] <= 20 && ESPECES.includes(a[4])))), `arbres [x, z, h] ou [x, z, h, r, espèce] : ${c.arbres.length}`);
   check(c.interdit.every((z) => Array.isArray(z.p) && z.p.length >= 3 && z.p.every(estPoint) && typeof z.n === 'string'), `zones interdites bien formées : ${c.interdit.length}`);
   check(c.noms.every((n) => typeof n.n === 'string' && n.n.length > 0 && fini(n.x) && fini(n.z)), `noms bien formés : ${c.noms.length}`);
   check(c.sol === null || (c.sol && typeof c.sol.image === 'string' && typeof c.sol.petite === 'string'), 'sol : null ou { image, petite }');
