@@ -28,7 +28,7 @@ const DEFAUT = {
   altiApi: 'https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json', ressourceAlti: 'ign_rge_alti_wld',
   wmts: 'https://data.geopf.fr/wmts', coucheOrtho: 'ORTHOIMAGERY.ORTHOPHOTOS',
   arene: { rayon: 110, apparitions: 20, objets: 8 }, arbresBois: { espacement: 9, max: 900 },
-  style: { flou: 1, saturation: 1.1, chaleur: 0.035, eclaircir: 0.08, gamma: 0.9, pave: [216, 207, 194] },
+  style: { flou: 1, saturation: 1.28, chaleur: 0.035, eclaircir: 0.12, gamma: 0.86, pave: [218, 208, 195] },
 };
 function lireConfig() {
   let c = {}; try { c = JSON.parse(fs.readFileSync(path.join(ICI, 'poncin.config.json'), 'utf8')); } catch (e) { console.log(`poncin.config.json illisible (${e.message}) : réglages par défaut`); }
@@ -230,23 +230,25 @@ function distPolys(A, B) { // 0 si l'un touche l'autre
   let d = Infinity; for (const q of A) d = Math.min(d, distBord(q[0], q[1], B)); for (const q of B) d = Math.min(d, distBord(q[0], q[1], A));
   return d;
 }
-function tampon(l, w) { // polygone de largeur w autour d'une polyligne (onglets bornés)
-  const r = w / 2, n = l.length, G = [], D = [];
+function tampon(l, w) { // polygone autour d'une polyligne : largeur w, ou demi-largeur par sommet si w est un tableau (onglets bornés)
+  const n = l.length, G = [], D = [], R = (i) => Array.isArray(w) ? w[i] : w / 2;
   const nor = (a, b) => { const dx = b[0] - a[0], dz = b[1] - a[1], d = Math.hypot(dx, dz) || 1; return [-dz / d, dx / d]; };
   for (let i = 0; i < n; i++) {
     const n1 = i > 0 ? nor(l[i - 1], l[i]) : null, n2 = i < n - 1 ? nor(l[i], l[i + 1]) : null;
     let m = n1 && n2 ? [n1[0] + n2[0], n1[1] + n2[1]] : (n1 || n2); const lm = Math.hypot(m[0], m[1]);
     if (lm < 1e-6) m = n1; else m = [m[0] / lm, m[1] / lm];
     const c = n1 && n2 ? Math.max(0.5, m[0] * n1[0] + m[1] * n1[1]) : 1;
-    G.push([l[i][0] + m[0] * r / c, l[i][1] + m[1] * r / c]); D.push([l[i][0] - m[0] * r / c, l[i][1] - m[1] * r / c]);
+    const r = R(i); G.push([l[i][0] + m[0] * r / c, l[i][1] + m[1] * r / c]); D.push([l[i][0] - m[0] * r / c, l[i][1] - m[1] * r / c]);
   }
   return G.concat(D.reverse());
 }
-function tamponsValides(l, w, h) { // découpe la ligne tant que son tampon se recoupe
-  const p = nettoyer(couperPoly(tampon(l, w), h));
+function tamponsValides(l, w, h) { // découpe la ligne tant que son tampon se recoupe (w : largeur, ou demi-largeurs par sommet)
+  const p0 = nettoyer(couperPoly(tampon(l, w), h)), p = p0.length > 8 ? nettoyer(dpAnneau(p0, 0.4)) : p0;
   if (p.length >= 3 && simple(p)) return [p];
-  if (l.length <= 2) { const e = nettoyer(enveloppe(p)); return e.length >= 3 ? [e] : []; }
-  const m = Math.floor(l.length / 2); return tamponsValides(l.slice(0, m + 1), w, h).concat(tamponsValides(l.slice(m), w, h));
+  if (p0.length >= 3 && simple(p0)) return [p0];
+  if (l.length <= 2) { const e = nettoyer(enveloppe(p0)); return e.length >= 3 ? [e] : []; }
+  const m = Math.floor(l.length / 2), part = (a, b) => Array.isArray(w) ? w.slice(a, b) : w;
+  return tamponsValides(l.slice(0, m + 1), part(0, m + 1), h).concat(tamponsValides(l.slice(m), part(m), h));
 }
 function densifier(l, pas) { const r = [l[0]]; for (let i = 1; i < l.length; i++) { const a = l[i - 1], b = l[i], k = Math.max(1, Math.ceil(dist(a, b) / pas)); for (let j = 1; j <= k; j++) r.push([a[0] + (b[0] - a[0]) * j / k, a[1] + (b[1] - a[1]) * j / k]); } return r; }
 function rectangle(p) { // rectangle d'aire minimale → { l: [a, b] (grand axe), w (petit côté) }
@@ -338,13 +340,14 @@ async function decouvrir() {
   nwr[historic=castle]${A};
   nwr[amenity~"^(townhall|place_of_worship)$"]${A};
   nwr[place=square]${A};
+  nwr[name~"^Place "](around:600,${lat},${lon});
   way[waterway~"^(river|stream)$"]${A};
 );
 out body geom;`;
   let objets = [];
   try { objets = formes((await overpass(q, 'découverte')).elements, R0); } catch (e) { repli(`découverte impossible (${e.message.slice(0, 160)}) : centre approché ${lat}, ${lon}`); }
   const cap = (q2) => { const a = Math.atan2(q2[0], -q2[1]) / RAD; return ['N', 'NE', 'E', 'SE', 'S', 'SO', 'O', 'NO'][Math.round(((a + 360) % 360) / 45) % 8]; };
-  const cat = (t) => t.historic === 'castle' ? 'château' : t.amenity === 'townhall' ? 'mairie' : t.amenity === 'place_of_worship' ? 'culte' : t.place === 'square' ? 'place' : t.waterway === 'river' ? 'rivière' : t.waterway ? 'ruisseau' : t.place ? 'lieu' : '?';
+  const cat = (t) => t.historic === 'castle' ? 'château' : t.amenity === 'townhall' ? 'mairie' : t.amenity === 'place_of_worship' ? 'culte' : t.place === 'square' || /^place /i.test(t.name || '') ? 'place' : t.waterway === 'river' ? 'rivière' : t.waterway ? 'ruisseau' : t.place ? 'lieu' : '?';
   console.log(`\n── Découverte autour de ${lat}, ${lon} (${objets.length} objets) ──`);
   const vus = new Set();
   for (const o of objets) {
@@ -357,7 +360,7 @@ out body geom;`;
   const mairie = parDist(de((t) => t.amenity === 'townhall'), [0, 0], 900)[0] || null, ref = mairie ? mairie.pt : [0, 0];
   const eglise = parDist(de((t) => t.amenity === 'place_of_worship'), ref, 700)[0] || null;
   const chateau = parDist(de((t) => t.historic === 'castle'), ref, 1300)[0] || null;
-  const place = parDist(de((t) => t.place === 'square'), ref, 500)[0] || null;
+  const place = parDist(de((t) => t.place === 'square'), ref, 500)[0] || parDist(objets.filter((o) => /^place /i.test(o.tags.name || '') && o.polys.length), ref, 220)[0] || null;
   const riviere = (re) => { let best = null; for (const o of de((t) => t.waterway && re.test(t.name || ''))) { const p = procheDeLigne(o, ref); if (p && (!best || p.d < best.d)) best = Object.assign(p, { o }); } return best && best.d < 1500 ? best : null; };
   const ain = riviere(NOM_AIN), veyron = riviere(NOM_VEYRON);
   let confluence = null;
@@ -597,14 +600,25 @@ function assembler(R, L, objets, bdtopo, relief) {
     for (const p0 of o.polys) { const p = polygone(p0, 1, h, 10); if (!p) continue; const riv = /^(river|oxbow|canal)$/.test(t.water || '') || t.waterway === 'riverbank' || Math.abs(aire(p)) > 3000; eau.push({ p, t: riv ? 'riviere' : 'ruisseau', n: t.name }); }
   }
   const surfaces = eau.slice(), dansEau = (q) => surfaces.some((e) => dedans(q[0], q[1], e.p));
+  const idxRues = grille(25); rues.forEach((r) => idxRues.ajouter(boite(r.l), r));
+  const demiLargeurs = (run, w, ligne) => { // la rivière reste entre ses rives : jamais sur un bâtiment ni sur une voie qui la longe
+    const traversent = new Set(rues.filter((r) => { for (let i = 0; i + 1 < ligne.length; i++) for (let k = 0; k + 1 < r.l.length; k++) if (intersection(ligne[i], ligne[i + 1], r.l[k], r.l[k + 1])) return true; return false; }));
+    const r0 = run.map((q) => {
+      let r = w / 2;
+      for (const b of idx.autour(q[0], q[1], r + 1)) r = Math.min(r, dedans(q[0], q[1], b.p) ? 0 : distBord(q[0], q[1], b.p) - 0.6);
+      for (const ru of idxRues.autour(q[0], q[1], r + 8)) if (!traversent.has(ru)) r = Math.min(r, distBord(q[0], q[1], ru.l, false) - ru.w / 2 - 0.4);
+      return Math.max(1.2, r);
+    });
+    return r0.map((_, i) => { let t = 0, k = 0; for (let j = Math.max(0, i - 2); j <= Math.min(r0.length - 1, i + 2); j++) { t += r0[j]; k++; } return Math.min(r0[i] + 0.5, t / k); });
+  };
   for (const o of de((t, o2) => o2.type === 'way' && /^(river|stream|canal|brook)$/.test(t.waterway || ''))) {
     const t = o.tags, souterrain = t.tunnel || t.covered === 'yes' || t.location === 'underground' || +t.layer < 0;
-    const wl = parseFloat(t.width), w = wl >= 0.5 && wl <= 200 ? wl : t.waterway === 'river' ? 20 : t.waterway === 'canal' ? 8 : t.waterway === 'brook' ? 2 : 3;
+    const wl = parseFloat(t.width), w = wl >= 0.5 && wl <= 200 ? wl : t.waterway === 'river' ? 12 : t.waterway === 'canal' ? 8 : t.waterway === 'brook' ? 2 : 3;
     for (const l0 of o.lignes) for (const m of couperLigne(l0, h)) {
-      const l = dp(m.l, 1); lignesEau.push({ l, n: t.name, w, souterrain, riviere: t.waterway === 'river' }); if (souterrain) continue;
+      const l = dp(m.l, 1), le = { l, n: t.name, w, souterrain, riviere: t.waterway === 'river', runs: [] }; lignesEau.push(le); if (souterrain) continue;
       const d = densifier(l, 3), couvert = d.map(dansEau), auBord = (q) => Math.max(Math.abs(q[0]), Math.abs(q[1])) > h - 0.05; let run = [];
       d.forEach((q, i) => { if (auBord(q) && !couvert[i]) couvert[i] = !!(couvert[i - 1] || couvert[i + 1]); }); // un point posé sur le bord du carré suit ses voisins
-      const fin = () => { if (run.length >= 2) for (const p of tamponsValides(dp(run, 0.5), w, h)) if (Math.abs(aire(p)) > 2) eau.push({ p, t: t.waterway === 'river' ? 'riviere' : 'ruisseau', n: t.name, ligne: true }); run = []; };
+      const fin = () => { if (run.length >= 2) { const rr = demiLargeurs(run, w, l); le.runs.push({ l: run, r: rr }); for (const p of tamponsValides(run, rr, h)) if (Math.abs(aire(p)) > 2) eau.push({ p, t: t.waterway === 'river' ? 'riviere' : 'ruisseau', n: t.name, ligne: true }); } run = []; };
       d.forEach((q, i) => { if (!couvert[i]) { if (!run.length && i > 0) run.push(d[i - 1]); run.push(q); } else if (run.length) { run.push(q); fin(); } }); fin();
     }
   }
@@ -635,6 +649,17 @@ function assembler(R, L, objets, bdtopo, relief) {
     deduits++;
   }
 
+  let allonges = 0; // un pont tagué plus court que la rivière élargie qu'il franchit est allongé (sinon la voie serait coupée)
+  for (const p of ponts) for (const le of lignesEau) for (const run of le.runs) for (let i = 0; i + 1 < run.l.length; i++) {
+    const X = intersection(p.l[0], p.l[1], run.l[i], run.l[i + 1]); if (!X) continue;
+    const L0 = dist(p.l[0], p.l[1]), ux = (p.l[1][0] - p.l[0][0]) / L0, uz = (p.l[1][1] - p.l[0][1]) / L0, sx = run.l[i + 1][0] - run.l[i][0], sz = run.l[i + 1][1] - run.l[i][1], ls = Math.hypot(sx, sz) || 1;
+    const sinus = Math.max(0.35, Math.abs(ux * sz / ls - uz * sx / ls)), besoin = Math.min(40, Math.max(run.r[i], run.r[i + 1]) / sinus + 1.5);
+    const a = dist(X, p.l[0]), b = dist(X, p.l[1]); if (a >= besoin && b >= besoin) continue;
+    if (a < besoin) p.l[0] = [r1(clamp(X[0] - ux * besoin, -h, h)), r1(clamp(X[1] - uz * besoin, -h, h))];
+    if (b < besoin) p.l[1] = [r1(clamp(X[0] + ux * besoin, -h, h)), r1(clamp(X[1] + uz * besoin, -h, h))];
+    allonges++;
+  }
+
   // ── végétation ──
   const typeVeg = (t) => t.landuse === 'forest' || t.natural === 'wood' || t.natural === 'scrub' ? 'bois' : t.landuse === 'vineyard' ? 'vigne'
     : t.leisure === 'garden' || /^(allotments|orchard|plant_nursery)$/.test(t.landuse || '') ? 'jardin'
@@ -649,7 +674,12 @@ function assembler(R, L, objets, bdtopo, relief) {
     if (!zonesChateau.some((zc) => boitesSeCroisent(boite(zc), boite(p0), 3) && distPolys(zc, p0) <= 3)) continue;
     const p = polygone(p0, 1, h, 20); if (p) interdit.push({ p, n: nomInterdit });
   }
-  if (!interdit.length) for (const o of chateaux) for (const p0 of o.polys) { // repli : le domaine du château lui-même
+  RAPPORT.voisinageChateau = de((t, o) => o.polys.length && !t.building && !t.highway && zonesChateau.some((zc) => boitesSeCroisent(boite(zc), boite(o.polys[0]), 40) && distPolys(zc, o.polys[0]) <= 30)).map((o) => `${o.id} ${JSON.stringify(o.tags).slice(0, 140)} (${Math.round(Math.abs(aire(o.polys[0])))} m²)`);
+  if (!interdit.length) for (const o of de((t) => (t.leisure === 'garden' || t.leisure === 'park' || t['garden:type']) && !t.highway && !t.building)) for (const p0 of o.polys) { // repli : les jardins qui touchent le château
+    const a = Math.abs(aire(p0)); if (a > 60000 || !zonesChateau.some((zc) => boitesSeCroisent(boite(zc), boite(p0), 3) && distPolys(zc, p0) <= 3)) continue;
+    const p = polygone(p0, 1, h, 20); if (p) { interdit.push({ p, n: nomInterdit }); repli(`zone interdite = le jardin ${o.id} qui touche le château (${Math.round(a)} m², aucun access=private tagué)`); }
+  }
+  if (!interdit.length) for (const o of chateaux) for (const p0 of o.polys) { // dernier repli : le domaine du château lui-même
     const p = polygone(p0, 1, h, 20), ab = bats.filter((b) => b.t === 'chateau').reduce((a, b) => a + b.aire, 0);
     if (p && Math.abs(aire(p)) > ab * 1.3) { interdit.push({ p, n: nomInterdit }); repli('zone interdite = le domaine historic=castle (aucun jardin privé tagué ne le touche)'); }
   }
@@ -675,7 +705,7 @@ function assembler(R, L, objets, bdtopo, relief) {
   const noms = [];
   const nommer = (n, q, prio) => { if (n && q && dedansCarre(q, 2)) noms.push({ n, x: r1(q[0]), z: r1(q[1]), prio }); };
   for (const o of objets) {
-    const t = o.tags; if (!t.name || (t.highway && !t.place) || t.waterway) continue;
+    const t = o.tags; if (!t.name || (t.highway && !t.place) || t.waterway || /^\d/.test(t.name) || (t.tourism === 'information' && t.information !== 'office')) continue;
     const prio = t.amenity === 'townhall' || t.amenity === 'place_of_worship' || t.historic === 'castle' ? 0 : t.place === 'square' || t.place === 'village' || t.historic ? 1 : t.man_made === 'bridge' || t.natural === 'water' || t.amenity || t.tourism || t.leisure ? 2 : t.place || t.shop ? 3 : t.building ? 4 : 5;
     if (prio < 5) nommer(t.name, o.polys.length ? centroide(o.polys[0]) : o.pt, prio);
   }
@@ -695,7 +725,9 @@ function assembler(R, L, objets, bdtopo, relief) {
     batiments, rues, eau: eau.map((e) => { const r = { p: e.p, t: e.t }; if (e.n) r.n = e.n; return r; }),
     ponts: ponts.map((p) => ({ l: p.l, w: p.w })), vegetation, arbres, interdit, noms: noms.map(({ n, x, z }) => ({ n, x, z })), sol: null, zones,
   };
-  const info = { obs, deduits, ponts, nArbresOSM, semes, nBD, nOSM, compte, lignesEau, nomChateau };
+  const mouilles = batiments.filter((b) => { const q = centroide(b.p); return eau.some((e) => dedans(q[0], q[1], e.p)); }).length;
+  if (mouilles) alerte(`${mouilles} bâtiment(s) ont leur centre dans l’eau`);
+  const info = { mouilles, obs, deduits, allonges, ponts, nArbresOSM, semes, nBD, nOSM, compte, lignesEau, nomChateau };
   return { carte, info };
 }
 function obstacles(L, batiments, interdit, eau, ponts) { // libre(x, z, marge) et degagement(x, z) : bâtiments, zones interdites, eau hors des ponts
@@ -736,8 +768,10 @@ function calculerZones({ h, objets, bats, rues, ponts, sorties, obs, rnd }) {
   const refM = mairie ? centroide(mairie.p) : [0, 0];
   const places = de((t) => t.place === 'square').filter((o) => dans(centre(o), 30)).sort((a, b) => dist(centre(a), refM) - dist(centre(b), refM));
   const pietons = de((t, o) => t.highway === 'pedestrian' && o.polys.length && t.area === 'yes').filter((o) => dans(centre(o), 30));
+  const nommees = de((t, o) => /^place\b/i.test(t.name || '') && t.place !== 'square' && (o.polys.length || o.type === 'node' || t.highway)).filter((o) => dans(centre(o), 30) && dist(centre(o), refM) < 220)
+    .sort((a, b) => (a.polys.length ? 0 : 60) + dist(centre(a), refM) - (b.polys.length ? 0 : 60) - dist(centre(b), refM)); // les surfaces d'abord (place fermée, parking)
   let c = null, nomArene = null, origine = '';
-  for (const [q, n, o2] of [...places.map((o) => [centre(o), o.tags.name, 'place=square']), ...pietons.map((o) => [centre(o), o.tags.name, 'zone piétonne']), [devant(mairie), 'devant la mairie', 'mairie'], [devant(eglise), 'devant l’église', 'église'], [[0, 0], null, 'centre']]) {
+  for (const [q, n, o2] of [...places.map((o) => [centre(o), o.tags.name, 'place=square']), ...nommees.map((o) => [centre(o), o.tags.name, 'place nommée ' + o.id]), ...pietons.map((o) => [centre(o), o.tags.name, 'zone piétonne']), [devant(mairie), 'devant la mairie', 'mairie'], [devant(eglise), 'devant l’église', 'église'], [[0, 0], null, 'centre']]) {
     if (!q) continue; const p = accrocher(q, 2.5, 30); if (p) { c = p; nomArene = n || null; origine = o2; break; }
   }
   if (!c) c = [0, 0];
@@ -776,7 +810,7 @@ function calculerZones({ h, objets, bats, rues, ponts, sorties, obs, rnd }) {
   ext.length = Math.min(ext.length, 12);
   // base : une autre place (ou une zone piétonne, un parking), sinon devant la mairie, sinon l'arène
   let base = null;
-  for (const o of [...places, ...pietons, ...de((t, o2) => t.amenity === 'parking' && o2.polys.length)]) { const q = centre(o); if (dans(q, 15) && dist(q, c) >= 60) { base = accrocher(q, 2, 25); if (base) break; } }
+  for (const o of [...places, ...nommees.filter((o3) => o3.polys.length), ...pietons, ...de((t, o2) => t.amenity === 'parking' && o2.polys.length)]) { const q = centre(o); if (dans(q, 15) && dist(q, c) >= 60) { base = accrocher(q, 2, 25); if (base) break; } }
   if (!base && origine !== 'mairie') { const q = devant(mairie); if (q && dist(q, c) >= 30) base = accrocher(q, 2, 20); }
   if (!base) base = c;
   const z2 = (q) => [r1(q[0]), r1(q[1])];
@@ -951,12 +985,13 @@ function rapport(c, info, R) {
     `\n══ Carte de Poncin : ${path.relative(RACINE, SORTIE) || SORTIE} ══`,
     `centre ${R.lat0}, ${R.lon0} ; carré de ${c.taille} m ; relief ${c.relief.n}×${c.relief.n} (${RAPPORT.sources.alti}), de ${Math.min(...c.relief.h)} à ${Math.max(...c.relief.h)} m`,
     `bâtiments : ${c.batiments.length} (BD TOPO ${info.nBD}, OSM ajoutés ${info.nOSM}) ${JSON.stringify(info.compte)} ; enveloppes convexes de repli : ${RAPPORT.enveloppes}`,
-    `rues : ${c.rues.length} (${new Set(c.rues.filter((r) => r.n).map((r) => r.n)).size} noms) ; eau : ${c.eau.length} (rivière ${c.eau.filter((e) => e.t === 'riviere').length}, ruisseau ${c.eau.filter((e) => e.t === 'ruisseau').length}) ; ponts : ${c.ponts.length} (dont ${info.deduits} déduits d'une voie qui franchit un ruisseau)`,
+    `rues : ${c.rues.length} (${new Set(c.rues.filter((r) => r.n).map((r) => r.n)).size} noms) ; eau : ${c.eau.length} (rivière ${c.eau.filter((e) => e.t === 'riviere').length}, ruisseau ${c.eau.filter((e) => e.t === 'ruisseau').length}) ; ponts : ${c.ponts.length} (dont ${info.deduits} déduits d'une voie qui franchit un ruisseau, ${info.allonges} allongés pour enjamber l'eau)`,
     `végétation : ${c.vegetation.length} ; arbres : ${c.arbres.length} (OSM ${info.nArbresOSM}, semés dans les bois ${info.semes}) ; interdit : ${c.interdit.map((z) => z.n).join(', ') || 'aucun'}`,
     `objets nommés : église ${JSON.stringify(c.batiments.filter((b) => b.t === 'eglise').map((b) => b.n || '(sans nom)'))}, mairie ${JSON.stringify(c.batiments.filter((b) => b.t === 'mairie').map((b) => b.n || '(sans nom)'))}, château ${JSON.stringify([...new Set(c.batiments.filter((b) => b.t === 'chateau').map((b) => b.n || '(sans nom)'))])}`,
     `cours d'eau : ${JSON.stringify([...new Set(info.lignesEau.filter((l) => l.n).map((l) => l.n))])} ; Ain : ${n(NOM_AIN).length ? 'oui' : 'NON'}, Veyron : ${n(NOM_VEYRON).length ? 'oui' : 'NON'}`,
     `ponts nommés : ${JSON.stringify([...new Set(info.ponts.filter((p) => p.n).map((p) => p.n))])} ; voies sur pont : ${JSON.stringify([...new Set(info.ponts.filter((p) => p.voie).map((p) => p.voie))])}`,
     `noms (${c.noms.length}) : ${c.noms.slice(0, 40).map((x) => x.n).join(' · ')}`,
+    `voisinage du château (surfaces à moins de 30 m) :\n    ${(RAPPORT.voisinageChateau || []).join('\n    ') || 'aucune'}`,
     `zones : arène ${RAPPORT.arene} ; ${c.zones.apparitions.length} apparitions ; ${c.zones.armes.length} objets (${c.zones.armes.map((a) => a.arme).join(', ')}) ; ${c.zones.extraction.length} extractions ; base [${c.zones.base}]`,
     `sol : ${c.sol ? `${c.sol.image} + ${c.sol.petite} (${RAPPORT.sources.ortho})` : 'aucun (sol peint)'}`,
     `sources : ${JSON.stringify(RAPPORT.sources)} ; anneaux OSM ouverts refermés : ${RAPPORT.anneauxOuverts || 0}`,
@@ -1101,6 +1136,7 @@ async function verifierEssai(m, res) {
   t(c.ponts.length >= 4 && info.deduits === 3, `ponts : ${c.ponts.length} (dont ${info.deduits} déduits)`);
   const pAin = c.ponts.find((p) => p.w >= 9); t(!!pAin, 'le pont de l’Ain prend la largeur de man_made=bridge');
   t(c.interdit.length === 1 && c.interdit[0].n === "Château d'essai (propriété privée)", 'zone interdite : le jardin privé du château');
+  t(info.mouilles === 0, 'l’eau élargie ne recouvre aucun bâtiment');
   t(c.zones.apparitions.length >= 16 && c.zones.armes.length >= 6 && c.zones.armes.length <= 8 && c.zones.extraction.length >= 3 && c.zones.arene.rayon === 110, `zones : ${c.zones.apparitions.length} apparitions, ${c.zones.armes.length} objets, ${c.zones.extraction.length} extractions, arène ${c.zones.arene.n || ''}`);
   const pl = R.xz(...m.Rc.ll(2.5, 15)); t(dist(c.zones.arene.centre, pl) < 12, 'l’arène est sur la place');
   t(c.arbres.length > 9 && c.vegetation.some((v) => v.t === 'bois'), `arbres : ${c.arbres.length} ; végétation : ${c.vegetation.length}`);
