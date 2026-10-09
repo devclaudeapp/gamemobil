@@ -182,3 +182,15 @@ Modules de rendu de l'authenticité (navigateur, THREE ; chacun avec son API, ap
 - `decor.js` → `PDECOR.creer(carte, monde, { qualite }) → { groupe, maj(camera, t), liberer(), stats }` : murs de pierre et clôtures, mobilier urbain (lampadaires anciens, bancs, fontaine, monument aux morts, abribus…), enseignes des commerces (vrais noms OSM) sur leurs façades, plaques de rue bleues aux angles (noms OSM), montagnes de l'horizon (relief réel, couleur de brume).
 - `rendu.js` reste le chef d'orchestre : il applique `PTEXTURES` aux murs et aux toits (UV en mètres), mélange les textures de détail au sol selon `surfaces` (de près seulement) sous la photo, charge `sol.arene`, et branche `PVEGETATION` et `PDECOR`. Les murs et les troncs bloquent aussi les déplacements et les tirs (`monde.js`).
 - Budgets inchangés (≤ 110 / 90 / 70 appels de dessin ; ≤ 300k / 200k / 120k triangles), plus un budget de mémoire de textures (≤ 96 / 64 / 32 Mo) ; en éco, la végétation et le mobilier se simplifient.
+
+### Passages voûtés et bâtiments remarquables (demande du joueur)
+
+Le bourg de Poncin a des **passages voûtés** qui traversent les maisons pour rejoindre la place : dans OSM, des voies qui passent sous un bâtiment (`tunnel=building_passage`, ou une voie dont le tracé traverse une emprise), par exemple « Porte Bouvent » (sous le bâtiment près de la place Xavier-Bichat) et « Impasse du Bonheur ». Format :
+
+```js
+passages: [{ l: [[x, z], [x, z]], w: 3.2, h: 3.4, b: [indices des bâtiments traversés], n: 'Porte Bouvent' }]   // couloir sous les bâtiments, voûte en berceau de hauteur h
+```
+- `monde.js` : dans un passage, les murs du bâtiment ne bloquent ni le joueur ni les tirs sous la voûte (y < base + h) ; au-dessus, le bâtiment reste plein ; `nav.js` y fait passer les chemins.
+- `rendu.js` : arcade en plein cintre découpée dans les deux façades, intérieur voûté en pierre (berceau, piédroits, pavés), éclairage plus sombre dedans.
+- **Bâtiments remarquables**, reconnaissables d'après les données (OSM `name`, `shop`, `amenity`) : la mairie (« Hôtel de ville de Poncin » : drapeaux tricolores, inscription MAIRIE, horloge), le bureau de tabac (« Bureau de Tabac Presse » : losange rouge « carotte » TABAC et bandeau PRESSE), la banque (« Crédit Agricole » : bandeau au nom, sans logo de marque), La Poste, le Bar des Sports (terrasse), la boulangerie « Aux Pains Dorés », le Petit Casino, l'office de tourisme, la pharmacie… ; l'église Saint-Martin et le château gardent leur traitement à part.
+- Références visuelles autorisées : les données ouvertes, les images de rue libres **Panoramax** (Licence Ouverte ou CC-BY-SA, comme référence de formes et de couleurs) et les photos que le joueur fournit lui-même. **Jamais Google Maps ni Street View** (leurs conditions interdisent d'en extraire ou d'en dériver du contenu).
