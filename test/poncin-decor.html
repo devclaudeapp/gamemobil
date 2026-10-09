@@ -196,9 +196,11 @@ ETAT.verifierAmbiance = () => { // les règles de l'ambiance, vérifiées sur ce
   let dMin = Infinity; st.lanternes.forEach((a, i) => st.lanternes.forEach((b, j) => { if (j > i) dMin = Math.min(dMin, Math.hypot(a[0] - b[0], a[1] - b[1])); }));
   // les bancs : ceux de monde.bancs (monde.js les pose et les rend pleins) ; un tir à 0,6 m du sol, depuis 3 m devant un banc, s'arrête sur lui
   const A = carte.zones.arene.centre, MB = Array.isArray(monde.bancs) ? monde.bancs : null;
+  const dansBatiment = (x, z) => monde.batiments.some((b) => { if (x < b.aabb[0] || x > b.aabb[2] || z < b.aabb[1] || z > b.aabb[3]) return false; let d = false; for (let i = 0, j = b.p.length - 1; i < b.p.length; j = i++) { const [xi, zi] = b.p[i], [xj, zj] = b.p[j]; if ((zi > z) !== (zj > z) && x < (xj - xi) * (z - zi) / (zj - zi) + xi) d = !d; } return d; });
   const bancs = st.bancs.map(([x, z, yaw]) => {
     const fx = -Math.sin(yaw), fz = -Math.cos(yaw), ox = x + fx * 3, oz = z + fz * 3, h = monde.rayon(ox, monde.hauteur(ox, oz) + 0.6, oz, -fx, 0, -fz, 6);
-    return { rue: +bordRue(x, z).toFixed(2), bloque: monde.bloque(x, z, 0.3), place: Math.hypot(x - A[0], z - A[1]), tir: h ? +h.t.toFixed(2) : null, de: h ? h.de : null };
+    const c = Math.cos(yaw), s = Math.sin(yaw), bat = [-0.9, 0, 0.9].some((l) => dansBatiment(x - c * l, z + s * l)); // ses deux bouts et son milieu
+    return { rue: +bordRue(x, z).toFixed(2), bloque: monde.bloque(x, z, 0.3), place: Math.hypot(x - A[0], z - A[1]), bat, tir: h ? +h.t.toFixed(2) : null, de: h ? h.de : null };
   });
   const memes = !!MB && MB.length === st.bancs.length && MB.every((b, i) => Math.abs(b[0] - st.bancs[i][0]) < 0.06 && Math.abs(b[1] - st.bancs[i][1]) < 0.06 && Math.abs(b[2] - st.bancs[i][2]) < 0.006);
   const plaques = decor.remarquables.filter((r) => r.quoi === 'plaque'); let pMin = Infinity; plaques.forEach((a, i) => plaques.forEach((b, j) => { if (j > i) pMin = Math.min(pMin, Math.hypot(a.x - b.x, a.z - b.z)); }));
