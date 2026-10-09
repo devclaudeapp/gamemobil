@@ -1,12 +1,16 @@
 // Opération Poncin — captures du rendu 3D (Playwright, iPhone en paysage : 844×390, deviceScaleFactor 2), carte réelle puis provisoire,
 // qualité haute puis éco : une rue du bourg, la place de l'arène, le château et le clocher vus de la rue, la rivière et un pont, une vue
 // d'en haut, personnages et robots de près, tirs (traînées, éclairs, impacts de peinture), confettis d'une élimination, le survol du titre ;
-// sur la carte réelle, le Poncin « authentique » : la place Xavier-Bichat (mairie, tabac, banque), la terrasse du Bar des Sports, la Porte
-// Bouvent des deux côtés et dedans, l'Impasse du Bonheur des deux côtés, les bords de l'Ain (saules, peupliers), l'horizon du Bugey.
+// sur la carte réelle, le Poncin « authentique » : la place Xavier-Bichat (mairie, tabac, banque) et son sol, la terrasse du Bar des Sports,
+// la Porte Bouvent des deux côtés et dedans, l'Impasse du Bonheur des deux côtés, la nef de l'église (portail, vitraux), les bords de l'Ain
+// (saules, peupliers), l'horizon du Bugey.
 // Pour chaque image : appels de dessin, triangles (passe d'ombre comprise), géométries, mémoire des textures, comparés aux budgets du
-// contrat ; décor (PDECOR), végétation (PVEGETATION), matières en couches et voûtes branchés ; puis les géométries et les textures doivent
-// rester stables quand on rejoue toutes les scènes, et le contexte WebGL perdu puis retrouvé doit redonner une image. Un tableau des
-// comptes par vue et par qualité termine la sortie.
+// contrat ; décor (PDECOR), végétation (PVEGETATION), matières en couches et voûtes branchés ; le sol de la place est un asphalte gris même
+// là où la photo montre les couronnes des platanes ; l'intérieur des voûtes ne voit jamais le soleil ; puis les géométries et les textures
+// doivent rester stables quand on rejoue toutes les scènes, et le contexte WebGL perdu puis retrouvé doit redonner une image ; sur la carte
+// réelle enfin, un palier de la qualité adaptative ne refait ni les textures ni les bâtiments, et des allers-retours de qualité choisie
+// (vers l'éco et retour) rendent la mémoire JS (rien de mort gardé par MODELES.partager) et la mémoire des textures. Un tableau des comptes
+// par vue et par qualité termine la sortie.
 // Le rendu est logiciel (SwiftShader) : on ne juge pas les images par seconde, seulement les budgets et les images.
 // Usage : node test/poncin-scene.cjs [--carte=reelle,provisoire] [--qualite=haute,eco] [--scenes=rue,tir]
 // (NODE_PATH=/opt/node22/lib/node_modules si Playwright est installé globalement). Captures dans test/shots/poncin-scene/.
@@ -16,7 +20,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
 const racine = path.join(__dirname, '..'), out = path.join(__dirname, 'shots', 'poncin-scene'); fs.mkdirSync(out, { recursive: true });
 const arg = (k, d) => { const a = process.argv.find((x) => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
 const CARTES = arg('carte', 'reelle,provisoire').split(','), QUALITES = arg('qualite', 'haute,eco').split(',');
-const AUTH = ['mairie', 'tabac', 'banque', 'terrasse', 'bouvent-nord', 'bouvent-dedans', 'bouvent-sud', 'bonheur-est', 'bonheur-ouest', 'ain', 'horizon']; // carte réelle seulement
+const AUTH = ['place-sol', 'mairie', 'tabac', 'banque', 'terrasse', 'bouvent-nord', 'bouvent-dedans', 'bouvent-sud', 'bonheur-est', 'bonheur-ouest', 'nef', 'ain', 'horizon']; // carte réelle seulement
 const SCENES0 = arg('scenes', ['rue', 'place', ...AUTH, 'chateau', 'eglise', 'pont', 'haut', 'persos', 'tir', 'confettis', 'survol'].join(',')).split(',');
 const TABLEAU = [];
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.css': 'text/css' };
@@ -28,13 +32,14 @@ const serveur = http.createServer((req, res) => {
 let echecs = 0, oks = 0;
 const verif = (ok, msg) => { console.log((ok ? '  ok   ' : '  FAIL ') + msg); if (ok) oks++; else echecs++; };
 const fmt = (s) => `${s.calls} appels, ${(s.triangles / 1000).toFixed(1)}k triangles, ${s.geometries} géométries, ${s.textures} textures`;
+const mediane = (a) => { const s = a.slice().sort((x, y) => x - y); return s.length ? s[s.length >> 1] : NaN; };
 (async () => {
   const navigateur = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
   const port = serveur.address().port;
   for (const carte of CARTES) for (const qualite of QUALITES) {
     console.log(`── carte ${carte}, qualité ${qualite} ──`);
     const ctx = await navigateur.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'fr-FR' });
-    const page = await ctx.newPage(), erreurs = [];
+    const page = await ctx.newPage(), erreurs = [], cdp = await ctx.newCDPSession(page);
     page.on('pageerror', (e) => erreurs.push('pageerror: ' + e.message));
     page.on('console', (m) => { if (m.type() === 'error') erreurs.push('console: ' + m.text()); });
     await page.goto(`http://localhost:${port}/test/poncin-atelier.html?carte=${carte}&qualite=${qualite}`);
@@ -50,6 +55,17 @@ const fmt = (s) => `${s.calls} appels, ${(s.triangles / 1000).toFixed(1)}k trian
       verif(a.voutes === a.passages && a.passages === 2, `les ${a.passages} passages voûtés sont creusés (${a.voutes} voûtes)`);
       verif(a.bati === 'couches', `les bâtiments ont leurs matières (texture en couches : ${a.bati})`);
       verif(a.sol === 'photo' && !a.dErr, `le sol est la photo aérienne (${a.sol}), le décor sans erreur`);
+      // l'intérieur des voûtes : un maillage à part (pas une tuile de plus), aux normales horizontales opposées au soleil : il n'est jamais
+      // éclairé en direct, même sans carte d'ombre (moyenne, éco) ; il porte ombre (en haute, l'intrados ombre le sol du couloir)
+      const v = await page.evaluate(() => { const I = PRENDU._interne, m = I.voutes; if (!m) return null; const n = m.geometry.attributes.normal.array, S = I.SOLEIL, l = Math.hypot(S[0], S[1], S[2]); let pire = -1, ny = 0;
+        for (let i = 0; i < n.length; i += 3) { pire = Math.max(pire, (n[i] * S[0] + n[i + 1] * S[1] + n[i + 2] * S[2]) / l); ny = Math.max(ny, Math.abs(n[i + 1])); }
+        return { tri: n.length / 9, pire, ny, ombre: m.castShadow && m.receiveShadow, tuile: I.tuiles.some((t) => t.gros === m || t.det === m), dansScene: m.parent === I.scene }; });
+      verif(v && v.tri > 50 && v.pire < -0.2 && v.ny === 0 && v.ombre && !v.tuile && v.dansScene, `l'intérieur des voûtes : un maillage à part (${v && v.tri} triangles), tourné à l'opposé du soleil (N·L ≤ ${v && v.pire.toFixed(2)}) : jamais au soleil, même sans ombres`);
+      // le sol de la place Xavier-Bichat (un parking) : un asphalte gris, même là où la photo aérienne montre les couronnes des platanes
+      const ps = (await page.evaluate(() => atelier.solPlace())) || [], verts = ps.filter((o) => o.photo > 6);
+      const mP = mediane(verts.map((o) => o.photo)), mR = mediane(verts.map((o) => o.rendu)), mL = mediane(ps.map((o) => o.l));
+      verif(ps.length >= 40 && verts.length >= 10 && mR < 5 && mL > 60, `le sol de la place est un asphalte gris sous les platanes (${verts.length} des ${ps.length} points vus sont verts sur la photo : vert ${mP.toFixed(1)} → ${mR.toFixed(1)} rendu, luminance ${mL})`);
+      await page.screenshot({ path: path.join(out, `${carte}-${qualite}-place-sol-mesure.png`), timeout: 180000 });
     }
     if (pret.stats.tuiles > 16) verif(false, `≤ 16 tuiles de bâtiments (${pret.stats.tuiles})`);
     // le sol est maillé avec la triangulation de monde.hauteur : un rayon vertical sur le maillage retrouve la hauteur du monde, au millimètre
@@ -87,6 +103,26 @@ const fmt = (s) => `${s.calls} appels, ${(s.triangles / 1000).toFixed(1)}k trian
     });
     verif(perte.ok && perte.pendant === false && !perte.lance && perte.apres.webgl && perte.apres.calls > 10 && perte.apres.triangles > 10000, `contexte WebGL perdu puis retrouvé : ${perte.ok ? `pendant la perte webgl=${perte.pendant}, rien ne lève${perte.lance ? ' (sauf : ' + perte.lance + ')' : ''} ; après : ${fmt(perte.apres)}` : perte.raison}`);
     await page.screenshot({ path: path.join(out, `${carte}-${qualite}-retour-contexte.png`), timeout: 180000 });
+    if (carte === 'reelle') {
+      // les bases de PTEXTURES lisent leur tranche de la texture en couches des bâtiments : pas de copie de leurs pixels gardée en double
+      const bs = await page.evaluate(() => { const B = PRENDU._interne.BATI; if (!B) return null; const buf = B.texture.image.data.buffer; let k = 0; PTEXTURES._interne.BASES.forEach((b) => { if (b && b.d && b.d.buffer === buf) k++; }); return { k, couches: B.noms.length }; });
+      verif(bs && bs.k === bs.couches, `les ${bs && bs.couches} matières des bâtiments lisent la texture en couches, sans copie en double (${bs && bs.k} bases)`);
+      // la qualité adaptative (un palier en pleine partie) ne refait ni les textures ni les bâtiments (ce serait un arrêt d'image)
+      const autre = qualite === 'eco' ? 'moyenne' : 'eco';
+      const pa = await page.evaluate((autre) => { const I = PRENDU._interne, t0 = I.tuiles[0] && I.tuiles[0].gros, p0 = PTEXTURES.qualite(), q0 = PRENDU.stats.qualite, r = {};
+        I.palier(autre); atelier.scene('place'); r.q = PRENDU.stats.qualite; r.ptx = PTEXTURES.qualite(); r.memes = !!t0 && I.tuiles[0].gros === t0;
+        I.palier(q0); atelier.scene('place'); r.retour = PRENDU.stats.qualite; r.memes2 = !!t0 && I.tuiles[0].gros === t0; r.p0 = p0; r.q0 = q0; r.err = PRENDU.stats.erreurs; return r; }, autre);
+      verif(pa.q === autre && pa.ptx === pa.p0 && pa.memes && pa.retour === pa.q0 && pa.memes2 && !pa.err, `un palier de la qualité adaptative (${pa.q0} → ${pa.q} → ${pa.retour}) garde les textures (${pa.ptx}) et les bâtiments`);
+      // la qualité choisie : vers l'éco (ou en revenir) refait les textures et les bâtiments ; au retour, la mémoire JS (après ramassage) et
+      // celle des textures reviennent : rien de mort n'est gardé (les matériaux de PTEXTURES restent dans MODELES.partager, vidés)
+      const tas = async () => { await cdp.send('HeapProfiler.collectGarbage'); await cdp.send('HeapProfiler.collectGarbage'); return (await cdp.send('Runtime.getHeapUsage')).usedSize / 1048576; };
+      const base = await page.evaluate(() => atelier.scene('place')), H = [];
+      for (const q of [autre, qualite, autre, qualite, autre, qualite]) { await page.evaluate((q) => { PRENDU.qualite(q); atelier.scene('place'); }, q); if (q === qualite) H.push(await tas()); }
+      const apres = await page.evaluate(() => Object.assign({ ptx: PTEXTURES.qualite() }, atelier.scene('place')));
+      verif(apres.ptx === qualite && apres.qualite === qualite && Math.abs(apres.memoire - base.memoire) < 0.5 && apres.textures <= base.textures && apres.calls === base.calls && Math.abs(apres.triangles - base.triangles) < 200,
+        `allers-retours ${qualite} ↔ ${autre} choisis : textures refaites (${apres.ptx}), même image (${base.calls} → ${apres.calls} appels, ${base.memoire} → ${apres.memoire} Mo de textures, ${base.textures} → ${apres.textures} textures)`);
+      verif(H[2] - H[1] < 4 && H[1] - H[0] < 4, `la mémoire JS revient après chaque aller-retour (${H.map((h) => h.toFixed(1)).join(' → ')} Mo : moins de 4 Mo d'écart ; la fuite d'avant gardait ≈ 34 Mo par aller-retour)`);
+    }
     const fin = await page.evaluate(() => PRENDU.stats);
     verif(fin.erreurs === 0, `aucune erreur interne du rendu (${fin.erreurs}${fin.derniereErreur ? ' : ' + fin.derniereErreur : ''})`);
     verif(erreurs.length === 0, `aucune erreur dans la page${erreurs.length ? ' : ' + erreurs.slice(0, 3).join(' | ') : ''}`);

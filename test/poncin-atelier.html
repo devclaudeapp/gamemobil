@@ -27,9 +27,10 @@ html,body{margin:0;height:100%;overflow:hidden;background:#EEF0E6;font:12px/1.3 
 // (?carte=provisoire&graine=1), un faux « jeu » au format du contrat (moi + un ami joueur + trois robots), des crochets pour poser la
 // caméra, tirer, éliminer et avancer le temps image par image (captures reproductibles, test/poncin-scene.cjs).
 // Servir la racine du dépôt (npx http-server .) puis ouvrir test/poncin-atelier.html ; paramètres : ?qualite=haute|moyenne|eco,
-// ?scene=rue|place|mairie|tabac|banque|terrasse|bouvent-nord|bouvent-dedans|bouvent-sud|bonheur-est|bonheur-ouest|ain|horizon|chateau|eglise|pont|haut|
-// persos|tir|confettis|survol, ?boucle=1 (le voir vivre ; &marche=0 : robots immobiles),
-// ?noms=0 (sans étiquettes). Dans la console : atelier.scene('tir'), atelier.tir('moi', [x, y, z], 'pompe'), atelier.eliminer('b1', 'moi')…
+// ?scene=rue|place|place-sol|mairie|tabac|banque|terrasse|bouvent-nord|bouvent-dedans|bouvent-sud|bonheur-est|bonheur-ouest|ain|horizon|chateau|eglise|
+// nef|pont|haut|persos|tir|confettis|survol, ?boucle=1 (le voir vivre ; &marche=0 : robots immobiles),
+// ?noms=0 (sans étiquettes). Dans la console : atelier.scene('tir'), atelier.tir('moi', [x, y, z], 'pompe'), atelier.eliminer('b1', 'moi'),
+// await atelier.solPlace() (la couleur rendue du sol de la place, comparée à la photo fine)…
 window.atelier = (() => {
   'use strict';
   const q = new URLSearchParams(location.search), R = PREGLES;
@@ -136,6 +137,18 @@ window.atelier = (() => {
     const vueDe = (cible, dmin, dmax) => { let best = null; for (const p of tous) { const d = Math.hypot(p.x - cible.x, p.z - cible.z); if (d < dmin || d > dmax || (best && d >= best.d) || !libre(p.x, p.z)) continue; if (!monde.vue(p.x, oeil(p.x, p.z), p.z, cible.x, cible.h + 2, cible.z)) continue; best = { x: p.x, z: p.z, d }; } return best; };
     if (R.chateau) R.vueChateau = vueDe(R.chateau, 45, 150);
     const cl = R.clocher || R.eglise; if (cl) R.vueEglise = vueDe(cl, 22, 90);
+    // la nef : le plus grand bâtiment « eglise », son pan le plus long (≥ 8 m) vu de face à 9–16 m, d'un point libre (le portail et les vitraux)
+    const nef = bat('eglise');
+    if (nef) { const p = nef.p, f = p.flat(); let best = null;
+      for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (l < 8 || (best && l <= best.l)) continue;
+        const mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2; let nx = (b[1] - a[1]) / l, nz = -(b[0] - a[0]) / l; if (PMONDE.dansPoly(f, mx + nx * 0.5, mz + nz * 0.5)) { nx = -nx; nz = -nz; } // la normale sortante
+        const cible = [mx + nx * 0.3, monde.hauteur(mx, mz) + 3.2, mz + nz * 0.3];
+        for (const d of [12, 10, 14, 16, 9]) { const x = mx + nx * d, z = mz + nz * d; if (!libre(x, z) || !monde.vue(x, oeil(x, z), z, ...cible)) continue; best = { x, z, l, cible }; break; } }
+      R.nef = best; }
+    // le sol de la place : la surface de carte.surfaces sous le centre de l'arène (un parking sous les platanes), vue d'un point libre à
+    // l'est de son centre, le regard vers l'ouest et vers le bas
+    const sp = (carte.surfaces || []).find((s) => s && Array.isArray(s.p) && s.p.length >= 3 && PMONDE.dansPoly(s.p.flat(), c[0], c[1]));
+    if (sp) { const cs = centroide(sp.p); for (const d of [12, 10, 14, 8, 16]) { if (!libre(cs[0] + d, cs[1])) continue; R.placeSol = { x: cs[0] + d, z: cs[1], yaw: Math.PI / 2, surface: sp }; break; } }
     // la place : à 14–24 m du centre, tournée vers lui, avec des façades à 25–70 m derrière
     let bp = null; for (let k = 0; k < 24; k++) for (const d of [16, 20, 24, 12]) { const a = k / 24 * Math.PI * 2, x = c[0] + Math.cos(a) * d, z = c[1] + Math.sin(a) * d; if (!libre(x, z)) continue; const yaw = Math.atan2(-(c[0] - x), -(c[1] - z)), l = portee(x, z, yaw, 120); if (l < d + 6) continue; const sc = Math.abs(l - d - 35); if (!bp || sc < bp.sc) bp = { x, z, yaw, sc }; }
     R.place = bp || { x: c[0], z: c[1] + 15, yaw: 0 };
@@ -204,8 +217,10 @@ window.atelier = (() => {
   const SCENES = {
     rue(R) { const r = R.rue; camera(r.x, r.z, r.yaw, -0.02); groupe([[14, -1.4, 0.4], [19, 1.2], [25, -0.4, -0.5], [11, 1.8, 2.6]]); marche = true; image(0.4); marche = false; },
     place(R) { const p = R.place; camera(p.x, p.z, p.yaw, -0.03); groupe([[9, -2.5, 0.8], [13, 1.5], [16, -1, 2], [11, 4, -1]]); },
+    'place-sol'(R) { const p = R.placeSol; if (!p) return SCENES.place(R); camera(p.x, p.z, p.yaw, -0.45); groupe([]); },
     chateau(R) { const p = R.vueChateau || R.place; camera(p.x, p.z, 0, 0); regarder(R.chateau.x, R.chateau.h - 1, R.chateau.z); groupe([]); },
     eglise(R) { const c = R.clocher || R.eglise, p = R.vueEglise || R.place; camera(p.x, p.z, 0, 0); regarder(c.x, Math.min(c.h - 2, monde.hauteur(p.x, p.z) + 1.6 + Math.hypot(c.x - p.x, c.z - p.z) * 0.45), c.z); groupe([]); },
+    nef(R) { const v = R.nef; if (!v) return SCENES.eglise(R); camera(v.x, v.z, 0, 0); regarder(...v.cible); groupe([]); },
     pont(R) { const p = R.pont; if (!p) return SCENES.place(R); camera(p.depuis.x, p.depuis.z, 0, 0); regarder(p.x, monde.hauteur(p.x, p.z) + 0.5, p.z); groupe([]); },
     haut() { atelier.titre = true; PRENDU.survol({ rayon: 95, hauteur: 85 }); t = 21; }, // la vue d'en haut : le survol, plus près et plus haut
     // les bâtiments remarquables (decor.remarquables : le pied de la façade et sa normale) vus de la place, l'œil à hauteur d'homme
@@ -241,6 +256,27 @@ window.atelier = (() => {
     remettre(); const R = vues(); SCENES[nom](R);
     etape(1 / 60, 2, atelier.titre); return PRENDU.stats;
   }
+  // le sol de la place (scène place-sol) : sur une grille de 1,5 m de la surface, les points vus sans obstacle (monde.vue), hors de l'arme,
+  // la couleur rendue (3 × 3 px de la toile) et celle de la photo fine (carte.sol.arene) ; vert = g − (r + b) / 2 (sRGB, 0–255)
+  async function solPlace() {
+    const R = vues(), A = carte.sol && carte.sol.arene; if (!R.placeSol || !A) return null;
+    scene('place-sol');
+    const cv = document.getElementById('vue3d'), k = cv.width / Math.max(1, cv.clientWidth), c2 = document.createElement('canvas'); c2.width = cv.width; c2.height = cv.height;
+    const g = c2.getContext('2d', { willReadFrequently: true }); g.drawImage(cv, 0, 0); // tout de suite après l'image (preserveDrawingBuffer : capture)
+    const img = new Image(); await new Promise((ok) => { img.onload = img.onerror = ok; img.src = '../poncin/carte/' + A.image; }); if (!img.width) return null;
+    const ph = document.createElement('canvas'); ph.width = img.width; ph.height = img.height; const gp = ph.getContext('2d', { willReadFrequently: true }); gp.drawImage(img, 0, 0);
+    const moy = (ctx, x, y) => { const d = ctx.getImageData(x - 1, y - 1, 3, 3).data, s = [0, 0, 0]; for (let i = 0; i < d.length; i += 4) { s[0] += d[i]; s[1] += d[i + 1]; s[2] += d[i + 2]; } return s.map((v) => v / 9); };
+    const vert = (c) => c[1] - (c[0] + c[2]) / 2, m = trouver('moi'), f = R.placeSol.surface.p.flat(), x0 = A.centre[0] - A.taille / 2, z0 = A.centre[1] - A.taille / 2, out = [];
+    for (let x = m.x - 30; x <= m.x; x += 1.5) for (let z = m.z - 16; z <= m.z + 16; z += 1.5) {
+      if (!PMONDE.dansPoly(f, x, z) || Math.hypot(x - m.x, z - m.z) < 3) continue;
+      const y = monde.hauteur(x, z), p = PRENDU.projeter(x, y, z); if (!p || !p.devant) continue;
+      if (p.x < 4 || p.y < 4 || p.x > cv.clientWidth - 4 || p.y > cv.clientHeight - 4 || (p.x > cv.clientWidth * 0.55 && p.y > cv.clientHeight * 0.55)) continue; // hors champ, ou sous l'arme
+      if (!monde.vue(m.x, m.y + 1.6, m.z, x, y + 0.1, z)) continue;
+      const r = moy(g, Math.round(p.x * k), Math.round(p.y * k)), q = moy(gp, Math.round((x - x0) / A.taille * img.width), Math.round((z - z0) / A.taille * img.height));
+      out.push({ x, z, rendu: +vert(r).toFixed(1), photo: +vert(q).toFixed(1), l: Math.round((r[0] + r[1] + r[2]) / 3) });
+    }
+    return out;
+  }
   // le contexte WebGL perdu puis retrouvé (extension WEBGL_lose_context)
   let extPerte = null; // gardée : getExtension rend null une fois le contexte perdu
   const ext = () => { try { return extPerte || (extPerte = PRENDU._interne.renderer.getContext().getExtension('WEBGL_lose_context')); } catch (e) { return null; } };
@@ -248,6 +284,6 @@ window.atelier = (() => {
   function retrouver() { const x = ext(); if (!x) return false; x.restoreContext(); return true; }
   pret = charger();
   return { pret, get carte() { return carte; }, get monde() { return monde; }, get jeu() { return jeu; }, get t() { return t; }, set marche(v) { marche = !!v; }, titre: false, SCENES: Object.keys(SCENES),
-    camera, regarder, poser, devant, tir, touche, eliminer, revivre, etape, image, vues, trouver, scene, perdre, retrouver, stats: () => PRENDU.stats };
+    camera, regarder, poser, devant, tir, touche, eliminer, revivre, etape, image, vues, trouver, scene, solPlace, perdre, retrouver, stats: () => PRENDU.stats };
 })();
 </script></body></html>
