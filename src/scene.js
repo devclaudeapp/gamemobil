@@ -238,7 +238,7 @@ const SCENE = (() => {
   let chatG = null, chatHaut = null, chatPied = null, chatHautCle = null; const oChat = { etat: 'dort', phase: 0, t: 0 }, ETAT_CHAT = { dort: 'dort', assis: 'assis', marche: 'marche', descend: 'saut', monte: 'saut' }, _pc = { x: 0, y: 0, z: 0 };
   function poserChat(E, dt) {
     const c = V.chat;
-    if (!c || !PERSOS.chat) { if (chatG) { scene.remove(chatG); M.dispose(chatG); chatG = null; } return; }
+    if (!c || !PERSOS.chat) { if (chatG) { scene.remove(chatG); (PERSOS.libererChat || M.dispose)(chatG); chatG = null; } return; } // libererChat : le tampon d'instances des pattes
     if (!chatG) { chatG = PERSOS.chat({}); chatG.userData.yaw = Math.PI / 2; scene.add(chatG); }
     if (chatHautCle !== cles.comptoir) { chatHautCle = cles.comptoir; chatHaut = MEUBLES.surDessus(contexte(E), LAY.chat); chatPied = V.piedComptoir(); } // recalculés quand le comptoir change
     const haut = chatHaut, pied = chatPied, zp = wz(pied.y);
