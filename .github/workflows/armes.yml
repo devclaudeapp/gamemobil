@@ -1,0 +1,171 @@
+# Récupère le « Blaster Kit » de Kenney (blasters jouets low-poly, licence CC0 1.0) sur les machines de GitHub, qui ont Internet,
+# puis commite les modèles GLB (+ textures + licence) dans poncin/armes/ sur la branche armes.
+# Source : https://kenney.nl/assets/blaster-kit (lien direct trouvé dans la page) ; replis : itch.io, OpenGameArt, puis un miroir GitHub.
+# Les commits faits avec GITHUB_TOKEN ne relancent pas de workflow.
+name: Armes (Blaster Kit)
+on:
+  push:
+    branches: [armes]
+    paths:
+      - '.github/workflows/armes.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: armes
+  cancel-in-progress: false
+jobs:
+  armes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      UA: 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Trouver et télécharger le zip du Blaster Kit
+        id: zip
+        run: |
+          set -u
+          mkdir -p /tmp/kit && cd /tmp/kit
+          ok() { [ -s kit.zip ] && unzip -tq kit.zip > /dev/null 2>&1; }
+          SOURCE=""
+          # 1) kenney.nl : le lien direct vers kenney.nl/media/pages/assets/blaster-kit/…/kenney_blaster-kit…zip est dans la page
+          echo "::group::kenney.nl"
+          if curl -sSL --retry 3 -A "$UA" -o page.html https://kenney.nl/assets/blaster-kit; then
+            echo "Page : $(wc -c < page.html) octets"
+            echo "Liens .zip trouvés :"; grep -oE '(https?://[^"'"'"' <>]*|/media/[^"'"'"' <>]*)\.zip' page.html | sort -u || true
+            echo "Autres liens « download » :"; grep -oiE 'href="[^"]*download[^"]*"' page.html | sort -u | head -20 || true
+            URL=$(grep -oE '(https?://[^"'"'"' <>]*|/media/[^"'"'"' <>]*)\.zip' page.html | grep -i 'blaster' | head -1 || true)
+            case "$URL" in /*) URL="https://kenney.nl$URL";; esac
+            if [ -n "$URL" ]; then echo "Téléchargement : $URL"; curl -sSL --retry 3 -A "$UA" -e https://kenney.nl/assets/blaster-kit -o kit.zip "$URL" && ok && SOURCE="$URL"; fi
+          fi
+          echo "::endgroup::"
+          # 2) itch.io (« pay what you want », 0 € : download_url puis file/<upload_id>, avec le jeton CSRF et les cookies)
+          if [ -z "$SOURCE" ]; then
+            echo "::group::itch.io"
+            rm -f kit.zip
+            python3 - <<'PY' || true
+          import http.cookiejar, json, re, sys, urllib.parse, urllib.request
+          UA = 'Mozilla/5.0 (X11; Linux x86_64) Chrome/126.0'
+          base = 'https://kenney-assets.itch.io/blaster-kit'
+          op = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+          def req(url, data=None):
+              h = {'User-Agent': UA, 'Referer': base}
+              if data is not None: h['X-Requested-With'] = 'XMLHttpRequest'
+              r = urllib.request.Request(url, data=urllib.parse.urlencode(data).encode() if data is not None else None, headers=h)
+              return op.open(r, timeout=60).read()
+          html = req(base).decode('utf-8', 'replace')
+          csrf = re.search(r'name="csrf_token"\s+value="([^"]+)"', html).group(1)
+          dl = json.loads(req(base + '/download_url', {'csrf_token': csrf}))['url']
+          print('Page de téléchargement :', dl)
+          key = dl.rstrip('/').split('/')[-1]
+          page = req(dl).decode('utf-8', 'replace')
+          ups = re.findall(r'data-upload_id="(\d+)"', page)
+          noms = re.findall(r'class="name"[^>]*title="([^"]+)"', page)
+          print('Fichiers :', list(zip(ups, noms)))
+          for up, nom in zip(ups, noms or [''] * len(ups)):
+              if nom and not nom.lower().endswith('.zip'): continue
+              u = json.loads(req(base + '/file/' + up + '?source=game_download&key=' + key, {'csrf_token': csrf}))['url']
+              print('Téléchargement :', nom, u[:120])
+              open('kit.zip', 'wb').write(req(u)); open('source.txt', 'w').write(base + ' (' + nom + ')'); break
+          PY
+            ok && SOURCE=$(cat source.txt 2>/dev/null || echo itch.io)
+            echo "::endgroup::"
+          fi
+          # 3) OpenGameArt
+          if [ -z "$SOURCE" ]; then
+            echo "::group::OpenGameArt"
+            rm -f kit.zip
+            for P in https://opengameart.org/content/blaster-kit https://opengameart.org/content/blaster-kit-0 "https://opengameart.org/art-search?keys=blaster+kit+kenney"; do
+              curl -sSL --retry 2 -A "$UA" -o oga.html "$P" || continue
+              echo "$P :"; grep -oE 'https?://opengameart\.org/sites/default/files/[^"'"'"' <>]*\.zip' oga.html | sort -u || true
+              URL=$(grep -oE 'https?://opengameart\.org/sites/default/files/[^"'"'"' <>]*\.zip' oga.html | grep -i blaster | head -1 || true)
+              if [ -n "$URL" ]; then curl -sSL --retry 3 -A "$UA" -o kit.zip "$URL" && ok && SOURCE="$URL" && break; fi
+            done
+            echo "::endgroup::"
+          fi
+          # 4) dernier recours : un miroir GitHub (projet Godot qui embarque le pack v2.1 tel quel) — signalé comme tel
+          if [ -z "$SOURCE" ]; then
+            echo "::group::miroir GitHub"
+            rm -rf miroir && git clone -q --depth 1 --filter=blob:none --sparse https://github.com/ts-scik/goop-gun miroir \
+              && git -C miroir sparse-checkout set Models/kenney_blaster-kit_2.1 \
+              && (cd miroir/Models && zip -qr /tmp/kit/kit.zip kenney_blaster-kit_2.1 -x '*.import') && ok && SOURCE="MIROIR https://github.com/ts-scik/goop-gun/tree/HEAD/Models/kenney_blaster-kit_2.1 (pas la source officielle)"
+            echo "::endgroup::"
+          fi
+          if [ -z "$SOURCE" ]; then echo "::error::Blaster Kit introuvable (kenney.nl, itch.io, OpenGameArt, miroir)"; exit 1; fi
+          echo "SOURCE : $SOURCE"
+          echo "Zip : $(wc -c < kit.zip) octets, sha256 $(sha256sum kit.zip | cut -d' ' -f1)"
+          echo "source=$SOURCE" >> "$GITHUB_OUTPUT"
+          echo "sha=$(sha256sum kit.zip | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
+      - name: Décompresser et lister tout le pack
+        run: |
+          cd /tmp/kit && rm -rf x && mkdir x && unzip -q kit.zip -d x
+          echo "Fichiers : $(find x -type f | wc -l)"
+          find x -type f -printf '%10s  %P\n' | sort -k2
+          echo "--- License ---"; find x -iname 'license*.txt' -exec cat {} \; || true
+      - name: Copier les GLB, leurs textures et la licence dans poncin/armes
+        env:
+          SOURCE: ${{ steps.zip.outputs.source }}
+          SHA: ${{ steps.zip.outputs.sha }}
+        run: |
+          rm -rf poncin/armes && mkdir -p poncin/armes
+          python3 - <<'PY'
+          import json, os, shutil, struct, sys
+          X, OUT = '/tmp/kit/x', 'poncin/armes'
+          glbs = sorted(os.path.join(d, f) for d, _, fs in os.walk(X) for f in fs if f.lower().endswith('.glb'))
+          # le dossier « GLB format » de préférence ; sinon tous les GLB trouvés
+          pref = [g for g in glbs if 'glb' in os.path.basename(os.path.dirname(g)).lower()]
+          glbs = pref or glbs
+          if not glbs: sys.exit('aucun GLB dans le pack')
+          print(len(glbs), 'GLB depuis', sorted({os.path.relpath(os.path.dirname(g), X) for g in glbs}))
+          tous = [os.path.join(d, f) for d, _, fs in os.walk(X) for f in fs]
+          copies = set()
+          for g in glbs:
+              shutil.copy2(g, os.path.join(OUT, os.path.basename(g)))
+              b = open(g, 'rb').read(); n = struct.unpack('<I', b[12:16])[0]; j = json.loads(b[20:20 + n])
+              for im in j.get('images', []):
+                  uri = im.get('uri')
+                  if not uri or uri.startswith('data:') or uri in copies: continue
+                  src = os.path.join(os.path.dirname(g), uri)
+                  if not os.path.exists(src):  # texture ailleurs dans le pack : on la cherche par son nom
+                      c = [t for t in tous if os.path.basename(t) == os.path.basename(uri)]
+                      src = c[0] if c else None
+                  if src:
+                      os.makedirs(os.path.dirname(os.path.join(OUT, uri)) or OUT, exist_ok=True)
+                      shutil.copy2(src, os.path.join(OUT, uri)); copies.add(uri); print('texture', uri, '<-', os.path.relpath(src, X))
+                  else: print('::warning::texture manquante', uri, 'pour', os.path.basename(g))
+          # les autres textures du dossier Textures voisin (variantes de couleurs)
+          for g in glbs[:1]:
+              t = os.path.join(os.path.dirname(g), 'Textures')
+              if os.path.isdir(t):
+                  for f in sorted(os.listdir(t)):
+                      if 'Textures/' + f not in copies: os.makedirs(os.path.join(OUT, 'Textures'), exist_ok=True); shutil.copy2(os.path.join(t, f), os.path.join(OUT, 'Textures', f)); print('texture (variante)', f)
+          lic = [t for t in tous if os.path.basename(t).lower() in ('license.txt', 'licence.txt')]
+          if lic: shutil.copy2(lic[0], os.path.join(OUT, 'License.txt'))
+          else: print('::warning::pas de License.txt dans le pack')
+          prev = [t for t in tous if os.path.basename(t).lower() == 'preview.png']
+          if prev and os.path.getsize(prev[0]) < 600_000: shutil.copy2(prev[0], os.path.join(OUT, 'Preview.png'))
+          PY
+          cat > poncin/armes/README.md <<EOF
+          # Blaster Kit (Kenney) — les blasters jouets d'Opération Poncin
+
+          - Pack : **Blaster Kit** de Kenney, https://kenney.nl/assets/blaster-kit (version 2.1)
+          - Licence : **CC0 1.0** (domaine public, aucune attribution requise ; on crédite quand même « Kenney.nl ») — voir License.txt
+          - Récupéré le $(date -u +%F) par le workflow \`.github/workflows/armes.yml\` depuis : ${SOURCE}
+          - Zip d'origine : sha256 ${SHA}
+
+          Contenu : les modèles GLB du dossier « GLB format » du pack, tels quels. Ils ne contiennent pas leur texture :
+          chacun pointe vers \`Textures/colormap.png\` (une petite palette de couleurs, UV vers des aplats), copiée ici
+          avec les variantes de couleurs. Garder ce dossier tel quel pour que \`THREE.GLTFLoader\` retrouve la texture.
+          Orientation, échelle et point de bouche de chaque modèle : décidés côté jeu (voir les mesures de la préparation).
+          EOF
+          echo "--- poncin/armes ---"; find poncin/armes -type f -printf '%10s  %P\n' | sort -k2; du -sh poncin/armes
+      - name: Commiter poncin/armes sur la branche armes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add poncin/armes
+          if git diff --cached --quiet; then echo "Armes inchangées : rien à commiter."; exit 0; fi
+          git commit -m "Opération Poncin : le Blaster Kit de Kenney (CC0) dans poncin/armes"
+          git pull --rebase origin armes
+          git push origin HEAD:armes
