@@ -842,6 +842,36 @@ function detecterCouronnes({ N, L, rgb, irc, mnh, batiments, eau = [], ponts = [
   }
   const ech = []; for (let k = 0; k < NN; k += 7) if (bat[k] < 0.3) ech.push(V[k]);
   const sV = clamp(otsu(ech, -0.5, 0.9), irc ? 0.08 : 0.02, irc ? 0.45 : 0.25), T = new Uint8Array(NN);
+  // la photo n'est pas une « vraie ortho » : la cime d'un arbre de hauteur h y apparaît décalée de h·(dx, dz) (dévers, qui croît avec la distance au
+  // point de prise de vue). Le décalage est mesuré par blocs (meilleur accord entre le LiDAR et l'indice de végétation), puis l'indice de végétation
+  // de chaque pixel du LiDAR est lu là où la photo montre sa cime.
+  let depl = null;
+  if (mnh) {
+    const nb = Math.max(1, Math.round(L / 200)), tb = L / nb, R0 = 12, PAS = 0.04, NC = (2 * R0 + 1) ** 2, glob = new Float64Array(NC), blocs = [];
+    const lireV = (x, z) => { const u = Math.floor((x + h) / ps), v = Math.floor((z + h) / ps); return u < 0 || v < 0 || u >= N || v >= N ? -9 : V[v * N + u]; };
+    for (let bj = 0; bj < nb; bj++) for (let bi = 0; bi < nb; bi++) {
+      const sc = new Float64Array(NC); let n = 0;
+      for (let v = Math.floor(bj * tb / ps); v < Math.min(N, Math.floor((bj + 1) * tb / ps)); v += 3) for (let u = Math.floor(bi * tb / ps); u < Math.min(N, Math.floor((bi + 1) * tb / ps)); u += 3) {
+        const k = v * N + u, hh = mnh[k]; if (hh < 8 || hh > 45 || bat[k] >= 0.3) continue; n++; const x = -h + (u + 0.5) * ps, z = -h + (v + 0.5) * ps;
+        for (let b = -R0, c = 0; b <= R0; b++) for (let a = -R0; a <= R0; a++, c++) sc[c] += lireV(x + hh * a * PAS, z + hh * b * PAS); // la somme de l'indice : les cimes sont plus « vertes » que l'herbe
+      }
+      for (let c = 0; c < NC; c++) glob[c] += sc[c]; blocs.push({ sc, n });
+    }
+    const meilleur = (sc) => { let bc = (NC - 1) / 2; for (let c = 0; c < NC; c++) if (sc[c] > sc[bc]) bc = c; return sc[bc] > sc[(NC - 1) / 2] + Math.abs(sc[(NC - 1) / 2]) * 0.03 ? [((bc % (2 * R0 + 1)) - R0) * PAS, (Math.floor(bc / (2 * R0 + 1)) - R0) * PAS] : [0, 0]; };
+    const g = meilleur(glob); depl = { global: g, blocs: blocs.map((b) => b.n >= 300 ? meilleur(b.sc) : g), nb, tb };
+    const dAu = (x, z) => { // interpolé entre les centres des blocs
+      const fi = clamp((x + h) / tb - 0.5, 0, nb - 1), fj = clamp((z + h) / tb - 0.5, 0, nb - 1), i = Math.min(nb - 2, Math.floor(fi)), j = Math.min(nb - 2, Math.floor(fj));
+      if (nb < 2) return depl.blocs[0]; const a = fi - i, b = fj - j, B = (ii, jj) => depl.blocs[jj * nb + ii];
+      return [0, 1].map((q) => (B(i, j)[q] * (1 - a) + B(i + 1, j)[q] * a) * (1 - b) + (B(i, j + 1)[q] * (1 - a) + B(i + 1, j + 1)[q] * a) * b);
+    };
+    const V2 = V.slice(), lum2 = lum.slice();
+    for (let v = 0; v < N; v++) for (let u = 0; u < N; u++) {
+      const k = v * N + u, hh = mnh[k]; if (hh < 2.5) continue; const x = -h + (u + 0.5) * ps, z = -h + (v + 0.5) * ps, d = dAu(x, z);
+      const uu = Math.floor((x + hh * d[0] + h) / ps), vv = Math.floor((z + hh * d[1] + h) / ps); if (uu < 0 || vv < 0 || uu >= N || vv >= N) continue; V2[k] = V[vv * N + uu]; lum2[k] = lum[vv * N + uu];
+    }
+    V.set(V2); lum.set(lum2);
+    log(`arbres : dévers de la photo mesuré sur le LiDAR : ${g.map((x) => (x * 100).toFixed(0)).join(', ')} cm par mètre de hauteur (x, z) ; par blocs de ${tb.toFixed(0)} m : ${depl.blocs.map((d) => '[' + d.map((x) => (x * 100).toFixed(0)).join(',') + ']').join(' ')}`);
+  }
   let tex = null, sT = 0;
   if (!mnh) { // sans LiDAR : la texture (écart-type local) sépare les couronnes des pelouses et des champs
     const m1 = flouGauss(lum, N, 1.2 / ps), m2 = flouGauss(lum.map((x) => x * x), N, 1.2 / ps); tex = new Float32Array(NN); for (let k = 0; k < NN; k++) tex[k] = Math.sqrt(Math.max(0, m2[k] - m1[k] * m1[k]));
@@ -888,7 +918,7 @@ function detecterCouronnes({ N, L, rgb, irc, mnh, batiments, eau = [], ponts = [
     const pr = res.reduce((b, c) => Math.min(b, Math.hypot(c.x - q[0], c.z - q[1])), Infinity);
     log(`sonde [${q}] : MNH ${mnh ? mnh[k].toFixed(1) : '-'} (max 3 m : ${hm.toFixed(1)}), végétation ${V[k].toFixed(3)} (max ${vm.toFixed(3)}, seuil ${sV.toFixed(3)}), bâti ${bat[k].toFixed(2)}, masque ${T[k]}/${M[k]}, couronne n° ${lab[k]}, cime la plus proche à ${pr.toFixed(1)} m`);
   }
-  return { couronnes: res, seuilV: sV, seuilTex: sT, pixels };
+  return { couronnes: res, seuilV: sV, seuilTex: sT, pixels, depl };
 }
 function choisirIRC() { // la couche infrarouge couleur du WMTS (sans millésime de préférence)
   const noms = Object.keys(CAPS.wmts); if (!noms.length) return CONFIG.coucheIRC;
@@ -932,7 +962,7 @@ async function etapeArbres(R, L, carte, info, o) {
   const mnhAu = (q, r = 1.5) => { if (!mnh) return 0; let m = 0; const u0 = Math.floor((q[0] + h) / ps), v0 = Math.floor((q[1] + h) / ps), k = Math.ceil(r / ps); for (let v = v0 - k; v <= v0 + k; v++) for (let u = u0 - k; u <= u0 + k; u++) if (u >= 0 && v >= 0 && u < N && v < N && mnh[v * N + u] > m) m = mnh[v * N + u]; return m; };
   let cs = [];
   if (o && (mnh || irc)) {
-    const d = detecterCouronnes({ N, L, rgb: o.brut, irc, mnh, batiments: carte.batiments, eau: carte.eau, ponts: carte.ponts }); cs = d.couronnes; st.couronnes = cs.length;
+    const d = detecterCouronnes({ N, L, rgb: o.brut, irc, mnh, batiments: carte.batiments, eau: carte.eau, ponts: carte.ponts }); cs = d.couronnes; st.couronnes = cs.length; info.depl = d.depl;
     log(`arbres : ${cs.length} couronnes détectées (${mnh ? 'LiDAR HD' : 'texture'} + ${irc ? 'infrarouge' : 'photo couleur'} ; seuil de végétation ${d.seuilV.toFixed(3)}${mnh ? '' : `, de texture ${d.seuilTex.toFixed(1)}`} ; ${(d.pixels * ps * ps / 1e4).toFixed(2)} ha de couronnes)`);
   } else repli('ni LiDAR ni infrarouge : arbres OSM, rangées et semis dans les bois');
   // les zones : BD TOPO (nature) et OSM (vergers, bois et leaf_type)
@@ -1669,6 +1699,7 @@ function rapport(c, info, R) {
     `rues : ${c.rues.length} (${new Set(c.rues.filter((r) => r.n).map((r) => r.n)).size} noms) ; eau : ${c.eau.length} (rivière ${c.eau.filter((e) => e.t === 'riviere').length}, ruisseau ${c.eau.filter((e) => e.t === 'ruisseau').length}) ; ponts : ${c.ponts.length} (dont ${info.deduits} déduits d'une voie qui franchit un ruisseau, ${info.allonges} allongés pour enjamber l'eau)`,
     `végétation : ${c.vegetation.length} ${JSON.stringify(compter(c.vegetation, (v) => v.t))} (sens des rangs : ${T.sensPhoto || 0} par la photo, ${T.sensAxe || 0} par le grand axe) ; interdit : ${c.interdit.map((z) => z.n).join(', ') || 'aucun'}`,
     `arbres : ${c.arbres.length} ${JSON.stringify(A.especes)} — ${A.couronnes} couronnes détectées (${A.sources ? `${A.sources.hauteur || 'sans LiDAR'} ; ${A.sources.vegetation || 'sans infrarouge'}` : ''}), ${A.fusionOSM} reconnues par un arbre OSM, ${A.osm} arbres OSM ajoutés, ${A.rangees} de rangées OSM, ${A.semes} semés (repli), ${A.ecartes} écartés ${JSON.stringify(A.raisons || {})}, ${A.haies} haies basses`,
+    `dévers des cimes sur la photo (cm par mètre de hauteur, x vers l'est, z vers le sud) : ${info.depl ? info.depl.global.map((x) => Math.round(x * 100)).join(', ') + ' ; blocs ' + info.depl.blocs.map((d) => d.map((x) => Math.round(x * 100)).join(',')).join(' ') : 'non mesuré'}`,
     `BD TOPO (autres couches) : ${['vegetation', 'haies', 'ponctuel', 'lineaire', 'cimetiere', 'sport'].map((k) => `${k} ${(info.autres[k] || []).length}${(info.autres[k] || []).length && info.autres[k][0].props.nature !== undefined ? ' [' + histo(info.autres[k], (o) => o.props.nature, 8) + ']' : ''}`).join(' ; ')}`,
     `haies : ${c.haies.length} (BD TOPO ${info.stHaies.bdtopo} + ${info.stHaies.zone} zones « Haie », OSM ${info.stHaies.osm} ; hauteur mesurée sur le LiDAR : ${A.haiesMesurees || 0}) ; murs : ${c.murs.length} ${JSON.stringify(compter(c.murs, (m) => m.t))} (OSM ${info.stMurs.osm}, BD TOPO ${info.stMurs.bdtopo}, portails ${info.stMurs.portails})`,
     `surfaces : ${c.surfaces.length} ${JSON.stringify(compter(c.surfaces, (s) => s.t))} ; mobilier : ${c.mobilier.length} ${JSON.stringify(compter(c.mobilier, (m) => m.t))} (OSM ${info.stMob.osm}, BD TOPO ${info.stMob.bdtopo})`,
@@ -1784,10 +1815,15 @@ function essai() {
   const tuile = (tx, ty, z, irc) => {
     const d = new Uint8Array(256 * 256 * 4), [la0, lo0] = [MERC.lat(ty * 256, z), MERC.lon(tx * 256, z)], [la1, lo1] = [MERC.lat(ty * 256 + 256, z), MERC.lon(tx * 256 + 256, z)];
     const [xa, za] = Rc.xz(la0, lo0), [xb, zb] = Rc.xz(la1, lo1), bt = [Math.min(xa, xb), Math.min(za, zb), Math.max(xa, xb), Math.max(za, zb)], ici = peintsB.filter((o) => boitesSeCroisent(o.b, bt, 1));
-    const arbresIci = vrais.filter((a) => a.x + a.r >= bt[0] && a.x - a.r <= bt[2] && a.z + a.r >= bt[1] && a.z - a.r <= bt[3]);
+    const DX = 0.15, DZ = -0.1, arbresIci = vrais.filter((a) => a.x + a.h * DX + a.r >= bt[0] && a.x + a.h * DX - a.r <= bt[2] && a.z + a.h * DZ + a.r >= bt[1] && a.z + a.h * DZ - a.r <= bt[3]); // les cimes penchent sur la photo (dévers)
+    const vu = (t, x, z) => { // le point de la couronne que la photo montre en (x, z) : p + H(p)·(DX, DZ) = (x, z)
+      let px = x - t.h * DX, pz = z - t.h * DZ;
+      for (let it = 0; it < 4; it++) { const d = Math.hypot(px - t.x, pz - t.z); if (d >= t.r) return false; const hh = t.cone ? t.h * (1 - d / t.r) + 2 : t.h * Math.sqrt(1 - (d / t.r) ** 2); px = x - hh * DX; pz = z - hh * DZ; }
+      return Math.hypot(px - t.x, pz - t.z) < t.r;
+    };
     for (let j = 0; j < 256; j++) { const lat = MERC.lat(ty * 256 + j + 0.5, z); for (let i = 0; i < 256; i++) {
       const [x, zz] = Rc.xz(lat, MERC.lon(tx * 256 + i + 0.5, z)), o = (j * 256 + i) * 4; let c = irc ? [172, 95, 100] : ((Math.floor(x / 10) + Math.floor(zz / 10)) & 1) ? [112, 152, 84] : [100, 140, 78];
-      const a = arbresIci.find((t) => (x - t.x) ** 2 + (zz - t.z) ** 2 < t.r * t.r), toit = ici.find((q) => dedans(x, zz, q.p));
+      const a = arbresIci.find((t) => vu(t, x, zz)), toit = ici.find((q) => dedans(x, zz, q.p));
       if (toit) c = irc ? [110, 170, 60] : toit.ardoise ? [75, 82, 100] : [222, 58, 52];
       else if (a) c = irc ? (a.cone ? [150, 40, 60] : [215, 45, 70]) : (a.cone ? [40, 80, 45] : [62, 110, 52]);
       else if ((x < -150 && eauP.some((p) => dedans(x, zz, p))) || distBord(x, zz, routes[5], false) < 1.5) c = irc ? [25, 50, 90] : [70, 110, 170];
@@ -1947,6 +1983,7 @@ async function verifierEssai(m, res) {
   t(fs.statSync(path.join(SORTIE, 'poncin.json')).size < 600 * 1024, `poncin.json : ${(fs.statSync(path.join(SORTIE, 'poncin.json')).size / 1024).toFixed(0)} Ko (< 600 Ko)`);
   t(c.zones.apparitions.every((q) => !c.arbres.some((a) => Math.hypot(a[0] - q[0], a[1] - q[1]) < rayonTronc(a) + 1) && !c.murs.some((w) => distBord(q[0], q[1], w.l, false) < w.e / 2 + 1)), 'les apparitions évitent les troncs et les murs');
   t(m.appels.mnh >= 1 && m.appels.irc >= 100, 'LiDAR HD (WMS-R) et infrarouge (WMTS) demandés');
+  const dg = res.info.depl && res.info.depl.global; t(!!dg && Math.abs(dg[0] - 0.15) <= 0.05 && Math.abs(dg[1] + 0.1) <= 0.05, `dévers des cimes sur la photo retrouvé : ${dg && dg.map((x) => x.toFixed(2))} (vrai : 0.15, -0.10 par mètre)`);
   t(fs.readFileSync(path.join(SORTIE, 'LICENCE-DONNEES.md'), 'utf8').includes('ODbL') && /© IGN \d{4} – BD ORTHO®, BD TOPO®, RGE ALTI®(, LiDAR HD)? · © contributeurs OpenStreetMap \d{4}/.test(c.attribution), 'licence et attribution avec l’année');
   // le cache : une même requête ne repart pas sur le réseau
   const avant = STATS.requetes; await telecharger('https://data.geopf.fr/wms-r?SERVICE=WMS&VERSION=1.3.0&REQUEST=GetCapabilities', {}); t(STATS.requetes === avant, 'cache des réponses brutes');
