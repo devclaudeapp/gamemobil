@@ -4,7 +4,7 @@ const UI = (() => {
   'use strict';
   const G = GAME, $ = (s) => document.querySelector(s), KEY = 'fournil.v2';
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let st, lastFrame = 0, lastSave = 0, cards = [], carteSaison = null, lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, hintDefile = -1, toastTimer = 0, lastNiveau = 0, vuBoulanger = false;
+  let st, lastFrame = 0, lastSave = 0, cards = [], carteSaison = null, lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, hintDefile = -1, toastTimer = 0, lastNiveau = 0, vuBoulanger = false, dernierToucher = -1e9;
   let pageActive = 'boutique', evEtendu = false;
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const PAGES = ['boutique', 'defis', 'boulanger', 'journal', 'reglages'];
@@ -95,7 +95,7 @@ const UI = (() => {
     const html = `<div class="icone">${ICONS.SAISON[r.id]}${s.niv ? `<span class="niv">${s.niv}</span>` : ''}</div>
       <div class="corps"><h3><span class="nom">${esc(r.nom)} <span class="tag saison">jusqu’au ${r.fin[1]} ${MOIS[r.fin[0] - 1]}</span></span></h3>
         ${s.niv ? `<div class="palier"><span>Collection <b>${Math.min(f, G.SAISON.maitrise)}</b>/${G.SAISON.maitrise}${coll && coll.maitrisee ? ' · maîtrisée ✓' : ''}</span><span>niveau ${s.niv}</span><i style="width:${pct(Math.min(f, G.SAISON.maitrise), G.SAISON.maitrise)}"></i></div>
-        <div class="barre"><i></i><span class="rev">+${G.fmtEur(G.revenuSaison(st))}</span>${s.actif ? `<span class="tps">${G.fmtDuree(G.tempsSaison(st))}</span>` : '<span class="cuire">Touche !</span>'}</div>` : `<p>${esc(r.desc)} Une recette de saison, à cuire à la main : cent fournées pour la maîtriser.</p>`}</div>
+        <div class="barre"><i></i><span class="rev">+${G.fmtEur(G.revenuSaison(st))}</span>${s.actif ? `<span class="tps">${G.fmtDuree(G.tempsSaison(st))}</span>` : '<span class="cuire">Touche !</span>'}</div>` : `<p>${esc(r.desc)} À cuire à la main : cent fournées pour la maîtriser.</p>`}</div>
       <div class="boutons">${max ? '<div class="staff-ok"><span>Niveau max</span></div>' : `<button type="button" class="btn ${s.niv ? '' : 'beurre'} ${ok ? '' : 'non'}" data-a="${s.niv ? 'saison-niv' : 'preparer'}"><small>${s.niv ? 'Améliorer ×1' : 'Préparer'}</small><b>${G.fmtEur(prix)}</b></button>`}</div>`;
     const cls = 'carte saison' + (s.niv ? ' manuel' : '') + (s.actif ? ' actif' : '');
     c.el.hidden = false;
@@ -123,7 +123,7 @@ const UI = (() => {
             <div class="palier ${franchit ? 'bientot' : ''}">${pal ? `<span title="Au niveau ${pal}, les gains sont multipliés par ${G.palierMult(pal)}">Palier <b>${pal}</b> · ×${G.palierMult(pal)}</span><span>${pal - s.niv === 1 ? '1 niveau' : `${pal - s.niv} niveaux`}</span><i style="width:${((s.niv - prec) / (pal - prec) * 100).toFixed(0)}%"></i>` : `<span>Dernier palier atteint · ×${G.palierMult(s.niv)}</span><i style="width:100%"></i>`}</div>
             <div class="barre"><i class="${rapide ? 'rapide' : ''}"></i><span class="rev">+${G.fmtEur(G.revenuFournee(st, i))}</span>${s.staff || s.actif ? `<span class="tps">${G.fmtDuree(G.temps(st, i))}</span>` : '<span class="cuire">Touche !</span>'}</div></div>
           <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'} ${remise < 1 ? 'promo' : ''}" data-a="ameliorer"><small>${remise < 1 ? `−${Math.round((1 - remise) * 100)} % ×${n}` : `Améliorer ×${n}`}</small><b>${G.fmtEur(prix)}</b>${franchit ? `<i class="pal-badge">palier ×${G.palierMult(pal)}</i>` : ''}</button>
-            ${s.staff ? (() => { const g = G.gradeApprenti(st, i); return `<button type="button" class="staff-ok" data-a="apprenti" aria-label="${esc(p.staffNom)}, grade ${g} : voir sa fiche">${ICONS.apprenti(i, g)}<span>${esc(p.staffNom.split(' ').pop())}</span><i class="grade g${g}">${g}</i></button>`; })() : `<button type="button" class="btn beurre ${st.coins >= G.prixStaff(st, i) ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${G.fmtEur(G.prixStaff(st, i))}</b></button>`}</div>`;
+            ${s.staff ? (() => { const g = G.gradeApprenti(st, i); return `<button type="button" class="staff-ok" data-a="apprenti" aria-label="${esc(p.staffNom)}, grade ${g} : voir sa fiche">${ICONS.apprenti(i, g)}<span>${esc(p.staffNom.split(' ').pop())}</span><i class="grade g${g}">${g}</i></button>`; })() : `<button type="button" class="btn beurre ${st.coins >= G.prixStaff(st, i) ? '' : 'non'}" data-a="embaucher"><small>Embaucher${G.gradeApprenti(st, i) > 1 ? ` · grade ${G.gradeApprenti(st, i)}` : ''}</small><b>${G.fmtEur(G.prixStaff(st, i))}</b></button>`}</div>`; // l'apprenti revient avec le grade qu'il avait
       }
       if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); }
       else if (c.el.className !== cls) c.el.className = cls;
@@ -172,26 +172,28 @@ const UI = (() => {
   }
   // la fiche d'un apprenti : son grade, ce qu'il apporte, son talent, le temps avant le grade suivant
   function sheetApprenti(i) {
-    const p = G.PRODUITS[i], a = G.APPRENTIS[i], pr = G.progresApprenti(st, i), g = pr.n, vit = Math.round(G.APPRENTI_VITESSE * (g - 1) * 100), staffe = st.stations[i].staff;
-    const restant = g < 5 ? (pr.prochain - pr.reste) * G.temps(st, i) / p.temps : 0;
+    const p = G.PRODUITS[i], a = G.APPRENTIS[i], pr = G.progresApprenti(st, i), g = pr.n, vit = Math.round(G.APPRENTI_VITESSE * (g - 1) * 100);
+    const restant = g < 5 ? pr.prochain - pr.reste : 0; // l'expérience compte les secondes de cuisson
     openSheet(`<div class="apprenti-tete">${ICONS.apprenti(i, g)}<div><h2>${esc(p.staffNom)}</h2><p class="sous">Grade <b>${g}</b> sur 5 · s’occupe des ${esc(p.pl)}</p></div></div>
       <div class="encadre doux"><div class="stat"><span>Fournées</span><b>${vit ? `${vit} % plus rapides` : 'à la vitesse normale'}</b></div>
-        <div class="stat"><span>Talent au grade 3 : ${esc(a.talent)}</span><b>${g >= 3 ? '✓ ' : ''}${esc(G.effetTalentApprenti(i))}</b></div></div>
-      ${g < 5 ? `<div class="stat"><span>Grade ${g + 1}</span><b>${staffe ? `encore ≈ ${G.fmtDuree(restant)} de fournil` : 'à l’embauche, il reprend où il en était'}</b></div><div class="mini xp"><i style="width:${pct(pr.reste, pr.prochain)}"></i></div>` : '<p class="note">Grade maximum : un pilier de la boutique.</p>'}
-      <p class="note">Un apprenti prend du métier à chaque fournée, même pendant ton absence, et garde son grade d’une boutique à l’autre : −2 % de temps de cuisson par grade, et son talent au grade 3.</p>${btnRetour()}`);
+        <div class="stat"><span>Talent au grade 3</span><b>${esc(a.talent)}</b></div><p class="note talent">${g >= 3 ? '✓ ' : ''}${esc(G.effetTalentApprenti(i))}</p></div>
+      ${g < 5 ? `<div class="stat"><span>Grade ${g + 1}</span><b>encore ≈ ${G.fmtDuree(restant)} de fournil</b></div><div class="mini xp"><i style="width:${pct(pr.reste, pr.prochain)}"></i></div>` : '<p class="note">Grade maximum : un pilier de la boutique.</p>'}
+      <p class="note">Un apprenti prend du métier à chaque fournée (pendant ton absence, la moitié du temps compte) et garde son grade d’une boutique à l’autre : −2 % de temps de cuisson par grade, et son talent au grade 3.</p>${btnRetour()}`);
     on('[data-a="close"]', closeSheet);
   }
   function annoncerGrade(g) { const a = G.APPRENTIS[g.i]; son.embauche(); buzz([10, 30, 10]); toast(`${a.prenom} passe au grade ${g.niv}${g.talent ? ` : ${a.talent} !` : ' !'}`); renderCards(true); }
   // le chat qui miaule à la porte : on l'adopte et on le nomme, ou il repassera
-  function sheetChat() {
+  function sheetChat(seule) { // seule : ouverte par le jeu, pas par le joueur
+    if (seule && performance.now() - dernierToucher < 1000) { st.chatAttente = 2; return; } // le joueur touche l'écran : le chat attend d'être remarqué
     st.chatAttente = 300; // fermée sans choisir, la feuille revient dans cinq minutes
     openSheet(`<div class="chat-tete">${ICONS.CHAT}</div><h2>Un chat miaule à la porte</h2><p class="sous">Il a senti les éclairs et veut rester. Comment l’appelles-tu ?</p>
       <input class="champ" type="text" maxlength="16" value="${G.CHAT.defaut}" aria-label="Nom du chat" autocomplete="off" autocorrect="off">
       <button type="button" class="btn large beurre" data-a="adopter" style="margin-top:12px"><b>L’adopter</b></button>
       <button type="button" class="btn large non" data-a="plus-tard" style="margin-top:8px"><b>Pas aujourd’hui</b></button>`);
     const champ = fc.querySelector('.champ');
-    const ok = () => { const r = G.adopterChat(st, champ.value); closeSheet(); if (r.ok) { reussite(`${r.chat.nom} a adopté la boutique ! Caresse-le : il porte chance.`); renderPage(true); } };
-    on('[data-a="adopter"]', ok); on('[data-a="plus-tard"]', () => { G.refuserChat(st); save(); closeSheet(); toast('Le chat repassera demain.'); });
+    const pret = () => !seule || performance.now() - openedAt > 500; // la feuille s'est ouverte toute seule : un toucher déjà en route ne choisit pas pour le joueur
+    const ok = () => { if (!pret()) return; const r = G.adopterChat(st, champ.value); closeSheet(); if (r.ok) { reussite(`${r.chat.nom} a adopté la boutique ! Caresse-le : il porte chance.`); renderPage(true); } };
+    on('[data-a="adopter"]', ok); on('[data-a="plus-tard"]', () => { if (!pret()) return; G.refuserChat(st); save(); closeSheet(); toast('Le chat repassera demain.'); });
     champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
   }
   function sheetNomChat() {
@@ -226,7 +228,18 @@ const UI = (() => {
     badge($('#onglets [data-page="boulanger"]'), pts, 'lavande');
     badge($('#onglets [data-page="journal"]'), nouveaux, 'beurre');
   }
-  function toast(txt) { let el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); } el.textContent = txt; clearTimeout(toastTimer); toastTimer = setTimeout(() => el.remove(), 2400); }
+  // les messages arrivés ensemble (un grade et son trophée, une maîtrise et le niveau) passent l'un après l'autre au lieu de s'écraser
+  const toastFile = [];
+  function montrerToast(txt) {
+    let el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
+    el.textContent = txt; clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toastTimer = 0; if (toastFile.length) montrerToast(toastFile.shift()); else el.remove(); }, toastFile.length ? 1700 : 2400);
+  }
+  function toast(txt) {
+    const el = $('.toast');
+    if (toastTimer && el) { if (el.textContent !== txt && !toastFile.includes(txt)) { toastFile.push(txt); if (toastFile.length > 2) toastFile.shift(); } return; }
+    montrerToast(txt);
+  }
   function flottant(x, y, txt) { const el = document.createElement('div'); el.className = 'flottant'; el.textContent = txt; el.style.left = x + 'px'; el.style.top = y + 'px'; document.body.appendChild(el); setTimeout(() => el.remove(), 900); }
 
   // ─── le tiroir : les pages glissent sur la boutique ; on le tire par sa poignée, il s'arrête à trois crans (ouvert, mi, fermé) ───
@@ -694,8 +707,8 @@ const UI = (() => {
     if (out.mystere && $('#feuille').hidden) { if (SCENE.mystere()) toast('Un client mystère ! Touche-le vite.'); }
     if (out.habitue) { SCENE.habitue(out.habitue); son.achat(); toast(`${out.habitue.nom} : « ${out.habitue.phrase} »`); }
     if (out.grades && out.grades.length) annoncerGrade(out.grades[0]);
-    if (out.chat && $('#feuille').hidden) sheetChat();
-    if (out.saison) { son.evenement(); toast(`Nouvelle recette de saison : ${out.saison.nom.toLowerCase()}, jusqu’au ${out.saison.fin[1]} ${MOIS[out.saison.fin[0] - 1]} !`); renderCards(true); }
+    if (out.chat && $('#feuille').hidden) sheetChat(true);
+    if (out.saison) { son.evenement(); toast(`Nouvelle recette de saison : ${out.saison.nom}, jusqu’au ${out.saison.fin[1]} ${MOIS[out.saison.fin[0] - 1]} !`); renderCards(true); }
     if (out.venteSaison) { SCENE.vente(0, out.venteSaison.montant, '+' + G.fmtEur(out.venteSaison.montant), true); son.vente(out.venteSaison.montant); }
     if (out.maitrise) reussite(`${out.maitrise.nom} : recette maîtrisée !`);
     if (out.trophees && out.trophees.length) { const t0 = out.trophees[0]; son.deblocage(); buzz([10, 30, 10, 30, 10]); SCENE.fete(); toast(`Trophée : ${t0.nom} !${out.trophees.length > 1 ? ` (+${out.trophees.length - 1})` : ''}`); }
@@ -749,6 +762,7 @@ const UI = (() => {
       else { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) sheetMeuble(id); else SCENE.tap(); }
     });
     document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); } });
+    document.addEventListener('pointerdown', () => { dernierToucher = performance.now(); }, true);
     document.addEventListener('pointerdown', () => { try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* rien */ } }, { once: true });
     window.addEventListener('pagehide', save);
     window.addEventListener('beforeunload', save);
@@ -762,8 +776,8 @@ const UI = (() => {
     lastFrame = performance.now();
     requestAnimationFrame(frame);
     window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
-      apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.PRODUITS[i].temps); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
-      chat: () => sheetChat(), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, Date.now()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q) };
+      apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
+      chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, Date.now()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q) };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

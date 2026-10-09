@@ -13,6 +13,8 @@ let page;
 const tiroir = async (p) => { await page.evaluate((p) => window.__fournil.tiroir(p), p); await sleep(350); }; // le tiroir des pages : ouvert, mi, ferme
 const haut = async () => { await page.evaluate(() => document.querySelector('#pages').scrollTo(0, 0)); await tiroir('mi'); }; // la liste en haut, le tiroir à mi-hauteur
 const scene = () => tiroir('ferme'); // toute la boutique visible, pour toucher ses zones
+// les messages passent l'un après l'autre : attendre celui qu'on guette (ou rendre le dernier vu)
+const attendreToast = async (p, re, ms = 5000) => { let vu = ''; for (let t = 0; t < ms; t += 100) { vu = await p.evaluate(() => (document.querySelector('.toast') || {}).textContent || ''); if (re.test(vu)) return vu; await sleep(100); } return vu; };
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
 (async () => {
   const browser = await chromium.launch();
@@ -115,12 +117,13 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.tap('#onglets [data-page="boutique"]'); await sleep(200);
   check(await page.evaluate(() => window.__fournil.SCENE.apprentis === 3), 'trois apprentis s’affairent entre le four et le comptoir');
   // les apprentis montent en grade
-  await haut(); const grade = await page.evaluate(() => { const g = window.__fournil.apprentiXp(1, 180000); return { g, toast: (document.querySelector('.toast') || {}).textContent || '' }; }); await sleep(400); // Inès (croissants) : la baguette de Léo reste au grade 1 pour le test des talents
+  await haut(); const grade = { g: await page.evaluate(() => window.__fournil.apprentiXp(1, 520000)) }; grade.toast = await attendreToast(page, /grade 3/); // Inès (croissants) : la baguette de Léo reste au grade 1 pour le test des talents
   const puce = await page.evaluate(() => { const b = document.querySelector('.carte[data-i="1"] [data-a="apprenti"]'); return b ? b.innerText : ''; });
   check(grade.g === 3 && /3/.test(puce) && /grade 3/.test(grade.toast), `Inès passe au grade 3 : pastille sur sa carte, toast « ${grade.toast} »`);
   await page.tap('.carte[data-i="1"] [data-a="apprenti"]'); await sleep(300);
   const ficheApp = await page.evaluate(() => (document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText));
   check(/Inès/.test(ficheApp) && /Grade 3/.test(ficheApp) && /Tourage express/.test(ficheApp) && /Grade 4/.test(ficheApp), 'sa fiche : grade, talent, temps avant le grade suivant');
+  check(await page.evaluate(() => { const f = document.querySelector('#feuille'); return f.scrollWidth <= f.clientWidth + 1; }), 'sa fiche tient en largeur (la phrase du talent passe à la ligne)');
   await page.screenshot({ path: out + '/05s-apprenti.png' });
   await page.tap('[data-a="close"]'); await sleep(300);
   // le chat de la boutique
@@ -133,6 +136,10 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.touchscreen.tap(cz.x, cz.y); await sleep(300);
   const caresse = await page.evaluate(() => ({ n: window.__fournil.st.chat.caresses, t: window.__fournil.st.mystereTimer, boulanger: !document.querySelector('#page-boulanger').hidden }));
   check(caresse.n === 1 && caresse.t < avantChance * 0.85 && !caresse.boulanger, 'une caresse au chat endormi sur le comptoir (et pas la page du boulanger) : il porte chance');
+  const bz = await zone('boulanger'); await page.touchscreen.tap(bz.x, bz.y); await sleep(400);
+  const buste = await page.evaluate(() => ({ n: window.__fournil.st.chat.caresses, boulanger: !document.querySelector('#page-boulanger').hidden }));
+  check(buste.n === 1 && buste.boulanger, 'le buste du boulanger reste à lui quand le chat dort à côté : sa page s’ouvre, pas de caresse');
+  await page.tap('#onglets [data-page="boutique"]'); await sleep(300); await scene(); await sleep(300);
   await page.screenshot({ path: out + '/05t-chat.png' });
   await page.evaluate(() => window.__fournil.scene({ chat: 'assis' })); await sleep(700); await page.screenshot({ path: out + '/05t-chat-assis.png' });
   await page.evaluate(() => window.__fournil.scene({}));
@@ -140,14 +147,16 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await haut(); await page.evaluate(() => window.__fournil.saison('citrouille')); await sleep(300);
   const carteS = await page.evaluate(() => { const c = document.querySelector('#cartes .carte.saison'); return c && !c.hidden ? { txt: c.innerText, premiere: document.querySelector('#cartes').firstElementChild === c } : null; });
   check(!!carteS && carteS.premiere && /citrouille/i.test(carteS.txt) && /31 oct/.test(carteS.txt), 'la recette de saison en tête des cartes : tarte à la citrouille, jusqu’au 31 oct.');
+  const hS = await page.evaluate(() => Math.round(document.querySelector('#cartes .carte.saison').getBoundingClientRect().height));
+  check(hS <= 200, `la carte « Préparer » reste compacte (${hS} px)`);
   await page.tap('.carte.saison [data-a="preparer"]'); await sleep(300);
   await page.tap('.carte.saison .barre'); await sleep(12500);
   const fsaison = await page.evaluate(() => window.__fournil.st.stats.fourneesSaison || 0);
   check(fsaison >= 1, 'préparée, puis cuite à la main : une fournée de saison vendue');
   await page.screenshot({ path: out + '/05u-saison.png' });
   const manque = await page.evaluate(() => { const f = window.__fournil, np = f.G.niveauPour(f.st.xp); return np.prochain - np.reste; });
-  await page.evaluate((n) => window.__fournil.xp(n), manque); await sleep(500);
-  const toastNiv = await page.evaluate(() => (document.querySelector('.toast') || {}).textContent || '');
+  await page.evaluate((n) => window.__fournil.xp(n), manque);
+  const toastNiv = await attendreToast(page, /Niveau \d+ :/);
   check(/Niveau \d+ :/.test(toastNiv), 'passage de niveau annoncé : ' + toastNiv);
   const pts = await page.evaluate(() => window.__fournil.G.ptsTalents(window.__fournil.st));
   check(pts >= 1, pts + ' point(s) de talent à dépenser');
@@ -171,9 +180,10 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   check(/Records/.test(journal) && /Mme Dupuis/.test(journal) && /Trophées · \d+\/\d+/.test(journal) && /Première fournée/.test(journal), 'le journal : records, habitués, trophées, événements');
   check(await page.evaluate(() => document.querySelector('#onglets [data-page="journal"] .badge').hidden), 'le badge du Journal s’efface une fois la page vue');
   check(await page.evaluate(() => { const t = document.querySelector('#page-journal').innerText; return /Recettes de saison/.test(t) && /Tarte à la citrouille/.test(t) && /Caresses à Brioche/.test(t); }), 'le Journal : collection des saisons et caresses au chat');
+  check(await page.evaluate(() => [...document.querySelectorAll('#page-journal .ligne.saison')].every((l) => { const i = l.querySelector('.ev-ico').getBoundingClientRect(), t = l.querySelector('.t').getBoundingClientRect(), r = l.getBoundingClientRect(); return i.left - r.left < 4 && t.left >= i.right && t.left - i.right < 16; })), 'le Journal : chaque recette de saison, son icône à gauche et le texte à côté');
   await page.screenshot({ path: out + '/05q-journal.png' });
   await page.tap('#page-journal [data-a="partager"]', { force: true }); await sleep(400);
-  check(await page.evaluate(() => /copié|Le Fournil|boutique/i.test((document.querySelector('.toast') || {}).textContent || '')), 'partager : repli sur le texte');
+  check(/copié|Le Fournil|boutique/i.test(await attendreToast(page, /copié|Le Fournil|boutique/i)), 'partager : repli sur le texte');
   await page.tap('#onglets [data-page="boutique"]'); await sleep(200);
   await page.evaluate(() => window.__fournil.habitue('dupuis')); await sleep(1500); await page.screenshot({ path: out + '/05r-habitue.png' }); await sleep(7000);
   check(await page.evaluate(() => window.__fournil.st.habitues.dupuis && window.__fournil.st.habitues.dupuis.jours === 1), 'Mme Dupuis est passée et a été servie');
@@ -320,7 +330,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const code = await page.evaluate(() => document.querySelector('[data-r="code"]').value);
   check(code.startsWith('FOURNIL1.') && code.length > 200, 'code de sauvegarde produit (' + code.length + ' caractères)');
   await page.fill('[data-r="entree"]', 'pas un code'); await page.tap('[data-a="charger"]'); await sleep(300);
-  check(await page.evaluate(() => /pas valide/.test((document.querySelector('.toast') || {}).textContent || '')), 'un code invalide est refusé');
+  check(/pas valide/.test(await attendreToast(page, /pas valide/)), 'un code invalide est refusé');
   await page.evaluate(() => { window.__fournil.reset(); }); await sleep(1200);
   const s5 = await page.evaluate(() => ({ etoiles: window.__fournil.st.etoiles, boutiques: window.__fournil.st.boutiques }));
   check(s5.boutiques === 1 && s5.etoiles === 0, 'tout effacé : ' + JSON.stringify(s5));
@@ -348,6 +358,8 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   check(!overflow, 'pas de défilement horizontal à 360 px');
   const dans = await p2.evaluate(() => { const c = document.querySelector('.carte[data-i="0"]').getBoundingClientRect(); return [...document.querySelectorAll('.carte[data-i="0"] .corps, .carte[data-i="0"] .corps > *, .carte[data-i="0"] .boutons')].every((el) => el.getBoundingClientRect().right <= c.right + 0.5) && document.querySelector('.carte[data-i="0"] .corps').getBoundingClientRect().right < document.querySelector('.carte[data-i="0"] .boutons').getBoundingClientRect().left; });
   check(dans, 'à 360 px, le corps de la carte ne chevauche pas les boutons');
+  const large360 = await p2.evaluate(async () => { const r = []; for (const i of [1, 3, 5, 7]) { window.__fournil.ficheApprenti(i); await new Promise((ok) => setTimeout(ok, 50)); const f = document.querySelector('#feuille'); r.push(f.scrollWidth <= f.clientWidth + 1); } document.querySelector('#feuille [data-a="close"]').click(); return r.every(Boolean); });
+  check(large360, 'à 360 px, les fiches d’Inès, Rose, Agathe et Paulin tiennent en largeur'); await sleep(300);
   const petit = await p2.evaluate(() => { const t = document.querySelector('#tiroir'), tr = t.getBoundingClientRect(), o = document.querySelector('#onglets').getBoundingClientRect(), c = document.querySelector('.carte[data-i="0"]').getBoundingClientRect(), s = document.querySelector('#scene').getBoundingClientRect(), z = window.__fournil.SCENE.zones(); return { pos: t.dataset.pos, carte: c.top >= tr.top + 36 && c.bottom <= o.top, file: z.mystere.y + z.mystere.h <= tr.top - s.top + 1, haut: Math.round(tr.top - s.top) }; });
   check(petit.pos === 'mi' && petit.carte && petit.file, 'à 360×640, tiroir à mi (' + petit.haut + ' px de scène) : première carte entière, file et client mystère visibles');
   await p2.evaluate(() => window.__fournil.tiroir('ferme')); await sleep(400); await p2.screenshot({ path: out + '/10b-petit-ecran-entier.png' });

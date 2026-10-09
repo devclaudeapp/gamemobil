@@ -219,14 +219,20 @@ body[data-tiroir="ouvert"] #b-amenager { opacity: 0; pointer-events: none; }
 .staff-ok .coche svg { width: 14px; height: 14px; stroke: var(--menthe-sombre); stroke-width: 3; }
 button.staff-ok { border: 0; cursor: pointer; font: inherit; font: 800 12px/1.1 var(--texte-font); }
 button.staff-ok:active { transform: translateY(1px); }
-.staff-ok .grade { flex: 0 0 auto; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--lavande); color: #fff; font: 800 11px/17px var(--texte-font); font-style: normal; text-align: center; }
+button.staff-ok { position: relative; overflow: visible; } /* la zone de touche descend dans la marge de la carte (~41 px), sans pousser la mise en page */
+button.staff-ok::after { content: ""; position: absolute; left: 0; right: 0; top: -3px; bottom: -10px; }
+.staff-ok .grade { flex: 0 0 auto; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--lavande); color: var(--texte); font: 800 11px/17px var(--texte-font); font-style: normal; text-align: center; }
 .staff-ok .grade.g1 { background: #C9B8AE; } .staff-ok .grade.g3, .staff-ok .grade.g4 { background: var(--menthe-sombre); } .staff-ok .grade.g5 { background: var(--beurre-sombre); }
 .carte.saison { box-shadow: 0 0 0 2px #FFB46A inset, 0 3px 0 rgba(74,51,40,.08); }
 .tag.saison { background: #FFB46A; color: #4A3328; }
 .apprenti-tete, .chat-tete { display: flex; align-items: center; gap: 12px; }
 .apprenti-tete svg { width: 64px; height: 64px; flex: 0 0 auto; }
 .chat-tete { justify-content: center; } .chat-tete svg { width: 72px; height: 72px; }
-.ligne.saison .ev-ico svg { width: 30px; height: 30px; }
+.ligne.saison { grid-template-columns: 34px minmax(0, 1fr); }
+.ligne.saison .ev-ico { width: 34px; height: 34px; border-radius: 11px; background: var(--creme); display: grid; place-items: center; }
+.ligne.saison .ev-ico svg { width: 26px; height: 26px; }
+.carte.saison p { margin: 0; font-size: 13px; line-height: 1.3; color: var(--texte-2); }
+.note.talent { margin: 2px 0 0; }
 .carte.verrou { grid-template-columns: 54px minmax(0, 1fr); background: #FFFBF4; box-shadow: none; border: 2px dashed var(--gris-sombre); }
 .carte.verrou .icone { background: var(--creme); }
 .carte.verrou .icone svg { opacity: .45; filter: grayscale(1); }

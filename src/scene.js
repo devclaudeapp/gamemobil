@@ -118,13 +118,15 @@ const SCENE = (() => {
   }
   function construire(E) {
     const c = contexte(E), base = `${E.Q.id}|${W}x${H}`;
+    const rs = E.st.saison && E.st.saison.niv > 0 && PERSOS.patisserieSaison ? E.st.saison.id : '', ouverts = E.niv.map((n, i) => (n > 0 ? i : -1)).filter((i) => i >= 0);
+    c.nVitrine = ouverts.length + (rs ? 1 : 0); // la recette de saison a sa place : étagères, étiquettes et places sur le même compte
     if (Qc !== E.Q) { Qc = E.Q; renderer.setClearColor(E.Q.sol); salle = MEUBLES.salle(c); remplacer('salle', salle); }
     for (const id of MEUBLES_IDS) { // les six meubles (le comptoir porte la vitrine), reconstruits quand leur cran change
-      const cran = E.crans[id === 'comptoir' ? 'vitrine' : id], k = `${cran}|${base}${id === 'tables' ? '|' + E.crans.deco : ''}${id === 'deco' && E.tags.includes('noel') ? '|noel' : ''}${id === 'comptoir' ? '|' + E.niv.filter((n) => n > 0).length : ''}`;
+      const cran = E.crans[id === 'comptoir' ? 'vitrine' : id], k = `${cran}|${base}${id === 'tables' ? '|' + E.crans.deco : ''}${id === 'deco' && E.tags.includes('noel') ? '|noel' : ''}${id === 'comptoir' ? '|' + c.nVitrine : ''}`;
       if (cles[id] !== k) { cles[id] = k; remplacer(id, MEUBLES[id](cran, c)); if (id === 'comptoir') { cles.produits = null; cles.caisse = null; const cp = groupes.comptoir; if (cp && cp.userData.dessusY != null) { c.dessusY = cp.userData.dessusY; c.dessusZ = cp.userData.dessusZ; } } }
     }
     for (const d of CONDS) { const k = d.cle(E), kk = k == null ? null : `${k}|${base}`; if (cles[d.id] !== kk) { cles[d.id] = kk; remplacer(d.id, kk == null ? null : d.faire(k, c)); } }
-    const rs = E.st.saison && E.st.saison.niv > 0 && PERSOS.patisserieSaison ? E.st.saison.id : '', ouverts = E.niv.map((n, i) => (n > 0 ? i : -1)).filter((i) => i >= 0), kp = `${ouverts.join(',')}|${rs}|${E.crans.vitrine}|${base}`;
+    const kp = `${ouverts.join(',')}|${rs}|${E.crans.vitrine}|${base}`;
     if (cles.produits !== kp) { // les pâtisseries dans la vitrine
       cles.produits = kp; const g = new THREE.Group(), vit = groupes.comptoir && groupes.comptoir.userData.vitrine, liste = rs ? ouverts.concat([rs]) : ouverts, places = vit ? vit.places(liste.length) : [];
       liste.forEach((i, k) => { const p = places[k]; if (!p) return; const m = (typeof i === 'string' ? PERSOS.patisserieSaison(i) : PERSOS.patisserie(i)).clone(); const s = (p.s || 16) / (PERSOS.TAILLE_PATISSERIE || 16); m.position.set(p.x, p.y, p.z); m.scale.setScalar(s); m.castShadow = false; g.add(m); });
@@ -251,6 +253,8 @@ const SCENE = (() => {
   }
   function zoneChat() { // un rectangle autour du chat (il bouge : rien en cache)
     if (!chatG) return null; const K = V.K, sx = chatG.position.x, sy = projeterY(chatG.position.y, chatG.position.z);
+    const c = V.chat;
+    if (c && c.haut && c.etat === 'dort') return { x: sx - 18 * K, y: sy - 16 * K, w: 36 * K, h: 20 * K }; // roulé en boule sur le comptoir : une zone plate, qui laisse le buste du boulanger à lui
     return { x: sx - 22 * K, y: sy - 30 * K, w: 44 * K, h: 36 * K };
   }
   function hitChat(x, y) { return dans(zoneChat(), x, y); }

@@ -104,8 +104,9 @@
     return { ok: true, cran: st.talents[id], talent: t };
   }
   // ─── les apprentis montent en grade : leur savoir-faire grandit avec leurs fournées (hors ligne compris) et les suit d'une boutique à l'autre ───
-  const APPRENTI_NIVEAUX = [0, 43200, 172800, 518400, 1620000]; // grades 1 à 5 : 12 h, 48 h, 144 h puis 450 h de fournil (réglés sur les garde-fous de longévité)
+  const APPRENTI_NIVEAUX = [0, 129600, 518400, 1555200, 4860000]; // grades 1 à 5 : 36 h, 144 h, 432 h puis 1 350 h de fournil, en secondes réelles de cuisson
   const APPRENTI_VITESSE = 0.02;                                 // −2 % de temps de cuisson par grade au-delà du premier
+  const APPRENTI_ABSENCE = 0.5;                                  // pendant une absence, la moitié du temps compte (réglés sur les garde-fous de longévité, à plusieurs dates de départ)
   const APPRENTIS = [ // le talent propre de chacun, acquis au grade 3 : tantôt des gains, tantôt de la vitesse
     { prenom: 'Léo', talent: 'Pétrin bien réglé', rev: 1.1 }, { prenom: 'Inès', talent: 'Tourage express', temps: 0.92 },
     { prenom: 'Sami', talent: 'Deux barres, toujours', rev: 1.1 }, { prenom: 'Rose', talent: 'La pâte de mamie', temps: 0.92 },
@@ -117,9 +118,9 @@
   const xpApprenti = (st, i) => (st.apprentis && st.apprentis[PRODUITS[i].id] && st.apprentis[PRODUITS[i].id].xp) || 0;
   function gradeApprenti(st, i) { const x = xpApprenti(st, i); let n = 1; while (n < 5 && x >= APPRENTI_NIVEAUX[n]) n++; return n; }
   function progresApprenti(st, i) { const n = gradeApprenti(st, i), x = xpApprenti(st, i); return { n, reste: x - APPRENTI_NIVEAUX[n - 1], prochain: n < 5 ? APPRENTI_NIVEAUX[n] - APPRENTI_NIVEAUX[n - 1] : 0 }; }
-  function creditApprenti(st, i, n) { // n fournées cuites par l'apprenti du produit i ; rend { i, niv, talent } s'il monte de grade
+  function creditApprenti(st, i, n, part) { // n fournées cuites par l'apprenti du produit i (part : la fraction qui compte) ; rend { i, niv, talent } s'il monte de grade
     st.apprentis = st.apprentis || {}; const a = st.apprentis[PRODUITS[i].id] || (st.apprentis[PRODUITS[i].id] = { xp: 0 });
-    const avant = gradeApprenti(st, i); a.xp += n * PRODUITS[i].temps; const niv = gradeApprenti(st, i);
+    const avant = gradeApprenti(st, i); a.xp += n * temps(st, i) * (part == null ? 1 : part); const niv = gradeApprenti(st, i);
     if (niv <= avant) return null;
     gagnerXp(st, 10 * niv); inc(st, 'gradesApprentis');
     note(st, `${APPRENTIS[i].prenom} passe au grade ${niv}${niv === 3 ? ' : ' + APPRENTIS[i].talent : ''}`);
@@ -152,19 +153,21 @@
     { id: 'citrouille', nom: 'Tarte à la citrouille', pl: 'tartes à la citrouille', tag: 'halloween', temps: 10, fin: [10, 31], desc: 'Épicée, orange, un peu effrayante.' },
     { id: 'buche', nom: 'Bûche de Noël', pl: 'bûches', tag: 'noel', temps: 12, fin: [12, 31], desc: 'Chocolat, meringue et houx.' },
   ];
-  const SAISON = { revSec: 30, coutSec: 300, croiss: 1.5, nivMax: 10, maitrise: 100 };
+  // une fournée rapporte le temps qu'elle a pris, au rythme des apprentis (×1 au niveau 1, ×1,9 au niveau 10) : jouer la saison double au plus les gains de la session
+  const SAISON = { part: 1, pas: 0.1, coutSec: 300, croiss: 1.5, nivMax: 10, maitrise: 100 };
   let recetteForcee = null;
   const forcerRecette = (id) => { recetteForcee = id || null; }; // tests et captures seulement
   const recetteDeSaison = (ms) => (recetteForcee && RECETTES_SAISON.find((r) => r.id === recetteForcee)) || RECETTES_SAISON.find((r) => saison(ms).includes(r.tag)) || null;
   const recetteSaison = (st) => (st.saison ? RECETTES_SAISON.find((r) => r.id === st.saison.id) || null : null);
-  function saisonDuJour(st, nowMs) { // la recette de la saison en cours ; une nouvelle saison repart du niveau 0
-    const r = recetteDeSaison(nowMs);
+  function saisonDuJour(st, nowMs) { // la recette de la saison en cours ; une nouvelle saison (ou la même, l'année suivante) repart du niveau 0
+    const r = recetteDeSaison(nowMs), an = new Date(nowMs).getFullYear(), s = st.saison;
+    if (s && s.actif && (!r || s.id !== r.id || s.annee !== an)) cuireSaison(st, null); // la fournée au four sort quand même, comme pendant une absence
     if (!r) { st.saison = null; return null; }
-    if (!st.saison || st.saison.id !== r.id) st.saison = { id: r.id, annee: new Date(nowMs).getFullYear(), niv: 0, prog: 0, actif: false };
+    if (!st.saison || st.saison.id !== r.id || st.saison.annee !== an) st.saison = { id: r.id, annee: an, niv: 0, prog: 0, actif: false };
     return st.saison;
   }
   const tempsSaison = (st) => { const r = recetteSaison(st); return r ? r.temps * tempsMult(st) : 0; };
-  const revenuSaison = (st) => { const s = st.saison; return s && s.niv > 0 ? rythme(st) * SAISON.revSec * (1 + 0.15 * (s.niv - 1)) * boostMult(st) * affluenceMult(st) : 0; };
+  const revenuSaison = (st) => { const s = st.saison; return s && s.niv > 0 ? rythme(st) * tempsSaison(st) * SAISON.part * (1 + SAISON.pas * (s.niv - 1)) * boostMult(st) : 0; };
   const coutSaison = (st) => arrondi(rythme(st) * SAISON.coutSec * Math.pow(SAISON.croiss, st.saison ? st.saison.niv : 0)) * remise(st);
   function preparerSaison(st) { // niveau 0 → 1 : préparer la recette ; ensuite l'améliorer, jusqu'au niveau 10
     const s = st.saison; if (!s || s.niv >= SAISON.nivMax) return { ok: false };
@@ -177,7 +180,7 @@
     const s = st.saison, r = recetteSaison(st), m = revenuSaison(st);
     s.prog = 0; s.actif = false; if (!differe) gagner(st, m); st.stats.ventes++; inc(st, 'fourneesSaison');
     st.collection = st.collection || {}; const c = st.collection[s.id] || (st.collection[s.id] = { annee: s.annee, fournees: 0, maitrisee: false });
-    c.fournees++; c.annee = s.annee;
+    c.fournees++; if (!c.maitrisee) c.annee = s.annee; // l'année de la maîtrise reste celle où elle a été obtenue
     if (!c.maitrisee && c.fournees >= SAISON.maitrise) { c.maitrisee = true; gagnerXp(st, 50); note(st, `${r.nom} : recette maîtrisée`); if (out) out.maitrise = r; }
     return m;
   }
@@ -221,7 +224,7 @@
       stats: { taps: 0, ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false, meubles: 0 },
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null, tiroir: 'mi',
-      apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, saison: null, collection: {},
+      apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, saison: null, saisonAnnoncee: '', collection: {},
     };
   }
 
@@ -574,9 +577,8 @@
   function tick(st, dt, nowMs, rnd) {
     st.now = nowMs; rnd = rnd || Math.random;
     const out = { ventes: [], nouvelEv: null, finEv: null, mystere: false, habitue: null, trophees: [], grades: [], chat: false, saison: null, venteSaison: null, maitrise: null };
-    const saisonAvant = st.saison && st.saison.id;
     objectifsDuJour(st, nowMs);
-    if (st.saison && st.saison.id !== saisonAvant) out.saison = recetteSaison(st); // une nouvelle recette de saison
+    if (st.saison && st.saisonAnnoncee !== st.saison.id + ':' + st.saison.annee) { st.saisonAnnoncee = st.saison.id + ':' + st.saison.annee; out.saison = recetteSaison(st); } // une nouvelle recette de saison, annoncée une fois (même à l'ouverture du jeu)
     st.stations.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
       if (st.ev && st.ev.type === 'panne' && st.ev.i === i) return; // le four est en panne
@@ -600,7 +602,7 @@
     if (st.boost && st.boost.fin <= nowMs) st.boost = null;
     const ss = st.saison; // la fournée de saison
     if (ss && ss.actif) { ss.prog += dt; if (ss.prog >= tempsSaison(st)) out.venteSaison = { id: ss.id, montant: cuireSaison(st, out) }; }
-    if (chatPossible(st)) { st.chatAttente = (st.chatAttente == null ? CHAT.apparition : st.chatAttente) - dt; if (st.chatAttente <= 0) { st.chatAttente = CHAT.rappel; out.chat = true; } } // un chat miaule à la porte
+    if (chatPossible(st) && !st.ev) { st.chatAttente = (st.chatAttente == null ? CHAT.apparition : st.chatAttente) - dt; if (st.chatAttente <= 0) { st.chatAttente = CHAT.rappel; out.chat = true; } } // un chat miaule à la porte
     st.mystereTimer -= dt;
     if (st.mystereTimer <= 0) { st.mystereTimer = (150 + rnd() * 200) * (1 - 0.15 * talent(st, 'pourboire')) * (1 - 0.08 * mobilierCran(st, 'caisse')); out.mystere = true; }
     const hb = habitueAttendu(st, nowMs); // un habitué passe une fois par jour, pendant son créneau, après quelques secondes de jeu
@@ -619,7 +621,7 @@
       if (s.staff) {
         const n = Math.floor((s.prog + secs) / T);
         s.prog = (s.prog + secs) % T;
-        if (n > 0) { const m = revenu(st, i) * n; total += m; detail.push({ i, n, m }); st.stats.ventes += n; const g = creditApprenti(st, i, n); if (g) grades.push(g); }
+        if (n > 0) { const m = revenu(st, i) * n; total += m; detail.push({ i, n, m }); st.stats.ventes += n; const g = creditApprenti(st, i, n, APPRENTI_ABSENCE); if (g) grades.push(g); }
       } else if (s.prog + secs >= T) { const m = revenuFournee(st, i); total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; st.stats.ventes++; }
       else s.prog += secs;
     });
@@ -645,7 +647,7 @@
   function fmtDuree(s) { if (s < 60) return Math.round(s) + ' s'; if (s < 3600) return Math.round(s / 60) + ' min'; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; }
   const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
-  return { APPRENTIS, APPRENTI_NIVEAUX, APPRENTI_VITESSE, xpApprenti, gradeApprenti, progresApprenti, creditApprenti, apprentiTempsMult, apprentiRevMult, effetTalentApprenti,
+  return { APPRENTIS, APPRENTI_NIVEAUX, APPRENTI_VITESSE, APPRENTI_ABSENCE, xpApprenti, gradeApprenti, progresApprenti, creditApprenti, apprentiTempsMult, apprentiRevMult, effetTalentApprenti,
     CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
     PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,

@@ -201,15 +201,17 @@ console.log('── les apprentis montent en grade ──');
   const T1 = G.temps(st, 1), R1 = G.revenuBase(st, 1);
   check(G.gradeApprenti(st, 1) === 1 && G.apprentiTempsMult(st, 1) === 1, 'Inès débute au grade 1, sans effet');
   check(G.gradeApprenti(st, 0) === 1 && G.apprentiTempsMult(st, 0) === 1 && G.apprentiRevMult(st, 0) === 1, 'une station à la main ne change pas (baguette sans apprenti)');
-  const seuils = G.APPRENTI_NIVEAUX.map((x) => x / 3600); check(seuils.join(',') === '0,12,48,144,450', `grades à ${seuils.slice(1).join(' h, ')} h de fournil`);
-  const g2 = G.creditApprenti(st, 1, 43200 / G.PRODUITS[1].temps); check(g2 && g2.niv === 2 && !g2.talent && G.gradeApprenti(st, 1) === 2, 'grade 2 après 12 h de fournées');
-  const g3 = G.creditApprenti(st, 1, (172800 - 43200) / G.PRODUITS[1].temps); check(g3 && g3.niv === 3 && g3.talent && /Tourage express/.test(st.carnetEv[st.carnetEv.length - 1].txt), 'grade 3 : le talent, noté au carnet');
-  G.creditApprenti(st, 1, 2e6); check(G.gradeApprenti(st, 1) === 5 && G.creditApprenti(st, 1, 1e6) === null, 'grade 5 au plus');
+  const seuils = G.APPRENTI_NIVEAUX.map((x) => x / 3600); check(seuils.join(',') === '0,36,144,432,1350', `grades à ${seuils.slice(1).join(' h, ')} h de fournil`);
+  const x0 = G.xpApprenti(st, 1); G.creditApprenti(st, 1, 10); check(Math.abs(G.xpApprenti(st, 1) - x0 - 10 * G.temps(st, 1)) < 1e-9, 'l’expérience compte les secondes réelles de cuisson');
+  const g2 = G.creditApprenti(st, 1, (129600 - G.xpApprenti(st, 1)) / G.temps(st, 1)); check(g2 && g2.niv === 2 && !g2.talent && G.gradeApprenti(st, 1) === 2, 'grade 2 après 36 h de fournées');
+  const g3 = G.creditApprenti(st, 1, (518400 - G.xpApprenti(st, 1)) / G.temps(st, 1)); check(g3 && g3.niv === 3 && g3.talent && /Tourage express/.test(st.carnetEv[st.carnetEv.length - 1].txt), 'grade 3 : le talent, noté au carnet');
+  G.creditApprenti(st, 1, 2e7); check(G.gradeApprenti(st, 1) === 5 && G.creditApprenti(st, 1, 1e6) === null, 'grade 5 au plus');
   const gainVitesse = T1 / G.temps(st, 1), gainRev = G.revenuBase(st, 1) / R1; check(gainVitesse > 1.15 && gainVitesse < 1.2 && gainRev === 1, `Inès au grade 5 : ×${gainVitesse.toFixed(3)} en vitesse, gains inchangés`);
-  G.acheter(st, 2); G.embaucher(st, 2); G.creditApprenti(st, 2, 2e6); const r2 = G.revenuBase(st, 2) / (G.PRODUITS[2].rev * st.stations[2].niv * G.palierMult(st.stations[2].niv) * G.ameliorationMult(st, 2) * G.etoileMult(st) * G.mobilierMult(st)); check(Math.abs(r2 - 1.1) < 1e-9, 'Sami au grade 5 : gains ×1,1');
+  G.acheter(st, 2); G.embaucher(st, 2); G.creditApprenti(st, 2, 2e7); const r2 = G.revenuBase(st, 2) / (G.PRODUITS[2].rev * st.stations[2].niv * G.palierMult(st.stations[2].niv) * G.ameliorationMult(st, 2) * G.etoileMult(st) * G.mobilierMult(st)); check(Math.abs(r2 - 1.1) < 1e-9, 'Sami au grade 5 : gains ×1,1');
   const total = (1 / G.apprentiTempsMult(st, 2)) * G.apprentiRevMult(st, 2); check(total <= 1.2, `effet total d’un apprenti au maximum : ×${total.toFixed(3)} (≤ 1,2)`);
   // hors ligne
-  const s3 = G.newState(T0); s3.now = T0; G.gagner(s3, 1e9, true); G.embaucher(s3, 0); G.creditApprenti(s3, 0, 20000 / G.PRODUITS[0].temps); s3.lastSeen = T0; const ab = G.absence(s3, T0 + 13 * 3600e3);
+  const s3 = G.newState(T0); s3.now = T0; G.gagner(s3, 1e9, true); G.embaucher(s3, 0); G.creditApprenti(s3, 0, 120000 / G.temps(s3, 0)); s3.lastSeen = T0; const xa = G.xpApprenti(s3, 0), ab = G.absence(s3, T0 + 13 * 3600e3);
+  check(Math.abs(G.xpApprenti(s3, 0) - xa - 8 * 3600 * G.APPRENTI_ABSENCE) <= G.temps(s3, 0), `une absence compte à moitié (${Math.round(G.xpApprenti(s3, 0) - xa)} s pour 8 h)`);
   check(G.gradeApprenti(s3, 0) === 2 && ab.grades.length === 1 && ab.grades[0].niv === 2, 'pendant une absence (plafonnée à 8 h), Léo prend du métier : grade 2');
   // une nouvelle boutique garde les grades
   s3.lifetimeRun = 1e15; const nb = G.nouvelleBoutique(s3, T0 + 14 * 3600e3); check(nb.ok && G.gradeApprenti(s3, 0) === 2 && !s3.stations[0].staff, 'nouvelle boutique : l’apprenti garde son grade, à réembaucher');
@@ -220,6 +222,7 @@ console.log('── le chat de la boutique ──');
   check(!G.chatPossible(st), 'pas de chat tant que les éclairs ne sont pas au menu');
   st.stations[4].niv = 1; check(G.chatPossible(st), 'les éclairs au menu : un chat peut miauler');
   let vu = false; for (let k = 0; k < 50 && !vu; k++) vu = G.tick(st, 1, T0 + k * 1000, seeded(3)).chat; check(vu, 'il miaule à la porte après quelques dizaines de secondes');
+  st.chatAttente = 5; st.ev = { type: 'petrissage', fin: T0 + 9e5 }; for (let k = 0; k < 10; k++) G.tick(st, 1, T0 + 60e3 + k * 1000, seeded(3)); check(st.chatAttente === 5, 'pendant un événement, le chat attend son tour'); st.ev = null;
   G.refuserChat(st); check(!G.chatPossible(st) && st.chatRefuse === '2026-10-07', 'refusé : il repassera demain');
   st.now = T0 + 864e5; check(G.chatPossible(st), 'le lendemain, il revient');
   const r = G.adopterChat(st, '  <b>Mistigri</b>  le chat roux du quartier '); check(r.ok && st.chat.nom === 'bMistigri/b le c' && !G.adopterChat(st, 'x').ok, `adopté, nom nettoyé et coupé à 16 caractères (« ${st.chat.nom} »)`);
@@ -247,6 +250,23 @@ console.log('── les recettes de saison ──');
   check(m && m.id === 'citrouille' && st.collection.citrouille.maitrisee && G.verifierTrophees(st).length === 0 && st.trophees.saison1, 'cent fournées : recette maîtrisée et trophée');
   st.lifetimeRun = 1e15; G.nouvelleBoutique(st, st.now); check(st.saison.id === 'citrouille' && st.saison.niv === 0 && st.collection.citrouille.maitrisee, 'nouvelle boutique : la recette repart du niveau 0, la collection reste');
   G.forcerRecette('buche'); G.objectifsDuJour(st, st.now); check(st.saison.id === 'buche', 'forcerRecette (tests et captures)'); G.forcerRecette(null);
+  // le gain : le temps de la fournée au rythme des apprentis, de ×1 (niveau 1) à ×1,9 (niveau 10), sans multiplicateur caché
+  const sg = G.newState(d(2027, 6, 14)); sg.now = d(2027, 6, 14); G.gagner(sg, 1e12, true); for (let i = 0; i < 4; i++) { G.acheter(sg, i); G.embaucher(sg, i); } sg.mobilier = { vitrine: 3 }; sg.talents = { affluence: 3 }; G.objectifsDuJour(sg, sg.now);
+  G.preparerSaison(sg); const v1 = G.revenuSaison(sg) / G.tempsSaison(sg) / G.tauxBase(sg); while (sg.saison.niv < G.SAISON.nivMax) G.preparerSaison(sg); const v10 = G.revenuSaison(sg) / G.tempsSaison(sg) / G.tauxBase(sg);
+  check(Math.abs(v1 - 1) < 1e-9 && Math.abs(v10 - 1.9) < 1e-9, `jouer la glace rapporte ×${v1.toFixed(2)} puis ×${v10.toFixed(2)} le rythme des apprentis, vitrine et affluence comprises`);
+  // la même saison, l'année suivante : un nouveau départ, annoncé
+  const sb = G.newState(d(2026, 11, 10)); sb.now = d(2026, 11, 10); G.tick(sb, 1, sb.now, seeded(2)); sb.saison.niv = 7; G.tick(sb, 1, d(2026, 11, 11), seeded(2));
+  const an = G.tick(sb, 1, d(2027, 11, 2), seeded(2)); check(sb.saison.id === 'buche' && sb.saison.niv === 0 && sb.saison.annee === 2027 && an.saison && an.saison.id === 'buche', 'la bûche, un an plus tard : niveau 0, année 2027, annoncée de nouveau');
+  // une fournée au four quand la saison change : elle sort et se paie, comme pendant une absence
+  const sc = G.newState(d(2026, 11, 31)); sc.now = new Date(2026, 11, 31, 23, 59, 55).getTime(); G.tick(sc, 1, sc.now, seeded(2)); G.gagner(sc, 1e6, true); G.preparerSaison(sc); G.lancerSaison(sc);
+  const cc = sc.coins; G.tick(sc, 1, new Date(2027, 0, 1, 0, 0, 1).getTime(), seeded(2)); check(sc.saison.id === 'galette' && sc.coins > cc && sc.collection.buche.fournees === 1, 'à minuit le 31 décembre, la bûche au four sort et se paie ; place à la galette');
+  // l'année de la maîtrise reste celle où elle a été obtenue
+  const sm = G.newState(d(2027, 0, 10)); sm.now = d(2027, 0, 10); G.objectifsDuJour(sm, sm.now); sm.saison.niv = 1; sm.collection = { galette: { annee: 2027, fournees: 100, maitrisee: true } };
+  sm.now = d(2028, 0, 10); G.objectifsDuJour(sm, sm.now); sm.saison.niv = 1; G.lancerSaison(sm); for (let k = 0; k < 20 && sm.saison.actif; k++) G.tick(sm, 1, sm.now + k * 1000, seeded(2)); check(sm.collection.galette.fournees === 101 && sm.collection.galette.annee === 2027, 'une recette maîtrisée en 2027 le reste au Journal en 2028');
+  // l'annonce à l'ouverture du jeu, même si l'écran a déjà posé la saison du jour ; une seule fois, pas après une nouvelle boutique
+  const sa = G.newState(d(2026, 9, 14)); sa.now = d(2026, 9, 14); G.tick(sa, 1, sa.now, seeded(2)); G.objectifsDuJour(sa, d(2026, 9, 15)); check(sa.saison && sa.saison.id === 'citrouille', 'le 15 octobre au chargement : la citrouille est posée avant le premier pas');
+  const a1 = G.tick(sa, 1, d(2026, 9, 15), seeded(2)), a2 = G.tick(sa, 1, d(2026, 9, 15) + 1000, seeded(2)); sa.lifetimeRun = 1e15; G.nouvelleBoutique(sa, d(2026, 9, 15)); const a3 = G.tick(sa, 1, d(2026, 9, 15) + 2000, seeded(2));
+  check(a1.saison && a1.saison.id === 'citrouille' && !a2.saison && !a3.saison, 'la nouvelle recette est annoncée au premier pas, une seule fois');
 }
 console.log('── absence de 8 h après 1 h de jeu ──');
 const R1 = run(1, greedy);

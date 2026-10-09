@@ -138,7 +138,6 @@ const VIE = (() => {
   }
   function servi(st, c) { // au comptoir : le client est compté, l'habitué noté — exactement comme avant
     c.sac = !c.or || c.pris;
-    if (c.or) chasseChat(); // le chat court voir le client mystère
     st.stats.clients++; G.noter(st, 'clients', 1);
     if (c.hab) { const r = G.servirHabitue(st, c.hab); if (r.ok && API.surServi) API.surServi(r); }
     const slotLibre = c.slot; c.slot = -2;
@@ -152,7 +151,7 @@ const VIE = (() => {
     for (const c of clients) {
       c.phase += dt * 9;
       if (c.alpha < 1) c.alpha = Math.min(1, c.alpha + dt * 3);
-      if (c.etat === 'entre') { if (avancer(c, dt)) { c.etat = 'attend'; c.dir = 0; } }
+      if (c.etat === 'entre') { if (avancer(c, dt)) { c.etat = 'attend'; c.dir = 0; if (c.or) chasseChat(); } } // le chat court voir le client mystère pendant qu'il attend
       else if (c.etat === 'attend') {
         if (c.glisse) { const dx = c.spot.x - c.x; if (Math.abs(dx) < 1) { c.x = c.spot.x; c.glisse = false; } else c.x += Math.sign(dx) * Math.min(Math.abs(dx), 60 * dt); }
         c.wait -= dt; if (c.wait <= 0) servi(st, c);
@@ -188,7 +187,8 @@ const VIE = (() => {
   // chat.haut : sur le comptoir ; chat.saut : 0 → 1 pendant un saut (descente ou montée) ; (x, y) : le point du sol (au pied du comptoir quand il est en haut)
   let chat = null;
   const piedComptoir = () => ({ x: LAY.chat.x, y: LAY.comptoir.y + LAY.comptoir.hTop + LAY.comptoir.hFace + 12 * K });
-  const spotsChat = () => [{ x: LAY.plante.x + 24 * K, y: LAY.plante.y + 8 * K }, { x: LAY.ardoise.x + 44 * K, y: LAY.ardoise.y - 4 * K }, { x: LAY.tables[0].x - 42 * K, y: LAY.tables[0].y + 12 * K }, { x: W * 0.47, y: LAY.T * 0.92 }]; // des coins libres : loin de la file et de l'allée
+  // des coins libres : loin de la file et de l'allée (plus de 30K de l'axe des clients), au-dessus du tiroir à mi-hauteur
+  const spotsChat = () => [{ x: LAY.plante.x + 24 * K, y: LAY.plante.y + 8 * K }, { x: LAY.ardoise.x + 44 * K, y: Math.min(LAY.ardoise.y - 4 * K, (miH || H) - 24 * K) }, { x: LAY.allee - 34 * K, y: LAY.tables[0].y + 12 * K }, { x: W * 0.47, y: LAY.T * 0.92 }];
   function versChat(cible, vite) { const c = chat; c.cible = cible; c.etat = 'marche'; c.vite = !!vite; }
   function majChat(st, dt) {
     if (!st.chat) { chat = null; return; }
@@ -199,7 +199,7 @@ const VIE = (() => {
       if (force.chat === 'assis') { const sp = spotsChat()[3]; c.x = sp.x; c.y = sp.y; c.haut = false; c.etat = 'assis'; } else { const p = piedComptoir(); c.x = p.x; c.y = p.y; c.haut = true; c.etat = 'dort'; }
       c.saut = 0; return;
     }
-    if (c.etat === 'dort') { if (c.t <= 0) { c.etat = 'descend'; c.saut = 0; } }
+    if (c.etat === 'dort') { if (c.t <= 0) { c.etat = 'descend'; c.saut = 0; c.dir = 0; } } // il saute face à la salle
     else if (c.etat === 'descend' || c.etat === 'monte') { c.saut = Math.min(1, c.saut + dt / 0.45); if (c.saut >= 1) { c.saut = 0; if (c.etat === 'descend') { c.haut = false; c.tours = 0; versChat(spotsChat()[Math.floor(Math.random() * 4)]); } else { c.haut = true; c.etat = 'dort'; c.t = 18 + Math.random() * 25; } } }
     else if (c.etat === 'marche') {
       const v = (c.vite ? 95 : 42) * K * dt, dx = c.cible.x - c.x, dy = c.cible.y - c.y, d = Math.hypot(dx, dy);
