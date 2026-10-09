@@ -880,6 +880,11 @@ function detecterCouronnes({ N, L, rgb, irc, mnh, batiments }) { // → { couron
     res.push({ x: -h + fu * ps, z: -h + fv * ps, r: Math.min(r, 10), h: hh, nir: snir[i] / cnt[i], v: sv[i] / cnt[i] });
   }
   let pixels = 0; for (let k = 0; k < NN; k++) pixels += M[k];
+  for (const q of CONFIG.sondes || []) { // diagnostic : ce que voit la détection en quelques points (poncin.config.json « sondes »)
+    const u = clamp(Math.floor((q[0] + h) / ps), 0, N - 1), v = clamp(Math.floor((q[1] + h) / ps), 0, N - 1), k = v * N + u; let hm = 0, vm = -1; for (let dv = -4; dv <= 4; dv++) for (let du = -4; du <= 4; du++) { const k2 = clamp(v + dv, 0, N - 1) * N + clamp(u + du, 0, N - 1); if (mnh && mnh[k2] > hm) hm = mnh[k2]; if (V[k2] > vm) vm = V[k2]; }
+    const pr = res.reduce((b, c) => Math.min(b, Math.hypot(c.x - q[0], c.z - q[1])), Infinity);
+    log(`sonde [${q}] : MNH ${mnh ? mnh[k].toFixed(1) : '-'} (max 3 m : ${hm.toFixed(1)}), végétation ${V[k].toFixed(3)} (max ${vm.toFixed(3)}, seuil ${sV.toFixed(3)}), bâti ${bat[k].toFixed(2)}, masque ${T[k]}/${M[k]}, couronne n° ${lab[k]}, cime la plus proche à ${pr.toFixed(1)} m`);
+  }
   return { couronnes: res, seuilV: sV, seuilTex: sT, pixels };
 }
 function choisirIRC() { // la couche infrarouge couleur du WMTS (sans millésime de préférence)
