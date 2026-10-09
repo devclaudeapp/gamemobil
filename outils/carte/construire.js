@@ -1010,7 +1010,7 @@ async function inventaire() {
       const z = [...pm.matchAll(/<TileMatrix>(?:[^<]*:)?(\d+)<\/TileMatrix>/g)].map((m) => +m[1]), fmt = (b.match(/<Format>([^<]+)<\/Format>/) || [])[1];
       CAPS.wmts[id] = { tms, min: z.length ? Math.min(...z) : nz ? +nz[1] : 0, max: z.length ? Math.max(...z) : nz ? +nz[2] : 21, format: fmt };
     }
-    const photos = Object.keys(CAPS.wmts).filter((x) => /ORTHO|IRC|LIDAR|MNH|MNS/i.test(x));
+    const photos = Object.keys(CAPS.wmts).filter((x) => /ORTHO|IRC|LIDAR|MNH|MNS/i.test(x) && !/EDUGEO|ORTHO-SAT|\.(19|20)\d\d\b|ZONES-TESTS/i.test(x)).sort((a, b) => (/IRC/.test(b) - /IRC/.test(a)) || a.localeCompare(b));
     if (!Object.keys(CAPS.wmts).length) { const i = caps.indexOf('ORTHOIMAGERY.ORTHOPHOTOS<'); console.log('  WMTS (extrait) : ' + caps.slice(Math.max(0, i - 600), i + 1800).replace(/\s+/g, ' ')); }
     console.log(`  WMTS : ${Object.keys(CAPS.wmts).length} couches en PM ; photos et LiDAR :`);
     for (const x of photos.slice(0, 80)) console.log(`    ${x} (${CAPS.wmts[x].tms}, zoom ${CAPS.wmts[x].min}–${CAPS.wmts[x].max}, ${CAPS.wmts[x].format})`);
