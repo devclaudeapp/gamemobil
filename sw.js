@@ -2,8 +2,8 @@
 // Il ne s'occupe que de l'accueil : les jeux ont chacun leur service worker dans leur dossier (fournil/sw.js, enregistré aussi par l'accueil), et leurs caches ne sont jamais effacés ici.
 // Il remplace l'ancien service worker du Fournil, qui vivait à la racine : ses caches « fournil-v1 » à « fournil-v13 » sont retirés.
 // Changer un fichier de SHELL (une icône de jeu ajoutée, par exemple) : l'ajouter ici et passer CACHE à la version suivante.
-const CACHE = 'accueil-v1';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/accueil.svg', './icons/accueil-180.png', './icons/accueil-192.png', './icons/accueil-512.png', './icons/accueil-maskable-512.png', './icons/icon.svg'];
+const CACHE = 'accueil-v2';
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/accueil.svg', './icons/accueil-180.png', './icons/accueil-192.png', './icons/accueil-512.png', './icons/accueil-maskable-512.png', './icons/icon.svg', './icons/poncin.svg'];
 const base = new URL('./', self.location).pathname; // le chemin de l'accueil (/gamemobil/ sur GitHub Pages)
 const enCache = (req, res) => { if (res.ok || res.type === 'opaque') { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); } return res; };
 // à l'installation, contourner le cache HTTP (GitHub Pages le garde 10 min) pour ne pas figer une vieille copie

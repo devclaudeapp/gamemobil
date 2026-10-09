@@ -51,3 +51,55 @@ fs.writeFileSync(path.join(__dirname, 'fournil', 'index.html'), full);
 fs.mkdirSync(path.join(__dirname, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(__dirname, 'dist', 'artifact.html'), artifact);
 console.log(`fournil/index.html ${(full.length / 1024).toFixed(0)} Ko · dist/artifact.html ${(artifact.length / 1024).toFixed(0)} Ko · ${js.split('\n').length} lignes de JS`);
+
+// ─── Opération Poncin (poncin/index.html) : FPS sur la carte de Poncin ; sources dans src-poncin/, `src/modeles.js` partagé avec Le Fournil ───
+// Three.js et supabase-js sont des fichiers à part (vendor/), mis en cache par le service worker du jeu ; poncin/config.js (adresse et clé publique Supabase) s'édite à la main.
+const PONCIN = ['../src/modeles.js', '../src/persos.js', 'regles.js', 'carte-provisoire.js', 'monde.js', 'nav.js', 'bots.js', 'jeu.js', 'arene.js', 'avatars.js', 'rendu.js', 'sons.js', 'controles.js', 'hud.js', 'ui.js'];
+if (fs.existsSync(path.join(__dirname, 'src-poncin', 'ui.js'))) {
+  const lireP = (f) => fs.readFileSync(path.join(__dirname, 'src-poncin', f), 'utf8');
+  const jsP = PONCIN.map((f) => `/* ── ${path.basename(f)} ── */\n${lireP(f)}`).join('\n');
+  const pageP = `<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#2B2A4C">
+<meta name="description" content="Opération Poncin : un FPS cartoon sur la vraie carte de Poncin (Ain). Blasters à peinture, robots, à jouer seul ou entre copains.">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Poncin">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="../icons/poncin.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../icons/poncin-180.png">
+<script>
+// la page du jeu vit dans poncin/ : servie ailleurs (une vieille copie en cache), ses chemins relatifs casseraient
+(function () { try { var p = location.pathname; if (/^https?:$/.test(location.protocol) && !/[/]poncin[/](index[.]html)?$/.test(p)) location.replace(p.replace(/[^/]*$/, '') + 'poncin/'); } catch (e) { /* rien */ } })();
+</script>
+<title>Opération Poncin</title>
+${fonts}
+<style>
+${lireP('style.css')}</style>
+</head>
+<body>
+${lireP('page.html')}
+<script>window.PONCIN_ACCUEIL = '../';</script>
+<script src="../vendor/three.min.js"></script>
+<script src="../vendor/supabase.min.js"></script>
+<script src="config.js"></script>
+<script>
+${jsP}
+</script>
+<script>
+if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+  let top = false; try { top = window.self === window.top; } catch (e) { top = false; }
+  if (top) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+</script>
+</body>
+</html>
+`;
+  fs.mkdirSync(path.join(__dirname, 'poncin'), { recursive: true });
+  fs.writeFileSync(path.join(__dirname, 'poncin', 'index.html'), pageP);
+  console.log(`poncin/index.html ${(pageP.length / 1024).toFixed(0)} Ko · ${jsP.split('\n').length} lignes de JS`);
+}

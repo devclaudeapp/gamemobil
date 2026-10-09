@@ -25,8 +25,8 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_CERT|googleapis|gstatic|404/.test(m.text() + (m.location() && m.location().url))) errors.push(m.text() + ' @ ' + (m.location() && m.location().url)); });
   // l'écran d'accueil du dépôt : la liste des jeux ; Le Fournil s'ouvre depuis sa carte
   await page.goto('http://localhost:8781/'); await sleep(600);
-  const accueil = await page.evaluate(() => ({ titre: document.title, jeux: document.querySelectorAll('a.jeu').length, bientot: document.querySelectorAll('.jeu.bientot').length, carte: (document.querySelector('[data-jeu="fournil"]') || {}).innerText || '', large: document.documentElement.scrollWidth <= innerWidth + 1 }));
-  check(accueil.titre === 'Salle de jeux' && accueil.jeux === 1 && accueil.bientot === 1 && /Le Fournil/.test(accueil.carte) && /Nouvelle partie/.test(accueil.carte) && /Jouer/.test(accueil.carte) && accueil.large, 'l’écran d’accueil : Le Fournil (nouvelle partie) et une place pour le prochain jeu');
+  const accueil = await page.evaluate(() => ({ titre: document.title, jeux: document.querySelectorAll('a.jeu').length, bientot: document.querySelectorAll('.jeu.bientot').length, carte: (document.querySelector('[data-jeu="fournil"]') || {}).innerText || '', poncin: (document.querySelector('[data-jeu="poncin"]') || {}).innerText || '', large: document.documentElement.scrollWidth <= innerWidth + 1 }));
+  check(accueil.titre === 'Salle de jeux' && accueil.jeux === 2 && accueil.bientot === 1 && /Le Fournil/.test(accueil.carte) && /Nouvelle partie/.test(accueil.carte) && /Jouer/.test(accueil.carte) && /Opération Poncin/.test(accueil.poncin) && accueil.large, 'l’écran d’accueil : Le Fournil (nouvelle partie), Opération Poncin et une place pour le prochain jeu');
   await page.screenshot({ path: out + '/00-accueil.png' });
   await page.tap('[data-jeu="fournil"]'); await page.waitForURL(/\/fournil\/$/); await sleep(1200);
   check(await page.evaluate(() => !!window.__fournil && document.querySelectorAll('.carte[data-i]').length === 8), 'toucher sa carte ouvre Le Fournil (/fournil/)');

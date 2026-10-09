@@ -1,0 +1,19 @@
+{
+  "name": "Opération Poncin",
+  "short_name": "Poncin",
+  "description": "Un FPS cartoon sur la vraie carte de Poncin (Ain) : blasters à peinture, robots, à jouer seul ou entre copains.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "../",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#2B2A4C",
+  "theme_color": "#2B2A4C",
+  "categories": ["games"],
+  "icons": [
+    { "src": "../icons/poncin.svg", "sizes": "any", "type": "image/svg+xml" },
+    { "src": "../icons/poncin-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "../icons/poncin-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "../icons/poncin-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
