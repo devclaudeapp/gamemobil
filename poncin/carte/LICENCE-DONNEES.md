@@ -1,6 +1,6 @@
 # Données de la carte de Poncin
 
-`poncin.json`, `sol-2048.jpg` et `sol-1024.jpg` ont été produits le 2026-10-09 par `outils/carte/construire.js` (carré de 800 m centré sur 46.086077, 5.406078) à partir de données ouvertes. Aucune donnée Google n'est utilisée.
+`poncin.json`, `sol-2048.jpg` et `sol-1024.jpg` ont été produits le 2026-10-09 par `outils/carte/construire.js` (carré de 600 m centré sur 46.0875, 5.4069) à partir de données ouvertes. Aucune donnée Google n'est utilisée.
 
 ## Sources
 
