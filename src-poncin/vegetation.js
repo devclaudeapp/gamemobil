@@ -41,14 +41,17 @@ const PVEGETATION = (() => {
   const ESPECES = ['feuillu', 'platane', 'tilleul', 'peuplier', 'saule', 'fruitier', 'conifere'];
   const SYN = { chene: 0, hetre: 0, charme: 0, erable: 0, frene: 0, feuillus: 0, broadleaved: 0, platanes: 1, tilleuls: 2, peupliers: 3, saules: 4, fruitiers: 5, pommier: 5, poirier: 5, cerisier: 5, noyer: 5, coniferes: 6, resineux: 6, sapin: 6, epicea: 6, pin: 6, needleleaved: 6 };
   function espece(e) { if (typeof e !== 'string') return -1; const s = e.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); const k = ESPECES.indexOf(s); return k >= 0 ? k : SYN[s] != null ? SYN[s] : -1; }
-  const FAM = [0, 0, 0, 1, 2, 0, 3];                              // silhouette du niveau proche : boule, colonne, pleureur, cône
-  const R_H = [0.36, 0.42, 0.31, 0.17, 0.45, 0.55, 0.24];         // rayon de couronne / hauteur, quand r manque
-  const PENCHE = [0.035, 0.03, 0.025, 0.012, 0.05, 0.13, 0.012];  // inclinaison au sommet (fraction de h) : les fruitiers sont tordus
-  const FORME = [[0.32, 0.98, 0, 0], [0.36, 0.98, 0, 0], [0.24, 0.98, 0, 0], [0.11, 1.0, 0, 0], [0.14, 0.9, 0, 1], [0.3, 0.97, 0, 0], [0.07, 1.0, 1, 0]]; // niveau moyen : bas et haut de la couronne (fraction de h), conicité, retombée
-  const QUALITES = {
-    haute: { proche: 60, nProche: 90, moyen: 170, nMoyen: 420, nLoin: 3200, lignes: 150, nLignes: 480, herbe: 26, pas: 1.05, nHerbe: 1500, ombres: true, atlas: 1024 },
-    moyenne: { proche: 45, nProche: 64, moyen: 130, nMoyen: 300, nLoin: 2400, lignes: 120, nLignes: 340, herbe: 20, pas: 1.25, nHerbe: 950, ombres: false, atlas: 1024 },
-    eco: { proche: 30, nProche: 36, moyen: 90, nMoyen: 190, nLoin: 1500, lignes: 85, nLignes: 200, herbe: 13, pas: 1.6, nHerbe: 420, ombres: false, atlas: 512 },
+  // l'indice 7 n'est pas une espèce des données : les buissons des haies hautes (une haie de plus de 2,5 m devient une rangée de buissons)
+  const FAM = [0, 0, 0, 1, 2, 0, 3, 0];                                  // silhouette du niveau proche : boule, colonne, pleureur, cône
+  const R_H = [0.36, 0.42, 0.31, 0.15, 0.45, 0.55, 0.24, 0.3];          // rayon de couronne / hauteur, quand r manque
+  const PENCHE = [0.035, 0.03, 0.025, 0.01, 0.05, 0.13, 0.012, 0.03];   // inclinaison au sommet (fraction de h) : les fruitiers sont tordus
+  const FORME = [[0.26, 0.98, 0, 0], [0.32, 0.98, 0, 0], [0.22, 0.98, 0, 0], [0.09, 1.0, 0, 0.6], [0.14, 0.9, 0, 1], [0.3, 0.97, 0, 0], [0.06, 1.0, 1, 0], [0.04, 1.0, 0, 0.7]]; // niveau moyen : bas et haut de la couronne (fraction de h), conicité, retombée
+  const GRAPPE_M = [[1, 1], [1.08, 1], [1.05, 1], [1.4, 1.8], [1.05, 1.2], [1, 1], [1.35, 1.25], [1.05, 1.1]]; // niveau moyen : taille des grappes (× r), étirement vertical
+  const RTRONC = (h) => borne(0.12 + 0.025 * h, 0.2, 0.6);               // rayon du tronc (m), le même que les collisions de monde.js
+  const QUALITES = { // simple : silhouettes proches allégées ; nHerbe 0 : pas d'herbe
+    haute: { proche: 60, nProche: 72, moyen: 170, nMoyen: 380, nLoin: 3600, lignes: 150, nLignes: 420, herbe: 22, pas: 0.78, nHerbe: 2600, ombres: true, simple: false, atlas: 1024 },
+    moyenne: { proche: 45, nProche: 56, moyen: 130, nMoyen: 300, nLoin: 2800, lignes: 120, nLignes: 320, herbe: 17, pas: 0.95, nHerbe: 1400, ombres: false, simple: false, atlas: 1024 },
+    eco: { proche: 32, nProche: 40, moyen: 95, nMoyen: 200, nLoin: 1800, lignes: 85, nLignes: 200, herbe: 0, pas: 1, nHerbe: 0, ombres: false, simple: true, atlas: 512 },
   };
 
   // ═══════════════════════════════ les géométries (en unités normalisées : hauteur 1, rayon de couronne R0) ═══════════════════════════════
@@ -66,7 +69,9 @@ const PVEGETATION = (() => {
     const k = []; for (const [cu, cv] of [[-0.5, -1], [0.5, -1], [0.5, 0], [-0.5, 0]]) k.push(this.v(x, y, z, n[0], n[1], n[2], miroir ? 0.5 - cu : cu + 0.5, cv + 1, cu * ax, cv, s, 2, occ));
     this.quad(k[0], k[1], k[2], k[3]);
   };
-  Geo.prototype.tige = function (pts, rays, n, v0, v1, occs) { // un tube le long d'une ligne brisée (tronc, branche), écorce enroulée
+  Geo.prototype.tige = function (pts, rays, n, v0, v1, occs) { // un tube le long d'une ligne brisée (tronc, branche), écorce enroulée ; les sommets restent
+    // SUR l'axe, la normale dit vers où les pousser et aFeu.z de combien (en rayons de tronc RTRONC(h)) : le shader fait des troncs ronds de la
+    // bonne épaisseur quelle que soit l'échelle de l'arbre (rayon de couronne en x, z ; hauteur en y)
     let L = 0; const cum = [0]; for (let k = 1; k < pts.length; k++) { L += Math.hypot(pts[k][0] - pts[k - 1][0], pts[k][1] - pts[k - 1][1], pts[k][2] - pts[k - 1][2]); cum.push(L); }
     let prec = -1;
     for (let k = 0; k < pts.length; k++) {
@@ -74,7 +79,7 @@ const PVEGETATION = (() => {
       let rx = 0, ry = 0, rz = 1; if (Math.abs(tz) > 0.9) { rx = 1; rz = 0; }
       let e1x = ty * rz - tz * ry, e1y = tz * rx - tx * rz, e1z = tx * ry - ty * rx; const el = Math.hypot(e1x, e1y, e1z) || 1; e1x /= el; e1y /= el; e1z /= el;
       const e2x = ty * e1z - tz * e1y, e2y = tz * e1x - tx * e1z, e2z = tx * e1y - ty * e1x, r = rays[k], v = v0 + (v1 - v0) * (L > 0 ? cum[k] / L : 0), base = this.nv;
-      for (let s = 0; s <= n; s++) { const an = s / n * TAU, c = Math.cos(an), si = Math.sin(an), nx = e1x * c + e2x * si, ny = e1y * c + e2y * si, nz = e1z * c + e2z * si; this.v(pts[k][0] + nx * r, pts[k][1] + ny * r, pts[k][2] + nz * r, nx, ny, nz, s / n, v, 0, 0, 0, 0, occs[k]); }
+      for (let s = 0; s <= n; s++) { const an = s / n * TAU, c = Math.cos(an), si = Math.sin(an), nx = e1x * c + e2x * si, ny = e1y * c + e2y * si, nz = e1z * c + e2z * si; this.v(pts[k][0], pts[k][1], pts[k][2], nx, ny, nz, s / n, v, 0, 0, r, 0, occs[k]); }
       if (prec >= 0) for (let s = 0; s < n; s++) this.quad(prec + s, prec + s + 1, base + s + 1, base + s);
       prec = base;
     }
@@ -87,64 +92,70 @@ const PVEGETATION = (() => {
   };
   const unite = (x, y, z) => { const l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; };
   function surSphere(rnd) { const y = rnd() * 2 - 1, a = rnd() * TAU, r = Math.sqrt(1 - y * y); return [Math.cos(a) * r, y, Math.sin(a) * r]; }
-  // chaque silhouette rend { geo, grappes: [{ x, y, z, s, ax, ay, rot, occ, mode }], tiges: [{ pts, rays }], R0 } ; R0 = rayon de couronne nominal
-  function silhouette(fam, rnd) {
-    const G = new Geo(), gr = [], ti = [];
-    const grappe = (x, y, z, n, s, rot, ax, ay, occ) => { G.grappe(x, y, z, n, s, rot, ax, ay, occ, rnd() < 0.5); gr.push({ x, y, z, s, ax, ay, rot, occ, mode: 1 }); };
+  // chaque silhouette rend { geo, grappes: [{ x, y, z, s, ax, ay, rot, occ, mode }], tiges: [{ pts, rays }], R0, tris } ; R0 = rayon de couronne
+  // nominal ; simple : la version allégée de l'éco (moins de grappes, plus grandes ; bois à moins de faces)
+  function silhouette(fam, rnd, simple) {
+    const G = new Geo(), gr = [], ti = [], kS = simple ? 1.16 : 1, nT = simple ? 5 : 7, nB = simple ? 3 : 4;
+    const grappe = (x, y, z, n, s, rot, ax, ay, occ) => { G.grappe(x, y, z, n, s * kS, rot, ax, ay, occ, rnd() < 0.5); gr.push({ x, y, z, s: s * kS, ax, ay, rot, occ, mode: 1 }); };
     const tige = (pts, rays, n, v1, occs) => { G.tige(pts, rays, n, 0, v1, occs); ti.push({ pts, rays }); };
     let R0;
     if (fam === 0) { // la boule irrégulière : des lobes sur un ellipsoïde, des grappes sur les lobes, un tronc et quatre charpentières
-      R0 = 0.36; const cy = 0.63, ry = 0.34, lobes = [];
-      for (let k = 0; k < 6; k++) { const a = (k + rnd() * 0.6) / 6 * TAU, el = -0.3 + rnd() * 0.75; lobes.push([Math.cos(a) * Math.cos(el) * 0.55, Math.sin(el) * 0.6, Math.sin(a) * Math.cos(el) * 0.55, 0.48 + rnd() * 0.14]); }
+      R0 = 0.36; const cy = 0.61, ry = 0.36, lobes = [], nL = simple ? 5 : 6, nG = simple ? 4 : 6;
+      for (let k = 0; k < nL; k++) { const a = (k + rnd() * 0.6) / nL * TAU, el = -0.3 + rnd() * 0.75; lobes.push([Math.cos(a) * Math.cos(el) * 0.55, Math.sin(el) * 0.6, Math.sin(a) * Math.cos(el) * 0.55, 0.48 + rnd() * 0.14]); }
       lobes.push([0.05, 0.6, -0.04, 0.5]);
       for (const lo of lobes) {
         const ld = unite(lo[0], lo[1], lo[2]);
-        for (let m = 0; m < 6; m++) {
+        for (let m = 0; m < nG; m++) {
           let d = surSphere(rnd); if (d[0] * ld[0] + d[1] * ld[1] + d[2] * ld[2] < -0.2) d = [-d[0], -d[1], -d[2]];
           const k = lo[3] * (0.62 + rnd() * 0.38); let px = lo[0] + d[0] * k, py = lo[1] + d[1] * k, pz = lo[2] + d[2] * k; const l = Math.hypot(px, py, pz); if (l > 1.08) { px *= 1.08 / l; py *= 1.08 / l; pz *= 1.08 / l; }
           const n = unite(px + (rnd() - 0.5) * 0.4, py + 0.15 + (rnd() - 0.5) * 0.4, pz + (rnd() - 0.5) * 0.4), occ = (0.52 + 0.48 * lisse(0.25, 1.0, Math.hypot(px, py, pz))) * (0.9 + 0.1 * (py + 1) / 2);
           grappe(px * R0, cy + py * ry, pz * R0, n, R0 * (0.56 + rnd() * 0.2), rnd() * TAU, 1, 1, occ);
         }
       }
-      for (let m = 0; m < 6; m++) { const d = surSphere(rnd); grappe(d[0] * R0 * 0.35, cy + d[1] * ry * 0.35, d[2] * R0 * 0.35, unite(d[0], d[1] + 0.3, d[2]), R0 * 0.7, rnd() * TAU, 1, 1, 0.45); }
-      tige([[0, 0, 0], [0.004, 0.06, 0.002], [0.012, 0.25, -0.006], [0.004, 0.44, 0.004], [0, 0.6, 0]], [0.04, 0.026, 0.022, 0.017, 0.01], 7, 1, [0.55, 0.82, 0.8, 0.62, 0.5]);
-      const bas = lobes.slice(0, 6).sort((a, b) => a[1] - b[1]).slice(0, 4);
-      bas.forEach((lo, k) => { const y0 = 0.3 + k * 0.04, ex = lo[0] * R0 * 0.85, ey = cy + lo[1] * ry * 0.8, ez = lo[2] * R0 * 0.85; tige([[0, y0, 0], [ex * 0.45, y0 + (ey - y0) * 0.6, ez * 0.45], [ex, ey, ez]], [0.012, 0.008, 0.004], 5, 0.4, [0.7, 0.62, 0.55]); });
-    } else if (fam === 1) { // la colonne (peuplier d'Italie) : une couronne étroite et haute, des branches dressées le long du tronc
-      R0 = 0.16; const cy = 0.565, ry = 0.455;
-      for (let m = 0; m < 52; m++) {
-        const t = -0.96 + (m + rnd() * 0.8) / 52 * 1.92, a = rnd() * TAU, pr = Math.sqrt(Math.max(0, 1 - t * t)) * (0.62 + rnd() * 0.42), px = Math.cos(a) * pr, pz = Math.sin(a) * pr;
-        grappe(px * R0, cy + t * ry, pz * R0, unite(px, t * 0.5 + 0.1, pz), R0 * (0.8 + rnd() * 0.3) * (0.7 + 0.3 * Math.sqrt(Math.max(0, 1 - t * t))), (rnd() - 0.5) * 0.5, 0.8, 1.25, 0.5 + 0.5 * lisse(0.2, 0.9, pr));
+      for (let m = 0; m < (simple ? 3 : 6); m++) { const d = surSphere(rnd); grappe(d[0] * R0 * 0.35, cy + d[1] * ry * 0.35, d[2] * R0 * 0.35, unite(d[0], d[1] + 0.3, d[2]), R0 * 0.7, rnd() * TAU, 1, 1, 0.45); }
+      tige([[0, 0, 0], [0.004, 0.05, 0.002], [0.012, 0.25, -0.006], [0.004, 0.44, 0.004], [0, 0.6, 0]], [1.3, 1.0, 0.86, 0.66, 0.36], nT, 1, [0.55, 0.82, 0.8, 0.62, 0.5]);
+      const bas = lobes.slice(0, nL).sort((a, b) => a[1] - b[1]).slice(0, nB);
+      bas.forEach((lo, k) => { const y0 = 0.3 + k * 0.04, ex = lo[0] * R0 * 0.85, ey = cy + lo[1] * ry * 0.8, ez = lo[2] * R0 * 0.85; tige([[0, y0, 0], [ex * 0.45, y0 + (ey - y0) * 0.6, ez * 0.45], [ex, ey, ez]], [0.5, 0.32, 0.14], simple ? 3 : 4, 0.4, [0.7, 0.62, 0.55]); });
+    } else if (fam === 1) { // la colonne (peuplier d'Italie) : un fuseau étroit et serré du pied de la couronne à la flèche, des branches dressées
+      R0 = 0.16; const y0 = 0.09, y1 = 0.99, nG = simple ? 40 : 66;
+      const prof = (u) => Math.pow(Math.sin(Math.PI * Math.pow(borne(u, 0, 1), 0.78)), 0.62); // le fuseau : large au premier tiers, pointu en haut
+      for (let m = 0; m < nG; m++) {
+        const u = (m + rnd() * 0.85) / nG, y = y0 + u * (y1 - y0), a = rnd() * TAU, w = prof(u), pr = w * (0.5 + rnd() * 0.42), px = Math.cos(a) * pr, pz = Math.sin(a) * pr;
+        grappe(px * R0, y, pz * R0, unite(px, (u - 0.45) * 0.9 + 0.1, pz), R0 * (1.05 + rnd() * 0.35) * (0.55 + 0.45 * w), (rnd() - 0.5) * 0.4, 0.82, 1.45, 0.5 + 0.5 * lisse(0.15, 0.85, pr / Math.max(0.2, w)));
       }
-      for (let m = 0; m < 6; m++) grappe((rnd() - 0.5) * R0 * 0.3, cy + (m / 5 - 0.5) * ry * 1.4, (rnd() - 0.5) * R0 * 0.3, unite(0, 0.3, 1), R0 * 0.9, 0, 0.8, 1.3, 0.45);
-      tige([[0, 0, 0], [0, 0.04, 0], [0.003, 0.35, 0], [0, 0.7, 0.002], [0, 0.95, 0]], [0.026, 0.017, 0.013, 0.008, 0.003], 6, 1, [0.55, 0.8, 0.7, 0.6, 0.6]);
-      for (let k = 0; k < 4; k++) { const a = k / 4 * TAU + rnd(), y0 = 0.1 + k * 0.05; tige([[0, y0, 0], [Math.cos(a) * R0 * 0.35, y0 + 0.2, Math.sin(a) * R0 * 0.35], [Math.cos(a) * R0 * 0.45, y0 + 0.45, Math.sin(a) * R0 * 0.45]], [0.007, 0.005, 0.002], 4, 0.5, [0.65, 0.6, 0.55]); }
+      for (let m = 0; m < (simple ? 5 : 8); m++) { const u = (m + 0.5) / (simple ? 5 : 8) * 0.9; grappe((rnd() - 0.5) * R0 * 0.25, y0 + u * (y1 - y0), (rnd() - 0.5) * R0 * 0.25, unite(0, 0.3, 1), R0 * 1.15 * (0.6 + 0.4 * prof(u)), 0, 0.8, 1.45, 0.42); }
+      tige([[0, 0, 0], [0, 0.04, 0], [0.003, 0.35, 0], [0, 0.7, 0.002], [0, 0.95, 0]], [1.25, 1.0, 0.72, 0.42, 0.12], nT - 1, 1, [0.55, 0.8, 0.7, 0.6, 0.6]);
+      for (let k = 0; k < nB; k++) { const a = k / nB * TAU + rnd(), yb = 0.1 + k * 0.05; tige([[0, yb, 0], [Math.cos(a) * R0 * 0.35, yb + 0.2, Math.sin(a) * R0 * 0.35], [Math.cos(a) * R0 * 0.45, yb + 0.45, Math.sin(a) * R0 * 0.45]], [0.32, 0.2, 0.08], 3, 0.5, [0.65, 0.6, 0.55]); }
     } else if (fam === 2) { // le pleureur (saule) : un tronc court, des charpentières en arceaux, un dôme et des rideaux qui retombent
-      R0 = 0.44; const cy = 0.6, ry = 0.3;
-      for (let m = 0; m < 26; m++) { let d = surSphere(rnd); if (d[1] < -0.25) d = [d[0], -d[1] * 0.6, d[2]]; const k = 0.7 + rnd() * 0.3; grappe(d[0] * k * R0 * 0.85, cy + d[1] * k * ry, d[2] * k * R0 * 0.85, unite(d[0], d[1] + 0.2, d[2]), R0 * (0.5 + rnd() * 0.15), rnd() * TAU, 1, 1, 0.55 + 0.45 * k); }
-      for (let m = 0; m < 34; m++) {
-        const a = (m + rnd() * 0.7) / 34 * TAU, pr = 0.7 + rnd() * 0.34, yu = -0.25 + rnd() * 0.75, x = Math.cos(a) * pr * R0 * 0.88, z = Math.sin(a) * pr * R0 * 0.88, y = cy + yu * ry, n = unite(Math.cos(a), 0.1, Math.sin(a)), s = 0.42 + rnd() * 0.16;
-        G.rideau(x, y, z, n, s, 0.3, 0.6 + 0.4 * pr, rnd() < 0.5); gr.push({ x, y, z, s, ax: 0.3, ay: 1, rot: 0, occ: 0.6 + 0.4 * pr, mode: 2 });
+      R0 = 0.44; const cy = 0.6, ry = 0.3, nD = simple ? 16 : 26, nR = simple ? 22 : 34;
+      for (let m = 0; m < nD; m++) { let d = surSphere(rnd); if (d[1] < -0.25) d = [d[0], -d[1] * 0.6, d[2]]; const k = 0.7 + rnd() * 0.3; grappe(d[0] * k * R0 * 0.85, cy + d[1] * k * ry, d[2] * k * R0 * 0.85, unite(d[0], d[1] + 0.2, d[2]), R0 * (0.5 + rnd() * 0.15), rnd() * TAU, 1, 1, 0.55 + 0.45 * k); }
+      for (let m = 0; m < nR; m++) {
+        const a = (m + rnd() * 0.7) / nR * TAU, pr = 0.7 + rnd() * 0.34, yu = -0.25 + rnd() * 0.75, x = Math.cos(a) * pr * R0 * 0.88, z = Math.sin(a) * pr * R0 * 0.88, y = cy + yu * ry, n = unite(Math.cos(a), 0.1, Math.sin(a)), sl = (0.42 + rnd() * 0.16) * kS, ax = simple ? 0.36 : 0.3;
+        G.rideau(x, y, z, n, sl, ax, 0.6 + 0.4 * pr, rnd() < 0.5); gr.push({ x, y, z, s: sl, ax, ay: 1, rot: 0, occ: 0.6 + 0.4 * pr, mode: 2 });
       }
-      tige([[0, 0, 0], [0.01, 0.05, 0], [0.02, 0.18, 0.01], [0.015, 0.3, 0.01]], [0.05, 0.034, 0.03, 0.026], 7, 0.6, [0.55, 0.78, 0.75, 0.65]);
-      for (let k = 0; k < 4; k++) { const a = k / 4 * TAU + 0.4 + rnd() * 0.5, ex = Math.cos(a) * R0 * 0.5, ez = Math.sin(a) * R0 * 0.5; tige([[0.015, 0.29, 0.01], [ex * 0.5, 0.5, ez * 0.5], [ex, 0.66, ez]], [0.018, 0.012, 0.006], 5, 0.5, [0.65, 0.6, 0.5]); }
-    } else { // le cône (épicéa, sapin) : des étages de grappes aplaties qui retombent, plus petites vers la flèche
-      R0 = 0.24; const nT = 8;
-      for (let k = 0; k < nT; k++) {
-        const t = k / (nT - 1), y = 0.1 + t * 0.8, rT = R0 * Math.pow(1.03 - t, 0.95) * (0.92 + rnd() * 0.12), m = Math.max(3, Math.round(9 * (1 - t) + 2));
-        for (let j = 0; j < m; j++) { const a = (j + rnd() * 0.35) / m * TAU + k * 0.7, pr = rT * (0.58 + rnd() * 0.2); grappe(Math.cos(a) * pr, y - rT * 0.22, Math.sin(a) * pr, unite(Math.cos(a), 0.45, Math.sin(a)), rT * (1.0 + rnd() * 0.18) + 0.02, (rnd() - 0.5) * 0.3, 1.35, 0.8, 0.62 + 0.38 * (1 - t * 0.3)); }
-        grappe(0, y - rT * 0.1, 0, [0, 1, 0], rT * 1.15 + 0.02, 0, 1.3, 0.85, 0.42);
+      tige([[0, 0, 0], [0.01, 0.05, 0], [0.02, 0.18, 0.01], [0.015, 0.3, 0.01]], [1.4, 1.1, 1.0, 0.92], nT, 0.6, [0.55, 0.78, 0.75, 0.65]);
+      for (let k = 0; k < nB; k++) { const a = k / nB * TAU + 0.4 + rnd() * 0.5, ex = Math.cos(a) * R0 * 0.5, ez = Math.sin(a) * R0 * 0.5; tige([[0.015, 0.29, 0.01], [ex * 0.5, 0.5, ez * 0.5], [ex, 0.66, ez]], [0.62, 0.42, 0.2], simple ? 3 : 4, 0.5, [0.65, 0.6, 0.5]); }
+    } else { // le cône (épicéa, sapin) : des cloches de rameaux empilées et décalées, de plus en plus petites vers la flèche, qui se recouvrent
+      R0 = 0.24; const nE = simple ? 7 : 11, y0 = 0.08, y1 = 0.97;
+      for (let k = 0; k < nE; k++) {
+        const t = k / (nE - 1), rT = R0 * Math.pow(1.03 - t * 0.97, 0.95) * (0.94 + rnd() * 0.1), y = y0 + t * (y1 - y0) * 0.9, m = Math.max(2, Math.round((simple ? 4 : 6) * (1 - t) + 1.5));
+        for (let j = 0; j < m; j++) { const a = (j + rnd() * 0.5) / m * TAU + k * 1.1, pr = rT * (0.18 + rnd() * 0.22); grappe(Math.cos(a) * pr, y + (rnd() - 0.3) * 0.035, Math.sin(a) * pr, unite(Math.cos(a), 0.55, Math.sin(a)), rT * (1.55 + rnd() * 0.2) + 0.02, (rnd() - 0.5) * 0.12, 1.2, 1.1, 0.62 + 0.38 * (1 - t * 0.4)); }
       }
-      grappe(0, 0.965, 0, [0, 1, 0], 0.075, 0, 0.6, 1.3, 1);
-      tige([[0, 0, 0], [0, 0.04, 0], [0, 0.5, 0], [0, 0.97, 0]], [0.034, 0.022, 0.013, 0.003], 6, 1, [0.5, 0.7, 0.5, 0.5]);
+      grappe(0, y1 - 0.02, 0, [0, 1, 0], 0.09, 0, 0.6, 1.4, 1);
+      tige([[0, 0, 0], [0, 0.04, 0], [0, 0.5, 0], [0, 0.97, 0]], [1.25, 1.0, 0.55, 0.1], nT - 1, 1, [0.5, 0.7, 0.5, 0.5]);
     }
-    return { geo: G.geometrie(), grappes: gr, tiges: ti, R0, tris: G.i.length / 3 };
+    // l'échelle : R0 tel que le bout des grappes tombe à ~1,12 r du tronc (r : rayon de la couronne mesuré, disque de même aire), kH la
+    // hauteur du sommet des grappes (pour un arbre de proportions types) : l'arbre rendu a la hauteur et la largeur mesurées au LiDAR
+    const RH = [0.36, 0.15, 0.45, 0.24][fam]; let ext = 0, kH = 0;
+    for (const g of gr) ext = Math.max(ext, Math.hypot(g.x, g.z) + g.s * g.ax * (g.mode === 2 ? 0.5 : 0.42));
+    const R0e = ext / 1.12; for (const g of gr) kH = Math.max(kH, g.mode === 2 ? g.y : g.y + g.s * g.ay * (RH / R0e) * 0.45);
+    return { geo: G.geometrie(), grappes: gr, tiges: ti, R0: R0e, kH, tris: G.i.length / 3 };
   }
   function geoMoyen() { // générique : des grappes dans un cylindre (x, z en unités de r ; y = fraction de la couronne), déformées par espèce dans le shader
     const G = new Geo(), rnd = mulberry32(5);
-    for (const [t, m, pr] of [[0.06, 3, 0.55], [0.27, 5, 0.86], [0.5, 5, 0.92], [0.72, 4, 0.82], [0.9, 3, 0.55], [1.0, 1, 0]]) for (let j = 0; j < m; j++) { const a = j / m * TAU + t * 2.3, x = Math.cos(a) * pr, z = Math.sin(a) * pr; G.grappe(x, t, z, unite(x, (2 * t - 1) * 0.9 + 0.15, z), 0.92, rnd() * TAU, 1, 1, 0.62 + 0.38 * pr, rnd() < 0.5); }
+    for (const [t, m, pr] of [[0.05, 3, 0.55], [0.18, 4, 0.8], [0.32, 4, 0.9], [0.46, 4, 0.92], [0.6, 4, 0.9], [0.74, 3, 0.8], [0.87, 3, 0.6], [0.98, 1, 0]]) for (let j = 0; j < m; j++) { const a = j / m * TAU + t * 7.1, x = Math.cos(a) * pr, z = Math.sin(a) * pr; G.grappe(x, t, z, unite(x, (2 * t - 1) * 0.9 + 0.15, z), 0.9, rnd() * TAU, 1, 1, 0.62 + 0.38 * pr, rnd() < 0.5); }
     G.grappe(0, 0.38, 0, [0, 0.2, 1], 1.0, 0, 1, 1, 0.5); G.grappe(0, 0.66, 0, [0, 0.5, 1], 1.0, 1.3, 1, 1, 0.55);
-    G.tige([[0, 0, 0], [0, 1, 0]], [0.08, 0.05], 4, 0, 1, [0.55, 0.7]);
+    G.tige([[0, 0, 0], [0, 1, 0]], [1.15, 0.6], 4, 0, 1, [0.55, 0.7]);
     return { geo: G.geometrie(), tris: G.i.length / 3 };
   }
   function geoLoin() { // un panneau vertical, de x = -0,5 à 0,5 et de y = 0 à 1 (tourné vers la caméra dans le shader)
@@ -177,7 +188,7 @@ const PVEGETATION = (() => {
   const CEL = { // en pixels de l'atlas de 1024 : [x, y, l, h] (y vers le bas, comme le canvas)
     feuilles: [[0, 0, 256, 256], [256, 0, 256, 256], [512, 0, 256, 256], [768, 0, 256, 256], [0, 256, 256, 256], [256, 256, 256, 256], [512, 256, 256, 256]],
     haie: [768, 256, 256, 128], vigne: [768, 384, 256, 128], rideau: [768, 768, 128, 256],
-    imp: [0, 1, 2, 3, 4, 5, 6].map((k) => [k * 128, 512, 128, 256]), ecorce: [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [k * 64, 768, 64, 256]), // 7 = piquet
+    imp: [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [k * 128, 512, 128, 256]), ecorce: [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [k * 64, 768, 64, 256]), // 7 = piquet
     herbe: [[512, 768, 128, 128], [640, 768, 128, 128], [512, 896, 128, 128], [640, 896, 128, 128], [896, 768, 128, 128], [896, 896, 128, 128]], // herbe, épis, fleurs, trèfle, fougère, sèche
   };
   const FEUILLES = [ // par espèce : forme, longueur et largeur relative des feuilles (px pour une cellule de 256), nombre, palette, rameaux, fruits
@@ -187,7 +198,7 @@ const PVEGETATION = (() => {
     { forme: 'losange', l: 11, lw: 0.5, n: 720, pal: [[78, 116, 44], [92, 128, 50], [68, 104, 40], [136, 156, 104], [104, 136, 60]], rameau: [110, 104, 92] },
     { forme: 'lance', l: 16, lw: 0.17, n: 640, pal: [[120, 142, 72], [134, 154, 84], [106, 130, 64], [156, 170, 112], [128, 150, 70]], rameau: [120, 104, 74], pend: true },
     { forme: 'ovale', l: 14, lw: 0.48, n: 480, pal: [[72, 112, 40], [86, 124, 48], [64, 100, 38], [98, 134, 56]], rameau: [90, 72, 58], fruits: [[196, 52, 38], [214, 160, 58], [176, 44, 36], [150, 168, 50]] },
-    { aiguilles: true, n: 9, pal: [[32, 64, 44], [40, 76, 52], [28, 56, 40], [48, 84, 58]], pointes: [[80, 118, 72], [96, 130, 80]], rameau: [92, 66, 46] },
+    { aiguilles: true, pal: [[42, 78, 46], [52, 90, 52], [36, 68, 40], [62, 100, 56]], pointes: [[100, 138, 70], [118, 152, 80]], rameau: [96, 70, 48] },
   ];
   const HAIE = { forme: 'ovale', l: 9, lw: 0.48, pal: [[58, 92, 36], [70, 106, 40], [50, 82, 32], [84, 118, 48], [64, 100, 46]], fond: [34, 52, 24] };
   const VIGNE = { forme: 'palme', l: 18, lw: 0.5, pal: [[90, 124, 46], [104, 136, 52], [80, 112, 42], [120, 146, 62], [96, 128, 60]], grains: [[62, 38, 70], [78, 50, 88], [50, 30, 58]], fond: [44, 62, 28] };
@@ -226,22 +237,34 @@ const PVEGETATION = (() => {
     if (P.fruits) for (let i = 0; i < 16; i++) { const a = rnd() * TAU, rr = Math.sqrt(rnd()) * 0.85, px = cx + Math.cos(a) * rr * bord(a), py = cy + Math.sin(a) * rr * bord(a), col = P.fruits[(i / 4) | 0] || P.fruits[0], r = (3.2 + rnd() * 1.6) * k; c.fillStyle = rgb(col, 0.7); c.beginPath(); c.arc(px, py, r, 0, TAU); c.fill(); c.fillStyle = rgb(col, 1.05); c.beginPath(); c.arc(px - r * 0.2, py - r * 0.2, r * 0.75, 0, TAU); c.fill(); c.fillStyle = 'rgba(255,250,230,.55)'; c.beginPath(); c.arc(px - r * 0.35, py - r * 0.4, r * 0.25, 0, TAU); c.fill(); }
     c.restore();
   }
-  function grappeAiguilles(c, r0, P, rnd, k) { // une touffe de rameaux d'épicéa : aiguilles par paires, pousses de l'année plus claires au bout
-    const [x0, y0, W, H] = rect(r0, k), cx = x0 + W / 2, cy = y0 + H / 2, R = W * 0.44;
+  function grappeAiguilles(c, r0, P, rnd, k) { // un étage d'épicéa vu de côté, en cloche : des rameaux partent du haut, descendent en s'écartant
+    // et retombent, couverts d'aiguilles serrées (le cœur sombre, les pousses de l'année claires au bout) ; empilés et décalés, ces étages
+    // font la silhouette du sapin, dentelée et sans trou
+    const [x0, y0, W, H] = rect(r0, k), cx = x0 + W / 2, yS = y0 + H * 0.1, yB = y0 + H * 0.86;
     c.save(); c.beginPath(); c.rect(x0, y0, W, H); c.clip(); c.lineCap = 'round';
-    for (const [lum, nb] of [[0.6, P.n], [0.82, P.n], [1.0, P.n - 2]]) for (let b = 0; b < nb; b++) {
-      const a = (b + rnd() * 0.8) / nb * TAU, l = R * (0.62 + rnd() * 0.36), courbe = 0.25 + rnd() * 0.2, pts = [];
-      for (let s = 0; s <= 24; s++) { const t = s / 24; pts.push([cx + Math.cos(a) * l * t, cy + Math.sin(a) * l * t * 0.92 + courbe * l * t * t * 0.5]); }
-      c.strokeStyle = rgb(P.rameau, lum); c.lineWidth = 1.4 * k + 0.4; c.beginPath(); c.moveTo(pts[0][0], pts[0][1]); for (const p of pts) c.lineTo(p[0], p[1]); c.stroke();
+    const bord = (v) => W * 0.47 * Math.pow(v, 0.72); // la demi-largeur de la cloche à la fraction v de sa hauteur
+    // le cœur d'ombre : la cloche pleine, sombre, au bas dentelé
+    c.fillStyle = rgb(P.pal[2], 0.38); c.beginPath(); c.moveTo(cx, yS);
+    for (let i = 1; i <= 16; i++) { const v = i / 16; c.lineTo(cx + bord(v) * 0.86, yS + (yB - yS) * v * 0.92); }
+    for (let i = 0; i <= 24; i++) { const u = 1 - i / 12; c.lineTo(cx + u * bord(1) * 0.86, yB - H * 0.06 + (i % 2 ? H * 0.05 : 0) * (0.5 + rnd())); }
+    for (let i = 16; i >= 1; i--) { const v = i / 16; c.lineTo(cx - bord(v) * 0.86, yS + (yB - yS) * v * 0.92); }
+    c.closePath(); c.fill();
+    const rameau = (sx, sy, ang, L, chute, lum, ep) => { // un rameau : une courbe qui retombe, des aiguilles par paires orientées vers le bout
+      const pts = []; for (let s = 0; s <= 16; s++) { const t = s / 16; pts.push([sx + Math.cos(ang) * L * t, sy + Math.sin(ang) * L * t + chute * L * t * t]); }
+      c.strokeStyle = rgb(P.rameau, lum * 0.8); c.lineWidth = ep * k + 0.3; c.beginPath(); c.moveTo(pts[0][0], pts[0][1]); for (const p of pts) c.lineTo(p[0], p[1]); c.stroke();
       const col = P.pal[(rnd() * P.pal.length) | 0], bout = P.pointes[(rnd() * P.pointes.length) | 0];
-      for (const [t0, t1, cc, kk] of [[0.08, 0.72, col, lum], [0.7, 1.0, bout, lum]]) {
-        c.strokeStyle = rgb(cc, kk * (0.9 + rnd() * 0.2)); c.lineWidth = 1.1 * k + 0.3; c.beginPath();
-        for (let s = Math.round(t0 * 24); s < Math.round(t1 * 24); s++) {
-          const p = pts[s], q = pts[s + 1], dx = q[0] - p[0], dy = q[1] - p[1], dl = Math.hypot(dx, dy) || 1, ux = dx / dl, uy = dy / dl, la = (7 + rnd() * 4) * k * (1 - s / 40);
-          for (const sg of [-1, 1]) { const ex = ux * 0.55 - sg * uy * 0.83, ey = uy * 0.55 + sg * ux * 0.83; c.moveTo(p[0], p[1]); c.lineTo(p[0] + ex * la, p[1] + ey * la); }
-        }
+      for (let s = 1; s < 16; s++) {
+        const p = pts[s], q = pts[s + 1], dx = q[0] - p[0], dy = q[1] - p[1], dl = Math.hypot(dx, dy) || 1, ux = dx / dl, uy = dy / dl, t = s / 16, la = (5.5 + rnd() * 3) * k * (1.1 - t * 0.4), clair = t > 0.72;
+        c.strokeStyle = rgb(clair ? bout : col, lum * (0.85 + rnd() * 0.3)); c.lineWidth = 1.1 * k + 0.35; c.beginPath();
+        for (let r = 0; r < 3; r++) { const o = r / 3, bx = p[0] + dx * o, by = p[1] + dy * o; for (const sg of [-1, 1]) { const a = 0.8 + rnd() * 0.5, ex = ux * Math.cos(a) - sg * uy * Math.sin(a), ey = uy * Math.cos(a) + sg * ux * Math.sin(a); c.moveTo(bx, by); c.lineTo(bx + ex * la, by + ey * la + la * 0.3); } }
         c.stroke();
       }
+    };
+    // trois couches de rameaux, du fond (sombre) au-devant (clair) : partis du haut de la cloche ou de son axe, vers la gauche et la droite
+    for (const [lum, nb, ep] of [[0.55, 14, 1.5], [0.78, 14, 1.3], [1.0, 12, 1.15]]) for (let b = 0; b < nb; b++) {
+      const cote = b % 2 ? 1 : -1, v0 = Math.pow(rnd(), 1.4) * 0.6, sx = cx + cote * bord(v0) * 0.3 * rnd(), sy = yS + (yB - yS) * v0;
+      const ang = Math.PI / 2 - cote * (0.75 + rnd() * 0.55), L = Math.hypot(bord(1) * (0.75 + rnd() * 0.3) - Math.abs(sx - cx), (yB - sy) * 0.8) * (0.55 + rnd() * 0.35);
+      rameau(sx, sy, ang, L, 0.18 + rnd() * 0.25, lum * (0.88 + 0.24 * (1 - v0)), ep);
     }
     c.restore();
   }
@@ -321,19 +344,37 @@ const PVEGETATION = (() => {
     c.restore();
   }
   // l'imposteur d'une espèce : la silhouette proche vue de côté, peinte avec les mêmes grappes (assombries vers l'arrière) et le même bois
-  function imposteur(c, r0, sil, esp, k, sources) {
-    const [x0, y0, W, H] = rect(r0, k), rh = R_H[esp] / sil.R0; let Rm = 0, ym = 0;
+  function mesure(sil, esp) { // [demi-largeur (unités x de la silhouette), hauteur (fraction de h)] de l'imposteur
+    if (esp === 7) return [0.95 * sil.R0, 1.0];
+    const rh = R_H[esp] / sil.R0; let Rm = 0, ym = 0;
     for (const g of sil.grappes) { Rm = Math.max(Rm, Math.abs(g.x) + g.s * g.ax * 0.45, Math.abs(g.z) + g.s * g.ax * 0.45); ym = Math.max(ym, g.mode === 2 ? g.y : g.y + g.s * g.ay * rh * 0.5); }
-    sil.Rm = Rm; sil.ym = ym * 1.02;
-    const X = (x) => x0 + W / 2 + x / Rm * W / 2, Y = (y) => y0 + H - y / sil.ym * H, sx = W / 2 / Rm, sy = H / sil.ym, B = BASE_ECORCE[ECORCES[esp]];
+    return [Rm, ym * 1.02];
+  }
+  function imposteur(c, r0, sil, esp, k, sources) {
+    const [x0, y0, W, H] = rect(r0, k), rh = R_H[esp] / sil.R0, [Rm, ym] = mesure(sil, esp);
+    const X = (x) => x0 + W / 2 + x / Rm * W / 2, Y = (y) => y0 + H - y / ym * H, sx = W / 2 / Rm, sy = H / ym, B = BASE_ECORCE[ECORCES[esp]];
+    const kR = RTRONC(12) * sil.R0 / (R_H[esp] * 12); // un rayon de tronc en unités x de la silhouette (un arbre type de 12 m)
     c.save(); c.beginPath(); c.rect(x0, y0, W, H); c.clip(); c.lineCap = 'round';
-    for (const t of sil.tiges) for (let i = 0; i + 1 < t.pts.length; i++) { const a = t.pts[i], b = t.pts[i + 1]; c.strokeStyle = rgb(B, 0.62); c.lineWidth = Math.max(1, (t.rays[i] + t.rays[i + 1]) * sx); c.beginPath(); c.moveTo(X(a[0]), Y(a[1])); c.lineTo(X(b[0]), Y(b[1])); c.stroke(); }
+    for (const t of sil.tiges) for (let i = 0; i + 1 < t.pts.length; i++) { const a = t.pts[i], b = t.pts[i + 1]; c.strokeStyle = rgb(B, 0.62); c.lineWidth = Math.max(1, (t.rays[i] + t.rays[i + 1]) * kR * sx); c.beginPath(); c.moveTo(X(a[0]), Y(a[1])); c.lineTo(X(b[0]), Y(b[1])); c.stroke(); }
     const ordre = sil.grappes.slice().sort((a, b) => a.z - b.z), src = sources[esp], niv = src.niveaux.length;
+    // le cœur de la couronne, plein et sombre : vue de loin, une couronne n'est pas trouée (les grappes peintes par-dessus la dentellent)
+    c.fillStyle = rgb(FEUILLES[esp].pal[0], 0.5);
+    for (const g of ordre) { if (g.mode === 2) continue; c.beginPath(); c.ellipse(X(g.x), Y(g.y), g.s * g.ax * sx * 0.3, g.s * g.ay * rh * sy * 0.3, 0, 0, TAU); c.fill(); }
     for (const g of ordre) {
-      const prof = (g.z / Rm + 1) / 2, lum = borne((0.5 + 0.5 * prof) * (0.55 + 0.45 * g.occ), 0, 1), cv = src.niveaux[Math.min(niv - 1, Math.round(lum * (niv - 1)))];
+      const prof = (g.z / Rm + 1) / 2, lum = borne((0.6 + 0.4 * prof) * (0.66 + 0.34 * g.occ), 0, 1), cv = src.niveaux[Math.min(niv - 1, Math.round(lum * (niv - 1)))];
       if (g.mode === 2) { const w = g.s * g.ax * sx, h = g.s * rh * sy; c.drawImage(src.rideau ? cv.rideau : cv, X(g.x) - w / 2, Y(g.y), w, h); continue; }
-      const w = g.s * g.ax * sx, h = g.s * g.ay * rh * sy, ca = Math.cos(g.rot), sa = Math.sin(g.rot);
+      const w = g.s * g.ax * sx * 1.1, h = g.s * g.ay * rh * sy * 1.1, ca = Math.cos(g.rot), sa = Math.sin(g.rot);
       c.setTransform(ca, sa, -sa, ca, X(g.x), Y(g.y)); c.drawImage(cv, -w / 2, -h / 2, w, h); c.setTransform(1, 0, 0, 1, 0, 0);
+    }
+    c.restore();
+  }
+  function imposteurBuisson(c, r0, k, src, rnd) { // les buissons des haies hautes : un dôme serré de grappes de feuillu, plus sombre en bas et au fond
+    const [x0, y0, W, H] = rect(r0, k), cx = x0 + W / 2, niv = src.niveaux.length;
+    c.save(); c.beginPath(); c.rect(x0, y0, W, H); c.clip();
+    for (let i = 0; i < 60; i++) {
+      const t = i / 59, v = 0.04 + rnd() * 0.8, larg = Math.sqrt(Math.max(0.08, 1 - Math.pow((v - 0.42) / 0.62, 2))), u = (rnd() * 2 - 1) * larg * 0.62;
+      const lum = borne((0.55 + 0.45 * t) * (0.72 + 0.4 * v), 0, 1), cv = src.niveaux[Math.min(niv - 1, Math.round(lum * (niv - 1)))], w = W * (0.46 + rnd() * 0.16), h = w * 1.2, a = rnd() * TAU;
+      c.setTransform(Math.cos(a), Math.sin(a), -Math.sin(a), Math.cos(a), cx + u * W / 2, y0 + H * (1 - v)); c.drawImage(cv, -w / 2, -h / 2, w, h); c.setTransform(1, 0, 0, 1, 0, 0);
     }
     c.restore();
   }
@@ -348,12 +389,13 @@ const PVEGETATION = (() => {
     // les imposteurs : copies assombries des grappes (pas de filtre canvas : Safari ne le connaît pas)
     const sources = FEUILLES.map((P, e) => {
       const [x, y, w, h] = rect(CEL.feuilles[e], k), niveaux = [];
-      for (const l of [0.42, 0.56, 0.7, 0.85, 1]) { const t = document.createElement('canvas'); t.width = w; t.height = h; const tc = t.getContext('2d'); tc.drawImage(cv, x, y, w, h, 0, 0, w, h); tc.globalCompositeOperation = 'source-atop'; tc.fillStyle = `rgba(0,0,0,${1 - l})`; tc.fillRect(0, 0, w, h);
+      for (const l of [0.5, 0.62, 0.75, 0.88, 1]) { const t = document.createElement('canvas'); t.width = w; t.height = h; const tc = t.getContext('2d'); tc.drawImage(cv, x, y, w, h, 0, 0, w, h); tc.globalCompositeOperation = 'source-atop'; tc.fillStyle = `rgba(0,0,0,${1 - l})`; tc.fillRect(0, 0, w, h);
         if (e === 4) { const [rx, ry, rw, rh2] = rect(CEL.rideau, k), t2 = document.createElement('canvas'); t2.width = rw; t2.height = rh2; const c2 = t2.getContext('2d'); c2.drawImage(cv, rx, ry, rw, rh2, 0, 0, rw, rh2); c2.globalCompositeOperation = 'source-atop'; c2.fillStyle = `rgba(0,0,0,${1 - l})`; c2.fillRect(0, 0, rw, rh2); t.rideau = t2; }
         niveaux.push(t); }
       return { niveaux, rideau: e === 4 };
     });
     for (let e = 0; e < 7; e++) imposteur(c, CEL.imp[e], sils[FAM[e]], e, k, sources);
+    imposteurBuisson(c, CEL.imp[7], k, sources[0], rnd);
     // les octets : couleurs prolongées sous l'alpha (moyenne de la cellule), lignes retournées (v = 0 en bas, comme une CanvasTexture)
     const img = c.getImageData(0, 0, S, S).data, alphas = CEL.feuilles.concat([CEL.haie, CEL.vigne, CEL.rideau], CEL.imp, CEL.herbe);
     let moyHerbe = [0.1, 0.2, 0.05];
@@ -376,29 +418,32 @@ float bal_ = sin(uTemps * 0.83 + ph_) * 0.62 + sin(uTemps * 1.97 + ph_ * 1.3) * 
   const WORLDPOS = `#if defined( USE_ENVMAP ) || defined( DISTANCE ) || defined ( USE_SHADOWMAP ) || defined ( USE_TRANSMISSION ) || NUM_SPOT_LIGHT_COORDS > 0
 vec4 worldPosition = vegM;
 #endif`;
-  // les arbres proches et moyens : écorce et grappes (tournées vers la caméra, ou pendantes) ; moyen : la couronne générique déformée
+  // les arbres proches et moyens : écorce et grappes (tournées vers la caméra, ou pendantes) ; moyen : la couronne générique déformée.
+  // Bois : les sommets sont sur l'axe, poussés le long de la normale de aFeu.z rayons de tronc (RTRONC de la hauteur), divisés par
+  // l'échelle de l'instance (rayon de couronne en x, z ; hauteur en y) : des troncs ronds et de la bonne épaisseur à toute échelle.
   function vertexArbre(vs, moyen, ombre) {
-    const ent = `uniform float uTemps; uniform vec2 uVent; uniform vec4 uCelF[8]; uniform vec4 uCelB[8]; uniform vec4 uCelS[8]; uniform vec4 uForme[8];
+    const ent = `uniform float uTemps; uniform vec2 uVent; uniform vec4 uCelF[8]; uniform vec4 uCelB[8]; uniform vec4 uCelS[8]; uniform vec4 uForme[8]; uniform vec2 uGrM[8]; uniform float uKH[8];
 attribute vec4 iDon; attribute vec4 aFeu; attribute float aOcc;${ombre ? '' : '\nvarying float vEnv;'}\n`;
     vs = ent + vs.replace('#include <uv_vertex>', `#ifdef USE_MAP
 int e_ = int(iDon.x + 0.5); vec4 ce_ = aFeu.w < 0.5 ? uCelB[e_] : (aFeu.w < 1.5 ? uCelF[e_] : uCelS[e_]);
 vMapUv = ce_.xy + uv * ce_.zw;
 #endif`).replace('#include <begin_vertex>', `#include <begin_vertex>
-float tK_ = 1.0;
-${moyen ? `{ vec4 fo_ = uForme[int(iDon.x + 0.5)];
+vec3 sc_ = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
+float tK_ = 1.0; vec2 gm_ = vec2(1.0);
+${moyen ? `{ int ef_ = int(iDon.x + 0.5); vec4 fo_ = uForme[ef_]; gm_ = uGrM[ef_];
   if (aFeu.w > 0.5) { float t_ = transformed.y, q_ = 2.0 * t_ - 1.0; float p_ = mix(sqrt(max(0.0, 1.0 - q_ * q_)), 1.04 - t_, fo_.z);
     p_ = mix(p_, max(p_, 0.9), fo_.w * (1.0 - smoothstep(0.45, 0.75, t_))); transformed.xz *= p_; transformed.y = mix(fo_.x, fo_.y, t_); tK_ = 0.55 + 0.45 * p_; }
-  else transformed.y *= fo_.x + 0.1; }` : ''}`).replace('#include <project_vertex>', `vec3 sc_ = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), length(instanceMatrix[2].xyz));
-vec4 vegM = modelMatrix * (instanceMatrix * vec4(transformed, 1.0));
+  else transformed.y *= fo_.x + 0.1; }` : ''}
+if (aFeu.w < 0.5) transformed += normal * (aFeu.z * clamp(0.12 + 0.025 * sc_.y${moyen ? '' : ' * uKH[int(iDon.x + 0.5)]'}, 0.2, 0.6)) / sc_;`).replace('#include <project_vertex>', `vec4 vegM = modelMatrix * (instanceMatrix * vec4(transformed, 1.0));
 float hN_ = max(transformed.y, 0.0);
 ${VENT}
 vegM.xz += iDon.yz * (hN_ * hN_ * sc_.y) + uVent * (bal_ * 0.011 * hN_ * hN_ * sc_.y);
 vec4 mvPosition;
 if (aFeu.w > 0.5) {
-  float s_ = aFeu.z * sc_.x * tK_;
+  float s_ = aFeu.z * sc_.x * tK_ * gm_.x;
   float fr_ = sin(uTemps * 3.7 + ph_ * 2.0 + (transformed.x + transformed.z) * 23.0 + transformed.y * 17.0);
   vegM.xyz += vec3(uVent.x, 0.4, uVent.y) * (fr_ * 0.03 * s_);
-  if (aFeu.w < 1.5) { mvPosition = viewMatrix * vegM; mvPosition.xy += aFeu.xy * s_; }
+  if (aFeu.w < 1.5) { mvPosition = viewMatrix * vegM; mvPosition.xy += vec2(aFeu.x, aFeu.y * gm_.y) * s_; }
   else { vec3 vc_ = cameraPosition - vegM.xyz; vec3 dr_ = normalize(vec3(vc_.z, 0.0, -vc_.x) + vec3(1e-5, 0.0, 0.0));
     vegM.xyz += dr_ * (aFeu.x * s_) + vec3(0.0, aFeu.y * s_, 0.0);
     vegM.xz += uVent * (sin(uTemps * 1.6 + ph_ + transformed.x * 31.0) * 0.12 * max(0.0, -aFeu.y) * s_);
@@ -412,7 +457,8 @@ vColor = vec3(aOcc) * (aFeu.w > 0.5 ? instanceColor.rgb : vec3(1.0));
 if (aFeu.w > 0.5 && aFeu.w < 1.5) transformedNormal = normalize(normalize(transformedNormal) + vec3(aFeu.xy * 0.7, 0.0));
 #include <normal_vertex>`).replace('#include <worldpos_vertex>', WORLDPOS);
   }
-  function vertexLoin(vs) { // le panneau imposteur : vertical, tourné vers la caméra autour de son pied
+  function vertexLoin(vs) { // le panneau imposteur, tourné vers la caméra ; vu d'en haut (survol), il bascule autour du cœur de la couronne pour
+    // rester face au regard (sinon, vus de haut, les arbres lointains deviennent des sucettes : un tronc nu sous une couronne aplatie)
     return `uniform float uTemps; uniform vec2 uVent; uniform vec4 uCelI[8]; uniform vec4 uLoinK[8];
 attribute vec4 iDon; varying float vEnv;\n` + vs.replace('#include <uv_vertex>', `#ifdef USE_MAP
 vMapUv = uCelI[int(iDon.x + 0.5)].xy + uv * uCelI[int(iDon.x + 0.5)].zw;
@@ -421,8 +467,9 @@ vec3 transformedNormal = normalize((viewMatrix * vec4(normalize(v0_ * 0.75 + vec
 vEnv = 0.5;`).replace('#include <project_vertex>', `vec3 sc_ = vec3(length(instanceMatrix[0].xyz), length(instanceMatrix[1].xyz), 0.0); vec4 lk_ = uLoinK[int(iDon.x + 0.5)];
 vec3 vc_ = cameraPosition - b0_; vec3 dr_ = normalize(vec3(vc_.z, 0.0, -vc_.x) + vec3(1e-5, 0.0, 0.0));
 ${VENT}
-float hN_ = transformed.y * lk_.y;
-vec4 vegM = vec4(b0_ + dr_ * (transformed.x * 2.0 * lk_.x * sc_.x) + vec3(0.0, hN_ * sc_.y, 0.0), 1.0);
+float hN_ = transformed.y * lk_.y, yc_ = 0.6 * sc_.y;
+vec3 vv_ = normalize(b0_ + vec3(0.0, yc_, 0.0) - cameraPosition), up_ = normalize(vec3(0.0, 1.0, 0.0) + vv_ * max(-vv_.y, 0.0)); // Y moins sa part le long du regard
+vec4 vegM = vec4(b0_ + dr_ * (transformed.x * 2.0 * lk_.x * sc_.x) + vec3(0.0, yc_, 0.0) + up_ * (hN_ * sc_.y - yc_), 1.0);
 vegM.xz += iDon.yz * (hN_ * hN_ * sc_.y) + uVent * (bal_ * 0.011 * hN_ * hN_ * sc_.y);
 vec4 mvPosition = viewMatrix * vegM; gl_Position = projectionMatrix * mvPosition;`).replace('#include <worldpos_vertex>', WORLDPOS);
   }
@@ -519,29 +566,35 @@ if ( diffuseColor.a < alphaTest ) discard;
     for (const v of carte.vegetation || []) { const z = v && ZONE[v.t], p = z && poly(v.p); if (p) remplir(p, (k) => { if (z[0] >= DENS[k]) { DENS[k] = z[0]; GENRE[k] = z[1]; } }); }
     const DURS = { asphalte: 1, paves: 1, gravier: 1, parking: 1, terre: 1, beton: 1 };
     for (const s of carte.surfaces || []) { const p = s && poly(s.p); if (!p) continue; if (DURS[s.t]) remplir(p, (k) => { BLOQ[k] |= 8; }); else if (s.t === 'herbe' || s.t === 'terrain') remplir(p, (k) => { DENS[k] = Math.max(DENS[k], 235); if (!GENRE[k]) GENRE[k] = 1; }); else if (s.t === 'cimetiere') remplir(p, (k) => { DENS[k] = Math.max(DENS[k], 60); }); }
-    for (const r of carte.rues || []) if (r && Array.isArray(r.l)) trait(r.l, (fini(+r.w) ? +r.w : 5) + 0.8, (k) => { BLOQ[k] |= 1; });
-    for (const pt of carte.ponts || []) if (pt && Array.isArray(pt.l)) trait(pt.l, (fini(+pt.w) ? +pt.w : 6) + 1, (k) => { BLOQ[k] |= 1; });
+    // (marges : une touffe tombe n'importe où dans sa case et déborde de ~0,3 m ; les cases sont marquées par leur centre)
+    for (const r of carte.rues || []) if (r && Array.isArray(r.l)) trait(r.l, (fini(+r.w) ? +r.w : 5) + 2 * PAS + 0.6, (k) => { BLOQ[k] |= 1; });
+    for (const pt of carte.ponts || []) if (pt && Array.isArray(pt.l)) trait(pt.l, (fini(+pt.w) ? +pt.w : 6) + 2 * PAS + 1, (k) => { BLOQ[k] |= 1; });
     for (const b of monde.batiments || carte.batiments || []) { const p = b && poly(b.p); if (p) remplir(p, (k) => { BLOQ[k] |= 2; }); }
     for (const e of carte.eau || []) { const p = e && poly(e.p); if (p) remplir(p, (k) => { BLOQ[k] |= 4; }); }
+    { const B2 = BLOQ.slice(); for (let j = 1; j < N - 1; j++) for (let i = 1; i < N - 1; i++) { const k = j * N + i; let m = 0; for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) m |= B2[k + dj * N + di] & 6; BLOQ[k] |= m; } } // bâtiments et eau élargis d'une case
     const bloque = (x, z, m) => { const k = caseDe(x, z); return k < 0 || (BLOQ[k] & m) !== 0; };
 
-    // ─── les arbres : réels, puis vergers vides et bois semés ───
-    const liste = []; // [x, z, h, r, esp, bois]
+    // ─── les arbres : réels ; sur une vieille carte (arbres [x, z, h] sans espèce), vergers vides et bois semés ───
+    // La carte réelle a TOUS ses arbres (LiDAR, espèce) : on ne sème rien. Les haies hautes (> 2,5 m) deviennent des rangées de buissons.
+    const liste = []; // [x, z, h, r, esp, semé]
+    const arbresC = Array.isArray(carte.arbres) ? carte.arbres : [];
+    const vieille = !arbresC.some((a) => Array.isArray(a) && a.length >= 5 && typeof a[4] === 'string');
     const bois = (carte.vegetation || []).filter((v) => v && v.t === 'bois').map((v) => ({ p: poly(v.p), e: typeof v.e === 'string' ? v.e : typeof v.feuilles === 'string' ? v.feuilles : '' })).filter((b) => b.p);
     const coniferes = (e) => /conif|resin|needle/i.test(e), mixte = (e) => /mixt|mixed/i.test(e);
     const ajouter = (x, z, h, r, e, b) => { if (!fini(x) || !fini(z) || Math.abs(x) > L / 2 || Math.abs(z) > L / 2) return; h = borne(fini(h) && h > 1 ? h : 8, 1.5, 45); r = fini(r) && r > 0.3 ? borne(r, h * 0.1, h * 0.8) : h * R_H[e] * (0.9 + rnd() * 0.2); liste.push([x, z, h, r, e, b]); };
-    for (const a of carte.arbres || []) {
+    for (const a of arbresC) {
       if (!Array.isArray(a)) continue; const x = +a[0], z = +a[1]; if (!fini(x) || !fini(z)) continue; let e = espece(a[4]);
       if (e < 0) { e = 0; for (const b of bois) if (coniferes(b.e) && dansPoly(b.p, x, z)) { e = 6; break; } }
       if (bloque(x, z, 2)) continue; // un arbre dans un bâtiment : une erreur des données
       ajouter(x, z, +a[2], +a[3], e, 0);
     }
-    for (const v of carte.vegetation || []) { // les vergers sans arbre réel : des fruitiers en grille
-      if (!v || v.t !== 'verger') continue; const p = poly(v.p); if (!p) continue;
-      if ((carte.arbres || []).some((a) => Array.isArray(a) && dansPoly(p, +a[0], +a[1]))) continue;
-      rangs(p, axe(p, v.sens), 7, 2.5, (ax, az, bx, bz) => { const l = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.floor(l / 6)); for (let k = 0; k <= n; k++) { const t = n ? k / n : 0.5, x = ax + (bx - ax) * t + (rnd() - 0.5) * 0.6, z = az + (bz - az) * t + (rnd() - 0.5) * 0.6; if (!bloque(x, z, 7)) { const h = 3.8 + rnd() * 1.7; ajouter(x, z, h, h * (0.5 + rnd() * 0.12), 5, 0); } } });
-    }
-    { const A = carte.zones && carte.zones.arene, ac = A && Array.isArray(A.centre) ? A.centre : [0, 0], ar = A && fini(+A.rayon) ? +A.rayon : 110; let n = 0; // les bois : un semis irrégulier, plus clair dans l'arène
+    if (vieille) {
+      for (const v of carte.vegetation || []) { // les vergers sans arbre réel : des fruitiers en grille
+        if (!v || v.t !== 'verger') continue; const p = poly(v.p); if (!p) continue;
+        if (arbresC.some((a) => Array.isArray(a) && dansPoly(p, +a[0], +a[1]))) continue;
+        rangs(p, axe(p, v.sens), 7, 2.5, (ax, az, bx, bz) => { const l = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.floor(l / 6)); for (let k = 0; k <= n; k++) { const t = n ? k / n : 0.5, x = ax + (bx - ax) * t + (rnd() - 0.5) * 0.6, z = az + (bz - az) * t + (rnd() - 0.5) * 0.6; if (!bloque(x, z, 7)) { const h = 3.8 + rnd() * 1.7; ajouter(x, z, h, h * (0.5 + rnd() * 0.12), 5, 1); } } });
+      }
+      const A = carte.zones && carte.zones.arene, ac = A && Array.isArray(A.centre) ? A.centre : [0, 0], ar = A && fini(+A.rayon) ? +A.rayon : 110; let n = 0; // les bois : un semis irrégulier, plus clair dans l'arène
       for (const b of bois) {
         let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const q of b.p) { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); z0 = Math.min(z0, q[1]); z1 = Math.max(z1, q[1]); }
         const pc = coniferes(b.e) ? 0.9 : mixte(b.e) ? 0.4 : 0.04;
@@ -553,28 +606,44 @@ if ( diffuseColor.a < alphaTest ) discard;
         }
       }
     }
-    const NA = liste.length;
-    const AX = new Float32Array(NA), AY = new Float32Array(NA), AZ = new Float32Array(NA), AH = new Float32Array(NA), AR = new Float32Array(NA), AE = new Uint8Array(NA);
-    const MATP = new Float32Array(NA * 16), MATM = new Float32Array(NA * 16), DON = new Float32Array(NA * 4), COLA = new Float32Array(NA * 3), D2 = new Float32Array(NA);
-    const comptes = [0, 0, 0, 0, 0, 0, 0];
-    { const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
-      liste.forEach((a, i) => {
-        const [x, z, h, r, e, b] = a, R0 = [0.36, 0.16, 0.44, 0.24][FAM[e]], tr = r * 0.12 + 0.3;
-        const y = Math.min(H0(x, z), H0(x + tr, z), H0(x - tr, z), H0(x, z + tr), H0(x, z - tr)) - 0.12, rot = rnd() * TAU, an = 0.92 + rnd() * 0.16;
-        AX[i] = x; AY[i] = y; AZ[i] = z; AH[i] = h; AR[i] = r; AE[i] = e; comptes[e]++;
-        q.setFromAxisAngle(Y, rot); p.set(x, y, z);
-        s.set(r / R0 * an, h, r / R0 / an); m.compose(p, q, s); m.toArray(MATP, i * 16);
-        s.set(r * an, h, r / an); m.compose(p, q, s); m.toArray(MATM, i * 16);
-        const pa = rnd() * TAU, pm = PENCHE[e] * (0.3 + rnd() * 0.7); DON[i * 4] = e; DON[i * 4 + 1] = Math.cos(pa) * pm; DON[i * 4 + 2] = Math.sin(pa) * pm; DON[i * 4 + 3] = rnd();
-        const v = rnd(), l = (0.86 + rnd() * 0.26) * (b ? 0.93 : 1); COLA[i * 3] = l * (0.9 + 0.2 * v); COLA[i * 3 + 1] = l * (0.96 + 0.08 * rnd()); COLA[i * 3 + 2] = l * (0.86 + 0.22 * (1 - v));
-      });
-    }
+    const NR = liste.length; // les arbres (réels ou semés) ; après eux, les buissons des haies hautes
+    const comptes = [0, 0, 0, 0, 0, 0, 0, 0]; let semes = 0; for (const a of liste) { comptes[a[4]]++; if (a[5]) semes++; }
 
-    // ─── haies et rangs de vigne : des tronçons de ~2,2 m qui suivent le terrain ───
+    // ─── haies : basses (≤ 2,5 m) en tronçons taillés de ~2,2 m qui suivent le terrain ; hautes en rangées de buissons serrés (niveaux
+    // moyen et loin des arbres, jamais proche : ~54 triangles chacun). Rangs de vigne en tronçons. ───
     const troncons = []; // [ax, az, bx, bz, h, w, type (0 haie, 1 vigne), base]
     const decouper = (ax, az, bx, bz, h, w, type, base, pas, ext) => { const l = Math.hypot(bx - ax, bz - az); if (l < 0.3) return; const ux = (bx - ax) / l, uz = (bz - az) / l, n = Math.max(1, Math.round(l / pas)); for (let k = 0; k < n; k++) { const s0 = k / n * l - (k === 0 ? ext : 0), s1 = (k + 1) / n * l + (k === n - 1 ? ext : 0.05); troncons.push([ax + ux * s0, az + uz * s0, ax + ux * s1, az + uz * s1, h, w, type, base]); } };
-    for (const hz of carte.haies || []) { if (!hz || !Array.isArray(hz.l)) continue; const h = fini(+hz.h) && hz.h > 0.3 ? borne(+hz.h, 0.4, 6) : 1.6, w = fini(+hz.w) && hz.w > 0.2 ? borne(+hz.w, 0.3, 4) : 1.0; for (let s = 0; s + 1 < hz.l.length; s++) { const a = hz.l[s], b = hz.l[s + 1]; if (a && b && fini(+a[0]) && fini(+a[1]) && fini(+b[0]) && fini(+b[1])) decouper(+a[0], +a[1], +b[0], +b[1], h, w, 0, 0, 2.2, w * 0.4); } }
+    for (const hz of carte.haies || []) {
+      if (!hz || !Array.isArray(hz.l)) continue; const h = fini(+hz.h) && hz.h > 0.3 ? borne(+hz.h, 0.4, 12) : 1.6, w = fini(+hz.w) && hz.w > 0.2 ? borne(+hz.w, 0.3, 4) : 1.0;
+      if (h <= 2.5) { for (let s = 0; s + 1 < hz.l.length; s++) { const a = hz.l[s], b = hz.l[s + 1]; if (a && b && fini(+a[0]) && fini(+a[1]) && fini(+b[0]) && fini(+b[1])) decouper(+a[0], +a[1], +b[0], +b[1], h, w, 0, 0, 2.2, w * 0.4); } continue; }
+      const rb = borne(Math.max(w * 0.75, h * 0.27), 0.8, 2.8), pas = rb * 1.25; let reste = rnd() * pas; // un buisson tous les ~1,25 rayon, le long de la ligne
+      for (let s = 0; s + 1 < hz.l.length; s++) {
+        const a = hz.l[s], b = hz.l[s + 1]; if (!a || !b || !fini(+a[0]) || !fini(+a[1]) || !fini(+b[0]) || !fini(+b[1])) continue;
+        const ax = +a[0], az = +a[1], l = Math.hypot(+b[0] - ax, +b[1] - az); if (l < 0.01) continue; const ux = (+b[0] - ax) / l, uz = (+b[1] - az) / l;
+        for (; reste <= l; reste += pas * (0.85 + rnd() * 0.3)) { const j = (rnd() - 0.5) * w * 0.5, x = ax + ux * reste - uz * j, z = az + uz * reste + ux * j; if (!bloque(x, z, 6)) ajouter(x, z, h * (0.78 + rnd() * 0.3), rb * (0.85 + rnd() * 0.3), 7, 2); }
+        reste -= l;
+      }
+    }
     for (const v of carte.vegetation || []) { if (!v || v.t !== 'vigne') continue; const p = poly(v.p); if (!p) continue; rangs(p, axe(p, v.sens), 2.0, 0.8, (ax, az, bx, bz) => { if (troncons.length < 12000) decouper(ax, az, bx, bz, 1.45, 0.5, 1, 0.3, 2.4, 0); }); }
+
+    // ─── les instances des arbres et des buissons : matrices du niveau proche (unités de la silhouette) et des niveaux moyen et loin
+    // (rayon de couronne, hauteur), données (espèce, inclinaison, phase du vent), couleur ───
+    const NA = liste.length, KM = 1.2; // KM : la couronne générique du niveau moyen déborde de ~1,38 r ; ramenée à ~1,15 r
+    const sils = [0, 1, 2, 3].map((f) => silhouette(f, mulberry32(101 + f * 7), false)), silsS = [null, null, null, null];
+    const AX = new Float32Array(NA), AY = new Float32Array(NA), AZ = new Float32Array(NA), AH = new Float32Array(NA), AR = new Float32Array(NA), AE = new Uint8Array(NA);
+    const MATP = new Float32Array(NA * 16), MATM = new Float32Array(NA * 16), DON = new Float32Array(NA * 4), COLA = new Float32Array(NA * 3), D2 = new Float32Array(NA);
+    { const m = new THREE.Matrix4(), q = new THREE.Quaternion(), p = new THREE.Vector3(), s = new THREE.Vector3(), Y = new THREE.Vector3(0, 1, 0);
+      liste.forEach((a, i) => {
+        const [x, z, h, r, e, b] = a, sl = sils[FAM[e]], R0 = sl.R0, tr = RTRONC(h) + 0.1;
+        const y = Math.min(H0(x, z), H0(x + tr, z), H0(x - tr, z), H0(x, z + tr), H0(x, z - tr)) - 0.12, rot = rnd() * TAU, an = 0.92 + rnd() * 0.16, mi = rnd() < 0.5 ? -1 : 1; // miroir : une silhouette, deux arbres
+        AX[i] = x; AY[i] = y; AZ[i] = z; AH[i] = h; AR[i] = r; AE[i] = e;
+        q.setFromAxisAngle(Y, rot); p.set(x, y, z);
+        s.set(r / R0 * an * mi, h / sl.kH, r / R0 / an); m.compose(p, q, s); m.toArray(MATP, i * 16);
+        s.set(r * an * mi / KM, h, r / an / KM); m.compose(p, q, s); m.toArray(MATM, i * 16);
+        const pa = rnd() * TAU, pm = PENCHE[e] * (0.3 + rnd() * 0.7); DON[i * 4] = e; DON[i * 4 + 1] = Math.cos(pa) * pm; DON[i * 4 + 2] = Math.sin(pa) * pm; DON[i * 4 + 3] = rnd();
+        const v = rnd(), l = (0.86 + rnd() * 0.26) * (b === 1 ? 0.93 : b === 2 ? 0.8 : 1); COLA[i * 3] = l * (0.9 + 0.2 * v); COLA[i * 3 + 1] = l * (0.96 + 0.08 * rnd()); COLA[i * 3 + 2] = l * (0.86 + 0.22 * (1 - v));
+      });
+    }
     const NL = troncons.length, MATL = new Float32Array(NL * 16), DONL = new Float32Array(NL * 4), COLL = new Float32Array(NL * 3), LX = new Float32Array(NL), LZ = new Float32Array(NL), LY = new Float32Array(NL), LR = new Float32Array(NL);
     { const m = new THREE.Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), p = new THREE.Vector3(), s = new THREE.Vector3();
       troncons.forEach((t, i) => { const [ax, az, bx, bz, h, w, type, base] = t, l = Math.hypot(bx - ax, bz - az), ya = H0(ax, az), yb = H0(bx, bz); e.set(0, Math.atan2(-(bz - az), bx - ax), Math.atan2(yb - ya, l), 'YXZ'); q.setFromEuler(e); p.set(ax, ya - 0.08, az); s.set(l, h, w); m.compose(p, q, s); m.toArray(MATL, i * 16);
@@ -582,17 +651,18 @@ if ( diffuseColor.a < alphaTest ) discard;
         LX[i] = (ax + bx) / 2; LZ[i] = (az + bz) / 2; LY[i] = (ya + yb) / 2 + h / 2; LR[i] = l / 2 + h; });
     }
 
-    // ─── les silhouettes, l'atlas, les matériaux ───
-    const sils = [0, 1, 2, 3].map((f) => silhouette(f, mulberry32(101 + f * 7))), moy = geoMoyen(), loin = geoLoin(), lig = geoLigne(), herbe = geoHerbe();
-    let A = ATLAS.get(Q.atlas); if (!A) { A = peindreAtlas(Q.atlas, sils); ATLAS.set(Q.atlas, A); } else for (let e = 0; e < 7; e++) { const s = sils[FAM[e]]; if (!s.Rm) imposteurMesure(s, e); }
+    // ─── les silhouettes (normales ; allégées pour l'éco, faites à la demande), l'atlas, les matériaux ───
+    const moy = geoMoyen(), loin = geoLoin(), lig = geoLigne(), herbe = geoHerbe();
+    let A = ATLAS.get(Q.atlas), atlasNeuf = false; if (!A) { A = peindreAtlas(Q.atlas, sils); ATLAS.set(Q.atlas, A); atlasNeuf = true; }
     const S = A.S, tex = new THREE.DataTexture(A.data, S, S, THREE.RGBAFormat, THREE.UnsignedByteType);
     tex.colorSpace = THREE.SRGBColorSpace; tex.generateMipmaps = true; tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter; tex.anisotropy = 4; tex.flipY = false; tex.needsUpdate = true;
-    const V8 = (f) => [0, 1, 2, 3, 4, 5, 6, 7].map((e) => f(Math.min(e, 6)));
+    const V8 = (f) => [0, 1, 2, 3, 4, 5, 6, 7].map(f), E7 = (e) => (e === 7 ? 0 : e); // les buissons des haies prennent les feuilles et le bois du feuillu
     const U = {
-      uTemps: { value: 0 }, uVent: { value: new THREE.Vector2(0.8, 0.6) }, uTexel: { value: S }, uHerbeR: { value: Q.herbe },
-      uCelF: { value: V8((e) => cellule(CEL.feuilles[e], S)) }, uCelB: { value: V8((e) => cellule(CEL.ecorce[e], S)) }, uCelS: { value: V8((e) => cellule(e === 4 ? CEL.rideau : CEL.feuilles[e], S)) },
-      uCelI: { value: V8((e) => cellule(CEL.imp[e], S)) }, uForme: { value: V8((e) => new THREE.Vector4(...FORME[e])) },
-      uLoinK: { value: V8((e) => { const s = sils[FAM[e]]; return new THREE.Vector4(s.Rm / s.R0, s.ym, 0, 0); }) },
+      uTemps: { value: 0 }, uVent: { value: new THREE.Vector2(0.8, 0.6) }, uTexel: { value: S }, uHerbeR: { value: Q.herbe || 1 },
+      uCelF: { value: V8((e) => cellule(CEL.feuilles[E7(e)], S)) }, uCelB: { value: V8((e) => cellule(CEL.ecorce[E7(e)], S)) }, uCelS: { value: V8((e) => cellule(e === 4 ? CEL.rideau : CEL.feuilles[E7(e)], S)) },
+      uCelI: { value: V8((e) => cellule(CEL.imp[e], S)) }, uForme: { value: V8((e) => new THREE.Vector4(...FORME[e])) }, uGrM: { value: V8((e) => new THREE.Vector2(...GRAPPE_M[e])) },
+      uLoinK: { value: V8((e) => { const sl = sils[FAM[e]], [Rm, ym] = mesure(sl, e); return new THREE.Vector4(Rm / sl.R0 * KM, e === 7 ? ym : ym / sl.kH, 0, 0); }) },
+      uKH: { value: V8((e) => sils[FAM[e]].kH) },
       uCelL: { value: [cellule(CEL.haie, S), cellule(CEL.vigne, S)] }, uCelP: { value: cellule(CEL.ecorce[7], S) }, uCelH: { value: CEL.herbe.map((r) => cellule(r, S)) },
     };
     const materiau = (cle, vert, ombre) => {
@@ -605,22 +675,29 @@ if ( diffuseColor.a < alphaTest ) discard;
 
     // ─── les InstancedMesh (capacités au plus haut palier : changer de qualité ne réalloue rien) ───
     const groupe = new THREE.Group(); groupe.name = 'vegetation';
-    const QH = QUALITES.haute;
+    const QH = QUALITES.haute, QM = (k) => Math.max(QUALITES.haute[k], QUALITES.moyenne[k], QUALITES.eco[k]);
     function instances(nom, geo, mat, cap, ombre) {
       cap = Math.max(1, cap); const im = new THREE.InstancedMesh(geo, mat, cap); im.name = nom; im.frustumCulled = false; im.matrixAutoUpdate = false; im.count = 0; im.visible = false; im.receiveShadow = false;
       im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3), 3); im.instanceColor.setUsage(THREE.DynamicDrawUsage);
-      const d = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4); d.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('iDon', d);
+      const d = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4); d.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('iDon', d); im.userData.don = d;
       if (ombre) im.customDepthMaterial = ombre; im.userData.cap = cap; groupe.add(im); return im;
     }
     const parFam = [0, 0, 0, 0]; for (let e = 0; e < 7; e++) parFam[FAM[e]] += comptes[e];
-    const PROCHES = sils.map((s, f) => (parFam[f] ? instances('arbres-proches-' + ['boule', 'colonne', 'pleureur', 'cone'][f], s.geo, MAT.proche, Math.min(QH.nProche, parFam[f]), MAT.ombre) : null));
-    const MOYENS = NA ? instances('arbres-moyens', moy.geo, MAT.moyen, Math.min(QH.nMoyen, NA), null) : null;
-    const LOINS = NA ? instances('arbres-loin', loin, MAT.loin, Math.min(QH.nLoin, NA), null) : null;
-    const LIGNES = NL ? instances('haies-vignes', lig.geo, MAT.ligne, Math.min(QH.nLignes, NL), MAT.ombreLigne) : null;
+    const PROCHES = sils.map((sl, f) => (parFam[f] ? instances('arbres-proches-' + ['boule', 'colonne', 'pleureur', 'cone'][f], sl.geo, MAT.proche, Math.min(QM('nProche'), parFam[f]), MAT.ombre) : null));
+    const MOYENS = NA ? instances('arbres-moyens', moy.geo, MAT.moyen, Math.min(QM('nMoyen'), NA), null) : null;
+    const LOINS = NA ? instances('arbres-loin', loin, MAT.loin, Math.min(QM('nLoin'), NA), null) : null;
+    const LIGNES = NL ? instances('haies-vignes', lig.geo, MAT.ligne, Math.min(QM('nLignes'), NL), MAT.ombreLigne) : null;
     const HERBE = instances('herbe', herbe.geo, MAT.herbe, QH.nHerbe, null);
     if (LIGNES) LIGNES.receiveShadow = true; HERBE.receiveShadow = true;
-    sils.forEach((s, f) => { if (!PROCHES[f]) s.geo.dispose(); });
-    const TRIS = { proche: sils.map((s) => s.tris), moyen: moy.tris, loin: 2, ligne: lig.tris, herbe: herbe.tris };
+    sils.forEach((sl, f) => { if (!PROCHES[f]) sl.geo.dispose(); });
+    const TRIS = { proche: sils.map((sl) => sl.tris), moyen: moy.tris, loin: 2, ligne: lig.tris, herbe: herbe.tris };
+    function silhouettes(simple) { // les géométries du niveau proche selon la qualité (l'attribut iDon de l'instance est partagé)
+      for (let f = 0; f < 4; f++) {
+        const im = PROCHES[f]; if (!im) continue;
+        let sl = sils[f]; if (simple) { if (!silsS[f]) { silsS[f] = silhouette(f, mulberry32(101 + f * 7), true); silsS[f].geo.setAttribute('iDon', im.userData.don); } sl = silsS[f]; }
+        if (im.geometry !== sl.geo) im.geometry = sl.geo; TRIS.proche[f] = sl.tris;
+      }
+    }
 
     // ─── l'élimination hors du champ : un tronc de pyramide élargi (fov + 24°), calculé à chaque recopie ───
     const camC = new THREE.PerspectiveCamera(), FR = new THREE.Frustum(), _m = new THREE.Matrix4(), PL = FR.planes;
@@ -631,54 +708,59 @@ if ( diffuseColor.a < alphaTest ) discard;
     }
     const dansChamp = (x, y, z, r) => { for (let k = 0; k < 6; k++) { const p = PL[k]; if (p.normal.x * x + p.normal.y * y + p.normal.z * z + p.constant < -r) return false; } return true; };
 
-    // ─── les recopies ───
-    const ST = { proche: [0, 0, 0, 0], moyen: 0, loin: 0, lignes: 0, herbe: 0, appels: 0, appelsOmbre: 0, triangles: 0, trianglesOmbre: 0, majs: 0, majsHerbe: 0, ms: 0, msHerbe: 0 };
+    // ─── les recopies (aucune allocation : tableaux préparés, écriture directe dans les tampons des InstancedMesh) ───
+    const ST = { proche: [0, 0, 0, 0], moyen: 0, loin: 0, lignes: 0, herbe: 0, appels: 0, appelsOmbre: 0, triangles: 0, trianglesOmbre: 0, majs: 0, majsHerbe: 0, ms: 0, msHerbe: 0, msTot: 0, msHerbeTot: 0, msMax: 0 };
     const HIST = new Uint32Array(64), kP = [0, 0, 0, 0];
-    function seuil(rmax, cap, d2min, d2max) { // le rayon sous lequel il y a au plus cap candidats (histogramme de 64 tranches)
+    // le rayon sous lequel il y a au plus cap candidats (histogramme de 64 tranches) ; mode 0 : les arbres de [d2min, d2max) ; 1 : idem, plus
+    // les buissons plus près que d2max (jamais au niveau proche) ; 2 : tout ce qui est dans [d2min, d2max)
+    function seuil(mode, rmax, cap, d2min, d2max) {
       HIST.fill(0); let n = 0; const pas = rmax / 64;
-      for (let i = 0; i < NA; i++) { const d = D2[i]; if (d < d2min || d >= d2max) continue; HIST[Math.min(63, (Math.sqrt(d) / pas) | 0)]++; n++; }
+      for (let i = 0; i < NA; i++) { const d = D2[i], bu = AE[i] === 7; if (mode === 0 && bu) continue; if (d >= d2max || (d < d2min && !(mode === 1 && bu))) continue; HIST[Math.min(63, (Math.sqrt(d) / pas) | 0)]++; n++; }
       if (n <= cap) return rmax; let s = 0; for (let b = 0; b < 64; b++) { s += HIST[b]; if (s > cap) return b * pas; } return rmax;
     }
-    function copier(im, k, src, i, mats) { const a = im.instanceMatrix.array, o = k * 16, s = i * 16; for (let q = 0; q < 16; q++) a[o + q] = mats[s + q]; const d = im.geometry.attributes.iDon.array; d[k * 4] = src[i * 4]; d[k * 4 + 1] = src[i * 4 + 1]; d[k * 4 + 2] = src[i * 4 + 2]; d[k * 4 + 3] = src[i * 4 + 3]; }
-    function fermer(im, n, cols) {
-      if (!im) return; im.count = n; im.visible = n > 0; if (!n) return;
-      for (const [a, t] of [[im.instanceMatrix, 16], [im.instanceColor, 3], [im.geometry.attributes.iDon, 4]]) { a.updateRange.offset = 0; a.updateRange.count = n * t; a.needsUpdate = true; }
+    function copier(im, k, src, i, mats, cols) {
+      const a = im.instanceMatrix.array, o = k * 16, s = i * 16; for (let q = 0; q < 16; q++) a[o + q] = mats[s + q];
+      const d = im.userData.don.array; d[k * 4] = src[i * 4]; d[k * 4 + 1] = src[i * 4 + 1]; d[k * 4 + 2] = src[i * 4 + 2]; d[k * 4 + 3] = src[i * 4 + 3];
+      const c = im.instanceColor.array; c[k * 3] = cols[i * 3]; c[k * 3 + 1] = cols[i * 3 + 1]; c[k * 3 + 2] = cols[i * 3 + 2];
     }
+    function envoyer(a, n, t) { a.updateRange.offset = 0; a.updateRange.count = n * t; a.needsUpdate = true; }
+    function fermer(im, n) { if (!im) return; im.count = n; im.visible = n > 0; if (!n) return; envoyer(im.instanceMatrix, n, 16); envoyer(im.instanceColor, n, 3); envoyer(im.userData.don, n, 4); }
     function majArbres(cx, cy, cz, far) {
       if (!NA) return;
       const rP = Q.proche, rM = Q.moyen, rF = Math.min(far, 2000), rF2 = rF * rF;
       for (let i = 0; i < NA; i++) { const dx = AX[i] - cx, dz = AZ[i] - cz, d2 = dx * dx + dz * dz; D2[i] = d2 <= rF2 && dansChamp(AX[i], AY[i] + AH[i] * 0.5, AZ[i], Math.max(AH[i] * 0.55, AR[i]) + 1) ? d2 : 1e12; }
-      const cutP = seuil(rP, Q.nProche, 0, rP * rP), cutM = seuil(rM, Q.nMoyen, cutP * cutP, rM * rM), cutF = seuil(rF, Q.nLoin, Math.max(cutM, cutP) ** 2, rF2), p2 = cutP * cutP, m2 = Math.max(cutM, cutP) ** 2, f2 = cutF * cutF;
+      const cutP = seuil(0, rP, Q.nProche, 0, rP * rP), p2 = cutP * cutP, cutM = Math.max(cutP, seuil(1, rM, Q.nMoyen, p2, rM * rM)), m2 = cutM * cutM, cutF = seuil(2, rF, Q.nLoin, m2, rF2), f2 = cutF * cutF;
       kP[0] = kP[1] = kP[2] = kP[3] = 0; let kM = 0, kL = 0;
       for (let i = 0; i < NA; i++) {
         const d = D2[i]; if (d >= f2) continue;
-        if (d < p2) { const f = FAM[AE[i]], im = PROCHES[f]; if (im && kP[f] < im.userData.cap) { copier(im, kP[f], DON, i, MATP); const c = im.instanceColor.array, o = kP[f] * 3; c[o] = COLA[i * 3]; c[o + 1] = COLA[i * 3 + 1]; c[o + 2] = COLA[i * 3 + 2]; kP[f]++; continue; } }
-        if (d < m2 && MOYENS && kM < MOYENS.userData.cap) { copier(MOYENS, kM, DON, i, MATM); const c = MOYENS.instanceColor.array; c[kM * 3] = COLA[i * 3]; c[kM * 3 + 1] = COLA[i * 3 + 1]; c[kM * 3 + 2] = COLA[i * 3 + 2]; kM++; continue; }
-        if (LOINS && kL < LOINS.userData.cap) { copier(LOINS, kL, DON, i, MATM); const c = LOINS.instanceColor.array; c[kL * 3] = COLA[i * 3]; c[kL * 3 + 1] = COLA[i * 3 + 1]; c[kL * 3 + 2] = COLA[i * 3 + 2]; kL++; }
+        if (d < p2 && AE[i] !== 7) { const f = FAM[AE[i]], im = PROCHES[f]; if (im && kP[f] < im.userData.cap) { copier(im, kP[f], DON, i, MATP, COLA); kP[f]++; continue; } }
+        if (d < m2) { if (MOYENS && kM < MOYENS.userData.cap) { copier(MOYENS, kM, DON, i, MATM, COLA); kM++; } continue; }
+        if (LOINS && kL < LOINS.userData.cap) { copier(LOINS, kL, DON, i, MATM, COLA); kL++; }
       }
       for (let f = 0; f < 4; f++) { fermer(PROCHES[f], kP[f]); ST.proche[f] = kP[f]; }
       fermer(MOYENS, kM); fermer(LOINS, kL); ST.moyen = kM; ST.loin = kL;
     }
     function majLignes(cx, cz) {
       if (!LIGNES) return; const R2 = Q.lignes * Q.lignes, cap = Math.min(Q.nLignes, LIGNES.userData.cap); let k = 0;
-      for (let i = 0; i < NL && k < cap; i++) { const dx = LX[i] - cx, dz = LZ[i] - cz; if (dx * dx + dz * dz > R2 || !dansChamp(LX[i], LY[i], LZ[i], LR[i])) continue; copier(LIGNES, k, DONL, i, MATL); const c = LIGNES.instanceColor.array; c[k * 3] = COLL[i * 3]; c[k * 3 + 1] = COLL[i * 3 + 1]; c[k * 3 + 2] = COLL[i * 3 + 2]; k++; }
+      for (let i = 0; i < NL && k < cap; i++) { const dx = LX[i] - cx, dz = LZ[i] - cz; if (dx * dx + dz * dz > R2 || !dansChamp(LX[i], LY[i], LZ[i], LR[i])) continue; copier(LIGNES, k, DONL, i, MATL, COLL); k++; }
       fermer(LIGNES, k); ST.lignes = k;
     }
     // l'herbe : une grille fixe du monde (une touffe possible par case, placée par hachage), parcourue de la caméra vers le bord
-    let OFFS = null, offsPas = 0;
-    function preparerOffsets() { const R = Q.herbe, pas = Q.pas, n = Math.ceil(R / pas) + 1, l = []; for (let j = -n; j <= n; j++) for (let i = -n; i <= n; i++) { const d = Math.hypot(i, j) * pas; if (d <= R + pas) l.push([d, i, j]); } l.sort((a, b) => a[0] - b[0]); OFFS = new Int16Array(l.length * 2); l.forEach((o, k) => { OFFS[2 * k] = o[1]; OFFS[2 * k + 1] = o[2]; }); offsPas = pas; }
+    let OFFS = null, offsPas = 0, offsR = 0;
+    function preparerOffsets() { const R = Q.herbe, pas = Q.pas, n = Math.ceil(R / pas) + 1, l = []; for (let j = -n; j <= n; j++) for (let i = -n; i <= n; i++) { const d = Math.hypot(i, j) * pas; if (d <= R + pas) l.push([d, i, j]); } l.sort((a, b) => a[0] - b[0]); OFFS = new Int16Array(l.length * 2); l.forEach((o, k) => { OFFS[2 * k] = o[1]; OFFS[2 * k + 1] = o[2]; }); offsPas = pas; offsR = R; }
     const moyH = A.moyHerbe;
     function majHerbe(cx, cz) {
-      if (!OFFS || offsPas !== Q.pas) preparerOffsets();
-      const pas = Q.pas, R2 = Q.herbe * Q.herbe, ci = Math.floor(cx / pas), cj = Math.floor(cz / pas), cap = Math.min(Q.nHerbe, HERBE.userData.cap), ma = HERBE.instanceMatrix.array, da = HERBE.geometry.attributes.iDon.array, ca = HERBE.instanceColor.array; let k = 0;
+      if (!Q.nHerbe || !Q.herbe) { fermer(HERBE, 0); ST.herbe = 0; return; }
+      if (!OFFS || offsPas !== Q.pas || offsR !== Q.herbe) preparerOffsets();
+      const pas = Q.pas, R2 = Q.herbe * Q.herbe, ci = Math.floor(cx / pas), cj = Math.floor(cz / pas), cap = Math.min(Q.nHerbe, HERBE.userData.cap), ma = HERBE.instanceMatrix.array, da = HERBE.userData.don.array, ca = HERBE.instanceColor.array; let k = 0;
       for (let o = 0; o < OFFS.length && k < cap; o += 2) {
         const i = ci + OFFS[o], j = cj + OFFS[o + 1], x = (i + h3(i, j, 1)) * pas, z = (j + h3(i, j, 2)) * pas, dx = x - cx, dz = z - cz; if (dx * dx + dz * dz > R2) continue;
         const c = caseDe(x, z); if (c < 0 || BLOQ[c]) continue;
         const dens = Math.max(DENS[c], PHOTO ? PHOTO[c] : 0); if (h3(i, j, 3) * 255 >= dens) continue;
         const y = H0(x, z); if (!dansChamp(x, y + 0.3, z, 0.8)) continue;
         const g = GENRE[c], u = h3(i, j, 4); let t;
-        if (g === 3) t = u < 0.45 ? 4 : u < 0.8 ? 0 : 5; else if (g === 2) t = u < 0.55 ? 0 : u < 0.75 ? 2 : u < 0.9 ? 3 : 1; else if (g === 4) t = u < 0.6 ? 0 : u < 0.85 ? 5 : 3; else t = u < 0.42 ? 0 : u < 0.66 ? 1 : u < 0.78 ? 2 : u < 0.88 ? 3 : 5;
-        const a = h3(i, j, 5) * TAU, s = (t === 4 ? 0.85 : 0.5) * (0.7 + h3(i, j, 6) * 0.6), sy = s * (t === 4 ? 0.9 : 0.85) * (0.8 + h3(i, j, 7) * 0.45), co = Math.cos(a) * s, si = Math.sin(a) * s, m = k * 16;
+        if (g === 3) t = u < 0.45 ? 4 : u < 0.8 ? 0 : 5; else if (g === 2) t = u < 0.55 ? 0 : u < 0.75 ? 2 : u < 0.9 ? 3 : 1; else if (g === 4) t = u < 0.6 ? 0 : u < 0.85 ? 5 : 3; else t = u < 0.5 ? 0 : u < 0.68 ? 1 : u < 0.78 ? 2 : u < 0.88 ? 3 : 5;
+        const a = h3(i, j, 5) * TAU, s = (t === 4 ? 0.8 : 0.44) * (0.7 + h3(i, j, 6) * 0.6), sy = s * (t === 4 ? 0.9 : 0.85) * (0.8 + h3(i, j, 7) * 0.45), co = Math.cos(a) * s, si = Math.sin(a) * s, m = k * 16;
         ma[m] = co; ma[m + 1] = 0; ma[m + 2] = -si; ma[m + 3] = 0; ma[m + 4] = 0; ma[m + 5] = sy; ma[m + 6] = 0; ma[m + 7] = 0; ma[m + 8] = si; ma[m + 9] = 0; ma[m + 10] = co; ma[m + 11] = 0; ma[m + 12] = x; ma[m + 13] = y - 0.03; ma[m + 14] = z; ma[m + 15] = 1;
         da[k * 4] = t; da[k * 4 + 3] = h3(i, j, 8);
         const v = 0.9 + h3(i, j, 9) * 0.2; let r = v, gg = v, b = v;
@@ -689,12 +771,12 @@ if ( diffuseColor.a < alphaTest ) discard;
     }
     function bilan() { // appels et triangles de la végétation (passe principale, puis ombres en haute)
       let ap = 0, ao = 0, tr = 0, to = 0; const ombres = Q.ombres;
-      PROCHES.forEach((im, f) => { if (im && im.count) { ap++; tr += im.count * TRIS.proche[f]; if (ombres) { ao++; to += im.count * TRIS.proche[f]; } } });
+      for (let f = 0; f < 4; f++) { const im = PROCHES[f]; if (im && im.count) { ap++; tr += im.count * TRIS.proche[f]; if (ombres) { ao++; to += im.count * TRIS.proche[f]; } } }
       if (MOYENS && MOYENS.count) { ap++; tr += MOYENS.count * TRIS.moyen; } if (LOINS && LOINS.count) { ap++; tr += LOINS.count * 2; }
       if (LIGNES && LIGNES.count) { ap++; tr += LIGNES.count * TRIS.ligne; if (ombres) { ao++; to += LIGNES.count * TRIS.ligne; } } if (HERBE.count) { ap++; tr += HERBE.count * TRIS.herbe; }
       ST.appels = ap; ST.appelsOmbre = ao; ST.triangles = tr; ST.trianglesOmbre = to;
     }
-    function appliquerQualite() { for (const im of PROCHES) if (im) im.castShadow = Q.ombres; if (LIGNES) LIGNES.castShadow = Q.ombres; U.uHerbeR.value = Q.herbe; E.force = true; }
+    function appliquerQualite() { silhouettes(Q.simple); for (const im of PROCHES) if (im) im.castShadow = Q.ombres; if (LIGNES) LIGNES.castShadow = Q.ombres; U.uHerbeR.value = Q.herbe || 1; E.force = true; }
 
     // ─── la photo aérienne : où pousse l'herbe (pixels verts) et de quelle couleur est le sol ───
     function lirePhoto(img) {
@@ -710,20 +792,24 @@ if ( diffuseColor.a < alphaTest ) discard;
     let image = null;
     if (opts.photo !== false && carte.sol && typeof Image !== 'undefined') { const nom = carte.sol.petite || carte.sol.image; if (typeof nom === 'string') { image = new Image(); image.onload = () => { if (!libere) try { lirePhoto(image); } catch (e) { /* photo illisible (origine) : l'herbe suit les polygones */ } }; image.src = dossier + nom; } }
 
-    // ─── maj : recopie quand la caméra a bougé ; sinon seulement le temps (vent) ───
-    const E = { cx: 1e9, cy: 0, cz: 1e9, fx: 0, fy: 0, fz: 0, fov: 0, far: 0, asp: 0, hx: 1e9, hz: 1e9, hfx: 0, hfz: 0, force: true, forceH: true };
+    // ─── maj : recopie quand la caméra a bougé de 2 m ou tourné de 8° (le champ élargi de 24° couvre la différence) ; sinon seulement le
+    // temps (vent). L'herbe suit dès 1,1 m. ───
+    const E = { cx: 1e9, cy: 0, cz: 1e9, fx: 0, fy: 0, fz: 0, fov: 0, far: 0, asp: 0, hx: 1e9, hz: 1e9, force: true, forceH: true };
     const maintenant = () => (typeof performance !== 'undefined' ? performance.now() : 0);
     function maj(camera, t) {
       if (libere || !camera || !camera.matrixWorld) return;
       U.uTemps.value = fini(t) ? t % 3600 : 0;
       const e = camera.matrixWorld.elements, cx = e[12], cy = e[13], cz = e[14], fl = Math.hypot(e[8], e[9], e[10]) || 1, fx = -e[8] / fl, fy = -e[9] / fl, fz = -e[10] / fl;
-      const dx = cx - E.cx, dy = cy - E.cy, dz = cz - E.cz, tourne = fx * E.fx + fy * E.fy + fz * E.fz < 0.9962;
+      const dx = cx - E.cx, dy = cy - E.cy, dz = cz - E.cz, tourne = fx * E.fx + fy * E.fy + fz * E.fz < 0.9903;
       const arbres = E.force || dx * dx + dy * dy + dz * dz > 4 || tourne || camera.fov !== E.fov || camera.far !== E.far || camera.aspect !== E.asp;
       const hdx = cx - E.hx, hdz = cz - E.hz, herbe = E.forceH || arbres || hdx * hdx + hdz * hdz > 1.2;
       if (!arbres && !herbe) return;
       const t1 = maintenant(); preparerChamp(camera);
-      if (arbres) { majArbres(cx, cy, cz, fini(camera.far) ? camera.far : 1000); majLignes(cx, cz); E.cx = cx; E.cy = cy; E.cz = cz; E.fx = fx; E.fy = fy; E.fz = fz; E.fov = camera.fov; E.far = camera.far; E.asp = camera.aspect; E.force = false; ST.majs++; ST.ms = Math.round((maintenant() - t1) * 100) / 100; }
-      const t2 = maintenant(); majHerbe(cx, cz); E.hx = cx; E.hz = cz; E.forceH = false; ST.majsHerbe++; ST.msHerbe = Math.round((maintenant() - t2) * 100) / 100;
+      if (arbres) {
+        majArbres(cx, cy, cz, fini(camera.far) ? camera.far : 1000); majLignes(cx, cz); E.cx = cx; E.cy = cy; E.cz = cz; E.fx = fx; E.fy = fy; E.fz = fz; E.fov = camera.fov; E.far = camera.far; E.asp = camera.aspect; E.force = false;
+        const ms = maintenant() - t1; ST.majs++; ST.ms = ms; ST.msTot += ms; if (ST.majs > 2 && ms > ST.msMax) ST.msMax = ms;
+      }
+      const t2 = maintenant(); majHerbe(cx, cz); E.hx = cx; E.hz = cz; E.forceH = false; const mh = maintenant() - t2; ST.majsHerbe++; ST.msHerbe = mh; ST.msHerbeTot += mh;
       bilan();
     }
     function qualite(q) { if (q === undefined || !QUALITES[q]) return nomQ; if (q !== nomQ) { nomQ = q; Q = QUALITES[q]; appliquerQualite(); } return nomQ; }
@@ -731,20 +817,22 @@ if ( diffuseColor.a < alphaTest ) discard;
       if (libere) return; libere = true; if (image) { image.onload = null; image = null; }
       if (groupe.parent) groupe.parent.remove(groupe);
       for (const im of groupe.children) { im.geometry.dispose(); if (im.dispose) im.dispose(); }
+      for (const sl of sils.concat(silsS)) if (sl) sl.geo.dispose();
       for (const m of Object.values(MAT)) m.dispose(); tex.dispose(); groupe.clear();
     }
     appliquerQualite();
-    const tCree = Math.round((maintenant() - t0) * 10) / 10;
+    const tCree = Math.round((maintenant() - t0) * 10) / 10, r2 = (v) => Math.round(v * 100) / 100;
     return {
       groupe, maj, qualite, liberer,
       get stats() {
-        return { qualite: nomQ, arbres: NA, especes: ESPECES.reduce((o, n, e) => { if (comptes[e]) o[n] = comptes[e]; return o; }, {}), troncons: NL, instances: { proche: ST.proche.reduce((a, b) => a + b, 0), parSilhouette: ST.proche.slice(), moyen: ST.moyen, loin: ST.loin, lignes: ST.lignes, herbe: ST.herbe },
-          appels: ST.appels, appelsOmbre: ST.appelsOmbre, triangles: ST.triangles, trianglesOmbre: ST.trianglesOmbre, majs: ST.majs, majsHerbe: ST.majsHerbe, ms: ST.ms, msHerbe: ST.msHerbe, creation: tCree,
-          atlas: S, memoire: Math.round(S * S * 4 * 4 / 3), photo: !!PHOTO, trianglesParArbre: TRIS.proche.slice() };
+        return { qualite: nomQ, arbres: NR, semes, buissons: NA - NR, especes: ESPECES.reduce((o, n, e) => { if (comptes[e]) o[n] = comptes[e]; return o; }, {}), troncons: NL,
+          instances: { proche: ST.proche[0] + ST.proche[1] + ST.proche[2] + ST.proche[3], parSilhouette: ST.proche.slice(), moyen: ST.moyen, loin: ST.loin, lignes: ST.lignes, herbe: ST.herbe },
+          appels: ST.appels, appelsOmbre: ST.appelsOmbre, triangles: ST.triangles, trianglesOmbre: ST.trianglesOmbre, majs: ST.majs, majsHerbe: ST.majsHerbe,
+          ms: r2(ST.ms), msHerbe: r2(ST.msHerbe), msMoy: r2(ST.majs ? ST.msTot / ST.majs : 0), msMax: r2(ST.msMax), msHerbeMoy: r2(ST.majsHerbe ? ST.msHerbeTot / ST.majsHerbe : 0), creation: tCree,
+          atlas: S, atlasNeuf, memoire: Math.round(S * S * 4 * 4 / 3), photo: !!PHOTO, trianglesParArbre: TRIS.proche.slice(), simple: !!Q.simple };
       },
     };
   }
-  function imposteurMesure(sil, e) { let Rm = 0, ym = 0; const rh = R_H[e] / sil.R0; for (const g of sil.grappes) { Rm = Math.max(Rm, Math.abs(g.x) + g.s * g.ax * 0.45, Math.abs(g.z) + g.s * g.ax * 0.45); ym = Math.max(ym, g.mode === 2 ? g.y : g.y + g.s * g.ay * rh * 0.5); } sil.Rm = Rm; sil.ym = ym * 1.02; }
   return { creer, ESPECES, QUALITES, OK };
 })();
 if (typeof module !== 'undefined') module.exports = PVEGETATION;

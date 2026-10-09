@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Végétation · Opération Poncin</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#E2EBEE;font:11px/1.25 system-ui,sans-serif;color:#2B2A4C}
+#vue3d{position:fixed;inset:0;width:100%;height:100%;display:block}
+#info{position:fixed;left:6px;bottom:4px;background:rgba(43,42,76,.72);color:#F4EFE6;padding:2px 6px;border-radius:6px;font-family:monospace;font-size:10px}
+</style>
+</head><body>
+<canvas id="vue3d"></canvas><div id="info" hidden></div>
+<script src="../vendor/three.min.js"></script>
+<script src="../src/modeles.js"></script>
+<script src="../src-poncin/regles.js"></script>
+<script src="../src-poncin/monde.js"></script>
+<script src="../src-poncin/textures.js"></script>
+<script src="../src-poncin/vegetation.js"></script>
+<script>
+// La page de test de la végétation (test/poncin-vegetation.cjs) : la VRAIE carte (poncin/carte/poncin.json), le sol en photo aérienne
+// (la photo fine autour de l'arène), des bâtiments extrudés avec les matières de PTEXTURES, l'eau, un ciel, la brume, les lumières et
+// les ombres comme rendu.js ; puis PVEGETATION. ?vue=place | ain | bois | haut | herbe, ?qualite=haute | moyenne | eco ;
+// ?x=&z=&yaw=&pitch=&h= pour viser ailleurs ; ?info=1 affiche les stats. window.__veg : pret, erreurs, stats, rendu, vue(nom), majs(n).
+'use strict';
+const P = new URLSearchParams(location.search), QUAL = P.get('qualite') || 'haute', VUE = P.get('vue') || 'place';
+const V = window.__veg = { pret: false, erreurs: [] };
+window.addEventListener('error', (e) => V.erreurs.push(String(e.message)));
+const PALIERS = { haute: { dpr: 2, ombres: 1024, brume: [170, 640] }, moyenne: { dpr: 1.5, ombres: 0, brume: [120, 430] }, eco: { dpr: 1, ombres: 0, brume: [80, 280] } }; // comme rendu.js
+const C = { brume: '#E2EBEE', cielHemi: '#E2F1FF', solHemi: '#C8B29A', soleil: '#FFE9CC' };
+const SOLEIL = (() => { const x = -0.52, y = 0.66, z = 0.54, l = Math.hypot(x, y, z); return [x / l, y / l, z / l]; })();
+// les vues : position (x, z), hauteur de l'œil au-dessus du sol, cap (0 = nord, + vers l'ouest), tangage
+const VUES = {
+  place: { x: 109, z: 13, h: 1.6, yaw: 0.86, pitch: 0.12 },        // sous les platanes de la place Xavier-Bichat
+  ain: { x: -316, z: 156, h: 1.6, yaw: 0.52, pitch: 0.1 },          // la rive de l'Ain : peupliers en file, saules
+  bois: { x: 260, z: -100, h: 1.6, yaw: -1.28, pitch: 0.08 },       // les bois de la colline à l'est
+  herbe: { x: -200, z: 60, h: 1.6, yaw: 1.2, pitch: -0.12 },        // un pré : l'herbe et les fleurs autour du joueur
+  haut: { x: 2, z: 135, h: 0, y: 323.5, vers: [69, 271.5, 2.7] },   // la vue d'ensemble, comme le survol de rendu.js (165 m de la place, 58 m au-dessus)
+  planche: { x: 0, z: 0, h: 1.6, yaw: 0, pitch: 0.12 },             // une carte de démonstration : chaque espèce à 25 m, 95 m et 220 m
+};
+// la carte de démonstration (?vue=planche) : sol plat, chaque espèce en rang à trois distances (niveaux proche, moyen, loin)
+function cartePlanche() {
+  const E = ['feuillu', 'platane', 'tilleul', 'peuplier', 'saule', 'fruitier', 'conifere'], HR = { feuillu: [14, 4], platane: [12, 4.2], tilleul: [9, 3.2], peuplier: [21, 2.6], saule: [10, 4.4], fruitier: [5, 2.6], conifere: [18, 3.8] }, a = [];
+  for (const [z, ec] of [[-25, 11], [-95, 22], [-220, 40]]) E.forEach((e, i) => a.push([(i - 3) * ec, z, HR[e][0], HR[e][1], e]));
+  return { v: 1, nom: 'Planche', taille: 800, relief: { pas: 800, n: 2, h: [250, 250, 250, 250] }, batiments: [], rues: [], eau: [], ponts: [], vegetation: [{ p: [[-60, -10], [60, -10], [60, 30], [-60, 30]], t: 'pre' }], arbres: a, haies: [{ l: [[-40, -45], [40, -45]], h: 1.6, w: 1 }, { l: [[-50, -60], [-50, -130]], h: 6, w: 1 }], interdit: [], noms: [], sol: null, zones: null };
+}
+let renderer, scene, camera, soleil, ciel, carte, monde, veg, B;
+const H0 = (x, z) => { const h = monde.hauteur(x, z); return Number.isFinite(h) ? h : 0; };
+function sol(L) { // le relief (triangulation partagée) + la photo, et la photo fine dans le carré de l'arène
+  if (!carte.sol) { const g = new THREE.PlaneGeometry(L, L).rotateX(-Math.PI / 2).translate(0, carte.relief.h[0], 0), s = new THREE.Mesh(g, new THREE.MeshLambertMaterial({ color: '#86A266' })); s.receiveShadow = true; s.name = 'sol'; scene.add(s); return Promise.resolve(); }
+  const R = carte.relief, n = R.n, pas = R.pas, X0 = -L / 2, pos = new Float32Array(n * n * 3), uv = new Float32Array(n * n * 2), idx = [];
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) { const k = j * n + i, x = X0 + i * pas, z = X0 + j * pas; pos[3 * k] = x; pos[3 * k + 1] = R.h[k]; pos[3 * k + 2] = z; uv[2 * k] = (x - X0) / L; uv[2 * k + 1] = 1 - (z - X0) / L; }
+  for (let j = 0; j < n - 1; j++) for (let i = 0; i < n - 1; i++) { const a = j * n + i, b = a + 1, c = a + n, d = c + 1; idx.push(a, c, b, c, d, b); }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals();
+  const ld = new THREE.TextureLoader(), t1 = ld.load('../poncin/carte/' + (QUAL === 'eco' ? carte.sol.petite : carte.sol.image)), A = carte.sol.arene, t2 = A ? ld.load('../poncin/carte/' + A.image) : null;
+  for (const t of [t1, t2]) if (t) { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; }
+  const m = new THREE.MeshLambertMaterial({ map: t1 });
+  if (t2) { m.onBeforeCompile = (sh) => { sh.uniforms.tArene = { value: t2 }; sh.uniforms.zArene = { value: new THREE.Vector4(A.centre[0] - A.taille / 2, A.centre[1] - A.taille / 2, A.taille, L) };
+    sh.fragmentShader = 'uniform sampler2D tArene; uniform vec4 zArene;\n' + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+{ vec2 w_ = vec2(-zArene.w * 0.5 + vMapUv.x * zArene.w, -zArene.w * 0.5 + (1.0 - vMapUv.y) * zArene.w); vec2 a_ = (w_ - zArene.xy) / zArene.z;
+  float k_ = smoothstep(0.0, 0.03, a_.x) * smoothstep(0.0, 0.03, a_.y) * smoothstep(0.0, 0.03, 1.0 - a_.x) * smoothstep(0.0, 0.03, 1.0 - a_.y);
+  if (k_ > 0.0) diffuseColor.rgb = mix(diffuseColor.rgb, texture2D(tArene, vec2(a_.x, 1.0 - a_.y)).rgb, k_); }`); }; m.customProgramCacheKey = () => 'sol-arene'; }
+  const s = new THREE.Mesh(g, m); s.receiveShadow = true; s.name = 'sol'; scene.add(s);
+  return Promise.all([t1, t2].filter(Boolean).map((t) => new Promise((ok) => { if (t.image && t.image.complete) ok(); else { const i = setInterval(() => { if (t.image && t.image.complete && t.image.naturalWidth) { clearInterval(i); ok(); } }, 30); setTimeout(() => { clearInterval(i); ok(); }, 8000); } })));
+}
+function batiments() { // murs extrudés (matières de PTEXTURES, uv en mètres / 3), toits en tente (convexes) ou plats, couleur du toit réelle
+  B = PTEXTURES.bati(['crepi', 'mixte', 'pierre', 'brique', 'beton', 'bois', 'tuiles', 'ardoise', 'zinc', 'plat']); if (!B) return;
+  const p = [], n = [], c = [], u = [], k = [];
+  const tri = (a, b, d, col, kk, ua, ub, ud, nn) => { for (const [v, uu] of [[a, ua], [b, ub], [d, ud]]) { p.push(v[0], v[1], v[2]); n.push(nn[0], nn[1], nn[2]); c.push(col[0], col[1], col[2]); u.push(uu[0], uu[1]); k.push(kk); } };
+  const norm = (a, b, d) => { const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e2 = [d[0] - a[0], d[1] - a[1], d[2] - a[2]], x = e1[1] * e2[2] - e1[2] * e2[1], y = e1[2] * e2[0] - e1[0] * e2[2], z = e1[0] * e2[1] - e1[1] * e2[0], l = Math.hypot(x, y, z) || 1; return [x / l, y / l, z / l]; };
+  for (const b of monde.batiments) {
+    const q = b.p, base = b.base, top = b.sommet != null ? b.sommet : b.base + b.h, mur = b.mur || 'crepi', toit = b.toit === 'beton' ? 'plat' : (b.toit || 'tuiles');
+    const cm = B.couleur(mur, mur === 'crepi' ? ['#E8D9BF', '#EAD2B0', '#E2CDB4', '#EDE2CC', '#D9C3A0'][Math.abs((q[0][0] * 7 + q[0][1] * 13) | 0) % 5] : null), cb = B.couleur(mur, mur === 'crepi' ? '#C9B79A' : null, 0.7), km = B.couche(mur);
+    let s = 0; for (let i = 0; i < q.length; i++) { const a = q[i], d = q[(i + 1) % q.length], l = Math.hypot(d[0] - a[0], d[1] - a[1]); const A0 = [a[0], base, a[1]], B0 = [d[0], base, d[1]], A1 = [a[0], top, a[1]], B1 = [d[0], top, d[1]], nn = [(d[1] - a[1]) / l, 0, (a[0] - d[0]) / l];
+      tri(A0, A1, B0, cb, km, [s / 3, 0], [s / 3, (top - base) / 3], [(s + l) / 3, 0], nn); tri(A1, B1, B0, cm, km, [s / 3, (top - base) / 3], [(s + l) / 3, (top - base) / 3], [(s + l) / 3, 0], nn); s += l; }
+    // toit : convexe et petit → en tente (pente ~35°) ; sinon plat
+    let cx = 0, cz = 0, ar = 0, convexe = true; for (let i = 0; i < q.length; i++) { const a = q[i], d = q[(i + 1) % q.length], e = q[(i + 2) % q.length]; cx += a[0]; cz += a[1]; ar += a[0] * d[1] - d[0] * a[1]; if ((d[0] - a[0]) * (e[1] - d[1]) - (d[1] - a[1]) * (e[0] - d[0]) < -1e-6) convexe = false; } cx /= q.length; cz /= q.length; ar /= 2;
+    const kt = B.couche(toit), ct = B.couleur(toit, b.teinteToit || null);
+    if (convexe && ar < 450 && q.length <= 8) { let rmin = Infinity; for (let i = 0; i < q.length; i++) { const a = q[i], d = q[(i + 1) % q.length], l = Math.hypot(d[0] - a[0], d[1] - a[1]); rmin = Math.min(rmin, Math.abs((d[0] - a[0]) * (cz - a[1]) - (d[1] - a[1]) * (cx - a[0])) / l); } const S = [cx, top + rmin * 0.7, cz];
+      for (let i = 0; i < q.length; i++) { const a = q[i], d = q[(i + 1) % q.length], A1 = [a[0], top, a[1]], B1 = [d[0], top, d[1]], nn = norm(A1, S, B1), l = Math.hypot(d[0] - a[0], d[1] - a[1]); tri(A1, S, B1, ct, kt, [0, 0], [l / 6, rmin * 1.22 / 3], [l / 3, 0], nn); } }
+    else { const tr = THREE.ShapeUtils.triangulateShape(q.map((v) => new THREE.Vector2(v[0], v[1])), []); for (const [i0, i1, i2] of tr) { const a = q[i0], d = q[i1], e = q[i2]; tri([a[0], top, a[1]], [e[0], top, e[1]], [d[0], top, d[1]], ct, kt, [a[0] / 3, a[1] / 3], [e[0] / 3, e[1] / 3], [d[0] / 3, d[1] / 3], [0, 1, 0]); } }
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(n, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(c, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(u, 2)); g.setAttribute('couche', new THREE.Float32BufferAttribute(k, 1));
+  const m = new THREE.Mesh(g, B.materiau()); m.castShadow = true; m.receiveShadow = true; m.name = 'batiments'; m.material.side = THREE.DoubleSide; scene.add(m);
+}
+function eau() {
+  const m = new THREE.MeshLambertMaterial({ color: '#6E9C9A', transparent: true, opacity: 0.88 });
+  for (const e of carte.eau || []) { let y = Infinity; for (const v of e.p) y = Math.min(y, H0(v[0], v[1])); const sh = new THREE.Shape(e.p.map((v) => new THREE.Vector2(v[0], -v[1]))), g = new THREE.ShapeGeometry(sh); g.rotateX(-Math.PI / 2); g.translate(0, y + 0.35, 0); const me = new THREE.Mesh(g, m); me.name = 'eau'; me.receiveShadow = true; scene.add(me); }
+}
+function cielDegrade() {
+  const cv = document.createElement('canvas'); cv.width = 4; cv.height = 256; const c = cv.getContext('2d'), g = c.createLinearGradient(0, 0, 0, 256);
+  g.addColorStop(0, '#5FA9E6'); g.addColorStop(0.32, '#9ACDF2'); g.addColorStop(0.47, '#D3E7F1'); g.addColorStop(0.5, C.brume); g.addColorStop(1, '#C9D6D4'); c.fillStyle = g; c.fillRect(0, 0, 4, 256);
+  const t = new THREE.CanvasTexture(cv); t.colorSpace = THREE.SRGBColorSpace;
+  ciel = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 16), new THREE.MeshBasicMaterial({ map: t, side: THREE.BackSide, fog: false, depthWrite: false })); ciel.renderOrder = -10; ciel.frustumCulled = false; ciel.name = 'ciel'; scene.add(ciel);
+}
+function placer(v) { // la caméra, le soleil (et sa carte d'ombre, autour du point regardé), le ciel
+  const y = v.y != null ? v.y : H0(v.x, v.z) + v.h; camera.position.set(v.x, y, v.z); camera.rotation.set(v.pitch || 0, v.yaw || 0, 0, 'YXZ');
+  if (v.vers) { camera.lookAt(v.vers[0], v.vers[1], v.vers[2]); v.yaw = camera.rotation.y; }
+  camera.fov = +P.get('fov') || 60; // ?fov= : un zoom pour la mise au point
+  const haut = y - H0(v.x, v.z) > 20, p = PALIERS[QUAL]; scene.fog.near = p.brume[0] * (haut ? 1.45 : 1); scene.fog.far = p.brume[1] * (haut ? 1.45 : 1); camera.far = scene.fog.far + 40; camera.updateProjectionMatrix(); camera.updateMatrixWorld();
+  const fx = v.x - Math.sin(v.yaw) * 18, fz = v.z - Math.cos(v.yaw) * 18, sy = H0(fx, fz); soleil.target.position.set(fx, sy, fz); soleil.position.set(fx + SOLEIL[0] * 160, sy + SOLEIL[1] * 160, fz + SOLEIL[2] * 160); soleil.target.updateMatrixWorld();
+  ciel.position.copy(camera.position); const r = camera.far * 0.92; ciel.scale.set(r, r, r);
+}
+function rendre() { renderer.info.reset(); renderer.clear(); renderer.render(scene, camera); return { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles }; }
+// les appels et triangles de la végétation seule (ombres comprises), mesurés par WebGL : on cache tout le reste le temps d'une image
+function renduVegetation() {
+  const caches = []; for (const o of scene.children) if (o !== veg.groupe && o.isMesh && o.visible) { o.visible = false; caches.push(o); }
+  const r = rendre(); for (const o of caches) o.visible = true; return r;
+}
+function vue(nom, t) {
+  const v = Object.assign({}, VUES[nom] || VUES.place); for (const k of ['x', 'z', 'h', 'yaw', 'pitch']) if (P.has(k) && nom === VUE) v[k] = +P.get(k);
+  placer(v); veg.maj(camera, t == null ? 12.5 : t);
+  const seule = renduVegetation(), tout = rendre();
+  return { nom, veg: seule, tout, stats: veg.stats, memoire: Object.assign({}, renderer.info.memory) };
+}
+// 50 maj en bougeant (marche, demi-tour, vent) : les géométries et les textures du GPU ne bougent pas, rien ne grossit
+function majs(n) {
+  const v = Object.assign({}, VUES[VUE] || VUES.place), g0 = renderer.info.memory.geometries, x0 = renderer.info.memory.textures, l = [];
+  for (let i = 0; i < n; i++) { const w = Object.assign({}, v, { x: v.x + Math.sin(i * 0.3) * i * 0.8, z: v.z + Math.cos(i * 0.21) * i * 0.6, yaw: v.yaw + i * 0.13 }); placer(w); veg.maj(camera, 12.5 + i / 30); rendre(); l.push(renderer.info.memory.geometries); }
+  placer(v); veg.maj(camera, 12.5); rendre();
+  return { avant: g0, apres: renderer.info.memory.geometries, max: Math.max(...l), min: Math.min(...l), texAvant: x0, texApres: renderer.info.memory.textures, stats: veg.stats };
+}
+// l'herbe des vues : aucune touffe sur une rue (demi-largeur), dans un bâtiment ou dans l'eau
+const dansPoly = (p, x, z) => { let c = false; for (let i = 0, j = p.length - 1; i < p.length; j = i++) { const a = p[i], b = p[j]; if ((a[1] > z) !== (b[1] > z) && x < (b[0] - a[0]) * (z - a[1]) / (b[1] - a[1]) + a[0]) c = !c; } return c; };
+const d2Seg = (px, pz, a, b) => { const ex = b[0] - a[0], ez = b[1] - a[1], l = ex * ex + ez * ez; let t = l > 0 ? ((px - a[0]) * ex + (pz - a[1]) * ez) / l : 0; t = Math.max(0, Math.min(1, t)); const dx = a[0] + t * ex - px, dz = a[1] + t * ez - pz; return dx * dx + dz * dz; };
+function herbeInterdite() {
+  const im = veg.groupe.children.find((o) => o.name === 'herbe'); let n = 0, mal = 0, ex = '';
+  for (const nom of Object.keys(VUES).filter((n) => n !== 'planche')) {
+    vue(nom); if (!im || !im.visible) continue; const a = im.instanceMatrix.array;
+    for (let i = 0; i < im.count; i++) {
+      const x = a[i * 16 + 12], z = a[i * 16 + 14]; n++; let q = '';
+      for (const r of carte.rues) { const w = (r.w || 5) / 2; for (let s = 0; s + 1 < r.l.length; s++) if (d2Seg(x, z, r.l[s], r.l[s + 1]) < w * w) { q = 'rue ' + (r.n || ''); break; } if (q) break; }
+      if (!q) for (const b of monde.batiments) if (x >= b.aabb[0] && x <= b.aabb[2] && z >= b.aabb[1] && z <= b.aabb[3] && dansPoly(b.p, x, z)) { q = 'bâtiment'; break; }
+      if (!q) for (const e of carte.eau) if (dansPoly(e.p, x, z)) { q = 'eau'; break; }
+      if (q) { mal++; if (!ex) ex = `${nom} (${x.toFixed(1)}, ${z.toFixed(1)}) ${q}`; }
+    }
+  }
+  return { n, mal, ex };
+}
+// une seconde végétation : l'atlas n'est pas repeint ; libérer rend ses géométries
+function recreer() {
+  rendre(); const geoAvant = renderer.info.memory.geometries, t0 = performance.now(), v2 = PVEGETATION.creer(carte, monde, { qualite: QUAL, dossier: '../poncin/carte/', photo: false }), ms = +(performance.now() - t0).toFixed(1);
+  veg.groupe.visible = false; scene.add(v2.groupe); v2.maj(camera, 1); rendre(); const atlasPartage = !v2.stats.atlasNeuf; v2.liberer(); veg.groupe.visible = true; rendre();
+  return { ms, atlasPartage, geoAvant, geoApres: renderer.info.memory.geometries };
+}
+async function demarrer() {
+  carte = VUE === 'planche' ? cartePlanche() : await (await fetch('../poncin/carte/poncin.json')).json();
+  monde = PMONDE.creer(carte);
+  const cv = document.getElementById('vue3d');
+  renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: QUAL !== 'eco', powerPreference: 'high-performance' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, PALIERS[QUAL].dpr)); renderer.setSize(innerWidth, innerHeight, false);
+  renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.shadowMap.enabled = PALIERS[QUAL].ombres > 0; renderer.info.autoReset = false; renderer.autoClear = false; renderer.setClearColor(C.brume);
+  PTEXTURES.init(renderer); PTEXTURES.qualite(QUAL);
+  scene = new THREE.Scene(); scene.fog = new THREE.Fog(C.brume, PALIERS[QUAL].brume[0], PALIERS[QUAL].brume[1]);
+  camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, 700); camera.rotation.order = 'YXZ'; scene.add(camera);
+  const hemi = new THREE.HemisphereLight(C.cielHemi, C.solHemi, 2.0); soleil = new THREE.DirectionalLight(C.soleil, 2.0); soleil.castShadow = true; soleil.shadow.mapSize.set(1024, 1024); soleil.shadow.bias = -0.0006; soleil.shadow.normalBias = 0.04;
+  const sc = soleil.shadow.camera; sc.left = -40; sc.right = 40; sc.top = 40; sc.bottom = -40; sc.near = 1; sc.far = 400; sc.updateProjectionMatrix(); scene.add(hemi, soleil, soleil.target);
+  cielDegrade(); const photo = sol(carte.taille); batiments(); eau();
+  if (P.get('forcer')) { const q = PVEGETATION.QUALITES[QUAL]; q.proche = 0.5; if (P.get('forcer') === 'loin') q.moyen = 1; } // mise au point : tout au niveau moyen, ou loin
+  const t0 = performance.now(); veg = PVEGETATION.creer(carte, monde, { qualite: QUAL, dossier: '../poncin/carte/' }); V.creation = +(performance.now() - t0).toFixed(1);
+  if (!veg) throw new Error('PVEGETATION.creer a rendu null');
+  scene.add(veg.groupe);
+  await photo; const t1 = performance.now(); while (carte.sol && !veg.stats.photo && performance.now() - t1 < 6000) await new Promise((ok) => setTimeout(ok, 50)); // l'herbe suit la photo dès qu'elle est lue
+  if (VUE === 'atlas') { // l'atlas de la végétation, sur un damier (mise au point)
+    const t = veg.groupe.children[0].material.map, S = t.image.width, d = t.image.data, cv = document.createElement('canvas'); cv.width = cv.height = S; const c = cv.getContext('2d'), img = c.createImageData(S, S);
+    for (let y = 0; y < S; y++) img.data.set(d.subarray((S - 1 - y) * S * 4, (S - y) * S * 4), y * S * 4); c.putImageData(img, 0, 0);
+    const z = (P.get('zoom') || '0,0,1').split(',').map(Number), out = document.createElement('canvas'); out.width = innerWidth * 2; out.height = innerHeight * 2; out.style.cssText = 'position:fixed;inset:0;width:100%;height:100%;background:repeating-conic-gradient(#8a8aa0 0 25%,#6d6d86 0 50%) 0 0/16px 16px';
+    const o = out.getContext('2d'), k = out.height / S * z[2]; o.drawImage(cv, -z[0] * k, -z[1] * k, S * k, S * k); document.body.append(out);
+  }
+  V.vue = vue; V.majs = majs; V.rendre = rendre; V.qualite = (q) => veg.qualite(q); V.herbeInterdite = herbeInterdite; V.recreer = recreer;
+  V.etat = vue(VUE); V.stats = veg.stats;
+  if (P.get('info')) { const i = document.getElementById('info'); i.hidden = false; const s = V.etat.veg; i.textContent = `${QUAL} · ${VUE} · végétation ${s.calls} appels, ${(s.triangles / 1000).toFixed(1)}k tri · ${JSON.stringify(veg.stats.instances)}`; }
+  V.pret = true;
+}
+demarrer().catch((e) => { V.erreurs.push(String(e && e.stack || e)); V.pret = true; });
+</script>
+</body></html>
