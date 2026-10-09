@@ -7280,7 +7280,7 @@ const PUI = (() => {
     const etat = $('#salon-etat'), bouton = $('#b-salon-action');
     const prets = js.filter((j) => !j.hote && j.pret).length, autres = js.length - 1;
     if (hote) {
-      if (etat) etat.textContent = js.length < 2 ? 'Donne le code aux copains : la partie se lance à partir de 2 joueurs.' : `${prets}/${autres} copain${autres > 1 ? 's' : ''} prêt${prets > 1 ? 's' : ''}. Tu lances quand tu veux.`;
+      if (etat) etat.textContent = js.length < 2 ? 'Donne le code aux copains : la partie se lance à partir de 2 joueurs.' : `${prets}/${autres} copain${autres > 1 ? 's' : ''} prêt${prets > 1 ? 's' : ''}. Tu lances quand tu veux ; garde le jeu ouvert pendant la partie : c’est ton téléphone qui la fait tourner.`;
       if (bouton) { bouton.textContent = 'Lancer la partie'; bouton.disabled = js.length < 2; bouton.removeAttribute('aria-pressed'); }
     } else {
       if (etat) etat.textContent = ctl.enJeu ? 'Une partie est en cours : tu joueras à la suivante.' : 'L’hôte règle la partie et la lance.';
