@@ -1,0 +1,22 @@
+# Vérifie depuis GitHub (qui a Internet) que le projet Supabase d'Opération Poncin répond et accepte les comptes anonymes.
+# Seulement l'adresse et la clé PUBLIQUE (celles de poncin/config.js) ; aucune clé secrète.
+name: Vérif Supabase
+on:
+  push:
+    branches: [verif-supabase]
+jobs:
+  verif:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Réglages d'authentification et compte anonyme
+        env:
+          URL: https://jklbitrlkfrktmnarejc.supabase.co
+          CLE: sb_publishable_T4XlWAUqurOWo8T9GNkuaA_TPPf4ss3
+        run: |
+          echo "── /auth/v1/settings"
+          curl -sS -H "apikey: $CLE" "$URL/auth/v1/settings" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(json.dumps({k: d.get(k) for k in ["disable_signup","mailer_autoconfirm","phone_autoconfirm","sms_provider"]})); print("anonymous_users:", d.get("external",{}).get("anonymous_users"))'
+          echo "── inscription anonyme"
+          curl -sS -o reponse.json -w "HTTP %{http_code}\n" -X POST -H "apikey: $CLE" -H "Content-Type: application/json" -d '{}' "$URL/auth/v1/signup"
+          python3 -c 'import json; d=json.load(open("reponse.json")); u=d.get("user") or {}; print("compte anonyme:", bool(d.get("access_token")), "is_anonymous:", u.get("is_anonymous"), "erreur:", d.get("msg") or d.get("error_description") or d.get("message"))'
+          echo "── Realtime (websocket) joignable"
+          curl -sS -o /dev/null -w "HTTP %{http_code}\n" "$URL/realtime/v1/api/ping?apikey=$CLE" || true
