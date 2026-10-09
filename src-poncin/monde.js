@@ -8,7 +8,8 @@
    0,6), celui que dessine vegetation.js ; seulement les arbres mesurés [x, z, h, r, e] : les vieilles entrées [x, z, h] ne bloquent rien,
    comme avant), murs de carte.murs (demi-épaisseur e/2 ; un muret de 45 cm au plus se franchit comme une marche et n'arrête que les tirs
    bas), mobilier massif de carte.mobilier (fontaine, monument, croix, paroi d'un abribus, aux tailles de decor.js ; ni panneaux, ni
-   poubelles, ni bancs, ni lampadaires). Chaque arête est inscrite dans toutes les cellules à moins de MARGE + w d'elle : un cercle de
+   poubelles, ni lampadaires) et les bancs de la place (un choix de style, pas une donnée : posés ici, pleins, monde.bancs [[x, z, yaw]],
+   que decor.js dessine). Chaque arête est inscrite dans toutes les cellules à moins de MARGE + w d'elle : un cercle de
    rayon ≤ MARGE n'a besoin que de sa propre cellule. L'intérieur des polygones (est-on dedans ?) se lit par pair-impair, sauf dans les
    cellules sans arête, dont l'état (libre ou plein) est calculé une fois pour toutes. Aucune allocation dans les chemins chauds hors du
    résultat rendu. Une position déjà DANS une région pleine (téléportation ratée : jamais en jeu normal) est rendue par deplacer au point
@@ -338,7 +339,7 @@
     arete(AM, X0, X0, X1, X0, SOURCE.bord); arete(AM, X1, X0, X1, X1, SOURCE.bord); arete(AM, X1, X1, X0, X1, SOURCE.bord); arete(AM, X0, X1, X0, X0, SOURCE.bord);
 
     // ─── les obstacles (capsules) : troncs, murs, mobilier massif ; OB : [haut en a, haut en b, bas, de, k] ───
-    const OB = [], compte = { troncs: 0, feuillages: 0, murs: 0, murets: 0, mobilier: 0 };
+    const OB = [], compte = { troncs: 0, feuillages: 0, murs: 0, murets: 0, mobilier: 0, bancs: 0 };
     const obstacle = (ax, az, bx, bz, w, ya, yb, bas, de, k, sol) => { arete(sol ? AM : AV, ax, az, bx, bz, de === 2 ? SOURCE.arbre : de === 3 ? SOURCE.mur : SOURCE.mobilier, w, OB.length / 5); OB.push(ya, yb, bas, de, k); };
     liste(carte.arbres).forEach((a, k) => {
       if (!Array.isArray(a) || a.length < 5) return; // une vieille entrée [x, z, h] ne bloque rien (comme avant)
@@ -365,6 +366,43 @@
       const yaw = fini(+o.yaw) ? +o.yaw : 0, c = Math.cos(yaw), s = Math.sin(yaw), [lx, lz] = d.paroi;
       obstacle(x + c * lx - s * lz, z - s * lx - c * lz, x - c * lx - s * lz, z + s * lx - c * lz, d.r, y + d.h, y + d.h, y - 0.6, 4, k, true);
     });
+
+    // ─── les bancs de la place (un CHOIX DE STYLE, pas une donnée : OSM n'en a pas à Poncin) : seulement s'il y a une place nommée (« Place … »
+    // dans carte.noms, à moins de 40 m du centre de l'arène) ; sous les arbres mesurés à moins de 32 m d'elle, 4 au plus, à 1,9 m du tronc
+    // et dos à lui ; ses deux bouts, les pieds de l'assis et 1,2 m devant : hors des rues (0,8 m du bord de chaussée), des régions pleines,
+    // à 0,3 m de toute arête au sol et à 0,9 m des autres troncs ; 7 m entre deux bancs. decor.js dessine monde.bancs [[x, z, yaw]] (l'objet
+    // regarde vers (−sin yaw, −cos yaw)). Un banc est plein, comme du mobilier : une capsule sur son emprise (1,8 × 0,41 m, dossier à 0,86 m).
+    const bancs = [];
+    {
+      const AR = carte.zones && carte.zones.arene, AC = AR && Array.isArray(AR.centre) && fini(+AR.centre[0]) && fini(+AR.centre[1]) ? [+AR.centre[0], +AR.centre[1]] : [0, 0];
+      const np = liste(carte.noms).find((o) => o && typeof o.n === 'string' && /^place\b/i.test(o.n) && fini(+o.x) && fini(+o.z) && Math.hypot(o.x - AC[0], o.z - AC[1]) < 40), PC = np ? [+np.x, +np.z] : null;
+      if (PC) {
+        const pres = (x, z, d) => Math.abs(x - PC[0]) < d && Math.abs(z - PC[1]) < d;
+        const arbres = liste(carte.arbres).filter((a) => Array.isArray(a) && fini(+a[0]) && fini(+a[1]) && pres(+a[0], +a[1], 40));
+        const ancres = arbres.filter((a) => a.length >= 5 && Math.hypot(a[0] - PC[0], a[1] - PC[1]) < 32).sort((a, b) => Math.hypot(a[0] - PC[0], a[1] - PC[1]) - Math.hypot(b[0] - PC[0], b[1] - PC[1]));
+        const rues = []; for (const r of liste(carte.rues)) { const l = r && Array.isArray(r.l) ? r.l : null; if (!l) continue; const w = fini(+r.w) ? +r.w : 5; for (let i = 0; i + 1 < l.length; i++) { const a = l[i], b = l[i + 1]; if (Array.isArray(a) && Array.isArray(b) && fini(+a[0]) && fini(+a[1]) && fini(+b[0]) && fini(+b[1])) rues.push(+a[0], +a[1], +b[0], +b[1], w / 2); } }
+        const aretes = []; for (let o = 0; o < AM.length; o += 7) if (d2SegRect(AM[o], AM[o + 1], AM[o + 2], AM[o + 3], PC[0] - 40, PC[1] - 40, PC[0] + 40, PC[1] + 40) < 4) aretes.push(o);
+        const proches = regions.filter((r) => r.aabb[2] > PC[0] - 40 && r.aabb[0] < PC[0] + 40 && r.aabb[3] > PC[1] - 40 && r.aabb[1] < PC[1] + 40);
+        const distRue = (x, z) => { let m = 99; for (let o = 0; o < rues.length; o += 5) { const d = Math.sqrt(d2PtSeg(x, z, rues[o], rues[o + 1], rues[o + 2], rues[o + 3])) - rues[o + 4]; if (d < m) m = d; } return m; };
+        const gene = (x, z, a) => !(x >= X0 && x <= X1 && z >= X0 && z <= X1) || distRue(x, z) < 0.8 || proches.some((r) => x >= r.aabb[0] && x <= r.aabb[2] && z >= r.aabb[1] && z <= r.aabb[3] && dansPoly(r.f, x, z))
+          || aretes.some((o) => d2PtSeg(x, z, AM[o], AM[o + 1], AM[o + 2], AM[o + 3]) < (0.3 + AM[o + 5]) ** 2) || arbres.some((t) => t !== a && Math.hypot(t[0] - x, t[1] - z) < 0.9);
+        for (const a of ancres) {
+          if (bancs.length >= 4) break; let best = null;
+          for (let k = 0; k < 16; k++) {
+            const ang = k / 16 * Math.PI * 2, x = +a[0] + Math.cos(ang) * 1.9, z = +a[1] + Math.sin(ang) * 1.9, yaw = Math.atan2(-Math.cos(ang), -Math.sin(ang)), c = Math.cos(yaw), s = Math.sin(yaw);
+            const pt = (lx, lz) => [x - c * lx - s * lz, z + s * lx - c * lz]; // le repère des objets (decor.js)
+            if ([pt(-1, 0), pt(1, 0), pt(-1, 0.6), pt(1, 0.6), pt(0, 1.2)].some((p) => gene(p[0], p[1], a))) continue;
+            if (bancs.some((o) => Math.hypot(o[0] - x, o[1] - z) < 7)) continue;
+            const sc = Math.hypot(x - PC[0], z - PC[1]) - 0.5 * Math.min(4, distRue(x, z)); if (!best || sc < best[3]) best = [x, z, yaw, sc];
+          }
+          if (best) bancs.push(best.slice(0, 3));
+        }
+        for (const [x, z, yaw] of bancs) { // l'emprise que dessine decor.js : x local ∈ [−0,9 ; 0,9], z local ∈ [−0,22 ; 0,19], dossier à 0,86 m
+          const c = Math.cos(yaw), s = Math.sin(yaw), y = Math.min(hauteur(x, z), hauteur(x + 0.9, z), hauteur(x - 0.9, z)), lz = -0.015;
+          obstacle(x + c * 0.78 - s * lz, z - s * 0.78 - c * lz, x - c * 0.78 - s * lz, z + s * 0.78 - c * lz, 0.23, y + 0.86, y + 0.86, y - 0.6, 4, -1, true); compte.bancs++; // k = −1 : pas un objet de carte.mobilier
+        }
+      }
+    }
 
     // ─── les tableaux : arêtes 0..NM−1 au sol, NM..NA−1 pour les tirs seulement ───
     const NM = AM.length / 7, NA = NM + AV.length / 7, E = new Float64Array(NA * 4), ES = new Int32Array(NA), EW = new Float64Array(NA), EX = new Int32Array(NA);
@@ -735,11 +773,11 @@
     const secours = () => limiteOk(monde.limite) ? libre(rndDefaut) : libre(rndDefaut, [0, 0], L / 2); // une position perdue (NaN) revient sur un point libre
 
     const monde = {
-      L, limite: null, batiments, interdits, couloirs, passages,
+      L, limite: null, batiments, interdits, couloirs, passages, bancs,
       hauteur, bloque, deplacer, rayon, vue, libre,
       passe, dedans, pente, sousVoute, arche,
       accessible: null, // une fonction (x, z) → bool qu'y branche PNAV.creer : la composante principale de la navigation
-      stats: { aretes: NM, aretesTirs: NA - NM, cellules: G * G, cote: CS, regions: regions.length, ponts: couloirs.length, passages: NP, troncs: compte.troncs, feuillages: compte.feuillages, murs: compte.murs, murets: compte.murets, mobilier: compte.mobilier },
+      stats: { aretes: NM, aretesTirs: NA - NM, cellules: G * G, cote: CS, regions: regions.length, ponts: couloirs.length, passages: NP, troncs: compte.troncs, feuillages: compte.feuillages, murs: compte.murs, murets: compte.murets, mobilier: compte.mobilier, bancs: compte.bancs },
       // les arêtes au sol (E : ax, az, bx, bz ; EW : demi-épaisseur ; ES : source), pour la navigation et les tests
       _interne: { E: E.subarray(0, 4 * NM), EW: EW.subarray(0, NM), ES: ES.subarray(0, NM), cA0, cA, G, CS, MARGE, regions, X0, PV },
     };

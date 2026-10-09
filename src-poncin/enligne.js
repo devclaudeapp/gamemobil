@@ -24,6 +24,8 @@ const PENLIGNE = (() => {
   // LACHE : sans entrée d'un client depuis ce temps (ou 2,5 × l'intervalle mesuré), l'hôte lui lâche les commandes (plus de course sans fin)
   const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
   const fini = (v) => typeof v === 'number' && v - v === 0;
+  // l'empreinte de la carte (source et nombre d'objets) : l'hôte l'envoie au lancement ; un client qui a une autre carte (vieille copie en cache) se retire
+  const empreinte = (c) => c ? [c.source || '', (c.batiments || []).length, (c.arbres || []).length, (c.passages || []).length, (c.murs || []).length].join('/') : '';
   const num = (v, a, b) => (fini(v) ? (v < a ? a : v > b ? b : v) : 0);
   const ecartAngle = (a, b) => { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI; return d; };
   const maintenant = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
@@ -110,7 +112,7 @@ const PENLIGNE = (() => {
       const graine = (Math.random() * 4294967296) >>> 0;
       let P = null;
       try { k++; P = partieHote(ctl, { k, graine, options, joueurs: liste, dans: DANS }); } catch (e) { signaler('lancement', e); return 'la partie n’a pas pu démarrer'; }
-      envoyer('lancer', { k, graine, options, joueurs: P.liste, dans: DANS }, { fiable: true });
+      envoyer('lancer', { k, graine, options, joueurs: P.liste, dans: DANS, carte: empreinte(ctl._carte) }, { fiable: true });
       finirPartie(); ctl.partie = P; ctl.enJeu = true; annoncerReglages();
       emettre('partie', P); emettre('maj');
       return true;
@@ -162,6 +164,7 @@ const PENLIGNE = (() => {
     ecoute('lancer', (d) => {
       if (salon.estHote || !d || !Array.isArray(d.joueurs)) return;
       if (!d.joueurs.some((j) => j && j.id === salon.moi.id)) { ctl.enJeu = true; emettre('maj'); return; } // une partie sans nous (arrivés trop tard)
+      if (d.carte && ctl._carte && d.carte !== empreinte(ctl._carte)) { quitter(); emettre('ferme', { raison: 'carte' }); return; } // pas la même carte que l'hôte (une vieille copie) : la partie divergerait
       finirPartie();
       let P = null; try { P = partieClient(ctl, d); } catch (e) { signaler('façade', e); P = null; }
       if (!P) return;

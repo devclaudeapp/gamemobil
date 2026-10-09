@@ -70,7 +70,8 @@ const PUI = (() => {
     let c = null;
     try {
       const ctl = window.AbortController ? new AbortController() : null, t = setTimeout(() => { if (ctl) ctl.abort(); }, 8000);
-      const r = await fetch('carte/poncin.json', ctl ? { signal: ctl.signal } : undefined); clearTimeout(t);
+      const v = typeof window.PONCIN_CARTE_V === 'string' && window.PONCIN_CARTE_V ? '?v=' + encodeURIComponent(window.PONCIN_CARTE_V) : ''; // la version de la carte : jamais une vieille copie en cache après une mise à jour
+      const r = await fetch('carte/poncin.json' + v, ctl ? { signal: ctl.signal } : undefined); clearTimeout(t);
       if (r.ok) { const j = await r.json(); if (j && j.v === 1 && Array.isArray(j.batiments) && j.taille > 0) c = j; }
     } catch (e) { c = null; } // hors ligne, fichier absent, page ouverte en file:// : la carte provisoire
     if (!c && CARTEPROV) { try { c = CARTEPROV.creer(); } catch (e) { signaler('carte provisoire', e); c = null; } }
@@ -383,7 +384,7 @@ const PUI = (() => {
     c.sur('maj', () => { if (c !== ctl) return; if (ecran === 'salon') majSalon(); });
     c.sur('partie', (P) => { if (c !== ctl) return; demarrerEnLigne(P); });
     c.sur('salon', () => { if (c !== ctl) return; jeu = null; partieL = null; enLigne = false; finTraitee = false; force = null; astuce(false); PCONTROLES.activer(false); eveille(false); try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('salon'); });
-    c.sur('ferme', () => { if (c !== ctl) return; ctl = null; partieL = null; if (enLigne || ecran === 'salon') { enLigne = false; jeu = null; try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('copains'); noteCopains('Le salon a été fermé.', true); } });
+    c.sur('ferme', (d) => { if (c !== ctl) return; ctl = null; partieL = null; if (enLigne || ecran === 'salon') { enLigne = false; jeu = null; try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('copains'); noteCopains(d && d.raison === 'carte' ? 'Ta carte de Poncin n’est pas celle de l’hôte : rechargez la page tous les deux, puis recréez le salon.' : 'Le salon a été fermé.', true); } });
   }
   function quitterSalon() { const c = ctl; ctl = null; partieL = null; enLigne = false; if (c) { try { c.quitter(); } catch (e) { console.warn('[Poncin] quitter le salon', e); } } }
   const VOIES = { local: 'même appareil', hote: 'hôte', p2p: 'direct', webrtc: 'direct', direct: 'direct', relais: 'relais', supabase: 'relais', faux: 'essai' };

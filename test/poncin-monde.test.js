@@ -47,6 +47,7 @@ function obstaclesRef(monde, carte) {
     else if (m.t === 'abribus') { const c = Math.cos(m.yaw || 0), s = Math.sin(m.yaw || 0), P = (lx, lz) => [m.x - c * lx - s * lz, m.z + s * lx - c * lz], a = P(-1.55, -0.62), b = P(1.55, -0.62), y = H(m.x, m.z); o.caps.push({ a, b, r: 0.08, ha: y + 2.38, hb: y + 2.38, bas: y - 0.6, de: 'mobilier', k }); } });
   (carte.murs || []).forEach((m, k) => { const h = m.h > 0.3 ? Math.min(6, Math.max(0.4, m.h)) : 1.8, e = m.e > 0.05 ? Math.min(1.2, Math.max(0.1, m.e)) : 0.45;
     for (let i = 0; i + 1 < m.l.length; i++) { const a = m.l[i], b = m.l[i + 1]; o.caps.push({ a, b, r: e / 2, ha: H(a[0], a[1]) + h, hb: H(b[0], b[1]) + h, bas: Math.min(H(a[0], a[1]), H(b[0], b[1])) - 0.6, de: 'mur', k, sol: h > 0.45 }); } });
+  (monde.bancs || []).forEach(([x, z, yaw]) => { const c = Math.cos(yaw), s = Math.sin(yaw), P = (lx, lz) => [x - c * lx - s * lz, z + s * lx - c * lz], y = Math.min(H(x, z), H(x + 0.9, z), H(x - 0.9, z)); o.caps.push({ a: P(-0.78, -0.015), b: P(0.78, -0.015), r: 0.23, ha: y + 0.86, hb: y + 0.86, bas: y - 0.6, de: 'mobilier', k: -1 }); });
   carte._obsRef = o; Object.defineProperty(carte, '_obsRef', { enumerable: false }); return o;
 }
 // le premier obstacle, en essayant TOUS les murs (sauf sous l'arc d'une arcade), TOUS les toits, les piédroits et (par pas de 5 mm) les
@@ -669,6 +670,10 @@ if (fs.existsSync(vraie)) {
   const rnd = R.mulberry32(51); let pres = 0, coll = 0; // dans l'arène, autour des troncs : des pas au hasard ne traversent jamais un tronc
   for (const a of dansArene) { const rt = Math.min(0.6, Math.max(0.2, 0.12 + 0.025 * a[2])); let p = [a[0] + rt + 0.5, a[1]]; if (MV.bloque(p[0], p[1], J.rayon)) continue; pres++; for (let k = 0; k < 60; k++) { const ang = rnd() * 6.3; p = MV.deplacer(p[0], p[1], Math.cos(ang) * 0.4, Math.sin(ang) * 0.4, J.rayon); if (Math.hypot(p[0] - a[0], p[1] - a[1]) < rt + J.rayon - 2e-3) coll++; } }
   check(coll === 0 && pres > 40, `${pres} troncs de l'arène bousculés 60 fois chacun : jamais traversés`);
+  const bancs = MV.bancs.map(([x, z, yaw]) => { const fx = -Math.sin(yaw), fz = -Math.cos(yaw), o = [x + fx * 3, z + fz * 3], q = marcher(MV, o, [x - fx * 3, z - fz * 3]), h = MV.rayon(o[0], MV.hauteur(o[0], o[1]) + 0.6, o[1], -fx, 0, -fz, 6); return { bloque: MV.bloque(x, z, 0.35), arret: Math.hypot(q[0] - o[0], q[1] - o[1]), h }; });
+  check(MV.bancs.length === 4 && MV.stats.bancs === 4 && MV.bancs.every(([x, z]) => Math.hypot(x - A.centre[0], z - A.centre[1]) < 45) && bancs.every((b) => b.bloque && b.arret < 3 && b.h && b.h.de === 'mobilier' && b.h.t < 3),
+    `${MV.bancs.length} bancs sur la place (choix de style), pleins : on bute dessus (arrêt après ${bancs.map((b) => f2(b.arret)).join(', ')} m sur 3) et un tir à 0,6 m s'y arrête (${bancs.map((b) => b.h ? b.h.de + ' à ' + f2(b.h.t) : 'rien').join(', ')} m)`);
+  check(M3.bancs.length === 0 && M3.stats.bancs === 0, 'pas de place nommée près de l\'arène (cartes d\'essai) : aucun banc');
   { // le sapin de l'arène : son feuillage dense cache qui est derrière (ni vue ni tir), sans gêner les pas ; personne n'y a l'œil
     const S = CV.arbres.find((a) => a[4] === 'conifere' && Math.hypot(a[0] - A.centre[0], a[1] - A.centre[1]) <= A.rayon), ys = (x, z) => MV.hauteur(x, z);
     const rob = [S[0] + 8, ys(S[0] + 8, S[1]) + 1.6, S[1]], cache = [S[0] - 1.5, ys(S[0] - 1.5, S[1] + 0.7) + 1.2, S[1] + 0.7], h = MV.rayon(...rob, ...[cache[0] - rob[0], cache[1] - rob[1], cache[2] - rob[2]].map((v, i, d) => v / Math.hypot(...d)), 20);

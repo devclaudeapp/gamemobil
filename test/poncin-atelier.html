@@ -137,14 +137,17 @@ window.atelier = (() => {
     const vueDe = (cible, dmin, dmax) => { let best = null; for (const p of tous) { const d = Math.hypot(p.x - cible.x, p.z - cible.z); if (d < dmin || d > dmax || (best && d >= best.d) || !libre(p.x, p.z)) continue; if (!monde.vue(p.x, oeil(p.x, p.z), p.z, cible.x, cible.h + 2, cible.z)) continue; best = { x: p.x, z: p.z, d }; } return best; };
     if (R.chateau) R.vueChateau = vueDe(R.chateau, 45, 150);
     const cl = R.clocher || R.eglise; if (cl) R.vueEglise = vueDe(cl, 22, 90);
-    // la nef : le plus grand bâtiment « eglise », son pan le plus long (≥ 8 m) vu de face à 9–16 m, d'un point libre (le portail et les vitraux)
+    // la nef : le plus grand bâtiment « eglise », de face sa façade sur la rue (le pan d'au moins 3 m le plus proche d'une rue, à longueur
+    // égale le plus long : la règle du portail de rendu.js), d'un point libre à 9–18 m qui voit son milieu (et si possible ses deux bouts)
     const nef = bat('eglise');
-    if (nef) { const p = nef.p, f = p.flat(); let best = null;
-      for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (l < 8 || (best && l <= best.l)) continue;
-        const mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2; let nx = (b[1] - a[1]) / l, nz = -(b[0] - a[0]) / l; if (PMONDE.dansPoly(f, mx + nx * 0.5, mz + nz * 0.5)) { nx = -nx; nz = -nz; } // la normale sortante
-        const cible = [mx + nx * 0.3, monde.hauteur(mx, mz) + 3.2, mz + nz * 0.3];
-        for (const d of [12, 10, 14, 16, 9]) { const x = mx + nx * d, z = mz + nz * d; if (!libre(x, z) || !monde.vue(x, oeil(x, z), z, ...cible)) continue; best = { x, z, l, cible }; break; } }
-      R.nef = best; }
+    if (nef) { const p = nef.p, f = p.flat(); let mur = null;
+      const dSeg = (x, z, a, b) => { const ex = b[0] - a[0], ez = b[1] - a[1], l2 = ex * ex + ez * ez || 1, t = Math.max(0, Math.min(1, ((x - a[0]) * ex + (z - a[1]) * ez) / l2)); return Math.hypot(a[0] + t * ex - x, a[1] + t * ez - z); };
+      const dRue = (x, z) => { let m = Infinity; for (const r of carte.rues || []) { if (!r || !Array.isArray(r.l)) continue; for (let i = 0; i + 1 < r.l.length; i++) m = Math.min(m, dSeg(x, z, r.l[i], r.l[i + 1])); } return m; };
+      for (let i = 0; i < p.length; i++) { const a = p[i], b = p[(i + 1) % p.length], l = Math.hypot(b[0] - a[0], b[1] - a[1]); if (l < 3) continue; const mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2, sc = dRue(mx, mz) - Math.min(l, 10) * 0.12; if (!mur || sc < mur.sc) mur = { a, b, l, mx, mz, sc }; }
+      if (mur) { const { a, b, l, mx, mz } = mur; let nx = (b[1] - a[1]) / l, nz = -(b[0] - a[0]) / l; if (PMONDE.dansPoly(f, mx + nx * 0.5, mz + nz * 0.5)) { nx = -nx; nz = -nz; } // la normale sortante
+        const y = monde.hauteur(mx, mz) + 3.2, pt = (k) => [a[0] + (b[0] - a[0]) * k + nx * 0.3, y, a[1] + (b[1] - a[1]) * k + nz * 0.3], vue = (x, z, q) => monde.vue(x, oeil(x, z), z, ...q);
+        let best = null; for (const d of [14, 12, 16, 10, 18, 9]) { const x = mx + nx * d, z = mz + nz * d; if (!libre(x, z) || !vue(x, z, pt(0.5))) continue; const tout = vue(x, z, pt(0.12)) && vue(x, z, pt(0.88)); if (!best || (tout && !best.tout)) best = { x, z, tout, cible: pt(0.5) }; if (tout) break; }
+        R.nef = best; } }
     // le sol de la place : la surface de carte.surfaces sous le centre de l'arène (un parking sous les platanes), vue d'un point libre à
     // l'est de son centre, le regard vers l'ouest et vers le bas
     const sp = (carte.surfaces || []).find((s) => s && Array.isArray(s.p) && s.p.length >= 3 && PMONDE.dansPoly(s.p.flat(), c[0], c[1]));

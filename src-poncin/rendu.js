@@ -1418,7 +1418,7 @@ const PRENDU = (() => {
     let enJeu = false;
     try { enJeu = !!(e && poserCameraJeu(jeu, e, dt, t)); } catch (err) { signaler('caméra', err); }
     if (!enJeu) { try { poserCameraSurvol(t); } catch (err) { signaler('survol', err); } }
-    brume(enJeu ? 1 : 1.75); // le survol voit plus loin (pas de partie à faire tourner) : la vallée de l'Ain et le Bugey derrière
+    brume(enJeu ? 1 : QUAL.niveau === 'eco' ? 2.5 : 1.75); // le survol voit plus loin (pas de partie à faire tourner) : la vallée de l'Ain et le Bugey derrière
     camera.updateMatrixWorld();
     const cx = camera.position.x, cz = camera.position.z;
     try { if (jeu) { majActeurs(jeu, idCamera, dt, t, !!(e && e.vivant === false)); majObjets(jeu, +jeu.temps || t); } else { cacherActeurs(); cacherObjets(); } } catch (err) { signaler('acteurs', err); }

@@ -1764,12 +1764,14 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
    0,6), celui que dessine vegetation.js ; seulement les arbres mesurés [x, z, h, r, e] : les vieilles entrées [x, z, h] ne bloquent rien,
    comme avant), murs de carte.murs (demi-épaisseur e/2 ; un muret de 45 cm au plus se franchit comme une marche et n'arrête que les tirs
    bas), mobilier massif de carte.mobilier (fontaine, monument, croix, paroi d'un abribus, aux tailles de decor.js ; ni panneaux, ni
-   poubelles, ni bancs, ni lampadaires). Chaque arête est inscrite dans toutes les cellules à moins de MARGE + w d'elle : un cercle de
+   poubelles, ni lampadaires) et les bancs de la place (un choix de style, pas une donnée : posés ici, pleins, monde.bancs [[x, z, yaw]],
+   que decor.js dessine). Chaque arête est inscrite dans toutes les cellules à moins de MARGE + w d'elle : un cercle de
    rayon ≤ MARGE n'a besoin que de sa propre cellule. L'intérieur des polygones (est-on dedans ?) se lit par pair-impair, sauf dans les
    cellules sans arête, dont l'état (libre ou plein) est calculé une fois pour toutes. Aucune allocation dans les chemins chauds hors du
    résultat rendu. Une position déjà DANS une région pleine (téléportation ratée : jamais en jeu normal) est rendue par deplacer au point
    libre le plus proche. Pour les tirs, un tronc est un cylindre jusqu'à max(2,5 ; h/2) m (le feuillage laisse passer), un mur un bloc
-   jusqu'à sol + h (sol pris à ses sommets, comme decor.js), un objet un cylindre ; leur dessus arrête aussi ce qui descend.
+   jusqu'à sol + h (sol pris à ses sommets, comme decor.js), un objet un cylindre (ou plusieurs : degrés, piédestal, obélisque du
+   monument), le feuillage dense d'un conifère un cylindre de 0,3 à 0,6·h m qui arrête tirs et vues mais pas les pas ; leur dessus arrête aussi ce qui descend.
    PASSAGES VOÛTÉS (carte.passages [{ l: [a, b], w, h, b, n }]) : un couloir rectangulaire (axe a→b, largeur w) creusé au rez-de-chaussée
    des bâtiments b, sous une voûte en plein cintre : l'intrados est à sol + h − w/2 + √((w/2)² − e²) à l'écart e de l'axe (naissance à
    h − w/2, clé à h ; le sol suit le relief, linéaire de a à b). Au sol, les morceaux de façade compris dans le couloir disparaissent et
@@ -1806,10 +1808,16 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   const SOURCE = { interdit: -1, eau: -2, bord: -3, parapet: -4, arbre: -5, mur: -6, mobilier: -7 };
   const MARCHE = 0.45;       // un mur de 45 cm au plus se franchit comme une marche : il n'arrête que les tirs
   const VOUTE = { w: 3.2, h: 3.4, naissance: 1.2, sousToit: 0.3, wMax: 5 }; // passage sans w ni h ; bornes de la voûte
-  // le mobilier massif, aux tailles que dessine decor.js : rayon au sol, hauteur ; l'abribus : sa paroi du fond (repère de l'objet)
-  const MOBILIER = { fontaine: { r: 1.15, h: 0.6 }, monument: { r: 0.75, h: 2.1 }, croix: { r: 0.45, h: 1.36 }, abribus: { r: 0.08, h: 2.38, paroi: [1.55, -0.62] } };
+  // le mobilier massif, aux tailles que dessine decor.js : rayon au sol, hauteur (ou une liste de cylindres concentriques : le monument a
+  // ses degrés de 2,6 m puis 2 m, son piédestal et sa corniche, son obélisque fuselé 0,42 → 0,24 jusqu'à 4,95 m) ; l'abribus : sa paroi du fond (repère de l'objet)
+  const MOBILIER = { fontaine: { r: 1.15, h: 0.6 }, monument: [{ r: 1.3, h: 0.4 }, { r: 0.75, h: 2.1 }, { r: 0.36, h: 4.7 }], croix: { r: 0.45, h: 1.36 }, abribus: { r: 0.08, h: 2.38, paroi: [1.55, -0.62] } };
   const rTronc = (h) => { const r = 0.12 + 0.025 * h; return r < 0.2 ? 0.2 : r > 0.6 ? 0.6 : r; }; // le rayon d'un tronc (m)
   const hTronc = (h) => Math.max(2.5, 0.5 * h);  // la hauteur de tronc qui arrête les tirs (au-dessus, le feuillage les laisse passer)
+  // les étages d'un conifère descendent jusqu'au sol : ce feuillage dense arrête les tirs et les vues, pas les pas ; un cylindre de 0,3 m
+  // à 0,6·h (dans le cône dessiné), de rayon min(0,45·r ; tronc + joueur − 5 cm) : jamais assez large pour qu'on y ait l'œil (un rayon
+  // parti du dedans l'ignore : on s'y cacherait en tirant) ; 0 : rien (feuillu, saule… : couronne au-dessus des têtes, rideaux clairsemés)
+  const R_JOUEUR = REGLES && REGLES.JOUEUR && REGLES.JOUEUR.rayon > 0 ? REGLES.JOUEUR.rayon : 0.35;
+  const rFeuillage = (h, r, e) => { if (e !== 'conifere') return 0; const f = Math.min(0.45 * r, rTronc(h) + R_JOUEUR - 0.05); return f > rTronc(h) + 0.05 ? f : 0; };
   const DE = ['batiment', 'voute', 'arbre', 'mur', 'mobilier', 'terrain'];
   const fini = (v) => typeof v === 'number' && v - v === 0;
 
@@ -2087,12 +2095,13 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     arete(AM, X0, X0, X1, X0, SOURCE.bord); arete(AM, X1, X0, X1, X1, SOURCE.bord); arete(AM, X1, X1, X0, X1, SOURCE.bord); arete(AM, X0, X1, X0, X0, SOURCE.bord);
 
     // ─── les obstacles (capsules) : troncs, murs, mobilier massif ; OB : [haut en a, haut en b, bas, de, k] ───
-    const OB = [], compte = { troncs: 0, murs: 0, murets: 0, mobilier: 0 };
+    const OB = [], compte = { troncs: 0, feuillages: 0, murs: 0, murets: 0, mobilier: 0, bancs: 0 };
     const obstacle = (ax, az, bx, bz, w, ya, yb, bas, de, k, sol) => { arete(sol ? AM : AV, ax, az, bx, bz, de === 2 ? SOURCE.arbre : de === 3 ? SOURCE.mur : SOURCE.mobilier, w, OB.length / 5); OB.push(ya, yb, bas, de, k); };
     liste(carte.arbres).forEach((a, k) => {
       if (!Array.isArray(a) || a.length < 5) return; // une vieille entrée [x, z, h] ne bloque rien (comme avant)
       const x = +a[0], z = +a[1], h = +a[2]; if (!fini(x) || !fini(z) || !(h > 0) || !(x >= X0 && x <= X1 && z >= X0 && z <= X1)) return;
       const y = hauteur(x, z); obstacle(x, z, x, z, rTronc(h), y + hTronc(h), y + hTronc(h), y - 0.6, 2, k, true); compte.troncs++;
+      const rf = rFeuillage(h, +a[3], a[4]); if (rf > 0) { obstacle(x, z, x, z, rf, y + 0.6 * h, y + 0.6 * h, y + 0.3, 2, k, false); compte.feuillages++; }
     });
     liste(carte.murs).forEach((m, k) => { // hauteur et épaisseur comme decor.js les dessine
       const l = m && m.l; if (!Array.isArray(l)) return;
@@ -2108,11 +2117,48 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     liste(carte.mobilier).forEach((o, k) => {
       const d = o && MOBILIER[o.t]; if (!d) return; const x = +o.x, z = +o.z; if (!fini(x) || !fini(z)) return;
       const y = hauteur(x, z); compte.mobilier++;
-      if (!d.paroi) { obstacle(x, z, x, z, d.r, y + d.h, y + d.h, y - 0.6, 4, k, true); return; }
+      if (Array.isArray(d) || !d.paroi) { for (const q of Array.isArray(d) ? d : [d]) obstacle(x, z, x, z, q.r, y + q.h, y + q.h, y - 0.6, 4, k, true); return; }
       // repère de decor.js : l'objet regarde vers (−sin yaw, −cos yaw) ; (x, z) local → (x0 − cos·x − sin·z, z0 + sin·x − cos·z)
       const yaw = fini(+o.yaw) ? +o.yaw : 0, c = Math.cos(yaw), s = Math.sin(yaw), [lx, lz] = d.paroi;
       obstacle(x + c * lx - s * lz, z - s * lx - c * lz, x - c * lx - s * lz, z + s * lx - c * lz, d.r, y + d.h, y + d.h, y - 0.6, 4, k, true);
     });
+
+    // ─── les bancs de la place (un CHOIX DE STYLE, pas une donnée : OSM n'en a pas à Poncin) : seulement s'il y a une place nommée (« Place … »
+    // dans carte.noms, à moins de 40 m du centre de l'arène) ; sous les arbres mesurés à moins de 32 m d'elle, 4 au plus, à 1,9 m du tronc
+    // et dos à lui ; ses deux bouts, les pieds de l'assis et 1,2 m devant : hors des rues (0,8 m du bord de chaussée), des régions pleines,
+    // à 0,3 m de toute arête au sol et à 0,9 m des autres troncs ; 7 m entre deux bancs. decor.js dessine monde.bancs [[x, z, yaw]] (l'objet
+    // regarde vers (−sin yaw, −cos yaw)). Un banc est plein, comme du mobilier : une capsule sur son emprise (1,8 × 0,41 m, dossier à 0,86 m).
+    const bancs = [];
+    {
+      const AR = carte.zones && carte.zones.arene, AC = AR && Array.isArray(AR.centre) && fini(+AR.centre[0]) && fini(+AR.centre[1]) ? [+AR.centre[0], +AR.centre[1]] : [0, 0];
+      const np = liste(carte.noms).find((o) => o && typeof o.n === 'string' && /^place\b/i.test(o.n) && fini(+o.x) && fini(+o.z) && Math.hypot(o.x - AC[0], o.z - AC[1]) < 40), PC = np ? [+np.x, +np.z] : null;
+      if (PC) {
+        const pres = (x, z, d) => Math.abs(x - PC[0]) < d && Math.abs(z - PC[1]) < d;
+        const arbres = liste(carte.arbres).filter((a) => Array.isArray(a) && fini(+a[0]) && fini(+a[1]) && pres(+a[0], +a[1], 40));
+        const ancres = arbres.filter((a) => a.length >= 5 && Math.hypot(a[0] - PC[0], a[1] - PC[1]) < 32).sort((a, b) => Math.hypot(a[0] - PC[0], a[1] - PC[1]) - Math.hypot(b[0] - PC[0], b[1] - PC[1]));
+        const rues = []; for (const r of liste(carte.rues)) { const l = r && Array.isArray(r.l) ? r.l : null; if (!l) continue; const w = fini(+r.w) ? +r.w : 5; for (let i = 0; i + 1 < l.length; i++) { const a = l[i], b = l[i + 1]; if (Array.isArray(a) && Array.isArray(b) && fini(+a[0]) && fini(+a[1]) && fini(+b[0]) && fini(+b[1])) rues.push(+a[0], +a[1], +b[0], +b[1], w / 2); } }
+        const aretes = []; for (let o = 0; o < AM.length; o += 7) if (d2SegRect(AM[o], AM[o + 1], AM[o + 2], AM[o + 3], PC[0] - 40, PC[1] - 40, PC[0] + 40, PC[1] + 40) < 4) aretes.push(o);
+        const proches = regions.filter((r) => r.aabb[2] > PC[0] - 40 && r.aabb[0] < PC[0] + 40 && r.aabb[3] > PC[1] - 40 && r.aabb[1] < PC[1] + 40);
+        const distRue = (x, z) => { let m = 99; for (let o = 0; o < rues.length; o += 5) { const d = Math.sqrt(d2PtSeg(x, z, rues[o], rues[o + 1], rues[o + 2], rues[o + 3])) - rues[o + 4]; if (d < m) m = d; } return m; };
+        const gene = (x, z, a) => !(x >= X0 && x <= X1 && z >= X0 && z <= X1) || distRue(x, z) < 0.8 || proches.some((r) => x >= r.aabb[0] && x <= r.aabb[2] && z >= r.aabb[1] && z <= r.aabb[3] && dansPoly(r.f, x, z))
+          || aretes.some((o) => d2PtSeg(x, z, AM[o], AM[o + 1], AM[o + 2], AM[o + 3]) < (0.3 + AM[o + 5]) ** 2) || arbres.some((t) => t !== a && Math.hypot(t[0] - x, t[1] - z) < 0.9);
+        for (const a of ancres) {
+          if (bancs.length >= 4) break; let best = null;
+          for (let k = 0; k < 16; k++) {
+            const ang = k / 16 * Math.PI * 2, x = +a[0] + Math.cos(ang) * 1.9, z = +a[1] + Math.sin(ang) * 1.9, yaw = Math.atan2(-Math.cos(ang), -Math.sin(ang)), c = Math.cos(yaw), s = Math.sin(yaw);
+            const pt = (lx, lz) => [x - c * lx - s * lz, z + s * lx - c * lz]; // le repère des objets (decor.js)
+            if ([pt(-1, 0), pt(1, 0), pt(-1, 0.6), pt(1, 0.6), pt(0, 1.2)].some((p) => gene(p[0], p[1], a))) continue;
+            if (bancs.some((o) => Math.hypot(o[0] - x, o[1] - z) < 7)) continue;
+            const sc = Math.hypot(x - PC[0], z - PC[1]) - 0.5 * Math.min(4, distRue(x, z)); if (!best || sc < best[3]) best = [x, z, yaw, sc];
+          }
+          if (best) bancs.push(best.slice(0, 3));
+        }
+        for (const [x, z, yaw] of bancs) { // l'emprise que dessine decor.js : x local ∈ [−0,9 ; 0,9], z local ∈ [−0,22 ; 0,19], dossier à 0,86 m
+          const c = Math.cos(yaw), s = Math.sin(yaw), y = Math.min(hauteur(x, z), hauteur(x + 0.9, z), hauteur(x - 0.9, z)), lz = -0.015;
+          obstacle(x + c * 0.78 - s * lz, z - s * 0.78 - c * lz, x - c * 0.78 - s * lz, z + s * 0.78 - c * lz, 0.23, y + 0.86, y + 0.86, y - 0.6, 4, -1, true); compte.bancs++; // k = −1 : pas un objet de carte.mobilier
+        }
+      }
+    }
 
     // ─── les tableaux : arêtes 0..NM−1 au sol, NM..NA−1 pour les tirs seulement ───
     const NM = AM.length / 7, NA = NM + AV.length / 7, E = new Float64Array(NA * 4), ES = new Int32Array(NA), EW = new Float64Array(NA), EX = new Int32Array(NA);
@@ -2483,18 +2529,18 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     const secours = () => limiteOk(monde.limite) ? libre(rndDefaut) : libre(rndDefaut, [0, 0], L / 2); // une position perdue (NaN) revient sur un point libre
 
     const monde = {
-      L, limite: null, batiments, interdits, couloirs, passages,
+      L, limite: null, batiments, interdits, couloirs, passages, bancs,
       hauteur, bloque, deplacer, rayon, vue, libre,
       passe, dedans, pente, sousVoute, arche,
       accessible: null, // une fonction (x, z) → bool qu'y branche PNAV.creer : la composante principale de la navigation
-      stats: { aretes: NM, aretesTirs: NA - NM, cellules: G * G, cote: CS, regions: regions.length, ponts: couloirs.length, passages: NP, troncs: compte.troncs, murs: compte.murs, murets: compte.murets, mobilier: compte.mobilier },
+      stats: { aretes: NM, aretesTirs: NA - NM, cellules: G * G, cote: CS, regions: regions.length, ponts: couloirs.length, passages: NP, troncs: compte.troncs, feuillages: compte.feuillages, murs: compte.murs, murets: compte.murets, mobilier: compte.mobilier, bancs: compte.bancs },
       // les arêtes au sol (E : ax, az, bx, bz ; EW : demi-épaisseur ; ES : source), pour la navigation et les tests
       _interne: { E: E.subarray(0, 4 * NM), EW: EW.subarray(0, NM), ES: ES.subarray(0, NM), cA0, cA, G, CS, MARGE, regions, X0, PV },
     };
     return monde;
   }
 
-  return { creer, CELLULE, MARGE, SOURCE, MARCHE, MOBILIER, VOUTE, rTronc, hTronc, nettoyer, dansPoly };
+  return { creer, CELLULE, MARGE, SOURCE, MARCHE, MOBILIER, VOUTE, rTronc, hTronc, rFeuillage, nettoyer, dansPoly };
 });
 
 /* ── nav.js ── */
@@ -6845,7 +6891,7 @@ const PDECOR = (() => {
           while (s <= d) {
             const x = a[0] + tx * s, z = a[1] + tz * s; let pose = false;
             if (Math.hypot(x - PC[0], z - PC[1]) < RB && dansBat(x, z) < 0) for (const sg of [cote, -cote]) { // (pas depuis l'intérieur d'un passage voûté)
-              const mx = -tz * sg, mz = tx * sg, f = facadeVers(x, z, mx, mz, w / 2 + 7); if (!f || f.s < 0.9 || f.s > f.len - 0.9 || f.mitoyenne(f.s)) continue;
+              const mx = -tz * sg, mz = tx * sg, f = facadeVers(x, z, mx, mz, w / 2 + 7); if (!f || f.b.t === 'eglise' || f.s < 0.9 || f.s > f.len - 0.9 || f.mitoyenne(f.s)) continue;
               const lx = f.x(f.s), lz = f.z(f.s), g = H0(f.x(f.s, 0.6), f.z(f.s, 0.6)); if (f.b.sommet - g < 4.4) continue;
               if (lanternes.some((o) => Math.hypot(o[0] - lx, o[1] - lz) < 15)) continue;
               if (!libreSur(f, f.s - 1.2, f.s + 1.2)) continue;
@@ -8524,7 +8570,7 @@ const PRENDU = (() => {
     let enJeu = false;
     try { enJeu = !!(e && poserCameraJeu(jeu, e, dt, t)); } catch (err) { signaler('caméra', err); }
     if (!enJeu) { try { poserCameraSurvol(t); } catch (err) { signaler('survol', err); } }
-    brume(enJeu ? 1 : 1.75); // le survol voit plus loin (pas de partie à faire tourner) : la vallée de l'Ain et le Bugey derrière
+    brume(enJeu ? 1 : QUAL.niveau === 'eco' ? 2.5 : 1.75); // le survol voit plus loin (pas de partie à faire tourner) : la vallée de l'Ain et le Bugey derrière
     camera.updateMatrixWorld();
     const cx = camera.position.x, cz = camera.position.z;
     try { if (jeu) { majActeurs(jeu, idCamera, dt, t, !!(e && e.vivant === false)); majObjets(jeu, +jeu.temps || t); } else { cacherActeurs(); cacherObjets(); } } catch (err) { signaler('acteurs', err); }
@@ -9968,6 +10014,8 @@ const PENLIGNE = (() => {
   // LACHE : sans entrée d'un client depuis ce temps (ou 2,5 × l'intervalle mesuré), l'hôte lui lâche les commandes (plus de course sans fin)
   const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
   const fini = (v) => typeof v === 'number' && v - v === 0;
+  // l'empreinte de la carte (source et nombre d'objets) : l'hôte l'envoie au lancement ; un client qui a une autre carte (vieille copie en cache) se retire
+  const empreinte = (c) => c ? [c.source || '', (c.batiments || []).length, (c.arbres || []).length, (c.passages || []).length, (c.murs || []).length].join('/') : '';
   const num = (v, a, b) => (fini(v) ? (v < a ? a : v > b ? b : v) : 0);
   const ecartAngle = (a, b) => { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI; return d; };
   const maintenant = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
@@ -10054,7 +10102,7 @@ const PENLIGNE = (() => {
       const graine = (Math.random() * 4294967296) >>> 0;
       let P = null;
       try { k++; P = partieHote(ctl, { k, graine, options, joueurs: liste, dans: DANS }); } catch (e) { signaler('lancement', e); return 'la partie n’a pas pu démarrer'; }
-      envoyer('lancer', { k, graine, options, joueurs: P.liste, dans: DANS }, { fiable: true });
+      envoyer('lancer', { k, graine, options, joueurs: P.liste, dans: DANS, carte: empreinte(ctl._carte) }, { fiable: true });
       finirPartie(); ctl.partie = P; ctl.enJeu = true; annoncerReglages();
       emettre('partie', P); emettre('maj');
       return true;
@@ -10106,6 +10154,7 @@ const PENLIGNE = (() => {
     ecoute('lancer', (d) => {
       if (salon.estHote || !d || !Array.isArray(d.joueurs)) return;
       if (!d.joueurs.some((j) => j && j.id === salon.moi.id)) { ctl.enJeu = true; emettre('maj'); return; } // une partie sans nous (arrivés trop tard)
+      if (d.carte && ctl._carte && d.carte !== empreinte(ctl._carte)) { quitter(); emettre('ferme', { raison: 'carte' }); return; } // pas la même carte que l'hôte (une vieille copie) : la partie divergerait
       finirPartie();
       let P = null; try { P = partieClient(ctl, d); } catch (e) { signaler('façade', e); P = null; }
       if (!P) return;
@@ -10518,7 +10567,8 @@ const PUI = (() => {
     let c = null;
     try {
       const ctl = window.AbortController ? new AbortController() : null, t = setTimeout(() => { if (ctl) ctl.abort(); }, 8000);
-      const r = await fetch('carte/poncin.json', ctl ? { signal: ctl.signal } : undefined); clearTimeout(t);
+      const v = typeof window.PONCIN_CARTE_V === 'string' && window.PONCIN_CARTE_V ? '?v=' + encodeURIComponent(window.PONCIN_CARTE_V) : ''; // la version de la carte : jamais une vieille copie en cache après une mise à jour
+      const r = await fetch('carte/poncin.json' + v, ctl ? { signal: ctl.signal } : undefined); clearTimeout(t);
       if (r.ok) { const j = await r.json(); if (j && j.v === 1 && Array.isArray(j.batiments) && j.taille > 0) c = j; }
     } catch (e) { c = null; } // hors ligne, fichier absent, page ouverte en file:// : la carte provisoire
     if (!c && CARTEPROV) { try { c = CARTEPROV.creer(); } catch (e) { signaler('carte provisoire', e); c = null; } }
@@ -10831,7 +10881,7 @@ const PUI = (() => {
     c.sur('maj', () => { if (c !== ctl) return; if (ecran === 'salon') majSalon(); });
     c.sur('partie', (P) => { if (c !== ctl) return; demarrerEnLigne(P); });
     c.sur('salon', () => { if (c !== ctl) return; jeu = null; partieL = null; enLigne = false; finTraitee = false; force = null; astuce(false); PCONTROLES.activer(false); eveille(false); try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('salon'); });
-    c.sur('ferme', () => { if (c !== ctl) return; ctl = null; partieL = null; if (enLigne || ecran === 'salon') { enLigne = false; jeu = null; try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('copains'); noteCopains('Le salon a été fermé.', true); } });
+    c.sur('ferme', (d) => { if (c !== ctl) return; ctl = null; partieL = null; if (enLigne || ecran === 'salon') { enLigne = false; jeu = null; try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('copains'); noteCopains(d && d.raison === 'carte' ? 'Ta carte de Poncin n’est pas celle de l’hôte : rechargez la page tous les deux, puis recréez le salon.' : 'Le salon a été fermé.', true); } });
   }
   function quitterSalon() { const c = ctl; ctl = null; partieL = null; enLigne = false; if (c) { try { c.quitter(); } catch (e) { console.warn('[Poncin] quitter le salon', e); } } }
   const VOIES = { local: 'même appareil', hote: 'hôte', p2p: 'direct', webrtc: 'direct', direct: 'direct', relais: 'relais', supabase: 'relais', faux: 'essai' };

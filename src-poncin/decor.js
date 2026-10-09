@@ -884,7 +884,7 @@ const PDECOR = (() => {
           while (s <= d) {
             const x = a[0] + tx * s, z = a[1] + tz * s; let pose = false;
             if (Math.hypot(x - PC[0], z - PC[1]) < RB && dansBat(x, z) < 0) for (const sg of [cote, -cote]) { // (pas depuis l'intérieur d'un passage voûté)
-              const mx = -tz * sg, mz = tx * sg, f = facadeVers(x, z, mx, mz, w / 2 + 7); if (!f || f.s < 0.9 || f.s > f.len - 0.9 || f.mitoyenne(f.s)) continue;
+              const mx = -tz * sg, mz = tx * sg, f = facadeVers(x, z, mx, mz, w / 2 + 7); if (!f || f.b.t === 'eglise' || f.s < 0.9 || f.s > f.len - 0.9 || f.mitoyenne(f.s)) continue;
               const lx = f.x(f.s), lz = f.z(f.s), g = H0(f.x(f.s, 0.6), f.z(f.s, 0.6)); if (f.b.sommet - g < 4.4) continue;
               if (lanternes.some((o) => Math.hypot(o[0] - lx, o[1] - lz) < 15)) continue;
               if (!libreSur(f, f.s - 1.2, f.s + 1.2)) continue;
