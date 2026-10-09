@@ -4,7 +4,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const server = http.createServer((req, res) => {
-  let p = decodeURIComponent(req.url.split('?')[0]); if (p === '/') p = '/index.html';
+  let p = decodeURIComponent(req.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html';
   fs.readFile(path.join(root, p), (err, d) => { if (err) { res.writeHead(404); res.end(); return; } res.writeHead(200, { 'content-type': types[path.extname(p)] || 'application/octet-stream' }); res.end(d); });
 }).listen(8781);
 const out = path.join(__dirname, 'shots'); fs.mkdirSync(out, { recursive: true });
@@ -21,7 +21,13 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const errors = [];
   page.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_CERT|googleapis|gstatic|404/.test(m.text() + (m.location() && m.location().url))) errors.push(m.text() + ' @ ' + (m.location() && m.location().url)); });
-  await page.goto('http://localhost:8781/'); await sleep(800);
+  // l'écran d'accueil du dépôt : la liste des jeux ; Le Fournil s'ouvre depuis sa carte
+  await page.goto('http://localhost:8781/'); await sleep(600);
+  const accueil = await page.evaluate(() => ({ titre: document.title, jeux: document.querySelectorAll('a.jeu').length, bientot: document.querySelectorAll('.jeu.bientot').length, carte: (document.querySelector('[data-jeu="fournil"]') || {}).innerText || '', large: document.documentElement.scrollWidth <= innerWidth + 1 }));
+  check(accueil.titre === 'Salle de jeux' && accueil.jeux === 1 && accueil.bientot === 1 && /Le Fournil/.test(accueil.carte) && /Nouvelle partie/.test(accueil.carte) && /Jouer/.test(accueil.carte) && accueil.large, 'l’écran d’accueil : Le Fournil (nouvelle partie) et une place pour le prochain jeu');
+  await page.screenshot({ path: out + '/00-accueil.png' });
+  await page.tap('[data-jeu="fournil"]'); await page.waitForURL(/\/fournil\/$/); await sleep(1200);
+  check(await page.evaluate(() => !!window.__fournil && document.querySelectorAll('.carte[data-i]').length === 8), 'toucher sa carte ouvre Le Fournil (/fournil/)');
   await page.screenshot({ path: out + '/01-debut.png' });
   const trois = await page.evaluate(() => { const s = window.__fournil.stats(), u = document.querySelector('#scene-ui'), ui = u.getBoundingClientRect(), sc = document.querySelector('#scene').getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1); return { ...s, calque: Math.abs(ui.width - sc.width) < 1 && Math.abs(ui.height - sc.height) < 1 && Math.abs(u.width - Math.round(u.clientWidth * d)) <= 1 && Math.abs(u.height - Math.round(u.clientHeight * d)) <= 1 && getComputedStyle(u).display !== 'none' }; }); // le tampon du calque suit sa taille à l'écran
   check(trois.webgl && trois.calls > 0 && trois.calque, `la boutique est rendue en 3D (WebGL, ${trois.calls} appels de dessin, qualité ${trois.qualite}) sous un calque 2D de même taille`);
@@ -297,9 +303,15 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.tap('[data-a="oui"]'); await sleep(1500);
   const s6 = await page.evaluate(() => ({ etoiles: window.__fournil.st.etoiles, boutiques: window.__fournil.st.boutiques }));
   check(s6.boutiques === 2 && s6.etoiles === s3.etoiles, 'boutique rechargée depuis le code : ' + JSON.stringify(s6));
+  // retour à l'écran d'accueil depuis les Réglages : il montre la partie en cours
+  await page.tap('#onglets [data-page="reglages"]'); await sleep(400);
+  await page.tap('#page-reglages [data-a="accueil"]'); await page.waitForURL(/app=accueil/); await sleep(700);
+  const reprise = await page.evaluate(() => (document.querySelector('[data-jeu="fournil"]') || {}).innerText || '');
+  check(/Boutique n°2/i.test(reprise) && /Continuer/.test(reprise), 'Réglages → Salle de jeux : l’accueil reprend la partie (' + (reprise.split('\n').find((l) => /Boutique n°/i.test(l)) || '?') + ')');
+  await page.screenshot({ path: out + '/11-accueil-reprise.png' });
   // petit écran
   const p2 = await (await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR' })).newPage();
-  await p2.goto('http://localhost:8781/'); await sleep(700); await p2.screenshot({ path: out + '/10-petit-ecran.png' });
+  await p2.goto('http://localhost:8781/fournil/'); await sleep(700); await p2.screenshot({ path: out + '/10-petit-ecran.png' });
   const overflow = await p2.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   check(!overflow, 'pas de défilement horizontal à 360 px');
   const dans = await p2.evaluate(() => { const c = document.querySelector('.carte[data-i="0"]').getBoundingClientRect(); return [...document.querySelectorAll('.carte[data-i="0"] .corps, .carte[data-i="0"] .corps > *, .carte[data-i="0"] .boutons')].every((el) => el.getBoundingClientRect().right <= c.right + 0.5) && document.querySelector('.carte[data-i="0"] .corps').getBoundingClientRect().right < document.querySelector('.carte[data-i="0"] .boutons').getBoundingClientRect().left; });
@@ -311,7 +323,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const b3 = await chromium.launch({ args: ['--disable-webgl', '--disable-webgl2'] });
   const p3 = await (await b3.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR' })).newPage();
   const err3 = []; p3.on('pageerror', (e) => err3.push(e.message));
-  await p3.goto('http://localhost:8781/'); await sleep(1500);
+  await p3.goto('http://localhost:8781/fournil/'); await sleep(1500);
   const sans = await p3.evaluate(() => ({ webgl: window.__fournil.stats().webgl, panneau: !document.querySelector('#sans-3d').hidden, cartes: document.querySelectorAll('.carte').length, coins: window.__fournil.st.coins }));
   await p3.tap('.carte[data-i="0"] .barre'); await sleep(1300);
   const vendu = await p3.evaluate(() => window.__fournil.st.stats.ventes);
@@ -321,7 +333,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const p4 = await (await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR' })).newPage();
   const err4 = []; p4.on('pageerror', (e) => err4.push(e.message));
   await p4.route('**/vendor/three.min.js', (r) => r.abort());
-  await p4.goto('http://localhost:8781/'); await sleep(1500);
+  await p4.goto('http://localhost:8781/fournil/'); await sleep(1500);
   const sansThree = await p4.evaluate(() => ({ ok: !!window.__fournil, webgl: window.__fournil && window.__fournil.stats().webgl, panneau: !document.querySelector('#sans-3d').hidden, cartes: document.querySelectorAll('.carte').length }));
   check(sansThree.ok && !sansThree.webgl && sansThree.panneau && sansThree.cartes === 8 && !err4.length, `sans Three.js : le jeu démarre, panneau affiché, huit cartes${err4.length ? ' — ' + err4[0] : ''}`);
   console.log(errors.length ? 'ERRORS ' + errors.join(' | ') : 'ERRORS none');
