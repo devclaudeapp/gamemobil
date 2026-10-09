@@ -1,4 +1,4 @@
-/* LE FOURNIL — icônes SVG en ligne : les pâtisseries, les apprentis, les améliorations. Aucun fichier image. */
+/* LE FOURNIL — icônes SVG en ligne : les pâtisseries, les apprentis, les améliorations, le classement. Aucun fichier image. */
 const ICONS = (() => {
   'use strict';
   const S = (inner) => `<svg viewBox="0 0 48 48" aria-hidden="true">${inner}</svg>`;
@@ -77,6 +77,9 @@ const ICONS = (() => {
     coche: U(`<path d="M5 12.5l4.5 4.5L19 7.5"/>`),
     fermer: U(`<path d="M6 6l12 12M18 6L6 18"/>`),
     amenager: U(`<rect x="3.5" y="4" width="13" height="7" rx="2.5" fill="#FFC84A"/><path d="M16.5 7.5h3.5v5h-8v3"/><rect x="10.5" y="15.5" width="3" height="6" rx="1.3" fill="#fff"/>`),
+    // le classement : un podium, la plus haute marche dorée ; le nuage barré quand le réseau manque
+    podium: U(`<path d="M9 10.5h6V21H9z" fill="#FFC84A"/><path d="M3 14h6v7H3z" fill="#fff"/><path d="M15 16h6v5h-6z" fill="#FFE0C7"/><path d="M12 3l.9 1.9 2 .3-1.5 1.4.4 2L12 7.6l-1.8 1 .4-2-1.5-1.4 2-.3z" fill="#FF6B8B" stroke="none"/>`),
+    horsLigne: U(`<path d="M7 18a4 4 0 01-.6-7.9A6 6 0 0118 9.5a3.8 3.8 0 01-.5 7.5z" fill="#EADFD6"/><path d="M4 4l16 16"/>`),
   };
   const AMELIORATION = S(`<path d="M24 6l3.5 10.5L38 20l-10.5 3.5L24 34l-3.5-10.5L10 20l10.5-3.5z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`);
   const ETOILE = S(`<path d="M24 5l5.8 12.2 13.2 1.6-9.8 9.2 2.6 13.2L24 34.6l-11.8 6.6 2.6-13.2L5 18.8l13.2-1.6z" fill="#FFC84A" stroke="#E0A61E" stroke-width="2" stroke-linejoin="round"/>`);
