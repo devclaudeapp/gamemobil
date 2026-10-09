@@ -935,7 +935,7 @@ async function etapeArbres(R, L, carte, info, o) {
   // le tronc : jamais dans un bâtiment, dans l'eau ni sur la chaussée (décalé de moins d'un rayon, sinon l'arbre est écarté)
   const surPont = (q) => carte.ponts.some((p) => distSeg(q[0], q[1], p.l[0][0], p.l[0][1], p.l[1][0], p.l[1][1]) <= p.w / 2 + 0.5);
   const placer = (c) => { // → [x, z] | 'bâtiment' | 'eau' | 'chaussée' | 'bord'
-    let q = [c.x, c.z]; const lim = Math.max(1.2, c.r), limEau = Math.max(3, 1.5 * c.r); // au bord de l'eau, la rive OSM passe souvent sous les couronnes
+    let q = [c.x, c.z]; const lim = Math.max(1.2, c.r), limEau = Math.max(4, 2.5 * c.r); // au bord de l'eau, la rive OSM passe souvent sous les couronnes : l'arbre est ramené sur la berge
     for (let essai = 0; essai < 4; essai++) {
       if (Math.abs(q[0]) > h - 0.6 || Math.abs(q[1]) > h - 0.6) return 'bord';
       const b = DANS_BATI(ctx, q); if (b) { q = sortirDe(q, b.p, 0.6); if (!q || dist(q, [c.x, c.z]) > lim) return 'bâtiment'; continue; }
