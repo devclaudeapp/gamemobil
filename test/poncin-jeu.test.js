@@ -313,7 +313,9 @@ titre('Mort, points, réapparition');
   let rea = null; for (let i = 0; i < 4 * 60 && !rea; i++) { const e = jeu.etape(DT, {}).find((v) => v.t === 'reapparition'); if (e) rea = e; }
   const pts = jeu.arene.apparitions, distEnn = (p) => Math.min(Math.hypot(p[0] - a.x, p[1] - a.z), Math.hypot(p[0] - c.x, p[1] - c.z)), meilleur = Math.max(...pts.map(distEnn));
   check(rea && rea.id === 'b' && Math.abs(jeu.temps - t0 - R.MODES.arene.reapparition) < 2 * DT && b.vivant && b.vie === 100 && b.armure === 0 && b.arme === 'rafale' && b.armes.length === 1, `réapparition au bout de ${f2(jeu.temps - t0)} s, vie 100, blaster seul`);
-  check(pts.some((p) => Math.abs(p[0] - b.x) < 1e-9 && Math.abs(p[1] - b.z) < 1e-9) && distEnn([b.x, b.z]) >= meilleur - 6, `au point d'apparition le plus loin des ennemis (${f2(distEnn([b.x, b.z]))} m, le plus loin : ${f2(meilleur)} m)`);
+  // la règle : un point d'apparition à ~35 m de l'ennemi le plus proche (jamais à moins de 15 m s'il existe mieux), pour que l'action reprenne vite
+  const ecart = (p) => { const d = distEnn(p); return d < 15 ? 1000 + (15 - d) : Math.abs(d - 35); }, ideal = Math.min(...pts.map(ecart));
+  check(pts.some((p) => Math.abs(p[0] - b.x) < 1e-9 && Math.abs(p[1] - b.z) < 1e-9) && ecart([b.x, b.z]) <= ideal + 6 && (distEnn([b.x, b.z]) >= 15 || meilleur < 15), `au point d'apparition à bonne distance des ennemis (${f2(distEnn([b.x, b.z]))} m ; visé ~35 m, jamais < 15 m ; le plus loin possible : ${f2(meilleur)} m)`);
   check(b.invincible === R.MODES.arene.invincible && pts.length === 12, `invincible ${R.MODES.arene.invincible} s après la réapparition ; le point hors de l'arène est écarté (${pts.length} points)`);
   // série de 3 et tête : les points
   const { jeu: j2, es: [k, ...vs] } = partie(mondePlat, cartePl, ['k', 'v1', 'v2', 'v3']);

@@ -22,7 +22,7 @@ jobs:
       - uses: actions/configure-pages@v5
         with:
           enablement: true
-      - run: node build.js && node test/econ.test.js && node test/longevite.js --test
+      - run: node build.js && node test/econ.test.js && node test/longevite.js --test && node test/poncin.test.js
         env:
           TZ: Europe/Paris
       - uses: actions/upload-pages-artifact@v3

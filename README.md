@@ -1,6 +1,6 @@
-# Salle de jeux · Le Fournil
+# Salle de jeux · Le Fournil · Opération Poncin
 
-Ce dépôt est une **salle de jeux pour le téléphone** : l'adresse du site ouvre un **écran d'accueil** (`index.html`, à la racine) qui liste les jeux, chacun dans son dossier. Le premier est **Le Fournil** (`fournil/`) ; une place attend le suivant.
+Ce dépôt est une **salle de jeux pour le téléphone** : l'adresse du site ouvre un **écran d'accueil** (`index.html`, à la racine) qui liste les jeux, chacun dans son dossier. Le premier est **Le Fournil** (`fournil/`), le deuxième **Opération Poncin** (`poncin/`) ; une place attend le suivant.
 
 ### L'écran d'accueil
 
@@ -16,6 +16,15 @@ Une icône du Fournil installée avant l'accueil continue d'ouvrir directement l
 3. son icône dans `SHELL` du `sw.js` de la racine, et `CACHE` passé à la version suivante (`accueil-v2`…), pour que l'accueil hors ligne la montre.
 
 Three.js est partagé dans `vendor/`. Chaque jeu choisit une clé de sauvegarde à son nom (`fournil.v2` pour Le Fournil).
+
+## Opération Poncin
+
+Un **FPS cartoon en 3D sur la vraie carte de Poncin (01450, Ain)** : blasters à peinture contre robots farceurs, dans les rues du bourg, sur la place Xavier-Bichat, devant l'église Saint-Martin et sous le château (vu de la rue : ses jardins sont privés). On joue en paysage, au doigt (joystick flottant à gauche, glisser à droite pour viser, bouton Tir qui vise aussi, saut, recharge, accroupi, aide à la visée et tir automatique réglables) ou au clavier et à la souris.
+
+- **Arène** (jouable) : 3 minutes, chacun pour soi contre 3 à 5 robots (faciles, malins ou redoutables) ou 2 contre 2 avec un robot allié ; réapparition, objets à ramasser (pompe à peinture, long-tir, soin, armure), séries, records. **Extraction** et **Jour / Nuit** (butin, base à défendre) arrivent ensuite, puis les **salons entre copains** (2 à 4 joueurs, de téléphone à téléphone en WebRTC, Supabase pour se retrouver et pour les classements).
+- **La carte** vient des données ouvertes : bâtiments et hauteurs de la BD TOPO, photo aérienne BD ORTHO et relief RGE ALTI de l'IGN (Licence Ouverte Etalab 2.0), rues, rivières et noms d'OpenStreetMap (ODbL) — « © IGN – © contributeurs OpenStreetMap ». Rien n'est pris à Google (ses conditions l'interdisent). `outils/carte/construire.js` la fabrique ; comme le réseau de l'environnement de développement est fermé, le workflow `.github/workflows/carte.yml` la construit sur GitHub Actions à chaque push sur la branche `carte`. Sans elle, `src-poncin/carte-provisoire.js` dessine un Poncin approximatif au même format.
+- **Le moteur** (`src-poncin/`, contrat dans `src-poncin/ARCHITECTURE.md`) : des modules purs testés dans Node (`regles.js`, `monde.js` collisions et lignes de vue, `nav.js` chemins A*/JPS, `jeu.js` la simulation, `bots.js`, `arene.js`), la 3D (`rendu.js` : sol photographié, bâtiments fusionnés par tuiles avec toits, fenêtres et vitrines, eau, arbres, effets de peinture, arme en vue subjective, qualité adaptative ; `avatars.js` : chibis casqués et robots), l'interface (`controles.js`, `hud.js`, `sons.js`, `ui.js`). `src/modeles.js` et `src/persos.js` sont partagés avec Le Fournil.
+- **En ligne** : `poncin/config.js` porte l'adresse du projet Supabase et sa clé **publique** ; `supabase/README.md` explique comment créer le projet. Une clé secrète ne doit jamais entrer dans le dépôt (`test/poncin.test.js` le vérifie).
 
 ## Le Fournil
 
@@ -77,6 +86,7 @@ Le jeu tient dans `fournil/index.html` plus `vendor/three.min.js`. Ses sources s
 node build.js            # produit fournil/index.html et dist/artifact.html
 node test/econ.test.js   # rythme de l'économie, objectifs du jour, événements, absence, formats
 node test/longevite.js   # 60 jours de jeu simulés pour trois profils de joueur (--test : garde-fous du rythme)
+node test/poncin.test.js # Opération Poncin : carte, collisions et chemins, simulation et robots, pas de clé secrète
 npx serve .              # puis ouvre l'adresse sur un téléphone du même réseau : l'accueil, puis Le Fournil
 ```
 
@@ -110,6 +120,11 @@ La boutique est enregistrée dans le téléphone toutes les 5 secondes, à chaqu
 | `src/ui.js` | Le tiroir des pages (poignée, trois crans, geste au doigt), barre d'onglets et pages (Boutique, Défis, Boulanger, Journal, Réglages), cartes des produits, fiches des meubles et volet Mobilier, ticket des objectifs, bannière d'événement et cloche, badges, indices du tutoriel, feuilles (bonus, étoiles, nom, spécialité, absence, sauvegarde), sons, sauvegarde double et code de transfert |
 | `src/icons.js` | Icônes SVG en ligne : pâtisseries, apprentis, boulanger, meubles, et la famille d'icônes d'interface (onglets, cloche, bonus, réglages…) au même trait |
 | `src/style.css`, `src/page.html` | Mise en page |
+| `poncin/` | Opération Poncin tel qu'il est servi : `index.html` (généré par `build.js`), `sw.js`, `manifest.webmanifest`, `config.js` (Supabase), `carte/` (la carte de Poncin et ses photos de sol, `LICENCE-DONNEES.md`) |
+| `src-poncin/` | Les sources d'Opération Poncin (voir `ARCHITECTURE.md`) |
+| `outils/carte/`, `.github/workflows/carte.yml` | La fabrique de la carte de Poncin (IGN + OpenStreetMap), lancée sur GitHub Actions |
+| `vendor/supabase.min.js` | supabase-js 2.117.3 (UMD, MIT) |
+| `test/poncin-*.js`, `test/poncin-play.cjs`, `test/poncin-scene.cjs` | Tests d'Opération Poncin : modules purs (Node), parcours complet sur téléphone simulé, captures de la 3D |
 
 ## Rythme et durabilité
 

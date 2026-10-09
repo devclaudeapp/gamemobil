@@ -449,6 +449,15 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
   .ecran { animation: none; }
   .logo, .h-chrono.fin, .h-vie.bas, .h-record, .goutte i, #tourne .tel { animation: none; }
 }
+
+/* ─── disposition en partie : la colonne vie / munitions / armes à gauche du centre, pour que le blaster en vue subjective (à droite du centre) reste visible ─── */
+.pc-armes { left: 38.5%; }
+.h-bas { left: 38.5%; gap: 8px; }
+.h-vie { width: 150px; }
+.h-mun { height: 44px; padding: 0 10px 0 6px; }
+.h-mun .h-arme-nom { display: none; }
+.h-mun .h-arme-ico svg { width: 30px; height: 20px; }
+@media (max-width: 760px) { .pc-armes, .h-bas { left: 40%; } .h-vie { width: 130px; } }
 </style>
 </head>
 <body>
@@ -3330,7 +3339,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     }
   }
 
-  // le point d'apparition le plus loin des ennemis vivants (un peu de hasard départage), jamais sur quelqu'un ; regard vers le plus dégagé
+  // le point d'apparition à bonne distance des ennemis vivants (~35 m, jamais à moins de 15 m ; un peu de hasard départage), jamais sur quelqu'un ; regard vers le plus dégagé
   function apparition(jeu, e) {
     const monde = jeu.monde, A = jeu.arene, rnd = jeu.rnd, es = jeu.entites;
     let bx = 0, bz = 0, bs = -Infinity;
@@ -3345,7 +3354,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
         if (c.equipe !== e.equipe && d < dmin) dmin = d;
       }
       if (pris) continue;
-      const s = dmin + 6 * rnd();
+      const s = dmin < 15 ? dmin - 100 : -Math.abs(dmin - 35) + 6 * rnd(); // ni sur l'ennemi, ni au bout de l'arène : à ~35 m, l'action reprend vite
       if (s > bs) { bs = s; bx = x; bz = z; }
     }
     if (bs === -Infinity) { const p = monde.libre(rnd); bx = p[0]; bz = p[1]; }
@@ -5574,7 +5583,7 @@ const PUI = (() => {
   const CLE = 'poncin.v1', $ = (s) => document.querySelector(s), $$ = (s) => Array.from(document.querySelectorAll(s));
   const R = typeof PREGLES !== 'undefined' ? PREGLES : null;
   let _compte = null; const elCompte = () => _compte || (_compte = $('#compte'));
-  const DEFAUT = () => ({ v: 1, reglages: { sensibilite: 1, inverserY: false, gaucher: false, tirAuto: true, qualite: 'auto', son: true, vibre: true, nom: '' }, records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { format: 'solo', bots: 4, niveau: 'normal' }, derniere: 0 });
+  const DEFAUT = () => ({ v: 1, reglages: { sensibilite: 1, inverserY: false, gaucher: false, tirAuto: true, qualite: 'auto', son: true, vibre: true, nom: '' }, records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { format: 'solo', bots: 4, niveau: 'facile' }, derniere: 0 });
   let sauv = DEFAUT(), carte = null, monde = null, rendu3d = false, jeu = null, ecran = 'chargement', retourReglages = 'titre', avantPause = 'partie', optsPartie = null;
   let J, A, RENDU, CARTEPROV, MONDE; // les modules, résolus au démarrage
   let last = 0, tAnim = 0, compteT = 0, compteVu = -1, surDepuis = 0, erreursEtape = 0, erreursRendu = 0, erreursTotal = 0, derniereErreur = '', finTraitee = false, serie = 0, serieMax = 0, elims = 0;
@@ -5701,7 +5710,7 @@ const PUI = (() => {
     o = Object.assign(choixPartie(), o || {});
     try {
       const graine = o.graine != null ? o.graine >>> 0 : ((Date.now() ^ Math.floor(Math.random() * 4294967296)) >>> 0);
-      jeu = J.creer({ monde, mode: A, graine, options: { bots: o.bots, niveau: o.niveau, equipes: !!o.equipes } });
+      jeu = J.creer({ monde, carte, mode: A, graine, options: { bots: o.bots, niveau: o.niveau, equipes: !!o.equipes } });
       const nom = (sauv.reglages.nom || '').trim() || 'Toi';
       jeu.ajouterJoueur({ id: 'moi', nom, couleur: '#FFC84A', equipe: o.equipes ? 0 : 'moi', humain: true });
     } catch (e) { signaler('jeu.creer', e); jeu = null; oups('La partie n’a pas pu démarrer', 'Recharge la page et réessaie.'); return false; }

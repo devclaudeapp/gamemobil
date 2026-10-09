@@ -54,7 +54,7 @@
     }
   }
 
-  // le point d'apparition le plus loin des ennemis vivants (un peu de hasard départage), jamais sur quelqu'un ; regard vers le plus dégagé
+  // le point d'apparition à bonne distance des ennemis vivants (~35 m, jamais à moins de 15 m ; un peu de hasard départage), jamais sur quelqu'un ; regard vers le plus dégagé
   function apparition(jeu, e) {
     const monde = jeu.monde, A = jeu.arene, rnd = jeu.rnd, es = jeu.entites;
     let bx = 0, bz = 0, bs = -Infinity;
@@ -69,7 +69,7 @@
         if (c.equipe !== e.equipe && d < dmin) dmin = d;
       }
       if (pris) continue;
-      const s = dmin + 6 * rnd();
+      const s = dmin < 15 ? dmin - 100 : -Math.abs(dmin - 35) + 6 * rnd(); // ni sur l'ennemi, ni au bout de l'arène : à ~35 m, l'action reprend vite
       if (s > bs) { bs = s; bx = x; bz = z; }
     }
     if (bs === -Infinity) { const p = monde.libre(rnd); bx = p[0]; bz = p[1]; }

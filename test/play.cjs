@@ -415,7 +415,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
     check(/Continuer/.test(await p5.evaluate(() => document.querySelector('[data-jeu="fournil"]').innerText)), 'localStorage vidé : l’accueil retrouve la partie dans IndexedDB');
     // l'accueil enregistre son service worker et celui du jeu (qui marche donc hors ligne même jamais ouvert)
     const portees = await p5.evaluate(async () => { await navigator.serviceWorker.ready; await new Promise((r) => setTimeout(r, 300)); return (await navigator.serviceWorker.getRegistrations()).map((g) => new URL(g.scope).pathname).sort().join(' '); });
-    check(portees === '/ /fournil/', 'l’accueil enregistre son service worker et celui du Fournil : ' + portees);
+    check(portees === '/ /fournil/ /poncin/', 'l’accueil enregistre son service worker et ceux de ses jeux : ' + portees);
     check(!err5.length, 'aucune erreur dans ces parcours' + (err5.length ? ' — ' + err5[0] : ''));
     await c5.close();
     // les vieilles copies en cache (sans service worker ici, pour que la route de test réponde) : pas de boucle, et le jeu rentre chez lui

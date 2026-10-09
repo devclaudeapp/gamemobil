@@ -426,3 +426,12 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
   .ecran { animation: none; }
   .logo, .h-chrono.fin, .h-vie.bas, .h-record, .goutte i, #tourne .tel { animation: none; }
 }
+
+/* ─── disposition en partie : la colonne vie / munitions / armes à gauche du centre, pour que le blaster en vue subjective (à droite du centre) reste visible ─── */
+.pc-armes { left: 38.5%; }
+.h-bas { left: 38.5%; gap: 8px; }
+.h-vie { width: 150px; }
+.h-mun { height: 44px; padding: 0 10px 0 6px; }
+.h-mun .h-arme-nom { display: none; }
+.h-mun .h-arme-ico svg { width: 30px; height: 20px; }
+@media (max-width: 760px) { .pc-armes, .h-bas { left: 40%; } .h-vie { width: 130px; } }

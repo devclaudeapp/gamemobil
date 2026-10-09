@@ -7,7 +7,7 @@ const PUI = (() => {
   const CLE = 'poncin.v1', $ = (s) => document.querySelector(s), $$ = (s) => Array.from(document.querySelectorAll(s));
   const R = typeof PREGLES !== 'undefined' ? PREGLES : null;
   let _compte = null; const elCompte = () => _compte || (_compte = $('#compte'));
-  const DEFAUT = () => ({ v: 1, reglages: { sensibilite: 1, inverserY: false, gaucher: false, tirAuto: true, qualite: 'auto', son: true, vibre: true, nom: '' }, records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { format: 'solo', bots: 4, niveau: 'normal' }, derniere: 0 });
+  const DEFAUT = () => ({ v: 1, reglages: { sensibilite: 1, inverserY: false, gaucher: false, tirAuto: true, qualite: 'auto', son: true, vibre: true, nom: '' }, records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { format: 'solo', bots: 4, niveau: 'facile' }, derniere: 0 });
   let sauv = DEFAUT(), carte = null, monde = null, rendu3d = false, jeu = null, ecran = 'chargement', retourReglages = 'titre', avantPause = 'partie', optsPartie = null;
   let J, A, RENDU, CARTEPROV, MONDE; // les modules, résolus au démarrage
   let last = 0, tAnim = 0, compteT = 0, compteVu = -1, surDepuis = 0, erreursEtape = 0, erreursRendu = 0, erreursTotal = 0, derniereErreur = '', finTraitee = false, serie = 0, serieMax = 0, elims = 0;
@@ -134,7 +134,7 @@ const PUI = (() => {
     o = Object.assign(choixPartie(), o || {});
     try {
       const graine = o.graine != null ? o.graine >>> 0 : ((Date.now() ^ Math.floor(Math.random() * 4294967296)) >>> 0);
-      jeu = J.creer({ monde, mode: A, graine, options: { bots: o.bots, niveau: o.niveau, equipes: !!o.equipes } });
+      jeu = J.creer({ monde, carte, mode: A, graine, options: { bots: o.bots, niveau: o.niveau, equipes: !!o.equipes } });
       const nom = (sauv.reglages.nom || '').trim() || 'Toi';
       jeu.ajouterJoueur({ id: 'moi', nom, couleur: '#FFC84A', equipe: o.equipes ? 0 : 'moi', humain: true });
     } catch (e) { signaler('jeu.creer', e); jeu = null; oups('La partie n’a pas pu démarrer', 'Recharge la page et réessaie.'); return false; }
