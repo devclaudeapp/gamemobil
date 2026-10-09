@@ -13,6 +13,7 @@ html,body{margin:0;height:100%;overflow:hidden;background:#BCD9EE;font:11px/1.25
 <script src="../src/modeles.js"></script>
 <script src="../src-poncin/regles.js"></script>
 <script src="../src-poncin/monde.js"></script>
+<script src="../src-poncin/carte-provisoire.js"></script>
 <script src="../src-poncin/textures.js"></script>
 <script src="../src-poncin/vegetation.js"></script>
 <script src="../src-poncin/decor.js"></script>
@@ -128,7 +129,10 @@ function vues() {
   const bar = trouver('terrasse', 'Bar des Sports') || trouver('bar'); if (bar) l.bar = vueSur(bar, 9, -4.5, 1.65, 1.2);
   const commerces = trouver('boulangerie'); if (commerces) l.commerces = vueSur(commerces, 9, 3, 1.65, 1.6);
   const pl = decor.remarquables.filter((r) => r.quoi === 'plaque').sort((a, b) => Math.hypot(a.x - A[0], a.z - A[1]) - Math.hypot(b.x - A[0], b.z - A[1]))[0]; if (pl) l.plaque = vueSur(pl, 3.2, 1.4, 1.65, 0.1);
-  const bancs = decor.stats.bancs || []; if (bancs.length) { const b = bancs[0], dx = b[0] - A[0], dz = b[1] - A[1], d = Math.hypot(dx, dz) || 1; const ox = A[0] - dx / d * 4 + 3, oz = A[1] - dz / d * 4; l.place = { oeil: [ox, monde.hauteur(ox, oz) + 1.65, oz], cible: [b[0], monde.hauteur(b[0], b[1]) + 1.2, b[1]] }; }
+  const bancs = decor.stats.bancs || []; if (bancs.length) { // devant un banc (il regarde vers (−sin yaw, −cos yaw)), un peu de biais, l'œil sur la place
+    const b = bancs[0], fx = -Math.sin(b[2]), fz = -Math.cos(b[2]); let ox = b[0] + fx * 6.5 + fz * 2.5, oz = b[1] + fz * 6.5 - fx * 2.5; for (let k = 0; k < 20 && monde.bloque(ox, oz, 0.5); k++) { ox -= fx * 0.4; oz -= fz * 0.4; }
+    l.place = { oeil: [ox, monde.hauteur(ox, oz) + 1.65, oz], cible: [b[0] - fx * 2, monde.hauteur(b[0], b[1]) + 2.2, b[1] - fz * 2] };
+  }
   // l'horizon : depuis un point dégagé de la carte, au sol, le regard vers l'est (le Bugey) puis vers l'ouest — le point qui voit le plus loin sans obstacle
   const arbres = carte.arbres.filter((t) => t[2] > 4), d2s = (px, pz, ax, az, bx, bz) => { const ex = bx - ax, ez = bz - az, l = ex * ex + ez * ez, t = Math.max(0, Math.min(1, ((px - ax) * ex + (pz - az) * ez) / l)); return (ax + t * ex - px) ** 2 + (az + t * ez - pz) ** 2; };
   const libreVers = (x, y, z, tx, tz) => monde.vue(x, y, z, tx, monde.hauteur(tx, tz) + 12, tz) && !arbres.some((t) => d2s(t[0], t[1], x, z, tx, tz) < (t[3] || 3) ** 2 * 0.8 && Math.hypot(t[0] - x, t[1] - z) > 1);
@@ -179,6 +183,27 @@ ETAT.recreer = (mode) => { // un autre décor (sans texture, ou pierre en moello
   const d = PDECOR.creer(carte, monde, { qualite: QUAL, textures: mode === 'sans' ? null : PTEXTURES, bati: mode === 'bati' ? B : null, dossier: DOSSIER, photo: false });
   scene.add(d.groupe); d.maj(camera, 0); const vis = decor.groupe.visible; decor.groupe.visible = false; placer(VUE); renderer.render(scene, camera); const err = renderer.getContext().getError(); decor.groupe.visible = vis; const st = d.stats; d.liberer(); return { gl: err, stats: st };
 };
+ETAT.provisoire = () => { // la carte provisoire (sans enseignes, mobilier, murs ni horizon) et une vieille carte réduite au format v1 nu : des replis propres
+  const out = [];
+  for (const c of [PCARTEPROV.creer(3), Object.assign({}, carte, { enseignes: undefined, mobilier: undefined, murs: undefined, horizon: undefined, sol: null, arbres: carte.arbres.map((a) => a.slice(0, 3)) })]) {
+    const m = PMONDE.creer(c), d = PDECOR.creer(c, m, { qualite: QUAL, textures: PTEXTURES, photo: false }); scene.add(d.groupe); const vis = decor.groupe.visible; decor.groupe.visible = false; d.maj(camera, 0); renderer.render(scene, camera); const gl = renderer.getContext().getError(); decor.groupe.visible = vis; const st = d.stats; d.liberer(); out.push({ gl, appels: st.appels, triangles: st.triangles, horizon: st.horizon && st.horizon.relief, erreurs: st.erreurs, objets: st.objets });
+  }
+  return out;
+};
+ETAT.verifierAmbiance = () => { // les règles de l'ambiance, vérifiées sur ce que le décor a posé
+  const st = decor.stats, d2s = (px, pz, ax, az, bx, bz) => { const ex = bx - ax, ez = bz - az, l = ex * ex + ez * ez, t = l ? Math.max(0, Math.min(1, ((px - ax) * ex + (pz - az) * ez) / l)) : 0; return Math.hypot(ax + t * ex - px, az + t * ez - pz); };
+  const bordRue = (x, z) => { let m = 99; for (const r of carte.rues) for (let i = 0; i + 1 < r.l.length; i++) m = Math.min(m, d2s(x, z, r.l[i][0], r.l[i][1], r.l[i + 1][0], r.l[i + 1][1]) - (r.w || 5) / 2); return m; };
+  let dMin = Infinity; st.lanternes.forEach((a, i) => st.lanternes.forEach((b, j) => { if (j > i) dMin = Math.min(dMin, Math.hypot(a[0] - b[0], a[1] - b[1])); }));
+  // les bancs : ceux de monde.bancs (monde.js les pose et les rend pleins) ; un tir à 0,6 m du sol, depuis 3 m devant un banc, s'arrête sur lui
+  const A = carte.zones.arene.centre, MB = Array.isArray(monde.bancs) ? monde.bancs : null;
+  const bancs = st.bancs.map(([x, z, yaw]) => {
+    const fx = -Math.sin(yaw), fz = -Math.cos(yaw), ox = x + fx * 3, oz = z + fz * 3, h = monde.rayon(ox, monde.hauteur(ox, oz) + 0.6, oz, -fx, 0, -fz, 6);
+    return { rue: +bordRue(x, z).toFixed(2), bloque: monde.bloque(x, z, 0.3), place: Math.hypot(x - A[0], z - A[1]), tir: h ? +h.t.toFixed(2) : null, de: h ? h.de : null };
+  });
+  const memes = !!MB && MB.length === st.bancs.length && MB.every((b, i) => Math.abs(b[0] - st.bancs[i][0]) < 0.06 && Math.abs(b[1] - st.bancs[i][1]) < 0.06 && Math.abs(b[2] - st.bancs[i][2]) < 0.006);
+  const plaques = decor.remarquables.filter((r) => r.quoi === 'plaque'); let pMin = Infinity; plaques.forEach((a, i) => plaques.forEach((b, j) => { if (j > i) pMin = Math.min(pMin, Math.hypot(a.x - b.x, a.z - b.z)); }));
+  return { lanternes: st.lanternes.length, dMin: +dMin.toFixed(1), bancs, mondeBancs: MB ? MB.length : null, memes, plaques: plaques.length, pMin: +pMin.toFixed(1), nomsPlaques: [...new Set(plaques.map((p) => p.n))].length, nomsOk: plaques.every((p) => carte.rues.some((r) => r.n === p.n)) };
+};
 ETAT.photoBord = async () => { for (let k = 0; k < 50 && !decor.stats.photo; k++) await new Promise((r) => setTimeout(r, 100)); return decor.stats.photo; };
 // le raccord de l'horizon : couleur rendue de part et d'autre du bord du carré, vu d'en haut
 ETAT.raccord = () => {
@@ -194,6 +219,7 @@ async function lancer() {
     const cv = document.getElementById('vue'); renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true });
     renderer.setPixelRatio(Math.min(PALIERS[QUAL].dpr, devicePixelRatio || 1)); renderer.setSize(innerWidth, innerHeight, false); renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.setClearColor(C.brume);
     renderer.shadowMap.enabled = !!PALIERS[QUAL].ombres; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.info.autoReset = false; // Three remet ses comptes à zéro APRÈS la passe d'ombre : on les remet à zéro nous-mêmes avant chaque image (ombres comprises)
     PTEXTURES.init(renderer); PTEXTURES.qualite(QUAL);
     scene = new THREE.Scene(); scene.fog = new THREE.Fog(C.brume, PALIERS[QUAL].brume[0], PALIERS[QUAL].brume[1]);
     camera = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.1, PALIERS[QUAL].brume[1] + 40); camera.rotation.order = 'YXZ'; scene.add(camera);

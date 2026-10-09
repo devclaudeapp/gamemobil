@@ -1,7 +1,8 @@
 // Opération Poncin — le décor (src-poncin/decor.js) sur la vraie carte, Playwright, iPhone en paysage : 844×390, deviceScaleFactor 2.
 // Vérifie : la page se construit sans exception ni erreur WebGL, les bâtiments remarquables sont trouvés (mairie et ses trois drapeaux,
 // tabac, banque, poste, Bar des Sports et sa terrasse, commerces), le mobilier réel, les murs, l'ambiance (lanternes jamais à moins de
-// 15 m l'une de l'autre, bancs de la place hors des rues et des bâtiments, plaques de rue, fenêtres fleuries), les budgets du décor SEUL
+// 15 m l'une de l'autre, bancs de la place hors des rues et des bâtiments, ceux de monde.bancs, pleins pour les pas et les tirs, plaques
+// de rue, fenêtres fleuries), l'intérieur derrière les glaces selon le commerce (pains, bureau, salle, salon), les budgets du décor SEUL
 // dans chaque vue (haute ≤ 14 appels et ≤ 40k triangles, ombres comprises ; éco ≤ 8 et ≤ 15k), des géométries et des textures stables
 // d'une image à l'autre, en changeant de qualité et après liberer(), les replis (sans PTEXTURES, pierre en moellons), le raccord de
 // couleur de l'horizon avec le sol au bord du carré. Captures dans test/shots/poncin-decor/ (vue au sol : mairie, tabac, banque, poste,
@@ -55,8 +56,15 @@ const verif = (ok, msg) => { console.log((ok ? '  ok   ' : '  FAIL ') + msg); if
       const noms = ['Aux Pains Dorés', 'Petit Casino', 'Office de tourisme intercommunal', 'Gendarmerie nationale', 'Collège Roger Vailland', 'École primaire du Veyron', 'Maison de santé', 'Le Centre', 'Le Poncinois'];
       const manquent = noms.filter((n) => !r.rq.some((x) => x.n === n)); verif(manquent.length === 0, `enseignes et plaques aux vrais noms (${noms.length - manquent.length}/${noms.length}${manquent.length ? ', manquent : ' + manquent.join(', ') : ''}), ${r.s.objets.devantures} devantures`);
       verif(r.s.objets.mobilier === 15 && r.s.objets.murs === 7, `mobilier réel ${r.s.objets.mobilier}/15, murs ${r.s.objets.murs}/7`);
+      const int = (q, n) => { const x = quoi(q, n); return x ? x.interieur || 'étagères' : 'absent'; }, ints = { 'Aux Pains Dorés': int('boulangerie', 'Aux Pains Dorés'), 'Crédit Agricole': int('banque', 'Crédit Agricole'), 'La Poste': int('poste', 'La Poste'), 'Bar des Sports': int('bar', 'Bar des Sports'), 'Le Centre': int('restaurant', 'Le Centre'), 'En Tête à Tête': int('coiffure', 'En Tête à Tête'), 'Petit Casino': int('epicerie', 'Petit Casino') };
+      verif(ints['Aux Pains Dorés'] === 'pains' && ints['Crédit Agricole'] === 'bureau' && ints['La Poste'] === 'bureau' && ints['Bar des Sports'] === 'salle' && ints['Le Centre'] === 'salle' && ints['En Tête à Tête'] === 'salon' && ints['Petit Casino'] === 'étagères', `derrière les glaces, l'intérieur du commerce (${Object.entries(ints).map(([n, v]) => n + ' : ' + v).join(', ')})`);
       const lan = await page.evaluate(() => __decor.stats().objets.lanternes);
       verif(lan >= 12 && r.s.objets.bancs >= 2 && r.s.objets.bancs <= 4 && r.s.objets.plaquesRue >= 6 && r.s.objets.fenetres >= 4, `ambiance : ${lan} lanternes, ${r.s.objets.bancs} bancs, ${r.s.objets.plaquesRue} plaques de rue, ${r.s.objets.fenetres} fenêtres fleuries, ${r.s.objets.pots} pots`);
+      const am = await page.evaluate(() => __decor.verifierAmbiance());
+      verif(am.dMin >= 15, `lanternes : jamais deux à moins de 15 m (au plus près ${am.dMin} m, ${am.lanternes} lanternes)`);
+      verif(am.bancs.length >= 2 && am.bancs.every((b) => b.rue >= 0.8 && b.place < 45), `bancs sur la place, hors des rues (bord de chaussée à ${am.bancs.map((b) => b.rue).join(', ')} m) et des bâtiments`);
+      verif(am.memes && am.bancs.every((b) => b.bloque && b.de === 'mobilier' && b.tir < 3.2), `les bancs dessinés sont ceux de monde.bancs (${am.mondeBancs === null ? 'absent : monde.js ne pose pas encore les bancs' : am.mondeBancs}), pleins : monde.bloque à leur centre ${am.bancs.map((b) => b.bloque).join(', ')} ; un tir à 0,6 m s'y arrête (${am.bancs.map((b) => b.de ? b.de + ' à ' + b.tir + ' m' : 'rien').join(', ')})`);
+      verif(am.nomsOk && am.pMin >= 15, `plaques de rue aux noms de carte.rues, une par carrefour (${am.plaques} plaques, ${am.nomsPlaques} rues, au plus près ${am.pMin} m)`);
       verif(r.fa.length >= 15 && r.fa.every((f) => Number.isInteger(f.b) && f.s1 > f.s0), `${r.fa.length} façades habillées décrites pour rendu.js`);
       // les budgets du décor seul, dans chaque vue ; des géométries et des textures stables
       const vs = await page.evaluate(() => { const l = {}; for (const n of __decor.noms()) l[n] = __decor.seul(n); return l; });
@@ -75,6 +83,8 @@ const verif = (ok, msg) => { console.log((ok ? '  ok   ' : '  FAIL ') + msg); if
       verif(ph && moy < 60, `raccord de l'horizon avec le sol au bord du carré : écart moyen ${moy.toFixed(0)} (somme des 3 canaux, sur 255) ; photo lue ${ph}`);
       const rp = await page.evaluate(() => ({ sans: __decor.recreer('sans'), moellons: __decor.recreer('moellons') }));
       verif(rp.sans.gl === 0 && rp.sans.stats.erreurs.length === 0 && rp.sans.stats.appels > 0 && rp.moellons.gl === 0 && rp.moellons.stats.pierre === 'moellons', `replis : sans PTEXTURES (${rp.sans.stats.appels} maillages, ${(rp.sans.stats.triangles / 1000).toFixed(1)}k) et pierre en moellons, sans erreur`);
+      const pv = await page.evaluate(() => __decor.provisoire());
+      verif(pv.every((x) => x.gl === 0 && x.erreurs.length === 0 && x.appels > 0) && pv[0].horizon === 'collines' && pv[1].horizon === 'collines', `cartes sans les champs facultatifs (provisoire : ${pv[0].appels} maillages, ${(pv[0].triangles / 1000).toFixed(1)}k ; vieille carte : ${pv[1].appels} maillages) : horizon de collines génériques, sans erreur`);
       const lb = await page.evaluate(() => __decor.liberer());
       verif(lb.apres < lb.avant, `liberer() rend les géométries du décor (${lb.avant} → ${lb.apres})`);
       verif(erreurs.length === 0, `aucune erreur dans la console${erreurs.length ? ' : ' + erreurs.slice(0, 3).join(' | ') : ''}`);

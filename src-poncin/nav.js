@@ -8,6 +8,9 @@
    fermée (cour intérieure), et monde.libre préfère la composante principale (monde.accessible, branché ici).
    La grille couvre le carré de monde.limite (l'arène) s'il y en a une, sinon toute la carte ; la limite est relue à chaque requête :
    la grille suit quand elle change, et se reconstruit plus grande si la nouvelle sort de la zone couverte.
+   Les passages voûtés sont, pour monde.bloque et monde.passe, des couloirs libres entre leurs piédroits : les chemins y passent comme
+   dans une rue. Les troncs, murs et objets massifs sont des arêtes épaisses (monde._interne.EW : un tronc est un point de rayon w) :
+   un lien entre deux cases doit leur laisser RL + w, et un tronc planté au milieu de quatre cases libres ferme les diagonales du carré.
    Module pur (aucun DOM, aucun THREE). Voir src-poncin/ARCHITECTURE.md. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./monde.js'));
@@ -84,7 +87,15 @@
         const j0 = Math.max(1, Math.ceil((Math.min(az, bz) - m - Z0) / pas - 0.5)), j1 = Math.min(W - 2, Math.floor((Math.max(az, bz) + m - Z0) / pas - 0.5));
         for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) {
           const c = j * W + i; if (!FIXE[c]) continue;
-          const x = X0 + (i + 0.5) * pas, z = Z0 + (j + 0.5) * pas, dc = d2PtSeg(x, z, ax, az, bx, bz); if (dc > m * m) continue;
+          const x = X0 + (i + 0.5) * pas, z = Z0 + (j + 0.5) * pas, dc = d2PtSeg(x, z, ax, az, bx, bz);
+          if (w > 0 && dc <= (m + pas * (RAC2 - 1)) ** 2 && FIXE[c + 1] && FIXE[c + W] && FIXE[c + W + 1]) { // un tronc au milieu de quatre cases libres : les diagonales du carré
+            const x2 = x + pas, z2 = z + pas, pres = (px, pz, qx, qz) => croise(px, pz, qx, qz, ax, az, bx, bz) || Math.min(d2PtSeg(ax, az, px, pz, qx, qz), d2PtSeg(bx, bz, px, pz, qx, qz), d2PtSeg(px, pz, ax, az, bx, bz), d2PtSeg(qx, qz, ax, az, bx, bz)) < rl2;
+            if (pres(x, z, x2, z2) || pres(x2, z, x, z2)) { // on bloque la case du carré la plus proche de l'arête
+              let kb = c, db = dc; for (const [v, vx, vz] of [[c + 1, x2, z], [c + W, x, z2], [c + W + 1, x2, z2]]) { const d = d2PtSeg(vx, vz, ax, az, bx, bz); if (d < db) { db = d; kb = v; } }
+              aBloquer.push(kb);
+            }
+          }
+          if (dc > m * m) continue;
           for (let q = 0; q < 2; q++) { // le lien vers +x, puis vers +z
             const v = q ? c + W : c + 1; if (!FIXE[v]) continue;
             const x2 = q ? x : x + pas, z2 = q ? z + pas : z, dv = d2PtSeg(x2, z2, ax, az, bx, bz);

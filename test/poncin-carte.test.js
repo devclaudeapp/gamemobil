@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // Opération Poncin : les cartes au format v1 (src-poncin/ARCHITECTURE.md). Une carte quelconque est validée (schéma, bornes, polygones,
-// apparitions et objets libres et accessibles, arène assez couverte), puis la carte provisoire (PCARTEPROV : contenu, déterminisme de la
-// graine) et, si elle existe, la vraie carte poncin/carte/poncin.json. Pour une vraie carte, les critères de qualité (pensés pour la carte
+// apparitions et objets libres — aussi des troncs et des murs d'une carte authentique — et accessibles, arène assez couverte, passages
+// voûtés s'il y en a), puis la carte provisoire (PCARTEPROV : contenu, déterminisme de la graine) et, si elle existe, la vraie carte
+// poncin/carte/poncin.json (avec ses deux voûtes : Porte Bouvent et Impasse du Bonheur). Pour une vraie carte, les critères de qualité (pensés pour la carte
 // dessinée) sont seulement signalés (« note ») ; les règles du contrat, elles, comptent toujours.
 // node test/poncin-carte.test.js → « ok / FAIL », code de sortie 1 en cas d'échec. Importé (require), il expose valider(carte, { strict })
 // et rasterArene(carte, marge), pour passer d'autres graines ou d'autres cartes au crible.
@@ -150,11 +151,19 @@ function valider(c, o) {
   check(r.dep >= 0 && Math.hypot(r.X(r.dep % r.n) - r.cx, r.Z((r.dep - (r.dep % r.n)) / r.n) - r.cz) < 15, 'le centre de l\'arène est un lieu libre (une place)');
   const obstacles = c.batiments.map((b) => b.p).concat(c.interdit.map((z) => z.p));
   const surPont = (x, z) => c.ponts.some((p) => dSeg(x, z, p.l[0][0], p.l[0][1], p.l[1][0], p.l[1][1]) <= p.w / 2);
-  const degage = (x, z) => { let m = Infinity; for (const p of obstacles) { if (dedans(p, x, z)) return -1; m = Math.min(m, dBord(p, x, z)); } for (const e of c.eau) { if (surPont(x, z)) continue; if (dedans(e.p, x, z)) return -1; m = Math.min(m, dBord(e.p, x, z)); } return m; };
+  // le dégagement d'un point : aux bâtiments, zones interdites, à l'eau hors des ponts, et (cartes authentiques) aux troncs des arbres mesurés et aux murs
+  const troncs = c.arbres.filter((a) => a.length >= 5).map((a) => [a[0], a[1], Math.min(0.6, Math.max(0.2, 0.12 + 0.025 * a[2]))]), murs = (c.murs || []).filter((m) => !(m.h <= 0.45));
+  const degage = (x, z) => {
+    let m = Infinity; for (const p of obstacles) { if (dedans(p, x, z)) return -1; m = Math.min(m, dBord(p, x, z)); }
+    for (const e of c.eau) { if (surPont(x, z)) continue; if (dedans(e.p, x, z)) return -1; m = Math.min(m, dBord(e.p, x, z)); }
+    for (const [tx, tz, r] of troncs) if (Math.abs(tx - x) < m + 1 && Math.abs(tz - z) < m + 1) m = Math.min(m, Math.hypot(tx - x, tz - z) - r);
+    for (const w of murs) for (let i = 0; i + 1 < w.l.length; i++) m = Math.min(m, dSeg(x, z, w.l[i][0], w.l[i][1], w.l[i + 1][0], w.l[i + 1][1]) - (w.e || 0.45) / 2);
+    return m;
+  };
   const apM = strict ? 3 : 1, nAp = strict ? 16 : 12, ecAp = strict ? 15 : 4, sp = Z.apparitions;
   check(sp.length >= nAp, `au moins ${nAp} apparitions (${sp.length})`);
   const spMal = sp.filter((q) => !(degage(q[0], q[1]) >= apM && dc(q) <= A.rayon - 1));
-  check(!spMal.length, `apparitions libres, à ≥ ${apM} m des murs et de l'eau, dans l'arène${exemples(spMal.map((q) => `[${q}] à ${degage(q[0], q[1]).toFixed(1)} m`))}`);
+  check(!spMal.length, `apparitions libres, à ≥ ${apM} m des murs, de l'eau${troncs.length ? `, des ${troncs.length} troncs et des murs de clôture` : ''}, dans l'arène${exemples(spMal.map((q) => `[${q}] à ${degage(q[0], q[1]).toFixed(1)} m`))}`);
   let ecart = Infinity; for (let i = 0; i < sp.length; i++) for (let j = i + 1; j < sp.length; j++) ecart = Math.min(ecart, Math.hypot(sp[i][0] - sp[j][0], sp[i][1] - sp[j][1]));
   check(ecart >= ecAp, `apparitions espacées d'au moins ${ecAp} m (${ecart.toFixed(1)} m)`);
   const spLoin = sp.filter((q) => !accessible(r, q[0], q[1]));
@@ -163,7 +172,20 @@ function valider(c, o) {
   if (strict) { check(ob.length >= 6 && ob.length <= 8, `6 à 8 objets à ramasser (${ob.length})`); check(ARMES.every((a) => ob.some((x) => x.arme === a)), 'objets : pompe, long-tir, soin et armure'); }
   else check(ob.length >= 1, `des objets à ramasser (${ob.length})`);
   const obMal = ob.filter((a) => !(degage(a.x, a.z) >= obM && dc([a.x, a.z]) <= A.rayon - 1 && accessible(r, a.x, a.z)));
-  check(!obMal.length, `objets libres (≥ ${obM} m des murs), dans l'arène, accessibles${exemples(obMal.map((a) => `${a.arme} [${a.x}, ${a.z}]`))}`);
+  check(!obMal.length, `objets libres (≥ ${obM} m des murs${troncs.length ? ' et des troncs' : ''}), dans l'arène, accessibles${exemples(obMal.map((a) => `${a.arme} [${a.x}, ${a.z}]`))}`);
+  // les passages voûtés (facultatifs) : un couloir droit sous des bâtiments de la carte, qui débouche à l'air libre
+  if (c.passages !== undefined) {
+    const P = Array.isArray(c.passages) ? c.passages : [], malP = [];
+    P.forEach((p, i) => {
+      const ok = Array.isArray(p.l) && p.l.length === 2 && p.l.every(estPoint) && p.l.every(dans) && fini(p.w) && p.w >= 1.5 && p.w <= 6 && fini(p.h) && p.h >= 2 && Array.isArray(p.b) && p.b.length > 0 && p.b.every((k) => Number.isInteger(k) && c.batiments[k]) && (p.n === undefined || typeof p.n === 'string');
+      if (!ok) { malP.push(`passages[${i}] mal formé`); return; }
+      const [a, b] = p.l, L0 = Math.hypot(b[0] - a[0], b[1] - a[1]), dansB = (k) => { for (let s = 0; s <= L0; s += 0.1) { const t = s / L0; if (dedans(c.batiments[k].p, a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t)) return true; } return false; };
+      if (!p.b.every(dansB)) malP.push(`passages[${i}] : l'axe ne passe pas sous tous ses bâtiments`);
+      if ([a, b].some((q) => c.batiments.some((bt) => dedans(bt.p, q[0], q[1])))) malP.push(`passages[${i}] : un bout dans un bâtiment (pas de débouché)`);
+      if (p.b.some((k) => p.h > 0.6 * c.batiments[k].h + 0.05)) malP.push(`passages[${i}] : h > 0,6 × la hauteur du bâtiment`);
+    });
+    check(!malP.length, `passages voûtés bien formés (${P.length} : ${P.map((p) => p.n || '?').join(', ') || 'aucun'}) : axe sous leurs bâtiments, débouchés à l'air libre, h ≤ 0,6 × leur hauteur${exemples(malP)}`);
+  }
   let ecO = Infinity; for (let i = 0; i < ob.length; i++) for (let j = i + 1; j < ob.length; j++) ecO = Math.min(ecO, Math.hypot(ob[i].x - ob[j].x, ob[i].z - ob[j].z));
   qualite(ecO >= 20, `objets bien répartis (au moins 20 m entre deux : ${ecO.toFixed(1)} m)`);
   const exMal = Z.extraction.concat([Z.base]).filter((q) => !(degage(q[0], q[1]) >= 0.5));
@@ -262,7 +284,13 @@ function principal() {
   if (fs.existsSync(VRAIE)) {
     console.log('── poncin/carte/poncin.json : validation v1 ──');
     let c = null; try { c = JSON.parse(fs.readFileSync(VRAIE, 'utf8')); } catch (e) { check(false, `JSON lisible (${e.message})`); }
-    if (c) { check(c.source === 'ign-osm', 'source ign-osm'); valider(c, { strict: false, dossier: path.dirname(VRAIE) }); }
+    if (c) {
+      check(c.source === 'ign-osm', 'source ign-osm'); valider(c, { strict: false, dossier: path.dirname(VRAIE) });
+      // les deux voûtes de Poncin (le joueur l'a confirmé : il n'y en a que deux) : sous le bâtiment que traverse la voie de ce nom
+      const P = c.passages || [], noms = ['Porte Bouvent', 'Impasse du Bonheur'], rue = (n) => c.rues.filter((r) => r.n === n);
+      const pres = (p) => rue(p.n).some((r) => r.l.some((q, i) => i && p.b.some((k) => { for (let t = 0; t <= 1; t += 0.02) { const x = r.l[i - 1][0] + (q[0] - r.l[i - 1][0]) * t, z = r.l[i - 1][1] + (q[1] - r.l[i - 1][1]) * t; if (dedans(c.batiments[k].p, x, z)) return true; } return false; })));
+      check(P.length === 2 && noms.every((n) => P.some((p) => p.n === n && pres(p))), `deux passages voûtés, Porte Bouvent et Impasse du Bonheur, sous les bâtiments que traversent ces voies (${P.map((p) => `${p.n} sous ${p.b}`).join(' ; ')})`);
+    }
   } else note('poncin/carte/poncin.json absente : seule la carte provisoire est validée');
 
   console.log(fails ? `\n${fails} vérification(s) en échec` : '\nCartes OK.');

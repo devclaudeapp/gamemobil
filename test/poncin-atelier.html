@@ -18,13 +18,17 @@ html,body{margin:0;height:100%;overflow:hidden;background:#EEF0E6;font:12px/1.3 
 <script src="../src-poncin/carte-provisoire.js"></script>
 <script src="../src-poncin/monde.js"></script>
 <script src="../src-poncin/avatars.js"></script>
+<script src="../src-poncin/textures.js"></script>
+<script src="../src-poncin/vegetation.js"></script>
+<script src="../src-poncin/decor.js"></script>
 <script src="../src-poncin/rendu.js"></script>
 <script>
 // L'atelier du rendu : la vraie carte (?carte=reelle, par défaut si poncin/carte/poncin.json se charge) ou la carte provisoire
 // (?carte=provisoire&graine=1), un faux « jeu » au format du contrat (moi + un ami joueur + trois robots), des crochets pour poser la
 // caméra, tirer, éliminer et avancer le temps image par image (captures reproductibles, test/poncin-scene.cjs).
 // Servir la racine du dépôt (npx http-server .) puis ouvrir test/poncin-atelier.html ; paramètres : ?qualite=haute|moyenne|eco,
-// ?scene=rue|place|chateau|eglise|pont|haut|persos|tir|confettis|survol, ?boucle=1 (le voir vivre ; &marche=0 : robots immobiles),
+// ?scene=rue|place|mairie|tabac|banque|terrasse|bouvent-nord|bouvent-dedans|bouvent-sud|bonheur-est|bonheur-ouest|ain|horizon|chateau|eglise|pont|haut|
+// persos|tir|confettis|survol, ?boucle=1 (le voir vivre ; &marche=0 : robots immobiles),
 // ?noms=0 (sans étiquettes). Dans la console : atelier.scene('tir'), atelier.tir('moi', [x, y, z], 'pompe'), atelier.eliminer('b1', 'moi')…
 window.atelier = (() => {
   'use strict';
@@ -143,6 +147,53 @@ window.atelier = (() => {
     if (pt) { const [a, b] = [pt.l[0], pt.l[pt.l.length - 1]], mx = (a[0] + b[0]) / 2, mz = (a[1] + b[1]) / 2, ux = b[0] - a[0], uz = b[1] - a[1], ul = Math.hypot(ux, uz); let best = null;
       for (const d of [16, 22, 28, 36, 46]) { for (let k = 0; k < 32; k++) { const an = k / 32 * Math.PI * 2, x = mx + Math.cos(an) * d, z = mz + Math.sin(an) * d; if (!libre(x, z)) continue; const cote = Math.abs((Math.cos(an) * ux + Math.sin(an) * uz) / ul); if (cote > 0.75 || !monde.vue(x, oeil(x, z), z, mx, monde.hauteur(mx, mz) + 1.5, mz)) continue; if (!best || cote < best.cote) best = { x, z, cote }; } if (best) break; }
       R.pont = { x: mx, z: mz, depuis: best || { x: a[0] - ux / ul * 8, z: a[1] - uz / ul * 8 } }; }
+    // les passages voûtés (monde.passages) : de chaque côté, le point libre le plus loin (≤ 12 m, en éventail) qui voit à travers ; dedans
+    R.passages = (monde.passages || []).map((V) => {
+      const [a, b] = V.l, ux = V.u[0], uz = V.u[1], o = {};
+      const cote = (P, sx, sz, Q) => { // depuis P, en s'éloignant selon (sx, sz), le regard vers Q (l'autre bout)
+        for (let d = 12; d >= 2.5; d -= 0.5) for (const an of [0, 0.15, -0.15, 0.3, -0.3, 0.45, -0.45, 0.6, -0.6]) {
+          const c = Math.cos(an), s = Math.sin(an), dx = sx * c - sz * s, dz = sx * s + sz * c, x = P[0] + dx * d, z = P[1] + dz * d;
+          if (Math.abs(x) > carte.taille / 2 - 2 || Math.abs(z) > carte.taille / 2 - 2 || !libre(x, z)) continue;
+          if (!monde.vue(x, oeil(x, z), z, Q[0], monde.hauteur(Q[0], Q[1]) + 1.4, Q[1]) || !monde.vue(x, oeil(x, z), z, (P[0] + Q[0]) / 2, monde.hauteur(P[0], P[1]) + 1.6, (P[1] + Q[1]) / 2)) continue;
+          return { x, z, cible: [Q[0], monde.hauteur(Q[0], Q[1]) + 1.7, Q[1]] };
+        }
+        return { x: P[0] - ux * 3 * Math.sign(sx * ux + sz * uz), z: P[1] - uz * 3 * Math.sign(sx * ux + sz * uz), cible: [Q[0], monde.hauteur(Q[0], Q[1]) + 1.7, Q[1]] };
+      };
+      o.a = cote(a, -ux, -uz, b); o.b = cote(b, ux, uz, a);
+      const bt = (V.bats || [])[0], e = bt && bt.entree, f = bt && bt.sortie, m = e && f ? [e.x + (f.x - e.x) * 0.3, e.z + (f.z - e.z) * 0.3] : [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+      o.dedans = { x: m[0], z: m[1], cible: [b[0] + ux * 8, monde.hauteur(b[0], b[1]) + 1.9, b[1] + uz * 8] };
+      o.nom = V.n; o.nordA = a[1] < b[1]; o.estA = a[0] > b[0]; return o;
+    });
+    // les bords de l'Ain : d'une berge libre, de l'autre côté de l'eau, face au plus grand groupe de saules et de peupliers
+    const eaux = (carte.eau || []).filter((e) => e && Array.isArray(e.p) && e.p.length >= 3).map((e) => e.p.flat()), dansEau = (x, z) => eaux.some((f) => PMONDE.dansPoly(f, x, z)); // dansPoly lit [x0, z0, x1, z1, …]
+    const rive = (carte.arbres || []).filter((t) => t && (t[4] === 'saule' || t[4] === 'peuplier'));
+    const couronnes = (carte.arbres || []).filter((t) => t && t[2] > 2), haies = carte.haies || [];
+    const d2s = (px, pz, ax, az, bx, bz) => { const ex = bx - ax, ez = bz - az, l = ex * ex + ez * ez || 1, f = Math.max(0, Math.min(1, ((px - ax) * ex + (pz - az) * ez) / l)); return (ax + f * ex - px) ** 2 + (az + f * ez - pz) ** 2; };
+    const degage = (x, z, tx, tz) => { // > 0 : l'œil est dans une couronne ou une haie, ou une couronne barre la vue dans les 25 premiers mètres
+      const l = Math.hypot(tx - x, tz - z) || 1, dx = (tx - x) / l, dz = (tz - z) / l, ex = x + dx * Math.min(25, l - 8), ez = z + dz * Math.min(25, l - 8);
+      for (const t of couronnes) { const r = t[3] || t[2] * 0.35; if (Math.hypot(t[0] - x, t[1] - z) < r + 1.5) return 1; if (d2s(t[0], t[1], x, z, ex, ez) < (r * 0.9) ** 2) return 2; }
+      for (const hh of haies) { const ll = hh && hh.l; if (!Array.isArray(ll)) continue; for (let i = 0; i + 1 < ll.length; i++) if (d2s(x, z, ll[i][0], ll[i][1], ll[i + 1][0], ll[i + 1][1]) < ((+hh.w || 1) + 2) ** 2) return 3; }
+      return 0;
+    };
+    if (rive.length) { let best = null;
+      for (const t0 of rive) for (const d of [30, 40, 52]) for (let k = 0; k < 24; k++) {
+        const an = k / 24 * Math.PI * 2, x = t0[0] + Math.cos(an) * d, z = t0[1] + Math.sin(an) * d; if (Math.abs(x) > carte.taille / 2 - 5 || Math.abs(z) > carte.taille / 2 - 5 || !libre(x, z)) continue;
+        let mouille = 0; for (let f = 0.25; f < 0.8; f += 0.1) if (dansEau(x + (t0[0] - x) * f, z + (t0[1] - z) * f)) mouille++; if (mouille < 2) continue; // l'eau entre la berge et les arbres
+        if (dansEau(x, z) || degage(x, z, t0[0], t0[1]) > 0) continue; // ni dans l'eau, ni dans une couronne ou une haie, rien de près devant
+        const yaw = Math.atan2(-(t0[0] - x), -(t0[1] - z)); let n = 0; for (const u of rive) { const dx = u[0] - x, dz = u[1] - z, dd = Math.hypot(dx, dz); if (dd < 12 || dd > 90) continue; const ay = Math.atan2(-dx, -dz), dy = Math.atan2(Math.sin(ay - yaw), Math.cos(ay - yaw)); if (Math.abs(dy) < 0.5) n += u[4] === 'peuplier' ? 1.3 : 1; }
+        if (!best || n > best.n) best = { x, z, yaw, n, cible: [t0[0], oeil(x, z) + 1.5, t0[1]] };
+      }
+      R.ain = best; }
+    // l'horizon : un point libre d'où le regard porte loin (ni bâtiment ni couronne d'arbre à 250 m dans l'axe), tourné vers le relief lointain le plus haut (carte.horizon)
+    const HZ = carte.horizon;
+    if (HZ && HZ.h && HZ.n) { const hz = (x, z) => { const n = HZ.n, i = Math.max(0, Math.min(n - 1, Math.round(x / HZ.pas + (n - 1) / 2))), j = Math.max(0, Math.min(n - 1, Math.round(z / HZ.pas + (n - 1) / 2))); return +HZ.h[j * n + i]; };
+      const arbres = (carte.arbres || []).filter((t) => t && t[2] > 4), best0 = { ang: -1 };
+      for (let k = 0; k < tous.length; k += 3) { const p = tous[k]; if (!libre(p.x, p.z)) continue; const y0 = oeil(p.x, p.z), proches = arbres.filter((t) => Math.abs(t[0] - p.x) < 260 && Math.abs(t[1] - p.z) < 260);
+        for (let a = 0; a < 24; a++) { const yaw = a / 24 * Math.PI * 2, dx = -Math.sin(yaw), dz = -Math.cos(yaw); if (portee(p.x, p.z, yaw, 260) < 250) continue;
+          if (proches.some((t) => { const s = (t[0] - p.x) * dx + (t[1] - p.z) * dz; if (s < 2 || s > 250) return false; const e = Math.abs((t[0] - p.x) * dz - (t[1] - p.z) * dx); return e < (t[3] || t[2] * 0.35) * 0.8 + 0.5 && t[2] > 1.6 + s * Math.tan(0.02); })) continue;
+          let ang = -1; for (let d = 1500; d <= 7500; d += 500) ang = Math.max(ang, Math.atan2(hz(p.x + dx * d, p.z + dz * d) - y0, d));
+          if (ang > best0.ang) Object.assign(best0, { x: p.x, z: p.z, yaw, ang }); } }
+      R.horizon = best0.ang > -1 ? best0 : null; }
     return R;
   }
   // ─── les scènes des captures (test/poncin-scene.cjs) : chacune repart d'un état propre ───
@@ -157,6 +208,14 @@ window.atelier = (() => {
     eglise(R) { const c = R.clocher || R.eglise, p = R.vueEglise || R.place; camera(p.x, p.z, 0, 0); regarder(c.x, Math.min(c.h - 2, monde.hauteur(p.x, p.z) + 1.6 + Math.hypot(c.x - p.x, c.z - p.z) * 0.45), c.z); groupe([]); },
     pont(R) { const p = R.pont; if (!p) return SCENES.place(R); camera(p.depuis.x, p.depuis.z, 0, 0); regarder(p.x, monde.hauteur(p.x, p.z) + 0.5, p.z); groupe([]); },
     haut() { atelier.titre = true; PRENDU.survol({ rayon: 95, hauteur: 85 }); t = 21; }, // la vue d'en haut : le survol, plus près et plus haut
+    // les bâtiments remarquables (decor.remarquables : le pied de la façade et sa normale) vus de la place, l'œil à hauteur d'homme
+    mairie(R) { remarquable(R, 'mairie', null, 15, 2.5, 3.4); }, tabac(R) { remarquable(R, 'tabac', null, 9.5, -3.5, 2.2); }, banque(R) { remarquable(R, 'banque', null, 8.5, 2.8, 1.9); },
+    terrasse(R) { if (!remarquable(R, 'terrasse', 'Bar des Sports', 9.5, -4.5, 1.3)) remarquable(R, 'bar', null, 9.5, -4.5, 1.3); },
+    // les passages voûtés : Porte Bouvent des deux côtés et dedans, Impasse du Bonheur des deux côtés
+    'bouvent-nord'(R) { passage(R, 'Porte Bouvent', 'nord'); }, 'bouvent-sud'(R) { passage(R, 'Porte Bouvent', 'sud'); }, 'bouvent-dedans'(R) { passage(R, 'Porte Bouvent', 'dedans'); },
+    'bonheur-est'(R) { passage(R, 'Impasse du Bonheur', 'est'); }, 'bonheur-ouest'(R) { passage(R, 'Impasse du Bonheur', 'ouest'); },
+    ain(R) { const p = R.ain; if (!p) return SCENES.pont(R); camera(p.x, p.z, p.yaw, 0); regarder(...p.cible); groupe([]); },
+    horizon(R) { const p = R.horizon; if (!p) return SCENES.place(R); camera(p.x, p.z, p.yaw, 0.03); groupe([]); },
 
     persos(R) { const p = R.place; camera(p.x, p.z, p.yaw, -0.12); groupe([[2.7, -0.7, 1.0], [3.3, 1.1, -0.9], [5.4, -2.6, 0.4], [5.8, 2.9, -0.3]]); poser('ami', { arme: 'rafale' }); poser('b3', { accroupi: true }); },
     tir(R) { const p = R.place; camera(p.x, p.z, p.yaw, 0); const h = murDevant(7, 22); groupe([[7, 3.2, 0.5], [9.5, -3.4, -0.6], [40, 0], [40, 5]]); image(1 / 60);
@@ -165,6 +224,18 @@ window.atelier = (() => {
     confettis(R) { const p = R.place; camera(p.x, p.z, p.yaw, -0.05); groupe([[5, 0.4], [9, -3], [40, 0], [40, 4]]); image(1 / 60); touche('moi', 'b1', true); image(0.05); eliminer('b1', 'moi'); for (let i = 0; i < 5; i++) image(0.05); },
     survol() { atelier.titre = true; PRENDU.survol({ rayon: 165, hauteur: 58 }); t = 9; },
   };
+  function remarquable(R, quoi, n, dist, cote, regardY) { // devant une façade remarquable du décor : à dist m, décalé de cote m, le regard à regardY m au-dessus du pied
+    const D = PRENDU._interne.decor, r = D && D.remarquables ? D.remarquables.find((o) => o.quoi === quoi && (!n || o.n === n)) : null;
+    if (!r) { SCENES.place(R); return false; }
+    let ex = r.x + r.nx * dist + r.nz * cote, ez = r.z + r.nz * dist - r.nx * cote; const lim = monde.limite; monde.limite = null;
+    for (let k = 0; k < 40 && monde.bloque(ex, ez, 0.5); k++) { ex -= r.nx * 0.4; ez -= r.nz * 0.4; }
+    monde.limite = lim; camera(ex, ez, 0, 0); regarder(r.x, r.y + regardY, r.z); groupe([]); return true;
+  }
+  function passage(R, nom, cote) {
+    const P = (R.passages || []).find((o) => o.nom === nom); if (!P) return SCENES.place(R);
+    const v = cote === 'dedans' ? P.dedans : cote === 'nord' ? (P.nordA ? P.a : P.b) : cote === 'sud' ? (P.nordA ? P.b : P.a) : cote === 'est' ? (P.estA ? P.a : P.b) : (P.estA ? P.b : P.a);
+    camera(v.x, v.z, 0, 0); regarder(...v.cible); groupe([]);
+  }
   function scene(nom) {
     if (!SCENES[nom]) return null;
     remettre(); const R = vues(); SCENES[nom](R);

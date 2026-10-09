@@ -21,6 +21,7 @@
   "wmts": "https://data.geopf.fr/wmts",
   "coucheOrtho": "ORTHOIMAGERY.ORTHOPHOTOS",
   "arene": { "rayon": 110, "apparitions": 20, "objets": 8 },
+  "passages": ["Porte Bouvent", "Impasse du Bonheur"],
   "arbresBois": { "espacement": 9, "max": 900 },
   "style": { "flou": 1, "saturation": 1.28, "chaleur": 0.035, "eclaircir": 0.12, "gamma": 0.86, "pave": [218, 208, 195] }
 }

@@ -7,7 +7,8 @@
    Le réseau du poste de développement est fermé : la vraie construction tourne sur GitHub Actions (.github/workflows/carte.yml).
      node outils/carte/construire.js            la vraie carte (réponses brutes gardées dans outils/carte/cache/)
      node outils/carte/construire.js --essai    tout le pipeline hors ligne sur de fausses réponses synthétiques, avec vérifications
-   Options : --sortie <dossier>, --sans-cache ; --verifier [poncin.json] vérifie une carte déjà construite. Node 22 (fetch global), CommonJS ; seule dépendance : jpeg-js@0.4.4
+   Options : --sortie <dossier>, --sans-cache ; --verifier [poncin.json] vérifie une carte déjà construite ; --passages [poncin.json]
+   y ajoute (ou refait) les passages voûtés, hors ligne. Node 22 (fetch global), CommonJS ; seule dépendance : jpeg-js@0.4.4
    (npm i --no-save --prefix outils/carte jpeg-js@0.4.4). Étapes : decouvrir → osm → bdtopo → alti → assembler → ortho → écrire. */
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os'), crypto = require('crypto');
@@ -31,7 +32,7 @@ const DEFAUT = {
   coucheLineaire: 'BDTOPO_V3:construction_lineaire', coucheCimetiere: 'BDTOPO_V3:cimetiere', coucheSport: 'BDTOPO_V3:terrain_de_sport',
   coucheMNH: 'IGNF_LIDAR-HD_MNH_ELEVATION.ELEVATIONGRIDCOVERAGE.WGS84G', coucheMNS: 'IGNF_LIDAR-HD_MNS_ELEVATION.ELEVATIONGRIDCOVERAGE.WGS84G',
   coucheMNT: 'IGNF_LIDAR-HD_MNT_ELEVATION.ELEVATIONGRIDCOVERAGE.WGS84G', coucheHorizon: 'ELEVATION.ELEVATIONGRIDCOVERAGE',
-  arene: { rayon: 110, apparitions: 20, objets: 8 }, arbresBois: { espacement: 9, max: 900 },
+  arene: { rayon: 110, apparitions: 20, objets: 8 }, arbresBois: { espacement: 9, max: 900 }, passages: [],
   arbres: { max: 7000, pasMNH: 0.5, hauteurMin: 3, rayonMin: 1 }, horizon: { cote: 16000, pas: 125 }, arenePhoto: { cote: 400, image: 2048, zoom: 20 },
   style: { flou: 1, saturation: 1.28, chaleur: 0.035, eclaircir: 0.12, gamma: 0.86, pave: [218, 208, 195] },
 };
@@ -1129,12 +1130,13 @@ function assembler(R, L, objets, bdtopo, relief, autres = {}) {
   log(`bâtiments : ${batiments.length} (BD TOPO ${nBD}, OSM ajoutés ${nOSM}) ${JSON.stringify(compte)}`);
 
   // ── rues (et leurs sorties du carré, pour l'extraction) ──
-  const rues = [], sorties = [];
+  const rues = [], sorties = [], passagesOSM = []; // passagesOSM : les voies tunnel=building_passage (passages voûtés sous un bâtiment)
   for (const o of de((t, o2) => t.highway && o2.type === 'way' && t.area !== 'yes' && !RUES_EXCLUES.test(t.highway))) {
     const t = o.tags, w = largeurRue(t), ty = typeRue(t.highway);
     for (const l0 of o.lignes) for (const m of couperLigne(l0, h)) {
       const l = nettoyer(dp(m.l, 1), false); if (l.length < 2) continue;
       const r = { l, w, t: ty }; if (t.name) r.n = t.name; rues.push(r);
+      if (t.tunnel === 'building_passage') passagesOSM.push({ l: nettoyer(dp(m.l, 0.3), false), w, n: t.name || null, id: o.id });
       if (m.debut) sorties.push({ bout: l[0], suite: l, t: ty }); if (m.fin) sorties.push({ bout: l[l.length - 1], suite: l.slice().reverse(), t: ty });
     }
   }
@@ -1260,11 +1262,11 @@ function assembler(R, L, objets, bdtopo, relief, autres = {}) {
     origine: { lat: R.lat0, lon: R.lon0 }, taille: L, relief,
     batiments, rues, eau: eau.map((e) => { const r = { p: e.p, t: e.t }; if (e.n) r.n = e.n; return r; }),
     ponts: ponts.map((p) => ({ l: p.l, w: p.w })), vegetation, arbres: [], interdit, noms: noms.map(({ n, x, z }) => ({ n, x, z })), sol: null, zones: null,
-    haies, surfaces: surfSol, murs, mobilier, enseignes,
+    haies, surfaces: surfSol, murs, mobilier, enseignes, passages: [],
   };
   const mouilles = batiments.filter((b) => { const q = centroide(b.p); return eau.some((e) => dedans(q[0], q[1], e.p)); }).length;
   if (mouilles) alerte(`${mouilles} bâtiment(s) ont leur centre dans l’eau`);
-  const info = { mouilles, deduits, allonges, ponts, nBD, nOSM, compte, lignesEau, nomChateau, mats, ctx, autres, stMurs, stHaies, stMob, zonesArgs: { h, objets, bats, rues, ponts, sorties, rnd } };
+  const info = { mouilles, deduits, allonges, ponts, nBD, nOSM, compte, lignesEau, nomChateau, mats, ctx, autres, stMurs, stHaies, stMob, passagesOSM, zonesArgs: { h, objets, bats, rues, ponts, sorties, rnd } };
   return { carte, info };
 }
 function obstacles(L, batiments, interdit, eau, ponts, extra = {}) { // libre(x, z, marge), degagement(x, z), coupe(a, b) : bâtiments, zones interdites, eau hors des ponts, troncs et murs
@@ -1298,6 +1300,114 @@ function obstacles(L, batiments, interdit, eau, ponts, extra = {}) { // libre(x,
     return false;
   }
   return { libre, degagement, surPont, coupe };
+}
+// ─── passages voûtés (ARCHITECTURE.md, « Passages voûtés ») : une voie qui passe SOUS un bâtiment → { l: [a, b], w, h, b, n }. D'abord
+// les voies OSM tunnel=building_passage ; sinon (ou en plus, pour les noms qu'OSM ne tague pas) les voies nommées dans poncin.config.json
+// (« passages ») là où leur tracé traverse une emprise. Rien d'inventé : la voie et le bâtiment viennent des données ; le couloir, lui,
+// est AJUSTÉ à l'emprise traversée (choix de modélisation) : son axe pivote (35° au plus) et se décale (2 m au plus) autour de la
+// traversée pour couper les façades le plus franchement possible ; il doit déboucher des deux côtés à l'air libre, ne jamais entamer
+// un autre bâtiment et garder au milieu des piédroits de 45 cm au moins dans l'emprise. w ≤ min(largeur de la voie, 3,6 m) ; h = 3,4 m,
+// borné à 0,6 × la hauteur du plus bas des bâtiments traversés ; l déborde de 0,6 m au-delà de la façade la plus avancée ; w ≥ 2,2 m
+// (un sentier OSM de 1,8 m sous un porche reste praticable).
+const PASSAGE = { w: 3.6, wMin: 2.2, h: 3.4, kh: 0.6, pile: 0.45, debord: 0.6, min: 1.2, angle: 35, decal: 2, fen: 30, px: 0.05 };
+function joindreRues(rs) { // les morceaux d'une même voie, joints bout à bout → [{ l, w }]
+  const egal = (a, b) => dist(a, b) < 0.5, reste = rs.map((r) => ({ l: r.l.slice(), w: r.w })), out = [];
+  while (reste.length) {
+    const ch = reste.shift();
+    for (let encore = true; encore;) {
+      encore = false;
+      for (let i = 0; i < reste.length; i++) {
+        const a = ch.l, b = reste[i].l;
+        if (egal(a[a.length - 1], b[0])) ch.l = a.concat(b.slice(1)); else if (egal(a[a.length - 1], b[b.length - 1])) ch.l = a.concat(b.slice(0, -1).reverse());
+        else if (egal(a[0], b[b.length - 1])) ch.l = b.concat(a.slice(1)); else if (egal(a[0], b[0])) ch.l = b.slice().reverse().concat(a.slice(1)); else continue;
+        ch.w = Math.max(ch.w, reste[i].w); reste.splice(i, 1); encore = true; break;
+      }
+    }
+    out.push(ch);
+  }
+  return out;
+}
+function prolonger(l, m) { // la polyligne prolongée de m mètres à chaque bout
+  const r = l.map((q) => q.slice()), a = r[0], b = r[1], y = r[r.length - 1], z = r[r.length - 2], da = dist(a, b) || 1, dz = dist(y, z) || 1;
+  r[0] = [a[0] + (a[0] - b[0]) / da * m, a[1] + (a[1] - b[1]) / da * m]; r[r.length - 1] = [y[0] + (y[0] - z[0]) / dz * m, y[1] + (y[1] - z[1]) / dz * m];
+  return r;
+}
+function passagesCarte(c, osm, noms) {
+  const bats = c.batiments, idx = grille(16); bats.forEach((b, i) => idx.ajouter(boite(b.p), i));
+  const qui = (x, z) => { for (const i of idx.autour(x, z, 0)) if (dedans(x, z, bats[i].p)) return i; return -1; };
+  const cands = (osm || []).filter((v) => v.l && v.l.length >= 2).map((v) => ({ l: prolonger(v.l, 2), w: v.w, n: v.n || null, src: 'OSM tunnel=building_passage' }));
+  for (const nom of noms || []) {
+    if (cands.some((v) => v.n === nom)) continue;
+    const morceaux = joindreRues(c.rues.filter((r) => r.n === nom));
+    if (!morceaux.length) alerte(`passage « ${nom} » (poncin.config.json) : aucune voie de ce nom`);
+    for (const m of morceaux) cands.push({ l: m.l, w: m.w, n: nom, src: 'voie nommée (poncin.config.json)' });
+  }
+  const res = [];
+  for (const v of cands) {
+    const d = densifier(v.l, 0.1); let run = null, trouve = false;
+    const fin = () => {
+      if (run && !run.bout && dist(run.a, run.z) >= PASSAGE.min) { const p = ajusterPassage(run, v, bats, idx); if (p) { res.push(p); trouve = true; } else alerte(`passage « ${v.n} » près de [${run.a.map(r1)}] : aucun couloir ne tient dans l'emprise`); }
+      run = null;
+    };
+    d.forEach((q, k) => { const i = qui(q[0], q[1]); if (i >= 0) { if (!run) run = { a: q, z: q, b: new Set(), bout: k === 0 }; run.z = q; run.b.add(i); if (k === d.length - 1) run.bout = true; } else fin(); });
+    fin();
+    if (!trouve && v.src !== 'OSM tunnel=building_passage') alerte(`passage « ${v.n} » : son tracé ne traverse aucun bâtiment`);
+  }
+  return res;
+}
+function ajusterPassage(run, v, bats, idx) { // le meilleur couloir droit autour de la traversée run (voir PASSAGE) → { l, w, h, b, n } | null
+  const B = run.b, L0 = dist(run.a, run.z), u0 = [(run.z[0] - run.a[0]) / L0, (run.z[1] - run.a[1]) / L0], M0 = [(run.a[0] + run.z[0]) / 2, (run.a[1] + run.z[1]) / 2];
+  // une image locale des emprises (indice du bâtiment, −1 dehors) : les mêmes questions mille fois, sans refaire les polygones
+  const F = PASSAGE.fen, P = PASSAGE.px, N = Math.round(2 * F / P), ras = new Int32Array(N * N).fill(-1);
+  for (const i of idx.autour(M0[0], M0[1], F)) {
+    const p = bats[i].p, bb = boite(p);
+    for (let j = Math.max(0, Math.floor((bb[1] - M0[1] + F) / P)); j <= Math.min(N - 1, Math.ceil((bb[3] - M0[1] + F) / P)); j++) {
+      const z = M0[1] - F + (j + 0.5) * P, xs = [];
+      for (let k = 0, m = p.length - 1; k < p.length; m = k++) { const a = p[k], b = p[m]; if ((a[1] > z) !== (b[1] > z)) xs.push(a[0] + (z - a[1]) * (b[0] - a[0]) / (b[1] - a[1])); }
+      xs.sort((a, b) => a - b);
+      for (let k = 0; k + 1 < xs.length; k += 2) for (let ii = Math.max(0, Math.ceil((xs[k] - M0[0] + F) / P - 0.5)); ii <= Math.min(N - 1, Math.floor((xs[k + 1] - M0[0] + F) / P - 0.5)); ii++) ras[j * N + ii] = i;
+    }
+  }
+  const qui = (x, z) => { const i = Math.floor((x - M0[0] + F) / P), j = Math.floor((z - M0[1] + F) / P); return i < 0 || j < 0 || i >= N || j >= N ? -2 : ras[j * N + i]; };
+  const wMax = Math.max(PASSAGE.wMin, Math.min(v.w || PASSAGE.w, PASSAGE.w)) / 2, hMin = Math.min(...[...B].map((i) => bats[i].h)), h = r1(Math.min(PASSAGE.h, PASSAGE.kh * hMin));
+  const pas = 0.1, sortie = (x, z, ux, uz, sens) => { // le premier point dehors en avançant depuis (x, z) : t, ou −1 (un autre bâtiment, hors de la fenêtre)
+    for (let t = 0; t < F; t += pas) { const i = qui(x + ux * t * sens, z + uz * t * sens); if (i === -1) return t; if (i === -2 || !B.has(i)) return -1; }
+    return -1;
+  };
+  const sinFacade = (x, z, ux, uz) => { // le sinus de l'angle entre l'axe et l'arête d'emprise la plus proche de (x, z)
+    let best = 0, bd = Infinity;
+    for (const i of B) { const p = bats[i].p; for (let k = 0; k < p.length; k++) { const a = p[k], b = p[(k + 1) % p.length], d = distSeg(x, z, a[0], a[1], b[0], b[1]); if (d < bd) { const l = dist(a, b) || 1; bd = d; best = Math.abs(ux * (b[1] - a[1]) / l - uz * (b[0] - a[0]) / l); } } }
+    return best;
+  };
+  const evaluer = (da, s) => {
+    const a = da * Math.PI / 180, ux = u0[0] * Math.cos(a) - u0[1] * Math.sin(a), uz = u0[0] * Math.sin(a) + u0[1] * Math.cos(a), nx = -uz, nz = ux;
+    const mx = M0[0] - u0[1] * s, mz = M0[1] + u0[0] * s; if (!B.has(qui(mx, mz))) return null;
+    const tX = sortie(mx, mz, ux, uz, 1), tE = sortie(mx, mz, ux, uz, -1); if (tX < 0 || tE < 0 || tX + tE < PASSAGE.min) return null;
+    const cx = mx + ux * (tX - tE) / 2, cz = mz + uz * (tX - tE) / 2; // le milieu de la traversée
+    for (let hw = wMax; hw >= PASSAGE.wMin / 2 - 1e-9; hw -= 0.1) {
+      if (!B.has(qui(cx + nx * (hw + PASSAGE.pile), cz + nz * (hw + PASSAGE.pile))) || !B.has(qui(cx - nx * (hw + PASSAGE.pile), cz - nz * (hw + PASSAGE.pile)))) continue; // les piédroits
+      let ok = true, xMax = 0, eMax = 0;
+      for (let e = -hw; e <= hw + 1e-9 && ok; e += Math.max(0.05, hw / 6)) { // chaque ligne du couloir débouche à l'air libre des deux côtés, sans traverser d'autre bâtiment
+        const x0 = cx + nx * e, z0 = cz + nz * e, i0 = qui(x0, z0); if (i0 === -2 || (i0 >= 0 && !B.has(i0))) { ok = false; break; }
+        const t1 = sortie(x0, z0, ux, uz, 1), t2 = sortie(x0, z0, ux, uz, -1); if (t1 < 0 || t2 < 0) { ok = false; break; }
+        xMax = Math.max(xMax, t1); eMax = Math.max(eMax, t2);
+      }
+      if (!ok) continue;
+      for (let e = -hw; e <= hw + 1e-9 && ok; e += 0.25) for (const [t, sg] of [[xMax + 0.3, 1], [eMax + 0.3, -1]]) if (qui(cx + nx * e + ux * t * sg, cz + nz * e + uz * t * sg) !== -1) ok = false; // les débouchés
+      if (!ok) continue;
+      const sE = sinFacade(mx - ux * tE, mz - uz * tE, ux, uz), sX = sinFacade(mx + ux * tX, mz + uz * tX, ux, uz);
+      return { score: 2 * Math.min(sE, sX) + 0.8 * hw - 0.12 * Math.abs(s) - 0.5 * Math.abs(a), hw, ux, uz, cx, cz, a: [cx - ux * (eMax + PASSAGE.debord), cz - uz * (eMax + PASSAGE.debord)], b: [cx + ux * (xMax + PASSAGE.debord), cz + uz * (xMax + PASSAGE.debord)], da, s, sE, sX };
+    }
+    return null;
+  };
+  let best = null; const garder = (r) => { if (r && (!best || r.score > best.score)) best = r; };
+  for (let da = -PASSAGE.angle; da <= PASSAGE.angle + 1e-9; da += 5) for (let s = -PASSAGE.decal; s <= PASSAGE.decal + 1e-9; s += 0.2) garder(evaluer(da, s));
+  if (best) { const { da: a0, s: s0 } = best; for (let da = a0 - 4; da <= a0 + 4 + 1e-9; da += 1) for (let s = s0 - 0.2; s <= s0 + 0.2 + 1e-9; s += 0.05) if (Math.abs(da) <= PASSAGE.angle && Math.abs(s) <= PASSAGE.decal) garder(evaluer(da, s)); }
+  if (!best) return null;
+  const b = [...B].sort((x, y) => x - y), w = Math.floor(2 * best.hw * 10 + 1e-6) / 10;
+  log(`passage « ${v.n || '(sans nom)'} » (${v.src}) : sous ${b.map((i) => `bâtiment ${i} (${bats[i].h} m)`).join(', ')}, milieu [${[best.cx, best.cz].map(r1)}], axe pivoté de ${best.da}° et décalé de ${r1(best.s)} m, façades coupées à ${Math.round(Math.asin(Math.min(1, best.sE)) * 180 / Math.PI)}° et ${Math.round(Math.asin(Math.min(1, best.sX)) * 180 / Math.PI)}°, w ${w} m, h ${h} m`);
+  const r = { l: [best.a.map(r1), best.b.map(r1)], w, h, b }; if (v.n) r.n = v.n;
+  return r;
 }
 function calculerZones({ h, objets, bats, rues, ponts, sorties, obs, rnd }) {
   const A = CONFIG.arene, de = (f) => objets.filter((o) => f(o.tags, o)), centre = (o) => o.polys.length ? centroide(o.polys[0]) : o.pt;
@@ -1572,6 +1682,7 @@ function verifier(c, obs) {
   (c.mobilier || []).forEach((x, i) => { pt([x.x, x.z], `mobilier[${i}]`); if (!TYPES_MOBILIER.includes(x.t)) err.push(`mobilier[${i}].t = ${x.t}`); if (x.yaw != null && !num(x.yaw)) err.push(`mobilier[${i}].yaw`); if (x.n != null && typeof x.n !== 'string') err.push(`mobilier[${i}].n`); });
   (c.enseignes || []).forEach((x, i) => { pt([x.x, x.z], `enseignes[${i}]`); if (!Number.isInteger(x.b) || !c.batiments[x.b]) err.push(`enseignes[${i}].b`); if (typeof x.n !== 'string' || !x.n) err.push(`enseignes[${i}].n`); if (typeof x.t !== 'string' || !x.t) err.push(`enseignes[${i}].t`); if (!num(x.yaw)) err.push(`enseignes[${i}].yaw`); });
   if (c.horizon != null) { const z = c.horizon; if (!num(z.pas) || !Number.isInteger(z.n) || !Array.isArray(z.h) || z.h.length !== z.n * z.n || !z.h.every(num)) err.push('horizon incohérent'); }
+  (c.passages || []).forEach((x, i) => { const ou = `passages[${i}]`; if (!Array.isArray(x.l) || x.l.length !== 2) err.push(`${ou}.l`); else x.l.forEach((q) => pt(q, ou)); if (!(x.w > 0) || x.w > 6) err.push(`${ou}.w`); if (!(x.h > 0)) err.push(`${ou}.h`); if (!Array.isArray(x.b) || !x.b.length || !x.b.every((k) => Number.isInteger(k) && c.batiments[k])) err.push(`${ou}.b`); if (x.n != null && typeof x.n !== 'string') err.push(`${ou}.n`); else if (Array.isArray(x.b) && x.b.some((k) => c.batiments[k] && x.h > PASSAGE.kh * c.batiments[k].h + 0.05)) err.push(`${ou}.h > ${PASSAGE.kh} × la hauteur du bâtiment`); });
   const z = c.zones;
   if (!z || !z.arene || !num(z.arene.rayon) || z.arene.rayon <= 0) err.push('zones.arene'); else { pt(z.arene.centre, 'zones.arene.centre'); if (Math.max(Math.abs(z.arene.centre[0]), Math.abs(z.arene.centre[1])) + z.arene.rayon > c.taille / 2) err.push('zones.arene déborde du carré'); }
   const libre = (q, ou, m) => { pt(q, ou); if (obs && !obs.libre(q[0], q[1], m)) err.push(`${ou} n'est pas libre`); };
@@ -1585,7 +1696,7 @@ function verifier(c, obs) {
 // ─── écriture : JSON lisible (un objet par ligne), licence ───
 function versJSON(c) {
   const liste = (a) => a.length ? '[\n' + a.map((o) => JSON.stringify(o)).join(',\n') + '\n]' : '[]';
-  return '{\n' + Object.entries(c).map(([k, v]) => JSON.stringify(k) + ': ' + (/^(batiments|rues|eau|ponts|vegetation|arbres|interdit|noms|haies|surfaces|murs|mobilier|enseignes)$/.test(k) ? liste(v) : JSON.stringify(v))).join(',\n') + '\n}\n';
+  return '{\n' + Object.entries(c).map(([k, v]) => JSON.stringify(k) + ': ' + (/^(batiments|rues|eau|ponts|vegetation|arbres|interdit|noms|haies|surfaces|murs|mobilier|enseignes|passages)$/.test(k) ? liste(v) : JSON.stringify(v))).join(',\n') + '\n}\n';
 }
 function licence(c) {
   const an = new Date().getFullYear(), jour = new Date().toISOString().slice(0, 10), alti = RAPPORT.sources.alti !== 'plat', S = RAPPORT.sources, bd = ['batiment', 'vegetation', 'haies', 'ponctuel', 'lineaire', 'cimetiere', 'sport'].map((k) => k === 'batiment' ? S.bdtopo || 'BDTOPO_V3:batiment' : S['bdtopo_' + k]).filter(Boolean);
@@ -1668,6 +1779,7 @@ async function construire() {
   const autres = await etapeBDTOPOAutres(R, L);
   const relief = await etapeAlti(R, L), horizon = await etapeHorizon(R);
   const { carte, info } = assembler(R, L, objets, bdtopo, relief, autres);
+  carte.passages = passagesCarte(carte, info.passagesOSM, CONFIG.passages); // les voûtes : OSM tunnel=building_passage, sinon les noms de poncin.config.json
   const o = await etapeOrtho(R, L, carte.batiments); carte.sol = o ? o.sol : null;
   teintesEtSens(carte, info, o);
   await etapeArbres(R, L, carte, info, o);
@@ -1704,6 +1816,7 @@ function rapport(c, info, R) {
     `haies : ${c.haies.length} (BD TOPO ${info.stHaies.bdtopo} + ${info.stHaies.zone} zones « Haie », OSM ${info.stHaies.osm} ; hauteur mesurée sur le LiDAR : ${A.haiesMesurees || 0}) ; murs : ${c.murs.length} ${JSON.stringify(compter(c.murs, (m) => m.t))} (OSM ${info.stMurs.osm}, BD TOPO ${info.stMurs.bdtopo}, portails ${info.stMurs.portails})`,
     `surfaces : ${c.surfaces.length} ${JSON.stringify(compter(c.surfaces, (s) => s.t))} ; mobilier : ${c.mobilier.length} ${JSON.stringify(compter(c.mobilier, (m) => m.t))} (OSM ${info.stMob.osm}, BD TOPO ${info.stMob.bdtopo})`,
     `enseignes (${c.enseignes.length}) : ${c.enseignes.map((e) => `${e.n} [${e.t}]`).join(' · ')}`,
+    `passages voûtés (${(c.passages || []).length}) : ${(c.passages || []).map((p) => `${p.n || '(sans nom)'} sous ${p.b.join('+')} [${[(p.l[0][0] + p.l[1][0]) / 2, (p.l[0][1] + p.l[1][1]) / 2].map(r1)}] w ${p.w} h ${p.h}`).join(' · ') || 'aucun'} (OSM building_passage : ${(info.passagesOSM || []).length})`,
     `objets nommés : église ${JSON.stringify(c.batiments.filter((b) => b.t === 'eglise').map((b) => b.n || '(sans nom)'))}, mairie ${JSON.stringify(c.batiments.filter((b) => b.t === 'mairie').map((b) => b.n || '(sans nom)'))}, château ${JSON.stringify([...new Set(c.batiments.filter((b) => b.t === 'chateau').map((b) => b.n || '(sans nom)'))])}`,
     `cours d'eau : ${JSON.stringify([...new Set(info.lignesEau.filter((l) => l.n).map((l) => l.n))])} ; Ain : ${n(NOM_AIN).length ? 'oui' : 'NON'}, Veyron : ${n(NOM_VEYRON).length ? 'oui' : 'NON'}`,
     `ponts nommés : ${JSON.stringify([...new Set(info.ponts.filter((p) => p.n).map((p) => p.n))])} ; voies sur pont : ${JSON.stringify([...new Set(info.ponts.filter((p) => p.voie).map((p) => p.voie))])}`,
@@ -1758,9 +1871,16 @@ function essai() {
   chemin([[100, -50], [100, 260]], { highway: 'residential', name: 'Rue B' });
   chemin([[0, 30], [0, 420]], { highway: 'tertiary', name: 'Route du sud' });
   chemin([[-30, 150], [-180, 150]], { highway: 'footway', surface: 'gravel' });
+  // deux passages voûtés : un sentier tunnel=building_passage sous une maison, et une rue nommée (poncin.config.json) sous deux maisons mitoyennes
+  CONFIG.passages = ["Voûte d'essai", "Rue sans voûte d'essai"];
+  bati(rect(40, 60, 52, 72), { building: 'house' }, { hauteur: 9, nature: 'Indifférenciée', usage_1: 'Résidentiel' });
+  chemin([[46, 59.6], [46, 72.4]], { highway: 'footway', tunnel: 'building_passage', name: "Passage d'essai" });
+  bati(rect(40, 40, 52, 52), { building: 'house' }, { hauteur: 10, nature: 'Indifférenciée', usage_1: 'Résidentiel' }); bati(rect(52, 40, 64, 52), { building: 'house' }, { hauteur: 8, nature: 'Indifférenciée', usage_1: 'Résidentiel' });
+  chemin([[30, 46], [74, 46]], { highway: 'residential', name: "Voûte d'essai" });
+  chemin([[30, 30], [74, 30]], { highway: 'residential', name: "Rue sans voûte d'essai" });
   // les maisons : une grille, la BD TOPO en couvre 70 % (décalée de 30 cm, avec les matériaux des fichiers fonciers), OSM en couvre 90 %
-  const routes = [[[-620, -50], [620, -50]], [[-30, -50], [-30, 160]], [[100, -50], [100, 260]], [[0, 30], [0, 420]], [[-30, 150], [-180, 150]], [[420, 130], [200, 110], [60, 92], [20, 90], [-100, 80], [-236, 70]]];
-  const occupes = [rect(-25, -5, 30, 35), rect(-15, -29, 15, -1), rect(-80, 13, -40, 37), rect(105, -205, 245, -125)];
+  const routes = [[[-620, -50], [620, -50]], [[-30, -50], [-30, 160]], [[100, -50], [100, 260]], [[0, 30], [0, 420]], [[-30, 150], [-180, 150]], [[420, 130], [200, 110], [60, 92], [20, 90], [-100, 80], [-236, 70]], [[30, 30], [74, 30]]];
+  const occupes = [rect(-25, -5, 30, 35), rect(-15, -29, 15, -1), rect(-80, 13, -40, 37), rect(105, -205, 245, -125), rect(28, 36, 76, 76)];
   let k = 0;
   for (let gx = -180; gx <= 280; gx += 34) for (let gz = -130; gz <= 250; gz += 30) {
     const r = rect(gx, gz, gx + 11, gz + 8), cx = gx + 5.5, cz = gz + 4;
@@ -1905,7 +2025,7 @@ async function verifierEssai(m, res) {
   const pts = [[-100, 50], [200, -150]].map(([a, b]) => R.ll(a, b)), api = await altiAPI(pts); t(api.every((v, i) => Math.abs(v - m.reliefLL(...pts[i])) < 0.01), 'relief par l’API altimétrique (repli)');
   // format et contenu
   t(verifier(c, info.obs).length === 0, 'format v1 valide (verifier)');
-  const relu = JSON.parse(fs.readFileSync(path.join(SORTIE, 'poncin.json'), 'utf8')); t(relu.v === 1 && relu.batiments.length === c.batiments.length && Object.keys(relu).join() === 'v,nom,source,attribution,origine,taille,relief,batiments,rues,eau,ponts,vegetation,arbres,interdit,noms,sol,zones,haies,surfaces,murs,mobilier,enseignes,horizon', 'poncin.json relu : mêmes données, clés dans l’ordre du contrat (v1 puis les champs facultatifs)');
+  const relu = JSON.parse(fs.readFileSync(path.join(SORTIE, 'poncin.json'), 'utf8')); t(relu.v === 1 && relu.batiments.length === c.batiments.length && Object.keys(relu).join() === 'v,nom,source,attribution,origine,taille,relief,batiments,rues,eau,ponts,vegetation,arbres,interdit,noms,sol,zones,haies,surfaces,murs,mobilier,enseignes,passages,horizon', 'poncin.json relu : mêmes données, clés dans l’ordre du contrat (v1 puis les champs facultatifs)');
   const types = new Set(c.batiments.map((b) => b.t)); t(['eglise', 'mairie', 'chateau', 'maison', 'annexe', 'commerce'].every((x) => types.has(x)), `types de bâtiments : ${[...types].join(', ')}`);
   const eg = c.batiments.find((b) => b.t === 'eglise'); t(eg && eg.h === 14 && eg.n === "Église d'essai", 'l’église : hauteur BD TOPO et nom OSM');
   t(c.batiments.some((b) => b.h === 7) && c.batiments.some((b) => b.h === 6), 'hauteurs : étages·3+1, sinon 6 m');
@@ -1980,6 +2100,16 @@ async function verifierEssai(m, res) {
     for (let i = 0; i < N * N; i++) { const p = [ar.brut[i * 3], ar.brut[i * 3 + 1], ar.brut[i * 3 + 2]]; if (p[0] > 170 && p[1] < 110 && p[2] < 110) { rr++; if (mk[i] < 0.5) hors++; } }
     t(rr > 1000 && hors < rr * 0.03, `photo de l’arène : ${(100 * hors / rr).toFixed(2)} % des pixels de toit hors des emprises`);
   }
+  { // les passages voûtés
+    const VXp = (q) => R.xz(...m.Rc.ll(q[0], q[1])), sous = (q) => c.batiments.findIndex((b) => dedans(q[0], q[1], b.p)), P = c.passages || [];
+    const po = P.find((p) => p.n === "Passage d'essai"), pv = P.find((p) => p.n === "Voûte d'essai"), mil = (p) => [(p.l[0][0] + p.l[1][0]) / 2, (p.l[0][1] + p.l[1][1]) / 2];
+    const axe = (p, a, b) => { const ux = (p.l[1][0] - p.l[0][0]), uz = (p.l[1][1] - p.l[0][1]), l = Math.hypot(ux, uz), vx = (b[0] - a[0]) / dist(a, b), vz = (b[1] - a[1]) / dist(a, b); return Math.abs(ux / l * vx + uz / l * vz); };
+    const bo = sous(VXp([46, 66])), bv = [sous(VXp([46, 46])), sous(VXp([58, 46]))];
+    t(P.length === 2 && !!po && !!pv && info.passagesOSM.length === 1, `passages : ${P.map((p) => `${p.n} sous ${p.b} (w ${p.w}, h ${p.h})`).join(' ; ')} ; la rue nommée qui ne passe sous rien n'en donne pas`);
+    t(!!po && po.b.join() === String(bo) && dist(mil(po), VXp([46, 66])) < 1.5 && axe(po, VXp([46, 60]), VXp([46, 72])) > 0.99 && po.w === 2.2 && po.h === 3.4 && dist(po.l[0], po.l[1]) > 12, 'OSM tunnel=building_passage : sous la bonne maison, dans l’axe, w ≥ 2,2 m (le sentier fait 1,8 m), h 3,4 m, au-delà des façades');
+    t(!!pv && pv.b.slice().sort((a, b) => a - b).join() === bv.slice().sort((a, b) => a - b).join() && Math.abs(mil(pv)[1] - VXp([52, 46])[1]) < 1 && pv.w === 3.6 && pv.h === 3.4 && axe(pv, VXp([30, 46]), VXp([74, 46])) > 0.99, 'voie nommée dans poncin.config.json : sous les deux maisons mitoyennes, dans l’axe de la rue, w = min(largeur de la rue, 3,6 m), h 3,4 m');
+    t(RAPPORT.alertes.some((a) => /Rue sans voûte d'essai/.test(a)), 'une voie de poncin.config.json qui ne passe sous aucun bâtiment est signalée');
+  }
   t(fs.statSync(path.join(SORTIE, 'poncin.json')).size < 600 * 1024, `poncin.json : ${(fs.statSync(path.join(SORTIE, 'poncin.json')).size / 1024).toFixed(0)} Ko (< 600 Ko)`);
   t(c.zones.apparitions.every((q) => !c.arbres.some((a) => Math.hypot(a[0] - q[0], a[1] - q[1]) < rayonTronc(a) + 1) && !c.murs.some((w) => distBord(q[0], q[1], w.l, false) < w.e / 2 + 1)), 'les apparitions évitent les troncs et les murs');
   t(m.appels.mnh >= 1 && m.appels.irc >= 100, 'LiDAR HD (WMS-R) et infrarouge (WMTS) demandés');
@@ -1996,12 +2126,26 @@ function verifierFichier(f) { // --verifier [poncin.json] : le format v1 d'une c
   if (c.sol) for (const im of [c.sol.image, c.sol.petite].concat(c.sol.arene ? [c.sol.arene.image] : [])) if (!fs.existsSync(path.join(path.dirname(f), im))) err.push(`image ${im} absente`);
   const poids = fs.statSync(f).size; if (poids > 600 * 1024) err.push(`poncin.json pèse ${(poids / 1024).toFixed(0)} Ko (> 600 Ko)`);
   console.log(`${f} (${(poids / 1024).toFixed(0)} Ko) : ${c.batiments.length} bâtiments (${c.batiments.filter((b) => b.mur).length} avec mur, ${c.batiments.filter((b) => b.teinteToit).length} avec teinte de toit), ${c.rues.length} rues, ${c.eau.length} eau, ${c.ponts.length} ponts, ${c.noms.length} noms, ${c.zones.apparitions.length} apparitions, ${c.zones.armes.length} objets`);
-  console.log(`  arbres ${c.arbres.length} ${JSON.stringify(compter(c.arbres, (a) => a[4] || '(ancien format)'))} ; haies ${(c.haies || []).length} ; surfaces ${(c.surfaces || []).length} ; murs ${(c.murs || []).length} ; mobilier ${(c.mobilier || []).length} ; enseignes ${(c.enseignes || []).length} ; horizon ${c.horizon ? c.horizon.n + '×' + c.horizon.n : 'aucun'} ; photo de l’arène ${c.sol && c.sol.arene ? c.sol.arene.image : 'aucune'}`);
+  console.log(`  arbres ${c.arbres.length} ${JSON.stringify(compter(c.arbres, (a) => a[4] || '(ancien format)'))} ; haies ${(c.haies || []).length} ; surfaces ${(c.surfaces || []).length} ; murs ${(c.murs || []).length} ; mobilier ${(c.mobilier || []).length} ; enseignes ${(c.enseignes || []).length} ; passages ${(c.passages || []).map((p) => p.n || '?').join(', ') || 'aucun'} ; horizon ${c.horizon ? c.horizon.n + '×' + c.horizon.n : 'aucun'} ; photo de l’arène ${c.sol && c.sol.arene ? c.sol.arene.image : 'aucune'}`);
   console.log(err.length ? `FORMAT INVALIDE (${err.length}) :\n  ${err.slice(0, 40).join('\n  ')}` : 'format v1 valide');
   return err.length;
 }
+function passagesFichier(f) { // --passages [poncin.json] : ajoute (ou refait) carte.passages dans une carte déjà construite, hors ligne (les noms de poncin.config.json)
+  const brut = fs.readFileSync(f, 'utf8'), c = JSON.parse(brut), tel = versJSON(c) === brut;
+  console.log(`${f} : ${c.batiments.length} bâtiments, ${c.rues.length} rues ; passages cherchés : ${JSON.stringify(CONFIG.passages)}${c.passages ? ` (remplacent les ${c.passages.length} présents)` : ''}`);
+  const passages = passagesCarte(c, [], CONFIG.passages), out = {}; // les clés dans l'ordre du contrat : passages juste après enseignes
+  for (const [k, v] of Object.entries(c)) { if (k === 'passages') { out.passages = passages; continue; } out[k] = v; if (k === 'enseignes') out.passages = passages; }
+  if (!out.passages) out.passages = passages;
+  const err = verifier(out, obstacles(out.taille, out.batiments, out.interdit, out.eau, out.ponts, { arbres: out.arbres, murs: out.murs }));
+  for (const p of passages) console.log(`  ${p.n || '(sans nom)'} : l ${JSON.stringify(p.l)}, w ${p.w} m, h ${p.h} m, sous ${p.b.map((i) => `${i} (${out.batiments[i].t}, ${out.batiments[i].h} m)`).join(', ')}`);
+  if (err.length) { console.log(`FORMAT INVALIDE (${err.length}) : rien n'est écrit\n  ${err.slice(0, 40).join('\n  ')}`); return 1; }
+  fs.writeFileSync(f, versJSON(out));
+  console.log(`${passages.length} passage(s) écrit(s) dans ${f} (${(fs.statSync(f).size / 1024).toFixed(0)} Ko)${tel ? ' ; le reste du fichier est inchangé' : ' ; le fichier a été réécrit au format de versJSON'}${RAPPORT.alertes.length ? ' ; alertes : ' + RAPPORT.alertes.join(' | ') : ''}`);
+  return 0;
+}
 async function principal() {
   if (ARGS.includes('--verifier')) { const a = arg('--verifier', ''); process.exit(verifierFichier(path.resolve(a && !a.startsWith('--') ? a : path.join(SORTIE, 'poncin.json'))) ? 1 : 0); }
+  if (ARGS.includes('--passages')) { const a = arg('--passages', ''); process.exit(passagesFichier(path.resolve(a && !a.startsWith('--') ? a : path.join(SORTIE, 'poncin.json')))); }
   console.log(`Carte de Poncin — ${ESSAI ? 'ESSAI hors ligne (fausses réponses)' : 'données IGN + OpenStreetMap'} — sortie ${SORTIE}`);
   if (!JPEG) alerte('jpeg-js introuvable (npm i --no-save --prefix outils/carte jpeg-js@0.4.4)');
   if (ESSAI) {

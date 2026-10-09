@@ -1,9 +1,13 @@
 // Opération Poncin — captures du rendu 3D (Playwright, iPhone en paysage : 844×390, deviceScaleFactor 2), carte réelle puis provisoire,
 // qualité haute puis éco : une rue du bourg, la place de l'arène, le château et le clocher vus de la rue, la rivière et un pont, une vue
-// d'en haut, personnages et robots de près, tirs (traînées, éclairs, impacts de peinture), confettis d'une élimination, le survol du titre.
-// Pour chaque image : appels de dessin, triangles, géométries, comparés aux budgets du contrat ; puis les géométries et les textures
-// doivent rester stables quand on rejoue toutes les scènes, et le contexte WebGL perdu puis retrouvé doit redonner une image.
-// Le rendu est logiciel (SwiftShader) : on ne juge pas les images par seconde, seulement les budgets.
+// d'en haut, personnages et robots de près, tirs (traînées, éclairs, impacts de peinture), confettis d'une élimination, le survol du titre ;
+// sur la carte réelle, le Poncin « authentique » : la place Xavier-Bichat (mairie, tabac, banque), la terrasse du Bar des Sports, la Porte
+// Bouvent des deux côtés et dedans, l'Impasse du Bonheur des deux côtés, les bords de l'Ain (saules, peupliers), l'horizon du Bugey.
+// Pour chaque image : appels de dessin, triangles (passe d'ombre comprise), géométries, mémoire des textures, comparés aux budgets du
+// contrat ; décor (PDECOR), végétation (PVEGETATION), matières en couches et voûtes branchés ; puis les géométries et les textures doivent
+// rester stables quand on rejoue toutes les scènes, et le contexte WebGL perdu puis retrouvé doit redonner une image. Un tableau des
+// comptes par vue et par qualité termine la sortie.
+// Le rendu est logiciel (SwiftShader) : on ne juge pas les images par seconde, seulement les budgets et les images.
 // Usage : node test/poncin-scene.cjs [--carte=reelle,provisoire] [--qualite=haute,eco] [--scenes=rue,tir]
 // (NODE_PATH=/opt/node22/lib/node_modules si Playwright est installé globalement). Captures dans test/shots/poncin-scene/.
 'use strict';
@@ -12,7 +16,9 @@ const http = require('http'), fs = require('fs'), path = require('path');
 const racine = path.join(__dirname, '..'), out = path.join(__dirname, 'shots', 'poncin-scene'); fs.mkdirSync(out, { recursive: true });
 const arg = (k, d) => { const a = process.argv.find((x) => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
 const CARTES = arg('carte', 'reelle,provisoire').split(','), QUALITES = arg('qualite', 'haute,eco').split(',');
-const SCENES = arg('scenes', 'rue,place,chateau,eglise,pont,haut,persos,tir,confettis,survol').split(',');
+const AUTH = ['mairie', 'tabac', 'banque', 'terrasse', 'bouvent-nord', 'bouvent-dedans', 'bouvent-sud', 'bonheur-est', 'bonheur-ouest', 'ain', 'horizon']; // carte réelle seulement
+const SCENES0 = arg('scenes', ['rue', 'place', ...AUTH, 'chateau', 'eglise', 'pont', 'haut', 'persos', 'tir', 'confettis', 'survol'].join(',')).split(',');
+const TABLEAU = [];
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.css': 'text/css' };
 const serveur = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html';
@@ -35,8 +41,16 @@ const fmt = (s) => `${s.calls} appels, ${(s.triangles / 1000).toFixed(1)}k trian
     const pret = await page.evaluate(() => atelier.pret);
     verif(pret && pret.ok, `WebGL et décor prêts (carte ${pret && pret.source}, ${pret && pret.taille} m, sol ${pret && pret.stats.sol}, ${pret && pret.stats.tuiles} tuiles)`);
     if (!pret || !pret.ok) { await ctx.close(); continue; }
-    const budget = pret.stats.budget;
+    const budget = pret.stats.budget, SCENES = carte === 'reelle' ? SCENES0 : SCENES0.filter((n) => !AUTH.includes(n));
     verif(pret.stats.qualite === qualite, `la qualité demandée par l'adresse est appliquée (${pret.stats.qualite})`);
+    if (carte === 'reelle') { // le décor authentique est branché
+      const a = await page.evaluate(() => { const I = PRENDU._interne, s = PRENDU.stats; return { decor: !!I.decor, veg: !!I.veg, jupe: !!I.scene.getObjectByName('jupe'), horizon: !!I.scene.getObjectByName('decor-horizon'), voutes: s.voutes, passages: atelier.monde.passages.length, bati: s.bati, arbres: s.arbres, vieuxArbres: !!I.scene.getObjectByName('arbres0'), dErr: s.decor && s.decor.erreurs, sol: s.sol }; });
+      verif(a.decor && a.veg && !a.vieuxArbres, `PDECOR et PVEGETATION branchés (${a.arbres} arbres LiDAR, plus d'arbres instanciés d'avant)`);
+      verif(a.horizon && !a.jupe, `l'horizon réel de PDECOR remplace les collines peintes`);
+      verif(a.voutes === a.passages && a.passages === 2, `les ${a.passages} passages voûtés sont creusés (${a.voutes} voûtes)`);
+      verif(a.bati === 'couches', `les bâtiments ont leurs matières (texture en couches : ${a.bati})`);
+      verif(a.sol === 'photo' && !a.dErr, `le sol est la photo aérienne (${a.sol}), le décor sans erreur`);
+    }
     if (pret.stats.tuiles > 16) verif(false, `≤ 16 tuiles de bâtiments (${pret.stats.tuiles})`);
     // le sol est maillé avec la triangulation de monde.hauteur : un rayon vertical sur le maillage retrouve la hauteur du monde, au millimètre
     const sol = await page.evaluate(() => {
@@ -52,7 +66,8 @@ const fmt = (s) => `${s.calls} appels, ${(s.triangles / 1000).toFixed(1)}k trian
       if (!s) { verif(false, `scène ${nom} inconnue`); continue; }
       await page.screenshot({ path: path.join(out, `${carte}-${qualite}-${nom}.png`), timeout: 180000 });
       stats[nom] = s;
-      verif(s.calls <= budget.calls && s.triangles <= budget.triangles, `${nom.padEnd(9)} ${fmt(s)} (budget ${budget.calls} / ${budget.triangles / 1000}k)`);
+      verif(s.calls <= budget.calls && s.triangles <= budget.triangles && s.memoire <= budget.memoire, `${nom.padEnd(14)} ${fmt(s)}, ${s.memoire} Mo (budget ${budget.calls} / ${budget.triangles / 1000}k / ${budget.memoire} Mo)`);
+      TABLEAU.push([carte, qualite, nom, s.calls, Math.round(s.triangles / 100) / 10, s.memoire, s.decor ? s.decor.appels : '-', s.vegetation ? s.vegetation.appels : '-']);
     }
     // géométries et textures stables : on rejoue deux fois toutes les scènes (poses, tirs, impacts, confettis)
     const g0 = await page.evaluate(() => PRENDU.stats), suite = [];
@@ -79,6 +94,8 @@ const fmt = (s) => `${s.calls} appels, ${(s.triangles / 1000).toFixed(1)}k trian
     await ctx.close();
   }
   await navigateur.close(); serveur.close();
+  console.log('\ncarte      qualité  vue             appels  ktri   Mo    décor  végét.');
+  for (const l of TABLEAU) console.log(`${l[0].padEnd(10)} ${l[1].padEnd(8)} ${l[2].padEnd(15)} ${String(l[3]).padStart(6)} ${String(l[4]).padStart(6)} ${String(l[5]).padStart(5)} ${String(l[6]).padStart(6)} ${String(l[7]).padStart(7)}`);
   console.log(`\n${oks} ok, ${echecs} en échec — captures dans ${path.relative(racine, out)}/`);
   process.exit(echecs ? 1 : 0);
 })().catch((e) => { console.error('FAIL', e); serveur.close(); process.exit(1); });

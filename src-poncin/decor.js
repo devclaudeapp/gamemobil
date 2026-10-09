@@ -2,32 +2,46 @@
    Données (src-poncin/ARCHITECTURE.md, « Authenticité » et « Passages voûtés et bâtiments remarquables » ; conventions des champs dans
    outils/carte/README.md) : carte.enseignes [{ b, n, t, x, z, yaw }] (vrai nom OSM posé sur la façade ; yaw = normale sortante : la façade
    regarde vers (−sin yaw, −cos yaw)), carte.mobilier [{ x, z, t, yaw?, n? }] (OSM), carte.murs [{ l, h, e, t }] (OSM, BD TOPO), carte.rues
-   (noms des plaques), carte.arbres (bancs sous les platanes de la place), carte.relief et carte.horizon (montagnes réelles), carte.sol
+   (noms des plaques), monde.bancs (les bancs de la place), carte.relief et carte.horizon (montagnes réelles), carte.sol
    (raccord de couleur de l'horizon), zones.arene (la place). RIEN D'INVENTÉ DANS LES DONNÉES : noms, positions des objets réels et
    façades viennent d'OSM et de l'IGN. Sont des CHOIX DE STYLE (ambiance générique, jamais présentée comme une donnée) : dessins,
    teintes, devantures, stores, terrasses (3–4 tables, un parasol) des bars et restaurants, perron, horloge (17 h 10, l'heure du soleil
    de rendu.js) et drapeaux de la mairie, lanternes murales anciennes (rues du bourg, ~27 m, jamais deux à moins de 15 m), fenêtres
-   fleuries et pots près de la place, bancs sous les arbres de la place, plaques de rue émaillées aux carrefours (une au plus). Aucun
-   logo de marque : Crédit Agricole, La Poste, Petit Casino s'écrivent en lettres, couleurs génériques ; la « carotte » rouge des
-   tabacs est un signe réglementaire générique.
-   Rendu (Three r158) : TOUT est fusionné, une géométrie par matériau : solides (couleurs de sommet), pierre (moellons de PTEXTURES ou
-   la texture en couches de rendu.js), atlas du décor (canvas peint ici : drapeaux qui ondulent dans le vertex shader, lettres MAIRIE,
-   toiles rayées des stores, fleurs, distributeur, journaux, panneaux), ouvertures (atlas PTEXTURES.details : vitrines, porte, horloge,
-   fenêtres et volets), enseignes et plaques (pages d'atlas PTEXTURES : une géométrie par page) ; horizon : un anneau de relief IGN
-   autour du carré joué (raccord exact avec le sol : mêmes nœuds de bord), dessiné juste après le ciel sans écrire la profondeur et
-   ramené près de l'œil par une homothétie de centre la caméra (même image, jamais coupé par camera.far) ; brume du jeu au raccord,
-   puis brume de vallée qui laisse émerger les sommets et voile atmosphérique qui bleuit et s'éclaircit avec la distance ; repli :
-   collines douces génériques. Budgets du décor visible : haute ≤ 14 appels et ≤ 40k triangles (ombres comprises), éco ≤ 8 et ≤ 15k.
-   Aucune allocation par image (maj : un uniforme ; l'horizon recopie sa matrice dans onBeforeRender). Les objets ne bloquent rien
-   (monde.js décide des collisions).
+   fleuries et pots près de la place, bancs sous les arbres de la place (posés par monde.js), plaques de rue émaillées aux carrefours
+   (une au plus), l'intérieur derrière les glaces (pains, bureau à glace dépolie, salle à brise-bise, salon de coiffure ; sinon des
+   étagères). Aucun logo de marque : Crédit Agricole, La Poste, Petit Casino s'écrivent en lettres, couleurs génériques ; la « carotte »
+   rouge des tabacs est un signe réglementaire générique.
+   Rendu (Three r158) : TOUT est fusionné, une géométrie par matériau : solides (couleurs de sommet ; « bourg » à moins de 175 m de la
+   place, avec ombres en haute, et « loin », sans ombres ; un seul en éco), pierre (perron, murs, croix, monuments : la texture en couches
+   de rendu.js si opts.bati, sinon les moellons de PTEXTURES.facade, sinon des couleurs ; idem bourg / loin), atlas du décor (canvas peint
+   ici, une fois par taille : drapeaux qui ondulent dans le vertex shader, lettres MAIRIE, toiles rayées et lambrequins festonnés des
+   stores, géraniums, buis, distributeur, journaux, intérieurs des glaces, panneaux d'arrêt et de sentiers, grille, plaque de bronze ;
+   découpe alpha, ombres découpées), ouvertures (atlas PTEXTURES.details : vitrines, porte, horloge, fenêtres et volets), enseignes et
+   plaques (pages d'atlas PTEXTURES, une géométrie par page, redemandées à chaque construction). Les aplats posés sur les façades sont à
+   ≥ 6 cm du mur (les ouvertures de rendu.js sont à 4–5 cm). Horizon : un anneau de relief IGN autour du carré joué (raccord exact avec
+   le sol : les mêmes nœuds de bord que carte.relief ; couleur du bord prise sur la photo aérienne), dessiné juste après le ciel
+   (renderOrder −9) sans écrire la profondeur, de la bande la plus lointaine à la plus proche (le peintre), et ramené près de l'œil par
+   une homothétie de centre la caméra (même image, jamais coupé par camera.far) ; brume du jeu (scene.fog) entière au raccord et levée
+   en ~330 m, puis brume de vallée légère (≤ 30 %) sur les points bas, qui s'efface au loin, puis voile atmosphérique (couleur de la
+   brume bleuie) ; repli : collines douces génériques.
+   Budgets du décor visible, mesurés par test/poncin-decor.cjs : haute 9 appels + 3 d'ombre, ~22k + ~11k triangles (≤ 14 et ≤ 40k) ;
+   éco 7 appels, ≤ 15k triangles (≤ 8 et ≤ 15k). Aucune allocation par image (maj : un uniforme ; l'horizon recopie sa matrice dans
+   onBeforeRender). Les objets du décor ne bloquent rien : monde.js décide des collisions (troncs, murs, mobilier OSM massif) ; les bancs
+   de la place sont à lui (monde.bancs [[x, z, yaw]] : il les pose et les rend pleins, decor.js les dessine là) ; les terrasses (tables,
+   chaises, parasol), contre les façades, restent traversables.
    API : creer(carte, monde, { qualite, textures, bati, dossier, photo }) → { groupe, maj(camera, t), qualite(q?), retour(), liberer(),
-   stats, remarquables, facades } ; textures = PTEXTURES (défaut : le global s'il est chargé ; null pour s'en passer) ; bati = l'objet
-   PTEXTURES.bati(…) de rendu.js pour partager sa texture en couches (sinon la pierre prend PTEXTURES.facade('pierre')) ; dossier : où lire
-   carte.sol (défaut window.PONCIN_CARTE_DOSSIER ou 'carte/') ; photo: false pour ne pas la lire. groupe : à ajouter à la scène ; maj après
-   avoir placé la caméra ; qualite(q) reconstruit au maj suivant (appeler après PTEXTURES.qualite / vider) ; retour() après un contexte
-   WebGL retrouvé. remarquables : [{ quoi, n, x, y, z, nx, nz }] (entrées, devantures : pour un survol) ; facades : [{ b, a, c, s0, s1,
-   quoi }] les façades habillées (b : indice de carte.batiments ; s depuis a, le long de l'arête a→c de monde.batiments) : rendu.js
-   peut y taire sa propre vitrine. QUALITES ; OK (false sans THREE ni document). */
+   stats, remarquables, facades, atlas } ; textures = PTEXTURES (défaut : le global s'il est chargé ; null pour s'en passer) ; bati =
+   l'objet PTEXTURES.bati(…) de rendu.js, ou une fonction qui le rend (relue à chaque construction), pour partager sa texture en couches ;
+   dossier : où lire carte.sol (défaut window.PONCIN_CARTE_DOSSIER ou 'carte/') ; photo: false pour ne pas la lire. groupe : à ajouter
+   à la scène ; maj(camera, t) après avoir placé la caméra (t en secondes : le vent des drapeaux ; reconstruit si qualite a changé) ;
+   qualite('haute' | 'moyenne' | 'eco') : reconstruction au maj suivant — l'appeler après PTEXTURES.vider() / PTEXTURES.qualite(q) ;
+   retour() après un contexte WebGL retrouvé ; liberer() rend tout ce qui est à lui (jamais les textures ni les matériaux partagés de
+   PTEXTURES). stats → { qualite, appels, triangles, appelsOmbre, trianglesOmbre, parMaillage, horizon, objets, terrassesRefusees, bancs,
+   lanternes, pierre, atlas, memoire, creation, construction, erreurs… }. remarquables : [{ quoi, n, x, y, z, nx, nz }] (mairie, tabac,
+   banque, poste, bar, restaurant, commerces { interieur : 'pains' | 'bureau' | 'salle' | 'salon' s'il y en a un }, terrasse { tables },
+   écoles, plaques : le pied de la façade et sa normale, pour un survol ou des tests). facades : [{ b, a, c, s0, s1, quoi }] les façades
+   habillées (b : indice de carte.batiments ; arête a → c de monde.batiments, s en mètres depuis a) : rendu.js peut y taire sa propre
+   vitrine, son store ou sa porte. atlas : la toile de l'atlas (pages de test). QUALITES ; OK (false sans THREE ni document). */
 const PDECOR = (() => {
   'use strict';
   const OK = typeof THREE !== 'undefined' && typeof document !== 'undefined';
@@ -184,6 +198,39 @@ const PDECOR = (() => {
       c.strokeStyle = '#2A2C2E'; c.lineWidth = Math.max(2, w * 0.02); for (let r = 0; r <= 3; r++) { c.beginPath(); c.moveTo(x, y + h * (0.01 + r * 0.32)); c.lineTo(x + w, y + h * (0.01 + r * 0.32)); c.stroke(); }
       c.strokeRect(x + 1, y + 1, w - 2, h - 2);
     },
+    interieur(c, x, y, w, h, o) { // derrière la glace d'une devanture, selon le commerce (choix de style génériques, aucune marque) ; cellule = la glace seule
+      const rnd = mulberry32(o.graine || 11), g0 = c.createLinearGradient(0, y, 0, y + h), X = (u) => x + u * w, Y = (v) => y + v * h;
+      g0.addColorStop(0, '#E9DDC4'); g0.addColorStop(0.18, '#B9A688'); g0.addColorStop(1, '#5A4A3A'); c.fillStyle = g0; c.fillRect(x, y, w, h); // le fond éclairé
+      if (o.genre === 'pains') { // boulangerie : étagères de bois, baguettes debout en corbeilles, boules et couronnes, viennoiseries sur le comptoir
+        c.fillStyle = '#EFE6D2'; c.fillRect(x, y, w, h * 0.62); c.fillStyle = 'rgba(160,140,110,0.25)'; for (let v = 0.06; v < 0.62; v += 0.06) c.fillRect(x, Y(v), w, 1); // faïence
+        for (let k = 0; k < 7; k++) { const px = X(0.06 + k * 0.03 + rnd() * 0.02), a = -0.25 + rnd() * 0.5; c.save(); c.translate(px, Y(0.36)); c.rotate(a); c.fillStyle = '#C9873E'; rondRect(c, -w * 0.018, -h * 0.3, w * 0.036, h * 0.3, w * 0.018); c.fill(); c.fillStyle = 'rgba(255,230,170,0.6)'; for (let j = 0; j < 4; j++) c.fillRect(-w * 0.008, -h * (0.27 - j * 0.06), w * 0.016, 2); c.restore(); }
+        c.fillStyle = '#8A5A32'; c.fillRect(X(0.04), Y(0.33), w * 0.3, h * 0.07); // la corbeille
+        for (const v of [0.2, 0.4]) { c.fillStyle = '#7A4E2C'; c.fillRect(X(0.38), Y(v), w * 0.6, h * 0.018); for (let k = 0; k < 4; k++) { const cx = X(0.45 + k * 0.14), r = w * (0.05 + rnd() * 0.015); const gb = c.createRadialGradient(cx - r * 0.3, Y(v) - r * 0.9, r * 0.1, cx, Y(v) - r * 0.6, r); gb.addColorStop(0, '#E2A65A'); gb.addColorStop(1, '#9C5E28'); c.fillStyle = gb; c.beginPath(); c.ellipse(cx, Y(v) - r * 0.62, r, r * 0.62, 0, 0, TAU); c.fill(); c.strokeStyle = 'rgba(250,225,170,0.7)'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(cx - r * 0.5, Y(v) - r * 0.8); c.lineTo(cx + r * 0.4, Y(v) - r * 0.5); c.stroke(); } }
+        c.fillStyle = '#6B4428'; c.fillRect(x, Y(0.62), w, h * 0.38); c.fillStyle = '#F4EEE2'; c.fillRect(x, Y(0.62), w, h * 0.04); // le comptoir vitré
+        for (let r = 0; r < 2; r++) for (let k = 0; k < 6; k++) { const cx = X(0.1 + k * 0.16 + (r ? 0.07 : 0)), cy = Y(0.74 + r * 0.1), rr = w * 0.045; c.fillStyle = r ? '#B8743A' : '#D9944A'; c.beginPath(); c.arc(cx, cy, rr, Math.PI * 1.05, Math.PI * 1.95); c.quadraticCurveTo(cx, cy + rr * 0.2, cx - rr * 0.95, cy - rr * 0.3); c.fill(); }
+      } else if (o.genre === 'bureau') { // banque, poste, office de tourisme : le plafond et ses luminaires en haut, glace dépolie (vitrophanie unie) en bas
+        c.fillStyle = '#F2EEE6'; for (const u of [0.25, 0.75]) c.fillRect(X(u - 0.14), Y(0.04), w * 0.28, h * 0.025);
+        c.fillStyle = '#7C8A92'; c.fillRect(X(0.1), Y(0.14), w * 0.8, h * 0.12); c.fillStyle = '#A9B6BD'; c.fillRect(X(0.12), Y(0.155), w * 0.76, h * 0.09); // un présentoir à dépliants au fond
+        for (let k = 0; k < 5; k++) { c.fillStyle = ['#D9C9A3', '#8DB3C7', '#C98E6E', '#9DBB8C', '#E5D9BC'][k]; c.fillRect(X(0.15 + k * 0.145), Y(0.165), w * 0.1, h * 0.07); }
+        const gd = c.createLinearGradient(0, Y(0.3), 0, y + h); gd.addColorStop(0, '#D8DEE0'); gd.addColorStop(1, '#C3CBCF'); c.fillStyle = gd; c.fillRect(x, Y(0.3), w, h * 0.7);
+        c.fillStyle = 'rgba(255,255,255,0.55)'; c.fillRect(x, Y(0.3), w, 2); c.fillRect(x, Y(0.5), w, h * 0.012); c.fillStyle = 'rgba(90,100,105,0.25)'; c.fillRect(x, Y(0.515), w, 1);
+      } else if (o.genre === 'salle') { // bar, restaurant : suspensions, l'étagère des bouteilles, brise-bise blanc sur sa tringle de laiton
+        c.fillStyle = '#4A3528'; c.fillRect(x, y, w, h * 0.55); for (const u of [0.25, 0.72]) { c.fillStyle = '#2A2420'; c.fillRect(X(u) - 1, y, 2, h * 0.08); const gl = c.createRadialGradient(X(u), Y(0.1), 1, X(u), Y(0.1), w * 0.2); gl.addColorStop(0, 'rgba(255,220,150,0.95)'); gl.addColorStop(1, 'rgba(255,200,120,0)'); c.fillStyle = gl; c.fillRect(X(u) - w * 0.2, Y(0.1) - w * 0.2, w * 0.4, w * 0.4); c.fillStyle = '#F6E2B0'; c.beginPath(); c.arc(X(u), Y(0.1), w * 0.05, Math.PI, TAU); c.fill(); }
+        c.fillStyle = '#6E4A30'; c.fillRect(X(0.05), Y(0.3), w * 0.9, h * 0.012); for (let k = 0; k < 11; k++) { const bx = X(0.08 + k * 0.08), bh = h * (0.07 + rnd() * 0.03); c.fillStyle = ['#2F5A3A', '#6B2A22', '#C9A35A', '#3A3A44', '#A8B49A'][Math.floor(rnd() * 5)]; c.fillRect(bx, Y(0.3) - bh, w * 0.04, bh); c.fillRect(bx + w * 0.012, Y(0.3) - bh - h * 0.025, w * 0.016, h * 0.025); }
+        c.fillStyle = '#B08D4A'; c.fillRect(x, Y(0.5), w, h * 0.012); // la tringle
+        for (let i = 0; i < 16; i++) { const px = x + w * i / 16, gp = c.createLinearGradient(px, 0, px + w / 16, 0); gp.addColorStop(0, '#E4DED2'); gp.addColorStop(0.5, '#FBF8F1'); gp.addColorStop(1, '#D7D0C2'); c.fillStyle = gp; c.fillRect(px, Y(0.512), w / 16 + 1, h * 0.488); }
+        c.fillStyle = 'rgba(200,190,170,0.6)'; for (let i = 0; i < 8; i++) { c.beginPath(); c.arc(X((i + 0.5) / 8), Y(0.51), w * 0.03, 0, Math.PI); c.fill(); } // le haut festonné
+      } else if (o.genre === 'salon') { // coiffure : grand miroir encadré, fauteuil de coiffure vu de dos, tablette et flacons
+        const gs = c.createLinearGradient(0, y, 0, y + h); gs.addColorStop(0, '#DCD2C2'); gs.addColorStop(1, '#8A7E70'); c.fillStyle = gs; c.fillRect(x, y, w, h); c.fillStyle = '#2C2A2E'; c.fillRect(X(0.18), Y(0.1), w * 0.64, h * 0.5);
+        const gm = c.createLinearGradient(X(0.2), Y(0.12), X(0.8), Y(0.58)); gm.addColorStop(0, '#C9D6DC'); gm.addColorStop(0.5, '#9FB1BA'); gm.addColorStop(1, '#B8C7CE'); c.fillStyle = gm; c.fillRect(X(0.2), Y(0.12), w * 0.6, h * 0.46);
+        c.fillStyle = 'rgba(255,255,255,0.35)'; c.beginPath(); c.moveTo(X(0.3), Y(0.12)); c.lineTo(X(0.42), Y(0.12)); c.lineTo(X(0.26), Y(0.58)); c.lineTo(X(0.2), Y(0.58)); c.closePath(); c.fill();
+        c.fillStyle = '#F2EEE8'; c.fillRect(X(0.12), Y(0.6), w * 0.76, h * 0.03); for (let k = 0; k < 5; k++) { c.fillStyle = ['#D96A8C', '#3E7CB1', '#E8E2D0', '#7FB069', '#2E2E2E'][k]; c.fillRect(X(0.2 + k * 0.12), Y(0.6) - h * 0.05, w * 0.05, h * 0.05); }
+        c.fillStyle = '#1E1E22'; rondRect(c, X(0.3), Y(0.5), w * 0.4, h * 0.3, w * 0.06); c.fill(); c.fillRect(X(0.25), Y(0.74), w * 0.5, h * 0.04); c.fillRect(X(0.47), Y(0.78), w * 0.06, h * 0.14); c.fillStyle = '#9A9EA3'; c.fillRect(X(0.33), Y(0.92), w * 0.34, h * 0.03);
+        c.fillStyle = 'rgba(255,255,255,0.12)'; c.fillRect(X(0.33), Y(0.52), w * 0.05, h * 0.2);
+      }
+      c.fillStyle = 'rgba(255,255,255,0.16)'; c.beginPath(); c.moveTo(X(0.15), y); c.lineTo(X(0.5), y); c.lineTo(X(0.1), y + h); c.lineTo(X(-0.2), y + h); c.closePath(); c.save(); c.clip(); c.fill(); c.restore(); // le reflet de la glace
+      c.fillStyle = 'rgba(255,255,255,0.1)'; c.fillRect(x, y, w, h * 0.22);
+    },
     grille(c, x, y, w, h) { // un portail de fer forgé : barreaux, lisses, pointes (fond transparent)
       c.strokeStyle = '#26272A'; c.fillStyle = '#26272A'; c.lineWidth = Math.max(2, w * 0.012); const n = 14;
       c.fillRect(x, y + h * 0.12, w, h * 0.035); c.fillRect(x, y + h * 0.9, w, h * 0.035); c.fillRect(x, y + h * 0.55, w, h * 0.025);
@@ -256,6 +303,7 @@ const PDECOR = (() => {
     vetements: ['#3B3550', 'marine'], fleuriste: ['#2F5A3E', 'vert'], pharmacie: ['#2E5E3E', null], commerce: ['#3E4A52', 'ocre'], banque: ['#1F4A38', null], poste: ['#4E5358', null], tourisme: ['#2C5E86', null],
   };
   const TERRASSES = { bar: 1, cafe: 1, restaurant: 1 };
+  const INTERIEURS = { boulangerie: 'pains', patisserie: 'pains', banque: 'bureau', poste: 'bureau', tourisme: 'bureau', bar: 'salle', cafe: 'salle', restaurant: 'salle', coiffure: 'salon' }; // derrière les glaces (sinon les étagères de l'atlas)
   const VOLETS = ['vert', 'bleu', 'gris', 'brun', 'bordeaux'];
 
   // ═══════════════════════════════ creer ═══════════════════════════════
@@ -294,7 +342,9 @@ const PDECOR = (() => {
     }
     const distRue = (x, z) => { const r = rueProche(x, z); return r ? r.d : 99; };
     const presArbre = (x, z, r) => { for (let dj = -1; dj <= 1; dj++) for (let di = -1; di <= 1; di++) { const l = gArb.get(cle(x + di * TG, z + dj * TG)); if (l) for (const a of l) { const rt = borne(0.12 + 0.025 * (+a[2] || 8), 0.2, 0.6); if (Math.hypot(a[0] - x, a[1] - z) < r + rt) return true; } } return false; };
-    const bloque = (x, z, r) => { try { return !!monde.bloque(x, z, r); } catch (e) { return false; } };
+    // les bancs de la place : posés et rendus pleins par monde.js (monde.bancs [[x, z, yaw]]) ; une terrasse ne s'y pose pas
+    const BANCS = (Array.isArray(monde.bancs) ? monde.bancs : []).filter((b) => Array.isArray(b) && fini(b[0]) && fini(b[1]) && fini(b[2]));
+    const presBanc = (x, z, r) => BANCS.some(([bx, bz, yaw]) => d2Seg(x, z, bx - Math.cos(yaw) * 0.9, bz + Math.sin(yaw) * 0.9, bx + Math.cos(yaw) * 0.9, bz - Math.sin(yaw) * 0.9) < (r + 0.25) ** 2);
 
     // ─── les façades : une arête d'un bâtiment de monde, vue du dehors ───
     function Facade(bi, i) { // bi : indice dans BATS ; arête p[i] → p[i+1] ; normale sortante (uz, −ux)
@@ -317,7 +367,7 @@ const PDECOR = (() => {
     }
     const spans = new Map(), facades = [], remarquables = [];
     const segsReserves = []; // les devantures et entrées en coordonnées du monde (une terrasse qui déborde chez le voisin les évite)
-    function reserver(f, s0, s1, quoi, bc) { let l = spans.get(f.cle); if (!l) { l = []; spans.set(f.cle, l); } l.push([s0, s1, quoi]); if (!/^(lanterne|plaque)$/.test(quoi)) segsReserves.push([f.x(s0), f.z(s0), f.x(s1), f.z(s1), quoi, f.cle]); if (bc >= 0 && !/^(lanterne|plaque|pot|boite)$/.test(quoi)) facades.push({ b: bc, a: f.a.slice(), c: f.c.slice(), s0: +s0.toFixed(2), s1: +s1.toFixed(2), quoi }); }
+    function reserver(f, s0, s1, quoi, bc) { let l = spans.get(f.cle); if (!l) { l = []; spans.set(f.cle, l); } l.push([s0, s1, quoi]); if (!/^(lanterne|plaque)$/.test(quoi)) segsReserves.push([f.x(s0), f.z(s0), f.x(s1), f.z(s1), quoi, f.cle]); if (bc >= 0 && !/^(lanterne|plaque|pot|boite|voute)$/.test(quoi)) facades.push({ b: bc, a: f.a.slice(), c: f.c.slice(), s0: +s0.toFixed(2), s1: +s1.toFixed(2), quoi }); }
     const libreSur = (f, s0, s1, m) => { m = m == null ? 0.2 : m; return !(spans.get(f.cle) || []).some(([a, b]) => s1 > a - m && s0 < b + m); };
 
     // ─── les ordres de dessin : le plan est calculé une fois ; chaque qualité le redessine dans ses lots ───
@@ -384,6 +434,7 @@ const PDECOR = (() => {
           boite(S, R, x + w / 2 - 0.36, x + w / 2 + 0.36, 1.83, 1.9, 0, 0.2, lin('#8E959A'), 'd');
         } else if (D && D.cellules[nom]) { const c = D.cellules[nom]; panneau(lots.details, R, x, x + w, -0.02, 2.7, 0.07, [1, 1, 1], c.uv); }
         else { boite(S, R, x, x + w, -0.3, 2.7, 0, 0.07, cad, 'db'); panneau(S, R, x + 0.08, x + w - 0.08, nom === 'vitrine' ? 0.55 : 0.05, 2.6, 0.075, lin('#3E5468'), null, 0, lin('#8FA7BC')); }
+        if (o.interieur && nom === 'vitrine') panneau(lots.atlas, R, x + w * 0.05, x + w * 0.95, 0.574, 2.62, 0.078, [1, 1, 1], lots.cel(o.interieur)); // la glace de l'atlas (1,6 × 2,7 m : marges 8 cm, soubassement 55 cm)
       }
       // pilastres, corniche (le bandeau de l'enseigne), moulure ; seuil
       boite(S, R, -W / 2, -W / 2 + 0.18, -0.3, ys, 0, 0.14, cad, 'db', cadH); boite(S, R, W / 2 - 0.18, W / 2, -0.3, ys, 0, 0.14, cad, 'db', cadH);
@@ -418,7 +469,7 @@ const PDECOR = (() => {
       boite(S, R, -0.06, 0.06, -0.2, 0.1, 0, 0.03, fer, 'd');
       boite(S, R, -0.018, 0.018, 0, 0.035, 0.02, 0.6, fer, 'd', ferH);
       if (fin) cylindre(S, R, [0, -0.17, 0.03], [0, -0.005, 0.36], 0.011, 0.011, 3, fer);
-      const zc = 0.52, yt = -0.08; cylindre(S, R, [0, 0, zc], [0, yt, zc], 0.008, 0.008, 3, fer);
+      const zc = 0.52, yt = -0.08; if (fin) cylindre(S, R, [0, 0, zc], [0, yt, zc], 0.008, 0.008, 3, fer);
       pyramide(S, R, 0, yt - 0.11, zc, 0.34, 0.34, 0.11, fer, false, ferH); // chapeau
       if (fin) cylindre(S, R, [0, yt - 0.005, zc], [0, yt + 0.04, zc], 0.025, 0.004, 4, ferH);
       tronc(S, R, 0, yt - 0.48, yt - 0.11, zc, 0.18, 0.18, 0.28, 0.28, fer, ferH, 'h'); // le corps, plus large en haut : un cadre sombre…
@@ -430,8 +481,8 @@ const PDECOR = (() => {
           S.quad(Q[0], Q[1], Q[2], Q[3], verreB, null, 0, verre);
         }
       }
-      boite(S, R, -0.11, 0.11, yt - 0.52, yt - 0.48, zc - 0.11, zc + 0.11, fer); // le culot
-      pyramide(S, R, 0, yt - 0.52, zc, 0.1, 0.1, -0.08, fer, true);
+      if (fin) boite(S, R, -0.11, 0.11, yt - 0.52, yt - 0.48, zc - 0.11, zc + 0.11, fer); // le culot
+      pyramide(S, R, 0, fin ? yt - 0.52 : yt - 0.48, zc, fin ? 0.1 : 0.18, fin ? 0.1 : 0.18, -0.08, fer, true);
     }
     // un banc public : pieds de fonte, lattes de chêne ; repère au sol, l'assis regarde vers +Z
     function dessinerBanc(lots, q, R) {
@@ -487,7 +538,7 @@ const PDECOR = (() => {
     }
 
     // ═══════════════════════════════ le plan : bâtiments remarquables (carte.enseignes) ═══════════════════════════════
-    const NOTES = { terrasses: 0, tables: 0, drapeaux: 0, devantures: 0, enseignes: 0, plaquesNom: 0, lanternes: 0, fenetres: 0, pots: 0, bancs: 0, plaquesRue: 0, mobilier: 0, murs: 0, terrassesRefusees: [] };
+    const NOTES = { terrasses: 0, tables: 0, drapeaux: 0, devantures: 0, enseignes: 0, plaquesNom: 0, lanternes: 0, fenetres: 0, pots: 0, bancs: 0, plaquesRue: 0, mobilier: 0, murs: 0, voutes: 0, terrassesRefusees: [] };
     const minSol = (f, s0, s1) => Math.min(f.sol(s0), f.sol((s0 + s1) / 2), f.sol(s1));
     function remarquer(quoi, n, f, s, y, plus) { remarquables.push(Object.assign({ quoi, n, x: +f.x(s).toFixed(2), y: +y.toFixed(2), z: +f.z(s).toFixed(2), nx: +f.nx.toFixed(3), nz: +f.nz.toFixed(3) }, plus)); }
     function placerDevanture(f, e, bc, o) { // → { s, W, g } ou null
@@ -505,8 +556,9 @@ const PDECOR = (() => {
       opt.xPorte = baies(dv.W, opt.porte, opt.dab).xPorte;
       if (opt.toile) cellule('toile-' + opt.toile, 'toile', 256, 128, { toile: opt.toile }), cellule('lambrequin-' + opt.toile, 'lambrequin', 256, 44, { toile: opt.toile });
       if (opt.dab) cellule('dab', 'dab', 120, 168);
+      if (INTERIEURS[type]) opt.interieur = cellule('interieur-' + INTERIEURS[type], 'interieur', 120, 172, { genre: INTERIEURS[type] });
       ordre('devanture', (lots, q) => dessinerDevanture(lots, q, f.rep(dv.s, dv.g), dv.W, opt), f.x(dv.s), f.z(dv.s));
-      NOTES.enseignes++; remarquer(type, e.n, f, dv.s, dv.g); dv.opt = opt;
+      NOTES.enseignes++; remarquer(type, e.n, f, dv.s, dv.g, opt.interieur ? { interieur: INTERIEURS[type] } : null); dv.opt = opt;
       if (Math.hypot(f.x(dv.s) - PC[0], f.z(dv.s) - PC[1]) < 75 && !TERRASSES[type]) pots(f, dv, bc); // des pots de part et d'autre, près de la place
       return dv;
     }
@@ -518,16 +570,16 @@ const PDECOR = (() => {
     }
     function terrasse(f0, dv0, type, bc, nom) { // 3–4 guéridons, chaises tournées vers la rue, un parasol hors du store (choix de style) ; devant la devanture,
       // sinon devant une autre façade libre du même bâtiment (une terrasse ne se pose jamais en pleine chaussée)
-      const refus = { facade: 0, bati: 0, rue: 0, arbre: 0, voisin: 0 };
+      const refus = { facade: 0, bati: 0, rue: 0, arbre: 0, voisin: 0, banc: 0 };
       const chercher = (f, s0, W, porte, avecPorte, rangs) => {
         const cand = [], xs = []; for (let x = -W / 2 - 3.2; x <= W / 2 + 3.2; x += 0.35) xs.push(x);
         const essai = (x, z, tol) => { // x local (vers la droite vu de la rue), z dehors ; la table et ses chaises tiennent hors des bâtiments et presque hors de la chaussée
           const s = s0 - x; if (s < -3 || s > f.len + 3) { refus.facade++; return false; }
           if (s < 0.5 || s > f.len - 0.5) { const px = f.x(s, z), pz = f.z(s, z); if (segsReserves.some((g) => g[5] !== f.cle && d2Seg(px, pz, g[0], g[1], g[2], g[3]) < 2.6)) { refus.voisin++; return false; } } // devant le voisin, mais pas devant sa devanture
-          for (const [dx, dz] of [[0, 0], [-0.55, -0.45], [0.55, -0.45], [-0.45, 0.3], [0.45, 0.3]]) { const px = f.x(s - dx, z + dz), pz = f.z(s - dx, z + dz); if (dansBat(px, pz) >= 0) { refus.bati++; return false; } if (distRue(px, pz) < -tol) { refus.rue++; return false; } if (presArbre(px, pz, 0.35)) { refus.arbre++; return false; } }
+          for (const [dx, dz] of [[0, 0], [-0.55, -0.45], [0.55, -0.45], [-0.45, 0.3], [0.45, 0.3]]) { const px = f.x(s - dx, z + dz), pz = f.z(s - dx, z + dz); if (dansBat(px, pz) >= 0) { refus.bati++; return false; } if (distRue(px, pz) < -tol) { refus.rue++; return false; } if (presArbre(px, pz, 0.35)) { refus.arbre++; return false; } if (presBanc(px, pz, 0.35)) { refus.banc++; return false; } }
           if ((spans.get(f.cle) || []).some(([a, b, quoi]) => quoi !== type && s > a - 0.6 && s < b + 0.6)) { refus.voisin++; return false; } return true;
         };
-        const vis = (x, z, tol) => { const px = f.x(s0 - x, z + 0.6), pz = f.z(s0 - x, z + 0.6); return dansBat(px, pz) < 0 && distRue(px, pz) >= -tol && !presArbre(px, pz, 0.35); }; // la chaise d'en face tient-elle ?
+        const vis = (x, z, tol) => { const px = f.x(s0 - x, z + 0.6), pz = f.z(s0 - x, z + 0.6); return dansBat(px, pz) < 0 && distRue(px, pz) >= -tol && !presArbre(px, pz, 0.35) && !presBanc(px, pz, 0.35); }; // la chaise d'en face tient-elle ?
         for (const [z, tol] of rangs || [[1.15, 0.5], [2.75, 0.5], [1.05, 1.7], [2.6, 1.4], [0.92, 2.4]]) for (const x of xs) if ((!avecPorte || Math.abs(x - porte) > 0.75) && essai(x, z, tol)) cand.push([x, z, Math.abs(x - porte) + (z > 2 ? 0.8 : 0) + tol, vis(x, z, tol)]);
         cand.sort((a, b) => a[2] - b[2]); const pris = [];
         for (const c of cand) { if (pris.length >= 4) break; if (pris.every((p) => Math.hypot(p[0] - c[0], p[1] - c[1]) > 1.75)) pris.push(c); }
@@ -640,6 +692,23 @@ const PDECOR = (() => {
       ordre('gendarmerie', (lots, q) => dessinerDrapeau(lots, q, f.rep(r.s, r.g), [r.w / 2 + 0.25, r.y + 0.2, 0.06], [0, Math.sin(0.62), Math.cos(0.62)], 'drapeau-fr'), f.x(r.s), f.z(r.s));
     }
 
+    // les passages voûtés (carte.passages) : rien n'est posé sur leurs arcades, de part et d'autre (rendu.js y découpe les arcs)
+    for (const ps of carte.passages || []) {
+      try {
+        if (!ps || !Array.isArray(ps.l) || ps.l.length < 2) continue; const w = fini(+ps.w) ? +ps.w : 3.2;
+        for (let m = 0; m + 1 < ps.l.length; m++) {
+          let [ax, az] = ps.l[m], [bx, bz] = ps.l[m + 1]; const dl = Math.hypot(bx - ax, bz - az) || 1, ex = (bx - ax) / dl * 3, ez = (bz - az) / dl * 3; ax -= ex; az -= ez; bx += ex; bz += ez;
+          for (const bc of Array.isArray(ps.b) ? ps.b : []) {
+            const k = versMonde[bc]; if (!(k >= 0)) continue; const P = BATS[k].p;
+            for (let i = 0; i < P.length; i++) {
+              const a = P[i], c = P[(i + 1) % P.length], fx = c[0] - a[0], fz = c[1] - a[1], den = (bx - ax) * fz - (bz - az) * fx; if (Math.abs(den) < 1e-9) continue;
+              const t = ((a[0] - ax) * fz - (a[1] - az) * fx) / den, u = ((a[0] - ax) * (bz - az) - (a[1] - az) * (bx - ax)) / den; if (t < 0 || t > 1 || u < 0 || u > 1) continue;
+              const f = new Facade(k, i), sv = u * f.len; reserver(f, sv - w / 2 - 0.6, sv + w / 2 + 0.6, 'voute', bc); NOTES.voutes++;
+            }
+          }
+        }
+      } catch (err) { signaler('passage', err); }
+    }
     for (const e of carte.enseignes || []) {
       try {
         if (!e || !Number.isInteger(e.b) || !fini(+e.x) || !fini(+e.z)) continue; const b = bat(e.b); if (!b) continue;
@@ -761,7 +830,7 @@ const PDECOR = (() => {
           const aC = [A.x, ra, A.z], bC = [B.x, rb, B.z];
           quadPierre(Lp, bL, aL, aC, bC, nom, hex, k * 1.04, s + d, s, 0, ea * 1.6); quadPierre(Lp, aR, bR, bC, aC, nom, hex, k * 0.9, s, s + d, 0, ea * 1.6);
         }
-        quadPierre(Lp, [bL[0], yb - 0.04, bL[2]], [aL[0], ya - 0.04, aL[2]], aL, bL, nom, hex, 0.85, s + d, s, 0, 0.06); quadPierre(Lp, [aR[0], ya - 0.04, aR[2]], [bR[0], yb - 0.04, bR[2]], bR, aR, nom, hex, 0.8, s, s + d, 0, 0.06);
+        if (q.fin) { quadPierre(Lp, [bL[0], yb - 0.04, bL[2]], [aL[0], ya - 0.04, aL[2]], aL, bL, nom, hex, 0.85, s + d, s, 0, 0.06); quadPierre(Lp, [aR[0], ya - 0.04, aR[2]], [bR[0], yb - 0.04, bR[2]], bR, aR, nom, hex, 0.8, s, s + d, 0, 0.06); } // la goutte d'eau sous le chaperon
         s += d;
       }
       for (const [i, sg] of [[0, -1], [n - 1, 1]]) { // les abouts
@@ -814,7 +883,7 @@ const PDECOR = (() => {
           let s = reste;
           while (s <= d) {
             const x = a[0] + tx * s, z = a[1] + tz * s; let pose = false;
-            if (Math.hypot(x - PC[0], z - PC[1]) < RB) for (const sg of [cote, -cote]) {
+            if (Math.hypot(x - PC[0], z - PC[1]) < RB && dansBat(x, z) < 0) for (const sg of [cote, -cote]) { // (pas depuis l'intérieur d'un passage voûté)
               const mx = -tz * sg, mz = tx * sg, f = facadeVers(x, z, mx, mz, w / 2 + 7); if (!f || f.s < 0.9 || f.s > f.len - 0.9 || f.mitoyenne(f.s)) continue;
               const lx = f.x(f.s), lz = f.z(f.s), g = H0(f.x(f.s, 0.6), f.z(f.s, 0.6)); if (f.b.sommet - g < 4.4) continue;
               if (lanternes.some((o) => Math.hypot(o[0] - lx, o[1] - lz) < 15)) continue;
@@ -829,30 +898,17 @@ const PDECOR = (() => {
       }
       NOTES.lanternes = lanternes.length;
     }
-    { // les bancs de la place, sous les arbres : à 1,8 m du tronc, dos au tronc, hors des rues, des bâtiments et des autres troncs
-      const arbres = (carte.arbres || []).filter((a) => Array.isArray(a) && fini(+a[0]) && fini(+a[1]) && Math.hypot(a[0] - PC[0], a[1] - PC[1]) < 32).sort((a, b) => Math.hypot(a[0] - PC[0], a[1] - PC[1]) - Math.hypot(b[0] - PC[0], b[1] - PC[1]));
-      const bancs = [];
-      for (const a of arbres) {
-        if (bancs.length >= 4) break; let best = null;
-        for (let k = 0; k < 16; k++) {
-          const ang = k / 16 * TAU, x = +a[0] + Math.cos(ang) * 1.9, z = +a[1] + Math.sin(ang) * 1.9, yaw = Math.atan2(-Math.cos(ang), -Math.sin(ang)), R = repYaw(x, 0, z, yaw);
-          const bouts = [R.pt(-1, 0, 0), R.pt(1, 0, 0), R.pt(-1, 0, 0.6), R.pt(1, 0, 0.6), R.pt(0, 0, 1.2)];
-          if (bouts.some((p) => distRue(p[0], p[2]) < 0.8 || dansBat(p[0], p[2]) >= 0 || bloque(p[0], p[2], 0.3))) continue;
-          if (bouts.some((p) => (gArb.get(cle(p[0], p[2])) || []).some((o) => o !== a && Math.hypot(o[0] - p[0], o[1] - p[2]) < 0.9))) continue;
-          if (bancs.some((o) => Math.hypot(o[0] - x, o[1] - z) < 7)) continue;
-          const sc = Math.hypot(x - PC[0], z - PC[1]) - 0.5 * Math.min(4, distRue(x, z)); if (!best || sc < best[3]) best = [x, z, yaw, sc];
-        }
-        if (best) bancs.push(best);
-      }
-      for (const [x, z, yaw] of bancs) ordre('banc', (lots, q) => dessinerBanc(lots, q, repYaw(x, Math.min(H0(x, z), H0(x + 0.9, z), H0(x - 0.9, z)), z, yaw)), x, z);
-      NOTES.bancs = bancs.length; NOTES.bancsXZ = bancs.map((b) => [+b[0].toFixed(1), +b[1].toFixed(1)]);
+    { // les bancs de la place, sous les arbres (choix de style) : monde.js les pose (règle dans monde.js : à 1,9 m d'un tronc mesuré, dos à lui,
+      // hors des rues, des bâtiments et des autres troncs, 4 au plus) et les rend pleins pour les pas et les tirs ; le décor ne fait que les dessiner
+      for (const [x, z, yaw] of BANCS) ordre('banc', (lots, q) => dessinerBanc(lots, q, repYaw(x, Math.min(H0(x, z), H0(x + 0.9, z), H0(x - 0.9, z)), z, yaw)), x, z);
+      NOTES.bancs = BANCS.length; NOTES.bancsXZ = BANCS.map((b) => [+b[0].toFixed(1), +b[1].toFixed(1), +b[2].toFixed(2)]);
     }
     { // les fenêtres fleuries (jardinières de géraniums, volets ouverts) au premier étage des façades qui regardent la place
       const D = DETAILS(), pris = [];
       if (D && D.cellules.fenetre) {
         cellule('fleurs-a', 'fleurs', 256, 84, { graine: 3 }); cellule('fleurs-b', 'fleurs', 256, 84, { graine: 7, fleurs: ['#E8578A', '#F07FA6', '#C93D6E'] });
         BATS.forEach((b, k) => {
-          if (!b || b.t === 'eglise' || b.t === 'annexe' || b.t === 'chateau' || b.t === 'tour' || !b.aabb) return;
+          if (!b || b.t === 'eglise' || b.t === 'annexe' || b.t === 'chateau' || b.t === 'tour' || b.t === 'mairie' || !b.aabb) return;
           const cx = (b.aabb[0] + b.aabb[2]) / 2, cz = (b.aabb[1] + b.aabb[3]) / 2; if (Math.hypot(cx - PC[0], cz - PC[1]) > 62) return;
           for (let i = 0; i < b.p.length; i++) {
             const f = new Facade(k, i); if (f.len < 3.4) continue; const mx = f.x(f.len / 2), mz = f.z(f.len / 2), vx = PC[0] - mx, vz = PC[1] - mz, dv = Math.hypot(vx, vz) || 1;
@@ -943,11 +999,11 @@ const PDECOR = (() => {
     function horizonGeo(q) {
       const M = PER.length, A = q.anneaux, K = A.length, pos = [], col = [], hz = [], idx = [], debut = [];
       for (let k = 0; k < K; k++) {
-        const pas = k < q.azDes ? 1 : q.az, d = A[k], bord = lisse(0, 320, d), fin = k === K - 1; debut.push(pos.length / 3);
+        const pas = k < q.azDes ? 1 : q.az, d = A[k], bord = lisse(0, 900, d), photo = lisse(0, 320, d), fin = k === K - 1; debut.push(pos.length / 3); // bord : la brume du jeu se lève (le shader la lève tout à fait à 0,3, ~330 m) ; photo : la couleur du bord du carré
         for (let a = 0; a < M; a += pas) {
           const [i, j] = PER[a], x0 = X0 + i * pasR, z0 = X0 + j * pasR, r = Math.hypot(x0, z0) || 1, x = x0 + x0 / r * d, z = z0 + z0 / r * d;
           const y = k === 0 ? hBord[a] : hzAt(x, z) + (hBord[a] - hzAt(x0, z0)) * (1 - lisse(0, 380, d));
-          pos.push(x, y, z); let c = albedo(x, z, y); if (PHOTO_BORD && bord < 1) c = mix(PHOTO_BORD[a], c, lisse(0, 1, bord)); col.push(c[0], c[1], c[2]);
+          pos.push(x, y, z); let c = albedo(x, z, y); if (PHOTO_BORD && photo < 1) c = mix(PHOTO_BORD[a], c, photo); col.push(c[0], c[1], c[2]);
           hz.push(bord, fin ? 0.85 : Math.min(0.8, 1 - Math.exp(-(d + 250) / 6500)), lisse(120, 1400, d) * 0.55 + lisse(900, 3000, d) * 0.45); // raccord, voile, la brume du jeu s'efface au loin
         }
       }
@@ -961,8 +1017,8 @@ const PDECOR = (() => {
       let rmax = 0; for (let i = 0; i < pos.length; i += 3) rmax = Math.max(rmax, Math.hypot(pos[i], pos[i + 2])); g.userData.rmax = rmax; g.userData.tris = idx.length / 3; g.userData.anneaux = K; return g;
     }
     function horizonRecolorer(g) { // la photo est arrivée : les premiers anneaux reprennent sa couleur au bord
-      const pos = g.attributes.position.array, col = g.attributes.color.array, hz = g.attributes.aHz.array, M = PER.length; let v = 0;
-      for (let k = 0; v < pos.length / 3; k++) { const pas = k < MAILLE.q.azDes ? 1 : MAILLE.q.az; for (let a = 0; a < M && v < pos.length / 3; a += pas, v++) { const bord = hz[v * 3]; if (bord >= 1) continue; const c = mix(PHOTO_BORD[a], albedo(pos[v * 3], pos[v * 3 + 2], pos[v * 3 + 1]), lisse(0, 1, bord)); col[v * 3] = c[0]; col[v * 3 + 1] = c[1]; col[v * 3 + 2] = c[2]; } }
+      const pos = g.attributes.position.array, col = g.attributes.color.array, M = PER.length, q = MAILLE.q; let v = 0;
+      for (let k = 0; v < pos.length / 3 && k < q.anneaux.length; k++) { const pas = k < q.azDes ? 1 : q.az, photo = lisse(0, 320, q.anneaux[k]); for (let a = 0; a < M && v < pos.length / 3; a += pas, v++) { if (photo >= 1) continue; const c = mix(PHOTO_BORD[a], albedo(pos[v * 3], pos[v * 3 + 2], pos[v * 3 + 1]), photo); col[v * 3] = c[0]; col[v * 3 + 1] = c[1]; col[v * 3 + 2] = c[2]; } }
       g.attributes.color.needsUpdate = true;
     }
 
@@ -976,8 +1032,9 @@ const PDECOR = (() => {
       sh.uniforms.uK = U.uK; sh.uniforms.uSolRef = U.uSolRef; sh.uniforms.uVoile = U.uVoile;
       sh.vertexShader = 'attribute vec3 aHz;\nuniform float uK;\nuniform float uSolRef;\nvarying vec4 vHz;\n' + sh.vertexShader.replace('#include <fog_vertex>', '#ifdef USE_FOG\n\tvFogDepth = - mvPosition.z / uK;\n#endif\n\tvHz = vec4( aHz, clamp( ( position.y - uSolRef - 15.0 ) / 240.0, 0.0, 1.0 ) );');
       sh.fragmentShader = 'uniform vec3 uVoile;\nvarying vec4 vHz;\n' + sh.fragmentShader.replace('#include <fog_fragment>', [
-        '#ifdef USE_FOG', // la brume du jeu au raccord ; plus loin une brume de vallée d'où émergent les sommets, qui s'efface ; puis le voile atmosphérique
-        '\tfloat brume = smoothstep( fogNear, fogFar, vFogDepth ) * ( 1.0 - vHz.x * vHz.w ) * ( 1.0 - vHz.z * 0.8 );',
+        '#ifdef USE_FOG', // la brume du jeu entière au raccord, levée en ~330 m (aHz.x < 0,3 : aucune couture avec le sol du carré) ; plus loin une brume de vallée
+        // légère (≤ 30 %) sur les points bas, qui s'efface au loin (jamais une nappe sur toute la largeur) ; puis le voile atmosphérique
+        '\tfloat brume = smoothstep( fogNear, fogFar, vFogDepth ) * max( 1.0 - smoothstep( 0.0, 0.3, vHz.x ), 0.3 * ( 1.0 - vHz.w ) * ( 1.0 - vHz.z ) );',
         '\tgl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, brume );',
         '\tgl_FragColor.rgb = mix( gl_FragColor.rgb, uVoile, vHz.y * vHz.x * ( 1.0 - brume ) );',
         '#endif'].join('\n'));
@@ -1076,7 +1133,7 @@ const PDECOR = (() => {
       get stats() {
         const s = MAILLE.st, n = Object.assign({}, NOTES); delete n.terrassesRefusees; delete n.bancsXZ;
         return { qualite: nomQ, appels: s.appels, triangles: Math.round(s.triangles || 0), appelsOmbre: s.appelsOmbre, trianglesOmbre: Math.round(s.trianglesOmbre || 0), parMaillage: s.parMaillage, horizon: s.horizon,
-          objets: n, ordres: Object.assign({}, COMPTE), terrassesRefusees: NOTES.terrassesRefusees.slice(), bancs: NOTES.bancsXZ, pierre: BATI ? 'bati' : texPierre ? 'moellons' : 'couleurs', textures: !!T,
+          objets: n, ordres: Object.assign({}, COMPTE), terrassesRefusees: NOTES.terrassesRefusees.slice(), bancs: NOTES.bancsXZ, lanternes: lanternes.map((l) => [+l[0].toFixed(1), +l[1].toFixed(1)]), pierre: BATI ? 'bati' : texPierre ? 'moellons' : 'couleurs', textures: !!T,
           atlas: MAILLE.atlas ? MAILLE.atlas.S : 0, memoire: MAILLE.atlas ? MAILLE.atlas.octets : 0, cellules: CELL.size, photo: !!PHOTO_BORD, creation: tCree, construction: s.construction, erreurs: erreurs.slice(0, 8) };
       },
     };

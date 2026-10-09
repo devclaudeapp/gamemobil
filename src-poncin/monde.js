@@ -586,11 +586,16 @@
         const tt = (-B - Math.sqrt(D)) / A2; if (tt < tin && tt < best) { tin = tt; nx = (qx + dx * tt) / w; nz = (qz + dz * tt) / w; }
       }
       if (tin === Infinity) return -1;
-      let f = l2 > 1e-12 ? ((px + dx * tin) * ex + (pz + dz * tin) * ez) / l2 : 0; f = f < 0 ? 0 : f > 1 ? 1 : f;
-      const haut = OYA[j] + (OYB[j] - OYA[j]) * f, y = oy + dy * tin;
-      if (y <= haut) { if (y < OBAS[j]) return -1; CNX = nx; CNY = 0; CNZ = nz; return tin; }
-      if (dy < 0) { // passé au-dessus du bord : il peut retomber sur le dessus
-        const tt = (haut - oy) / dy;
+      // le dessus : haut = ya + (yb − ya)·f, f la position le long du segment (bornée à [0, 1]), linéaire en t : f = f0 + f1·t
+      const ya = OYA[j], dyab = OYB[j] - ya, f0 = l2 > 1e-12 ? (px * ex + pz * ez) / l2 : 0, f1 = l2 > 1e-12 ? (dx * ex + dz * ez) / l2 : 0;
+      let f = f0 + f1 * tin; f = f < 0 ? 0 : f > 1 ? 1 : f;
+      const y = oy + dy * tin;
+      if (y <= ya + dyab * f) { if (y < OBAS[j]) return -1; CNX = nx; CNY = 0; CNZ = nz; return tin; }
+      if (dy < 0) { // passé au-dessus du bord : il peut retomber sur le dessus (le premier t où y = haut ; au-delà d'un bout arrondi, le dessus est plat)
+        let tt = Infinity; const den = dy - dyab * f1;
+        if (den < 0) { const t1 = (ya + dyab * f0 - oy) / den, g = f0 + f1 * t1; if (t1 > tin && g >= 0 && g <= 1) tt = t1; }
+        const ta = (ya - oy) / dy, tb = (ya + dyab - oy) / dy;
+        if (ta > tin && ta < tt && f0 + f1 * ta <= 0) tt = ta; if (tb > tin && tb < tt && f0 + f1 * tb >= 1) tt = tb;
         if (tt > tin && tt < best && d2PtSeg(ox + dx * tt, oz + dz * tt, ax, az, ax + ex, az + ez) <= w * w) { CNX = 0; CNY = 1; CNZ = 0; return tt; }
       }
       return -1;

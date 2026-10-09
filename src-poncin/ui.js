@@ -483,7 +483,8 @@ const PUI = (() => {
     try { PHUD.carte(carte, monde); } catch (e) { signaler('hud.carte', e); }
     rendu3d = init3d();
     if (!rendu3d) panneau3d(true);
-    const cr = $('#credits-carte'); if (cr) cr.textContent = carte.source === 'provisoire' ? 'La carte affichée est provisoire : les vraies rues et les vrais bâtiments de Poncin arrivent avec les données IGN et OpenStreetMap.' : `Carte construite à partir des données ${carte.attribution || '© IGN – © contributeurs OpenStreetMap'}.`;
+    const at = $('#e-credits .attribution'); if (at && carte.attribution) at.textContent = String(carte.attribution); // la carte cite ses sources (IGN : BD ORTHO, BD TOPO, RGE ALTI, LiDAR HD ; OSM)
+    const cr = $('#credits-carte'); if (cr) cr.textContent = carte.source === 'provisoire' ? 'La carte affichée est provisoire : les vraies rues et les vrais bâtiments de Poncin arrivent avec les données IGN et OpenStreetMap.' : carte.attribution ? 'Le relief, les bâtiments et leurs matériaux, la photo aérienne et les arbres (mesurés au LiDAR) viennent de l’IGN ; les rues, les noms et les commerces, d’OpenStreetMap.' : 'Carte construite à partir des données © IGN – © contributeurs OpenStreetMap.';
     taille(); montrer('titre');
     // ouvert par un lien d'invitation …/poncin/?salle=CODE : droit au salon
     let salle = ''; try { salle = (new URLSearchParams(location.search).get('salle') || '').toUpperCase(); } catch (e) { salle = ''; }
