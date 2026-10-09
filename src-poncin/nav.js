@@ -105,32 +105,44 @@
     const VOIS = [1, -1, W, -W, W + 1, W - 1, -W + 1, -W - 1], COUT = [1, 1, 1, 1, RAC2, RAC2, RAC2, RAC2];
     const COIN_A = [0, 0, 0, 0, 1, -1, 1, -1], COIN_B = [0, 0, 0, 0, W, W, -W, -W]; // les deux cases orthogonales qu'une diagonale longe
     function nouvelleGen() { if (++gen > 2e9) { ETAT.fill(0); gen = 1; } return 2 * gen; }
-    // Dijkstra depuis une case sur la grille fixe → distances (dixièmes de case, entiers) rangées dans DR[c·K + k]
+    // Dijkstra depuis une case sur la grille fixe, en coûts entiers 10 (droit) et 14 (diagonale, un peu moins que 10·√2 : la borne reste
+    // admissible) avec une file à seaux circulaire (Dial) → distances en dixièmes de case rangées dans DR[c·K + k]. Les seaux sont des listes
+    // doublement chaînées (SUIV, PREC) : chaque case est dans un seul seau, déplacée quand sa distance baisse.
+    const SEAUX = new Int32Array(16);
     function dijkstra(src, k) {
-      const OUV = nouvelleGen(), FER = OUV + 1;
+      const OUV = nouvelleGen(), FER = OUV + 1, SUIV = TAS, PREC = POS, D = PAR;
       for (let c = 0; c < N; c++) DR[c * K + k] = INF16;
-      GC[src] = 0; ETAT[src] = OUV; TAS[0] = src; TF[0] = 0; POS[src] = 0; nt = 1;
-      while (nt > 0) {
-        const c = TAS[0]; nt--; if (nt > 0) { TAS[0] = TAS[nt]; TF[0] = TF[nt]; descendre(0); }
-        ETAT[c] = FER; const g = GC[c]; DR[c * K + k] = Math.min(INF16 - 1, Math.floor(g * 10));
-        for (let q = 0; q < 8; q++) {
-          const v = c + VOIS[q];
-          if (!FIXE[v] || ETAT[v] === FER) continue;
-          if (q >= 4 && (!FIXE[c + COIN_A[q]] || !FIXE[c + COIN_B[q]])) continue;
-          const ng = g + COUT[q];
-          if (ETAT[v] !== OUV) { ETAT[v] = OUV; GC[v] = ng; TAS[nt] = v; TF[nt] = ng; nt++; monter(nt - 1); }
-          else if (ng < GC[v]) { GC[v] = ng; const p = POS[v]; TF[p] = ng; monter(p); }
+      SEAUX.fill(-1);
+      const mettre = (v, d) => { const b = d & 15, h = SEAUX[b]; SUIV[v] = h; PREC[v] = -1; if (h >= 0) PREC[h] = v; SEAUX[b] = v; };
+      const oter = (v, d) => { const p = PREC[v], n = SUIV[v]; if (p >= 0) SUIV[p] = n; else SEAUX[d & 15] = n; if (n >= 0) PREC[n] = p; };
+      D[src] = 0; ETAT[src] = OUV; mettre(src, 0);
+      let reste = 1;
+      for (let cur = 0; reste > 0 && cur < INF16; cur++) {
+        const b = cur & 15;
+        while (SEAUX[b] >= 0) {
+          const c = SEAUX[b]; oter(c, cur); reste--; ETAT[c] = FER; DR[c * K + k] = cur;
+          for (let q = 0; q < 8; q++) {
+            const v = c + VOIS[q];
+            if (!FIXE[v] || ETAT[v] === FER) continue;
+            if (q >= 4 && (!FIXE[c + COIN_A[q]] || !FIXE[c + COIN_B[q]])) continue;
+            const nd = cur + (q < 4 ? 10 : 14);
+            if (ETAT[v] !== OUV) { ETAT[v] = OUV; D[v] = nd; mettre(v, nd); reste++; }
+            else if (nd < D[v]) { oter(v, D[v]); D[v] = nd; mettre(v, nd); }
+          }
         }
       }
     }
-    const DT = new Float64Array(Math.max(1, K)); // les distances des repères à la case visée
+    // les repères actifs d'une requête : les ACTIFS qui bornent le mieux la distance du départ à l'arrivée (moins de lectures par case)
+    const ACTIFS = 4, AK = new Int32Array(ACTIFS), AV = new Int32Array(ACTIFS), BORNE = new Float64Array(Math.max(1, K)), HN = new Float32Array(N);
     function astar(s, t) {
       const OUV = nouvelleGen(), FER = OUV + 1, ti = t % W, tj = t / W | 0;
-      let nk = 0; for (let k = 0; k < K; k++) { const v = DR[t * K + k]; if (v !== INF16) DT[nk++] = k * 65536 + v; } // repère et distance, serrés
+      let na = 0;
+      for (let k = 0; k < K; k++) { const a = DR[s * K + k], b = DR[t * K + k]; BORNE[k] = a === INF16 || b === INF16 ? -1 : Math.abs(a - b); }
+      while (na < ACTIFS) { let kb = -1; for (let k = 0; k < K; k++) if (BORNE[k] >= 0 && (kb < 0 || BORNE[k] > BORNE[kb])) kb = k; if (kb < 0) break; AK[na] = kb; AV[na] = DR[t * K + kb]; BORNE[kb] = -1; na++; }
       const h = (c) => {
-        const di = Math.abs(c % W - ti), dj = Math.abs((c / W | 0) - tj); let e = di > dj ? di + (RAC2 - 1) * dj : dj + (RAC2 - 1) * di;
-        for (let q = 0, o = c * K; q < nk; q++) { const kv = DT[q], v = DR[o + (kv / 65536 | 0)]; if (v === INF16) continue; const a = 0.1 * Math.abs(v - kv % 65536); if (a > e) e = a; }
-        return POIDS * e;
+        const di = Math.abs(c % W - ti), dj = Math.abs((c / W | 0) - tj); let e = 10 * (di > dj ? di + (RAC2 - 1) * dj : dj + (RAC2 - 1) * di);
+        for (let q = 0, o = c * K; q < na; q++) { const v = DR[o + AK[q]]; if (v === INF16) continue; const a = v > AV[q] ? v - AV[q] : AV[q] - v; if (a > e) e = a; }
+        return 0.1 * POIDS * e; // les distances des repères sont en dixièmes de case
       };
       ouvertes = 0; GC[s] = 0; PAR[s] = -1; ETAT[s] = OUV; TAS[0] = s; TF[0] = h(s); POS[s] = 0; nt = 1;
       while (nt > 0) {
@@ -143,8 +155,8 @@
           if (!LIB[v] || ETAT[v] === FER) continue;
           if (k >= 4 && (!LIB[c + COIN_A[k]] || !LIB[c + COIN_B[k]])) continue;
           const ng = g + COUT[k];
-          if (ETAT[v] !== OUV) { ETAT[v] = OUV; GC[v] = ng; PAR[v] = c; TAS[nt] = v; TF[nt] = ng + h(v); nt++; monter(nt - 1); }
-          else if (ng < GC[v]) { GC[v] = ng; PAR[v] = c; const p = POS[v]; TF[p] = ng + h(v); monter(p); }
+          if (ETAT[v] !== OUV) { ETAT[v] = OUV; GC[v] = ng; PAR[v] = c; const hv = h(v); HN[v] = hv; TAS[nt] = v; TF[nt] = ng + hv; nt++; monter(nt - 1); }
+          else if (ng < GC[v]) { GC[v] = ng; PAR[v] = c; const p = POS[v]; TF[p] = ng + HN[v]; monter(p); }
         }
       }
       return false;

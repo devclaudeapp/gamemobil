@@ -129,6 +129,8 @@ function valider(c, o) {
   const vus = new Set();
   for (const g of grille.values()) for (let a = 0; a < g.length; a++) for (let b = a + 1; b < g.length; b++) { const k = g[a] * 100000 + g[b]; if (vus.has(k)) continue; vus.add(k); const A1 = c.batiments[g[a]].p, B1 = c.batiments[g[b]].p, ba = bb(A1), bbb = bb(B1); if (ba[0] > bbb[2] || bbb[0] > ba[2] || ba[1] > bbb[3] || bbb[1] > ba[3]) continue; if (recouvre(A1, B1, 0.1)) chev.push(`${g[a]}/${g[b]}`); }
   qualite(!chev.length, `bâtiments sans recouvrement (${chev.length} paires)${exemples(chev)}`);
+  const eauxChev = []; for (let i = 0; i < c.eau.length; i++) for (let j = i + 1; j < c.eau.length; j++) if (recouvre(c.eau[i].p, c.eau[j].p, 0.1)) eauxChev.push(`${i}/${j}`);
+  qualite(!eauxChev.length, `les eaux se touchent sans se recouvrir (pas de double transparence)${exemples(eauxChev)}`);
   const intrus = c.batiments.filter((b) => !['chateau', 'tour'].includes(b.t) && c.interdit.some((z) => b.p.some((q) => dedans(z.p, q[0], q[1]))));
   qualite(!intrus.length, `rien dans la zone interdite sauf le château et sa tour (${intrus.length})`);
   // les zones de jeu : libres, dans l'arène, accessibles depuis le centre

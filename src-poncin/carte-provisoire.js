@@ -60,11 +60,12 @@
     if (t < 0.001 && i > 1) { const [ux, uz] = norme(a[0] - l[i - 2][0], a[1] - l[i - 2][1]); [tx, tz] = norme(tx + ux, tz + uz); }
     return { x: lerp(a[0], b[0], t), z: lerp(a[1], b[1], t), nx: tz, nz: -tx, tx, tz, i };
   }
-  function tampon(l, w) { // contour d'une ligne élargie (rivière), extrémités coupées droit
+  function berges(l, w) { // les deux bords d'une ligne élargie (rivière), dans le sens de la ligne
     const g = [], d = [], cum = longueurs(l);
     for (let i = 0; i < l.length; i++) { const s = surLigne(l, cum[i], cum), r = (typeof w === 'function' ? w(i / (l.length - 1)) : w) / 2; g.push([s.x + s.nx * r, s.z + s.nz * r]); d.push([s.x - s.nx * r, s.z - s.nz * r]); }
-    return g.concat(d.reverse());
+    return [g, d];
   }
+  function intersection(a, b, c, d) { const rx = b[0] - a[0], rz = b[1] - a[1], sx = d[0] - c[0], sz = d[1] - c[1], den = rx * sz - rz * sx; if (Math.abs(den) < E) return null; const t = ((c[0] - a[0]) * sz - (c[1] - a[1]) * sx) / den, u = ((c[0] - a[0]) * rz - (c[1] - a[1]) * rx) / den; return t >= 0 && t <= 1 && u >= 0 && u <= 1 ? [a[0] + t * rx, a[1] + t * rz] : null; }
   // une courbe de Catmull-Rom échantillonnée (rivières)
   function decouper(p) { // Sutherland–Hodgman : le polygone coupé au carré (−D..D), sommets alignés retirés
     for (const [ax, v, sg] of [[0, -D, 1], [0, D, -1], [1, -D, 1], [1, D, -1]]) {
@@ -145,11 +146,18 @@
     const ain = spline(ainPts, 6), largeurAin = (z) => 50 + 6 * lisse(z, -300, 300) + 3 * (lisse(z, -150, -60) - lisse(z, 60, 160));
     const ainX = (z) => { for (let i = 1; i < ain.length; i++) if (ain[i][1] >= z) { const a = ain[i - 1], b = ain[i]; return lerp(a[0], b[0], (z - a[1]) / Math.max(E, b[1] - a[1])); } return ain[ain.length - 1][0]; };
     const rive = (z, c) => ainX(z) + c * largeurAin(z) / 2; // c = +1 rive gauche (est), −1 rive droite (ouest)
-    { const est = [], ouest = []; for (let z = -D; z <= D; z += 10) { est.push([rive(z, 1), z]); ouest.push([Math.max(-D, rive(z, -1)), z]); } carte.eau.push({ p: est.concat(ouest.reverse()), t: 'riviere' }); }
+    let est = [], ouest = []; for (let z = -D; z <= D; z += 10) { est.push([rive(z, 1), z]); ouest.push([Math.max(-D, rive(z, -1)), z]); }
     const veyPts = [[D, 214], [255, 198], [215, 193], [170, 190], [130, 186], [90, 180], [45, 174], [5, 167], [-26, 168], [-50, 177], [-64, 200], [-92, 224], [-128, 236], [-168, 241], [-205, 243]].map(([x, z], i) => (i > 0 && (x > 20 || x < -60) ? [x + ent(-3, 3), z + ent(-4, 4)] : [x, z]));
     veyPts.push([rive(244, 1) - 12, 245]);
     const veyron = chaikin(veyPts, 3), largeurVey = (t) => 9.5 + 2 * t;
-    carte.eau.push({ p: tampon(veyron, largeurVey), t: 'riviere' });
+    { // le Veyron s'arrête pile sur la berge de l'Ain : les deux eaux se touchent sans se recouvrir (pas de double transparence)
+      const [g, d] = berges(veyron, largeurVey), coupe = (c) => { for (let k = 1; k < c.length; k++) for (let e = 0; e + 1 < est.length; e++) { const I = intersection(c[k - 1], c[k], est[e], est[e + 1]); if (I) return { k, I }; } return null; };
+      const cg = coupe(g), cd = coupe(d);
+      est = est.concat([cg.I, cd.I]).sort((a, b) => a[1] - b[1]);
+      const entre = est.filter((q) => q[1] > Math.min(cg.I[1], cd.I[1]) && q[1] < Math.max(cg.I[1], cd.I[1]) && q !== cg.I && q !== cd.I);
+      if (cg.I[1] > cd.I[1]) entre.reverse();
+      carte.eau.push({ p: est.concat(ouest.reverse()), t: 'riviere' }, { p: g.slice(0, cg.k).concat([cg.I], entre, [cd.I], d.slice(0, cd.k).reverse()), t: 'riviere' });
+    }
     const eaux = carte.eau.map((e) => e.p), bbEaux = eaux.map(boite);
     const pres = (k, x, z, m) => { const b = bbEaux[k]; return x > b[0] - m && x < b[2] + m && z > b[1] - m && z < b[3] + m; };
     const dansEau = (x, z) => eaux.some((p, k) => pres(k, x, z, 0) && dedans(p, x, z));
@@ -310,9 +318,9 @@
       [[180, 100], [270, 102], [298, 112], [298, 170], [240, 180], [170, 176], [140, 160]],
     ];
     for (const p of PRES) veg(p.map(([x, z]) => [x + ent(-3, 3), z + ent(-3, 3)]).map(([x, z]) => [borne(x, -D, D), borne(z, -D, D)]), 'pre');
-    const BOIS = [[[256, -300], [300, -300], [300, -152], [262, -168], [250, -230]], [[296, -128], [300, -128], [300, 70], [292, 68], [296, -20]], [[190, 30], [250, 34], [282, 44], [296, 64], [268, 70], [240, 60], [188, 50]], [[198, 202], [260, 205], [300, 222], [300, 300], [210, 300], [176, 270]]];
+    const BOIS = [[[256, -300], [300, -300], [300, -152], [262, -168], [250, -230]], [[190, 30], [250, 34], [282, 44], [296, 64], [268, 70], [240, 60], [188, 50]], [[198, 202], [260, 205], [300, 222], [300, 300], [210, 300], [176, 270]]];
     for (const p of BOIS) veg(p.map((q) => q.slice()), 'bois');
-    const VIGNES = [[[140, -296], [234, -296], [228, -214], [208, -160], [170, -150], [146, -178]], [[226, -118], [260, -128], [296, -136], [292, -108], [238, -106]], [[90, -110], [138, -102], [150, -140], [120, -160], [94, -150]]];
+    const VIGNES = [[[140, -296], [234, -296], [228, -214], [208, -160], [170, -150], [146, -178]], [[236, -124], [264, -132], [298, -140], [298, -116], [284, -112], [250, -119]], [[90, -110], [138, -102], [150, -140], [120, -160], [94, -150]]];
     for (const p of VIGNES) veg(p.map((q) => q.slice()), 'vigne');
     for (const p of jardins) veg(p, 'jardin');
     veg([[200, -52], [276, -56], [284, -24], [272, 12], [210, 14], [196, -16]], 'jardin'); // les jardins en terrasses du château
