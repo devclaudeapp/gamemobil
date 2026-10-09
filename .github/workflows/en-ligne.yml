@@ -33,6 +33,17 @@ jobs:
         run: node test/poncin-en-ligne-ci.cjs
         env:
           PONCIN_URL: http://127.0.0.1:8080
+      - name: Partie complète en ligne, pour de vrai (3 joueurs par Supabase, connexion directe)
+        if: always()
+        run: node test/poncin-enligne.cjs
+        env:
+          RESEAU: supabase
+      - name: Partie complète en ligne, relais forcé (comme une 4G qui bloque le direct)
+        if: always()
+        run: node test/poncin-enligne.cjs
+        env:
+          RESEAU: supabase
+          RELAIS: '1'
       - name: Test local du réseau (voies local et webrtc-local)
         if: always()
         run: node test/poncin-reseau.cjs

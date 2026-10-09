@@ -15,8 +15,10 @@ const server = http.createServer((req, res) => {
 const out = path.join(__dirname, 'shots', 'poncin-enligne'); fs.mkdirSync(out, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
-const RESEAU = process.env.RESEAU || 'local'; // RESEAU=webrtc-local : la même épreuve sur le vrai WebRTC entre les pages (signalisation locale)
-const URL0 = `http://localhost:${PORT}/poncin/?reseau=${RESEAU}&qualite=eco`;
+// RESEAU=webrtc-local : la même épreuve sur le vrai WebRTC entre les pages (signalisation locale) ;
+// RESEAU=supabase : pour de vrai, par le projet Supabase de poncin/config.js (sur GitHub Actions : le conteneur de Claude n'y a pas accès), RELAIS=1 en plus pour forcer le relais
+const RESEAU = process.env.RESEAU || 'local', RELAIS = process.env.RELAIS === '1';
+const URL0 = `http://localhost:${PORT}/poncin/?qualite=eco${RESEAU === 'supabase' ? '' : '&reseau=' + RESEAU}${RELAIS ? '&relais=1' : ''}`;
 
 (async () => {
   const browser = await chromium.launch();
