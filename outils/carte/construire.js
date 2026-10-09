@@ -1011,7 +1011,8 @@ async function etapeArbres(R, L, carte, info, o) {
   // la sortie [x, z, h, r, e]
   const arbres = [];
   for (const c of cs) {
-    const e = c.e || 'feuillu', q = placer(c); if (typeof q === 'string') { st.ecartes++; st.raisons[q] = (st.raisons[q] || 0) + 1; continue; }
+    const e = c.e || 'feuillu', q = placer(c); if ((CONFIG.sondes || []).some((s2) => Math.hypot(s2[0] - c.x, s2[1] - c.z) < 12)) log(`sonde : couronne [${r1(c.x)}, ${r1(c.z)}] r ${r1(c.r)} h ${r1(c.h || 0)} ${e} → ${typeof q === 'string' ? 'écartée (' + q + ')' : '[' + q.map(r1) + ']'}`);
+    if (typeof q === 'string') { st.ecartes++; st.raisons[q] = (st.raisons[q] || 0) + 1; continue; }
     const r = clamp(c.r, 0.8, 12), hh = clamp(c.h || K_ESPECE[e] * r, 2.5, 40);
     arbres.push([r1(q[0]), r1(q[1]), r1(hh), r1(r), e]);
   }
