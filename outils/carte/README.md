@@ -21,6 +21,7 @@ Le réseau du poste de développement est fermé : la construction tourne sur **
 npm i --no-save --no-package-lock --prefix outils/carte jpeg-js@0.4.4   # seule dépendance (Node 22, fetch global)
 node outils/carte/construire.js --essai    # tout le pipeline HORS LIGNE sur un faux Poncin synthétique, avec ~36 vérifications
 node outils/carte/construire.js            # la vraie carte (il faut Internet)
+node outils/carte/construire.js --verifier poncin/carte/poncin.json   # vérifie une carte déjà construite (format v1, points libres, images)
 ```
 
 Options : `--sortie <dossier>` (par défaut `poncin/carte/`, ou un dossier temporaire pour l'essai), `--sans-cache`.

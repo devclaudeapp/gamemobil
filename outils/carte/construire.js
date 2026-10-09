@@ -7,7 +7,7 @@
    Le réseau du poste de développement est fermé : la vraie construction tourne sur GitHub Actions (.github/workflows/carte.yml).
      node outils/carte/construire.js            la vraie carte (réponses brutes gardées dans outils/carte/cache/)
      node outils/carte/construire.js --essai    tout le pipeline hors ligne sur de fausses réponses synthétiques, avec vérifications
-   Options : --sortie <dossier>, --sans-cache. Node 22 (fetch global), CommonJS ; seule dépendance : jpeg-js@0.4.4
+   Options : --sortie <dossier>, --sans-cache ; --verifier [poncin.json] vérifie une carte déjà construite. Node 22 (fetch global), CommonJS ; seule dépendance : jpeg-js@0.4.4
    (npm i --no-save --prefix outils/carte jpeg-js@0.4.4). Étapes : decouvrir → osm → bdtopo → alti → assembler → ortho → écrire. */
 'use strict';
 const fs = require('fs'), path = require('path'), os = require('os'), crypto = require('crypto');
@@ -1168,7 +1168,15 @@ async function verifierEssai(m, res) {
   return ko.length;
 }
 
+function verifierFichier(f) { // --verifier [poncin.json] : le format v1 d'une carte déjà construite (et ses images de sol)
+  const c = JSON.parse(fs.readFileSync(f, 'utf8')), err = verifier(c, obstacles(c.taille, c.batiments, c.interdit, c.eau, c.ponts));
+  if (c.sol) for (const im of [c.sol.image, c.sol.petite]) if (!fs.existsSync(path.join(path.dirname(f), im))) err.push(`image ${im} absente`);
+  console.log(`${f} : ${c.batiments.length} bâtiments, ${c.rues.length} rues, ${c.eau.length} eau, ${c.ponts.length} ponts, ${c.noms.length} noms, ${c.zones.apparitions.length} apparitions, ${c.zones.armes.length} objets`);
+  console.log(err.length ? `FORMAT INVALIDE (${err.length}) :\n  ${err.slice(0, 40).join('\n  ')}` : 'format v1 valide');
+  return err.length;
+}
 async function principal() {
+  if (ARGS.includes('--verifier')) { const a = arg('--verifier', ''); process.exit(verifierFichier(path.resolve(a && !a.startsWith('--') ? a : path.join(SORTIE, 'poncin.json'))) ? 1 : 0); }
   console.log(`Carte de Poncin — ${ESSAI ? 'ESSAI hors ligne (fausses réponses)' : 'données IGN + OpenStreetMap'} — sortie ${SORTIE}`);
   if (!JPEG) alerte('jpeg-js introuvable (npm i --no-save --prefix outils/carte jpeg-js@0.4.4)');
   if (ESSAI) {
