@@ -164,7 +164,8 @@ const URL0 = `http://localhost:${PORT}/poncin/?qualite=eco${RESEAU === 'supabase
   const d = { hote: par(0, 'envoyes'), bRecus: par(1, 'recus'), bEnvoyes: par(1, 'envoyes'), cRecus: par(2, 'recus'), cEnvoyes: par(2, 'envoyes') };
   console.log(`      hôte → chaque client : ${d.hote.toFixed(1)} messages/s ; B : reçus ${d.bRecus.toFixed(1)}/s, envoyés ${d.bEnvoyes.toFixed(1)}/s ; C : reçus ${d.cRecus.toFixed(1)}/s, envoyés ${d.cEnvoyes.toFixed(1)}/s`);
   console.log(`      clients vus par l’hôte : ${JSON.stringify(s2[0].clients)} ; B : ${JSON.stringify(s2[1])}`);
-  check(Object.values(d).every((v) => v <= 35) && d.bEnvoyes > 20 && d.bRecus > 15, 'débits ≤ 35 messages/s par sens et par client (état 20/s + événements ≤ 14/s ; entrées 30/s)');
+  // en relais (RELAIS=1), le transport groupe et bride à ~5 envois/s sur le fil : les clients reçoivent moins de paquets du jeu (≈ 10/s), c'est voulu
+  check(Object.values(d).every((v) => v <= 35) && d.bEnvoyes > 20 && d.bRecus > (RELAIS ? 4 : 15), `débits ≤ 35 messages/s par sens et par client (état 20/s + événements ≤ 14/s ; entrées 30/s${RELAIS ? ' ; en relais, ≥ 4 reçus/s' : ''})`);
 
   // ─── la fin (chez l'hôte) arrive partout ───
   await A.evaluate(() => window.__poncin.finir());
