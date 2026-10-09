@@ -1,9 +1,11 @@
-/* LE FOURNIL — les personnages et les pâtisseries en 3D : clients, apprentis, boulanger, en volumes low-poly arrondis pastel.
+/* LE FOURNIL — les personnages et les pâtisseries en 3D : clients, apprentis (et leurs grades), boulanger, le chat, les pâtisseries
+   de la carte et de saison, en volumes low-poly arrondis pastel.
    Un personnage = un Group (pieds à y = 0, le visage vers +Z) : deux jambes qui balancent, un buste fusionné (vêtement, tablier,
    marinière), une tête fusionnée (peau, coiffure, toque, chapeau), un visage en décalque (atlas d'expressions sur une calotte
    transparente), deux bras, et les accessoires (sac, plateau + pâtisserie fusionnés, clé, halo). Aucune échelle n'est appliquée :
    les cotes sont exprimées directement en unités monde, les proportions du dessin 2D y sont intégrées (73 de haut ≈ 45 px à
-   l'écran en plongée 52°, tête r = 10, corps 22 de large). Budget : ≤ 8 appels de dessin par personnage (7 de base + 1 accessoire). */
+   l'écran en plongée 52°, tête r = 10, corps 22 de large). Budget : ≤ 8 appels de dessin par personnage (7 de base + 1 accessoire),
+   à tous les grades d'apprenti ; le chat de la boutique : 5 ; une pâtisserie, de la carte ou de saison : 1. */
 const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (fichier non chargé), le module vaut null et le jeu démarre sans 3D
   'use strict';
   const M = MODELES, TAU = Math.PI * 2, HP = Math.PI / 2, CY = Math.cos(52 * Math.PI / 180);
@@ -83,7 +85,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     if (o.tablier) {
       corps.push(M.part(patchS(11.7, phiT, 1.05, HP - 1.05), BLANC, { y: 42 }), M.part(patchC(11.7, 12, phiT), BLANC, { y: 36 }), M.part(patchS(11.7, phiT, HP, 0.95), BLANC, { y: 30 }));
       if (lisere) corps.push(M.part(patchS(12, phiT, HP + 0.4, 0.28), OR, { y: 30 }));
-      if (grade >= 2) corps.push(M.part(patchS(11.9, phiT, 1.05, 0.26), M.assombrir(haut, 0.25), { y: 42 })); // la bande en haut de la bavette
+      if (grade >= 2) corps.push(M.part(patchS(11.9, phiT, 1.17, 0.21), M.assombrir(haut, 0.25), { y: 42 })); // la bande en haut de la bavette (un filet blanc au-dessus : elle ne se confond pas avec le haut)
       if (grade >= 3) corps.push(M.part(etoile(2.7, 1.15, 0.9), OR, ETOILE)); // l'étoile, couchée sur la poitrine gauche, au-dessus de la bavette
     }
     if (o.col) corps.push(M.part(patchC(12, 5, 2.3), '#2B5BD7', { y: 45.5, ry: -1.45 }), M.part(patchC(12, 5, 0.6), BLANC, { y: 45.5 }), M.part(patchC(12, 5, 2.3), ROUGE, { y: 45.5, ry: 1.45 }), M.part(patchC(12, 5, 0.6), BLANC, { y: 45.5, ry: Math.PI }));
@@ -155,9 +157,9 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   // yeux, rayures du front fusionnés ; deux géométries en cache, yeux ouverts / fermés, échangées par animerChat), queue[0] > queue[1]
   // (deux segments qui se plient : chacun pivote à sa base, le second au bout du premier), pattes[4] (pivots Object3D : avant x < 0,
   // avant x > 0, arrière x < 0, arrière x > 0) et pattesMaille (UN InstancedMesh pour les quatre pattes, ses matrices recopiées des
-  // pivots par animerChat). Appels de dessin : corps, tête, 2 segments de queue, pattes = 5 (budget 6). Debout : 23 de haut aux
-  // oreilles, 20 au sommet du crâne, 31 du bout du nez au bas du dos. Options : couleur (robe, défaut #F2A65A), rayures, ventre.
-  const CHAT_Y = 10, PATTE_X = 2.9, PATTE_Y = -3, PATTE_Z = 7.2, LQ1 = 5.6, ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
+  // pivots par animerChat). Appels de dessin : corps, tête, 2 segments de queue, pattes = 5 (budget 6). Debout : 22,6 de haut aux
+  // oreilles, 20,6 au crâne, 32 du nez au bas du dos (le corps seul : 25). Options : couleur (robe, défaut #F2A65A), rayures, ventre, etat.
+  const CHAT_Y = 11, LP = 8, PATTE_X = 2.9, PATTE_Y = -3, PATTE_Z = 7.2, LQ1 = 6.6, ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
   const arcCyl = (r, h, phi, c) => memo(`arc|${r}|${h}|${phi}|${c}`, () => new THREE.CylinderGeometry(r, r, h, 12, 1, true, c - phi / 2, phi)); // un morceau de cylindre centré, ouvert, autour de l'angle c (0 = +Z)
   const geoCorpsChat = (robe, ray, creme) => memo(`chat-corps|${robe}|${ray}|${creme}`, () => {
     const p = [M.part(M.capsule(5.5, 14, 12), robe, { rx: HP }), M.part(arcCyl(5.62, 14, 1.9, 0), creme, { rx: HP }), M.part(patchS(5.7, 2.0, 1.35, 1.45), creme, { z: 7 })]; // couché selon Z (l'angle 0 du cylindre passe dessous), ventre, poitrail
@@ -167,7 +169,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   const geoTeteChat = (robe, ray, creme, fermes) => memo(`chat-tete|${robe}|${ray}|${creme}|${fermes ? 1 : 0}`, () => {
     const p = [M.part(M.sphere(5.2, 14), robe, { sx: 1.12, sy: 0.96 }), M.part(M.sphere(2.3, 10), creme, { y: -1.6, z: 4.1, sx: 1.45, sy: 0.85, sz: 0.85 }), M.part(M.sphere(0.75, 8), '#F28B9B', { y: -0.75, z: 5.95, sx: 1.25, sy: 0.8, sz: 0.8 })];
     for (const sx of [-1, 1]) {
-      p.push(M.part(M.cone(2.2, 3.9, 8), robe, { x: sx * 3.1, y: 2.9, z: -0.4, rz: -sx * 0.32 }), M.part(M.cone(1.35, 2.7, 8), '#FFC1B4', { x: sx * 3.15, y: 3.05, z: 0.5, rz: -sx * 0.32, sz: 0.55 })); // les oreilles et leur creux rose
+      p.push(M.part(M.cone(2.2, 4.8, 8), robe, { x: sx * 2.5, y: 2.4, z: -0.3, rz: -sx * 0.3, sz: 0.5 }), M.part(M.cone(1.35, 3.4, 8), '#FFC1B4', { x: sx * 2.58, y: 2.8, z: 0.42, rz: -sx * 0.3, sz: 0.3 })); // les oreilles, des cônes aplatis (des triangles de face, pas un octogone vu d'en haut), la base dans le crâne, et leur creux rose
       p.push(M.part(M.sphere(0.95, 8), JOUE, { x: sx * 3.6, y: -0.9, z: 3.7, sy: 0.7, sz: 0.5 }));
       p.push(fermes ? M.part(M.tore(0.95, 0.3, Math.PI, 4, 8), L, { x: sx * 2.1, y: 0.6, z: 4.8 }) : M.part(M.sphere(0.9, 8), L, { x: sx * 2.1, y: 0.9, z: 4.5 })); // les yeux : deux billes sombres, ou deux arcs fermés
     }
@@ -175,9 +177,9 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     return M.assembler(p);
   });
   const geoQueueChat = (k, robe, ray) => memo(`chat-queue|${k}|${robe}|${ray}`, () => M.assembler(k === 1
-    ? [M.part(M.capsule(1.45, 5.4, 8), robe, { y: 2.7 }), M.part(bande(1.6, 0.9), ray, { y: 2.3 }), M.part(bande(1.6, 0.9), ray, { y: 4.7 })] // de la base (pivot) vers +Y
-    : [M.part(M.capsule(1.35, 5, 8), robe, { y: 2.5 }), M.part(bande(1.5, 0.8), ray, { y: 1.5 }), M.part(bande(1.5, 0.8), ray, { y: 3.5 }), M.part(calotte(1.45, 1.05, 10), ray, { y: 5 })]));
-  const geoPatteChat = (robe, creme) => memo(`chat-patte|${robe}|${creme}`, () => M.assembler([M.part(pendu(1.75, 5, 0.2), robe), M.part(M.sphere(1.95, 8), creme, { y: -5.85, z: 0.45, sy: 0.6, sz: 1.2 })])); // pend de la hanche (pivot) jusqu'au sol, 7 plus bas
+    ? [M.part(M.capsule(1.45, 6.4, 8), robe, { y: 3.2 }), M.part(bande(1.6, 0.9), ray, { y: 2.6 }), M.part(bande(1.6, 0.9), ray, { y: 5.3 })] // de la base (pivot) vers +Y
+    : [M.part(M.capsule(1.35, 5.8, 8), robe, { y: 2.9 }), M.part(bande(1.5, 0.8), ray, { y: 1.7 }), M.part(bande(1.5, 0.8), ray, { y: 4 }), M.part(calotte(1.45, 1.05, 10), ray, { y: 5.8 })]));
+  const geoPatteChat = (robe, creme) => memo(`chat-patte|${robe}|${creme}`, () => M.assembler([M.part(pendu(1.75, LP - 2, 0.2), robe), M.part(M.sphere(1.95, 8), creme, { y: 1.15 - LP, z: 0.45, sy: 0.6, sz: 1.2 })])); // pend de la hanche (pivot) jusqu'au sol, LP plus bas
   function chat(o) {
     o = o || {};
     const robe = o.couleur || '#F2A65A', ray = o.rayures || (o.couleur ? M.assombrir(robe, 0.15) : '#D9853B'), creme = o.ventre || '#FFE3C9';
@@ -195,12 +197,13 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   }
   // les poses constantes : [x, y, z] puis [rx, ry, rz] de racine, corps, tête, queue[0] et queue[1] ; animerChat n'y ajoute que le mouvement
   const POSES_CHAT = {
-    dort: [[0, 0, 0], [0, 0, 0], [0, 4.6, 0], [0, 0, 0], [-3.2, 5.1, 7.6], [0.25, -0.5, -0.3], [0, 1.45, -8.4], [-HP, 0, 1.45], [0, LQ1, 0], [0, 0, 1.5]],
-    assis: [[0, 0, 0], [0, 0, 0], [0, 9.45, -1.2], [-0.6, 0, 0], [0, 19.6, 6.4], [-0.12, 0, 0], [1, 1.45, -10.6], [-HP, 0, -1.2], [0, LQ1, 0], [0, 0, -1.25]],
+    dort: [[0, 0, 0], [0, 0, 0], [0, 4.4, 0], [0, 0, 0], [-3.4, 4.9, 6.6], [0.3, 0.35, -0.35], [0, 1.45, -7.6], [-HP, 0, 1.85], [0, LQ1, 0], [0, 0, 1]],
+    assis: [[0, 0, 0], [0, 0, 0], [0, 10.76, -1.2], [-0.85, 0, 0], [0, 23, 5.4], [-0.1, 0, 0], [1.2, 1.45, -9.2], [-HP, 0, -1.2], [0, LQ1, 0], [0, 0, -1.25]],
     saut: [[0, CHAT_Y, 0], [0.42, 0, 0], [0, 0, 0], [0, 0, 0], [0, 5, 12.5], [-0.3, 0, 0], [0, 2.6, -11.4], [-1.15, 0, 0], [0, LQ1, 0], [0.35, 0, 0]],
-    marche: [[0, CHAT_Y, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 4.6, 12.7], [0, 0, 0], [0, 2.6, -11.4], [-0.3, 0, 0], [0, LQ1, 0], [0.7, 0, 0]],
+    marche: [[0, CHAT_Y, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 4.6, 12.7], [0, 0, 0], [0, 2.6, -11.4], [-0.45, 0, 0], [0, LQ1, 0], [0.45, 0, 0]],
   };
-  const PATTES_CHAT = [[-PATTE_X, PATTE_Y, PATTE_Z], [PATTE_X, PATTE_Y, PATTE_Z], [-PATTE_X, PATTE_Y, -PATTE_Z], [PATTE_X, PATTE_Y, -PATTE_Z]], PATTES_ASSIS = [[-2.5, 8.4, 6.6], [2.5, 8.4, 6.6], [-3.6, 2, -4], [3.6, 2, -4]], CUISSE = -HP + 0.12;
+  // assis : les pattes avant partent sous le poitrail (y = 11,5) et s'allongent jusqu'au sol, les arrière couchées vers l'avant, épaissies en cuisses
+  const PATTES_CHAT = [[-PATTE_X, PATTE_Y, PATTE_Z], [PATTE_X, PATTE_Y, PATTE_Z], [-PATTE_X, PATTE_Y, -PATTE_Z], [PATTE_X, PATTE_Y, -PATTE_Z]], PATTES_ASSIS = [[-2.4, 11.5, 5.4], [2.4, 11.5, 5.4], [-3.9, 2.9, -3.6], [3.9, 2.9, -3.6]], CUISSE = -HP + 0.1;
   // animerChat(g, { etat, phase, t }) : etat 'dort' (roulé en boule, yeux fermés, respiration lente), 'assis' (la queue balaie le sol),
   // 'marche' (diagonales opposées selon phase, en rad, que la scène fait avancer), 'saut' (incliné nez en bas, pattes repliées, pour
   // descendre du comptoir), toute autre valeur : debout immobile. Aucune allocation, même pas de nombre emballé par V8 : les poses
@@ -214,18 +217,18 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     h.position.fromArray(A[4]); h.rotation.fromArray(A[5]); q1.position.fromArray(A[6]); q1.rotation.fromArray(A[7]); q2.position.fromArray(A[8]); q2.rotation.fromArray(A[9]);
     for (let k = 0; k < 4; k++) { const p = pa[k]; p.position.fromArray(e === 'assis' ? PATTES_ASSIS[k] : PATTES_CHAT[k]); p.rotation.set(0, 0, 0); p.scale.set(1, 1, 1); p.visible = e !== 'dort'; }
     const geo = h.userData.geos[e === 'dort' ? 1 : 0]; if (h.geometry !== geo) h.geometry = geo;
-    if (e === 'dort') { // le corps écrasé en boule (respiration : scale.y × (1 ± 0,03)), la tête posée à l'avant gauche, la queue enroulée le long du flanc gauche
+    if (e === 'dort') { // le corps écrasé en boule (respiration : scale.y × (1 ± 0,03)), la tête posée à l'avant côté x < 0, la queue enroulée le long du même flanc jusqu'au museau
       const b = Math.sin(t * 1.5) * 0.03;
-      c.scale.set(1.25, 0.82, 0.72); c.scale.y = 0.82 + 0.82 * b; h.position.y = 5.1 + b * 3; q2.rotation._z = 1.5 + Math.sin(t * 0.9) * 0.08; tourner(q2);
-    } else if (e === 'assis') { // l'arrière-train au sol (le tronc relevé de 0,6 rad), pattes avant droites, pieds arrière devant, la queue couchée qui balaie
-      pa[0].scale.y = pa[1].scale.y = 1.2; pa[2].scale.y = pa[3].scale.y = 0.85; pa[2].rotation.x = pa[3].rotation.x = CUISSE;
+      c.scale.set(1.4, 0.8, 0.62); c.scale.y = 0.8 + 0.8 * b; h.position.y = 4.9 + b * 3; q2.rotation._z = 1 + Math.sin(t * 0.9) * 0.08; tourner(q2);
+    } else if (e === 'assis') { // l'arrière-train au sol (le tronc relevé de 0,85 rad), pattes avant droites, pieds arrière devant, la queue couchée qui balaie
+      pa[0].scale.y = pa[1].scale.y = 11.5 / LP; pa[2].scale.set(1.35, 0.75, 1); pa[3].scale.set(1.35, 0.75, 1); pa[2].rotation.x = pa[3].rotation.x = CUISSE;
       h.rotation._y = Math.sin(t * 0.7) * 0.12; tourner(h); q1.rotation._z = -1.2 + Math.sin(t * 1.4) * 0.18; tourner(q1); q2.rotation._z = -1.25 + Math.sin(t * 1.4 - 0.8) * 0.3; tourner(q2);
     } else if (e === 'saut') { // en l'air : nez en bas, pattes repliées sous le ventre, la queue haute pour l'équilibre
       for (let k = 0; k < 4; k++) { pa[k].rotation.x = k < 2 ? 1 : -1; pa[k].scale.y = 0.8; }
       q1.rotation._z = Math.sin(t * 5) * 0.1; tourner(q1);
-    } else { // marche (ou debout) : diagonales opposées, le dos qui descend quand les pattes s'écartent (les pieds restent au sol), la queue en point d'interrogation
+    } else { // marche (ou debout) : diagonales opposées, le dos qui descend de 0,5 quand les pattes s'écartent (le bas des pieds reste à y = 0), la queue en point d'interrogation
       const ph = e === 'marche' ? o.phase || 0 : 0, s = e === 'marche' ? Math.sin(ph) * 0.6 : 0;
-      r.position.y = CHAT_Y - 7 * (1 - Math.cos(s)); h.rotation._x = Math.sin(ph * 2) * 0.05; tourner(h);
+      r.position.y = CHAT_Y - 2.7 * (1 - Math.cos(s)); h.rotation._x = Math.sin(ph * 2) * 0.05; tourner(h);
       for (let k = 0; k < 4; k++) { pa[k].rotation._x = k === 0 || k === 3 ? s : -s; tourner(pa[k]); }
       q1.rotation._z = Math.sin(t * 2.6) * 0.22; tourner(q1); q2.rotation._z = Math.sin(t * 2.6 - 0.9) * 0.3; tourner(q2);
     }
@@ -268,7 +271,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       case 'citrouille': { // tarte à la citrouille : moule de pâte, bord dentelé, garniture en côtes de potiron, la tige au centre
         p.push(M.part(M.cylindre(7.5, 6.6, 2.6, 16), '#E9A95C'), M.part(M.tore(6.95, 0.95, TAU, 6, 18), '#E39A4C', { y: 2.6, rx: HP }), M.part(M.cylindre(6.2, 6.2, 0.6, 16), '#F08A24', { y: 2.4 }));
         for (let k = 0; k < 12; k++) { const a = k * TAU / 12; p.push(M.part(M.sphere(0.9, 6), '#EFB46A', { x: Math.sin(a) * 6.95, y: 3.05, z: Math.cos(a) * 6.95 })); }
-        for (let k = 0; k < 8; k++) { const a = (k + 0.5) * TAU / 8; p.push(M.part(M.sphere(3, 10), k % 2 ? '#F28C28' : '#F7A040', { x: Math.sin(a) * 3, y: 2.9, z: Math.cos(a) * 3, ry: a, sx: 0.5, sy: 0.32 })); }
+        for (let k = 0; k < 8; k++) { const a = (k + 0.5) * TAU / 8; p.push(M.part(M.sphere(3.1, 10), k % 2 ? '#F28C28' : '#F59A36', { x: Math.sin(a) * 2.9, y: 2.85, z: Math.cos(a) * 2.9, ry: a, sx: 0.66, sy: 0.4 })); } // huit côtes jointives : le dessus d'un potiron
         p.push(M.part(M.cylindre(0.55, 0.75, 1.8, 6), '#5DA84A', { y: 3.4 }), M.part(M.sphere(1.1, 6), '#7BC45E', { x: 1.2, y: 4.3, z: 0.3, sx: 1.4, sy: 0.3, sz: 0.8, rz: -0.35 }));
         break;
       }
@@ -285,17 +288,18 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       }
       case 'crepe': { // une pile de quatre crêpes dorées qui débordent un peu les unes des autres, un quartier de citron dessus
         [[0.3, -0.2], [-0.5, 0.35], [0.45, 0.4], [-0.2, -0.35]].forEach(([x, z], k) => p.push(M.part(M.cylindre(7.15, 6.85, 0.8, 18), ['#F2C77A', '#EBB866', '#F2C77A', '#F5CF86'][k], { x, y: k * 0.82, z })));
-        for (const [x, z] of [[-3.6, 2.2], [-1, 4.6], [2.4, 3.6], [4.2, 0.4], [-4.4, -1.8], [0.4, -4.4], [-1.5, 0.6]]) p.push(M.part(M.sphere(0.85, 6), '#DFA24E', { x, y: 3.26, z, sy: 0.22 }));
+        for (const [x, z, r] of [[-3.6, 2.2, 0.8], [-1, 4.6, 0.6], [2.4, 3.6, 0.9], [4.2, 0.4, 0.6], [-4.4, -1.8, 0.7], [0.4, -4.4, 0.85], [-1.5, 0.6, 0.55]]) p.push(M.part(M.sphere(r, 8), '#DFA24E', { x, y: 3.26, z, sx: 1.25, sy: 0.22 })); // les taches dorées de la poêle
         p.push(...deplacer([M.part(demiDisque(2.9, 1.3), '#F7D531'), M.part(demiDisque(2.4, 1.5), '#FFF3A6'), M.part(M.boiteSimple(0.25, 2.2, 1.55), BLANC, { rz: 0.6 }), M.part(M.boiteSimple(0.25, 2.2, 1.55), BLANC, { rz: -0.6 })], { x: 2.4, y: 3.2, z: -1.4, ry: 0.45 }));
         for (const [x, z] of [[-2.6, -1.2], [-3.4, 0.4], [1.2, 1.8], [-0.6, 2.8]]) p.push(M.part(M.sphere(0.35, 5), BLANC, { x, y: 3.3, z }));
         break;
       }
       case 'paques': { // une poule en chocolat (yeux en sucre, crête et barbillon rouges, ruban rose) et deux œufs pastel dans un nid
         const CH = '#7A4A2A', x0 = -3.3;
-        p.push(M.part(M.sphere(4, 12), CH, { x: x0, y: 3.7, sy: 0.92, sz: 1.12 }), M.part(M.sphere(2.5, 10), CH, { x: x0, y: 7.4, z: 2.4 }), M.part(M.cone(1.6, 3.4, 8), CH, { x: x0, y: 5, z: -3.4, rx: -0.75 }));
+        p.push(M.part(M.sphere(4, 12), CH, { x: x0, y: 3.7, sy: 0.92, sz: 1.12 }), M.part(M.sphere(2.5, 10), CH, { x: x0, y: 7.4, z: 2.4 }));
+        for (const a of [-0.45, 0, 0.45]) p.push(M.part(M.sphere(1.6, 8), '#6A3E22', { x: x0 + Math.sin(a) * 1.6, y: 6.2, z: -3.6, rz: -a, rx: -0.5, sx: 0.5, sy: 1.35, sz: 0.75 })); // la queue en éventail de plumes
         for (const sx of [-1, 1]) p.push(M.part(M.sphere(2.2, 8), '#8E5A36', { x: x0 + sx * 3.75, y: 3.9, z: -0.3, sx: 0.45, sy: 0.75, sz: 1.1 }), M.part(M.sphere(0.5, 6), BLANC, { x: x0 + sx * 1.05, y: 7.9, z: 4.5 }), M.part(M.sphere(0.3, 6), L, { x: x0 + sx * 1.05, y: 7.95, z: 4.95 }));
         p.push(M.part(M.cone(0.65, 1.4, 6), '#FFB347', { x: x0, y: 7.2, z: 4.6, rx: HP }), M.part(M.sphere(0.5, 6), ROUGE, { x: x0, y: 6.3, z: 4.4 }));
-        for (const [y, z] of [[9.9, 1.6], [10.2, 2.5], [9.8, 3.3]]) p.push(M.part(M.sphere(0.6, 6), ROUGE, { x: x0, y, z }));
+        for (const [y, z] of [[9.6, 0.9], [10, 1.7], [9.75, 2.5]]) p.push(M.part(M.sphere(0.7, 6), ROUGE, { x: x0, y, z })); // la crête, sur le haut du crâne
         p.push(M.part(M.tore(2.25, 0.38, TAU, 6, 14), '#FF9FB2', { x: x0, y: 5.6, z: 1.9, rx: HP - 0.4 }), M.part(M.sphere(0.7, 6), '#FF9FB2', { x: x0 - 0.7, y: 4.9, z: 4.1, sx: 1.2, sz: 0.6 }), M.part(M.sphere(0.7, 6), '#FF9FB2', { x: x0 + 0.7, y: 4.9, z: 4.1, sx: 1.2, sz: 0.6 }));
         p.push(M.part(M.tore(3.2, 0.95, TAU, 6, 14), '#E8C27A', { x: 4.3, y: 0.85, z: 0.6, rx: HP }), M.part(M.cylindre(3, 3, 0.6, 14), '#D9AE62', { x: 4.3, y: 0.2, z: 0.6 }));
         for (const [x, z, rz, c1] of [[3.2, 1.7, 0.3, '#FFC2D1'], [5.5, -0.5, -0.25, '#A9D8FF']]) p.push(...deplacer([M.part(M.sphere(2.2, 12), c1, { sy: 1.3 }), M.part(M.tore(2.24, 0.26, TAU, 4, 16), BLANC, { rx: HP }), M.part(M.sphere(0.4, 5), BLANC, { y: 1.6, z: 1.55 }), M.part(M.sphere(0.4, 5), BLANC, { x: 1, y: -1.3, z: 1.6 })], { x, y: 2.9, z, rz }));
@@ -311,14 +315,14 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
         break;
       }
       case 'glace': { // deux cornets gaufrés plantés dans un présentoir, une boule menthe (pépites), une boule rose (cerise)
-        p.push(M.part(M.boite(16, 2.6, 7, 1), '#E7D4FF'));
+        p.push(M.part(M.boite(13, 2, 5, 0.9), '#E7D4FF')); // un petit présentoir
         for (const sx of [-1, 1]) {
-          const c = [M.part(M.cone(2.5, 8.5, 10), '#E8AE5E', { y: 10.5, rx: Math.PI })], boule = sx < 0 ? '#A8E6CF' : '#FFB3C8', b = Math.atan(2.5 / 8.5);
-          for (const y of [4.5, 6.6, 8.7]) c.push(M.part(M.tore(2.5 * (y - 2) / 8.5 + 0.06, 0.2, TAU, 4, 12), '#C98A3E', { y, rx: HP }));
-          for (const a of [0.9, 1.57, 2.25, -0.3, 3.45]) c.push(M.part(M.capsule(0.16, 7.6, 4), '#C98A3E', { x: Math.cos(a) * 1.32, y: 6.25, z: Math.sin(a) * 1.32, rz: b, ry: Math.PI - a }));
-          c.push(M.part(M.tore(2.55, 0.75, TAU, 6, 14), boule, { y: 10.9, rx: HP }), M.part(M.sphere(3, 12), boule, { y: 12.9 }));
-          if (sx < 0) for (const [a, e] of [[0.5, 0.4], [1.6, 0.9], [2.6, 0.3], [1.1, -0.2], [2.1, 0.1], [-0.4, 0.7]]) c.push(M.part(M.sphere(0.34, 5), '#5B3A29', { x: Math.cos(a) * Math.cos(e) * 3, y: 12.9 + Math.sin(e) * 3, z: Math.sin(a) * Math.cos(e) * 3 }));
-          else c.push(M.part(M.sphere(0.9, 8), ROUGE, { y: 16.5 }), M.part(M.capsule(0.12, 1.2, 4), '#5DA84A', { x: 0.3, y: 17.6, rz: -0.4 }));
+          const c = [M.part(M.cone(2.5, 7.5, 10), '#E8AE5E', { y: 9.5, rx: Math.PI })], boule = sx < 0 ? '#A8E6CF' : '#FFB3C8', b = Math.atan(2.5 / 7.5); // le cornet, pointe en bas (à y = 2, dans le présentoir)
+          for (const y of [4.2, 6, 7.8]) c.push(M.part(M.tore(+(2.5 * (y - 2) / 7.5 + 0.06).toFixed(2), 0.2, TAU, 4, 12), '#C98A3E', { y, rx: HP })); // le gaufrage : des cercles et des génératrices
+          for (const a of [0.9, 1.57, 2.25, -0.3, 3.45]) c.push(M.part(M.capsule(0.16, 6.6, 4), '#C98A3E', { x: Math.cos(a) * 1.32, y: 5.75, z: Math.sin(a) * 1.32, rz: b, ry: Math.PI - a }));
+          c.push(M.part(M.tore(2.55, 0.75, TAU, 6, 14), boule, { y: 9.9, rx: HP }), M.part(M.sphere(3, 12), boule, { y: 11.9 }));
+          if (sx < 0) for (const [a, e] of [[0.5, 0.4], [1.6, 0.9], [2.6, 0.3], [1.1, -0.2], [2.1, 0.1], [-0.4, 0.7]]) c.push(M.part(M.sphere(0.34, 5), '#5B3A29', { x: Math.cos(a) * Math.cos(e) * 3, y: 11.9 + Math.sin(e) * 3, z: Math.sin(a) * Math.cos(e) * 3 })); // les pépites de chocolat
+          else c.push(M.part(M.sphere(0.9, 8), ROUGE, { y: 15.5 }), M.part(M.capsule(0.12, 1.2, 4), '#5DA84A', { x: 0.3, y: 16.6, rz: -0.4 }));
           p.push(...deplacer(c, { x: sx * 3.8, y: 0, rz: -sx * 0.1 }));
         }
         break;
@@ -342,10 +346,11 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       g.userData.anime = (E) => { for (let k = 0; k < chats.length; k++) { oc[k].t = E.t; oc[k].phase = E.t * 8; animerChat(chats[k], oc[k]); } };
       g.position.set(195, 0, 350); if (zoom) g.scale.setScalar(zoom); return g;
     }
+    if (nom.startsWith('saison-')) { const m = patisserieSaison(nom.slice(7)); m.rotation.y = 0.35; g.add(m); g.position.set(195, 0, 380); g.scale.setScalar(zoom || 6); return g; } // une seule, de trois quarts, grossie
     if (nom === 'saisons') { for (let i = 0; i < SAISONS.length; i++) { const m = patisserieSaison(SAISONS[i]); m.position.set(70 + 50 * i, 0, 400); m.scale.setScalar(2); g.add(m); } return g; }
     if (nom === 'grades') { // les cinq grades côte à côte, sans plateau (la bande, l'étoile, la toque et le liseré se voient)
       const cl = [], os = [];
-      for (let k = 0; k < 5; k++) { cl.push(client((k - 2) * 62, { haut: ['#5FD3A4', '#9BD0FF', '#C7B8FF', '#FFB48A', '#FF9FB2'][k], peau: ['#FFD7B5', '#F1B990', '#C68B59', '#FFD7B5', '#8D5A3C'][k], coiffure: 0, toque: true, tablier: true, grade: k + 1 })); os.push({ dir: 0, expression: 'sourire', blink: 0, t: 0 }); }
+      for (let k = 0; k < 5; k++) { cl.push(client((k - 2) * 50, { haut: ['#5FD3A4', '#9BD0FF', '#C7B8FF', '#FFB48A', '#FF9FB2'][k], peau: ['#FFD7B5', '#F1B990', '#C68B59', '#FFD7B5', '#8D5A3C'][k], coiffure: 0, toque: true, tablier: true, grade: k + 1 })); os.push({ dir: 0, expression: 'sourire', blink: 0, t: 0 }); }
       g.userData.anime = (E) => { for (let k = 0; k < 5; k++) { os[k].t = E.t; animer(cl[k], os[k]); } };
       g.position.set(195, 0, 350); if (zoom) g.scale.setScalar(zoom); return g;
     }
