@@ -29,7 +29,9 @@
    des textures ≤ 96 / 64 / 32 Mo (stats.memoire). Aucune allocation par image dans les chemins chauds (vecteurs de travail, tableaux
    préparés, champs).
    API (contrat, voir src-poncin/ARCHITECTURE.md) : init(canvas, carte, monde, { qualite, dossier }) → bool ; taille(w, h) ;
-   image(jeu, idCamera, dt, t) (jeu = null : survol de Poncin) ; evenements(evs, jeu) ; qualite(q?) ; stats ; projeter(x, y, z) → { x, y, devant }
+   image(jeu, idCamera, dt, t, alpha?) (jeu = null : survol de Poncin ; alpha ∈ [0, 1], 1 par défaut : chaque entité est dessinée à
+   a + (x − a)·alpha, a = ax / ay / az / aoeil posés par jeu.js au début de chaque pas ; caméra de PCORPS.camera, regard = e.yaw/e.pitch
+   + PCONTROLES.enAttente()) ; reglages({ balancement: 'normal' | 'doux' | 'aucun' }) → { balancement } ; evenements(evs, jeu) ; qualite(q?) ; stats ; projeter(x, y, z) → { x, y, devant }
    (objet partagé, à lire tout de suite). En plus : fov (champ vertical en degrés, lu par le HUD), webgl, survol(o) (règle le survol). */
 const PRENDU = (() => {
   'use strict';
@@ -154,7 +156,10 @@ const PRENDU = (() => {
   function trianguler(p) { // indices [i, j, k, …] d'un polygone simple (earcut de Three)
     try { const v = p.map((q) => new THREE.Vector2(q[0], q[1])), t = THREE.ShapeUtils.triangulateShape(v, []), out = []; for (const f of t) out.push(f[0], f[1], f[2]); return out; } catch (e) { return []; }
   }
-  const H0 = (x, z) => { try { const h = monde.hauteur(x, z); return fini(h) ? h : 0; } catch (e) { return 0; } };
+  // H0 : le relief seul (le sol dessiné, les murs, l'eau, les ponts eux-mêmes) ; HS : là où l'on marche (le relief, ou la chaussée d'un
+  // pont, C7) : ombres des personnages, objets, gouttes de peinture
+  const H0 = (x, z) => { try { const h = monde.relief ? monde.relief(x, z) : monde.hauteur(x, z); return fini(h) ? h : 0; } catch (e) { return 0; } };
+  const HS = (x, z) => { try { const h = monde.hauteur(x, z); return fini(h) ? h : 0; } catch (e) { return 0; } };
 
   // ─── un index des rues (segments) pour « quelle façade donne sur la rue ? » et l'herbe des bois ───
   let indexRues = null;
@@ -805,16 +810,13 @@ const PRENDU = (() => {
     eau = new THREE.Mesh(g, eauMat); eau.renderOrder = 2; eau.receiveShadow = false; eau.name = 'eau'; scene.add(eau);
   }
   let ponts = null, clotures = null;
+  const CH = typeof PMONDE !== 'undefined' && PMONDE.CHAUSSEE > 0 ? PMONDE.CHAUSSEE : 0.06; // l'épaisseur de la chaussée (monde.js : on marche dessus)
   function construirePonts() {
     const parts = [];
-    for (const pt of carte.ponts || []) {
-      const l = pt && pt.l; if (!Array.isArray(l) || l.length < 2 || !l[0] || !l[l.length - 1]) continue;
-      const ax = +l[0][0], az = +l[0][1], bx = +l[l.length - 1][0], bz = +l[l.length - 1][1]; if (![ax, az, bx, bz].every(fini)) continue;
-      const len = Math.hypot(bx - ax, bz - az); if (len < 1) continue;
-      const w = fini(+pt.w) && pt.w > 0 ? +pt.w : 6, hA = H0(ax, az) + 0.08, hB = H0(bx, bz) + 0.08, eauY = niveauEau((ax + bx) / 2, (az + bz) / 2) - 1.2;
-      // le tablier : droit d'une rive à l'autre, mais jamais sous le terrain (les joueurs marchent à monde.hauteur : leurs pieds restent dessus)
-      const N = Math.max(2, Math.ceil(len / 1.5)), prof = [];
-      for (let k = 0; k <= N; k++) { const t = k / N; prof.push(Math.max(hA + (hB - hA) * t, H0(ax + (bx - ax) * t, az + (bz - az) * t) + 0.08)); }
+    for (const T of monde.tabliers || []) {
+      const ax = T.ax, az = T.az, bx = T.bx, bz = T.bz, len = T.len, w = T.w, eauY = niveauEau((ax + bx) / 2, (az + bz) / 2) - 1.2;
+      // le tablier : le profil de monde.tabliers (C7 : une seule formule ; monde.hauteur suit la chaussée, posée 6 cm au-dessus du profil)
+      const N = T.n, prof = T.prof;
       // la silhouette du pont dans son plan (s le long, y en hauteur) : une dalle, ou une maçonnerie creusée d'arches en plein cintre
       const sh = new THREE.Shape(), hm = Math.min(...prof), na = hm - eauY < 2.8 ? 0 : Math.max(1, Math.round(len / 15));
       sh.moveTo(0, prof[0]); for (let k = 1; k <= N; k++) sh.lineTo(len * k / N, prof[k]);
@@ -832,7 +834,7 @@ const PRENDU = (() => {
       for (let k = 0; k < N; k++) {
         const s0 = len * k / N, s1 = len * (k + 1) / N, y0 = prof[k], y1 = prof[k + 1], lg = Math.hypot(s1 - s0, y1 - y0), pe = Math.atan2(y1 - y0, s1 - s0), m = repere.clone().multiply(M.matrice({ x: (s0 + s1) / 2, y: (y0 + y1) / 2, rz: pe }));
         for (const sv of [-1, 1]) { parts.push({ geo: new THREE.BoxGeometry(lg + 0.02, 0.95, 0.4).translate(0, 0.47, sv * (w / 2 - 0.2)), col: '#D6C8AE', m: m.clone(), nom: 'pierre' }, { geo: new THREE.BoxGeometry(lg + 0.04, 0.14, 0.52).translate(0, 0.98, sv * (w / 2 - 0.2)), col: '#DCD1BC', m: m.clone(), nom: 'taille' }); }
-        parts.push({ geo: new THREE.BoxGeometry(lg + 0.02, 0.06, w - 0.8).translate(0, 0.03, 0), col: '#8F8A84', m });
+        parts.push({ geo: new THREE.BoxGeometry(lg + 0.02, CH, w - 0.8).translate(0, CH / 2, 0), col: '#8F8A84', m });
       }
     }
     if (!parts.length) return;
@@ -1092,7 +1094,7 @@ const PRENDU = (() => {
       if (!p.sol) {
         const fr = p.conf ? Math.exp(-dt * 2.6) : Math.exp(-dt * 0.6); p.vx *= fr; p.vz *= fr; p.vy = p.vy * fr - (p.conf ? 5 : 13) * dt;
         p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.a += p.va * dt;
-        const g = H0(p.x, p.z) + 0.02; if (p.y < g) { p.y = g; p.sol = true; p.ax = 1; p.ay = 0; p.az = 0; p.a = -HP; }
+        const g = HS(p.x, p.z) + 0.02; if (p.y < g) { p.y = g; p.sol = true; p.ax = 1; p.ay = 0; p.az = 0; p.a = -HP; }
       }
       const fin = p.vie - p.age, k = p.s * (fin < 0.3 ? fin / 0.3 : 1);
       _v2.set(p.ax, p.ay, p.az).normalize(); _q.setFromAxisAngle(_v2, p.a); _v.set(p.x, p.y, p.z); _s.set(k, p.conf ? k * 0.6 : k, k); _m.compose(_v, _q, _s); P.im.setMatrixAt(i, _m); np = i + 1;
@@ -1125,7 +1127,7 @@ const PRENDU = (() => {
     const ty = OBJ.types, TL = OBJ.liste_types || (OBJ.liste_types = Object.keys(ty).map((k) => ty[k])); for (let k = 0; k < TL.length; k++) TL[k].count = 0;
     let na = 0;
     for (let i = 0; i < OBJ.liste.length && na < 16; i++) {
-      const o = OBJ.liste[i]; if (!o || !fini(+o.x) || !fini(+o.z)) continue; const x = +o.x, z = +o.z, y = H0(x, z), col = COUL_OBJ[o.objet] || '#FFFFFF';
+      const o = OBJ.liste[i]; if (!o || !fini(+o.x) || !fini(+o.z)) continue; const x = +o.x, z = +o.z, y = HS(x, z), col = COUL_OBJ[o.objet] || '#FFFFFF';
       _v.set(x, y + 0.04, z); _q.identity(); const pulse = o.dispo ? 1 + Math.sin(t * 3 + i) * 0.06 : 0.8; _s.set(pulse, 1, pulse); _m.compose(_v, _q, _s); OBJ.anneaux.setMatrixAt(na, _m);
       const cl = lin(col), kd = o.dispo ? 0 : 0.6; OBJ.anneaux.instanceColor.setXYZ(na, cl[0] + (1 - cl[0]) * kd, cl[1] + (1 - cl[1]) * kd, cl[2] + (1 - cl[2]) * kd); na++;
       const im = ty[o.objet]; if (!im || !o.dispo || im.count >= 8) continue;
@@ -1179,9 +1181,10 @@ const PRENDU = (() => {
       if (av && (av.robot !== robot || (typeof e.couleur === 'string' && av.col !== e.couleur && /^#[0-9a-f]{6}$/i.test(e.couleur)))) { AV.liberer(av); acteurs.delete(e.id); av = null; }
       if (!av) { try { av = AV.creer(e); scene.add(av.groupe); acteurs.set(e.id, av); } catch (err) { signaler('avatar', err); continue; } }
       av.vu = frame;
-      try { AV.animer(av, e, dt, t); } catch (err) { signaler('animer', err); }
+      affiche(e);
+      try { AV.animer(av, e, dt, t, AFF.x, AFF.y, AFF.z); } catch (err) { signaler('animer', err); }
       if (e.id === idCam && !camMorte) av.groupe.visible = false; // la vue subjective : on ne se voit pas
-      if (ombres && av.groupe.visible && e.vivant !== false && no < 16 && fini(+e.x)) { const g = H0(+e.x, +e.z), hh = Math.max(0, (+e.y || 0) - g), k = 1 / (1 + hh * 0.6); _v.set(+e.x, g + 0.03, +e.z); _q.identity(); _s.set(1.2 * k, 1, 1.2 * k); _m.compose(_v, _q, _s); ombre.setMatrixAt(no++, _m); }
+      if (ombres && av.groupe.visible && e.vivant !== false && no < 16 && fini(AFF.x)) { const g = HS(AFF.x, AFF.z), hh = Math.max(0, AFF.y - g), k = 1 / (1 + hh * 0.6); _v.set(AFF.x, g + 0.03, AFF.z); _q.identity(); _s.set(1.2 * k, 1, 1.2 * k); _m.compose(_v, _q, _s); ombre.setMatrixAt(no++, _m); }
     }
     acteurs.forEach(balayer);
     ombre.count = no; ombre.visible = no > 0; if (no) ombre.instanceMatrix.needsUpdate = true;
@@ -1190,7 +1193,7 @@ const PRENDU = (() => {
   function trouver(jeu, id) { const es = jeu && jeu.entites; if (!es) return null; for (let i = 0; i < es.length; i++) if (es[i] && es[i].id === id) return es[i]; return null; }
 
   // ═══════════════════════════════ l'arme en vue subjective (scène à part) ═══════════════════════════════
-  const FP = { groupe: null, arme: null, mains: null, flash: null, id: 'rafale', col: '', recul: 0, phase: 0, swx: 0, swy: 0, lastYaw: 0, lastPitch: 0, change: 0, nouvelle: '', recharge: 0, flashT: 0, vit: 0, px: 0, pz: 0 };
+  const FP = { groupe: null, arme: null, mains: null, flash: null, id: 'rafale', col: '', recul: 0, phase: 0, swx: 0, swy: 0, lastYaw: 0, lastPitch: 0, change: 0, nouvelle: '', recharge: 0, flashT: 0 };
   // les mains de la vue subjective : moufles crème, manches à la couleur du joueur (une capsule tendue entre deux points)
   function entre(geo, col, a, b) { const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), l = A.distanceTo(B), d = B.clone().sub(A).normalize(), q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d); return { geo, col, m: new THREE.Matrix4().compose(A.clone().add(d.multiplyScalar(l / 2)), q, new THREE.Vector3(1, 1, 1)) }; }
   const geoMains = (col) => { const k = 'pr-mains|' + col; let g = M.GEOS.get(k); if (!g) { const gant = '#FFF3E2', manche = col, poignet = M.eclaircir(col, 0.35); g = M.assembler([
@@ -1215,16 +1218,16 @@ const PRENDU = (() => {
     if (id !== FP.id && FP.change <= 0) { FP.change = 0.36; FP.nouvelle = id; }
     if (FP.change > 0) { FP.change -= dt; if (FP.change <= 0.18 && FP.id !== FP.nouvelle) { FP.id = FP.nouvelle; if (AV) FP.arme.geometry = AV.blaster(FP.id); } }
     const col = typeof e.couleur === 'string' && /^#[0-9a-f]{6}$/i.test(e.couleur) ? e.couleur : '#FFC84A'; if (col !== FP.col) { FP.col = col; FP.mains.geometry = geoMains(col); }
-    // le balancement de marche, l'inertie de la visée, le recul, la recharge, le changement d'arme
-    const dx = (+e.x || 0) - FP.px, dz = (+e.z || 0) - FP.pz, d = Math.sqrt(dx * dx + dz * dz); FP.px = +e.x || 0; FP.pz = +e.z || 0;
-    const v = d < 3 && dt > 0 ? d / dt : 0; FP.vit += (Math.min(7, v) - FP.vit) * Math.min(1, dt * 8); const k = Math.min(1, FP.vit / (JOUEUR.vitesse || 5.2)) * (e.auSol === false ? 0.3 : 1);
-    FP.phase += dt * (5 + FP.vit * 1.2);
-    let dyaw = (+e.yaw || 0) - FP.lastYaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); const dp = (+e.pitch || 0) - FP.lastPitch; FP.lastYaw = +e.yaw || 0; FP.lastPitch = +e.pitch || 0;
+    // le balancement de marche (C3 : la phase φ de la foulée de la caméra, une descente douce par pas, le côté une fois par foulée ;
+    // × 0,2 en visée), l'inertie de la visée, le recul, la recharge, le changement d'arme
+    const k = CAM.k * (1 - 0.8 * (e.vise > 0 ? Math.min(1, e.vise) : 0)) * CAM.bal, ph = CAM.phi;
+    FP.phase = ph; const bobY = -0.006 * k * (1 - Math.cos(2 * ph)) / 2, bobX = 0.008 * k * Math.sin(ph);
+    let dyaw = CAM.yaw - FP.lastYaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); const dp = CAM.pitch - FP.lastPitch; FP.lastYaw = CAM.yaw; FP.lastPitch = CAM.pitch;
     FP.swx = (FP.swx + borne(dyaw, -0.2, 0.2) * 0.35) * Math.exp(-dt * 9); FP.swy = (FP.swy - borne(dp, -0.2, 0.2) * 0.35) * Math.exp(-dt * 9);
     FP.recul *= Math.exp(-dt * 13);
     let rech = 0; const fin = +e.rechargeJusqua, tj = +jeu.temps; if (fini(fin) && fini(tj) && fin > tj) { const A = REG ? REG.arme(e.arme) : null, du = A ? A.recharge : 1.6; rech = Math.sin(Math.PI * borne(1 - (fin - tj) / du, 0, 1)); }
     const ch = FP.change > 0 ? Math.sin(Math.PI * (1 - FP.change / 0.36)) : 0;
-    g.position.set(BASE_FP[0] + Math.sin(FP.phase) * 0.014 * k + FP.swx * 0.12, BASE_FP[1] - Math.abs(Math.cos(FP.phase)) * 0.012 * k + FP.swy * 0.12 - rech * 0.16 - ch * 0.3 + Math.sin(t * 1.7) * 0.002, BASE_FP[2] + FP.recul * 0.07 + (e.accroupi ? 0.02 : 0));
+    g.position.set(BASE_FP[0] + bobX + FP.swx * 0.12, BASE_FP[1] + bobY + FP.swy * 0.12 - rech * 0.16 - ch * 0.3 + Math.sin(t * 1.7) * 0.002, BASE_FP[2] + FP.recul * 0.07 + (e.accroupi ? 0.02 : 0));
     const gr = g.rotation; gr._x = 0.03 + FP.recul * 0.16 - rech * 0.35 + FP.swy * 0.4; gr._y = 0.05 + FP.swx * 0.6; gr._z = -0.05 + rech * 0.55 + FP.swx * 0.3; tourner(g); // champs d'Euler + quaternion (pas de mise en boîte, voir avatars.js)
     // l'éclair au bout du canon
     if (FP.flashT > 0) { FP.flashT -= dt; const b = AV ? AV.BOUCHE[FP.id] : [0, 0.07, -0.47]; FP.flash.visible = FP.flashT > 0; FP.flash.position.set(b[0], b[1], b[2] - 0.03); const s2 = 0.07 + FP.flashT * 1.4; FP.flash.scale.set(s2, s2, s2); FP.flash.rotation._z = (frame * 1.3) % TAU; tourner(FP.flash); } else FP.flash.visible = false;
@@ -1235,27 +1238,74 @@ const PRENDU = (() => {
   }
 
   // ═══════════════════════════════ la caméra ═══════════════════════════════
-  const CAM = { oeil: JOUEUR.oeil || 1.6, phase: 0, vit: 0, px: 0, pz: 0, secousse: 0, kick: 0, morte: 0, par: null, yawM: 0, pitchM: 0, id: null, rx: 0, ry: 0, rz: 0, lx: 0, ly: 0, lz: 0, survolT: 0 };
+  // CAM.f : la caméra subjective de PCORPS.camera (C1 balancement calé sur la foulée, C2 œil lissé par Holt, creux d'atterrissage) ;
+  // CAM.yaw / CAM.pitch : le regard affiché (celui de la simulation + les variations pas encore consommées : PCONTROLES.enAttente) ;
+  // CAM.phi, CAM.k : la phase de la foulée et la part du balancement (pour l'arme subjective, C3) ; CAM.bal : le réglage (1, 0,5 ou 0)
+  const CAM = { oeil: JOUEUR.oeil || 1.6, phase: 0, phi: 0, k: 0, bal: 1, balancement: 'normal', f: null, yaw: 0, pitch: 0, secousse: 0, kick: 0, morte: 0, par: null, yawM: 0, pitchM: 0, id: null, rx: 0, ry: 0, rz: 0, lx: 0, ly: 0, lz: 0, survolT: 0 };
+  const BAL = { normal: 1, doux: 0.5, aucun: 0 };
   const SURVOL = { centre: null, rayon: 165, hauteur: 58, vitesse: 0.045 };
+  // la vue de l'entité suivie, telle que PCORPS.camera la lit (objet réutilisé : position affichée, œil affiché, posture)
+  const VUE = { x: 0, y: 0, z: 0, auSol: true, vy: 0, corpsV2: true, oeil: JOUEUR.oeil || 1.6, vers: 'debout', course: false, vise: 0, accroupi: false };
+  // la position affichée d'une entité : a + (x − a)·alpha (ax, ay, az, aoeil posés par jeu.js au début de chaque pas ; repli sur x s'ils
+  // manquent, et pas d'interpolation à travers une téléportation) → AFF (réutilisé)
+  const AFF = { x: 0, y: 0, z: 0, oeil: 0 };
+  let ALPHA = 1;
+  function affiche(e) {
+    const x = +e.x, y = +e.y, z = +e.z, a = ALPHA;
+    AFF.x = x; AFF.y = y; AFF.z = z; AFF.oeil = +e.oeil;
+    if (a >= 1) return AFF;
+    const ax = +e.ax, ay = +e.ay, az = +e.az;
+    if (!(ax - ax === 0 && ay - ay === 0 && az - az === 0) || Math.abs(x - ax) + Math.abs(z - az) > 4 || Math.abs(y - ay) > 4) return AFF;
+    AFF.x = ax + (x - ax) * a; AFF.y = ay + (y - ay) * a; AFF.z = az + (z - az) * a;
+    const ao = +e.aoeil; if (ao - ao === 0 && AFF.oeil - AFF.oeil === 0) AFF.oeil = ao + (AFF.oeil - ao) * a;
+    return AFF;
+  }
+  function cameraCorps() { // créée à la première image (PCORPS est chargé avant rendu.js dans la page ; l'atelier peut s'en passer)
+    if (!CAM.f && typeof PCORPS !== 'undefined' && PCORPS && typeof PCORPS.camera === 'function') CAM.f = PCORPS.camera({ balancement: CAM.balancement });
+    return CAM.f;
+  }
+  function regard(e, suivi) { // le regard affiché : celui de la simulation, plus ce que les commandes ont pris et que le pas n'a pas encore consommé
+    let yaw = +e.yaw || 0, pitch = +e.pitch || 0;
+    if (suivi && typeof PCONTROLES !== 'undefined' && PCONTROLES && typeof PCONTROLES.enAttente === 'function') {
+      let w = null; try { w = PCONTROLES.enAttente(); } catch (err) { w = null; }
+      if (w) { const dy = +w.dyaw, dp = +w.dpitch; if (dy - dy === 0) yaw += dy; if (dp - dp === 0) pitch += dp; }
+    }
+    CAM.yaw = yaw; CAM.pitch = borne(pitch, -1.45, 1.45);
+  }
   function poserCameraJeu(jeu, e, dt, t) {
-    const x = +e.x, y = +e.y, z = +e.z; if (!fini(x) || !fini(y) || !fini(z)) return false;
-    const cible = e.accroupi ? (JOUEUR.oeilAccroupi || 1.0) : (JOUEUR.oeil || 1.6); CAM.oeil += (cible - CAM.oeil) * Math.min(1, dt * 12);
-    const dx = x - CAM.px, dz = z - CAM.pz, d = Math.sqrt(dx * dx + dz * dz); CAM.px = x; CAM.pz = z; const v = d < 3 && dt > 0 ? d / dt : 0; CAM.vit += (Math.min(7, v) - CAM.vit) * Math.min(1, dt * 10);
-    const k = Math.min(1, CAM.vit / (JOUEUR.vitesse || 5.2)) * (e.auSol === false ? 0 : 1); if (d < 3) CAM.phase += d * TAU / 1.5;
+    affiche(e); const x = AFF.x, y = AFF.y, z = AFF.z; if (!fini(x) || !fini(y) || !fini(z)) return false;
+    // l'œil de la posture : celui de la simulation (corps v2, interpolé) ; au régime historique, l'accroupi lissé comme avant
+    if (e.corpsV2 && fini(AFF.oeil)) CAM.oeil = AFF.oeil;
+    else { const cible = e.accroupi ? (JOUEUR.oeilAccroupi || 1.0) : (JOUEUR.oeil || 1.6); CAM.oeil += (cible - CAM.oeil) * Math.min(1, dt * 12); }
     CAM.secousse *= Math.exp(-dt * 7); CAM.kick *= Math.exp(-dt * 12);
-    const yaw = +e.yaw || 0, pitch = borne(+e.pitch || 0, -1.45, 1.45), sh = CAM.secousse, bob = Math.sin(CAM.phase * 2) * 0.03 * k;
+    regard(e, true);
+    const yaw = CAM.yaw, pitch = CAM.pitch, sh = CAM.secousse;
     if (e.vivant === false) { // éliminé : on s'élève un peu, on penche, on regarde celui qui nous a repeint
       CAM.morte = Math.min(1, CAM.morte + dt * 1.6); const m = CAM.morte, s = m * m * (3 - 2 * m);
       let yw = yaw, pt = pitch; const tueur = CAM.par != null ? trouver(jeu, CAM.par) : null;
       if (tueur && fini(+tueur.x)) { yw = Math.atan2(-(+tueur.x - x), -(+tueur.z - z)); const dd = Math.hypot(+tueur.x - x, +tueur.z - z); pt = Math.atan2((+tueur.y + 1.2) - (y + 2.4), dd); }
       CAM.yawM += Math.atan2(Math.sin(yw - CAM.yawM), Math.cos(yw - CAM.yawM)) * Math.min(1, dt * 3 * s); CAM.pitchM += (pt - 0.12 - CAM.pitchM) * Math.min(1, dt * 3 * s);
       camera.position.set(x, y + CAM.oeil + s * 1.2, z); const cr = camera.rotation; cr._x = CAM.pitchM; cr._y = CAM.yawM; cr._z = s * 0.18; tourner(camera);
+      CAM.k = 0; if (CAM.f) CAM.f.remettre(); // au retour, l'œil repart net
       return true;
     }
     CAM.morte = 0; CAM.yawM = yaw; CAM.pitchM = pitch;
-    camera.position.set(x + Math.cos(yaw) * Math.cos(CAM.phase) * 0.025 * k, y + CAM.oeil + bob + Math.sin(t * 61) * sh * 0.05, z - Math.sin(yaw) * Math.cos(CAM.phase) * 0.025 * k);
-    const cr = camera.rotation; cr._x = pitch + CAM.kick * 0.012 + Math.sin(t * 53) * sh * 0.02; cr._y = yaw + Math.sin(t * 47) * sh * 0.02; cr._z = Math.sin(CAM.phase) * 0.004 * k; tourner(camera); // ordre YXZ fixé à l'init
+    // C1 + C2 : PCORPS.camera sur la position affichée (sans PCORPS : l'œil net, sans balancement)
+    const f = cameraCorps(); let cy = y + CAM.oeil, cote = 0, roulis = 0;
+    if (f) {
+      VUE.x = x; VUE.y = y; VUE.z = z; VUE.auSol = e.auSol !== false; VUE.vy = +e.vy || 0; VUE.oeil = CAM.oeil;
+      VUE.course = !!e.course; VUE.vers = e.corpsV2 ? (e.vers || e.posture || 'debout') : (e.accroupi ? 'accroupi' : 'debout'); VUE.vise = e.vise > 0 ? +e.vise : 0;
+      const o = f(VUE, dt > 0 ? dt : 1e-4); cy = o.y; cote = o.cote; roulis = o.roulis; CAM.phi = o.phase; CAM.k = o.k;
+    } else CAM.k = 0;
+    CAM.phase = CAM.phi;
+    camera.position.set(x + Math.cos(yaw) * cote, cy + Math.sin(t * 61) * sh * 0.05, z - Math.sin(yaw) * cote);
+    const cr = camera.rotation; cr._x = pitch + CAM.kick * 0.012 + Math.sin(t * 53) * sh * 0.02; cr._y = yaw + Math.sin(t * 47) * sh * 0.02; cr._z = roulis; tourner(camera); // ordre YXZ fixé à l'init
     return true;
+  }
+  // PRENDU.reglages({ balancement: 'normal' | 'doux' | 'aucun' }) → les réglages en cours (copie)
+  function reglages(o) {
+    if (o && BAL[o.balancement] != null) { CAM.balancement = o.balancement; CAM.bal = BAL[o.balancement]; if (CAM.f) CAM.f.regler({ balancement: o.balancement }); }
+    return { balancement: CAM.balancement };
   }
   function poserCameraSurvol(t) {
     const A = carte.zones && carte.zones.arene, c = SURVOL.centre || (A && Array.isArray(A.centre) ? A.centre : [0, 0]), cx = +c[0] || 0, cz = +c[1] || 0;
@@ -1407,14 +1457,15 @@ const PRENDU = (() => {
   }
 
   // ═══════════════════════════════ l'image ═══════════════════════════════
-  function image(jeu, idCamera, dt, t) {
+  function image(jeu, idCamera, dt, t, alpha) {
     if (!pret || !renderer) return;
+    ALPHA = alpha >= 0 && alpha <= 1 ? +alpha : 1; // la part du pas en cours (boucle à pas fixe, § 2) ; 1 : la dernière position simulée
     const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
     if (tPrecImage) mesurer(t0 - tPrecImage); tPrecImage = t0;
     if (perdu) return; // la simulation continue ; le décor reviendra avec le contexte
     dt = fini(dt) && dt > 0 ? Math.min(dt, 0.1) : 0; t = fini(t) ? t : 0; frame++;
     const e = jeu ? trouver(jeu, idCamera) : null;
-    if (e && CAM.id !== idCamera) { CAM.id = idCamera; CAM.px = +e.x || 0; CAM.pz = +e.z || 0; FP.px = CAM.px; FP.pz = CAM.pz; FP.lastYaw = +e.yaw || 0; FP.lastPitch = +e.pitch || 0; }
+    if (e && CAM.id !== idCamera) { CAM.id = idCamera; if (CAM.f) CAM.f.remettre(); FP.lastYaw = +e.yaw || 0; FP.lastPitch = +e.pitch || 0; }
     let enJeu = false;
     try { enJeu = !!(e && poserCameraJeu(jeu, e, dt, t)); } catch (err) { signaler('caméra', err); }
     if (!enJeu) { try { poserCameraSurvol(t); } catch (err) { signaler('survol', err); } }
@@ -1515,7 +1566,7 @@ const PRENDU = (() => {
     memoireMo = Math.round(o / 104857.6) / 10; memoireSale = false; return memoireMo;
   }
   const API = {
-    init, taille, image, evenements, qualite, projeter, survol,
+    init, taille, image, evenements, qualite, projeter, survol, reglages,
     get fov() { return fovV; }, get webgl() { return webgl && !perdu; }, get budgets() { return BUDGETS; },
     get _interne() { return { scene, sceneArme, camera, camArme, renderer, FP, FX, CAM, tuiles, voutes: voutesM, acteurs, decor, veg, BATI, ATL, USOL, soleil, hemi, QUAL, SOLEIL, palier: changerPalier }; }, // pour l'atelier et les tests (palier : un changement de la qualité adaptative)
     get stats() {

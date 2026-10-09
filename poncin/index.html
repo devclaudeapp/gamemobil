@@ -654,6 +654,7 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
     <label class="reg large"><span><b>Sensibilité</b><small>Vitesse de la visée au doigt et à la souris</small></span><input type="range" min="0.4" max="2.5" step="0.05" data-r="sensibilite"><output>1,00</output></label>
     <label class="reg inter"><span><b>Tir auto</b><small>Au doigt : tire tout seul quand le viseur est sur un robot</small></span><input type="checkbox" data-r="tirAuto"><i aria-hidden="true"></i></label>
     <label class="reg inter"><span><b>Mode gaucher</b><small>Joystick à droite, boutons à gauche</small></span><input type="checkbox" data-r="gaucher"><i aria-hidden="true"></i></label>
+    <div class="reg large"><span><b>Balancement</b><small>Le mouvement de la vue quand tu marches</small></span><div class="seg" data-r="balancement" role="group" aria-label="Balancement de la vue"><button type="button" data-v="normal">Normal</button><button type="button" data-v="doux">Doux</button><button type="button" data-v="aucun">Aucun</button></div></div>
     <label class="reg inter"><span><b>Y inversé</b><small>Glisser vers le haut fait regarder en bas</small></span><input type="checkbox" data-r="inverserY"><i aria-hidden="true"></i></label>
     <label class="reg inter"><span><b>Son</b><small>Blasters, splats et petites musiques</small></span><input type="checkbox" data-r="son"><i aria-hidden="true"></i></label>
     <label class="reg inter"><span><b>Vibrations</b><small>Quand tu touches ou qu’on te touche</small></span><input type="checkbox" data-r="vibre"><i aria-hidden="true"></i></label>
@@ -1254,33 +1255,84 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
 if (typeof module !== 'undefined') module.exports = PERSOS;
 
 /* ── regles.js ── */
-/* OPÉRATION PONCIN — les règles chiffrées : le joueur, les blasters à peinture, les modes, le niveau des bots, le hasard rejouable.
-   Module pur (aucun DOM, aucun THREE) : tourne aussi dans Node pour les tests. Voir src-poncin/ARCHITECTURE.md. */
+/* OPÉRATION PONCIN — les règles chiffrées : le joueur (et ses postures), les blasters à peinture, les objets, les modes, les réglages du
+   salon (défauts, bornes, normalisation), le niveau des bots, le hasard rejouable.
+   Module pur (aucun DOM, aucun THREE) : tourne aussi dans Node pour les tests. Voir src-poncin/ARCHITECTURE.md (« Lot Gameplay : contrat »)
+   et, pour l'origine des chiffres, la conception du lot Gameplay (§ 3, 5, 6). */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.PREGLES = factory();
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   // ─── le joueur (mètres, secondes) ───
-  const JOUEUR = { rayon: 0.35, taille: 1.8, tailleAccroupi: 1.2, oeil: 1.6, oeilAccroupi: 1.0, vitesse: 5.2, vitesseAccroupi: 2.4, vitesseRecul: 0.8, saut: 5.0, gravite: 14, vie: 100, armureMax: 50, marche: 0.45 /* hauteur de marche franchie */ };
+  // Les champs « historiques » (taille, tailleAccroupi, oeil, oeilAccroupi, vitesseAccroupi) restent : la partie actuelle (entrée sans
+  // niveaux course / couche / vise) les utilise tels quels. Les postures v2 (table ci-dessous) servent dès que l'entrée les demande.
+  const JOUEUR = {
+    rayon: 0.35, taille: 1.8, tailleAccroupi: 1.2, oeil: 1.6, oeilAccroupi: 1.0, vitesse: 5.2, vitesseAccroupi: 2.4, vitesseRecul: 0.8,
+    saut: 5.0, gravite: 14, vie: 100, armureMax: 50, marche: 0.45 /* hauteur de marche franchie */,
+    // ─── v2 (§ 3) ───
+    course: 7.0,
+    accel: { sol: 14, air: 2.2 },     // k = 1 − e^(−accel·dt) : la vitesse rejoint la consigne au même rythme quel que soit le pas
+    // œil, haut de capsule, bande de la tête (couché : rayon de la sphère de la tête), vitesse (null : élan de la glissade),
+    // dispersion × (null : pas de tir en course), bruit (portée en m, l'ouïe des robots)
+    postures: {
+      debout: { oeil: 1.60, haut: 1.80, tete: 0.35, vitesse: 5.2, dispersion: 1.0, bruit: 10 },
+      course: { oeil: 1.60, haut: 1.80, tete: 0.35, vitesse: 7.0, dispersion: null, bruit: 16 },
+      accroupi: { oeil: 1.05, haut: 1.25, tete: 0.32, vitesse: 2.6, dispersion: 0.7, bruit: 4 },
+      glisse: { oeil: 0.85, haut: 1.00, tete: 0.30, vitesse: null, dispersion: 1.3, bruit: 12 },
+      couche: { oeil: 0.42, haut: 0.55, tete: 0.2, vitesse: 1.1, dispersion: 0.5, bruit: 0 },
+    },
+    // durées des transitions (s) : debout ↔ accroupi, vers et depuis couché (depuis debout / depuis accroupi), le corps qui se relève
+    // pour sauter d'accroupi, l'entrée et la sortie de la glissade ; pendant une transition vers ou depuis couché : vitesse × 0,3, pas de tir
+    transitions: { accroupi: 0.18, coucheDebout: 0.6, coucheAccroupi: 0.45, sautAccroupi: 0.1, glisse: 0.18, vitesseCouche: 0.3 },
+    // la course : niveau demandé, debout, au sol, avant ≥ 0,7, |atan2(côté, avant)| ≤ 40°, vise < 0,1, pas de tir ; tirer la coupe et
+    // repousse le premier tir de 0,18 s (le temps de remonter l'arme)
+    courir: { avant: 0.7, angle: 40 * Math.PI / 180, vise: 0.1, remonte: 0.18 },
+    // la glissade : départ en course à |v| ≥ 6 m/s (au moins 0,8 s après la précédente), à min(11 ; |v| + 1,6) ; a = −(2 + 0,6·v) −
+    // 0,8·g·p/√(1 + p²) ; le côté infléchit de 1,2 m/s² au plus ; fin sous 3 m/s, contre un mur, ou par un saut qui garde 90 %
+    glissade: { vMin: 6.0, elan: 1.6, vMax: 11, f0: 2.0, kf: 0.6, gPente: 0.8, fin: 3.0, attente: 0.8, inflechir: 1.2, sautGarde: 0.9, mur: 0.5 },
+    couche: { penteMax: 0.35, place: 0.8 },       // se coucher : au sol, pente ≤ 35 %, et la place (!monde.bloque(x, z, 0,8))
+    reception: { vy: -7, facteur: 0.5, duree: 0.25 }, // une chute à plus de 7 m/s : vitesse × 0,5 pendant 0,25 s
+    pente: { montee: 0.8, plancher: 0.6, descente: 0.3, plafond: 1.15 }, // montée ×(1 − 0,8·p) ≥ 0,6 ; descente ×(1 + 0,3·|p|) ≤ 1,15
+  };
 
-  // ─── les blasters à peinture : rafale (polyvalent), pompe (au contact), long-tir (de loin) ───
-  // chute : [début, fin, minimum] — pleine puissance jusqu'à début, puis baisse linéaire jusqu'à minimum (fraction) à fin
+  // ─── les blasters à peinture (§ 5) ───
+  // chute : [début, fin, minimum] — pleine puissance jusqu'à début, puis baisse linéaire jusqu'à minimum (fraction) à fin.
+  // role : 'principale' | 'secondaire' ; modele : le modèle du pack (Blaster Kit) ; semiAuto : garder le doigt appuyé tire au rythme
+  // maximal ; vitesse : facteur de déplacement arme en main ; changement : temps pour la sortir (s) ; gonfle : ouverture du viseur par tir
+  // (retombe de 3,2/s) ; visee : { viseur, zoom, dispersion (facteur de la dispersion de hanche), vitesse (facteur de déplacement),
+  // entree (mise en joue, s), oeil (point de mire du modèle, donné par le lot du pack : null en attendant) }.
+  // option : hors de la liste des armes autorisées par défaut.
   const ARMES = [
-    { id: 'rafale', nom: 'Blaster rafale', degats: 13, plombs: 1, cadence: 9, chargeur: 30, reserve: 120, recharge: 1.6, dispersion: 0.022, dispersionMouvement: 0.02, portee: 70, chute: [18, 45, 0.55], tete: 1.5, recul: 0.012, couleur: '#FF6B8B' },
-    { id: 'pompe', nom: 'Pompe à peinture', degats: 11, plombs: 8, cadence: 1.15, chargeur: 6, reserve: 24, recharge: 2.2, dispersion: 0.085, dispersionMouvement: 0.02, portee: 28, chute: [6, 20, 0.25], tete: 1.25, recul: 0.06, couleur: '#5FD3A4' },
-    { id: 'precision', nom: 'Long-tir', degats: 72, plombs: 1, cadence: 0.85, chargeur: 5, reserve: 20, recharge: 2.4, dispersion: 0.0015, dispersionMouvement: 0.06, portee: 160, chute: [80, 160, 0.8], tete: 1.6, recul: 0.05, couleur: '#B8A6FF' },
+    { id: 'rafale', nom: 'Blaster rafale', role: 'principale', modele: 'blaster-d', degats: 13, plombs: 1, cadence: 9, semiAuto: false, chargeur: 30, reserve: 120, recharge: 1.6, dispersion: 0.022, dispersionMouvement: 0.02, portee: 70, chute: [18, 45, 0.55], tete: 1.5, recul: 0.012, vitesse: 1, changement: 0.36, gonfle: 0.22, visee: { viseur: 'aucun', zoom: 1.25, dispersion: 0.45, vitesse: 0.6, entree: 0.18, oeil: null }, couleur: '#FF6B8B' },
+    { id: 'pompe', nom: 'Pompe à peinture', role: 'principale', modele: 'blaster-h', degats: 11, plombs: 8, cadence: 1.15, semiAuto: false, chargeur: 6, reserve: 24, recharge: 2.2, dispersion: 0.085, dispersionMouvement: 0.02, portee: 28, chute: [6, 20, 0.25], tete: 1.25, recul: 0.06, vitesse: 1, changement: 0.36, gonfle: 0.8, visee: { viseur: 'aucun', zoom: 1.1, dispersion: 0.8, vitesse: 0.7, entree: 0.15, oeil: null }, couleur: '#5FD3A4' },
+    // Long-tir : la dispersion de hanche v2 est 0,03 (× 0,05 en visée = 0,0015). TANT QUE LA VISÉE N'EST PAS BRANCHÉE (lot 2/2), la partie
+    // actuelle garde l'ancienne dispersion de hanche, dispersionAvantVisee = 0,0015 (PARMES.dispersion, mode historique) : le Long-tir
+    // tire comme aujourd'hui. À retirer au branchement de la visée (et les robots viseront, § 11).
+    { id: 'precision', nom: 'Long-tir', role: 'principale', modele: 'blaster-e', degats: 72, plombs: 1, cadence: 0.85, semiAuto: false, chargeur: 5, reserve: 20, recharge: 2.4, dispersion: 0.03, dispersionAvantVisee: 0.0015, dispersionMouvement: 0.06, portee: 160, chute: [80, 160, 0.8], tete: 1.6, recul: 0.05, vitesse: 0.95, changement: 0.4, gonfle: 1, visee: { viseur: 'lunette', zoom: 3, dispersion: 0.05, vitesse: 0.45, entree: 0.25, oeil: null }, couleur: '#B8A6FF' },
+    { id: 'carabine', nom: 'Carabine Marqueur', role: 'principale', modele: 'blaster-f', degats: 30, plombs: 1, cadence: 3.2, semiAuto: true, chargeur: 10, reserve: 40, recharge: 1.9, dispersion: 0.012, dispersionMouvement: 0.035, portee: 110, chute: [40, 100, 0.7], tete: 1.5, recul: 0.03, vitesse: 0.95, changement: 0.36, gonfle: 0.45, visee: { viseur: 'point rouge', zoom: 1.6, dispersion: 0.25, vitesse: 0.55, entree: 0.2, oeil: null }, couleur: '#FFC84A' },
+    { id: 'petoire', nom: 'Pistolet Pétoire', role: 'secondaire', modele: 'blaster-b', degats: 24, plombs: 1, cadence: 4, semiAuto: true, chargeur: 12, reserve: 48, recharge: 1.1, dispersion: 0.012, dispersionMouvement: 0.012, portee: 55, chute: [15, 40, 0.6], tete: 1.6, recul: 0.035, vitesse: 1.05, changement: 0.22, gonfle: 0.35, visee: { viseur: 'aucun', zoom: 1.2, dispersion: 0.4, vitesse: 0.75, entree: 0.12, oeil: null }, couleur: '#7FB3FF' },
+    { id: 'arroseuse', nom: 'Mitraillette Arroseuse', role: 'secondaire', modele: 'blaster-k', degats: 8, plombs: 1, cadence: 14, semiAuto: false, chargeur: 24, reserve: 96, recharge: 1.3, dispersion: 0.04, dispersionMouvement: 0.008, portee: 30, chute: [8, 24, 0.45], tete: 1.4, recul: 0.008, vitesse: 1.05, changement: 0.25, gonfle: 0.15, visee: { viseur: 'aucun', zoom: 1.15, dispersion: 0.6, vitesse: 0.75, entree: 0.12, oeil: null }, couleur: '#4FD1E0' },
+    { id: 'arrosoir', nom: 'Arrosoir', role: 'principale', option: true, modele: 'blaster-p', degats: 11, plombs: 1, cadence: 11, semiAuto: false, chargeur: 60, reserve: 120, recharge: 3.2, dispersion: 0.032, dispersionMouvement: 0.04, portee: 60, chute: [15, 45, 0.5], tete: 1.3, recul: 0.009, vitesse: 0.85, changement: 0.5, gonfle: 0.2, visee: { viseur: 'aucun', zoom: 1.2, dispersion: 0.6, vitesse: 0.5, entree: 0.25, oeil: null }, couleur: '#FF9F5A' },
   ];
-  const arme = (id) => ARMES.find((a) => a.id === id) || ARMES[0];
+  // l'ordre du réseau (indices dans l'instantané) : il ne fait que s'allonger ; 'splash' (Lance-bombes) est réservé, pas encore une arme
+  const ARMES_ID = ['rafale', 'pompe', 'precision', 'carabine', 'petoire', 'arroseuse', 'arrosoir', 'splash'];
+  const PAR_ID = Object.create(null); for (const a of ARMES) PAR_ID[a.id] = a;
+  const arme = (id) => PAR_ID[id] || ARMES[0];
+  const estArme = (id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(PAR_ID, id);
   function degatsA(a, distance, tete) { // dégâts d'un plomb à cette distance
     const [d0, d1, mini] = a.chute, k = distance <= d0 ? 1 : distance >= d1 ? mini : 1 - (1 - mini) * (distance - d0) / (d1 - d0);
     return Math.round(a.degats * k * (tete ? a.tete : 1));
   }
-  // les objets à ramasser : armes, soin, armure
+  // les objets à ramasser : soin, armure, munitions (remplit les deux réserves), armes.
+  // Une arme au sol (type 'arme') : aujourd'hui (mode historique) elle s'ajoute aux armes possédées ; avec les emplacements (v2), elle
+  // remplace la principale jusqu'à la mort (ou remplit sa réserve si c'est déjà la sienne). 'arme' : l'arme posée est dite par la zone.
   const OBJETS = {
     pompe: { type: 'arme', arme: 'pompe', retour: 20 }, precision: { type: 'arme', arme: 'precision', retour: 25 },
     soin: { type: 'soin', vie: 50, retour: 15 }, armure: { type: 'armure', armure: 50, retour: 25 },
+    munitions: { type: 'munitions', retour: 15 },
   };
+  for (const a of ARMES) if (a.role === 'principale' && !OBJETS[a.id]) OBJETS[a.id] = { type: 'arme', arme: a.id, retour: 20 };
 
   // ─── les modes ───
   const MODES = {
@@ -1295,11 +1347,69 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   const NOMS_BOTS = ['Boulon', 'Clé-à-molette', 'Pixel', 'Ressort', 'Turbo', 'Biscotte', 'Gyro', 'Tournevis', 'Cerdon', 'Veyron'];
   const COULEURS = ['#FF6B8B', '#5FD3A4', '#7FB3FF', '#FFC84A', '#B8A6FF', '#FF9F5A', '#4FD1E0', '#F48FD8'];
 
+  // ─── les réglages du salon (§ 6) : l'hôte décide ; en solo, le même panneau ───
+  const SALON = {
+    max: 6, zones: ['place', 'centre', 'eglise', 'bourg', 'rivieres', 'tout'], durees: [180, 300, 600, 0], scores: [10, 25, 50],
+    heures: ['jour', 'soir', 'nuit'], meteos: ['clair', 'brouillard', 'pluie'],
+    vies: { normale: { vie: 100, armureMax: 50 }, unCoup: { vie: 1, armureMax: 0 }, costaud: { vie: 200, armureMax: 100 } },
+    reapparitions: { rapide: 3, normale: 6, lente: 10, aucune: -1 },
+    manches: [1, 3, 5], // « dernier debout » (réapparition 'aucune') : nombre de manches
+  };
+  // bots : 4 en solo, 0 dans un salon (l'hôte les ajoute) ; manches : lu seulement quand reapparition = 'aucune'
+  const DEFAUT_REGLAGES = Object.freeze({
+    v: 2, mode: 'arene', zone: 'centre', duree: 180, score: 25, heure: 'jour', meteo: 'clair', equipes: false,
+    bots: 4, niveau: 'normal', tirAllie: false, vie: 'normale', reapparition: 'rapide', manches: 3, objets: true, aide: true,
+    armes: Object.freeze(['rafale', 'pompe', 'precision', 'carabine', 'petoire', 'arroseuse']),
+  });
+  const DEFAUT_EQUIP = Object.freeze({ p: 'rafale', s: 'petoire' });
+  const dans = (v, liste, defaut) => (liste.indexOf(v) >= 0 ? v : defaut);
+  const cle = (v, obj, defaut) => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(obj, v) ? v : defaut);
+  const bool = (v, defaut) => (typeof v === 'boolean' ? v : defaut);
+  // la liste des armes autorisées : connues, sans doublon, dans l'ordre du réseau, au moins une principale et une secondaire
+  function armesPermises(liste) {
+    const vues = Array.isArray(liste) ? liste : DEFAUT_REGLAGES.armes, out = [];
+    for (const id of ARMES_ID) if (estArme(id) && vues.indexOf(id) >= 0) out.push(id);
+    if (!out.some((id) => PAR_ID[id].role === 'principale')) out.unshift(DEFAUT_EQUIP.p);
+    if (!out.some((id) => PAR_ID[id].role === 'secondaire')) out.push(DEFAUT_EQUIP.s);
+    return ARMES_ID.filter((id) => out.indexOf(id) >= 0);
+  }
+  // normaliserReglages(r, { humains }) → copie bornée (r n'est jamais modifié) : une valeur inconnue prend le défaut ; bots ≤ 6 − humains
+  function normaliserReglages(r, o) {
+    r = r && typeof r === 'object' ? r : {};
+    const D = DEFAUT_REGLAGES;
+    let humains = o && Number.isFinite(+o.humains) ? Math.round(+o.humains) : 1; humains = Math.max(1, Math.min(SALON.max, humains));
+    const n = (v, liste, defaut) => { const x = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? +v : NaN; return liste.indexOf(x) >= 0 ? x : defaut; };
+    let bots = typeof r.bots === 'number' || (typeof r.bots === 'string' && r.bots.trim() !== '') ? Math.round(+r.bots) : D.bots;
+    if (!Number.isFinite(bots)) bots = D.bots;
+    bots = Math.max(0, Math.min(SALON.max - humains, bots));
+    return {
+      v: 2, mode: cle(r.mode, MODES, D.mode), zone: dans(r.zone, SALON.zones, D.zone), duree: n(r.duree, SALON.durees, D.duree), score: n(r.score, SALON.scores, D.score),
+      heure: dans(r.heure, SALON.heures, D.heure), meteo: dans(r.meteo, SALON.meteos, D.meteo), equipes: bool(r.equipes, D.equipes),
+      bots, niveau: cle(r.niveau, BOTS, D.niveau), tirAllie: bool(r.tirAllie, D.tirAllie), vie: cle(r.vie, SALON.vies, D.vie),
+      reapparition: cle(r.reapparition, SALON.reapparitions, D.reapparition), manches: n(r.manches, SALON.manches, D.manches),
+      objets: bool(r.objets, D.objets), aide: bool(r.aide, D.aide), armes: armesPermises(r.armes),
+    };
+  }
+  // equipementDe(demande, reglages) → { p, s } : demande { p, s } ou 'carabine+arroseuse' ; une arme non autorisée (ou du mauvais
+  // emplacement) devient la première arme autorisée de l'emplacement (DEFAUT_EQUIP d'abord, s'il est autorisé)
+  function equipementDe(demande, reglages) {
+    const permises = armesPermises(reglages && Array.isArray(reglages.armes) ? reglages.armes : DEFAUT_REGLAGES.armes);
+    let p = null, s = null;
+    if (typeof demande === 'string') { const m = demande.split('+'); p = m[0]; s = m[1]; } else if (demande && typeof demande === 'object') { p = demande.p; s = demande.s; }
+    const choisir = (id, role, defaut) => {
+      if (estArme(id) && PAR_ID[id].role === role && permises.indexOf(id) >= 0) return id;
+      if (permises.indexOf(defaut) >= 0) return defaut;
+      for (const a of permises) if (PAR_ID[a].role === role) return a;
+      return defaut;
+    };
+    return { p: choisir(p, 'principale', DEFAUT_EQUIP.p), s: choisir(s, 'secondaire', DEFAUT_EQUIP.s) };
+  }
+
   // ─── hasard rejouable ───
   function mulberry32(a) { a = a >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   const hash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
 
-  return { JOUEUR, ARMES, arme, degatsA, OBJETS, MODES, BOTS, NOMS_BOTS, COULEURS, mulberry32, hash };
+  return { JOUEUR, ARMES, ARMES_ID, arme, estArme, degatsA, OBJETS, MODES, BOTS, NOMS_BOTS, COULEURS, SALON, DEFAUT_REGLAGES, DEFAUT_EQUIP, normaliserReglages, equipementDe, armesPermises, mulberry32, hash };
 });
 
 /* ── carte-provisoire.js ── */
@@ -1778,7 +1888,9 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
    ses côtés, dans l'emprise, deviennent des murs (les piédroits) : on y passe à pied, la navigation aussi. Pour les tirs et les vues, ces
    morceaux de façade n'arrêtent que ce qui passe au-dessus de l'arc ; un rayon qui monte sous la voûte la touche (le bâtiment reste plein
    au-dessus). h est borné pour que la clé reste 30 cm sous le toit, w pour que la naissance reste à 1,2 m au moins.
-   L'API (contrat) : monde.L, hauteur(x, z), bloque(x, z, r), deplacer(x, z, dx, dz, r) → [x, z], rayon(o…, d…, max) → { t, x, y, z,
+   L'API (contrat) : monde.L, hauteur(x, z) (le relief, ou la chaussée d'un pont si elle est plus haute : C7), relief(x, z) (le maillage
+   seul, pour le sol dessiné), chaussee(x, z) (−Infinity hors des tabliers), tabliers [{ ax, az, bx, bz, ux, uz, vx, vz, len, w, demi, n,
+   prof (Float64Array n + 1), max }] (le profil que rendu.js dessine, chaussée à prof + PMONDE.CHAUSSEE), bloque(x, z, r), deplacer(x, z, dx, dz, r) → [x, z], rayon(o…, d…, max) → { t, x, y, z,
    nx, ny, nz, quoi: 'mur' | 'toit' | 'sol', i, de, k } | null (i : indice du bâtiment, −1 sinon ; de : 'batiment' | 'voute' | 'arbre' |
    'mur' | 'mobilier' | 'terrain' ; k : l'indice dans carte.arbres, carte.murs ou carte.mobilier, celui du passage pour une voûte, −1
    sinon ; normale unitaire tournée vers le tireur), vue(a…, b…), libre(rnd, centre?, rayon?) → [x, z], limite, batiments [{ p, h, t,
@@ -1801,6 +1913,8 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   const CELLULE = 12;        // côté visé d'une cellule de la grille (m)
   const MARGE = 1.05;        // rayon couvert par l'inscription des arêtes (un joueur fait 0,35 m, les points libres demandent 1 m)
   const ELARGI_PONT = 0.5;   // le couloir d'un pont déborde de 0,5 m de chaque côté de sa largeur (1 m en tout)
+  const SUR_TABLIER = 0.08;  // la maçonnerie d'un tablier, au-dessus du relief à ses deux bouts (m)
+  const CHAUSSEE = 0.06;     // l'épaisseur de la chaussée posée sur la maçonnerie : on marche à prof + CHAUSSEE (m)
   const SOUS_BASE = 0.5;     // un bâtiment s'enfonce de 0,5 m sous le point le plus bas du relief sous son emprise
   const PEAU = 1e-4;         // le jeu laissé entre un cercle repoussé et le mur
   const PAS_SOL = 0.4;       // la marche sur le terrain avance d'au moins ce pas (m), puis la dichotomie affine
@@ -1899,7 +2013,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       }
     }
     const RM = rn - 1;
-    function hauteur(x, z) {
+    function relief(x, z) {
       if (!rh) return 0;
       let u = (x - X0) / rpas, v = (z - X0) / rpas;
       if (!(u > 0)) u = 0; else if (u > RM) u = RM;
@@ -1909,8 +2023,8 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       if (fx + fz <= 1) { const a = rh[k]; return a + fx * (rh[k + 1] - a) + fz * (rh[k + rn] - a); }
       const d = rh[k + rn + 1]; return d + (1 - fx) * (rh[k + rn] - d) + (1 - fz) * (rh[k + 1] - d);
     }
-    const PENTE = [0, 0]; // dh/dx, dh/dz au point (triangle du maillage)
-    function pente(x, z) {
+    const PENTE = [0, 0]; // dh/dx, dh/dz au point (triangle du maillage, ou le tablier d'un pont)
+    function penteRelief(x, z) {
       PENTE[0] = 0; PENTE[1] = 0; if (!rh) return PENTE;
       let u = (x - X0) / rpas, v = (z - X0) / rpas;
       if (!(u > 0)) u = 0; else if (u > RM) u = RM;
@@ -1927,9 +2041,9 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       if (!rh) return 0;
       let m = Infinity; const n = q.length;
       for (let a = 0; a < n; a++) {
-        const [ax, az] = q[a], [bx, bz] = q[(a + 1) % n]; m = Math.min(m, hauteur(ax, az));
+        const [ax, az] = q[a], [bx, bz] = q[(a + 1) % n]; m = Math.min(m, relief(ax, az));
         const ua = (ax - X0) / rpas, va = (az - X0) / rpas, ub = (bx - X0) / rpas, vb = (bz - X0) / rpas;
-        const lignes = (p0, p1) => { if (p1 === p0) return; const lo = Math.ceil(Math.min(p0, p1)), hi = Math.floor(Math.max(p0, p1)); for (let k = Math.max(lo, -1); k <= Math.min(hi, 2 * rn + 1); k++) { const t = (k - p0) / (p1 - p0); if (t > 0 && t < 1) m = Math.min(m, hauteur(ax + (bx - ax) * t, az + (bz - az) * t)); } };
+        const lignes = (p0, p1) => { if (p1 === p0) return; const lo = Math.ceil(Math.min(p0, p1)), hi = Math.floor(Math.max(p0, p1)); for (let k = Math.max(lo, -1); k <= Math.min(hi, 2 * rn + 1); k++) { const t = (k - p0) / (p1 - p0); if (t > 0 && t < 1) m = Math.min(m, relief(ax + (bx - ax) * t, az + (bz - az) * t)); } };
         lignes(ua, ub); lignes(va, vb); lignes(ua + va, ub + vb);
       }
       let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
@@ -1967,7 +2081,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
         for (let s = 0.25; s < lg; s += 0.25) if (dansPoly(BF[i], ax + ux * s, az + uz * s)) { b.push(i); return; }
       });
       if (!b.length) continue;
-      const ya = hauteur(ax, az), yb = hauteur(bx, bz);
+      const ya = relief(ax, az), yb = relief(bx, bz);
       let h = fini(+pa.h) && pa.h > 0 ? +pa.h : VOUTE.h, hw = (fini(+pa.w) && pa.w > 0 ? Math.min(VOUTE.wMax, +pa.w) : VOUTE.w) / 2;
       for (const i of b) h = Math.min(h, batiments[i].sommet - Math.max(ya, yb) - VOUTE.sousToit); // la clé reste sous le toit
       hw = Math.min(hw, h - VOUTE.naissance); // la naissance de la voûte reste à 1,2 m au moins
@@ -2018,6 +2132,46 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
         coins: [[sx - vx * dw, sz - vz * dw], [tx - vx * dw, tz - vz * dw], [tx + vx * dw, tz + vz * dw], [sx + vx * dw, sz + vz * dw]], w: dw * 2 });
     }
     const dansCouloirPont = (C, x, z) => { const dx = x - C.mx, dz = z - C.mz; return Math.abs(dx * C.ux + dz * C.uz) <= C.dl && Math.abs(dx * C.vx + dz * C.vz) <= C.dw; };
+
+    // ─── les tabliers des ponts (C7) : la chaussée que dessine rendu.js, et sur laquelle on marche (monde.hauteur la suit) ───
+    // Une seule formule, ici : le profil part du relief + SUR_TABLIER aux deux bouts du pont (carte.ponts, a → b), droit d'une rive à
+    // l'autre mais jamais sous le relief + SUR_TABLIER, échantillonné tous les ≤ 1,5 m (n + 1 points, linéaire entre eux) ; la chaussée est
+    // à prof + CHAUSSEE. rendu.js dessine la maçonnerie à prof et la chaussée à prof + CHAUSSEE à partir de monde.tabliers. On y marche
+    // sur toute la largeur du couloir (w/2 + ELARGI_PONT de chaque côté de l'axe, jusqu'aux parapets du monde), de a à b ; ailleurs le
+    // relief. monde.hauteur = max(relief, chaussée) : un bout de pont est une marche de 14 cm, comme dessinée.
+    const tabliers = [];
+    let tX0 = Infinity, tZ0 = Infinity, tX1 = -Infinity, tZ1 = -Infinity;
+    for (const pt of liste(carte.ponts)) {
+      const l = pt && pt.l; if (!Array.isArray(l) || l.length < 2 || !l[0] || !l[l.length - 1]) continue;
+      const ax = +l[0][0], az = +l[0][1], bx = +l[l.length - 1][0], bz = +l[l.length - 1][1];
+      if (![ax, az, bx, bz].every(fini)) continue;
+      const len = Math.hypot(bx - ax, bz - az); if (len < 1) continue;
+      const w = fini(+pt.w) && pt.w > 0 ? +pt.w : 6, n = Math.max(2, Math.ceil(len / 1.5)), prof = new Float64Array(n + 1);
+      const hA = relief(ax, az) + SUR_TABLIER, hB = relief(bx, bz) + SUR_TABLIER;
+      for (let k = 0; k <= n; k++) { const t = k / n; prof[k] = Math.max(hA + (hB - hA) * t, relief(ax + (bx - ax) * t, az + (bz - az) * t) + SUR_TABLIER); }
+      const ux = (bx - ax) / len, uz = (bz - az) / len, demi = w / 2 + ELARGI_PONT;
+      tabliers.push({ ax, az, bx, bz, ux, uz, vx: -uz, vz: ux, len, w, demi, n, prof, max: Math.max(...prof) + CHAUSSEE });
+      for (const [x, z] of [[ax - uz * demi, az + ux * demi], [ax + uz * demi, az - ux * demi], [bx - uz * demi, bz + ux * demi], [bx + uz * demi, bz - ux * demi]]) { tX0 = Math.min(tX0, x); tX1 = Math.max(tX1, x); tZ0 = Math.min(tZ0, z); tZ1 = Math.max(tZ1, z); }
+    }
+    for (const T of tabliers) if (T.max > hMax) hMax = T.max; // les rayons qui passent au-dessus du relief peuvent toucher un tablier
+    let tablierVu = -1, tablierPente = 0; // le dernier tablier trouvé par chaussee() et la pente de sa chaussée le long de l'axe (sans allocation)
+    function chaussee(x, z) { // la hauteur de la chaussée d'un pont au point, ou −Infinity hors des tabliers
+      tablierVu = -1; if (x < tX0 || x > tX1 || z < tZ0 || z > tZ1) return -Infinity;
+      let best = -Infinity;
+      for (let i = 0; i < tabliers.length; i++) {
+        const T = tabliers[i], rx = x - T.ax, rz = z - T.az, s = rx * T.ux + rz * T.uz;
+        if (s < -1e-9 || s > T.len + 1e-9 || Math.abs(rx * T.vx + rz * T.vz) > T.demi) continue;
+        let u = s / T.len * T.n, k = u | 0; if (k >= T.n) k = T.n - 1; u -= k;
+        const h = T.prof[k] + (T.prof[k + 1] - T.prof[k]) * u + CHAUSSEE;
+        if (h > best) { best = h; tablierVu = i; tablierPente = (T.prof[k + 1] - T.prof[k]) * T.n / T.len; }
+      }
+      return best;
+    }
+    function hauteur(x, z) { const r = relief(x, z); if (tabliers.length === 0) return r; const c = chaussee(x, z); return c > r ? c : r; }
+    function pente(x, z) {
+      if (tabliers.length && chaussee(x, z) > relief(x, z)) { const T = tabliers[tablierVu]; PENTE[0] = tablierPente * T.ux; PENTE[1] = tablierPente * T.uz; return PENTE; }
+      return penteRelief(x, z);
+    }
     function intervalleCouloir(C, ax, az, bx, bz) { // [t0, t1] du segment a→b dans le couloir, ou null
       let t0 = 0, t1 = 1;
       for (const [ex, ez, demi] of [[C.ux, C.uz, C.dl], [C.vx, C.vz, C.dw]]) {
@@ -2529,8 +2683,8 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     const secours = () => limiteOk(monde.limite) ? libre(rndDefaut) : libre(rndDefaut, [0, 0], L / 2); // une position perdue (NaN) revient sur un point libre
 
     const monde = {
-      L, limite: null, batiments, interdits, couloirs, passages, bancs,
-      hauteur, bloque, deplacer, rayon, vue, libre,
+      L, limite: null, batiments, interdits, couloirs, passages, bancs, tabliers,
+      hauteur, relief, chaussee, bloque, deplacer, rayon, vue, libre,
       passe, dedans, pente, sousVoute, arche,
       accessible: null, // une fonction (x, z) → bool qu'y branche PNAV.creer : la composante principale de la navigation
       stats: { aretes: NM, aretesTirs: NA - NM, cellules: G * G, cote: CS, regions: regions.length, ponts: couloirs.length, passages: NP, troncs: compte.troncs, feuillages: compte.feuillages, murs: compte.murs, murets: compte.murets, mobilier: compte.mobilier, bancs: compte.bancs },
@@ -2540,7 +2694,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     return monde;
   }
 
-  return { creer, CELLULE, MARGE, SOURCE, MARCHE, MOBILIER, VOUTE, rTronc, hTronc, rFeuillage, nettoyer, dansPoly };
+  return { creer, CELLULE, MARGE, SUR_TABLIER, CHAUSSEE, SOURCE, MARCHE, MOBILIER, VOUTE, rTronc, hTronc, rFeuillage, nettoyer, dansPoly };
 });
 
 /* ── nav.js ── */
@@ -2902,6 +3056,655 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     return nav;
   }
   return { creer };
+});
+
+/* ── corps.js ── */
+/* OPÉRATION PONCIN — le corps d'un joueur (robot ou humain) : déplacement (regard, marche, glissement le long des murs, marche de
+   0,45 m, pente, saut, gravité), postures (debout, accroupi, glissade, couché) et leurs transitions, course, réception, capsules
+   touchables et rayons de tir contre elles, et la caméra subjective (balancement calé sur la foulée, œil lissé par un filtre de Holt,
+   creux d'atterrissage). Conception du lot Gameplay, § 1 (C1, C2) et § 3.
+   Module pur (aucun DOM, aucun THREE) : tourne aussi dans Node. Utilisé par jeu.js (la simulation), par la prédiction du client en
+   ligne (enligne.js, via PJEU.deplacer qui en est un alias) et par rendu.js (PCORPS.camera). Voir src-poncin/ARCHITECTURE.md.
+
+   Deux régimes, choisis à chaque pas par l'entrée :
+   - entrée « historique » (sans aucun des niveaux course / couche / vise : la partie actuelle, commandes et robots) : le déplacement
+     d'avant le lot Gameplay, à l'identique, sauf l'accélération devenue indépendante du pas (k = 1 − e^(−14·dt) au sol, 1 − e^(−2,2·dt)
+     en l'air, au lieu de min(1, 14·dt)) ; accroupi est immédiat (2,4 m/s, œil 1,0 m, capsule 1,2 m) ;
+   - entrée v2 (au moins un des niveaux course / couche / vise présent, même à false) : les postures du § 3 avec leurs transitions, la
+     course, la glissade, le couché, la réception, les facteurs de vitesse (arme, visée, pente).
+   e.corpsV2 dit quel régime a joué le dernier pas ; capsule et œil d'une entité « historique » se lisent sur e.accroupi (comme avant).
+   Les minuteries du corps (relanceA, receptionA, remonte) sont des durées restantes en secondes : pas d'horloge, rien ne dépend du pas. */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'));
+  else root.PCORPS = factory(root.PREGLES);
+})(typeof self !== 'undefined' ? self : this, function (REGLES) {
+  'use strict';
+  const J = REGLES.JOUEUR, P = J.postures, TR = J.transitions, GL = J.glissade, CO = J.couche, RE = J.reception, PE = J.pente, CR = J.courir;
+  const POSTURES = ['debout', 'accroupi', 'glisse', 'couche'];
+  const PENTE_MAX = J.marche / 0.3;     // la pente la plus raide qu'on monte (une marche de 0,45 m sur 30 cm, ≈ 56°)
+  const R_CAPSULE = 0.4, TETE = 0.35;   // la capsule debout : rayon 0,4 m ; la tête = les 35 derniers cm (régime historique)
+  const fini = (v) => typeof v === 'number' && v - v === 0;
+  const borne = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const num = (v, a, b) => { v = +v; return fini(v) ? borne(v, a, b) : 0; };
+  const angle = (a) => { a = a % (2 * Math.PI); return a > Math.PI ? a - 2 * Math.PI : a <= -Math.PI ? a + 2 * Math.PI : a; };
+  const NEUTRE = Object.freeze({ avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null });
+  const estV2 = (en) => en.course !== undefined || en.couche !== undefined || en.vise !== undefined;
+
+  // ─── l'œil et la hauteur du corps (au-dessus des pieds) ───
+  function oeil(e) { return e.corpsV2 ? e.oeil : (e.accroupi ? J.oeilAccroupi : J.oeil); }
+  function haut(e) { return e.corpsV2 ? e.hautCapsule : (e.accroupi ? J.tailleAccroupi : J.taille); }
+  const couche = (e) => e.corpsV2 && e.posture === 'couche' && e.vers === 'couche'; // couché pour de bon : capsule couchée
+  const bandeTete = (e) => (e.corpsV2 ? P[e.vers || e.posture || 'debout'].tete : TETE);
+
+  // ─── la capsule touchable (§ 3) : rend un objet RÉUTILISÉ ───
+  // debout, accroupi, glissade : axe vertical de y + 0,4 à y + haut − 0,4, rayon 0,4 ; la tête est la bande du haut (tete.haut) ;
+  // couché : axe le long du regard f, de −0,65·f à +0,55·f, à y + 0,28, rayon 0,28 ; la tête est une sphère de 0,2 m à +0,75·f, y + 0,3
+  const CAPS = { ax: 0, ay: 0, az: 0, bx: 0, by: 0, bz: 0, r: R_CAPSULE, tete: { haut: TETE, x: 0, y: 0, z: 0, r: 0 } };
+  function capsule(e) {
+    const t = CAPS.tete;
+    if (couche(e)) {
+      const fx = -Math.sin(e.yaw), fz = -Math.cos(e.yaw), y = e.y + 0.28;
+      CAPS.ax = e.x - 0.65 * fx; CAPS.az = e.z - 0.65 * fz; CAPS.bx = e.x + 0.55 * fx; CAPS.bz = e.z + 0.55 * fz; CAPS.ay = CAPS.by = y; CAPS.r = 0.28;
+      t.haut = 0; t.x = e.x + 0.75 * fx; t.y = e.y + 0.3; t.z = e.z + 0.75 * fz; t.r = P.couche.tete;
+    } else {
+      const h = haut(e);
+      CAPS.ax = CAPS.bx = e.x; CAPS.az = CAPS.bz = e.z; CAPS.ay = e.y + R_CAPSULE; CAPS.by = Math.max(CAPS.ay, e.y + h - R_CAPSULE); CAPS.r = R_CAPSULE;
+      t.haut = bandeTete(e); t.r = 0; t.x = e.x; t.y = e.y + h; t.z = e.z;
+    }
+    return CAPS;
+  }
+
+  // ─── un rayon contre la capsule d'une entité : t du premier contact (≤ tMax), ou −1 ───
+  // TOUCHE (réutilisé) : y du point touché, tete (la bande du haut, ou la sphère du couché), cx / cy / cz le point de l'axe (ou le centre
+  // de la tête) le plus proche, pour la normale de l'impact.
+  const TOUCHE = { y: 0, tete: false, cx: 0, cy: 0, cz: 0 };
+  function rayonVertical(ox, oy, oz, dx, dy, dz, e, tMax) { // l'algorithme d'avant le lot Gameplay, inchangé
+    const y0 = e.y + R_CAPSULE, y1 = Math.max(y0, e.y + haut(e) - R_CAPSULE), R2 = R_CAPSULE * R_CAPSULE;
+    const px = ox - e.x, pz = oz - e.z;
+    // dégrossi : la droite passe-t-elle à moins de R du fût (dans le plan) ?
+    const a = dx * dx + dz * dz, b = px * dx + pz * dz, c = px * px + pz * pz - R2;
+    let best = -1, by = 0;
+    if (a > 1e-12) {
+      const disc = b * b - a * c; if (disc < 0) return -1;
+      const t = (-b - Math.sqrt(disc)) / a;
+      if (t >= 0 && t <= tMax) { const y = oy + dy * t; if (y >= y0 && y <= y1) { best = t; by = y; } }
+      else if (t < 0 && c <= 0) { const y = oy; if (y >= y0 && y <= y1) { best = 0; by = y; } } // l'origine est dans le fût
+    } else if (c > 0) return -1;
+    // les deux demi-sphères
+    for (let k = 0; k < 2; k++) {
+      const cy = k ? y1 : y0, qy = oy - cy, bb = px * dx + qy * dy + pz * dz, cc = px * px + qy * qy + pz * pz - R2, disc = bb * bb - cc;
+      if (disc < 0) continue;
+      let t = -bb - Math.sqrt(disc); if (t < 0) { if (cc > 0) continue; t = 0; }
+      if (t > tMax || (best >= 0 && t >= best)) continue;
+      const y = oy + dy * t; if (k ? y < y1 - 1e-9 : y > y0 + 1e-9) continue; // la partie de la sphère hors du fût
+      best = t; by = y;
+    }
+    if (best >= 0) {
+      TOUCHE.y = by; TOUCHE.tete = by >= e.y + haut(e) - bandeTete(e);
+      TOUCHE.cx = e.x; TOUCHE.cy = borne(by, y0, y1); TOUCHE.cz = e.z;
+    }
+    return best;
+  }
+  // rayon (direction unitaire) contre une capsule quelconque [a, b], rayon r : t ≥ 0 ou −1 (0 si l'origine est dedans)
+  function rayonSegment(ox, oy, oz, dx, dy, dz, ax, ay, az, bx, by, bz, r) {
+    const bax = bx - ax, bay = by - ay, baz = bz - az, oax = ox - ax, oay = oy - ay, oaz = oz - az;
+    const baba = bax * bax + bay * bay + baz * baz, bard = bax * dx + bay * dy + baz * dz, baoa = bax * oax + bay * oay + baz * oaz;
+    const rdoa = dx * oax + dy * oay + dz * oaz, oaoa = oax * oax + oay * oay + oaz * oaz;
+    // l'origine dans la capsule
+    const u = baba > 0 ? borne(baoa / baba, 0, 1) : 0, qx = oax - bax * u, qy = oay - bay * u, qz = oaz - baz * u;
+    if (qx * qx + qy * qy + qz * qz <= r * r) return 0;
+    const A = baba - bard * bard, B = baba * rdoa - baoa * bard, C = baba * oaoa - baoa * baoa - r * r * baba;
+    let h = B * B - A * C;
+    if (h >= 0 && A > 1e-12) {
+      const t = (-B - Math.sqrt(h)) / A, y = baoa + t * bard;
+      if (y > 0 && y < baba) return t >= 0 ? t : -1;
+    }
+    // les bouts : la sphère la plus proche du point d'entrée
+    let best = -1;
+    for (let k = 0; k < 2; k++) {
+      const cx = k ? bx : ax, cy = k ? by : ay, cz = k ? bz : az, px = ox - cx, py = oy - cy, pz = oz - cz;
+      const b2 = px * dx + py * dy + pz * dz, c2 = px * px + py * py + pz * pz - r * r; h = b2 * b2 - c2;
+      if (h < 0) continue; const t = -b2 - Math.sqrt(h); if (t >= 0 && (best < 0 || t < best)) best = t;
+    }
+    return best;
+  }
+  function rayonSphere(ox, oy, oz, dx, dy, dz, cx, cy, cz, r) {
+    const px = ox - cx, py = oy - cy, pz = oz - cz, b = px * dx + py * dy + pz * dz, c = px * px + py * py + pz * pz - r * r;
+    if (c <= 0) return 0; const h = b * b - c; if (h < 0) return -1; const t = -b - Math.sqrt(h); return t >= 0 ? t : -1;
+  }
+  function rayon(ox, oy, oz, dx, dy, dz, e, tMax) {
+    if (!couche(e)) return rayonVertical(ox, oy, oz, dx, dy, dz, e, tMax);
+    const c = capsule(e), t = c.tete;
+    const tc = rayonSegment(ox, oy, oz, dx, dy, dz, c.ax, c.ay, c.az, c.bx, c.by, c.bz, c.r), tt = rayonSphere(ox, oy, oz, dx, dy, dz, t.x, t.y, t.z, t.r);
+    let best = -1, tete = false;
+    if (tc >= 0 && tc <= tMax) best = tc;
+    if (tt >= 0 && tt <= tMax && (best < 0 || tt <= best)) { best = tt; tete = true; }
+    if (best < 0) return -1;
+    TOUCHE.y = oy + dy * best; TOUCHE.tete = tete;
+    if (tete) { TOUCHE.cx = t.x; TOUCHE.cy = t.y; TOUCHE.cz = t.z; } else {
+      const hx = ox + dx * best - c.ax, hz = oz + dz * best - c.az, bax = c.bx - c.ax, baz = c.bz - c.az, u = borne((hx * bax + hz * baz) / (bax * bax + baz * baz), 0, 1);
+      TOUCHE.cx = c.ax + bax * u; TOUCHE.cy = c.ay; TOUCHE.cz = c.az + baz * u;
+    }
+    return best;
+  }
+
+  // ─── vitesses ───
+  // la pente p (montée > 0) le long d'une direction unitaire (dx, dz)
+  function penteLe(monde, x, z, dx, dz) { if (!monde.pente) return 0; const g = monde.pente(x, z); return g[0] * dx + g[1] * dz; }
+  function facteurPente(p) { return p > 0 ? Math.max(PE.plancher, 1 - PE.montee * p) : Math.min(PE.plafond, 1 - PE.descente * p); }
+  const transCouche = (e) => e.transition > 0 && (e.vers === 'couche' || e.posture === 'couche');
+  // la vitesse de consigne d'une posture v2 (m/s, avant les facteurs) ; glissade : son élan
+  function vitesseBase(e) {
+    if (e.vers === 'glisse' || e.posture === 'glisse') return e.gv || 0;
+    if (transCouche(e)) return P[e.vers === 'couche' ? e.posture : e.vers].vitesse * TR.vitesseCouche;
+    if (e.course) return J.course;
+    return P[e.vers || 'debout'].vitesse;
+  }
+  // PCORPS.vitesseMax(e, A, monde, dx?, dz?) : la vitesse maximale (m/s) de l'entité dans sa posture, avec l'arme A en main, sa visée,
+  // la réception et la pente le long de (dx, dz) (par défaut : sa vitesse actuelle). Régime historique : 5,2 ou 2,4 m/s.
+  function vitesseMax(e, A, monde, dx, dz) {
+    if (!e.corpsV2) return e.accroupi ? J.vitesseAccroupi : J.vitesse;
+    let v = vitesseBase(e);
+    if (e.posture === 'glisse' || e.vers === 'glisse') return v;
+    if (A) { v *= A.vitesse || 1; if (A.visee && e.vise > 0) v *= 1 + ((A.visee.vitesse || 1) - 1) * e.vise; }
+    if (e.receptionA > 0) v *= RE.facteur;
+    if (monde) {
+      if (dx === undefined) { const l = Math.sqrt(e.vx * e.vx + e.vz * e.vz); if (l > 1e-6) { dx = e.vx / l; dz = e.vz / l; } else { dx = 0; dz = 0; } }
+      if (dx || dz) v *= facteurPente(penteLe(monde, e.x, e.z, dx, dz));
+    }
+    return v;
+  }
+  // se coucher : au sol, pente ≤ 35 %, et la place pour le corps
+  function peutCoucher(e, monde) {
+    if (!e.auSol) return false;
+    if (monde.pente) { const g = monde.pente(e.x, e.z); if (g[0] * g[0] + g[1] * g[1] > CO.penteMax * CO.penteMax) return false; }
+    return !monde.bloque(e.x, e.z, CO.place);
+  }
+  // une transition de posture (linéaire, durée d) ; d ≤ 0 : immédiate
+  function changerPosture(e, vers, d) {
+    if (e.transition > 0) e.posture = e.vers; // une transition interrompue : on repart d'où on en est (œil et capsule continus)
+    if (vers === e.posture && vers === e.vers) { e.transition = 0; return; }
+    e.vers = vers; e.transition = d > 0 ? d : 0;
+    if (!(d > 0)) { e.posture = vers; e.oeil = P[vers].oeil; e.hautCapsule = P[vers].haut; }
+  }
+  function finirGlissade(e, versAcc) {
+    e.gv = 0; e.relanceA = GL.attente; changerPosture(e, versAcc ? 'accroupi' : 'debout', TR.glisse);
+  }
+
+  // ─── le déplacement (§ 3) ───
+  // PCORPS.deplacer(e, en, dt, monde, A) → MV (RÉUTILISÉ) { dep, saut, glisse (début de glissade), atterrit (vy à l'atterrissage, ou 0),
+  // refus ('couche' si l'entrée demande de se coucher sans la place, ou null) }. A : l'arme en main (facteur de vitesse et visée, v2).
+  // Fonction pure, partagée par la simulation (jeu.etape) et la prédiction du client en ligne : même entrée, même dt → même résultat.
+  // L'entrée peut donner le regard en absolu (yaw, pitch : le client en ligne) ou en variation (dyaw, dpitch).
+  const MV = { dep: 0, saut: false, glisse: false, atterrit: 0, refus: null };
+  function deplacer(e, en, dt, monde, A) {
+    MV.dep = 0; MV.saut = false; MV.glisse = false; MV.atterrit = 0; MV.refus = null;
+    if (!en || typeof en !== 'object') en = NEUTRE;
+    // le regard
+    if (fini(en.yaw)) e.yaw = angle(en.yaw); else e.yaw = angle(e.yaw + num(en.dyaw, -Math.PI, Math.PI));
+    if (fini(en.pitch)) e.pitch = borne(en.pitch, -1.45, 1.45); else e.pitch = borne(e.pitch + num(en.dpitch, -Math.PI, Math.PI), -1.45, 1.45);
+    if (!estV2(en)) return deplacerHistorique(e, en, dt, monde);
+    return deplacerV2(e, en, dt, monde, A);
+  }
+
+  // le régime historique : le déplacement d'avant le lot Gameplay (seul k change)
+  function deplacerHistorique(e, en, dt, monde) {
+    e.corpsV2 = false;
+    e.accroupi = !!en.accroupi;
+    e.posture = e.vers = e.accroupi ? 'accroupi' : 'debout'; e.transition = 0; e.course = false; e.gv = 0;
+    e.oeil = e.accroupi ? J.oeilAccroupi : J.oeil; e.hautCapsule = e.accroupi ? J.tailleAccroupi : J.taille;
+    e.accroupiPrec = e.accroupi; e.couchePrec = false;
+    // la marche : consigne dans le repère du regard, rejointe en douceur
+    let av = num(en.avant, -1, 1), co = num(en.cote, -1, 1); const l = Math.sqrt(av * av + co * co); if (l > 1) { av /= l; co /= l; }
+    const vmax = e.accroupi ? J.vitesseAccroupi : J.vitesse; if (av < 0) av *= J.vitesseRecul;
+    const sy = Math.sin(e.yaw), cy = Math.cos(e.yaw);
+    const cvx = (-sy * av + cy * co) * vmax, cvz = (-cy * av - sy * co) * vmax, k = 1 - Math.exp(-dt * (e.auSol ? J.accel.sol : J.accel.air));
+    e.vx += (cvx - e.vx) * k; e.vz += (cvz - e.vz) * k;
+    const dep = avancer(e, dt, monde);
+    if (e.auSol) { e.vx = MV_MX / dt; e.vz = MV_MZ / dt; } // un mur a mangé une partie de l'élan
+    e.vitesse = dep / dt;
+    // saut et gravité ; au sol, on suit le relief (une pente qui descend trop vite : on tombe)
+    if (en.saut && e.auSol) { e.vy = J.saut; e.auSol = false; MV.saut = true; }
+    gravite(e, dt, monde);
+    MV.dep = dep;
+    return MV;
+  }
+  // un pas de déplacement horizontal (vx, vz) : monde.deplacer, puis les refus (marche trop haute, talus trop raide) ; rend la distance
+  let MV_MX = 0, MV_MZ = 0;
+  function avancer(e, dt, monde) {
+    const x0 = e.x, z0 = e.z;
+    if (e.vx * e.vx + e.vz * e.vz > 1e-8) {
+      const p = monde.deplacer(e.x, e.z, e.vx * dt, e.vz * dt, J.rayon), px = p[0] - e.x, pz = p[1] - e.z, pl = Math.sqrt(px * px + pz * pz);
+      let ok = monde.hauteur(p[0], p[1]) - e.y <= J.marche; // plus haut qu'une marche d'un coup : on ne monte pas
+      if (ok && pl > 1e-6 && monde.pente) { const g = monde.pente(p[0], p[1]); if ((g[0] * px + g[1] * pz) / pl > PENTE_MAX) ok = false; } // un talus plus raide qu'une marche de 0,45 m sur 30 cm
+      if (ok) { e.x = p[0]; e.z = p[1]; }
+    }
+    MV_MX = e.x - x0; MV_MZ = e.z - z0;
+    return Math.sqrt(MV_MX * MV_MX + MV_MZ * MV_MZ);
+  }
+  // collage au sol (on décolle seulement si le sol est plus bas de plus de 0,6 m), puis la parabole exacte : même saut à 30 ou 120 images/s
+  function gravite(e, dt, monde) {
+    const sol = monde.hauteur(e.x, e.z);
+    if (e.auSol) { if (sol < e.y - 0.6) { e.auSol = false; e.vy = 0; } else { e.y = sol; e.vy = 0; } }
+    if (!e.auSol) {
+      e.y += e.vy * dt - 0.5 * J.gravite * dt * dt; e.vy -= J.gravite * dt;
+      if (e.y <= sol) { MV.atterrit = e.vy; e.y = sol; e.vy = 0; e.auSol = true; }
+    }
+  }
+
+  // le régime v2 : postures, course, glissade, couché, réception, facteurs de vitesse
+  function deplacerV2(e, en, dt, monde, A) {
+    if (!e.corpsV2) { // on arrive du régime historique : la posture d'où l'on part
+      e.corpsV2 = true; const p = e.accroupi ? 'accroupi' : 'debout';
+      e.posture = e.vers = p; e.transition = 0; e.oeil = P[p].oeil; e.hautCapsule = P[p].haut; e.course = false; e.gv = 0;
+      if (!(e.relanceA >= 0)) e.relanceA = 0; if (!(e.receptionA >= 0)) e.receptionA = 0; if (!(e.remonte >= 0)) e.remonte = 0; if (!(e.vise >= 0)) e.vise = 0;
+    }
+    if (e.relanceA > 0) e.relanceA = Math.max(0, e.relanceA - dt);
+    if (e.receptionA > 0) e.receptionA = Math.max(0, e.receptionA - dt);
+    if (e.remonte > 0) e.remonte = Math.max(0, e.remonte - dt);
+    let av = num(en.avant, -1, 1), co = num(en.cote, -1, 1); const l = Math.sqrt(av * av + co * co); if (l > 1) { av /= l; co /= l; }
+    const veutAcc = !!en.accroupi, veutCou = !!en.couche, frontAcc = veutAcc && !e.accroupiPrec, frontCou = veutCou && !e.couchePrec;
+    e.accroupiPrec = veutAcc; e.couchePrec = veutCou;
+    const vise = e.vise || 0, vh = Math.sqrt(e.vx * e.vx + e.vz * e.vz);
+    let glisse = e.vers === 'glisse';
+    // ─ les postures (au sol) ─
+    if (!glisse && e.auSol) {
+      const pos = e.vers;
+      if (frontAcc && e.course && vh >= GL.vMin && e.relanceA <= 0 && pos === 'debout') { // la glissade : passer accroupi en courant
+        e.gv = Math.min(GL.vMax, vh + GL.elan); e.gdx = e.vx / vh; e.gdz = e.vz / vh; e.course = false;
+        changerPosture(e, 'glisse', TR.glisse); glisse = true; MV.glisse = true;
+      } else if (veutCou) {
+        if (pos !== 'couche') { if (peutCoucher(e, monde)) changerPosture(e, 'couche', pos === 'accroupi' ? TR.coucheAccroupi : TR.coucheDebout); else if (frontCou) MV.refus = 'couche'; }
+      } else if (pos === 'couche') changerPosture(e, veutAcc ? 'accroupi' : 'debout', veutAcc ? TR.coucheAccroupi : TR.coucheDebout);
+      else { const v = veutAcc ? 'accroupi' : 'debout'; if (v !== pos) changerPosture(e, v, TR.accroupi); }
+    }
+    // ─ la course ─
+    const etaitCourse = e.course;
+    e.course = !glisse && !!en.course && e.vers === 'debout' && e.posture === 'debout' && e.transition <= 0 && e.auSol && av >= CR.avant && Math.abs(Math.atan2(co, av)) <= CR.angle && vise < CR.vise && !en.tir;
+    if (etaitCourse && en.tir) e.remonte = CR.remonte; // tirer coupe la course : le temps de remonter l'arme
+    const sy = Math.sin(e.yaw), cy = Math.cos(e.yaw);
+    let dep;
+    if (glisse) {
+      // ─ la glissade : l'élan décroît (frottement + pente), le côté infléchit la trajectoire, le regard reste libre ─
+      const p = penteLe(monde, e.x, e.z, e.gdx, e.gdz);
+      e.gv = Math.min(GL.vMax, Math.max(0, e.gv + (-(GL.f0 + GL.kf * e.gv) - GL.gPente * J.gravite * p / Math.sqrt(1 + p * p)) * dt));
+      if (co !== 0 && e.gv > 0.5) { // l'accélération de côté (repère du regard), projetée sur la normale de la trajectoire
+        // côté du joystick = droite du regard (cos yaw, −sin yaw) ; n = normale de la trajectoire ; l'angle tourne de a_n·dt/v
+        const nx = -e.gdz, nz = e.gdx, an = GL.inflechir * co * (cy * nx - sy * nz), w = an * dt / e.gv;
+        const gx = e.gdx + nx * w, gz = e.gdz + nz * w, gl = Math.sqrt(gx * gx + gz * gz); e.gdx = gx / gl; e.gdz = gz / gl;
+      }
+      e.vx = e.gdx * e.gv; e.vz = e.gdz * e.gv;
+      dep = avancer(e, dt, monde);
+      e.vitesse = dep / dt;
+      if (en.saut && e.auSol) { // un saut garde 90 % de l'élan
+        const g = e.gv * GL.sautGarde; e.vx = e.gdx * g; e.vz = e.gdz * g; e.gv = 0; e.relanceA = GL.attente; changerPosture(e, 'debout', TR.sautAccroupi);
+        e.vy = J.saut; e.auSol = false; MV.saut = true;
+      } else if (dep < GL.mur * e.gv * dt) { e.vx = MV_MX / dt; e.vz = MV_MZ / dt; finirGlissade(e, veutAcc); } // contre un mur
+      else if (e.gv <= GL.fin) finirGlissade(e, veutAcc);
+      else { e.vx = MV_MX / dt; e.vz = MV_MZ / dt; }
+    } else {
+      // ─ la marche, la course, l'accroupi, le rampé ─
+      if (av < 0) av *= J.vitesseRecul;
+      let dx = -sy * av + cy * co, dz = -cy * av - sy * co; const dl = Math.sqrt(dx * dx + dz * dz);
+      const vmax = dl > 1e-9 ? vitesseMax(e, A, monde, dx / dl, dz / dl) : 0;
+      const cvx = dx * vmax, cvz = dz * vmax, k = 1 - Math.exp(-dt * (e.auSol ? J.accel.sol : J.accel.air));
+      e.vx += (cvx - e.vx) * k; e.vz += (cvz - e.vz) * k;
+      dep = avancer(e, dt, monde);
+      if (e.auSol) { e.vx = MV_MX / dt; e.vz = MV_MZ / dt; }
+      e.vitesse = dep / dt;
+      if (en.saut && e.auSol) {
+        if (e.vers === 'couche' || e.posture === 'couche') changerPosture(e, 'accroupi', TR.coucheAccroupi); // couché, sauter fait passer accroupi
+        else {
+          if (e.vers !== 'debout' || e.transition > 0) changerPosture(e, 'debout', TR.sautAccroupi); // accroupi : le corps se relève en 0,1 s
+          e.vy = J.saut; e.auSol = false; MV.saut = true; e.course = false;
+        }
+      }
+    }
+    if (!e.auSol && e.vers === 'glisse') finirGlissade(e, veutAcc); // une glissade qui quitte le sol
+    const avant = e.auSol;
+    gravite(e, dt, monde);
+    if (!avant && e.auSol && MV.atterrit < RE.vy) e.receptionA = RE.duree; // une chute dure : vitesse × 0,5 pendant 0,25 s
+    // ─ la transition : œil et capsule suivent de façon linéaire ─
+    if (e.transition > 0) {
+      const c = P[e.vers], u = Math.min(1, dt / e.transition);
+      e.oeil += (c.oeil - e.oeil) * u; e.hautCapsule += (c.haut - e.hautCapsule) * u; e.transition -= dt;
+      if (e.transition <= 1e-9) { e.transition = 0; e.posture = e.vers; e.oeil = c.oeil; e.hautCapsule = c.haut; }
+    }
+    e.accroupi = e.posture !== 'debout';
+    MV.dep = dep;
+    return MV;
+  }
+
+  // ─── la caméra subjective (C1 + C2, § 1) ───
+  // PCORPS.camera(opts?) → fonction (e, dt) → { y, cote, roulis, k, phase } (objet RÉUTILISÉ) : chaque appel de PCORPS.camera crée une
+  // caméra avec son propre état (une par vue). e : x, y, z, auSol, vy (et posture, course, vise, corpsV2 s'ils sont là) ; dt : l'image.
+  // y : hauteur absolue de l'œil affiché = œil lissé (Holt : niveau + tendance, aucun retard sur une pente régulière ; net au-delà de
+  // 0,6 m d'écart) + balancement vertical + creux d'atterrissage ; cote : décalage de côté (m, vers la droite) ; roulis (rad) ;
+  // k : part du balancement (0 à l'arrêt ou en l'air, 1 à 5,2 m/s) ; phase : la phase φ de la foulée (pour l'arme et les avatars, C3).
+  // opts : { balancement: 'normal' | 'doux' (× 0,5) | 'aucun' }. Le tir part toujours de l'œil de la simulation, pas de cet œil-ci.
+  const BAL = { normal: 1, doux: 0.5, aucun: 0 };
+  const AMPL = { debout: 0.012, course: 0.018, accroupi: 0.006, glisse: 0, couche: 0 };
+  function camera(opts) {
+    const o = opts || {};
+    const C = { niveau: NaN, tendance: 0, phase: 0, vit: 0, px: 0, pz: 0, creux: 0, vcreux: 0, vyAir: 0, enAir: false, bal: BAL[o.balancement] != null ? BAL[o.balancement] : 1 };
+    const OUT = { y: 0, cote: 0, roulis: 0, k: 0, phase: 0 };
+    const f = function (e, dt) {
+      const vrai = e.y + oeil(e);
+      if (!(dt > 0)) dt = 1e-4;
+      if (C.niveau !== C.niveau) { C.niveau = vrai; C.tendance = 0; C.px = e.x; C.pz = e.z; }
+      // C2 — Holt : prévision, correction vers la mesure ; constantes de temps indépendantes de l'image
+      const prev = C.niveau + C.tendance * dt, a = 1 - Math.exp(-dt / 0.05), b = 1 - Math.exp(-dt / 0.09);
+      const niveau = prev + a * (vrai - prev); C.tendance += b * ((niveau - C.niveau) / dt - C.tendance); C.niveau = niveau;
+      if (Math.abs(C.niveau - vrai) > 0.6) { C.niveau = vrai; C.tendance = 0; } // téléportation, réapparition : net
+      // le creux d'atterrissage : −min(0,10 ; 0,02·|vy|), résorbé par un ressort amorti critique (ω = 14/s), en solution exacte
+      if (e.auSol === false) { C.enAir = true; C.vyAir = e.vy || 0; }
+      else if (C.enAir) { C.enAir = false; C.creux = -Math.min(0.10, 0.02 * Math.abs(C.vyAir)); C.vcreux = 0; }
+      if (C.creux !== 0 || C.vcreux !== 0) {
+        const w = 14, ex = Math.exp(-w * dt), c2 = C.vcreux + w * C.creux;
+        C.creux = (C.creux + c2 * dt) * ex; C.vcreux = (C.vcreux - w * c2 * dt) * ex;
+        if (Math.abs(C.creux) < 1e-5 && Math.abs(C.vcreux) < 1e-4) { C.creux = 0; C.vcreux = 0; }
+      }
+      // C1 — la foulée : longueur de pas 0,75 + 0,2·v (m), φ += π·d/pas (une foulée de deux pas = 2π)
+      const dx = e.x - C.px, dz = e.z - C.pz, d = Math.sqrt(dx * dx + dz * dz); C.px = e.x; C.pz = e.z;
+      const v = d < 3 ? d / dt : 0; C.vit += (Math.min(9, v) - C.vit) * (1 - Math.exp(-dt * 8));
+      if (d < 3) { C.phase += Math.PI * d / (0.75 + 0.2 * C.vit); if (C.phase > 1e4) C.phase -= 2 * Math.PI * Math.floor(C.phase / (2 * Math.PI)); }
+      const k = Math.min(1, C.vit / J.vitesse) * (e.auSol === false ? 0 : 1);
+      const post = e.corpsV2 ? (e.course ? 'course' : e.vers || 'debout') : (e.accroupi ? 'accroupi' : 'debout');
+      const ampl = AMPL[post] != null ? AMPL[post] : AMPL.debout, vise = e.vise > 0 ? e.vise : 0, m = C.bal * k * (1 - 0.8 * vise);
+      const s = Math.sin(C.phase);
+      OUT.y = C.niveau - ampl * m * (1 - Math.cos(2 * C.phase)) / 2 + C.creux;
+      OUT.cote = 0.006 * m * (ampl > 0 ? 1 : 0) * s; OUT.roulis = 0.0025 * m * (ampl > 0 ? 1 : 0) * s; OUT.k = k; OUT.phase = C.phase;
+      return OUT;
+    };
+    f.regler = (op) => { if (op && BAL[op.balancement] != null) C.bal = BAL[op.balancement]; };
+    f.remettre = () => { C.niveau = NaN; C.creux = 0; C.vcreux = 0; C.enAir = false; C.vit = 0; };
+    return f;
+  }
+
+  return { deplacer, capsule, rayon, TOUCHE, oeil, haut, vitesseMax, peutCoucher, changerPosture, camera, estV2, POSTURES, NEUTRE, R_CAPSULE, TETE, PENTE_MAX };
+});
+
+/* ── armes.js ── */
+/* OPÉRATION PONCIN — les armes d'une entité : deux emplacements (principale, secondaire), changement, recharge, visée, dispersion, tirs
+   instantanés (un rayon par plomb, depuis l'œil, contre le monde puis les capsules des ennemis, compensation de latence), objets.
+   Conception du lot Gameplay, § 4 et § 5 ; les chiffres sont dans regles.js (PREGLES.ARMES).
+   Module pur (aucun DOM, aucun THREE) : tourne aussi dans Node. Utilisé par jeu.js (PJEU.tirVisuel et PJEU.dispersion en sont des alias).
+
+   Deux régimes, choisis par entité :
+   - historique (e.equip === null : la partie actuelle) : on commence au blaster rafale, les armes ramassées s'ajoutent (e.armes = les
+     armes possédées), une arme vide de tout est lâchée, le rafale ne tombe jamais en panne, changement en 0,3 s, dispersion d'avant
+     (le Long-tir garde sa dispersion de hanche de 0,0015 tant que la visée n'est pas branchée : A.dispersionAvantVisee) ;
+   - emplacements (e.equip = { p, s }, posé par PARMES.equiper avec un équipement) : e.armes = [principale, secondaire], la secondaire
+     jamais à sec, changement en A.changement, visée, dispersion v2 (§ 4), une arme ramassée remplace la principale jusqu'à la mort.
+   Le tir a besoin de la partie : jeu.temps, jeu.dt (le pas en cours), jeu.rnd, jeu.monde, jeu.entites, jeu.ennemis, et des crochets que
+   PJEU expose pour ce module : jeu.rembobiner(tireur), jeu.restaurer(), jeu.blesser(cible, de, degats, tete, arme, out), jeu.faireBruit(e, portee). */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'), require('./corps.js'));
+  else root.PARMES = factory(root.PREGLES, root.PCORPS);
+})(typeof self !== 'undefined' ? self : this, function (REGLES, CORPS) {
+  'use strict';
+  const J = REGLES.JOUEUR, P = J.postures;
+  const CHANGE_ARME = 0.3;  // historique : le temps de sortir une autre arme (s)
+  const KICK = 0.6;         // la part du recul de l'arme qui relève le regard
+  const BASE = 'rafale';    // historique : le blaster de base, qui ne tombe jamais en panne
+  const borne = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const angle = (a) => { a = a % (2 * Math.PI); return a > Math.PI ? a - 2 * Math.PI : a <= -Math.PI ? a + 2 * Math.PI : a; };
+
+  // l'arme qui ne tombe jamais en panne (sa réserve ne descend jamais sous un chargeur) : la secondaire, ou le rafale (historique)
+  const secours = (e) => (e.equip ? e.armes[1] : BASE);
+
+  // ─── la dispersion (rad) ───
+  // historique : l'arme (×0,7 accroupi) + le mouvement et l'air + l'ouverture des tirs précédents ;
+  // v2 (§ 4) : base = A.dispersion × posture × lerp(1, A.visee.dispersion × stab, vise), stab = 1 + 2·max(0, 1 − viseStable/0,35) à la
+  // lunette ; + A.dispersionMouvement·(min(1,4 ; v/5,2) + 0,6 en l'air)·(1 − 0,5·vise) + gonfle·recul·1,6·(1 − 0,3·vise)
+  function dispersion(e, A) {
+    if (!e.equip) {
+      const mvt = Math.min(1, e.vitesse / J.vitesse) + (e.auSol ? 0 : 0.6);
+      const d = A.dispersionAvantVisee != null ? A.dispersionAvantVisee : A.dispersion; // le Long-tir, jusqu'au branchement de la visée
+      return d * (e.accroupi ? 0.7 : 1) + (A.dispersionMouvement || 0) * mvt + e.gonfle * (A.recul || 0.02) * 1.6;
+    }
+    const vise = e.vise > 0 ? e.vise : 0, V = A.visee || null;
+    const post = e.corpsV2 ? (P[e.vers] && P[e.vers].dispersion != null ? P[e.vers].dispersion : 1) : (e.accroupi ? 0.7 : 1);
+    const stab = V && V.viseur === 'lunette' ? 1 + 2 * Math.max(0, 1 - (e.viseStable || 0) / 0.35) : 1;
+    const base = A.dispersion * post * (1 + ((V ? V.dispersion : 1) * stab - 1) * vise);
+    const mvt = Math.min(1.4, e.vitesse / J.vitesse) + (e.auSol ? 0 : 0.6);
+    return base + (A.dispersionMouvement || 0) * mvt * (1 - 0.5 * vise) + e.gonfle * (A.recul || 0.02) * 1.6 * (1 - 0.3 * vise);
+  }
+
+  // ─── l'équipement ───
+  // PARMES.equiper(e, equip, reglages) : equip null → l'équipement historique (rafale seul) ; sinon { p, s } (ou 'p+s'), validé par
+  // PREGLES.equipementDe(equip, reglages) ; la principale en main, chargeurs pleins, réserves pleines
+  function equiper(e, equip, reglages) {
+    e.enRecharge = false; e.rechargeJusqua = 0; e.gonfle = 0; e.vise = 0; e.viseStable = 0; e.changeJusqua = 0; e.changeReste = 0; e.slot = 0;
+    if (equip == null) {
+      const A = REGLES.arme(BASE);
+      e.equip = null; e.arme = BASE; e.armes = [BASE]; e.munitions = { [BASE]: A.chargeur }; e.reserve = { [BASE]: A.reserve }; e.dispersion = A.dispersion;
+      return e;
+    }
+    const q = REGLES.equipementDe(equip, reglages), Ap = REGLES.arme(q.p), As = REGLES.arme(q.s);
+    e.equip = { p: q.p, s: q.s }; e.arme = q.p; e.armes = [q.p, q.s];
+    e.munitions = { [q.p]: Ap.chargeur, [q.s]: As.chargeur }; e.reserve = { [q.p]: Ap.reserve, [q.s]: As.reserve };
+    e.dispersion = dispersion(e, Ap);
+    return e;
+  }
+
+  // ─── le changement d'arme ───
+  // PARMES.changer(e, slot, jeu) : slot 0 / 1 (emplacement), ou un id d'arme possédée (compatibilité) ; rend true si l'arme change.
+  // Annule la recharge (et la visée) ; le premier tir attend le temps de sortie (0,3 s historique, A.changement avec les emplacements).
+  function changer(e, slot, jeu) {
+    const id = typeof slot === 'number' ? e.armes[slot] : slot;
+    if (typeof id !== 'string' || id === e.arme || e.armes.indexOf(id) < 0) return false;
+    const T = jeu.temps, d = e.equip ? REGLES.arme(id).changement : CHANGE_ARME;
+    e.arme = id; e.slot = e.armes.indexOf(id); e.enRecharge = false; e.rechargeJusqua = 0; e.prochainTir = Math.max(e.prochainTir, T + d);
+    if (e.equip) { e.vise = 0; e.viseStable = 0; e.changeJusqua = T + d; e.changeReste = d; }
+    return true;
+  }
+  function lacher(e, id, jeu) { // historique : une arme vide de tout (chargeur et réserve) : on la lâche et on reprend le blaster
+    if (id === BASE || e.equip) return;
+    const i = e.armes.indexOf(id); if (i >= 0) e.armes.splice(i, 1);
+    delete e.munitions[id]; delete e.reserve[id];
+    if (e.arme === id) changer(e, BASE, jeu);
+  }
+
+  // ─── la recharge ───
+  function recharger(e, jeu, out) {
+    if (e.enRecharge) return;
+    const A = REGLES.arme(e.arme), m = e.munitions[e.arme] | 0;
+    if (m >= A.chargeur) return;
+    if ((e.reserve[e.arme] | 0) <= 0 && e.arme !== secours(e)) { if (m <= 0) lacher(e, e.arme, jeu); return; } // l'arme de secours, elle, ne tombe jamais en panne
+    e.enRecharge = true; e.rechargeJusqua = jeu.temps + A.recharge;
+    out.push({ t: 'recharge', id: e.id });
+  }
+  function finirRecharge(e) {
+    e.enRecharge = false;
+    const A = REGLES.arme(e.arme), m = e.munitions[e.arme] | 0, res = e.reserve[e.arme] | 0, manque = A.chargeur - m, sec = e.arme === secours(e);
+    const n = sec ? manque : Math.min(manque, res); // réserve de secours
+    e.munitions[e.arme] = m + n; e.reserve[e.arme] = sec ? Math.max(A.chargeur, res - n) : Math.max(0, res - n); // jamais sous un chargeur de réserve
+  }
+
+  // ─── la visée (§ 4) ───
+  // PARMES.majVisee(e, en, dt) : e.vise monte de dt / A.visee.entree si la visée est demandée et permise (pas en course, pas en glissade,
+  // pas pendant un changement d'arme), redescend 1,4 fois plus vite ; e.viseStable compte l'immobilité en pleine visée (deux fois plus
+  // vite couché). Sans le niveau vise dans l'entrée (partie actuelle) : rien ne bouge, e.vise reste à 0.
+  function majVisee(e, en, dt) {
+    if (e.changeReste > 0) e.changeReste = Math.max(0, e.changeReste - dt);
+    if (!(e.vise > 0) && !(en && en.vise)) { e.vise = 0; e.viseStable = 0; return e.vise; }
+    const A = REGLES.arme(e.arme), entree = (A.visee && A.visee.entree) || 0.2;
+    const permis = !!(en && en.vise) && !e.course && e.vers !== 'glisse' && e.posture !== 'glisse' && !(e.changeReste > 0);
+    e.vise = permis ? Math.min(1, e.vise + dt / entree) : Math.max(0, e.vise - 1.4 * dt / entree);
+    if (e.vise > 1 - 1e-9) e.vise = 1; else if (e.vise < 1e-9) e.vise = 0; // (les arrondis : 15 pas de 1/60 s font bien 0,25 s)
+    if (e.vise >= 1 && e.vitesse < 0.3) e.viseStable = (e.viseStable || 0) + dt * (e.posture === 'couche' ? 2 : 1); else e.viseStable = 0;
+    return e.vise;
+  }
+
+  // peut-on tirer ? (course, arme qu'on remonte après la course, transition vers ou depuis couché : non)
+  function peutTirer(e) {
+    if (e.course || e.remonte > 0) return false;
+    if (e.transition > 0 && (e.vers === 'couche' || e.posture === 'couche')) return false;
+    return true;
+  }
+
+  // ─── un tir : un rayon par plomb, depuis l'œil, contre le monde puis les capsules ───
+  const CIBLES = [], DEGATS = [], TETES = []; // les touchés d'un tir (agrégés par cible : la pompe fait un seul « touche » par victime)
+  function tirer(e, jeu, out) {
+    const A = REGLES.arme(e.arme), T = jeu.temps, dt = jeu.dt || 0, monde = jeu.monde, entites = jeu.entites;
+    const m = e.munitions[e.arme] | 0;
+    if (m <= 0) { recharger(e, jeu, out); return; }
+    e.munitions[e.arme] = m - 1;
+    e.prochainTir = (e.prochainTir > T - dt ? e.prochainTir : T) + 1 / A.cadence; // cadence exacte quelle que soit l'image
+    e.invincible = 0; e.dernierTir = T;
+    const rnd = jeu.rnd, disp = dispersion(e, A);
+    const sy = Math.sin(e.yaw), cy = Math.cos(e.yaw), sp = Math.sin(e.pitch), cp = Math.cos(e.pitch);
+    const d0x = -sy * cp, d0y = sp, d0z = -cy * cp;             // le regard
+    const rx = cy, rz = -sy;                                      // la droite
+    const ux = sy * sp, uy = cp, uz = cy * sp;                    // le haut de l'écran
+    const ox = e.x, oy = e.y + CORPS.oeil(e), oz = e.z;
+    const rembobine = jeu.rembobiner(e); // compensation de latence (jeu en ligne) : les autres là où le tireur les voyait
+    let nc = 0;
+    for (let p = 0; p < A.plombs; p++) {
+      const r = disp * Math.sqrt(rnd()), a = rnd() * 2 * Math.PI, da = Math.tan(r) * Math.cos(a), db = Math.tan(r) * Math.sin(a);
+      let dx = d0x + rx * da + ux * db, dy = d0y + uy * db, dz = d0z + rz * da + uz * db;
+      const l = Math.sqrt(dx * dx + dy * dy + dz * dz); dx /= l; dy /= l; dz /= l;
+      const h = monde.rayon(ox, oy, oz, dx, dy, dz, A.portee);
+      let tMax = h ? h.t : A.portee, cible = null, tete = false, cx = 0, cyy = 0, cz = 0;
+      for (let k = 0; k < entites.length; k++) {
+        const c = entites[k]; if (!c.vivant || !jeu.ennemis(e, c)) continue;
+        const ddx = c.x - ox, ddz = c.z - oz; if (ddx * ddx + ddz * ddz > (tMax + 1.5) * (tMax + 1.5)) continue;
+        const t = CORPS.rayon(ox, oy, oz, dx, dy, dz, c, tMax);
+        if (t >= 0 && t < tMax) { tMax = t; cible = c; tete = CORPS.TOUCHE.tete; cx = CORPS.TOUCHE.cx; cyy = CORPS.TOUCHE.cy; cz = CORPS.TOUCHE.cz; }
+      }
+      const fx = ox + dx * tMax, fy = oy + dy * tMax, fz = oz + dz * tMax;
+      let impact = null;
+      if (cible) {
+        const nx = fx - cx, ny = fy - cyy, nz = fz - cz, nl = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
+        impact = { x: fx, y: fy, z: fz, nx: nx / nl, ny: ny / nl, nz: nz / nl, quoi: 'entite', id: cible.id };
+        const deg = REGLES.degatsA(A, tMax, tete);
+        let i = 0; while (i < nc && CIBLES[i] !== cible) i++;
+        if (i === nc) { CIBLES[nc] = cible; DEGATS[nc] = 0; TETES[nc] = false; nc++; }
+        DEGATS[i] += deg; if (tete) TETES[i] = true;
+      } else if (h) impact = { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, quoi: h.quoi };
+      out.push({ t: 'tir', id: e.id, arme: A.id, o: [ox, oy, oz], fin: [fx, fy, fz], impact });
+    }
+    if (rembobine) jeu.restaurer();
+    // le recul : le viseur s'ouvre, le regard se relève un peu (moins en visée)
+    const vise = e.equip && e.vise > 0 ? e.vise : 0, kr = 1 - 0.3 * vise;
+    e.gonfle = Math.min(1, e.gonfle + (A.gonfle != null ? A.gonfle : 0.3));
+    e.pitch = borne(e.pitch + (A.recul || 0) * kr * KICK * (0.7 + 0.3 * rnd()), -1.45, 1.45);
+    e.yaw = angle(e.yaw + (A.recul || 0) * kr * KICK * 0.35 * (rnd() * 2 - 1));
+    jeu.faireBruit(e, 30);
+    for (let i = 0; i < nc; i++) { const c = CIBLES[i]; CIBLES[i] = null; jeu.blesser(c, e, DEGATS[i], TETES[i], A.id, out); }
+  }
+
+  // un tir « pour l'image » (client en ligne : l'éclair et la traînée tout de suite, l'hôte décide des dégâts) : mêmes rayons que la
+  // simulation (dispersion, plombs, monde puis capsules des ennemis vivants), événements « tir » dans out, aucun effet sur le jeu
+  function tirVisuel(e, monde, entites, rnd, out) {
+    const A = REGLES.arme(e.arme), disp = dispersion(e, A), o = CORPS.oeil(e);
+    const sy = Math.sin(e.yaw), cy = Math.cos(e.yaw), sp = Math.sin(e.pitch), cp = Math.cos(e.pitch);
+    const d0x = -sy * cp, d0y = sp, d0z = -cy * cp, rx = cy, rz = -sy, ux = sy * sp, uy = cp, uz = cy * sp, ox = e.x, oy = e.y + o, oz = e.z;
+    for (let p = 0; p < A.plombs; p++) {
+      const r = disp * Math.sqrt(rnd()), a = rnd() * 2 * Math.PI, da = Math.tan(r) * Math.cos(a), db = Math.tan(r) * Math.sin(a);
+      let dx = d0x + rx * da + ux * db, dy = d0y + uy * db, dz = d0z + rz * da + uz * db;
+      const l = Math.sqrt(dx * dx + dy * dy + dz * dz); dx /= l; dy /= l; dz /= l;
+      const h = monde.rayon(ox, oy, oz, dx, dy, dz, A.portee);
+      let tMax = h ? h.t : A.portee, cible = null;
+      for (let k = 0; k < entites.length; k++) {
+        const c = entites[k]; if (c === e || !c.vivant || c.equipe === e.equipe) continue;
+        const t = CORPS.rayon(ox, oy, oz, dx, dy, dz, c, tMax); if (t >= 0 && t < tMax) { tMax = t; cible = c; }
+      }
+      const fx = ox + dx * tMax, fy = oy + dy * tMax, fz = oz + dz * tMax;
+      const impact = cible ? { x: fx, y: fy, z: fz, nx: -dx, ny: -dy, nz: -dz, quoi: 'entite', id: cible.id } : h ? { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, quoi: h.quoi } : null;
+      out.push({ t: 'tir', id: e.id, arme: A.id, o: [ox, oy, oz], fin: [fx, fy, fz], impact, local: true });
+    }
+    return out;
+  }
+
+  // ─── les armes d'une entité pendant un pas (après le déplacement) ───
+  // PARMES.agir(e, en, dt, jeu, out) : changement (en.arme : emplacement 0 / 1 ou id ; en.changer : l'autre emplacement), fin de
+  // recharge, recharge demandée, tir (ou recharge automatique du chargeur vide), le viseur qui se referme, e.dispersion (pour le HUD)
+  function agir(e, en, dt, jeu, out) {
+    const T = jeu.temps;
+    if (typeof en.arme === 'number') changer(e, en.arme, jeu);
+    else if (en.arme && en.arme !== e.arme && e.armes.indexOf(en.arme) >= 0) changer(e, en.arme, jeu);
+    if (en.changer && e.equip) changer(e, e.slot ? 0 : 1, jeu);
+    if (e.enRecharge && T >= e.rechargeJusqua) finirRecharge(e);
+    if (en.recharge) recharger(e, jeu, out);
+    if (en.tir && !e.enRecharge && T >= e.prochainTir && peutTirer(e)) tirer(e, jeu, out);
+    else if (!e.enRecharge && (e.munitions[e.arme] | 0) <= 0 && T >= e.prochainTir) recharger(e, jeu, out); // chargeur vide : on recharge tout seul
+    e.gonfle = Math.max(0, e.gonfle - 3.2 * dt);
+  }
+
+  // ─── les objets (munitions, armes) ───
+  // utile(e, O) : l'objet sert-il à l'entité ? prendre(e, O, jeu) : l'effet (soin et armure restent dans jeu.js)
+  function utile(e, O) {
+    if (O.type === 'munitions') { for (const id of e.armes) { if ((e.reserve[id] | 0) < REGLES.arme(id).reserve) return true; } return false; }
+    if (O.type !== 'arme') return false;
+    const A = REGLES.arme(O.arme);
+    if (e.equip) return e.armes[0] !== O.arme || (e.munitions[O.arme] | 0) < A.chargeur || (e.reserve[O.arme] | 0) < A.reserve;
+    return e.armes.indexOf(O.arme) < 0 || (e.munitions[O.arme] | 0) < A.chargeur || (e.reserve[O.arme] | 0) < A.reserve;
+  }
+  function prendre(e, O, jeu) {
+    if (O.type === 'munitions') { for (const id of e.armes) e.reserve[id] = Math.max(e.reserve[id] | 0, REGLES.arme(id).reserve); return; }
+    if (O.type !== 'arme') return;
+    const A = REGLES.arme(O.arme);
+    if (e.equip) { // la principale est remplacée jusqu'à la mort (ou sa réserve remplie si c'est déjà la sienne)
+      const ancienne = e.armes[0];
+      if (ancienne !== O.arme) { if (ancienne !== e.armes[1]) { delete e.munitions[ancienne]; delete e.reserve[ancienne]; } e.armes[0] = O.arme; }
+      e.munitions[O.arme] = A.chargeur; e.reserve[O.arme] = Math.max(e.reserve[O.arme] | 0, A.reserve);
+      if (e.slot === 0 && e.arme !== O.arme) { e.arme = null; changer(e, 0, jeu); }
+      else if (e.arme === O.arme && e.enRecharge) { e.enRecharge = false; e.rechargeJusqua = 0; }
+      return;
+    }
+    const neuve = e.armes.indexOf(O.arme) < 0;
+    if (neuve) e.armes.push(O.arme);
+    e.munitions[O.arme] = A.chargeur; e.reserve[O.arme] = Math.max(e.reserve[O.arme] | 0, A.reserve);
+    if (neuve) changer(e, O.arme, jeu); // une arme neuve passe en main
+    else if (e.arme === O.arme && e.enRecharge) { e.enRecharge = false; e.rechargeJusqua = 0; }
+  }
+
+  return { dispersion, tirer, tirVisuel, majVisee, changer, recharger, finirRecharge, equiper, agir, peutTirer, utile, prendre, secours, CHANGE_ARME, KICK };
+});
+
+/* ── zones.js ── */
+/* OPÉRATION PONCIN — les zones de la carte où se joue une partie (conception du lot Gameplay, § 7) : 'place', 'centre' (l'arène
+   d'aujourd'hui, par défaut), 'eglise', 'bourg', 'rivieres' (le Veyron dans le bourg et ses deux ponts), 'tout'.
+   PZONES.preparer(carte, monde, nav, id, rnd) → { id, demande, limite, englobant: { centre, rayon }, apparitions: [[x, z], …],
+   objets: [[x, z, objet], …], aire (m²), avertissement? }. Au lancement (hôte ou solo), après la navigation ; rnd est un générateur à
+   part (mulberry32(graine ^ 0x2F6E2B1)) pour que jeu.rnd reste identique chez l'hôte et chez la façade.
+   Aujourd'hui seule 'centre' est complète : elle reprend telles quelles les zones précalculées de la carte (carte.zones : arene,
+   apparitions, armes). Les autres zones rendent 'centre' avec un avertissement (le lot 2/2 les fera, avec PMONDE.limiteDe).
+   Module pur (aucun DOM, aucun THREE) : tourne aussi dans Node. Voir src-poncin/ARCHITECTURE.md. */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'));
+  else root.PZONES = factory(root.PREGLES);
+})(typeof self !== 'undefined' ? self : this, function (REGLES) {
+  'use strict';
+  const fin = (v) => typeof v === 'number' && v - v === 0;
+  const IDS = REGLES.SALON.zones;
+  const NOMS = { place: 'Place Bichat', centre: 'Cœur du village', eglise: 'Autour de l’église', bourg: 'Tout le bourg', rivieres: 'Le Veyron', tout: 'Tout Poncin' };
+  const FAITES = { centre: true };
+
+  // 'centre' : l'arène de la carte (110 m autour de (0, 0) sans carte, comme PARENE), ses apparitions et ses objets, tels quels
+  function centre(carte) {
+    const z = (carte && carte.zones) || {}, a = z.arene;
+    const c = a && a.centre && fin(+a.centre[0]) && fin(+a.centre[1]) ? [+a.centre[0], +a.centre[1]] : [0, 0];
+    const rayon = a && fin(+a.rayon) && a.rayon > 10 ? +a.rayon : 110;
+    const apparitions = [], objets = [];
+    for (const p of Array.isArray(z.apparitions) ? z.apparitions : []) if (p && fin(+p[0]) && fin(+p[1])) apparitions.push([+p[0], +p[1]]);
+    for (const o of Array.isArray(z.armes) ? z.armes : []) if (o && fin(+o.x) && fin(+o.z) && typeof o.arme === 'string') objets.push([+o.x, +o.z, o.arme]);
+    return { id: 'centre', demande: 'centre', nom: NOMS.centre, limite: { centre: [c[0], c[1]], rayon }, englobant: { centre: [c[0], c[1]], rayon }, apparitions, objets, aire: Math.PI * rayon * rayon };
+  }
+
+  function preparer(carte, monde, nav, id, rnd) { // monde, nav et rnd : pour les zones du lot 2/2
+    const demande = typeof id === 'string' && IDS.indexOf(id) >= 0 ? id : 'centre';
+    const z = centre(carte);
+    z.demande = typeof id === 'string' ? id : demande;
+    if (!FAITES[demande] || demande !== id) z.avertissement = `zone « ${typeof id === 'string' ? id : String(id)} » pas encore préparée : on joue « centre »`;
+    return z;
+  }
+  // la distance idéale de réapparition : clamp(0,32 · rayon englobant, 15, 60) m (35 m pour 'centre')
+  const distanceReapparition = (z) => Math.max(15, Math.min(60, 0.32 * (z && z.englobant ? z.englobant.rayon : 110)));
+
+  return { preparer, distanceReapparition, IDS, NOMS };
 });
 
 /* ── bots.js ── */
@@ -3281,6 +4084,8 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
    tir), objets à ramasser, aide à la visée au doigt. Les bots sont pilotés ici par PBOTS ; le mode (PARENE…) est un jeu de crochets.
    Module pur (aucun DOM, aucun THREE) : tourne aussi dans Node. Voir src-poncin/ARCHITECTURE.md (x à l'est, z au sud, y en haut ;
    yaw 0 = nord, positif vers l'ouest ; regard d = (−sin yaw·cos pitch, sin pitch, −cos yaw·cos pitch)).
+   Le corps (déplacement, postures, capsules, caméra) est dans corps.js (PCORPS), les armes (tir, recharge, changement, visée) dans
+   armes.js (PARMES) : PJEU.deplacer, PJEU.dispersion et PJEU.tirVisuel en sont des alias.
    API (contrat) : PJEU.creer({ monde, mode, graine, options: { bots, niveau, equipes }, carte? }) → jeu ; jeu.ajouterJoueur(o) → entité ;
    jeu.etape(dt, entrees) → événements ; jeu.entites, jeu.temps, jeu.fini, jeu.classement(), jeu.aideVisee(id, force).
    En plus : jeu.carte (pour les zones du mode : passée à creer, ou monde.carte), jeu.monde, jeu.mode, jeu.options, jeu.nav (PNAV),
@@ -3289,24 +4094,23 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
    des bots), jeu.budgetNav (requêtes de chemin encore permises dans l'image : 2 pour tous les bots).
    Le tableau d'événements rendu par etape est RÉUTILISÉ à l'image suivante (le copier pour le garder) ; les événements eux-mêmes sont neufs.
    Le hasard vient de deux mulberry32 tirés de la graine (jeu.rnd : tirs et mode ; jeu.rndBots : les bots) : même graine, mêmes entrées,
-   même partie, à l'identique. */
+   même partie, à l'identique.
+   Entité v2 (lot Gameplay, § 3) : posture, vers, transition, oeil, hautCapsule, course, gv / gdx / gdz, relanceA, receptionA, remonte,
+   vise, viseStable, accroupiPrec, couchePrec, corpsV2, ax / ay / az / aoeil (la position au début du pas : le rendu interpole entre
+   elle et la position), armes / slot / equip / changeJusqua ; e.accroupi reste (posture ≠ 'debout').
+   PJEU.pasFixe({ pas: 1/60, max: 4 }) → { avancer(dtImage, fnPas) → alpha, remettre() } : la boucle à pas fixe (§ 2), pure. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'), require('./nav.js'), require('./bots.js'));
-  else root.PJEU = factory(root.PREGLES, root.PNAV, root.PBOTS);
-})(typeof self !== 'undefined' ? self : this, function (REGLES, NAV, BOTS) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'), require('./nav.js'), require('./bots.js'), require('./corps.js'), require('./armes.js'));
+  else root.PJEU = factory(root.PREGLES, root.PNAV, root.PBOTS, root.PCORPS, root.PARMES);
+})(typeof self !== 'undefined' ? self : this, function (REGLES, NAV, BOTS, CORPS, ARMES) {
   'use strict';
   const J = REGLES.JOUEUR;
   const DT_MAX = 1 / 20;              // une image ne simule jamais plus de 50 ms
-  const R_CAPSULE = 0.4, TETE = 0.35; // la capsule touchable : rayon 0,4 m du pied à la taille ; la tête = les 35 derniers cm
-  const ACCEL_SOL = 14, ACCEL_AIR = 2.2; // la vitesse rejoint la consigne (1/s) : vive au sol, peu de contrôle en l'air
+  const R_CAPSULE = CORPS.R_CAPSULE, TETE = CORPS.TETE; // la capsule touchable debout : rayon 0,4 m ; la tête = les 35 derniers cm
   const ABSORBE = 0.6;                // l'armure absorbe 60 % des dégâts
-  const CHANGE_ARME = 0.3;            // le temps de sortir une autre arme (s)
   const FOULEE = 1.7;                 // un « pas » (son) tous les 1,7 m au sol, debout
   const RAMASSE = 1.3;                // on ramasse un objet à 1,3 m
   const ECART = 0.7;                  // deux joueurs ne se superposent pas : ils se poussent doucement à moins de 0,7 m
-  const GONFLE = { rafale: 0.22, pompe: 0.8, precision: 1 }; // l'ouverture du viseur par tir (retombe de 3,2/s), comme le HUD
-  const PENTE_MAX = J.marche / 0.3;     // la pente la plus raide qu'on monte (une marche de 0,45 m sur 30 cm, ≈ 56°)
-  const KICK = 0.6;                   // la part du recul de l'arme qui relève le regard
   const AIDE_CONE = 4 * Math.PI / 180, AIDE_DIST = 40, AIDE_MAX = 2.5 * Math.PI / 180, AIDE_SUR = 1.5 * Math.PI / 180, AIDE_RALENTIR = 0.4;
   const NB_BRUITS = 24;
   const PORTEE_AUTO = { pompe: 12 };   // le tir auto de la pompe s'arrête à sa portée utile ; les autres : min(portée, 60, 1,2 × fin de la chute)
@@ -3314,9 +4118,8 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   const borne = (v, a, b) => (v < a ? a : v > b ? b : v);
   const num = (v, a, b) => { v = +v; return fini(v) ? borne(v, a, b) : 0; };
   const angle = (a) => { a = a % (2 * Math.PI); return a > Math.PI ? a - 2 * Math.PI : a <= -Math.PI ? a + 2 * Math.PI : a; };
-  const taille = (e) => (e.accroupi ? J.tailleAccroupi : J.taille);
-  const oeil = (e) => (e.accroupi ? J.oeilAccroupi : J.oeil);
-  const NEUTRE = Object.freeze({ avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null });
+  const taille = CORPS.haut, oeil = CORPS.oeil;
+  const NEUTRE = CORPS.NEUTRE;
 
   // un mode minimal quand on n'en donne pas : réapparition au bout de 3 s sur un point libre, jamais de fin
   const MODE_LIBRE = {
@@ -3327,110 +4130,40 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   };
   const VIDE = [];
 
-  // ─── la capsule d'une entité contre un rayon : t du premier contact (≤ tMax), ou −1 ───
-  const CAP = { t: 0, y: 0 };
-  function rayonCapsule(ox, oy, oz, dx, dy, dz, e, tMax) {
-    const y0 = e.y + R_CAPSULE, y1 = e.y + taille(e) - R_CAPSULE, R2 = R_CAPSULE * R_CAPSULE;
-    const px = ox - e.x, pz = oz - e.z;
-    // dégrossi : la droite passe-t-elle à moins de R du fût (dans le plan) ?
-    const a = dx * dx + dz * dz, b = px * dx + pz * dz, c = px * px + pz * pz - R2;
-    let best = -1;
-    if (a > 1e-12) {
-      const disc = b * b - a * c; if (disc < 0) return -1;
-      const t = (-b - Math.sqrt(disc)) / a;
-      if (t >= 0 && t <= tMax) { const y = oy + dy * t; if (y >= y0 && y <= y1) { best = t; CAP.y = y; } }
-      else if (t < 0 && c <= 0) { const y = oy; if (y >= y0 && y <= y1) { best = 0; CAP.y = y; } } // l'origine est dans le fût
-    } else if (c > 0) return -1;
-    // les deux demi-sphères
-    for (let k = 0; k < 2; k++) {
-      const cy = k ? y1 : y0, qy = oy - cy, bb = px * dx + qy * dy + pz * dz, cc = px * px + qy * qy + pz * pz - R2, disc = bb * bb - cc;
-      if (disc < 0) continue;
-      let t = -bb - Math.sqrt(disc); if (t < 0) { if (cc > 0) continue; t = 0; }
-      if (t > tMax || (best >= 0 && t >= best)) continue;
-      const y = oy + dy * t; if (k ? y < y1 - 1e-9 : y > y0 + 1e-9) continue; // la partie de la sphère hors du fût
-      best = t; CAP.y = y;
-    }
-    if (best >= 0) CAP.t = best;
-    return best;
-  }
+  // compatibilité : le rayon contre la capsule d'une entité (PCORPS.rayon ; PCORPS.TOUCHE dit le point et la tête)
+  const rayonCapsule = CORPS.rayon;
 
-  // ─── le déplacement d'une entité selon son entrée (regard, marche, glissement contre les murs, pente, saut, gravité) ───
-  // Fonction pure, partagée par la simulation (etape) et la prédiction du client en ligne : même entrée, même dt → même résultat.
-  // L'entrée peut donner le regard en absolu (yaw, pitch : le client en ligne) ou en variation (dyaw, dpitch). Rend MV { dep, saut }.
-  const MV = { dep: 0, saut: false };
-  function deplacer(e, en, dt, monde) {
-    MV.dep = 0; MV.saut = false;
-    if (!en || typeof en !== 'object') en = NEUTRE;
-    // le regard
-    if (fini(en.yaw)) e.yaw = angle(en.yaw); else e.yaw = angle(e.yaw + num(en.dyaw, -Math.PI, Math.PI));
-    if (fini(en.pitch)) e.pitch = borne(en.pitch, -1.45, 1.45); else e.pitch = borne(e.pitch + num(en.dpitch, -Math.PI, Math.PI), -1.45, 1.45);
-    e.accroupi = !!en.accroupi;
-    // la marche : consigne dans le repère du regard, rejointe en douceur
-    let av = num(en.avant, -1, 1), co = num(en.cote, -1, 1); const l = Math.sqrt(av * av + co * co); if (l > 1) { av /= l; co /= l; }
-    const vmax = e.accroupi ? J.vitesseAccroupi : J.vitesse; if (av < 0) av *= J.vitesseRecul;
-    const sy = Math.sin(e.yaw), cy = Math.cos(e.yaw);
-    const cvx = (-sy * av + cy * co) * vmax, cvz = (-cy * av - sy * co) * vmax, k = Math.min(1, dt * (e.auSol ? ACCEL_SOL : ACCEL_AIR));
-    e.vx += (cvx - e.vx) * k; e.vz += (cvz - e.vz) * k;
-    const x0 = e.x, z0 = e.z;
-    if (e.vx * e.vx + e.vz * e.vz > 1e-8) {
-      const p = monde.deplacer(e.x, e.z, e.vx * dt, e.vz * dt, J.rayon), px = p[0] - e.x, pz = p[1] - e.z, pl = Math.sqrt(px * px + pz * pz);
-      let ok = monde.hauteur(p[0], p[1]) - e.y <= J.marche; // plus haut qu'une marche d'un coup : on ne monte pas
-      if (ok && pl > 1e-6 && monde.pente) { const g = monde.pente(p[0], p[1]); if ((g[0] * px + g[1] * pz) / pl > PENTE_MAX) ok = false; } // un talus plus raide qu'une marche de 0,45 m sur 30 cm
-      if (ok) { e.x = p[0]; e.z = p[1]; }
-    }
-    const mx = e.x - x0, mz = e.z - z0, dep = Math.sqrt(mx * mx + mz * mz);
-    if (e.auSol) { e.vx = mx / dt; e.vz = mz / dt; } // un mur a mangé une partie de l'élan
-    e.vitesse = dep / dt;
-    // saut et gravité ; au sol, on suit le relief (une pente qui descend trop vite : on tombe)
-    const sol = monde.hauteur(e.x, e.z);
-    if (en.saut && e.auSol) { e.vy = J.saut; e.auSol = false; MV.saut = true; }
-    if (e.auSol) { if (sol < e.y - 0.6) { e.auSol = false; e.vy = 0; } else { e.y = sol; e.vy = 0; } }
-    if (!e.auSol) {
-      e.y += e.vy * dt - 0.5 * J.gravite * dt * dt; e.vy -= J.gravite * dt; // la parabole exacte : même saut à 30 ou 120 images/s
-      if (e.y <= sol) { e.y = sol; e.vy = 0; e.auSol = true; }
-    }
-    MV.dep = dep;
-    return MV;
-  }
-  function dispersionDe(e, A) { // l'écart du tir (rad) : l'arme, ×0,7 accroupi, + le mouvement et l'air, + l'ouverture des tirs précédents
-    const mvt = Math.min(1, e.vitesse / J.vitesse) + (e.auSol ? 0 : 0.6);
-    return A.dispersion * (e.accroupi ? 0.7 : 1) + (A.dispersionMouvement || 0) * mvt + e.gonfle * (A.recul || 0.02) * 1.6;
-  }
-  // un tir « pour l'image » (client en ligne : l'éclair et la traînée tout de suite, l'hôte décide des dégâts) : mêmes rayons que la
-  // simulation (dispersion, plombs, monde puis capsules des ennemis vivants), événements « tir » dans out, aucun effet sur le jeu
-  function tirVisuel(e, monde, entites, rnd, out) {
-    const A = REGLES.arme(e.arme), disp = dispersionDe(e, A), o = e.accroupi ? J.oeilAccroupi : J.oeil;
-    const sy = Math.sin(e.yaw), cy = Math.cos(e.yaw), sp = Math.sin(e.pitch), cp = Math.cos(e.pitch);
-    const d0x = -sy * cp, d0y = sp, d0z = -cy * cp, rx = cy, rz = -sy, ux = sy * sp, uy = cp, uz = cy * sp, ox = e.x, oy = e.y + o, oz = e.z;
-    for (let p = 0; p < A.plombs; p++) {
-      const r = disp * Math.sqrt(rnd()), a = rnd() * 2 * Math.PI, da = Math.tan(r) * Math.cos(a), db = Math.tan(r) * Math.sin(a);
-      let dx = d0x + rx * da + ux * db, dy = d0y + uy * db, dz = d0z + rz * da + uz * db;
-      const l = Math.sqrt(dx * dx + dy * dy + dz * dz); dx /= l; dy /= l; dz /= l;
-      const h = monde.rayon(ox, oy, oz, dx, dy, dz, A.portee);
-      let tMax = h ? h.t : A.portee, cible = null;
-      for (let k = 0; k < entites.length; k++) {
-        const c = entites[k]; if (c === e || !c.vivant || c.equipe === e.equipe) continue;
-        const t = rayonCapsule(ox, oy, oz, dx, dy, dz, c, tMax); if (t >= 0 && t < tMax) { tMax = t; cible = c; }
-      }
-      const fx = ox + dx * tMax, fy = oy + dy * tMax, fz = oz + dz * tMax;
-      const impact = cible ? { x: fx, y: fy, z: fz, nx: -dx, ny: -dy, nz: -dz, quoi: 'entite', id: cible.id } : h ? { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, quoi: h.quoi } : null;
-      out.push({ t: 'tir', id: e.id, arme: A.id, o: [ox, oy, oz], fin: [fx, fy, fz], impact, local: true });
-    }
-    return out;
+  // ─── la boucle à pas fixe (§ 2) : acc = min(acc + dt, max·pas) ; tant que acc ≥ pas : fnPas(pas), acc −= pas ; alpha = acc / pas ───
+  // Le temps perdu au-delà de max pas de retard ralentit la partie plutôt que de l'emballer. Aucune allocation par image.
+  function pasFixe(o) {
+    const pas = o && o.pas > 0 ? +o.pas : 1 / 60, max = o && o.max > 0 ? +o.max : 4, EPS = pas * 1e-6;
+    let acc = 0;
+    return {
+      pas, max,
+      avancer(dtImage, fnPas) {
+        dtImage = +dtImage; if (dtImage > 0) acc = Math.min(acc + dtImage, max * pas);
+        while (acc >= pas - EPS) { acc -= pas; if (acc < 0) acc = 0; fnPas(pas); }
+        return acc / pas;
+      },
+      remettre() { acc = 0; },
+      get acc() { return acc; },
+    };
   }
 
   // ─── l'instantané compact (le jeu en ligne : l'hôte l'envoie à 20 Hz) ───
   // { t, e: [[id, x, y, z, yaw, pitch, vie, armure, drapeaux, arme, kills, morts, points (+ pour les humains : m0, m1, m2, r0, r1, r2, recharge, ack)], …], o, r }
   // drapeaux : 1 vivant, 2 au sol, 4 accroupi, 8 invincible, 16 en recharge ; arme : indice dans ARMES_ID ; m / r : munitions et réserve par arme (−1 : pas
   // possédée) ; recharge : secondes restantes ; ack : numéro de la dernière entrée appliquée (réseau) ; o : '1' / '0' par objet du mode (disponible) ; r : reste (s).
-  const ARMES_ID = ['rafale', 'pompe', 'precision'];
+  // ARMES_ID : l'ordre du réseau (PREGLES.ARMES_ID, qui ne fait que s'allonger) ; le format v1 de la ligne garde les trois premières
+  // armes pour les munitions (le format v2, § 9.3, est pour le lot 2/2)
+  const ARMES_ID = REGLES.ARMES_ID, NA1 = 3;
   const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
   function ligneDe(e, temps, ack) {
     const fl = (e.vivant ? 1 : 0) | (e.auSol ? 2 : 0) | (e.accroupi ? 4 : 0) | (e.invincible > 0 ? 8 : 0) | (e.enRecharge ? 16 : 0);
     const l = [e.id, r2(e.x), r2(e.y), r2(e.z), r3(e.yaw), r3(e.pitch), Math.max(0, Math.round(e.vie)), Math.round(e.armure), fl, Math.max(0, ARMES_ID.indexOf(e.arme)), e.score.kills, e.score.morts, e.score.points];
     if (e.humain) {
-      for (let i = 0; i < 3; i++) { const a = ARMES_ID[i]; l.push(e.armes.indexOf(a) >= 0 ? e.munitions[a] | 0 : -1); }
-      for (let i = 0; i < 3; i++) { const a = ARMES_ID[i]; l.push(e.armes.indexOf(a) >= 0 ? e.reserve[a] | 0 : -1); }
+      for (let i = 0; i < NA1; i++) { const a = ARMES_ID[i]; l.push(e.armes.indexOf(a) >= 0 ? e.munitions[a] | 0 : -1); }
+      for (let i = 0; i < NA1; i++) { const a = ARMES_ID[i]; l.push(e.armes.indexOf(a) >= 0 ? e.reserve[a] | 0 : -1); }
       l.push(e.enRecharge ? r2(Math.max(0, e.rechargeJusqua - temps)) : 0, ack | 0);
     }
     return l;
@@ -3440,9 +4173,17 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     if (!Array.isArray(l) || !e) return false;
     const fl = l[8] | 0;
     if (quoi !== 'etat') {
-      if (fini(l[1]) && fini(l[2]) && fini(l[3])) { e.x = l[1]; e.y = l[2]; e.z = l[3]; }
+      let saut = false;
+      if (fini(l[1]) && fini(l[2]) && fini(l[3])) {
+        saut = !(Math.abs(l[1] - e.x) + Math.abs(l[3] - e.z) <= 4); // une téléportation (réapparition) : pas d'interpolation à travers
+        e.x = l[1]; e.y = l[2]; e.z = l[3];
+      }
       if (fini(l[4])) e.yaw = angle(l[4]); if (fini(l[5])) e.pitch = borne(l[5], -1.45, 1.45);
       e.vivant = !!(fl & 1); e.auSol = !!(fl & 2); e.accroupi = !!(fl & 4); e.invincible = fl & 8 ? 1 : 0;
+      // format v1 : la posture se lit sur le drapeau accroupi (régime historique du corps)
+      e.corpsV2 = false; e.posture = e.vers = e.accroupi ? 'accroupi' : 'debout'; e.transition = 0;
+      e.oeil = e.accroupi ? J.oeilAccroupi : J.oeil; e.hautCapsule = e.accroupi ? J.tailleAccroupi : J.taille;
+      if (saut) { e.ax = e.x; e.ay = e.y; e.az = e.z; e.aoeil = e.oeil; }
       e.arme = ARMES_ID[l[9] | 0] || 'rafale';
     }
     if (quoi !== 'corps') {
@@ -3450,7 +4191,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       e.score.kills = l[10] | 0; e.score.morts = l[11] | 0; e.score.points = l[12] | 0;
       if (l.length >= 21) {
         const armes = [];
-        for (let i = 0; i < 3; i++) { const a = ARMES_ID[i], m = l[13 + i]; if (m >= 0) { armes.push(a); e.munitions[a] = m | 0; e.reserve[a] = Math.max(0, l[16 + i] | 0); } else { delete e.munitions[a]; delete e.reserve[a]; } }
+        for (let i = 0; i < NA1; i++) { const a = ARMES_ID[i], m = l[13 + i]; if (m >= 0) { armes.push(a); e.munitions[a] = m | 0; e.reserve[a] = Math.max(0, l[16 + i] | 0); } else { delete e.munitions[a]; delete e.reserve[a]; } }
         if (armes.length) e.armes = armes;
         e.enRecharge = !!(fl & 16); e.rechargeJusqua = e.enRecharge ? temps + (+l[19] || 0) : 0;
       }
@@ -3473,17 +4214,18 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     const reglesMode = REGLES.MODES[mode.id] || REGLES.MODES.arene;
     const entites = [], evs = [];
     const bruits = []; for (let k = 0; k < NB_BRUITS; k++) bruits.push({ n: 0, x: 0, z: 0, t: -1e9, e: null, portee: 0 });
-    const CIBLES = [], DEGATS = [], TETES = []; // les touchés d'un tir (agrégés par cible : la pompe fait un seul « touche » par victime)
     let finDemandee = false;
 
     const jeu = {
       monde, mode, options, graine, carte: params.carte || o.carte || monde.carte || null, nav: null,
-      entites, temps: 0, fini: false, duree: 0, image: 0, evenements: evs,
+      entites, temps: 0, dt: 0, fini: false, duree: 0, image: 0, evenements: evs,
       rnd: REGLES.mulberry32(graine), rndBots: REGLES.mulberry32((graine ^ 0x9E3779B9) >>> 0),
       bruits, nBruits: 0, budgetNav: 2, erreurs: 0, derniereErreur: null,
       get reste() { return jeu.duree > 0 ? Math.max(0, jeu.duree - jeu.temps) : undefined; },
       ajouterJoueur, retirerJoueur, etape, classement, aideVisee, finir, trouver, ennemis, reapparaitre, resume,
       reglerRetard, retardDe, historique, instantane,
+      // pour PARMES (le tir) : compensation de latence, dégâts, bruits
+      rembobiner, restaurer, blesser, faireBruit,
     };
 
     function trouver(id) { for (let i = 0; i < entites.length; i++) if (entites[i].id === id) return entites[i]; return null; }
@@ -3502,16 +4244,22 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       let id = d.id != null && String(d.id) ? String(d.id) : (bot ? 'bot' : 'j') + (entites.length + 1);
       const deja = trouver(id); if (deja) return deja;
       const A = REGLES.arme('rafale');
-      const e = {
+      const e = { // (voir l'entité v2 en tête de fichier ; placer remet tout à l'apparition)
         id, nom: String(d.nom || (bot ? 'Robot' : 'Joueur')).slice(0, 24), couleur: typeof d.couleur === 'string' ? d.couleur : REGLES.COULEURS[entites.length % REGLES.COULEURS.length],
         equipe: options.equipes ? (d.equipe === 0 || d.equipe === 1 ? d.equipe : plusPetiteEquipe()) : id,
         humain: !bot, bot, niveau: bot ? (REGLES.BOTS[d.niveau] ? d.niveau : options.niveau) : null,
         x: 0, y: 0, z: 0, vx: 0, vz: 0, vy: 0, vitesse: 0, yaw: 0, pitch: 0, auSol: true, accroupi: false,
+        posture: 'debout', vers: 'debout', transition: 0, oeil: J.oeil, hautCapsule: J.taille, corpsV2: false,
+        course: false, gv: 0, gdx: 0, gdz: 0, relanceA: 0, receptionA: 0, remonte: 0, vise: 0, viseStable: 0, accroupiPrec: false, couchePrec: false,
+        ax: 0, ay: 0, az: 0, aoeil: J.oeil,
         vie: J.vie, armure: 0, vivant: true, mortDepuis: -1, apparuA: 0, invincible: 0,
-        arme: 'rafale', armes: ['rafale'], munitions: { rafale: A.chargeur }, reserve: { rafale: A.reserve }, rechargeJusqua: 0, enRecharge: false, prochainTir: 0,
+        arme: 'rafale', armes: ['rafale'], slot: 0, equip: null, changeJusqua: 0, changeReste: 0,
+        munitions: { rafale: A.chargeur }, reserve: { rafale: A.reserve }, rechargeJusqua: 0, enRecharge: false, prochainTir: 0,
         score: { kills: 0, morts: 0, points: 0 }, serie: 0,
         dispersion: A.dispersion, gonfle: 0, dernierTir: -1, toucheA: -1, parQui: null, tueTete: false, foulee: 0, ia: null,
       };
+      // l'équipement (emplacements, lot Gameplay) : seulement s'il est donné ; sans lui, l'équipement historique (rafale seul)
+      if (d.equip != null) e.equip = REGLES.equipementDe(d.equip, options);
       entites.push(e);
       placer(e);
       return e;
@@ -3536,27 +4284,31 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       if (!p || !fini(+p[0]) || !fini(+p[1]) || monde.bloque(+p[0], +p[1], J.rayon)) { const q = monde.libre(jeu.rnd); p = [q[0], q[1], (jeu.rnd() * 2 - 1) * Math.PI]; }
       e.x = +p[0]; e.z = +p[1]; e.y = monde.hauteur(e.x, e.z); e.yaw = fini(+p[2]) ? angle(+p[2]) : 0; e.pitch = 0;
       e.vx = e.vz = e.vy = 0; e.vitesse = 0; e.auSol = true; e.accroupi = false;
+      e.posture = e.vers = 'debout'; e.transition = 0; e.oeil = J.oeil; e.hautCapsule = J.taille; e.corpsV2 = false;
+      e.course = false; e.gv = 0; e.gdx = 0; e.gdz = 0; e.relanceA = 0; e.receptionA = 0; e.remonte = 0; e.accroupiPrec = false; e.couchePrec = false;
+      e.ax = e.x; e.ay = e.y; e.az = e.z; e.aoeil = e.oeil; // une téléportation : pas d'interpolation à travers
       e.vie = J.vie; e.armure = 0; e.vivant = true; e.apparuA = jeu.temps; e.invincible = reglesMode.invincible || 0;
-      const A = REGLES.arme('rafale');
-      e.arme = 'rafale'; e.armes = ['rafale']; e.munitions = { rafale: A.chargeur }; e.reserve = { rafale: A.reserve };
-      e.rechargeJusqua = 0; e.enRecharge = false; e.prochainTir = jeu.temps + 0.2; e.gonfle = 0; e.dispersion = A.dispersion; e.foulee = 0; e.tueTete = false;
+      ARMES.equiper(e, e.equip, options); // l'équipement choisi (principale en main), ou l'historique (rafale seul)
+      e.prochainTir = jeu.temps + 0.2; e.foulee = 0; e.tueTete = false;
     }
     function reapparaitre(e, out) { placer(e); (out || evs).push({ t: 'reapparition', id: e.id }); }
 
     // ─── l'historique des positions (≈ 1 s) et la compensation de latence par tireur (jeu en ligne) ───
     // jeu.reglerRetard(id, s) : les tirs de id voient les autres comme il y a s secondes (borné à 0,25 s) ; l'hôte le règle d'après le ping.
     const NH = 72, H_PAS = 1 / 70, HIST = new Map(), retards = new Map();
-    const SAUVE = { x: [], y: [], z: [], a: [], ent: [], n: 0 };
+    const SAUVE = { x: [], y: [], z: [], a: [], ent: [], p: [], v: [], tr: [], h: [], yaw: [], c2: [], n: 0 };
     function noter() { // une entrée par entité, au plus 70 par seconde
       for (let k = 0; k < entites.length; k++) {
         const e = entites[k]; let h = HIST.get(e);
-        if (!h) { h = { t: new Float64Array(NH), x: new Float64Array(NH), y: new Float64Array(NH), z: new Float64Array(NH), f: new Uint8Array(NH), i: -1, n: 0 }; HIST.set(e, h); }
+        if (!h) { h = { t: new Float64Array(NH), x: new Float64Array(NH), y: new Float64Array(NH), z: new Float64Array(NH), f: new Uint8Array(NH), yaw: new Float64Array(NH), haut: new Float64Array(NH), forme: new Uint8Array(NH), i: -1, n: 0 }; HIST.set(e, h); }
         if (h.n && jeu.temps - h.t[h.i] < H_PAS) continue;
         h.i = (h.i + 1) % NH; if (h.n < NH) h.n++;
-        h.t[h.i] = jeu.temps; h.x[h.i] = e.x; h.y[h.i] = e.y; h.z[h.i] = e.z; h.f[h.i] = (e.vivant ? 1 : 0) | (e.accroupi ? 2 : 0);
+        h.t[h.i] = jeu.temps; h.x[h.i] = e.x; h.y[h.i] = e.y; h.z[h.i] = e.z; h.f[h.i] = (e.vivant ? 1 : 0) | (e.accroupi ? 2 : 0) | (e.corpsV2 ? 4 : 0) | (e.posture === 'couche' && e.vers === 'couche' ? 8 : 0);
+        h.yaw[h.i] = e.yaw; h.haut[h.i] = e.hautCapsule; h.forme[h.i] = Math.max(0, CORPS.POSTURES.indexOf(e.vers)); // la posture et le regard : la capsule d'alors
       }
     }
-    const POS = { x: 0, y: 0, z: 0, accroupi: false, vivant: false };
+    // POS (réutilisé) : x, y, z, vivant, accroupi ; et pour la capsule : corpsV2, couche (couché pour de bon), yaw, haut, vers (la posture visée)
+    const POS = { x: 0, y: 0, z: 0, accroupi: false, vivant: false, corpsV2: false, couche: false, yaw: 0, haut: J.taille, vers: 'debout' };
     function historique(qui, t) { // la position (interpolée) d'une entité au temps t, ou null si l'historique ne remonte pas jusque-là
       const e = typeof qui === 'string' ? trouver(qui) : qui, h = e && HIST.get(e); if (!h || !h.n) return null;
       let j = h.i;
@@ -3567,7 +4319,8 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
           if (suivant && Math.abs(h.x[s] - h.x[j]) + Math.abs(h.z[s] - h.z[j]) > 4) u = u < 0.5 ? 0 : 1; // une téléportation : pas de milieu
           const a = u >= 1 ? s : j;
           POS.x = h.x[j] + (suivant ? (h.x[s] - h.x[j]) * u : 0); POS.y = h.y[j] + (suivant ? (h.y[s] - h.y[j]) * u : 0); POS.z = h.z[j] + (suivant ? (h.z[s] - h.z[j]) * u : 0);
-          POS.vivant = !!(h.f[a] & 1); POS.accroupi = !!(h.f[a] & 2);
+          POS.vivant = !!(h.f[a] & 1); POS.accroupi = !!(h.f[a] & 2); POS.corpsV2 = !!(h.f[a] & 4); POS.couche = !!(h.f[a] & 8);
+          POS.yaw = h.yaw[a]; POS.haut = h.haut[a]; POS.vers = CORPS.POSTURES[h.forme[a]] || 'debout';
           return POS;
         }
         j = (j - 1 + NH) % NH;
@@ -3583,12 +4336,21 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
         const c = entites[k]; if (c === tireur || !c.vivant) continue;
         const p = historique(c, t); if (!p) continue;
         const n = SAUVE.n++; SAUVE.ent[n] = c; SAUVE.x[n] = c.x; SAUVE.y[n] = c.y; SAUVE.z[n] = c.z; SAUVE.a[n] = c.accroupi;
-        if (p.vivant) { c.x = p.x; c.y = p.y; c.z = p.z; c.accroupi = p.accroupi; }
-        else { c.x = 1e7; c.z = 1e7; } // pas encore réapparu à ce moment-là : intouchable pour ce tir
+        SAUVE.p[n] = c.posture; SAUVE.v[n] = c.vers; SAUVE.tr[n] = c.transition; SAUVE.h[n] = c.hautCapsule; SAUVE.yaw[n] = c.yaw; SAUVE.c2[n] = c.corpsV2;
+        if (p.vivant) {
+          c.x = p.x; c.y = p.y; c.z = p.z; c.accroupi = p.accroupi; // la capsule d'alors : posture, hauteur, regard (couché)
+          c.corpsV2 = p.corpsV2; c.hautCapsule = p.haut; c.yaw = p.yaw; c.vers = p.vers; c.posture = p.couche ? 'couche' : p.vers === 'couche' ? 'accroupi' : p.vers;
+        } else { c.x = 1e7; c.z = 1e7; } // pas encore réapparu à ce moment-là : intouchable pour ce tir
       }
       return SAUVE.n > 0;
     }
-    function restaurer() { for (let n = 0; n < SAUVE.n; n++) { const c = SAUVE.ent[n]; c.x = SAUVE.x[n]; c.y = SAUVE.y[n]; c.z = SAUVE.z[n]; c.accroupi = SAUVE.a[n]; SAUVE.ent[n] = null; } SAUVE.n = 0; }
+    function restaurer() {
+      for (let n = 0; n < SAUVE.n; n++) {
+        const c = SAUVE.ent[n]; c.x = SAUVE.x[n]; c.y = SAUVE.y[n]; c.z = SAUVE.z[n]; c.accroupi = SAUVE.a[n];
+        c.posture = SAUVE.p[n]; c.vers = SAUVE.v[n]; c.transition = SAUVE.tr[n]; c.hautCapsule = SAUVE.h[n]; c.yaw = SAUVE.yaw[n]; c.corpsV2 = SAUVE.c2[n]; SAUVE.ent[n] = null;
+      }
+      SAUVE.n = 0;
+    }
 
     // ─── l'instantané compact de la partie (voir ligneDe) ; acks : { id: numéro de la dernière entrée appliquée } ───
     function instantane(acks) {
@@ -3599,80 +4361,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       return { t: r3(jeu.temps), e, o, r: jeu.duree > 0 ? r2(Math.max(0, jeu.duree - jeu.temps)) : -1, f: jeu.fini ? 1 : 0 };
     }
 
-    // ─── les armes ───
-    function changerArme(e, id) {
-      if (e.arme === id) return;
-      e.arme = id; e.enRecharge = false; e.rechargeJusqua = 0; e.prochainTir = Math.max(e.prochainTir, jeu.temps + CHANGE_ARME);
-    }
-    function lacherArme(e, id) { // une arme vide de tout (chargeur et réserve) : on la lâche et on reprend le blaster
-      if (id === 'rafale') return;
-      const i = e.armes.indexOf(id); if (i >= 0) e.armes.splice(i, 1);
-      delete e.munitions[id]; delete e.reserve[id];
-      if (e.arme === id) changerArme(e, 'rafale');
-    }
-    function commencerRecharge(e, out) {
-      if (e.enRecharge) return;
-      const A = REGLES.arme(e.arme), m = e.munitions[e.arme] | 0;
-      if (m >= A.chargeur) return;
-      if ((e.reserve[e.arme] | 0) <= 0 && e.arme !== 'rafale') { if (m <= 0) lacherArme(e, e.arme); return; } // le blaster rafale, lui, ne tombe jamais en panne
-      e.enRecharge = true; e.rechargeJusqua = jeu.temps + A.recharge;
-      out.push({ t: 'recharge', id: e.id });
-    }
-    function finirRecharge(e) {
-      e.enRecharge = false;
-      const A = REGLES.arme(e.arme), m = e.munitions[e.arme] | 0, res = e.reserve[e.arme] | 0, manque = A.chargeur - m;
-      const n = e.arme === 'rafale' ? manque : Math.min(manque, res); // réserve de secours du blaster de base
-      e.munitions[e.arme] = m + n; e.reserve[e.arme] = e.arme === 'rafale' ? Math.max(A.chargeur, res - n) : Math.max(0, res - n); // le blaster ne tombe jamais sous un chargeur de réserve (il recharge à l'infini)
-    }
-
-    // ─── un tir : un rayon par plomb, depuis l'œil, contre le monde puis les capsules ───
-    function tirer(e, dt, out) {
-      const A = REGLES.arme(e.arme), T = jeu.temps;
-      const m = e.munitions[e.arme] | 0;
-      if (m <= 0) { commencerRecharge(e, out); return; }
-      e.munitions[e.arme] = m - 1;
-      e.prochainTir = (e.prochainTir > T - dt ? e.prochainTir : T) + 1 / A.cadence; // cadence exacte quelle que soit l'image
-      e.invincible = 0; e.dernierTir = T;
-      const rnd = jeu.rnd, disp = dispersionDe(e, A);
-      const sy = Math.sin(e.yaw), cy = Math.cos(e.yaw), sp = Math.sin(e.pitch), cp = Math.cos(e.pitch);
-      const d0x = -sy * cp, d0y = sp, d0z = -cy * cp;             // le regard
-      const rx = cy, rz = -sy;                                      // la droite
-      const ux = sy * sp, uy = cp, uz = cy * sp;                    // le haut de l'écran
-      const ox = e.x, oy = e.y + oeil(e), oz = e.z;
-      const rembobine = rembobiner(e); // compensation de latence (jeu en ligne) : les autres là où le tireur les voyait
-      let nc = 0;
-      for (let p = 0; p < A.plombs; p++) {
-        const r = disp * Math.sqrt(rnd()), a = rnd() * 2 * Math.PI, da = Math.tan(r) * Math.cos(a), db = Math.tan(r) * Math.sin(a);
-        let dx = d0x + rx * da + ux * db, dy = d0y + uy * db, dz = d0z + rz * da + uz * db;
-        const l = Math.sqrt(dx * dx + dy * dy + dz * dz); dx /= l; dy /= l; dz /= l;
-        const h = monde.rayon(ox, oy, oz, dx, dy, dz, A.portee);
-        let tMax = h ? h.t : A.portee, cible = null, ty = 0;
-        for (let k = 0; k < entites.length; k++) {
-          const c = entites[k]; if (!c.vivant || !ennemis(e, c)) continue;
-          const ddx = c.x - ox, ddz = c.z - oz; if (ddx * ddx + ddz * ddz > (tMax + 1) * (tMax + 1)) continue;
-          const t = rayonCapsule(ox, oy, oz, dx, dy, dz, c, tMax);
-          if (t >= 0 && t < tMax) { tMax = t; cible = c; ty = CAP.y; }
-        }
-        const fx = ox + dx * tMax, fy = oy + dy * tMax, fz = oz + dz * tMax;
-        let impact = null;
-        if (cible) {
-          const ay = borne(ty, cible.y + R_CAPSULE, cible.y + taille(cible) - R_CAPSULE), nx = fx - cible.x, ny = fy - ay, nz = fz - cible.z, nl = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
-          impact = { x: fx, y: fy, z: fz, nx: nx / nl, ny: ny / nl, nz: nz / nl, quoi: 'entite', id: cible.id };
-          const tete = ty >= cible.y + taille(cible) - TETE, deg = REGLES.degatsA(A, tMax, tete);
-          let i = 0; while (i < nc && CIBLES[i] !== cible) i++;
-          if (i === nc) { CIBLES[nc] = cible; DEGATS[nc] = 0; TETES[nc] = false; nc++; }
-          DEGATS[i] += deg; if (tete) TETES[i] = true;
-        } else if (h) impact = { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, quoi: h.quoi };
-        out.push({ t: 'tir', id: e.id, arme: A.id, o: [ox, oy, oz], fin: [fx, fy, fz], impact });
-      }
-      if (rembobine) restaurer();
-      // le recul : le viseur s'ouvre, le regard se relève un peu
-      e.gonfle = Math.min(1, e.gonfle + (GONFLE[A.id] != null ? GONFLE[A.id] : 0.3));
-      e.pitch = borne(e.pitch + (A.recul || 0) * KICK * (0.7 + 0.3 * rnd()), -1.45, 1.45);
-      e.yaw = angle(e.yaw + (A.recul || 0) * KICK * 0.35 * (rnd() * 2 - 1));
-      faireBruit(e, 30);
-      for (let i = 0; i < nc; i++) { const c = CIBLES[i]; CIBLES[i] = null; blesser(c, e, DEGATS[i], TETES[i], A.id, out); }
-    }
+    // ─── les armes : PARMES (armes.js) ; le tir appelle les crochets jeu.rembobiner / restaurer / blesser / faireBruit ───
     function blesser(c, de, degats, tete, armeId, out) {
       if (!c.vivant || !(degats > 0) || c.invincible > 0) return; // protégé juste après l'apparition
       const abs = Math.min(c.armure, Math.round(degats * ABSORBE));
@@ -3690,21 +4379,18 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     }
 
     // ─── une entité joue son entrée ───
+    const P_DEBOUT = J.postures.debout.bruit, P_COURSE = J.postures.course.bruit;
     function appliquer(e, en, dt, out) {
-      const T = jeu.temps;
-      const mv = deplacer(e, en, dt, monde), dep = mv.dep;
+      const mv = CORPS.deplacer(e, en, dt, monde, REGLES.arme(e.arme)), dep = mv.dep;
       if (mv.saut) out.push({ t: 'saut', id: e.id });
-      // les pas (debout seulement : accroupi, on est discret)
-      if (e.auSol && !e.accroupi && dep > 0) { e.foulee += dep; if (e.foulee >= FOULEE) { e.foulee -= FOULEE; out.push({ t: 'pas', id: e.id }); faireBruit(e, 10); } }
-      // les armes
-      if (en.arme && en.arme !== e.arme && e.armes.indexOf(en.arme) >= 0) changerArme(e, en.arme);
-      if (e.enRecharge && T >= e.rechargeJusqua) finirRecharge(e);
-      if (en.recharge) commencerRecharge(e, out);
-      if (en.tir && !e.enRecharge && T >= e.prochainTir) tirer(e, dt, out);
-      else if (!e.enRecharge && (e.munitions[e.arme] | 0) <= 0 && T >= e.prochainTir) commencerRecharge(e, out); // chargeur vide : on recharge tout seul
-      e.gonfle = Math.max(0, e.gonfle - 3.2 * dt);
+      if (mv.refus) out.push({ t: 'refus', id: e.id, quoi: mv.refus }); // local : « Pas la place de te coucher »
+      // les pas (debout seulement : accroupi, couché ou en glissade, on est discret)
+      if (e.auSol && e.posture === 'debout' && dep > 0) { e.foulee += dep; if (e.foulee >= FOULEE) { e.foulee -= FOULEE; out.push({ t: 'pas', id: e.id }); faireBruit(e, e.course ? P_COURSE : P_DEBOUT); } }
+      // les armes : la visée, puis changement, recharge, tir
+      ARMES.majVisee(e, en, dt);
+      ARMES.agir(e, en, dt, jeu, out);
       if (e.invincible > 0) e.invincible = Math.max(0, e.invincible - dt);
-      e.dispersion = dispersionDe(e, REGLES.arme(e.arme));
+      e.dispersion = ARMES.dispersion(e, REGLES.arme(e.arme));
     }
 
     // deux joueurs vivants ne se superposent pas (poussée douce, par le monde : jamais dans un mur)
@@ -3728,20 +4414,13 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       const O = REGLES.OBJETS[nom]; if (!O) return false;
       if (O.type === 'soin') return e.vie < J.vie;
       if (O.type === 'armure') return e.armure < J.armureMax;
-      if (O.type === 'arme') { const A = REGLES.arme(O.arme); return e.armes.indexOf(O.arme) < 0 || (e.munitions[O.arme] | 0) < A.chargeur || (e.reserve[O.arme] | 0) < A.reserve; }
-      return false;
+      return ARMES.utile(e, O); // armes et munitions
     }
     function prendre(e, nom) {
       const O = REGLES.OBJETS[nom];
       if (O.type === 'soin') e.vie = Math.min(J.vie, e.vie + O.vie);
       else if (O.type === 'armure') e.armure = Math.min(J.armureMax, e.armure + O.armure);
-      else if (O.type === 'arme') {
-        const A = REGLES.arme(O.arme), neuve = e.armes.indexOf(O.arme) < 0;
-        if (neuve) e.armes.push(O.arme);
-        e.munitions[O.arme] = A.chargeur; e.reserve[O.arme] = Math.max(e.reserve[O.arme] | 0, A.reserve);
-        if (neuve) changerArme(e, O.arme); // une arme neuve passe en main
-        else if (e.arme === O.arme && e.enRecharge) { e.enRecharge = false; e.rechargeJusqua = 0; }
-      }
+      else ARMES.prendre(e, O, jeu);
     }
     function ramasser(out) {
       let objs = null;
@@ -3766,8 +4445,9 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       evs.length = 0;
       if (jeu.fini) return evs;
       dt = +dt; if (!(dt > 0)) return evs; if (dt > DT_MAX) dt = DT_MAX;
-      jeu.temps += dt; jeu.image++; jeu.budgetNav = 2;
+      jeu.temps += dt; jeu.dt = dt; jeu.image++; jeu.budgetNav = 2;
       const n = entites.length;
+      for (let k = 0; k < n; k++) { const e = entites[k]; e.ax = e.x; e.ay = e.y; e.az = e.z; e.aoeil = oeil(e); } // la position au début du pas (le rendu interpole)
       for (let k = 0; k < n; k++) {
         const e = entites[(k + jeu.image) % n]; // l'ordre tourne : personne ne tire toujours le premier
         if (!e.vivant) continue;
@@ -3833,7 +4513,8 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     return jeu;
   }
 
-  return { creer, rayonCapsule, deplacer, dispersion: dispersionDe, tirVisuel, ligneDe, lireLigne, ARMES_ID, PORTEE_AUTO, DT_MAX, R_CAPSULE, TETE };
+  // deplacer, dispersion, tirVisuel : alias de PCORPS.deplacer, PARMES.dispersion, PARMES.tirVisuel (la prédiction du client en ligne)
+  return { creer, rayonCapsule, deplacer: CORPS.deplacer, dispersion: ARMES.dispersion, tirVisuel: ARMES.tirVisuel, pasFixe, ligneDe, lireLigne, ARMES_ID, PORTEE_AUTO, DT_MAX, R_CAPSULE, TETE };
 });
 
 /* ── arene.js ── */
@@ -4000,7 +4681,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
    Repère : mètres ; un avatar a les pieds à y = 0 et regarde vers −z quand son lacet vaut 0 (le contrat : yaw positif vers l'ouest).
    Les modèles sont dessinés face à +z (comme PERSOS) puis tournés de π. Toute l'animation se fait sans allocation (champs d'Euler et
    de position écrits directement, géométries en cache échangées, matériaux partagés). Voir src-poncin/ARCHITECTURE.md (section rendu).
-   API : PAVATARS.creer(e) → av (av.groupe à poser dans la scène) ; cle(e) (l'apparence : recréer si elle change) ; animer(av, e, dt, t) ;
+   API : PAVATARS.creer(e) → av (av.groupe à poser dans la scène) ; cle(e) (l'apparence : recréer si elle change) ; animer(av, e, dt, t, x?, y?, z?) (la position affichée, sinon e.x…) ;
    tir(av) ; touche(av) ; bouche(av, v) (le bout du canon, en monde) ; liberer(av) ; blaster(id) → géométrie (canon vers −z, poignée à
    l'origine, mètres) ; BOUCHE[id] (le bout du canon dans ce repère) ; HAUTEUR.
    Appels de dessin : robot 4 (2 jambes, corps + tête + bras + blaster fusionnés, yeux) ; joueur 9 (les 7 du chibi, casque, blaster). */
@@ -4012,6 +4693,7 @@ const PAVATARS = typeof THREE === 'undefined' || typeof MODELES === 'undefined' 
   const hash = R ? R.hash : (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
   const NAVY = '#2B2A4C', GRIS = '#8E8AA8', GRIS_C = '#B9B5CF', CREME = '#FFF6E8', OR = '#FFC84A';
   const HAUTEUR = 1.65, K = HAUTEUR / 73; // un chibi de PERSOS (73 unités) ramené à 1,65 m
+  const HAUT_CHIBI = 0.025 / K; // le balancement du haut du corps d'un chibi (C3) : 2,5 cm, en unités de PERSOS
   const memo = (k, f) => { k = 'pav|' + k; let g = M.GEOS.get(k); if (!g) { g = f(); g.userData.cache = true; M.GEOS.set(k, g); } return g; };
   const couleurArme = (id) => { const a = R ? R.arme(id) : null; return a && a.couleur ? a.couleur : id === 'pompe' ? '#5FD3A4' : id === 'precision' ? '#B8A6FF' : '#FF6B8B'; };
   // une pièce orientée le long d'un segment (capsule ou cylindre centré sur Y) : de a à b
@@ -4136,22 +4818,24 @@ const PAVATARS = typeof THREE === 'undefined' || typeof MODELES === 'undefined' 
     if (av.robot) { if (av.corps.material !== m) { av.corps.material = m; av.jambes[0].material = m; av.jambes[1].material = m; av.yeux.material = on ? matLedRose : matLed; } }
     else if (av.casque.material !== m) { av.casque.material = m; av.P.corps.material = m; av.P.tete.material = m; }
   }
-  function animer(av, e, dt, t) {
+  // px, py, pz (facultatifs) : la position affichée (rendu.js l'interpole entre deux pas de la simulation) ; sinon e.x, e.y, e.z
+  function animer(av, e, dt, t, px, py, pz) {
     if (!(dt >= 0) || dt > 0.25) dt = 0;
     const g = av.groupe, vivant = e.vivant !== false;
     if (!vivant) { // éliminé : un petit « pop » (gonfle 0,12 s) puis plus rien, les confettis sont dans rendu.js
       if (av.vivant) { av.vivant = false; av.pop = 0; }
       if (av.pop >= 0 && av.pop < 0.12) { av.pop += dt; const k = 1 + av.pop * 2.5; av.racine.scale.set(k, 1.6 - k * 0.6, k); g.visible = true; flasher(av, true); }
       else { g.visible = false; av.pop = -1; }
-      av.px = e.x; av.pz = e.z; return;
+      av.px = px === undefined ? +e.x : px; av.pz = pz === undefined ? +e.z : pz; return;
     }
-    if (!av.vivant) { av.vivant = true; av.racine.scale.set(1, 1, 1); av.px = e.x; av.pz = e.z; av.flash = 0; flasher(av, false); }
-    const x = +e.x, y = +e.y, z = +e.z;
+    const x = px === undefined ? +e.x : +px, y = py === undefined ? +e.y : +py, z = pz === undefined ? +e.z : +pz;
+    if (!av.vivant) { av.vivant = true; av.racine.scale.set(1, 1, 1); av.px = x; av.pz = z; av.flash = 0; flasher(av, false); }
     if (!(x - x === 0 && y - y === 0 && z - z === 0)) { g.visible = false; return; } // une position invalide : on ne dessine pas
     // vitesse et phase de marche (une téléportation ne compte pas)
     const dx = x - av.px, dz = z - av.pz, d = Math.sqrt(dx * dx + dz * dz); av.px = x; av.pz = z;
     const v = d < 3 && dt > 0 ? d / dt : 0; av.vit += (Math.min(7, v) - av.vit) * Math.min(1, dt * 10);
-    if (d < 3) av.phase += d * TAU / (av.robot ? 1.25 : 1.5);
+    // C3 : la phase φ de la foulée, comme la caméra (PCORPS.camera) : un pas de 0,75 + 0,2·v m, φ += π·d/pas (une foulée de deux pas = 2π)
+    if (d < 3) { av.phase += Math.PI * d / (0.75 + 0.2 * av.vit); if (av.phase > 1e4) av.phase -= TAU * Math.floor(av.phase / TAU); }
     const marche = av.vit > 0.4, km = Math.min(1, av.vit / 4);
     g.position.x = x; g.position.y = y; g.position.z = z; g.rotation._y = (+e.yaw || 0) + Math.PI; tourner(g);
     // l'invincibilité du retour : il clignote
@@ -4165,7 +4849,7 @@ const PAVATARS = typeof THREE === 'undefined' || typeof MODELES === 'undefined' 
       const j0 = av.jambes[0], j1 = av.jambes[1], sw = marche ? s * 0.65 * km : 0;
       if (enLAir) { j0.rotation._x = -0.55; j1.rotation._x = 0.35; } else { j0.rotation._x = sw; j1.rotation._x = -sw; } tourner(j0); tourner(j1);
       const ec = 1 - av.accr * 0.42; j0.scale.y = j1.scale.y = ec; j0.position.y = j1.position.y = HANCHE * ec;
-      av.haut.position.y = HANCHE * ec + (marche ? Math.abs(s) * 0.045 * km : Math.sin(t * 2.2) * 0.006);
+      av.haut.position.y = HANCHE * ec + (marche ? 0.02 * km * (1 - Math.cos(2 * av.phase)) / 2 : Math.sin(t * 2.2) * 0.006); // C3 : 2 cm une fois par pas
       const hr = av.haut.rotation; hr._x = -av.pitch * 0.45 + 0.07 * km - av.recul * 0.22; hr._z = marche ? s * 0.05 * km : 0; tourner(av.haut);
       av.haut.position.z = -av.recul * 0.05;
       // les yeux : clignent, se plissent au tir, en croix quand il est touché
@@ -4175,6 +4859,8 @@ const PAVATARS = typeof THREE === 'undefined' || typeof MODELES === 'undefined' 
     } else {
       const o = av.o; o.marche = marche && !enLAir; o.phase = av.phase; o.t = t; av.cligne += dt; if (av.cligne > 3.4) av.cligne = 0; o.blink = av.cligne; o.expression = av.flash > 0 ? 'surpris' : 'sourire';
       PERSOS.animer(av.perso, o);
+      // C3 : PERSOS lève le haut du corps à |sin φ|·2/cos 52° unités (7 cm) ; on le réécrit à 2,5 cm·(1 − cos 2φ)/2, au même rythme que les jambes
+      if (o.marche) av.P.haut.position.y = HAUT_CHIBI * km * (1 - Math.cos(2 * av.phase)) / 2;
       const P = av.P, b0 = P.bras[0], b1 = P.bras[1], ax = -1.45 - av.pitch * 0.85 + av.recul * 0.3;
       b0.rotation._x = ax; b0.rotation._y = 0; b0.rotation._z = 0.5; b1.rotation._x = ax; b1.rotation._y = 0; b1.rotation._z = -0.5; tourner(b0); tourner(b1);
       av.visee.rotation._x = -av.pitch * 0.85 - av.recul * 0.3; tourner(av.visee); av.visee.position.z = -av.recul * 3;
@@ -7181,7 +7867,9 @@ if (typeof module !== 'undefined') module.exports = PDECOR;
    des textures ≤ 96 / 64 / 32 Mo (stats.memoire). Aucune allocation par image dans les chemins chauds (vecteurs de travail, tableaux
    préparés, champs).
    API (contrat, voir src-poncin/ARCHITECTURE.md) : init(canvas, carte, monde, { qualite, dossier }) → bool ; taille(w, h) ;
-   image(jeu, idCamera, dt, t) (jeu = null : survol de Poncin) ; evenements(evs, jeu) ; qualite(q?) ; stats ; projeter(x, y, z) → { x, y, devant }
+   image(jeu, idCamera, dt, t, alpha?) (jeu = null : survol de Poncin ; alpha ∈ [0, 1], 1 par défaut : chaque entité est dessinée à
+   a + (x − a)·alpha, a = ax / ay / az / aoeil posés par jeu.js au début de chaque pas ; caméra de PCORPS.camera, regard = e.yaw/e.pitch
+   + PCONTROLES.enAttente()) ; reglages({ balancement: 'normal' | 'doux' | 'aucun' }) → { balancement } ; evenements(evs, jeu) ; qualite(q?) ; stats ; projeter(x, y, z) → { x, y, devant }
    (objet partagé, à lire tout de suite). En plus : fov (champ vertical en degrés, lu par le HUD), webgl, survol(o) (règle le survol). */
 const PRENDU = (() => {
   'use strict';
@@ -7306,7 +7994,10 @@ const PRENDU = (() => {
   function trianguler(p) { // indices [i, j, k, …] d'un polygone simple (earcut de Three)
     try { const v = p.map((q) => new THREE.Vector2(q[0], q[1])), t = THREE.ShapeUtils.triangulateShape(v, []), out = []; for (const f of t) out.push(f[0], f[1], f[2]); return out; } catch (e) { return []; }
   }
-  const H0 = (x, z) => { try { const h = monde.hauteur(x, z); return fini(h) ? h : 0; } catch (e) { return 0; } };
+  // H0 : le relief seul (le sol dessiné, les murs, l'eau, les ponts eux-mêmes) ; HS : là où l'on marche (le relief, ou la chaussée d'un
+  // pont, C7) : ombres des personnages, objets, gouttes de peinture
+  const H0 = (x, z) => { try { const h = monde.relief ? monde.relief(x, z) : monde.hauteur(x, z); return fini(h) ? h : 0; } catch (e) { return 0; } };
+  const HS = (x, z) => { try { const h = monde.hauteur(x, z); return fini(h) ? h : 0; } catch (e) { return 0; } };
 
   // ─── un index des rues (segments) pour « quelle façade donne sur la rue ? » et l'herbe des bois ───
   let indexRues = null;
@@ -7957,16 +8648,13 @@ const PRENDU = (() => {
     eau = new THREE.Mesh(g, eauMat); eau.renderOrder = 2; eau.receiveShadow = false; eau.name = 'eau'; scene.add(eau);
   }
   let ponts = null, clotures = null;
+  const CH = typeof PMONDE !== 'undefined' && PMONDE.CHAUSSEE > 0 ? PMONDE.CHAUSSEE : 0.06; // l'épaisseur de la chaussée (monde.js : on marche dessus)
   function construirePonts() {
     const parts = [];
-    for (const pt of carte.ponts || []) {
-      const l = pt && pt.l; if (!Array.isArray(l) || l.length < 2 || !l[0] || !l[l.length - 1]) continue;
-      const ax = +l[0][0], az = +l[0][1], bx = +l[l.length - 1][0], bz = +l[l.length - 1][1]; if (![ax, az, bx, bz].every(fini)) continue;
-      const len = Math.hypot(bx - ax, bz - az); if (len < 1) continue;
-      const w = fini(+pt.w) && pt.w > 0 ? +pt.w : 6, hA = H0(ax, az) + 0.08, hB = H0(bx, bz) + 0.08, eauY = niveauEau((ax + bx) / 2, (az + bz) / 2) - 1.2;
-      // le tablier : droit d'une rive à l'autre, mais jamais sous le terrain (les joueurs marchent à monde.hauteur : leurs pieds restent dessus)
-      const N = Math.max(2, Math.ceil(len / 1.5)), prof = [];
-      for (let k = 0; k <= N; k++) { const t = k / N; prof.push(Math.max(hA + (hB - hA) * t, H0(ax + (bx - ax) * t, az + (bz - az) * t) + 0.08)); }
+    for (const T of monde.tabliers || []) {
+      const ax = T.ax, az = T.az, bx = T.bx, bz = T.bz, len = T.len, w = T.w, eauY = niveauEau((ax + bx) / 2, (az + bz) / 2) - 1.2;
+      // le tablier : le profil de monde.tabliers (C7 : une seule formule ; monde.hauteur suit la chaussée, posée 6 cm au-dessus du profil)
+      const N = T.n, prof = T.prof;
       // la silhouette du pont dans son plan (s le long, y en hauteur) : une dalle, ou une maçonnerie creusée d'arches en plein cintre
       const sh = new THREE.Shape(), hm = Math.min(...prof), na = hm - eauY < 2.8 ? 0 : Math.max(1, Math.round(len / 15));
       sh.moveTo(0, prof[0]); for (let k = 1; k <= N; k++) sh.lineTo(len * k / N, prof[k]);
@@ -7984,7 +8672,7 @@ const PRENDU = (() => {
       for (let k = 0; k < N; k++) {
         const s0 = len * k / N, s1 = len * (k + 1) / N, y0 = prof[k], y1 = prof[k + 1], lg = Math.hypot(s1 - s0, y1 - y0), pe = Math.atan2(y1 - y0, s1 - s0), m = repere.clone().multiply(M.matrice({ x: (s0 + s1) / 2, y: (y0 + y1) / 2, rz: pe }));
         for (const sv of [-1, 1]) { parts.push({ geo: new THREE.BoxGeometry(lg + 0.02, 0.95, 0.4).translate(0, 0.47, sv * (w / 2 - 0.2)), col: '#D6C8AE', m: m.clone(), nom: 'pierre' }, { geo: new THREE.BoxGeometry(lg + 0.04, 0.14, 0.52).translate(0, 0.98, sv * (w / 2 - 0.2)), col: '#DCD1BC', m: m.clone(), nom: 'taille' }); }
-        parts.push({ geo: new THREE.BoxGeometry(lg + 0.02, 0.06, w - 0.8).translate(0, 0.03, 0), col: '#8F8A84', m });
+        parts.push({ geo: new THREE.BoxGeometry(lg + 0.02, CH, w - 0.8).translate(0, CH / 2, 0), col: '#8F8A84', m });
       }
     }
     if (!parts.length) return;
@@ -8244,7 +8932,7 @@ const PRENDU = (() => {
       if (!p.sol) {
         const fr = p.conf ? Math.exp(-dt * 2.6) : Math.exp(-dt * 0.6); p.vx *= fr; p.vz *= fr; p.vy = p.vy * fr - (p.conf ? 5 : 13) * dt;
         p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.a += p.va * dt;
-        const g = H0(p.x, p.z) + 0.02; if (p.y < g) { p.y = g; p.sol = true; p.ax = 1; p.ay = 0; p.az = 0; p.a = -HP; }
+        const g = HS(p.x, p.z) + 0.02; if (p.y < g) { p.y = g; p.sol = true; p.ax = 1; p.ay = 0; p.az = 0; p.a = -HP; }
       }
       const fin = p.vie - p.age, k = p.s * (fin < 0.3 ? fin / 0.3 : 1);
       _v2.set(p.ax, p.ay, p.az).normalize(); _q.setFromAxisAngle(_v2, p.a); _v.set(p.x, p.y, p.z); _s.set(k, p.conf ? k * 0.6 : k, k); _m.compose(_v, _q, _s); P.im.setMatrixAt(i, _m); np = i + 1;
@@ -8277,7 +8965,7 @@ const PRENDU = (() => {
     const ty = OBJ.types, TL = OBJ.liste_types || (OBJ.liste_types = Object.keys(ty).map((k) => ty[k])); for (let k = 0; k < TL.length; k++) TL[k].count = 0;
     let na = 0;
     for (let i = 0; i < OBJ.liste.length && na < 16; i++) {
-      const o = OBJ.liste[i]; if (!o || !fini(+o.x) || !fini(+o.z)) continue; const x = +o.x, z = +o.z, y = H0(x, z), col = COUL_OBJ[o.objet] || '#FFFFFF';
+      const o = OBJ.liste[i]; if (!o || !fini(+o.x) || !fini(+o.z)) continue; const x = +o.x, z = +o.z, y = HS(x, z), col = COUL_OBJ[o.objet] || '#FFFFFF';
       _v.set(x, y + 0.04, z); _q.identity(); const pulse = o.dispo ? 1 + Math.sin(t * 3 + i) * 0.06 : 0.8; _s.set(pulse, 1, pulse); _m.compose(_v, _q, _s); OBJ.anneaux.setMatrixAt(na, _m);
       const cl = lin(col), kd = o.dispo ? 0 : 0.6; OBJ.anneaux.instanceColor.setXYZ(na, cl[0] + (1 - cl[0]) * kd, cl[1] + (1 - cl[1]) * kd, cl[2] + (1 - cl[2]) * kd); na++;
       const im = ty[o.objet]; if (!im || !o.dispo || im.count >= 8) continue;
@@ -8331,9 +9019,10 @@ const PRENDU = (() => {
       if (av && (av.robot !== robot || (typeof e.couleur === 'string' && av.col !== e.couleur && /^#[0-9a-f]{6}$/i.test(e.couleur)))) { AV.liberer(av); acteurs.delete(e.id); av = null; }
       if (!av) { try { av = AV.creer(e); scene.add(av.groupe); acteurs.set(e.id, av); } catch (err) { signaler('avatar', err); continue; } }
       av.vu = frame;
-      try { AV.animer(av, e, dt, t); } catch (err) { signaler('animer', err); }
+      affiche(e);
+      try { AV.animer(av, e, dt, t, AFF.x, AFF.y, AFF.z); } catch (err) { signaler('animer', err); }
       if (e.id === idCam && !camMorte) av.groupe.visible = false; // la vue subjective : on ne se voit pas
-      if (ombres && av.groupe.visible && e.vivant !== false && no < 16 && fini(+e.x)) { const g = H0(+e.x, +e.z), hh = Math.max(0, (+e.y || 0) - g), k = 1 / (1 + hh * 0.6); _v.set(+e.x, g + 0.03, +e.z); _q.identity(); _s.set(1.2 * k, 1, 1.2 * k); _m.compose(_v, _q, _s); ombre.setMatrixAt(no++, _m); }
+      if (ombres && av.groupe.visible && e.vivant !== false && no < 16 && fini(AFF.x)) { const g = HS(AFF.x, AFF.z), hh = Math.max(0, AFF.y - g), k = 1 / (1 + hh * 0.6); _v.set(AFF.x, g + 0.03, AFF.z); _q.identity(); _s.set(1.2 * k, 1, 1.2 * k); _m.compose(_v, _q, _s); ombre.setMatrixAt(no++, _m); }
     }
     acteurs.forEach(balayer);
     ombre.count = no; ombre.visible = no > 0; if (no) ombre.instanceMatrix.needsUpdate = true;
@@ -8342,7 +9031,7 @@ const PRENDU = (() => {
   function trouver(jeu, id) { const es = jeu && jeu.entites; if (!es) return null; for (let i = 0; i < es.length; i++) if (es[i] && es[i].id === id) return es[i]; return null; }
 
   // ═══════════════════════════════ l'arme en vue subjective (scène à part) ═══════════════════════════════
-  const FP = { groupe: null, arme: null, mains: null, flash: null, id: 'rafale', col: '', recul: 0, phase: 0, swx: 0, swy: 0, lastYaw: 0, lastPitch: 0, change: 0, nouvelle: '', recharge: 0, flashT: 0, vit: 0, px: 0, pz: 0 };
+  const FP = { groupe: null, arme: null, mains: null, flash: null, id: 'rafale', col: '', recul: 0, phase: 0, swx: 0, swy: 0, lastYaw: 0, lastPitch: 0, change: 0, nouvelle: '', recharge: 0, flashT: 0 };
   // les mains de la vue subjective : moufles crème, manches à la couleur du joueur (une capsule tendue entre deux points)
   function entre(geo, col, a, b) { const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), l = A.distanceTo(B), d = B.clone().sub(A).normalize(), q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d); return { geo, col, m: new THREE.Matrix4().compose(A.clone().add(d.multiplyScalar(l / 2)), q, new THREE.Vector3(1, 1, 1)) }; }
   const geoMains = (col) => { const k = 'pr-mains|' + col; let g = M.GEOS.get(k); if (!g) { const gant = '#FFF3E2', manche = col, poignet = M.eclaircir(col, 0.35); g = M.assembler([
@@ -8367,16 +9056,16 @@ const PRENDU = (() => {
     if (id !== FP.id && FP.change <= 0) { FP.change = 0.36; FP.nouvelle = id; }
     if (FP.change > 0) { FP.change -= dt; if (FP.change <= 0.18 && FP.id !== FP.nouvelle) { FP.id = FP.nouvelle; if (AV) FP.arme.geometry = AV.blaster(FP.id); } }
     const col = typeof e.couleur === 'string' && /^#[0-9a-f]{6}$/i.test(e.couleur) ? e.couleur : '#FFC84A'; if (col !== FP.col) { FP.col = col; FP.mains.geometry = geoMains(col); }
-    // le balancement de marche, l'inertie de la visée, le recul, la recharge, le changement d'arme
-    const dx = (+e.x || 0) - FP.px, dz = (+e.z || 0) - FP.pz, d = Math.sqrt(dx * dx + dz * dz); FP.px = +e.x || 0; FP.pz = +e.z || 0;
-    const v = d < 3 && dt > 0 ? d / dt : 0; FP.vit += (Math.min(7, v) - FP.vit) * Math.min(1, dt * 8); const k = Math.min(1, FP.vit / (JOUEUR.vitesse || 5.2)) * (e.auSol === false ? 0.3 : 1);
-    FP.phase += dt * (5 + FP.vit * 1.2);
-    let dyaw = (+e.yaw || 0) - FP.lastYaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); const dp = (+e.pitch || 0) - FP.lastPitch; FP.lastYaw = +e.yaw || 0; FP.lastPitch = +e.pitch || 0;
+    // le balancement de marche (C3 : la phase φ de la foulée de la caméra, une descente douce par pas, le côté une fois par foulée ;
+    // × 0,2 en visée), l'inertie de la visée, le recul, la recharge, le changement d'arme
+    const k = CAM.k * (1 - 0.8 * (e.vise > 0 ? Math.min(1, e.vise) : 0)) * CAM.bal, ph = CAM.phi;
+    FP.phase = ph; const bobY = -0.006 * k * (1 - Math.cos(2 * ph)) / 2, bobX = 0.008 * k * Math.sin(ph);
+    let dyaw = CAM.yaw - FP.lastYaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); const dp = CAM.pitch - FP.lastPitch; FP.lastYaw = CAM.yaw; FP.lastPitch = CAM.pitch;
     FP.swx = (FP.swx + borne(dyaw, -0.2, 0.2) * 0.35) * Math.exp(-dt * 9); FP.swy = (FP.swy - borne(dp, -0.2, 0.2) * 0.35) * Math.exp(-dt * 9);
     FP.recul *= Math.exp(-dt * 13);
     let rech = 0; const fin = +e.rechargeJusqua, tj = +jeu.temps; if (fini(fin) && fini(tj) && fin > tj) { const A = REG ? REG.arme(e.arme) : null, du = A ? A.recharge : 1.6; rech = Math.sin(Math.PI * borne(1 - (fin - tj) / du, 0, 1)); }
     const ch = FP.change > 0 ? Math.sin(Math.PI * (1 - FP.change / 0.36)) : 0;
-    g.position.set(BASE_FP[0] + Math.sin(FP.phase) * 0.014 * k + FP.swx * 0.12, BASE_FP[1] - Math.abs(Math.cos(FP.phase)) * 0.012 * k + FP.swy * 0.12 - rech * 0.16 - ch * 0.3 + Math.sin(t * 1.7) * 0.002, BASE_FP[2] + FP.recul * 0.07 + (e.accroupi ? 0.02 : 0));
+    g.position.set(BASE_FP[0] + bobX + FP.swx * 0.12, BASE_FP[1] + bobY + FP.swy * 0.12 - rech * 0.16 - ch * 0.3 + Math.sin(t * 1.7) * 0.002, BASE_FP[2] + FP.recul * 0.07 + (e.accroupi ? 0.02 : 0));
     const gr = g.rotation; gr._x = 0.03 + FP.recul * 0.16 - rech * 0.35 + FP.swy * 0.4; gr._y = 0.05 + FP.swx * 0.6; gr._z = -0.05 + rech * 0.55 + FP.swx * 0.3; tourner(g); // champs d'Euler + quaternion (pas de mise en boîte, voir avatars.js)
     // l'éclair au bout du canon
     if (FP.flashT > 0) { FP.flashT -= dt; const b = AV ? AV.BOUCHE[FP.id] : [0, 0.07, -0.47]; FP.flash.visible = FP.flashT > 0; FP.flash.position.set(b[0], b[1], b[2] - 0.03); const s2 = 0.07 + FP.flashT * 1.4; FP.flash.scale.set(s2, s2, s2); FP.flash.rotation._z = (frame * 1.3) % TAU; tourner(FP.flash); } else FP.flash.visible = false;
@@ -8387,27 +9076,74 @@ const PRENDU = (() => {
   }
 
   // ═══════════════════════════════ la caméra ═══════════════════════════════
-  const CAM = { oeil: JOUEUR.oeil || 1.6, phase: 0, vit: 0, px: 0, pz: 0, secousse: 0, kick: 0, morte: 0, par: null, yawM: 0, pitchM: 0, id: null, rx: 0, ry: 0, rz: 0, lx: 0, ly: 0, lz: 0, survolT: 0 };
+  // CAM.f : la caméra subjective de PCORPS.camera (C1 balancement calé sur la foulée, C2 œil lissé par Holt, creux d'atterrissage) ;
+  // CAM.yaw / CAM.pitch : le regard affiché (celui de la simulation + les variations pas encore consommées : PCONTROLES.enAttente) ;
+  // CAM.phi, CAM.k : la phase de la foulée et la part du balancement (pour l'arme subjective, C3) ; CAM.bal : le réglage (1, 0,5 ou 0)
+  const CAM = { oeil: JOUEUR.oeil || 1.6, phase: 0, phi: 0, k: 0, bal: 1, balancement: 'normal', f: null, yaw: 0, pitch: 0, secousse: 0, kick: 0, morte: 0, par: null, yawM: 0, pitchM: 0, id: null, rx: 0, ry: 0, rz: 0, lx: 0, ly: 0, lz: 0, survolT: 0 };
+  const BAL = { normal: 1, doux: 0.5, aucun: 0 };
   const SURVOL = { centre: null, rayon: 165, hauteur: 58, vitesse: 0.045 };
+  // la vue de l'entité suivie, telle que PCORPS.camera la lit (objet réutilisé : position affichée, œil affiché, posture)
+  const VUE = { x: 0, y: 0, z: 0, auSol: true, vy: 0, corpsV2: true, oeil: JOUEUR.oeil || 1.6, vers: 'debout', course: false, vise: 0, accroupi: false };
+  // la position affichée d'une entité : a + (x − a)·alpha (ax, ay, az, aoeil posés par jeu.js au début de chaque pas ; repli sur x s'ils
+  // manquent, et pas d'interpolation à travers une téléportation) → AFF (réutilisé)
+  const AFF = { x: 0, y: 0, z: 0, oeil: 0 };
+  let ALPHA = 1;
+  function affiche(e) {
+    const x = +e.x, y = +e.y, z = +e.z, a = ALPHA;
+    AFF.x = x; AFF.y = y; AFF.z = z; AFF.oeil = +e.oeil;
+    if (a >= 1) return AFF;
+    const ax = +e.ax, ay = +e.ay, az = +e.az;
+    if (!(ax - ax === 0 && ay - ay === 0 && az - az === 0) || Math.abs(x - ax) + Math.abs(z - az) > 4 || Math.abs(y - ay) > 4) return AFF;
+    AFF.x = ax + (x - ax) * a; AFF.y = ay + (y - ay) * a; AFF.z = az + (z - az) * a;
+    const ao = +e.aoeil; if (ao - ao === 0 && AFF.oeil - AFF.oeil === 0) AFF.oeil = ao + (AFF.oeil - ao) * a;
+    return AFF;
+  }
+  function cameraCorps() { // créée à la première image (PCORPS est chargé avant rendu.js dans la page ; l'atelier peut s'en passer)
+    if (!CAM.f && typeof PCORPS !== 'undefined' && PCORPS && typeof PCORPS.camera === 'function') CAM.f = PCORPS.camera({ balancement: CAM.balancement });
+    return CAM.f;
+  }
+  function regard(e, suivi) { // le regard affiché : celui de la simulation, plus ce que les commandes ont pris et que le pas n'a pas encore consommé
+    let yaw = +e.yaw || 0, pitch = +e.pitch || 0;
+    if (suivi && typeof PCONTROLES !== 'undefined' && PCONTROLES && typeof PCONTROLES.enAttente === 'function') {
+      let w = null; try { w = PCONTROLES.enAttente(); } catch (err) { w = null; }
+      if (w) { const dy = +w.dyaw, dp = +w.dpitch; if (dy - dy === 0) yaw += dy; if (dp - dp === 0) pitch += dp; }
+    }
+    CAM.yaw = yaw; CAM.pitch = borne(pitch, -1.45, 1.45);
+  }
   function poserCameraJeu(jeu, e, dt, t) {
-    const x = +e.x, y = +e.y, z = +e.z; if (!fini(x) || !fini(y) || !fini(z)) return false;
-    const cible = e.accroupi ? (JOUEUR.oeilAccroupi || 1.0) : (JOUEUR.oeil || 1.6); CAM.oeil += (cible - CAM.oeil) * Math.min(1, dt * 12);
-    const dx = x - CAM.px, dz = z - CAM.pz, d = Math.sqrt(dx * dx + dz * dz); CAM.px = x; CAM.pz = z; const v = d < 3 && dt > 0 ? d / dt : 0; CAM.vit += (Math.min(7, v) - CAM.vit) * Math.min(1, dt * 10);
-    const k = Math.min(1, CAM.vit / (JOUEUR.vitesse || 5.2)) * (e.auSol === false ? 0 : 1); if (d < 3) CAM.phase += d * TAU / 1.5;
+    affiche(e); const x = AFF.x, y = AFF.y, z = AFF.z; if (!fini(x) || !fini(y) || !fini(z)) return false;
+    // l'œil de la posture : celui de la simulation (corps v2, interpolé) ; au régime historique, l'accroupi lissé comme avant
+    if (e.corpsV2 && fini(AFF.oeil)) CAM.oeil = AFF.oeil;
+    else { const cible = e.accroupi ? (JOUEUR.oeilAccroupi || 1.0) : (JOUEUR.oeil || 1.6); CAM.oeil += (cible - CAM.oeil) * Math.min(1, dt * 12); }
     CAM.secousse *= Math.exp(-dt * 7); CAM.kick *= Math.exp(-dt * 12);
-    const yaw = +e.yaw || 0, pitch = borne(+e.pitch || 0, -1.45, 1.45), sh = CAM.secousse, bob = Math.sin(CAM.phase * 2) * 0.03 * k;
+    regard(e, true);
+    const yaw = CAM.yaw, pitch = CAM.pitch, sh = CAM.secousse;
     if (e.vivant === false) { // éliminé : on s'élève un peu, on penche, on regarde celui qui nous a repeint
       CAM.morte = Math.min(1, CAM.morte + dt * 1.6); const m = CAM.morte, s = m * m * (3 - 2 * m);
       let yw = yaw, pt = pitch; const tueur = CAM.par != null ? trouver(jeu, CAM.par) : null;
       if (tueur && fini(+tueur.x)) { yw = Math.atan2(-(+tueur.x - x), -(+tueur.z - z)); const dd = Math.hypot(+tueur.x - x, +tueur.z - z); pt = Math.atan2((+tueur.y + 1.2) - (y + 2.4), dd); }
       CAM.yawM += Math.atan2(Math.sin(yw - CAM.yawM), Math.cos(yw - CAM.yawM)) * Math.min(1, dt * 3 * s); CAM.pitchM += (pt - 0.12 - CAM.pitchM) * Math.min(1, dt * 3 * s);
       camera.position.set(x, y + CAM.oeil + s * 1.2, z); const cr = camera.rotation; cr._x = CAM.pitchM; cr._y = CAM.yawM; cr._z = s * 0.18; tourner(camera);
+      CAM.k = 0; if (CAM.f) CAM.f.remettre(); // au retour, l'œil repart net
       return true;
     }
     CAM.morte = 0; CAM.yawM = yaw; CAM.pitchM = pitch;
-    camera.position.set(x + Math.cos(yaw) * Math.cos(CAM.phase) * 0.025 * k, y + CAM.oeil + bob + Math.sin(t * 61) * sh * 0.05, z - Math.sin(yaw) * Math.cos(CAM.phase) * 0.025 * k);
-    const cr = camera.rotation; cr._x = pitch + CAM.kick * 0.012 + Math.sin(t * 53) * sh * 0.02; cr._y = yaw + Math.sin(t * 47) * sh * 0.02; cr._z = Math.sin(CAM.phase) * 0.004 * k; tourner(camera); // ordre YXZ fixé à l'init
+    // C1 + C2 : PCORPS.camera sur la position affichée (sans PCORPS : l'œil net, sans balancement)
+    const f = cameraCorps(); let cy = y + CAM.oeil, cote = 0, roulis = 0;
+    if (f) {
+      VUE.x = x; VUE.y = y; VUE.z = z; VUE.auSol = e.auSol !== false; VUE.vy = +e.vy || 0; VUE.oeil = CAM.oeil;
+      VUE.course = !!e.course; VUE.vers = e.corpsV2 ? (e.vers || e.posture || 'debout') : (e.accroupi ? 'accroupi' : 'debout'); VUE.vise = e.vise > 0 ? +e.vise : 0;
+      const o = f(VUE, dt > 0 ? dt : 1e-4); cy = o.y; cote = o.cote; roulis = o.roulis; CAM.phi = o.phase; CAM.k = o.k;
+    } else CAM.k = 0;
+    CAM.phase = CAM.phi;
+    camera.position.set(x + Math.cos(yaw) * cote, cy + Math.sin(t * 61) * sh * 0.05, z - Math.sin(yaw) * cote);
+    const cr = camera.rotation; cr._x = pitch + CAM.kick * 0.012 + Math.sin(t * 53) * sh * 0.02; cr._y = yaw + Math.sin(t * 47) * sh * 0.02; cr._z = roulis; tourner(camera); // ordre YXZ fixé à l'init
     return true;
+  }
+  // PRENDU.reglages({ balancement: 'normal' | 'doux' | 'aucun' }) → les réglages en cours (copie)
+  function reglages(o) {
+    if (o && BAL[o.balancement] != null) { CAM.balancement = o.balancement; CAM.bal = BAL[o.balancement]; if (CAM.f) CAM.f.regler({ balancement: o.balancement }); }
+    return { balancement: CAM.balancement };
   }
   function poserCameraSurvol(t) {
     const A = carte.zones && carte.zones.arene, c = SURVOL.centre || (A && Array.isArray(A.centre) ? A.centre : [0, 0]), cx = +c[0] || 0, cz = +c[1] || 0;
@@ -8559,14 +9295,15 @@ const PRENDU = (() => {
   }
 
   // ═══════════════════════════════ l'image ═══════════════════════════════
-  function image(jeu, idCamera, dt, t) {
+  function image(jeu, idCamera, dt, t, alpha) {
     if (!pret || !renderer) return;
+    ALPHA = alpha >= 0 && alpha <= 1 ? +alpha : 1; // la part du pas en cours (boucle à pas fixe, § 2) ; 1 : la dernière position simulée
     const t0 = typeof performance !== 'undefined' ? performance.now() : 0;
     if (tPrecImage) mesurer(t0 - tPrecImage); tPrecImage = t0;
     if (perdu) return; // la simulation continue ; le décor reviendra avec le contexte
     dt = fini(dt) && dt > 0 ? Math.min(dt, 0.1) : 0; t = fini(t) ? t : 0; frame++;
     const e = jeu ? trouver(jeu, idCamera) : null;
-    if (e && CAM.id !== idCamera) { CAM.id = idCamera; CAM.px = +e.x || 0; CAM.pz = +e.z || 0; FP.px = CAM.px; FP.pz = CAM.pz; FP.lastYaw = +e.yaw || 0; FP.lastPitch = +e.pitch || 0; }
+    if (e && CAM.id !== idCamera) { CAM.id = idCamera; if (CAM.f) CAM.f.remettre(); FP.lastYaw = +e.yaw || 0; FP.lastPitch = +e.pitch || 0; }
     let enJeu = false;
     try { enJeu = !!(e && poserCameraJeu(jeu, e, dt, t)); } catch (err) { signaler('caméra', err); }
     if (!enJeu) { try { poserCameraSurvol(t); } catch (err) { signaler('survol', err); } }
@@ -8667,7 +9404,7 @@ const PRENDU = (() => {
     memoireMo = Math.round(o / 104857.6) / 10; memoireSale = false; return memoireMo;
   }
   const API = {
-    init, taille, image, evenements, qualite, projeter, survol,
+    init, taille, image, evenements, qualite, projeter, survol, reglages,
     get fov() { return fovV; }, get webgl() { return webgl && !perdu; }, get budgets() { return BUDGETS; },
     get _interne() { return { scene, sceneArme, camera, camArme, renderer, FP, FX, CAM, tuiles, voutes: voutesM, acteurs, decor, veg, BATI, ATL, USOL, soleil, hemi, QUAL, SOLEIL, palier: changerPalier }; }, // pour l'atelier et les tests (palier : un changement de la qualité adaptative)
     get stats() {
@@ -8851,12 +9588,19 @@ const PSONS = (() => {
 /* ── controles.js ── */
 /* OPÉRATION PONCIN — les commandes : au doigt (joystick flottant à gauche, glisser à droite pour viser, bouton Tir qui vise aussi
    quand on le glisse, Saut, Recharge, Accroupi, emplacements d'armes), au clavier (par event.code : ZQSD en AZERTY = WASD en QWERTY)
-   et à la souris (pointer lock). Pointer Events suivis par pointerId, touch-action: none. PCONTROLES.lire() rend toujours le même
-   objet d'entrée (aucune allocation par image) et remet les variations de visée à zéro. Le mode gaucher inverse les côtés. */
+   et à la souris (pointer lock). Pointer Events suivis par pointerId, touch-action: none. Le mode gaucher inverse les côtés.
+   La partie avance à pas fixe (1/60 s, conception § 2) : PCONTROLES.lire() est appelé une fois par IMAGE et verse ce qui s'est passé
+   depuis l'image d'avant dans un CUMUL (dyaw et dpitch s'additionnent ; les fronts saut, recharge, arme et l'appui bref sur Tir se
+   combinent par OU ; les niveaux avant, cote, tir, accroupi gardent la dernière valeur). PCONTROLES.consommer() rend l'entrée d'un
+   PAS : le premier pas qui suit prend les variations et les fronts (puis le cumul les oublie), les pas suivants n'ont que les niveaux ;
+   une image sans pas garde tout le cumul. PCONTROLES.enAttente() → { dyaw, dpitch } : les variations pas encore consommées, que le
+   rendu ajoute au regard affiché (visée sans latence). Objets réutilisés : aucune allocation par image. */
 const PCONTROLES = (() => {
   'use strict';
   const DEG = Math.PI / 180, RAYON = 60, MORTE = 0.08, K_DOIGT = 0.22 * DEG, EXPO = 1.15, K_SOURIS = 0.0022;
-  const entree = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null };
+  const entree = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null }; // l'entrée d'un pas
+  const cumul = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null, tirBref: false }; // depuis le dernier pas
+  const ATTENTE = { dyaw: 0, dpitch: 0 };
   const R = { sensibilite: 1, inverserY: false, gaucher: false, tirAuto: true };
   const ARMES = ['rafale', 'pompe', 'precision'];
   let racine = null, actif = false, tactile = false, actions = {}, W = 1, H = 1;
@@ -8864,7 +9608,7 @@ const PCONTROLES = (() => {
   const roles = new Map(); // pointerId → { role: 'joy' | 'vise' | 'tir' | 'bouton', x, y }
   const pool = []; const prendre = () => pool.pop() || { role: '', x: 0, y: 0, cmd: null };
   let joyId = -1, joyBx = 0, joyBy = 0, joyVx = 0, joyVy = 0, tirDoigt = 0;
-  let accYaw = 0, accPitch = 0, sautL = false, rechargeL = false, armeL = null, accroupiBascule = false;
+  let accYaw = 0, accPitch = 0, sautL = false, rechargeL = false, armeL = null, tirL = false, accroupiBascule = false; // tirL : un appui sur Tir, même relâché avant l'image
   // clavier et souris
   const touches = { avant: false, arriere: false, gauche: false, droite: false, accroupi: false };
   let tirSouris = false, moiArmes = null, moiArme = 'rafale';
@@ -8930,7 +9674,7 @@ const PCONTROLES = (() => {
     const cible = e.target.closest ? e.target.closest('[data-cmd]') : null;
     if (e.pointerType === 'mouse') { // souris : le premier clic verrouille le pointeur, puis le bouton gauche tire
       if (!verrouille()) { verrouiller(); e.preventDefault(); return; }
-      if (e.button === 0) tirSouris = true; e.preventDefault(); return;
+      if (e.button === 0) { tirSouris = true; tirL = true; } e.preventDefault(); return;
     }
     if (!tactile && e.pointerType === 'touch') modeTactile(true);
     e.preventDefault();
@@ -8938,7 +9682,7 @@ const PCONTROLES = (() => {
     const d = prendre(); d.x = e.clientX; d.y = e.clientY; d.cmd = null;
     if (cible) {
       const cmd = cible.dataset.cmd;
-      if (cmd === 'tir') { d.role = 'tir'; tirDoigt++; elTir.classList.add('appui'); }
+      if (cmd === 'tir') { d.role = 'tir'; tirDoigt++; tirL = true; elTir.classList.add('appui'); }
       else {
         d.role = 'bouton'; d.cmd = cible; cible.classList.add('appui');
         if (cmd === 'saut') sautL = true;
@@ -8996,8 +9740,9 @@ const PCONTROLES = (() => {
     joyId = -1; joyVx = 0; joyVy = 0; tirDoigt = 0; tirSouris = false;
     if (elJoy) { elJoy.classList.remove('vivant'); placerJoy(); elTir.classList.remove('appui'); }
     touches.avant = touches.arriere = touches.gauche = touches.droite = touches.accroupi = false;
-    accYaw = 0; accPitch = 0; sautL = false; rechargeL = false; armeL = null;
+    accYaw = 0; accPitch = 0; sautL = false; rechargeL = false; armeL = null; tirL = false; viderCumul();
   }
+  function viderCumul() { cumul.avant = 0; cumul.cote = 0; cumul.dyaw = 0; cumul.dpitch = 0; cumul.tir = false; cumul.saut = false; cumul.accroupi = false; cumul.recharge = false; cumul.arme = null; cumul.tirBref = false; }
 
   // ─── clavier ───
   const DIRS = { KeyW: 'avant', ArrowUp: 'avant', KeyS: 'arriere', ArrowDown: 'arriere', KeyA: 'gauche', ArrowLeft: 'gauche', KeyD: 'droite', ArrowRight: 'droite' };
@@ -9028,22 +9773,35 @@ const PCONTROLES = (() => {
   function molette(e) { if (!actif || !verrouille() || !moiArmes) return; const i = Math.max(0, moiArmes.indexOf(moiArme)), n = moiArmes.length; if (n > 1) armeL = moiArmes[(i + (e.deltaY > 0 ? 1 : n - 1)) % n]; }
   window.addEventListener('wheel', molette, { passive: true });
 
-  // ─── lecture, une fois par image ───
+  // ─── lecture, une fois par image : le cumul ───
   function lire() {
-    if (!actif) { entree.avant = 0; entree.cote = 0; entree.dyaw = 0; entree.dpitch = 0; entree.tir = false; entree.saut = false; entree.recharge = false; entree.arme = null; entree.accroupi = false; accYaw = accPitch = 0; return entree; }
+    if (!actif) { viderCumul(); accYaw = accPitch = 0; sautL = rechargeL = tirL = false; armeL = null; return cumul; }
     let vx = joyVx, vy = joyVy; const l = Math.sqrt(vx * vx + vy * vy);
     if (l < MORTE) { vx = 0; vy = 0; } else { const k = Math.min(1, (l - MORTE) / (1 - MORTE)) / l; vx *= k; vy *= k; } // zone morte de 8 %, puis toute la course
     const kbA = (touches.avant ? 1 : 0) - (touches.arriere ? 1 : 0), kbC = (touches.droite ? 1 : 0) - (touches.gauche ? 1 : 0);
     let av = -vy + kbA, co = vx + kbC; const n = Math.sqrt(av * av + co * co); if (n > 1) { av /= n; co /= n; }
-    entree.avant = av; entree.cote = co;
-    entree.dyaw = accYaw; entree.dpitch = accPitch; accYaw = 0; accPitch = 0;
-    entree.tir = tirDoigt > 0 || tirSouris;
-    entree.saut = sautL; sautL = false;
-    entree.recharge = rechargeL; rechargeL = false;
-    entree.arme = armeL; armeL = null;
-    entree.accroupi = accroupiBascule || touches.accroupi;
+    // les niveaux : la dernière valeur
+    cumul.avant = av; cumul.cote = co;
+    cumul.tir = tirDoigt > 0 || tirSouris;
+    cumul.accroupi = accroupiBascule || touches.accroupi;
+    // les variations s'additionnent, les fronts se combinent par OU (rien de perdu si l'image n'a pas de pas)
+    cumul.dyaw += accYaw; cumul.dpitch += accPitch; accYaw = 0; accPitch = 0;
+    if (sautL) cumul.saut = true; sautL = false;
+    if (rechargeL) cumul.recharge = true; rechargeL = false;
+    if (tirL) cumul.tirBref = true; tirL = false;
+    if (armeL) cumul.arme = armeL; armeL = null;
+    return cumul;
+  }
+  // l'entrée d'un pas : le premier pas après lire() prend variations et fronts, les suivants n'ont que les niveaux
+  function consommer() {
+    entree.avant = cumul.avant; entree.cote = cumul.cote; entree.accroupi = cumul.accroupi;
+    entree.dyaw = cumul.dyaw; entree.dpitch = cumul.dpitch;
+    entree.tir = cumul.tir || cumul.tirBref; // un appui bref sur Tir (relâché avant l'image) tire une fois
+    entree.saut = cumul.saut; entree.recharge = cumul.recharge; entree.arme = cumul.arme;
+    cumul.dyaw = 0; cumul.dpitch = 0; cumul.saut = false; cumul.recharge = false; cumul.arme = null; cumul.tirBref = false;
     return entree;
   }
+  function enAttente() { ATTENTE.dyaw = actif ? cumul.dyaw + accYaw : 0; ATTENTE.dpitch = actif ? cumul.dpitch + accPitch : 0; return ATTENTE; } // y compris ce qui est arrivé depuis lire()
   function reinit() { lacher(); accroupiBascule = false; vuAccroupi = null; vuArme = ''; vuPossede = -1; vuRech = -1; vuMun[0] = vuMun[1] = vuMun[2] = -2; }
 
   // ─── l'état affiché sur les boutons : armes possédées, arme en main, munitions, anneau de recharge, accroupi ───
@@ -9068,7 +9826,7 @@ const PCONTROLES = (() => {
     if (q !== vuRech) { vuRech = q; elAnneau.style.strokeDashoffset = String(100 - q); elRecharge.classList.toggle('charge', q > 0 && q < 100); }
   }
 
-  return { init, lire, regler, activer, taille, reinit, maj, modeTactile, verrouiller, lacher,
+  return { init, lire, consommer, enAttente, regler, activer, taille, reinit, maj, modeTactile, verrouiller, lacher,
     get reglages() { return R; }, get tactile() { return tactile; }, get actif() { return actif; }, get verrouille() { return verrouille(); } };
 })();
 
@@ -10503,19 +11261,25 @@ const PENLIGNE = (() => {
    autres disent « Prêt »), puis la même partie qu'en solo : jeu.etape vient du vrai PJEU chez l'hôte, de la façade chez les clients.
    Le joueur local est idMoi : 'moi' en solo, son id de salon en ligne. Voie réseau : 'supabase' si window.PONCIN_CONFIG est rempli,
    'local' sinon (ou avec ?reseau=local : entre onglets du même navigateur).
-   Tout appel aux autres modules est gardé : sans Three.js ou sans WebGL, un panneau clair ; une erreur ne fige jamais l'écran. */
+   Tout appel aux autres modules est gardé : sans Three.js ou sans WebGL, un panneau clair ; une erreur ne fige jamais l'écran.
+   La boucle (conception § 2) : la partie avance par pas fixes de 1/60 s (PJEU.pasFixe, au plus 4 pas par image, au-delà le temps est
+   perdu), en solo, chez l'hôte et chez le client ; les commandes sont lues une fois par image dans un cumul (PCONTROLES.lire) et
+   chaque pas prend son entrée (PCONTROLES.consommer) ; l'image reçoit alpha (la fraction du pas en cours) pour interpoler. */
 const PUI = (() => {
   'use strict';
   const CLE = 'poncin.v1', $ = (s) => document.querySelector(s), $$ = (s) => Array.from(document.querySelectorAll(s));
   const R = typeof PREGLES !== 'undefined' ? PREGLES : null;
   let _compte = null; const elCompte = () => _compte || (_compte = $('#compte'));
-  const DEFAUT = () => ({ v: 1, reglages: { sensibilite: 1, inverserY: false, gaucher: false, tirAuto: true, qualite: 'auto', son: true, vibre: true, nom: '', pseudo: '' }, records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { format: 'solo', bots: 4, niveau: 'facile' }, derniere: 0 });
+  const DEFAUT = () => ({ v: 1, reglages: { sensibilite: 1, inverserY: false, gaucher: false, tirAuto: true, qualite: 'auto', balancement: 'normal', son: true, vibre: true, nom: '', pseudo: '' }, records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { format: 'solo', bots: 4, niveau: 'facile' }, derniere: 0 });
   let sauv = DEFAUT(), carte = null, monde = null, rendu3d = false, jeu = null, ecran = 'chargement', retourReglages = 'titre', avantPause = 'partie', optsPartie = null;
   let J, A, RENDU, CARTEPROV, MONDE; // les modules, résolus au démarrage
   let last = 0, tAnim = 0, compteT = 0, compteVu = -1, surDepuis = 0, erreursEtape = 0, erreursRendu = 0, erreursTotal = 0, derniereErreur = '', finTraitee = false, serie = 0, serieMax = 0, elims = 0;
   let fps = 0, nImages = 0, tFps = 0, msImage = 0, imagePause = 0;
   let entrees = { moi: null }; const VIDE = [];
   let force = null; // l'entrée imposée par les tests (window.__poncin.entree)
+  // le pas fixe : PAS = 1/60 s, au plus 4 pas par image ; alpha = la fraction du pas en cours (gardée telle quelle quand la partie ne tourne pas)
+  const PAS = 1 / 60, PAS_MAX = 4;
+  let boucleFixe = null, alpha = 1, nPas = 0, manuel = false;
   // en ligne : le joueur local (son id de salon), le salon ouvert (PENLIGNE), la partie en cours
   let idMoi = 'moi', enLigne = false, ctl = null, partieL = null, ouverture = false, compteFin = 0, renduCoupe = false;
   const idSalon = 'j' + Math.random().toString(36).slice(2, 10);
@@ -10584,10 +11348,13 @@ const PUI = (() => {
   }
 
   // ─── réglages ───
+  const BALANCEMENTS = ['normal', 'doux', 'aucun'];
   function appliquerReglages() {
     const g = sauv.reglages;
     try { PCONTROLES.regler(g); } catch (e) { signaler('controles.regler', e); }
     try { PSONS.regler({ son: g.son, vibre: g.vibre }); } catch (e) { signaler('sons.regler', e); }
+    if (BALANCEMENTS.indexOf(g.balancement) < 0) g.balancement = 'normal';
+    try { if (typeof PRENDU !== 'undefined' && typeof PRENDU.reglages === 'function') PRENDU.reglages({ balancement: g.balancement }); } catch (e) { signaler('rendu.reglages', e); }
     document.body.classList.toggle('gaucher', !!g.gaucher);
   }
   function majReglages() {
@@ -10603,7 +11370,7 @@ const PUI = (() => {
   function brancherReglages() {
     $$('[data-r]').forEach((i) => {
       const k = i.dataset.r;
-      if (i.classList.contains('seg')) i.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (!b) return; sauv.reglages[k] = b.dataset.v; PSONS.ui('tap'); if (k === 'qualite' && rendu3d) try { RENDU.qualite(b.dataset.v); } catch (err) { signaler('rendu.qualite', err); } majReglages(); sauver(); });
+      if (i.classList.contains('seg')) i.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (!b) return; sauv.reglages[k] = b.dataset.v; PSONS.ui('tap'); if (k === 'qualite' && rendu3d) try { RENDU.qualite(b.dataset.v); } catch (err) { signaler('rendu.qualite', err); } if (k !== 'qualite') appliquerReglages(); majReglages(); sauver(); });
       else i.addEventListener(i.type === 'range' || i.type === 'text' ? 'input' : 'change', () => {
         sauv.reglages[k] = i.type === 'checkbox' ? i.checked : i.type === 'range' ? +i.value : String(i.value).replace(/[<>]/g, '').slice(0, 20);
         if (i.type === 'checkbox') PSONS.ui('tap');
@@ -10656,7 +11423,7 @@ const PUI = (() => {
       idMoi = 'moi'; enLigne = false; partieL = null; entrees = { moi: null };
       jeu.ajouterJoueur({ id: 'moi', nom, couleur: '#FFC84A', equipe: o.equipes ? 0 : 'moi', humain: true });
     } catch (e) { signaler('jeu.creer', e); jeu = null; oups('La partie n’a pas pu démarrer', 'Recharge la page et réessaie.'); return false; }
-    optsPartie = o; finTraitee = false; surDepuis = 0; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null;
+    optsPartie = o; finTraitee = false; surDepuis = 0; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null; remettrePas();
     try { PHUD.reinit({ equipes: !!o.equipes }); } catch (e) { signaler('hud.reinit', e); }
     try { PCONTROLES.reinit(); } catch (e) { signaler('controles.reinit', e); }
     if (compte) { compteT = 3.6; compteVu = -1; montrer('compte'); PCONTROLES.activer(false); astuce(true); }
@@ -10708,8 +11475,15 @@ const PUI = (() => {
   }
 
   // ─── la boucle ───
-  function pasPartie(dt) { // une image de simulation : commandes, aide à la visée, jeu, effets, sons, HUD
-    const e = PCONTROLES.lire();
+  function remettrePas() { if (boucleFixe) boucleFixe.remettre(); alpha = 1; }
+  function nouvelleBoucle() { // PJEU.pasFixe ; sans lui (module absent), la même règle ici
+    if (J && typeof J.pasFixe === 'function') return J.pasFixe({ pas: PAS, max: PAS_MAX });
+    let acc = 0; const EPS = PAS * 1e-6;
+    return { pas: PAS, max: PAS_MAX, avancer(d, f) { if (d > 0) acc = Math.min(acc + d, PAS_MAX * PAS); while (acc >= PAS - EPS) { acc -= PAS; if (acc < 0) acc = 0; f(PAS); } return acc / PAS; }, remettre() { acc = 0; }, get acc() { return acc; } };
+  }
+  function pasJeu(dt) { if (jeu && !finTraitee) pasPartie(dt); } // un pas de la boucle (la partie a pu finir au pas d'avant)
+  function pasPartie(dt) { // un pas de simulation (1/60 s) : son entrée, aide à la visée, jeu, effets, sons, HUD
+    const e = PCONTROLES.consommer(); nPas++;
     if (force) { // l'entrée imposée par les tests
       if (force.avant != null) e.avant = force.avant; if (force.cote != null) e.cote = force.cote; if (force.tir != null) e.tir = force.tir; if (force.accroupi != null) e.accroupi = force.accroupi;
       if (force.dyaw) { e.dyaw += force.dyaw; force.dyaw = 0; } if (force.dpitch) { e.dpitch += force.dpitch; force.dpitch = 0; }
@@ -10727,6 +11501,9 @@ const PUI = (() => {
     let evs;
     try { evs = jeu.etape(dt, entrees) || VIDE; erreursEtape = 0; }
     catch (err) { signaler('jeu.etape', err); evs = VIDE; if (++erreursEtape >= 3) { quitter(); oups('La partie s’est emmêlé les pinceaux', 'Une erreur a interrompu la partie. Tu peux en relancer une depuis le menu.'); } return; }
+    traiter(evs, aide);
+  }
+  function traiter(evs, aide) { // les événements d'un pas (ou de avantImage) : image, sons, HUD, fin
     if (rendu3d) { try { RENDU.evenements(evs, jeu); } catch (err) { signaler('rendu.evenements', err); } }
     try { PSONS.evenements(evs, jeu, idMoi); } catch (err) { signaler('sons', err); }
     try { PHUD.maj(jeu, idMoi, evs, aide); } catch (err) { signaler('hud.maj', err); }
@@ -10737,15 +11514,28 @@ const PUI = (() => {
   }
   function boucle(now) {
     requestAnimationFrame(boucle);
-    const t0 = performance.now(), dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now; tAnim += dt;
+    if (manuel) { last = now; return; } // les tests mènent les images eux-mêmes (window.__poncin.images)
+    image((now - last) / 1000, now);
+  }
+  function image(dtBrut, now) { // une image : commandes (cumul), pas fixes de la partie, puis le rendu avec alpha
+    const t0 = performance.now();
+    dtBrut = dtBrut > 0 ? Math.min(1, dtBrut) : 0; // la boucle fixe borne d'elle-même à 4 pas ; le rendu garde son pas borné à 50 ms
+    const dt = Math.min(0.05, dtBrut); last = now; tAnim += dt;
     nImages++; if (now - tFps > 1000) { fps = Math.round(nImages * 1000 / (now - tFps)); nImages = 0; tFps = now; }
     try {
       // en ligne, la partie ne s'arrête pas pendant la pause (commandes neutres) ; le compte à rebours commun non plus
       const enPause = enLigne && (ecran === 'pause' || (ecran === 'reglages' && retourReglages === 'pause'));
       if (enLigne && compteT > 0) compteT = (compteFin - now) / 1000; // le compte à rebours commun suit l'horloge, pas les images
       if (enPause && compteT <= 0 && avantPause === 'compte') avantPause = 'partie';
-      if ((ecran === 'partie' || (enPause && compteT <= 0)) && jeu && !finTraitee) pasPartie(dt);
-      else if (ecran === 'compte' && jeu) {
+      if ((ecran === 'partie' || (enPause && compteT <= 0)) && jeu && !finTraitee) {
+        PCONTROLES.lire(); // une fois par image : le cumul
+        if (!boucleFixe) boucleFixe = nouvelleBoucle();
+        alpha = boucleFixe.avancer(dtBrut, pasJeu);
+        if (enLigne && jeu && !finTraitee && typeof jeu.avantImage === 'function') { // le client : horloge et interpolation des autres, à chaque image
+          let evs = null; try { evs = jeu.avantImage(performance.now()); } catch (err) { signaler('jeu.avantImage', err); evs = null; }
+          if (evs && evs.length && jeu) traiter(evs, null);
+        }
+      } else if (ecran === 'compte' && jeu) {
         if (!enLigne) compteT -= dt; const n = Math.ceil(compteT - 0.6);
         if (n !== compteVu) { compteVu = n; const c = elCompte(); c.hidden = false; c.firstElementChild.textContent = n > 0 ? String(n) : 'Repeins !'; c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); c.classList.toggle('go', n <= 0); PSONS.compte(n); }
         try { PHUD.maj(jeu, idMoi, VIDE, null); PCONTROLES.maj(jeu, trouver(idMoi)); } catch (err) { signaler('hud.maj', err); }
@@ -10757,11 +11547,12 @@ const PUI = (() => {
       const enJeu = jeu && (EN_JEU[ecran] || ecran === 'reglages' && retourReglages === 'pause');
       const fige = ecran === 'pause' || ecran === 'reglages';
       if (!fige || (imagePause++ % 3) === 0) { // en pause, une image sur trois suffit
-        try { RENDU.image(enJeu ? jeu : null, enJeu ? idMoi : null, ecran === 'compte' || (fige && !enLigne) ? 0 : dt, tAnim); erreursRendu = 0; }
+        try { RENDU.image(enJeu ? jeu : null, enJeu ? idMoi : null, ecran === 'compte' || (fige && !enLigne) ? 0 : dt, tAnim, enJeu ? alpha : 1); erreursRendu = 0; }
         catch (err) { signaler('rendu.image', err); if (++erreursRendu > 90) { rendu3d = false; panneau3d(true); } }
       }
     }
     msImage = msImage * 0.9 + (performance.now() - t0) * 0.1;
+    return alpha;
   }
   function panneau3d(oui) { const p = $('#sans3d'); if (p) p.hidden = !oui; document.body.classList.toggle('sans-3d', !!oui); if (oui && EN_JEU[ecran]) quitter(); }
 
@@ -10937,7 +11728,7 @@ const PUI = (() => {
       astuce(false);
       jeu = P.jeu; idMoi = P.idMoi; enLigne = true; partieL = P; entrees = {}; entrees[idMoi] = null;
       const eq = !!(jeu.options && jeu.options.equipes);
-      optsPartie = { equipes: eq, enLigne: true }; finTraitee = false; surDepuis = 0; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null;
+      optsPartie = { equipes: eq, enLigne: true }; finTraitee = false; surDepuis = 0; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null; remettrePas();
       try { PHUD.reinit({ equipes: eq }); } catch (e) { signaler('hud.reinit', e); }
       try { PCONTROLES.reinit(); } catch (e) { signaler('controles.reinit', e); }
       compteT = Math.max(0.5, +P.dans || 3.6); compteFin = performance.now() + compteT * 1000; compteVu = -1; montrer('compte'); PCONTROLES.activer(false); astuce(true);
@@ -11002,7 +11793,12 @@ const PUI = (() => {
       jeu: () => jeu,
       stats: () => { let r = null; try { r = rendu3d && RENDU.stats ? RENDU.stats : null; } catch (e) { r = null; } return { fps, ms: Math.round(msImage * 100) / 100, rendu: r, erreurs: erreursTotal, derniereErreur, elims, serie }; },
       entree: (e) => { force = e ? Object.assign(force || {}, e) : null; return force; },
-      pas: (n) => { if (!jeu) return null; if (ecran === 'compte') { compteT = 0; elCompte().hidden = true; astuce(false); montrer('partie'); PCONTROLES.activer(true); } for (let i = 0; i < (n || 1) && jeu && !finTraitee; i++) pasPartie(1 / 60); return etat(); },
+      pas: (n) => { if (!jeu) return null; if (ecran === 'compte') { compteT = 0; elCompte().hidden = true; astuce(false); montrer('partie'); PCONTROLES.activer(true); } for (let i = 0; i < (n || 1) && jeu && !finTraitee; i++) { PCONTROLES.lire(); pasPartie(PAS); } return etat(); }, // toujours n pas de 1/60 s
+      // les tests mènent les images : manuel(true) arrête la boucle de requestAnimationFrame ; images([dt en s…], { remettre }) joue ces
+      // images (commandes, pas fixes, rendu) et rend { pas, alpha, temps } ; compteurs() : pas faits depuis le chargement
+      manuel: (oui) => { manuel = oui !== false; last = performance.now(); return manuel; },
+      images: (dts, o) => { if (o && o.remettre && boucleFixe) boucleFixe.remettre(); const p0 = nPas; let t = last; for (let i = 0; i < (dts || VIDE).length; i++) { t += Math.max(0, +dts[i] || 0) * 1000; image(Math.max(0, +dts[i] || 0), t); } last = performance.now(); return { pas: nPas - p0, alpha, temps: jeu ? jeu.temps : null, acc: boucleFixe ? boucleFixe.acc : 0 }; },
+      compteurs: () => ({ pas: nPas, alpha, acc: boucleFixe ? boucleFixe.acc : 0, pasDuree: PAS, max: PAS_MAX }),
       joueur: () => trouver(idMoi),
       tp: (x, z, yaw) => { const m = trouver(idMoi); if (!m) return null; m.x = x; m.z = z; try { m.y = monde.hauteur(x, z); } catch (e) { /* rien */ } m.vy = 0; if (yaw != null) m.yaw = yaw; return m; },
       viser: (id) => { const m = trouver(idMoi), c = trouver(id); if (!m || !c) return null; const dx = c.x - m.x, dz = c.z - m.z, oeil = m.accroupi ? (R ? R.JOUEUR.oeilAccroupi : 1) : (R ? R.JOUEUR.oeil : 1.6), dy = (c.y + 1.2) - (m.y + oeil); m.yaw = Math.atan2(-dx, -dz); m.pitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)); return { yaw: m.yaw, pitch: m.pitch }; },

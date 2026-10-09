@@ -1,11 +1,18 @@
 /* OPÉRATION PONCIN — les commandes : au doigt (joystick flottant à gauche, glisser à droite pour viser, bouton Tir qui vise aussi
    quand on le glisse, Saut, Recharge, Accroupi, emplacements d'armes), au clavier (par event.code : ZQSD en AZERTY = WASD en QWERTY)
-   et à la souris (pointer lock). Pointer Events suivis par pointerId, touch-action: none. PCONTROLES.lire() rend toujours le même
-   objet d'entrée (aucune allocation par image) et remet les variations de visée à zéro. Le mode gaucher inverse les côtés. */
+   et à la souris (pointer lock). Pointer Events suivis par pointerId, touch-action: none. Le mode gaucher inverse les côtés.
+   La partie avance à pas fixe (1/60 s, conception § 2) : PCONTROLES.lire() est appelé une fois par IMAGE et verse ce qui s'est passé
+   depuis l'image d'avant dans un CUMUL (dyaw et dpitch s'additionnent ; les fronts saut, recharge, arme et l'appui bref sur Tir se
+   combinent par OU ; les niveaux avant, cote, tir, accroupi gardent la dernière valeur). PCONTROLES.consommer() rend l'entrée d'un
+   PAS : le premier pas qui suit prend les variations et les fronts (puis le cumul les oublie), les pas suivants n'ont que les niveaux ;
+   une image sans pas garde tout le cumul. PCONTROLES.enAttente() → { dyaw, dpitch } : les variations pas encore consommées, que le
+   rendu ajoute au regard affiché (visée sans latence). Objets réutilisés : aucune allocation par image. */
 const PCONTROLES = (() => {
   'use strict';
   const DEG = Math.PI / 180, RAYON = 60, MORTE = 0.08, K_DOIGT = 0.22 * DEG, EXPO = 1.15, K_SOURIS = 0.0022;
-  const entree = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null };
+  const entree = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null }; // l'entrée d'un pas
+  const cumul = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null, tirBref: false }; // depuis le dernier pas
+  const ATTENTE = { dyaw: 0, dpitch: 0 };
   const R = { sensibilite: 1, inverserY: false, gaucher: false, tirAuto: true };
   const ARMES = ['rafale', 'pompe', 'precision'];
   let racine = null, actif = false, tactile = false, actions = {}, W = 1, H = 1;
@@ -13,7 +20,7 @@ const PCONTROLES = (() => {
   const roles = new Map(); // pointerId → { role: 'joy' | 'vise' | 'tir' | 'bouton', x, y }
   const pool = []; const prendre = () => pool.pop() || { role: '', x: 0, y: 0, cmd: null };
   let joyId = -1, joyBx = 0, joyBy = 0, joyVx = 0, joyVy = 0, tirDoigt = 0;
-  let accYaw = 0, accPitch = 0, sautL = false, rechargeL = false, armeL = null, accroupiBascule = false;
+  let accYaw = 0, accPitch = 0, sautL = false, rechargeL = false, armeL = null, tirL = false, accroupiBascule = false; // tirL : un appui sur Tir, même relâché avant l'image
   // clavier et souris
   const touches = { avant: false, arriere: false, gauche: false, droite: false, accroupi: false };
   let tirSouris = false, moiArmes = null, moiArme = 'rafale';
@@ -79,7 +86,7 @@ const PCONTROLES = (() => {
     const cible = e.target.closest ? e.target.closest('[data-cmd]') : null;
     if (e.pointerType === 'mouse') { // souris : le premier clic verrouille le pointeur, puis le bouton gauche tire
       if (!verrouille()) { verrouiller(); e.preventDefault(); return; }
-      if (e.button === 0) tirSouris = true; e.preventDefault(); return;
+      if (e.button === 0) { tirSouris = true; tirL = true; } e.preventDefault(); return;
     }
     if (!tactile && e.pointerType === 'touch') modeTactile(true);
     e.preventDefault();
@@ -87,7 +94,7 @@ const PCONTROLES = (() => {
     const d = prendre(); d.x = e.clientX; d.y = e.clientY; d.cmd = null;
     if (cible) {
       const cmd = cible.dataset.cmd;
-      if (cmd === 'tir') { d.role = 'tir'; tirDoigt++; elTir.classList.add('appui'); }
+      if (cmd === 'tir') { d.role = 'tir'; tirDoigt++; tirL = true; elTir.classList.add('appui'); }
       else {
         d.role = 'bouton'; d.cmd = cible; cible.classList.add('appui');
         if (cmd === 'saut') sautL = true;
@@ -145,8 +152,9 @@ const PCONTROLES = (() => {
     joyId = -1; joyVx = 0; joyVy = 0; tirDoigt = 0; tirSouris = false;
     if (elJoy) { elJoy.classList.remove('vivant'); placerJoy(); elTir.classList.remove('appui'); }
     touches.avant = touches.arriere = touches.gauche = touches.droite = touches.accroupi = false;
-    accYaw = 0; accPitch = 0; sautL = false; rechargeL = false; armeL = null;
+    accYaw = 0; accPitch = 0; sautL = false; rechargeL = false; armeL = null; tirL = false; viderCumul();
   }
+  function viderCumul() { cumul.avant = 0; cumul.cote = 0; cumul.dyaw = 0; cumul.dpitch = 0; cumul.tir = false; cumul.saut = false; cumul.accroupi = false; cumul.recharge = false; cumul.arme = null; cumul.tirBref = false; }
 
   // ─── clavier ───
   const DIRS = { KeyW: 'avant', ArrowUp: 'avant', KeyS: 'arriere', ArrowDown: 'arriere', KeyA: 'gauche', ArrowLeft: 'gauche', KeyD: 'droite', ArrowRight: 'droite' };
@@ -177,22 +185,35 @@ const PCONTROLES = (() => {
   function molette(e) { if (!actif || !verrouille() || !moiArmes) return; const i = Math.max(0, moiArmes.indexOf(moiArme)), n = moiArmes.length; if (n > 1) armeL = moiArmes[(i + (e.deltaY > 0 ? 1 : n - 1)) % n]; }
   window.addEventListener('wheel', molette, { passive: true });
 
-  // ─── lecture, une fois par image ───
+  // ─── lecture, une fois par image : le cumul ───
   function lire() {
-    if (!actif) { entree.avant = 0; entree.cote = 0; entree.dyaw = 0; entree.dpitch = 0; entree.tir = false; entree.saut = false; entree.recharge = false; entree.arme = null; entree.accroupi = false; accYaw = accPitch = 0; return entree; }
+    if (!actif) { viderCumul(); accYaw = accPitch = 0; sautL = rechargeL = tirL = false; armeL = null; return cumul; }
     let vx = joyVx, vy = joyVy; const l = Math.sqrt(vx * vx + vy * vy);
     if (l < MORTE) { vx = 0; vy = 0; } else { const k = Math.min(1, (l - MORTE) / (1 - MORTE)) / l; vx *= k; vy *= k; } // zone morte de 8 %, puis toute la course
     const kbA = (touches.avant ? 1 : 0) - (touches.arriere ? 1 : 0), kbC = (touches.droite ? 1 : 0) - (touches.gauche ? 1 : 0);
     let av = -vy + kbA, co = vx + kbC; const n = Math.sqrt(av * av + co * co); if (n > 1) { av /= n; co /= n; }
-    entree.avant = av; entree.cote = co;
-    entree.dyaw = accYaw; entree.dpitch = accPitch; accYaw = 0; accPitch = 0;
-    entree.tir = tirDoigt > 0 || tirSouris;
-    entree.saut = sautL; sautL = false;
-    entree.recharge = rechargeL; rechargeL = false;
-    entree.arme = armeL; armeL = null;
-    entree.accroupi = accroupiBascule || touches.accroupi;
+    // les niveaux : la dernière valeur
+    cumul.avant = av; cumul.cote = co;
+    cumul.tir = tirDoigt > 0 || tirSouris;
+    cumul.accroupi = accroupiBascule || touches.accroupi;
+    // les variations s'additionnent, les fronts se combinent par OU (rien de perdu si l'image n'a pas de pas)
+    cumul.dyaw += accYaw; cumul.dpitch += accPitch; accYaw = 0; accPitch = 0;
+    if (sautL) cumul.saut = true; sautL = false;
+    if (rechargeL) cumul.recharge = true; rechargeL = false;
+    if (tirL) cumul.tirBref = true; tirL = false;
+    if (armeL) cumul.arme = armeL; armeL = null;
+    return cumul;
+  }
+  // l'entrée d'un pas : le premier pas après lire() prend variations et fronts, les suivants n'ont que les niveaux
+  function consommer() {
+    entree.avant = cumul.avant; entree.cote = cumul.cote; entree.accroupi = cumul.accroupi;
+    entree.dyaw = cumul.dyaw; entree.dpitch = cumul.dpitch;
+    entree.tir = cumul.tir || cumul.tirBref; // un appui bref sur Tir (relâché avant l'image) tire une fois
+    entree.saut = cumul.saut; entree.recharge = cumul.recharge; entree.arme = cumul.arme;
+    cumul.dyaw = 0; cumul.dpitch = 0; cumul.saut = false; cumul.recharge = false; cumul.arme = null; cumul.tirBref = false;
     return entree;
   }
+  function enAttente() { ATTENTE.dyaw = actif ? cumul.dyaw + accYaw : 0; ATTENTE.dpitch = actif ? cumul.dpitch + accPitch : 0; return ATTENTE; } // y compris ce qui est arrivé depuis lire()
   function reinit() { lacher(); accroupiBascule = false; vuAccroupi = null; vuArme = ''; vuPossede = -1; vuRech = -1; vuMun[0] = vuMun[1] = vuMun[2] = -2; }
 
   // ─── l'état affiché sur les boutons : armes possédées, arme en main, munitions, anneau de recharge, accroupi ───
@@ -217,6 +238,6 @@ const PCONTROLES = (() => {
     if (q !== vuRech) { vuRech = q; elAnneau.style.strokeDashoffset = String(100 - q); elRecharge.classList.toggle('charge', q > 0 && q < 100); }
   }
 
-  return { init, lire, regler, activer, taille, reinit, maj, modeTactile, verrouiller, lacher,
+  return { init, lire, consommer, enAttente, regler, activer, taille, reinit, maj, modeTactile, verrouiller, lacher,
     get reglages() { return R; }, get tactile() { return tactile; }, get actif() { return actif; }, get verrouille() { return verrouille(); } };
 })();

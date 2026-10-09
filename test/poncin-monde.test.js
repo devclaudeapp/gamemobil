@@ -191,15 +191,54 @@ check(M.batiments.length === C1.batiments.length - 1, 'le polygone dégénéré 
 titre('Relief : la triangulation partagée');
 {
   const { pas, n, h } = C1.relief; let ok = true;
-  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) if (Math.abs(M.hauteur(-100 + i * pas, -100 + j * pas) - h[j * n + i]) > 1e-9) ok = false;
+  for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) if (Math.abs(M.relief(-100 + i * pas, -100 + j * pas) - h[j * n + i]) > 1e-9) ok = false;
   check(ok, 'aux nœuds de la grille : exactement h[j·n + i]');
   const rnd = R.mulberry32(11); let e = 0;
-  for (let k = 0; k < 20000; k++) { const x = -100 + 200 * rnd(), z = -100 + 200 * rnd(); e = Math.max(e, Math.abs(M.hauteur(x, z) - hauteurRef(C1, x, z))); }
+  for (let k = 0; k < 20000; k++) { const x = -100 + 200 * rnd(), z = -100 + 200 * rnd(); e = Math.max(e, Math.abs(M.relief(x, z) - hauteurRef(C1, x, z))); }
   check(e < 1e-9, `dans les triangles [(i,j),(i,j+1),(i+1,j)] et [(i,j+1),(i+1,j+1),(i+1,j)] : barycentrique exact (écart ${e.toExponential(1)})`);
   let saut = 0; // continuité de part et d'autre des diagonales et des bords de case
-  for (let k = 0; k < 5000; k++) { const i = Math.floor(rnd() * (n - 1)), j = Math.floor(rnd() * (n - 1)), s = rnd(), x = -100 + (i + s) * pas, z = -100 + (j + 1 - s) * pas; saut = Math.max(saut, Math.abs(M.hauteur(x + 1e-7, z + 1e-7) - M.hauteur(x - 1e-7, z - 1e-7))); }
+  for (let k = 0; k < 5000; k++) { const i = Math.floor(rnd() * (n - 1)), j = Math.floor(rnd() * (n - 1)), s = rnd(), x = -100 + (i + s) * pas, z = -100 + (j + 1 - s) * pas; saut = Math.max(saut, Math.abs(M.relief(x + 1e-7, z + 1e-7) - M.relief(x - 1e-7, z - 1e-7))); }
   check(saut < 1e-4, 'continu à travers les diagonales (i+1, j)–(i, j+1)');
-  check([M.hauteur(-500, 0), M.hauteur(0, 900), M.hauteur(NaN, 0)].every(Number.isFinite), 'hors du carré ou NaN : une hauteur finie (bord prolongé)');
+  check([M.relief(-500, 0), M.relief(0, 900), M.relief(NaN, 0)].every(Number.isFinite), 'hors du carré ou NaN : une hauteur finie (bord prolongé)');
+}
+
+titre('Ponts : on marche sur la chaussée dessinée (C7)');
+{
+  // la référence, écrite à part : le profil de rendu.js (relief + 8 cm aux deux bouts, droit, jamais sous le relief + 8 cm, échantillonné
+  // tous les ≤ 1,5 m), la chaussée 6 cm au-dessus ; on y marche sur la largeur du couloir (w/2 + 0,5 m), de a à b
+  const tablierRef = (Mo, pt) => { const [a, b] = [pt.l[0], pt.l[pt.l.length - 1]], len = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(2, Math.ceil(len / 1.5)), hA = Mo.relief(a[0], a[1]) + 0.08, hB = Mo.relief(b[0], b[1]) + 0.08;
+    const prof = []; for (let k = 0; k <= n; k++) { const t = k / n; prof.push(Math.max(hA + (hB - hA) * t, Mo.relief(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t) + 0.08)); }
+    const u = [(b[0] - a[0]) / len, (b[1] - a[1]) / len], demi = (pt.w || 6) / 2 + 0.5;
+    return (x, z) => { const rx = x - a[0], rz = z - a[1], s = rx * u[0] + rz * u[1], e = rz * u[0] - rx * u[1]; if (s < 0 || s > len || Math.abs(e) > demi) return -Infinity; const v = s / len * n, k = Math.min(n - 1, Math.floor(v)); return prof[k] + (prof[k + 1] - prof[k]) * (v - k) + 0.06; };
+  };
+  const cartes = [['hameau', C1, M]], vraieP = path.join(__dirname, '..', 'poncin', 'carte', 'poncin.json');
+  if (fs.existsSync(vraieP)) { const CVp = JSON.parse(fs.readFileSync(vraieP, 'utf8')); cartes.push(['vraie carte', CVp, PM.creer(CVp)]); }
+  for (const [nom, Cx, Mx] of cartes) {
+    const rnd = R.mulberry32(77); let ecart = 0, dessus = 0, pireAvant = 0, sousRelief = 0, saut = 0, pente = 0;
+    check(Mx.tabliers.length === Cx.ponts.length && PM.CHAUSSEE === 0.06 && PM.SUR_TABLIER === 0.08, `${nom} : ${Mx.tabliers.length} tablier(s) exposés à rendu.js (une seule formule)`);
+    for (const pt of Cx.ponts) {
+      const ref = tablierRef(Mx, pt), [a, b] = [pt.l[0], pt.l[pt.l.length - 1]], len = Math.hypot(b[0] - a[0], b[1] - a[1]), u = [(b[0] - a[0]) / len, (b[1] - a[1]) / len], v = [-u[1], u[0]];
+      for (let k = 0; k < 4000; k++) { // au hasard autour du pont : hauteur = max(relief, chaussée de référence)
+        const s = -3 + (len + 6) * rnd(), e = ((pt.w || 6) / 2 + 2) * (2 * rnd() - 1), x = a[0] + u[0] * s + v[0] * e, z = a[1] + u[1] * s + v[1] * e, c = ref(x, z), r = Mx.relief(x, z), h = Mx.hauteur(x, z);
+        ecart = Math.max(ecart, Math.abs(h - Math.max(r, c))); if (h < r - 1e-9) sousRelief++;
+        if (c > r) { dessus++; pireAvant = Math.max(pireAvant, c - r); }
+      }
+      let hp = Mx.hauteur(a[0] + u[0] * 0.01, a[1] + u[1] * 0.01); // le long de l'axe, par pas de 5 cm : continu, pente = celle du profil
+      for (let s = 0.06; s < len - 0.01; s += 0.05) { const x = a[0] + u[0] * s, z = a[1] + u[1] * s, h = Mx.hauteur(x, z); saut = Math.max(saut, Math.abs(h - hp)); hp = h;
+        const g = Mx.pente(x, z), d = (Mx.hauteur(x + u[0] * 0.01, z + u[1] * 0.01) - Mx.hauteur(x - u[0] * 0.01, z - u[1] * 0.01)) / 0.02; if (Math.abs(d) < 2) pente = Math.max(pente, Math.abs(g[0] * u[0] + g[1] * u[1] - d)); }
+    }
+    check(ecart < 1e-9 && sousRelief === 0 && dessus > 100, `${nom} : monde.hauteur = max(relief, chaussée) (écart ${ecart.toExponential(1)} sur ${dessus} points sur un tablier ; le relief y était jusqu'à ${f2(pireAvant * 100)} cm sous la chaussée)`);
+    check(saut < 0.03 && pente < 0.02, `${nom} : sur l'axe, la chaussée est continue (saut ≤ ${f2(saut * 100)} cm en 5 cm) et monde.pente la suit (écart ${f3(pente)})`);
+    const T = Mx.tabliers[0], mx = (T.ax + T.bx) / 2, mz = (T.az + T.bz) / 2, y0 = Mx.hauteur(mx, mz), h = Mx.rayon(mx, y0 + 3, mz, 0, -1, 0, 10);
+    check(h && h.de === 'terrain' && Math.abs(h.y - y0) < 0.01, `${nom} : un tir vers le bas, au milieu du pont, s'arrête sur la chaussée (${h && f2(h.y - y0)} m de l'écart)`);
+  }
+  // un joueur qui traverse le pont du hameau marche sur la chaussée, pas dedans
+  const J = R.JOUEUR, PCo = (() => { try { global.PREGLES = R; return require('../src-poncin/corps.js'); } catch (e) { return null; } })();
+  if (PCo) {
+    const e = { x: 20, y: M.hauteur(20, 50), z: 50, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0, auSol: true, accroupi: false }, en = { avant: 1, cote: 0, dyaw: 0, dpitch: 0 }; let pire = 0, n = 0;
+    for (let k = 0; k < 600 && e.z < 80; k++) { PCo.deplacer(e, en, 1 / 60, M, null); if (e.z > 58 && e.z < 72) { n++; pire = Math.max(pire, Math.abs(e.y - M.hauteur(e.x, e.z))); } }
+    check(n > 30 && pire < 1e-9 && e.z > 72, `le hameau : un joueur traverse le pont les pieds sur la chaussée (${n} pas sur le tablier, écart ${pire.toExponential(1)} m)`);
+  }
 }
 
 titre('bloque');

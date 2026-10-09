@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Opération Poncin : lance les tests Node des modules purs (carte, monde et navigation, simulation) et additionne les échecs.
+// Opération Poncin : lance les tests Node des modules purs (carte, monde et navigation, corps, armes, réglages du salon, zones, simulation) et additionne les échecs.
 'use strict';
 const { spawnSync } = require('child_process'), path = require('path'), fs = require('fs');
-const TESTS = ['poncin-carte.test.js', 'poncin-monde.test.js', 'poncin-jeu.test.js'];
+const TESTS = ['poncin-carte.test.js', 'poncin-monde.test.js', 'poncin-corps.test.js', 'poncin-armes.test.js', 'poncin-salon.test.js', 'poncin-zones.test.js', 'poncin-jeu.test.js'];
 let echecs = 0;
 // garde-fou : aucune clé secrète Supabase dans le dépôt (seule la clé publique a sa place, dans poncin/config.js)
 {

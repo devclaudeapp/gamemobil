@@ -54,7 +54,7 @@ console.log(`fournil/index.html ${(full.length / 1024).toFixed(0)} Ko · dist/ar
 
 // ─── Opération Poncin (poncin/index.html) : FPS sur la carte de Poncin ; sources dans src-poncin/, `src/modeles.js` partagé avec Le Fournil ───
 // Three.js et supabase-js sont des fichiers à part (vendor/), mis en cache par le service worker du jeu ; poncin/config.js (adresse et clé publique Supabase) s'édite à la main.
-const PONCIN = ['../src/modeles.js', '../src/persos.js', 'regles.js', 'carte-provisoire.js', 'monde.js', 'nav.js', 'bots.js', 'jeu.js', 'arene.js', 'avatars.js', 'textures.js', 'vegetation.js', 'decor.js', 'rendu.js', 'sons.js', 'controles.js', 'hud.js', 'reseau.js', 'enligne.js', 'ui.js'];
+const PONCIN = ['../src/modeles.js', '../src/persos.js', 'regles.js', 'carte-provisoire.js', 'monde.js', 'nav.js', 'corps.js', 'armes.js', 'zones.js', 'bots.js', 'jeu.js', 'arene.js', 'avatars.js', 'textures.js', 'vegetation.js', 'decor.js', 'rendu.js', 'sons.js', 'controles.js', 'hud.js', 'reseau.js', 'enligne.js', 'ui.js'];
 if (fs.existsSync(path.join(__dirname, 'src-poncin', 'ui.js'))) {
   const lireP = (f) => fs.readFileSync(path.join(__dirname, 'src-poncin', f), 'utf8');
   const jsP = PONCIN.map((f) => `/* ── ${path.basename(f)} ── */\n${lireP(f)}`).join('\n');

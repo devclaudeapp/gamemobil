@@ -48,6 +48,12 @@ const mediane = (a) => { const s = a.slice().sort((x, y) => x - y); return s.len
     if (!pret || !pret.ok) { await ctx.close(); continue; }
     const budget = pret.stats.budget, SCENES = carte === 'reelle' ? SCENES0 : SCENES0.filter((n) => !AUTH.includes(n));
     verif(pret.stats.qualite === qualite, `la qualité demandée par l'adresse est appliquée (${pret.stats.qualite})`);
+    { // C7 : la chaussée dessinée des ponts est celle où l'on marche (un rayon vertical sur le maillage 'ponts' contre monde.hauteur)
+      const c7 = await page.evaluate(() => { const I = PRENDU._interne, M = atelier.monde, m = I.scene.getObjectByName('ponts'); if (!m || !M.tabliers) return null; const rc = new THREE.Raycaster(), V = THREE.Vector3; let n = 0, pire = 0, avant = 0;
+        for (const T of M.tabliers) for (let k = 1; k < 10; k++) for (const e of [-0.3, 0, 0.3]) { const s = T.len * k / 10, x = T.ax + T.ux * s + T.vx * e * (T.w - 0.8), z = T.az + T.uz * s + T.vz * e * (T.w - 0.8); rc.set(new V(x, 500, z), new V(0, -1, 0)); const h = rc.intersectObject(m, false)[0]; if (!h) continue; n++; pire = Math.max(pire, Math.abs(h.point.y - M.hauteur(x, z))); avant = Math.max(avant, h.point.y - M.relief(x, z)); }
+        return { n, pire, avant, ponts: M.tabliers.length }; });
+      verif(c7 && c7.n >= 20 * c7.ponts && c7.pire < 0.02, `ponts : la chaussée dessinée est à monde.hauteur (${c7 && c7.n} points, écart ≤ ${c7 && (c7.pire * 100).toFixed(1)} cm ; le relief seul en était à ${c7 && (c7.avant * 100).toFixed(0)} cm)`);
+    }
     if (carte === 'reelle') { // le décor authentique est branché
       const a = await page.evaluate(() => { const I = PRENDU._interne, s = PRENDU.stats; return { decor: !!I.decor, veg: !!I.veg, jupe: !!I.scene.getObjectByName('jupe'), horizon: !!I.scene.getObjectByName('decor-horizon'), voutes: s.voutes, passages: atelier.monde.passages.length, bati: s.bati, arbres: s.arbres, vieuxArbres: !!I.scene.getObjectByName('arbres0'), dErr: s.decor && s.decor.erreurs, sol: s.sol }; });
       verif(a.decor && a.veg && !a.vieuxArbres, `PDECOR et PVEGETATION branchés (${a.arbres} arbres LiDAR, plus d'arbres instanciés d'avant)`);

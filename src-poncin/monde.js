@@ -22,7 +22,9 @@
    ses côtés, dans l'emprise, deviennent des murs (les piédroits) : on y passe à pied, la navigation aussi. Pour les tirs et les vues, ces
    morceaux de façade n'arrêtent que ce qui passe au-dessus de l'arc ; un rayon qui monte sous la voûte la touche (le bâtiment reste plein
    au-dessus). h est borné pour que la clé reste 30 cm sous le toit, w pour que la naissance reste à 1,2 m au moins.
-   L'API (contrat) : monde.L, hauteur(x, z), bloque(x, z, r), deplacer(x, z, dx, dz, r) → [x, z], rayon(o…, d…, max) → { t, x, y, z,
+   L'API (contrat) : monde.L, hauteur(x, z) (le relief, ou la chaussée d'un pont si elle est plus haute : C7), relief(x, z) (le maillage
+   seul, pour le sol dessiné), chaussee(x, z) (−Infinity hors des tabliers), tabliers [{ ax, az, bx, bz, ux, uz, vx, vz, len, w, demi, n,
+   prof (Float64Array n + 1), max }] (le profil que rendu.js dessine, chaussée à prof + PMONDE.CHAUSSEE), bloque(x, z, r), deplacer(x, z, dx, dz, r) → [x, z], rayon(o…, d…, max) → { t, x, y, z,
    nx, ny, nz, quoi: 'mur' | 'toit' | 'sol', i, de, k } | null (i : indice du bâtiment, −1 sinon ; de : 'batiment' | 'voute' | 'arbre' |
    'mur' | 'mobilier' | 'terrain' ; k : l'indice dans carte.arbres, carte.murs ou carte.mobilier, celui du passage pour une voûte, −1
    sinon ; normale unitaire tournée vers le tireur), vue(a…, b…), libre(rnd, centre?, rayon?) → [x, z], limite, batiments [{ p, h, t,
@@ -45,6 +47,8 @@
   const CELLULE = 12;        // côté visé d'une cellule de la grille (m)
   const MARGE = 1.05;        // rayon couvert par l'inscription des arêtes (un joueur fait 0,35 m, les points libres demandent 1 m)
   const ELARGI_PONT = 0.5;   // le couloir d'un pont déborde de 0,5 m de chaque côté de sa largeur (1 m en tout)
+  const SUR_TABLIER = 0.08;  // la maçonnerie d'un tablier, au-dessus du relief à ses deux bouts (m)
+  const CHAUSSEE = 0.06;     // l'épaisseur de la chaussée posée sur la maçonnerie : on marche à prof + CHAUSSEE (m)
   const SOUS_BASE = 0.5;     // un bâtiment s'enfonce de 0,5 m sous le point le plus bas du relief sous son emprise
   const PEAU = 1e-4;         // le jeu laissé entre un cercle repoussé et le mur
   const PAS_SOL = 0.4;       // la marche sur le terrain avance d'au moins ce pas (m), puis la dichotomie affine
@@ -143,7 +147,7 @@
       }
     }
     const RM = rn - 1;
-    function hauteur(x, z) {
+    function relief(x, z) {
       if (!rh) return 0;
       let u = (x - X0) / rpas, v = (z - X0) / rpas;
       if (!(u > 0)) u = 0; else if (u > RM) u = RM;
@@ -153,8 +157,8 @@
       if (fx + fz <= 1) { const a = rh[k]; return a + fx * (rh[k + 1] - a) + fz * (rh[k + rn] - a); }
       const d = rh[k + rn + 1]; return d + (1 - fx) * (rh[k + rn] - d) + (1 - fz) * (rh[k + 1] - d);
     }
-    const PENTE = [0, 0]; // dh/dx, dh/dz au point (triangle du maillage)
-    function pente(x, z) {
+    const PENTE = [0, 0]; // dh/dx, dh/dz au point (triangle du maillage, ou le tablier d'un pont)
+    function penteRelief(x, z) {
       PENTE[0] = 0; PENTE[1] = 0; if (!rh) return PENTE;
       let u = (x - X0) / rpas, v = (z - X0) / rpas;
       if (!(u > 0)) u = 0; else if (u > RM) u = RM;
@@ -171,9 +175,9 @@
       if (!rh) return 0;
       let m = Infinity; const n = q.length;
       for (let a = 0; a < n; a++) {
-        const [ax, az] = q[a], [bx, bz] = q[(a + 1) % n]; m = Math.min(m, hauteur(ax, az));
+        const [ax, az] = q[a], [bx, bz] = q[(a + 1) % n]; m = Math.min(m, relief(ax, az));
         const ua = (ax - X0) / rpas, va = (az - X0) / rpas, ub = (bx - X0) / rpas, vb = (bz - X0) / rpas;
-        const lignes = (p0, p1) => { if (p1 === p0) return; const lo = Math.ceil(Math.min(p0, p1)), hi = Math.floor(Math.max(p0, p1)); for (let k = Math.max(lo, -1); k <= Math.min(hi, 2 * rn + 1); k++) { const t = (k - p0) / (p1 - p0); if (t > 0 && t < 1) m = Math.min(m, hauteur(ax + (bx - ax) * t, az + (bz - az) * t)); } };
+        const lignes = (p0, p1) => { if (p1 === p0) return; const lo = Math.ceil(Math.min(p0, p1)), hi = Math.floor(Math.max(p0, p1)); for (let k = Math.max(lo, -1); k <= Math.min(hi, 2 * rn + 1); k++) { const t = (k - p0) / (p1 - p0); if (t > 0 && t < 1) m = Math.min(m, relief(ax + (bx - ax) * t, az + (bz - az) * t)); } };
         lignes(ua, ub); lignes(va, vb); lignes(ua + va, ub + vb);
       }
       let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
@@ -211,7 +215,7 @@
         for (let s = 0.25; s < lg; s += 0.25) if (dansPoly(BF[i], ax + ux * s, az + uz * s)) { b.push(i); return; }
       });
       if (!b.length) continue;
-      const ya = hauteur(ax, az), yb = hauteur(bx, bz);
+      const ya = relief(ax, az), yb = relief(bx, bz);
       let h = fini(+pa.h) && pa.h > 0 ? +pa.h : VOUTE.h, hw = (fini(+pa.w) && pa.w > 0 ? Math.min(VOUTE.wMax, +pa.w) : VOUTE.w) / 2;
       for (const i of b) h = Math.min(h, batiments[i].sommet - Math.max(ya, yb) - VOUTE.sousToit); // la clé reste sous le toit
       hw = Math.min(hw, h - VOUTE.naissance); // la naissance de la voûte reste à 1,2 m au moins
@@ -262,6 +266,46 @@
         coins: [[sx - vx * dw, sz - vz * dw], [tx - vx * dw, tz - vz * dw], [tx + vx * dw, tz + vz * dw], [sx + vx * dw, sz + vz * dw]], w: dw * 2 });
     }
     const dansCouloirPont = (C, x, z) => { const dx = x - C.mx, dz = z - C.mz; return Math.abs(dx * C.ux + dz * C.uz) <= C.dl && Math.abs(dx * C.vx + dz * C.vz) <= C.dw; };
+
+    // ─── les tabliers des ponts (C7) : la chaussée que dessine rendu.js, et sur laquelle on marche (monde.hauteur la suit) ───
+    // Une seule formule, ici : le profil part du relief + SUR_TABLIER aux deux bouts du pont (carte.ponts, a → b), droit d'une rive à
+    // l'autre mais jamais sous le relief + SUR_TABLIER, échantillonné tous les ≤ 1,5 m (n + 1 points, linéaire entre eux) ; la chaussée est
+    // à prof + CHAUSSEE. rendu.js dessine la maçonnerie à prof et la chaussée à prof + CHAUSSEE à partir de monde.tabliers. On y marche
+    // sur toute la largeur du couloir (w/2 + ELARGI_PONT de chaque côté de l'axe, jusqu'aux parapets du monde), de a à b ; ailleurs le
+    // relief. monde.hauteur = max(relief, chaussée) : un bout de pont est une marche de 14 cm, comme dessinée.
+    const tabliers = [];
+    let tX0 = Infinity, tZ0 = Infinity, tX1 = -Infinity, tZ1 = -Infinity;
+    for (const pt of liste(carte.ponts)) {
+      const l = pt && pt.l; if (!Array.isArray(l) || l.length < 2 || !l[0] || !l[l.length - 1]) continue;
+      const ax = +l[0][0], az = +l[0][1], bx = +l[l.length - 1][0], bz = +l[l.length - 1][1];
+      if (![ax, az, bx, bz].every(fini)) continue;
+      const len = Math.hypot(bx - ax, bz - az); if (len < 1) continue;
+      const w = fini(+pt.w) && pt.w > 0 ? +pt.w : 6, n = Math.max(2, Math.ceil(len / 1.5)), prof = new Float64Array(n + 1);
+      const hA = relief(ax, az) + SUR_TABLIER, hB = relief(bx, bz) + SUR_TABLIER;
+      for (let k = 0; k <= n; k++) { const t = k / n; prof[k] = Math.max(hA + (hB - hA) * t, relief(ax + (bx - ax) * t, az + (bz - az) * t) + SUR_TABLIER); }
+      const ux = (bx - ax) / len, uz = (bz - az) / len, demi = w / 2 + ELARGI_PONT;
+      tabliers.push({ ax, az, bx, bz, ux, uz, vx: -uz, vz: ux, len, w, demi, n, prof, max: Math.max(...prof) + CHAUSSEE });
+      for (const [x, z] of [[ax - uz * demi, az + ux * demi], [ax + uz * demi, az - ux * demi], [bx - uz * demi, bz + ux * demi], [bx + uz * demi, bz - ux * demi]]) { tX0 = Math.min(tX0, x); tX1 = Math.max(tX1, x); tZ0 = Math.min(tZ0, z); tZ1 = Math.max(tZ1, z); }
+    }
+    for (const T of tabliers) if (T.max > hMax) hMax = T.max; // les rayons qui passent au-dessus du relief peuvent toucher un tablier
+    let tablierVu = -1, tablierPente = 0; // le dernier tablier trouvé par chaussee() et la pente de sa chaussée le long de l'axe (sans allocation)
+    function chaussee(x, z) { // la hauteur de la chaussée d'un pont au point, ou −Infinity hors des tabliers
+      tablierVu = -1; if (x < tX0 || x > tX1 || z < tZ0 || z > tZ1) return -Infinity;
+      let best = -Infinity;
+      for (let i = 0; i < tabliers.length; i++) {
+        const T = tabliers[i], rx = x - T.ax, rz = z - T.az, s = rx * T.ux + rz * T.uz;
+        if (s < -1e-9 || s > T.len + 1e-9 || Math.abs(rx * T.vx + rz * T.vz) > T.demi) continue;
+        let u = s / T.len * T.n, k = u | 0; if (k >= T.n) k = T.n - 1; u -= k;
+        const h = T.prof[k] + (T.prof[k + 1] - T.prof[k]) * u + CHAUSSEE;
+        if (h > best) { best = h; tablierVu = i; tablierPente = (T.prof[k + 1] - T.prof[k]) * T.n / T.len; }
+      }
+      return best;
+    }
+    function hauteur(x, z) { const r = relief(x, z); if (tabliers.length === 0) return r; const c = chaussee(x, z); return c > r ? c : r; }
+    function pente(x, z) {
+      if (tabliers.length && chaussee(x, z) > relief(x, z)) { const T = tabliers[tablierVu]; PENTE[0] = tablierPente * T.ux; PENTE[1] = tablierPente * T.uz; return PENTE; }
+      return penteRelief(x, z);
+    }
     function intervalleCouloir(C, ax, az, bx, bz) { // [t0, t1] du segment a→b dans le couloir, ou null
       let t0 = 0, t1 = 1;
       for (const [ex, ez, demi] of [[C.ux, C.uz, C.dl], [C.vx, C.vz, C.dw]]) {
@@ -773,8 +817,8 @@
     const secours = () => limiteOk(monde.limite) ? libre(rndDefaut) : libre(rndDefaut, [0, 0], L / 2); // une position perdue (NaN) revient sur un point libre
 
     const monde = {
-      L, limite: null, batiments, interdits, couloirs, passages, bancs,
-      hauteur, bloque, deplacer, rayon, vue, libre,
+      L, limite: null, batiments, interdits, couloirs, passages, bancs, tabliers,
+      hauteur, relief, chaussee, bloque, deplacer, rayon, vue, libre,
       passe, dedans, pente, sousVoute, arche,
       accessible: null, // une fonction (x, z) → bool qu'y branche PNAV.creer : la composante principale de la navigation
       stats: { aretes: NM, aretesTirs: NA - NM, cellules: G * G, cote: CS, regions: regions.length, ponts: couloirs.length, passages: NP, troncs: compte.troncs, feuillages: compte.feuillages, murs: compte.murs, murets: compte.murets, mobilier: compte.mobilier, bancs: compte.bancs },
@@ -784,5 +828,5 @@
     return monde;
   }
 
-  return { creer, CELLULE, MARGE, SOURCE, MARCHE, MOBILIER, VOUTE, rTronc, hTronc, rFeuillage, nettoyer, dansPoly };
+  return { creer, CELLULE, MARGE, SUR_TABLIER, CHAUSSEE, SOURCE, MARCHE, MOBILIER, VOUTE, rTronc, hTronc, rFeuillage, nettoyer, dansPoly };
 });

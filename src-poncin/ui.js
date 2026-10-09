@@ -6,19 +6,25 @@
    autres disent « Prêt »), puis la même partie qu'en solo : jeu.etape vient du vrai PJEU chez l'hôte, de la façade chez les clients.
    Le joueur local est idMoi : 'moi' en solo, son id de salon en ligne. Voie réseau : 'supabase' si window.PONCIN_CONFIG est rempli,
    'local' sinon (ou avec ?reseau=local : entre onglets du même navigateur).
-   Tout appel aux autres modules est gardé : sans Three.js ou sans WebGL, un panneau clair ; une erreur ne fige jamais l'écran. */
+   Tout appel aux autres modules est gardé : sans Three.js ou sans WebGL, un panneau clair ; une erreur ne fige jamais l'écran.
+   La boucle (conception § 2) : la partie avance par pas fixes de 1/60 s (PJEU.pasFixe, au plus 4 pas par image, au-delà le temps est
+   perdu), en solo, chez l'hôte et chez le client ; les commandes sont lues une fois par image dans un cumul (PCONTROLES.lire) et
+   chaque pas prend son entrée (PCONTROLES.consommer) ; l'image reçoit alpha (la fraction du pas en cours) pour interpoler. */
 const PUI = (() => {
   'use strict';
   const CLE = 'poncin.v1', $ = (s) => document.querySelector(s), $$ = (s) => Array.from(document.querySelectorAll(s));
   const R = typeof PREGLES !== 'undefined' ? PREGLES : null;
   let _compte = null; const elCompte = () => _compte || (_compte = $('#compte'));
-  const DEFAUT = () => ({ v: 1, reglages: { sensibilite: 1, inverserY: false, gaucher: false, tirAuto: true, qualite: 'auto', son: true, vibre: true, nom: '', pseudo: '' }, records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { format: 'solo', bots: 4, niveau: 'facile' }, derniere: 0 });
+  const DEFAUT = () => ({ v: 1, reglages: { sensibilite: 1, inverserY: false, gaucher: false, tirAuto: true, qualite: 'auto', balancement: 'normal', son: true, vibre: true, nom: '', pseudo: '' }, records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { format: 'solo', bots: 4, niveau: 'facile' }, derniere: 0 });
   let sauv = DEFAUT(), carte = null, monde = null, rendu3d = false, jeu = null, ecran = 'chargement', retourReglages = 'titre', avantPause = 'partie', optsPartie = null;
   let J, A, RENDU, CARTEPROV, MONDE; // les modules, résolus au démarrage
   let last = 0, tAnim = 0, compteT = 0, compteVu = -1, surDepuis = 0, erreursEtape = 0, erreursRendu = 0, erreursTotal = 0, derniereErreur = '', finTraitee = false, serie = 0, serieMax = 0, elims = 0;
   let fps = 0, nImages = 0, tFps = 0, msImage = 0, imagePause = 0;
   let entrees = { moi: null }; const VIDE = [];
   let force = null; // l'entrée imposée par les tests (window.__poncin.entree)
+  // le pas fixe : PAS = 1/60 s, au plus 4 pas par image ; alpha = la fraction du pas en cours (gardée telle quelle quand la partie ne tourne pas)
+  const PAS = 1 / 60, PAS_MAX = 4;
+  let boucleFixe = null, alpha = 1, nPas = 0, manuel = false;
   // en ligne : le joueur local (son id de salon), le salon ouvert (PENLIGNE), la partie en cours
   let idMoi = 'moi', enLigne = false, ctl = null, partieL = null, ouverture = false, compteFin = 0, renduCoupe = false;
   const idSalon = 'j' + Math.random().toString(36).slice(2, 10);
@@ -87,10 +93,13 @@ const PUI = (() => {
   }
 
   // ─── réglages ───
+  const BALANCEMENTS = ['normal', 'doux', 'aucun'];
   function appliquerReglages() {
     const g = sauv.reglages;
     try { PCONTROLES.regler(g); } catch (e) { signaler('controles.regler', e); }
     try { PSONS.regler({ son: g.son, vibre: g.vibre }); } catch (e) { signaler('sons.regler', e); }
+    if (BALANCEMENTS.indexOf(g.balancement) < 0) g.balancement = 'normal';
+    try { if (typeof PRENDU !== 'undefined' && typeof PRENDU.reglages === 'function') PRENDU.reglages({ balancement: g.balancement }); } catch (e) { signaler('rendu.reglages', e); }
     document.body.classList.toggle('gaucher', !!g.gaucher);
   }
   function majReglages() {
@@ -106,7 +115,7 @@ const PUI = (() => {
   function brancherReglages() {
     $$('[data-r]').forEach((i) => {
       const k = i.dataset.r;
-      if (i.classList.contains('seg')) i.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (!b) return; sauv.reglages[k] = b.dataset.v; PSONS.ui('tap'); if (k === 'qualite' && rendu3d) try { RENDU.qualite(b.dataset.v); } catch (err) { signaler('rendu.qualite', err); } majReglages(); sauver(); });
+      if (i.classList.contains('seg')) i.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (!b) return; sauv.reglages[k] = b.dataset.v; PSONS.ui('tap'); if (k === 'qualite' && rendu3d) try { RENDU.qualite(b.dataset.v); } catch (err) { signaler('rendu.qualite', err); } if (k !== 'qualite') appliquerReglages(); majReglages(); sauver(); });
       else i.addEventListener(i.type === 'range' || i.type === 'text' ? 'input' : 'change', () => {
         sauv.reglages[k] = i.type === 'checkbox' ? i.checked : i.type === 'range' ? +i.value : String(i.value).replace(/[<>]/g, '').slice(0, 20);
         if (i.type === 'checkbox') PSONS.ui('tap');
@@ -159,7 +168,7 @@ const PUI = (() => {
       idMoi = 'moi'; enLigne = false; partieL = null; entrees = { moi: null };
       jeu.ajouterJoueur({ id: 'moi', nom, couleur: '#FFC84A', equipe: o.equipes ? 0 : 'moi', humain: true });
     } catch (e) { signaler('jeu.creer', e); jeu = null; oups('La partie n’a pas pu démarrer', 'Recharge la page et réessaie.'); return false; }
-    optsPartie = o; finTraitee = false; surDepuis = 0; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null;
+    optsPartie = o; finTraitee = false; surDepuis = 0; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null; remettrePas();
     try { PHUD.reinit({ equipes: !!o.equipes }); } catch (e) { signaler('hud.reinit', e); }
     try { PCONTROLES.reinit(); } catch (e) { signaler('controles.reinit', e); }
     if (compte) { compteT = 3.6; compteVu = -1; montrer('compte'); PCONTROLES.activer(false); astuce(true); }
@@ -211,8 +220,15 @@ const PUI = (() => {
   }
 
   // ─── la boucle ───
-  function pasPartie(dt) { // une image de simulation : commandes, aide à la visée, jeu, effets, sons, HUD
-    const e = PCONTROLES.lire();
+  function remettrePas() { if (boucleFixe) boucleFixe.remettre(); alpha = 1; }
+  function nouvelleBoucle() { // PJEU.pasFixe ; sans lui (module absent), la même règle ici
+    if (J && typeof J.pasFixe === 'function') return J.pasFixe({ pas: PAS, max: PAS_MAX });
+    let acc = 0; const EPS = PAS * 1e-6;
+    return { pas: PAS, max: PAS_MAX, avancer(d, f) { if (d > 0) acc = Math.min(acc + d, PAS_MAX * PAS); while (acc >= PAS - EPS) { acc -= PAS; if (acc < 0) acc = 0; f(PAS); } return acc / PAS; }, remettre() { acc = 0; }, get acc() { return acc; } };
+  }
+  function pasJeu(dt) { if (jeu && !finTraitee) pasPartie(dt); } // un pas de la boucle (la partie a pu finir au pas d'avant)
+  function pasPartie(dt) { // un pas de simulation (1/60 s) : son entrée, aide à la visée, jeu, effets, sons, HUD
+    const e = PCONTROLES.consommer(); nPas++;
     if (force) { // l'entrée imposée par les tests
       if (force.avant != null) e.avant = force.avant; if (force.cote != null) e.cote = force.cote; if (force.tir != null) e.tir = force.tir; if (force.accroupi != null) e.accroupi = force.accroupi;
       if (force.dyaw) { e.dyaw += force.dyaw; force.dyaw = 0; } if (force.dpitch) { e.dpitch += force.dpitch; force.dpitch = 0; }
@@ -230,6 +246,9 @@ const PUI = (() => {
     let evs;
     try { evs = jeu.etape(dt, entrees) || VIDE; erreursEtape = 0; }
     catch (err) { signaler('jeu.etape', err); evs = VIDE; if (++erreursEtape >= 3) { quitter(); oups('La partie s’est emmêlé les pinceaux', 'Une erreur a interrompu la partie. Tu peux en relancer une depuis le menu.'); } return; }
+    traiter(evs, aide);
+  }
+  function traiter(evs, aide) { // les événements d'un pas (ou de avantImage) : image, sons, HUD, fin
     if (rendu3d) { try { RENDU.evenements(evs, jeu); } catch (err) { signaler('rendu.evenements', err); } }
     try { PSONS.evenements(evs, jeu, idMoi); } catch (err) { signaler('sons', err); }
     try { PHUD.maj(jeu, idMoi, evs, aide); } catch (err) { signaler('hud.maj', err); }
@@ -240,15 +259,28 @@ const PUI = (() => {
   }
   function boucle(now) {
     requestAnimationFrame(boucle);
-    const t0 = performance.now(), dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now; tAnim += dt;
+    if (manuel) { last = now; return; } // les tests mènent les images eux-mêmes (window.__poncin.images)
+    image((now - last) / 1000, now);
+  }
+  function image(dtBrut, now) { // une image : commandes (cumul), pas fixes de la partie, puis le rendu avec alpha
+    const t0 = performance.now();
+    dtBrut = dtBrut > 0 ? Math.min(1, dtBrut) : 0; // la boucle fixe borne d'elle-même à 4 pas ; le rendu garde son pas borné à 50 ms
+    const dt = Math.min(0.05, dtBrut); last = now; tAnim += dt;
     nImages++; if (now - tFps > 1000) { fps = Math.round(nImages * 1000 / (now - tFps)); nImages = 0; tFps = now; }
     try {
       // en ligne, la partie ne s'arrête pas pendant la pause (commandes neutres) ; le compte à rebours commun non plus
       const enPause = enLigne && (ecran === 'pause' || (ecran === 'reglages' && retourReglages === 'pause'));
       if (enLigne && compteT > 0) compteT = (compteFin - now) / 1000; // le compte à rebours commun suit l'horloge, pas les images
       if (enPause && compteT <= 0 && avantPause === 'compte') avantPause = 'partie';
-      if ((ecran === 'partie' || (enPause && compteT <= 0)) && jeu && !finTraitee) pasPartie(dt);
-      else if (ecran === 'compte' && jeu) {
+      if ((ecran === 'partie' || (enPause && compteT <= 0)) && jeu && !finTraitee) {
+        PCONTROLES.lire(); // une fois par image : le cumul
+        if (!boucleFixe) boucleFixe = nouvelleBoucle();
+        alpha = boucleFixe.avancer(dtBrut, pasJeu);
+        if (enLigne && jeu && !finTraitee && typeof jeu.avantImage === 'function') { // le client : horloge et interpolation des autres, à chaque image
+          let evs = null; try { evs = jeu.avantImage(performance.now()); } catch (err) { signaler('jeu.avantImage', err); evs = null; }
+          if (evs && evs.length && jeu) traiter(evs, null);
+        }
+      } else if (ecran === 'compte' && jeu) {
         if (!enLigne) compteT -= dt; const n = Math.ceil(compteT - 0.6);
         if (n !== compteVu) { compteVu = n; const c = elCompte(); c.hidden = false; c.firstElementChild.textContent = n > 0 ? String(n) : 'Repeins !'; c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); c.classList.toggle('go', n <= 0); PSONS.compte(n); }
         try { PHUD.maj(jeu, idMoi, VIDE, null); PCONTROLES.maj(jeu, trouver(idMoi)); } catch (err) { signaler('hud.maj', err); }
@@ -260,11 +292,12 @@ const PUI = (() => {
       const enJeu = jeu && (EN_JEU[ecran] || ecran === 'reglages' && retourReglages === 'pause');
       const fige = ecran === 'pause' || ecran === 'reglages';
       if (!fige || (imagePause++ % 3) === 0) { // en pause, une image sur trois suffit
-        try { RENDU.image(enJeu ? jeu : null, enJeu ? idMoi : null, ecran === 'compte' || (fige && !enLigne) ? 0 : dt, tAnim); erreursRendu = 0; }
+        try { RENDU.image(enJeu ? jeu : null, enJeu ? idMoi : null, ecran === 'compte' || (fige && !enLigne) ? 0 : dt, tAnim, enJeu ? alpha : 1); erreursRendu = 0; }
         catch (err) { signaler('rendu.image', err); if (++erreursRendu > 90) { rendu3d = false; panneau3d(true); } }
       }
     }
     msImage = msImage * 0.9 + (performance.now() - t0) * 0.1;
+    return alpha;
   }
   function panneau3d(oui) { const p = $('#sans3d'); if (p) p.hidden = !oui; document.body.classList.toggle('sans-3d', !!oui); if (oui && EN_JEU[ecran]) quitter(); }
 
@@ -440,7 +473,7 @@ const PUI = (() => {
       astuce(false);
       jeu = P.jeu; idMoi = P.idMoi; enLigne = true; partieL = P; entrees = {}; entrees[idMoi] = null;
       const eq = !!(jeu.options && jeu.options.equipes);
-      optsPartie = { equipes: eq, enLigne: true }; finTraitee = false; surDepuis = 0; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null;
+      optsPartie = { equipes: eq, enLigne: true }; finTraitee = false; surDepuis = 0; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null; remettrePas();
       try { PHUD.reinit({ equipes: eq }); } catch (e) { signaler('hud.reinit', e); }
       try { PCONTROLES.reinit(); } catch (e) { signaler('controles.reinit', e); }
       compteT = Math.max(0.5, +P.dans || 3.6); compteFin = performance.now() + compteT * 1000; compteVu = -1; montrer('compte'); PCONTROLES.activer(false); astuce(true);
@@ -505,7 +538,12 @@ const PUI = (() => {
       jeu: () => jeu,
       stats: () => { let r = null; try { r = rendu3d && RENDU.stats ? RENDU.stats : null; } catch (e) { r = null; } return { fps, ms: Math.round(msImage * 100) / 100, rendu: r, erreurs: erreursTotal, derniereErreur, elims, serie }; },
       entree: (e) => { force = e ? Object.assign(force || {}, e) : null; return force; },
-      pas: (n) => { if (!jeu) return null; if (ecran === 'compte') { compteT = 0; elCompte().hidden = true; astuce(false); montrer('partie'); PCONTROLES.activer(true); } for (let i = 0; i < (n || 1) && jeu && !finTraitee; i++) pasPartie(1 / 60); return etat(); },
+      pas: (n) => { if (!jeu) return null; if (ecran === 'compte') { compteT = 0; elCompte().hidden = true; astuce(false); montrer('partie'); PCONTROLES.activer(true); } for (let i = 0; i < (n || 1) && jeu && !finTraitee; i++) { PCONTROLES.lire(); pasPartie(PAS); } return etat(); }, // toujours n pas de 1/60 s
+      // les tests mènent les images : manuel(true) arrête la boucle de requestAnimationFrame ; images([dt en s…], { remettre }) joue ces
+      // images (commandes, pas fixes, rendu) et rend { pas, alpha, temps } ; compteurs() : pas faits depuis le chargement
+      manuel: (oui) => { manuel = oui !== false; last = performance.now(); return manuel; },
+      images: (dts, o) => { if (o && o.remettre && boucleFixe) boucleFixe.remettre(); const p0 = nPas; let t = last; for (let i = 0; i < (dts || VIDE).length; i++) { t += Math.max(0, +dts[i] || 0) * 1000; image(Math.max(0, +dts[i] || 0), t); } last = performance.now(); return { pas: nPas - p0, alpha, temps: jeu ? jeu.temps : null, acc: boucleFixe ? boucleFixe.acc : 0 }; },
+      compteurs: () => ({ pas: nPas, alpha, acc: boucleFixe ? boucleFixe.acc : 0, pasDuree: PAS, max: PAS_MAX }),
       joueur: () => trouver(idMoi),
       tp: (x, z, yaw) => { const m = trouver(idMoi); if (!m) return null; m.x = x; m.z = z; try { m.y = monde.hauteur(x, z); } catch (e) { /* rien */ } m.vy = 0; if (yaw != null) m.yaw = yaw; return m; },
       viser: (id) => { const m = trouver(idMoi), c = trouver(id); if (!m || !c) return null; const dx = c.x - m.x, dz = c.z - m.z, oeil = m.accroupi ? (R ? R.JOUEUR.oeilAccroupi : 1) : (R ? R.JOUEUR.oeil : 1.6), dy = (c.y + 1.2) - (m.y + oeil); m.yaw = Math.atan2(-dx, -dz); m.pitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)); return { yaw: m.yaw, pitch: m.pitch }; },
