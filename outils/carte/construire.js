@@ -22,7 +22,7 @@ const UA = 'gamemobil-poncin-carte/1.0 (+https://github.com/devclaudeapp/gamemob
 const DEFAUT = {
   approx: { lat: 46.0875, lon: 5.4069 }, centre: 'auto', taille: 'auto', tailleMin: 600, tailleMax: 800,
   pasRelief: 10, zoomOrtho: 19, sol: [2048, 1024], qualiteJpeg: 80, graine: 1450, versionCache: 1, attente: 4000, pageWfs: 500,
-  overpass: ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter'],
+  overpass: ['https://overpass-api.de/api/interpreter', 'https://overpass.kumi.systems/api/interpreter', 'https://overpass.private.coffee/api/interpreter'],
   wfs: 'https://data.geopf.fr/wfs/ows', coucheBati: 'BDTOPO_V3:batiment',
   wmsr: 'https://data.geopf.fr/wms-r', coucheAlti: 'ELEVATION.ELEVATIONGRIDCOVERAGE.HIGHRES',
   altiApi: 'https://data.geopf.fr/altimetrie/1.0/calcul/alti/rest/elevation.json', ressourceAlti: 'ign_rge_alti_wld',
@@ -422,12 +422,19 @@ async function etapeOSM(R, L) {
   way[waterway]; nwr[natural=water]; nwr[water]; nwr[waterway=riverbank];
   nwr[landuse]; nwr[leisure];
   nwr[natural~"^(wood|scrub|grassland|heath)$"]; node[natural=tree]; way[natural=tree_row];
-  nwr[historic]; nwr[amenity]; nwr[barrier]; nwr[man_made~"^(bridge|tower|cross|water_well)$"]; nwr[access=private];
-  node[place]; way[place]; nwr[tourism]; nwr[shop]; nwr[office]; nwr[craft]; nwr[healthcare]; node[name];
-  node[highway~"^(street_lamp|bus_stop)$"]; nwr[public_transport]; node[leisure];
+  nwr[historic]; nwr[amenity]; way[barrier]; nwr[man_made~"^(bridge|tower)$"]; nwr[access=private];
+  node[place]; way[place]; nwr[tourism]; nwr[shop]; node[name];
 );
 out body geom;`;
-  const objets = formes((await overpass(q, 'OSM')).elements, R);
+  const j = await overpass(q, 'OSM');
+  // le décor (requête à part, légère : la première reste celle du cache) : barrières ponctuelles, lampadaires, arrêts, bureaux, artisans, santé…
+  const q2 = `[out:json][timeout:120][bbox:${bb}];
+(
+  node[barrier]; node[highway~"^(street_lamp|bus_stop)$"]; nwr[public_transport]; nwr[office]; nwr[craft]; nwr[healthcare]; node[leisure]; nwr[man_made~"^(cross|water_well)$"];
+);
+out body geom;`;
+  try { const vus = new Set(j.elements.map((e) => e.type + e.id)); for (const e of (await overpass(q2, 'OSM (décor)')).elements) if (!vus.has(e.type + e.id)) j.elements.push(e); } catch (e) { repli(`OSM (décor) indisponible (${e.message.slice(0, 160)}) : sans lampadaires, portails ni bornes`); }
+  const objets = formes(j.elements, R);
   log(`OSM : ${objets.length} objets (${objets.filter((o) => o.tags.building).length} bâtiments, ${objets.filter((o) => o.tags.highway).length} voies)`);
   return objets;
 }
