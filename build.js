@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Assemble index.html (page autonome, installable) et dist/artifact.html (contenu seul, pour la page Claude).
-// Three.js (vendor/three.min.js) est chargé par une balise <script src> dans index.html et inliné dans l'artefact.
+// Assemble fournil/index.html (le jeu, page autonome et installable, ouverte depuis l'écran d'accueil du dépôt) et dist/artifact.html (contenu seul, pour la page Claude).
+// Three.js (vendor/three.min.js, partagé par les jeux du dépôt) est chargé par une balise <script src> dans fournil/index.html et inliné dans l'artefact.
+// L'écran d'accueil (index.html à la racine) n'est pas généré : on l'édite à la main.
 'use strict';
 const fs = require('fs'), path = require('path');
 const read = (f) => fs.readFileSync(path.join(__dirname, 'src', f), 'utf8');
@@ -12,7 +13,7 @@ const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800&display=swap">`;
 const headInner = `<title>Le Fournil</title>\n${fonts}\n<style>\n${css}</style>`;
 const script = `<script>\n${js}\n</script>`;
-const bodyInner = `${body}\n<script src="vendor/three.min.js"></script>\n${script}`; // la page : Three.js en fichier séparé, mis en cache par le service worker
+const bodyInner = `${body}\n<script>window.FOURNIL_ACCUEIL = '../';</script>\n<script src="../vendor/three.min.js"></script>\n${script}`; // la page : Three.js en fichier séparé, mis en cache par le service worker ; un lien vers l'écran d'accueil
 const artifact = `${headInner}\n${body}\n<script>\n${three}\n</script>\n${script}`; // l'artefact : fragment autonome, Three.js inline
 const full = `<!doctype html>
 <html lang="fr">
@@ -26,8 +27,12 @@ const full = `<!doctype html>
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Le Fournil">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../icons/icon-180.png">
+<script>
+// la page du jeu vit dans fournil/ : servie ailleurs (une vieille copie en cache à la racine), ses chemins relatifs (../vendor, ../icons) casseraient
+(function () { try { var p = location.pathname; if (/^https?:$/.test(location.protocol) && !/[/]fournil[/](index[.]html)?$/.test(p)) location.replace(p.replace(/[^/]*$/, '') + 'fournil/'); } catch (e) { /* rien */ } })();
+</script>
 ${headInner}
 </head>
 <body>
@@ -41,7 +46,8 @@ if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
 </body>
 </html>
 `;
-fs.writeFileSync(path.join(__dirname, 'index.html'), full);
+fs.mkdirSync(path.join(__dirname, 'fournil'), { recursive: true });
+fs.writeFileSync(path.join(__dirname, 'fournil', 'index.html'), full);
 fs.mkdirSync(path.join(__dirname, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(__dirname, 'dist', 'artifact.html'), artifact);
-console.log(`index.html ${(full.length / 1024).toFixed(0)} Ko · dist/artifact.html ${(artifact.length / 1024).toFixed(0)} Ko · ${js.split('\n').length} lignes de JS`);
+console.log(`fournil/index.html ${(full.length / 1024).toFixed(0)} Ko · dist/artifact.html ${(artifact.length / 1024).toFixed(0)} Ko · ${js.split('\n').length} lignes de JS`);

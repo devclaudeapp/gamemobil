@@ -3,7 +3,7 @@
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');
-const server = http.createServer((req, res) => { let p = decodeURIComponent(req.url.split('?')[0]); if (p === '/') p = '/index.html'; fs.readFile(path.join(root, p), (err, d) => { if (err) { res.writeHead(404); res.end(); return; } res.writeHead(200); res.end(d); }); }).listen(8784);
+const server = http.createServer((req, res) => { let p = decodeURIComponent(req.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html'; fs.readFile(path.join(root, p), (err, d) => { if (err) { res.writeHead(404); res.end(); return; } res.writeHead(200); res.end(d); }); }).listen(8784);
 const out = path.join(__dirname, 'shots', 'scene'); fs.mkdirSync(out, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const SAISONS = { aucune: [], noel: ['neige', 'noel'], paques: ['paques'], ete: ['ete', 'fete'], automne: ['halloween', 'feuilles'] };
@@ -12,7 +12,7 @@ const SAISONS = { aucune: [], noel: ['neige', 'noel'], paques: ['paques'], ete: 
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris' });
   const page = await context.newPage();
   page.on('pageerror', (e) => console.log('PAGEERROR', e.message));
-  await page.goto('http://localhost:8784/?qualite=haute'); await sleep(900);
+  await page.goto('http://localhost:8784/fournil/?qualite=haute'); await sleep(900);
   // une boutique bien installée : tout le mobilier, quatre recettes, trois apprentis
   await page.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st; f.give(1e12); for (let i = 1; i < 4; i++) G.acheter(st, i); for (let i = 0; i < 4; i++) G.embaucher(st, i); for (const m of G.MOBILIER) while (G.mobilierCran(st, m.id) < m.max) f.meuble(m.id); st.tuto = 99; f.scene({ assis: true }); });
   await page.evaluate(() => window.__fournil.tiroir('ferme')); await sleep(2500);
@@ -49,7 +49,7 @@ const SAISONS = { aucune: [], noel: ['neige', 'noel'], paques: ['paques'], ete: 
   // petits écrans : 360×640 (tiroir fermé puis à mi) et 360×555 (fermé)
   for (const [w, h] of [[360, 640], [360, 555]]) {
     const p2 = await (await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris' })).newPage();
-    await p2.goto('http://localhost:8784/?qualite=haute'); await sleep(900);
+    await p2.goto('http://localhost:8784/fournil/?qualite=haute'); await sleep(900);
     await p2.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st; f.give(1e12); for (let i = 1; i < 4; i++) G.acheter(st, i); for (let i = 0; i < 3; i++) G.embaucher(st, i); for (const m of G.MOBILIER) while (G.mobilierCran(st, m.id) < m.max) f.meuble(m.id); st.tuto = 99; f.scene({ heure: 13, assis: true }); f.tiroir('ferme'); });
     await sleep(2500); await p2.screenshot({ path: `${out}/petit-${w}x${h}-ferme.png` });
     if (h === 640) { await p2.evaluate(() => window.__fournil.tiroir('mi')); await sleep(600); await p2.screenshot({ path: `${out}/petit-${w}x${h}-mi.png` }); }

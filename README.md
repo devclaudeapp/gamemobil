@@ -1,4 +1,23 @@
-# Le Fournil
+# Salle de jeux · Le Fournil
+
+Ce dépôt est une **salle de jeux pour le téléphone** : l'adresse du site ouvre un **écran d'accueil** (`index.html`, à la racine) qui liste les jeux, chacun dans son dossier. Le premier est **Le Fournil** (`fournil/`) ; une place attend le suivant.
+
+### L'écran d'accueil
+
+Une carte par jeu, avec la partie en cours lue dans sa sauvegarde (pour Le Fournil : nom de la boutique ou enseigne du quartier, numéro, étoiles, dernière visite ; localStorage, et IndexedDB en lecture seule si la base existe déjà) et un bouton Jouer ou Continuer ; une carte en pointillés pour le prochain jeu. Il s'installe sur le téléphone comme une application (« Salle de jeux ») et s'ouvre hors ligne : `sw.js` à la racine ne s'occupe que de l'accueil, et l'accueil enregistre aussi le service worker de chaque jeu, qui marche donc sans réseau même jamais ouvert. Dans Le Fournil, Réglages → **Salle de jeux** y ramène.
+
+Une icône du Fournil installée avant l'accueil continue d'ouvrir directement le jeu : en plein écran sans `?app=accueil`, l'accueil redirige vers `fournil/` (jamais depuis un dossier de jeu, pour ne pas boucler), et le manifeste du Fournil garde l'identifiant de l'ancienne application (`"id": "/gamemobil/"`), si bien qu'Android la met à jour vers `fournil/`. Sa portée (`"scope": "../"`) couvre l'accueil, qui s'ouvre donc dans la même fenêtre. La page du jeu, servie hors de `fournil/` par une vieille copie en cache, y retourne d'elle-même.
+
+**Les sauvegardes** vivent dans le stockage du navigateur, par domaine. Sur iPhone, chaque icône de l'écran d'accueil a le sien, séparé de Safari : une partie commencée dans Safari ne suit pas l'icône installée (l'accueil le dit quand l'icône n'a encore aucune partie) ; le code de Réglages → Sauvegarde et transfert la fait passer de l'un à l'autre.
+
+**Ajouter un jeu** :
+1. un dossier à son nom à la racine, avec son `index.html`, son `manifest.webmanifest` (sans `id` relatif : il se résout contre la racine du domaine) et, s'il doit marcher hors ligne, son `sw.js` dont les caches portent un préfixe à lui ;
+2. une entrée dans la liste `JEUX` en bas d'`index.html` : nom, genre, phrase, dossier, icône, couleur, son service worker (`sw`) et au besoin une fonction qui lit sa sauvegarde pour afficher la partie en cours, sans jamais l'écrire ni créer sa base ;
+3. son icône dans `SHELL` du `sw.js` de la racine, et `CACHE` passé à la version suivante (`accueil-v2`…), pour que l'accueil hors ligne la montre.
+
+Three.js est partagé dans `vendor/`. Chaque jeu choisit une clé de sauvegarde à son nom (`fournil.v2` pour Le Fournil).
+
+## Le Fournil
 
 Ta boulangerie de quartier, en jeu idle/tycoon simple et lumineux : **tu cuis, tu vends, tu améliores, tu embauches**, et tes apprentis continuent de vendre quand tu n'es pas là.
 
@@ -52,22 +71,22 @@ La scène est rendue par **Three.js r158** (`vendor/three.min.js`, licence MIT, 
 La simulation (clients, file, sièges, apprentis, événements) vit dans `src/vie.js`, en pixels d'écran, exactement comme avant ; la vue 3D (`src/scene.js`) projette ce plan dans une pièce en volumes avec une **caméra orthographique fixe, plongée de 52°**, cadrée pour que chaque point du plan tombe à son pixel : les zones de touche, le tiroir à mi-hauteur et les tests n'ont pas bougé. Les meubles et la salle viennent de `src/meubles.js`, les personnages et les pâtisseries de `src/persos.js`, les briques (boîtes arrondies biseautées, matériaux mats partagés, fusion de pièces colorées, textures peintes) de `src/modeles.js`. Un calque 2D (`#scene-ui`) porte les textes, les pastilles, le mode Aménager et les confettis. La lumière suit l'heure réelle (aube, jour, soir, crépuscule, nuit : les appliques, la lampe et les bougies du salon s'allument le soir et la nuit ; le four rougeoie quand il cuit), le paysage derrière la fenêtre et la porte est une texture repeinte dix fois par seconde (passants, neige, feuilles, pétales). La **qualité s'adapte** au temps de frame mesuré (trois paliers : résolution, ombres, une image sur deux) ; `?qualite=haute|moyenne|eco` la force. Sans WebGL, ou si `vendor/three.min.js` ne se charge pas, un panneau le dit et la boutique continue de vivre sans image : fournées, apprentis, clients et habitués comptent toujours. Les clients qui repartent sont libérés de la mémoire ; seuls les apprentis sont recyclés.
 ## Lancer, tester, construire
 
-Tout tient dans `index.html` plus `vendor/three.min.js`. Les sources sont dans `src/` et assemblées par :
+Le jeu tient dans `fournil/index.html` plus `vendor/three.min.js`. Ses sources sont dans `src/` et assemblées par :
 
 ```bash
-node build.js            # produit index.html et dist/artifact.html
+node build.js            # produit fournil/index.html et dist/artifact.html
 node test/econ.test.js   # rythme de l'économie, objectifs du jour, événements, absence, formats
 node test/longevite.js   # 60 jours de jeu simulés pour trois profils de joueur (--test : garde-fous du rythme)
-npx serve .              # puis ouvre l'adresse sur un téléphone du même réseau
+npx serve .              # puis ouvre l'adresse sur un téléphone du même réseau : l'accueil, puis Le Fournil
 ```
 
 `test/play.cjs` rejoue un parcours complet sur un iPhone simulé (Playwright) et produit des captures dans `test/shots/` (il vérifie aussi que la 3D tourne, et que le jeu reste jouable sans WebGL et sans Three.js) ; `test/scene.cjs` capture la boutique dans les cinq quartiers, à quatre heures de la journée et aux saisons, tiroir fermé, à mi-hauteur et ouvert, en mode Aménager, avec bannière et sur petits écrans ; `test/atelier.cjs` photographie un meuble, un personnage ou la salle entière à n'importe quel cran, avec la caméra et la lumière de la vraie scène (`node test/atelier.cjs specs.json`).
 
 ### L'installer sur un téléphone
 
-Le jeu est en ligne sur **https://devclaudeapp.github.io/gamemobil/** : le workflow `.github/workflows/pages.yml` le redéploie à chaque push sur `master` (dans *Settings → Pages*, la source doit être **GitHub Actions**).
+La salle de jeux est en ligne sur **https://devclaudeapp.github.io/gamemobil/** et Le Fournil sur **https://devclaudeapp.github.io/gamemobil/fournil/** : le workflow `.github/workflows/pages.yml` le redéploie à chaque push sur `master` (dans *Settings → Pages*, la source doit être **GitHub Actions**).
 
-Ouvre l'URL sur le téléphone, puis : iPhone (Safari) → Partager → **Sur l'écran d'accueil** ; Android (Chrome) → menu ⋮ → **Installer l'application**. Le jeu s'ouvre alors en plein écran, avec son icône, et le service worker (`sw.js`) le garde jouable hors ligne.
+Ouvre l'URL sur le téléphone, puis : iPhone (Safari) → Partager → **Sur l'écran d'accueil** ; Android (Chrome) → menu ⋮ → **Installer l'application**. Installé depuis l'accueil, c'est la salle de jeux qui s'ouvre ; installé depuis `fournil/`, c'est le jeu directement. Chacun s'ouvre en plein écran avec son icône, et son service worker (`sw.js` pour l'accueil, `fournil/sw.js` pour le jeu, chacun avec ses propres caches) le garde jouable hors ligne.
 
 ### La sauvegarde
 
@@ -79,6 +98,8 @@ La boutique est enregistrée dans le téléphone toutes les 5 secondes, à chaqu
 
 | Fichier | Rôle |
 | --- | --- |
+| `index.html`, `sw.js`, `manifest.webmanifest`, `icons/accueil*` | L'écran d'accueil de la salle de jeux, écrit à la main : la liste `JEUX`, son service worker et son manifeste |
+| `fournil/` | Le Fournil tel qu'il est servi : `index.html` (généré par `build.js`), `sw.js`, `manifest.webmanifest` |
 | `src/game.js` | Économie et état : produits, paliers, bonus, mobilier, étoiles, boulanger (savoir-faire, niveaux, talents), objectifs du jour, événements, absence, formats de nombres. Tourne aussi dans Node |
 | `src/vie.js` | La vie de la boutique, sans dessin : le plan (bloc haut à l'échelle, salon qui descend dans le sol en plus, sièges conservés), clients en file et à table, apprentis en navette, client mystère, habitués, textes qui flottent, vapeurs, confettis, passants et météo ; les zones de touche du plan |
 | `src/modeles.js` | Les briques de la 3D : géométries arrondies en cache, matériaux mats partagés, fusion de pièces colorées en un seul maillage, textures peintes, libération |
