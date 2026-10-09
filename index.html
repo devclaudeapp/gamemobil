@@ -2668,7 +2668,7 @@ const SCENE = (() => {
   function zones() {
     if (!LAY) return {};
     const z = V.zones(); if (!webgl) return z;
-    if (zonesCache) { zonesCache.chat = zoneChat(); return zonesCache; }
+    if (zonesCache) return avecChat(zonesCache);
     const K = V.K, k = V.crans.tables;
     const boite = (g) => (g && g.userData.zoneBoite) || g; // la déco et le comptoir désignent leur partie touchable (la plante, la face vitrée)
     const four = rectDe(groupes.four, 2), fr = rectDe(groupes.froid, 2), vit = rectDe(boite(groupes.comptoir), 2), ca = rectDe(groupes.caisse, 6), tb = k > 0 ? rectDe(groupes.tables, 4) : null, bo = rectDe(boite(boulangerG), 4), de = V.crans.deco > 0 ? rectDe(boite(groupes.deco), 6) : null;
@@ -2680,9 +2680,9 @@ const SCENE = (() => {
       tables: tb ? { x: tb.x, y: tb.y, w: k >= 2 ? Math.max(tb.w, W - tb.x) : tb.w, h: tb.h } : z.tables,
       mystere: z.mystere, entree: z.entree,
     };
-    zonesCache.chat = zoneChat();
-    return zonesCache;
+    return avecChat(zonesCache);
   }
+  function avecChat(z) { const zc = zoneChat(); if (zc) z.chat = zc; else delete z.chat; return z; } // la zone du chat n'existe que s'il y a un chat
   const dans = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   function hit(x, y) { // le client mystère, par sa boîte projetée ou son rectangle du plan
     const c = V.mystereEnAttente(); if (!c) return false;
