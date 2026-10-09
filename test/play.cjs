@@ -23,6 +23,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const errors = [];
   page.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_CERT|googleapis|gstatic|404/.test(m.text() + (m.location() && m.location().url))) errors.push(m.text() + ' @ ' + (m.location() && m.location().url)); });
+  const versSupabase = []; context.on('request', (r) => { if (/supabase\.co/.test(r.url())) versSupabase.push(r.url()); }); // le classement en ligne : rien ne part tant qu'on ne l'a pas rejoint
   // l'écran d'accueil du dépôt : la liste des jeux ; Le Fournil s'ouvre depuis sa carte
   await page.goto('http://localhost:8781/'); await sleep(600);
   const accueil = await page.evaluate(() => ({ titre: document.title, jeux: document.querySelectorAll('a.jeu').length, bientot: document.querySelectorAll('.jeu.bientot').length, carte: (document.querySelector('[data-jeu="fournil"]') || {}).innerText || '', poncin: (document.querySelector('[data-jeu="poncin"]') || {}).innerText || '', large: document.documentElement.scrollWidth <= innerWidth + 1 }));
@@ -178,6 +179,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.tap('#onglets [data-page="journal"]'); await sleep(400);
   const journal = await page.evaluate(() => document.querySelector('#page-journal').innerText);
   check(/Records/.test(journal) && /Mme Dupuis/.test(journal) && /Trophées · \d+\/\d+/.test(journal) && /Première fournée/.test(journal), 'le journal : records, habitués, trophées, événements');
+  check(/Classement des boulangers/.test(journal) && !!(await page.$('#page-journal .cl-carte [data-a="classement"]')), 'le journal : l’entrée du classement en ligne (fournil/config.js présent)');
   check(await page.evaluate(() => document.querySelector('#onglets [data-page="journal"] .badge').hidden), 'le badge du Journal s’efface une fois la page vue');
   check(await page.evaluate(() => { const t = document.querySelector('#page-journal').innerText; return /Recettes de saison/.test(t) && /Tarte à la citrouille/.test(t) && /Caresses à Brioche/.test(t); }), 'le Journal : collection des saisons et caresses au chat');
   check(await page.evaluate(() => [...document.querySelectorAll('#page-journal .ligne.saison')].every((l) => { const i = l.querySelector('.ev-ico').getBoundingClientRect(), t = l.querySelector('.t').getBoundingClientRect(), r = l.getBoundingClientRect(); return i.left - r.left < 4 && t.left >= i.right && t.left - i.right < 16; })), 'le Journal : chaque recette de saison, son icône à gauche et le texte à côté');
@@ -443,6 +445,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
     check(pret && horsLigne, 'hors ligne, Le Fournil s’ouvre depuis l’accueil sans avoir jamais été ouvert');
     await c7.setOffline(false); await c7.close();
   }
+  check(versSupabase.length === 0, 'aucun appel au classement en ligne sans l’avoir rejoint' + (versSupabase.length ? ' : ' + versSupabase.slice(0, 3).join(', ') : ''));
   console.log(errors.length ? 'ERRORS ' + errors.join(' | ') : 'ERRORS none');
   await browser.close(); server.close();
   console.log(fails ? `${fails} échec(s)` : 'Tout passe.');

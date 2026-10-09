@@ -363,3 +363,62 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .carnet { display: grid; gap: 6px; padding: 0 2px; }
 .carnet div { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; }
 .carnet small { color: var(--gris-texte); white-space: nowrap; }
+
+/* ─── le classement en ligne : la porte d'entrée dans le Journal, la feuille, la liste, le pseudo ─── */
+.reglage > .ico.or { background: #FFF3C4; }
+.btn.clair { background: var(--carte); color: var(--texte); box-shadow: 0 4px 0 var(--gris-sombre); }
+.btn.rouge { background: var(--fraise-sombre); box-shadow: 0 4px 0 #B8304F; }
+.cl-tete { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.cl .segments button { min-height: 44px; }
+.cl-tete .pic { width: 52px; height: 52px; flex: 0 0 auto; border-radius: 16px; background: #FFF3C4; display: grid; place-items: center; }
+.cl-tete .pic svg { width: 32px; height: 32px; }
+.cl-tete h2 { margin: 0; }
+.cl-tete .sous { margin: 2px 0 0; font-size: 13px; color: #6E5448; }
+.cl-info { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; margin: 0 4px 8px; font-size: 13px; color: #6E5448; }
+.cl-info b { flex: 0 0 auto; font: 700 14px/1.2 var(--titre); color: var(--texte); white-space: nowrap; }
+.cl-liste { list-style: none; margin: 0; padding: 4px 10px; border-radius: 20px; background: var(--carte); box-shadow: 0 4px 12px var(--ombre); }
+.cl-ligne { display: grid; grid-template-columns: 46px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 48px; padding: 6px 2px; border-bottom: 1px solid var(--ligne); }
+.cl-ligne:last-child { border-bottom: 0; }
+.cl-rang { justify-self: start; display: inline-block; min-width: 40px; height: 30px; padding: 0 7px; border-radius: 999px; text-align: center; background: var(--creme); font: 700 15px/30px var(--titre); font-variant-numeric: tabular-nums; color: var(--texte); white-space: nowrap; }
+.cl-rang small { font-size: 10px; vertical-align: 4px; margin-left: 1px; }
+.cl-rang.r1 { background: var(--beurre); box-shadow: 0 2px 0 var(--beurre-sombre); }
+.cl-rang.r2 { background: #E6E9EF; box-shadow: 0 2px 0 #C3C9D3; }
+.cl-rang.r3 { background: #F6CFAE; box-shadow: 0 2px 0 #DDA77C; }
+.cl-nom { min-width: 0; display: flex; align-items: center; gap: 6px; font: 700 16px/1.2 var(--titre); }
+.cl-nom > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-nom .tag { font-style: normal; }
+.cl-val { font: 700 15px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cl-ligne.moi { margin: 3px -6px; padding: 6px 8px; border-radius: 14px; border-bottom-color: transparent; background: #FFF3C4; box-shadow: inset 0 0 0 2px var(--beurre); }
+.cl-ligne.moi .cl-rang:not(.r1):not(.r2):not(.r3) { background: #fff; }
+.cl-sep { display: flex; justify-content: center; gap: 6px; padding: 6px 0; border-bottom: 1px solid var(--ligne); }
+.cl-sep i { width: 5px; height: 5px; border-radius: 50%; background: var(--gris-sombre); }
+.cl-etat { display: grid; justify-items: center; gap: 6px; padding: 22px 16px; text-align: center; border-radius: 20px; background: var(--carte); box-shadow: 0 4px 12px var(--ombre); }
+.cl-etat .pic { width: 56px; height: 56px; border-radius: 18px; background: var(--creme); display: grid; place-items: center; }
+.cl-etat .pic svg { width: 34px; height: 34px; }
+.cl-etat.pas-ouvert .pic { background: #FFF3C4; }
+.cl-etat b { font: 700 18px/1.2 var(--titre); }
+.cl-etat > span:not(.pic) { font-size: 14px; color: #6E5448; max-width: 32ch; }
+.cl-etat .btn { margin-top: 6px; min-width: 160px; min-height: 48px; }
+.cl-squelette { display: grid; gap: 6px; padding: 8px 10px 12px; border-radius: 20px; background: var(--carte); box-shadow: 0 4px 12px var(--ombre); }
+.cl-squelette i { display: block; height: 40px; border-radius: 12px; background: linear-gradient(90deg, var(--creme) 0%, #fff 50%, var(--creme) 100%); background-size: 200% 100%; animation: brille 1.3s linear infinite; }
+.cl-squelette span { justify-self: center; margin-top: 4px; font-size: 13px; color: #6E5448; }
+@keyframes brille { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.cl .btn { align-content: center; } /* le libellé au milieu du bouton, même seul */
+.cl-invitation { margin: 0 0 14px; padding: 12px 14px 14px; border-radius: 20px; background: #FFF3C4; }
+.cl-invitation p { margin: 0 2px 10px; font-size: 13px; line-height: 1.4; color: var(--texte); }
+.cl-place { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; margin: 0 0 10px; padding: 8px 14px 8px 10px; border-radius: 18px; background: #FFF3C4; box-shadow: inset 0 0 0 2px var(--beurre); }
+.cl-place .cl-rang { background: #fff; }
+.cl-place .cl-rang.r1 { background: var(--beurre); }
+.cl-place > span:not(.cl-rang) { min-width: 0; }
+.cl-place > span:not(.cl-rang) b { display: block; font: 700 15px/1.2 var(--titre); }
+.cl-place > span:not(.cl-rang) small { display: block; font-size: 12px; color: #6E5448; }
+.cl-moi { margin: 14px 4px 10px; font-size: 14px; color: #6E5448; text-align: center; }
+.cl-moi b { color: var(--texte); }
+.lien.cl-quitter { min-height: 44px; margin-top: 8px; color: var(--texte); }
+.cl-label { display: block; margin: 0 2px 6px; font: 700 14px/1.2 var(--titre); }
+.cl .champ { font-size: 18px; }
+.champ[aria-invalid="true"] { border-color: #F3A3B5; }
+.cl-aide { margin: 8px 2px 12px; min-height: 2.7em; font-size: 13px; line-height: 1.35; color: #6E5448; }
+.cl-aide.bon { color: #1E7A55; }
+.cl-aide.erreur { color: #B3214A; }
+.cl .btn[aria-busy="true"] b { opacity: .8; }

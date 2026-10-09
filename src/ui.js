@@ -6,6 +6,7 @@ const UI = (() => {
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let st, lastFrame = 0, lastSave = 0, cards = [], carteSaison = null, lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, hintDefile = -1, toastTimer = 0, lastNiveau = 0, vuBoulanger = false, dernierToucher = -1e9;
   let pageActive = 'boutique', evEtendu = false;
+  let classement = null, ongletCl = 'semaine', vueCl = ''; // le classement en ligne : son moteur, l'onglet choisi, la feuille qu'il occupe
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const PAGES = ['boutique', 'defis', 'boulanger', 'journal', 'reglages'];
 
@@ -693,6 +694,143 @@ const UI = (() => {
     on('[data-a="close"]', closeSheet);
   }
 
+  // ─── le classement en ligne : une feuille à deux onglets (cette semaine, tous les temps), un pseudo à part, des envois discrets ───
+  // Le moteur (src/classement.js) n'existe que si fournil/config.js donne l'adresse et la clé publique Supabase : dans l'artefact Claude, tout se cache.
+  const CLM = typeof CLASSEMENT !== 'undefined' ? CLASSEMENT : null;
+  const PERIODES = [['semaine', 'Cette semaine'], ['total', 'Tous les temps']];
+  const MSG_RESEAU = { 'hors-ligne': 'Pas de réseau : réessaie quand le téléphone est connecté.', 'lent': 'Le classement est lent à répondre : réessaie dans un instant.', 'pas-ouvert': 'Le classement ouvre bientôt : reviens dans quelques jours.' };
+  const msgReseau = (e) => MSG_RESEAU[e] || 'Le classement ne répond pas. Réessaie dans un moment.';
+  function cleClassement() { if (!classement) return ''; const r = classement.resume(); return `${r.rejoint}|${r.pseudo}|${r.semaine ? r.semaine.rang + '/' + r.semaine.joueurs : ''}|${r.total ? r.total.rang + '/' + r.total.joueurs : ''}`; }
+  // la porte d'entrée, en tête du Journal (à côté des records) : sa dernière place connue, ou l'invitation
+  function carteClassement() {
+    if (!classement) return '';
+    const r = classement.resume();
+    const places = [r.semaine && CLM.rangPhrase(r.semaine.rang, r.semaine.joueurs, 'semaine'), r.total && CLM.rangPhrase(r.total.rang, r.total.joueurs, 'total')].filter(Boolean);
+    const sous = r.rejoint ? (places.length ? Maj(places.join(' · ')) : `Pseudo : ${esc(r.pseudo)} · touche pour voir ta place`) : 'Compare ta fortune avec tes amis qui ont le lien du jeu';
+    return `<div class="card reglages cl-carte"><button type="button" class="reglage" data-a="classement"><i class="ico or">${ICONS.UI.podium}</i><span><b>Classement des boulangers</b><small>${sous}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button></div>`;
+  }
+  function sheetClassement(periode) {
+    if (!classement) return;
+    if (periode === 'semaine' || periode === 'total') ongletCl = periode;
+    openSheet(htmlClassement()); vueCl = 'liste'; lierClassement();
+    classement.ouvrir(ongletCl); // d'abord sa fortune (si on a rejoint), puis la liste
+  }
+  let dernierHtmlCl = '';
+  function rafraichirClassement(force) { // le moteur a du nouveau : la feuille ouverte se redessine sur place, sans remonter
+    if (vueCl !== 'liste' || feuille.hidden) return;
+    if (!classement.cache(ongletCl) && !classement.enChargement(ongletCl)) { classement.charger(ongletCl); return; } // liste oubliée (pseudo choisi, classement quitté) : on la relit, ce qui redessine
+    const avant = dernierHtmlCl, html = htmlClassement(); if (!force && html === avant) return;
+    const y = feuille.scrollTop, a = document.activeElement, cible = a && fc.contains(a) ? (a.dataset.tab ? `[data-tab="${a.dataset.tab}"]` : a.dataset.a ? `[data-a="${a.dataset.a}"]` : '') : '';
+    fc.innerHTML = html; lierClassement(); feuille.scrollTop = y;
+    if (cible) { const b = fc.querySelector(cible); if (b) b.focus(); }
+  }
+  function htmlClassement() {
+    const r = classement.resume(), c = classement.cache(ongletCl), charge = classement.enChargement(ongletCl);
+    const seg = `<div class="segments" role="tablist" aria-label="Période du classement">${PERIODES.map(([id, t]) => `<button type="button" role="tab" data-tab="${id}" aria-selected="${ongletCl === id}" class="${ongletCl === id ? 'actif' : ''}">${t}</button>`).join('')}</div>`;
+    const corps = c && c.etat === 'ok' ? listeClassement(c.data, r) : c && !charge ? etatClassement(c.etat)
+      : '<div class="cl-squelette" role="status" aria-label="Chargement du classement"><i></i><i></i><i></i><span>On compte les euros de chacun…</span></div>';
+    const ferme = c && c.etat === 'pas-ouvert';
+    // pas encore inscrit : l'invitation en haut, avant la liste ; inscrit : son pseudo et ses réglages en bas
+    const invitation = ferme || r.rejoint ? '' : `<div class="cl-invitation"><p>Ton pseudo et ta fortune seront visibles de tous ceux qui ont le lien du jeu. Tu pourras quitter le classement quand tu veux.</p><button type="button" class="btn large beurre" data-a="cl-rejoindre"><b>Rejoindre le classement</b></button></div>`;
+    const pied = ferme || !r.rejoint ? '' : `<p class="cl-moi">Tu joues sous le pseudo <b>${esc(r.pseudo)}</b>.</p><button type="button" class="btn large clair" data-a="cl-pseudo"><b>Changer de pseudo</b></button><button type="button" class="lien cl-quitter" data-a="cl-quitter">Quitter le classement</button>`;
+    dernierHtmlCl = `<div class="cl" data-cl="liste"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>Classement</h2><p class="sous">Les boulangers qui ont le lien du jeu, classés par fortune gagnée</p></div></div>${invitation}${seg}${corps}${pied}${btnRetour()}</div>`;
+    return dernierHtmlCl;
+  }
+  function listeClassement(d, r) {
+    const semaine = ongletCl === 'semaine';
+    const info = semaine ? `Depuis lundi${d.semaine ? ' ' + CLM.dateCourte(d.semaine) : ''} · remis à zéro chaque lundi` : 'Tout l’argent gagné depuis la première baguette';
+    const tete = `<div class="cl-info"><span>${info}</span><b>${CLM.boulangers(d.joueurs)}</b></div>`
+      + (r.rejoint && d.moi && d.moi.rang > 5 ? `<div class="cl-place"><span class="cl-rang${d.moi.rang <= 3 ? ' r' + d.moi.rang : ''}">${d.moi.rang}<small>${d.moi.rang === 1 ? 'er' : 'e'}</small></span><span><b>Ta place ${semaine ? 'cette semaine' : 'de tous les temps'}</b><small>sur ${CLM.boulangers(d.joueurs)}</small></span><b class="cl-val">${G.fmtEur(d.moi.valeur)}</b></div>` : ''); // sa place d'un coup d'œil quand sa ligne est loin dans la liste
+    if (!d.lignes.length) return `${tete}<div class="cl-etat"><span class="pic">${ICONS.UI.podium}</span><b>${semaine ? 'Personne encore cette semaine' : 'Personne encore'}</b><span>${r.rejoint ? 'Ta fortune arrive dans un instant.' : 'Rejoins le classement et ouvre le bal !'}</span></div>`;
+    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : ''}"${moi ? ' aria-current="true"' : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom"><span>${esc(l.pseudo)}</span>${moi ? '<i class="tag">toi</i>' : ''}</span><b class="cl-val">${G.fmtEur(l.valeur)}</b></li>`;
+    let html = d.lignes.map((l) => ligne(l, l.moi && r.rejoint)).join('');
+    if (r.rejoint && d.moi && !d.lignes.some((l) => l.moi)) html += `<li class="cl-sep" aria-hidden="true"><i></i><i></i><i></i></li>${ligne({ rang: d.moi.rang, pseudo: r.pseudo, valeur: d.moi.valeur }, true)}`; // loin derrière : sa ligne quand même, sous les 50 premiers
+    const absent = r.rejoint && !d.moi ? `<p class="note">${semaine ? 'Tu n’apparais pas encore cette semaine : ta fortune part dès que le réseau le permet.' : 'Ta fortune n’est pas encore arrivée : elle part dès que le réseau le permet.'}</p>` : '';
+    return `${tete}<ol class="cl-liste" aria-label="${semaine ? 'Classement de la semaine' : 'Classement de tous les temps'}">${html}</ol>${absent}`;
+  }
+  function etatClassement(e) {
+    const t = {
+      'hors-ligne': [ICONS.UI.horsLigne, 'Pas de réseau', 'Le classement revient dès que le téléphone est connecté. Ta boutique, elle, tourne toujours.', true],
+      'lent': [ICONS.UI.horsLigne, 'Le classement est lent à répondre', 'Le four met du temps à chauffer : réessaie dans un instant. Ta boutique, elle, tourne toujours.', true],
+      'pas-ouvert': [ICONS.UI.podium, 'Le classement ouvre bientôt', 'Le four préchauffe : reviens dans quelques jours pour te mesurer aux autres boulangers.', false],
+    }[e] || [ICONS.UI.horsLigne, 'Le classement ne répond pas', 'Un petit souci de fournée. Réessaie dans un moment.', true];
+    return `<div class="cl-etat ${e}" role="status"><span class="pic">${t[0]}</span><b>${t[1]}</b><span>${t[2]}</span>${t[3] ? '<button type="button" class="btn clair" data-a="cl-reessayer"><b>Réessayer</b></button>' : ''}</div>`;
+  }
+  function lierClassement() {
+    on('[data-tab]', (b) => {
+      if (b.dataset.tab === ongletCl) return;
+      son.tap(); ongletCl = b.dataset.tab; rafraichirClassement(true);
+      const c = classement.cache(ongletCl); if (!c || c.etat !== 'ok' || Date.now() - c.quand > 30e3) classement.charger(ongletCl);
+    });
+    on('[data-a="cl-reessayer"]', () => { son.tap(); classement.ouvrir(ongletCl); });
+    on('[data-a="cl-rejoindre"]', () => { son.tap(); sheetPseudo(false); });
+    on('[data-a="cl-pseudo"]', () => { son.tap(); sheetPseudo(true); });
+    on('[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(); });
+    on('[data-a="close"]', closeSheet);
+  }
+  // rejoindre (la première fois) ou changer de pseudo : validation en direct, « déjà pris » après l'envoi
+  function sheetPseudo(changer) {
+    const r = classement.resume(), nomBtn = changer ? 'Garder ce pseudo' : 'Rejoindre';
+    openSheet(`<div class="cl" data-cl="pseudo"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>${changer ? 'Changer de pseudo' : 'Rejoindre le classement'}</h2></div></div>
+      <p class="sous">${changer ? 'Le nouveau pseudo remplace l’ancien dans le classement, ta fortune ne bouge pas.' : 'Choisis un pseudo : c’est lui que verront les autres boulangers, pas le nom de ta boutique. À côté s’affichera ta fortune, tout l’argent gagné depuis ta première baguette.'}</p>
+      <label class="cl-label" for="cl-champ">Ton pseudo</label>
+      <input id="cl-champ" class="champ" type="text" maxlength="24" value="${esc(r.pseudo || '')}" placeholder="Par exemple : Mamie Jo" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-describedby="cl-aide">
+      <p id="cl-aide" class="cl-aide" aria-live="polite"></p>
+      <button type="button" class="btn large beurre" data-a="cl-valider"><b>${nomBtn}</b></button>
+      <button type="button" class="btn large clair" data-a="cl-annuler" style="margin-top:8px"><b>Annuler</b></button></div>`);
+    vueCl = 'pseudo';
+    const champ = fc.querySelector('#cl-champ'), aide = fc.querySelector('#cl-aide'), btn = fc.querySelector('[data-a="cl-valider"]');
+    let envoi = false, annule = false; // annule : « Annuler » touché pendant l'envoi, le moteur n'enverra pas le pseudo s'il attend encore son tour
+    const dire = (txt, ton) => { aide.textContent = txt; aide.className = 'cl-aide' + (ton ? ' ' + ton : ''); };
+    const verifier = () => {
+      const v = CLM.verifierPseudo(champ.value), pareil = changer && v.ok && v.pseudo === r.pseudo, bon = v.ok && !pareil, tape = champ.value.trim() !== '';
+      btn.classList.toggle('non', !bon); btn.setAttribute('aria-disabled', String(!bon)); champ.setAttribute('aria-invalid', String(tape && !v.ok));
+      dire(pareil ? 'C’est déjà ton pseudo.' : CLM.messagePseudo(v), bon ? 'bon' : tape && !pareil ? 'erreur' : '');
+      return bon ? v : null;
+    };
+    verifier();
+    champ.addEventListener('input', () => { if (!envoi) verifier(); });
+    const valider = async () => {
+      if (envoi) return;
+      const v = verifier(); if (!v) { son.non(); champ.focus(); return; }
+      envoi = true; champ.readOnly = true; btn.classList.add('non'); btn.setAttribute('aria-busy', 'true'); btn.querySelector('b').textContent = 'Un instant…'; dire('On envoie ton pseudo au classement…', '');
+      const res = await classement.choisirPseudo(v.pseudo, {
+        annule: () => annule,
+        attente: () => { if (!annule && vueCl === 'pseudo' && fc.contains(champ)) dire('Encore quelques secondes : le classement prend un envoi toutes les 10 s…', ''); },
+      });
+      if (res.etat === 'annule') return; // le joueur a annulé : rien n'est parti, la liste est déjà revenue
+      envoi = false; champ.readOnly = false; btn.removeAttribute('aria-busy'); btn.querySelector('b').textContent = nomBtn;
+      const ici = vueCl === 'pseudo' && fc.contains(champ);
+      if (res.etat === 'ok') { son.deblocage(); buzz([10, 30, 10]); toast(changer ? `Ton nouveau pseudo au classement\u00A0: «\u00A0${v.pseudo}\u00A0»` : `Bienvenue au classement, ${v.pseudo}\u00A0!`); if (ici) sheetClassement(); return; }
+      const msg = res.etat === 'refus' ? ({ pseudo_pris: `«\u00A0${v.pseudo}\u00A0» est déjà pris : essaie une variante.`, pseudo_invalide: 'Ce pseudo n’est pas accepté : lettres, chiffres, espaces, - _ \' . seulement.', complet: 'Le classement est complet pour le moment : reviens un peu plus tard.', trop_vite: 'Beaucoup de nouveaux boulangers d’un coup : réessaie dans quelques minutes.' }[res.erreur] || 'Le classement a refusé l’envoi. Réessaie dans un moment.') : msgReseau(res.etat);
+      son.non();
+      if (!ici) { toast(msg); return; } // la feuille a été fermée entre-temps
+      verifier(); dire(msg, 'erreur'); champ.focus();
+    };
+    on('[data-a="cl-valider"]', valider); on('[data-a="cl-annuler"]', () => { annule = true; sheetClassement(); });
+    champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') valider(); });
+    setTimeout(() => { try { champ.focus(); if (changer) champ.select(); } catch (e) { /* rien */ } }, 50);
+  }
+  function sheetQuitter() {
+    const r = classement.resume();
+    openSheet(`<div class="cl" data-cl="quitter"><h2>Quitter le classement ?</h2><p class="sous">«\u00A0${esc(r.pseudo)}\u00A0» et ta fortune disparaissent du classement. Ta boutique ne change pas, et tu pourras revenir quand tu veux.</p>
+      <button type="button" class="btn large rouge" data-a="cl-oui"><b>Oui, quitter le classement</b></button>
+      <button type="button" class="btn large clair" data-a="cl-non" style="margin-top:8px"><b>Non, je reste</b></button>
+      <p id="cl-aide" class="cl-aide" aria-live="polite"></p></div>`);
+    vueCl = 'quitter';
+    let envoi = false;
+    on('[data-a="cl-non"]', () => sheetClassement());
+    on('[data-a="cl-oui"]', async (b) => {
+      if (envoi) return; envoi = true; b.classList.add('non'); b.querySelector('b').textContent = 'Un instant…';
+      const res = await classement.quitter(); envoi = false;
+      const ici = vueCl === 'quitter' && fc.contains(b);
+      if (res.etat === 'ok') { toast('Tu as quitté le classement. À bientôt !'); if (ici) sheetClassement(); return; }
+      son.non(); b.classList.remove('non'); b.querySelector('b').textContent = 'Oui, quitter le classement';
+      if (!ici) { toast(msgReseau(res.etat)); return; }
+      const aide = fc.querySelector('#cl-aide'); aide.textContent = msgReseau(res.etat); aide.className = 'cl-aide erreur';
+    });
+  }
+
   // ─── boucle ───
   function frame(now) {
     const dt = Math.min(0.25, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
@@ -771,11 +909,14 @@ const UI = (() => {
     window.addEventListener('resize', layout);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
     if (!fresh) { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) sheetRetour(abs); }
+    // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
+    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN) }) : null; } catch (e) { classement = null; }
+    if (classement) { classement.ecouter(() => rafraichirClassement()); classement.demarrer(); }
     lastNiveau = G.niveau(st);
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
+    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, Date.now()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q) };
   }

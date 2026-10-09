@@ -7,13 +7,20 @@
 --  sont remplacées par la nouvelle version, les droits sont remis d'aplomb.
 --
 --  Ce qu'il installe :
---    · une table public.fournil_joueurs (un joueur = une ligne : son pseudo, sa fortune totale et sa base de la semaine) ;
+--    · une table public.fournil_joueurs (un joueur = une ligne : son pseudo, sa fortune totale, sa base de la semaine et
+--      la plus haute fortune qu'il ait envoyée) ;
+--    · une petite table interne public.fournil_portes (les inscriptions des dernières 24 h, par source : seulement une
+--      empreinte de l'adresse, jamais l'adresse elle-même) ;
 --    · trois fonctions appelées par le jeu : fournil_publier, fournil_classement, fournil_retirer.
---  Personne ne lit ni n'écrit la table directement : tout passe par ces trois fonctions, qui vérifient tout.
+--  Personne ne lit ni n'écrit les tables directement : tout passe par ces trois fonctions, qui vérifient tout.
 --
 --  Les règles du jeu :
 --    · le classement porte sur la FORTUNE TOTALE (tout l'argent gagné depuis le début, toutes boutiques confondues) ;
 --    · « Cette semaine » = la fortune gagnée depuis lundi minuit, heure de Paris ; « Tous les temps » = la fortune totale ;
+--    · la semaine ne compte que ce qui DÉPASSE la plus haute fortune déjà atteinte (colonne sommet) : une fortune qui baisse
+--      (partie effacée, vieux code de sauvegarde, onglet en retard) puis remonte ne gonfle jamais « Cette semaine » ;
+--      gain de la semaine = greatest(fortune − base_semaine, 0). Pour repartir vraiment de zéro après une partie effacée
+--      exprès, on quitte le classement puis on le rejoint ;
 --    · chaque joueur a un pseudo (2 à 16 caractères : lettres, accents compris, chiffres, espace, - _ ' .), unique sans
 --      tenir compte des majuscules ;
 --    · chaque joueur garde sur son téléphone un jeton secret ; ici on ne garde que son empreinte (sha256), jamais le jeton :
@@ -23,7 +30,14 @@
 --    · une fortune doit être un vrai nombre, positif, et sous 1e24 € : un joueur très assidu atteint ~1e19 € en deux mois
 --      et ~1e21 € en un an (test/longevite.js) ; au-delà, c'est une valeur bricolée ;
 --    · un envoi pris en compte toutes les 10 secondes au plus par joueur (les autres répondent « trop_vite » sans rien changer) ;
---    · 60 nouveaux joueurs par heure au plus, et 2 000 joueurs au plus en tout (largement de quoi inviter des amis) ;
+--    · par source (l'adresse vue par Cloudflare, en-tête cf-connecting-ip ; en IPv6, tout le bloc /64) : 10 inscriptions par
+--      heure et 20 par jour au plus ;
+--    · pour tout le monde ensemble : 60 nouveaux joueurs par heure au plus, et 2 000 joueurs au plus en tout ;
+--      les inscriptions passent une à une (verrou), pour que ces plafonds ne se contournent pas en rafale ;
+--    · le ménage se fait tout seul, au premier envoi suivant de n'importe quel joueur : une ligne sans nouvelles depuis
+--      90 jours est effacée (son pseudo et sa place se libèrent), et une ligne jamais mise à jour depuis son inscription
+--      l'est au bout de 7 jours. Le boulanger revient tout seul à son prochain envoi, avec sa fortune (sa semaine repart de
+--      zéro), comme une nouvelle inscription ;
 --    · les paramètres sont typés, aucun texte n'est jamais assemblé en SQL : pas d'injection possible.
 --
 --  Supabase (Postgres 15 ou plus récent), aucune extension nécessaire : sha256() est intégré à Postgres.
@@ -43,30 +57,49 @@ create table if not exists public.fournil_joueurs (
   maj          timestamptz not null default now()         -- dernier envoi pris en compte
 );
 
+-- la plus haute fortune envoyée (ajoutée après coup : recoller le fichier met les anciennes lignes à niveau)
+alter table public.fournil_joueurs add column if not exists sommet double precision not null default 0;
+update public.fournil_joueurs set sommet = fortune where sommet < fortune;
+
 comment on table public.fournil_joueurs is
   'Le Fournil : le classement entre amis. Accès uniquement par les fonctions fournil_publier, fournil_classement et fournil_retirer.';
 
 -- un pseudo ne sert qu'une fois, sans tenir compte des majuscules (« Marie » et « MARIE » sont le même pseudo)
 create unique index if not exists fournil_joueurs_pseudo on public.fournil_joueurs (lower(pseudo));
 
--- la sécurité ligne par ligne est activée SANS aucune règle : personne ne voit ni ne touche la table par l'API.
+-- les portes : une ligne par inscription réussie, avec l'empreinte de sa source (sha256 de « ip:<adresse> »), gardée 24 h.
+-- Elle sert à limiter les inscriptions par source, pour qu'un seul robot ne bloque pas les amis qui arrivent.
+create table if not exists public.fournil_portes (
+  empreinte text not null,
+  quand     timestamptz not null
+);
+create index if not exists fournil_portes_empreinte on public.fournil_portes (empreinte, quand);
+comment on table public.fournil_portes is
+  'Le Fournil : les inscriptions des dernières 24 h par source (empreinte seulement). Accès uniquement par fournil_publier.';
+
+-- la sécurité ligne par ligne est activée SANS aucune règle : personne ne voit ni ne touche ces tables par l'API.
 -- On enlève les règles qui auraient pu être ajoutées à la main, pour que ce soit toujours vrai.
 alter table public.fournil_joueurs enable row level security;
+alter table public.fournil_portes enable row level security;
 do $$
 declare
   r record;
 begin
-  for r in select policyname from pg_catalog.pg_policies where schemaname = 'public' and tablename = 'fournil_joueurs' loop
-    execute format('drop policy if exists %I on public.fournil_joueurs', r.policyname);
+  for r in select tablename, policyname from pg_catalog.pg_policies
+            where schemaname = 'public' and tablename in ('fournil_joueurs', 'fournil_portes') loop
+    execute format('drop policy if exists %I on public.%I', r.policyname, r.tablename);
   end loop;
 end
 $$;
 
--- aucun droit direct sur la table pour les visiteurs (anon) ni pour les comptes (authenticated) :
+-- aucun droit direct sur les tables pour les visiteurs (anon) ni pour les comptes (authenticated) :
 -- Supabase en donne par défaut aux nouvelles tables, on les retire explicitement.
 revoke all on table public.fournil_joueurs from public;
 revoke all on table public.fournil_joueurs from anon;
 revoke all on table public.fournil_joueurs from authenticated;
+revoke all on table public.fournil_portes from public;
+revoke all on table public.fournil_portes from anon;
+revoke all on table public.fournil_portes from authenticated;
 
 
 -- ─── 2. Les petites fonctions internes (le jeu ne peut pas les appeler) ─────────────────────────
@@ -94,9 +127,10 @@ $$;
 
 -- le pseudo nettoyé, ou null s'il n'est pas valable :
 --   · forme Unicode composée (é tapé en deux morceaux devient un seul é) ;
---   · apostrophes typographiques ’ ‘ → ' (le clavier des iPhone les met tout seul) ;
---   · les blancs (espaces, tabulations, espaces insécables) deviennent une seule espace, rien au début ni à la fin ;
---   · 2 à 16 caractères : lettres A-Z, lettres accentuées (latin étendu, de À à ɏ, sans × ni ÷), chiffres, espace, - _ ' . ;
+--   · apostrophes typographiques ’ ‘ ʼ ` ´ → ' (le clavier des iPhone les met tout seul) ;
+--   · les blancs (espaces, tabulations, espaces insécables…) deviennent une seule espace, rien au début ni à la fin ;
+--   · 2 à 16 caractères : lettres A-Z, lettres accentuées (latin et latin étendu A, de À à ž, sans × ni ÷ ni les lettres
+--     qui imitent l, i ou la ponctuation : ı Ĳ ĳ ĸ Ŀ ŀ ŉ ſ et tout le latin étendu B, comme ǀ ou ǃ), chiffres, espace, - _ ' . ;
 --   · au moins une lettre ou un chiffre (pas de pseudo fait que de points ou de tirets).
 create or replace function public.fournil_pseudo_propre(p_pseudo text)
 returns text
@@ -111,15 +145,15 @@ begin
     return null;
   end if;
   v := normalize(p_pseudo, NFC);
-  v := translate(v, E'’‘', '''''');
-  v := btrim(regexp_replace(v, E'[[:space:]    ]+', ' ', 'g'));
+  v := translate(v, E'\u2019\u2018\u02BC`\u00B4', '''''''''''');
+  v := btrim(regexp_replace(v, E'[[:space:]\u00A0\u1680\u2000-\u200A\u2028\u2029\u202F\u205F\u3000\uFEFF]+', ' ', 'g'));
   if char_length(v) < 2 or char_length(v) > 16 then
     return null;
   end if;
-  if v !~ E'^[0-9A-Za-zÀ-ÖØ-öø-ɏ _''.-]+$' then
+  if v !~ E'^[0-9A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u0130\u0134-\u0137\u0139-\u013E\u0141-\u0148\u014A-\u017E _''.-]+$' then
     return null;
   end if;
-  if v !~ E'[0-9A-Za-zÀ-ÖØ-öø-ɏ]' then
+  if v !~ E'[0-9A-Za-z\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u0130\u0134-\u0137\u0139-\u013E\u0141-\u0148\u014A-\u017E]' then
     return null;
   end if;
   return v;
@@ -158,7 +192,8 @@ as $$
     'erreur', p_erreur,
     'rang_semaine', (
       select (select count(*) from public.fournil_joueurs a
-               where a.semaine = p_lundi and a.fortune - a.base_semaine > m.fortune - m.base_semaine)::int + 1
+               where a.semaine = p_lundi
+                 and greatest(a.fortune - a.base_semaine, 0) > greatest(m.fortune - m.base_semaine, 0))::int + 1
       from public.fournil_joueurs m
       where m.id = p_id and m.semaine = p_lundi),
     'rang_total', (
@@ -166,6 +201,7 @@ as $$
       from public.fournil_joueurs m
       where m.id = p_id),
     'joueurs', (select count(*)::int from public.fournil_joueurs),
+    'joueurs_total', (select count(*)::int from public.fournil_joueurs),
     'joueurs_semaine', (select count(*)::int from public.fournil_joueurs where semaine = p_lundi),
     'semaine', to_char(p_lundi, 'YYYY-MM-DD')
   )
@@ -174,9 +210,10 @@ $$;
 
 -- ─── 3. fournil_publier : rejoindre le classement, puis envoyer sa fortune ──────────────────────
 -- Réponse : { ok, erreur: null | 'pseudo_pris' | 'pseudo_invalide' | 'jeton' | 'valeur' | 'trop_vite' | 'complet',
---             rang_semaine, rang_total, joueurs (tous les temps), joueurs_semaine, semaine: 'AAAA-MM-JJ' }
+--             rang_semaine, rang_total, joueurs et joueurs_total (tous les temps), joueurs_semaine, semaine: 'AAAA-MM-JJ' }
 -- Premier envoi d'un identifiant : le joueur est inscrit (sa semaine part de zéro).
 -- Envois suivants : le jeton doit correspondre ; le pseudo peut changer (s'il est libre).
+-- Un identifiant effacé par le ménage (90 jours sans nouvelles) repasse simplement par l'inscription.
 create or replace function public.fournil_publier(p_id uuid, p_jeton text, p_pseudo text, p_fortune double precision)
 returns json
 language plpgsql
@@ -191,6 +228,9 @@ declare
   v_fortune    double precision;
   v_empreinte  text;
   v_contrainte text;
+  v_ip         text;
+  v_porte      text;
+  v_inscrit    boolean;
   j            public.fournil_joueurs%rowtype;
 begin
   -- 1. l'identité : un identifiant et un jeton bien formés
@@ -209,8 +249,21 @@ begin
   v_empreinte := public.fournil_empreinte(p_jeton);
 
   select * into j from public.fournil_joueurs where id = p_id for update;
+  v_inscrit := found;
 
-  if found then
+  -- le ménage, à chaque envoi :
+  --   · les boulangers sans nouvelles depuis 90 jours sortent du classement : leur pseudo et leur place se libèrent
+  --     (un téléphone ouvert envoie toutes les 5 minutes) ;
+  --   · une inscription jamais suivie d'un autre envoi sort au bout de 7 jours (les robots qui s'inscrivent et s'en vont).
+  -- Le joueur qui appelle n'est jamais effacé ici : il garde sa ligne, sous le contrôle de son jeton. Une ligne qu'un autre
+  -- envoi tient en ce moment est laissée de côté (skip locked) : le ménage n'attend jamais personne, donc aucun interblocage.
+  delete from public.fournil_joueurs
+   where id in (select o.id from public.fournil_joueurs o
+                 where o.id <> p_id
+                   and (o.maj < v_maintenant - interval '90 days' or (o.maj = o.cree and o.cree < v_maintenant - interval '7 days'))
+                   for update skip locked);
+
+  if v_inscrit then
     -- ── un joueur déjà inscrit ──
     if j.jeton <> v_empreinte then
       return public.fournil_reponse('jeton', null, v_lundi);
@@ -222,22 +275,49 @@ begin
        and exists (select 1 from public.fournil_joueurs where lower(pseudo) = lower(v_pseudo) and id <> p_id) then
       return public.fournil_reponse('pseudo_pris', null, v_lundi);
     end if;
-    -- une nouvelle semaine : sa base devient la fortune qu'il avait au dernier envoi
+    -- une nouvelle semaine : sa base devient la plus haute fortune déjà atteinte (d'ordinaire celle du dernier envoi).
+    -- Baisser sa fortune le dimanche pour la remonter le lundi ne fait donc rien gagner.
     if j.semaine <> v_lundi then
-      j.base_semaine := j.fortune;
+      j.base_semaine := greatest(j.fortune, j.sommet);
       j.semaine := v_lundi;
     end if;
-    -- une fortune qui baisse (sauvegarde effacée, nouveau téléphone) : la semaine repart de là, jamais en négatif
-    j.base_semaine := least(j.base_semaine, v_fortune);
+    -- une fortune qui baisse (partie effacée, vieux code, onglet en retard) ne touche pas à la base : la semaine affiche
+    -- 0 € tant qu'on est en dessous (jamais de gain négatif), et la remontée ne compte que ce qui dépasse la base.
+    -- Ainsi « envoyer 0 puis sa vraie fortune » ne gonfle jamais « Cette semaine ».
+    j.sommet := greatest(j.sommet, j.fortune, v_fortune);
     begin
       update public.fournil_joueurs
-         set pseudo = v_pseudo, fortune = v_fortune, base_semaine = j.base_semaine, semaine = j.semaine, maj = v_maintenant
+         set pseudo = v_pseudo, fortune = v_fortune, base_semaine = j.base_semaine, semaine = j.semaine, sommet = j.sommet,
+             maj = v_maintenant
        where id = p_id;
     exception when unique_violation then
       return public.fournil_reponse('pseudo_pris', null, v_lundi); -- un autre a pris ce pseudo au même instant
     end;
   else
     -- ── une inscription ──
+    -- une inscription à la fois : chaque appel est une transaction, le verrou tient jusqu'à sa fin, donc l'inscription
+    -- suivante compte la ligne déjà validée (sinon des envois simultanés passent tous sous les plafonds)
+    perform pg_catalog.pg_advisory_xact_lock(7231001);
+    -- par source d'abord : l'adresse que Cloudflare réécrit à chaque requête (cf-connecting-ip ; jamais x-forwarded-for,
+    -- que le téléphone peut remplir lui-même). Sans cet en-tête, seuls les plafonds communs jouent.
+    v_ip := nullif(btrim(coalesce(
+              (nullif(pg_catalog.current_setting('request.headers', true), '')::json) ->> 'cf-connecting-ip', '')), '');
+    delete from public.fournil_portes where quand < v_maintenant - interval '1 day';
+    if v_ip is not null then
+      -- en IPv6, une même box ou un même téléphone dispose de tout un bloc /64 : on compte le bloc, pas l'adresse
+      begin
+        v_ip := case when pg_catalog.family(v_ip::inet) = 6 then pg_catalog.network(pg_catalog.set_masklen(v_ip::inet, 64))::text
+                     else pg_catalog.host(v_ip::inet) end;
+      exception when others then
+        null; -- une adresse illisible : on la compte telle quelle
+      end;
+      v_porte := public.fournil_empreinte('ip:' || v_ip);
+      if (select count(*) from public.fournil_portes where empreinte = v_porte and quand > v_maintenant - interval '1 hour') >= 10
+         or (select count(*) from public.fournil_portes where empreinte = v_porte) >= 20 then
+        return public.fournil_reponse('trop_vite', null, v_lundi);
+      end if;
+    end if;
+    -- puis pour tout le monde ensemble
     if (select count(*) from public.fournil_joueurs) >= 2000 then
       return public.fournil_reponse('complet', null, v_lundi);
     end if;
@@ -248,8 +328,11 @@ begin
       return public.fournil_reponse('pseudo_pris', null, v_lundi);
     end if;
     begin
-      insert into public.fournil_joueurs (id, jeton, pseudo, fortune, base_semaine, semaine, cree, maj)
-      values (p_id, v_empreinte, v_pseudo, v_fortune, v_fortune, v_lundi, v_maintenant, v_maintenant);
+      insert into public.fournil_joueurs (id, jeton, pseudo, fortune, base_semaine, semaine, sommet, cree, maj)
+      values (p_id, v_empreinte, v_pseudo, v_fortune, v_fortune, v_lundi, v_fortune, v_maintenant, v_maintenant);
+      if v_porte is not null then
+        insert into public.fournil_portes (empreinte, quand) values (v_porte, v_maintenant);
+      end if;
     exception when unique_violation then
       -- deux envois au même instant : même pseudo pris par un autre, ou le même joueur envoyé deux fois
       get stacked diagnostics v_contrainte = constraint_name;
@@ -266,7 +349,7 @@ $$;
 
 
 -- ─── 4. fournil_classement : lire le classement ─────────────────────────────────────────────────
--- p_periode : 'semaine' (la fortune gagnée depuis lundi, seulement ceux qui ont joué cette semaine) ou 'total'.
+-- p_periode : 'semaine' (la fortune gagnée depuis lundi, jamais négative, seulement ceux qui ont joué cette semaine) ou 'total'.
 -- p_id : son propre identifiant (facultatif), pour se retrouver même hors des premiers.
 -- p_limite : le nombre de lignes (50 par défaut, 100 au plus).
 -- Réponse : { semaine: 'AAAA-MM-JJ', periode, joueurs, lignes: [{ rang, pseudo, valeur, moi }], moi: { rang, valeur } | null }
@@ -289,7 +372,7 @@ begin
 
   with valeurs as (
     select id, pseudo,
-           case when p_periode = 'semaine' then fortune - base_semaine else fortune end as valeur
+           case when p_periode = 'semaine' then greatest(fortune - base_semaine, 0) else fortune end as valeur
       from public.fournil_joueurs
      where p_periode = 'total' or semaine = v_lundi
   ), rangs as (

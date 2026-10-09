@@ -29,13 +29,13 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   console.log('── le pseudo ──');
   check(CL.normaliserPseudo('  Mamie   Jo ') === 'Mamie Jo' && CL.normaliserPseudo('L’as\tdu\n four') === "L'as du four" && CL.normaliserPseudo(null) === '', 'espaces repliés, apostrophe typographique de l’iPhone remplacée par la droite');
   check(CL.normaliserPseudo('Léa') === 'Léa', 'accents composés ramenés à un seul caractère (NFC)');
-  const ok = ['Léa', 'Mamie Jo', "L'as du four", 'Zoé_42', 'J.-P.', 'Œufs Brouillés', 'Ÿvette', 'ab', '0123456789abcdef'];
+  const ok = ['Léa', 'Mamie Jo', "L'as du four", 'Zoé_42', 'J.-P.', 'Œufs Brouillés', 'Ÿvette', 'Łukasz', 'Şeker', 'Žofia', 'ab', '0123456789abcdef'];
   check(ok.every((p) => CL.verifierPseudo(p).ok), 'acceptés : ' + ok.join(' · '));
-  const ko = { '': 'vide', '   ': 'vide', a: 'court', '0123456789abcdefg': 'long', 'Paulo le boulanger': 'long', 'pain@chocolat': 'caracteres', 'Léa 🥐': 'caracteres', 'Ʃigma': 'caracteres', '<b>x</b>': 'caracteres', "--__''": 'lettre', '..': 'lettre' };
+  const ko = { '': 'vide', '   ': 'vide', a: 'court', '0123456789abcdefg': 'long', 'Paulo le boulanger': 'long', 'pain@chocolat': 'caracteres', 'Léa 🥐': 'caracteres', 'Σigma': 'caracteres', 'Ivan ×2': 'caracteres', 'ɐbc': 'caracteres', 'Pauǀ': 'caracteres', 'Marıe': 'caracteres', 'ǃǃ': 'caracteres', 'Ŀéa': 'caracteres', 'ſam': 'caracteres', '<b>x</b>': 'caracteres', "--__''": 'lettre', '..': 'lettre' };
   check(Object.entries(ko).every(([p, r]) => { const v = CL.verifierPseudo(p); return !v.ok && v.raison === r; }), 'refusés avec la bonne raison : ' + Object.entries(ko).map(([p, r]) => `« ${p} » → ${r}`).join(', '));
   check(CL.verifierPseudo('  Mamie    Jo  ').pseudo === 'Mamie Jo' && CL.verifierPseudo('0123456789abcde ').ok, 'la longueur se compte après normalisation');
   check(CL.verifierPseudo('Ééééééééééééééé').ok && CL.verifierPseudo('Éééééééééééééééé').ok && !CL.verifierPseudo('Ééééééééééééééééé').ok, '16 lettres accentuées passent, 17 non (on compte des caractères, pas des octets)');
-  check(/« @ »/.test(CL.messagePseudo(CL.verifierPseudo('pain@chocolat'))) && /16 au plus/.test(CL.messagePseudo(CL.verifierPseudo('Paulo le boulanger'))) && /« Léa »/.test(CL.messagePseudo(CL.verifierPseudo(' Léa '))), 'les messages sous le champ : le caractère refusé, la longueur, l’aperçu');
+  check(/«\s@\s»/.test(CL.messagePseudo(CL.verifierPseudo('pain@chocolat'))) && /16 au plus/.test(CL.messagePseudo(CL.verifierPseudo('Paulo le boulanger'))) && /«\sLéa\s»/.test(CL.messagePseudo(CL.verifierPseudo(' Léa '))), 'les messages sous le champ : le caractère refusé, la longueur, l’aperçu');
 
   console.log('── les rangs ──');
   check(CL.rangTexte(1) === '1er' && CL.rangTexte(2) === '2e' && CL.rangTexte(21) === '21e' && CL.rangTexte(0) === '—' && CL.rangTexte(null) === '—' && CL.rangTexte(2.5) === '—', '1er, 2e, 21e ; rien pour un rang invalide');
@@ -111,7 +111,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     check(a0.url === URL + '/rest/v1/rpc/fournil_publier' && a0.init.method === 'POST' && a0.init.headers.apikey === CLEF && a0.init.headers.Authorization === 'Bearer ' + CLEF && a0.init.headers['Content-Type'] === 'application/json', 'POST vers /rest/v1/rpc/fournil_publier avec apikey, Authorization: Bearer et Content-Type JSON');
     check(egal(Object.keys(a0.corps).sort(), ['p_fortune', 'p_id', 'p_jeton', 'p_pseudo']) && a0.corps.p_fortune === 1234 && a0.corps.p_pseudo === 'mamie JO' && /^[0-9a-f]{64}$/.test(a0.corps.p_jeton), 'corps : p_id, p_jeton (64 hexa), p_pseudo normalisé, p_fortune = Math.floor(st.lifetime)');
     const t0 = horloge, ok1 = await m.choisirPseudo('Léa');
-    check(ok1.etat === 'ok' && m.resume().rejoint && m.resume().pseudo === 'Léa' && horloge - t0 >= 10e3, 'un autre pseudo : rejoint (après avoir attendu son tour : le serveur prend un envoi toutes les 10 s)');
+    check(ok1.etat === 'ok' && m.resume().rejoint && m.resume().pseudo === 'Léa' && horloge - t0 < 1e3, 'un autre pseudo juste après un refus : rejoint sans attendre (un refus ne compte pas pour les 10 s du serveur)');
     check(sv.lignes.get(m.etat().id).jeton === a0.corps.p_jeton && r.appels.length === 2, 'même identité qu’au premier essai, et pas d’envoi en trop');
     const e = JSON.parse(s.getItem(CL.CLE));
     check(e.rejoint === true && e.pseudo === 'Léa' && e.valeur === 1234 && e.dernier.semaine.rang === 2 && e.dernier.total.rang === 5 && e.dernier.total.joueurs === 9 && e.dernier.semaine.lundi === '2026-10-05', 'état local écrit : rejoint, pseudo, valeur, derniers rangs (2e cette semaine, 5e de tous les temps sur 9)');
@@ -123,6 +123,8 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const ch = await m.charger('semaine'), ac = r.appels[r.appels.length - 1];
     check(ch.etat === 'ok' && ch.data.lignes.length === 1 && ac.corps.p_periode === 'semaine' && ac.corps.p_id === m.etat().id && ac.corps.p_limite === 50 && !('p_jeton' in ac.corps), 'la liste : fournil_classement(semaine, mon id, 50), sans le jeton');
     check(m.etat().dernier.semaine.rang === 4 && m.etat().dernier.semaine.joueurs === 4, 'ma place lue dans la liste : 4e sur 4');
+    horloge += 20e3; fortune = 6000; await m.envoyer('feuille');
+    check(m.cache('semaine').quand === 0 && m.cache('semaine').etat === 'ok', 'un envoi réussi rend les listes gardées périmées (relues au prochain coup d’œil)');
     horloge += 20e3; const q = await m.quitter(), aq = r.appels[r.appels.length - 1];
     check(q.etat === 'ok' && aq.url.endsWith('/fournil_retirer') && egal(Object.keys(aq.corps).sort(), ['p_id', 'p_jeton']) && sv.lignes.size === 0 && !m.resume().rejoint && m.etat().id === null && m.resume().pseudo === 'Léa', 'quitter : fournil_retirer(id, jeton), ligne effacée, identité oubliée, pseudo proposé pour un retour');
     horloge += 20e3; check((await m.envoyer('lancement')).pourquoi === 'pas-rejoint', 'après avoir quitté : plus aucun envoi');
@@ -137,7 +139,9 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
       'erreur-json': async () => ({ ok: true, status: 200, text: async () => '<html>' }),
       lent: () => new Promise(() => {}),
     })) { const m = moteur(faux(gerer), { delaiMax: 50 }); etats[nom] = (await m.charger('total')).etat; }
-    check(etats['hors-ligne'] === 'hors-ligne' && etats.lent === 'hors-ligne', 'réseau coupé ou muet (délai dépassé) : « hors ligne »');
+    check(etats['hors-ligne'] === 'hors-ligne', 'réseau coupé : « hors ligne »');
+    check(etats.lent === 'lent', 'serveur muet (délai dépassé) : « lent », pas « hors ligne » (le téléphone est connecté)');
+    { const ra = faux(async () => { const e = new Error('aborted'); e.name = 'AbortError'; throw e; }); check((await moteur(ra).charger('total')).etat === 'lent', 'fetch coupé par notre délai (AbortError) : « lent » aussi'); }
     check(etats['pas-ouvert'] === 'pas-ouvert' && etats['pas-ouvert-2'] === 'pas-ouvert', 'fonction absente (404, PGRST202) : « pas encore ouvert »');
     check(etats.erreur === 'erreur' && etats['erreur-json'] === 'erreur', 'erreur du serveur ou réponse illisible : « erreur »');
     const r = faux(async () => rep(200, {})), m = moteur(r, { enLigne: () => false });
@@ -155,6 +159,13 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const r = await m.envoyer('lancement');
     check(r.etat === 'refus' && r.erreur === 'jeton' && !m.resume().rejoint && m.etat().id === null, 'jeton refusé : plus rejoint, identité oubliée');
   }
+  { // effacé par le ménage des 90 jours, et son pseudo repris entre-temps : l'envoi automatique reçoit « pseudo_pris »
+    const s = memoire(); CL.ecrireEtat(s, { ...CL.etatNeuf(), id: CL.nouvelId(), jeton: CL.nouveauJeton(), pseudo: 'Léa', rejoint: true });
+    const m = moteur(faux(async () => rep(200, { ok: false, erreur: 'pseudo_pris' })), { stockage: s }); horloge += 60e3;
+    const r = await m.envoyer('lancement'), lu = CL.lireEtat(s);
+    check(r.etat === 'refus' && r.erreur === 'pseudo_pris' && !m.resume().rejoint && m.etat().id === null && m.resume().pseudo === 'Léa' && !lu.rejoint && lu.id === null && lu.pseudo === 'Léa',
+      'pseudo repris pendant une longue absence : plus rejoint, identité oubliée, le pseudo reste proposé');
+  }
   { // trop vite malgré l'attente : un seul nouvel essai
     let n = 0; const m = moteur(faux(async () => { n++; return rep(200, n === 1 ? { ok: false, erreur: 'trop_vite' } : { ok: true, rang_semaine: 1, rang_total: 1, joueurs: 1 }); }));
     horloge += 60e3; check((await m.choisirPseudo('Zoé')).etat === 'ok' && n === 2, '« trop vite » au premier essai : on attend 10 s et on réessaie une fois');
@@ -168,6 +179,121 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     fortune = 120; visible = true; await m.tick(); check(r.appels.length === 1, 'aussitôt après : le minuteur n’envoie rien (5 min pas écoulées)');
     horloge += 5 * 60e3; visible = false; await m.tick(); check(r.appels.length === 1, '5 min plus tard, page cachée : rien');
     visible = true; await m.tick(); check(r.appels.length === 2, '5 min plus tard, page visible : un envoi');
+  }
+  // ─── les corrections de la relecture ───
+  const dormir = (ms) => new Promise((ok) => setTimeout(ok, ms));
+  // un faux serveur qui répond après un vrai délai (en ms), par fonction ; 'panne' : le réseau coupe
+  const serveurLent = (lat) => {
+    const lignes = new Map(), appels = [];
+    return { lignes, appels, fetch: (url, init) => {
+      const nom = url.split('/rpc/')[1], c = JSON.parse(init.body); appels.push({ nom, c });
+      return new Promise((ok, ko) => setTimeout(() => {
+        if (lat[nom] === 'panne') return ko(new TypeError('Failed to fetch'));
+        let d;
+        if (nom === 'fournil_publier') { const l = lignes.get(c.p_id); if (l && l.jeton !== c.p_jeton) d = { ok: false, erreur: 'jeton' }; else { lignes.set(c.p_id, { jeton: c.p_jeton, pseudo: c.p_pseudo }); d = { ok: true, erreur: null, rang_semaine: 1, rang_total: 1, joueurs: lignes.size }; } }
+        else if (nom === 'fournil_retirer') { const l = lignes.get(c.p_id); if (!l || l.jeton === c.p_jeton) lignes.delete(c.p_id); d = { ok: !l || l.jeton === c.p_jeton }; }
+        else d = { semaine: '2026-10-05', joueurs: lignes.size, lignes: [], moi: null };
+        ok(rep(200, d));
+      }, typeof lat[nom] === 'number' ? lat[nom] : 5));
+    } };
+  };
+  const compte = (appels, nom) => appels.filter((a) => (a.nom || a.url.split('/rpc/')[1]) === nom).length;
+
+  console.log('── le tour des 10 s : seul un envoi accepté compte ──');
+  { const sv = serveur(), r = faux(sv.gerer), m = moteur(r);
+    horloge += 60e3; check((await m.choisirPseudo('Ancien')).etat === 'ok', 'inscrit sous « Ancien »');
+    const tAccepte = horloge; horloge += 2e3; const n0 = r.appels.length; let attente = 0;
+    const res = await m.choisirPseudo('Nouveau', { attente: (ms) => { attente = ms; } });
+    check(res.etat === 'ok' && m.etat().pseudo === 'Nouveau' && horloge - tAccepte >= 10e3 && r.appels.length === n0 + 1, 'changer de pseudo 2 s après un envoi accepté : on attend son tour (10 s), un seul appel, pas de « trop vite »');
+    check(attente > 1e3, 'l’interface est prévenue d’une vraie attente (pour dire « encore quelques secondes »)');
+  }
+
+  console.log('── « Annuler » pendant l’attente ──');
+  { const sv = serveur(), r = faux(sv.gerer), m = moteur(r);
+    horloge += 60e3; await m.choisirPseudo('Ancien'); horloge += 2e3; const n0 = r.appels.length;
+    const res = await m.choisirPseudo('Pas Voulu', { annule: () => true });
+    check(res.etat === 'annule' && m.etat().pseudo === 'Ancien' && r.appels.length === n0 && [...sv.lignes.values()][0].pseudo === 'Ancien', 'annulé pendant l’attente : rien ne part, le pseudo ne change pas');
+    const res2 = await m.choisirPseudo('Pas Voulu', { annule: () => false });
+    check(res2.etat === 'ok' && m.etat().pseudo === 'Pas Voulu' && r.appels.length === n0 + 1, 'pas annulé : le pseudo part');
+  }
+
+  console.log('── l’ouverture de la feuille : la liste tout de suite, une seule lecture à la fois ──');
+  { const sv = serveurLent({ fournil_publier: 40, fournil_classement: 10 }), m = moteur(sv);
+    horloge += 60e3; await m.choisirPseudo('Ouvreur'); horloge += 60e3; fortune += 10;
+    const avant = compte(sv.appels, 'fournil_classement'), lecture = m.ouvrir('semaine');
+    check(compte(sv.appels, 'fournil_classement') === avant + 1 && sv.appels[sv.appels.length - 1].nom === 'fournil_publier', 'la liste part tout de suite, l’envoi de la fortune en même temps (plus d’attente en série)');
+    check(m.charger('semaine') === lecture && compte(sv.appels, 'fournil_classement') === avant + 1 && m.enChargement('semaine'), 'redemandée pendant la lecture : la même promesse, pas de deuxième appel');
+    const c = await lecture; check(c.etat === 'ok', 'liste lue');
+    await dormir(80);
+    check(compte(sv.appels, 'fournil_classement') === avant + 2 && m.cache('semaine').etat === 'ok' && m.cache('semaine').quand > 0, 'fortune acceptée : la liste est relue une fois, en silence');
+  }
+
+  console.log('── quitter, puis passer aussitôt en arrière-plan ──');
+  for (const [nom, lat, apres] of [
+    ['passage en arrière-plan', { fournil_retirer: 30, fournil_publier: 60 }, (m) => m.envoyer('fond', { keepalive: true })],
+    ['minuteur des 5 min', { fournil_retirer: 30, fournil_publier: 60 }, (m) => { horloge += 5 * 60e3; return m.tick(); }],
+  ]) {
+    const sv = serveurLent(lat), m = moteur(sv);
+    horloge += 60e3; await m.choisirPseudo('Mamie Jeanne'); horloge += 60e3; fortune += 10;
+    const q = m.quitter(), f = apres(m), [rq, rf] = [await q, await f]; await dormir(80);
+    check(rq.etat === 'ok' && rf.etat === 'saute' && rf.pourquoi === 'retrait' && sv.lignes.size === 0 && !m.resume().rejoint && compte(sv.appels, 'fournil_publier') === 1, `${nom} pendant « Quitter » : l’envoi est sauté, le serveur reste vide`);
+  }
+  { const sv = serveurLent({ fournil_retirer: 'panne' }), m = moteur(sv);
+    horloge += 60e3; await m.choisirPseudo('Têtu'); const id = m.etat().id; horloge += 60e3;
+    const q = await m.quitter();
+    check(q.etat === 'hors-ligne' && m.resume().rejoint && m.etat().id === id && m.etat().jeton, 'retrait sans réseau : toujours inscrit, avec son jeton, pour réessayer');
+    horloge += 60e3; fortune += 10; check((await m.envoyer('fond')).etat === 'ok', 'et l’envoi suivant repart');
+  }
+
+  console.log('── deux fenêtres (appli installée + onglet) sur le même stockage ──');
+  { const sv = serveur(), r = faux(sv.gerer), s = memoire();
+    const A = moteur(r, { stockage: s }); horloge += 60e3; await A.choisirPseudo('Gaston'); horloge += 60e3;
+    const B = moteur(r, { stockage: s }); horloge += 60e3;
+    check((await A.quitter()).etat === 'ok' && sv.lignes.size === 0, 'A quitte le classement');
+    horloge += 6 * 60e3; fortune += 10; const rb = await B.envoyer('fond', { keepalive: true });
+    check(rb.etat === 'saute' && rb.pourquoi === 'pas-rejoint' && sv.lignes.size === 0 && JSON.parse(s.getItem(CL.CLE)).rejoint === false && !B.resume().rejoint, 'B ne réinscrit pas A : il relit le stockage avant d’envoyer');
+    horloge += 60e3; await A.choisirPseudo('Gaston'); horloge += 60e3; await A.choisirPseudo('Tonton Paul');
+    horloge += 6 * 60e3; fortune += 10; const rt = await B.tick();
+    check(rt.etat === 'ok' && sv.lignes.size === 1 && [...sv.lignes.values()][0].pseudo === 'Tonton Paul' && JSON.parse(s.getItem(CL.CLE)).pseudo === 'Tonton Paul', 'A change de pseudo : B envoie le nouveau, pas l’ancien');
+    horloge += 5e3; fortune += 10; check((await A.envoyer('feuille')).pourquoi === 'trop-tot', 'les 15 s entre deux envois valent pour toutes les fenêtres');
+  }
+  { const r = faux(serveur().gerer), m = moteur(r, { stockage: casse });
+    horloge += 60e3; check((await m.choisirPseudo('Ninon')).etat === 'ok', 'stockage qui lève une exception : on rejoint quand même');
+    horloge += 60e3; fortune += 10; check((await m.envoyer('fond')).etat === 'ok' && m.resume().rejoint, 'et l’identité en mémoire est gardée');
+    const vieux = JSON.stringify({ ...CL.etatNeuf(), pseudo: 'Vieux' }), plein = { getItem: () => vieux, setItem: () => { throw new Error('QuotaExceededError'); } };
+    const m2 = moteur(faux(serveur().gerer), { stockage: plein }); horloge += 60e3; await m2.choisirPseudo('Ninon');
+    horloge += 60e3; fortune += 10; check((await m2.envoyer('fond')).etat === 'ok' && m2.resume().pseudo === 'Ninon', 'stockage plein (écriture refusée) : son vieux contenu n’écrase pas la mémoire');
+  }
+
+  console.log('── une inscription dont la réponse s’est perdue ──');
+  { const s = memoire(), lignes = new Map(), appels = []; let perdre = true;
+    const rf = { fetch: async (url, init) => { const nom = url.split('/rpc/')[1], c = JSON.parse(init.body); appels.push({ nom, c });
+      if (nom === 'fournil_publier') { lignes.set(c.p_id, c.p_pseudo); return perdre ? new Promise(() => {}) : rep(200, { ok: true, erreur: null, rang_semaine: 1, rang_total: 1, joueurs: lignes.size }); }
+      if (nom === 'fournil_retirer') { lignes.delete(c.p_id); return rep(200, { ok: true, erreur: null }); }
+      return rep(200, { semaine: '2026-10-05', joueurs: 0, lignes: [], moi: null }); } };
+    horloge += 60e3; const r1 = await moteur(rf, { stockage: s, delaiMax: 30 }).choisirPseudo('Fantôme');
+    const vieil = JSON.parse(s.getItem(CL.CLE)).id;
+    check(r1.etat === 'lent' && JSON.parse(s.getItem(CL.CLE)).rejoint === false && lignes.size === 1, 'réponse perdue : le jeu dit « pas rejoint », mais la ligne existe sur le serveur');
+    perdre = false; horloge += 60e3; const m2 = moteur(rf, { stockage: s }); const n0 = appels.length;
+    m2.demarrer({ minuteur: false }); const r2 = await m2.choisirPseudo('Fantôme');
+    const suite = appels.slice(n0).map((a) => a.nom), pub = appels.slice(n0).find((a) => a.nom === 'fournil_publier');
+    check(suite[0] === 'fournil_retirer' && appels[n0].c.p_id === vieil && suite.indexOf('fournil_publier') > 0, 'au lancement suivant : la ligne fantôme est effacée d’abord, et l’inscription lancée aussitôt l’attend');
+    check(r2.etat === 'ok' && pub.c.p_id !== vieil && lignes.size === 1 && !lignes.has(vieil) && m2.resume().rejoint, 'puis on rejoint avec une nouvelle identité : une seule ligne');
+    const s3 = memoire(); CL.ecrireEtat(s3, { ...CL.etatNeuf(), id: CL.nouvelId(), jeton: CL.nouveauJeton(), pseudo: 'Pressé', essai: horloge - 5e3 }); const n1 = appels.length;
+    moteur(rf, { stockage: s3 }).demarrer({ minuteur: false }); await dormir(5);
+    check(appels.length === n1, 'une inscription d’il y a 5 s (peut-être en cours dans une autre fenêtre) n’est pas effacée');
+  }
+
+  console.log('── la place de la semaine suit le lundi du serveur ──');
+  { const S = Date.UTC(2026, 9, 11, 22, 2); // lundi 12 octobre, 00 h 02 à Paris
+    horloge = S - 4 * 60e3; // le téléphone retarde de 4 min : chez lui, c'est encore dimanche 23 h 58
+    const m = moteur(faux(async () => rep(200, { ok: true, erreur: null, rang_semaine: 1, rang_total: 3, joueurs: 3, joueurs_total: 3, joueurs_semaine: 1, semaine: '2026-10-12' })));
+    await m.choisirPseudo('Ponctuel');
+    check(m.etat().dernier.semaine.lundi === '2026-10-12' && m.resume().semaine && m.resume().semaine.rang === 1, 'téléphone en retard : la place est rangée sous le lundi du serveur (12 oct.), et affichée');
+    horloge = S + 60e3; check(m.resume().semaine && m.resume().semaine.rang === 1, 'le téléphone passe minuit : la place reste');
+    const s = memoire(); CL.ecrireEtat(s, { ...CL.etatNeuf(), id: CL.nouvelId(), jeton: CL.nouveauJeton(), pseudo: 'Pressé', rejoint: true, dernier: { semaine: { rang: 2, joueurs: 5, lundi: '2026-10-05' }, total: { rang: 4, joueurs: 9 }, quand: S - 5 * 60e3 } });
+    horloge = S; const m2 = moteur(faux(async () => rep(200, {})), { stockage: s });
+    check(m2.resume().semaine === null && m2.resume().total.rang === 4, 'téléphone en avance (lundi chez lui) : la place de l’ancienne semaine est masquée, celle de tous les temps reste');
   }
   console.log(`\n${n - echecs}/${n} vérifications.`);
   console.log(echecs ? `${echecs} échec(s)` : 'Tout passe.');
