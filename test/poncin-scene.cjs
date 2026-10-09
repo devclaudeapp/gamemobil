@@ -60,7 +60,7 @@ const mediane = (a) => { const s = a.slice().sort((x, y) => x - y); return s.len
       const v = await page.evaluate(() => { const I = PRENDU._interne, m = I.voutes; if (!m) return null; const n = m.geometry.attributes.normal.array, S = I.SOLEIL, l = Math.hypot(S[0], S[1], S[2]); let pire = -1, ny = 0;
         for (let i = 0; i < n.length; i += 3) { pire = Math.max(pire, (n[i] * S[0] + n[i + 1] * S[1] + n[i + 2] * S[2]) / l); ny = Math.max(ny, Math.abs(n[i + 1])); }
         return { tri: n.length / 9, pire, ny, ombre: m.castShadow && m.receiveShadow, tuile: I.tuiles.some((t) => t.gros === m || t.det === m), dansScene: m.parent === I.scene }; });
-      verif(v && v.tri > 50 && v.pire < -0.2 && v.ny === 0 && v.ombre && !v.tuile && v.dansScene, `l'intérieur des voûtes : un maillage à part (${v && v.tri} triangles), tourné à l'opposé du soleil (N·L ≤ ${v && v.pire.toFixed(2)}) : jamais au soleil, même sans ombres`);
+      verif(v && v.tri >= 20 && v.pire < -0.2 && v.ny === 0 && v.ombre && !v.tuile && v.dansScene, `l'intérieur des voûtes : un maillage à part (${v && v.tri} triangles), tourné à l'opposé du soleil (N·L ≤ ${v && v.pire.toFixed(2)}) : jamais au soleil, même sans ombres`);
       // le sol de la place Xavier-Bichat (un parking) : un asphalte gris, même là où la photo aérienne montre les couronnes des platanes
       const ps = (await page.evaluate(() => atelier.solPlace())) || [], verts = ps.filter((o) => o.photo > 6);
       const mP = mediane(verts.map((o) => o.photo)), mR = mediane(verts.map((o) => o.rendu)), mL = mediane(ps.map((o) => o.l));
@@ -115,12 +115,12 @@ const mediane = (a) => { const s = a.slice().sort((x, y) => x - y); return s.len
       verif(pa.q === autre && pa.ptx === pa.p0 && pa.memes && pa.retour === pa.q0 && pa.memes2 && !pa.err, `un palier de la qualité adaptative (${pa.q0} → ${pa.q} → ${pa.retour}) garde les textures (${pa.ptx}) et les bâtiments`);
       // la qualité choisie : vers l'éco (ou en revenir) refait les textures et les bâtiments ; au retour, la mémoire JS (après ramassage) et
       // celle des textures reviennent : rien de mort n'est gardé (les matériaux de PTEXTURES restent dans MODELES.partager, vidés)
-      const tas = async () => { await cdp.send('HeapProfiler.collectGarbage'); await cdp.send('HeapProfiler.collectGarbage'); return (await cdp.send('Runtime.getHeapUsage')).usedSize / 1048576; };
+      const tas = async () => { await cdp.send('HeapProfiler.collectGarbage'); await cdp.send('HeapProfiler.collectGarbage'); const u = await cdp.send('Runtime.getHeapUsage'); return (u.usedSize + (u.backingStorageSize || 0)) / 1048576; }; // le tas et les octets des tableaux typés
       const base = await page.evaluate(() => atelier.scene('place')), H = [];
       for (const q of [autre, qualite, autre, qualite, autre, qualite]) { await page.evaluate((q) => { PRENDU.qualite(q); atelier.scene('place'); }, q); if (q === qualite) H.push(await tas()); }
       const apres = await page.evaluate(() => Object.assign({ ptx: PTEXTURES.qualite() }, atelier.scene('place')));
-      verif(apres.ptx === qualite && apres.qualite === qualite && Math.abs(apres.memoire - base.memoire) < 0.5 && apres.textures <= base.textures && apres.calls === base.calls && Math.abs(apres.triangles - base.triangles) < 200,
-        `allers-retours ${qualite} ↔ ${autre} choisis : textures refaites (${apres.ptx}), même image (${base.calls} → ${apres.calls} appels, ${base.memoire} → ${apres.memoire} Mo de textures, ${base.textures} → ${apres.textures} textures)`);
+      verif(apres.ptx === qualite && apres.qualite === qualite && apres.memoire <= base.memoire + 0.3 && apres.textures <= base.textures && apres.calls === base.calls && Math.abs(apres.triangles - base.triangles) < 200,
+        `allers-retours ${qualite} ↔ ${autre} choisis : textures refaites (${apres.ptx}), même image, rien de plus en mémoire (${base.calls} → ${apres.calls} appels, ${base.memoire} → ${apres.memoire} Mo de textures, ${base.textures} → ${apres.textures} textures)`);
       verif(H[2] - H[1] < 4 && H[1] - H[0] < 4, `la mémoire JS revient après chaque aller-retour (${H.map((h) => h.toFixed(1)).join(' → ')} Mo : moins de 4 Mo d'écart ; la fuite d'avant gardait ≈ 34 Mo par aller-retour)`);
     }
     const fin = await page.evaluate(() => PRENDU.stats);

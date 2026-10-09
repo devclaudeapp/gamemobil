@@ -13,7 +13,8 @@
    cellules sans arête, dont l'état (libre ou plein) est calculé une fois pour toutes. Aucune allocation dans les chemins chauds hors du
    résultat rendu. Une position déjà DANS une région pleine (téléportation ratée : jamais en jeu normal) est rendue par deplacer au point
    libre le plus proche. Pour les tirs, un tronc est un cylindre jusqu'à max(2,5 ; h/2) m (le feuillage laisse passer), un mur un bloc
-   jusqu'à sol + h (sol pris à ses sommets, comme decor.js), un objet un cylindre ; leur dessus arrête aussi ce qui descend.
+   jusqu'à sol + h (sol pris à ses sommets, comme decor.js), un objet un cylindre (ou plusieurs : degrés, piédestal, obélisque du
+   monument), le feuillage dense d'un conifère un cylindre de 0,3 à 0,6·h m qui arrête tirs et vues mais pas les pas ; leur dessus arrête aussi ce qui descend.
    PASSAGES VOÛTÉS (carte.passages [{ l: [a, b], w, h, b, n }]) : un couloir rectangulaire (axe a→b, largeur w) creusé au rez-de-chaussée
    des bâtiments b, sous une voûte en plein cintre : l'intrados est à sol + h − w/2 + √((w/2)² − e²) à l'écart e de l'axe (naissance à
    h − w/2, clé à h ; le sol suit le relief, linéaire de a à b). Au sol, les morceaux de façade compris dans le couloir disparaissent et
@@ -50,10 +51,16 @@
   const SOURCE = { interdit: -1, eau: -2, bord: -3, parapet: -4, arbre: -5, mur: -6, mobilier: -7 };
   const MARCHE = 0.45;       // un mur de 45 cm au plus se franchit comme une marche : il n'arrête que les tirs
   const VOUTE = { w: 3.2, h: 3.4, naissance: 1.2, sousToit: 0.3, wMax: 5 }; // passage sans w ni h ; bornes de la voûte
-  // le mobilier massif, aux tailles que dessine decor.js : rayon au sol, hauteur ; l'abribus : sa paroi du fond (repère de l'objet)
-  const MOBILIER = { fontaine: { r: 1.15, h: 0.6 }, monument: { r: 0.75, h: 2.1 }, croix: { r: 0.45, h: 1.36 }, abribus: { r: 0.08, h: 2.38, paroi: [1.55, -0.62] } };
+  // le mobilier massif, aux tailles que dessine decor.js : rayon au sol, hauteur (ou une liste de cylindres concentriques : le monument a
+  // ses degrés de 2,6 m puis 2 m, son piédestal et sa corniche, son obélisque fuselé 0,42 → 0,24 jusqu'à 4,95 m) ; l'abribus : sa paroi du fond (repère de l'objet)
+  const MOBILIER = { fontaine: { r: 1.15, h: 0.6 }, monument: [{ r: 1.3, h: 0.4 }, { r: 0.75, h: 2.1 }, { r: 0.36, h: 4.7 }], croix: { r: 0.45, h: 1.36 }, abribus: { r: 0.08, h: 2.38, paroi: [1.55, -0.62] } };
   const rTronc = (h) => { const r = 0.12 + 0.025 * h; return r < 0.2 ? 0.2 : r > 0.6 ? 0.6 : r; }; // le rayon d'un tronc (m)
   const hTronc = (h) => Math.max(2.5, 0.5 * h);  // la hauteur de tronc qui arrête les tirs (au-dessus, le feuillage les laisse passer)
+  // les étages d'un conifère descendent jusqu'au sol : ce feuillage dense arrête les tirs et les vues, pas les pas ; un cylindre de 0,3 m
+  // à 0,6·h (dans le cône dessiné), de rayon min(0,45·r ; tronc + joueur − 5 cm) : jamais assez large pour qu'on y ait l'œil (un rayon
+  // parti du dedans l'ignore : on s'y cacherait en tirant) ; 0 : rien (feuillu, saule… : couronne au-dessus des têtes, rideaux clairsemés)
+  const R_JOUEUR = REGLES && REGLES.JOUEUR && REGLES.JOUEUR.rayon > 0 ? REGLES.JOUEUR.rayon : 0.35;
+  const rFeuillage = (h, r, e) => { if (e !== 'conifere') return 0; const f = Math.min(0.45 * r, rTronc(h) + R_JOUEUR - 0.05); return f > rTronc(h) + 0.05 ? f : 0; };
   const DE = ['batiment', 'voute', 'arbre', 'mur', 'mobilier', 'terrain'];
   const fini = (v) => typeof v === 'number' && v - v === 0;
 
@@ -331,12 +338,13 @@
     arete(AM, X0, X0, X1, X0, SOURCE.bord); arete(AM, X1, X0, X1, X1, SOURCE.bord); arete(AM, X1, X1, X0, X1, SOURCE.bord); arete(AM, X0, X1, X0, X0, SOURCE.bord);
 
     // ─── les obstacles (capsules) : troncs, murs, mobilier massif ; OB : [haut en a, haut en b, bas, de, k] ───
-    const OB = [], compte = { troncs: 0, murs: 0, murets: 0, mobilier: 0 };
+    const OB = [], compte = { troncs: 0, feuillages: 0, murs: 0, murets: 0, mobilier: 0 };
     const obstacle = (ax, az, bx, bz, w, ya, yb, bas, de, k, sol) => { arete(sol ? AM : AV, ax, az, bx, bz, de === 2 ? SOURCE.arbre : de === 3 ? SOURCE.mur : SOURCE.mobilier, w, OB.length / 5); OB.push(ya, yb, bas, de, k); };
     liste(carte.arbres).forEach((a, k) => {
       if (!Array.isArray(a) || a.length < 5) return; // une vieille entrée [x, z, h] ne bloque rien (comme avant)
       const x = +a[0], z = +a[1], h = +a[2]; if (!fini(x) || !fini(z) || !(h > 0) || !(x >= X0 && x <= X1 && z >= X0 && z <= X1)) return;
       const y = hauteur(x, z); obstacle(x, z, x, z, rTronc(h), y + hTronc(h), y + hTronc(h), y - 0.6, 2, k, true); compte.troncs++;
+      const rf = rFeuillage(h, +a[3], a[4]); if (rf > 0) { obstacle(x, z, x, z, rf, y + 0.6 * h, y + 0.6 * h, y + 0.3, 2, k, false); compte.feuillages++; }
     });
     liste(carte.murs).forEach((m, k) => { // hauteur et épaisseur comme decor.js les dessine
       const l = m && m.l; if (!Array.isArray(l)) return;
@@ -352,7 +360,7 @@
     liste(carte.mobilier).forEach((o, k) => {
       const d = o && MOBILIER[o.t]; if (!d) return; const x = +o.x, z = +o.z; if (!fini(x) || !fini(z)) return;
       const y = hauteur(x, z); compte.mobilier++;
-      if (!d.paroi) { obstacle(x, z, x, z, d.r, y + d.h, y + d.h, y - 0.6, 4, k, true); return; }
+      if (Array.isArray(d) || !d.paroi) { for (const q of Array.isArray(d) ? d : [d]) obstacle(x, z, x, z, q.r, y + q.h, y + q.h, y - 0.6, 4, k, true); return; }
       // repère de decor.js : l'objet regarde vers (−sin yaw, −cos yaw) ; (x, z) local → (x0 − cos·x − sin·z, z0 + sin·x − cos·z)
       const yaw = fini(+o.yaw) ? +o.yaw : 0, c = Math.cos(yaw), s = Math.sin(yaw), [lx, lz] = d.paroi;
       obstacle(x + c * lx - s * lz, z - s * lx - c * lz, x - c * lx - s * lz, z + s * lx - c * lz, d.r, y + d.h, y + d.h, y - 0.6, 4, k, true);
@@ -731,12 +739,12 @@
       hauteur, bloque, deplacer, rayon, vue, libre,
       passe, dedans, pente, sousVoute, arche,
       accessible: null, // une fonction (x, z) → bool qu'y branche PNAV.creer : la composante principale de la navigation
-      stats: { aretes: NM, aretesTirs: NA - NM, cellules: G * G, cote: CS, regions: regions.length, ponts: couloirs.length, passages: NP, troncs: compte.troncs, murs: compte.murs, murets: compte.murets, mobilier: compte.mobilier },
+      stats: { aretes: NM, aretesTirs: NA - NM, cellules: G * G, cote: CS, regions: regions.length, ponts: couloirs.length, passages: NP, troncs: compte.troncs, feuillages: compte.feuillages, murs: compte.murs, murets: compte.murets, mobilier: compte.mobilier },
       // les arêtes au sol (E : ax, az, bx, bz ; EW : demi-épaisseur ; ES : source), pour la navigation et les tests
       _interne: { E: E.subarray(0, 4 * NM), EW: EW.subarray(0, NM), ES: ES.subarray(0, NM), cA0, cA, G, CS, MARGE, regions, X0, PV },
     };
     return monde;
   }
 
-  return { creer, CELLULE, MARGE, SOURCE, MARCHE, MOBILIER, VOUTE, rTronc, hTronc, nettoyer, dansPoly };
+  return { creer, CELLULE, MARGE, SOURCE, MARCHE, MOBILIER, VOUTE, rTronc, hTronc, rFeuillage, nettoyer, dansPoly };
 });

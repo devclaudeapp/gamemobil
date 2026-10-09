@@ -37,12 +37,13 @@ function hauteurRef(carte, x, z) { // barycentrique dans le triangle du maillage
   const H = (p) => h[p[1] * n + p[0]]; return H(T[0]) * (1 - l1 - l2) + H(T[1]) * l1 + H(T[2]) * l2;
 }
 // les obstacles de la carte, décrits à part (rayons, hauteurs : ceux du contrat de monde.js) : troncs des arbres mesurés, murs, mobilier massif
-const MOB_REF = { fontaine: [1.15, 0.6], monument: [0.75, 2.1], croix: [0.45, 1.36] };
+const MOB_REF = { fontaine: [[1.15, 0.6]], monument: [[1.3, 0.4], [0.75, 2.1], [0.36, 4.7]], croix: [[0.45, 1.36]] };
 function obstaclesRef(monde, carte) {
   if (carte._obsRef) return carte._obsRef;
   const H = (x, z) => monde.hauteur(x, z), o = { cyl: [], caps: [] };
-  (carte.arbres || []).forEach((a, k) => { if (a.length >= 5) { const r = Math.min(0.6, Math.max(0.2, 0.12 + 0.025 * a[2])), y = H(a[0], a[1]); o.cyl.push({ x: a[0], z: a[1], r, haut: y + Math.max(2.5, a[2] / 2), bas: y - 0.6, de: 'arbre', k }); } });
-  (carte.mobilier || []).forEach((m, k) => { const t = MOB_REF[m.t]; if (t) { const y = H(m.x, m.z); o.cyl.push({ x: m.x, z: m.z, r: t[0], haut: y + t[1], bas: y - 0.6, de: 'mobilier', k }); }
+  (carte.arbres || []).forEach((a, k) => { if (a.length >= 5) { const r = Math.min(0.6, Math.max(0.2, 0.12 + 0.025 * a[2])), y = H(a[0], a[1]); o.cyl.push({ x: a[0], z: a[1], r, haut: y + Math.max(2.5, a[2] / 2), bas: y - 0.6, de: 'arbre', k });
+    const rf = Math.min(0.45 * a[3], r + 0.3); if (a[4] === 'conifere' && rf > r + 0.05) o.cyl.push({ x: a[0], z: a[1], r: rf, haut: y + 0.6 * a[2], bas: y + 0.3, de: 'arbre', k }); } }); // + le feuillage dense
+  (carte.mobilier || []).forEach((m, k) => { const t = MOB_REF[m.t]; if (t) { const y = H(m.x, m.z); for (const c of t) o.cyl.push({ x: m.x, z: m.z, r: c[0], haut: y + c[1], bas: y - 0.6, de: 'mobilier', k }); }
     else if (m.t === 'abribus') { const c = Math.cos(m.yaw || 0), s = Math.sin(m.yaw || 0), P = (lx, lz) => [m.x - c * lx - s * lz, m.z + s * lx - c * lz], a = P(-1.55, -0.62), b = P(1.55, -0.62), y = H(m.x, m.z); o.caps.push({ a, b, r: 0.08, ha: y + 2.38, hb: y + 2.38, bas: y - 0.6, de: 'mobilier', k }); } });
   (carte.murs || []).forEach((m, k) => { const h = m.h > 0.3 ? Math.min(6, Math.max(0.4, m.h)) : 1.8, e = m.e > 0.05 ? Math.min(1.2, Math.max(0.1, m.e)) : 0.45;
     for (let i = 0; i + 1 < m.l.length; i++) { const a = m.l[i], b = m.l[i + 1]; o.caps.push({ a, b, r: e / 2, ha: H(a[0], a[1]) + h, hb: H(b[0], b[1]) + h, bas: Math.min(H(a[0], a[1]), H(b[0], b[1])) - 0.6, de: 'mur', k, sol: h > 0.45 }); } });
@@ -485,6 +486,10 @@ titre('Troncs, murs et mobilier');
   h = M3.rayon(...oeil3(-20, 5, 0.4), 0, 0, 1, 10); check(h && h.de === 'mobilier' && h.k === 0, 'un tir bas arrêté par le bassin de la fontaine');
   h = M3.rayon(...oeil3(-20, 5, 1.0), 0, 0, 1, 10); check(h === null, '… à 1 m, il passe au-dessus');
   h = M3.rayon(...oeil3(20, 5), 0, 0, 1, 10); check(h && h.de === 'mobilier' && h.k === 1 && Math.abs(h.z - (10 - 0.75)) < 1e-9, 'le monument arrête les tirs');
+  { const v = (y, z0) => M3.rayon(20, M3.hauteur(20, z0) + y, z0, 0, 0, 1, 10); // l'obélisque (jusqu'à 4,7 m, r 0,36) et les degrés (r 1,3 sur 0,4 m)
+    const a = v(3.5, 5), b = v(5.2, 5), c = v(0.25, 5); // le sol monte de 0,2 m jusqu'au monument
+    check(a && a.de === 'mobilier' && a.k === 1 && Math.abs(a.z - (10 - 0.36)) < 1e-9 && b === null && c && c.k === 1 && Math.abs(c.z - (10 - 1.3)) < 1e-9 && M3.bloque(20, 10 + 1.3 + r3 - 0.01, r3) && !M3.bloque(20, 10 + 1.3 + r3 + 0.01, r3),
+      'le monument : un tir à 3,5 m bute sur l\'obélisque, à 5,2 m il passe au-dessus ; les degrés (1,3 m) arrêtent un tir rasant et les pieds'); }
   // contre la recherche brute, sur la place
   const rnd = R.mulberry32(43); let desaccord = 0, n = 0, obs = 0;
   for (let k = 0; k < 2500; k++) {
@@ -664,6 +669,13 @@ if (fs.existsSync(vraie)) {
   const rnd = R.mulberry32(51); let pres = 0, coll = 0; // dans l'arène, autour des troncs : des pas au hasard ne traversent jamais un tronc
   for (const a of dansArene) { const rt = Math.min(0.6, Math.max(0.2, 0.12 + 0.025 * a[2])); let p = [a[0] + rt + 0.5, a[1]]; if (MV.bloque(p[0], p[1], J.rayon)) continue; pres++; for (let k = 0; k < 60; k++) { const ang = rnd() * 6.3; p = MV.deplacer(p[0], p[1], Math.cos(ang) * 0.4, Math.sin(ang) * 0.4, J.rayon); if (Math.hypot(p[0] - a[0], p[1] - a[1]) < rt + J.rayon - 2e-3) coll++; } }
   check(coll === 0 && pres > 40, `${pres} troncs de l'arène bousculés 60 fois chacun : jamais traversés`);
+  { // le sapin de l'arène : son feuillage dense cache qui est derrière (ni vue ni tir), sans gêner les pas ; personne n'y a l'œil
+    const S = CV.arbres.find((a) => a[4] === 'conifere' && Math.hypot(a[0] - A.centre[0], a[1] - A.centre[1]) <= A.rayon), ys = (x, z) => MV.hauteur(x, z);
+    const rob = [S[0] + 8, ys(S[0] + 8, S[1]) + 1.6, S[1]], cache = [S[0] - 1.5, ys(S[0] - 1.5, S[1] + 0.7) + 1.2, S[1] + 0.7], h = MV.rayon(...rob, ...[cache[0] - rob[0], cache[1] - rob[1], cache[2] - rob[2]].map((v, i, d) => v / Math.hypot(...d)), 20);
+    const rf = PM.rFeuillage(S[2], S[3], S[4]), rt = PM.rTronc(S[2]);
+    check(S && !MV.vue(...rob, ...cache) && !MV.vue(...cache, ...rob) && h && h.de === 'arbre' && MV.vue(rob[0], rob[1], rob[2], S[0] - 1.5, cache[1], S[1] + 3) && !MV.bloque(cache[0], cache[2], J.rayon) && MV.stats.feuillages === CV.arbres.filter((a) => PM.rFeuillage(a[2], a[3], a[4]) > 0).length && rf > rt && rf < rt + J.rayon,
+      `le sapin de l'arène [${S && S.slice(0, 4)}] : ni vue ni tir à travers son feuillage (cylindre de ${f2(rf)} m), à côté on voit ; ${MV.stats.feuillages} conifères ainsi garnis`);
+  }
 } else console.log('\n── (pas de poncin/carte/poncin.json : épreuve sautée)');
 
 titre('Cartes abîmées : jamais d\'exception');
