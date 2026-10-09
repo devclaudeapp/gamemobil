@@ -55,12 +55,55 @@
       <div class="cm-pied"><p class="cm-resume" id="resume-arene"></p><button type="button" class="bouton gros menthe" id="b-lancer" data-a="lancer">C’est parti !</button></div>
     </article>
     <div class="modes-bientot">
+      <button type="button" class="carte-mode copains" id="b-copains" data-a="copains"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="17" cy="18" r="6.5" fill="#7FB3FF" stroke="#2B2A4C" stroke-width="3.5"/><circle cx="32" cy="18" r="6.5" fill="#5FD3A4" stroke="#2B2A4C" stroke-width="3.5"/><path d="M6 38c1-8 6-11 11-11s10 3 11 11zM21 38c1-8 6-11 11-11s10 3 11 11z" fill="#fff" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/></svg></span>
+        <span class="cm-texte"><b class="cm-h3">Avec les copains <em class="nouveau">En ligne</em></b><small>L’Arène à 2, 3 ou 4 sur vos téléphones, avec ou sans robots.</small></span><span class="cm-fleche" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.5 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
       <article class="carte-mode bientot"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="9" y="16" width="30" height="24" rx="5" fill="#FFC84A" stroke="#2B2A4C" stroke-width="3.5"/><path d="M9 24h30M24 16v24" stroke="#2B2A4C" stroke-width="3.5"/><path d="M24 16c-4-8-12-8-11-3s11 3 11 3c4-8 12-8 11-3s-11 3-11 3" fill="#FF6B8B" stroke="#2B2A4C" stroke-width="3" stroke-linejoin="round"/></svg></span>
         <div><h3>Extraction <em>Bientôt</em></h3><p>Récupère le butin dans le village et file au point d’extraction.</p></div></article>
       <article class="carte-mode bientot"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="18" cy="20" r="9" fill="#FFC84A" stroke="#2B2A4C" stroke-width="3.5"/><path d="M38 28a11 11 0 1 1-12-14 9 9 0 0 0 12 14z" fill="#B8A6FF" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/></svg></span>
         <div><h3>Jour / Nuit <em>Bientôt</em></h3><p>Le jour on fortifie la base, la nuit les robots attaquent.</p></div></article>
-      <article class="carte-mode bientot copains"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="17" cy="18" r="6.5" fill="#7FB3FF" stroke="#2B2A4C" stroke-width="3.5"/><circle cx="32" cy="18" r="6.5" fill="#5FD3A4" stroke="#2B2A4C" stroke-width="3.5"/><path d="M6 38c1-8 6-11 11-11s10 3 11 11zM21 38c1-8 6-11 11-11s10 3 11 11z" fill="#fff" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/></svg></span>
-        <div><h3>Avec les copains <em>Bientôt</em></h3><p>Bientôt : salons en ligne, jusqu’à 4 joueurs.</p></div></article>
+    </div>
+  </div>
+</section>
+
+<section class="ecran copains-ecran" id="e-copains" data-e="copains" hidden>
+  <header class="barre-haut">
+    <button type="button" class="rond" data-a="modes" aria-label="Retour"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <h2>Avec les copains</h2>
+    <div class="barre-droite"><button type="button" class="pilule pseudo" data-a="reglages" aria-label="Changer de pseudo"><i class="pastille" id="moi-couleur"></i><span id="moi-pseudo">Castor Turbo 42</span></button></div>
+  </header>
+  <div class="copains-grille">
+    <div class="carte-mode cp-carte">
+      <h3>Créer un salon</h3>
+      <p>Tu reçois un code de 4 lettres à donner aux copains. C’est toi qui lances la partie.</p>
+      <button type="button" class="bouton gros fraise" id="b-creer" data-a="creer">Créer un salon</button>
+    </div>
+    <div class="carte-mode cp-carte">
+      <h3>Rejoindre</h3>
+      <p>Tape le code que ton copain te donne.</p>
+      <div class="cp-rejoindre"><input type="text" id="code-salon" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="ABCD" aria-label="Code du salon"><button type="button" class="bouton gros menthe" id="b-rejoindre" data-a="rejoindre">Rejoindre</button></div>
+    </div>
+  </div>
+  <p class="cp-note" id="cp-note" aria-live="polite"></p>
+</section>
+
+<section class="ecran salon" id="e-salon" data-e="salon" hidden>
+  <header class="barre-haut">
+    <button type="button" class="rond" data-a="salon-quitter" aria-label="Quitter le salon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <h2>Salon</h2>
+    <div class="salon-code" aria-label="Code du salon"><small>Code</small><b id="salon-code">····</b></div>
+    <div class="barre-droite salon-partage">
+      <button type="button" class="pilule" data-a="partager"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 12v6.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Partager le lien</span></button>
+      <button type="button" class="pilule" data-a="copier"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="12" rx="2.5" fill="#fff" stroke="currentColor" stroke-width="2.3"/><path d="M15.5 5.5V5A1.5 1.5 0 0 0 14 3.5H6.5A1.5 1.5 0 0 0 5 5v10a1.5 1.5 0 0 0 1.5 1.5H8" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/></svg><span>Copier le code</span></button>
+    </div>
+  </header>
+  <div class="salon-grille">
+    <div class="panneau salon-joueurs"><h3>Joueurs <span id="salon-nb"></span></h3><ul id="salon-liste"></ul></div>
+    <div class="panneau salon-reglages">
+      <div class="opt"><span>Robots en plus</span><div class="seg" data-sopt="bots" role="group" aria-label="Robots en plus"><button type="button" data-v="0">0</button><button type="button" data-v="1">1</button><button type="button" data-v="2">2</button><button type="button" data-v="3">3</button><button type="button" data-v="4">4</button></div></div>
+      <div class="opt"><span>Niveau</span><div class="seg" data-sopt="niveau" role="group" aria-label="Niveau des robots"><button type="button" data-v="facile">Facile</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="fort">Fort</button></div></div>
+      <div class="opt"><span>Format</span><div class="seg" data-sopt="equipes" role="group" aria-label="Format"><button type="button" data-v="0">Chacun pour soi</button><button type="button" data-v="1">2 équipes</button></div></div>
+      <p class="salon-etat" id="salon-etat" aria-live="polite"></p>
+      <button type="button" class="bouton gros menthe" id="b-salon-action" data-a="salon-action">Lancer la partie</button>
     </div>
   </div>
 </section>
@@ -78,7 +121,7 @@
     <label class="reg inter"><span><b>Son</b><small>Blasters, splats et petites musiques</small></span><input type="checkbox" data-r="son"><i aria-hidden="true"></i></label>
     <label class="reg inter"><span><b>Vibrations</b><small>Quand tu touches ou qu’on te touche</small></span><input type="checkbox" data-r="vibre"><i aria-hidden="true"></i></label>
     <div class="reg large"><span><b>Qualité</b><small>Auto s’adapte à ton téléphone</small></span><div class="seg" data-r="qualite" role="group" aria-label="Qualité"><button type="button" data-v="auto">Auto</button><button type="button" data-v="haute">Haute</button><button type="button" data-v="moyenne">Moyenne</button><button type="button" data-v="eco">Éco</button></div></div>
-    <label class="reg large"><span><b>Ton nom</b><small>Dans le fil des éliminations</small></span><input type="text" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Toi" data-r="nom"></label>
+    <label class="reg large"><span><b>Ton pseudo</b><small>Dans le fil des éliminations et pour les copains en ligne</small></span><input type="text" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Toi" data-r="nom"></label>
   </div>
 </section>
 
@@ -98,11 +141,14 @@
 <section class="ecran pause" id="e-pause" data-e="pause" hidden>
   <div class="panneau carte-pause">
     <h2>Pause</h2>
+    <p class="pause-enligne" id="pause-enligne" hidden>En ligne : la partie continue pendant la pause.</p>
     <div class="pause-score" id="pause-score"></div>
     <button type="button" class="bouton gros menthe" data-a="reprendre">Reprendre</button>
     <div class="pause-bas"><button type="button" class="bouton blanc" data-a="reglages">Réglages</button><button type="button" class="bouton blanc" data-a="quitter">Quitter</button></div>
   </div>
 </section>
+
+<div class="salon-toast" id="salon-toast" aria-live="polite" hidden></div>
 
 <div id="sans3d" class="voile-panneau" hidden>
   <div class="panneau">

@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Textures · Opération Poncin</title>
+<style>
+html,body{margin:0;height:100%;overflow:hidden;background:#2B2A4C;font:11px/1.25 system-ui,sans-serif;color:#F4EFE6}
+#vue3d{position:fixed;inset:0;width:100%;height:100%;display:block}
+#planche{position:fixed;inset:0;overflow:hidden;padding:8px 10px;box-sizing:border-box;display:none;flex-wrap:wrap;align-content:flex-start;gap:8px 8px}
+#planche figure{margin:0;display:flex;flex-direction:column;align-items:center}
+#planche canvas{display:block;border-radius:3px;box-shadow:0 1px 0 rgba(0,0,0,.4)}
+#planche figcaption{margin-top:2px;font-weight:600;letter-spacing:.01em;opacity:.92;white-space:nowrap}
+#planche h2{width:100%;margin:0 0 -2px;font-size:12px;color:#FFC84A}
+#info{position:fixed;left:6px;bottom:4px;background:rgba(43,42,76,.72);padding:2px 6px;border-radius:6px;font-family:monospace;font-size:10px}
+</style>
+</head><body>
+<canvas id="vue3d"></canvas><div id="planche"></div><div id="info" hidden></div>
+<script src="../vendor/three.min.js"></script>
+<script src="../src/modeles.js"></script>
+<script src="../src-poncin/textures.js"></script>
+<script>
+// La page de test des textures du décor (test/poncin-textures.cjs) : ?vue=murs | toits | sols | atlas | zoom | rue | facade | eglise | haut | sol,
+// ?qualite=haute | moyenne | eco. Les planches montrent chaque matière répétée 2 × 2 (les coutures se verraient) ; la rue de démonstration
+// est construite comme rendu.js devrait le faire : bâtiments fusionnés en UN maillage (attributs uv en mètres / 3 et couche, matériau
+// PTEXTURES.bati), ouvertures en un maillage (atlas PTEXTURES.details), enseignes et plaques en un maillage par page d'atlas, sol = « photo »
+// unie × 2 × texture de détail neutre ; lumières, brouillard et ombres comme le jeu. Les textes viennent de la carte (noms OSM de Poncin).
+'use strict';
+const P = new URLSearchParams(location.search), QUAL = P.get('qualite') || 'haute', VUE = P.get('vue') || 'rue', T = PTEXTURES;
+const tex = window.__tex = { pret: false, mesures: {}, erreurs: [] };
+T.qualite(QUAL);
+const ms = (f) => { const t0 = performance.now(); const r = f(); return [r, performance.now() - t0]; };
+// ─── 1. le jeu typique, chronométré : ce que rendu.js et decor.js demanderont à l'init ───
+const NOMS_BATI = ['crepi', 'mixte', 'pierre', 'taille', 'brique', 'beton', 'bois', 'tuiles', 'canal', 'ecailles', 'ardoise', 'ardoise-ecailles', 'zinc', 'plat', 'verre'];
+const ENSEIGNES = [['Bar des Sports', 'bar'], ['Aux Pains Dorés', 'boulangerie'], ['Bureau de Tabac Presse', 'tabac'], ['Crédit Agricole', 'banque'], ['La Poste', 'poste'], ['Petit Casino', 'epicerie'], ['Office de tourisme intercommunal', 'tourisme'], ['Mairie', 'mairie'], ['', 'carotte'], ['', 'drapeau'], ['SB coiffure', 'coiffeur'], ['Pharmacie', 'pharmacie']];
+const RUES = ["Place Xavier Bichat", "Rue Xavier Bichat", "Rue des Halles", "Place de l'Église", "Porte Bouvent", "Impasse du Bonheur", "Rue Neuve", "Quai du Veyron", "Rue de la Première Armée Française Rhin-Danube", "Avenue du Château", "Rue des Prêtres", "Place de Verdun", "Grande Rue", "Rue de l'Étoile", "Chemin de la Gadine"];
+let B, D;
+const PREP = { bati: ['crepi', 'mixte', 'pierre', 'taille', 'tuiles', 'canal', 'ardoise', 'ardoise-ecailles', 'plat'], details: true, sols: ['asphalte', 'paves', 'gravier', 'herbe'], enseignes: ENSEIGNES, plaques: RUES };
+{ const t = performance.now(); let s = 0; for (let i = 0; i < 1e7; i++) s += i * 0.5; tex.etalon = +(performance.now() - t).toFixed(1); tex.etalonS = s > 0; } // vitesse brute du processeur (1e7 tours de boucle)
+async function fabriquer() {
+  if (P.get('mesure') === 'async') { const t0 = performance.now(); tex.prep = await T.preparer(PREP); tex.mesures.preparer = performance.now() - t0; } // en tâche de fond, par tranches
+  const t0 = performance.now();
+  [B, tex.mesures.bati] = ms(() => T.bati(PREP.bati));
+  [D, tex.mesures.details] = ms(() => T.details());
+  tex.mesures.sols = ms(() => T.solPaquet(PREP.sols))[1];
+  tex.mesures.enseignes = ms(() => { for (const [n, t] of ENSEIGNES) T.enseigne(n, t); })[1];
+  tex.mesures.plaques = ms(() => { for (const n of RUES) T.plaqueRue(n); })[1];
+  tex.mesures.typique = performance.now() - t0; tex.statsTypique = T.stats();
+  // puis tout le reste : toutes les couches, chaque façade et chaque toit séparés, les sols en couleurs
+  const t1 = performance.now(); B = T.bati(NOMS_BATI);
+  for (const m of T.MURS) T.facade(m); for (const [n, h] of Object.entries(T.TEINTES.crepi)) T.facade('crepi', h); for (const t of T.TOITS) T.toit(t);
+  for (const s of T.SOLS) { T.sol(s); T.sol(s, { couleur: true }); }
+  tex.mesures.reste = performance.now() - t1; tex.statsTout = T.stats();
+  for (const k in tex.mesures) tex.mesures[k] = +tex.mesures[k].toFixed(1);
+}
+
+// ─── 2. les planches ───
+function figure(parent, src, titre, cote, rep) { // une matière répétée rep × rep dans un carré de cote px CSS
+  const f = document.createElement('figure'), cv = document.createElement('canvas'), dpr = Math.min(2, devicePixelRatio || 1);
+  cv.width = cv.height = Math.round(cote * dpr); cv.style.width = cv.style.height = cote + 'px'; const c = cv.getContext('2d'), s = cv.width / rep;
+  c.imageSmoothingQuality = 'high'; for (let j = 0; j < rep; j++) for (let i = 0; i < rep; i++) c.drawImage(src, i * s, j * s, s, s);
+  const fc = document.createElement('figcaption'); fc.textContent = titre; f.append(cv, fc); parent.append(f); return f;
+}
+function planche(vue) {
+  const el = document.getElementById('planche'); el.style.display = 'flex'; el.innerHTML = '';
+  const h2 = (t) => { const h = document.createElement('h2'); h.textContent = t; el.append(h); }, A = (t) => T.apercu(t);
+  if (vue === 'murs') {
+    h2('Façades (3 × 3 m, répétées 2 × 2) — matières');
+    for (const m of T.MURS) figure(el, A(T.facade(m)), m, 108, 2);
+    h2('Crépis teintés (teinte = couleur moyenne)');
+    for (const [n, h] of Object.entries(T.TEINTES.crepi)) figure(el, A(T.facade('crepi', h)), n + ' ' + h, 92, 2);
+  } else if (vue === 'toits') {
+    h2('Toits (3 × 3 m, répétés 2 × 2 ; le faîtage en haut)');
+    for (const t of T.TOITS) figure(el, A(T.toit(t)), t, 108, 2);
+    h2('Sols en couleurs (pour un sol sans photo)');
+    for (const s of T.SOLS) figure(el, A(T.sol(s, { couleur: true })), s, 92, 2);
+    h2('Sols neutres (détail à mêler à la photo : × 2 × texel)');
+    for (const s of T.SOLS) figure(el, A(T.sol(s)), s, 70, 2);
+  } else if (vue === 'atlas') {
+    const d = T.details(), f = figure(el, A(d.texture), 'atlas des ouvertures ' + d.texture.image.width + ' px', 350, 1); f.querySelector('canvas').style.background = 'repeating-conic-gradient(#8a8aa0 0 25%, #6d6d86 0 50%) 0 0/16px 16px';
+    const col = document.createElement('div'); col.style.cssText = 'display:flex;flex-direction:column;gap:6px;width:460px'; el.append(col);
+    for (const p of T._interne.PAGES) { const g = figure(col, p.cv, 'enseignes et plaques : page ' + (T._interne.PAGES.indexOf(p) + 1), 460, 1); const cv = g.querySelector('canvas'); cv.style.height = Math.round(460 * p.H / p.W) + 'px'; cv.height = Math.round(cv.width * p.H / p.W); cv.getContext('2d').drawImage(p.cv, 0, 0, cv.width, cv.height); cv.style.background = '#555'; }
+  } else if (vue === 'zoom') { // à l'échelle 1 pixel de texture = 1 pixel d'écran (un quart de chaque matière)
+    h2('Détail à 1:1 (pixels de l\'appareil)');
+    for (const [t, n] of [[T.facade('crepi', T.TEINTES.crepi.ocre), 'crépi ocre'], [T.facade('mixte'), 'pierres vues'], [T.facade('pierre'), 'moellons'], [T.toit('tuiles'), 'tuiles mécaniques'], [T.toit('canal'), 'tuiles canal'], [T.toit('ardoise'), 'ardoise']]) {
+      const src = A(t), f = document.createElement('figure'), cv = document.createElement('canvas'), S = Math.round(src.width / 2); cv.width = cv.height = S; cv.style.width = cv.style.height = S / Math.min(2, devicePixelRatio || 1) + 'px'; cv.getContext('2d').drawImage(src, 0, 0); const fc = document.createElement('figcaption'); fc.textContent = n; f.append(cv, fc); el.append(f);
+    }
+  }
+}
+
+// ─── 3. la rue de démonstration en 3D ───
+let renderer = null, scene, camera, soleil;
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z);
+function Lot() { this.p = []; this.n = []; this.c = []; this.u = []; this.k = []; }
+// une face : P coin bas gauche (vu de devant), R vecteur unitaire vers la droite, U vecteur unitaire « vers le haut » de la face, w × h en m ;
+// uv : [u0, v0, u1, v1] (sinon métriques / 3 depuis le coin), cb / ch : couleurs linéaires du bas et du haut, k : couche
+Lot.prototype.face = function (P0, R, U, w, h, cb, ch, k, uv) {
+  const a = P0, b = P0.clone().addScaledVector(R, w), c = b.clone().addScaledVector(U, h), d = P0.clone().addScaledVector(U, h), N = R.clone().cross(U).normalize();
+  const t = uv || [0, 0, w / 3, h / 3], cols = [cb, cb, ch, ch], uvs = [[t[0], t[1]], [t[2], t[1]], [t[2], t[3]], [t[0], t[3]]];
+  for (const i of [0, 1, 2, 0, 2, 3]) { const v = [a, b, c, d][i]; this.p.push(v.x, v.y, v.z); this.n.push(N.x, N.y, N.z); this.c.push(...cols[i]); this.u.push(...uvs[i]); this.k.push(k || 0); }
+};
+Lot.prototype.tri = function (A, Bp, C, uvA, uvB, uvC, col, k) { const N = Bp.clone().sub(A).cross(C.clone().sub(A)).normalize(); [[A, uvA], [Bp, uvB], [C, uvC]].forEach(([v, uv]) => { this.p.push(v.x, v.y, v.z); this.n.push(N.x, N.y, N.z); this.c.push(...col); this.u.push(...uv); this.k.push(k || 0); }); };
+Lot.prototype.maille = function (mat) {
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(this.p, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(this.n, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(this.c, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(this.u, 2)); g.setAttribute('couche', new THREE.Float32BufferAttribute(this.k, 1));
+  const m = new THREE.Mesh(g, mat); m.castShadow = true; m.receiveShadow = true; return m;
+};
+const LIN = (hex, k) => { const c = new THREE.Color(hex); return [c.r * (k || 1), c.g * (k || 1), c.b * (k || 1)]; };
+function construireRue() {
+  const bat = new Lot(), det = new Lot(), ens = new Map(), cel = D.cellules;
+  const enseigneQuad = (r, P0, R, U, w, h) => { let l = ens.get(r.texture); if (!l) { l = new Lot(); ens.set(r.texture, l); } l.face(P0, R, U, w, h, [1, 1, 1], [1, 1, 1], 0, r.uv); };
+  const cellule = (nom, P0, R, U, w, h, miroir) => { const u = cel[nom].uv; det.face(P0, R, U, w || cel[nom].l, h || cel[nom].h, [1, 1, 1], [1, 1, 1], 0, miroir ? [u[2], u[1], u[0], u[3]] : u); };
+  // un mur : bande sombre au pied (fausse occlusion, comme rendu.js), uv métriques depuis le début du mur et depuis le sol
+  function mur(P0, R, w, h, nom, hex) { const U = V3(0, 1, 0), b = Math.min(1.1, h); bat.face(P0, R, U, w, b, B.couleur(nom, hex, 0.62), B.couleur(nom, hex, 0.94), B.couche(nom), [0, 0, w / 3, b / 3]); bat.face(P0.clone().addScaledVector(U, b), R, U, w, h - b, B.couleur(nom, hex, 0.94), B.couleur(nom, hex, 1), B.couche(nom), [0, b / 3, w / 3, h / 3]); }
+  // une maison rectangulaire (x0..x1, z0..z1), faîtage selon x, façade principale au sud (+z) ou au nord (-z)
+  function maison(o) {
+    const { x0, x1, z0, z1, h, mur: mm, teinte, toit, teinteToit } = o, W = x1 - x0, Dz = z1 - z0, pente = o.pente || 0.62, hr = Dz / 2 * pente, deb = 0.35, zc = (z0 + z1) / 2, UP = V3(0, 1, 0);
+    mur(V3(x0, 0, z1), V3(1, 0, 0), W, h, mm, teinte); mur(V3(x1, 0, z0), V3(-1, 0, 0), W, h, mm, teinte); // sud, nord
+    mur(V3(x1, 0, z1), V3(0, 0, -1), Dz, h, mm, teinte); mur(V3(x0, 0, z0), V3(0, 0, 1), Dz, h, mm, teinte); // est, ouest
+    const cm = B.couleur(mm, teinte), km = B.couche(mm); // les pignons
+    bat.tri(V3(x1, h, z1), V3(x1, h, z0), V3(x1, h + hr, zc), [0, h / 3], [Dz / 3, h / 3], [Dz / 6, (h + hr) / 3], cm, km);
+    bat.tri(V3(x0, h, z0), V3(x0, h, z1), V3(x0, h + hr, zc), [0, h / 3], [Dz / 3, h / 3], [Dz / 6, (h + hr) / 3], cm, km);
+    const L = Math.hypot(Dz / 2 + deb, hr + deb * pente), sn = (hr + deb * pente) / L, cs = (Dz / 2 + deb) / L, ye = h - deb * pente, kt = B.couche(toit), ct = B.couleur(toit, teinteToit), ctb = B.couleur(toit, teinteToit, 0.8);
+    bat.face(V3(x0 - deb, ye, z1 + deb), V3(1, 0, 0), V3(0, sn, -cs), W + 2 * deb, L, ctb, ct, kt, [0, 0, (W + 2 * deb) / 3, L / 3]); // pan sud
+    bat.face(V3(x1 + deb, ye, z0 - deb), V3(-1, 0, 0), V3(0, sn, cs), W + 2 * deb, L, ctb, ct, kt, [0, 0, (W + 2 * deb) / 3, L / 3]); // pan nord
+    const rive = LIN('#5B4A3E'), yr = h + hr; // les planches de rive des pignons (deux faces : vues des deux côtés)
+    for (const x of [x0 - deb, x1 + deb]) for (const [A, Bp] of [[V3(x, ye, z1 + deb), V3(x, yr + 0.02, zc)], [V3(x, yr + 0.02, zc), V3(x, ye, z0 - deb)]]) { const d = Bp.clone().sub(A), l = d.length(); d.normalize(); bat.face(A.clone().add(V3(0, -0.22, 0)), d, V3(0, 1, 0), l, 0.24, rive, rive, 0); bat.face(Bp.clone().add(V3(0, -0.22, 0)), d.clone().negate(), V3(0, 1, 0), l, 0.24, rive, rive, 0); }
+    if (o.cheminee) { const cx = x0 + W * o.cheminee, cz = zc - Dz * 0.18, yb = h + hr * 0.6, s = 0.55, ht = hr * 0.4 + 1.1; for (const [P0, R] of [[V3(cx - s / 2, yb, cz + s / 2), V3(1, 0, 0)], [V3(cx + s / 2, yb, cz + s / 2), V3(0, 0, -1)], [V3(cx + s / 2, yb, cz - s / 2), V3(-1, 0, 0)], [V3(cx - s / 2, yb, cz - s / 2), V3(0, 0, 1)]]) bat.face(P0, R, UP, s, ht, B.couleur(mm, teinte, 0.9), B.couleur(mm, teinte), km, [0, 0, s / 3, ht / 3]); bat.face(V3(cx - s / 2 - 0.06, yb + ht, cz + s / 2 + 0.06), V3(1, 0, 0), V3(0, 0, -1), s + 0.12, s + 0.12, LIN('#8E7464'), LIN('#8E7464'), 0); }
+    // les ouvertures de la façade principale (sud si o.face > 0, nord sinon) : travées de ~3 m, étages de 2,85 m
+    const sud = o.face > 0, Pf = sud ? V3(x0, 0, z1 + 0.03) : V3(x1, 0, z0 - 0.03), R = sud ? V3(1, 0, 0) : V3(-1, 0, 0), n = Math.max(1, Math.floor((W - 0.6) / 3)), pas = W / n, etages = Math.max(1, Math.floor((h - 0.5) / 2.85));
+    for (let e = 0; e < (o.sansFenetres ? 0 : etages); e++) for (let i = 0; i < n; i++) {
+      const s = (i + 0.5) * pas, y0 = e * 2.85 + 0.95 - 0.08, at = (u, y) => Pf.clone().addScaledVector(R, u).add(V3(0, y, 0)), Rf = R;
+      if (e === 0 && o.rdc && o.rdc[i]) { const t = o.rdc[i], c = cel[t]; cellule(t, at(s - c.l / 2, 0), Rf, UP); continue; }
+      const f = cel.fenetre, fe = (o.fermes || []).includes(e * 10 + i), vol = o.volet ? 'volet-' + o.volet : null;
+      cellule('fenetre', at(s - f.l / 2, y0), Rf, UP);
+      if (vol) { // volets : ouverts de part et d'autre de l'encadrement, ou fermés sur l'ouverture (cellule.ouverture), le second vantail en miroir
+        const v = cel[vol], ou = f.ouverture, lo = (ou[2] - ou[0]) / 2, ho = ou[3] - ou[1], xo = s - f.l / 2 + ou[0], yo = y0 + ou[1], av = V3(0, 0, sud ? 1 : -1);
+        if (fe) { cellule(vol, at(xo, yo).addScaledVector(av, 0.03), Rf, UP, lo, ho, false); cellule(vol, at(xo + lo, yo).addScaledVector(av, 0.03), Rf, UP, lo, ho, true); }
+        else { cellule(vol, at(s - f.l / 2 - v.l + 0.07, yo - 0.03), Rf, UP, v.l, ho + 0.06, false); cellule(vol, at(s + f.l / 2 - 0.07, yo - 0.03), Rf, UP, v.l, ho + 0.06, true); }
+      }
+      if (o.balcon === e * 10 + i) { const b = cel.balcon; cellule('balcon', at(s - b.l / 2, y0 + 0.08).add(V3(0, 0, sud ? 0.06 : -0.06)), Rf, UP, b.l, 0.95); }
+    }
+    if (o.chaines) for (let e = 0; e * 2.88 < h - 0.3; e++) { const hh = Math.min(2.88, h - e * 2.88), v = hh / 2.88, cA = cel.chaine, cB = cel['chaine-b']; const uA = cA.uv, uB = cB.uv, vA = [uA[0], uA[1], uA[2], uA[1] + (uA[3] - uA[1]) * v], vB = [uB[0], uB[1], uB[2], uB[1] + (uB[3] - uB[1]) * v]; det.face(sud ? V3(x0 - 0.02, e * 2.88, z1 + 0.025) : V3(x1 + 0.02, e * 2.88, z0 - 0.025), R, UP, 0.72, hh, [1, 1, 1], [1, 1, 1], 0, vA); det.face(sud ? V3(x1 + 0.02, e * 2.88, z1 + 0.025) : V3(x0 - 0.02, e * 2.88, z0 - 0.025), R.clone().negate(), UP, 0.72, hh, [1, 1, 1], [1, 1, 1], 0, [vB[2], vB[1], vB[0], vB[3]]); }
+    if (o.descente) { const c = cel.descente, P0 = sud ? V3(x1 - 0.3, 0, z1 + 0.06) : V3(x0 + 0.3, 0, z0 - 0.06); for (let y = 0; y < h - 0.2; y += 2.88) det.face(P0.clone().add(V3(0, y, 0)), R, UP, 0.14, Math.min(2.88, h - 0.2 - y), [1, 1, 1], [1, 1, 1], 0, c.uv); }
+    if (o.soupirail) { const c = cel.soupirail; cellule('soupirail', Pf.clone().addScaledVector(R, o.soupirail).add(V3(0, 0.12, 0)), R, UP); }
+    if (o.enseigne) { const r = T.enseigne(o.enseigne[0], o.enseigne[1]), hE = 0.62, wE = Math.min(W - 1.2, hE * r.ratio), P0 = Pf.clone().addScaledVector(R, W / 2 - wE / 2).add(V3(0, 3.0, sud ? 0.04 : -0.04)); enseigneQuad(r, P0, R, UP, wE, hE * (wE / (hE * r.ratio)) > 0 ? hE * Math.min(1, wE / (hE * r.ratio)) : hE); }
+    if (o.plaque) { const r = T.plaqueRue(o.plaque), hp = 0.25, P0 = sud ? V3(x0 + 0.35, 2.7, z1 + 0.05) : V3(x1 - 0.35 - hp * r.ratio, 2.7, z0 - 0.05); enseigneQuad(r, P0, R, UP, hp * r.ratio, hp); }
+  }
+  maison({ x0: 14, x1: 23, z0: -12, z1: -4, h: 6.4, mur: 'crepi', teinte: T.TEINTES.crepi.ocre, toit: 'tuiles', teinteToit: '#A65A3E', face: 1, volet: 'vert', rdc: { 1: 'porte' }, fermes: [10, 2], cheminee: 0.7, descente: true, plaque: 'Rue des Halles' });
+  maison({ x0: 5, x1: 13.4, z0: -11, z1: -4, h: 6.2, mur: 'mixte', toit: 'canal', face: 1, volet: 'brun', rdc: { 0: 'porte-ancienne', 2: 'grange' }, chaines: true, fermes: [11], soupirail: 4.2 });
+  maison({ x0: -5, x1: 4.4, z0: -11.5, z1: -4, h: 8.9, mur: 'crepi', teinte: T.TEINTES.crepi.blanc, toit: 'tuiles', teinteToit: '#9B5640', face: 1, volet: 'bleu', rdc: { 0: 'vitrine', 1: 'vitrine-porte', 2: 'vitrine' }, balcon: 11, enseigne: ['Aux Pains Dorés', 'boulangerie'], cheminee: 0.25, descente: true, plaque: 'Place Xavier Bichat' });
+  maison({ x0: -14, x1: -5.6, z0: -10.5, z1: -4, h: 5.9, mur: 'pierre', toit: 'tuiles', teinteToit: '#8E5440', face: 1, volet: 'gris', rdc: { 1: 'porte-peinte' }, fermes: [12, 10] });
+  maison({ x0: 8, x1: 17, z0: 4.5, z1: 12, h: 6.3, mur: 'crepi', teinte: T.TEINTES.crepi.saumon, toit: 'tuiles', teinteToit: '#B0603F', face: -1, volet: 'bordeaux', rdc: { 0: 'vitrine', 1: 'vitrine-porte', 2: 'vitrine' }, enseigne: ['Bar des Sports', 'bar'], cheminee: 0.3, chaines: true });
+  // l'église : nef en pierre de taille (x de -30 à -12), toit de tuiles canal ; clocher carré à l'est, flèche d'ardoise
+  {
+    const x0 = -30, x1 = -12, z0 = 5, z1 = 14, h = 9.5, W = x1 - x0, Dz = z1 - z0, zc = (z0 + z1) / 2, UP = V3(0, 1, 0);
+    maison({ x0, x1, z0, z1, h, mur: 'taille', toit: 'canal', teinteToit: '#9A5C44', pente: 0.85, face: 1, sansFenetres: true });
+    const tx0 = -14.5, tx1 = -9.5, tz0 = 2.6, tz1 = 7.6, th = 19, s = tx1 - tx0;
+    for (const [P0, R] of [[V3(tx0, 0, tz1), V3(1, 0, 0)], [V3(tx1, 0, tz1), V3(0, 0, -1)], [V3(tx1, 0, tz0), V3(-1, 0, 0)], [V3(tx0, 0, tz0), V3(0, 0, 1)]]) {
+      mur(P0, R, s, th, 'taille');
+      const N = R.clone().cross(UP).negate(), Pd = P0.clone().addScaledVector(N, -0.03).addScaledVector(R, s / 2); // le dehors : R × UP pointe vers l'intérieur
+      const off = (u, y) => P0.clone().addScaledVector(R, u).add(V3(0, y, 0)).addScaledVector(R.clone().cross(UP), -0.04);
+      cellule('abat-son', off(s / 2 - cel['abat-son'].l / 2, th - 3.3), R, UP);
+      cellule('horloge', off(s / 2 - 0.8, th - 6.2), R, UP, 1.6, 1.6);
+      if (R.x > 0.5) cellule('portail', off(s / 2 - cel.portail.l / 2, 0), R, UP);
+      void Pd;
+    }
+    const kA = B.couche('ardoise-ecailles'), cA = B.couleur('ardoise-ecailles'), cAb = B.couleur('ardoise-ecailles', null, 0.8), hf = 9, cx = (tx0 + tx1) / 2, cz = (tz0 + tz1) / 2, deb = 0.25, A = V3(cx, th + hf, cz);
+    for (const [a, b] of [[[tx0 - deb, tz1 + deb], [tx1 + deb, tz1 + deb]], [[tx1 + deb, tz1 + deb], [tx1 + deb, tz0 - deb]], [[tx1 + deb, tz0 - deb], [tx0 - deb, tz0 - deb]], [[tx0 - deb, tz0 - deb], [tx0 - deb, tz1 + deb]]]) { const Pa = V3(a[0], th - 0.1, a[1]), Pb = V3(b[0], th - 0.1, b[1]), l = Pa.distanceTo(Pb), hs = Math.hypot(hf, (s / 2 + deb)); bat.tri(Pa, Pb, A, [0, 0], [l / 3, 0], [l / 6, hs / 3], cA, kA); }
+    const or = LIN('#D9B24A'); bat.face(V3(cx - 0.05, th + hf - 0.2, cz), V3(1, 0, 0), UP, 0.1, 1.6, or, or, 0); bat.face(V3(cx + 0.05, th + hf - 0.2, cz), V3(-1, 0, 0), UP, 0.1, 1.6, or, or, 0); bat.face(V3(cx - 0.35, th + hf + 0.9, cz), V3(1, 0, 0), UP, 0.7, 0.1, or, or, 0); bat.face(V3(cx + 0.35, th + hf + 0.9, cz), V3(-1, 0, 0), UP, 0.7, 0.1, or, or, 0);
+    for (let i = 0; i < 4; i++) cellule('vitrail', V3(x0 + 2 + i * 4, 3.2, z1 + 0.03), V3(1, 0, 0), UP);
+    { const r = T.plaqueRue("Place de l'Église"), hp = 0.25; enseigneQuad(r, V3(tx1 + 0.04, 2.7, tz1 - 0.4), V3(0, 0, -1), UP, hp * r.ratio, hp); }
+  }
+  const mBat = bat.maille(B.materiau()); mBat.name = 'bati'; scene.add(mBat);
+  const mDet = det.maille(D.materiau({ couleurs: true })); mDet.name = 'details'; mDet.castShadow = false; scene.add(mDet);
+  ens.forEach((l, t) => { const m = l.maille(new THREE.MeshLambertMaterial({ map: t, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 })); m.castShadow = false; m.name = 'enseignes'; scene.add(m); });
+  // le sol : la « photo » (une couleur unie par surface) × 2 × la texture de détail neutre, comme rendu.js le fera sous la vraie photo
+  const sol = (x0, z0, x1, z1, type, photo, y) => { const per = T.periode('sol', type), g = new THREE.PlaneGeometry(x1 - x0, z1 - z0).rotateX(-Math.PI / 2).translate((x0 + x1) / 2, y || 0, (z0 + z1) / 2), uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) { const p = g.attributes.position; uv.setXY(i, p.getX(i) / per[0], -p.getZ(i) / per[1]); } const m = new THREE.MeshLambertMaterial({ map: T.sol(type) }); const c = new THREE.Color(photo); m.color.setRGB(c.r * 2, c.g * 2, c.b * 2); const me = new THREE.Mesh(g, m); me.receiveShadow = true; me.name = 'sol-' + type; scene.add(me); return me; };
+  sol(-60, -40, 60, 40, 'herbe', '#6E8A4C', -0.02); sol(-40, -3.2, 40, 3.2, 'asphalte', '#6A6A66'); sol(-40, -4.6, 40, -3.2, 'paves', '#A49C8E', 0.01); sol(-9, 3.2, 40, 4.6, 'paves', '#A49C8E', 0.01); sol(-9, 4.6, 7, 16, 'paves', '#ABA293', 0.005); sol(-34, 2, -9, 17, 'gravier', '#B6AD9C', 0.004); sol(-50, -24, -20, -12, 'terre', '#7E6A52', 0.003);
+}
+function init3d() {
+  const cv = document.getElementById('vue3d'); renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, preserveDrawingBuffer: true }); tex.init = T.init(renderer);
+  renderer.setPixelRatio(Math.min(QUAL === 'eco' ? 1 : QUAL === 'moyenne' ? 1.5 : 2, devicePixelRatio || 1)); renderer.setSize(innerWidth, innerHeight, false); renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.shadowMap.enabled = QUAL === 'haute'; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  scene = new THREE.Scene(); scene.background = new THREE.Color('#BCDCF2'); scene.fog = new THREE.Fog('#E2EBEE', QUAL === 'eco' ? 80 : 170, QUAL === 'eco' ? 280 : 640); // brume et ciel du jeu (rendu.js)
+  camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, 0.1, 700); camera.rotation.order = 'YXZ';
+  const hemi = new THREE.HemisphereLight('#E2F1FF', '#C8B29A', 2.0); soleil = new THREE.DirectionalLight('#FFE9CC', 2.0); const S = [-0.52, 0.66, 0.54]; soleil.position.set(S[0] * 80, S[1] * 80, S[2] * 80); soleil.castShadow = true; soleil.shadow.mapSize.set(2048, 2048); soleil.shadow.bias = -0.0006; soleil.shadow.normalBias = 0.04; const sc = soleil.shadow.camera; sc.left = -45; sc.right = 45; sc.top = 45; sc.bottom = -45; sc.near = 1; sc.far = 250; sc.updateProjectionMatrix();
+  scene.add(hemi, soleil, soleil.target); construireRue();
+}
+const VUES = { rue: [[25, 1.65, 0.6], [-22, 3.4, -2.5]], facade: [[3.2, 1.65, 1.2], [3.2, 3.2, -4]], eglise: [[-2, 1.7, 26], [-17, 7, 9]], haut: [[34, 19, 24], [-2, 2, -2]], sol: [[2, 1.65, 1.5], [-6, 0, -1.5]], bar: [[11, 1.65, -1], [12.5, 2.6, 4.5]] };
+function vue3d(nom) { const v = VUES[nom] || VUES.rue; camera.position.set(...v[0]); camera.lookAt(...v[1]); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); renderer.info.reset(); renderer.render(scene, camera); const i = renderer.info; return { calls: i.render.calls, triangles: i.render.triangles, textures: i.memory.textures, geometries: i.memory.geometries, gl: renderer.getContext().getError() }; }
+tex.vue3d = vue3d;
+// ─── 4. les vérifications (lues par test/poncin-textures.cjs) ───
+tex.verifier = function () {
+  const r = {};
+  // le cache : les mêmes demandes rendent les mêmes objets, sans rien générer de plus
+  const g0 = T.stats().generees, b0 = T.stats().bases;
+  r.memes = [T.facade('crepi', T.TEINTES.crepi.ocre) === T.facade('crepi', T.TEINTES.crepi.ocre), T.facade('pierre') === T.facade('pierre'), T.toit('ardoise') === T.toit('ardoise'), T.sol('paves') === T.sol('paves'), T.sol('paves', { couleur: true }) === T.sol('paves', { couleur: true }), T.details() === T.details(), T.bati(NOMS_BATI) === T.bati(NOMS_BATI), T.solPaquet() === T.solPaquet(), T.enseigne('Bar des Sports', 'bar') === T.enseigne('Bar des Sports', 'bar'), T.plaqueRue('Rue des Halles') === T.plaqueRue('Rue des Halles'), T.facade('moellons') === T.facade('pierre'), T.toit('mecaniques') === T.toit('tuiles')].every(Boolean);
+  for (let i = 0; i < 3; i++) { for (const m of T.MURS) T.facade(m); for (const t of T.TOITS) T.toit(t); for (const s of T.SOLS) T.sol(s); for (const [n, t] of ENSEIGNES) T.enseigne(n, t); for (const n of RUES) T.plaqueRue(n); T.details(); T.bati(NOMS_BATI); }
+  r.generees = [g0, T.stats().generees]; r.bases = [b0, T.stats().bases];
+  // dispose : MODELES.dispose et la libération de rendu.js ne rendent ni les textures ni les matériaux partagés
+  const liberees = new Set(), suivre = (t) => t.addEventListener('dispose', () => liberees.add(t.name));
+  const tf = T.facade('pierre'), tt = T.toit('tuiles'), ts = T.sol('herbe'), td = D.texture, te = T.enseigne('La Poste', 'poste').texture, tb = B.texture; [tf, tt, ts, td, te, tb].forEach(suivre);
+  let matLibere = false; B.materiau().addEventListener('dispose', () => { matLibere = true; });
+  const groupe = new THREE.Group(); for (const t of [tf, tt, ts, td, te]) groupe.add(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshLambertMaterial({ map: t }))); groupe.add(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), B.materiau())); groupe.add(new THREE.Mesh(new THREE.PlaneGeometry(1, 1), D.materiau()));
+  MODELES.dispose(groupe);
+  groupe.traverse((o) => { const ms2 = Array.isArray(o.material) ? o.material : o.material ? [o.material] : []; for (const m of ms2) { if (m.map && !m.map.userData.partagee) m.map.dispose(); } }); // la boucle de rendu.liberer()
+  r.liberees = [...liberees]; r.matLibere = matLibere; r.partagees = [tf, tt, ts, td, te, tb].every((t) => t.userData.partagee === true);
+  // sans couture : l'écart entre la dernière et la première colonne (ligne) comparé aux écarts entre colonnes (lignes) voisines à
+  // l'intérieur : ≤ 1 si le raccord ne dépasse ni 1,6 × la médiane (le bruit) ni 1,05 × le maximum (les joints, arêtes du motif)
+  r.coutures = {};
+  for (const [cle, b] of T._interne.BASES) {
+    const S = b.S, d = b.d, lum = (x, y) => { const i = (y * S + x) * 4; return 0.3 * d[i] + 0.59 * d[i + 1] + 0.11 * d[i + 2]; };
+    const col = (x0, x1) => { let s = 0; for (let y = 0; y < S; y++) s += Math.abs(lum(x0, y) - lum(x1, y)); return s / S; }, lig = (y0, y1) => { let s = 0; for (let x = 0; x < S; x++) s += Math.abs(lum(x, y0) - lum(x, y1)); return s / S; };
+    const norme = (l) => { l.sort((a, b) => a - b); return Math.max(1.6 * l[l.length >> 1], 1.05 * l[l.length - 1]) || 1; }, cs = [], ls = []; // une couture dépasserait et le bruit (médiane) et les arêtes du motif (maximum)
+    for (let i = 1; i < S; i++) { cs.push(col(i - 1, i)); ls.push(lig(i - 1, i)); }
+    r.coutures[cle] = [+(col(S - 1, 0) / norme(cs)).toFixed(2), +(lig(S - 1, 0) / norme(ls)).toFixed(2)];
+  }
+  // les sols neutres : moyenne 0,5, gris pur
+  r.neutres = {}; for (const s of T.SOLS) { const d = T.sol(s).image.data; let m = 0, sat = 0; for (let i = 0; i < d.length; i += 4) { m += d[i]; sat += Math.abs(d[i] - d[i + 1]) + Math.abs(d[i] - d[i + 2]); } const n = d.length / 4; r.neutres[s] = { moyenne: +(m / n / 255).toFixed(3), saturation: sat / n, colorSpace: T.sol(s).colorSpace }; }
+  r.mipmaps = [T.facade('crepi'), T.toit('tuiles'), T.sol('herbe'), D.texture, B.texture, te].every((t) => t.generateMipmaps && t.minFilter === THREE.LinearMipmapLinearFilter && t.anisotropy >= 2);
+  r.stats = T.stats(); return r;
+};
+async function lancer() {
+  try { await fabriquer(); } catch (e) { tex.erreurs.push(String(e && e.stack || e)); }
+  try {
+    if (['murs', 'toits', 'sols', 'atlas', 'zoom'].includes(VUE)) { document.getElementById('vue3d').style.display = 'none'; planche(VUE === 'sols' ? 'toits' : VUE); tex.vue = VUE; }
+    else { init3d(); tex.rendu = vue3d(VUE); tex.vue = VUE; }
+  } catch (e) { tex.erreurs.push(String(e && e.stack || e)); }
+  tex.pret = true;
+}
+lancer();
+</script>
+</body></html>

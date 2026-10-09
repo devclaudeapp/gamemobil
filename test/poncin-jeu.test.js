@@ -267,6 +267,12 @@ titre('Tirs : portée, dispersion, chute de dégâts, tête, pompe, cadence, rec
   const r0 = e.some((v) => v.t === 'recharge' && v.id === 'a') && a.rechargeJusqua > jeu.temps;
   pas(jeu, Math.ceil(A.recharge / DT) + 2, {});
   check(r0 && a.munitions.rafale === 30 && a.reserve.rafale === 30 && a.rechargeJusqua <= jeu.temps, `recharge demandée : 10 + 20 de la réserve → 30, réserve 50 → ${a.reserve.rafale}`);
+  { // le blaster rafale recharge à l'infini : sa réserve ne descend jamais sous un chargeur (le HUD n'affiche jamais « / 0 »)
+    donner(a, 'rafale'); a.pitch = 0.5; let mini = Infinity;
+    for (let i = 0; i < 60 * 40; i++) { jeu.etape(DT, { a: entree({ tir: true }) }); mini = Math.min(mini, a.reserve.rafale); }
+    check(mini >= A.chargeur && a.munitions.rafale >= 0, `blaster rafale : 40 s de tir continu, la réserve ne descend pas sous ${A.chargeur} (minimum ${mini})`);
+    donner(a, 'rafale');
+  }
   e = evsDe(jeu, 1, { a: entree({ recharge: true }) });
   check(!e.some((v) => v.t === 'recharge'), 'chargeur plein : pas de recharge');
   donner(a, 'pompe'); a.munitions.pompe = 0; a.reserve.pompe = 0; pas(jeu, 30, { a: entree({ tir: true }) });
@@ -313,9 +319,11 @@ titre('Mort, points, réapparition');
   let rea = null; for (let i = 0; i < 4 * 60 && !rea; i++) { const e = jeu.etape(DT, {}).find((v) => v.t === 'reapparition'); if (e) rea = e; }
   const pts = jeu.arene.apparitions, distEnn = (p) => Math.min(Math.hypot(p[0] - a.x, p[1] - a.z), Math.hypot(p[0] - c.x, p[1] - c.z)), meilleur = Math.max(...pts.map(distEnn));
   check(rea && rea.id === 'b' && Math.abs(jeu.temps - t0 - R.MODES.arene.reapparition) < 2 * DT && b.vivant && b.vie === 100 && b.armure === 0 && b.arme === 'rafale' && b.armes.length === 1, `réapparition au bout de ${f2(jeu.temps - t0)} s, vie 100, blaster seul`);
-  // la règle : un point d'apparition à ~35 m de l'ennemi le plus proche (jamais à moins de 15 m s'il existe mieux), pour que l'action reprenne vite
-  const ecart = (p) => { const d = distEnn(p); return d < 15 ? 1000 + (15 - d) : Math.abs(d - 35); }, ideal = Math.min(...pts.map(ecart));
-  check(pts.some((p) => Math.abs(p[0] - b.x) < 1e-9 && Math.abs(p[1] - b.z) < 1e-9) && ecart([b.x, b.z]) <= ideal + 6 && (distEnn([b.x, b.z]) >= 15 || meilleur < 15), `au point d'apparition à bonne distance des ennemis (${f2(distEnn([b.x, b.z]))} m ; visé ~35 m, jamais < 15 m ; le plus loin possible : ${f2(meilleur)} m)`);
+  // la règle : un point d'apparition à ~35 m de l'ennemi le plus proche (jamais à moins de 15 m s'il existe mieux), pour que l'action reprenne vite,
+  // et de préférence hors de la vue des ennemis (un point vu compte comme 25 m plus loin de l'idéal)
+  const vuDe = (p) => [a, c].some((q) => q.vivant && Math.hypot(q.x - p[0], q.z - p[1]) < 75 && mondePlat.vue(q.x, q.y + J.oeil, q.z, p[0], mondePlat.hauteur(p[0], p[1]) + 1.2, p[1]));
+  const ecart = (p) => { const d = distEnn(p); return (d < 15 ? 1000 + (15 - d) : Math.abs(d - 35)) + (vuDe(p) ? 25 : 0); }, ideal = Math.min(...pts.map(ecart));
+  check(pts.some((p) => Math.abs(p[0] - b.x) < 1e-9 && Math.abs(p[1] - b.z) < 1e-9) && ecart([b.x, b.z]) <= ideal + 6 && (distEnn([b.x, b.z]) >= 15 || meilleur < 15), `au point d'apparition à bonne distance des ennemis (${f2(distEnn([b.x, b.z]))} m ; visé ~35 m, jamais < 15 m, de préférence caché ; le plus loin possible : ${f2(meilleur)} m)`);
   check(b.invincible === R.MODES.arene.invincible && pts.length === 12, `invincible ${R.MODES.arene.invincible} s après la réapparition ; le point hors de l'arène est écarté (${pts.length} points)`);
   // série de 3 et tête : les points
   const { jeu: j2, es: [k, ...vs] } = partie(mondePlat, cartePl, ['k', 'v1', 'v2', 'v3']);
@@ -456,6 +464,131 @@ titre('Robots : perception, combat, fuite, déblocage');
   check(maxImage <= 2 && total > 20, `9 robots, 20 s : ${total} requêtes de chemin, au plus ${maxImage} par image`);
 }
 
+titre('Jeu en ligne : regard absolu, prédiction du client, historique et compensation de latence, instantané');
+{
+  const { jeu, es: [a] } = partie(mondePlat, cartePl, ['a']);
+  poser(jeu, a, 0, 100, 0);
+  pas(jeu, 3, { a: entree({ yaw: 1.2, pitch: 0.3, dyaw: 0.5, dpitch: 0.5 }) });
+  check(Math.abs(a.yaw - 1.2) < 1e-12 && Math.abs(a.pitch - 0.3) < 1e-12, 'entrée avec yaw / pitch absolus : appliqués tels quels (dyaw / dpitch ignorés), sans s\'additionner d\'une image à l\'autre');
+  pas(jeu, 1, { a: entree({ yaw: 7, pitch: 3 }) });
+  check(Math.abs(a.yaw - (7 - 2 * Math.PI)) < 1e-9 && a.pitch === 1.45, 'yaw absolu ramené dans ]−π, π], pitch borné à 1,45');
+  pas(jeu, 1, { a: entree({ yaw: NaN, dyaw: 0.1, pitch: 'x', dpitch: 0 }) });
+  check(Math.abs(a.yaw - (7 - 2 * Math.PI + 0.1)) < 1e-9, 'yaw absolu invalide : on retombe sur dyaw');
+}
+{
+  // la prédiction : PJEU.deplacer (pure) refait exactement le déplacement de etape (marche, murs, pente, saut, gravité)
+  const { jeu, es: [a] } = partie(mondeP, carteP, ['a']);
+  const rnd = R.mulberry32(9); let ecartMax = 0, n = 0;
+  for (let k = 0; k < 20; k++) {
+    const p = mondeP.libre(rnd); poser(jeu, a, p[0], p[1], rnd() * 6.28);
+    const ombre = { x: a.x, y: a.y, z: a.z, vx: 0, vz: 0, vy: 0, vitesse: 0, yaw: a.yaw, pitch: 0, auSol: true, accroupi: false };
+    for (let i = 0; i < 150; i++) {
+      const e = entree({ avant: Math.sin(i / 17 + k), cote: Math.cos(i / 23), yaw: Math.sin(i / 40 + k) * 3, pitch: 0.1, saut: i % 47 === 0, accroupi: i % 90 > 70 });
+      jeu.etape(DT, { a: e }); PJ.deplacer(ombre, e, DT, mondeP); n++;
+      ecartMax = Math.max(ecartMax, Math.abs(ombre.x - a.x) + Math.abs(ombre.y - a.y) + Math.abs(ombre.z - a.z) + Math.abs(ombre.yaw - a.yaw));
+    }
+  }
+  check(ecartMax < 1e-9, `PJEU.deplacer : ${n} pas avec murs, relief et sauts, identiques à la simulation (écart max ${ecartMax})`);
+  const o = { x: 0, y: 0, z: 100, vx: 0, vz: 0, vy: 0, vitesse: 0, yaw: 0, pitch: 0, auSol: true, accroupi: false };
+  const mv = PJ.deplacer(o, entree({ saut: true, avant: 1 }), DT, mondePlat);
+  check(mv.saut === true && !o.auSol && mv.dep > 0, 'PJEU.deplacer rend { dep, saut } (pour les sons « pas » et « saut »)');
+}
+{
+  // l'historique (≈ 1 s) et la compensation de latence : b court de côté, a le vise là où il était il y a 0,2 s
+  const { jeu, es: [a, b] } = partie(mondePlat, cartePl, ['a', 'b']);
+  poser(jeu, a, 0, 100, 0); poser(jeu, b, -6, 80, Math.PI / 2); // b regarde vers l'ouest et court en pas chassé vers le sud : il traverse la ligne de mire de a
+  const pos = [];
+  for (let i = 0; i < 90; i++) { jeu.etape(DT, { b: entree({ cote: -1 }) }); pos.push({ t: jeu.temps, x: b.x, z: b.z }); }
+  const h = jeu.historique('b', jeu.temps - 0.2), vrai = pos.find((p) => Math.abs(p.t - (jeu.temps - 0.2)) < DT / 2);
+  check(h && vrai && Math.abs(h.x - vrai.x) < 0.05 && Math.abs(h.z - vrai.z) < 1e-6 && h.vivant, `historique : b il y a 0,2 s retrouvé (z ${h ? f2(h.z) : '?'} ; vrai ${vrai ? f2(vrai.z) : '?'} ; maintenant ${f2(b.z)})`);
+  check(jeu.historique('b', jeu.temps - 0.9) && !jeu.historique('b', jeu.temps - 1.6), 'l\'historique remonte à ~1 s, pas plus');
+  const tirSur = (retard) => {
+    // on fige b là où il est (il court toujours pendant l'image du tir), on vise sa position d'il y a 0,2 s, au long-tir
+    const passe = jeu.historique('b', jeu.temps - 0.2); const px = passe.x, pz = passe.z, py = passe.y;
+    donner(a, 'precision'); a.gonfle = 0; jeu.reglerRetard('a', retard); b.vie = 100; b.armure = 0; b.invincible = 0;
+    const dx = px - a.x, dz = pz - a.z; a.yaw = Math.atan2(-dx, -dz); a.pitch = Math.atan2(py + 1.1 - (a.y + J.oeil), Math.hypot(dx, dz));
+    const evs = evsDe(jeu, 1, { a: entree({ tir: true }), b: entree({ cote: -1 }) });
+    return evs.some((v) => v.t === 'touche' && v.a === 'b');
+  };
+  const sansRetard = tirSur(0), avecRetard = tirSur(0.2);
+  check(!sansRetard && avecRetard, `compensation de latence : visé là où b était il y a 0,2 s → raté sans retard, touché avec reglerRetard('a', 0.2)`);
+  check(Math.abs(b.x - pos[pos.length - 1].x) < 2 && jeu.retardDe('a') === 0.2 && jeu.reglerRetard('a', 3) === 0.25 && jeu.reglerRetard('a', -1) === 0 && jeu.retardDe('a') === 0, 'après le tir, b est rendu à sa vraie place ; retard borné à [0, 0,25 s]');
+  // un mort qui vient de réapparaître n'est pas touchable à son ancienne place
+  poser(jeu, b, 0, 80); b.vivant = true; pas(jeu, 30, {}); b.vivant = false; pas(jeu, 6, {}); b.vivant = true; poser(jeu, b, 100, 100); b.invincible = 0; pas(jeu, 3, {});
+  donner(a, 'precision'); a.gonfle = 0; jeu.reglerRetard('a', 0.06); a.yaw = 0; a.pitch = Math.atan2(1.1 - J.oeil, 20);
+  const fantome = evsDe(jeu, 1, { a: entree({ tir: true }) }).some((v) => v.t === 'touche');
+  check(!fantome, 'rembobiné à un moment où la cible était morte : intouchable (pas de « fantôme »)');
+}
+{
+  // l'instantané compact et son application dans un autre jeu (le client), à l'arrondi près
+  const j1 = PJ.creer({ monde: mondeP, carte: carteP, mode: PA, graine: 21, options: { bots: 3, niveau: 'fort' } });
+  const h1 = j1.ajouterJoueur({ id: 'h1', nom: 'Castor Turbo 42', humain: true });
+  for (let i = 0; i < 60 * 25; i++) j1.etape(DT, { h1: entree({ avant: 1, yaw: Math.sin(i / 50), tir: i % 60 < 20 }) });
+  h1.armes.push('pompe'); h1.munitions.pompe = 4; h1.reserve.pompe = 12;
+  const inst = j1.instantane({ h1: 77 }), txt = JSON.stringify(inst);
+  const j2 = PJ.creer({ monde: mondeP, carte: carteP, mode: PA, graine: 21, options: { bots: 3, niveau: 'fort' }, nav: false });
+  j2.ajouterJoueur({ id: 'h1', nom: 'Castor Turbo 42', humain: true });
+  let lus = 0; for (const l of inst.e) if (PJ.lireLigne(l, j2.trouver(l[0]), j2.temps, 'tout')) lus++;
+  const pareil = j1.entites.every((e) => { const f = j2.trouver(e.id); return f && Math.abs(f.x - e.x) <= 0.005 && Math.abs(f.z - e.z) <= 0.005 && Math.abs(f.y - e.y) <= 0.005 && Math.abs(f.yaw - e.yaw) < 6e-4 && f.vivant === e.vivant && f.vie === Math.max(0, Math.round(e.vie)) && f.arme === e.arme && f.score.kills === e.score.kills && f.score.points === e.score.points && f.score.morts === e.score.morts; });
+  const f1 = j2.trouver('h1');
+  check(lus === 4 && pareil && f1.armes.join() === h1.armes.join() && f1.munitions.pompe === 4 && f1.reserve.pompe === 12 && inst.e.find((l) => l[0] === 'h1')[20] === 77, `instantané : 4 entités relues à l'arrondi près (positions au cm, regard, vie, scores, armes et munitions, ack) ; ${txt.length} octets en JSON`);
+  check(txt.length < 1200 && inst.o.length === j1.arene.objets.length && /^[01]+$/.test(inst.o) && Math.abs(inst.r - j1.reste) < 0.01 && !j2.nav, 'compact (< 1,2 Ko pour 4 entités), objets disponibles en 0/1, reste ; un jeu « client » sans navigation (nav: false)');
+  const ev = []; PJ.tirVisuel(f1, mondeP, j2.entites, R.mulberry32(1), ev);
+  check(ev.length === R.arme(f1.arme).plombs && ev.every((v) => v.t === 'tir' && v.id === 'h1' && v.o.length === 3 && v.fin.length === 3) && j2.entites.every((e) => e.vie === j2.trouver(e.id).vie), 'PJEU.tirVisuel : les traînées d\'un tir pour l\'image, sans effet sur le jeu');
+}
+
+titre('Corrections de la relecture');
+{
+  // (a) la réapparition préfère un point hors de la vue des ennemis (à distance comparable)
+  const c = cartePlate(); c.batiments.push({ p: [[-4, -46], [4, -46], [4, -40], [-4, -40]], h: 6, t: 'maison' });
+  c.zones.apparitions = [[30, 0], [0, -52]]; // (30, 0) : à 35 m de l'ennemi, en vue ; (0, -52) : à 37 m, derrière la maison
+  const m = PM.creer(c), jeu = PJ.creer({ monde: m, carte: c, mode: PA, graine: 3, options: { bots: 0 } });
+  const en = jeu.ajouterJoueur({ id: 'en', humain: true }), v = jeu.ajouterJoueur({ id: 'v', humain: true });
+  let caches = 0;
+  for (let k = 0; k < 20; k++) { poser(jeu, en, 0, -15, 0); en.vivant = true; const p = PA.apparition(jeu, v); if (p[0] === 0 && p[1] === -52) caches++; }
+  check(m.vue(0, J.oeil, -15, 30, 1.2, 0) && !m.vue(0, J.oeil, -15, 0, 1.2, -52) && caches === 20, `réapparition : le point caché derrière la maison (37 m) plutôt que celui en vue (33 m) : ${caches}/20`);
+}
+{
+  // (b) un robot touché de loin (au-delà de ses 45 m de vue) se tourne vers le tireur et le prend en chasse
+  const jeu = PJ.creer({ monde: mondePlat, carte: cartePl, mode: PA, graine: 4, options: { bots: 0 } });
+  const h = jeu.ajouterJoueur({ id: 'h', humain: true }), bot = jeu.ajouterJoueur({ id: 'r', bot: true, niveau: 'normal' });
+  poser(jeu, bot, 0, 30, 0); poser(jeu, h, 0, 100, 0); bot.invincible = 0; h.invincible = 0; // le robot regarde au nord, le tireur est à 70 m dans son dos
+  pas(jeu, 10, {});
+  donner(h, 'precision'); viserSur(h, bot, 1.0); h.gonfle = 0;
+  const touche = evsDe(jeu, 1, { h: entree({ tir: true }) }).some((v) => v.t === 'touche' && v.a === 'r');
+  const d0 = Math.hypot(bot.x - h.x, bot.z - h.z); let combat = false, tirs = 0, dMin = d0;
+  for (let i = 0; i < 6 * 60; i++) { for (const v of jeu.etape(DT, {})) if (v.t === 'tir' && v.id === 'r') tirs++; if (bot.ia.etat === 'combat' && bot.ia.cible === h) combat = true; dMin = Math.min(dMin, Math.hypot(bot.x - h.x, bot.z - h.z)); h.vie = 100; }
+  check(touche && combat && dMin < d0 - 15 && tirs > 0, `robot touché au long-tir à ${f2(d0)} m : il voit le tireur, le prend en chasse (${f2(d0 - dMin)} m gagnés en 6 s) et riposte (${tirs} tirs)`);
+}
+{
+  // (c) le tir auto s'arrête à la portée utile de l'arme : la pompe à ~12 m
+  const { jeu, es: [a, b] } = partie(mondePlat, cartePl, ['a', 'b']);
+  const sur = (d, arme) => { poser(jeu, a, 0, 100, 0); poser(jeu, b, 0, 100 - d); donner(a, arme); viserSur(a, b, 1.1); return jeu.aideVisee('a', 1).surCible; };
+  check(sur(8, 'pompe') && sur(11.5, 'pompe') && !sur(14, 'pompe') && !sur(20, 'pompe') && sur(20, 'rafale') && sur(40, 'rafale') && sur(55, 'precision'), 'tir auto : pompe jusqu\'à 12 m (pas à 14 ni 20 m), blaster à 40 m, long-tir à 55 m');
+}
+{
+  // (e) chacun pour soi : la fin et la victoire suivent le même critère (les repeints, départagés par les points)
+  const { jeu, es: [a, b] } = partie(mondePlat, cartePl, ['a', 'b']);
+  a.score.kills = 25; a.score.points = 2500; b.score.kills = 24; b.score.points = 3100;
+  pas(jeu, 1, {});
+  const res = PA.resultat(jeu);
+  check(jeu.fini && res.gagnant === 'a' && jeu.classement()[0].id === 'a' && res.classement[0].id === 'a', `premier à 25 repeints : la partie s'arrête et c'est lui qui gagne, même avec moins de points (gagnant ${res.gagnant})`);
+  const j2 = partie(mondePlat, cartePl, ['a', 'b']); j2.es[0].score.kills = 10; j2.es[0].score.points = 1000; j2.es[1].score.kills = 10; j2.es[1].score.points = 1050;
+  check(PA.resultat(j2.jeu).gagnant === 'b', 'à repeints égaux, les points départagent');
+}
+{
+  // (f) retirer un joueur : il disparaît vraiment, les robots ne chassent plus son fantôme
+  const jeu = PJ.creer({ monde: mondePlat, carte: cartePl, mode: PA, graine: 6, options: { bots: 0 } });
+  const h = jeu.ajouterJoueur({ id: 'h', humain: true }), bot = jeu.ajouterJoueur({ id: 'r', bot: true, niveau: 'fort' });
+  poser(jeu, bot, 0, 100, 0); poser(jeu, h, 0, 80); h.invincible = 0; bot.invincible = 0;
+  pas(jeu, 60, {}); const vise = bot.ia.cible === h;
+  h.prochainTir = 0; h.pitch = 0.4; pas(jeu, 1, { h: entree({ tir: true }) });
+  const ok = jeu.retirerJoueur('h');
+  let refs = 0; const evs = []; for (let i = 0; i < 120; i++) for (const v of jeu.etape(DT, {})) { evs.push(v); if (v.t === 'tir' && v.id === 'r') refs++; }
+  check(vise && ok && !h.vivant && !jeu.trouver('h') && jeu.entites.length === 1 && bot.ia.cible !== h && bot.ia.proie !== h && jeu.bruits.every((b) => b.e !== h) && refs === 0 && !evs.some((v) => v.a === 'h' || v.id === 'h'), 'retirerJoueur : plus dans le jeu, plus vivant, plus visé ni entendu ; le robot arrête de tirer');
+  check(jeu.retirerJoueur('h') === false && jeu.aideVisee('h', 1).surCible === false, 'retirer deux fois, viser avec un retiré : rien ne casse');
+}
+
 titre('Entrées abîmées, dt extrêmes : jamais d\'exception ni de NaN');
 {
   const { jeu, es: [a] } = partie(mondeP, carteP, ['a'], { bots: 3 });
@@ -517,7 +650,7 @@ function coherent(jeu, log) { // les scores refaits à partir des événements
     const ve = jeu.trouver(v.a), ke = jeu.trouver(v.par); if (ke && ve && ke.equipe === ve.equipe) tkA++;
   }
   const ok = jeu.entites.every((e) => { const s = sc.get(e.id); return s.kills === e.score.kills && s.morts === e.score.morts && s.points === e.score.points && s.serie === e.serie; });
-  const cl = jeu.classement(), trie = cl.every((e, i) => i === 0 || cl[i - 1].score.points >= e.score.points);
+  const cl = jeu.classement(), trie = cl.every((e, i) => i === 0 || cl[i - 1].score.kills > e.score.kills || (cl[i - 1].score.kills === e.score.kills && cl[i - 1].score.points >= e.score.points));
   return ok && tkA === 0 && trie;
 }
 

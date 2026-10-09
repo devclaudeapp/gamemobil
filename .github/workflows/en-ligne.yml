@@ -1,0 +1,38 @@
+# Opération Poncin : le jeu en ligne éprouvé pour de vrai (Supabase Realtime + WebRTC entre trois navigateurs séparés).
+# Le conteneur de Claude n'a pas accès à Supabase : ce test tourne ici, à chaque push sur la branche en-ligne-test (ou à la main).
+# Il ne publie rien : il lit seulement le dépôt et parle au projet Supabase public du jeu (clé publique de poncin/config.js).
+name: En ligne
+on:
+  push:
+    branches: [en-ligne-test]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: en-ligne
+  cancel-in-progress: true
+jobs:
+  en-ligne:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright et Chromium
+        run: |
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Sert le dépôt en statique
+        run: |
+          python3 -m http.server 8080 --bind 127.0.0.1 > /tmp/http.log 2>&1 &
+          for i in $(seq 1 40); do curl -sf -o /dev/null http://127.0.0.1:8080/test/poncin-reseau.html && break; sleep 0.25; done
+          curl -sf -o /dev/null http://127.0.0.1:8080/src-poncin/reseau.js
+      - name: Test en ligne réel (voie supabase, p2p puis relais forcé)
+        run: node test/poncin-en-ligne-ci.cjs
+        env:
+          PONCIN_URL: http://127.0.0.1:8080
+      - name: Test local du réseau (voies local et webrtc-local)
+        if: always()
+        run: node test/poncin-reseau.cjs

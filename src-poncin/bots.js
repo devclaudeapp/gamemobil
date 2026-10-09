@@ -2,7 +2,8 @@
    au joystick (avant, côté, dyaw, dpitch, tir, saut, accroupi, recharge, arme), jamais en trichant sur sa position.
    Perception (toutes les 0,1 s) : un cône de PREGLES.BOTS[niveau].champ radians devant lui, 45 m au plus, en ligne de vue (monde.vue,
    vers la poitrine ou la tête) ; il sent quelqu'un collé à lui (2,5 m) ; il entend les tirs à 30 m et les pas (debout) à 10 m
-   (jeu.bruits) ; touché par quelqu'un qu'il ne voit pas, il se retourne vers lui.
+   (jeu.bruits) ; touché, il voit son agresseur jusqu'à 160 m pendant 6 s (pas de long-tir sans riposte) ; touché par quelqu'un qu'il
+   ne voit pas, il se retourne vers lui et va le chercher.
    États : patrouille (chemin PNAV vers un objet utile, un point libre, ou vers là où ça se passe), chasse (dernière position vue ou bruit
    entendu, puis un tour d'horizon), combat (temps de réaction, erreur de visée qui se resserre, vitesse de rotation bornée ; tir par
    rafales ; pas de côté ; garde la bonne distance pour son arme : 8–20 m au blaster ; recharge à l'abri), fuite vers un soin sous 25 %
@@ -17,6 +18,7 @@
   'use strict';
   const J = REGLES.JOUEUR;
   const VUE = 45, SENT = 2.5, PERCEPTION = 0.1;  // portée de vue (m), « on le sent dans son dos » (m), période de perception (s)
+  const VUE_AGRESSEUR = 160, AGRESSEUR = 6;      // celui qui vient de le toucher : vu jusqu'à 160 m (le long-tir) pendant 6 s
   const BANDE = { rafale: [8, 20], pompe: [2.5, 7], precision: [20, 42] }; // la distance que le robot cherche à garder selon son arme
   const PORTEE = { rafale: 50, pompe: 18, precision: 140 };                // au-delà, il ne tire pas
   const VIE_FUITE = 25, VIE_RASSURE = 50;
@@ -32,7 +34,7 @@
       jeu, ne: -1, entree: { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null },
       etat: 'patrouille', etatA: 0,
       cible: null, vuA: -1e9, reagitA: 0, cx: 0, cy: 0, cz: 0, cvx: 0, cvz: 0, erreur: 0, ex: 0, ey: 0,
-      alerteA: -1e9, ax: 0, az: 0, retourne: false, bruitN: 0, toucheVu: -1,
+      alerteA: -1e9, ax: 0, az: 0, retourne: false, bruitN: 0, toucheVu: -1, agresseur: null, agresseurA: -1e9,
       chemin: null, ic: 0, but: '', butX: 0, butZ: 0, butObjet: null, veut: false, raccourciA: 0, fouilleA: -1, fouilleSens: 1,
       mx: 0, mz: 0, vit: 1,
       strafe: 1, strafeA: 0, derive: 0, rafale: false, rafaleA: 0, changeA: 0, directA: 0, direct: true, approcheA: 0,
@@ -45,7 +47,7 @@
   function renaitre(bot, ia, jeu) { // (ré)apparu : on repart de zéro
     ia.ne = bot.apparuA; ia.etat = 'patrouille'; ia.etatA = jeu.temps; ia.cible = null; ia.vuA = -1e9; ia.alerteA = -1e9; ia.chemin = null; ia.veut = false; ia.but = '';
     ia.fouilleA = -1; ia.abri = false; ia.coince = 0; ia.decoinceA = 0; ia.sx = bot.x; ia.sz = bot.z; ia.surveilleA = jeu.temps + 1; ia.envie = 0; ia.nEnvie = 0;
-    ia.toucheVu = bot.toucheA; ia.bruitN = jeu.nBruits; ia.fuiteA = -1e9; ia.pasDeFuiteAvant = 0; ia.rafale = false; ia.echecs = 0;
+    ia.toucheVu = bot.toucheA; ia.bruitN = jeu.nBruits; ia.fuiteA = -1e9; ia.pasDeFuiteAvant = 0; ia.rafale = false; ia.echecs = 0; ia.agresseur = null; ia.agresseurA = -1e9;
   }
 
   // ─── tourner le regard vers (yaw, pitch), à vitesse bornée, en ralentissant à l'arrivée (comme une main) ───
@@ -61,9 +63,10 @@
     const T = jeu.temps, monde = jeu.monde, es = jeu.entites;
     const ox = bot.x, oy = bot.y + oeil(bot), oz = bot.z, fx = -Math.sin(bot.yaw), fz = -Math.cos(bot.yaw), cosC = Math.cos(niv.champ / 2);
     let best = null, bs = Infinity;
+    const agr = ia.agresseur && T - ia.agresseurA < AGRESSEUR ? ia.agresseur : null; // celui qui vient de le toucher : vu bien plus loin
     for (let k = 0; k < es.length; k++) {
       const c = es[k]; if (c === bot || !c.vivant || !jeu.ennemis(bot, c)) continue;
-      const dx = c.x - ox, dz = c.z - oz, d2 = dx * dx + dz * dz; if (d2 > VUE * VUE) continue;
+      const dx = c.x - ox, dz = c.z - oz, d2 = dx * dx + dz * dz, vue = c === agr ? VUE_AGRESSEUR : VUE; if (d2 > vue * vue) continue;
       const d = Math.sqrt(d2);
       if (d > SENT && dx * fx + dz * fz < cosC * d) continue; // hors du cône
       const h = c.accroupi ? J.tailleAccroupi : J.taille;
@@ -87,12 +90,14 @@
       if (b.n > ia.bruitN && (T - ia.alerteA > 0.5 || !ia.retourne)) { ia.alerteA = T; ia.ax = b.x; ia.az = b.z; ia.retourne = false; }
     }
     ia.bruitN = jeu.nBruits;
-    // touché par quelqu'un qu'on ne voit pas : on se retourne vers lui
+    // touché : on retient l'agresseur (vu jusqu'à 160 m pendant 6 s, même au long-tir) ; si on ne le voit pas, on se retourne vers lui
+    // et on va le chercher
     if (bot.toucheA > ia.toucheVu) {
       ia.toucheVu = bot.toucheA;
       const a = jeu.trouver(bot.parQui);
-      if (a && a.vivant && a !== best) { ia.alerteA = T; ia.ax = a.x; ia.az = a.z; ia.retourne = true; }
+      if (a && a.vivant) { ia.agresseur = a; ia.agresseurA = T; if (a !== best) { ia.alerteA = T; ia.ax = a.x; ia.az = a.z; ia.retourne = true; } }
     }
+    if (ia.agresseur && (!ia.agresseur.vivant || ia.agresseur.retire)) ia.agresseur = null;
   }
 
   // ─── les chemins (jeu.budgetNav : 2 requêtes par image pour tous les bots) ───

@@ -402,7 +402,74 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
 .h-record.ancien { background: #fff; color: var(--encre-2); text-shadow: none; animation: none; font-size: 13px; }
 .h-fin-d { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .h-fin-d .h-table td { padding: 4px 5px; }
+.h-fin-d .h-table { table-layout: fixed; } /* un long pseudo se coupe (…) au lieu de pousser le tableau hors de la carte */
+.h-fin-d .h-table th:nth-child(1) { width: 26px; } .h-fin-d .h-table th:nth-child(n+3) { width: 66px; }
+.h-fin-d .h-table td:nth-child(2) { overflow: hidden; text-overflow: ellipsis; }
 .h-fin-btns { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; margin-top: auto; }
+
+/* ─── avec les copains : la carte du menu, créer / rejoindre, le salon ─── */
+.copains { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: linear-gradient(160deg, #FFFFFF, #E9F4FF); cursor: pointer; transition: transform .08s, box-shadow .08s; }
+.copains:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--encre); }
+.copains:disabled { opacity: .55; filter: grayscale(.5); }
+.copains .cm-ico { background: #E3F1FF; width: 46px; height: 46px; }
+.copains .cm-ico svg { width: 34px; height: 34px; }
+.cm-texte { flex: 1 1 auto; min-width: 0; display: grid; gap: 3px; }
+.cm-h3 { font: 700 18px/1.05 var(--titre); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.cm-texte small { font: 700 13px/1.3 var(--texte); color: var(--encre-2); }
+.nouveau { font: 800 11px/1 var(--texte); font-style: normal; text-transform: uppercase; letter-spacing: .04em; padding: 4px 7px; border-radius: 999px; background: var(--menthe); color: #fff; border: 2px solid var(--encre); }
+.cm-fleche { flex: 0 0 auto; width: 34px; height: 34px; display: grid; place-items: center; border-radius: 50%; background: var(--ciel); color: #fff; border: 3px solid var(--encre); }
+.cm-fleche svg { width: 20px; height: 20px; }
+.copains-ecran, .salon { background: rgba(43, 42, 76, .58); }
+.modes-bientot:has(.copains) { grid-auto-rows: auto; grid-template-rows: auto; align-content: stretch; }
+@media (max-height: 460px) { .bientot p { display: none; } .bientot { padding: 8px 12px; } .bientot .cm-ico { width: 40px; height: 40px; } .bientot .cm-ico svg { width: 30px; height: 30px; } }
+.pilule.pseudo { max-width: 46vw; }
+.pilule.pseudo span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pastille { width: 16px; height: 16px; flex: 0 0 auto; border-radius: 50%; border: 2.5px solid var(--encre); background: var(--beurre); }
+.copains-grille { flex: 1 1 auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; padding: 10px 0 4px; align-content: center; }
+.cp-carte { display: flex; flex-direction: column; gap: 10px; justify-content: space-between; padding: 14px 16px; min-height: 170px; }
+.cp-carte .bouton { align-self: flex-start; }
+.cp-rejoindre { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.cp-rejoindre input { width: 150px; min-height: 58px; padding: 0 10px; border-radius: 16px; border: 3px solid var(--encre); background: #fff; box-shadow: inset 0 3px 0 rgba(43, 42, 76, .12);
+  font: 700 34px/1 var(--titre); letter-spacing: .18em; text-align: center; text-transform: uppercase; color: var(--encre); -webkit-user-select: text; user-select: text; }
+.cp-rejoindre input::placeholder { color: #CFCBE3; }
+.cp-note { flex: 0 0 auto; min-height: 20px; color: #fff; font: 700 14px/1.35 var(--texte); text-shadow: 0 1px 3px rgba(43, 42, 76, .9); text-align: center; }
+.cp-note.erreur { color: #FFE0E7; }
+.cp-note b { color: var(--beurre); }
+.salon .barre-haut { flex-wrap: nowrap; }
+.salon-code { display: grid; justify-items: center; padding: 3px 14px 5px; border-radius: 16px; background: var(--beurre); border: 3px solid var(--encre); box-shadow: 0 3px 0 var(--encre); }
+.salon-code small { font: 800 10px/1 var(--texte); text-transform: uppercase; letter-spacing: .08em; color: var(--encre-2); }
+.salon-code b { font: 700 30px/1 var(--titre); letter-spacing: .14em; margin-right: -.14em; }
+.salon-partage { gap: 8px; }
+.salon-partage .pilule { min-height: 44px; padding: 0 12px 0 10px; font-size: 15px; }
+.salon-grille { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 12px; padding: 8px 0 2px; min-height: 0; }
+.salon-joueurs, .salon-reglages { padding: 10px 14px; min-height: 0; }
+.salon-joueurs { display: flex; flex-direction: column; overflow: hidden; }
+.salon-joueurs h3 { font: 700 18px/1.1 var(--titre); margin-bottom: 4px; }
+.salon-joueurs h3 span { color: var(--encre-2); font-size: 15px; }
+#salon-liste { list-style: none; margin: 0; padding: 0; overflow-y: auto; display: grid; gap: 5px; align-content: start; }
+#salon-liste li { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 4px 8px; border-radius: 12px; background: #fff; border: 2px solid var(--ligne); }
+#salon-liste li.moi { border-color: var(--beurre); background: #FFF8E2; }
+#salon-liste .sj-nom { flex: 1 1 auto; min-width: 0; font: 700 16px/1.1 var(--titre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#salon-liste .sj-nom small { font: 700 11px/1 var(--texte); color: var(--encre-2); }
+#salon-liste .sj-info { flex: 0 0 auto; font: 700 11px/1.15 var(--texte); color: var(--encre-2); text-align: right; }
+#salon-liste .sj-etat { flex: 0 0 auto; padding: 3px 8px; border-radius: 999px; font: 800 11px/1 var(--texte); background: #EFEAFF; color: var(--encre-2); border: 2px solid transparent; }
+#salon-liste .sj-etat.pret { background: var(--menthe); color: #fff; border-color: var(--encre); }
+#salon-liste .sj-etat.hote { background: var(--beurre); color: var(--encre); border-color: var(--encre); }
+#salon-liste li.vide { justify-content: center; border-style: dashed; background: rgba(255, 255, 255, .6); color: var(--encre-2); font: 700 13px/1.2 var(--texte); }
+.salon-reglages { display: flex; flex-direction: column; gap: 8px; }
+.salon-reglages .seg button { min-width: 40px; padding: 0 10px; }
+.salon-reglages.lecture .seg { opacity: .75; box-shadow: none; }
+.salon-reglages.lecture .seg button { cursor: default; }
+.salon-etat { font: 700 13px/1.3 var(--texte); color: var(--encre-2); margin-top: auto; }
+.salon-reglages .bouton { width: 100%; }
+#b-salon-action[aria-pressed="true"] { background: var(--beurre); color: var(--encre); text-shadow: none; }
+.salon-toast { position: fixed; left: 50%; bottom: calc(var(--sb) + 10px); transform: translateX(-50%); z-index: 30; max-width: 90vw; padding: 9px 16px; border-radius: 14px; background: var(--encre); color: #fff; border: 3px solid #fff;
+  font: 700 14px/1.3 var(--texte); text-align: center; word-break: break-all; -webkit-user-select: text; user-select: text; }
+.pause-enligne { font: 700 13px/1.3 var(--texte); color: var(--encre-2); }
+.h-fin-msg { align-self: stretch; padding: 7px 12px; border-radius: 14px; background: #FFE3EA; border: 3px solid var(--encre); font: 700 15px/1.2 var(--titre); color: var(--fraise-sombre); text-align: center; }
+.h-fin-attente { font: 700 12px/1.3 var(--texte); color: var(--encre-2); text-align: center; }
+.h-fin-btns.trois { grid-template-columns: 1.2fr 1fr 1fr; }
+.h-fin-btns .bouton { padding: 0 12px; }
 
 /* ─── petits écrans paysage (iPhone SE…) ─── */
 @media (max-height: 400px) {
@@ -422,6 +489,11 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
   .bientot h3 { font-size: 16px; }
   .bientot p { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 12px; }
   .modes-grille { padding-top: 4px; gap: 10px; }
+  .copains { padding: 8px 12px; } .copains .cm-ico { width: 40px; height: 40px; } .copains .cm-ico svg { width: 30px; height: 30px; }
+  .cm-h3 { font-size: 16px; } .cm-texte small { font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .salon-code b { font-size: 26px; } .salon-partage .pilule span { display: none; } .salon-partage .pilule { padding: 0 10px; }
+  .salon-joueurs, .salon-reglages { padding: 8px 12px; } .salon-reglages { gap: 6px; }
+  #salon-liste li { min-height: 36px; padding: 3px 8px; }
 }
 @media (max-width: 720px) and (orientation: landscape) {
   .h-bas { left: calc(50% - 26px); gap: 8px; }
@@ -439,7 +511,9 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
   .logo { width: min(440px, 92vw); }
   .titre-actions { justify-content: center; }
   .records { justify-content: center; max-width: none; }
-  .modes-grille, .grille-reglages, .texte-credits { grid-template-columns: minmax(0, 1fr); }
+  .modes-grille, .grille-reglages, .texte-credits, .copains-grille, .salon-grille { grid-template-columns: minmax(0, 1fr); }
+  .salon .barre-haut { flex-wrap: wrap; } .salon-partage .pilule span { display: none; }
+  .copains-ecran .barre-haut h2, .salon .barre-haut h2 { font-size: 21px; }
   .modes-grille { align-content: start; }
   .modes-bientot { grid-auto-rows: auto; }
   .titre-actions { flex-direction: column; }
@@ -518,12 +592,55 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
       <div class="cm-pied"><p class="cm-resume" id="resume-arene"></p><button type="button" class="bouton gros menthe" id="b-lancer" data-a="lancer">C’est parti !</button></div>
     </article>
     <div class="modes-bientot">
+      <button type="button" class="carte-mode copains" id="b-copains" data-a="copains"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="17" cy="18" r="6.5" fill="#7FB3FF" stroke="#2B2A4C" stroke-width="3.5"/><circle cx="32" cy="18" r="6.5" fill="#5FD3A4" stroke="#2B2A4C" stroke-width="3.5"/><path d="M6 38c1-8 6-11 11-11s10 3 11 11zM21 38c1-8 6-11 11-11s10 3 11 11z" fill="#fff" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/></svg></span>
+        <span class="cm-texte"><b class="cm-h3">Avec les copains <em class="nouveau">En ligne</em></b><small>L’Arène à 2, 3 ou 4 sur vos téléphones, avec ou sans robots.</small></span><span class="cm-fleche" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.5 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
       <article class="carte-mode bientot"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="9" y="16" width="30" height="24" rx="5" fill="#FFC84A" stroke="#2B2A4C" stroke-width="3.5"/><path d="M9 24h30M24 16v24" stroke="#2B2A4C" stroke-width="3.5"/><path d="M24 16c-4-8-12-8-11-3s11 3 11 3c4-8 12-8 11-3s-11 3-11 3" fill="#FF6B8B" stroke="#2B2A4C" stroke-width="3" stroke-linejoin="round"/></svg></span>
         <div><h3>Extraction <em>Bientôt</em></h3><p>Récupère le butin dans le village et file au point d’extraction.</p></div></article>
       <article class="carte-mode bientot"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="18" cy="20" r="9" fill="#FFC84A" stroke="#2B2A4C" stroke-width="3.5"/><path d="M38 28a11 11 0 1 1-12-14 9 9 0 0 0 12 14z" fill="#B8A6FF" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/></svg></span>
         <div><h3>Jour / Nuit <em>Bientôt</em></h3><p>Le jour on fortifie la base, la nuit les robots attaquent.</p></div></article>
-      <article class="carte-mode bientot copains"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="17" cy="18" r="6.5" fill="#7FB3FF" stroke="#2B2A4C" stroke-width="3.5"/><circle cx="32" cy="18" r="6.5" fill="#5FD3A4" stroke="#2B2A4C" stroke-width="3.5"/><path d="M6 38c1-8 6-11 11-11s10 3 11 11zM21 38c1-8 6-11 11-11s10 3 11 11z" fill="#fff" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/></svg></span>
-        <div><h3>Avec les copains <em>Bientôt</em></h3><p>Bientôt : salons en ligne, jusqu’à 4 joueurs.</p></div></article>
+    </div>
+  </div>
+</section>
+
+<section class="ecran copains-ecran" id="e-copains" data-e="copains" hidden>
+  <header class="barre-haut">
+    <button type="button" class="rond" data-a="modes" aria-label="Retour"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <h2>Avec les copains</h2>
+    <div class="barre-droite"><button type="button" class="pilule pseudo" data-a="reglages" aria-label="Changer de pseudo"><i class="pastille" id="moi-couleur"></i><span id="moi-pseudo">Castor Turbo 42</span></button></div>
+  </header>
+  <div class="copains-grille">
+    <div class="carte-mode cp-carte">
+      <h3>Créer un salon</h3>
+      <p>Tu reçois un code de 4 lettres à donner aux copains. C’est toi qui lances la partie.</p>
+      <button type="button" class="bouton gros fraise" id="b-creer" data-a="creer">Créer un salon</button>
+    </div>
+    <div class="carte-mode cp-carte">
+      <h3>Rejoindre</h3>
+      <p>Tape le code que ton copain te donne.</p>
+      <div class="cp-rejoindre"><input type="text" id="code-salon" maxlength="4" autocomplete="off" autocapitalize="characters" spellcheck="false" inputmode="text" placeholder="ABCD" aria-label="Code du salon"><button type="button" class="bouton gros menthe" id="b-rejoindre" data-a="rejoindre">Rejoindre</button></div>
+    </div>
+  </div>
+  <p class="cp-note" id="cp-note" aria-live="polite"></p>
+</section>
+
+<section class="ecran salon" id="e-salon" data-e="salon" hidden>
+  <header class="barre-haut">
+    <button type="button" class="rond" data-a="salon-quitter" aria-label="Quitter le salon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <h2>Salon</h2>
+    <div class="salon-code" aria-label="Code du salon"><small>Code</small><b id="salon-code">····</b></div>
+    <div class="barre-droite salon-partage">
+      <button type="button" class="pilule" data-a="partager"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 12v6.5A1.5 1.5 0 0 0 6.5 20h11a1.5 1.5 0 0 0 1.5-1.5V12" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Partager le lien</span></button>
+      <button type="button" class="pilule" data-a="copier"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="11" height="12" rx="2.5" fill="#fff" stroke="currentColor" stroke-width="2.3"/><path d="M15.5 5.5V5A1.5 1.5 0 0 0 14 3.5H6.5A1.5 1.5 0 0 0 5 5v10a1.5 1.5 0 0 0 1.5 1.5H8" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round"/></svg><span>Copier le code</span></button>
+    </div>
+  </header>
+  <div class="salon-grille">
+    <div class="panneau salon-joueurs"><h3>Joueurs <span id="salon-nb"></span></h3><ul id="salon-liste"></ul></div>
+    <div class="panneau salon-reglages">
+      <div class="opt"><span>Robots en plus</span><div class="seg" data-sopt="bots" role="group" aria-label="Robots en plus"><button type="button" data-v="0">0</button><button type="button" data-v="1">1</button><button type="button" data-v="2">2</button><button type="button" data-v="3">3</button><button type="button" data-v="4">4</button></div></div>
+      <div class="opt"><span>Niveau</span><div class="seg" data-sopt="niveau" role="group" aria-label="Niveau des robots"><button type="button" data-v="facile">Facile</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="fort">Fort</button></div></div>
+      <div class="opt"><span>Format</span><div class="seg" data-sopt="equipes" role="group" aria-label="Format"><button type="button" data-v="0">Chacun pour soi</button><button type="button" data-v="1">2 équipes</button></div></div>
+      <p class="salon-etat" id="salon-etat" aria-live="polite"></p>
+      <button type="button" class="bouton gros menthe" id="b-salon-action" data-a="salon-action">Lancer la partie</button>
     </div>
   </div>
 </section>
@@ -541,7 +658,7 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
     <label class="reg inter"><span><b>Son</b><small>Blasters, splats et petites musiques</small></span><input type="checkbox" data-r="son"><i aria-hidden="true"></i></label>
     <label class="reg inter"><span><b>Vibrations</b><small>Quand tu touches ou qu’on te touche</small></span><input type="checkbox" data-r="vibre"><i aria-hidden="true"></i></label>
     <div class="reg large"><span><b>Qualité</b><small>Auto s’adapte à ton téléphone</small></span><div class="seg" data-r="qualite" role="group" aria-label="Qualité"><button type="button" data-v="auto">Auto</button><button type="button" data-v="haute">Haute</button><button type="button" data-v="moyenne">Moyenne</button><button type="button" data-v="eco">Éco</button></div></div>
-    <label class="reg large"><span><b>Ton nom</b><small>Dans le fil des éliminations</small></span><input type="text" maxlength="12" autocomplete="off" spellcheck="false" placeholder="Toi" data-r="nom"></label>
+    <label class="reg large"><span><b>Ton pseudo</b><small>Dans le fil des éliminations et pour les copains en ligne</small></span><input type="text" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Toi" data-r="nom"></label>
   </div>
 </section>
 
@@ -561,11 +678,14 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
 <section class="ecran pause" id="e-pause" data-e="pause" hidden>
   <div class="panneau carte-pause">
     <h2>Pause</h2>
+    <p class="pause-enligne" id="pause-enligne" hidden>En ligne : la partie continue pendant la pause.</p>
     <div class="pause-score" id="pause-score"></div>
     <button type="button" class="bouton gros menthe" data-a="reprendre">Reprendre</button>
     <div class="pause-bas"><button type="button" class="bouton blanc" data-a="reglages">Réglages</button><button type="button" class="bouton blanc" data-a="quitter">Quitter</button></div>
   </div>
 </section>
+
+<div class="salon-toast" id="salon-toast" aria-live="polite" hidden></div>
 
 <div id="sans3d" class="voile-panneau" hidden>
   <div class="panneau">
@@ -2509,7 +2629,8 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
    au joystick (avant, côté, dyaw, dpitch, tir, saut, accroupi, recharge, arme), jamais en trichant sur sa position.
    Perception (toutes les 0,1 s) : un cône de PREGLES.BOTS[niveau].champ radians devant lui, 45 m au plus, en ligne de vue (monde.vue,
    vers la poitrine ou la tête) ; il sent quelqu'un collé à lui (2,5 m) ; il entend les tirs à 30 m et les pas (debout) à 10 m
-   (jeu.bruits) ; touché par quelqu'un qu'il ne voit pas, il se retourne vers lui.
+   (jeu.bruits) ; touché, il voit son agresseur jusqu'à 160 m pendant 6 s (pas de long-tir sans riposte) ; touché par quelqu'un qu'il
+   ne voit pas, il se retourne vers lui et va le chercher.
    États : patrouille (chemin PNAV vers un objet utile, un point libre, ou vers là où ça se passe), chasse (dernière position vue ou bruit
    entendu, puis un tour d'horizon), combat (temps de réaction, erreur de visée qui se resserre, vitesse de rotation bornée ; tir par
    rafales ; pas de côté ; garde la bonne distance pour son arme : 8–20 m au blaster ; recharge à l'abri), fuite vers un soin sous 25 %
@@ -2524,6 +2645,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   'use strict';
   const J = REGLES.JOUEUR;
   const VUE = 45, SENT = 2.5, PERCEPTION = 0.1;  // portée de vue (m), « on le sent dans son dos » (m), période de perception (s)
+  const VUE_AGRESSEUR = 160, AGRESSEUR = 6;      // celui qui vient de le toucher : vu jusqu'à 160 m (le long-tir) pendant 6 s
   const BANDE = { rafale: [8, 20], pompe: [2.5, 7], precision: [20, 42] }; // la distance que le robot cherche à garder selon son arme
   const PORTEE = { rafale: 50, pompe: 18, precision: 140 };                // au-delà, il ne tire pas
   const VIE_FUITE = 25, VIE_RASSURE = 50;
@@ -2539,7 +2661,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       jeu, ne: -1, entree: { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null },
       etat: 'patrouille', etatA: 0,
       cible: null, vuA: -1e9, reagitA: 0, cx: 0, cy: 0, cz: 0, cvx: 0, cvz: 0, erreur: 0, ex: 0, ey: 0,
-      alerteA: -1e9, ax: 0, az: 0, retourne: false, bruitN: 0, toucheVu: -1,
+      alerteA: -1e9, ax: 0, az: 0, retourne: false, bruitN: 0, toucheVu: -1, agresseur: null, agresseurA: -1e9,
       chemin: null, ic: 0, but: '', butX: 0, butZ: 0, butObjet: null, veut: false, raccourciA: 0, fouilleA: -1, fouilleSens: 1,
       mx: 0, mz: 0, vit: 1,
       strafe: 1, strafeA: 0, derive: 0, rafale: false, rafaleA: 0, changeA: 0, directA: 0, direct: true, approcheA: 0,
@@ -2552,7 +2674,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   function renaitre(bot, ia, jeu) { // (ré)apparu : on repart de zéro
     ia.ne = bot.apparuA; ia.etat = 'patrouille'; ia.etatA = jeu.temps; ia.cible = null; ia.vuA = -1e9; ia.alerteA = -1e9; ia.chemin = null; ia.veut = false; ia.but = '';
     ia.fouilleA = -1; ia.abri = false; ia.coince = 0; ia.decoinceA = 0; ia.sx = bot.x; ia.sz = bot.z; ia.surveilleA = jeu.temps + 1; ia.envie = 0; ia.nEnvie = 0;
-    ia.toucheVu = bot.toucheA; ia.bruitN = jeu.nBruits; ia.fuiteA = -1e9; ia.pasDeFuiteAvant = 0; ia.rafale = false; ia.echecs = 0;
+    ia.toucheVu = bot.toucheA; ia.bruitN = jeu.nBruits; ia.fuiteA = -1e9; ia.pasDeFuiteAvant = 0; ia.rafale = false; ia.echecs = 0; ia.agresseur = null; ia.agresseurA = -1e9;
   }
 
   // ─── tourner le regard vers (yaw, pitch), à vitesse bornée, en ralentissant à l'arrivée (comme une main) ───
@@ -2568,9 +2690,10 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     const T = jeu.temps, monde = jeu.monde, es = jeu.entites;
     const ox = bot.x, oy = bot.y + oeil(bot), oz = bot.z, fx = -Math.sin(bot.yaw), fz = -Math.cos(bot.yaw), cosC = Math.cos(niv.champ / 2);
     let best = null, bs = Infinity;
+    const agr = ia.agresseur && T - ia.agresseurA < AGRESSEUR ? ia.agresseur : null; // celui qui vient de le toucher : vu bien plus loin
     for (let k = 0; k < es.length; k++) {
       const c = es[k]; if (c === bot || !c.vivant || !jeu.ennemis(bot, c)) continue;
-      const dx = c.x - ox, dz = c.z - oz, d2 = dx * dx + dz * dz; if (d2 > VUE * VUE) continue;
+      const dx = c.x - ox, dz = c.z - oz, d2 = dx * dx + dz * dz, vue = c === agr ? VUE_AGRESSEUR : VUE; if (d2 > vue * vue) continue;
       const d = Math.sqrt(d2);
       if (d > SENT && dx * fx + dz * fz < cosC * d) continue; // hors du cône
       const h = c.accroupi ? J.tailleAccroupi : J.taille;
@@ -2594,12 +2717,14 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       if (b.n > ia.bruitN && (T - ia.alerteA > 0.5 || !ia.retourne)) { ia.alerteA = T; ia.ax = b.x; ia.az = b.z; ia.retourne = false; }
     }
     ia.bruitN = jeu.nBruits;
-    // touché par quelqu'un qu'on ne voit pas : on se retourne vers lui
+    // touché : on retient l'agresseur (vu jusqu'à 160 m pendant 6 s, même au long-tir) ; si on ne le voit pas, on se retourne vers lui
+    // et on va le chercher
     if (bot.toucheA > ia.toucheVu) {
       ia.toucheVu = bot.toucheA;
       const a = jeu.trouver(bot.parQui);
-      if (a && a.vivant && a !== best) { ia.alerteA = T; ia.ax = a.x; ia.az = a.z; ia.retourne = true; }
+      if (a && a.vivant) { ia.agresseur = a; ia.agresseurA = T; if (a !== best) { ia.alerteA = T; ia.ax = a.x; ia.az = a.z; ia.retourne = true; } }
     }
+    if (ia.agresseur && (!ia.agresseur.vivant || ia.agresseur.retire)) ia.agresseur = null;
   }
 
   // ─── les chemins (jeu.budgetNav : 2 requêtes par image pour tous les bots) ───
@@ -2904,6 +3029,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   const KICK = 0.6;                   // la part du recul de l'arme qui relève le regard
   const AIDE_CONE = 4 * Math.PI / 180, AIDE_DIST = 40, AIDE_MAX = 2.5 * Math.PI / 180, AIDE_SUR = 1.5 * Math.PI / 180, AIDE_RALENTIR = 0.4;
   const NB_BRUITS = 24;
+  const PORTEE_AUTO = { pompe: 12 };   // le tir auto de la pompe s'arrête à sa portée utile ; les autres : min(portée, 60, 1,2 × fin de la chute)
   const fini = (v) => typeof v === 'number' && v - v === 0;
   const borne = (v, a, b) => (v < a ? a : v > b ? b : v);
   const num = (v, a, b) => { v = +v; return fini(v) ? borne(v, a, b) : 0; };
@@ -2948,6 +3074,110 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     return best;
   }
 
+  // ─── le déplacement d'une entité selon son entrée (regard, marche, glissement contre les murs, pente, saut, gravité) ───
+  // Fonction pure, partagée par la simulation (etape) et la prédiction du client en ligne : même entrée, même dt → même résultat.
+  // L'entrée peut donner le regard en absolu (yaw, pitch : le client en ligne) ou en variation (dyaw, dpitch). Rend MV { dep, saut }.
+  const MV = { dep: 0, saut: false };
+  function deplacer(e, en, dt, monde) {
+    MV.dep = 0; MV.saut = false;
+    if (!en || typeof en !== 'object') en = NEUTRE;
+    // le regard
+    if (fini(en.yaw)) e.yaw = angle(en.yaw); else e.yaw = angle(e.yaw + num(en.dyaw, -Math.PI, Math.PI));
+    if (fini(en.pitch)) e.pitch = borne(en.pitch, -1.45, 1.45); else e.pitch = borne(e.pitch + num(en.dpitch, -Math.PI, Math.PI), -1.45, 1.45);
+    e.accroupi = !!en.accroupi;
+    // la marche : consigne dans le repère du regard, rejointe en douceur
+    let av = num(en.avant, -1, 1), co = num(en.cote, -1, 1); const l = Math.sqrt(av * av + co * co); if (l > 1) { av /= l; co /= l; }
+    const vmax = e.accroupi ? J.vitesseAccroupi : J.vitesse; if (av < 0) av *= J.vitesseRecul;
+    const sy = Math.sin(e.yaw), cy = Math.cos(e.yaw);
+    const cvx = (-sy * av + cy * co) * vmax, cvz = (-cy * av - sy * co) * vmax, k = Math.min(1, dt * (e.auSol ? ACCEL_SOL : ACCEL_AIR));
+    e.vx += (cvx - e.vx) * k; e.vz += (cvz - e.vz) * k;
+    const x0 = e.x, z0 = e.z;
+    if (e.vx * e.vx + e.vz * e.vz > 1e-8) {
+      const p = monde.deplacer(e.x, e.z, e.vx * dt, e.vz * dt, J.rayon), px = p[0] - e.x, pz = p[1] - e.z, pl = Math.sqrt(px * px + pz * pz);
+      let ok = monde.hauteur(p[0], p[1]) - e.y <= J.marche; // plus haut qu'une marche d'un coup : on ne monte pas
+      if (ok && pl > 1e-6 && monde.pente) { const g = monde.pente(p[0], p[1]); if ((g[0] * px + g[1] * pz) / pl > PENTE_MAX) ok = false; } // un talus plus raide qu'une marche de 0,45 m sur 30 cm
+      if (ok) { e.x = p[0]; e.z = p[1]; }
+    }
+    const mx = e.x - x0, mz = e.z - z0, dep = Math.sqrt(mx * mx + mz * mz);
+    if (e.auSol) { e.vx = mx / dt; e.vz = mz / dt; } // un mur a mangé une partie de l'élan
+    e.vitesse = dep / dt;
+    // saut et gravité ; au sol, on suit le relief (une pente qui descend trop vite : on tombe)
+    const sol = monde.hauteur(e.x, e.z);
+    if (en.saut && e.auSol) { e.vy = J.saut; e.auSol = false; MV.saut = true; }
+    if (e.auSol) { if (sol < e.y - 0.6) { e.auSol = false; e.vy = 0; } else { e.y = sol; e.vy = 0; } }
+    if (!e.auSol) {
+      e.y += e.vy * dt - 0.5 * J.gravite * dt * dt; e.vy -= J.gravite * dt; // la parabole exacte : même saut à 30 ou 120 images/s
+      if (e.y <= sol) { e.y = sol; e.vy = 0; e.auSol = true; }
+    }
+    MV.dep = dep;
+    return MV;
+  }
+  function dispersionDe(e, A) { // l'écart du tir (rad) : l'arme, ×0,7 accroupi, + le mouvement et l'air, + l'ouverture des tirs précédents
+    const mvt = Math.min(1, e.vitesse / J.vitesse) + (e.auSol ? 0 : 0.6);
+    return A.dispersion * (e.accroupi ? 0.7 : 1) + (A.dispersionMouvement || 0) * mvt + e.gonfle * (A.recul || 0.02) * 1.6;
+  }
+  // un tir « pour l'image » (client en ligne : l'éclair et la traînée tout de suite, l'hôte décide des dégâts) : mêmes rayons que la
+  // simulation (dispersion, plombs, monde puis capsules des ennemis vivants), événements « tir » dans out, aucun effet sur le jeu
+  function tirVisuel(e, monde, entites, rnd, out) {
+    const A = REGLES.arme(e.arme), disp = dispersionDe(e, A), o = e.accroupi ? J.oeilAccroupi : J.oeil;
+    const sy = Math.sin(e.yaw), cy = Math.cos(e.yaw), sp = Math.sin(e.pitch), cp = Math.cos(e.pitch);
+    const d0x = -sy * cp, d0y = sp, d0z = -cy * cp, rx = cy, rz = -sy, ux = sy * sp, uy = cp, uz = cy * sp, ox = e.x, oy = e.y + o, oz = e.z;
+    for (let p = 0; p < A.plombs; p++) {
+      const r = disp * Math.sqrt(rnd()), a = rnd() * 2 * Math.PI, da = Math.tan(r) * Math.cos(a), db = Math.tan(r) * Math.sin(a);
+      let dx = d0x + rx * da + ux * db, dy = d0y + uy * db, dz = d0z + rz * da + uz * db;
+      const l = Math.sqrt(dx * dx + dy * dy + dz * dz); dx /= l; dy /= l; dz /= l;
+      const h = monde.rayon(ox, oy, oz, dx, dy, dz, A.portee);
+      let tMax = h ? h.t : A.portee, cible = null;
+      for (let k = 0; k < entites.length; k++) {
+        const c = entites[k]; if (c === e || !c.vivant || c.equipe === e.equipe) continue;
+        const t = rayonCapsule(ox, oy, oz, dx, dy, dz, c, tMax); if (t >= 0 && t < tMax) { tMax = t; cible = c; }
+      }
+      const fx = ox + dx * tMax, fy = oy + dy * tMax, fz = oz + dz * tMax;
+      const impact = cible ? { x: fx, y: fy, z: fz, nx: -dx, ny: -dy, nz: -dz, quoi: 'entite', id: cible.id } : h ? { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, quoi: h.quoi } : null;
+      out.push({ t: 'tir', id: e.id, arme: A.id, o: [ox, oy, oz], fin: [fx, fy, fz], impact, local: true });
+    }
+    return out;
+  }
+
+  // ─── l'instantané compact (le jeu en ligne : l'hôte l'envoie à 20 Hz) ───
+  // { t, e: [[id, x, y, z, yaw, pitch, vie, armure, drapeaux, arme, kills, morts, points (+ pour les humains : m0, m1, m2, r0, r1, r2, recharge, ack)], …], o, r }
+  // drapeaux : 1 vivant, 2 au sol, 4 accroupi, 8 invincible, 16 en recharge ; arme : indice dans ARMES_ID ; m / r : munitions et réserve par arme (−1 : pas
+  // possédée) ; recharge : secondes restantes ; ack : numéro de la dernière entrée appliquée (réseau) ; o : '1' / '0' par objet du mode (disponible) ; r : reste (s).
+  const ARMES_ID = ['rafale', 'pompe', 'precision'];
+  const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
+  function ligneDe(e, temps, ack) {
+    const fl = (e.vivant ? 1 : 0) | (e.auSol ? 2 : 0) | (e.accroupi ? 4 : 0) | (e.invincible > 0 ? 8 : 0) | (e.enRecharge ? 16 : 0);
+    const l = [e.id, r2(e.x), r2(e.y), r2(e.z), r3(e.yaw), r3(e.pitch), Math.max(0, Math.round(e.vie)), Math.round(e.armure), fl, Math.max(0, ARMES_ID.indexOf(e.arme)), e.score.kills, e.score.morts, e.score.points];
+    if (e.humain) {
+      for (let i = 0; i < 3; i++) { const a = ARMES_ID[i]; l.push(e.armes.indexOf(a) >= 0 ? e.munitions[a] | 0 : -1); }
+      for (let i = 0; i < 3; i++) { const a = ARMES_ID[i]; l.push(e.armes.indexOf(a) >= 0 ? e.reserve[a] | 0 : -1); }
+      l.push(e.enRecharge ? r2(Math.max(0, e.rechargeJusqua - temps)) : 0, ack | 0);
+    }
+    return l;
+  }
+  // écrit une ligne d'instantané dans une entité : quoi = 'etat' (vie, scores, munitions…), 'corps' (position, regard, drapeaux, arme), ou 'tout'
+  function lireLigne(l, e, temps, quoi) {
+    if (!Array.isArray(l) || !e) return false;
+    const fl = l[8] | 0;
+    if (quoi !== 'etat') {
+      if (fini(l[1]) && fini(l[2]) && fini(l[3])) { e.x = l[1]; e.y = l[2]; e.z = l[3]; }
+      if (fini(l[4])) e.yaw = angle(l[4]); if (fini(l[5])) e.pitch = borne(l[5], -1.45, 1.45);
+      e.vivant = !!(fl & 1); e.auSol = !!(fl & 2); e.accroupi = !!(fl & 4); e.invincible = fl & 8 ? 1 : 0;
+      e.arme = ARMES_ID[l[9] | 0] || 'rafale';
+    }
+    if (quoi !== 'corps') {
+      if (fini(l[6])) e.vie = l[6]; if (fini(l[7])) e.armure = l[7];
+      e.score.kills = l[10] | 0; e.score.morts = l[11] | 0; e.score.points = l[12] | 0;
+      if (l.length >= 21) {
+        const armes = [];
+        for (let i = 0; i < 3; i++) { const a = ARMES_ID[i], m = l[13 + i]; if (m >= 0) { armes.push(a); e.munitions[a] = m | 0; e.reserve[a] = Math.max(0, l[16 + i] | 0); } else { delete e.munitions[a]; delete e.reserve[a]; } }
+        if (armes.length) e.armes = armes;
+        e.enRecharge = !!(fl & 16); e.rechargeJusqua = e.enRecharge ? temps + (+l[19] || 0) : 0;
+      }
+    }
+    return true;
+  }
+
   function creer(params) {
     params = params || {};
     const monde = params.monde;
@@ -2973,6 +3203,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       bruits, nBruits: 0, budgetNav: 2, erreurs: 0, derniereErreur: null,
       get reste() { return jeu.duree > 0 ? Math.max(0, jeu.duree - jeu.temps) : undefined; },
       ajouterJoueur, retirerJoueur, etape, classement, aideVisee, finir, trouver, ennemis, reapparaitre, resume,
+      reglerRetard, retardDe, historique, instantane,
     };
 
     function trouver(id) { for (let i = 0; i < entites.length; i++) if (entites[i].id === id) return entites[i]; return null; }
@@ -3005,7 +3236,20 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       placer(e);
       return e;
     }
-    function retirerJoueur(id) { const i = entites.findIndex((e) => e.id === id); if (i >= 0) entites.splice(i, 1); return i >= 0; }
+    function retirerJoueur(id) { // vraiment : hors du jeu, hors des cibles et de la mémoire des robots, hors des bruits
+      const i = entites.findIndex((e) => e.id === id); if (i < 0) return false;
+      const e = entites[i]; entites.splice(i, 1);
+      e.vivant = false; e.retire = true; HIST.delete(e); retards.delete(id);
+      for (const b of entites) {
+        if (b.parQui === id) b.parQui = null;
+        const ia = b.ia; if (!ia) continue;
+        if (ia.cible === e) { ia.cible = null; ia.vuA = -1e9; ia.alerteA = -1e9; ia.retourne = false; ia.fouilleA = -1; }
+        if (ia.proie === e) { ia.proie = null; ia.chemin = null; ia.veut = false; }
+        if (ia.agresseur === e) ia.agresseur = null;
+      }
+      for (let k = 0; k < bruits.length; k++) if (bruits[k].e === e) bruits[k].e = null;
+      return true;
+    }
     function placer(e) { // au point que choisit le mode (vérifié : libre, dans le carré), sinon un point libre
       let p = null;
       try { p = mode.apparition ? mode.apparition(jeu, e) : null; } catch (err) { erreur('mode.apparition', err); p = null; }
@@ -3018,6 +3262,62 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       e.rechargeJusqua = 0; e.enRecharge = false; e.prochainTir = jeu.temps + 0.2; e.gonfle = 0; e.dispersion = A.dispersion; e.foulee = 0; e.tueTete = false;
     }
     function reapparaitre(e, out) { placer(e); (out || evs).push({ t: 'reapparition', id: e.id }); }
+
+    // ─── l'historique des positions (≈ 1 s) et la compensation de latence par tireur (jeu en ligne) ───
+    // jeu.reglerRetard(id, s) : les tirs de id voient les autres comme il y a s secondes (borné à 0,25 s) ; l'hôte le règle d'après le ping.
+    const NH = 72, H_PAS = 1 / 70, HIST = new Map(), retards = new Map();
+    const SAUVE = { x: [], y: [], z: [], a: [], ent: [], n: 0 };
+    function noter() { // une entrée par entité, au plus 70 par seconde
+      for (let k = 0; k < entites.length; k++) {
+        const e = entites[k]; let h = HIST.get(e);
+        if (!h) { h = { t: new Float64Array(NH), x: new Float64Array(NH), y: new Float64Array(NH), z: new Float64Array(NH), f: new Uint8Array(NH), i: -1, n: 0 }; HIST.set(e, h); }
+        if (h.n && jeu.temps - h.t[h.i] < H_PAS) continue;
+        h.i = (h.i + 1) % NH; if (h.n < NH) h.n++;
+        h.t[h.i] = jeu.temps; h.x[h.i] = e.x; h.y[h.i] = e.y; h.z[h.i] = e.z; h.f[h.i] = (e.vivant ? 1 : 0) | (e.accroupi ? 2 : 0);
+      }
+    }
+    const POS = { x: 0, y: 0, z: 0, accroupi: false, vivant: false };
+    function historique(qui, t) { // la position (interpolée) d'une entité au temps t, ou null si l'historique ne remonte pas jusque-là
+      const e = typeof qui === 'string' ? trouver(qui) : qui, h = e && HIST.get(e); if (!h || !h.n) return null;
+      let j = h.i;
+      for (let k = 0; k < h.n; k++) {
+        if (h.t[j] <= t) {
+          const s = (j + 1) % NH, suivant = k > 0; // l'entrée d'après (plus récente), s'il y en a une
+          let u = 0; if (suivant && h.t[s] > h.t[j]) u = Math.min(1, (t - h.t[j]) / (h.t[s] - h.t[j]));
+          if (suivant && Math.abs(h.x[s] - h.x[j]) + Math.abs(h.z[s] - h.z[j]) > 4) u = u < 0.5 ? 0 : 1; // une téléportation : pas de milieu
+          const a = u >= 1 ? s : j;
+          POS.x = h.x[j] + (suivant ? (h.x[s] - h.x[j]) * u : 0); POS.y = h.y[j] + (suivant ? (h.y[s] - h.y[j]) * u : 0); POS.z = h.z[j] + (suivant ? (h.z[s] - h.z[j]) * u : 0);
+          POS.vivant = !!(h.f[a] & 1); POS.accroupi = !!(h.f[a] & 2);
+          return POS;
+        }
+        j = (j - 1 + NH) % NH;
+      }
+      return null;
+    }
+    function reglerRetard(id, s) { s = num(s, 0, 0.25); if (s > 0) retards.set(String(id), s); else retards.delete(String(id)); return s; }
+    function retardDe(id) { return retards.get(String(id)) || 0; }
+    function rembobiner(tireur) {
+      const r = retards.size ? retards.get(tireur.id) : 0; if (!r) return false;
+      const t = jeu.temps - r; SAUVE.n = 0;
+      for (let k = 0; k < entites.length; k++) {
+        const c = entites[k]; if (c === tireur || !c.vivant) continue;
+        const p = historique(c, t); if (!p) continue;
+        const n = SAUVE.n++; SAUVE.ent[n] = c; SAUVE.x[n] = c.x; SAUVE.y[n] = c.y; SAUVE.z[n] = c.z; SAUVE.a[n] = c.accroupi;
+        if (p.vivant) { c.x = p.x; c.y = p.y; c.z = p.z; c.accroupi = p.accroupi; }
+        else { c.x = 1e7; c.z = 1e7; } // pas encore réapparu à ce moment-là : intouchable pour ce tir
+      }
+      return SAUVE.n > 0;
+    }
+    function restaurer() { for (let n = 0; n < SAUVE.n; n++) { const c = SAUVE.ent[n]; c.x = SAUVE.x[n]; c.y = SAUVE.y[n]; c.z = SAUVE.z[n]; c.accroupi = SAUVE.a[n]; SAUVE.ent[n] = null; } SAUVE.n = 0; }
+
+    // ─── l'instantané compact de la partie (voir ligneDe) ; acks : { id: numéro de la dernière entrée appliquée } ───
+    function instantane(acks) {
+      const e = new Array(entites.length);
+      for (let k = 0; k < entites.length; k++) e[k] = ligneDe(entites[k], jeu.temps, acks ? acks[entites[k].id] : 0);
+      let o = ''; let objs = null; try { objs = mode.objets ? mode.objets(jeu) : null; } catch (err) { objs = null; }
+      if (objs) for (let i = 0; i < objs.length; i++) o += objs[i].dispo ? '1' : '0';
+      return { t: r3(jeu.temps), e, o, r: jeu.duree > 0 ? r2(Math.max(0, jeu.duree - jeu.temps)) : -1, f: jeu.fini ? 1 : 0 };
+    }
 
     // ─── les armes ───
     function changerArme(e, id) {
@@ -3042,11 +3342,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       e.enRecharge = false;
       const A = REGLES.arme(e.arme), m = e.munitions[e.arme] | 0, res = e.reserve[e.arme] | 0, manque = A.chargeur - m;
       const n = e.arme === 'rafale' ? manque : Math.min(manque, res); // réserve de secours du blaster de base
-      e.munitions[e.arme] = m + n; e.reserve[e.arme] = Math.max(0, res - n);
-    }
-    function dispersionDe(e, A) { // l'écart du tir (rad) : l'arme, ×0,7 accroupi, + le mouvement et l'air, + l'ouverture des tirs précédents
-      const mvt = Math.min(1, e.vitesse / J.vitesse) + (e.auSol ? 0 : 0.6);
-      return A.dispersion * (e.accroupi ? 0.7 : 1) + (A.dispersionMouvement || 0) * mvt + e.gonfle * (A.recul || 0.02) * 1.6;
+      e.munitions[e.arme] = m + n; e.reserve[e.arme] = e.arme === 'rafale' ? Math.max(A.chargeur, res - n) : Math.max(0, res - n); // le blaster ne tombe jamais sous un chargeur de réserve (il recharge à l'infini)
     }
 
     // ─── un tir : un rayon par plomb, depuis l'œil, contre le monde puis les capsules ───
@@ -3063,6 +3359,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       const rx = cy, rz = -sy;                                      // la droite
       const ux = sy * sp, uy = cp, uz = cy * sp;                    // le haut de l'écran
       const ox = e.x, oy = e.y + oeil(e), oz = e.z;
+      const rembobine = rembobiner(e); // compensation de latence (jeu en ligne) : les autres là où le tireur les voyait
       let nc = 0;
       for (let p = 0; p < A.plombs; p++) {
         const r = disp * Math.sqrt(rnd()), a = rnd() * 2 * Math.PI, da = Math.tan(r) * Math.cos(a), db = Math.tan(r) * Math.sin(a);
@@ -3088,6 +3385,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
         } else if (h) impact = { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, quoi: h.quoi };
         out.push({ t: 'tir', id: e.id, arme: A.id, o: [ox, oy, oz], fin: [fx, fy, fz], impact });
       }
+      if (rembobine) restaurer();
       // le recul : le viseur s'ouvre, le regard se relève un peu
       e.gonfle = Math.min(1, e.gonfle + (GONFLE[A.id] != null ? GONFLE[A.id] : 0.3));
       e.pitch = borne(e.pitch + (A.recul || 0) * KICK * (0.7 + 0.3 * rnd()), -1.45, 1.45);
@@ -3114,34 +3412,8 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     // ─── une entité joue son entrée ───
     function appliquer(e, en, dt, out) {
       const T = jeu.temps;
-      // le regard
-      e.yaw = angle(e.yaw + num(en.dyaw, -Math.PI, Math.PI));
-      e.pitch = borne(e.pitch + num(en.dpitch, -Math.PI, Math.PI), -1.45, 1.45);
-      e.accroupi = !!en.accroupi;
-      // la marche : consigne dans le repère du regard, rejointe en douceur
-      let av = num(en.avant, -1, 1), co = num(en.cote, -1, 1); const l = Math.sqrt(av * av + co * co); if (l > 1) { av /= l; co /= l; }
-      const vmax = e.accroupi ? J.vitesseAccroupi : J.vitesse; if (av < 0) av *= J.vitesseRecul;
-      const sy = Math.sin(e.yaw), cy = Math.cos(e.yaw);
-      const cvx = (-sy * av + cy * co) * vmax, cvz = (-cy * av - sy * co) * vmax, k = Math.min(1, dt * (e.auSol ? ACCEL_SOL : ACCEL_AIR));
-      e.vx += (cvx - e.vx) * k; e.vz += (cvz - e.vz) * k;
-      const x0 = e.x, z0 = e.z;
-      if (e.vx * e.vx + e.vz * e.vz > 1e-8) {
-        const p = monde.deplacer(e.x, e.z, e.vx * dt, e.vz * dt, J.rayon), px = p[0] - e.x, pz = p[1] - e.z, pl = Math.sqrt(px * px + pz * pz);
-        let ok = monde.hauteur(p[0], p[1]) - e.y <= J.marche; // plus haut qu'une marche d'un coup : on ne monte pas
-        if (ok && pl > 1e-6 && monde.pente) { const g = monde.pente(p[0], p[1]); if ((g[0] * px + g[1] * pz) / pl > PENTE_MAX) ok = false; } // un talus plus raide qu'une marche de 0,45 m sur 30 cm
-        if (ok) { e.x = p[0]; e.z = p[1]; }
-      }
-      const mx = e.x - x0, mz = e.z - z0, dep = Math.sqrt(mx * mx + mz * mz);
-      if (e.auSol) { e.vx = mx / dt; e.vz = mz / dt; } // un mur a mangé une partie de l'élan
-      e.vitesse = dep / dt;
-      // saut et gravité ; au sol, on suit le relief (une pente qui descend trop vite : on tombe)
-      const sol = monde.hauteur(e.x, e.z);
-      if (en.saut && e.auSol) { e.vy = J.saut; e.auSol = false; out.push({ t: 'saut', id: e.id }); }
-      if (e.auSol) { if (sol < e.y - 0.6) { e.auSol = false; e.vy = 0; } else { e.y = sol; e.vy = 0; } }
-      if (!e.auSol) {
-        e.y += e.vy * dt - 0.5 * J.gravite * dt * dt; e.vy -= J.gravite * dt; // la parabole exacte : même saut à 30 ou 120 images/s
-        if (e.y <= sol) { e.y = sol; e.vy = 0; e.auSol = true; }
-      }
+      const mv = deplacer(e, en, dt, monde), dep = mv.dep;
+      if (mv.saut) out.push({ t: 'saut', id: e.id });
       // les pas (debout seulement : accroupi, on est discret)
       if (e.auSol && !e.accroupi && dep > 0) { e.foulee += dep; if (e.foulee >= FOULEE) { e.foulee -= FOULEE; out.push({ t: 'pas', id: e.id }); faireBruit(e, 10); } }
       // les armes
@@ -3227,6 +3499,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       separer();
       ramasser(evs);
       if (mode.tick) { try { mode.tick(jeu, dt, evs); } catch (err) { erreur('mode.tick', err); } }
+      noter();
       let fin = finDemandee;
       if (!fin && mode.fini) { try { fin = !!mode.fini(jeu); } catch (err) { erreur('mode.fini', err); } }
       if (fin) { jeu.fini = true; evs.push({ t: 'fin', classement: resume() }); }
@@ -3234,8 +3507,9 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     }
     function finir() { finDemandee = true; }
 
-    // ─── le classement : points, puis éliminations, puis le moins de morts ; à égalité parfaite, les humains devant les robots ───
-    const parScore = (a, b) => b.score.points - a.score.points || b.score.kills - a.score.kills || a.score.morts - b.score.morts || (a.bot === b.bot ? 0 : a.bot ? 1 : -1) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    // ─── le classement : les repeints (le critère de fin de l'Arène), départagés par les points, puis le moins de morts ; à égalité
+    // parfaite, les humains devant les robots ───
+    const parScore = (a, b) => b.score.kills - a.score.kills || b.score.points - a.score.points || a.score.morts - b.score.morts || (a.bot === b.bot ? 0 : a.bot ? 1 : -1) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
     function classement() { return entites.slice().sort(parScore); }
     function resume() { return classement().map((e) => ({ id: e.id, nom: e.nom, couleur: e.couleur, equipe: e.equipe, bot: e.bot, humain: e.humain, kills: e.score.kills, morts: e.score.morts, points: e.score.points })); }
 
@@ -3247,7 +3521,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       force = num(force, 0, 1);
       const A = REGLES.arme(e.arme), ox = e.x, oy = e.y + oeil(e), oz = e.z;
       const sy = Math.sin(e.yaw), cy = Math.cos(e.yaw), sp = Math.sin(e.pitch), cp = Math.cos(e.pitch), dx = -sy * cp, dy = sp, dz = -cy * cp;
-      const porteeSur = Math.min(A.portee, 60, A.chute[1] * 1.2); // le tir auto seulement là où il sert (la pompe à 25 m ne fait plus rien)
+      const porteeSur = PORTEE_AUTO[A.id] || Math.min(A.portee, 60, A.chute[1] * 1.2); // le tir auto seulement là où l'arme sert (la pompe à 18 m ne fait plus que 3 à 6 dégâts)
       let best = null, bestAng = AIDE_CONE, bestD = 0, bestY = 0;
       for (let k = 0; k < entites.length; k++) {
         const c = entites[k]; if (!c.vivant || !ennemis(e, c) || c.invincible > 0) continue;
@@ -3275,19 +3549,19 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     // ─── la mise en place : le mode (zones, bots), puis la navigation des bots sur la zone jouée ───
     try { if (mode.init) mode.init(jeu); } catch (err) { erreur('mode.init', err); }
     if (!jeu.duree && reglesMode && mode !== MODE_LIBRE) jeu.duree = reglesMode.duree || 0;
-    if (NAV && typeof monde.passe === 'function') { try { jeu.nav = NAV.creer(monde, { pas: 1.5, marge: 0.45 }); } catch (err) { erreur('nav', err); jeu.nav = null; } }
+    if (NAV && params.nav !== false && typeof monde.passe === 'function') { try { jeu.nav = NAV.creer(monde, { pas: 1.5, marge: 0.45 }); } catch (err) { erreur('nav', err); jeu.nav = null; } }
     return jeu;
   }
 
-  return { creer, rayonCapsule, DT_MAX, R_CAPSULE, TETE };
+  return { creer, rayonCapsule, deplacer, dispersion: dispersionDe, tirVisuel, ligneDe, lireLigne, ARMES_ID, PORTEE_AUTO, DT_MAX, R_CAPSULE, TETE };
 });
 
 /* ── arene.js ── */
 /* OPÉRATION PONCIN — le mode Arène : chacun pour soi ou deux contre deux autour de la place Bichat. 180 s ou 25 repeints (par joueur,
-   ou par équipe en 2 contre 2) ; réapparition au bout de 3 s au point d'apparition le plus loin des ennemis (invincible 1,5 s, jusqu'au
-   premier tir) ; points : élimination 100, série de 3 (à chaque multiple de 3 sans mourir) 50, élimination à la tête 25 ; objets de
-   carte.zones.armes (long-tir, pompe, soin, armure) qui réapparaissent ; murs invisibles au bord de zones.arene (monde.limite) ;
-   annonces (premier repeint, séries, prise de tête, dernière minute…).
+   ou par équipe en 2 contre 2 : le classement suit les repeints, départagés par les points) ; réapparition au bout de 3 s à ~35 m des
+   ennemis, de préférence hors de leur vue (invincible 1,5 s, jusqu'au premier tir) ; points : élimination 100, série de 3 (à chaque
+   multiple de 3 sans mourir) 50, élimination à la tête 25 ; objets de carte.zones.armes (long-tir, pompe, soin, armure) qui
+   réapparaissent ; murs invisibles au bord de zones.arene (monde.limite) ; annonces (premier repeint, séries, prise de tête, dernière minute…).
    Un mode est un jeu de crochets appelés par PJEU (voir src-poncin/ARCHITECTURE.md) : init(jeu), tick(jeu, dt, evs), surMort(jeu,
    victime, tueur, evs), apparition(jeu, entite) → [x, z, yaw], objets(jeu) → [{ id, x, z, objet, dispo }], fini(jeu), resultat(jeu).
    L'état de la manche est rangé dans jeu.arene. Les zones viennent de jeu.carte (carte v1) ; sans carte, une arène de secours est
@@ -3339,7 +3613,18 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     }
   }
 
-  // le point d'apparition à bonne distance des ennemis vivants (~35 m, jamais à moins de 15 m ; un peu de hasard départage), jamais sur quelqu'un ; regard vers le plus dégagé
+  // le point d'apparition à bonne distance des ennemis vivants (~35 m, jamais à moins de 15 m ; un peu de hasard départage), jamais sur quelqu'un,
+  // et de préférence hors de leur vue (monde.vue, jusqu'à VU_MAX m) : on ne se fait pas repeindre dès la fin de l'invincibilité ; regard vers le plus dégagé
+  const VU_MAX = 75, CACHE = 25; // au-delà de 75 m, un ennemi ne gêne plus ; être caché vaut 25 m d'écart au « bon » 35 m
+  function vuPar(jeu, e, x, z) { // un ennemi vivant voit-il ce point (sa poitrine) ?
+    const monde = jeu.monde, es = jeu.entites, y = monde.hauteur(x, z) + 1.2;
+    for (let k = 0; k < es.length; k++) {
+      const c = es[k]; if (c === e || !c.vivant || c.equipe === e.equipe) continue;
+      const dx = c.x - x, dz = c.z - z; if (dx * dx + dz * dz > VU_MAX * VU_MAX) continue;
+      if (monde.vue(c.x, c.y + (c.accroupi ? J.oeilAccroupi : J.oeil), c.z, x, y, z)) return true;
+    }
+    return false;
+  }
   function apparition(jeu, e) {
     const monde = jeu.monde, A = jeu.arene, rnd = jeu.rnd, es = jeu.entites;
     let bx = 0, bz = 0, bs = -Infinity;
@@ -3354,7 +3639,8 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
         if (c.equipe !== e.equipe && d < dmin) dmin = d;
       }
       if (pris) continue;
-      const s = dmin < 15 ? dmin - 100 : -Math.abs(dmin - 35) + 6 * rnd(); // ni sur l'ennemi, ni au bout de l'arène : à ~35 m, l'action reprend vite
+      let s = dmin < 15 ? dmin - 100 : -Math.abs(dmin - 35) + 6 * rnd(); // ni sur l'ennemi, ni au bout de l'arène : à ~35 m, l'action reprend vite
+      if (dmin < VU_MAX && s > bs && vuPar(jeu, e, x, z)) s -= CACHE; // en vue d'un ennemi : choisi seulement s'il n'y a pas mieux caché (vue testée seulement si le point peut gagner)
       if (s > bs) { bs = s; bx = x; bz = z; }
     }
     if (bs === -Infinity) { const p = monde.libre(rnd); bx = p[0]; bz = p[1]; }
@@ -3372,9 +3658,10 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   function objets(jeu) { return jeu.arene ? jeu.arene.objets : VIDE; }
 
   function scoresEquipes(jeu) { let a = 0, b = 0; for (const e of jeu.entites) { if (e.equipe === 0) a += e.score.kills; else if (e.equipe === 1) b += e.score.kills; } return [a, b]; }
+  const cle = (e) => e.score.kills * 1e6 + e.score.points; // le classement : les repeints (le critère de fin), départagés par les points
   function meneur(jeu) { // le premier du classement (s'il est seul en tête)
     let m = null, s = -1, ex = false;
-    for (const e of jeu.entites) { const p = e.score.points; if (p > s) { s = p; m = e; ex = false; } else if (p === s) ex = true; }
+    for (const e of jeu.entites) { const p = cle(e); if (p > s) { s = p; m = e; ex = false; } else if (p === s) ex = true; }
     return ex ? null : m;
   }
 
@@ -3417,7 +3704,10 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     const A = jeu.arene, classement = jeu.resume ? jeu.resume() : jeu.classement();
     let gagnant = null, scores = null;
     if (A && A.equipes) { scores = scoresEquipes(jeu); gagnant = scores[0] > scores[1] ? 0 : scores[1] > scores[0] ? 1 : null; }
-    else if (classement.length && (classement.length < 2 || (classement[0].points || (classement[0].score && classement[0].score.points) || 0) > (classement[1].points || (classement[1].score && classement[1].score.points) || 0))) gagnant = classement[0].id;
+    else { // chacun pour soi : le même critère que la fin (les repeints), départagé par les points ; à égalité parfaite, pas de gagnant
+      const c = (l) => (l.score ? l.score.kills : l.kills || 0) * 1e6 + (l.score ? l.score.points : l.points || 0);
+      if (classement.length && (classement.length < 2 || c(classement[0]) > c(classement[1]))) gagnant = classement[0].id;
+    }
     return { classement, gagnant, duree: Math.min(jeu.temps, M.duree), equipes: !!(A && A.equipes), scores };
   }
 
@@ -5254,7 +5544,7 @@ const PHUD = (() => {
     q('.h-b-pause').addEventListener('click', () => { if (actions.pause) actions.pause(); });
     q('.h-b-scores').addEventListener('click', () => scores(!scoresOuverts));
     el.scores.addEventListener('click', () => scores(false));
-    el.fin.addEventListener('click', (e) => { const b = e.target.closest('[data-fin]'); if (!b) return; const a = b.dataset.fin; if (a === 'rejouer' && actions.rejouer) actions.rejouer(); else if (a === 'menu' && actions.menu) actions.menu(); });
+    el.fin.addEventListener('click', (e) => { const b = e.target.closest('[data-fin]'); if (!b || b.disabled) return; const a = b.dataset.fin; if (typeof actions[a] === 'function') { try { actions[a](); } catch (err) { console.warn('[Poncin] fin', a, err); } } }); // rejouer, menu, salon…
     taille();
   }
   let nombres = [], fleches = [], noms = [], ctxCarte = null, tailleCarte = 112;
@@ -5461,7 +5751,7 @@ const PHUD = (() => {
     const inv = (moi.invincible || 0) > 0; if (inv !== vu.inv) { vu.inv = inv; el.vie.classList.toggle('protege', inv); }
     // munitions
     const mun = moi.munitions ? moi.munitions[moi.arme] : 0, res = moi.reserve ? moi.reserve[moi.arme] : 0;
-    ecrire('mun', el.munN, mun == null ? 0 : mun); ecrire('res', el.munR, res == null ? 0 : res, '/ ');
+    ecrire('mun', el.munN, mun == null ? 0 : mun); ecrire('res', el.munR, moi.arme === 'rafale' ? '∞' : res == null ? 0 : res, '/ '); // le blaster rafale recharge à l'infini
     if (moi.arme !== vu.arme) { vu.arme = moi.arme; el.armeIco.innerHTML = SVG_ARME[moi.arme] || ''; el.armeNom.textContent = (R && R.arme(moi.arme).nom) || NOM_ARME[moi.arme] || ''; }
     const bas = mun != null && A.chargeur ? mun <= Math.ceil(A.chargeur * 0.25) : false; if (bas !== vu.munBas) { vu.munBas = bas; el.mun.classList.toggle('bas', bas); }
     const vide = mun === 0 && !(moi.rechargeJusqua > jeu.temps) && moi.vivant; if (vide !== vu.vide) { vu.vide = vide; el.centre.classList.toggle('vide', vide); }
@@ -5508,9 +5798,9 @@ const PHUD = (() => {
     const es = jeu.entites, eq = estEquipes(jeu);
     let a = 0, b = 0, cB = '#FF6B8B', rang = 1;
     if (eq) { for (let i = 0; i < es.length; i++) { const e = es[i]; if (e.equipe === moi.equipe) a += kills(e); else { b += kills(e); cB = e.couleur || cB; } } }
-    else { a = kills(moi); let meil = null; for (let i = 0; i < es.length; i++) { const e = es[i]; if (e === moi) continue; if (!meil || kills(e) > kills(meil)) meil = e; if (points(e) > points(moi)) rang++; } b = meil ? kills(meil) : 0; cB = meil ? meil.couleur : cB; }
+    else { a = kills(moi); let meil = null; for (let i = 0; i < es.length; i++) { const e = es[i]; if (e === moi) continue; if (!meil || kills(e) > kills(meil)) meil = e; if (kills(e) > kills(moi) || (kills(e) === kills(moi) && points(e) > points(moi))) rang++; } b = meil ? kills(meil) : 0; cB = meil ? meil.couleur : cB; } // le rang : les repeints, puis les points (comme la fin)
     ecrire('sa', el.scoreMoi, a); ecrire('sb', el.scoreEux, b);
-    const cA = eq ? '#7FB3FF' : moi.couleur || '#FFC84A'; if (cA !== vu.cA) { vu.cA = cA; el.pastMoi.style.background = cA; }
+    const cA = moi.couleur || '#FFC84A'; if (cA !== vu.cA) { vu.cA = cA; el.pastMoi.style.background = cA; } // en équipes, la couleur de l'équipe (celle du joueur)
     if (cB !== vu.cB) { vu.cB = cB; el.pastEux.style.background = cB; }
     const cleObj = eq ? -1 : rang; if (cleObj !== vu.obj) { vu.obj = cleObj; el.objectif.textContent = `${eq ? 'équipe' : rang === 1 ? '1er' : rang + 'e'} · premier à ${objectif(jeu)}`; }
   }
@@ -5528,7 +5818,7 @@ const PHUD = (() => {
   // ─── tableau des scores ───
   function lignes(jeu) { // les entités triées (classement du jeu s'il existe)
     let c = null; try { c = jeu.classement ? jeu.classement() : null; } catch (e) { c = null; }
-    if (!Array.isArray(c) || !c.length) c = jeu.entites.slice().sort((x, y) => points(y) - points(x) || kills(y) - kills(x));
+    if (!Array.isArray(c) || !c.length) c = jeu.entites.slice().sort((x, y) => kills(y) - kills(x) || points(y) - points(x));
     return c.map((x) => { const e = x && x.score ? x : trouver(jeu, x && x.id) || x || {}; const s = e.score || x || {}; return { id: e.id, nom: e.id === idMoi ? (e.nom || 'Toi') : e.nom, couleur: e.couleur, equipe: e.equipe, bot: e.bot, kills: s.kills || 0, morts: s.morts || 0, points: s.points || 0 }; });
   }
   function tableHtml(jeu, ls) {
@@ -5547,16 +5837,20 @@ const PHUD = (() => {
     let titre, gagne;
     if (eq) { const mien = me.equipe; let a = 0, b = 0; ls.forEach((l) => { if (l.equipe === mien) a += l.kills; else b += l.kills; }); gagne = a > b; titre = a > b ? 'Victoire de ton équipe !' : a === b ? 'Égalité !' : 'Défaite… revanche ?'; }
     else { gagne = rang === 1; titre = rang === 1 ? 'Victoire !' : rang === 2 ? '2e place, presque !' : `${rang}e place`; }
+    if (infos.titre) { titre = infos.titre; gagne = false; } // une partie interrompue (l'hôte est parti) : ni victoire ni place
     const podium = ls.slice(0, 3).map((l, i) => `<div class="h-pod p${i + 1}${l.id === idMoi ? ' moi' : ''}"><span class="h-pod-nom"><i style="background:${esc(l.couleur || '#ccc')}"></i>${esc(l.nom)}</span><div class="h-pod-socle"><b>${i + 1}</b><small>${l.points} pts</small></div></div>`);
     const ordre = [podium[1] || '', podium[0] || '', podium[2] || ''].join('');
+    const boutons = Array.isArray(infos.boutons) && infos.boutons.length ? infos.boutons : [{ fin: 'rejouer', texte: 'Rejouer', cls: 'menthe' }, { fin: 'menu', texte: 'Menu', cls: 'blanc' }];
     el.fin.innerHTML = `<div class="h-fin-carte ${gagne ? 'gagne' : ''}">
       <div class="h-fin-g"><small>${esc(infos.mode || 'Arène')} · fin de partie</small><h2>${esc(titre)}</h2>
+        ${infos.message ? `<div class="h-fin-msg">${esc(infos.message)}</div>` : ''}
         <div class="h-podium">${ordre}</div>
         <div class="h-fin-moi"><span><b>${me.points}</b> points</span><span><b>${me.kills}</b> repeints</span><span><b>${me.morts}</b> fois repeint</span></div>
         ${infos.record ? '<div class="h-record">Nouveau record !</div>' : infos.meilleur ? `<div class="h-record ancien">Record : ${infos.meilleur} points</div>` : ''}
       </div>
       <div class="h-fin-d">${tableHtml(jeu || { entites: [] }, ls.slice(0, 6))}
-        <div class="h-fin-btns"><button type="button" class="bouton menthe" data-fin="rejouer">Rejouer</button><button type="button" class="bouton blanc" data-fin="menu">Menu</button></div></div>
+        ${infos.attente ? `<p class="h-fin-attente">${esc(infos.attente)}</p>` : ''}
+        <div class="h-fin-btns${boutons.length > 2 ? ' trois' : ''}">${boutons.map((b) => `<button type="button" class="bouton ${esc(b.cls || 'blanc')}" data-fin="${esc(b.fin)}"${b.disabled ? ' disabled' : ''}>${esc(b.texte)}</button>`).join('')}</div></div>
     </div>`;
     el.fin.hidden = false; el.mort.hidden = true; vu.mort = false; racine.classList.add('finie'); racine.classList.remove('mort');
     return { gagne, rang, points: me.points, kills: me.kills };
@@ -5575,37 +5869,66 @@ const PHUD = (() => {
 
 /* ── reseau.js ── */
 /* OPÉRATION PONCIN — les salons entre copains : se retrouver par un code de 4 lettres, puis échanger les messages de la partie.
-   Topologie en étoile autour de l'hôte (le créateur du salon) : les clients parlent à l'hôte, l'hôte parle à un client ou à tous.
+   Topologie en étoile autour de l'hôte (le plus ancien arrivé, donc le créateur du salon) : les clients parlent à l'hôte, l'hôte parle à un client ou à tous.
    Trois voies (« via ») derrière la même API :
-   - 'local'    : BroadcastChannel, entre onglets du même navigateur (tests Playwright, démonstrations) ;
-   - 'supabase' : Supabase Realtime pour la présence et la signalisation, puis WebRTC (DataChannels) de téléphone à téléphone ;
-                  repli par Supabase (relais borné) si le pair-à-pair échoue.
+   - 'supabase'     : (par défaut) présence et signalisation par Supabase Realtime (canal public 'poncin:CODE'), puis WebRTC de téléphone à téléphone ;
+                      repli « relais » par le même canal Supabase (débit bridé) si le pair-à-pair ne s'ouvre pas en ~8 s ;
+   - 'local'        : BroadcastChannel seul, entre onglets du même navigateur (tests Playwright, démonstrations) ;
+   - 'webrtc-local' : présence et signalisation par BroadcastChannel, données par le vrai WebRTC (candidats « host », sans STUN) : sert à éprouver le code WebRTC.
    API (voir src-poncin/ARCHITECTURE.md, « Le jeu en ligne ») :
-     PRESEAU.salon({ via, code, moi: { id, pseudo, couleur }, config }) → Promise<salon>
-     salon.code, salon.moi, salon.hote (id), salon.estHote, salon.joueurs (Map id → { id, pseudo, couleur, pret, ping, voie, depuis })
-     salon.sur(type, fn(data, de)) → off      (types de l'application ; et 'joueurs', 'hote', 'ferme')
-     salon.envoyer(type, data, { fiable = true, a = null })   (client → hôte seulement ; hôte → a, ou tous si a = null)
-     salon.majMoi({ pret, pseudo, couleur }), salon.stats(), salon.quitter() */
+     PRESEAU.salon({ via, code, creer, moi: { id, pseudo, couleur }, config, relais }) → Promise<salon>
+       sans code (ou creer: true) on crée le salon : le créateur est l'hôte tant qu'il est là, puis le plus ancien arrivé ;
+       avec un code, on le rejoint : la promesse attend d'avoir vu le créateur (8 s au plus) pour ne jamais se croire hôte à tort ;
+       via : 'supabase' | 'local' | 'webrtc-local' ; ?reseau=local (ou webrtc-local) dans l'adresse de la page l'impose ;
+       config : { supabaseUrl, supabaseKey } (clé PUBLIQUE), sinon window.PONCIN_CONFIG ; relais: true (ou ?relais=1) empêche le pair-à-pair (essai du relais).
+       Rejette avec une Error au message lisible si le serveur des salons est injoignable ou le jeu en ligne pas configuré.
+     salon.code, salon.via, salon.moi, salon.hote (id), salon.estHote, salon.ferme
+     salon.joueurs : Map id → { id, pseudo, couleur, pret, ping, voie, depuis, cree } (moi compris ; cree : c'est le créateur du salon)
+       voie : comment ce joueur joint l'hôte : 'hote' (c'est l'hôte), 'p2p' (WebRTC direct), 'relais' (par le serveur, ≤ 5 envois/s), 'connexion' (en cours) ; 'local' sur la voie locale ;
+       ping : aller-retour avec l'hôte en ms (0 pour l'hôte), mesuré toutes les 2 s (4 s en relais).
+     salon.sur(type, fn(data, de)) → off      (types de l'application ; et 'joueurs' (liste), 'hote' ({ hote, avant }), 'ferme')
+     salon.envoyer(type, data, { fiable = true, a = null }) → bool   (client → hôte seulement ; hôte → a, ou tous si a = null)
+       fiable : livré une fois, dans l'ordre (numéroté, acquitté, renvoyé si besoin, même en changeant de voie) ;
+       non fiable : le dernier compte (en relais, seul le dernier de chaque type part, 5 fois/s au plus) ; jeté si le tampon dépasse 64 Ko.
+     salon.majMoi({ pret, pseudo, couleur }), salon.stats(), salon.quitter()
+   Sur le fil (voies WebRTC) : chaque message est un tableau JSON : [0, type, data] non fiable (DataChannel 'etat', id 0, sans ordre ni renvoi),
+   [1, n°, type, data] fiable (DataChannel 'evts', id 1), [2, t, acquis, infos, partis] ping (de l'hôte : { id: [ping, voie] } et les instances parties), [3, t, acquis] pong, [4] au revoir.
+   Le relais : un envoi 'relais' { de, i (instance), v, l: { idDestinataire: [messages…] } } toutes les 200 ms au plus (tous les destinataires dans le même envoi).
+   La signalisation : 'signal' { de, a, i, n (essai), v, j (l'offre porte aussi pseudo, couleur, prêt…), sdp } ; offre du client, réponse de l'hôte, ICE complet (pas de « trickle »). */
 const PRESEAU = (() => {
   'use strict';
   const LETTRES = 'BCDFGHJKLMNPQRSTVWXZ'; // des consonnes : pas de mot vexant ; 160 000 codes
   const nouveauCode = () => { let c = ''; for (let i = 0; i < 4; i++) c += LETTRES[Math.floor(Math.random() * LETTRES.length)]; return c; };
   const codeValide = (c) => typeof c === 'string' && /^[BCDFGHJKLMNPQRSTVWXZ]{4}$/.test(c);
   const VERSION = 1; // version du protocole : deux versions différentes ne jouent pas ensemble
+  // réglages (ms) : collecte ICE, attente du pair-à-pair avant le relais, pings, cadence du relais (≤ 5 envois/s), tampon max pour l'état,
+  // renvoi des fiables non acquittés, grâce d'un joueur sorti de la présence (lien direct vivant / sinon : le temps qu'il se reconnecte), essais WebRTC suivants (en relais)
+  const R = { collecte: 3000, attente: 8000, ping: 2000, pingRelais: 4000, relais: 200, tampon: 65536, renvoi: 4000, grace: 15000, graceCourte: 5000, essais: [10000, 20000, 40000, 60000] };
+  const STUN = [{ urls: ['stun:stun.l.google.com:19302', 'stun:stun.cloudflare.com:3478'] }];
+  const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
+  const attendreQue = async (f, ms) => { const t = Date.now(); while (!f()) { if (Date.now() - t > ms) return false; await attendre(50); } return true; };
+  const param = (k) => { try { return new URLSearchParams(location.search).get(k); } catch (e) { return null; } };
+  const sur = (f) => function () { try { return f.apply(this, arguments); } catch (e) { console.warn('[Poncin réseau]', e); } }; // jamais d'exception qui remonte d'un rappel réseau
 
   // ─── le socle commun : abonnés, liste des joueurs, élection de l'hôte (le plus ancien arrivé) ───
   function socle(code, moi) {
-    const abonnes = new Map(), joueurs = new Map(), stats = { envoyes: 0, recus: 0, octets: 0, t0: Date.now() };
+    const abonnes = new Map(), joueurs = new Map(), stats = { envoyes: 0, recus: 0, octets: 0, t0: Date.now(), p2pEnv: 0, p2pRec: 0, relaisEnv: 0, relaisRec: 0, signaux: 0, jetes: 0 };
     const s = {
       code, moi: Object.assign({ pret: false }, moi), hote: null, estHote: false, joueurs, ferme: false,
       sur(type, fn) { if (!abonnes.has(type)) abonnes.set(type, new Set()); abonnes.get(type).add(fn); return () => abonnes.get(type).delete(fn); },
       _emettre(type, data, de) { const l = abonnes.get(type); if (l) for (const fn of Array.from(l)) { try { fn(data, de); } catch (e) { console.error('[Poncin réseau]', type, e); } } },
-      _elire() { // l'hôte = le plus ancien arrivé (départage par id) ; prévient si ça change
-        let h = null; for (const j of joueurs.values()) if (!h || j.depuis < h.depuis || (j.depuis === h.depuis && j.id < h.id)) h = j;
+      _elire() { // l'hôte = le créateur du salon s'il est là, sinon le plus ancien arrivé (départage par id) ; prévient si ça change
+        const avant = (a, b) => (!!a.cree !== !!b.cree ? !!a.cree : a.depuis !== b.depuis ? a.depuis < b.depuis : a.id < b.id);
+        let h = null; for (const j of joueurs.values()) if (!h || avant(j, h)) h = j;
         const id = h ? h.id : null; if (id !== s.hote) { const avant = s.hote; s.hote = id; s.estHote = id === s.moi.id; if (avant !== null) s._emettre('hote', { hote: id, avant }); }
       },
       _stats: stats,
-      stats() { const dt = Math.max(1, (Date.now() - stats.t0) / 1000); return { envoyesParS: stats.envoyes / dt, recusParS: stats.recus / dt, octetsParS: stats.octets / dt, voies: Array.from(joueurs.values()).map((j) => j.voie) }; },
+      stats() {
+        const dt = Math.max(1, (Date.now() - stats.t0) / 1000), r = (k) => Math.round(stats[k] / dt * 10) / 10;
+        return { envoyesParS: stats.envoyes / dt, recusParS: stats.recus / dt, octetsParS: stats.octets / dt, p2pEnvoyesParS: r('p2pEnv'), p2pRecusParS: r('p2pRec'),
+          relaisEnvoyesParS: r('relaisEnv'), relaisRecusParS: r('relaisRec'), signaux: stats.signaux, jetes: stats.jetes, secondes: dt, compteurs: Object.assign({}, stats),
+          voies: Array.from(joueurs.values()).map((j) => j.voie), liens: s._liens ? s._liens() : [] };
+      },
     };
     return s;
   }
@@ -5624,7 +5947,7 @@ const PRESEAU = (() => {
       let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
       if (!m || m.de === s.moi.id || s.ferme) return;
       s._stats.recus++;
-      if (m.k === 'salut' || m.k === 'vie') { if (m.j.v !== VERSION) return; const nouveau = !s.joueurs.has(m.j.id); poser(m.j); if (m.k === 'salut') poster({ k: 'vie', de: s.moi.id, j: moiPublic() }); if (nouveau || m.k === 'salut') listeChangee(); else s._emettre('joueurs', Array.from(s.joueurs.values())); return; }
+      if (m.k === 'salut' || m.k === 'vie') { if (!m.j || m.j.v !== VERSION) return; const nouveau = !s.joueurs.has(m.j.id); poser(m.j); if (m.k === 'salut') poster({ k: 'vie', de: s.moi.id, j: moiPublic() }); if (nouveau || m.k === 'salut') listeChangee(); else s._emettre('joueurs', Array.from(s.joueurs.values())); return; }
       if (m.k === 'adieu') { s.joueurs.delete(m.de); vus.delete(m.de); listeChangee(); return; }
       if (m.k === 'msg') {
         if (m.a && m.a !== s.moi.id) return;                 // pas pour moi
@@ -5639,51 +5962,942 @@ const PRESEAU = (() => {
     }, 1000);
     s.via = 'local';
     s.envoyer = (type, data, opt) => {
+      if (s.ferme) return false;
       const a = opt && opt.a ? opt.a : null;
-      if (!s.estHote && a && a !== s.hote) return false;     // étoile : un client ne parle qu'à l'hôte
+      if (!s.estHote && (!s.hote || s.hote === s.moi.id || (a && a !== s.hote))) return false; // étoile : un client ne parle qu'à l'hôte
       poster({ k: 'msg', de: s.moi.id, a: s.estHote ? a : s.hote, type, data }); return true;
     };
     s.majMoi = (o2) => { Object.assign(s.moi, o2 || {}); poser(moiPublic()); poster({ k: 'vie', de: s.moi.id, j: moiPublic() }); s._emettre('joueurs', Array.from(s.joueurs.values())); };
     s.quitter = () => { if (s.ferme) return; poster({ k: 'adieu', de: s.moi.id }); s.ferme = true; clearInterval(battement); try { bc.close(); } catch (e) { /* rien */ } s._emettre('ferme', {}); };
     poster({ k: 'salut', de: s.moi.id, j: moiPublic() });
-    await new Promise((r) => setTimeout(r, 400)); // le temps que les présents répondent : l'hôte est alors le bon
+    await attendre(400); // le temps que les présents répondent : l'hôte est alors le bon
     listeChangee();
     return s;
   }
 
-  // ─── voie 'supabase' : présence + signalisation Supabase Realtime, partie en WebRTC (à écrire : voir ARCHITECTURE.md) ───
-  async function salonSupabase(o) { throw new Error('voie supabase pas encore écrite'); }
+  // ─── les transports des voies WebRTC : présence + bus ('signal', 'relais') ───
+  // transport : { demarrer() → Promise<liste des présents>, suivre(moiPublic), envoyer(evt, payload) → bool, pret() → bool, fermer() }
+  // rappels : { presence(liste [{ id, pseudo, couleur, pret, depuis, v, i }]), signal(payload), relais(payload) }
+
+  // BroadcastChannel (voie 'webrtc-local') : un signe de vie par seconde, muet 4 s = parti
+  function transportBC(code, id, rappels) {
+    if (typeof BroadcastChannel === 'undefined') throw new Error('BroadcastChannel indisponible');
+    const bc = new BroadcastChannel('poncin-rtc-' + code), vus = new Map(); let moiP = null, ferme = false;
+    const poster = (m) => { try { bc.postMessage(JSON.stringify(m)); } catch (e) { /* fermé */ } };
+    const liste = () => Array.from(vus.values()).map((x) => x.j);
+    bc.onmessage = sur((ev) => {
+      let m; try { m = JSON.parse(ev.data); } catch (e) { return; }
+      if (!m || m.de === id || ferme) return;
+      if (m.k === 'qui') { if (moiP) poster({ k: 'vie', de: id, j: moiP }); return; }
+      if (m.k === 'vie' && m.j) { const j = Object.assign({}, m.j, { id: m.de }), avant = vus.get(m.de), change = !avant || JSON.stringify(avant.j) !== JSON.stringify(j); vus.set(m.de, { j, t: Date.now() }); if (change) rappels.presence(liste()); return; }
+      if (m.k === 'adieu') { if (vus.delete(m.de)) rappels.presence(liste()); return; }
+      if (m.k === 'bus' && (m.e === 'signal' || m.e === 'relais')) rappels[m.e](m.p);
+    });
+    const battement = setInterval(sur(() => {
+      if (moiP) poster({ k: 'vie', de: id, j: moiP });
+      const t = Date.now(); let ch = false; for (const [k, v] of vus) if (t - v.t > 4000) { vus.delete(k); ch = true; }
+      if (ch) rappels.presence(liste());
+    }), 1000);
+    return {
+      async demarrer() { poster({ k: 'qui', de: id }); await attendre(400); return liste(); },
+      suivre(j) { moiP = j; poster({ k: 'vie', de: id, j }); },
+      envoyer(e, p) { if (ferme) return false; poster({ k: 'bus', de: id, e, p }); return true; },
+      pret: () => !ferme,
+      fermer() { if (ferme) return; poster({ k: 'adieu', de: id }); ferme = true; clearInterval(battement); try { bc.close(); } catch (e) { /* rien */ } },
+    };
+  }
+
+  // Supabase Realtime (voie 'supabase') : canal public 'poncin:CODE' ; présence (clé = moi.id) et broadcast ('signal', 'relais'), sans écho
+  function transportSupabase(code, id, o, rappels) {
+    const cfg = o.config || (typeof window !== 'undefined' && window.PONCIN_CONFIG) || {};
+    if (!cfg.supabaseUrl || !cfg.supabaseKey) throw new Error('Le jeu en ligne n’est pas configuré (poncin/config.js).');
+    const lib = typeof window !== 'undefined' && window.supabase;
+    if (!lib || !lib.createClient) throw new Error('Le module en ligne (supabase-js) n’est pas chargé : vérifie ta connexion.');
+    // un client à nous (sans session, sans stockage) : on peut le jeter et en refaire un si le canal reste coincé
+    const creerClient = () => lib.createClient(cfg.supabaseUrl, cfg.supabaseKey, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false, storageKey: 'poncin-salon-' + Math.random().toString(36).slice(2) }, realtime: { heartbeatIntervalMs: 15000 } });
+    let client = null, canal = null, moiP = null, ferme = false, joint = false, perdu = 0, syncs = 0, refaits = 0;
+    const t0 = Date.now(), journal = [], noter = (quoi) => { journal.push(Math.round((Date.now() - t0) / 100) / 10 + ' s ' + quoi); if (journal.length > 60) journal.splice(0, 20); }; // pour le diagnostic
+    const liste = () => {
+      const l = []; let st = {}; try { st = canal ? canal.presenceState() : {}; } catch (e) { st = {}; }
+      for (const cle of Object.keys(st)) { const metas = st[cle], m = metas && metas[metas.length - 1]; if (m) l.push({ id: cle, pseudo: m.pseudo, couleur: m.couleur, pret: !!m.pret, depuis: m.depuis, c: m.c, v: m.v, i: m.i }); }
+      return l;
+    };
+    const suivreMaintenant = (c) => { if (moiP && c === canal && joint) c.track(moiP).catch(() => { /* reprise au prochain SUBSCRIBED */ }); };
+    function ouvrir() {
+      if (!client) client = creerClient();
+      const c = client.channel('poncin:' + code, { config: { broadcast: { self: false, ack: false }, presence: { key: id } } });
+      canal = c; joint = false; perdu = Date.now(); syncs = 0;
+      c.on('presence', { event: 'sync' }, sur(() => { if (canal !== c || ferme) return; syncs++; const l = liste(); noter('présence ' + l.length); rappels.presence(l); }));
+      c.on('broadcast', { event: 'signal' }, sur((m) => { if (canal === c && !ferme) rappels.signal(m && m.payload); }));
+      c.on('broadcast', { event: 'relais' }, sur((m) => { if (canal === c && !ferme) rappels.relais(m && m.payload); }));
+      c.subscribe(sur((statut) => {
+        if (canal !== c || ferme) return;
+        noter(statut);
+        if (statut === 'SUBSCRIBED') { joint = true; perdu = 0; suivreMaintenant(c); return; } // aussi après chaque reconnexion : on se remet dans la présence
+        if (joint || !perdu) perdu = Date.now(); joint = false;
+        if (statut === 'CLOSED') setTimeout(sur(() => { if (canal === c && !ferme && !joint) refaire(); }), 1500); // fermé par le serveur : on recommence
+        // CHANNEL_ERROR, TIMED_OUT : supabase-js se reconnecte et rejoint tout seul
+      }));
+    }
+    function refaire() { // un client et un canal neufs
+      const vieux = client; client = null; canal = null; refaits++; noter('canal refait');
+      if (vieux) vieux.removeAllChannels().catch(() => { /* rien */ });
+      ouvrir();
+    }
+    const veille = setInterval(sur(() => { // le canal reste décroché 25 s (page visible) : on refait tout
+      const cache = typeof document !== 'undefined' && document.hidden;
+      if (!ferme && !joint && perdu && !cache && Date.now() - perdu > 25000) refaire();
+    }), 5000);
+    return {
+      async demarrer() {
+        ouvrir();
+        if (!(await attendreQue(() => joint || ferme, 15000))) { this.fermer(); throw new Error('Le serveur des salons ne répond pas : vérifie ta connexion et réessaie.'); }
+        await attendreQue(() => syncs > 0 || ferme, 2500); // la liste des présents arrive juste après l'entrée dans le canal
+        return liste();
+      },
+      suivre(j) { moiP = j; suivreMaintenant(canal); },
+      envoyer(e, p) { if (!this.pret()) return false; canal.send({ type: 'broadcast', event: e, payload: p }).catch(() => { /* perdu : les fiables seront renvoyés */ }); return true; },
+      pret: () => !!(joint && !ferme && canal && client && client.realtime && client.realtime.isConnected()), // WebSocket tombé : on attend (pas de repli REST)
+      etat: () => ({ joint, refaits, syncs, journal: journal.slice() }),
+      fermer() { if (ferme) return; ferme = true; clearInterval(veille); const c = client; client = null; canal = null; if (c) c.removeAllChannels().catch(() => { /* rien */ }); },
+    };
+  }
+
+  // ─── voies WebRTC ('supabase', 'webrtc-local') : présence, élection, liens en étoile (WebRTC ou relais), messages numérotés ───
+  async function salonPair(o, via) {
+    const code = codeValide(o.code) ? o.code : nouveauCode(), s = socle(code, o.moi), st = s._stats, local = via === 'webrtc-local';
+    const inst = Math.random().toString(36).slice(2, 10); // cette instance : un joueur qui recharge sa page repart à zéro
+    const sansP2P = !!o.relais || param('relais') === '1';
+    const creer = o.creer != null ? !!o.creer : !codeValide(o.code); // sans code, on crée le salon : le créateur reste l'hôte tant qu'il est là
+    const liens = new Map(), presents = new Map(), absents = new Map(); // liens : id → lien ; presents : ce que dit la présence ; absents : id → depuis quand un joueur au lien direct vivant manque à la présence
+    let depuis = Date.now(), demarre = false, relaisT = null, relaisDernier = 0, signature = '', infosHote = {};
+    const partis = new Map(); // instances qui ont dit au revoir (→ quand) : retirées tout de suite, même si la présence traîne
+    const moiPublic = () => ({ pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, depuis, c: creer ? 1 : 0, v: VERSION, i: inst });
+    const rappels = { presence: (l) => majPresence(l), signal: (p) => surSignal(p), relais: (p) => surRelais(p) };
+    const transport = local ? transportBC(code, s.moi.id, rappels) : transportSupabase(code, s.moi.id, o, rappels);
+    s.via = via;
+
+    // ── présence → joueurs → hôte → liens ──
+    function majPresence(liste) {
+      presents.clear();
+      for (const j of liste || []) if (j && j.id && j.id !== s.moi.id && j.v === VERSION && typeof j.depuis === 'number') presents.set(j.id, j);
+      if (demarre) recalculer();
+    }
+    const poserJoueur = (id, j) => { const e = s.joueurs.get(id) || { id, ping: 0, voie: 'connexion' }; e.pseudo = j.pseudo; e.couleur = j.couleur; e.pret = !!j.pret; e.depuis = j.depuis; e.cree = !!j.c; s.joueurs.set(id, e); };
+    function recalculer() {
+      if (s.ferme) return;
+      const t = Date.now(), gardes = new Set([s.moi.id]);
+      poserJoueur(s.moi.id, moiPublic());
+      for (const [i, q] of partis) if (t - q > 60000) partis.delete(i);
+      for (const [id, j] of presents) { if (j.i && partis.has(j.i)) continue; gardes.add(id); poserJoueur(id, j); absents.delete(id); }
+      if (s.estHote) for (const l of liens.values()) { // un nouveau venu relié à l'hôte mais pas encore dans la présence (elle peut traîner) : connu par son offre
+        if (l.j && !gardes.has(l.id) && !l.parti && t - l.vu < 6000 && !(l.inst && partis.has(l.inst))) { gardes.add(l.id); poserJoueur(l.id, l.j); absents.delete(l.id); }
+      }
+      for (const id of Array.from(s.joueurs.keys())) {
+        if (gardes.has(id)) continue;
+        const l = liens.get(id);
+        if (l ? !l.parti : id in infosHote) { // sorti de la présence sans dire au revoir (et, pour un client, toujours gardé par l'hôte) : un hoquet du serveur ou une reconnexion, on le garde un moment
+          if (!absents.has(id)) absents.set(id, t);
+          const vivant = l && l.ouvert && t - l.vu < 5000; // le lien direct vit encore : 15 s ; sinon 5 s
+          if (t - absents.get(id) < (vivant ? R.grace : R.graceCourte)) continue;
+        }
+        absents.delete(id); s.joueurs.delete(id); delete infosHote[id];
+        if (s.estHote) for (const l2 of liens.values()) l2.pingT = 0; // les clients l'apprennent au ping suivant (dans la seconde)
+      }
+      s._elire(); reconcilier(); emettreJoueurs();
+    }
+    function reconcilier() { // l'hôte garde un lien par joueur ; un client, un seul lien : vers l'hôte
+      const voulus = new Set(), t = Date.now();
+      if (s.estHote) { for (const id of s.joueurs.keys()) if (id !== s.moi.id) voulus.add(id); } else if (s.hote && s.hote !== s.moi.id) voulus.add(s.hote);
+      for (const [id, l] of liens) if (!voulus.has(id) && !(s.estHote && !l.parti && t - l.vu < 10000)) fermerLien(l); // l'hôte garde un nouveau venu pas encore dans la présence
+      for (const id of voulus) if (!liens.has(id)) { const l = nouveauLien(id); if (!s.estHote) negocier(l); }
+    }
+    const voieDe = (l) => (l.ouvert ? 'p2p' : l.echec || Date.now() - l.debut > R.attente ? 'relais' : 'connexion');
+    function majVoies() {
+      const lh = !s.estHote && s.hote ? liens.get(s.hote) : null;
+      for (const j of s.joueurs.values()) {
+        if (j.id === s.hote) { j.voie = 'hote'; j.ping = 0; continue; }
+        if (s.estHote) { const l = liens.get(j.id); j.voie = l ? voieDe(l) : 'connexion'; j.ping = l ? l.ping : 0; }
+        else if (j.id === s.moi.id) { j.voie = lh ? voieDe(lh) : 'connexion'; j.ping = lh ? lh.ping : 0; }
+        else { const x = infosHote[j.id]; if (x) { j.ping = x[0]; j.voie = x[1]; } }
+      }
+    }
+    function emettreJoueurs() { // seulement si quelque chose a changé (pseudo, prêt, voie, ping, hôte)
+      majVoies();
+      const l = Array.from(s.joueurs.values()), sig = JSON.stringify([s.hote, l.map((j) => [j.id, j.pseudo, j.couleur, j.pret, j.voie, j.ping])]);
+      if (sig === signature) return; signature = sig; s._emettre('joueurs', l);
+    }
+
+    // ── les liens ──
+    function nouveauLien(id) {
+      const l = { id, inst: null, pc: null, ch: null, ouvert: false, n: 0, debut: Date.now(), echec: false, essai: 0, essaiT: null, minuteur: null, deconnecte: 0,
+        q: 1, nonAcq: [], recuQ: 0, attente: new Map(), ping: 0, vu: Date.now(), pingT: 0, relU: new Map(), relF: [], relC: new Map(), parti: false };
+      liens.set(id, l); return l;
+    }
+    function verifierInstance(l, i) { // l'autre a rechargé sa page : la numérotation repart de zéro
+      if (!i || l.inst === i) return;
+      if (l.inst) { l.q = 1; l.nonAcq = []; l.recuQ = 0; l.attente.clear(); l.relF = []; l.relU.clear(); l.parti = false; }
+      l.inst = i;
+    }
+    function fermerPc(l, doux) { // doux : on laisse 300 ms au dernier message (l'au revoir) avant de couper
+      clearTimeout(l.minuteur); l.minuteur = null;
+      if (l.pc) { const pc = l.pc; l.pc = null; l.ch = null; const fin = () => { try { pc.close(); } catch (e) { /* rien */ } }; if (doux) setTimeout(fin, 300); else fin(); }
+      l.ouvert = false; l.deconnecte = 0;
+    }
+    function fermerLien(l) {
+      const doux = l.ouvert && l.ch; if (doux) { try { l.ch.evts.send('[4]'); } catch (e) { /* rien */ } }
+      fermerPc(l, doux); clearTimeout(l.essaiT); if (liens.get(l.id) === l) liens.delete(l.id);
+    }
+    const filtrer = (d) => (sansP2P && d && d.sdp ? { type: d.type, sdp: d.sdp.split('\r\n').filter((x) => !/^a=(candidate|end-of-candidates)/.test(x)).join('\r\n') } : { type: d.type, sdp: d.sdp }); // essai du relais : sans candidats, ICE ne peut rien ouvrir
+    const collecte = (pc) => new Promise((r) => { // ICE non « trickle » : on attend la fin de la collecte (3 s au plus) et on envoie tout d'un coup
+      if (pc.iceGatheringState === 'complete') return r();
+      let calme = null, fini = false;
+      const fin = () => { if (fini) return; fini = true; clearTimeout(t); clearTimeout(calme); r(); }, t = setTimeout(fin, R.collecte);
+      pc.addEventListener('icegatheringstatechange', () => { if (pc.iceGatheringState === 'complete') fin(); });
+      pc.addEventListener('icecandidate', (e) => {
+        if (!e.candidate || !e.candidate.candidate) return fin();
+        const ty = e.candidate.type || (/ typ (\w+)/.exec(e.candidate.candidate) || [])[1];
+        // Chrome traîne parfois à déclarer la collecte finie : dès qu'on a l'adresse publique (srflx, par STUN), ou une adresse locale en 'webrtc-local',
+        // on laisse 0,5 s (0,1 s) aux candidats suivants (wifi + 4G) puis on envoie
+        if (ty === 'srflx' || (local && ty === 'host')) { clearTimeout(calme); calme = setTimeout(fin, local ? 100 : 500); }
+      });
+    });
+    function creerPc(l, n) {
+      fermerPc(l);
+      let pc, etat, evts;
+      try {
+        pc = new RTCPeerConnection({ iceServers: local ? [] : STUN });
+        etat = pc.createDataChannel('etat', { negotiated: true, id: 0, ordered: false, maxRetransmits: 0 });
+        evts = pc.createDataChannel('evts', { negotiated: true, id: 1, ordered: true });
+      } catch (e) { if (pc) try { pc.close(); } catch (e2) { /* rien */ } l.echec = true; emettreJoueurs(); return null; } // pas de WebRTC : le relais
+      l.pc = pc; l.ch = { etat, evts }; l.n = n; l.deconnecte = 0;
+      const ouvert = sur(() => { if (l.pc === pc && !l.ouvert && etat.readyState === 'open' && evts.readyState === 'open') surOuvert(l); });
+      const ferme = sur(() => { if (l.pc === pc) surFerme(l); });
+      etat.onopen = evts.onopen = ouvert; etat.onclose = evts.onclose = ferme; etat.onerror = evts.onerror = () => { /* suivi par onclose */ };
+      etat.onmessage = evts.onmessage = sur((ev) => { if (l.pc !== pc || s.ferme || typeof ev.data !== 'string') return; let m; try { m = JSON.parse(ev.data); } catch (e) { return; } st.recus++; st.p2pRec++; st.octets += ev.data.length; recevoir(l, m); });
+      pc.onconnectionstatechange = sur(() => { if (l.pc !== pc) return; const c = pc.connectionState; if (c === 'failed' || c === 'closed') surFerme(l); else if (c === 'disconnected') l.deconnecte = l.deconnecte || Date.now(); else l.deconnecte = 0; });
+      l.minuteur = setTimeout(sur(() => { if (l.pc === pc && !l.ouvert) { l.echec = true; emettreJoueurs(); planifierEssai(l); } }), R.attente); // pas ouvert à temps : relais (le lien reste prêt à passer en direct)
+      return pc;
+    }
+    async function negocier(l) { // le client propose (offre), l'hôte répond
+      if (s.ferme || s.estHote || liens.get(l.id) !== l) return;
+      const n = l.n + 1, pc = creerPc(l, n); l.essai++;
+      if (!pc) return;
+      try {
+        await pc.setLocalDescription(await pc.createOffer());
+        await collecte(pc);
+        if (l.pc !== pc || s.ferme) return;
+        envoyerSignal(l.id, n, pc.localDescription);
+      } catch (e) { if (l.pc === pc) { fermerPc(l); l.echec = true; emettreJoueurs(); planifierEssai(l); } }
+    }
+    function planifierEssai(l) { // en relais, un client retente le direct de temps en temps (10 s, 20 s, 40 s, puis chaque minute)
+      if (s.estHote || s.ferme) return;
+      clearTimeout(l.essaiT);
+      l.essaiT = setTimeout(sur(() => { if (liens.get(l.id) === l && !l.ouvert && !s.ferme && !s.estHote) negocier(l); }), R.essais[Math.min(Math.max(l.essai - 1, 0), R.essais.length - 1)]);
+    }
+    function envoyerSignal(a, n, d) { st.signaux++; transport.envoyer('signal', { de: s.moi.id, a, i: inst, n, v: VERSION, j: d.type === 'offer' ? moiPublic() : undefined, sdp: filtrer({ type: d.type, sdp: d.sdp }) }); }
+    async function surSignal(p) {
+      if (!p || p.a !== s.moi.id || !p.de || p.de === s.moi.id || p.v !== VERSION || s.ferme || !p.sdp) return;
+      if (p.sdp.type === 'offer') {
+        if (!s.estHote) return; // seul l'hôte accepte des liens
+        const l = liens.get(p.de) || nouveauLien(p.de);
+        verifierInstance(l, p.i); l.vu = Date.now(); l.parti = false;
+        const j = p.j; if (j && typeof j.depuis === 'number' && j.v === VERSION) { l.j = { pseudo: String(j.pseudo || '').slice(0, 40), couleur: j.couleur, pret: !!j.pret, depuis: j.depuis, c: j.c, i: p.i }; recalculer(); }
+        const pc = creerPc(l, p.n); if (!pc) return;
+        try {
+          await pc.setRemoteDescription(filtrer(p.sdp));
+          await pc.setLocalDescription(await pc.createAnswer());
+          await collecte(pc);
+          if (l.pc !== pc || s.ferme) return;
+          envoyerSignal(l.id, p.n, pc.localDescription);
+        } catch (e) { if (l.pc === pc) { fermerPc(l); l.echec = true; emettreJoueurs(); } }
+      } else if (p.sdp.type === 'answer') {
+        const l = liens.get(p.de);
+        if (!l || !l.pc || l.n !== p.n || l.pc.signalingState !== 'have-local-offer') return;
+        verifierInstance(l, p.i);
+        const pc = l.pc;
+        try { await pc.setRemoteDescription(filtrer(p.sdp)); } catch (e) { if (l.pc === pc) { fermerPc(l); l.echec = true; emettreJoueurs(); planifierEssai(l); } }
+      }
+    }
+    function surOuvert(l) {
+      l.ouvert = true; l.echec = false; l.essai = 0; l.vu = Date.now(); clearTimeout(l.minuteur); clearTimeout(l.essaiT);
+      l.relU.clear(); l.relC.clear(); l.relF = []; // ce qui attendait le relais : les fiables repartent par le direct, le reste est périmé
+      renvoyer(l); l.pingT = 0; emettreJoueurs();
+    }
+    function surFerme(l) {
+      const etait = l.ouvert; fermerPc(l);
+      if (etait) { l.echec = true; renvoyer(l); } // le direct est tombé : on bascule tout de suite sur le relais
+      emettreJoueurs();
+      if (!s.ferme && liens.get(l.id) === l && !l.parti) planifierEssai(l);
+    }
+
+    // ── envoi et réception ──
+    function envoyerSur(l, m, fiable) {
+      if (l.ouvert && l.ch) {
+        const c = fiable ? l.ch.evts : l.ch.etat;
+        if (c.readyState === 'open') {
+          if (!fiable && c.bufferedAmount > R.tampon) { st.jetes++; return false; } // le direct rame : l'état suivant remplacera celui-ci
+          try { const t = JSON.stringify(m); c.send(t); st.envoyes++; st.p2pEnv++; st.octets += t.length; return true; } catch (e) { /* plein ou fermé : le relais prend la suite */ }
+        }
+      }
+      if (m[0] === 0) l.relU.set(m[1], m); else if (m[0] === 1) l.relF.push(m); else l.relC.set(m[0], m); // relais : le dernier de chaque type, tous les fiables
+      planifierRelais(); return true;
+    }
+    function renvoyer(l) { // les fiables non acquittés repartent (par le direct s'il est ouvert, sinon la file du relais est refaite, sans doublons)
+      const t = Date.now(); for (const x of l.nonAcq) x.t = t;
+      if (l.ouvert && l.ch) { for (const x of l.nonAcq) envoyerSur(l, x.m, true); } else { l.relF = l.nonAcq.map((x) => x.m); if (l.relF.length) planifierRelais(); }
+    }
+    const acquitter = (l, q) => { if (typeof q !== 'number') return; let k = 0; while (k < l.nonAcq.length && l.nonAcq[k].m[1] <= q) k++; if (k) l.nonAcq.splice(0, k); };
+    const accepte = (l) => s.estHote || l.id === s.hote; // étoile : un client n'écoute que l'hôte
+    function livrer(l, m) { l.recuQ = m[1]; if (accepte(l)) s._emettre(m[2], m[3], l.id); }
+    function recevoir(l, m) {
+      if (!Array.isArray(m)) return;
+      l.vu = Date.now();
+      const k = m[0];
+      if (k === 0) { if (accepte(l) && typeof m[1] === 'string') s._emettre(m[1], m[2], l.id); }
+      else if (k === 1) {
+        const q = m[1]; if (typeof q !== 'number' || q <= l.recuQ) return; // déjà vu
+        if (q > l.recuQ + 1) { if (l.attente.size < 5000) l.attente.set(q, m); return; } // en avance : on attend le trou
+        livrer(l, m);
+        while (l.attente.has(l.recuQ + 1)) { const m2 = l.attente.get(l.recuQ + 1); l.attente.delete(l.recuQ + 1); livrer(l, m2); }
+      } else if (k === 2) {
+        acquitter(l, m[2]);
+        if (m[3] && !s.estHote && l.id === s.hote) { infosHote = m[3]; if (Array.isArray(m[4])) for (const i of m[4]) if (!partis.has(i)) partis.set(i, Date.now()); recalculer(); } // la liste de l'hôte : voies et pings des autres, départs
+        envoyerSur(l, [3, m[1], l.recuQ], false);
+      } else if (k === 3) { acquitter(l, m[2]); const rtt = Date.now() - m[1]; if (rtt >= 0 && rtt < 60000) { l.ping = Math.round(rtt); emettreJoueurs(); } }
+      else if (k === 4) { l.parti = true; if (l.inst) partis.set(l.inst, Date.now()); if (s.estHote) for (const l2 of liens.values()) l2.pingT = 0; setTimeout(sur(recalculer), 0); }
+    }
+    function surRelais(p) {
+      if (!p || !p.l || !p.de || p.de === s.moi.id || p.v !== VERSION || s.ferme) return;
+      const msgs = p.l[s.moi.id]; if (!Array.isArray(msgs)) return;
+      st.relaisRec++; st.recus++;
+      if (!s.estHote && p.de !== s.hote) return;
+      let l = liens.get(p.de);
+      if (!l) { if (!s.estHote) return; l = nouveauLien(p.de); }
+      verifierInstance(l, p.i);
+      for (const m of msgs) recevoir(l, m);
+    }
+    function planifierRelais() { if (!relaisT && !s.ferme) relaisT = setTimeout(sur(viderRelais), Math.max(0, relaisDernier + R.relais - Date.now())); }
+    function viderRelais(force) { // un seul envoi pour tous les destinataires, 5 par seconde au plus
+      relaisT = null; if (s.ferme && !force) return;
+      if (!transport.pret()) { if (!force) relaisT = setTimeout(sur(viderRelais), 500); return; } // le canal se reconnecte : ça attend
+      const l2 = {}; let n = 0, reste = false;
+      for (const l of liens.values()) {
+        if (!l.relC.size && !l.relU.size && !l.relF.length) continue;
+        l2[l.id] = Array.from(l.relC.values()).concat(Array.from(l.relU.values()), l.relF.splice(0, 100)); l.relC.clear(); l.relU.clear(); n++; // 100 fiables par envoi au plus
+        if (l.relF.length) reste = true;
+      }
+      if (!n) return;
+      if (reste) setTimeout(sur(planifierRelais), 0);
+      relaisDernier = Date.now();
+      const p = { de: s.moi.id, i: inst, v: VERSION, l: l2 };
+      if (transport.envoyer('relais', p)) { st.relaisEnv++; st.envoyes++; try { st.octets += JSON.stringify(p).length; } catch (e) { /* rien */ } }
+    }
+
+    // ── l'horloge : pings (avec les acquittements), renvois, liens décrochés, joueurs partis ──
+    const tic = setInterval(sur(() => {
+      if (s.ferme) return;
+      const t = Date.now();
+      let infos = null;
+      if (s.estHote) { majVoies(); infos = {}; for (const j of s.joueurs.values()) if (j.id !== s.moi.id) infos[j.id] = [j.ping, j.voie]; }
+      const dits = Array.from(partis.keys());
+      for (const l of liens.values()) {
+        if (t - l.pingT >= (l.ouvert ? R.ping : R.pingRelais)) { l.pingT = t; envoyerSur(l, infos ? [2, t, l.recuQ, infos, dits] : [2, t, l.recuQ], false); }
+        if (l.nonAcq.length && t - l.nonAcq[0].t > R.renvoi) renvoyer(l);
+        if (l.pc && l.deconnecte && t - l.deconnecte > 6000) surFerme(l); // ICE « disconnected » depuis 6 s : on le tient pour mort
+        else if (l.ouvert && l.ch && (l.ch.evts.readyState !== 'open' || l.ch.etat.readyState !== 'open')) surFerme(l); // fermé sans prévenir
+      }
+      recalculer();
+    }), 1000);
+
+    // ── l'API ──
+    s.envoyer = (type, data, opt) => {
+      if (s.ferme || typeof type !== 'string') return false;
+      const fiable = !opt || opt.fiable !== false, a = opt && opt.a ? opt.a : null;
+      let cibles;
+      if (s.estHote) cibles = a ? [a] : Array.from(s.joueurs.keys()).filter((id) => id !== s.moi.id);
+      else { if (!s.hote || s.hote === s.moi.id || (a && a !== s.hote)) return false; cibles = [s.hote]; } // étoile : un client ne parle qu'à l'hôte
+      let ok = false;
+      for (const id of cibles) {
+        let l = liens.get(id);
+        if (!l) { if (!s.joueurs.has(id) || id === s.moi.id) continue; l = nouveauLien(id); }
+        if (fiable) { const m = [1, l.q++, type, data]; l.nonAcq.push({ m, t: Date.now() }); envoyerSur(l, m, true); ok = true; }
+        else if (envoyerSur(l, [0, type, data], false)) ok = true;
+      }
+      return ok;
+    };
+    s.majMoi = (o2) => { if (s.ferme) return; Object.assign(s.moi, o2 || {}); transport.suivre(moiPublic()); recalculer(); };
+    const surPagehide = () => s.quitter();
+    s.quitter = () => {
+      if (s.ferme) return;
+      for (const l of liens.values()) if (!l.ouvert) l.relC.set(4, [4]); // l'au revoir : par le direct (fermerLien) ou par le relais
+      try { viderRelais(true); } catch (e) { /* rien */ } // ce qui attendait le relais part quand même
+      for (const l of Array.from(liens.values())) fermerLien(l);
+      s.ferme = true; clearInterval(tic); clearTimeout(relaisT);
+      try { transport.fermer(); } catch (e) { /* rien */ }
+      try { removeEventListener('pagehide', surPagehide); } catch (e) { /* rien */ }
+      s._emettre('ferme', {});
+    };
+    s._liens = () => Array.from(liens.values()).map((l) => ({ id: l.id, voie: voieDe(l), ping: l.ping, nonAcquittes: l.nonAcq.length, essais: l.essai, ice: l.pc ? l.pc.connectionState : null }));
+    s._transport = transport;
+
+    // ── l'entrée dans le salon ──
+    let initiaux;
+    try { initiaux = await transport.demarrer(); } catch (e) { s.ferme = true; clearInterval(tic); try { transport.fermer(); } catch (e2) { /* rien */ } throw e; }
+    majPresence(initiaux);
+    // la présence de Supabase peut mettre quelques secondes à tout montrer : celui qui rejoint attend d'y voir le créateur (8 s au plus), pour ne jamais se croire hôte par erreur
+    if (!creer) await attendreQue(() => s.ferme || Array.from(presents.values()).some((j) => j.c), 8000);
+    if (s.ferme) throw new Error('salon quitté');
+    for (const j of presents.values()) if (j.depuis >= depuis) depuis = j.depuis + 1; // plus jeune que tous les présents, même si les horloges des téléphones diffèrent
+    demarre = true;
+    recalculer();
+    transport.suivre(moiPublic());
+    try { addEventListener('pagehide', surPagehide); } catch (e) { /* rien */ }
+    emettreJoueurs();
+    return s;
+  }
 
   function salon(o) {
     o = o || {};
     if (!o.moi || !o.moi.id) return Promise.reject(new Error('il faut moi.id'));
-    if (o.via === 'local') return salonLocal(o);
-    return salonSupabase(o);
+    const force = param('reseau'), via = ['local', 'webrtc-local', 'supabase'].indexOf(force) >= 0 ? force : o.via || 'supabase';
+    try {
+      if (via === 'local') return salonLocal(o);
+      return salonPair(o, via === 'webrtc-local' ? 'webrtc-local' : 'supabase');
+    } catch (e) { return Promise.reject(e); }
   }
-  return { salon, nouveauCode, codeValide, VERSION, LETTRES };
+  return { salon, nouveauCode, codeValide, VERSION, LETTRES, REGLAGES: R };
 })();
 
 /* ── enligne.js ── */
-/* OPÉRATION PONCIN — la partie en ligne : relie PRESEAU (salons), PJEU (la simulation, chez l'hôte) et l'interface. À écrire (voir ARCHITECTURE.md, « Le jeu en ligne »). */
-const PENLIGNE = (() => { 'use strict'; return { pret: false }; })();
+/* OPÉRATION PONCIN — la partie en ligne : relie PRESEAU (les salons), PJEU (la simulation, chez l'hôte) et l'interface (PUI).
+   L'hôte fait autorité : il simule toute la partie avec PJEU (robots compris, réglages du salon) et applique à chaque pas la dernière
+   entrée reçue de chaque client ; il envoie l'état (« etat », 20 Hz, non fiable, nombres arrondis), les événements groupés (« evts »,
+   fiable, ≤ 14 envois/s) et le résultat (« fin »). Le client montre une « façade » : un PJEU jamais simulé (même graine, mêmes joueurs
+   dans le même ordre : mêmes robots, mêmes objets, même arène), dont les entités sont écrites par les instantanés de l'hôte ; les autres
+   y sont interpolés 100 ms en arrière, son propre joueur est prédit sur place (PJEU.deplacer : la même physique) et recalé sur l'hôte
+   (en douceur, net au-delà de 2 m) ; ses tirs montrent tout de suite l'éclair et la traînée (PJEU.tirVisuel), le marqueur de touche
+   arrive avec « evts ». Il envoie ses commandes (« entree », 30 Hz, non fiable) avec son regard en absolu et sa position prédite, que
+   l'hôte adopte si elle est plausible (à moins de 3 m de la sienne, hors des murs, même vie) ; l'hôte compense la latence des tirs.
+   Départs : un client muet 10 s est retiré ; l'hôte parti (ou muet 10 s) → fin de partie « L'hôte a quitté la partie ».
+   API : PENLIGNE.ouvrir({ via, code, moi: { id, pseudo, couleur }, config, monde, carte }) → Promise<salon> ; PENLIGNE.pseudoAuHasard().
+     salon.code, .idMoi, .via, .estHote, .hote, .reglages { bots, niveau, equipes }, .enJeu, .partie (null ou { k, jeu, idMoi, estHote, dans }),
+     salon.joueurs() → [{ id, pseudo, couleur, pret, hote, moi, ping, voie }], salon.regler(o), salon.pret(oui), salon.renommer(pseudo), salon.lancer() → true | raison,
+     salon.retourSalon(), salon.quitter(), salon.stats(), salon.sur(type, fn) → off ('maj', 'partie', 'salon', 'ferme').
+   La partie passe par jeu.etape(dt, entrees) comme en solo (l'hôte : le vrai PJEU enveloppé ; le client : la façade) ; la fin arrive
+   en événement { t: 'fin', classement, resultat } (resultat.raison = 'hote' si l'hôte est parti). Voir src-poncin/ARCHITECTURE.md,
+   « Le jeu en ligne ». Rien ne sort d'ici en exception : tout est rattrapé et compté (console.warn, jamais console.error). */
+const PENLIGNE = (() => {
+  'use strict';
+  const ETAT_MS = 50, EVTS_MS = 70, ENTREE_MS = 1000 / 30; // 20 états/s, ≤ 14,3 paquets d'événements/s, 30 entrées/s
+  const DELAI = 0.1, DELAI_MAX = 0.45, MUET = 10000, NET = 2, ZONE_MORTE = 0.08, DANS = 3.6, TENU = 150, LACHE = 250;
+  // DELAI : l'interpolation des autres, au moins 100 ms, plus si les états arrivent moins souvent (le relais du transport : ~5 envois/s) ;
+  // TENU : un appui bref (saut, recharge, arme) est répété dans les entrées pendant ce temps (une entrée perdue ne le perd pas) ;
+  // LACHE : sans entrée d'un client depuis ce temps (ou 2,5 × l'intervalle mesuré), l'hôte lui lâche les commandes (plus de course sans fin)
+  const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
+  const fini = (v) => typeof v === 'number' && v - v === 0;
+  const num = (v, a, b) => (fini(v) ? (v < a ? a : v > b ? b : v) : 0);
+  const ecartAngle = (a, b) => { let d = (a - b) % (2 * Math.PI); if (d > Math.PI) d -= 2 * Math.PI; else if (d < -Math.PI) d += 2 * Math.PI; return d; };
+  const maintenant = () => (typeof performance !== 'undefined' && performance.now ? performance.now() : Date.now());
+  const G = (n) => (typeof self !== 'undefined' && self[n]) || (typeof window !== 'undefined' && window[n]) || null;
+  const mod = (n, v) => { try { return v(); } catch (e) { return G(n); } };
+  // les modules (constantes globales du même script, ou globales UMD) : résolus à l'usage
+  const PJ = () => mod('PJEU', () => PJEU), PA = () => mod('PARENE', () => PARENE), PR = () => mod('PREGLES', () => PREGLES), PN = () => mod('PRESEAU', () => PRESEAU);
+  let erreurs = 0, derniereErreur = '';
+  function signaler(ou, e) { erreurs++; derniereErreur = ou + ' : ' + (e && e.message ? e.message : String(e)); if (erreurs <= 20) console.warn('[Poncin en ligne]', ou, e); }
+
+  // ─── le pseudo par défaut : un animal, un adjectif invariable, deux chiffres (« Castor Turbo 42 ») ───
+  const ANIMAUX = ['Castor', 'Renard', 'Loutre', 'Hibou', 'Lynx', 'Blaireau', 'Chamois', 'Héron', 'Pivert', 'Lapin', 'Belette', 'Marmotte', 'Tortue', 'Panda', 'Koala', 'Lama', 'Moineau', 'Truite', 'Brochet', 'Sanglier', 'Écureuil', 'Hérisson', 'Mouette', 'Escargot', 'Bouquetin', 'Grillon'];
+  const ADJECTIFS = ['Turbo', 'Ninja', 'Cool', 'Zen', 'Disco', 'Flash', 'Choc', 'Pirate', 'Rock', 'Funky', 'Rétro', 'Laser', 'Néon', 'Pop', 'Super', 'Express', 'Cosmos', 'Max'];
+  function pseudoAuHasard(rnd) {
+    rnd = typeof rnd === 'function' ? rnd : Math.random;
+    const a = ANIMAUX[Math.floor(rnd() * ANIMAUX.length)], b = ADJECTIFS[Math.floor(rnd() * ADJECTIFS.length)];
+    return `${a} ${b} ${String(Math.floor(rnd() * 100)).padStart(2, '0')}`;
+  }
+  function couleurDe(texte) { const R = PR(), C = R ? R.COULEURS : ['#FF6B8B']; return C[(R ? R.hash(String(texte || '')) : 0) % C.length]; }
+
+  // ─── le salon : présence, réglages de l'hôte, prêt, lancement, retour au salon ───
+  async function ouvrir(o) {
+    o = o || {};
+    const P = PN(); if (!P) throw new Error('le module réseau manque');
+    const salon = await P.salon({ via: o.via, code: o.code, moi: o.moi, config: o.config });
+    return controleur(salon, o);
+  }
+
+  function controleur(salon, o) {
+    const abonnes = new Map(), offs = [];
+    const C = { envoyes: 0, recus: 0, t0: maintenant(), types: {} };
+    let k = 0, timer = null, dernierRegl = 0, dernierPing = 0;
+    const emettre = (t, d) => { const l = abonnes.get(t); if (l) for (const fn of Array.from(l)) { try { fn(d); } catch (e) { signaler('interface ' + t, e); } } };
+    function envoyer(type, data, opt) {
+      if (ctl.ferme) return false;
+      let ok = false; try { ok = salon.envoyer(type, data, opt || { fiable: true }) !== false; } catch (e) { signaler('envoi ' + type, e); ok = false; }
+      if (ok) { C.envoyes++; C.types[type] = (C.types[type] || 0) + 1; }
+      return ok;
+    }
+    const ctl = {
+      code: salon.code, idMoi: salon.moi.id, via: salon.via || o.via || 'local', ferme: false,
+      get estHote() { return !!salon.estHote; }, get hote() { return salon.hote; },
+      reglages: { mode: 'arene', bots: 0, niveau: 'normal', equipes: false }, pings: {}, voies: {}, enJeu: false, partie: null,
+      joueurs, regler, pret, renommer, lancer, retourSalon, quitter, stats,
+      sur(type, fn) { if (!abonnes.has(type)) abonnes.set(type, new Set()); abonnes.get(type).add(fn); return () => abonnes.get(type).delete(fn); },
+      get salon() { return salon; },
+    };
+    const ecoute = (type, fn) => { offs.push(salon.sur(type, (d, de) => { if (ctl.ferme) return; if (type !== 'joueurs' && type !== 'hote' && type !== 'ferme') { C.recus++; C.types['<' + type] = (C.types['<' + type] || 0) + 1; } try { fn(d, de); } catch (e) { signaler('reçu ' + type, e); } })); };
+
+    function joueurs() {
+      const l = Array.from(salon.joueurs.values()).sort((a, b) => (a.depuis || 0) - (b.depuis || 0) || (a.id < b.id ? -1 : 1));
+      return l.map((j) => {
+        const mesure = ctl.pings[j.id], ping = j.id === salon.hote ? null : mesure != null ? mesure : j.ping > 0 ? j.ping : null; // mesuré par nous (salon, partie), sinon par le transport
+        const voie = j.id === salon.hote ? 'hote' : j.voie || ctl.voies[j.id] || ''; // la voie que donne le transport (p2p, relais, local, connexion)
+        return { id: j.id, pseudo: String(j.pseudo || 'Joueur').slice(0, 20), couleur: j.couleur, pret: !!j.pret, hote: j.id === salon.hote, moi: j.id === salon.moi.id, ping: ping == null ? null : Math.round(ping), voie: voie || '' };
+      });
+    }
+    function annoncerReglages() { // l'hôte : réglages, pings et voies à tous (aussi pour ceux qui arrivent)
+      if (!salon.estHote) return;
+      const voies = {}; for (const j of salon.joueurs.values()) voies[j.id] = j.id === salon.moi.id ? 'hote' : j.voie || '';
+      ctl.voies = voies; dernierRegl = maintenant();
+      envoyer('reglages', Object.assign({ k, enJeu: ctl.enJeu, pings: ctl.pings, voies }, ctl.reglages), { fiable: true });
+    }
+    function regler(r) {
+      if (!salon.estHote || !r) return false;
+      const R = PR(), g = ctl.reglages;
+      if (r.bots != null) g.bots = Math.max(0, Math.min(4, Math.round(+r.bots) || 0));
+      if (r.niveau && (!R || R.BOTS[r.niveau])) g.niveau = r.niveau;
+      if (r.equipes != null) g.equipes = !!r.equipes;
+      annoncerReglages(); emettre('maj'); return true;
+    }
+    function pret(oui) { try { salon.majMoi({ pret: !!oui }); } catch (e) { signaler('prêt', e); } emettre('maj'); }
+    function renommer(pseudo) { pseudo = String(pseudo || '').trim().slice(0, 20); if (!pseudo) return false; try { salon.majMoi({ pseudo }); } catch (e) { signaler('pseudo', e); } emettre('maj'); return true; }
+
+    // ─── le lancement (l'hôte) : graine, joueurs (couleurs distinctes, équipes réparties par PJEU), compte à rebours commun ───
+    function lancer() {
+      if (ctl.ferme) return 'salon fermé';
+      if (!salon.estHote) return 'seul l’hôte lance la partie';
+      const js = joueurs(); if (js.length < 2) return 'il faut être au moins deux';
+      if (!ctl._monde || !PJ() || !PA()) return 'le jeu n’est pas prêt';
+      const R = PR(), pris = new Set(), palette = R ? R.COULEURS : [];
+      const liste = js.map((j) => { let c = typeof j.couleur === 'string' && /^#[0-9a-f]{6}$/i.test(j.couleur) && !pris.has(j.couleur) ? j.couleur : palette.find((x) => !pris.has(x)) || '#FFC84A'; pris.add(c); return { id: j.id, pseudo: j.pseudo, couleur: c }; });
+      const g = ctl.reglages, options = { bots: g.bots, niveau: g.niveau, equipes: !!g.equipes };
+      const graine = (Math.random() * 4294967296) >>> 0;
+      let P = null;
+      try { k++; P = partieHote(ctl, { k, graine, options, joueurs: liste, dans: DANS }); } catch (e) { signaler('lancement', e); return 'la partie n’a pas pu démarrer'; }
+      envoyer('lancer', { k, graine, options, joueurs: P.liste, dans: DANS }, { fiable: true });
+      finirPartie(); ctl.partie = P; ctl.enJeu = true; annoncerReglages();
+      emettre('partie', P); emettre('maj');
+      return true;
+    }
+    function finirPartie() { const p = ctl.partie; if (p && p.arreter) { try { p.arreter(); } catch (e) { signaler('arrêt', e); } } ctl.partie = null; }
+    function retourSalon() { // l'hôte ramène tout le monde au salon (après une fin) ; un client y retourne seul (la partie est finie pour lui)
+      finirPartie();
+      if (salon.estHote) { ctl.enJeu = false; envoyer('salon', { k }, { fiable: true }); annoncerReglages(); }
+      emettre('salon'); emettre('maj'); return true;
+    }
+    function quitter() {
+      if (ctl.ferme) return; finirPartie();
+      ctl.ferme = true; clearInterval(timer); for (const f of offs) { try { f(); } catch (e) { /* rien */ } }
+      try { salon.quitter(); } catch (e) { signaler('quitter', e); }
+    }
+    function stats() {
+      const dt = Math.max(0.5, (maintenant() - C.t0) / 1000), p = ctl.partie;
+      const r = { envoyesParS: C.envoyes / dt, recusParS: C.recus / dt, types: Object.assign({}, C.types), duree: dt, erreurs, derniereErreur };
+      if (p && p.stats) r.partie = p.stats();
+      try { r.transport = salon.stats ? salon.stats() : null; } catch (e) { r.transport = null; }
+      return r;
+    }
+
+    // ─── les messages ───
+    let signature = '', signatureUi = '';
+    ecoute('joueurs', () => {
+      // l'hôte ne réannonce que si la liste change (le battement de présence ne compte pas : il en arrive un par joueur et par seconde)
+      const js = Array.from(salon.joueurs.values()), sig = js.map((j) => j.id + (j.pret ? '+' : '-') + j.pseudo + (j.voie || '')).sort().join('|'), sigUi = sig + js.map((j) => j.ping | 0).join(',') + salon.hote;
+      if (salon.estHote) { if (sig !== signature) annoncerReglages(); const p = ctl.partie; if (p && p.hote) p.verifierDeparts(); }
+      else { const p = ctl.partie; if (p && !p.hote && !salon.joueurs.has(p.hoteId)) p.hoteParti(); }
+      signature = sig; if (sigUi !== signatureUi) { signatureUi = sigUi; emettre('maj'); }
+    });
+    ecoute('hote', () => { // l'hôte a changé : l'ancien est parti (s'il menait une partie, elle est finie pour nous)
+      const p = ctl.partie;
+      if (p && !p.hote) p.hoteParti();
+      if (salon.estHote) { ctl.enJeu = false; annoncerReglages(); }
+      emettre('maj');
+    });
+    ecoute('ferme', () => { finirPartie(); ctl.ferme = true; clearInterval(timer); emettre('ferme', { raison: 'ferme' }); });
+    ecoute('reglages', (d) => {
+      if (salon.estHote || !d) return;
+      const R = PR(), g = ctl.reglages;
+      g.bots = Math.max(0, Math.min(4, d.bots | 0)); if (!R || R.BOTS[d.niveau]) g.niveau = d.niveau; g.equipes = !!d.equipes;
+      ctl.pings = d.pings && typeof d.pings === 'object' ? d.pings : {}; ctl.voies = d.voies && typeof d.voies === 'object' ? d.voies : {}; ctl.enJeu = !!d.enJeu;
+      emettre('maj');
+    });
+    ecoute('ping', (d) => { if (!salon.estHote && d) envoyer('pong', { t: d.t }, { fiable: false }); });
+    ecoute('pong', (d, de) => { if (!salon.estHote || !d || !fini(d.t)) return; const s = maintenant() - d.t; if (s >= 0 && s < 10000) { ctl.pings[de] = ctl.pings[de] != null ? Math.round(ctl.pings[de] * 0.6 + s * 0.4) : Math.round(s); emettre('maj'); } });
+    ecoute('lancer', (d) => {
+      if (salon.estHote || !d || !Array.isArray(d.joueurs)) return;
+      if (!d.joueurs.some((j) => j && j.id === salon.moi.id)) { ctl.enJeu = true; emettre('maj'); return; } // une partie sans nous (arrivés trop tard)
+      finirPartie();
+      let P = null; try { P = partieClient(ctl, d); } catch (e) { signaler('façade', e); P = null; }
+      if (!P) return;
+      k = d.k | 0; ctl.partie = P; ctl.enJeu = true; emettre('partie', P); emettre('maj');
+    });
+    ecoute('salon', () => { if (salon.estHote) return; finirPartie(); ctl.enJeu = false; emettre('salon'); emettre('maj'); });
+    for (const t of ['entree', 'etat', 'evts', 'fin']) ecoute(t, (d, de) => { const p = ctl.partie; if (p && p.recevoir) p.recevoir(t, d, de); });
+
+    // le battement : réglages et pings au salon (hôte), rattrapage et départs en partie
+    timer = setInterval(() => {
+      try {
+        if (ctl.ferme) return;
+        const now = maintenant(), p = ctl.partie;
+        if (salon.estHote && !p) {
+          if (now - dernierPing > 2000) { dernierPing = now; if (salon.joueurs.size > 1) envoyer('ping', { t: now }, { fiable: false }); }
+          if (now - dernierRegl > 2000) annoncerReglages();
+        }
+        if (p && p.tic) p.tic(now);
+      } catch (e) { signaler('battement', e); }
+    }, 250);
+    ctl._envoyer = envoyer; ctl._monde = o.monde || null; ctl._carte = o.carte || null;
+    if (salon.estHote) annoncerReglages();
+    return ctl;
+  }
+
+  // ═══════════════════════════════ l'hôte : le vrai PJEU, enveloppé ═══════════════════════════════
+  function partieHote(ctl, L) {
+    const J = PJ(), A = PA(), R = PR(), JO = R.JOUEUR, idMoi = ctl.idMoi, envoyer = ctl._envoyer, monde = ctl._monde, carte = ctl._carte;
+    const jeu = J.creer({ monde, carte, mode: A, graine: L.graine, options: L.options });
+    const liste = [];
+    for (const j of L.joueurs) {
+      const e = jeu.ajouterJoueur({ id: j.id, nom: j.pseudo, couleur: j.couleur, humain: true, equipe: L.options.equipes ? undefined : j.id });
+      if (L.options.equipes && A.COULEURS_EQUIPES) e.couleur = A.COULEURS_EQUIPES[e.equipe] || e.couleur;
+      liste.push({ id: e.id, pseudo: e.nom, couleur: e.couleur, equipe: e.equipe });
+    }
+    const vrai = jeu.etape, debut = maintenant() + L.dans * 1000;
+    const clients = new Map();
+    for (const j of liste) if (j.id !== idMoi) clients.set(j.id, { id: j.id, nom: j.pseudo, entree: { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null }, n: 0, recuA: 0, vu: debut, pos: { x: 0, y: 0, z: 0, m: 0, v: false, vy: 0, sol: true, neuf: false }, adopte: false, rtt: 0, intervalle: ENTREE_MS });
+    const ent = {}, ACKS = {}, envoiT = new Float64Array(64), envoiN = new Int32Array(64), aEnvoyer = [], enPlus = [];
+    let nEtat = 0, dernierEtat = -1e9, dernierEvts = -1e9, derniereEtape = 0, finale = false, finEnvoyee = false, arrete = false, envoyes = 0, t0 = 0;
+    const P = { k: L.k, jeu, idMoi, estHote: true, hote: true, hoteId: idMoi, dans: L.dans, liste, resultat: null, demarre: false };
+
+    function adopter(c, e) { // la position prédite du client, si elle est plausible
+      const p = c.pos; if (!p.neuf) return; p.neuf = false;
+      if (!e.vivant || !p.v || p.m !== e.score.morts) { c.adopte = false; return; }
+      const dx = p.x - e.x, dz = p.z - e.z;
+      if (dx * dx + dz * dz > 9 || Math.abs(p.y - e.y) > 3 || monde.bloque(p.x, p.z, JO.rayon - 0.05)) { c.adopte = false; return; }
+      e.x = p.x; e.z = p.z; e.y = p.y; e.vy = p.vy; e.auSol = p.sol; c.adopte = true;
+    }
+    function compacter(ev, h) { // les événements utiles à l'image et au son, arrondis
+      switch (ev.t) {
+        case 'tir': { const i = ev.impact; return { t: 'tir', h, id: ev.id, arme: ev.arme, o: [r2(ev.o[0]), r2(ev.o[1]), r2(ev.o[2])], fin: [r2(ev.fin[0]), r2(ev.fin[1]), r2(ev.fin[2])], impact: i ? { x: r2(i.x), y: r2(i.y), z: r2(i.z), nx: r2(i.nx), ny: r2(i.ny), nz: r2(i.nz), quoi: i.quoi, id: i.id } : null }; }
+        case 'touche': return { t: 'touche', h, de: ev.de, a: ev.a, degats: ev.degats, tete: !!ev.tete, mort: !!ev.mort };
+        case 'mort': return { t: 'mort', h, a: ev.a, par: ev.par, arme: ev.arme, tete: !!ev.tete };
+        case 'reapparition': return { t: 'reapparition', h, id: ev.id };
+        case 'ramasse': return { t: 'ramasse', h, id: ev.id, objet: ev.objet, oid: ev.oid };
+        case 'recharge': return { t: 'recharge', h, id: ev.id };
+        case 'annonce': return { t: 'annonce', h, texte: ev.texte };
+        default: return null;
+      }
+    }
+    function reseau(now) {
+      if (now - dernierEtat >= ETAT_MS - 1 || finale) {
+        nEtat++;
+        for (const c of clients.values()) ACKS[c.id] = c.adopte ? c.n : -c.n; // négatif : l'hôte n'a pas adopté sa position (le client se recale)
+        const inst = jeu.instantane(ACKS); inst.k = L.k; inst.n = nEtat;
+        envoiT[nEtat & 63] = now; envoiN[nEtat & 63] = nEtat; dernierEtat = now;
+        if (clients.size) { envoyer('etat', inst, { fiable: false }); envoyes++; }
+      }
+      if (aEnvoyer.length && (now - dernierEvts >= EVTS_MS || finale)) { dernierEvts = now; if (clients.size) { envoyer('evts', { k: L.k, ev: aEnvoyer.splice(0) }, { fiable: true }); envoyes++; } else aEnvoyer.length = 0; }
+      if (finale && !finEnvoyee) {
+        finEnvoyee = true; let res = null; try { res = A.resultat(jeu); } catch (e) { signaler('résultat', e); res = { classement: jeu.resume() }; }
+        P.resultat = res; envoyer('fin', { k: L.k, res }, { fiable: true });
+      }
+    }
+    function etapeHote(dt, entrees) {
+      const now = maintenant(); derniereEtape = now;
+      if (!P.demarre) { P.demarre = true; t0 = now; }
+      for (const id in ent) ent[id] = null;
+      if (entrees && entrees[idMoi]) ent[idMoi] = entrees[idMoi];
+      for (const c of clients.values()) {
+        const e = jeu.trouver(c.id); if (!e) continue;
+        const en = c.entree;
+        if (now - c.recuA > Math.max(LACHE, 2.5 * c.intervalle + 100)) { en.avant = 0; en.cote = 0; en.tir = false; en.saut = false; en.recharge = false; en.arme = null; } // plus de nouvelles : il lâche tout
+        adopter(c, e);
+        ent[c.id] = en;
+      }
+      let evs;
+      try { evs = vrai(dt, ent); } catch (e) { signaler('simulation', e); return enPlus.splice(0); }
+      const h = r3(jeu.temps);
+      for (let i = 0; i < evs.length; i++) { const v = evs[i]; if (v.t === 'fin') finale = true; else { const c = compacter(v, h); if (c) aEnvoyer.push(c); } }
+      for (let i = 0; i < enPlus.length; i++) evs.push(enPlus[i]); enPlus.length = 0;
+      reseau(now);
+      return evs;
+    }
+    function retirer(id, raison) { // un client parti (ou muet) : hors du jeu, chez tout le monde
+      const c = clients.get(id); if (!c) return;
+      clients.delete(id); jeu.reglerRetard(id, 0);
+      const e = jeu.trouver(id), nom = e ? e.nom : c.nom; jeu.retirerJoueur(id);
+      const texte = `${nom} ${raison === 'muet' ? 'a perdu la connexion' : 'a quitté la partie'}`, h = r3(jeu.temps);
+      aEnvoyer.push({ t: 'parti', h, id }, { t: 'annonce', h, texte }); enPlus.push({ t: 'annonce', texte });
+    }
+    function recevoir(type, d, de) {
+      if (arrete || type !== 'entree' || !d || (d.k | 0) !== L.k) return;
+      const c = clients.get(de); if (!c) return;
+      const n = d.n | 0; if (n <= c.n) return; // une vieille entrée, arrivée après une plus récente
+      const now = maintenant(); if (c.recuA > 0) c.intervalle = c.intervalle * 0.9 + Math.min(1000, now - c.recuA) * 0.1; c.n = n; c.recuA = now; c.vu = now;
+      const en = c.entree;
+      en.avant = num(d.av, -1, 1); en.cote = num(d.co, -1, 1);
+      if (fini(d.ya)) en.yaw = d.ya; if (fini(d.pi)) en.pitch = d.pi;
+      en.tir = !!d.ti; en.saut = !!d.sa; en.accroupi = !!d.ac; en.recharge = !!d.re; en.arme = J.ARMES_ID.indexOf(d.ar) >= 0 ? d.ar : null;
+      const p = c.pos;
+      if (fini(d.x) && fini(d.y) && fini(d.z)) { p.x = d.x; p.y = d.y; p.z = d.z; p.m = d.m | 0; p.v = !!d.v; p.vy = num(d.vy, -40, 40); p.sol = !!d.sol; p.neuf = true; }
+      // le ping (aller-retour d'un état jusqu'à l'entrée qui l'accuse), puis le retard des tirs de ce joueur
+      const ae = d.ae | 0;
+      if (ae > 0 && envoiN[ae & 63] === ae) { const s = now - envoiT[ae & 63] - Math.max(0, +d.ad || 0); if (s >= 0 && s < 5000) { c.rtt = c.rtt ? c.rtt * 0.8 + s * 0.2 : s; ctl.pings[de] = Math.round(c.rtt); } }
+      const retard = fini(d.tv) ? jeu.temps - d.tv : c.rtt / 2000 + DELAI; // le client vise les autres là où il les voit : DELAI en arrière, plus le trajet
+      jeu.reglerRetard(de, Math.max(0, Math.min(0.25, retard)));
+    }
+    function verifierDeparts() {
+      const now = maintenant(), salon = ctl.salon;
+      for (const c of Array.from(clients.values())) {
+        if (!salon.joueurs.has(c.id)) retirer(c.id, 'parti');
+        else if (now - c.vu > MUET) retirer(c.id, 'muet');
+      }
+    }
+    function tic(now) {
+      if (arrete) return;
+      verifierDeparts();
+      // l'hôte en arrière-plan (onglet caché, pause du navigateur) : on rattrape la simulation pour les autres, par pas de 50 ms
+      if (P.demarre && !jeu.fini && now - derniereEtape > 300) {
+        let reste = Math.min(1, (now - derniereEtape) / 1000); const neutre = { [idMoi]: null };
+        while (reste > 1e-3 && !jeu.fini) { const d = Math.min(J.DT_MAX, reste); etapeHote(d, neutre); reste -= d; }
+      }
+    }
+    jeu.etape = etapeHote;
+    P.recevoir = recevoir; P.tic = tic; P.verifierDeparts = verifierDeparts; P.retirer = retirer;
+    P.arreter = () => { arrete = true; jeu.etape = vrai; };
+    P.stats = () => { const dt = Math.max(0.5, (maintenant() - (t0 || maintenant())) / 1000); return { hote: true, messagesParClientParS: envoyes / dt, envoyes, t: maintenant(), clients: Array.from(clients.values()).map((c) => ({ id: c.id, rtt: Math.round(c.rtt), adopte: c.adopte, retard: r3(jeu.retardDe(c.id)), intervalle: Math.round(c.intervalle) })) }; };
+    return P;
+  }
+
+  // ═══════════════════════════════ le client : la façade ═══════════════════════════════
+  function partieClient(ctl, L) {
+    const J = PJ(), A = PA(), R = PR(), JO = R.JOUEUR, idMoi = ctl.idMoi, envoyer = ctl._envoyer, monde = ctl._monde, carte = ctl._carte;
+    if (!monde || !J || !A) return null;
+    const options = L.options || {};
+    const jeu = J.creer({ monde, carte, mode: A, graine: L.graine, options, nav: false });
+    for (const j of L.joueurs) {
+      if (!j || typeof j.id !== 'string') continue;
+      const e = jeu.ajouterJoueur({ id: j.id, nom: j.pseudo, couleur: j.couleur, humain: true, equipe: options.equipes ? (j.equipe === 1 ? 1 : 0) : j.id });
+      if (typeof j.couleur === 'string') e.couleur = j.couleur;
+    }
+    const moi = jeu.trouver(idMoi); if (!moi) return null;
+    const hoteId = ctl.hote, out = [], tampon = [], attente = [], immediats = [], hist = [], tirsEnVol = [], pasDe = new Map();
+    const corr = { x: 0, z: 0 };
+    let dernierT = -1, dernierRecu = 0, dernierN = 0, cale = false, nEnvoi = 0, dernierEnvoi = -1e9, tirDepuis = false, sautA = -1e9, rechA = -1e9, armeA = -1e9, armeVoulue = null, armeLocaleA = -1e9;
+    let tirLocalA = 0, finEnAttente = null, arrete = false, recus = 0, envoyes = 0, t0 = 0, foulee = 0, nCales = 0, nDouces = 0, intervalle = ETAT_MS, gigue = 10, delai = DELAI;
+    const debut = maintenant() + (L.dans || 0) * 1000;
+    const P = { k: L.k | 0, jeu, idMoi, estHote: false, hote: false, hoteId, dans: L.dans || 0, liste: L.joueurs, resultat: null, demarre: false };
+    const GONFLE = { rafale: 0.22, pompe: 0.8, precision: 1 };
+    jeu.finir = () => {}; // la fin vient de l'hôte
+
+    // ─── réception ───
+    function histDe(n) { for (let i = hist.length - 1; i >= 0; i--) if (hist[i].n <= n) return hist[i]; return null; }
+    function caler(l) { // net : la position (et le regard) de l'hôte
+      moi.x = l[1]; moi.y = l[2]; moi.z = l[3]; moi.vx = moi.vz = moi.vy = 0; moi.auSol = true; corr.x = corr.z = 0; hist.length = 0; nCales++;
+    }
+    function recevoirEtat(d) {
+      if ((d.k | 0) !== P.k || !Array.isArray(d.e) || !fini(d.t)) return;
+      const n = d.n | 0; if (n <= dernierN) return; // en retard sur un plus récent
+      const now = maintenant();
+      if (dernierRecu > 0) { const iv = Math.min(1000, now - dernierRecu); gigue = gigue * 0.9 + Math.abs(iv - intervalle) * 0.1; intervalle = intervalle * 0.9 + iv * 0.1; }
+      dernierN = n; dernierT = d.t; dernierRecu = now; recus++;
+      delai = Math.max(DELAI, Math.min(DELAI_MAX, (1.2 * intervalle + 2.5 * gigue) / 1000 + 0.03)); // assez d'avance pour avoir presque toujours deux états entre lesquels interpoler
+      if (!cale) { jeu.temps = d.t; } // la première nouvelle de l'hôte : son horloge
+      const rows = new Map(); for (const l of d.e) if (Array.isArray(l) && typeof l[0] === 'string') rows.set(l[0], l);
+      tampon.push({ t: d.t, rows }); while (tampon.length > 30 || (tampon.length > 2 && tampon[0].t < d.t - 1.5)) tampon.shift();
+      // ce qui ne s'interpole pas : vie, armure, scores, munitions (tout de suite)
+      for (const e of jeu.entites) { const l = rows.get(e.id); if (l) J.lireLigne(l, e, jeu.temps, 'etat'); }
+      // les partis (absents de l'état de l'hôte) ; moi absent : l'hôte nous a retirés
+      for (const e of jeu.entites.slice()) if (!rows.has(e.id)) { if (e === moi) { finir('exclu'); return; } jeu.retirerJoueur(e.id); pasDe.delete(e.id); }
+      // les objets
+      try { const objs = A.objets(jeu); if (typeof d.o === 'string') for (let i = 0; i < objs.length && i < d.o.length; i++) objs[i].dispo = d.o[i] === '1'; } catch (e) { signaler('objets', e); }
+      // moi : vie, réapparition, recalage
+      const l = rows.get(idMoi); if (!l) return;
+      const fl = l[8] | 0, vivantH = !!(fl & 1);
+      if (!cale) { caler(l); moi.yaw = l[4]; moi.pitch = l[5]; moi.vivant = vivantH; cale = true; }
+      else if (!vivantH) { moi.vivant = false; moi.x = l[1]; moi.y = l[2]; moi.z = l[3]; corr.x = corr.z = 0; hist.length = 0; } // repeint : on reste où l'hôte nous voit
+      else if (!moi.vivant) { moi.vivant = true; caler(l); moi.yaw = l[4]; moi.pitch = 0; } // réapparu : la place et le regard que l'hôte a choisis
+      else {
+        const ack = l[20] | 0, dx = l[1] - moi.x, dz = l[3] - moi.z;
+        if (dx * dx + dz * dz > 64) caler(l); // très loin de l'hôte, quoi qu'il arrive : net
+        else if (ack < 0) { // l'hôte n'a pas pris notre position : on se recale sur la sienne (au même instant de notre historique)
+          const h = histDe(-ack);
+          if (!h) { if (dx * dx + dz * dz > NET * NET) caler(l); }
+          else { const ex = l[1] - h.x, ez = l[3] - h.z, e2 = ex * ex + ez * ez; if (e2 > NET * NET) caler(l); else if (e2 > ZONE_MORTE * ZONE_MORTE) { corr.x = ex; corr.z = ez; nDouces++; } }
+        }
+      }
+      moi.invincible = fl & 8 ? 1 : 0;
+      if (maintenant() - armeLocaleA > 600) moi.arme = J.ARMES_ID[l[9] | 0] || 'rafale';
+      // les munitions affichées : celles de l'hôte, moins nos tirs qu'il n'a pas encore vus
+      const ack = Math.abs(l[20] | 0); while (tirsEnVol.length && tirsEnVol[0] <= ack) tirsEnVol.shift();
+      if (moi.munitions[moi.arme] != null) moi.munitions[moi.arme] = Math.max(0, moi.munitions[moi.arme] - tirsEnVol.length);
+      if (d.f) { /* la fin arrive par « fin » (fiable) */ }
+    }
+    function recevoirEvts(d) {
+      if ((d.k | 0) !== P.k || !Array.isArray(d.ev)) return;
+      recus++;
+      for (const v of d.ev) {
+        if (!v || typeof v.t !== 'string') continue;
+        if (v.t === 'parti') { if (v.id !== idMoi) { jeu.retirerJoueur(v.id); pasDe.delete(v.id); } continue; }
+        if (v.t === 'tir' && v.id === idMoi) continue; // déjà montré sur place
+        if (v.t === 'mort' && v.a === idMoi) { moi.vivant = false; moi.vie = 0; }
+        const pourMoi = v.id === idMoi || v.a === idMoi || v.de === idMoi || v.par === idMoi || v.t === 'annonce';
+        if (pourMoi) immediats.push(v); else attente.push(v); // les autres : à l'heure où on les voit (100 ms en arrière)
+      }
+    }
+    function recevoirFin(d) {
+      if ((d.k | 0) !== P.k || !d.res) return;
+      recus++;
+      const res = d.res; P.resultat = res;
+      if (Array.isArray(res.classement)) for (const c of res.classement) { const e = c && jeu.trouver(c.id); if (e) { e.score.kills = c.kills | 0; e.score.morts = c.morts | 0; e.score.points = c.points | 0; } }
+      for (const v of attente) immediats.push(v); attente.length = 0;
+      finEnAttente = { t: 'fin', classement: res.classement || jeu.resume(), resultat: res };
+    }
+    function recevoir(type, d) {
+      if (arrete || !d) return;
+      if (type === 'etat') recevoirEtat(d); else if (type === 'evts') recevoirEvts(d); else if (type === 'fin') recevoirFin(d);
+    }
+    function finir(raison) { // l'hôte est parti (ou nous a retirés) : la fin, avec les derniers scores connus
+      if (finEnAttente || jeu.fini || arrete) return;
+      let res = null; try { res = A.resultat(jeu); } catch (e) { res = { classement: jeu.resume() }; }
+      res.raison = raison; P.resultat = res;
+      finEnAttente = { t: 'fin', classement: res.classement, resultat: res };
+    }
+    P.hoteParti = () => finir('hote');
+
+    // ─── une image : horloge, prédiction, tirs pour l'image, recalage, interpolation, événements, envoi ───
+    function etapeClient(dt, entrees) {
+      out.length = 0;
+      if (arrete) return out;
+      for (let i = 0; i < immediats.length; i++) out.push(immediats[i]); immediats.length = 0; // arrivés depuis l'image d'avant
+      if (finEnAttente) { out.push(finEnAttente); finEnAttente = null; jeu.fini = true; return out; }
+      if (jeu.fini) return out;
+      dt = +dt; if (!(dt > 0)) dt = 0; if (dt > 0.1) dt = 0.1;
+      const now = maintenant();
+      if (!P.demarre) { P.demarre = true; t0 = now; }
+      // l'horloge de l'hôte : la dernière nouvelle plus le temps écoulé, lissée (jamais en arrière)
+      if (dernierT >= 0) { const cible = dernierT + (now - dernierRecu) / 1000, ec = cible - jeu.temps; if (Math.abs(ec) > 0.5) jeu.temps = cible; else jeu.temps += Math.max(0, dt + ec * Math.min(1, dt * 3)); }
+      const tRendu = jeu.temps - delai, T = jeu.temps;
+      // moi : la prédiction (la même physique que l'hôte)
+      const en = entrees ? entrees[idMoi] : null;
+      if (en) {
+        if (en.saut) sautA = now; if (en.recharge) rechA = now; if (en.tir) tirDepuis = true;
+        if (en.arme && en.arme !== moi.arme && moi.armes.indexOf(en.arme) >= 0) { armeVoulue = en.arme; armeA = now; armeLocaleA = now; moi.arme = en.arme; tirLocalA = Math.max(tirLocalA, T + 0.3); }
+      }
+      if (cale && moi.vivant && en) {
+        const mv = J.deplacer(moi, en, dt, monde);
+        if (mv.saut) out.push({ t: 'saut', id: idMoi });
+        if (moi.auSol && !moi.accroupi && mv.dep > 0) { foulee += mv.dep; if (foulee >= 1.7) { foulee -= 1.7; out.push({ t: 'pas', id: idMoi }); } }
+        // le tir pour l'image : cadence, chargeur et recharge de l'hôte ; l'hôte décide des touches
+        const Ar = R.arme(moi.arme);
+        if (en.tir && !moi.enRecharge && (moi.munitions[moi.arme] | 0) > 0 && T >= tirLocalA) {
+          const n0 = out.length; J.tirVisuel(moi, monde, jeu.entites, Math.random, out);
+          for (let i = n0; i < out.length; i++) out[i].local = true;
+          tirLocalA = Math.max(tirLocalA, T - dt) + 1 / Ar.cadence;
+          moi.munitions[moi.arme] = Math.max(0, (moi.munitions[moi.arme] | 0) - 1); tirsEnVol.push(nEnvoi + 1);
+          moi.gonfle = Math.min(1, (moi.gonfle || 0) + (GONFLE[Ar.id] || 0.3));
+          moi.pitch = Math.max(-1.45, Math.min(1.45, moi.pitch + (Ar.recul || 0) * 0.6 * (0.7 + 0.3 * Math.random())));
+          moi.yaw += (Ar.recul || 0) * 0.6 * 0.35 * (Math.random() * 2 - 1);
+        }
+        moi.gonfle = Math.max(0, (moi.gonfle || 0) - 3.2 * dt);
+      }
+      // le recalage en douceur (en glissant contre les murs), reporté sur l'historique
+      if (corr.x || corr.z) {
+        const kk = Math.min(1, dt * 8), dx = corr.x * kk, dz = corr.z * kk, p = monde.deplacer(moi.x, moi.z, dx, dz, JO.rayon), mx = p[0] - moi.x, mz = p[1] - moi.z;
+        moi.x = p[0]; moi.z = p[1]; if (moi.auSol) moi.y = monde.hauteur(moi.x, moi.z);
+        for (const h of hist) { h.x += mx; h.z += mz; }
+        corr.x -= dx; corr.z -= dz; if (corr.x * corr.x + corr.z * corr.z < 1e-4) corr.x = corr.z = 0;
+      }
+      // les autres : interpolés 100 ms en arrière ; leurs pas
+      interpoler(tRendu);
+      // les événements de l'hôte, à l'heure
+      while (attente.length && (attente[0].h <= tRendu || attente[0].h < T - 1 || attente.length > 400)) out.push(attente.shift());
+      // l'entrée, 30 fois par seconde
+      if (now - dernierEnvoi >= ENTREE_MS - 2) {
+        dernierEnvoi = now; nEnvoi++;
+        const vit = cale && moi.vivant, j = ctl.salon.joueurs.get(idMoi), tenu = j && j.voie === 'relais' ? 3 * TENU : TENU; // en relais, les entrées partent groupées : on tient les appuis plus longtemps
+        const m = { k: P.k, n: nEnvoi, av: en ? r2(num(en.avant, -1, 1)) : 0, co: en ? r2(num(en.cote, -1, 1)) : 0, ya: r3(moi.yaw), pi: r3(moi.pitch), ti: tirDepuis ? 1 : 0, sa: now - sautA < tenu ? 1 : 0,
+          ac: en && en.accroupi ? 1 : 0, re: now - rechA < tenu ? 1 : 0, ar: now - armeA < tenu ? armeVoulue : 0, x: r2(moi.x), y: r2(moi.y), z: r2(moi.z), vy: r2(moi.vy || 0), sol: moi.auSol ? 1 : 0,
+          m: moi.score.morts, v: vit ? 1 : 0, tv: r3(tRendu), ae: dernierN, ad: Math.round(now - dernierRecu) };
+        if (envoyer('entree', m, { fiable: false })) envoyes++;
+        if (vit) { hist.push({ n: nEnvoi, x: moi.x, z: moi.z }); if (hist.length > 90) hist.shift(); }
+        tirDepuis = false;
+      }
+      return out;
+    }
+
+    function interpoler(tR) {
+      const n = tampon.length; if (!n) return;
+      let a = null, b = null, ia = -1;
+      for (let i = n - 1; i >= 0; i--) if (tampon[i].t <= tR) { a = tampon[i]; b = tampon[i + 1] || null; ia = i; break; }
+      if (!a) { a = tampon[0]; b = null; ia = -1; }
+      const u = b ? Math.max(0, Math.min(1, (tR - a.t) / Math.max(1e-6, b.t - a.t))) : 0;
+      const prec = !b && ia > 0 ? tampon[ia - 1] : null, ex = prec ? Math.min(0.12, tR - a.t) / Math.max(1e-3, a.t - prec.t) : 0; // plus d'état après : on prolonge un peu (≤ 120 ms) le dernier mouvement
+      const es = jeu.entites;
+      for (let i = 0; i < es.length; i++) {
+        const e = es[i]; if (e === moi) continue;
+        const ra = a.rows.get(e.id), rb = b ? b.rows.get(e.id) : null, r = u >= 0.5 && rb ? rb : ra || rb; if (!r) continue;
+        J.lireLigne(r, e, jeu.temps, 'corps');
+        if (ra && rb && (ra[8] & 1) && (rb[8] & 1)) {
+          const dx = rb[1] - ra[1], dz = rb[3] - ra[3];
+          if (dx * dx + dz * dz < 16) { e.x = ra[1] + dx * u; e.y = ra[2] + (rb[2] - ra[2]) * u; e.z = ra[3] + dz * u; e.yaw = ra[4] + ecartAngle(rb[4], ra[4]) * u; e.pitch = ra[5] + (rb[5] - ra[5]) * u; }
+        } else if (prec && ra && ex > 0 && (ra[8] & 1)) {
+          const rp = prec.rows.get(e.id);
+          if (rp && (rp[8] & 1)) { const dx = ra[1] - rp[1], dz = ra[3] - rp[3]; if (dx * dx + dz * dz < 9) { const p = monde.deplacer(ra[1], ra[3], dx * ex, dz * ex, JO.rayon); e.x = p[0]; e.z = p[1]; e.y = ra[2] + (ra[2] - rp[2]) * ex; } }
+        }
+        // les pas des autres (pour le son), tous les 1,7 m au sol, debout
+        let p = pasDe.get(e.id); if (!p) { p = { x: e.x, z: e.z, f: 0 }; pasDe.set(e.id, p); }
+        const d = Math.hypot(e.x - p.x, e.z - p.z); p.x = e.x; p.z = e.z;
+        if (e.vivant && e.auSol && !e.accroupi && d < 3) { p.f += d; if (p.f >= 1.7) { p.f -= 1.7; out.push({ t: 'pas', id: e.id }); } }
+      }
+    }
+    function tic(now) { // l'hôte muet trop longtemps : parti
+      if (arrete || jeu.fini || finEnAttente) return;
+      const der = dernierRecu || debut;
+      if (now - Math.max(der, debut) > MUET) finir('hote');
+    }
+    jeu.etape = etapeClient;
+    P.recevoir = recevoir; P.tic = tic;
+    P.arreter = () => { arrete = true; };
+    P.stats = () => { const dt = Math.max(0.5, (maintenant() - (t0 || maintenant())) / 1000); return { hote: false, recusParS: recus / dt, envoyesParS: envoyes / dt, recus, envoyes, t: maintenant(), cale, retard: r3(jeu.temps - (dernierT >= 0 ? dernierT : 0)), tampon: tampon.length, recalage: r2(Math.hypot(corr.x, corr.z)), cales: nCales, douces: nDouces, delai: r3(delai), intervalle: Math.round(intervalle) }; };
+    return P;
+  }
+
+  return { ouvrir, pseudoAuHasard, couleurDe, get erreurs() { return erreurs; }, get derniereErreur() { return derniereErreur; }, DELAI, ETAT_MS, EVTS_MS, ENTREE_MS };
+})();
 
 /* ── ui.js ── */
-/* OPÉRATION PONCIN — le point d'entrée : écran titre sur le survol 3D de Poncin, choix du mode (Arène jouable ; Extraction, Jour / Nuit
-   et les salons en ligne « bientôt »), réglages, crédits, pause, compte à rebours, la boucle de jeu (commandes → aide à la visée →
-   simulation → effets, sons, HUD → image), la sauvegarde 'poncin.v1' (réglages, records) et les crochets de test window.__poncin.
+/* OPÉRATION PONCIN — le point d'entrée : écran titre sur le survol 3D de Poncin, choix du mode (Arène jouable seul ou « Avec les
+   copains » en ligne ; Extraction, Jour / Nuit « bientôt »), réglages, crédits, pause, compte à rebours, la boucle de jeu (commandes →
+   aide à la visée → simulation → effets, sons, HUD → image), la sauvegarde 'poncin.v1' (réglages, pseudo, records) et les crochets de
+   test window.__poncin. En ligne (PENLIGNE) : créer un salon (code de 4 lettres, partager le lien …/poncin/?salle=CODE, copier le code)
+   ou le rejoindre (code tapé, ou lien ouvert), le salon (joueurs, ping, voie ; l'hôte règle robots, niveau et format, et lance ; les
+   autres disent « Prêt »), puis la même partie qu'en solo : jeu.etape vient du vrai PJEU chez l'hôte, de la façade chez les clients.
+   Le joueur local est idMoi : 'moi' en solo, son id de salon en ligne. Voie réseau : 'supabase' si window.PONCIN_CONFIG est rempli,
+   'local' sinon (ou avec ?reseau=local : entre onglets du même navigateur).
    Tout appel aux autres modules est gardé : sans Three.js ou sans WebGL, un panneau clair ; une erreur ne fige jamais l'écran. */
 const PUI = (() => {
   'use strict';
   const CLE = 'poncin.v1', $ = (s) => document.querySelector(s), $$ = (s) => Array.from(document.querySelectorAll(s));
   const R = typeof PREGLES !== 'undefined' ? PREGLES : null;
   let _compte = null; const elCompte = () => _compte || (_compte = $('#compte'));
-  const DEFAUT = () => ({ v: 1, reglages: { sensibilite: 1, inverserY: false, gaucher: false, tirAuto: true, qualite: 'auto', son: true, vibre: true, nom: '' }, records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { format: 'solo', bots: 4, niveau: 'facile' }, derniere: 0 });
+  const DEFAUT = () => ({ v: 1, reglages: { sensibilite: 1, inverserY: false, gaucher: false, tirAuto: true, qualite: 'auto', son: true, vibre: true, nom: '', pseudo: '' }, records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { format: 'solo', bots: 4, niveau: 'facile' }, derniere: 0 });
   let sauv = DEFAUT(), carte = null, monde = null, rendu3d = false, jeu = null, ecran = 'chargement', retourReglages = 'titre', avantPause = 'partie', optsPartie = null;
   let J, A, RENDU, CARTEPROV, MONDE; // les modules, résolus au démarrage
   let last = 0, tAnim = 0, compteT = 0, compteVu = -1, surDepuis = 0, erreursEtape = 0, erreursRendu = 0, erreursTotal = 0, derniereErreur = '', finTraitee = false, serie = 0, serieMax = 0, elims = 0;
   let fps = 0, nImages = 0, tFps = 0, msImage = 0, imagePause = 0;
-  const entrees = { moi: null }, VIDE = [];
+  let entrees = { moi: null }; const VIDE = [];
   let force = null; // l'entrée imposée par les tests (window.__poncin.entree)
+  // en ligne : le joueur local (son id de salon), le salon ouvert (PENLIGNE), la partie en cours
+  let idMoi = 'moi', enLigne = false, ctl = null, partieL = null, ouverture = false, compteFin = 0, renduCoupe = false;
+  const idSalon = 'j' + Math.random().toString(36).slice(2, 10);
 
   // ─── sauvegarde ───
   function lireSauv() {
@@ -5693,6 +6907,12 @@ const PUI = (() => {
     Object.assign(d.reglages, s.reglages || {}); Object.assign(d.records.arene, (s.records && s.records.arene) || {}); Object.assign(d.choix, s.choix || {}); d.derniere = s.derniere || 0;
     return d;
   }
+  function pseudoParDefaut() { // tiré une fois (« Castor Turbo 42 »), gardé dans la sauvegarde
+    if (!sauv.reglages.pseudo) { try { sauv.reglages.pseudo = typeof PENLIGNE !== 'undefined' ? PENLIGNE.pseudoAuHasard() : 'Joueur ' + Math.floor(Math.random() * 100); } catch (e) { sauv.reglages.pseudo = 'Joueur'; } sauver(); }
+    return sauv.reglages.pseudo;
+  }
+  const pseudoJoueur = () => (sauv.reglages.nom || '').trim() || pseudoParDefaut();
+  const couleurJoueur = () => { try { return PENLIGNE.couleurDe(pseudoJoueur()); } catch (e) { return '#FFC84A'; } };
   function sauver() { try { localStorage.setItem(CLE, JSON.stringify(sauv)); } catch (e) { /* stockage indisponible : on joue quand même */ } }
   function signaler(ou, e) { erreursTotal++; derniereErreur = ou + ' : ' + (e && e.message ? e.message : e); if (erreursTotal < 20) console.error('[Poncin]', ou, e); }
 
@@ -5707,6 +6927,8 @@ const PUI = (() => {
     if (nom === 'titre') majTitre();
     if (nom === 'modes') majModes();
     if (nom === 'reglages') majReglages();
+    if (nom === 'copains') majCopains();
+    if (nom === 'salon') majSalon();
   }
   function majTitre() {
     const a = sauv.records.arene, r = $('#records');
@@ -5752,7 +6974,7 @@ const PUI = (() => {
       const k = i.dataset.r;
       if (i.type === 'checkbox') i.checked = !!g[k];
       else if (i.type === 'range') { i.value = g[k]; const o = i.parentNode.querySelector('output'); if (o) o.textContent = (+g[k]).toFixed(2).replace('.', ','); }
-      else if (i.type === 'text') i.value = g[k] || '';
+      else if (i.type === 'text') { i.value = g[k] || ''; if (k === 'nom') i.placeholder = pseudoParDefaut(); }
       else if (i.classList.contains('seg')) i.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(g[k]))));
     });
   }
@@ -5761,9 +6983,10 @@ const PUI = (() => {
       const k = i.dataset.r;
       if (i.classList.contains('seg')) i.addEventListener('click', (e) => { const b = e.target.closest('button[data-v]'); if (!b) return; sauv.reglages[k] = b.dataset.v; PSONS.ui('tap'); if (k === 'qualite' && rendu3d) try { RENDU.qualite(b.dataset.v); } catch (err) { signaler('rendu.qualite', err); } majReglages(); sauver(); });
       else i.addEventListener(i.type === 'range' || i.type === 'text' ? 'input' : 'change', () => {
-        sauv.reglages[k] = i.type === 'checkbox' ? i.checked : i.type === 'range' ? +i.value : String(i.value).replace(/[<>]/g, '').slice(0, 12);
+        sauv.reglages[k] = i.type === 'checkbox' ? i.checked : i.type === 'range' ? +i.value : String(i.value).replace(/[<>]/g, '').slice(0, 20);
         if (i.type === 'checkbox') PSONS.ui('tap');
         appliquerReglages(); if (i.type !== 'text') majReglages(); sauver();
+        if (k === 'nom' && ctl) { try { ctl.renommer(pseudoJoueur()); } catch (err) { signaler('pseudo', err); } } // dans un salon : les autres voient le nouveau pseudo
       });
     });
   }
@@ -5776,6 +6999,7 @@ const PUI = (() => {
     const niv = { facile: 'faciles', normal: 'malins', fort: 'redoutables' }[c.niveau] || '';
     $('#resume-arene').textContent = c.format === 'equipes' ? `Toi et un robot allié contre 2 robots ${niv}.` : `Toi contre ${c.bots} robots ${niv}, chacun pour soi.`;
     const ok = rendu3d && !!J && !!A; $('#b-lancer').disabled = !ok; $('#b-lancer').title = ok ? '' : 'La 3D n’est pas disponible';
+    const bc = $('#b-copains'); if (bc) { bc.disabled = !ok || typeof PENLIGNE === 'undefined'; bc.title = bc.disabled ? 'Le jeu en ligne n’est pas disponible' : ''; }
   }
   function choixPartie() { const c = sauv.choix, eq = c.format === 'equipes'; return { bots: eq ? 3 : Math.max(3, Math.min(5, +c.bots || 4)), niveau: c.niveau in (R ? R.BOTS : { facile: 1, normal: 1, fort: 1 }) ? c.niveau : 'normal', equipes: eq }; }
 
@@ -5804,8 +7028,10 @@ const PUI = (() => {
     o = Object.assign(choixPartie(), o || {});
     try {
       const graine = o.graine != null ? o.graine >>> 0 : ((Date.now() ^ Math.floor(Math.random() * 4294967296)) >>> 0);
+      if (ctl) quitterSalon(); // une partie seul : on quitte le salon éventuel
       jeu = J.creer({ monde, carte, mode: A, graine, options: { bots: o.bots, niveau: o.niveau, equipes: !!o.equipes } });
       const nom = (sauv.reglages.nom || '').trim() || 'Toi';
+      idMoi = 'moi'; enLigne = false; partieL = null; entrees = { moi: null };
       jeu.ajouterJoueur({ id: 'moi', nom, couleur: '#FFC84A', equipe: o.equipes ? 0 : 'moi', humain: true });
     } catch (e) { signaler('jeu.creer', e); jeu = null; oups('La partie n’a pas pu démarrer', 'Recharge la page et réessaie.'); return false; }
     optsPartie = o; finTraitee = false; surDepuis = 0; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null;
@@ -5830,7 +7056,8 @@ const PUI = (() => {
   function pause() {
     if (ecran !== 'partie' && ecran !== 'compte') return;
     avantPause = ecran; PCONTROLES.activer(false); montrer('pause'); PHUD.scores(false);
-    const m = trouver('moi'); $('#pause-score').innerHTML = m && m.score ? `<span><b>${m.score.points || 0}</b> points</span><span><b>${m.score.kills || 0}</b> repeints</span><span><b>${m.score.morts || 0}</b> fois repeint</span>` : '';
+    const pe = $('#pause-enligne'); if (pe) pe.hidden = !enLigne;
+    const m = trouver(idMoi); $('#pause-score').innerHTML = m && m.score ? `<span><b>${m.score.points || 0}</b> points</span><span><b>${m.score.kills || 0}</b> repeints</span><span><b>${m.score.morts || 0}</b> fois repeint</span>` : '';
   }
   function reprendre() {
     if (ecran !== 'pause' || !jeu) return;
@@ -5839,9 +7066,14 @@ const PUI = (() => {
     if (!PCONTROLES.tactile) PCONTROLES.verrouiller();
     last = performance.now();
   }
-  function quitter() { astuce(false); jeu = null; force = null; PCONTROLES.activer(false); eveille(false); try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('titre'); }
+  function quitter() { // la partie (et, en ligne, le salon) : retour au menu
+    astuce(false); jeu = null; force = null; PCONTROLES.activer(false); eveille(false); try { PHUD.reinit(); } catch (e) { /* rien */ }
+    if (ctl || enLigne) { quitterSalon(); montrer('copains'); } else montrer('titre');
+  }
   function terminer(evFin) {
-    if (finTraitee || !jeu) return; finTraitee = true;
+    if (finTraitee || !jeu) return;
+    if (enLigne) { terminerEnLigne(evFin); return; }
+    finTraitee = true;
     PCONTROLES.activer(false); eveille(false);
     const m = trouver('moi'), pts = m && m.score ? m.score.points || 0 : 0, k = m && m.score ? m.score.kills || 0 : 0;
     const a = sauv.records.arene, record = pts > (a.meilleur || 0) && pts > 0, ancien = a.meilleur || 0;
@@ -5862,23 +7094,23 @@ const PUI = (() => {
       if (force.saut) { e.saut = true; force.saut = false; } if (force.recharge) { e.recharge = true; force.recharge = false; } if (force.arme) { e.arme = force.arme; force.arme = null; }
     }
     let aide = null;
-    if (jeu.aideVisee) { try { aide = jeu.aideVisee('moi', PCONTROLES.tactile ? 1 : 0); } catch (err) { aide = null; } }
-    if (aide && PCONTROLES.tactile) {
+    if (jeu.aideVisee) { try { aide = jeu.aideVisee(idMoi, PCONTROLES.tactile ? 1 : 0); } catch (err) { aide = null; } }
+    if (aide && PCONTROLES.tactile && PCONTROLES.actif) { // (en ligne, la partie continue pendant la pause : pas de tir auto)
       const ral = Math.max(0, Math.min(0.9, +aide.ralentir || 0)); e.dyaw *= 1 - ral; e.dpitch *= 1 - ral; // la visée ralentit sur une cible
       const bouge = e.dyaw !== 0 || e.dpitch !== 0 || e.avant !== 0 || e.cote !== 0 || e.tir;
       if (bouge) { const lim = 0.0436 * dt * 3; e.dyaw += Math.max(-lim, Math.min(lim, +aide.dyaw || 0)); e.dpitch += Math.max(-lim, Math.min(lim, +aide.dpitch || 0)); } // et s'aimante doucement, seulement quand on joue
       if (PCONTROLES.reglages.tirAuto && aide.surCible) { surDepuis += dt; if (surDepuis >= 0.12) e.tir = true; } else surDepuis = 0; // tir auto après ~120 ms sur la cible
     } else surDepuis = 0;
-    entrees.moi = e;
+    entrees[idMoi] = e;
     let evs;
     try { evs = jeu.etape(dt, entrees) || VIDE; erreursEtape = 0; }
     catch (err) { signaler('jeu.etape', err); evs = VIDE; if (++erreursEtape >= 3) { quitter(); oups('La partie s’est emmêlé les pinceaux', 'Une erreur a interrompu la partie. Tu peux en relancer une depuis le menu.'); } return; }
     if (rendu3d) { try { RENDU.evenements(evs, jeu); } catch (err) { signaler('rendu.evenements', err); } }
-    try { PSONS.evenements(evs, jeu, 'moi'); } catch (err) { signaler('sons', err); }
-    try { PHUD.maj(jeu, 'moi', evs, aide); } catch (err) { signaler('hud.maj', err); }
-    try { PCONTROLES.maj(jeu, trouver('moi')); } catch (err) { signaler('controles.maj', err); }
+    try { PSONS.evenements(evs, jeu, idMoi); } catch (err) { signaler('sons', err); }
+    try { PHUD.maj(jeu, idMoi, evs, aide); } catch (err) { signaler('hud.maj', err); }
+    try { PCONTROLES.maj(jeu, trouver(idMoi)); } catch (err) { signaler('controles.maj', err); }
     let evFin = null;
-    for (let i = 0; i < evs.length; i++) { const v = evs[i]; if (v.t === 'mort') { if (v.par === 'moi' && v.a !== 'moi') { elims++; serie++; if (serie > serieMax) serieMax = serie; } if (v.a === 'moi') serie = 0; } else if (v.t === 'fin') evFin = v; }
+    for (let i = 0; i < evs.length; i++) { const v = evs[i]; if (v.t === 'mort') { if (v.par === idMoi && v.a !== idMoi) { elims++; serie++; if (serie > serieMax) serieMax = serie; } if (v.a === idMoi) serie = 0; } else if (v.t === 'fin') evFin = v; }
     if (evFin || fini()) terminer(evFin);
   }
   function boucle(now) {
@@ -5886,20 +7118,24 @@ const PUI = (() => {
     const t0 = performance.now(), dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now; tAnim += dt;
     nImages++; if (now - tFps > 1000) { fps = Math.round(nImages * 1000 / (now - tFps)); nImages = 0; tFps = now; }
     try {
-      if (ecran === 'partie' && jeu && !finTraitee) pasPartie(dt);
+      // en ligne, la partie ne s'arrête pas pendant la pause (commandes neutres) ; le compte à rebours commun non plus
+      const enPause = enLigne && (ecran === 'pause' || (ecran === 'reglages' && retourReglages === 'pause'));
+      if (enLigne && compteT > 0) compteT = (compteFin - now) / 1000; // le compte à rebours commun suit l'horloge, pas les images
+      if (enPause && compteT <= 0 && avantPause === 'compte') avantPause = 'partie';
+      if ((ecran === 'partie' || (enPause && compteT <= 0)) && jeu && !finTraitee) pasPartie(dt);
       else if (ecran === 'compte' && jeu) {
-        compteT -= dt; const n = Math.ceil(compteT - 0.6);
+        if (!enLigne) compteT -= dt; const n = Math.ceil(compteT - 0.6);
         if (n !== compteVu) { compteVu = n; const c = elCompte(); c.hidden = false; c.firstElementChild.textContent = n > 0 ? String(n) : 'Repeins !'; c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); c.classList.toggle('go', n <= 0); PSONS.compte(n); }
-        try { PHUD.maj(jeu, 'moi', VIDE, null); PCONTROLES.maj(jeu, trouver('moi')); } catch (err) { signaler('hud.maj', err); }
-        if (compteT <= 0) { elCompte().hidden = true; astuce(false); montrer('partie'); PCONTROLES.activer(true); PHUD.annonce(optsPartie && optsPartie.equipes ? 'Deux contre deux : couvre ton robot allié !' : `Premier à ${R ? R.MODES.arene.scoreVictoire : 25} repeints !`); }
+        try { PHUD.maj(jeu, idMoi, VIDE, null); PCONTROLES.maj(jeu, trouver(idMoi)); } catch (err) { signaler('hud.maj', err); }
+        if (compteT <= 0) { elCompte().hidden = true; astuce(false); montrer('partie'); PCONTROLES.activer(true); PHUD.annonce(optsPartie && optsPartie.equipes ? (enLigne ? annonceEquipe() : 'Deux contre deux : couvre ton robot allié !') : `Premier à ${R ? R.MODES.arene.scoreVictoire : 25} repeints !`); }
       }
       if (ecran !== 'compte' && !elCompte().hidden) { elCompte().hidden = true; astuce(false); }
     } catch (err) { signaler('boucle', err); }
-    if (rendu3d) {
+    if (rendu3d && !renduCoupe) {
       const enJeu = jeu && (EN_JEU[ecran] || ecran === 'reglages' && retourReglages === 'pause');
       const fige = ecran === 'pause' || ecran === 'reglages';
       if (!fige || (imagePause++ % 3) === 0) { // en pause, une image sur trois suffit
-        try { RENDU.image(enJeu ? jeu : null, enJeu ? 'moi' : null, ecran === 'compte' || fige ? 0 : dt, tAnim); erreursRendu = 0; }
+        try { RENDU.image(enJeu ? jeu : null, enJeu ? idMoi : null, ecran === 'compte' || (fige && !enLigne) ? 0 : dt, tAnim); erreursRendu = 0; }
         catch (err) { signaler('rendu.image', err); if (++erreursRendu > 90) { rendu3d = false; panneau3d(true); } }
       }
     }
@@ -5933,22 +7169,37 @@ const PUI = (() => {
       case 'recharger': location.reload(); break;
       case 'oups-menu': $('#oups').hidden = true; if (!rendu3d) panneau3d(true); else montrer('titre'); break;
       case 'opt': { const s = b.closest('.seg'); const k = s.dataset.opt, v = b.dataset.v; sauv.choix[k] = k === 'bots' ? +v : v; majModes(); sauver(); break; }
+      case 'modes': montrer('modes'); break;
+      case 'copains': montrer('copains'); break;
+      case 'creer': ouvrirSalon(null); break;
+      case 'rejoindre': { const c = codeTape(); if (!c) { noteCopains('Le code a 4 lettres (des consonnes), par exemple <b>BKRT</b>.', true); break; } ouvrirSalon(c); break; }
+      case 'salon-quitter': quitterSalon(); montrer('copains'); break;
+      case 'partager': partager(); break;
+      case 'copier': copier(ctl ? ctl.code : '', 'Code copié : '); break;
+      case 'salon-action': actionSalon(); break;
+      case 'sopt': { if (!ctl || !ctl.estHote) return; const s = b.closest('.seg'), k = s.dataset.sopt, v = b.dataset.v; ctl.regler({ [k]: k === 'bots' ? +v : k === 'equipes' ? v === '1' : v }); majSalon(); break; }
     }
     PSONS.ui(a === 'retour' || a === 'titre' ? 'retour' : 'tap');
   }
   function brancher() {
     document.addEventListener('click', (e) => {
       const b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
-      PSONS.debloquer(); action(b.dataset.a, b);
+      PSONS.debloquer(); try { action(b.dataset.a, b); } catch (err) { signaler('bouton ' + b.dataset.a, err); }
     });
     $$('#e-modes .seg[data-opt]').forEach((s) => s.querySelectorAll('button').forEach((b) => { b.dataset.a = 'opt'; }));
+    $$('#e-salon .seg[data-sopt]').forEach((s) => s.querySelectorAll('button').forEach((b) => { b.dataset.a = 'sopt'; }));
+    const champCode = $('#code-salon');
+    if (champCode) {
+      champCode.addEventListener('input', () => { const v = champCode.value.toUpperCase().replace(/[^BCDFGHJKLMNPQRSTVWXZ]/g, '').slice(0, 4); if (v !== champCode.value) champCode.value = v; });
+      champCode.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); action('rejoindre', champCode); } });
+    }
     brancherReglages();
     document.addEventListener('pointerdown', () => PSONS.debloquer(), { capture: true, passive: true });
     document.addEventListener('gesturestart', (e) => e.preventDefault(), { passive: false }); // Safari iOS : pas de zoom à deux doigts
     document.addEventListener('keydown', (e) => {
       PSONS.debloquer();
       if (e.target && (e.target.tagName === 'INPUT')) return;
-      if (e.code === 'Escape') { if (ecran === 'pause') { e.stopPropagation(); reprendre(); } else if (ecran === 'reglages' || ecran === 'credits') action('retour'); else if (ecran === 'modes') action('titre'); }
+      if (e.code === 'Escape') { if (ecran === 'pause') { e.stopPropagation(); reprendre(); } else if (ecran === 'reglages' || ecran === 'credits') action('retour'); else if (ecran === 'modes') action('titre'); else if (ecran === 'copains') action('modes'); }
       else if ((e.code === 'Enter' || e.code === 'Space') && ecran === 'fin') { e.preventDefault(); rejouer(); }
     });
     window.addEventListener('resize', taille); window.addEventListener('orientationchange', () => setTimeout(taille, 120));
@@ -5959,7 +7210,133 @@ const PUI = (() => {
     });
     window.addEventListener('pagehide', sauver);
   }
-  function rejouer() { PSONS.debloquer(); pleinEcran(); if (demarrerPartie(optsPartie || choixPartie(), true) && !PCONTROLES.tactile) PCONTROLES.verrouiller(); }
+  function rejouer() {
+    PSONS.debloquer(); pleinEcran();
+    if (enLigne || ctl) { if (ctl && ctl.estHote) { const r = ctl.lancer(); if (r !== true) toast(String(r)); } return; } // en ligne, seul l'hôte relance
+    if (demarrerPartie(optsPartie || choixPartie(), true) && !PCONTROLES.tactile) PCONTROLES.verrouiller();
+  }
+
+  // ═══════════════════════════════ en ligne : salons et parties entre copains ═══════════════════════════════
+  const LETTRES_CODE = /^[BCDFGHJKLMNPQRSTVWXZ]{4}$/;
+  const configEnLigne = () => { const c = window.PONCIN_CONFIG; return !!(c && c.supabaseUrl && c.supabaseKey); };
+  const reseauForce = () => { try { const v = new URLSearchParams(location.search).get('reseau'); return v === 'local' || v === 'webrtc-local' ? v : null; } catch (e) { return null; } }; // essais : entre onglets
+  const localForce = () => !!reseauForce();
+  const viaReseau = () => reseauForce() || (configEnLigne() ? 'supabase' : 'local');
+  function codeTape() { const i = $('#code-salon'), v = i ? i.value.toUpperCase().trim() : ''; return LETTRES_CODE.test(v) ? v : null; }
+  function noteCopains(html, erreur) { const n = $('#cp-note'); if (!n) return; n.innerHTML = html || ''; n.classList.toggle('erreur', !!erreur); }
+  function majCopains(garderNote) {
+    const p = $('#moi-pseudo'), c = $('#moi-couleur'); if (p) p.textContent = pseudoJoueur(); if (c) c.style.background = couleurJoueur();
+    const ok = typeof PENLIGNE !== 'undefined' && typeof PRESEAU !== 'undefined' && !!monde;
+    ['#b-creer', '#b-rejoindre'].forEach((s) => { const b = $(s); if (b) b.disabled = !ok || ouverture; });
+    if (ouverture || garderNote) return;
+    if (!ok) noteCopains('Le jeu en ligne n’est pas disponible sur cette page.', true);
+    else if (localForce()) noteCopains(`Voie ${reseauForce() === 'local' ? 'locale' : 'WebRTC locale'} (essais) : seulement entre les onglets de ce navigateur.`);
+    else if (!configEnLigne()) noteCopains('Le jeu en ligne n’est pas encore configuré ici : seuls les onglets de ce navigateur peuvent jouer ensemble.', true);
+    else noteCopains('2 à 4 joueurs, chacun sur son téléphone, en 4G ou en wifi.');
+  }
+  async function ouvrirSalon(code) {
+    if (ctl || ouverture) return;
+    if (typeof PENLIGNE === 'undefined' || !monde) { majCopains(); return; }
+    ouverture = true; majCopains(); noteCopains(code ? `Connexion au salon <b>${code}</b>…` : 'Création du salon…');
+    let c = null, trop = false;
+    const lent = setTimeout(() => { if (ouverture) noteCopains(`${code ? `Connexion au salon <b>${code}</b>` : 'Création du salon'}… (en 4G, ça peut prendre quelques secondes)`); }, 5000);
+    try {
+      const ouv = PENLIGNE.ouvrir({ via: viaReseau(), code: code || null, moi: { id: idSalon, pseudo: pseudoJoueur(), couleur: couleurJoueur() }, config: window.PONCIN_CONFIG || null, monde, carte });
+      c = await Promise.race([ouv, new Promise((r) => setTimeout(() => { trop = true; r(null); }, 25000))]);
+      if (trop) { ouv.then((x) => { try { if (x) x.quitter(); } catch (e) { /* rien */ } }, () => {}); throw new Error('le serveur ne répond pas'); } // arrivé trop tard : on le referme
+    } catch (e) {
+      c = null; console.warn('[Poncin] salon', e);
+      const msg = e && e.message ? String(e.message).replace(/[<>&]/g, '').trim() : '';
+      noteCopains(`Impossible d’ouvrir le salon${msg ? ' : ' + msg : '.'}${/réessa/i.test(msg) ? '' : ' Vérifie ta connexion et réessaie.'}`, true);
+    }
+    clearTimeout(lent); ouverture = false;
+    if (!c) { majCopains(true); return; }
+    ctl = c; brancherSalon(c);
+    montrer('salon');
+    if (code && c.estHote && c.joueurs().length < 2) toast(`Personne dans le salon ${code} pour l’instant : tu en es l’hôte. Vérifie le code, ou partage-le !`);
+  }
+  function brancherSalon(c) {
+    c.sur('maj', () => { if (c !== ctl) return; if (ecran === 'salon') majSalon(); });
+    c.sur('partie', (P) => { if (c !== ctl) return; demarrerEnLigne(P); });
+    c.sur('salon', () => { if (c !== ctl) return; jeu = null; partieL = null; enLigne = false; finTraitee = false; force = null; astuce(false); PCONTROLES.activer(false); eveille(false); try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('salon'); });
+    c.sur('ferme', () => { if (c !== ctl) return; ctl = null; partieL = null; if (enLigne || ecran === 'salon') { enLigne = false; jeu = null; try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('copains'); noteCopains('Le salon a été fermé.', true); } });
+  }
+  function quitterSalon() { const c = ctl; ctl = null; partieL = null; enLigne = false; if (c) { try { c.quitter(); } catch (e) { console.warn('[Poncin] quitter le salon', e); } } }
+  const VOIES = { local: 'même appareil', hote: 'hôte', p2p: 'direct', webrtc: 'direct', direct: 'direct', relais: 'relais', supabase: 'relais', faux: 'essai' };
+  const echap = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  function majSalon() {
+    if (!ctl) return;
+    const js = ctl.joueurs(), hote = ctl.estHote, g = ctl.reglages, moi = js.find((j) => j.moi) || {};
+    const code = $('#salon-code'); if (code) code.textContent = ctl.code;
+    const nb = $('#salon-nb'); if (nb) nb.textContent = `(${js.length})`;
+    const l = $('#salon-liste');
+    if (l) l.innerHTML = js.map((j) => `<li class="${j.moi ? 'moi' : ''}"><i class="pastille" style="background:${echap(j.couleur || '#ccc')}"></i><span class="sj-nom">${echap(j.pseudo)}${j.moi ? ' <small>(toi)</small>' : ''}</span>`
+      + `<span class="sj-info">${j.hote ? '' : j.ping != null ? `${j.ping} ms` : '…'}${j.voie && !j.hote ? `<br>${echap(VOIES[j.voie] || j.voie)}` : ''}</span>`
+      + `<span class="sj-etat${j.hote ? ' hote' : j.pret ? ' pret' : ''}">${j.hote ? 'Hôte' : j.pret ? 'Prêt' : '…'}</span></li>`).join('')
+      + (js.length < 2 ? '<li class="vide">En attente des copains…</li>' : '');
+    const val = { bots: String(g.bots), niveau: g.niveau, equipes: g.equipes ? '1' : '0' };
+    $$('#e-salon .seg[data-sopt]').forEach((s) => s.querySelectorAll('button').forEach((b) => { b.setAttribute('aria-pressed', String(b.dataset.v === val[s.dataset.sopt])); b.disabled = !hote; }));
+    const reg = $('.salon-reglages'); if (reg) reg.classList.toggle('lecture', !hote);
+    const etat = $('#salon-etat'), bouton = $('#b-salon-action');
+    const prets = js.filter((j) => !j.hote && j.pret).length, autres = js.length - 1;
+    if (hote) {
+      if (etat) etat.textContent = js.length < 2 ? 'Donne le code aux copains : la partie se lance à partir de 2 joueurs.' : `${prets}/${autres} copain${autres > 1 ? 's' : ''} prêt${prets > 1 ? 's' : ''}. Tu lances quand tu veux.`;
+      if (bouton) { bouton.textContent = 'Lancer la partie'; bouton.disabled = js.length < 2; bouton.removeAttribute('aria-pressed'); }
+    } else {
+      if (etat) etat.textContent = ctl.enJeu ? 'Une partie est en cours : tu joueras à la suivante.' : 'L’hôte règle la partie et la lance.';
+      if (bouton) { bouton.textContent = moi.pret ? 'Prêt !' : 'Je suis prêt'; bouton.disabled = false; bouton.setAttribute('aria-pressed', String(!!moi.pret)); }
+    }
+  }
+  function actionSalon() {
+    if (!ctl) return;
+    if (ctl.estHote) { pleinEcran(); const r = ctl.lancer(); if (r !== true) toast(String(r)); }
+    else { const moi = ctl.joueurs().find((j) => j.moi); if (!(moi && moi.pret)) pleinEcran(); ctl.pret(!(moi && moi.pret)); majSalon(); } // « Prêt » : le geste qui met en plein écran (Android)
+  }
+  let toastT = 0;
+  function toast(texte) { const t = $('#salon-toast'); if (!t) return; t.textContent = texte; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 3500); }
+  function lienSalon() {
+    const u = location.origin + location.pathname + '?salle=' + (ctl ? ctl.code : '') + (reseauForce() ? '&reseau=' + reseauForce() : '');
+    return u;
+  }
+  async function copier(texte, prefixe) {
+    if (!texte) return;
+    let ok = false; try { if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(texte); ok = true; } } catch (e) { ok = false; }
+    toast(ok ? prefixe + texte : texte); // sans presse-papiers : on l'affiche (sélectionnable)
+  }
+  async function partager() {
+    if (!ctl) return;
+    const url = lienSalon(), texte = `Viens jouer à Opération Poncin avec moi ! Code du salon : ${ctl.code}`;
+    if (navigator.share) { try { await navigator.share({ title: 'Opération Poncin', text: texte, url }); return; } catch (e) { if (e && e.name === 'AbortError') return; } }
+    copier(url, 'Lien copié : ');
+  }
+  function demarrerEnLigne(P) { // le lancement reçu (ou décidé, chez l'hôte) : compte à rebours commun, puis la partie
+    try {
+      if (!P || !P.jeu) return;
+      astuce(false);
+      jeu = P.jeu; idMoi = P.idMoi; enLigne = true; partieL = P; entrees = {}; entrees[idMoi] = null;
+      const eq = !!(jeu.options && jeu.options.equipes);
+      optsPartie = { equipes: eq, enLigne: true }; finTraitee = false; surDepuis = 0; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null;
+      try { PHUD.reinit({ equipes: eq }); } catch (e) { signaler('hud.reinit', e); }
+      try { PCONTROLES.reinit(); } catch (e) { signaler('controles.reinit', e); }
+      compteT = Math.max(0.5, +P.dans || 3.6); compteFin = performance.now() + compteT * 1000; compteVu = -1; montrer('compte'); PCONTROLES.activer(false); astuce(true);
+      eveille(true);
+    } catch (e) { signaler('partie en ligne', e); }
+  }
+  function terminerEnLigne(evFin) {
+    finTraitee = true; PCONTROLES.activer(false); eveille(false); astuce(false);
+    let res = evFin && evFin.resultat ? evFin.resultat : partieL && partieL.resultat ? partieL.resultat : null;
+    if (!res) { try { res = A.resultat(jeu); } catch (e) { res = evFin && evFin.classement ? { classement: evFin.classement } : null; } }
+    const raison = res && res.raison, hote = !!(ctl && ctl.estHote) && ctl.joueurs().length >= 2; // relancer : l'hôte, à deux au moins
+    const message = raison === 'hote' ? 'L’hôte a quitté la partie' : raison === 'exclu' ? 'Tu as été déconnecté de la partie' : '';
+    const boutons = hote ? [{ fin: 'rejouer', texte: 'Rejouer', cls: 'menthe' }, { fin: 'salon', texte: 'Salon', cls: 'blanc' }, { fin: 'menu', texte: 'Quitter', cls: 'blanc' }]
+      : [{ fin: 'salon', texte: 'Salon', cls: 'menthe' }, { fin: 'menu', texte: 'Quitter', cls: 'blanc' }];
+    let r = null;
+    try { r = PHUD.fin(res, jeu, idMoi, { mode: 'Arène entre copains', message, boutons, titre: raison ? 'Partie interrompue' : '', attente: hote ? '' : raison ? 'Retourne au salon pour en lancer une autre.' : 'Si l’hôte relance, tu repars directement avec lui.' }); } catch (e) { signaler('hud.fin', e); }
+    PSONS.jouer(r && r.gagne ? 'victoire' : 'defaite'); if (r && r.gagne) PSONS.vibrer([20, 40, 20, 40, 60]);
+    montrer('fin');
+  }
+  function annonceEquipe() { const m = trouver(idMoi), j = !m || m.equipe !== 1; return `Équipe ${j ? 'jaune' : 'rose'} : repeins l’équipe ${j ? 'rose' : 'jaune'} !`; }
+  function auSalon() { if (ctl) ctl.retourSalon(); else quitter(); }
 
   // ─── démarrage ───
   let demarre = false;
@@ -5971,7 +7348,7 @@ const PUI = (() => {
     sauv = lireSauv();
     const tactile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints || 0) > 0;
     try { PCONTROLES.init($('#commandes'), { tactile, reglages: sauv.reglages, actions: { pause, scores: (on) => PHUD.scores(on), verrouPerdu: pause } }); } catch (e) { signaler('controles.init', e); }
-    try { PHUD.init($('#hud'), { actions: { pause, rejouer, menu: quitter } }); } catch (e) { signaler('hud.init', e); }
+    try { PHUD.init($('#hud'), { actions: { pause, rejouer, menu: quitter, salon: () => auSalon() } }); } catch (e) { signaler('hud.init', e); }
     appliquerReglages(); brancher(); montrer('chargement');
     last = performance.now(); tFps = last; requestAnimationFrame(boucle);
     installerCrochets();
@@ -5984,9 +7361,18 @@ const PUI = (() => {
     if (!rendu3d) panneau3d(true);
     const cr = $('#credits-carte'); if (cr) cr.textContent = carte.source === 'provisoire' ? 'La carte affichée est provisoire : les vraies rues et les vrais bâtiments de Poncin arrivent avec les données IGN et OpenStreetMap.' : `Carte construite à partir des données ${carte.attribution || '© IGN – © contributeurs OpenStreetMap'}.`;
     taille(); montrer('titre');
+    // ouvert par un lien d'invitation …/poncin/?salle=CODE : droit au salon
+    let salle = ''; try { salle = (new URLSearchParams(location.search).get('salle') || '').toUpperCase(); } catch (e) { salle = ''; }
+    if (LETTRES_CODE.test(salle) && rendu3d) { montrer('copains'); const i = $('#code-salon'); if (i) i.value = salle; ouvrirSalon(salle); }
   }
   function installerCrochets() {
-    const etat = () => { const m = trouver('moi'); return { ecran, pret: !!monde, webgl: rendu3d, carte: carte ? carte.source || 'ign-osm' : null, partie: jeu ? { temps: jeu.temps, fini: fini(), entites: (jeu.entites || VIDE).length, vie: m ? m.vie : null, score: m && m.score ? Object.assign({}, m.score) : null } : null, erreurs: erreursTotal, derniereErreur }; };
+    const etat = () => { const m = trouver(idMoi); return { ecran, pret: !!monde, webgl: rendu3d, carte: carte ? carte.source || 'ign-osm' : null, enLigne, idMoi, partie: jeu ? { temps: jeu.temps, fini: fini(), entites: (jeu.entites || VIDE).length, vie: m ? m.vie : null, score: m && m.score ? Object.assign({}, m.score) : null } : null, erreurs: erreursTotal, derniereErreur }; };
+    const etatEnLigne = () => {
+      const P = partieL, j = jeu;
+      return { ecran, via: ctl ? ctl.via : null, code: ctl ? ctl.code : null, estHote: ctl ? ctl.estHote : false, idMoi: ctl ? ctl.idMoi : idMoi, enLigne, joueurs: ctl ? ctl.joueurs() : [], reglages: ctl ? Object.assign({}, ctl.reglages) : null, enJeu: ctl ? ctl.enJeu : false,
+        partie: P && j ? { k: P.k, hote: P.estHote, temps: j.temps, fini: fini(), entites: (j.entites || VIDE).map((e) => ({ id: e.id, nom: e.nom, bot: !!e.bot, x: e.x, y: e.y, z: e.z, vie: e.vie, vivant: e.vivant, kills: e.score.kills, morts: e.score.morts, points: e.score.points })) } : null,
+        fil: Array.from(document.querySelectorAll('#hud .h-fil-l')).map((d) => d.textContent), erreurs: erreursTotal, derniereErreur, reseau: typeof PENLIGNE !== 'undefined' ? { erreurs: PENLIGNE.erreurs, derniereErreur: PENLIGNE.derniereErreur } : null };
+    };
     window.__poncin = {
       etat,
       demarrer: (o) => { o = o || {}; const ok = demarrerPartie(Object.assign(choixPartie(), o), !!o.compte); return ok ? etat() : null; },
@@ -5994,9 +7380,9 @@ const PUI = (() => {
       stats: () => { let r = null; try { r = rendu3d && RENDU.stats ? RENDU.stats : null; } catch (e) { r = null; } return { fps, ms: Math.round(msImage * 100) / 100, rendu: r, erreurs: erreursTotal, derniereErreur, elims, serie }; },
       entree: (e) => { force = e ? Object.assign(force || {}, e) : null; return force; },
       pas: (n) => { if (!jeu) return null; if (ecran === 'compte') { compteT = 0; elCompte().hidden = true; astuce(false); montrer('partie'); PCONTROLES.activer(true); } for (let i = 0; i < (n || 1) && jeu && !finTraitee; i++) pasPartie(1 / 60); return etat(); },
-      joueur: () => trouver('moi'),
-      tp: (x, z, yaw) => { const m = trouver('moi'); if (!m) return null; m.x = x; m.z = z; try { m.y = monde.hauteur(x, z); } catch (e) { /* rien */ } m.vy = 0; if (yaw != null) m.yaw = yaw; return m; },
-      viser: (id) => { const m = trouver('moi'), c = trouver(id); if (!m || !c) return null; const dx = c.x - m.x, dz = c.z - m.z, oeil = m.accroupi ? (R ? R.JOUEUR.oeilAccroupi : 1) : (R ? R.JOUEUR.oeil : 1.6), dy = (c.y + 1.2) - (m.y + oeil); m.yaw = Math.atan2(-dx, -dz); m.pitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)); return { yaw: m.yaw, pitch: m.pitch }; },
+      joueur: () => trouver(idMoi),
+      tp: (x, z, yaw) => { const m = trouver(idMoi); if (!m) return null; m.x = x; m.z = z; try { m.y = monde.hauteur(x, z); } catch (e) { /* rien */ } m.vy = 0; if (yaw != null) m.yaw = yaw; return m; },
+      viser: (id) => { const m = trouver(idMoi), c = trouver(id); if (!m || !c) return null; const dx = c.x - m.x, dz = c.z - m.z, oeil = m.accroupi ? (R ? R.JOUEUR.oeilAccroupi : 1) : (R ? R.JOUEUR.oeil : 1.6), dy = (c.y + 1.2) - (m.y + oeil); m.yaw = Math.atan2(-dx, -dz); m.pitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)); return { yaw: m.yaw, pitch: m.pitch }; },
       finir: () => {
         if (!jeu) return null;
         try { if (typeof jeu.finir === 'function') jeu.finir(); else jeu.temps = Math.max(jeu.temps || 0, (R ? R.MODES.arene.duree : 180) + 0.01); } catch (e) { signaler('finir', e); }
@@ -6006,6 +7392,16 @@ const PUI = (() => {
         return etat();
       },
       menu: quitter, pause, reprendre, montrer, sauvegarde: () => JSON.parse(JSON.stringify(sauv)),
+      enLigne: {
+        etat: etatEnLigne,
+        creer: async () => { await ouvrirSalon(null); return etatEnLigne(); },
+        rejoindre: async (code) => { await ouvrirSalon(String(code || '').toUpperCase()); return etatEnLigne(); },
+        regler: (o) => (ctl ? ctl.regler(o) : false), pret: (oui) => { if (ctl) ctl.pret(oui !== false); return etatEnLigne(); },
+        lancer: () => (ctl ? ctl.lancer() : 'pas de salon'), quitter: () => { quitter(); return etatEnLigne(); },
+        stats: () => (ctl ? ctl.stats() : null), salon: () => ctl,
+        pseudo: (nom) => { sauv.reglages.nom = String(nom || '').replace(/[<>]/g, '').slice(0, 20); sauver(); if (ctl) ctl.renommer(pseudoJoueur()); if (ecran === 'copains') majCopains(); return pseudoJoueur(); },
+      },
+      rendu: (oui) => { renduCoupe = oui === false; return !renduCoupe; }, // les tests coupent la 3D des pages qu'ils ne photographient pas (la simulation continue)
     };
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot); else setTimeout(boot, 0);

@@ -1,8 +1,8 @@
 /* OPÉRATION PONCIN — le mode Arène : chacun pour soi ou deux contre deux autour de la place Bichat. 180 s ou 25 repeints (par joueur,
-   ou par équipe en 2 contre 2) ; réapparition au bout de 3 s au point d'apparition le plus loin des ennemis (invincible 1,5 s, jusqu'au
-   premier tir) ; points : élimination 100, série de 3 (à chaque multiple de 3 sans mourir) 50, élimination à la tête 25 ; objets de
-   carte.zones.armes (long-tir, pompe, soin, armure) qui réapparaissent ; murs invisibles au bord de zones.arene (monde.limite) ;
-   annonces (premier repeint, séries, prise de tête, dernière minute…).
+   ou par équipe en 2 contre 2 : le classement suit les repeints, départagés par les points) ; réapparition au bout de 3 s à ~35 m des
+   ennemis, de préférence hors de leur vue (invincible 1,5 s, jusqu'au premier tir) ; points : élimination 100, série de 3 (à chaque
+   multiple de 3 sans mourir) 50, élimination à la tête 25 ; objets de carte.zones.armes (long-tir, pompe, soin, armure) qui
+   réapparaissent ; murs invisibles au bord de zones.arene (monde.limite) ; annonces (premier repeint, séries, prise de tête, dernière minute…).
    Un mode est un jeu de crochets appelés par PJEU (voir src-poncin/ARCHITECTURE.md) : init(jeu), tick(jeu, dt, evs), surMort(jeu,
    victime, tueur, evs), apparition(jeu, entite) → [x, z, yaw], objets(jeu) → [{ id, x, z, objet, dispo }], fini(jeu), resultat(jeu).
    L'état de la manche est rangé dans jeu.arene. Les zones viennent de jeu.carte (carte v1) ; sans carte, une arène de secours est
@@ -54,7 +54,18 @@
     }
   }
 
-  // le point d'apparition à bonne distance des ennemis vivants (~35 m, jamais à moins de 15 m ; un peu de hasard départage), jamais sur quelqu'un ; regard vers le plus dégagé
+  // le point d'apparition à bonne distance des ennemis vivants (~35 m, jamais à moins de 15 m ; un peu de hasard départage), jamais sur quelqu'un,
+  // et de préférence hors de leur vue (monde.vue, jusqu'à VU_MAX m) : on ne se fait pas repeindre dès la fin de l'invincibilité ; regard vers le plus dégagé
+  const VU_MAX = 75, CACHE = 25; // au-delà de 75 m, un ennemi ne gêne plus ; être caché vaut 25 m d'écart au « bon » 35 m
+  function vuPar(jeu, e, x, z) { // un ennemi vivant voit-il ce point (sa poitrine) ?
+    const monde = jeu.monde, es = jeu.entites, y = monde.hauteur(x, z) + 1.2;
+    for (let k = 0; k < es.length; k++) {
+      const c = es[k]; if (c === e || !c.vivant || c.equipe === e.equipe) continue;
+      const dx = c.x - x, dz = c.z - z; if (dx * dx + dz * dz > VU_MAX * VU_MAX) continue;
+      if (monde.vue(c.x, c.y + (c.accroupi ? J.oeilAccroupi : J.oeil), c.z, x, y, z)) return true;
+    }
+    return false;
+  }
   function apparition(jeu, e) {
     const monde = jeu.monde, A = jeu.arene, rnd = jeu.rnd, es = jeu.entites;
     let bx = 0, bz = 0, bs = -Infinity;
@@ -69,7 +80,8 @@
         if (c.equipe !== e.equipe && d < dmin) dmin = d;
       }
       if (pris) continue;
-      const s = dmin < 15 ? dmin - 100 : -Math.abs(dmin - 35) + 6 * rnd(); // ni sur l'ennemi, ni au bout de l'arène : à ~35 m, l'action reprend vite
+      let s = dmin < 15 ? dmin - 100 : -Math.abs(dmin - 35) + 6 * rnd(); // ni sur l'ennemi, ni au bout de l'arène : à ~35 m, l'action reprend vite
+      if (dmin < VU_MAX && s > bs && vuPar(jeu, e, x, z)) s -= CACHE; // en vue d'un ennemi : choisi seulement s'il n'y a pas mieux caché (vue testée seulement si le point peut gagner)
       if (s > bs) { bs = s; bx = x; bz = z; }
     }
     if (bs === -Infinity) { const p = monde.libre(rnd); bx = p[0]; bz = p[1]; }
@@ -87,9 +99,10 @@
   function objets(jeu) { return jeu.arene ? jeu.arene.objets : VIDE; }
 
   function scoresEquipes(jeu) { let a = 0, b = 0; for (const e of jeu.entites) { if (e.equipe === 0) a += e.score.kills; else if (e.equipe === 1) b += e.score.kills; } return [a, b]; }
+  const cle = (e) => e.score.kills * 1e6 + e.score.points; // le classement : les repeints (le critère de fin), départagés par les points
   function meneur(jeu) { // le premier du classement (s'il est seul en tête)
     let m = null, s = -1, ex = false;
-    for (const e of jeu.entites) { const p = e.score.points; if (p > s) { s = p; m = e; ex = false; } else if (p === s) ex = true; }
+    for (const e of jeu.entites) { const p = cle(e); if (p > s) { s = p; m = e; ex = false; } else if (p === s) ex = true; }
     return ex ? null : m;
   }
 
@@ -132,7 +145,10 @@
     const A = jeu.arene, classement = jeu.resume ? jeu.resume() : jeu.classement();
     let gagnant = null, scores = null;
     if (A && A.equipes) { scores = scoresEquipes(jeu); gagnant = scores[0] > scores[1] ? 0 : scores[1] > scores[0] ? 1 : null; }
-    else if (classement.length && (classement.length < 2 || (classement[0].points || (classement[0].score && classement[0].score.points) || 0) > (classement[1].points || (classement[1].score && classement[1].score.points) || 0))) gagnant = classement[0].id;
+    else { // chacun pour soi : le même critère que la fin (les repeints), départagé par les points ; à égalité parfaite, pas de gagnant
+      const c = (l) => (l.score ? l.score.kills : l.kills || 0) * 1e6 + (l.score ? l.score.points : l.points || 0);
+      if (classement.length && (classement.length < 2 || c(classement[0]) > c(classement[1]))) gagnant = classement[0].id;
+    }
     return { classement, gagnant, duree: Math.min(jeu.temps, M.duree), equipes: !!(A && A.equipes), scores };
   }
 

@@ -1,15 +1,55 @@
 /* OPÉRATION PONCIN — les textures du décor « réaliste stylisé », peintes sur canvas (aucune image externe, aucune donnée Google) :
    façades (crépi, pierre, brique, béton, bois), toits (tuiles, ardoise, zinc, gravillons), sols de détail (asphalte, pavés, gravier,
    herbe, terre), un atlas des ouvertures (fenêtres, volets persiennes, portes, vitrines, balcons, chaînes d'angle…) et des atlas
-   d'enseignes et de plaques de rue (textes venus des données OSM). Toutes les textures répétées sont carrelables sans couture
-   (formes dessinées « en tore », bruits périodiques), avec mipmaps et anisotropie, mises en cache par clé et marquées partagées
-   (userData.partagee, MODELES.partager) : MODELES.dispose et la libération de rendu.js ne les rendent jamais par erreur.
-   Fabrication : les formes (pierres, briques, tuiles, planches…) au canvas 2D, puis une passe JS par pixel (bruits multi-échelles,
-   relief, moyenne linéaire) qui écrit directement les octets d'une DataTexture (lignes retournées : v = 0 en bas, comme une
-   CanvasTexture). Pour les bâtiments fusionnés par tuiles, bati(noms) range les matériaux dans UNE DataArrayTexture et fournit un
-   matériau Lambert qui la lit par sommet (attributs uv + couche) : un seul appel de dessin par tuile, quelle que soit la matière.
-   Qualité : qualite('haute' | 'moyenne' | 'eco') ; en éco, toutes les tailles sont divisées par deux (mémoire divisée par quatre).
-   API complète et unités : voir le rapport d'intégration (src-poncin/ARCHITECTURE.md, section « Authenticité ») et le bas du fichier. */
+   d'enseignes et de plaques de rue (les textes viennent des données OSM). Les textures répétées se raccordent sans couture (formes
+   dessinées « en tore », bruits périodiques), ont mipmaps et anisotropie, sont mises en cache par clé et marquées partagées
+   (userData.partagee ; matériaux passés à MODELES.partager) : MODELES.dispose et la libération de rendu.js ne les rendent jamais.
+   Fabrication : les formes (pierres, briques, tuiles, planches…) au canvas 2D, ou directement en JS pour les petits éléments
+   innombrables (granulats, galets, brins), puis une passe par pixel (bruits multi-échelles, relief, moyenne linéaire) qui écrit les
+   octets d'une DataTexture (ligne du bas en premier : v = 0 en bas, comme une CanvasTexture).
+   Navigateur seulement (après THREE et src/modeles.js) ; dans Node, PTEXTURES.OK = false et les fabriques rendent null.
+
+   API (unités : mètres ; couleurs '#rrggbb' ; « teinte » = la couleur MOYENNE voulue de la matière) :
+   init(renderer) → { webgl2, anisotropie }        facultatif : l'anisotropie maximale ; sans WebGL2, bati() rend null
+   qualite('haute' | 'moyenne' | 'eco') → niveau     haute et moyenne : 512 px (anisotropie 8 / 4) ; eco : tailles / 2 (anisotropie 2)
+   facade(mur, teinte?, o?) → DataTexture          mur : crepi | mixte (enduit à pierres vues) | pierre (moellons) | taille (pierre de
+                                                     taille ; ou pierre + o.taille) | brique | beton | bois ; 3 m × 3 m répétés :
+                                                     u = s / 3 le long du mur, v = hauteur / 3 (la fenêtre type est au centre, appui à v 0,32)
+   toit(toit, teinte?, o?) → DataTexture           tuiles (mécaniques) | canal | ecailles (tuiles plates) | ardoise (au crochet) |
+                                                     ardoise-ecailles (ou ardoise + o.ecailles) | zinc | plat (gravillons ; alias beton) | verre ;
+                                                     3 m × 3 m : u le long de l'égout, v en montant le long de la pente (faîtage vers v croissant)
+   sol(type, { couleur }?) → DataTexture           asphalte | paves | gravier | herbe | terre (alias parking, cimetiere, terrain…) ;
+                                                     par défaut DONNÉES (NoColorSpace) 256 px, gris de moyenne 0,5 (écart type 0,125) :
+                                                     couleur = photo × 2 × texel module la photo sans la recolorer ; { couleur: true } : sRGB, 512 px
+   solPaquet(types?) → DataTexture (données)       jusqu'à 4 sols neutres dans R, G, B, A (défaut asphalte, paves, gravier, herbe) ;
+                                                     texture.userData.canaux = les types ; detail = dot(poids, texel)
+   periode(genre, nom) → [mu, mv]                  mètres par répétition (mur, toit : 3 × 3 ; sols : asphalte 4, paves 2, gravier 2, herbe 2,5, terre 3)
+   bati(noms?) → { texture, noms, couche(nom), couleur(nom, hex?, k?), materiau(), moyenne(nom), periode, taille } | null
+       toutes les matières des bâtiments dans UNE DataArrayTexture (WebGL2) : un seul appel de dessin par tuile fusionnée.
+       Géométrie : attributs 'position', 'normal', 'color' (obligatoire), 'uv' (u = s / 3 depuis le début de chaque mur, v = (y - base) / 3 ;
+       toits : u le long de l'égout, v le long de la pente depuis l'égout, / 3) et 'couche' (Float32, 1 par sommet) = couche(nom)
+       (rang + 1 ; 0 = sans texture : rives, croix, horloge… ; nom absent → repli crépi pour un mur, tuiles pour un toit).
+       Couleur de sommet = couleur(nom, hex, k) : linéaire, la moyenne rendue vaut hex (× k, pour la fausse occlusion du pied des murs) ;
+       sans hex : la matière telle qu'elle est peinte. materiau() : MeshLambertMaterial partagé (couleurs de sommet × couche ; brouillard,
+       ombres et lumières de Three).
+   details() → { texture, cellules: { nom: { uv: [u0, v0, u1, v1], l, h, px, ouverture } }, materiau({ couleurs }?), densite, noms }
+       atlas 1024 px (eco 512), découpe alpha (alphaTest 0,5) ; l × h = taille réelle conseillée (m) ; ouverture = [x0, y0, x1, y1] (m depuis
+       le coin bas gauche de la cellule) pour les cellules encadrées (vitres, porte : y poser les volets fermés). Cellules : fenetre (1,12 × 1,62,
+       encadrement et appui saillant compris), fenetre-haute, porte, porte-peinte, porte-ancienne,
+       grange, portail (église), vitrine (une travée de 1,6 m), vitrine-porte, balcon, chaine et chaine-b (harpe d'angle d'un étage,
+       l'angle à gauche ; b = l'autre face), abat-son, horloge, vitrail, descente, soupirail, volet-vert | volet-bleu | volet-gris |
+       volet-brun | volet-bordeaux (un vantail persienne, gonds à droite : à gauche de la fenêtre tel quel, à droite en inversant u ;
+       fermés : deux vantaux sur l'ouverture). materiau() : Lambert partagé, polygonOffset ; { couleurs: true } : × couleurs de sommet.
+   enseigne(texte, type) → { texture, uv, ratio, l, h, page }     plaque lisible dans un atlas partagé (pages de 1024 × 512) ; type :
+       bar | cafe | restaurant | boulangerie | patisserie | boucherie | poste | banque | pharmacie (croix verte) | mairie (drapeaux) |
+       tabac (losange) | presse | epicerie | supermarche | tourisme | coiffeur | fleuriste | garage | hotel | commerce (défaut) ;
+       carotte (le losange rouge TABAC, à poser en drapeau) ; drapeau (tricolore). h = 0,6 m conseillé, l = h × ratio.
+   plaqueRue(nom) → { texture, uv, ratio, l, h, page }           plaque bleue émaillée (type de voie en petit au-dessus), h = 0,25 m.
+   preparer(demande, fini?) → Promise(stats)       fabrique d'avance par tranches de ~8 ms (setTimeout) : { bati, murs, toits, sols,
+       solsCouleur, details, enseignes: [[texte, type]], plaques, tranche } ; les appels suivants ne font plus qu'emballer.
+   stats() → { textures, octets, mo, generees, bases, ms, detail, phases, parBase, qualite, pages }
+   retour()  après un contexte WebGL retrouvé (needsUpdate partout) ;  vider()  libère vraiment tout (changement de qualité, fin).
+   apercu(texture) → canvas 2D (pages de test) ;  TEINTES (teintes typiques) ;  MURS, TOITS, SOLS, VOLETS, STYLES (les noms). */
 const PTEXTURES = (() => {
   'use strict';
   const OK = typeof THREE !== 'undefined' && typeof document !== 'undefined';
@@ -19,10 +59,10 @@ const PTEXTURES = (() => {
   // ─── qualité : un facteur de taille et l'anisotropie ───
   const QUALITES = { haute: { k: 1, aniso: 8 }, moyenne: { k: 1, aniso: 4 }, eco: { k: 0.5, aniso: 2 } };
   const Q = { niveau: 'haute', k: 1, aniso: 8, webgl2: true, anisoMax: 16 };
-  const TAILLES = { mur: 512, toit: 512, sol: 512, details: 1024, densite: 128, page: [1024, 256], enseigne: 64, plaque: 48 };
+  const TAILLES = { mur: 512, toit: 512, sol: 512, detailSol: 256, details: 1024, densite: 128, page: [1024, 512], enseigne: 64, plaque: 48 }; // en px (× 0,5 en éco)
   const taille = (n) => Math.max(32, Math.round(n * Q.k));
   // ─── le cache et les comptes ───
-  const CACHE = new Map(), BASES = new Map(), ST = { generees: 0, bases: 0, ms: 0, octets: 0, textures: 0, detail: {} };
+  const CACHE = new Map(), BASES = new Map(), ST = { generees: 0, bases: 0, ms: 0, octets: 0, textures: 0, detail: {}, phases: { peindre: 0, lire: 0, finir: 0 }, parBase: {} };
   function compter(nom, t0) { const d = now() - t0; ST.ms += d; ST.detail[nom] = (ST.detail[nom] || 0) + d; }
   function marquer(tx, octets, cle) { // partagée : ni MODELES.dispose ni rendu.liberer ne la libèrent ; seul vider() le fait
     tx.userData.partagee = true; tx.userData.ptex = cle; tx.userData.octets = octets; ST.octets += octets; ST.textures++; ST.generees++; return tx;
@@ -41,7 +81,6 @@ const PTEXTURES = (() => {
   }
   const css = (c, a) => (a == null ? `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})` : `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`);
   const fois = (c, k) => [Math.min(255, c[0] * k), Math.min(255, c[1] * k), Math.min(255, c[2] * k)];
-  const mel = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
   const choisir = (rnd, l) => l[Math.floor(rnd() * l.length) % l.length];
   function varie(rnd, c, j, h) { const k = 1 + (rnd() * 2 - 1) * j, w = (rnd() * 2 - 1) * (h || 0); return [Math.min(255, c[0] * k * (1 + w)), Math.min(255, c[1] * k), Math.min(255, c[2] * k * (1 - w))]; }
   function partage(rnd, total, a, b) { const l = []; let s = 0; while (s < total - a * 0.5) { const v = a + rnd() * (b - a); l.push(v); s += v; } const k = total / s; return l.map((v) => v * k); } // des longueurs entre a et b, de somme exacte
@@ -58,6 +97,18 @@ const PTEXTURES = (() => {
     }
     return p;
   }
+  // un moellon calcaire : un rectangle aux coins abattus au hasard, côtés un peu bombés ou creusés
+  function moellon(rnd, x, y, w, h) {
+    const m = Math.min(w, h), cp = () => m * (0.04 + rnd() * rnd() * 0.42), bo = () => (rnd() - 0.5) * m * 0.16, c = [cp(), cp(), cp(), cp()];
+    return [[x + c[0], y + rnd() * m * 0.05], [x + w / 2, y + bo()], [x + w - c[1], y + rnd() * m * 0.05], [x + w - rnd() * m * 0.05, y + c[1]], [x + w + bo() * 0.5, y + h / 2], [x + w - rnd() * m * 0.05, y + h - c[2]],
+      [x + w - c[2], y + h - rnd() * m * 0.05], [x + w / 2, y + h + bo()], [x + c[3], y + h - rnd() * m * 0.05], [x + rnd() * m * 0.05, y + h - c[3]], [x + bo() * 0.5, y + h / 2], [x + rnd() * m * 0.05, y + c[0]]];
+  }
+  // une tache aux bords doux et irréguliers (harmoniques) : lacune d'enduit, plaque de mousse
+  function tache(rnd, cx, cy, rx, ry, n, rugueux) {
+    const p = [], f = [rnd() * TAU, rnd() * TAU, rnd() * TAU, rnd() * TAU, rnd() * TAU], a = [0.22 + rnd() * 0.12, 0.12 + rnd() * 0.08, 0.06, 0.035, rugueux ? 0.05 : 0], j = rugueux ? 0.16 : 0.05;
+    for (let i = 0; i < n; i++) { const t = i / n * TAU, r = 1 + a[0] * Math.sin(2 * t + f[0]) + a[1] * Math.sin(3 * t + f[1]) + a[2] * Math.sin(5 * t + f[2]) + a[3] * Math.sin(9 * t + f[3]) + a[4] * Math.sin(17 * t + f[4]) + (rnd() - 0.5) * j; p.push([cx + Math.cos(t) * rx * r, cy + Math.sin(t) * ry * r]); }
+    return p;
+  }
   // une pierre en relief : ombre portée en bas à droite, liseré éclairé en haut à gauche, corps dégradé (lumière du haut)
   function pierre(c, S, p, x, y, w, h, coul, o) {
     const om = o.ombre == null ? 1 : o.ombre, ox = Math.max(0.8, w * 0.025) * om, oy = Math.max(1, h * 0.05) * om, cl = fois(coul, 1.13), cs = fois(coul, 0.86);
@@ -67,21 +118,6 @@ const PTEXTURES = (() => {
       const g = c.createLinearGradient(0, y + dy, 0, y + h + dy); g.addColorStop(0, css(fois(coul, 1.04))); g.addColorStop(0.55, css(coul)); g.addColorStop(1, css(cs));
       c.fillStyle = g; chemin(c, p, dx, dy); c.fill();
     });
-  }
-  // des taches fines (grains de sable, pores) : deux chemins (clair, sombre), deux remplissages
-  function grains(c, S, rnd, n, taille, clair, sombre) { const a = new Path2D(), b = new Path2D(); for (let i = 0; i < n; i++) { const t = taille * (0.5 + rnd()); (rnd() < 0.5 ? a : b).rect(rnd() * S, rnd() * S, t, t); } c.fillStyle = clair; c.fill(a); c.fillStyle = sombre; c.fill(b); }
-  // des cailloux en lots (gravier, gravillons, mottes) : une ombre, des groupes de couleur, un reflet ; raccordés sur les bords
-  function cailloux(c, S, rnd, n, r0, r1, pal, o) {
-    o = o || {}; const om = new Path2D(), re = new Path2D(), gr = []; for (const col of pal) for (const k of [0.86, 1, 1.12]) gr.push({ col: fois(col, k), p: new Path2D() });
-    for (let i = 0; i < n; i++) {
-      const r = r0 + (r1 - r0) * Math.pow(rnd(), o.puissance || 1.6), x = rnd() * S, y = rnd() * S, a = rnd() * 3, e = 0.55 + rnd() * 0.35, g = gr[Math.floor(rnd() * gr.length)].p;
-      tore(S, x - r - 2, y - r - 2, x + r + 2, y + r + 2, (dx, dy) => {
-        om.moveTo(x + dx + r * 1.3, y + dy + r * 0.4); om.ellipse(x + dx + r * 0.3, y + dy + r * 0.4, r, r * e, a, 0, TAU);
-        g.moveTo(x + dx + r, y + dy); g.ellipse(x + dx, y + dy, r, r * e, a, 0, TAU);
-        if (r > 1.6) { re.moveTo(x + dx, y + dy - r * 0.3); re.ellipse(x + dx - r * 0.25, y + dy - r * 0.3, r * 0.35, r * 0.22 * e, a, 0, TAU); }
-      });
-    }
-    c.fillStyle = o.ombre || 'rgba(34,28,22,0.5)'; c.fill(om); for (const g of gr) { c.fillStyle = css(g.col); c.fill(g.p); } c.fillStyle = o.reflet || 'rgba(255,255,248,0.28)'; c.fill(re);
   }
   // une coulure : un filet vertical qui s'efface vers le bas (raccordé en haut et en bas)
   function coulure(c, S, x, y, l, w, coul, a) {
@@ -119,33 +155,73 @@ const PTEXTURES = (() => {
     for (let y = 0; y < S; y++) { const fy = y * k, j0 = Math.floor(fy), ty = fy - j0, a0 = (j0 & m) * n, a1 = ((j0 + 1) & m) * n, o = y * S; for (let x = 0; x < S; x++) { const fx = x * k, i0 = Math.floor(fx), tx = fx - i0, b0 = i0 & m, b1 = (i0 + 1) & m, h = src[a0 + b0] + (src[a0 + b1] - src[a0 + b0]) * tx, g = src[a1 + b0] + (src[a1 + b1] - src[a1 + b0]) * tx; out[o + x] = h + (g - h) * ty; } }
     return out;
   }
-  const CHAMPS = new Map();
-  function champs(S) { // bas (taches de 1 m et plus), moyen (10 à 40 cm), grain (pixel), bosse (grain adouci, pour le relief)
-    let F = CHAMPS.get(S); if (F) return F;
-    const t0 = now(), nb = Math.min(S, 128), nm = Math.min(S, 256);
-    const bas = agrandir(fbm(nb, 2, 16, 101, 0.6), nb, S), moyen = agrandir(fbm(nm, 8, 64, 202, 0.7), nm, S);
-    const grain = new Float32Array(S * S), bosse = new Float32Array(S * S), r = mulberry32(303), m = S - 1;
-    for (let i = 0; i < grain.length; i++) grain[i] = r() * 2 - 1;
-    for (let y = 0; y < S; y++) for (let x = 0; x < S; x++) { let s = 0; for (let j = -1; j <= 1; j++) { const o = ((y + j) & m) * S; s += grain[o + ((x - 1) & m)] + grain[o + x] * 2 + grain[o + ((x + 1) & m)]; } bosse[y * S + x] = s * 0.42; }
-    F = { bas, moyen, grain, bosse }; CHAMPS.set(S, F); compter('bruits', t0); return F;
+  let CHAMPS = null;
+  function champs() { // une fois pour toutes : bas (taches de 1 m et plus) et moyen (10 à 40 cm) en 128², grain et relief en 256² (répétés)
+    if (CHAMPS) return CHAMPS;
+    const t0 = now(), n = 256 * 256, m = 255, grain = new Float32Array(n), relief = new Float32Array(n); let x32 = 0x2545F491;
+    const bas = agrandir(fbm(64, 2, 8, 101, 0.6), 64, 128), moyen = fbm(128, 4, 32, 202, 0.7);
+    for (let i = 0; i < n; i++) { x32 ^= x32 << 13; x32 ^= x32 >>> 17; x32 ^= x32 << 5; grain[i] = (x32 >>> 0) / 2147483648 - 1; }
+    for (let y = 0; y < 256; y++) { // une dérivée diagonale d'un grain adouci : de petites bosses éclairées du haut à gauche
+      const o = y * 256, a = ((y - 1) & m) * 256, b = ((y + 1) & m) * 256;
+      for (let x = 0; x < 256; x++) { const g = (x - 1) & m, d = (x + 1) & m; relief[o + x] = (grain[a + g] + grain[a + x] + grain[o + g] - grain[b + d] - grain[b + x] - grain[o + d]) * 0.3; }
+    }
+    CHAMPS = { bas, moyen, grain, relief }; compter('bruits', t0); return CHAMPS;
   }
-  // la passe finale : bruits multi-échelles, relief (le grain éclairé du haut à gauche), une dérive chaude / froide ; écrit les octets
-  // retournés (ligne du bas en premier) et rend la couleur moyenne linéaire
+  // la passe finale (un mot de 32 bits par pixel) : bruits multi-échelles, relief, une dérive chaude / froide liée au bruit moyen ; écrit
+  // les octets retournés (ligne du bas en premier) et rend la couleur moyenne linéaire (mesurée sur un pixel sur huit)
   function finir(src, S, o, out, graine) {
-    const F = champs(S), m = S - 1, r = mulberry32(graine), d = () => Math.floor(r() * S);
-    const ab = o.bas || 0, am = o.moyen || 0, ag = o.grain || 0, ar = o.relief || 0, ah = o.chaud || 0;
-    const xb = d(), yb = d(), xm = d(), ym = d(), xg = d(), yg = d(), xh = d(), yh = d(), B = F.bas, Mo = F.moyen, G = F.grain, Bo = F.bosse;
-    let sr = 0, sg = 0, sb = 0;
+    const F = champs(), m = S - 1, sh = Math.max(0, Math.round(Math.log2(S / 128))), r = mulberry32(graine), d = () => Math.floor(r() * S);
+    const ab = o.bas || 0, am = o.moyen || 0, ag = o.grain || 0, ar = o.relief || 0, ah = (o.chaud || 0) / Math.max(1e-3, am || 0.05);
+    const xb = d(), yb = d(), xm = d(), ym = d(), xg = d(), yg = d(), xr = d(), yr = d(), B = F.bas, Mo = F.moyen, G = F.grain, Re = F.relief;
+    const s32 = new Uint32Array(src.buffer, src.byteOffset, S * S), o32 = new Uint32Array(out.buffer, out.byteOffset, S * S);
+    let sr = 0, sg = 0, sb = 0, nm = 0;
     for (let y = 0; y < S; y++) {
-      const lb = ((y + yb) & m) * S, lm = ((y + ym) & m) * S, lg = ((y + yg) & m) * S, lh = ((y + yh) & m) * S, la = ((y + yg - 1) & m) * S, lc = ((y + yg + 1) & m) * S, ri = y * S * 4, ro = (m - y) * S * 4;
+      const lb = (((y + yb) & m) >> sh) * 128, lm = (((y + ym) & m) >> sh) * 128, lg = (((y + yg) & m) & 255) * 256, lr = (((y + yr) & m) & 255) * 256, ri = y * S, ro = (m - y) * S;
       for (let x = 0; x < S; x++) {
-        const xg2 = (x + xg) & m, f = 1 + ab * B[lb + ((x + xb) & m)] + am * Mo[lm + ((x + xm) & m)] + ag * G[lg + xg2] + ar * (Bo[la + ((xg2 - 1) & m)] - Bo[lc + ((xg2 + 1) & m)]), h = ah * Mo[lh + ((x + xh) & m)];
-        const i = ri + x * 4, k = ro + x * 4;
-        out[k] = src[i] * f * (1 + h); out[k + 1] = src[i + 1] * f; out[k + 2] = src[i + 2] * f * (1 - h); out[k + 3] = 255;
-        sr += LIN[out[k]]; sg += LIN[out[k + 1]]; sb += LIN[out[k + 2]];
+        const vm = am * Mo[lm + (((x + xm) & m) >> sh)], f = 1 + ab * B[lb + (((x + xb) & m) >> sh)] + vm + ag * G[lg + (((x + xg) & m) & 255)] + ar * Re[lr + (((x + xr) & m) & 255)], h = ah * vm, p = s32[ri + x];
+        let R = (p & 255) * f * (1 + h), V = ((p >>> 8) & 255) * f, Bl = ((p >>> 16) & 255) * f * (1 - h);
+        R = R > 255 ? 255 : R < 0 ? 0 : R; V = V > 255 ? 255 : V < 0 ? 0 : V; Bl = Bl > 255 ? 255 : Bl < 0 ? 0 : Bl;
+        o32[ro + x] = (R | 0) | ((V | 0) << 8) | ((Bl | 0) << 16) | 0xFF000000;
+      }
+      if ((y & 3) === 0) for (let x = 0; x < S; x += 2) { const p = o32[ro + x]; sr += LIN[p & 255]; sg += LIN[(p >>> 8) & 255]; sb += LIN[(p >>> 16) & 255]; nm++; }
+    }
+    return [sr / nm, sg / nm, sb / nm];
+  }
+  // ─── les petits éléments innombrables, posés directement dans les octets (bien plus vite que des chemins de canvas) ───
+  function mouches(d, S, rnd, n, t, clair, sombre) { // mouchetures carrées de t px : [r, g, b, a] clair ou sombre, raccordées
+    const m = S - 1;
+    for (let i = 0; i < n; i++) {
+      const c = rnd() < 0.5 ? clair : sombre, a = c[3], b = 1 - a, x0 = Math.floor(rnd() * S), y0 = Math.floor(rnd() * S), tt = Math.max(1, Math.round(t * (0.5 + rnd())));
+      for (let j = 0; j < tt; j++) { const o = ((y0 + j) & m) * S; for (let q = 0; q < tt; q++) { const k = (o + ((x0 + q) & m)) * 4; d[k] = d[k] * b + c[0] * a; d[k + 1] = d[k + 1] * b + c[1] * a; d[k + 2] = d[k + 2] * b + c[2] * a; } }
+    }
+  }
+  // des galets (gravier, gravillons, mottes) : ellipses orientées, ombre portée, modelé d'un dôme éclairé du haut à gauche
+  function galets(d, S, rnd, n, r0, r1, pal, o) {
+    o = o || {}; const m = S - 1, pu = o.puissance || 1.6, om = o.ombre == null ? 0.5 : o.ombre, bombe = o.bombe == null ? 1 : o.bombe;
+    for (let i = 0; i < n; i++) {
+      const r = r0 + (r1 - r0) * Math.pow(rnd(), pu), e = 0.55 + rnd() * 0.4, a = rnd() * Math.PI, ca = Math.cos(a), sa = Math.sin(a), cx = rnd() * S, cy = rnd() * S, col = varie(rnd, choisir(rnd, pal), 0.1, 0.03), R = Math.ceil(r) + 1;
+      const sx = r * 0.3 + 0.6, sy = r * 0.4 + 0.8; // l'ombre, décalée en bas à droite
+      for (let j = -R; j <= R + 1; j++) for (let q = -R; q <= R + 1; q++) { const dx = q - sx, dy = j - sy, u = (dx * ca + dy * sa) / r, v = (-dx * sa + dy * ca) / (r * e); if (u * u + v * v > 1) continue; const k = ((((Math.floor(cy) + j) & m) * S) + ((Math.floor(cx) + q) & m)) * 4; d[k] *= om; d[k + 1] *= om; d[k + 2] *= om; }
+      for (let j = -R; j <= R; j++) for (let q = -R; q <= R; q++) {
+        const dx = q + 0.5 - (cx - Math.floor(cx)), dy = j + 0.5 - (cy - Math.floor(cy)), u = (dx * ca + dy * sa) / r, v = (-dx * sa + dy * ca) / (r * e), l = u * u + v * v; if (l > 1) continue;
+        const nz = Math.sqrt(1 - l), px = dx / r, py = dy / r, s = (0.62 + 0.5 * (-0.45 * px - 0.6 * py) * bombe + 0.25 * nz) * (l > 0.75 ? 0.85 : 1), k = ((((Math.floor(cy) + j) & m) * S) + ((Math.floor(cx) + q) & m)) * 4;
+        d[k] = col[0] * s; d[k + 1] = col[1] * s; d[k + 2] = col[2] * s;
       }
     }
-    const n = S * S; return [sr / n, sg / n, sb / n];
+  }
+  function tampon(S, col) { const d = new Uint8ClampedArray(S * S * 4); for (let i = 0; i < d.length; i += 4) { d[i] = col[0]; d[i + 1] = col[1]; d[i + 2] = col[2]; d[i + 3] = 255; } return d; }
+  function fissureJS(d, S, rnd, x, y, n, pas, col, a) { // une fissure d'un pixel, marche au hasard ramifiée
+    const m = S - 1; let an = rnd() * TAU;
+    for (let i = 0; i < n; i++) { for (let t = 0; t < pas; t++) { const k = ((((y | 0) & m) * S) + ((x | 0) & m)) * 4; d[k] = d[k] * (1 - a) + col[0] * a; d[k + 1] = d[k + 1] * (1 - a) + col[1] * a; d[k + 2] = d[k + 2] * (1 - a) + col[2] * a; x += Math.cos(an); y += Math.sin(an); } an += (rnd() - 0.5) * 1.1; if (rnd() < 0.07 && n > 6) fissureJS(d, S, rnd, x, y, Math.floor(n / 3), pas, col, a * 0.8); }
+  }
+  // des brins d'herbe : segments d'un pixel, un peu courbés, couleur mêlée (alpha), raccordés
+  function brins(d, S, rnd, n, l0, l1, pal) {
+    const m = S - 1;
+    for (let i = 0; i < n; i++) {
+      const c = varie(rnd, choisir(rnd, pal), 0.08), l = l0 + (l1 - l0) * rnd(), a = -Math.PI / 2 + (rnd() - 0.5) * 1.9, cb = (rnd() - 0.5) * 0.08, al = 0.75 + rnd() * 0.25, bl = 1 - al;
+      let x = rnd() * S, y = rnd() * S, dx = Math.cos(a), dy = Math.sin(a); const sombre = 0.72, k0 = 1 / l;
+      for (let t = 0; t < l; t++) { const k = ((((y | 0) & m) * S) + ((x | 0) & m)) * 4, f = sombre + (1 - sombre) * t * k0 * 1.3; d[k] = d[k] * bl + c[0] * f * al; d[k + 1] = d[k + 1] * bl + c[1] * f * al; d[k + 2] = d[k + 2] * bl + c[2] * f * al; x += dx; y += dy; const nx = dx - dy * cb, ny = dy + dx * cb; dx = nx; dy = ny; }
+    }
   }
   // des toiles de travail réutilisées (lues souvent : sur le processeur, pas de relecture lente du GPU)
   const TOILES = new Map();
@@ -153,8 +229,9 @@ const PTEXTURES = (() => {
   // une matière : peinte une fois par taille, gardée en octets (et sa moyenne) ; les teintes et les tableaux de couches en dérivent
   function base(cle, S, peindre) {
     const k = cle + '|' + S; let b = BASES.get(k); if (b) return b;
-    const t0 = now(), c = toile(S), g = hash(cle), rnd = mulberry32(g), o = peindre(c, S, rnd) || {};
-    const src = c.getImageData(0, 0, S, S).data, d = new Uint8ClampedArray(S * S * 4), moy = finir(src, S, o, d, g ^ 0x9E3779B9);
+    const t0 = now(), c = toile(S), g = hash(cle), rnd = mulberry32(g), o = peindre(c, S, rnd) || {}, t1 = now();
+    const src = o.src || c.getImageData(0, 0, S, S).data; if (o.apres) o.apres(src); const t2 = now(), d = new Uint8ClampedArray(S * S * 4), moy = finir(src, S, o, d, g ^ 0x9E3779B9);
+    ST.phases.peindre += t1 - t0; ST.phases.lire += t2 - t1; ST.phases.finir += now() - t2; ST.parBase[k] = [+(t1 - t0).toFixed(1), +(t2 - t1).toFixed(1), +(now() - t2).toFixed(1)];
     b = { d, S, moy, cle }; BASES.set(k, b); ST.bases++; compter(cle.split('|')[0], t0); return b;
   }
   function teinter(b, hex) { // les octets de la matière, mis à l'échelle (en linéaire, par canal) pour que la moyenne soit hex
@@ -178,77 +255,75 @@ const PTEXTURES = (() => {
   const CALCAIRE = [[217, 205, 184], [207, 194, 168], [224, 214, 195], [196, 182, 155], [212, 195, 162], [189, 178, 160], [201, 180, 142], [220, 210, 190], [179, 168, 145], [208, 200, 186]];
   function pCrepi(c, S, rnd) {
     const k = S / 3; c.fillStyle = '#EDE9E2'; c.fillRect(0, 0, S, S);
-    for (let i = 0; i < 7; i++) { // reprises d'enduit, auréoles d'humidité
-      const x = rnd() * S, y = rnd() * S, r = (0.25 + rnd() * 0.6) * k, cl = rnd() < 0.5;
-      tore(S, x - r, y - r, x + r, y + r, (dx, dy) => { const g = c.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r); g.addColorStop(0, cl ? 'rgba(255,253,245,0.10)' : 'rgba(120,104,82,0.07)'); g.addColorStop(1, 'rgba(120,104,82,0)'); c.fillStyle = g; c.fillRect(x - r + dx, y - r + dy, 2 * r, 2 * r); });
-    }
     const sale = [92, 80, 66], yA = S * (1 - 0.32);
     for (const u of [0.355, 0.645]) for (let i = 0; i < 4; i++) coulure(c, S, S * u + (rnd() - 0.5) * 0.12 * k, yA + rnd() * 3, (0.3 + rnd() * 0.65) * k, 1 + rnd() * 3.5, sale, 0.05 + rnd() * 0.07);
     for (let i = 0; i < 9; i++) coulure(c, S, rnd() * S, rnd() * S, (0.4 + rnd() * 1.2) * k, 1 + rnd() * 5, sale, 0.025 + rnd() * 0.035);
     for (let i = 0; i < 3; i++) fissure(c, S, rnd, rnd() * S, rnd() * S, 6 + Math.floor(rnd() * 12), S / 90, 'rgba(78,66,54,0.32)', Math.max(0.6, S / 700));
-    grains(c, S, rnd, Math.round(S * S / 140), S / 420, 'rgba(255,255,252,0.45)', 'rgba(96,84,70,0.30)');
-    return { bas: 0.045, moyen: 0.05, grain: 0.07, relief: 0.10, chaud: 0.012 };
+    return { bas: 0.06, moyen: 0.05, grain: 0.07, relief: 0.10, chaud: 0.012, apres: (d) => mouches(d, S, rnd, Math.round(S * S / 140), S / 420, [255, 255, 252, 0.45], [96, 84, 70, 0.3]) };
   }
   // des moellons calcaires assisés : rangs de 13 à 30 cm, joints de chaux, quelques cales dans les joints
-  function moellons(c, S, rnd, o) {
+  function moellons(c, S, rnd, o) { // moellons calcaires assisés : rangs de 10 à 28 cm, pierres plates et anguleuses, joints de chaux beurrés
     const k = S / 3; o = o || {};
-    c.fillStyle = css(o.mortier || [203, 192, 171]); c.fillRect(0, 0, S, S);
-    grains(c, S, rnd, Math.round(S * S / 90), S / 300, 'rgba(240,232,215,0.5)', 'rgba(110,98,80,0.35)');
-    const pal = o.pal || CALCAIRE, rangs = partage(rnd, S, 0.13 * k, 0.30 * k); let y = 0;
+    c.fillStyle = css(o.mortier || [206, 196, 176]); c.fillRect(0, 0, S, S);
+    const pal = o.pal || CALCAIRE, rangs = partage(rnd, S, 0.1 * k, 0.28 * k); let y = 0;
+    const poser = (x0, y0, ww, hh) => {
+      if (ww < 3 || hh < 3 || (o.filtre && !o.filtre(x0, y0, ww, hh))) return; const col = varie(rnd, choisir(rnd, pal), 0.08, 0.03); pierre(c, S, moellon(rnd, x0, y0, ww, hh), x0, y0, ww, hh, col, o);
+      if (rnd() < 0.14) { const lx = x0 + rnd() * ww, ly = y0 + rnd() * hh, lr = (0.015 + rnd() * 0.035) * k, p = tache(rnd, lx, ly, lr, lr * 0.7, 12); c.fillStyle = choisir(rnd, ['rgba(150,146,104,0.35)', 'rgba(95,88,78,0.28)', 'rgba(170,120,70,0.25)', 'rgba(225,222,205,0.4)']); tore(S, lx - lr * 1.5, ly - lr, lx + lr * 1.5, ly + lr, (dx, dy) => { chemin(c, p, dx, dy); c.fill(); }); } // lichens, taches de rouille
+    };
     for (const h of rangs) {
-      const larg = partage(rnd, S, 0.18 * k, 0.5 * k); let x = rnd() * S;
+      const larg = partage(rnd, S, 0.14 * k, 0.48 * k); let x = rnd() * S;
       for (const w of larg) {
-        const j = (0.011 + rnd() * 0.014) * k, ty = rnd() < 0.2 ? h * (0.15 + rnd() * 0.2) : 0, x0 = (x % S) + j, y0 = y + j + ty * 0.5, ww = w - 2 * j, hh = h - 2 * j - ty;
-        if (ww > 3 && hh > 3) { const col = varie(rnd, choisir(rnd, pal), 0.07, 0.025); pierre(c, S, caillou(rnd, x0, y0, ww, hh, 0.13), x0, y0, ww, hh, col, o); if (rnd() < 0.12) { const lx = x0 + rnd() * ww * 0.6, ly = y0 + rnd() * hh * 0.6, lr = (0.02 + rnd() * 0.04) * k; c.fillStyle = rnd() < 0.5 ? 'rgba(140,138,96,0.35)' : 'rgba(95,88,78,0.28)'; tore(S, lx - lr, ly - lr, lx + lr, ly + lr, (dx, dy) => { c.beginPath(); c.ellipse(lx + dx, ly + dy, lr, lr * 0.7, rnd() * 3, 0, TAU); c.fill(); }); } }
+        const j = (0.01 + rnd() * 0.016) * k, x0 = (x % S) + j, y0 = y + j * (0.6 + rnd()), ww = w - 2 * j, hh = h - 2 * j - rnd() * h * 0.12, r = rnd();
+        if (r < 0.16 && hh > 0.12 * k) { const f = 0.35 + rnd() * 0.3; poser(x0, y0, ww, hh * f - j * 0.5); poser(x0 + rnd() * j, y0 + hh * f + j * 0.5, ww - rnd() * j, hh * (1 - f) - j * 0.5); } // deux pierres plates superposées
+        else if (r < 0.3 && ww > 0.22 * k) { const f = 0.3 + rnd() * 0.4; poser(x0, y0, ww * f - j * 0.5, hh); poser(x0 + ww * f + j * 0.5, y0, ww * (1 - f) - j * 0.5, hh); }
+        else poser(x0, y0, ww, hh);
         x += w;
       }
       y += h;
     }
-    for (let i = 0; i < 18; i++) { const x = rnd() * S, y2 = rnd() * S, w = (0.05 + rnd() * 0.06) * k, h = w * (0.4 + rnd() * 0.4); pierre(c, S, caillou(rnd, x, y2, w, h, 0.2, 8), x, y2, w, h, varie(rnd, choisir(rnd, pal), 0.1), o); } // les cales
+    for (let i = 0; i < 26; i++) { const x = rnd() * S, y2 = rnd() * S, w = (0.03 + rnd() * 0.06) * k, h = w * (0.35 + rnd() * 0.35); if (o.filtre && !o.filtre(x, y2, w, h)) continue; pierre(c, S, moellon(rnd, x, y2, w, h), x, y2, w, h, varie(rnd, choisir(rnd, pal), 0.1), o); } // les cales dans les joints
   }
-  function pPierre(c, S, rnd) { moellons(c, S, rnd); return { bas: 0.05, moyen: 0.07, grain: 0.09, relief: 0.08, chaud: 0.025 }; }
-  function pTaille(c, S, rnd) { // pierre de taille : 8 assises de 37,5 cm, blocs de 45 cm à 1 m en quinconce, joints fins, layage
-    const k = S / 3, h = S / 8, j = Math.max(1, 0.009 * k); c.fillStyle = '#B9AE9B'; c.fillRect(0, 0, S, S);
-    const stries = document.createElement('canvas'); stries.width = stries.height = 32; { const s = stries.getContext('2d'); s.strokeStyle = 'rgba(80,70,55,0.5)'; s.lineWidth = 1; for (let i = -32; i < 64; i += 4) { s.beginPath(); s.moveTo(i, 0); s.lineTo(i + 32, 32); s.stroke(); } }
-    const motif = c.createPattern(stries, 'repeat');
+  function pPierre(c, S, rnd) { moellons(c, S, rnd); return { bas: 0.05, moyen: 0.07, grain: 0.09, relief: 0.08, chaud: 0.025, apres: (d) => mouches(d, S, rnd, Math.round(S * S / 200), S / 360, [245, 238, 222, 0.4], [80, 70, 56, 0.35]) }; }
+  function pTaille(c, S, rnd) { // pierre de taille : 8 assises de 37,5 cm, blocs de 45 cm à 1 m en quinconce, joints fins et clairs, patine
+    const k = S / 3, h = S / 8, j = Math.max(1, 0.007 * k); c.fillStyle = '#CFC5B2'; c.fillRect(0, 0, S, S);
+    const pal = [[222, 214, 196], [216, 207, 188], [226, 219, 203], [213, 202, 181], [220, 210, 189], [208, 202, 190], [224, 212, 186]];
     for (let r = 0; r < 8; r++) {
       const larg = partage(rnd, S, 0.45 * k, 1.0 * k); let x = rnd() * S; const y = r * h;
       for (const w of larg) {
-        const col = varie(rnd, choisir(rnd, [[222, 214, 196], [215, 205, 185], [228, 221, 205], [210, 198, 176], [219, 208, 186]]), 0.05, 0.02), x0 = (x % S) + j / 2, y0 = y + j / 2, ww = w - j, hh = h - j;
+        const col = varie(rnd, choisir(rnd, pal), 0.035, 0.015), x0 = (x % S) + j / 2, y0 = y + j / 2, ww = w - j, hh = h - j, ep = rnd() < 0.15;
         tore(S, x0 - 2, y0 - 2, x0 + ww + 2, y0 + hh + 2, (dx, dy) => {
-          c.fillStyle = css(fois(col, 0.8)); c.fillRect(x0 + dx, y0 + dy, ww, hh);
-          c.fillStyle = css(fois(col, 1.1)); c.fillRect(x0 + dx, y0 + dy, ww - 1.5, hh - 1.5);
-          const g = c.createLinearGradient(0, y0 + dy, 0, y0 + hh + dy); g.addColorStop(0, css(fois(col, 1.03))); g.addColorStop(1, css(fois(col, 0.93))); c.fillStyle = g; c.fillRect(x0 + dx + 1.2, y0 + dy + 1.2, ww - 2.6, hh - 2.6);
-          c.globalAlpha = 0.06 + rnd() * 0.05; c.fillStyle = motif; c.fillRect(x0 + dx + 2, y0 + dy + 2, ww - 4, hh - 4); c.globalAlpha = 1;
+          c.fillStyle = css(fois(col, 0.9)); c.fillRect(x0 + dx, y0 + dy, ww, hh);
+          const g = c.createLinearGradient(0, y0 + dy, 0, y0 + hh + dy); g.addColorStop(0, css(fois(col, 1.04))); g.addColorStop(0.5, css(col)); g.addColorStop(1, css(fois(col, 0.96))); c.fillStyle = g; c.fillRect(x0 + dx + 0.8, y0 + dy + 0.8, ww - 1.6, hh - 1.8);
+          if (ep) { c.fillStyle = 'rgba(120,108,88,0.18)'; c.fillRect(x0 + dx + ww * 0.1, y0 + dy + hh * 0.55, ww * 0.8, hh * 0.4); } // une pierre épaufrée, plus terne
         });
-        if (rnd() < 0.25) coulure(c, S, x0 + rnd() * ww, y0 + hh * rnd() * 0.5, (0.2 + rnd() * 0.5) * k, 2 + rnd() * 6, [70, 66, 58], 0.06 + rnd() * 0.06);
+        if (rnd() < 0.3) coulure(c, S, x0 + rnd() * ww, y0 + hh * rnd() * 0.5, (0.2 + rnd() * 0.6) * k, 2 + rnd() * 8, [80, 76, 66], 0.05 + rnd() * 0.05);
         x += w;
       }
     }
-    for (let i = 0; i < 5; i++) coulure(c, S, rnd() * S, rnd() * S, (0.5 + rnd() * 1.4) * k, 2 + rnd() * 8, [64, 60, 52], 0.04 + rnd() * 0.05);
-    grains(c, S, rnd, Math.round(S * S / 160), S / 420, 'rgba(255,252,240,0.4)', 'rgba(90,80,64,0.3)');
-    return { bas: 0.05, moyen: 0.05, grain: 0.06, relief: 0.07, chaud: 0.015 };
+    for (let i = 0; i < 6; i++) coulure(c, S, rnd() * S, rnd() * S, (0.6 + rnd() * 1.6) * k, 3 + rnd() * 10, [70, 66, 58], 0.035 + rnd() * 0.04);
+    return { bas: 0.07, moyen: 0.05, grain: 0.07, relief: 0.1, chaud: 0.015, apres: (d) => mouches(d, S, rnd, Math.round(S * S / 160), S / 420, [255, 252, 240, 0.4], [90, 80, 64, 0.3]) };
   }
-  function pMixte(c, S, rnd) { // enduit à pierres vues : un vieil enduit de chaux tombé par plaques, les moellons dessous
-    moellons(c, S, rnd, { ombre: 0.8 });
+  function pMixte(c, S, rnd) { // enduit à pierres vues : un vieil enduit de chaux tombé par grandes plaques, les moellons dessous
     const k = S / 3, trous = [], boites = [];
-    for (let i = 0; i < 40 && boites.length < 7; i++) { // des lacunes qui ne se chevauchent pas (remplissage pair-impair)
-      const w = (0.35 + rnd() * 0.75) * k, h = w * (0.45 + rnd() * 0.5), x = rnd() * S, y = rnd() * S;
-      if (boites.some((q) => { for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) if (x + ox < q[2] + 6 && x + w + ox > q[0] - 6 && y + oy < q[3] + 6 && y + h + oy > q[1] - 6) return true; return false; })) continue;
-      boites.push([x, y, x + w, y + h]); const p = caillou(rnd, x, y, w, h, 0.38, 22); tore(S, x, y, x + w, y + h, (dx, dy) => trous.push(p.map((q) => [q[0] + dx, q[1] + dy])));
+    for (let i = 0; i < 80 && boites.length < 3; i++) { // des lacunes qui ne se chevauchent pas
+      const rx = (0.42 + rnd() * 0.5) * k, ry = rx * (0.45 + rnd() * 0.3), x = rnd() * S, y = rnd() * S;
+      if (boites.some((q) => { for (const ox of [-S, 0, S]) for (const oy of [-S, 0, S]) if (Math.abs(x + ox - q[0]) < (rx + q[2]) * 1.35 + 8 && Math.abs(y + oy - q[1]) < (ry + q[3]) * 1.35 + 8) return true; return false; })) continue;
+      boites.push([x, y, rx, ry]); const p = tache(rnd, x, y, rx, ry, 64, true); tore(S, x - rx * 1.5, y - ry * 1.5, x + rx * 1.5, y + ry * 1.5, (dx, dy) => trous.push({ p: p.map((q) => [q[0] + dx, q[1] + dy]), x: x + dx, y: y + dy, rx, ry }));
     }
-    const enduit = (dx, dy) => { const p = new Path2D(); p.rect(-4, -4, S + 8, S + 8); for (const t of trous) { p.moveTo(t[0][0] + dx, t[0][1] + dy); for (let i = 1; i < t.length; i++) p.lineTo(t[i][0] + dx, t[i][1] + dy); p.closePath(); } return p; };
-    c.fillStyle = 'rgba(44,34,24,0.55)'; c.fill(enduit(2.5, 3.5), 'evenodd'); // l'épaisseur de l'enduit : son ombre sur les pierres
-    c.fillStyle = 'rgba(252,246,230,0.95)'; c.fill(enduit(-1.3, -1.3), 'evenodd'); // et son arête éclairée
-    const e = enduit(0, 0); c.fillStyle = '#E2D3B8'; c.fill(e, 'evenodd');
-    c.save(); c.clip(e, 'evenodd'); grains(c, S, rnd, Math.round(S * S / 120), S / 400, 'rgba(255,250,236,0.5)', 'rgba(110,96,76,0.32)');
-    for (let i = 0; i < 8; i++) coulure(c, S, rnd() * S, rnd() * S, (0.4 + rnd()) * k, 2 + rnd() * 5, [96, 84, 66], 0.05 + rnd() * 0.04);
+    const touche = (x, y, w, h) => trous.some((t) => x < t.x + t.rx * 1.45 + 4 && x + w > t.x - t.rx * 1.45 - 4 && y < t.y + t.ry * 1.45 + 4 && y + h > t.y - t.ry * 1.45 - 4);
+    moellons(c, S, rnd, { ombre: 0.9, mortier: [178, 166, 144], filtre: (x, y, w, h) => { for (const ox of [0, -S, S]) for (const oy of [0, -S, S]) if (touche(x + ox, y + oy, w, h)) return true; return false; } }); // sous l'enduit, rien à dessiner
+    const ajouter = (P, dx, dy) => { for (const t of trous) { P.moveTo(t.p[0][0] + dx, t.p[0][1] + dy); for (let i = 1; i < t.p.length; i++) P.lineTo(t.p[i][0] + dx, t.p[i][1] + dy); P.closePath(); } return P; };
+    const bande = (dx, dy, coul) => { const P = ajouter(new Path2D(), 0, 0); ajouter(P, dx, dy); c.fillStyle = coul; c.fill(P, 'evenodd'); }; // lacune XOR lacune décalée : un mince liseré
+    bande(2.2, 3.2, 'rgba(44,34,24,0.55)'); bande(-1, -1, 'rgba(248,240,222,0.55)'); // l'ombre de l'épaisseur de l'enduit, son arête éclairée
+    const E = new Path2D(); E.rect(-4, -4, S + 8, S + 8); ajouter(E, 0, 0); c.fillStyle = '#DFCFB2'; c.fill(E, 'evenodd'); // l'enduit, troué
+    c.save(); c.clip(E, 'evenodd');
+    for (const t of trous) { const r = Math.max(t.rx, t.ry) * 2, g = c.createRadialGradient(t.x, t.y, r * 0.35, t.x, t.y, r); g.addColorStop(0, 'rgba(120,100,70,0.18)'); g.addColorStop(1, 'rgba(120,100,70,0)'); c.fillStyle = g; c.fillRect(t.x - r, t.y - r, 2 * r, 2 * r); } // plus sale autour des lacunes
+    for (let i = 0; i < 9; i++) coulure(c, S, rnd() * S, rnd() * S, (0.4 + rnd()) * k, 2 + rnd() * 5, [96, 84, 66], 0.05 + rnd() * 0.05);
     c.restore();
-    return { bas: 0.05, moyen: 0.06, grain: 0.08, relief: 0.09, chaud: 0.02 };
+    return { bas: 0.06, moyen: 0.06, grain: 0.08, relief: 0.1, chaud: 0.02, apres: (d) => mouches(d, S, rnd, Math.round(S * S / 220), S / 380, [250, 244, 228, 0.4], [96, 84, 70, 0.3]) };
   }
   function pBrique(c, S, rnd) { // briques de 21 × 5,5 cm, appareil en panneresses, joints de 1 cm
     const R = 44, B = 14, h = S / R, w = S / B, j = Math.max(1, h * 0.17); c.fillStyle = '#BFB6A6'; c.fillRect(0, 0, S, S);
-    grains(c, S, rnd, Math.round(S * S / 80), S / 400, 'rgba(235,228,214,0.6)', 'rgba(110,100,86,0.4)');
     const pal = [[178, 84, 56], [166, 74, 50], [190, 100, 64], [156, 70, 50], [182, 106, 74], [141, 62, 44], [196, 116, 80], [170, 92, 66]];
     for (let r = 0; r < R; r++) for (let b = 0; b < B; b++) {
       const x = b * w + (r % 2 ? w / 2 : 0) + j / 2, y = r * h + j / 2, ww = w - j, hh = h - j, col = rnd() < 0.06 ? varie(rnd, [110, 52, 38], 0.1) : varie(rnd, choisir(rnd, pal), 0.08, 0.04), bout = rnd();
@@ -259,8 +334,7 @@ const PTEXTURES = (() => {
       });
     }
     for (let i = 0; i < 6; i++) coulure(c, S, rnd() * S, rnd() * S, (0.4 + rnd()) * S / 3, 3 + rnd() * 6, [70, 56, 46], 0.05);
-    grains(c, S, rnd, Math.round(S * S / 200), S / 360, 'rgba(230,200,170,0.35)', 'rgba(60,30,20,0.35)');
-    return { bas: 0.06, moyen: 0.06, grain: 0.1, relief: 0.06, chaud: 0.02 };
+    return { bas: 0.06, moyen: 0.06, grain: 0.1, relief: 0.06, chaud: 0.02, apres: (d) => mouches(d, S, rnd, Math.round(S * S / 200), S / 360, [230, 200, 170, 0.35], [60, 30, 20, 0.35]) };
   }
   function pBeton(c, S, rnd) { // béton banché : levées de 1 m, panneaux de 1,5 m, trous de banches, coulures, bullage
     const k = S / 3; c.fillStyle = '#B9B6AE'; c.fillRect(0, 0, S, S);
@@ -270,8 +344,7 @@ const PTEXTURES = (() => {
       for (const [u, v] of [[0.25, 0.25], [0.75, 0.25], [0.25, 0.75], [0.75, 0.75]]) { const tx = x + u * 1.5 * k, ty = y + v * k, tr = Math.max(1.5, 0.014 * k); tore(S, tx - 4, ty - 4, tx + 4, ty + 4, (dx, dy) => { c.fillStyle = 'rgba(220,218,210,0.8)'; c.beginPath(); c.arc(tx + dx, ty + dy, tr * 1.7, 0, TAU); c.fill(); c.fillStyle = 'rgba(52,50,46,0.85)'; c.beginPath(); c.arc(tx + dx, ty + dy, tr, 0, TAU); c.fill(); }); coulure(c, S, tx, ty + tr, (0.15 + rnd() * 0.35) * k, 2 + rnd() * 3, [80, 76, 68], 0.12); }
     }
     for (let i = 0; i < 10; i++) coulure(c, S, rnd() * S, rnd() * S, (0.5 + rnd() * 1.5) * k, 3 + rnd() * 12, [70, 68, 60], 0.04 + rnd() * 0.05);
-    grains(c, S, rnd, Math.round(S * S / 120), S / 350, 'rgba(235,234,228,0.5)', 'rgba(60,58,54,0.5)');
-    return { bas: 0.08, moyen: 0.07, grain: 0.07, relief: 0.05 };
+    return { bas: 0.08, moyen: 0.07, grain: 0.07, relief: 0.05, apres: (d) => mouches(d, S, rnd, Math.round(S * S / 120), S / 350, [235, 234, 228, 0.5], [60, 58, 54, 0.5]) };
   }
   function pBois(c, S, rnd) { // bardage de planches verticales de 15 cm, bois grisé, fil, nœuds, pointes
     const N = 20, w = S / N, k = S / 3; c.fillStyle = '#3A3028'; c.fillRect(0, 0, S, S);
@@ -313,7 +386,7 @@ const PTEXTURES = (() => {
   function pCanal(c, S, rnd) { // tuiles canal (creuses) : courants et couvrants alternés, bouts arrondis, mousse dans les courants
     const C = 16, R = 9, w = S / C, h = S / R; c.fillStyle = '#2E1A12'; c.fillRect(0, 0, S, S);
     for (let r = R - 1; r >= 0; r--) for (let i = 0; i < C; i++) {
-      const couvert = i % 2 === 1, x = i * w - (couvert ? w * 0.12 : -w * 0.04), ww = couvert ? w * 1.24 : w * 0.92, y = r * h + (couvert ? h * 0.5 : 0) + (rnd() - 0.5) * 2, col = varie(rnd, rnd() < 0.12 ? [196, 150, 112] : choisir(rnd, TUILES), 0.08, 0.04);
+      const couvert = i % 2 === 1, x = i * w - (couvert ? w * 0.12 : -w * 0.04), ww = couvert ? w * 1.24 : w * 0.92, y = r * h + (couvert ? h * 0.5 : 0) + (rnd() - 0.5) * 2, col = varie(rnd, rnd() < 0.05 ? [186, 140, 104] : choisir(rnd, TUILES), 0.08, 0.04);
       tore(S, x - 2, y - 2, x + ww + 2, y + h + h * 0.4, (dx, dy) => {
         const bx = x + dx, by = y + dy, bas = by + h + (couvert ? h * 0.12 : h * 0.02);
         if (couvert) { c.fillStyle = 'rgba(20,10,6,0.55)'; c.beginPath(); c.ellipse(bx + ww / 2 + 1, bas, ww * 0.5, h * 0.2, 0, 0, Math.PI); c.fill(); }
@@ -329,23 +402,25 @@ const PTEXTURES = (() => {
     }
     return { bas: 0.08, moyen: 0.08, grain: 0.07, relief: 0.05, chaud: 0.04 };
   }
-  function pEcailles(c, S, rnd) { // tuiles plates écailles (Bugey) : 17 × 12,5 cm visibles, en quinconce, bout arrondi
-    const C = 18, R = 24, w = S / C, h = S / R; c.fillStyle = '#2E1A12'; c.fillRect(0, 0, S, S);
+  function pEcailles(c, S, rnd, o) { // tuiles plates écailles (Bugey) : 17 × 12,5 cm visibles, en quinconce, bout arrondi ; o.ardoise : ardoises en écailles (flèches, tours)
+    o = o || {}; const C = 18, R = 24, w = S / C, h = S / R, pal = o.pal || TUILES; c.fillStyle = o.fond || '#2E1A12'; c.fillRect(0, 0, S, S);
     for (let r = R - 1; r >= 0; r--) for (let i = 0; i < C; i++) {
-      const x = i * w + (r % 2 ? w / 2 : 0), y = r * h - h * 0.6, col = varie(rnd, choisir(rnd, TUILES), 0.09, 0.04), H2 = h * 1.6;
+      const x = i * w + (r % 2 ? w / 2 : 0), y = r * h - h * 0.6, col = varie(rnd, choisir(rnd, pal), o.pal ? 0.06 : 0.09, o.pal ? 0.02 : 0.04), H2 = h * 1.6;
       tore(S, x - 2, y - 2, x + w + 2, y + H2 + 4, (dx, dy) => {
         const bx = x + dx + 0.6, by = y + dy, ww = w - 1.2;
-        c.fillStyle = 'rgba(25,12,6,0.5)'; c.beginPath(); c.ellipse(bx + ww / 2 + 0.8, by + H2 - ww * 0.18 + 1.6, ww / 2, ww * 0.42, 0, 0, Math.PI); c.fill();
+        c.fillStyle = o.pal ? 'rgba(8,10,14,0.6)' : 'rgba(25,12,6,0.5)'; c.beginPath(); c.ellipse(bx + ww / 2 + 0.8, by + H2 - ww * 0.18 + 1.6, ww / 2, ww * 0.42, 0, 0, Math.PI); c.fill();
         const g = c.createLinearGradient(0, by, 0, by + H2); g.addColorStop(0, css(fois(col, 0.85))); g.addColorStop(1, css(fois(col, 1.08))); c.fillStyle = g;
         c.beginPath(); c.moveTo(bx, by); c.lineTo(bx + ww, by); c.lineTo(bx + ww, by + H2 - ww * 0.4); c.quadraticCurveTo(bx + ww, by + H2, bx + ww / 2, by + H2); c.quadraticCurveTo(bx, by + H2, bx, by + H2 - ww * 0.4); c.closePath(); c.fill();
       });
-      if (rnd() < 0.05) mousse(c, S, rnd, x + w / 2, y + h * 1.4, w * 0.4);
+      if (rnd() < (o.pal ? 0.02 : 0.05)) mousse(c, S, rnd, x + w / 2, y + h * 1.4, w * 0.4);
     }
-    return { bas: 0.08, moyen: 0.07, grain: 0.07, relief: 0.05, chaud: 0.03 };
+    return { bas: 0.08, moyen: 0.07, grain: 0.07, relief: 0.05, chaud: o.pal ? -0.02 : 0.03 };
   }
+  const ARDOISES = [[84, 92, 104], [90, 98, 110], [74, 81, 93], [96, 104, 114], [86, 86, 100], [80, 90, 98]];
+  const pArdoiseEcailles = (c, S, rnd) => pEcailles(c, S, rnd, { pal: ARDOISES, fond: '#1F2329' });
   function pArdoise(c, S, rnd) { // ardoises au crochet : 25 × 16 cm visibles, en quinconce, crochet d'inox au bas de chaque ardoise
     const C = 12, R = 19, w = S / C, h = S / R; c.fillStyle = '#1F2329'; c.fillRect(0, 0, S, S);
-    const pal = [[84, 92, 104], [90, 98, 110], [74, 81, 93], [96, 104, 114], [86, 86, 100], [80, 90, 98]];
+    const pal = ARDOISES;
     for (let r = R - 1; r >= 0; r--) for (let i = 0; i < C; i++) {
       const x = i * w + (r % 2 ? w / 2 : 0) + (rnd() - 0.5) * 1.5, y = r * h, col = varie(rnd, choisir(rnd, pal), 0.06, 0.02), ch = rnd() < 0.3;
       tore(S, x - 2, y - h, x + w + 2, y + h + 3, (dx, dy) => {
@@ -371,11 +446,10 @@ const PTEXTURES = (() => {
     }
     return { bas: 0.07, moyen: 0.05, grain: 0.03, relief: 0.02 };
   }
-  function pGravillons(c, S, rnd) { // toit plat sous gravillons roulés
-    c.fillStyle = '#8C877D'; c.fillRect(0, 0, S, S); const k = S / 3;
-    cailloux(c, S, rnd, Math.round(S * S / 60), 0.005 * k, 0.017 * k, [[170, 164, 152], [150, 144, 133], [190, 184, 172], [128, 122, 112], [176, 160, 136], [205, 200, 190], [110, 106, 98]]);
-    for (let i = 0; i < 6; i++) { const x = rnd() * S, y = rnd() * S, r = (0.2 + rnd() * 0.5) * k; tore(S, x - r, y - r, x + r, y + r, (dx, dy) => { const g = c.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r); g.addColorStop(0, 'rgba(60,62,50,0.16)'); g.addColorStop(1, 'rgba(60,62,50,0)'); c.fillStyle = g; c.fillRect(x - r + dx, y - r + dy, 2 * r, 2 * r); }); }
-    return { bas: 0.08, moyen: 0.06, grain: 0.1, relief: 0.06 };
+  function pGravillons(c, S, rnd) { // toit plat sous gravillons roulés (en JS : pas de canvas)
+    const k = S / 3, d = tampon(S, [140, 135, 125]);
+    galets(d, S, rnd, Math.round(S * S / 110), 0.008 * k, 0.02 * k, [[170, 164, 152], [150, 144, 133], [190, 184, 172], [128, 122, 112], [176, 160, 136], [205, 200, 190], [110, 106, 98]]);
+    return { src: d, bas: 0.1, moyen: 0.07, grain: 0.08, relief: 0.04 };
   }
   function pVerre(c, S, rnd) { // verrière : vitrages de 75 × 150 cm, montants alu, reflets du ciel
     const k = S / 3, w = 0.75 * k, h = 1.5 * k; c.fillStyle = '#7A8B96'; c.fillRect(0, 0, S, S);
@@ -388,17 +462,14 @@ const PTEXTURES = (() => {
   }
 
   // ═══════════════════════════════ les sols (texture de détail, à mêler à la photo de près) ═══════════════════════════════
-  function pAsphalte(c, S, rnd) {
-    const k = S / 4; c.fillStyle = '#5E5E5B'; c.fillRect(0, 0, S, S);
-    const n = Math.round(S * S / 22), P = [new Path2D(), new Path2D(), new Path2D()]; for (let i = 0; i < n; i++) { const t = (0.6 + rnd() * rnd() * 2.6) * S / 512, v = rnd(); P[v < 0.35 ? 0 : v < 0.85 ? 1 : 2].rect(rnd() * S, rnd() * S, t, t * (0.6 + rnd() * 0.5)); }
-    ['rgba(40,40,38,0.7)', 'rgba(140,138,132,0.55)', 'rgba(190,186,176,0.6)'].forEach((f, i) => { c.fillStyle = f; c.fill(P[i]); }); // les granulats
-    for (let i = 0; i < 2; i++) { const x = rnd() * S, y = rnd() * S, w = (0.6 + rnd()) * k, h = (0.4 + rnd() * 0.8) * k; tore(S, x, y, x + w, y + h, (dx, dy) => { c.fillStyle = 'rgba(52,52,50,0.55)'; c.fillRect(x + dx, y + dy, w, h); c.strokeStyle = 'rgba(30,30,28,0.6)'; c.lineWidth = 1.2; c.strokeRect(x + dx, y + dy, w, h); }); } // les reprises
-    for (let i = 0; i < 4; i++) fissure(c, S, rnd, rnd() * S, rnd() * S, 12 + Math.floor(rnd() * 22), S / 70, 'rgba(24,24,22,0.75)', Math.max(0.8, S / 450));
-    return { bas: 0.1, moyen: 0.08, grain: 0.14, relief: 0.08 };
+  function pAsphalte(c, S, rnd) { // enrobé : granulats clairs et sombres, quelques fines fissures (en JS)
+    const d = tampon(S, [94, 94, 91]);
+    mouches(d, S, rnd, Math.round(S * S / 18), S / 300, [150, 148, 142, 0.6], [44, 44, 42, 0.7]); mouches(d, S, rnd, Math.round(S * S / 140), S / 220, [196, 192, 182, 0.65], [36, 36, 34, 0.6]);
+    for (let i = 0; i < 2; i++) fissureJS(d, S, rnd, rnd() * S, rnd() * S, 8 + Math.floor(rnd() * 12), Math.max(2, Math.round(S / 90)), [30, 30, 28], 0.45); // de fines fissures (peu : la texture se répète)
+    return { src: d, bas: 0.08, moyen: 0.08, grain: 0.14, relief: 0.08 };
   }
   function pPaves(c, S, rnd) { // pavés de pierre (≈ 12 × 12 cm) en rangs décalés, joints de sable
     const k = S / 2, R = 16, h = S / R; c.fillStyle = '#4C4740'; c.fillRect(0, 0, S, S);
-    grains(c, S, rnd, Math.round(S * S / 60), S / 300, 'rgba(150,140,120,0.5)', 'rgba(30,28,24,0.5)');
     const pal = [[143, 138, 128], [158, 151, 139], [125, 120, 111], [168, 161, 147], [139, 133, 122], [154, 133, 116], [131, 128, 124]];
     for (let r = 0; r < R; r++) {
       const larg = partage(rnd, S, 0.1 * k, 0.17 * k); let x = rnd() * S;
@@ -416,45 +487,37 @@ const PTEXTURES = (() => {
     return { bas: 0.08, moyen: 0.07, grain: 0.08, relief: 0.06 };
   }
   function pGravier(c, S, rnd) {
-    c.fillStyle = '#7F796E'; c.fillRect(0, 0, S, S); const k = S / 2;
-    cailloux(c, S, rnd, Math.round(S * S / 40), 0.004 * k, 0.02 * k, [[176, 168, 152], [150, 142, 128], [196, 189, 175], [130, 122, 110], [184, 166, 140], [210, 204, 192], [112, 106, 98], [160, 150, 130]], { puissance: 2 });
-    return { bas: 0.1, moyen: 0.08, grain: 0.12, relief: 0.08 };
+    const k = S / 2, d = tampon(S, [127, 121, 110]);
+    galets(d, S, rnd, Math.round(S * S / 45), 0.004 * k, 0.02 * k, [[176, 168, 152], [150, 142, 128], [196, 189, 175], [130, 122, 110], [184, 166, 140], [210, 204, 192], [112, 106, 98], [160, 150, 130]], { puissance: 2 });
+    return { src: d, bas: 0.12, moyen: 0.08, grain: 0.1, relief: 0.05 };
   }
-  function pHerbe(c, S, rnd) { // brins d'herbe en touffes (par paquets de couleur : peu d'appels), trèfle, pâquerettes
-    const k = S / 2.5; c.fillStyle = '#56723A'; c.fillRect(0, 0, S, S);
-    for (let i = 0; i < 26; i++) { const x = rnd() * S, y = rnd() * S, r = (0.08 + rnd() * 0.3) * k, sombre = rnd() < 0.5; tore(S, x - r, y - r, x + r, y + r, (dx, dy) => { const g = c.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r); g.addColorStop(0, sombre ? 'rgba(40,58,26,0.45)' : 'rgba(150,160,80,0.35)'); g.addColorStop(1, 'rgba(80,100,50,0)'); c.fillStyle = g; c.fillRect(x - r + dx, y - r + dy, 2 * r, 2 * r); }); }
-    const couleurs = ['#3E5A27', '#4A6A2E', '#5C7C36', '#6E8C3E', '#82A04A', '#94AC55', '#A6A85C', '#7A8E44'], n = Math.round(S * S / 22);
-    c.lineCap = 'round';
-    for (const coul of couleurs) {
-      c.strokeStyle = coul; c.lineWidth = Math.max(0.8, S / 420); c.beginPath();
-      for (let i = 0; i < n / couleurs.length; i++) { const x = rnd() * S, y = rnd() * S, l = (0.02 + rnd() * 0.05) * k, a = -Math.PI / 2 + (rnd() - 0.5) * 2.2, ex = x + Math.cos(a) * l, ey = y + Math.sin(a) * l; tore(S, Math.min(x, ex) - 1, Math.min(y, ey) - 1, Math.max(x, ex) + 1, Math.max(y, ey) + 1, (dx, dy) => { c.moveTo(x + dx, y + dy); c.lineTo(ex + dx, ey + dy); }); }
-      c.stroke();
-    }
-    for (let i = 0; i < 22; i++) { const x = rnd() * S, y = rnd() * S, r = (0.012 + rnd() * 0.01) * k; tore(S, x - r * 3, y - r * 3, x + r * 3, y + r * 3, (dx, dy) => { c.fillStyle = 'rgba(86,120,52,0.9)'; for (let f = 0; f < 3; f++) { const a = f * TAU / 3 + rnd(); c.beginPath(); c.arc(x + dx + Math.cos(a) * r, y + dy + Math.sin(a) * r, r, 0, TAU); c.fill(); } }); }
-    for (let i = 0; i < 16; i++) { const x = rnd() * S, y = rnd() * S, r = Math.max(1, 0.006 * k); tore(S, x - 3, y - 3, x + 3, y + 3, (dx, dy) => { c.fillStyle = '#F4F2EA'; c.beginPath(); c.arc(x + dx, y + dy, r * 1.6, 0, TAU); c.fill(); c.fillStyle = '#E6C030'; c.beginPath(); c.arc(x + dx, y + dy, r * 0.6, 0, TAU); c.fill(); }); }
-    return { bas: 0.1, moyen: 0.1, grain: 0.1, relief: 0.08, chaud: 0.03 };
+  function pHerbe(c, S, rnd) { // brins d'herbe en touffes, trèfle, quelques pâquerettes (en JS)
+    const k = S / 2.5, d = tampon(S, [80, 108, 54]);
+    galets(d, S, rnd, Math.round(S * S / 900), 0.02 * k, 0.05 * k, [[64, 96, 40], [92, 124, 56], [74, 104, 46]], { ombre: 0.85, bombe: 0.4 }); // touffes de trèfle
+    brins(d, S, rnd, Math.round(S * S / 16), 0.025 * k, 0.07 * k, [[62, 90, 39], [74, 106, 46], [92, 124, 54], [110, 140, 62], [130, 160, 74], [148, 172, 85], [166, 168, 92], [122, 142, 68]]);
+    galets(d, S, rnd, Math.max(4, Math.round(S * S / 12000)), 0.007 * k, 0.009 * k, [[244, 242, 234]], { ombre: 0.8, bombe: 0.3 }); // pâquerettes
+    return { src: d, bas: 0.12, moyen: 0.1, grain: 0.08, relief: 0.08, chaud: 0.03 };
   }
-  function pTerre(c, S, rnd) {
-    const k = S / 3; c.fillStyle = '#76604A'; c.fillRect(0, 0, S, S);
-    for (let i = 0; i < 10; i++) { const x = rnd() * S, y = rnd() * S, r = (0.2 + rnd() * 0.6) * k, h = rnd() < 0.5; tore(S, x - r, y - r, x + r, y + r, (dx, dy) => { const g = c.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, r); g.addColorStop(0, h ? 'rgba(60,44,30,0.35)' : 'rgba(150,126,98,0.3)'); g.addColorStop(1, 'rgba(100,80,60,0)'); c.fillStyle = g; c.fillRect(x - r + dx, y - r + dy, 2 * r, 2 * r); }); }
-    cailloux(c, S, rnd, Math.round(S * S / 300), 0.012 * k, 0.045 * k, [[128, 104, 80], [104, 84, 64], [142, 118, 92], [92, 74, 56], [118, 98, 76]], { ombre: 'rgba(40,28,18,0.5)', reflet: 'rgba(200,180,150,0.25)' });
-    cailloux(c, S, rnd, Math.round(S * S / 1400), 0.006 * k, 0.018 * k, [[160, 156, 148], [140, 134, 124], [188, 182, 170]]);
-    for (let i = 0; i < 3; i++) fissure(c, S, rnd, rnd() * S, rnd() * S, 10 + Math.floor(rnd() * 14), S / 80, 'rgba(40,28,18,0.6)', Math.max(0.8, S / 500));
-    return { bas: 0.14, moyen: 0.09, grain: 0.1, relief: 0.08, chaud: 0.03 };
+  function pTerre(c, S, rnd) { // terre battue : mottes, cailloux, fentes de sécheresse (en JS)
+    const k = S / 3, d = tampon(S, [118, 96, 74]);
+    galets(d, S, rnd, Math.round(S * S / 300), 0.012 * k, 0.045 * k, [[128, 104, 80], [104, 84, 64], [142, 118, 92], [92, 74, 56], [118, 98, 76]], { ombre: 0.62, bombe: 0.6 });
+    galets(d, S, rnd, Math.round(S * S / 1400), 0.006 * k, 0.018 * k, [[160, 156, 148], [140, 134, 124], [188, 182, 170]]);
+    for (let i = 0; i < 4; i++) fissureJS(d, S, rnd, rnd() * S, rnd() * S, 10 + Math.floor(rnd() * 14), Math.round(S / 80), [40, 28, 18], 0.6);
+    return { src: d, bas: 0.16, moyen: 0.1, grain: 0.1, relief: 0.08, chaud: 0.03 };
   }
 
   // ═══════════════════════════════ l'API des matières répétées ═══════════════════════════════
   const MURS = { crepi: pCrepi, pierre: pPierre, taille: pTaille, mixte: pMixte, brique: pBrique, beton: pBeton, bois: pBois };
-  const TOITS = { tuiles: pMecaniques, canal: pCanal, ecailles: pEcailles, ardoise: pArdoise, zinc: pZinc, plat: pGravillons, verre: pVerre };
+  const TOITS = { tuiles: pMecaniques, canal: pCanal, ecailles: pEcailles, ardoise: pArdoise, 'ardoise-ecailles': pArdoiseEcailles, zinc: pZinc, plat: pGravillons, verre: pVerre };
   const SOLS = { asphalte: pAsphalte, paves: pPaves, gravier: pGravier, herbe: pHerbe, terre: pTerre };
   const ALIAS = { mur: { moellons: 'pierre', enduit: 'crepi', pierreTaille: 'taille', parpaing: 'beton', metal: 'beton', verre: 'beton' }, toit: { mecaniques: 'tuiles', tuile: 'tuiles', creuses: 'canal', beton: 'plat', gravillons: 'plat', bac: 'zinc', metal: 'zinc' }, sol: { parking: 'asphalte', route: 'asphalte', cimetiere: 'gravier', terrain: 'herbe', pre: 'herbe', jardin: 'herbe', chemin: 'terre' } };
   const nomMur = (m, o) => { m = ALIAS.mur[m] || m; if (m === 'pierre' && o && o.taille) m = 'taille'; return MURS[m] ? m : 'crepi'; };
-  const nomToit = (t, o) => { t = ALIAS.toit[t] || t; if (t === 'tuiles' && o && o.tuile) t = ({ canal: 'canal', creuse: 'canal', ecaille: 'ecailles', ecailles: 'ecailles' })[o.tuile] || 'tuiles'; return TOITS[t] ? t : 'tuiles'; };
+  const nomToit = (t, o) => { t = ALIAS.toit[t] || t; if (t === 'tuiles' && o && o.tuile) t = ({ canal: 'canal', creuse: 'canal', ecaille: 'ecailles', ecailles: 'ecailles' })[o.tuile] || 'tuiles'; if (t === 'ardoise' && o && o.ecailles) t = 'ardoise-ecailles'; return TOITS[t] ? t : 'tuiles'; };
   const nomSol = (t) => { t = ALIAS.sol[t] || t; return SOLS[t] ? t : 'herbe'; };
   const nomCouche = (n) => (MURS[n] || TOITS[n] ? n : MURS[ALIAS.mur[n]] ? ALIAS.mur[n] : TOITS[ALIAS.toit[n]] ? ALIAS.toit[n] : null); // un nom de couche de bati()
   const baseMur = (m) => base('mur|' + m, taille(TAILLES.mur), MURS[m]);
   const baseToit = (t) => base('toit|' + t, taille(TAILLES.toit), TOITS[t]);
-  const baseSol = (t) => base('sol|' + t, taille(TAILLES.sol), SOLS[t]);
+  const baseSol = (t, S) => base('sol|' + t, S || taille(TAILLES.sol), SOLS[t]);
   // les teintes typiques (choix de style) : crépis des villages de l'Ain, calcaires du Bugey, tuiles, ardoises, volets
   const TEINTES = {
     crepi: { beige: '#E2CCA6', ocre: '#D8A766', sable: '#E5D0A2', saumon: '#E0A68A', blanc: '#EEE7D8', gris: '#BEB8AD', ocreRouge: '#C98D62', jaune: '#E6C88C' },
@@ -463,11 +526,11 @@ const PTEXTURES = (() => {
     volets: { vert: '#6F8F7E', bleu: '#5A7D9C', gris: '#8C9396', brun: '#6B4B36', bordeaux: '#6E2C32' },
   };
   function facade(mur, teinte, o) { // DataTexture répétée de 3 m × 3 m (u = s / 3, v = hauteur / 3) ; teinte = couleur moyenne voulue ('#rrggbb')
-    if (!OK) return null; const m = nomMur(mur, o), t = teinte ? rgb(teinte) : rgb(m === 'crepi' ? TEINTES.crepi.beige : null), S = taille(TAILLES.mur), cle = 'facade|' + m + '|' + (t ? css(t) : '-') + '|' + S;
+    if (!OK) return null; const m = nomMur(mur, o), t = rgb(teinte) || (m === 'crepi' ? rgb(TEINTES.crepi.beige) : null), S = taille(TAILLES.mur), cle = 'facade|' + m + '|' + (t ? css(t) : '-') + '|' + S;
     return memo(cle, () => { const b = baseMur(m); return texData(t ? teinter(b, t) : b.d, S, false, cle); });
   }
   function toit(nom, teinte, o) { // DataTexture répétée de 3 m × 3 m (u le long de l'égout, v en montant vers le faîtage)
-    if (!OK) return null; const n = nomToit(nom, o), t = teinte ? rgb(teinte) : null, S = taille(TAILLES.toit), cle = 'toit|' + n + '|' + (t ? css(t) : '-') + '|' + S;
+    if (!OK) return null; const n = nomToit(nom, o), t = rgb(teinte), S = taille(TAILLES.toit), cle = 'toit|' + n + '|' + (t ? css(t) : '-') + '|' + S;
     return memo(cle, () => { const b = baseToit(n); return texData(t ? teinter(b, t) : b.d, S, false, cle); });
   }
   // sol(type) : texture de DONNÉES (NoColorSpace), en niveaux de gris de moyenne 0,5 et d'écart type ≈ 0,125 : couleur *= 2 × texel
@@ -480,17 +543,17 @@ const PTEXTURES = (() => {
     return out;
   }
   function sol(type, o) {
-    if (!OK) return null; const t = nomSol(type), S = taille(TAILLES.sol), coul = !!(o && o.couleur), cle = 'sol|' + t + '|' + (coul ? 'couleur' : 'neutre') + '|' + S;
-    return memo(cle, () => { const b = baseSol(t); return texData(coul ? b.d : (b.neutre || (b.neutre = neutre(b))), S, !coul, cle); });
+    if (!OK) return null; const t = nomSol(type), coul = !!(o && o.couleur), S = taille(coul ? TAILLES.sol : TAILLES.detailSol), cle = 'sol|' + t + '|' + (coul ? 'couleur' : 'neutre') + '|' + S;
+    return memo(cle, () => { const b = baseSol(t, S); return texData(coul ? b.d : (b.neutre || (b.neutre = neutre(b))), S, !coul, cle); });
   }
   // solPaquet(types) : jusqu'à 4 sols neutres rangés dans les canaux R, G, B, A d'une seule texture de données (un échantillon pour
   // tout mélanger : detail = dot(poids, texel)) ; par défaut asphalte, pavés, gravier, herbe
   function solPaquet(types) {
     if (!OK) return null; types = (Array.isArray(types) && types.length ? types : ['asphalte', 'paves', 'gravier', 'herbe']).slice(0, 4).map(nomSol);
-    const S = taille(TAILLES.sol), cle = 'solPaquet|' + types.join(',') + '|' + S;
+    const S = taille(TAILLES.detailSol), cle = 'solPaquet|' + types.join(',') + '|' + S;
     return memo(cle, () => {
       const d = new Uint8Array(S * S * 4).fill(128); for (let i = 3; i < d.length; i += 4) d[i] = 128;
-      types.forEach((t, ch) => { const b = baseSol(t), n = b.neutre || (b.neutre = neutre(b)); for (let i = 0; i < d.length; i += 4) d[i + ch] = n[i]; });
+      types.forEach((t, ch) => { const b = baseSol(t, S), n = b.neutre || (b.neutre = neutre(b)); for (let i = 0; i < d.length; i += 4) d[i + ch] = n[i]; });
       const tx = texData(d, S, true, cle); tx.userData.canaux = types.slice(); return tx;
     });
   }
@@ -504,7 +567,7 @@ const PTEXTURES = (() => {
   // 0 = sans texture (cheminées, croix, horloge…). Couleur de sommet = bati.couleur(nom, hex, k) : la moyenne vaut hex (× k).
   function bati(noms) {
     if (!OK || !Q.webgl2) return null;
-    const liste = []; for (const n0 of Array.isArray(noms) && noms.length ? noms : ['crepi', 'mixte', 'pierre', 'taille', 'brique', 'beton', 'bois', 'tuiles', 'canal', 'ecailles', 'ardoise', 'zinc', 'plat', 'verre']) { const n = nomCouche(n0); if (n && !liste.includes(n)) liste.push(n); }
+    const liste = []; for (const n0 of Array.isArray(noms) && noms.length ? noms : ['crepi', 'mixte', 'pierre', 'taille', 'brique', 'beton', 'bois', 'tuiles', 'canal', 'ecailles', 'ardoise', 'ardoise-ecailles', 'zinc', 'plat', 'verre']) { const n = nomCouche(n0); if (n && !liste.includes(n)) liste.push(n); }
     const S = taille(TAILLES.mur), cle = 'bati|' + liste.join(',') + '|' + S;
     return memo(cle, () => {
       const t0 = now(), bases = liste.map((n) => (MURS[n] ? baseMur(n) : baseToit(n))), N = bases.length, data = new Uint8Array(S * S * 4 * N);
@@ -529,7 +592,7 @@ const PTEXTURES = (() => {
           sh.fragmentShader = 'uniform highp sampler2DArray tBati;\nvarying float vCouche;\nvarying vec2 vUvBati;\n' + sh.fragmentShader.replace('#include <color_fragment>', '#include <color_fragment>\n\tif ( vCouche > 0.5 ) diffuseColor.rgb *= texture( tBati, vec3( vUvBati, floor( vCouche - 0.5 ) ) ).rgb;');
         };
         mat.customProgramCacheKey = () => 'ptex-bati';
-        if (M) M.partager(mat); mat.userData.partage = true; return mat;
+        if (M) M.partager(mat); mat.userData.partagee = true; return mat;
       };
       compter('bati', t0);
       return { texture: tx, noms: liste.slice(), couche, couleur, materiau, periode: [3, 3], taille: S, moyenne: (n) => { const m = moy.get(nomCouche(n)); return m ? '#' + m.map((v) => versS(v).toString(16).padStart(2, '0')).join('') : null; } };
@@ -556,7 +619,8 @@ const PTEXTURES = (() => {
     return c.createPattern(motifGrain, 'repeat');
   }
   function moucheter(c, x, y, w, h, a) { c.save(); c.globalAlpha = a; c.globalCompositeOperation = 'source-atop'; c.fillStyle = grainMotif(c); c.fillRect(x, y, w, h); c.restore(); }
-  // l'encadrement de pierre (jambages, linteau, appui saillant) ; rend l'ouverture [x0, y0, x1, y1]
+  // l'encadrement de pierre (jambages, linteau, appui saillant) ; rend l'ouverture [x0, y0, x1, y1] (px), gardée aussi dans OUVERTURE
+  let OUVERTURE = null;
   function encadrement(c, x, y, w, h, D, rnd, o) {
     o = o || {}; const f = (o.f || 0.12) * D, sail = (o.sail == null ? 0.06 : o.sail) * D, ap = (o.appui == null ? 0.08 : o.appui) * D, lt = (o.linteau || 0.15) * D, pierre = o.pierre || [214, 203, 182];
     const fx = x + sail, fw = w - 2 * sail;
@@ -566,14 +630,15 @@ const PTEXTURES = (() => {
     if (o.harpe !== false) for (let yy = y + lt; yy < y + h - ap - 4; yy += 0.3 * D) { c.fillStyle = 'rgba(90,78,60,0.35)'; c.fillRect(fx, yy, f, 1); c.fillRect(fx + fw - f, yy + 0.15 * D, f, 1); }
     if (ap > 0) { c.fillStyle = css(fois(pierre, 1.08)); c.fillRect(x, y + h - ap, w, ap * 0.45); c.fillStyle = css(fois(pierre, 0.9)); c.fillRect(x, y + h - ap * 0.55, w, ap * 0.55); c.fillStyle = 'rgba(40,32,24,0.35)'; c.fillRect(x, y + h - 1.5, w, 1.5); }
     moucheter(c, x, y, w, h, 0.18);
-    const x0 = fx + f, x1 = fx + fw - f, y0 = y + lt, y1 = y + h - ap;
+    const x0 = fx + f, x1 = fx + fw - f, y0 = y + lt, y1 = y + h - ap; OUVERTURE = [x0, y0, x1, y1];
     c.fillStyle = css(fois(pierre, 0.62)); c.fillRect(x0, y0, x1 - x0, y1 - y0); // le tableau (l'épaisseur du mur), dans l'ombre en haut
     const g = c.createLinearGradient(0, y0, 0, y0 + 0.12 * D); g.addColorStop(0, 'rgba(40,30,22,0.55)'); g.addColorStop(1, 'rgba(40,30,22,0)'); c.fillStyle = g; c.fillRect(x0, y0, x1 - x0, 0.12 * D);
     return [x0, y0, x1, y1];
   }
-  function vitre(c, x, y, w, h, rnd, sombre) { // un carreau : reflet du ciel en haut, intérieur sombre en bas, une traînée de lumière
+  function vitre(c, x, y, w, h, rnd, sombre, yv) { // un carreau : reflet du ciel en haut, intérieur sombre en bas, voilage sous yv, une traînée de lumière
     const g = c.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, sombre ? '#8697A4' : '#B4C6D2'); g.addColorStop(0.45, sombre ? '#56636E' : '#7E92A2'); g.addColorStop(1, sombre ? '#2E363E' : '#3D4A56');
     c.fillStyle = g; c.fillRect(x, y, w, h);
+    if (yv != null && yv < y + h) { const y0 = Math.max(y, yv), n = Math.max(3, Math.round(w / 5)); c.fillStyle = 'rgba(236,234,226,0.42)'; c.fillRect(x, y0, w, y + h - y0); for (let f = 0; f < n; f++) { c.fillStyle = f % 2 ? 'rgba(255,255,255,0.16)' : 'rgba(90,96,104,0.12)'; c.fillRect(x + w * f / n, y0, w / n, y + h - y0); } if (yv >= y) { c.fillStyle = 'rgba(250,250,246,0.5)'; c.fillRect(x, yv, w, 1.2); } } // le voilage et ses plis
     c.save(); c.beginPath(); c.rect(x, y, w, h); c.clip(); c.fillStyle = 'rgba(255,255,255,0.22)'; const d = rnd() * w; c.beginPath(); c.moveTo(x + d, y); c.lineTo(x + d + w * 0.35, y); c.lineTo(x + d - w * 0.25, y + h); c.lineTo(x + d - w * 0.55, y + h); c.closePath(); c.fill(); c.restore();
   }
   function persienne(c, x, y, w, h, D, col, rnd, gonds) { // un vantail de volet persienne, gonds à droite (côté fenêtre)
@@ -603,9 +668,8 @@ const PTEXTURES = (() => {
       const [x0, y0, x1, y1] = encadrement(c, x, y, w, h, D, rnd), m = 0.045 * D, xm = (x0 + x1) / 2;
       c.fillStyle = '#EDE8DD'; c.fillRect(x0 + 2, y0 + 2, x1 - x0 - 4, y1 - y0 - 4); // dormant et ouvrants peints
       for (const [a, b] of [[x0 + 2 + m, xm - m * 0.6], [xm + m * 0.6, x1 - 2 - m]]) {
-        const ya = y0 + 2 + m, yb = y1 - 2 - m, hp = (yb - ya - 2 * m * 0.5) / 3;
-        for (let k = 0; k < 3; k++) vitre(c, a, ya + k * (hp + m * 0.5), b - a, hp, rnd, false);
-        c.fillStyle = 'rgba(245,243,236,0.33)'; for (let f = 0; f < 6; f++) c.fillRect(a + (b - a) * f / 6, ya + (yb - ya) * 0.36, (b - a) / 12, (yb - ya) * 0.64); // le voilage derrière la vitre
+        const ya = y0 + 2 + m, yb = y1 - 2 - m, hp = (yb - ya - 2 * m * 0.5) / 3, yv = ya + (yb - ya) * 0.38;
+        for (let k = 0; k < 3; k++) vitre(c, a, ya + k * (hp + m * 0.5), b - a, hp, rnd, false, yv); // le voilage derrière la vitre, aux deux tiers
       }
       c.fillStyle = 'rgba(70,60,50,0.35)'; c.fillRect(xm - 1, y0 + 2, 2, y1 - y0 - 4); c.fillStyle = '#B9A27A'; c.fillRect(xm + m * 0.6, (y0 + y1) / 2, 0.02 * D, 0.08 * D);
       c.fillStyle = 'rgba(60,50,40,0.25)'; c.fillRect(x0 + 2, y1 - 4, x1 - x0 - 4, 2);
@@ -614,7 +678,7 @@ const PTEXTURES = (() => {
       const [x0, y0, x1, y1] = encadrement(c, x, y, w, h, D, rnd, { f: 0.15, linteau: 0.22, pierre: [222, 212, 192] }), m = 0.05 * D, xm = (x0 + x1) / 2;
       c.fillStyle = 'rgba(80,68,52,0.4)'; c.fillRect(x + 0.06 * D, y + 0.07 * D, w - 0.12 * D, 1.5); // une moulure sous la corniche du linteau
       c.fillStyle = '#EEEAE0'; c.fillRect(x0 + 2, y0 + 2, x1 - x0 - 4, y1 - y0 - 4);
-      for (const [a, b] of [[x0 + 2 + m, xm - m * 0.6], [xm + m * 0.6, x1 - 2 - m]]) { const ya = y0 + 2 + m, yb = y1 - 2 - m, hp = (yb - ya - 3 * m * 0.5) / 4; for (let k = 0; k < 4; k++) vitre(c, a, ya + k * (hp + m * 0.5), b - a, hp, rnd, false); c.fillStyle = 'rgba(245,243,236,0.28)'; for (let f = 0; f < 5; f++) c.fillRect(a + (b - a) * f / 5, ya + (yb - ya) * 0.3, (b - a) / 10, (yb - ya) * 0.7); }
+      for (const [a, b] of [[x0 + 2 + m, xm - m * 0.6], [xm + m * 0.6, x1 - 2 - m]]) { const ya = y0 + 2 + m, yb = y1 - 2 - m, hp = (yb - ya - 3 * m * 0.5) / 4; for (let k = 0; k < 4; k++) vitre(c, a, ya + k * (hp + m * 0.5), b - a, hp, rnd, false, ya + (yb - ya) * 0.3); }
       c.fillStyle = 'rgba(70,60,50,0.35)'; c.fillRect(xm - 1, y0 + 2, 2, y1 - y0 - 4);
     },
     porte(c, x, y, w, h, D, rnd) {
@@ -725,14 +789,18 @@ const PTEXTURES = (() => {
       for (let essai = 0; essai < 8; essai++, D *= 0.92) { items = CELLULES.map(([nom, l, h, k]) => ({ nom, l, h, k: k || 1, pw: Math.ceil(l * D * (k || 1)), ph: Math.ceil(h * D * (k || 1)) })); if (ranger(items, W, W, 6)) break; }
       const cv = document.createElement('canvas'); cv.width = cv.height = W; const c = cv.getContext('2d'), cellules = {};
       for (const it of items) {
-        const rnd = mulberry32(hash(it.nom)); c.save(); c.beginPath(); c.rect(it.x, it.y, it.pw, it.ph); c.clip();
+        const rnd = mulberry32(hash(it.nom)); OUVERTURE = null; c.save(); c.beginPath(); c.rect(it.x, it.y, it.pw, it.ph); c.clip();
         try { DESSINS[it.nom](c, it.x, it.y, it.pw, it.ph, D * it.k, rnd); } catch (e) { c.fillStyle = '#999'; c.fillRect(it.x, it.y, it.pw, it.ph); }
         c.restore();
-        const e = 0.5; cellules[it.nom] = { uv: [(it.x + e) / W, 1 - (it.y + it.ph - e) / W, (it.x + it.pw - e) / W, 1 - (it.y + e) / W], l: it.l, h: it.h, px: [it.x, it.y, it.pw, it.ph] };
+        const e = 0.5, Dk = D * it.k, ou = OUVERTURE ? [+((OUVERTURE[0] - it.x) / Dk).toFixed(3), +((it.y + it.ph - OUVERTURE[3]) / Dk).toFixed(3), +((OUVERTURE[2] - it.x) / Dk).toFixed(3), +((it.y + it.ph - OUVERTURE[1]) / Dk).toFixed(3)] : null;
+        cellules[it.nom] = { uv: [(it.x + e) / W, 1 - (it.y + it.ph - e) / W, (it.x + it.pw - e) / W, 1 - (it.y + e) / W], l: it.l, h: it.h, px: [it.x, it.y, it.pw, it.ph], ouverture: ou }; // ouverture : [x0, y0, x1, y1] en m depuis le coin bas gauche
       }
       const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = Q.aniso; tx.minFilter = THREE.LinearMipmapLinearFilter; tx.generateMipmaps = true; tx.name = cle; tx.userData.canvas = cv;
       marquer(tx, Math.round(W * W * 4 * 4 / 3), cle);
-      let mat = null; const materiau = () => { if (mat) return mat; mat = new THREE.MeshLambertMaterial({ map: tx, alphaTest: 0.5, vertexColors: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }); mat.name = 'ptex-details'; if (M) M.partager(mat); return mat; };
+      const mats = {}; const materiau = (o) => { // Lambert partagé, découpe alpha, décollé du mur (polygonOffset) ; o.couleurs : × couleurs de sommet
+        const c = !!(o && o.couleurs); if (mats[c]) return mats[c];
+        const m = new THREE.MeshLambertMaterial({ map: tx, alphaTest: 0.5, vertexColors: c, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }); m.name = 'ptex-details'; m.userData.partagee = true; if (M) M.partager(m); return (mats[c] = m);
+      };
       compter('details', t0);
       return { texture: tx, cellules, materiau, densite: D, noms: Object.keys(cellules) };
     });
@@ -765,7 +833,11 @@ const PTEXTURES = (() => {
   function placer(pw, ph) { // une place libre dans une page (étagères), sinon une nouvelle page
     const [W, H] = [taille(TAILLES.page[0]), taille(TAILLES.page[1])], pad = 4;
     if (pw + 2 * pad > W) pw = W - 2 * pad;
-    for (const p of PAGES) { if (p.W !== W) continue; for (const e of p.etageres) if (e.h === ph && e.x + pw + pad <= W) { const r = { p, x: e.x, y: e.y }; e.x += pw + pad; return r; } if (p.y + ph + pad <= H) { const e = { y: p.y, h: ph, x: pad + pw + pad }; p.etageres.push(e); p.y += ph + pad; return { p, x: pad, y: e.y }; } }
+    for (const p of PAGES) { // d'abord une étagère existante assez haute (sans trop de perte), sinon une nouvelle étagère, sinon une nouvelle page
+      if (p.W !== W) continue; let best = null; for (const e of p.etageres) if (e.h >= ph && e.h <= ph * 1.6 && e.x + pw + pad <= W && (!best || e.h < best.h)) best = e;
+      if (best) { const r = { p, x: best.x, y: best.y + Math.floor((best.h - ph) / 2) }; best.x += pw + pad; return r; }
+      if (p.y + ph + pad <= H) { const e = { y: p.y, h: ph, x: pad + pw + pad }; p.etageres.push(e); p.y += ph + pad; return { p, x: pad, y: e.y }; }
+    }
     const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; tx.anisotropy = Q.aniso; tx.minFilter = THREE.LinearMipmapLinearFilter; tx.name = 'enseignes|' + PAGES.length; tx.userData.canvas = cv;
     marquer(tx, Math.round(W * H * 4 * 4 / 3), tx.name);
     const p = { cv, c: cv.getContext('2d'), tx, W, H, y: pad, etageres: [] }; PAGES.push(p); return placer(pw, ph);
@@ -842,19 +914,41 @@ const PTEXTURES = (() => {
     return { webgl2: Q.webgl2, anisotropie: Q.aniso };
   }
   function qualite(q) { if (q === undefined || !QUALITES[q]) return Q.niveau; Q.niveau = q; Q.k = QUALITES[q].k; Q.aniso = Math.min(QUALITES[q].aniso, Q.anisoMax); return Q.niveau; }
+  // preparer(demande, fini) : fabrique d'avance, par tranches de ~8 ms (setTimeout), ce que le jeu demandera ensuite d'un coup (pendant le
+  // chargement de la carte et de la photo) ; les appels suivants (bati, facade, sol…) ne font plus qu'emballer. Rend une promesse des stats.
+  // demande : { bati: [noms], murs: [noms], toits: [noms], sols: [types] (neutres), solsCouleur: [types], details: true, enseignes: [[texte, type]], plaques: [noms], tranche: ms }
+  function preparer(demande, fini) {
+    demande = demande || {}; const taches = [], tr = demande.tranche > 0 ? demande.tranche : 8;
+    if (OK) {
+      taches.push(() => champs());
+      for (const n of demande.bati || []) { const c = nomCouche(n); if (c) taches.push(() => (MURS[c] ? baseMur(c) : baseToit(c))); }
+      for (const m of demande.murs || []) taches.push(() => baseMur(nomMur(m)));
+      for (const t of demande.toits || []) taches.push(() => baseToit(nomToit(t)));
+      for (const t of demande.sols || []) taches.push(() => { const b = baseSol(nomSol(t), taille(TAILLES.detailSol)); if (!b.neutre) b.neutre = neutre(b); });
+      for (const t of demande.solsCouleur || []) taches.push(() => baseSol(nomSol(t)));
+      if (demande.details) taches.push(() => details());
+      for (const e of demande.enseignes || []) taches.push(() => enseigne(e[0], e[1]));
+      for (const n of demande.plaques || []) taches.push(() => plaqueRue(n));
+    }
+    let maxTranche = 0;
+    return new Promise((ok) => {
+      let i = 0; const pas = () => { const t0 = now(); while (i < taches.length && now() - t0 < tr) { try { taches[i++](); } catch (e) { /* une matière ratée retombe sur sa couleur */ } } maxTranche = Math.max(maxTranche, now() - t0); if (i < taches.length) setTimeout(pas, 0); else { const s = stats(); s.tranchePlusLongue = +maxTranche.toFixed(1); if (fini) fini(s); ok(s); } };
+      setTimeout(pas, 0);
+    });
+  }
   function retour() { CACHE.forEach((v) => { const t = v && v.isTexture ? v : v && v.texture && v.texture.isTexture ? v.texture : null; if (t) t.needsUpdate = true; }); PAGES.forEach((p) => { p.tx.needsUpdate = true; }); } // après une perte du contexte WebGL
   function vider() { // libère vraiment tout (changement de qualité, fin du jeu) : les textures, les matériaux, les octets gardés
-    const vus = new Set(); CACHE.forEach((v) => { const t = v && v.isTexture ? v : v && v.texture && v.texture.isTexture ? v.texture : null; if (t && !vus.has(t)) { vus.add(t); t.dispose(); } if (v && v.materiau) { try { const m = v.materiau(); m.dispose(); } catch (e) { /* rien */ } } });
-    PAGES.forEach((p) => { if (!vus.has(p.tx)) p.tx.dispose(); }); PAGES.length = 0; CACHE.clear(); BASES.clear(); CHAMPS.clear(); TOILES.clear(); ST.octets = 0; ST.textures = 0;
+    const vus = new Set(); CACHE.forEach((v) => { const t = v && v.isTexture ? v : v && v.texture && v.texture.isTexture ? v.texture : null; if (t && !vus.has(t)) { vus.add(t); t.dispose(); } if (v && v.materiau) { try { v.materiau().dispose(); if (v.cellules) v.materiau({ couleurs: true }).dispose(); } catch (e) { /* rien */ } } });
+    PAGES.forEach((p) => { if (!vus.has(p.tx)) p.tx.dispose(); }); PAGES.length = 0; CACHE.clear(); BASES.clear(); CHAMPS = null; TOILES.clear(); ST.octets = 0; ST.textures = 0;
   }
-  function stats() { return { textures: ST.textures, octets: ST.octets, mo: +(ST.octets / 1048576).toFixed(2), generees: ST.generees, bases: ST.bases, ms: +ST.ms.toFixed(1), detail: Object.fromEntries(Object.entries(ST.detail).map(([k, v]) => [k, +v.toFixed(1)])), qualite: Q.niveau, pages: PAGES.length }; }
+  function stats() { return { textures: ST.textures, octets: ST.octets, mo: +(ST.octets / 1048576).toFixed(2), generees: ST.generees, bases: ST.bases, ms: +ST.ms.toFixed(1), detail: Object.fromEntries(Object.entries(ST.detail).map(([k, v]) => [k, +v.toFixed(1)])), phases: Object.fromEntries(Object.entries(ST.phases).map(([k, v]) => [k, +v.toFixed(1)])), parBase: Object.assign({}, ST.parBase), qualite: Q.niveau, pages: PAGES.length }; }
   function apercu(tx) { // une toile 2D pour voir une texture (pages de test) : DataTexture remise à l'endroit, ou la toile d'une CanvasTexture
     if (!tx) return null; if (tx.userData && tx.userData.canvas) return tx.userData.canvas; const im = tx.image; if (!im || !im.data) return null;
     const S = im.width, H = im.height, cv = document.createElement('canvas'); cv.width = S; cv.height = H; const c = cv.getContext('2d'), id = c.createImageData(S, H), d = im.data;
     for (let y = 0; y < H; y++) id.data.set(d.subarray((H - 1 - y) * S * 4, (H - y) * S * 4), y * S * 4); c.putImageData(id, 0, 0); return cv;
   }
   return {
-    OK, init, qualite, facade, toit, sol, solPaquet, periode, bati, details, enseigne, plaqueRue, TEINTES, VOLETS: Object.keys(VOLETS), STYLES: Object.keys(STYLES).concat(['carotte', 'drapeau']),
+    OK, init, qualite, preparer, facade, toit, sol, solPaquet, periode, bati, details, enseigne, plaqueRue, TEINTES, VOLETS: Object.keys(VOLETS), STYLES: Object.keys(STYLES).concat(['carotte', 'drapeau']),
     MURS: Object.keys(MURS), TOITS: Object.keys(TOITS), SOLS: Object.keys(SOLS), stats, retour, vider, apercu, _interne: { CACHE, BASES, PAGES, champs, hash },
   };
 })();

@@ -87,7 +87,7 @@ const PHUD = (() => {
     q('.h-b-pause').addEventListener('click', () => { if (actions.pause) actions.pause(); });
     q('.h-b-scores').addEventListener('click', () => scores(!scoresOuverts));
     el.scores.addEventListener('click', () => scores(false));
-    el.fin.addEventListener('click', (e) => { const b = e.target.closest('[data-fin]'); if (!b) return; const a = b.dataset.fin; if (a === 'rejouer' && actions.rejouer) actions.rejouer(); else if (a === 'menu' && actions.menu) actions.menu(); });
+    el.fin.addEventListener('click', (e) => { const b = e.target.closest('[data-fin]'); if (!b || b.disabled) return; const a = b.dataset.fin; if (typeof actions[a] === 'function') { try { actions[a](); } catch (err) { console.warn('[Poncin] fin', a, err); } } }); // rejouer, menu, salon…
     taille();
   }
   let nombres = [], fleches = [], noms = [], ctxCarte = null, tailleCarte = 112;
@@ -294,7 +294,7 @@ const PHUD = (() => {
     const inv = (moi.invincible || 0) > 0; if (inv !== vu.inv) { vu.inv = inv; el.vie.classList.toggle('protege', inv); }
     // munitions
     const mun = moi.munitions ? moi.munitions[moi.arme] : 0, res = moi.reserve ? moi.reserve[moi.arme] : 0;
-    ecrire('mun', el.munN, mun == null ? 0 : mun); ecrire('res', el.munR, res == null ? 0 : res, '/ ');
+    ecrire('mun', el.munN, mun == null ? 0 : mun); ecrire('res', el.munR, moi.arme === 'rafale' ? '∞' : res == null ? 0 : res, '/ '); // le blaster rafale recharge à l'infini
     if (moi.arme !== vu.arme) { vu.arme = moi.arme; el.armeIco.innerHTML = SVG_ARME[moi.arme] || ''; el.armeNom.textContent = (R && R.arme(moi.arme).nom) || NOM_ARME[moi.arme] || ''; }
     const bas = mun != null && A.chargeur ? mun <= Math.ceil(A.chargeur * 0.25) : false; if (bas !== vu.munBas) { vu.munBas = bas; el.mun.classList.toggle('bas', bas); }
     const vide = mun === 0 && !(moi.rechargeJusqua > jeu.temps) && moi.vivant; if (vide !== vu.vide) { vu.vide = vide; el.centre.classList.toggle('vide', vide); }
@@ -341,9 +341,9 @@ const PHUD = (() => {
     const es = jeu.entites, eq = estEquipes(jeu);
     let a = 0, b = 0, cB = '#FF6B8B', rang = 1;
     if (eq) { for (let i = 0; i < es.length; i++) { const e = es[i]; if (e.equipe === moi.equipe) a += kills(e); else { b += kills(e); cB = e.couleur || cB; } } }
-    else { a = kills(moi); let meil = null; for (let i = 0; i < es.length; i++) { const e = es[i]; if (e === moi) continue; if (!meil || kills(e) > kills(meil)) meil = e; if (points(e) > points(moi)) rang++; } b = meil ? kills(meil) : 0; cB = meil ? meil.couleur : cB; }
+    else { a = kills(moi); let meil = null; for (let i = 0; i < es.length; i++) { const e = es[i]; if (e === moi) continue; if (!meil || kills(e) > kills(meil)) meil = e; if (kills(e) > kills(moi) || (kills(e) === kills(moi) && points(e) > points(moi))) rang++; } b = meil ? kills(meil) : 0; cB = meil ? meil.couleur : cB; } // le rang : les repeints, puis les points (comme la fin)
     ecrire('sa', el.scoreMoi, a); ecrire('sb', el.scoreEux, b);
-    const cA = eq ? '#7FB3FF' : moi.couleur || '#FFC84A'; if (cA !== vu.cA) { vu.cA = cA; el.pastMoi.style.background = cA; }
+    const cA = moi.couleur || '#FFC84A'; if (cA !== vu.cA) { vu.cA = cA; el.pastMoi.style.background = cA; } // en équipes, la couleur de l'équipe (celle du joueur)
     if (cB !== vu.cB) { vu.cB = cB; el.pastEux.style.background = cB; }
     const cleObj = eq ? -1 : rang; if (cleObj !== vu.obj) { vu.obj = cleObj; el.objectif.textContent = `${eq ? 'équipe' : rang === 1 ? '1er' : rang + 'e'} · premier à ${objectif(jeu)}`; }
   }
@@ -361,7 +361,7 @@ const PHUD = (() => {
   // ─── tableau des scores ───
   function lignes(jeu) { // les entités triées (classement du jeu s'il existe)
     let c = null; try { c = jeu.classement ? jeu.classement() : null; } catch (e) { c = null; }
-    if (!Array.isArray(c) || !c.length) c = jeu.entites.slice().sort((x, y) => points(y) - points(x) || kills(y) - kills(x));
+    if (!Array.isArray(c) || !c.length) c = jeu.entites.slice().sort((x, y) => kills(y) - kills(x) || points(y) - points(x));
     return c.map((x) => { const e = x && x.score ? x : trouver(jeu, x && x.id) || x || {}; const s = e.score || x || {}; return { id: e.id, nom: e.id === idMoi ? (e.nom || 'Toi') : e.nom, couleur: e.couleur, equipe: e.equipe, bot: e.bot, kills: s.kills || 0, morts: s.morts || 0, points: s.points || 0 }; });
   }
   function tableHtml(jeu, ls) {
@@ -380,16 +380,20 @@ const PHUD = (() => {
     let titre, gagne;
     if (eq) { const mien = me.equipe; let a = 0, b = 0; ls.forEach((l) => { if (l.equipe === mien) a += l.kills; else b += l.kills; }); gagne = a > b; titre = a > b ? 'Victoire de ton équipe !' : a === b ? 'Égalité !' : 'Défaite… revanche ?'; }
     else { gagne = rang === 1; titre = rang === 1 ? 'Victoire !' : rang === 2 ? '2e place, presque !' : `${rang}e place`; }
+    if (infos.titre) { titre = infos.titre; gagne = false; } // une partie interrompue (l'hôte est parti) : ni victoire ni place
     const podium = ls.slice(0, 3).map((l, i) => `<div class="h-pod p${i + 1}${l.id === idMoi ? ' moi' : ''}"><span class="h-pod-nom"><i style="background:${esc(l.couleur || '#ccc')}"></i>${esc(l.nom)}</span><div class="h-pod-socle"><b>${i + 1}</b><small>${l.points} pts</small></div></div>`);
     const ordre = [podium[1] || '', podium[0] || '', podium[2] || ''].join('');
+    const boutons = Array.isArray(infos.boutons) && infos.boutons.length ? infos.boutons : [{ fin: 'rejouer', texte: 'Rejouer', cls: 'menthe' }, { fin: 'menu', texte: 'Menu', cls: 'blanc' }];
     el.fin.innerHTML = `<div class="h-fin-carte ${gagne ? 'gagne' : ''}">
       <div class="h-fin-g"><small>${esc(infos.mode || 'Arène')} · fin de partie</small><h2>${esc(titre)}</h2>
+        ${infos.message ? `<div class="h-fin-msg">${esc(infos.message)}</div>` : ''}
         <div class="h-podium">${ordre}</div>
         <div class="h-fin-moi"><span><b>${me.points}</b> points</span><span><b>${me.kills}</b> repeints</span><span><b>${me.morts}</b> fois repeint</span></div>
         ${infos.record ? '<div class="h-record">Nouveau record !</div>' : infos.meilleur ? `<div class="h-record ancien">Record : ${infos.meilleur} points</div>` : ''}
       </div>
       <div class="h-fin-d">${tableHtml(jeu || { entites: [] }, ls.slice(0, 6))}
-        <div class="h-fin-btns"><button type="button" class="bouton menthe" data-fin="rejouer">Rejouer</button><button type="button" class="bouton blanc" data-fin="menu">Menu</button></div></div>
+        ${infos.attente ? `<p class="h-fin-attente">${esc(infos.attente)}</p>` : ''}
+        <div class="h-fin-btns${boutons.length > 2 ? ' trois' : ''}">${boutons.map((b) => `<button type="button" class="bouton ${esc(b.cls || 'blanc')}" data-fin="${esc(b.fin)}"${b.disabled ? ' disabled' : ''}>${esc(b.texte)}</button>`).join('')}</div></div>
     </div>`;
     el.fin.hidden = false; el.mort.hidden = true; vu.mort = false; racine.classList.add('finie'); racine.classList.remove('mort');
     return { gagne, rang, points: me.points, kills: me.kills };

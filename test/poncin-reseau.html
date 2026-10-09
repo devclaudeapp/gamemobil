@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Poncin : banc du réseau</title>
+<!-- Banc d'essai de src-poncin/reseau.js (PRESEAU) : la page charge supabase-js, la configuration publique et le module tel quel.
+     Utilisé par test/poncin-reseau.cjs (voies 'local' et 'webrtc-local') et test/poncin-en-ligne-ci.cjs (voie 'supabase', sur GitHub Actions). -->
+<script>
+// pour les essais de coupure : on garde la trace des connexions WebRTC et des WebSocket (Supabase Realtime) que la page ouvre
+window.__pcs = []; window.__ws = [];
+if (window.RTCPeerConnection) window.RTCPeerConnection = class extends window.RTCPeerConnection { constructor(...a) { super(...a); window.__pcs.push(this); } };
+if (window.WebSocket) window.WebSocket = class extends window.WebSocket { constructor(...a) { super(...a); window.__ws.push(this); } };
+</script>
+<script src="../vendor/supabase.min.js"></script>
+<script src="../poncin/config.js"></script>
+<script src="../src-poncin/reseau.js"></script>
+</head>
+<body>
+<pre id="journal">banc du réseau</pre>
+<script>
+// window.banc : un salon, et tout ce qu'il reçoit (messages et événements), horodaté
+window.banc = {
+  s: null, recus: [], evts: [], erreurs: [],
+  async rejoindre(o) {
+    const s = this.s = await PRESEAU.salon(o);
+    for (const t of ['joueurs', 'hote', 'ferme']) s.sur(t, (d) => this.evts.push({ t, d: JSON.parse(JSON.stringify(d || null)), q: Date.now() }));
+    for (const t of ['msg', 'etat', 'entree', 'rafale', 'gros']) s.sur(t, (d, de) => this.recus.push({ t, d, de, q: Date.now() }));
+    return this.resume();
+  },
+  resume() {
+    const s = this.s; if (!s) return null;
+    return { code: s.code, via: s.via, moi: s.moi.id, hote: s.hote, estHote: s.estHote, ferme: s.ferme, joueurs: Array.from(s.joueurs.values()).map((j) => Object.assign({}, j)).sort((a, b) => a.depuis - b.depuis) };
+  },
+  // messages reçus d'un type (option : depuis un instant)
+  de(t, apres) { return this.recus.filter((m) => m.t === t && (!apres || m.q >= apres)); },
+  // envoie n messages à cadence fixe (hz) ; data = { k, t (horodatage), x (charge) }
+  async cadence(type, hz, secondes, opt, octets) {
+    const x = 'x'.repeat(octets || 0), n = Math.round(hz * secondes); let ok = 0;
+    for (let k = 0; k < n; k++) { if (this.s.envoyer(type, { k, t: Date.now(), x }, opt)) ok++; await new Promise((r) => setTimeout(r, 1000 / hz)); }
+    return ok;
+  },
+};
+window.addEventListener('error', (e) => window.banc.erreurs.push(String(e.message)));
+window.addEventListener('unhandledrejection', (e) => window.banc.erreurs.push('promesse : ' + String(e.reason && e.reason.message || e.reason)));
+</script>
+</body>
+</html>
