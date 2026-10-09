@@ -156,7 +156,11 @@ jobs:
           Contenu : les modèles GLB du dossier « GLB format » du pack, tels quels. Ils ne contiennent pas leur texture :
           chacun pointe vers \`Textures/colormap.png\` (une petite palette de couleurs, UV vers des aplats), copiée ici
           avec les variantes de couleurs. Garder ce dossier tel quel pour que \`THREE.GLTFLoader\` retrouve la texture.
-          Orientation, échelle et point de bouche de chaque modèle : décidés côté jeu (voir les mesures de la préparation).
+          Mesuré (three r158 + GLTFLoader) : canon vers −z, dessus vers +y ; unités du pack ≈ 1,5 × nos mètres (×0,65 pour la
+          taille de nos blasters) ; l'origine varie d'un modèle à l'autre (blaster-e : origine à la bouche) : placer d'après la boîte
+          englobante. Nœuds séparés « magazine » (a, d, e, f, j, p, r : animation de recharge) et « scope » (e, f : lunette, pleine,
+          on ne voit pas au travers). Matériau unique MeshStandard (métal 0, rugosité 1, double face) sur la palette 512×512 ;
+          Textures/variation-a.png = la même palette en version sombre.
           EOF
           echo "--- poncin/armes ---"; find poncin/armes -type f -printf '%10s  %P\n' | sort -k2; du -sh poncin/armes
       - name: Commiter poncin/armes sur la branche armes
