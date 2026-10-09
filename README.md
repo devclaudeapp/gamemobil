@@ -4,9 +4,18 @@ Ce dépôt est une **salle de jeux pour le téléphone** : l'adresse du site ouv
 
 ### L'écran d'accueil
 
-Une carte par jeu, avec la partie en cours lue dans sa sauvegarde (pour Le Fournil : nom de la boutique, numéro, étoiles, dernière visite) et un bouton Jouer ou Continuer ; une carte en pointillés pour le prochain jeu. Il s'installe sur le téléphone comme une application (« Salle de jeux ») et s'ouvre hors ligne (`sw.js` à la racine, qui ne s'occupe que de l'accueil). Dans Le Fournil, Réglages → **Salle de jeux** y ramène. Une icône du Fournil installée avant l'accueil continue d'ouvrir directement le jeu.
+Une carte par jeu, avec la partie en cours lue dans sa sauvegarde (pour Le Fournil : nom de la boutique ou enseigne du quartier, numéro, étoiles, dernière visite ; localStorage, et IndexedDB en lecture seule si la base existe déjà) et un bouton Jouer ou Continuer ; une carte en pointillés pour le prochain jeu. Il s'installe sur le téléphone comme une application (« Salle de jeux ») et s'ouvre hors ligne : `sw.js` à la racine ne s'occupe que de l'accueil, et l'accueil enregistre aussi le service worker de chaque jeu, qui marche donc sans réseau même jamais ouvert. Dans Le Fournil, Réglages → **Salle de jeux** y ramène.
 
-**Ajouter un jeu** : un dossier à son nom à la racine (son `index.html`, son `manifest.webmanifest` et, s'il doit marcher hors ligne, son `sw.js` dont les caches portent un préfixe à lui), puis une entrée dans la liste `JEUX` en bas d'`index.html` (nom, genre, phrase, dossier, icône, couleur, et au besoin une fonction qui lit sa sauvegarde pour afficher la partie en cours). Three.js est partagé dans `vendor/`. Les sauvegardes vivent dans le stockage du domaine : chaque jeu choisit une clé à son nom (`fournil.v2` pour Le Fournil).
+Une icône du Fournil installée avant l'accueil continue d'ouvrir directement le jeu : en plein écran sans `?app=accueil`, l'accueil redirige vers `fournil/` (jamais depuis un dossier de jeu, pour ne pas boucler), et le manifeste du Fournil garde l'identifiant de l'ancienne application (`"id": "/gamemobil/"`), si bien qu'Android la met à jour vers `fournil/`. Sa portée (`"scope": "../"`) couvre l'accueil, qui s'ouvre donc dans la même fenêtre. La page du jeu, servie hors de `fournil/` par une vieille copie en cache, y retourne d'elle-même.
+
+**Les sauvegardes** vivent dans le stockage du navigateur, par domaine. Sur iPhone, chaque icône de l'écran d'accueil a le sien, séparé de Safari : une partie commencée dans Safari ne suit pas l'icône installée (l'accueil le dit quand l'icône n'a encore aucune partie) ; le code de Réglages → Sauvegarde et transfert la fait passer de l'un à l'autre.
+
+**Ajouter un jeu** :
+1. un dossier à son nom à la racine, avec son `index.html`, son `manifest.webmanifest` (sans `id` relatif : il se résout contre la racine du domaine) et, s'il doit marcher hors ligne, son `sw.js` dont les caches portent un préfixe à lui ;
+2. une entrée dans la liste `JEUX` en bas d'`index.html` : nom, genre, phrase, dossier, icône, couleur, son service worker (`sw`) et au besoin une fonction qui lit sa sauvegarde pour afficher la partie en cours, sans jamais l'écrire ni créer sa base ;
+3. son icône dans `SHELL` du `sw.js` de la racine, et `CACHE` passé à la version suivante (`accueil-v2`…), pour que l'accueil hors ligne la montre.
+
+Three.js est partagé dans `vendor/`. Chaque jeu choisit une clé de sauvegarde à son nom (`fournil.v2` pour Le Fournil).
 
 ## Le Fournil
 

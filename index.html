@@ -17,10 +17,12 @@
 // L'écran d'accueil du dépôt : chaque jeu vit dans son dossier (fournil/…). Ce fichier n'est pas généré : on l'édite à la main.
 // Une icône « Le Fournil » installée avant l'existence de cet accueil ouvre la racine en plein écran : on l'emmène droit au jeu.
 // L'accueil installé pour lui-même s'ouvre avec ?app=accueil (voir manifest.webmanifest) et reste ici.
+// Chemin absolu, et jamais depuis un dossier de jeu : une vieille copie de cette page servie sous fournil/ ne doit pas boucler vers fournil/fournil/.
 (function () {
   try {
     const seul = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true;
-    if (seul && !/[?&]app=accueil/.test(location.search)) location.replace('fournil/');
+    const dossier = location.pathname.replace(/[^/]*$/, '');
+    if (seul && !/[?&]app=accueil/.test(location.search) && !/\/fournil\/$/.test(dossier)) location.replace(dossier + 'fournil/');
   } catch (e) { /* rien */ }
 })();
 </script>
@@ -29,7 +31,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800&display=swap">
 <style>
 :root {
-  --creme: #FFF7EC; --carte: #FFFFFF; --texte: #4A3328; --texte-2: #8C6F62; --trait: #EADFD6;
+  --creme: #FFF7EC; --carte: #FFFFFF; --texte: #4A3328; --texte-2: #7D6155; --trait: #EADFD6;
   --beurre: #FFC84A; --beurre-sombre: #E0A61E; --lavande: #B8A6FF; --lavande-pale: #F1ECFF; --menthe: #5FD3A4;
   --titre: 'Fredoka', 'Nunito', system-ui, sans-serif; --texte-font: 'Nunito', system-ui, sans-serif;
 }
@@ -45,7 +47,7 @@ h2 { margin: 0 0 10px; font: 700 14px/1 var(--texte-font); color: var(--texte-2)
 #jeux { display: grid; gap: 14px; }
 .jeu { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 14px; align-items: center; padding: 16px; border-radius: 24px; background: var(--carte); box-shadow: 0 5px 0 var(--trait); color: inherit; text-decoration: none; transition: transform .12s ease, box-shadow .12s ease; }
 .jeu:active { transform: translateY(4px); box-shadow: 0 1px 0 var(--trait); }
-.jeu:focus-visible { outline: 3px solid var(--lavande); outline-offset: 3px; }
+.jeu:focus-visible { outline: 3px solid var(--texte); outline-offset: 3px; }
 .jeu .vignette { width: 76px; height: 76px; border-radius: 20px; display: grid; place-items: center; background: var(--fond, #FFF1D6); }
 .jeu .vignette img { width: 64px; height: 64px; }
 .jeu h3 { margin: 0; font: 700 22px/1.1 var(--titre); }
@@ -60,6 +62,8 @@ h2 { margin: 0 0 10px; font: 700 14px/1 var(--texte-font); color: var(--texte-2)
 .jeu.bientot h3 { color: var(--texte-2); }
 .pied { margin: 26px 4px 0; color: var(--texte-2); font-size: 13px; text-align: center; }
 .pied b { color: var(--texte); }
+.note { margin: 0 0 14px; padding: 12px 14px; border-radius: 18px; background: var(--lavande-pale); color: var(--texte); font-size: 14px; }
+.note[hidden] { display: none; }
 @media (prefers-reduced-motion: reduce) { .jeu { transition: none; } }
 </style>
 </head>
@@ -69,42 +73,80 @@ h2 { margin: 0 0 10px; font: 700 14px/1 var(--texte-font); color: var(--texte-2)
     <img src="icons/accueil.svg" alt="" width="60" height="60">
     <div><h1>Salle de jeux</h1><p>Des petits jeux pour le téléphone, à jouer quand tu veux.</p></div>
   </header>
+  <p class="note" id="note-iphone" hidden>Sur iPhone, une icône de l’écran d’accueil garde sa propre sauvegarde : une partie commencée dans Safari ne la suit pas. Pour la reprendre ici, dans Safari : Le Fournil → Réglages → Sauvegarde et transfert → copier le code, puis le charger au même endroit dans le jeu ouvert depuis cette icône.</p>
   <h2 id="titre-jeux">Les jeux</h2>
   <section id="jeux" aria-labelledby="titre-jeux"></section>
-  <p class="pied">Chaque partie est enregistrée sur ce téléphone.<br><b>Pour l’installer</b> : Partager → « Sur l’écran d’accueil » sur iPhone, menu ⋮ → « Installer l’application » sur Android.</p>
+  <p class="pied">Chaque partie est enregistrée dans ce navigateur, sur ce téléphone (sur iPhone, une icône de l’écran d’accueil a sa sauvegarde à elle).<br><b>Pour l’installer</b> : Partager → « Sur l’écran d’accueil » sur iPhone, menu ⋮ → « Installer l’application » sur Android.</p>
 </main>
 <script>
 (() => {
   'use strict';
   // ─── la liste des jeux : pour en ajouter un, un dossier à son nom et une entrée ici ───
   const JEUX = [
-    { id: 'fournil', nom: 'Le Fournil', genre: 'Boulangerie en 3D', pitch: 'Cuis, vends, embauche des apprentis : ta boulangerie tourne même quand tu n’es pas là.', url: 'fournil/', icone: 'icons/icon.svg', fond: '#FFF1D6', progres: progresFournil },
+    { id: 'fournil', nom: 'Le Fournil', genre: 'Boulangerie en 3D', pitch: 'Cuis, vends, embauche des apprentis : ta boulangerie tourne même quand tu n’es pas là.', url: 'fournil/', icone: 'icons/icon.svg', fond: '#FFF1D6', progres: progresFournil, sw: 'fournil/sw.js' },
     { bientot: true, nom: 'Bientôt un nouveau jeu', pitch: 'Il s’installera ici, à côté du Fournil.' },
   ];
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const ilYA = (ms) => { const s = Math.max(0, (Date.now() - ms) / 1000); return s < 120 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
-  // la partie du Fournil, lue dans sa sauvegarde (même domaine : localStorage partagé)
+  // ─── Le Fournil : sa sauvegarde (même domaine, donc même stockage), en lecture seule ───
+  // Le jeu écrit en double dans localStorage et IndexedDB ; on prend la plus avancée, comme lui au chargement.
+  const ENSEIGNES = ['Au Fournil du Village', 'Le Fournil de la Rue', 'Le Fournil de la Plage', 'Le Fournil du Chalet', 'Le Grand Fournil']; // les enseignes des quartiers (QUARTIERS dans src/game.js)
+  const lireFournil = (raw) => { try { const s = JSON.parse(raw || 'null'); return s && s.v === 2 && Array.isArray(s.stations) ? s : null; } catch (e) { return null; } };
+  const plusAvancee = (a, b) => (!a ? b : !b ? a : ((b.lifetime || 0) > (a.lifetime || 0) || ((b.lifetime || 0) === (a.lifetime || 0) && (b.lastSeen || 0) > (a.lastSeen || 0))) ? b : a);
+  let fournilIdb = null;
   function progresFournil() {
-    try {
-      const s = JSON.parse(localStorage.getItem('fournil.v2') || 'null');
-      if (!s || s.v !== 2 || !Array.isArray(s.stations)) return null;
-      return { titre: s.nomBoutique || 'Ta boulangerie', sous: `Boutique n°${s.boutiques || 1} · ${s.etoiles || 0} ★${s.lastSeen ? ` · ${ilYA(s.lastSeen)}` : ''}` };
-    } catch (e) { return null; }
+    let ls = null; try { ls = lireFournil(localStorage.getItem('fournil.v2')); } catch (e) { /* stockage indisponible */ }
+    const s = plusAvancee(ls, fournilIdb);
+    if (!s) return null;
+    const n = Math.max(1, s.boutiques || 1);
+    return { titre: s.nomBoutique || ENSEIGNES[(n - 1) % ENSEIGNES.length], sous: `Boutique n°${n} · ${s.etoiles || 0} ★${s.lastSeen ? ` · ${ilYA(s.lastSeen)}` : ''}` };
+  }
+  // IndexedDB en arrière-plan, sans jamais créer la base du jeu : seulement si elle existe déjà (une base vide créée ici l'empêcherait de créer son magasin)
+  function idbFournil() {
+    return new Promise((res) => {
+      try {
+        if (!window.indexedDB || typeof indexedDB.databases !== 'function') return res(null);
+        indexedDB.databases().then((ls) => {
+          if (!ls.some((d) => d.name === 'fournil')) return res(null);
+          const r = indexedDB.open('fournil');
+          r.onupgradeneeded = () => { try { r.transaction.abort(); } catch (e) { /* rien */ } };
+          r.onerror = () => res(null); r.onblocked = () => res(null);
+          r.onsuccess = () => {
+            const db = r.result;
+            try { const g = db.transaction('sauvegarde').objectStore('sauvegarde').get('fournil.v2'); g.onsuccess = () => { db.close(); res(lireFournil(typeof g.result === 'string' ? g.result : null)); }; g.onerror = () => { db.close(); res(null); }; } catch (e) { db.close(); res(null); }
+          };
+        }, () => res(null));
+        setTimeout(() => res(null), 1500);
+      } catch (e) { res(null); }
+    });
   }
   const box = document.getElementById('jeux');
-  box.innerHTML = JEUX.map((j) => {
-    if (j.bientot) return `<div class="jeu bientot" aria-disabled="true"><div class="vignette" aria-hidden="true">?</div><div><h3>${esc(j.nom)}</h3><p>${esc(j.pitch)}</p></div></div>`;
-    const p = j.progres ? j.progres() : null;
-    return `<a class="jeu" href="${esc(j.url)}" data-jeu="${esc(j.id)}" style="--fond:${j.fond}">
+  function afficher() {
+    let partie = false;
+    box.innerHTML = JEUX.map((j) => {
+      if (j.bientot) return `<div class="jeu bientot" aria-disabled="true"><div class="vignette" aria-hidden="true">?</div><div><h3>${esc(j.nom)}</h3><p>${esc(j.pitch)}</p></div></div>`;
+      const p = j.progres ? j.progres() : null; if (p) partie = true;
+      return `<a class="jeu" href="${esc(j.url)}" data-jeu="${esc(j.id)}" style="--fond:${j.fond}">
       <div class="vignette"><img src="${esc(j.icone)}" alt="" width="64" height="64"></div>
       <div><h3>${esc(j.nom)}</h3><span class="genre">${esc(j.genre)}</span><p>${esc(j.pitch)}</p></div>
       <div class="bas"><span class="progres">${p ? `${esc(p.titre)}${p.sous ? `<small>${esc(p.sous)}</small>` : ''}` : 'Nouvelle partie'}</span><span class="jouer">${p ? 'Continuer' : 'Jouer'}</span></div>
     </a>`;
-  }).join('');
-  // hors ligne : un service worker pour l'accueil (chaque jeu a le sien dans son dossier)
+    }).join('');
+    // sur iPhone, l'icône installée ne voit pas la sauvegarde de Safari : on le dit quand elle n'a encore aucune partie
+    document.getElementById('note-iphone').hidden = !(navigator.standalone === true && !partie);
+  }
+  const maj = () => { afficher(); idbFournil().then((s) => { fournilIdb = s; afficher(); }); };
+  maj();
+  // retour arrière (page restaurée du cache) ou retour sur l'onglet : la partie a pu avancer entre-temps
+  window.addEventListener('pageshow', (e) => { if (e.persisted) maj(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') maj(); });
+  // hors ligne : le service worker de l'accueil, et celui de chaque jeu (dans son dossier), pour qu'un jeu jamais ouvert marche quand même sans réseau
   if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
     let top = false; try { top = window.self === window.top; } catch (e) { top = false; }
-    if (top) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    if (top) window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+      for (const j of JEUX) if (j.sw) navigator.serviceWorker.register(j.sw, { scope: j.url }).catch(() => {});
+    });
   }
 })();
 </script>

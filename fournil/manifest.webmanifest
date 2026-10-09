@@ -1,11 +1,11 @@
 {
   "name": "Le Fournil",
   "short_name": "Le Fournil",
-  "id": "./",
+  "id": "/gamemobil/",
   "description": "Ta boulangerie de quartier : cuis, vends, améliore, embauche. Les apprentis travaillent même quand tu n’es pas là.",
   "lang": "fr",
   "start_url": "./",
-  "scope": "./",
+  "scope": "../",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#FFF7EC",

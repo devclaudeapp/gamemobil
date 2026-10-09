@@ -336,6 +336,69 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await p4.goto('http://localhost:8781/fournil/'); await sleep(1500);
   const sansThree = await p4.evaluate(() => ({ ok: !!window.__fournil, webgl: window.__fournil && window.__fournil.stats().webgl, panneau: !document.querySelector('#sans-3d').hidden, cartes: document.querySelectorAll('.carte').length }));
   check(sansThree.ok && !sansThree.webgl && sansThree.panneau && sansThree.cartes === 8 && !err4.length, `sans Three.js : le jeu démarre, panneau affiché, huit cartes${err4.length ? ' — ' + err4[0] : ''}`);
+  // l'écran d'accueil installé, et les vieilles icônes : redirections sans boucle, note iPhone, nom par défaut, 320 px, IndexedDB jamais créée
+  {
+    const iphone = { viewport: { width: 320, height: 640 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR' };
+    const c5 = await browser.newContext(iphone);
+    await c5.addInitScript(() => Object.defineProperty(Navigator.prototype, 'standalone', { get: () => true })); // une icône de l'écran d'accueil sur iPhone
+    const p5 = await c5.newPage(); const err5 = []; p5.on('pageerror', (e) => err5.push(e.message));
+    await p5.goto('http://localhost:8781/'); await p5.waitForURL(/\/fournil\/$/, { timeout: 5000 }).catch(() => {});
+    check(/\/fournil\/$/.test(new URL(p5.url()).pathname), 'une vieille icône du Fournil (racine, plein écran) mène droit au jeu : ' + new URL(p5.url()).pathname);
+    await sleep(1200); await p5.evaluate(() => window.__fournil.save());
+    await p5.goto('http://localhost:8781/?app=accueil'); await sleep(600);
+    const ip = await p5.evaluate(() => ({ chemin: location.pathname, note: !document.querySelector('#note-iphone').hidden, carte: document.querySelector('[data-jeu="fournil"]').innerText }));
+    check(ip.chemin === '/' && !ip.note && /Continuer/.test(ip.carte), 'l’accueil installé (?app=accueil) reste sur l’accueil ; il voit la partie ouverte depuis l’icône, pas de note');
+    await p5.evaluate(() => { localStorage.clear(); return new Promise((r) => { const d = indexedDB.deleteDatabase('fournil'); d.onsuccess = d.onerror = d.onblocked = () => r(); }); });
+    await p5.reload(); await sleep(800);
+    const vide = await p5.evaluate(async () => ({ note: !document.querySelector('#note-iphone').hidden, carte: document.querySelector('[data-jeu="fournil"]').innerText, bases: (await indexedDB.databases()).map((d) => d.name), large: document.documentElement.scrollWidth <= innerWidth + 1 }));
+    check(vide.note && /Nouvelle partie/.test(vide.carte) && !vide.bases.includes('fournil') && vide.large, 'sans partie sur l’icône iPhone : la note sur la sauvegarde séparée s’affiche, l’accueil n’a pas créé la base du jeu, rien ne déborde à 320 px');
+    await p5.screenshot({ path: out + '/12-accueil-iphone-vide.png' });
+    // une partie sans nom, deuxième boutique : l'enseigne du quartier ; puis un grand nombre d'étoiles : 320 px sans débordement
+    await p5.evaluate(() => localStorage.setItem('fournil.v2', JSON.stringify({ v: 2, stations: [], boutiques: 2, etoiles: 14, nomBoutique: '', lifetime: 5, lastSeen: Date.now() - 3 * 3600e3 })));
+    await p5.reload(); await sleep(500);
+    check(/Le Fournil de la Rue/.test(await p5.evaluate(() => document.querySelector('[data-jeu="fournil"]').innerText)), 'une boutique sans nom s’affiche sous l’enseigne de son quartier (Le Fournil de la Rue)');
+    await p5.evaluate(() => localStorage.setItem('fournil.v2', JSON.stringify({ v: 2, stations: [], boutiques: 12, etoiles: 123456, nomBoutique: 'Boulangerie-pâtisserie', lifetime: 5, lastSeen: Date.now() - 40 * 86400e3 })));
+    await p5.reload(); await sleep(500);
+    const etroit = await p5.evaluate(() => { const c = document.querySelector('[data-jeu="fournil"]').getBoundingClientRect(), b = document.querySelector('[data-jeu="fournil"] .jouer').getBoundingClientRect(), t = document.querySelector('[data-jeu="fournil"] .progres').getBoundingClientRect(); return { large: document.documentElement.scrollWidth <= innerWidth + 1, dans: b.right <= c.right + 0.5 && t.right <= b.left + 0.5 }; });
+    check(etroit.large && etroit.dans, 'à 320 px, la partie en cours et le bouton Continuer tiennent dans la carte');
+    await p5.screenshot({ path: out + '/12b-accueil-320.png' });
+    // la sauvegarde seulement dans IndexedDB (localStorage vidé par le système) : l'accueil la retrouve
+    await p5.evaluate(() => localStorage.clear());
+    await p5.goto('http://localhost:8781/fournil/'); await sleep(1500);
+    await p5.evaluate(() => window.__fournil.save()); await sleep(400);
+    await p5.evaluate(() => localStorage.removeItem('fournil.v2'));
+    await p5.goto('http://localhost:8781/?app=accueil'); await sleep(900);
+    check(/Continuer/.test(await p5.evaluate(() => document.querySelector('[data-jeu="fournil"]').innerText)), 'localStorage vidé : l’accueil retrouve la partie dans IndexedDB');
+    // l'accueil enregistre son service worker et celui du jeu (qui marche donc hors ligne même jamais ouvert)
+    const portees = await p5.evaluate(async () => { await navigator.serviceWorker.ready; await new Promise((r) => setTimeout(r, 300)); return (await navigator.serviceWorker.getRegistrations()).map((g) => new URL(g.scope).pathname).sort().join(' '); });
+    check(portees === '/ /fournil/', 'l’accueil enregistre son service worker et celui du Fournil : ' + portees);
+    check(!err5.length, 'aucune erreur dans ces parcours' + (err5.length ? ' — ' + err5[0] : ''));
+    await c5.close();
+    // les vieilles copies en cache (sans service worker ici, pour que la route de test réponde) : pas de boucle, et le jeu rentre chez lui
+    const c6 = await browser.newContext({ ...iphone, serviceWorkers: 'block' });
+    await c6.addInitScript(() => Object.defineProperty(Navigator.prototype, 'standalone', { get: () => true }));
+    const p6 = await c6.newPage();
+    const accueilHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8'), sousFournil = (u) => u.pathname === '/fournil/';
+    await p6.route(sousFournil, (r) => r.fulfill({ status: 200, contentType: 'text/html', body: accueilHtml }));
+    await p6.goto('http://localhost:8781/fournil/'); await sleep(900);
+    const boucle = await p6.evaluate(() => ({ chemin: location.pathname, titre: document.title }));
+    check(boucle.chemin === '/fournil/' && boucle.titre === 'Salle de jeux', 'l’accueil servi par erreur sous fournil/ ne boucle pas vers fournil/fournil/ (' + boucle.chemin + ')');
+    await p6.unroute(sousFournil);
+    const jeuHtml = fs.readFileSync(path.join(root, 'fournil', 'index.html'), 'utf8'), racine = (u) => u.pathname === '/';
+    await p6.route(racine, (r) => r.fulfill({ status: 200, contentType: 'text/html', body: jeuHtml }));
+    await p6.goto('http://localhost:8781/?app=accueil'); await p6.waitForURL(/\/fournil\/$/, { timeout: 5000 }).catch(() => {});
+    check(/\/fournil\/$/.test(new URL(p6.url()).pathname), 'la page du jeu servie à la racine retourne d’elle-même dans fournil/');
+    await c6.close();
+    // hors ligne : le jeu jamais ouvert s'ouvre quand même, grâce au service worker que l'accueil a installé
+    const c7 = await browser.newContext(iphone), p7 = await c7.newPage();
+    await p7.goto('http://localhost:8781/'); await sleep(500);
+    const pret = await p7.evaluate(async () => { for (let k = 0; k < 50; k++) { const g = await navigator.serviceWorker.getRegistration('fournil/'); if (g && g.active) return true; await new Promise((r) => setTimeout(r, 200)); } return false; });
+    await c7.setOffline(true);
+    await p7.goto('http://localhost:8781/fournil/').catch(() => {}); await sleep(1500);
+    const horsLigne = await p7.evaluate(() => !!window.__fournil && document.querySelectorAll('.carte[data-i]').length === 8).catch(() => false);
+    check(pret && horsLigne, 'hors ligne, Le Fournil s’ouvre depuis l’accueil sans avoir jamais été ouvert');
+    await c7.setOffline(false); await c7.close();
+  }
   console.log(errors.length ? 'ERRORS ' + errors.join(' | ') : 'ERRORS none');
   await browser.close(); server.close();
   console.log(fails ? `${fails} échec(s)` : 'Tout passe.');

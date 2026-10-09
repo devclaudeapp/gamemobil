@@ -29,6 +29,10 @@ const full = `<!doctype html>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="../icons/icon-180.png">
+<script>
+// la page du jeu vit dans fournil/ : servie ailleurs (une vieille copie en cache à la racine), ses chemins relatifs (../vendor, ../icons) casseraient
+(function () { try { var p = location.pathname; if (/^https?:$/.test(location.protocol) && !/[/]fournil[/](index[.]html)?$/.test(p)) location.replace(p.replace(/[^/]*$/, '') + 'fournil/'); } catch (e) { /* rien */ } })();
+</script>
 ${headInner}
 </head>
 <body>
