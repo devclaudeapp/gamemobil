@@ -753,7 +753,8 @@ function enseignesSol(ctx) { // commerces et services nommés : une enseigne sur
     let t0 = clamp((q[0] - best.a[0]) * best.ux + (q[1] - best.a[1]) * best.uz, 1, best.len - 1);
     for (let k = 0; k < 4 && res.some((e) => e.b === indexDe.get(b) && Math.hypot(e.x - (best.a[0] + best.ux * t0), e.z - (best.a[1] + best.uz * t0)) < 2.6); k++) t0 = t0 + 2.8 <= best.len - 1 ? t0 + 2.8 : clamp(t0 - 5.6, 1, best.len - 1);
     const x = best.a[0] + best.ux * t0 + best.nx * 0.12, z = best.a[1] + best.uz * t0 + best.nz * 0.12;
-    res.push({ b: indexDe.get(b), n: String(n).slice(0, 48), t: reg[1], x: r1(x), z: r1(z), yaw: Math.round(capVers(best.nx, best.nz) * 100) / 100 });
+    const nom = String(n).length <= 60 ? String(n) : String(n).slice(0, 58).replace(/\s+\S*$/, '') + '…';
+    res.push({ b: indexDe.get(b), n: nom, t: reg[1], x: r1(x), z: r1(z), yaw: Math.round(capVers(best.nx, best.nz) * 100) / 100 });
   }
   const vus = new Set(); return res.filter((e) => { const k = e.b + '|' + e.n; if (vus.has(k)) return false; vus.add(k); return batiments[e.b]; });
 }
@@ -904,7 +905,7 @@ function sortirDe(q, p, marge) { // le point du bord de p le plus proche de q, p
 }
 async function etapeArbres(R, L, carte, info, o) {
   const A = CONFIG.arbres, h = L / 2, ctx = info.ctx, N = o ? o.N : CONFIG.sol[0], ps = L / N, rnd = mulberry32(CONFIG.graine + 7);
-  const st = { couronnes: 0, fusionOSM: 0, osm: 0, rangees: 0, semes: 0, ecartes: 0, haies: 0, coupes: 0, especes: {}, sources: {} };
+  const st = { couronnes: 0, fusionOSM: 0, osm: 0, rangees: 0, semes: 0, ecartes: 0, raisons: {}, haies: 0, coupes: 0, especes: {}, sources: {} };
   let mnh = null, irc = null;
   if (o) {
     try { const c = await canopee(R, L, N); if (c) { mnh = c.h; st.sources.hauteur = c.src; } } catch (e) { alerte(`canopée : ${e.message.slice(0, 200)}`); }
@@ -925,16 +926,16 @@ async function etapeArbres(R, L, carte, info, o) {
   const zoneDe = (x, z) => { let best = null; for (const zn of zones) if (x >= zn.b[0] && x <= zn.b[2] && z >= zn.b[1] && z <= zn.b[3] && dedans(x, z, zn.p) && !zn.trous.some((t) => dedans(x, z, t)) && (!best || PRIO[zn.c] > PRIO[best.c])) best = zn; return best; };
   // le tronc : jamais dans un bâtiment, dans l'eau ni sur la chaussée (décalé de moins d'un rayon, sinon l'arbre est écarté)
   const surPont = (q) => carte.ponts.some((p) => distSeg(q[0], q[1], p.l[0][0], p.l[0][1], p.l[1][0], p.l[1][1]) <= p.w / 2 + 0.5);
-  const placer = (c) => {
-    let q = [c.x, c.z]; const lim = Math.max(1.2, c.r);
+  const placer = (c) => { // → [x, z] | 'bâtiment' | 'eau' | 'chaussée' | 'bord'
+    let q = [c.x, c.z]; const lim = Math.max(1.2, c.r), limEau = Math.max(3, 1.5 * c.r); // au bord de l'eau, la rive OSM passe souvent sous les couronnes
     for (let essai = 0; essai < 4; essai++) {
-      if (Math.abs(q[0]) > h - 0.6 || Math.abs(q[1]) > h - 0.6) return null;
-      const b = DANS_BATI(ctx, q); if (b) { q = sortirDe(q, b.p, 0.6); if (!q || dist(q, [c.x, c.z]) > lim) return null; continue; }
-      const e = carte.eau.find((x) => dedans(q[0], q[1], x.p)); if (e) { if (surPont(q)) return null; q = sortirDe(q, e.p, 0.8); if (!q || dist(q, [c.x, c.z]) > lim) return null; continue; }
-      const pr = pointRue(ctx, q[0], q[1], 12); if (pr && pr.d < pr.r.w / 2 + 0.3) { const a = pr.r.l[pr.i], b2 = pr.r.l[pr.i + 1], l = dist(a, b2) || 1; let nx = -(b2[1] - a[1]) / l, nz = (b2[0] - a[0]) / l; if ((q[0] - pr.q[0]) * nx + (q[1] - pr.q[1]) * nz < 0) { nx = -nx; nz = -nz; } q = [pr.q[0] + nx * (pr.r.w / 2 + 0.6), pr.q[1] + nz * (pr.r.w / 2 + 0.6)]; if (dist(q, [c.x, c.z]) > lim) return null; continue; }
+      if (Math.abs(q[0]) > h - 0.6 || Math.abs(q[1]) > h - 0.6) return 'bord';
+      const b = DANS_BATI(ctx, q); if (b) { q = sortirDe(q, b.p, 0.6); if (!q || dist(q, [c.x, c.z]) > lim) return 'bâtiment'; continue; }
+      const e = carte.eau.find((x) => dedans(q[0], q[1], x.p)); if (e) { if (surPont(q)) return 'eau'; q = sortirDe(q, e.p, 0.8); if (!q || dist(q, [c.x, c.z]) > limEau) return 'eau'; continue; }
+      const pr = pointRue(ctx, q[0], q[1], 12); if (pr && pr.d < pr.r.w / 2 + 0.3) { const a = pr.r.l[pr.i], b2 = pr.r.l[pr.i + 1], l = dist(a, b2) || 1; let nx = -(b2[1] - a[1]) / l, nz = (b2[0] - a[0]) / l; if ((q[0] - pr.q[0]) * nx + (q[1] - pr.q[1]) * nz < 0) { nx = -nx; nz = -nz; } q = [pr.q[0] + nx * (pr.r.w / 2 + 0.6), pr.q[1] + nz * (pr.r.w / 2 + 0.6)]; if (dist(q, [c.x, c.z]) > lim) return 'chaussée'; continue; }
       return q;
     }
-    return null;
+    return 'bâtiment';
   };
   // les arbres OSM : ils donnent la position du tronc et l'espèce de la couronne qu'ils touchent, sinon ils s'ajoutent
   const idxC = grille(10); cs.forEach((c) => idxC.ajouter([c.x, c.z, c.x, c.z], c));
@@ -968,7 +969,7 @@ async function etapeArbres(R, L, carte, info, o) {
   // les espèces
   const nirs = cs.filter((c) => c.nir).map((c) => c.nir).sort((a, b) => a - b), nirMed = nirs.length ? nirs[nirs.length >> 1] : 0;
   const rivieres = carte.eau.filter((e) => e.t === 'riviere'), dEau = (c, liste) => { let d = Infinity; for (const e of liste) { if (dedans(c.x, c.z, e.p)) return 0; d = Math.min(d, distBord(c.x, c.z, e.p)); } return d; };
-  const places = ctx.objets.filter((ob) => ob.polys.length && (ob.tags.place === 'square' || (ob.tags.highway === 'pedestrian' && ob.tags.area === 'yes'))).flatMap((ob) => ob.polys);
+  const places = ctx.objets.filter((ob) => ob.polys.length && !ob.tags.building && (ob.tags.place === 'square' || (ob.tags.highway === 'pedestrian' && ob.tags.area === 'yes') || /^place\b/i.test(ob.tags.name || ''))).flatMap((ob) => ob.polys);
   for (const c of cs) {
     if (c.e) continue; const zn = zoneDe(c.x, c.z); c.zone = zn ? zn.c : null; c.dRiv = dEau(c, rivieres); c.dEau = Math.min(c.dRiv, dEau(c, carte.eau.filter((e) => e.t !== 'riviere')));
     if (c.zone === 'fruitier' || c.zone === 'peuplier' || c.zone === 'conifere' || c.zone === 'feuillu') { c.e = c.zone; continue; }
@@ -989,7 +990,7 @@ async function etapeArbres(R, L, carte, info, o) {
   // la sortie [x, z, h, r, e]
   const arbres = [];
   for (const c of cs) {
-    const e = c.e || 'feuillu', q = placer(c); if (!q) { st.ecartes++; continue; }
+    const e = c.e || 'feuillu', q = placer(c); if (typeof q === 'string') { st.ecartes++; st.raisons[q] = (st.raisons[q] || 0) + 1; continue; }
     const r = clamp(c.r, 0.8, 12), hh = clamp(c.h || K_ESPECE[e] * r, 2.5, 40);
     arbres.push([r1(q[0]), r1(q[1]), r1(hh), r1(r), e]);
   }
@@ -998,7 +999,9 @@ async function etapeArbres(R, L, carte, info, o) {
   for (const a of arbres) st.especes[a[4]] = (st.especes[a[4]] || 0) + 1;
   carte.arbres = arbres;
   // les haies de hauteur inconnue : mesurée sur le LiDAR
-  for (const hz of carte.haies) { if (hz.mesure && mnh) { const v = densifier(hz.l, 1).map((q) => mnhAu(q, Math.max(0.5, hz.w / 2))).filter((x) => x >= 0.5).sort((a, b) => a - b); if (v.length >= 3) hz.h = r1(clamp(v[v.length >> 1], 0.8, 5)); } delete hz.mesure; }
+  // la hauteur des haies : mesurée sur le LiDAR quand il est là (médiane le long de la haie), sinon la BD TOPO ou OSM
+  let hMes = 0; for (const hz of carte.haies) { if (mnh) { const v = densifier(hz.l, 1).map((q) => mnhAu(q, Math.max(0.5, hz.w / 2))).filter((x) => x >= 0.5).sort((a, b) => a - b); if (v.length >= 3) { hz.h = r1(clamp(v[v.length >> 1], 0.8, 6)); hMes++; } } delete hz.mesure; }
+  st.haiesMesurees = hMes;
   log(`arbres : ${arbres.length} (${st.couronnes} couronnes, ${st.fusionOSM} reconnues par OSM, ${st.osm} OSM ajoutés, ${st.rangees} de rangées, ${st.semes} semés, ${st.ecartes} écartés, ${st.haies} haies basses, ${st.coupes} au-delà du maximum) ${JSON.stringify(st.especes)}`);
   info.arbres = st; info.mnh = mnh; info.irc = !!irc;
   return st;
@@ -1643,8 +1646,9 @@ function rapport(c, info, R) {
     `matériaux : murs ${JSON.stringify(T.murs)} → ${JSON.stringify(compter(c.batiments, (b) => b.mur))} ; toits ${JSON.stringify(T.toits)} → ${JSON.stringify(compter(c.batiments, (b) => b.toit))} ; teintes ${T.teintes} ; étages ${T.etages} ; formes OSM ${T.formes}`,
     `rues : ${c.rues.length} (${new Set(c.rues.filter((r) => r.n).map((r) => r.n)).size} noms) ; eau : ${c.eau.length} (rivière ${c.eau.filter((e) => e.t === 'riviere').length}, ruisseau ${c.eau.filter((e) => e.t === 'ruisseau').length}) ; ponts : ${c.ponts.length} (dont ${info.deduits} déduits d'une voie qui franchit un ruisseau, ${info.allonges} allongés pour enjamber l'eau)`,
     `végétation : ${c.vegetation.length} ${JSON.stringify(compter(c.vegetation, (v) => v.t))} (sens des rangs : ${T.sensPhoto || 0} par la photo, ${T.sensAxe || 0} par le grand axe) ; interdit : ${c.interdit.map((z) => z.n).join(', ') || 'aucun'}`,
-    `arbres : ${c.arbres.length} ${JSON.stringify(A.especes)} — ${A.couronnes} couronnes détectées (${A.sources ? `${A.sources.hauteur || 'sans LiDAR'} ; ${A.sources.vegetation || 'sans infrarouge'}` : ''}), ${A.fusionOSM} reconnues par un arbre OSM, ${A.osm} arbres OSM ajoutés, ${A.rangees} de rangées OSM, ${A.semes} semés (repli), ${A.ecartes} écartés (bâtiment, eau, chaussée), ${A.haies} haies basses`,
-    `haies : ${c.haies.length} (BD TOPO ${info.stHaies.bdtopo}, OSM ${info.stHaies.osm}) ; murs : ${c.murs.length} ${JSON.stringify(compter(c.murs, (m) => m.t))} (OSM ${info.stMurs.osm}, BD TOPO ${info.stMurs.bdtopo}, portails ${info.stMurs.portails})`,
+    `arbres : ${c.arbres.length} ${JSON.stringify(A.especes)} — ${A.couronnes} couronnes détectées (${A.sources ? `${A.sources.hauteur || 'sans LiDAR'} ; ${A.sources.vegetation || 'sans infrarouge'}` : ''}), ${A.fusionOSM} reconnues par un arbre OSM, ${A.osm} arbres OSM ajoutés, ${A.rangees} de rangées OSM, ${A.semes} semés (repli), ${A.ecartes} écartés ${JSON.stringify(A.raisons || {})}, ${A.haies} haies basses`,
+    `BD TOPO (autres couches) : ${['vegetation', 'haies', 'ponctuel', 'lineaire', 'cimetiere', 'sport'].map((k) => `${k} ${(info.autres[k] || []).length}${(info.autres[k] || []).length && info.autres[k][0].props.nature !== undefined ? ' [' + histo(info.autres[k], (o) => o.props.nature, 8) + ']' : ''}`).join(' ; ')}`,
+    `haies : ${c.haies.length} (BD TOPO ${info.stHaies.bdtopo}, OSM ${info.stHaies.osm} ; hauteur mesurée sur le LiDAR : ${A.haiesMesurees || 0}) ; murs : ${c.murs.length} ${JSON.stringify(compter(c.murs, (m) => m.t))} (OSM ${info.stMurs.osm}, BD TOPO ${info.stMurs.bdtopo}, portails ${info.stMurs.portails})`,
     `surfaces : ${c.surfaces.length} ${JSON.stringify(compter(c.surfaces, (s) => s.t))} ; mobilier : ${c.mobilier.length} ${JSON.stringify(compter(c.mobilier, (m) => m.t))} (OSM ${info.stMob.osm}, BD TOPO ${info.stMob.bdtopo})`,
     `enseignes (${c.enseignes.length}) : ${c.enseignes.map((e) => `${e.n} [${e.t}]`).join(' · ')}`,
     `objets nommés : église ${JSON.stringify(c.batiments.filter((b) => b.t === 'eglise').map((b) => b.n || '(sans nom)'))}, mairie ${JSON.stringify(c.batiments.filter((b) => b.t === 'mairie').map((b) => b.n || '(sans nom)'))}, château ${JSON.stringify([...new Set(c.batiments.filter((b) => b.t === 'chateau').map((b) => b.n || '(sans nom)'))])}`,
