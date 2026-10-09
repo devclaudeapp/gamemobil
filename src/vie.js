@@ -188,7 +188,7 @@ const VIE = (() => {
   // chat.haut : sur le comptoir ; chat.saut : 0 → 1 pendant un saut (descente ou montée) ; (x, y) : le point du sol (au pied du comptoir quand il est en haut)
   let chat = null;
   const piedComptoir = () => ({ x: LAY.chat.x, y: LAY.comptoir.y + LAY.comptoir.hTop + LAY.comptoir.hFace + 12 * K });
-  const spotsChat = () => [{ x: LAY.plante.x + 24 * K, y: LAY.plante.y + 8 * K }, { x: LAY.allee - 34 * K, y: LAY.T * 0.64 }, { x: LAY.tables[0].x - 42 * K, y: LAY.tables[0].y + 12 * K }, { x: W * 0.47, y: LAY.T * 0.92 }];
+  const spotsChat = () => [{ x: LAY.plante.x + 24 * K, y: LAY.plante.y + 8 * K }, { x: LAY.ardoise.x + 44 * K, y: LAY.ardoise.y - 4 * K }, { x: LAY.tables[0].x - 42 * K, y: LAY.tables[0].y + 12 * K }, { x: W * 0.47, y: LAY.T * 0.92 }]; // des coins libres : loin de la file et de l'allée
   function versChat(cible, vite) { const c = chat; c.cible = cible; c.etat = 'marche'; c.vite = !!vite; }
   function majChat(st, dt) {
     if (!st.chat) { chat = null; return; }
@@ -196,7 +196,7 @@ const VIE = (() => {
     const c = chat; c.phase += dt * 8; c.t -= dt;
     for (let i = c.coeurs.length - 1; i >= 0; i--) { const h = c.coeurs[i]; h.y -= 20 * dt; h.life -= dt; if (h.life <= 0) c.coeurs.splice(i, 1); }
     if (force.chat) { // les captures : endormi sur le comptoir, ou assis dans l'allée
-      if (force.chat === 'assis') { const sp = spotsChat()[1]; c.x = sp.x; c.y = sp.y; c.haut = false; c.etat = 'assis'; } else { const p = piedComptoir(); c.x = p.x; c.y = p.y; c.haut = true; c.etat = 'dort'; }
+      if (force.chat === 'assis') { const sp = spotsChat()[3]; c.x = sp.x; c.y = sp.y; c.haut = false; c.etat = 'assis'; } else { const p = piedComptoir(); c.x = p.x; c.y = p.y; c.haut = true; c.etat = 'dort'; }
       c.saut = 0; return;
     }
     if (c.etat === 'dort') { if (c.t <= 0) { c.etat = 'descend'; c.saut = 0; } }

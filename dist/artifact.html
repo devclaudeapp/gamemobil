@@ -1319,6 +1319,7 @@ const VIE = (() => {
   }
   function servi(st, c) { // au comptoir : le client est compté, l'habitué noté — exactement comme avant
     c.sac = !c.or || c.pris;
+    if (c.or) chasseChat(); // le chat court voir le client mystère
     st.stats.clients++; G.noter(st, 'clients', 1);
     if (c.hab) { const r = G.servirHabitue(st, c.hab); if (r.ok && API.surServi) API.surServi(r); }
     const slotLibre = c.slot; c.slot = -2;
@@ -1354,7 +1355,7 @@ const VIE = (() => {
     for (let k = apprentis.length - 1; k >= 0; k--) if (!staffes.includes(apprentis[k].i)) apprentis.splice(k, 1);
     staffes.forEach((i) => { if (!apprentis.some((a) => a.i === i)) { const lane = [0, 1, 2].find((l) => !apprentis.some((a) => a.lane === l)); apprentis.push({ i, lane, x: LAY.fourSlots[lane], y: LAY.lanes[lane], etat: 'four', t: tCuisson(st, i), plateau: false, dir: 1, phase: Math.random() * TAU }); } });
     for (const a of apprentis) {
-      a.phase += dt * 9;
+      a.phase += dt * 9; a.grade = force.grades || G.gradeApprenti(st, a.i);
       const v = 70 * K * (rush ? 1.5 : 1) * dt;
       if (a.etat === 'four') { a.t -= dt; a.dir = 2; if (panneI === a.i) a.etat = 'panne'; else if (a.t <= 0) { a.plateau = true; a.etat = 'porte'; } }
       else if (a.etat === 'porte') { a.dir = 1; const cible = LAY.comptoirSlots[a.lane]; a.x = Math.min(cible, a.x + v); if (a.x >= cible) { a.etat = 'depose'; a.t = 0.5; a.dir = 0; } }
@@ -1364,6 +1365,34 @@ const VIE = (() => {
       if (a.etat === 'four' && Math.random() < 0.04) vapeurs.push({ x: a.x + (Math.random() - 0.5) * 10, y: a.y - 40 * K, r: 2 + Math.random() * 2, life: 0.6 }); // la vapeur des fournées
     }
   }
+  // ─── le chat : il dort sur le comptoir, saute, fait le tour (la plante, l'allée, le salon), s'assoit, remonte ; il court voir le client mystère ───
+  // chat.haut : sur le comptoir ; chat.saut : 0 → 1 pendant un saut (descente ou montée) ; (x, y) : le point du sol (au pied du comptoir quand il est en haut)
+  let chat = null;
+  const piedComptoir = () => ({ x: LAY.chat.x, y: LAY.comptoir.y + LAY.comptoir.hTop + LAY.comptoir.hFace + 12 * K });
+  const spotsChat = () => [{ x: LAY.plante.x + 24 * K, y: LAY.plante.y + 8 * K }, { x: LAY.ardoise.x + 44 * K, y: LAY.ardoise.y - 4 * K }, { x: LAY.tables[0].x - 42 * K, y: LAY.tables[0].y + 12 * K }, { x: W * 0.47, y: LAY.T * 0.92 }]; // des coins libres : loin de la file et de l'allée
+  function versChat(cible, vite) { const c = chat; c.cible = cible; c.etat = 'marche'; c.vite = !!vite; }
+  function majChat(st, dt) {
+    if (!st.chat) { chat = null; return; }
+    if (!chat) { const p = piedComptoir(); chat = { x: p.x, y: p.y, etat: 'dort', haut: true, saut: 0, t: 12 + Math.random() * 18, phase: 0, dir: 1, cible: null, vite: false, tours: 0, coeurs: [] }; }
+    const c = chat; c.phase += dt * 8; c.t -= dt;
+    for (let i = c.coeurs.length - 1; i >= 0; i--) { const h = c.coeurs[i]; h.y -= 20 * dt; h.life -= dt; if (h.life <= 0) c.coeurs.splice(i, 1); }
+    if (force.chat) { // les captures : endormi sur le comptoir, ou assis dans l'allée
+      if (force.chat === 'assis') { const sp = spotsChat()[3]; c.x = sp.x; c.y = sp.y; c.haut = false; c.etat = 'assis'; } else { const p = piedComptoir(); c.x = p.x; c.y = p.y; c.haut = true; c.etat = 'dort'; }
+      c.saut = 0; return;
+    }
+    if (c.etat === 'dort') { if (c.t <= 0) { c.etat = 'descend'; c.saut = 0; } }
+    else if (c.etat === 'descend' || c.etat === 'monte') { c.saut = Math.min(1, c.saut + dt / 0.45); if (c.saut >= 1) { c.saut = 0; if (c.etat === 'descend') { c.haut = false; c.tours = 0; versChat(spotsChat()[Math.floor(Math.random() * 4)]); } else { c.haut = true; c.etat = 'dort'; c.t = 18 + Math.random() * 25; } } }
+    else if (c.etat === 'marche') {
+      const v = (c.vite ? 95 : 42) * K * dt, dx = c.cible.x - c.x, dy = c.cible.y - c.y, d = Math.hypot(dx, dy);
+      c.dir = Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : -1) : (dy < 0 ? 2 : 0);
+      if (d <= v) { c.x = c.cible.x; c.y = c.cible.y; if (c.cible.retour) { c.etat = 'monte'; c.saut = 0; c.dir = 2; } else { c.etat = 'assis'; c.dir = 0; c.t = c.vite ? 2.5 : 4 + Math.random() * 5; } }
+      else { c.x += dx / d * v; c.y += dy / d * v; }
+    }
+    else if (c.etat === 'assis') { if (c.t <= 0) { if (++c.tours >= 3) { const p = piedComptoir(); versChat({ x: p.x, y: p.y, retour: true }); } else versChat(spotsChat()[Math.floor(Math.random() * 4)]); } }
+  }
+  function chasseChat() { if (chat && !chat.haut && chat.etat !== 'monte' && chat.etat !== 'descend' && LAY) { versChat({ x: LAY.mystere.x + 16 * K, y: LAY.mystere.y + 6 * K }, true); chat.tours = Math.min(chat.tours, 2); } }
+  function ronron() { if (!chat) return; const x = chat.x, y = (chat.haut ? LAY.chat.y : chat.y) - 26 * K; for (let k = 0; k < 3; k++) chat.coeurs.push({ x: x + (k - 1) * 9, y: y - k * 4, life: 1 + k * 0.15 }); }
+
   let etat = null; // l'instantané de la dernière frame, pour la vue
   function frame(dt, st, now) {
     if (!LAY) calculer();
@@ -1382,6 +1411,7 @@ const VIE = (() => {
     }
     majClients(st, dt);
     majApprentis(st, dt);
+    majChat(st, dt);
     // dehors : des passants devant la fenêtre et la météo de saison, en fractions de la fenêtre (u : 0 → 1 de gauche à droite, v : 0 → 1 de haut en bas)
     nextPassant -= dt;
     if (nextPassant <= 0 && Q.vue !== 'mer' && Q.vue !== 'montagne') { nextPassant = 6 + Math.random() * 10; const g = Math.random() < 0.5; passants.push({ u: g ? -0.15 : 1.15, vu: (g ? 1 : -1) * (0.17 + Math.random() * 0.13), s: 0.7 + Math.random() * 0.3, col: ['#2B3A55', '#6B4A3A', '#3D5A4A', '#7A3B4A'][Math.floor(Math.random() * 4)], phase: Math.random() * TAU }); }
@@ -1406,10 +1436,10 @@ const VIE = (() => {
     return etat;
   }
 
-  const API = { hautBloc, resize, frame, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, surServi: null,
+  const API = { hautBloc, resize, frame, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, piedComptoir, surServi: null,
     DECORS, PASTEL, PEAUX6, HAUTS6, CHEVEUX, TAU,
     get LAY() { return LAY; }, get K() { return K; }, get W() { return W; }, get H() { return H; }, get t() { return t; }, get rush() { return rush; }, get Q() { return Q; }, get tags() { return tags; }, get force() { return force; }, get etat() { return etat; },
-    get clients() { return clients; }, get apprentis() { return apprentis; }, get textes() { return textes; }, get vapeurs() { return vapeurs; }, get confetti() { return confetti; }, get flocons() { return flocons; }, get passants() { return passants; }, get crans() { return crans; }, get abordables() { return abordables; }, get prixDe() { return prixDe; },
+    get clients() { return clients; }, get apprentis() { return apprentis; }, get textes() { return textes; }, get vapeurs() { return vapeurs; }, get confetti() { return confetti; }, get flocons() { return flocons; }, get passants() { return passants; }, get chat() { return chat; }, get crans() { return crans; }, get abordables() { return abordables; }, get prixDe() { return prixDe; },
     get nClients() { return clients.length; }, get nApprentis() { return apprentis.length; }, get assis() { let n = 0; for (const c of clients) if (c.etat === 'assis') n++; return n; }, get mystereVisible() { return !!mystereEnAttente(); } };
   return API;
 })();
@@ -1919,12 +1949,14 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
 if (typeof module !== 'undefined') module.exports = MEUBLES;
 
 /* ── persos.js ── */
-/* LE FOURNIL — les personnages et les pâtisseries en 3D : clients, apprentis, boulanger, en volumes low-poly arrondis pastel.
+/* LE FOURNIL — les personnages et les pâtisseries en 3D : clients, apprentis (et leurs grades), boulanger, le chat, les pâtisseries
+   de la carte et de saison, en volumes low-poly arrondis pastel.
    Un personnage = un Group (pieds à y = 0, le visage vers +Z) : deux jambes qui balancent, un buste fusionné (vêtement, tablier,
    marinière), une tête fusionnée (peau, coiffure, toque, chapeau), un visage en décalque (atlas d'expressions sur une calotte
    transparente), deux bras, et les accessoires (sac, plateau + pâtisserie fusionnés, clé, halo). Aucune échelle n'est appliquée :
    les cotes sont exprimées directement en unités monde, les proportions du dessin 2D y sont intégrées (73 de haut ≈ 45 px à
-   l'écran en plongée 52°, tête r = 10, corps 22 de large). Budget : ≤ 8 appels de dessin par personnage (7 de base + 1 accessoire). */
+   l'écran en plongée 52°, tête r = 10, corps 22 de large). Budget : ≤ 8 appels de dessin par personnage (7 de base + 1 accessoire),
+   à tous les grades d'apprenti ; le chat de la boutique : 5 ; une pâtisserie, de la carte ou de saison : 1. */
 const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (fichier non chargé), le module vaut null et le jeu démarre sans 3D
   'use strict';
   const M = MODELES, TAU = Math.PI * 2, HP = Math.PI / 2, CY = Math.cos(52 * Math.PI / 180);
@@ -1938,6 +1970,13 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   const patchC = (r, h, phi) => memo(`pc|${r}|${h}|${phi}`, () => new THREE.CylinderGeometry(r, r, h, 8, 1, true, -phi / 2, phi)); // un morceau de cylindre (centré) face à +Z
   const bande = (r, h) => memo(`bd|${r}|${h}`, () => new THREE.CylinderGeometry(r, r, h, 16, 1, true)); // un anneau cylindrique ouvert, centré
   const pendu = (r, l, dy) => memo(`pd|${r}|${l}|${dy}`, () => new THREE.CapsuleGeometry(r, l, 3, 8).translate(0, dy - l / 2, 0)); // une capsule qui pend : son pivot en haut
+  const etoile = (R, r, d) => memo(`et|${R}|${r}|${d}`, () => { // une étoile à cinq branches extrudée, centrée, face à +Z, une pointe en haut
+    const s = new THREE.Shape(); for (let k = 0; k < 10; k++) { const a = HP + k * Math.PI / 5, rr = k % 2 ? r : R; if (k) s.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); else s.moveTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+    const g = new THREE.ExtrudeGeometry(s, { depth: d, bevelEnabled: true, bevelThickness: 0.3, bevelSize: 0.3, bevelSegments: 1, curveSegments: 1 }); g.center(); g.computeVertexNormals(); return g;
+  });
+  // l'étoile du grade 3 : posée sur la calotte haute du buste (sphère r = 11 centrée à y = 42), à 0,84 rad du pôle et 0,5 rad vers la
+  // gauche du personnage (+X), juste au-dessus de la bavette et sous le menton en plongée ; tournée (rx, ry) pour épouser la normale
+  const ETOILE = (() => { const th = 0.84, ps = 0.5, R = 11.4, nx = Math.sin(th) * Math.sin(ps), ny = Math.cos(th), nz = Math.sin(th) * Math.cos(ps), ry = Math.asin(nx); return { x: nx * R, y: 42 + ny * R, z: nz * R, ry, rx: -Math.asin(ny / Math.cos(ry)) }; })();
   // ─── le visage : un atlas peint une fois (8 cases : neutre, sourire, surpris, yeux fermés × sans / avec lunettes) ───
   // Le décalque n'est pas un PlaneGeometry mais une CALOTTE SPHÉRIQUE (SphereGeometry partielle à r = 10,35, juste au-dessus de la
   // peau) : collé à la tête, le visage reste lisible à tous les lacets (profil, trois quarts) sans flotter devant elle. Chaque case
@@ -1981,8 +2020,12 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   // création : la scène ne le change jamais). Appels de dessin : 7 de base (2 jambes, corps, tête, visage, 2 bras) + 1 accessoire visible
   // à la fois (sac OU halo OU plateau OU clé ; sueur pour le patron) = 8 au plus. L'option `taille` est volontairement ignorée : la
   // scène applique elle-même scale = K × taille au groupe (l'appliquer ici doublerait l'échelle).
+  // Grades d'un apprenti (toque + tablier ; o.grade de 1 à 5, 1 par défaut, ignoré pour les autres) : 2 = une bande o.haut assombri
+  // de 25 % en haut du tablier, 3 = + une étoile dorée sur la poitrine, 4 = + toque plus haute de 6, 5 = toque plus haute de 10 et
+  // liseré doré au tablier et à la toque. Tout est fusionné dans le buste ou la tête : le nombre d'appels de dessin ne change pas.
   function construire(o) {
     const peau = o.peau || '#FFD7B5', haut = o.or ? OR : o.haut || '#FF9FB2', chev = o.cheveux || L, large = o.tablier === 'large', phiT = large ? 1.9 : 1.3;
+    const grade = o.toque && o.tablier ? Math.max(1, Math.min(5, Math.round(+o.grade || 1))) : 1, lisere = o.lisere || grade >= 5;
     const g = new THREE.Group(), racine = new THREE.Group(), ht = new THREE.Group(), P = { racine, haut: ht, bras: [], jambes: [] };
     g.add(racine); racine.add(ht); g.userData.parts = P; g.userData.options = o;
     // les jambes pendent du bassin (pivot y = 17,5) et remontent jusqu'à 22,5 dans le buste : au sommet du rebond de marche (haut monte de 3,25) elles restent jointes au corps
@@ -1992,7 +2035,9 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     if (o.mariniere) for (const y of [31.5, 36, 40.5, 44.8]) corps.push(M.part(bande(11.4, 2.2), '#3A86C8', { y }));
     if (o.tablier) {
       corps.push(M.part(patchS(11.7, phiT, 1.05, HP - 1.05), BLANC, { y: 42 }), M.part(patchC(11.7, 12, phiT), BLANC, { y: 36 }), M.part(patchS(11.7, phiT, HP, 0.95), BLANC, { y: 30 }));
-      if (o.lisere) corps.push(M.part(patchS(12, phiT, HP + 0.4, 0.28), OR, { y: 30 }));
+      if (lisere) corps.push(M.part(patchS(12, phiT, HP + 0.4, 0.28), OR, { y: 30 }));
+      if (grade >= 2) corps.push(M.part(patchS(11.9, phiT, 1.17, 0.21), M.assombrir(haut, 0.25), { y: 42 })); // la bande en haut de la bavette (un filet blanc au-dessus : elle ne se confond pas avec le haut)
+      if (grade >= 3) corps.push(M.part(etoile(2.7, 1.15, 0.9), OR, ETOILE)); // l'étoile, couchée sur la poitrine gauche, au-dessus de la bavette
     }
     if (o.col) corps.push(M.part(patchC(12, 5, 2.3), '#2B5BD7', { y: 45.5, ry: -1.45 }), M.part(patchC(12, 5, 0.6), BLANC, { y: 45.5 }), M.part(patchC(12, 5, 2.3), ROUGE, { y: 45.5, ry: 1.45 }), M.part(patchC(12, 5, 0.6), BLANC, { y: 45.5, ry: Math.PI }));
     if (o.foulard) corps.push(M.part(M.tore(9.2, 2.4, TAU, 8, 16), ROUGE, { y: 51, rx: HP }), M.part(M.sphere(2.6, 8), ROUGE, { y: 49, z: 9.6 }), M.part(M.capsule(1.3, 3, 6), ROUGE, { x: -1.7, y: 46.3, z: 11.2, rz: 0.35 }), M.part(M.capsule(1.3, 3, 6), ROUGE, { x: 1.9, y: 46.6, z: 11, rz: -0.3 })); // deux pans courts qui pendent du nœud, à plat sur le tablier
@@ -2003,7 +2048,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     if (o.coiffure === 1 && !o.toque) tete.push(M.part(M.capsule(2.3, 7, 6), chev, { x: -9.8, z: -1.5, rz: -0.12 }), M.part(M.capsule(2.3, 7, 6), chev, { x: 9.8, z: -1.5, rz: 0.12 }));
     if (o.coiffure === 2 && !o.toque) tete.push(M.part(M.sphere(4.2, 8), chev, { y: 10.5, z: -4 }));
     if (o.coiffure === 3 && !o.toque) tete.push(M.part(bande(10, 4.2), o.bonnet || '#9BD0FF', { y: 10 }), M.part(calotte(10.2, HP, 14), o.bonnet || '#9BD0FF', { y: 12 }), M.part(M.sphere(3, 8), BLANC, { y: 22.7 }));
-    if (o.toque) { const th = typeof o.toque === 'number' ? o.toque : 14, hc = Math.max(1, th - 8); tete.push(M.part(M.cylindre(9.2, 9.2, 4, 14), BLANC, { y: 8 }), M.part(M.cylindre(8, 8.8, hc, 14), BLANC, { y: 12 }), M.part(calotte(8, HP, 14), BLANC, { y: 12 + hc })); if (o.lisere) tete.push(M.part(bande(9.5, 1.4), OR, { y: 8.6 })); }
+    if (o.toque) { const th = (typeof o.toque === 'number' ? o.toque : 14) + (grade >= 5 ? 10 : grade >= 4 ? 6 : 0), hc = Math.max(1, th - 8); tete.push(M.part(M.cylindre(9.2, 9.2, 4, 14), BLANC, { y: 8 }), M.part(M.cylindre(8, 8.8, hc, 14), BLANC, { y: 12 }), M.part(calotte(8, HP, 14), BLANC, { y: 12 + hc })); if (lisere) tete.push(M.part(bande(9.5, 1.4), OR, { y: 8.6 })); }
     if (o.or) tete.push(M.part(M.cylindre(11.8, 11.8, 1.6, 16), L, { y: 9.6 }), M.part(M.cylindre(7.4, 7.2, 15, 14), L, { y: 10 }), M.part(bande(7.7, 2.2), OR, { y: 13 }));
     if (o.moustache) tete.push(M.part(M.capsule(1.3, 3.2, 6), '#8C5A3C', { x: -2.6, y: 2.4, z: 10.1, rz: 1.05 }), M.part(M.capsule(1.3, 3.2, 6), '#8C5A3C', { x: 2.6, y: 2.4, z: 10.1, rz: -1.05 }));
     P.tete = M.maille(tete); P.tete.position.y = 63; ht.add(P.tete);
@@ -2057,10 +2102,96 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     if (P.sueur) P.sueur.visible = !!o.rush;
     visage(P, o.blink > 3.25 ? 3 : 1);
   }
+  // ─── le chat de la boutique : un roux tigré, même grammaire que les personnages (volumes ronds, couleurs plates, petits yeux) ───
+  // Hiérarchie : g (lacet et position par la scène, pieds à y = 0, museau vers +Z) > racine (hauteur, inclinaison du saut) > corps
+  // (capsule couchée selon Z : 25 de long, rayures, ventre et poitrail crème fusionnés), tete (sphère, museau, nez, oreilles, joues,
+  // yeux, rayures du front fusionnés ; deux géométries en cache, yeux ouverts / fermés, échangées par animerChat), queue[0] > queue[1]
+  // (deux segments qui se plient : chacun pivote à sa base, le second au bout du premier), pattes[4] (pivots Object3D : avant x < 0,
+  // avant x > 0, arrière x < 0, arrière x > 0) et pattesMaille (UN InstancedMesh pour les quatre pattes, ses matrices recopiées des
+  // pivots par animerChat). Appels de dessin : corps, tête, 2 segments de queue, pattes = 5 (budget 6). Debout : 22,6 de haut aux
+  // oreilles, 20,6 au crâne, 32 du nez au bas du dos (le corps seul : 25). Options : couleur (robe, défaut #F2A65A), rayures, ventre, etat.
+  const CHAT_Y = 11, LP = 8, PATTE_X = 2.9, PATTE_Y = -3, PATTE_Z = 7.2, LQ1 = 6.6, ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
+  const arcCyl = (r, h, phi, c) => memo(`arc|${r}|${h}|${phi}|${c}`, () => new THREE.CylinderGeometry(r, r, h, 12, 1, true, c - phi / 2, phi)); // un morceau de cylindre centré, ouvert, autour de l'angle c (0 = +Z)
+  const geoCorpsChat = (robe, ray, creme) => memo(`chat-corps|${robe}|${ray}|${creme}`, () => {
+    const p = [M.part(M.capsule(5.5, 14, 12), robe, { rx: HP }), M.part(arcCyl(5.62, 14, 1.9, 0), creme, { rx: HP }), M.part(patchS(5.7, 2.0, 1.35, 1.45), creme, { z: 7 })]; // couché selon Z (l'angle 0 du cylindre passe dessous), ventre, poitrail
+    for (const z of [-5.2, -1.8, 1.6]) p.push(M.part(arcCyl(5.74, 1.5, 2.3, Math.PI), ray, { z, rx: HP })); // trois rayures en travers du dos
+    return M.assembler(p);
+  });
+  const geoTeteChat = (robe, ray, creme, fermes) => memo(`chat-tete|${robe}|${ray}|${creme}|${fermes ? 1 : 0}`, () => {
+    const p = [M.part(M.sphere(5.2, 14), robe, { sx: 1.12, sy: 0.96 }), M.part(M.sphere(2.3, 10), creme, { y: -1.6, z: 4.1, sx: 1.45, sy: 0.85, sz: 0.85 }), M.part(M.sphere(0.75, 8), '#F28B9B', { y: -0.75, z: 5.95, sx: 1.25, sy: 0.8, sz: 0.8 })];
+    for (const sx of [-1, 1]) {
+      p.push(M.part(M.cone(2.2, 4.8, 8), robe, { x: sx * 2.5, y: 2.4, z: -0.3, rz: -sx * 0.3, sz: 0.5 }), M.part(M.cone(1.35, 3.4, 8), '#FFC1B4', { x: sx * 2.58, y: 2.8, z: 0.42, rz: -sx * 0.3, sz: 0.3 })); // les oreilles, des cônes aplatis (des triangles de face, pas un octogone vu d'en haut), la base dans le crâne, et leur creux rose
+      p.push(M.part(M.sphere(0.95, 8), JOUE, { x: sx * 3.6, y: -0.9, z: 3.7, sy: 0.7, sz: 0.5 }));
+      p.push(fermes ? M.part(M.tore(0.95, 0.3, Math.PI, 4, 8), L, { x: sx * 2.1, y: 0.6, z: 4.8 }) : M.part(M.sphere(0.9, 8), L, { x: sx * 2.1, y: 0.9, z: 4.5 })); // les yeux : deux billes sombres, ou deux arcs fermés
+    }
+    for (const [x, l] of [[-1.3, 1.1], [0, 1.6], [1.3, 1.1]]) p.push(M.part(M.capsule(0.42, l, 6), ray, { x, y: 4.45, z: 2.2, rx: -1.13 })); // le « M » du front
+    return M.assembler(p);
+  });
+  const geoQueueChat = (k, robe, ray) => memo(`chat-queue|${k}|${robe}|${ray}`, () => M.assembler(k === 1
+    ? [M.part(M.capsule(1.45, 6.4, 8), robe, { y: 3.2 }), M.part(bande(1.6, 0.9), ray, { y: 2.6 }), M.part(bande(1.6, 0.9), ray, { y: 5.3 })] // de la base (pivot) vers +Y
+    : [M.part(M.capsule(1.35, 5.8, 8), robe, { y: 2.9 }), M.part(bande(1.5, 0.8), ray, { y: 1.7 }), M.part(bande(1.5, 0.8), ray, { y: 4 }), M.part(calotte(1.45, 1.05, 10), ray, { y: 5.8 })]));
+  const geoPatteChat = (robe, creme) => memo(`chat-patte|${robe}|${creme}`, () => M.assembler([M.part(pendu(1.75, LP - 2, 0.2), robe), M.part(M.sphere(1.95, 8), creme, { y: 1.15 - LP, z: 0.45, sy: 0.6, sz: 1.2 })])); // pend de la hanche (pivot) jusqu'au sol, LP plus bas
+  function chat(o) {
+    o = o || {};
+    const robe = o.couleur || '#F2A65A', ray = o.rayures || (o.couleur ? M.assombrir(robe, 0.15) : '#D9853B'), creme = o.ventre || '#FFE3C9';
+    const g = new THREE.Group(), racine = new THREE.Group(), P = { racine, queue: [], pattes: [] };
+    g.add(racine); g.userData.parts = P; g.userData.options = o;
+    P.corps = M.mesh(geoCorpsChat(robe, ray, creme), M.MAT.vertex); racine.add(P.corps);
+    const geos = [geoTeteChat(robe, ray, creme, false), geoTeteChat(robe, ray, creme, true)];
+    P.tete = M.mesh(geos[0], M.MAT.vertex); P.tete.userData.geos = geos; racine.add(P.tete);
+    const q1 = M.mesh(geoQueueChat(1, robe, ray), M.MAT.vertex), q2 = M.mesh(geoQueueChat(2, robe, ray), M.MAT.vertex); q1.add(q2); racine.add(q1); P.queue.push(q1, q2);
+    for (let k = 0; k < 4; k++) { const p = new THREE.Object3D(); P.pattes.push(p); racine.add(p); }
+    P.pattesMaille = new THREE.InstancedMesh(geoPatteChat(robe, creme), M.MAT.vertex, 4); P.pattesMaille.castShadow = true; racine.add(P.pattesMaille);
+    g.addEventListener('removed', () => P.pattesMaille.dispose()); // libère le tampon des matrices côté GPU (il se recrée seul si le chat revient)
+    animerChat(g, { etat: o.etat || 'assis', phase: 0, t: 0 });
+    return g;
+  }
+  // les poses constantes : [x, y, z] puis [rx, ry, rz] de racine, corps, tête, queue[0] et queue[1] ; animerChat n'y ajoute que le mouvement
+  const POSES_CHAT = {
+    dort: [[0, 0, 0], [0, 0, 0], [0, 4.4, 0], [0, 0, 0], [-3.4, 4.9, 6.6], [0.3, 0.35, -0.35], [0, 1.45, -7.6], [-HP, 0, 1.85], [0, LQ1, 0], [0, 0, 1]],
+    assis: [[0, 0, 0], [0, 0, 0], [0, 10.76, -1.2], [-0.85, 0, 0], [0, 23, 5.4], [-0.1, 0, 0], [1.2, 1.45, -9.2], [-HP, 0, -1.2], [0, LQ1, 0], [0, 0, -1.25]],
+    saut: [[0, CHAT_Y, 0], [0.42, 0, 0], [0, 0, 0], [0, 0, 0], [0, 5, 12.5], [-0.3, 0, 0], [0, 2.6, -11.4], [-1.15, 0, 0], [0, LQ1, 0], [0.35, 0, 0]],
+    marche: [[0, CHAT_Y, 0], [0, 0, 0], [0, 0, 0], [0, 0, 0], [0, 4.6, 12.7], [0, 0, 0], [0, 2.6, -11.4], [-0.45, 0, 0], [0, LQ1, 0], [0.45, 0, 0]],
+  };
+  // assis : les pattes avant partent sous le poitrail (y = 11,5) et s'allongent jusqu'au sol, les arrière couchées vers l'avant, épaissies en cuisses
+  const PATTES_CHAT = [[-PATTE_X, PATTE_Y, PATTE_Z], [PATTE_X, PATTE_Y, PATTE_Z], [-PATTE_X, PATTE_Y, -PATTE_Z], [PATTE_X, PATTE_Y, -PATTE_Z]], PATTES_ASSIS = [[-2.4, 11.5, 5.4], [2.4, 11.5, 5.4], [-3.9, 2.9, -3.6], [3.9, 2.9, -3.6]], CUISSE = -HP + 0.1;
+  // animerChat(g, { etat, phase, t }) : etat 'dort' (roulé en boule, yeux fermés, respiration lente), 'assis' (la queue balaie le sol),
+  // 'marche' (diagonales opposées selon phase, en rad, que la scène fait avancer), 'saut' (incliné nez en bas, pattes repliées, pour
+  // descendre du comptoir), toute autre valeur : debout immobile. Aucune allocation, même pas de nombre emballé par V8 : les poses
+  // viennent de tables constantes (fromArray), le mouvement s'écrit dans les champs (position.y, scale.y, rotation._x/_y/_z suivi de
+  // tourner(o3) qui recale le quaternion ; un angle calculé passé au setter rotation.x ou en argument serait mis en boîte à chaque
+  // appel), la tête échange deux géométries en cache et les matrices des pattes sont recopiées dans le tampon de l'InstancedMesh.
+  const tourner = (o3) => o3.quaternion.setFromEuler(o3.rotation, false);
+  function animerChat(g, o) {
+    const P = g.userData.parts, r = P.racine, c = P.corps, h = P.tete, q1 = P.queue[0], q2 = P.queue[1], pa = P.pattes, t = o.t || 0, e = o.etat, A = POSES_CHAT[e] || POSES_CHAT.marche;
+    r.position.fromArray(A[0]); r.rotation.fromArray(A[1]); c.position.fromArray(A[2]); c.rotation.fromArray(A[3]); c.scale.set(1, 1, 1);
+    h.position.fromArray(A[4]); h.rotation.fromArray(A[5]); q1.position.fromArray(A[6]); q1.rotation.fromArray(A[7]); q2.position.fromArray(A[8]); q2.rotation.fromArray(A[9]);
+    for (let k = 0; k < 4; k++) { const p = pa[k]; p.position.fromArray(e === 'assis' ? PATTES_ASSIS[k] : PATTES_CHAT[k]); p.rotation.set(0, 0, 0); p.scale.set(1, 1, 1); p.visible = e !== 'dort'; }
+    const geo = h.userData.geos[e === 'dort' ? 1 : 0]; if (h.geometry !== geo) h.geometry = geo;
+    if (e === 'dort') { // le corps écrasé en boule (respiration : scale.y × (1 ± 0,03)), la tête posée à l'avant côté x < 0, la queue enroulée le long du même flanc jusqu'au museau
+      const b = Math.sin(t * 1.5) * 0.03;
+      c.scale.set(1.4, 0.8, 0.62); c.scale.y = 0.8 + 0.8 * b; h.position.y = 4.9 + b * 3; q2.rotation._z = 1 + Math.sin(t * 0.9) * 0.08; tourner(q2);
+    } else if (e === 'assis') { // l'arrière-train au sol (le tronc relevé de 0,85 rad), pattes avant droites, pieds arrière devant, la queue couchée qui balaie
+      pa[0].scale.y = pa[1].scale.y = 11.5 / LP; pa[2].scale.set(1.35, 0.75, 1); pa[3].scale.set(1.35, 0.75, 1); pa[2].rotation.x = pa[3].rotation.x = CUISSE;
+      h.rotation._y = Math.sin(t * 0.7) * 0.12; tourner(h); q1.rotation._z = -1.2 + Math.sin(t * 1.4) * 0.18; tourner(q1); q2.rotation._z = -1.25 + Math.sin(t * 1.4 - 0.8) * 0.3; tourner(q2);
+    } else if (e === 'saut') { // en l'air : nez en bas, pattes repliées sous le ventre, la queue haute pour l'équilibre
+      for (let k = 0; k < 4; k++) { pa[k].rotation.x = k < 2 ? 1 : -1; pa[k].scale.y = 0.8; }
+      q1.rotation._z = Math.sin(t * 5) * 0.1; tourner(q1);
+    } else { // marche (ou debout) : diagonales opposées, le dos qui descend de 0,5 quand les pattes s'écartent (le bas des pieds reste à y = 0), la queue en point d'interrogation
+      const ph = e === 'marche' ? o.phase || 0 : 0, s = e === 'marche' ? Math.sin(ph) * 0.6 : 0;
+      r.position.y = CHAT_Y - 2.7 * (1 - Math.cos(s)); h.rotation._x = Math.sin(ph * 2) * 0.05; tourner(h);
+      for (let k = 0; k < 4; k++) { pa[k].rotation._x = k === 0 || k === 3 ? s : -s; tourner(pa[k]); }
+      q1.rotation._z = Math.sin(t * 2.6) * 0.22; tourner(q1); q2.rotation._z = Math.sin(t * 2.6 - 0.9) * 0.3; tourner(q2);
+    }
+    const im = P.pattesMaille;
+    for (let k = 0; k < 4; k++) { const p = pa[k]; if (p.visible) { p.updateMatrix(); im.setMatrixAt(k, p.matrix); } else im.setMatrixAt(k, ZERO); } // une patte cachée : écrasée en un point
+    im.instanceMatrix.needsUpdate = true; if (im.boundingSphere) im.computeBoundingSphere(); if (im.boundingBox) im.computeBoundingBox(); // les bornes (déjà allouées) suivent la pose
+  }
   // ─── les huit pâtisseries : une liste de parts colorées par produit (posée sur y = 0, centrée, ~16 d'envergure), fusionnée seule
   // (geoPatisserie, en cache) ou avec le plateau d'un apprenti (geoPlateau, en cache) — jamais passée telle quelle à M.assembler
   // depuis un autre maillage, les couleurs par sommet s'y perdraient ───
   function partsPatisserie(i) {
+    if (typeof i === 'string') return partsSaison(i); // un id de saison ('citrouille'…) : le plateau d'un apprenti peut aussi en porter une
     const p = [], ax = 0.5;
     switch (i) {
       case 0: p.push(M.part(M.capsule(3, 10, 10), '#E8B46A', { y: 3, rz: HP, ry: ax })); for (const u of [-4, 0, 4]) p.push(M.part(M.boiteSimple(1.1, 1, 3.8), '#A8621F', { x: u * Math.cos(ax), y: 5.3, z: -u * Math.sin(ax), ry: ax + 0.7 })); break; // baguette couchée, trois grignes
@@ -2074,15 +2205,106 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     }
     return p;
   }
-  const geoPatisserie = (i) => memo('pat|' + i, () => M.assembler(partsPatisserie(i)));
+  const geoPatisserie = (i) => (typeof i === 'string' ? geoPatisserieSaison(i) : memo('pat|' + i, () => M.assembler(partsPatisserie(i))));
   const geoPlateau = (i) => memo('plateau|' + i, () => M.assembler([M.part(M.boite(24, 2, 13, 0.8), '#C9B8AE'), ...partsPatisserie(i).map((p) => ({ geo: p.geo, col: p.col, m: new THREE.Matrix4().makeTranslation(0, 2, 0).multiply(p.m || new THREE.Matrix4()) }))])); // le plateau et sa pâtisserie posée dessus, en UN maillage
   function patisserie(i) { const m = M.mesh(geoPatisserie(i), M.MAT.vertex); m.userData.i = i; return m; }
+  // ─── les six pâtisseries de saison : même contrat (posées sur y = 0, centrées, ~16 d'envergure, un seul maillage en cache par id) ───
+  const SAISONS = ['citrouille', 'buche', 'crepe', 'paques', 'galette', 'glace'];
+  const spirale = (r, tours, ep) => memo(`spi|${r}|${tours}|${ep}`, () => { // un tube enroulé en spirale dans le plan XY (face à +Z), du centre vers le rayon r
+    const c = new THREE.Curve(); c.getPoint = (u, v) => { const a = u * tours * TAU, rr = r * (0.12 + 0.88 * u); return (v || new THREE.Vector3()).set(Math.cos(a) * rr, Math.sin(a) * rr, 0); };
+    return new THREE.TubeGeometry(c, Math.round(tours * 14), ep, 4, false);
+  });
+  const demiDisque = (r, d) => memo(`dd|${r}|${d}`, () => { const s = new THREE.Shape(); s.moveTo(r, 0); s.absarc(0, 0, r, 0, Math.PI, false); s.lineTo(r, 0); const g = new THREE.ExtrudeGeometry(s, { depth: d, bevelEnabled: false, curveSegments: 5 }); g.translate(0, 0, -d / 2); g.computeVertexNormals(); return g; }); // posé sur son bord droit, face à +Z
+  const deplacer = (parts, p) => { const m = M.matrice(p); return parts.map((q) => ({ geo: q.geo, col: q.col, m: q.m ? m.clone().multiply(q.m) : m.clone() })); }; // un sous-ensemble de parts déplacé d'un bloc
+  function partsSaison(id) {
+    const p = [];
+    switch (id) {
+      case 'citrouille': { // tarte à la citrouille : moule de pâte, bord dentelé, garniture en côtes de potiron, la tige au centre
+        p.push(M.part(M.cylindre(7.5, 6.6, 2.6, 16), '#E9A95C'), M.part(M.tore(6.95, 0.95, TAU, 6, 18), '#E39A4C', { y: 2.6, rx: HP }), M.part(M.cylindre(6.2, 6.2, 0.6, 16), '#F08A24', { y: 2.4 }));
+        for (let k = 0; k < 12; k++) { const a = k * TAU / 12; p.push(M.part(M.sphere(0.9, 6), '#EFB46A', { x: Math.sin(a) * 6.95, y: 3.05, z: Math.cos(a) * 6.95 })); }
+        for (let k = 0; k < 8; k++) { const a = (k + 0.5) * TAU / 8; p.push(M.part(M.sphere(3.1, 10), k % 2 ? '#F28C28' : '#F59A36', { x: Math.sin(a) * 2.9, y: 2.85, z: Math.cos(a) * 2.9, ry: a, sx: 0.66, sy: 0.4 })); } // huit côtes jointives : le dessus d'un potiron
+        p.push(M.part(M.cylindre(0.55, 0.75, 1.8, 6), '#5DA84A', { y: 3.4 }), M.part(M.sphere(1.1, 6), '#7BC45E', { x: 1.2, y: 4.3, z: 0.3, sx: 1.4, sy: 0.3, sz: 0.8, rz: -0.35 }));
+        break;
+      }
+      case 'buche': { // bûche de Noël : un rondin chocolat strié, les deux bouts crème roulés en spirale, un nœud, du houx et du sucre glace
+        const R = 3.7, CHOC = '#6B3E26', CREME = '#F3D9B1';
+        p.push(M.part(M.cylindre(R, R, 15, 14), CHOC, { x: 7.5, y: R, rz: HP }));
+        for (const [ph, l, x] of [[0.35, 11, -0.8], [0.85, 12.5, 0.6], [1.35, 9, -1.6], [1.85, 12, 0.4], [2.4, 10, 1]]) p.push(M.part(M.capsule(0.3, l, 5), '#4E2A18', { x, y: R + Math.sin(ph) * (R + 0.05), z: Math.cos(ph) * (R + 0.05), rz: HP }));
+        for (const sx of [-1, 1]) p.push(M.part(M.disque(3.55, 16), CREME, { x: sx * 7.52, y: R, rz: -sx * HP }), M.part(spirale(2.9, 2.2, 0.32), CHOC, { x: sx * 7.6, y: R, ry: sx * HP }));
+        p.push(M.part(M.cylindre(1.6, 1.75, 2.2, 10), CHOC, { x: 3.6, y: 2 * R - 0.6, z: 0.6 }), M.part(M.disque(1.5, 12), CREME, { x: 3.6, y: 2 * R + 1.62, z: 0.6 }), M.part(spirale(1.15, 1.6, 0.18), CHOC, { x: 3.6, y: 2 * R + 1.65, z: 0.6, rx: -HP }));
+        for (const [x, z, s] of [[-4.6, 0.4, 1.2], [-1.6, -0.6, 1], [5.6, -0.4, 0.9], [-6.6, 1.2, 0.7]]) p.push(M.part(M.sphere(1.5, 8), BLANC, { x, y: 2 * R - 0.25, z, sx: 1.3 * s, sy: 0.35, sz: s })); // le sucre glace en plaques
+        for (const sx of [-1, 1]) p.push(M.part(M.sphere(1.7, 8), '#3E8E41', { x: -1.5 + sx * 1.5, y: 2 * R + 0.2, z: 1.2, ry: -sx * 0.55, sx: 1.6, sy: 0.3, sz: 0.7 }));
+        for (const [x, z] of [[-1.9, 1.6], [-1.1, 1.9], [-1.5, 1]]) p.push(M.part(M.sphere(0.7, 8), '#D7263D', { x, y: 2 * R + 0.65, z }));
+        break;
+      }
+      case 'crepe': { // une pile de quatre crêpes dorées qui débordent un peu les unes des autres, un quartier de citron dessus
+        [[0.3, -0.2], [-0.5, 0.35], [0.45, 0.4], [-0.2, -0.35]].forEach(([x, z], k) => p.push(M.part(M.cylindre(7.15, 6.85, 0.8, 18), ['#F2C77A', '#EBB866', '#F2C77A', '#F5CF86'][k], { x, y: k * 0.82, z })));
+        for (const [x, z, r] of [[-3.6, 2.2, 0.8], [-1, 4.6, 0.6], [2.4, 3.6, 0.9], [4.2, 0.4, 0.6], [-4.4, -1.8, 0.7], [0.4, -4.4, 0.85], [-1.5, 0.6, 0.55]]) p.push(M.part(M.sphere(r, 8), '#DFA24E', { x, y: 3.26, z, sx: 1.25, sy: 0.22 })); // les taches dorées de la poêle
+        p.push(...deplacer([M.part(demiDisque(2.9, 1.3), '#F7D531'), M.part(demiDisque(2.4, 1.5), '#FFF3A6'), M.part(M.boiteSimple(0.25, 2.2, 1.55), BLANC, { rz: 0.6 }), M.part(M.boiteSimple(0.25, 2.2, 1.55), BLANC, { rz: -0.6 })], { x: 2.4, y: 3.2, z: -1.4, ry: 0.45 }));
+        for (const [x, z] of [[-2.6, -1.2], [-3.4, 0.4], [1.2, 1.8], [-0.6, 2.8]]) p.push(M.part(M.sphere(0.35, 5), BLANC, { x, y: 3.3, z }));
+        break;
+      }
+      case 'paques': { // une poule en chocolat (yeux en sucre, crête et barbillon rouges, ruban rose) et deux œufs pastel dans un nid
+        const CH = '#7A4A2A', x0 = -3.3;
+        p.push(M.part(M.sphere(4, 12), CH, { x: x0, y: 3.7, sy: 0.92, sz: 1.12 }), M.part(M.sphere(2.5, 10), CH, { x: x0, y: 7.4, z: 2.4 }));
+        for (const a of [-0.45, 0, 0.45]) p.push(M.part(M.sphere(1.6, 8), '#6A3E22', { x: x0 + Math.sin(a) * 1.6, y: 6.2, z: -3.6, rz: -a, rx: -0.5, sx: 0.5, sy: 1.35, sz: 0.75 })); // la queue en éventail de plumes
+        for (const sx of [-1, 1]) p.push(M.part(M.sphere(2.2, 8), '#8E5A36', { x: x0 + sx * 3.75, y: 3.9, z: -0.3, sx: 0.45, sy: 0.75, sz: 1.1 }), M.part(M.sphere(0.5, 6), BLANC, { x: x0 + sx * 1.05, y: 7.9, z: 4.5 }), M.part(M.sphere(0.3, 6), L, { x: x0 + sx * 1.05, y: 7.95, z: 4.95 }));
+        p.push(M.part(M.cone(0.65, 1.4, 6), '#FFB347', { x: x0, y: 7.2, z: 4.6, rx: HP }), M.part(M.sphere(0.5, 6), ROUGE, { x: x0, y: 6.3, z: 4.4 }));
+        for (const [y, z] of [[9.6, 0.9], [10, 1.7], [9.75, 2.5]]) p.push(M.part(M.sphere(0.7, 6), ROUGE, { x: x0, y, z })); // la crête, sur le haut du crâne
+        p.push(M.part(M.tore(2.25, 0.38, TAU, 6, 14), '#FF9FB2', { x: x0, y: 5.6, z: 1.9, rx: HP - 0.4 }), M.part(M.sphere(0.7, 6), '#FF9FB2', { x: x0 - 0.7, y: 4.9, z: 4.1, sx: 1.2, sz: 0.6 }), M.part(M.sphere(0.7, 6), '#FF9FB2', { x: x0 + 0.7, y: 4.9, z: 4.1, sx: 1.2, sz: 0.6 }));
+        p.push(M.part(M.tore(3.2, 0.95, TAU, 6, 14), '#E8C27A', { x: 4.3, y: 0.85, z: 0.6, rx: HP }), M.part(M.cylindre(3, 3, 0.6, 14), '#D9AE62', { x: 4.3, y: 0.2, z: 0.6 }));
+        for (const [x, z, rz, c1] of [[3.2, 1.7, 0.3, '#FFC2D1'], [5.5, -0.5, -0.25, '#A9D8FF']]) p.push(...deplacer([M.part(M.sphere(2.2, 12), c1, { sy: 1.3 }), M.part(M.tore(2.24, 0.26, TAU, 4, 16), BLANC, { rx: HP }), M.part(M.sphere(0.4, 5), BLANC, { y: 1.6, z: 1.55 }), M.part(M.sphere(0.4, 5), BLANC, { x: 1, y: -1.3, z: 1.6 })], { x, y: 2.9, z, rz }));
+        break;
+      }
+      case 'galette': { // galette des rois : flancs feuilletés, dessus doré quadrillé, une couronne dorée posée dessus
+        p.push(M.part(M.cylindre(7.9, 8.1, 2.4, 20), '#F5D08A'), M.part(M.tore(8, 0.18, TAU, 4, 20), '#E8B460', { y: 0.8, rx: HP }), M.part(M.tore(8, 0.18, TAU, 4, 20), '#E8B460', { y: 1.6, rx: HP }), M.part(M.cylindre(7.6, 7.9, 0.7, 20), '#E2A04A', { y: 2.4 }));
+        for (const a of [Math.PI / 4, -Math.PI / 4]) for (const d of [-4.5, -1.5, 1.5, 4.5]) p.push(M.part(M.boiteSimple(+(1.88 * Math.sqrt(7.3 * 7.3 - d * d)).toFixed(2), 0.22, 0.42), '#B9702C', { x: d * Math.sin(a), y: 3.05, z: d * Math.cos(a), ry: a }));
+        const cx = 2.6, cy = 3.05, cz = -2;
+        p.push(M.part(M.cylindre(2.5, 2.5, 2, 12), OR, { x: cx, y: cy, z: cz }), M.part(M.cylindre(2.15, 2.15, 0.1, 12), '#D99A1E', { x: cx, y: cy + 2, z: cz }));
+        for (let k = 0; k < 6; k++) { const a = k * TAU / 6 + 0.3; p.push(M.part(M.cone(0.75, 1.5, 6), OR, { x: cx + Math.sin(a) * 2.15, y: cy + 1.95, z: cz + Math.cos(a) * 2.15 })); }
+        p.push(M.part(M.sphere(0.5, 6), ROUGE, { x: cx, y: cy + 1, z: cz + 2.5 }), M.part(M.sphere(0.45, 6), '#3A86C8', { x: cx + 1.75, y: cy + 1, z: cz + 1.75 }), M.part(M.sphere(0.45, 6), '#3A86C8', { x: cx - 1.75, y: cy + 1, z: cz + 1.75 }));
+        break;
+      }
+      case 'glace': { // deux cornets gaufrés plantés dans un présentoir, une boule menthe (pépites), une boule rose (cerise)
+        p.push(M.part(M.boite(13, 2, 5, 0.9), '#E7D4FF')); // un petit présentoir
+        for (const sx of [-1, 1]) {
+          const c = [M.part(M.cone(2.5, 7.5, 10), '#E8AE5E', { y: 9.5, rx: Math.PI })], boule = sx < 0 ? '#A8E6CF' : '#FFB3C8', b = Math.atan(2.5 / 7.5); // le cornet, pointe en bas (à y = 2, dans le présentoir)
+          for (const y of [4.2, 6, 7.8]) c.push(M.part(M.tore(+(2.5 * (y - 2) / 7.5 + 0.06).toFixed(2), 0.2, TAU, 4, 12), '#C98A3E', { y, rx: HP })); // le gaufrage : des cercles et des génératrices
+          for (const a of [0.9, 1.57, 2.25, -0.3, 3.45]) c.push(M.part(M.capsule(0.16, 6.6, 4), '#C98A3E', { x: Math.cos(a) * 1.32, y: 5.75, z: Math.sin(a) * 1.32, rz: b, ry: Math.PI - a }));
+          c.push(M.part(M.tore(2.55, 0.75, TAU, 6, 14), boule, { y: 9.9, rx: HP }), M.part(M.sphere(3, 12), boule, { y: 11.9 }));
+          if (sx < 0) for (const [a, e] of [[0.5, 0.4], [1.6, 0.9], [2.6, 0.3], [1.1, -0.2], [2.1, 0.1], [-0.4, 0.7]]) c.push(M.part(M.sphere(0.34, 5), '#5B3A29', { x: Math.cos(a) * Math.cos(e) * 3, y: 11.9 + Math.sin(e) * 3, z: Math.sin(a) * Math.cos(e) * 3 })); // les pépites de chocolat
+          else c.push(M.part(M.sphere(0.9, 8), ROUGE, { y: 15.5 }), M.part(M.capsule(0.12, 1.2, 4), '#5DA84A', { x: 0.3, y: 16.6, rz: -0.4 }));
+          p.push(...deplacer(c, { x: sx * 3.8, y: 0, rz: -sx * 0.1 }));
+        }
+        break;
+      }
+      default: return partsPatisserie(7); // un id inconnu : la pièce montée
+    }
+    return p;
+  }
+  const geoPatisserieSaison = (id) => memo('saison|' + id, () => M.assembler(partsSaison(id)));
+  function patisserieSaison(id) { const m = M.mesh(geoPatisserieSaison(id), M.MAT.vertex); m.userData.id = id; return m; }
   // ─── l'atelier : une situation posée au milieu du sol, animée par userData.anime ; zoom pour voir les détails ───
   function demo(nom, ctx, zoom) {
     nom = nom || 'client-1';
     const g = new THREE.Group(), base = { haut: '#FF9FB2', peau: '#FFD7B5', cheveux: '#4A3328', coiffure: 1, bonnet: '#9BD0FF', sacCol: '#F2D7B6' }, o = { dir: 0, expression: 'sourire', blink: 0, t: 0 };
     let p = null, anim = animer, dir = 0;
     const client = (x, extra) => { const c = creer(Object.assign({}, base, extra)); c.position.x = x; g.add(c); return c; };
+    const CHATS = { 'chat-dort': ['dort', 0.6], 'chat-assis': ['assis', 0.5], 'chat-marche': ['marche', HP], 'chat-saut': ['saut', HP], 'chat-debout': ['debout', 0.5] };
+    if (CHATS[nom] || nom === 'chats') { // un chat (ou les quatre états côte à côte), de trois quarts ou de profil, animé
+      const liste = nom === 'chats' ? ['chat-dort', 'chat-assis', 'chat-marche', 'chat-saut'] : [nom], chats = [], oc = [];
+      liste.forEach((n, k) => { const c = chat(); c.rotation.y = CHATS[n][1]; c.position.set((k - (liste.length - 1) / 2) * 42, CHATS[n][0] === 'saut' ? 8 : 0, 0); g.add(c); chats.push(c); oc.push({ etat: CHATS[n][0], phase: 0, t: 0 }); });
+      g.userData.anime = (E) => { for (let k = 0; k < chats.length; k++) { oc[k].t = E.t; oc[k].phase = E.t * 8; animerChat(chats[k], oc[k]); } };
+      g.position.set(195, 0, 350); if (zoom) g.scale.setScalar(zoom); return g;
+    }
+    if (nom.startsWith('saison-')) { const m = patisserieSaison(nom.slice(7)); m.rotation.y = 0.35; g.add(m); g.position.set(195, 0, 380); g.scale.setScalar(zoom || 6); return g; } // une seule, de trois quarts, grossie
+    if (nom === 'saisons') { for (let i = 0; i < SAISONS.length; i++) { const m = patisserieSaison(SAISONS[i]); m.position.set(70 + 50 * i, 0, 400); m.scale.setScalar(2); g.add(m); } return g; }
+    if (nom === 'grades') { // les cinq grades côte à côte, sans plateau (la bande, l'étoile, la toque et le liseré se voient)
+      const cl = [], os = [];
+      for (let k = 0; k < 5; k++) { cl.push(client((k - 2) * 50, { haut: ['#5FD3A4', '#9BD0FF', '#C7B8FF', '#FFB48A', '#FF9FB2'][k], peau: ['#FFD7B5', '#F1B990', '#C68B59', '#FFD7B5', '#8D5A3C'][k], coiffure: 0, toque: true, tablier: true, grade: k + 1 })); os.push({ dir: 0, expression: 'sourire', blink: 0, t: 0 }); }
+      g.userData.anime = (E) => { for (let k = 0; k < 5; k++) { os[k].t = E.t; animer(cl[k], os[k]); } };
+      g.position.set(195, 0, 350); if (zoom) g.scale.setScalar(zoom); return g;
+    }
     switch (nom) {
       case 'client-0': case 'client-1': case 'client-2': case 'client-3': p = client(0, { coiffure: +nom.slice(-1) }); break;
       case 'lunettes': p = client(0, { lunettes: true, haut: '#8FE3C2' }); o.expression = 'neutre'; break;
@@ -2102,13 +2324,14 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
         const os = cl.map((c, k) => ({ dir: 0, marche: k === 6, phase: 0, sac: k === 6, or: k === 4, attend: true, plateau: k === 5, produit: 3, t: 0, blink: 0, expression: ['sourire', 'neutre', 'surpris'][k % 3] })), ob = { hop: 0, rush: true, t: 0, blink: 0, rang: 5 };
         const b = boulanger(5); b.position.set(-60, 0, -90); g.add(b);
         g.userData.anime = (E) => { for (let k = 0; k < cl.length; k++) { const oc = os[k]; oc.phase = E.t * 9; oc.t = E.t; oc.blink = E.t % 3.4; animer(cl[k], oc); } ob.t = E.t; animerBoulanger(b, ob); }; g.position.set(195, 0, 330); return g; }
-      default: if (nom.startsWith('boulanger-')) { p = boulanger(+nom.slice(10)); g.add(p); anim = animerBoulanger; o.rang = +nom.slice(10); o.rush = o.rang === 3; o.hop = o.rang === 1 ? 0.6 : 0; } else p = client(0, {});
+      default: if (nom.startsWith('apprenti-grade-')) { p = client(0, { haut: '#5FD3A4', coiffure: 0, toque: true, tablier: true, plateau: true, produit: 1, grade: +nom.slice(15) }); o.plateau = true; o.produit = 1; }
+      else if (nom.startsWith('boulanger-')) { p = boulanger(+nom.slice(10)); g.add(p); anim = animerBoulanger; o.rang = +nom.slice(10); o.rush = o.rang === 3; o.hop = o.rang === 1 ? 0.6 : 0; } else p = client(0, {});
     }
     p.rotation.y = lacet(dir); g.position.set(195, 0, 350); if (zoom) g.scale.setScalar(zoom);
     g.userData.anime = (E) => { o.t = E.t; o.blink = E.t % 3.4; if (o.marche) o.phase = 1.2 + (E.t - 0.4) * 9; anim(p, o); };
     return g;
   }
-  return { HAUTEUR, TAILLE_PATISSERIE, creer, animer, lacet, boulanger, animerBoulanger, patisserie, geoPatisserie, partsPatisserie, demo };
+  return { HAUTEUR, TAILLE_PATISSERIE, SAISONS, creer, animer, lacet, boulanger, animerBoulanger, chat, animerChat, patisserie, geoPatisserie, partsPatisserie, patisserieSaison, geoPatisserieSaison, demo };
 })();
 if (typeof module !== 'undefined') module.exports = PERSOS;
 
@@ -2216,12 +2439,12 @@ const SCENE = (() => {
     { id: 'presentoir', cle: (E) => (LAY.spread > 120 && E.niv[0] >= 20 ? String(Math.min(6, 2 + Math.floor(E.niv[0] / 25))) : null), faire: (k, c) => MEUBLES.presentoir(+k, c) },
     { id: 'ardoise', cle: (E) => (E.staffs >= 2 ? '1' : null), faire: (k, c) => MEUBLES.ardoise(c) },
     { id: 'fleurs', cle: (E) => (E.bonus >= 3 ? '1' : null), faire: (k, c) => MEUBLES.fleurs(c) },
-    { id: 'chat', cle: (E) => (E.niv[4] > 0 ? '1' : null), faire: (k, c) => MEUBLES.chat(c) },
     { id: 'paillasson', cle: (E) => (E.crans.deco >= 1 ? 'c' : 'n'), faire: (k, c) => MEUBLES.paillasson(k === 'c', c) },
     { id: 'guirlande', cle: (E) => (E.crans.deco < 3 && (E.niv[5] > 0 || E.rush || E.tags.includes('noel')) ? (E.tags.includes('noel') ? 'noel' : 'g') : null), faire: (k, c) => MEUBLES.guirlande(k === 'noel', c) },
     { id: 'fanions', cle: (E) => (E.tags.includes('fete') ? '1' : null), faire: (k, c) => MEUBLES.fanions(c) },
     { id: 'coeurs', cle: (E) => (E.tags.includes('coeurs') ? '1' : null), faire: (k, c) => MEUBLES.coeurs(c) },
-    { id: 'saison', cle: (E) => (E.tags.includes('halloween') ? 'halloween' : E.tags.includes('galette') ? 'galette' : E.tags.includes('paques') ? 'paques' : E.tags.includes('ete') && !E.tags.includes('fete') ? 'ete' : null), faire: (k, c) => MEUBLES.propSaison(k, c) },
+    { id: 'saison', cle: (E) => { const r = E.st.saison; if (r && r.niv > 0 && PERSOS.patisserieSaison) return 'recette:' + r.id; return E.tags.includes('halloween') ? 'halloween' : E.tags.includes('galette') ? 'galette' : E.tags.includes('paques') ? 'paques' : E.tags.includes('ete') && !E.tags.includes('fete') ? 'ete' : null; },
+      faire: (k, c) => { if (!k.startsWith('recette:')) return MEUBLES.propSaison(k, c); const o = MEUBLES.surDessus(c, LAY.saison), g = new THREE.Group(), m = PERSOS.patisserieSaison(k.slice(8)).clone(); m.scale.setScalar(1.15); g.add(m); g.position.set(o.x, o.y, o.z); return g; } }, // la recette de saison préparée, posée sur le comptoir
     { id: 'lampe', cle: (E) => (E.niv[2] > 0 ? '1' : null), faire: (k, c) => MEUBLES.lampe(c) },
   ];
   const MEUBLES_IDS = ['froid', 'four', 'comptoir', 'caisse', 'tables', 'deco'];
@@ -2239,10 +2462,10 @@ const SCENE = (() => {
       if (cles[id] !== k) { cles[id] = k; remplacer(id, MEUBLES[id](cran, c)); if (id === 'comptoir') { cles.produits = null; cles.caisse = null; const cp = groupes.comptoir; if (cp && cp.userData.dessusY != null) { c.dessusY = cp.userData.dessusY; c.dessusZ = cp.userData.dessusZ; } } }
     }
     for (const d of CONDS) { const k = d.cle(E), kk = k == null ? null : `${k}|${base}`; if (cles[d.id] !== kk) { cles[d.id] = kk; remplacer(d.id, kk == null ? null : d.faire(k, c)); } }
-    const ouverts = E.niv.map((n, i) => (n > 0 ? i : -1)).filter((i) => i >= 0), kp = `${ouverts.join(',')}|${E.crans.vitrine}|${base}`;
+    const rs = E.st.saison && E.st.saison.niv > 0 && PERSOS.patisserieSaison ? E.st.saison.id : '', ouverts = E.niv.map((n, i) => (n > 0 ? i : -1)).filter((i) => i >= 0), kp = `${ouverts.join(',')}|${rs}|${E.crans.vitrine}|${base}`;
     if (cles.produits !== kp) { // les pâtisseries dans la vitrine
-      cles.produits = kp; const g = new THREE.Group(), vit = groupes.comptoir && groupes.comptoir.userData.vitrine, places = vit ? vit.places(ouverts.length) : [];
-      ouverts.forEach((i, k) => { const p = places[k]; if (!p) return; const m = PERSOS.patisserie(i).clone(); const s = (p.s || 16) / (PERSOS.TAILLE_PATISSERIE || 16); m.position.set(p.x, p.y, p.z); m.scale.setScalar(s); m.castShadow = false; g.add(m); });
+      cles.produits = kp; const g = new THREE.Group(), vit = groupes.comptoir && groupes.comptoir.userData.vitrine, liste = rs ? ouverts.concat([rs]) : ouverts, places = vit ? vit.places(liste.length) : [];
+      liste.forEach((i, k) => { const p = places[k]; if (!p) return; const m = (typeof i === 'string' ? PERSOS.patisserieSaison(i) : PERSOS.patisserie(i)).clone(); const s = (p.s || 16) / (PERSOS.TAILLE_PATISSERIE || 16); m.position.set(p.x, p.y, p.z); m.scale.setScalar(s); m.castShadow = false; g.add(m); });
       remplacer('produits', g);
     }
     const kb = `${E.rang}|${base}`;
@@ -2341,12 +2564,35 @@ const SCENE = (() => {
     }
     for (const a of V.apprentis) {
       const id = 'a' + a.i; let g = acteurs.get(id);
-      if (!g) { g = prendre('apprenti' + a.i, () => PERSOS.creer({ haut: V.HAUTS6[(a.i * 2 + 1) % 6], peau: V.PEAUX6[a.i % 6], cheveux: V.CHEVEUX[a.i % V.CHEVEUX.length], coiffure: 0, toque: true, tablier: true, plateau: true, produit: a.i, cle: true })); g.userData.yaw = YAW[a.dir] || 0; scene.add(g); acteurs.set(id, g); }
+      if (g && g.userData.grade !== (a.grade || 1)) { scene.remove(g); M.dispose(g); acteurs.delete(id); g = null; } // il a monté de grade : nouvelle tenue
+      if (!g) { g = prendre('apprenti' + a.i + '|' + (a.grade || 1), () => PERSOS.creer({ haut: V.HAUTS6[(a.i * 2 + 1) % 6], peau: V.PEAUX6[a.i % 6], cheveux: V.CHEVEUX[a.i % V.CHEVEUX.length], coiffure: 0, toque: true, tablier: true, plateau: true, produit: a.i, cle: true, grade: a.grade || 1 })); g.userData.grade = a.grade || 1; g.userData.yaw = YAW[a.dir] || 0; scene.add(g); acteurs.set(id, g); }
       vus.add(id); poserApprenti(g, a, E, dt);
     }
     for (const [id, g] of acteurs) if (!vus.has(id)) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); }
     if (boulangerG) { oAnim.hop = E.hop; oAnim.rush = E.rush; oAnim.blink = E.blink; oAnim.t = E.t; oAnim.rang = E.rang; PERSOS.animerBoulanger(boulangerG, oAnim); }
+    poserChat(E, dt);
   }
+  // le chat : sur le comptoir quand il dort, au sol quand il se promène, en arc pendant un saut
+  let chatG = null, chatHaut = null, chatPied = null, chatHautCle = null; const oChat = { etat: 'dort', phase: 0, t: 0 }, ETAT_CHAT = { dort: 'dort', assis: 'assis', marche: 'marche', descend: 'saut', monte: 'saut' }, _pc = { x: 0, y: 0, z: 0 };
+  function poserChat(E, dt) {
+    const c = V.chat;
+    if (!c || !PERSOS.chat) { if (chatG) { scene.remove(chatG); M.dispose(chatG); chatG = null; } return; }
+    if (!chatG) { chatG = PERSOS.chat({}); chatG.userData.yaw = Math.PI / 2; scene.add(chatG); }
+    if (chatHautCle !== cles.comptoir) { chatHautCle = cles.comptoir; chatHaut = MEUBLES.surDessus(contexte(E), LAY.chat); chatPied = V.piedComptoir(); } // recalculés quand le comptoir change
+    const haut = chatHaut, pied = chatPied, zp = wz(pied.y);
+    if (c.etat === 'descend' || c.etat === 'monte') { const u = c.etat === 'descend' ? c.saut : 1 - c.saut, e = u * u * (3 - 2 * u); _pc.x = haut.x + (pied.x - haut.x) * e; _pc.z = haut.z + (zp - haut.z) * e; _pc.y = haut.y * (1 - e) + Math.sin(Math.PI * u) * 14; }
+    else if (c.haut) { _pc.x = haut.x; _pc.y = haut.y; _pc.z = haut.z; }
+    else { _pc.x = c.x; _pc.y = 0; _pc.z = wz(c.y); }
+    chatG.position.set(_pc.x, _pc.y, _pc.z); chatG.scale.setScalar(V.K * 0.95);
+    tourner(chatG, c.etat === 'dort' ? 1 : c.dir, dt);
+    oChat.etat = ETAT_CHAT[c.etat] || 'assis'; oChat.phase = c.phase; oChat.t = E.t; PERSOS.animerChat(chatG, oChat);
+  }
+  function zoneChat() { // un rectangle autour du chat (il bouge : rien en cache)
+    if (!chatG) return null; const K = V.K, sx = chatG.position.x, sy = projeterY(chatG.position.y, chatG.position.z);
+    return { x: sx - 22 * K, y: sy - 30 * K, w: 44 * K, h: 36 * K };
+  }
+  function hitChat(x, y) { return dans(zoneChat(), x, y); }
+  function ronron() { V.ronron(); }
   function tourner(g, dir, dt) { const cible = YAW[dir] || 0; g.userData.yaw += angleCourt(cible - g.userData.yaw) * Math.min(1, dt * 12); g.rotation.y = g.userData.yaw; }
   function poser(g, c, E, dt) {
     const s = V.K * c.taille, assis = c.etat === 'assis', marche = c.etat === 'entre' || c.etat === 'sort' || c.etat === 'vaTable' || (c.etat === 'attend' && !!c.glisse);
@@ -2415,7 +2661,7 @@ const SCENE = (() => {
   function zones() {
     if (!LAY) return {};
     const z = V.zones(); if (!webgl) return z;
-    if (zonesCache) return zonesCache;
+    if (zonesCache) { zonesCache.chat = zoneChat(); return zonesCache; }
     const K = V.K, k = V.crans.tables;
     const boite = (g) => (g && g.userData.zoneBoite) || g; // la déco et le comptoir désignent leur partie touchable (la plante, la face vitrée)
     const four = rectDe(groupes.four, 2), fr = rectDe(groupes.froid, 2), vit = rectDe(boite(groupes.comptoir), 2), ca = rectDe(groupes.caisse, 6), tb = k > 0 ? rectDe(groupes.tables, 4) : null, bo = rectDe(boite(boulangerG), 4), de = V.crans.deco > 0 ? rectDe(boite(groupes.deco), 6) : null;
@@ -2427,6 +2673,7 @@ const SCENE = (() => {
       tables: tb ? { x: tb.x, y: tb.y, w: k >= 2 ? Math.max(tb.w, W - tb.x) : tb.w, h: tb.h } : z.tables,
       mystere: z.mystere, entree: z.entree,
     };
+    zonesCache.chat = zoneChat();
     return zonesCache;
   }
   const dans = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
@@ -2453,6 +2700,8 @@ const SCENE = (() => {
     }
     if (E.pts > 0 && boulangerG) { const r = zones().boulanger, by = (r ? r.y + 4 : LAY.boulanger.y - 80 * s0) - 8 + Math.sin(E.t * 3) * 2, bx = LAY.boulanger.x; c.fillStyle = '#fff'; rr(bx + 8, by - 10, 24, 18, 8); c.fill(); c.beginPath(); c.moveTo(bx + 12, by + 7); c.lineTo(bx + 8, by + 13); c.lineTo(bx + 18, by + 8); c.fill(); c.fillStyle = '#9A84F0'; etincelle(bx + 20, by - 1, 6); }
     if (V.crans.tables === 0) { const tb = LAY.tables[0]; c.fillStyle = 'rgba(74,51,40,.45)'; c.font = `700 ${Math.round(9 * s0)}px Nunito, sans-serif`; c.textAlign = 'center'; c.fillText('tables', tb.x, tb.y - 7 * s0); }
+    if (V.chat) for (const h of V.chat.coeurs) { c.globalAlpha = Math.max(0, Math.min(1, h.life)); c.fillStyle = '#FF6B8B'; coeur(h.x, h.y, 6); }
+    c.globalAlpha = 1;
     for (const x of V.textes) { c.globalAlpha = Math.max(0, Math.min(1, x.life * 1.4)); c.font = `700 ${Math.round(15 * Math.min(1.3, 1 + x.txt.length / 40))}px Fredoka, Nunito, sans-serif`; c.fillStyle = x.col; c.strokeStyle = '#fff'; c.lineWidth = 4; c.textAlign = 'center'; c.strokeText(x.txt, x.x, x.y); c.fillText(x.txt, x.x, x.y); }
     c.globalAlpha = 1;
     pastilles(E);
@@ -2460,6 +2709,7 @@ const SCENE = (() => {
     for (const k of V.confetti) { c.save(); c.translate(k.x, k.y); c.rotate(k.a); c.globalAlpha = Math.min(1, k.life * 2); c.fillStyle = k.c; c.fillRect(-4, -2.5, 8, 5); c.restore(); }
     c.globalAlpha = 1; c.restore();
   }
+  function coeur(x, y, s) { const c = ctx2; c.beginPath(); c.moveTo(x, y + s * 0.9); c.bezierCurveTo(x - s * 1.3, y + s * 0.1, x - s * 0.6, y - s * 0.9, x, y - s * 0.3); c.bezierCurveTo(x + s * 0.6, y - s * 0.9, x + s * 1.3, y + s * 0.1, x, y + s * 0.9); c.fill(); }
   function etincelle(x, y, r) { const c = ctx2; c.beginPath(); c.moveTo(x, y - r); c.quadraticCurveTo(x, y, x + r, y); c.quadraticCurveTo(x, y, x, y + r); c.quadraticCurveTo(x, y, x - r, y); c.quadraticCurveTo(x, y, x, y - r); c.fill(); }
   // le mode Aménager : chaque meuble entouré d'un pointillé animé, avec son nom, ses crans et le prix du cran suivant
   function amenagement(E) {
@@ -2495,7 +2745,7 @@ const SCENE = (() => {
     }
   }
 
-  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
+  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitChat, ronron, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
     vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get amenager() { return amenager; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
