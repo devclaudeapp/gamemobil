@@ -1,7 +1,7 @@
 // Opération Poncin — la caméra subjective, l'arme et les avatars sur la vraie page (C1, C2, C3, C7 et § 2 « le regard affiché ») :
 // Playwright, téléphone simulé en paysage, poncin/index.html construit, la vraie carte. La boucle de la page ne dessine plus (le rendu
 // logiciel ne tient pas 60 images/s) : le test avance la simulation de 1/60 s (window.__poncin.pas) et appelle PRENDU.image avec le
-// même dt, comme la boucle à 60 images/s. Un joueur suit au « joystick à fond » (avant = 1, regard vers le point du chemin à 1,5 m) des
+// même dt, comme la boucle à 60 images/s (sans les pixels pendant les mesures ; les captures sont prises avant). Un joueur suit au « joystick à fond » (avant = 1, regard vers le point du chemin à 1,5 m) des
 // chemins de navigation : une ligne droite sur la place (l'arène), la rue du Mazet (jusqu'à 30 %) dans les deux sens. Chaque trajet est
 // joué deux fois, balancement « normal » puis « aucun » (PRENDU.reglages) : la différence est le balancement seul.
 // Seuils (conception § 14) : balancement vertical entre 2 et 3,5 Hz, ≤ 1,3 cm de crête à crête à 5,2 m/s ; passe-haut 0,5 s de la
@@ -49,8 +49,8 @@ function cassure(s, f) { let m = 0; for (let i = 1; i + 1 < s.length; i++) m = M
 
 const ROUTES = {
   place: { nom: 'la place (arène), en ligne droite', pts: [[86, -5], [118, 30]], images: 300 },
-  mazetMonte: { nom: 'rue du Mazet ↑ (≤ 30 %)', pts: [[213, -18], [236, 3], [252, 27], [252, 55]], images: 900 },
-  mazetDescend: { nom: 'rue du Mazet ↓', pts: [[252, 55], [252, 27], [236, 3], [213, -18]], images: 900 },
+  mazetAller: { nom: 'rue du Mazet, aller (pentes jusqu\'à 30 %)', pts: [[213, -18], [236, 3], [252, 27], [252, 55]], images: 1500 },
+  mazetRetour: { nom: 'rue du Mazet, retour', pts: [[252, 55], [252, 27], [236, 3], [213, -18]], images: 1500 },
 };
 
 (async () => {
@@ -63,8 +63,19 @@ const ROUTES = {
   await page.waitForFunction(() => window.__poncin && document.body.dataset.ecran === 'titre', null, { timeout: 90000 });
   const dem = await page.evaluate(() => { const r = window.__poncin.demarrer({ bots: 3, niveau: 'facile', graine: 5 }); return { ok: !!r, idMoi: r && r.idMoi, corps: typeof PCORPS !== 'undefined', reglages: typeof PRENDU.reglages === 'function' }; });
   check(dem.ok && dem.corps && dem.reglages, `partie lancée (moi = ${dem.idMoi}), PCORPS chargé, PRENDU.reglages présent`);
-  // la page ne mène plus les images ni le rendu : le test le fait, à 1/60 s
-  await page.evaluate(() => { const P = window.__poncin; if (P.manuel) P.manuel(true); P.rendu(false); const j = P.jeu(); if (j.monde) j.monde.limite = null; P.pas(1); });
+  // ─── captures, d'abord (la boucle de la page tourne et dessine) : la place en marchant, des robots sur le pont vus de la rive ───
+  const capture = async (nom, f) => { await page.evaluate(f); await page.waitForTimeout(400); await page.screenshot({ path: path.join(out, nom + '.png'), timeout: 120000 }); };
+  await capture('place-marche', () => { const P = window.__poncin; P.pas(1); P.tp(86, -5, -2.2); P.joueur().invincible = 1e9; P.entree({ avant: 1 }); });
+  await capture('pont-robots', () => {
+    const P = window.__poncin, j = P.jeu(), T = j.monde.tabliers[0], m = P.joueur(); P.entree(null); m.vx = m.vz = 0;
+    let s = 5; // des robots sur la chaussée, vus depuis le bout du pont, dans l'axe
+    for (const b of j.entites) if (b.bot) { b.vivant = true; b.x = T.ax + T.ux * s + T.vx * (s % 2 ? 1.2 : -1.2); b.z = T.az + T.uz * s + T.vz * (s % 2 ? 1.2 : -1.2); s += 5; b.y = j.monde.hauteur(b.x, b.z); b.ax = b.x; b.ay = b.y; b.az = b.z; b.yaw = Math.atan2(T.ux, T.uz); }
+    P.tp(T.ax - T.ux * 3, T.az - T.uz * 3, Math.atan2(-T.ux, -T.uz)); m.pitch = -0.12; m.ax = m.x; m.ay = m.y; m.az = m.z;
+  });
+
+  // la page ne mène plus les images ; les mesures n'ont pas besoin des pixels : renderer.render est mis de côté (tout le reste de
+  // PRENDU.image tourne)
+  await page.evaluate(() => { const P = window.__poncin; if (P.manuel) P.manuel(true); P.rendu(false); P.entree(null); const j = P.jeu(); if (j.monde) j.monde.limite = null; P.pas(1); PRENDU._interne.renderer.render = () => {}; });
 
   // un trajet joué une fois : à chaque image, un pas de 1/60 s puis PRENDU.image(jeu, moi, 1/60, t) ; les robots sont écartés
   const jouer = (cle, bal) => page.evaluate(([R, bal]) => {
@@ -72,11 +83,12 @@ const ROUTES = {
     const chemin = []; for (let i = 0; i + 1 < R.pts.length; i++) { const c = nav.chemin(R.pts[i][0], R.pts[i][1], R.pts[i + 1][0], R.pts[i + 1][1]); if (!c) return { erreur: 'pas de chemin ' + R.pts[i] }; for (const p of c) chemin.push(p); }
     const a = nav.proche(R.pts[0][0], R.pts[0][1]), m = P.joueur(); let k = 0;
     const cap = () => { while (k < chemin.length - 1 && Math.hypot(chemin[k][0] - m.x, chemin[k][1] - m.z) < 1.5) k++; return Math.atan2(-(chemin[k][0] - m.x), -(chemin[k][1] - m.z)); };
+    const fin = () => k === chemin.length - 1 && Math.hypot(chemin[k][0] - m.x, chemin[k][1] - m.z) < 2; // au bout du chemin : on arrête la mesure
     P.tp(a[0], a[1], 0); m.vx = m.vz = m.vy = 0; m.auSol = true; m.invincible = 1e9; m.ax = m.x; m.ay = m.y; m.az = m.z; m.yaw = cap(); m.pitch = 0;
     PRENDU.reglages({ balancement: bal }); if (I.CAM.f) I.CAM.f.remettre();
     P.entree({ avant: 1, cote: 0 });
     const o = { x: [], z: [], y: [], camY: [], fpY: [], fpX: [], phi: [], v: [] };
-    for (let i = 0; i < R.images; i++) {
+    for (let i = 0; i < R.images && !fin(); i++) {
       for (const e of j.entites) if (e.bot) { e.x = 300; e.z = 300; e.vivant = false; e.mortDepuis = 1e9; }
       m.yaw = cap(); m.invincible = 1e9; m.vie = 100;
       const x0 = m.x, z0 = m.z; P.pas(1);
@@ -91,6 +103,7 @@ const ROUTES = {
   for (const cle of Object.keys(ROUTES)) {
     const R = ROUTES[cle], A = await jouer(cle, 'normal'), B = await jouer(cle, 'aucun'), D = await jouer(cle, 'doux');
     if (A.erreur || B.erreur) { check(false, `${R.nom} : ${A.erreur || B.erreur}`); continue; }
+    if (A.x.length !== B.x.length || A.x.length !== D.x.length) { check(false, `${R.nom} : trois passages de longueurs différentes`); continue; }
     let ecartTrajet = 0; for (let i = 0; i < A.x.length; i++) ecartTrajet = Math.max(ecartTrajet, Math.abs(A.x[i] - B.x[i]) + Math.abs(A.z[i] - B.z[i]) + Math.abs(A.y[i] - B.y[i]));
     const debut = 60, n = A.camY.length; // après la mise en vitesse (1 s)
     const bob = A.camY.slice(debut).map((v, i) => v - B.camY[i + debut]), bobD = D.camY.slice(debut).map((v, i) => v - B.camY[i + debut]);
@@ -160,16 +173,6 @@ const ROUTES = {
   });
   check(Math.abs(pont.y - pont.chaussee) < 1e-6 && Math.abs(pont.cam - pont.chaussee - 1.6) < 0.01, `pont du Veyron : le joueur sur la chaussée (${f2(pont.y - pont.relief)} m au-dessus du relief), la caméra à ${f2(pont.cam - pont.chaussee)} m de la chaussée`);
 
-  // ─── captures (le rendu rallumé) : la place en marchant, un robot sur le pont vu de la rive ───
-  const capture = async (nom, f) => { await page.evaluate(f); await page.screenshot({ path: path.join(out, nom + '.png') }); };
-  await page.evaluate(() => window.__poncin.rendu(true));
-  await capture('place-marche', () => { const P = window.__poncin, j = P.jeu(), id = P.etat().idMoi; P.tp(86, -5, -2.2); P.entree({ avant: 1 }); for (let i = 0; i < 40; i++) { P.pas(1); PRENDU.image(j, id, 1 / 60, i / 60, 1); } P.entree(null); });
-  await capture('pont-robot', () => {
-    const P = window.__poncin, j = P.jeu(), id = P.etat().idMoi, T = j.monde.tabliers[0], b = j.entites.find((e) => e.bot), m = P.joueur();
-    const x = (T.ax + T.bx) / 2, z = (T.az + T.bz) / 2; b.vivant = true; b.x = x; b.z = z; b.y = j.monde.hauteur(x, z); b.ax = b.x; b.ay = b.y; b.az = b.z; b.yaw = 0;
-    const px = x + T.vx * 9 - T.ux * 3, pz = z + T.vz * 9 - T.uz * 3; P.tp(px, pz, Math.atan2(-(x - px), -(z - pz))); m.pitch = -0.08; m.ax = m.x; m.ay = m.y; m.az = m.z;
-    for (let i = 0; i < 3; i++) { b.x = x; b.z = z; b.y = j.monde.hauteur(x, z); b.ax = b.x; b.ay = b.y; b.az = b.z; PRENDU.image(j, id, 1 / 60, i / 60, 1); }
-  });
   check(erreurs.length === 0, `aucune erreur dans la page${erreurs.length ? ' : ' + erreurs.slice(0, 3).join(' | ') : ''}`);
   console.log(`\nCaptures : ${path.relative(root, out)}/ ; ${oks} ok, ${echecs} en échec`);
   await navigateur.close(); serveur.close();
