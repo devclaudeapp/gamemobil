@@ -313,7 +313,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .encadre.doux { background: #EFEAFF; }
 .flottant { position: fixed; z-index: 5; pointer-events: none; font: 700 18px/1 var(--titre); color: var(--menthe-sombre); animation: monteFlotte .9s ease-out forwards; text-shadow: 0 2px 0 #fff; }
 @keyframes monteFlotte { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-46px); opacity: 0; } }
-.toast { position: fixed; pointer-events: none; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 64px); transform: translateX(-50%); z-index: 9; padding: 10px 16px; border-radius: 22px; background: var(--texte); color: #fff;
+.toast { position: fixed; pointer-events: none; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 64px); transform: translateX(-50%); z-index: 11; padding: 10px 16px; border-radius: 22px; background: var(--texte); color: #fff;
   font: 700 14px/1.2 var(--texte-font); box-shadow: 0 6px 16px var(--ombre); max-width: calc(100vw - 32px); text-align: center; animation: monte .25s ease-out; }
 .mini { height: 6px; margin-top: 6px; border-radius: 3px; background: var(--creme); overflow: hidden; }
 .mini i { display: block; height: 100%; border-radius: 3px; background: var(--menthe); transition: width .3s; }
@@ -466,3 +466,82 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .rec-pastille svg { width: 30px; height: 30px; }
 .rec-apercu { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 12px; border-radius: 16px; background: var(--creme); font-size: 14px; color: #5E463B; }
 .rec-apercu svg { width: 56px; height: 56px; flex: 0 0 auto; }
+
+/* ─── l'Atelier : la carte dans les Défis, puis les mini-jeux en plein écran par-dessus la boutique ─── */
+.atelier-carte .ligne { grid-template-columns: minmax(0, 1fr) auto; }
+.atelier-carte .ligne .t { flex-direction: row; align-items: center; gap: 10px; }
+.atelier-carte .ev-ico { width: 44px; height: 44px; border-radius: 14px; background: var(--peche); display: grid; place-items: center; flex: 0 0 auto; }
+.atelier-carte .ev-ico svg { width: 34px; height: 34px; }
+.atelier-carte .ligne .btn { min-width: 96px; }
+.atelier-carte .plafond small { color: var(--texte-2); }
+#atelier { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; background: var(--creme);
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); touch-action: none; animation: atEntre .22s ease-out; }
+@keyframes atEntre { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.at-haut { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; }
+.at-fermer { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--carte); box-shadow: 0 3px 0 var(--gris-sombre); flex: 0 0 auto; }
+.at-fermer:active { transform: translateY(3px); box-shadow: none; }
+.at-titre { min-width: 0; flex: 1 1 auto; }
+.at-titre b { display: block; font: 700 clamp(17px, 5.2vw, 20px)/1.1 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.at-titre small { display: block; font-size: 12px; color: var(--texte-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.at-chrono { flex: 0 0 auto; min-width: 64px; padding: 8px 12px; border-radius: 999px; background: var(--texte); color: #fff; font: 700 18px/1 var(--titre); text-align: center; font-variant-numeric: tabular-nums; }
+.at-bandeau { flex: 0 0 auto; display: flex; gap: 8px; padding: 0 12px 6px; }
+.at-pill { flex: 1 1 0; min-width: 0; display: flex; align-items: baseline; justify-content: center; gap: 6px; padding: 6px 8px; border-radius: 14px; background: var(--carte); box-shadow: 0 3px 0 var(--gris); }
+.at-pill small { font-size: 11px; color: var(--texte-2); }
+.at-pill b { font: 700 17px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.at-pill.chaud { background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); }
+#at-zone { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.at-toile { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.at-consigne { flex: 0 0 auto; min-height: 44px; margin: 0; padding: 6px 16px 12px; text-align: center; font: 700 15px/1.3 var(--texte-font); color: var(--texte-2); text-wrap: balance; }
+.at-consigne.l2 { min-height: calc(2 * 1.3em + 18px); } /* le façonnage : deux lignes réservées, la zone de jeu ne bouge pas d'une forme à l'autre */
+.at-effacer { position: absolute; left: 50%; top: 0; transform: translateX(-50%); min-width: 164px; padding: 5px 18px; align-content: center; visibility: hidden; touch-action: manipulation; }
+.at-effacer:active { transform: translateX(-50%) translateY(4px); box-shadow: none; }
+.at-carte { position: relative; max-width: 460px; margin: 6px auto 0; padding: 18px 16px 16px; border-radius: 24px; background: var(--carte); box-shadow: 0 6px 16px var(--ombre); max-height: calc(100% - 12px); overflow-y: auto; touch-action: pan-y; }
+#at-zone > .at-carte { margin: 6px 12px 0; }
+@media (min-width: 484px) { #at-zone > .at-carte { margin: 6px auto 0; } }
+.at-icone { display: block; width: 84px; height: 84px; margin: 0 auto 8px; padding: 10px; border-radius: 26px; background: var(--peche); }
+.at-icone svg { width: 64px; height: 64px; }
+.at-regles { margin: 4px 0 12px; padding-left: 22px; font-size: 15px; line-height: 1.4; }
+.at-regles li { margin: 4px 0; }
+.at-regles li::marker { color: var(--fraise); font-family: var(--titre); }
+.at-infos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 10px; }
+.at-infos span { padding: 8px 10px; border-radius: 16px; background: var(--creme); text-align: center; }
+.at-infos small { display: block; font-size: 12px; color: var(--texte-2); }
+.at-infos b { display: block; font: 700 17px/1.2 var(--titre); }
+.at-gain { margin: 0 0 12px; padding: 10px 12px; border-radius: 16px; background: #EFEAFF; font-size: 14px; line-height: 1.35; }
+.at-score { margin: 0; text-align: center; font: 700 56px/1 var(--titre); font-variant-numeric: tabular-nums; }
+.at-score small { display: block; margin-top: 2px; font: 700 14px/1 var(--texte-font); color: var(--texte-2); }
+.at-bilan { margin: 8px 0 12px; text-align: center; font-size: 14px; color: var(--texte-2); }
+.at-prime { margin: 0 0 6px; text-align: center; font: 700 30px/1.1 var(--titre); color: var(--menthe-sombre); }
+.at-ruban { display: table; margin: -4px auto 10px; padding: 7px 14px; border-radius: 999px; background: var(--fraise); color: #fff; font: 700 14px/1 var(--titre); box-shadow: 0 3px 0 var(--fraise-sombre); animation: pulse 1.2s ease-in-out infinite; }
+.at-resultat.record .at-score { color: var(--fraise-sombre); }
+.at-resultat.repos button { pointer-events: none; } /* un instant après la fin de partie : les touches en rafale ne relancent rien */
+/* la mémoire du pâtissier : la fiche recette, puis la grille des ingrédients */
+.mem { height: 100%; display: flex; flex-direction: column; gap: 10px; padding: 4px 12px 0; max-width: 520px; margin: 0 auto; }
+.mem-carte { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 12px; border-radius: 22px; background: #FFFDF7; box-shadow: 0 6px 16px var(--ombre);
+  background-image: repeating-linear-gradient(transparent 0 27px, rgba(184,166,255,.25) 27px 28px); }
+.mem-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.mem-tete b { font: 700 19px/1.1 var(--titre); }
+.mem-tete small { font-size: 13px; color: var(--texte-2); }
+.mem-slots { flex: 1 1 auto; display: grid; align-content: center; justify-content: center; gap: 12px 8px; }
+.mem-slot { position: relative; width: clamp(46px, 14vw, 60px); aspect-ratio: 1; border-radius: 16px; background: var(--creme); border: 2px dashed var(--gris-sombre); display: grid; place-items: center; }
+.mem-slots[data-n="s"] .mem-slot { width: clamp(60px, 19vw, 80px); }
+.mem-slots[data-n="l"] .mem-slot { width: clamp(42px, 12.5vw, 54px); }
+.mem-slot svg { width: 78%; height: 78%; }
+.mem-slot > b { font: 700 24px/1 var(--titre); color: var(--gris-texte); }
+.mem-slot > i { position: absolute; top: -7px; left: -7px; width: 20px; height: 20px; border-radius: 50%; background: var(--texte); color: #fff; font: 700 11px/20px var(--titre); text-align: center; font-style: normal; }
+.mem-slot.plein { background: #fff; border: 2px solid var(--peche); animation: memPose .18s ease-out; }
+.mem-slot.bravo { border-color: var(--menthe); background: #E9FBF3; }
+.mem-slot.faux { border-color: var(--fraise); background: #FFE9EE; animation: memFaux .35s ease-in-out; }
+@keyframes memPose { from { transform: scale(.8); } to { transform: none; } }
+@keyframes memFaux { 0%, 100% { transform: none; } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.mem-barre { display: block; height: 6px; margin-top: 8px; border-radius: 3px; background: var(--creme); overflow: hidden; }
+.mem-barre i { display: block; height: 100%; width: 100%; border-radius: 3px; background: var(--lavande); }
+.mem-grille { flex: 0 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding-bottom: 4px; transition: opacity .2s; }
+.mem-grille.attend { opacity: .45; }
+.mem-ing { display: grid; justify-items: center; gap: 2px; padding: 6px 2px 6px; min-height: 72px; border-radius: 18px; background: var(--carte); box-shadow: 0 4px 0 var(--gris-sombre); touch-action: manipulation; }
+.mem-ing svg { width: 40px; height: 40px; }
+.mem-ing span { font: 700 12px/1.1 var(--titre); }
+.mem-ing:active, .mem-ing.touche { transform: translateY(4px); box-shadow: none; }
+.mem-ing.touche { background: var(--peche); }
+@media (max-height: 680px) { .mem-ing { min-height: 62px; } .mem-ing svg { width: 32px; height: 32px; } .at-icone { width: 64px; height: 64px; padding: 8px; } .at-icone svg { width: 48px; height: 48px; } .at-regles { font-size: 14px; margin-bottom: 8px; } .at-score { font-size: 44px; } }
+.at-carte .btn { align-content: center; }

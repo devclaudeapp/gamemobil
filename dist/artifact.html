@@ -318,7 +318,7 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .encadre.doux { background: #EFEAFF; }
 .flottant { position: fixed; z-index: 5; pointer-events: none; font: 700 18px/1 var(--titre); color: var(--menthe-sombre); animation: monteFlotte .9s ease-out forwards; text-shadow: 0 2px 0 #fff; }
 @keyframes monteFlotte { from { transform: translateY(0); opacity: 1; } to { transform: translateY(-46px); opacity: 0; } }
-.toast { position: fixed; pointer-events: none; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 64px); transform: translateX(-50%); z-index: 9; padding: 10px 16px; border-radius: 22px; background: var(--texte); color: #fff;
+.toast { position: fixed; pointer-events: none; left: 50%; top: calc(env(safe-area-inset-top, 0px) + 64px); transform: translateX(-50%); z-index: 11; padding: 10px 16px; border-radius: 22px; background: var(--texte); color: #fff;
   font: 700 14px/1.2 var(--texte-font); box-shadow: 0 6px 16px var(--ombre); max-width: calc(100vw - 32px); text-align: center; animation: monte .25s ease-out; }
 .mini { height: 6px; margin-top: 6px; border-radius: 3px; background: var(--creme); overflow: hidden; }
 .mini i { display: block; height: 100%; border-radius: 3px; background: var(--menthe); transition: width .3s; }
@@ -471,6 +471,85 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .rec-pastille svg { width: 30px; height: 30px; }
 .rec-apercu { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 12px; border-radius: 16px; background: var(--creme); font-size: 14px; color: #5E463B; }
 .rec-apercu svg { width: 56px; height: 56px; flex: 0 0 auto; }
+
+/* ─── l'Atelier : la carte dans les Défis, puis les mini-jeux en plein écran par-dessus la boutique ─── */
+.atelier-carte .ligne { grid-template-columns: minmax(0, 1fr) auto; }
+.atelier-carte .ligne .t { flex-direction: row; align-items: center; gap: 10px; }
+.atelier-carte .ev-ico { width: 44px; height: 44px; border-radius: 14px; background: var(--peche); display: grid; place-items: center; flex: 0 0 auto; }
+.atelier-carte .ev-ico svg { width: 34px; height: 34px; }
+.atelier-carte .ligne .btn { min-width: 96px; }
+.atelier-carte .plafond small { color: var(--texte-2); }
+#atelier { position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; background: var(--creme);
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); touch-action: none; animation: atEntre .22s ease-out; }
+@keyframes atEntre { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.at-haut { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 8px 12px 6px; }
+.at-fermer { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--carte); box-shadow: 0 3px 0 var(--gris-sombre); flex: 0 0 auto; }
+.at-fermer:active { transform: translateY(3px); box-shadow: none; }
+.at-titre { min-width: 0; flex: 1 1 auto; }
+.at-titre b { display: block; font: 700 clamp(17px, 5.2vw, 20px)/1.1 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.at-titre small { display: block; font-size: 12px; color: var(--texte-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.at-chrono { flex: 0 0 auto; min-width: 64px; padding: 8px 12px; border-radius: 999px; background: var(--texte); color: #fff; font: 700 18px/1 var(--titre); text-align: center; font-variant-numeric: tabular-nums; }
+.at-bandeau { flex: 0 0 auto; display: flex; gap: 8px; padding: 0 12px 6px; }
+.at-pill { flex: 1 1 0; min-width: 0; display: flex; align-items: baseline; justify-content: center; gap: 6px; padding: 6px 8px; border-radius: 14px; background: var(--carte); box-shadow: 0 3px 0 var(--gris); }
+.at-pill small { font-size: 11px; color: var(--texte-2); }
+.at-pill b { font: 700 17px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.at-pill.chaud { background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); }
+#at-zone { position: relative; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.at-toile { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+.at-consigne { flex: 0 0 auto; min-height: 44px; margin: 0; padding: 6px 16px 12px; text-align: center; font: 700 15px/1.3 var(--texte-font); color: var(--texte-2); text-wrap: balance; }
+.at-consigne.l2 { min-height: calc(2 * 1.3em + 18px); } /* le façonnage : deux lignes réservées, la zone de jeu ne bouge pas d'une forme à l'autre */
+.at-effacer { position: absolute; left: 50%; top: 0; transform: translateX(-50%); min-width: 164px; padding: 5px 18px; align-content: center; visibility: hidden; touch-action: manipulation; }
+.at-effacer:active { transform: translateX(-50%) translateY(4px); box-shadow: none; }
+.at-carte { position: relative; max-width: 460px; margin: 6px auto 0; padding: 18px 16px 16px; border-radius: 24px; background: var(--carte); box-shadow: 0 6px 16px var(--ombre); max-height: calc(100% - 12px); overflow-y: auto; touch-action: pan-y; }
+#at-zone > .at-carte { margin: 6px 12px 0; }
+@media (min-width: 484px) { #at-zone > .at-carte { margin: 6px auto 0; } }
+.at-icone { display: block; width: 84px; height: 84px; margin: 0 auto 8px; padding: 10px; border-radius: 26px; background: var(--peche); }
+.at-icone svg { width: 64px; height: 64px; }
+.at-regles { margin: 4px 0 12px; padding-left: 22px; font-size: 15px; line-height: 1.4; }
+.at-regles li { margin: 4px 0; }
+.at-regles li::marker { color: var(--fraise); font-family: var(--titre); }
+.at-infos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 10px; }
+.at-infos span { padding: 8px 10px; border-radius: 16px; background: var(--creme); text-align: center; }
+.at-infos small { display: block; font-size: 12px; color: var(--texte-2); }
+.at-infos b { display: block; font: 700 17px/1.2 var(--titre); }
+.at-gain { margin: 0 0 12px; padding: 10px 12px; border-radius: 16px; background: #EFEAFF; font-size: 14px; line-height: 1.35; }
+.at-score { margin: 0; text-align: center; font: 700 56px/1 var(--titre); font-variant-numeric: tabular-nums; }
+.at-score small { display: block; margin-top: 2px; font: 700 14px/1 var(--texte-font); color: var(--texte-2); }
+.at-bilan { margin: 8px 0 12px; text-align: center; font-size: 14px; color: var(--texte-2); }
+.at-prime { margin: 0 0 6px; text-align: center; font: 700 30px/1.1 var(--titre); color: var(--menthe-sombre); }
+.at-ruban { display: table; margin: -4px auto 10px; padding: 7px 14px; border-radius: 999px; background: var(--fraise); color: #fff; font: 700 14px/1 var(--titre); box-shadow: 0 3px 0 var(--fraise-sombre); animation: pulse 1.2s ease-in-out infinite; }
+.at-resultat.record .at-score { color: var(--fraise-sombre); }
+.at-resultat.repos button { pointer-events: none; } /* un instant après la fin de partie : les touches en rafale ne relancent rien */
+/* la mémoire du pâtissier : la fiche recette, puis la grille des ingrédients */
+.mem { height: 100%; display: flex; flex-direction: column; gap: 10px; padding: 4px 12px 0; max-width: 520px; margin: 0 auto; }
+.mem-carte { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 12px; border-radius: 22px; background: #FFFDF7; box-shadow: 0 6px 16px var(--ombre);
+  background-image: repeating-linear-gradient(transparent 0 27px, rgba(184,166,255,.25) 27px 28px); }
+.mem-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.mem-tete b { font: 700 19px/1.1 var(--titre); }
+.mem-tete small { font-size: 13px; color: var(--texte-2); }
+.mem-slots { flex: 1 1 auto; display: grid; align-content: center; justify-content: center; gap: 12px 8px; }
+.mem-slot { position: relative; width: clamp(46px, 14vw, 60px); aspect-ratio: 1; border-radius: 16px; background: var(--creme); border: 2px dashed var(--gris-sombre); display: grid; place-items: center; }
+.mem-slots[data-n="s"] .mem-slot { width: clamp(60px, 19vw, 80px); }
+.mem-slots[data-n="l"] .mem-slot { width: clamp(42px, 12.5vw, 54px); }
+.mem-slot svg { width: 78%; height: 78%; }
+.mem-slot > b { font: 700 24px/1 var(--titre); color: var(--gris-texte); }
+.mem-slot > i { position: absolute; top: -7px; left: -7px; width: 20px; height: 20px; border-radius: 50%; background: var(--texte); color: #fff; font: 700 11px/20px var(--titre); text-align: center; font-style: normal; }
+.mem-slot.plein { background: #fff; border: 2px solid var(--peche); animation: memPose .18s ease-out; }
+.mem-slot.bravo { border-color: var(--menthe); background: #E9FBF3; }
+.mem-slot.faux { border-color: var(--fraise); background: #FFE9EE; animation: memFaux .35s ease-in-out; }
+@keyframes memPose { from { transform: scale(.8); } to { transform: none; } }
+@keyframes memFaux { 0%, 100% { transform: none; } 25% { transform: translateX(-5px); } 75% { transform: translateX(5px); } }
+.mem-barre { display: block; height: 6px; margin-top: 8px; border-radius: 3px; background: var(--creme); overflow: hidden; }
+.mem-barre i { display: block; height: 100%; width: 100%; border-radius: 3px; background: var(--lavande); }
+.mem-grille { flex: 0 0 auto; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; padding-bottom: 4px; transition: opacity .2s; }
+.mem-grille.attend { opacity: .45; }
+.mem-ing { display: grid; justify-items: center; gap: 2px; padding: 6px 2px 6px; min-height: 72px; border-radius: 18px; background: var(--carte); box-shadow: 0 4px 0 var(--gris-sombre); touch-action: manipulation; }
+.mem-ing svg { width: 40px; height: 40px; }
+.mem-ing span { font: 700 12px/1.1 var(--titre); }
+.mem-ing:active, .mem-ing.touche { transform: translateY(4px); box-shadow: none; }
+.mem-ing.touche { background: var(--peche); }
+@media (max-height: 680px) { .mem-ing { min-height: 62px; } .mem-ing svg { width: 32px; height: 32px; } .at-icone { width: 64px; height: 64px; padding: 8px; } .at-icone svg { width: 48px; height: 48px; } .at-regles { font-size: 14px; margin-bottom: 8px; } .at-score { font-size: 44px; } }
+.at-carte .btn { align-content: center; }
 </style>
 <div id="probe" aria-hidden="true"></div>
 <header id="haut">
@@ -520,6 +599,16 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
   <button type="button" data-page="reglages"><i class="ico" data-ico="reglages"></i><span>Réglages</span><i class="badge" hidden></i></button>
 </nav>
 <div id="indice" hidden><div class="bulle"><span id="indice-txt"></span></div><svg class="main" viewBox="0 0 36 36" aria-hidden="true"><path d="M14 33c-3 0-5-2-6-5l-3-8c-.5-1.4.3-2.7 1.6-3 1.1-.3 2.2.3 2.7 1.3l1.7 3.4V8.5c0-1.4 1.1-2.5 2.5-2.5S16 7.1 16 8.5V18h1v-8c0-1.4 1.1-2.5 2.5-2.5S22 8.6 22 10v8h1v-6c0-1.4 1.1-2.5 2.5-2.5S28 10.6 28 12v6h1v-3c0-1.4 1.1-2.5 2.5-2.5S34 13.6 34 15v9c0 5-4 9-9 9z" fill="#FFD7B5" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/></svg></div>
+<div id="atelier" role="dialog" aria-modal="true" aria-labelledby="at-titre" hidden>
+  <div class="at-haut">
+    <button type="button" class="at-fermer" data-at="fermer" aria-label="Quitter l’atelier"><i class="ico" data-ico="fermer"></i></button>
+    <div class="at-titre"><b id="at-titre">L’Atelier</b><small id="at-sous"></small></div>
+    <span id="at-chrono" class="at-chrono" hidden></span>
+  </div>
+  <div id="at-bandeau" class="at-bandeau" hidden></div>
+  <div id="at-zone"></div>
+  <p id="at-consigne" class="at-consigne" aria-live="polite"></p>
+</div>
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
@@ -762,6 +851,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null, tiroir: 'mi',
       apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, saison: null, saisonAnnoncee: '', collection: {},
+      atelier: atelierNeuf(),
     };
   }
 
@@ -1079,6 +1169,173 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   }
   function donnerBoost(st, mult, secs) { st.boost = { mult, fin: st.now + secs * 1000 }; }
 
+  // ─── l'Atelier : trois mini-jeux lancés à volonté (jamais en surprise), chacun son record ───
+  // Les gains sont modestes et plafonnés : une partie réussie paie au plus 90 s du rythme de la boutique (le concours de pétrissage en paie 240,
+  // le client mystère 120), trois parties payées par mini-jeu et par jour (heure de Paris) ; au-delà, on joue pour le record, sans gain.
+  // Au pire, neuf parties parfaites par jour : 13 min 30 de rythme, moins que la moitié des seuls objectifs du jour (3 × 10 min).
+  const ATELIER = { parJour: 3, secondes: 90, plancher: 10, seuil: 0.1, xp: 2 };
+  const JEUX_ATELIER = [
+    { id: 'four', nom: 'Enfournement en rythme', court: 'Enfournement', desc: 'Enfourne la plaque au passage, sors-la au doré parfait.', plein: 450, max: 20000, unite: 'points' },
+    { id: 'faconnage', nom: 'Façonnage au doigt', court: 'Façonnage', desc: 'Trace l’entaille, la spirale et la tresse du modèle.', plein: 225, max: 300, unite: 'points' },
+    { id: 'memoire', nom: 'Mémoire du pâtissier', court: 'Mémoire', desc: 'Retiens la recette, remets les ingrédients dans l’ordre.', plein: 25, max: 2000, unite: 'points' },
+  ];
+  const jeuAtelier = (id) => JEUX_ATELIER.find((j) => j.id === id) || null;
+  const zeroJeux = () => { const o = {}; JEUX_ATELIER.forEach((j) => { o[j.id] = 0; }); return o; };
+  const atelierNeuf = () => ({ jour: '', payees: zeroJeux(), gains: zeroJeux(), records: zeroJeux(), parties: zeroJeux() });
+  function atelierDuJour(st) { // les records restent ; les parties payées et les gains repartent de zéro à minuit, heure de Paris
+    const a = st.atelier && typeof st.atelier === 'object' ? st.atelier : (st.atelier = atelierNeuf());
+    ['payees', 'gains', 'records', 'parties'].forEach((k) => { if (!a[k] || typeof a[k] !== 'object') a[k] = {}; JEUX_ATELIER.forEach((j) => { if (!(Number(a[k][j.id]) >= 0)) a[k][j.id] = 0; }); });
+    const key = dayKey(st.now);
+    if (a.jour !== key) { a.jour = key; a.payees = zeroJeux(); a.gains = zeroJeux(); }
+    return a;
+  }
+  const qualiteAtelier = (id, score) => { const j = jeuAtelier(id); return j ? Math.max(0, Math.min(1, (Number(score) || 0) / j.plein)) : 0; };
+  const primePleineAtelier = (st) => arrondi(Math.max(ATELIER.plancher, rythme(st) * ATELIER.secondes)); // ce que paie une partie parfaite, maintenant
+  const primeAtelier = (st, id, score) => { const q = qualiteAtelier(id, score); return q < ATELIER.seuil ? 0 : arrondi(primePleineAtelier(st) * q); };
+  const restantesAtelier = (st, id) => Math.max(0, ATELIER.parJour - atelierDuJour(st).payees[id]);
+  function finirAtelier(st, id, score) { // une partie terminée : le record, puis la prime tant que le plafond du jour n'est pas atteint
+    const j = jeuAtelier(id); if (!j) return { ok: false };
+    const a = atelierDuJour(st), s = Math.max(0, Math.min(j.max, Math.floor(Number.isFinite(Number(score)) ? Number(score) : 0)));
+    const ancien = a.records[id] || 0, record = s > ancien; if (record) a.records[id] = s;
+    a.parties[id]++; inc(st, 'atelier');
+    const pourLeRecord = a.payees[id] >= ATELIER.parJour, prime = pourLeRecord ? 0 : primeAtelier(st, id, s); // plafond déjà atteint : la partie compte pour le record seulement
+    if (prime > 0) { a.payees[id]++; a.gains[id] += prime; gagner(st, prime, true); gagnerXp(st, ATELIER.xp); note(st, `Atelier, ${j.court.toLowerCase()} : ${fmt(s)} points, ${fmtEur(prime)}`); }
+    return { ok: true, id, score: s, record, ancien, prime, pourLeRecord, plafond: a.payees[id] >= ATELIER.parJour, payees: a.payees[id], reste: ATELIER.parJour - a.payees[id], qualite: qualiteAtelier(id, s) };
+  }
+
+  // 1. Enfournement en rythme : les plaques défilent sur le tapis ; toucher quand la plaque passe devant la bouche du four pour l'enfourner,
+  // puis toucher quand elle est dorée pour la sortir (ni pâle ni brûlée). Les cuissons parfaites d'affilée font un combo. Ça accélère.
+  // Moteur pur, mené par le temps (t en secondes) : l'interface avance et touche, les tests aussi.
+  const FOUR = { duree: 45, porte: 0.62, brule: 1.7, pause: 0.45, debut: 0.6 };
+  const fourNiveau = (k) => ({ vitesse: Math.min(0.95, 0.32 + 0.035 * k), cuisson: Math.max(0.75, 1.7 - 0.065 * k), tolPorte: Math.max(0.05, 0.11 - 0.004 * k), tolDore: Math.max(0.1, 0.24 - 0.009 * k) });
+  const fourNouveau = () => ({ t: 0, fini: false, k: 0, phase: 'attente', attente: FOUR.debut, x: 0, c: 0, perdue: false, score: 0, combo: 0, comboMax: 0, parfaits: 0, bons: 0, rates: 0, enfournes: 0, dernier: null, niv: fourNiveau(0) });
+  function fourRate(e, type) { e.combo = 0; e.rates++; e.dernier = { type, points: 0, t: e.t }; return e.dernier; }
+  function fourAvancer(e, dt) { // rend l'événement survenu (plaque passée, plaque brûlée), sinon null
+    if (e.fini) return null;
+    e.t += dt; let ev = null;
+    if (e.t >= FOUR.duree) { e.fini = true; e.phase = 'fin'; return { type: 'fin' }; }
+    if (e.phase === 'attente') { e.attente -= dt; if (e.attente <= 0) { e.phase = 'tapis'; e.x = 0; e.perdue = false; e.niv = fourNiveau(e.k); } }
+    else if (e.phase === 'tapis') {
+      e.x += e.niv.vitesse * dt;
+      if (!e.perdue && e.x > FOUR.porte + e.niv.tolPorte) { e.perdue = true; ev = fourRate(e, 'passee'); }
+      if (e.x >= 1.08) { e.k++; e.phase = 'attente'; e.attente = FOUR.pause; }
+    } else if (e.phase === 'four') {
+      e.c += dt / e.niv.cuisson;
+      if (e.c >= FOUR.brule) { ev = fourRate(e, 'brulee'); e.k++; e.phase = 'attente'; e.attente = FOUR.pause; }
+    }
+    return ev;
+  }
+  function fourToucher(e) { // une touche : enfourner (plaque sur le tapis) ou sortir (plaque au four) ; rend le verdict, ou null si la touche ne compte pas
+    if (e.fini) return null;
+    if (e.phase === 'tapis' && !e.perdue) {
+      const ecart = Math.abs(e.x - FOUR.porte), tol = e.niv.tolPorte;
+      if (ecart > tol) { e.perdue = true; return fourRate(e, 'tot'); } // trop tôt : la plaque glisse et tombe (trop tard, elle est déjà passée)
+      const parfait = ecart <= tol * 0.4, pts = parfait ? 5 : 2;
+      e.score += pts; e.enfournes++; e.phase = 'four'; e.c = 0;
+      e.dernier = { type: 'enfournee', parfait, points: pts, t: e.t }; return e.dernier;
+    }
+    if (e.phase === 'four') {
+      const d = e.c - 1, tol = e.niv.tolDore; let v;
+      if (Math.abs(d) <= tol * 0.4) { e.combo++; e.comboMax = Math.max(e.comboMax, e.combo); e.parfaits++; const pts = 20 + 5 * Math.min(e.combo, 10); e.score += pts; v = { type: 'sortie', verdict: 'parfait', points: pts, combo: e.combo, t: e.t }; }
+      else if (Math.abs(d) <= tol) { e.combo = 0; e.bons++; e.score += 10; v = { type: 'sortie', verdict: 'bon', points: 10, combo: 0, t: e.t }; }
+      else { fourRate(e, d < 0 ? 'pale' : 'brulee'); v = { type: 'sortie', verdict: d < 0 ? 'pale' : 'brulee', points: 0, combo: 0, t: e.t }; }
+      e.dernier = v; e.k++; e.phase = 'attente'; e.attente = FOUR.pause;
+      return v;
+    }
+    return null;
+  }
+
+  // 2. Façonnage au doigt : chaque modèle est fait de traits (points dans un carré de côté 1, y vers le bas), à tracer dans l'ordre et dans le sens.
+  // La note (sur 100) : la distance moyenne entre le tracé et le modèle (dans les deux sens : rien d'oublié, rien en trop), divisée par deux
+  // pour un trait tracé à l'envers, ×0,75 pour un trait tracé dans le désordre, −8 par trait en trop ; un trait oublié vaut 0.
+  // Un trait qui reprend à moins de `accroche` de la fin du précédent le prolonge (le doigt s'est levé en route) ; la forme est notée dès que
+  // les tracés couvrent `couvert` du modèle (chaque point du modèle à moins de `couvre` d'un tracé), sinon après un moment sans toucher.
+  const FACONNAGE = { parForme: 15, ordre: ['entailles', 'spirale', 'tresse'], tolBon: 0.015, tolZero: 0.11, minTrait: 0.04, accroche: 0.06, couvre: 0.06, couvert: 0.85 };
+  const MODELES_FACONNAGE = (() => {
+    const spirale = []; for (let k = 0; k <= 80; k++) { const u = k / 80, a = u * Math.PI * 2 * 2.25 - Math.PI / 2, r = 0.05 + 0.33 * u; spirale.push([0.5 + r * Math.cos(a), 0.5 + r * Math.sin(a)]); }
+    // les deux brins partent côte à côte (pas du même point : on voit lequel est le premier), se croisent et se rejoignent en bas
+    const brin = (s) => { const p = []; for (let k = 0; k <= 60; k++) { const u = k / 60; p.push([0.5 + s * 0.07 * (1 - u) + s * 0.2 * Math.sin(u * Math.PI * 3), 0.1 + 0.8 * u]); } return p; };
+    const entaille = (x0) => [[x0, 0.57], [x0 + 0.085, 0.5], [x0 + 0.17, 0.43]];
+    return {
+      entailles: { id: 'entailles', nom: 'Les entailles de la baguette', consigne: 'Quatre coups de lame, de gauche à droite, chacun vers le haut.', traits: [0.11, 0.3, 0.49, 0.68].map(entaille) },
+      spirale: { id: 'spirale', nom: 'La spirale du pain aux raisins', consigne: 'D’un seul geste, du cœur vers le bord, dans le sens des aiguilles d’une montre.', traits: [spirale] },
+      tresse: { id: 'tresse', nom: 'La tresse de la brioche', consigne: 'Deux brins, de haut en bas : le brin 1, puis le brin 2 qui le croise.', traits: [brin(1), brin(-1)] },
+    };
+  })();
+  const dist2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const longueur = (pts) => { let l = 0; for (let k = 1; k < pts.length; k++) l += dist2(pts[k - 1], pts[k]); return l; };
+  function reechantillonner(pts, n) { // n points régulièrement espacés le long du trait
+    if (!pts.length) return [];
+    const L = longueur(pts); if (L <= 0 || pts.length < 2) return Array.from({ length: n }, () => pts[0].slice());
+    const out = [pts[0].slice()], pas = L / (n - 1); let acc = 0, k = 1, prec = pts[0];
+    while (k < pts.length && out.length < n) {
+      const d = dist2(prec, pts[k]);
+      if (acc + d >= pas && d > 0) { const f = (pas - acc) / d, q = [prec[0] + f * (pts[k][0] - prec[0]), prec[1] + f * (pts[k][1] - prec[1])]; out.push(q); prec = q; acc = 0; }
+      else { acc += d; prec = pts[k]; k++; }
+    }
+    while (out.length < n) out.push(pts[pts.length - 1].slice());
+    return out;
+  }
+  function distSegment(p, a, b) { const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy; let t = l2 ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2 : 0; t = Math.max(0, Math.min(1, t)); return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy); }
+  const distTrait = (p, trait) => { let m = Infinity; for (let k = 1; k < trait.length; k++) m = Math.min(m, distSegment(p, trait[k - 1], trait[k])); return trait.length === 1 ? dist2(p, trait[0]) : m; };
+  const ecartMoyen = (A, B) => A.reduce((s, p) => s + distTrait(p, B), 0) / A.length;
+  const ecartTraits = (T, M) => (ecartMoyen(T, M) + ecartMoyen(M, T)) / 2;
+  const ecartPointAPoint = (A, B) => A.reduce((s, p, k) => s + dist2(p, B[k]), 0) / A.length;
+  function noterFaconnage(modeleId, traces) {
+    const m = MODELES_FACONNAGE[modeleId]; if (!m) return { note: 0, traits: [] };
+    const N = 40, M = m.traits.map((t) => reechantillonner(t, N));
+    const T = (traces || []).filter((t) => Array.isArray(t) && t.length >= 2 && longueur(t) >= FACONNAGE.minTrait).map((t) => reechantillonner(t, N));
+    const paires = [], libresT = new Set(T.map((x, k) => k)), libresM = new Set(M.map((x, i) => i)), cout = T.map((t) => M.map((mm) => ecartTraits(t, mm)));
+    while (libresT.size && libresM.size) { // le meilleur couple tracé ↔ trait du modèle d'abord
+      let best = null; libresT.forEach((k) => libresM.forEach((i) => { if (!best || cout[k][i] < best.c) best = { k, i, c: cout[k][i] }; }));
+      paires.push(best); libresT.delete(best.k); libresM.delete(best.i);
+    }
+    const traits = M.map((mm, i) => {
+      const p = paires.find((x) => x.i === i); if (!p) return { i, oublie: true, precision: 0, envers: false, desordre: false, valeur: 0 };
+      const precision = Math.max(0, Math.min(1, 1 - (p.c - FACONNAGE.tolBon) / (FACONNAGE.tolZero - FACONNAGE.tolBon)));
+      const envers = ecartPointAPoint(T[p.k], mm.slice().reverse()) < ecartPointAPoint(T[p.k], mm);
+      const desordre = M.length > 1 && p.k !== i;
+      return { i, oublie: false, precision, envers, desordre, valeur: precision * (envers ? 0.5 : 1) * (desordre ? 0.75 : 1) };
+    });
+    const enTrop = T.length - paires.length;
+    const note = Math.max(0, Math.min(100, Math.round(100 * traits.reduce((s, x) => s + x.valeur, 0) / M.length - 8 * enTrop)));
+    return { note, traits, enTrop, precision: traits.reduce((s, x) => s + x.precision, 0) / M.length, envers: traits.filter((x) => x.envers).length, desordre: traits.some((x) => x.desordre), oublies: traits.filter((x) => x.oublie).length };
+  }
+
+  function ajouterTrait(traces, pts) { // pose un tracé : il prolonge le précédent s'il reprend là où celui-ci s'arrêtait ; rend la liste et si on a accroché
+    const t = (traces || []).slice(), der = t[t.length - 1];
+    if (der && der.length && pts && pts.length && dist2(der[der.length - 1], pts[0]) <= FACONNAGE.accroche) { t[t.length - 1] = der.concat(pts); return { traces: t, accroche: true }; }
+    if (pts && pts.length) t.push(pts.slice());
+    return { traces: t, accroche: false };
+  }
+  function couvertureFaconnage(modeleId, traces) { // la part du modèle déjà couverte par les tracés (moyenne sur ses traits), de 0 à 1
+    const m = MODELES_FACONNAGE[modeleId]; if (!m) return 0;
+    const T = (traces || []).filter((t) => Array.isArray(t) && t.length >= 1); if (!T.length) return 0;
+    const parTrait = m.traits.map((t) => { const M = reechantillonner(t, 40); return M.filter((p) => T.some((tr) => (tr.length === 1 ? dist2(p, tr[0]) : distTrait(p, tr)) <= FACONNAGE.couvre)).length / M.length; });
+    return parTrait.reduce((a, b) => a + b, 0) / parTrait.length;
+  }
+
+  // 3. Mémoire du pâtissier : la recette s'affiche quelques secondes, puis on remet les ingrédients dans l'ordre ; chaque manche réussie
+  // l'allonge d'un ingrédient (la même recette, une étape de plus). Une erreur, ou la minute écoulée, et la partie s'arrête.
+  // Le score : la somme des longueurs des recettes réussies (3 + 4 + 5 + … ).
+  const INGREDIENTS = [
+    { id: 'farine', nom: 'Farine' }, { id: 'beurre', nom: 'Beurre' }, { id: 'oeufs', nom: 'Œufs' }, { id: 'sucre', nom: 'Sucre' },
+    { id: 'lait', nom: 'Lait' }, { id: 'levure', nom: 'Levure' }, { id: 'chocolat', nom: 'Chocolat' }, { id: 'sel', nom: 'Sel' },
+  ];
+  const MEMOIRE = { duree: 60, debut: 3 };
+  const memoireMontre = (n) => +(1.2 + 0.55 * n).toFixed(2); // secondes d'affichage d'une recette de n ingrédients
+  function memoireRecette(graine, n) { // les n premières étapes d'une recette tirée de la graine : allonger n garde le début
+    const rnd = mulberry32(hashStr('recette:' + graine)), r = [];
+    while (r.length < n) { const id = INGREDIENTS[Math.floor(rnd() * INGREDIENTS.length)].id; if (id !== r[r.length - 1]) r.push(id); }
+    return r;
+  }
+  function memoireSaisir(recette, saisie) { // la saisie en cours : juste jusqu'ici ? complète ?
+    let justes = 0; while (justes < saisie.length && saisie[justes] === recette[justes]) justes++;
+    const ok = justes === saisie.length;
+    return { ok, justes, complet: ok && saisie.length === recette.length };
+  }
+  const memoireScore = (manches) => { let s = 0; for (let k = 0; k < manches; k++) s += MEMOIRE.debut + k; return s; };
+
   // ─── actions ───
   function gagner(st, montant, horsObjectif) { st.coins += montant; st.lifetime += montant; st.lifetimeRun += montant; if (!horsObjectif) noter(st, 'gagner', montant); }
   function acheter(st, i) {
@@ -1202,7 +1459,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost,
-    gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono };
+    gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono,
+    ATELIER, JEUX_ATELIER, jeuAtelier, atelierDuJour, qualiteAtelier, primePleineAtelier, primeAtelier, restantesAtelier, finirAtelier,
+    FOUR, fourNiveau, fourNouveau, fourAvancer, fourToucher, FACONNAGE, MODELES_FACONNAGE, reechantillonner, noterFaconnage, ajouterTrait, couvertureFaconnage,
+    INGREDIENTS, MEMOIRE, memoireMontre, memoireRecette, memoireSaisir, memoireScore };
 });
 
 /* ── horloge.js ── */
@@ -2050,7 +2310,24 @@ const ICONS = (() => {
     froid: S(`<rect x="12" y="5" width="24" height="38" rx="5" fill="#EEF6FB" stroke="${L}" stroke-width="2"/><path d="M12 19h24" stroke="${L}" stroke-width="2"/><rect x="29" y="9" width="3" height="6" rx="1.5" fill="#8FB8FF"/><rect x="29" y="23" width="3" height="10" rx="1.5" fill="#8FB8FF"/><path d="M18 30l4 0M20 28v4" stroke="#6CB8FF" stroke-width="1.5" stroke-linecap="round"/><path d="M17 36c3 2 7 2 10 0" stroke="#6CB8FF" stroke-width="1.5" stroke-linecap="round" fill="none"/>`),
     deco: S(`<rect x="8" y="10" width="18" height="14" rx="2" fill="#fff" stroke="${L}" stroke-width="2"/><rect x="11" y="13" width="12" height="6" fill="#9ED8FF"/><path d="M11 21l4-4 3 3 2-2 3 3" stroke="#5FD3A4" stroke-width="1.8" fill="none"/><rect x="31" y="30" width="12" height="12" rx="3" fill="#D9915C" stroke="${L}" stroke-width="1.5"/><circle cx="37" cy="24" r="6" fill="#5FD3A4"/><circle cx="32" cy="27" r="4" fill="#5FD3A4"/><circle cx="42" cy="27" r="4" fill="#5FD3A4"/><path d="M30 8l1.5 3 3.5.5-2.5 2.5.6 3.4-3.1-1.6-3.1 1.6.6-3.4L25 11.5l3.5-.5z" fill="#FFC84A"/><path d="M8 32c4 6 10 8 16 6" stroke="#FF9FB2" stroke-width="2" stroke-linecap="round" fill="none"/>`),
   };
-  return { PRODUITS, SAISON, CHAT, apprenti, boulanger, toque, coupe, METAL, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES };
+  // l'Atelier : les ingrédients de la mémoire du pâtissier, et les trois mini-jeux, au même trait que les pâtisseries
+  const INGREDIENTS = {
+    farine: S(`<path d="M13 14h22l3 26a2 2 0 01-2 2H12a2 2 0 01-2-2z" fill="#FFF8EA" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M13 14l2-6h18l2 6" fill="#F4E4C8" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M24 22v14" stroke="#C8863A" stroke-width="2" stroke-linecap="round"/><path d="M24 25c-3-1-4-3-4-5 3 0 4 2 4 5zM24 25c3-1 4-3 4-5-3 0-4 2-4 5zM24 31c-3-1-4-3-4-5 3 0 4 2 4 5zM24 31c3-1 4-3 4-5-3 0-4 2-4 5z" fill="#E8B46A" stroke="#C8863A" stroke-width="1.2" stroke-linejoin="round"/>`),
+    beurre: S(`<path d="M6 30l8-10h28l-8 10z" fill="#FFF3C4" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M6 30h28v8H6z" fill="#FFE27A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M34 30l8-10v8l-8 10z" fill="#F2C94C" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M12 24l4-3" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><rect x="11" y="32.5" width="16" height="3" rx="1.5" fill="#6CB8FF"/>`),
+    oeufs: S(`<ellipse cx="18" cy="27" rx="10" ry="13" fill="#FFF8EA" stroke="${L}" stroke-width="2"/><ellipse cx="31" cy="30" rx="9.5" ry="12" fill="#F2D3B0" stroke="${L}" stroke-width="2"/><path d="M13 21c1-3 3-5 5-5.5" stroke="#fff" stroke-width="2.4" stroke-linecap="round" fill="none"/><path d="M27 24c1-2.5 2.5-4 4-4.5" stroke="#FFF3E2" stroke-width="2.2" stroke-linecap="round" fill="none"/>`),
+    sucre: S(`<path d="M8 26l9-5 9 5-9 5z" fill="#fff" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M8 26v10l9 5V31z" fill="#EEF1F6" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M26 26v10l-9 5V31z" fill="#DCE3EC" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M22 14l9-5 9 5-9 5z" fill="#fff" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M22 14v10l9 5V19z" fill="#EEF1F6" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M40 14v10l-9 5V19z" fill="#DCE3EC" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="36" cy="36" r="1.6" fill="#DCE3EC"/><circle cx="40" cy="33" r="1.2" fill="#DCE3EC"/>`),
+    lait: S(`<path d="M19 4h10v6l5 7v23a4 4 0 01-4 4H18a4 4 0 01-4-4V17l5-7z" fill="#fff" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><rect x="18" y="3" width="12" height="5" rx="1.5" fill="#6CB8FF" stroke="${L}" stroke-width="2"/><path d="M14 24h20v10H14z" fill="#9BD0FF"/><path d="M19 29h10" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/><path d="M18 18v18" stroke="#EEF6FB" stroke-width="2" stroke-linecap="round"/>`),
+    levure: S(`<path d="M10 20l12-7 16 6-12 7z" fill="#F4DDAE" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M10 20v14l16 7V26z" fill="#E8C487" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M38 19v14l-12 8V26z" fill="#D9AE6B" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="15" cy="28" r="1.6" fill="#C79A55"/><circle cx="20" cy="33" r="1.3" fill="#C79A55"/><circle cx="31" cy="31" r="1.5" fill="#B8894A"/><circle cx="22" cy="18" r="1.3" fill="#E1C38D"/><circle cx="29" cy="20" r="1.1" fill="#E1C38D"/>`),
+    chocolat: S(`<path d="M8 12h26l6 6v20a2 2 0 01-2 2H10a2 2 0 01-2-2z" fill="#7A4A2A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M17 12v28M26 12v28M8 21h32M8 30h32" stroke="#5B3A29" stroke-width="2"/><path d="M34 12c0 4 2 6 6 6" fill="#FFF7EC" stroke="${L}" stroke-width="2"/><path d="M11 15h3M20 15h3M11 24h3M20 24h3M29 24h3" stroke="#9A6440" stroke-width="1.8" stroke-linecap="round"/>`),
+    sel: S(`<path d="M16 16c0-6 4-10 8-10s8 4 8 10z" fill="#D9CCC2" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M14 16h20l2 24a2 2 0 01-2 2H14a2 2 0 01-2-2z" fill="#fff" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="21" cy="11" r="1.2" fill="${L}"/><circle cx="24" cy="9" r="1.2" fill="${L}"/><circle cx="27" cy="11" r="1.2" fill="${L}"/><path d="M15 26h18" stroke="#FF9FB2" stroke-width="3"/><path d="M17 31v6" stroke="#EEF1F6" stroke-width="2.2" stroke-linecap="round"/>`),
+  };
+  const ATELIER = {
+    atelier: S(`<rect x="4" y="19" width="40" height="10" rx="5" fill="#E8C39A" stroke="${L}" stroke-width="2"/><rect x="1" y="21.5" width="7" height="5" rx="2.5" fill="#B9732A" stroke="${L}" stroke-width="1.6"/><rect x="40" y="21.5" width="7" height="5" rx="2.5" fill="#B9732A" stroke="${L}" stroke-width="1.6"/><path d="M12 22.5h22" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".8"/><ellipse cx="24" cy="38" rx="16" ry="5" fill="#FFF3C4" stroke="${L}" stroke-width="2"/><circle cx="15" cy="12" r="1.6" fill="#F4E4C8"/><circle cx="31" cy="9" r="1.3" fill="#F4E4C8"/><circle cx="23" cy="13" r="1.1" fill="#F4E4C8"/>`),
+    four: S(`<path d="M6 40V22a18 14 0 0136 0v18z" fill="#C8864F" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M14 40V29a10 8 0 0120 0v11z" fill="#3B2F2A"/><path d="M17 40v-7a7 5 0 0114 0v7z" fill="#FF9F4A"/><rect x="16" y="36" width="16" height="4" rx="2" fill="#F1C27A" stroke="${L}" stroke-width="1.4"/><path d="M12 18h6M28 14h8M10 26h3M36 24h3" stroke="#A8621F" stroke-width="1.8" stroke-linecap="round"/><path d="M4 40h40" stroke="${L}" stroke-width="2.4" stroke-linecap="round"/>`),
+    faconnage: S(`<circle cx="24" cy="25" r="17" fill="#E8B46A" stroke="${L}" stroke-width="2"/><path d="M24 25c0-2 3-2 3 0 0 4-6 4-6 0 0-6 9-6 9 0 0 8-12 8-12 0 0-10 15-10 15 0" stroke="#B9732A" stroke-width="2.2" stroke-linecap="round" fill="none"/><circle cx="17" cy="16" r="1.8" fill="#5B3A29"/><circle cx="34" cy="31" r="1.8" fill="#5B3A29"/><circle cx="14" cy="31" r="1.6" fill="#5B3A29"/><circle cx="31" cy="15" r="1.4" fill="#5B3A29"/>`),
+    memoire: S(`<rect x="9" y="6" width="28" height="36" rx="4" fill="#fff" stroke="${L}" stroke-width="2"/><path d="M15 15h5M15 23h5M15 31h5" stroke="#FFC84A" stroke-width="4" stroke-linecap="round"/><path d="M24 15h7M24 23h7M24 31h5" stroke="#D9CCC2" stroke-width="2.4" stroke-linecap="round"/><circle cx="36" cy="35" r="7" fill="#B8A6FF" stroke="${L}" stroke-width="2"/><path d="M34 33c0-2 4-2 4 0 0 1.4-2 1.6-2 3M36 38.6v.2" stroke="#fff" stroke-width="1.8" stroke-linecap="round" fill="none"/>`),
+  };
+  return { PRODUITS, SAISON, CHAT, apprenti, boulanger, toque, coupe, METAL, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES, INGREDIENTS, ATELIER };
 })();
 
 /* ── vie.js ── */
@@ -3741,6 +4018,389 @@ const SCENE = (() => {
   return API;
 })();
 
+/* ── atelier.js ── */
+/* LE FOURNIL — l'Atelier : trois mini-jeux lancés à volonté (jamais en surprise), en plein écran par-dessus la boutique.
+   1. Enfournement en rythme (canvas), 2. Façonnage au doigt (canvas), 3. Mémoire du pâtissier (boutons).
+   Les règles, les scores, les records et les gains plafonnés par jour sont dans game.js (purs, testés dans Node) ; ici, le dessin et les touches.
+   Le temps des parties est celui de performance.now(), avancé par petits pas de 1/60 s (aucune fenêtre de touche n'est sautée, même quand
+   les images se font rares) ; un trou de plus d'une seconde (le téléphone en arrière-plan) est une pause. Une touche fait d'abord
+   avancer la partie jusqu'à son propre instant, puis elle est jugée. Aucune heure du téléphone n'entre en jeu : seule la fin de partie
+   lit HORLOGE.maintenant(). */
+const MINIJEUX = (() => {
+  'use strict';
+  const G = GAME, $ = (s) => document.querySelector(s);
+  let d = null, el, zone, titre, sous, chrono, bandeau, consigne;
+  let ecran = '', jeu = null, partie = null, raf = 0, horloge = 0, resultat = null;
+  const PAS = 1 / 60, TROU = 1; // le pas logique (s), et le trou au-delà duquel le temps écoulé est une pause (arrière-plan)
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const st = () => d.st();
+  const fmtPts = (n) => `${G.fmt(n)} point${n > 1 ? 's' : ''}`;
+
+  function init(deps) {
+    d = deps; el = $('#atelier'); zone = $('#at-zone'); titre = $('#at-titre'); sous = $('#at-sous'); chrono = $('#at-chrono'); bandeau = $('#at-bandeau'); consigne = $('#at-consigne');
+    el.querySelector('[data-at="fermer"]').addEventListener('click', () => { d.audio(); d.son.tap(); fermer(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !el.hidden) fermer(); });
+    window.addEventListener('resize', () => { if (partie && partie.redim) partie.redim(); });
+  }
+  const ouvert = () => !!el && !el.hidden;
+  function fermer() { arreter(); el.hidden = true; zone.innerHTML = ''; ecran = ''; jeu = null; resultat = null; if (d.ferme) d.ferme(); }
+  function arreter() { cancelAnimationFrame(raf); raf = 0; if (partie && partie.fin) partie.fin(); partie = null; }
+  function entete(t, s, montrerChrono) { titre.textContent = t; sous.textContent = s || ''; chrono.hidden = !montrerChrono; bandeau.hidden = true; bandeau.innerHTML = ''; consigne.textContent = ''; consigne.classList.remove('l2'); }
+
+  // ─── l'accueil d'un mini-jeu : les règles, le record, ce que paie la partie aujourd'hui ───
+  const REGLES = {
+    four: ['Les plaques défilent sur le tapis : touche quand elles passent sous la bouche du four.', 'Touche encore quand le pain est doré : ni pâle, ni brûlé.', 'Les cuissons parfaites d’affilée font un combo. Ça accélère !'],
+    faconnage: ['Trace au doigt le geste du modèle, en suivant les pointillés.', 'Commence au rond numéroté, dans le sens des flèches, trait par trait.', 'Trois formes, quinze secondes chacune : la précision fait la note.'],
+    memoire: ['Une recette s’affiche quelques secondes : retiens l’ordre des ingrédients.', 'Puis touche-les dans le même ordre.', 'Chaque recette réussie s’allonge d’un ingrédient. Une erreur, et c’est fini.'],
+  };
+  const DUREE = { four: `${G.FOUR.duree} s`, faconnage: `${G.FACONNAGE.ordre.length * G.FACONNAGE.parForme} s au plus`, memoire: `${G.MEMOIRE.duree} s au plus` };
+  function ligneGain(id) {
+    const s = st(), reste = G.restantesAtelier(s, id), a = G.atelierDuJour(s);
+    return reste > 0 ? `<b>Aujourd’hui : ${a.payees[id]}/${G.ATELIER.parJour} parties payées.</b> Une belle partie rapporte jusqu’à <b>${G.fmtEur(G.primePleineAtelier(s))}</b>.`
+      : `<b>Plafond du jour atteint</b> (${G.fmtEur(a.gains[id])} gagnés). Tu peux jouer pour le record, sans gain : rendez-vous demain, après minuit.`;
+  }
+  function ouvrir(id) {
+    const j = G.jeuAtelier(id); if (!j) return;
+    arreter(); jeu = j; ecran = 'accueil'; resultat = null; el.hidden = false; d.ouvert();
+    entete(j.nom, 'L’Atelier');
+    const rec = G.atelierDuJour(st()).records[id];
+    zone.innerHTML = `<div class="at-carte at-accueil"><span class="at-icone">${ICONS.ATELIER[id]}</span>
+      <ol class="at-regles">${REGLES[id].map((r) => `<li>${esc(r)}</li>`).join('')}</ol>
+      <div class="at-infos"><span><small>Record</small><b>${rec ? fmtPts(rec) : '—'}</b></span><span><small>Durée</small><b>${DUREE[id]}</b></span></div>
+      <p class="at-gain">${ligneGain(id)}</p>
+      <button type="button" class="btn large beurre" data-at="jouer"><b>C’est parti !</b></button></div>`;
+    zone.querySelector('[data-at="jouer"]').addEventListener('click', () => { d.audio(); d.son.tap(); demarrer(id); });
+  }
+  function demarrer(id) {
+    arreter(); ecran = 'jeu'; zone.innerHTML = '';
+    horloge = performance.now();
+    partie = ({ four: jeuFour, faconnage: jeuFaconnage, memoire: jeuMemoire })[id]();
+    const boucle = () => {
+      if (!partie) return;
+      rattraper(performance.now());
+      if (partie && partie.termine) { terminer(partie.score, partie.bilan()); return; }
+      partie.vue();
+      raf = requestAnimationFrame(boucle);
+    };
+    raf = requestAnimationFrame(boucle);
+  }
+  // amène la partie jusqu'à l'instant `t` (ms, horloge de performance.now()) par pas de 1/60 s au plus ; un long trou est une pause
+  function rattraper(t) {
+    if (!partie) return;
+    let dt = (t - horloge) / 1000; if (!(dt > 0)) return; horloge = t;
+    if (dt > TROU) return;
+    while (dt > 1e-6 && partie && !partie.termine) { const h = Math.min(PAS, dt); partie.pas(h); dt -= h; }
+  }
+  // l'instant d'une touche (Event.timeStamp, même horloge que performance.now()), borné à ce qui est possible
+  const instant = (ev) => { const n = performance.now(), t = ev && ev.timeStamp; return Number.isFinite(t) && t > 0 ? Math.min(n, Math.max(horloge, t)) : n; };
+  // ─── la fin de partie : le record, la prime (ou le plafond du jour) ───
+  function terminer(score, bilan) {
+    const id = jeu.id; arreter();
+    const s = st(); s.now = d.maintenant();
+    const r = G.finirAtelier(s, id, score); resultat = r; ecran = 'resultat';
+    d.apres(r);
+    if (r.prime > 0 || r.record) { d.son.deblocage(); d.buzz([10, 30, 10]); if (d.fete) d.fete(); } else d.son.tap();
+    entete(jeu.nom, 'Partie terminée');
+    const gain = r.prime > 0 ? `<p class="at-prime">+${G.fmtEur(r.prime)}</p><p class="at-gain">${r.reste > 0 ? `Encore ${r.reste} partie${r.reste > 1 ? 's' : ''} payée${r.reste > 1 ? 's' : ''} aujourd’hui.` : 'C’était la dernière partie payée du jour : la suite, pour le record !'}</p>`
+      : r.pourLeRecord ? '<p class="at-gain"><b>Plafond du jour atteint :</b> pas de gain, mais le record compte. Les gains reviennent demain.</p>'
+        : '<p class="at-gain">Pas de gain cette fois : vise un meilleur score pour remplir la caisse.</p>';
+    zone.innerHTML = `<div class="at-carte at-resultat${r.record ? ' record' : ''}">${r.record ? '<span class="at-ruban">Nouveau record !</span>' : ''}
+      <span class="at-icone">${ICONS.ATELIER[id]}</span>
+      <p class="at-score" data-score="${r.score}">${G.fmt(r.score)}<small>point${r.score > 1 ? 's' : ''}</small></p>
+      <p class="at-bilan">${esc(bilan)}</p>
+      <div class="at-infos"><span><small>Record</small><b>${fmtPts(G.atelierDuJour(s).records[id])}</b></span><span><small>Gagné aujourd’hui</small><b>${G.fmtEur(G.atelierDuJour(s).gains[id])}</b></span></div>
+      ${gain}
+      <button type="button" class="btn large beurre" data-at="rejouer"><b>Rejouer</b></button>
+      <button type="button" class="btn large clair" data-at="retour" style="margin-top:8px"><b>Retour à l’atelier</b></button></div>`;
+    // les touches en rafale de la fin de partie ne doivent pas tomber sur « Rejouer » ou « Retour » : les boutons attendent un instant
+    const carte = zone.querySelector('.at-resultat'); carte.classList.add('repos'); setTimeout(() => carte.classList.remove('repos'), 600);
+    zone.querySelector('[data-at="rejouer"]').addEventListener('click', () => { d.audio(); d.son.tap(); ouvrir(id); });
+    zone.querySelector('[data-at="retour"]').addEventListener('click', () => { d.son.tap(); fermer(); });
+  }
+  function pilules(html) { bandeau.hidden = false; if (bandeau.innerHTML !== html) bandeau.innerHTML = html; }
+
+  // ─── un canvas net (finesse de l'écran) qui remplit la zone de jeu ───
+  // Le bandeau, le titre et la consigne se remplissent après sa création, et la consigne peut changer de hauteur : la toile se remesure
+  // dès que la zone change (ResizeObserver, et une vérification à chaque image), et un doigt se lit toujours d'après le rectangle affiché.
+  function toile() {
+    const cv = document.createElement('canvas'); cv.className = 'at-toile'; zone.appendChild(cv);
+    const o = { cv, ctx: cv.getContext('2d'), W: 0, H: 0, k: 1 };
+    o.redim = () => { const k = Math.min(3, window.devicePixelRatio || 1); o.k = k; o.W = Math.max(1, zone.clientWidth); o.H = Math.max(1, zone.clientHeight); cv.width = Math.round(o.W * k); cv.height = Math.round(o.H * k); o.ctx.setTransform(k, 0, 0, k, 0, 0); };
+    o.ajuster = () => { if (Math.abs(zone.clientWidth - o.W) > 0.5 || Math.abs(zone.clientHeight - o.H) > 0.5) { o.redim(); return true; } return false; };
+    o.point = (ev) => { const r = cv.getBoundingClientRect(); return [(ev.clientX - r.left) * o.W / (r.width || 1), (ev.clientY - r.top) * o.H / (r.height || 1)]; }; // pixels CSS → coordonnées du dessin
+    o.ecran = (x, y) => { const r = cv.getBoundingClientRect(); return [r.left + x * r.width / o.W, r.top + y * r.height / o.H]; }; // et l'inverse
+    let obs = null; if (window.ResizeObserver) { obs = new ResizeObserver(() => o.ajuster()); obs.observe(zone); }
+    o.fin = () => { if (obs) obs.disconnect(); obs = null; };
+    o.redim(); return o;
+  }
+  const rrect = (c, x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+  const TRAIT = '#4A3328';
+  function texteFlottant(c, f, t) { // un mot qui monte et s'efface
+    const a = Math.min(1, (t - f.t0) / 0.15), age = t - f.t0, y = f.y - age * 40, al = Math.max(0, 1 - Math.max(0, age - 0.5) / 0.5);
+    c.save(); c.globalAlpha = al; c.font = `700 ${f.taille || 22}px Fredoka, Nunito, sans-serif`; c.textAlign = 'center'; c.lineWidth = 5; c.strokeStyle = '#fff'; c.lineJoin = 'round';
+    const s = 0.8 + 0.2 * a; c.translate(f.x, y); c.scale(s, s); c.strokeText(f.txt, 0, 0); c.fillStyle = f.couleur; c.fillText(f.txt, 0, 0); c.restore();
+  }
+
+  // ═══ 1. Enfournement en rythme ═══
+  const TEINTES = [[0, [246, 231, 200]], [0.6, [242, 204, 134]], [1, [226, 156, 64]], [1.3, [169, 101, 43]], [1.7, [62, 42, 32]]];
+  function teinte(c) { // la couleur de la croûte selon la cuisson (0 : pâte crue, 1 : doré parfait, 1,7 : brûlé)
+    c = Math.max(0, Math.min(1.7, c)); let k = 1; while (k < TEINTES.length - 1 && c > TEINTES[k][0]) k++;
+    const [a, ca] = TEINTES[k - 1], [b, cb] = TEINTES[k], f = (c - a) / (b - a || 1);
+    return `rgb(${ca.map((v, i) => Math.round(v + (cb[i] - v) * f)).join(',')})`;
+  }
+  function pain(c, type, x, y, s, coul) { // un pain sur la plaque : baguette, croissant ou pain au chocolat
+    c.save(); c.translate(x, y); c.scale(s, s); c.lineWidth = 1.6; c.strokeStyle = TRAIT; c.fillStyle = coul;
+    if (type === 0) { c.rotate(-0.12); rrect(c, -17, -5, 34, 10, 5); c.fill(); c.stroke(); c.strokeStyle = 'rgba(255,255,255,.55)'; c.lineWidth = 1.4; c.beginPath(); for (let k = -1; k <= 1; k++) { c.moveTo(k * 9 - 3, 2); c.lineTo(k * 9 + 3, -2); } c.stroke(); }
+    else if (type === 1) { c.beginPath(); c.moveTo(-15, 4); c.quadraticCurveTo(-12, -11, 0, -10); c.quadraticCurveTo(12, -11, 15, 4); c.quadraticCurveTo(9, -2, 0, -2); c.quadraticCurveTo(-9, -2, -15, 4); c.closePath(); c.fill(); c.stroke(); c.strokeStyle = 'rgba(120,70,30,.35)'; c.beginPath(); c.moveTo(-6, -8); c.lineTo(-4, -3); c.moveTo(6, -8); c.lineTo(4, -3); c.stroke(); }
+    else { rrect(c, -12, -7, 24, 14, 5); c.fill(); c.stroke(); c.fillStyle = 'rgba(91,58,41,.8)'; c.fillRect(-7, -4, 3, 8); c.fillRect(4, -4, 3, 8); }
+    c.restore();
+  }
+  function plaque(c, type, x, y, s, coul) { c.save(); c.fillStyle = '#9AA3AD'; c.strokeStyle = TRAIT; c.lineWidth = 2; rrect(c, x - 44 * s, y - 2 * s, 88 * s, 9 * s, 4 * s); c.fill(); c.stroke(); c.restore(); for (let k = -1; k <= 1; k++) pain(c, type, x + k * 27 * s, y - 6 * s, s * 0.78, coul); }
+  function jeuFour() {
+    const T = toile(), e = G.fourNouveau(), fl = [], grille = []; let anim = null, chute = null, flash = 0, temps = 0;
+    const geo = () => { // de haut en bas : le four, la jauge de cuisson, la fenêtre d'enfournement, le tapis, la grille où refroidissent les fournées
+      const W = T.W, H = T.H, bx = 10, bw = W - 20, porteX = bx + G.FOUR.porte * bw, oy = Math.round(H * 0.03), ow = Math.min(W * 0.74, 330), oh = Math.max(120, Math.min(ow, H * 0.45, H - 200 - oy));
+      const jaugeY = oy + oh + 14, tapisY = jaugeY + 36 + Math.max(44, (H - jaugeY - 36 - 90) * 0.55), grilleY = Math.min(H - 34, tapisY + 40 + Math.max(8, (H - tapisY - 74) * 0.5));
+      return { W, H, bx, bw, porteX, ox: Math.max(ow / 2 + 6, Math.min(W - ow / 2 - 6, porteX)), oy, ow, oh, jaugeY, tapisY, grilleY }; };
+    const X = (g, x) => g.bx + x * g.bw;
+    function toucher(ev) {
+      ev.preventDefault(); d.audio(); rattraper(instant(ev)); if (e.fini) return; // la partie avance jusqu'à l'instant de la touche, puis on juge
+      const g = geo(), avant = e.phase, type = e.k % 3, x = X(g, e.x), c0 = e.c, r = G.fourToucher(e); if (!r) return;
+      if (r.type === 'enfournee') { anim = { de: [x, g.tapisY], t0: temps, type }; d.son.tap(); d.buzz(8); fl.push({ txt: r.parfait ? 'Pile !' : 'Enfourné', x: g.ox, y: g.tapisY - 30, t0: temps, couleur: r.parfait ? '#3FB889' : '#8C6F62', taille: 18 }); }
+      else if (r.type === 'tot') { chute = { x, t0: temps, type }; d.son.non(); d.buzz(30); fl.push({ txt: 'Trop tôt !', x, y: g.tapisY - 30, t0: temps, couleur: '#E1496C' }); }
+      else if (r.type === 'sortie') {
+        grille.push({ type, c: c0, verdict: r.verdict }); if (grille.length > 5) grille.shift();
+        const txt = { parfait: r.combo > 1 ? `Parfait ! ×${r.combo}` : 'Parfait !', bon: 'Bien doré', pale: 'Trop pâle…', brulee: 'Brûlé !' }[r.verdict];
+        fl.push({ txt, x: g.ox, y: g.oy + g.oh * 0.55, t0: temps, couleur: r.verdict === 'parfait' ? '#3FB889' : r.verdict === 'bon' ? '#E0A61E' : '#E1496C', taille: r.verdict === 'parfait' ? 26 : 22 });
+        if (r.verdict === 'parfait') { d.son.vente(Math.pow(10, Math.min(6, r.combo))); d.buzz(r.combo >= 3 ? [10, 30, 10] : 12); flash = temps; }
+        else if (r.verdict === 'bon') { d.son.tap(); d.buzz(8); } else { d.son.non(); d.buzz(40); }
+      }
+      if (avant !== e.phase) majConsigne();
+    }
+    T.cv.addEventListener('pointerdown', toucher);
+    const majConsigne = () => { consigne.textContent = e.phase === 'tapis' ? 'Touche quand la plaque passe sous le four.' : e.phase === 'four' ? 'Touche quand c’est doré !' : ''; };
+    function dessiner() {
+      const c = T.ctx, g = geo(), W = g.W, H = g.H; c.clearRect(0, 0, W, H);
+      // le mur de faïence
+      c.fillStyle = '#FFF7EC'; c.fillRect(0, 0, W, H); c.strokeStyle = 'rgba(217,204,194,.45)'; c.lineWidth = 1;
+      for (let y = 0; y < g.tapisY; y += 26) { c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); for (let x = (y / 26) % 2 ? 0 : 20; x < W; x += 40) { c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + 26); c.stroke(); } }
+      // le four : voûte de briques, bouche sombre, feu qui rougeoie quand il cuit
+      const { ox, oy, ow, oh } = g, cuit = e.phase === 'four', lx = ox - ow / 2;
+      if (lx > 54) { const px = lx * 0.45; c.save(); c.translate(px, oy + oh * 0.5); c.rotate(0.12); c.fillStyle = '#C8935F'; c.strokeStyle = TRAIT; c.lineWidth = 2; rrect(c, -4, -oh * 0.45, 8, oh * 0.7, 4); c.fill(); c.stroke(); rrect(c, -19, oh * 0.22, 38, oh * 0.28, 9); c.fillStyle = '#E9C79A'; c.fill(); c.stroke(); c.restore(); }
+      c.fillStyle = '#7A655C'; rrect(c, ox + ow * 0.22, oy - 6, ow * 0.12, 22, 4); c.fill();
+      c.beginPath(); c.moveTo(lx, oy + oh); c.lineTo(lx, oy + oh * 0.45); c.ellipse(ox, oy + oh * 0.45, ow / 2, oh * 0.45, 0, Math.PI, 0); c.lineTo(lx + ow, oy + oh); c.closePath();
+      c.fillStyle = '#C8864F'; c.fill(); c.lineWidth = 2.5; c.strokeStyle = TRAIT; c.stroke();
+      c.save(); c.clip(); c.strokeStyle = 'rgba(168,98,31,.55)'; c.lineWidth = 2; for (let y = oy + 14, r = 0; y < oy + oh; y += 16, r++) { c.beginPath(); c.moveTo(lx, y); c.lineTo(lx + ow, y); c.stroke(); for (let x = lx + (r % 2 ? 0 : 18); x < lx + ow; x += 36) { c.beginPath(); c.moveTo(x, y - 16); c.lineTo(x, y); c.stroke(); } } c.restore();
+      const mw = ow * 0.66, mh = oh * 0.5, my = oy + oh - mh;
+      c.beginPath(); c.moveTo(ox - mw / 2, oy + oh); c.lineTo(ox - mw / 2, my + mh * 0.4); c.ellipse(ox, my + mh * 0.4, mw / 2, mh * 0.4, 0, Math.PI, 0); c.lineTo(ox + mw / 2, oy + oh); c.closePath();
+      c.fillStyle = '#3B2F2A'; c.fill(); c.lineWidth = 2.5; c.stroke();
+      c.save(); c.clip(); const lueur = c.createRadialGradient(ox, oy + oh, 4, ox, oy + oh, mw * 0.7); const fort = cuit ? 0.55 + 0.15 * Math.sin(temps * 9) : 0.18;
+      lueur.addColorStop(0, `rgba(255,159,74,${fort})`); lueur.addColorStop(1, 'rgba(255,159,74,0)'); c.fillStyle = lueur; c.fillRect(ox - mw, my, mw * 2, mh);
+      if (cuit && !anim) plaque(c, e.k % 3, ox, oy + oh - 12, 0.9, teinte(e.c));
+      c.restore();
+      c.fillStyle = '#7A655C'; rrect(c, lx - 6, oy + oh - 4, ow + 12, 12, 5); c.fill(); c.lineWidth = 2; c.strokeStyle = TRAIT; c.stroke();
+      // la jauge de cuisson : pâle, doré (la zone parfaite au centre), brûlé
+      const jx = lx, jw = ow, jy = g.jaugeY, jh = 18, k = (v) => jx + (v / G.FOUR.brule) * jw, tol = e.niv.tolDore;
+      const gr = c.createLinearGradient(jx, 0, jx + jw, 0); TEINTES.forEach(([v]) => gr.addColorStop(v / G.FOUR.brule, teinte(v))); c.fillStyle = gr; rrect(c, jx, jy, jw, jh, 9); c.fill();
+      c.globalAlpha = cuit ? 1 : 0.45;
+      c.fillStyle = 'rgba(95,211,164,.35)'; c.fillRect(k(1 - tol), jy, k(1 + tol) - k(1 - tol), jh);
+      c.fillStyle = 'rgba(95,211,164,.85)'; c.fillRect(k(1 - tol * 0.4), jy, k(1 + tol * 0.4) - k(1 - tol * 0.4), jh);
+      c.globalAlpha = 1; c.lineWidth = 2; c.strokeStyle = TRAIT; rrect(c, jx, jy, jw, jh, 9); c.stroke();
+      c.font = '700 12px Nunito, sans-serif'; c.textAlign = 'center'; c.fillStyle = '#8C6F62'; c.fillText('pâle', jx + 22, jy + jh + 14); c.fillText('doré', k(1), jy + jh + 14); c.fillText('brûlé', jx + jw - 24, jy + jh + 14);
+      if (cuit) { const nx = k(e.c); c.fillStyle = '#fff'; c.strokeStyle = TRAIT; c.lineWidth = 2; c.beginPath(); c.moveTo(nx, jy - 2); c.lineTo(nx - 7, jy - 12); c.lineTo(nx + 7, jy - 12); c.closePath(); c.fill(); c.stroke(); c.beginPath(); c.moveTo(nx, jy); c.lineTo(nx, jy + jh); c.stroke(); }
+      // le tapis, ses rouleaux qui tournent, et la fenêtre de la bouche du four
+      const ty = g.tapisY, roule = temps * e.niv.vitesse * g.bw;
+      c.fillStyle = '#7A655C'; rrect(c, g.bx - 4, ty, g.bw + 8, 22, 11); c.fill(); c.lineWidth = 2; c.strokeStyle = TRAIT; c.stroke();
+      c.save(); rrect(c, g.bx - 4, ty, g.bw + 8, 22, 11); c.clip(); c.strokeStyle = 'rgba(255,255,255,.18)'; c.lineWidth = 3; for (let x = g.bx - 30 + (roule % 30); x < g.bx + g.bw + 30; x += 30) { c.beginPath(); c.moveTo(x, ty + 2); c.lineTo(x - 8, ty + 20); c.stroke(); } c.restore();
+      for (let x = g.bx + 12; x < g.bx + g.bw; x += 34) { c.fillStyle = '#5B4A42'; c.beginPath(); c.arc(x, ty + 28, 5, 0, Math.PI * 2); c.fill(); }
+      const fx0 = X(g, G.FOUR.porte - e.niv.tolPorte), fx1 = X(g, G.FOUR.porte + e.niv.tolPorte), fp0 = X(g, G.FOUR.porte - e.niv.tolPorte * 0.4), fp1 = X(g, G.FOUR.porte + e.niv.tolPorte * 0.4);
+      const haut = g.jaugeY + 40; c.fillStyle = 'rgba(255,200,74,.26)'; rrect(c, fx0, haut, fx1 - fx0, ty + 22 - haut, 8); c.fill(); c.fillStyle = 'rgba(255,200,74,.5)'; rrect(c, fp0, ty - 30, fp1 - fp0, 52, 6); c.fill();
+      c.setLineDash([5, 5]); c.strokeStyle = '#E0A61E'; c.lineWidth = 2; c.beginPath(); c.moveTo(fx0, haut + 6); c.lineTo(fx0, ty + 22); c.moveTo(fx1, haut + 6); c.lineTo(fx1, ty + 22); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#E0A61E'; const fy = Math.max(haut + 16, ty - 52); c.beginPath(); c.moveTo(g.porteX, fy); c.lineTo(g.porteX - 9, fy + 12); c.lineTo(g.porteX + 9, fy + 12); c.closePath(); c.fill();
+      // la plaque sur le tapis, celle qui tombe, celle qui monte au four
+      if (e.phase === 'tapis' && !e.perdue) plaque(c, e.k % 3, X(g, e.x), ty - 4, 1, teinte(0));
+      if (e.phase === 'tapis' && e.perdue && !chute) plaque(c, e.k % 3, X(g, e.x), ty - 4, 1, teinte(0));
+      if (chute) { const a = temps - chute.t0; if (a > 0.7) chute = null; else { c.save(); c.globalAlpha = 1 - a / 0.7; c.translate(chute.x, ty - 4 + a * a * 500); c.rotate(a * 2); plaque(c, chute.type, 0, 0, 1, teinte(0)); c.restore(); } }
+      if (anim) { const a = Math.min(1, (temps - anim.t0) / 0.2); if (a >= 1) anim = null; else plaque(c, anim.type, anim.de[0] + (ox - anim.de[0]) * a, anim.de[1] - 4 + (oy + oh - 12 - anim.de[1] + 4) * a, 1 - 0.1 * a, teinte(0)); }
+      // la grille : les dernières fournées sorties
+      const gy = g.grilleY; c.fillStyle = '#EADFD6'; rrect(c, 14, gy, W - 28, 30, 10); c.fill(); c.strokeStyle = '#D9CCC2'; c.lineWidth = 2; for (let x = 30; x < W - 20; x += 16) { c.beginPath(); c.moveTo(x, gy + 3); c.lineTo(x, gy + 27); c.stroke(); }
+      grille.forEach((p, k) => { const x = W - 50 - (grille.length - 1 - k) * ((W - 70) / 5); pain(c, p.type, x, gy + 15, 0.8, teinte(p.c)); if (p.verdict === 'parfait') { c.fillStyle = '#FFC84A'; c.font = '700 13px Fredoka, sans-serif'; c.fillText('★', x + 16, gy + 8); } });
+      if (flash && temps - flash < 0.25) { c.fillStyle = `rgba(255,236,170,${0.35 * (1 - (temps - flash) / 0.25)})`; c.fillRect(0, 0, W, H); }
+      for (let i = fl.length - 1; i >= 0; i--) { if (temps - fl[i].t0 > 1) fl.splice(i, 1); else texteFlottant(c, fl[i], temps); }
+    }
+    let phaseVue = '';
+    const P = {
+      redim: () => T.redim(), fin: () => T.fin(), termine: false, get score() { return e.score; },
+      pas(dt) { // la logique seule, par petits pas
+        temps += dt; const avant = e.phase, r = G.fourAvancer(e, dt), g = geo();
+        if (r && r.type === 'passee') { d.son.non(); d.buzz(30); fl.push({ txt: 'Raté !', x: Math.min(g.W - 40, X(g, e.x)), y: g.tapisY - 30, t0: temps, couleur: '#E1496C' }); }
+        if (r && r.type === 'brulee') { d.son.non(); d.buzz(40); grille.push({ type: (e.k - 1) % 3, c: G.FOUR.brule, verdict: 'brulee' }); if (grille.length > 5) grille.shift(); fl.push({ txt: 'Brûlé !', x: g.ox, y: g.oy + g.oh * 0.55, t0: temps, couleur: '#E1496C' }); }
+        if (avant !== e.phase || phaseVue !== e.phase) { phaseVue = e.phase; majConsigne(); }
+        if (e.fini) P.termine = true;
+      },
+      vue() { // l'image
+        T.ajuster();
+        chrono.textContent = G.fmtChrono(Math.ceil(Math.max(0, G.FOUR.duree - e.t)));
+        pilules(`<span class="at-pill"><small>Score</small><b>${G.fmt(e.score)}</b></span><span class="at-pill${e.combo > 1 ? ' chaud' : ''}"><small>Combo</small><b>×${e.combo}</b></span><span class="at-pill"><small>Record</small><b>${G.fmt(G.atelierDuJour(st()).records.four)}</b></span>`);
+        dessiner();
+      },
+      bilan: () => `${e.parfaits} cuisson${e.parfaits > 1 ? 's' : ''} parfaite${e.parfaits > 1 ? 's' : ''}, ${e.bons} bien dorée${e.bons > 1 ? 's' : ''}, ${e.rates} ratée${e.rates > 1 ? 's' : ''} · meilleur combo ×${e.comboMax}`,
+      etat: () => { const g = geo(), r = T.cv.getBoundingClientRect(), [tx, ty] = T.ecran(g.porteX, g.tapisY - 60); return { jeu: 'four', phase: e.phase, x: e.x, c: e.c, perdue: e.perdue, k: e.k, t: e.t, score: e.score, combo: e.combo, comboMax: e.comboMax, parfaits: e.parfaits, rates: e.rates, porte: G.FOUR.porte, niv: e.niv, toile: { x: r.left, y: r.top, w: r.width, h: r.height }, touche: { x: tx, y: ty } }; },
+    };
+    entete(jeu.court, 'Enfourne, puis sors au doré', true); majConsigne(); P.pas(0); P.vue();
+    return P;
+  }
+
+  // ═══ 2. Façonnage au doigt ═══
+  // les pointillés de chaque trait : brun ; le second brin de la tresse en lavande (et son rond « 2 » aussi), pour qu'on sache lequel est lequel
+  const TEINTES_TRAIT = { tresse: [['168,98,31', '#FFC84A'], ['122,98,220', '#B8A6FF']] };
+  const teinteTrait = (m, i) => (TEINTES_TRAIT[m.id] || [])[i] || ['168,98,31', '#FFC84A'];
+  function jeuFaconnage() {
+    const T = toile(), ordre = G.FACONNAGE.ordre, notes = [], farine = [];
+    for (let k = 0; k < 40; k++) farine.push([Math.random(), Math.random(), 0.6 + Math.random() * 1.6]);
+    let forme = 0, traces = [], courant = null, reste = G.FACONNAGE.parForme, verdict = null, temps = 0, valider = 0;
+    const BAS = 60; // sous le plan de travail, la place (toujours réservée) du bouton « Recommencer »
+    const geo = () => { const S = Math.max(120, Math.min(T.W - 28, T.H - 46 - BAS - 8, 460)), ox = (T.W - S) / 2, oy = 46 + Math.max(0, (T.H - 46 - S - BAS) / 2); return { S, ox, oy }; };
+    const versUnite = (g, x, y) => [(x - g.ox) / g.S, (y - g.oy) / g.S];
+    const modele = () => G.MODELES_FACONNAGE[ordre[forme]];
+    // « Recommencer » : un vrai bouton de 44 px sous le plan de travail, toujours à sa place (caché quand il n'y a rien à effacer)
+    const effacer = document.createElement('button'); effacer.type = 'button'; effacer.className = 'btn clair at-effacer'; effacer.dataset.at = 'effacer'; effacer.innerHTML = '<b>Recommencer</b>'; zone.appendChild(effacer);
+    effacer.addEventListener('click', () => { if (verdict || !traces.length) return; traces = []; courant = null; valider = 0; d.son.tap(); P.vue(); });
+    let boutonVu = '';
+    const majBouton = () => { const g = geo(), v = `${Math.round(g.oy + g.S + 16)}|${traces.length && !verdict ? 1 : 0}`; if (v === boutonVu) return; boutonVu = v; const [top, vis] = v.split('|'); effacer.style.top = top + 'px'; effacer.style.visibility = vis === '1' ? 'visible' : 'hidden'; };
+    // la forme est notée dès que les tracés couvrent le modèle ; sinon, après un moment sans toucher (le doigt a pu se lever en route)
+    const programmer = () => { const m = modele(); valider = traces.length >= m.traits.length ? (G.couvertureFaconnage(m.id, traces) >= G.FACONNAGE.couvert ? 0.35 : 1.5) : 0; };
+    function poser(ev) {
+      ev.preventDefault(); d.audio(); if (verdict || courant || P.termine) return;
+      try { T.cv.setPointerCapture(ev.pointerId); } catch (e) { /* rien */ }
+      T.ajuster(); const [x, y] = T.point(ev); courant = { id: ev.pointerId, pts: [versUnite(geo(), x, y)] }; valider = 0;
+    }
+    function glisser(ev) { if (!courant || ev.pointerId !== courant.id) return; ev.preventDefault(); const [x, y] = T.point(ev), p = versUnite(geo(), x, y), q = courant.pts[courant.pts.length - 1]; if (Math.hypot(p[0] - q[0], p[1] - q[1]) > 0.004) courant.pts.push(p); }
+    function lever(ev) {
+      if (!courant || ev.pointerId !== courant.id) return;
+      const t = courant.pts; courant = null;
+      let L = 0; for (let k = 1; k < t.length; k++) L += Math.hypot(t[k][0] - t[k - 1][0], t[k][1] - t[k - 1][1]);
+      if (L >= G.FACONNAGE.minTrait) { traces = G.ajouterTrait(traces, t).traces; d.son.tap(); d.buzz(6); } // une simple touche ne compte pas ; un trait repris là où l'autre s'arrêtait le prolonge
+      programmer();
+    }
+    T.cv.addEventListener('pointerdown', poser); T.cv.addEventListener('pointermove', glisser); T.cv.addEventListener('pointerup', lever); T.cv.addEventListener('pointercancel', lever);
+    const majConsigne = () => { consigne.textContent = verdict ? verdict.txt : modele().consigne; };
+    function noter() {
+      const m = modele(), r = G.noterFaconnage(m.id, traces); notes.push(r.note);
+      const defauts = [r.oublies ? `${r.oublies} trait${r.oublies > 1 ? 's' : ''} oublié${r.oublies > 1 ? 's' : ''}` : '', r.envers ? 'à l’envers' : '', r.desordre ? 'dans le désordre' : '', r.enTrop ? `${r.enTrop} trait${r.enTrop > 1 ? 's' : ''} en trop` : ''].filter(Boolean);
+      const mot = r.note >= 90 ? 'Du travail de compagnon !' : r.note >= 70 ? 'Joli geste.' : r.note >= 40 ? 'Ça prend forme.' : 'La pâte a résisté…';
+      verdict = { note: r.note, t0: temps, txt: `${r.note}/100 · ${mot}${defauts.length ? ' (' + defauts.join(', ') + ')' : ''}` };
+      if (r.note >= 70) { d.son.vente(Math.pow(10, r.note / 20)); d.buzz([10, 30, 10]); } else if (r.note >= 40) d.son.tap(); else d.son.non();
+      majConsigne();
+    }
+    function dessiner() {
+      const c = T.ctx, g = geo(), { S, ox, oy } = g, m = modele(), W = T.W, H = T.H; c.clearRect(0, 0, W, H);
+      c.fillStyle = '#FFF7EC'; c.fillRect(0, 0, W, H);
+      c.fillStyle = TRAIT; c.font = '700 19px Fredoka, Nunito, sans-serif'; c.textAlign = 'center'; c.fillText(`${forme + 1}. ${m.nom}`, W / 2, oy - 18, W - 24);
+      // le plan de travail en bois, fariné
+      c.fillStyle = '#E9C79A'; rrect(c, ox - 8, oy - 8, S + 16, S + 16, 24); c.fill(); c.strokeStyle = '#C8935F'; c.lineWidth = 2; c.stroke();
+      c.save(); rrect(c, ox - 8, oy - 8, S + 16, S + 16, 24); c.clip(); c.strokeStyle = 'rgba(168,110,60,.25)'; c.lineWidth = 1.5; for (let y = oy; y < oy + S; y += 22) { c.beginPath(); c.moveTo(ox - 8, y); c.bezierCurveTo(ox + S * 0.3, y + 6, ox + S * 0.6, y - 6, ox + S + 8, y + 3); c.stroke(); }
+      c.fillStyle = 'rgba(255,255,255,.7)'; farine.forEach(([x, y, r]) => { c.beginPath(); c.arc(ox + x * S, oy + y * S, r, 0, Math.PI * 2); c.fill(); }); c.restore();
+      // la pâte de la forme
+      c.fillStyle = '#F6E2B8'; c.strokeStyle = '#C8935F'; c.lineWidth = 2.5; c.beginPath();
+      if (m.id === 'entailles') { rrect(c, ox + 0.04 * S, oy + 0.36 * S, 0.92 * S, 0.28 * S, 0.14 * S); }
+      else if (m.id === 'spirale') { c.arc(ox + 0.5 * S, oy + 0.5 * S, 0.45 * S, 0, Math.PI * 2); }
+      else { c.ellipse(ox + 0.5 * S, oy + 0.5 * S, 0.32 * S, 0.47 * S, 0, 0, Math.PI * 2); }
+      c.fill(); c.stroke();
+      if (m.id === 'spirale') { c.fillStyle = '#6B3E26'; [[0.2, 0.3], [0.78, 0.36], [0.27, 0.74], [0.7, 0.8], [0.84, 0.6], [0.14, 0.52]].forEach(([x, y]) => { c.beginPath(); c.ellipse(ox + x * S, oy + y * S, 4, 3, 0.6, 0, Math.PI * 2); c.fill(); }); }
+      // le modèle : pointillés, flèches dans le sens du geste, ronds numérotés au départ de chaque trait (écartés s'ils se touchent)
+      const P2 = (p) => [ox + p[0] * S, oy + p[1] * S], fini = !!verdict, ronds = [];
+      m.traits.forEach((t, i) => {
+        const [rgb, rond] = teinteTrait(m, i);
+        c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = fini ? 'rgba(63,184,137,.55)' : `rgba(${rgb},.55)`; c.lineWidth = 9; c.setLineDash([1, 14]);
+        c.beginPath(); t.forEach((p, k) => { const [x, y] = P2(p); if (k) c.lineTo(x, y); else c.moveTo(x, y); }); c.stroke(); c.restore();
+        const fl = (u) => { const n = t.length - 1, k = Math.min(n - 1, Math.floor(u * n)), a = P2(t[k]), b = P2(t[k + 1]), an = Math.atan2(b[1] - a[1], b[0] - a[0]); c.save(); c.translate(a[0], a[1]); c.rotate(an); c.fillStyle = fini ? 'rgba(63,184,137,.8)' : `rgba(${rgb},.8)`; c.beginPath(); c.moveTo(8, 0); c.lineTo(-5, -6); c.lineTo(-5, 6); c.closePath(); c.fill(); c.restore(); };
+        (t.length > 20 ? [0.3, 0.55, 0.8] : [0.62]).forEach(fl);
+        let [sx, sy] = P2(t[0]); ronds.forEach(([x, y]) => { if (Math.hypot(sx - x, sy - y) < 24) sx += sx >= x ? 24 : -24; }); ronds.push([sx, sy]);
+        c.fillStyle = rond; c.strokeStyle = TRAIT; c.lineWidth = 2; c.beginPath(); c.arc(sx, sy, 11, 0, Math.PI * 2); c.fill(); c.stroke();
+        c.fillStyle = TRAIT; c.font = '700 13px Fredoka, Nunito, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(String(i + 1), sx, sy + 0.5); c.textBaseline = 'alphabetic';
+      });
+      // les tracés du joueur : des sillons dans la pâte
+      const sillon = (pts) => { if (pts.length < 2) return; c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; c.beginPath(); pts.forEach((p, k) => { const [x, y] = P2(p); if (k) c.lineTo(x, y); else c.moveTo(x, y); }); c.strokeStyle = '#8B5A3C'; c.lineWidth = 8; c.stroke(); c.strokeStyle = 'rgba(255,240,210,.55)'; c.lineWidth = 2.5; c.stroke(); c.restore(); };
+      traces.forEach(sillon); if (courant) sillon(courant.pts);
+      if (verdict) { const a = Math.min(1, (temps - verdict.t0) / 0.2); c.save(); c.globalAlpha = a; c.font = `700 ${Math.round(S * 0.13)}px Fredoka, Nunito, sans-serif`; c.textAlign = 'right'; c.lineWidth = 7; c.strokeStyle = '#fff'; c.lineJoin = 'round'; const y = oy + S * 0.14, x = ox + S - 12; c.strokeText(String(verdict.note), x, y); c.fillStyle = verdict.note >= 70 ? '#3FB889' : verdict.note >= 40 ? '#E0A61E' : '#E1496C'; c.fillText(String(verdict.note), x, y); c.restore(); }
+    }
+    const P = {
+      redim: () => T.redim(), fin: () => T.fin(), termine: false, get score() { return notes.reduce((a, b) => a + b, 0); },
+      pas(dt) {
+        temps += dt;
+        if (verdict) { if (temps - verdict.t0 > 1.4) { verdict = null; forme++; traces = []; courant = null; valider = 0; reste = G.FACONNAGE.parForme; if (forme >= ordre.length) { P.termine = true; return; } majConsigne(); } }
+        else { reste -= dt; if (valider > 0) { valider -= dt; if (valider <= 0) noter(); } else if (reste <= 0) { courant = null; noter(); } }
+      },
+      vue() {
+        T.ajuster();
+        chrono.textContent = G.fmtChrono(Math.ceil(Math.max(0, reste)));
+        pilules(`<span class="at-pill"><small>Forme</small><b>${Math.min(forme + 1, ordre.length)}/${ordre.length}</b></span><span class="at-pill"><small>Score</small><b>${G.fmt(P.score)}</b></span><span class="at-pill"><small>Record</small><b>${G.fmt(G.atelierDuJour(st()).records.faconnage)}</b></span>`);
+        dessiner(); majBouton();
+      },
+      bilan: () => ordre.map((id, k) => `${({ entailles: 'entailles', spirale: 'spirale', tresse: 'tresse' })[id]} ${notes[k] != null ? notes[k] : 0}/100`).join(' · '),
+      // le modèle en coordonnées d'écran (celles que voit le doigt), et la toile : taille affichée et taille de son dessin
+      etat: () => { const g = geo(), m = modele(), r = T.cv.getBoundingClientRect(); return { jeu: 'faconnage', forme, id: m && m.id, traces: traces.length, notes: notes.slice(), verdict: !!verdict, reste, valider, toile: { css: [r.width, r.height], dessin: [T.cv.width / T.k, T.cv.height / T.k] }, modele: m ? m.traits.map((t) => t.map((p) => T.ecran(g.ox + p[0] * g.S, g.oy + p[1] * g.S))) : [] }; },
+    };
+    entete(jeu.court, 'Trace le geste du modèle', true); consigne.classList.add('l2'); majConsigne(); P.vue();
+    return P;
+  }
+
+  // ═══ 3. Mémoire du pâtissier ═══
+  function jeuMemoire() {
+    const graine = Math.floor(Math.random() * 1e9), ING = G.INGREDIENTS;
+    let manche = 0, phase = 'montre', reste = 0, total = G.MEMOIRE.duree, saisie = [], recette = [], pause = 0, erreur = -1, reussies = 0;
+    zone.innerHTML = `<div class="mem"><div class="mem-carte"><div class="mem-tete"><b data-m="titre"></b><small data-m="sous"></small></div><div class="mem-slots" data-m="slots"></div><i class="mem-barre"><i data-m="barre"></i></i></div>
+      <div class="mem-grille" data-m="grille">${ING.map((g) => `<button type="button" class="mem-ing" data-ing="${g.id}" aria-label="${esc(g.nom)}">${ICONS.INGREDIENTS[g.id]}<span>${esc(g.nom)}</span></button>`).join('')}</div></div>`;
+    const Z = (k) => zone.querySelector(`[data-m="${k}"]`), grille = Z('grille');
+    function nouvelleManche() {
+      recette = G.memoireRecette(graine, G.MEMOIRE.debut + manche); saisie = []; phase = 'montre'; reste = G.memoireMontre(recette.length); erreur = -1;
+      Z('titre').textContent = `Recette n°${manche + 1}`; Z('sous').textContent = `${recette.length} ingrédients`;
+      const n = recette.length, parLigne = n <= 5 ? n : Math.ceil(n / Math.ceil(n / 5)); // des lignes équilibrées : 6 → 3 + 3, 7 → 4 + 3
+      Z('slots').dataset.n = n > 8 ? 'l' : n > 4 ? 'm' : 's'; Z('slots').style.gridTemplateColumns = `repeat(${parLigne}, auto)`; dessinerSlots(); grille.classList.add('attend'); consigne.textContent = 'Retiens la recette…';
+    }
+    function dessinerSlots() {
+      Z('slots').innerHTML = recette.map((id, k) => { const vu = phase === 'montre' || phase === 'revele' || k < saisie.length, faux = k === erreur; return `<span class="mem-slot${vu ? ' plein' : ''}${faux ? ' faux' : ''}${phase === 'bravo' ? ' bravo' : ''}"><i>${k + 1}</i>${vu ? ICONS.INGREDIENTS[faux ? saisie[k] : id] : '<b>?</b>'}</span>`; }).join('');
+    }
+    grille.addEventListener('pointerdown', (ev) => {
+      const b = ev.target.closest('[data-ing]'); if (!b) return; ev.preventDefault(); d.audio();
+      rattraper(instant(ev)); if (phase !== 'saisie' || P.termine) return;
+      saisie.push(b.dataset.ing); const r = G.memoireSaisir(recette, saisie);
+      b.classList.remove('touche'); void b.offsetWidth; b.classList.add('touche'); clearTimeout(b._t); b._t = setTimeout(() => b.classList.remove('touche'), 220);
+      if (!r.ok) { erreur = saisie.length - 1; phase = 'revele'; pause = 1.6; d.son.non(); d.buzz([30, 40, 30]); dessinerSlots(); consigne.textContent = `Raté : c’était ${ING.find((g) => g.id === recette[erreur]).nom.toLowerCase()} !`; grille.classList.add('attend'); return; }
+      d.son.tap(); d.buzz(6);
+      if (r.complet) { reussies++; phase = 'bravo'; pause = 0.8; d.son.vente(Math.pow(10, Math.min(6, recette.length - 2))); d.buzz([10, 30, 10]); consigne.textContent = `Recette réussie : +${recette.length} points !`; grille.classList.add('attend'); }
+      dessinerSlots();
+    });
+    const P = {
+      termine: false, get score() { return G.memoireScore(reussies); },
+      pas(dt) {
+        total -= dt;
+        if (total <= 0 && phase !== 'revele') { P.termine = true; return; } // la minute est écoulée : la recette en cours ne compte pas
+        if (phase === 'montre') { reste -= dt; if (reste <= 0) { phase = 'saisie'; dessinerSlots(); grille.classList.remove('attend'); consigne.textContent = 'À toi : les ingrédients dans l’ordre !'; Z('barre').style.width = '0%'; } }
+        else if (phase === 'bravo') { pause -= dt; if (pause <= 0) { manche++; nouvelleManche(); } }
+        else if (phase === 'revele') { pause -= dt; if (pause <= 0) { P.termine = true; return; } }
+      },
+      vue() {
+        if (phase === 'montre') Z('barre').style.width = Math.max(0, reste / G.memoireMontre(recette.length) * 100) + '%';
+        chrono.textContent = G.fmtChrono(Math.ceil(Math.max(0, total)));
+        pilules(`<span class="at-pill"><small>Recettes</small><b>${reussies}</b></span><span class="at-pill"><small>Score</small><b>${G.fmt(P.score)}</b></span><span class="at-pill"><small>Record</small><b>${G.fmt(G.atelierDuJour(st()).records.memoire)}</b></span>`);
+      },
+      bilan: () => (reussies ? `${reussies} recette${reussies > 1 ? 's' : ''} réussie${reussies > 1 ? 's' : ''}, la plus longue de ${G.MEMOIRE.debut + reussies - 1} ingrédients` : 'Aucune recette réussie cette fois.'),
+      etat: () => ({ jeu: 'memoire', phase, manche, recette: recette.slice(), saisie: saisie.slice(), reussies, total }),
+    };
+    entete(jeu.court, 'Retiens, puis remets en ordre', true); nouvelleManche(); P.vue();
+    return P;
+  }
+
+  return {
+    init, ouvrir, fermer, get ouvert() { return ouvert(); },
+    etat: () => ({ ouvert: ouvert(), ecran, jeu: jeu && jeu.id, partie: partie && partie.etat ? partie.etat() : null, resultat }),
+    teinte, reduceMotion,
+  };
+})();
+
 /* ── ui.js ── */
 /* LE FOURNIL — interface : barre d'onglets (Boutique, Défis, Boulanger, Journal, Réglages), cartes compactes, ticket des objectifs,
    bannière d'événement sur la scène, cloche, badges, feuilles, classement en ligne, sons, sauvegarde, boucle. */
@@ -4077,8 +4737,16 @@ const UI = (() => {
     ['panne', () => ICONS.PANNE, 'Panne de four', `${G.PANNE.n} touches pour réparer, prime à la clé`],
     ['anniversaire', () => ICONS.BALLON, 'Goûter d’anniversaire', `un produit ×${G.ANNIVERSAIRE.mult} pendant ${G.ANNIVERSAIRE.duree / 60} min`],
   ];
+  // l'Atelier : trois mini-jeux à lancer quand on veut (jamais en surprise) ; chacun son record, trois parties payées par jour (heure de Paris)
+  function cleAtelier() { const a = G.atelierDuJour(st); return `${a.jour}|${JSON.stringify(a.payees)}|${JSON.stringify(a.records)}|${G.fmt(G.primePleineAtelier(st))}`; }
+  function carteAtelier() {
+    const a = G.atelierDuJour(st), prime = G.primePleineAtelier(st), restantes = G.JEUX_ATELIER.reduce((n, j) => n + G.restantesAtelier(st, j.id), 0);
+    return `<div class="card atelier-carte" data-atelier><div class="c-tete"><span class="pic peche">${ICONS.ATELIER.atelier}</span><h3>L’Atelier</h3><span class="compte ${restantes ? '' : 'or'}">${restantes ? `${restantes} partie${restantes > 1 ? 's' : ''} payée${restantes > 1 ? 's' : ''}` : 'pour le record'}</span></div>
+      ${G.JEUX_ATELIER.map((j) => { const reste = G.restantesAtelier(st, j.id), rec = a.records[j.id]; return `<div class="ligne ${reste ? '' : 'plafond'}"><div class="t"><span class="ev-ico">${ICONS.ATELIER[j.id]}</span><span><b>${esc(j.nom)}</b><small>Record : ${rec ? G.fmt(rec) : '—'} · ${reste ? `gains du jour ${a.payees[j.id]}/${G.ATELIER.parJour}` : 'plafond du jour atteint'}</small></span></div><button type="button" class="btn ${reste ? 'beurre' : 'clair'}" data-jeu="${j.id}"><small>${reste ? `jusqu’à ${G.fmtEur(prime)}` : 'pour le record'}</small><b>Jouer</b></button></div>`; }).join('')}
+      <p class="note">Des mini-jeux à lancer quand tu veux. ${G.ATELIER.parJour} parties payées par jeu et par jour ; au-delà, on joue pour le record.</p></div>`;
+  }
   const pageDefis = {
-    key: () => { const j = G.objectifsDuJour(st, st.now), sm = st.semaine; return JSON.stringify([j.objectifs.map((o) => [o.fait, o.reclame]), j.pain, j.etoileDonnee, sm && [sm.fait, sm.reclame, sm.txt], st.ev && st.ev.type, G.serieEnCours(st)]); },
+    key: () => { const j = G.objectifsDuJour(st, st.now), sm = st.semaine; return JSON.stringify([j.objectifs.map((o) => [o.fait, o.reclame]), j.pain, j.etoileDonnee, sm && [sm.fait, sm.reclame, sm.txt], st.ev && st.ev.type, G.serieEnCours(st), cleAtelier()]); },
     html: () => {
       const j = G.objectifsDuJour(st, st.now), sm = st.semaine, serie = G.serieEnCours(st), faits = j.objectifs.filter((o) => o.fait).length, aReclamer = j.objectifs.some((o) => o.fait && !o.reclame), pain = G.PRODUITS[j.pain];
       return `${PAGE_HEAD('defis', 'Défis', serie > 0 ? `<span class="serie">${ICONS.UI.soleil}${serie} jour${serie > 1 ? 's' : ''}</span>` : '')}
@@ -4093,6 +4761,7 @@ const UI = (() => {
           <div class="ligne ${sm.fait ? 'fait' : ''}"><div class="t"><span>${esc(sm.txt)}</span><span class="p" data-p="s"></span></div>
             ${sm.reclame ? '<span class="ok">Récupéré ✓</span>' : `<button type="button" class="btn ${sm.fait ? 'beurre' : 'non'}" data-a="semaine"><small>${sm.fait ? 'Récupérer' : 'Récompense'}</small><b>+1 ★</b></button>`}
             <div class="mini beurre"><i data-b="s"></i></div></div></div>` : ''}
+        ${carteAtelier()}
         <div class="card ev-liste"><div class="c-tete"><span class="pic rose">${ICONS.UI.cloche}</span><h3>Événements</h3><span class="compte" data-p="ev"></span></div>
           ${EV_LISTE.map(([type, ico, nom, desc]) => `<div class="ligne ${st.ev && st.ev.type === type ? 'en-cours' : ''}"><div class="t"><span class="ev-ico">${ico()}</span><span><b>${nom}</b><small>${desc}</small></span></div>${st.ev && st.ev.type === type ? '<span class="chrono-pill" data-p="chrono"></span>' : ''}</div>`).join('')}
           <p class="note">Ils arrivent tout seuls pendant que tu joues, toutes les quelques minutes. La cloche en haut te prévient.</p></div>
@@ -4101,6 +4770,7 @@ const UI = (() => {
     bind: (sec) => {
       onIn(sec, '[data-k]', (b) => { const r = G.reclamer(st, +b.dataset.k); if (!r.ok) { son.non(); return; } son.deblocage(); buzz([10, 30, 10]); toast(r.etoile ? `+${G.fmtEur(r.prime)} et +1 ★ : objectifs du jour réussis !` : `+${G.fmtEur(r.prime)} de prime`); if (r.etoile) SCENE.fete(); renderCards(true); hud(); save(); renderPage(true); });
       onIn(sec, '[data-a="semaine"]', () => { const r = G.reclamerSemaine(st); if (!r.ok) { son.non(); return; } reussite(`Défi de la semaine : +${G.fmtEur(r.prime)} et +1 ★ !`); renderPage(true); });
+      onIn(sec, '[data-jeu]', (b) => { son.tap(); MINIJEUX.ouvrir(b.dataset.jeu); });
     },
     maj: (sec) => {
       const j = G.objectifsDuJour(st, st.now), sm = st.semaine;
@@ -4135,7 +4805,7 @@ const UI = (() => {
   // Journal : le classement en ligne, records, collection des saisons, habitués, trophées, derniers événements, partage
   const ilYA = (ms) => { const s = Math.max(0, (HORLOGE.maintenant() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
   const pageJournal = {
-    key: () => `${trophesGagnes()}|${(st.carnetEv || []).length}|${(st.carnetEv || []).length ? st.carnetEv[st.carnetEv.length - 1].t : 0}|${JSON.stringify(st.habitues)}|${st.stats.commandes}|${st.stats.critiques}|${st.stats.petrissages}|${st.stats.pannes}|${JSON.stringify(st.collection)}|${st.saison ? st.saison.id + st.saison.niv : ''}|${st.chat ? st.chat.nom + st.chat.caresses : ''}|${cleClassement()}`,
+    key: () => `${trophesGagnes()}|${(st.carnetEv || []).length}|${(st.carnetEv || []).length ? st.carnetEv[st.carnetEv.length - 1].t : 0}|${JSON.stringify(st.habitues)}|${st.stats.commandes}|${st.stats.critiques}|${st.stats.petrissages}|${st.stats.pannes}|${JSON.stringify(st.collection)}|${st.saison ? st.saison.id + st.saison.niv : ''}|${st.chat ? st.chat.nom + st.chat.caresses : ''}|${cleClassement()}|${JSON.stringify((st.atelier || {}).records)}`,
     html: () => {
       const S = st.stats, tr = st.trophees || {}, gagnes = trophesGagnes();
       return `${PAGE_HEAD('journal', 'Journal', `<span class="serie or">${ICONS.UI.trophee}${gagnes}/${G.TROPHEES.length}</span>`)}
@@ -4145,6 +4815,7 @@ const UI = (() => {
           <div class="stat"><span>Plus grosse commande livrée</span><b>${S.meilleureCommande ? G.fmtEur(S.meilleureCommande) : '—'}</b></div>
           <div class="stat"><span>Meilleur pourboire</span><b>${S.meilleurPourboire ? G.fmtEur(S.meilleurPourboire) : '—'}</b></div>
           <div class="stat"><span>Pétrissage le plus rapide</span><b>${S.petrissageRecord ? S.petrissageRecord.toFixed(1).replace('.', ',') + ' s' : '—'}</b></div>
+          ${G.JEUX_ATELIER.map((j) => `<div class="stat"><span>Atelier : ${esc(j.court.toLowerCase())}</span><b>${G.atelierDuJour(st).records[j.id] ? G.fmt(G.atelierDuJour(st).records[j.id]) + ' pts' : '—'}</b></div>`).join('')}
           <div class="stat"><span>Meilleure série d’objectifs</span><b>${S.serieMax || 0} jour${(S.serieMax || 0) > 1 ? 's' : ''}</b></div>
           <div class="stat"><span>Commandes · critiques · pétrissages · fours</span><b>${S.commandes || 0} · ${S.critiques || 0} · ${S.petrissages || 0} · ${S.pannes || 0}</b></div>${st.chat ? `
           <div class="stat"><span>Caresses à ${esc(st.chat.nom)}</span><b>${G.fmt(st.chat.caresses)}</b></div>` : ''}</div>
@@ -4221,6 +4892,10 @@ const UI = (() => {
   const TXT_EV = { rush: 'Coup de feu : les clients affluent !', commande: 'Un client passe une commande spéciale !', critique: 'Le critique gastronomique entre dans la boutique !', meunier: 'Le meunier passe : tout à −40 % !', petrissage: 'Concours de pétrissage : touche vite !', panne: 'Un four tombe en panne !', anniversaire: 'Un goûter d’anniversaire dans la boutique !' };
   const FIN_EV = { rush: 'Le coup de feu est passé.', commande: 'Trop tard, le client reviendra une autre fois.', critique: 'Le critique est reparti sans conclure…', meunier: 'Le meunier est reparti.', petrissage: 'Trop tard, la pâte a trop levé.', panne: 'Le four s’est réparé tout seul.', anniversaire: 'Le goûter est terminé.' };
   const Maj = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+  // la fête de la scène 3D : pendant une partie de l'Atelier, la scène est en pause sous l'écran de jeu ; la fête attend qu'on en sorte
+  // (les toasts, eux, passent au-dessus de l'Atelier)
+  let feteEnAttente = false;
+  function feter() { if (MINIJEUX.ouvert) feteEnAttente = true; else SCENE.fete(); }
   function reussite(txt) { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(txt); renderCards(true); hud(); save(); }
   function renderEvenement() {
     const ev = st.ev, box = $('#evenement');
@@ -4275,7 +4950,7 @@ const UI = (() => {
   }
   function indices() {
     const el = $('#indice');
-    if (st.tuto >= INDICES.length || !$('#feuille').hidden) { el.hidden = true; return; }
+    if (st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert) { el.hidden = true; return; }
     const h = INDICES[st.tuto];
     if (h.ou === 'pages' && (pageActive !== 'boutique' || tiroir.pos === 'ferme')) { el.hidden = true; return; }
     if (h.fini()) { st.tuto++; hintUntil = performance.now() + 8000; save(); el.hidden = true; return; }
@@ -4654,7 +5329,9 @@ const UI = (() => {
   function frame(now) {
     if (retourEnCours) { lastFrame = now; requestAnimationFrame(frame); return; } // l'absence n'est pas encore comptée : rien ne bouge
     const dt = Math.min(0.25, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
-    const out = G.tick(st, dt, HORLOGE.maintenant());
+    const atelier = MINIJEUX.ouvert; // pendant l'Atelier : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran de jeu
+    if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); }
+    const out = G.tick(st, dt, HORLOGE.maintenant(), atelier ? () => 0.999 : undefined);
     if (out.ventes.length) {
       const gros = out.ventes.reduce((a, v) => a + v.montant, 0), first = out.ventes[0];
       if (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), !st.stations[first.i].staff); son.vente(gros); }
@@ -4669,11 +5346,11 @@ const UI = (() => {
     if (out.saison) { son.evenement(); toast(`Nouvelle recette de saison : ${out.saison.nom}, jusqu’au ${out.saison.fin[1]} ${MOIS[out.saison.fin[0] - 1]} !`); renderCards(true); }
     if (out.venteSaison) { SCENE.vente(0, out.venteSaison.montant, '+' + G.fmtEur(out.venteSaison.montant), true); son.vente(out.venteSaison.montant); }
     if (out.maitrise) reussite(`${out.maitrise.nom} : recette maîtrisée !`);
-    if (out.trophees && out.trophees.length) { const t0 = out.trophees[0]; son.deblocage(); buzz([10, 30, 10, 30, 10]); SCENE.fete(); toast(`Trophée : ${t0.nom} !${out.trophees.length > 1 ? ` (+${out.trophees.length - 1})` : ''}`); }
+    if (out.trophees && out.trophees.length) { const t0 = out.trophees[0]; son.deblocage(); buzz([10, 30, 10, 30, 10]); feter(); toast(`Trophée : ${t0.nom} !${out.trophees.length > 1 ? ` (+${out.trophees.length - 1})` : ''}`); }
     const nv = G.niveau(st);
-    if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); SCENE.fete(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
+    if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); feter(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
     renderCards(); hud(); renderObjectifs(); renderEvenement(); renderPage();
-    SCENE.frame(dt, st, HORLOGE.maintenant());
+    if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant()); // l'écran de l'Atelier couvre la boutique : la 3D attend
     indices();
     if (now - lastSave > 5000) save();
     requestAnimationFrame(frame);
@@ -4720,6 +5397,9 @@ const UI = (() => {
     if (window.ResizeObserver) new ResizeObserver(layout).observe($('#corps'));
     $('#b-amenager').addEventListener('click', () => { audio(); son.tap(); amenager(); });
     buildCards();
+    MINIJEUX.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), fete: () => SCENE.fete(),
+      ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
+      apres: () => { renderCards(true); hud(); save(); renderPage(true); } });
     document.querySelectorAll('.modes button').forEach((b) => { b.classList.toggle('actif', String(st.mode) === b.dataset.mode); b.addEventListener('click', () => { st.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; document.querySelectorAll('.modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCards(true); save(); }); });
     $('#cartes').addEventListener('click', onCardClick);
     $('#b-ameliorations').addEventListener('click', () => { audio(); sheetAmeliorations(); });
@@ -4765,7 +5445,7 @@ const UI = (() => {
     requestAnimationFrame(frame);
     window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
-      chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q) };
+      chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer() };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

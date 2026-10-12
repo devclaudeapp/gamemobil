@@ -225,6 +225,7 @@
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null, tiroir: 'mi',
       apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, saison: null, saisonAnnoncee: '', collection: {},
+      atelier: atelierNeuf(),
     };
   }
 
@@ -542,6 +543,173 @@
   }
   function donnerBoost(st, mult, secs) { st.boost = { mult, fin: st.now + secs * 1000 }; }
 
+  // ─── l'Atelier : trois mini-jeux lancés à volonté (jamais en surprise), chacun son record ───
+  // Les gains sont modestes et plafonnés : une partie réussie paie au plus 90 s du rythme de la boutique (le concours de pétrissage en paie 240,
+  // le client mystère 120), trois parties payées par mini-jeu et par jour (heure de Paris) ; au-delà, on joue pour le record, sans gain.
+  // Au pire, neuf parties parfaites par jour : 13 min 30 de rythme, moins que la moitié des seuls objectifs du jour (3 × 10 min).
+  const ATELIER = { parJour: 3, secondes: 90, plancher: 10, seuil: 0.1, xp: 2 };
+  const JEUX_ATELIER = [
+    { id: 'four', nom: 'Enfournement en rythme', court: 'Enfournement', desc: 'Enfourne la plaque au passage, sors-la au doré parfait.', plein: 450, max: 20000, unite: 'points' },
+    { id: 'faconnage', nom: 'Façonnage au doigt', court: 'Façonnage', desc: 'Trace l’entaille, la spirale et la tresse du modèle.', plein: 225, max: 300, unite: 'points' },
+    { id: 'memoire', nom: 'Mémoire du pâtissier', court: 'Mémoire', desc: 'Retiens la recette, remets les ingrédients dans l’ordre.', plein: 25, max: 2000, unite: 'points' },
+  ];
+  const jeuAtelier = (id) => JEUX_ATELIER.find((j) => j.id === id) || null;
+  const zeroJeux = () => { const o = {}; JEUX_ATELIER.forEach((j) => { o[j.id] = 0; }); return o; };
+  const atelierNeuf = () => ({ jour: '', payees: zeroJeux(), gains: zeroJeux(), records: zeroJeux(), parties: zeroJeux() });
+  function atelierDuJour(st) { // les records restent ; les parties payées et les gains repartent de zéro à minuit, heure de Paris
+    const a = st.atelier && typeof st.atelier === 'object' ? st.atelier : (st.atelier = atelierNeuf());
+    ['payees', 'gains', 'records', 'parties'].forEach((k) => { if (!a[k] || typeof a[k] !== 'object') a[k] = {}; JEUX_ATELIER.forEach((j) => { if (!(Number(a[k][j.id]) >= 0)) a[k][j.id] = 0; }); });
+    const key = dayKey(st.now);
+    if (a.jour !== key) { a.jour = key; a.payees = zeroJeux(); a.gains = zeroJeux(); }
+    return a;
+  }
+  const qualiteAtelier = (id, score) => { const j = jeuAtelier(id); return j ? Math.max(0, Math.min(1, (Number(score) || 0) / j.plein)) : 0; };
+  const primePleineAtelier = (st) => arrondi(Math.max(ATELIER.plancher, rythme(st) * ATELIER.secondes)); // ce que paie une partie parfaite, maintenant
+  const primeAtelier = (st, id, score) => { const q = qualiteAtelier(id, score); return q < ATELIER.seuil ? 0 : arrondi(primePleineAtelier(st) * q); };
+  const restantesAtelier = (st, id) => Math.max(0, ATELIER.parJour - atelierDuJour(st).payees[id]);
+  function finirAtelier(st, id, score) { // une partie terminée : le record, puis la prime tant que le plafond du jour n'est pas atteint
+    const j = jeuAtelier(id); if (!j) return { ok: false };
+    const a = atelierDuJour(st), s = Math.max(0, Math.min(j.max, Math.floor(Number.isFinite(Number(score)) ? Number(score) : 0)));
+    const ancien = a.records[id] || 0, record = s > ancien; if (record) a.records[id] = s;
+    a.parties[id]++; inc(st, 'atelier');
+    const pourLeRecord = a.payees[id] >= ATELIER.parJour, prime = pourLeRecord ? 0 : primeAtelier(st, id, s); // plafond déjà atteint : la partie compte pour le record seulement
+    if (prime > 0) { a.payees[id]++; a.gains[id] += prime; gagner(st, prime, true); gagnerXp(st, ATELIER.xp); note(st, `Atelier, ${j.court.toLowerCase()} : ${fmt(s)} points, ${fmtEur(prime)}`); }
+    return { ok: true, id, score: s, record, ancien, prime, pourLeRecord, plafond: a.payees[id] >= ATELIER.parJour, payees: a.payees[id], reste: ATELIER.parJour - a.payees[id], qualite: qualiteAtelier(id, s) };
+  }
+
+  // 1. Enfournement en rythme : les plaques défilent sur le tapis ; toucher quand la plaque passe devant la bouche du four pour l'enfourner,
+  // puis toucher quand elle est dorée pour la sortir (ni pâle ni brûlée). Les cuissons parfaites d'affilée font un combo. Ça accélère.
+  // Moteur pur, mené par le temps (t en secondes) : l'interface avance et touche, les tests aussi.
+  const FOUR = { duree: 45, porte: 0.62, brule: 1.7, pause: 0.45, debut: 0.6 };
+  const fourNiveau = (k) => ({ vitesse: Math.min(0.95, 0.32 + 0.035 * k), cuisson: Math.max(0.75, 1.7 - 0.065 * k), tolPorte: Math.max(0.05, 0.11 - 0.004 * k), tolDore: Math.max(0.1, 0.24 - 0.009 * k) });
+  const fourNouveau = () => ({ t: 0, fini: false, k: 0, phase: 'attente', attente: FOUR.debut, x: 0, c: 0, perdue: false, score: 0, combo: 0, comboMax: 0, parfaits: 0, bons: 0, rates: 0, enfournes: 0, dernier: null, niv: fourNiveau(0) });
+  function fourRate(e, type) { e.combo = 0; e.rates++; e.dernier = { type, points: 0, t: e.t }; return e.dernier; }
+  function fourAvancer(e, dt) { // rend l'événement survenu (plaque passée, plaque brûlée), sinon null
+    if (e.fini) return null;
+    e.t += dt; let ev = null;
+    if (e.t >= FOUR.duree) { e.fini = true; e.phase = 'fin'; return { type: 'fin' }; }
+    if (e.phase === 'attente') { e.attente -= dt; if (e.attente <= 0) { e.phase = 'tapis'; e.x = 0; e.perdue = false; e.niv = fourNiveau(e.k); } }
+    else if (e.phase === 'tapis') {
+      e.x += e.niv.vitesse * dt;
+      if (!e.perdue && e.x > FOUR.porte + e.niv.tolPorte) { e.perdue = true; ev = fourRate(e, 'passee'); }
+      if (e.x >= 1.08) { e.k++; e.phase = 'attente'; e.attente = FOUR.pause; }
+    } else if (e.phase === 'four') {
+      e.c += dt / e.niv.cuisson;
+      if (e.c >= FOUR.brule) { ev = fourRate(e, 'brulee'); e.k++; e.phase = 'attente'; e.attente = FOUR.pause; }
+    }
+    return ev;
+  }
+  function fourToucher(e) { // une touche : enfourner (plaque sur le tapis) ou sortir (plaque au four) ; rend le verdict, ou null si la touche ne compte pas
+    if (e.fini) return null;
+    if (e.phase === 'tapis' && !e.perdue) {
+      const ecart = Math.abs(e.x - FOUR.porte), tol = e.niv.tolPorte;
+      if (ecart > tol) { e.perdue = true; return fourRate(e, 'tot'); } // trop tôt : la plaque glisse et tombe (trop tard, elle est déjà passée)
+      const parfait = ecart <= tol * 0.4, pts = parfait ? 5 : 2;
+      e.score += pts; e.enfournes++; e.phase = 'four'; e.c = 0;
+      e.dernier = { type: 'enfournee', parfait, points: pts, t: e.t }; return e.dernier;
+    }
+    if (e.phase === 'four') {
+      const d = e.c - 1, tol = e.niv.tolDore; let v;
+      if (Math.abs(d) <= tol * 0.4) { e.combo++; e.comboMax = Math.max(e.comboMax, e.combo); e.parfaits++; const pts = 20 + 5 * Math.min(e.combo, 10); e.score += pts; v = { type: 'sortie', verdict: 'parfait', points: pts, combo: e.combo, t: e.t }; }
+      else if (Math.abs(d) <= tol) { e.combo = 0; e.bons++; e.score += 10; v = { type: 'sortie', verdict: 'bon', points: 10, combo: 0, t: e.t }; }
+      else { fourRate(e, d < 0 ? 'pale' : 'brulee'); v = { type: 'sortie', verdict: d < 0 ? 'pale' : 'brulee', points: 0, combo: 0, t: e.t }; }
+      e.dernier = v; e.k++; e.phase = 'attente'; e.attente = FOUR.pause;
+      return v;
+    }
+    return null;
+  }
+
+  // 2. Façonnage au doigt : chaque modèle est fait de traits (points dans un carré de côté 1, y vers le bas), à tracer dans l'ordre et dans le sens.
+  // La note (sur 100) : la distance moyenne entre le tracé et le modèle (dans les deux sens : rien d'oublié, rien en trop), divisée par deux
+  // pour un trait tracé à l'envers, ×0,75 pour un trait tracé dans le désordre, −8 par trait en trop ; un trait oublié vaut 0.
+  // Un trait qui reprend à moins de `accroche` de la fin du précédent le prolonge (le doigt s'est levé en route) ; la forme est notée dès que
+  // les tracés couvrent `couvert` du modèle (chaque point du modèle à moins de `couvre` d'un tracé), sinon après un moment sans toucher.
+  const FACONNAGE = { parForme: 15, ordre: ['entailles', 'spirale', 'tresse'], tolBon: 0.015, tolZero: 0.11, minTrait: 0.04, accroche: 0.06, couvre: 0.06, couvert: 0.85 };
+  const MODELES_FACONNAGE = (() => {
+    const spirale = []; for (let k = 0; k <= 80; k++) { const u = k / 80, a = u * Math.PI * 2 * 2.25 - Math.PI / 2, r = 0.05 + 0.33 * u; spirale.push([0.5 + r * Math.cos(a), 0.5 + r * Math.sin(a)]); }
+    // les deux brins partent côte à côte (pas du même point : on voit lequel est le premier), se croisent et se rejoignent en bas
+    const brin = (s) => { const p = []; for (let k = 0; k <= 60; k++) { const u = k / 60; p.push([0.5 + s * 0.07 * (1 - u) + s * 0.2 * Math.sin(u * Math.PI * 3), 0.1 + 0.8 * u]); } return p; };
+    const entaille = (x0) => [[x0, 0.57], [x0 + 0.085, 0.5], [x0 + 0.17, 0.43]];
+    return {
+      entailles: { id: 'entailles', nom: 'Les entailles de la baguette', consigne: 'Quatre coups de lame, de gauche à droite, chacun vers le haut.', traits: [0.11, 0.3, 0.49, 0.68].map(entaille) },
+      spirale: { id: 'spirale', nom: 'La spirale du pain aux raisins', consigne: 'D’un seul geste, du cœur vers le bord, dans le sens des aiguilles d’une montre.', traits: [spirale] },
+      tresse: { id: 'tresse', nom: 'La tresse de la brioche', consigne: 'Deux brins, de haut en bas : le brin 1, puis le brin 2 qui le croise.', traits: [brin(1), brin(-1)] },
+    };
+  })();
+  const dist2 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+  const longueur = (pts) => { let l = 0; for (let k = 1; k < pts.length; k++) l += dist2(pts[k - 1], pts[k]); return l; };
+  function reechantillonner(pts, n) { // n points régulièrement espacés le long du trait
+    if (!pts.length) return [];
+    const L = longueur(pts); if (L <= 0 || pts.length < 2) return Array.from({ length: n }, () => pts[0].slice());
+    const out = [pts[0].slice()], pas = L / (n - 1); let acc = 0, k = 1, prec = pts[0];
+    while (k < pts.length && out.length < n) {
+      const d = dist2(prec, pts[k]);
+      if (acc + d >= pas && d > 0) { const f = (pas - acc) / d, q = [prec[0] + f * (pts[k][0] - prec[0]), prec[1] + f * (pts[k][1] - prec[1])]; out.push(q); prec = q; acc = 0; }
+      else { acc += d; prec = pts[k]; k++; }
+    }
+    while (out.length < n) out.push(pts[pts.length - 1].slice());
+    return out;
+  }
+  function distSegment(p, a, b) { const dx = b[0] - a[0], dy = b[1] - a[1], l2 = dx * dx + dy * dy; let t = l2 ? ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2 : 0; t = Math.max(0, Math.min(1, t)); return Math.hypot(p[0] - a[0] - t * dx, p[1] - a[1] - t * dy); }
+  const distTrait = (p, trait) => { let m = Infinity; for (let k = 1; k < trait.length; k++) m = Math.min(m, distSegment(p, trait[k - 1], trait[k])); return trait.length === 1 ? dist2(p, trait[0]) : m; };
+  const ecartMoyen = (A, B) => A.reduce((s, p) => s + distTrait(p, B), 0) / A.length;
+  const ecartTraits = (T, M) => (ecartMoyen(T, M) + ecartMoyen(M, T)) / 2;
+  const ecartPointAPoint = (A, B) => A.reduce((s, p, k) => s + dist2(p, B[k]), 0) / A.length;
+  function noterFaconnage(modeleId, traces) {
+    const m = MODELES_FACONNAGE[modeleId]; if (!m) return { note: 0, traits: [] };
+    const N = 40, M = m.traits.map((t) => reechantillonner(t, N));
+    const T = (traces || []).filter((t) => Array.isArray(t) && t.length >= 2 && longueur(t) >= FACONNAGE.minTrait).map((t) => reechantillonner(t, N));
+    const paires = [], libresT = new Set(T.map((x, k) => k)), libresM = new Set(M.map((x, i) => i)), cout = T.map((t) => M.map((mm) => ecartTraits(t, mm)));
+    while (libresT.size && libresM.size) { // le meilleur couple tracé ↔ trait du modèle d'abord
+      let best = null; libresT.forEach((k) => libresM.forEach((i) => { if (!best || cout[k][i] < best.c) best = { k, i, c: cout[k][i] }; }));
+      paires.push(best); libresT.delete(best.k); libresM.delete(best.i);
+    }
+    const traits = M.map((mm, i) => {
+      const p = paires.find((x) => x.i === i); if (!p) return { i, oublie: true, precision: 0, envers: false, desordre: false, valeur: 0 };
+      const precision = Math.max(0, Math.min(1, 1 - (p.c - FACONNAGE.tolBon) / (FACONNAGE.tolZero - FACONNAGE.tolBon)));
+      const envers = ecartPointAPoint(T[p.k], mm.slice().reverse()) < ecartPointAPoint(T[p.k], mm);
+      const desordre = M.length > 1 && p.k !== i;
+      return { i, oublie: false, precision, envers, desordre, valeur: precision * (envers ? 0.5 : 1) * (desordre ? 0.75 : 1) };
+    });
+    const enTrop = T.length - paires.length;
+    const note = Math.max(0, Math.min(100, Math.round(100 * traits.reduce((s, x) => s + x.valeur, 0) / M.length - 8 * enTrop)));
+    return { note, traits, enTrop, precision: traits.reduce((s, x) => s + x.precision, 0) / M.length, envers: traits.filter((x) => x.envers).length, desordre: traits.some((x) => x.desordre), oublies: traits.filter((x) => x.oublie).length };
+  }
+
+  function ajouterTrait(traces, pts) { // pose un tracé : il prolonge le précédent s'il reprend là où celui-ci s'arrêtait ; rend la liste et si on a accroché
+    const t = (traces || []).slice(), der = t[t.length - 1];
+    if (der && der.length && pts && pts.length && dist2(der[der.length - 1], pts[0]) <= FACONNAGE.accroche) { t[t.length - 1] = der.concat(pts); return { traces: t, accroche: true }; }
+    if (pts && pts.length) t.push(pts.slice());
+    return { traces: t, accroche: false };
+  }
+  function couvertureFaconnage(modeleId, traces) { // la part du modèle déjà couverte par les tracés (moyenne sur ses traits), de 0 à 1
+    const m = MODELES_FACONNAGE[modeleId]; if (!m) return 0;
+    const T = (traces || []).filter((t) => Array.isArray(t) && t.length >= 1); if (!T.length) return 0;
+    const parTrait = m.traits.map((t) => { const M = reechantillonner(t, 40); return M.filter((p) => T.some((tr) => (tr.length === 1 ? dist2(p, tr[0]) : distTrait(p, tr)) <= FACONNAGE.couvre)).length / M.length; });
+    return parTrait.reduce((a, b) => a + b, 0) / parTrait.length;
+  }
+
+  // 3. Mémoire du pâtissier : la recette s'affiche quelques secondes, puis on remet les ingrédients dans l'ordre ; chaque manche réussie
+  // l'allonge d'un ingrédient (la même recette, une étape de plus). Une erreur, ou la minute écoulée, et la partie s'arrête.
+  // Le score : la somme des longueurs des recettes réussies (3 + 4 + 5 + … ).
+  const INGREDIENTS = [
+    { id: 'farine', nom: 'Farine' }, { id: 'beurre', nom: 'Beurre' }, { id: 'oeufs', nom: 'Œufs' }, { id: 'sucre', nom: 'Sucre' },
+    { id: 'lait', nom: 'Lait' }, { id: 'levure', nom: 'Levure' }, { id: 'chocolat', nom: 'Chocolat' }, { id: 'sel', nom: 'Sel' },
+  ];
+  const MEMOIRE = { duree: 60, debut: 3 };
+  const memoireMontre = (n) => +(1.2 + 0.55 * n).toFixed(2); // secondes d'affichage d'une recette de n ingrédients
+  function memoireRecette(graine, n) { // les n premières étapes d'une recette tirée de la graine : allonger n garde le début
+    const rnd = mulberry32(hashStr('recette:' + graine)), r = [];
+    while (r.length < n) { const id = INGREDIENTS[Math.floor(rnd() * INGREDIENTS.length)].id; if (id !== r[r.length - 1]) r.push(id); }
+    return r;
+  }
+  function memoireSaisir(recette, saisie) { // la saisie en cours : juste jusqu'ici ? complète ?
+    let justes = 0; while (justes < saisie.length && saisie[justes] === recette[justes]) justes++;
+    const ok = justes === saisie.length;
+    return { ok, justes, complet: ok && saisie.length === recette.length };
+  }
+  const memoireScore = (manches) => { let s = 0; for (let k = 0; k < manches; k++) s += MEMOIRE.debut + k; return s; };
+
   // ─── actions ───
   function gagner(st, montant, horsObjectif) { st.coins += montant; st.lifetime += montant; st.lifetimeRun += montant; if (!horsObjectif) noter(st, 'gagner', montant); }
   function acheter(st, i) {
@@ -665,5 +833,8 @@
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost,
-    gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono };
+    gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono,
+    ATELIER, JEUX_ATELIER, jeuAtelier, atelierDuJour, qualiteAtelier, primePleineAtelier, primeAtelier, restantesAtelier, finirAtelier,
+    FOUR, fourNiveau, fourNouveau, fourAvancer, fourToucher, FACONNAGE, MODELES_FACONNAGE, reechantillonner, noterFaconnage, ajouterTrait, couvertureFaconnage,
+    INGREDIENTS, MEMOIRE, memoireMontre, memoireRecette, memoireSaisir, memoireScore };
 });
