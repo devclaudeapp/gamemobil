@@ -74,7 +74,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   check(egal(CL.lireConfig({ supabaseUrl: 'https://abc.supabase.co/', supabaseKey: ' sb_publishable_x ' }), { url: 'https://abc.supabase.co', key: 'sb_publishable_x', bearer: true }), 'configuration lue : barre finale et espaces retirés');
   { const d = CL.nettoyerClassement({ semaine: '2026-10-05', joueurs: 2, lignes: [{ rang: 1, pseudo: 'A', valeur: '12.5', moi: false }, { rang: 0, pseudo: 'faux' }, null, { rang: 2, pseudo: '<i>B</i>', valeur: 3, moi: true }], moi: { rang: 70, valeur: 1 } });
     check(d.lignes.length === 2 && d.lignes[0].valeur === 12.5 && d.lignes[1].moi === true && d.joueurs === 70 && d.moi.rang === 70 && d.semaine === '2026-10-05', 'réponse nettoyée : lignes invalides écartées, nombre de joueurs au moins le rang'); }
-  check(egal(CL.nettoyerClassement('n’importe quoi'), { semaine: '', joueurs: 0, lignes: [], moi: null }), 'réponse absurde : liste vide');
+  check(egal(CL.nettoyerClassement('n’importe quoi'), { semaine: '', joueurs: 0, lignes: [], moi: null, version: 0 }), 'réponse absurde : liste vide');
 
   console.log('── le moteur, avec un faux réseau ──');
   const URL = 'https://jklbitrlkfrktmnarejc.supabase.co', CLEF = 'sb_publishable_test';
@@ -358,6 +358,45 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     check(m.recompenses().portee === null, 'avant toute réponse : le lundi du téléphone (encore la semaine du podium : rien d’office)');
     await m.chargerRecompenses({ ecart: 0 });
     check(m.lundi() === '2026-10-12' && m.recompenses().portee === 'or' && m.recompenses().coupe === 'or', 'le serveur dit que la semaine du podium est finie : tenue et coupe d’or tout de suite'); }
+
+  console.log('── les points de boulanger (contrat v3) ──');
+  { const e = { ...CL.etatNeuf(), id: CL.nouvelId(), jeton: CL.nouveauJeton(), pseudo: 'Léa', rejoint: true, dernierEnvoi: T, essai: T - 60e3, valeur: 50, points: 12, lundiPoints: '2026-10-05' };
+    check(CL.deciderEnvoi(e, 50, T + 20e3, 'feuille', { points: 12, lundi: '2026-10-05' }).pourquoi === 'inchange', 'mêmes points, même fortune : rien ne part');
+    check(CL.deciderEnvoi(e, 50, T + 20e3, 'feuille', { points: 14, lundi: '2026-10-05' }).envoyer === true, 'des points de plus (même fortune) : ça part');
+    check(CL.deciderEnvoi(e, 50, T + 20e3, 'feuille', { points: 0, lundi: '2026-10-12' }).envoyer === true, 'une nouvelle semaine (0 point) : ça part');
+    check(CL.deciderEnvoi(e, 50, T + 20e3, 'feuille', { points: -3, lundi: 'hier' }).pourquoi === 'inchange' && CL.deciderEnvoi(e, 50, T + 20e3, 'feuille').pourquoi === 'inchange', 'des points absurdes, ou pas de points : comme avant (la fortune seule décide)'); }
+  { const s = memoire(); s.setItem(CL.CLE, JSON.stringify({ points: 12.5, lundiPoints: 'lundi' })); const e = CL.lireEtat(s);
+    check(e.points === null && e.lundiPoints === '', 'état local : des points abîmés sont écartés');
+    const s2 = memoire(), e2 = { ...CL.etatNeuf(), points: 40, lundiPoints: '2026-10-12' }; CL.ecrireEtat(s2, e2); check(egal(CL.lireEtat(s2), e2), 'état local : les derniers points envoyés font l’aller-retour'); }
+  { const d = CL.nettoyerClassement({ version: 3, semaine: '2026-10-12', joueurs: 2, lignes: [{ rang: 1, pseudo: 'A', points: 52, valeur: 1e6 }, { rang: 2, pseudo: 'B', points: -4, valeur: 9e12 }, { rang: 3, pseudo: 'C', points: '7', valeur: 1 }], moi: { rang: 2, points: 7.5, valeur: 3 } });
+    check(d.version === 3 && d.lignes[0].points === 52 && d.lignes[1].points === null && d.lignes[2].points === null && d.moi.points === null, 'réponse v3 : les points (entiers positifs) et la version ; le reste écarté');
+    check(CL.nettoyerClassement({ semaine: '2026-10-12', lignes: [] }).version === 2, 'une réponse sans version : un serveur v2 (classé à l’argent)');
+    const r = CL.nettoyerRecompensesServeur({ ok: true, podiums: [], derniere: { semaine: '2026-10-05', podium: [{ rang: 1, pseudo: 'Léa', points: 400, valeur: 12 }, { rang: 2, pseudo: 'Jo', valeur: 3 }] } });
+    check(r.derniere.podium[0].points === 400 && r.derniere.podium[1].points === null, 'le podium de la semaine passée garde ses points (null pour une semaine figée en v2)'); }
+  { // le moteur envoie ses points de la semaine et leur lundi ; il apprend la version du serveur ; ses rangs et ses points reviennent
+    horloge = Date.UTC(2026, 9, 14, 10); let mesPoints = { points: 33, lundi: '2026-10-12' };
+    const r = faux(async (url, init, c) => rep(200, url.endsWith('/fournil_publier') ? { ok: true, erreur: null, version: 3, rang_semaine: 2, rang_total: 4, joueurs: 9, joueurs_semaine: 5, semaine: '2026-10-12', points_semaine: c.p_points, points_total: 120, points_comptes: 3, points_plafonnes: false, compte: 0 } : { version: 3, semaine: '2026-10-12', joueurs: 5, lignes: [{ rang: 1, pseudo: 'Zoé', points: 80, valeur: 1e3, moi: false }], moi: { rang: 2, points: 33, valeur: 9 } }));
+    const m = moteur(r, { points: () => mesPoints }); fortune = 5000;
+    let res = await m.choisirPseudo('Léa');
+    const c = r.appels[0].corps;
+    check(res.etat === 'ok' && egal(Object.keys(c).sort(), ['p_fortune', 'p_id', 'p_jeton', 'p_lundi', 'p_points', 'p_pseudo']) && c.p_points === 33 && c.p_lundi === '2026-10-12' && m.version() === 3, 'rejoindre : fournil_publier avec ses points de la semaine (p_points) et leur lundi (p_lundi) ; serveur v3');
+    check(m.resume().semaine && m.resume().semaine.rang === 2 && m.resume().semaine.points === 33 && m.resume().total.points === 120 && m.etat().points === 33, 'ses rangs (aux points) et ses points reviennent dans le résumé (l’icône du classement les montre)');
+    horloge += 20e3; res = await m.envoyer('feuille');
+    check(res.etat === 'saute' && res.pourquoi === 'inchange', 'rien de neuf : rien ne part');
+    mesPoints = { points: 35, lundi: '2026-10-12' }; res = await m.envoyer('feuille');
+    check(res.etat === 'ok' && r.appels[r.appels.length - 1].corps.p_points === 35, 'deux points de plus : ils partent (même si la fortune n’a pas bougé)');
+    mesPoints = { points: 1.5, lundi: 'x' }; horloge += 31 * 60e3; res = await m.envoyer('periodique');
+    check(res.etat === 'ok' && !('p_points' in r.appels[r.appels.length - 1].corps), 'des points illisibles (jeu abîmé) : la fortune part seule'); }
+  { // un serveur encore en version 2 (SQL pas recollé) : la fonction à six paramètres n'existe pas → la fortune seule, comme avant
+    horloge = Date.UTC(2026, 9, 14, 11);
+    const r = faux(async (url, init, c) => { if (url.endsWith('/fournil_publier') && 'p_points' in c) return rep(404, { code: 'PGRST202', message: 'Could not find the function public.fournil_publier(p_fortune, p_id, p_jeton, p_lundi, p_points, p_pseudo)' }); return rep(200, url.endsWith('/fournil_publier') ? { ok: true, erreur: null, rang_semaine: 1, rang_total: 1, joueurs: 3, semaine: '2026-10-12' } : { semaine: '2026-10-12', joueurs: 1, lignes: [{ rang: 1, pseudo: 'Léa', valeur: 9 }], moi: null }); });
+    const m = moteur(r, { points: () => ({ points: 8, lundi: '2026-10-12' }) }); fortune = 70;
+    const res = await m.choisirPseudo('Léa');
+    check(res.etat === 'ok' && r.appels.length === 2 && 'p_points' in r.appels[0].corps && !('p_points' in r.appels[1].corps) && m.version() === 2, 'serveur v2 : refus « fonction introuvable » avec les points, aussitôt renvoyé sans eux — accepté, le classement marche comme avant');
+    horloge += 31 * 60e3; fortune = 90; await m.envoyer('periodique');
+    check(r.appels.length === 3 && !('p_points' in r.appels[2].corps), 'ensuite, plus de points envoyés à ce serveur (jusqu’au prochain lancement)');
+    const c = await m.charger('semaine');
+    check(c.data.version === 2 && c.data.lignes[0].points === null, 'sa liste : version 2, pas de points (l’interface affiche l’argent, comme avant)'); }
 
   console.log(`\n${n - echecs}/${n} vérifications.`);
   console.log(echecs ? `${echecs} échec(s)` : 'Tout passe.');

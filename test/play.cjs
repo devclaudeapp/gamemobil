@@ -264,11 +264,26 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   check(tip >= 20, 'pourboire du client mystère : +' + Math.round(tip));
   // le mobilier : on touche l'emplacement des tables dans la boutique, on achète, un client vient s'asseoir
   await page.evaluate(() => window.__fournil.scene({ assis: true })); await scene();
-  await page.tap('#b-amenager'); await sleep(300);
-  check(await page.evaluate(() => window.__fournil.SCENE.amenager === true && document.querySelector('#b-amenager').classList.contains('actif')), 'le mode Aménager s’allume : les meubles sont entourés, nommés et chiffrés');
+  // repeindre la boutique : le rouleau a quitté l'écran (en haut à droite : le classement et l'Atelier), il est dans Réglages
+  check(await page.evaluate(() => !document.querySelector('#b-amenager') && !!document.querySelector('#b-atelier') && !document.querySelector('#b-atelier').hidden), 'plus de rouleau de peinture sur la boutique ; l’icône de l’Atelier est en haut à droite');
+  await page.tap('#onglets [data-page="reglages"]'); await sleep(450);
+  const ligneRep = await page.evaluate(() => { const b = document.querySelector('#page-reglages [data-a="repeindre"]'); return b ? { txt: b.innerText.replace(/\s+/g, ' '), h: b.getBoundingClientRect().height } : null; });
+  check(ligneRep && /Repeindre la boutique/.test(ligneRep.txt) && ligneRep.h >= 48, 'Réglages : une ligne « Repeindre la boutique » (' + (ligneRep && ligneRep.txt) + ')');
+  await page.tap('#page-reglages [data-a="repeindre"]'); await sleep(600);
+  const rep = await page.evaluate(() => ({ on: window.__fournil.SCENE.amenager, page: document.querySelector('#onglets .actif').dataset.page, tiroir: window.__fournil.tiroir(), fini: !document.querySelector('#b-fini').hidden && getComputedStyle(document.querySelector('#b-fini')).opacity === '1', coin: getComputedStyle(document.querySelector('#coin')).opacity }));
+  check(rep.on === true && rep.page === 'boutique' && rep.tiroir === 'ferme' && rep.fini && rep.coin === '0', `« Repeindre la boutique » : retour à la boutique, tiroir fermé, les meubles entourés, nommés et chiffrés ; « Terminé » en haut à droite (${JSON.stringify(rep)})`);
   await page.screenshot({ path: out + '/05u-amenager.png' });
-  await page.tap('#b-amenager'); await sleep(200);
-  check(await page.evaluate(() => window.__fournil.SCENE.amenager === false), 'le mode Aménager s’éteint');
+  await page.tap('#b-fini'); await sleep(500);
+  check(await page.evaluate(() => window.__fournil.SCENE.amenager === false && document.querySelector('#b-fini').hidden && getComputedStyle(document.querySelector('#coin')).opacity === '1'), '« Terminé » : le mode s’éteint, les icônes du coin reviennent');
+  // l'icône de l'Atelier : les trois mini-jeux d'un geste
+  await page.tap('#b-atelier'); await sleep(400);
+  const fAt = await page.evaluate(() => document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText);
+  check(/L’Atelier/.test(fAt) && /Enfournement en rythme/.test(fAt) && /Façonnage au doigt/.test(fAt) && /Mémoire du pâtissier/.test(fAt) && /points de boulanger/.test(fAt), 'l’icône de l’Atelier ouvre ses trois mini-jeux (et ce qu’ils valent au classement)');
+  await page.screenshot({ path: out + '/05v-atelier-coin.png' });
+  await page.tap('#feuille [data-jeu="memoire"]'); await sleep(500);
+  check(await page.evaluate(() => !document.querySelector('#atelier').hidden && /Mémoire/.test(document.querySelector('#at-titre').textContent) && document.querySelector('#feuille').hidden), '« Jouer » : l’accueil du mini-jeu s’ouvre en plein écran');
+  await page.evaluate(() => window.__fournil.fermerAtelier()); await sleep(300);
+  await scene();
   const tz = await zone('tables'); await page.touchscreen.tap(tz.x, tz.y); await sleep(400);
   const ficheTables = await page.evaluate(() => document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText);
   check(/Tables et chaises/.test(ficheTables) && /Pas encore installé/.test(ficheTables) && /Cran suivant/.test(ficheTables), 'toucher les tables ouvre leur fiche : ' + ficheTables.split('\n').slice(0, 2).join(' / '));

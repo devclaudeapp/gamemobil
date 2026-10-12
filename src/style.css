@@ -52,11 +52,21 @@ svg { display: block; }
 #scene-ui { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; } /* le calque 2D : textes, pastilles, mode Aménager */
 #sans-3d { position: absolute; left: 16px; right: 16px; top: 56px; padding: 14px 16px; background: #fff; border-radius: 16px; box-shadow: 0 6px 20px rgba(74,51,40,.12); display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #8C6F62; }
 #sans-3d b { color: #4A3328; font-family: Fredoka, Nunito, sans-serif; font-size: 15px; }
-#b-amenager { position: absolute; top: 8px; right: 10px; z-index: 2; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); transition: opacity .2s; }
-#b-amenager .ico svg { width: 22px; height: 22px; }
-#b-amenager:active { transform: translateY(3px); box-shadow: none; }
-#b-amenager.actif { background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); }
-body[data-tiroir="ouvert"] #b-amenager { opacity: 0; pointer-events: none; }
+/* en haut à droite : le classement (avec sa place de la semaine en pastille) et, dessous, l'Atelier ; « Terminé » pendant qu'on repeint */
+#coin { position: absolute; top: 8px; right: 10px; z-index: 2; display: flex; flex-direction: column; gap: 10px; transition: opacity .2s; }
+.rond { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); }
+.rond::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; } /* une cible de 48 px sous le doigt */
+.rond .ico svg { width: 23px; height: 23px; }
+.rond:active { transform: translateY(3px); box-shadow: none; }
+.rond[hidden] { display: none; }
+.rang-pastille { position: absolute; top: -6px; right: -8px; min-width: 22px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--texte); color: #fff; font: 700 11px/18px var(--titre); font-style: normal; text-align: center; white-space: nowrap; box-shadow: 0 0 0 2px #fff; pointer-events: none; }
+.rang-pastille.r1 { background: var(--beurre); color: var(--texte); }
+.rang-pastille.r2 { background: #E6E9EF; color: var(--texte); }
+.rang-pastille.r3 { background: #F6CFAE; color: var(--texte); }
+#b-fini { position: absolute; top: 8px; right: 10px; z-index: 2; min-height: 40px; padding: 0 16px; border-radius: 999px; background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); font: 700 15px/1 var(--titre); color: var(--texte); }
+#b-fini:active { transform: translateY(3px); box-shadow: none; }
+body.amenage #coin { opacity: 0; pointer-events: none; }
+body[data-tiroir="ouvert"] #coin, body[data-tiroir="ouvert"] #b-fini { opacity: 0; pointer-events: none; }
 #tiroir { position: absolute; left: 0; right: 0; top: 0; height: 100%; z-index: 3; transform: translateY(var(--tiroir-y)); transition: transform .28s cubic-bezier(.2, .8, .2, 1); will-change: transform;
   background: var(--creme); border-radius: 24px 24px 0 0; box-shadow: 0 -8px 24px rgba(74, 51, 40, .12); }
 #tiroir.glisse { transition: none; }
@@ -387,7 +397,28 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .cl-nom { min-width: 0; display: flex; align-items: center; gap: 6px; font: 700 16px/1.2 var(--titre); }
 .cl-nom > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cl-nom .tag { font-style: normal; }
-.cl-val { font: 700 15px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cl-val { font: 700 15px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.cl-val small { display: block; margin-top: 3px; font: 700 11px/1 var(--texte-font); color: #6E5448; } /* la fortune, en petit : pour information */
+/* ses points de la semaine, en tête de la feuille du classement */
+.pts-bloc { margin: 0 0 14px; padding: 12px 14px; border-radius: 20px; background: var(--carte); box-shadow: 0 4px 12px var(--ombre); }
+.pts-tete { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
+.pts-tete small { display: block; font-size: 12px; color: #6E5448; }
+.pts-tete b { font: 700 24px/1.1 var(--titre); font-variant-numeric: tabular-nums; }
+.pts-auj { font: 700 13px/1.2 var(--titre); color: #6E5448; white-space: nowrap; }
+.pts-cases { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.pts-case { grid-column: span 2; }
+.pts-case:nth-child(n+4) { grid-column: span 3; }
+.pts-case { padding: 7px 8px; border-radius: 12px; background: var(--creme); min-width: 0; }
+.pts-case small { display: block; font-size: 11px; line-height: 1.25; color: #6E5448; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pts-case b { display: block; font: 700 16px/1.2 var(--titre); font-variant-numeric: tabular-nums; }
+.pts-case b i { font-style: normal; font-size: 11px; color: #8C6F62; }
+.pts-bareme { margin-top: 10px; font-size: 13px; line-height: 1.4; }
+.pts-bareme summary { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font: 700 14px/1.2 var(--titre); cursor: pointer; color: var(--texte); list-style: none; }
+.pts-bareme summary::-webkit-details-marker { display: none; }
+.pts-bareme summary .chev svg { width: 18px; height: 18px; transform: rotate(90deg); transition: transform .2s; }
+.pts-bareme[open] summary .chev svg { transform: rotate(-90deg); }
+.pts-bareme ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.pts-bareme p { margin: 8px 0 0; color: #6E5448; }
 .cl-ligne.moi { margin: 3px -6px; padding: 6px 8px; border-radius: 14px; border-bottom-color: transparent; background: #FFF3C4; box-shadow: inset 0 0 0 2px var(--beurre); }
 .cl-ligne.moi .cl-rang:not(.r1):not(.r2):not(.r3) { background: #fff; }
 .cl-sep { display: flex; justify-content: center; gap: 6px; padding: 6px 0; border-bottom: 1px solid var(--ligne); }
@@ -503,10 +534,11 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .at-regles { margin: 4px 0 12px; padding-left: 22px; font-size: 15px; line-height: 1.4; }
 .at-regles li { margin: 4px 0; }
 .at-regles li::marker { color: var(--fraise); font-family: var(--titre); }
-.at-infos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 10px; }
+.at-infos { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; margin: 0 0 10px; }
 .at-infos span { padding: 8px 10px; border-radius: 16px; background: var(--creme); text-align: center; }
 .at-infos small { display: block; font-size: 12px; color: var(--texte-2); }
 .at-infos b { display: block; font: 700 17px/1.2 var(--titre); }
+.at-infos .at-points.plus { background: #E3F7EE; box-shadow: inset 0 0 0 2px var(--menthe); } /* la partie a ajouté des points de boulanger */
 .at-gain { margin: 0 0 12px; padding: 10px 12px; border-radius: 16px; background: #EFEAFF; font-size: 14px; line-height: 1.35; }
 .at-score { margin: 0; text-align: center; font: 700 56px/1 var(--titre); font-variant-numeric: tabular-nums; }
 .at-score small { display: block; margin-top: 2px; font: 700 14px/1 var(--texte-font); color: var(--texte-2); }
@@ -545,3 +577,6 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .mem-ing.touche { background: var(--peche); }
 @media (max-height: 680px) { .mem-ing { min-height: 62px; } .mem-ing svg { width: 32px; height: 32px; } .at-icone { width: 64px; height: 64px; padding: 8px; } .at-icone svg { width: 48px; height: 48px; } .at-regles { font-size: 14px; margin-bottom: 8px; } .at-score { font-size: 44px; } }
 .at-carte .btn { align-content: center; }
+/* petit écran : au résultat d'une partie, l'icône du jeu s'efface (place pour la tuile du classement, « Rejouer » et « Retour ») */
+@media (max-height: 700px) { .at-resultat .at-icone { display: none; } }
+.at-infos:has(.at-points) b { font-size: 15px; }

@@ -15,7 +15,11 @@
     <canvas id="scene-ui" aria-hidden="true"></canvas>
     <div id="sans-3d" hidden><b>La 3D n’est pas disponible sur cet appareil.</b><span>La boutique tourne quand même : tes fournées, tes apprentis et tes clients sont là.</span></div>
     <button id="enseigne" type="button" aria-label="Renommer la boutique"><span>Le Fournil</span></button>
-    <button id="b-amenager" type="button" aria-label="Aménager : voir les meubles à améliorer" aria-pressed="false"><i class="ico" data-ico="amenager"></i></button>
+    <div id="coin">
+      <button id="b-classement" class="rond" type="button" aria-label="Classement des boulangers" hidden><i class="ico" data-ico="podium"></i><i class="rang-pastille" aria-hidden="true" hidden></i></button>
+      <button id="b-atelier" class="rond" type="button" aria-label="L’Atelier : les mini-jeux"><i class="ico" data-ico="atelier"></i></button>
+    </div>
+    <button id="b-fini" type="button" hidden>Terminé</button>
   </div>
   <div id="tiroir" data-pos="mi">
     <div id="evenement" hidden></div>

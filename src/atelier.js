@@ -39,6 +39,11 @@ const MINIJEUX = (() => {
     return reste > 0 ? `<b>Aujourd’hui : ${a.payees[id]}/${G.ATELIER.parJour} parties payées.</b> Une belle partie rapporte jusqu’à <b>${G.fmtEur(G.primePleineAtelier(s))}</b>.`
       : `<b>Plafond du jour atteint</b> (${G.fmtEur(a.gains[id])} gagnés). Tu peux jouer pour le record, sans gain : rendez-vous demain, après minuit.`;
   }
+  // au classement : le meilleur score de la semaine vaut de 0 à 20 points de boulanger (une tuile de plus à côté du record, sans hauteur en plus)
+  function tuilePoints(id, gagnes) { // gagnes : les points de boulanger que cette partie vient d'ajouter (meilleur score de la semaine battu)
+    const a = G.detailPoints(st()).atelier.find((x) => x.id === id);
+    return `<span class="at-points${gagnes > 0 ? ' plus' : ''}" title="Ton meilleur score de la semaine, en points de boulanger (${G.fmt(G.jeuAtelier(id).plein)} pour le maximum)"><small>Classement${gagnes > 0 ? ` +${gagnes}` : ''}</small><b>${a ? a.points : 0}/${G.POINTS.atelier} pts</b></span>`;
+  }
   function ouvrir(id) {
     const j = G.jeuAtelier(id); if (!j) return;
     arreter(); jeu = j; ecran = 'accueil'; resultat = null; el.hidden = false; d.ouvert();
@@ -46,7 +51,7 @@ const MINIJEUX = (() => {
     const rec = G.atelierDuJour(st()).records[id];
     zone.innerHTML = `<div class="at-carte at-accueil"><span class="at-icone">${ICONS.ATELIER[id]}</span>
       <ol class="at-regles">${REGLES[id].map((r) => `<li>${esc(r)}</li>`).join('')}</ol>
-      <div class="at-infos"><span><small>Record</small><b>${rec ? fmtPts(rec) : '—'}</b></span><span><small>Durée</small><b>${DUREE[id]}</b></span></div>
+      <div class="at-infos"><span><small>Record</small><b>${rec ? fmtPts(rec) : '—'}</b></span><span><small>Durée</small><b>${DUREE[id]}</b></span>${tuilePoints(id)}</div>
       <p class="at-gain">${ligneGain(id)}</p>
       <button type="button" class="btn large beurre" data-at="jouer"><b>C’est parti !</b></button></div>`;
     zone.querySelector('[data-at="jouer"]').addEventListener('click', () => { d.audio(); d.son.tap(); demarrer(id); });
@@ -88,7 +93,7 @@ const MINIJEUX = (() => {
       <span class="at-icone">${ICONS.ATELIER[id]}</span>
       <p class="at-score" data-score="${r.score}">${G.fmt(r.score)}<small>point${r.score > 1 ? 's' : ''}</small></p>
       <p class="at-bilan">${esc(bilan)}</p>
-      <div class="at-infos"><span><small>Record</small><b>${fmtPts(G.atelierDuJour(s).records[id])}</b></span><span><small>Gagné aujourd’hui</small><b>${G.fmtEur(G.atelierDuJour(s).gains[id])}</b></span></div>
+      <div class="at-infos"><span><small>Record</small><b>${fmtPts(G.atelierDuJour(s).records[id])}</b></span><span><small>Gagné aujourd’hui</small><b>${G.fmtEur(G.atelierDuJour(s).gains[id])}</b></span>${tuilePoints(id, r.points)}</div>
       ${gain}
       <button type="button" class="btn large beurre" data-at="rejouer"><b>Rejouer</b></button>
       <button type="button" class="btn large clair" data-at="retour" style="margin-top:8px"><b>Retour à l’atelier</b></button></div>`;

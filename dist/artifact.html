@@ -57,11 +57,21 @@ svg { display: block; }
 #scene-ui { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; } /* le calque 2D : textes, pastilles, mode Aménager */
 #sans-3d { position: absolute; left: 16px; right: 16px; top: 56px; padding: 14px 16px; background: #fff; border-radius: 16px; box-shadow: 0 6px 20px rgba(74,51,40,.12); display: flex; flex-direction: column; gap: 4px; font-size: 13px; color: #8C6F62; }
 #sans-3d b { color: #4A3328; font-family: Fredoka, Nunito, sans-serif; font-size: 15px; }
-#b-amenager { position: absolute; top: 8px; right: 10px; z-index: 2; display: grid; place-items: center; width: 38px; height: 38px; border-radius: 50%; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); transition: opacity .2s; }
-#b-amenager .ico svg { width: 22px; height: 22px; }
-#b-amenager:active { transform: translateY(3px); box-shadow: none; }
-#b-amenager.actif { background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); }
-body[data-tiroir="ouvert"] #b-amenager { opacity: 0; pointer-events: none; }
+/* en haut à droite : le classement (avec sa place de la semaine en pastille) et, dessous, l'Atelier ; « Terminé » pendant qu'on repeint */
+#coin { position: absolute; top: 8px; right: 10px; z-index: 2; display: flex; flex-direction: column; gap: 10px; transition: opacity .2s; }
+.rond { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); }
+.rond::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; } /* une cible de 48 px sous le doigt */
+.rond .ico svg { width: 23px; height: 23px; }
+.rond:active { transform: translateY(3px); box-shadow: none; }
+.rond[hidden] { display: none; }
+.rang-pastille { position: absolute; top: -6px; right: -8px; min-width: 22px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--texte); color: #fff; font: 700 11px/18px var(--titre); font-style: normal; text-align: center; white-space: nowrap; box-shadow: 0 0 0 2px #fff; pointer-events: none; }
+.rang-pastille.r1 { background: var(--beurre); color: var(--texte); }
+.rang-pastille.r2 { background: #E6E9EF; color: var(--texte); }
+.rang-pastille.r3 { background: #F6CFAE; color: var(--texte); }
+#b-fini { position: absolute; top: 8px; right: 10px; z-index: 2; min-height: 40px; padding: 0 16px; border-radius: 999px; background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); font: 700 15px/1 var(--titre); color: var(--texte); }
+#b-fini:active { transform: translateY(3px); box-shadow: none; }
+body.amenage #coin { opacity: 0; pointer-events: none; }
+body[data-tiroir="ouvert"] #coin, body[data-tiroir="ouvert"] #b-fini { opacity: 0; pointer-events: none; }
 #tiroir { position: absolute; left: 0; right: 0; top: 0; height: 100%; z-index: 3; transform: translateY(var(--tiroir-y)); transition: transform .28s cubic-bezier(.2, .8, .2, 1); will-change: transform;
   background: var(--creme); border-radius: 24px 24px 0 0; box-shadow: 0 -8px 24px rgba(74, 51, 40, .12); }
 #tiroir.glisse { transition: none; }
@@ -392,7 +402,28 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .cl-nom { min-width: 0; display: flex; align-items: center; gap: 6px; font: 700 16px/1.2 var(--titre); }
 .cl-nom > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cl-nom .tag { font-style: normal; }
-.cl-val { font: 700 15px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.cl-val { font: 700 15px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.cl-val small { display: block; margin-top: 3px; font: 700 11px/1 var(--texte-font); color: #6E5448; } /* la fortune, en petit : pour information */
+/* ses points de la semaine, en tête de la feuille du classement */
+.pts-bloc { margin: 0 0 14px; padding: 12px 14px; border-radius: 20px; background: var(--carte); box-shadow: 0 4px 12px var(--ombre); }
+.pts-tete { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
+.pts-tete small { display: block; font-size: 12px; color: #6E5448; }
+.pts-tete b { font: 700 24px/1.1 var(--titre); font-variant-numeric: tabular-nums; }
+.pts-auj { font: 700 13px/1.2 var(--titre); color: #6E5448; white-space: nowrap; }
+.pts-cases { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.pts-case { grid-column: span 2; }
+.pts-case:nth-child(n+4) { grid-column: span 3; }
+.pts-case { padding: 7px 8px; border-radius: 12px; background: var(--creme); min-width: 0; }
+.pts-case small { display: block; font-size: 11px; line-height: 1.25; color: #6E5448; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pts-case b { display: block; font: 700 16px/1.2 var(--titre); font-variant-numeric: tabular-nums; }
+.pts-case b i { font-style: normal; font-size: 11px; color: #8C6F62; }
+.pts-bareme { margin-top: 10px; font-size: 13px; line-height: 1.4; }
+.pts-bareme summary { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font: 700 14px/1.2 var(--titre); cursor: pointer; color: var(--texte); list-style: none; }
+.pts-bareme summary::-webkit-details-marker { display: none; }
+.pts-bareme summary .chev svg { width: 18px; height: 18px; transform: rotate(90deg); transition: transform .2s; }
+.pts-bareme[open] summary .chev svg { transform: rotate(-90deg); }
+.pts-bareme ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; }
+.pts-bareme p { margin: 8px 0 0; color: #6E5448; }
 .cl-ligne.moi { margin: 3px -6px; padding: 6px 8px; border-radius: 14px; border-bottom-color: transparent; background: #FFF3C4; box-shadow: inset 0 0 0 2px var(--beurre); }
 .cl-ligne.moi .cl-rang:not(.r1):not(.r2):not(.r3) { background: #fff; }
 .cl-sep { display: flex; justify-content: center; gap: 6px; padding: 6px 0; border-bottom: 1px solid var(--ligne); }
@@ -508,10 +539,11 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .at-regles { margin: 4px 0 12px; padding-left: 22px; font-size: 15px; line-height: 1.4; }
 .at-regles li { margin: 4px 0; }
 .at-regles li::marker { color: var(--fraise); font-family: var(--titre); }
-.at-infos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 0 0 10px; }
+.at-infos { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 8px; margin: 0 0 10px; }
 .at-infos span { padding: 8px 10px; border-radius: 16px; background: var(--creme); text-align: center; }
 .at-infos small { display: block; font-size: 12px; color: var(--texte-2); }
 .at-infos b { display: block; font: 700 17px/1.2 var(--titre); }
+.at-infos .at-points.plus { background: #E3F7EE; box-shadow: inset 0 0 0 2px var(--menthe); } /* la partie a ajouté des points de boulanger */
 .at-gain { margin: 0 0 12px; padding: 10px 12px; border-radius: 16px; background: #EFEAFF; font-size: 14px; line-height: 1.35; }
 .at-score { margin: 0; text-align: center; font: 700 56px/1 var(--titre); font-variant-numeric: tabular-nums; }
 .at-score small { display: block; margin-top: 2px; font: 700 14px/1 var(--texte-font); color: var(--texte-2); }
@@ -550,6 +582,9 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .mem-ing.touche { background: var(--peche); }
 @media (max-height: 680px) { .mem-ing { min-height: 62px; } .mem-ing svg { width: 32px; height: 32px; } .at-icone { width: 64px; height: 64px; padding: 8px; } .at-icone svg { width: 48px; height: 48px; } .at-regles { font-size: 14px; margin-bottom: 8px; } .at-score { font-size: 44px; } }
 .at-carte .btn { align-content: center; }
+/* petit écran : au résultat d'une partie, l'icône du jeu s'efface (place pour la tuile du classement, « Rejouer » et « Retour ») */
+@media (max-height: 700px) { .at-resultat .at-icone { display: none; } }
+.at-infos:has(.at-points) b { font-size: 15px; }
 </style>
 <div id="probe" aria-hidden="true"></div>
 <header id="haut">
@@ -568,7 +603,11 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     <canvas id="scene-ui" aria-hidden="true"></canvas>
     <div id="sans-3d" hidden><b>La 3D n’est pas disponible sur cet appareil.</b><span>La boutique tourne quand même : tes fournées, tes apprentis et tes clients sont là.</span></div>
     <button id="enseigne" type="button" aria-label="Renommer la boutique"><span>Le Fournil</span></button>
-    <button id="b-amenager" type="button" aria-label="Aménager : voir les meubles à améliorer" aria-pressed="false"><i class="ico" data-ico="amenager"></i></button>
+    <div id="coin">
+      <button id="b-classement" class="rond" type="button" aria-label="Classement des boulangers" hidden><i class="ico" data-ico="podium"></i><i class="rang-pastille" aria-hidden="true" hidden></i></button>
+      <button id="b-atelier" class="rond" type="button" aria-label="L’Atelier : les mini-jeux"><i class="ico" data-ico="atelier"></i></button>
+    </div>
+    <button id="b-fini" type="button" hidden>Terminé</button>
   </div>
   <div id="tiroir" data-pos="mi">
     <div id="evenement" hidden></div>
@@ -798,8 +837,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   function preparerSaison(st) { // niveau 0 → 1 : préparer la recette ; ensuite l'améliorer, jusqu'au niveau 10
     const s = st.saison; if (!s || s.niv >= SAISON.nivMax) return { ok: false };
     const prix = coutSaison(st); if (st.coins < prix) return { ok: false, prix };
+    const points = marquerAmelioration(st, prix, rythme(st), 0);
     st.coins -= prix; s.niv++; noter(st, 'niveaux', 1); if (s.niv === 1) gagnerXp(st, 6);
-    return { ok: true, prix, niv: s.niv };
+    return { ok: true, prix, niv: s.niv, points };
   }
   function lancerSaison(st) { const s = st.saison; if (!s || s.niv <= 0 || s.actif) return false; s.actif = true; s.prog = 0; st.stats.taps++; noter(st, 'mains', 1); return true; }
   function cuireSaison(st, out, differe) { // une fournée de saison sortie du four : gains (sauf si l'absence les compte elle-même), collection, maîtrise
@@ -828,9 +868,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const m = MOBILIER.find((x) => x.id === id); if (!m) return { ok: false };
     const cran = mobilierCran(st, id), prix = prixMeuble(st, id);
     if (cran >= m.max || st.coins < prix) return { ok: false, prix, cran, m };
+    const points = marquerAmelioration(st, prix, rythme(st), 0);
     st.mobilier = st.mobilier || {}; st.coins -= prix; st.mobilier[id] = cran + 1;
     noter(st, 'meuble', 1); gagnerXp(st, 3); inc(st, 'meubles');
-    return { ok: true, m, cran: cran + 1, prix };
+    return { ok: true, m, cran: cran + 1, prix, points };
   }
   // effets des talents et du mobilier
   const tempsMult = (st) => (1 - 0.05 * talent(st, 'mains')) * (1 - 0.03 * mobilierCran(st, 'four'));
@@ -851,7 +892,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null, tiroir: 'mi',
       apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, saison: null, saisonAnnoncee: '', collection: {},
-      atelier: atelierNeuf(),
+      atelier: atelierNeuf(), points: pointsNeufs(semaineKey(nowMs), dayKey(nowMs)),
     };
   }
 
@@ -922,14 +963,34 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     gagner: (st, r) => ({ cible: arrondi(Math.max(50, r * 1500)), txt: (c) => `Gagne ${fmtEur(c)}` }),
     // vendre : dix minutes de production d'un produit rapide (les ventes pendant l'absence ne comptent pas)
     vendre: (st, r, rnd) => { const idx = st.stations.map((s, i) => i).filter((i) => st.stations[i].niv > 0 && PRODUITS[i].temps <= 120); if (!idx.length) return null; const i = idx[Math.floor(rnd() * idx.length)]; const s = st.stations[i]; const n = Math.max(2, Math.min(s.staff ? 600 : 40, arrondi(600 / PRODUITS[i].temps * (s.staff ? 1 : 0.4)))); return { i, cible: n, txt: (c) => `Vends ${fmt(c)} fournées de ${PRODUITS[i].pl}` }; },
-    niveaux: (st) => ({ cible: Math.min(30, 8 + 3 * st.stations.filter((s) => s.niv > 0).length), txt: (c) => `Achète ${c} niveaux` }),
+    // acheter des niveaux : autant que 25 min du rythme de la boutique en paient (les moins chers d'abord), 30 au plus, 5 au moins ;
+    // en fin de boutique, quand chaque niveau coûte cher, l'objectif reste à la portée d'une journée (les points du classement en dépendent)
+    niveaux: (st, r) => ({ cible: Math.max(5, Math.min(30, 8 + 3 * st.stations.filter((s) => s.niv > 0).length, niveauxAbordables(st, r * 1500, 30))), txt: (c) => `Achète ${c} niveaux` }),
     clients: () => ({ cible: 50, txt: (c) => `Sers ${c} clients` }),
-    mains: (st) => (st.stations.some((s) => s.niv > 0 && !s.staff) ? { cible: 25, txt: (c) => `Cuis ${c} fournées à la main` } : null),
-    embaucher: (st) => (st.stations.some((s) => s.niv > 0 && !s.staff) ? { cible: 1, txt: () => 'Embauche un apprenti' } : null),
+    // à la main : vingt minutes de cuisson de la recette sans apprenti la plus rapide, 25 fournées au plus (en fin de boutique,
+    // la seule recette sans apprenti est souvent la pièce montée : 25 à la main, ce serait dix heures ; la cible tombe à 1)
+    mains: (st) => {
+      const t = st.stations.reduce((m, s, i) => (s.niv > 0 && !s.staff ? Math.min(m, temps(st, i)) : m), Infinity);
+      if (!Number.isFinite(t)) return null;
+      const c = Math.max(1, Math.min(25, Math.floor(1200 / t)));
+      return { cible: c, txt: (n) => `Cuis ${n} fournée${n > 1 ? 's' : ''} à la main` };
+    },
+    // embaucher : seulement si un apprenti est à portée (moins d'une heure du rythme de la boutique), comme les bonus et le mobilier
+    embaucher: (st, r) => (st.stations.some((s, i) => s.niv > 0 && !s.staff && prixStaff(st, i) < st.coins + r * 3600) ? { cible: 1, txt: () => 'Embauche un apprenti' } : null),
     bonus: (st, r) => (AMELIORATIONS.some((a) => !st.ameliorations[a.id] && a.cout < st.coins + r * 3600) ? { cible: 1, txt: () => 'Achète un bonus' } : null),
     meuble: (st, r) => (MOBILIER.some((m) => mobilierCran(st, m.id) < m.max && prixMeuble(st, m.id) < st.coins + r * 3600) ? { cible: 1, txt: () => 'Améliore un meuble de la boutique' } : null),
     recette: (st, r) => { const i = st.stations.findIndex((s) => s.niv === 0); return i > 0 && PRODUITS[i].debloquer < st.coins + r * 3600 ? { cible: 1, txt: () => `Débloque : ${PRODUITS[i].nom}` } : null; },
   };
+  function niveauxAbordables(st, budget, max) { // combien de niveaux paie ce budget, en prenant toujours le moins cher
+    const niv = st.stations.map((s) => s.niv); let n = 0, reste = budget;
+    while (n < max) {
+      let best = -1, bp = Infinity;
+      niv.forEach((v, i) => { if (v > 0) { const p = coutNiveau(i, v); if (p < bp) { bp = p; best = i; } } });
+      if (best < 0 || bp > reste) break;
+      reste -= bp; niv[best]++; n++;
+    }
+    return n;
+  }
   function tirerObjectifs(st, key) {
     const rnd = mulberry32(hashStr(key + ':' + st.boutiques + ':' + st.created)), r = rythme(st);
     const choix = ['gagner'], pool = ['vendre', 'niveaux', 'clients', 'mains', 'embaucher', 'bonus', 'recette', 'meuble'];
@@ -993,7 +1054,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   }
   function reclamerSemaine(st) {
     const sm = st.semaine; if (!sm || !sm.fait || sm.reclame) return { ok: false };
-    sm.reclame = true; st.etoiles++; inc(st, 'semaines'); const prime = arrondi(Math.max(100, rythme(st) * 1800)); gagner(st, prime, true); gagnerXp(st, 150); note(st, `Défi de la semaine réussi : ${fmtEur(prime)} et une étoile`);
+    sm.reclame = true; st.etoiles++; inc(st, 'semaines'); marquerDefi(st); const prime = arrondi(Math.max(100, rythme(st) * 1800)); gagner(st, prime, true); gagnerXp(st, 150); note(st, `Défi de la semaine réussi : ${fmtEur(prime)} et une étoile`);
     return { ok: true, prime };
   }
   function noter(st, type, n, i) {
@@ -1009,12 +1070,12 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const o = st.jour && st.jour.objectifs[k];
     if (!o || !o.fait || o.reclame) return { ok: false };
     o.reclame = true; gagner(st, o.prime, true); gagnerXp(st, 15);
-    let etoile = false;
+    let etoile = false, points = 0;
     if (st.jour.objectifs.every((x) => x.reclame) && !st.jour.etoileDonnee) {
-      st.jour.etoileDonnee = true; st.etoiles++; etoile = true; gagnerXp(st, 40); noterSemaine(st, 'jours');
+      st.jour.etoileDonnee = true; st.etoiles++; etoile = true; gagnerXp(st, 40); noterSemaine(st, 'jours'); points = marquerJournee(st);
       st.serie = st.dernierJourComplet === hier(st.now) ? st.serie + 1 : 1; st.dernierJourComplet = st.jour.date; st.stats.serieMax = Math.max(st.stats.serieMax || 0, st.serie);
     }
-    return { ok: true, prime: o.prime, etoile };
+    return { ok: true, prime: o.prime, etoile, points };
   }
   const serieEnCours = (st) => (st.dernierJourComplet === dayKey(st.now) || st.dernierJourComplet === hier(st.now)) ? st.serie : 0;
 
@@ -1070,19 +1131,19 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const k = ev.restants.indexOf(i); if (k < 0) return { ok: false };
     ev.restants.splice(k, 1);
     if (ev.restants.length) return { ok: true, fini: false, restants: ev.restants.length };
-    donnerBoost(st, CRITIQUE.mult, CRITIQUE.boost); gagnerXp(st, 20); inc(st, 'critiques'); noterSemaine(st, 'critiques'); note(st, `Bonne critique : tout ×${CRITIQUE.mult} pendant ${CRITIQUE.boost / 60} min`); st.ev = null;
+    donnerBoost(st, CRITIQUE.mult, CRITIQUE.boost); gagnerXp(st, 20); inc(st, 'critiques'); marquerEvenement(st); noterSemaine(st, 'critiques'); note(st, `Bonne critique : tout ×${CRITIQUE.mult} pendant ${CRITIQUE.boost / 60} min`); st.ev = null;
     return { ok: true, fini: true };
   }
   function petrir(st) {
     const ev = st.ev; if (!ev || ev.type !== 'petrissage' || ev.fin <= st.now) return { ok: false };
     ev.taps++; if (ev.taps < ev.n) return { ok: true, fini: false, taps: ev.taps };
-    gagner(st, ev.prime, true); gagnerXp(st, 10); inc(st, 'petrissages'); noterSemaine(st, 'petrissages'); const duree = (st.now - ev.debut) / 1000; if (!st.stats.petrissageRecord || duree < st.stats.petrissageRecord) st.stats.petrissageRecord = duree; note(st, `Concours de pétrissage gagné : ${fmtEur(ev.prime)}`); st.ev = null;
+    gagner(st, ev.prime, true); gagnerXp(st, 10); inc(st, 'petrissages'); marquerEvenement(st); noterSemaine(st, 'petrissages'); const duree = (st.now - ev.debut) / 1000; if (!st.stats.petrissageRecord || duree < st.stats.petrissageRecord) st.stats.petrissageRecord = duree; note(st, `Concours de pétrissage gagné : ${fmtEur(ev.prime)}`); st.ev = null;
     return { ok: true, fini: true, prime: ev.prime };
   }
   function reparer(st) {
     const ev = st.ev; if (!ev || ev.type !== 'panne') return { ok: false };
     ev.coups++; if (ev.coups < ev.n) return { ok: true, fini: false, coups: ev.coups };
-    gagner(st, ev.prime, true); gagnerXp(st, 8); inc(st, 'pannes'); noterSemaine(st, 'pannes'); note(st, `Four réparé : ${fmtEur(ev.prime)}`); st.ev = null;
+    gagner(st, ev.prime, true); gagnerXp(st, 8); inc(st, 'pannes'); marquerEvenement(st); noterSemaine(st, 'pannes'); note(st, `Four réparé : ${fmtEur(ev.prime)}`); st.ev = null;
     return { ok: true, fini: true, prime: ev.prime };
   }
   function lancerCommande(st, rnd) {
@@ -1096,12 +1157,12 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   function livrer(st) {
     const ev = st.ev;
     if (!ev || ev.type !== 'commande' || ev.fait < ev.n || ev.livree) return { ok: false };
-    ev.livree = true; gagner(st, ev.prime, true); gagnerXp(st, 10); inc(st, 'commandes'); st.stats.meilleureCommande = Math.max(st.stats.meilleureCommande || 0, ev.prime); noterSemaine(st, 'commandes'); note(st, `Commande livrée : ${fmtEur(ev.prime)}`);
+    ev.livree = true; gagner(st, ev.prime, true); gagnerXp(st, 10); inc(st, 'commandes'); marquerEvenement(st); st.stats.meilleureCommande = Math.max(st.stats.meilleureCommande || 0, ev.prime); noterSemaine(st, 'commandes'); note(st, `Commande livrée : ${fmtEur(ev.prime)}`);
     st.ev = null;
     return { ok: true, prime: ev.prime };
   }
   const pourboire = (st) => arrondi(Math.max(20, rythme(st) * 120) * (1 + 0.5 * talent(st, 'pourboire')) * (1 + 0.3 * mobilierCran(st, 'caisse')));
-  function encaisserPourboire(st) { const tip = pourboire(st); gagner(st, tip, true); gagnerXp(st, 3); inc(st, 'pourboires'); st.stats.meilleurPourboire = Math.max(st.stats.meilleurPourboire || 0, tip); noterSemaine(st, 'pourboires'); note(st, `Pourboire du client mystère : ${fmtEur(tip)}`); return tip; }
+  function encaisserPourboire(st) { const tip = pourboire(st); gagner(st, tip, true); gagnerXp(st, 3); inc(st, 'pourboires'); marquerEvenement(st); st.stats.meilleurPourboire = Math.max(st.stats.meilleurPourboire || 0, tip); noterSemaine(st, 'pourboires'); note(st, `Pourboire du client mystère : ${fmtEur(tip)}`); return tip; }
   // ─── les habitués : trois clients fidèles qui passent à heure fixe, une fois par jour ; cinq jours de suite, un cadeau ───
   const HABITUES = [
     { id: 'dupuis', nom: 'Mme Dupuis', debut: 7, fin: 10, haut: '#8A2B3A', cheveux: '#D9D9D9', peau: '#FFD7B5', coiffure: 2, phrase: 'Ma baguette bien cuite, comme toujours !' },
@@ -1197,10 +1258,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const j = jeuAtelier(id); if (!j) return { ok: false };
     const a = atelierDuJour(st), s = Math.max(0, Math.min(j.max, Math.floor(Number.isFinite(Number(score)) ? Number(score) : 0)));
     const ancien = a.records[id] || 0, record = s > ancien; if (record) a.records[id] = s;
-    a.parties[id]++; inc(st, 'atelier');
+    a.parties[id]++; inc(st, 'atelier'); const points = marquerAtelier(st, id, s); // le meilleur score de la semaine compte au classement, partie payée ou non
     const pourLeRecord = a.payees[id] >= ATELIER.parJour, prime = pourLeRecord ? 0 : primeAtelier(st, id, s); // plafond déjà atteint : la partie compte pour le record seulement
     if (prime > 0) { a.payees[id]++; a.gains[id] += prime; gagner(st, prime, true); gagnerXp(st, ATELIER.xp); note(st, `Atelier, ${j.court.toLowerCase()} : ${fmt(s)} points, ${fmtEur(prime)}`); }
-    return { ok: true, id, score: s, record, ancien, prime, pourLeRecord, plafond: a.payees[id] >= ATELIER.parJour, payees: a.payees[id], reste: ATELIER.parJour - a.payees[id], qualite: qualiteAtelier(id, s) };
+    return { ok: true, id, score: s, record, ancien, prime, points, pourLeRecord, plafond: a.payees[id] >= ATELIER.parJour, payees: a.payees[id], reste: ATELIER.parJour - a.payees[id], qualite: qualiteAtelier(id, s) };
   }
 
   // 1. Enfournement en rythme : les plaques défilent sur le tapis ; toucher quand la plaque passe devant la bouche du four pour l'enfourner,
@@ -1336,23 +1397,88 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   }
   const memoireScore = (manches) => { let s = 0; for (let k = 0; k < manches; k++) s += MEMOIRE.debut + k; return s; };
 
+  // ─── les points de boulanger : le classement récompense la façon de jouer, pas l'ancienneté ───
+  // Chaque semaine (du lundi au dimanche, heure de Paris, sur l'horloge de confiance) :
+  //   · journée complète (les trois objectifs du jour réclamés) : 10 points, une fois par jour ;
+  //   · défi de la semaine réclamé : 30 points ;
+  //   · événement réussi (pétrissage gagné, commande livrée, four réparé, bonne critique, pourboire du client mystère) : 2 points,
+  //     20 au plus par jour ;
+  //   · Atelier : le meilleur score de la semaine de chaque mini-jeu, converti en 0 à 20 points (20 au score « plein » du jeu) ;
+  //   · améliorations : 1 point par tranche d'achats valant 10 minutes de SES PROPRES gains au moment de l'achat (le prix divisé par
+  //     le rythme de la boutique, rythme(st)), + 5 à chaque palier ×2 franchi (niveaux 25, 50, 100…), 30 au plus par jour.
+  //     Comptent : niveaux et déblocage des recettes, embauches, bonus, mobilier, recette de saison.
+  // Un achat cher pour un joueur riche coûte autant de minutes de ses gains qu'un achat modeste pour un débutant : les points ne
+  // dépendent pas du niveau. Au plus 60 points par jour et 510 par semaine (7 × 60 + 30 + 3 × 20) ; le serveur applique les mêmes plafonds.
+  const POINTS = { journee: 10, defi: 30, evenement: 2, evenementsJour: 20, atelier: 20, tranche: 600, palier: 5, ameliorationsJour: 30, semaines: 12 };
+  POINTS.jour = POINTS.journee + POINTS.evenementsJour + POINTS.ameliorationsJour;               // 60
+  POINTS.semaine = 7 * POINTS.jour + POINTS.defi + POINTS.atelier * JEUX_ATELIER.length;          // 510
+  const pointsNeufs = (semaine, jour) => ({ semaine, jour, journees: 0, evenements: 0, ameliorations: 0, defi: 0, atelier: zeroJeux(), jJournee: 0, jEvenements: 0, jAmeliorations: 0, reste: 0, avant: 0, semaines: [] });
+  const JOUR_ISO = /^\d{4}-\d{2}-\d{2}$/;
+  const pointsAtelier = (id, score) => Math.round(POINTS.atelier * qualiteAtelier(id, score));
+  const entierPos = (v, max) => { const n = Math.floor(Number(v)); return Number.isFinite(n) && n > 0 ? Math.min(n, max) : 0; };
+  function pointsDuJour(st) { // le carnet de points, remis d'aplomb ; une nouvelle semaine ou un nouveau jour (heure de Paris) repart de zéro
+    const sem = semaineKey(st.now), jour = dayKey(st.now);
+    let p = st.points;
+    if (!p || typeof p !== 'object' || Array.isArray(p)) p = st.points = pointsNeufs(sem, jour);
+    if (!JOUR_ISO.test(p.semaine)) p.semaine = sem;
+    if (!JOUR_ISO.test(p.jour)) p.jour = jour;
+    p.journees = entierPos(p.journees, 7 * POINTS.journee); p.evenements = entierPos(p.evenements, 7 * POINTS.evenementsJour); p.ameliorations = entierPos(p.ameliorations, 7 * POINTS.ameliorationsJour);
+    p.defi = entierPos(p.defi, POINTS.defi); p.jJournee = entierPos(p.jJournee, POINTS.journee); p.jEvenements = entierPos(p.jEvenements, POINTS.evenementsJour); p.jAmeliorations = entierPos(p.jAmeliorations, POINTS.ameliorationsJour);
+    p.avant = entierPos(p.avant, 1e9); p.reste = Number(p.reste) >= 0 && Number(p.reste) < 1 ? Number(p.reste) : 0;
+    if (!p.atelier || typeof p.atelier !== 'object') p.atelier = zeroJeux();
+    JEUX_ATELIER.forEach((j) => { p.atelier[j.id] = entierPos(p.atelier[j.id], j.max); });
+    if (!Array.isArray(p.semaines)) p.semaines = [];
+    if (sem > p.semaine) { // une nouvelle semaine : celle qui finit rejoint l'historique (les 12 dernières), puis tout repart de zéro
+      const total = pointsSemaineDe(p);
+      p.avant += total; if (total > 0) { p.semaines.push({ semaine: p.semaine, points: total }); p.semaines = p.semaines.slice(-POINTS.semaines); }
+      const n = pointsNeufs(sem, jour); n.avant = p.avant; n.semaines = p.semaines; p = st.points = n;
+    } else if (jour > p.jour) { p.jour = jour; p.jJournee = 0; p.jEvenements = 0; p.jAmeliorations = 0; }
+    return p;
+  }
+  const pointsSemaineDe = (p) => p.journees + p.evenements + p.ameliorations + p.defi + JEUX_ATELIER.reduce((s, j) => s + pointsAtelier(j.id, p.atelier[j.id]), 0);
+  const pointsSemaine = (st) => Math.min(POINTS.semaine, pointsSemaineDe(pointsDuJour(st)));
+  const pointsTotal = (st) => pointsDuJour(st).avant + pointsSemaine(st); // depuis le début de la partie (le serveur compte, lui, depuis l'arrivée au classement)
+  function detailPoints(st) { // pour l'interface : la semaine en cours, catégorie par catégorie, et ce qu'il reste à prendre aujourd'hui
+    const p = pointsDuJour(st);
+    return { semaine: p.semaine, jour: p.jour, total: pointsSemaine(st), cumul: pointsTotal(st), journees: p.journees, evenements: p.evenements, ameliorations: p.ameliorations, defi: p.defi,
+      atelier: JEUX_ATELIER.map((j) => ({ id: j.id, nom: j.court, score: p.atelier[j.id], points: pointsAtelier(j.id, p.atelier[j.id]) })),
+      aujourdhui: { journee: p.jJournee, evenements: p.jEvenements, ameliorations: p.jAmeliorations, max: POINTS.jour }, semaines: p.semaines.slice() };
+  }
+  function marquerJournee(st) { const p = pointsDuJour(st); if (p.jJournee) return 0; p.jJournee = POINTS.journee; p.journees += POINTS.journee; return POINTS.journee; }
+  function marquerDefi(st) { const p = pointsDuJour(st); if (p.defi) return 0; p.defi = POINTS.defi; return POINTS.defi; }
+  function marquerEvenement(st) { const p = pointsDuJour(st), n = Math.max(0, Math.min(POINTS.evenement, POINTS.evenementsJour - p.jEvenements)); p.jEvenements += n; p.evenements += n; return n; }
+  function marquerAtelier(st, id, score) { const p = pointsDuJour(st), j = jeuAtelier(id); if (!j) return 0; const avant = pointsAtelier(id, p.atelier[id]); p.atelier[id] = Math.max(p.atelier[id], entierPos(score, j.max)); return pointsAtelier(id, p.atelier[id]) - avant; }
+  // un achat d'amélioration : prix payé, rythme de la boutique juste AVANT l'achat (€/s), paliers ×2 franchis
+  function marquerAmelioration(st, prix, r, paliers) {
+    const p = pointsDuJour(st);
+    let n = 0;
+    if (Number.isFinite(prix) && prix > 0 && Number.isFinite(r) && r > 0) { p.reste += Math.min(1e6, prix / (r * POINTS.tranche)); n = Math.floor(p.reste); p.reste -= n; }
+    n += POINTS.palier * Math.max(0, Math.floor(paliers || 0));
+    n = Math.min(n, Math.max(0, POINTS.ameliorationsJour - p.jAmeliorations)); // au plafond du jour, le surplus est perdu
+    p.jAmeliorations += n; p.ameliorations += n;
+    return n;
+  }
+
   // ─── actions ───
   function gagner(st, montant, horsObjectif) { st.coins += montant; st.lifetime += montant; st.lifetimeRun += montant; if (!horsObjectif) noter(st, 'gagner', montant); }
   function acheter(st, i) {
     const s = st.stations[i], n = quantite(st, i), prix = prixNiveaux(st, i, n);
     if (st.coins < prix) return { ok: false, prix };
+    const r0 = rythme(st), paliers = s.niv === 0 ? 0 : PALIERS.filter((p) => s.niv + n >= p && s.niv < p).length;
     st.coins -= prix;
     let xp = 0;
     if (s.niv === 0) { noter(st, 'recette', 1); xp = 10 + 10 * i; st.stats.recetteMax = Math.max(st.stats.recetteMax || 0, i); } else { noter(st, 'niveaux', n); xp = 8 * (PALIERS.filter((p) => s.niv + n >= p).length - PALIERS.filter((p) => s.niv >= p).length); }
     s.niv += n;
     if (xp) gagnerXp(st, xp);
-    return { ok: true, n, prix, xp };
+    const points = marquerAmelioration(st, prix, r0, paliers);
+    return { ok: true, n, prix, xp, points };
   }
   function embaucher(st, i) {
     const s = st.stations[i], prix = prixStaff(st, i);
     if (s.staff || s.niv <= 0 || st.coins < prix) return { ok: false, prix };
+    const points = marquerAmelioration(st, prix, rythme(st), 0);
     st.coins -= prix; s.staff = true; s.actif = true; noter(st, 'embaucher', 1); gagnerXp(st, 5 + 3 * i); inc(st, 'embauches');
-    return { ok: true, prix };
+    return { ok: true, prix, points };
   }
   function lancer(st, i) {
     const s = st.stations[i];
@@ -1363,8 +1489,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   function amelioration(st, id) {
     const a = AMELIORATIONS.find((x) => x.id === id), prix = a ? prixBonus(st, a) : 0;
     if (!a || st.ameliorations[id] || st.coins < prix) return { ok: false, prix };
+    const points = marquerAmelioration(st, prix, rythme(st), 0);
     st.coins -= prix; st.ameliorations[id] = true; noter(st, 'bonus', 1); gagnerXp(st, 6); if (id === 'franchise') st.stats.franchise = true;
-    return { ok: true, a, prix };
+    return { ok: true, a, prix, points };
   }
   function nouvelleBoutique(st, nowMs) {
     const gain = etoilesGagnables(st);
@@ -1462,7 +1589,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono,
     ATELIER, JEUX_ATELIER, jeuAtelier, atelierDuJour, qualiteAtelier, primePleineAtelier, primeAtelier, restantesAtelier, finirAtelier,
     FOUR, fourNiveau, fourNouveau, fourAvancer, fourToucher, FACONNAGE, MODELES_FACONNAGE, reechantillonner, noterFaconnage, ajouterTrait, couvertureFaconnage,
-    INGREDIENTS, MEMOIRE, memoireMontre, memoireRecette, memoireSaisir, memoireScore };
+    INGREDIENTS, MEMOIRE, memoireMontre, memoireRecette, memoireSaisir, memoireScore,
+    POINTS, pointsDuJour, pointsAtelier, pointsSemaine, pointsTotal, detailPoints, marquerJournee, marquerDefi, marquerEvenement, marquerAtelier, marquerAmelioration };
 });
 
 /* ── horloge.js ── */
@@ -1677,7 +1805,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 });
 
 /* ── classement.js ── */
-/* LE FOURNIL — le classement en ligne des boulangers : fortune totale (st.lifetime) et fortune de la semaine (depuis lundi, heure de Paris).
+/* LE FOURNIL — le classement en ligne des boulangers, en POINTS DE BOULANGER (src/game.js : journées, défi, événements, Atelier, améliorations
+   relatives à ses propres gains) : ceux de la semaine (depuis lundi, heure de Paris) et ceux depuis l'arrivée ; la fortune (st.lifetime) part aussi,
+   affichée en petit, pour information. Serveur : supabase/fournil-classement.sql (version 3 ; un serveur encore en version 2 reste servi, à l'argent).
    Une partie pure, testée dans Node (lundi de Paris, pseudo, rangs, décision d'envoi, état local), et une partie réseau : de simples POST
    vers les fonctions Supabase du classement (PostgREST, /rest/v1/rpc/…), avec la clé PUBLIQUE de fournil/config.js. Aucune erreur ne remonte
    jamais au jeu : chaque appel rend un état ('ok', 'hors-ligne', 'lent' (pas de réponse en 8 s), 'pas-ouvert', 'erreur', 'absent'). Sans configuration (l'artefact Claude), rien ne part. */
@@ -1760,7 +1890,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, JETON = /^[0-9a-f]{64}$/;
   const fini = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
   const entier = (v) => (Number.isInteger(v) && v > 0 ? v : null);
-  const etatNeuf = () => ({ id: null, jeton: null, pseudo: '', rejoint: false, dernierEnvoi: 0, valeur: null, essai: 0, dernier: null, recompenses: recompensesNeuves() });
+  const etatNeuf = () => ({ id: null, jeton: null, pseudo: '', rejoint: false, dernierEnvoi: 0, valeur: null, points: null, lundiPoints: '', essai: 0, dernier: null, recompenses: recompensesNeuves() });
 
   // ─── les récompenses du podium : les trois premiers de chaque semaine gagnent une tenue (toque et tablier) et une coupe, or, argent ou bronze ───
   // recompenses : { podiums: [{ semaine: 'AAAA-MM-JJ' (le lundi de la semaine du podium), rang: 1 | 2 | 3 }] du plus ancien au plus récent,
@@ -1815,6 +1945,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   function nettoyerRang(r, avecLundi) {
     if (!r || typeof r !== 'object' || !entier(r.rang)) return null;
     const o = { rang: r.rang, joueurs: Math.max(r.rang, entier(r.joueurs) || r.rang) };
+    if (Number.isInteger(r.points) && r.points >= 0) o.points = r.points;
     if (avecLundi && typeof r.lundi === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.lundi)) o.lundi = r.lundi;
     return o;
   }
@@ -1826,6 +1957,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     e.rejoint = s.rejoint === true && !!e.id && verifierPseudo(e.pseudo).ok;
     e.dernierEnvoi = fini(s.dernierEnvoi); e.essai = fini(s.essai);
     e.valeur = typeof s.valeur === 'number' && Number.isFinite(s.valeur) ? s.valeur : null;
+    e.points = Number.isInteger(s.points) && s.points >= 0 ? s.points : null;
+    e.lundiPoints = typeof s.lundiPoints === 'string' && JOUR.test(s.lundiPoints) ? s.lundiPoints : '';
     if (s.dernier && typeof s.dernier === 'object') {
       const d = { semaine: nettoyerRang(s.dernier.semaine, true), total: nettoyerRang(s.dernier.total), quand: fini(s.dernier.quand) };
       if (d.semaine || d.total) e.dernier = d;
@@ -1856,33 +1989,37 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   }
   const nouveauJeton = () => hex(octets(32));
 
-  // ─── la décision d'envoyer sa fortune ───
-  // raison : 'lancement', 'feuille', 'fond' (passage en arrière-plan), 'periodique'
-  function deciderEnvoi(etat, fortune, maintenant, raison) {
+  // ─── la décision d'envoyer ses points et sa fortune ───
+  // raison : 'lancement', 'feuille', 'fond' (passage en arrière-plan), 'periodique' ; pts : { points, lundi } (facultatif)
+  const ptsOk = (p) => !!p && Number.isInteger(p.points) && p.points >= 0 && p.points <= 1e5 && JOUR.test(String(p.lundi || ''));
+  function deciderEnvoi(etat, fortune, maintenant, raison, pts) {
     if (!etat || !etat.rejoint || !etat.id || !etat.jeton || !etat.pseudo) return { envoyer: false, pourquoi: 'pas-rejoint' };
     if (typeof fortune !== 'number' || !Number.isFinite(fortune) || fortune < 0) return { envoyer: false, pourquoi: 'valeur' };
     const depuis = (t) => (t > maintenant + 60e3 ? Infinity : maintenant - (t || 0)); // une horloge remise en arrière ne bloque pas tout
     const essai = depuis(etat.essai);
     if (essai < REGLES.ecartMin) return { envoyer: false, pourquoi: 'trop-tot' };
     if (raison === 'periodique' && essai < REGLES.periode) return { envoyer: false, pourquoi: 'periode' };
-    if (etat.valeur === fortune && depuis(etat.dernierEnvoi) < REGLES.rafraichir) return { envoyer: false, pourquoi: 'inchange' };
+    const memesPoints = !ptsOk(pts) || (etat.points === pts.points && etat.lundiPoints === pts.lundi);
+    if (etat.valeur === fortune && memesPoints && depuis(etat.dernierEnvoi) < REGLES.rafraichir) return { envoyer: false, pourquoi: 'inchange' };
     return { envoyer: true, pourquoi: raison || '' };
   }
 
   // ─── les réponses du serveur, vérifiées avant d'être affichées ───
   function nettoyerClassement(d) {
-    const o = { semaine: '', joueurs: 0, lignes: [], moi: null };
+    const o = { semaine: '', joueurs: 0, lignes: [], moi: null, version: 0 };
     if (!d || typeof d !== 'object') return o;
+    o.version = entier(d.version) || 2; // la version 2 du serveur ne classe qu'à l'argent (pas de points)
+    const pts = (v) => (Number.isInteger(v) && v >= 0 ? v : null);
     if (typeof d.semaine === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d.semaine)) o.semaine = d.semaine.slice(0, 10);
     if (Array.isArray(d.lignes)) {
       for (const l of d.lignes.slice(0, 100)) {
         if (!l || typeof l !== 'object' || !entier(l.rang)) continue;
         const v = Number(l.valeur);
-        o.lignes.push({ rang: l.rang, pseudo: String(l.pseudo == null ? '' : l.pseudo).slice(0, 40), valeur: Number.isFinite(v) ? v : 0, moi: l.moi === true, podium: [1, 2, 3].includes(l.podium) ? l.podium : null });
+        o.lignes.push({ rang: l.rang, pseudo: String(l.pseudo == null ? '' : l.pseudo).slice(0, 40), points: pts(l.points), valeur: Number.isFinite(v) ? v : 0, moi: l.moi === true, podium: [1, 2, 3].includes(l.podium) ? l.podium : null });
       }
     }
     o.joueurs = Math.max(entier(d.joueurs) || 0, o.lignes.length);
-    if (d.moi && typeof d.moi === 'object' && entier(d.moi.rang)) { const v = Number(d.moi.valeur); o.moi = { rang: d.moi.rang, valeur: Number.isFinite(v) ? v : 0, podium: [1, 2, 3].includes(d.moi.podium) ? d.moi.podium : null }; o.joueurs = Math.max(o.joueurs, o.moi.rang); }
+    if (d.moi && typeof d.moi === 'object' && entier(d.moi.rang)) { const v = Number(d.moi.valeur); o.moi = { rang: d.moi.rang, points: pts(d.moi.points), valeur: Number.isFinite(v) ? v : 0, podium: [1, 2, 3].includes(d.moi.podium) ? d.moi.podium : null }; o.joueurs = Math.max(o.joueurs, o.moi.rang); }
     return o;
   }
   // la réponse de fournil_recompenses : ses podiums, et le podium de la semaine passée (pour tout le monde)
@@ -1892,7 +2029,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     o.ok = d.ok === true; o.podiums = nettoyerPodiums(d.podiums);
     const r = d.derniere;
     if (r && typeof r === 'object' && JOUR.test(String(r.semaine || '')) && Array.isArray(r.podium)) {
-      const podium = r.podium.slice(0, 30).filter((x) => x && typeof x === 'object' && [1, 2, 3].includes(x.rang)).map((x) => { const v = Number(x.valeur); return { rang: x.rang, pseudo: String(x.pseudo == null ? '' : x.pseudo).slice(0, 40), valeur: Number.isFinite(v) ? v : 0 }; });
+      const podium = r.podium.slice(0, 30).filter((x) => x && typeof x === 'object' && [1, 2, 3].includes(x.rang)).map((x) => { const v = Number(x.valeur); return { rang: x.rang, pseudo: String(x.pseudo == null ? '' : x.pseudo).slice(0, 40), points: Number.isInteger(x.points) && x.points >= 0 ? x.points : null, valeur: Number.isFinite(v) ? v : 0 }; });
       if (podium.length) o.derniere = { semaine: r.semaine, podium };
     }
     return o;
@@ -1942,9 +2079,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   }
 
   // ─── le moteur : l'état du joueur, les envois automatiques, la liste, le pseudo ───
-  // env : { config(), fetch, stockage, maintenant(), fortune(), enLigne(), visible(), attendre(ms), delaiMax }
+  // env : { config(), fetch, stockage, maintenant(), fortune(), points() → { points, lundi } (ses points de la semaine), enLigne(), visible(), attendre(ms), delaiMax }
   function creerMoteur(env) {
-    const E = Object.assign({ maintenant: () => Date.now(), attendre: (ms) => new Promise((r) => setTimeout(r, ms)), enLigne: () => true, visible: () => true, fortune: () => NaN }, env || {});
+    const E = Object.assign({ maintenant: () => Date.now(), attendre: (ms) => new Promise((r) => setTimeout(r, ms)), enLigne: () => true, visible: () => true, fortune: () => NaN, points: () => null }, env || {});
     let etat = lireEtat(E.stockage);
     const ecouteurs = [], cache = { semaine: null, total: null }, charge = { semaine: false, total: false };
     const enVol = { semaine: null, total: null }; // une seule lecture de la liste à la fois par onglet : qui la redemande reçoit la même
@@ -1953,11 +2090,13 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     let nettoyage = null; // au lancement, l'effacement discret d'une inscription dont la réponse s'était perdue
     let ecrit = true; // la dernière écriture dans le stockage a-t-elle réussi ? (sinon, le stockage est en retard sur la mémoire)
     let lundiServeur = ''; // le lundi de la semaine en cours d'après le serveur (appris à chaque réponse) : l'heure du téléphone ne décide pas seule
+    let version = 0; // la version du serveur : 3 (points), 2 (argent seulement : on n'envoie plus de points jusqu'au prochain lancement), 0 (pas encore vue)
     let recVol = null, recQuand = 0, derniere = null; // la lecture des récompenses en cours, l'heure de la dernière, le podium de la semaine passée
     const config = () => { try { return lireConfig(E.config ? E.config() : null); } catch (e) { return null; } };
     const sauver = () => { ecrit = ecrireEtat(E.stockage, etat); return ecrit; };
     const prevenir = () => { for (const f of ecouteurs.slice()) { try { f(); } catch (e) { /* l'interface ne casse pas le moteur */ } } };
     const fortune = () => { try { const v = E.fortune(); return typeof v === 'number' ? Math.floor(v) : NaN; } catch (e) { return NaN; } };
+    const points = () => { try { const p = E.points(); return ptsOk(p) ? { points: p.points, lundi: p.lundi } : null; } catch (e) { return null; } };
     const rpc = (nom, corps, o) => appeler(config(), nom, corps, { fetch: E.fetch, enLigne: E.enLigne, delaiMax: E.delaiMax, keepalive: o && o.keepalive });
 
     // une autre fenêtre (l'appli installée et l'onglet du navigateur partagent le même stockage) a pu écrire :
@@ -1985,17 +2124,25 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       const js = entier(d.joueurs_semaine) || (avant.semaine && avant.semaine.lundi === lundi ? avant.semaine.joueurs : null) || jt;
       const semaine = entier(d.rang_semaine) ? { rang: d.rang_semaine, joueurs: Math.max(d.rang_semaine, js || 0), lundi } : null;
       const total = entier(d.rang_total) ? { rang: d.rang_total, joueurs: Math.max(d.rang_total, jt || 0) } : null;
+      if (semaine && Number.isInteger(d.points_semaine)) semaine.points = d.points_semaine;
+      if (total && Number.isInteger(d.points_total)) total.points = d.points_total;
       etat.dernier = (semaine || total) ? { semaine, total, quand: maintenant } : etat.dernier;
     }
     // un envoi au serveur ; le pseudo ne change dans l'état local qu'une fois accepté
-    async function publier(pseudo, valeur, o) {
+    async function publier(pseudo, valeur, o, pts) {
       etat.essai = E.maintenant(); sauver();
-      const r = await rpc('fournil_publier', { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur }, o);
+      const avecPoints = !!pts && version !== 2;
+      let r = avecPoints ? await rpc('fournil_publier', { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur, p_points: pts.points, p_lundi: pts.lundi }, o) : null;
+      if (avecPoints && r.etat === 'pas-ouvert' && ['PGRST202', '42883'].includes(r.code)) { version = 2; r = null; } // un serveur encore en version 2 (SQL pas recollé) : sa fortune seule, comme avant
+      if (!r) r = await rpc('fournil_publier', { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur }, o);
       statut = r.etat;
       if (r.etat !== 'ok') { prevenir(); return r; }
       const d = r.data || {};
+      if (entier(d.version)) version = d.version; else if (d.ok === true && !avecPoints && version === 0) version = 2;
       if (d.ok === true) {
-        const t = E.maintenant(); etat.pseudo = pseudo; etat.dernierEnvoi = t; etat.valeur = valeur; noterRangs(d, t); sauver();
+        const t = E.maintenant(); etat.pseudo = pseudo; etat.dernierEnvoi = t; etat.valeur = valeur;
+        if (avecPoints && version >= 3) { etat.points = pts.points; etat.lundiPoints = pts.lundi; }
+        noterRangs(d, t); sauver();
         for (const c of [cache.semaine, cache.total]) if (c) c.quand = 0; // les listes gardées ne montrent plus la bonne fortune : à relire au prochain coup d'œil
         prevenir();
         return { etat: 'ok', data: d };
@@ -2009,9 +2156,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       if (enCours) return enCours;
       if (retrait) return Promise.resolve({ etat: 'saute', pourquoi: 'retrait' }); // le joueur est en train de quitter : surtout ne pas le réinscrire
       resynchroniser();
-      const v = fortune(), d = deciderEnvoi(etat, v, E.maintenant(), raison);
+      const v = fortune(), p = version === 2 ? null : points(), d = deciderEnvoi(etat, v, E.maintenant(), raison, p);
       if (!d.envoyer) return Promise.resolve({ etat: 'saute', pourquoi: d.pourquoi });
-      enCours = publier(etat.pseudo, v, o).then((r) => {
+      enCours = publier(etat.pseudo, v, o, p).then((r) => {
         // la ligne n'est plus à nous (jeton), ou elle a été effacée par le ménage des 90 jours et son pseudo repris entre-temps (pseudo_pris) :
         // on sort du classement, le pseudo reste proposé, et on rejoindra avec une nouvelle identité
         if (r.etat === 'refus' && (r.erreur === 'jeton' || r.erreur === 'pseudo_pris')) { etat.rejoint = false; etat.id = null; etat.jeton = null; etat.dernier = null; sauver(); prevenir(); }
@@ -2044,17 +2191,17 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       if (!etat.id || !etat.jeton) { etat.id = nouvelId(); etat.jeton = nouveauJeton(); sauver(); } // gardés avant l'envoi : une réponse perdue se rattrape au suivant
       await attendreTour(siAttente);
       if (annule()) return { etat: 'annule' };
-      let r = await publier(v.pseudo, valeur);
+      let r = await publier(v.pseudo, valeur, null, points());
       if (r.etat === 'refus' && r.erreur === 'trop_vite') {
         if (siAttente) { try { siAttente(REGLES.serveur); } catch (e) { /* rien */ } }
         await E.attendre(REGLES.serveur);
         if (annule()) return { etat: 'annule' };
-        r = await publier(v.pseudo, valeur);
+        r = await publier(v.pseudo, valeur, null, points());
       }
       if (r.etat === 'refus' && r.erreur === 'jeton' && !etat.rejoint) {
         etat.id = nouvelId(); etat.jeton = nouveauJeton(); sauver(); await attendreTour(siAttente);
         if (annule()) return { etat: 'annule' };
-        r = await publier(v.pseudo, valeur);
+        r = await publier(v.pseudo, valeur, null, points());
       }
       if (r.etat === 'ok') { etat.rejoint = true; sauver(); cache.semaine = cache.total = null; prevenir(); }
       return r;
@@ -2086,10 +2233,11 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         charge[p] = false; statut = r.etat;
         const t = E.maintenant();
         if (r.etat === 'ok') {
-          const data = nettoyerClassement(r.data); cache[p] = { etat: 'ok', data, quand: t }; noterLundi(data.semaine);
+          const data = nettoyerClassement(r.data); cache[p] = { etat: 'ok', data, quand: t }; noterLundi(data.semaine); if (data.version) version = data.version;
           if (etat.rejoint && data.moi) {
             const d = etat.dernier || { semaine: null, total: null, quand: t };
             d[p] = p === 'semaine' ? { rang: data.moi.rang, joueurs: data.joueurs, lundi: data.semaine || lundiParis(t) } : { rang: data.moi.rang, joueurs: data.joueurs };
+            if (data.moi.points != null) d[p].points = data.moi.points;
             d.quand = t; etat.dernier = d; sauver();
           }
         } else cache[p] = { etat: r.etat, data: null, quand: t };
@@ -2174,10 +2322,10 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     function arreter() { if (minuteur) clearInterval(minuteur); minuteur = 0; demarre = false; }
     function resume() { // pour l'interface : rejoint, pseudo, et les dernières places connues (celle de la semaine seulement si c'est cette semaine, ou une plus récente : le téléphone peut retarder sur le serveur)
       const t = E.maintenant(), d = etat.dernier || {}, lundi = lundiParis(t);
-      return { disponible: !!config(), rejoint: etat.rejoint, pseudo: etat.pseudo, semaine: d.semaine && typeof d.semaine.lundi === 'string' && d.semaine.lundi >= lundi ? d.semaine : null, total: d.total || null, quand: d.quand || 0, statut };
+      return { disponible: !!config(), rejoint: etat.rejoint, pseudo: etat.pseudo, semaine: d.semaine && typeof d.semaine.lundi === 'string' && d.semaine.lundi >= lundi ? d.semaine : null, total: d.total || null, quand: d.quand || 0, statut, version };
     }
     return {
-      disponible: () => !!config(), etat: () => etat, resume, cache: (p) => cache[p === 'total' ? 'total' : 'semaine'], enChargement: (p) => charge[p === 'total' ? 'total' : 'semaine'],
+      disponible: () => !!config(), etat: () => etat, resume, version: () => version, cache: (p) => cache[p === 'total' ? 'total' : 'semaine'], enChargement: (p) => charge[p === 'total' ? 'total' : 'semaine'],
       envoyer, charger, ouvrir, choisirPseudo, quitter, demarrer, arreter, ecouter: (f) => { ecouteurs.push(f); },
       chargerRecompenses, recompenses, choisirTenue, annonceFaite, lundi,
       relire: () => { etat = lireEtat(E.stockage); prevenir(); return etat; },
@@ -2191,7 +2339,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     if (!w || !lireConfig(w.FOURNIL_CONFIG)) return null; // l'artefact Claude n'a pas de config : le classement s'y cache
     let stockage = null; try { stockage = w.localStorage; } catch (e) { stockage = null; }
     const m = creerMoteur({
-      config: () => w.FOURNIL_CONFIG, fetch: (u, i) => w.fetch(u, i), stockage, fortune: o && o.fortune,
+      config: () => w.FOURNIL_CONFIG, fetch: (u, i) => w.fetch(u, i), stockage, fortune: o && o.fortune, ...(o && typeof o.points === 'function' ? { points: o.points } : {}),
       ...(o && typeof o.maintenant === 'function' ? { maintenant: o.maintenant } : {}), // l'horloge de confiance du jeu (HORLOGE), plutôt que celle du téléphone
       enLigne: () => !(w.navigator && w.navigator.onLine === false), visible: () => !(w.document && w.document.visibilityState === 'hidden'),
     });
@@ -2292,6 +2440,8 @@ const ICONS = (() => {
     coche: U(`<path d="M5 12.5l4.5 4.5L19 7.5"/>`),
     fermer: U(`<path d="M6 6l12 12M18 6L6 18"/>`),
     amenager: U(`<rect x="3.5" y="4" width="13" height="7" rx="2.5" fill="#FFC84A"/><path d="M16.5 7.5h3.5v5h-8v3"/><rect x="10.5" y="15.5" width="3" height="6" rx="1.3" fill="#fff"/>`),
+    // l'Atelier (les mini-jeux) : un fouet de pâtissier, manche rose
+    atelier: U(`<path d="M12 15.5c-3.6 0-5.2-3.7-5.2-6.8S9 2.8 12 2.8s5.2 2.8 5.2 5.9-1.6 6.8-5.2 6.8z" fill="#FFF3C4"/><path d="M12 15.5c-1.5 0-2.3-3.7-2.3-6.8S10.6 2.8 12 2.8s2.3 2.8 2.3 5.9-.8 6.8-2.3 6.8z"/><rect x="10.4" y="15.5" width="3.2" height="6" rx="1.5" fill="#FF9FB2"/>`),
     // le classement : un podium, la plus haute marche dorée ; le nuage barré quand le réseau manque
     podium: U(`<path d="M9 10.5h6V21H9z" fill="#FFC84A"/><path d="M3 14h6v7H3z" fill="#fff"/><path d="M15 16h6v5h-6z" fill="#FFE0C7"/><path d="M12 3l.9 1.9 2 .3-1.5 1.4.4 2L12 7.6l-1.8 1 .4-2-1.5-1.4 2-.3z" fill="#FF6B8B" stroke="none"/>`),
     horsLigne: U(`<path d="M7 18a4 4 0 01-.6-7.9A6 6 0 0118 9.5a3.8 3.8 0 01-.5 7.5z" fill="#EADFD6"/><path d="M4 4l16 16"/>`),
@@ -4060,6 +4210,11 @@ const MINIJEUX = (() => {
     return reste > 0 ? `<b>Aujourd’hui : ${a.payees[id]}/${G.ATELIER.parJour} parties payées.</b> Une belle partie rapporte jusqu’à <b>${G.fmtEur(G.primePleineAtelier(s))}</b>.`
       : `<b>Plafond du jour atteint</b> (${G.fmtEur(a.gains[id])} gagnés). Tu peux jouer pour le record, sans gain : rendez-vous demain, après minuit.`;
   }
+  // au classement : le meilleur score de la semaine vaut de 0 à 20 points de boulanger (une tuile de plus à côté du record, sans hauteur en plus)
+  function tuilePoints(id, gagnes) { // gagnes : les points de boulanger que cette partie vient d'ajouter (meilleur score de la semaine battu)
+    const a = G.detailPoints(st()).atelier.find((x) => x.id === id);
+    return `<span class="at-points${gagnes > 0 ? ' plus' : ''}" title="Ton meilleur score de la semaine, en points de boulanger (${G.fmt(G.jeuAtelier(id).plein)} pour le maximum)"><small>Classement${gagnes > 0 ? ` +${gagnes}` : ''}</small><b>${a ? a.points : 0}/${G.POINTS.atelier} pts</b></span>`;
+  }
   function ouvrir(id) {
     const j = G.jeuAtelier(id); if (!j) return;
     arreter(); jeu = j; ecran = 'accueil'; resultat = null; el.hidden = false; d.ouvert();
@@ -4067,7 +4222,7 @@ const MINIJEUX = (() => {
     const rec = G.atelierDuJour(st()).records[id];
     zone.innerHTML = `<div class="at-carte at-accueil"><span class="at-icone">${ICONS.ATELIER[id]}</span>
       <ol class="at-regles">${REGLES[id].map((r) => `<li>${esc(r)}</li>`).join('')}</ol>
-      <div class="at-infos"><span><small>Record</small><b>${rec ? fmtPts(rec) : '—'}</b></span><span><small>Durée</small><b>${DUREE[id]}</b></span></div>
+      <div class="at-infos"><span><small>Record</small><b>${rec ? fmtPts(rec) : '—'}</b></span><span><small>Durée</small><b>${DUREE[id]}</b></span>${tuilePoints(id)}</div>
       <p class="at-gain">${ligneGain(id)}</p>
       <button type="button" class="btn large beurre" data-at="jouer"><b>C’est parti !</b></button></div>`;
     zone.querySelector('[data-at="jouer"]').addEventListener('click', () => { d.audio(); d.son.tap(); demarrer(id); });
@@ -4109,7 +4264,7 @@ const MINIJEUX = (() => {
       <span class="at-icone">${ICONS.ATELIER[id]}</span>
       <p class="at-score" data-score="${r.score}">${G.fmt(r.score)}<small>point${r.score > 1 ? 's' : ''}</small></p>
       <p class="at-bilan">${esc(bilan)}</p>
-      <div class="at-infos"><span><small>Record</small><b>${fmtPts(G.atelierDuJour(s).records[id])}</b></span><span><small>Gagné aujourd’hui</small><b>${G.fmtEur(G.atelierDuJour(s).gains[id])}</b></span></div>
+      <div class="at-infos"><span><small>Record</small><b>${fmtPts(G.atelierDuJour(s).records[id])}</b></span><span><small>Gagné aujourd’hui</small><b>${G.fmtEur(G.atelierDuJour(s).gains[id])}</b></span>${tuilePoints(id, r.points)}</div>
       ${gain}
       <button type="button" class="btn large beurre" data-at="rejouer"><b>Rejouer</b></button>
       <button type="button" class="btn large clair" data-at="retour" style="margin-top:8px"><b>Retour à l’atelier</b></button></div>`;
@@ -4714,7 +4869,9 @@ const UI = (() => {
     hud();
   }
   // le mode Aménager : les meubles entourés, nommés, avec leurs crans et le prix du cran suivant
-  function amenager(on) { const v = on == null ? !SCENE.amenager : !!on; SCENE.setAmenager(v); $('#b-amenager').classList.toggle('actif', v); $('#b-amenager').setAttribute('aria-pressed', v); }
+  // (le bouton « rouleau » de l'écran est parti : on repeint depuis Réglages, et « Terminé », en haut à droite, referme le mode)
+  function amenager(on) { const v = on == null ? !SCENE.amenager : !!on; SCENE.setAmenager(v); document.body.classList.toggle('amenage', v); $('#b-fini').hidden = !v; }
+  function repeindre() { closeSheet(); if (pageActive !== 'boutique') showPage('boutique'); tiroir.aller('ferme'); amenager(true); toast('Touche un meuble pour l’améliorer.'); }
   const PAGE_HEAD = (id, titre, droite) => `<div class="page-tete"><h2><span class="pic">${ICONS.UI[id]}</span>${titre}</h2>${droite || ''}</div>`;
   function renderPage(force) {
     if (pageActive === 'boutique') return;
@@ -4768,8 +4925,8 @@ const UI = (() => {
       </div>`;
     },
     bind: (sec) => {
-      onIn(sec, '[data-k]', (b) => { const r = G.reclamer(st, +b.dataset.k); if (!r.ok) { son.non(); return; } son.deblocage(); buzz([10, 30, 10]); toast(r.etoile ? `+${G.fmtEur(r.prime)} et +1 ★ : objectifs du jour réussis !` : `+${G.fmtEur(r.prime)} de prime`); if (r.etoile) SCENE.fete(); renderCards(true); hud(); save(); renderPage(true); });
-      onIn(sec, '[data-a="semaine"]', () => { const r = G.reclamerSemaine(st); if (!r.ok) { son.non(); return; } reussite(`Défi de la semaine : +${G.fmtEur(r.prime)} et +1 ★ !`); renderPage(true); });
+      onIn(sec, '[data-k]', (b) => { const r = G.reclamer(st, +b.dataset.k); if (!r.ok) { son.non(); return; } son.deblocage(); buzz([10, 30, 10]); toast(r.etoile ? `+${G.fmtEur(r.prime)} et +1 ★ : objectifs du jour réussis !${r.points ? ` +${r.points} points de boulanger` : ''}` : `+${G.fmtEur(r.prime)} de prime`); if (r.etoile) SCENE.fete(); renderCards(true); hud(); save(); renderPage(true); });
+      onIn(sec, '[data-a="semaine"]', () => { const r = G.reclamerSemaine(st); if (!r.ok) { son.non(); return; } reussite(`Défi de la semaine : +${G.fmtEur(r.prime)} et +1 ★ ! +${G.POINTS.defi} points de boulanger`); renderPage(true); });
       onIn(sec, '[data-jeu]', (b) => { son.tap(); MINIJEUX.ouvrir(b.dataset.jeu); });
     },
     maj: (sec) => {
@@ -4805,7 +4962,7 @@ const UI = (() => {
   // Journal : le classement en ligne, records, collection des saisons, habitués, trophées, derniers événements, partage
   const ilYA = (ms) => { const s = Math.max(0, (HORLOGE.maintenant() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
   const pageJournal = {
-    key: () => `${trophesGagnes()}|${(st.carnetEv || []).length}|${(st.carnetEv || []).length ? st.carnetEv[st.carnetEv.length - 1].t : 0}|${JSON.stringify(st.habitues)}|${st.stats.commandes}|${st.stats.critiques}|${st.stats.petrissages}|${st.stats.pannes}|${JSON.stringify(st.collection)}|${st.saison ? st.saison.id + st.saison.niv : ''}|${st.chat ? st.chat.nom + st.chat.caresses : ''}|${cleClassement()}|${JSON.stringify((st.atelier || {}).records)}`,
+    key: () => `${trophesGagnes()}|${(st.carnetEv || []).length}|${(st.carnetEv || []).length ? st.carnetEv[st.carnetEv.length - 1].t : 0}|${JSON.stringify(st.habitues)}|${st.stats.commandes}|${st.stats.critiques}|${st.stats.petrissages}|${st.stats.pannes}|${JSON.stringify(st.collection)}|${st.saison ? st.saison.id + st.saison.niv : ''}|${st.chat ? st.chat.nom + st.chat.caresses : ''}|${cleClassement()}|${JSON.stringify((st.atelier || {}).records)}|${G.pointsSemaine(st)}`,
     html: () => {
       const S = st.stats, tr = st.trophees || {}, gagnes = trophesGagnes();
       return `${PAGE_HEAD('journal', 'Journal', `<span class="serie or">${ICONS.UI.trophee}${gagnes}/${G.TROPHEES.length}</span>`)}
@@ -4816,6 +4973,7 @@ const UI = (() => {
           <div class="stat"><span>Meilleur pourboire</span><b>${S.meilleurPourboire ? G.fmtEur(S.meilleurPourboire) : '—'}</b></div>
           <div class="stat"><span>Pétrissage le plus rapide</span><b>${S.petrissageRecord ? S.petrissageRecord.toFixed(1).replace('.', ',') + ' s' : '—'}</b></div>
           ${G.JEUX_ATELIER.map((j) => `<div class="stat"><span>Atelier : ${esc(j.court.toLowerCase())}</span><b>${G.atelierDuJour(st).records[j.id] ? G.fmt(G.atelierDuJour(st).records[j.id]) + ' pts' : '—'}</b></div>`).join('')}
+          <div class="stat"><span>Points de boulanger cette semaine</span><b>${pts(G.pointsSemaine(st))}</b></div>
           <div class="stat"><span>Meilleure série d’objectifs</span><b>${S.serieMax || 0} jour${(S.serieMax || 0) > 1 ? 's' : ''}</b></div>
           <div class="stat"><span>Commandes · critiques · pétrissages · fours</span><b>${S.commandes || 0} · ${S.critiques || 0} · ${S.petrissages || 0} · ${S.pannes || 0}</b></div>${st.chat ? `
           <div class="stat"><span>Caresses à ${esc(st.chat.nom)}</span><b>${G.fmt(st.chat.caresses)}</b></div>` : ''}</div>
@@ -4849,6 +5007,7 @@ const UI = (() => {
         </div>
         <div class="card reglages">
           ${ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)}
+          ${ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés, leurs crans et leurs prix : touche-les pour les améliorer', chev)}
           ${st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, '')}
           ${st.chat ? ligne('chat', ICONS.CHAT, `Renommer ${esc(st.chat.nom)}`, 'Le chat de la boutique', chev) : ''}
           ${ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)}
@@ -4865,6 +5024,7 @@ const UI = (() => {
       onIn(sec, '[data-a="son"]', () => { st.son = !st.son; save(); renderPage(true); if (st.son) son.tap(); });
       onIn(sec, '[data-a="vibre"]', () => { st.vibre = !st.vibre; save(); renderPage(true); buzz(8); });
       onIn(sec, '[data-a="nom"]', () => sheetNom(false));
+      onIn(sec, '[data-a="repeindre"]', () => { son.tap(); repeindre(); });
       onIn(sec, '[data-a="chat"]', sheetNomChat);
       onIn(sec, '[data-a="specialite"]', sheetSpecialite);
       onIn(sec, '[data-a="sauvegarde"]', sheetSauvegarde);
@@ -4940,7 +5100,7 @@ const UI = (() => {
     { txt: 'Embauche Léo : il cuit les baguettes tout seul, même quand tu n’es pas là.', ou: 'pages', cible: () => cards[0].el.querySelector('[data-a="embaucher"]'), pret: () => st.coins >= G.PRODUITS[0].staff, fini: () => st.stations[0].staff },
     { txt: 'Bravo ! Au niveau 25, 50, 100… les gains doublent. Et regarde tes objectifs du jour : trois défis, une étoile à la clé.', ou: 'pages', cible: () => $('#objectifs'), pret: () => true, fini: () => performance.now() > hintUntil },
     { txt: 'Le boulanger a un point de talent ! Touche-le dans la boutique, ou ouvre l’onglet Boulanger.', ou: 'onglets', cible: () => $('#onglets [data-page="boulanger"]'), pret: () => G.ptsTalents(st) > 0, fini: () => vuBoulanger },
-    { txt: 'Ton salon de thé ! Touche un meuble dans la boutique (les tables, le four, la vitrine…) pour l’améliorer, ou le bouton Aménager en haut à droite pour les voir tous.', ou: 'scene', cible: () => zoneCible('tables'), pret: () => G.MOBILIER.some((m) => G.mobilierCran(st, m.id) < m.max && st.coins >= G.prixMeuble(st, m.id)), fini: () => (st.stats.meubles || 0) > 0 },
+    { txt: 'Ton salon de thé ! Touche un meuble dans la boutique (les tables, le four, la vitrine…) pour l’améliorer, ou Réglages › Repeindre la boutique pour les voir tous.', ou: 'scene', cible: () => zoneCible('tables'), pret: () => G.MOBILIER.some((m) => G.mobilierCran(st, m.id) < m.max && st.coins >= G.prixMeuble(st, m.id)), fini: () => (st.stats.meubles || 0) > 0 },
   ];
   // une cible d'indice posée sur une zone de la scène (le canvas n'a pas d'éléments)
   function zoneCible(id) {
@@ -5125,14 +5285,54 @@ const UI = (() => {
   const PERIODES = [['semaine', 'Cette semaine'], ['total', 'Tous les temps']];
   const MSG_RESEAU = { 'hors-ligne': 'Pas de réseau : réessaie quand le téléphone est connecté.', 'lent': 'Le classement est lent à répondre : réessaie dans un instant.', 'pas-ouvert': 'Le classement ouvre bientôt : reviens dans quelques jours.' };
   const msgReseau = (e) => MSG_RESEAU[e] || 'Le classement ne répond pas. Réessaie dans un moment.';
-  function cleClassement() { if (!classement) return ''; const r = classement.resume(); return `${r.rejoint}|${r.pseudo}|${r.semaine ? r.semaine.rang + '/' + r.semaine.joueurs : ''}|${r.total ? r.total.rang + '/' + r.total.joueurs : ''}|${classement.recompenses().podiums.length}`; }
+  function cleClassement() { if (!classement) return ''; const r = classement.resume(); return `${r.rejoint}|${r.pseudo}|${r.semaine ? r.semaine.rang + '/' + r.semaine.joueurs : ''}|${r.total ? r.total.rang + '/' + r.total.joueurs : ''}|${classement.recompenses().podiums.length}|${G.pointsSemaine(st)}`; }
+  // ses points de boulanger de la semaine, tels qu'ils partent au classement
+  function mesPoints() { const d = G.detailPoints(st); return { points: d.total, lundi: d.semaine }; }
+  const pts = (n) => `${G.fmt(n)} pt${n > 1 ? 's' : ''}`;
+  // l'icône ronde en haut à droite : le classement, avec sa place de la semaine en petite pastille (« 2e »)
+  let derniereCleCoin = '';
+  // une place qui veut dire quelque chose : à 0 point et « 1er », personne n'a encore marqué (chaque lundi matin, tout le monde
+  // serait « 1er » ex æquo) ; 0 point et 46e, c'est une vraie place. Un serveur encore en v2 ne donne pas de points : sa place
+  // à l'argent s'affiche comme avant.
+  const placeVraie = (p) => !!p && !(p.points === 0 && p.rang === 1);
+  function majCoin() {
+    const b = $('#b-classement'); if (!b) return;
+    if (!classement) { b.hidden = true; return; }
+    const r = classement.resume(), rang = r.rejoint && placeVraie(r.semaine) ? r.semaine.rang : null, cle = `${rang}|${r.semaine ? r.semaine.joueurs : ''}`;
+    b.hidden = false;
+    if (cle === derniereCleCoin) return; derniereCleCoin = cle;
+    const p = b.querySelector('.rang-pastille');
+    p.hidden = !rang; p.textContent = rang ? CLM.rangTexte(rang) : ''; p.className = `rang-pastille${rang && rang <= 3 ? ' r' + rang : ''}`;
+    b.setAttribute('aria-label', rang ? `Classement des boulangers : ${CLM.rangPhrase(rang, r.semaine.joueurs, 'semaine')}` : 'Classement des boulangers');
+  }
+  // l'Atelier, d'un geste depuis l'icône du coin : les trois mini-jeux, leurs records et ce qu'ils valent au classement cette semaine
+  function sheetAtelier() {
+    const d = G.detailPoints(st);
+    openSheet(`<div class="cl" data-cl="atelier">${carteAtelier()}<p class="note centre">Au classement : le meilleur score de la semaine de chaque mini-jeu vaut jusqu’à ${G.POINTS.atelier} points de boulanger. Cette semaine : ${d.atelier.map((a) => `${esc(a.nom.toLowerCase())} ${a.points}/${G.POINTS.atelier}`).join(' · ')}.</p><button type="button" class="btn large sombre" data-a="close" style="margin-top:12px"><b>Retour à la boutique</b></button></div>`);
+    on('[data-jeu]', (b) => { son.tap(); closeSheet(); MINIJEUX.ouvrir(b.dataset.jeu); });
+    on('[data-a="close"]', closeSheet);
+  }
+  // ses points de la semaine, catégorie par catégorie, et le barème (replié) : en tête de la feuille du classement
+  function blocPoints() {
+    const d = G.detailPoints(st), P = G.POINTS, a = d.aujourdhui, at = d.atelier.reduce((n, x) => n + x.points, 0);
+    const case_ = (t, v, max, sous) => `<div class="pts-case"><small>${t}</small><b>${v}<i>/${max}</i></b>${sous ? `<small>${sous}</small>` : ''}</div>`;
+    return `<div class="pts-bloc"><div class="pts-tete"><span><small>Mes points cette semaine</small><b>${pts(d.total)}</b></span><span class="pts-auj">aujourd’hui ${a.journee + a.evenements + a.ameliorations}/${a.max}</span></div>
+      <div class="pts-cases">${case_('Journées', d.journees, 7 * P.journee, a.journee ? 'faite auj. ✓' : `${P.journee} par jour`)}${case_('Événements', d.evenements, 7 * P.evenementsJour, `auj. ${a.evenements}/${P.evenementsJour}`)}${case_('Améliorations', d.ameliorations, 7 * P.ameliorationsJour, `auj. ${a.ameliorations}/${P.ameliorationsJour}`)}${case_('Défi de la semaine', d.defi, P.defi, d.defi ? 'réussi ✓' : '')}${case_('Atelier', at, P.atelier * d.atelier.length, d.atelier.map((x) => x.points).join(' · '))}</div>
+      <details class="pts-bareme"><summary><span>Comment marquer des points ?</span><i class="ico chev">${ICONS.UI.chevron}</i></summary><ul>
+        <li><b>${P.journee} pts</b> par journée complète : les trois objectifs du jour réclamés.</li>
+        <li><b>${P.defi} pts</b> pour le défi de la semaine.</li>
+        <li><b>${P.evenement} pts</b> par événement réussi (pétrissage, commande livrée, four réparé, bonne critique, pourboire du client mystère), ${P.evenementsJour} au plus par jour.</li>
+        <li><b>Jusqu’à ${P.atelier} pts</b> par mini-jeu de l’Atelier : ton meilleur score de la semaine.</li>
+        <li><b>1 pt</b> par tranche d’améliorations valant 10 minutes de tes propres gains (niveaux, embauches, bonus, mobilier, recette de saison), <b>+${P.palier}</b> à chaque palier ×2 (niveaux 25, 50, 100…), ${P.ameliorationsJour} au plus par jour.</li>
+      </ul><p>Tout est relatif à ta boutique : un débutant et une grande boutique qui jouent pareil marquent autant. La fortune reste affichée en petit, pour information. Les compteurs repartent chaque lundi (heure de Paris).</p></details></div>`;
+  }
   // la porte d'entrée, en tête du Journal (à côté des records) : sa dernière place connue, ou l'invitation
   function carteClassement() {
     if (!classement) return '';
     const r = classement.resume();
-    const places = [r.semaine && CLM.rangPhrase(r.semaine.rang, r.semaine.joueurs, 'semaine'), r.total && CLM.rangPhrase(r.total.rang, r.total.joueurs, 'total')].filter(Boolean);
+    const places = [placeVraie(r.semaine) && CLM.rangPhrase(r.semaine.rang, r.semaine.joueurs, 'semaine'), placeVraie(r.total) && CLM.rangPhrase(r.total.rang, r.total.joueurs, 'total')].filter(Boolean);
     const nc = classement.recompenses().podiums.length, coupes = nc ? ` · ${nc} coupe${nc > 1 ? 's' : ''}` : '';
-    const sous = (r.rejoint ? (places.length ? Maj(places.join(' · ')) : `Pseudo : ${esc(r.pseudo)} · touche pour voir ta place`) : 'Compare ta fortune avec tes amis qui ont le lien du jeu') + coupes;
+    const sous = `${pts(G.pointsSemaine(st))} cette semaine · ` + (r.rejoint ? (places.length ? places.join(' · ') : `pseudo : ${esc(r.pseudo)}`) : 'mesure-toi à tes amis qui ont le lien du jeu') + coupes;
     return `<div class="card reglages cl-carte"><button type="button" class="reglage" data-a="classement"><i class="ico or">${ICONS.UI.podium}</i><span><b>Classement des boulangers</b><small>${sous}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button></div>`;
   }
   function sheetClassement(periode) {
@@ -5157,21 +5357,23 @@ const UI = (() => {
       : '<div class="cl-squelette" role="status" aria-label="Chargement du classement"><i></i><i></i><i></i><span>On compte les euros de chacun…</span></div>';
     const ferme = c && c.etat === 'pas-ouvert';
     // pas encore inscrit : l'invitation en haut, avant la liste ; inscrit : son pseudo et ses réglages en bas
-    const invitation = ferme || r.rejoint ? '' : `<div class="cl-invitation"><p>Ton pseudo et ta fortune seront visibles de tous ceux qui ont le lien du jeu. Tu pourras quitter le classement quand tu veux.</p><button type="button" class="btn large beurre" data-a="cl-rejoindre"><b>Rejoindre le classement</b></button></div>`;
+    const invitation = ferme || r.rejoint ? '' : `<div class="cl-invitation"><p>Ton pseudo, tes points et ta fortune seront visibles de tous ceux qui ont le lien du jeu. Tu pourras quitter le classement quand tu veux.</p><button type="button" class="btn large beurre" data-a="cl-rejoindre"><b>Rejoindre le classement</b></button></div>`;
     const pied = ferme || !r.rejoint ? '' : `<p class="cl-moi">Tu joues sous le pseudo <b>${esc(r.pseudo)}</b>.</p><button type="button" class="btn large clair" data-a="cl-pseudo"><b>Changer de pseudo</b></button><button type="button" class="lien cl-quitter" data-a="cl-quitter">Quitter le classement</button>`;
-    dernierHtmlCl = `<div class="cl" data-cl="liste"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>Classement</h2><p class="sous">Les boulangers qui ont le lien du jeu, classés par argent gagné. Chaque semaine, les trois premiers gagnent une tenue et une coupe.</p></div></div>${carteRecompenses()}${invitation}${seg}${corps}${pied}${btnRetour()}</div>`;
+    dernierHtmlCl = `<div class="cl" data-cl="liste"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>Classement</h2><p class="sous">Les boulangers qui ont le lien du jeu, classés en points de boulanger : la façon de jouer, pas la fortune. Chaque semaine, les trois premiers gagnent une tenue et une coupe.</p></div></div>${carteRecompenses()}${blocPoints()}${invitation}${seg}${corps}${pied}${btnRetour()}</div>`;
     return dernierHtmlCl;
   }
   function listeClassement(d, r) {
     const semaine = ongletCl === 'semaine';
-    const info = semaine ? `Depuis lundi${d.semaine ? ' ' + CLM.dateCourte(d.semaine) : ''} · remis à zéro chaque lundi` : 'Tout l’argent gagné depuis l’arrivée au classement';
+    const enPoints = d.version >= 3; // un serveur encore en version 2 classe à l'argent : on l'affiche comme avant
+    const info = semaine ? `Depuis lundi${d.semaine ? ' ' + CLM.dateCourte(d.semaine) : ''} · remis à zéro chaque lundi` : enPoints ? 'Tous les points depuis l’arrivée au classement' : 'Tout l’argent gagné depuis l’arrivée au classement';
+    const val = (l) => (enPoints && l.points != null ? `<b class="cl-val">${pts(l.points)}<small>${G.fmtEur(l.valeur)}</small></b>` : `<b class="cl-val">${G.fmtEur(l.valeur)}</b>`);
     const tete = `<div class="cl-info"><span>${info}</span><b>${CLM.boulangers(d.joueurs)}</b></div>`
-      + (r.rejoint && d.moi && d.moi.rang > 5 ? `<div class="cl-place"><span class="cl-rang${d.moi.rang <= 3 ? ' r' + d.moi.rang : ''}">${d.moi.rang}<small>${d.moi.rang === 1 ? 'er' : 'e'}</small></span><span><b>Ta place ${semaine ? 'cette semaine' : 'de tous les temps'}</b><small>sur ${CLM.boulangers(d.joueurs)}</small></span><b class="cl-val">${G.fmtEur(d.moi.valeur)}</b></div>` : ''); // sa place d'un coup d'œil quand sa ligne est loin dans la liste
-    if (!d.lignes.length) return `${tete}<div class="cl-etat"><span class="pic">${ICONS.UI.podium}</span><b>${semaine ? 'Personne encore cette semaine' : 'Personne encore'}</b><span>${r.rejoint ? 'Ta fortune arrive dans un instant.' : 'Rejoins le classement et ouvre le bal !'}</span></div>`;
-    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : ''}"${moi ? ' aria-current="true"' : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom"><span>${esc(l.pseudo)}</span>${toqueDe(l.podium)}${moi ? '<i class="tag">toi</i>' : ''}</span><b class="cl-val">${G.fmtEur(l.valeur)}</b></li>`;
+      + (r.rejoint && d.moi && d.moi.rang > 5 ? `<div class="cl-place"><span class="cl-rang${d.moi.rang <= 3 ? ' r' + d.moi.rang : ''}">${d.moi.rang}<small>${d.moi.rang === 1 ? 'er' : 'e'}</small></span><span><b>Ta place ${semaine ? 'cette semaine' : 'de tous les temps'}</b><small>sur ${CLM.boulangers(d.joueurs)}</small></span>${val(d.moi)}</div>` : ''); // sa place d'un coup d'œil quand sa ligne est loin dans la liste
+    if (!d.lignes.length) return `${tete}<div class="cl-etat"><span class="pic">${ICONS.UI.podium}</span><b>${semaine ? 'Personne encore cette semaine' : 'Personne encore'}</b><span>${r.rejoint ? 'Tes points arrivent dans un instant.' : 'Rejoins le classement et ouvre le bal !'}</span></div>`;
+    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : ''}"${moi ? ' aria-current="true"' : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom"><span>${esc(l.pseudo)}</span>${toqueDe(l.podium)}${moi ? '<i class="tag">toi</i>' : ''}</span>${val(l)}</li>`;
     let html = d.lignes.map((l) => ligne(l, l.moi && r.rejoint)).join('');
-    if (r.rejoint && d.moi && !d.lignes.some((l) => l.moi)) html += `<li class="cl-sep" aria-hidden="true"><i></i><i></i><i></i></li>${ligne({ rang: d.moi.rang, pseudo: r.pseudo, valeur: d.moi.valeur, podium: d.moi.podium }, true)}`; // loin derrière : sa ligne quand même, sous les 50 premiers
-    const absent = r.rejoint && !d.moi ? `<p class="note">${semaine ? 'Tu n’apparais pas encore cette semaine : ta fortune part dès que le réseau le permet.' : 'Ta fortune n’est pas encore arrivée : elle part dès que le réseau le permet.'}</p>` : '';
+    if (r.rejoint && d.moi && !d.lignes.some((l) => l.moi)) html += `<li class="cl-sep" aria-hidden="true"><i></i><i></i><i></i></li>${ligne({ rang: d.moi.rang, pseudo: r.pseudo, points: d.moi.points, valeur: d.moi.valeur, podium: d.moi.podium }, true)}`; // loin derrière : sa ligne quand même, sous les 50 premiers
+    const absent = r.rejoint && !d.moi ? `<p class="note">${semaine ? 'Tu n’apparais pas encore cette semaine : tes points partent dès que le réseau le permet.' : 'Tes points ne sont pas encore arrivés : ils partent dès que le réseau le permet.'}</p>` : '';
     return `${tete}<ol class="cl-liste" aria-label="${semaine ? 'Classement de la semaine' : 'Classement de tous les temps'}">${html}</ol>${absent}`;
   }
   function etatClassement(e) {
@@ -5266,7 +5468,7 @@ const UI = (() => {
   function sheetPseudo(changer) {
     const r = classement.resume(), nomBtn = changer ? 'Garder ce pseudo' : 'Rejoindre';
     openSheet(`<div class="cl" data-cl="pseudo"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>${changer ? 'Changer de pseudo' : 'Rejoindre le classement'}</h2></div></div>
-      <p class="sous">${changer ? 'Le nouveau pseudo remplace l’ancien dans le classement, ta fortune ne bouge pas.' : 'Choisis un pseudo : c’est lui que verront les autres boulangers, pas le nom de ta boutique. À côté s’affichera l’argent que tu gagnes à partir de maintenant : cette semaine, et depuis ton arrivée.'}</p>
+      <p class="sous">${changer ? 'Le nouveau pseudo remplace l’ancien dans le classement, tes points ne bougent pas.' : 'Choisis un pseudo : c’est lui que verront les autres boulangers, pas le nom de ta boutique. À côté s’afficheront tes points de boulanger (cette semaine, et depuis ton arrivée) et, en petit, l’argent que tu gagnes à partir de maintenant.'}</p>
       <label class="cl-label" for="cl-champ">Ton pseudo</label>
       <input id="cl-champ" class="champ" type="text" maxlength="24" value="${esc(r.pseudo || '')}" placeholder="Par exemple : Mamie Jo" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-describedby="cl-aide">
       <p id="cl-aide" class="cl-aide" aria-live="polite"></p>
@@ -5395,7 +5597,9 @@ const UI = (() => {
     layout();
     tiroir.aller(['ouvert', 'mi', 'ferme'].includes(st.tiroir) ? st.tiroir : 'mi', false);
     if (window.ResizeObserver) new ResizeObserver(layout).observe($('#corps'));
-    $('#b-amenager').addEventListener('click', () => { audio(); son.tap(); amenager(); });
+    $('#b-fini').addEventListener('click', () => { audio(); son.tap(); amenager(false); });
+    $('#b-atelier').addEventListener('click', () => { audio(); son.tap(); sheetAtelier(); });
+    $('#b-classement').addEventListener('click', () => { audio(); son.tap(); sheetClassement(); });
     buildCards();
     MINIJEUX.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), fete: () => SCENE.fete(),
       ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
@@ -5437,15 +5641,17 @@ const UI = (() => {
     absencePrete = true;
     HORLOGE.surSaut(payerSaut);
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
-    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), maintenant: () => HORLOGE.maintenant() }) : null; } catch (e) { classement = null; }
-    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); }); majRecompenses(); classement.demarrer(); setInterval(majRecompenses, 60e3); } // la tenue et la coupe changent aussi au lundi
+    // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
+    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), maintenant: () => HORLOGE.maintenant() }) : null; } catch (e) { classement = null; }
+    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); }); majRecompenses(); classement.demarrer(); setInterval(majRecompenses, 60e3); } // la tenue et la coupe changent aussi au lundi
+    majCoin();
     lastNiveau = G.niveau(st);
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
     window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
-      chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer() };
+      chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label') }; }, repeindre, feuilleAtelier: () => sheetAtelier() };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

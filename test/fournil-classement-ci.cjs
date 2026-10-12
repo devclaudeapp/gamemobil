@@ -1,14 +1,16 @@
 #!/usr/bin/env node
 // Le Fournil : le classement en ligne éprouvé POUR DE VRAI contre le projet Supabase du jeu (sur GitHub Actions :
 // le conteneur de Claude ne peut pas joindre Supabase). Node 22, fetch, la clé PUBLIQUE seulement.
-//  1. les fonctions du classement sont-elles installées, et dans leur DERNIÈRE version (fournil_heure, fournil_recompenses, la
-//     toque du podium dans chaque ligne) ? Sinon : coller supabase/fournil-classement.sql dans le SQL Editor ;
+//  1. les fonctions du classement sont-elles installées, et dans leur DERNIÈRE version (la version 3 : les points de boulanger ;
+//     une version 2 encore installée est détectée) ? Sinon : coller supabase/fournil-classement.sql dans le SQL Editor ;
 //  2. quels en-têtes marchent avec une clé sb_publishable_ : apikey seul ? avec Authorization: Bearer ? (le jeu fait pareil) ;
 //  3. l'heure du serveur (fournil_heure) : proche de la vraie (l'horloge de GitHub Actions est à l'heure) ;
 //  4. les tables sont-elles bien fermées (lecture, écriture, fonctions internes refusées) ;
-//  5. un vrai scénario à trois joueurs de test (pseudos « test-ci-… » tirés au hasard) : publier (la première publication ne
-//     compte rien), classements semaine et total, mauvais jeton, pseudo pris, valeurs absurdes, trop vite, envoi suivant
-//     (compté), fortune qui baisse puis remonte (« Cette semaine » ne se gonfle pas), récompenses (les siennes, celles d'un
+//  5. un vrai scénario à trois joueurs de test (pseudos « test-ci-… » tirés au hasard) : publier avec des points (ceux de la
+//     semaine comptent dès l'arrivée, l'argent part de zéro), classements semaine et total (rangés aux points), mauvais jeton,
+//     pseudo pris, valeurs absurdes, trop vite, envoi suivant (compté), points d'une autre semaine ignorés, points énormes
+//     plafonnés par le barème, un ancien téléphone sans points encore accepté,
+//     fortune qui baisse puis remonte (« Cette semaine » ne se gonfle pas), récompenses (les siennes, celles d'un
 //     inconnu, le jeton d'un autre), un saut de fortune absurde accepté mais PLAFONNÉ, une arrivée bricolée à 7e23 € (échelle plafonnée à 1e20 €), retrait ;
 //  6. la limite d'inscriptions par source (10 par heure) : quelques joueurs de test de plus, jusqu'au premier « trop_vite ».
 //     S'il ne vient jamais, Supabase ne transmet pas l'en-tête cf-connecting-ip : seuls les plafonds communs protègent
@@ -87,8 +89,9 @@ async function menage() {
 }
 for (const sig of ['SIGINT', 'SIGTERM']) process.once(sig, () => { log(`\ninterrompu (${sig}) : ménage avant de partir`); menage().finally(() => process.exit(1)); });
 
-async function publier(j, fortune, pseudo = j.pseudo, autreJeton) {
-  const r = await rpc('fournil_publier', { p_id: j.id, p_jeton: autreJeton || j.jeton, p_pseudo: pseudo, p_fortune: fortune });
+// pts : { points, lundi } (un téléphone de la version 3) ; sans : un téléphone de la version 2 (sa fortune seule)
+async function publier(j, fortune, pseudo = j.pseudo, autreJeton, pts) {
+  const r = await rpc('fournil_publier', pts ? { p_id: j.id, p_jeton: autreJeton || j.jeton, p_pseudo: pseudo, p_fortune: fortune, p_points: pts.points, p_lundi: pts.lundi } : { p_id: j.id, p_jeton: autreJeton || j.jeton, p_pseudo: pseudo, p_fortune: fortune });
   if (r.statut === 200 && r.data && r.data.ok === true && !autreJeton) { inscrits.set(j.id, j); pseudosTest.add(j.pseudo.toLowerCase()); }
   return r;
 }
@@ -142,6 +145,12 @@ function arreter(message, conclusion) {
   log('  → ' + conclusion.replace(/\*\*|`/g, ''));
 
   const c0 = essais[okDeux ? 'apikey + Authorization' : 'apikey seul'].data || {};
+  // la version 3 (les points de boulanger) : une version 2 encore installée répond sans « version » et refuse les points
+  const RECOLLER = "c'est la VERSION 2 du SQL qui est encore installée (classement à l'argent) : recolle supabase/fournil-classement.sql (version 3, les points de boulanger) dans le SQL Editor de Supabase — les joueurs inscrits et leur palmarès restent —, puis relance ce test";
+  if (c0.version !== 3) arreter(`fournil_classement répond sans « version : 3 » (${JSON.stringify(c0).slice(0, 120)}) : ${RECOLLER}`);
+  { const v = await rpc('fournil_publier', { p_id: crypto.randomUUID(), p_jeton: hasard(32), p_pseudo: '!', p_fortune: 1, p_points: 0, p_lundi: lundiParis() });
+    if (v.statut === 404 || code(v) === 'PGRST202' || code(v) === '42883') arreter(`fournil_publier ne connaît pas p_points / p_lundi (${resume(v)}) : ${RECOLLER}`);
+    check(v.statut === 200 && v.data && v.data.version === 3 && v.data.erreur === 'pseudo_invalide', `la version 3 est installée : fournil_publier prend les points de la semaine (${v.texte.slice(0, 120)})`); }
   check(typeof c0.semaine === 'string' && Number.isInteger(c0.joueurs) && Array.isArray(c0.lignes) && 'moi' in c0, `fournil_classement répond au contrat (semaine ${c0.semaine}, ${c0.joueurs} joueur(s))`);
   const lundi = lundiParis();
   check(c0.semaine === lundi || c0.semaine === lundiParis(Date.now() - 60e3), `la semaine du serveur est celle de Paris : lundi ${c0.semaine} (calculé ici : ${lundi})`);
@@ -185,7 +194,8 @@ function arreter(message, conclusion) {
     check(x.statut >= 400 && !(Array.isArray(x.data) && x.data.length), `${quoi} : refusé (${resume(x)})`);
   }
   for (const [nom, corps] of [['fournil_empreinte', { p_jeton: 'x' }], ['fournil_maintenant', {}],
-    ['fournil_reponse', { p_erreur: null, p_id: null, p_lundi: lundi, p_compte: null, p_plafonne: null }],
+    ['fournil_reponse', { p_erreur: null, p_id: null, p_lundi: lundi, p_compte: null, p_plafonne: null, p_points_comptes: null, p_points_plafonnes: null }],
+    ['fournil_jour', { p_quand: new Date().toISOString() }], ['fournil_points_plafond', { p_jours: 1 }],
     ['fournil_figer', { p_lundi: lundi }], ['fournil_borne', { p_de: 0, p_secondes: 1 }], ['fournil_duree', { p_de: 0, p_a: 1 }],
     ['fournil_paliers', {}]]) {
     const x = await rpc(nom, corps);
@@ -197,16 +207,22 @@ function arreter(message, conclusion) {
   const A = joueurTest(), B = joueurTest();
   log(`  ${A.pseudo} et ${B.pseudo}`);
   const lundiPasse = new Date(Date.parse(lundi + 'T12:00:00Z') - 7 * 86400e3).toISOString().slice(0, 10);
+  // jamais à cheval sur minuit le lundi (heure de Paris) : le palmarès de la semaine se fige à la première requête de la suivante,
+  // il ne doit pas compter les joueurs de test
+  if (lundiParis(Date.now() + 10 * 60e3) !== lundi || lundiParis(Date.now() - 10 * 60e3) !== lundi) arreter('trop près de minuit le lundi (heure de Paris) : le palmarès de la semaine va se figer, relance ce test dans un quart d’heure');
+  const pts = (points, l = lundi) => ({ points, lundi: l });
+  const jourSemaine = Math.round((Date.parse(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date()) + 'T12:00:00Z') - Date.parse(lundi + 'T12:00:00Z')) / 864e5) + 1; // 1 = lundi … 7 = dimanche
+  const plafondDuJour = Math.min(510, 60 * jourSemaine + 100);
   try {
-    r = await publier(A, 1000);
+    r = await publier(A, 1000, A.pseudo, null, pts(12));
     const a1 = r.data || {};
-    check(r.statut === 200 && a1.ok === true && a1.erreur === null && Number.isInteger(a1.rang_total) && Number.isInteger(a1.rang_semaine) && Number.isInteger(a1.joueurs) && a1.joueurs >= 1
-      && a1.compte === 0 && a1.plafonne === false, `A s'inscrit avec 1 000 € de fortune : rien n'est compté, on part de zéro (${r.texte})`);
+    check(r.statut === 200 && a1.ok === true && a1.erreur === null && a1.version === 3 && Number.isInteger(a1.rang_total) && Number.isInteger(a1.rang_semaine) && Number.isInteger(a1.joueurs) && a1.joueurs >= 1
+      && a1.compte === 0 && a1.plafonne === false && a1.points_comptes === 12 && a1.points_semaine === 12 && a1.points_total === 12, `A s'inscrit avec 12 points et 1 000 € de fortune : ses points de la semaine comptent, l'argent part de zéro (${r.texte})`);
     if (a1.erreur === 'trop_vite') throw new Error("inscription de A refusée (« trop_vite ») : cette machine a déjà inscrit 10 joueurs dans l'heure ou 20 dans la journée (d'autres lancements du test ?), ou 60 joueurs se sont inscrits dans l'heure ; relancer plus tard");
     if (!a1.ok) throw new Error('inscription de A refusée : ' + r.texte);
-    r = await publier(B, 2);
+    r = await publier(B, 2, B.pseudo, null, pts(0));
     const b1 = r.data || {};
-    check(r.statut === 200 && b1.ok === true && b1.joueurs === a1.joueurs + 1 && b1.compte === 0, `B s'inscrit avec 2 € : ${r.texte}`);
+    check(r.statut === 200 && b1.ok === true && b1.joueurs === a1.joueurs + 1 && b1.compte === 0 && b1.points_semaine === 0, `B s'inscrit avec 0 point et 2 € : ${r.texte}`);
     check(b1.semaine === lundi, `la semaine rendue est celle de Paris (${b1.semaine})`);
     r = await publier(A, 3000);
     check(r.data && r.data.ok === false && r.data.erreur === 'trop_vite' && Number.isInteger(r.data.rang_total) && r.data.compte === null, `A renvoie aussitôt : trop_vite, rien de compté (${r.texte})`);
@@ -220,36 +236,45 @@ function arreter(message, conclusion) {
     }
     r = await rpc('fournil_classement', { p_periode: 'total', p_id: A.id, p_limite: 100 });
     const t = r.data || {}, tl = t.lignes || [];
-    check(r.statut === 200 && t.moi && t.moi.valeur === 0 && t.moi.podium === null && t.joueurs >= 2 && tl.length <= 100, `tous les temps : A s'y retrouve, à 0 € (son arrivée), sans toque (« moi » = ${JSON.stringify(t.moi)}, ${t.joueurs} joueurs)`);
-    check(tl.every((x) => Object.keys(x).sort().join() === 'moi,podium,pseudo,rang,valeur' && (x.podium === null || [1, 2, 3].includes(x.podium)))
-      && !/"jeton"|"id"/.test(r.texte) && !r.texte.includes(A.id) && !r.texte.includes(A.jeton), 'les lignes : rang, pseudo, valeur, moi, podium (1, 2, 3 ou rien) — ni identifiant ni jeton');
+    check(r.statut === 200 && t.version === 3 && t.moi && t.moi.points === 12 && t.moi.valeur === 0 && t.moi.podium === null && t.joueurs >= 2 && tl.length <= 100, `tous les temps : A s'y retrouve avec 12 points et 0 € (son arrivée), sans toque (« moi » = ${JSON.stringify(t.moi)}, ${t.joueurs} joueurs)`);
+    check(tl.every((x) => Object.keys(x).sort().join() === 'moi,podium,points,pseudo,rang,valeur' && Number.isInteger(x.points) && (x.podium === null || [1, 2, 3].includes(x.podium)))
+      && tl.every((x, k) => k === 0 || tl[k - 1].points >= x.points)
+      && !/"jeton"|"id"/.test(r.texte) && !r.texte.includes(A.id) && !r.texte.includes(A.jeton), 'les lignes : rang, pseudo, points, valeur, moi, podium (1, 2, 3 ou rien), rangées aux points — ni identifiant ni jeton');
     check(tl.filter((x) => x.moi).length <= 1 && (tl.find((x) => x.moi) || { pseudo: A.pseudo }).pseudo === A.pseudo, 'une seule ligne marquée « moi », celle de A');
     r = await rpc('fournil_classement', { p_periode: 'semaine', p_id: B.id });
     const s = r.data || {};
-    check(r.statut === 200 && s.semaine === lundi && s.moi && s.moi.valeur === 0 && (s.lignes || []).length <= 50, `cette semaine : B y est avec 0 € (il vient de s'inscrire) (« moi » = ${JSON.stringify(s.moi)}, ${s.joueurs} joueurs)`);
+    check(r.statut === 200 && s.semaine === lundi && s.moi && s.moi.points === 0 && s.moi.valeur === 0 && (s.lignes || []).length <= 50, `cette semaine : B y est avec 0 point et 0 € (il vient de s'inscrire) (« moi » = ${JSON.stringify(s.moi)}, ${s.joueurs} joueurs)`);
     r = await rpc('fournil_classement', { p_periode: 'mois' });
     check(r.statut >= 400, `période inconnue : refusée (${resume(r)})`);
 
     log('  (10,5 s : le serveur ne prend qu’un envoi toutes les 10 s par joueur)');
     await attendre(10500);
-    r = await publier(A, 1500);
-    check(r.data && r.data.ok === true && Number.isInteger(r.data.rang_semaine) && r.data.compte === 500 && r.data.plafonne === false, `A envoie 1 500 € : 500 € comptés, rien de plafonné (${r.texte})`);
+    r = await publier(A, 1500, A.pseudo, null, pts(20));
+    check(r.data && r.data.ok === true && Number.isInteger(r.data.rang_semaine) && r.data.compte === 500 && r.data.plafonne === false && r.data.points_comptes === 8 && r.data.points_plafonnes === false, `A envoie 20 points et 1 500 € : 8 points et 500 € comptés, rien de plafonné (${r.texte})`);
     r = await rpc('fournil_classement', { p_periode: 'semaine', p_id: A.id, p_limite: 100 });
-    check(r.data && r.data.moi && r.data.moi.valeur === 500, `cette semaine, A a gagné 500 € (« moi » = ${JSON.stringify(r.data && r.data.moi)})`);
+    check(r.data && r.data.moi && r.data.moi.points === 20 && r.data.moi.valeur === 500, `cette semaine, A a 20 points (et gagné 500 €) (« moi » = ${JSON.stringify(r.data && r.data.moi)})`);
     r = await rpc('fournil_classement', { p_periode: 'total', p_id: A.id, p_limite: 100 });
     const t2 = r.data || {}, rangB = ((t2.lignes || []).find((x) => x.pseudo === B.pseudo) || {}).rang;
-    check(t2.moi && t2.moi.valeur === 500 && (!rangB || rangB > t2.moi.rang), `tous les temps : A a gagné 500 € depuis son arrivée, devant B (0 €)${rangB ? ` : ${t2.moi.rang}e contre ${rangB}e` : ''}`);
+    check(t2.moi && t2.moi.points === 20 && t2.moi.valeur === 500 && (!rangB || rangB > t2.moi.rang), `tous les temps : A a 20 points depuis son arrivée, devant B (0)${rangB ? ` : ${t2.moi.rang}e contre ${rangB}e` : ''}`);
+    log('  (10,5 s : des points d’une autre semaine)');
+    await attendre(10500);
+    r = await publier(A, 1500, A.pseudo, null, pts(400, lundiPasse));
+    check(r.data && r.data.ok === true && r.data.points_comptes === 0 && r.data.points_semaine === 20, `400 points datés de la semaine passée (téléphone en retard sur minuit) : ignorés, toujours 20 (${r.texte.slice(0, 160)})`);
+    log('  (10,5 s : un ancien téléphone, sans points)');
+    await attendre(10500);
+    r = await publier(A, 1600);
+    check(r.data && r.data.ok === true && r.data.version === 3 && r.data.points_comptes === 0 && r.data.points_semaine === 20 && r.data.compte === 100, `un téléphone encore en version 2 (sa fortune seule) : accepté, 100 € comptés, ses points ne bougent pas (${r.texte.slice(0, 160)})`);
     // une partie effacée (0) puis le code rechargé (1 500) : rien ne compte deux fois, rien ne se retire
     log('  (2 × 10,5 s : A efface sa partie, puis recharge son code)');
     await attendre(10500);
-    r = await publier(A, 0);
+    r = await publier(A, 0, A.pseudo, null, pts(20));
     const s0 = (await rpc('fournil_classement', { p_periode: 'semaine', p_id: A.id, p_limite: 100 })).data || {};
-    check(r.data && r.data.ok === true && r.data.compte === 0 && s0.moi && s0.moi.valeur === 500, `A envoie 0 (partie effacée) : rien ne se retire, toujours 500 € cette semaine (« moi » = ${JSON.stringify(s0.moi)})`);
+    check(r.data && r.data.ok === true && r.data.compte === 0 && s0.moi && s0.moi.valeur === 600 && s0.moi.points === 20, `A envoie 0 € (partie effacée) : rien ne se retire, toujours 600 € et 20 points cette semaine (« moi » = ${JSON.stringify(s0.moi)})`);
     await attendre(10500);
-    r = await publier(A, 1500);
+    r = await publier(A, 1600, A.pseudo, null, pts(20));
     const s5 = (await rpc('fournil_classement', { p_periode: 'semaine', p_id: A.id, p_limite: 100 })).data || {};
-    const semaineOk = !!(s5.moi && s5.moi.valeur === 500);
-    check(r.data && r.data.ok === true && r.data.compte === 0 && semaineOk, `puis 1 500 € (code rechargé) : rien de plus, toujours 500 € (« moi » = ${JSON.stringify(s5.moi)})`);
+    const semaineOk = !!(s5.moi && s5.moi.valeur === 600);
+    check(r.data && r.data.ok === true && r.data.compte === 0 && semaineOk, `puis 1 600 € (code rechargé) : rien de plus, toujours 600 € (« moi » = ${JSON.stringify(s5.moi)})`);
 
     // ─── les récompenses ───
     log('\n── les récompenses ──');
@@ -257,23 +282,26 @@ function arreter(message, conclusion) {
     const rec = r.data || {}, der = rec.derniere;
     check(r.statut === 200 && rec.ok === true && rec.erreur === null && Array.isArray(rec.podiums) && rec.podiums.length === 0, `A (arrivé à l'instant) : aucun podium (${r.texte.slice(0, 160)})`);
     check(der === null || (der && der.semaine === lundiPasse && Array.isArray(der.podium) && der.podium.length >= 1
-      && der.podium.every((x) => [1, 2, 3].includes(x.rang) && typeof x.pseudo === 'string' && x.valeur > 0 && Object.keys(x).sort().join() === 'pseudo,rang,valeur')),
+      && der.podium.every((x) => [1, 2, 3].includes(x.rang) && typeof x.pseudo === 'string' && (x.points === null || x.points > 0) && Object.keys(x).sort().join() === 'points,pseudo,rang,valeur')),
       der ? `le podium de la semaine passée (${der.semaine}) : ${der.podium.map((x) => `${x.rang} ${x.pseudo}`).join(', ')}` : 'la semaine passée : personne sur le podium (derniere = null)');
     r = await rpc('fournil_recompenses', { p_id: A.id, p_jeton: B.jeton });
     check(r.data && r.data.ok === false && r.data.erreur === 'jeton' && r.data.podiums.length === 0 && r.data.derniere === null, `les récompenses de A avec le jeton de B : « jeton », rien (${r.texte})`);
     r = await rpc('fournil_recompenses', { p_id: A.id, p_jeton: 'court' });
     check(r.data && r.data.ok === false && r.data.erreur === 'jeton', `avec un jeton mal formé : « jeton » (${r.texte})`);
 
-    // ─── le plafond : un saut de fortune absurde est accepté, mais seul le plausible compte ───
-    // (A est retiré juste après : son gros total ne reste que le temps de deux appels)
-    log('\n── le plafond des gains plausibles ──');
+    // ─── les plafonds : des points et une fortune absurdes sont acceptés, mais seul le plausible compte ───
+    // (A est retiré juste après : ses gros totaux ne restent que le temps de quelques appels)
+    log('\n── les plafonds : points du barème, gains plausibles ──');
     await attendre(10500);
-    r = await publier(A, 1e24);
+    r = await publier(A, 1600, A.pseudo, null, pts(99999));
+    check(r.data && r.data.ok === true && r.data.points_plafonnes === true && r.data.points_semaine === plafondDuJour, `A envoie 99 999 points (console) : acceptés mais plafonnés au barème du jour ${jourSemaine} de la semaine (60 × ${jourSemaine} + 100, 510 au plus) : ${r.data && r.data.points_semaine} (${r.texte.slice(0, 160)})`);
+    await attendre(10500);
+    r = await publier(A, 1e24, A.pseudo, null, pts(99999));
     const p = r.data || {};
     check(p.ok === true && p.plafonne === true && Number.isFinite(p.compte) && p.compte > 0 && p.compte < 1e22,
       `A envoie 1e24 € (fortune inventée) : accepté mais plafonné, ${Number(p.compte).toExponential(2)} € comptés (${r.texte})`);
     r = await rpc('fournil_classement', { p_periode: 'total', p_id: A.id, p_limite: 1 });
-    check(r.data && r.data.moi && Math.abs(r.data.moi.valeur - (500 + p.compte)) <= 1e-9 * r.data.moi.valeur, `tous les temps : A a ${r.data && r.data.moi && r.data.moi.valeur.toExponential(2)} € (500 + le compté), pas 1e24`);
+    check(r.data && r.data.moi && Math.abs(r.data.moi.valeur - (600 + p.compte)) <= 1e-9 * r.data.moi.valeur && r.data.moi.points === plafondDuJour, `tous les temps : A a ${r.data && r.data.moi && r.data.moi.valeur.toExponential(2)} € (600 + le compté), pas 1e24 ; ${r.data && r.data.moi && r.data.moi.points} points, pas 99 999`);
 
     r = await rpc('fournil_retirer', { p_id: A.id, p_jeton: B.jeton });
     check(r.data && r.data.ok === false, `retirer A avec le jeton de B : refusé (${r.texte})`);

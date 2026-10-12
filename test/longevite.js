@@ -24,7 +24,7 @@ const jourDe = (ms) => Math.floor((ms - t0) / 864e5) + 1;
 function simuler(nomProfil, jours, opts = {}) {
   const prof = PROFILS[nomProfil], rnd = seeded(opts.seed || 11);
   const T0 = opts.t0 || T0_DEFAUT; t0 = T0;
-  const st = G.newState(T0); st.mode = 10;
+  const st = opts.st || G.newState(T0); st.mode = 10; // opts.st : reprendre une partie déjà avancée (test/fournil-points.test.js)
   const M = { unlock: {}, staff: {}, bonus: {}, meubles: {}, achatsMeubles: 0, prestiges: [], parJour: [], attente: 0, actif: 0, achats: 0, objectifsFaits: 0, joursComplets: 0, tauxMax: 0 };
   let now = T0, lastAchat = 0;
   M.saison = 0; M.saisonPassif = 0;
@@ -85,7 +85,7 @@ function simuler(nomProfil, jours, opts = {}) {
       // (le gain d'étoiles n'a pas progressé de moitié depuis hier, ou la dernière session n'offrait plus rien à acheter)
       const gain = G.etoilesGagnables(st);
       const stagne = gain < 1.5 * (M.gainHier || 0) || M.attenteDerniere > 0.7;
-      if (gain >= 5 && gain >= 0.25 * st.etoiles && stagne) { const run = st.lifetimeRun; G.nouvelleBoutique(st, now); M.prestiges.push({ t: now, gain, etoiles: st.etoiles, run, duree: (now - (M.debutRun || T0)) / 864e5 }); M.debutRun = now; M.gainHier = 0; }
+      if (opts.prestige !== false && gain >= 5 && gain >= 0.25 * st.etoiles && stagne) { if (opts.avantPrestige) opts.avantPrestige(st, now); const run = st.lifetimeRun; G.nouvelleBoutique(st, now); M.prestiges.push({ t: now, gain, etoiles: st.etoiles, run, duree: (now - (M.debutRun || T0)) / 864e5 }); M.debutRun = now; M.gainHier = 0; }
       if (st.specialite == null) G.choisirSpecialite(st, Math.min(7, 1 + st.boutiques)); // la spécialité de la boutique : une recette de plus en plus avancée
       let enAttente = 0, attenteSession = 0;
       for (let s = 0; s < minutes * 60; s++) {
@@ -94,6 +94,7 @@ function simuler(nomProfil, jours, opts = {}) {
         st.stations.forEach((x, i) => { if (x.niv > 0 && !x.staff && !x.actif && lances < 2) { G.lancer(st, i); lances++; } });
         if (st.saison && st.saison.niv > 0 && !st.saison.actif) G.lancerSaison(st); // une touche dès que la fournée de saison est sortie
         const out = G.tick(st, 1, now, rnd);
+        if (opts.chaqueSeconde) opts.chaqueSeconde(st, now, s);
         if (out.venteSaison) M.saison += out.venteSaison.montant;
         M.saisonPassif += G.tauxParSeconde(st);
         if (s % 4 === 0 && (G.tauxParSeconde(st) > 0 || st.stats.ventes > 0)) { st.stats.clients++; G.noter(st, 'clients', 1); } // la scène sert un client toutes les ~4 s

@@ -1,36 +1,65 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
---  Le Fournil — le classement en ligne entre amis (gains plausibles, palmarès de la semaine, récompenses)
+--  Le Fournil — le classement en ligne entre amis, en POINTS DE BOULANGER (version 3)
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 --
 --  À coller TEL QUEL dans Supabase : SQL Editor → New query → coller tout → Run.
---  On peut le recoller autant de fois qu'on veut : les joueurs déjà inscrits et le palmarès restent, les fonctions sont
---  remplacées par la nouvelle version, les droits sont remis d'aplomb.
+--  On peut le recoller autant de fois qu'on veut, et par-dessus la version 2 : les joueurs déjà inscrits et le palmarès
+--  restent, les fonctions sont remplacées par la nouvelle version, les droits sont remis d'aplomb.
+--
+--  Version 3 (12 oct. 2026) : on classe en POINTS DE BOULANGER, indépendants du niveau (voir « Les points » plus bas) ;
+--  la fortune reste comptée comme avant, pour information. Collée par-dessus la v2 : chacun garde sa ligne, son pseudo et son
+--  palmarès ; les points partent de zéro au collage et arrivent avec la nouvelle version du jeu (un téléphone encore en v2
+--  continue d'envoyer sa fortune, sans points).
 --
 --  Ce qu'il installe :
---    · public.fournil_joueurs : un joueur = une ligne (pseudo, argent gagné depuis son arrivée, gain de la semaine, et de quoi
---      juger si ses gains sont plausibles) ;
---    · public.fournil_palmares : les trois premiers de chaque semaine finie (ex æquo compris), figés une fois pour toutes ;
+--    · public.fournil_joueurs : un joueur = une ligne (pseudo, points de la semaine et depuis son arrivée, argent gagné depuis
+--      son arrivée et cette semaine, et de quoi juger si ses gains sont plausibles) ;
+--    · public.fournil_palmares : les trois premiers de chaque semaine finie, en points (ex æquo compris), figés une fois pour toutes ;
 --    · public.fournil_semaines : les semaines déjà figées (même celles où personne n'a joué) ;
 --    · public.fournil_portes : les inscriptions des dernières 24 h, par source (seulement une empreinte de l'adresse) ;
 --    · cinq fonctions appelées par le jeu : fournil_publier, fournil_classement, fournil_retirer, fournil_recompenses,
 --      fournil_heure.
 --  Personne ne lit ni n'écrit les tables directement : tout passe par ces cinq fonctions, qui vérifient tout.
 --
---  Les règles du jeu :
+--  Les points (ce qui classe) :
+--    · le jeu compte ses points de boulanger (src/game.js), du lundi au dimanche, heure de Paris : journée complète (les trois
+--      objectifs du jour) 10 ; défi de la semaine 30 ; événement réussi (pétrissage, commande livrée, four réparé, bonne
+--      critique, pourboire du client mystère) 2, au plus 20 par jour ; Atelier : le meilleur score de la semaine de chaque
+--      mini-jeu, de 0 à 20 points ; améliorations : 1 point par tranche d'achats valant 10 minutes de SES PROPRES gains,
+--      + 5 par palier ×2 franchi, au plus 30 par jour. Au plus 60 points par jour, 510 par semaine (7 × 60 + 30 + 3 × 20) ;
+--    · le téléphone envoie ses points de la semaine (p_points) avec le lundi de cette semaine (p_lundi) : seule la semaine du
+--      serveur compte (un téléphone en retard ou en avance de quelques minutes sur minuit ne mélange pas deux semaines) ;
+--    · le serveur ne compte que ce qui DÉPASSE les points déjà comptés cette semaine, et pas au-delà des plafonds :
+--        - depuis lundi : 60 × (jours de la semaine commencés, heure de Paris) + 100 (le défi et l'Atelier, 90, peuvent tomber
+--          dès le premier jour), et 510 au plus (le barème d'une semaine entière : le jeu lui-même ne compte jamais plus) ;
+--          c'est ce plafond qui borne la croissance par le temps réel (l'horloge du serveur) : 160 le lundi, 220 le mardi… ;
+--      l'envoi est accepté, le compte plafonné ; comme le téléphone renvoie chaque fois son total de la semaine, ce qui dépasse
+--      se compte plus tard, quand le plafond a grandi (un joueur honnête n'y perd rien : test/fournil-classement-sql.cjs
+--      rejoue ceux de test/longevite.js, jamais plafonnés). Un tricheur qui bricole ses points depuis la console ne fait donc
+--      jamais mieux que le meilleur joueur possible : au plus 510, ex æquo avec lui ;
+--    · « Cette semaine » = les points depuis lundi (le podium, la tenue et la coupe se jouent là-dessus) ;
+--    · « Tous les temps » = tous les points comptés depuis l'arrivée au classement (la semaine d'arrivée comprise) ;
+--    · un ancien téléphone (sans p_points) est toujours accepté : sa fortune compte, ses points ne bougent pas.
+--
+--  La fortune (affichée en petit, pour information) :
 --    · le téléphone envoie sa FORTUNE TOTALE (tout l'argent gagné depuis le début de la partie) ; le serveur n'en compte que
 --      ce qui est PLAUSIBLE : entre deux envois, le gain compté est plafonné par ce que le temps réel écoulé (l'horloge du
 --      serveur, pas celle du téléphone) permet de gagner. L'excès est perdu pour toujours (l'envoi est accepté, le compte
 --      plafonné). Avancer l'heure du téléphone, bricoler sa sauvegarde ou envoyer 1e24 depuis la console ne rapporte donc
 --      au plus que ce qu'un boulanger hors norme aurait pu gagner pendant ce temps-là (l'enveloppe, partie 3) ;
---    · « Tous les temps » = l'argent gagné DEPUIS L'ARRIVÉE AU CLASSEMENT (la toute première publication ne compte rien :
+--    · l'argent de « Tous les temps » = gagné DEPUIS L'ARRIVÉE AU CLASSEMENT (la toute première publication ne compte rien :
 --      on part de zéro, quelle que soit la fortune de la sauvegarde) ;
---    · « Cette semaine » = l'argent gagné depuis lundi minuit, heure de Paris (même règle de plausibilité) ;
+--    · l'argent de « Cette semaine » = gagné depuis lundi minuit, heure de Paris (même règle de plausibilité) ;
 --    · seul compte ce qui DÉPASSE la plus haute fortune déjà envoyée (colonne sommet) : une fortune qui baisse (partie
 --      effacée, vieux code de sauvegarde, onglet en retard) puis remonte ne compte jamais deux fois. Pour repartir vraiment
 --      de zéro après une partie effacée exprès, on quitte le classement puis on le rejoint ;
+--
+--  Le palmarès et le reste :
 --    · le palmarès : à la première requête d'une nouvelle semaine (quelle qu'elle soit), les trois premiers de la semaine
---      finie (gain > 0, ex æquo au même rang) sont figés une fois pour toutes. Ils gagnent la tenue et la coupe du podium
---      (or, argent, bronze), portées la semaine suivante puis gardées à vie sur le téléphone ;
+--      finie, EN POINTS (points > 0, ex æquo au même rang), sont figés une fois pour toutes. Ils gagnent la tenue et la coupe du podium
+--      (or, argent, bronze), portées la semaine suivante puis gardées à vie sur le téléphone. Une semaine où personne n'a de
+--      points (la dernière de la v2, quand on recolle la v3 le lundi avant qu'elle soit figée ; ou une semaine où seuls des
+--      téléphones de la v2 ont joué) est classée à l'argent, comme en v2 : son podium n'est pas perdu ;
 --    · chaque joueur a un pseudo (2 à 16 caractères : lettres, accents compris, chiffres, espace, - _ ' .), unique sans
 --      tenir compte des majuscules ;
 --    · chaque joueur garde sur son téléphone un jeton secret ; ici on ne garde que son empreinte (sha256), jamais le jeton :
@@ -65,9 +94,12 @@ create table if not exists public.fournil_joueurs (
   reserve   double precision not null default 86400,   -- le temps d'enveloppe pas encore utilisé, en secondes (24 h au plus)
   total     double precision not null default 0,       -- « Tous les temps » : gagné depuis l'arrivée au classement
   gain      double precision not null default 0,       -- « Cette semaine » : gagné pendant la semaine de la colonne semaine
-  semaine   date not null,                             -- le lundi (heure de Paris) de la semaine du gain
+  semaine   date not null,                             -- le lundi (heure de Paris) de la semaine du gain et des points
   cree      timestamptz not null default now(),        -- inscription
-  maj       timestamptz not null default now()         -- dernier envoi pris en compte (heure du serveur)
+  maj       timestamptz not null default now(),        -- dernier envoi pris en compte (heure du serveur)
+  points    integer not null default 0,                -- « Cette semaine » : les points comptés pendant la semaine de la colonne semaine
+  points_total integer not null default 0,             -- « Tous les temps » : les points comptés depuis l'arrivée au classement
+  points_jour date                                     -- le jour (heure de Paris) du dernier envoi de points (null : jamais)
 );
 -- recoller ce fichier par-dessus une version plus ancienne : les colonnes manquantes sont ajoutées (chacun repart de zéro
 -- pour « Tous les temps » et pour la semaine, avec sa plus haute fortune comme échelle), l'ancienne base de la semaine disparaît
@@ -89,6 +121,10 @@ alter table public.fournil_joueurs add column if not exists reserve double preci
 alter table public.fournil_joueurs add column if not exists total   double precision not null default 0;
 alter table public.fournil_joueurs add column if not exists gain    double precision not null default 0;
 alter table public.fournil_joueurs drop column if exists base_semaine;
+-- version 3 : les points (une ligne de la v2 garde tout le reste, ses points partent de zéro)
+alter table public.fournil_joueurs add column if not exists points       integer not null default 0;
+alter table public.fournil_joueurs add column if not exists points_total integer not null default 0;
+alter table public.fournil_joueurs add column if not exists points_jour  date;
 
 comment on table public.fournil_joueurs is
   'Le Fournil : le classement entre amis. Accès uniquement par les fonctions fournil_publier, fournil_classement, fournil_retirer et fournil_recompenses.';
@@ -96,15 +132,17 @@ comment on table public.fournil_joueurs is
 -- un pseudo ne sert qu'une fois, sans tenir compte des majuscules (« Marie » et « MARIE » sont le même pseudo)
 create unique index if not exists fournil_joueurs_pseudo on public.fournil_joueurs (lower(pseudo));
 
--- le palmarès : les trois premiers (ex æquo compris) de chaque semaine finie, avec le pseudo et le gain de ce moment-là
+-- le palmarès : les trois premiers (ex æquo compris) de chaque semaine finie, avec le pseudo, les points et le gain de ce moment-là
 create table if not exists public.fournil_palmares (
   semaine date not null,                               -- le lundi de la semaine finie
   rang    integer not null check (rang between 1 and 3),
   id      uuid not null,                               -- le joueur (jamais renvoyé au jeu)
   pseudo  text not null,
-  valeur  double precision not null,                   -- son gain de cette semaine-là
+  valeur  double precision not null,                   -- son gain (en euros) de cette semaine-là
+  points  integer,                                     -- ses points de cette semaine-là (null : semaine figée en version 2, classée à l'argent)
   primary key (semaine, id)
 );
+alter table public.fournil_palmares add column if not exists points integer;
 create index if not exists fournil_palmares_id on public.fournil_palmares (id);
 comment on table public.fournil_palmares is
   'Le Fournil : les podiums des semaines finies, figés une fois. Accès uniquement par les fonctions du jeu.';
@@ -150,8 +188,11 @@ $$;
 revoke all on table public.fournil_joueurs, public.fournil_palmares, public.fournil_semaines, public.fournil_portes
   from public, anon, authenticated;
 
--- une fonction d'une version plus ancienne dont la forme a changé
+-- les fonctions d'une version plus ancienne dont la forme a changé (une ancienne forme laissée en place rendrait l'appel
+-- ambigu pour l'API : on la retire avant de créer la nouvelle)
 drop function if exists public.fournil_reponse(text, uuid, date);
+drop function if exists public.fournil_reponse(text, uuid, date, double precision, boolean);
+drop function if exists public.fournil_publier(uuid, text, text, double precision);
 
 
 -- ─── 2. Les petites fonctions internes (le jeu ne peut pas les appeler) ─────────────────────────
@@ -175,6 +216,30 @@ stable
 set search_path = ''
 as $$
   select date_trunc('week', p_quand at time zone 'Europe/Paris')::date
+$$;
+
+-- le jour, heure de Paris
+create or replace function public.fournil_jour(p_quand timestamptz)
+returns date
+language sql
+stable
+set search_path = ''
+as $$
+  select (p_quand at time zone 'Europe/Paris')::date
+$$;
+
+-- le plafond des points : ce que le barème permet en p_jours jours commencés (heure de Paris), avec une petite marge.
+-- Le barème (src/game.js, POINTS) : au plus 60 points par jour (journée 10, événements 20, améliorations 30) ; une fois par
+-- semaine, le défi (30) et l'Atelier (3 × 20) ; soit 510 sur une semaine. Jour par jour : 60 × jours + 100 (le défi et
+-- l'Atelier peuvent tomber dès le premier jour, plus 10 de marge pour un minuit approximatif) ; sur la semaine : 510 tout
+-- rond, sans marge (le jeu plafonne lui-même ses points à 510 : un tricheur ne peut au mieux qu'égaler le joueur parfait).
+create or replace function public.fournil_points_plafond(p_jours integer)
+returns integer
+language sql
+immutable
+set search_path = ''
+as $$
+  select least(510, 60 * least(greatest(coalesce(p_jours, 1), 1), 7) + 100)
 $$;
 
 -- le pseudo nettoyé, ou null s'il n'est pas valable :
@@ -420,6 +485,7 @@ as $$
 declare
   v_s date;
   v_n integer;
+  v_pts boolean;
 begin
   if exists (select 1 from public.fournil_semaines where semaine = p_lundi - 7) then
     return; -- le chemin de tous les jours : la semaine passée est déjà figée, donc toutes les précédentes aussi
@@ -436,11 +502,16 @@ begin
       on conflict (semaine) do nothing;
     get diagnostics v_n = row_count;
     if v_n = 1 then
-      insert into public.fournil_palmares (semaine, rang, id, pseudo, valeur)
-      select v_s, r.rang, r.id, r.pseudo, r.gain
-        from (select j.id, j.pseudo, j.gain, rank() over (order by j.gain desc)::int as rang
+      -- les trois premiers EN POINTS (ex æquo au même rang) ; leur gain en euros est gardé pour information.
+      -- Une semaine où personne n'a de points (la dernière semaine de la v2, pas encore figée quand on recolle la v3 ; ou une
+      -- semaine où seuls des téléphones de la v2 ont joué) est classée à l'argent, comme en v2 : son podium n'est pas perdu.
+      v_pts := exists (select 1 from public.fournil_joueurs where semaine = v_s and points > 0);
+      insert into public.fournil_palmares (semaine, rang, id, pseudo, valeur, points)
+      select v_s, r.rang, r.id, r.pseudo, r.gain, case when v_pts then r.points end
+        from (select j.id, j.pseudo, j.gain, j.points,
+                     rank() over (order by case when v_pts then j.points::double precision else j.gain end desc)::int as rang
                 from public.fournil_joueurs j
-               where j.semaine = v_s and j.gain > 0) r
+               where j.semaine = v_s and (case when v_pts then j.points > 0 else j.gain > 0 end)) r
        where r.rang <= 3
       on conflict (semaine, id) do nothing;
     end if;
@@ -448,9 +519,11 @@ begin
 end
 $$;
 
--- la réponse de fournil_publier : ok/erreur, et, si p_id est donné, les rangs de ce joueur et ce qui a été compté
+-- la réponse de fournil_publier : ok/erreur, et, si p_id est donné, les rangs de ce joueur (en points), ses points, et ce
+-- qui a été compté (argent et points)
 create or replace function public.fournil_reponse(p_erreur text, p_id uuid, p_lundi date,
-                                                  p_compte double precision, p_plafonne boolean)
+                                                  p_compte double precision, p_plafonne boolean,
+                                                  p_points_comptes integer, p_points_plafonnes boolean)
 returns json
 language sql
 stable
@@ -459,33 +532,47 @@ as $$
   select json_build_object(
     'ok', p_erreur is null,
     'erreur', p_erreur,
+    'version', 3,
     'rang_semaine', (
-      select (select count(*) from public.fournil_joueurs a where a.semaine = p_lundi and a.gain > m.gain)::int + 1
+      select (select count(*) from public.fournil_joueurs a where a.semaine = p_lundi and a.points > m.points)::int + 1
       from public.fournil_joueurs m
       where m.id = p_id and m.semaine = p_lundi),
     'rang_total', (
-      select (select count(*) from public.fournil_joueurs a where a.total > m.total)::int + 1
+      select (select count(*) from public.fournil_joueurs a where a.points_total > m.points_total)::int + 1
       from public.fournil_joueurs m
       where m.id = p_id),
     'joueurs', (select count(*)::int from public.fournil_joueurs),
     'joueurs_total', (select count(*)::int from public.fournil_joueurs),
     'joueurs_semaine', (select count(*)::int from public.fournil_joueurs where semaine = p_lundi),
     'semaine', to_char(p_lundi, 'YYYY-MM-DD'),
+    'points_semaine', (select m.points from public.fournil_joueurs m where m.id = p_id and m.semaine = p_lundi),
+    'points_total', (select m.points_total from public.fournil_joueurs m where m.id = p_id),
+    'points_comptes', p_points_comptes,
+    'points_plafonnes', p_points_plafonnes,
     'compte', p_compte,
     'plafonne', p_plafonne
   )
 $$;
 
 
--- ─── 5. fournil_publier : rejoindre le classement, puis envoyer sa fortune ──────────────────────
--- Réponse : { ok, erreur: null | 'pseudo_pris' | 'pseudo_invalide' | 'jeton' | 'valeur' | 'trop_vite' | 'complet',
---             rang_semaine, rang_total, joueurs et joueurs_total (tous les temps), joueurs_semaine, semaine: 'AAAA-MM-JJ',
+-- ─── 5. fournil_publier : rejoindre le classement, puis envoyer ses points et sa fortune ───────
+-- p_points : ses points de boulanger de la semaine ; p_lundi : le lundi (heure de Paris, sur l'horloge du jeu) de ces points.
+-- Les deux sont facultatifs : un téléphone de la version 2 les omet (sa fortune compte, ses points ne bougent pas).
+-- Réponse : { ok, erreur: null | 'pseudo_pris' | 'pseudo_invalide' | 'jeton' | 'valeur' | 'trop_vite' | 'complet', version: 3,
+--             rang_semaine, rang_total (en points), joueurs et joueurs_total (tous les temps), joueurs_semaine, semaine: 'AAAA-MM-JJ',
+--             points_semaine, points_total : ses points comptés ; points_comptes : les points comptés par cet envoi,
+--             points_plafonnes : vrai si une partie n'a pas été comptée ;
 --             compte : l'argent compté par cet envoi (null si refusé), plafonne : vrai si une partie n'a pas été comptée }
--- Premier envoi d'un identifiant : le joueur est inscrit ; rien n'est compté (on part de zéro, sa fortune sert d'échelle).
--- Envois suivants : le jeton doit correspondre ; le pseudo peut changer (s'il est libre) ; le gain compté vaut
---   min( fortune − sommet (jamais négatif) , ce que l'enveloppe ajoute en (réserve + temps réel écoulé depuis l'envoi précédent) ).
+-- Premier envoi d'un identifiant : le joueur est inscrit ; aucun argent n'est compté (on part de zéro, sa fortune sert
+-- d'échelle) ; ses points de la semaine, eux, comptent (dans les plafonds) : la semaine d'arrivée fait partie de « Tous les temps ».
+-- Envois suivants : le jeton doit correspondre ; le pseudo peut changer (s'il est libre) ;
+--   · les points comptés : min( p_points, plafond depuis lundi ) − points déjà comptés (jamais négatif), seulement si p_lundi
+--     est la semaine du serveur ;
+--   · le gain compté vaut min( fortune − sommet (jamais négatif) , ce que l'enveloppe ajoute en (réserve + temps réel écoulé
+--     depuis l'envoi précédent) ).
 -- Un identifiant effacé par le ménage (90 jours sans nouvelles) repasse simplement par l'inscription.
-create or replace function public.fournil_publier(p_id uuid, p_jeton text, p_pseudo text, p_fortune double precision)
+create or replace function public.fournil_publier(p_id uuid, p_jeton text, p_pseudo text, p_fortune double precision,
+                                                  p_points integer default null, p_lundi date default null)
 returns json
 language plpgsql
 volatile
@@ -495,6 +582,7 @@ as $$
 declare
   v_maintenant timestamptz := public.fournil_maintenant();
   v_lundi      date := public.fournil_lundi(v_maintenant);
+  v_jour       date := public.fournil_jour(v_maintenant);
   v_pseudo     text := public.fournil_pseudo_propre(p_pseudo);
   v_fortune    double precision;
   v_empreinte  text;
@@ -507,22 +595,33 @@ declare
   v_permis     double precision;
   v_compte     double precision;
   v_plafonne   boolean;
+  v_pts        boolean;                              -- ses points comptent-ils à cet envoi ? (la semaine du serveur, un nombre donné)
+  v_pts_cible  integer;
+  v_pts_compte integer;
+  v_pts_plaf   boolean;
   j            public.fournil_joueurs%rowtype;
 begin
   perform public.fournil_figer(v_lundi);
   -- 1. l'identité : un identifiant et un jeton bien formés
   if p_id is null or not public.fournil_jeton_valable(p_jeton) then
-    return public.fournil_reponse('jeton', null, v_lundi, null, null);
+    return public.fournil_reponse('jeton', null, v_lundi, null, null, null, null);
   end if;
   -- 2. le pseudo
   if v_pseudo is null then
-    return public.fournil_reponse('pseudo_invalide', null, v_lundi, null, null);
+    return public.fournil_reponse('pseudo_invalide', null, v_lundi, null, null, null, null);
   end if;
   -- 3. la fortune : un vrai nombre (ni NaN ni infini), positif, sous la borne (NaN échoue aussi à la comparaison)
   if p_fortune is null or not (p_fortune >= 0 and p_fortune <= 1e24) then
-    return public.fournil_reponse('valeur', null, v_lundi, null, null);
+    return public.fournil_reponse('valeur', null, v_lundi, null, null, null, null);
+  end if;
+  -- les points : un nombre entier positif, sous 100 000 (le barème en permet 510 par semaine)
+  if p_points is not null and not (p_points >= 0 and p_points <= 100000) then
+    return public.fournil_reponse('valeur', null, v_lundi, null, null, null, null);
   end if;
   v_fortune := p_fortune + 0; -- un éventuel « −0 » devient 0
+  -- seuls comptent les points de la semaine du serveur : à minuit le lundi, un téléphone en retard (ou en avance) de quelques
+  -- minutes ne mélange pas deux semaines ; un ancien téléphone (sans points) ne change pas les siens
+  v_pts := p_points is not null and p_lundi is not null and p_lundi = v_lundi;
   v_empreinte := public.fournil_empreinte(p_jeton);
 
   select * into j from public.fournil_joueurs where id = p_id for update;
@@ -547,19 +646,33 @@ begin
   if v_inscrit then
     -- ── un joueur déjà inscrit ──
     if j.jeton <> v_empreinte then
-      return public.fournil_reponse('jeton', null, v_lundi, null, null);
+      return public.fournil_reponse('jeton', null, v_lundi, null, null, null, null);
     end if;
     if v_maintenant < j.maj + interval '10 seconds' then
-      return public.fournil_reponse('trop_vite', p_id, v_lundi, null, null); -- rien ne change, mais on redonne ses rangs
+      return public.fournil_reponse('trop_vite', p_id, v_lundi, null, null, null, null); -- rien ne change, mais on redonne ses rangs
     end if;
     if lower(v_pseudo) <> lower(j.pseudo)
        and exists (select 1 from public.fournil_joueurs where lower(pseudo) = lower(v_pseudo) and id <> p_id) then
-      return public.fournil_reponse('pseudo_pris', null, v_lundi, null, null);
+      return public.fournil_reponse('pseudo_pris', null, v_lundi, null, null, null, null);
     end if;
-    -- une nouvelle semaine : le gain repart de zéro (celui de la semaine finie est déjà figé dans le palmarès)
+    -- une nouvelle semaine : le gain et les points repartent de zéro (ceux de la semaine finie sont déjà figés dans le palmarès)
     if j.semaine <> v_lundi then
       j.gain := 0;
+      j.points := 0;
       j.semaine := v_lundi;
+    end if;
+    -- les points : seulement ce qui dépasse ceux déjà comptés cette semaine, dans les plafonds du barème
+    v_pts_compte := 0;
+    v_pts_plaf := false;
+    if v_pts then
+      -- (pas de second plafond « depuis l'envoi précédent » : chaque envoi le remettrait à zéro, toutes les 10 s, sans rien
+      -- borner ; et un joueur honnête peut prendre 150 points en quelques minutes : Atelier, défi, journée, améliorations)
+      v_pts_cible := least(p_points, public.fournil_points_plafond(v_jour - v_lundi + 1));
+      v_pts_compte := greatest(v_pts_cible - j.points, 0);
+      v_pts_plaf := p_points > j.points + v_pts_compte;
+      j.points := j.points + v_pts_compte;
+      j.points_total := j.points_total + v_pts_compte;
+      j.points_jour := v_jour;
     end if;
     -- ce qui peut compter : seulement ce qui dépasse la plus haute fortune déjà envoyée…
     v_voulu := greatest(v_fortune - j.sommet, 0);
@@ -581,10 +694,11 @@ begin
     begin
       update public.fournil_joueurs
          set pseudo = v_pseudo, fortune = v_fortune, sommet = j.sommet, plausible = j.plausible, reserve = j.reserve,
-             total = j.total, gain = j.gain, semaine = j.semaine, maj = v_maintenant
+             total = j.total, gain = j.gain, semaine = j.semaine, maj = v_maintenant,
+             points = j.points, points_total = j.points_total, points_jour = j.points_jour
        where id = p_id;
     exception when unique_violation then
-      return public.fournil_reponse('pseudo_pris', null, v_lundi, null, null); -- un autre a pris ce pseudo au même instant
+      return public.fournil_reponse('pseudo_pris', null, v_lundi, null, null, null, null); -- un autre a pris ce pseudo au même instant
     end;
   else
     -- ── une inscription ──
@@ -607,25 +721,30 @@ begin
       v_porte := public.fournil_empreinte('ip:' || v_ip);
       if (select count(*) from public.fournil_portes where empreinte = v_porte and quand > v_maintenant - interval '1 hour') >= 10
          or (select count(*) from public.fournil_portes where empreinte = v_porte) >= 20 then
-        return public.fournil_reponse('trop_vite', null, v_lundi, null, null);
+        return public.fournil_reponse('trop_vite', null, v_lundi, null, null, null, null);
       end if;
     end if;
     -- puis pour tout le monde ensemble
     if (select count(*) from public.fournil_joueurs) >= 2000 then
-      return public.fournil_reponse('complet', null, v_lundi, null, null);
+      return public.fournil_reponse('complet', null, v_lundi, null, null, null, null);
     end if;
     if (select count(*) from public.fournil_joueurs where cree > v_maintenant - interval '1 hour') >= 60 then
-      return public.fournil_reponse('trop_vite', null, v_lundi, null, null);
+      return public.fournil_reponse('trop_vite', null, v_lundi, null, null, null, null);
     end if;
     if exists (select 1 from public.fournil_joueurs where lower(pseudo) = lower(v_pseudo)) then
-      return public.fournil_reponse('pseudo_pris', null, v_lundi, null, null);
+      return public.fournil_reponse('pseudo_pris', null, v_lundi, null, null, null, null);
     end if;
     begin
-      -- on part de zéro : rien n'est compté ; la fortune envoyée sert de sommet et d'échelle (plafonnée à 1e20 €, voir la
-      -- partie 3 : rien ne prouve la fortune d'arrivée), la réserve est pleine
-      insert into public.fournil_joueurs (id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj)
+      -- l'argent part de zéro : rien n'est compté ; la fortune envoyée sert de sommet et d'échelle (plafonnée à 1e20 €, voir
+      -- la partie 3 : rien ne prouve la fortune d'arrivée), la réserve est pleine. Les points de la semaine comptent, dans le
+      -- plafond depuis lundi.
+      v_pts_compte := case when v_pts then least(p_points, public.fournil_points_plafond(v_jour - v_lundi + 1)) else 0 end;
+      v_pts_plaf := v_pts and p_points > v_pts_compte;
+      insert into public.fournil_joueurs (id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj,
+                                          points, points_total, points_jour)
       values (p_id, v_empreinte, v_pseudo, v_fortune, v_fortune, least(v_fortune, 1e20), 86400, 0, 0,
-              v_lundi, v_maintenant, v_maintenant);
+              v_lundi, v_maintenant, v_maintenant,
+              v_pts_compte, v_pts_compte, case when v_pts then v_jour end);
       if v_porte is not null then
         insert into public.fournil_portes (empreinte, quand) values (v_porte, v_maintenant);
       end if;
@@ -633,27 +752,29 @@ begin
       -- deux envois au même instant : même pseudo pris par un autre, ou le même joueur envoyé deux fois
       get stacked diagnostics v_contrainte = constraint_name;
       if v_contrainte = 'fournil_joueurs_pseudo' then
-        return public.fournil_reponse('pseudo_pris', null, v_lundi, null, null);
+        return public.fournil_reponse('pseudo_pris', null, v_lundi, null, null, null, null);
       end if;
-      return public.fournil_reponse('trop_vite', null, v_lundi, null, null);
+      return public.fournil_reponse('trop_vite', null, v_lundi, null, null, null, null);
     end;
     v_compte := 0;
     v_plafonne := false;
   end if;
 
-  return public.fournil_reponse(null, p_id, v_lundi, v_compte, v_plafonne);
+  return public.fournil_reponse(null, p_id, v_lundi, v_compte, v_plafonne, v_pts_compte, v_pts_plaf);
 end
 $$;
 
 
 -- ─── 6. fournil_classement : lire le classement ─────────────────────────────────────────────────
--- p_periode : 'semaine' (gagné depuis lundi, seulement ceux qui ont envoyé cette semaine) ou 'total' (depuis l'arrivée).
+-- p_periode : 'semaine' (les points depuis lundi, seulement ceux qui ont envoyé cette semaine) ou 'total' (depuis l'arrivée).
 -- p_id : son propre identifiant (facultatif), pour se retrouver même hors des premiers.
 -- p_limite : le nombre de lignes (50 par défaut, 100 au plus).
--- Réponse : { semaine: 'AAAA-MM-JJ', periode, joueurs, lignes: [{ rang, pseudo, valeur, moi, podium }],
---             moi: { rang, valeur, podium } | null }
+-- Réponse : { version: 3, semaine: 'AAAA-MM-JJ', periode, joueurs, lignes: [{ rang, pseudo, points, valeur, moi, podium }],
+--             moi: { rang, points, valeur, podium } | null }
+-- Le rang se fait sur les POINTS (de la semaine, ou depuis l'arrivée) ; valeur : l'argent gagné sur la même période, pour
+-- information (un téléphone de la version 2 l'affiche encore comme avant, dans l'ordre des points).
 -- podium : 1, 2 ou 3 si ce joueur était sur le podium de la semaine PASSÉE (sa toque à côté du pseudo), sinon null.
--- Les ex æquo ont le même rang ; jamais d'identifiant ni de jeton dans la réponse.
+-- Les ex æquo ont le même rang (puis l'ordre des pseudos) ; jamais d'identifiant ni de jeton dans la réponse.
 create or replace function public.fournil_classement(p_periode text, p_id uuid default null, p_limite integer default 50)
 returns json
 language plpgsql
@@ -672,25 +793,28 @@ begin
   perform public.fournil_figer(v_lundi);
 
   with valeurs as (
-    select j.id, j.pseudo, case when p_periode = 'semaine' then j.gain else j.total end as valeur, p.rang as podium
+    select j.id, j.pseudo,
+           case when p_periode = 'semaine' then j.points else j.points_total end as points,
+           case when p_periode = 'semaine' then j.gain else j.total end as valeur, p.rang as podium
       from public.fournil_joueurs j
       left join public.fournil_palmares p on p.id = j.id and p.semaine = v_lundi - 7
      where p_periode = 'total' or j.semaine = v_lundi
   ), rangs as (
-    select id, pseudo, valeur, podium,
-           rank() over (order by valeur desc)::int as rang,
-           row_number() over (order by valeur desc, lower(pseudo)) as ordre
+    select id, pseudo, points, valeur, podium,
+           rank() over (order by points desc)::int as rang,
+           row_number() over (order by points desc, lower(pseudo), id) as ordre
       from valeurs
   )
   select json_build_object(
+           'version', 3,
            'semaine', to_char(v_lundi, 'YYYY-MM-DD'),
            'periode', p_periode,
            'joueurs', (select count(*)::int from rangs),
-           'lignes', coalesce((select json_agg(json_build_object('rang', r.rang, 'pseudo', r.pseudo, 'valeur', r.valeur,
+           'lignes', coalesce((select json_agg(json_build_object('rang', r.rang, 'pseudo', r.pseudo, 'points', r.points, 'valeur', r.valeur,
                                                                  'moi', coalesce(r.id = p_id, false), 'podium', r.podium)
                                                order by r.ordre)
                                  from rangs r where r.ordre <= v_limite), '[]'::json),
-           'moi', (select json_build_object('rang', r.rang, 'valeur', r.valeur, 'podium', r.podium) from rangs r where r.id = p_id)
+           'moi', (select json_build_object('rang', r.rang, 'points', r.points, 'valeur', r.valeur, 'podium', r.podium) from rangs r where r.id = p_id)
          )
     into v_res;
   return v_res;
@@ -732,7 +856,7 @@ $$;
 -- ─── 8. fournil_recompenses : ses podiums, et le podium de la semaine passée ────────────────────
 -- Réponse : { ok, erreur: null | 'jeton',
 --             podiums: [{ semaine: 'AAAA-MM-JJ' (le lundi de la semaine du podium), rang: 1 | 2 | 3 }], du plus ancien au plus récent,
---             derniere: { semaine, podium: [{ rang, pseudo, valeur }] } | null (null : personne n'a rien gagné la semaine passée) }
+--             derniere: { semaine, podium: [{ rang, pseudo, points, valeur }] } | null (null : personne n'a marqué la semaine passée) }
 -- Un identifiant inconnu (jamais inscrit, ou effacé par le ménage) : ok, aucun podium. Le jeton d'un autre : 'jeton', rien.
 create or replace function public.fournil_recompenses(p_id uuid, p_jeton text)
 returns json
@@ -757,7 +881,7 @@ begin
     return json_build_object('ok', false, 'erreur', 'jeton', 'podiums', '[]'::json, 'derniere', null);
   end if;
   select json_build_object('semaine', to_char(v_lundi - 7, 'YYYY-MM-DD'),
-                           'podium', json_agg(json_build_object('rang', p.rang, 'pseudo', p.pseudo, 'valeur', p.valeur)
+                           'podium', json_agg(json_build_object('rang', p.rang, 'pseudo', p.pseudo, 'points', p.points, 'valeur', p.valeur)
                                               order by p.rang, lower(p.pseudo)))
     into v_derniere
     from public.fournil_palmares p
@@ -800,6 +924,8 @@ $$;
 -- on le retire partout, puis on le rend seulement pour les cinq fonctions du jeu.
 revoke all on function public.fournil_maintenant() from public, anon, authenticated;
 revoke all on function public.fournil_lundi(timestamptz) from public, anon, authenticated;
+revoke all on function public.fournil_jour(timestamptz) from public, anon, authenticated;
+revoke all on function public.fournil_points_plafond(integer) from public, anon, authenticated;
 revoke all on function public.fournil_pseudo_propre(text) from public, anon, authenticated;
 revoke all on function public.fournil_jeton_valable(text) from public, anon, authenticated;
 revoke all on function public.fournil_empreinte(text) from public, anon, authenticated;
@@ -808,14 +934,14 @@ revoke all on function public.fournil_segment(integer) from public, anon, authen
 revoke all on function public.fournil_duree(double precision, double precision) from public, anon, authenticated;
 revoke all on function public.fournil_borne(double precision, double precision) from public, anon, authenticated;
 revoke all on function public.fournil_figer(date) from public, anon, authenticated;
-revoke all on function public.fournil_reponse(text, uuid, date, double precision, boolean) from public, anon, authenticated;
+revoke all on function public.fournil_reponse(text, uuid, date, double precision, boolean, integer, boolean) from public, anon, authenticated;
 
-revoke all on function public.fournil_publier(uuid, text, text, double precision) from public;
+revoke all on function public.fournil_publier(uuid, text, text, double precision, integer, date) from public;
 revoke all on function public.fournil_classement(text, uuid, integer) from public;
 revoke all on function public.fournil_retirer(uuid, text) from public;
 revoke all on function public.fournil_recompenses(uuid, text) from public;
 revoke all on function public.fournil_heure() from public;
-grant execute on function public.fournil_publier(uuid, text, text, double precision) to anon, authenticated;
+grant execute on function public.fournil_publier(uuid, text, text, double precision, integer, date) to anon, authenticated;
 grant execute on function public.fournil_classement(text, uuid, integer) to anon, authenticated;
 grant execute on function public.fournil_retirer(uuid, text) to anon, authenticated;
 grant execute on function public.fournil_recompenses(uuid, text) to anon, authenticated;

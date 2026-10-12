@@ -13,8 +13,8 @@ concurrency:
   cancel-in-progress: true
 jobs:
   # Le Fournil sur la vraie page, dans Chromium : la triche au changement d'heure (téléphone avancé, hors ligne, fuseau changé,
-  # réseau qui revient), les récompenses du podium, le classement (Supabase simulé : rien ne part vers le vrai projet) et l'Atelier
-  # (ses trois mini-jeux joués au doigt, records, gains et plafond du jour).
+  # réseau qui revient), les récompenses du podium, le classement en points de boulanger (Supabase simulé : rien ne part vers le
+  # vrai projet ; l'icône ronde en haut à droite) et l'Atelier (ses trois mini-jeux joués au doigt, records, gains et plafond du jour).
   # Rouge ici = pas de mise en ligne.
   fournil:
     name: Le Fournil (Playwright)
@@ -32,6 +32,7 @@ jobs:
       - name: La triche au changement d'heure, les récompenses, le classement, l'Atelier
         run: |
           node build.js
+          node test/fournil-points.test.js
           node test/fournil-triche.cjs
           node test/fournil-recompenses.cjs
           node test/fournil-classement.cjs
@@ -54,7 +55,7 @@ jobs:
       - uses: actions/configure-pages@v5
         with:
           enablement: true
-      - run: node build.js && node test/econ.test.js && node test/longevite.js --test && node test/poncin.test.js && node test/fournil-classement.test.js && node test/fournil-horloge.test.js && node test/fournil-atelier.test.js
+      - run: node build.js && node test/econ.test.js && node test/longevite.js --test && node test/poncin.test.js && node test/fournil-classement.test.js && node test/fournil-horloge.test.js && node test/fournil-atelier.test.js && node test/fournil-points.test.js
         env:
           TZ: Europe/Paris
       - uses: actions/upload-pages-artifact@v3
