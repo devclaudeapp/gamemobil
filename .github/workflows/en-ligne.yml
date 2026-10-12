@@ -47,3 +47,9 @@ jobs:
       - name: Test local du réseau (voies local et webrtc-local)
         if: always()
         run: node test/poncin-reseau.cjs
+      - name: Commandes et boucle à pas fixe (iPhone en paysage)
+        if: always()
+        run: node test/poncin-commandes.cjs
+      - name: Caméra subjective (balancement, œil lissé, arme)
+        if: always()
+        run: node test/poncin-camera.cjs

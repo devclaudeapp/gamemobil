@@ -266,7 +266,7 @@ const PHUD = (() => {
     // viseur : écart = dispersion (arme + mouvement + recul) convertie en pixels avec le champ de vision vertical
     const fov = (typeof PRENDU !== 'undefined' && PRENDU.fov) || 70, pxRad = (H / 2) / Math.tan(fov * DEG / 2);
     const vmax = R ? R.JOUEUR.vitesse : 5.2, mvt = Math.min(1, vitesse / vmax) + (moi.auSol === false ? 0.6 : 0);
-    const disp = A.dispersion * (moi.accroupi ? 0.7 : 1) + (A.dispersionMouvement || 0) * mvt + gonfle * (A.recul || 0.02) * 1.6;
+    const disp = (A.dispersionAvantVisee != null ? A.dispersionAvantVisee : A.dispersion) * (moi.accroupi ? 0.7 : 1) + (A.dispersionMouvement || 0) * mvt + gonfle * (A.recul || 0.02) * 1.6;
     const ecart = Math.round(Math.max(4, Math.min(80, disp * pxRad)) * 2) / 2;
     if (ecart !== vu.ecart || moi.arme !== vu.armeV) {
       vu.ecart = ecart; vu.armeV = moi.arme; el.viseur.dataset.arme = moi.arme;

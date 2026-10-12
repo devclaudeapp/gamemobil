@@ -6,13 +6,16 @@
    combinent par OU ; les niveaux avant, cote, tir, accroupi gardent la dernière valeur). PCONTROLES.consommer() rend l'entrée d'un
    PAS : le premier pas qui suit prend les variations et les fronts (puis le cumul les oublie), les pas suivants n'ont que les niveaux ;
    une image sans pas garde tout le cumul. PCONTROLES.enAttente() → { dyaw, dpitch } : les variations pas encore consommées, que le
-   rendu ajoute au regard affiché (visée sans latence). Objets réutilisés : aucune allocation par image. */
+   rendu ajoute au regard affiché (visée sans latence) ; PCONTROLES.attenuer(k) les y multiplie par k (ui.js : 1 − ralentir de l'aide à
+   la visée, pour que le regard affiché entre deux pas ne montre pas plus que ce que le pas appliquera : il ne recule jamais).
+   Objets réutilisés : aucune allocation par image. */
 const PCONTROLES = (() => {
   'use strict';
   const DEG = Math.PI / 180, RAYON = 60, MORTE = 0.08, K_DOIGT = 0.22 * DEG, EXPO = 1.15, K_SOURIS = 0.0022;
   const entree = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null }; // l'entrée d'un pas
   const cumul = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null, tirBref: false }; // depuis le dernier pas
   const ATTENTE = { dyaw: 0, dpitch: 0 };
+  let kAttente = 1; // la part du regard en attente que le rendu montre (attenuer)
   const R = { sensibilite: 1, inverserY: false, gaucher: false, tirAuto: true };
   const ARMES = ['rafale', 'pompe', 'precision'];
   let racine = null, actif = false, tactile = false, actions = {}, W = 1, H = 1;
@@ -152,7 +155,7 @@ const PCONTROLES = (() => {
     joyId = -1; joyVx = 0; joyVy = 0; tirDoigt = 0; tirSouris = false;
     if (elJoy) { elJoy.classList.remove('vivant'); placerJoy(); elTir.classList.remove('appui'); }
     touches.avant = touches.arriere = touches.gauche = touches.droite = touches.accroupi = false;
-    accYaw = 0; accPitch = 0; sautL = false; rechargeL = false; armeL = null; tirL = false; viderCumul();
+    accYaw = 0; accPitch = 0; sautL = false; rechargeL = false; armeL = null; tirL = false; viderCumul(); kAttente = 1;
   }
   function viderCumul() { cumul.avant = 0; cumul.cote = 0; cumul.dyaw = 0; cumul.dpitch = 0; cumul.tir = false; cumul.saut = false; cumul.accroupi = false; cumul.recharge = false; cumul.arme = null; cumul.tirBref = false; }
 
@@ -213,7 +216,8 @@ const PCONTROLES = (() => {
     cumul.dyaw = 0; cumul.dpitch = 0; cumul.saut = false; cumul.recharge = false; cumul.arme = null; cumul.tirBref = false;
     return entree;
   }
-  function enAttente() { ATTENTE.dyaw = actif ? cumul.dyaw + accYaw : 0; ATTENTE.dpitch = actif ? cumul.dpitch + accPitch : 0; return ATTENTE; } // y compris ce qui est arrivé depuis lire()
+  function enAttente() { ATTENTE.dyaw = actif ? (cumul.dyaw + accYaw) * kAttente : 0; ATTENTE.dpitch = actif ? (cumul.dpitch + accPitch) * kAttente : 0; return ATTENTE; } // y compris ce qui est arrivé depuis lire()
+  function attenuer(k) { kAttente = k > 0 && k <= 1 ? k : 1; }
   function reinit() { lacher(); accroupiBascule = false; vuAccroupi = null; vuArme = ''; vuPossede = -1; vuRech = -1; vuMun[0] = vuMun[1] = vuMun[2] = -2; }
 
   // ─── l'état affiché sur les boutons : armes possédées, arme en main, munitions, anneau de recharge, accroupi ───
@@ -238,6 +242,6 @@ const PCONTROLES = (() => {
     if (q !== vuRech) { vuRech = q; elAnneau.style.strokeDashoffset = String(100 - q); elRecharge.classList.toggle('charge', q > 0 && q < 100); }
   }
 
-  return { init, lire, consommer, enAttente, regler, activer, taille, reinit, maj, modeTactile, verrouiller, lacher,
+  return { init, lire, consommer, enAttente, attenuer, regler, activer, taille, reinit, maj, modeTactile, verrouiller, lacher,
     get reglages() { return R; }, get tactile() { return tactile; }, get actif() { return actif; }, get verrouille() { return verrouille(); } };
 })();

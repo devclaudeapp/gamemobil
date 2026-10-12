@@ -11,6 +11,10 @@
    morts ; sinon accusé négatif et reprise de sa simulation au dernier point valide), lus avec un petit retard (max(45 ms ; 1,3 ×
    intervalle + 2,5 × gigue)) à une heure qui avance d'environ dt, prolongés 100 ms puis tenus ; l'hôte ne rejoue plus son mouvement ;
    sans nouvelles depuis 250 ms il reprend sa simulation. Un client sans tc est servi comme avant (position adoptée si elle est plausible).
+   Chaque déplacement accepté (piste ou position adoptée) puise aussi dans un seau rempli au temps de l'HÔTE (vitesse max × 1,15 +
+   0,3 m/s, 3 m au plus) : ni un tc qui court devant, ni des refus en cascade, ni des v = 0 n'y donnent de vitesse en plus. Les tirs :
+   le client compte ceux qu'il a montrés (nt, dans chaque entrée) et l'hôte en fait autant, ni plus ni moins (un appui bref perdu, reçu
+   dans le désordre ou écrasé par le relais ne se perd plus) ; une dette impayable en 600 ms (mort, recharge) s'éteint.
    Horloge douce chez le client (C6, § 9.2) : le temps de l'hôte suivi à ±5 % (net au-delà de 0,25 s), le retard d'interpolation qui
    glisse (±5 % de dt) ; ui.js appelle jeu.avantImage(maintenant) à chaque image (horloge, autres, événements à l'heure), jeu.etape(1/60)
    ne fait que la prédiction et l'entrée ; sans avantImage, etape fait tout comme avant. L'hôte compense la latence des tirs.
@@ -30,6 +34,11 @@ const PENLIGNE = (() => {
   // DELAI : l'interpolation des autres, au moins 100 ms, plus si les états arrivent moins souvent (le relais du transport : ~5 envois/s) ;
   // TENU : un appui bref (saut, recharge, arme) est répété dans les entrées pendant ce temps (une entrée perdue ne le perd pas) ;
   // LACHE : sans entrée d'un client depuis ce temps (ou 2,5 × l'intervalle mesuré), l'hôte lui lâche les commandes (plus de course sans fin)
+  const JETON_MAX = 3, DETTE_MS = 600, PAS_FIXE = 1 / 60;
+  // JETON_MAX : le seau de déplacement de chaque client chez l'hôte (m) : il se remplit au temps de l'HÔTE (vitesse max × 1,15 + 0,3 m/s)
+  // et chaque échantillon accepté y puise sa distance ; un tc qui court devant, des refus en cascade ou des v = 0 n'y gagnent rien ;
+  // DETTE_MS : un tir compté par le client (nt) que l'hôte n'arrive pas à faire en ce temps (rechargement, mort) est abandonné ;
+  // PAS_FIXE : le pas du rattrapage de l'hôte en arrière-plan (le même que celui de la boucle de ui.js)
   const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
   const fini = (v) => typeof v === 'number' && v - v === 0;
   // l'empreinte de la carte (source et nombre d'objets) : l'hôte l'envoie au lancement ; un client qui a une autre carte (vieille copie en cache) se retire
@@ -213,41 +222,53 @@ const PENLIGNE = (() => {
     // la piste de chaque client (C5) : ses positions prédites, datées à son horloge (tc, ms), rejouées avec un petit retard
     const NP = 32, nouvellePiste = () => { const a = []; for (let i = 0; i < NP; i++) a.push({ tc: 0, x: 0, y: 0, z: 0, sol: true, po: 0 }); return a; };
     for (const j of liste) if (j.id !== idMoi) clients.set(j.id, { id: j.id, nom: j.pseudo, entree: { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null }, n: 0, recuA: 0, vu: debut, pos: { x: 0, y: 0, z: 0, m: 0, v: false, vy: 0, sol: true, neuf: false }, adopte: false, rtt: 0, intervalle: ENTREE_MS,
-      av: 0, co: 0, sa: false, v2: false, piste: nouvellePiste(), pn: 0, pi: 0, dec: null, decA: 0, gigue: 0, surPiste: false, lu: false, rx: 0, ry: 0, rz: 0, rsol: true, rvx: 0, rvz: 0, rvy: 0, px: 0, py: 0, pz: 0, foulee: 0, rejets: 0, D: 0, tl: 0, nLu: 0, nProl: 0, bx: 0, bz: 0, teleports: 0 });
+      av: 0, co: 0, sa: false, v2: false, piste: nouvellePiste(), pn: 0, pi: 0, dec: null, decA: 0, gigue: 0, surPiste: false, lu: false, rx: 0, ry: 0, rz: 0, rsol: true, rvx: 0, rvz: 0, rvy: 0, px: 0, py: 0, pz: 0, foulee: 0, rejets: 0, D: 0, tl: 0, nLu: 0, nProl: 0, bx: 0, bz: 0, teleports: 0,
+      tiNiveau: false, compteTirs: false, nt: 0, ntFaits: 0, detteA: 0, tirePas: false, jeton: JETON_MAX, jetonA: 0, adX: 0, adZ: 0, adOk: false });
     const ent = {}, ACKS = {}, envoiT = new Float64Array(64), envoiN = new Int32Array(64), aEnvoyer = [], enPlus = [];
     let nEtat = 0, dernierEtat = -1e9, dernierEvts = -1e9, derniereEtape = 0, finale = false, finEnvoyee = false, arrete = false, envoyes = 0, t0 = 0, hT = -1;
     const P = { k: L.k, jeu, idMoi, estHote: true, hote: true, hoteId: idMoi, dans: L.dans, liste, resultat: null, demarre: false };
     const VMAX = Math.max(JO.course || 0, JO.vitesse || 0, 5.2), VGLISSE = (JO.glissade && JO.glissade.vMax) || 11, FOULEE = 1.7;
+    const VSEAU = VMAX * 1.15 + 0.3; // le remplissage du seau (m/s) : la course en descente (× 1,15) passe, une vitesse truquée non
     const P_PAS = JO.postures && JO.postures.debout ? JO.postures.debout.bruit : 10;
 
     // ─── la piste : ajout validé (§ 9.1), lecture retardée ───
     const echantillon = (c, k) => c.piste[(c.pi - 1 - k + 2 * NP) % NP]; // le k-ième en partant du plus récent
+    // → la distance horizontale parcourue depuis la référence (le dernier échantillon, ou notre simulation à la reprise), ou −1 si refusé
     function valide(c, e, tc, x, y, z, sol, po) {
-      if (!fini(x) || !fini(y) || !fini(z)) return false;
-      if (c.pn) { // déplacement : |Δpos| ≤ (vmax de la posture × 1,25 + 1) × Δt (+ les arrondis)
+      if (!fini(x) || !fini(y) || !fini(z)) return -1;
+      let d2 = 0;
+      if (c.pn) { // déplacement : |Δpos| ≤ (vmax de la posture × 1,25 + 1) × Δt (+ les arrondis), Δt à l'horloge du client
         const a = echantillon(c, 0), dt = (tc - a.tc) / 1000, v = po === 2 || a.po === 2 ? VGLISSE : VMAX, lim = (v * 1.25 + 1) * dt + 0.05, dx = x - a.x, dz = z - a.z;
-        if (dx * dx + dz * dz > lim * lim) return false;
-      } else { const dx = x - e.x, dz = z - e.z; if (dx * dx + dz * dz > 9 || Math.abs(y - e.y) > 3) return false; } // la reprise : près de notre simulation
-      if (monde.bloque(x, z, JO.rayon - 0.05)) return false; // pas dans un mur
-      const h = y - monde.hauteur(x, z); if (h < -2.5 || h > (sol ? 2.5 : 8)) return false; // hauteur (en l'air : jusqu'à 8 m au-dessus du sol)
-      return true;
+        d2 = dx * dx + dz * dz; if (d2 > lim * lim) return -1;
+      } else { const dx = x - e.x, dz = z - e.z; d2 = dx * dx + dz * dz; if (d2 > 9 || Math.abs(y - e.y) > 3) return -1; } // la reprise : près de notre simulation
+      // et au temps de l'hôte : le seau (un tc qui court devant, ou une reprise sur deux, ne donnent aucune marge)
+      const d = Math.sqrt(d2); if (d > c.jeton + 0.05) return -1;
+      if (monde.bloque(x, z, JO.rayon - 0.05)) return -1; // pas dans un mur
+      const h = y - monde.hauteur(x, z); if (h < -2.5 || h > (sol ? 2.5 : 8)) return -1; // hauteur (en l'air : jusqu'à 8 m au-dessus du sol)
+      return d;
     }
-    function ajouter(c, tc, x, y, z, sol, po) { const s = c.piste[c.pi]; s.tc = tc; s.x = x; s.y = y; s.z = z; s.sol = sol; s.po = po; c.pi = (c.pi + 1) % NP; if (c.pn < NP) c.pn++; }
+    function ajouter(c, tc, x, y, z, sol, po, d) {
+      const s = c.piste[c.pi]; s.tc = tc; s.x = x; s.y = y; s.z = z; s.sol = sol; s.po = po; c.pi = (c.pi + 1) % NP; if (c.pn < NP) c.pn++;
+      c.jeton = Math.max(0, c.jeton - d);
+    }
+    function remplir(c, now) { c.jeton = Math.min(JETON_MAX, c.jeton + VSEAU * Math.max(0, now - c.jetonA) / 1000); c.jetonA = now; }
     function recevoirPiste(c, d, now) {
       const e = jeu.trouver(c.id); if (!e) return;
       const tc = d.tc, o = now - tc;
       c.dec = c.dec == null ? o : Math.min(o, c.dec + 0.02 * Math.max(0, now - c.decA)); c.decA = now; // le décalage d'horloge : le trajet le plus court, qui remonte lentement
       c.gigue = c.gigue * 0.9 + Math.max(0, o - c.dec) * 0.1; // le retard de cette entrée sur le plus court
+      if (!d.v && e.vivant) return; // il se croit éliminé, nous pas (une réapparition en route) : la piste est tenue, pas vidée
       if (!d.v || !e.vivant || (d.m | 0) !== e.score.morts || !fini(d.x) || !fini(d.y) || !fini(d.z)) { c.pn = 0; c.lu = false; c.adopte = false; return; }
+      remplir(c, now);
       let ok = true;
       if (Array.isArray(d.tr)) for (let i = 0; i < d.tr.length && i < 16 && ok; i++) {
         const s = d.tr[i]; if (!Array.isArray(s) || s.length < 4 || !fini(s[0])) continue;
         const ts = tc - num(s[0], 0, 2000); if (c.pn && ts <= echantillon(c, 0).tc) continue;
-        const po = s[4] | 0; if (valide(c, e, ts, s[1], s[2], s[3], true, po)) ajouter(c, ts, s[1], s[2], s[3], true, po); else ok = false;
+        const po = s[4] | 0, dd = valide(c, e, ts, s[1], s[2], s[3], true, po); if (dd >= 0) ajouter(c, ts, s[1], s[2], s[3], true, po, dd); else ok = false;
       }
       if (ok && (!c.pn || tc > echantillon(c, 0).tc)) {
-        const po = fini(d.po) ? d.po | 0 : d.ac ? 1 : 0, sol = !!d.sol;
-        if (valide(c, e, tc, d.x, d.y, d.z, sol, po)) ajouter(c, tc, d.x, d.y, d.z, sol, po); else ok = false;
+        const po = fini(d.po) ? d.po | 0 : d.ac ? 1 : 0, sol = !!d.sol, dd = valide(c, e, tc, d.x, d.y, d.z, sol, po);
+        if (dd >= 0) ajouter(c, tc, d.x, d.y, d.z, sol, po, dd); else ok = false;
       }
       if (ok) { c.adopte = true; return; }
       // refusé : accusé négatif (le client se recale), et l'hôte reprend sa simulation au dernier point valide
@@ -280,7 +301,7 @@ const PENLIGNE = (() => {
       return true;
     }
     function teleporte(c) { // l'hôte a déplacé le client (réapparition, test) : la piste repart de zéro, accusé négatif (le client se recale)
-      c.pn = 0; c.lu = false; c.adopte = false; c.surPiste = false; c.teleports++;
+      c.pn = 0; c.lu = false; c.adopte = false; c.surPiste = false; c.teleports++; c.jeton = JETON_MAX; c.adOk = false;
     }
     function poserLu(c, e, dt) { // la lecture de la piste sur l'entité (après le pas : l'état envoyé et le rendu de l'hôte)
       const k = dt > 0 ? 1 / dt : 0;
@@ -288,12 +309,13 @@ const PENLIGNE = (() => {
       e.vx = (c.rx - c.px) * k; e.vz = (c.rz - c.pz) * k; e.vy = (c.ry - c.py) * k;
     }
 
-    function adopter(c, e) { // la position prédite du client, si elle est plausible
+    function adopter(c, e, now) { // la position prédite du client, si elle est plausible (près de notre simulation, et dans le seau)
       const p = c.pos; if (!p.neuf) return; p.neuf = false;
-      if (!e.vivant || !p.v || p.m !== e.score.morts) { c.adopte = false; return; }
-      const dx = p.x - e.x, dz = p.z - e.z;
-      if (dx * dx + dz * dz > 9 || Math.abs(p.y - e.y) > 3 || monde.bloque(p.x, p.z, JO.rayon - 0.05)) { c.adopte = false; return; }
-      e.x = p.x; e.z = p.z; e.y = p.y; e.vy = p.vy; e.auSol = p.sol; c.adopte = true;
+      if (!e.vivant || !p.v || p.m !== e.score.morts) { c.adopte = false; c.adOk = false; return; }
+      remplir(c, now);
+      const dx = p.x - e.x, dz = p.z - e.z, ax = p.x - (c.adOk ? c.adX : e.x), az = p.z - (c.adOk ? c.adZ : e.z), d = Math.sqrt(ax * ax + az * az); // d : depuis la dernière décision (notre simulation comprise)
+      if (dx * dx + dz * dz > 9 || Math.abs(p.y - e.y) > 3 || d > c.jeton + 0.3 || monde.bloque(p.x, p.z, JO.rayon - 0.05)) { c.adopte = false; c.adX = e.x; c.adZ = e.z; c.adOk = true; return; }
+      e.x = p.x; e.z = p.z; e.y = p.y; e.vy = p.vy; e.auSol = p.sol; c.adopte = true; c.jeton = Math.max(0, c.jeton - d); c.adX = e.x; c.adZ = e.z; c.adOk = true;
     }
     function compacter(ev, h) { // les événements utiles à l'image et au son, arrondis
       switch (ev.t) {
@@ -340,18 +362,30 @@ const PENLIGNE = (() => {
       for (const c of clients.values()) {
         const e = jeu.trouver(c.id); if (!e) continue;
         const en = c.entree, lache = now - c.recuA > Math.max(LACHE, 2.5 * c.intervalle + 100);
-        if (lache) { c.av = 0; c.co = 0; c.sa = false; en.tir = false; en.recharge = false; en.arme = null; } // plus de nouvelles : il lâche tout (et la piste s'arrête : l'hôte reprend sa simulation)
+        if (lache) { c.av = 0; c.co = 0; c.sa = false; c.tiNiveau = false; en.recharge = false; en.arme = null; } // plus de nouvelles : il lâche tout (et la piste s'arrête : l'hôte reprend sa simulation)
+        // le tir : un client qui compte ses tirs (nt) en reçoit autant, ni plus ni moins (un appui bref perdu, dans le désordre ou écrasé
+        // par le relais ne se perd plus, et un appui tenu ne se double pas) ; une dette que l'hôte ne peut pas payer (mort, recharge) s'éteint
+        if (c.compteTirs) {
+          if (c.nt > c.ntFaits) { if (!e.vivant || (c.detteA && now - c.detteA > DETTE_MS)) { c.ntFaits = c.nt; c.detteA = 0; } else if (!c.detteA) c.detteA = now; }
+          else { c.ntFaits = c.nt; c.detteA = 0; }
+          en.tir = c.nt > c.ntFaits;
+        } else en.tir = c.tiNiveau;
         if (c.v2 && c.lu) { const dx = e.x - c.rx, dz = e.z - c.rz; if (dx * dx + dz * dz > 1) teleporte(c); } // déplacé hors de la piste (par l'hôte) depuis le pas d'avant
         c.surPiste = c.v2 && !lache && lirePiste(c, e, hT, dt);
         // sur la piste, l'hôte ne rejoue pas son mouvement (la piste le porte) ; le tir part de la tête de piste (sa position à l'entrée)
         en.avant = c.surPiste ? 0 : c.av; en.cote = c.surPiste ? 0 : c.co; en.saut = c.surPiste ? false : c.sa;
         if (c.surPiste) { const b = en.tir ? echantillon(c, 0) : null; if (b) { e.x = b.x; e.y = b.y; e.z = b.z; } else { e.x = c.rx; e.y = c.ry; e.z = c.rz; } e.auSol = c.rsol; e.vx = e.vz = e.vy = 0; c.bx = e.x; c.bz = e.z; }
-        else if (!c.v2) adopter(c, e);
+        else if (!c.v2) adopter(c, e, now);
         else c.lu = false;
         ent[c.id] = en;
       }
       let evs;
       try { evs = vrai(dt, ent); } catch (e) { signaler('simulation', e); return enPlus.splice(0); }
+      for (let i = 0; i < evs.length; i++) { // un tir fait (un événement par plomb : compté une fois par pas)
+        const v = evs[i]; if (v.t !== 'tir') continue;
+        const c = clients.get(v.id); if (c && !c.tirePas) { c.tirePas = true; c.ntFaits++; c.detteA = c.nt > c.ntFaits ? now : 0; }
+      }
+      for (const c of clients.values()) c.tirePas = false;
       for (const c of clients.values()) { // la piste, telle qu'on la montre ; ses pas (son, et l'ouïe des robots)
         if (!c.surPiste) continue;
         const e = jeu.trouver(c.id); if (!e || !e.vivant) continue;
@@ -381,7 +415,8 @@ const PENLIGNE = (() => {
       const en = c.entree;
       c.av = en.avant = num(d.av, -1, 1); c.co = en.cote = num(d.co, -1, 1);
       if (fini(d.ya)) en.yaw = d.ya; if (fini(d.pi)) en.pitch = d.pi;
-      en.tir = !!d.ti; c.sa = en.saut = !!d.sa; en.accroupi = !!d.ac; en.recharge = !!d.re; en.arme = J.ARMES_ID.indexOf(d.ar) >= 0 ? d.ar : null;
+      c.tiNiveau = !!d.ti; if (fini(d.nt)) { c.compteTirs = true; c.nt = Math.max(c.nt, d.nt | 0); }
+      c.sa = en.saut = !!d.sa; en.accroupi = !!d.ac; en.recharge = !!d.re; en.arme = J.ARMES_ID.indexOf(d.ar) >= 0 ? d.ar : null;
       if (fini(d.tc)) { c.v2 = true; recevoirPiste(c, d, now); } // C5 : la piste (un client sans tc reste servi comme avant : adopter)
       const p = c.pos;
       if (!c.v2 && fini(d.x) && fini(d.y) && fini(d.z)) { p.x = d.x; p.y = d.y; p.z = d.z; p.m = d.m | 0; p.v = !!d.v; p.vy = num(d.vy, -40, 40); p.sol = !!d.sol; p.neuf = true; }
@@ -401,16 +436,17 @@ const PENLIGNE = (() => {
     function tic(now) {
       if (arrete) return;
       verifierDeparts();
-      // l'hôte en arrière-plan (onglet caché, pause du navigateur) : on rattrape la simulation pour les autres, par pas de 50 ms
+      // l'hôte en arrière-plan (onglet caché, pause du navigateur) : on rattrape la simulation pour les autres, par pas fixes de 1/60 s
+      // (au plus 1 s ; la fraction restante, moins d'un pas, est perdue ; etapeHote remet derniereEtape à l'heure)
       if (P.demarre && !jeu.fini && now - derniereEtape > 300) {
-        let reste = Math.min(1, (now - derniereEtape) / 1000); const neutre = { [idMoi]: null };
-        while (reste > 1e-3 && !jeu.fini) { const d = Math.min(J.DT_MAX, reste); etapeHote(d, neutre); reste -= d; }
+        let n = Math.min(60, Math.floor((now - derniereEtape) / 1000 / PAS_FIXE)); const neutre = { [idMoi]: null };
+        while (n-- > 0 && !jeu.fini) etapeHote(PAS_FIXE, neutre);
       }
     }
     jeu.etape = etapeHote;
     P.recevoir = recevoir; P.tic = tic; P.verifierDeparts = verifierDeparts; P.retirer = retirer;
     P.arreter = () => { arrete = true; jeu.etape = vrai; };
-    P.stats = () => { const dt = Math.max(0.5, (maintenant() - (t0 || maintenant())) / 1000); return { hote: true, messagesParClientParS: envoyes / dt, envoyes, t: maintenant(), clients: Array.from(clients.values()).map((c) => ({ id: c.id, rtt: Math.round(c.rtt), adopte: c.adopte, retard: r3(jeu.retardDe(c.id)), intervalle: Math.round(c.intervalle), piste: c.surPiste, D: Math.round(c.D), gigue: Math.round(c.gigue), rejets: c.rejets, teleports: c.teleports, prolonge: c.nLu ? r3(c.nProl / c.nLu) : 0 })) }; };
+    P.stats = () => { const dt = Math.max(0.5, (maintenant() - (t0 || maintenant())) / 1000); return { hote: true, messagesParClientParS: envoyes / dt, envoyes, t: maintenant(), clients: Array.from(clients.values()).map((c) => ({ id: c.id, rtt: Math.round(c.rtt), adopte: c.adopte, retard: r3(jeu.retardDe(c.id)), intervalle: Math.round(c.intervalle), piste: c.surPiste, D: Math.round(c.D), gigue: Math.round(c.gigue), rejets: c.rejets, teleports: c.teleports, prolonge: c.nLu ? r3(c.nProl / c.nLu) : 0, seau: r2(c.jeton), tirs: c.ntFaits, dette: Math.max(0, c.nt - c.ntFaits) })) }; };
     return P;
   }
 
@@ -429,7 +465,7 @@ const PENLIGNE = (() => {
     const hoteId = ctl.hote, out = [], tampon = [], attente = [], immediats = [], hist = [], tirsEnVol = [], pasDe = new Map();
     const corr = { x: 0, z: 0 };
     let dernierT = -1, dernierRecu = 0, dernierN = 0, cale = false, nEnvoi = 0, dernierEnvoi = -1e9, tirDepuis = false, sautA = -1e9, rechA = -1e9, armeA = -1e9, armeVoulue = null, armeLocaleA = -1e9;
-    let tirLocalA = 0, finEnAttente = null, arrete = false, recus = 0, envoyes = 0, t0 = 0, foulee = 0, nCales = 0, nDouces = 0, intervalle = ETAT_MS, gigue = 10, delai = DELAI;
+    let nTirs = 0, tirLocalA = 0, finEnAttente = null, arrete = false, recus = 0, envoyes = 0, t0 = 0, foulee = 0, nCales = 0, nDouces = 0, intervalle = ETAT_MS, gigue = 10, delai = DELAI;
     // C6 : delaiEff (le retard d'interpolation qui glisse), tRenduVu (l'heure de l'hôte à laquelle on voit les autres, pour tv),
     // parImage (ui.js appelle avantImage : etape ne fait plus que la prédiction), nSauts (recalages nets de l'horloge, hors le premier) ;
     // C5 : tPas (l'horloge des pas, en s : cadence locale), tcPas (la même en ms, calée sur maintenant() : le tc des entrées),
@@ -578,7 +614,7 @@ const PENLIGNE = (() => {
           const n0 = out.length; J.tirVisuel(moi, monde, jeu.entites, Math.random, out);
           for (let i = n0; i < out.length; i++) out[i].local = true;
           tirLocalA = Math.max(tirLocalA, T - dt) + 1 / Ar.cadence;
-          moi.munitions[moi.arme] = Math.max(0, (moi.munitions[moi.arme] | 0) - 1); tirsEnVol.push(nEnvoi + 1);
+          moi.munitions[moi.arme] = Math.max(0, (moi.munitions[moi.arme] | 0) - 1); tirsEnVol.push(nEnvoi + 1); nTirs++; // nt : l'hôte fera autant de tirs
           moi.gonfle = Math.min(1, (moi.gonfle || 0) + (GONFLE[Ar.id] || 0.3));
           moi.pitch = Math.max(-1.45, Math.min(1.45, moi.pitch + (Ar.recul || 0) * 0.6 * (0.7 + 0.3 * Math.random())));
           moi.yaw += (Ar.recul || 0) * 0.6 * 0.35 * (Math.random() * 2 - 1);
@@ -604,7 +640,7 @@ const PENLIGNE = (() => {
         const j = ctl.salon.joueurs.get(idMoi), relais = !!(j && j.voie === 'relais'), tenu = relais ? 3 * TENU : TENU; // en relais, les entrées partent groupées : on tient les appuis plus longtemps
         const tc = Math.round(tcPas);
         const m = { k: P.k, n: nEnvoi, tc, av: en ? r2(num(en.avant, -1, 1)) : 0, ya: r3(moi.yaw), pi: r3(moi.pitch), x: r2(moi.x), y: r2(moi.y), z: r2(moi.z), vy: r2(moi.vy || 0), sol: moi.auSol ? 1 : 0,
-          m: moi.score.morts, v: vit ? 1 : 0, tv: r3(tRenduVu), ae: dernierN, ad: Math.round(now - dernierRecu) };
+          m: moi.score.morts, v: vit ? 1 : 0, tv: r3(tRenduVu), ae: dernierN, ad: Math.round(now - dernierRecu), nt: nTirs };
         // les champs nuls ne partent pas (l'hôte lit l'absence comme 0 / false / null) : l'entrée tient sous 220 o
         if (en && en.cote) m.co = r2(num(en.cote, -1, 1)); if (tirDepuis) m.ti = 1; if (now - sautA < tenu) m.sa = 1; if (en && en.accroupi) m.ac = 1;
         if (now - rechA < tenu) m.re = 1; if (now - armeA < tenu && armeVoulue) m.ar = armeVoulue;

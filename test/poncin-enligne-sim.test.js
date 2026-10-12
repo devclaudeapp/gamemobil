@@ -7,7 +7,12 @@
 // et regarde ; H tourne en rond ; personne ne meurt (vie remise à 10 000 : pas de téléportation).
 // Mesures après 3 s : « à-coups » = |Δv| horizontal d'une image à la suivante (rms, m/s) ; recalages nets des clients.
 // Seuils (§ 14) : C vu par D ≤ 0,6 (mauvais ≤ 0,8) ; C vu par H ≤ 1,3 (mauvais ≤ 1,6) ; robot vu par D ≤ 1,8 × la vérité (vu par H) ;
-// aucun recalage net hors du premier. Variante : 5 clients et 1 robot en direct, pas de l'hôte ≤ 2 ms en moyenne.
+// aucun recalage net hors du premier ; l'hôte ne refuse aucun échantillon d'un client honnête. Variante : 5 clients et 1 robot en
+// direct, pas de l'hôte ≤ 2 ms en moyenne.
+// Non-régression de la relecture du lot : appuis brefs sur Tir (un pas sur un, toutes les 737 ms, et calés sur le relais toutes les
+// 700 ms) : ≥ 95 % des tirs du client faits par l'hôte, et jamais plus ; tricheurs (15 m/s avec tc normal, tc × 2 et × 3, sans tc à
+// 25 m/s, v = 0 une entrée sur deux) : vitesse vue par l'hôte ≤ 1,3 × 7 m/s ; l'heure passée à avantImage avec 1 ms de gigue
+// (horloges arrondies à la milliseconde, Safari) : seuils tenus.
 // Usage : node test/poncin-enligne-sim.test.js [--detail] [profil graine] ; ENLIGNE=chemin pour mesurer une autre version d'enligne.js.
 // Sortie « ok / FAIL », code 1 au moindre échec.
 'use strict';
@@ -50,11 +55,13 @@ async function simuler(o) {
   // ─── le réseau : une file d'arrivées ───
   const file = [], salons = new Map(), relaisDe = {}, octets = { entree: [0, 0], etat: [0, 0] };
   let triche = o.triche || 0;
+  const TR = o.tricheur ? { debut: 0, tc0: 0, s0: 0, n: 0 } : null;
   function poster(de, a, type, data, fiable) {
     const s = salons.get(a); if (!s) return;
     if (type === 'entree' && de === o.clients[0]) {
       if (o.sansTc) { data = Object.assign({}, data); delete data.tc; delete data.tr; } // un vieux client : sans piste
       if (triche && horloge >= triche && data.v) { data = Object.assign({}, data, { x: data.x + 6 }); delete data.tr; triche = 0; } // une entrée truquée : 6 m d'un coup
+      if (TR && horloge >= tTriche && data.v) data = tricher(data);
     }
     const texte = JSON.stringify(data); if (octets[type]) { octets[type][0] += texte.length; octets[type][1]++; }
     if (!fiable && rnd() < RES.perte) return;
@@ -89,6 +96,24 @@ async function simuler(o) {
     modules.push(ctx.PENLIGNE);
     return ctx.PENLIGNE;
   }
+  // le tricheur : ses positions suivent le chemin à o.tricheur.v m/s (au temps réel), tc qui court × ktc, sans tc, ou v = 0 une sur deux
+  let tTriche = Infinity, chT = null, cumT = null;
+  function curseur(t) {
+    let s = TR.s0 + o.tricheur.v * Math.max(0, t - TR.debut) / 1000, i = 0;
+    while (i < chT.length - 2 && cumT[i + 1] < s) i++;
+    const u = Math.max(0, Math.min(1, (s - cumT[i]) / Math.max(1e-6, cumT[i + 1] - cumT[i]))), x = chT[i][0] + (chT[i + 1][0] - chT[i][0]) * u, z = chT[i][1] + (chT[i + 1][1] - chT[i][1]) * u;
+    return [Math.round(x * 100) / 100, Math.round(MONDE.hauteur(x, z) * 100) / 100, Math.round(z * 100) / 100];
+  }
+  function tricher(data) {
+    const T = o.tricheur; data = Object.assign({}, data); TR.n++;
+    if (!TR.debut) { TR.debut = horloge; TR.tc0 = data.tc; let m = Infinity; for (let i = 0; i < chT.length; i++) { const d = Math.hypot(chT[i][0] - data.x, chT[i][1] - data.z); if (d < m) { m = d; TR.s0 = cumT[i]; } } }
+    const p = curseur(horloge); data.x = p[0]; data.y = p[1]; data.z = p[2];
+    const k = T.ktc || 1;
+    if (Array.isArray(data.tr)) data.tr = data.tr.map((e) => { const q = curseur(horloge - e[0]); return [Math.round(e[0] * k), q[0], q[1], q[2], e[4]]; });
+    if (data.tc != null && k !== 1) data.tc = Math.round(TR.tc0 + (data.tc - TR.tc0) * k);
+    if (T.v0 && TR.n % 2) data.v = 0;
+    return data;
+  }
   const IDS = ['h'].concat(o.clients), ctl = {}, modules = [];
   for (const id of IDS) { const s = fauxSalon(id, 'h', IDS); ctl[id] = await charger(s).ouvrir({ via: 'simu', moi: s.moi, monde: MONDE, carte }); }
   ctl.h.regler({ bots: o.bots, niveau: 'normal' });
@@ -100,6 +125,7 @@ async function simuler(o) {
   const jH = jeu.h, nav = jH.nav;
   const poser = (e, x, z) => { const p = nav.proche(x, z); e.x = e.ax = p[0]; e.z = e.az = p[1]; e.y = e.ay = MONDE.hauteur(e.x, e.z); };
   const ch = []; for (const [a, b] of [[[159, 33], [111, 80]], [[111, 80], [159, 33]], [[159, 33], [111, 80]]]) for (const p of nav.chemin(a[0], a[1], b[0], b[1])) ch.push(p);
+  chT = ch; cumT = [0]; for (let i = 1; i < ch.length; i++) cumT.push(cumT[i - 1] + Math.hypot(ch[i][0] - ch[i - 1][0], ch[i][1] - ch[i - 1][1]));
   const coins = [[120, 60], [104, 2], [95, 20], [130, 10], [100, 45]];
   poser(jH.trouver('h'), 120, 60); o.clients.forEach((id, i) => poser(jH.trouver(id), i === 0 ? 159 : coins[i][0], i === 0 ? 33 : coins[i][1]));
   // ─── chacun sa boucle, comme ui.js : pas fixes, puis avantImage ───
@@ -108,6 +134,8 @@ async function simuler(o) {
   const pil = pilote(ch), cpu = { t: 0, n: 0 };
   if (o.triche) triche = horloge + o.triche;
   const T0 = horloge + 3000, FIN = horloge + 3000 + o.duree * 1000;
+  if (o.tricheur) tTriche = T0;
+  const tirs = { c: 0, h: 0 }, rndI = R.mulberry32(o.graine * 13 + 5); let tapK = -1;
   const tr = () => ({ t: [], x: [], z: [] }), T = { cD: tr(), cH: tr(), bD: tr(), bH: tr(), cC: tr() };
   const vu = (e, alpha, interpole) => { const ok = interpole && Number.isFinite(e.ax); return [ok ? e.ax + (e.x - e.ax) * alpha : e.x, ok ? e.az + (e.z - e.az) * alpha : e.z]; };
   const noter = (o2, p) => { o2.t.push(horloge / 1000); o2.x.push(p[0]); o2.z.push(p[1]); };
@@ -120,11 +148,18 @@ async function simuler(o) {
       const d = (horloge - q.derniere) / 1000; q.derniere = horloge; q.prochaine = horloge + q.sched[q.idx++ % q.sched.length] * 1000;
       const j = jeu[id], moi = j.trouver(id), en = q.en;
       if (id === 'h') { for (const e of jH.entites) e.vie = 1e4; Object.assign(en, NEUTRE, { avant: 0.6, dyaw: 0.6 * d }); }
-      else if (id === o.clients[0]) { Object.assign(en, NEUTRE); if (moi && moi.vivant) { const c = pil(moi); en.avant = c.fin ? 0 : 1; en.dyaw = angle(c.yaw - moi.yaw); } }
+      else if (id === o.clients[0]) {
+        Object.assign(en, NEUTRE); if (moi && moi.vivant) { const c = pil(moi); en.avant = c.fin ? 0 : 1; en.dyaw = angle(c.yaw - moi.yaw); }
+        if (o.tap && horloge >= T0 && Math.floor(horloge / o.tap) !== tapK) { tapK = Math.floor(horloge / o.tap); en.tir = true; } // un appui bref : le premier pas de l'image seulement
+      }
       else Object.assign(en, NEUTRE);
       let premier = true; q.entrees[id] = en;
-      const alpha = q.boucle.avancer(d, (dt) => { if (!premier) { en.dyaw = 0; en.dpitch = 0; en.saut = false; } premier = false; const t0 = id === 'h' ? process.hrtime.bigint() : 0n; j.etape(dt, q.entrees); if (id === 'h') { cpu.t += Number(process.hrtime.bigint() - t0) / 1e6; cpu.n++; } });
-      if (id !== 'h' && typeof j.avantImage === 'function') j.avantImage(horloge);
+      const alpha = q.boucle.avancer(d, (dt) => {
+        if (!premier) { en.dyaw = 0; en.dpitch = 0; en.saut = false; if (o.tap) en.tir = false; } premier = false;
+        const t0 = id === 'h' ? process.hrtime.bigint() : 0n; const evs = j.etape(dt, q.entrees); if (id === 'h') { cpu.t += Number(process.hrtime.bigint() - t0) / 1e6; cpu.n++; }
+        if (o.tap && horloge >= T0 && evs && (id === 'h' || id === o.clients[0])) { let tir = false; for (const v of evs) if (v.t === 'tir' && v.id === o.clients[0] && (id === 'h' || v.local)) tir = true; if (tir) tirs[id === 'h' ? 'h' : 'c']++; } // un tir par pas au plus (un événement par plomb)
+      });
+      if (id !== 'h' && typeof j.avantImage === 'function') j.avantImage(horloge + (o.gigueImage ? rndI() * o.gigueImage : 0));
       if (horloge < T0) continue;
       if (id === 'h') { noter(T.cH, vu(jH.trouver(o.clients[0]), alpha, true)); const b = jH.entites.find((e) => !e.humain); if (b) noter(T.bH, vu(b, alpha, true)); }
       else if (id === o.clients[0]) noter(T.cC, vu(moi, alpha, true));
@@ -135,7 +170,11 @@ async function simuler(o) {
   const stats = {}; for (const id of IDS) stats[id] = ctl[id].partie.stats();
   for (const id of IDS) ctl[id].quitter();
   let erreurs = 0; for (const M of modules) erreurs += M.erreurs;
-  return { T, stats, cpu: cpu.t / Math.max(1, cpu.n), octets, clients: o.clients, erreurs };
+  return { T, stats, cpu: cpu.t / Math.max(1, cpu.n), octets, clients: o.clients, erreurs, tirs, T0: T0 / 1000 };
+}
+function vitesse(o, t0, t1) { // la vitesse moyenne (m/s) le long de la trace entre t0 et t1 (s)
+  let d = 0, a = -1, b = -1; for (let i = 1; i < o.t.length; i++) { if (o.t[i - 1] < t0 || o.t[i] > t1) continue; if (a < 0) a = o.t[i - 1]; b = o.t[i]; d += Math.hypot(o.x[i] - o.x[i - 1], o.z[i] - o.z[i - 1]); }
+  return b > a ? d / (b - a) : 0;
 }
 function acoups(o) { // |Δv| horizontal d'une image à la suivante, rms (m/s)
   const v = []; for (let i = 1; i < o.t.length; i++) { const dt = o.t[i] - o.t[i - 1]; if (dt > 0) v.push(Math.hypot(o.x[i] - o.x[i - 1], o.z[i] - o.z[i - 1]) / dt); }
@@ -157,6 +196,7 @@ function acoups(o) { // |Δv| horizontal d'une image à la suivante, rms (m/s)
     check(a.cH <= S.cH, `${lib} : un client vu par l'hôte, à-coups ${f2(a.cH)} m/s rms ≤ ${S.cH}`);
     check(a.bD <= 1.8 * a.bH, `${lib} : un robot vu par un client, à-coups ${f2(a.bD)} ≤ 1,8 × la vérité (${f2(a.bH)})`);
     check(nets === 2, `${lib} : aucun recalage net hors du premier (C ${m.stats.c.cales}, D ${m.stats.d.cales})`);
+    check(hc.rejets === 0, `${lib} : l'hôte ne refuse aucun échantillon du client honnête (rejets ${hc.rejets})`);
     if (m.erreurs) check(false, `${lib} : ${m.erreurs} erreur(s) rattrapée(s) dans enligne.js`);
   }
   if (ARGS.length < 2) {
@@ -175,6 +215,26 @@ function acoups(o) { // |Δv| horizontal d'une image à la suivante, rms (m/s)
     const t = await simuler({ profil: 'direct', graine: 4, clients: ['c', 'd'], bots: 1, duree: 10, triche: 6000 });
     const ht = t.stats.h.clients.find((c) => c.id === 'c'); let saut = 0; for (let i = 1; i < t.T.cH.x.length; i++) saut = Math.max(saut, Math.hypot(t.T.cH.x[i] - t.T.cH.x[i - 1], t.T.cH.z[i] - t.T.cH.z[i - 1]));
     check(ht && ht.rejets >= 1 && ht.piste && saut < 1 && !t.erreurs, `une entrée truquée est refusée (rejets ${ht && ht.rejets}, plus grand pas vu par l'hôte ${saut.toFixed(2)} m < 1, piste reprise ${ht && ht.piste}, nets C ${t.stats.c.cales}, doux ${t.stats.c.douces})`);
+    // appuis brefs sur Tir : l'hôte fait les tirs que le client a montrés (compteur nt), ni moins ni plus
+    for (const [profil, graine, tap] of [['direct', 3, 737], ['relais', 3, 737], ['relais', 4, 700], ['mauvais', 4, 737]]) {
+      const b = await simuler({ profil, graine, clients: ['c', 'd'], bots: 1, duree: 30, tap });
+      check(b.tirs.c >= 30 && b.tirs.h >= 0.95 * b.tirs.c && b.tirs.h <= b.tirs.c && !b.erreurs, `${profil} ${graine} : appuis brefs sur Tir toutes les ${tap} ms : ${b.tirs.h} tirs chez l'hôte pour ${b.tirs.c} montrés par le client (≥ 95 %, jamais plus)`);
+    }
+    // les tricheurs : la vitesse que l'hôte leur voit reste celle d'un joueur (≤ 1,3 × 7 m/s) ; l'honnête, lui, avance normalement
+    const VMAXT = 1.3 * 7;
+    for (const [lib, tri, opt] of [['honnête (5,2 m/s)', null, {}], ['15 m/s, tc normal', { v: 15 }, {}], ['15 m/s, tc × 2', { v: 15, ktc: 2 }, {}], ['25 m/s, tc × 3', { v: 25, ktc: 3 }, {}],
+      ['25 m/s sans tc', { v: 25 }, { sansTc: true }], ['15 m/s, v = 0 une entrée sur deux', { v: 15, v0: true }, {}], ['15 m/s en relais, tc × 2', { v: 15, ktc: 2 }, { profil: 'relais' }]]) {
+      const x = await simuler(Object.assign({ profil: 'direct', graine: 4, clients: ['c', 'd'], bots: 1, duree: 6, tricheur: tri }, opt));
+      const v = vitesse(x.T.cH, x.T0 + 1, x.T0 + 5), hx = x.stats.h.clients.find((c) => c.id === 'c') || {};
+      if (!tri) check(v > 4.5 && v <= VMAXT && !hx.rejets, `client ${lib} : ${v.toFixed(2)} m/s vus par l'hôte, aucun rejet (${hx.rejets})`);
+      else check(v <= VMAXT && !x.erreurs, `tricheur ${lib} : ${v.toFixed(2)} m/s vus par l'hôte ≤ ${VMAXT.toFixed(1)} (rejets ${hx.rejets})`);
+    }
+    // l'heure passée à avantImage : celle de l'image (rAF), arrondie à la ms par certains navigateurs : les seuils tiennent
+    for (const [profil, graine] of [['direct', 3], ['mauvais', 4]]) {
+      const g = await simuler({ profil, graine, clients: ['c', 'd'], bots: 2, duree: 30, gigueImage: 1 });
+      const S = SEUILS[profil], cD = acoups(g.T.cD), bD = acoups(g.T.bD), bH = acoups(g.T.bH);
+      check(cD <= S.cD && bD <= 1.8 * bH, `${profil} ${graine}, heure d'image à 1 ms près : client vu par l'autre ${f2(cD)} ≤ ${S.cD}, robot ${f2(bD)} ≤ 1,8 × ${f2(bH)}`);
+    }
   }
   console.log(`\n${oks} ok, ${fails} échec(s)`);
   process.exit(fails ? 1 : 0);

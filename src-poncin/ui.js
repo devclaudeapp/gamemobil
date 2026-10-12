@@ -18,6 +18,7 @@ const PUI = (() => {
   const DEFAUT = () => ({ v: 1, reglages: { sensibilite: 1, inverserY: false, gaucher: false, tirAuto: true, qualite: 'auto', balancement: 'normal', son: true, vibre: true, nom: '', pseudo: '' }, records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { format: 'solo', bots: 4, niveau: 'facile' }, derniere: 0 });
   let sauv = DEFAUT(), carte = null, monde = null, rendu3d = false, jeu = null, ecran = 'chargement', retourReglages = 'titre', avantPause = 'partie', optsPartie = null;
   let J, A, RENDU, CARTEPROV, MONDE; // les modules, résolus au démarrage
+  let aideVue = null; // l'aide à la visée du dernier pas (le viseur « sur la cible » des images où avantImage rend des événements)
   let last = 0, tAnim = 0, compteT = 0, compteVu = -1, surDepuis = 0, erreursEtape = 0, erreursRendu = 0, erreursTotal = 0, derniereErreur = '', finTraitee = false, serie = 0, serieMax = 0, elims = 0;
   let fps = 0, nImages = 0, tFps = 0, msImage = 0, imagePause = 0;
   let entrees = { moi: null }; const VIDE = [];
@@ -168,7 +169,7 @@ const PUI = (() => {
       idMoi = 'moi'; enLigne = false; partieL = null; entrees = { moi: null };
       jeu.ajouterJoueur({ id: 'moi', nom, couleur: '#FFC84A', equipe: o.equipes ? 0 : 'moi', humain: true });
     } catch (e) { signaler('jeu.creer', e); jeu = null; oups('La partie n’a pas pu démarrer', 'Recharge la page et réessaie.'); return false; }
-    optsPartie = o; finTraitee = false; surDepuis = 0; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null; remettrePas();
+    optsPartie = o; finTraitee = false; surDepuis = 0; aideVue = null; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null; remettrePas();
     try { PHUD.reinit({ equipes: !!o.equipes }); } catch (e) { signaler('hud.reinit', e); }
     try { PCONTROLES.reinit(); } catch (e) { signaler('controles.reinit', e); }
     if (compte) { compteT = 3.6; compteVu = -1; montrer('compte'); PCONTROLES.activer(false); astuce(true); }
@@ -201,7 +202,7 @@ const PUI = (() => {
     last = performance.now();
   }
   function quitter() { // la partie (et, en ligne, le salon) : retour au menu
-    astuce(false); jeu = null; force = null; PCONTROLES.activer(false); eveille(false); try { PHUD.reinit(); } catch (e) { /* rien */ }
+    astuce(false); jeu = null; force = null; aideVue = null; PCONTROLES.activer(false); eveille(false); try { PHUD.reinit(); } catch (e) { /* rien */ }
     if (ctl || enLigne) { quitterSalon(); montrer('copains'); } else montrer('titre');
   }
   function terminer(evFin) {
@@ -238,10 +239,12 @@ const PUI = (() => {
     if (jeu.aideVisee) { try { aide = jeu.aideVisee(idMoi, PCONTROLES.tactile ? 1 : 0); } catch (err) { aide = null; } }
     if (aide && PCONTROLES.tactile && PCONTROLES.actif) { // (en ligne, la partie continue pendant la pause : pas de tir auto)
       const ral = Math.max(0, Math.min(0.9, +aide.ralentir || 0)); e.dyaw *= 1 - ral; e.dpitch *= 1 - ral; // la visée ralentit sur une cible
+      PCONTROLES.attenuer(1 - ral); // et le regard affiché d'ici au pas suivant aussi (sinon il avance de 100 %, puis recule de ral)
       const bouge = e.dyaw !== 0 || e.dpitch !== 0 || e.avant !== 0 || e.cote !== 0 || e.tir;
       if (bouge) { const lim = 0.0436 * dt * 3; e.dyaw += Math.max(-lim, Math.min(lim, +aide.dyaw || 0)); e.dpitch += Math.max(-lim, Math.min(lim, +aide.dpitch || 0)); } // et s'aimante doucement, seulement quand on joue
       if (PCONTROLES.reglages.tirAuto && aide.surCible) { surDepuis += dt; if (surDepuis >= 0.12) e.tir = true; } else surDepuis = 0; // tir auto après ~120 ms sur la cible
-    } else surDepuis = 0;
+    } else { surDepuis = 0; PCONTROLES.attenuer(1); }
+    aideVue = aide; // le HUD des images sans pas (avantImage) garde l'aide du dernier pas
     entrees[idMoi] = e;
     let evs;
     try { evs = jeu.etape(dt, entrees) || VIDE; erreursEtape = 0; }
@@ -277,8 +280,10 @@ const PUI = (() => {
         if (!boucleFixe) boucleFixe = nouvelleBoucle();
         alpha = boucleFixe.avancer(dtBrut, pasJeu);
         if (enLigne && jeu && !finTraitee && typeof jeu.avantImage === 'function') { // le client : horloge et interpolation des autres, à chaque image
-          let evs = null; try { evs = jeu.avantImage(performance.now()); } catch (err) { signaler('jeu.avantImage', err); evs = null; }
-          if (evs && evs.length && jeu) traiter(evs, null);
+          // l'heure de l'IMAGE (l'horodatage de requestAnimationFrame, même base que performance.now) : pas celle d'après les pas,
+          // dont l'écart irrégulier (1 à 30 ms) ferait trembler les autres
+          let evs = null; try { evs = jeu.avantImage(now); } catch (err) { signaler('jeu.avantImage', err); evs = null; }
+          if (evs && evs.length && jeu) traiter(evs, aideVue);
         }
       } else if (ecran === 'compte' && jeu) {
         if (!enLigne) compteT -= dt; const n = Math.ceil(compteT - 0.6);
@@ -473,7 +478,7 @@ const PUI = (() => {
       astuce(false);
       jeu = P.jeu; idMoi = P.idMoi; enLigne = true; partieL = P; entrees = {}; entrees[idMoi] = null;
       const eq = !!(jeu.options && jeu.options.equipes);
-      optsPartie = { equipes: eq, enLigne: true }; finTraitee = false; surDepuis = 0; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null; remettrePas();
+      optsPartie = { equipes: eq, enLigne: true }; finTraitee = false; surDepuis = 0; aideVue = null; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null; remettrePas();
       try { PHUD.reinit({ equipes: eq }); } catch (e) { signaler('hud.reinit', e); }
       try { PCONTROLES.reinit(); } catch (e) { signaler('controles.reinit', e); }
       compteT = Math.max(0.5, +P.dans || 3.6); compteFin = performance.now() + compteT * 1000; compteVu = -1; montrer('compte'); PCONTROLES.activer(false); astuce(true);

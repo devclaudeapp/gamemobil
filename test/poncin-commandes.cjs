@@ -3,13 +3,14 @@
 //   les positions ne dépendent pas de la cadence des images (30, 60, 120 Hz, irrégulière) ;
 // - cumul : un glissé pendant des images sans pas n'est pas perdu (PCONTROLES.enAttente le montre, le pas suivant l'applique tout entier) ;
 // - fronts : un saut ou un appui bref sur Tir donnés pendant une image sans pas, ou avant une image de 2 pas, partent une fois et une seule ;
-// - le réglage « Balancement » est sauvegardé et transmis au rendu (PRENDU.reglages).
+// - le réglage « Balancement » est sauvegardé et transmis au rendu (PRENDU.reglages) ;
+// - l'aide à la visée à 120 Hz : un glissé sur une cible ne fait jamais reculer le regard affiché de plus de 0,15° (PCONTROLES.attenuer).
 // NODE_PATH=/opt/node22/lib/node_modules node test/poncin-commandes.cjs
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..');
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
-const PORT = 8794;
+const PORT = +process.env.PORT || 0; // 0 : un port libre (d’autres tests peuvent tourner en même temps)
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html';
   fs.readFile(path.join(root, p), (err, d) => { if (err) { res.writeHead(404); res.end(); return; } res.writeHead(200, { 'content-type': types[path.extname(p)] || 'application/octet-stream' }); res.end(d); });
@@ -31,7 +32,7 @@ const PAS = 1 / 60;
   const P = (f, a) => page.evaluate(f, a);
   const centre = (sel) => P((s) => { const b = document.querySelector(s); if (!b) return null; const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }, sel);
 
-  await page.goto(`http://localhost:${PORT}/poncin/`);
+  await page.goto(`http://localhost:${server.address().port}/poncin/`);
   await page.waitForFunction(() => window.__poncin && document.body.dataset.ecran === 'titre', null, { timeout: 30000 }).catch(() => {});
   check(await P(() => document.body.dataset.ecran === 'titre'), 'la page est prête (écran titre)');
 
@@ -54,7 +55,7 @@ const PAS = 1 / 60;
     const p = window.__poncin; p.manuel(true);
     const st = p.demarrer({ bots: 3, niveau: 'facile', graine: g });
     const j = p.jeu(), m = p.joueur();
-    j.aideVisee = null; // pas d'aide à la visée : on compare des angles exacts
+    if (!j.__aide) j.__aide = j.aideVisee; j.aideVisee = null; // pas d'aide à la visée : on compare des angles exacts (gardée pour plus bas)
     for (const e of j.entites) if (e.bot) { e.x += 300; e.z += 300; } // les robots au loin, pour ne pas être dérangé
     m.invincible = 999;
     p.images([1 / 60, 1 / 60, 1 / 60], { remettre: true }); // quelques pas pour se poser
@@ -150,6 +151,27 @@ const PAS = 1 / 60;
   await P(() => window.__poncin.images([0.01]));
   const v5 = await vu();
   check(v5a.pas === 0 && v5.pas === 1 && v5.saut === 1, `trois images sans pas gardent le saut pour le premier pas (${v5.saut} sur ${v5.pas})`);
+
+  // ─── l'aide à la visée à 120 Hz : le regard affiché ne recule jamais (le regard en attente est ralenti comme le pas l'appliquera) ───
+  await P(() => { // une cible à 15 m, un peu à droite du viseur ; l'aide à la visée en service, au doigt
+    const p = window.__poncin, j = p.jeu(), m = p.joueur(), b = j.entites.find((e) => e !== m);
+    if (j.__aide) j.aideVisee = j.__aide;
+    PCONTROLES.modeTactile(true);
+    p.tp(100, 10, 0); m.pitch = 0; m.ax = m.x; m.az = m.z; m.ay = m.y; m.vx = m.vz = 0; m.invincible = 1e9;
+    b.bot = false; b.x = m.x - 0.6; b.z = m.z - 15; b.y = j.monde.hauteur(b.x, b.z); b.ax = b.x; b.az = b.z; b.ay = b.y; b.vivant = true; b.invincible = 0; b.vie = 1e6;
+    p.viser(b.id); m.yaw += 0.06;
+    p.images([1 / 120, 1 / 120], { remettre: true });
+  });
+  const aideLa = await P(() => { const p = window.__poncin, j = p.jeu(); return typeof j.aideVisee === 'function'; });
+  if (aideLa) {
+    let gx = 560; await toucher('touchStart', [[gx, 120, 12]]); await P(() => window.__poncin.images([1 / 120]));
+    const vus = []; let ral = 0;
+    for (let i = 0; i < 90; i++) { gx += 1; await toucher('touchMove', [[gx, 120, 12]]); const r = await P(() => { const p = window.__poncin; p.images([1 / 120]); const a = p.jeu().aideVisee(p.etat().idMoi, 1); return { y: PRENDU._interne.camera.rotation.y, ral: a ? a.ralentir : 0 }; }); vus.push(r.y); if (r.ral > ral) ral = r.ral; }
+    await toucher('touchEnd', []);
+    let recul = 0, n = 0; for (let i = 1; i < vus.length; i++) { const d = vus[i] - vus[i - 1]; if (d > 0) { n++; recul = Math.max(recul, d); } }
+    check(ral > 0 && recul * 180 / Math.PI <= 0.15, `120 Hz, glissé sur une cible (aide ${ral.toFixed(2)}) : le regard affiché recule au plus de ${(recul * 180 / Math.PI).toFixed(3)}° (≤ 0,15° ; ${n} image(s) sur ${vus.length - 1})`);
+    await P(() => PCONTROLES.modeTactile(false));
+  } else check(false, "l'aide à la visée est là (jeu.aideVisee)");
 
   // ─── la boucle normale reprend ───
   await P(() => window.__poncin.manuel(false)); await sleep(500);
