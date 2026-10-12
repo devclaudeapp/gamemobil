@@ -3,7 +3,7 @@
    Repère : mètres ; un avatar a les pieds à y = 0 et regarde vers −z quand son lacet vaut 0 (le contrat : yaw positif vers l'ouest).
    Les modèles sont dessinés face à +z (comme PERSOS) puis tournés de π. Toute l'animation se fait sans allocation (champs d'Euler et
    de position écrits directement, géométries en cache échangées, matériaux partagés). Voir src-poncin/ARCHITECTURE.md (section rendu).
-   API : PAVATARS.creer(e) → av (av.groupe à poser dans la scène) ; cle(e) (l'apparence : recréer si elle change) ; animer(av, e, dt, t) ;
+   API : PAVATARS.creer(e) → av (av.groupe à poser dans la scène) ; cle(e) (l'apparence : recréer si elle change) ; animer(av, e, dt, t, x?, y?, z?) (la position affichée, sinon e.x…) ;
    tir(av) ; touche(av) ; bouche(av, v) (le bout du canon, en monde) ; liberer(av) ; blaster(id) → géométrie (canon vers −z, poignée à
    l'origine, mètres) ; BOUCHE[id] (le bout du canon dans ce repère) ; HAUTEUR.
    Appels de dessin : robot 4 (2 jambes, corps + tête + bras + blaster fusionnés, yeux) ; joueur 9 (les 7 du chibi, casque, blaster). */
@@ -15,6 +15,7 @@ const PAVATARS = typeof THREE === 'undefined' || typeof MODELES === 'undefined' 
   const hash = R ? R.hash : (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
   const NAVY = '#2B2A4C', GRIS = '#8E8AA8', GRIS_C = '#B9B5CF', CREME = '#FFF6E8', OR = '#FFC84A';
   const HAUTEUR = 1.65, K = HAUTEUR / 73; // un chibi de PERSOS (73 unités) ramené à 1,65 m
+  const HAUT_CHIBI = 0.025 / K; // le balancement du haut du corps d'un chibi (C3) : 2,5 cm, en unités de PERSOS
   const memo = (k, f) => { k = 'pav|' + k; let g = M.GEOS.get(k); if (!g) { g = f(); g.userData.cache = true; M.GEOS.set(k, g); } return g; };
   const couleurArme = (id) => { const a = R ? R.arme(id) : null; return a && a.couleur ? a.couleur : id === 'pompe' ? '#5FD3A4' : id === 'precision' ? '#B8A6FF' : '#FF6B8B'; };
   // une pièce orientée le long d'un segment (capsule ou cylindre centré sur Y) : de a à b
@@ -139,22 +140,24 @@ const PAVATARS = typeof THREE === 'undefined' || typeof MODELES === 'undefined' 
     if (av.robot) { if (av.corps.material !== m) { av.corps.material = m; av.jambes[0].material = m; av.jambes[1].material = m; av.yeux.material = on ? matLedRose : matLed; } }
     else if (av.casque.material !== m) { av.casque.material = m; av.P.corps.material = m; av.P.tete.material = m; }
   }
-  function animer(av, e, dt, t) {
+  // px, py, pz (facultatifs) : la position affichée (rendu.js l'interpole entre deux pas de la simulation) ; sinon e.x, e.y, e.z
+  function animer(av, e, dt, t, px, py, pz) {
     if (!(dt >= 0) || dt > 0.25) dt = 0;
     const g = av.groupe, vivant = e.vivant !== false;
     if (!vivant) { // éliminé : un petit « pop » (gonfle 0,12 s) puis plus rien, les confettis sont dans rendu.js
       if (av.vivant) { av.vivant = false; av.pop = 0; }
       if (av.pop >= 0 && av.pop < 0.12) { av.pop += dt; const k = 1 + av.pop * 2.5; av.racine.scale.set(k, 1.6 - k * 0.6, k); g.visible = true; flasher(av, true); }
       else { g.visible = false; av.pop = -1; }
-      av.px = e.x; av.pz = e.z; return;
+      av.px = px === undefined ? +e.x : px; av.pz = pz === undefined ? +e.z : pz; return;
     }
-    if (!av.vivant) { av.vivant = true; av.racine.scale.set(1, 1, 1); av.px = e.x; av.pz = e.z; av.flash = 0; flasher(av, false); }
-    const x = +e.x, y = +e.y, z = +e.z;
+    const x = px === undefined ? +e.x : +px, y = py === undefined ? +e.y : +py, z = pz === undefined ? +e.z : +pz;
+    if (!av.vivant) { av.vivant = true; av.racine.scale.set(1, 1, 1); av.px = x; av.pz = z; av.flash = 0; flasher(av, false); }
     if (!(x - x === 0 && y - y === 0 && z - z === 0)) { g.visible = false; return; } // une position invalide : on ne dessine pas
     // vitesse et phase de marche (une téléportation ne compte pas)
     const dx = x - av.px, dz = z - av.pz, d = Math.sqrt(dx * dx + dz * dz); av.px = x; av.pz = z;
     const v = d < 3 && dt > 0 ? d / dt : 0; av.vit += (Math.min(7, v) - av.vit) * Math.min(1, dt * 10);
-    if (d < 3) av.phase += d * TAU / (av.robot ? 1.25 : 1.5);
+    // C3 : la phase φ de la foulée, comme la caméra (PCORPS.camera) : un pas de 0,75 + 0,2·v m, φ += π·d/pas (une foulée de deux pas = 2π)
+    if (d < 3) { av.phase += Math.PI * d / (0.75 + 0.2 * av.vit); if (av.phase > 1e4) av.phase -= TAU * Math.floor(av.phase / TAU); }
     const marche = av.vit > 0.4, km = Math.min(1, av.vit / 4);
     g.position.x = x; g.position.y = y; g.position.z = z; g.rotation._y = (+e.yaw || 0) + Math.PI; tourner(g);
     // l'invincibilité du retour : il clignote
@@ -168,7 +171,7 @@ const PAVATARS = typeof THREE === 'undefined' || typeof MODELES === 'undefined' 
       const j0 = av.jambes[0], j1 = av.jambes[1], sw = marche ? s * 0.65 * km : 0;
       if (enLAir) { j0.rotation._x = -0.55; j1.rotation._x = 0.35; } else { j0.rotation._x = sw; j1.rotation._x = -sw; } tourner(j0); tourner(j1);
       const ec = 1 - av.accr * 0.42; j0.scale.y = j1.scale.y = ec; j0.position.y = j1.position.y = HANCHE * ec;
-      av.haut.position.y = HANCHE * ec + (marche ? Math.abs(s) * 0.045 * km : Math.sin(t * 2.2) * 0.006);
+      av.haut.position.y = HANCHE * ec + (marche ? 0.02 * km * (1 - Math.cos(2 * av.phase)) / 2 : Math.sin(t * 2.2) * 0.006); // C3 : 2 cm une fois par pas
       const hr = av.haut.rotation; hr._x = -av.pitch * 0.45 + 0.07 * km - av.recul * 0.22; hr._z = marche ? s * 0.05 * km : 0; tourner(av.haut);
       av.haut.position.z = -av.recul * 0.05;
       // les yeux : clignent, se plissent au tir, en croix quand il est touché
@@ -178,6 +181,8 @@ const PAVATARS = typeof THREE === 'undefined' || typeof MODELES === 'undefined' 
     } else {
       const o = av.o; o.marche = marche && !enLAir; o.phase = av.phase; o.t = t; av.cligne += dt; if (av.cligne > 3.4) av.cligne = 0; o.blink = av.cligne; o.expression = av.flash > 0 ? 'surpris' : 'sourire';
       PERSOS.animer(av.perso, o);
+      // C3 : PERSOS lève le haut du corps à |sin φ|·2/cos 52° unités (7 cm) ; on le réécrit à 2,5 cm·(1 − cos 2φ)/2, au même rythme que les jambes
+      if (o.marche) av.P.haut.position.y = HAUT_CHIBI * km * (1 - Math.cos(2 * av.phase)) / 2;
       const P = av.P, b0 = P.bras[0], b1 = P.bras[1], ax = -1.45 - av.pitch * 0.85 + av.recul * 0.3;
       b0.rotation._x = ax; b0.rotation._y = 0; b0.rotation._z = 0.5; b1.rotation._x = ax; b1.rotation._y = 0; b1.rotation._z = -0.5; tourner(b0); tourner(b1);
       av.visee.rotation._x = -av.pitch * 0.85 - av.recul * 0.3; tourner(av.visee); av.visee.position.z = -av.recul * 3;

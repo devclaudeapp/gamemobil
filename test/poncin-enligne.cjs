@@ -105,6 +105,17 @@ const URL0 = `http://localhost:${PORT}/poncin/?qualite=eco${RESEAU === 'supabase
   const ecartMax = (es) => { let m = 0; for (const id of Object.values(ids)) { const r = es[0].partie.entites.find((x) => x.id === id); for (const e of es.slice(1)) { const x = e.partie.entites.find((y) => y.id === id); m = Math.max(m, x && r ? Math.hypot(x.x - r.x, x.z - r.z) : 99); } } return m; };
   const ec1 = ecartMax(etats);
   check(ec1 < 0.5, `chacun voit les autres au même endroit (écart max ${ec1.toFixed(3)} m)`);
+  // le client donne à jeu.avantImage l'heure de l'IMAGE (l'horodatage de requestAnimationFrame), pas celle d'après les pas
+  const heure = await B.evaluate(async () => {
+    const j = window.__poncin.jeu(), av = j.avantImage, raf = window.requestAnimationFrame; let rafT = -1; const ecarts = [];
+    if (typeof av !== 'function') return { n: 0, max: -1 };
+    window.requestAnimationFrame = (f) => raf.call(window, (t) => { rafT = t; f(t); });
+    j.avantImage = function (now) { if (rafT >= 0) ecarts.push(Math.abs(now - rafT)); return av.call(this, now); };
+    await new Promise((r) => setTimeout(r, 1500));
+    j.avantImage = av; window.requestAnimationFrame = raf;
+    return { n: ecarts.length, max: ecarts.length ? Math.max(...ecarts) : -1 };
+  });
+  check(heure.n >= 3 && heure.max >= 0 && heure.max < 0.01, `B (client) donne à avantImage l'heure de l'image : ${heure.n} images, écart max ${heure.max} ms`);
 
   // ─── B repeint C ───
   const place = await A.evaluate(({ b, c }) => {

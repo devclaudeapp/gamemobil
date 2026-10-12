@@ -571,7 +571,7 @@ const PTEXTURES = (() => {
     const S = taille(TAILLES.mur), cle = 'bati|' + liste.join(',') + '|' + S;
     return memo(cle, () => {
       const t0 = now(), bases = liste.map((n) => (MURS[n] ? baseMur(n) : baseToit(n))), N = bases.length, data = new Uint8Array(S * S * 4 * N);
-      bases.forEach((b, i) => data.set(b.d, i * S * S * 4));
+      bases.forEach((b, i) => { const o = i * S * S * 4; data.set(b.d, o); b.d = data.subarray(o, o + S * S * 4); }); // chaque base lit désormais sa tranche de la texture en couches : plus de copie gardée en double (≈ 14 Mo en haute)
       const tx = new THREE.DataArrayTexture(data, S, S, N); tx.format = THREE.RGBAFormat; tx.type = THREE.UnsignedByteType;
       tx.wrapS = tx.wrapT = THREE.RepeatWrapping; tx.magFilter = THREE.LinearFilter; tx.minFilter = THREE.LinearMipmapLinearFilter; tx.generateMipmaps = true;
       tx.anisotropy = Q.aniso; tx.colorSpace = THREE.SRGBColorSpace; tx.name = cle; tx.needsUpdate = true; marquer(tx, Math.round(S * S * 4 * N * 4 / 3), cle);
@@ -594,8 +594,11 @@ const PTEXTURES = (() => {
         mat.customProgramCacheKey = () => 'ptex-bati';
         if (M) M.partager(mat); mat.userData.partagee = true; return mat;
       };
+      // vider() : le matériau reste enregistré dans MODELES.partager ; on lui retire les fermetures qui tiennent la texture et ses octets
+      // (il retombe sur les méthodes vides du prototype de Three) : rien de mort ne reste en mémoire
+      const liberer = () => { if (!mat) return; mat.dispose(); delete mat.onBeforeCompile; delete mat.customProgramCacheKey; mat = null; };
       compter('bati', t0);
-      return { texture: tx, noms: liste.slice(), couche, couleur, materiau, periode: [3, 3], taille: S, moyenne: (n) => { const m = moy.get(nomCouche(n)); return m ? '#' + m.map((v) => versS(v).toString(16).padStart(2, '0')).join('') : null; } };
+      return { texture: tx, noms: liste.slice(), couche, couleur, materiau, liberer, periode: [3, 3], taille: S, moyenne: (n) => { const m = moy.get(nomCouche(n)); return m ? '#' + m.map((v) => versS(v).toString(16).padStart(2, '0')).join('') : null; } };
     });
   }
 
@@ -802,7 +805,8 @@ const PTEXTURES = (() => {
         const m = new THREE.MeshLambertMaterial({ map: tx, alphaTest: 0.5, vertexColors: c, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }); m.name = 'ptex-details'; m.userData.partagee = true; if (M) M.partager(m); return (mats[c] = m);
       };
       compter('details', t0);
-      return { texture: tx, cellules, materiau, densite: D, noms: Object.keys(cellules) };
+      const liberer = () => { for (const k of Object.keys(mats)) { mats[k].dispose(); mats[k].map = null; delete mats[k]; } }; // vider() : les matériaux (gardés par MODELES.partager) lâchent l'atlas
+      return { texture: tx, cellules, materiau, liberer, densite: D, noms: Object.keys(cellules) };
     });
   }
 
@@ -938,7 +942,7 @@ const PTEXTURES = (() => {
   }
   function retour() { CACHE.forEach((v) => { const t = v && v.isTexture ? v : v && v.texture && v.texture.isTexture ? v.texture : null; if (t) t.needsUpdate = true; }); PAGES.forEach((p) => { p.tx.needsUpdate = true; }); } // après une perte du contexte WebGL
   function vider() { // libère vraiment tout (changement de qualité, fin du jeu) : les textures, les matériaux, les octets gardés
-    const vus = new Set(); CACHE.forEach((v) => { const t = v && v.isTexture ? v : v && v.texture && v.texture.isTexture ? v.texture : null; if (t && !vus.has(t)) { vus.add(t); t.dispose(); } if (v && v.materiau) { try { v.materiau().dispose(); if (v.cellules) v.materiau({ couleurs: true }).dispose(); } catch (e) { /* rien */ } } });
+    const vus = new Set(); CACHE.forEach((v) => { const t = v && v.isTexture ? v : v && v.texture && v.texture.isTexture ? v.texture : null; if (t && !vus.has(t)) { vus.add(t); t.dispose(); } if (v && v.liberer) { try { v.liberer(); } catch (e) { /* rien */ } } });
     PAGES.forEach((p) => { if (!vus.has(p.tx)) p.tx.dispose(); }); PAGES.length = 0; CACHE.clear(); BASES.clear(); CHAMPS = null; TOILES.clear(); ST.octets = 0; ST.textures = 0;
   }
   function stats() { return { textures: ST.textures, octets: ST.octets, mo: +(ST.octets / 1048576).toFixed(2), generees: ST.generees, bases: ST.bases, ms: +ST.ms.toFixed(1), detail: Object.fromEntries(Object.entries(ST.detail).map(([k, v]) => [k, +v.toFixed(1)])), phases: Object.fromEntries(Object.entries(ST.phases).map(([k, v]) => [k, +v.toFixed(1)])), parBase: Object.assign({}, ST.parBase), qualite: Q.niveau, pages: PAGES.length }; }

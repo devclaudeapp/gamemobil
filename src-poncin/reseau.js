@@ -17,7 +17,7 @@
        voie : comment ce joueur joint l'hôte : 'hote' (c'est l'hôte), 'p2p' (WebRTC direct), 'relais' (par le serveur, ≤ 5 envois/s), 'connexion' (en cours) ; 'local' sur la voie locale ;
        ping : aller-retour avec l'hôte en ms (0 pour l'hôte), mesuré toutes les 2 s (4 s en relais).
      salon.sur(type, fn(data, de)) → off      (types de l'application ; et 'joueurs' (liste), 'hote' ({ hote, avant }), 'ferme')
-     salon.envoyer(type, data, { fiable = true, a = null }) → bool   (client → hôte seulement ; hôte → a, ou tous si a = null)
+     salon.envoyer(type, data, { fiable = true, a = null }) → bool   (client → hôte seulement ; hôte → a, ou tous si a = null) ; un envoi à tous sérialise ses données une seule fois
        fiable : livré une fois, dans l'ordre (numéroté, acquitté, renvoyé si besoin, même en changeant de voie) ;
        non fiable : le dernier compte (en relais, seul le dernier de chaque type part, 5 fois/s au plus) ; jeté si le tampon dépasse 64 Ko.
      salon.majMoi({ pret, pseudo, couleur }), salon.stats(), salon.quitter()
@@ -362,12 +362,12 @@ const PRESEAU = (() => {
     }
 
     // ── envoi et réception ──
-    function envoyerSur(l, m, fiable) {
+    function envoyerSur(l, m, fiable, texte) { // texte : m déjà sérialisé (un envoi à tous ne sérialise ses données qu'une fois)
       if (l.ouvert && l.ch) {
         const c = fiable ? l.ch.evts : l.ch.etat;
         if (c.readyState === 'open') {
           if (!fiable && c.bufferedAmount > R.tampon) { st.jetes++; return false; } // le direct rame : l'état suivant remplacera celui-ci
-          try { const t = JSON.stringify(m); c.send(t); st.envoyes++; st.p2pEnv++; st.octets += t.length; return true; } catch (e) { /* plein ou fermé : le relais prend la suite */ }
+          try { const t = texte || JSON.stringify(m); c.send(t); st.envoyes++; st.p2pEnv++; st.octets += t.length; return true; } catch (e) { /* plein ou fermé : le relais prend la suite */ }
         }
       }
       if (m[0] === 0) l.relU.set(m[1], m); else if (m[0] === 1) l.relF.push(m); else l.relC.set(m[0], m); // relais : le dernier de chaque type, tous les fiables
@@ -447,12 +447,19 @@ const PRESEAU = (() => {
       let cibles;
       if (s.estHote) cibles = a ? [a] : Array.from(s.joueurs.keys()).filter((id) => id !== s.moi.id);
       else { if (!s.hote || s.hote === s.moi.id || (a && a !== s.hote)) return false; cibles = [s.hote]; } // étoile : un client ne parle qu'à l'hôte
-      let ok = false;
+      // les données ne sont sérialisées qu'une fois pour tous les liens directs (seul le numéro d'ordre des fiables change d'un lien à l'autre)
+      let ok = false, js = null, mu = null, tu = null;
       for (const id of cibles) {
         let l = liens.get(id);
         if (!l) { if (!s.joueurs.has(id) || id === s.moi.id) continue; l = nouveauLien(id); }
-        if (fiable) { const m = [1, l.q++, type, data]; l.nonAcq.push({ m, t: Date.now() }); envoyerSur(l, m, true); ok = true; }
-        else if (envoyerSur(l, [0, type, data], false)) ok = true;
+        const direct = l.ouvert && l.ch;
+        if (direct && js === null) { try { js = JSON.stringify(data); } catch (e) { js = 'null'; } if (js === undefined) js = 'null'; }
+        if (fiable) { const m = [1, l.q++, type, data]; l.nonAcq.push({ m, t: Date.now() }); envoyerSur(l, m, true, direct ? '[1,' + m[1] + ',' + JSON.stringify(type) + ',' + js + ']' : null); ok = true; }
+        else {
+          if (!mu) mu = [0, type, data];
+          if (direct && tu === null) tu = '[0,' + JSON.stringify(type) + ',' + js + ']';
+          if (envoyerSur(l, mu, false, direct ? tu : null)) ok = true;
+        }
       }
       return ok;
     };

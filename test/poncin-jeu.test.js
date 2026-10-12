@@ -728,11 +728,13 @@ if (fs.existsSync(vraie)) {
 
 titre('Modules purs');
 {
-  const src = ['jeu.js', 'bots.js', 'arene.js'].map((f) => fs.readFileSync(path.join(__dirname, '..', 'src-poncin', f), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''));
-  check(src.every((s) => !/Math\.random|Date\.now|performance\.now|document\.|window\.|THREE\./.test(s)), 'ni Math.random, ni horloge, ni DOM, ni THREE dans jeu.js, bots.js, arene.js');
+  const PURS = ['corps.js', 'armes.js', 'zones.js', 'jeu.js', 'bots.js', 'arene.js'];
+  const src = PURS.map((f) => fs.readFileSync(path.join(__dirname, '..', 'src-poncin', f), 'utf8').replace(/\/\*[\s\S]*?\*\/|\/\/.*$/gm, ''));
+  check(src.every((s) => !/Math\.random|Date\.now|performance\.now|document\.|window\.|THREE\./.test(s)), 'ni Math.random, ni horloge, ni DOM, ni THREE dans ' + PURS.join(', '));
   const vm = require('vm'), ctx = { self: {} }; vm.createContext(ctx);
-  for (const f of ['regles.js', 'monde.js', 'nav.js', 'bots.js', 'jeu.js', 'arene.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src-poncin', f), 'utf8'), ctx);
+  for (const f of ['regles.js', 'monde.js', 'nav.js', 'corps.js', 'armes.js', 'zones.js', 'bots.js', 'jeu.js', 'arene.js']) vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'src-poncin', f), 'utf8'), ctx);
   const S = ctx.self;
+  check(S.PCORPS && typeof S.PCORPS.deplacer === 'function' && S.PARMES && typeof S.PARMES.tirer === 'function' && S.PZONES && typeof S.PZONES.preparer === 'function' && S.PJEU.deplacer === S.PCORPS.deplacer, 'globales PCORPS, PARMES, PZONES (PJEU.deplacer = PCORPS.deplacer)');
   check(S.PBOTS && typeof S.PBOTS.penser === 'function' && S.PJEU && typeof S.PJEU.creer === 'function' && S.PARENE && S.PARENE.id === 'arene' && ['init', 'tick', 'surMort', 'apparition', 'objets', 'fini', 'resultat'].every((k) => typeof S.PARENE[k] === 'function'),
     'chargés comme dans la page (globales PBOTS, PJEU, PARENE ; crochets du mode)');
   let okPage = true; try { const m = S.PMONDE.creer(carteP), j = S.PJEU.creer({ monde: m, carte: carteP, mode: S.PARENE, graine: 1, options: { bots: 3 } }); j.ajouterJoueur({ id: 'moi', humain: true }); for (let i = 0; i < 600; i++) j.etape(DT, {}); okPage = j.erreurs === 0 && !!j.nav; } catch (e) { okPage = false; console.log('     ', e.stack); }

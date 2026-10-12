@@ -7,15 +7,15 @@ FPS cartoon sur la vraie carte de Poncin (01450). Ce fichier est le **contrat** 
 - **Unités** : mètres, secondes, radians. **Axes** : `x` vers l'est, `z` vers le **sud** (le nord est vers `-z`), `y` vers le haut (comme Three.js). Le monde s'étend de `-L/2` à `+L/2` en `x` et en `z` (`L = carte.taille`).
 - **Angles** : `yaw` = cap, 0 regarde vers le nord (`-z`), positif vers l'ouest (rotation Three.js autour de `y`, sens direct) ; direction du regard `d = (-sin(yaw)·cos(pitch), sin(pitch), -cos(yaw)·cos(pitch))`. `pitch` ∈ [-1.45, 1.45], positif vers le haut.
 - **Hasard** : jamais `Math.random()` dans les modules purs ; un générateur `rnd()` (mulberry32) est passé en paramètre, pour que les tests et le réseau rejouent la même chose.
-- **Modules purs** (`regles.js`, `monde.js`, `nav.js`, `bots.js`, `jeu.js`, `arene.js`, `carte-provisoire.js`) : aucun DOM, aucun THREE ; ils tournent dans Node. Gabarit UMD (comme `src/game.js`) :
+- **Modules purs** (`regles.js`, `monde.js`, `nav.js`, `corps.js`, `armes.js`, `zones.js`, `bots.js`, `jeu.js`, `arene.js`, `carte-provisoire.js`) : aucun DOM, aucun THREE ; ils tournent dans Node. Gabarit UMD (comme `src/game.js`) :
   ```js
   (function (root, factory) {
     if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'));
     else root.PJEU = factory(root.PREGLES);
   })(typeof self !== 'undefined' ? self : this, function (REGLES) { 'use strict'; /* … */ return { /* API */ }; });
   ```
-- **Globales du navigateur** : `PREGLES`, `PCARTEPROV`, `PMONDE`, `PNAV`, `PBOTS`, `PJEU`, `PARENE`, `PAVATARS`, `PRENDU`, `PSONS`, `PCONTROLES`, `PHUD`, `PUI`. Three.js (r158, global `THREE`) et `MODELES` (`src/modeles.js`, réutilisé tel quel : `boite`, `capsule`, `sphere`, `cylindre`, `cone`, `mat`, `MAT`, `part`, `assembler`, `maille`, `mesh`, `texture`, `dispose`, `partager`…) sont chargés avant. Sans WebGL ou sans Three.js, le jeu affiche un panneau clair au lieu de planter.
-- **Ordre de construction** (`build.js`) : `src/modeles.js`, `src/persos.js`, puis `regles.js`, `carte-provisoire.js`, `monde.js`, `nav.js`, `bots.js`, `jeu.js`, `arene.js`, `avatars.js`, `rendu.js`, `sons.js`, `controles.js`, `hud.js`, `ui.js` (point d'entrée).
+- **Globales du navigateur** : `PREGLES`, `PCARTEPROV`, `PMONDE`, `PNAV`, `PCORPS`, `PARMES`, `PZONES`, `PBOTS`, `PJEU`, `PARENE`, `PAVATARS`, `PRENDU`, `PSONS`, `PCONTROLES`, `PHUD`, `PUI`. Three.js (r158, global `THREE`) et `MODELES` (`src/modeles.js`, réutilisé tel quel : `boite`, `capsule`, `sphere`, `cylindre`, `cone`, `mat`, `MAT`, `part`, `assembler`, `maille`, `mesh`, `texture`, `dispose`, `partager`…) sont chargés avant. Sans WebGL ou sans Three.js, le jeu affiche un panneau clair au lieu de planter.
+- **Ordre de construction** (`build.js`) : `src/modeles.js`, `src/persos.js`, puis `regles.js`, `carte-provisoire.js`, `monde.js`, `nav.js`, `corps.js`, `armes.js`, `zones.js`, `bots.js`, `jeu.js`, `arene.js`, `avatars.js`, `textures.js`, `vegetation.js`, `decor.js`, `rendu.js`, `sons.js`, `controles.js`, `hud.js`, `reseau.js`, `enligne.js`, `ui.js` (point d'entrée). La page charge aussi `../vendor/three.min.js`, `../vendor/supabase.min.js` et `config.js`.
 - **Style** : low-poly arrondi pastel comme Le Fournil (`src/modeles.js`) ; blasters à peinture, impacts de peinture colorés, robots rigolos ; jamais de sang.
 - **Écran** : on joue **en paysage** (en portrait, un panneau « Tourne ton téléphone » ; les menus marchent dans les deux sens). Marges `env(safe-area-inset-*)`, joystick décalé du bord (le geste retour de Safari).
 - **Faits réels** : tout nom, toute forme particulière vient des données (OSM, BD TOPO) ; rien d'inventé (pas de portes de ville, pas d'intérieurs) ; le château et ses jardins (privés) ne sont visibles que de la rue, jamais accessibles.
@@ -68,22 +68,33 @@ Les polygones n'ont pas de point répété à la fin ; l'orientation est quelcon
 }
 Les chiffres exacts sont dans `regles.js` (source de vérité).
 ```
+Depuis le lot Gameplay, `PREGLES` porte aussi `JOUEUR` v2 (postures…), les 7 armes v2, `ARMES_ID`, `OBJETS.munitions`, `SALON`, `DEFAUT_REGLAGES`, `DEFAUT_EQUIP`, `normaliserReglages`, `equipementDe` : voir « Lot Gameplay : contrat » plus bas.
 
 ## `monde.js` → `PMONDE`
 
 ```js
 const monde = PMONDE.creer(carte);
 monde.L                                   // côté (m)
-monde.hauteur(x, z) → y                   // relief interpolé dans les triangles du maillage (voir « Relief »), sans les bâtiments
+monde.hauteur(x, z) → y                   // le sol où l'on marche : relief interpolé dans les triangles du maillage (voir « Relief »), sans les bâtiments,
+                                          // ou la chaussée d'un pont si elle est plus haute (C7 : les pieds ne s'enfoncent plus dans le tablier)
+monde.relief(x, z) → y                    // le maillage seul (le sol dessiné)
+monde.chaussee(x, z) → y | −Infinity      // la chaussée d'un tablier de pont (−Infinity hors des tabliers)
+monde.tabliers                            // [{ ax, az, bx, bz, ux, uz, vx, vz, len, w, demi, n, prof (Float64Array n + 1), max }] : le profil que rendu.js dessine ;
+                                          // chaussée = prof + PMONDE.CHAUSSEE (0,06 m) ; maçonnerie PMONDE.SUR_TABLIER (0,08 m) au-dessus du relief aux deux bouts
 monde.bloque(x, z, r) → bool              // le cercle (x, z, r) touche un bâtiment, une zone interdite, l'eau hors pont, ou sort du carré / de la zone limite
 monde.deplacer(x, z, dx, dz, r) → [x2, z2]  // déplacement d'un cercle qui glisse le long des murs (jamais à travers), en sous-pas si besoin
-monde.rayon(ox, oy, oz, dx, dy, dz, max) → { t, x, y, z, nx, ny, nz, quoi: 'mur' | 'toit' | 'sol', i } | null   // premier obstacle (bâtiments = prismes, toits plats ; terrain) ; d normalisé
+monde.rayon(ox, oy, oz, dx, dy, dz, max) → { t, x, y, z, nx, ny, nz, quoi: 'mur' | 'toit' | 'sol', i, de, k } | null   // premier obstacle (bâtiments = prismes ; voûtes ; troncs, murs, mobilier massif ; terrain) ; d normalisé
+                                            // de : 'batiment' | 'voute' | 'arbre' | 'mur' | 'mobilier' | 'terrain' ; k : indice dans carte.arbres / murs / mobilier, ou du passage
 monde.vue(ax, ay, az, bx, by, bz) → bool    // ligne de vue libre
 monde.libre(rnd, centre?, rayon?) → [x, z]  // un point libre au hasard
 monde.limite = { centre: [x, z], rayon } | null   // fixé par le mode (Arène : la zone de l'arène)
-monde.batiments                             // [{ p, h, t, base, aabb: [x0, z0, x1, z1] }] normalisés
+monde.batiments                             // [{ p, h, t, base, sommet, aabb: [x0, z0, x1, z1] }] normalisés (p à aire signée > 0)
+monde.passe(ax, az, bx, bz, r) → bool ; monde.dedans(x, z) → bool ; monde.pente(x, z) → [dh/dx, dh/dz] (partagé)
+monde.sousVoute(x, z) → indice du passage dont on est sous la voûte, sinon −1 ; monde.arche(p, x, z) → y de l'intrados du passage p
+monde.passages                              // normalisés pour rendu.js : [{ n, l, w, h, u, long, sol: [ya, yb], b, bats: [{ i, entree, sortie, coupes }] }]
+monde.couloirs (ponts), monde.interdits, monde.stats ; monde.accessible(x, z), branché par PNAV.creer (libre() évite les cours fermées)
 ```
-Implémentation : grille spatiale (cellules ~12 m) des arêtes de bâtiments, des zones interdites et de l'eau ; cercle contre segments ; rayon contre prismes (test dans le plan xz puis bornes en y) et marche sur le terrain.
+Implémentation : grille spatiale (cellules ~12 m) des arêtes (épaisses ou non) : murs des bâtiments, clôtures des zones interdites, berges hors des ponts, bord du carré, troncs des arbres mesurés (`[x, z, h, r, e]` ; rayon clamp(0,12 + 0,025·h ; 0,2 ; 0,6), le feuillage des feuillus laisse passer les tirs au-dessus de max(2,5 ; h/2) m, celui des conifères arrête tirs et vues sans gêner les pas), `carte.murs` (un muret ≤ 45 cm se franchit comme une marche), mobilier massif (fontaine, monument en cylindres étagés, croix, abribus) et les 4 bancs de la place (`monde.bancs [[x, z, yaw]]`, posés par monde.js, dessinés par decor.js) ; cercle contre segments ; rayon contre prismes (test dans le plan xz puis bornes en y) et marche sur le terrain. Le détail (voûtes en plein cintre, piédroits) est dans l'en-tête de `monde.js`.
 
 ## `nav.js` → `PNAV`
 
@@ -138,24 +149,28 @@ PBOTS.penser(bot, jeu, dt, rnd) → entree     // même forme qu'une entrée hum
 ```js
 PRENDU.init(canvas, carte, monde, { qualite }) → bool   // false sans WebGL
 PRENDU.taille(w, h)                                       // CSS px ; la résolution suit la qualité
-PRENDU.image(jeu, idCamera, dt, t)                         // place caméra et entités, rend ; jeu = null → survol cinématique de Poncin (écran titre, menus)
+PRENDU.image(jeu, idCamera, dt, t, alpha?)                 // place caméra et entités, rend ; jeu = null → survol cinématique de Poncin (écran titre, menus)
+                                                           // alpha ∈ [0, 1] (défaut 1) : la fraction du pas fixe en cours ; position affichée = a + (x − a)·alpha
+                                                           // (ax, ay, az, aoeil posés au début de chaque pas ; pas d'interpolation à travers une téléportation > 4 m)
+PRENDU.reglages({ balancement: 'normal' | 'doux' | 'aucun' }) → { balancement }   // le réglage du joueur (×1, ×0,5, ×0) transmis à PCORPS.camera
 PRENDU.evenements(evs, jeu)                                 // éclairs, traînées, impacts de peinture, morts
 PRENDU.qualite(q?) ; PRENDU.stats → { webgl, qualite, calls, triangles, geometries, textures, ms }
 PRENDU.projeter(x, y, z) → { x, y, devant }                 // pour le HUD (noms au-dessus des têtes)
 ```
-Le décor : sol = relief maillé (triangulation partagée) avec la photo aérienne (`carte.sol`, chemin relatif à `poncin/carte/`) ou un sol peint sur canvas à partir des rues, de l'eau et de la végétation ; bâtiments extrudés et **fusionnés** par tuiles de 150 m (≤ 16 maillages, chacun un appel de dessin, éliminés hors du champ) : un quad par arête de mur, toit à deux pans pour les emprises presque rectangulaires de moins de 400 m², en croupe pour les convexes de ≤ 8 sommets, plat avec acrotère sinon ; fenêtres en quads légèrement décollés tous les 3 m par étage de 2,8 m ; murs pastel (palette par hachage), toits tuile/ardoise ; bas des murs assombri (fausse occlusion). Eau translucide animée, ponts, arbres en `InstancedMesh`, ciel dégradé, brouillard selon la qualité ; château et zones interdites clôturés. Personnages (`avatars.js`) : joueurs = chibis de `PERSOS.creer` (src/persos.js, lecture seule ; 1 unité = 1 px du Fournil → mise à l'échelle vers 1,6 m) casqués aux couleurs de leur équipe, blaster à la main ; bots = robots arrondis pastel (antenne, yeux LED), animés sans allocation. Arme en vue subjective dans une **scène à part** (caméra proche, rendue après le monde avec `clearDepth`) : balancement, recul, recharge, éclair. Effets en pools : traînées, éclairs, impacts de peinture (`InstancedMesh` en anneau, orientés par la normale), confettis à l'élimination. Qualité adaptative (haute / moyenne / éco) reprise de `src/scene.js` (`?qualite=`, SwiftShader en éco ; ombres seulement en haute ; DPR plafonné) ; budgets : ≤ 110 / 90 / 70 appels de dessin, ≤ 300k / 200k / 120k triangles ; aucune allocation par image dans les chemins chauds ; contexte WebGL perdu → la simulation continue, le décor se reconstruit au retour.
+Le décor : sol = relief maillé (triangulation partagée) avec la photo aérienne (`carte.sol`, chemin relatif à `poncin/carte/`) ou un sol peint sur canvas à partir des rues, de l'eau et de la végétation ; bâtiments extrudés et **fusionnés** par tuiles de 150 m (≤ 16 maillages, chacun un appel de dessin, éliminés hors du champ), habillés selon leur matière réelle par `PTEXTURES` (voir « Authenticité ») ; les deux **passages voûtés** creusés en arcade (voir plus bas) ; végétation par `PVEGETATION`, mobilier, enseignes et horizon par `PDECOR`. Eau translucide animée, ponts de pierre, ciel peint, brume selon la qualité ; château et zones interdites clôturés. Le détail à jour est dans l'en-tête de `rendu.js`. Personnages (`avatars.js`) : joueurs = chibis de `PERSOS.creer` (src/persos.js, lecture seule ; 1 unité = 1 px du Fournil → mise à l'échelle vers 1,6 m) casqués aux couleurs de leur équipe, blaster à la main ; bots = robots arrondis pastel (antenne, yeux LED), animés sans allocation. Arme en vue subjective dans une **scène à part** (caméra proche, rendue après le monde avec `clearDepth`) : balancement sur la même phase de foulée que la caméra (C3), recul, recharge, éclair. Caméra du joueur (C1, C2) : `PCORPS.camera` sur la position affichée ; le regard affiché = celui de la simulation + `PCONTROLES.enAttente()` (visée sans latence). Avatars : `PAVATARS.animer(av, e, dt, t, x?, y?, z?)` (x, y, z : la position affichée), robots et chibis sur la phase de foulée (C3). Effets en pools : traînées, éclairs, impacts de peinture (`InstancedMesh` en anneau, orientés par la normale), confettis à l'élimination. Qualité adaptative (haute / moyenne / éco) reprise de `src/scene.js` (`?qualite=`, SwiftShader en éco ; ombres seulement en haute ; DPR plafonné) ; budgets : ≤ 110 / 90 / 70 appels de dessin, ≤ 300k / 200k / 120k triangles ; aucune allocation par image dans les chemins chauds ; contexte WebGL perdu → la simulation continue, le décor se reconstruit au retour.
 
 ## `controles.js` → `PCONTROLES`, `hud.js` → `PHUD`, `sons.js` → `PSONS`, `ui.js` → `PUI`
 
-- `PCONTROLES.init(racine, { tactile })` ; `PCONTROLES.lire() → entree` (remet les deltas à zéro) ; Pointer Events suivis par `pointerId`, `touch-action: none` ; joystick flottant à gauche (apparaît sous le pouce, rayon 60 px, zone morte 8 %), glisser à droite pour viser (≈ 0,22°/px, courbe d^1,15, Y inversable), bouton Tir (84 px, en bas à droite) qui vise aussi quand on le glisse, Saut, Recharge, Accroupi, emplacements d'armes ; tir automatique quand `jeu.aideVisee` dit `surCible` (réglage, activé par défaut au doigt) ; clavier par `event.code` (KeyW/A/S/D : marche aussi en AZERTY), Espace, R, C, 1-3, souris en pointer lock (≈ 0,0022 rad/px), Échap = pause, Tab = scores.
-- `PHUD.init(racine)`, `PHUD.maj(jeu, idJoueur, evs)` : viseur (s'élargit avec la dispersion, rouge sur une cible), marqueur de touche, vie/armure, munitions, chrono, fil des éliminations, minicarte, indicateur de direction des dégâts, tableau des scores, écran de fin.
+- `PCONTROLES.init(racine, { tactile })` ; boucle à pas fixe (§ 2) : `PCONTROLES.lire() → cumul` une fois par **image** (variations dyaw/dpitch additionnées, fronts saut / recharge / arme / appui bref sur Tir combinés par OU, niveaux avant / cote / tir / accroupi gardés), `PCONTROLES.consommer() → entree` une fois par **pas** (le premier pas de l'image prend variations et fronts, les suivants n'ont que les niveaux ; une image sans pas garde tout le cumul), `PCONTROLES.enAttente() → { dyaw, dpitch }` (les variations pas encore consommées, que le rendu ajoute au regard affiché), `PCONTROLES.attenuer(k)` (ui.js : k = 1 − ralentir de l'aide à la visée ; le regard en attente est montré × k, pour qu'il ne recule jamais au pas suivant — 120 Hz) ; objets réutilisés ; Pointer Events suivis par `pointerId`, `touch-action: none` ; joystick flottant à gauche (apparaît sous le pouce, rayon 60 px, zone morte 8 %), glisser à droite pour viser (≈ 0,22°/px, courbe d^1,15, Y inversable), bouton Tir (84 px, en bas à droite) qui vise aussi quand on le glisse, Saut, Recharge, Accroupi, emplacements d'armes ; tir automatique quand `jeu.aideVisee` dit `surCible` (réglage, activé par défaut au doigt) ; clavier par `event.code` (KeyW/A/S/D : marche aussi en AZERTY), Espace, R, C, 1-3, souris en pointer lock (≈ 0,0022 rad/px), Échap = pause, Tab = scores.
+- `PHUD.init(racine)`, `PHUD.maj(jeu, idJoueur, evs, aide)` (aide : `jeu.aideVisee` du dernier pas, gardée aussi pour les images où seul `avantImage` rend des événements) : viseur (s'élargit avec la dispersion, rouge sur une cible), marqueur de touche, vie/armure, munitions, chrono, fil des éliminations, minicarte, indicateur de direction des dégâts, tableau des scores, écran de fin.
 - `PSONS` : WebAudio synthétisé (comme Le Fournil) : tirs par arme, impacts, touche, élimination, pas, recharge, ramassage ; vibrations.
-- `PUI` : menus (choix du mode — Arène jouable, Extraction et Jour / Nuit « bientôt » —, solo : nombre et niveau des bots), pause, réglages (sensibilité, qualité, son), crédits « © IGN – © contributeurs OpenStreetMap », retour à la Salle de jeux (`window.PONCIN_ACCUEIL`), sauvegarde `poncin.v1` (réglages, records), crochets de test `window.__poncin`.
+- `PUI` : menus (choix du mode — Arène jouable, Extraction et Jour / Nuit « bientôt » —, solo : nombre et niveau des bots), pause, réglages (sensibilité, qualité, son), crédits « © IGN – © contributeurs OpenStreetMap », retour à la Salle de jeux (`window.PONCIN_ACCUEIL`), sauvegarde `poncin.v1` (réglages dont `balancement`, records), crochets de test `window.__poncin` (dont `manuel(oui)` : les images sont menées par le test ; `images(dts, { remettre })` : des images de durées données, chacune avec l'heure t synthétique, aussi passée à `avantImage` ; `compteurs()` → { pas, alpha, acc, pasDuree, max }).
+- **La boucle** (`ui.js`, § 2) : à chaque image, `PCONTROLES.lire()`, puis `PJEU.pasFixe({ pas: 1/60, max: 4 })` (au-delà de 4 pas de retard, le temps est perdu), puis en ligne chez le client `jeu.avantImage(now)` avec `now` = **l'horodatage de requestAnimationFrame** (pas `performance.now()` après les pas : son écart irrégulier ferait trembler les autres), puis `PRENDU.image(…, alpha)`.
 
 ## Tests
 
-- `test/poncin.test.js` (Node, dans la CI) : règles, collisions, rayons, A*, bots, une partie d'Arène simulée de bout en bout (bots contre bots, sans erreur, scores cohérents, rejouable à l'identique avec la même graine).
-- `test/poncin-play.cjs` (Playwright, iPhone simulé) et `test/poncin-scene.cjs` (captures).
+- `test/poncin.test.js` (Node, dans la CI) lance `poncin-carte`, `poncin-monde`, `poncin-corps`, `poncin-armes`, `poncin-salon`, `poncin-zones`, `poncin-jeu` et `poncin-enligne-sim` (`*.test.js`) : règles, collisions, rayons, A*, bots, postures et caméra, armes, réglages, zones, une partie d'Arène simulée de bout en bout (bots contre bots, sans erreur, scores cohérents, rejouable à l'identique avec la même graine), et le jeu en ligne simulé (enligne.js tel quel dans vm, faux salon direct / relais / mauvais : à-coups des autres, recalages, rejets, appuis brefs sur Tir, tricheurs, gigue de l'heure d'image ; ~5 s).
+- Playwright (`NODE_PATH=/opt/node22/lib/node_modules node test/….cjs`) : `poncin-play` (iPhone simulé), `poncin-scene` (captures), `poncin-camera` (balancement 2–3,5 Hz, œil lissé, arme au même rythme), `poncin-commandes` (pas fixe, cumul, fronts, réglage Balancement, aide à la visée à 120 Hz), `poncin-enligne` (trois pages, voie locale ; aussi `RESEAU=webrtc-local` et, sur GitHub Actions, `RESEAU=supabase`), `poncin-reseau`, `poncin-en-ligne-ci` (Supabase réel, workflow `en-ligne.yml`, qui lance aussi `poncin-commandes` et `poncin-camera`).
 
 ## Authenticité (extension du format de carte v1 : champs facultatifs, rétrocompatibles)
 
@@ -190,8 +205,8 @@ Le bourg de Poncin a des **passages voûtés** qui traversent les maisons pour r
 ```js
 passages: [{ l: [[x, z], [x, z]], w: 3.2, h: 3.4, b: [indices des bâtiments traversés], n: 'Porte Bouvent' }]   // couloir sous les bâtiments, voûte en berceau de hauteur h
 ```
-- `monde.js` : dans un passage, les murs du bâtiment ne bloquent ni le joueur ni les tirs sous la voûte (y < base + h) ; au-dessus, le bâtiment reste plein ; `nav.js` y fait passer les chemins.
-- `rendu.js` : arcade en plein cintre découpée dans les deux façades, intérieur voûté en pierre (berceau, piédroits, pavés), éclairage plus sombre dedans.
+- `monde.js` : dans un passage, les morceaux de façade compris dans le couloir disparaissent au sol et ses côtés deviennent des piédroits ; les tirs passent sous l'intrados en plein cintre (naissance à h − w/2, clé à h) et le bâtiment reste plein au-dessus ; `sousVoute(x, z)` et `arche(p, x, z)` servent au rendu (l'arme s'assombrit dessous) ; `nav.js` y fait passer les chemins. La fabrique de carte (`outils/carte/construire.js --passages`) les produit à partir d'OSM.
+- `rendu.js` : arcade en plein cintre découpée dans les façades d'entrée et de sortie (`monde.passages[].bats[].coupes`), archivolte de pierre de taille, intérieur voûté en moellons (berceau, piédroits, pavés) dans un maillage à part que seul le ciel éclaire, plus sombre dedans.
 - **Bâtiments remarquables**, reconnaissables d'après les données (OSM `name`, `shop`, `amenity`) : la mairie (« Hôtel de ville de Poncin » : drapeaux tricolores, inscription MAIRIE, horloge), le bureau de tabac (« Bureau de Tabac Presse » : losange rouge « carotte » TABAC et bandeau PRESSE), la banque (« Crédit Agricole » : bandeau au nom, sans logo de marque), La Poste, le Bar des Sports (terrasse), la boulangerie « Aux Pains Dorés », le Petit Casino, l'office de tourisme, la pharmacie… ; l'église Saint-Martin et le château gardent leur traitement à part.
 - Références visuelles autorisées : les données ouvertes, les images de rue libres **Panoramax** (Licence Ouverte ou CC-BY-SA, comme référence de formes et de couleurs) et les photos que le joueur fournit lui-même. **Jamais Google Maps ni Street View** (leurs conditions interdisent d'en extraire ou d'en dériver du contenu).
 
@@ -202,9 +217,129 @@ passages: [{ l: [[x, z], [x, z]], w: 3.2, h: 3.4, b: [indices des bâtiments tra
 **Synchronisation** (`enligne.js` → `PENLIGNE`, glue entre `PRESEAU`, `PJEU` et l'interface) : l'**hôte fait autorité** (il simule toute la partie avec `PJEU`, robots compris) ; chaque client envoie ses commandes et affiche l'état reçu.
 - `reglages` (hôte → tous, fiable) : { mode: 'arene', bots, niveau, equipes } ; les clients signalent `pret` par `salon.majMoi`.
 - `lancer` (hôte → tous, fiable) : { graine, options, joueurs: [{ id, pseudo, couleur, equipe }], depart } → compte à rebours commun.
-- `entree` (client → hôte, non fiable, 30 Hz) : { n, avant, cote, yaw, pitch (absolus), tir, saut, accroupi, recharge, arme, x, z (position prédite, pour contrôle) } ; l'hôte garde la dernière reçue et l'applique à chaque pas (`PJEU` accepte `yaw`/`pitch` absolus dans une entrée en plus de `dyaw`/`dpitch`).
-- `etat` (hôte → tous, non fiable, 20 Hz) : { n, t, e: [[id, x, y, z, yaw, pitch, vie, armure, drapeaux, arme, kills, morts, points], …], o: objets disponibles, reste } (nombres arrondis) ; les clients affichent les autres avec ~100 ms de retard interpolé, et **prédisent leur propre déplacement** localement (même physique que `PJEU`), recalés en douceur sur l'hôte (net si l'écart dépasse 2 m).
+- `entree` (client → hôte, non fiable, tous les 2 pas de 1/60 s = 30 Hz ; ~185 o en direct, ~340 o en relais) : `{ k, n, tc /* ms, horloge du client */, av, co, ya, pi /* regard absolu */, ti /* a tiré depuis l'entrée d'avant */, nt /* tirs montrés depuis le début */, sa, ac, re, ar, x, y, z, vy, sol, m, v, tv, ae, ad, tr: [[Δtc, x, y, z, po], …] }` ; les champs nuls (co, ti, sa, ac, re, ar, tr) sont omis et lus comme 0 / false / null ; `tr` : les positions des pas depuis l'entrée précédente (en relais, les 270 dernières ms, un pas sur deux) ; saut, recharge et arme sont tenus 150 ms (450 ms en relais).
+- **Piste chez l'hôte** (C5, § 9.1) : 32 échantillons par client, datés à son horloge, validés à l'arrivée — vitesse à l'horloge du client (`(vmax × 1,25 + 1)·Δtc`), **et un seau rempli au temps de l'hôte** (`vmax × 1,15 + 0,3` m/s, 3 m au plus) où chaque déplacement accepté puise sa distance (un tc qui court devant, une reprise sur deux, des `v = 0` : aucune vitesse en plus ; un client sans tc passe par le même seau), pas dans un mur, hauteur, mêmes morts ; un refus = accusé négatif et reprise de la simulation de l'hôte au dernier point valide. Lecture retardée de `max(45 ms ; 1,3 × intervalle + 2,5 × gigue)` à une heure qui avance d'environ dt (±5 %), prolongée 100 ms puis tenue ; sans nouvelles depuis 250 ms l'hôte reprend sa simulation. Un `v = 0` alors que l'hôte le voit vivant est ignoré (la piste est tenue).
+- **Tirs comptés** : le client compte les tirs qu'il montre (`nt`) ; l'hôte en fait autant (`en.tir` tant que `nt` > tirs faits, un tir par pas au plus quel que soit le nombre de plombs) : un appui bref perdu, reçu dans le désordre ou écrasé par le relais n'est plus perdu, un appui tenu n'est pas doublé ; une dette impayable en 600 ms (mort, recharge) s'éteint. Un client sans `nt` est servi au niveau `ti`.
+- `etat` (hôte → tous, non fiable, 20 Hz) : { n, t, e: [[id, x, y, z, yaw, pitch, vie, armure, drapeaux, arme, kills, morts, points, …munitions, ack], …], o: objets disponibles, reste } (nombres arrondis) ; les clients **prédisent leur propre déplacement** (même physique que `PJEU`, un pas fixe à la fois), recalés en douceur sur l'hôte (net au-delà de 2 m, 8 m s'il est accusé).
+- **Horloge douce chez le client** (C6, § 9.2) : `jeu.avantImage(maintenant) → événements` (façade du client, appelée par ui.js à chaque image avec l'heure de l'image) suit l'horloge de l'hôte à ±5 % (net au-delà de 0,25 s), fait glisser le retard d'interpolation (±5 % de dt, ≥ 100 ms) et interpole les autres à cette heure (`ax = x` : le rendu ne les interpole pas une seconde fois) ; `jeu.etape(1/60)` ne fait plus que la prédiction et l'entrée (sans `avantImage`, etape fait tout comme avant). L'hôte en arrière-plan rattrape par pas fixes de 1/60 s (au plus 1 s).
+- `partie.stats()` : chez l'hôte `{ hote: true, messagesParClientParS, envoyes, t, clients: [{ id, rtt, adopte, retard, intervalle, piste, D, gigue, rejets, teleports, prolonge, seau, tirs, dette }] }` ; chez le client `{ hote: false, recusParS, envoyesParS, recus, envoyes, t, cale, retard, tampon, recalage, cales, douces, delai, delaiEff, sautsHorloge, prolonge, parImage, intervalle }`.
 - `evts` (hôte → tous, fiable, groupés par pas) : les événements utiles à l'image et au son (tir, touche, mort, reapparition, ramasse, annonce) ; `fin` : le résultat.
 - Tirs : l'hôte les résout avec **compensation de latence** (il « rembobine » les autres joueurs de rtt/2 + 100 ms grâce à un historique d'1 s des positions) ; le client montre tout de suite l'éclair et la traînée, le marqueur de touche arrive avec `evts`.
 - Départs : un client muet 10 s est retiré ; si l'hôte part, les clients voient « L'hôte a quitté la partie » et l'écran de fin.
 - Interface : « Avec les copains » → Créer un salon (gros code, Partager le lien, Copier) / Rejoindre (taper le code) → salon (joueurs, ping et voie, l'hôte règle robots / niveau / équipes et lance) → partie (même HUD) → fin (l'hôte peut relancer). Pseudo par défaut tiré de listes (« Castor Turbo 42 »), modifiable dans les réglages.
+
+## Lot Gameplay : contrat
+
+Déplacements fluides, postures, nouvelles armes à deux emplacements, visée, réglages du salon (6 joueurs), zones de la carte, heure et météo. Les **chiffres** et leurs mesures sont dans la conception du lot Gameplay (§ 1 à 14, avec les décisions du joueur) : ce chapitre n'en reprend que les noms et les formes. Légende : **[branché]** = en service dans la partie d'aujourd'hui ; **[prêt]** = écrit et testé dans Node, pas encore appelé par l'interface ; **[lot 2/2]** = à faire.
+
+**Règle de cette phase** : la partie se joue comme avant (mêmes armes, mêmes chiffres, mêmes écrans), sauf l'accélération devenue indépendante du pas (`k = 1 − e^(−14·dt)` au sol, `1 − e^(−2,2·dt)` en l'air, au lieu de `min(1, 14·dt)`) et la **livraison 1 « Fluidité »** (C1–C7 : balancement calé sur la foulée et réglage Balancement, œil lissé, arme et avatars sur la même foulée, pas fixe de 1/60 s et interpolation du rendu, piste chez l'hôte, horloge douce chez le client, sol des ponts). Le reste attend que les commandes v2 envoient ses niveaux.
+
+### Modules et ordre de construction
+
+| élément | état |
+|---|---|
+| `corps.js` → `PCORPS`, `armes.js` → `PARMES`, `zones.js` → `PZONES` (modules purs) | **[branché]** (jeu.js passe par eux) |
+| `build.js` : … `regles`, `carte-provisoire`, `monde`, `nav`, **`corps`, `armes`, `zones`**, `bots`, `jeu`, `arene`, `avatars`, … `ui` | **[branché]** |
+| `PJEU.deplacer` = `PCORPS.deplacer` ; `PJEU.dispersion` = `PARMES.dispersion` ; `PJEU.tirVisuel` = `PARMES.tirVisuel` | **[branché]** |
+| `PJEU.pasFixe` (boucle à pas fixe) ; `PCONTROLES.lire()` (cumul) / `consommer()` / `enAttente()` / `attenuer(k)` | **[branché]** (livraison 1 « Fluidité ») |
+| `PCORPS.camera` (C1 + C2), arme et avatars sur la phase de foulée (C3), `PRENDU.image(…, alpha)`, `PRENDU.reglages({ balancement })` | **[branché]** |
+| piste chez l'hôte (C5), horloge douce et `jeu.avantImage` (C6), tirs comptés (`nt`), seau de déplacement | **[branché]** (format d'entrée v1 + `tc`, `tr`, `nt`) |
+| sol des ponts (C7) : `monde.hauteur` suit les tabliers ; `monde.relief`, `monde.chaussee`, `monde.tabliers` | **[branché]** |
+| `PJEU.creer` : options = réglages normalisés, paramètre `zone` ; `jeu.peutBlesser`, `jeu.vieMax`, `jeu.armureMax` ; crochet de mode `apresNav` | **[lot 2/2]** |
+| instantané v2 (`ligneDe` / `lireLigne`, § 9.3) ; entrée réseau v2 (cr, cc, vi, po, oe ; validation de posture ; `en.origine`) | **[lot 2/2]** (le format v1 reste ; `ARMES_ID` s'allonge seulement) |
+| `PMONDE.limiteDe` et `monde.limite` v2 | **[lot 2/2]** (monde.js) |
+| `PRENDU.ambiance({ heure, meteo })` ; commandes v2 (course, couché, visée, emplacements dans le même cumul) ; HUD v2 ; `PRESEAU` VERSION 2, salon de 6, budget de relais (`httpSend` sur `poncin:CODE:h`, `relaisComptesParS`) | **[lot 2/2]** |
+
+### La boucle à pas fixe (§ 2) — `PJEU.pasFixe` [branché]
+
+```js
+const boucle = PJEU.pasFixe({ pas: 1 / 60, max: 4 });
+const alpha = boucle.avancer(dtImage, (pas) => { /* un pas de simulation : jeu.etape(pas, entrees) */ }); // acc = min(acc + dt, max·pas) ; tant que acc ≥ pas : fnPas(pas), acc −= pas ; alpha = acc / pas ∈ [0, 1[
+boucle.remettre();   // acc = 0 (pause, reprise)
+```
+Au début de **chaque pas**, `jeu.etape` copie `(x, y, z, oeil)` de chaque entité dans `(ax, ay, az, aoeil)` ; une téléportation (`placer` à l'apparition, un saut de plus de 4 m dans `lireLigne`) fait `ax = x`. Le rendu montre `a + (x − a)·alpha`. Les commandes d'une image : variations additionnées, fronts combinés par OU, niveaux gardés (§ 2). `DT_MAX` (1/20 s) reste pour `etape` appelé directement.
+
+### Le corps (§ 3) — `PCORPS` (corps.js)
+
+```js
+PCORPS.deplacer(e, en, dt, monde, A) → MV { dep, saut, glisse /* début de glissade */, atterrit /* vy à l'atterrissage ou 0 */, refus /* 'couche' | null */ }  // MV réutilisé
+PCORPS.capsule(e) → { ax, ay, az, bx, by, bz, r, tete: { haut } | { x, y, z, r } }    // objet réutilisé ; debout / accroupi / glissade : axe vertical ; couché : axe le long du regard + sphère de tête
+PCORPS.rayon(ox, oy, oz, dx, dy, dz, e, tMax) → t | −1    // PCORPS.TOUCHE = { y, tete, cx, cy, cz } (point de l'axe le plus proche : la normale de l'impact)
+PCORPS.oeil(e), PCORPS.haut(e), PCORPS.vitesseMax(e, A, monde, dx?, dz?), PCORPS.peutCoucher(e, monde), PCORPS.changerPosture(e, vers, duree)
+PCORPS.POSTURES = ['debout', 'accroupi', 'glisse', 'couche'], PCORPS.NEUTRE, PCORPS.estV2(en)
+PCORPS.camera(opts?) → f(e, dt) → { y, cote, roulis, k, phase }   // opts.balancement : 'normal' | 'doux' | 'aucun' ; f.regler(opts), f.remettre() ; objet rendu réutilisé
+```
+- **Deux régimes, choisis par l'entrée.** Entrée *historique* (aucun des niveaux `course`, `couche`, `vise`) : le déplacement d'avant, accroupi immédiat (2,4 m/s, œil 1,0, capsule 1,2), seul `k` a changé **[branché]**. Entrée *v2* (au moins un de ces niveaux, même à `false`) : postures et transitions linéaires (0,18 s accroupi, 0,6 / 0,45 s couché, 0,1 s pour se relever en sautant), course à 7,0 m/s (avant ≥ 0,7, ≤ 40°, vise < 0,1, sans tir ; tirer la coupe et `e.remonte = 0,18 s`), glissade (front accroupi en course à ≥ 6 m/s, attente 0,8 s), couché (place 0,8 m, pente ≤ 35 %, refus `{ t: 'refus', id, quoi: 'couche' }`), réception (vy < −7 → ×0,5 pendant 0,25 s), facteurs arme / visée / pente **[prêt]**. `e.corpsV2` dit quel régime a joué le dernier pas ; `PCORPS.oeil` / `haut` / `capsule` d'une entité historique se lisent sur `e.accroupi`.
+- Les minuteries du corps (`relanceA`, `receptionA`, `remonte`) sont des **durées restantes** (s), pas des dates : la prédiction du client n'a pas besoin d'horloge.
+- **Caméra** : y = œil lissé (Holt, `a = 1 − e^(−dt/0,05)`, `b = 1 − e^(−dt/0,09)`, net au-delà de 0,6 m) − A·(1 − cos 2φ)/2 + creux d'atterrissage (−min(0,10 ; 0,02·|vy|), ressort ω = 14/s) ; φ += π·d/(0,75 + 0,2·v) ; A = 1,2 cm debout, 1,8 en course, 0,6 accroupi, 0 couché ou en glissade, ×0,2 en visée ; côté 0,6 cm·sin φ, roulis 0,0025·sin φ. `phase` sert à l'arme subjective et aux avatars (C3). Le tir part toujours de l'œil de la simulation.
+
+**Entité v2** (valeurs par défaut posées par `ajouterJoueur` et `placer`) : `posture`, `vers`, `transition` (s restantes), `oeil`, `hautCapsule`, `corpsV2` ; `course`, `gv`, `gdx`, `gdz` (glissade), `relanceA`, `receptionA`, `remonte` ; `vise` (0..1), `viseStable` (s) ; `accroupiPrec`, `couchePrec` (fronts) ; `ax`, `ay`, `az`, `aoeil` ; `armes`, `slot` (0 | 1), `equip` (`null` = équipement historique, ou `{ p, s }`), `changeJusqua`, `changeReste`. `e.accroupi` reste (`posture ≠ 'debout'`).
+
+**Entrée v2** : `{ avant, cote, dyaw, dpitch | yaw, pitch, tir, saut, accroupi, couche, course, vise, recharge, arme: null | 0 | 1 (emplacement) | id (compat), changer (front), origine? }`. Accroupi, couché, course et visée sont des **niveaux** (une entrée perdue ne perd rien ; la simulation trouve elle-même le front accroupi de la glissade). `origine` (tir d'un client depuis sa position) : **[lot 2/2]**.
+
+### Les armes (§ 4, § 5) — `PARMES` (armes.js) et `PREGLES.ARMES`
+
+```js
+PARMES.dispersion(e, A), PARMES.tirer(e, jeu, out), PARMES.tirVisuel(e, monde, entites, rnd, out),
+PARMES.majVisee(e, en, dt), PARMES.changer(e, slot | id, jeu) → bool, PARMES.recharger(e, jeu, out), PARMES.finirRecharge(e), PARMES.equiper(e, equip, reglages),
+PARMES.agir(e, en, dt, jeu, out)   // un pas d'armes : changement, fin de recharge, recharge, tir, recharge auto, viseur qui se referme
+PARMES.utile(e, O), PARMES.prendre(e, O, jeu)   // objets 'arme' et 'munitions' (soin et armure restent dans jeu.js)
+PARMES.peutTirer(e), PARMES.secours(e)          // pas de tir en course, pendant la remontée de l'arme, ni en transition vers / depuis couché ; l'arme jamais à sec
+```
+- Le tir utilise `jeu.temps`, `jeu.dt` (le pas en cours), `jeu.rnd`, `jeu.monde`, `jeu.entites`, `jeu.ennemis` et des crochets exposés par `PJEU` pour ce module : `jeu.rembobiner(tireur)`, `jeu.restaurer()`, `jeu.blesser(cible, de, degats, tete, arme, out)`, `jeu.faireBruit(e, portee)`. L'historique de compensation de latence garde la posture, la hauteur de capsule et le yaw.
+- **Régime historique** (`e.equip === null`, la partie actuelle) **[branché]** : rafale au départ, armes ramassées ajoutées à `e.armes`, arme vide de tout lâchée, le rafale jamais à sec, changement en 0,3 s, dispersion d'avant ; le Long-tir garde **0,0015 rad à la hanche** (`A.dispersionAvantVisee`) tant que la visée n'est pas branchée — la table v2 dit 0,03 (× 0,05 en visée).
+- **Emplacements** (`ajouterJoueur({ …, equip })`) **[prêt]** : `e.armes = [principale, secondaire]`, secondaire jamais sous un chargeur de réserve, changement en `A.changement` (annule recharge et visée), arme ramassée = nouvelle principale jusqu'à la mort, objet `munitions` = deux réserves pleines, dispersion v2 (§ 4 : posture, visée, stabilisation de la lunette en 0,35 s, mouvement ×(1 − 0,5·vise), recul ×(1 − 0,3·vise)).
+- **Armes** : `ARMES_ID = ['rafale', 'pompe', 'precision', 'carabine', 'petoire', 'arroseuse', 'arrosoir', 'splash']` (ordre du réseau, ne fait que s'allonger ; `splash` réservé). Champs : `id, nom, role ('principale' | 'secondaire'), option?, modele, degats, plombs, cadence, semiAuto, chargeur, reserve, recharge, dispersion, dispersionMouvement, portee, chute, tete, recul, vitesse, changement, gonfle, visee: { viseur: 'aucun' | 'point rouge' | 'lunette', zoom, dispersion (facteur), vitesse (facteur), entree (s), oeil (point de mire du pack : null en attendant) }, couleur`. `GONFLE` de jeu.js est remplacé par `A.gonfle`.
+- Duels robot contre robot (§ 14) et choix d'arme des robots (§ 11) : **[lot 2/2]**.
+
+### Réglages du salon (§ 6) — `PREGLES`
+
+```js
+SALON = { max: 6, zones, durees: [180, 300, 600, 0], scores: [10, 25, 50], heures, meteos, vies: { normale, unCoup, costaud }, reapparitions: { rapide: 3, normale: 6, lente: 10, aucune: -1 }, manches: [1, 3, 5] }
+DEFAUT_REGLAGES = { v: 2, mode: 'arene', zone: 'centre', duree: 180, score: 25, heure: 'jour', meteo: 'clair', equipes: false, bots: 4, niveau: 'normal',
+  tirAllie: false, vie: 'normale', reapparition: 'rapide', manches: 3 /* « dernier debout » : lu seulement si reapparition = 'aucune' */, objets: true, aide: true,
+  armes: ['rafale', 'pompe', 'precision', 'carabine', 'petoire', 'arroseuse'] }
+DEFAUT_EQUIP = { p: 'rafale', s: 'petoire' }
+normaliserReglages(r, { humains }) → copie bornée   // inconnu → défaut ; booléens stricts ; bots ≤ 6 − humains ; armes ⊂ ARMES (ordre du réseau), au moins une principale et une secondaire
+equipementDe(demande /* { p, s } ou 'p+s' */, reglages) → { p, s }   // DEFAUT_EQUIP s'il est permis, sinon la première arme permise de l'emplacement
+armesPermises(liste) → liste normalisée
+```
+**[prêt]** ; leur usage dans la partie (durée 0, score, vie, tir allié, réapparition « aucune » en manches, aide) : **[lot 2/2]**.
+
+### Zones (§ 7) — `PZONES` (zones.js)
+
+```js
+PZONES.preparer(carte, monde, nav, id, rnd) → { id, demande, nom, limite, englobant: { centre, rayon }, apparitions: [[x, z], …], objets: [[x, z, objet], …], aire, avertissement? }
+PZONES.distanceReapparition(zone) → clamp(0,32 · rayon englobant, 15, 60)     // 35 m pour 'centre'
+PZONES.IDS, PZONES.NOMS
+```
+`rnd` = `mulberry32(graine ^ 0x2F6E2B1)` (à part, pour que `jeu.rnd` reste le même chez l'hôte et la façade). **'centre'** reprend telles quelles les zones de la carte (`zones.arene`, `apparitions`, `armes`) **[prêt]** ; les autres zones rendent 'centre' avec `avertissement` en attendant `PMONDE.limiteDe` **[lot 2/2]** (rivières = le Veyron dans le bourg et ses deux ponts, décision du joueur).
+
+### Instantané v2 (§ 9.3) — **[lot 2/2]**
+
+Ligne `[id, x, y, z, yaw, pitch, vie, armure, drapeaux, arme, kills, morts, points]`, plus pour les humains `[p, s, mP, rP, mS, rS, recharge restante, ack]` (p, s : indices dans `ARMES_ID`). Drapeaux : 1 vivant, 2 au sol, 4 accroupi (posture ≠ debout), 8 invincible, 16 en recharge, 32 couché, 64 glissade, 128 course, 256 vise ≥ 0,5, 512 en transition, 1024 lampe. `PRESEAU` VERSION 2 (« Mets le jeu à jour : recharge la page »). Aujourd'hui `ligneDe` / `lireLigne` gardent le format v1 (munitions des trois premières armes de `ARMES_ID`).
+
+### Récapitulatif (§ 13)
+
+| élément | changement |
+|---|---|
+| Nouveaux modules purs | corps.js → PCORPS ; armes.js → PARMES ; zones.js → PZONES **[branché]** |
+| Ordre de build.js | … regles, carte-provisoire, monde, nav, **corps, armes, zones**, bots, jeu, arene, avatars, … ui **[branché]** |
+| PJEU.creer | options = réglages normalisés ; paramètre zone **[lot 2/2]** |
+| Entités | ajouterJoueur({ …, equip }) ; entité v2 **[prêt]** (valeurs par défaut posées) |
+| PJEU.deplacer | alias de PCORPS.deplacer **[branché]** |
+| PJEU.pasFixe | boucle à pas fixe **[branché]** |
+| Instantané | ligneDe / lireLigne v2 **[lot 2/2]** |
+| Nouveaux champs du jeu | jeu.peutBlesser, jeu.vieMax, jeu.armureMax **[lot 2/2]** ; jeu.dt, jeu.rembobiner / restaurer / blesser / faireBruit **[branché]** |
+| Façade en ligne | jeu.avantImage(maintenant) **[branché]** |
+| Mode | crochet apresNav **[lot 2/2]** |
+| Rendu | PRENDU.image(jeu, id, dt, t, alpha), PRENDU.reglages({ balancement }), PCORPS.camera **[branché]** ; PRENDU.ambiance({ heure, meteo }) ; PRENDU.stats.ambiance **[lot 2/2]** |
+| Monde | monde.hauteur suit les tabliers de pont ; monde.relief, monde.chaussee, monde.tabliers **[branché]** ; monde.limite v2 et PMONDE.limiteDe **[lot 2/2]** |
+| Commandes | PCONTROLES.lire() (cumul), consommer(), enAttente() → { dyaw, dpitch }, attenuer(k) **[branché]** ; niveaux v2 (course, couche, vise, emplacement, changer) dans le même cumul **[lot 2/2]** |
+| HUD | PHUD.maj lit l'entité v2 **[lot 2/2]** |
+| Réseau | PRESEAU VERSION 2 ; salon limité à 6 ; budget de relais **[lot 2/2]** |
+| En ligne | 'reglages', 'lancer', 'entree', 'etat' en v2 **[lot 2/2]** |
+
+Les anciens champs (`accroupi`, `JOUEUR.oeil`, `oeilAccroupi`, `taille`, `tailleAccroupi`, `vitesseAccroupi`, l'entrée `arme: id`) restent lisibles pendant tout le lot.
+
+**Notes** : `hud.js` (ligne du viseur) lit `A.dispersionAvantVisee` quand elle existe (le Long-tir à la hanche du régime historique, comme la simulation) ; le HUD v2 lira `PJEU.dispersion(moi, A)`. `enligne.js` lit `PREGLES.arme(id).gonfle`.
