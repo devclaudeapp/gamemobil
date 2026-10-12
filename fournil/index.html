@@ -1163,6 +1163,202 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
     gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono };
 });
 
+/* ── horloge.js ── */
+/* LE FOURNIL — l'horloge de confiance : le « maintenant » du jeu, que changer l'heure du téléphone ne fait pas avancer.
+   Le jeu ne lit plus Date.now() : il demande HORLOGE.maintenant().
+   (a) Une heure sûre est lue au lancement, au retour dans le jeu et toutes les 30 min : l'en-tête Date d'une requête HEAD vers la page
+       elle-même (même origine, sans cache ; le service worker laisse passer « ?heure= » au réseau), sinon fournil_heure() du classement
+       Supabase (seulement si on l'a rejoint : rien ne part vers Supabase avant). Entre deux lectures, le temps qui passe est mesuré par
+       performance.now(), qu'un changement d'heure du téléphone ne touche pas.
+   (b) Le temps du jeu ne recule jamais : jamais avant la dernière fois qu'on l'a sauvé (st.lastSeen, ou la clé à part).
+   (c) Sans heure sûre (hors ligne, artefact Claude) : l'heure du téléphone, mais jamais plus loin que la dernière heure sûre connue
+       + la durée d'une absence normale ; avancer l'horloge hors ligne rapporte donc au plus une absence, une fois, jusqu'à ce que le
+       vrai temps rattrape. La « dernière heure sûre » avance aussi du temps de jeu mesuré par performance.now() (du vrai temps).
+   (d) L'heure sûre qui arrive en cours de partie recale le jeu sans rien rendre : on ne recule pas, on ne paie pas le temps sauté.
+   Une partie pure (creer, estimer, lireEnTeteDate), testée dans Node, et une partie navigateur (navigateur), branchée ici sur window.HORLOGE. */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else {
+    const H = factory();
+    let inst = null; try { inst = H.navigateur(); } catch (e) { inst = null; }
+    root.HORLOGE = Object.assign(H, inst || H.secours());
+  }
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  const CLE = 'fournil.horloge'; // { sure, jeu } : la dernière heure sûre connue et le dernier « maintenant » du jeu (aussi dans la sauvegarde, st.horloge)
+  const REGLES = {
+    periode: 30 * 60e3, // une heure sûre relue toutes les 30 min
+    attente: 2500, // au lancement et au retour, on attend l'heure sûre au plus 2,5 s, puis on joue avec ce qu'on a
+    delaiMax: 6000, // une lecture abandonnée au bout de 6 s
+    allerRetourMax: 10e3, // une réponse plus lente est trop floue pour donner l'heure
+    reessai: 5 * 60e3, // une lecture ratée : la suivante (hors lancement et retour) 5 min plus tard
+    absenceH: 8, // à défaut de mieux : ABSENCE_MAX_H de game.js
+  };
+  const fini = (x) => typeof x === 'number' && Number.isFinite(x);
+  const date = (x) => fini(x) && x > 0; // une date en millisecondes
+
+  // ─── la partie pure ───
+  function lireEnTeteDate(txt) { // « Fri, 09 Oct 2026 21:52:46 GMT » → ms (NaN si illisible)
+    if (typeof txt !== 'string' || !txt.trim()) return NaN;
+    const ms = Date.parse(txt);
+    return date(ms) ? ms : NaN;
+  }
+  // une mesure : le serveur a répondu entre l'envoi et la réception ; son heure (arrondie à la seconde pour l'en-tête Date) donne une
+  // fourchette pour l'instant de la réception : [serveur, serveur + résolution + aller-retour]. Un téléphone à l'heure tombe dedans et
+  // donne la valeur exacte ; sinon, le milieu de la fourchette (l'écart possible : une demi-seconde et un demi aller-retour).
+  function estimer(serveurMs, resolution, allerRetour, telApres) {
+    if (!date(serveurMs)) return NaN;
+    const bas = serveurMs, haut = serveurMs + Math.max(0, resolution || 0) + Math.max(0, allerRetour || 0);
+    return fini(telApres) && telApres >= bas && telApres <= haut ? telApres : (bas + haut) / 2;
+  }
+
+  // le moteur. env : { tel() l'heure du téléphone, perf() un compteur monotone en ms, avanceMax() la plus longue absence (ms) }
+  function creer(env) {
+    const E = Object.assign({ tel: () => Date.now(), perf: () => Date.now(), avanceMax: () => REGLES.absenceH * 3600e3 }, env || {});
+    let sure = null; // { ms, perf } : une borne basse du vrai temps à l'instant perf (le vrai temps ne fait qu'avancer depuis)
+    let synchro = null; // { ms, perf, source } : la dernière heure sûre lue pendant cette session
+    let ref = null; // { ms, perf } : le temps du jeu = ref.ms + (perf() − ref.perf) ; posé au démarrage, déplacé seulement vers l'avant
+    let plancher = -Infinity, dernier = -Infinity, recalages = 0;
+    const perf = () => { const p = E.perf(); return fini(p) ? p : 0; };
+    const avance = () => { let a = NaN; try { a = +E.avanceMax(); } catch (e) { a = NaN; } return fini(a) && a >= 0 ? a : REGLES.absenceH * 3600e3; };
+    const sureMs = () => (sure ? sure.ms + Math.max(0, perf() - sure.perf) : null);
+    const jeu = () => (ref ? ref.ms + Math.max(0, perf() - ref.perf) : null);
+    // ce que le jeu peut croire maintenant : l'heure sûre fraîche, sinon le téléphone borné par [dernière heure sûre, + une absence]
+    function candidat(frais) {
+      if (frais && synchro) return synchro.ms + Math.max(0, perf() - synchro.perf);
+      const s = sureMs();
+      let t = NaN; try { t = +E.tel(); } catch (e) { t = NaN; }
+      if (s == null) return date(t) ? t : null; // jamais d'heure sûre (artefact Claude) : on ne peut que croire le téléphone
+      return Math.max(s, Math.min(date(t) ? t : s, s + avance()));
+    }
+    // (re)pose le temps du jeu : jamais en arrière, ni sous le plancher
+    function recaler(frais) {
+      const avant = jeu(), c = candidat(frais);
+      let t = Math.max(fini(c) ? c : -Infinity, fini(avant) ? avant : -Infinity, plancher);
+      if (!fini(t)) { const tel = +E.tel(); t = date(tel) ? tel : 0; }
+      ref = { ms: t, perf: perf() }; recalages++;
+      return { avant, apres: t, saut: fini(avant) ? t - avant : 0, source: frais && synchro ? synchro.source : 'telephone' };
+    }
+    function maintenant() {
+      if (!ref) { // pas encore démarré : une valeur provisoire, sans rien figer (le démarrage attend l'heure sûre)
+        const c = candidat(false);
+        return Math.round(Math.max(fini(c) ? c : 0, plancher, dernier));
+      }
+      let t = Math.round(jeu()); if (t < dernier) t = dernier; dernier = t;
+      return t;
+    }
+    // une heure sûre lue (ms à l'instant perf de la réception) : elle fait foi, et le jeu se recale (vers l'avant seulement)
+    function noterHeureSure(ms, perfInstant, source) {
+      if (!date(ms)) return null;
+      const p = fini(perfInstant) ? perfInstant : perf();
+      synchro = { ms, perf: p, source: source || 'serveur' };
+      sure = { ms, perf: p };
+      return ref ? recaler(true) : null; // pas encore démarré : demarrer() s'en servira
+    }
+    // ce qu'on a gardé d'une session précédente (la sauvegarde, la clé à part) : la plus grande heure sûre, le plus grand plancher
+    function charger(etat) {
+      if (!etat || typeof etat !== 'object') return;
+      if (date(etat.sure) && !synchro) { const s = sureMs(); if (s == null || etat.sure > s) sure = { ms: etat.sure, perf: perf() }; }
+      if (date(etat.jeu)) pousser(etat.jeu);
+    }
+    function pousser(ms) { // le temps du jeu ne descend jamais sous ms (le dernier « maintenant » sauvé)
+      if (!date(ms)) return;
+      plancher = Math.max(plancher, ms);
+      if (ref && jeu() < ms) ref = { ms, perf: perf() };
+    }
+    function demarrer() { return recaler(!!synchro); } // au lancement, après l'attente de l'heure sûre
+    function etat() { const s = sureMs(); return { sure: s == null ? null : Math.round(s), jeu: maintenant() }; }
+    function info() {
+      let tel = NaN; try { tel = +E.tel(); } catch (e) { tel = NaN; }
+      return { demarre: !!ref, source: synchro ? synchro.source : 'telephone', sure: sureMs(), jeu: ref ? jeu() : null, avance: ref && date(tel) ? jeu() - tel : null, recalages };
+    }
+    return { maintenant, noterHeureSure, charger, pousser, demarrer, recaler, etat, info, get synchro() { return synchro; } };
+  }
+
+  // ─── dans le navigateur ───
+  function navigateur(o) {
+    o = o || {};
+    const w = typeof window !== 'undefined' ? window : null;
+    if (!w) return null;
+    const perf = () => (w.performance && typeof w.performance.now === 'function' ? w.performance.now() : Date.now());
+    let avanceMax = () => ((w.GAME && w.GAME.ABSENCE_MAX_H) || REGLES.absenceH) * 3600e3;
+    const m = creer({ tel: () => Date.now(), perf, avanceMax: () => avanceMax() });
+    let stockage = null; try { stockage = w.localStorage; } catch (e) { stockage = null; }
+    try { m.charger(JSON.parse(stockage ? stockage.getItem(CLE) || 'null' : 'null')); } catch (e) { /* rien */ }
+    function sauver() { const e = m.etat(); try { if (stockage) stockage.setItem(CLE, JSON.stringify(e)); } catch (x) { /* stockage indisponible */ } return e; }
+    const enLigne = () => !(w.navigator && w.navigator.onLine === false);
+    function avecDelai(p, ms) { let t = 0; return Promise.race([p, new Promise((r) => { t = setTimeout(() => r(null), ms); })]).finally(() => clearTimeout(t)); }
+    // 1. l'en-tête Date de la page elle-même : GitHub Pages en ligne, le serveur de test en local
+    async function mesurerPage() {
+      if (!/^https?:$/.test(w.location.protocol) || typeof w.fetch !== 'function') return null;
+      const url = new URL(w.location.href); url.hash = ''; url.search = '?heure=' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      let ctrl = null; try { ctrl = new AbortController(); } catch (e) { ctrl = null; }
+      const t0 = perf();
+      const res = await avecDelai(w.fetch(url.href, { method: 'HEAD', cache: 'no-store', credentials: 'same-origin', redirect: 'follow', signal: ctrl ? ctrl.signal : undefined }).catch(() => null), REGLES.delaiMax);
+      if (!res) { try { if (ctrl) ctrl.abort(); } catch (e) { /* rien */ } return null; }
+      const t1 = perf(), tel = Date.now();
+      if (res.type === 'opaque' || t1 - t0 > REGLES.allerRetourMax) return null;
+      const d = lireEnTeteDate(res.headers.get('date'));
+      return date(d) ? { ms: estimer(d, 1000, t1 - t0, tel), perf: t1, source: 'page' } : null;
+    }
+    // 2. le classement Supabase (fournil_heure), seulement pour qui l'a rejoint
+    async function mesurerSupabase() {
+      const C = w.CLASSEMENT; if (!C || typeof C.appeler !== 'function' || typeof C.lireConfig !== 'function') return null;
+      const config = C.lireConfig(w.FOURNIL_CONFIG); if (!config) return null;
+      let rejoint = false; try { rejoint = !!(C.lireEtat && C.lireEtat(stockage).rejoint); } catch (e) { rejoint = false; }
+      if (!rejoint) return null;
+      const t0 = perf();
+      const r = await C.appeler(config, 'fournil_heure', {}, { fetch: (u, i) => w.fetch(u, i), enLigne, delaiMax: REGLES.delaiMax });
+      const t1 = perf(), tel = Date.now(), ms = r && r.etat === 'ok' && r.data ? +r.data.ms : NaN;
+      if (!date(ms) || t1 - t0 > REGLES.allerRetourMax) return null;
+      return { ms: estimer(ms, 0, t1 - t0, tel), perf: t1, source: 'supabase' };
+    }
+    let enCours = null, derniereLecture = -Infinity, derniereTentative = -Infinity;
+    function synchroniser() { // rend une promesse : true si une heure sûre vient d'arriver
+      if (enCours) return enCours;
+      enCours = (async () => {
+        if (!enLigne()) return false;
+        derniereTentative = perf();
+        let mes = null;
+        try { mes = await mesurerPage(); } catch (e) { mes = null; }
+        if (!mes) { try { mes = await mesurerSupabase(); } catch (e) { mes = null; } }
+        if (!mes) return false;
+        m.noterHeureSure(mes.ms, mes.perf, mes.source); derniereLecture = perf();
+        sauver();
+        return true;
+      })().catch(() => false).finally(() => { enCours = null; });
+      return enCours;
+    }
+    let premiere = synchroniser(), demarre = false; // la lecture part dès le chargement du script, pendant que la sauvegarde se lit
+    async function attendre(p) { const ok = await avecDelai(p, o.attente || REGLES.attente); return ok === true; }
+    async function pret() { // le lancement : l'heure sûre (2,5 s au plus), puis le temps du jeu est posé
+      const ok = await attendre(premiere);
+      if (!demarre) { demarre = true; m.demarrer(); } else if (!ok) m.recaler(false);
+      return m.info();
+    }
+    async function retour() { // le retour dans le jeu (la page redevient visible) : une heure sûre fraîche, sinon le téléphone borné
+      const ok = await attendre(synchroniser());
+      if (!demarre) { demarre = true; m.demarrer(); } else if (!ok) m.recaler(false);
+      return m.info();
+    }
+    // toutes les 30 min quand la page est visible ; après un échec, un nouvel essai 5 min plus tard (pas une requête par minute dans l'artefact Claude)
+    setInterval(() => { if (!(w.document && w.document.visibilityState === 'hidden') && perf() - derniereLecture >= REGLES.periode && perf() - derniereTentative >= REGLES.reessai) synchroniser(); }, 60e3);
+    try { w.addEventListener('online', () => { synchroniser(); }); } catch (e) { /* rien */ }
+    return {
+      maintenant: m.maintenant, pret, retour, synchroniser, sauver, info: m.info, etat: m.etat, charger: m.charger, pousser: m.pousser,
+      regler(r) { if (r && typeof r.avanceMax === 'function') avanceMax = r.avanceMax; },
+    };
+  }
+  // sans fenêtre (ou si navigateur() échoue) : l'heure du téléphone, toujours croissante
+  function secours() {
+    const m = creer({ tel: () => Date.now(), perf: () => Date.now() }); m.demarrer();
+    return { maintenant: m.maintenant, pret: async () => m.info(), retour: async () => m.info(), synchroniser: async () => false, sauver: m.etat, info: m.info, etat: m.etat, charger: m.charger, pousser: m.pousser, regler() {} };
+  }
+
+  return { CLE, REGLES, lireEnTeteDate, estimer, creer, navigateur, secours };
+});
+
 /* ── classement.js ── */
 /* LE FOURNIL — le classement en ligne des boulangers : fortune totale (st.lifetime) et fortune de la semaine (depuis lundi, heure de Paris).
    Une partie pure, testée dans Node (lundi de Paris, pseudo, rangs, décision d'envoi, état local), et une partie réseau : de simples POST
@@ -3301,7 +3497,7 @@ const UI = (() => {
   const G = GAME, $ = (s) => document.querySelector(s), KEY = 'fournil.v2';
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let st, lastFrame = 0, lastSave = 0, cards = [], carteSaison = null, lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, hintDefile = -1, toastTimer = 0, lastNiveau = 0, vuBoulanger = false, dernierToucher = -1e9;
-  let pageActive = 'boutique', evEtendu = false;
+  let pageActive = 'boutique', evEtendu = false, retourEnCours = false; // retourEnCours : la page redevient visible, l'heure sûre est en route
   let classement = null, ongletCl = 'semaine', vueCl = ''; // le classement en ligne : son moteur, l'onglet choisi, la feuille qu'il occupe
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const PAGES = ['boutique', 'defis', 'boulanger', 'journal', 'reglages'];
@@ -3323,7 +3519,9 @@ const UI = (() => {
   let fige = false; // après « tout effacer » ou le chargement d'un code : plus aucune écriture jusqu'au rechargement
   function save() {
     if (fige) return;
-    st.lastSeen = Date.now(); lastSave = performance.now();
+    if (!retourEnCours) st.lastSeen = HORLOGE.maintenant(); // pendant un retour, l'absence n'est pas encore comptée : elle part toujours de l'ancien lastSeen
+    lastSave = performance.now();
+    st.horloge = HORLOGE.sauver(); // l'heure sûre et le dernier « maintenant » du jeu : dans la sauvegarde et dans leur clé à part
     let raw; try { raw = JSON.stringify(st); } catch (e) { return; }
     try { localStorage.setItem(KEY, raw); } catch (e) { /* stockage indisponible */ }
     idbEcrire(raw);
@@ -3332,7 +3530,7 @@ const UI = (() => {
     try {
       if (!raw) return null;
       const s = JSON.parse(raw); if (!s || s.v !== 2 || !Array.isArray(s.stations)) return null;
-      const fresh = G.newState(Date.now());
+      const fresh = G.newState(HORLOGE.maintenant());
       for (const k in fresh) if (!(k in s)) s[k] = fresh[k];
       while (s.stations.length < G.PRODUITS.length) s.stations.push({ niv: 0, staff: false, prog: 0, actif: false });
       return s;
@@ -3512,10 +3710,13 @@ const UI = (() => {
     const bonus = G.AMELIORATIONS.filter((a) => !st.ameliorations[a.id] && st.coins >= G.prixBonus(st, a)).length + G.MOBILIER.filter((m) => G.mobilierCran(st, m.id) < m.max && st.coins >= G.prixMeuble(st, m.id)).length, primes = primesAReclamer(), pts = G.ptsTalents(st);
     if (st.vu && pageActive === 'journal' && tiroir.pos !== 'ferme') st.vu.trophees = trophesGagnes(); // un trophée gagné pendant qu'on lit le Journal est vu aussitôt
     const nouveaux = Math.max(0, trophesGagnes() - (st.vu ? st.vu.trophees : 0)), nom = G.nomBoutique(st), ev = st.ev ? st.ev.type : '';
-    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}`;
+    // le marché du samedi et la bonne critique : pas de deuxième ligne sous le solde (elle repoussait la boutique à 360×640) ;
+    // la ligne du rythme et les badges s'y relaient toutes les 4 s, à hauteur constante
+    const extras = [marche && 'Marché ×1,5', boost && `Bonne critique ×${boost}`].filter(Boolean), tour = extras.length ? Math.floor(performance.now() / 4000) % (extras.length + 1) : 0;
+    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}|${tour}`;
     if (key === lastHud) return; lastHud = key;
     $('#coins').textContent = G.fmtEur(st.coins);
-    $('#taux').innerHTML = (taux > 0 ? `<b>+${G.fmtEur(taux)}</b> par seconde` : 'Touche la baguette !') + (marche || boost ? '<br>' : '') + (marche ? '<span class="marche">Marché ×1,5</span>' : '') + (boost ? `<span class="marche">Bonne critique ×${boost}</span>` : '');
+    $('#taux').innerHTML = `<span${tour ? ' style="display:none"' : ''}>${taux > 0 ? `<b>+${G.fmtEur(taux)}</b> par seconde` : 'Touche la baguette !'}</span>` + extras.map((t, k) => `<span class="marche" style="margin:0;padding:1px 7px;vertical-align:top${tour === k + 1 ? '' : ';display:none'}">${t}</span>`).join('');
     $('#etoiles-n').textContent = gain > 0 ? `${st.etoiles} · +${gain}` : st.etoiles;
     $('#b-etoiles').classList.toggle('pret', gain >= 3);
     $('#b-ameliorations').classList.toggle('pret', bonus > 0); badge($('#b-ameliorations'), bonus);
@@ -3679,7 +3880,7 @@ const UI = (() => {
   };
   const QUAND_SAISON = { galette: 'en janvier', crepe: 'début février', paques: 'en avril', glace: 'cet été', citrouille: 'à la mi-octobre', buche: 'en décembre' };
   // Journal : le classement en ligne, records, collection des saisons, habitués, trophées, derniers événements, partage
-  const ilYA = (ms) => { const s = Math.max(0, (Date.now() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
+  const ilYA = (ms) => { const s = Math.max(0, (HORLOGE.maintenant() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
   const pageJournal = {
     key: () => `${trophesGagnes()}|${(st.carnetEv || []).length}|${(st.carnetEv || []).length ? st.carnetEv[st.carnetEv.length - 1].t : 0}|${JSON.stringify(st.habitues)}|${st.stats.commandes}|${st.stats.critiques}|${st.stats.petrissages}|${st.stats.pannes}|${JSON.stringify(st.collection)}|${st.saison ? st.saison.id + st.saison.niv : ''}|${st.chat ? st.chat.nom + st.chat.caresses : ''}|${cleClassement()}`,
     html: () => {
@@ -3978,7 +4179,7 @@ const UI = (() => {
       openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les bonus achetés sont perdus.</p>
         <button type="button" class="btn large beurre" data-a="oui"><b>Ouvrir la boutique n°${st.boutiques + 1}</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Rester ici</b></button>`);
       on('[data-a="non"]', sheetEtoiles);
-      on('[data-a="oui"]', () => { const r = G.nouvelleBoutique(st, Date.now()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★`); st.tuto = Math.max(st.tuto, INDICES.length); amenager(false); renderCards(true); hud(); save(); showPage('boutique'); sheetNom(true); } });
+      on('[data-a="oui"]', () => { const r = G.nouvelleBoutique(st, HORLOGE.maintenant()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★`); st.tuto = Math.max(st.tuto, INDICES.length); amenager(false); renderCards(true); hud(); save(); showPage('boutique'); sheetNom(true); } });
     });
   }
   function sheetRetour(abs) {
@@ -4129,8 +4330,9 @@ const UI = (() => {
 
   // ─── boucle ───
   function frame(now) {
+    if (retourEnCours) { lastFrame = now; requestAnimationFrame(frame); return; } // l'absence n'est pas encore comptée : rien ne bouge
     const dt = Math.min(0.25, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
-    const out = G.tick(st, dt, Date.now());
+    const out = G.tick(st, dt, HORLOGE.maintenant());
     if (out.ventes.length) {
       const gros = out.ventes.reduce((a, v) => a + v.montant, 0), first = out.ventes[0];
       if (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), !st.stations[first.i].staff); son.vente(gros); }
@@ -4149,7 +4351,7 @@ const UI = (() => {
     const nv = G.niveau(st);
     if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); SCENE.fete(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
     renderCards(); hud(); renderObjectifs(); renderEvenement(); renderPage();
-    SCENE.frame(dt, st, Date.now());
+    SCENE.frame(dt, st, HORLOGE.maintenant());
     indices();
     if (now - lastSave > 5000) save();
     requestAnimationFrame(frame);
@@ -4164,9 +4366,13 @@ const UI = (() => {
   // ─── démarrage ───
   async function boot() {
     st = await load();
+    // l'horloge de confiance : la plus longue absence de cette boutique, le plancher de la sauvegarde, puis l'heure sûre (2,5 s au plus)
+    HORLOGE.regler({ avanceMax: () => (st ? G.heuresAbsence(st) : G.ABSENCE_MAX_H) * 3600e3 });
+    if (st) { HORLOGE.charger(st.horloge); HORLOGE.pousser(st.lastSeen); }
+    await HORLOGE.pret();
     const fresh = !st;
-    if (fresh) st = G.newState(Date.now());
-    st.now = Date.now();
+    if (fresh) st = G.newState(HORLOGE.maintenant());
+    st.now = HORLOGE.maintenant();
     if (!st.vu) st.vu = { trophees: trophesGagnes() };
     document.querySelectorAll('[data-ico]').forEach((el) => { el.innerHTML = ICONS.UI[el.dataset.ico] || ''; });
     if (!SCENE.init($('#scene'), $('#scene-ui'))) $('#sans-3d').hidden = false; // sans WebGL : la boutique vit quand même, sans image
@@ -4195,7 +4401,12 @@ const UI = (() => {
       else if (SCENE.hitBoulanger(sx, sy)) showPage('boulanger');
       else { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) sheetMeuble(id); else SCENE.tap(); }
     });
-    document.addEventListener('visibilitychange', () => { if (document.hidden) save(); else { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); } });
+    // au retour dans le jeu : une heure sûre fraîche (2,5 s au plus) avant de compter l'absence ; le jeu attend, sans rien sauver entre-temps
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) { save(); return; }
+      if (retourEnCours) return; retourEnCours = true;
+      HORLOGE.retour().catch(() => {}).then(() => { retourEnCours = false; const abs = G.absence(st, HORLOGE.maintenant()); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); });
+    });
     document.addEventListener('pointerdown', () => { dernierToucher = performance.now(); }, true);
     document.addEventListener('pointerdown', () => { try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* rien */ } }, { once: true });
     window.addEventListener('pagehide', save);
@@ -4204,7 +4415,7 @@ const UI = (() => {
     window.addEventListener('blur', save);
     window.addEventListener('resize', layout);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
-    if (!fresh) { const abs = G.absence(st, Date.now()); if (abs.total > 0 && abs.secs > 90) sheetRetour(abs); }
+    if (!fresh) { const abs = G.absence(st, HORLOGE.maintenant()); if (abs.total > 0 && abs.secs > 90) sheetRetour(abs); }
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN) }) : null; } catch (e) { classement = null; }
     if (classement) { classement.ecouter(() => rafraichirClassement()); classement.demarrer(); }
@@ -4212,9 +4423,9 @@ const UI = (() => {
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = Date.now() - ms; const abs = G.absence(st, Date.now()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
+    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
-      chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, Date.now()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q) };
+      chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q) };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);
