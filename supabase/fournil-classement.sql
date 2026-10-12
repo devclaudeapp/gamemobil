@@ -81,7 +81,7 @@ begin
   if not exists (select 1 from information_schema.columns
                   where table_schema = 'public' and table_name = 'fournil_joueurs' and column_name = 'plausible') then
     alter table public.fournil_joueurs add column plausible double precision not null default 0;
-    update public.fournil_joueurs set plausible = greatest(sommet, fortune);
+    update public.fournil_joueurs set plausible = least(greatest(sommet, fortune), 1e20); -- l'échelle d'arrivée plafonnée (partie 3)
   end if;
 end
 $$;
@@ -260,18 +260,28 @@ $$;
 --   1e13 €           5e9 €/s                 l'assidu au jour 5
 --   1e16 €           2,5e12 €/s              l'assidu au jour 10, le marathon au jour 9
 --   1e19 €           1,3e14 €/s              l'assidu au jour 60, le marathon au jour 25
---   1e20 €           4e14 €/s                l'acharné au jour 50 ; au-delà, R grandit comme L (+3 % par heure au plus)
+--   1e20 €           4e14 €/s                l'acharné au jour 50 ; au-delà, R grandit comme L (+1,4 % par heure)
 --
 -- La réserve : le temps d'enveloppe qu'un envoi n'a pas utilisé est gardé (24 h au plus) pour les envois suivants. Elle
 -- absorbe les gros coups d'un instant (prime du défi de la semaine, trois défis du jour réclamés d'un coup, commande livrée)
--- sans élargir le rythme de fond : sur la durée, rien ne dépasse R. On arrive au classement avec une réserve pleine.
+-- sans élargir le rythme de fond : sur la durée, rien ne dépasse R. On arrive au classement avec une réserve pleine : sans
+-- elle, un joueur honnête qui rejoint en pleine partie (au jour 40, juste avant une prime) n'aurait plus qu'une marge de ×1,5
+-- (×3,1 avec une heure de réserve à l'arrivée, ×3,9 avec 24 h).
 --
 -- L'échelle de la borne est la fortune PLAUSIBLE (fortune d'arrivée + tout ce qui a été compté), pas la plus haute fortune
 -- envoyée : un saut inventé, plafonné, ne fait pas grandir la borne des envois suivants.
 --
+-- La fortune d'arrivée, elle, n'est prouvée par rien (une sauvegarde se bricole) : comme échelle, elle est plafonnée à 1e20 €.
+-- Sans ce plafond, un tricheur qui arrive avec 7e23 € compterait 2,9e23 € dix secondes plus tard (au-delà de 1e20, R grandit
+-- comme L). 1e20 est le plus bas plafond qui garde la marge : rejoués en arrivant aux jours 0, 10, 40, 59 et 90 (l'acharné
+-- dépasse 1e20 vers le jour 50, 9e20 au jour 120), les honnêtes gardent une marge d'au moins ×3,8 (×1,6 avec un plafond à 1e19).
+--
 -- Ce qu'il reste à un tricheur obstiné (il envoie sans arrêt, toujours à la limite) : au mieux ~4 fois le joueur parfait
--- 24 h/24. Depuis zéro : 1e15 € en 9 h, 1e18 € en un jour, 1e19 € en deux jours (il faut deux mois à l'assidu pour 1e19 €,
--- 25 jours au marathon). C'est la limite de ce qu'un serveur peut savoir sans voir la partie ; un intrus se retire à la main.
+-- 24 h/24. Réserve pleine de l'arrivée comprise, en arrivant avec une fausse fortune de 1e6 € : 1e18 € tout de suite (ce que
+-- l'enveloppe ajoute en 24 h), 8e18 € au bout d'un jour, 2e20 € au bout d'une semaine ; en arrivant avec 1e20 € ou plus (le
+-- pire cas) : 4e19 € tout de suite, 1e20 € au bout d'un jour, 1,5e21 € au bout d'une semaine (il faut deux mois à l'assidu
+-- pour 1e19 €, 25 jours au marathon). C'est la limite de ce qu'un serveur peut savoir sans voir la partie ; un intrus se
+-- retire à la main.
 
 -- les paliers {log10 fortune, log10 rythme en €/s}
 create or replace function public.fournil_paliers()
@@ -611,9 +621,11 @@ begin
       return public.fournil_reponse('pseudo_pris', null, v_lundi, null, null);
     end if;
     begin
-      -- on part de zéro : rien n'est compté ; la fortune envoyée sert de sommet et d'échelle, la réserve est pleine
+      -- on part de zéro : rien n'est compté ; la fortune envoyée sert de sommet et d'échelle (plafonnée à 1e20 €, voir la
+      -- partie 3 : rien ne prouve la fortune d'arrivée), la réserve est pleine
       insert into public.fournil_joueurs (id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj)
-      values (p_id, v_empreinte, v_pseudo, v_fortune, v_fortune, v_fortune, 86400, 0, 0, v_lundi, v_maintenant, v_maintenant);
+      values (p_id, v_empreinte, v_pseudo, v_fortune, v_fortune, least(v_fortune, 1e20), 86400, 0, 0,
+              v_lundi, v_maintenant, v_maintenant);
       if v_porte is not null then
         insert into public.fournil_portes (empreinte, quand) values (v_porte, v_maintenant);
       end if;

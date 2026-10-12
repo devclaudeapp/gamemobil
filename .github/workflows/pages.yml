@@ -12,7 +12,35 @@ concurrency:
   group: pages
   cancel-in-progress: true
 jobs:
+  # Le Fournil sur la vraie page, dans Chromium : la triche au changement d'heure (téléphone avancé, hors ligne, fuseau changé,
+  # réseau qui revient), les récompenses du podium et le classement (Supabase simulé : rien ne part vers le vrai projet).
+  # Rouge ici = pas de mise en ligne.
+  fournil:
+    name: Le Fournil (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright et Chromium (hors du dépôt)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: La triche au changement d'heure, les récompenses, le classement
+        run: |
+          node build.js
+          node test/fournil-triche.cjs
+          node test/fournil-recompenses.cjs
+          node test/fournil-classement.cjs
+        env:
+          TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+          PORT_RECOMPENSES: '8861'
+          PORT_CLASSEMENT: '8862'
   deploy:
+    needs: fournil
     runs-on: ubuntu-latest
     environment:
       name: github-pages

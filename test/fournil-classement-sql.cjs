@@ -6,7 +6,7 @@
 // il doit se recoller sans casse), puis on joue chaque fonction EN TANT QU'ANON, comme le téléphone d'un joueur :
 //   · inscription (rien n'est compté : on part de zéro), envois, mauvais jeton, pseudos, valeurs absurdes, trop vite ;
 //   · les gains PLAUSIBLES : un saut énorme n'est compté qu'à la borne, l'excès est perdu pour toujours, l'échelle de la borne
-//     ne grandit pas avec un saut inventé, envoyer souvent ne rapporte pas plus qu'envoyer une fois, la réserve plafonne à 24 h,
+//     ne grandit pas avec un saut inventé, ni avec une énorme fortune d'arrivée (plafonnée à 1e20 €), envoyer souvent ne rapporte pas plus qu'envoyer une fois, la réserve plafonne à 24 h,
 //     et l'enveloppe SQL est la même que son miroir en JavaScript ;
 //   · des joueurs HONNÊTES de test/longevite.js rejoués à leur rythme réel (envois toutes les 5 min ou toutes les minutes) :
 //     jamais plafonnés, même avec une enveloppe divisée par 3 ;
@@ -14,7 +14,9 @@
 //   · le palmarès (figé une fois, ex æquo, semaine sans joueur, joueur qui a sauté une semaine, semaine où personne n'est venu),
 //     les récompenses, la toque du podium dans le classement, le retrait qui efface le palmarès, l'heure du serveur ;
 //   · rangs et ex æquo, « moi » hors des 50 premiers, limites d'inscription (communes et par source), ménage (7 et 90 jours),
-//     retrait, et l'accès direct aux tables, qui doit être refusé.
+//     retrait, et l'accès direct aux tables, qui doit être refusé ;
+//   · le contrat : le VRAI moteur du téléphone (src/classement.js) branché sur ce Postgres par un petit PostgREST, et les appels
+//     de src/classement.js et src/horloge.js comparés aux signatures des fonctions SQL.
 // Le temps est simulé : la fonction public.fournil_maintenant() est remplacée par une horloge de test.
 //
 // Lancement (PGlite n'est pas dans le dépôt) :
@@ -352,6 +354,14 @@ function trajectoire(profil, jours, depart, cadence) {
   r = await publier(Tr, 'Tricheuse', 1e24); l = await ligne(Tr.id);
   check(r.ok === true && r.compte === 0 && r.plafonne === false && proche(l.total, permis1), 'une heure plus tard, 1e24 encore : rien de plus (seul compte ce qui dépasse le sommet) — l’excès plafonné est perdu pour toujours');
   check(Math.abs(l.reserve - 3600) < 1, `la réserve s'est remplie du temps passé (${l.reserve.toFixed(0)} s)`);
+  // la fortune d'arrivée n'est prouvée par rien (une sauvegarde bricolée) : comme échelle, elle est plafonnée à 1e20 €
+  const Gros = joueur();
+  r = await publier(Gros, 'Arrivée bricolée', 7e23); l = await ligne(Gros.id);
+  check(r.ok === true && l.sommet === 7e23 && l.plausible === 1e20 && l.total === 0, `arrivée avec 7e23 € (sauvegarde bricolée) : acceptée, rien de compté, sommet 7e23 mais échelle ${e(l.plausible)}`);
+  await avancer(10);
+  r = garde(await publier(Gros, 'Arrivée bricolée', 1e24));
+  const permisGros = await borneSQL(1e20, 86410) - 1e20;
+  check(r.plafonne === true && r.compte <= permisGros * (1 + 1e-9) && proche(r.compte, permisGros) && r.compte < 5e19, `10 s plus tard, 1e24 € : ${e(r.compte)} € comptés au plus (borne depuis 1e20 €), pas les 2,9e23 € qu'aurait donnés l'échelle de 7e23 €`);
   // l'échelle de la borne est la fortune plausible, pas le sommet envoyé
   const Sa = joueur();
   await publier(Sa, 'Sauteur', 1e6);
@@ -886,6 +896,82 @@ function trajectoire(profil, jours, depart, cadence) {
   await avancer(11);
   r = await publier(Lapo, "L'as d'la miche", 50);
   check(r.ok === true && r.compte === 45, 'et tout remarche');
+
+  // ─── 23. le téléphone et le serveur sur le même contrat : le VRAI moteur de src/classement.js, branché sur ce Postgres ───
+  titre('le contrat : src/classement.js et src/horloge.js face au SQL');
+  {
+    const CL = require('../src/classement.js');
+    // les fonctions que le téléphone appelle, et avec quels paramètres, lues dans ses sources
+    const appels = new Map();
+    for (const f of ['../src/classement.js', '../src/horloge.js']) {
+      const src = fs.readFileSync(path.join(__dirname, f), 'utf8');
+      for (const m of src.matchAll(/(?:rpc|appeler)\((?:config, )?'(fournil_\w+)', \{([^}]*)\}/g)) {
+        const cles = [...m[2].matchAll(/(p_\w+)\s*:/g)].map((x) => x[1]);
+        appels.set(m[1] + '(' + cles.join(',') + ')', { nom: m[1], cles });
+      }
+    }
+    const procs = await sup(`select p.proname as nom, coalesce(p.proargnames, '{}') as noms, p.pronargs as n, p.pronargdefaults as defauts,
+                                    array(select format_type(t, null) from unnest(p.proargtypes) t) as types
+                               from pg_proc p join pg_namespace s on s.oid = p.pronamespace
+                              where s.nspname = 'public' and p.proname like 'fournil\\_%' and has_function_privilege('anon', p.oid, 'execute')`);
+    const parNom = new Map(procs.map((p) => [p.nom, p]));
+    const noms = [...new Set([...appels.values()].map((a) => a.nom))].sort();
+    check(JSON.stringify(noms) === JSON.stringify(['fournil_classement', 'fournil_heure', 'fournil_publier', 'fournil_recompenses', 'fournil_retirer']) && JSON.stringify(procs.map((p) => p.nom).sort()) === JSON.stringify(noms),
+      `le téléphone appelle exactement les cinq fonctions ouvertes à anon : ${noms.join(', ')}`);
+    const malAppeles = [...appels.values()].filter((a) => { const p = parNom.get(a.nom); if (!p) return true; const obligatoires = p.noms.slice(0, p.n - p.defauts); return a.cles.some((k) => !p.noms.includes(k)) || obligatoires.some((k) => !a.cles.includes(k)); });
+    check(appels.size >= 5 && malAppeles.length === 0, `chaque appel du téléphone donne exactement les paramètres de la fonction SQL (${[...appels.keys()].join(' ; ')})${malAppeles.length ? ' — en défaut : ' + malAppeles.map((a) => a.nom).join(', ') : ''}`);
+
+    // un PostgREST minimal : POST /rest/v1/rpc/<fonction>, paramètres nommés et typés, joué en tant qu'anon
+    const fauxFetch = async (url, init) => {
+      const m = /\/rest\/v1\/rpc\/(\w+)$/.exec(url), p = m && parNom.get(m[1]);
+      const repondre = (status, corps) => ({ ok: status < 300, status, text: async () => JSON.stringify(corps) });
+      if (!p || init.method !== 'POST' || !init.headers || !init.headers.apikey) return repondre(404, { code: 'PGRST202' });
+      const corps = JSON.parse(init.body || '{}'), cles = Object.keys(corps);
+      if (cles.some((k) => !p.noms.includes(k))) return repondre(404, { code: 'PGRST202' });
+      const args = cles.map((k, i) => `${k} => $${i + 1}::${p.types[p.noms.indexOf(k)]}`).join(', ');
+      try {
+        const r = await comme('anon', `select public.${p.nom}(${args}) as r`, cles.map((k) => (corps[k] == null ? null : typeof corps[k] === 'number' ? String(corps[k]) : corps[k])));
+        return repondre(200, r[0].r);
+      } catch (err) { return repondre(400, { code: err.code, message: err.message }); }
+    };
+    const memoire = () => { const m = new Map(); return { getItem: (k) => (m.has(k) ? m.get(k) : null), setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) }; };
+    const config = { supabaseUrl: 'https://banc.supabase.co', supabaseKey: 'sb_publishable_banc' };
+    const fortunes = { A: 1e6, B: 5e5 };
+    const moteur = (qui) => CL.creerMoteur({ config: () => config, fetch: fauxFetch, stockage: memoire(), maintenant: () => horloge, fortune: () => fortunes[qui], attendre: async (ms) => { await avancer(ms / 1000); } });
+    await vider(); await entetes(null);
+    await heure('2027-06-02T10:00:00Z'); // un mercredi
+    const A = moteur('A'), B = moteur('B');
+    let a = await A.choisirPseudo('Contrat A'), b = await B.choisirPseudo('Contrat B');
+    check(a.etat === 'ok' && b.etat === 'ok' && A.etat().rejoint && B.etat().rejoint && a.data.compte === 0, 'deux téléphones rejoignent par le vrai moteur : acceptés, rien de compté à l’arrivée (réponse lue : compte = 0)');
+    await avancer(600); fortunes.A += 5000; fortunes.B += 200;
+    a = await A.envoyer('feuille'); b = await B.envoyer('feuille');
+    check(a.etat === 'ok' && a.data.compte === 5000 && a.data.plafonne === false && b.etat === 'ok', '10 min plus tard, leurs envois automatiques : 5 000 € comptés pour A, sans plafond');
+    let c = await A.charger('total');
+    const lA = c.data && c.data.lignes.find((x) => x.pseudo === 'Contrat A');
+    check(c.etat === 'ok' && lA && lA.valeur === 5000 && lA.moi === true && lA.podium === null && c.data.moi && c.data.moi.rang === 1 && c.data.moi.podium === null && c.data.semaine === '2027-05-31',
+      `« Tous les temps » lu par le téléphone : A 1er avec 5 000 € (gagné depuis l’arrivée), pas encore de toque, semaine du ${c.data && c.data.semaine}`);
+    // la semaine finit : au lundi, le palmarès est figé ; le téléphone lit ses récompenses, sa tenue, sa coupe, et la toque dans la liste
+    await heure('2027-06-07T08:00:00Z');
+    const rA = await A.chargerRecompenses({ ecart: 0 }), rB = await B.chargerRecompenses({ ecart: 0 });
+    const vA = A.recompenses(), vB = B.recompenses();
+    check(rA.etat === 'ok' && JSON.stringify(vA.podiums) === JSON.stringify([{ semaine: '2027-05-31', rang: 1 }]) && vA.portee === 'or' && vA.coupe === 'or' && vA.annonce && vA.lundi === '2027-06-07',
+      `lundi : A lit ses récompenses — podium ${JSON.stringify(vA.podiums)}, tenue ${vA.portee} portée d’office, coupe ${vA.coupe} sur le comptoir, un podium à annoncer`);
+    check(rB.etat === 'ok' && vB.portee === 'argent' && vB.derniere && vB.derniere.semaine === '2027-05-31' && vB.derniere.podium.map((x) => `${x.rang} ${x.pseudo} ${x.valeur}`).join(', ') === '1 Contrat A 5000, 2 Contrat B 200',
+      `B : tenue ${vB.portee} ; le podium de la semaine passée lu par le téléphone : ${vB.derniere && vB.derniere.podium.map((x) => `${x.rang} ${x.pseudo} ${x.valeur}`).join(', ')}`);
+    await avancer(60); fortunes.A += 10; fortunes.B += 20;
+    await A.envoyer('feuille'); await B.envoyer('feuille');
+    c = await B.charger('semaine');
+    const toques = c.etat === 'ok' ? c.data.lignes.map((x) => `${x.rang} ${x.pseudo} ${x.valeur} toque ${x.podium}`).join(', ') : JSON.stringify(c);
+    check(c.etat === 'ok' && c.data.semaine === '2027-06-07' && toques === '1 Contrat B 20 toque 2, 2 Contrat A 10 toque 1' && c.data.moi && c.data.moi.podium === 2,
+      `« Cette semaine », relue par le téléphone : tout le monde est reparti de 0, chacun garde la petite toque de son podium de la semaine passée (${toques}), « moi » aussi`);
+    // l'heure du serveur, comme la lit src/horloge.js
+    const h = await CL.appeler(CL.lireConfig(config), 'fournil_heure', {}, { fetch: fauxFetch });
+    check(h.etat === 'ok' && h.data.ms === horloge, `fournil_heure lue par le téléphone (appeler, comme src/horloge.js) : { ms: ${h.data && h.data.ms} } = l’heure du serveur`);
+    // quitter : le palmarès du serveur est effacé, les coupes et tenues restent sur le téléphone
+    const q = await A.quitter();
+    check(q.etat === 'ok' && !A.etat().rejoint && A.recompenses().podiums.length === 1 && A.recompenses().gagnees.join() === 'or' && (await sup('select count(*)::int as n from public.fournil_palmares where pseudo = $1', ['Contrat A']))[0].n === 0,
+      'A quitte le classement : le serveur efface son palmarès, son téléphone garde sa coupe et sa tenue d’or à vie');
+  }
 
   // ─── le bilan ───
   const bilan = fails ? `${fails} échec(s), ${oks} ok` : `tout est bon (${oks} vérifications)`;

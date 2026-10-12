@@ -174,11 +174,12 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const s = memoire(); CL.ecrireEtat(s, { ...CL.etatNeuf(), id: CL.nouvelId(), jeton: CL.nouveauJeton(), pseudo: 'Léa', rejoint: true, essai: horloge, dernierEnvoi: horloge, valeur: 1 });
     const r = faux(async () => rep(200, { ok: true, rang_semaine: 1, rang_total: 1, joueurs: 1 })); let visible = false;
     const m = moteur(r, { stockage: s, visible: () => visible }); fortune = 99;
+    const envois = () => r.appels.filter((a) => a.url.endsWith('/fournil_publier')).length; // (les récompenses sont lues à part, au lancement)
     horloge += 6 * 60e3; m.demarrer({ minuteur: false }); await new Promise((ok) => setTimeout(ok, 10));
-    check(r.appels.length === 1, 'au démarrage (après les gains hors ligne) : un envoi');
-    fortune = 120; visible = true; await m.tick(); check(r.appels.length === 1, 'aussitôt après : le minuteur n’envoie rien (5 min pas écoulées)');
-    horloge += 5 * 60e3; visible = false; await m.tick(); check(r.appels.length === 1, '5 min plus tard, page cachée : rien');
-    visible = true; await m.tick(); check(r.appels.length === 2, '5 min plus tard, page visible : un envoi');
+    check(envois() === 1, 'au démarrage (après les gains hors ligne) : un envoi');
+    fortune = 120; visible = true; await m.tick(); check(envois() === 1, 'aussitôt après : le minuteur n’envoie rien (5 min pas écoulées)');
+    horloge += 5 * 60e3; visible = false; await m.tick(); check(envois() === 1, '5 min plus tard, page cachée : rien');
+    visible = true; await m.tick(); check(envois() === 2, '5 min plus tard, page visible : un envoi');
   }
   // ─── les corrections de la relecture ───
   const dormir = (ms) => new Promise((ok) => setTimeout(ok, ms));
@@ -221,7 +222,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   { const sv = serveurLent({ fournil_publier: 40, fournil_classement: 10 }), m = moteur(sv);
     horloge += 60e3; await m.choisirPseudo('Ouvreur'); horloge += 60e3; fortune += 10;
     const avant = compte(sv.appels, 'fournil_classement'), lecture = m.ouvrir('semaine');
-    check(compte(sv.appels, 'fournil_classement') === avant + 1 && sv.appels[sv.appels.length - 1].nom === 'fournil_publier', 'la liste part tout de suite, l’envoi de la fortune en même temps (plus d’attente en série)');
+    check(compte(sv.appels, 'fournil_classement') === avant + 1 && sv.appels.filter((a) => a.nom !== 'fournil_recompenses').pop().nom === 'fournil_publier', 'la liste part tout de suite, l’envoi de la fortune en même temps (plus d’attente en série)');
     check(m.charger('semaine') === lecture && compte(sv.appels, 'fournil_classement') === avant + 1 && m.enChargement('semaine'), 'redemandée pendant la lecture : la même promesse, pas de deuxième appel');
     const c = await lecture; check(c.etat === 'ok', 'liste lue');
     await dormir(80);
@@ -295,6 +296,69 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     horloge = S; const m2 = moteur(faux(async () => rep(200, {})), { stockage: s });
     check(m2.resume().semaine === null && m2.resume().total.rang === 4, 'téléphone en avance (lundi chez lui) : la place de l’ancienne semaine est masquée, celle de tous les temps reste');
   }
+  console.log('── les récompenses du podium (contrat v2) ──');
+  check(CL.metal(1) === 'or' && CL.metal(2) === 'argent' && CL.metal(3) === 'bronze' && CL.metal(4) === null && CL.metal(null) === null, '1er : or, 2e : argent, 3e : bronze ; au-delà, rien');
+  check(CL.decalerSemaine('2026-10-12', -1) === '2026-10-05' && CL.decalerSemaine('2027-01-04', -1) === '2026-12-28' && CL.decalerSemaine('2026-10-19', 1) === '2026-10-26' && CL.decalerSemaine('2027-03-22', 1) === '2027-03-29' && CL.decalerSemaine('n’importe', 1) === '', 'la semaine d’avant, d’après (passage de l’année et changements d’heure compris)');
+  { const r = CL.nettoyerRecompenses({ podiums: [{ semaine: '2026-10-05', rang: 2 }, { semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 3 }, { semaine: 'hier', rang: 1 }, { semaine: '2026-09-21', rang: 4 }, null, { semaine: '2026-09-14', rang: '1' }], tenue: 'platine', vu: 12 });
+    check(egal(r, { podiums: [{ semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '' }), 'récompenses nettoyées : une coupe par semaine (la meilleure), triées, rangs 1 à 3 seulement ; tenue inconnue → automatique'); }
+  check(CL.nettoyerRecompenses({ tenue: null }).tenue === null && CL.nettoyerRecompenses({ tenue: 'bronze' }).tenue === 'bronze' && egal(CL.nettoyerRecompenses('abîmé'), CL.recompensesNeuves()), 'tenue « aucune » (null) gardée ; réponse absurde : rien');
+  { const rec = { podiums: [{ semaine: '2026-09-21', rang: 3 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '' }, L = '2026-10-12';
+    check(CL.tenuePortee(rec, L) === 'argent' && CL.coupeDuComptoir(rec, L) === 'argent', 'automatique : la semaine qui suit le podium, la tenue et la coupe d’argent');
+    check(CL.tenuePortee(rec, '2026-10-19') === null && CL.coupeDuComptoir(rec, '2026-10-19') === null, 'la semaine d’après : plus rien d’office (tenue blanche, coupe rangée dans la vitrine)');
+    check(CL.tenuePortee({ ...rec, tenue: 'bronze' }, '2026-10-19') === 'bronze' && CL.tenuePortee({ ...rec, tenue: null }, L) === null && CL.tenuePortee({ ...rec, tenue: 'or' }, L) === 'argent', 'tenue choisie : celle-là, gardée à vie ; « aucune » : la blanche ; une tenue jamais gagnée : retour à l’automatique');
+    const a = CL.aAnnoncer(rec, L);
+    check(a && a.semaine === '2026-10-05' && a.rang === 2 && a.metal === 'argent' && a.autres === 1 && CL.aAnnoncer({ ...rec, vu: '2026-10-05' }, L) === null && CL.aAnnoncer({ ...rec, vu: '2026-09-21' }, L).autres === 0, 'l’annonce : le podium le plus récent pas encore annoncé (et combien d’autres depuis la dernière visite)');
+    check(CL.phraseAnnonce(a) === 'Bravo ! 2e de la semaine : la tenue d’argent et la coupe d’argent sont à toi' && /1er de la semaine : la tenue d’or et la coupe d’or/.test(CL.phraseAnnonce({ rang: 1, metal: 'or' })) && /tenue de bronze/.test(CL.phraseAnnonce({ rang: 3, metal: 'bronze' })), 'la phrase : « ' + CL.phraseAnnonce(a) + ' »');
+    check(egal(CL.tenuesGagnees(rec), ['argent', 'bronze']), 'les tenues gagnées, dans l’ordre or, argent, bronze'); }
+  { const d = CL.nettoyerClassement({ semaine: '2026-10-12', joueurs: 3, lignes: [{ rang: 1, pseudo: 'A', valeur: 5, podium: 2 }, { rang: 2, pseudo: 'B', valeur: 4, podium: 7 }, { rang: 3, pseudo: 'C', valeur: 3 }], moi: { rang: 1, valeur: 5, podium: 2 } });
+    check(d.lignes[0].podium === 2 && d.lignes[1].podium === null && d.lignes[2].podium === null && d.moi.podium === 2, 'les lignes du classement portent le podium de la semaine passée (1, 2, 3 ou null)'); }
+  { const d = CL.nettoyerRecompensesServeur({ ok: true, podiums: [{ semaine: '2026-10-05', rang: 1 }], derniere: { semaine: '2026-10-05', podium: [{ rang: 1, pseudo: 'Léa', valeur: '12' }, { rang: 9, pseudo: 'x' }, { rang: 2, pseudo: '<b>Jo</b>', valeur: 3 }] } });
+    check(d.ok && d.podiums.length === 1 && d.derniere.podium.length === 2 && d.derniere.podium[0].valeur === 12 && d.derniere.podium[1].pseudo === '<b>Jo</b>', 'réponse de fournil_recompenses nettoyée (le pseudo reste du texte : l’interface l’échappe)');
+    check(CL.nettoyerRecompensesServeur({ ok: true, podiums: [], derniere: { semaine: '2026-10-05', podium: [] } }).derniere === null && !CL.nettoyerRecompensesServeur(null).ok, 'podium vide : derniere = null ; réponse absente : pas ok'); }
+  { // le moteur : lecture au lancement, podiums ajoutés à ceux du téléphone, lundi du serveur, choix de la tenue, annonce, quitter
+    const S = Date.UTC(2026, 9, 12, 10); horloge = S; // lundi 12 octobre 2026
+    const s = memoire(), id = CL.nouvelId(), jeton = CL.nouveauJeton();
+    CL.ecrireEtat(s, { ...CL.etatNeuf(), id, jeton, pseudo: 'Léa', rejoint: true, essai: S, dernierEnvoi: S, valeur: 1, recompenses: { podiums: [{ semaine: '2026-08-31', rang: 3 }], tenue: 'auto', vu: '2026-08-31' } });
+    let reponse = { ok: true, erreur: null, podiums: [{ semaine: '2026-09-21', rang: 1 }, { semaine: '2026-10-05', rang: 2 }], derniere: { semaine: '2026-10-05', podium: [{ rang: 1, pseudo: 'Mamie Jo', valeur: 9e6 }, { rang: 2, pseudo: 'Léa', valeur: 5e6 }, { rang: 3, pseudo: 'Tonton', valeur: 1e6 }] } };
+    const r = faux(async (url) => (url.endsWith('/fournil_recompenses') ? rep(200, reponse) : rep(200, { ok: true, erreur: null, rang_semaine: 1, rang_total: 1, joueurs: 1, semaine: '2026-10-12' })));
+    const m = moteur(r, { stockage: s }); fortune = 1;
+    m.demarrer({ minuteur: false }); await new Promise((ok) => setTimeout(ok, 20));
+    const ar = r.appels.find((a) => a.url.endsWith('/fournil_recompenses'));
+    check(ar && egal(Object.keys(ar.corps).sort(), ['p_id', 'p_jeton']) && ar.corps.p_id === id && ar.corps.p_jeton === jeton, 'au lancement : fournil_recompenses(p_id, p_jeton)');
+    let v = m.recompenses();
+    check(egal(v.podiums.map((p) => p.semaine), ['2026-08-31', '2026-09-21', '2026-10-05']) && v.portee === 'argent' && v.coupe === 'argent' && egal(v.coupes, ['bronze', 'or', 'argent']) && v.derniere.podium[0].pseudo === 'Mamie Jo', 'podiums du serveur ajoutés à ceux du téléphone ; cette semaine : tenue et coupe d’argent ; la vitrine : bronze, or, argent');
+    check(v.annonce && v.annonce.semaine === '2026-10-05' && v.annonce.rang === 2 && v.annonce.autres === 1, 'à annoncer : le 2e de la semaine du 5 oct. (et un autre podium depuis la dernière visite)');
+    check(JSON.parse(s.getItem(CL.CLE)).recompenses.podiums.length === 3, 'les podiums sont écrits dans « fournil.classement »');
+    const nR = () => r.appels.filter((a) => a.url.endsWith('/fournil_recompenses')).length, n0 = nR();
+    await m.chargerRecompenses(); check(nR() === n0, 'relue tout de suite : rien ne part (30 min au plus souvent, une minute à l’ouverture de la feuille)');
+    horloge += 61e3; m.ouvrir('semaine'); await new Promise((ok) => setTimeout(ok, 20)); check(nR() === n0 + 1, 'à l’ouverture de la feuille, une minute plus tard : relue');
+    check(m.choisirTenue('bronze') && m.recompenses().portee === 'bronze' && !m.choisirTenue('platine') && m.choisirTenue(null) && m.recompenses().portee === null, 'choisir la tenue : bronze (gagnée), « aucune » ; une tenue inconnue est refusée');
+    reponse = { ok: true, erreur: null, podiums: [], derniere: null }; horloge += 31 * 60e3; await m.chargerRecompenses();
+    check(m.recompenses().podiums.length === 3, 'le serveur n’en sait plus rien (ménage des 90 jours) : le téléphone garde tout');
+    check(m.annonceFaite('2026-10-05') && m.recompenses().vu === '2026-10-05' && m.recompenses().tenue === 'auto' && m.recompenses().annonce === null && !m.annonceFaite('2026-09-21'), 'l’annonce faite : notée, et la tenue du nouveau podium se porte d’office (retour à l’automatique)');
+    horloge = S + 7 * 864e5; check(m.lundi() === '2026-10-19' && m.recompenses().portee === null && m.recompenses().coupe === null, 'la semaine suivante : la tenue blanche revient d’office, la coupe quitte le comptoir (elle reste dans la vitrine)');
+    horloge = S;
+    const q = await m.quitter();
+    check(q.etat === 'ok' && m.etat().id === null && m.recompenses().podiums.length === 3 && JSON.parse(s.getItem(CL.CLE)).recompenses.podiums.length === 3, 'quitter le classement : les coupes et les tenues restent à lui');
+    const n1 = r.appels.length; await m.chargerRecompenses({ ecart: 0 }); check(r.appels.length === n1, 'pas (ou plus) au classement : les récompenses ne sont pas demandées'); }
+  { // deux fenêtres : un podium appris par l'une, une tenue choisie dans l'autre
+    const s = memoire(), id = CL.nouvelId(), jeton = CL.nouveauJeton(); horloge = Date.UTC(2026, 9, 12, 10);
+    CL.ecrireEtat(s, { ...CL.etatNeuf(), id, jeton, pseudo: 'Léa', rejoint: true, essai: horloge, dernierEnvoi: horloge, valeur: 1 });
+    const r = faux(async (url) => rep(200, url.endsWith('/fournil_recompenses') ? { ok: true, podiums: [{ semaine: '2026-10-05', rang: 3 }], derniere: null } : { ok: true }));
+    const A = moteur(r, { stockage: s }), B = moteur(r, { stockage: s });
+    await A.chargerRecompenses({ ecart: 0 });
+    check(B.recompenses().podiums.length === 0 && (B.resynchroniser(), B.recompenses().podiums.length === 1), 'B apprend le podium trouvé par A en relisant le stockage');
+    B.choisirTenue(null); A.resynchroniser(); check(A.recompenses().tenue === null && A.recompenses().podiums.length === 1, 'A suit la tenue choisie dans B, sans perdre de podium');
+    const p = await moteur(faux(async () => rep(200, { ok: false, erreur: 'jeton', podiums: [], derniere: null })), { stockage: memoire() }).chargerRecompenses();
+    check(p.etat === 'saute', 'pas d’identité : aucun appel'); }
+  { // l'horloge du jeu (HORLOGE) plutôt que celle du téléphone, et le lundi du serveur s'il est en avance
+    const s = memoire(); CL.ecrireEtat(s, { ...CL.etatNeuf(), id: CL.nouvelId(), jeton: CL.nouveauJeton(), pseudo: 'Léa', rejoint: true, recompenses: { podiums: [{ semaine: '2026-10-05', rang: 1 }], tenue: 'auto', vu: '' } });
+    horloge = Date.UTC(2026, 9, 11, 21, 50); // dimanche 11 oct., 23 h 50 à Paris chez le téléphone, le serveur est déjà lundi
+    const m = moteur(faux(async () => rep(200, { ok: true, podiums: [{ semaine: '2026-10-05', rang: 1 }], derniere: { semaine: '2026-10-05', podium: [{ rang: 1, pseudo: 'Léa', valeur: 1 }] } })), { stockage: s });
+    check(m.recompenses().portee === null, 'avant toute réponse : le lundi du téléphone (encore la semaine du podium : rien d’office)');
+    await m.chargerRecompenses({ ecart: 0 });
+    check(m.lundi() === '2026-10-12' && m.recompenses().portee === 'or' && m.recompenses().coupe === 'or', 'le serveur dit que la semaine du podium est finie : tenue et coupe d’or tout de suite'); }
+
   console.log(`\n${n - echecs}/${n} vérifications.`);
   console.log(echecs ? `${echecs} échec(s)` : 'Tout passe.');
   process.exit(echecs ? 1 : 0);

@@ -96,7 +96,9 @@ const SCENE = (() => {
     { id: 'horloge', cle: () => '1', faire: (k, c) => MEUBLES.horloge(c) },
     { id: 'diplome', cle: (E) => (E.rang >= 2 ? '1' : null), faire: (k, c) => MEUBLES.diplome(c) },
     { id: 'plante', cle: (E) => (E.niv[1] > 0 ? '1' : null), faire: (k, c) => MEUBLES.plante(LAY.plante.x, LAY.plante.y, c) },
-    { id: 'sapin', cle: (E) => (E.tags.includes('noel') ? '1' : null), faire: (k, c) => MEUBLES.sapin(c) },
+    { id: 'sapin', cle: (E) => (E.tags.includes('noel') ? (REC.coupes.length ? 'd' : '1') : null), faire: (k, c) => MEUBLES.sapin(c, k === 'd') }, // la vitrine des trophées prend sa place : il se pousse à droite
+    { id: 'trophees', cle: () => (REC.coupes.length && MEUBLES.trophees ? REC.coupes.join(',') : null), faire: (k, c) => MEUBLES.trophees(k.split(','), c) }, // toutes les coupes gagnées
+    { id: 'coupe', cle: () => (REC.coupe && MEUBLES.coupe ? REC.coupe : null), faire: (k, c) => MEUBLES.coupe(k, c) }, // la coupe du dernier podium, sur le comptoir la semaine qui suit
     { id: 'plan', cle: () => '1', faire: (k, c) => MEUBLES.plan(c) },
     { id: 'presentoir', cle: (E) => (LAY.spread > 120 && E.niv[0] >= 20 ? String(Math.min(6, 2 + Math.floor(E.niv[0] / 25))) : null), faire: (k, c) => MEUBLES.presentoir(+k, c) },
     { id: 'ardoise', cle: (E) => (E.staffs >= 2 ? '1' : null), faire: (k, c) => MEUBLES.ardoise(c) },
@@ -110,8 +112,16 @@ const SCENE = (() => {
     { id: 'lampe', cle: (E) => (E.niv[2] > 0 ? '1' : null), faire: (k, c) => MEUBLES.lampe(c) },
   ];
   const MEUBLES_IDS = ['froid', 'four', 'comptoir', 'caisse', 'tables', 'deco'];
+  // les récompenses du podium du classement (src/classement.js) : la tenue du boulanger, la coupe du comptoir, les coupes de la vitrine
+  const REC = { tenue: null, coupe: null, coupes: [] }, METAUX = ['or', 'argent', 'bronze'];
+  function recompenses(o) {
+    o = o || {};
+    REC.tenue = METAUX.includes(o.tenue) ? o.tenue : null; REC.coupe = METAUX.includes(o.coupe) ? o.coupe : null;
+    REC.coupes = Array.isArray(o.coupes) ? o.coupes.filter((m) => METAUX.includes(m)).slice(-200) : [];
+  }
   function contexte(E) {
     const c = ctxC || (ctxC = { wz, wy, wd, SY, CY });
+    c.trophees = REC.coupes.length > 0; // la vitrine des trophées décroche le second cadre
     c.LAY = LAY; c.K = V.K; c.W = W; c.H = H; c.Q = E.Q; c.tags = E.tags; c.rush = E.rush; c.t = E.t; c.sk = E.sk; c.crans = E.crans; c.niv = E.niv; c.staffs = E.staffs; c.bonus = E.bonus; c.rang = E.rang;
     const cp = groupes.comptoir; c.dessusY = cp ? cp.userData.dessusY : wy(LAY.comptoir.hFace); c.dessusZ = cp ? cp.userData.dessusZ : wz(LAY.comptoir.y + LAY.comptoir.hTop + LAY.comptoir.hFace) - wd(LAY.comptoir.hTop) / 2;
     return c;
@@ -122,7 +132,7 @@ const SCENE = (() => {
     c.nVitrine = ouverts.length + (rs ? 1 : 0); // la recette de saison a sa place : étagères, étiquettes et places sur le même compte
     if (Qc !== E.Q) { Qc = E.Q; renderer.setClearColor(E.Q.sol); salle = MEUBLES.salle(c); remplacer('salle', salle); }
     for (const id of MEUBLES_IDS) { // les six meubles (le comptoir porte la vitrine), reconstruits quand leur cran change
-      const cran = E.crans[id === 'comptoir' ? 'vitrine' : id], k = `${cran}|${base}${id === 'tables' ? '|' + E.crans.deco : ''}${id === 'deco' && E.tags.includes('noel') ? '|noel' : ''}${id === 'comptoir' ? '|' + c.nVitrine : ''}`;
+      const cran = E.crans[id === 'comptoir' ? 'vitrine' : id], k = `${cran}|${base}${id === 'tables' ? '|' + E.crans.deco : ''}${id === 'deco' && E.tags.includes('noel') ? '|noel' : ''}${id === 'deco' && c.trophees ? '|trophees' : ''}${id === 'comptoir' ? '|' + c.nVitrine : ''}`;
       if (cles[id] !== k) { cles[id] = k; remplacer(id, MEUBLES[id](cran, c)); if (id === 'comptoir') { cles.produits = null; cles.caisse = null; const cp = groupes.comptoir; if (cp && cp.userData.dessusY != null) { c.dessusY = cp.userData.dessusY; c.dessusZ = cp.userData.dessusZ; } } }
     }
     for (const d of CONDS) { const k = d.cle(E), kk = k == null ? null : `${k}|${base}`; if (cles[d.id] !== kk) { cles[d.id] = kk; remplacer(d.id, kk == null ? null : d.faire(k, c)); } }
@@ -132,8 +142,8 @@ const SCENE = (() => {
       liste.forEach((i, k) => { const p = places[k]; if (!p) return; const m = (typeof i === 'string' ? PERSOS.patisserieSaison(i) : PERSOS.patisserie(i)).clone(); const s = (p.s || 16) / (PERSOS.TAILLE_PATISSERIE || 16); m.position.set(p.x, p.y, p.z); m.scale.setScalar(s); m.castShadow = false; g.add(m); });
       remplacer('produits', g);
     }
-    const kb = `${E.rang}|${base}`;
-    if (cles.boulanger !== kb) { cles.boulanger = kb; boulangerG = PERSOS.boulanger(E.rang); boulangerG.userData.yaw = 0; boulangerG.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y)); boulangerG.scale.setScalar(0.9 * V.K); boulangerG.updateMatrixWorld(true); boulangerG.userData.zoneBoite = new THREE.Box3().setFromObject(boulangerG, true); remplacer('boulanger', boulangerG); } // la zone de touche : la pose de repos
+    const kb = `${E.rang}|${REC.tenue || ''}|${base}`;
+    if (cles.boulanger !== kb) { cles.boulanger = kb; boulangerG = PERSOS.boulanger(E.rang, REC.tenue); boulangerG.userData.yaw = 0; boulangerG.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y)); boulangerG.scale.setScalar(0.9 * V.K); boulangerG.updateMatrixWorld(true); boulangerG.userData.zoneBoite = new THREE.Box3().setFromObject(boulangerG, true); remplacer('boulanger', boulangerG); } // la zone de touche : la pose de repos
   }
 
   // ─── la lumière : cinq phases du ciel, fondues autour de chaque borne ; les lampes la nuit ; le coup de feu réchauffe ───
@@ -350,6 +360,11 @@ const SCENE = (() => {
     return false;
   }
   function hitBoulanger(x, y) { return dans(zones().boulanger, x, y); }
+  function hitTrophees(x, y) { // la vitrine des trophées ou la coupe du comptoir
+    if (!webgl || !LAY) return false;
+    const v = groupes.trophees, cp = groupes.coupe; // la vitrine : au moins 44 × 44 ; la coupe, juste elle (elle touche le tablier du boulanger)
+    return dans(v ? auMoins(rectDe(v, 3), 44, 44) : null, x, y) || dans(cp ? rectDe(cp, 1) : null, x, y);
+  }
   function hitMeuble(x, y) { const z = zones(); for (const id of ['caisse', 'deco', 'four', 'froid', 'vitrine', 'tables']) if (dans(z[id], x, y)) return id; return null; }
 
   // ─── le calque 2D : textes, vapeurs, étiquettes, bulle de talent, étincelles du mystère, pastilles, Aménager, confettis ───
@@ -411,9 +426,11 @@ const SCENE = (() => {
     }
   }
 
-  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitChat, ronron, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
+  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitChat, hitTrophees, recompenses, ronron, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
     vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
+    get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0 }; }, // ce que la boutique montre (pour les tests)
+    get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG) }; }, // le budget d'appels de dessin (pour les tests)
     get amenager() { return amenager; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
     get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length, geometries: renderer ? renderer.info.memory.geometries : 0, textures: renderer ? renderer.info.memory.textures : 0 }; } };
   return API;

@@ -130,6 +130,73 @@ function fauxTelephone(decalDepart) {
   check(!errors.length, 'aucune erreur dans la page' + (errors.length ? ' : ' + errors[0] : ''));
   await context.close();
 
+  // ─── un joueur HONNÊTE (téléphone à l'heure) sans réseau 3 jours, qui revient au jeu chaque soir, puis le réseau revient jeu ouvert ───
+  decalServeur = DEPART - Date.now();
+  const c3 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+  await c3.addInitScript(fauxTelephone, decalServeur);
+  const p3 = await c3.newPage(); p3.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });
+  await p3.goto(URL_JEU); await p3.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 15000 }); await sleep(800);
+  // le gain de la dernière absence payée (G.absence, appelée par src/ui.js), pour le comparer à ce que la fortune a vraiment pris
+  await p3.evaluate(() => { const G = window.__fournil.G, a = G.absence; G.absence = (st, now) => { const r = a(st, now); window.__dernierRetour = r.total; return r; }; });
+  await p3.evaluate(() => { const f = window.__fournil, s = f.st, G = f.G; s.coins = 1e7; for (let i = 0; i < 3; i++) { if (s.stations[i].niv === 0) G.acheter(s, i); G.embaucher(s, i); s.stations[i].actif = true; } s.coins = 1000; s.tuto = 99; f.save(); });
+  const e3 = () => p3.evaluate(() => { const f = window.__fournil, s = f.st, fe = document.querySelector('#feuille'); return { now: s.now, lastSeen: s.lastSeen, lifetime: s.lifetime, jour: s.jour.date, taux: f.G.tauxParSeconde(s), retour: !fe.hidden && /Pendant ton absence/.test(document.querySelector('#feuille-contenu').innerText), gainFeuille: fe.hidden ? 0 : (window.__dernierRetour || 0), txt: fe.hidden ? '' : document.querySelector('#feuille-contenu').innerText.split('\n').slice(0, 3).join(' / '), source: HORLOGE.info().source, absMax: f.G.heuresAbsence(s) * 3600e3 }; });
+  // la durée (ms) et le gain écrits sur la feuille « Pendant ton absence »
+  const dureeFeuille = (txt) => { const m = /(\d+) h(?: (\d+))?|(\d+) min/.exec(txt || ''); return m ? (m[3] ? +m[3] * 60e3 : +m[1] * HEURE + (+m[2] || 0) * 60e3) : 0; };
+  const fermer3 = () => p3.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b && !document.querySelector('#feuille').hidden) b.click(); });
+  await c3.setOffline(true);
+  const soirs = [];
+  for (let j = 1; j <= 3; j++) {
+    await p3.evaluate(() => window.__cacher(true)); decalServeur += JOUR; await p3.evaluate((d) => window.__heureTel(d), decalServeur); await sleep(200);
+    await p3.evaluate(() => window.__cacher(false)); await sleep(3200);
+    soirs.push(await e3()); await fermer3();
+  }
+  check(soirs[0].retour && Math.abs(soirs[0].now - soirs[0].lastSeen) < 60e3, `hors ligne, 1er soir : une absence payée (${soirs[0].txt})`);
+  check(!soirs[1].retour && !soirs[2].retour && soirs[2].now < vrai() - JOUR, `2e et 3e soirs hors ligne : le jeu attend une heure sûre (rien de payé, jeu ${fmtH(vrai() - soirs[2].now)} derrière le vrai temps)`);
+  const avantReseau = await e3();
+  await c3.setOffline(false); await sleep(2500);
+  const apres = await e3();
+  check(apres.source === 'page' && Math.abs(apres.now - vrai()) < 5000, `le réseau revient, jeu ouvert : le jeu rejoint la vraie heure (saut de ${fmtH(apres.now - avantReseau.now)})`);
+  check(apres.retour && Math.abs(dureeFeuille(apres.txt) - apres.absMax) <= 60e3 && apres.lifetime - avantReseau.lifetime >= apres.gainFeuille * 0.999 && apres.gainFeuille > 0, `… et ce vrai temps est payé comme une absence, au lieu d’être perdu : ${apres.txt}`);
+  await p3.screenshot({ path: out + '/triche-reseau-revenu.png' }); await fermer3();
+  await p3.evaluate(() => window.__fournil.save()); await p3.reload(); await p3.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 15000 }); await sleep(800);
+  { const e = await e3(); check(!e.retour && e.lifetime - apres.lifetime < e.taux * 60, 'relancé ensuite : l’absence est soldée, rien de payé deux fois'); }
+  // une heure sûre en retard au lancement (plus de 2,5 s) après 12 h d'absence : une absence au lancement, le saut qui suit ne paie rien de plus
+  await p3.evaluate(() => window.__fournil.save());
+  decalServeur += 12 * HEURE; await p3.evaluate((d) => window.__heureTel(d), decalServeur);
+  await p3.route('**/*heure=*', async (r) => { await sleep(4500); try { await r.continue(); } catch (e) { /* page partie */ } });
+  const avantLent = await e3();
+  await p3.reload(); await p3.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 15000 }); await sleep(800);
+  const lent1 = await e3(); await fermer3(); await sleep(4500);
+  const lent2 = await e3();
+  check(lent1.retour && Math.abs(dureeFeuille(lent1.txt) - lent1.absMax) <= 60e3 && lent1.source !== 'page' && lent2.source === 'page' && !lent2.retour && Math.abs(lent2.now - vrai()) < 5000 && lent2.lifetime - lent1.lifetime < lent2.taux * 30,
+    `12 h d’absence, heure sûre arrivée après les 2,5 s : une absence au lancement (${lent1.txt}), le saut de 4 h qui suit ne la repaie pas (+${Math.round(lent2.lifetime - lent1.lifetime)} € en ${Math.round(4.5 + 0.8)} s)`);
+  await p3.unroute('**/*heure=*');
+  await c3.close();
+
+  // ─── changer de FUSEAU dans les réglages du téléphone (vendredi 19 h à Paris = samedi 7 h à Kiritimati, UTC+14) : rien ne change ───
+  decalServeur = DEPART - Date.now();
+  const c4 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true, locale: 'fr-FR', serviceWorkers: 'block' }); // le fuseau : par CDP, changé en route
+  await c4.addInitScript(fauxTelephone, decalServeur);
+  const p4 = await c4.newPage(); p4.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });
+  const cdp = await c4.newCDPSession(p4);
+  const fuseau = async (tz) => { try { await cdp.send('Emulation.setTimezoneOverride', { timezoneId: '' }); } catch (e) { /* pas encore réglé */ } await cdp.send('Emulation.setTimezoneOverride', { timezoneId: tz }); };
+  await fuseau('Europe/Paris');
+  const e4 = () => p4.evaluate(() => { const f = window.__fournil, s = f.st; return { jour: s.jour.date, semaine: s.semaine.key, etoiles: s.etoiles, serie: s.serie, donnee: s.jour.etoileDonnee, marche: f.G.jourDeMarche(s.now), badge: /Marché/.test(document.querySelector('#taux').textContent), attendu: !!f.G.habitueAttendu(s, s.now), heureLocale: new Date().getHours() }; });
+  const pret4 = async () => { await p4.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 15000 }); await sleep(800); };
+  await p4.goto(URL_JEU); await pret4();
+  await p4.evaluate(() => { const f = window.__fournil, s = f.st, G = f.G; s.tuto = 99; G.objectifsDuJour(s, s.now); s.jour.objectifs.forEach((o) => { o.fait = true; }); s.jour.objectifs.forEach((o, k) => G.reclamer(s, k)); s.habitues = { lena: { jours: 1, dernier: G.dayKey(s.now), vuLe: G.dayKey(s.now) } }; f.save(); });
+  const z0 = await e4();
+  const fuseaux = [];
+  for (const tz of ['Pacific/Kiritimati', 'Europe/Paris', 'Pacific/Kiritimati', 'Etc/GMT+12', 'Europe/Paris']) {
+    await fuseau(tz); await p4.reload(); await pret4();
+    const z = await e4(); fuseaux.push(`${tz} (${z.heureLocale} h) : ${z.jour}`);
+    if (tz === 'Pacific/Kiritimati' && !fuseaux.some((f, k) => k < fuseaux.length - 1 && /Kiritimati/.test(f))) await p4.screenshot({ path: out + '/triche-fuseau-kiritimati.png' });
+    if (!(z.jour === z0.jour && z.semaine === z0.semaine && z.etoiles === z0.etoiles && z.serie === z0.serie && z.donnee && !z.marche && !z.badge && !z.attendu)) { fuseaux.push('ÉCART ' + JSON.stringify(z)); break; }
+  }
+  check(z0.jour === '2026-10-09' && z0.donnee && !fuseaux.some((f) => /ÉCART/.test(f)), `fuseau du téléphone changé 5 fois (${fuseaux.join(' ; ')}) : même journée, même semaine, ni étoile ni série en plus, pas de marché, Léna ne revient pas`);
+  await c4.close();
+  check(!errors.length, 'aucune erreur dans la page (réseau revenu, fuseaux)' + (errors.length ? ' : ' + errors[0] : ''));
+
   // ─── un samedi à 360×640 : le badge « Marché ×1,5 » ne repousse plus la boutique ───
   decalServeur = new Date('2026-10-10T10:00:00+02:00').getTime() - Date.now();
   const c2 = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });

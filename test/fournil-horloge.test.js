@@ -153,7 +153,7 @@ console.log('── l’heure sûre arrive en cours de partie ──');
   h.demarrer(); // un téléphone en retard, sans réseau
   const avant = h.maintenant();
   const r = h.noterHeureSure(w.vrai, w.perf, 'page');
-  check(r && proche(r.saut, 10 * HEURE - 60e3) && proche(h.maintenant(), w.vrai), 'téléphone en retard : l’heure sûre recale le jeu vers l’avant (' + Math.round(r.saut / HEURE) + ' h), sans absence à payer');
+  check(r && proche(r.saut, 10 * HEURE - 60e3) && proche(h.maintenant(), w.vrai), 'téléphone en retard : l’heure sûre recale le jeu vers l’avant (' + Math.round(r.saut / HEURE) + ' h) ; ce saut, src/ui.js le paie comme une absence (plus bas)');
   check(avant < h.maintenant(), 'vers l’avant seulement');
 }
 {
@@ -170,6 +170,58 @@ console.log('── l’heure sûre arrive en cours de partie ──');
   check(proche(h.etat().sure, w.vrai) && h.info().source === 'supabase', 'une heure sûre lue fait foi, même plus tôt que celle d’une vieille sauvegarde');
   const h2 = w.horloge(); h2.charger({ sure: 'demain', jeu: NaN }); h2.charger(null); h2.charger('x'); h2.demarrer();
   check(proche(h2.maintenant(), w.vrai), 'une sauvegarde abîmée est ignorée');
+}
+
+console.log('── le réseau revient en cours de partie : le saut est payé comme une absence, une seule ──');
+{
+  // payerSaut de src/ui.js : le saut d'heure sûre, avec ce qui a déjà été payé pour cette absence, jamais plus qu'une absence
+  const payerSaut = (h, st, r, deja) => {
+    const paye = H.sautAPayer(r ? r.saut : 0, deja, G.heuresAbsence(st) * HEURE);
+    if (!(paye > 0)) return { secs: 0, total: 0 };
+    const now = h.maintenant(); st.lastSeen = now - paye; return G.absence(st, now);
+  };
+  check(H.sautAPayer(10 * HEURE, 0, MAX) === MAX && H.sautAPayer(HEURE, 0, MAX) === HEURE && H.sautAPayer(10 * HEURE, 6 * HEURE, MAX) === MAX - 6 * HEURE && H.sautAPayer(HEURE, MAX, MAX) === 0 && H.sautAPayer(-HEURE, 0, MAX) === 0 && H.sautAPayer(NaN, 0, MAX) === 0,
+    'sautAPayer : le saut, plafonné à une absence moins ce qui a déjà été payé ; rien pour un saut nul, négatif ou illisible');
+  // un joueur honnête (téléphone à l'heure) sans réseau 3 jours, qui ouvre le jeu chaque soir, puis le réseau revient jeu ouvert
+  const debut = new Date('2026-10-09T19:00:00+02:00').getTime(), w = monde(debut);
+  const st = boutique(debut);
+  let s = lancer(w, st, null, true); w.passer(5 * 60e3); let sauve = fermer(s.h, st);
+  const payes = [];
+  for (let j = 1; j <= 3; j++) { w.passer(JOUR - 10 * 60e3); s = lancer(w, st, sauve, false); payes.push(s.abs.secs); w.passer(5 * 60e3); if (j < 3) sauve = fermer(s.h, st); }
+  check(proche(payes[0] * 1000, G.heuresAbsence(st) * HEURE, 2000) && payes[1] < 400 && payes[2] < 400, `hors ligne, chaque soir : la première absence est payée (${(payes[0] / 3600).toFixed(1)} h), les suivantes non (le jeu attend une heure sûre)`);
+  const avant = st.lifetime;
+  const r = s.h.noterHeureSure(w.vrai, w.perf, 'page'); // le réseau revient, jeu ouvert : l'écouteur « online »
+  const abs = payerSaut(s.h, st, r, payes[2] * 1000);
+  check(r && r.saut > 2 * JOUR && proche(s.h.maintenant(), w.vrai), `le réseau revient jeu ouvert : le jeu saute de ${(r.saut / HEURE).toFixed(0)} h jusqu’à la vraie heure`);
+  check(proche(abs.secs * 1000, G.heuresAbsence(st) * HEURE, 2000) && abs.total > 0 && proche(st.lifetime - avant, abs.total, 1), `… et ce vrai temps est payé comme une absence (${(abs.secs / 3600).toFixed(1)} h, +${G.fmtEur(st.lifetime - avant)}) au lieu d’être perdu`);
+  check(st.lastSeen === s.h.maintenant(), '  l’absence est soldée : la prochaine sauvegarde ne la repaiera pas');
+}
+{
+  // une heure sûre qui arrive après les 2,5 s d'attente du lancement : une seule absence pour une même absence
+  const debut = new Date(2026, 9, 9, 9, 0).getTime(), w = monde(debut);
+  const st = boutique(debut);
+  const s1 = lancer(w, st, null, true); w.passer(5 * 60e3); const sauve = fermer(s1.h, st);
+  w.passer(12 * HEURE);
+  const s2 = lancer(w, st, sauve, false); // l'heure sûre n'est pas encore là : le téléphone (à l'heure) borné à une absence
+  const r = s2.h.noterHeureSure(w.vrai, w.perf, 'page');
+  const deja = s2.abs.secs * 1000, abs = H.sautAPayer(r.saut, deja, G.heuresAbsence(st) * HEURE);
+  check(proche(deja, G.heuresAbsence(st) * HEURE, 2000) && r.saut > 3 * HEURE && abs === 0, `12 h d’absence, heure sûre en retard : ${(deja / HEURE).toFixed(1)} h payées au lancement, le saut de ${(r.saut / HEURE).toFixed(1)} h qui suit ne paie rien de plus`);
+}
+{
+  // le tricheur : hors ligne, téléphone +3 jours (une absence, une fois), puis le réseau revient jeu ouvert : saut nul, rien de plus
+  const debut = new Date(2026, 9, 9, 9, 0).getTime(), w = monde(debut);
+  const st = boutique(debut);
+  const s1 = lancer(w, st, null, true); w.passer(5 * 60e3); let sauve = fermer(s1.h, st);
+  w.passer(60e3); w.decal = 3 * JOUR;
+  const s2 = lancer(w, st, sauve, false);
+  w.passer(10 * 60e3);
+  const r = s2.h.noterHeureSure(w.vrai, w.perf, 'page');
+  check(r && r.saut === 0 && H.sautAPayer(r.saut, s2.abs.secs * 1000, MAX) === 0, `tricheur hors ligne (+3 jours, ${(s2.abs.secs / 3600).toFixed(1)} h prises d’avance) : le réseau revient jeu ouvert, saut nul, rien de plus`);
+  // il ferme, attend un vrai jour hors ligne, relance (le jeu attend), puis le réseau revient : une absence, comme un honnête, pas plus
+  sauve = fermer(s2.h, st); w.passer(JOUR);
+  const s3 = lancer(w, st, sauve, false);
+  const r3 = s3.h.noterHeureSure(w.vrai, w.perf, 'page'), p3 = H.sautAPayer(r3.saut, s3.abs.secs * 1000, G.heuresAbsence(st) * HEURE);
+  check(s3.abs.secs < 400 && p3 <= G.heuresAbsence(st) * HEURE && r3.saut < JOUR - 7 * HEURE, `un vrai jour plus tard, le réseau revient : ${(p3 / HEURE).toFixed(1)} h payées (l’avance prise est déduite du saut, ${(r3.saut / HEURE).toFixed(1)} h), jamais plus d’une absence`);
 }
 
 console.log('── journées, série, habitués, semaine, marché : sur le temps du jeu ──');
@@ -199,6 +251,31 @@ console.log('── journées, série, habitués, semaine, marché : sur le temp
   const s = lancer(w, st, sauve, true);
   check(st.jour.date === G.dayKey(w.vrai) && st.jour.date !== jour && G.jourDeMarche(s.h.maintenant()) && proche(s.abs.secs * 1000, G.heuresAbsence(st) * HEURE, 1000),
     'une vraie journée plus tard : nouveaux objectifs, samedi de marché, une absence pleine');
+}
+
+// ─── changer de FUSEAU dans les réglages du téléphone ne change rien : les jours du jeu se comptent à l'heure de Paris ───
+console.log('── le fuseau du téléphone ──');
+{
+  const { execFileSync } = require('child_process');
+  // les instants à éprouver : autour de minuit à Paris (été et hiver), le vendredi soir, le dimanche soir, les passages d'heure
+  const instants = ['2026-10-09T16:00:00Z', '2026-10-09T21:59:00Z', '2026-10-09T22:01:00Z', '2026-10-11T21:30:00Z', '2026-10-11T22:30:00Z',
+    '2026-10-25T00:30:00Z', '2026-10-25T01:30:00Z', '2026-10-31T22:59:00Z', '2026-10-31T23:01:00Z', '2026-12-31T22:59:00Z', '2026-12-31T23:01:00Z',
+    '2027-03-28T00:30:00Z', '2027-03-28T01:30:00Z', '2027-07-12T06:00:00Z', '2027-07-12T05:59:00Z', '2026-01-04T23:30:00Z'].map(Date.parse);
+  const script = `const G = require(${JSON.stringify(require.resolve('../src/game.js'))});
+    const T = ${JSON.stringify(instants)};
+    const out = T.map((t) => [G.dayKey(t), G.semaineKey(t), G.jourDeMarche(t), G.heureDePointe(t), G.saison(t).join('+'), G.heureParis(t).toFixed(3)]);
+    // une boutique : sa journée, sa semaine et l'habitué attendu à chacun de ces instants
+    const st = G.newState(T[0]);
+    for (const t of T) { st.now = t; G.objectifsDuJour(st, t); const hb = G.habitueAttendu(st, t); out.push([st.jour.date, st.semaine && st.semaine.key, hb ? hb.id : null]); }
+    process.stdout.write(JSON.stringify(out));`;
+  const lire = (tz) => execFileSync(process.execPath, ['-e', script], { env: { ...process.env, TZ: tz }, encoding: 'utf8' });
+  const paris = lire('Europe/Paris');
+  const P = JSON.parse(paris);
+  check(P[0][0] === '2026-10-09' && P[0][2] === false && P[0][3] === true && P[2][0] === '2026-10-10' && P[2][2] === true && P[4][1] === '2026-10-12' && P[3][1] === '2026-10-05' && P[16 + 2][0] === '2026-10-10' && P[16][2] === 'lena',
+    'à Paris : vendredi 18 h = vendredi, heure de pointe ; Léna attendue ; samedi minuit passé = marché, nouvelle journée ; dimanche 23 h 30 = encore la semaine du 5, lundi 0 h 30 = celle du 12');
+  for (const tz of ['Pacific/Kiritimati', 'Etc/GMT+12', 'America/Los_Angeles', 'Asia/Tokyo', 'UTC', 'Asia/Kolkata']) {
+    check(lire(tz) === paris, `téléphone réglé sur ${tz} : mêmes journées, semaines, marché, heures de pointe, saisons et habitués qu’à Paris`);
+  }
 }
 
 console.log(`\n${n - echecs}/${n} vérifications.`);

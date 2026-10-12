@@ -217,7 +217,7 @@ const VIE = (() => {
     if (!LAY) calculer();
     dt = Math.min(0.25, Math.max(0, dt));
     t += dt;
-    const d = new Date(now), hour = force.heure != null ? force.heure : d.getHours() + d.getMinutes() / 60;
+    const d = G.paris(now), hour = force.heure != null ? force.heure : d.getUTCHours() + d.getUTCMinutes() / 60; // l’heure de Paris (à lire en getUTC…), comme les heures de pointe et les habitués
     const taux = G.tauxParSeconde(st);
     rang = G.rangTitre(st); pts = G.ptsTalents(st); affl = G.talent(st, 'affluence');
     Q = DECORS[G.QUARTIERS[G.quartier(st)].id] || DECORS.village; tags = force.saison || G.saison(now);

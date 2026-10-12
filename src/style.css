@@ -422,3 +422,47 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .cl-aide.bon { color: #1E7A55; }
 .cl-aide.erreur { color: #B3214A; }
 .cl .btn[aria-busy="true"] b { opacity: .8; }
+/* ─── les récompenses du podium : la toque à côté du pseudo, l'entrée « Mes récompenses », l'annonce, la collection ─── */
+.cl-toque { flex: 0 0 auto; display: inline-grid; width: 22px; height: 22px; place-items: center; }
+.cl-toque svg { width: 22px; height: 22px; }
+.rec-entree { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; min-height: 60px; margin: 0 0 12px; padding: 8px 10px 8px 12px; border-radius: 18px; text-align: left; background: var(--carte); box-shadow: 0 4px 12px var(--ombre), inset 0 0 0 2px #FFE6A0; }
+.rec-entree:active { background: var(--creme); }
+.rec-entree b { display: block; font: 700 16px/1.15 var(--titre); }
+.rec-entree small { display: block; margin-top: 2px; font-size: 12.5px; color: #6E5448; }
+.rec-entree .chev { width: 24px; height: 24px; opacity: .5; }
+.rec-minis { display: flex; }
+.rec-mini { display: grid; width: 30px; height: 34px; margin-left: -12px; place-items: center; }
+.rec-mini:first-child { margin-left: 0; }
+.rec-mini svg { width: 32px; height: 32px; filter: drop-shadow(0 1px 0 #fff); }
+/* l'annonce : la coupe qui jaillit devant des rayons qui tournent, le boulanger dans sa nouvelle tenue */
+.rec-annonce { text-align: center; }
+.rec-annonce h2 { margin: 6px 0 2px; font-size: 26px; }
+.rec-phrase { margin: 0 0 8px; font: 700 18px/1.3 var(--titre); }
+.rec-annonce .sous { margin: 0 auto 16px; max-width: 34ch; }
+.rec-scene { position: relative; height: 150px; margin: 4px auto 0; max-width: 260px; display: flex; align-items: flex-end; justify-content: center; gap: 4px; overflow: hidden; border-radius: 24px; background: #FFF3C4; }
+.rec-scene.argent { background: #EEF2F7; }
+.rec-scene.bronze { background: #FBE6D4; }
+.rec-rayons { position: absolute; left: 50%; top: 55%; width: 320px; height: 320px; margin: -160px 0 0 -160px; border-radius: 50%; background: repeating-conic-gradient(rgba(255, 255, 255, .75) 0 12deg, transparent 12deg 30deg); animation: rayons 9s linear infinite; }
+.rec-coupe, .rec-boulanger { position: relative; display: block; }
+.rec-coupe svg { width: 112px; height: 112px; display: block; animation: jaillit .7s cubic-bezier(.3, 1.6, .5, 1) both, flotte 2.6s ease-in-out .7s infinite; filter: drop-shadow(0 6px 0 rgba(74, 51, 40, .12)); }
+.rec-boulanger svg { width: 76px; height: 76px; display: block; margin-bottom: 4px; animation: jaillit .7s cubic-bezier(.3, 1.6, .5, 1) .25s both; }
+@keyframes rayons { to { transform: rotate(360deg); } }
+@keyframes jaillit { from { transform: translateY(40px) scale(.3); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes flotte { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+/* la collection : les coupes gagnées, le choix de la tenue */
+.rec-coupes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.rec-carte { display: grid; justify-items: center; gap: 1px; padding: 8px 6px 10px; border-radius: 18px; text-align: center; background: #FFF3C4; }
+.rec-carte.argent { background: #EEF2F7; }
+.rec-carte.bronze { background: #FBE6D4; }
+.rec-carte .rec-icone svg { width: 52px; height: 52px; display: block; }
+.rec-carte b { font: 700 16px/1.2 var(--titre); }
+.rec-carte small { font-size: 12px; line-height: 1.3; color: #5E463B; }
+.rec-choix-liste { display: grid; gap: 6px; }
+.rec-choix { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; align-items: center; width: 100%; min-height: 56px; padding: 6px 12px 6px 6px; border-radius: 16px; text-align: left; background: var(--carte); box-shadow: 0 3px 0 var(--gris); }
+.rec-choix b { display: block; font: 700 15px/1.2 var(--titre); }
+.rec-choix small { display: block; font-size: 12.5px; line-height: 1.3; color: #6E5448; }
+.rec-choix.actif { background: #FFF3C4; box-shadow: inset 0 0 0 2.5px var(--beurre-sombre); }
+.rec-pastille { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: var(--creme); }
+.rec-pastille svg { width: 30px; height: 30px; }
+.rec-apercu { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 12px; border-radius: 16px; background: var(--creme); font-size: 14px; color: #5E463B; }
+.rec-apercu svg { width: 56px; height: 56px; flex: 0 0 auto; }

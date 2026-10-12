@@ -222,7 +222,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     const { LAY, Q, W } = c, g = grp('deco'), lampes = []; g.userData.zone = 'deco'; g.userData.lampes = lampes;
     if (k === 0) { const m = M.mesh(M.disque(1, 6), M.MAT.tache, { x: LAY.deco.x, y: 0.2, z: c.wz(LAY.deco.y) }, { ombre: false }); m.visible = false; g.add(m); return g; }
     const pl = plante(LAY.deco.x, LAY.deco.y, c); g.add(pl); g.userData.zoneBoite = new THREE.Box3().setFromObject(pl, true); // la zone de touche : la plante seule (le reste s'accroche au mur ou au plafond)
-    if (k >= 2) { g.add(cadre(LAY.cadre2.x, LAY.cadre2.y, c)); for (const a of LAY.appliques) g.add(applique(a.x, a.y - 14, c, lampes)); } // les appliques, juste au-dessus des cadres
+    if (k >= 2) { if (!c.trophees) g.add(cadre(LAY.cadre2.x, LAY.cadre2.y, c)); for (const a of LAY.appliques) g.add(applique(a.x, a.y - 14, c, lampes)); } // les appliques, juste au-dessus des cadres
     if (k >= 3) g.add(guirlande(c.tags && c.tags.includes('noel'), c));
     if (k >= 4) {
       const t = LAY.tapis, d = c.wd(t.h), tp = grp('tapis', t.x + t.w / 2, 0, c.wz(t.y) + d / 2);
@@ -296,8 +296,8 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     for (let k = 0; k < 4; k++) pr.push(P(bo(5, 0.5, d * 0.5, 0.2), M.eclaircir(col, 0.3), { x: -13.5 + k * 9, y: 1.1 }));
     g.add(M.maille(pr, { ombre: false, recoit: true })); return g;
   }
-  function sapin(c) { // le sapin de Noël : tronc, trois étages de cônes, les boules qui clignotent en alternance, l'étoile
-    const s = c.LAY.sapin, g = grp('sapin', s.x, 0, c.wz(s.y)), pr = [];
+  function sapin(c, decale) { // le sapin de Noël : tronc, trois étages de cônes, les boules qui clignotent en alternance, l'étoile (decale : poussé à droite, la vitrine des trophées occupe sa place)
+    const s = c.LAY.sapin, g = grp('sapin', s.x + (decale ? c.W * 0.085 : 0), 0, c.wz(s.y)), pr = [];
     pr.push(P(M.cylindre(3, 3.5, 9, 8), '#8B5A3C'));
     for (let k = 0; k < 3; k++) pr.push(P(M.cone(14 - k * 3, 26, 9), k % 2 ? '#2F6B4F' : '#2A6248', { y: 6 + k * 16 }));
     pr.push(P(M.cone(3.5, 5, 4), '#FFC84A', { y: 64 }), P(M.cone(3.5, 5, 4), '#FFC84A', { y: 74, rx: Math.PI }));
@@ -353,7 +353,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     const h = c.LAY.horloge, g = grp('horloge', h.x, murY(c, h.y), 1); g.scale.y = 1 / c.CY;
     g.add(M.maille([P(M.cylindre(10, 10, 1.5, 24), '#FFFFFF', { rx: Math.PI / 2 }), P(M.tore(10, 1.3, TAU, 8, 28), c.Q.bois, { z: 1.5 }), P(M.sphere(1.4, 8), '#E1496C', { z: 2.6 })]));
     const ah = M.mesh(M.boiteSimple(1.6, 5, 0.8), M.mat(L), { z: 1.8 }, { ombre: false }), am = M.mesh(M.boiteSimple(1.3, 7.5, 0.8), M.mat(L), { z: 2.2 }, { ombre: false }); g.add(ah, am);
-    g.userData.anime = (E) => { const d = E.d; if (!d) return; const mn = d.getMinutes() / 60; ah.rotation.z = -((d.getHours() % 12) + mn) / 12 * TAU; am.rotation.z = -mn * TAU; };
+    g.userData.anime = (E) => { const d = E.d; if (!d) return; const mn = d.getUTCMinutes() / 60; ah.rotation.z = -((d.getUTCHours() % 12) + mn) / 12 * TAU; am.rotation.z = -mn * TAU; };
     return g;
   }
   function diplome(c) { // le diplôme du boulanger : cadre bois, parchemin, trois lignes grises, le sceau rouge
@@ -379,6 +379,43 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     else for (let k = 0; k < 2; k++) pr.push(P(M.cone(4, 11, 8), '#E8B46A', { x: k * 11 - 5.5, y: 11, rx: Math.PI }), P(M.sphere(4.6, 10), k ? '#FF9FB2' : '#9BE8C2', { x: k * 11 - 5.5, y: 14 }));
     g.add(M.maille(pr)); return g;
   }
+  // ─── les récompenses du podium du classement : la coupe de la semaine sur le comptoir, la vitrine des trophées qui les garde toutes ───
+  // Une coupe : socle de bois, plaque, pied, nœud, vasque évasée, rebord, deux anses, l'intérieur foncé, un reflet ; 18 de haut, 15 de large
+  // anses comprises (s = 1), posée sur y = 0 et face à +Z. Ses pièces se fusionnent avec celles du meuble qui la porte.
+  const METAL = { or: ['#FFC84A', '#D4921A', '#FFF2C2'], argent: ['#C9D3DE', '#7F8FA3', '#FFFFFF'], bronze: ['#D98C52', '#9E5A2A', '#F8D6B6'] }; // teinte, ombre, reflet
+  function partsCoupe(metal, s, x, y, z) {
+    const [m, f, cl] = METAL[metal] || METAL.or, pr = [], q = (v) => Math.round(v * s * 100) / 100; // des cotes arrondies : le cache des géométries reste petit
+    const at = (dx, dy, dz, o) => Object.assign({ x: x + dx * s, y: y + dy * s, z: z + dz * s }, o || {});
+    pr.push(P(bo(q(9), q(3), q(6.5), q(1)), '#6B4A3A', at(0, 0, 0)), P(M.boiteSimple(q(4.6), q(1.4), q(0.4)), f, at(0, 0.8, 3.3))); // le socle et sa plaque
+    pr.push(P(M.cylindre(q(1.1), q(3), q(3.5), 10), m, at(0, 3, 0)), P(M.sphere(q(1.7), 8), m, at(0, 7.2, 0)), P(M.cylindre(q(5.2), q(1.8), q(9), 14), m, at(0, 8, 0))); // le pied, le nœud, la vasque
+    pr.push(P(M.tore(q(5.2), q(0.7), TAU, 6, 18), cl, at(0, 17, 0, { rx: Math.PI / 2 })), P(M.disque(q(4.6), 14), M.melange(m, f, 0.55), at(0, 17.1, 0)), P(M.tore(q(3.9), q(0.45), TAU, 5, 16), f, at(0, 12.6, 0, { rx: Math.PI / 2 }))); // le rebord clair, l'intérieur foncé, le filet
+    for (const sx of [-1, 1]) pr.push(P(M.tore(q(2.9), q(0.75), Math.PI, 6, 10), m, at(sx * 4.4, 13.3, 0, { rz: -sx * Math.PI / 2 }))); // les anses
+    pr.push(P(M.sphere(q(0.85), 6), cl, at(-2, 13.6, 3.6, { sx: 0.6, sy: 3, sz: 0.6, rz: 0.2 }))); // le reflet sur la vasque
+    return pr;
+  }
+  function coupe(metal, c) { // la coupe du dernier podium, posée sur le comptoir la semaine qui suit, à droite du boulanger
+    const o = surDessus(c, { x: c.W * 0.495, y: c.LAY.comptoir.y + c.LAY.comptoir.hTop * 0.25 }), g = grp('coupe', o.x, o.y, o.z);
+    g.add(M.maille(partsCoupe(metal, 1.1, 0, 0, 0))); g.userData.zone = 'trophees'; return g;
+  }
+  // la vitrine des trophées : un gradin de bois à trois marches adossé au mur, à droite du comptoir, sous l'applique (à la place du second
+  // cadre, qu'elle décroche, et du sapin, qu'elle pousse à droite à Noël), devant un panneau au médaillon doré ; toutes les coupes gagnées, de la plus ancienne (en haut, au fond, à gauche) à la plus récente
+  // (en bas, devant, à droite) : en plongée, un gradin les montre toutes, là où des étagères fermées les cacheraient. Il s'élargit jusqu'à
+  // 52, puis les coupes rapetissent pour toutes tenir. Un seul maillage fusionné : 1 appel de dessin.
+  function trophees(liste, c) {
+    const n = liste.length, rangs = 3, parRang = Math.max(Math.min(n, 3), Math.ceil(n / rangs)), Q = c.Q, pas = 7, hs = 6; // jusqu'à trois coupes côte à côte sur la marche du haut, puis les marches du dessous
+    const sc = Math.min(0.75, 48 / (parRang * 15)), w = Math.max(34, Math.min(52, parRang * 15 * sc + 6)), hp = 45;
+    const g = grp('trophees', c.W * 0.67, 0, 0), pr = [], bois = Q.bois, sombre = M.assombrir(bois, 0.12), fond = M.eclaircir(Q.accent, 0.62);
+    pr.push(P(bo(w, hp, 2.5, 1), fond, { z: 1.25 }), P(bo(w + 2, 2.5, 3.5, 0.8), sombre, { y: hp - 1, z: 1.75 })); // le panneau et sa corniche
+    pr.push(P(M.cylindre(4.4, 4.4, 1.6, 18), '#FFC84A', { y: hp - 6, z: 2.5, rx: Math.PI / 2, sz: 1 / c.CY }), P(M.cylindre(2.8, 2.8, 1, 16), '#E0A61E', { y: hp - 6, z: 3.4, rx: Math.PI / 2, sz: 1 / c.CY })); // le médaillon (rond à l'écran)
+    for (let r = 0; r < rangs; r++) { // les marches : la r-ième (0 = devant, la plus basse) monte à (r + 1) × hs et va jusqu'au mur
+      const d = (rangs - r) * pas; pr.push(P(bo(w, (r + 1) * hs, d, 0.8), r % 2 ? bois : sombre, { z: 2.5 + d / 2 }), P(bo(w - 1, 0.8, 1.2, 0.3), M.eclaircir(bois, 0.3), { y: (r + 1) * hs - 0.5, z: 2.5 + d - 0.6 }));
+    }
+    liste.forEach((metal, i) => { // rang du haut (au fond) d'abord, de gauche à droite
+      const r = rangs - 1 - Math.floor(i / parRang), k = i % parRang, ici = Math.min(parRang, n - (rangs - 1 - r) * parRang), ecart = (w - 4) / Math.max(ici, 1);
+      pr.push(...partsCoupe(metal, sc, -w / 2 + 2 + ecart * (k + 0.5), (r + 1) * hs, 2.5 + (rangs - r - 0.5) * pas));
+    });
+    g.add(M.maille(pr)); g.userData.zone = 'trophees'; return g;
+  }
   // ─── la composition d'ensemble (pour l'atelier et la scène) ───
   function vitrineDemo(k, c) { // le comptoir et, à chaque place de la vitrine, une boule dorée de la taille d'une pâtisserie
     const cp = comptoir(k, c), n = c.niv ? c.niv.filter((v) => v > 0).length : 4, g = grp('pâtisseries');
@@ -388,11 +425,13 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   function tout(c) { // la salle et tout le mobilier aux crans de ctx.crans, plus les petits objets ; ctx.demo ajoute des pâtisseries factices
     const k = c.crans, LAY = c.LAY, out = [salle(c), froid(k.froid, c), four(k.four, c)], cp = comptoir(k.vitrine, c); c.dessusY = cp.userData.dessusY;
     out.push(cp, caisse(k.caisse, c), tables(k.tables, c), deco(k.deco, c), plan(c), presentoir(4, c), ardoise(c), etagere(8, true, c), cadre(LAY.cadre.x, LAY.cadre.y, c), horloge(c), diplome(c), fleurs(c), chat(c), paillasson(k.deco >= 1, c), lampe(c), plante(LAY.plante.x, LAY.plante.y, c));
-    if (c.tags.includes('noel')) { out.push(sapin(c)); if (k.deco < 3) out.push(guirlande(true, c)); } if (c.tags.includes('fete')) out.push(fanions(c)); if (c.tags.includes('coeurs')) out.push(coeurs(c));
+    if (c.tags.includes('noel')) { out.push(sapin(c, !!(c.coupes && c.coupes.length))); if (k.deco < 3) out.push(guirlande(true, c)); } if (c.tags.includes('fete')) out.push(fanions(c)); if (c.tags.includes('coeurs')) out.push(coeurs(c));
     for (const tg of ['halloween', 'galette', 'paques', 'ete']) if (c.tags.includes(tg)) { out.push(propSaison(tg, c)); break; }
     if (c.demo) out.push(vitrineDemo(k.vitrine, c)[1]);
+    if (c.coupes && c.coupes.length) out.push(trophees(c.coupes, c)); // les récompenses du podium (avec c.trophees, le second cadre est décroché)
+    if (c.coupe) out.push(coupe(c.coupe, c));
     return out;
   }
-  return { textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout };
+  return { textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL };
 })();
 if (typeof module !== 'undefined') module.exports = MEUBLES;

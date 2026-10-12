@@ -38,15 +38,17 @@ const ICONS = (() => {
   const PANNE = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 8a9 9 0 00-9 11L9 31a3 3 0 004 4l12-12a9 9 0 0011-9l-5 5-4-1-1-4z" fill="#D9CCC2" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="36" cy="36" r="5" fill="#FF9F4A" stroke="${L}" stroke-width="2"/><path d="M36 30v-4M42 36h4" stroke="#FF6B8B" stroke-width="2.5" stroke-linecap="round"/></svg>`;
   const BALLON = `<svg viewBox="0 0 48 48" aria-hidden="true"><ellipse cx="19" cy="17" rx="10" ry="12" fill="#FF9FB2" stroke="${L}" stroke-width="2"/><ellipse cx="31" cy="20" rx="9" ry="11" fill="#9BD0FF" stroke="${L}" stroke-width="2"/><path d="M19 29c-2 6 2 10 0 14M31 31c2 5-1 8 0 12" stroke="${L}" stroke-width="1.8" fill="none" stroke-linecap="round"/><ellipse cx="15" cy="12" rx="2.5" ry="4" fill="#fff" opacity=".7"/></svg>`;
   // le portrait du boulanger selon son titre : calot, toque, haute toque, foulard et moustache, liseré doré, col tricolore
-  function boulanger(rang) {
-    const th = rang === 0 ? 6 : rang === 1 ? 12 : 12 + Math.min(8, (rang - 1) * 3);
-    return S(`<rect x="10" y="30" width="28" height="18" rx="8" fill="#fff"/><rect x="18" y="30" width="12" height="14" rx="4" fill="#FF6B8B"/>
+  // les métaux du podium du classement : teinte, ombre, reflet (les mêmes que la tenue et les coupes en 3D)
+  const METAL = { or: ['#FFC84A', '#D4921A', '#FFF2C2'], argent: ['#D3DCE6', '#7F8FA3', '#FFFFFF'], bronze: ['#E2A06A', '#9E5A2A', '#F8D6B6'] };
+  function boulanger(rang, tenue) { // tenue : 'or', 'argent' ou 'bronze' (la tenue du podium), sinon la blanche
+    const th = rang === 0 ? 6 : rang === 1 ? 12 : 12 + Math.min(8, (rang - 1) * 3), t = METAL[tenue], tissu = t ? t[0] : '#fff';
+    return S(`<rect x="10" y="30" width="28" height="18" rx="8" fill="${tissu}"/><rect x="18" y="30" width="12" height="14" rx="4" fill="#FF6B8B"/>${t ? `<rect x="10" y="44" width="28" height="3" rx="1.5" fill="${t[1]}"/>` : ''}
       ${rang >= 4 ? '<rect x="10" y="44" width="28" height="3" rx="1.5" fill="#FFC84A"/>' : ''}
       ${rang >= 5 ? `<rect x="10" y="30" width="9" height="5" rx="2" fill="#2B5BD7"/><rect x="19.5" y="30" width="9" height="5" rx="2" fill="#fff" stroke="${L}" stroke-width=".8"/><rect x="29" y="30" width="9" height="5" rx="2" fill="#E1496C"/>` : ''}
       ${rang >= 3 ? '<rect x="15" y="27" width="18" height="5" rx="2.5" fill="#E1496C"/>' : ''}
       <circle cx="24" cy="21" r="10" fill="#FFD7B5" stroke="${L}" stroke-width="2"/>
-      <rect x="13" y="${14 - th}" width="22" height="${th}" rx="${rang === 0 ? 3 : 6}" fill="#fff" stroke="${L}" stroke-width="2"/><rect x="12" y="12" width="24" height="4" rx="2" fill="#fff" stroke="${L}" stroke-width="2"/>
-      ${rang >= 4 ? '<rect x="12" y="12" width="24" height="2" rx="1" fill="#FFC84A"/>' : ''}
+      <rect x="13" y="${14 - th}" width="22" height="${th}" rx="${rang === 0 ? 3 : 6}" fill="${tissu}" stroke="${L}" stroke-width="2"/><rect x="12" y="12" width="24" height="4" rx="2" fill="${tissu}" stroke="${L}" stroke-width="2"/>
+      ${rang >= 4 || t ? `<rect x="12" y="12" width="24" height="2" rx="1" fill="${t ? t[1] : '#FFC84A'}"/>` : ''}${t && th >= 9 ? `<path d="M24 ${14 - th * 0.62}l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4z" fill="${t[1]}"/>` : ''}
       <circle cx="20" cy="21" r="1.4" fill="${L}"/><circle cx="28" cy="21" r="1.4" fill="${L}"/><path d="M20 25c2 2 6 2 8 0" stroke="${L}" stroke-width="1.8" stroke-linecap="round" fill="none"/>
       ${rang >= 3 ? '<path d="M19.5 24.5q2.5-2 4.5 0q2-2 4.5 0" stroke="#8C5A3C" stroke-width="1.8" fill="none" stroke-linecap="round"/>' : ''}
       <circle cx="16" cy="24" r="1.6" fill="#FFB3B3"/><circle cx="32" cy="24" r="1.6" fill="#FFB3B3"/>`);
@@ -81,6 +83,9 @@ const ICONS = (() => {
     podium: U(`<path d="M9 10.5h6V21H9z" fill="#FFC84A"/><path d="M3 14h6v7H3z" fill="#fff"/><path d="M15 16h6v5h-6z" fill="#FFE0C7"/><path d="M12 3l.9 1.9 2 .3-1.5 1.4.4 2L12 7.6l-1.8 1 .4-2-1.5-1.4 2-.3z" fill="#FF6B8B" stroke="none"/>`),
     horsLigne: U(`<path d="M7 18a4 4 0 01-.6-7.9A6 6 0 0118 9.5a3.8 3.8 0 01-.5 7.5z" fill="#EADFD6"/><path d="M4 4l16 16"/>`),
   };
+  // le podium du classement : une petite toque à la couleur du métal (à côté d'un pseudo) et une coupe (l'annonce, la collection)
+  const toque = (m) => { const t = METAL[m] || (m === 'blanc' ? ['#FFFFFF', '#D9CCC2', '#FFFFFF'] : METAL.or); /* 'blanc' : la toque de toujours */ return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 14.5c-2.6-.4-3.7-2.4-3.2-4.3.6-2.1 2.9-3 4.7-2.1.6-2.5 2.6-4 4-4s3.4 1.5 4 4c1.8-.9 4.1 0 4.7 2.1.5 1.9-.6 3.9-3.2 4.3z" fill="${t[0]}" stroke="${L}" stroke-width="1.6" stroke-linejoin="round"/><rect x="6.5" y="14" width="11" height="5.5" rx="1.6" fill="${t[0]}" stroke="${L}" stroke-width="1.6"/><path d="M7.5 16.7h9" stroke="${t[1]}" stroke-width="1.6" stroke-linecap="round"/><path d="M9 8.6c.4-1.1 1.2-1.7 2-1.9" stroke="${t[2]}" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg>`; };
+  const coupe = (m) => { const t = METAL[m] || METAL.or; return S(`<path d="M15 9h18v9a9 9 0 01-18 0z" fill="${t[0]}" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M15 12H10.5a4.5 4.5 0 004.9 6.6M33 12h4.5a4.5 4.5 0 01-4.9 6.6" fill="none" stroke="${L}" stroke-width="2" stroke-linecap="round"/><path d="M15 12H10.5a4.5 4.5 0 004.9 6.6M33 12h4.5a4.5 4.5 0 01-4.9 6.6" fill="none" stroke="${t[0]}" stroke-width=".8" stroke-linecap="round"/><path d="M21.5 26.5h5l1 6h-7z" fill="${t[0]}" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><rect x="14" y="32.5" width="20" height="8" rx="2.5" fill="#8B5A3C" stroke="${L}" stroke-width="2"/><rect x="19" y="35" width="10" height="3" rx="1" fill="${t[1]}"/><path d="M19 12.5v5" stroke="${t[2]}" stroke-width="2.4" stroke-linecap="round"/><path d="M24 12.4l1 2 2.2.3-1.6 1.5.4 2.2-2-1.1-2 1.1.4-2.2-1.6-1.5 2.2-.3z" fill="${t[1]}"/>`); };
   const AMELIORATION = S(`<path d="M24 6l3.5 10.5L38 20l-10.5 3.5L24 34l-3.5-10.5L10 20l10.5-3.5z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`);
   const ETOILE = S(`<path d="M24 5l5.8 12.2 13.2 1.6-9.8 9.2 2.6 13.2L24 34.6l-11.8 6.6 2.6-13.2L5 18.8l13.2-1.6z" fill="#FFC84A" stroke="#E0A61E" stroke-width="2" stroke-linejoin="round"/>`);
   // le mobilier de la boutique : une icône par meuble, au trait de la maison
@@ -92,5 +97,5 @@ const ICONS = (() => {
     froid: S(`<rect x="12" y="5" width="24" height="38" rx="5" fill="#EEF6FB" stroke="${L}" stroke-width="2"/><path d="M12 19h24" stroke="${L}" stroke-width="2"/><rect x="29" y="9" width="3" height="6" rx="1.5" fill="#8FB8FF"/><rect x="29" y="23" width="3" height="10" rx="1.5" fill="#8FB8FF"/><path d="M18 30l4 0M20 28v4" stroke="#6CB8FF" stroke-width="1.5" stroke-linecap="round"/><path d="M17 36c3 2 7 2 10 0" stroke="#6CB8FF" stroke-width="1.5" stroke-linecap="round" fill="none"/>`),
     deco: S(`<rect x="8" y="10" width="18" height="14" rx="2" fill="#fff" stroke="${L}" stroke-width="2"/><rect x="11" y="13" width="12" height="6" fill="#9ED8FF"/><path d="M11 21l4-4 3 3 2-2 3 3" stroke="#5FD3A4" stroke-width="1.8" fill="none"/><rect x="31" y="30" width="12" height="12" rx="3" fill="#D9915C" stroke="${L}" stroke-width="1.5"/><circle cx="37" cy="24" r="6" fill="#5FD3A4"/><circle cx="32" cy="27" r="4" fill="#5FD3A4"/><circle cx="42" cy="27" r="4" fill="#5FD3A4"/><path d="M30 8l1.5 3 3.5.5-2.5 2.5.6 3.4-3.1-1.6-3.1 1.6.6-3.4L25 11.5l3.5-.5z" fill="#FFC84A"/><path d="M8 32c4 6 10 8 16 6" stroke="#FF9FB2" stroke-width="2" stroke-linecap="round" fill="none"/>`),
   };
-  return { PRODUITS, SAISON, CHAT, apprenti, boulanger, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES };
+  return { PRODUITS, SAISON, CHAT, apprenti, boulanger, toque, coupe, METAL, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES };
 })();

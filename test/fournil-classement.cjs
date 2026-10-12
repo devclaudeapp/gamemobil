@@ -1,6 +1,7 @@
 // Le classement en ligne du Fournil, dans la vraie page (fournil/ servie en local), sur un téléphone en portrait.
-// Supabase est SIMULÉ : page.route sur https://jklbitrlkfrktmnarejc.supabase.co/rest/v1/rpc/* répond comme les trois fonctions du contrat
-// (fournil_publier, fournil_classement, fournil_retirer), avec un faux classement en mémoire de 60 boulangers.
+// Supabase est SIMULÉ : page.route sur https://jklbitrlkfrktmnarejc.supabase.co/rest/v1/rpc/* répond comme les fonctions du contrat v2
+// (fournil_publier, fournil_classement, fournil_retirer, fournil_recompenses, fournil_heure), avec un faux classement en mémoire de 60 boulangers :
+// « tous les temps » compte l'argent gagné depuis l'arrivée (la première publication ne compte rien), chaque ligne porte le podium de la semaine passée.
 // Parcours : rejoindre, pseudo pris, onglets, sa ligne mise en avant, rang hors des 50, changer de pseudo, envoi en arrière-plan,
 // envoi au lancement, la Salle de jeux qui montre le rang, quitter, hors ligne, pas encore ouvert, 320 px, l'artefact sans classement.
 // Lancer : NODE_PATH=/opt/node22/lib/node_modules node test/fournil-classement.cjs   (captures dans test/shots/classement/)
@@ -8,7 +9,7 @@ const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const CL = require('../src/classement.js');
 const root = path.join(__dirname, '..');
-const PORT = 8783, BASE = `http://localhost:${PORT}`, SUPA = 'https://jklbitrlkfrktmnarejc.supabase.co';
+const PORT = +process.env.PORT_CLASSEMENT || 8783, BASE = `http://localhost:${PORT}`, SUPA = 'https://jklbitrlkfrktmnarejc.supabase.co';
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html';
@@ -21,21 +22,22 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
 
 // ─── le faux Supabase : le contrat, en mémoire ───
 const sha = (t) => crypto.createHash('sha256').update(String(t), 'utf8').digest('hex');
-const faux = { joueurs: new Map(), mode: 'normal', appels: [] };
+const faux = { joueurs: new Map(), palmares: new Map(), mode: 'normal', appels: [] }; // palmares : id → rang au podium de la semaine passée
 const lundi = () => CL.lundiParis(Date.now());
 const avant = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 7); return d.toISOString().slice(0, 10); };
 { // 60 boulangers : 45 ont joué cette semaine, 15 pas encore
   const A = ['Mamie', 'Tonton', 'Petit', 'Grand', 'Super', 'Chef', 'Mitron', 'Madame', 'Papy', 'Cousin'], B = ['Jo', 'Brioche', 'Levain', 'Fougasse', 'Chouquette', 'Éclair'];
   for (let i = 0; i < 60; i++) {
-    const fortune = Math.round(4e9 * Math.pow(0.82, i)) + 1000, cetteSemaine = i % 4 !== 3;
-    faux.joueurs.set(crypto.randomUUID(), { jeton: sha('x' + i), pseudo: `${A[i % 10]} ${B[Math.floor(i / 10)]}`, fortune, base: cetteSemaine ? Math.round(fortune * (0.3 + ((i * 37) % 60) / 100)) : fortune, semaine: cetteSemaine ? lundi() : avant(lundi()), maj: 0 });
+    const total = Math.round(4e9 * Math.pow(0.82, i)) + 1000, cetteSemaine = i % 4 !== 3, id = crypto.randomUUID();
+    faux.joueurs.set(id, { jeton: sha('x' + i), pseudo: `${A[i % 10]} ${B[Math.floor(i / 10)]}`, sommet: total * 3, total, gain: cetteSemaine ? Math.round(total * (0.7 - ((i * 37) % 60) / 100)) : 0, semaine: cetteSemaine ? lundi() : avant(lundi()), maj: 0 });
+    if (i < 3) faux.palmares.set(id, i + 1); // Mamie Jo, Tonton Jo, Petit Jo : le podium de la semaine passée
   }
 }
 function propre(p) { const v = CL.verifierPseudo(p); return v.ok ? v.pseudo : null; }
 function rangs(id) {
   const l = lundi(), j = faux.joueurs.get(id); if (!j) return { rang_semaine: null, rang_total: null };
   const tous = [...faux.joueurs.values()];
-  return { rang_semaine: j.semaine === l ? tous.filter((a) => a.semaine === l && a.fortune - a.base > j.fortune - j.base).length + 1 : null, rang_total: tous.filter((a) => a.fortune > j.fortune).length + 1 };
+  return { rang_semaine: j.semaine === l ? tous.filter((a) => a.semaine === l && a.gain > j.gain).length + 1 : null, rang_total: tous.filter((a) => a.total > j.total).length + 1 };
 }
 function reponse(erreur, id) { const l = lundi(); return { ok: !erreur, erreur: erreur || null, ...(erreur ? { rang_semaine: null, rang_total: null } : rangs(id)), joueurs: faux.joueurs.size, joueurs_total: faux.joueurs.size, joueurs_semaine: [...faux.joueurs.values()].filter((a) => a.semaine === l).length, semaine: l }; }
 const RPC = {
@@ -48,23 +50,30 @@ const RPC = {
       if (j.jeton !== sha(c.p_jeton)) return reponse('jeton');
       if (Date.now() < j.maj + 10e3) return { ...reponse(null, c.p_id), ok: false, erreur: 'trop_vite' };
       if (pris(c.p_id)) return reponse('pseudo_pris');
-      if (j.semaine !== l) { j.base = j.fortune; j.semaine = l; }
-      j.base = Math.min(j.base, c.p_fortune); j.pseudo = pseudo; j.fortune = c.p_fortune; j.maj = Date.now();
-    } else {
-      if (pris(null)) return reponse('pseudo_pris');
-      faux.joueurs.set(c.p_id, { jeton: sha(c.p_jeton), pseudo, fortune: c.p_fortune, base: c.p_fortune, semaine: l, maj: Date.now() });
+      if (j.semaine !== l) { j.gain = 0; j.semaine = l; }
+      const compte = Math.max(0, c.p_fortune - j.sommet); // (le vrai serveur plafonne aussi par le temps réel écoulé : test/fournil-classement-sql.cjs)
+      j.sommet = Math.max(j.sommet, c.p_fortune); j.total += compte; j.gain += compte; j.pseudo = pseudo; j.maj = Date.now();
+      return { ...reponse(null, c.p_id), compte, plafonne: false };
     }
-    return reponse(null, c.p_id);
+    if (pris(null)) return reponse('pseudo_pris');
+    faux.joueurs.set(c.p_id, { jeton: sha(c.p_jeton), pseudo, sommet: c.p_fortune, total: 0, gain: 0, semaine: l, maj: Date.now() }); // on part de zéro à l'arrivée
+    return { ...reponse(null, c.p_id), compte: 0, plafonne: false };
   },
   fournil_classement: (c) => {
     const l = lundi(), semaine = c.p_periode === 'semaine';
-    const v = [...faux.joueurs.entries()].filter(([, a]) => !semaine || a.semaine === l).map(([id, a]) => ({ id, pseudo: a.pseudo, valeur: semaine ? a.fortune - a.base : a.fortune }));
+    const v = [...faux.joueurs.entries()].filter(([, a]) => !semaine || a.semaine === l).map(([id, a]) => ({ id, pseudo: a.pseudo, valeur: semaine ? a.gain : a.total, podium: faux.palmares.get(id) || null }));
     v.sort((a, b) => b.valeur - a.valeur || a.pseudo.localeCompare(b.pseudo));
     v.forEach((x) => { x.rang = v.filter((y) => y.valeur > x.valeur).length + 1; });
     const lim = Math.min(100, Math.max(1, c.p_limite || 50)), moi = v.find((x) => x.id === c.p_id);
-    return { semaine: l, periode: c.p_periode, joueurs: v.length, lignes: v.slice(0, lim).map((x) => ({ rang: x.rang, pseudo: x.pseudo, valeur: x.valeur, moi: x.id === c.p_id })), moi: moi ? { rang: moi.rang, valeur: moi.valeur } : null };
+    return { semaine: l, periode: c.p_periode, joueurs: v.length, lignes: v.slice(0, lim).map((x) => ({ rang: x.rang, pseudo: x.pseudo, valeur: x.valeur, moi: x.id === c.p_id, podium: x.podium })), moi: moi ? { rang: moi.rang, valeur: moi.valeur, podium: moi.podium } : null };
   },
-  fournil_retirer: (c) => { const j = faux.joueurs.get(c.p_id); if (!j) return { ok: true, erreur: null }; if (j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: 'jeton' }; faux.joueurs.delete(c.p_id); return { ok: true, erreur: null }; },
+  fournil_retirer: (c) => { const j = faux.joueurs.get(c.p_id); if (!j) return { ok: true, erreur: null }; if (j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: 'jeton' }; faux.joueurs.delete(c.p_id); faux.palmares.delete(c.p_id); return { ok: true, erreur: null }; },
+  fournil_recompenses: (c) => {
+    const j = faux.joueurs.get(c.p_id); if (j && j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: 'jeton', podiums: [], derniere: null };
+    const sem = avant(lundi()), podium = [...faux.palmares.entries()].filter(([id]) => faux.joueurs.has(id)).map(([id, rang]) => ({ rang, pseudo: faux.joueurs.get(id).pseudo, valeur: 1e9 / rang })).sort((a, b) => a.rang - b.rang);
+    return { ok: true, erreur: null, podiums: j && faux.palmares.has(c.p_id) ? [{ semaine: sem, rang: faux.palmares.get(c.p_id) }] : [], derniere: podium.length ? { semaine: sem, podium } : null };
+  },
+  fournil_heure: () => ({ ms: Date.now() }),
 };
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'apikey, authorization, content-type, x-client-info', 'access-control-allow-methods': 'POST, OPTIONS' };
 async function gerer(route) {
@@ -119,6 +128,9 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
   check(v1.lignes === 45 && v1.moi === 0 && v1.sel === 'true' && /45 boulangers/.test(v1.info) && /Depuis lundi/.test(v1.info) && v1.rejoindre && v1.premier === '1er', `la feuille : onglet « Cette semaine », ${v1.lignes} lignes, « ${v1.info.replace(/\n/g, ' · ')} », bouton « Rejoindre le classement »`);
   check(appelListe && appelListe.corps.p_periode === 'semaine' && appelListe.corps.p_id === null && appelListe.corps.p_limite === 50 && appelListe.apikey === 'sb_publishable_T4XlWAUqurOWo8T9GNkuaA_TPPf4ss3' && appelListe.auth === 'Bearer sb_publishable_T4XlWAUqurOWo8T9GNkuaA_TPPf4ss3' && /application\/json/.test(appelListe.type), 'fournil_classement(semaine, sans id, 50) avec apikey et Authorization: Bearer <clé publique>');
   check(publies().length === 0, 'ouvrir la feuille sans avoir rejoint : rien n’est publié');
+  const toques = await page.evaluate(() => [...document.querySelectorAll('#feuille .cl-ligne')].filter((l) => l.querySelector('.cl-toque')).map((l) => { const t = l.querySelector('.cl-toque'), r = t.getBoundingClientRect(); return { nom: l.querySelector('.cl-nom > span').textContent, m: t.className.replace('cl-toque', '').trim(), label: t.getAttribute('aria-label'), w: Math.round(r.width) }; }));
+  check(toques.length === 3 && toques.find((t) => t.nom === 'Mamie Jo' && t.m === 'or' && /1er la semaine dernière/.test(t.label)) && toques.find((t) => t.nom === 'Tonton Jo' && t.m === 'argent') && toques.find((t) => t.nom === 'Petit Jo' && t.m === 'bronze') && toques.every((t) => t.w >= 16 && t.w <= 26), 'le podium de la semaine passée : une petite toque or, argent, bronze à côté de ' + toques.map((t) => `${t.nom} (${t.m})`).join(', '));
+  check(!faux.appels.some((a) => a.nom === 'fournil_recompenses'), 'pas encore rejoint : les récompenses ne sont pas demandées');
   await page.screenshot({ path: out + '/02-liste-invitation.png' });
 
   // ─── rejoindre : validation en direct, pseudo déjà pris, puis le bon ───
@@ -154,7 +166,7 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
   // tous les temps : 61e sur 61, hors des 50 premiers : sa ligne après un séparateur
   await page.tap('[data-tab="total"]'); await listeChargee(); await sleep(300);
   const tot = await page.evaluate(() => ({ sel: document.querySelector('[data-tab="total"]').getAttribute('aria-selected'), info: document.querySelector('.cl-info').innerText, n: document.querySelectorAll('#feuille .cl-ligne').length, moi: (document.querySelector('#feuille .cl-ligne.moi') || {}).innerText || '', sep: !!document.querySelector('#feuille .cl-sep') }));
-  check(tot.sel === 'true' && /61 boulangers/.test(tot.info) && /depuis la première baguette/.test(tot.info) && tot.n === 51 && tot.sep && /^61e Paulo toi/.test(tot.moi.replace(/\s+/g, ' ').trim()), `rang hors des 50, onglet « Tous les temps » : les 50 premiers, un séparateur, puis sa ligne (${tot.moi.replace(/\s+/g, ' ').trim()}) ; « ${tot.info.replace(/\n/g, ' · ')} »`);
+  check(tot.sel === 'true' && /61 boulangers/.test(tot.info) && /depuis l’arrivée au classement/.test(tot.info) && tot.n === 51 && tot.sep && /^61e Paulo toi/.test(tot.moi.replace(/\s+/g, ' ').trim()), `rang hors des 50, onglet « Tous les temps » : les 50 premiers, un séparateur, puis sa ligne (${tot.moi.replace(/\s+/g, ' ').trim()}) ; « ${tot.info.replace(/\n/g, ' · ')} »`);
   check(faux.appels.filter((x) => x.nom === 'fournil_classement').pop().corps.p_periode === 'total', 'fournil_classement(total)');
   await page.evaluate(() => { const f = document.querySelector('#feuille'); f.scrollTop = f.scrollHeight; }); await sleep(200);
   await page.screenshot({ path: out + '/05-tous-les-temps-loin.png' });
@@ -204,7 +216,7 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
   await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); Object.defineProperty(document, 'hidden', { value: true, configurable: true }); document.dispatchEvent(new Event('visibilitychange')); });
   await attendre(() => publies().length > n0, 4000);
   const fond = publies()[n0];
-  check(!!fond && fond.corps.p_fortune >= attendu && fond.corps.p_fortune - attendu < 1e5 && faux.joueurs.get(e2.id).fortune === fond.corps.p_fortune, 'la page passe en arrière-plan : la fortune part aussitôt (' + (fond && fond.corps.p_fortune) + ')');
+  check(!!fond && fond.corps.p_fortune >= attendu && fond.corps.p_fortune - attendu < 1e5 && faux.joueurs.get(e2.id).sommet === fond.corps.p_fortune, 'la page passe en arrière-plan : la fortune part aussitôt (' + (fond && fond.corps.p_fortune) + ')');
   await page.evaluate(() => { delete document.visibilityState; delete document.hidden; document.dispatchEvent(new Event('visibilitychange')); }); await sleep(300);
   await page.evaluate(() => { Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true }); document.dispatchEvent(new Event('visibilitychange')); delete document.visibilityState; }); await sleep(500);
   check(publies().length === n0 + 1, 'un second passage en arrière-plan aussitôt après : rien (15 s au moins entre deux envois, fortune inchangée)');
@@ -291,11 +303,15 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
   await c2.route(SUPA + '/rest/v1/rpc/*', gerer);
   const p3 = await c2.newPage(); suivre(p3);
   await p3.goto(BASE + '/fournil/'); await sleep(1200);
-  await p3.evaluate(() => { window.__fournil.give(123.4e15); window.__fournil.feuilleClassement('total'); });
+  await p3.evaluate(() => { window.__fournil.give(1e6); window.__fournil.feuilleClassement('total'); });
   await attendre(() => p3.evaluate(() => !!document.querySelector('#feuille .cl-liste')));
   await p3.tap('[data-a="cl-rejoindre"]'); await sleep(300);
   await p3.fill('#cl-champ', 'Éloïse Marguerit'); await p3.tap('[data-a="cl-valider"]');
   await attendre(() => p3.evaluate(() => !!document.querySelector('#feuille .cl-ligne.moi')), 8000); await sleep(400);
+  // arrivée à 0 € (contrat v2) : une très grosse fortune gagnée ensuite, puis un envoi, et la liste relue
+  for (const j of faux.joueurs.values()) j.maj = 0;
+  await p3.evaluate(() => { window.__fournil.give(123.4e15); const m = window.__fournil.classement(), e = m.etat(); e.essai = 0; e.dernierEnvoi = 0; try { const x = JSON.parse(localStorage.getItem('fournil.classement')); x.essai = 0; x.dernierEnvoi = 0; localStorage.setItem('fournil.classement', JSON.stringify(x)); } catch (z) { /* rien */ } return m.envoyer('feuille').then(() => m.charger('total')); });
+  await attendre(() => p3.evaluate(() => /^1/.test(((document.querySelector('#feuille .cl-ligne.moi .cl-rang') || {}).innerText || '').trim())), 8000); await sleep(300);
   const etroit = await p3.evaluate(() => { const f = document.querySelector('#feuille'), m = document.querySelector('#feuille .cl-ligne.moi'), r = m.getBoundingClientRect(); return { large: f.scrollWidth <= f.clientWidth + 1 && document.documentElement.scrollWidth <= innerWidth + 1, dedans: r.right <= innerWidth && r.left >= 0, val: m.querySelector('.cl-val').getBoundingClientRect().right <= r.right + 1, txt: m.innerText.replace(/\s+/g, ' ') }; });
   check(etroit.large && etroit.dedans && etroit.val && /^1er/.test(etroit.txt), 'à 320 px : rien ne déborde, un pseudo de 16 lettres et une fortune de 123 Bd € tiennent sur leur ligne (« ' + etroit.txt + ' »)');
   await p3.screenshot({ path: out + '/13-320px.png' });

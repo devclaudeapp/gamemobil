@@ -427,6 +427,50 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 .cl-aide.bon { color: #1E7A55; }
 .cl-aide.erreur { color: #B3214A; }
 .cl .btn[aria-busy="true"] b { opacity: .8; }
+/* ─── les récompenses du podium : la toque à côté du pseudo, l'entrée « Mes récompenses », l'annonce, la collection ─── */
+.cl-toque { flex: 0 0 auto; display: inline-grid; width: 22px; height: 22px; place-items: center; }
+.cl-toque svg { width: 22px; height: 22px; }
+.rec-entree { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; min-height: 60px; margin: 0 0 12px; padding: 8px 10px 8px 12px; border-radius: 18px; text-align: left; background: var(--carte); box-shadow: 0 4px 12px var(--ombre), inset 0 0 0 2px #FFE6A0; }
+.rec-entree:active { background: var(--creme); }
+.rec-entree b { display: block; font: 700 16px/1.15 var(--titre); }
+.rec-entree small { display: block; margin-top: 2px; font-size: 12.5px; color: #6E5448; }
+.rec-entree .chev { width: 24px; height: 24px; opacity: .5; }
+.rec-minis { display: flex; }
+.rec-mini { display: grid; width: 30px; height: 34px; margin-left: -12px; place-items: center; }
+.rec-mini:first-child { margin-left: 0; }
+.rec-mini svg { width: 32px; height: 32px; filter: drop-shadow(0 1px 0 #fff); }
+/* l'annonce : la coupe qui jaillit devant des rayons qui tournent, le boulanger dans sa nouvelle tenue */
+.rec-annonce { text-align: center; }
+.rec-annonce h2 { margin: 6px 0 2px; font-size: 26px; }
+.rec-phrase { margin: 0 0 8px; font: 700 18px/1.3 var(--titre); }
+.rec-annonce .sous { margin: 0 auto 16px; max-width: 34ch; }
+.rec-scene { position: relative; height: 150px; margin: 4px auto 0; max-width: 260px; display: flex; align-items: flex-end; justify-content: center; gap: 4px; overflow: hidden; border-radius: 24px; background: #FFF3C4; }
+.rec-scene.argent { background: #EEF2F7; }
+.rec-scene.bronze { background: #FBE6D4; }
+.rec-rayons { position: absolute; left: 50%; top: 55%; width: 320px; height: 320px; margin: -160px 0 0 -160px; border-radius: 50%; background: repeating-conic-gradient(rgba(255, 255, 255, .75) 0 12deg, transparent 12deg 30deg); animation: rayons 9s linear infinite; }
+.rec-coupe, .rec-boulanger { position: relative; display: block; }
+.rec-coupe svg { width: 112px; height: 112px; display: block; animation: jaillit .7s cubic-bezier(.3, 1.6, .5, 1) both, flotte 2.6s ease-in-out .7s infinite; filter: drop-shadow(0 6px 0 rgba(74, 51, 40, .12)); }
+.rec-boulanger svg { width: 76px; height: 76px; display: block; margin-bottom: 4px; animation: jaillit .7s cubic-bezier(.3, 1.6, .5, 1) .25s both; }
+@keyframes rayons { to { transform: rotate(360deg); } }
+@keyframes jaillit { from { transform: translateY(40px) scale(.3); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes flotte { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+/* la collection : les coupes gagnées, le choix de la tenue */
+.rec-coupes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.rec-carte { display: grid; justify-items: center; gap: 1px; padding: 8px 6px 10px; border-radius: 18px; text-align: center; background: #FFF3C4; }
+.rec-carte.argent { background: #EEF2F7; }
+.rec-carte.bronze { background: #FBE6D4; }
+.rec-carte .rec-icone svg { width: 52px; height: 52px; display: block; }
+.rec-carte b { font: 700 16px/1.2 var(--titre); }
+.rec-carte small { font-size: 12px; line-height: 1.3; color: #5E463B; }
+.rec-choix-liste { display: grid; gap: 6px; }
+.rec-choix { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; align-items: center; width: 100%; min-height: 56px; padding: 6px 12px 6px 6px; border-radius: 16px; text-align: left; background: var(--carte); box-shadow: 0 3px 0 var(--gris); }
+.rec-choix b { display: block; font: 700 15px/1.2 var(--titre); }
+.rec-choix small { display: block; font-size: 12.5px; line-height: 1.3; color: #6E5448; }
+.rec-choix.actif { background: #FFF3C4; box-shadow: inset 0 0 0 2.5px var(--beurre-sombre); }
+.rec-pastille { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: var(--creme); }
+.rec-pastille svg { width: 30px; height: 30px; }
+.rec-apercu { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 8px 12px; border-radius: 16px; background: var(--creme); font-size: 14px; color: #5E463B; }
+.rec-apercu svg { width: 56px; height: 56px; flex: 0 0 auto; }
 </style>
 <div id="probe" aria-hidden="true"></div>
 <header id="haut">
@@ -555,7 +599,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   const nomBoutique = (st) => st.nomBoutique || QUARTIERS[quartier(st)].enseigne;
   function renommer(st, nom) { const n = String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24); st.nomBoutique = n; return nomBoutique(st); }
   function saison(ms) {
-    const d = new Date(ms), m = d.getMonth() + 1, j = d.getDate(), tags = [];
+    const d = paris(ms), m = d.getUTCMonth() + 1, j = d.getUTCDate(), tags = [];
     if (m === 12 || m <= 2) tags.push('neige');
     if (m === 12) tags.push('noel');
     if (m === 1 && j <= 20) tags.push('galette');
@@ -653,7 +697,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   const recetteDeSaison = (ms) => (recetteForcee && RECETTES_SAISON.find((r) => r.id === recetteForcee)) || RECETTES_SAISON.find((r) => saison(ms).includes(r.tag)) || null;
   const recetteSaison = (st) => (st.saison ? RECETTES_SAISON.find((r) => r.id === st.saison.id) || null : null);
   function saisonDuJour(st, nowMs) { // la recette de la saison en cours ; une nouvelle saison (ou la même, l'année suivante) repart du niveau 0
-    const r = recetteDeSaison(nowMs), an = new Date(nowMs).getFullYear(), s = st.saison;
+    const r = recetteDeSaison(nowMs), an = paris(nowMs).getUTCFullYear(), s = st.saison;
     if (s && s.actif && (!r || s.id !== r.id || s.annee !== an)) cuireSaison(st, null); // la fournée au four sort quand même, comme pendant une absence
     if (!r) { st.saison = null; return null; }
     if (!st.saison || st.saison.id !== r.id || st.saison.annee !== an) st.saison = { id: r.id, annee: an, niv: 0, prog: 0, actif: false };
@@ -722,12 +766,23 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   }
 
   // ─── temps, hasard déterministe ───
-  const dayKey = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  // Les jours, les semaines, le marché, les heures de pointe, les habitués et les saisons du jeu se comptent à l'heure de
+  // PARIS, quel que soit le fuseau du téléphone (comme le classement et son serveur) : changer de fuseau dans les réglages
+  // ne fait plus naître de nouvelle journée, ni avancer le marché du samedi. Règle européenne : l'heure d'été va du dernier
+  // dimanche de mars au dernier dimanche d'octobre, à 1 h UTC (la même que src/classement.js).
+  function decalageParis(ms) {
+    const a = new Date(ms).getUTCFullYear();
+    const dernierDimanche = (mois) => { const d = new Date(Date.UTC(a, mois + 1, 0, 1)); d.setUTCDate(d.getUTCDate() - d.getUTCDay()); return d.getTime(); };
+    return ms >= dernierDimanche(2) && ms < dernierDimanche(9) ? 2 * 3600e3 : 3600e3;
+  }
+  const paris = (ms) => new Date(ms + decalageParis(ms)); // à lire avec les getUTC… : l'heure qu'il est à Paris
+  const heureParis = (ms) => { const d = paris(ms); return d.getUTCHours() + d.getUTCMinutes() / 60; };
+  const dayKey = (ms) => { const d = paris(ms); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`; };
   const hier = (ms) => dayKey(ms - 864e5);
   function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   function mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-  const jourDeMarche = (ms) => { const d = new Date(ms).getDay(); return d === 0 || d === 6; };
-  const heureDePointe = (ms) => { const h = new Date(ms).getHours(); return (h >= 7 && h < 9) || (h >= 12 && h < 14) || (h >= 17 && h < 19); };
+  const jourDeMarche = (ms) => { const d = paris(ms).getUTCDay(); return d === 0 || d === 6; };
+  const heureDePointe = (ms) => { const h = paris(ms).getUTCHours(); return (h >= 7 && h < 9) || (h >= 12 && h < 14) || (h >= 17 && h < 19); };
   function arrondi(n) { if (n < 10) return Math.max(1, Math.round(n)); const p = Math.pow(10, Math.floor(Math.log10(n)) - 1); return Math.round(n / p) * p; }
 
   // ─── calculs ───
@@ -825,7 +880,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     return st.jour;
   }
   // ─── le défi de la semaine : un seul, plus long, du lundi au dimanche ; réussi : une étoile, du savoir-faire, une prime ───
-  const semaineKey = (ms) => { const d = new Date(ms), j = (d.getDay() + 6) % 7; return dayKey(new Date(d.getFullYear(), d.getMonth(), d.getDate() - j, 12).getTime()); };
+  const semaineKey = (ms) => { const d = paris(ms), j = (d.getUTCDay() + 6) % 7; return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - j)).toISOString().slice(0, 10); };
   const TYPES_SEM = {
     commandes: () => ({ cible: 8, txt: 'Livre 8 commandes spéciales' }),
     critiques: () => ({ cible: 3, txt: 'Conquiers 3 critiques' }),
@@ -964,7 +1019,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     { id: 'lena', nom: 'Léna', debut: 17, fin: 20, haut: '#5FD3A4', cheveux: '#B8762E', peau: '#F1B990', coiffure: 1, phrase: 'Un éclair pour fêter la fin de la journée !' },
   ];
   function habitueAttendu(st, nowMs) {
-    const d = new Date(nowMs), h = d.getHours() + d.getMinutes() / 60, key = dayKey(nowMs);
+    const h = heureParis(nowMs), key = dayKey(nowMs);
     st.habitues = st.habitues || {};
     return HABITUES.find((x) => h >= x.debut && h < x.fin && (!st.habitues[x.id] || st.habitues[x.id].vuLe !== key)) || null;
   }
@@ -1137,13 +1192,13 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     return (v >= 100 ? v.toFixed(0) : v.toFixed(1)).replace('.0', '').replace('.', ',') + ' ' + SUFF[k];
   }
   const fmtEur = (n) => fmt(n) + ' €';
-  function fmtDuree(s) { if (s < 60) return Math.round(s) + ' s'; if (s < 3600) return Math.round(s / 60) + ' min'; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; }
+  function fmtDuree(s) { if (s < 59.5) return Math.round(s) + ' s'; const mn = Math.round(s / 60); if (mn < 60) return mn + ' min'; const h = Math.floor(mn / 60), m = mn % 60; return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; } // arrondi à la minute d'abord : 7 h 59 min 45 s → « 8 h », pas « 7 h 60 »
   const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
   return { APPRENTIS, APPRENTI_NIVEAUX, APPRENTI_VITESSE, APPRENTI_ABSENCE, xpApprenti, gradeApprenti, progresApprenti, creditApprenti, apprentiTempsMult, apprentiRevMult, effetTalentApprenti,
     CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
-    PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
+    PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost,
@@ -1161,7 +1216,11 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
    (c) Sans heure sûre (hors ligne, artefact Claude) : l'heure du téléphone, mais jamais plus loin que la dernière heure sûre connue
        + la durée d'une absence normale ; avancer l'horloge hors ligne rapporte donc au plus une absence, une fois, jusqu'à ce que le
        vrai temps rattrape. La « dernière heure sûre » avance aussi du temps de jeu mesuré par performance.now() (du vrai temps).
-   (d) L'heure sûre qui arrive en cours de partie recale le jeu sans rien rendre : on ne recule pas, on ne paie pas le temps sauté.
+   (d) L'heure sûre qui arrive en cours de partie recale le jeu vers l'avant seulement (jamais en arrière). Ce saut, c'est du vrai temps
+       qui a passé sans être compté (un téléphone resté plusieurs jours sans réseau, une heure sûre arrivée après les 2,5 s d'attente,
+       un téléphone endormi page ouverte) : le jeu le paie comme une absence (surSaut, dans src/ui.js), mais une absence pour une même
+       absence : avec ce qui a déjà été payé au lancement ou au retour, jamais plus que la durée d'une absence normale (sautAPayer).
+       Un tricheur qui a pris de l'avance hors ligne a un saut nul ou négatif : il ne touche rien.
    Une partie pure (creer, estimer, lireEnTeteDate), testée dans Node, et une partie navigateur (navigateur), branchée ici sur window.HORLOGE. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -1181,6 +1240,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     allerRetourMax: 10e3, // une réponse plus lente est trop floue pour donner l'heure
     reessai: 5 * 60e3, // une lecture ratée : la suivante (hors lancement et retour) 5 min plus tard
     absenceH: 8, // à défaut de mieux : ABSENCE_MAX_H de game.js
+    saut: 90e3, // un saut d'heure sûre de plus de 90 s en cours de partie est payé comme une absence (comme le retour dans le jeu)
   };
   const fini = (x) => typeof x === 'number' && Number.isFinite(x);
   const date = (x) => fini(x) && x > 0; // une date en millisecondes
@@ -1198,6 +1258,13 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     if (!date(serveurMs)) return NaN;
     const bas = serveurMs, haut = serveurMs + Math.max(0, resolution || 0) + Math.max(0, allerRetour || 0);
     return fini(telApres) && telApres >= bas && telApres <= haut ? telApres : (bas + haut) / 2;
+  }
+
+  // ce qu'on paie d'un saut d'heure sûre (ms) : le saut, mais avec ce qui a déjà été payé pour cette même absence (au lancement ou au
+  // retour, en ms), jamais plus que la plus longue absence (max, en ms)
+  function sautAPayer(saut, dejaPaye, max) {
+    if (!fini(saut) || !fini(max) || saut <= 0) return 0;
+    return Math.max(0, Math.min(saut, max - Math.max(0, fini(dejaPaye) ? dejaPaye : 0)));
   }
 
   // le moteur. env : { tel() l'heure du téléphone, perf() un compteur monotone en ms, avanceMax() la plus longue absence (ms) }
@@ -1302,6 +1369,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       return { ms: estimer(ms, 0, t1 - t0, tel), perf: t1, source: 'supabase' };
     }
     let enCours = null, derniereLecture = -Infinity, derniereTentative = -Infinity;
+    const surSauts = []; // les rappels de surSaut : une heure sûre vient de faire sauter le jeu vers l'avant de plus de 90 s
     function synchroniser() { // rend une promesse : true si une heure sûre vient d'arriver
       if (enCours) return enCours;
       enCours = (async () => {
@@ -1311,8 +1379,9 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         try { mes = await mesurerPage(); } catch (e) { mes = null; }
         if (!mes) { try { mes = await mesurerSupabase(); } catch (e) { mes = null; } }
         if (!mes) return false;
-        m.noterHeureSure(mes.ms, mes.perf, mes.source); derniereLecture = perf();
+        const r = m.noterHeureSure(mes.ms, mes.perf, mes.source); derniereLecture = perf();
         sauver();
+        if (r && r.saut > REGLES.saut) for (const f of surSauts) { try { f(r); } catch (e) { /* un rappel qui casse n'arrête pas l'horloge */ } }
         return true;
       })().catch(() => false).finally(() => { enCours = null; });
       return enCours;
@@ -1335,15 +1404,16 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     return {
       maintenant: m.maintenant, pret, retour, synchroniser, sauver, info: m.info, etat: m.etat, charger: m.charger, pousser: m.pousser,
       regler(r) { if (r && typeof r.avanceMax === 'function') avanceMax = r.avanceMax; },
+      surSaut(f) { if (typeof f === 'function') surSauts.push(f); }, // f({ avant, apres, saut }) : appelé tout de suite, avant la frame suivante
     };
   }
   // sans fenêtre (ou si navigateur() échoue) : l'heure du téléphone, toujours croissante
   function secours() {
     const m = creer({ tel: () => Date.now(), perf: () => Date.now() }); m.demarrer();
-    return { maintenant: m.maintenant, pret: async () => m.info(), retour: async () => m.info(), synchroniser: async () => false, sauver: m.etat, info: m.info, etat: m.etat, charger: m.charger, pousser: m.pousser, regler() {} };
+    return { maintenant: m.maintenant, pret: async () => m.info(), retour: async () => m.info(), synchroniser: async () => false, sauver: m.etat, info: m.info, etat: m.etat, charger: m.charger, pousser: m.pousser, regler() {}, surSaut() {} };
   }
 
-  return { CLE, REGLES, lireEnTeteDate, estimer, creer, navigateur, secours };
+  return { CLE, REGLES, lireEnTeteDate, estimer, sautAPayer, creer, navigateur, secours };
 });
 
 /* ── classement.js ── */
@@ -1362,6 +1432,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     ecartMin: 15e3, // jamais plus d'un envoi toutes les 15 s
     periode: 5 * 60e3, // un envoi toutes les 5 min quand la page est visible
     rafraichir: 30 * 60e3, // la fortune n'a pas bougé : un envoi quand même toutes les 30 min (changement de semaine)
+    recompenses: 30 * 60e3, // les récompenses relues toutes les 30 min au plus (au lancement et à l'ouverture de la feuille, plus tôt)
     serveur: 10.5e3, // le serveur ne prend qu'un envoi toutes les 10 s par joueur : un changement de pseudo attend son tour
     delaiMax: 8e3, // un appel abandonné au bout de 8 s
     limite: 50, // les 50 premiers
@@ -1429,7 +1500,58 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, JETON = /^[0-9a-f]{64}$/;
   const fini = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
   const entier = (v) => (Number.isInteger(v) && v > 0 ? v : null);
-  const etatNeuf = () => ({ id: null, jeton: null, pseudo: '', rejoint: false, dernierEnvoi: 0, valeur: null, essai: 0, dernier: null });
+  const etatNeuf = () => ({ id: null, jeton: null, pseudo: '', rejoint: false, dernierEnvoi: 0, valeur: null, essai: 0, dernier: null, recompenses: recompensesNeuves() });
+
+  // ─── les récompenses du podium : les trois premiers de chaque semaine gagnent une tenue (toque et tablier) et une coupe, or, argent ou bronze ───
+  // recompenses : { podiums: [{ semaine: 'AAAA-MM-JJ' (le lundi de la semaine du podium), rang: 1 | 2 | 3 }] du plus ancien au plus récent,
+  //                 tenue: 'auto' (celle du dernier podium, la semaine qui suit ; par défaut) | null (aucune) | 'or' | 'argent' | 'bronze',
+  //                 vu: le lundi du dernier podium déjà annoncé }. Gardées à vie sur le téléphone, même après avoir quitté le classement.
+  const METAUX = ['or', 'argent', 'bronze'], JOUR = /^\d{4}-\d{2}-\d{2}$/;
+  const metal = (rang) => METAUX[rang - 1] || null; // 1 → 'or', 2 → 'argent', 3 → 'bronze'
+  const NOMS_METAL = { or: 'd’or', argent: 'd’argent', bronze: 'de bronze' }; // « la tenue d’or », « la coupe de bronze »
+  const recompensesNeuves = () => ({ podiums: [], tenue: 'auto', vu: '' });
+  function decalerSemaine(lundi, k) { // '2026-10-12', -1 → '2026-10-05'
+    if (!JOUR.test(String(lundi || ''))) return '';
+    const d = new Date(lundi + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + 7 * k); return d.toISOString().slice(0, 10);
+  }
+  function nettoyerPodiums(liste) { // une coupe par semaine (la meilleure, si deux sources se contredisent), triées de la plus ancienne à la plus récente
+    const par = new Map();
+    for (const p of Array.isArray(liste) ? liste.slice(0, 2000) : []) {
+      if (!p || typeof p !== 'object' || !JOUR.test(String(p.semaine || '')) || ![1, 2, 3].includes(p.rang)) continue;
+      const a = par.get(p.semaine); if (!a || p.rang < a.rang) par.set(p.semaine, { semaine: p.semaine, rang: p.rang });
+    }
+    return [...par.values()].sort((a, b) => (a.semaine < b.semaine ? -1 : a.semaine > b.semaine ? 1 : 0));
+  }
+  function nettoyerRecompenses(r) {
+    const o = recompensesNeuves();
+    if (!r || typeof r !== 'object' || Array.isArray(r)) return o;
+    o.podiums = nettoyerPodiums(r.podiums);
+    if (r.tenue === null || r.tenue === 'auto' || METAUX.includes(r.tenue)) o.tenue = r.tenue;
+    if (typeof r.vu === 'string' && JOUR.test(r.vu)) o.vu = r.vu;
+    return o;
+  }
+  const podiumDe = (rec, semaine) => (rec && semaine ? rec.podiums.find((p) => p.semaine === semaine) || null : null);
+  // la tenue que porte le boulanger cette semaine (lundi : le lundi de la semaine en cours) : celle choisie si elle a été gagnée,
+  // sinon (« automatique ») celle du podium de la semaine passée ; null : la tenue blanche de toujours
+  function tenuePortee(rec, lundi) {
+    if (!rec || rec.tenue === null) return null;
+    if (METAUX.includes(rec.tenue) && rec.podiums.some((p) => metal(p.rang) === rec.tenue)) return rec.tenue;
+    const p = podiumDe(rec, decalerSemaine(lundi, -1)); return p ? metal(p.rang) : null;
+  }
+  // la coupe posée sur le comptoir : celle du podium de la semaine passée, toute la semaine qui suit
+  function coupeDuComptoir(rec, lundi) { const p = podiumDe(rec, decalerSemaine(lundi, -1)); return p ? metal(p.rang) : null; }
+  // le podium à annoncer : le plus récent des podiums finis pas encore annoncés (autres : combien d'autres sont arrivés depuis la dernière visite)
+  function aAnnoncer(rec, lundi) {
+    if (!rec) return null;
+    const neufs = rec.podiums.filter((p) => p.semaine > (rec.vu || '') && (!lundi || p.semaine < lundi));
+    if (!neufs.length) return null;
+    const p = neufs[neufs.length - 1]; return { semaine: p.semaine, rang: p.rang, metal: metal(p.rang), autres: neufs.length - 1 };
+  }
+  function tenuesGagnees(rec) { const g = new Set((rec ? rec.podiums : []).map((p) => metal(p.rang))); return METAUX.filter((m) => g.has(m)); }
+  function phraseAnnonce(a) { // « Bravo ! 2e de la semaine : la tenue d’argent et la coupe d’argent sont à toi »
+    if (!a || !a.metal) return '';
+    const n = NOMS_METAL[a.metal]; return `Bravo ! ${rangTexte(a.rang)} de la semaine : la tenue ${n} et la coupe ${n} sont à toi`;
+  }
   function nettoyerRang(r, avecLundi) {
     if (!r || typeof r !== 'object' || !entier(r.rang)) return null;
     const o = { rang: r.rang, joueurs: Math.max(r.rang, entier(r.joueurs) || r.rang) };
@@ -1448,6 +1570,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       const d = { semaine: nettoyerRang(s.dernier.semaine, true), total: nettoyerRang(s.dernier.total), quand: fini(s.dernier.quand) };
       if (d.semaine || d.total) e.dernier = d;
     }
+    e.recompenses = nettoyerRecompenses(s.recompenses);
     return e;
   }
   function lireEtat(stockage) {
@@ -1495,11 +1618,23 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       for (const l of d.lignes.slice(0, 100)) {
         if (!l || typeof l !== 'object' || !entier(l.rang)) continue;
         const v = Number(l.valeur);
-        o.lignes.push({ rang: l.rang, pseudo: String(l.pseudo == null ? '' : l.pseudo).slice(0, 40), valeur: Number.isFinite(v) ? v : 0, moi: l.moi === true });
+        o.lignes.push({ rang: l.rang, pseudo: String(l.pseudo == null ? '' : l.pseudo).slice(0, 40), valeur: Number.isFinite(v) ? v : 0, moi: l.moi === true, podium: [1, 2, 3].includes(l.podium) ? l.podium : null });
       }
     }
     o.joueurs = Math.max(entier(d.joueurs) || 0, o.lignes.length);
-    if (d.moi && typeof d.moi === 'object' && entier(d.moi.rang)) { const v = Number(d.moi.valeur); o.moi = { rang: d.moi.rang, valeur: Number.isFinite(v) ? v : 0 }; o.joueurs = Math.max(o.joueurs, o.moi.rang); }
+    if (d.moi && typeof d.moi === 'object' && entier(d.moi.rang)) { const v = Number(d.moi.valeur); o.moi = { rang: d.moi.rang, valeur: Number.isFinite(v) ? v : 0, podium: [1, 2, 3].includes(d.moi.podium) ? d.moi.podium : null }; o.joueurs = Math.max(o.joueurs, o.moi.rang); }
+    return o;
+  }
+  // la réponse de fournil_recompenses : ses podiums, et le podium de la semaine passée (pour tout le monde)
+  function nettoyerRecompensesServeur(d) {
+    const o = { ok: false, podiums: [], derniere: null };
+    if (!d || typeof d !== 'object') return o;
+    o.ok = d.ok === true; o.podiums = nettoyerPodiums(d.podiums);
+    const r = d.derniere;
+    if (r && typeof r === 'object' && JOUR.test(String(r.semaine || '')) && Array.isArray(r.podium)) {
+      const podium = r.podium.slice(0, 30).filter((x) => x && typeof x === 'object' && [1, 2, 3].includes(x.rang)).map((x) => { const v = Number(x.valeur); return { rang: x.rang, pseudo: String(x.pseudo == null ? '' : x.pseudo).slice(0, 40), valeur: Number.isFinite(v) ? v : 0 }; });
+      if (podium.length) o.derniere = { semaine: r.semaine, podium };
+    }
     return o;
   }
 
@@ -1557,6 +1692,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     let retrait = false; // « Quitter » en route : plus aucun envoi automatique (fond, minuteur) tant que le serveur n'a pas répondu
     let nettoyage = null; // au lancement, l'effacement discret d'une inscription dont la réponse s'était perdue
     let ecrit = true; // la dernière écriture dans le stockage a-t-elle réussi ? (sinon, le stockage est en retard sur la mémoire)
+    let lundiServeur = ''; // le lundi de la semaine en cours d'après le serveur (appris à chaque réponse) : l'heure du téléphone ne décide pas seule
+    let recVol = null, recQuand = 0, derniere = null; // la lecture des récompenses en cours, l'heure de la dernière, le podium de la semaine passée
     const config = () => { try { return lireConfig(E.config ? E.config() : null); } catch (e) { return null; } };
     const sauver = () => { ecrit = ecrireEtat(E.stockage, etat); return ecrit; };
     const prevenir = () => { for (const f of ecouteurs.slice()) { try { f(); } catch (e) { /* l'interface ne casse pas le moteur */ } } };
@@ -1570,13 +1707,20 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       let brut = null; try { brut = E.stockage ? E.stockage.getItem(CLE) : null; } catch (e) { return false; }
       if (brut == null) return false; // stockage vide ou indisponible : on garde l'état en mémoire
       const f = lireEtat(E.stockage);
-      if (f.id !== etat.id || f.jeton !== etat.jeton || f.rejoint !== etat.rejoint || f.pseudo !== etat.pseudo) { etat = f; cache.semaine = cache.total = null; prevenir(); return true; }
+      // les récompenses : l'union des podiums (rien ne se perd), la tenue choisie dans l'autre fenêtre (chaque choix est écrit aussitôt), le dernier annoncé
+      const rec = { podiums: nettoyerPodiums(etat.recompenses.podiums.concat(f.recompenses.podiums)), tenue: f.recompenses.tenue, vu: f.recompenses.vu > etat.recompenses.vu ? f.recompenses.vu : etat.recompenses.vu };
+      if (f.id !== etat.id || f.jeton !== etat.jeton || f.rejoint !== etat.rejoint || f.pseudo !== etat.pseudo) { etat = f; etat.recompenses = rec; cache.semaine = cache.total = null; prevenir(); return true; }
+      const avantRec = JSON.stringify(etat.recompenses); etat.recompenses = rec; if (JSON.stringify(rec) !== avantRec) prevenir();
       etat.essai = Math.max(etat.essai, f.essai);
       if (f.dernierEnvoi > etat.dernierEnvoi) { etat.dernierEnvoi = f.dernierEnvoi; etat.valeur = f.valeur; etat.dernier = f.dernier; }
       return false;
     }
+    const noterLundi = (l) => { if (typeof l === 'string' && JOUR.test(l.slice(0, 10)) && l.slice(0, 10) > lundiServeur) lundiServeur = l.slice(0, 10); };
+    // le lundi de la semaine en cours : celui du serveur, ou celui de l'horloge du jeu s'il est plus récent (minuit est passé depuis la dernière réponse)
+    function lundi() { const l = lundiParis(E.maintenant()); return lundiServeur > l ? lundiServeur : l; }
     function noterRangs(d, maintenant) { // la place de la semaine est rangée sous le lundi du SERVEUR (l'horloge du téléphone peut avoir quelques minutes d'écart)
       const lundi = typeof d.semaine === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d.semaine) ? d.semaine.slice(0, 10) : lundiParis(maintenant), avant = etat.dernier || {};
+      noterLundi(d.semaine);
       const jt = entier(d.joueurs_total) || entier(d.joueurs);
       const js = entier(d.joueurs_semaine) || (avant.semaine && avant.semaine.lundi === lundi ? avant.semaine.joueurs : null) || jt;
       const semaine = entier(d.rang_semaine) ? { rang: d.rang_semaine, joueurs: Math.max(d.rang_semaine, js || 0), lundi } : null;
@@ -1669,7 +1813,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       statut = r.etat;
       if (r.etat !== 'ok') { prevenir(); return r; } // pas de réponse : on reste inscrit, avec son jeton, pour réessayer
       // (un refus « jeton » veut dire que la ligne n'est pas à nous : on oublie l'identité, comme pour un retrait réussi)
-      const pseudo = etat.pseudo; etat = etatNeuf(); etat.pseudo = pseudo; sauver(); // une nouvelle identité au prochain retour ; le pseudo reste proposé
+      const pseudo = etat.pseudo, rec = etat.recompenses; etat = etatNeuf(); etat.pseudo = pseudo; etat.recompenses = rec; sauver(); // une nouvelle identité au prochain retour ; le pseudo reste proposé, les coupes et les tenues restent à lui
       cache.semaine = cache.total = null; prevenir();
       return { etat: 'ok' };
     }
@@ -1682,7 +1826,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         charge[p] = false; statut = r.etat;
         const t = E.maintenant();
         if (r.etat === 'ok') {
-          const data = nettoyerClassement(r.data); cache[p] = { etat: 'ok', data, quand: t };
+          const data = nettoyerClassement(r.data); cache[p] = { etat: 'ok', data, quand: t }; noterLundi(data.semaine);
           if (etat.rejoint && data.moi) {
             const d = etat.dernier || { semaine: null, total: null, quand: t };
             d[p] = p === 'semaine' ? { rang: data.moi.rang, joueurs: data.joueurs, lundi: data.semaine || lundiParis(t) } : { rang: data.moi.rang, joueurs: data.joueurs };
@@ -1700,7 +1844,50 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       const p = periode === 'total' ? 'total' : 'semaine';
       const lecture = charger(p);
       envoyer('feuille').then((r) => { if (r && r.etat === 'ok') lecture.then(() => charger(p)); }).catch(() => { /* rien */ });
+      chargerRecompenses({ ecart: 60e3 }); // les récompenses aussi (une fois par minute au plus)
       return lecture;
+    }
+    // ses podiums et le podium de la semaine passée : au lancement, à l'ouverture de la feuille, puis toutes les 30 min au plus.
+    // Les podiums reçus s'ajoutent à ceux du téléphone (jamais retirés : quitter le classement ou le ménage des 90 jours ne reprennent rien).
+    function chargerRecompenses(o) {
+      if (!config()) return Promise.resolve({ etat: 'absent' });
+      if (recVol) return recVol;
+      resynchroniser();
+      if (!etat.rejoint || !etat.id || !etat.jeton) return Promise.resolve({ etat: 'saute', pourquoi: 'pas-rejoint' });
+      const ecart = o && typeof o.ecart === 'number' ? o.ecart : REGLES.recompenses, t = E.maintenant();
+      if (recQuand && t - recQuand >= 0 && t - recQuand < ecart) return Promise.resolve({ etat: 'saute', pourquoi: 'recent' });
+      recQuand = t;
+      recVol = rpc('fournil_recompenses', { p_id: etat.id, p_jeton: etat.jeton }).then((r) => {
+        if (r.etat !== 'ok') { recQuand = 0; return r; } // pas de réponse : on réessaiera à la prochaine occasion
+        const d = nettoyerRecompensesServeur(r.data);
+        if (!d.ok) return { etat: 'refus', erreur: r.data && typeof r.data.erreur === 'string' ? r.data.erreur : 'inconnue' };
+        resynchroniser();
+        derniere = d.derniere; if (derniere) noterLundi(decalerSemaine(derniere.semaine, 1));
+        const avant = JSON.stringify(etat.recompenses.podiums);
+        etat.recompenses.podiums = nettoyerPodiums(etat.recompenses.podiums.concat(d.podiums));
+        if (JSON.stringify(etat.recompenses.podiums) !== avant) sauver();
+        return { etat: 'ok', data: d };
+      }).catch(() => { recQuand = 0; return { etat: 'erreur' }; }).then((r) => { recVol = null; prevenir(); return r; });
+      return recVol;
+    }
+    // le choix de la tenue (null : aucune, 'auto', ou un métal gagné) et l'annonce faite : écrits aussitôt
+    function choisirTenue(t) {
+      resynchroniser();
+      if (!(t === null || t === 'auto' || (METAUX.includes(t) && tenuesGagnees(etat.recompenses).includes(t)))) return false;
+      etat.recompenses.tenue = t; sauver(); prevenir(); return true;
+    }
+    function annonceFaite(semaine) {
+      if (!JOUR.test(String(semaine || ''))) return false;
+      resynchroniser();
+      if (semaine <= etat.recompenses.vu) return false;
+      // un nouveau podium : sa tenue se porte d'office la semaine qui suit, même si une autre avait été choisie
+      etat.recompenses.vu = semaine; if (semaine === decalerSemaine(lundi(), -1)) etat.recompenses.tenue = 'auto';
+      sauver(); prevenir(); return true;
+    }
+    // pour l'interface et la boutique en 3D : ce qui se voit cette semaine
+    function recompenses() {
+      const rec = etat.recompenses, l = lundi();
+      return { podiums: rec.podiums.slice(), tenue: rec.tenue, vu: rec.vu, lundi: l, portee: tenuePortee(rec, l), coupe: coupeDuComptoir(rec, l), coupes: rec.podiums.map((p) => metal(p.rang)), gagnees: tenuesGagnees(rec), annonce: aAnnoncer(rec, l), derniere };
     }
     function demarrer(o) {
       if (demarre || !config()) return false;
@@ -1713,6 +1900,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
         }).catch(() => { /* rien */ }).then(() => { nettoyage = null; });
       }
       envoyer('lancement');
+      chargerRecompenses({ ecart: 0 });
       const pas = (o && o.pas) || 60e3;
       if (o && o.minuteur === false) return true;
       minuteur = setInterval(() => { tick(); }, pas);
@@ -1720,6 +1908,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     }
     function tick() { // le minuteur : un envoi toutes les 5 min, seulement quand la page est visible
       let vu = true; try { vu = E.visible(); } catch (e) { vu = true; }
+      if (vu) chargerRecompenses();
       return vu ? envoyer('periodique') : Promise.resolve({ etat: 'saute', pourquoi: 'cachee' });
     }
     function arreter() { if (minuteur) clearInterval(minuteur); minuteur = 0; demarre = false; }
@@ -1730,6 +1919,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     return {
       disponible: () => !!config(), etat: () => etat, resume, cache: (p) => cache[p === 'total' ? 'total' : 'semaine'], enChargement: (p) => charge[p === 'total' ? 'total' : 'semaine'],
       envoyer, charger, ouvrir, choisirPseudo, quitter, demarrer, arreter, ecouter: (f) => { ecouteurs.push(f); },
+      chargerRecompenses, recompenses, choisirTenue, annonceFaite, lundi,
       relire: () => { etat = lireEtat(E.stockage); prevenir(); return etat; },
       resynchroniser, tick,
     };
@@ -1742,6 +1932,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     let stockage = null; try { stockage = w.localStorage; } catch (e) { stockage = null; }
     const m = creerMoteur({
       config: () => w.FOURNIL_CONFIG, fetch: (u, i) => w.fetch(u, i), stockage, fortune: o && o.fortune,
+      ...(o && typeof o.maintenant === 'function' ? { maintenant: o.maintenant } : {}), // l'horloge de confiance du jeu (HORLOGE), plutôt que celle du téléphone
       enLigne: () => !(w.navigator && w.navigator.onLine === false), visible: () => !(w.document && w.document.visibilityState === 'hidden'),
     });
     if (w.document) { // au passage en arrière-plan : un dernier envoi qui survit à la fermeture (fetch keepalive)
@@ -1755,7 +1946,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   }
 
   return { CLE, REGLES, PSEUDO_MIN, PSEUDO_MAX, lundiParis, decalageParis, dateCourte, normaliserPseudo, verifierPseudo, messagePseudo, rangTexte, rangPhrase, boulangers,
-    etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur };
+    etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur,
+    METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce };
 });
 
 /* ── icons.js ── */
@@ -1799,15 +1991,17 @@ const ICONS = (() => {
   const PANNE = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 8a9 9 0 00-9 11L9 31a3 3 0 004 4l12-12a9 9 0 0011-9l-5 5-4-1-1-4z" fill="#D9CCC2" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="36" cy="36" r="5" fill="#FF9F4A" stroke="${L}" stroke-width="2"/><path d="M36 30v-4M42 36h4" stroke="#FF6B8B" stroke-width="2.5" stroke-linecap="round"/></svg>`;
   const BALLON = `<svg viewBox="0 0 48 48" aria-hidden="true"><ellipse cx="19" cy="17" rx="10" ry="12" fill="#FF9FB2" stroke="${L}" stroke-width="2"/><ellipse cx="31" cy="20" rx="9" ry="11" fill="#9BD0FF" stroke="${L}" stroke-width="2"/><path d="M19 29c-2 6 2 10 0 14M31 31c2 5-1 8 0 12" stroke="${L}" stroke-width="1.8" fill="none" stroke-linecap="round"/><ellipse cx="15" cy="12" rx="2.5" ry="4" fill="#fff" opacity=".7"/></svg>`;
   // le portrait du boulanger selon son titre : calot, toque, haute toque, foulard et moustache, liseré doré, col tricolore
-  function boulanger(rang) {
-    const th = rang === 0 ? 6 : rang === 1 ? 12 : 12 + Math.min(8, (rang - 1) * 3);
-    return S(`<rect x="10" y="30" width="28" height="18" rx="8" fill="#fff"/><rect x="18" y="30" width="12" height="14" rx="4" fill="#FF6B8B"/>
+  // les métaux du podium du classement : teinte, ombre, reflet (les mêmes que la tenue et les coupes en 3D)
+  const METAL = { or: ['#FFC84A', '#D4921A', '#FFF2C2'], argent: ['#D3DCE6', '#7F8FA3', '#FFFFFF'], bronze: ['#E2A06A', '#9E5A2A', '#F8D6B6'] };
+  function boulanger(rang, tenue) { // tenue : 'or', 'argent' ou 'bronze' (la tenue du podium), sinon la blanche
+    const th = rang === 0 ? 6 : rang === 1 ? 12 : 12 + Math.min(8, (rang - 1) * 3), t = METAL[tenue], tissu = t ? t[0] : '#fff';
+    return S(`<rect x="10" y="30" width="28" height="18" rx="8" fill="${tissu}"/><rect x="18" y="30" width="12" height="14" rx="4" fill="#FF6B8B"/>${t ? `<rect x="10" y="44" width="28" height="3" rx="1.5" fill="${t[1]}"/>` : ''}
       ${rang >= 4 ? '<rect x="10" y="44" width="28" height="3" rx="1.5" fill="#FFC84A"/>' : ''}
       ${rang >= 5 ? `<rect x="10" y="30" width="9" height="5" rx="2" fill="#2B5BD7"/><rect x="19.5" y="30" width="9" height="5" rx="2" fill="#fff" stroke="${L}" stroke-width=".8"/><rect x="29" y="30" width="9" height="5" rx="2" fill="#E1496C"/>` : ''}
       ${rang >= 3 ? '<rect x="15" y="27" width="18" height="5" rx="2.5" fill="#E1496C"/>' : ''}
       <circle cx="24" cy="21" r="10" fill="#FFD7B5" stroke="${L}" stroke-width="2"/>
-      <rect x="13" y="${14 - th}" width="22" height="${th}" rx="${rang === 0 ? 3 : 6}" fill="#fff" stroke="${L}" stroke-width="2"/><rect x="12" y="12" width="24" height="4" rx="2" fill="#fff" stroke="${L}" stroke-width="2"/>
-      ${rang >= 4 ? '<rect x="12" y="12" width="24" height="2" rx="1" fill="#FFC84A"/>' : ''}
+      <rect x="13" y="${14 - th}" width="22" height="${th}" rx="${rang === 0 ? 3 : 6}" fill="${tissu}" stroke="${L}" stroke-width="2"/><rect x="12" y="12" width="24" height="4" rx="2" fill="${tissu}" stroke="${L}" stroke-width="2"/>
+      ${rang >= 4 || t ? `<rect x="12" y="12" width="24" height="2" rx="1" fill="${t ? t[1] : '#FFC84A'}"/>` : ''}${t && th >= 9 ? `<path d="M24 ${14 - th * 0.62}l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4z" fill="${t[1]}"/>` : ''}
       <circle cx="20" cy="21" r="1.4" fill="${L}"/><circle cx="28" cy="21" r="1.4" fill="${L}"/><path d="M20 25c2 2 6 2 8 0" stroke="${L}" stroke-width="1.8" stroke-linecap="round" fill="none"/>
       ${rang >= 3 ? '<path d="M19.5 24.5q2.5-2 4.5 0q2-2 4.5 0" stroke="#8C5A3C" stroke-width="1.8" fill="none" stroke-linecap="round"/>' : ''}
       <circle cx="16" cy="24" r="1.6" fill="#FFB3B3"/><circle cx="32" cy="24" r="1.6" fill="#FFB3B3"/>`);
@@ -1842,6 +2036,9 @@ const ICONS = (() => {
     podium: U(`<path d="M9 10.5h6V21H9z" fill="#FFC84A"/><path d="M3 14h6v7H3z" fill="#fff"/><path d="M15 16h6v5h-6z" fill="#FFE0C7"/><path d="M12 3l.9 1.9 2 .3-1.5 1.4.4 2L12 7.6l-1.8 1 .4-2-1.5-1.4 2-.3z" fill="#FF6B8B" stroke="none"/>`),
     horsLigne: U(`<path d="M7 18a4 4 0 01-.6-7.9A6 6 0 0118 9.5a3.8 3.8 0 01-.5 7.5z" fill="#EADFD6"/><path d="M4 4l16 16"/>`),
   };
+  // le podium du classement : une petite toque à la couleur du métal (à côté d'un pseudo) et une coupe (l'annonce, la collection)
+  const toque = (m) => { const t = METAL[m] || (m === 'blanc' ? ['#FFFFFF', '#D9CCC2', '#FFFFFF'] : METAL.or); /* 'blanc' : la toque de toujours */ return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 14.5c-2.6-.4-3.7-2.4-3.2-4.3.6-2.1 2.9-3 4.7-2.1.6-2.5 2.6-4 4-4s3.4 1.5 4 4c1.8-.9 4.1 0 4.7 2.1.5 1.9-.6 3.9-3.2 4.3z" fill="${t[0]}" stroke="${L}" stroke-width="1.6" stroke-linejoin="round"/><rect x="6.5" y="14" width="11" height="5.5" rx="1.6" fill="${t[0]}" stroke="${L}" stroke-width="1.6"/><path d="M7.5 16.7h9" stroke="${t[1]}" stroke-width="1.6" stroke-linecap="round"/><path d="M9 8.6c.4-1.1 1.2-1.7 2-1.9" stroke="${t[2]}" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg>`; };
+  const coupe = (m) => { const t = METAL[m] || METAL.or; return S(`<path d="M15 9h18v9a9 9 0 01-18 0z" fill="${t[0]}" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M15 12H10.5a4.5 4.5 0 004.9 6.6M33 12h4.5a4.5 4.5 0 01-4.9 6.6" fill="none" stroke="${L}" stroke-width="2" stroke-linecap="round"/><path d="M15 12H10.5a4.5 4.5 0 004.9 6.6M33 12h4.5a4.5 4.5 0 01-4.9 6.6" fill="none" stroke="${t[0]}" stroke-width=".8" stroke-linecap="round"/><path d="M21.5 26.5h5l1 6h-7z" fill="${t[0]}" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><rect x="14" y="32.5" width="20" height="8" rx="2.5" fill="#8B5A3C" stroke="${L}" stroke-width="2"/><rect x="19" y="35" width="10" height="3" rx="1" fill="${t[1]}"/><path d="M19 12.5v5" stroke="${t[2]}" stroke-width="2.4" stroke-linecap="round"/><path d="M24 12.4l1 2 2.2.3-1.6 1.5.4 2.2-2-1.1-2 1.1.4-2.2-1.6-1.5 2.2-.3z" fill="${t[1]}"/>`); };
   const AMELIORATION = S(`<path d="M24 6l3.5 10.5L38 20l-10.5 3.5L24 34l-3.5-10.5L10 20l10.5-3.5z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`);
   const ETOILE = S(`<path d="M24 5l5.8 12.2 13.2 1.6-9.8 9.2 2.6 13.2L24 34.6l-11.8 6.6 2.6-13.2L5 18.8l13.2-1.6z" fill="#FFC84A" stroke="#E0A61E" stroke-width="2" stroke-linejoin="round"/>`);
   // le mobilier de la boutique : une icône par meuble, au trait de la maison
@@ -1853,7 +2050,7 @@ const ICONS = (() => {
     froid: S(`<rect x="12" y="5" width="24" height="38" rx="5" fill="#EEF6FB" stroke="${L}" stroke-width="2"/><path d="M12 19h24" stroke="${L}" stroke-width="2"/><rect x="29" y="9" width="3" height="6" rx="1.5" fill="#8FB8FF"/><rect x="29" y="23" width="3" height="10" rx="1.5" fill="#8FB8FF"/><path d="M18 30l4 0M20 28v4" stroke="#6CB8FF" stroke-width="1.5" stroke-linecap="round"/><path d="M17 36c3 2 7 2 10 0" stroke="#6CB8FF" stroke-width="1.5" stroke-linecap="round" fill="none"/>`),
     deco: S(`<rect x="8" y="10" width="18" height="14" rx="2" fill="#fff" stroke="${L}" stroke-width="2"/><rect x="11" y="13" width="12" height="6" fill="#9ED8FF"/><path d="M11 21l4-4 3 3 2-2 3 3" stroke="#5FD3A4" stroke-width="1.8" fill="none"/><rect x="31" y="30" width="12" height="12" rx="3" fill="#D9915C" stroke="${L}" stroke-width="1.5"/><circle cx="37" cy="24" r="6" fill="#5FD3A4"/><circle cx="32" cy="27" r="4" fill="#5FD3A4"/><circle cx="42" cy="27" r="4" fill="#5FD3A4"/><path d="M30 8l1.5 3 3.5.5-2.5 2.5.6 3.4-3.1-1.6-3.1 1.6.6-3.4L25 11.5l3.5-.5z" fill="#FFC84A"/><path d="M8 32c4 6 10 8 16 6" stroke="#FF9FB2" stroke-width="2" stroke-linecap="round" fill="none"/>`),
   };
-  return { PRODUITS, SAISON, CHAT, apprenti, boulanger, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES };
+  return { PRODUITS, SAISON, CHAT, apprenti, boulanger, toque, coupe, METAL, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES };
 })();
 
 /* ── vie.js ── */
@@ -2076,7 +2273,7 @@ const VIE = (() => {
     if (!LAY) calculer();
     dt = Math.min(0.25, Math.max(0, dt));
     t += dt;
-    const d = new Date(now), hour = force.heure != null ? force.heure : d.getHours() + d.getMinutes() / 60;
+    const d = G.paris(now), hour = force.heure != null ? force.heure : d.getUTCHours() + d.getUTCMinutes() / 60; // l’heure de Paris (à lire en getUTC…), comme les heures de pointe et les habitués
     const taux = G.tauxParSeconde(st);
     rang = G.rangTitre(st); pts = G.ptsTalents(st); affl = G.talent(st, 'affluence');
     Q = DECORS[G.QUARTIERS[G.quartier(st)].id] || DECORS.village; tags = force.saison || G.saison(now);
@@ -2451,7 +2648,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     const { LAY, Q, W } = c, g = grp('deco'), lampes = []; g.userData.zone = 'deco'; g.userData.lampes = lampes;
     if (k === 0) { const m = M.mesh(M.disque(1, 6), M.MAT.tache, { x: LAY.deco.x, y: 0.2, z: c.wz(LAY.deco.y) }, { ombre: false }); m.visible = false; g.add(m); return g; }
     const pl = plante(LAY.deco.x, LAY.deco.y, c); g.add(pl); g.userData.zoneBoite = new THREE.Box3().setFromObject(pl, true); // la zone de touche : la plante seule (le reste s'accroche au mur ou au plafond)
-    if (k >= 2) { g.add(cadre(LAY.cadre2.x, LAY.cadre2.y, c)); for (const a of LAY.appliques) g.add(applique(a.x, a.y - 14, c, lampes)); } // les appliques, juste au-dessus des cadres
+    if (k >= 2) { if (!c.trophees) g.add(cadre(LAY.cadre2.x, LAY.cadre2.y, c)); for (const a of LAY.appliques) g.add(applique(a.x, a.y - 14, c, lampes)); } // les appliques, juste au-dessus des cadres
     if (k >= 3) g.add(guirlande(c.tags && c.tags.includes('noel'), c));
     if (k >= 4) {
       const t = LAY.tapis, d = c.wd(t.h), tp = grp('tapis', t.x + t.w / 2, 0, c.wz(t.y) + d / 2);
@@ -2525,8 +2722,8 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     for (let k = 0; k < 4; k++) pr.push(P(bo(5, 0.5, d * 0.5, 0.2), M.eclaircir(col, 0.3), { x: -13.5 + k * 9, y: 1.1 }));
     g.add(M.maille(pr, { ombre: false, recoit: true })); return g;
   }
-  function sapin(c) { // le sapin de Noël : tronc, trois étages de cônes, les boules qui clignotent en alternance, l'étoile
-    const s = c.LAY.sapin, g = grp('sapin', s.x, 0, c.wz(s.y)), pr = [];
+  function sapin(c, decale) { // le sapin de Noël : tronc, trois étages de cônes, les boules qui clignotent en alternance, l'étoile (decale : poussé à droite, la vitrine des trophées occupe sa place)
+    const s = c.LAY.sapin, g = grp('sapin', s.x + (decale ? c.W * 0.085 : 0), 0, c.wz(s.y)), pr = [];
     pr.push(P(M.cylindre(3, 3.5, 9, 8), '#8B5A3C'));
     for (let k = 0; k < 3; k++) pr.push(P(M.cone(14 - k * 3, 26, 9), k % 2 ? '#2F6B4F' : '#2A6248', { y: 6 + k * 16 }));
     pr.push(P(M.cone(3.5, 5, 4), '#FFC84A', { y: 64 }), P(M.cone(3.5, 5, 4), '#FFC84A', { y: 74, rx: Math.PI }));
@@ -2582,7 +2779,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     const h = c.LAY.horloge, g = grp('horloge', h.x, murY(c, h.y), 1); g.scale.y = 1 / c.CY;
     g.add(M.maille([P(M.cylindre(10, 10, 1.5, 24), '#FFFFFF', { rx: Math.PI / 2 }), P(M.tore(10, 1.3, TAU, 8, 28), c.Q.bois, { z: 1.5 }), P(M.sphere(1.4, 8), '#E1496C', { z: 2.6 })]));
     const ah = M.mesh(M.boiteSimple(1.6, 5, 0.8), M.mat(L), { z: 1.8 }, { ombre: false }), am = M.mesh(M.boiteSimple(1.3, 7.5, 0.8), M.mat(L), { z: 2.2 }, { ombre: false }); g.add(ah, am);
-    g.userData.anime = (E) => { const d = E.d; if (!d) return; const mn = d.getMinutes() / 60; ah.rotation.z = -((d.getHours() % 12) + mn) / 12 * TAU; am.rotation.z = -mn * TAU; };
+    g.userData.anime = (E) => { const d = E.d; if (!d) return; const mn = d.getUTCMinutes() / 60; ah.rotation.z = -((d.getUTCHours() % 12) + mn) / 12 * TAU; am.rotation.z = -mn * TAU; };
     return g;
   }
   function diplome(c) { // le diplôme du boulanger : cadre bois, parchemin, trois lignes grises, le sceau rouge
@@ -2608,6 +2805,43 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     else for (let k = 0; k < 2; k++) pr.push(P(M.cone(4, 11, 8), '#E8B46A', { x: k * 11 - 5.5, y: 11, rx: Math.PI }), P(M.sphere(4.6, 10), k ? '#FF9FB2' : '#9BE8C2', { x: k * 11 - 5.5, y: 14 }));
     g.add(M.maille(pr)); return g;
   }
+  // ─── les récompenses du podium du classement : la coupe de la semaine sur le comptoir, la vitrine des trophées qui les garde toutes ───
+  // Une coupe : socle de bois, plaque, pied, nœud, vasque évasée, rebord, deux anses, l'intérieur foncé, un reflet ; 18 de haut, 15 de large
+  // anses comprises (s = 1), posée sur y = 0 et face à +Z. Ses pièces se fusionnent avec celles du meuble qui la porte.
+  const METAL = { or: ['#FFC84A', '#D4921A', '#FFF2C2'], argent: ['#C9D3DE', '#7F8FA3', '#FFFFFF'], bronze: ['#D98C52', '#9E5A2A', '#F8D6B6'] }; // teinte, ombre, reflet
+  function partsCoupe(metal, s, x, y, z) {
+    const [m, f, cl] = METAL[metal] || METAL.or, pr = [], q = (v) => Math.round(v * s * 100) / 100; // des cotes arrondies : le cache des géométries reste petit
+    const at = (dx, dy, dz, o) => Object.assign({ x: x + dx * s, y: y + dy * s, z: z + dz * s }, o || {});
+    pr.push(P(bo(q(9), q(3), q(6.5), q(1)), '#6B4A3A', at(0, 0, 0)), P(M.boiteSimple(q(4.6), q(1.4), q(0.4)), f, at(0, 0.8, 3.3))); // le socle et sa plaque
+    pr.push(P(M.cylindre(q(1.1), q(3), q(3.5), 10), m, at(0, 3, 0)), P(M.sphere(q(1.7), 8), m, at(0, 7.2, 0)), P(M.cylindre(q(5.2), q(1.8), q(9), 14), m, at(0, 8, 0))); // le pied, le nœud, la vasque
+    pr.push(P(M.tore(q(5.2), q(0.7), TAU, 6, 18), cl, at(0, 17, 0, { rx: Math.PI / 2 })), P(M.disque(q(4.6), 14), M.melange(m, f, 0.55), at(0, 17.1, 0)), P(M.tore(q(3.9), q(0.45), TAU, 5, 16), f, at(0, 12.6, 0, { rx: Math.PI / 2 }))); // le rebord clair, l'intérieur foncé, le filet
+    for (const sx of [-1, 1]) pr.push(P(M.tore(q(2.9), q(0.75), Math.PI, 6, 10), m, at(sx * 4.4, 13.3, 0, { rz: -sx * Math.PI / 2 }))); // les anses
+    pr.push(P(M.sphere(q(0.85), 6), cl, at(-2, 13.6, 3.6, { sx: 0.6, sy: 3, sz: 0.6, rz: 0.2 }))); // le reflet sur la vasque
+    return pr;
+  }
+  function coupe(metal, c) { // la coupe du dernier podium, posée sur le comptoir la semaine qui suit, à droite du boulanger
+    const o = surDessus(c, { x: c.W * 0.495, y: c.LAY.comptoir.y + c.LAY.comptoir.hTop * 0.25 }), g = grp('coupe', o.x, o.y, o.z);
+    g.add(M.maille(partsCoupe(metal, 1.1, 0, 0, 0))); g.userData.zone = 'trophees'; return g;
+  }
+  // la vitrine des trophées : un gradin de bois à trois marches adossé au mur, à droite du comptoir, sous l'applique (à la place du second
+  // cadre, qu'elle décroche, et du sapin, qu'elle pousse à droite à Noël), devant un panneau au médaillon doré ; toutes les coupes gagnées, de la plus ancienne (en haut, au fond, à gauche) à la plus récente
+  // (en bas, devant, à droite) : en plongée, un gradin les montre toutes, là où des étagères fermées les cacheraient. Il s'élargit jusqu'à
+  // 52, puis les coupes rapetissent pour toutes tenir. Un seul maillage fusionné : 1 appel de dessin.
+  function trophees(liste, c) {
+    const n = liste.length, rangs = 3, parRang = Math.max(Math.min(n, 3), Math.ceil(n / rangs)), Q = c.Q, pas = 7, hs = 6; // jusqu'à trois coupes côte à côte sur la marche du haut, puis les marches du dessous
+    const sc = Math.min(0.75, 48 / (parRang * 15)), w = Math.max(34, Math.min(52, parRang * 15 * sc + 6)), hp = 45;
+    const g = grp('trophees', c.W * 0.67, 0, 0), pr = [], bois = Q.bois, sombre = M.assombrir(bois, 0.12), fond = M.eclaircir(Q.accent, 0.62);
+    pr.push(P(bo(w, hp, 2.5, 1), fond, { z: 1.25 }), P(bo(w + 2, 2.5, 3.5, 0.8), sombre, { y: hp - 1, z: 1.75 })); // le panneau et sa corniche
+    pr.push(P(M.cylindre(4.4, 4.4, 1.6, 18), '#FFC84A', { y: hp - 6, z: 2.5, rx: Math.PI / 2, sz: 1 / c.CY }), P(M.cylindre(2.8, 2.8, 1, 16), '#E0A61E', { y: hp - 6, z: 3.4, rx: Math.PI / 2, sz: 1 / c.CY })); // le médaillon (rond à l'écran)
+    for (let r = 0; r < rangs; r++) { // les marches : la r-ième (0 = devant, la plus basse) monte à (r + 1) × hs et va jusqu'au mur
+      const d = (rangs - r) * pas; pr.push(P(bo(w, (r + 1) * hs, d, 0.8), r % 2 ? bois : sombre, { z: 2.5 + d / 2 }), P(bo(w - 1, 0.8, 1.2, 0.3), M.eclaircir(bois, 0.3), { y: (r + 1) * hs - 0.5, z: 2.5 + d - 0.6 }));
+    }
+    liste.forEach((metal, i) => { // rang du haut (au fond) d'abord, de gauche à droite
+      const r = rangs - 1 - Math.floor(i / parRang), k = i % parRang, ici = Math.min(parRang, n - (rangs - 1 - r) * parRang), ecart = (w - 4) / Math.max(ici, 1);
+      pr.push(...partsCoupe(metal, sc, -w / 2 + 2 + ecart * (k + 0.5), (r + 1) * hs, 2.5 + (rangs - r - 0.5) * pas));
+    });
+    g.add(M.maille(pr)); g.userData.zone = 'trophees'; return g;
+  }
   // ─── la composition d'ensemble (pour l'atelier et la scène) ───
   function vitrineDemo(k, c) { // le comptoir et, à chaque place de la vitrine, une boule dorée de la taille d'une pâtisserie
     const cp = comptoir(k, c), n = c.niv ? c.niv.filter((v) => v > 0).length : 4, g = grp('pâtisseries');
@@ -2617,12 +2851,14 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   function tout(c) { // la salle et tout le mobilier aux crans de ctx.crans, plus les petits objets ; ctx.demo ajoute des pâtisseries factices
     const k = c.crans, LAY = c.LAY, out = [salle(c), froid(k.froid, c), four(k.four, c)], cp = comptoir(k.vitrine, c); c.dessusY = cp.userData.dessusY;
     out.push(cp, caisse(k.caisse, c), tables(k.tables, c), deco(k.deco, c), plan(c), presentoir(4, c), ardoise(c), etagere(8, true, c), cadre(LAY.cadre.x, LAY.cadre.y, c), horloge(c), diplome(c), fleurs(c), chat(c), paillasson(k.deco >= 1, c), lampe(c), plante(LAY.plante.x, LAY.plante.y, c));
-    if (c.tags.includes('noel')) { out.push(sapin(c)); if (k.deco < 3) out.push(guirlande(true, c)); } if (c.tags.includes('fete')) out.push(fanions(c)); if (c.tags.includes('coeurs')) out.push(coeurs(c));
+    if (c.tags.includes('noel')) { out.push(sapin(c, !!(c.coupes && c.coupes.length))); if (k.deco < 3) out.push(guirlande(true, c)); } if (c.tags.includes('fete')) out.push(fanions(c)); if (c.tags.includes('coeurs')) out.push(coeurs(c));
     for (const tg of ['halloween', 'galette', 'paques', 'ete']) if (c.tags.includes(tg)) { out.push(propSaison(tg, c)); break; }
     if (c.demo) out.push(vitrineDemo(k.vitrine, c)[1]);
+    if (c.coupes && c.coupes.length) out.push(trophees(c.coupes, c)); // les récompenses du podium (avec c.trophees, le second cadre est décroché)
+    if (c.coupe) out.push(coupe(c.coupe, c));
     return out;
   }
-  return { textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout };
+  return { textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL };
 })();
 if (typeof module !== 'undefined') module.exports = MEUBLES;
 
@@ -2702,8 +2938,12 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   // Grades d'un apprenti (toque + tablier ; o.grade de 1 à 5, 1 par défaut, ignoré pour les autres) : 2 = une bande o.haut assombri
   // de 25 % qui borde le haut du tablier, rappelée en ourlet au bas (le plateau cache le milieu), 3 = + une étoile dorée sur la poitrine, 4 = + toque plus haute de 6, 5 = toque plus haute de 10 et
   // liseré doré au tablier et à la toque. Tout est fusionné dans le buste ou la tête : le nombre d'appels de dessin ne change pas.
+  // Tenue du podium (o.tenue = TENUES.or | argent | bronze, le patron seulement) : toque et tablier au métal, une bande foncée au pied de
+  // la toque et en ourlet du tablier (elle remplace le liseré doré du titre), une étoile foncée sur le devant de la toque et un reflet clair
+  // sur sa gauche. Tout est fusionné dans le buste ou la tête : aucun appel de dessin de plus ; sans o.tenue, rien ne change.
   function construire(o) {
     const peau = o.peau || '#FFD7B5', haut = o.or ? OR : o.haut || '#FF9FB2', chev = o.cheveux || L, large = o.tablier === 'large', phiT = large ? 1.9 : 1.3;
+    const tn = o.tenue && o.tenue.tissu ? o.tenue : null, tissu = tn ? tn.tissu : BLANC, galon = tn ? tn.fonce : OR;
     const grade = o.toque && o.tablier ? Math.max(1, Math.min(5, Math.round(+o.grade || 1))) : 1, lisere = o.lisere || grade >= 5;
     const g = new THREE.Group(), racine = new THREE.Group(), ht = new THREE.Group(), P = { racine, haut: ht, bras: [], jambes: [] };
     g.add(racine); racine.add(ht); g.userData.parts = P; g.userData.options = o;
@@ -2713,8 +2953,9 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     const corps = [M.part(M.capsule(11, 12, 12), haut, { y: 36 })];
     if (o.mariniere) for (const y of [31.5, 36, 40.5, 44.8]) corps.push(M.part(bande(11.4, 2.2), '#3A86C8', { y }));
     if (o.tablier) {
-      corps.push(M.part(patchS(11.7, phiT, 1.05, HP - 1.05), BLANC, { y: 42 }), M.part(patchC(11.7, 12, phiT), BLANC, { y: 36 }), M.part(patchS(11.7, phiT, HP, 0.95), BLANC, { y: 30 }));
-      if (lisere) corps.push(M.part(patchS(12, phiT, HP + 0.4, 0.28), OR, { y: 30 }));
+      corps.push(M.part(patchS(11.7, phiT, 1.05, HP - 1.05), tissu, { y: 42 }), M.part(patchC(11.7, 12, phiT), tissu, { y: 36 }), M.part(patchS(11.7, phiT, HP, 0.95), tissu, { y: 30 }));
+      if (lisere || tn) corps.push(M.part(patchS(12, phiT, HP + 0.4, 0.28), galon, { y: 30 }));
+      if (tn) corps.push(M.part(patchC(11.85, 11, 0.2), tn.clair, { y: 36.5, ry: -0.45 })); // le reflet du métal, une bande claire sur la gauche du tablier
       if (grade >= 2) { const fonce = M.assombrir(haut, 0.25); corps.push(M.part(patchS(11.9, phiT, 1.05, 0.15), fonce, { y: 42 })); if (!lisere) corps.push(M.part(patchS(11.9, phiT, HP + 0.42, 0.28), fonce, { y: 30 })); } // un biais qui borde le haut de la bavette (le blanc reste visible dessous), et son rappel en ourlet au bas du tablier, là où le plateau ne cache rien (au grade 5, le liseré doré prend sa place)
       if (grade >= 3) corps.push(M.part(etoile(2.7, 1.15, 0.9), OR, ETOILE)); // l'étoile, couchée sur la poitrine gauche, au-dessus de la bavette
     }
@@ -2727,7 +2968,12 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     if (o.coiffure === 1 && !o.toque) tete.push(M.part(M.capsule(2.3, 7, 6), chev, { x: -9.8, z: -1.5, rz: -0.12 }), M.part(M.capsule(2.3, 7, 6), chev, { x: 9.8, z: -1.5, rz: 0.12 }));
     if (o.coiffure === 2 && !o.toque) tete.push(M.part(M.sphere(4.2, 8), chev, { y: 10.5, z: -4 }));
     if (o.coiffure === 3 && !o.toque) tete.push(M.part(bande(10, 4.2), o.bonnet || '#9BD0FF', { y: 10 }), M.part(calotte(10.2, HP, 14), o.bonnet || '#9BD0FF', { y: 12 }), M.part(M.sphere(3, 8), BLANC, { y: 22.7 }));
-    if (o.toque) { const th = (typeof o.toque === 'number' ? o.toque : 14) + (grade >= 5 ? 10 : grade >= 4 ? 6 : 0), hc = Math.max(1, th - 8); tete.push(M.part(M.cylindre(9.2, 9.2, 4, 14), BLANC, { y: 8 }), M.part(M.cylindre(8, 8.8, hc, 14), BLANC, { y: 12 }), M.part(calotte(8, HP, 14), BLANC, { y: 12 + hc })); if (lisere) tete.push(M.part(bande(9.5, 1.4), OR, { y: 8.6 })); }
+    if (o.toque) {
+      const th = (typeof o.toque === 'number' ? o.toque : 14) + (grade >= 5 ? 10 : grade >= 4 ? 6 : 0), hc = Math.max(1, th - 8);
+      tete.push(M.part(M.cylindre(9.2, 9.2, 4, 14), tissu, { y: 8 }), M.part(M.cylindre(8, 8.8, hc, 14), tissu, { y: 12 }), M.part(calotte(8, HP, 14), tissu, { y: 12 + hc }));
+      if (lisere || tn) tete.push(M.part(bande(9.5, 1.4), galon, { y: 8.6 }));
+      if (tn) { const ye = hc >= 6 ? 12 + hc * 0.4 : 10, re = ye < 12 ? 9.2 : 8.8 - (ye - 12) / hc * 0.8; tete.push(M.part(etoile(2.6, 1.1, 0.9), tn.fonce, { y: ye, z: re + 0.3, sy: 1.45 }), M.part(patchC(8.95, Math.max(1, hc - 1), 0.34), tn.clair, { y: 12 + hc / 2, ry: -0.75 })); } // l'étoile au front de la toque (étirée en hauteur : la plongée de 52° l'écrase), le reflet sur sa gauche
+    }
     if (o.or) tete.push(M.part(M.cylindre(11.8, 11.8, 1.6, 16), L, { y: 9.6 }), M.part(M.cylindre(7.4, 7.2, 15, 14), L, { y: 10 }), M.part(bande(7.7, 2.2), OR, { y: 13 }));
     if (o.moustache) tete.push(M.part(M.capsule(1.3, 3.2, 6), '#8C5A3C', { x: -2.6, y: 2.4, z: 10.1, rz: 1.05 }), M.part(M.capsule(1.3, 3.2, 6), '#8C5A3C', { x: 2.6, y: 2.4, z: 10.1, rz: -1.05 }));
     P.tete = M.maille(tete); P.tete.position.y = 63; ht.add(P.tete);
@@ -2748,10 +2994,12 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   }
   const creer = (o) => construire(o || {});
   // le patron : même grammaire, 1,25 fois plus grand ; toque, foulard, moustache, liseré et col selon le titre
-  function boulanger(rang) {
+  // tenue : 'or', 'argent' ou 'bronze' (la tenue du podium du classement), sinon la tenue blanche
+  const TENUES = { or: { tissu: '#FFD15C', fonce: '#D4921A', clair: '#FFF2C2' }, argent: { tissu: '#D3DCE6', fonce: '#7F8FA3', clair: '#F8FBFE' }, bronze: { tissu: '#E2A06A', fonce: '#9E5A2A', clair: '#F8D6B6' } };
+  function boulanger(rang, tenue) {
     rang = rang || 0; const th = rang === 0 ? 10 : rang === 1 ? 22 : 22 + Math.min(14, (rang - 1) * 5);
-    const g = construire({ haut: '#FF6B8B', peau: '#FFD7B5', tablier: 'large', toque: th, lisere: rang >= 4, foulard: rang >= 3, moustache: rang >= 3, col: rang >= 5, sueur: true });
-    g.userData.parts.racine.scale.setScalar(1.25); g.userData.rang = rang; return g;
+    const g = construire({ haut: '#FF6B8B', peau: '#FFD7B5', tablier: 'large', toque: th, lisere: rang >= 4, foulard: rang >= 3, moustache: rang >= 3, col: rang >= 5, sueur: true, tenue: TENUES[tenue] || null });
+    g.userData.parts.racine.scale.setScalar(1.25); g.userData.rang = rang; g.userData.tenue = TENUES[tenue] ? tenue : null; return g;
   }
   // DÉPENDANCE DE VERSION (Three r158) : on écrit les champs privés d'Euler (_x, _y, _z) sans passer par le setter, puis tourner()
   // recale le quaternion comme le ferait Euler._onChangeCallback. Si une mise à jour de Three renomme ces champs ou change ce rappel,
@@ -3044,13 +3292,13 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
         const b = boulanger(5); b.position.set(-60, 0, -90); g.add(b);
         g.userData.anime = (E) => { for (let k = 0; k < cl.length; k++) { const oc = os[k]; oc.phase = E.t * 9; oc.t = E.t; oc.blink = E.t % 3.4; animer(cl[k], oc); } ob.t = E.t; animerBoulanger(b, ob); }; g.position.set(195, 0, 330); return g; }
       default: if (nom.startsWith('apprenti-grade-')) { p = client(0, { haut: '#5FD3A4', coiffure: 0, toque: true, tablier: true, plateau: true, produit: 1, grade: +nom.slice(15) }); o.plateau = true; o.produit = 1; }
-      else if (nom.startsWith('boulanger-')) { p = boulanger(+nom.slice(10)); g.add(p); anim = animerBoulanger; o.rang = +nom.slice(10); o.rush = o.rang === 3; o.hop = o.rang === 1 ? 0.6 : 0; } else p = client(0, {});
+      else if (nom.startsWith('boulanger-')) { const [rg, tn] = nom.slice(10).split('-'); p = boulanger(+rg, tn); g.add(p); anim = animerBoulanger; o.rang = +rg; o.rush = o.rang === 3; o.hop = o.rang === 1 ? 0.6 : 0; } else p = client(0, {});
     }
     p.rotation.y = lacet(dir); g.position.set(195, 0, 350); if (zoom) g.scale.setScalar(zoom);
     g.userData.anime = (E) => { o.t = E.t; o.blink = E.t % 3.4; if (o.marche) o.phase = 1.2 + (E.t - 0.4) * 9; anim(p, o); };
     return g;
   }
-  return { HAUTEUR, TAILLE_PATISSERIE, SAISONS, creer, animer, lacet, boulanger, animerBoulanger, chat, animerChat, libererChat, patisserie, geoPatisserie, partsPatisserie, patisserieSaison, geoPatisserieSaison, demo };
+  return { HAUTEUR, TAILLE_PATISSERIE, SAISONS, TENUES, creer, animer, lacet, boulanger, animerBoulanger, chat, animerChat, libererChat, patisserie, geoPatisserie, partsPatisserie, patisserieSaison, geoPatisserieSaison, demo };
 })();
 if (typeof module !== 'undefined') module.exports = PERSOS;
 
@@ -3153,7 +3401,9 @@ const SCENE = (() => {
     { id: 'horloge', cle: () => '1', faire: (k, c) => MEUBLES.horloge(c) },
     { id: 'diplome', cle: (E) => (E.rang >= 2 ? '1' : null), faire: (k, c) => MEUBLES.diplome(c) },
     { id: 'plante', cle: (E) => (E.niv[1] > 0 ? '1' : null), faire: (k, c) => MEUBLES.plante(LAY.plante.x, LAY.plante.y, c) },
-    { id: 'sapin', cle: (E) => (E.tags.includes('noel') ? '1' : null), faire: (k, c) => MEUBLES.sapin(c) },
+    { id: 'sapin', cle: (E) => (E.tags.includes('noel') ? (REC.coupes.length ? 'd' : '1') : null), faire: (k, c) => MEUBLES.sapin(c, k === 'd') }, // la vitrine des trophées prend sa place : il se pousse à droite
+    { id: 'trophees', cle: () => (REC.coupes.length && MEUBLES.trophees ? REC.coupes.join(',') : null), faire: (k, c) => MEUBLES.trophees(k.split(','), c) }, // toutes les coupes gagnées
+    { id: 'coupe', cle: () => (REC.coupe && MEUBLES.coupe ? REC.coupe : null), faire: (k, c) => MEUBLES.coupe(k, c) }, // la coupe du dernier podium, sur le comptoir la semaine qui suit
     { id: 'plan', cle: () => '1', faire: (k, c) => MEUBLES.plan(c) },
     { id: 'presentoir', cle: (E) => (LAY.spread > 120 && E.niv[0] >= 20 ? String(Math.min(6, 2 + Math.floor(E.niv[0] / 25))) : null), faire: (k, c) => MEUBLES.presentoir(+k, c) },
     { id: 'ardoise', cle: (E) => (E.staffs >= 2 ? '1' : null), faire: (k, c) => MEUBLES.ardoise(c) },
@@ -3167,8 +3417,16 @@ const SCENE = (() => {
     { id: 'lampe', cle: (E) => (E.niv[2] > 0 ? '1' : null), faire: (k, c) => MEUBLES.lampe(c) },
   ];
   const MEUBLES_IDS = ['froid', 'four', 'comptoir', 'caisse', 'tables', 'deco'];
+  // les récompenses du podium du classement (src/classement.js) : la tenue du boulanger, la coupe du comptoir, les coupes de la vitrine
+  const REC = { tenue: null, coupe: null, coupes: [] }, METAUX = ['or', 'argent', 'bronze'];
+  function recompenses(o) {
+    o = o || {};
+    REC.tenue = METAUX.includes(o.tenue) ? o.tenue : null; REC.coupe = METAUX.includes(o.coupe) ? o.coupe : null;
+    REC.coupes = Array.isArray(o.coupes) ? o.coupes.filter((m) => METAUX.includes(m)).slice(-200) : [];
+  }
   function contexte(E) {
     const c = ctxC || (ctxC = { wz, wy, wd, SY, CY });
+    c.trophees = REC.coupes.length > 0; // la vitrine des trophées décroche le second cadre
     c.LAY = LAY; c.K = V.K; c.W = W; c.H = H; c.Q = E.Q; c.tags = E.tags; c.rush = E.rush; c.t = E.t; c.sk = E.sk; c.crans = E.crans; c.niv = E.niv; c.staffs = E.staffs; c.bonus = E.bonus; c.rang = E.rang;
     const cp = groupes.comptoir; c.dessusY = cp ? cp.userData.dessusY : wy(LAY.comptoir.hFace); c.dessusZ = cp ? cp.userData.dessusZ : wz(LAY.comptoir.y + LAY.comptoir.hTop + LAY.comptoir.hFace) - wd(LAY.comptoir.hTop) / 2;
     return c;
@@ -3179,7 +3437,7 @@ const SCENE = (() => {
     c.nVitrine = ouverts.length + (rs ? 1 : 0); // la recette de saison a sa place : étagères, étiquettes et places sur le même compte
     if (Qc !== E.Q) { Qc = E.Q; renderer.setClearColor(E.Q.sol); salle = MEUBLES.salle(c); remplacer('salle', salle); }
     for (const id of MEUBLES_IDS) { // les six meubles (le comptoir porte la vitrine), reconstruits quand leur cran change
-      const cran = E.crans[id === 'comptoir' ? 'vitrine' : id], k = `${cran}|${base}${id === 'tables' ? '|' + E.crans.deco : ''}${id === 'deco' && E.tags.includes('noel') ? '|noel' : ''}${id === 'comptoir' ? '|' + c.nVitrine : ''}`;
+      const cran = E.crans[id === 'comptoir' ? 'vitrine' : id], k = `${cran}|${base}${id === 'tables' ? '|' + E.crans.deco : ''}${id === 'deco' && E.tags.includes('noel') ? '|noel' : ''}${id === 'deco' && c.trophees ? '|trophees' : ''}${id === 'comptoir' ? '|' + c.nVitrine : ''}`;
       if (cles[id] !== k) { cles[id] = k; remplacer(id, MEUBLES[id](cran, c)); if (id === 'comptoir') { cles.produits = null; cles.caisse = null; const cp = groupes.comptoir; if (cp && cp.userData.dessusY != null) { c.dessusY = cp.userData.dessusY; c.dessusZ = cp.userData.dessusZ; } } }
     }
     for (const d of CONDS) { const k = d.cle(E), kk = k == null ? null : `${k}|${base}`; if (cles[d.id] !== kk) { cles[d.id] = kk; remplacer(d.id, kk == null ? null : d.faire(k, c)); } }
@@ -3189,8 +3447,8 @@ const SCENE = (() => {
       liste.forEach((i, k) => { const p = places[k]; if (!p) return; const m = (typeof i === 'string' ? PERSOS.patisserieSaison(i) : PERSOS.patisserie(i)).clone(); const s = (p.s || 16) / (PERSOS.TAILLE_PATISSERIE || 16); m.position.set(p.x, p.y, p.z); m.scale.setScalar(s); m.castShadow = false; g.add(m); });
       remplacer('produits', g);
     }
-    const kb = `${E.rang}|${base}`;
-    if (cles.boulanger !== kb) { cles.boulanger = kb; boulangerG = PERSOS.boulanger(E.rang); boulangerG.userData.yaw = 0; boulangerG.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y)); boulangerG.scale.setScalar(0.9 * V.K); boulangerG.updateMatrixWorld(true); boulangerG.userData.zoneBoite = new THREE.Box3().setFromObject(boulangerG, true); remplacer('boulanger', boulangerG); } // la zone de touche : la pose de repos
+    const kb = `${E.rang}|${REC.tenue || ''}|${base}`;
+    if (cles.boulanger !== kb) { cles.boulanger = kb; boulangerG = PERSOS.boulanger(E.rang, REC.tenue); boulangerG.userData.yaw = 0; boulangerG.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y)); boulangerG.scale.setScalar(0.9 * V.K); boulangerG.updateMatrixWorld(true); boulangerG.userData.zoneBoite = new THREE.Box3().setFromObject(boulangerG, true); remplacer('boulanger', boulangerG); } // la zone de touche : la pose de repos
   }
 
   // ─── la lumière : cinq phases du ciel, fondues autour de chaque borne ; les lampes la nuit ; le coup de feu réchauffe ───
@@ -3407,6 +3665,11 @@ const SCENE = (() => {
     return false;
   }
   function hitBoulanger(x, y) { return dans(zones().boulanger, x, y); }
+  function hitTrophees(x, y) { // la vitrine des trophées ou la coupe du comptoir
+    if (!webgl || !LAY) return false;
+    const v = groupes.trophees, cp = groupes.coupe; // la vitrine : au moins 44 × 44 ; la coupe, juste elle (elle touche le tablier du boulanger)
+    return dans(v ? auMoins(rectDe(v, 3), 44, 44) : null, x, y) || dans(cp ? rectDe(cp, 1) : null, x, y);
+  }
   function hitMeuble(x, y) { const z = zones(); for (const id of ['caisse', 'deco', 'four', 'froid', 'vitrine', 'tables']) if (dans(z[id], x, y)) return id; return null; }
 
   // ─── le calque 2D : textes, vapeurs, étiquettes, bulle de talent, étincelles du mystère, pastilles, Aménager, confettis ───
@@ -3468,9 +3731,11 @@ const SCENE = (() => {
     }
   }
 
-  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitChat, ronron, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
+  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitChat, hitTrophees, recompenses, ronron, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
     vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
+    get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0 }; }, // ce que la boutique montre (pour les tests)
+    get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG) }; }, // le budget d'appels de dessin (pour les tests)
     get amenager() { return amenager; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
     get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length, geometries: renderer ? renderer.info.memory.geometries : 0, textures: renderer ? renderer.info.memory.textures : 0 }; } };
   return API;
@@ -3485,6 +3750,7 @@ const UI = (() => {
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let st, lastFrame = 0, lastSave = 0, cards = [], carteSaison = null, lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, hintDefile = -1, toastTimer = 0, lastNiveau = 0, vuBoulanger = false, dernierToucher = -1e9;
   let pageActive = 'boutique', evEtendu = false, retourEnCours = false; // retourEnCours : la page redevient visible, l'heure sûre est en route
+  let absencePrete = false, absencePayee = 0; // l'absence du lancement est comptée ; ce qui a été payé (ms) pour l'absence en cours (lancement, retour, sauts)
   let classement = null, ongletCl = 'semaine', vueCl = ''; // le classement en ligne : son moteur, l'onglet choisi, la feuille qu'il occupe
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const PAGES = ['boutique', 'defis', 'boulanger', 'journal', 'reglages'];
@@ -3846,12 +4112,12 @@ const UI = (() => {
   };
   // Boulanger : niveau, savoir-faire, talents permanents
   const pageBoulanger = {
-    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}`,
+    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue()}`,
     html: () => {
       const np = G.niveauPour(st.xp), pts = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n);
       return `${PAGE_HEAD('boulanger', 'Boulanger', pts ? `<span class="serie lav">${pts} point${pts > 1 ? 's' : ''}</span>` : '')}
       <div class="bloc">
-        <div class="card boulanger-tete">${ICONS.boulanger(rang)}<div><h3>${esc(G.titre(st))}</h3><p class="sous">Niveau ${np.n} · ${G.fmt(np.reste)} / ${G.fmt(np.prochain)} savoir-faire${suivant ? `<br>${esc(suivant[1])} au niveau ${suivant[0]}` : ''}</p><div class="mini xp"><i style="width:${pct(np.reste, np.prochain)}"></i></div></div></div>
+        <div class="card boulanger-tete">${ICONS.boulanger(rang, tenueVue())}<div><h3>${esc(G.titre(st))}</h3><p class="sous">Niveau ${np.n} · ${G.fmt(np.reste)} / ${G.fmt(np.prochain)} savoir-faire${suivant ? `<br>${esc(suivant[1])} au niveau ${suivant[0]}` : ''}</p><div class="mini xp"><i style="width:${pct(np.reste, np.prochain)}"></i></div></div></div>
         <div class="encadre doux">Le savoir-faire vient des défis du jour, des événements réussis, des recettes, des embauches et des nouvelles boutiques. Chaque niveau donne <b>un point de talent</b>. Les talents sont à toi pour toujours, même en changeant de boutique.</div>
         <h3 class="titre-section">Talents${pts ? ` · <span class="pts">${pts} point${pts > 1 ? 's' : ''} à dépenser</span>` : ''}</h3>
         <div class="liste-am">${G.TALENTS.map((t) => { const k = G.talent(st, t.id), max = k >= t.max; return `<div class="am talent ${k ? 'appris' : ''}"><div><h3>${esc(t.nom)} <span class="crans">${'●'.repeat(k)}${'○'.repeat(t.max - k)}</span></h3><p>${k ? esc(t.desc(k)) : 'Cran 1 : ' + esc(t.desc(1))}${k && !max ? `<br><em>Cran suivant : ${esc(t.desc(k + 1))}</em>` : ''}</p></div>${max ? '<span class="ok">Maîtrisé ✓</span>' : `<button type="button" class="btn ${pts ? 'lavande' : 'non'}" data-t="${t.id}"><small>Apprendre</small><b>1 point</b></button>`}</div>`; }).join('')}</div>
@@ -4184,13 +4450,14 @@ const UI = (() => {
   const PERIODES = [['semaine', 'Cette semaine'], ['total', 'Tous les temps']];
   const MSG_RESEAU = { 'hors-ligne': 'Pas de réseau : réessaie quand le téléphone est connecté.', 'lent': 'Le classement est lent à répondre : réessaie dans un instant.', 'pas-ouvert': 'Le classement ouvre bientôt : reviens dans quelques jours.' };
   const msgReseau = (e) => MSG_RESEAU[e] || 'Le classement ne répond pas. Réessaie dans un moment.';
-  function cleClassement() { if (!classement) return ''; const r = classement.resume(); return `${r.rejoint}|${r.pseudo}|${r.semaine ? r.semaine.rang + '/' + r.semaine.joueurs : ''}|${r.total ? r.total.rang + '/' + r.total.joueurs : ''}`; }
+  function cleClassement() { if (!classement) return ''; const r = classement.resume(); return `${r.rejoint}|${r.pseudo}|${r.semaine ? r.semaine.rang + '/' + r.semaine.joueurs : ''}|${r.total ? r.total.rang + '/' + r.total.joueurs : ''}|${classement.recompenses().podiums.length}`; }
   // la porte d'entrée, en tête du Journal (à côté des records) : sa dernière place connue, ou l'invitation
   function carteClassement() {
     if (!classement) return '';
     const r = classement.resume();
     const places = [r.semaine && CLM.rangPhrase(r.semaine.rang, r.semaine.joueurs, 'semaine'), r.total && CLM.rangPhrase(r.total.rang, r.total.joueurs, 'total')].filter(Boolean);
-    const sous = r.rejoint ? (places.length ? Maj(places.join(' · ')) : `Pseudo : ${esc(r.pseudo)} · touche pour voir ta place`) : 'Compare ta fortune avec tes amis qui ont le lien du jeu';
+    const nc = classement.recompenses().podiums.length, coupes = nc ? ` · ${nc} coupe${nc > 1 ? 's' : ''}` : '';
+    const sous = (r.rejoint ? (places.length ? Maj(places.join(' · ')) : `Pseudo : ${esc(r.pseudo)} · touche pour voir ta place`) : 'Compare ta fortune avec tes amis qui ont le lien du jeu') + coupes;
     return `<div class="card reglages cl-carte"><button type="button" class="reglage" data-a="classement"><i class="ico or">${ICONS.UI.podium}</i><span><b>Classement des boulangers</b><small>${sous}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button></div>`;
   }
   function sheetClassement(periode) {
@@ -4217,18 +4484,18 @@ const UI = (() => {
     // pas encore inscrit : l'invitation en haut, avant la liste ; inscrit : son pseudo et ses réglages en bas
     const invitation = ferme || r.rejoint ? '' : `<div class="cl-invitation"><p>Ton pseudo et ta fortune seront visibles de tous ceux qui ont le lien du jeu. Tu pourras quitter le classement quand tu veux.</p><button type="button" class="btn large beurre" data-a="cl-rejoindre"><b>Rejoindre le classement</b></button></div>`;
     const pied = ferme || !r.rejoint ? '' : `<p class="cl-moi">Tu joues sous le pseudo <b>${esc(r.pseudo)}</b>.</p><button type="button" class="btn large clair" data-a="cl-pseudo"><b>Changer de pseudo</b></button><button type="button" class="lien cl-quitter" data-a="cl-quitter">Quitter le classement</button>`;
-    dernierHtmlCl = `<div class="cl" data-cl="liste"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>Classement</h2><p class="sous">Les boulangers qui ont le lien du jeu, classés par fortune gagnée</p></div></div>${invitation}${seg}${corps}${pied}${btnRetour()}</div>`;
+    dernierHtmlCl = `<div class="cl" data-cl="liste"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>Classement</h2><p class="sous">Les boulangers qui ont le lien du jeu, classés par argent gagné. Chaque semaine, les trois premiers gagnent une tenue et une coupe.</p></div></div>${carteRecompenses()}${invitation}${seg}${corps}${pied}${btnRetour()}</div>`;
     return dernierHtmlCl;
   }
   function listeClassement(d, r) {
     const semaine = ongletCl === 'semaine';
-    const info = semaine ? `Depuis lundi${d.semaine ? ' ' + CLM.dateCourte(d.semaine) : ''} · remis à zéro chaque lundi` : 'Tout l’argent gagné depuis la première baguette';
+    const info = semaine ? `Depuis lundi${d.semaine ? ' ' + CLM.dateCourte(d.semaine) : ''} · remis à zéro chaque lundi` : 'Tout l’argent gagné depuis l’arrivée au classement';
     const tete = `<div class="cl-info"><span>${info}</span><b>${CLM.boulangers(d.joueurs)}</b></div>`
       + (r.rejoint && d.moi && d.moi.rang > 5 ? `<div class="cl-place"><span class="cl-rang${d.moi.rang <= 3 ? ' r' + d.moi.rang : ''}">${d.moi.rang}<small>${d.moi.rang === 1 ? 'er' : 'e'}</small></span><span><b>Ta place ${semaine ? 'cette semaine' : 'de tous les temps'}</b><small>sur ${CLM.boulangers(d.joueurs)}</small></span><b class="cl-val">${G.fmtEur(d.moi.valeur)}</b></div>` : ''); // sa place d'un coup d'œil quand sa ligne est loin dans la liste
     if (!d.lignes.length) return `${tete}<div class="cl-etat"><span class="pic">${ICONS.UI.podium}</span><b>${semaine ? 'Personne encore cette semaine' : 'Personne encore'}</b><span>${r.rejoint ? 'Ta fortune arrive dans un instant.' : 'Rejoins le classement et ouvre le bal !'}</span></div>`;
-    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : ''}"${moi ? ' aria-current="true"' : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom"><span>${esc(l.pseudo)}</span>${moi ? '<i class="tag">toi</i>' : ''}</span><b class="cl-val">${G.fmtEur(l.valeur)}</b></li>`;
+    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : ''}"${moi ? ' aria-current="true"' : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom"><span>${esc(l.pseudo)}</span>${toqueDe(l.podium)}${moi ? '<i class="tag">toi</i>' : ''}</span><b class="cl-val">${G.fmtEur(l.valeur)}</b></li>`;
     let html = d.lignes.map((l) => ligne(l, l.moi && r.rejoint)).join('');
-    if (r.rejoint && d.moi && !d.lignes.some((l) => l.moi)) html += `<li class="cl-sep" aria-hidden="true"><i></i><i></i><i></i></li>${ligne({ rang: d.moi.rang, pseudo: r.pseudo, valeur: d.moi.valeur }, true)}`; // loin derrière : sa ligne quand même, sous les 50 premiers
+    if (r.rejoint && d.moi && !d.lignes.some((l) => l.moi)) html += `<li class="cl-sep" aria-hidden="true"><i></i><i></i><i></i></li>${ligne({ rang: d.moi.rang, pseudo: r.pseudo, valeur: d.moi.valeur, podium: d.moi.podium }, true)}`; // loin derrière : sa ligne quand même, sous les 50 premiers
     const absent = r.rejoint && !d.moi ? `<p class="note">${semaine ? 'Tu n’apparais pas encore cette semaine : ta fortune part dès que le réseau le permet.' : 'Ta fortune n’est pas encore arrivée : elle part dès que le réseau le permet.'}</p>` : '';
     return `${tete}<ol class="cl-liste" aria-label="${semaine ? 'Classement de la semaine' : 'Classement de tous les temps'}">${html}</ol>${absent}`;
   }
@@ -4244,19 +4511,87 @@ const UI = (() => {
     on('[data-tab]', (b) => {
       if (b.dataset.tab === ongletCl) return;
       son.tap(); ongletCl = b.dataset.tab; rafraichirClassement(true);
-      const c = classement.cache(ongletCl); if (!c || c.etat !== 'ok' || Date.now() - c.quand > 30e3) classement.charger(ongletCl);
+      const c = classement.cache(ongletCl); if (!c || c.etat !== 'ok' || HORLOGE.maintenant() - c.quand > 30e3) classement.charger(ongletCl); // c.quand est daté par l'horloge de confiance
     });
     on('[data-a="cl-reessayer"]', () => { son.tap(); classement.ouvrir(ongletCl); });
     on('[data-a="cl-rejoindre"]', () => { son.tap(); sheetPseudo(false); });
     on('[data-a="cl-pseudo"]', () => { son.tap(); sheetPseudo(true); });
     on('[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(); });
+    on('[data-a="cl-recompenses"]', () => { son.tap(); sheetRecompenses(); });
     on('[data-a="close"]', closeSheet);
+  }
+  // ─── les récompenses du podium : chaque semaine, les trois premiers gagnent une tenue (toque et tablier) et une coupe, or, argent ou bronze ───
+  // Portées d'office la semaine qui suit le podium (tenue « automatique »), puis gardées à vie : la coupe dans la vitrine des trophées, la tenue
+  // dans la collection, où l'on remet celle qu'on veut. Le moteur (src/classement.js) les lit au lancement et à l'ouverture de la feuille.
+  const NOM_METAL = { or: 'or', argent: 'argent', bronze: 'bronze' }, DE_METAL = { or: 'd’or', argent: 'd’argent', bronze: 'de bronze' };
+  const rangDe = (n) => (n === 1 ? '1er' : `${n}e`);
+  function recVue() { try { return classement ? classement.recompenses() : null; } catch (e) { return null; } }
+  function tenueVue() { const r = recVue(); return r ? r.portee || '' : ''; }
+  function toqueDe(podium) { // la petite toque du podium de la semaine passée, à côté d'un pseudo
+    const m = CLM && CLM.metal(podium); if (!m) return '';
+    return `<i class="cl-toque ${m}" role="img" aria-label="${rangDe(podium)} la semaine dernière" title="${rangDe(podium)} la semaine dernière">${ICONS.toque(m)}</i>`;
+  }
+  let derniereRecScene = '', annonceOuverte = false, annonceMinuteur = 0;
+  function majRecompenses() { // la boutique en 3D suit les récompenses, et l'annonce attend que plus rien ne soit ouvert
+    const r = recVue(); if (!r) return;
+    const k = `${r.portee}|${r.coupe}|${r.coupes.join(',')}`;
+    if (k !== derniereRecScene) { derniereRecScene = k; SCENE.recompenses({ tenue: r.portee, coupe: r.coupe, coupes: r.coupes }); if (pageActive === 'boulanger') renderPage(); }
+    if (r.annonce && !annonceOuverte) tenterAnnonce();
+  }
+  function tenterAnnonce() { // au premier lancement après un podium, une fois la feuille du retour (gains d'absence) refermée
+    clearTimeout(annonceMinuteur); annonceMinuteur = 0;
+    const r = recVue(); if (!r || !r.annonce || annonceOuverte) return;
+    if (!feuille.hidden || document.hidden) { annonceMinuteur = setTimeout(tenterAnnonce, 1500); return; }
+    sheetAnnonce(r.annonce);
+  }
+  function sheetAnnonce(a) {
+    const m = a.metal, n = DE_METAL[m], r = recVue(), recent = !!r && a.semaine === CLM.decalerSemaine(r.lundi, -1); // recent : le podium de la semaine passée (sinon, un plus ancien découvert maintenant)
+    annonceOuverte = true;
+    openSheet(`<div class="cl rec-annonce" data-cl="annonce"><div class="rec-scene ${m}" aria-hidden="true"><i class="rec-rayons"></i><span class="rec-coupe">${ICONS.coupe(m)}</span><span class="rec-boulanger">${ICONS.boulanger(1, m)}</span></div>
+      <h2>Bravo ! ${rangDe(a.rang)} de la semaine</h2>
+      <p class="rec-phrase">La tenue ${n} et la coupe ${n} sont à toi.</p>
+      <p class="sous">Semaine du ${CLM.dateCourte(a.semaine)} : ${recent ? `ton boulanger porte la tenue ${n} toute cette semaine, la coupe trône sur le comptoir, puis elle rejoint ta vitrine des trophées.` : `la coupe a rejoint ta vitrine des trophées, et la tenue t’attend dans ta collection.`} Les deux sont à toi pour toujours.${a.autres ? ` Et ${a.autres === 1 ? 'un autre podium t’attendait' : `${a.autres} autres podiums t’attendaient`} : ${a.autres === 1 ? 'il est' : 'ils sont'} dans ta collection.` : ''}</p>
+      <button type="button" class="btn large beurre" data-a="rec-voir"><b>Voir ma boutique</b></button>
+      <button type="button" class="btn large clair" data-a="rec-collection" style="margin-top:8px"><b>Mes récompenses</b></button></div>`);
+    vueCl = 'annonce';
+    classement.annonceFaite(a.semaine); // annoncée une fois : la tenue de ce podium se porte d'office
+    let touche = true; try { touche = !navigator.userActivation || navigator.userActivation.hasBeenActive; } catch (e) { /* rien */ }
+    son.deblocage(); if (touche) buzz([20, 40, 20, 40, 30]); SCENE.fete(); // au lancement, avant toute touche, le navigateur refuse la vibration : on s'en passe
+    const fin = () => { annonceOuverte = false; };
+    on('[data-a="rec-voir"]', () => { son.tap(); fin(); closeSheet(); if (pageActive !== 'boutique') showPage('boutique'); tiroir.aller('ferme'); });
+    on('[data-a="rec-collection"]', () => { son.tap(); fin(); sheetRecompenses(); });
+    const surFermeture = setInterval(() => { if (feuille.hidden || vueCl !== 'annonce') { fin(); clearInterval(surFermeture); } }, 500);
+  }
+  // l'entrée « Mes récompenses », en tête de la feuille du classement (seulement après un premier podium)
+  function carteRecompenses() {
+    const r = recVue(); if (!r || !r.podiums.length) return '';
+    const n = r.podiums.length, dernieres = r.podiums.slice(-5).map((p) => `<i class="rec-mini">${ICONS.coupe(CLM.metal(p.rang))}</i>`).join('');
+    const porte = r.portee ? `tenue ${DE_METAL[r.portee]}` : 'tenue blanche';
+    return `<button type="button" class="rec-entree" data-a="cl-recompenses"><span class="rec-minis" aria-hidden="true">${dernieres}</span><span><b>Mes récompenses</b><small>${n} coupe${n > 1 ? 's' : ''} · ${porte}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>`;
+  }
+  // la collection : chaque coupe et sa tenue, avec sa semaine ; le choix de la tenue portée
+  function sheetRecompenses() {
+    if (!classement) return;
+    const r = recVue(), gagnees = r.gagnees;
+    const coupes = r.podiums.slice().reverse().map((p) => { const m = CLM.metal(p.rang); return `<li class="rec-carte ${m}"><span class="rec-icone">${ICONS.coupe(m)}</span><b>${rangDe(p.rang)}</b><small>Coupe et tenue ${DE_METAL[m]}</small><small>Semaine du ${CLM.dateCourte(p.semaine)}</small></li>`; }).join('');
+    const choix = [['auto', 'Automatique', r.coupe ? `Celle du dernier podium, la semaine qui suit : ${DE_METAL[r.coupe]} en ce moment` : 'Celle du dernier podium, la semaine qui suit'], [null, 'Aucune', 'La tenue blanche de toujours']]
+      .concat(gagnees.map((m) => [m, `Tenue ${DE_METAL[m]}`, `Gagnée ${r.podiums.filter((p) => CLM.metal(p.rang) === m).length} fois`]));
+    const boutons = choix.map(([v, t, d]) => { const sel = r.tenue === v; return `<button type="button" role="radio" aria-checked="${sel}" class="rec-choix${sel ? ' actif' : ''}" data-tenue="${v === null ? 'aucune' : v}"><span class="rec-pastille ${v && v !== 'auto' ? v : v === 'auto' ? 'auto' : 'blanc'}">${v && v !== 'auto' ? ICONS.toque(v) : v === 'auto' ? ICONS.toque(r.coupe || 'or') : ICONS.toque('blanc')}</span><span><b>${t}</b><small>${d}</small></span></button>`; }).join('');
+    const vide = !r.podiums.length ? '<div class="cl-etat"><span class="pic">' + ICONS.coupe('or') + '</span><b>Pas encore de coupe</b><span>Termine la semaine dans les trois premiers du classement : une tenue et une coupe t’attendent.</span></div>' : '';
+    openSheet(`<div class="cl" data-cl="recompenses"><div class="cl-tete"><span class="pic">${ICONS.coupe(r.coupes.length ? r.coupes[r.coupes.length - 1] : 'or')}</span><div><h2>Mes récompenses</h2><p class="sous">Les trois premiers de chaque semaine gagnent une tenue et une coupe, à garder pour toujours.</p></div></div>
+      ${vide}${r.podiums.length ? `<h3 class="titre-section">La vitrine des trophées</h3><ul class="rec-coupes" aria-label="Mes coupes">${coupes}</ul>
+      <h3 class="titre-section" id="rec-titre-tenue">La tenue du boulanger</h3><div class="rec-choix-liste" role="radiogroup" aria-labelledby="rec-titre-tenue">${boutons}</div>
+      <div class="rec-apercu" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), r.portee)}<span>${r.portee ? `Il porte la tenue ${DE_METAL[r.portee]}.` : 'Il porte la tenue blanche.'}</span></div>` : ''}
+      <button type="button" class="btn large sombre" data-a="cl-retour" style="margin-top:14px"><b>Retour au classement</b></button></div>`);
+    vueCl = 'recompenses';
+    on('[data-tenue]', (b) => { const v = b.dataset.tenue === 'aucune' ? null : b.dataset.tenue; if (classement.choisirTenue(v)) { son.tap(); buzz(8); const y = feuille.scrollTop; sheetRecompenses(); feuille.scrollTop = y; const nb = fc.querySelector(`[data-tenue="${b.dataset.tenue}"]`); if (nb) nb.focus(); } else son.non(); });
+    on('[data-a="cl-retour"]', () => { son.tap(); sheetClassement(); });
   }
   // rejoindre (la première fois) ou changer de pseudo : validation en direct, « déjà pris » après l'envoi
   function sheetPseudo(changer) {
     const r = classement.resume(), nomBtn = changer ? 'Garder ce pseudo' : 'Rejoindre';
     openSheet(`<div class="cl" data-cl="pseudo"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>${changer ? 'Changer de pseudo' : 'Rejoindre le classement'}</h2></div></div>
-      <p class="sous">${changer ? 'Le nouveau pseudo remplace l’ancien dans le classement, ta fortune ne bouge pas.' : 'Choisis un pseudo : c’est lui que verront les autres boulangers, pas le nom de ta boutique. À côté s’affichera ta fortune, tout l’argent gagné depuis ta première baguette.'}</p>
+      <p class="sous">${changer ? 'Le nouveau pseudo remplace l’ancien dans le classement, ta fortune ne bouge pas.' : 'Choisis un pseudo : c’est lui que verront les autres boulangers, pas le nom de ta boutique. À côté s’affichera l’argent que tu gagnes à partir de maintenant : cette semaine, et depuis ton arrivée.'}</p>
       <label class="cl-label" for="cl-champ">Ton pseudo</label>
       <input id="cl-champ" class="champ" type="text" maxlength="24" value="${esc(r.pseudo || '')}" placeholder="Par exemple : Mamie Jo" autocomplete="off" autocapitalize="words" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-describedby="cl-aide">
       <p id="cl-aide" class="cl-aide" aria-live="polite"></p>
@@ -4350,6 +4685,21 @@ const UI = (() => {
     tiroir.layout(h, miH);
   }
 
+  // une heure sûre arrivée en cours de partie (le réseau revient après des jours hors ligne, une lecture arrivée après les 2,5 s d'attente,
+  // un téléphone endormi page ouverte) a fait sauter le jeu vers l'avant : ce vrai temps passé est payé comme une absence, une seule
+  // pour une même absence (avec ce qui a été payé au lancement ou au retour, jamais plus que heuresAbsence) ; voir src/horloge.js (d)
+  function payerSaut(r) {
+    if (!st || !absencePrete || retourEnCours || fige) return; // au lancement et au retour, l'absence part de l'ancien lastSeen : le saut y est déjà
+    const paye = HORLOGE.sautAPayer(r.saut, absencePayee, G.heuresAbsence(st) * 3600e3);
+    if (!(paye > 0)) return;
+    const now = HORLOGE.maintenant();
+    st.lastSeen = now - paye;
+    const abs = G.absence(st, now);
+    absencePayee += abs.secs * 1000;
+    if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); }
+    save();
+  }
+
   // ─── démarrage ───
   async function boot() {
     st = await load();
@@ -4385,6 +4735,7 @@ const UI = (() => {
       const sx = e.clientX - r.left, sy = e.clientY - r.top;
       if (SCENE.hit(sx, sy)) { const tip = G.encaisserPourboire(st); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
       else if (SCENE.hitChat && SCENE.hitChat(sx, sy)) caresserChat(); // le chat dort dans la zone du boulanger : il passe avant
+      else if (classement && SCENE.hitTrophees && SCENE.hitTrophees(sx, sy)) { son.tap(); sheetRecompenses(); } // la vitrine des trophées, la coupe du comptoir
       else if (SCENE.hitBoulanger(sx, sy)) showPage('boulanger');
       else { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) sheetMeuble(id); else SCENE.tap(); }
     });
@@ -4392,7 +4743,7 @@ const UI = (() => {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) { save(); return; }
       if (retourEnCours) return; retourEnCours = true;
-      HORLOGE.retour().catch(() => {}).then(() => { retourEnCours = false; const abs = G.absence(st, HORLOGE.maintenant()); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); });
+      HORLOGE.retour().catch(() => {}).then(() => { retourEnCours = false; const abs = G.absence(st, HORLOGE.maintenant()); absencePayee = abs.secs * 1000; if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); });
     });
     document.addEventListener('pointerdown', () => { dernierToucher = performance.now(); }, true);
     document.addEventListener('pointerdown', () => { try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* rien */ } }, { once: true });
@@ -4402,15 +4753,17 @@ const UI = (() => {
     window.addEventListener('blur', save);
     window.addEventListener('resize', layout);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
-    if (!fresh) { const abs = G.absence(st, HORLOGE.maintenant()); if (abs.total > 0 && abs.secs > 90) sheetRetour(abs); }
+    if (!fresh) { const abs = G.absence(st, HORLOGE.maintenant()); absencePayee = abs.secs * 1000; if (abs.total > 0 && abs.secs > 90) sheetRetour(abs); }
+    absencePrete = true;
+    HORLOGE.surSaut(payerSaut);
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
-    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN) }) : null; } catch (e) { classement = null; }
-    if (classement) { classement.ecouter(() => rafraichirClassement()); classement.demarrer(); }
+    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), maintenant: () => HORLOGE.maintenant() }) : null; } catch (e) { classement = null; }
+    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); }); majRecompenses(); classement.demarrer(); setInterval(majRecompenses, 60e3); } // la tenue et la coupe changent aussi au lundi
     lastNiveau = G.niveau(st);
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
+    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q) };
   }

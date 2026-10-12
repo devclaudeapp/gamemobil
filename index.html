@@ -57,6 +57,10 @@ h2 { margin: 0 0 10px; font: 700 14px/1 var(--texte-font); color: var(--texte-2)
 .jeu .progres { min-width: 0; font-size: 14px; color: var(--texte); overflow-wrap: anywhere; }
 .jeu .progres small { display: block; margin-top: 1px; color: var(--texte-2); font-size: 12.5px; }
 .jeu .progres .classement { margin-top: 3px; }
+.jeu .progres .podium { margin-top: 3px; color: var(--texte); font-weight: 800; }
+.jeu .progres .podium::before { content: ""; display: inline-block; width: 10px; height: 10px; margin-right: 6px; border-radius: 50%; vertical-align: -1px; background: #FFC84A; box-shadow: 0 0 0 1.5px #D4921A; }
+.jeu .progres .podium.argent::before { background: #D3DCE6; box-shadow: 0 0 0 1.5px #7F8FA3; }
+.jeu .progres .podium.bronze::before { background: #E2A06A; box-shadow: 0 0 0 1.5px #9E5A2A; }
 .jeu .jouer { flex: 0 0 auto; min-height: 44px; padding: 0 20px; border-radius: 999px; display: inline-flex; align-items: center; background: var(--beurre); box-shadow: 0 4px 0 var(--beurre-sombre); font: 700 17px/1 var(--titre); }
 .jeu.bientot { background: transparent; box-shadow: none; border: 3px dashed #D9CCF5; }
 .jeu.bientot .vignette { background: var(--lavande-pale); color: var(--lavande); font: 700 34px/1 var(--titre); }
@@ -101,7 +105,7 @@ h2 { margin: 0 0 10px; font: 700 14px/1 var(--texte-font); color: var(--texte-2)
     const s = plusAvancee(ls, fournilIdb);
     if (!s) return null;
     const n = Math.max(1, s.boutiques || 1);
-    return { titre: s.nomBoutique || ENSEIGNES[(n - 1) % ENSEIGNES.length], sous: `Boutique n°${n} · ${s.etoiles || 0} ★${s.lastSeen ? ` · ${ilYA(s.lastSeen)}` : ''}`, classement: classementFournil() };
+    return { titre: s.nomBoutique || ENSEIGNES[(n - 1) % ENSEIGNES.length], sous: `Boutique n°${n} · ${s.etoiles || 0} ★${s.lastSeen ? ` · ${ilYA(s.lastSeen)}` : ''}`, classement: classementFournil(), podium: podiumFournil() };
   }
   // son classement en ligne (fournil.classement, écrit par le jeu) : la dernière place connue, si elle a moins d'une semaine
   // la semaine du classement commence le lundi à minuit, heure de Paris (même calcul que src/classement.js)
@@ -119,6 +123,16 @@ h2 { margin: 0 0 10px; font: 700 14px/1 var(--texte-font); color: var(--texte-2)
       if (rang(d.total)) return `Classement : ${rg(d.total.rang)} de tous les temps${sur(d.total)}`;
     } catch (e) { /* stockage indisponible ou abîmé : pas de ligne */ }
     return '';
+  }
+  // un podium récent (les récompenses de fournil.classement) : la semaine qui suit, la tenue et la coupe se voient aussi ici
+  function podiumFournil() {
+    try {
+      const c = JSON.parse(localStorage.getItem('fournil.classement') || 'null'), ps = c && c.recompenses && Array.isArray(c.recompenses.podiums) ? c.recompenses.podiums : [];
+      const d = new Date(lundiParis(Date.now()) + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 7);
+      const p = ps.find((x) => x && x.semaine === d.toISOString().slice(0, 10) && [1, 2, 3].includes(x.rang)); if (!p) return null;
+      const m = ['or', 'argent', 'bronze'][p.rang - 1], de = { or: 'd’or', argent: 'd’argent', bronze: 'de bronze' }[m];
+      return { m, txt: `Podium : ${p.rang === 1 ? '1er' : p.rang + 'e'} la semaine dernière · coupe ${de}` };
+    } catch (e) { return null; } // stockage indisponible ou abîmé : pas de ligne
   }
   // IndexedDB en arrière-plan, sans jamais créer la base du jeu : seulement si elle existe déjà (une base vide créée ici l'empêcherait de créer son magasin)
   function idbFournil() {
@@ -158,7 +172,7 @@ h2 { margin: 0 0 10px; font: 700 14px/1 var(--texte-font); color: var(--texte-2)
       return `<a class="jeu" href="${esc(j.url)}" data-jeu="${esc(j.id)}" style="--fond:${j.fond}">
       <div class="vignette"><img src="${esc(j.icone)}" alt="" width="64" height="64"></div>
       <div><h3>${esc(j.nom)}</h3><span class="genre">${esc(j.genre)}</span><p>${esc(j.pitch)}</p></div>
-      <div class="bas"><span class="progres">${p ? `${esc(p.titre)}${p.sous ? `<small>${esc(p.sous)}</small>` : ''}${p.classement ? `<small class="classement">${esc(p.classement)}</small>` : ''}` : 'Nouvelle partie'}</span><span class="jouer">${p ? 'Continuer' : 'Jouer'}</span></div>
+      <div class="bas"><span class="progres">${p ? `${esc(p.titre)}${p.sous ? `<small>${esc(p.sous)}</small>` : ''}${p.classement ? `<small class="classement">${esc(p.classement)}</small>` : ''}${p.podium ? `<small class="podium ${p.podium.m}">${esc(p.podium.txt)}</small>` : ''}` : 'Nouvelle partie'}</span><span class="jouer">${p ? 'Continuer' : 'Jouer'}</span></div>
     </a>`;
     }).join('');
     // sur iPhone, l'icône installée ne voit pas la sauvegarde de Safari : on le dit quand elle n'a encore aucune partie

@@ -901,8 +901,12 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   // Grades d'un apprenti (toque + tablier ; o.grade de 1 à 5, 1 par défaut, ignoré pour les autres) : 2 = une bande o.haut assombri
   // de 25 % qui borde le haut du tablier, rappelée en ourlet au bas (le plateau cache le milieu), 3 = + une étoile dorée sur la poitrine, 4 = + toque plus haute de 6, 5 = toque plus haute de 10 et
   // liseré doré au tablier et à la toque. Tout est fusionné dans le buste ou la tête : le nombre d'appels de dessin ne change pas.
+  // Tenue du podium (o.tenue = TENUES.or | argent | bronze, le patron seulement) : toque et tablier au métal, une bande foncée au pied de
+  // la toque et en ourlet du tablier (elle remplace le liseré doré du titre), une étoile foncée sur le devant de la toque et un reflet clair
+  // sur sa gauche. Tout est fusionné dans le buste ou la tête : aucun appel de dessin de plus ; sans o.tenue, rien ne change.
   function construire(o) {
     const peau = o.peau || '#FFD7B5', haut = o.or ? OR : o.haut || '#FF9FB2', chev = o.cheveux || L, large = o.tablier === 'large', phiT = large ? 1.9 : 1.3;
+    const tn = o.tenue && o.tenue.tissu ? o.tenue : null, tissu = tn ? tn.tissu : BLANC, galon = tn ? tn.fonce : OR;
     const grade = o.toque && o.tablier ? Math.max(1, Math.min(5, Math.round(+o.grade || 1))) : 1, lisere = o.lisere || grade >= 5;
     const g = new THREE.Group(), racine = new THREE.Group(), ht = new THREE.Group(), P = { racine, haut: ht, bras: [], jambes: [] };
     g.add(racine); racine.add(ht); g.userData.parts = P; g.userData.options = o;
@@ -912,8 +916,9 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     const corps = [M.part(M.capsule(11, 12, 12), haut, { y: 36 })];
     if (o.mariniere) for (const y of [31.5, 36, 40.5, 44.8]) corps.push(M.part(bande(11.4, 2.2), '#3A86C8', { y }));
     if (o.tablier) {
-      corps.push(M.part(patchS(11.7, phiT, 1.05, HP - 1.05), BLANC, { y: 42 }), M.part(patchC(11.7, 12, phiT), BLANC, { y: 36 }), M.part(patchS(11.7, phiT, HP, 0.95), BLANC, { y: 30 }));
-      if (lisere) corps.push(M.part(patchS(12, phiT, HP + 0.4, 0.28), OR, { y: 30 }));
+      corps.push(M.part(patchS(11.7, phiT, 1.05, HP - 1.05), tissu, { y: 42 }), M.part(patchC(11.7, 12, phiT), tissu, { y: 36 }), M.part(patchS(11.7, phiT, HP, 0.95), tissu, { y: 30 }));
+      if (lisere || tn) corps.push(M.part(patchS(12, phiT, HP + 0.4, 0.28), galon, { y: 30 }));
+      if (tn) corps.push(M.part(patchC(11.85, 11, 0.2), tn.clair, { y: 36.5, ry: -0.45 })); // le reflet du métal, une bande claire sur la gauche du tablier
       if (grade >= 2) { const fonce = M.assombrir(haut, 0.25); corps.push(M.part(patchS(11.9, phiT, 1.05, 0.15), fonce, { y: 42 })); if (!lisere) corps.push(M.part(patchS(11.9, phiT, HP + 0.42, 0.28), fonce, { y: 30 })); } // un biais qui borde le haut de la bavette (le blanc reste visible dessous), et son rappel en ourlet au bas du tablier, là où le plateau ne cache rien (au grade 5, le liseré doré prend sa place)
       if (grade >= 3) corps.push(M.part(etoile(2.7, 1.15, 0.9), OR, ETOILE)); // l'étoile, couchée sur la poitrine gauche, au-dessus de la bavette
     }
@@ -926,7 +931,12 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     if (o.coiffure === 1 && !o.toque) tete.push(M.part(M.capsule(2.3, 7, 6), chev, { x: -9.8, z: -1.5, rz: -0.12 }), M.part(M.capsule(2.3, 7, 6), chev, { x: 9.8, z: -1.5, rz: 0.12 }));
     if (o.coiffure === 2 && !o.toque) tete.push(M.part(M.sphere(4.2, 8), chev, { y: 10.5, z: -4 }));
     if (o.coiffure === 3 && !o.toque) tete.push(M.part(bande(10, 4.2), o.bonnet || '#9BD0FF', { y: 10 }), M.part(calotte(10.2, HP, 14), o.bonnet || '#9BD0FF', { y: 12 }), M.part(M.sphere(3, 8), BLANC, { y: 22.7 }));
-    if (o.toque) { const th = (typeof o.toque === 'number' ? o.toque : 14) + (grade >= 5 ? 10 : grade >= 4 ? 6 : 0), hc = Math.max(1, th - 8); tete.push(M.part(M.cylindre(9.2, 9.2, 4, 14), BLANC, { y: 8 }), M.part(M.cylindre(8, 8.8, hc, 14), BLANC, { y: 12 }), M.part(calotte(8, HP, 14), BLANC, { y: 12 + hc })); if (lisere) tete.push(M.part(bande(9.5, 1.4), OR, { y: 8.6 })); }
+    if (o.toque) {
+      const th = (typeof o.toque === 'number' ? o.toque : 14) + (grade >= 5 ? 10 : grade >= 4 ? 6 : 0), hc = Math.max(1, th - 8);
+      tete.push(M.part(M.cylindre(9.2, 9.2, 4, 14), tissu, { y: 8 }), M.part(M.cylindre(8, 8.8, hc, 14), tissu, { y: 12 }), M.part(calotte(8, HP, 14), tissu, { y: 12 + hc }));
+      if (lisere || tn) tete.push(M.part(bande(9.5, 1.4), galon, { y: 8.6 }));
+      if (tn) { const ye = hc >= 6 ? 12 + hc * 0.4 : 10, re = ye < 12 ? 9.2 : 8.8 - (ye - 12) / hc * 0.8; tete.push(M.part(etoile(2.6, 1.1, 0.9), tn.fonce, { y: ye, z: re + 0.3, sy: 1.45 }), M.part(patchC(8.95, Math.max(1, hc - 1), 0.34), tn.clair, { y: 12 + hc / 2, ry: -0.75 })); } // l'étoile au front de la toque (étirée en hauteur : la plongée de 52° l'écrase), le reflet sur sa gauche
+    }
     if (o.or) tete.push(M.part(M.cylindre(11.8, 11.8, 1.6, 16), L, { y: 9.6 }), M.part(M.cylindre(7.4, 7.2, 15, 14), L, { y: 10 }), M.part(bande(7.7, 2.2), OR, { y: 13 }));
     if (o.moustache) tete.push(M.part(M.capsule(1.3, 3.2, 6), '#8C5A3C', { x: -2.6, y: 2.4, z: 10.1, rz: 1.05 }), M.part(M.capsule(1.3, 3.2, 6), '#8C5A3C', { x: 2.6, y: 2.4, z: 10.1, rz: -1.05 }));
     P.tete = M.maille(tete); P.tete.position.y = 63; ht.add(P.tete);
@@ -947,10 +957,12 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   }
   const creer = (o) => construire(o || {});
   // le patron : même grammaire, 1,25 fois plus grand ; toque, foulard, moustache, liseré et col selon le titre
-  function boulanger(rang) {
+  // tenue : 'or', 'argent' ou 'bronze' (la tenue du podium du classement), sinon la tenue blanche
+  const TENUES = { or: { tissu: '#FFD15C', fonce: '#D4921A', clair: '#FFF2C2' }, argent: { tissu: '#D3DCE6', fonce: '#7F8FA3', clair: '#F8FBFE' }, bronze: { tissu: '#E2A06A', fonce: '#9E5A2A', clair: '#F8D6B6' } };
+  function boulanger(rang, tenue) {
     rang = rang || 0; const th = rang === 0 ? 10 : rang === 1 ? 22 : 22 + Math.min(14, (rang - 1) * 5);
-    const g = construire({ haut: '#FF6B8B', peau: '#FFD7B5', tablier: 'large', toque: th, lisere: rang >= 4, foulard: rang >= 3, moustache: rang >= 3, col: rang >= 5, sueur: true });
-    g.userData.parts.racine.scale.setScalar(1.25); g.userData.rang = rang; return g;
+    const g = construire({ haut: '#FF6B8B', peau: '#FFD7B5', tablier: 'large', toque: th, lisere: rang >= 4, foulard: rang >= 3, moustache: rang >= 3, col: rang >= 5, sueur: true, tenue: TENUES[tenue] || null });
+    g.userData.parts.racine.scale.setScalar(1.25); g.userData.rang = rang; g.userData.tenue = TENUES[tenue] ? tenue : null; return g;
   }
   // DÉPENDANCE DE VERSION (Three r158) : on écrit les champs privés d'Euler (_x, _y, _z) sans passer par le setter, puis tourner()
   // recale le quaternion comme le ferait Euler._onChangeCallback. Si une mise à jour de Three renomme ces champs ou change ce rappel,
@@ -1243,13 +1255,13 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
         const b = boulanger(5); b.position.set(-60, 0, -90); g.add(b);
         g.userData.anime = (E) => { for (let k = 0; k < cl.length; k++) { const oc = os[k]; oc.phase = E.t * 9; oc.t = E.t; oc.blink = E.t % 3.4; animer(cl[k], oc); } ob.t = E.t; animerBoulanger(b, ob); }; g.position.set(195, 0, 330); return g; }
       default: if (nom.startsWith('apprenti-grade-')) { p = client(0, { haut: '#5FD3A4', coiffure: 0, toque: true, tablier: true, plateau: true, produit: 1, grade: +nom.slice(15) }); o.plateau = true; o.produit = 1; }
-      else if (nom.startsWith('boulanger-')) { p = boulanger(+nom.slice(10)); g.add(p); anim = animerBoulanger; o.rang = +nom.slice(10); o.rush = o.rang === 3; o.hop = o.rang === 1 ? 0.6 : 0; } else p = client(0, {});
+      else if (nom.startsWith('boulanger-')) { const [rg, tn] = nom.slice(10).split('-'); p = boulanger(+rg, tn); g.add(p); anim = animerBoulanger; o.rang = +rg; o.rush = o.rang === 3; o.hop = o.rang === 1 ? 0.6 : 0; } else p = client(0, {});
     }
     p.rotation.y = lacet(dir); g.position.set(195, 0, 350); if (zoom) g.scale.setScalar(zoom);
     g.userData.anime = (E) => { o.t = E.t; o.blink = E.t % 3.4; if (o.marche) o.phase = 1.2 + (E.t - 0.4) * 9; anim(p, o); };
     return g;
   }
-  return { HAUTEUR, TAILLE_PATISSERIE, SAISONS, creer, animer, lacet, boulanger, animerBoulanger, chat, animerChat, libererChat, patisserie, geoPatisserie, partsPatisserie, patisserieSaison, geoPatisserieSaison, demo };
+  return { HAUTEUR, TAILLE_PATISSERIE, SAISONS, TENUES, creer, animer, lacet, boulanger, animerBoulanger, chat, animerChat, libererChat, patisserie, geoPatisserie, partsPatisserie, patisserieSaison, geoPatisserieSaison, demo };
 })();
 if (typeof module !== 'undefined') module.exports = PERSOS;
 

@@ -62,7 +62,7 @@
   const nomBoutique = (st) => st.nomBoutique || QUARTIERS[quartier(st)].enseigne;
   function renommer(st, nom) { const n = String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24); st.nomBoutique = n; return nomBoutique(st); }
   function saison(ms) {
-    const d = new Date(ms), m = d.getMonth() + 1, j = d.getDate(), tags = [];
+    const d = paris(ms), m = d.getUTCMonth() + 1, j = d.getUTCDate(), tags = [];
     if (m === 12 || m <= 2) tags.push('neige');
     if (m === 12) tags.push('noel');
     if (m === 1 && j <= 20) tags.push('galette');
@@ -160,7 +160,7 @@
   const recetteDeSaison = (ms) => (recetteForcee && RECETTES_SAISON.find((r) => r.id === recetteForcee)) || RECETTES_SAISON.find((r) => saison(ms).includes(r.tag)) || null;
   const recetteSaison = (st) => (st.saison ? RECETTES_SAISON.find((r) => r.id === st.saison.id) || null : null);
   function saisonDuJour(st, nowMs) { // la recette de la saison en cours ; une nouvelle saison (ou la même, l'année suivante) repart du niveau 0
-    const r = recetteDeSaison(nowMs), an = new Date(nowMs).getFullYear(), s = st.saison;
+    const r = recetteDeSaison(nowMs), an = paris(nowMs).getUTCFullYear(), s = st.saison;
     if (s && s.actif && (!r || s.id !== r.id || s.annee !== an)) cuireSaison(st, null); // la fournée au four sort quand même, comme pendant une absence
     if (!r) { st.saison = null; return null; }
     if (!st.saison || st.saison.id !== r.id || st.saison.annee !== an) st.saison = { id: r.id, annee: an, niv: 0, prog: 0, actif: false };
@@ -229,12 +229,23 @@
   }
 
   // ─── temps, hasard déterministe ───
-  const dayKey = (ms) => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+  // Les jours, les semaines, le marché, les heures de pointe, les habitués et les saisons du jeu se comptent à l'heure de
+  // PARIS, quel que soit le fuseau du téléphone (comme le classement et son serveur) : changer de fuseau dans les réglages
+  // ne fait plus naître de nouvelle journée, ni avancer le marché du samedi. Règle européenne : l'heure d'été va du dernier
+  // dimanche de mars au dernier dimanche d'octobre, à 1 h UTC (la même que src/classement.js).
+  function decalageParis(ms) {
+    const a = new Date(ms).getUTCFullYear();
+    const dernierDimanche = (mois) => { const d = new Date(Date.UTC(a, mois + 1, 0, 1)); d.setUTCDate(d.getUTCDate() - d.getUTCDay()); return d.getTime(); };
+    return ms >= dernierDimanche(2) && ms < dernierDimanche(9) ? 2 * 3600e3 : 3600e3;
+  }
+  const paris = (ms) => new Date(ms + decalageParis(ms)); // à lire avec les getUTC… : l'heure qu'il est à Paris
+  const heureParis = (ms) => { const d = paris(ms); return d.getUTCHours() + d.getUTCMinutes() / 60; };
+  const dayKey = (ms) => { const d = paris(ms); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`; };
   const hier = (ms) => dayKey(ms - 864e5);
   function hashStr(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
   function mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
-  const jourDeMarche = (ms) => { const d = new Date(ms).getDay(); return d === 0 || d === 6; };
-  const heureDePointe = (ms) => { const h = new Date(ms).getHours(); return (h >= 7 && h < 9) || (h >= 12 && h < 14) || (h >= 17 && h < 19); };
+  const jourDeMarche = (ms) => { const d = paris(ms).getUTCDay(); return d === 0 || d === 6; };
+  const heureDePointe = (ms) => { const h = paris(ms).getUTCHours(); return (h >= 7 && h < 9) || (h >= 12 && h < 14) || (h >= 17 && h < 19); };
   function arrondi(n) { if (n < 10) return Math.max(1, Math.round(n)); const p = Math.pow(10, Math.floor(Math.log10(n)) - 1); return Math.round(n / p) * p; }
 
   // ─── calculs ───
@@ -332,7 +343,7 @@
     return st.jour;
   }
   // ─── le défi de la semaine : un seul, plus long, du lundi au dimanche ; réussi : une étoile, du savoir-faire, une prime ───
-  const semaineKey = (ms) => { const d = new Date(ms), j = (d.getDay() + 6) % 7; return dayKey(new Date(d.getFullYear(), d.getMonth(), d.getDate() - j, 12).getTime()); };
+  const semaineKey = (ms) => { const d = paris(ms), j = (d.getUTCDay() + 6) % 7; return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() - j)).toISOString().slice(0, 10); };
   const TYPES_SEM = {
     commandes: () => ({ cible: 8, txt: 'Livre 8 commandes spéciales' }),
     critiques: () => ({ cible: 3, txt: 'Conquiers 3 critiques' }),
@@ -471,7 +482,7 @@
     { id: 'lena', nom: 'Léna', debut: 17, fin: 20, haut: '#5FD3A4', cheveux: '#B8762E', peau: '#F1B990', coiffure: 1, phrase: 'Un éclair pour fêter la fin de la journée !' },
   ];
   function habitueAttendu(st, nowMs) {
-    const d = new Date(nowMs), h = d.getHours() + d.getMinutes() / 60, key = dayKey(nowMs);
+    const h = heureParis(nowMs), key = dayKey(nowMs);
     st.habitues = st.habitues || {};
     return HABITUES.find((x) => h >= x.debut && h < x.fin && (!st.habitues[x.id] || st.habitues[x.id].vuLe !== key)) || null;
   }
@@ -644,13 +655,13 @@
     return (v >= 100 ? v.toFixed(0) : v.toFixed(1)).replace('.0', '').replace('.', ',') + ' ' + SUFF[k];
   }
   const fmtEur = (n) => fmt(n) + ' €';
-  function fmtDuree(s) { if (s < 60) return Math.round(s) + ' s'; if (s < 3600) return Math.round(s / 60) + ' min'; const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; }
+  function fmtDuree(s) { if (s < 59.5) return Math.round(s) + ' s'; const mn = Math.round(s / 60); if (mn < 60) return mn + ' min'; const h = Math.floor(mn / 60), m = mn % 60; return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; } // arrondi à la minute d'abord : 7 h 59 min 45 s → « 8 h », pas « 7 h 60 »
   const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
   return { APPRENTIS, APPRENTI_NIVEAUX, APPRENTI_VITESSE, APPRENTI_ABSENCE, xpApprenti, gradeApprenti, progresApprenti, creditApprenti, apprentiTempsMult, apprentiRevMult, effetTalentApprenti,
     CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
-    PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, jourDeMarche, heureDePointe, arrondi,
+    PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost,

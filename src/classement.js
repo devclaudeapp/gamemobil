@@ -13,6 +13,7 @@
     ecartMin: 15e3, // jamais plus d'un envoi toutes les 15 s
     periode: 5 * 60e3, // un envoi toutes les 5 min quand la page est visible
     rafraichir: 30 * 60e3, // la fortune n'a pas bougé : un envoi quand même toutes les 30 min (changement de semaine)
+    recompenses: 30 * 60e3, // les récompenses relues toutes les 30 min au plus (au lancement et à l'ouverture de la feuille, plus tôt)
     serveur: 10.5e3, // le serveur ne prend qu'un envoi toutes les 10 s par joueur : un changement de pseudo attend son tour
     delaiMax: 8e3, // un appel abandonné au bout de 8 s
     limite: 50, // les 50 premiers
@@ -80,7 +81,58 @@
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, JETON = /^[0-9a-f]{64}$/;
   const fini = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
   const entier = (v) => (Number.isInteger(v) && v > 0 ? v : null);
-  const etatNeuf = () => ({ id: null, jeton: null, pseudo: '', rejoint: false, dernierEnvoi: 0, valeur: null, essai: 0, dernier: null });
+  const etatNeuf = () => ({ id: null, jeton: null, pseudo: '', rejoint: false, dernierEnvoi: 0, valeur: null, essai: 0, dernier: null, recompenses: recompensesNeuves() });
+
+  // ─── les récompenses du podium : les trois premiers de chaque semaine gagnent une tenue (toque et tablier) et une coupe, or, argent ou bronze ───
+  // recompenses : { podiums: [{ semaine: 'AAAA-MM-JJ' (le lundi de la semaine du podium), rang: 1 | 2 | 3 }] du plus ancien au plus récent,
+  //                 tenue: 'auto' (celle du dernier podium, la semaine qui suit ; par défaut) | null (aucune) | 'or' | 'argent' | 'bronze',
+  //                 vu: le lundi du dernier podium déjà annoncé }. Gardées à vie sur le téléphone, même après avoir quitté le classement.
+  const METAUX = ['or', 'argent', 'bronze'], JOUR = /^\d{4}-\d{2}-\d{2}$/;
+  const metal = (rang) => METAUX[rang - 1] || null; // 1 → 'or', 2 → 'argent', 3 → 'bronze'
+  const NOMS_METAL = { or: 'd’or', argent: 'd’argent', bronze: 'de bronze' }; // « la tenue d’or », « la coupe de bronze »
+  const recompensesNeuves = () => ({ podiums: [], tenue: 'auto', vu: '' });
+  function decalerSemaine(lundi, k) { // '2026-10-12', -1 → '2026-10-05'
+    if (!JOUR.test(String(lundi || ''))) return '';
+    const d = new Date(lundi + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + 7 * k); return d.toISOString().slice(0, 10);
+  }
+  function nettoyerPodiums(liste) { // une coupe par semaine (la meilleure, si deux sources se contredisent), triées de la plus ancienne à la plus récente
+    const par = new Map();
+    for (const p of Array.isArray(liste) ? liste.slice(0, 2000) : []) {
+      if (!p || typeof p !== 'object' || !JOUR.test(String(p.semaine || '')) || ![1, 2, 3].includes(p.rang)) continue;
+      const a = par.get(p.semaine); if (!a || p.rang < a.rang) par.set(p.semaine, { semaine: p.semaine, rang: p.rang });
+    }
+    return [...par.values()].sort((a, b) => (a.semaine < b.semaine ? -1 : a.semaine > b.semaine ? 1 : 0));
+  }
+  function nettoyerRecompenses(r) {
+    const o = recompensesNeuves();
+    if (!r || typeof r !== 'object' || Array.isArray(r)) return o;
+    o.podiums = nettoyerPodiums(r.podiums);
+    if (r.tenue === null || r.tenue === 'auto' || METAUX.includes(r.tenue)) o.tenue = r.tenue;
+    if (typeof r.vu === 'string' && JOUR.test(r.vu)) o.vu = r.vu;
+    return o;
+  }
+  const podiumDe = (rec, semaine) => (rec && semaine ? rec.podiums.find((p) => p.semaine === semaine) || null : null);
+  // la tenue que porte le boulanger cette semaine (lundi : le lundi de la semaine en cours) : celle choisie si elle a été gagnée,
+  // sinon (« automatique ») celle du podium de la semaine passée ; null : la tenue blanche de toujours
+  function tenuePortee(rec, lundi) {
+    if (!rec || rec.tenue === null) return null;
+    if (METAUX.includes(rec.tenue) && rec.podiums.some((p) => metal(p.rang) === rec.tenue)) return rec.tenue;
+    const p = podiumDe(rec, decalerSemaine(lundi, -1)); return p ? metal(p.rang) : null;
+  }
+  // la coupe posée sur le comptoir : celle du podium de la semaine passée, toute la semaine qui suit
+  function coupeDuComptoir(rec, lundi) { const p = podiumDe(rec, decalerSemaine(lundi, -1)); return p ? metal(p.rang) : null; }
+  // le podium à annoncer : le plus récent des podiums finis pas encore annoncés (autres : combien d'autres sont arrivés depuis la dernière visite)
+  function aAnnoncer(rec, lundi) {
+    if (!rec) return null;
+    const neufs = rec.podiums.filter((p) => p.semaine > (rec.vu || '') && (!lundi || p.semaine < lundi));
+    if (!neufs.length) return null;
+    const p = neufs[neufs.length - 1]; return { semaine: p.semaine, rang: p.rang, metal: metal(p.rang), autres: neufs.length - 1 };
+  }
+  function tenuesGagnees(rec) { const g = new Set((rec ? rec.podiums : []).map((p) => metal(p.rang))); return METAUX.filter((m) => g.has(m)); }
+  function phraseAnnonce(a) { // « Bravo ! 2e de la semaine : la tenue d’argent et la coupe d’argent sont à toi »
+    if (!a || !a.metal) return '';
+    const n = NOMS_METAL[a.metal]; return `Bravo ! ${rangTexte(a.rang)} de la semaine : la tenue ${n} et la coupe ${n} sont à toi`;
+  }
   function nettoyerRang(r, avecLundi) {
     if (!r || typeof r !== 'object' || !entier(r.rang)) return null;
     const o = { rang: r.rang, joueurs: Math.max(r.rang, entier(r.joueurs) || r.rang) };
@@ -99,6 +151,7 @@
       const d = { semaine: nettoyerRang(s.dernier.semaine, true), total: nettoyerRang(s.dernier.total), quand: fini(s.dernier.quand) };
       if (d.semaine || d.total) e.dernier = d;
     }
+    e.recompenses = nettoyerRecompenses(s.recompenses);
     return e;
   }
   function lireEtat(stockage) {
@@ -146,11 +199,23 @@
       for (const l of d.lignes.slice(0, 100)) {
         if (!l || typeof l !== 'object' || !entier(l.rang)) continue;
         const v = Number(l.valeur);
-        o.lignes.push({ rang: l.rang, pseudo: String(l.pseudo == null ? '' : l.pseudo).slice(0, 40), valeur: Number.isFinite(v) ? v : 0, moi: l.moi === true });
+        o.lignes.push({ rang: l.rang, pseudo: String(l.pseudo == null ? '' : l.pseudo).slice(0, 40), valeur: Number.isFinite(v) ? v : 0, moi: l.moi === true, podium: [1, 2, 3].includes(l.podium) ? l.podium : null });
       }
     }
     o.joueurs = Math.max(entier(d.joueurs) || 0, o.lignes.length);
-    if (d.moi && typeof d.moi === 'object' && entier(d.moi.rang)) { const v = Number(d.moi.valeur); o.moi = { rang: d.moi.rang, valeur: Number.isFinite(v) ? v : 0 }; o.joueurs = Math.max(o.joueurs, o.moi.rang); }
+    if (d.moi && typeof d.moi === 'object' && entier(d.moi.rang)) { const v = Number(d.moi.valeur); o.moi = { rang: d.moi.rang, valeur: Number.isFinite(v) ? v : 0, podium: [1, 2, 3].includes(d.moi.podium) ? d.moi.podium : null }; o.joueurs = Math.max(o.joueurs, o.moi.rang); }
+    return o;
+  }
+  // la réponse de fournil_recompenses : ses podiums, et le podium de la semaine passée (pour tout le monde)
+  function nettoyerRecompensesServeur(d) {
+    const o = { ok: false, podiums: [], derniere: null };
+    if (!d || typeof d !== 'object') return o;
+    o.ok = d.ok === true; o.podiums = nettoyerPodiums(d.podiums);
+    const r = d.derniere;
+    if (r && typeof r === 'object' && JOUR.test(String(r.semaine || '')) && Array.isArray(r.podium)) {
+      const podium = r.podium.slice(0, 30).filter((x) => x && typeof x === 'object' && [1, 2, 3].includes(x.rang)).map((x) => { const v = Number(x.valeur); return { rang: x.rang, pseudo: String(x.pseudo == null ? '' : x.pseudo).slice(0, 40), valeur: Number.isFinite(v) ? v : 0 }; });
+      if (podium.length) o.derniere = { semaine: r.semaine, podium };
+    }
     return o;
   }
 
@@ -208,6 +273,8 @@
     let retrait = false; // « Quitter » en route : plus aucun envoi automatique (fond, minuteur) tant que le serveur n'a pas répondu
     let nettoyage = null; // au lancement, l'effacement discret d'une inscription dont la réponse s'était perdue
     let ecrit = true; // la dernière écriture dans le stockage a-t-elle réussi ? (sinon, le stockage est en retard sur la mémoire)
+    let lundiServeur = ''; // le lundi de la semaine en cours d'après le serveur (appris à chaque réponse) : l'heure du téléphone ne décide pas seule
+    let recVol = null, recQuand = 0, derniere = null; // la lecture des récompenses en cours, l'heure de la dernière, le podium de la semaine passée
     const config = () => { try { return lireConfig(E.config ? E.config() : null); } catch (e) { return null; } };
     const sauver = () => { ecrit = ecrireEtat(E.stockage, etat); return ecrit; };
     const prevenir = () => { for (const f of ecouteurs.slice()) { try { f(); } catch (e) { /* l'interface ne casse pas le moteur */ } } };
@@ -221,13 +288,20 @@
       let brut = null; try { brut = E.stockage ? E.stockage.getItem(CLE) : null; } catch (e) { return false; }
       if (brut == null) return false; // stockage vide ou indisponible : on garde l'état en mémoire
       const f = lireEtat(E.stockage);
-      if (f.id !== etat.id || f.jeton !== etat.jeton || f.rejoint !== etat.rejoint || f.pseudo !== etat.pseudo) { etat = f; cache.semaine = cache.total = null; prevenir(); return true; }
+      // les récompenses : l'union des podiums (rien ne se perd), la tenue choisie dans l'autre fenêtre (chaque choix est écrit aussitôt), le dernier annoncé
+      const rec = { podiums: nettoyerPodiums(etat.recompenses.podiums.concat(f.recompenses.podiums)), tenue: f.recompenses.tenue, vu: f.recompenses.vu > etat.recompenses.vu ? f.recompenses.vu : etat.recompenses.vu };
+      if (f.id !== etat.id || f.jeton !== etat.jeton || f.rejoint !== etat.rejoint || f.pseudo !== etat.pseudo) { etat = f; etat.recompenses = rec; cache.semaine = cache.total = null; prevenir(); return true; }
+      const avantRec = JSON.stringify(etat.recompenses); etat.recompenses = rec; if (JSON.stringify(rec) !== avantRec) prevenir();
       etat.essai = Math.max(etat.essai, f.essai);
       if (f.dernierEnvoi > etat.dernierEnvoi) { etat.dernierEnvoi = f.dernierEnvoi; etat.valeur = f.valeur; etat.dernier = f.dernier; }
       return false;
     }
+    const noterLundi = (l) => { if (typeof l === 'string' && JOUR.test(l.slice(0, 10)) && l.slice(0, 10) > lundiServeur) lundiServeur = l.slice(0, 10); };
+    // le lundi de la semaine en cours : celui du serveur, ou celui de l'horloge du jeu s'il est plus récent (minuit est passé depuis la dernière réponse)
+    function lundi() { const l = lundiParis(E.maintenant()); return lundiServeur > l ? lundiServeur : l; }
     function noterRangs(d, maintenant) { // la place de la semaine est rangée sous le lundi du SERVEUR (l'horloge du téléphone peut avoir quelques minutes d'écart)
       const lundi = typeof d.semaine === 'string' && /^\d{4}-\d{2}-\d{2}/.test(d.semaine) ? d.semaine.slice(0, 10) : lundiParis(maintenant), avant = etat.dernier || {};
+      noterLundi(d.semaine);
       const jt = entier(d.joueurs_total) || entier(d.joueurs);
       const js = entier(d.joueurs_semaine) || (avant.semaine && avant.semaine.lundi === lundi ? avant.semaine.joueurs : null) || jt;
       const semaine = entier(d.rang_semaine) ? { rang: d.rang_semaine, joueurs: Math.max(d.rang_semaine, js || 0), lundi } : null;
@@ -320,7 +394,7 @@
       statut = r.etat;
       if (r.etat !== 'ok') { prevenir(); return r; } // pas de réponse : on reste inscrit, avec son jeton, pour réessayer
       // (un refus « jeton » veut dire que la ligne n'est pas à nous : on oublie l'identité, comme pour un retrait réussi)
-      const pseudo = etat.pseudo; etat = etatNeuf(); etat.pseudo = pseudo; sauver(); // une nouvelle identité au prochain retour ; le pseudo reste proposé
+      const pseudo = etat.pseudo, rec = etat.recompenses; etat = etatNeuf(); etat.pseudo = pseudo; etat.recompenses = rec; sauver(); // une nouvelle identité au prochain retour ; le pseudo reste proposé, les coupes et les tenues restent à lui
       cache.semaine = cache.total = null; prevenir();
       return { etat: 'ok' };
     }
@@ -333,7 +407,7 @@
         charge[p] = false; statut = r.etat;
         const t = E.maintenant();
         if (r.etat === 'ok') {
-          const data = nettoyerClassement(r.data); cache[p] = { etat: 'ok', data, quand: t };
+          const data = nettoyerClassement(r.data); cache[p] = { etat: 'ok', data, quand: t }; noterLundi(data.semaine);
           if (etat.rejoint && data.moi) {
             const d = etat.dernier || { semaine: null, total: null, quand: t };
             d[p] = p === 'semaine' ? { rang: data.moi.rang, joueurs: data.joueurs, lundi: data.semaine || lundiParis(t) } : { rang: data.moi.rang, joueurs: data.joueurs };
@@ -351,7 +425,50 @@
       const p = periode === 'total' ? 'total' : 'semaine';
       const lecture = charger(p);
       envoyer('feuille').then((r) => { if (r && r.etat === 'ok') lecture.then(() => charger(p)); }).catch(() => { /* rien */ });
+      chargerRecompenses({ ecart: 60e3 }); // les récompenses aussi (une fois par minute au plus)
       return lecture;
+    }
+    // ses podiums et le podium de la semaine passée : au lancement, à l'ouverture de la feuille, puis toutes les 30 min au plus.
+    // Les podiums reçus s'ajoutent à ceux du téléphone (jamais retirés : quitter le classement ou le ménage des 90 jours ne reprennent rien).
+    function chargerRecompenses(o) {
+      if (!config()) return Promise.resolve({ etat: 'absent' });
+      if (recVol) return recVol;
+      resynchroniser();
+      if (!etat.rejoint || !etat.id || !etat.jeton) return Promise.resolve({ etat: 'saute', pourquoi: 'pas-rejoint' });
+      const ecart = o && typeof o.ecart === 'number' ? o.ecart : REGLES.recompenses, t = E.maintenant();
+      if (recQuand && t - recQuand >= 0 && t - recQuand < ecart) return Promise.resolve({ etat: 'saute', pourquoi: 'recent' });
+      recQuand = t;
+      recVol = rpc('fournil_recompenses', { p_id: etat.id, p_jeton: etat.jeton }).then((r) => {
+        if (r.etat !== 'ok') { recQuand = 0; return r; } // pas de réponse : on réessaiera à la prochaine occasion
+        const d = nettoyerRecompensesServeur(r.data);
+        if (!d.ok) return { etat: 'refus', erreur: r.data && typeof r.data.erreur === 'string' ? r.data.erreur : 'inconnue' };
+        resynchroniser();
+        derniere = d.derniere; if (derniere) noterLundi(decalerSemaine(derniere.semaine, 1));
+        const avant = JSON.stringify(etat.recompenses.podiums);
+        etat.recompenses.podiums = nettoyerPodiums(etat.recompenses.podiums.concat(d.podiums));
+        if (JSON.stringify(etat.recompenses.podiums) !== avant) sauver();
+        return { etat: 'ok', data: d };
+      }).catch(() => { recQuand = 0; return { etat: 'erreur' }; }).then((r) => { recVol = null; prevenir(); return r; });
+      return recVol;
+    }
+    // le choix de la tenue (null : aucune, 'auto', ou un métal gagné) et l'annonce faite : écrits aussitôt
+    function choisirTenue(t) {
+      resynchroniser();
+      if (!(t === null || t === 'auto' || (METAUX.includes(t) && tenuesGagnees(etat.recompenses).includes(t)))) return false;
+      etat.recompenses.tenue = t; sauver(); prevenir(); return true;
+    }
+    function annonceFaite(semaine) {
+      if (!JOUR.test(String(semaine || ''))) return false;
+      resynchroniser();
+      if (semaine <= etat.recompenses.vu) return false;
+      // un nouveau podium : sa tenue se porte d'office la semaine qui suit, même si une autre avait été choisie
+      etat.recompenses.vu = semaine; if (semaine === decalerSemaine(lundi(), -1)) etat.recompenses.tenue = 'auto';
+      sauver(); prevenir(); return true;
+    }
+    // pour l'interface et la boutique en 3D : ce qui se voit cette semaine
+    function recompenses() {
+      const rec = etat.recompenses, l = lundi();
+      return { podiums: rec.podiums.slice(), tenue: rec.tenue, vu: rec.vu, lundi: l, portee: tenuePortee(rec, l), coupe: coupeDuComptoir(rec, l), coupes: rec.podiums.map((p) => metal(p.rang)), gagnees: tenuesGagnees(rec), annonce: aAnnoncer(rec, l), derniere };
     }
     function demarrer(o) {
       if (demarre || !config()) return false;
@@ -364,6 +481,7 @@
         }).catch(() => { /* rien */ }).then(() => { nettoyage = null; });
       }
       envoyer('lancement');
+      chargerRecompenses({ ecart: 0 });
       const pas = (o && o.pas) || 60e3;
       if (o && o.minuteur === false) return true;
       minuteur = setInterval(() => { tick(); }, pas);
@@ -371,6 +489,7 @@
     }
     function tick() { // le minuteur : un envoi toutes les 5 min, seulement quand la page est visible
       let vu = true; try { vu = E.visible(); } catch (e) { vu = true; }
+      if (vu) chargerRecompenses();
       return vu ? envoyer('periodique') : Promise.resolve({ etat: 'saute', pourquoi: 'cachee' });
     }
     function arreter() { if (minuteur) clearInterval(minuteur); minuteur = 0; demarre = false; }
@@ -381,6 +500,7 @@
     return {
       disponible: () => !!config(), etat: () => etat, resume, cache: (p) => cache[p === 'total' ? 'total' : 'semaine'], enChargement: (p) => charge[p === 'total' ? 'total' : 'semaine'],
       envoyer, charger, ouvrir, choisirPseudo, quitter, demarrer, arreter, ecouter: (f) => { ecouteurs.push(f); },
+      chargerRecompenses, recompenses, choisirTenue, annonceFaite, lundi,
       relire: () => { etat = lireEtat(E.stockage); prevenir(); return etat; },
       resynchroniser, tick,
     };
@@ -393,6 +513,7 @@
     let stockage = null; try { stockage = w.localStorage; } catch (e) { stockage = null; }
     const m = creerMoteur({
       config: () => w.FOURNIL_CONFIG, fetch: (u, i) => w.fetch(u, i), stockage, fortune: o && o.fortune,
+      ...(o && typeof o.maintenant === 'function' ? { maintenant: o.maintenant } : {}), // l'horloge de confiance du jeu (HORLOGE), plutôt que celle du téléphone
       enLigne: () => !(w.navigator && w.navigator.onLine === false), visible: () => !(w.document && w.document.visibilityState === 'hidden'),
     });
     if (w.document) { // au passage en arrière-plan : un dernier envoi qui survit à la fermeture (fetch keepalive)
@@ -406,5 +527,6 @@
   }
 
   return { CLE, REGLES, PSEUDO_MIN, PSEUDO_MAX, lundiParis, decalageParis, dateCourte, normaliserPseudo, verifierPseudo, messagePseudo, rangTexte, rangPhrase, boulangers,
-    etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur };
+    etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur,
+    METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce };
 });
