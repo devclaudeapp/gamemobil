@@ -121,7 +121,7 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
   await attendre(() => p.evaluate(() => !!document.querySelector('#feuille .cl-liste')));
   await sleep(300);
   const cl = await p.evaluate(() => ({ entree: (document.querySelector('#feuille [data-a="cl-recompenses"]') || {}).innerText || '', h: Math.round((document.querySelector('[data-a="cl-recompenses"]') || { getBoundingClientRect: () => ({ height: 0 }) }).getBoundingClientRect().height), toques: [...document.querySelectorAll('#feuille .cl-ligne')].filter((l) => l.querySelector('.cl-toque')).map((l) => [l.querySelector('.cl-nom > span').textContent, l.querySelector('.cl-toque').className.split(' ')[1], l.classList.contains('moi')]) }));
-  check(!cl.entree, 'la feuille du classement ne garde que le classement : « Mes récompenses » vit dans l’onglet Boulanger');
+  check(/Mes récompenses/.test(cl.entree) && /3 coupes · toque d’argent/.test(cl.entree) && cl.h >= 48, `l’entrée « Mes récompenses » en tête de la feuille : « ${cl.entree.replace(/\n/g, ' · ')} »`);
   check(cl.toques.length === 3 && cl.toques.some(([n, m, moi]) => n === 'Paulo' && m === 'argent' && moi) && cl.toques.some(([n, m]) => n === 'Mamie Jo' && m === 'or') && cl.toques.some(([n, m]) => n === 'Tonton Brioche' && m === 'bronze'), 'la toque à côté des pseudos : la sienne (celle qu’il porte), celle du podium de la semaine passée pour les autres : ' + cl.toques.map(([n, m]) => `${n} (${m})`).join(', '));
   await p.screenshot({ path: out + '/04-classement-toques.png' });
 
@@ -131,9 +131,12 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
   check(gr.n === 12 && gr.ens === 'argent' && JSON.stringify(gr.equipe) === JSON.stringify({ tete: 'argent-toque', haut: 'argent-tablier', pieds: 'argent-chaussures', accessoire: 'argent-foulard' }), 'la garde-robe du jeu : les douze pièces des trois podiums (or, argent, bronze), la tenue d’argent portée d’office (ensemble complet)');
   await p.evaluate(() => { document.querySelector('#feuille [data-a="close"]').click(); window.__fournil.page('boulanger'); window.__fournil.tiroir('ouvert'); }); await sleep(500);
   const ent = await p.evaluate(() => { const b = document.querySelector('#page-boulanger [data-a="cl-recompenses"]'); if (!b) return { txt: '', h: 0 }; b.scrollIntoView({ block: 'center' }); return { txt: b.innerText, h: Math.round(b.getBoundingClientRect().height) }; }); await sleep(300);
-  check(/Mes récompenses/.test(ent.txt) && /3 coupes · toque d’argent/.test(ent.txt) && ent.h >= 48, `l’entrée « Mes récompenses » dans l’onglet Boulanger, avec la garde-robe : « ${ent.txt.replace(/\n/g, ' · ')} »`);
+  check(/Mes récompenses/.test(ent.txt) && /3 coupes · toque d’argent/.test(ent.txt) && ent.h >= 48, `l’entrée « Mes récompenses » aussi dans l’onglet Boulanger, avec la garde-robe : « ${ent.txt.replace(/\n/g, ' · ')} »`);
   await p.screenshot({ path: out + '/04b-boulanger-recompenses.png' });
-  await p.tap('#page-boulanger [data-a="cl-recompenses"]'); await sleep(400);
+  await p.evaluate(() => window.__fournil.feuilleClassement('semaine'));
+  await attendre(() => p.evaluate(() => !!document.querySelector('#feuille .cl-liste'))); await sleep(300);
+  await p.tap('#feuille [data-a="cl-recompenses"]'); await sleep(400);
+  check(await p.evaluate(() => /Retour au classement/.test((document.querySelector('#feuille [data-a="cl-retour"]') || {}).innerText || '')), 'ouverte depuis la feuille du classement, la collection y ramène : « Retour au classement »');
   const col = await p.evaluate(() => ({ cartes: [...document.querySelectorAll('.rec-carte')].map((c) => c.innerText.replace(/\s+/g, ' ').trim()), apercu: (document.querySelector('.rec-apercu') || {}).innerText || '', btn: document.querySelector('[data-a="rec-garderobe"]') ? Math.round(document.querySelector('[data-a="rec-garderobe"]').getBoundingClientRect().height) : 0, large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1 }));
   check(col.cartes.length === 3 && /^2e Coupe et tenue d’argent Semaine du/.test(col.cartes[0]) && /^1er Coupe et tenue d’or/.test(col.cartes[1]) && /^3e Coupe et tenue de bronze/.test(col.cartes[2]), 'la collection : chaque coupe et sa tenue, avec sa semaine (la plus récente d’abord) : ' + col.cartes.join(' | '));
   check(/Il porte la toque d’argent : toque d’argent, tablier d’argent, chaussures d’argent, foulard d’argent\./.test(col.apercu) && col.btn >= 44 && col.large, `« ${col.apercu} », et le bouton « Ouvrir la garde-robe »`);

@@ -132,7 +132,6 @@ body[data-tiroir="ouvert"] #coin, body[data-tiroir="ouvert"] #b-fini { opacity: 
 .ev-liste .ligne.en-cours .ev-ico { background: #FFE9EE; }
 .chrono-pill { font: 700 15px/1 var(--titre); padding: 7px 10px; border-radius: 999px; background: #FFE9EE; color: var(--fraise-sombre); font-variant-numeric: tabular-nums; }
 .note { margin: 8px 0 0; font: 700 var(--t-petit)/1.4 var(--texte-font); color: var(--texte-2); }
-.bloc > .note.intro { margin: -4px 2px 0; }
 .note.centre { text-align: center; margin-top: 4px; }
 .card.pain { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 10px; align-items: center; }
 .card.pain .icone { width: 48px; height: 48px; border-radius: 14px; background: var(--peche); display: grid; place-items: center; }
@@ -445,7 +444,7 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 .cl-val { font: 700 15px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
 .cl-val small { display: block; margin-top: 3px; font: 700 11px/1 var(--texte-font); color: #6E5448; } /* la fortune, en petit : pour information */
 /* ses points de la semaine, en tête de la feuille du classement */
-.pts-bloc { margin: 14px 0 0; padding: 12px 14px; border-radius: var(--r-carte); background: var(--carte); box-shadow: var(--ombre-carte); }
+.pts-bloc { margin: 0 0 14px; padding: 12px 14px; border-radius: var(--r-carte); background: var(--carte); box-shadow: var(--ombre-carte); }
 .pts-tete { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
 .pts-tete small { display: block; font-size: 12px; color: #6E5448; }
 .pts-tete b { font: 700 24px/1.1 var(--titre); font-variant-numeric: tabular-nums; }
@@ -502,6 +501,7 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 .cl-toque { flex: 0 0 auto; display: inline-grid; width: 22px; height: 22px; place-items: center; }
 .cl-toque svg { width: 22px; height: 22px; }
 .rec-entree { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; min-height: 60px; margin: 0; padding: 8px 10px 8px 12px; border-radius: var(--r-carte); text-align: left; background: var(--carte); box-shadow: var(--ombre-carte), inset 0 0 0 2px #FFE6A0; }
+.cl .rec-entree { margin: 0 0 12px; } /* en tête de la feuille du classement */
 .rec-entree:active { background: var(--creme); }
 .rec-entree b { display: block; font: 700 16px/1.15 var(--titre); }
 .rec-entree small { display: block; margin-top: 2px; font-size: 12.5px; color: #6E5448; }
