@@ -441,9 +441,24 @@ const UI = (() => {
   const QUAND_SAISON = { galette: 'en janvier', crepe: 'début février', paques: 'en avril', glace: 'cet été', citrouille: 'à la mi-octobre', buche: 'en décembre' };
   // Journal : le fil des nouvelles (les dernières en tête, les pas encore lues marquées), puis la vie du quartier : recettes de saison, habitués
   const ilYA = (ms) => { const s = Math.max(0, (HORLOGE.maintenant() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
+  // l'arrière-salle (src/arriere.js) : une fois la petite porte du fond trouvée, une carte discrète, tout en bas du Journal, y ramène
+  const AR = typeof ARRIERE !== 'undefined' ? ARRIERE : null;
+  const arriereTrouvee = () => !!(AR && st.arriere && st.arriere.trouvee);
+  const cleArriere = () => (arriereTrouvee() ? (st.arriere.main && !st.arriere.main.fin ? 'ar-main' : 'ar') : '');
+  const carteArriere = () => (arriereTrouvee() ? `<button type="button" class="card arriere-carte" data-arriere="1"><span class="pic">${ICONS.UI.arriere}</span><span class="t"><b>L’arrière-salle</b><small>${st.arriere.main && !st.arriere.main.fin ? 'Une main t’attend sur le tapis vert.' : 'La petite porte du fond est restée entrouverte.'}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>` : '');
+  // la porte : cinq touches de suite en moins de 3 s l'ouvrent (toute autre touche dans la boutique remet le compte à zéro)
+  let toquees = [];
+  function toquer(x, y) {
+    const t = performance.now(); toquees = toquees.filter((k) => t - k <= 3000); toquees.push(t);
+    son.tap(); buzz(5); const r = $('#scene').getBoundingClientRect(); flottant(r.left + x - 12, r.top + y - 26, toquees.length >= 5 ? 'toc toc !' : 'toc');
+    if (toquees.length < 5 || !AR) return;
+    toquees = []; const premiere = !arriereTrouvee();
+    if (premiere) { st.arriere = st.arriere || {}; st.arriere.trouvee = true; }
+    setTimeout(() => { AR.ouvrir(); if (premiere) { lastPage = ''; renderPage(true); } }, 260);
+  }
   let vuAvantJournal = 0; // le dernier passage avant celui-ci : ce qui est arrivé depuis est « nouveau »
   const pageJournal = {
-    key: () => `${(st.carnetEv || []).length}|${(st.carnetEv || []).length ? st.carnetEv[st.carnetEv.length - 1].t : 0}|${JSON.stringify(st.habitues)}|${JSON.stringify(st.collection)}|${st.saison ? st.saison.id + st.saison.niv : ''}|${Math.floor(HORLOGE.maintenant() / 60e3)}`,
+    key: () => `${cleArriere()}|${(st.carnetEv || []).length}|${(st.carnetEv || []).length ? st.carnetEv[st.carnetEv.length - 1].t : 0}|${JSON.stringify(st.habitues)}|${JSON.stringify(st.collection)}|${st.saison ? st.saison.id + st.saison.niv : ''}|${Math.floor(HORLOGE.maintenant() / 60e3)}`,
     html: () => {
       const fil = (st.carnetEv || []).slice().reverse(), neuves = fil.filter((e) => e.t > vuAvantJournal).length;
       return `${PAGE_HEAD('journal', 'Journal', neuves ? `<span class="serie fraise">${neuves} nouvelle${neuves > 1 ? 's' : ''}</span>` : '')}
@@ -458,9 +473,10 @@ const UI = (() => {
         <div class="card"><div class="c-tete"><span class="pic peche">${ICONS.UI.habitues}</span><h3>Les habitués</h3></div>
           ${G.HABITUES.map((h) => { const e = (st.habitues || {})[h.id]; return `<div class="ligne habitue"><span class="pastille-hab" style="background:${h.haut}"></span><div class="t"><span><b>${esc(h.nom)}</b><small>Passe entre ${h.debut}h et ${Math.floor(h.fin)}h${h.fin % 1 ? '30' : ''} · ${e && e.jours ? `fidèle depuis ${e.jours} jour${e.jours > 1 ? 's' : ''}` : 'première visite à venir'}</small></span></div></div>`; }).join('')}
           <p class="note">Sers un habitué cinq jours de suite : il t’offre un cadeau.</p></div>
+        ${carteArriere()}
       </div>`;
     },
-    bind: () => {},
+    bind: (sec) => { onIn(sec, '[data-arriere]', () => { son.tap(); if (AR) AR.ouvrir(); }); },
   };
   // Réglages : rangés par groupe ; ce qui sert peu vit ici (repeindre, masquer l'événement, quitter le classement, sauvegarde, partage)
   const pageReglages = {
@@ -543,7 +559,7 @@ const UI = (() => {
   // la fête de la scène 3D : pendant une partie de l'Atelier, la scène est en pause sous l'écran de jeu ; la fête attend qu'on en sorte
   // (les toasts, eux, passent au-dessus de l'Atelier)
   let feteEnAttente = false;
-  function feter() { if (MINIJEUX.ouvert) feteEnAttente = true; else SCENE.fete(); }
+  function feter() { if (MINIJEUX.ouvert || (AR && AR.ouvert)) feteEnAttente = true; else SCENE.fete(); }
   function reussite(txt) { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(txt); renderCards(true); hud(); save(); }
   function renderEvenement() {
     const ev = st.ev, box = $('#evenement');
@@ -598,7 +614,7 @@ const UI = (() => {
   }
   function indices() {
     const el = $('#indice');
-    if (st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert || (EVT && EVT.ouvert)) { el.hidden = true; return; }
+    if (st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert || (EVT && EVT.ouvert) || (AR && AR.ouvert)) { el.hidden = true; return; }
     const h = INDICES[st.tuto];
     if (h.ou === 'pages' && (pageActive !== 'boutique' || tiroir.pos === 'ferme')) { el.hidden = true; return; }
     if (h.fini()) { st.tuto++; hintUntil = performance.now() + 8000; save(); el.hidden = true; return; }
@@ -1024,7 +1040,7 @@ const UI = (() => {
   function frame(now) {
     if (retourEnCours) { lastFrame = now; requestAnimationFrame(frame); return; } // l'absence n'est pas encore comptée : rien ne bouge
     const dt = Math.min(0.25, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
-    const planque = !!(EVT && EVT.ouvert), atelier = MINIJEUX.ouvert || planque; // pendant l'Atelier ou la Planque : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran de jeu
+    const planque = !!(EVT && EVT.ouvert), atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert); // pendant l'Atelier ou la Planque : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran de jeu
     if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); }
     const out = G.tick(st, dt, HORLOGE.maintenant(), atelier ? () => 0.999 : undefined);
     if (out.ventes.length) {
@@ -1045,7 +1061,7 @@ const UI = (() => {
     const nv = G.niveau(st);
     if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); feter(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
     renderCards(); hud(); renderObjectifs(); renderEvenement(); renderPage();
-    if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant()); // l'écran de l'Atelier couvre la boutique : la 3D attend
+    if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant()); // l'écran de l'Atelier (ou de l'arrière-salle) couvre la boutique : la 3D attend
     if (planque) EVT.frame(dt, HORLOGE.maintenant()); // la Planque de l'événement vit tant qu'elle est ouverte (fermée, elle rattrape une absence)
     renderBoosts();
     indices();
@@ -1106,6 +1122,9 @@ const UI = (() => {
     MINIJEUX.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), fete: () => SCENE.fete(),
       ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); save(); renderPage(true); } });
+    if (AR) AR.init({ st: () => st, son, buzz, audio, save,
+      ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); renderCards(true); hud(); lastPage = ''; renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
+      apres: () => { hud(); } });
     document.querySelectorAll('.modes button').forEach((b) => { b.classList.toggle('actif', String(st.mode) === b.dataset.mode); b.addEventListener('click', () => { st.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; document.querySelectorAll('.modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCards(true); save(); }); });
     $('#cartes').addEventListener('click', onCardClick);
     $('#b-ameliorations').addEventListener('click', () => { audio(); sheetAmeliorations(); });
@@ -1119,10 +1138,12 @@ const UI = (() => {
       audio();
       const r = $('#scene').getBoundingClientRect();
       const sx = e.clientX - r.left, sy = e.clientY - r.top;
+      const porte = !SCENE.amenager && SCENE.hitArriere && SCENE.hitArriere(sx, sy); if (!porte) toquees = []; // la petite porte du fond : cinq touches de suite
       if (SCENE.hit(sx, sy)) { const tip = G.encaisserPourboire(st); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
       else if (SCENE.hitChat && SCENE.hitChat(sx, sy)) caresserChat(); // le chat dort dans la zone du boulanger : il passe avant
       else if (classement && SCENE.hitTrophees && SCENE.hitTrophees(sx, sy)) { son.tap(); sheetRecompenses(); } // la vitrine des trophées, la coupe du comptoir
       else if (SCENE.hitBoulanger(sx, sy)) showPage('boulanger');
+      else if (porte) toquer(sx, sy);
       else { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) sheetMeuble(id); else SCENE.tap(); }
     });
     // au retour dans le jeu : une heure sûre fraîche (2,5 s au plus) avant de compter l'absence ; le jeu attend, sans rien sauver entre-temps
@@ -1143,7 +1164,7 @@ const UI = (() => {
     absencePrete = true;
     HORLOGE.surSaut(payerSaut);
     if (EVT) { setTimeout(() => { if ($('#feuille').hidden) EVT.annoncer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVT.annoncer(); } }, 1500); } }, 800); } // l'annonce du Quartier (ou son bilan) attend que la feuille du retour soit refermée
-    if (EVT) setInterval(() => { majCoinQuartier(); if (!EVT.ouvert && !MINIJEUX.ouvert && !document.hidden && $('#feuille').hidden) EVT.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
+    if (EVT) setInterval(() => { majCoinQuartier(); if (!EVT.ouvert && !MINIJEUX.ouvert && !(AR && AR.ouvert) && !document.hidden && $('#feuille').hidden) EVT.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), maintenant: () => HORLOGE.maintenant() }) : null; } catch (e) { classement = null; }
@@ -1156,7 +1177,8 @@ const UI = (() => {
     window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
-      quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin };
+      quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin,
+      arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false), fermerArriere: () => { if (AR) AR.fermer(); }, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

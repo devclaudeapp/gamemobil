@@ -118,6 +118,9 @@ const ICONS = (() => {
     amenager: U(`<rect x="3.5" y="4" width="13" height="6.5" rx="2.2" fill="${A.beurre}"/><path d="M16.5 7.2h3v5.3H12v3"/><rect x="10.5" y="15.5" width="3" height="5" rx="1"/>`),
     // l'Atelier : un fouet de pâtissier, le manche en accent
     atelier: U(`<path d="M12 14.5c-3.3 0-4.8-3.6-4.8-6.5S9.2 3 12 3s4.8 2.1 4.8 5-1.5 6.5-4.8 6.5z"/><path d="M12 14.5c-1.4 0-2.1-3.6-2.1-6.5S10.8 3 12 3"/><path d="M12 3c1.2 0 2.1 2.1 2.1 5s-.7 6.5-2.1 6.5"/><rect x="10.3" y="14.5" width="3.4" height="6.5" rx="1.7" fill="${A.fraise}"/>`),
+    // l'arrière-salle : la petite porte cintrée du fond (l'accent : le vert du tapis de jeu), et deux cartes pour le tableau des gains
+    arriere: U(`<path d="M6 20.5V9.5a6 6 0 0112 0v11z" fill="${A.menthe}"/><path d="M3.5 20.5h17"/><path d="M9.5 20.5V11a2.5 2.5 0 015 0v9.5"/><path d="M15.8 15.2v.1"/>`),
+    cartes: U(`<rect x="3.6" y="6" width="9.5" height="13.5" rx="2" transform="rotate(-12 8.35 12.75)"/><rect x="10.9" y="4.5" width="9.5" height="13.5" rx="2" fill="${A.fraise}"/><path d="M15.65 14.2s-2.5-1.5-2.5-3.1c0-.8.6-1.5 1.4-1.5.5 0 .9.3 1.1.7.2-.4.6-.7 1.1-.7.8 0 1.4.7 1.4 1.5 0 1.6-2.5 3.1-2.5 3.1z" fill="${L}" stroke-width="1"/>`),
     // le classement : un podium, la plus haute marche en accent ; le nuage barré quand le réseau manque
     podium: U(`<path d="M9 9.5h6V20H9z" fill="${A.beurre}"/><path d="M3.5 13.5H9V20H3.5zM15 15.5h5.5V20H15z"/><path d="M12 3.2l.9 1.8 2 .3-1.4 1.4.3 2-1.8-.9-1.8.9.3-2-1.4-1.4 2-.3z"/>`),
     horsLigne: U(`<path d="M7 18.5a4.2 4.2 0 01-.7-8.4 6 6 0 0111.6-.6 4.5 4.5 0 01-.4 9z" fill="${A.ciel}"/><path d="M4 4l16 16"/>`),

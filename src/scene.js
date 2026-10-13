@@ -382,6 +382,9 @@ const SCENE = (() => {
     const v = groupes.trophees, cp = groupes.coupe; // la vitrine : au moins 44 × 44 ; la coupe, juste elle (elle touche le tablier du boulanger)
     return dans(v ? auMoins(rectDe(v, 3), 44, 44) : null, x, y) || dans(cp ? rectDe(cp, 1) : null, x, y);
   }
+  // la petite porte de l'arrière-boutique (src/meubles.js, porteArriere) : son rectangle au mur (un point du mur tombe à son pixel), au moins 44 × 44
+  function zoneArriere() { if (!webgl || !LAY || !LAY.arriere) return null; const a = LAY.arriere; return auMoins({ x: a.x - 4, y: a.y - 3, w: a.w + 8, h: LAY.murH - a.y + 6 }, 44, 44); }
+  function hitArriere(x, y) { return dans(zoneArriere(), x, y); }
   function hitMeuble(x, y) { const z = zones(); for (const id of ['caisse', 'deco', 'four', 'froid', 'vitrine', 'tables']) if (dans(z[id], x, y)) return id; return null; }
 
   // ─── le calque 2D : textes, vapeurs, étiquettes, bulle de talent, étincelles du mystère, pastilles, Aménager, confettis ───
@@ -443,12 +446,12 @@ const SCENE = (() => {
     }
   }
 
-  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitChat, hitTrophees, recompenses, decosQuartier, ronron, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
+  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitArriere, zoneArriere, hitChat, hitTrophees, recompenses, decosQuartier, ronron, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
     vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
     get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0 }; }, // ce que la boutique montre (pour les tests)
-    get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG) }; }, // le budget d'appels de dessin (pour les tests)
+    get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG), salle: n(salle) }; }, // le budget d'appels de dessin (pour les tests)
     get amenager() { return amenager; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
     get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length, geometries: renderer ? renderer.info.memory.geometries : 0, textures: renderer ? renderer.info.memory.textures : 0 }; } };
   return API;
