@@ -1,0 +1,138 @@
+# Récupère des packs 3D CC0 de Kenney (Furniture Kit, Food Kit, et en option Mini Market / Restaurant Bits) sur les machines de GitHub,
+# qui ont Internet, puis commite leurs modèles GLB (+ textures + licence) dans fournil/modeles-kenney/<pack>/ sur la branche rendu-assets.
+# Essai de rendu du Fournil : le jeu ne charge rien d'ici ; on y choisit les modèles utiles, copiés à la main sur la branche rendu-essai.
+# Sources, dans l'ordre : kenney.nl (lien direct dans la page), itch.io (kenney-assets, 0 €), OpenGameArt. Les commits faits avec GITHUB_TOKEN ne relancent pas de workflow.
+name: Rendu (packs Kenney)
+on:
+  push:
+    branches: [rendu-assets]
+    paths:
+      - '.github/workflows/rendu-assets.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: rendu-assets
+  cancel-in-progress: false
+jobs:
+  packs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Télécharger, décompresser et copier les packs
+        run: |
+          mkdir -p /tmp/packs
+          python3 - <<'PY'
+          import http.cookiejar, json, os, re, shutil, struct, sys, urllib.parse, urllib.request, zipfile, hashlib, datetime
+          UA = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36'
+          PACKS = [('furniture-kit', True), ('food-kit', True), ('mini-market', False), ('restaurant-bits', False)]
+          OUT = 'fournil/modeles-kenney'
+          os.makedirs(OUT, exist_ok=True)
+          def opener():
+              return urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
+          def get(op, url, data=None, ref=None, xhr=False):
+              h = {'User-Agent': UA}
+              if ref: h['Referer'] = ref
+              if xhr: h['X-Requested-With'] = 'XMLHttpRequest'
+              r = urllib.request.Request(url, data=urllib.parse.urlencode(data).encode() if data is not None else None, headers=h)
+              return op.open(r, timeout=90).read()
+          def zip_ok(p):
+              try:
+                  with zipfile.ZipFile(p) as z: return z.testzip() is None
+              except Exception as e: return False
+          def kenney(slug, dest):
+              op = opener(); page = 'https://kenney.nl/assets/' + slug
+              html = get(op, page).decode('utf-8', 'replace')
+              liens = sorted(set(re.findall(r'(?:https?://[^"\' <>]*|/media/[^"\' <>]*)\.zip', html)))
+              print('  kenney.nl liens .zip :', liens)
+              liens = [l for l in liens if slug.split('-')[0] in l.lower()] or liens
+              if not liens: return None
+              u = liens[0]; u = 'https://kenney.nl' + u if u.startswith('/') else u
+              open(dest, 'wb').write(get(op, u, ref=page))
+              return u if zip_ok(dest) else None
+          def itch(slug, dest):
+              op = opener(); base = 'https://kenney-assets.itch.io/' + slug
+              html = get(op, base).decode('utf-8', 'replace')
+              csrf = re.search(r'name="csrf_token"\s+value="([^"]+)"', html).group(1)
+              dl = json.loads(get(op, base + '/download_url', {'csrf_token': csrf}, ref=base, xhr=True))['url']
+              key = dl.rstrip('/').split('/')[-1]
+              pg = get(op, dl, ref=base).decode('utf-8', 'replace')
+              ups = re.findall(r'data-upload_id="(\d+)"', pg); noms = re.findall(r'class="name"[^>]*title="([^"]+)"', pg)
+              print('  itch.io fichiers :', list(zip(ups, noms)))
+              for up, nom in zip(ups, noms or [''] * len(ups)):
+                  if nom and not nom.lower().endswith('.zip'): continue
+                  u = json.loads(get(op, base + '/file/' + up + '?source=game_download&key=' + key, {'csrf_token': csrf}, ref=base, xhr=True))['url']
+                  open(dest, 'wb').write(get(op, u))
+                  if zip_ok(dest): return base + ' (' + nom + ')'
+              return None
+          def oga(slug, dest):
+              op = opener()
+              for p in ['https://opengameart.org/content/' + slug, 'https://opengameart.org/art-search?keys=' + slug.replace('-', '+') + '+kenney']:
+                  html = get(op, p).decode('utf-8', 'replace')
+                  zs = sorted(set(re.findall(r'https?://opengameart\.org/sites/default/files/[^"\' <>]*\.zip', html)))
+                  print('  OGA', p, zs)
+                  zs = [z for z in zs if slug.split('-')[0] in z.lower()]
+                  if zs:
+                      open(dest, 'wb').write(get(op, zs[0]))
+                      if zip_ok(dest): return zs[0]
+              return None
+          bilan = []
+          for slug, requis in PACKS:
+              print('::group::' + slug)
+              dest = '/tmp/packs/' + slug + '.zip'; source = None
+              for f in (kenney, itch, oga):
+                  try:
+                      source = f(slug, dest)
+                  except Exception as e:
+                      print('  ', f.__name__, 'échec :', repr(e)[:300]); source = None
+                  if source: break
+              if not source:
+                  print('::warning::' + slug + ' introuvable'); bilan.append((slug, None, requis)); print('::endgroup::'); continue
+              sha = hashlib.sha256(open(dest, 'rb').read()).hexdigest()
+              print('  SOURCE', source, os.path.getsize(dest), 'octets sha256', sha)
+              X = '/tmp/packs/' + slug; shutil.rmtree(X, ignore_errors=True)
+              with zipfile.ZipFile(dest) as z: z.extractall(X)
+              tous = sorted(os.path.join(d, f) for d, _, fs in os.walk(X) for f in fs)
+              print('  fichiers du pack :', len(tous))
+              for t in tous: print('   %9d  %s' % (os.path.getsize(t), os.path.relpath(t, X)))
+              glbs = [g for g in tous if g.lower().endswith('.glb')]
+              pref = [g for g in glbs if 'glb' in os.path.basename(os.path.dirname(g)).lower()]
+              glbs = pref or glbs
+              O = os.path.join(OUT, slug); shutil.rmtree(O, ignore_errors=True); os.makedirs(O)
+              copies = set()
+              for g in glbs:
+                  shutil.copy2(g, os.path.join(O, os.path.basename(g)))
+                  b = open(g, 'rb').read(); n = struct.unpack('<I', b[12:16])[0]; j = json.loads(b[20:20 + n])
+                  for im in j.get('images', []):
+                      uri = im.get('uri')
+                      if not uri or uri.startswith('data:') or uri in copies: continue
+                      src = os.path.join(os.path.dirname(g), uri)
+                      if not os.path.exists(src):
+                          c = [t for t in tous if os.path.basename(t) == os.path.basename(uri)]; src = c[0] if c else None
+                      if src:
+                          os.makedirs(os.path.dirname(os.path.join(O, uri)) or O, exist_ok=True); shutil.copy2(src, os.path.join(O, uri)); copies.add(uri)
+                      else: print('::warning::texture manquante', uri, os.path.basename(g))
+              lic = [t for t in tous if os.path.basename(t).lower() in ('license.txt', 'licence.txt')]
+              if lic: shutil.copy2(lic[0], os.path.join(O, 'License.txt'))
+              prev = [t for t in tous if os.path.basename(t).lower() in ('preview.png', 'sample.png')]
+              if prev and os.path.getsize(prev[0]) < 800_000: shutil.copy2(prev[0], os.path.join(O, 'Preview.png'))
+              with open(os.path.join(O, 'SOURCE.txt'), 'w') as fh:
+                  fh.write('Pack : %s (Kenney, https://kenney.nl/assets/%s)\nLicence : CC0 1.0 (voir License.txt)\nRécupéré le %s depuis : %s\nZip : sha256 %s\nGLB copiés : %d\n' % (slug, slug, datetime.date.today(), source, sha, len(glbs)))
+              print('  copiés :', len(glbs), 'GLB,', len(copies), 'textures')
+              bilan.append((slug, source, requis))
+              print('::endgroup::')
+          print('BILAN'); [print(' ', s, '->', src) for s, src, _ in bilan]
+          if not any(src for s, src, req in bilan if req): sys.exit('aucun pack requis récupéré')
+          PY
+          echo "--- $(find fournil/modeles-kenney -type f | wc -l) fichiers"; du -sh fournil/modeles-kenney/* || true
+          for f in fournil/modeles-kenney/*/License.txt; do echo "== $f"; cat "$f"; done
+      - name: Commiter sur la branche rendu-assets
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add fournil/modeles-kenney
+          if git diff --cached --quiet; then echo "Rien de neuf."; exit 0; fi
+          git commit -m "Le Fournil (essai de rendu) : packs Kenney CC0 dans fournil/modeles-kenney"
+          git pull --rebase origin rendu-assets
+          git push origin HEAD:rendu-assets
