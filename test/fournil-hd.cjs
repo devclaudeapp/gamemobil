@@ -82,6 +82,14 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 200) {
   await page.evaluate(() => document.querySelector('[data-a="hd"]').click()); await sleep(300);
   check(await page.evaluate(() => HDM.coupe()), 'et un autre la coupe à la main');
   await page.evaluate(() => { document.querySelector('[data-a="hd"]').click(); window.__fournil.page('boutique'); }); await sleep(300);
+  console.log('── la Planque préchargée en arrière-plan (déjà entré une fois) ──');
+  demandes.length = 0; await page.reload(); await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 });
+  await page.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); });
+  check(await attendre(() => page.evaluate(() => HDM.pret('planque')), 20000), 'quelques secondes après le lancement, les modèles de la Planque sont déjà là (sans l’ouvrir)');
+  check(demandes.some((d) => /persos\//.test(d)), `préchargés en arrière-plan (${demandes.filter((d) => /persos\//.test(d)).length} personnages)`);
+  const t1 = Date.now(); await page.evaluate(() => window.__fournil.quartier());
+  check(await attendre(() => page.evaluate(() => { const s = window.__fournil.evenement.scene; return s && s.hd.actif; }), 3000), `la Planque s'ouvre directement en HD (${Date.now() - t1} ms)`);
+  await page.evaluate(() => document.querySelector('[data-pq="fermer"]').click()); await sleep(300);
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
   await ctx.close();
 

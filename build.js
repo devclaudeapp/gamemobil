@@ -8,14 +8,14 @@
 const fs = require('fs'), path = require('path');
 const read = (f) => fs.readFileSync(path.join(__dirname, 'src', f), 'utf8');
 const css = read('style.css'), body = read('page.html');
-const js = ['game.js', 'blackjack.js', 'horloge.js', 'classement.js', 'icons.js', 'vie.js', 'modeles.js', 'kenney.js', 'meubles.js', 'persos.js', 'hd.js', 'scene.js', 'atelier.js', 'arriere.js', 'garderobe.js', 'quartier.js', 'evenement.js', 'ui.js'].map((f) => `/* ── ${f} ── */\n${read(f)}`).join('\n');
+const js = ['game.js', 'blackjack.js', 'horloge.js', 'classement.js', 'icons.js', 'vie.js', 'modeles.js', 'kenney.js', 'meubles.js', 'persos.js', 'hd.js', 'scene.js', 'atelier.js', 'arriere.js', 'garderobe.js', 'quartier.js', 'evenement.js', 'zzfx.js', 'sons.js', 'ui.js'].map((f) => `/* ── ${f} ── */\n${read(f)}`).join('\n');
 const three = fs.readFileSync(path.join(__dirname, 'vendor', 'three.min.js'), 'utf8'); // Three.js r158 (UMD), vendu dans le dépôt
 const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@600;700&family=Nunito:wght@700;800&display=swap">`;
 const headInner = `<title>Le Fournil</title>\n${fonts}\n<style>\n${css}</style>`;
 const script = `<script>\n${js}\n</script>`;
-const bodyInner = `${body}\n<script>window.FOURNIL_ACCUEIL = '../';</script>\n<script src="../vendor/three.min.js"></script>\n<script src="../vendor/fournil-hd.min.js"></script>\n<script src="config.js"></script>\n${script}`; // la page : Three.js en fichier séparé, mis en cache par le service worker ; un lien vers l'écran d'accueil ; la configuration du classement
+const bodyInner = `${body}\n<script>window.FOURNIL_ACCUEIL = '../';</script>\n<script src="../vendor/three.min.js"></script>\n<script src="../vendor/fournil-hd.min.js"></script>\n<script src="../vendor/confetti.min.js"></script>\n<script src="config.js"></script>\n${script}`; // la page : Three.js en fichier séparé, mis en cache par le service worker ; un lien vers l'écran d'accueil ; la configuration du classement
 const artifact = `${headInner}\n${body}\n<script>\n${three}\n</script>\n${script}`; // l'artefact : fragment autonome, Three.js inline
 const full = `<!doctype html>
 <html lang="fr">

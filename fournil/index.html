@@ -1102,6 +1102,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
+<script src="../vendor/confetti.min.js"></script>
 <script src="config.js"></script>
 <script>
 /* ── game.js ── */
@@ -5552,6 +5553,7 @@ const SCENE = (() => {
     vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
+    precharger(lot) { if (typeof HDM === 'undefined' || !webgl || !HDM.permis(renderer)) return false; HDM.charger(lot); return true; }, // en arrière-plan, si le palier le permet
     alleger() { if (RICHE.post) { RICHE.post.liberer(); RICHE.post = null; } }, // un écran plein (la Planque) couvre la boutique : la passe d'effets rend sa mémoire, recréée au retour
     get decorHD() { return hdDecor ? hdDecor.children.length : 0; }, // les décors HD posés (pour les tests)
     get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0 }; }, // ce que la boutique montre (pour les tests)
@@ -6112,7 +6114,7 @@ const ARRIERE = (() => {
 
   // ─── la donne, animée : les cartes partent du sabot une à une ; la carte cachée se retourne ; le croupier tire ───
   function poserCarte(zone, c, cachee, anime) {
-    const e = carteEl(c, cachee); zone.appendChild(e); serrer(zone);
+    const e = carteEl(c, cachee); zone.appendChild(e); serrer(zone); if (anime && d.son.carte) d.son.carte(); // le glissé de la carte
     if (anime && !reduceMotion) {
       const sab = table.querySelector('.ar-sabot').getBoundingClientRect(), r = e.getBoundingClientRect();
       e.style.setProperty('--dx', `${Math.round(sab.left + sab.width / 2 - (r.left + r.width / 2))}px`); e.style.setProperty('--dy', `${Math.round(sab.top + sab.height / 2 - (r.top + r.height / 2))}px`);
@@ -6169,7 +6171,7 @@ const ARRIERE = (() => {
     const net = h.net, ligneNet = net > 0 ? `+${eur(net)}` : net < 0 ? `−${eur(-net)}` : 'Rien de perdu';
     resultatEl.className = 'ar-resultat ' + cls; resultatEl.dataset.resultat = h.resultat;
     resultatEl.innerHTML = `<span class="haut"><b>${B.MOTS[h.resultat]}</b><i class="${net > 0 ? 'plus' : net < 0 ? 'moins' : ''}">${ligneNet}</i></span><span class="ar-detail">${esc(DETAIL[h.resultat](j, c))}</span>`;
-    resultatEl.hidden = false;
+    resultatEl.hidden = false; if (d.confettis && (h.resultat === 'blackjack' || (g && net > 0))) d.confettis(h.resultat === 'blackjack' ? 1.4 : 0.5); // un BlackJack : la pluie ; une main gagnée : un peu
     if (!fete) return;
     if (h.resultat === 'blackjack') { d.son.deblocage(); d.buzz([20, 40, 20, 40, 30]); }
     else if (g) { d.son.vente(h.gain); d.buzz([10, 30, 10]); }
@@ -6865,9 +6867,9 @@ const EVENEMENT = (() => {
     if (f.fini) { const b = qq.billets; Q.tick(qq, dt, t); d.toast('La Planque ferme ses portes !'); qq.lastSeen = t; montrerBilan(); return; }
     const out = Q.tick(qq, dt, t);
     if (out.ventes.length) { const gros = out.ventes.reduce((a, v) => a + v.montant, 0); if (Math.random() < 0.2 || out.ventes.some((v) => Q.PRODUITS[v.i].temps >= 12)) { d.son.vente(gros); if (scene3) scene3.vente(gros); } }
-    if (out.nouvelEv) { d.son.evenement(); d.buzz([15, 40, 15]); d.toast(TXT_EV[out.nouvelEv.type]); }
+    if (out.nouvelEv) { if (out.nouvelEv.type === 'descente' && d.son.sirene) d.son.sirene(); else d.son.evenement(); d.buzz([15, 40, 15]); d.toast(TXT_EV[out.nouvelEv.type]); }
     if (out.finEv) { d.toast(out.finEv.type === 'descente' ? `La police embarque ${fmt(out.fin.saisi || 0)} de billets…` : FIN_EV[out.finEv.type]); if (out.finEv.type === 'descente') d.son.non(); }
-    for (const p of out.paliers) donnerPalier(p);
+    for (const p of out.paliers) if (donnerPalier(p) && d.confettis) d.confettis(1); // un palier atteint : confettis
     montrerSheetsEnAttente();
     hud(); renderCartes(); renderEv();
     if (!scene3 && essais3 > 0 && essais3 < 6 && performance.now() - tEssai3 > 1000) creer3(true); // le contexte avait été refusé : on réessaie
@@ -7169,6 +7171,177 @@ const EVENEMENT = (() => {
   return { init, ouvrir, fermer, annoncer, frame, retour, visible, masquer, majeur, synchroniserRecompenses, donnerPalier, sheetPaliers, get ouvert() { return ouvert(); }, get ecran() { return ecran; }, get scene() { return scene3; } };
 })();
 
+/* ── zzfx.js ── */
+/* ZzFX 1.4.0 (MIT, © 2019 Frank Force, https://github.com/KilledByAPixel/ZzFX) : seulement la fabrique d'échantillons (buildSamples), le Fournil
+   les joue sur son propre AudioContext (la version complète en crée un dès le chargement, ce qu'on évite sur iPhone). */
+const ZZFX = {
+  sampleRate: 44100,
+    buildSamples: function
+    (
+        volume = 1, 
+        randomness = .05,
+        frequency = 220,
+        attack = 0,
+        sustain = 0,
+        release = .1,
+        shape = 0,
+        shapeCurve = 1,
+        slide = 0, 
+        deltaSlide = 0, 
+        pitchJump = 0, 
+        pitchJumpTime = 0, 
+        repeatTime = 0, 
+        noise = 0,
+        modulation = 0,
+        bitCrush = 0,
+        delay = 0,
+        sustainVolume = 1,
+        decay = 0,
+        tremolo = 0,
+        filter = 0
+    )
+    {
+        // init parameters
+        let sampleRate = this.sampleRate,
+            PI2 = Math.PI*2, 
+            abs = Math.abs, 
+            sign = v => v<0?-1:1, 
+            startSlide = slide *= 500 * PI2 / sampleRate / sampleRate,
+            startFrequency = frequency *= 
+                (1 + randomness*2*Math.random() - randomness) * PI2 / sampleRate,
+            modOffset = 0, // modulation offset  
+            repeat = 0,    // repeat offset
+            crush = 0,     // bit crush offset
+            jump = 1,      // pitch jump timer
+            length,        // sample length
+            b,             // sample buffer
+            t = 0,         // sample time
+            i = 0,         // sample index 
+            s = 0,         // sample value
+        f,             // wave frequency
+
+        // biquad LP/HP filter
+        quality = 2, w = PI2 * abs(filter) * 2 / sampleRate,
+        cos = Math.cos(w), alpha = Math.sin(w) / 2 / quality,
+        a0 = 1 + alpha, a1 = -2*cos / a0, a2 = (1 - alpha) / a0,
+        b0 = (1 + sign(filter) * cos) / 2 / a0, 
+        b1 = -(sign(filter) + cos) / a0, b2 = b0,
+        x2 = 0, x1 = 0, y2 = 0, y1 = 0;
+
+        // scale by sample rate
+        const minAttack = 9; // prevent pop if attack is 0
+        attack = attack * sampleRate || minAttack;
+        decay *= sampleRate;
+        sustain *= sampleRate;
+        release *= sampleRate;
+        delay *= sampleRate;
+        deltaSlide *= 500 * PI2 / sampleRate**3;
+        modulation *= PI2 / sampleRate;
+        pitchJump *= PI2 / sampleRate;
+        pitchJumpTime *= sampleRate;
+        repeatTime = repeatTime * sampleRate | 0;
+
+        // allocate the full sample buffer up front, much faster than growing an array
+        length = attack + decay + sustain + release + delay | 0;
+        b = new Float32Array(length > 0 ? length : 0);
+
+        // generate waveform
+        for(; i < length; b[i++] = s * volume)                 // sample
+        {
+            if (!(++crush%(bitCrush*100|0)))                   // bit crush
+            {
+                s = shape? shape>1? shape>2? shape>3? shape>4? // wave shape
+                    (t/PI2%1 < shapeCurve/2? 1 : -1) :         // 5 square duty
+                    Math.sin(t**3) :                           // 4 noise
+                    Math.max(Math.min(Math.tan(t),1),-1):      // 3 tan
+                    1-(2*t/PI2%2+2)%2:                         // 2 saw
+                    1-4*abs(Math.round(t/PI2)-t/PI2):          // 1 triangle
+                    Math.sin(t);                               // 0 sin
+
+                s = (repeatTime ?
+                        1 - tremolo + tremolo*Math.sin(PI2*i/repeatTime) // tremolo
+                        : 1) *
+                    (shape>4?s:sign(s)*abs(s)**shapeCurve) * // shape curve
+                    (i < attack ? i/attack :                 // attack
+                    i < attack + decay ?                     // decay
+                    1-((i-attack)/decay)*(1-sustainVolume) : // decay falloff
+                    i < attack  + decay + sustain ?          // sustain
+                    sustainVolume :                          // sustain volume
+                    i < length - delay ?                     // release
+                    (length - i - delay)/release *           // release falloff
+                    sustainVolume :                          // release volume
+                    0);                                      // post release
+
+                s = delay ? s/2 + (delay > i ? 0 :           // delay
+                    (i<length-delay? 1 : (length-i)/delay) * // release delay 
+                    b[i-delay|0]/2/volume) : s;              // sample delay
+
+                if (filter)                                  // apply filter
+                    s = y1 = b2*x2 + b1*(x2=x1) + b0*(x1=s) - a2*y2 - a1*(y2=y1);
+            }
+
+            f = (frequency += slide += deltaSlide) *// frequency
+                Math.cos(modulation*modOffset++);   // modulation
+            t += f + f*noise*(i*i*PI2%2-1);         // noise
+
+            if (jump && ++jump > pitchJumpTime)     // pitch jump
+            { 
+                frequency += pitchJump;             // apply pitch jump
+                startFrequency += pitchJump;        // also apply to start
+                jump = 0;                           // stop pitch jump time
+            } 
+
+            if (repeatTime && !(++repeat % repeatTime)) // repeat
+            { 
+                frequency = startFrequency;   // reset frequency
+                slide = startSlide;           // reset slide
+                jump ||= 1;                   // reset pitch jump time
+            }
+        }
+
+        return b; // return sample buffer
+    },
+};
+if (typeof module !== 'undefined') module.exports = ZZFX;
+
+/* ── sons.js ── */
+/* LE FOURNIL — les sons : de vrais bruitages (kits de Kenney, MIT : fournil/sons/*.mp3, mono, quelques Ko chacun) joués sur l'AudioContext
+   du jeu, et deux sons fabriqués par ZzFX (l'alerte d'un coup de pouce, la sirène de la descente). Les fichiers se chargent après le premier
+   geste (quand l'audio est débloqué) ; tant qu'un son n'est pas prêt, ou dans l'artefact (pas de fichiers à côté), ui.js garde ses bips. */
+const SONS = (() => {
+  const FICHIERS = ['clic', 'piece', 'pose', 'pose2', 'fanfare', 'carte', 'pop', 'refus'];
+  // ZzFX : volume, aléa, fréquence, attaque, tenue, relâche, forme, courbe, glissé, glissé², saut, temps du saut, répétition, bruit, modulation…
+  const ZZ = {
+    alerte: [1, 0, 880, 0.01, 0.08, 0.1, 1, 1, 0, 0, 300, 0.06],
+    sirene: [1, 0, 620, 0.05, 0.9, 0.25, 0, 1, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0.9],
+  };
+  const buffers = {}, cacheZz = {}; let ctx = null, demande = false;
+  function brancher(actx) { // appelé par ui.js quand l'audio est créé ou repris
+    ctx = actx || ctx;
+    if (demande || !ctx || typeof fetch === 'undefined' || typeof window === 'undefined' || window.FOURNIL_ACCUEIL == null) return; // l'artefact n'a pas les fichiers
+    demande = true;
+    for (const n of FICHIERS) {
+      fetch(`sons/${n}.mp3`).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
+        .then((b) => new Promise((ok, ko) => ctx.decodeAudioData(b, ok, ko))) // la forme à rappels : les vieux Safari n'ont pas la promesse
+        .then((buf) => { buffers[n] = buf; }).catch(() => { /* ce son restera un bip */ });
+    }
+  }
+  function lancer(buf, vol, vitesse, delai) {
+    const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buf; s.playbackRate.value = vitesse || 1; g.gain.value = vol;
+    s.connect(g); g.connect(ctx.destination); s.start(ctx.currentTime + (delai || 0)); return true;
+  }
+  const pret = () => !!ctx && ctx.state === 'running';
+  function jouer(n, o = {}) { const b = buffers[n]; if (!b || !pret()) return false; return lancer(b, o.vol == null ? 0.5 : o.vol, o.vitesse, o.delai); }
+  function zz(nom, o = {}) {
+    if (!pret() || typeof ZZFX === 'undefined' || !ZZ[nom]) return false;
+    let b = cacheZz[nom];
+    if (!b) { const data = ZZFX.buildSamples(...ZZ[nom]); b = cacheZz[nom] = ctx.createBuffer(1, data.length, ZZFX.sampleRate); b.getChannelData(0).set(data); }
+    return lancer(b, o.vol == null ? 0.25 : o.vol, o.vitesse, o.delai);
+  }
+  return { brancher, jouer, zz, FICHIERS, get prets() { return Object.keys(buffers); } };
+})();
+if (typeof module !== 'undefined') module.exports = SONS;
+
 /* ── ui.js ── */
 /* LE FOURNIL — interface : barre d'onglets (Boutique, Défis, Boulanger, Journal, Réglages), cartes compactes, ticket des objectifs,
    bannière d'événement sur la scène, cloche, badges, feuilles, classement en ligne, sons, sauvegarde, boucle. */
@@ -7234,26 +7407,36 @@ const UI = (() => {
     } catch (e) { return null; }
   }
 
-  // ─── sons (Web Audio, sans fichier) ───
+  // ─── sons : de vrais bruitages (src/sons.js) dès qu'ils sont chargés, sinon des bips (Web Audio, sans fichier) ───
   let actx = null;
-  function audio() { if (actx) { if (actx.state === 'suspended') actx.resume().catch(() => {}); return; } const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; try { actx = new AC(); } catch (e) { actx = null; } }
+  function audio() { if (actx) { if (actx.state === 'suspended') actx.resume().catch(() => {}); return; } const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; try { actx = new AC(); } catch (e) { actx = null; } if (actx && typeof SONS !== 'undefined') SONS.brancher(actx); }
   function beep(freq, dur, type, vol, delay) {
     if (!actx || !st.son || actx.state !== 'running') return;
     const t0 = actx.currentTime + (delay || 0), o = actx.createOscillator(), g = actx.createGain();
     o.type = type || 'sine'; o.frequency.value = freq; g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(vol || 0.08, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     o.connect(g); g.connect(actx.destination); o.start(t0); o.stop(t0 + dur + 0.02);
   }
+  const sf = (n, o) => !!st.son && typeof SONS !== 'undefined' && SONS.jouer(n, o); // un vrai bruitage, s'il est prêt
+  const zf = (n, o) => !!st.son && typeof SONS !== 'undefined' && SONS.zz(n, o);
   const son = {
-    tap: () => beep(520, 0.08, 'triangle', 0.06),
-    vente: (m) => { const k = Math.min(6, Math.floor(Math.log10(Math.max(1, m)))); beep(660 + k * 80, 0.12, 'sine', 0.05); beep(990 + k * 80, 0.16, 'sine', 0.04, 0.06); },
-    achat: () => { beep(440, 0.1, 'triangle', 0.06); beep(660, 0.14, 'triangle', 0.06, 0.08); },
-    deblocage: () => { [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.18, 'triangle', 0.07, i * 0.09)); },
-    embauche: () => { [784, 988].forEach((f, i) => beep(f, 0.2, 'sine', 0.06, i * 0.12)); },
-    evenement: () => { [659, 784, 659, 988].forEach((f, i) => beep(f, 0.14, 'square', 0.035, i * 0.1)); },
-    pourboire: () => { [1047, 1319, 1568].forEach((f, i) => beep(f, 0.2, 'sine', 0.06, i * 0.07)); },
-    non: () => beep(200, 0.12, 'square', 0.03),
+    tap: () => sf('clic', { vol: 0.35 }) || beep(520, 0.08, 'triangle', 0.06),
+    vente: (m) => { const k = Math.min(6, Math.floor(Math.log10(Math.max(1, m)))); if (sf('piece', { vol: 0.28, vitesse: 1 + k * 0.06 })) return; beep(660 + k * 80, 0.12, 'sine', 0.05); beep(990 + k * 80, 0.16, 'sine', 0.04, 0.06); },
+    achat: () => { if (sf('pose', { vol: 0.45 })) return; beep(440, 0.1, 'triangle', 0.06); beep(660, 0.14, 'triangle', 0.06, 0.08); },
+    deblocage: () => { if (sf('fanfare', { vol: 0.5 })) { sf('piece', { vol: 0.22, vitesse: 1.3, delai: 0.14 }); return; } [523, 659, 784, 1047].forEach((f, i) => beep(f, 0.18, 'triangle', 0.07, i * 0.09)); },
+    embauche: () => { if (sf('pose2', { vol: 0.45 })) { sf('pop', { vol: 0.35, delai: 0.1 }); return; } [784, 988].forEach((f, i) => beep(f, 0.2, 'sine', 0.06, i * 0.12)); },
+    evenement: () => zf('alerte') || [659, 784, 659, 988].forEach((f, i) => beep(f, 0.14, 'square', 0.035, i * 0.1)),
+    sirene: () => zf('sirene', { vol: 0.18 }) || son.evenement(),
+    pourboire: () => { if (sf('piece', { vol: 0.3 })) { sf('piece', { vol: 0.28, vitesse: 1.25, delai: 0.08 }); sf('piece', { vol: 0.26, vitesse: 1.5, delai: 0.16 }); return; } [1047, 1319, 1568].forEach((f, i) => beep(f, 0.2, 'sine', 0.06, i * 0.07)); },
+    carte: () => sf('carte', { vol: 0.4, vitesse: 0.95 + Math.random() * 0.1 }) || beep(520, 0.08, 'triangle', 0.06),
+    non: () => sf('refus', { vol: 0.25 }) || beep(200, 0.12, 'square', 0.03),
     ronron: () => { beep(300, 0.25, 'sine', 0.05); beep(420, 0.28, 'sine', 0.04, 0.12); },
   };
+  // des confettis (canvas-confetti, vendor/confetti.min.js, seulement sur la page du jeu) : couleurs du Fournil, rien si l'on préfère moins de mouvement
+  function confettis(force) {
+    if (typeof confetti !== 'function') return false;
+    try { const n = Math.round(70 * (force || 1)); confetti({ particleCount: n, spread: 75, startVelocity: 38, origin: { x: 0.5, y: 0.32 }, colors: ['#FFC84A', '#FF6B8B', '#5FD3A4', '#B8A6FF', '#FFFFFF'], scalar: 0.9, ticks: 160, zIndex: 3000, disableForReducedMotion: true }); window.__confettis = (window.__confettis || 0) + 1; return true; } catch (e) { return false; }
+  }
+
   function buzz(p) { if (!st.vibre) return; try { if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return; if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* pas de vibreur */ } } // avant toute touche (un trophée au lancement), le navigateur refuse la vibration : on s'en passe
 
   // ─── cartes des produits (compactes : niveau sur l'icône, barre fine, deux boutons de 44 px) ───
@@ -7317,7 +7500,7 @@ const UI = (() => {
       if (a === 'debloquer' || a === 'ameliorer') {
         const r = G.acheter(st, i);
         if (!r.ok) { son.non(); toast(`Il manque ${G.fmtEur(r.prix - st.coins)}`); return; }
-        if (a === 'debloquer') { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`${G.PRODUITS[i].nom} : nouvelle recette !`); } else { son.achat(); buzz(8); }
+        if (a === 'debloquer') { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); confettis(1); toast(`${G.PRODUITS[i].nom} : nouvelle recette !`); } else { son.achat(); buzz(8); }
         renderCards(true); hud(); save(); return;
       }
       if (a === 'embaucher') {
@@ -7341,7 +7524,7 @@ const UI = (() => {
     if (btn) {
       const res = G.preparerSaison(st);
       if (!res.ok) { son.non(); if (res.prix) toast(`Il manque ${G.fmtEur(res.prix - st.coins)}`); return; }
-      if (res.niv === 1) { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`${r.nom} : au menu jusqu’au ${r.fin[1]} ${MOIS[r.fin[0] - 1]} ! Touche la carte pour en cuire.`); } else { son.achat(); buzz(8); }
+      if (res.niv === 1) { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); confettis(0.8); toast(`${r.nom} : au menu jusqu’au ${r.fin[1]} ${MOIS[r.fin[0] - 1]} ! Touche la carte pour en cuire.`); } else { son.achat(); buzz(8); }
       renderCards(true); hud(); save(); return;
     }
     if (G.lancerSaison(st)) { son.tap(); buzz(6); SCENE.tap(); renderCards(); }
@@ -7732,8 +7915,8 @@ const UI = (() => {
   // la fête de la scène 3D : pendant une partie de l'Atelier, la scène est en pause sous l'écran de jeu ; la fête attend qu'on en sorte
   // (les toasts, eux, passent au-dessus de l'Atelier)
   let feteEnAttente = false;
-  function feter() { if (MINIJEUX.ouvert || (AR && AR.ouvert)) feteEnAttente = true; else SCENE.fete(); }
-  function reussite(txt) { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(txt); renderCards(true); hud(); save(); }
+  function feter() { if (MINIJEUX.ouvert || (AR && AR.ouvert)) feteEnAttente = true; else { SCENE.fete(); confettis(0.8); } }
+  function reussite(txt) { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); confettis(1); toast(txt); renderCards(true); hud(); save(); }
   function renderEvenement() {
     const ev = st.ev, box = $('#evenement');
     if (!ev) { if (lastEv) { lastEv = ''; box.hidden = true; box.innerHTML = ''; SCENE.setRush(false); } return; }
@@ -7840,7 +8023,7 @@ const UI = (() => {
   function acheterMeuble(id, apres) {
     const r = G.ameliorerMeuble(st, id);
     if (!r.ok) { son.non(); toast(r.m && r.cran >= r.m.max ? 'Ce meuble est déjà au maximum.' : `Il manque ${G.fmtEur(r.prix - st.coins)}`); return; }
-    son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(`${r.m.nom} : ${r.m.desc(r.cran)}`); renderCards(true); hud(); save(); if (apres) apres();
+    son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); confettis(0.5); toast(`${r.m.nom} : ${r.m.desc(r.cran)}`); renderCards(true); hud(); save(); if (apres) apres();
   }
   // la fiche d'un meuble, ouverte en le touchant dans la boutique
   function sheetMeuble(id) {
@@ -7943,7 +8126,7 @@ const UI = (() => {
       openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les bonus achetés sont perdus.</p>
         <button type="button" class="btn large beurre" data-a="oui"><b>Ouvrir la boutique n°${st.boutiques + 1}</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Rester ici</b></button>`);
       on('[data-a="non"]', sheetEtoiles);
-      on('[data-a="oui"]', () => { const r = G.nouvelleBoutique(st, HORLOGE.maintenant()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★`); st.tuto = Math.max(st.tuto, INDICES.length); amenager(false); renderCards(true); hud(); save(); showPage('boutique'); sheetNom(true); } });
+      on('[data-a="oui"]', () => { const r = G.nouvelleBoutique(st, HORLOGE.maintenant()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); confettis(1.6); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★`); st.tuto = Math.max(st.tuto, INDICES.length); amenager(false); renderCards(true); hud(); save(); showPage('boutique'); sheetNom(true); } });
     });
   }
   function sheetRetour(abs) {
@@ -8113,7 +8296,7 @@ const UI = (() => {
     vueCl = 'annonce';
     classement.annonceFaite(a.semaine); // annoncée une fois : la tenue de ce podium se porte d'office
     let touche = true; try { touche = !navigator.userActivation || navigator.userActivation.hasBeenActive; } catch (e) { /* rien */ }
-    son.deblocage(); if (touche) buzz([20, 40, 20, 40, 30]); SCENE.fete(); // au lancement, avant toute touche, le navigateur refuse la vibration : on s'en passe
+    son.deblocage(); if (touche) buzz([20, 40, 20, 40, 30]); SCENE.fete(); confettis(1.2); // au lancement, avant toute touche, le navigateur refuse la vibration : on s'en passe
     const fin = () => { annonceOuverte = false; };
     on('[data-a="rec-voir"]', () => { son.tap(); fin(); closeSheet(); if (pageActive !== 'boutique') showPage('boutique'); tiroir.aller('ferme'); });
     on('[data-a="rec-collection"]', () => { son.tap(); fin(); sheetRecompenses(); });
@@ -8288,7 +8471,7 @@ const UI = (() => {
     $('#b-quartier').addEventListener('click', () => { audio(); son.tap(); if (EVT) EVT.ouvrir(); });
     $('#boosts').addEventListener('click', () => { audio(); son.tap(); lancerBoost(); });
     // l'événement « Le Quartier » : la Planque, ses paliers et leurs récompenses, l'annonce, le bilan (src/evenement.js)
-    if (EVT) EVT.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), sure: () => { try { const e = HORLOGE.etat(); return e ? e.sure : null; } catch (e) { return null; } }, save, toast, fete: () => SCENE.fete(), openSheet, closeSheet, on, recompenses: recVue,
+    if (EVT) EVT.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), sure: () => { try { const e = HORLOGE.etat(); return e ? e.sure : null; } catch (e) { return null; } }, save, toast, fete: () => SCENE.fete(), openSheet, closeSheet, on, recompenses: recVue, confettis,
       classement: () => sheetClassement('quartier'), rangQuartier: () => { try { if (!classement || !classement.disponible() || !periodes().some(([id]) => id === 'quartier')) return null; const r = classement.resume(); return r.rejoint && r.quartier ? r.quartier.rang : 0; } catch (e) { return null; } },
       ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); majCoin(); renderCards(true); hud(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); lastPage = ''; renderPage(true); } });
@@ -8296,7 +8479,7 @@ const UI = (() => {
     MINIJEUX.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), fete: () => SCENE.fete(),
       ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); save(); renderPage(true); } });
-    if (AR) AR.init({ st: () => st, son, buzz, audio, save,
+    if (AR) AR.init({ st: () => st, son, buzz, audio, save, confettis,
       ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); renderCards(true); hud(); lastPage = ''; renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { hud(); } });
     document.querySelectorAll('.modes button').forEach((b) => { b.classList.toggle('actif', String(st.mode) === b.dataset.mode); b.addEventListener('click', () => { st.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; document.querySelectorAll('.modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCards(true); save(); }); });
@@ -8338,6 +8521,8 @@ const UI = (() => {
     absencePrete = true;
     HORLOGE.surSaut(payerSaut);
     if (EVT) { setTimeout(() => { if ($('#feuille').hidden) EVT.annoncer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVT.annoncer(); } }, 1500); } }, 800); } // l'annonce du Quartier (ou son bilan) attend que la feuille du retour soit refermée
+    // la Planque se prépare en arrière-plan (5 s après le lancement) pour qui y est déjà entré : elle s'ouvrira directement en HD
+    if (EVT) setTimeout(() => { try { if (EVT.visible() && st.quartier && st.quartier.majeur && SCENE.precharger) SCENE.precharger('planque'); } catch (e) { /* rien */ } }, 5000);
     if (EVT) setInterval(() => { majCoinQuartier(); if (!EVT.ouvert && !MINIJEUX.ouvert && !(AR && AR.ouvert) && !document.hidden && $('#feuille').hidden) EVT.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
@@ -8348,7 +8533,7 @@ const UI = (() => {
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
+    window.__fournil = { get st() { return st; }, G, SCENE, save, son, confettis, audio, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
       quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin,

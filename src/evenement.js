@@ -155,9 +155,9 @@ const EVENEMENT = (() => {
     if (f.fini) { const b = qq.billets; Q.tick(qq, dt, t); d.toast('La Planque ferme ses portes !'); qq.lastSeen = t; montrerBilan(); return; }
     const out = Q.tick(qq, dt, t);
     if (out.ventes.length) { const gros = out.ventes.reduce((a, v) => a + v.montant, 0); if (Math.random() < 0.2 || out.ventes.some((v) => Q.PRODUITS[v.i].temps >= 12)) { d.son.vente(gros); if (scene3) scene3.vente(gros); } }
-    if (out.nouvelEv) { d.son.evenement(); d.buzz([15, 40, 15]); d.toast(TXT_EV[out.nouvelEv.type]); }
+    if (out.nouvelEv) { if (out.nouvelEv.type === 'descente' && d.son.sirene) d.son.sirene(); else d.son.evenement(); d.buzz([15, 40, 15]); d.toast(TXT_EV[out.nouvelEv.type]); }
     if (out.finEv) { d.toast(out.finEv.type === 'descente' ? `La police embarque ${fmt(out.fin.saisi || 0)} de billets…` : FIN_EV[out.finEv.type]); if (out.finEv.type === 'descente') d.son.non(); }
-    for (const p of out.paliers) donnerPalier(p);
+    for (const p of out.paliers) if (donnerPalier(p) && d.confettis) d.confettis(1); // un palier atteint : confettis
     montrerSheetsEnAttente();
     hud(); renderCartes(); renderEv();
     if (!scene3 && essais3 > 0 && essais3 < 6 && performance.now() - tEssai3 > 1000) creer3(true); // le contexte avait été refusé : on réessaie

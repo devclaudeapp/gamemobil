@@ -159,7 +159,7 @@ const ARRIERE = (() => {
 
   // ─── la donne, animée : les cartes partent du sabot une à une ; la carte cachée se retourne ; le croupier tire ───
   function poserCarte(zone, c, cachee, anime) {
-    const e = carteEl(c, cachee); zone.appendChild(e); serrer(zone);
+    const e = carteEl(c, cachee); zone.appendChild(e); serrer(zone); if (anime && d.son.carte) d.son.carte(); // le glissé de la carte
     if (anime && !reduceMotion) {
       const sab = table.querySelector('.ar-sabot').getBoundingClientRect(), r = e.getBoundingClientRect();
       e.style.setProperty('--dx', `${Math.round(sab.left + sab.width / 2 - (r.left + r.width / 2))}px`); e.style.setProperty('--dy', `${Math.round(sab.top + sab.height / 2 - (r.top + r.height / 2))}px`);
@@ -216,7 +216,7 @@ const ARRIERE = (() => {
     const net = h.net, ligneNet = net > 0 ? `+${eur(net)}` : net < 0 ? `−${eur(-net)}` : 'Rien de perdu';
     resultatEl.className = 'ar-resultat ' + cls; resultatEl.dataset.resultat = h.resultat;
     resultatEl.innerHTML = `<span class="haut"><b>${B.MOTS[h.resultat]}</b><i class="${net > 0 ? 'plus' : net < 0 ? 'moins' : ''}">${ligneNet}</i></span><span class="ar-detail">${esc(DETAIL[h.resultat](j, c))}</span>`;
-    resultatEl.hidden = false;
+    resultatEl.hidden = false; if (d.confettis && (h.resultat === 'blackjack' || (g && net > 0))) d.confettis(h.resultat === 'blackjack' ? 1.4 : 0.5); // un BlackJack : la pluie ; une main gagnée : un peu
     if (!fete) return;
     if (h.resultat === 'blackjack') { d.son.deblocage(); d.buzz([20, 40, 20, 40, 30]); }
     else if (g) { d.son.vente(h.gain); d.buzz([10, 30, 10]); }
