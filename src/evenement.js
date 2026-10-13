@@ -321,7 +321,7 @@ const EVENEMENT = (() => {
     const rose = new THREE.PointLight('#FF6B8B', 90, 600, 1), vert = new THREE.PointLight('#5FD3A4', 60, 500, 1); scene.add(rose, vert);
     const G3 = new THREE.Group(); scene.add(G3);
     const animes = [], persos = [], lum = (hex, k) => new THREE.MeshLambertMaterial({ color: hex, emissive: hex, emissiveIntensity: k == null ? 1 : k });
-    let W = 1, H = 1, murH = 1, t = 0, fete = 0, fetes = [], hdVu = 0, hdFx = null, rue = null;
+    let W = 1, H = 1, murH = 1, t = 0, fete = 0, fetes = [], hdVu = 0, hdFx = null, rue = null, verifs = 0, tVerif = 0, noirs = 0;
     const wz = (ys) => (ys - murH) / SY, wy = (px) => px / CY, wd = (px) => px / SY;
     function batir() {
       while (G3.children.length) { const o = G3.children[0]; G3.remove(o); M.dispose(o); }
@@ -359,6 +359,8 @@ const EVENEMENT = (() => {
         const tb = pose('table_low', tx, tz, tw * 1.05); if (tb) tb.scale.y = th / tb.userData.taille.y;
         pose('lamp_standing', lx, lz, 26 * K); pose('cactus_medium_A', W * 0.05, wz(murH + 10 * K), 22 * K); pose('cactus_small_A', W * 0.66, wz(murH + 8 * K), 14 * K);
         pose('pictureframe_medium', W * 0.22, wz(murH) + 2, 40 * K, { y: Hm * 0.55, ombre: false }); pose('armchair_pillows', W * 0.88, wz(murH + 70 * K), 44 * K, { ry: -Math.PI / 2 });
+        const h1 = halo('#FF6B8B', 64 * K, 0.4); h1.position.set(W * 0.5, Hm * 0.62, 6); G3.add(h1); const h2 = halo('#5FD3A4', 46 * K, 0.35); h2.position.set(W * 0.5, Hm * 0.62, 5); G3.add(h2);
+        const h3 = halo('#FFE27A', 56 * K, 0.5); h3.position.set(lx, 52, lz + 4); G3.add(h3); verifs = 0; noirs = 0;
         // la fenêtre sur la rue, de nuit : une petite scène City Builder rendue dans une texture, posée dans un cadre au mur
         if (!rue) rue = creerRue(); const fw = 84 * K, fh = Hm * 0.36, fx = W * 0.74, fy = Hm * 0.58;
         G3.add(M.mesh(M.plan(fw, fh), new THREE.MeshBasicMaterial({ map: rue.texture }), { x: fx, y: fy, z: 2.2 }, { ombre: false }));
@@ -393,6 +395,18 @@ const EVENEMENT = (() => {
       }
     }
     const oAnim = { marche: false, phase: 0, assis: false, dir: 0, sac: false, or: false, pris: false, attend: true, plateau: false, produit: null, cle: false, t: 0, blink: 0, expression: 'neutre' };
+    const _px = new Uint8Array(4);
+    function ecranNoir() { // cinq points de l'image : tout noir alors que le fond de la Planque est violet = la HD ne s'affiche pas
+      if (window.__hdNoir) return true; const gl = renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight; let somme = 0;
+      for (const [u, v] of [[0.5, 0.5], [0.2, 0.3], [0.8, 0.3], [0.3, 0.75], [0.7, 0.75]]) { gl.readPixels(Math.floor(u * w), Math.floor(v * h), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, _px); somme += _px[0] + _px[1] + _px[2]; }
+      return somme < 15;
+    }
+    function halo(couleur, taille, force = 1) { // un halo doux (sprite additif) : la lueur des néons et du lampadaire, sans passe d'effets
+      const c = document.createElement('canvas'); c.width = c.height = 64; const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+      g.addColorStop(0, couleur); g.addColorStop(0.35, couleur + '88'); g.addColorStop(1, couleur + '00'); x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+      const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: force })); sp.scale.set(taille, taille, 1); return sp;
+    }
     function creerRue() { // la rue de nuit derrière la fenêtre : deux façades, un lampadaire allumé, une bouche d'incendie, une voiture qui passe
       const sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(38, 1.6, 0.1, 60), rt = new THREE.WebGLRenderTarget(320, 200);
       rt.texture.colorSpace = THREE.SRGBColorSpace; rt.texture.userData.partagee = true; sc.background = new THREE.Color('#1A1630'); sc.fog = new THREE.Fog('#1A1630', 9, 22);
@@ -403,11 +417,11 @@ const EVENEMENT = (() => {
       pose('streetlight', 1.4, 1.1, 3, -Math.PI / 2); pose('firehydrant', -0.9, 1.2, 0.5); pose('trash_A', 3.1, 0.9, 0.7); pose('dumpster', -3.4, 0.6, 1.1);
       const sol = new THREE.Mesh(new THREE.PlaneGeometry(40, 20), new THREE.MeshStandardMaterial({ color: '#2B2838', roughness: 0.9 })); sol.rotation.x = -Math.PI / 2; sc.add(sol);
       const trottoir = new THREE.Mesh(new THREE.BoxGeometry(40, 0.15, 2.6), new THREE.MeshStandardMaterial({ color: '#4A4658' })); trottoir.position.set(0, 0.07, 0.4); sc.add(trottoir);
-      const halo = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), new THREE.MeshBasicMaterial({ color: '#FFE0A0' })); halo.position.copy(lampe.position); sc.add(halo);
+      const ampoule = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), new THREE.MeshBasicMaterial({ color: '#FFE0A0' })); ampoule.position.copy(lampe.position); sc.add(ampoule); const lueur = halo('#FFD28A', 2.2); lueur.position.copy(lampe.position); sc.add(lueur);
       const voiture = pose('car_sedan', -8, 2.6, 0.9, Math.PI / 2);
       cam.position.set(0, 1.5, 6.2); cam.lookAt(0, 1.4, 0);
       let tv = 0;
-      return { texture: rt.texture, frame(dt) { tv += dt; if (voiture) { voiture.position.x = ((tv * 2.2) % 22) - 11; } halo.material.color.setScalar(0.9 + 0.1 * Math.sin(tv * 9)); renderer.setRenderTarget(rt); renderer.render(sc, cam); renderer.setRenderTarget(null); },
+      return { texture: rt.texture, frame(dt) { tv += dt; if (voiture) { voiture.position.x = ((tv * 2.2) % 22) - 11; } ampoule.material.color.setScalar(0.9 + 0.1 * Math.sin(tv * 9)); renderer.setRenderTarget(rt); renderer.render(sc, cam); renderer.setRenderTarget(null); },
         liberer() { rt.dispose(); sc.traverse((o) => { if (o.isMesh && o.geometry) o.geometry.dispose(); }); } };
     }
     function redim() {
@@ -427,13 +441,14 @@ const EVENEMENT = (() => {
       if (rue && hdVu) rue.frame(dt);
       for (const p of persos) { if (p.hd) { HDM.jouer(p.hd, fete > 0 && !p.assis ? 'Cheer' : p.assis ? 'Sit_Chair_Idle' : (persos.indexOf(p) % 2 ? 'Interact' : 'Idle')); p.hd.mixer.update(dt); continue; } oAnim.phase = t * 2 + p.phase; oAnim.assis = p.assis; oAnim.dir = p.dir; oAnim.t = t; oAnim.blink = (t + p.phase) % 3.4; oAnim.expression = fete > 0 ? 'sourire' : 'neutre'; oAnim.attend = !p.assis; try { PERSOS.animer(p.g, oAnim); } catch (e) { /* un personnage sans ce champ */ } }
       if (fete > 0) fete -= dt;
-      if (hdVu && !sansEffets) { if (!hdFx || hdFx.W !== W || hdFx.H !== H) { if (hdFx) hdFx.liberer(); hdFx = HDM.effets(renderer, scene, camera, W, H, Math.min(1.5, window.devicePixelRatio || 1), { ao: false, halo: 1.5, seuil: 0.4 }); hdFx.W = W; hdFx.H = H; } try { hdFx.rendre(dt); } catch (e) { console.warn('Planque : effets coupés', e); sansEffets = true; hdFx.liberer(); hdFx = null; renderer.render(scene, camera); } }
-      else { if (hdFx) { hdFx.liberer(); hdFx = null; } renderer.render(scene, camera); }
+      renderer.render(scene, camera);
+      if (hdVu && verifs < 8) { tVerif += dt; if (tVerif > 0.4) { tVerif = 0; verifs++; noirs = ecranNoir() ? noirs + 1 : 0; // la HD s'affiche-t-elle vraiment ? (lu juste après le rendu)
+        if (noirs >= 3) { console.warn('Planque : écran noir en HD, retour au décor classique sur ce téléphone'); HDM.couper('écran noir'); batir(); } } }
     }
     redim();
     return {
       get perdu() { return perdu; },
-      get hd() { return { actif: hdVu > 0, persos: persos.filter((p) => p.hd).length, rue: !!rue, effets: !!hdFx }; }, // les modèles HD (pour les tests)
+      get hd() { return { actif: hdVu > 0, persos: persos.filter((p) => p.hd).length, rue: !!rue, verifs, noirs }; }, // les modèles HD (pour les tests)
       redim, frame: frameScene, equipe: (qq) => equipeDe(qq, Math.max(0.6, Math.min(1.1, W / 390))), vente: () => { }, fete: () => { fete = 2; },
       detruire() { try { G3.traverse((o) => { if (o.isMesh) { if (o.geometry && !o.geometry.userData.cache) o.geometry.dispose(); const ms = [].concat(o.material || []); for (const m of ms) if (m && m !== M.MAT.vertex && !M.MATS.has(m)) m.dispose(); } }); } catch (e) { /* rien */ }
         try { if (rue) rue.liberer(); if (hdFx) hdFx.liberer(); for (const p of persos) if (p.hd) HDM.liberer(p.hd); renderer.dispose(); renderer.forceContextLoss(); } catch (e) { /* rien */ } },

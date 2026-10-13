@@ -60,13 +60,28 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 200) {
   for (let k = 0; k < 3; k++) await page.evaluate(() => { const b = document.querySelector('#pq-cartes [data-a="embaucher"]'); if (b) b.click(); });
   check(await attendre(() => page.evaluate(() => { const s = window.__fournil.evenement.scene; return s && s.hd.actif; })), 'la Planque passe en HD dès que ses modèles sont là');
   const hd = await page.evaluate(() => window.__fournil.evenement.scene.hd);
-  check(hd.persos >= 1 && hd.rue && hd.effets, `meubles, rue de nuit derrière la fenêtre, passe d'effets, ${hd.persos} personnage(s) animé(s)`);
+  check(hd.persos >= 1 && hd.rue, `meubles, rue de nuit derrière la fenêtre, ${hd.persos} personnage(s) animé(s)`);
+  check(await attendre(() => page.evaluate(() => window.__fournil.evenement.scene.hd.verifs >= 3), 8000) && await page.evaluate(() => window.__fournil.evenement.scene.hd.noirs === 0 && window.__fournil.evenement.scene.hd.actif), 'le contrôle d’écran noir voit bien la Planque HD (pas de fausse alerte)');
   const poidsP = [...new Set(demandes)].reduce((s, d) => s + fs.statSync(path.join(root, d)).size, 0); check(poidsP < 2.6e6, `tout le HD téléchargé : ${(poidsP / 1e6).toFixed(2)} Mo (< 2,6 Mo)`);
   const t0 = await page.evaluate(() => { const s = window.__fournil.evenement.scene; return s ? 1 : 0; });
   await sleep(1500); await page.screenshot({ path: path.join(__dirname, 'shots', 'planque-hd.png') });
   await page.evaluate(() => document.querySelector('[data-pq="fermer"]').click()); await sleep(600);
   check(t0 === 1 && await page.evaluate(() => !window.__fournil.evenement.scene), 'la Planque refermée libère sa 3D (renderer, rue, personnages)');
   await robustesse(page, 'haute');
+
+  console.log('── un téléphone où la HD reste noire : retour au décor classique, interrupteur dans les Réglages ──');
+  await page.evaluate(() => { window.__hdNoir = true; window.__fournil.quartier(); });
+  check(await attendre(() => page.evaluate(() => HDM.coupe() && !window.__fournil.evenement.scene.hd.actif), 8000), 'écran noir détecté : la Planque repasse au décor classique d’elle-même');
+  check(await page.evaluate(() => localStorage.getItem('fournil.hd') === 'non' && window.__fournil.evenement.scene.calls > 1), 'et ce téléphone le retient (la Planque classique tourne)');
+  await page.evaluate(() => { window.__hdNoir = false; document.querySelector('[data-pq="fermer"]').click(); }); await sleep(300);
+  await page.evaluate(() => window.__fournil.page('reglages')); await sleep(400);
+  const ligneHd = await page.evaluate(() => { const b = document.querySelector('[data-a="hd"]'); return b ? b.innerText : ''; });
+  check(/Planque en HD/.test(ligneHd) && /écran restait noir/.test(ligneHd), `Réglages : « Planque en HD » dit pourquoi elle est coupée (${ligneHd.replace(/\s+/g, ' ').slice(0, 80)})`);
+  await page.evaluate(() => document.querySelector('[data-a="hd"]').click()); await sleep(300);
+  check(await page.evaluate(() => !HDM.coupe() && localStorage.getItem('fournil.hd') === null), 'un toucher la remet (réessayer)');
+  await page.evaluate(() => document.querySelector('[data-a="hd"]').click()); await sleep(300);
+  check(await page.evaluate(() => HDM.coupe()), 'et un autre la coupe à la main');
+  await page.evaluate(() => { document.querySelector('[data-a="hd"]').click(); window.__fournil.page('boutique'); }); await sleep(300);
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
   await ctx.close();
 

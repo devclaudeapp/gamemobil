@@ -494,7 +494,7 @@ const UI = (() => {
           + (st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, ''))
           + (st.chat ? ligne('chat', ICONS.UI.chat, `Renommer ${esc(st.chat.nom)}`, 'Le chat de la boutique', chev) : ''))}
         ${cr && cr.rejoint ? groupe('Classement', ligne('cl-quitter', ICONS.UI.quitter, 'Quitter le classement', `Ton pseudo « ${esc(cr.pseudo)} » et tes points disparaissent du classement`, chev)) : ''}
-        ${QT && QT.fenetre(st.now).ouvert ? groupe('Événement', ligne('quartier', ICONS.UI.quartier, 'Masquer l’événement', 'Le Quartier, une parodie réservée aux adultes : l’icône et la Planque disparaissent', sw(!!(st.quartier && st.quartier.masque)))) : ''}
+        ${QT && QT.fenetre(st.now).ouvert ? groupe('Événement', ligne('quartier', ICONS.UI.quartier, 'Masquer l’événement', 'Le Quartier, une parodie réservée aux adultes : l’icône et la Planque disparaissent', sw(!!(st.quartier && st.quartier.masque))) + (typeof HDM !== 'undefined' && HDM.actif ? ligne('hd', ICONS.UI.quartier, 'Planque en HD', HDM.raison === 'écran noir' ? 'Coupée : l’écran restait noir sur ce téléphone. Touche pour réessayer' : 'Meubles, rue de nuit et équipe animée (à couper si l’écran reste noir)', sw(!HDM.coupe())) : '')) : ''}
         ${groupe('Sauvegarde et partage', ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)
           + ligne('partager', ICONS.UI.partager, 'Partager ma boutique', 'Une image de la boutique et ton score', chev)
           + (window.FOURNIL_ACCUEIL ? ligne('accueil', ICONS.UI.salle, 'Salle de jeux', 'Revenir à l’écran d’accueil et aux autres jeux', chev) : ''))}
@@ -510,6 +510,7 @@ const UI = (() => {
       onIn(sec, '[data-a="chat"]', sheetNomChat);
       onIn(sec, '[data-a="specialite"]', sheetSpecialite);
       onIn(sec, '[data-a="sauvegarde"]', sheetSauvegarde);
+      onIn(sec, '[data-a="hd"]', () => { if (typeof HDM === 'undefined') return; if (HDM.coupe()) HDM.remettre(); else HDM.couper('joueur'); son.tap(); renderPage(true); });
       onIn(sec, '[data-a="quartier"]', () => { if (!EVT) return; EVT.masquer(!(st.quartier && st.quartier.masque)); son.tap(); majCoin(); renderPage(true); });
       onIn(sec, '[data-a="partager"]', partager);
       onIn(sec, '[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(); });

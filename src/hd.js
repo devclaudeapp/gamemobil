@@ -5,7 +5,7 @@
 const HDM = (() => {
   // actif : le paquet d'outils est là et on ne l'a pas coupé (?hd=0) ; permis(renderer) : WebGL2 et pas en qualité éco (le rendu actuel reste tel quel)
   const actif = typeof window !== 'undefined' && typeof THREE !== 'undefined' && typeof FOURNIL_HD !== 'undefined' && !/[?&]hd=0/.test(location.search);
-  const API = { actif, version: 0, pret: () => false, permis: () => false, charger: () => Promise.resolve(false) };
+  const API = { actif, version: 0, pret: () => false, permis: () => false, charger: () => Promise.resolve(false), coupe: () => true, couper: () => {}, remettre: () => {} };
   if (!actif) return API;
   const X = FOURNIL_HD, L = new X.GLTFLoader(), BASE = 'hd/'; if (X.MeshoptDecoder) L.setMeshoptDecoder(X.MeshoptDecoder);
   // deux lots chargés à la demande : la boutique (quelques décors, après le premier rendu), la Planque (à sa première ouverture)
@@ -25,7 +25,12 @@ const HDM = (() => {
     return e.promesse;
   }
   const pret = (lot) => !!(etat[lot] && etat[lot].pret);
-  const permis = (renderer) => { try { return !!(renderer && renderer.capabilities.isWebGL2 && !(typeof SCENE !== 'undefined' && SCENE.stats && SCENE.stats.qualite === 'eco')); } catch (e) { return false; } };
+  // coupé sur ce téléphone : par le joueur (Réglages) ou par la Planque qui a vu un écran noir ; gardé d'une visite à l'autre
+  let coupeMem = null; const CLE = 'fournil.hd';
+  const coupe = () => { if (coupeMem === null) { try { coupeMem = localStorage.getItem(CLE) === 'non'; } catch (e) { coupeMem = false; } } return coupeMem; };
+  const couper = (raison) => { coupeMem = true; API.raison = raison || 'joueur'; try { localStorage.setItem(CLE, 'non'); } catch (e) { /* rien */ } API.version++; };
+  const remettre = () => { coupeMem = false; API.raison = ''; try { localStorage.removeItem(CLE); } catch (e) { /* rien */ } API.version++; };
+  const permis = (renderer) => { try { return !coupe() && !!(renderer && renderer.capabilities.isWebGL2 && !(typeof SCENE !== 'undefined' && SCENE.stats && SCENE.stats.qualite === 'eco')); } catch (e) { return false; } };
 
   // un meuble : cloné, à l'échelle s (unités KayKit → unités du monde), posé pied au sol, centré en x/z sur sa boîte
   function modele(nom, s, o = {}) {
@@ -87,6 +92,6 @@ const HDM = (() => {
     c.addPass(new X.EffectPass(camera, ...fx)); c.setSize(W, H);
     return { rendre: (dt) => c.render(dt), liberer: () => c.dispose(), n8 };
   }
-  return Object.assign(API, { pret, permis, charger, etat, modele, perso, jouer, liberer, effets, VARIANTES });
+  return Object.assign(API, { pret, permis, charger, etat, coupe, couper, remettre, modele, perso, jouer, liberer, effets, VARIANTES });
 })();
 if (typeof module !== 'undefined') module.exports = HDM;
