@@ -308,12 +308,12 @@ const EVENEMENT = (() => {
     const rose = new THREE.PointLight('#FF6B8B', 90, 600, 1), vert = new THREE.PointLight('#5FD3A4', 60, 500, 1); scene.add(rose, vert);
     const G3 = new THREE.Group(); scene.add(G3);
     const animes = [], persos = [], lum = (hex, k) => new THREE.MeshLambertMaterial({ color: hex, emissive: hex, emissiveIntensity: k == null ? 1 : k });
-    let W = 1, H = 1, murH = 1, t = 0, fete = 0, fetes = [];
+    let W = 1, H = 1, murH = 1, t = 0, fete = 0, fetes = [], hdVu = 0, hdFx = null;
     const wz = (ys) => (ys - murH) / SY, wy = (px) => px / CY, wd = (px) => px / SY;
     function batir() {
       while (G3.children.length) { const o = G3.children[0]; G3.remove(o); M.dispose(o); }
       animes.length = 0; persos.length = 0;
-      const Hm = wy(murH), D = wd(H - murH), K = Math.max(0.6, Math.min(1.1, W / 390));
+      const Hm = wy(murH), D = wd(H - murH), K = Math.max(0.6, Math.min(1.1, W / 390)), hd = typeof HDM !== 'undefined' && HDM.pret; hdVu = hd ? HDM.version : 0;
       // le sol (un parquet sombre), le mur du fond (brique sombre), la plinthe
       G3.add(M.mesh(M.plan(W, D), M.mat('#3A3642'), { x: W / 2, z: D / 2, rx: -Math.PI / 2 }, { ombre: false }));
       G3.add(M.mesh(bo(W, Hm, 8, 1), M.mat('#4A4458'), { x: W / 2, z: -4 }, { ombre: false }));
@@ -322,12 +322,12 @@ const EVENEMENT = (() => {
       pr.push(P(bo(W, wy(4), 3, 0.8), '#2E2B3A', { x: W / 2, z: 1.5 }));
       // le canapé rouge, à gauche : l'assise, le dossier, deux accoudoirs, deux coussins
       const cx = W * 0.22, cz = wz(murH + 26 * K), cw = 92 * K;
-      pr.push(P(bo(cw, 16, 34, 4), '#E1496C', { x: cx, y: 4, z: cz }), P(bo(cw, 30, 10, 4), '#C73C5C', { x: cx, y: 12, z: cz - 12 }), P(bo(12, 28, 34, 4), '#C73C5C', { x: cx - cw / 2 + 6, y: 4, z: cz }), P(bo(12, 28, 34, 4), '#C73C5C', { x: cx + cw / 2 - 6, y: 4, z: cz }));
-      pr.push(P(bo(26, 9, 22, 3), '#FFC84A', { x: cx - 18, y: 20, z: cz + 2 }), P(bo(26, 9, 22, 3), '#5FD3A4', { x: cx + 18, y: 20, z: cz + 2 }));
-      for (const sx of [-1, 1]) for (const sz of [-1, 1]) pr.push(P(M.cylindre(2, 2, 4, 6), '#2E2B3A', { x: cx + sx * (cw / 2 - 8), z: cz + sz * 12 }));
+      if (!hd) pr.push(P(bo(cw, 16, 34, 4), '#E1496C', { x: cx, y: 4, z: cz }), P(bo(cw, 30, 10, 4), '#C73C5C', { x: cx, y: 12, z: cz - 12 }), P(bo(12, 28, 34, 4), '#C73C5C', { x: cx - cw / 2 + 6, y: 4, z: cz }), P(bo(12, 28, 34, 4), '#C73C5C', { x: cx + cw / 2 - 6, y: 4, z: cz }));
+      if (!hd) pr.push(P(bo(26, 9, 22, 3), '#FFC84A', { x: cx - 18, y: 20, z: cz + 2 }), P(bo(26, 9, 22, 3), '#5FD3A4', { x: cx + 18, y: 20, z: cz + 2 }));
+      if (!hd) for (const sx of [-1, 1]) for (const sz of [-1, 1]) pr.push(P(M.cylindre(2, 2, 4, 6), '#2E2B3A', { x: cx + sx * (cw / 2 - 8), z: cz + sz * 12 }));
       // la table basse, au milieu : le plateau, les pieds, la balance (socle, colonne, fléau, deux plateaux), les sachets et les liasses
       const tx = W * 0.55, tz = wz(murH + 44 * K), tw = 80 * K, th = 22;
-      pr.push(P(bo(tw, 3, 40, 1), '#6B4A3A', { x: tx, y: th, z: tz })); for (const sx of [-1, 1]) for (const sz of [-1, 1]) pr.push(P(bo(3, th, 3, 0.8), '#4A3328', { x: tx + sx * (tw / 2 - 5), z: tz + sz * 16 }));
+      if (!hd) pr.push(P(bo(tw, 3, 40, 1), '#6B4A3A', { x: tx, y: th, z: tz })); if (!hd) for (const sx of [-1, 1]) for (const sz of [-1, 1]) pr.push(P(bo(3, th, 3, 0.8), '#4A3328', { x: tx + sx * (tw / 2 - 5), z: tz + sz * 16 }));
       const bx = tx - 12, by = th + 3;
       pr.push(P(M.cylindre(7, 8, 2, 12), '#B9C6D2', { x: bx, y: by, z: tz }), P(M.cylindre(1.2, 1.2, 16, 6), '#8C939E', { x: bx, y: by + 2, z: tz }), P(bo(26, 1.4, 1.4, 0.4), '#8C939E', { x: bx, y: by + 18, z: tz }));
       for (const sx of [-1, 1]) { pr.push(P(M.cylindre(0.4, 0.4, 8, 4), '#8C939E', { x: bx + sx * 12, y: by + 10, z: tz }), P(M.cylindre(5, 4.2, 1.2, 10), '#DDE6EE', { x: bx + sx * 12, y: by + 9, z: tz })); }
@@ -336,9 +336,17 @@ const EVENEMENT = (() => {
       for (let k = 0; k < 3; k++) pr.push(P(bo(12, 2.2, 6, 0.6), '#8FE3C2', { x: tx + 26, y: by + k * 2.2, z: tz - 12 }));
       // la lampe sur pied, à droite ; la télé sur son meuble, à droite du mur ; le tapis
       const lx = W * 0.9, lz = wz(murH + 16 * K);
-      pr.push(P(M.cylindre(8, 9, 2, 10), '#2E2B3A', { x: lx, z: lz }), P(M.cylindre(1.2, 1.2, 50, 6), '#2E2B3A', { x: lx, y: 2, z: lz }));
+      if (!hd) pr.push(P(M.cylindre(8, 9, 2, 10), '#2E2B3A', { x: lx, z: lz }), P(M.cylindre(1.2, 1.2, 50, 6), '#2E2B3A', { x: lx, y: 2, z: lz }));
       pr.push(P(bo(46 * K, 12, 18, 1.5), '#4A3328', { x: W * 0.82, y: 0, z: wz(murH + 10 * K) }), P(bo(40 * K, 24, 3, 1.5), '#1E1B26', { x: W * 0.82, y: 13, z: wz(murH + 6 * K) }));
-      pr.push(P(bo(W * 0.5, 0.8, 70, 0.4), '#56516B', { x: W * 0.5, z: wz(murH + 60 * K) }));
+      if (!hd) pr.push(P(bo(W * 0.5, 0.8, 70, 0.4), '#56516B', { x: W * 0.5, z: wz(murH + 60 * K) }));
+      if (hd) { // ESSAI HD : les meubles KayKit Furniture Bits à la place des blocs (même place, même taille)
+        const pose = (nom, x, z, larg, o = {}) => { const m = HDM.modele(nom, 1, o); if (!m) return null; const k = larg / Math.max(m.userData.taille.x, m.userData.taille.z); m.scale.setScalar(k); m.position.set(x, o.y || 0, z); G3.add(m); return m; };
+        pose('rug_oval_A', tx, tz + 4, tw * 1.7, { ombre: false });
+        pose('couch_pillows', cx, cz - 2, cw * 1.05);
+        const tb = pose('table_low', tx, tz, tw * 1.05); if (tb) tb.scale.y = th / tb.userData.taille.y;
+        pose('lamp_standing', lx, lz, 26 * K); pose('cactus_medium_A', W * 0.05, wz(murH + 10 * K), 22 * K); pose('cactus_small_A', W * 0.66, wz(murH + 8 * K), 14 * K);
+        pose('pictureframe_medium', W * 0.22, wz(murH) + 2, 40 * K, { y: Hm * 0.55, ombre: false }); pose('armchair_pillows', W * 0.88, wz(murH + 70 * K), 44 * K, { ry: -Math.PI / 2 });
+      }
       G3.add(M.maille(pr, { ombre: false }));
       // les néons au mur : un éclair rose et un rond menthe, un tube « OUVERT » qui grésille ; l'abat-jour et l'écran lumineux
       const nx = W * 0.5, ny = Hm * 0.62, zig = [[-0.25, 0.75], [0.1, 0.1], [-0.08, 0.1], [0.25, -0.75]].map(([u, v]) => [u * 22, v * 22]), tubes = [];
@@ -354,9 +362,13 @@ const EVENEMENT = (() => {
     }
     const tenues = [{ haut: '#2E2B3A', peau: '#C68B59', cheveux: '#2B2118', coiffure: 3, bonnet: '#2E2B3A' }, { haut: '#8A2B3A', peau: '#FFD7B5', cheveux: '#D9D9D9', coiffure: 2, lunettes: true }, { haut: '#B8A6FF', peau: '#F1B990', cheveux: '#B8762E', coiffure: 1 }, { haut: '#5FD3A4', peau: '#8D5A3C', cheveux: '#2B2118', coiffure: 0 }, { haut: '#FFC84A', peau: '#FFE3C9', cheveux: '#E0A61E', coiffure: 1, lunettes: true }, { haut: '#FF9A62', peau: '#5C3A21', cheveux: '#2B2118', coiffure: 3, bonnet: '#E1496C' }];
     function equipeDe(qq, K) {
-      for (const p of persos) { G3.remove(p.g); M.dispose(p.g); } persos.length = 0;
+      for (const p of persos) { G3.remove(p.g); if (p.hd) HDM.liberer(p.hd); else M.dispose(p.g); } persos.length = 0;
       const n = Math.min(6, 1 + qq.postes.filter((s) => s.staff).length), spots = [[0.1, 0.3, 0, false], [0.4, 0.52, 0, false], [0.72, 0.5, 2, false], [0.5, 0.95, 0, false], [0.66, 0.85, -1, false], [0.15, 0.95, 1, false]];
+      const hd = typeof HDM !== 'undefined' && HDM.pret;
       for (let k = 0; k < n; k++) {
+        if (hd) { const [ux, uy, dir] = spots[k], assis = k === 1, a = HDM.perso(HDM.VARIANTES[(k + 1) % 4], tenues[k].haut); a.g.scale.setScalar(W * 0.08 * 0.72 * (K || 1));
+          a.g.position.set(assis ? W * 0.22 + 14 : W * ux, assis ? 12 : 0, assis ? wz(murH + 22 * (K || 1)) : wz(murH + uy * 60 * (K || 1))); a.g.rotation.y = Math.PI + (assis ? 0 : { 0: 0, 1: Math.PI / 2, '-1': -Math.PI / 2, 2: Math.PI }[dir]);
+          HDM.jouer(a, assis ? 'Sit_Chair_Idle' : k % 2 ? 'Interact' : 'Idle', 0); G3.add(a.g); persos.push({ g: a.g, hd: a, assis, dir, phase: k * 1.3 }); continue; }
         const g = PERSOS.creer(Object.assign({ sac: false, taille: 1 }, tenues[k])), [ux, uy, dir, assis] = spots[k];
         g.position.set(W * ux, assis ? 14 : 0, wz(murH + uy * 60 * (K || 1))); g.rotation.y = { 0: 0, 1: Math.PI / 2, '-1': -Math.PI / 2, 2: Math.PI }[dir]; g.scale.setScalar(0.9 * (K || 1));
         G3.add(g); persos.push({ g, assis, dir, phase: k * 1.3 });
@@ -376,9 +388,11 @@ const EVENEMENT = (() => {
       redim(); t += dt;
       const E = { t };
       for (const f of animes) f(E);
-      for (const p of persos) { oAnim.phase = t * 2 + p.phase; oAnim.assis = p.assis; oAnim.dir = p.dir; oAnim.t = t; oAnim.blink = (t + p.phase) % 3.4; oAnim.expression = fete > 0 ? 'sourire' : 'neutre'; oAnim.attend = !p.assis; try { PERSOS.animer(p.g, oAnim); } catch (e) { /* un personnage sans ce champ */ } }
+      if (typeof HDM !== 'undefined' && HDM.pret && hdVu !== HDM.version) batir();
+      for (const p of persos) { if (p.hd) { HDM.jouer(p.hd, fete > 0 && !p.assis ? 'Cheer' : p.assis ? 'Sit_Chair_Idle' : (persos.indexOf(p) % 2 ? 'Interact' : 'Idle')); p.hd.mixer.update(dt); continue; } oAnim.phase = t * 2 + p.phase; oAnim.assis = p.assis; oAnim.dir = p.dir; oAnim.t = t; oAnim.blink = (t + p.phase) % 3.4; oAnim.expression = fete > 0 ? 'sourire' : 'neutre'; oAnim.attend = !p.assis; try { PERSOS.animer(p.g, oAnim); } catch (e) { /* un personnage sans ce champ */ } }
       if (fete > 0) fete -= dt;
-      renderer.render(scene, camera);
+      if (typeof HDM !== 'undefined' && HDM.pret) { if (!hdFx || hdFx.W !== W || hdFx.H !== H) { if (hdFx) hdFx.liberer(); hdFx = HDM.effets(renderer, scene, camera, W, H, Math.min(1.5, window.devicePixelRatio || 1), { rayon: W * 0.1, ao: 2, halo: 1.5, seuil: 0.4, aoCouleur: '#120A18' }); hdFx.W = W; hdFx.H = H; } hdFx.rendre(dt); }
+      else renderer.render(scene, camera);
     }
     redim();
     return {
