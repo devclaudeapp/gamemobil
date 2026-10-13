@@ -386,6 +386,33 @@ const SCENE = (() => {
   function rendreAuPool(g) { const k = g.userData.cle; if (!/^apprenti/.test(k)) { M.dispose(g); return; } const l = pool.get(k) || []; if (l.length < 1) { l.push(g); pool.set(k, l); } else M.dispose(g); } // les clients sont presque tous uniques : on les libère ; un apprenti par produit est gardé
   // ─── les décors HD (src/hd.js) : chargés après le premier rendu si le palier le permet ; la boutique garde ses personnages ───
   let hdDecor = null, hdCle = '', hdDemande = false;
+  // ─── ESSAI ?mini=1 : les Mini Characters de Kenney (animés) à la place des chibis, réglages par l'URL (?miniK=, ?miniRot=) ───
+  const MINI_ON = typeof location !== 'undefined' && /[?&]mini=1/.test(location.search), miniActeurs = new Map(); let miniVu = 0, miniDemande = false;
+  const MINI_K = (() => { const m = typeof location !== 'undefined' && /[?&]miniK=([\d.]+)/.exec(location.search); return m ? +m[1] : 65; })();
+  const MINI_ROT = (() => { const m = typeof location !== 'undefined' && /[?&]miniRot=([\d.-]+)/.exec(location.search); return m ? +m[1] : 0; })();
+  function miniTourner(a, dir, dt) { const c = (YAW[dir] || 0) + MINI_ROT; a.yaw += angleCourt(c - a.yaw) * Math.min(1, dt * 10); a.g.rotation.y = a.yaw; }
+  function synchroniserMini(E, dt) {
+    if (miniVu !== HDM.version) { miniVu = HDM.version; for (const [id, g] of acteurs) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); } }
+    const K = V.K, vus = new Set(), M12 = HDM.MINI;
+    for (const c of V.clients) {
+      let a = miniActeurs.get(c.id);
+      if (!a) { a = HDM.mini(M12[c.id % M12.length]); if (!a) continue; miniActeurs.set(c.id, a); scene.add(a.g); }
+      vus.add(c.id);
+      const assis = c.etat === 'assis', marche = c.etat === 'entre' || c.etat === 'sort' || c.etat === 'vaTable' || (c.etat === 'attend' && !!c.glisse);
+      a.g.visible = c.alpha > 0.05; a.g.scale.setScalar(K * MINI_K * (c.taille || 1));
+      a.g.position.set(c.x, assis ? 4 * K : 0, wz(c.y) - (1 - c.alpha) * 30);
+      HDM.jouer(a, assis ? 'sit' : marche ? (c.pris ? 'holding-both' : 'walk') : 'idle'); miniTourner(a, c.dir, dt); a.mixer.update(dt);
+    }
+    for (const ap of V.apprentis) {
+      const id = 'a' + ap.i; let a = miniActeurs.get(id);
+      if (!a) { a = HDM.mini(M12[(ap.i * 5 + 3) % M12.length], { toque: true }); if (!a) continue; miniActeurs.set(id, a); scene.add(a.g); }
+      vus.add(id); a.g.scale.setScalar(K * MINI_K * 0.95); a.g.position.set(ap.x, 0, wz(ap.y));
+      HDM.jouer(a, ap.etat === 'porte' ? 'holding-both' : ap.etat === 'retour' ? 'walk' : 'interact-right'); miniTourner(a, ap.etat === 'panne' ? 0 : ap.dir, dt); a.mixer.update(dt);
+    }
+    let b = miniActeurs.get('boulanger'); if (!b) { b = HDM.mini('character-male-e', { toque: true }); if (b) { miniActeurs.set('boulanger', b); scene.add(b.g); } }
+    if (b) { vus.add('boulanger'); if (boulangerG) boulangerG.visible = false; b.g.scale.setScalar(K * MINI_K * 1.05); b.g.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y)); HDM.jouer(b, E.rush ? 'emote-yes' : 'idle'); b.g.rotation.y = MINI_ROT; b.mixer.update(dt); }
+    for (const [id, a] of miniActeurs) if (!vus.has(id)) { scene.remove(a.g); HDM.liberer(a); miniActeurs.delete(id); }
+  }
   // des plantes, un cadre au mur, une lampe sur pied dans le salon, des bocaux sur le plan de travail ; en octobre, des citrouilles
   function decorHD(E) {
     if (!HDM.permis(renderer)) { if (hdDecor) { scene.remove(hdDecor); M.dispose(hdDecor); hdDecor = null; hdCle = ''; } return; } // repassé en éco : on retire
@@ -403,6 +430,7 @@ const SCENE = (() => {
     habiller(g); scene.add(g);
   }
   function synchroniser(E, dt) {
+    if (MINI_ON && typeof HDM !== 'undefined' && HDM.actif) { if (HDM.pret('mini')) { synchroniserMini(E, dt); poserChat(E, dt); return; } if (!miniDemande) { miniDemande = true; HDM.charger('mini'); } }
     vus.clear();
     for (const c of V.clients) {
       let g = acteurs.get(c.id);

@@ -13,12 +13,15 @@ const HDM = (() => {
     boutique: { meubles: ['cactus_medium_A', 'cactus_small_A', 'lamp_standing'], halloween: ['pumpkin_orange', 'pumpkin_orange_jackolantern', 'pumpkin_yellow_small'], resto: ['jar_A_large', 'jar_B_medium'] },
     planque: { meubles: ['rug_oval_A', 'cactus_medium_A', 'cactus_small_A', 'pictureframe_medium', 'lamp_standing', 'couch_pillows', 'armchair_pillows', 'table_low'], ville: ['building_D', 'building_F', 'streetlight', 'car_sedan', 'firehydrant', 'trash_A', 'dumpster'], persos: ['Rogue', 'Mage', 'Knight', 'Barbarian'] },
   };
+  const MINI = ['male-a', 'male-b', 'male-c', 'male-d', 'male-e', 'male-f', 'female-a', 'female-b', 'female-c', 'female-d', 'female-e', 'female-f'].map((n) => 'character-' + n);
+  LOTS.mini = { mini: MINI }; // ESSAI (?mini=1) : les Mini Characters de Kenney (CC0, fournil/hd/mini/), clients, apprentis et boulanger animés
   const VARIANTES = ['Rogue', 'Mage', 'Knight', 'Barbarian'], MOD = {}, PER = {}, etat = {};
   const lire = (u) => new Promise((ok, ko) => L.load(BASE + u, ok, null, ko));
   function charger(lot) {
     if (etat[lot]) return etat[lot].promesse; const e = etat[lot] = { pret: false };
     const t = []; for (const [dossier, noms] of Object.entries(LOTS[lot] || {})) for (const n of noms) {
-      if (dossier === 'persos') { if (!PER[n]) t.push(lire(`persos/${n}.glb`).then((g) => { PER[n] = g; }, () => {})); }
+      if (dossier === 'mini') { if (!PER[n]) t.push(lire(`mini/${n}.glb`).then((g) => { PER[n] = g; }, () => {})); }
+      else if (dossier === 'persos') { if (!PER[n]) t.push(lire(`persos/${n}.glb`).then((g) => { PER[n] = g; }, () => {})); }
       else if (!MOD[n]) t.push(lire(`${dossier}/${n}.glb`).then((g) => { MOD[n] = g.scene; }, () => console.warn('HD : modèle manquant', n))); // un décor manquant est simplement omis
     }
     e.promesse = Promise.all(t).then(() => { if (LOTS[lot].persos && !VARIANTES.every((v) => PER[v])) throw new Error('personnages HD manquants'); e.pret = true; API.version++; return true; }).catch((err) => { e.erreur = String(err && err.message || err); console.warn('HD : modèles non chargés, rendu habituel', e.erreur); return false; });
@@ -76,6 +79,20 @@ const HDM = (() => {
     for (const clip of src.animations) actions[clip.name] = mixer.clipAction(clip);
     const a = { g, mixer, actions, joue: null, yaw: 0 }; jouer(a, o.anim || 'Idle', 0); mixer.update(Math.random() * 3); return a;
   }
+  // un Mini Character : clone riggé (gros chibi Kenney, 0,67 unité de haut, regard vers +z), toque en option sur l'os de la tête
+  function mini(nom, o = {}) {
+    const src = PER[nom]; if (!src) return null; const g = X.SkeletonUtils.clone(src.scene);
+    g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; } });
+    if (o.toque) {
+      let tete = null; g.traverse((b) => { if (!tete && /^head$/i.test(b.name) && !b.isMesh) tete = b; });
+      if (tete) { const t = new THREE.Group(), fut = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.14, 0.16, 20), blanc); fut.position.y = 0.08; t.add(fut);
+        for (let k = 0; k < 5; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.085, 14, 10), blanc), a = k / 5 * Math.PI * 2; b.position.set(Math.cos(a) * 0.085, 0.19, Math.sin(a) * 0.085); t.add(b); }
+        t.position.y = o.toqueY || 0.3; t.traverse((m) => { if (m.isMesh) m.castShadow = true; }); tete.add(t); }
+    }
+    const mixer = new THREE.AnimationMixer(g), actions = {};
+    for (const clip of src.animations) actions[clip.name] = mixer.clipAction(clip);
+    const a = { g, mixer, actions, joue: null, yaw: 0 }; jouer(a, o.anim || 'idle', 0); mixer.update(Math.random() * 2); return a;
+  }
   function jouer(a, nom, fondu = 0.25) {
     if (a.joue === nom || !a.actions[nom]) return; const n = a.actions[nom].reset().play();
     if (a.joue && a.actions[a.joue]) a.actions[a.joue].crossFadeTo(n, fondu, false); a.joue = nom;
@@ -92,6 +109,6 @@ const HDM = (() => {
     c.addPass(new X.EffectPass(camera, ...fx)); c.setSize(W, H);
     return { rendre: (dt) => c.render(dt), liberer: () => c.dispose(), n8 };
   }
-  return Object.assign(API, { pret, permis, charger, etat, coupe, couper, remettre, modele, perso, jouer, liberer, effets, VARIANTES });
+  return Object.assign(API, { pret, permis, charger, etat, coupe, couper, remettre, mini, MINI, modele, perso, jouer, liberer, effets, VARIANTES });
 })();
 if (typeof module !== 'undefined') module.exports = HDM;
