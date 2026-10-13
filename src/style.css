@@ -580,3 +580,149 @@ h2 { margin: 0 0 4px; font: 700 26px/1.1 var(--titre); letter-spacing: -.01em; }
 /* petit écran : au résultat d'une partie, l'icône du jeu s'efface (place pour la tuile du classement, « Rejouer » et « Retour ») */
 @media (max-height: 700px) { .at-resultat .at-icone { display: none; } }
 .at-infos:has(.at-points) b { font-size: 15px; }
+
+/* ─── la garde-robe (src/garderobe.js) : la carte de l'onglet Boulanger, la feuille (emplacements, pièces, ensembles) ─── */
+.gr-cases { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 4px 0 8px; }
+.gr-case { position: relative; display: grid; justify-items: center; gap: 2px; min-height: 92px; padding: 8px 4px 8px; border-radius: 16px; background: var(--creme); text-align: center; }
+.gr-case:active { transform: translateY(2px); }
+.gr-case small { font: 700 10.5px/1.1 var(--texte-font); color: var(--texte-2); }
+.gr-case b { font: 700 11.5px/1.15 var(--titre); max-width: 100%; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.gr-ico { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 14px; background: #fff; flex: 0 0 auto; }
+.gr-ico svg { width: 36px; height: 36px; }
+.gr-ico.vide { background: var(--creme); }
+.gr-ico.vide svg { width: 26px; height: 26px; opacity: .55; }
+.gr-niv { position: absolute; top: 4px; right: 4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--beurre); color: var(--texte); font: 800 11px/18px var(--texte-font); font-style: normal; text-align: center; box-shadow: 0 0 0 2px #fff; }
+.gr-bonus { margin: 0 0 10px; font: 700 13px/1.35 var(--texte-font); color: var(--texte-2); }
+.gr-carte .btn.large { min-height: 48px; }
+.gr-carte .btn.large b { font-size: 16px; }
+.gr-tete { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; padding: 10px 12px; border-radius: 20px; background: var(--carte); box-shadow: 0 4px 12px var(--ombre); }
+.gr-portrait { flex: 0 0 auto; width: 76px; height: 76px; padding: 6px; border-radius: 24px; background: var(--peche); }
+.gr-portrait svg { width: 64px; height: 64px; }
+.gr-tete > div { min-width: 0; }
+.gr-tete b { display: block; font: 700 14px/1.25 var(--titre); }
+.gr-tete small { display: block; margin-top: 3px; font-size: 12px; line-height: 1.3; color: var(--texte-2); }
+.gr-tete .gr-solde { color: var(--beurre-sombre); }
+.gr-seg button { min-height: 44px; font-size: 14px; }
+.gr-liste { display: grid; gap: 8px; }
+.gr-piece { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; align-items: center; padding: 8px 10px 8px 8px; border-radius: 18px; background: var(--carte); box-shadow: 0 4px 12px var(--ombre); }
+.gr-piece.porte { background: #FFF3C4; box-shadow: inset 0 0 0 2.5px var(--beurre-sombre), 0 4px 12px var(--ombre); }
+.gr-piece.quartier .gr-ico, .gr-piece.quartier-or .gr-ico { background: #EFEAFF; }
+.gr-choisir { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 56px; width: 100%; text-align: left; }
+button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; min-height: 56px; width: 100%; text-align: left; }
+.gr-txt { min-width: 0; }
+.gr-txt b { display: block; font: 700 15px/1.2 var(--titre); }
+.gr-txt small { display: block; margin-top: 1px; font-size: 12px; line-height: 1.3; color: var(--texte-2); }
+.gr-txt .gr-b { color: var(--menthe-sombre); }
+.gr-txt .gr-suivant { color: var(--lavande-sombre); }
+.gr-etoiles { color: var(--beurre-sombre); letter-spacing: .5px; }
+.gr-ok { font: 700 13px/1 var(--titre); color: var(--beurre-sombre); white-space: nowrap; }
+.gr-max { font: 700 12px/1.2 var(--titre); color: var(--menthe-sombre); text-align: center; min-width: 76px; }
+.gr-ameliorer { min-width: 96px; min-height: 44px; }
+.gr-ensembles { display: grid; gap: 8px; }
+.gr-ensemble { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 8px 12px 8px 10px; border-radius: 18px; background: var(--carte); box-shadow: 0 4px 12px var(--ombre); }
+.gr-ensemble.absent { background: #FFFBF4; box-shadow: none; border: 2px dashed var(--gris-sombre); }
+.gr-ensemble.absent .gr-txt b { color: var(--texte-2); }
+.gr-ensemble.complet { background: #FFF3C4; box-shadow: inset 0 0 0 2.5px var(--beurre-sombre); }
+.gr-minis { display: grid; grid-template-columns: repeat(2, 24px); gap: 2px; }
+.gr-minis i { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 7px; background: var(--creme); }
+.gr-minis i svg { width: 20px; height: 20px; }
+.gr-minis i.manque svg { opacity: .3; filter: grayscale(1); }
+.gr-tout { min-width: 88px; min-height: 44px; }
+@media (max-width: 370px) { .gr-case b { font-size: 11px; } .gr-ameliorer { min-width: 84px; } }
+
+/* ─── l'événement « Le Quartier » : l'icône du coin, la pastille des boosts, la Planque en plein écran (sombre, néons), ses feuilles ─── */
+.rond.quartier { background: #2E2B3A; box-shadow: 0 3px 0 #1E1B26; }
+.rond.quartier .ico svg { stroke: #fff; }
+.ticket.boosts > .ico { background: #FFF3C4; }
+.ticket.boosts .tk-pill { background: var(--beurre); color: var(--texte); padding: 0 10px; }
+.ticket.boosts.actif .tk-pill { background: var(--menthe); color: #fff; font-variant-numeric: tabular-nums; }
+.ticket.boosts.actif > .ico { background: #E3F7EE; }
+#planque { position: fixed; inset: 0; z-index: 6; display: flex; flex-direction: column; background: #2E2B3A; color: #FFF7EC; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); animation: atEntre .22s ease-out; }
+#planque .at-haut { padding-bottom: 2px; }
+#planque .at-fermer { background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; }
+#planque .at-fermer svg { stroke: #fff; }
+#planque .at-titre small { color: #C7B8FF; }
+.pq-paliers-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px 0 8px; border-radius: 999px; background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; font: 700 15px/1 var(--titre); color: #fff; }
+.pq-paliers-btn .ico svg { width: 22px; height: 22px; }
+.pq-paliers-btn.pret { background: var(--beurre); color: var(--texte); box-shadow: 0 3px 0 var(--beurre-sombre); animation: pulse 1.2s ease-in-out infinite; }
+.pq-paliers-btn:active { transform: translateY(3px); box-shadow: none; }
+.pq-solde { display: flex; align-items: center; gap: 10px; padding: 2px 14px 6px; }
+.pq-solde .pq-ico { width: 36px; height: 36px; flex: 0 0 auto; }
+.pq-solde .pq-ico svg { width: 36px; height: 36px; }
+.pq-solde > div { min-width: 0; flex: 1 1 auto; }
+.pq-solde b { display: block; font: 700 clamp(22px, 6.5vw, 28px)/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pq-solde small { display: block; margin-top: 2px; font-size: 12px; color: #C7B8FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pq-solde small b { display: inline; font: 800 12px/1 var(--texte-font); color: #8FE3C2; }
+.pq-reste { flex: 0 0 auto; padding: 6px 10px; border-radius: 999px; background: #3F3A50; font: 700 12px/1.2 var(--titre); color: #FFC84A; white-space: nowrap; }
+.pq-scene { position: relative; flex: 0 0 auto; height: clamp(150px, 26vh, 230px); margin: 0 10px; border-radius: 22px; overflow: hidden; background: #3A3642; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); }
+#pq-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#pq-ev { position: absolute; left: 8px; right: 8px; bottom: 8px; z-index: 2; }
+#pq-ev .ev { min-height: 52px; }
+.ev.descente { background: linear-gradient(135deg, #2B5BD7, #6CB8FF); box-shadow: 0 8px 20px rgba(43, 91, 215, .4); }
+.ev.grosclient { background: linear-gradient(135deg, #4A3328, #8C6F62); box-shadow: 0 8px 20px rgba(0, 0, 0, .3); }
+.ev.grosclient.prete { background: linear-gradient(135deg, #5FD3A4, #8FE3C2); }
+.ev.soiree { background: linear-gradient(135deg, #9A84F0, #FF6B8B); box-shadow: 0 8px 20px rgba(154, 132, 240, .4); }
+.ev.scooter { background: linear-gradient(135deg, #E1496C, #FF9A62); box-shadow: 0 8px 20px rgba(225, 73, 108, .4); }
+.pq-barre { display: flex; align-items: center; gap: 8px; padding: 8px 12px 6px; }
+.pq-barre .modes { background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; }
+.pq-barre .modes button { color: #C7B8FF; }
+.pq-barre .modes button.actif { background: #FFC84A; color: var(--texte); }
+.pq-am { background: #E1496C; box-shadow: 0 3px 0 #B8304F; }
+#pq-corps:empty { display: none; }
+#pq-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 12px 12px; }
+#planque[data-ecran="porte"] .pq-solde, #planque[data-ecran="porte"] .pq-scene, #planque[data-ecran="porte"] .pq-barre, #planque[data-ecran="porte"] .pq-paliers-btn,
+#planque[data-ecran="bilan"] .pq-solde, #planque[data-ecran="bilan"] .pq-scene, #planque[data-ecran="bilan"] .pq-barre { display: none; }
+#planque[data-ecran="porte"] #pq-cartes, #planque[data-ecran="bilan"] #pq-cartes { display: none; }
+#pq-cartes { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; align-content: start; padding: 2px 12px 16px; }
+.carte.pq { background: #3F3A50; color: #FFF7EC; box-shadow: 0 6px 16px rgba(0, 0, 0, .3); }
+.carte.pq .icone { background: #56516B; }
+.carte.pq .palier, .carte.pq .palier span + span { color: #C7B8FF; }
+.carte.pq .palier b { color: #fff; }
+.carte.pq .palier::before, .carte.pq .barre { background: #2E2B3A; }
+.carte.pq .barre .rev { color: #FFF7EC; }
+.carte.pq .barre .tps { color: #C7B8FF; }
+.carte.pq .barre .cuire { color: #FF9FB2; }
+.carte.pq.manuel:not(.actif) .barre { outline-color: #FF6B8B; }
+.carte.pq .pq-poste { display: block; margin-top: -3px; font-size: 11px; color: #C7B8FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.carte.pq.verrou { background: #353144; border-color: #56516B; color: #FFF7EC; }
+.carte.pq.verrou .icone { background: #3F3A50; }
+.carte.pq.verrou p { color: #C7B8FF; }
+.carte.pq .btn.non { background: #56516B; color: #9E95B8; box-shadow: 0 4px 0 #2E2B3A; }
+.carte.pq .staff-ok.pq { background: #2E2B3A; color: #C7B8FF; justify-content: center; }
+.carte.pq .icone .niv { box-shadow: 0 0 0 2px #3F3A50; }
+.carte.pq.gouter { box-shadow: 0 0 0 3px var(--beurre), 0 6px 16px rgba(0, 0, 0, .3); }
+.carte.pq .badge-critique { background: var(--beurre); color: var(--texte); }
+.at-carte.pq-porte, .at-carte.pq-bilan { text-align: center; background: #FFF7EC; color: var(--texte); margin: 6px auto 0; }
+.pq-pic { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 auto; border-radius: 14px; background: #FFF3C4; }
+.pq-pic svg { width: 32px; height: 32px; }
+.pq-pic.grand { width: 84px; height: 84px; margin: 0 auto 10px; border-radius: 26px; background: #FFE9EE; }
+.pq-pic.grand svg { width: 64px; height: 64px; }
+.pq-porte p { margin: 0 0 10px; font-size: 14px; line-height: 1.4; }
+.pq-porte h2, .pq-bilan h2 { margin-bottom: 8px; }
+.pq-grand { margin: 4px 0 0; font: 700 40px/1 var(--titre); color: var(--menthe-sombre); font-variant-numeric: tabular-nums; }
+.pq-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 4px 0 12px; }
+.pq-stats span { padding: 8px 10px; border-radius: 16px; background: var(--creme); }
+.pq-stats small { display: block; font-size: 12px; color: var(--texte-2); }
+.pq-stats b { display: block; font: 700 18px/1.2 var(--titre); }
+.pq-bilan .encadre { text-align: left; margin-bottom: 12px; font-size: 13px; }
+.pq-sheet .pq-palier-tete { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.pq-sheet .pq-palier-tete h2 { margin: 0; }
+.pq-sheet .pq-palier-tete .sous { margin: 2px 0 0; font-size: 13px; }
+.pq-dons { margin: 0; padding-left: 20px; display: grid; gap: 6px; font-size: 15px; line-height: 1.35; }
+.pq-dons li::marker { color: var(--beurre-sombre); }
+.pq-annonce { text-align: center; }
+.pq-annonce-scene { display: grid; place-items: center; height: 120px; margin: 0 auto 8px; border-radius: 24px; background: #2E2B3A; background-image: repeating-linear-gradient(90deg, transparent 0 18px, rgba(255, 107, 139, .18) 18px 22px); }
+.pq-annonce-scene .pq-pic { margin: 0; background: #fff; }
+.pq-annonce .encadre { text-align: left; font-size: 13px; }
+.pq-paliers { display: grid; gap: 6px; }
+.pq-palier { display: grid; grid-template-columns: 34px minmax(0, 1fr) 24px; gap: 10px; align-items: center; padding: 8px 10px; border-radius: 16px; background: var(--carte); box-shadow: 0 3px 0 var(--gris); opacity: .62; }
+.pq-palier.atteint { opacity: 1; background: #FFF3C4; box-shadow: inset 0 0 0 2px var(--beurre); }
+.pq-palier .pq-num { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--texte); color: #fff; font: 700 15px/1 var(--titre); }
+.pq-palier.atteint .pq-num { background: var(--beurre); color: var(--texte); }
+.pq-palier div { min-width: 0; }
+.pq-palier b { display: block; font: 700 14px/1.2 var(--titre); }
+.pq-palier b small { font: 700 11px/1 var(--texte-font); color: var(--texte-2); }
+.pq-palier div > span { display: block; font-size: 12px; line-height: 1.3; color: var(--texte-2); }
+.pq-palier .pq-etat { font: 700 18px/1 var(--titre); color: var(--menthe-sombre); text-align: center; }
+#planque .btn.sombre { background: #1E1B26; }
+@media (max-height: 700px) { .pq-scene { height: 140px; } }

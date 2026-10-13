@@ -38,12 +38,15 @@ jobs:
           node test/fournil-classement.cjs
           node test/fournil-atelier.test.js
           node test/fournil-atelier.cjs
+          node test/fournil-garderobe.test.js
+          node test/fournil-garderobe.cjs
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
           PORT_RECOMPENSES: '8861'
           PORT_CLASSEMENT: '8862'
           PORT_ATELIER: '8863'
+          PORT_GARDEROBE: '8864'
   deploy:
     needs: fournil
     runs-on: ubuntu-latest

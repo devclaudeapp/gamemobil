@@ -416,6 +416,48 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     });
     g.add(M.maille(pr)); g.userData.zone = 'trophees'; return g;
   }
+  // ─── les décos de l'événement « Le Quartier » (src/quartier.js), gagnées aux paliers et gardées à vie dans la boutique ───
+  // le graffiti : un tag en lettres bulles bombé sur le mur, sous l'étagère (une toile, un seul plan ; la porte, elle, est sous les icônes du coin)
+  const toileTag = () => { let tx = TEX.get('tag'); if (tx) return tx; tx = M.texture((c, w, h) => {
+    const mot = 'LF', cols = ['#FF6B8B', '#5FD3A4', '#FFC84A'];
+    c.font = `900 ${h * 0.62}px Fredoka, Nunito, Arial Black, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineJoin = 'round';
+    c.save(); c.translate(w / 2, h / 2); c.rotate(-0.12);
+    c.lineWidth = h * 0.18; c.strokeStyle = '#2E2B3A'; c.strokeText(mot, 0, 0);
+    c.lineWidth = h * 0.09; c.strokeStyle = cols[2]; c.strokeText(mot, 0, 0);
+    c.fillStyle = cols[0]; c.fillText(mot, 0, 0); c.restore();
+    c.fillStyle = cols[1]; for (const [x, y, r] of [[0.14, 0.2, 0.05], [0.86, 0.78, 0.04], [0.8, 0.18, 0.03]]) { c.beginPath(); c.arc(w * x, h * y, h * r, 0, TAU); c.fill(); }
+  }, 128, 64); tx.userData.partagee = true; TEX.set('tag', tx); return tx; };
+  function graffiti(c) {
+    const { LAY, W } = c, w = Math.min(44, W * 0.11), h = w * 0.55, g = grp('graffiti', W * 0.79, murY(c, LAY.T * 0.265), 0.6);
+    g.add(M.mesh(M.plan(w, h), matDe('tag', () => propre({ map: toileTag(), transparent: true, emissive: '#FFFFFF', emissiveMap: toileTag(), emissiveIntensity: 0.25 })), { rz: -0.08 }, { ombre: false }));
+    return g;
+  }
+  // l'enseigne néon : un éclair rose et un tube menthe suspendus dans la fenêtre, qui grésillent le soir (un maillage, deux matériaux)
+  function neon(c) {
+    const { LAY, W } = c, f = LAY.fenetre, x = f.x + f.w * 0.5, y = murY(c, f.y + f.h * 0.5), g = grp('neon', x, y, 3), pr = [], s = Math.max(10, Math.min(16, f.h * 0.3));
+    pr.push(P(bo(s * 1.6, s * 1.9, 1.2, 1), '#2E2B3A', { z: -0.8 })); // le fond noir mat
+    g.add(M.maille(pr, { ombre: false }));
+    const zig = [[-0.25, 0.75], [0.1, 0.1], [-0.08, 0.1], [0.25, -0.75]].map(([u, v]) => [u * s, v * s]), tubes = [];
+    for (let k = 0; k < zig.length - 1; k++) { const [x0, y0] = zig[k], [x1, y1] = zig[k + 1], l = Math.hypot(x1 - x0, y1 - y0); tubes.push(P(M.capsule(0.9, l, 6), '#FF6B8B', { x: (x0 + x1) / 2, y: (y0 + y1) / 2, z: 0.6, rz: Math.atan2(y1 - y0, x1 - x0) - Math.PI / 2 })); }
+    const rose = M.maille(tubes, { ombre: false }); rose.material = propre({ vertexColors: true, emissive: '#FF6B8B', emissiveIntensity: 0.9 }); g.add(rose);
+    const vert = M.mesh(M.tore(s * 0.62, 0.8, TAU, 6, 20), lumineux('#5FD3A4', 0.9), { z: 0.3, sy: 1.15 }, { ombre: false }); g.add(vert);
+    g.userData.anime = (E) => { const gr = Math.sin(E.t * 17) > 0.92 ? 0.25 : 1; rose.material.emissiveIntensity = (0.55 + 0.45 * E.lampes) * gr; vert.material.emissiveIntensity = 0.5 + 0.5 * E.lampes; };
+    return g;
+  }
+  // le chien du quartier : un bâtard couché au bord du salon, roux et blanc, la queue qui bat (un maillage fusionné + la queue)
+  function chien(c) {
+    const { LAY, W, K } = c, x = W * 0.62, y = LAY.T * 0.92 + LAY.spread * 0.6, g = grp('chien', x, 0, c.wz(y)), poil = '#C8864F', clair = '#FFF3E2', pr = [];
+    g.scale.setScalar(K);
+    pr.push(P(M.capsule(6, 14, 10), poil, { y: 6, rz: Math.PI / 2 }), P(M.sphere(4.8, 10), clair, { x: -2, y: 5, z: 2.2, sx: 1.4, sy: 0.9 })); // le corps et la bavette
+    pr.push(P(M.sphere(6.2, 12), poil, { x: 12, y: 8 }), P(M.capsule(2.6, 4, 8), poil, { x: 16.5, y: 6.5, z: 1, rz: -Math.PI / 2 }), P(M.sphere(1.6, 6), L, { x: 20.5, y: 7, z: 1.2 })); // la tête, le museau, la truffe
+    for (const sx of [-1, 1]) pr.push(P(M.capsule(2.2, 4, 6), '#8B5A3C', { x: 10 + sx * 1.5, y: 10.5, z: sx * 5.2, rz: sx * 0.6, rx: sx * 0.9 }), P(bo(1.8, 0.9, 0.5, 0.2), L, { x: 14.5, y: 9.4, z: sx * 2.4 })); // les oreilles qui tombent, les yeux
+    pr.push(P(M.capsule(2.2, 7, 6), clair, { x: -4, y: 2.2, z: 6.5, rz: Math.PI / 2 }), P(M.capsule(2.2, 7, 6), clair, { x: -4, y: 2.2, z: -6.5, rz: Math.PI / 2 }), P(M.capsule(2.4, 8, 6), poil, { x: 8, y: 2.4, z: 7, rz: Math.PI / 2 })); // les pattes repliées, une patte avant allongée
+    pr.push(P(M.tore(3.8, 0.9, Math.PI, 6, 12), '#E1496C', { x: 11, y: 7.5, rx: Math.PI / 2, rz: Math.PI })); // le collier
+    g.add(M.maille(pr));
+    const queue = M.mesh(M.capsule(1.4, 9, 6), M.mat(poil), { x: -14, y: 3, z: 2, rz: Math.PI / 2 + 0.3 }); g.add(queue);
+    g.userData.anime = (E) => { queue.rotation.y = Math.sin(E.t * 6) * 0.55; };
+    return g;
+  }
   // ─── la composition d'ensemble (pour l'atelier et la scène) ───
   function vitrineDemo(k, c) { // le comptoir et, à chaque place de la vitrine, une boule dorée de la taille d'une pâtisserie
     const cp = comptoir(k, c), n = c.niv ? c.niv.filter((v) => v > 0).length : 4, g = grp('pâtisseries');
@@ -432,6 +474,6 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     if (c.coupe) out.push(coupe(c.coupe, c));
     return out;
   }
-  return { textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL };
+  return { textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien };
 })();
 if (typeof module !== 'undefined') module.exports = MEUBLES;

@@ -110,10 +110,16 @@ const SCENE = (() => {
     { id: 'saison', cle: (E) => { const r = E.st.saison; if (r && r.niv > 0 && PERSOS.patisserieSaison) return 'recette:' + r.id; return E.tags.includes('halloween') ? 'halloween' : E.tags.includes('galette') ? 'galette' : E.tags.includes('paques') ? 'paques' : E.tags.includes('ete') && !E.tags.includes('fete') ? 'ete' : null; },
       faire: (k, c) => { if (!k.startsWith('recette:')) return MEUBLES.propSaison(k, c); const o = MEUBLES.surDessus(c, LAY.saison), g = new THREE.Group(), m = PERSOS.patisserieSaison(k.slice(8)).clone(); m.scale.setScalar(1.15); g.add(m); g.position.set(o.x, o.y, o.z); return g; } }, // la recette de saison préparée, posée sur le comptoir
     { id: 'lampe', cle: (E) => (E.niv[2] > 0 ? '1' : null), faire: (k, c) => MEUBLES.lampe(c) },
+    // les décos de l'événement « Le Quartier » (src/quartier.js, gagnées aux paliers, à vie) : le tag sur la porte, l'enseigne néon, le chien ; le scooter est peint dehors (peindreExterieur)
+    { id: 'graffiti', cle: () => (QDECO.graffiti && MEUBLES.graffiti ? '1' : null), faire: (k, c) => MEUBLES.graffiti(c) },
+    { id: 'neon', cle: () => (QDECO.neon && MEUBLES.neon ? '1' : null), faire: (k, c) => MEUBLES.neon(c) },
+    { id: 'chien', cle: () => (QDECO.chien && MEUBLES.chien ? '1' : null), faire: (k, c) => MEUBLES.chien(c) },
   ];
   const MEUBLES_IDS = ['froid', 'four', 'comptoir', 'caisse', 'tables', 'deco'];
   // les récompenses du podium du classement (src/classement.js) : la tenue du boulanger, la coupe du comptoir, les coupes de la vitrine
   const REC = { tenue: null, coupe: null, coupes: [] }, METAUX = ['or', 'argent', 'bronze'];
+  const QDECO = { graffiti: false, neon: false, scooter: false, chien: false }; // les décos du quartier posées dans la boutique
+  function decosQuartier(liste) { const l = Array.isArray(liste) ? liste : []; for (const k of Object.keys(QDECO)) QDECO[k] = l.includes(k); ext.der = -1; }
   function recompenses(o) {
     o = o || {};
     REC.tenue = METAUX.includes(o.tenue) ? o.tenue : null; REC.coupe = METAUX.includes(o.coupe) ? o.coupe : null;
@@ -142,8 +148,8 @@ const SCENE = (() => {
       liste.forEach((i, k) => { const p = places[k]; if (!p) return; const m = (typeof i === 'string' ? PERSOS.patisserieSaison(i) : PERSOS.patisserie(i)).clone(); const s = (p.s || 16) / (PERSOS.TAILLE_PATISSERIE || 16); m.position.set(p.x, p.y, p.z); m.scale.setScalar(s); m.castShadow = false; g.add(m); });
       remplacer('produits', g);
     }
-    const kb = `${E.rang}|${REC.tenue || ''}|${base}`;
-    if (cles.boulanger !== kb) { cles.boulanger = kb; boulangerG = PERSOS.boulanger(E.rang, REC.tenue); boulangerG.userData.yaw = 0; boulangerG.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y)); boulangerG.scale.setScalar(0.9 * V.K); boulangerG.updateMatrixWorld(true); boulangerG.userData.zoneBoite = new THREE.Box3().setFromObject(boulangerG, true); remplacer('boulanger', boulangerG); } // la zone de touche : la pose de repos
+    const garde = G.tenueBoulanger(E.st), kb = `${E.rang}|${garde.cle}|${base}`; // le boulanger porte ce que la garde-robe équipe (REC.tenue, l'ancienne tenue du podium, ne décide plus)
+    if (cles.boulanger !== kb) { cles.boulanger = kb; boulangerG = PERSOS.boulanger(E.rang, garde); boulangerG.userData.yaw = 0; boulangerG.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y)); boulangerG.scale.setScalar(0.9 * V.K); boulangerG.updateMatrixWorld(true); boulangerG.userData.zoneBoite = new THREE.Box3().setFromObject(boulangerG, true); remplacer('boulanger', boulangerG); } // la zone de touche : la pose de repos
   }
 
   // ─── la lumière : cinq phases du ciel, fondues autour de chaque borne ; les lampes la nuit ; le coup de feu réchauffe ───
@@ -187,6 +193,7 @@ const SCENE = (() => {
     for (const [a, b] of zones2) { const fw = b - a, fh = h * 0.86; vueCiel(x, a, 0, fw, fh, sk, t); vue(x, a, 0, fw, fh, sk, t, E.Q.vue); }
     const [a, b] = zones2[0], fw = b - a, solY = h * 0.86 - 4;
     for (const pa of V.passants) passant(x, a + pa.u * fw, solY, pa);
+    if (QDECO.scooter) scooter(x, a + fw * 0.74, solY + 2, fw / 130, sk.nuit); // le scooter du quartier, garé devant la boutique (la porte est sous les icônes du coin : on le voit par la fenêtre)
     for (const fl of V.flocons) { const fx = a + fl.u * fw, fy = fl.v * h * 0.86; if (fl.type === 'neige') { x.fillStyle = 'rgba(255,255,255,.9)'; x.beginPath(); x.arc(fx, fy, fl.r * 1.6, 0, TAU); x.fill(); } else { x.save(); x.translate(fx, fy); x.rotate(fl.a); x.fillStyle = fl.type === 'feuilles' ? '#E07B39' : '#FFB3C7'; x.beginPath(); x.ellipse(0, 0, 5, 3, 0, 0, TAU); x.fill(); x.restore(); } }
     ext.tex.needsUpdate = true;
   }
@@ -220,6 +227,16 @@ const SCENE = (() => {
       [[0, 0.2, 0.7], [0.18, 0.16, 0.92], [0.34, 0.22, 0.6], [0.56, 0.18, 0.84], [0.74, 0.26, 0.66]].forEach(([u, w, h], k) => { const x = fx + fw * u, bw = fw * w, bh = fh * h; ctx.fillStyle = cols[k % 3]; ctx.fillRect(x, bas - bh, bw, bh); for (let r = 0; r < 5; r++) for (let c = 0; c < 2; c++) { const lit = (nuit || sk.phase === 'soir') && ((r * 2 + c + k) % 3 !== 0); ctx.fillStyle = lit ? (c ? '#FFE9A8' : '#FFD36B') : 'rgba(255,255,255,.25)'; ctx.fillRect(x + 4 + c * bw * 0.5, bas - bh + 6 + r * bh * 0.18, 4, 5); } });
       ctx.fillStyle = Math.sin(t * 4) > -0.2 ? '#FF6B8B' : '#B14A5F'; rr(fx + fw * 0.36, bas - fh * 0.5, fw * 0.18, 8, 3); ctx.fill();
     }
+  }
+  function scooter(x, cx, y, s, nuit) { // un scooter de livraison, de profil, garé devant la porte : deux roues, le plancher, la selle, le guidon, le top-case
+    x.save(); x.translate(cx, y); x.scale(s, s); x.lineJoin = 'round'; x.lineCap = 'round';
+    x.fillStyle = L; for (const wx of [-22, 22]) { x.beginPath(); x.arc(wx, -8, 8, 0, TAU); x.fill(); x.fillStyle = '#8C8C8C'; x.beginPath(); x.arc(wx, -8, 3.5, 0, TAU); x.fill(); x.fillStyle = L; }
+    x.fillStyle = '#E1496C'; x.beginPath(); x.moveTo(-14, -12); x.lineTo(12, -12); x.lineTo(18, -24); x.lineTo(24, -26); x.lineTo(26, -30); x.lineTo(14, -30); x.lineTo(6, -20); x.lineTo(-10, -20); x.lineTo(-18, -30); x.lineTo(-30, -30); x.lineTo(-28, -22); x.lineTo(-20, -14); x.closePath(); x.fill();
+    x.fillStyle = L; x.beginPath(); x.roundRect(-16, -34, 16, 5, 2.5); x.fill(); // la selle
+    x.strokeStyle = L; x.lineWidth = 2.5; x.beginPath(); x.moveTo(22, -28); x.lineTo(28, -40); x.moveTo(23, -40); x.lineTo(33, -40); x.stroke(); // le guidon
+    x.fillStyle = nuit ? '#FFE27A' : '#FFF3C4'; x.beginPath(); x.arc(27, -24, 3.2, 0, TAU); x.fill(); // le phare
+    x.fillStyle = '#5FD3A4'; x.beginPath(); x.roundRect(-34, -48, 20, 14, 3); x.fill(); x.fillStyle = '#fff'; x.fillRect(-30, -43, 12, 2.2); // le top-case
+    x.restore();
   }
   function passant(x, px, y, p) { const s = p.s * 1.7; x.fillStyle = p.col; x.globalAlpha = 0.85; x.beginPath(); x.roundRect(px - 5 * s, y - 20 * s, 10 * s, 14 * s, 4 * s); x.fill(); x.beginPath(); x.arc(px, y - 24 * s, 4.5 * s, 0, TAU); x.fill(); const j = Math.sin(p.phase) * 3 * s; x.fillRect(px - 4 * s + j, y - 6 * s, 3 * s, 6 * s); x.fillRect(px + 1 * s - j, y - 6 * s, 3 * s, 6 * s); x.globalAlpha = 1; }
 
@@ -426,9 +443,10 @@ const SCENE = (() => {
     }
   }
 
-  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitChat, hitTrophees, recompenses, ronron, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
+  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitChat, hitTrophees, recompenses, decosQuartier, ronron, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
     vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
+    get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
     get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0 }; }, // ce que la boutique montre (pour les tests)
     get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG) }; }, // le budget d'appels de dessin (pour les tests)
     get amenager() { return amenager; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },

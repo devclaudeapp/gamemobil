@@ -120,30 +120,36 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
   await attendre(() => p.evaluate(() => !!document.querySelector('#feuille .cl-liste')));
   await sleep(300);
   const cl = await p.evaluate(() => ({ entree: (document.querySelector('[data-a="cl-recompenses"]') || {}).innerText || '', h: Math.round((document.querySelector('[data-a="cl-recompenses"]') || { getBoundingClientRect: () => ({ height: 0 }) }).getBoundingClientRect().height), toques: [...document.querySelectorAll('#feuille .cl-ligne')].filter((l) => l.querySelector('.cl-toque')).map((l) => [l.querySelector('.cl-nom > span').textContent, l.querySelector('.cl-toque').className.split(' ')[1], l.classList.contains('moi')]) }));
-  check(/Mes récompenses/.test(cl.entree) && /3 coupes · tenue d’argent/.test(cl.entree) && cl.h >= 48, `l’entrée « Mes récompenses » en tête de la feuille : « ${cl.entree.replace(/\n/g, ' · ')} »`);
-  check(cl.toques.length === 3 && cl.toques.some(([n, m, moi]) => n === 'Paulo' && m === 'argent' && moi) && cl.toques.some(([n, m]) => n === 'Mamie Jo' && m === 'or') && cl.toques.some(([n, m]) => n === 'Tonton Brioche' && m === 'bronze'), 'la toque du podium de la semaine passée à côté des pseudos : ' + cl.toques.map(([n, m]) => `${n} (${m})`).join(', '));
+  check(/Mes récompenses/.test(cl.entree) && /3 coupes · toque d’argent/.test(cl.entree) && cl.h >= 48, `l’entrée « Mes récompenses » en tête de la feuille : « ${cl.entree.replace(/\n/g, ' · ')} »`);
+  check(cl.toques.length === 3 && cl.toques.some(([n, m, moi]) => n === 'Paulo' && m === 'argent' && moi) && cl.toques.some(([n, m]) => n === 'Mamie Jo' && m === 'or') && cl.toques.some(([n, m]) => n === 'Tonton Brioche' && m === 'bronze'), 'la toque à côté des pseudos : la sienne (celle qu’il porte), celle du podium de la semaine passée pour les autres : ' + cl.toques.map(([n, m]) => `${n} (${m})`).join(', '));
   await p.screenshot({ path: out + '/04-classement-toques.png' });
 
-  // ─── 4. la collection et le choix de la tenue ───
+  // ─── 4. la collection, et la tenue qui se choisit dans la garde-robe (pièce par pièce) ───
+  // chaque podium a mis ses quatre pièces dans la garde-robe du jeu (sauvegarde fournil.v2) ; celles du podium de la semaine passée sont portées d'office
+  const gr = await p.evaluate(() => { const f = window.__fournil, G = f.G, g = G.garderobe(f.st); return { n: Object.keys(g.objets).filter((id) => G.GARDEROBE.objets[id].collection !== 'base').length, equipe: g.equipe, ens: G.ensembleComplet(f.st) }; });
+  check(gr.n === 12 && gr.ens === 'argent' && JSON.stringify(gr.equipe) === JSON.stringify({ tete: 'argent-toque', haut: 'argent-tablier', pieds: 'argent-chaussures', accessoire: 'argent-foulard' }), 'la garde-robe du jeu : les douze pièces des trois podiums (or, argent, bronze), la tenue d’argent portée d’office (ensemble complet)');
   await p.tap('[data-a="cl-recompenses"]'); await sleep(400);
-  const col = await p.evaluate(() => ({ cartes: [...document.querySelectorAll('.rec-carte')].map((c) => c.innerText.replace(/\s+/g, ' ').trim()), choix: [...document.querySelectorAll('[data-tenue]')].map((b) => [b.dataset.tenue, b.getAttribute('aria-checked'), Math.round(b.getBoundingClientRect().height)]), groupe: !!document.querySelector('[role="radiogroup"]'), large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1 }));
+  const col = await p.evaluate(() => ({ cartes: [...document.querySelectorAll('.rec-carte')].map((c) => c.innerText.replace(/\s+/g, ' ').trim()), apercu: (document.querySelector('.rec-apercu') || {}).innerText || '', btn: document.querySelector('[data-a="rec-garderobe"]') ? Math.round(document.querySelector('[data-a="rec-garderobe"]').getBoundingClientRect().height) : 0, large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1 }));
   check(col.cartes.length === 3 && /^2e Coupe et tenue d’argent Semaine du/.test(col.cartes[0]) && /^1er Coupe et tenue d’or/.test(col.cartes[1]) && /^3e Coupe et tenue de bronze/.test(col.cartes[2]), 'la collection : chaque coupe et sa tenue, avec sa semaine (la plus récente d’abord) : ' + col.cartes.join(' | '));
-  check(JSON.stringify(col.choix.map((c) => c[0])) === JSON.stringify(['auto', 'aucune', 'or', 'argent', 'bronze']) && col.choix[0][1] === 'true' && col.choix.every((c) => c[2] >= 44) && col.groupe && col.large, 'le choix de la tenue : automatique (choisi par défaut), aucune, or, argent, bronze (celles gagnées), des boutons radio d’au moins 44 px');
+  check(/Il porte la toque d’argent : toque d’argent, tablier d’argent, chaussures d’argent, foulard d’argent\./.test(col.apercu) && col.btn >= 44 && col.large, `« ${col.apercu} », et le bouton « Ouvrir la garde-robe »`);
   await p.screenshot({ path: out + '/05-collection.png' });
-  await p.evaluate(() => { const f = document.querySelector('#feuille'); f.scrollTop = f.scrollHeight; }); await sleep(200);
-  await p.screenshot({ path: out + '/05b-collection-tenue.png' });
-  await p.tap('[data-tenue="or"]'); await sleep(500);
-  check((await local(p)).recompenses.tenue === 'or' && (await vues(p)).tenue === 'or' && (await vues(p)).coupe === 'argent' && await p.evaluate(() => document.querySelector('[data-tenue="or"]').getAttribute('aria-checked') === 'true' && /tenue d’or/.test(document.querySelector('.rec-apercu').innerText)), 'choisir « Tenue d’or » : écrit sur le téléphone, le boulanger la porte aussitôt (la coupe de la semaine reste celle d’argent)');
-  await p.tap('[data-a="close"]').catch(() => {}); await p.evaluate(() => { document.querySelector('#voile').hidden = true; document.querySelector('#feuille').hidden = true; });
+  await p.tap('[data-a="rec-garderobe"]'); await sleep(500);
+  const choix = await p.evaluate(() => [...document.querySelectorAll('[data-gr-porter]')].map((b) => [b.dataset.grPorter, b.getAttribute('aria-pressed'), Math.round(b.getBoundingClientRect().height)]));
+  check(JSON.stringify(choix.map((c) => c[0])) === JSON.stringify(['toque-blanche', 'or-toque', 'argent-toque', 'bronze-toque']) && choix[2][1] === 'true' && choix.every((c) => c[2] >= 44), 'la garde-robe, « Tête » : toque blanche, d’or, d’argent (portée), de bronze, des boutons d’au moins 44 px');
+  await p.screenshot({ path: out + '/05b-garderobe-tete.png' });
+  await p.tap('[data-gr-porter="or-toque"]'); await sleep(500);
+  check(await p.evaluate(() => JSON.parse(localStorage.getItem('fournil.v2')).garderobe.equipe.tete === 'or-toque') && (await vues(p)).tenue === 'or' && (await vues(p)).coupe === 'argent' && await p.evaluate(() => document.querySelector('[data-gr-porter="or-toque"]').getAttribute('aria-pressed') === 'true'), 'porter la toque d’or : écrit sur le téléphone, le boulanger la porte aussitôt (la coupe de la semaine reste celle d’argent)');
+  await p.tap('[data-a="gr-fermer"]').catch(() => {}); await p.evaluate(() => { document.querySelector('#voile').hidden = true; document.querySelector('#feuille').hidden = true; });
   await p.evaluate(() => window.__fournil.tiroir('ferme')); await sleep(900);
   await p.screenshot({ path: out + '/06-boulanger-or.png', clip: zone });
-  await p.evaluate(() => window.__fournil.recompenses()); await sleep(300);
-  await p.tap('[data-tenue="aucune"]'); await sleep(500);
-  check((await local(p)).recompenses.tenue === null && (await vues(p)).tenue === null, '« Aucune » : la tenue blanche revient');
-  await p.tap('[data-tenue="auto"]'); await sleep(500);
-  check((await local(p)).recompenses.tenue === 'auto' && (await vues(p)).tenue === 'argent', '« Automatique » : la tenue du dernier podium, la semaine qui suit');
+  await p.evaluate(() => window.__fournil.garderobe('tete')); await sleep(300);
+  await p.tap('[data-gr-porter="toque-blanche"]'); await sleep(500);
+  check((await vues(p)).tenue === null && await p.evaluate(() => window.__fournil.G.toqueMetal(window.__fournil.st) === null), 'la toque blanche : plus de toque de podium (les autres pièces d’argent restent)');
+  await p.tap('[data-gr-porter="argent-toque"]'); await sleep(500);
+  check((await vues(p)).tenue === 'argent' && await p.evaluate(() => window.__fournil.G.ensembleComplet(window.__fournil.st) === 'argent'), 'la toque d’argent : l’ensemble d’argent est de nouveau complet');
+  await p.tap('[data-a="gr-fermer"]'); await sleep(200);
   await p.evaluate(() => window.__fournil.boulanger()); await sleep(400);
-  check(await p.evaluate(() => /#D3DCE6/i.test(document.querySelector('#page-boulanger .boulanger-tete svg').outerHTML)), 'la page Boulanger : le portrait porte la tenue d’argent');
+  check(await p.evaluate(() => /#D3DCE6/i.test(document.querySelector('#page-boulanger .boulanger-tete svg').outerHTML) && /Tenue d’argent/.test(document.querySelector('[data-garderobe] .compte').textContent)), 'la page Boulanger : le portrait porte la tenue d’argent, la carte Garde-robe dit « Tenue d’argent »');
   await p.evaluate(() => window.__fournil.page('boutique'));
 
   // ─── 5. toucher la vitrine des trophées dans la boutique ───
@@ -188,8 +194,8 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
   await p.screenshot({ path: out + '/09-annonce-360.png' });
   check(JSON.stringify(await vues(p)) === JSON.stringify({ tenue: null, coupe: null, coupes: 1 }), 'la semaine d’après la suivante : tenue blanche, rien sur le comptoir, la coupe d’or dans la vitrine');
   await p.tap('[data-a="rec-collection"]'); await sleep(400);
-  const c360 = await p.evaluate(() => ({ large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1, cartes: document.querySelectorAll('.rec-carte').length, choix: [...document.querySelectorAll('[data-tenue]')].map((b) => b.dataset.tenue) }));
-  check(c360.large && c360.cartes === 1 && JSON.stringify(c360.choix) === JSON.stringify(['auto', 'aucune', 'or']), 'à 360 px, la collection : une coupe, et seules les tenues gagnées se choisissent (automatique, aucune, or)');
+  const c360 = await p.evaluate(() => ({ large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1, cartes: document.querySelectorAll('.rec-carte').length, apercu: (document.querySelector('.rec-apercu') || {}).innerText || '', btn: !!document.querySelector('[data-a="rec-garderobe"]'), pieces: Object.keys(window.__fournil.G.garderobe(window.__fournil.st).objets).filter((id) => /^or-/.test(id)).length, equipe: window.__fournil.st.garderobe.equipe.tete }));
+  check(c360.large && c360.cartes === 1 && /toque blanche/.test(c360.apercu) && c360.btn && c360.pieces === 4 && c360.equipe === 'toque-blanche', 'à 360 px, la collection : une coupe, la toque blanche portée, les quatre pièces d’or rangées dans la garde-robe (pas d’office), le bouton vers la garde-robe');
   await p.screenshot({ path: out + '/10-collection-360.png' });
   await ctx.close();
 

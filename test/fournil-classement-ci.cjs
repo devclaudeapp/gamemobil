@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // Le Fournil : le classement en ligne éprouvé POUR DE VRAI contre le projet Supabase du jeu (sur GitHub Actions :
 // le conteneur de Claude ne peut pas joindre Supabase). Node 22, fetch, la clé PUBLIQUE seulement.
-//  1. les fonctions du classement sont-elles installées, et dans leur DERNIÈRE version (la version 3 : les points de boulanger ;
-//     une version 2 encore installée est détectée) ? Sinon : coller supabase/fournil-classement.sql dans le SQL Editor ;
+//  1. les fonctions du classement sont-elles installées, et dans leur DERNIÈRE version (la version 4 : les points de boulanger et
+//     l'événement « Le Quartier » ; une version 2 ou 3 encore installée est détectée) ? Sinon : coller supabase/fournil-classement.sql dans le SQL Editor ;
 //  2. quels en-têtes marchent avec une clé sb_publishable_ : apikey seul ? avec Authorization: Bearer ? (le jeu fait pareil) ;
 //  3. l'heure du serveur (fournil_heure) : proche de la vraie (l'horloge de GitHub Actions est à l'heure) ;
 //  4. les tables sont-elles bien fermées (lecture, écriture, fonctions internes refusées) ;
@@ -146,11 +146,13 @@ function arreter(message, conclusion) {
 
   const c0 = essais[okDeux ? 'apikey + Authorization' : 'apikey seul'].data || {};
   // la version 3 (les points de boulanger) : une version 2 encore installée répond sans « version » et refuse les points
-  const RECOLLER = "c'est la VERSION 2 du SQL qui est encore installée (classement à l'argent) : recolle supabase/fournil-classement.sql (version 3, les points de boulanger) dans le SQL Editor de Supabase — les joueurs inscrits et leur palmarès restent —, puis relance ce test";
-  if (c0.version !== 3) arreter(`fournil_classement répond sans « version : 3 » (${JSON.stringify(c0).slice(0, 120)}) : ${RECOLLER}`);
-  { const v = await rpc('fournil_publier', { p_id: crypto.randomUUID(), p_jeton: hasard(32), p_pseudo: '!', p_fortune: 1, p_points: 0, p_lundi: lundiParis() });
-    if (v.statut === 404 || code(v) === 'PGRST202' || code(v) === '42883') arreter(`fournil_publier ne connaît pas p_points / p_lundi (${resume(v)}) : ${RECOLLER}`);
-    check(v.statut === 200 && v.data && v.data.version === 3 && v.data.erreur === 'pseudo_invalide', `la version 3 est installée : fournil_publier prend les points de la semaine (${v.texte.slice(0, 120)})`); }
+  const RECOLLER = "c'est une ANCIENNE VERSION du SQL qui est encore installée (version 2 : classement à l'argent ; version 3 : sans l'événement du quartier) : recolle supabase/fournil-classement.sql (version 4) dans le SQL Editor de Supabase — les joueurs inscrits, leurs points et leur palmarès restent —, puis relance ce test";
+  if (c0.version !== 4) arreter(`fournil_classement répond sans « version : 4 » (${JSON.stringify(c0).slice(0, 120)}) : ${RECOLLER}`);
+  { const v = await rpc('fournil_publier', { p_id: crypto.randomUUID(), p_jeton: hasard(32), p_pseudo: '!', p_fortune: 1, p_points: 0, p_lundi: lundiParis(), p_quartier: 0 });
+    if (v.statut === 404 || code(v) === 'PGRST202' || code(v) === '42883') arreter(`fournil_publier ne connaît pas p_points / p_lundi / p_quartier (${resume(v)}) : ${RECOLLER}`);
+    check(v.statut === 200 && v.data && v.data.version === 4 && v.data.erreur === 'pseudo_invalide', `la version 4 est installée : fournil_publier prend les points de la semaine et les billets du quartier (${v.texte.slice(0, 120)})`); }
+  { const q = await rpc('fournil_classement', { p_periode: 'quartier', p_limite: 1 }), d = q.data || {};
+    check(q.statut === 200 && d.version === 4 && d.periode === 'quartier' && Array.isArray(d.lignes) && 'moi' in d, `le classement de l'événement « Le Quartier » (p_periode = 'quartier') répond : ${d.joueurs} joueur(s) avec des billets`); }
   check(typeof c0.semaine === 'string' && Number.isInteger(c0.joueurs) && Array.isArray(c0.lignes) && 'moi' in c0, `fournil_classement répond au contrat (semaine ${c0.semaine}, ${c0.joueurs} joueur(s))`);
   const lundi = lundiParis();
   check(c0.semaine === lundi || c0.semaine === lundiParis(Date.now() - 60e3), `la semaine du serveur est celle de Paris : lundi ${c0.semaine} (calculé ici : ${lundi})`);
@@ -166,8 +168,8 @@ function arreter(message, conclusion) {
   r = await rpc('fournil_recompenses', { p_id: crypto.randomUUID(), p_jeton: hasard(32) });
   if (r.statut === 404) arreter(`fournil_recompenses manque : ${ANCIENNE}`);
   if (c0.lignes && c0.lignes.length && !('podium' in c0.lignes[0])) arreter(`les lignes du classement n'ont pas de « podium » : ${ANCIENNE}`);
-  check(r.statut === 200 && r.data && r.data.ok === true && Array.isArray(r.data.podiums) && r.data.podiums.length === 0 && 'derniere' in r.data,
-    `fournil_recompenses est installée (un inconnu : aucun podium ; ${r.texte})`);
+  check(r.statut === 200 && r.data && r.data.ok === true && Array.isArray(r.data.podiums) && r.data.podiums.length === 0 && 'derniere' in r.data && 'quartier' in r.data && 'quartier_podium' in r.data,
+    `fournil_recompenses est installée, avec le podium final du quartier (un inconnu : aucun podium ; ${r.texte})`);
 
   // ─── 3. l'heure du serveur ───
   log('\n── l’heure du serveur ──');
@@ -216,7 +218,7 @@ function arreter(message, conclusion) {
   try {
     r = await publier(A, 1000, A.pseudo, null, pts(12));
     const a1 = r.data || {};
-    check(r.statut === 200 && a1.ok === true && a1.erreur === null && a1.version === 3 && Number.isInteger(a1.rang_total) && Number.isInteger(a1.rang_semaine) && Number.isInteger(a1.joueurs) && a1.joueurs >= 1
+    check(r.statut === 200 && a1.ok === true && a1.erreur === null && a1.version === 4 && Number.isInteger(a1.rang_total) && Number.isInteger(a1.rang_semaine) && Number.isInteger(a1.joueurs) && a1.joueurs >= 1
       && a1.compte === 0 && a1.plafonne === false && a1.points_comptes === 12 && a1.points_semaine === 12 && a1.points_total === 12, `A s'inscrit avec 12 points et 1 000 € de fortune : ses points de la semaine comptent, l'argent part de zéro (${r.texte})`);
     if (a1.erreur === 'trop_vite') throw new Error("inscription de A refusée (« trop_vite ») : cette machine a déjà inscrit 10 joueurs dans l'heure ou 20 dans la journée (d'autres lancements du test ?), ou 60 joueurs se sont inscrits dans l'heure ; relancer plus tard");
     if (!a1.ok) throw new Error('inscription de A refusée : ' + r.texte);
@@ -263,7 +265,17 @@ function arreter(message, conclusion) {
     log('  (10,5 s : un ancien téléphone, sans points)');
     await attendre(10500);
     r = await publier(A, 1600);
-    check(r.data && r.data.ok === true && r.data.version === 3 && r.data.points_comptes === 0 && r.data.points_semaine === 20 && r.data.compte === 100, `un téléphone encore en version 2 (sa fortune seule) : accepté, 100 € comptés, ses points ne bougent pas (${r.texte.slice(0, 160)})`);
+    check(r.data && r.data.ok === true && r.data.version === 4 && r.data.points_comptes === 0 && r.data.points_semaine === 20 && r.data.compte === 100, `un téléphone encore en version 2 (sa fortune seule) : accepté, 100 € comptés, ses points ne bougent pas (${r.texte.slice(0, 160)})`);
+    // les billets de l'événement « Le Quartier » : comptés seulement pendant sa fenêtre (du 13 au 27 octobre 2026, heure de Paris), jamais au-delà de l'enveloppe
+    log('  (10,5 s : les billets du quartier)');
+    await attendre(10500);
+    const dansFenetre = Date.now() >= Date.parse('2026-10-13T12:00:00+02:00') && Date.now() < Date.parse('2026-10-27T12:00:00+01:00');
+    r = await rpc('fournil_publier', { p_id: A.id, p_jeton: A.jeton, p_pseudo: A.pseudo, p_fortune: 1600, p_points: 20, p_lundi: lundi, p_quartier: 1e24 });
+    const qa = r.data || {};
+    check(qa.ok === true && (dansFenetre ? qa.quartier_plafonne === true && qa.quartier > 0 && qa.quartier < 1e18 && qa.rang_quartier >= 1 : qa.quartier === 0 && qa.rang_quartier === null),
+      dansFenetre ? `pendant l'événement : 1e24 billets (console) acceptés mais plafonnés à l'enveloppe du moment (${Number(qa.quartier).toExponential(2)}), A ${qa.rang_quartier}e du quartier` : `hors de l'événement : des billets envoyés sont ignorés (quartier = ${qa.quartier})`);
+    r = await rpc('fournil_classement', { p_periode: 'quartier', p_id: A.id, p_limite: 100 });
+    check(r.statut === 200 && r.data && (dansFenetre ? r.data.moi && r.data.moi.points === null && r.data.moi.valeur === qa.quartier : r.data.moi === null), `le classement « quartier » ${dansFenetre ? 'y montre A en billets (points : null)' : 'ne montre pas A (0 billet)'}`);
     // une partie effacée (0) puis le code rechargé (1 500) : rien ne compte deux fois, rien ne se retire
     log('  (2 × 10,5 s : A efface sa partie, puis recharge son code)');
     await attendre(10500);

@@ -208,10 +208,133 @@
     noter(st, 'meuble', 1); gagnerXp(st, 3); inc(st, 'meubles');
     return { ok: true, m, cran: cran + 1, prix, points };
   }
-  // effets des talents et du mobilier
-  const tempsMult = (st) => (1 - 0.05 * talent(st, 'mains')) * (1 - 0.03 * mobilierCran(st, 'four'));
+  // ─── la garde-robe : quatre pièces (couvre-chef, haut, chaussures, accessoire) gagnées aux podiums du classement et aux événements ───
+  // Chaque pièce porte un bonus modeste qui grandit avec son niveau (1 à 5, payé en étoiles : 1, 1, 2, 2 — une étoile dépensée ne compte
+  // plus dans les +5 % par étoile) ; les quatre pièces d'une même collection portées ensemble ajoutent le bonus de l'ensemble.
+  // Tout équipé au maximum, les gains par seconde montent d'environ +41 % (collection d'or, ou celle du quartier en or), +31 % (argent),
+  // +23 % (bronze), +22 % (quartier, plus les pains au chocolat ×1,24) : le mélange des meilleures pièces sans ensemble fait moins
+  // (+26 %), si bien que le plafond est à +41 % (mesuré dans test/fournil-garderobe.test.js). Le classement en points n'en dépend pas.
+  // Les pièces de base (toque et tablier blancs, sabots, lunettes rondes) sont à tout le monde dès le départ, sans bonus.
+  // Pour persos.js : chaque objet a une forme (toque, casquette, tablier, sweat, chaussures, baskets, foulard, chaine, lunettes) et sa
+  // collection sert de métal ('base' : la tenue blanche de toujours). Les bonus (au niveau 1) : gains { produit: id | null, pct }, vitesse
+  // (pct de temps de cuisson en moins), absence (heures de gains hors ligne en plus) ; multipliés par 1, 1,5, 2, 2,5 et 3 selon le niveau.
+  const GR_PIECES = ['tete', 'haut', 'pieds', 'accessoire'];
+  const GR_NIVEAUX = [1, 1.5, 2, 2.5, 3], GR_COUTS = [1, 1, 2, 2], GR_NIV_MAX = 5;
+  const GR_BASE = { tete: 'toque-blanche', haut: 'tablier-blanc', pieds: 'sabots', accessoire: null };
+  const vet = (id, nom, piece, collection, forme, bonus, rarete, desc) => ({ id, nom, piece, collection, forme, bonus, rarete, desc });
+  const METAUX_PODIUM = { or: ['d’or', 'legendaire', [3, 3, 2, 0.5]], argent: ['d’argent', 'epique', [2.5, 2.5, 1.5, 0.5]], bronze: ['de bronze', 'rare', [2, 2, 1, 0.5]] };
+  const GARDEROBE = (() => {
+    const objets = {};
+    const ajouter = (o) => { objets[o.id] = o; };
+    ajouter(vet('toque-blanche', 'Toque blanche', 'tete', 'base', 'toque', {}, 'commun', 'La toque de toujours.'));
+    ajouter(vet('tablier-blanc', 'Tablier blanc', 'haut', 'base', 'tablier', {}, 'commun', 'Propre chaque matin.'));
+    ajouter(vet('sabots', 'Sabots de bois', 'pieds', 'base', 'chaussures', {}, 'commun', 'Ils claquent sur le carrelage.'));
+    ajouter(vet('lunettes-rondes', 'Lunettes rondes', 'accessoire', 'base', 'lunettes', {}, 'commun', 'Pour lire les recettes de mamie.'));
+    for (const m of Object.keys(METAUX_PODIUM)) { // les tenues du podium du classement : les trois premiers de la semaine
+      const [de, rarete, [a, b, c, d]] = METAUX_PODIUM[m];
+      ajouter(vet(`${m}-toque`, `Toque ${de}`, 'tete', m, 'toque', { gains: { produit: null, pct: a } }, rarete, 'Celle des premiers de la semaine.'));
+      ajouter(vet(`${m}-tablier`, `Tablier ${de}`, 'haut', m, 'tablier', { gains: { produit: null, pct: b } }, rarete, 'Brodé au nom de la boutique.'));
+      ajouter(vet(`${m}-chaussures`, `Chaussures ${de}`, 'pieds', m, 'chaussures', { vitesse: c }, rarete, 'On court plus vite au four.'));
+      ajouter(vet(`${m}-foulard`, `Foulard ${de}`, 'accessoire', m, 'foulard', { absence: d }, rarete, 'Les apprentis veillent plus tard.'));
+    }
+    // l'événement « Le Quartier » : les quatre pièces aux paliers, l'ensemble en or pour le podium final
+    ajouter(vet('quartier-casquette', 'Casquette du quartier', 'tete', 'quartier', 'casquette', { gains: { produit: 'painchoc', pct: 8 } }, 'rare', 'Visière derrière, comme il faut.'));
+    ajouter(vet('quartier-sweat', 'Sweat à capuche', 'haut', 'quartier', 'sweat', { gains: { produit: null, pct: 2.5 } }, 'rare', 'Capuche sur la toque, ça passe.'));
+    ajouter(vet('quartier-baskets', 'Baskets du quartier', 'pieds', 'quartier', 'baskets', { vitesse: 1.5 }, 'rare', 'Blanches, enfin presque.'));
+    ajouter(vet('quartier-chaine', 'Chaîne du quartier', 'accessoire', 'quartier', 'chaine', { absence: 0.5 }, 'rare', 'Elle brille sous les néons.'));
+    ajouter(vet('quartier-or-casquette', 'Casquette dorée', 'tete', 'quartier-or', 'casquette', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Le podium final du quartier.'));
+    ajouter(vet('quartier-or-sweat', 'Sweat doré', 'haut', 'quartier-or', 'sweat', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Noir et or, rien d’autre.'));
+    ajouter(vet('quartier-or-baskets', 'Baskets dorées', 'pieds', 'quartier-or', 'baskets', { vitesse: 2 }, 'legendaire', 'Édition limitée, une seule paire.'));
+    ajouter(vet('quartier-or-chaine', 'Chaîne en or', 'accessoire', 'quartier-or', 'chaine', { absence: 0.5 }, 'legendaire', 'La vraie, pas la plaquée.'));
+    const ensembles = {
+      or: { nom: 'Tenue d’or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
+      argent: { nom: 'Tenue d’argent', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
+      bronze: { nom: 'Tenue de bronze', bonus: { gains: { produit: null, pct: 4 }, vitesse: 2, absence: 0.5 } },
+      quartier: { nom: 'Tenue du quartier', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
+      'quartier-or': { nom: 'Tenue du quartier en or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
+    };
+    return { pieces: GR_PIECES, objets, ensembles, niveaux: GR_NIVEAUX, couts: GR_COUTS, nivMax: GR_NIV_MAX, base: GR_BASE };
+  })();
+  const vetement = (id) => (id && GARDEROBE.objets[id]) || null;
+  const IDS_BASE = Object.keys(GARDEROBE.objets).filter((id) => GARDEROBE.objets[id].collection === 'base');
+  const garderobeNeuve = () => { const o = {}; for (const id of IDS_BASE) o[id] = { niv: 1, depuis: 0 }; return { v: 0, objets: o, equipe: Object.assign({}, GR_BASE) }; };
+  function garderobe(st) { // la garde-robe remise d'aplomb (une vieille sauvegarde, un id disparu, une pièce portée qu'on n'a pas)
+    let g = st.garderobe;
+    if (!g || typeof g !== 'object' || Array.isArray(g)) g = st.garderobe = garderobeNeuve();
+    if (!g.objets || typeof g.objets !== 'object') g.objets = {};
+    if (!g.equipe || typeof g.equipe !== 'object') g.equipe = Object.assign({}, GR_BASE);
+    if (!(Number(g.v) >= 0)) g.v = 0;
+    for (const id of IDS_BASE) if (!g.objets[id]) g.objets[id] = { niv: 1, depuis: 0 };
+    for (const id of Object.keys(g.objets)) { const o = g.objets[id]; if (!vetement(id) || !o || typeof o !== 'object') { delete g.objets[id]; continue; } o.niv = Math.max(1, Math.min(GR_NIV_MAX, Math.floor(Number(o.niv)) || 1)); }
+    for (const p of GR_PIECES) { const id = g.equipe[p], v = vetement(id); if (id != null && (!v || v.piece !== p || !g.objets[id])) g.equipe[p] = GR_BASE[p]; if (g.equipe[p] === undefined) g.equipe[p] = GR_BASE[p]; }
+    return g;
+  }
+  const possede = (st, id) => !!garderobe(st).objets[id];
+  const niveauVetement = (st, id) => { const o = garderobe(st).objets[id]; return o ? o.niv : 0; };
+  function donnerVetement(st, id) { // une pièce gagnée (podium, palier de l'événement) ; déjà possédée : rien ne change
+    const v = vetement(id); if (!v) return { nouveau: false, objet: null };
+    const g = garderobe(st); if (g.objets[id]) return { nouveau: false, objet: v };
+    g.objets[id] = { niv: 1, depuis: st.now || 0 }; g.v++; inc(st, 'vetements'); note(st, `Garde-robe : ${v.nom}`);
+    return { nouveau: true, objet: v };
+  }
+  const donnerCollection = (st, collection) => Object.values(GARDEROBE.objets).filter((v) => v.collection === collection).map((v) => donnerVetement(st, v.id)).filter((r) => r.nouveau).map((r) => r.objet); // les quatre pièces d'un coup ; rend les nouvelles
+  function equiper(st, piece, id) { // porter une pièce (null : rien pour l'accessoire, la pièce de base pour les autres)
+    if (!GR_PIECES.includes(piece)) return { ok: false };
+    const g = garderobe(st), cible = id == null ? GR_BASE[piece] : id, v = vetement(cible);
+    if (cible != null && (!v || v.piece !== piece || !g.objets[cible])) return { ok: false };
+    if (g.equipe[piece] !== cible) { g.equipe[piece] = cible; g.v++; }
+    return { ok: true, id: cible, objet: v };
+  }
+  const equiperCollection = (st, collection) => { let n = 0; for (const v of Object.values(GARDEROBE.objets)) if (v.collection === collection && possede(st, v.id) && equiper(st, v.piece, v.id).ok) n++; return n; }; // tout ce qu'on a de cette collection
+  const coutVetement = (st, id) => { const n = niveauVetement(st, id); return n > 0 && n < GR_NIV_MAX ? GR_COUTS[n - 1] : 0; }; // les étoiles du niveau suivant (0 : au maximum ou pas possédée)
+  function ameliorerVetement(st, id) {
+    const v = vetement(id), g = garderobe(st), o = g.objets[id]; if (!v || !o) return { ok: false };
+    if (o.niv >= GR_NIV_MAX) return { ok: false, max: true, niv: o.niv };
+    const cout = GR_COUTS[o.niv - 1]; if (st.etoiles < cout) return { ok: false, cout, niv: o.niv, etoiles: st.etoiles };
+    st.etoiles -= cout; o.niv++; g.v++; inc(st, 'etoilesCousues', cout); gagnerXp(st, 5); note(st, `${v.nom} au niveau ${o.niv}`);
+    return { ok: true, cout, niv: o.niv, objet: v };
+  }
+  const bonusPiece = (id, niv) => { // le bonus d'une pièce à ce niveau (pct et heures déjà multipliés)
+    const v = vetement(id), k = GR_NIVEAUX[Math.max(1, Math.min(GR_NIV_MAX, niv || 1)) - 1], b = v ? v.bonus : {}, out = {};
+    if (b.gains) out.gains = { produit: b.gains.produit || null, pct: +(b.gains.pct * k).toFixed(2) };
+    if (b.vitesse) out.vitesse = +(b.vitesse * k).toFixed(2);
+    if (b.absence) out.absence = +(b.absence * k).toFixed(2);
+    return out;
+  };
+  function ensembleComplet(st) { // la collection dont les quatre pièces sont portées, sinon null
+    const e = garderobe(st).equipe, c = e.tete && vetement(e.tete) ? vetement(e.tete).collection : null;
+    return c && GARDEROBE.ensembles[c] && GR_PIECES.every((p) => e[p] && vetement(e[p]) && vetement(e[p]).collection === c) ? c : null;
+  }
+  const GR_CACHE = new WeakMap(); // le bonus total par garde-robe, recalculé quand elle change (g.v) : revenuBase le lit à chaque fournée
+  function bonusGardeRobe(st) { // { gains: { produit → mult }, gainsTous: mult, vitesse: mult du temps de cuisson (0,91 = 9 % plus vite), absenceH: heures en plus }
+    const g0 = st.garderobe, c0 = g0 ? GR_CACHE.get(g0) : null; if (c0 && c0.v === g0.v) return c0.bonus; // le chemin court : rien n'a changé
+    const g = garderobe(st), c = GR_CACHE.get(g); if (c && c.v === g.v) return c.bonus;
+    const b = { gains: {}, gainsTous: 1, vitesse: 1, absenceH: 0 };
+    const appliquer = (x) => { if (!x) return; if (x.gains) { if (x.gains.produit) b.gains[x.gains.produit] = (b.gains[x.gains.produit] || 1) * (1 + x.gains.pct / 100); else b.gainsTous *= 1 + x.gains.pct / 100; } if (x.vitesse) b.vitesse -= x.vitesse / 100; if (x.absence) b.absenceH += x.absence; };
+    for (const p of GR_PIECES) { const id = g.equipe[p]; if (id && g.objets[id]) appliquer(bonusPiece(id, g.objets[id].niv)); }
+    const ens = ensembleComplet(st); if (ens) appliquer(GARDEROBE.ensembles[ens].bonus);
+    b.vitesse = Math.max(0.5, +b.vitesse.toFixed(4)); b.gainsTous = +b.gainsTous.toFixed(4); b.absenceH = +b.absenceH.toFixed(2);
+    GR_CACHE.set(g, { v: g.v, bonus: b }); return b;
+  }
+  const garderobeMult = (st, i) => { const b = bonusGardeRobe(st); return b.gainsTous * (b.gains[PRODUITS[i].id] || 1); };
+  function texteBonus(x) { // pour l'interface : « Tous les gains +3 % », « Pains au chocolat +8 % », « Cuisson 2 % plus rapide », « +0,5 h d’absence »
+    const t = [], v = (n) => String(+n.toFixed(2)).replace('.', ',');
+    if (x && x.gains) { const p = x.gains.produit ? PRODUITS.find((q) => q.id === x.gains.produit) : null; t.push(`${p ? p.pl[0].toUpperCase() + p.pl.slice(1) : 'Tous les gains'} +${v(x.gains.pct)} %`); }
+    if (x && x.vitesse) t.push(`Cuisson ${v(x.vitesse)} % plus rapide`);
+    if (x && x.absence) t.push(`+${v(x.absence)} h d’absence`);
+    return t;
+  }
+  function tenueBoulanger(st) { // ce que porte le boulanger, pour persos.js et les icônes : { tete, haut, pieds, accessoire: { forme, metal } | null, cle }
+    const g = garderobe(st), t = {}, cle = [];
+    for (const p of GR_PIECES) { const v = vetement(g.equipe[p]); t[p] = v ? { forme: v.forme, metal: v.collection === 'base' ? null : v.collection } : null; cle.push(g.equipe[p] || ''); }
+    t.cle = cle.join('|'); return t;
+  }
+  const toqueMetal = (st) => { const v = vetement(garderobe(st).equipe.tete); return v && METAUX_PODIUM[v.collection] ? v.collection : null; }; // la toque du podium portée, vue des autres (null : pas une toque de podium)
+  const garderobeCle = (st) => { const g = garderobe(st); return `${g.v}|${st.etoiles}|${Object.keys(g.objets).length}`; }; // pour redessiner la page quand elle change
+  // effets des talents, du mobilier et de la garde-robe
+  const tempsMult = (st) => (1 - 0.05 * talent(st, 'mains')) * (1 - 0.03 * mobilierCran(st, 'four')) * bonusGardeRobe(st).vitesse;
   const temps = (st, i) => PRODUITS[i].temps * tempsMult(st) * apprentiTempsMult(st, i);
-  const heuresAbsence = (st) => ABSENCE_MAX_H + talent(st, 'levetot') + mobilierCran(st, 'froid');
+  const heuresAbsence = (st) => ABSENCE_MAX_H + talent(st, 'levetot') + mobilierCran(st, 'froid') + bonusGardeRobe(st).absenceH;
   const affluenceMult = (st) => 1 + 0.5 * talent(st, 'affluence') + 0.25 * mobilierCran(st, 'vitrine');
   const prixStaff = (st, i) => PRODUITS[i].staff * (1 - 0.1 * talent(st, 'zele'));
   const prixBonus = (st, a) => a.cout * (1 - 0.08 * talent(st, 'negoce'));
@@ -227,7 +350,7 @@
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null, tiroir: 'mi',
       apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, saison: null, saisonAnnoncee: '', collection: {},
-      atelier: atelierNeuf(), points: pointsNeufs(semaineKey(nowMs), dayKey(nowMs)),
+      atelier: atelierNeuf(), points: pointsNeufs(semaineKey(nowMs), dayKey(nowMs)), garderobe: garderobeNeuve(), boosts: boostsNeufs(),
     };
   }
 
@@ -267,10 +390,11 @@
     if (i != null && st.jour && st.jour.pain === i) m *= PAIN_DU_JOUR_MULT; // le pain du jour
     if (i != null && st.specialite === i) m *= SPECIALITE_MULT;   // la spécialité de la boutique
     if (st.boost && st.boost.fin > st.now) m *= st.boost.mult;
+    if (st.boosts && st.boosts.actif && st.boosts.actif.fin > st.now) m *= st.boosts.actif.mult; // un boost de la réserve (l'événement du quartier), lancé quand on veut
     if (jourDeMarche(st.now)) m *= MARCHE_MULT;
     return m;
   }
-  function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st) * mobilierMult(st) * apprentiRevMult(st, i); }
+  function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st) * mobilierMult(st) * apprentiRevMult(st, i) * garderobeMult(st, i); }
   function revenu(st, i) { return revenuBase(st, i) * boostMult(st, i); } // par fournée, maintenant
   // niv 0 : débloquer la recette (un cap, cher) ; ensuite chaque niveau coûte quelques fournées de plus que le précédent
   const coutNiveau = (i, niv) => (niv === 0 ? PRODUITS[i].debloquer : PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv));
@@ -564,6 +688,17 @@
     return neufs;
   }
   function donnerBoost(st, mult, secs) { st.boost = { mult, fin: st.now + secs * 1000 }; }
+  // ─── la réserve de boosts : des ×2 et des ×5 gagnés aux paliers de l'événement « Le Quartier » (src/quartier.js), à lancer quand on veut ───
+  // dans la boulangerie, un seul à la fois ; il tourne sur l'horloge du jeu (une absence plus courte que lui en profite, une plus longue l'éteint)
+  const boostsNeufs = () => ({ reserve: [], actif: null });
+  const boosts = (st) => { if (!st.boosts || typeof st.boosts !== 'object' || !Array.isArray(st.boosts.reserve)) st.boosts = boostsNeufs(); return st.boosts; };
+  function donnerBoostReserve(st, mult, secs) { const b = boosts(st); if (!(mult > 1) || !(secs > 0)) return null; const o = { mult, secs }; b.reserve.push(o); return o; }
+  function lancerBoostReserve(st, k) {
+    const b = boosts(st), o = b.reserve[k];
+    if (!o || (b.actif && b.actif.fin > st.now)) return { ok: false };
+    b.reserve.splice(k, 1); b.actif = { mult: o.mult, fin: st.now + o.secs * 1000 }; note(st, `Boost ×${o.mult} lancé pour ${fmtDuree(o.secs)}`);
+    return { ok: true, boost: b.actif };
+  }
 
   // ─── l'Atelier : trois mini-jeux lancés à volonté (jamais en surprise), chacun son record ───
   // Les gains sont modestes et plafonnés : une partie réussie paie au plus 90 s du rythme de la boutique (le concours de pétrissage en paie 240,
@@ -867,6 +1002,7 @@
       if (st.evTimer <= 0) { st.evTimer = (180 + rnd() * 240) * (1 - 0.12 * talent(st, 'charme')); out.nouvelEv = lancerEvenement(st, rnd); }
     }
     if (st.boost && st.boost.fin <= nowMs) st.boost = null;
+    if (st.boosts && st.boosts.actif && st.boosts.actif.fin <= nowMs) st.boosts.actif = null;
     const ss = st.saison; // la fournée de saison
     if (ss && ss.actif) { ss.prog += dt; if (ss.prog >= tempsSaison(st)) out.venteSaison = { id: ss.id, montant: cuireSaison(st, out) }; }
     if (chatPossible(st) && !st.ev) { st.chatAttente = (st.chatAttente == null ? CHAT.apparition : st.chatAttente) - dt; if (st.chatAttente <= 0) { st.chatAttente = CHAT.rappel; out.chat = true; } } // un chat miaule à la porte
@@ -880,6 +1016,7 @@
   // ─── absence : les apprentis ont travaillé (8 h au plus), les fournées en cours se terminent ; pas d'événement sans toi ───
   function absence(st, nowMs) {
     st.now = nowMs; st.ev = null; st.boost = null;
+    if (st.boosts && st.boosts.actif && st.boosts.actif.fin <= nowMs) st.boosts.actif = null; // un boost de la réserve fini pendant l'absence s'éteint (le reste de l'absence est sans lui)
     const secs = Math.min(heuresAbsence(st) * 3600, Math.max(0, (nowMs - st.lastSeen) / 1000));
     let total = 0; const detail = [], grades = [];
     st.stations.forEach((s, i) => {
@@ -920,10 +1057,11 @@
     PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
-    objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost,
+    objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, boostsNeufs, donnerBoostReserve, lancerBoostReserve,
     gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono,
     ATELIER, JEUX_ATELIER, jeuAtelier, atelierDuJour, qualiteAtelier, primePleineAtelier, primeAtelier, restantesAtelier, finirAtelier,
     FOUR, fourNiveau, fourNouveau, fourAvancer, fourToucher, FACONNAGE, MODELES_FACONNAGE, reechantillonner, noterFaconnage, ajouterTrait, couvertureFaconnage,
     INGREDIENTS, MEMOIRE, memoireMontre, memoireRecette, memoireSaisir, memoireScore,
-    POINTS, pointsDuJour, pointsAtelier, pointsSemaine, pointsTotal, detailPoints, marquerJournee, marquerDefi, marquerEvenement, marquerAtelier, marquerAmelioration };
+    POINTS, pointsDuJour, pointsAtelier, pointsSemaine, pointsTotal, detailPoints, marquerJournee, marquerDefi, marquerEvenement, marquerAtelier, marquerAmelioration,
+    GARDEROBE, garderobe, garderobeNeuve, vetement, possede, niveauVetement, donnerVetement, donnerCollection, equiper, equiperCollection, coutVetement, ameliorerVetement, bonusPiece, ensembleComplet, bonusGardeRobe, garderobeMult, texteBonus, tenueBoulanger, toqueMetal, garderobeCle };
 });

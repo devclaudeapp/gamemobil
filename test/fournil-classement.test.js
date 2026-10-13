@@ -300,7 +300,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   check(CL.metal(1) === 'or' && CL.metal(2) === 'argent' && CL.metal(3) === 'bronze' && CL.metal(4) === null && CL.metal(null) === null, '1er : or, 2e : argent, 3e : bronze ; au-delà, rien');
   check(CL.decalerSemaine('2026-10-12', -1) === '2026-10-05' && CL.decalerSemaine('2027-01-04', -1) === '2026-12-28' && CL.decalerSemaine('2026-10-19', 1) === '2026-10-26' && CL.decalerSemaine('2027-03-22', 1) === '2027-03-29' && CL.decalerSemaine('n’importe', 1) === '', 'la semaine d’avant, d’après (passage de l’année et changements d’heure compris)');
   { const r = CL.nettoyerRecompenses({ podiums: [{ semaine: '2026-10-05', rang: 2 }, { semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 3 }, { semaine: 'hier', rang: 1 }, { semaine: '2026-09-21', rang: 4 }, null, { semaine: '2026-09-14', rang: '1' }], tenue: 'platine', vu: 12 });
-    check(egal(r, { podiums: [{ semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '' }), 'récompenses nettoyées : une coupe par semaine (la meilleure), triées, rangs 1 à 3 seulement ; tenue inconnue → automatique'); }
+    check(egal(r, { podiums: [{ semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '', quartier: null, quartierPodium: null }), 'récompenses nettoyées : une coupe par semaine (la meilleure), triées, rangs 1 à 3 seulement ; tenue inconnue → automatique'); }
   check(CL.nettoyerRecompenses({ tenue: null }).tenue === null && CL.nettoyerRecompenses({ tenue: 'bronze' }).tenue === 'bronze' && egal(CL.nettoyerRecompenses('abîmé'), CL.recompensesNeuves()), 'tenue « aucune » (null) gardée ; réponse absurde : rien');
   { const rec = { podiums: [{ semaine: '2026-09-21', rang: 3 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '' }, L = '2026-10-12';
     check(CL.tenuePortee(rec, L) === 'argent' && CL.coupeDuComptoir(rec, L) === 'argent', 'automatique : la semaine qui suit le podium, la tenue et la coupe d’argent');
@@ -399,6 +399,43 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     check(c.data.version === 2 && c.data.lignes[0].points === null, 'sa liste : version 2, pas de points (l’interface affiche l’argent, comme avant)'); }
 
   console.log(`\n${n - echecs}/${n} vérifications.`);
+  console.log('── l’événement « Le Quartier » (contrat v4) ──');
+  { // le moteur envoie ses billets (p_quartier) ; un serveur v3 les refuse → renvoyés sans ; la période « quartier » ; le podium final gardé à vie
+    horloge = Date.UTC(2026, 9, 14, 12); let billets = 123456;
+    const v4 = (url, c) => (url.endsWith('/fournil_publier') ? { ok: true, erreur: null, version: 4, rang_semaine: 1, rang_total: 2, rang_quartier: 3, quartier: c.p_quartier, quartier_plafonne: false, joueurs: 9, semaine: '2026-10-12', points_semaine: c.p_points, points_total: 5, compte: 0 }
+      : url.endsWith('/fournil_recompenses') ? { ok: true, erreur: null, podiums: [], derniere: null, quartier: 2, quartier_podium: [{ rang: 1, pseudo: 'Mamie', valeur: 9e15 }, { rang: 2, pseudo: 'Léa', valeur: 5e15 }] }
+      : { version: 4, semaine: '2026-10-12', periode: c.p_periode, joueurs: 4, lignes: [{ rang: 1, pseudo: 'Mamie', points: null, valeur: 9e15, moi: false, podium: 1 }, { rang: 2, pseudo: 'Léa', points: null, valeur: 5e15, moi: true, podium: 2 }], moi: { rang: 2, points: null, valeur: 5e15, podium: 2 } });
+    const r = faux(async (url, init, c) => rep(200, v4(url, c)));
+    const m = moteur(r, { points: () => ({ points: 3, lundi: '2026-10-12' }), quartier: () => billets }); fortune = 5000;
+    let res = await m.choisirPseudo('Léa');
+    const c = r.appels[0].corps;
+    check(res.etat === 'ok' && egal(Object.keys(c).sort(), ['p_fortune', 'p_id', 'p_jeton', 'p_lundi', 'p_points', 'p_pseudo', 'p_quartier']) && c.p_quartier === 123456 && m.version() === 4, 'rejoindre : fournil_publier avec ses billets (p_quartier) ; serveur v4');
+    check(m.resume().quartier && m.resume().quartier.rang === 3 && m.etat().quartier === 123456, 'son rang à l’événement revient dans le résumé, ses billets envoyés sont notés');
+    horloge += 20e3; res = await m.envoyer('feuille');
+    check(res.etat === 'saute' && res.pourquoi === 'inchange', 'rien de neuf : rien ne part');
+    billets = 200000; res = await m.envoyer('feuille');
+    check(res.etat === 'ok' && r.appels[r.appels.length - 1].corps.p_quartier === 200000, 'des billets en plus : ils partent (même sans nouveaux points)');
+    billets = 0; horloge += 31 * 60e3; res = await m.envoyer('periodique');
+    check(res.etat === 'ok' && !('p_quartier' in r.appels[r.appels.length - 1].corps), 'sans billets (pas de Planque) : rien n’est envoyé pour le quartier');
+    const l = await m.charger('quartier');
+    check(l.etat === 'ok' && l.data.version === 4 && l.data.lignes.length === 2 && l.data.lignes[0].points === null && l.data.lignes[1].moi && l.data.moi.podium === 2 && m.cache('quartier') === l && m.resume().quartier.rang === 2 && m.resume().quartier.joueurs === 4, 'la période « quartier » : la liste en billets, « moi » 2e, gardée en cache sous son nom');
+    const rec = await m.chargerRecompenses({ ecart: 0 });
+    check(rec.etat === 'ok' && m.recompenses().quartier === 2 && m.recompenses().quartierPodium.length === 2 && m.recompenses().quartierPodium[0].pseudo === 'Mamie', 'le podium final lu : 2e de l’événement, les trois premiers gardés');
+    check(CL.lireEtat(r.stockage || null) !== null, 'l’état se relit');
+    const q = await m.quitter();
+    check(q.etat === 'ok' && m.recompenses().quartier === 2, 'quitter le classement : le rang au podium final reste sur le téléphone'); }
+  { // un serveur encore en version 3 : la fonction à sept paramètres n'existe pas → les points sans les billets, puis plus jamais de billets
+    horloge = Date.UTC(2026, 9, 14, 13);
+    const r = faux(async (url, init, c) => { if (url.endsWith('/fournil_publier') && 'p_quartier' in c) return rep(404, { code: 'PGRST202', message: 'Could not find the function public.fournil_publier(p_fortune, p_id, p_jeton, p_lundi, p_points, p_pseudo, p_quartier)' }); return rep(200, url.endsWith('/fournil_publier') ? { ok: true, erreur: null, version: 3, rang_semaine: 1, rang_total: 1, joueurs: 3, semaine: '2026-10-12', points_semaine: 8, points_total: 8, compte: 0 } : { version: 3, semaine: '2026-10-12', joueurs: 1, lignes: [], moi: null }); });
+    const m = moteur(r, { points: () => ({ points: 8, lundi: '2026-10-12' }), quartier: () => 777 }); fortune = 70;
+    const res = await m.choisirPseudo('Léa');
+    check(res.etat === 'ok' && r.appels.length === 2 && 'p_quartier' in r.appels[0].corps && !('p_quartier' in r.appels[1].corps) && 'p_points' in r.appels[1].corps && m.version() === 3, 'serveur v3 : refus « fonction introuvable » avec les billets, aussitôt renvoyé sans eux (les points restent) — accepté');
+    horloge += 31 * 60e3; fortune = 90; await m.envoyer('periodique');
+    check(r.appels.length === 3 && !('p_quartier' in r.appels[2].corps) && 'p_points' in r.appels[2].corps, 'ensuite, plus de billets envoyés à ce serveur (jusqu’au prochain lancement)'); }
+  { // les récompenses nettoyées : le rang du quartier et son podium, ou rien
+    const r = CL.nettoyerRecompensesServeur({ ok: true, podiums: [], derniere: null, quartier: 7, quartier_podium: [{ rang: 1, pseudo: 'A', valeur: 'x' }, { rang: 4, pseudo: 'B', valeur: 1 }] });
+    check(r.quartier === null && r.quartierPodium.length === 1 && r.quartierPodium[0].valeur === 0, 'un rang absurde est écarté, le podium garde les rangs 1 à 3 (valeur illisible → 0)');
+    check(CL.nettoyerRecompensesServeur({ ok: true, podiums: [] }).quartierPodium === null && CL.nettoyerRecompenses({ podiums: [], quartier: 1, quartierPodium: 'x' }).quartier === 1, 'un serveur v3 : pas de podium (null) ; un état local avec son rang : gardé'); }
   console.log(echecs ? `${echecs} échec(s)` : 'Tout passe.');
   process.exit(echecs ? 1 : 0);
 })().catch((e) => { console.error('FAIL', e); process.exit(1); });

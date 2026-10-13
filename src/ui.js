@@ -221,8 +221,9 @@ const UI = (() => {
     const nouveaux = Math.max(0, trophesGagnes() - (st.vu ? st.vu.trophees : 0)), nom = G.nomBoutique(st), ev = st.ev ? st.ev.type : '';
     // le marché du samedi et la bonne critique : pas de deuxième ligne sous le solde (elle repoussait la boutique à 360×640) ;
     // la ligne du rythme et les badges s'y relaient toutes les 4 s, à hauteur constante
-    const extras = [marche && 'Marché ×1,5', boost && `Bonne critique ×${boost}`].filter(Boolean), tour = extras.length ? Math.floor(performance.now() / 4000) % (extras.length + 1) : 0;
-    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}|${tour}`;
+    const br = st.boosts && st.boosts.actif && st.boosts.actif.fin > st.now ? st.boosts.actif.mult : 0; // un boost de la réserve (l'événement du quartier)
+    const extras = [marche && 'Marché ×1,5', boost && `Bonne critique ×${boost}`, br && `Boost ×${br}`].filter(Boolean), tour = extras.length ? Math.floor(performance.now() / 4000) % (extras.length + 1) : 0;
+    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}|${br}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}|${tour}`;
     if (key === lastHud) return; lastHud = key;
     $('#coins').textContent = G.fmtEur(st.coins);
     $('#taux').innerHTML = `<span${tour ? ' style="display:none"' : ''}>${taux > 0 ? `<b>+${G.fmtEur(taux)}</b> par seconde` : 'Touche la baguette !'}</span>` + extras.map((t, k) => `<span class="marche" style="margin:0;padding:1px 7px;vertical-align:top${tour === k + 1 ? '' : ';display:none'}">${t}</span>`).join('');
@@ -378,9 +379,11 @@ const UI = (() => {
       const c = sec.querySelector('[data-p="chrono"]'); if (c && st.ev) c.textContent = G.fmtChrono(Math.max(0, (st.ev.fin - st.now) / 1000));
     },
   };
-  // Boulanger : niveau, savoir-faire, talents permanents
+  // Boulanger : niveau, savoir-faire, talents permanents, la garde-robe (src/garderobe.js)
+  const GRU = typeof GARDEROBE_UI !== 'undefined' ? GARDEROBE_UI : null;
+  const ctxGarderobe = () => ({ st, openSheet, closeSheet, on, feuille, save, toast, son, buzz, apres: () => { renderCards(true); hud(); lastPage = ''; renderPage(true); } }); // apres : la boutique (le boulanger en 3D suit sa tenue à la frame suivante) et la page se redessinent
   const pageBoulanger = {
-    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue()}`,
+    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue().cle}|${G.garderobeCle(st)}`,
     html: () => {
       const np = G.niveauPour(st.xp), pts = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n);
       return `${PAGE_HEAD('boulanger', 'Boulanger', pts ? `<span class="serie lav">${pts} point${pts > 1 ? 's' : ''}</span>` : '')}
@@ -389,6 +392,7 @@ const UI = (() => {
         <div class="encadre doux">Le savoir-faire vient des défis du jour, des événements réussis, des recettes, des embauches et des nouvelles boutiques. Chaque niveau donne <b>un point de talent</b>. Les talents sont à toi pour toujours, même en changeant de boutique.</div>
         <h3 class="titre-section">Talents${pts ? ` · <span class="pts">${pts} point${pts > 1 ? 's' : ''} à dépenser</span>` : ''}</h3>
         <div class="liste-am">${G.TALENTS.map((t) => { const k = G.talent(st, t.id), max = k >= t.max; return `<div class="am talent ${k ? 'appris' : ''}"><div><h3>${esc(t.nom)} <span class="crans">${'●'.repeat(k)}${'○'.repeat(t.max - k)}</span></h3><p>${k ? esc(t.desc(k)) : 'Cran 1 : ' + esc(t.desc(1))}${k && !max ? `<br><em>Cran suivant : ${esc(t.desc(k + 1))}</em>` : ''}</p></div>${max ? '<span class="ok">Maîtrisé ✓</span>' : `<button type="button" class="btn ${pts ? 'lavande' : 'non'}" data-t="${t.id}"><small>Apprendre</small><b>1 point</b></button>`}</div>`; }).join('')}</div>
+        ${GRU ? GRU.carte(st) : ''}
       </div>`;
     },
     bind: (sec) => {
@@ -397,6 +401,7 @@ const UI = (() => {
         if (!r.ok) { son.non(); toast(G.ptsTalents(st) ? 'Ce talent est déjà au maximum.' : 'Pas encore de point : gagne du savoir-faire.'); return; }
         son.deblocage(); buzz([10, 30, 10]); toast(`${r.talent.nom} : ${r.talent.desc(r.cran)}`); renderCards(true); hud(); save(); renderPage(true);
       });
+      if (GRU) GRU.bind(sec, ctxGarderobe());
     },
   };
   const QUAND_SAISON = { galette: 'en janvier', crepe: 'début février', paques: 'en avril', glace: 'cet été', citrouille: 'à la mi-octobre', buche: 'en décembre' };
@@ -435,7 +440,7 @@ const UI = (() => {
   };
   // Réglages : son, vibrations, nom, spécialité, sauvegarde, partage, remise à zéro
   const pageReglages = {
-    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}`,
+    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}`,
     html: () => {
       const q = G.QUARTIERS[G.quartier(st)];
       const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
@@ -451,6 +456,7 @@ const UI = (() => {
           ${ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés, leurs crans et leurs prix : touche-les pour les améliorer', chev)}
           ${st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, '')}
           ${st.chat ? ligne('chat', ICONS.CHAT, `Renommer ${esc(st.chat.nom)}`, 'Le chat de la boutique', chev) : ''}
+          ${QT && QT.fenetre(st.now).ouvert ? ligne('quartier', ICONS.UI.quartier, 'Masquer l’événement', 'Le Quartier, une parodie réservée aux adultes : l’icône et la Planque disparaissent', sw(!!(st.quartier && st.quartier.masque))) : ''}
           ${ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)}
           ${ligne('partager', ICONS.UI.partager, 'Partager ma boutique', 'Une image de la boutique et ton score', chev)}
           ${window.FOURNIL_ACCUEIL ? ligne('accueil', ICONS.UI.boutique, 'Salle de jeux', 'Revenir à l’écran d’accueil et aux autres jeux', chev) : ''}
@@ -469,6 +475,7 @@ const UI = (() => {
       onIn(sec, '[data-a="chat"]', sheetNomChat);
       onIn(sec, '[data-a="specialite"]', sheetSpecialite);
       onIn(sec, '[data-a="sauvegarde"]', sheetSauvegarde);
+      onIn(sec, '[data-a="quartier"]', () => { if (!EVT) return; EVT.masquer(!(st.quartier && st.quartier.masque)); son.tap(); majCoin(); renderPage(true); });
       onIn(sec, '[data-a="partager"]', partager);
       onIn(sec, '[data-a="accueil"]', () => { save(); location.href = window.FOURNIL_ACCUEIL + '?app=accueil'; }); // ?app=accueil : l'accueil ne renvoie pas vers le jeu
       onIn(sec, '[data-a="reset"]', () => {
@@ -487,6 +494,26 @@ const UI = (() => {
     el.className = 'ticket' + (aReclamer ? ' pret' : '') + (j.etoileDonnee ? ' complet' : '');
     el.innerHTML = `<i class="ico">${ICONS.UI.defis}</i><span class="tk-txt"><b>Objectifs du jour · ${j.etoileDonnee ? 'terminés ★' : `${faits}/3`}</b><small>Pain du jour : ${esc(G.PRODUITS[j.pain].pl)} ×1,5${sm ? ` · Semaine : ${sm.reclame ? 'réussi ★' : `${G.fmt(sm.progres)}/${G.fmt(sm.cible)}`}` : ''}</small></span>
       <span class="tk-pill">${aReclamer ? 'Prime !' : `<i class="ico">${ICONS.UI.chevron}</i>`}</span>`;
+  }
+
+  // ─── la réserve de boosts (les paliers de l'événement du quartier) : une pastille sous les objectifs, à lancer quand on veut ───
+  let lastBoosts = '';
+  function renderBoosts() {
+    const el = $('#boosts'); if (!el) return;
+    const b = st.boosts, actif = b && b.actif && b.actif.fin > st.now ? b.actif : null, reserve = b ? b.reserve : [];
+    if (!actif && !reserve.length) { if (lastBoosts) { lastBoosts = ''; el.hidden = true; } return; }
+    const reste = actif ? G.fmtChrono((actif.fin - st.now) / 1000) : '', key = `${actif ? actif.mult + reste : ''}|${reserve.map((x) => x.mult + ':' + x.secs).join(',')}`;
+    if (key === lastBoosts) return; lastBoosts = key; el.hidden = false;
+    el.className = 'ticket boosts' + (actif ? ' actif' : '');
+    el.innerHTML = `<i class="ico">${ICONS.QUARTIER ? ICONS.QUARTIER.boost : ''}</i><span class="tk-txt"><b>${actif ? `Boost ×${actif.mult} en cours` : `Boost ×${reserve[0].mult} · ${G.fmtDuree(reserve[0].secs)}`}</b><small>${actif ? `Toutes les ventes ×${actif.mult}${reserve.length ? ` · encore ${reserve.length} en réserve` : ''}` : reserve.length > 1 ? `${reserve.length} boosts en réserve, gagnés au Quartier` : 'Gagné au Quartier : lance-le quand tu veux'}</small></span><span class="tk-pill">${actif ? reste : 'Lancer'}</span>`;
+  }
+  function lancerBoost() {
+    const b = st.boosts; if (!b || (b.actif && b.actif.fin > st.now)) { toast('Un boost tourne déjà : attends la fin.'); return; }
+    if (!b.reserve.length) return;
+    if (b.reserve.length === 1) { const r = G.lancerBoostReserve(st, 0); if (r.ok) reussite(`Boost ×${r.boost.mult} lancé : toutes les ventes ×${r.boost.mult} pendant ${G.fmtDuree((r.boost.fin - st.now) / 1000)} !`); return; }
+    openSheet(`<h2>La réserve de boosts</h2><p class="sous">Gagnés aux paliers du Quartier. Un seul à la fois ; il tourne sur l'horloge, même la boutique fermée.</p><div class="liste-am">${b.reserve.map((x, k) => `<div class="am"><div><h3>Boost ×${x.mult}</h3><p>Toutes les ventes ×${x.mult} pendant ${G.fmtDuree(x.secs)}</p></div><button type="button" class="btn beurre" data-k="${k}"><small>Lancer</small><b>×${x.mult}</b></button></div>`).join('')}</div>${btnRetour()}`);
+    on('[data-a="close"]', closeSheet);
+    on('[data-k]', (el) => { const r = G.lancerBoostReserve(st, +el.dataset.k); closeSheet(); if (r.ok) reussite(`Boost ×${r.boost.mult} lancé : toutes les ventes ×${r.boost.mult} pendant ${G.fmtDuree((r.boost.fin - st.now) / 1000)} !`); else son.non(); });
   }
 
   // ─── événements : une bannière compacte posée sur la scène, qu'on déplie en la touchant ───
@@ -551,7 +578,7 @@ const UI = (() => {
   }
   function indices() {
     const el = $('#indice');
-    if (st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert) { el.hidden = true; return; }
+    if (st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert || (EVT && EVT.ouvert)) { el.hidden = true; return; }
     const h = INDICES[st.tuto];
     if (h.ou === 'pages' && (pageActive !== 'boutique' || tiroir.pos === 'ferme')) { el.hidden = true; return; }
     if (h.fini()) { st.tuto++; hintUntil = performance.now() + 8000; save(); el.hidden = true; return; }
@@ -723,7 +750,9 @@ const UI = (() => {
   // ─── le classement en ligne : une feuille à deux onglets (cette semaine, tous les temps), un pseudo à part, des envois discrets ───
   // Le moteur (src/classement.js) n'existe que si fournil/config.js donne l'adresse et la clé publique Supabase : dans l'artefact Claude, tout se cache.
   const CLM = typeof CLASSEMENT !== 'undefined' ? CLASSEMENT : null;
+  const EVT = typeof EVENEMENT !== 'undefined' ? EVENEMENT : null, QT = typeof QUARTIER !== 'undefined' ? QUARTIER : null; // l'événement « Le Quartier » (src/evenement.js, src/quartier.js)
   const PERIODES = [['semaine', 'Cette semaine'], ['total', 'Tous les temps']];
+  const periodes = () => (QT && QT.fenetre(HORLOGE.maintenant()).classement ? PERIODES.concat([['quartier', 'Événement']]) : PERIODES); // l'onglet Événement : pendant le Quartier et deux semaines après (le podium final)
   const MSG_RESEAU = { 'hors-ligne': 'Pas de réseau : réessaie quand le téléphone est connecté.', 'lent': 'Le classement est lent à répondre : réessaie dans un instant.', 'pas-ouvert': 'Le classement ouvre bientôt : reviens dans quelques jours.' };
   const msgReseau = (e) => MSG_RESEAU[e] || 'Le classement ne répond pas. Réessaie dans un moment.';
   function cleClassement() { if (!classement) return ''; const r = classement.resume(); return `${r.rejoint}|${r.pseudo}|${r.semaine ? r.semaine.rang + '/' + r.semaine.joueurs : ''}|${r.total ? r.total.rang + '/' + r.total.joueurs : ''}|${classement.recompenses().podiums.length}|${G.pointsSemaine(st)}`; }
@@ -736,7 +765,9 @@ const UI = (() => {
   // serait « 1er » ex æquo) ; 0 point et 46e, c'est une vraie place. Un serveur encore en v2 ne donne pas de points : sa place
   // à l'argent s'affiche comme avant.
   const placeVraie = (p) => !!p && !(p.points === 0 && p.rang === 1);
+  function majCoinQuartier() { const bq = $('#b-quartier'); if (bq) bq.hidden = !(EVT && EVT.visible()); } // l'icône du Quartier : seulement pendant l'événement, et pas masqué
   function majCoin() {
+    majCoinQuartier();
     const b = $('#b-classement'); if (!b) return;
     if (!classement) { b.hidden = true; return; }
     const r = classement.resume(), rang = r.rejoint && placeVraie(r.semaine) ? r.semaine.rang : null, cle = `${rang}|${r.semaine ? r.semaine.joueurs : ''}`;
@@ -744,6 +775,7 @@ const UI = (() => {
     if (cle === derniereCleCoin) return; derniereCleCoin = cle;
     const p = b.querySelector('.rang-pastille');
     p.hidden = !rang; p.textContent = rang ? CLM.rangTexte(rang) : ''; p.className = `rang-pastille${rang && rang <= 3 ? ' r' + rang : ''}`;
+    majCoinQuartier();
     b.setAttribute('aria-label', rang ? `Classement des boulangers : ${CLM.rangPhrase(rang, r.semaine.joueurs, 'semaine')}` : 'Classement des boulangers');
   }
   // l'Atelier, d'un geste depuis l'icône du coin : les trois mini-jeux, leurs records et ce qu'ils valent au classement cette semaine
@@ -778,7 +810,8 @@ const UI = (() => {
   }
   function sheetClassement(periode) {
     if (!classement) return;
-    if (periode === 'semaine' || periode === 'total') ongletCl = periode;
+    if (periode === 'semaine' || periode === 'total' || (periode === 'quartier' && periodes().some(([id]) => id === 'quartier'))) ongletCl = periode;
+    if (ongletCl === 'quartier' && !periodes().some(([id]) => id === 'quartier')) ongletCl = 'semaine'; // l'onglet Événement a disparu (deux semaines après la fin)
     openSheet(htmlClassement()); vueCl = 'liste'; lierClassement();
     classement.ouvrir(ongletCl); // d'abord sa fortune (si on a rejoint), puis la liste
   }
@@ -793,7 +826,7 @@ const UI = (() => {
   }
   function htmlClassement() {
     const r = classement.resume(), c = classement.cache(ongletCl), charge = classement.enChargement(ongletCl);
-    const seg = `<div class="segments" role="tablist" aria-label="Période du classement">${PERIODES.map(([id, t]) => `<button type="button" role="tab" data-tab="${id}" aria-selected="${ongletCl === id}" class="${ongletCl === id ? 'actif' : ''}">${t}</button>`).join('')}</div>`;
+    const seg = `<div class="segments" role="tablist" aria-label="Période du classement">${periodes().map(([id, t]) => `<button type="button" role="tab" data-tab="${id}" aria-selected="${ongletCl === id}" class="${ongletCl === id ? 'actif' : ''}">${t}</button>`).join('')}</div>`;
     const corps = c && c.etat === 'ok' ? listeClassement(c.data, r) : c && !charge ? etatClassement(c.etat)
       : '<div class="cl-squelette" role="status" aria-label="Chargement du classement"><i></i><i></i><i></i><span>On compte les euros de chacun…</span></div>';
     const ferme = c && c.etat === 'pas-ouvert';
@@ -806,12 +839,13 @@ const UI = (() => {
   function listeClassement(d, r) {
     const semaine = ongletCl === 'semaine';
     const enPoints = d.version >= 3; // un serveur encore en version 2 classe à l'argent : on l'affiche comme avant
-    const info = semaine ? `Depuis lundi${d.semaine ? ' ' + CLM.dateCourte(d.semaine) : ''} · remis à zéro chaque lundi` : enPoints ? 'Tous les points depuis l’arrivée au classement' : 'Tout l’argent gagné depuis l’arrivée au classement';
-    const val = (l) => (enPoints && l.points != null ? `<b class="cl-val">${pts(l.points)}<small>${G.fmtEur(l.valeur)}</small></b>` : `<b class="cl-val">${G.fmtEur(l.valeur)}</b>`);
+    const quartier = ongletCl === 'quartier', fq = QT ? QT.fenetre(HORLOGE.maintenant()) : null;
+    const info = quartier ? (fq && fq.fini ? 'Le Quartier est fini : le podium final est figé' : `Les billets gagnés dans la Planque · podium final le 27 oct. à midi`) : semaine ? `Depuis lundi${d.semaine ? ' ' + CLM.dateCourte(d.semaine) : ''} · remis à zéro chaque lundi` : enPoints ? 'Tous les points depuis l’arrivée au classement' : 'Tout l’argent gagné depuis l’arrivée au classement';
+    const val = (l) => (quartier ? `<b class="cl-val">${G.fmtEur(l.valeur)}<small>billets</small></b>` : enPoints && l.points != null ? `<b class="cl-val">${pts(l.points)}<small>${G.fmtEur(l.valeur)}</small></b>` : `<b class="cl-val">${G.fmtEur(l.valeur)}</b>`);
     const tete = `<div class="cl-info"><span>${info}</span><b>${CLM.boulangers(d.joueurs)}</b></div>`
       + (r.rejoint && d.moi && d.moi.rang > 5 ? `<div class="cl-place"><span class="cl-rang${d.moi.rang <= 3 ? ' r' + d.moi.rang : ''}">${d.moi.rang}<small>${d.moi.rang === 1 ? 'er' : 'e'}</small></span><span><b>Ta place ${semaine ? 'cette semaine' : 'de tous les temps'}</b><small>sur ${CLM.boulangers(d.joueurs)}</small></span>${val(d.moi)}</div>` : ''); // sa place d'un coup d'œil quand sa ligne est loin dans la liste
-    if (!d.lignes.length) return `${tete}<div class="cl-etat"><span class="pic">${ICONS.UI.podium}</span><b>${semaine ? 'Personne encore cette semaine' : 'Personne encore'}</b><span>${r.rejoint ? 'Tes points arrivent dans un instant.' : 'Rejoins le classement et ouvre le bal !'}</span></div>`;
-    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : ''}"${moi ? ' aria-current="true"' : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom"><span>${esc(l.pseudo)}</span>${toqueDe(l.podium)}${moi ? '<i class="tag">toi</i>' : ''}</span>${val(l)}</li>`;
+    if (!d.lignes.length) return `${tete}<div class="cl-etat"><span class="pic">${ICONS.UI.podium}</span><b>${quartier ? 'Personne encore au Quartier' : semaine ? 'Personne encore cette semaine' : 'Personne encore'}</b><span>${quartier ? 'Les billets de la Planque arrivent avec le prochain envoi.' : r.rejoint ? 'Tes points arrivent dans un instant.' : 'Rejoins le classement et ouvre le bal !'}</span></div>`;
+    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : ''}"${moi ? ' aria-current="true"' : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom"><span>${esc(l.pseudo)}</span>${quartier ? (l.podium ? `<i class="tag">${rangDe(l.podium)} du Quartier</i>` : '') : toqueDe(l.podium, l.toque, moi)}${moi ? '<i class="tag">toi</i>' : ''}</span>${val(l)}</li>`;
     let html = d.lignes.map((l) => ligne(l, l.moi && r.rejoint)).join('');
     if (r.rejoint && d.moi && !d.lignes.some((l) => l.moi)) html += `<li class="cl-sep" aria-hidden="true"><i></i><i></i><i></i></li>${ligne({ rang: d.moi.rang, pseudo: r.pseudo, points: d.moi.points, valeur: d.moi.valeur, podium: d.moi.podium }, true)}`; // loin derrière : sa ligne quand même, sous les 50 premiers
     const absent = r.rejoint && !d.moi ? `<p class="note">${semaine ? 'Tu n’apparais pas encore cette semaine : tes points partent dès que le réseau le permet.' : 'Tes points ne sont pas encore arrivés : ils partent dès que le réseau le permet.'}</p>` : '';
@@ -844,14 +878,18 @@ const UI = (() => {
   const NOM_METAL = { or: 'or', argent: 'argent', bronze: 'bronze' }, DE_METAL = { or: 'd’or', argent: 'd’argent', bronze: 'de bronze' };
   const rangDe = (n) => (n === 1 ? '1er' : `${n}e`);
   function recVue() { try { return classement ? classement.recompenses() : null; } catch (e) { return null; } }
-  function tenueVue() { const r = recVue(); return r ? r.portee || '' : ''; }
-  function toqueDe(podium) { // la petite toque du podium de la semaine passée, à côté d'un pseudo
-    const m = CLM && CLM.metal(podium); if (!m) return '';
-    return `<i class="cl-toque ${m}" role="img" aria-label="${rangDe(podium)} la semaine dernière" title="${rangDe(podium)} la semaine dernière">${ICONS.toque(m)}</i>`;
+  // ce que porte le boulanger : la garde-robe (src/game.js), pièce par pièce ; les tenues du podium y sont des pièces comme les autres
+  const tenueVue = () => G.tenueBoulanger(st);
+  function toqueDe(podium, toque, moi) { // la petite toque à côté d'un pseudo : la pièce de tête portée si elle vient d'un podium (la sienne, lue sur le téléphone ; celle des autres, si le serveur la donne), sinon le podium de la semaine passée
+    const porte = moi ? G.toqueMetal(st) : CLM && CLM.METAUX.includes(toque) ? toque : null, m = porte || (CLM && CLM.metal(podium)); if (!m) return '';
+    const titre = porte ? `Toque ${DE_METAL[m]}${podium ? `, ${rangDe(podium)} la semaine dernière` : ''}` : `${rangDe(podium)} la semaine dernière`;
+    return `<i class="cl-toque ${m}" role="img" aria-label="${titre}" title="${titre}">${ICONS.toque(m)}</i>`;
   }
   let derniereRecScene = '', annonceOuverte = false, annonceMinuteur = 0;
-  function majRecompenses() { // la boutique en 3D suit les récompenses, et l'annonce attend que plus rien ne soit ouvert
+  function majRecompenses() { // la boutique en 3D suit les récompenses, chaque podium met ses quatre pièces dans la garde-robe, et l'annonce attend que plus rien ne soit ouvert
     const r = recVue(); if (!r) return;
+    let neuves = 0; for (const m of r.coupes) neuves += G.donnerCollection(st, m).length; // un podium gagné = les quatre pièces de sa collection (or, argent ou bronze), une fois pour toutes
+    if (neuves) { save(); if (pageActive === 'boulanger') { lastPage = ''; renderPage(true); } }
     const k = `${r.portee}|${r.coupe}|${r.coupes.join(',')}`;
     if (k !== derniereRecScene) { derniereRecScene = k; SCENE.recompenses({ tenue: r.portee, coupe: r.coupe, coupes: r.coupes }); if (pageActive === 'boulanger') renderPage(); }
     if (r.annonce && !annonceOuverte) tenterAnnonce();
@@ -865,10 +903,11 @@ const UI = (() => {
   function sheetAnnonce(a) {
     const m = a.metal, n = DE_METAL[m], r = recVue(), recent = !!r && a.semaine === CLM.decalerSemaine(r.lundi, -1); // recent : le podium de la semaine passée (sinon, un plus ancien découvert maintenant)
     annonceOuverte = true;
+    G.donnerCollection(st, m); if (recent) { G.equiperCollection(st, m); renderCards(true); hud(); } save(); // la tenue du podium de la semaine passée se porte d'office (on en change dans la garde-robe) ; un podium plus ancien la range seulement
     openSheet(`<div class="cl rec-annonce" data-cl="annonce"><div class="rec-scene ${m}" aria-hidden="true"><i class="rec-rayons"></i><span class="rec-coupe">${ICONS.coupe(m)}</span><span class="rec-boulanger">${ICONS.boulanger(1, m)}</span></div>
       <h2>Bravo ! ${rangDe(a.rang)} de la semaine</h2>
       <p class="rec-phrase">La tenue ${n} et la coupe ${n} sont à toi.</p>
-      <p class="sous">Semaine du ${CLM.dateCourte(a.semaine)} : ${recent ? `ton boulanger porte la tenue ${n} toute cette semaine, la coupe trône sur le comptoir, puis elle rejoint ta vitrine des trophées.` : `la coupe a rejoint ta vitrine des trophées, et la tenue t’attend dans ta collection.`} Les deux sont à toi pour toujours.${a.autres ? ` Et ${a.autres === 1 ? 'un autre podium t’attendait' : `${a.autres} autres podiums t’attendaient`} : ${a.autres === 1 ? 'il est' : 'ils sont'} dans ta collection.` : ''}</p>
+      <p class="sous">Semaine du ${CLM.dateCourte(a.semaine)} : ${recent ? `ton boulanger porte la tenue ${n} toute cette semaine, la coupe trône sur le comptoir, puis elle rejoint ta vitrine des trophées.` : `la coupe a rejoint ta vitrine des trophées, et la tenue t’attend dans ta garde-robe.`} Les quatre pièces (toque, tablier, chaussures, foulard) sont à toi pour toujours, dans ta garde-robe.${a.autres ? ` Et ${a.autres === 1 ? 'un autre podium t’attendait' : `${a.autres} autres podiums t’attendaient`} : ${a.autres === 1 ? 'sa tenue est' : 'leurs tenues sont'} dans ta garde-robe.` : ''}</p>
       <button type="button" class="btn large beurre" data-a="rec-voir"><b>Voir ma boutique</b></button>
       <button type="button" class="btn large clair" data-a="rec-collection" style="margin-top:8px"><b>Mes récompenses</b></button></div>`);
     vueCl = 'annonce';
@@ -884,25 +923,25 @@ const UI = (() => {
   function carteRecompenses() {
     const r = recVue(); if (!r || !r.podiums.length) return '';
     const n = r.podiums.length, dernieres = r.podiums.slice(-5).map((p) => `<i class="rec-mini">${ICONS.coupe(CLM.metal(p.rang))}</i>`).join('');
-    const porte = r.portee ? `tenue ${DE_METAL[r.portee]}` : 'tenue blanche';
+    const tm = G.toqueMetal(st), porte = tm ? `toque ${DE_METAL[tm]}` : 'toque blanche';
     return `<button type="button" class="rec-entree" data-a="cl-recompenses"><span class="rec-minis" aria-hidden="true">${dernieres}</span><span><b>Mes récompenses</b><small>${n} coupe${n > 1 ? 's' : ''} · ${porte}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>`;
   }
-  // la collection : chaque coupe et sa tenue, avec sa semaine ; le choix de la tenue portée
+  // la collection : chaque coupe et sa tenue, avec sa semaine ; la tenue se choisit pièce par pièce dans la garde-robe (onglet Boulanger)
   function sheetRecompenses() {
     if (!classement) return;
-    const r = recVue(), gagnees = r.gagnees;
+    const r = recVue(), tm = G.toqueMetal(st), tenue = tenueVue();
+    for (const m of r.coupes) G.donnerCollection(st, m); // au cas où la garde-robe n'aurait pas encore reçu un podium
     const coupes = r.podiums.slice().reverse().map((p) => { const m = CLM.metal(p.rang); return `<li class="rec-carte ${m}"><span class="rec-icone">${ICONS.coupe(m)}</span><b>${rangDe(p.rang)}</b><small>Coupe et tenue ${DE_METAL[m]}</small><small>Semaine du ${CLM.dateCourte(p.semaine)}</small></li>`; }).join('');
-    const choix = [['auto', 'Automatique', r.coupe ? `Celle du dernier podium, la semaine qui suit : ${DE_METAL[r.coupe]} en ce moment` : 'Celle du dernier podium, la semaine qui suit'], [null, 'Aucune', 'La tenue blanche de toujours']]
-      .concat(gagnees.map((m) => [m, `Tenue ${DE_METAL[m]}`, `Gagnée ${r.podiums.filter((p) => CLM.metal(p.rang) === m).length} fois`]));
-    const boutons = choix.map(([v, t, d]) => { const sel = r.tenue === v; return `<button type="button" role="radio" aria-checked="${sel}" class="rec-choix${sel ? ' actif' : ''}" data-tenue="${v === null ? 'aucune' : v}"><span class="rec-pastille ${v && v !== 'auto' ? v : v === 'auto' ? 'auto' : 'blanc'}">${v && v !== 'auto' ? ICONS.toque(v) : v === 'auto' ? ICONS.toque(r.coupe || 'or') : ICONS.toque('blanc')}</span><span><b>${t}</b><small>${d}</small></span></button>`; }).join('');
     const vide = !r.podiums.length ? '<div class="cl-etat"><span class="pic">' + ICONS.coupe('or') + '</span><b>Pas encore de coupe</b><span>Termine la semaine dans les trois premiers du classement : une tenue et une coupe t’attendent.</span></div>' : '';
-    openSheet(`<div class="cl" data-cl="recompenses"><div class="cl-tete"><span class="pic">${ICONS.coupe(r.coupes.length ? r.coupes[r.coupes.length - 1] : 'or')}</span><div><h2>Mes récompenses</h2><p class="sous">Les trois premiers de chaque semaine gagnent une tenue et une coupe, à garder pour toujours.</p></div></div>
+    const pieces = tenue ? ['tete', 'haut', 'pieds', 'accessoire'].map((p) => { const v = G.vetement(G.garderobe(st).equipe[p]); return v ? esc(v.nom.toLowerCase()) : null; }).filter(Boolean).join(', ') : '';
+    openSheet(`<div class="cl" data-cl="recompenses"><div class="cl-tete"><span class="pic">${ICONS.coupe(r.coupes.length ? r.coupes[r.coupes.length - 1] : 'or')}</span><div><h2>Mes récompenses</h2><p class="sous">Les trois premiers de chaque semaine gagnent une tenue (toque, tablier, chaussures, foulard) et une coupe, à garder pour toujours.</p></div></div>
       ${vide}${r.podiums.length ? `<h3 class="titre-section">La vitrine des trophées</h3><ul class="rec-coupes" aria-label="Mes coupes">${coupes}</ul>
-      <h3 class="titre-section" id="rec-titre-tenue">La tenue du boulanger</h3><div class="rec-choix-liste" role="radiogroup" aria-labelledby="rec-titre-tenue">${boutons}</div>
-      <div class="rec-apercu" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), r.portee)}<span>${r.portee ? `Il porte la tenue ${DE_METAL[r.portee]}.` : 'Il porte la tenue blanche.'}</span></div>` : ''}
+      <h3 class="titre-section" id="rec-titre-tenue">La tenue du boulanger</h3>
+      <div class="rec-apercu" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), tenue)}<span>${tm ? `Il porte la toque ${DE_METAL[tm]}` : 'Il porte la toque blanche'}${pieces ? ` : ${pieces}.` : '.'}</span></div>
+      <button type="button" class="btn large clair" data-a="rec-garderobe" style="margin-top:8px"><b>Ouvrir la garde-robe</b></button>` : ''}
       <button type="button" class="btn large sombre" data-a="cl-retour" style="margin-top:14px"><b>Retour au classement</b></button></div>`);
     vueCl = 'recompenses';
-    on('[data-tenue]', (b) => { const v = b.dataset.tenue === 'aucune' ? null : b.dataset.tenue; if (classement.choisirTenue(v)) { son.tap(); buzz(8); const y = feuille.scrollTop; sheetRecompenses(); feuille.scrollTop = y; const nb = fc.querySelector(`[data-tenue="${b.dataset.tenue}"]`); if (nb) nb.focus(); } else son.non(); });
+    on('[data-a="rec-garderobe"]', () => { son.tap(); if (GRU) GRU.ouvrir(ctxGarderobe(), 'tete'); });
     on('[data-a="cl-retour"]', () => { son.tap(); sheetClassement(); });
   }
   // rejoindre (la première fois) ou changer de pseudo : validation en direct, « déjà pris » après l'envoi
@@ -972,7 +1011,7 @@ const UI = (() => {
   function frame(now) {
     if (retourEnCours) { lastFrame = now; requestAnimationFrame(frame); return; } // l'absence n'est pas encore comptée : rien ne bouge
     const dt = Math.min(0.25, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
-    const atelier = MINIJEUX.ouvert; // pendant l'Atelier : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran de jeu
+    const planque = !!(EVT && EVT.ouvert), atelier = MINIJEUX.ouvert || planque; // pendant l'Atelier ou la Planque : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran de jeu
     if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); }
     const out = G.tick(st, dt, HORLOGE.maintenant(), atelier ? () => 0.999 : undefined);
     if (out.ventes.length) {
@@ -994,6 +1033,8 @@ const UI = (() => {
     if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); feter(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
     renderCards(); hud(); renderObjectifs(); renderEvenement(); renderPage();
     if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant()); // l'écran de l'Atelier couvre la boutique : la 3D attend
+    if (planque) EVT.frame(dt, HORLOGE.maintenant()); // la Planque de l'événement vit tant qu'elle est ouverte (fermée, elle rattrape une absence)
+    renderBoosts();
     indices();
     if (now - lastSave > 5000) save();
     requestAnimationFrame(frame);
@@ -1041,6 +1082,12 @@ const UI = (() => {
     $('#b-fini').addEventListener('click', () => { audio(); son.tap(); amenager(false); });
     $('#b-atelier').addEventListener('click', () => { audio(); son.tap(); sheetAtelier(); });
     $('#b-classement').addEventListener('click', () => { audio(); son.tap(); sheetClassement(); });
+    $('#b-quartier').addEventListener('click', () => { audio(); son.tap(); if (EVT) EVT.ouvrir(); });
+    $('#boosts').addEventListener('click', () => { audio(); son.tap(); lancerBoost(); });
+    // l'événement « Le Quartier » : la Planque, ses paliers et leurs récompenses, l'annonce, le bilan (src/evenement.js)
+    if (EVT) EVT.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), save, toast, fete: () => SCENE.fete(), openSheet, closeSheet, on, recompenses: recVue,
+      ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); majCoin(); renderCards(true); hud(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
+      apres: () => { renderCards(true); hud(); lastPage = ''; renderPage(true); } });
     buildCards();
     MINIJEUX.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), fete: () => SCENE.fete(),
       ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
@@ -1081,9 +1128,10 @@ const UI = (() => {
     if (!fresh) { const abs = G.absence(st, HORLOGE.maintenant()); absencePayee = abs.secs * 1000; if (abs.total > 0 && abs.secs > 90) sheetRetour(abs); }
     absencePrete = true;
     HORLOGE.surSaut(payerSaut);
+    if (EVT) { setTimeout(() => { if ($('#feuille').hidden) EVT.annoncer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVT.annoncer(); } }, 1500); } }, 800); } // l'annonce du Quartier (ou son bilan) attend que la feuille du retour soit refermée
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
-    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), maintenant: () => HORLOGE.maintenant() }) : null; } catch (e) { classement = null; }
+    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.fenetre(HORLOGE.maintenant()).ouvert ? st.quartier.total : null), maintenant: () => HORLOGE.maintenant() }) : null; } catch (e) { classement = null; }
     if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); }); majRecompenses(); classement.demarrer(); setInterval(majRecompenses, 60e3); } // la tenue et la coupe changent aussi au lundi
     majCoin();
     lastNiveau = G.niveau(st);
@@ -1092,7 +1140,8 @@ const UI = (() => {
     requestAnimationFrame(frame);
     window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
-      chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label') }; }, repeindre, feuilleAtelier: () => sheetAtelier() };
+      chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
+      quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

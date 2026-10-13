@@ -905,45 +905,70 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   // Tenue du podium (o.tenue = TENUES.or | argent | bronze, le patron seulement) : toque et tablier au métal, une bande foncée au pied de
   // la toque et en ourlet du tablier (elle remplace le liseré doré du titre), une étoile foncée sur le devant de la toque et un reflet clair
   // sur sa gauche. Tout est fusionné dans le buste ou la tête : aucun appel de dessin de plus ; sans o.tenue, rien ne change.
+  // La garde-robe du patron (o.garde = GAME.tenueBoulanger(st) : { tete, haut, pieds, accessoire: { forme, metal } | null }) : la forme choisit
+  // le dessin (toque ou casquette ; tablier ou sweat à capuche ; sabots, chaussures ou baskets ; foulard, chaîne ou lunettes), le métal
+  // sa palette dans TENUES (or, argent, bronze, quartier, quartier-or ; null : la tenue blanche). Le sweat colore aussi les bras (manches,
+  // poignets, mains fusionnés en un maillage par bras), les chaussures sont fusionnées à chaque jambe : 8 appels de dessin, comme avant.
   function construire(o) {
-    const peau = o.peau || '#FFD7B5', haut = o.or ? OR : o.haut || '#FF9FB2', chev = o.cheveux || L, large = o.tablier === 'large', phiT = large ? 1.9 : 1.3;
-    const tn = o.tenue && o.tenue.tissu ? o.tenue : null, tissu = tn ? tn.tissu : BLANC, galon = tn ? tn.fonce : OR;
+    const peau = o.peau || '#FFD7B5', chev = o.cheveux || L, large = o.tablier === 'large', phiT = large ? 1.9 : 1.3;
+    const gd = o.garde || null, pieceG = (p) => (gd && gd[p] ? gd[p] : null), metalDe = (p) => { const x = pieceG(p); return x && x.metal && TENUES[x.metal] ? TENUES[x.metal] : null; };
+    const tnL = o.tenue && o.tenue.tissu ? o.tenue : null; // l'ancienne option : toque et tablier au même métal
+    const tnT = metalDe('tete') || tnL, tnH = metalDe('haut') || tnL, tnP = metalDe('pieds'), tnA = metalDe('accessoire');
+    const casquette = !!pieceG('tete') && pieceG('tete').forme === 'casquette', sweat = !!pieceG('haut') && pieceG('haut').forme === 'sweat', pieds = pieceG('pieds'), acc = pieceG('accessoire');
+    const haut = sweat ? (tnH || TENUES.quartier).tissu : o.or ? OR : o.haut || '#FF9FB2';
+    const tissuT = tnT ? tnT.tissu : BLANC, galonT = tnT ? tnT.fonce : OR, tissuH = tnH ? tnH.tissu : BLANC, galonH = tnH ? tnH.fonce : OR;
     const grade = o.toque && o.tablier ? Math.max(1, Math.min(5, Math.round(+o.grade || 1))) : 1, lisere = o.lisere || grade >= 5;
+    const lunettes = !!o.lunettes || !!(acc && acc.forme === 'lunettes');
     const g = new THREE.Group(), racine = new THREE.Group(), ht = new THREE.Group(), P = { racine, haut: ht, bras: [], jambes: [] };
     g.add(racine); racine.add(ht); g.userData.parts = P; g.userData.options = o;
     // les jambes pendent du bassin (pivot y = 17,5) et remontent jusqu'à 22,5 dans le buste : au sommet du rebond de marche (haut monte de 3,25) elles restent jointes au corps
-    for (const sx of [-1, 1]) { const j = M.mesh(pendu(3, 16.5, 2), M.mat(L), { x: sx * 4.5, y: 17.5 }); P.jambes.push(j); racine.add(j); }
-    // le buste : une capsule, rayures de marinière, tablier qui épouse le corps, col et foulard du patron
+    for (const sx of [-1, 1]) { const j = pieds ? M.maille([M.part(pendu(3, 16.5, 2), L), ...partsChaussure(pieds.forme, tnP)]) : M.mesh(pendu(3, 16.5, 2), M.mat(L)); j.position.set(sx * 4.5, 17.5, 0); P.jambes.push(j); racine.add(j); }
+    // le buste : une capsule, rayures de marinière, tablier qui épouse le corps (ou le sweat à capuche), col et foulard du patron
     const corps = [M.part(M.capsule(11, 12, 12), haut, { y: 36 })];
     if (o.mariniere) for (const y of [31.5, 36, 40.5, 44.8]) corps.push(M.part(bande(11.4, 2.2), '#3A86C8', { y }));
-    if (o.tablier) {
-      corps.push(M.part(patchS(11.7, phiT, 1.05, HP - 1.05), tissu, { y: 42 }), M.part(patchC(11.7, 12, phiT), tissu, { y: 36 }), M.part(patchS(11.7, phiT, HP, 0.95), tissu, { y: 30 }));
-      if (lisere || tn) corps.push(M.part(patchS(12, phiT, HP + 0.4, 0.28), galon, { y: 30 }));
-      if (tn) corps.push(M.part(patchC(11.85, 11, 0.2), tn.clair, { y: 36.5, ry: -0.45 })); // le reflet du métal, une bande claire sur la gauche du tablier
+    if (o.tablier && !sweat) {
+      corps.push(M.part(patchS(11.7, phiT, 1.05, HP - 1.05), tissuH, { y: 42 }), M.part(patchC(11.7, 12, phiT), tissuH, { y: 36 }), M.part(patchS(11.7, phiT, HP, 0.95), tissuH, { y: 30 }));
+      if (lisere || tnH) corps.push(M.part(patchS(12, phiT, HP + 0.4, 0.28), galonH, { y: 30 }));
+      if (tnH) corps.push(M.part(patchC(11.85, 11, 0.2), tnH.clair, { y: 36.5, ry: -0.45 })); // le reflet du métal, une bande claire sur la gauche du tablier
       if (grade >= 2) { const fonce = M.assombrir(haut, 0.25); corps.push(M.part(patchS(11.9, phiT, 1.05, 0.15), fonce, { y: 42 })); if (!lisere) corps.push(M.part(patchS(11.9, phiT, HP + 0.42, 0.28), fonce, { y: 30 })); } // un biais qui borde le haut de la bavette (le blanc reste visible dessous), et son rappel en ourlet au bas du tablier, là où le plateau ne cache rien (au grade 5, le liseré doré prend sa place)
       if (grade >= 3) corps.push(M.part(etoile(2.7, 1.15, 0.9), OR, ETOILE)); // l'étoile, couchée sur la poitrine gauche, au-dessus de la bavette
     }
+    if (sweat) { // le sweat à capuche : la capuche rabattue dans le dos, le col, les cordons, la poche kangourou et l'étoile du quartier sur la poitrine
+      const c = tnH || TENUES.quartier, poche = M.eclaircir(c.tissu, 0.12);
+      corps.push(M.part(M.sphere(7, 10), c.tissu, { y: 47.5, z: -7.5, sx: 1.4, sy: 0.6, sz: 0.95 }), M.part(bande(9.6, 3), c.tissu, { y: 50.5 }), M.part(M.tore(9.4, 1.1, TAU, 6, 16), poche, { y: 51.6, rx: HP }));
+      corps.push(M.part(M.capsule(0.55, 5, 5), c.clair, { x: -2.3, y: 45, z: 11, rz: 0.12 }), M.part(M.capsule(0.55, 5, 5), c.clair, { x: 2.3, y: 45, z: 11, rz: -0.12 }));
+      corps.push(M.part(patchC(11.75, 5.5, 1.35), poche, { y: 25.5 }), M.part(patchC(11.85, 0.7, 1.35), c.fonce, { y: 30.6 }), M.part(patchS(11.75, 1.35, HP, 0.4), poche, { y: 30 }));
+      corps.push(M.part(etoile(2.4, 1, 0.8), c.fonce, ETOILE));
+    }
     if (o.col) corps.push(M.part(patchC(12, 5, 2.3), '#2B5BD7', { y: 45.5, ry: -1.45 }), M.part(patchC(12, 5, 0.6), BLANC, { y: 45.5 }), M.part(patchC(12, 5, 2.3), ROUGE, { y: 45.5, ry: 1.45 }), M.part(patchC(12, 5, 0.6), BLANC, { y: 45.5, ry: Math.PI }));
-    if (o.foulard) corps.push(M.part(M.tore(9.2, 2.4, TAU, 8, 16), ROUGE, { y: 51, rx: HP }), M.part(M.sphere(2.6, 8), ROUGE, { y: 49, z: 9.6 }), M.part(M.capsule(1.3, 3, 6), ROUGE, { x: -1.7, y: 46.3, z: 11.2, rz: 0.35 }), M.part(M.capsule(1.3, 3, 6), ROUGE, { x: 1.9, y: 46.6, z: 11, rz: -0.3 })); // deux pans courts qui pendent du nœud, à plat sur le tablier
+    const foulardCol = acc && acc.forme === 'foulard' ? (tnA ? tnA.tissu : ROUGE) : acc && acc.forme !== 'lunettes' ? null : o.foulard ? ROUGE : null; // l'accessoire remplace le foulard du titre (les lunettes le laissent)
+    if (foulardCol) corps.push(M.part(M.tore(9.2, 2.4, TAU, 8, 16), foulardCol, { y: 51, rx: HP }), M.part(M.sphere(2.6, 8), foulardCol, { y: 49, z: 9.6 }), M.part(M.capsule(1.3, 3, 6), foulardCol, { x: -1.7, y: 46.3, z: 11.2, rz: 0.35 }), M.part(M.capsule(1.3, 3, 6), foulardCol, { x: 1.9, y: 46.6, z: 11, rz: -0.3 })); // deux pans courts qui pendent du nœud, à plat sur le tablier
+    if (acc && acc.forme === 'chaine') { const bijou = tnA ? tnA.bijou || tnA.fonce : OR; corps.push(M.part(M.tore(9.6, 0.75, TAU, 6, 20), bijou, { y: 50.2, rx: HP + 0.28 }), M.part(M.tore(10.1, 0.75, TAU, 6, 20), bijou, { y: 48.4, rx: HP + 0.5 }), M.part(M.cylindre(2.3, 2.3, 0.9, 12), bijou, { y: 42.2, z: 11.2, rx: HP + 0.18 }), M.part(M.cylindre(1.3, 1.3, 0.5, 10), tnA ? tnA.clair : '#FFF2C2', { y: 42.2, z: 12.05, rx: HP + 0.18 })); } // deux rangs qui tombent sur la poitrine, un médaillon
     P.corps = M.maille(corps); ht.add(P.corps);
-    // la tête : peau, cou, coiffure (calotte, mèches, chignon, bonnet), toque, haut-de-forme, moustache
+    // la tête : peau, cou, coiffure (calotte, mèches, chignon, bonnet), toque ou casquette, haut-de-forme, moustache
     const tete = [M.part(M.sphere(10, 14), peau), M.part(M.cylindre(3.6, 3.6, 8, 8), peau, { y: -14 })];
     if (!o.toque) tete.push(M.part(calotte(10.7, 1.5), chev, { rx: -0.78 }));
     if (o.coiffure === 1 && !o.toque) tete.push(M.part(M.capsule(2.3, 7, 6), chev, { x: -9.8, z: -1.5, rz: -0.12 }), M.part(M.capsule(2.3, 7, 6), chev, { x: 9.8, z: -1.5, rz: 0.12 }));
     if (o.coiffure === 2 && !o.toque) tete.push(M.part(M.sphere(4.2, 8), chev, { y: 10.5, z: -4 }));
     if (o.coiffure === 3 && !o.toque) tete.push(M.part(bande(10, 4.2), o.bonnet || '#9BD0FF', { y: 10 }), M.part(calotte(10.2, HP, 14), o.bonnet || '#9BD0FF', { y: 12 }), M.part(M.sphere(3, 8), BLANC, { y: 22.7 }));
-    if (o.toque) {
+    if (o.toque && casquette) { // la casquette : une calotte basse, le bandeau, la visière tournée vers l'arrière (devant, elle cacherait les yeux en plongée), le bouton ; sa couleur, celle du quartier
+      const c = tnT || TENUES.quartier;
+      tete.push(M.part(calotte(10.5, 0.95, 14), c.tissu, { y: 1.4 }), M.part(bande(10.2, 1.8), c.tissu, { y: 7.6 }), M.part(M.boite(9.6, 1.1, 6.8, 0.5), c.fonce, { y: 6.6, z: -10.3, rx: -0.2 }), M.part(M.sphere(1.1, 6), c.fonce, { y: 11.9 }), M.part(patchS(10.75, 0.55, 0.2, 0.55), c.clair, { y: 1.4, ry: -0.95 }));
+    } else if (o.toque) {
       const th = (typeof o.toque === 'number' ? o.toque : 14) + (grade >= 5 ? 10 : grade >= 4 ? 6 : 0), hc = Math.max(1, th - 8);
-      tete.push(M.part(M.cylindre(9.2, 9.2, 4, 14), tissu, { y: 8 }), M.part(M.cylindre(8, 8.8, hc, 14), tissu, { y: 12 }), M.part(calotte(8, HP, 14), tissu, { y: 12 + hc }));
-      if (lisere || tn) tete.push(M.part(bande(9.5, 1.4), galon, { y: 8.6 }));
-      if (tn) { const ye = hc >= 6 ? 12 + hc * 0.4 : 10, re = ye < 12 ? 9.2 : 8.8 - (ye - 12) / hc * 0.8; tete.push(M.part(etoile(2.6, 1.1, 0.9), tn.fonce, { y: ye, z: re + 0.3, sy: 1.45 }), M.part(patchC(8.95, Math.max(1, hc - 1), 0.34), tn.clair, { y: 12 + hc / 2, ry: -0.75 })); } // l'étoile au front de la toque (étirée en hauteur : la plongée de 52° l'écrase), le reflet sur sa gauche
+      tete.push(M.part(M.cylindre(9.2, 9.2, 4, 14), tissuT, { y: 8 }), M.part(M.cylindre(8, 8.8, hc, 14), tissuT, { y: 12 }), M.part(calotte(8, HP, 14), tissuT, { y: 12 + hc }));
+      if (lisere || tnT) tete.push(M.part(bande(9.5, 1.4), galonT, { y: 8.6 }));
+      if (tnT) { const ye = hc >= 6 ? 12 + hc * 0.4 : 10, re = ye < 12 ? 9.2 : 8.8 - (ye - 12) / hc * 0.8; tete.push(M.part(etoile(2.6, 1.1, 0.9), tnT.fonce, { y: ye, z: re + 0.3, sy: 1.45 }), M.part(patchC(8.95, Math.max(1, hc - 1), 0.34), tnT.clair, { y: 12 + hc / 2, ry: -0.75 })); } // l'étoile au front de la toque (étirée en hauteur : la plongée de 52° l'écrase), le reflet sur sa gauche
     }
     if (o.or) tete.push(M.part(M.cylindre(11.8, 11.8, 1.6, 16), L, { y: 9.6 }), M.part(M.cylindre(7.4, 7.2, 15, 14), L, { y: 10 }), M.part(bande(7.7, 2.2), OR, { y: 13 }));
     if (o.moustache) tete.push(M.part(M.capsule(1.3, 3.2, 6), '#8C5A3C', { x: -2.6, y: 2.4, z: 10.1, rz: 1.05 }), M.part(M.capsule(1.3, 3.2, 6), '#8C5A3C', { x: 2.6, y: 2.4, z: 10.1, rz: -1.05 }));
     P.tete = M.maille(tete); P.tete.position.y = 63; ht.add(P.tete);
     for (let k = 0; k < NCEL; k++) geoVisage(k); // pré-chauffe les 8 cases du visage : animer n'allouera jamais une géométrie à la volée
-    P.visage = new THREE.Mesh(geoVisage(o.lunettes ? 4 : 0), visageMat()); P.visage.position.y = 63; P.visage.userData.k = o.lunettes ? 4 : 0; ht.add(P.visage);
-    for (const sx of [-1, 1]) { const b = M.mesh(pendu(2.6, 11, 0), M.mat(peau), { x: sx * 11.6, y: 46 }); b.rotation.z = sx * 0.1; P.bras.push(b); ht.add(b); }
+    P.visage = new THREE.Mesh(geoVisage(lunettes ? 4 : 0), visageMat()); P.visage.position.y = 63; P.visage.userData.k = lunettes ? 4 : 0; ht.add(P.visage);
+    for (const sx of [-1, 1]) { // les bras : la peau, ou la manche du sweat (poignet et main fusionnés : toujours un maillage par bras)
+      const c = tnH || TENUES.quartier, b = sweat ? M.maille([M.part(pendu(2.6, 11, 0), c.tissu), M.part(bande(2.85, 1.6), c.fonce, { y: -10.4 }), M.part(M.sphere(2.4, 8), peau, { y: -12.4 })]) : M.mesh(pendu(2.6, 11, 0), M.mat(peau));
+      b.position.set(sx * 11.6, 46, 0); b.rotation.z = sx * 0.1; P.bras.push(b); ht.add(b);
+    }
     // les accessoires, cachés tant qu'animer ne les montre pas
     if (o.sac || o.sacCol) { P.sac = M.maille([M.part(M.boite(9, 13, 5, 1.2), o.sacCol || '#F2D7B6'), M.part(M.capsule(2.2, 5, 6), '#E8B46A', { y: 15.5, rz: -0.25 })]); P.sac.position.set(14.5, 22, 4); P.sac.visible = false; ht.add(P.sac); }
     if (o.plateau) { P.plateau = M.mesh(geoPlateau(o.produit == null ? 0 : o.produit), M.MAT.vertex, { y: 44, z: 16 }); P.plateau.visible = false; ht.add(P.plateau); } // plateau + pâtisserie en un seul maillage
@@ -959,11 +984,23 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   const creer = (o) => construire(o || {});
   // le patron : même grammaire, 1,25 fois plus grand ; toque, foulard, moustache, liseré et col selon le titre
   // tenue : 'or', 'argent' ou 'bronze' (la tenue du podium du classement), sinon la tenue blanche
-  const TENUES = { or: { tissu: '#FFD15C', fonce: '#D4921A', clair: '#FFF2C2' }, argent: { tissu: '#D3DCE6', fonce: '#7F8FA3', clair: '#F8FBFE' }, bronze: { tissu: '#E2A06A', fonce: '#9E5A2A', clair: '#F8D6B6' } };
+  // tenue : 'or', 'argent' ou 'bronze' (toque et tablier du podium, l'ancienne forme), ou la garde-robe complète de GAME.tenueBoulanger(st)
+  // ({ tete, haut, pieds, accessoire: { forme, metal } | null }). Les palettes : les métaux du podium ; le quartier (anthracite, accent fraise,
+  // bijoux argentés) et le quartier en or (noir et or). bijou : la couleur de la chaîne.
+  const TENUES = { or: { tissu: '#FFD15C', fonce: '#D4921A', clair: '#FFF2C2', bijou: '#FFC84A' }, argent: { tissu: '#D3DCE6', fonce: '#7F8FA3', clair: '#F8FBFE', bijou: '#D3DCE6' }, bronze: { tissu: '#E2A06A', fonce: '#9E5A2A', clair: '#F8D6B6', bijou: '#E2A06A' },
+    quartier: { tissu: '#2E2B3A', fonce: '#E1496C', clair: '#56516B', bijou: '#D3DCE6' }, 'quartier-or': { tissu: '#1E1B26', fonce: '#FFC84A', clair: '#4A4458', bijou: '#FFC84A' } };
+  const METAUX_PODIUM = ['or', 'argent', 'bronze'];
+  // les chaussures, fusionnées au bas d'une jambe (pivot en haut : le sol est à y = −17,5) : sabots de bois, chaussures au métal, baskets
+  function partsChaussure(forme, tn) {
+    if (forme === 'baskets') { const c = tn || TENUES.quartier; return [M.part(M.boiteSimple(7.8, 1.5, 10.4), BLANC, { y: -17.5, z: 1.6 }), M.part(M.boite(7, 3.8, 9.4, 1.3), c.tissu, { y: -16.1, z: 1.4 }), M.part(M.boiteSimple(0.6, 2, 4.6), c.fonce, { x: -3.55, y: -15.6, z: 0.6 }), M.part(M.boiteSimple(0.6, 2, 4.6), c.fonce, { x: 3.55, y: -15.6, z: 0.6 }), M.part(M.boiteSimple(3.2, 0.5, 0.7), BLANC, { y: -12.35, z: 3.4 }), M.part(M.boiteSimple(3.2, 0.5, 0.7), BLANC, { y: -12.35, z: 4.8 })]; }
+    if (tn) return [M.part(M.boite(7.2, 4.4, 9.4, 1.4), tn.tissu, { y: -17.5, z: 1.4 }), M.part(M.boiteSimple(7.4, 1, 9.6), tn.fonce, { y: -17.5, z: 1.4 }), M.part(M.boiteSimple(5, 0.8, 1.2), tn.fonce, { y: -14.2, z: 3.2 })];
+    return [M.part(M.boite(7.2, 4.4, 9.4, 1.4), '#C8864F', { y: -17.5, z: 1.4 }), M.part(M.boiteSimple(7.4, 1, 9.6), '#8B5A3C', { y: -17.5, z: 1.4 })]; // les sabots
+  }
   function boulanger(rang, tenue) {
     rang = rang || 0; const th = rang === 0 ? 10 : rang === 1 ? 22 : 22 + Math.min(14, (rang - 1) * 5);
-    const g = construire({ haut: '#FF6B8B', peau: '#FFD7B5', tablier: 'large', toque: th, lisere: rang >= 4, foulard: rang >= 3, moustache: rang >= 3, col: rang >= 5, sueur: true, tenue: TENUES[tenue] || null });
-    g.userData.parts.racine.scale.setScalar(1.25); g.userData.rang = rang; g.userData.tenue = TENUES[tenue] ? tenue : null; return g;
+    const garde = tenue && typeof tenue === 'object' ? tenue : null, metal = garde ? (garde.tete && METAUX_PODIUM.includes(garde.tete.metal) ? garde.tete.metal : null) : TENUES[tenue] ? tenue : null;
+    const g = construire({ haut: '#FF6B8B', peau: '#FFD7B5', tablier: 'large', toque: th, lisere: rang >= 4, foulard: rang >= 3, moustache: rang >= 3, col: rang >= 5, sueur: true, tenue: garde ? null : TENUES[tenue] || null, garde });
+    g.userData.parts.racine.scale.setScalar(1.25); g.userData.rang = rang; g.userData.tenue = metal; g.userData.garde = garde; return g; // userData.tenue : le métal du podium porté sur la tête (ce que les autres voient), sinon null
   }
   // DÉPENDANCE DE VERSION (Three r158) : on écrit les champs privés d'Euler (_x, _y, _z) sans passer par le setter, puis tourner()
   // recale le quaternion comme le ferait Euler._onChangeCallback. Si une mise à jour de Three renomme ces champs ou change ce rappel,
@@ -1256,13 +1293,16 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
         const b = boulanger(5); b.position.set(-60, 0, -90); g.add(b);
         g.userData.anime = (E) => { for (let k = 0; k < cl.length; k++) { const oc = os[k]; oc.phase = E.t * 9; oc.t = E.t; oc.blink = E.t % 3.4; animer(cl[k], oc); } ob.t = E.t; animerBoulanger(b, ob); }; g.position.set(195, 0, 330); return g; }
       default: if (nom.startsWith('apprenti-grade-')) { p = client(0, { haut: '#5FD3A4', coiffure: 0, toque: true, tablier: true, plateau: true, produit: 1, grade: +nom.slice(15) }); o.plateau = true; o.produit = 1; }
-      else if (nom.startsWith('boulanger-')) { const [rg, tn] = nom.slice(10).split('-'); p = boulanger(+rg, tn); g.add(p); anim = animerBoulanger; o.rang = +rg; o.rush = o.rang === 3; o.hop = o.rang === 1 ? 0.6 : 0; } else p = client(0, {});
+      else if (nom.startsWith('boulanger-')) { // 'boulanger-5-or' (toque et tablier d'un métal) ou 'boulanger-5-garde:or-toque,quartier-sweat,quartier-baskets,quartier-chaine' (la garde-robe, ids de GAME.GARDEROBE)
+        const [rg, tn] = nom.slice(10).split(/-(.+)/); let tenue = tn;
+        if (tn && tn.startsWith('garde:') && typeof GAME !== 'undefined') { const st = GAME.newState(0), ids = tn.slice(6).split(','); for (const id of ids) { GAME.donnerVetement(st, id); const v = GAME.vetement(id); if (v) GAME.equiper(st, v.piece, id); } tenue = GAME.tenueBoulanger(st); }
+        p = boulanger(+rg, tenue); g.add(p); anim = animerBoulanger; o.rang = +rg; o.rush = o.rang === 3; o.hop = o.rang === 1 ? 0.6 : 0; } else p = client(0, {});
     }
     p.rotation.y = lacet(dir); g.position.set(195, 0, 350); if (zoom) g.scale.setScalar(zoom);
     g.userData.anime = (E) => { o.t = E.t; o.blink = E.t % 3.4; if (o.marche) o.phase = 1.2 + (E.t - 0.4) * 9; anim(p, o); };
     return g;
   }
-  return { HAUTEUR, TAILLE_PATISSERIE, SAISONS, TENUES, creer, animer, lacet, boulanger, animerBoulanger, chat, animerChat, libererChat, patisserie, geoPatisserie, partsPatisserie, patisserieSaison, geoPatisserieSaison, demo };
+  return { HAUTEUR, TAILLE_PATISSERIE, SAISONS, TENUES, METAUX_PODIUM, partsChaussure, creer, animer, lacet, boulanger, animerBoulanger, chat, animerChat, libererChat, patisserie, geoPatisserie, partsPatisserie, patisserieSaison, geoPatisserieSaison, demo };
 })();
 if (typeof module !== 'undefined') module.exports = PERSOS;
 
