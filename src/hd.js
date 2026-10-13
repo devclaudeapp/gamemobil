@@ -1,23 +1,31 @@
-/* LE FOURNIL — rendu HD (ESSAI, branche maquette-hd, seulement avec ?hd=1) : des modèles KayKit (CC0, Kay Lousberg) mêlés au décor
-   du jeu, des personnages riggés et animés (KayKit Adventurers, rhabillés par leur palette), et une passe d'effets (N8AO, SMAA, halo)
-   par vendor/fournil-hd.min.js (GLTFLoader + SkeletonUtils three r158, postprocessing 6.33.4, n8ao 1.8.4). Sans ?hd=1 : rien ne change. */
+/* LE FOURNIL — les modèles HD : KayKit (CC0, Kay Lousberg : Furniture, City Builder, Halloween, Restaurant Bits ; personnages riggés et animés
+   Adventurers, rhabillés par leur palette), compressés en meshopt dans fournil/hd/, chargés par vendor/fournil-hd.min.js (GLTFLoader, SkeletonUtils,
+   MeshoptDecoder de three r158 ; postprocessing 6.33.4 ; n8ao 1.8.4). La Planque y prend ses meubles, sa rue de nuit et son équipe animée ; la
+   boutique garde ses personnages et reçoit quelques décors. En qualité éco, sans WebGL2, dans l'artefact ou avec ?hd=0 : le rendu habituel. */
 const HDM = (() => {
-  const actif = typeof window !== 'undefined' && typeof THREE !== 'undefined' && typeof FOURNIL_HD !== 'undefined' && /[?&]hd=1/.test(location.search);
-  const API = { actif, pret: false, version: 0 };
+  // actif : le paquet d'outils est là et on ne l'a pas coupé (?hd=0) ; permis(renderer) : WebGL2 et pas en qualité éco (le rendu actuel reste tel quel)
+  const actif = typeof window !== 'undefined' && typeof THREE !== 'undefined' && typeof FOURNIL_HD !== 'undefined' && !/[?&]hd=0/.test(location.search);
+  const API = { actif, version: 0, pret: () => false, permis: () => false, charger: () => Promise.resolve(false) };
   if (!actif) return API;
-  const X = FOURNIL_HD, L = new X.GLTFLoader(), BASE = 'hd/';
-  const LISTE = {
-    meubles: ['rug_oval_A', 'rug_rectangle_stripes_A', 'cactus_medium_A', 'cactus_small_A', 'cactus_small_B', 'pictureframe_large_A', 'pictureframe_medium', 'pictureframe_small_A', 'lamp_standing', 'couch_pillows', 'armchair_pillows', 'table_low', 'shelf_B_large_decorated', 'cabinet_medium_decorated', 'lamp_table'],
-    ville: ['building_D', 'building_F', 'building_B', 'streetlight', 'car_sedan', 'dumpster', 'firehydrant', 'bench', 'trash_A', 'box_A'],
-    halloween: ['pumpkin_orange', 'pumpkin_orange_jackolantern', 'pumpkin_yellow_small', 'candle_triple', 'lantern_hanging'],
-    resto: ['jar_A_large', 'jar_B_medium', 'jar_C_small', 'cuttingboard'],
+  const X = FOURNIL_HD, L = new X.GLTFLoader(), BASE = 'hd/'; if (X.MeshoptDecoder) L.setMeshoptDecoder(X.MeshoptDecoder);
+  // deux lots chargés à la demande : la boutique (quelques décors, après le premier rendu), la Planque (à sa première ouverture)
+  const LOTS = {
+    boutique: { meubles: ['cactus_medium_A', 'cactus_small_A', 'lamp_standing'], halloween: ['pumpkin_orange', 'pumpkin_orange_jackolantern', 'pumpkin_yellow_small'], resto: ['jar_A_large', 'jar_B_medium'] },
+    planque: { meubles: ['rug_oval_A', 'cactus_medium_A', 'cactus_small_A', 'pictureframe_medium', 'lamp_standing', 'couch_pillows', 'armchair_pillows', 'table_low'], ville: ['building_D', 'building_F', 'streetlight', 'car_sedan', 'firehydrant', 'trash_A', 'dumpster'], persos: ['Rogue', 'Mage', 'Knight', 'Barbarian'] },
   };
-  const VARIANTES = ['Rogue', 'Mage', 'Knight', 'Barbarian'], MOD = {}, PER = {}, attente = [];
-  const charger = (u) => new Promise((ok, ko) => L.load(BASE + u, ok, null, ko));
-  const taches = [];
-  for (const [dossier, noms] of Object.entries(LISTE)) for (const n of noms) taches.push(charger(`${dossier}/${n}.gltf`).then((g) => { MOD[n] = g.scene; }).catch(() => {}));
-  for (const n of VARIANTES) taches.push(charger(`persos/${n}.glb`).then((g) => { PER[n] = g; }));
-  Promise.all(taches).then(() => { API.pret = true; API.version++; attente.splice(0).forEach((f) => { try { f(); } catch (e) { console.error(e); } }); }).catch((e) => { API.erreur = String(e && e.message || e); });
+  const VARIANTES = ['Rogue', 'Mage', 'Knight', 'Barbarian'], MOD = {}, PER = {}, etat = {};
+  const lire = (u) => new Promise((ok, ko) => L.load(BASE + u, ok, null, ko));
+  function charger(lot) {
+    if (etat[lot]) return etat[lot].promesse; const e = etat[lot] = { pret: false };
+    const t = []; for (const [dossier, noms] of Object.entries(LOTS[lot] || {})) for (const n of noms) {
+      if (dossier === 'persos') { if (!PER[n]) t.push(lire(`persos/${n}.glb`).then((g) => { PER[n] = g; }, () => {})); }
+      else if (!MOD[n]) t.push(lire(`${dossier}/${n}.glb`).then((g) => { MOD[n] = g.scene; }, () => console.warn('HD : modèle manquant', n))); // un décor manquant est simplement omis
+    }
+    e.promesse = Promise.all(t).then(() => { if (LOTS[lot].persos && !VARIANTES.every((v) => PER[v])) throw new Error('personnages HD manquants'); e.pret = true; API.version++; return true; }).catch((err) => { e.erreur = String(err && err.message || err); console.warn('HD : modèles non chargés, rendu habituel', e.erreur); return false; });
+    return e.promesse;
+  }
+  const pret = (lot) => !!(etat[lot] && etat[lot].pret);
+  const permis = (renderer) => { try { return !!(renderer && renderer.capabilities.isWebGL2 && !(typeof SCENE !== 'undefined' && SCENE.stats && SCENE.stats.qualite === 'eco')); } catch (e) { return false; } };
 
   // un meuble : cloné, à l'échelle s (unités KayKit → unités du monde), posé pied au sol, centré en x/z sur sa boîte
   function modele(nom, s, o = {}) {
@@ -78,7 +86,6 @@ const HDM = (() => {
     c.addPass(new X.EffectPass(camera, ...fx)); c.setSize(W, H);
     return { rendre: (dt) => c.render(dt), liberer: () => c.dispose(), n8 };
   }
-  function quandPret(f) { if (API.pret) f(); else attente.push(f); }
-  return Object.assign(API, { modele, perso, jouer, liberer, effets, quandPret, VARIANTES });
+  return Object.assign(API, { pret, permis, charger, etat, modele, perso, jouer, liberer, effets, VARIANTES });
 })();
 if (typeof module !== 'undefined') module.exports = HDM;

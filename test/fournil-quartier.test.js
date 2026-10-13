@@ -83,9 +83,16 @@ r = Q.planquer(q);
 check(r.ok && r.fini && q.ev === null && q.billets === b0 + r.prime && q.stats.descentes === 1, `la douzième : tout est planqué, +${r.prime} €`);
 check(!Q.planquer(q).ok, 'sans descente, planquer ne fait rien');
 Q.lancerEvenement(q, () => 0.5, 'descente'); b0 = q.billets; const enjeu = q.ev.enjeu;
-out = Q.tick(q, 1, T(20), () => 0.5);
+{ const t0 = (q.now - now0) / 1000; out = null; for (let k = 1; k <= 20 && !(out && out.finEv); k++) out = Q.tick(q, 1, T(t0 + k), () => 0.5); } // en jouant, seconde par seconde, sans toucher
 check(out.finEv && out.finEv.type === 'descente' && out.fin.saisi === enjeu && q.billets === b0 - enjeu && q.ev === null && q.stats.descentesRatees === 1 && q.stats.saisi === enjeu, `une descente ratée : la police embarque ${enjeu} €`);
-q.now = T(21); ev = Q.lancerEvenement(q, () => 0.5, 'grosclient');
+// hors ligne (téléphone verrouillé, Planque ouverte) : la descente en cours s'efface sans pénalité, rien ne surgit au retour
+{ q.now = T(200); Q.lancerEvenement(q, () => 0.5, 'descente'); const b1 = q.billets, ratees = q.stats.descentesRatees;
+  const o = Q.tick(q, 0.25, T(200 + 600), () => 0.5); // la première image au retour, 10 min plus tard
+  check(!o.finEv && !o.nouvelEv && q.ev === null && q.billets >= b1 && q.stats.descentesRatees === ratees && q.evTimer >= 90, `retour après 10 min hors ligne : pas de descente ratée ni de saisie, prochain coup de pouce dans ${Math.round(q.evTimer)} s au moins`);
+  let n = 0; for (let k = 1; k <= 80; k++) if (Q.tick(q, 1, T(800 + k), () => 0.5).nouvelEv) n++;
+  check(n === 0, 'la première minute et demie après le retour : aucun coup de pouce');
+  q.evTimer = 0; q.lastSeen = T(900); Q.absence(q, T(900 + 3600)); check(q.evTimer >= 90 && q.ev === null, `les gains d'absence (entrée dans la Planque) reportent aussi le prochain coup de pouce (${Math.round(q.evTimer)} s)`); }
+q.now = T(5000); ev = Q.lancerEvenement(q, () => 0.5, 'grosclient');
 check(ev.type === 'grosclient' && ev.n >= 3 && ev.prime > 0 && ev.fait === 0, `un gros client : ${ev.n} ${Q.PRODUITS[ev.i].pl} en 3 min, prime ${Q.fmt(ev.prime)} €`);
 check(!Q.livrer(q).ok, 'pas livrable avant d’avoir tout');
 { const i = ev.i, s = q.postes[i]; if (!s.staff) Q.lancer(q, i); for (let k = 0; k < 400 && q.ev && q.ev.fait < q.ev.n; k++) { if (!s.staff && !s.actif) Q.lancer(q, i); Q.tick(q, Q.PRODUITS[i].temps, T(22 + k), () => 0.5); } }
@@ -94,11 +101,12 @@ b0 = q.billets; r = Q.livrer(q);
 check(r.ok && q.billets === b0 + r.prime && q.ev === null && q.stats.grosClients === 1, `livré : +${Q.fmt(r.prime)} €`);
 q.now = T(500); ev = Q.lancerEvenement(q, () => 0.5, 'soiree');
 check(ev.type === 'soiree' && Q.boostMult(q) === Q.PRESENCE * 2 && Q.revenu(q, 0) === Q.revenuBase(q, 0) * Q.PRESENCE * 2, 'une soirée : toutes les ventes ×2 (en plus du boss)');
-out = Q.tick(q, 1, T(500 + 121), () => 0.5);
+const jouerQ = (sec) => { let fin = null; const t0 = q.now; for (let k = 1; k <= sec; k++) { const o = Q.tick(q, 1, t0 + k * 1000, () => 0.5); if (o.finEv) fin = o; } return fin || {}; }; // en jouant, seconde par seconde
+out = jouerQ(121);
 check(out.finEv && out.finEv.type === 'soiree' && q.stats.soirees === 1 && Q.boostMult(q) === Q.PRESENCE, 'la soirée finit au bout de 2 min');
 ev = Q.lancerEvenement(q, () => 0.5, 'scooter'); b0 = q.billets; r = Q.attraper(q);
 check(ev.type === 'scooter' && r.ok && q.billets === b0 + r.prime && q.ev === null, `le livreur en scooter : bonus attrapé, +${r.prime} €`);
-Q.lancerEvenement(q, () => 0.5, 'scooter'); out = Q.tick(q, 1, q.now + 11000, () => 0.5);
+Q.lancerEvenement(q, () => 0.5, 'scooter'); out = jouerQ(11);
 check(out.finEv && out.finEv.type === 'scooter' && !Q.attraper(q).ok, 'pas attrapé en 10 s : reparti');
 { // un coup de pouce tous les 2 à 5 min de jeu, jamais le même deux fois de suite
   const types = [], rnd = seeded(3); q.ev = null; q.evTimer = 1; let t = q.now, dernier = '';

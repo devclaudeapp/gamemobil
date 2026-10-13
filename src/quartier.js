@@ -236,8 +236,11 @@
   }
 
   // ─── un pas de jeu dans la Planque (dt en secondes, nowMs sur l'horloge de confiance) ───
+  const TROU = 10000, REPRISE = 90; // un trou de plus de 10 s entre deux pas (téléphone verrouillé, autre appli) : c'était une absence
   function tick(q, dt, nowMs, rnd) {
-    q.now = nowMs; rnd = rnd || Math.random;
+    rnd = rnd || Math.random;
+    if (q.now && nowMs - q.now > TROU) { q.ev = null; q.evTimer = Math.max(q.evTimer, REPRISE + rnd() * 60); } // le coup de pouce en cours s'efface sans pénalité (pas de descente ratée sans toi), et rien ne surgit au retour
+    q.now = nowMs;
     const out = { ventes: [], nouvelEv: null, finEv: null, paliers: [] };
     q.postes.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
@@ -255,7 +258,7 @@
   }
   // ─── l'absence : les apprentis ont bossé (8 h au plus), les fournées en cours se terminent ; pas de coup de pouce sans toi ───
   function absence(q, nowMs) {
-    q.now = nowMs; q.ev = null;
+    q.now = nowMs; q.ev = null; q.evTimer = Math.max(q.evTimer || 0, REPRISE); // au retour, au moins 1 min 30 avant le prochain coup de pouce
     const secs = Math.min(heuresAbsence() * 3600, Math.max(0, (nowMs - q.lastSeen) / 1000));
     let total = 0; const detail = [];
     q.postes.forEach((s, i) => {

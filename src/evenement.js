@@ -302,18 +302,21 @@ const EVENEMENT = (() => {
     const M = MODELES, TAU = Math.PI * 2, PITCH = 52 * Math.PI / 180, SY = Math.sin(PITCH), CY = Math.cos(PITCH), P = M.part, bo = (w, h, dd, r) => M.boite(Math.round(w * 2) / 2, Math.round(h * 2) / 2, Math.round(dd * 2) / 2, r);
     let renderer; try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: false, powerPreference: 'low-power' }); } catch (e) { return null; }
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.shadowMap.enabled = false; renderer.setClearColor('#2E2B3A');
+    // les modèles HD (src/hd.js) : demandés à l'ouverture si le palier le permet ; en attendant (ou en éco), le décor habituel
+    const hdOk = () => typeof HDM !== 'undefined' && HDM.pret('planque') && HDM.permis(renderer);
+    if (typeof HDM !== 'undefined' && HDM.permis(renderer)) HDM.charger('planque');
     const scene = new THREE.Scene(), camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 4000);
     scene.add(new THREE.HemisphereLight('#C7B8FF', '#2E2B3A', 1.1));
     const dir = new THREE.DirectionalLight('#FFD6E0', 1.2); scene.add(dir, dir.target);
     const rose = new THREE.PointLight('#FF6B8B', 90, 600, 1), vert = new THREE.PointLight('#5FD3A4', 60, 500, 1); scene.add(rose, vert);
     const G3 = new THREE.Group(); scene.add(G3);
     const animes = [], persos = [], lum = (hex, k) => new THREE.MeshLambertMaterial({ color: hex, emissive: hex, emissiveIntensity: k == null ? 1 : k });
-    let W = 1, H = 1, murH = 1, t = 0, fete = 0, fetes = [], hdVu = 0, hdFx = null;
+    let W = 1, H = 1, murH = 1, t = 0, fete = 0, fetes = [], hdVu = 0, hdFx = null, rue = null;
     const wz = (ys) => (ys - murH) / SY, wy = (px) => px / CY, wd = (px) => px / SY;
     function batir() {
       while (G3.children.length) { const o = G3.children[0]; G3.remove(o); M.dispose(o); }
       animes.length = 0; persos.length = 0;
-      const Hm = wy(murH), D = wd(H - murH), K = Math.max(0.6, Math.min(1.1, W / 390)), hd = typeof HDM !== 'undefined' && HDM.pret; hdVu = hd ? HDM.version : 0;
+      const Hm = wy(murH), D = wd(H - murH), K = Math.max(0.6, Math.min(1.1, W / 390)), hd = hdOk(); hdVu = hd ? HDM.version : 0;
       // le sol (un parquet sombre), le mur du fond (brique sombre), la plinthe
       G3.add(M.mesh(M.plan(W, D), M.mat('#3A3642'), { x: W / 2, z: D / 2, rx: -Math.PI / 2 }, { ombre: false }));
       G3.add(M.mesh(bo(W, Hm, 8, 1), M.mat('#4A4458'), { x: W / 2, z: -4 }, { ombre: false }));
@@ -346,6 +349,11 @@ const EVENEMENT = (() => {
         const tb = pose('table_low', tx, tz, tw * 1.05); if (tb) tb.scale.y = th / tb.userData.taille.y;
         pose('lamp_standing', lx, lz, 26 * K); pose('cactus_medium_A', W * 0.05, wz(murH + 10 * K), 22 * K); pose('cactus_small_A', W * 0.66, wz(murH + 8 * K), 14 * K);
         pose('pictureframe_medium', W * 0.22, wz(murH) + 2, 40 * K, { y: Hm * 0.55, ombre: false }); pose('armchair_pillows', W * 0.88, wz(murH + 70 * K), 44 * K, { ry: -Math.PI / 2 });
+        // la fenêtre sur la rue, de nuit : une petite scène City Builder rendue dans une texture, posée dans un cadre au mur
+        if (!rue) rue = creerRue(); const fw = 84 * K, fh = Hm * 0.36, fx = W * 0.74, fy = Hm * 0.58;
+        G3.add(M.mesh(M.plan(fw, fh), new THREE.MeshBasicMaterial({ map: rue.texture }), { x: fx, y: fy, z: 2.2 }, { ombre: false }));
+        const cadre = []; for (const [cx2, cy2, w2, h2] of [[0, fh / 2, fw + 8, 5], [0, -fh / 2, fw + 12, 6], [-fw / 2, 0, 5, fh + 6], [fw / 2, 0, 5, fh + 6], [0, 0, 3, fh]]) cadre.push(P(bo(w2, h2, 4, 1), '#2A2433', { x: fx + cx2, y: fy + cy2 - h2 / 2, z: 3 }));
+        G3.add(M.maille(cadre, { ombre: false }));
       }
       G3.add(M.maille(pr, { ombre: false }));
       // les néons au mur : un éclair rose et un rond menthe, un tube « OUVERT » qui grésille ; l'abat-jour et l'écran lumineux
@@ -364,7 +372,7 @@ const EVENEMENT = (() => {
     function equipeDe(qq, K) {
       for (const p of persos) { G3.remove(p.g); if (p.hd) HDM.liberer(p.hd); else M.dispose(p.g); } persos.length = 0;
       const n = Math.min(6, 1 + qq.postes.filter((s) => s.staff).length), spots = [[0.1, 0.3, 0, false], [0.4, 0.52, 0, false], [0.72, 0.5, 2, false], [0.5, 0.95, 0, false], [0.66, 0.85, -1, false], [0.15, 0.95, 1, false]];
-      const hd = typeof HDM !== 'undefined' && HDM.pret;
+      const hd = hdOk();
       for (let k = 0; k < n; k++) {
         if (hd) { const [ux, uy, dir] = spots[k], assis = k === 1, a = HDM.perso(HDM.VARIANTES[(k + 1) % 4], tenues[k].haut); a.g.scale.setScalar(W * 0.08 * 0.72 * (K || 1));
           a.g.position.set(assis ? W * 0.22 + 14 : W * ux, assis ? 12 : 0, assis ? wz(murH + 22 * (K || 1)) : wz(murH + uy * 60 * (K || 1))); a.g.rotation.y = Math.PI + (assis ? 0 : { 0: 0, 1: Math.PI / 2, '-1': -Math.PI / 2, 2: Math.PI }[dir]);
@@ -375,6 +383,23 @@ const EVENEMENT = (() => {
       }
     }
     const oAnim = { marche: false, phase: 0, assis: false, dir: 0, sac: false, or: false, pris: false, attend: true, plateau: false, produit: null, cle: false, t: 0, blink: 0, expression: 'neutre' };
+    function creerRue() { // la rue de nuit derrière la fenêtre : deux façades, un lampadaire allumé, une bouche d'incendie, une voiture qui passe
+      const sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(38, 1.6, 0.1, 60), rt = new THREE.WebGLRenderTarget(384, 240, { samples: 4 });
+      rt.texture.colorSpace = THREE.SRGBColorSpace; rt.texture.userData.partagee = true; sc.background = new THREE.Color('#1A1630'); sc.fog = new THREE.Fog('#1A1630', 9, 22);
+      sc.add(new THREE.HemisphereLight('#6E6AB8', '#1A1630', 0.9)); const lune = new THREE.DirectionalLight('#9FA8FF', 0.6); lune.position.set(-3, 6, 4); sc.add(lune);
+      const lampe = new THREE.PointLight('#FFC873', 18, 9, 1.6); lampe.position.set(1.1, 2.6, 1.2); sc.add(lampe);
+      const pose = (nom, x, z, haut, ry) => { const m = HDM.modele(nom, 1, { ombre: false }); if (!m) return null; m.scale.setScalar(haut / m.userData.taille.y); m.position.set(x, 0, z); m.rotation.y = ry || 0; sc.add(m); return m; };
+      pose('building_D', -2.2, -2.5, 5.2); pose('building_F', 2.4, -2.6, 4.6);
+      pose('streetlight', 1.4, 1.1, 3, -Math.PI / 2); pose('firehydrant', -0.9, 1.2, 0.5); pose('trash_A', 3.1, 0.9, 0.7); pose('dumpster', -3.4, 0.6, 1.1);
+      const sol = new THREE.Mesh(new THREE.PlaneGeometry(40, 20), new THREE.MeshStandardMaterial({ color: '#2B2838', roughness: 0.9 })); sol.rotation.x = -Math.PI / 2; sc.add(sol);
+      const trottoir = new THREE.Mesh(new THREE.BoxGeometry(40, 0.15, 2.6), new THREE.MeshStandardMaterial({ color: '#4A4658' })); trottoir.position.set(0, 0.07, 0.4); sc.add(trottoir);
+      const halo = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), new THREE.MeshBasicMaterial({ color: '#FFE0A0' })); halo.position.copy(lampe.position); sc.add(halo);
+      const voiture = pose('car_sedan', -8, 2.6, 0.9, Math.PI / 2);
+      cam.position.set(0, 1.5, 6.2); cam.lookAt(0, 1.4, 0);
+      let tv = 0;
+      return { texture: rt.texture, frame(dt) { tv += dt; if (voiture) { voiture.position.x = ((tv * 2.2) % 22) - 11; } halo.material.color.setScalar(0.9 + 0.1 * Math.sin(tv * 9)); renderer.setRenderTarget(rt); renderer.render(sc, cam); renderer.setRenderTarget(null); },
+        liberer() { rt.dispose(); sc.traverse((o) => { if (o.isMesh && o.geometry) o.geometry.dispose(); }); } };
+    }
     function redim() {
       const w = Math.max(1, cv.clientWidth), h = Math.max(1, cv.clientHeight); if (w === W && h === H && G3.children.length) return;
       W = w; H = h; murH = Math.round(h * 0.42);
@@ -388,17 +413,19 @@ const EVENEMENT = (() => {
       redim(); t += dt;
       const E = { t };
       for (const f of animes) f(E);
-      if (typeof HDM !== 'undefined' && HDM.pret && hdVu !== HDM.version) batir();
+      if (hdOk() ? hdVu !== HDM.version : hdVu !== 0) batir(); // les modèles viennent d'arriver, ou le palier est passé en éco
+      if (rue && hdVu) rue.frame(dt);
       for (const p of persos) { if (p.hd) { HDM.jouer(p.hd, fete > 0 && !p.assis ? 'Cheer' : p.assis ? 'Sit_Chair_Idle' : (persos.indexOf(p) % 2 ? 'Interact' : 'Idle')); p.hd.mixer.update(dt); continue; } oAnim.phase = t * 2 + p.phase; oAnim.assis = p.assis; oAnim.dir = p.dir; oAnim.t = t; oAnim.blink = (t + p.phase) % 3.4; oAnim.expression = fete > 0 ? 'sourire' : 'neutre'; oAnim.attend = !p.assis; try { PERSOS.animer(p.g, oAnim); } catch (e) { /* un personnage sans ce champ */ } }
       if (fete > 0) fete -= dt;
-      if (typeof HDM !== 'undefined' && HDM.pret) { if (!hdFx || hdFx.W !== W || hdFx.H !== H) { if (hdFx) hdFx.liberer(); hdFx = HDM.effets(renderer, scene, camera, W, H, Math.min(1.5, window.devicePixelRatio || 1), { rayon: W * 0.1, ao: 2, halo: 1.5, seuil: 0.4, aoCouleur: '#120A18' }); hdFx.W = W; hdFx.H = H; } hdFx.rendre(dt); }
-      else renderer.render(scene, camera);
+      if (hdVu) { if (!hdFx || hdFx.W !== W || hdFx.H !== H) { if (hdFx) hdFx.liberer(); hdFx = HDM.effets(renderer, scene, camera, W, H, Math.min(1.5, window.devicePixelRatio || 1), { rayon: W * 0.1, ao: 2, halo: 1.5, seuil: 0.4, aoCouleur: '#120A18' }); hdFx.W = W; hdFx.H = H; } hdFx.rendre(dt); }
+      else { if (hdFx) { hdFx.liberer(); hdFx = null; } renderer.render(scene, camera); }
     }
     redim();
     return {
+      get hd() { return { actif: hdVu > 0, persos: persos.filter((p) => p.hd).length, rue: !!rue, effets: !!hdFx }; }, // les modèles HD (pour les tests)
       redim, frame: frameScene, equipe: (qq) => equipeDe(qq, Math.max(0.6, Math.min(1.1, W / 390))), vente: () => { }, fete: () => { fete = 2; },
       detruire() { try { G3.traverse((o) => { if (o.isMesh) { if (o.geometry && !o.geometry.userData.cache) o.geometry.dispose(); const ms = [].concat(o.material || []); for (const m of ms) if (m && m !== M.MAT.vertex && !M.MATS.has(m)) m.dispose(); } }); } catch (e) { /* rien */ }
-        try { renderer.dispose(); renderer.forceContextLoss(); } catch (e) { /* rien */ } },
+        try { if (rue) rue.liberer(); if (hdFx) hdFx.liberer(); for (const p of persos) if (p.hd) HDM.liberer(p.hd); renderer.dispose(); renderer.forceContextLoss(); } catch (e) { /* rien */ } },
       get calls() { return renderer.info.render.calls; },
     };
   }

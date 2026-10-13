@@ -191,7 +191,7 @@ const SCENE = (() => {
   let tailleC = '';
   function resize(width, height, mi) {
     const t = `${width}x${height}x${mi}`; if (t === tailleC && LAY) return; tailleC = t; // même taille : rien à reconstruire
-    W = width; H = height; V.resize(W, H, mi); LAY = V.LAY; if (hdFx) { hdFx.liberer(); hdFx = null; }
+    W = width; H = height; V.resize(W, H, mi); LAY = V.LAY;
     if (!webgl) return;
     const p = PALIERS[QUAL.niveau]; DPR = Math.min(p.dpr, window.devicePixelRatio || 1);
     renderer.setPixelRatio(DPR); renderer.setSize(W, H, false); DPRui = Math.min(2, window.devicePixelRatio || 1); cvUi.width = Math.round(W * DPRui); cvUi.height = Math.round(H * DPRui);
@@ -384,51 +384,25 @@ const SCENE = (() => {
   const cleClient = (c) => `${c.haut}|${c.peau}|${c.cheveux}|${c.coiffure}|${c.bonnet}|${c.lunettes ? 1 : 0}|${c.or ? 1 : 0}|${c.mariniere ? 1 : 0}|${c.hab || ''}`;
   function prendre(cle, fabrique) { const l = pool.get(cle); if (l && l.length) return l.pop(); const g = fabrique(); g.userData.cle = cle; g.userData.yaw = 0; return g; }
   function rendreAuPool(g) { const k = g.userData.cle; if (!/^apprenti/.test(k)) { M.dispose(g); return; } const l = pool.get(k) || []; if (l.length < 1) { l.push(g); pool.set(k, l); } else M.dispose(g); } // les clients sont presque tous uniques : on les libère ; un apprenti par produit est gardé
-  // ─── ESSAI HD (?hd=1, src/hd.js) : des personnages riggés et animés à la place des chibis, quelques modèles KayKit mêlés au décor, la passe d'effets ───
-  const hdActeurs = new Map(); let hdDecor = null, hdCle = '', hdFx = null, hdVu = 0;
-  const HD_HAUTS = ['#E85D75', '#4F8FE0', '#F2B33D', '#5FBF8F', '#9B6BE0', '#E07B4F', '#3DB6C9', '#D9577E'];
-  function hdTourner(a, dir, dt) { const c = (YAW[dir] || 0) + Math.PI; a.yaw += angleCourt(c - a.yaw) * Math.min(1, dt * 10); a.g.rotation.y = a.yaw; }
-  function synchroniserHD(E, dt) {
-    if (hdVu !== HDM.version) { hdVu = HDM.version; for (const [id, g] of acteurs) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); } } // les chibis partent une fois
-    const S = W * 0.08, vus = new Set();
-    for (const c of V.clients) {
-      let a = hdActeurs.get(c.id);
-      if (!a) { a = HDM.perso(HDM.VARIANTES[c.id % 4], c.haut && /^#/.test(c.haut) ? c.haut : HD_HAUTS[c.id % HD_HAUTS.length]); hdActeurs.set(c.id, a); scene.add(a.g); }
-      vus.add(c.id);
-      const assis = c.etat === 'assis', marche = c.etat === 'entre' || c.etat === 'sort' || c.etat === 'vaTable' || (c.etat === 'attend' && !!c.glisse);
-      a.g.visible = c.alpha > 0.05; a.g.scale.setScalar(S * 0.72 * (c.taille || 1));
-      a.g.position.set(c.x, assis ? 0.3 * S : 0, wz(c.y) + (assis ? 0.15 * S : 0) - (1 - c.alpha) * 30);
-      HDM.jouer(a, assis ? 'Sit_Chair_Idle' : marche ? 'Walking_A' : c.pris ? 'Cheer' : 'Idle'); hdTourner(a, c.dir, dt); a.mixer.update(dt);
-    }
-    for (const ap of V.apprentis) {
-      const id = 'a' + ap.i; let a = hdActeurs.get(id);
-      if (!a) { a = HDM.perso(ap.i % 2 ? 'Rogue' : 'Mage', '#F6F2EA', { toque: true, gris: true }); hdActeurs.set(id, a); scene.add(a.g); }
-      vus.add(id); a.g.scale.setScalar(S * 0.7); a.g.position.set(ap.x, 0, wz(ap.y));
-      HDM.jouer(a, ap.etat === 'porte' || ap.etat === 'retour' ? 'Walking_A' : 'Use_Item'); hdTourner(a, ap.etat === 'panne' ? 0 : ap.dir, dt); a.mixer.update(dt);
-    }
-    let b = hdActeurs.get('boulanger'); if (!b) { b = HDM.perso('Mage', '#FBFAF6', { toque: true, gris: true }); hdActeurs.set('boulanger', b); scene.add(b.g); }
-    vus.add('boulanger'); if (boulangerG) boulangerG.visible = false;
-    b.g.scale.setScalar(S * 0.78); b.g.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y) - 0.15 * S); HDM.jouer(b, E.rush ? 'Cheer' : 'Interact'); b.g.rotation.y = Math.PI; b.mixer.update(dt);
-    for (const [id, a] of hdActeurs) if (!vus.has(id)) { scene.remove(a.g); HDM.liberer(a); hdActeurs.delete(id); }
-  }
-  // le décor HD : un tapis sous le salon, des plantes, des cadres au mur, une lampe sur pied, des bocaux sur le plan de travail ; en octobre, des citrouilles
+  // ─── les décors HD (src/hd.js) : chargés après le premier rendu si le palier le permet ; la boutique garde ses personnages ───
+  let hdDecor = null, hdCle = '', hdDemande = false;
+  // des plantes, un cadre au mur, une lampe sur pied dans le salon, des bocaux sur le plan de travail ; en octobre, des citrouilles
   function decorHD(E) {
+    if (!HDM.permis(renderer)) { if (hdDecor) { scene.remove(hdDecor); M.dispose(hdDecor); hdDecor = null; hdCle = ''; } return; } // repassé en éco : on retire
     const tbs = LAY.tables, k = `${W}x${H}|${tbs[0].y | 0}|${E.tags.includes('halloween') ? 'h' : ''}|${Object.keys(cles).length}`;
     if (k === hdCle) return; hdCle = k;
     if (hdDecor) { scene.remove(hdDecor); M.dispose(hdDecor); }
     const g = hdDecor = new THREE.Group(), S = W * 0.08, K = V.K, pose = (nom, x, y, z, o = {}) => { const m = HDM.modele(nom, S * (o.s || 1), o); if (m) { m.position.set(x, y, z); g.add(m); } return m; };
     const x0 = Math.min(...tbs.map((t) => t.x)) - 30 * K, x1 = Math.max(...tbs.map((t) => t.x)) + 30 * K, z0 = wz(Math.min(...tbs.map((t) => t.y))), z1 = wz(Math.max(...tbs.map((t) => t.y)));
     // (pas de tapis : le salon rose garde son sol, le halo les faisait briller)
-    pose('cactus_medium_A', LAY.plante.x + 4 * K, 0, wz(LAY.plante.y) + 6, { s: 0.75 });
-    pose('lamp_standing', W - 14 * K, 0, z1 + 40 * K, { s: 0.8 });
-    pose('cactus_small_A', LAY.porte.x - 10 * K, 0, wz(LAY.murH + 8 * K), { s: 0.7 });
-    pose('pictureframe_large_A', W * 0.45, wy(LAY.murH - LAY.T * 0.06), 3, { s: 0.42, ombre: false });
+    pose('lamp_standing', W - 12 * K, 0, wz(tbs[0].y) - 26 * K, { s: 0.75 }); // la lampe sur pied, au coin du salon
+    pose('cactus_medium_A', LAY.entree.x - 34 * K, 0, wz(LAY.murH + 14 * K), { s: 0.6 }); // une plante près de la porte
+    pose('cactus_small_A', LAY.comptoir.x + 8 * K, wy(LAY.comptoir.hFace + LAY.comptoir.hTop * 0.5), wz(LAY.comptoir.y + LAY.comptoir.hTop * 0.6), { s: 0.4 }); // un petit cactus sur le comptoir
     const pl = LAY.plan; pose('jar_A_large', pl.x + pl.w * 0.25, wy(pl.h * 0.55), wz(pl.y + pl.h * 0.6), { s: 0.25 }); pose('jar_B_medium', pl.x + pl.w * 0.45, wy(pl.h * 0.55), wz(pl.y + pl.h * 0.6), { s: 0.25 });
     if (E.tags.includes('halloween')) { pose('pumpkin_orange_jackolantern', LAY.entree.x - 30 * K, 0, wz(LAY.murH + 22 * K), { s: 0.45 }); pose('pumpkin_orange', LAY.entree.x - 48 * K, 0, wz(LAY.murH + 30 * K), { s: 0.35 }); pose('pumpkin_yellow_small', LAY.plante.x + 22 * K, 0, wz(LAY.plante.y) + 18, { s: 0.6 }); }
     habiller(g); scene.add(g);
   }
   function synchroniser(E, dt) {
-    if (HDM.pret) { synchroniserHD(E, dt); poserChat(E, dt); return; }
     vus.clear();
     for (const c of V.clients) {
       let g = acteurs.get(c.id);
@@ -493,7 +467,7 @@ const SCENE = (() => {
     if (!webgl) return;
     const t0 = performance.now();
     try {
-      construire(E); if (HDM.pret) decorHD(E);
+      construire(E); if (HDM.pret('boutique')) decorHD(E); else if (!hdDemande && nFrame > 30 && HDM.permis(renderer)) { hdDemande = true; HDM.charger('boutique'); }
       eclairer(E); peindreExterieur(now, E); peindreAO();
       synchroniser(E, dt);
       EA.t = E.t; EA.chaud = E.chaud; EA.caisseFlash = E.caisseFlash; EA.nuit = E.sk.nuit; EA.lampes = lampesNiv; EA.rush = E.rush; EA.d = E.d; EA.sk = E.sk; EA.tags = E.tags;
@@ -514,8 +488,7 @@ const SCENE = (() => {
   function rendre(E, complet) {
     const hv = complet ? H : Math.min(H, visH + 24);
     renderer.setScissorTest(!complet); if (!complet) renderer.setScissor(0, H - hv, W, hv);
-    if (HDM.pret) { renderer.setScissorTest(false); if (!hdFx) hdFx = HDM.effets(renderer, scene, camera, W, H, DPR, { rayon: W * 0.12, ao: 2.4, halo: 0.25 }); hdFx.rendre(); }
-    else if (QUAL.niveau === 'haute' && RICHE.actif && RICHE.effets && renderer.capabilities.isWebGL2) { if (!RICHE.post) RICHE.post = creerPost(); RICHE.post.rendre(hv); } // les effets : haute seulement
+    if (QUAL.niveau === 'haute' && RICHE.actif && RICHE.effets && renderer.capabilities.isWebGL2) { if (!RICHE.post) RICHE.post = creerPost(); RICHE.post.rendre(hv); } // les effets : haute seulement
     else renderer.render(scene, camera);
     renderer.setScissorTest(false);
     calque(E, hv);
@@ -634,6 +607,7 @@ const SCENE = (() => {
     vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
+    get decorHD() { return hdDecor ? hdDecor.children.length : 0; }, // les décors HD posés (pour les tests)
     get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0 }; }, // ce que la boutique montre (pour les tests)
     get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG), salle: n(salle) }; }, // le budget d'appels de dessin (pour les tests)
     get _riche() { return RICHE; }, // les réglages du rendu riche (pour les tests et les captures)

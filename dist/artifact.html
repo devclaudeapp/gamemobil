@@ -4830,26 +4830,34 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
 if (typeof module !== 'undefined') module.exports = PERSOS;
 
 /* ── hd.js ── */
-/* LE FOURNIL — rendu HD (ESSAI, branche maquette-hd, seulement avec ?hd=1) : des modèles KayKit (CC0, Kay Lousberg) mêlés au décor
-   du jeu, des personnages riggés et animés (KayKit Adventurers, rhabillés par leur palette), et une passe d'effets (N8AO, SMAA, halo)
-   par vendor/fournil-hd.min.js (GLTFLoader + SkeletonUtils three r158, postprocessing 6.33.4, n8ao 1.8.4). Sans ?hd=1 : rien ne change. */
+/* LE FOURNIL — les modèles HD : KayKit (CC0, Kay Lousberg : Furniture, City Builder, Halloween, Restaurant Bits ; personnages riggés et animés
+   Adventurers, rhabillés par leur palette), compressés en meshopt dans fournil/hd/, chargés par vendor/fournil-hd.min.js (GLTFLoader, SkeletonUtils,
+   MeshoptDecoder de three r158 ; postprocessing 6.33.4 ; n8ao 1.8.4). La Planque y prend ses meubles, sa rue de nuit et son équipe animée ; la
+   boutique garde ses personnages et reçoit quelques décors. En qualité éco, sans WebGL2, dans l'artefact ou avec ?hd=0 : le rendu habituel. */
 const HDM = (() => {
-  const actif = typeof window !== 'undefined' && typeof THREE !== 'undefined' && typeof FOURNIL_HD !== 'undefined' && /[?&]hd=1/.test(location.search);
-  const API = { actif, pret: false, version: 0 };
+  // actif : le paquet d'outils est là et on ne l'a pas coupé (?hd=0) ; permis(renderer) : WebGL2 et pas en qualité éco (le rendu actuel reste tel quel)
+  const actif = typeof window !== 'undefined' && typeof THREE !== 'undefined' && typeof FOURNIL_HD !== 'undefined' && !/[?&]hd=0/.test(location.search);
+  const API = { actif, version: 0, pret: () => false, permis: () => false, charger: () => Promise.resolve(false) };
   if (!actif) return API;
-  const X = FOURNIL_HD, L = new X.GLTFLoader(), BASE = 'hd/';
-  const LISTE = {
-    meubles: ['rug_oval_A', 'rug_rectangle_stripes_A', 'cactus_medium_A', 'cactus_small_A', 'cactus_small_B', 'pictureframe_large_A', 'pictureframe_medium', 'pictureframe_small_A', 'lamp_standing', 'couch_pillows', 'armchair_pillows', 'table_low', 'shelf_B_large_decorated', 'cabinet_medium_decorated', 'lamp_table'],
-    ville: ['building_D', 'building_F', 'building_B', 'streetlight', 'car_sedan', 'dumpster', 'firehydrant', 'bench', 'trash_A', 'box_A'],
-    halloween: ['pumpkin_orange', 'pumpkin_orange_jackolantern', 'pumpkin_yellow_small', 'candle_triple', 'lantern_hanging'],
-    resto: ['jar_A_large', 'jar_B_medium', 'jar_C_small', 'cuttingboard'],
+  const X = FOURNIL_HD, L = new X.GLTFLoader(), BASE = 'hd/'; if (X.MeshoptDecoder) L.setMeshoptDecoder(X.MeshoptDecoder);
+  // deux lots chargés à la demande : la boutique (quelques décors, après le premier rendu), la Planque (à sa première ouverture)
+  const LOTS = {
+    boutique: { meubles: ['cactus_medium_A', 'cactus_small_A', 'lamp_standing'], halloween: ['pumpkin_orange', 'pumpkin_orange_jackolantern', 'pumpkin_yellow_small'], resto: ['jar_A_large', 'jar_B_medium'] },
+    planque: { meubles: ['rug_oval_A', 'cactus_medium_A', 'cactus_small_A', 'pictureframe_medium', 'lamp_standing', 'couch_pillows', 'armchair_pillows', 'table_low'], ville: ['building_D', 'building_F', 'streetlight', 'car_sedan', 'firehydrant', 'trash_A', 'dumpster'], persos: ['Rogue', 'Mage', 'Knight', 'Barbarian'] },
   };
-  const VARIANTES = ['Rogue', 'Mage', 'Knight', 'Barbarian'], MOD = {}, PER = {}, attente = [];
-  const charger = (u) => new Promise((ok, ko) => L.load(BASE + u, ok, null, ko));
-  const taches = [];
-  for (const [dossier, noms] of Object.entries(LISTE)) for (const n of noms) taches.push(charger(`${dossier}/${n}.gltf`).then((g) => { MOD[n] = g.scene; }).catch(() => {}));
-  for (const n of VARIANTES) taches.push(charger(`persos/${n}.glb`).then((g) => { PER[n] = g; }));
-  Promise.all(taches).then(() => { API.pret = true; API.version++; attente.splice(0).forEach((f) => { try { f(); } catch (e) { console.error(e); } }); }).catch((e) => { API.erreur = String(e && e.message || e); });
+  const VARIANTES = ['Rogue', 'Mage', 'Knight', 'Barbarian'], MOD = {}, PER = {}, etat = {};
+  const lire = (u) => new Promise((ok, ko) => L.load(BASE + u, ok, null, ko));
+  function charger(lot) {
+    if (etat[lot]) return etat[lot].promesse; const e = etat[lot] = { pret: false };
+    const t = []; for (const [dossier, noms] of Object.entries(LOTS[lot] || {})) for (const n of noms) {
+      if (dossier === 'persos') { if (!PER[n]) t.push(lire(`persos/${n}.glb`).then((g) => { PER[n] = g; }, () => {})); }
+      else if (!MOD[n]) t.push(lire(`${dossier}/${n}.glb`).then((g) => { MOD[n] = g.scene; }, () => console.warn('HD : modèle manquant', n))); // un décor manquant est simplement omis
+    }
+    e.promesse = Promise.all(t).then(() => { if (LOTS[lot].persos && !VARIANTES.every((v) => PER[v])) throw new Error('personnages HD manquants'); e.pret = true; API.version++; return true; }).catch((err) => { e.erreur = String(err && err.message || err); console.warn('HD : modèles non chargés, rendu habituel', e.erreur); return false; });
+    return e.promesse;
+  }
+  const pret = (lot) => !!(etat[lot] && etat[lot].pret);
+  const permis = (renderer) => { try { return !!(renderer && renderer.capabilities.isWebGL2 && !(typeof SCENE !== 'undefined' && SCENE.stats && SCENE.stats.qualite === 'eco')); } catch (e) { return false; } };
 
   // un meuble : cloné, à l'échelle s (unités KayKit → unités du monde), posé pied au sol, centré en x/z sur sa boîte
   function modele(nom, s, o = {}) {
@@ -4910,8 +4918,7 @@ const HDM = (() => {
     c.addPass(new X.EffectPass(camera, ...fx)); c.setSize(W, H);
     return { rendre: (dt) => c.render(dt), liberer: () => c.dispose(), n8 };
   }
-  function quandPret(f) { if (API.pret) f(); else attente.push(f); }
-  return Object.assign(API, { modele, perso, jouer, liberer, effets, quandPret, VARIANTES });
+  return Object.assign(API, { pret, permis, charger, etat, modele, perso, jouer, liberer, effets, VARIANTES });
 })();
 if (typeof module !== 'undefined') module.exports = HDM;
 
@@ -5109,7 +5116,7 @@ const SCENE = (() => {
   let tailleC = '';
   function resize(width, height, mi) {
     const t = `${width}x${height}x${mi}`; if (t === tailleC && LAY) return; tailleC = t; // même taille : rien à reconstruire
-    W = width; H = height; V.resize(W, H, mi); LAY = V.LAY; if (hdFx) { hdFx.liberer(); hdFx = null; }
+    W = width; H = height; V.resize(W, H, mi); LAY = V.LAY;
     if (!webgl) return;
     const p = PALIERS[QUAL.niveau]; DPR = Math.min(p.dpr, window.devicePixelRatio || 1);
     renderer.setPixelRatio(DPR); renderer.setSize(W, H, false); DPRui = Math.min(2, window.devicePixelRatio || 1); cvUi.width = Math.round(W * DPRui); cvUi.height = Math.round(H * DPRui);
@@ -5302,51 +5309,25 @@ const SCENE = (() => {
   const cleClient = (c) => `${c.haut}|${c.peau}|${c.cheveux}|${c.coiffure}|${c.bonnet}|${c.lunettes ? 1 : 0}|${c.or ? 1 : 0}|${c.mariniere ? 1 : 0}|${c.hab || ''}`;
   function prendre(cle, fabrique) { const l = pool.get(cle); if (l && l.length) return l.pop(); const g = fabrique(); g.userData.cle = cle; g.userData.yaw = 0; return g; }
   function rendreAuPool(g) { const k = g.userData.cle; if (!/^apprenti/.test(k)) { M.dispose(g); return; } const l = pool.get(k) || []; if (l.length < 1) { l.push(g); pool.set(k, l); } else M.dispose(g); } // les clients sont presque tous uniques : on les libère ; un apprenti par produit est gardé
-  // ─── ESSAI HD (?hd=1, src/hd.js) : des personnages riggés et animés à la place des chibis, quelques modèles KayKit mêlés au décor, la passe d'effets ───
-  const hdActeurs = new Map(); let hdDecor = null, hdCle = '', hdFx = null, hdVu = 0;
-  const HD_HAUTS = ['#E85D75', '#4F8FE0', '#F2B33D', '#5FBF8F', '#9B6BE0', '#E07B4F', '#3DB6C9', '#D9577E'];
-  function hdTourner(a, dir, dt) { const c = (YAW[dir] || 0) + Math.PI; a.yaw += angleCourt(c - a.yaw) * Math.min(1, dt * 10); a.g.rotation.y = a.yaw; }
-  function synchroniserHD(E, dt) {
-    if (hdVu !== HDM.version) { hdVu = HDM.version; for (const [id, g] of acteurs) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); } } // les chibis partent une fois
-    const S = W * 0.08, vus = new Set();
-    for (const c of V.clients) {
-      let a = hdActeurs.get(c.id);
-      if (!a) { a = HDM.perso(HDM.VARIANTES[c.id % 4], c.haut && /^#/.test(c.haut) ? c.haut : HD_HAUTS[c.id % HD_HAUTS.length]); hdActeurs.set(c.id, a); scene.add(a.g); }
-      vus.add(c.id);
-      const assis = c.etat === 'assis', marche = c.etat === 'entre' || c.etat === 'sort' || c.etat === 'vaTable' || (c.etat === 'attend' && !!c.glisse);
-      a.g.visible = c.alpha > 0.05; a.g.scale.setScalar(S * 0.72 * (c.taille || 1));
-      a.g.position.set(c.x, assis ? 0.3 * S : 0, wz(c.y) + (assis ? 0.15 * S : 0) - (1 - c.alpha) * 30);
-      HDM.jouer(a, assis ? 'Sit_Chair_Idle' : marche ? 'Walking_A' : c.pris ? 'Cheer' : 'Idle'); hdTourner(a, c.dir, dt); a.mixer.update(dt);
-    }
-    for (const ap of V.apprentis) {
-      const id = 'a' + ap.i; let a = hdActeurs.get(id);
-      if (!a) { a = HDM.perso(ap.i % 2 ? 'Rogue' : 'Mage', '#F6F2EA', { toque: true, gris: true }); hdActeurs.set(id, a); scene.add(a.g); }
-      vus.add(id); a.g.scale.setScalar(S * 0.7); a.g.position.set(ap.x, 0, wz(ap.y));
-      HDM.jouer(a, ap.etat === 'porte' || ap.etat === 'retour' ? 'Walking_A' : 'Use_Item'); hdTourner(a, ap.etat === 'panne' ? 0 : ap.dir, dt); a.mixer.update(dt);
-    }
-    let b = hdActeurs.get('boulanger'); if (!b) { b = HDM.perso('Mage', '#FBFAF6', { toque: true, gris: true }); hdActeurs.set('boulanger', b); scene.add(b.g); }
-    vus.add('boulanger'); if (boulangerG) boulangerG.visible = false;
-    b.g.scale.setScalar(S * 0.78); b.g.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y) - 0.15 * S); HDM.jouer(b, E.rush ? 'Cheer' : 'Interact'); b.g.rotation.y = Math.PI; b.mixer.update(dt);
-    for (const [id, a] of hdActeurs) if (!vus.has(id)) { scene.remove(a.g); HDM.liberer(a); hdActeurs.delete(id); }
-  }
-  // le décor HD : un tapis sous le salon, des plantes, des cadres au mur, une lampe sur pied, des bocaux sur le plan de travail ; en octobre, des citrouilles
+  // ─── les décors HD (src/hd.js) : chargés après le premier rendu si le palier le permet ; la boutique garde ses personnages ───
+  let hdDecor = null, hdCle = '', hdDemande = false;
+  // des plantes, un cadre au mur, une lampe sur pied dans le salon, des bocaux sur le plan de travail ; en octobre, des citrouilles
   function decorHD(E) {
+    if (!HDM.permis(renderer)) { if (hdDecor) { scene.remove(hdDecor); M.dispose(hdDecor); hdDecor = null; hdCle = ''; } return; } // repassé en éco : on retire
     const tbs = LAY.tables, k = `${W}x${H}|${tbs[0].y | 0}|${E.tags.includes('halloween') ? 'h' : ''}|${Object.keys(cles).length}`;
     if (k === hdCle) return; hdCle = k;
     if (hdDecor) { scene.remove(hdDecor); M.dispose(hdDecor); }
     const g = hdDecor = new THREE.Group(), S = W * 0.08, K = V.K, pose = (nom, x, y, z, o = {}) => { const m = HDM.modele(nom, S * (o.s || 1), o); if (m) { m.position.set(x, y, z); g.add(m); } return m; };
     const x0 = Math.min(...tbs.map((t) => t.x)) - 30 * K, x1 = Math.max(...tbs.map((t) => t.x)) + 30 * K, z0 = wz(Math.min(...tbs.map((t) => t.y))), z1 = wz(Math.max(...tbs.map((t) => t.y)));
     // (pas de tapis : le salon rose garde son sol, le halo les faisait briller)
-    pose('cactus_medium_A', LAY.plante.x + 4 * K, 0, wz(LAY.plante.y) + 6, { s: 0.75 });
-    pose('lamp_standing', W - 14 * K, 0, z1 + 40 * K, { s: 0.8 });
-    pose('cactus_small_A', LAY.porte.x - 10 * K, 0, wz(LAY.murH + 8 * K), { s: 0.7 });
-    pose('pictureframe_large_A', W * 0.45, wy(LAY.murH - LAY.T * 0.06), 3, { s: 0.42, ombre: false });
+    pose('lamp_standing', W - 12 * K, 0, wz(tbs[0].y) - 26 * K, { s: 0.75 }); // la lampe sur pied, au coin du salon
+    pose('cactus_medium_A', LAY.entree.x - 34 * K, 0, wz(LAY.murH + 14 * K), { s: 0.6 }); // une plante près de la porte
+    pose('cactus_small_A', LAY.comptoir.x + 8 * K, wy(LAY.comptoir.hFace + LAY.comptoir.hTop * 0.5), wz(LAY.comptoir.y + LAY.comptoir.hTop * 0.6), { s: 0.4 }); // un petit cactus sur le comptoir
     const pl = LAY.plan; pose('jar_A_large', pl.x + pl.w * 0.25, wy(pl.h * 0.55), wz(pl.y + pl.h * 0.6), { s: 0.25 }); pose('jar_B_medium', pl.x + pl.w * 0.45, wy(pl.h * 0.55), wz(pl.y + pl.h * 0.6), { s: 0.25 });
     if (E.tags.includes('halloween')) { pose('pumpkin_orange_jackolantern', LAY.entree.x - 30 * K, 0, wz(LAY.murH + 22 * K), { s: 0.45 }); pose('pumpkin_orange', LAY.entree.x - 48 * K, 0, wz(LAY.murH + 30 * K), { s: 0.35 }); pose('pumpkin_yellow_small', LAY.plante.x + 22 * K, 0, wz(LAY.plante.y) + 18, { s: 0.6 }); }
     habiller(g); scene.add(g);
   }
   function synchroniser(E, dt) {
-    if (HDM.pret) { synchroniserHD(E, dt); poserChat(E, dt); return; }
     vus.clear();
     for (const c of V.clients) {
       let g = acteurs.get(c.id);
@@ -5411,7 +5392,7 @@ const SCENE = (() => {
     if (!webgl) return;
     const t0 = performance.now();
     try {
-      construire(E); if (HDM.pret) decorHD(E);
+      construire(E); if (HDM.pret('boutique')) decorHD(E); else if (!hdDemande && nFrame > 30 && HDM.permis(renderer)) { hdDemande = true; HDM.charger('boutique'); }
       eclairer(E); peindreExterieur(now, E); peindreAO();
       synchroniser(E, dt);
       EA.t = E.t; EA.chaud = E.chaud; EA.caisseFlash = E.caisseFlash; EA.nuit = E.sk.nuit; EA.lampes = lampesNiv; EA.rush = E.rush; EA.d = E.d; EA.sk = E.sk; EA.tags = E.tags;
@@ -5432,8 +5413,7 @@ const SCENE = (() => {
   function rendre(E, complet) {
     const hv = complet ? H : Math.min(H, visH + 24);
     renderer.setScissorTest(!complet); if (!complet) renderer.setScissor(0, H - hv, W, hv);
-    if (HDM.pret) { renderer.setScissorTest(false); if (!hdFx) hdFx = HDM.effets(renderer, scene, camera, W, H, DPR, { rayon: W * 0.12, ao: 2.4, halo: 0.25 }); hdFx.rendre(); }
-    else if (QUAL.niveau === 'haute' && RICHE.actif && RICHE.effets && renderer.capabilities.isWebGL2) { if (!RICHE.post) RICHE.post = creerPost(); RICHE.post.rendre(hv); } // les effets : haute seulement
+    if (QUAL.niveau === 'haute' && RICHE.actif && RICHE.effets && renderer.capabilities.isWebGL2) { if (!RICHE.post) RICHE.post = creerPost(); RICHE.post.rendre(hv); } // les effets : haute seulement
     else renderer.render(scene, camera);
     renderer.setScissorTest(false);
     calque(E, hv);
@@ -5552,6 +5532,7 @@ const SCENE = (() => {
     vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
+    get decorHD() { return hdDecor ? hdDecor.children.length : 0; }, // les décors HD posés (pour les tests)
     get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0 }; }, // ce que la boutique montre (pour les tests)
     get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG), salle: n(salle) }; }, // le budget d'appels de dessin (pour les tests)
     get _riche() { return RICHE; }, // les réglages du rendu riche (pour les tests et les captures)
@@ -6585,8 +6566,11 @@ const GARDEROBE_UI = (() => {
   }
 
   // ─── un pas de jeu dans la Planque (dt en secondes, nowMs sur l'horloge de confiance) ───
+  const TROU = 10000, REPRISE = 90; // un trou de plus de 10 s entre deux pas (téléphone verrouillé, autre appli) : c'était une absence
   function tick(q, dt, nowMs, rnd) {
-    q.now = nowMs; rnd = rnd || Math.random;
+    rnd = rnd || Math.random;
+    if (q.now && nowMs - q.now > TROU) { q.ev = null; q.evTimer = Math.max(q.evTimer, REPRISE + rnd() * 60); } // le coup de pouce en cours s'efface sans pénalité (pas de descente ratée sans toi), et rien ne surgit au retour
+    q.now = nowMs;
     const out = { ventes: [], nouvelEv: null, finEv: null, paliers: [] };
     q.postes.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
@@ -6604,7 +6588,7 @@ const GARDEROBE_UI = (() => {
   }
   // ─── l'absence : les apprentis ont bossé (8 h au plus), les fournées en cours se terminent ; pas de coup de pouce sans toi ───
   function absence(q, nowMs) {
-    q.now = nowMs; q.ev = null;
+    q.now = nowMs; q.ev = null; q.evTimer = Math.max(q.evTimer || 0, REPRISE); // au retour, au moins 1 min 30 avant le prochain coup de pouce
     const secs = Math.min(heuresAbsence() * 3600, Math.max(0, (nowMs - q.lastSeen) / 1000));
     let total = 0; const detail = [];
     q.postes.forEach((s, i) => {
@@ -7007,18 +6991,21 @@ const EVENEMENT = (() => {
     const M = MODELES, TAU = Math.PI * 2, PITCH = 52 * Math.PI / 180, SY = Math.sin(PITCH), CY = Math.cos(PITCH), P = M.part, bo = (w, h, dd, r) => M.boite(Math.round(w * 2) / 2, Math.round(h * 2) / 2, Math.round(dd * 2) / 2, r);
     let renderer; try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: false, powerPreference: 'low-power' }); } catch (e) { return null; }
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.shadowMap.enabled = false; renderer.setClearColor('#2E2B3A');
+    // les modèles HD (src/hd.js) : demandés à l'ouverture si le palier le permet ; en attendant (ou en éco), le décor habituel
+    const hdOk = () => typeof HDM !== 'undefined' && HDM.pret('planque') && HDM.permis(renderer);
+    if (typeof HDM !== 'undefined' && HDM.permis(renderer)) HDM.charger('planque');
     const scene = new THREE.Scene(), camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 4000);
     scene.add(new THREE.HemisphereLight('#C7B8FF', '#2E2B3A', 1.1));
     const dir = new THREE.DirectionalLight('#FFD6E0', 1.2); scene.add(dir, dir.target);
     const rose = new THREE.PointLight('#FF6B8B', 90, 600, 1), vert = new THREE.PointLight('#5FD3A4', 60, 500, 1); scene.add(rose, vert);
     const G3 = new THREE.Group(); scene.add(G3);
     const animes = [], persos = [], lum = (hex, k) => new THREE.MeshLambertMaterial({ color: hex, emissive: hex, emissiveIntensity: k == null ? 1 : k });
-    let W = 1, H = 1, murH = 1, t = 0, fete = 0, fetes = [], hdVu = 0, hdFx = null;
+    let W = 1, H = 1, murH = 1, t = 0, fete = 0, fetes = [], hdVu = 0, hdFx = null, rue = null;
     const wz = (ys) => (ys - murH) / SY, wy = (px) => px / CY, wd = (px) => px / SY;
     function batir() {
       while (G3.children.length) { const o = G3.children[0]; G3.remove(o); M.dispose(o); }
       animes.length = 0; persos.length = 0;
-      const Hm = wy(murH), D = wd(H - murH), K = Math.max(0.6, Math.min(1.1, W / 390)), hd = typeof HDM !== 'undefined' && HDM.pret; hdVu = hd ? HDM.version : 0;
+      const Hm = wy(murH), D = wd(H - murH), K = Math.max(0.6, Math.min(1.1, W / 390)), hd = hdOk(); hdVu = hd ? HDM.version : 0;
       // le sol (un parquet sombre), le mur du fond (brique sombre), la plinthe
       G3.add(M.mesh(M.plan(W, D), M.mat('#3A3642'), { x: W / 2, z: D / 2, rx: -Math.PI / 2 }, { ombre: false }));
       G3.add(M.mesh(bo(W, Hm, 8, 1), M.mat('#4A4458'), { x: W / 2, z: -4 }, { ombre: false }));
@@ -7051,6 +7038,11 @@ const EVENEMENT = (() => {
         const tb = pose('table_low', tx, tz, tw * 1.05); if (tb) tb.scale.y = th / tb.userData.taille.y;
         pose('lamp_standing', lx, lz, 26 * K); pose('cactus_medium_A', W * 0.05, wz(murH + 10 * K), 22 * K); pose('cactus_small_A', W * 0.66, wz(murH + 8 * K), 14 * K);
         pose('pictureframe_medium', W * 0.22, wz(murH) + 2, 40 * K, { y: Hm * 0.55, ombre: false }); pose('armchair_pillows', W * 0.88, wz(murH + 70 * K), 44 * K, { ry: -Math.PI / 2 });
+        // la fenêtre sur la rue, de nuit : une petite scène City Builder rendue dans une texture, posée dans un cadre au mur
+        if (!rue) rue = creerRue(); const fw = 84 * K, fh = Hm * 0.36, fx = W * 0.74, fy = Hm * 0.58;
+        G3.add(M.mesh(M.plan(fw, fh), new THREE.MeshBasicMaterial({ map: rue.texture }), { x: fx, y: fy, z: 2.2 }, { ombre: false }));
+        const cadre = []; for (const [cx2, cy2, w2, h2] of [[0, fh / 2, fw + 8, 5], [0, -fh / 2, fw + 12, 6], [-fw / 2, 0, 5, fh + 6], [fw / 2, 0, 5, fh + 6], [0, 0, 3, fh]]) cadre.push(P(bo(w2, h2, 4, 1), '#2A2433', { x: fx + cx2, y: fy + cy2 - h2 / 2, z: 3 }));
+        G3.add(M.maille(cadre, { ombre: false }));
       }
       G3.add(M.maille(pr, { ombre: false }));
       // les néons au mur : un éclair rose et un rond menthe, un tube « OUVERT » qui grésille ; l'abat-jour et l'écran lumineux
@@ -7069,7 +7061,7 @@ const EVENEMENT = (() => {
     function equipeDe(qq, K) {
       for (const p of persos) { G3.remove(p.g); if (p.hd) HDM.liberer(p.hd); else M.dispose(p.g); } persos.length = 0;
       const n = Math.min(6, 1 + qq.postes.filter((s) => s.staff).length), spots = [[0.1, 0.3, 0, false], [0.4, 0.52, 0, false], [0.72, 0.5, 2, false], [0.5, 0.95, 0, false], [0.66, 0.85, -1, false], [0.15, 0.95, 1, false]];
-      const hd = typeof HDM !== 'undefined' && HDM.pret;
+      const hd = hdOk();
       for (let k = 0; k < n; k++) {
         if (hd) { const [ux, uy, dir] = spots[k], assis = k === 1, a = HDM.perso(HDM.VARIANTES[(k + 1) % 4], tenues[k].haut); a.g.scale.setScalar(W * 0.08 * 0.72 * (K || 1));
           a.g.position.set(assis ? W * 0.22 + 14 : W * ux, assis ? 12 : 0, assis ? wz(murH + 22 * (K || 1)) : wz(murH + uy * 60 * (K || 1))); a.g.rotation.y = Math.PI + (assis ? 0 : { 0: 0, 1: Math.PI / 2, '-1': -Math.PI / 2, 2: Math.PI }[dir]);
@@ -7080,6 +7072,23 @@ const EVENEMENT = (() => {
       }
     }
     const oAnim = { marche: false, phase: 0, assis: false, dir: 0, sac: false, or: false, pris: false, attend: true, plateau: false, produit: null, cle: false, t: 0, blink: 0, expression: 'neutre' };
+    function creerRue() { // la rue de nuit derrière la fenêtre : deux façades, un lampadaire allumé, une bouche d'incendie, une voiture qui passe
+      const sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(38, 1.6, 0.1, 60), rt = new THREE.WebGLRenderTarget(384, 240, { samples: 4 });
+      rt.texture.colorSpace = THREE.SRGBColorSpace; rt.texture.userData.partagee = true; sc.background = new THREE.Color('#1A1630'); sc.fog = new THREE.Fog('#1A1630', 9, 22);
+      sc.add(new THREE.HemisphereLight('#6E6AB8', '#1A1630', 0.9)); const lune = new THREE.DirectionalLight('#9FA8FF', 0.6); lune.position.set(-3, 6, 4); sc.add(lune);
+      const lampe = new THREE.PointLight('#FFC873', 18, 9, 1.6); lampe.position.set(1.1, 2.6, 1.2); sc.add(lampe);
+      const pose = (nom, x, z, haut, ry) => { const m = HDM.modele(nom, 1, { ombre: false }); if (!m) return null; m.scale.setScalar(haut / m.userData.taille.y); m.position.set(x, 0, z); m.rotation.y = ry || 0; sc.add(m); return m; };
+      pose('building_D', -2.2, -2.5, 5.2); pose('building_F', 2.4, -2.6, 4.6);
+      pose('streetlight', 1.4, 1.1, 3, -Math.PI / 2); pose('firehydrant', -0.9, 1.2, 0.5); pose('trash_A', 3.1, 0.9, 0.7); pose('dumpster', -3.4, 0.6, 1.1);
+      const sol = new THREE.Mesh(new THREE.PlaneGeometry(40, 20), new THREE.MeshStandardMaterial({ color: '#2B2838', roughness: 0.9 })); sol.rotation.x = -Math.PI / 2; sc.add(sol);
+      const trottoir = new THREE.Mesh(new THREE.BoxGeometry(40, 0.15, 2.6), new THREE.MeshStandardMaterial({ color: '#4A4658' })); trottoir.position.set(0, 0.07, 0.4); sc.add(trottoir);
+      const halo = new THREE.Mesh(new THREE.SphereGeometry(0.16, 12, 8), new THREE.MeshBasicMaterial({ color: '#FFE0A0' })); halo.position.copy(lampe.position); sc.add(halo);
+      const voiture = pose('car_sedan', -8, 2.6, 0.9, Math.PI / 2);
+      cam.position.set(0, 1.5, 6.2); cam.lookAt(0, 1.4, 0);
+      let tv = 0;
+      return { texture: rt.texture, frame(dt) { tv += dt; if (voiture) { voiture.position.x = ((tv * 2.2) % 22) - 11; } halo.material.color.setScalar(0.9 + 0.1 * Math.sin(tv * 9)); renderer.setRenderTarget(rt); renderer.render(sc, cam); renderer.setRenderTarget(null); },
+        liberer() { rt.dispose(); sc.traverse((o) => { if (o.isMesh && o.geometry) o.geometry.dispose(); }); } };
+    }
     function redim() {
       const w = Math.max(1, cv.clientWidth), h = Math.max(1, cv.clientHeight); if (w === W && h === H && G3.children.length) return;
       W = w; H = h; murH = Math.round(h * 0.42);
@@ -7093,17 +7102,19 @@ const EVENEMENT = (() => {
       redim(); t += dt;
       const E = { t };
       for (const f of animes) f(E);
-      if (typeof HDM !== 'undefined' && HDM.pret && hdVu !== HDM.version) batir();
+      if (hdOk() ? hdVu !== HDM.version : hdVu !== 0) batir(); // les modèles viennent d'arriver, ou le palier est passé en éco
+      if (rue && hdVu) rue.frame(dt);
       for (const p of persos) { if (p.hd) { HDM.jouer(p.hd, fete > 0 && !p.assis ? 'Cheer' : p.assis ? 'Sit_Chair_Idle' : (persos.indexOf(p) % 2 ? 'Interact' : 'Idle')); p.hd.mixer.update(dt); continue; } oAnim.phase = t * 2 + p.phase; oAnim.assis = p.assis; oAnim.dir = p.dir; oAnim.t = t; oAnim.blink = (t + p.phase) % 3.4; oAnim.expression = fete > 0 ? 'sourire' : 'neutre'; oAnim.attend = !p.assis; try { PERSOS.animer(p.g, oAnim); } catch (e) { /* un personnage sans ce champ */ } }
       if (fete > 0) fete -= dt;
-      if (typeof HDM !== 'undefined' && HDM.pret) { if (!hdFx || hdFx.W !== W || hdFx.H !== H) { if (hdFx) hdFx.liberer(); hdFx = HDM.effets(renderer, scene, camera, W, H, Math.min(1.5, window.devicePixelRatio || 1), { rayon: W * 0.1, ao: 2, halo: 1.5, seuil: 0.4, aoCouleur: '#120A18' }); hdFx.W = W; hdFx.H = H; } hdFx.rendre(dt); }
-      else renderer.render(scene, camera);
+      if (hdVu) { if (!hdFx || hdFx.W !== W || hdFx.H !== H) { if (hdFx) hdFx.liberer(); hdFx = HDM.effets(renderer, scene, camera, W, H, Math.min(1.5, window.devicePixelRatio || 1), { rayon: W * 0.1, ao: 2, halo: 1.5, seuil: 0.4, aoCouleur: '#120A18' }); hdFx.W = W; hdFx.H = H; } hdFx.rendre(dt); }
+      else { if (hdFx) { hdFx.liberer(); hdFx = null; } renderer.render(scene, camera); }
     }
     redim();
     return {
+      get hd() { return { actif: hdVu > 0, persos: persos.filter((p) => p.hd).length, rue: !!rue, effets: !!hdFx }; }, // les modèles HD (pour les tests)
       redim, frame: frameScene, equipe: (qq) => equipeDe(qq, Math.max(0.6, Math.min(1.1, W / 390))), vente: () => { }, fete: () => { fete = 2; },
       detruire() { try { G3.traverse((o) => { if (o.isMesh) { if (o.geometry && !o.geometry.userData.cache) o.geometry.dispose(); const ms = [].concat(o.material || []); for (const m of ms) if (m && m !== M.MAT.vertex && !M.MATS.has(m)) m.dispose(); } }); } catch (e) { /* rien */ }
-        try { renderer.dispose(); renderer.forceContextLoss(); } catch (e) { /* rien */ } },
+        try { if (rue) rue.liberer(); if (hdFx) hdFx.liberer(); for (const p of persos) if (p.hd) HDM.liberer(p.hd); renderer.dispose(); renderer.forceContextLoss(); } catch (e) { /* rien */ } },
       get calls() { return renderer.info.render.calls; },
     };
   }
