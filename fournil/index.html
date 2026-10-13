@@ -4925,7 +4925,8 @@ const HDM = (() => {
 
   // ─── la passe d'effets : occlusion N8AO (optionnelle), SMAA, halo ; sortie sRGB ───
   function effets(renderer, scene, camera, W, H, dpr, o = {}) {
-    const c = new X.EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType }); c.addPass(new X.RenderPass(scene, camera));
+    let flottant = false; try { flottant = renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float'); } catch (e) { /* non */ }
+    const c = new X.EffectComposer(renderer, { frameBufferType: flottant ? THREE.HalfFloatType : THREE.UnsignedByteType }); // tampons flottants seulement s'ils sont rendables c.addPass(new X.RenderPass(scene, camera));
     let n8 = null;
     if (o.ao !== false) { n8 = new X.N8AOPostPass(scene, camera, W * dpr, H * dpr); Object.assign(n8.configuration, { aoRadius: o.rayon || 40, distanceFalloff: 1, intensity: o.ao || 2.6, color: new THREE.Color(o.aoCouleur || '#3A2418'), halfRes: true, aoSamples: 12, denoiseSamples: 8 }); c.addPass(n8); }
     const fx = [new X.SMAAEffect()]; if (o.halo !== 0) fx.push(new X.BloomEffect({ intensity: o.halo || 0.3, luminanceThreshold: o.seuil || 0.85, mipmapBlur: true }));
@@ -5546,6 +5547,7 @@ const SCENE = (() => {
     vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
+    alleger() { if (RICHE.post) { RICHE.post.liberer(); RICHE.post = null; } }, // un écran plein (la Planque) couvre la boutique : la passe d'effets rend sa mémoire, recréée au retour
     get decorHD() { return hdDecor ? hdDecor.children.length : 0; }, // les décors HD posés (pour les tests)
     get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0 }; }, // ce que la boutique montre (pour les tests)
     get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG), salle: n(salle) }; }, // le budget d'appels de dessin (pour les tests)
@@ -6795,7 +6797,7 @@ const EVENEMENT = (() => {
     const f = fen(), qq = q();
     if (!f.ouvert && !f.fini) return false;
     if (qq.masque && !f.fini) return false;
-    el.hidden = false; d.ouvert();
+    el.hidden = false; d.ouvert(); if (typeof SCENE !== 'undefined' && SCENE.alleger) SCENE.alleger(); // la boutique, cachée, rend sa passe d'effets
     if (f.fini) { montrerBilan(); return true; }
     if (!qq.majeur) { montrerPorte(); return true; }
     entrer();
@@ -6813,6 +6815,12 @@ const EVENEMENT = (() => {
     $('#pq-corps').querySelector('[data-pq="oui"]').addEventListener('click', () => { d.audio(); d.son.deblocage(); const qq = q(); qq.majeur = true; d.save(); entrer(); });
     $('#pq-corps').querySelector('[data-pq="non"]').addEventListener('click', () => { d.audio(); d.son.tap(); masquer(true); d.toast('L’événement est masqué. Tu peux le remettre dans les Réglages.'); });
   }
+  // ─── la 3D de la Planque : son contexte WebGL est rendu en sortant (forceContextLoss) ; un canvas perdu ne revit pas, alors chaque nouvelle
+  //     scène part d'un canvas neuf. Si le téléphone refuse le contexte, on réessaie (5 fois, une par seconde) ; s'il le reprend en route, on recrée.
+  let essais3 = 0, tEssai3 = 0;
+  function canvasNeuf() { const v = $('#pq-canvas'); if (!v) return null; const n = v.cloneNode(false); v.replaceWith(n); return n; }
+  function creer3(neuf) { const cv = neuf ? canvasNeuf() : $('#pq-canvas'); scene3 = cv ? creerScene(cv) : null; if (scene3) essais3 = 0; else { essais3++; tEssai3 = performance.now(); } }
+  function liberer3() { if (scene3) { scene3.detruire(); scene3 = null; canvasNeuf(); } }
   function entete(t, s) { $('#pq-titre').textContent = t; $('#pq-sous').textContent = s || ''; }
   function entrer() {
     const qq = q(), t = now();
@@ -6823,7 +6831,7 @@ const EVENEMENT = (() => {
     entete('La Planque', `Jour ${fen().jour} sur ${fen().jours}`);
     el.querySelectorAll('.pq-modes button').forEach((b) => b.classList.toggle('actif', String(qq.mode) === b.dataset.mode));
     construireCartes(); lastHud = ''; lastEv = ''; hud(); renderEv();
-    if (!scene3) scene3 = creerScene($('#pq-canvas'));
+    if (!scene3) { essais3 = 0; creer3(false); }
     if (abs.total > 0 && abs.secs > 90) d.toast(`Pendant ton absence (${G.fmtDuree(abs.secs)}) : +${fmt(abs.total)} de billets, au ralenti sans le boss.`);
     else if (qq.stats.taps === 0) d.toast('Touche l’herbe pour vendre ton premier sachet !');
     dernierSave = performance.now();
@@ -6832,7 +6840,7 @@ const EVENEMENT = (() => {
     if (!ouvert()) return;
     if (ecran === 'planque') { const qq = q(); qq.lastSeen = now(); d.save(); }
     if (ecran === 'bilan') { const qq = q(); qq.bilan = true; d.save(); }
-    if (scene3) { scene3.detruire(); scene3 = null; }
+    liberer3();
     el.hidden = true; ecran = ''; el.dataset.ecran = ''; cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
     if (d.ferme) d.ferme();
   }
@@ -6857,7 +6865,9 @@ const EVENEMENT = (() => {
     for (const p of out.paliers) donnerPalier(p);
     montrerSheetsEnAttente();
     hud(); renderCartes(); renderEv();
-    if (scene3) scene3.frame(dt, qq);
+    if (!scene3 && essais3 > 0 && essais3 < 6 && performance.now() - tEssai3 > 1000) creer3(true); // le contexte avait été refusé : on réessaie
+    if (scene3 && scene3.perdu && performance.now() - scene3.perdu > 1000) { liberer3(); creer3(false); } // perdu en route et pas revenu : une scène neuve
+    if (scene3 && !scene3.perdu) scene3.frame(dt, qq);
     if (performance.now() - dernierSave > 5000) { dernierSave = performance.now(); qq.lastSeen = t; d.save(); }
   }
   const TXT_EV = { descente: 'Descente de police ! Planque tout, vite !', grosclient: 'Un gros client passe commande !', soiree: 'Soirée dans le quartier : tout se vend ×2 !', scooter: 'Le livreur en scooter passe : attrape le bonus !' };
@@ -6979,7 +6989,7 @@ const EVENEMENT = (() => {
   // ─── le bilan de fin : la Planque a fermé, tout le reste reste ───
   function montrerBilan() {
     const qq = q(); ecran = 'bilan'; el.dataset.ecran = ecran;
-    if (scene3) { scene3.detruire(); scene3 = null; }
+    liberer3();
     cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
     entete('La Planque a fermé', 'L’événement est terminé');
     const rec = d.recompenses ? d.recompenses() : null, rang = rec && rec.quartier ? rec.quartier : null, nb = Q.paliersAtteints(qq).length;
@@ -7005,6 +7015,8 @@ const EVENEMENT = (() => {
     const M = MODELES, TAU = Math.PI * 2, PITCH = 52 * Math.PI / 180, SY = Math.sin(PITCH), CY = Math.cos(PITCH), P = M.part, bo = (w, h, dd, r) => M.boite(Math.round(w * 2) / 2, Math.round(h * 2) / 2, Math.round(dd * 2) / 2, r);
     let renderer; try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: false, powerPreference: 'low-power' }); } catch (e) { return null; }
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.shadowMap.enabled = false; renderer.setClearColor('#2E2B3A');
+    let perdu = 0, sansEffets = false; // perdu : l'instant où le téléphone a repris le contexte (mémoire) ; sansEffets : la passe d'effets a cassé, rendu simple
+    cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); perdu = performance.now(); }); cv.addEventListener('webglcontextrestored', () => { perdu = 0; });
     // les modèles HD (src/hd.js) : demandés à l'ouverture si le palier le permet ; en attendant (ou en éco), le décor habituel
     const hdOk = () => typeof HDM !== 'undefined' && HDM.pret('planque') && HDM.permis(renderer);
     if (typeof HDM !== 'undefined' && HDM.permis(renderer)) HDM.charger('planque');
@@ -7087,7 +7099,7 @@ const EVENEMENT = (() => {
     }
     const oAnim = { marche: false, phase: 0, assis: false, dir: 0, sac: false, or: false, pris: false, attend: true, plateau: false, produit: null, cle: false, t: 0, blink: 0, expression: 'neutre' };
     function creerRue() { // la rue de nuit derrière la fenêtre : deux façades, un lampadaire allumé, une bouche d'incendie, une voiture qui passe
-      const sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(38, 1.6, 0.1, 60), rt = new THREE.WebGLRenderTarget(384, 240, { samples: 4 });
+      const sc = new THREE.Scene(), cam = new THREE.PerspectiveCamera(38, 1.6, 0.1, 60), rt = new THREE.WebGLRenderTarget(320, 200);
       rt.texture.colorSpace = THREE.SRGBColorSpace; rt.texture.userData.partagee = true; sc.background = new THREE.Color('#1A1630'); sc.fog = new THREE.Fog('#1A1630', 9, 22);
       sc.add(new THREE.HemisphereLight('#6E6AB8', '#1A1630', 0.9)); const lune = new THREE.DirectionalLight('#9FA8FF', 0.6); lune.position.set(-3, 6, 4); sc.add(lune);
       const lampe = new THREE.PointLight('#FFC873', 18, 9, 1.6); lampe.position.set(1.1, 2.6, 1.2); sc.add(lampe);
@@ -7120,11 +7132,12 @@ const EVENEMENT = (() => {
       if (rue && hdVu) rue.frame(dt);
       for (const p of persos) { if (p.hd) { HDM.jouer(p.hd, fete > 0 && !p.assis ? 'Cheer' : p.assis ? 'Sit_Chair_Idle' : (persos.indexOf(p) % 2 ? 'Interact' : 'Idle')); p.hd.mixer.update(dt); continue; } oAnim.phase = t * 2 + p.phase; oAnim.assis = p.assis; oAnim.dir = p.dir; oAnim.t = t; oAnim.blink = (t + p.phase) % 3.4; oAnim.expression = fete > 0 ? 'sourire' : 'neutre'; oAnim.attend = !p.assis; try { PERSOS.animer(p.g, oAnim); } catch (e) { /* un personnage sans ce champ */ } }
       if (fete > 0) fete -= dt;
-      if (hdVu) { if (!hdFx || hdFx.W !== W || hdFx.H !== H) { if (hdFx) hdFx.liberer(); hdFx = HDM.effets(renderer, scene, camera, W, H, Math.min(1.5, window.devicePixelRatio || 1), { rayon: W * 0.1, ao: 2, halo: 1.5, seuil: 0.4, aoCouleur: '#120A18' }); hdFx.W = W; hdFx.H = H; } hdFx.rendre(dt); }
+      if (hdVu && !sansEffets) { if (!hdFx || hdFx.W !== W || hdFx.H !== H) { if (hdFx) hdFx.liberer(); hdFx = HDM.effets(renderer, scene, camera, W, H, Math.min(1.5, window.devicePixelRatio || 1), { ao: false, halo: 1.5, seuil: 0.4 }); hdFx.W = W; hdFx.H = H; } try { hdFx.rendre(dt); } catch (e) { console.warn('Planque : effets coupés', e); sansEffets = true; hdFx.liberer(); hdFx = null; renderer.render(scene, camera); } }
       else { if (hdFx) { hdFx.liberer(); hdFx = null; } renderer.render(scene, camera); }
     }
     redim();
     return {
+      get perdu() { return perdu; },
       get hd() { return { actif: hdVu > 0, persos: persos.filter((p) => p.hd).length, rue: !!rue, effets: !!hdFx }; }, // les modèles HD (pour les tests)
       redim, frame: frameScene, equipe: (qq) => equipeDe(qq, Math.max(0.6, Math.min(1.1, W / 390))), vente: () => { }, fete: () => { fete = 2; },
       detruire() { try { G3.traverse((o) => { if (o.isMesh) { if (o.geometry && !o.geometry.userData.cache) o.geometry.dispose(); const ms = [].concat(o.material || []); for (const m of ms) if (m && m !== M.MAT.vertex && !M.MATS.has(m)) m.dispose(); } }); } catch (e) { /* rien */ }

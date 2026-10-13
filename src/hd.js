@@ -79,7 +79,8 @@ const HDM = (() => {
 
   // ─── la passe d'effets : occlusion N8AO (optionnelle), SMAA, halo ; sortie sRGB ───
   function effets(renderer, scene, camera, W, H, dpr, o = {}) {
-    const c = new X.EffectComposer(renderer, { frameBufferType: THREE.HalfFloatType }); c.addPass(new X.RenderPass(scene, camera));
+    let flottant = false; try { flottant = renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float'); } catch (e) { /* non */ }
+    const c = new X.EffectComposer(renderer, { frameBufferType: flottant ? THREE.HalfFloatType : THREE.UnsignedByteType }); // tampons flottants seulement s'ils sont rendables c.addPass(new X.RenderPass(scene, camera));
     let n8 = null;
     if (o.ao !== false) { n8 = new X.N8AOPostPass(scene, camera, W * dpr, H * dpr); Object.assign(n8.configuration, { aoRadius: o.rayon || 40, distanceFalloff: 1, intensity: o.ao || 2.6, color: new THREE.Color(o.aoCouleur || '#3A2418'), halfRes: true, aoSamples: 12, denoiseSamples: 8 }); c.addPass(n8); }
     const fx = [new X.SMAAEffect()]; if (o.halo !== 0) fx.push(new X.BloomEffect({ intensity: o.halo || 0.3, luminanceThreshold: o.seuil || 0.85, mipmapBlur: true }));

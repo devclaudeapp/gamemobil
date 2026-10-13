@@ -32,6 +32,19 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 200) {
     return { ctx, page, erreurs };
   }
 
+  // ouvrir / fermer la Planque plusieurs fois, puis une perte de contexte simulée : la 3D revient toujours (le bug de l'écran noir)
+  async function robustesse(page, nom) {
+    const etat = () => page.evaluate(() => { const c = document.querySelector('#pq-canvas'), g = c && (c.getContext('webgl2') || c.getContext('webgl')), s = window.__fournil.evenement.scene; return { scene: !!s, perdu: g ? g.isContextLost() : null, calls: s ? s.calls : 0 }; });
+    for (let k = 1; k <= 3; k++) {
+      await page.evaluate(() => { if (document.querySelector('#planque').hidden) window.__fournil.quartier(); }); await sleep(1200);
+      const e = await etat(); check(e.scene && e.perdu === false && e.calls > 0, `${nom} : ouverture n° ${k} de la Planque, la 3D tourne (${e.calls} appels, contexte ${e.perdu ? 'PERDU' : 'vivant'})`);
+      if (k < 3) { await page.evaluate(() => document.querySelector('[data-pq="fermer"]').click()); await sleep(400); }
+    }
+    await page.evaluate(() => { const g = document.querySelector('#pq-canvas').getContext('webgl2'); g.getExtension('WEBGL_lose_context').loseContext(); });
+    check(await attendre(async () => { const e = await etat(); return e.scene && e.perdu === false && e.calls > 0; }, 5000), `${nom} : contexte perdu Planque ouverte (mémoire du téléphone) : une scène neuve en moins de 5 s`);
+    await page.evaluate(() => document.querySelector('[data-pq="fermer"]').click()); await sleep(300);
+  }
+
   console.log('── qualité haute : la boutique ──');
   demandes.length = 0;
   let { ctx, page, erreurs } = await ouvrir('?qualite=haute');
@@ -53,6 +66,7 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 200) {
   await sleep(1500); await page.screenshot({ path: path.join(__dirname, 'shots', 'planque-hd.png') });
   await page.evaluate(() => document.querySelector('[data-pq="fermer"]').click()); await sleep(600);
   check(t0 === 1 && await page.evaluate(() => !window.__fournil.evenement.scene), 'la Planque refermée libère sa 3D (renderer, rue, personnages)');
+  await robustesse(page, 'haute');
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
   await ctx.close();
 
@@ -63,6 +77,8 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 200) {
     await page.evaluate(() => { const b = document.querySelector('#pq-corps [data-pq="oui"]'); if (b) b.click(); }); await sleep(3000);
     const s = await page.evaluate(() => { const sc = window.__fournil.evenement.scene; return { decor: SCENE.decorHD, planque: sc ? sc.hd.actif : null }; });
     check(demandes.length === 0 && s.decor === 0 && s.planque === false, `aucun modèle HD demandé, boutique et Planque comme avant (${demandes.length} demandes)`);
+    await page.evaluate(() => document.querySelector('[data-pq="fermer"]').click()); await sleep(300);
+    await robustesse(page, nom);
     check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
     await ctx.close();
   }
