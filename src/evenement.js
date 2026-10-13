@@ -20,6 +20,7 @@ const EVENEMENT = (() => {
     if (!el || !Q) return false;
     const ico = el.querySelector('.pq-ico'); if (ico) ico.innerHTML = ICONS.QUARTIER.billets;
     el.querySelector('[data-pq="fermer"]').addEventListener('click', () => { d.audio(); d.son.tap(); fermer(); });
+    el.querySelector('[data-pq="classement"]').addEventListener('click', () => { d.audio(); d.son.tap(); if (d.classement) d.classement(); });
     el.querySelector('[data-pq="paliers"]').addEventListener('click', () => { d.audio(); d.son.tap(); sheetPaliers(); });
     el.querySelector('[data-pq="ameliorations"]').addEventListener('click', () => { d.audio(); d.son.tap(); sheetAmeliorations(); });
     el.querySelectorAll('.pq-modes button').forEach((b) => b.addEventListener('click', () => { d.audio(); const qq = q(); qq.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; el.querySelectorAll('.pq-modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCartes(true); }));
@@ -160,12 +161,15 @@ const EVENEMENT = (() => {
   const FIN_EV = { grosclient: 'Le gros client est reparti sans sa commande.', soiree: 'La soirée est finie.', scooter: 'Le scooter est reparti.' };
   function hud() {
     const qq = q(), taux = Q.tauxParSeconde(qq), f = fen(), nb = Q.paliersAtteints(qq).length;
-    const cle = `${fmt(qq.billets)}|${fmt(taux)}|${Q.fmtReste(f.reste)}|${nb}|${f.jour}`;
+    const cl = d.rangQuartier ? d.rangQuartier() : null; // le classement de l'événement : null s'il n'existe pas (pas de serveur), sinon son rang (0 : pas encore classé)
+    const cle = `${fmt(qq.billets)}|${fmt(taux)}|${Q.fmtReste(f.reste)}|${nb}|${f.jour}|${cl}`;
     if (cle === lastHud) return; lastHud = cle;
     $('#pq-billets').textContent = fmt(qq.billets);
     $('#pq-taux').innerHTML = taux > 0 ? `<b>+${fmt(taux)}</b>/s · le boss est là ×${Q.PRESENCE}` : `Touche un produit pour vendre · le boss est là ×${Q.PRESENCE}`;
     $('#pq-reste').textContent = `Ferme dans ${Q.fmtReste(f.reste)}`;
     $('#pq-sous').textContent = `Jour ${f.jour} sur ${f.jours}`;
+    const bc = el.querySelector('[data-pq="classement"]'); bc.hidden = cl == null; bc.querySelector('b').textContent = cl ? (cl === 1 ? '1er' : cl + 'e') : 'Top';
+    bc.setAttribute('aria-label', cl ? `Le classement de l’événement : tu es ${cl === 1 ? '1er' : cl + 'e'}` : 'Le classement de l’événement');
     const bp = el.querySelector('[data-pq="paliers"]'); bp.querySelector('b').textContent = `${nb}/12`; bp.classList.toggle('pret', Q.paliersDus(qq).length > 0);
   }
 

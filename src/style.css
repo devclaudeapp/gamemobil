@@ -688,6 +688,9 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 #planque .at-titre small { color: #C7B8FF; }
 .pq-paliers-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px 0 8px; border-radius: 999px; background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; font: 700 15px/1 var(--titre); color: #fff; }
 .pq-paliers-btn .ico svg { width: 22px; height: 22px; }
+.pq-paliers-btn[hidden] { display: none; }
+.pq-cl-btn { padding: 0 10px 0 7px; }
+.pq-cl-btn svg { stroke: #FFF7EC; }
 .pq-paliers-btn.pret { background: var(--beurre); color: var(--texte); box-shadow: 0 3px 0 var(--beurre-sombre); animation: pulse 1.2s ease-in-out infinite; }
 .pq-paliers-btn:active { transform: translateY(3px); box-shadow: none; }
 .pq-solde { display: flex; align-items: center; gap: 10px; padding: 2px 14px 6px; }

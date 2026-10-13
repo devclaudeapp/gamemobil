@@ -1116,6 +1116,7 @@ const UI = (() => {
     $('#boosts').addEventListener('click', () => { audio(); son.tap(); lancerBoost(); });
     // l'événement « Le Quartier » : la Planque, ses paliers et leurs récompenses, l'annonce, le bilan (src/evenement.js)
     if (EVT) EVT.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), sure: () => { try { const e = HORLOGE.etat(); return e ? e.sure : null; } catch (e) { return null; } }, save, toast, fete: () => SCENE.fete(), openSheet, closeSheet, on, recompenses: recVue,
+      classement: () => sheetClassement('quartier'), rangQuartier: () => { try { if (!classement || !classement.disponible() || !periodes().some(([id]) => id === 'quartier')) return null; const r = classement.resume(); return r.rejoint && r.quartier ? r.quartier.rang : 0; } catch (e) { return null; } },
       ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); majCoin(); renderCards(true); hud(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); lastPage = ''; renderPage(true); } });
     buildCards();
