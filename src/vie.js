@@ -40,8 +40,9 @@ const VIE = (() => {
       T, murH, spread: sp, W, H, K,
       fenetre: { x: W * 0.04, y: T * 0.05, w: W * 0.24, h: T * 0.21 },
       etagere: { x: W * 0.73, y: T * 0.05, w: W * 0.12 },
-      cadre: { x: W * 0.36, y: T * 0.20 }, horloge: { x: W * 0.52, y: T * 0.22 }, diplome: { x: W * 0.60, y: T * 0.19 }, cadre2: { x: W * 0.66, y: T * 0.20 },
-      appliques: [{ x: W * 0.35, y: T * 0.22 }, { x: W * 0.65, y: T * 0.22 }], lampe: { x: W * 0.5, y: T * 0.07 },
+      cadre: { x: W * 0.39, y: T * 0.20 }, horloge: { x: W * 0.52, y: T * 0.22 }, diplome: { x: W * 0.60, y: T * 0.19 }, cadre2: { x: W * 0.66, y: T * 0.20 },
+      appliques: [{ x: W * 0.38, y: T * 0.22 }, { x: W * 0.65, y: T * 0.22 }], lampe: { x: W * 0.5, y: T * 0.07 },
+      arriere: { x: W * 0.292, y: T * 0.20, w: W * 0.054, h: murH - T * 0.20 }, // la petite porte de l'arrière-boutique, entre la fenêtre et le tableau (src/arriere.js)
       porte: { x: W * 0.86, y: T * 0.04, w: W * 0.11, h: murH - T * 0.04 },
       entree: { x: W * 0.915, y: murH }, paillasson: { x: W * 0.915, y: murH + 9 },
       deco: { x: W * 0.80, y: T * 0.36 }, plante: { x: W * 0.06, y: T * 0.60 + sp * 0.3 }, sapin: { x: W * 0.655, y: T * 0.42 },

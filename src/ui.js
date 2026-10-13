@@ -410,8 +410,8 @@ const UI = (() => {
       return `${PAGE_HEAD('boulanger', 'Boulanger', pts_ ? `<span class="serie lav">${pts_} point${pts_ > 1 ? 's' : ''}</span>` : '')}
       <div class="bloc">
         <div class="card boulanger-tete"><span class="portrait">${ICONS.boulanger(rang, tenueVue())}</span><div><h3>${esc(G.titre(st))}</h3><p class="sous">Niveau <b>${np.n}</b> · ${G.fmt(np.reste)} / ${G.fmt(np.prochain)} savoir-faire</p><div class="mini xp"><i style="width:${pct(np.reste, np.prochain)}"></i></div>${suivant ? `<p class="note">${esc(suivant[1])} au niveau ${suivant[0]}</p>` : ''}</div></div>
+        <div class="encadre doux">Le savoir-faire vient des défis du jour, des événements réussis, des recettes, des embauches et des nouvelles boutiques. Chaque niveau donne <b>un point de talent</b>. Les talents sont à toi pour toujours, même en changeant de boutique.</div>
         <h3 class="titre-section"><span>Talents</span>${pts_ ? `<span class="pts">${pts_} point${pts_ > 1 ? 's' : ''} à dépenser</span>` : ''}</h3>
-        <p class="note intro">Un point par niveau ; les talents restent, même en changeant de boutique.</p>
         <div class="liste-am">${G.TALENTS.map((t) => { const k = G.talent(st, t.id), max = k >= t.max; return `<div class="am talent ${k ? 'appris' : ''}"><div><h3>${esc(t.nom)} ${crans(k, t.max)}</h3><p>${k ? esc(t.desc(k)) : 'Cran 1 : ' + esc(t.desc(1))}${k && !max ? `<br><em>Cran suivant : ${esc(t.desc(k + 1))}</em>` : ''}</p></div>${max ? okChip('Maîtrisé') : `<button type="button" class="btn ${pts_ ? 'lavande' : 'non'}" data-t="${t.id}"><small>Apprendre</small><b>1 point</b></button>`}</div>`; }).join('')}</div>
         <h3 class="titre-section"><span>Tenue et récompenses</span></h3>
         ${GRU ? GRU.carte(st) : ''}
@@ -441,9 +441,24 @@ const UI = (() => {
   const QUAND_SAISON = { galette: 'en janvier', crepe: 'début février', paques: 'en avril', glace: 'cet été', citrouille: 'à la mi-octobre', buche: 'en décembre' };
   // Journal : le fil des nouvelles (les dernières en tête, les pas encore lues marquées), puis la vie du quartier : recettes de saison, habitués
   const ilYA = (ms) => { const s = Math.max(0, (HORLOGE.maintenant() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
+  // l'arrière-salle (src/arriere.js) : une fois la petite porte du fond trouvée, une carte discrète, tout en bas du Journal, y ramène
+  const AR = typeof ARRIERE !== 'undefined' ? ARRIERE : null;
+  const arriereTrouvee = () => !!(AR && st.arriere && st.arriere.trouvee);
+  const cleArriere = () => (arriereTrouvee() ? (st.arriere.main && !st.arriere.main.fin ? 'ar-main' : 'ar') : '');
+  const carteArriere = () => (arriereTrouvee() ? `<button type="button" class="card arriere-carte" data-arriere="1"><span class="pic">${ICONS.UI.arriere}</span><span class="t"><b>L’arrière-salle</b><small>${st.arriere.main && !st.arriere.main.fin ? 'Une main t’attend sur le tapis vert.' : 'La petite porte du fond est restée entrouverte.'}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>` : '');
+  // la porte : cinq touches de suite en moins de 3 s l'ouvrent (toute autre touche dans la boutique remet le compte à zéro)
+  let toquees = [];
+  function toquer(x, y) {
+    const t = performance.now(); toquees = toquees.filter((k) => t - k <= 3000); toquees.push(t);
+    son.tap(); buzz(5); const r = $('#scene').getBoundingClientRect(); flottant(r.left + x - 12, r.top + y - 26, toquees.length >= 5 ? 'toc toc !' : 'toc');
+    if (toquees.length < 5 || !AR) return;
+    toquees = []; const premiere = !arriereTrouvee();
+    if (premiere) { st.arriere = st.arriere || {}; st.arriere.trouvee = true; }
+    setTimeout(() => { AR.ouvrir(); if (premiere) { lastPage = ''; renderPage(true); } }, 260);
+  }
   let vuAvantJournal = 0; // le dernier passage avant celui-ci : ce qui est arrivé depuis est « nouveau »
   const pageJournal = {
-    key: () => `${(st.carnetEv || []).length}|${(st.carnetEv || []).length ? st.carnetEv[st.carnetEv.length - 1].t : 0}|${JSON.stringify(st.habitues)}|${JSON.stringify(st.collection)}|${st.saison ? st.saison.id + st.saison.niv : ''}|${Math.floor(HORLOGE.maintenant() / 60e3)}`,
+    key: () => `${cleArriere()}|${(st.carnetEv || []).length}|${(st.carnetEv || []).length ? st.carnetEv[st.carnetEv.length - 1].t : 0}|${JSON.stringify(st.habitues)}|${JSON.stringify(st.collection)}|${st.saison ? st.saison.id + st.saison.niv : ''}|${Math.floor(HORLOGE.maintenant() / 60e3)}`,
     html: () => {
       const fil = (st.carnetEv || []).slice().reverse(), neuves = fil.filter((e) => e.t > vuAvantJournal).length;
       return `${PAGE_HEAD('journal', 'Journal', neuves ? `<span class="serie fraise">${neuves} nouvelle${neuves > 1 ? 's' : ''}</span>` : '')}
@@ -458,9 +473,10 @@ const UI = (() => {
         <div class="card"><div class="c-tete"><span class="pic peche">${ICONS.UI.habitues}</span><h3>Les habitués</h3></div>
           ${G.HABITUES.map((h) => { const e = (st.habitues || {})[h.id]; return `<div class="ligne habitue"><span class="pastille-hab" style="background:${h.haut}"></span><div class="t"><span><b>${esc(h.nom)}</b><small>Passe entre ${h.debut}h et ${Math.floor(h.fin)}h${h.fin % 1 ? '30' : ''} · ${e && e.jours ? `fidèle depuis ${e.jours} jour${e.jours > 1 ? 's' : ''}` : 'première visite à venir'}</small></span></div></div>`; }).join('')}
           <p class="note">Sers un habitué cinq jours de suite : il t’offre un cadeau.</p></div>
+        ${carteArriere()}
       </div>`;
     },
-    bind: () => {},
+    bind: (sec) => { onIn(sec, '[data-arriere]', () => { son.tap(); if (AR) AR.ouvrir(); }); },
   };
   // Réglages : rangés par groupe ; ce qui sert peu vit ici (repeindre, masquer l'événement, quitter le classement, sauvegarde, partage)
   const pageReglages = {
@@ -474,7 +490,7 @@ const UI = (() => {
       <div class="bloc">
         ${groupe('Le jeu', ligne('son', st.son ? ICONS.UI.son : ICONS.UI.sonOff, 'Sons', 'Petites notes à chaque vente et achat', sw(st.son)) + ligne('vibre', ICONS.UI.vibre, 'Vibrations', 'Un léger retour sous le doigt', sw(st.vibre)))}
         ${groupe('La boutique', ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)
-          + ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés avec leurs crans : touche-les pour les améliorer', chev)
+          + ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés, leurs crans et leurs prix : touche-les pour les améliorer', chev)
           + (st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, ''))
           + (st.chat ? ligne('chat', ICONS.UI.chat, `Renommer ${esc(st.chat.nom)}`, 'Le chat de la boutique', chev) : ''))}
         ${cr && cr.rejoint ? groupe('Classement', ligne('cl-quitter', ICONS.UI.quitter, 'Quitter le classement', `Ton pseudo « ${esc(cr.pseudo)} » et tes points disparaissent du classement`, chev)) : ''}
@@ -543,7 +559,7 @@ const UI = (() => {
   // la fête de la scène 3D : pendant une partie de l'Atelier, la scène est en pause sous l'écran de jeu ; la fête attend qu'on en sorte
   // (les toasts, eux, passent au-dessus de l'Atelier)
   let feteEnAttente = false;
-  function feter() { if (MINIJEUX.ouvert) feteEnAttente = true; else SCENE.fete(); }
+  function feter() { if (MINIJEUX.ouvert || (AR && AR.ouvert)) feteEnAttente = true; else SCENE.fete(); }
   function reussite(txt) { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(txt); renderCards(true); hud(); save(); }
   function renderEvenement() {
     const ev = st.ev, box = $('#evenement');
@@ -598,7 +614,7 @@ const UI = (() => {
   }
   function indices() {
     const el = $('#indice');
-    if (st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert || (EVT && EVT.ouvert)) { el.hidden = true; return; }
+    if (st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert || (EVT && EVT.ouvert) || (AR && AR.ouvert)) { el.hidden = true; return; }
     const h = INDICES[st.tuto];
     if (h.ou === 'pages' && (pageActive !== 'boutique' || tiroir.pos === 'ferme')) { el.hidden = true; return; }
     if (h.fini()) { st.tuto++; hintUntil = performance.now() + 8000; save(); el.hidden = true; return; }
@@ -809,7 +825,7 @@ const UI = (() => {
     const d = G.detailPoints(st), P = G.POINTS, a = d.aujourdhui, at = d.atelier.reduce((n, x) => n + x.points, 0);
     const case_ = (t, v, max, sous) => `<div class="pts-case"><small>${t}</small><b>${v}<i>/${max}</i></b>${sous ? `<small>${sous}</small>` : ''}</div>`;
     return `<div class="pts-bloc"><div class="pts-tete"><span><small>Mes points cette semaine</small><b>${pts(d.total)}</b></span><span class="pts-auj">aujourd’hui ${a.journee + a.evenements + a.ameliorations}/${a.max}</span></div>
-      <div class="pts-cases">${case_('Journées', d.journees, 7 * P.journee, a.journee ? 'faite auj.' : `${P.journee} par jour`)}${case_('Événements', d.evenements, 7 * P.evenementsJour, `auj. ${a.evenements}/${P.evenementsJour}`)}${case_('Améliorations', d.ameliorations, 7 * P.ameliorationsJour, `auj. ${a.ameliorations}/${P.ameliorationsJour}`)}${case_('Défi de la semaine', d.defi, P.defi, d.defi ? 'réussi ✓' : '')}${case_('Atelier', at, P.atelier * d.atelier.length, d.atelier.map((x) => x.points).join(' · '))}</div>
+      <div class="pts-cases">${case_('Journées', d.journees, 7 * P.journee, a.journee ? 'faite auj. ✓' : `${P.journee} par jour`)}${case_('Événements', d.evenements, 7 * P.evenementsJour, `auj. ${a.evenements}/${P.evenementsJour}`)}${case_('Améliorations', d.ameliorations, 7 * P.ameliorationsJour, `auj. ${a.ameliorations}/${P.ameliorationsJour}`)}${case_('Défi de la semaine', d.defi, P.defi, d.defi ? 'réussi ✓' : '')}${case_('Atelier', at, P.atelier * d.atelier.length, d.atelier.map((x) => x.points).join(' · '))}</div>
       <details class="pts-bareme"><summary><span>Comment marquer des points ?</span><i class="ico chev">${ICONS.UI.chevron}</i></summary><ul>
         <li><b>${P.journee} pts</b> par journée complète : les trois objectifs du jour réclamés.</li>
         <li><b>${P.defi} pts</b> pour le défi de la semaine.</li>
@@ -841,9 +857,9 @@ const UI = (() => {
       : '<div class="cl-squelette" role="status" aria-label="Chargement du classement"><i></i><i></i><i></i><span>On compte les euros de chacun…</span></div>';
     const ferme = c && c.etat === 'pas-ouvert';
     // pas encore inscrit : l'invitation en haut, avant la liste ; inscrit : son pseudo et ses réglages en bas
-    const invitation = ferme || r.rejoint ? '' : `<div class="cl-invitation"><p>Ton pseudo, tes points et ta fortune seront visibles de tous ceux qui ont le lien du jeu. Tu pourras quitter le classement quand tu veux, depuis les Réglages.</p><button type="button" class="btn large beurre" data-a="cl-rejoindre"><b>Rejoindre le classement</b></button></div>`;
-    const pied = ferme || !r.rejoint ? '' : `<p class="cl-moi">Tu joues sous le pseudo <b>${esc(r.pseudo)}</b>.</p><button type="button" class="btn large clair" data-a="cl-pseudo"><b>Changer de pseudo</b></button>`;
-    dernierHtmlCl = `<div class="cl" data-cl="liste"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>Classement</h2><p class="sous">En points de boulanger : la façon de jouer, pas la fortune. Chaque semaine, les trois premiers gagnent une tenue et une coupe.</p></div></div>${invitation}${seg}${corps}${blocPoints()}${pied}${btnRetour()}</div>`;
+    const invitation = ferme || r.rejoint ? '' : `<div class="cl-invitation"><p>Ton pseudo, tes points et ta fortune seront visibles de tous ceux qui ont le lien du jeu. Tu pourras quitter le classement quand tu veux.</p><button type="button" class="btn large beurre" data-a="cl-rejoindre"><b>Rejoindre le classement</b></button></div>`;
+    const pied = ferme || !r.rejoint ? '' : `<p class="cl-moi">Tu joues sous le pseudo <b>${esc(r.pseudo)}</b>.</p><button type="button" class="btn large clair" data-a="cl-pseudo"><b>Changer de pseudo</b></button><button type="button" class="lien cl-quitter" data-a="cl-quitter">Quitter le classement</button>`;
+    dernierHtmlCl = `<div class="cl" data-cl="liste"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>Classement</h2><p class="sous">Les boulangers qui ont le lien du jeu, classés en points de boulanger : la façon de jouer, pas la fortune. Chaque semaine, les trois premiers gagnent une tenue et une coupe.</p></div></div>${carteRecompenses()}${blocPoints()}${invitation}${seg}${corps}${pied}${btnRetour()}</div>`;
     return dernierHtmlCl;
   }
   function listeClassement(d, r) {
@@ -878,8 +894,8 @@ const UI = (() => {
     on('[data-a="cl-reessayer"]', () => { son.tap(); classement.ouvrir(ongletCl); });
     on('[data-a="cl-rejoindre"]', () => { son.tap(); sheetPseudo(false); });
     on('[data-a="cl-pseudo"]', () => { son.tap(); sheetPseudo(true); });
-    on('[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(); });
-    on('[data-a="cl-recompenses"]', () => { son.tap(); sheetRecompenses(); });
+    on('[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(true); });
+    on('[data-a="cl-recompenses"]', () => { son.tap(); sheetRecompenses(true); });
     on('[data-a="close"]', closeSheet);
   }
   // ─── les récompenses du podium : chaque semaine, les trois premiers gagnent une tenue (toque et tablier) et une coupe, or, argent ou bronze ───
@@ -930,7 +946,7 @@ const UI = (() => {
     on('[data-a="rec-collection"]', () => { son.tap(); fin(); sheetRecompenses(); });
     const surFermeture = setInterval(() => { if (feuille.hidden || vueCl !== 'annonce') { fin(); clearInterval(surFermeture); } }, 500);
   }
-  // l'entrée « Mes récompenses », dans l'onglet Boulanger (seulement après un premier podium)
+  // l'entrée « Mes récompenses », en tête de la feuille du classement et dans l'onglet Boulanger (seulement après un premier podium)
   const cleRecompenses = () => { const r = recVue(); return r ? `${r.podiums.length}|${G.toqueMetal(st)}` : ''; };
   function carteRecompenses() {
     const r = recVue(); if (!r || !r.podiums.length) return '';
@@ -939,7 +955,7 @@ const UI = (() => {
     return `<button type="button" class="rec-entree" data-a="cl-recompenses"><span class="rec-minis" aria-hidden="true">${dernieres}</span><span><b>Mes récompenses</b><small>${n} coupe${n > 1 ? 's' : ''} · ${porte}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>`;
   }
   // la collection : chaque coupe et sa tenue, avec sa semaine ; la tenue se choisit pièce par pièce dans la garde-robe (onglet Boulanger)
-  function sheetRecompenses() {
+  function sheetRecompenses(depuisCl) { // depuisCl : ouverte depuis la feuille du classement, on y revient
     if (!classement) return;
     const r = recVue(), tm = G.toqueMetal(st), tenue = tenueVue();
     for (const m of r.coupes) G.donnerCollection(st, m); // au cas où la garde-robe n'aurait pas encore reçu un podium
@@ -951,9 +967,10 @@ const UI = (() => {
       <h3 class="titre-section" id="rec-titre-tenue">La tenue du boulanger</h3>
       <div class="rec-apercu" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), tenue)}<span>${tm ? `Il porte la toque ${DE_METAL[tm]}` : 'Il porte la toque blanche'}${pieces ? ` : ${pieces}.` : '.'}</span></div>
       <button type="button" class="btn large clair" data-a="rec-garderobe" style="margin-top:8px"><b>Ouvrir la garde-robe</b></button>` : ''}
-      ${btnRetour()}</div>`);
+      ${depuisCl ? '<button type="button" class="btn large sombre" data-a="cl-retour" style="margin-top:14px"><b>Retour au classement</b></button>' : btnRetour()}</div>`);
     vueCl = 'recompenses';
     on('[data-a="rec-garderobe"]', () => { son.tap(); if (GRU) GRU.ouvrir(ctxGarderobe(), 'tete'); });
+    on('[data-a="cl-retour"]', () => { son.tap(); sheetClassement(); });
     on('[data-a="close"]', closeSheet);
   }
   // rejoindre (la première fois) ou changer de pseudo : validation en direct, « déjà pris » après l'envoi
@@ -999,7 +1016,7 @@ const UI = (() => {
     champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') valider(); });
     setTimeout(() => { try { champ.focus(); if (changer) champ.select(); } catch (e) { /* rien */ } }, 50);
   }
-  function sheetQuitter() {
+  function sheetQuitter(depuisCl) { // depuisCl : ouverte depuis la feuille du classement, on y revient ; depuis les Réglages, on referme
     const r = classement.resume();
     openSheet(`<div class="cl" data-cl="quitter"><h2>Quitter le classement ?</h2><p class="sous">«\u00A0${esc(r.pseudo)}\u00A0» et ta fortune disparaissent du classement. Ta boutique ne change pas, et tu pourras revenir quand tu veux.</p>
       <button type="button" class="btn large rouge" data-a="cl-oui"><b>Oui, quitter le classement</b></button>
@@ -1007,12 +1024,12 @@ const UI = (() => {
       <p id="cl-aide" class="cl-aide" aria-live="polite"></p></div>`);
     vueCl = 'quitter';
     let envoi = false;
-    on('[data-a="cl-non"]', closeSheet);
+    on('[data-a="cl-non"]', () => (depuisCl ? sheetClassement() : closeSheet()));
     on('[data-a="cl-oui"]', async (b) => {
       if (envoi) return; envoi = true; b.classList.add('non'); b.querySelector('b').textContent = 'Un instant…';
       const res = await classement.quitter(); envoi = false;
       const ici = vueCl === 'quitter' && fc.contains(b);
-      if (res.etat === 'ok') { toast('Tu as quitté le classement. À bientôt !'); if (ici) closeSheet(); majCoin(); lastPage = ''; renderPage(true); return; }
+      if (res.etat === 'ok') { toast('Tu as quitté le classement. À bientôt !'); if (ici) { if (depuisCl) sheetClassement(); else closeSheet(); } majCoin(); lastPage = ''; renderPage(true); return; }
       son.non(); b.classList.remove('non'); b.querySelector('b').textContent = 'Oui, quitter le classement';
       if (!ici) { toast(msgReseau(res.etat)); return; }
       const aide = fc.querySelector('#cl-aide'); aide.textContent = msgReseau(res.etat); aide.className = 'cl-aide erreur';
@@ -1023,7 +1040,7 @@ const UI = (() => {
   function frame(now) {
     if (retourEnCours) { lastFrame = now; requestAnimationFrame(frame); return; } // l'absence n'est pas encore comptée : rien ne bouge
     const dt = Math.min(0.25, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
-    const planque = !!(EVT && EVT.ouvert), atelier = MINIJEUX.ouvert || planque; // pendant l'Atelier ou la Planque : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran de jeu
+    const planque = !!(EVT && EVT.ouvert), atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert); // pendant l'Atelier ou la Planque : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran de jeu
     if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); }
     const out = G.tick(st, dt, HORLOGE.maintenant(), atelier ? () => 0.999 : undefined);
     if (out.ventes.length) {
@@ -1044,7 +1061,7 @@ const UI = (() => {
     const nv = G.niveau(st);
     if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); feter(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
     renderCards(); hud(); renderObjectifs(); renderEvenement(); renderPage();
-    if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant()); // l'écran de l'Atelier couvre la boutique : la 3D attend
+    if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant()); // l'écran de l'Atelier (ou de l'arrière-salle) couvre la boutique : la 3D attend
     if (planque) EVT.frame(dt, HORLOGE.maintenant()); // la Planque de l'événement vit tant qu'elle est ouverte (fermée, elle rattrape une absence)
     renderBoosts();
     indices();
@@ -1099,12 +1116,16 @@ const UI = (() => {
     $('#boosts').addEventListener('click', () => { audio(); son.tap(); lancerBoost(); });
     // l'événement « Le Quartier » : la Planque, ses paliers et leurs récompenses, l'annonce, le bilan (src/evenement.js)
     if (EVT) EVT.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), sure: () => { try { const e = HORLOGE.etat(); return e ? e.sure : null; } catch (e) { return null; } }, save, toast, fete: () => SCENE.fete(), openSheet, closeSheet, on, recompenses: recVue,
+      classement: () => sheetClassement('quartier'), rangQuartier: () => { try { if (!classement || !classement.disponible() || !periodes().some(([id]) => id === 'quartier')) return null; const r = classement.resume(); return r.rejoint && r.quartier ? r.quartier.rang : 0; } catch (e) { return null; } },
       ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); majCoin(); renderCards(true); hud(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); lastPage = ''; renderPage(true); } });
     buildCards();
     MINIJEUX.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), fete: () => SCENE.fete(),
       ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); save(); renderPage(true); } });
+    if (AR) AR.init({ st: () => st, son, buzz, audio, save,
+      ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); renderCards(true); hud(); lastPage = ''; renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
+      apres: () => { hud(); } });
     document.querySelectorAll('.modes button').forEach((b) => { b.classList.toggle('actif', String(st.mode) === b.dataset.mode); b.addEventListener('click', () => { st.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; document.querySelectorAll('.modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCards(true); save(); }); });
     $('#cartes').addEventListener('click', onCardClick);
     $('#b-ameliorations').addEventListener('click', () => { audio(); sheetAmeliorations(); });
@@ -1118,10 +1139,12 @@ const UI = (() => {
       audio();
       const r = $('#scene').getBoundingClientRect();
       const sx = e.clientX - r.left, sy = e.clientY - r.top;
+      const porte = !SCENE.amenager && SCENE.hitArriere && SCENE.hitArriere(sx, sy); if (!porte) toquees = []; // la petite porte du fond : cinq touches de suite
       if (SCENE.hit(sx, sy)) { const tip = G.encaisserPourboire(st); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
       else if (SCENE.hitChat && SCENE.hitChat(sx, sy)) caresserChat(); // le chat dort dans la zone du boulanger : il passe avant
       else if (classement && SCENE.hitTrophees && SCENE.hitTrophees(sx, sy)) { son.tap(); sheetRecompenses(); } // la vitrine des trophées, la coupe du comptoir
       else if (SCENE.hitBoulanger(sx, sy)) showPage('boulanger');
+      else if (porte) toquer(sx, sy);
       else { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) sheetMeuble(id); else SCENE.tap(); }
     });
     // au retour dans le jeu : une heure sûre fraîche (2,5 s au plus) avant de compter l'absence ; le jeu attend, sans rien sauver entre-temps
@@ -1142,7 +1165,7 @@ const UI = (() => {
     absencePrete = true;
     HORLOGE.surSaut(payerSaut);
     if (EVT) { setTimeout(() => { if ($('#feuille').hidden) EVT.annoncer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVT.annoncer(); } }, 1500); } }, 800); } // l'annonce du Quartier (ou son bilan) attend que la feuille du retour soit refermée
-    if (EVT) setInterval(() => { majCoinQuartier(); if (!EVT.ouvert && !MINIJEUX.ouvert && !document.hidden && $('#feuille').hidden) EVT.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
+    if (EVT) setInterval(() => { majCoinQuartier(); if (!EVT.ouvert && !MINIJEUX.ouvert && !(AR && AR.ouvert) && !document.hidden && $('#feuille').hidden) EVT.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), maintenant: () => HORLOGE.maintenant() }) : null; } catch (e) { classement = null; }
@@ -1155,7 +1178,8 @@ const UI = (() => {
     window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
-      quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin };
+      quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin,
+      arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false), fermerArriere: () => { if (AR) AR.fermer(); }, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

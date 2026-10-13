@@ -70,7 +70,9 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     }
     // la plinthe (de part et d'autre de la porte), l'appui et le cadre de la fenêtre, le cadre de la porte
     const cadreCol = Q.vue === 'ville' ? '#2E2A36' : Q.vue === 'montagne' ? Q.bois : '#FFFFFF', hp = c.wy(4), pr = [];
-    pr.push(P(bo(p.x, hp, 3, 0.8), Q.bois, { x: p.x / 2, z: 1.5 }), P(bo(W - p.x - p.w, hp, 3, 0.8), Q.bois, { x: (W + p.x + p.w) / 2, z: 1.5 }));
+    const ar = LAY.arriere, ag = ar ? ar.x - 3 : p.x, ad = ar ? ar.x + ar.w + 3 : p.x; // la plinthe s'interrompt aussi devant la petite porte du fond
+    pr.push(P(bo(ag, hp, 3, 0.8), Q.bois, { x: ag / 2, z: 1.5 }), P(bo(W - p.x - p.w, hp, 3, 0.8), Q.bois, { x: (W + p.x + p.w) / 2, z: 1.5 }));
+    if (ar) { pr.push(P(bo(p.x - ad, hp, 3, 0.8), Q.bois, { x: (ad + p.x) / 2, z: 1.5 })); pr.push(...porteArriere(c, ar)); }
     const fh = fy1 - fy0, fcx = f.x + f.w / 2, fcy = (fy0 + fy1) / 2;
     pr.push(P(bo(f.w + 6, 4, 5, 1), cadreCol, { x: fcx, y: fy1 - 1, z: 2.5 }), P(bo(f.w + 6, 4, 5, 1), cadreCol, { x: fcx, y: fy0 - 3, z: 2.5 }), P(bo(4, fh, 5, 1), cadreCol, { x: f.x - 1, y: fy0, z: 2.5 }), P(bo(4, fh, 5, 1), cadreCol, { x: f.x + f.w + 1, y: fy0, z: 2.5 }));
     pr.push(P(bo(2, fh, 3, 0.6), cadreCol, { x: fcx, y: fy0, z: 0.5 }), P(bo(f.w, 2, 3, 0.6), cadreCol, { x: fcx, y: fcy - 1, z: 0.5 })); // les croisillons
@@ -85,6 +87,20 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     const m1 = M.mesh(M.plan(f.w - 12, t1), M.MAT.tache, { x: fcx, y: 0.4, z: t1 / 2, rx: -Math.PI / 2 }, { ombre: false }), m2 = M.mesh(M.plan(p.w - 8, t2), M.MAT.tache, { x: p.x + p.w / 2, y: 0.4, z: t2 / 2, rx: -Math.PI / 2 }, { ombre: false });
     g.add(m1, m2); g.userData.taches = [m1, m2];
     return g;
+  }
+  // la petite porte de l'arrière-boutique : un vantail de bois cintré dans son chambranle, deux pentures, le bouton laiton, une plaque
+  // et un filet de lumière chaude qui passe dessous (on y joue aux cartes…). Ses pièces se fusionnent avec la plinthe et les cadres de la
+  // salle : pas un appel de dessin de plus. Le cintre est dessiné en pixels d'écran puis étiré de 1/CY : il paraît rond en plongée.
+  function porteArriere(c, a) {
+    const Q = c.Q, hpx = c.LAY.murH - a.y, w = a.w, cx = a.x + a.w / 2, k = 1 / c.CY, bois = M.assombrir(Q.bois, 0.16), fonce = M.assombrir(Q.bois, 0.34), pr = [];
+    pr.push(P(arche(w + 5, hpx + 2.5), fonce, { x: cx, y: (hpx + 2.5) / 2 * k, z: 1, sy: k, sz: 2 })); // le chambranle
+    pr.push(P(arche(w, hpx), bois, { x: cx, y: hpx / 2 * k, z: 1.8, sy: k, sz: 2.5 })); // le vantail
+    for (const u of [-1, 1]) pr.push(P(bo(0.9, c.wy(hpx - w / 2 - 3), 0.6, 0.2), fonce, { x: cx + u * w / 6, y: 1.5, z: 3.1 })); // les joints des planches
+    for (const yy of [5, hpx - w / 2 - 2]) pr.push(P(bo(w * 0.55, 1.8, 0.8, 0.3), '#5B4A44', { x: cx - w * 0.17, y: c.wy(yy), z: 3.3 })); // les pentures
+    pr.push(P(bo(8, c.wy(4.5), 0.8, 0.5), '#FFF7EC', { x: cx, y: c.wy(hpx * 0.62), z: 3.3 })); // la plaque « Privé » (sans mot : elle se devine)
+    pr.push(P(M.sphere(1.5, 8), '#FFC84A', { x: cx + w / 2 - 4, y: c.wy(hpx * 0.42), z: 3.6 })); // le bouton
+    pr.push(P(bo(w - 4, 0.6, 7, 0.25), '#FFE3A0', { x: cx, y: 0.05, z: 6.5 })); // la lumière qui filtre sous la porte, sur le sol
+    return pr;
   }
   function porte(c, p, py1) { // la porte fermée dans son trou : un vantail ajouré d'une vitre, un panneau, l'écriteau blanc et la poignée laiton
     const Q = c.Q, col = Q.vue === 'ville' ? '#2E2A36' : Q.vue === 'montagne' ? '#5A3A22' : Q.bois, cx = p.x + p.w / 2, g = grp('porte', cx, 0, -4), pr = [];

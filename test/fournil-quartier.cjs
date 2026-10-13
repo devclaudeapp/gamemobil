@@ -252,6 +252,17 @@ async function gerer(route) {
   await ev(() => window.__fournil.classement().etat().valeur); // (rien : on vérifie seulement que l'état se lit)
   await page.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); });
 
+  console.log('── le classement depuis la Planque ──');
+  await ev(() => window.__fournil.quartier()); await sleep(800);
+  const bcl = await ev(() => { const b = document.querySelector('#planque [data-pq="classement"]'); const r = b && b.getBoundingClientRect(); return b && { vu: !b.hidden && r.width > 0, txt: b.textContent.trim(), h: Math.round(r.height), droite: Math.round(r.right) <= innerWidth }; });
+  check(bcl && bcl.vu && /^\d+(er|e)$/.test(bcl.txt) && bcl.droite, `la Planque montre son rang au classement de l’événement en haut (« ${bcl && bcl.txt} »)`);
+  await shot('12b-planque-classement');
+  await clic('#planque [data-pq="classement"]');
+  check(await attendre(() => page.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste') && /actif/.test((document.querySelector('#feuille [data-tab="quartier"]') || {}).className || ''))), 'le bouton ouvre le classement sur l’onglet Événement, par-dessus la Planque');
+  await page.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); }); await sleep(300);
+  check(await ev(() => !document.querySelector('#planque').hidden), 'la feuille refermée : on est toujours dans la Planque');
+  await clic('[data-pq="fermer"]'); await sleep(300);
+
   console.log('── la fin de l’événement : la Planque fermée, le bilan, l’icône partie, le podium final ──');
   faux.joueurs.get(MOI.id).quartier = 5e12; // ses derniers billets le mettent en tête : le podium final (figé à la première requête après la fin) sera le sien
   decal = Q.FIN + 3 * HEURE - Date.now();

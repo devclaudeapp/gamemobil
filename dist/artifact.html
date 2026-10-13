@@ -137,7 +137,6 @@ body[data-tiroir="ouvert"] #coin, body[data-tiroir="ouvert"] #b-fini { opacity: 
 .ev-liste .ligne.en-cours .ev-ico { background: #FFE9EE; }
 .chrono-pill { font: 700 15px/1 var(--titre); padding: 7px 10px; border-radius: 999px; background: #FFE9EE; color: var(--fraise-sombre); font-variant-numeric: tabular-nums; }
 .note { margin: 8px 0 0; font: 700 var(--t-petit)/1.4 var(--texte-font); color: var(--texte-2); }
-.bloc > .note.intro { margin: -4px 2px 0; }
 .note.centre { text-align: center; margin-top: 4px; }
 .card.pain { display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 10px; align-items: center; }
 .card.pain .icone { width: 48px; height: 48px; border-radius: 14px; background: var(--peche); display: grid; place-items: center; }
@@ -450,7 +449,7 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 .cl-val { font: 700 15px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
 .cl-val small { display: block; margin-top: 3px; font: 700 11px/1 var(--texte-font); color: #6E5448; } /* la fortune, en petit : pour information */
 /* ses points de la semaine, en tête de la feuille du classement */
-.pts-bloc { margin: 14px 0 0; padding: 12px 14px; border-radius: var(--r-carte); background: var(--carte); box-shadow: var(--ombre-carte); }
+.pts-bloc { margin: 0 0 14px; padding: 12px 14px; border-radius: var(--r-carte); background: var(--carte); box-shadow: var(--ombre-carte); }
 .pts-tete { display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
 .pts-tete small { display: block; font-size: 12px; color: #6E5448; }
 .pts-tete b { font: 700 24px/1.1 var(--titre); font-variant-numeric: tabular-nums; }
@@ -507,6 +506,7 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 .cl-toque { flex: 0 0 auto; display: inline-grid; width: 22px; height: 22px; place-items: center; }
 .cl-toque svg { width: 22px; height: 22px; }
 .rec-entree { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; min-height: 60px; margin: 0; padding: 8px 10px 8px 12px; border-radius: var(--r-carte); text-align: left; background: var(--carte); box-shadow: var(--ombre-carte), inset 0 0 0 2px #FFE6A0; }
+.cl .rec-entree { margin: 0 0 12px; } /* en tête de la feuille du classement */
 .rec-entree:active { background: var(--creme); }
 .rec-entree b { display: block; font: 700 16px/1.15 var(--titre); }
 .rec-entree small { display: block; margin-top: 2px; font-size: 12.5px; color: #6E5448; }
@@ -693,6 +693,9 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 #planque .at-titre small { color: #C7B8FF; }
 .pq-paliers-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 12px 0 8px; border-radius: 999px; background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; font: 700 15px/1 var(--titre); color: #fff; }
 .pq-paliers-btn .ico svg { width: 22px; height: 22px; }
+.pq-paliers-btn[hidden] { display: none; }
+.pq-cl-btn { padding: 0 10px 0 7px; }
+.pq-cl-btn svg { stroke: #FFF7EC; }
 .pq-paliers-btn.pret { background: var(--beurre); color: var(--texte); box-shadow: 0 3px 0 var(--beurre-sombre); animation: pulse 1.2s ease-in-out infinite; }
 .pq-paliers-btn:active { transform: translateY(3px); box-shadow: none; }
 .pq-solde { display: flex; align-items: center; gap: 10px; padding: 2px 14px 6px; }
@@ -795,6 +798,181 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .pq-porte .btn.large b, .pq-sheet .btn.large b { white-space: normal; overflow-wrap: anywhere; text-align: center; }
 @media (max-width: 339px) { .pq-porte .btn.large b, .pq-sheet .btn.large b { font-size: 17px; } }
 @media (max-width: 339px) { .carte.pq .barre .tps { display: none; } } /* 320 px : « +24,8 M € » et la durée se chevauchaient dans la barre de la Planque */
+
+/* ─── l'arrière-salle (src/arriere.js) : le BlackJack caché. Lumière tamisée d'une lampe basse, tapis vert feutré cerclé de bois,
+   cartes dessinées en SVG, jetons pastel à liseré pointillé ; mêmes rondeurs et boutons à épaisseur que le reste du Fournil ─── */
+#arriere { --cw: clamp(52px, min(16.4vw, 8vh), 70px); --nuit: #1C2420; --nuit-2: #26302B; --creme-t: #FFF1D6;
+  position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; color: var(--creme-t); touch-action: manipulation;
+  background: radial-gradient(130% 55% at 50% -12%, rgba(255, 205, 120, .30), rgba(255, 205, 120, 0) 62%), linear-gradient(#24302A, #171D1A 70%);
+  padding: env(safe-area-inset-top, 0px) 0 0; animation: atEntre .22s ease-out; overflow: hidden; }
+#arriere .at-haut { padding-bottom: 2px; }
+#arriere .at-fermer, .ar-rond { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: #34413A; box-shadow: 0 3px 0 #0F1411; flex: 0 0 auto; }
+#arriere .at-fermer svg, .ar-rond svg { stroke: var(--creme-t); }
+.ar-rond svg { width: 26px; height: 26px; }
+.ar-rond:active { transform: translateY(3px); box-shadow: none; }
+#arriere .at-titre small { color: #9FD9BC; }
+.ar-caisse { flex: 0 0 auto; display: flex; align-items: center; gap: 10px; padding: 0 16px 8px; }
+.ar-caisse .piece { width: 34px; height: 34px; flex: 0 0 auto; }
+.ar-caisse b { display: block; font: 700 clamp(22px, 6.6vw, 27px)/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ar-caisse small { display: block; margin-top: 2px; font-size: 12.5px; color: #C9D6CE; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ar-caisse > div { min-width: 0; }
+/* le tapis : du feutre vert (un grain fin), éclairé par la lampe, cerclé d'un bourrelet de bois à épaisseur */
+.ar-table { position: relative; flex: 1 1 auto; min-height: 0; margin: 0 10px; padding: 12px 10px 14px; display: flex; flex-direction: column; justify-content: space-between; align-items: center;
+  border: 9px solid #7A4E33; border-radius: 30px 30px 44% 44% / 30px 30px 12% 12%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .11 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23f)'/%3E%3C/svg%3E"),
+    radial-gradient(70% 45% at 50% 30%, rgba(255, 228, 160, .22), rgba(255, 228, 160, 0) 70%), radial-gradient(120% 90% at 50% 40%, #2E8C63 0%, #227252 55%, #18563D 100%);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .18), inset 0 0 50px rgba(0, 0, 0, .42), 0 6px 0 #4E3122, 0 14px 30px rgba(0, 0, 0, .45); }
+.ar-sabot { position: absolute; top: 8px; right: 10px; width: 40px; height: 50px; border-radius: 8px; background: #3B2A22; box-shadow: 0 3px 0 #1E1511; }
+.ar-sabot i { position: absolute; left: 6px; width: 26px; height: 36px; border-radius: 4px; background: #FF8FA6; box-shadow: inset 0 0 0 2px #FFFDF8; }
+.ar-sabot i:nth-child(1) { top: 4px; left: 9px; } .ar-sabot i:nth-child(2) { top: 6px; left: 8px; } .ar-sabot i:nth-child(3) { top: 8px; left: 7px; }
+.ar-zone { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
+.ar-zone > small { font: 700 11px/1 var(--titre); letter-spacing: .08em; text-transform: uppercase; color: rgba(255, 241, 214, .55); }
+.ar-main { display: flex; justify-content: center; min-height: calc(var(--cw) * 1.4); }
+.ar-boite-main { position: relative; display: flex; justify-content: center; }
+.ar-boite-main .ar-total { position: absolute; right: calc(100% + 10px); top: 50%; transform: translateY(-50%); white-space: nowrap; z-index: 2; }
+.ar-boite-main.large .ar-total { right: auto; left: -8px; top: -12px; transform: none; box-shadow: inset 0 0 0 1.5px rgba(255, 241, 214, .25), 0 2px 6px rgba(0, 0, 0, .3); }
+.ar-total { min-width: 40px; padding: 5px 11px; border-radius: 999px; background: rgba(10, 20, 15, .55); color: var(--creme-t); font: 700 16px/1 var(--titre); text-align: center; font-variant-numeric: tabular-nums; box-shadow: inset 0 0 0 1.5px rgba(255, 241, 214, .25); }
+.ar-total.bj { background: var(--beurre); color: var(--texte); }
+.ar-total.brule { background: var(--fraise); color: #fff; }
+.ar-milieu { position: relative; flex: 1 1 auto; width: 100%; min-height: 64px; display: grid; place-items: center; }
+.ar-feutre { margin: 0; display: grid; gap: 3px; text-align: center; font: 700 10.5px/1.15 var(--titre); letter-spacing: .1em; text-transform: uppercase; color: rgba(255, 236, 190, .5);
+  padding: 7px 26px 0; border-top: 1.5px solid rgba(255, 236, 190, .28); border-radius: 50% / 18px 18px 0 0; }
+.ar-feutre span:first-child { color: rgba(255, 214, 107, .78); font-size: 12px; }
+/* une carte : recto (index aux coins, grande enseigne, médaillon des figures) et verso fraise ; la carte cachée se retourne en 3D */
+.ar-carte { position: relative; width: var(--cw); height: calc(var(--cw) * 1.4); flex: 0 0 auto; perspective: 700px; }
+.ar-carte + .ar-carte { margin-left: calc(var(--cw) * -.42); }
+.ar-main.serre .ar-carte + .ar-carte { margin-left: calc(var(--cw) * -.58); }
+.ar-main.tres-serre .ar-carte + .ar-carte { margin-left: calc(var(--cw) * -.68); }
+.ar-carte .recto, .ar-carte .verso { position: absolute; inset: 0; border-radius: calc(var(--cw) * .14); backface-visibility: hidden; -webkit-backface-visibility: hidden; transition: transform .42s cubic-bezier(.3, .7, .3, 1); }
+.ar-carte .recto { background: #FFFDF8; border: 1px solid #E6D9CB; box-shadow: 0 2px 0 rgba(0, 0, 0, .3), -2px 3px 8px rgba(0, 0, 0, .22); overflow: hidden; }
+.ar-carte .verso { transform: rotateY(180deg); background: repeating-linear-gradient(45deg, rgba(255, 255, 255, .26) 0 3px, rgba(255, 255, 255, 0) 3px 8px), repeating-linear-gradient(-45deg, rgba(255, 255, 255, .26) 0 3px, rgba(255, 255, 255, 0) 3px 8px), #FF8FA6;
+  box-shadow: inset 0 0 0 3px #FFFDF8, inset 0 0 0 4.5px #E1496C, 0 2px 0 rgba(0, 0, 0, .3), -2px 3px 8px rgba(0, 0, 0, .22); }
+.ar-carte .verso::after { content: ''; position: absolute; left: 50%; top: 50%; width: 42%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: var(--beurre); box-shadow: 0 0 0 3px #FFFDF8, 0 0 0 4.5px #E1496C; }
+.ar-carte.cachee .recto { transform: rotateY(-180deg); }
+.ar-carte.cachee .verso { transform: rotateY(0); }
+.ar-carte .ix { position: absolute; top: calc(var(--cw) * .06); left: calc(var(--cw) * .07); display: flex; flex-direction: column; align-items: center; gap: 1px; }
+.ar-carte .ix b { font: 700 calc(var(--cw) * .29)/.95 var(--titre); letter-spacing: -.03em; }
+.ar-carte .ix-e { width: calc(var(--cw) * .2); height: calc(var(--cw) * .2); }
+.ar-carte .ix.bas { top: auto; left: auto; bottom: calc(var(--cw) * .06); right: calc(var(--cw) * .07); transform: rotate(180deg); }
+.ar-carte .grand { position: absolute; left: 55%; top: 54%; width: calc(var(--cw) * .46); height: calc(var(--cw) * .46); transform: translate(-50%, -50%); }
+.ar-carte .grand.as { width: calc(var(--cw) * .58); height: calc(var(--cw) * .58); left: 50%; top: 50%; }
+.ar-carte .figure { position: absolute; left: 30%; right: 12%; top: 20%; bottom: 20%; border-radius: calc(var(--cw) * .1); border: 2px solid; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; }
+.ar-carte .figure b { font: 700 calc(var(--cw) * .32)/1 var(--titre); }
+.ar-carte .fig-e { width: calc(var(--cw) * .2); height: calc(var(--cw) * .2); }
+.ar-carte .couronne { position: absolute; top: calc(var(--cw) * -.08); width: calc(var(--cw) * .24); height: calc(var(--cw) * .13); background: var(--beurre); clip-path: polygon(0 100%, 0 20%, 25% 60%, 50% 0, 75% 60%, 100% 20%, 100% 100%); }
+.ar-carte.arrive { animation: arCarte .32s cubic-bezier(.2, .8, .25, 1) both; }
+@keyframes arCarte { from { transform: translate(var(--dx, 120px), var(--dy, -120px)) rotate(-28deg) scale(.6); opacity: .5; } to { transform: none; opacity: 1; } }
+/* les trois cases de mise : Perfect Pairs, la mise, 21+3 ; la case choisie s'allume */
+.ar-cases { margin-top: 10px; display: flex; align-items: flex-start; justify-content: center; gap: clamp(10px, 4vw, 20px); width: 100%; }
+.ar-case { display: grid; justify-items: center; gap: 5px; min-width: 64px; }
+.ar-nom { font: 700 10.5px/1 var(--titre); letter-spacing: .07em; text-transform: uppercase; color: rgba(255, 241, 214, .7); white-space: nowrap; }
+.ar-case.choisie .ar-nom { color: var(--beurre); }
+.ar-case:disabled { cursor: default; }
+.ar-rond-mise { position: relative; display: grid; place-items: center; width: 62px; height: 62px; border-radius: 50%; border: 2.5px dashed rgba(255, 241, 214, .55); background: rgba(10, 30, 20, .22); text-align: center; transition: box-shadow .15s; }
+.ar-case.principale .ar-rond-mise { width: 78px; height: 78px; border-style: solid; border-color: rgba(255, 241, 214, .7); }
+.ar-case.pleine .ar-rond-mise::before { content: ''; position: absolute; left: 50%; top: 50%; width: 64%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%;
+  background: radial-gradient(circle, var(--beurre) 0 52%, rgba(255, 255, 255, .55) 54% 58%, var(--beurre) 60%); border: 3px dashed #fff; box-shadow: 0 3px 0 var(--beurre-sombre); }
+.ar-case.annexe.pleine .ar-rond-mise::before { background: radial-gradient(circle, var(--lavande) 0 52%, rgba(255, 255, 255, .55) 54% 58%, var(--lavande) 60%); box-shadow: 0 3px 0 var(--lavande-sombre); }
+.ar-case.choisie .ar-rond-mise { box-shadow: 0 0 0 3px var(--beurre), 0 0 18px rgba(255, 200, 74, .55); }
+.ar-case > b { min-width: 52px; max-width: 120px; padding: 4px 9px; border-radius: 999px; background: rgba(255, 241, 214, .92); color: var(--texte); font: 700 13px/1 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.ar-case.sans > b { background: rgba(10, 20, 15, .35); color: rgba(255, 241, 214, .6); }
+.ar-case.gagnee > b { background: var(--menthe); color: #fff; animation: pulse 1s ease-in-out 2; }
+.ar-case.perdue { opacity: .55; }
+.ar-case.perdue > b { text-decoration: line-through; }
+.ar-table:not(.en-mise) .ar-case.sans { opacity: .45; }
+/* l'annonce (mises annexes, mélange) et le résultat de la main, posés sur le tapis */
+.ar-annonce { position: absolute; left: 0; right: 0; margin-inline: auto; width: max-content; top: 50%; display: grid; gap: 4px; z-index: 3; transform: translateY(-50%) scale(.9); opacity: 0; max-width: calc(100% - 24px); padding: 8px 14px; border-radius: 16px; background: rgba(12, 22, 17, .85); color: var(--creme-t);
+  font: 700 14px/1.25 var(--titre); text-align: center; pointer-events: none; transition: opacity .2s, transform .2s; box-shadow: 0 4px 14px rgba(0, 0, 0, .35); }
+.ar-annonce.vu { opacity: 1; transform: translateY(-50%) scale(1); animation: arEfface 2.6s ease-in forwards; }
+.ar-annonce.gagne { background: var(--menthe); color: #fff; box-shadow: 0 4px 0 var(--menthe-sombre), 0 8px 22px rgba(0, 0, 0, .35); font-size: 14.5px; animation-duration: 3.4s; }
+.ar-annonce span { display: block; text-wrap: balance; }
+@keyframes arEfface { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+.ar-resultat { position: absolute; left: 0; right: 0; margin-inline: auto; width: max-content; top: 50%; z-index: 4; transform: translateY(-50%); display: grid; justify-items: center; gap: 3px; min-width: 190px; max-width: calc(100% - 28px); padding: 7px 18px 8px; border-radius: 22px;
+  background: #2B2320; color: var(--creme-t); box-shadow: 0 5px 0 #120D0B, 0 12px 30px rgba(0, 0, 0, .45); text-align: center; animation: arPose .3s cubic-bezier(.2, .9, .3, 1.3) both; pointer-events: none; }
+.ar-resultat b { font: 700 26px/1.05 var(--titre); white-space: nowrap; }
+.ar-resultat .haut { display: flex; justify-content: center; align-items: baseline; column-gap: 10px; white-space: nowrap; }
+.ar-resultat .ar-detail { font-size: 13px; opacity: .9; }
+.ar-resultat i { font: 700 19px/1.1 var(--titre); font-style: normal; font-variant-numeric: tabular-nums; }
+.ar-resultat i.plus { color: #8FF0C6; } .ar-resultat i.moins { color: #FF9FB2; }
+.ar-resultat.bj { background: var(--beurre); color: var(--texte); box-shadow: 0 5px 0 var(--beurre-sombre), 0 0 0 6px rgba(255, 200, 74, .25), 0 12px 34px rgba(255, 200, 74, .45); }
+.ar-resultat.bj b { font-size: 28px; } .ar-resultat.bj i.plus { color: #2F8F62; }
+.ar-resultat.gagne { background: var(--menthe); color: #fff; box-shadow: 0 5px 0 var(--menthe-sombre), 0 12px 30px rgba(0, 0, 0, .4); } .ar-resultat.gagne i.plus { color: #fff; }
+.ar-resultat.egal { background: var(--lavande); color: #fff; box-shadow: 0 5px 0 var(--lavande-sombre), 0 12px 30px rgba(0, 0, 0, .4); }
+.ar-resultat.perdu b { color: #FF9FB2; }
+@keyframes arPose { from { transform: translateY(-40%) scale(.8); opacity: 0; } to { transform: translateY(-50%) scale(1); opacity: 1; } }
+/* le panneau du bas : les jetons rapides, le réglage fin, distribuer ; pendant la main, tirer / rester / doubler */
+.ar-panneau { flex: 0 0 auto; display: grid; align-content: end; min-height: var(--panneau-h, 218px); gap: 10px; padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 12px); }
+.ar-panneau.jeu { align-content: space-between; }
+.ar-panneau.attente { opacity: .55; pointer-events: none; }
+.ar-jetons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.ar-jeton { --c: var(--menthe); --c2: var(--menthe-sombre); display: grid; justify-items: center; gap: 4px; min-height: 44px; min-width: 0; }
+.ar-jeton span { display: grid; place-items: center; white-space: nowrap; width: 54px; height: 54px; border-radius: 50%; border: 4px dashed rgba(255, 255, 255, .95); color: #fff; font: 700 15px/1 var(--titre); text-shadow: 0 1px 0 rgba(0, 0, 0, .22);
+  background: radial-gradient(circle, var(--c) 0 50%, rgba(255, 255, 255, .5) 52% 56%, var(--c) 58%); box-shadow: 0 4px 0 var(--c2); }
+.ar-jeton small { max-width: 100%; font: 800 11.5px/1.1 var(--texte-font); color: #C9D6CE; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.ar-jeton:active span { transform: translateY(4px); box-shadow: none; }
+.ar-jeton:disabled { opacity: .35; cursor: default; } .ar-jeton:disabled:active span { transform: none; box-shadow: 0 4px 0 var(--c2); }
+.ar-jeton.ciel { --c: #6CB8FF; --c2: #3E8FD6; } .ar-jeton.lavande { --c: var(--lavande); --c2: var(--lavande-sombre); } .ar-jeton.tapis { --c: var(--fraise); --c2: var(--fraise-sombre); }
+.ar-jeton.tapis span { font-size: 14px; }
+.ar-fin { display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px auto; align-items: center; gap: 8px; }
+.ar-pm { width: 48px; height: 48px; border-radius: 50%; background: #34413A; box-shadow: 0 3px 0 #0F1411; color: var(--creme-t); font: 700 26px/1 var(--titre); }
+.ar-pm:active { transform: translateY(3px); box-shadow: none; }
+.ar-sur { min-width: 0; padding: 5px 10px; border-radius: 16px; background: rgba(255, 241, 214, .08); text-align: center; box-shadow: inset 0 0 0 1.5px rgba(255, 241, 214, .14); }
+.ar-sur small { display: block; font-size: 11.5px; color: #C9D6CE; }
+.ar-sur b { display: block; font: 700 18px/1.15 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.ar-effacer { min-height: 44px; padding: 0 12px; border-radius: 999px; color: #C9D6CE; font: 800 13px/1 var(--texte-font); box-shadow: inset 0 0 0 1.5px rgba(255, 241, 214, .25); }
+.ar-effacer:disabled { opacity: .35; }
+.ar-donner b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ar-panneau .btn.non { box-shadow: 0 4px 0 #0F1411; background: #34413A; color: rgba(255, 241, 214, .55); }
+.ar-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding-bottom: 2px; }
+.ar-act { min-height: 78px; border-radius: 20px; }
+.ar-infos-main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ar-infos-main span { min-width: 0; padding: 8px 6px; border-radius: 16px; background: rgba(255, 241, 214, .08); box-shadow: inset 0 0 0 1.5px rgba(255, 241, 214, .12); text-align: center; }
+.ar-infos-main small { display: block; font-size: 11.5px; color: #C9D6CE; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ar-infos-main b { display: block; font: 700 17px/1.2 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.ar-infos-main b.plus { color: #8FF0C6; }
+.ar-act b { font-size: 19px; }
+.ar-act small { opacity: .9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.ar-vide { margin: 0; padding: 10px 12px; border-radius: 16px; background: rgba(255, 241, 214, .08); color: #C9D6CE; font-size: 14px; text-align: center; }
+.ar-vide b { color: var(--creme-t); }
+/* les dialogues : le mot de la première fois, le tableau des gains, la confirmation du tapis */
+.ar-dialogue { position: absolute; inset: 0; z-index: 6; display: grid; place-items: center; padding: 16px; background: rgba(8, 12, 10, .62); animation: atEntre .18s ease-out; }
+.ar-boite { width: 100%; max-width: 420px; max-height: 100%; overflow-y: auto; padding: 20px 18px 18px; border-radius: 26px; background: var(--creme); color: var(--texte); box-shadow: 0 6px 0 rgba(0, 0, 0, .25), 0 18px 40px rgba(0, 0, 0, .45); text-align: center; touch-action: pan-y; }
+.ar-boite h3 { margin: 4px 0 8px; font: 700 22px/1.15 var(--titre); }
+.ar-boite p { margin: 0 0 10px; font-size: 15px; line-height: 1.4; }
+.ar-boite .ar-petit { font-size: 13px; color: var(--texte-2); }
+.ar-boite .btn.large { margin-top: 6px; }
+.ar-pic { display: grid; place-items: center; width: 64px; height: 64px; margin: 0 auto 6px; border-radius: 22px; background: var(--menthe-clair); }
+.ar-pic svg { width: 40px; height: 40px; }
+.ar-pic.tapis { background: var(--rose-clair); }
+.ar-somme { color: var(--fraise-sombre); white-space: nowrap; }
+.ar-choix { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ar-choix .btn.large b { font-size: 16px; white-space: normal; }
+.ar-boite.gains { text-align: left; }
+.ar-boite-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: -6px -4px 4px 0; }
+.ar-boite-tete h3 { margin: 0; }
+.ar-boite.gains h4 { margin: 12px 0 6px; font: 700 16px/1.2 var(--titre); }
+.ar-boite.gains h4 small { font: 700 12px/1 var(--texte-font); color: var(--texte-2); }
+.ar-gains { list-style: none; margin: 0; padding: 0; border-radius: 16px; background: var(--carte); box-shadow: var(--ombre-carte); }
+.ar-gains li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 12px; font-size: 14px; }
+.ar-gains li + li { border-top: 1px solid var(--ligne); }
+.ar-gains li > span { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.ar-gains li > b { flex: 0 0 auto; padding: 4px 9px; border-radius: 999px; background: var(--or-clair); font: 700 13.5px/1 var(--titre); white-space: nowrap; }
+.mini-cartes { display: inline-flex; gap: 3px; }
+.mc { display: inline-flex; align-items: center; gap: 1px; padding: 2px 4px; border-radius: 5px; background: #FFFDF8; box-shadow: inset 0 0 0 1px #E6D9CB; font: 700 12px/1 var(--titre); }
+.mc-e { width: 11px; height: 11px; }
+.ar-boite.gains .ar-petit { margin: 10px 2px 0; }
+@media (max-height: 760px) { .ar-panneau { min-height: var(--panneau-h, 206px); } #arriere { --cw: clamp(48px, min(14vw, 8vh), 60px); } .ar-resultat { padding: 9px 16px; } .ar-resultat b { font-size: 24px; } .ar-resultat.bj b { font-size: 26px; } .ar-resultat i { font-size: 17px; } .ar-rond-mise { width: 54px; height: 54px; } .ar-case.principale .ar-rond-mise { width: 66px; height: 66px; } .ar-jeton span { width: 48px; height: 48px; } .ar-act { min-height: 62px; } .ar-infos-main span { padding: 5px 6px; } .ar-infos-main b { font-size: 15px; } .ar-feutre { font-size: 9.5px; } .ar-feutre span:first-child { font-size: 11px; } .ar-table { padding-top: 8px; padding-bottom: 10px; } .ar-panneau { gap: 8px; padding-top: 10px; } }
+@media (max-height: 700px) { #arriere { --cw: clamp(44px, min(13vw, 7.4vh), 52px); } .ar-rond-mise { width: 46px; height: 46px; } .ar-case.principale .ar-rond-mise { width: 56px; height: 56px; } .ar-cases { margin-top: 6px; } .ar-case { gap: 3px; } .ar-table { padding-bottom: 16px; border-radius: 26px 26px 34% 34% / 26px 26px 9% 9%; } .ar-jeton span { width: 46px; height: 46px; font-size: 13.5px; border-width: 3.5px; } .ar-jeton.tapis span { font-size: 12.5px; } }
+@media (max-height: 640px) { .ar-zone > small, .ar-feutre span:last-child { display: none; } .ar-caisse { padding-bottom: 4px; } .ar-caisse .piece { width: 28px; height: 28px; } }
+/* le Journal : la carte discrète qui ramène à l'arrière-salle */
+.card.arriere-carte { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px; padding: 10px 12px; text-align: left; background: #F3F6F2; box-shadow: none; border: 1.5px dashed #C9DCCF; }
+.card.arriere-carte .pic { width: 36px; height: 36px; border-radius: var(--r-pic); display: grid; place-items: center; flex: 0 0 auto; background: var(--menthe-clair); }
+.card.arriere-carte .pic svg { width: 22px; height: 22px; }
+.card.arriere-carte span.t { flex: 1 1 auto; min-width: 0; }
+.card.arriere-carte b { display: block; font: 700 15px/1.2 var(--titre); }
+.card.arriere-carte small { display: block; font-size: 12.5px; color: var(--texte-2); }
+.card.arriere-carte .chev svg { width: 20px; height: 20px; }
+.card.arriere-carte:active { transform: translateY(2px); }
 </style>
 <div id="probe" aria-hidden="true"></div>
 <header id="haut">
@@ -860,10 +1038,36 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
   <div id="at-zone"></div>
   <p id="at-consigne" class="at-consigne" aria-live="polite"></p>
 </div>
+<div id="arriere" role="dialog" aria-modal="true" aria-labelledby="ar-titre" hidden>
+  <div class="at-haut">
+    <button type="button" class="at-fermer" data-ar="fermer" aria-label="Quitter l’arrière-salle"><i class="ico" data-ico="fermer"></i></button>
+    <div class="at-titre"><b id="ar-titre">L’arrière-salle</b><small>BlackJack · sabot de 6 jeux</small></div>
+    <button type="button" class="ar-rond" data-ar="gains" aria-label="Le tableau des gains"><i class="ico" data-ico="cartes"></i></button>
+  </div>
+  <div class="ar-caisse"><span class="piece" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="20" cy="22" r="17" fill="#E0A61E"/><circle cx="20" cy="19" r="17" fill="#FFC84A"/><circle cx="20" cy="19" r="12" fill="none" stroke="#E0A61E" stroke-width="2.5"/><text x="20" y="25" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-weight="700" font-size="16" fill="#8C6F62">€</text></svg></span><div><b id="ar-coins">0 €</b><small id="ar-mise">dans la caisse</small></div></div>
+  <div id="ar-table" class="ar-table">
+    <div class="ar-sabot" aria-hidden="true"><i></i><i></i><i></i></div>
+    <div class="ar-zone ar-croupier"><small>Le croupier</small><div class="ar-boite-main"><span class="ar-total" id="ar-tc" hidden></span><div class="ar-main" id="ar-croupier"></div></div></div>
+    <div class="ar-milieu">
+      <p class="ar-feutre" aria-hidden="true"><span>BlackJack payé 3 pour 2</span><span>Le croupier tire jusqu’à 17</span></p>
+      <div id="ar-annonce" class="ar-annonce" aria-live="polite" hidden></div>
+      <div id="ar-resultat" class="ar-resultat" aria-live="polite" hidden></div>
+    </div>
+    <div class="ar-zone ar-joueur"><div class="ar-boite-main"><span class="ar-total" id="ar-tj" hidden></span><div class="ar-main" id="ar-joueur"></div></div></div>
+    <div class="ar-cases" role="group" aria-label="Les mises">
+      <button type="button" class="ar-case annexe" data-case="paires" aria-label="Perfect Pairs"><small class="ar-nom">Perfect Pairs</small><span class="ar-rond-mise"></span><b>—</b></button>
+      <button type="button" class="ar-case principale" data-case="main" aria-label="La mise"><small class="ar-nom">Mise</small><span class="ar-rond-mise"></span><b>—</b></button>
+      <button type="button" class="ar-case annexe" data-case="plus3" aria-label="21+3"><small class="ar-nom">21+3</small><span class="ar-rond-mise"></span><b>—</b></button>
+    </div>
+  </div>
+  <div id="ar-panneau" class="ar-panneau"></div>
+  <div id="ar-dialogue" class="ar-dialogue" hidden><div class="ar-boite" role="alertdialog" aria-modal="true"></div></div>
+</div>
 <div id="planque" role="dialog" aria-modal="true" aria-labelledby="pq-titre" data-ecran="" hidden>
   <div class="at-haut">
     <button type="button" class="at-fermer" data-pq="fermer" aria-label="Quitter la Planque"><i class="ico" data-ico="fermer"></i></button>
     <div class="at-titre"><b id="pq-titre">La Planque</b><small id="pq-sous"></small></div>
+    <button type="button" class="pq-paliers-btn pq-cl-btn" data-pq="classement" aria-label="Le classement de l’événement" hidden><i class="ico" data-ico="classement"></i><b></b></button>
     <button type="button" class="pq-paliers-btn" data-pq="paliers" aria-label="Les paliers de l’événement"><i class="ico" data-ico="palierQ"></i><b>0/12</b></button>
   </div>
   <div class="pq-solde"><span class="pq-ico" aria-hidden="true"></span><div><b id="pq-billets">0 €</b><small id="pq-taux"></small></div><span id="pq-reste" class="pq-reste"></span></div>
@@ -1955,6 +2159,178 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     GARDEROBE, garderobe, garderobeNeuve, vetement, possede, niveauVetement, donnerVetement, donnerCollection, equiper, equiperCollection, coutVetement, ameliorerVetement, bonusPiece, ensembleComplet, bonusGardeRobe, garderobeMult, texteBonus, tenueBoulanger, toqueMetal, garderobeCle };
 });
 
+/* ── blackjack.js ── */
+/* LE FOURNIL — l'arrière-salle : les règles du BlackJack caché (pures, sans DOM : tournent aussi dans Node, test/fournil-blackjack.test.js).
+   Sabot de six jeux mélangé (re-mélangé passé 75 %), tirer, rester, doubler sur les deux premières cartes ; le croupier tire jusqu'à 17 et
+   reste sur 17 souple ; le BlackJack paie 3 pour 2 ; l'égalité rend la mise ; ni partage ni assurance. Deux mises annexes facultatives,
+   posées avant la donne : Perfect Pairs (tes deux cartes) et 21+3 (tes deux cartes et la carte visible du croupier).
+   L'ÉCONOMIE : on joue l'argent de la caisse (st.coins), tout ou rien, tapis compris. Les gains et les pertes ne touchent QUE st.coins :
+   jamais gagner(), ni la fortune (lifetime, lifetimeRun), ni les étoiles, ni les objectifs, ni les défis, ni les points de boulanger ;
+   la fortune publiée au classement (st.lifetime) ne bouge pas d'un centime.
+   LE HASARD : crypto.getRandomValues (sinon Math.random), jamais tiré de l'horloge ; le sabot et la main en cours vivent dans la sauvegarde
+   (st.arriere) : fermer l'application au milieu d'une main ne rend pas la mise, et recharger ne re-mélange rien. */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.BLACKJACK = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+  const JEUX = 6, CARTES = 52 * JEUX, REMELANGE = 0.75; // le sabot, et la part jouée au-delà de laquelle on le re-mélange avant la donne
+  const BJ = 1.5; // le BlackJack naturel paie 3 pour 2
+  // les mises annexes : ce que paie chaque combinaison, pour 1 misé (la mise est rendue en plus)
+  const PAIRES = { parfaite: 25, couleur: 12, mixte: 5 };
+  const VINGT_ET_UN_PLUS_TROIS = { brelanCouleur: 100, quinteCouleur: 40, brelan: 30, quinte: 10, couleur: 5 };
+  const NOMS = { parfaite: 'Paire parfaite', couleur: 'Paire de couleur', mixte: 'Paire mixte', brelanCouleur: 'Brelan de même enseigne', quinteCouleur: 'Quinte couleur', brelan: 'Brelan', quinte: 'Quinte', couleurs: 'Couleur' };
+  // une carte : un entier de 0 à 51 ; sa hauteur 1 (as) … 13 (roi), son enseigne 0 pique, 1 cœur, 2 carreau, 3 trèfle (cœur et carreau sont rouges)
+  const hauteur = (c) => (c % 13) + 1, enseigne = (c) => Math.floor(c / 13) % 4, rouge = (c) => enseigne(c) === 1 || enseigne(c) === 2;
+  const ENSEIGNES = ['pique', 'coeur', 'carreau', 'trefle'], SYMBOLES = ['♠', '♥', '♦', '♣'], RANGS = ['', 'A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'V', 'D', 'R'];
+  const points = (c) => Math.min(10, hauteur(c)); // l'as compte 1 ici ; valeur() le passe à 11 quand c'est possible
+  const nomCarte = (c) => `${RANGS[hauteur(c)]}${SYMBOLES[enseigne(c)]}`;
+
+  // ─── le hasard : un nombre de [0, 1) tiré du générateur cryptographique du navigateur (ou de Node), jamais de l'heure ───
+  function hasard() {
+    try { const c = (typeof globalThis !== 'undefined' && globalThis.crypto) || null; if (c && c.getRandomValues) { const a = new Uint32Array(2); c.getRandomValues(a); return (a[0] * 2097152 + (a[1] >>> 11)) / 9007199254740992; } } catch (e) { /* rien */ }
+    return Math.random();
+  }
+  // un sabot neuf : six jeux mélangés (Fisher-Yates)
+  function nouveauSabot(rng) {
+    const r = rng || hasard, s = [];
+    for (let j = 0; j < JEUX; j++) for (let c = 0; c < 52; c++) s.push(c);
+    for (let i = s.length - 1; i > 0; i--) { const k = Math.floor(r() * (i + 1)); const t = s[i]; s[i] = s[k]; s[k] = t; }
+    return s;
+  }
+
+  // ─── la valeur d'une main : l'as vaut 11 tant que la main ne dépasse pas 21, sinon 1 ───
+  function valeur(main) {
+    let t = 0, as = false;
+    for (const c of main) { t += points(c); if (hauteur(c) === 1) as = true; }
+    const souple = as && t + 10 <= 21;
+    return { total: souple ? t + 10 : t, souple, brule: t > 21, blackjack: main.length === 2 && as && t === 11 };
+  }
+  const estBlackjack = (main) => valeur(main).blackjack;
+  const croupierTire = (main) => valeur(main).total < 17; // il tire jusqu'à 17 et reste sur tous les 17, souples compris
+
+  // ─── les mises annexes ───
+  function perfectPairs(c1, c2) { // { type, mult } ou null : même hauteur ; même enseigne : parfaite ; même couleur : de couleur ; sinon mixte
+    if (hauteur(c1) !== hauteur(c2)) return null;
+    const type = enseigne(c1) === enseigne(c2) ? 'parfaite' : rouge(c1) === rouge(c2) ? 'couleur' : 'mixte';
+    return { type, mult: PAIRES[type], nom: NOMS[type] };
+  }
+  function vingtEtUnPlusTrois(c1, c2, c3) { // la meilleure combinaison de poker à trois cartes, ou null
+    const h = [c1, c2, c3].map(hauteur).sort((a, b) => a - b), e = [c1, c2, c3].map(enseigne);
+    const memeEnseigne = e[0] === e[1] && e[1] === e[2], brelan = h[0] === h[1] && h[1] === h[2];
+    const suite = (h[1] === h[0] + 1 && h[2] === h[1] + 1) || (h[0] === 1 && h[1] === 12 && h[2] === 13); // l'as en bas (A-2-3) ou en haut (D-R-A), jamais R-A-2
+    const type = brelan && memeEnseigne ? 'brelanCouleur' : suite && memeEnseigne ? 'quinteCouleur' : brelan ? 'brelan' : suite ? 'quinte' : memeEnseigne ? 'couleur' : null;
+    return type ? { type, mult: VINGT_ET_UN_PLUS_TROIS[type], nom: NOMS[type === 'couleur' ? 'couleurs' : type] } : null;
+  }
+
+  // ─── l'état de l'arrière-salle, dans la sauvegarde ───
+  function etat(st) {
+    let a = st.arriere;
+    if (!a || typeof a !== 'object') a = st.arriere = {};
+    if (typeof a.trouvee !== 'boolean') a.trouvee = false; // la porte du fond a été trouvée (la carte du Journal paraît)
+    if (typeof a.accueil !== 'boolean') a.accueil = false; // le petit mot de la première fois a été lu
+    if (!Array.isArray(a.sabot) || a.sabot.length !== CARTES || !a.sabot.every((c) => Number.isInteger(c) && c >= 0 && c < 52)) { a.sabot = nouveauSabot(); a.pos = 0; }
+    if (!Number.isInteger(a.pos) || a.pos < 0 || a.pos > CARTES) a.pos = 0;
+    if (a.main !== null && (typeof a.main !== 'object' || !a.main || !Array.isArray(a.main.joueur))) a.main = null;
+    if (!a.mises || typeof a.mises !== 'object') a.mises = { main: 0, paires: 0, plus3: 0 }; // les dernières mises posées (pour « même mise »)
+    if (!a.stats || typeof a.stats !== 'object') a.stats = { mains: 0, gagnees: 0, perdues: 0, egalites: 0, blackjacks: 0, annexes: 0, plusGrosGain: 0, solde: 0 };
+    return a;
+  }
+  const dejaJoue = (a) => a.pos / CARTES; // la part du sabot déjà sortie
+  function tirerCarte(a, rng) { // une carte du sabot ; s'il est vide (une très longue série de mains), on en mélange un neuf
+    if (a.pos >= a.sabot.length) { a.sabot = nouveauSabot(rng); a.pos = 0; a.melange = (a.melange || 0) + 1; }
+    return a.sabot[a.pos++];
+  }
+  const fini = (n) => (Number.isFinite(n) && n > 0 ? n : 0);
+
+  // ─── les mises : bornées à la caisse ; tout ou rien possible ───
+  // borner : la mise principale et les deux annexes, ramenées à ce que la caisse peut couvrir (l'annexe passe après la principale)
+  function borner(st, m) {
+    const caisse = fini(st.coins); let main = Math.min(fini(m && m.main), caisse), reste = caisse - main;
+    const paires = Math.min(fini(m && m.paires), reste); reste -= paires;
+    const plus3 = Math.min(fini(m && m.plus3), reste);
+    return { main, paires, plus3, total: main + paires + plus3, tapis: caisse > 0 && main + paires + plus3 >= caisse - 1e-9 };
+  }
+  const estTapis = (st, m) => borner(st, m).tapis;
+  // un jeton : la part de la caisse arrondie à un montant rond (1 %, 10 %, 50 %), au moins 1 € ; le tapis, la caisse entière
+  function arrondiJoli(n) { if (!(n > 0)) return 0; if (n < 10) return Math.max(1, Math.floor(n)); const p = Math.pow(10, Math.floor(Math.log10(n)) - 1); return Math.floor(n / p) * p; }
+  function jeton(st, part) { const c = fini(st.coins); return part >= 1 ? c : Math.min(c, arrondiJoli(c * part)); }
+  // le pas du réglage fin, à partir d'un montant : un cran « rond » (1, 2, 5 × 10ⁿ) d'environ un vingtième de ce montant, au moins 1 €
+  function pas(montant) { const m = Math.max(1, fini(montant) / 20), p = Math.pow(10, Math.floor(Math.log10(m))), r = m / p; return (r >= 5 ? 5 : r >= 2 ? 2 : 1) * p; }
+  const MISE_MIN = 1; // il faut au moins 1 € sur la mise principale
+
+  // ─── une main ───
+  // distribuer : prend les mises dans la caisse, re-mélange au besoin, donne joueur / croupier / joueur / croupier (la seconde cachée),
+  // règle tout de suite les annexes, puis le BlackJack (le croupier regarde sa carte cachée : un BlackJack chez lui finit la main)
+  function distribuer(st, mises, rng) {
+    const a = etat(st);
+    if (a.main && !a.main.fin) return { ok: false, raison: 'main' };
+    const m = borner(st, mises);
+    if (m.main < MISE_MIN || m.main > fini(st.coins)) return { ok: false, raison: 'mise' };
+    let melange = false;
+    if (dejaJoue(a) >= REMELANGE) { a.sabot = nouveauSabot(rng); a.pos = 0; melange = true; }
+    st.coins = Math.max(0, st.coins - m.total);
+    a.mises = { main: m.main, paires: m.paires, plus3: m.plus3 };
+    const j = [], c = [];
+    j.push(tirerCarte(a, rng)); c.push(tirerCarte(a, rng)); j.push(tirerCarte(a, rng)); c.push(tirerCarte(a, rng));
+    const h = { joueur: j, croupier: c, mise: m.main, mises: { paires: m.paires, plus3: m.plus3 }, double: false, cachee: true, fin: false, resultat: null, gain: 0, annexes: [], tapis: m.tapis, debut: m.total };
+    a.main = h;
+    // les annexes : payées (ou perdues) dès la donne
+    const pp = m.paires > 0 ? perfectPairs(j[0], j[1]) : null, p3 = m.plus3 > 0 ? vingtEtUnPlusTrois(j[0], j[1], c[0]) : null;
+    if (m.paires > 0) h.annexes.push({ id: 'paires', nom: 'Perfect Pairs', mise: m.paires, combinaison: pp, gain: pp ? m.paires * (pp.mult + 1) : 0 });
+    if (m.plus3 > 0) h.annexes.push({ id: 'plus3', nom: '21+3', mise: m.plus3, combinaison: p3, gain: p3 ? m.plus3 * (p3.mult + 1) : 0 });
+    for (const x of h.annexes) { st.coins += x.gain; if (x.gain > 0) a.stats.annexes++; }
+    a.stats.mains++;
+    const bjJ = estBlackjack(j), bjC = estBlackjack(c);
+    if (bjJ || bjC) regler(st, bjJ && bjC ? 'egalite' : bjJ ? 'blackjack' : 'croupierBJ');
+    return { ok: true, main: h, melange };
+  }
+  function enCours(st) { const a = etat(st); return a.main && !a.main.fin ? a.main : null; }
+  function peutDoubler(st) { const h = enCours(st); return !!h && h.joueur.length === 2 && !h.double && fini(st.coins) >= h.mise; }
+  function tirer(st, rng) {
+    const h = enCours(st); if (!h) return { ok: false };
+    const a = etat(st); h.joueur.push(tirerCarte(a, rng));
+    const v = valeur(h.joueur);
+    if (v.brule) regler(st, 'brule'); else if (v.total === 21) jouerCroupier(st, rng); // à 21, on reste d'office
+    return { ok: true, main: h };
+  }
+  function rester(st, rng) { const h = enCours(st); if (!h) return { ok: false }; jouerCroupier(st, rng); return { ok: true, main: h }; }
+  function doubler(st, rng) { // la mise doublée (prise dans la caisse), une seule carte, puis le croupier
+    if (!peutDoubler(st)) return { ok: false };
+    const h = enCours(st), a = etat(st);
+    st.coins = Math.max(0, st.coins - h.mise); h.mise *= 2; h.double = true;
+    h.joueur.push(tirerCarte(a, rng));
+    if (valeur(h.joueur).brule) regler(st, 'brule'); else jouerCroupier(st, rng);
+    return { ok: true, main: h };
+  }
+  function jouerCroupier(st, rng) {
+    const h = enCours(st), a = etat(st); h.cachee = false;
+    while (croupierTire(h.croupier)) h.croupier.push(tirerCarte(a, rng));
+    const j = valeur(h.joueur).total, c = valeur(h.croupier);
+    regler(st, c.brule ? 'croupierBrule' : j > c.total ? 'gagne' : j < c.total ? 'perdu' : 'egalite');
+  }
+  // le règlement : ce qui revient dans la caisse (mise comprise) ; rien d'autre que st.coins ne bouge
+  const RETOUR = { blackjack: 1 + BJ, gagne: 2, croupierBrule: 2, egalite: 1, perdu: 0, brule: 0, croupierBJ: 0 };
+  function regler(st, resultat) {
+    const h = enCours(st), a = etat(st); if (!h) return;
+    h.cachee = false; h.fin = true; h.resultat = resultat;
+    h.gain = h.mise * RETOUR[resultat];
+    st.coins += h.gain;
+    const annexes = h.annexes.reduce((s, x) => s + x.gain, 0);
+    h.net = h.gain + annexes - h.mise - h.annexes.reduce((s, x) => s + x.mise, 0); // le bilan de la main, annexes comprises
+    const S = a.stats;
+    if (resultat === 'egalite') S.egalites++; else if (RETOUR[resultat] > 1) S.gagnees++; else S.perdues++;
+    if (resultat === 'blackjack') S.blackjacks++;
+    S.solde += h.net; if (h.net > S.plusGrosGain) S.plusGrosGain = h.net;
+  }
+  const MOTS = { blackjack: 'BlackJack !', gagne: 'Gagné !', croupierBrule: 'Gagné !', egalite: 'Égalité', perdu: 'Perdu', brule: 'Perdu', croupierBJ: 'Perdu' };
+  const gagnant = (r) => RETOUR[r] > 1;
+
+  return { JEUX, CARTES, REMELANGE, BJ, PAIRES, VINGT_ET_UN_PLUS_TROIS, NOMS, ENSEIGNES, SYMBOLES, RANGS, MISE_MIN, RETOUR, MOTS,
+    hauteur, enseigne, rouge, points, nomCarte, hasard, nouveauSabot, valeur, estBlackjack, croupierTire, perfectPairs, vingtEtUnPlusTrois,
+    etat, borner, estTapis, jeton, pas, arrondiJoli, distribuer, enCours, peutDoubler, tirer, rester, doubler, gagnant };
+});
+
 /* ── horloge.js ── */
 /* LE FOURNIL — l'horloge de confiance : le « maintenant » du jeu, que changer l'heure du téléphone ne fait pas avancer.
    Le jeu ne lit plus Date.now() : il demande HORLOGE.maintenant().
@@ -2866,6 +3242,9 @@ const ICONS = (() => {
     amenager: U(`<rect x="3.5" y="4" width="13" height="6.5" rx="2.2" fill="${A.beurre}"/><path d="M16.5 7.2h3v5.3H12v3"/><rect x="10.5" y="15.5" width="3" height="5" rx="1"/>`),
     // l'Atelier : un fouet de pâtissier, le manche en accent
     atelier: U(`<path d="M12 14.5c-3.3 0-4.8-3.6-4.8-6.5S9.2 3 12 3s4.8 2.1 4.8 5-1.5 6.5-4.8 6.5z"/><path d="M12 14.5c-1.4 0-2.1-3.6-2.1-6.5S10.8 3 12 3"/><path d="M12 3c1.2 0 2.1 2.1 2.1 5s-.7 6.5-2.1 6.5"/><rect x="10.3" y="14.5" width="3.4" height="6.5" rx="1.7" fill="${A.fraise}"/>`),
+    // l'arrière-salle : la petite porte cintrée du fond (l'accent : le vert du tapis de jeu), et deux cartes pour le tableau des gains
+    arriere: U(`<path d="M6 20.5V9.5a6 6 0 0112 0v11z" fill="${A.menthe}"/><path d="M3.5 20.5h17"/><path d="M9.5 20.5V11a2.5 2.5 0 015 0v9.5"/><path d="M15.8 15.2v.1"/>`),
+    cartes: U(`<rect x="3.6" y="6" width="9.5" height="13.5" rx="2" transform="rotate(-12 8.35 12.75)"/><rect x="10.9" y="4.5" width="9.5" height="13.5" rx="2" fill="${A.fraise}"/><path d="M15.65 14.2s-2.5-1.5-2.5-3.1c0-.8.6-1.5 1.4-1.5.5 0 .9.3 1.1.7.2-.4.6-.7 1.1-.7.8 0 1.4.7 1.4 1.5 0 1.6-2.5 3.1-2.5 3.1z" fill="${L}" stroke-width="1"/>`),
     // le classement : un podium, la plus haute marche en accent ; le nuage barré quand le réseau manque
     podium: U(`<path d="M9 9.5h6V20H9z" fill="${A.beurre}"/><path d="M3.5 13.5H9V20H3.5zM15 15.5h5.5V20H15z"/><path d="M12 3.2l.9 1.8 2 .3-1.4 1.4.3 2-1.8-.9-1.8.9.3-2-1.4-1.4 2-.3z"/>`),
     horsLigne: U(`<path d="M7 18.5a4.2 4.2 0 01-.7-8.4 6 6 0 0111.6-.6 4.5 4.5 0 01-.4 9z" fill="${A.ciel}"/><path d="M4 4l16 16"/>`),
@@ -2985,8 +3364,9 @@ const VIE = (() => {
       T, murH, spread: sp, W, H, K,
       fenetre: { x: W * 0.04, y: T * 0.05, w: W * 0.24, h: T * 0.21 },
       etagere: { x: W * 0.73, y: T * 0.05, w: W * 0.12 },
-      cadre: { x: W * 0.36, y: T * 0.20 }, horloge: { x: W * 0.52, y: T * 0.22 }, diplome: { x: W * 0.60, y: T * 0.19 }, cadre2: { x: W * 0.66, y: T * 0.20 },
-      appliques: [{ x: W * 0.35, y: T * 0.22 }, { x: W * 0.65, y: T * 0.22 }], lampe: { x: W * 0.5, y: T * 0.07 },
+      cadre: { x: W * 0.39, y: T * 0.20 }, horloge: { x: W * 0.52, y: T * 0.22 }, diplome: { x: W * 0.60, y: T * 0.19 }, cadre2: { x: W * 0.66, y: T * 0.20 },
+      appliques: [{ x: W * 0.38, y: T * 0.22 }, { x: W * 0.65, y: T * 0.22 }], lampe: { x: W * 0.5, y: T * 0.07 },
+      arriere: { x: W * 0.292, y: T * 0.20, w: W * 0.054, h: murH - T * 0.20 }, // la petite porte de l'arrière-boutique, entre la fenêtre et le tableau (src/arriere.js)
       porte: { x: W * 0.86, y: T * 0.04, w: W * 0.11, h: murH - T * 0.04 },
       entree: { x: W * 0.915, y: murH }, paillasson: { x: W * 0.915, y: murH + 9 },
       deco: { x: W * 0.80, y: T * 0.36 }, plante: { x: W * 0.06, y: T * 0.60 + sp * 0.3 }, sapin: { x: W * 0.655, y: T * 0.42 },
@@ -3513,7 +3893,9 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     }
     // la plinthe (de part et d'autre de la porte), l'appui et le cadre de la fenêtre, le cadre de la porte
     const cadreCol = Q.vue === 'ville' ? '#2E2A36' : Q.vue === 'montagne' ? Q.bois : '#FFFFFF', hp = c.wy(4), pr = [];
-    pr.push(P(bo(p.x, hp, 3, 0.8), Q.bois, { x: p.x / 2, z: 1.5 }), P(bo(W - p.x - p.w, hp, 3, 0.8), Q.bois, { x: (W + p.x + p.w) / 2, z: 1.5 }));
+    const ar = LAY.arriere, ag = ar ? ar.x - 3 : p.x, ad = ar ? ar.x + ar.w + 3 : p.x; // la plinthe s'interrompt aussi devant la petite porte du fond
+    pr.push(P(bo(ag, hp, 3, 0.8), Q.bois, { x: ag / 2, z: 1.5 }), P(bo(W - p.x - p.w, hp, 3, 0.8), Q.bois, { x: (W + p.x + p.w) / 2, z: 1.5 }));
+    if (ar) { pr.push(P(bo(p.x - ad, hp, 3, 0.8), Q.bois, { x: (ad + p.x) / 2, z: 1.5 })); pr.push(...porteArriere(c, ar)); }
     const fh = fy1 - fy0, fcx = f.x + f.w / 2, fcy = (fy0 + fy1) / 2;
     pr.push(P(bo(f.w + 6, 4, 5, 1), cadreCol, { x: fcx, y: fy1 - 1, z: 2.5 }), P(bo(f.w + 6, 4, 5, 1), cadreCol, { x: fcx, y: fy0 - 3, z: 2.5 }), P(bo(4, fh, 5, 1), cadreCol, { x: f.x - 1, y: fy0, z: 2.5 }), P(bo(4, fh, 5, 1), cadreCol, { x: f.x + f.w + 1, y: fy0, z: 2.5 }));
     pr.push(P(bo(2, fh, 3, 0.6), cadreCol, { x: fcx, y: fy0, z: 0.5 }), P(bo(f.w, 2, 3, 0.6), cadreCol, { x: fcx, y: fcy - 1, z: 0.5 })); // les croisillons
@@ -3528,6 +3910,20 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     const m1 = M.mesh(M.plan(f.w - 12, t1), M.MAT.tache, { x: fcx, y: 0.4, z: t1 / 2, rx: -Math.PI / 2 }, { ombre: false }), m2 = M.mesh(M.plan(p.w - 8, t2), M.MAT.tache, { x: p.x + p.w / 2, y: 0.4, z: t2 / 2, rx: -Math.PI / 2 }, { ombre: false });
     g.add(m1, m2); g.userData.taches = [m1, m2];
     return g;
+  }
+  // la petite porte de l'arrière-boutique : un vantail de bois cintré dans son chambranle, deux pentures, le bouton laiton, une plaque
+  // et un filet de lumière chaude qui passe dessous (on y joue aux cartes…). Ses pièces se fusionnent avec la plinthe et les cadres de la
+  // salle : pas un appel de dessin de plus. Le cintre est dessiné en pixels d'écran puis étiré de 1/CY : il paraît rond en plongée.
+  function porteArriere(c, a) {
+    const Q = c.Q, hpx = c.LAY.murH - a.y, w = a.w, cx = a.x + a.w / 2, k = 1 / c.CY, bois = M.assombrir(Q.bois, 0.16), fonce = M.assombrir(Q.bois, 0.34), pr = [];
+    pr.push(P(arche(w + 5, hpx + 2.5), fonce, { x: cx, y: (hpx + 2.5) / 2 * k, z: 1, sy: k, sz: 2 })); // le chambranle
+    pr.push(P(arche(w, hpx), bois, { x: cx, y: hpx / 2 * k, z: 1.8, sy: k, sz: 2.5 })); // le vantail
+    for (const u of [-1, 1]) pr.push(P(bo(0.9, c.wy(hpx - w / 2 - 3), 0.6, 0.2), fonce, { x: cx + u * w / 6, y: 1.5, z: 3.1 })); // les joints des planches
+    for (const yy of [5, hpx - w / 2 - 2]) pr.push(P(bo(w * 0.55, 1.8, 0.8, 0.3), '#5B4A44', { x: cx - w * 0.17, y: c.wy(yy), z: 3.3 })); // les pentures
+    pr.push(P(bo(8, c.wy(4.5), 0.8, 0.5), '#FFF7EC', { x: cx, y: c.wy(hpx * 0.62), z: 3.3 })); // la plaque « Privé » (sans mot : elle se devine)
+    pr.push(P(M.sphere(1.5, 8), '#FFC84A', { x: cx + w / 2 - 4, y: c.wy(hpx * 0.42), z: 3.6 })); // le bouton
+    pr.push(P(bo(w - 4, 0.6, 7, 0.25), '#FFE3A0', { x: cx, y: 0.05, z: 6.5 })); // la lumière qui filtre sous la porte, sur le sol
+    return pr;
   }
   function porte(c, p, py1) { // la porte fermée dans son trou : un vantail ajouré d'une vitre, un panneau, l'écriteau blanc et la poignée laiton
     const Q = c.Q, col = Q.vue === 'ville' ? '#2E2A36' : Q.vue === 'montagne' ? '#5A3A22' : Q.bois, cx = p.x + p.w / 2, g = grp('porte', cx, 0, -4), pr = [];
@@ -4957,6 +5353,9 @@ const SCENE = (() => {
     const v = groupes.trophees, cp = groupes.coupe; // la vitrine : au moins 44 × 44 ; la coupe, juste elle (elle touche le tablier du boulanger)
     return dans(v ? auMoins(rectDe(v, 3), 44, 44) : null, x, y) || dans(cp ? rectDe(cp, 1) : null, x, y);
   }
+  // la petite porte de l'arrière-boutique (src/meubles.js, porteArriere) : son rectangle au mur (un point du mur tombe à son pixel), au moins 44 × 44
+  function zoneArriere() { if (!webgl || !LAY || !LAY.arriere) return null; const a = LAY.arriere; return auMoins({ x: a.x - 4, y: a.y - 3, w: a.w + 8, h: LAY.murH - a.y + 6 }, 44, 44); }
+  function hitArriere(x, y) { return dans(zoneArriere(), x, y); }
   function hitMeuble(x, y) { const z = zones(); for (const id of ['caisse', 'deco', 'four', 'froid', 'vitrine', 'tables']) if (dans(z[id], x, y)) return id; return null; }
 
   // ─── le calque 2D : textes, vapeurs, étiquettes, bulle de talent, étincelles du mystère, pastilles, Aménager, confettis ───
@@ -5018,12 +5417,12 @@ const SCENE = (() => {
     }
   }
 
-  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitChat, hitTrophees, recompenses, decosQuartier, ronron, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
+  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitArriere, zoneArriere, hitChat, hitTrophees, recompenses, decosQuartier, ronron, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
     vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
     get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0 }; }, // ce que la boutique montre (pour les tests)
-    get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG) }; }, // le budget d'appels de dessin (pour les tests)
+    get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG), salle: n(salle) }; }, // le budget d'appels de dessin (pour les tests)
     get _riche() { return RICHE; }, // les réglages du rendu riche (pour les tests et les captures)
     get amenager() { return amenager; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
     get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length, geometries: renderer ? renderer.info.memory.geometries : 0, textures: renderer ? renderer.info.memory.textures : 0, riche: RICHE.actif, effets: !!RICHE.post, kenney: typeof KENNEY !== 'undefined' && KENNEY ? { pret: KENNEY.pret, octets: KENNEY.octets, ms: KENNEY.ms, erreur: KENNEY.erreur } : null }; } };
@@ -5416,6 +5815,316 @@ const MINIJEUX = (() => {
     etat: () => ({ ouvert: ouvert(), ecran, jeu: jeu && jeu.id, partie: partie && partie.etat ? partie.etat() : null, resultat }),
     teinte, reduceMotion,
   };
+})();
+
+/* ── arriere.js ── */
+/* LE FOURNIL — l'arrière-salle : le BlackJack caché, en plein écran par-dessus la boutique (comme l'Atelier). On la trouve en touchant cinq
+   fois de suite la petite porte du fond dans la boutique en 3D (ui.js) ; ensuite, une carte discrète du Journal y ramène.
+   Les règles, le sabot et les mises sont dans src/blackjack.js (purs, testés dans Node) ; ici, le tapis vert, les cartes dessinées en
+   SVG, les jetons, les animations de la donne et les touches. Seule la caisse (st.coins) bouge : jamais la fortune, ni les points.
+   Tant que la salle est ouverte, aucun événement surprise ne vient interrompre la main (ui.js la compte comme l'Atelier). */
+const ARRIERE = (() => {
+  'use strict';
+  const G = GAME, B = BLACKJACK, $ = (s) => document.querySelector(s);
+  let d = null, el, table, panneau, dialogue, boite, annonce, resultatEl, zJ, zC, tJ, tC, coinsEl, miseEl;
+  let hPanneau = 0, phase = '', choix = 'main', mises = { main: 0, paires: 0, plus3: 0 }, vue = { joueur: 0, croupier: 0, cachee: true, main: null }, minuteurs = [];
+  const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const st = () => d.st();
+  const eur = (n) => G.fmtEur(n);
+  const NOM_CASE = { main: 'Mise', paires: 'Perfect Pairs', plus3: '21+3' };
+
+  // ─── les cartes, dessinées en SVG : l'index aux deux coins, la grande enseigne au centre, un médaillon pour les figures ───
+  const ENS = [ // pique, cœur, carreau, trèfle (repère 24 × 24)
+    '<path d="M12 2.6C9.4 5.6 3 9.6 3 14.1c0 2.6 2 4.5 4.5 4.5 1.5 0 2.8-.7 3.6-1.9-.2 1.9-.9 3.3-2.3 4.7h6.4c-1.4-1.4-2.1-2.8-2.3-4.7.8 1.2 2.1 1.9 3.6 1.9 2.5 0 4.5-1.9 4.5-4.5 0-4.5-6.4-8.5-9-11.5z"/>',
+    '<path d="M12 21.2S2.6 15.3 2.6 9c0-2.9 2.2-5.2 5-5.2 1.9 0 3.5 1 4.4 2.6.9-1.6 2.5-2.6 4.4-2.6 2.8 0 5 2.3 5 5.2 0 6.3-9.4 12.2-9.4 12.2z"/>',
+    '<path d="M12 2.4c2.3 3.5 5 6.6 8.2 9.6-3.2 3-5.9 6.1-8.2 9.6-2.3-3.5-5-6.6-8.2-9.6 3.2-3 5.9-6.1 8.2-9.6z"/>',
+    '<circle cx="12" cy="7.3" r="4.3"/><circle cx="7" cy="13.4" r="4.3"/><circle cx="17" cy="13.4" r="4.3"/><path d="M12 11.5c0 4.3-1.1 7-3.3 9.8h6.6c-2.2-2.8-3.3-5.5-3.3-9.8z"/>',
+  ];
+  const ROUGE = '#E1496C', NOIR = '#3A2A22';
+  const svgEns = (s, cls) => `<svg class="${cls}" viewBox="0 0 24 24" aria-hidden="true" fill="${s === 1 || s === 2 ? ROUGE : NOIR}">${ENS[s]}</svg>`;
+  const FIGURES = { 11: ['V', '#EFEAFF', '#9A84F0'], 12: ['D', '#FFE9EE', '#FF6B8B'], 13: ['R', '#FFF3C4', '#E0A61E'] };
+  function faceCarte(c) {
+    const h = B.hauteur(c), s = B.enseigne(c), r = B.RANGS[h], coul = s === 1 || s === 2 ? ROUGE : NOIR;
+    const index = `<span class="ix" style="color:${coul}"><b>${r}</b>${svgEns(s, 'ix-e')}</span>`;
+    let centre;
+    if (FIGURES[h]) { const [l, fond, bord] = FIGURES[h]; centre = `<span class="figure" style="background:${fond};border-color:${bord}"><b style="color:${coul}">${l}</b>${svgEns(s, 'fig-e')}${h === 13 ? '<i class="couronne"></i>' : ''}</span>`; }
+    else centre = svgEns(s, h === 1 ? 'grand as' : 'grand');
+    return `${index}${centre}<span class="ix bas" style="color:${coul}"><b>${r}</b>${svgEns(s, 'ix-e')}</span>`;
+  }
+  function carteEl(c, cachee) {
+    const e = document.createElement('div'); e.className = 'ar-carte' + (cachee ? ' cachee' : ''); e.dataset.carte = B.nomCarte(c);
+    e.setAttribute('role', 'img'); e.setAttribute('aria-label', cachee ? 'carte cachée' : nomLong(c));
+    e.innerHTML = `<div class="recto">${faceCarte(c)}</div><div class="verso"></div>`;
+    return e;
+  }
+  const NOMS_H = ['', 'As', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'Valet', 'Dame', 'Roi'], NOMS_E = ['de pique', 'de cœur', 'de carreau', 'de trèfle'];
+  const nomLong = (c) => `${NOMS_H[B.hauteur(c)]} ${NOMS_E[B.enseigne(c)]}`;
+  function miniCartes(t) { // un petit exemple pour le tableau des gains : 'A♠ 2♥' → deux mini-cartes
+    return `<span class="mini-cartes">${t.split(' ').map((x) => { const m = /^(A|[2-9]|10|V|D|R)([♠♥♦♣])$/.exec(x), s = B.SYMBOLES.indexOf(m[2]); return `<span class="mc" style="color:${s === 1 || s === 2 ? ROUGE : NOIR}">${m[1]}${svgEns(s, 'mc-e')}</span>`; }).join('')}</span>`;
+  }
+
+  // ─── ouvrir, fermer ───
+  function init(deps) {
+    d = deps; el = $('#arriere'); if (!el) return;
+    table = $('#ar-table'); panneau = $('#ar-panneau'); dialogue = $('#ar-dialogue'); boite = dialogue.querySelector('.ar-boite'); annonce = $('#ar-annonce'); resultatEl = $('#ar-resultat');
+    zJ = $('#ar-joueur'); zC = $('#ar-croupier'); tJ = $('#ar-tj'); tC = $('#ar-tc'); coinsEl = $('#ar-coins'); miseEl = $('#ar-mise');
+    el.querySelector('[data-ar="fermer"]').addEventListener('click', () => { d.audio(); d.son.tap(); fermer(); });
+    el.querySelector('[data-ar="gains"]').addEventListener('click', () => { d.audio(); d.son.tap(); tableauGains(); });
+    el.querySelectorAll('[data-case]').forEach((b) => b.addEventListener('click', () => { if (phase !== 'mise') return; d.audio(); d.son.tap(); choix = b.dataset.case; majCases(); majPanneau(); }));
+    document.addEventListener('keydown', (e) => { if (e.key !== 'Escape' || el.hidden) return; if (!dialogue.hidden && dialogue.dataset.type !== 'accueil') fermerDialogue(); else if (dialogue.hidden) fermer(); });
+    dialogue.addEventListener('click', (e) => { if (e.target === dialogue && dialogue.dataset.type === 'gains') fermerDialogue(); });
+  }
+  const ouvert = () => !!el && !el.hidden;
+  function ouvrir() {
+    if (!el) return false;
+    const a = B.etat(st()); a.trouvee = true;
+    el.hidden = false; d.ouvert(); hPanneau = 0; el.style.removeProperty('--panneau-h');
+    annuler(); fermerDialogue();
+    // la main en cours (l'appli fermée au milieu, ou la salle quittée) reprend là où elle était ; sinon, les dernières mises
+    const h = a.main;
+    vue = { joueur: 0, croupier: 0, cachee: true, main: null }; zJ.innerHTML = ''; zC.innerHTML = ''; resultatEl.hidden = true; annonce.hidden = true;
+    mises = B.borner(st(), a.mises); delete mises.total; delete mises.tapis; // « même mise » : les dernières mises, ramenées à la caisse
+    if (h) poserTout(h);
+    if (h && !h.fin) phase = 'jeu';
+    else { phase = 'mise'; if (h) montrerResultat(h, false); } // la dernière main reste sur le tapis jusqu'à la prochaine donne
+    choix = 'main'; maj();
+    if (!a.accueil) accueil();
+    d.save();
+    return true;
+  }
+  function fermer() {
+    if (!el || el.hidden) return;
+    annuler(); fermerDialogue(); el.hidden = true; phase = '';
+    if (d.ferme) d.ferme();
+  }
+  const annuler = () => { minuteurs.forEach(clearTimeout); minuteurs = []; };
+  const plus = (ms, f) => { minuteurs.push(setTimeout(f, reduceMotion ? Math.min(ms, 60) : ms)); };
+
+  // ─── les dialogues : le mot de la première fois, le tableau des gains, la confirmation du tapis ───
+  function ouvrirDialogue(type, html, lier) { dialogue.dataset.type = type; boite.className = 'ar-boite ' + type; boite.innerHTML = html; dialogue.hidden = false; if (lier) lier(boite); }
+  function fermerDialogue() { if (!dialogue) return; dialogue.hidden = true; dialogue.dataset.type = ''; boite.innerHTML = ''; }
+  function accueil() {
+    ouvrirDialogue('accueil', `<span class="ar-pic">${ICONS.UI.arriere}</span>
+      <h3>Tu as trouvé l’arrière&#8209;salle…</h3>
+      <p>Derrière la petite porte du fond : une lampe basse, un tapis vert et un sabot de six jeux. On y joue l’argent de la caisse, <b>tout ou rien</b>.</p>
+      <p class="ar-petit">Rien de ce qui se gagne ou se perd ici ne compte pour le classement ni pour ta fortune. La carte « L’arrière-salle » du Journal t’y ramènera.</p>
+      <button type="button" class="btn large beurre" data-ar="asseoir"><b>S’asseoir à la table</b></button>`, (b) => {
+      b.querySelector('[data-ar="asseoir"]').addEventListener('click', () => { d.audio(); d.son.tap(); B.etat(st()).accueil = true; d.save(); fermerDialogue(); });
+    });
+  }
+  function tableauGains() {
+    const P = B.PAIRES, T = B.VINGT_ET_UN_PLUS_TROIS, S = B.etat(st()).stats;
+    const ligne = (nom, ex, mult) => `<li><span>${nom}${ex ? miniCartes(ex) : ''}</span><b>${mult}</b></li>`;
+    ouvrirDialogue('gains', `<div class="ar-boite-tete"><h3>Le tableau des gains</h3><button type="button" class="at-fermer" data-ar="ok" aria-label="Fermer le tableau des gains"><i class="ico">${ICONS.UI.fermer}</i></button></div>
+      <h4>La main</h4><ul class="ar-gains">${ligne('BlackJack (as + 10 ou figure)', 'A♠ R♥', '3 pour 2')}${ligne('Main gagnante', '', '1 pour 1')}${ligne('Égalité', '', 'mise rendue')}</ul>
+      <h4>Perfect Pairs <small>tes deux premières cartes</small></h4><ul class="ar-gains">${ligne('Paire mixte', '7♥ 7♠', `${P.mixte} pour 1`)}${ligne('Paire de couleur', '7♥ 7♦', `${P.couleur} pour 1`)}${ligne('Paire parfaite', '7♠ 7♠', `${P.parfaite} pour 1`)}</ul>
+      <h4>21+3 <small>tes deux cartes et celle du croupier</small></h4><ul class="ar-gains">${ligne('Couleur', '2♥ 9♥ R♥', `${T.couleur} pour 1`)}${ligne('Quinte', '4♠ 5♥ 6♦', `${T.quinte} pour 1`)}${ligne('Brelan', '9♠ 9♥ 9♦', `${T.brelan} pour 1`)}${ligne('Quinte couleur', 'V♣ D♣ R♣', `${T.quinteCouleur} pour 1`)}${ligne('Brelan de même enseigne', '9♦ 9♦ 9♦', `${T.brelanCouleur} pour 1`)}</ul>
+      <p class="ar-petit">Sabot de 6 jeux, re-mélangé passé les trois quarts. Le croupier tire jusqu’à 17 et reste sur 17 souple. Doubler sur les deux premières cartes ; ni partage, ni assurance. Les mises annexes se posent avant la donne.</p>
+      <p class="ar-petit">${S.mains ? `Ici : ${G.fmt(S.mains)} main${S.mains > 1 ? 's' : ''}, ${G.fmt(S.gagnees)} gagnée${S.gagnees > 1 ? 's' : ''}, ${G.fmt(S.blackjacks)} BlackJack${S.blackjacks > 1 ? 's' : ''}.` : 'Aucune main jouée pour l’instant.'}</p>`, (b) => {
+      b.querySelector('[data-ar="ok"]').addEventListener('click', () => { d.son.tap(); fermerDialogue(); });
+    });
+  }
+  function confirmerTapis(m, suite) {
+    ouvrirDialogue('tapis', `<span class="ar-pic tapis">${ICONS.UI.cartes}</span>
+      <h3>Tapis ?</h3>
+      <p>Tu mets <b>toute la caisse</b> en jeu : <b class="ar-somme">${eur(m.total)}</b>.</p>
+      <p class="ar-petit">Perdue, la caisse est vide. Gagnée, elle double (et un BlackJack paie 3 pour 2).</p>
+      <div class="ar-choix"><button type="button" class="btn large clair" data-ar="non"><b>Pas cette fois</b></button><button type="button" class="btn large" data-ar="oui"><b>Oui, tapis !</b></button></div>`, (b) => {
+      b.querySelector('[data-ar="non"]').addEventListener('click', () => { d.son.tap(); fermerDialogue(); });
+      b.querySelector('[data-ar="oui"]').addEventListener('click', () => { d.audio(); fermerDialogue(); suite(); });
+    });
+  }
+
+  // ─── les mises ───
+  const caisse = () => Math.max(0, st().coins || 0);
+  const totalMises = () => mises.main + mises.paires + mises.plus3;
+  function borne() { if (phase === 'mise' && resultatEl) resultatEl.hidden = true; const b = B.borner(st(), mises); // une mise qui change : le résultat de la main d'avant s'efface du tapis
+    mises = { main: b.main, paires: b.paires, plus3: b.plus3 }; }
+  function ajouter(montant) { // un jeton : s'ajoute à la case choisie, sans jamais dépasser ce qui reste dans la caisse
+    const reste = Math.max(0, caisse() - totalMises());
+    if (!(reste > 0)) { d.son.non(); return; }
+    mises[choix] += Math.min(montant, reste); d.son.achat(); d.buzz(6); borne(); maj();
+  }
+  function tapis() { mises[choix] += Math.max(0, caisse() - totalMises()); d.son.achat(); d.buzz([8, 20, 8]); borne(); maj(); }
+  function ajuster(sens) { // le réglage fin : un cran rond, à la hausse ou à la baisse
+    const cur = mises[choix], p = B.pas(Math.max(cur, B.jeton(st(), 0.1)));
+    if (sens > 0) { const reste = Math.max(0, caisse() - totalMises()); if (!(reste > 0)) { d.son.non(); return; } mises[choix] = cur + Math.min(p, reste); }
+    else { if (!(cur > 0)) { d.son.non(); return; } mises[choix] = Math.max(0, Math.ceil(cur / p - 1e-9) * p - p); }
+    d.son.tap(); borne(); maj();
+  }
+  function effacer() { mises = { main: 0, paires: 0, plus3: 0 }; borne(); d.son.tap(); maj(); }
+  function donner() {
+    if (phase !== 'mise') return;
+    borne();
+    if (mises.main < B.MISE_MIN) { d.son.non(); return; }
+    const m = B.borner(st(), mises);
+    if (m.tapis) confirmerTapis(m, lancer); else lancer();
+  }
+  function lancer() {
+    const s = st();
+    const r = B.distribuer(s, mises); if (!r.ok) { d.son.non(); maj(); return; }
+    d.son.tap(); d.buzz(8);
+    zJ.innerHTML = ''; zC.innerHTML = ''; vue = { joueur: 0, croupier: 0, cachee: true, main: r.main }; resultatEl.hidden = true; annonce.hidden = true;
+    if (r.melange) montrerAnnonce('Le croupier mélange un sabot neuf…', 'melange');
+    d.save(); jouerVers(r.main, r.melange ? 700 : 0);
+  }
+  function action(quoi) {
+    if (phase !== 'jeu') return;
+    const s = st(), h = B.enCours(s); if (!h) return;
+    const r = quoi === 'tirer' ? B.tirer(s) : quoi === 'doubler' ? B.doubler(s) : B.rester(s);
+    if (!r.ok) { d.son.non(); return; }
+    d.son.tap(); d.buzz(6); d.save(); jouerVers(r.main, 0);
+  }
+
+  // ─── la donne, animée : les cartes partent du sabot une à une ; la carte cachée se retourne ; le croupier tire ───
+  function poserCarte(zone, c, cachee, anime) {
+    const e = carteEl(c, cachee); zone.appendChild(e); serrer(zone);
+    if (anime && !reduceMotion) {
+      const sab = table.querySelector('.ar-sabot').getBoundingClientRect(), r = e.getBoundingClientRect();
+      e.style.setProperty('--dx', `${Math.round(sab.left + sab.width / 2 - (r.left + r.width / 2))}px`); e.style.setProperty('--dy', `${Math.round(sab.top + sab.height / 2 - (r.top + r.height / 2))}px`);
+      e.classList.add('arrive');
+    }
+    return e;
+  }
+  function serrer(zone) { const n = zone.children.length; zone.style.setProperty('--n', n); zone.classList.toggle('serre', n >= 6); zone.classList.toggle('tres-serre', n >= 8); if (zone.parentElement) zone.parentElement.classList.toggle('large', n >= 5); } // une longue main : le total passe au-dessus, à gauche
+  function retourner() { const e = zC.children[1]; if (e && e.classList.contains('cachee')) { e.classList.remove('cachee'); e.setAttribute('aria-label', nomLong(B.etat(st()).main.croupier[1])); } vue.cachee = false; majTotaux(); }
+  function poserTout(h) { // sans animation : la main telle qu'elle est (retour dans la salle)
+    zJ.innerHTML = ''; zC.innerHTML = '';
+    h.joueur.forEach((c) => poserCarte(zJ, c, false, false)); h.croupier.forEach((c, k) => poserCarte(zC, c, k === 1 && h.cachee, false));
+    vue = { joueur: h.joueur.length, croupier: h.croupier.length, cachee: h.cachee, main: h }; majTotaux();
+  }
+  function jouerVers(h, attente) {
+    phase = 'anim'; maj();
+    const pas = []; const P = 300, R = 420; // le rythme : une carte toutes les 0,3 s ; le croupier prend son temps
+    if (vue.joueur === 0) { pas.push(['j', P], ['c', P], ['j', P], ['c', P]); }
+    const j0 = Math.max(vue.joueur, pas.length ? 2 : 0); for (let k = j0; k < h.joueur.length; k++) pas.push(['j', P]);
+    if (pas.length && h.annexes.length && vue.joueur === 0) pas.push(['annexes', 250]);
+    if (!h.cachee) { pas.push(['retourner', 450]); for (let k = Math.max(2, vue.croupier); k < h.croupier.length; k++) pas.push(['c', R + 120]); }
+    let t = attente || 0;
+    for (const [quoi, dur] of pas) {
+      plus(t, () => {
+        if (quoi === 'j') { const k = vue.joueur++; poserCarte(zJ, h.joueur[k], false, true); d.son.tap(); majTotaux(); }
+        else if (quoi === 'c') { const k = vue.croupier++; poserCarte(zC, h.croupier[k], k === 1 && vue.cachee, true); majTotaux(); }
+        else if (quoi === 'retourner') { retourner(); d.son.tap(); }
+        else if (quoi === 'annexes') annexes(h);
+      });
+      t += dur;
+    }
+    plus(t + 120, () => {
+      if (h.fin) { if (vue.cachee) retourner(); phase = 'mise'; borne(); montrerResultat(h, true); }
+      else phase = 'jeu';
+      maj();
+    });
+  }
+  function annexes(h) { // les mises annexes se règlent dès la donne
+    const gagnees = h.annexes.filter((x) => x.gain > 0);
+    majCases();
+    if (gagnees.length) {
+      montrerAnnonce(gagnees.map((x) => `<span><b>${esc(x.nom)}</b> : ${esc(x.combinaison.nom.toLowerCase())} ×${x.combinaison.mult} · <b>+${eur(x.gain)}</b></span>`).join(''), 'gagne', true);
+      d.son.pourboire(); d.buzz([10, 30, 10]);
+    } else montrerAnnonce(h.annexes.length > 1 ? 'Mises annexes : rien cette fois' : `${h.annexes[0].nom} : rien cette fois`, 'rien');
+  }
+  function montrerAnnonce(txt, cls, html) { if (html) annonce.innerHTML = txt; else annonce.textContent = txt; annonce.className = 'ar-annonce ' + (cls || ''); annonce.hidden = false; void annonce.offsetWidth; annonce.classList.add('vu'); clearTimeout(montrerAnnonce.t); montrerAnnonce.t = setTimeout(() => { annonce.hidden = true; }, cls === 'gagne' ? 3500 : 2700); }
+  const DETAIL = {
+    blackjack: () => 'Payé 3 pour 2', gagne: (j, c) => `${j} contre ${c}`, croupierBrule: (j, c) => `Le croupier brûle à ${c}`, egalite: (j, c) => (j === 21 && c === 21 ? 'BlackJack contre BlackJack : mise rendue' : `${j} partout : mise rendue`),
+    perdu: (j, c) => `${j} contre ${c}`, brule: (j) => `Brûlé à ${j}`, croupierBJ: () => 'BlackJack du croupier',
+  };
+  function montrerResultat(h, fete) {
+    const j = B.valeur(h.joueur).total, c = B.valeur(h.croupier).total, g = B.gagnant(h.resultat);
+    const cls = h.resultat === 'blackjack' ? 'bj' : g ? 'gagne' : h.resultat === 'egalite' ? 'egal' : 'perdu';
+    const net = h.net, ligneNet = net > 0 ? `+${eur(net)}` : net < 0 ? `−${eur(-net)}` : 'Rien de perdu';
+    resultatEl.className = 'ar-resultat ' + cls; resultatEl.dataset.resultat = h.resultat;
+    resultatEl.innerHTML = `<span class="haut"><b>${B.MOTS[h.resultat]}</b><i class="${net > 0 ? 'plus' : net < 0 ? 'moins' : ''}">${ligneNet}</i></span><span class="ar-detail">${esc(DETAIL[h.resultat](j, c))}</span>`;
+    resultatEl.hidden = false;
+    if (!fete) return;
+    if (h.resultat === 'blackjack') { d.son.deblocage(); d.buzz([20, 40, 20, 40, 30]); }
+    else if (g) { d.son.vente(h.gain); d.buzz([10, 30, 10]); }
+    else if (h.resultat === 'egalite') d.son.tap();
+    else { d.son.non(); d.buzz(30); }
+    if (h.tapis && !(caisse() > 0)) montrerAnnonce('La caisse est vide… les fournées la rempliront.', 'rien');
+  }
+
+  // ─── l'affichage ───
+  function majTotaux() {
+    const h = vue.main || B.etat(st()).main;
+    const txt = (cartes) => { const v = B.valeur(cartes); return v.blackjack ? 'BlackJack' : v.souple && v.total < 21 ? `${v.total - 10}/${v.total}` : String(v.total); };
+    if (!h || !vue.joueur) { tJ.hidden = true; tC.hidden = true; return; }
+    const cj = h.joueur.slice(0, vue.joueur), cc = h.croupier.slice(0, vue.croupier);
+    tJ.hidden = false; tJ.textContent = txt(cj); tJ.classList.toggle('brule', B.valeur(cj).brule); tJ.classList.toggle('bj', B.valeur(cj).blackjack);
+    const visibles = vue.cachee ? cc.slice(0, 1) : cc; tC.hidden = !visibles.length; tC.textContent = visibles.length ? txt(visibles) : ''; tC.classList.toggle('brule', B.valeur(visibles).brule); tC.classList.toggle('bj', !vue.cachee && B.valeur(cc).blackjack);
+  }
+  function majCases() {
+    const h = B.etat(st()).main, enJeu = phase !== 'mise' && h, mise = phase === 'mise';
+    el.querySelectorAll('[data-case]').forEach((b) => {
+      const id = b.dataset.case, v = enJeu ? (id === 'main' ? h.mise : h.mises[id]) : mises[id], x = enJeu && id !== 'main' ? h.annexes.find((a) => a.id === id) : null;
+      b.classList.toggle('choisie', mise && choix === id); b.classList.toggle('sans', !(v > 0)); b.classList.toggle('pleine', v > 0);
+      b.classList.toggle('gagnee', !!(x && x.gain > 0 && vue.joueur >= 2)); b.classList.toggle('perdue', !!(x && !x.gain && vue.joueur >= 2));
+      b.disabled = !mise; b.setAttribute('aria-pressed', mise && choix === id ? 'true' : 'false');
+      b.querySelector('b').textContent = v > 0 ? (x && x.gain > 0 && vue.joueur >= 2 ? `+${eur(x.gain)}` : eur(v)) : mise && choix === id ? 'à poser' : '—';
+      b.setAttribute('aria-label', `${NOM_CASE[id]} : ${v > 0 ? eur(v) : 'rien'}`);
+    });
+  }
+  function majPanneau() {
+    const s = st(), c = caisse(), h = B.enCours(s);
+    if (phase === 'jeu' && h) {
+      const dbl = B.peutDoubler(s);
+      panneau.className = 'ar-panneau jeu';
+      const ann = h.annexes.reduce((a, x) => a + x.gain - x.mise, 0);
+      panneau.innerHTML = `<div class="ar-infos-main"><span><small>Ta mise</small><b>${eur(h.mise)}</b></span><span><small>Annexes</small><b class="${ann > 0 ? 'plus' : ''}">${h.annexes.length ? (ann > 0 ? `+${eur(ann)}` : ann < 0 ? `−${eur(-ann)}` : '0 €') : '—'}</b></span><span><small>En caisse</small><b>${eur(c)}</b></span></div>
+        <div class="ar-actions">
+        <button type="button" class="btn ar-act menthe" data-ar="tirer"><b>Tirer</b><small>une carte</small></button>
+        <button type="button" class="btn ar-act" data-ar="rester"><b>Rester</b><small>à ${B.valeur(h.joueur).total}</small></button>
+        <button type="button" class="btn ar-act lavande${dbl ? '' : ' non'}" data-ar="doubler" ${dbl ? '' : 'aria-disabled="true"'}><b>Doubler</b><small>${h.joueur.length > 2 || h.double ? 'plus possible' : dbl ? `+${eur(h.mise)}` : 'caisse trop courte'}</small></button></div>`;
+      panneau.querySelector('[data-ar="tirer"]').addEventListener('click', () => { d.audio(); action('tirer'); });
+      panneau.querySelector('[data-ar="rester"]').addEventListener('click', () => { d.audio(); action('rester'); });
+      panneau.querySelector('[data-ar="doubler"]').addEventListener('click', () => { d.audio(); if (!B.peutDoubler(st())) { d.son.non(); return; } action('doubler'); });
+      return;
+    }
+    if (phase === 'anim') { panneau.classList.add('attente'); panneau.querySelectorAll('button').forEach((b) => { b.disabled = true; }); return; }
+    // miser : les jetons rapides, le réglage fin, distribuer
+    const reste = Math.max(0, c - totalMises()), m = B.borner(s, mises), parts = [[0.01, '1 %', 'menthe'], [0.1, '10 %', 'ciel'], [0.5, '50 %', 'lavande']];
+    panneau.className = 'ar-panneau mise';
+    if (!(c >= B.MISE_MIN) && !(totalMises() > 0)) {
+      panneau.innerHTML = `<p class="ar-vide"><b>La caisse est vide.</b> Les fournées et les apprentis la rempliront : reviens plus tard.</p><button type="button" class="btn large clair" data-ar="sortir"><b>Retour à la boutique</b></button>`;
+      panneau.querySelector('[data-ar="sortir"]').addEventListener('click', () => { d.son.tap(); fermer(); });
+      return;
+    }
+    panneau.innerHTML = `<div class="ar-jetons" role="group" aria-label="Jetons : ajouter à ${NOM_CASE[choix]}">
+        ${parts.map(([p, l, k]) => { const v = B.jeton(s, p); return `<button type="button" class="ar-jeton ${k}" data-jeton="${p}" ${v > 0 && reste > 0 ? '' : 'disabled'}><span>${l}</span><small>${v > 0 ? eur(Math.min(v, reste || v)) : '—'}</small></button>`; }).join('')}
+        <button type="button" class="ar-jeton tapis" data-jeton="tapis" ${reste > 0 ? '' : 'disabled'}><span>Tapis</span><small>${eur(reste > 0 ? reste : c)}</small></button>
+      </div>
+      <div class="ar-fin">
+        <button type="button" class="ar-pm" data-ar="moins" aria-label="Moins sur ${NOM_CASE[choix]}">−</button>
+        <div class="ar-sur"><small>${NOM_CASE[choix]}</small><b>${eur(mises[choix])}</b></div>
+        <button type="button" class="ar-pm" data-ar="plus" aria-label="Plus sur ${NOM_CASE[choix]}">+</button>
+        <button type="button" class="ar-effacer" data-ar="effacer" ${totalMises() > 0 ? '' : 'disabled'}>Effacer</button>
+      </div>
+      <button type="button" class="btn large beurre ar-donner${mises.main >= B.MISE_MIN ? '' : ' non'}" data-ar="donner"><b>${mises.main >= B.MISE_MIN ? `Distribuer · ${eur(m.total)}` : 'Pose une mise pour jouer'}</b></button>`;
+    // le panneau garde la hauteur du panneau des mises : la table ne saute pas d'une phase à l'autre
+    const hp = panneau.offsetHeight; if (hp > hPanneau) { hPanneau = hp; el.style.setProperty('--panneau-h', `${hp}px`); }
+    panneau.querySelectorAll('[data-jeton]').forEach((b) => b.addEventListener('click', () => { d.audio(); if (b.dataset.jeton === 'tapis') tapis(); else ajouter(B.jeton(st(), +b.dataset.jeton)); }));
+    panneau.querySelector('[data-ar="moins"]').addEventListener('click', () => { d.audio(); ajuster(-1); });
+    panneau.querySelector('[data-ar="plus"]').addEventListener('click', () => { d.audio(); ajuster(1); });
+    panneau.querySelector('[data-ar="effacer"]').addEventListener('click', () => { d.audio(); effacer(); });
+    panneau.querySelector('[data-ar="donner"]').addEventListener('click', () => { d.audio(); donner(); });
+  }
+  function maj() {
+    if (!el || el.hidden) return;
+    const s = st(), h = B.etat(s).main;
+    coinsEl.textContent = eur(caisse());
+    const enJeu = h && !h.fin ? h.mise + h.annexes.reduce((a, x) => a + x.mise, 0) : 0;
+    miseEl.textContent = phase === 'mise' ? (totalMises() > 0 ? `${eur(totalMises())} prêts à miser` : 'dans la caisse') : enJeu ? `${eur(enJeu)} sur le tapis` : 'dans la caisse';
+    table.classList.toggle('en-mise', phase === 'mise');
+    majCases(); majPanneau();
+    if (d.apres) d.apres();
+  }
+  const etat = () => {
+    const a = st() && st().arriere, h = a && a.main;
+    return { ouvert: ouvert(), phase, choix, mises: { ...mises }, dialogue: dialogue && !dialogue.hidden ? dialogue.dataset.type : '', vue: { joueur: vue.joueur, croupier: vue.croupier, cachee: vue.cachee },
+      main: h ? { joueur: h.joueur.map(B.nomCarte), croupier: h.croupier.map(B.nomCarte), fin: h.fin, resultat: h.resultat, mise: h.mise, net: h.net, double: h.double, tapis: h.tapis, annexes: h.annexes.map((x) => ({ id: x.id, gain: x.gain, type: x.combinaison && x.combinaison.type })) } : null };
+  };
+  return { init, ouvrir, fermer, maj, get ouvert() { return ouvert(); }, etat, carteEl };
 })();
 
 /* ── garderobe.js ── */
@@ -5885,6 +6594,7 @@ const EVENEMENT = (() => {
     if (!el || !Q) return false;
     const ico = el.querySelector('.pq-ico'); if (ico) ico.innerHTML = ICONS.QUARTIER.billets;
     el.querySelector('[data-pq="fermer"]').addEventListener('click', () => { d.audio(); d.son.tap(); fermer(); });
+    el.querySelector('[data-pq="classement"]').addEventListener('click', () => { d.audio(); d.son.tap(); if (d.classement) d.classement(); });
     el.querySelector('[data-pq="paliers"]').addEventListener('click', () => { d.audio(); d.son.tap(); sheetPaliers(); });
     el.querySelector('[data-pq="ameliorations"]').addEventListener('click', () => { d.audio(); d.son.tap(); sheetAmeliorations(); });
     el.querySelectorAll('.pq-modes button').forEach((b) => b.addEventListener('click', () => { d.audio(); const qq = q(); qq.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; el.querySelectorAll('.pq-modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCartes(true); }));
@@ -6025,12 +6735,15 @@ const EVENEMENT = (() => {
   const FIN_EV = { grosclient: 'Le gros client est reparti sans sa commande.', soiree: 'La soirée est finie.', scooter: 'Le scooter est reparti.' };
   function hud() {
     const qq = q(), taux = Q.tauxParSeconde(qq), f = fen(), nb = Q.paliersAtteints(qq).length;
-    const cle = `${fmt(qq.billets)}|${fmt(taux)}|${Q.fmtReste(f.reste)}|${nb}|${f.jour}`;
+    const cl = d.rangQuartier ? d.rangQuartier() : null; // le classement de l'événement : null s'il n'existe pas (pas de serveur), sinon son rang (0 : pas encore classé)
+    const cle = `${fmt(qq.billets)}|${fmt(taux)}|${Q.fmtReste(f.reste)}|${nb}|${f.jour}|${cl}`;
     if (cle === lastHud) return; lastHud = cle;
     $('#pq-billets').textContent = fmt(qq.billets);
     $('#pq-taux').innerHTML = taux > 0 ? `<b>+${fmt(taux)}</b>/s · le boss est là ×${Q.PRESENCE}` : `Touche un produit pour vendre · le boss est là ×${Q.PRESENCE}`;
     $('#pq-reste').textContent = `Ferme dans ${Q.fmtReste(f.reste)}`;
     $('#pq-sous').textContent = `Jour ${f.jour} sur ${f.jours}`;
+    const bc = el.querySelector('[data-pq="classement"]'); bc.hidden = cl == null; bc.querySelector('b').textContent = cl ? (cl === 1 ? '1er' : cl + 'e') : 'Top';
+    bc.setAttribute('aria-label', cl ? `Le classement de l’événement : tu es ${cl === 1 ? '1er' : cl + 'e'}` : 'Le classement de l’événement');
     const bp = el.querySelector('[data-pq="paliers"]'); bp.querySelector('b').textContent = `${nb}/12`; bp.classList.toggle('pret', Q.paliersDus(qq).length > 0);
   }
 
@@ -6666,8 +7379,8 @@ const UI = (() => {
       return `${PAGE_HEAD('boulanger', 'Boulanger', pts_ ? `<span class="serie lav">${pts_} point${pts_ > 1 ? 's' : ''}</span>` : '')}
       <div class="bloc">
         <div class="card boulanger-tete"><span class="portrait">${ICONS.boulanger(rang, tenueVue())}</span><div><h3>${esc(G.titre(st))}</h3><p class="sous">Niveau <b>${np.n}</b> · ${G.fmt(np.reste)} / ${G.fmt(np.prochain)} savoir-faire</p><div class="mini xp"><i style="width:${pct(np.reste, np.prochain)}"></i></div>${suivant ? `<p class="note">${esc(suivant[1])} au niveau ${suivant[0]}</p>` : ''}</div></div>
+        <div class="encadre doux">Le savoir-faire vient des défis du jour, des événements réussis, des recettes, des embauches et des nouvelles boutiques. Chaque niveau donne <b>un point de talent</b>. Les talents sont à toi pour toujours, même en changeant de boutique.</div>
         <h3 class="titre-section"><span>Talents</span>${pts_ ? `<span class="pts">${pts_} point${pts_ > 1 ? 's' : ''} à dépenser</span>` : ''}</h3>
-        <p class="note intro">Un point par niveau ; les talents restent, même en changeant de boutique.</p>
         <div class="liste-am">${G.TALENTS.map((t) => { const k = G.talent(st, t.id), max = k >= t.max; return `<div class="am talent ${k ? 'appris' : ''}"><div><h3>${esc(t.nom)} ${crans(k, t.max)}</h3><p>${k ? esc(t.desc(k)) : 'Cran 1 : ' + esc(t.desc(1))}${k && !max ? `<br><em>Cran suivant : ${esc(t.desc(k + 1))}</em>` : ''}</p></div>${max ? okChip('Maîtrisé') : `<button type="button" class="btn ${pts_ ? 'lavande' : 'non'}" data-t="${t.id}"><small>Apprendre</small><b>1 point</b></button>`}</div>`; }).join('')}</div>
         <h3 class="titre-section"><span>Tenue et récompenses</span></h3>
         ${GRU ? GRU.carte(st) : ''}
@@ -6697,9 +7410,24 @@ const UI = (() => {
   const QUAND_SAISON = { galette: 'en janvier', crepe: 'début février', paques: 'en avril', glace: 'cet été', citrouille: 'à la mi-octobre', buche: 'en décembre' };
   // Journal : le fil des nouvelles (les dernières en tête, les pas encore lues marquées), puis la vie du quartier : recettes de saison, habitués
   const ilYA = (ms) => { const s = Math.max(0, (HORLOGE.maintenant() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
+  // l'arrière-salle (src/arriere.js) : une fois la petite porte du fond trouvée, une carte discrète, tout en bas du Journal, y ramène
+  const AR = typeof ARRIERE !== 'undefined' ? ARRIERE : null;
+  const arriereTrouvee = () => !!(AR && st.arriere && st.arriere.trouvee);
+  const cleArriere = () => (arriereTrouvee() ? (st.arriere.main && !st.arriere.main.fin ? 'ar-main' : 'ar') : '');
+  const carteArriere = () => (arriereTrouvee() ? `<button type="button" class="card arriere-carte" data-arriere="1"><span class="pic">${ICONS.UI.arriere}</span><span class="t"><b>L’arrière-salle</b><small>${st.arriere.main && !st.arriere.main.fin ? 'Une main t’attend sur le tapis vert.' : 'La petite porte du fond est restée entrouverte.'}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>` : '');
+  // la porte : cinq touches de suite en moins de 3 s l'ouvrent (toute autre touche dans la boutique remet le compte à zéro)
+  let toquees = [];
+  function toquer(x, y) {
+    const t = performance.now(); toquees = toquees.filter((k) => t - k <= 3000); toquees.push(t);
+    son.tap(); buzz(5); const r = $('#scene').getBoundingClientRect(); flottant(r.left + x - 12, r.top + y - 26, toquees.length >= 5 ? 'toc toc !' : 'toc');
+    if (toquees.length < 5 || !AR) return;
+    toquees = []; const premiere = !arriereTrouvee();
+    if (premiere) { st.arriere = st.arriere || {}; st.arriere.trouvee = true; }
+    setTimeout(() => { AR.ouvrir(); if (premiere) { lastPage = ''; renderPage(true); } }, 260);
+  }
   let vuAvantJournal = 0; // le dernier passage avant celui-ci : ce qui est arrivé depuis est « nouveau »
   const pageJournal = {
-    key: () => `${(st.carnetEv || []).length}|${(st.carnetEv || []).length ? st.carnetEv[st.carnetEv.length - 1].t : 0}|${JSON.stringify(st.habitues)}|${JSON.stringify(st.collection)}|${st.saison ? st.saison.id + st.saison.niv : ''}|${Math.floor(HORLOGE.maintenant() / 60e3)}`,
+    key: () => `${cleArriere()}|${(st.carnetEv || []).length}|${(st.carnetEv || []).length ? st.carnetEv[st.carnetEv.length - 1].t : 0}|${JSON.stringify(st.habitues)}|${JSON.stringify(st.collection)}|${st.saison ? st.saison.id + st.saison.niv : ''}|${Math.floor(HORLOGE.maintenant() / 60e3)}`,
     html: () => {
       const fil = (st.carnetEv || []).slice().reverse(), neuves = fil.filter((e) => e.t > vuAvantJournal).length;
       return `${PAGE_HEAD('journal', 'Journal', neuves ? `<span class="serie fraise">${neuves} nouvelle${neuves > 1 ? 's' : ''}</span>` : '')}
@@ -6714,9 +7442,10 @@ const UI = (() => {
         <div class="card"><div class="c-tete"><span class="pic peche">${ICONS.UI.habitues}</span><h3>Les habitués</h3></div>
           ${G.HABITUES.map((h) => { const e = (st.habitues || {})[h.id]; return `<div class="ligne habitue"><span class="pastille-hab" style="background:${h.haut}"></span><div class="t"><span><b>${esc(h.nom)}</b><small>Passe entre ${h.debut}h et ${Math.floor(h.fin)}h${h.fin % 1 ? '30' : ''} · ${e && e.jours ? `fidèle depuis ${e.jours} jour${e.jours > 1 ? 's' : ''}` : 'première visite à venir'}</small></span></div></div>`; }).join('')}
           <p class="note">Sers un habitué cinq jours de suite : il t’offre un cadeau.</p></div>
+        ${carteArriere()}
       </div>`;
     },
-    bind: () => {},
+    bind: (sec) => { onIn(sec, '[data-arriere]', () => { son.tap(); if (AR) AR.ouvrir(); }); },
   };
   // Réglages : rangés par groupe ; ce qui sert peu vit ici (repeindre, masquer l'événement, quitter le classement, sauvegarde, partage)
   const pageReglages = {
@@ -6730,7 +7459,7 @@ const UI = (() => {
       <div class="bloc">
         ${groupe('Le jeu', ligne('son', st.son ? ICONS.UI.son : ICONS.UI.sonOff, 'Sons', 'Petites notes à chaque vente et achat', sw(st.son)) + ligne('vibre', ICONS.UI.vibre, 'Vibrations', 'Un léger retour sous le doigt', sw(st.vibre)))}
         ${groupe('La boutique', ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)
-          + ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés avec leurs crans : touche-les pour les améliorer', chev)
+          + ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés, leurs crans et leurs prix : touche-les pour les améliorer', chev)
           + (st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, ''))
           + (st.chat ? ligne('chat', ICONS.UI.chat, `Renommer ${esc(st.chat.nom)}`, 'Le chat de la boutique', chev) : ''))}
         ${cr && cr.rejoint ? groupe('Classement', ligne('cl-quitter', ICONS.UI.quitter, 'Quitter le classement', `Ton pseudo « ${esc(cr.pseudo)} » et tes points disparaissent du classement`, chev)) : ''}
@@ -6799,7 +7528,7 @@ const UI = (() => {
   // la fête de la scène 3D : pendant une partie de l'Atelier, la scène est en pause sous l'écran de jeu ; la fête attend qu'on en sorte
   // (les toasts, eux, passent au-dessus de l'Atelier)
   let feteEnAttente = false;
-  function feter() { if (MINIJEUX.ouvert) feteEnAttente = true; else SCENE.fete(); }
+  function feter() { if (MINIJEUX.ouvert || (AR && AR.ouvert)) feteEnAttente = true; else SCENE.fete(); }
   function reussite(txt) { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); toast(txt); renderCards(true); hud(); save(); }
   function renderEvenement() {
     const ev = st.ev, box = $('#evenement');
@@ -6854,7 +7583,7 @@ const UI = (() => {
   }
   function indices() {
     const el = $('#indice');
-    if (st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert || (EVT && EVT.ouvert)) { el.hidden = true; return; }
+    if (st.tuto >= INDICES.length || !$('#feuille').hidden || MINIJEUX.ouvert || (EVT && EVT.ouvert) || (AR && AR.ouvert)) { el.hidden = true; return; }
     const h = INDICES[st.tuto];
     if (h.ou === 'pages' && (pageActive !== 'boutique' || tiroir.pos === 'ferme')) { el.hidden = true; return; }
     if (h.fini()) { st.tuto++; hintUntil = performance.now() + 8000; save(); el.hidden = true; return; }
@@ -7065,7 +7794,7 @@ const UI = (() => {
     const d = G.detailPoints(st), P = G.POINTS, a = d.aujourdhui, at = d.atelier.reduce((n, x) => n + x.points, 0);
     const case_ = (t, v, max, sous) => `<div class="pts-case"><small>${t}</small><b>${v}<i>/${max}</i></b>${sous ? `<small>${sous}</small>` : ''}</div>`;
     return `<div class="pts-bloc"><div class="pts-tete"><span><small>Mes points cette semaine</small><b>${pts(d.total)}</b></span><span class="pts-auj">aujourd’hui ${a.journee + a.evenements + a.ameliorations}/${a.max}</span></div>
-      <div class="pts-cases">${case_('Journées', d.journees, 7 * P.journee, a.journee ? 'faite auj.' : `${P.journee} par jour`)}${case_('Événements', d.evenements, 7 * P.evenementsJour, `auj. ${a.evenements}/${P.evenementsJour}`)}${case_('Améliorations', d.ameliorations, 7 * P.ameliorationsJour, `auj. ${a.ameliorations}/${P.ameliorationsJour}`)}${case_('Défi de la semaine', d.defi, P.defi, d.defi ? 'réussi ✓' : '')}${case_('Atelier', at, P.atelier * d.atelier.length, d.atelier.map((x) => x.points).join(' · '))}</div>
+      <div class="pts-cases">${case_('Journées', d.journees, 7 * P.journee, a.journee ? 'faite auj. ✓' : `${P.journee} par jour`)}${case_('Événements', d.evenements, 7 * P.evenementsJour, `auj. ${a.evenements}/${P.evenementsJour}`)}${case_('Améliorations', d.ameliorations, 7 * P.ameliorationsJour, `auj. ${a.ameliorations}/${P.ameliorationsJour}`)}${case_('Défi de la semaine', d.defi, P.defi, d.defi ? 'réussi ✓' : '')}${case_('Atelier', at, P.atelier * d.atelier.length, d.atelier.map((x) => x.points).join(' · '))}</div>
       <details class="pts-bareme"><summary><span>Comment marquer des points ?</span><i class="ico chev">${ICONS.UI.chevron}</i></summary><ul>
         <li><b>${P.journee} pts</b> par journée complète : les trois objectifs du jour réclamés.</li>
         <li><b>${P.defi} pts</b> pour le défi de la semaine.</li>
@@ -7097,9 +7826,9 @@ const UI = (() => {
       : '<div class="cl-squelette" role="status" aria-label="Chargement du classement"><i></i><i></i><i></i><span>On compte les euros de chacun…</span></div>';
     const ferme = c && c.etat === 'pas-ouvert';
     // pas encore inscrit : l'invitation en haut, avant la liste ; inscrit : son pseudo et ses réglages en bas
-    const invitation = ferme || r.rejoint ? '' : `<div class="cl-invitation"><p>Ton pseudo, tes points et ta fortune seront visibles de tous ceux qui ont le lien du jeu. Tu pourras quitter le classement quand tu veux, depuis les Réglages.</p><button type="button" class="btn large beurre" data-a="cl-rejoindre"><b>Rejoindre le classement</b></button></div>`;
-    const pied = ferme || !r.rejoint ? '' : `<p class="cl-moi">Tu joues sous le pseudo <b>${esc(r.pseudo)}</b>.</p><button type="button" class="btn large clair" data-a="cl-pseudo"><b>Changer de pseudo</b></button>`;
-    dernierHtmlCl = `<div class="cl" data-cl="liste"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>Classement</h2><p class="sous">En points de boulanger : la façon de jouer, pas la fortune. Chaque semaine, les trois premiers gagnent une tenue et une coupe.</p></div></div>${invitation}${seg}${corps}${blocPoints()}${pied}${btnRetour()}</div>`;
+    const invitation = ferme || r.rejoint ? '' : `<div class="cl-invitation"><p>Ton pseudo, tes points et ta fortune seront visibles de tous ceux qui ont le lien du jeu. Tu pourras quitter le classement quand tu veux.</p><button type="button" class="btn large beurre" data-a="cl-rejoindre"><b>Rejoindre le classement</b></button></div>`;
+    const pied = ferme || !r.rejoint ? '' : `<p class="cl-moi">Tu joues sous le pseudo <b>${esc(r.pseudo)}</b>.</p><button type="button" class="btn large clair" data-a="cl-pseudo"><b>Changer de pseudo</b></button><button type="button" class="lien cl-quitter" data-a="cl-quitter">Quitter le classement</button>`;
+    dernierHtmlCl = `<div class="cl" data-cl="liste"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>Classement</h2><p class="sous">Les boulangers qui ont le lien du jeu, classés en points de boulanger : la façon de jouer, pas la fortune. Chaque semaine, les trois premiers gagnent une tenue et une coupe.</p></div></div>${carteRecompenses()}${blocPoints()}${invitation}${seg}${corps}${pied}${btnRetour()}</div>`;
     return dernierHtmlCl;
   }
   function listeClassement(d, r) {
@@ -7134,8 +7863,8 @@ const UI = (() => {
     on('[data-a="cl-reessayer"]', () => { son.tap(); classement.ouvrir(ongletCl); });
     on('[data-a="cl-rejoindre"]', () => { son.tap(); sheetPseudo(false); });
     on('[data-a="cl-pseudo"]', () => { son.tap(); sheetPseudo(true); });
-    on('[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(); });
-    on('[data-a="cl-recompenses"]', () => { son.tap(); sheetRecompenses(); });
+    on('[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(true); });
+    on('[data-a="cl-recompenses"]', () => { son.tap(); sheetRecompenses(true); });
     on('[data-a="close"]', closeSheet);
   }
   // ─── les récompenses du podium : chaque semaine, les trois premiers gagnent une tenue (toque et tablier) et une coupe, or, argent ou bronze ───
@@ -7186,7 +7915,7 @@ const UI = (() => {
     on('[data-a="rec-collection"]', () => { son.tap(); fin(); sheetRecompenses(); });
     const surFermeture = setInterval(() => { if (feuille.hidden || vueCl !== 'annonce') { fin(); clearInterval(surFermeture); } }, 500);
   }
-  // l'entrée « Mes récompenses », dans l'onglet Boulanger (seulement après un premier podium)
+  // l'entrée « Mes récompenses », en tête de la feuille du classement et dans l'onglet Boulanger (seulement après un premier podium)
   const cleRecompenses = () => { const r = recVue(); return r ? `${r.podiums.length}|${G.toqueMetal(st)}` : ''; };
   function carteRecompenses() {
     const r = recVue(); if (!r || !r.podiums.length) return '';
@@ -7195,7 +7924,7 @@ const UI = (() => {
     return `<button type="button" class="rec-entree" data-a="cl-recompenses"><span class="rec-minis" aria-hidden="true">${dernieres}</span><span><b>Mes récompenses</b><small>${n} coupe${n > 1 ? 's' : ''} · ${porte}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>`;
   }
   // la collection : chaque coupe et sa tenue, avec sa semaine ; la tenue se choisit pièce par pièce dans la garde-robe (onglet Boulanger)
-  function sheetRecompenses() {
+  function sheetRecompenses(depuisCl) { // depuisCl : ouverte depuis la feuille du classement, on y revient
     if (!classement) return;
     const r = recVue(), tm = G.toqueMetal(st), tenue = tenueVue();
     for (const m of r.coupes) G.donnerCollection(st, m); // au cas où la garde-robe n'aurait pas encore reçu un podium
@@ -7207,9 +7936,10 @@ const UI = (() => {
       <h3 class="titre-section" id="rec-titre-tenue">La tenue du boulanger</h3>
       <div class="rec-apercu" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), tenue)}<span>${tm ? `Il porte la toque ${DE_METAL[tm]}` : 'Il porte la toque blanche'}${pieces ? ` : ${pieces}.` : '.'}</span></div>
       <button type="button" class="btn large clair" data-a="rec-garderobe" style="margin-top:8px"><b>Ouvrir la garde-robe</b></button>` : ''}
-      ${btnRetour()}</div>`);
+      ${depuisCl ? '<button type="button" class="btn large sombre" data-a="cl-retour" style="margin-top:14px"><b>Retour au classement</b></button>' : btnRetour()}</div>`);
     vueCl = 'recompenses';
     on('[data-a="rec-garderobe"]', () => { son.tap(); if (GRU) GRU.ouvrir(ctxGarderobe(), 'tete'); });
+    on('[data-a="cl-retour"]', () => { son.tap(); sheetClassement(); });
     on('[data-a="close"]', closeSheet);
   }
   // rejoindre (la première fois) ou changer de pseudo : validation en direct, « déjà pris » après l'envoi
@@ -7255,7 +7985,7 @@ const UI = (() => {
     champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') valider(); });
     setTimeout(() => { try { champ.focus(); if (changer) champ.select(); } catch (e) { /* rien */ } }, 50);
   }
-  function sheetQuitter() {
+  function sheetQuitter(depuisCl) { // depuisCl : ouverte depuis la feuille du classement, on y revient ; depuis les Réglages, on referme
     const r = classement.resume();
     openSheet(`<div class="cl" data-cl="quitter"><h2>Quitter le classement ?</h2><p class="sous">«\u00A0${esc(r.pseudo)}\u00A0» et ta fortune disparaissent du classement. Ta boutique ne change pas, et tu pourras revenir quand tu veux.</p>
       <button type="button" class="btn large rouge" data-a="cl-oui"><b>Oui, quitter le classement</b></button>
@@ -7263,12 +7993,12 @@ const UI = (() => {
       <p id="cl-aide" class="cl-aide" aria-live="polite"></p></div>`);
     vueCl = 'quitter';
     let envoi = false;
-    on('[data-a="cl-non"]', closeSheet);
+    on('[data-a="cl-non"]', () => (depuisCl ? sheetClassement() : closeSheet()));
     on('[data-a="cl-oui"]', async (b) => {
       if (envoi) return; envoi = true; b.classList.add('non'); b.querySelector('b').textContent = 'Un instant…';
       const res = await classement.quitter(); envoi = false;
       const ici = vueCl === 'quitter' && fc.contains(b);
-      if (res.etat === 'ok') { toast('Tu as quitté le classement. À bientôt !'); if (ici) closeSheet(); majCoin(); lastPage = ''; renderPage(true); return; }
+      if (res.etat === 'ok') { toast('Tu as quitté le classement. À bientôt !'); if (ici) { if (depuisCl) sheetClassement(); else closeSheet(); } majCoin(); lastPage = ''; renderPage(true); return; }
       son.non(); b.classList.remove('non'); b.querySelector('b').textContent = 'Oui, quitter le classement';
       if (!ici) { toast(msgReseau(res.etat)); return; }
       const aide = fc.querySelector('#cl-aide'); aide.textContent = msgReseau(res.etat); aide.className = 'cl-aide erreur';
@@ -7279,7 +8009,7 @@ const UI = (() => {
   function frame(now) {
     if (retourEnCours) { lastFrame = now; requestAnimationFrame(frame); return; } // l'absence n'est pas encore comptée : rien ne bouge
     const dt = Math.min(0.25, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
-    const planque = !!(EVT && EVT.ouvert), atelier = MINIJEUX.ouvert || planque; // pendant l'Atelier ou la Planque : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran de jeu
+    const planque = !!(EVT && EVT.ouvert), atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert); // pendant l'Atelier ou la Planque : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran de jeu
     if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); }
     const out = G.tick(st, dt, HORLOGE.maintenant(), atelier ? () => 0.999 : undefined);
     if (out.ventes.length) {
@@ -7300,7 +8030,7 @@ const UI = (() => {
     const nv = G.niveau(st);
     if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); feter(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
     renderCards(); hud(); renderObjectifs(); renderEvenement(); renderPage();
-    if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant()); // l'écran de l'Atelier couvre la boutique : la 3D attend
+    if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant()); // l'écran de l'Atelier (ou de l'arrière-salle) couvre la boutique : la 3D attend
     if (planque) EVT.frame(dt, HORLOGE.maintenant()); // la Planque de l'événement vit tant qu'elle est ouverte (fermée, elle rattrape une absence)
     renderBoosts();
     indices();
@@ -7355,12 +8085,16 @@ const UI = (() => {
     $('#boosts').addEventListener('click', () => { audio(); son.tap(); lancerBoost(); });
     // l'événement « Le Quartier » : la Planque, ses paliers et leurs récompenses, l'annonce, le bilan (src/evenement.js)
     if (EVT) EVT.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), sure: () => { try { const e = HORLOGE.etat(); return e ? e.sure : null; } catch (e) { return null; } }, save, toast, fete: () => SCENE.fete(), openSheet, closeSheet, on, recompenses: recVue,
+      classement: () => sheetClassement('quartier'), rangQuartier: () => { try { if (!classement || !classement.disponible() || !periodes().some(([id]) => id === 'quartier')) return null; const r = classement.resume(); return r.rejoint && r.quartier ? r.quartier.rang : 0; } catch (e) { return null; } },
       ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); majCoin(); renderCards(true); hud(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); lastPage = ''; renderPage(true); } });
     buildCards();
     MINIJEUX.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), fete: () => SCENE.fete(),
       ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); save(); renderPage(true); } });
+    if (AR) AR.init({ st: () => st, son, buzz, audio, save,
+      ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); renderCards(true); hud(); lastPage = ''; renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
+      apres: () => { hud(); } });
     document.querySelectorAll('.modes button').forEach((b) => { b.classList.toggle('actif', String(st.mode) === b.dataset.mode); b.addEventListener('click', () => { st.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; document.querySelectorAll('.modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCards(true); save(); }); });
     $('#cartes').addEventListener('click', onCardClick);
     $('#b-ameliorations').addEventListener('click', () => { audio(); sheetAmeliorations(); });
@@ -7374,10 +8108,12 @@ const UI = (() => {
       audio();
       const r = $('#scene').getBoundingClientRect();
       const sx = e.clientX - r.left, sy = e.clientY - r.top;
+      const porte = !SCENE.amenager && SCENE.hitArriere && SCENE.hitArriere(sx, sy); if (!porte) toquees = []; // la petite porte du fond : cinq touches de suite
       if (SCENE.hit(sx, sy)) { const tip = G.encaisserPourboire(st); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
       else if (SCENE.hitChat && SCENE.hitChat(sx, sy)) caresserChat(); // le chat dort dans la zone du boulanger : il passe avant
       else if (classement && SCENE.hitTrophees && SCENE.hitTrophees(sx, sy)) { son.tap(); sheetRecompenses(); } // la vitrine des trophées, la coupe du comptoir
       else if (SCENE.hitBoulanger(sx, sy)) showPage('boulanger');
+      else if (porte) toquer(sx, sy);
       else { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) sheetMeuble(id); else SCENE.tap(); }
     });
     // au retour dans le jeu : une heure sûre fraîche (2,5 s au plus) avant de compter l'absence ; le jeu attend, sans rien sauver entre-temps
@@ -7398,7 +8134,7 @@ const UI = (() => {
     absencePrete = true;
     HORLOGE.surSaut(payerSaut);
     if (EVT) { setTimeout(() => { if ($('#feuille').hidden) EVT.annoncer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVT.annoncer(); } }, 1500); } }, 800); } // l'annonce du Quartier (ou son bilan) attend que la feuille du retour soit refermée
-    if (EVT) setInterval(() => { majCoinQuartier(); if (!EVT.ouvert && !MINIJEUX.ouvert && !document.hidden && $('#feuille').hidden) EVT.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
+    if (EVT) setInterval(() => { majCoinQuartier(); if (!EVT.ouvert && !MINIJEUX.ouvert && !(AR && AR.ouvert) && !document.hidden && $('#feuille').hidden) EVT.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), maintenant: () => HORLOGE.maintenant() }) : null; } catch (e) { classement = null; }
@@ -7411,7 +8147,8 @@ const UI = (() => {
     window.__fournil = { get st() { return st; }, G, SCENE, save, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
-      quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin };
+      quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin,
+      arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false), fermerArriere: () => { if (AR) AR.fermer(); }, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);
