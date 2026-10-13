@@ -12,7 +12,7 @@ const EVENEMENT = (() => {
   const st = () => d.st();
   const now = () => d.maintenant();
   const q = () => Q.etat(st(), now());
-  const fen = () => Q.fenetre(now());
+  const fen = () => Q.fenetreSure(now(), d.sure ? d.sure() : null); // l'ouverture sur l'heure sûre (une horloge avancée hors ligne n'ouvre rien avant midi)
   const fmt = Q ? Q.fmtEur : (n) => String(n);
 
   function init(deps) {
@@ -32,7 +32,10 @@ const EVENEMENT = (() => {
   }
   const ouvert = () => !!el && !el.hidden;
   // ce que l'icône du coin et l'annonce décident : l'événement est-il visible ? (fenêtre ouverte, pas masqué dans les Réglages)
-  function visible() { if (!Q || !st()) return false; const qq = st().quartier; return fen().ouvert && !(qq && qq.masque); }
+  // window.__sansQuartier : un interrupteur des tests Playwright qui ne parlent pas de l'événement (posé par addInitScript) : pendant la
+  // fenêtre, ni icône ni annonce ni bilan ne viennent couvrir ce qu'ils regardent. Personne ne le pose dans le jeu.
+  const coupe = () => typeof window !== 'undefined' && !!window.__sansQuartier;
+  function visible() { if (!Q || !st() || coupe()) return false; const qq = st().quartier; return fen().ouvert && !(qq && qq.masque); }
   function masquer(on) { const qq = q(); qq.masque = !!on; d.save(); if (qq.masque && ouvert()) fermer(); }
   function majeur() { return !!(st() && st().quartier && st().quartier.majeur); }
 
@@ -68,9 +71,9 @@ const EVENEMENT = (() => {
 
   // ─── ouvrir : l'annonce, la porte 18+, la Planque, le bilan ───
   function annoncer() { // le premier jour (ou au premier lancement pendant l'événement) : une fois ; après la fin : le bilan, une fois
-    const s = st(); if (!s || !Q) return false;
+    const s = st(); if (!s || !Q || coupe()) return false;
     const f = fen(), qq = s.quartier;
-    if (f.fini) { if (qq && qq.total > 0 && !qq.bilan && !ouvert()) { ouvrir(); return true; } return false; }
+    if (f.fini) { if (qq && qq.total > 0 && !qq.bilan && !qq.masque && !ouvert()) { ouvrir(); return true; } return false; } // masqué : pas de bilan qui surgit
     if (!f.ouvert || (qq && (qq.masque || qq.annonce)) || !$('#feuille').hidden || ouvert()) return false;
     const neuf = q(); neuf.annonce = true; d.save();
     d.openSheet(`<div class="pq-sheet pq-annonce"><div class="pq-annonce-scene"><span class="pq-pic grand">${ICONS.QUARTIER.porte}</span></div>
@@ -130,6 +133,14 @@ const EVENEMENT = (() => {
     if (d.ferme) d.ferme();
   }
 
+  // au retour dans le jeu (téléphone verrouillé, autre appli) la Planque encore ouverte : les apprentis ont bossé, au ralenti, comme à l'entrée
+  function retour() {
+    if (ecran !== 'planque') return null;
+    const qq = q(), t = now(); if (Q.fenetre(t).fini) return null; // fini : la boucle ferme et montre le bilan
+    const abs = Q.absence(qq, t); renderEv();
+    if (abs.total > 0 && abs.secs > 90) d.toast(`Pendant ton absence (${G.fmtDuree(abs.secs)}) : +${fmt(abs.total)} de billets, au ralenti sans le boss.`);
+    return abs;
+  }
   // ─── la boucle : appelée chaque image par ui.js tant que la Planque est ouverte ───
   function frame(dt, t) {
     if (ecran !== 'planque') return;
@@ -152,7 +163,7 @@ const EVENEMENT = (() => {
     const cle = `${fmt(qq.billets)}|${fmt(taux)}|${Q.fmtReste(f.reste)}|${nb}|${f.jour}`;
     if (cle === lastHud) return; lastHud = cle;
     $('#pq-billets').textContent = fmt(qq.billets);
-    $('#pq-taux').innerHTML = taux > 0 ? `<b>+${fmt(taux)}</b> par seconde · le boss est là ×${Q.PRESENCE}` : `Touche un produit pour vendre · le boss est là ×${Q.PRESENCE}`;
+    $('#pq-taux').innerHTML = taux > 0 ? `<b>+${fmt(taux)}</b>/s · le boss est là ×${Q.PRESENCE}` : `Touche un produit pour vendre · le boss est là ×${Q.PRESENCE}`;
     $('#pq-reste').textContent = `Ferme dans ${Q.fmtReste(f.reste)}`;
     $('#pq-sous').textContent = `Jour ${f.jour} sur ${f.jours}`;
     const bp = el.querySelector('[data-pq="paliers"]'); bp.querySelector('b').textContent = `${nb}/12`; bp.classList.toggle('pret', Q.paliersDus(qq).length > 0);
@@ -374,5 +385,5 @@ const EVENEMENT = (() => {
     };
   }
 
-  return { init, ouvrir, fermer, annoncer, frame, visible, masquer, majeur, synchroniserRecompenses, donnerPalier, sheetPaliers, get ouvert() { return ouvert(); }, get ecran() { return ecran; }, get scene() { return scene3; } };
+  return { init, ouvrir, fermer, annoncer, frame, retour, visible, masquer, majeur, synchroniserRecompenses, donnerPalier, sheetPaliers, get ouvert() { return ouvert(); }, get ecran() { return ecran; }, get scene() { return scene3; } };
 })();

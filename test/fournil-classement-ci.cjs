@@ -238,7 +238,7 @@ function arreter(message, conclusion) {
     }
     r = await rpc('fournil_classement', { p_periode: 'total', p_id: A.id, p_limite: 100 });
     const t = r.data || {}, tl = t.lignes || [];
-    check(r.statut === 200 && t.version === 3 && t.moi && t.moi.points === 12 && t.moi.valeur === 0 && t.moi.podium === null && t.joueurs >= 2 && tl.length <= 100, `tous les temps : A s'y retrouve avec 12 points et 0 € (son arrivée), sans toque (« moi » = ${JSON.stringify(t.moi)}, ${t.joueurs} joueurs)`);
+    check(r.statut === 200 && t.version === 4 && t.moi && t.moi.points === 12 && t.moi.valeur === 0 && t.moi.podium === null && t.joueurs >= 2 && tl.length <= 100, `tous les temps : A s'y retrouve avec 12 points et 0 € (son arrivée), sans toque (« moi » = ${JSON.stringify(t.moi)}, ${t.joueurs} joueurs)`);
     check(tl.every((x) => Object.keys(x).sort().join() === 'moi,podium,points,pseudo,rang,valeur' && Number.isInteger(x.points) && (x.podium === null || [1, 2, 3].includes(x.podium)))
       && tl.every((x, k) => k === 0 || tl[k - 1].points >= x.points)
       && !/"jeton"|"id"/.test(r.texte) && !r.texte.includes(A.id) && !r.texte.includes(A.jeton), 'les lignes : rang, pseudo, points, valeur, moi, podium (1, 2, 3 ou rien), rangées aux points — ni identifiant ni jeton');

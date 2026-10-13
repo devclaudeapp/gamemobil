@@ -27,6 +27,19 @@ check(f.fini && !f.ouvert && f.reste === 0 && f.classement, 'à la fin : fini (l
 check(!Q.fenetre(Q.CLASSEMENT_JUSQUA).classement && Q.fenetre(Q.CLASSEMENT_JUSQUA - 1).classement, 'l’onglet Événement du classement s’efface deux semaines après la fin');
 check(Q.dayKey(Date.parse('2026-10-25T23:30:00Z')) === '2026-10-26' && Q.dayKey(Date.parse('2026-10-24T22:30:00Z')) === '2026-10-25', 'les jours sont ceux de Paris (23 h 30 UTC le 25 = 0 h 30 le 26, heure d’hiver)');
 
+console.log('── l’horloge avancée hors ligne n’ouvre rien avant midi (fenetreSure) ; les billets partent jusqu’à la fin de la grâce ──');
+f = Q.fenetreSure(Q.DEBUT + 3600e3, Q.DEBUT - 5 * 3600e3);
+check(f.avant && !f.ouvert && f.dans === 5 * 3600e3, 'le téléphone dit 13 h, la dernière heure sûre 7 h : la Planque reste fermée');
+check(Q.fenetreSure(Q.DEBUT + 3600e3, Q.DEBUT + 3600e3).ouvert && Q.fenetreSure(Q.DEBUT + 3600e3, null).ouvert, 'heure sûre après midi, ou aucune heure sûre (artefact) : ouvert');
+check(Q.fenetreSure(Q.FIN + 1, Q.DEBUT - 1).fini, 'la fin se lit sur le « maintenant » du jeu');
+check(!Q.envoiBillets(Q.DEBUT - 1) && Q.envoiBillets(Q.DEBUT) && Q.envoiBillets(Q.FIN + 3599e3) && !Q.envoiBillets(Q.FIN + 3600e3), 'les billets partent de l’ouverture à la fin + 1 h (l’heure de grâce du serveur)');
+{ // le même scénario avec la vraie horloge de confiance : dernière heure sûre à 7 h, le téléphone remis à 13 h, hors ligne
+  const H = require('../src/horloge.js'); let tel = Q.DEBUT - 5 * 3600e3, perf = 0;
+  const m = H.creer({ tel: () => tel, perf: () => perf }); m.noterHeureSure(tel, 0, 'test'); m.demarrer();
+  const m2 = H.creer({ tel: () => tel, perf: () => perf }); m2.charger(m.etat()); tel = Q.DEBUT + 3600e3; m2.demarrer();
+  check(m2.maintenant() === Q.DEBUT + 3600e3 && Q.fenetre(m2.maintenant()).ouvert && !Q.fenetreSure(m2.maintenant(), m2.etat().sure).ouvert, 'HORLOGE accorde l’avance hors ligne, mais fenetreSure garde la porte fermée');
+}
+
 console.log('── la Planque : état, produits, postes ──');
 const now0 = Q.DEBUT + 3600e3;
 let st = {}, q = Q.etat(st, now0);

@@ -72,6 +72,7 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
 
 (async () => {
   const browser = await chromium.launch();
+  { const nc = browser.newContext.bind(browser); browser.newContext = async (o) => { const c = await nc(o); await c.addInitScript(() => { window.__sansQuartier = true; }); return c; }; } // pendant sa fenêtre, l'événement « Le Quartier » (icône, annonce) ne vient pas couvrir ce test (src/evenement.js)
   const errors = [];
   const suivre = (p) => {
     p.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });
@@ -95,7 +96,7 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
   await sleep(900);
   const an = await p.evaluate(() => { const f = document.querySelector('#feuille-contenu'), c = f.querySelector('.rec-coupe svg'), ray = f.querySelector('.rec-rayons'); return { h2: f.querySelector('h2').textContent, phrase: f.querySelector('.rec-phrase').textContent, sous: f.querySelector('.sous').textContent, anim: c ? getComputedStyle(c).animationName : '', rayons: ray ? getComputedStyle(ray).animationName : '', metal: f.querySelector('.rec-scene').className, boutons: [...f.querySelectorAll('button')].map((b) => [b.innerText.trim(), Math.round(b.getBoundingClientRect().height)]) }; });
   check(an.h2 === 'Bravo ! 2e de la semaine' && an.phrase === 'La tenue d’argent et la coupe d’argent sont à toi.', `l’annonce : « ${an.h2} » « ${an.phrase} »`);
-  check(/ton boulanger porte la tenue d’argent toute cette semaine/.test(an.sous) && /Et 2 autres podiums t’attendaient/.test(an.sous), 'la suite : la tenue portée cette semaine, la coupe sur le comptoir, et les deux autres podiums retrouvés');
+  check(/ton boulanger porte la tenue d’argent cette semaine/.test(an.sous) && /Et 2 autres podiums t’attendaient/.test(an.sous), 'la suite : la tenue portée cette semaine, la coupe sur le comptoir, et les deux autres podiums retrouvés');
   check(/jaillit/.test(an.anim) && an.rayons === 'rayons' && /argent/.test(an.metal) && an.boutons.length === 2 && an.boutons.every(([, h]) => h >= 44), `un petit effet (la coupe jaillit, les rayons tournent, ${an.boutons.map(([t]) => t).join(' / ')})`);
   check((await local(p)).recompenses.vu === semaineAvant(1) && (await local(p)).recompenses.podiums.length === 3, 'l’annonce est notée (vu = la semaine passée), les trois podiums écrits sur le téléphone');
   await p.screenshot({ path: out + '/01-annonce.png' });
@@ -189,7 +190,7 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
   check(await attendre(() => p.evaluate(() => !!document.querySelector('#feuille-contenu [data-cl="annonce"]')), 8000), 'un podium d’il y a deux semaines, jamais annoncé : l’annonce s’ouvre');
   await sleep(900);
   const vieux = await p.evaluate(() => ({ h2: document.querySelector('#feuille-contenu h2').textContent, sous: document.querySelector('#feuille-contenu .sous').textContent, large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1 && document.documentElement.scrollWidth <= innerWidth + 1, bas: [...document.querySelectorAll('#feuille-contenu button')].every((b) => b.getBoundingClientRect().bottom <= innerHeight) }));
-  check(vieux.h2 === 'Bravo ! 1er de la semaine' && /la coupe a rejoint ta vitrine des trophées/.test(vieux.sous) && !/toute cette semaine/.test(vieux.sous), '« ' + vieux.h2 + ' » : la coupe va dans la vitrine, la tenue dans la collection (pas d’office)');
+  check(vieux.h2 === 'Bravo ! 1er de la semaine' && /la coupe est dans ta vitrine/.test(vieux.sous) && !/cette semaine/.test(vieux.sous), '« ' + vieux.h2 + ' » : la coupe va dans la vitrine, la tenue dans la collection (pas d’office)');
   check(vieux.large && vieux.bas, 'à 360 × 640 : l’annonce tient dans l’écran, boutons compris, sans défilement de côté');
   await p.screenshot({ path: out + '/09-annonce-360.png' });
   check(JSON.stringify(await vues(p)) === JSON.stringify({ tenue: null, coupe: null, coupes: 1 }), 'la semaine d’après la suivante : tenue blanche, rien sur le comptoir, la coupe d’or dans la vitrine');

@@ -1193,6 +1193,62 @@ function trajectoirePoints(profil, jours, t0, cadence) {
   }
 
 
+  // ─── 24 bis. la version 4 par-dessus la version 3 telle que collée sur Supabase (test/fournil-classement-v3.sql) : rien ne se perd ───
+  titre('recoller la version 4 par-dessus la version 3 (joueurs, points, palmarès)');
+  {
+    const V3 = fs.readFileSync(path.join(__dirname, 'fournil-classement-v3.sql'), 'utf8');
+    const db3 = await PGlite.create();
+    const s3 = async (sql, p) => (await db3.query(sql, p)).rows;
+    const c3 = async (sql, p) => { await db3.exec('set role anon'); try { return (await db3.query(sql, p)).rows[0].r; } finally { await db3.exec('reset role'); } };
+    const coller3 = async (texte) => { await db3.exec('set role proprio'); try { await db3.exec(texte); } finally { await db3.exec('reset role'); } };
+    await db3.exec(`
+      create role anon nologin noinherit; create role authenticated nologin noinherit; create role service_role nologin noinherit bypassrls;
+      create role proprio nologin createrole;
+      grant usage, create on schema public to proprio;
+      grant usage on schema public to anon, authenticated, service_role;
+      set role proprio;
+      alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+      alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+      reset role;
+      create schema banc; create table banc.horloge (t timestamptz); insert into banc.horloge values (null);
+      grant usage on schema banc to proprio; grant select on banc.horloge to proprio;`);
+    const horloge3 = async (iso) => { await s3(`create or replace function public.fournil_maintenant() returns timestamptz language sql stable set search_path = '' as $$ select coalesce((select t from banc.horloge limit 1), now()) $$`); await s3('update banc.horloge set t = $1', [iso]); };
+    const v3 = (j, pseudo, f, points, lundi) => c3('select public.fournil_publier(p_id => $1, p_jeton => $2, p_pseudo => $3, p_fortune => $4, p_points => $5, p_lundi => $6) as r', [j.id, j.jeton, pseudo, String(f), String(points), lundi]);
+    const v4 = (j, pseudo, f, points, lundi, billets) => c3('select public.fournil_publier(p_id => $1, p_jeton => $2, p_pseudo => $3, p_fortune => $4, p_points => $5, p_lundi => $6, p_quartier => $7) as r', [j.id, j.jeton, pseudo, String(f), String(points), lundi, String(billets)]);
+    const [Ines, Hugo, Zoe] = [joueur(), joueur(), joueur()], noms = ['Inès', 'Hugo', 'Zoé'];
+    try { await coller3(V3); check(true, 'la version 3 (celle collée sur Supabase) s’installe'); } catch (err) { check(false, 'la version 3 s’installe : ' + err.message); }
+    await horloge3('2026-10-07T10:00:00Z');
+    for (const [k, j] of [Ines, Hugo, Zoe].entries()) await v3(j, noms[k], 1e9, 10, '2026-10-05');
+    await horloge3('2026-10-07T11:00:00Z');
+    for (const [k, j] of [Ines, Hugo, Zoe].entries()) await v3(j, noms[k], 1e9 + 1e6, 10 + 10 * (3 - k), '2026-10-05');
+    await horloge3('2026-10-12T08:00:00Z'); // lundi : la semaine du 5 est figée aux points par la version 3
+    await c3('select public.fournil_heure() as r');
+    await v3(Ines, noms[0], 1e9 + 2e6, 10, '2026-10-12');
+    const photo = async () => JSON.stringify([await s3('select id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj, points, points_total, points_jour from public.fournil_joueurs order by id'), await s3('select semaine, rang, id, pseudo, valeur, points from public.fournil_palmares order by semaine, id'), await s3('select * from public.fournil_semaines order by semaine')]);
+    const avant = await photo(), palAvant = (await s3(`select rang, pseudo, points from public.fournil_palmares where semaine = '2026-10-05' order by rang`)).map((x) => `${x.rang} ${x.pseudo} ${x.points}`).join(', ');
+    check(palAvant === '1 Inès 40, 2 Hugo 30, 3 Zoé 20', `en version 3 : trois joueurs, des points, un palmarès figé aux points (${palAvant})`);
+    try { await coller3(SQL); check(true, 'la version 4 se colle telle quelle par-dessus la version 3'); } catch (err) { check(false, 'la version 4 se colle par-dessus la version 3 : ' + err.message); }
+    await horloge3('2026-10-12T08:00:00Z');
+    check(await photo() === avant, 'rien ne se perd : joueurs (pseudo, jeton, argent, points de la semaine et depuis l’arrivée), palmarès et semaines figées de la version 3 intacts');
+    const q0 = await s3('select quartier, quartier_maj from public.fournil_joueurs order by id');
+    check(q0.length === 3 && q0.every((x) => x.quartier === 0 && x.quartier_maj === null), 'les billets du quartier partent de zéro pour tous');
+    const fns = (await s3(`select pg_get_function_identity_arguments(oid) as a from pg_proc where proname = 'fournil_publier' and pronamespace = 'public'::regnamespace`)).map((x) => x.a);
+    check(fns.length === 1 && /p_quartier/.test(fns[0]), `une seule fournil_publier (l’ancienne signature de la v3 est retirée : pas d’appel ambigu) (${fns.join(' | ')})`);
+    let r = await v3(Hugo, noms[1], 1e9 + 3e6, 20, '2026-10-12');
+    check(r.ok === true && r.version === 4 && r.points_semaine === 20, `un téléphone encore en version 3 (sans p_quartier) continue d’envoyer : accepté (${JSON.stringify({ ok: r.ok, v: r.version, points: r.points_semaine })})`);
+    const rec = await c3('select public.fournil_recompenses(p_id => $1, p_jeton => $2) as r', [Ines.id, Ines.jeton]);
+    check(rec.ok && JSON.stringify(rec.podiums) === JSON.stringify([{ semaine: '2026-10-05', rang: 1 }]) && rec.quartier === null, `Inès garde son podium d’or du 5 octobre ; pas encore de rang du quartier (${JSON.stringify(rec.podiums)})`);
+    await horloge3('2026-10-13T12:00:00Z'); // mardi 13 à 14 h, heure de Paris : l'événement est ouvert
+    r = await v4(Zoe, noms[2], 1e9 + 4e6, 10, '2026-10-12', 5e6);
+    const cq = await c3('select public.fournil_classement(p_periode => $1, p_id => $2) as r', ['quartier', Zoe.id]);
+    check(r.ok === true && cq.moi && cq.moi.rang === 1 && cq.moi.valeur === 5e6, `puis un téléphone en version 4 envoie ses billets : comptés, classement « quartier » (${JSON.stringify(cq.moi)})`);
+    const pts = await c3('select public.fournil_classement(p_periode => $1, p_id => $2) as r', ['total', Ines.id]);
+    check(pts.moi && pts.moi.points === 50, `les points depuis l’arrivée d’Inès sont toujours là (${pts.moi && pts.moi.points})`);
+    try { await coller3(SQL); check(true, 'et la version 4 se recolle encore par-dessus elle-même'); } catch (err) { check(false, 'la version 4 se recolle : ' + err.message); }
+    check((await s3('select quartier from public.fournil_joueurs where id = $1', [Zoe.id]))[0].quartier === 5e6, 'les billets restent après un nouveau collage');
+    await db3.close();
+  }
+
   // ─── 25. l'événement « Le Quartier » : les billets, l'enveloppe, le classement à part, le podium final ───
   titre('l’événement « Le Quartier » (version 4)');
   {

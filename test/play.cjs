@@ -18,6 +18,7 @@ const attendreToast = async (p, re, ms = 5000) => { let vu = ''; for (let t = 0;
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
 (async () => {
   const browser = await chromium.launch();
+  { const nc = browser.newContext.bind(browser); browser.newContext = async (o) => { const c = await nc(o); await c.addInitScript(() => { window.__sansQuartier = true; }); return c; }; } // pendant sa fenêtre, l'événement « Le Quartier » (icône, annonce) ne vient pas couvrir ce test (src/evenement.js)
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris' });
   page = await context.newPage();
   const errors = [];
@@ -382,6 +383,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await p2.evaluate(() => window.__fournil.tiroir('ferme')); await sleep(400); await p2.screenshot({ path: out + '/10b-petit-ecran-entier.png' });
   // sans WebGL : la boutique vit sans image, le jeu reste jouable
   const b3 = await chromium.launch({ args: ['--disable-webgl', '--disable-webgl2'] });
+  { const nc = b3.newContext.bind(b3); b3.newContext = async (o) => { const c = await nc(o); await c.addInitScript(() => { window.__sansQuartier = true; }); return c; }; } // pendant sa fenêtre, l'événement « Le Quartier » (icône, annonce) ne vient pas couvrir ce test (src/evenement.js)
   const p3 = await (await b3.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR' })).newPage();
   const err3 = []; p3.on('pageerror', (e) => err3.push(e.message));
   await p3.goto('http://localhost:8781/fournil/'); await sleep(1500);

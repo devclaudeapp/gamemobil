@@ -12,7 +12,7 @@ const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const Q = require('../src/quartier.js'), CL = require('../src/classement.js');
 const root = path.join(__dirname, '..');
-const PORT = +process.env.PORT_QUARTIER || 8864, SUPA = 'https://jklbitrlkfrktmnarejc.supabase.co';
+const PORT = +process.env.PORT_QUARTIER || 8865, SUPA = 'https://jklbitrlkfrktmnarejc.supabase.co';
 const out = path.join(__dirname, 'shots', 'quartier'); fs.mkdirSync(out, { recursive: true });
 const out2 = process.env.SHOTS_QUARTIER ? (fs.mkdirSync(process.env.SHOTS_QUARTIER, { recursive: true }), process.env.SHOTS_QUARTIER) : null;
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
@@ -138,7 +138,7 @@ async function gerer(route) {
   s = await qst();
   check(s.postes[1][0] === 1 && s.postes[0][1] === true && s.stats.embauches === 1, 'le shit débloqué, Guetteur Kévin embauché sur l’herbe');
   await sleep(1600); s = await qst(); p = await planque();
-  check(s.stats.ventes > 1 && /par seconde/.test(p.taux), `l'apprenti vend tout seul : ${p.taux}`);
+  check(s.stats.ventes > 1 && /\/s · le boss/.test(p.taux), `l'apprenti vend tout seul : ${p.taux}`);
   await clic('[data-pq="ameliorations"]'); await sleep(300);
   check(/Les combines/.test(await feuille()) && /Sachets zippés/.test(await feuille()), 'la feuille des combines (améliorations)');
   await ev(() => { window.__fournil.st.quartier.billets += 1e5; });
@@ -218,6 +218,11 @@ async function gerer(route) {
   const gagne = s.billets - bAv, attendu = tauxQ * 8 * 3600 * Q.ABSENCE_PART;
   check(s.billets > bAv && Math.abs(gagne - attendu) / attendu < 0.05, `30 h d'absence : ${Q.fmt(gagne)} € de billets, soit 8 h au ralenti (${Q.fmt(attendu)} attendus)`);
   check(await attendre(() => page.evaluate(() => !!document.querySelector('.toast') && /absence/.test(document.querySelector('.toast').textContent)), 2000), 'le message « Pendant ton absence » (au ralenti sans le boss)');
+  { // le téléphone verrouillé Planque ouverte, puis le retour : les apprentis ont bossé (evenement.retour, appelé au retour dans le jeu)
+    const b1 = (await qst()).billets, r = await ev(() => { window.__fournil.st.quartier.lastSeen = HORLOGE.maintenant() - 2 * 3600e3; const a = window.__fournil.evenement.retour(); return a && { secs: a.secs, total: a.total }; });
+    const b2 = (await qst()).billets;
+    check(r && Math.abs(r.secs - 7200) < 5 && r.total > 0 && b2 >= b1 + r.total * 0.99, `retour dans le jeu, Planque ouverte : 2 h payées au ralenti (+${Q.fmt(r ? r.total : 0)} €)`);
+  }
   await clic('[data-pq="fermer"]'); await sleep(300);
 
   console.log('── Réglages : masquer l’événement ──');
@@ -248,6 +253,7 @@ async function gerer(route) {
   await page.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); });
 
   console.log('── la fin de l’événement : la Planque fermée, le bilan, l’icône partie, le podium final ──');
+  faux.joueurs.get(MOI.id).quartier = 5e12; // ses derniers billets le mettent en tête : le podium final (figé à la première requête après la fin) sera le sien
   decal = Q.FIN + 3 * HEURE - Date.now();
   await page.evaluate((d) => window.__heureTel(d), decal);
   await page.evaluate(() => window.__fournil.save());
@@ -272,9 +278,18 @@ async function gerer(route) {
   await sleep(800); txt = await feuille();
   check(/fini : le podium final est figé/.test(txt) && /1er du Quartier/.test(txt), 'l’onglet Événement montre le podium final figé');
   await shot('14-podium-final');
+  const rq = await page.evaluate(async () => { const r = await window.__fournil.classement().chargerRecompenses({ ecart: 0 }); window.__fournil.majRecompenses(); return { etat: r && r.etat, quartier: window.__fournil.classement().recompenses().quartier }; });
+  check(rq.quartier === 1, `fournil_recompenses : 1er du podium final du quartier (${JSON.stringify(rq)})`);
+  const or = await ev(() => ['quartier-or-casquette', 'quartier-or-sweat', 'quartier-or-baskets', 'quartier-or-chaine'].map((id) => window.__fournil.G.possede(window.__fournil.st, id)));
+  check(or.every(Boolean), `1er du podium final : les quatre pièces de la tenue du quartier en or sont dans la garde-robe (${JSON.stringify(or)})`);
   const tard = faux.appels.filter((a) => a.nom === 'fournil_publier').pop();
   check(!tard || !('p_quartier' in tard.corps), 'après la fin, le téléphone n’envoie plus de billets');
 
+  { // masqué (même après la fin) : le classement n'a plus d'onglet Événement
+    await ev(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); window.__fournil.st.quartier.masque = true; }); await sleep(400);
+    await ev(() => window.__fournil.feuilleClassement('quartier')); await sleep(600);
+    check(await ev(() => document.querySelectorAll('#feuille [data-tab]').length > 0 && !document.querySelector('#feuille [data-tab="quartier"]')), 'masqué : le classement n’a plus d’onglet Événement');
+  }
   check(errors.length === 0, errors.length ? `erreurs de page : ${errors.join(' | ')}` : 'aucune erreur de page');
   await browser.close(); server.close();
   console.log(fails ? `\n${fails} échec(s)` : '\ntout est bon');

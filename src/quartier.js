@@ -33,6 +33,15 @@
     const jour = avant ? 0 : fini ? 15 : Math.min(15, Math.round((Date.parse(dayKey(t) + 'T12:00:00Z') - Date.parse(dayKey(DEBUT) + 'T12:00:00Z')) / JOUR) + 1); // le jour de Paris : du 13 (1) au 27 (15)
     return { avant, ouvert, fini, reste: ouvert ? FIN - t : 0, dans: avant ? DEBUT - t : 0, jour, jours: 15, classement: t >= DEBUT && t < CLASSEMENT_JUSQUA };
   }
+  // l'ouverture se lit aussi sur l'HEURE SÛRE (HORLOGE.etat().sure : une borne basse du vrai temps) : une horloge du téléphone avancée
+  // hors ligne (le jeu lui accorde jusqu'à une absence d'avance) n'ouvre pas la Planque avant mardi midi. Sans heure sûre connue
+  // (artefact Claude, jamais en ligne) : le « maintenant » du jeu seul. La fin, elle, se lit toujours sur le « maintenant » du jeu.
+  function fenetreSure(now, sure) {
+    const f = fenetre(now);
+    return f.ouvert && Number.isFinite(sure) && sure > 0 && sure < DEBUT ? fenetre(sure) : f;
+  }
+  const GRACE = 3600e3; // le serveur compte encore les billets une heure après la fin (ceux d'avant la fin, plafonnés à l'enveloppe de la fin)
+  const envoiBillets = (now) => Number.isFinite(now) && now >= DEBUT && now < FIN + GRACE;
 
   // ─── les six produits de la Planque, dans l'ordre où on les débloque (les billets : en €, comme la boulangerie, mais un autre tiroir) ───
   const PRODUITS = [
@@ -338,7 +347,7 @@
     if (j > 0) return `${j} j ${h} h`; if (h > 0) return `${h} h ${String(m).padStart(2, '0')}`; return `${m} min`;
   }
 
-  return { DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, VETEMENTS, VETEMENTS_OR, DECOS,
+  return { DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, GRACE, fenetreSure, envoiBillets, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, VETEMENTS, VETEMENTS_OR, DECOS,
     neuf, etat, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence,
     gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
     PROFILS, simuler, decider, fmt, fmtEur, fmtDuree, fmtChrono, fmtReste };

@@ -82,7 +82,7 @@ const UI = (() => {
     non: () => beep(200, 0.12, 'square', 0.03),
     ronron: () => { beep(300, 0.25, 'sine', 0.05); beep(420, 0.28, 'sine', 0.04, 0.12); },
   };
-  function buzz(p) { if (!st.vibre) return; try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* pas de vibreur */ } }
+  function buzz(p) { if (!st.vibre) return; try { if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return; if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* pas de vibreur */ } } // avant toute touche (un trophée au lancement), le navigateur refuse la vibration : on s'en passe
 
   // ─── cartes des produits (compactes : niveau sur l'icône, barre fine, deux boutons de 44 px) ───
   function buildCards() {
@@ -752,7 +752,7 @@ const UI = (() => {
   const CLM = typeof CLASSEMENT !== 'undefined' ? CLASSEMENT : null;
   const EVT = typeof EVENEMENT !== 'undefined' ? EVENEMENT : null, QT = typeof QUARTIER !== 'undefined' ? QUARTIER : null; // l'événement « Le Quartier » (src/evenement.js, src/quartier.js)
   const PERIODES = [['semaine', 'Cette semaine'], ['total', 'Tous les temps']];
-  const periodes = () => (QT && QT.fenetre(HORLOGE.maintenant()).classement ? PERIODES.concat([['quartier', 'Événement']]) : PERIODES); // l'onglet Événement : pendant le Quartier et deux semaines après (le podium final)
+  const periodes = () => (QT && QT.fenetre(HORLOGE.maintenant()).classement && !(st && st.quartier && st.quartier.masque) ? PERIODES.concat([['quartier', 'Événement']]) : PERIODES); // l'onglet Événement : pendant le Quartier et deux semaines après (le podium final)
   const MSG_RESEAU = { 'hors-ligne': 'Pas de réseau : réessaie quand le téléphone est connecté.', 'lent': 'Le classement est lent à répondre : réessaie dans un instant.', 'pas-ouvert': 'Le classement ouvre bientôt : reviens dans quelques jours.' };
   const msgReseau = (e) => MSG_RESEAU[e] || 'Le classement ne répond pas. Réessaie dans un moment.';
   function cleClassement() { if (!classement) return ''; const r = classement.resume(); return `${r.rejoint}|${r.pseudo}|${r.semaine ? r.semaine.rang + '/' + r.semaine.joueurs : ''}|${r.total ? r.total.rang + '/' + r.total.joueurs : ''}|${classement.recompenses().podiums.length}|${G.pointsSemaine(st)}`; }
@@ -889,6 +889,7 @@ const UI = (() => {
   function majRecompenses() { // la boutique en 3D suit les récompenses, chaque podium met ses quatre pièces dans la garde-robe, et l'annonce attend que plus rien ne soit ouvert
     const r = recVue(); if (!r) return;
     let neuves = 0; for (const m of r.coupes) neuves += G.donnerCollection(st, m).length; // un podium gagné = les quatre pièces de sa collection (or, argent ou bronze), une fois pour toutes
+    if ([1, 2, 3].includes(r.quartier)) { const n = G.donnerCollection(st, 'quartier-or').length; if (n) { neuves += n; toast('Podium final du Quartier : la tenue du quartier en or est dans ta garde-robe !'); } } // le podium final de l'événement « Le Quartier », à vie
     if (neuves) { save(); if (pageActive === 'boulanger') { lastPage = ''; renderPage(true); } }
     const k = `${r.portee}|${r.coupe}|${r.coupes.join(',')}`;
     if (k !== derniereRecScene) { derniereRecScene = k; SCENE.recompenses({ tenue: r.portee, coupe: r.coupe, coupes: r.coupes }); if (pageActive === 'boulanger') renderPage(); }
@@ -907,7 +908,7 @@ const UI = (() => {
     openSheet(`<div class="cl rec-annonce" data-cl="annonce"><div class="rec-scene ${m}" aria-hidden="true"><i class="rec-rayons"></i><span class="rec-coupe">${ICONS.coupe(m)}</span><span class="rec-boulanger">${ICONS.boulanger(1, m)}</span></div>
       <h2>Bravo ! ${rangDe(a.rang)} de la semaine</h2>
       <p class="rec-phrase">La tenue ${n} et la coupe ${n} sont à toi.</p>
-      <p class="sous">Semaine du ${CLM.dateCourte(a.semaine)} : ${recent ? `ton boulanger porte la tenue ${n} toute cette semaine, la coupe trône sur le comptoir, puis elle rejoint ta vitrine des trophées.` : `la coupe a rejoint ta vitrine des trophées, et la tenue t’attend dans ta garde-robe.`} Les quatre pièces (toque, tablier, chaussures, foulard) sont à toi pour toujours, dans ta garde-robe.${a.autres ? ` Et ${a.autres === 1 ? 'un autre podium t’attendait' : `${a.autres} autres podiums t’attendaient`} : ${a.autres === 1 ? 'sa tenue est' : 'leurs tenues sont'} dans ta garde-robe.` : ''}</p>
+      <p class="sous">Semaine du ${CLM.dateCourte(a.semaine)} : ${recent ? `ton boulanger porte la tenue ${n} cette semaine, la coupe trône sur le comptoir. Les quatre pièces restent à toi dans ta garde-robe.` : `la coupe est dans ta vitrine, les quatre pièces de la tenue dans ta garde-robe.`}${a.autres ? ` Et ${a.autres === 1 ? 'un autre podium t’attendait' : `${a.autres} autres podiums t’attendaient`} : ${a.autres === 1 ? 'sa tenue est' : 'leurs tenues sont'} dans ta garde-robe.` : ''}</p>
       <button type="button" class="btn large beurre" data-a="rec-voir"><b>Voir ma boutique</b></button>
       <button type="button" class="btn large clair" data-a="rec-collection" style="margin-top:8px"><b>Mes récompenses</b></button></div>`);
     vueCl = 'annonce';
@@ -1085,7 +1086,7 @@ const UI = (() => {
     $('#b-quartier').addEventListener('click', () => { audio(); son.tap(); if (EVT) EVT.ouvrir(); });
     $('#boosts').addEventListener('click', () => { audio(); son.tap(); lancerBoost(); });
     // l'événement « Le Quartier » : la Planque, ses paliers et leurs récompenses, l'annonce, le bilan (src/evenement.js)
-    if (EVT) EVT.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), save, toast, fete: () => SCENE.fete(), openSheet, closeSheet, on, recompenses: recVue,
+    if (EVT) EVT.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), sure: () => { try { const e = HORLOGE.etat(); return e ? e.sure : null; } catch (e) { return null; } }, save, toast, fete: () => SCENE.fete(), openSheet, closeSheet, on, recompenses: recVue,
       ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); majCoin(); renderCards(true); hud(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); lastPage = ''; renderPage(true); } });
     buildCards();
@@ -1115,7 +1116,7 @@ const UI = (() => {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) { save(); return; }
       if (retourEnCours) return; retourEnCours = true;
-      HORLOGE.retour().catch(() => {}).then(() => { retourEnCours = false; const abs = G.absence(st, HORLOGE.maintenant()); absencePayee = abs.secs * 1000; if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); });
+      HORLOGE.retour().catch(() => {}).then(() => { retourEnCours = false; const abs = G.absence(st, HORLOGE.maintenant()); absencePayee = abs.secs * 1000; if (EVT && EVT.ouvert) EVT.retour(); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); });
     });
     document.addEventListener('pointerdown', () => { dernierToucher = performance.now(); }, true);
     document.addEventListener('pointerdown', () => { try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* rien */ } }, { once: true });
@@ -1129,9 +1130,10 @@ const UI = (() => {
     absencePrete = true;
     HORLOGE.surSaut(payerSaut);
     if (EVT) { setTimeout(() => { if ($('#feuille').hidden) EVT.annoncer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVT.annoncer(); } }, 1500); } }, 800); } // l'annonce du Quartier (ou son bilan) attend que la feuille du retour soit refermée
+    if (EVT) setInterval(() => { majCoinQuartier(); if (!EVT.ouvert && !MINIJEUX.ouvert && !document.hidden && $('#feuille').hidden) EVT.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
-    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.fenetre(HORLOGE.maintenant()).ouvert ? st.quartier.total : null), maintenant: () => HORLOGE.maintenant() }) : null; } catch (e) { classement = null; }
+    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), maintenant: () => HORLOGE.maintenant() }) : null; } catch (e) { classement = null; }
     if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); }); majRecompenses(); classement.demarrer(); setInterval(majRecompenses, 60e3); } // la tenue et la coupe changent aussi au lundi
     majCoin();
     lastNiveau = G.niveau(st);

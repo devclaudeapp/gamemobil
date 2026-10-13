@@ -100,6 +100,7 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
 
 (async () => {
   const browser = await chromium.launch();
+  { const nc = browser.newContext.bind(browser); browser.newContext = async (o) => { const c = await nc(o); await c.addInitScript(() => { window.__sansQuartier = true; }); return c; }; } // pendant sa fenêtre, l'événement « Le Quartier » (icône, annonce) ne vient pas couvrir ce test (src/evenement.js)
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
   await ctx.route(SUPA + '/rest/v1/rpc/*', gerer);
   const errors = [];

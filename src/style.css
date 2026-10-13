@@ -614,7 +614,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .gr-txt small { display: block; margin-top: 1px; font-size: 12px; line-height: 1.3; color: var(--texte-2); }
 .gr-txt .gr-b { color: var(--menthe-sombre); }
 .gr-txt .gr-suivant { color: var(--lavande-sombre); }
-.gr-etoiles { color: var(--beurre-sombre); letter-spacing: .5px; }
+.gr-etoiles, .gr-txt .gr-etoiles { color: var(--beurre-sombre); letter-spacing: .5px; }
 .gr-ok { font: 700 13px/1 var(--titre); color: var(--beurre-sombre); white-space: nowrap; }
 .gr-max { font: 700 12px/1.2 var(--titre); color: var(--menthe-sombre); text-align: center; min-width: 76px; }
 .gr-ameliorer { min-width: 96px; min-height: 44px; }
@@ -664,8 +664,8 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .ev.soiree { background: linear-gradient(135deg, #9A84F0, #FF6B8B); box-shadow: 0 8px 20px rgba(154, 132, 240, .4); }
 .ev.scooter { background: linear-gradient(135deg, #E1496C, #FF9A62); box-shadow: 0 8px 20px rgba(225, 73, 108, .4); }
 .pq-barre { display: flex; align-items: center; gap: 8px; padding: 8px 12px 6px; }
-.pq-barre .modes { background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; }
-.pq-barre .modes button { color: #C7B8FF; }
+.pq-barre .modes { display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; }
+.pq-barre .modes button { min-width: 42px; min-height: 38px; padding: 0 8px; border-radius: 999px; font: 700 14px/1 var(--titre); color: #C7B8FF; }
 .pq-barre .modes button.actif { background: #FFC84A; color: var(--texte); }
 .pq-am { background: #E1496C; box-shadow: 0 3px 0 #B8304F; }
 #pq-corps:empty { display: none; }
@@ -689,6 +689,15 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .carte.pq.verrou p { color: #C7B8FF; }
 .carte.pq .btn.non { background: #56516B; color: #9E95B8; box-shadow: 0 4px 0 #2E2B3A; }
 .carte.pq .staff-ok.pq { background: #2E2B3A; color: #C7B8FF; justify-content: center; }
+.carte.pq .staff-ok.pq span { white-space: normal; text-align: center; line-height: 1.15; overflow-wrap: anywhere; } /* « Nourrice Mémé Jacqueline » sur deux lignes plutôt que coupée */
+.pq-barre .modes { flex: 0 1 auto; min-width: 0; }
+.pq-am { flex: 0 0 auto; }
+@media (max-width: 379px) { /* 360 et 320 : la barre ×1 ×10 ×100 Max + Combines tient sur la largeur */
+  .pq-barre { gap: 6px; padding-inline: 10px; }
+  .pq-barre .modes button { min-width: 34px; padding: 0 5px; font-size: 13px; }
+  .pq-am { padding: 0 12px 0 10px; }
+}
+@media (max-width: 339px) { .pq-am .ico { display: none; } .pq-am { padding: 0 12px; } .pq-barre .modes button { min-width: 30px; padding: 0 3px; } }
 .carte.pq .icone .niv { box-shadow: 0 0 0 2px #3F3A50; }
 .carte.pq.gouter { box-shadow: 0 0 0 3px var(--beurre), 0 6px 16px rgba(0, 0, 0, .3); }
 .carte.pq .badge-critique { background: var(--beurre); color: var(--texte); }
@@ -726,3 +735,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .pq-palier .pq-etat { font: 700 18px/1 var(--titre); color: var(--menthe-sombre); text-align: center; }
 #planque .btn.sombre { background: #1E1B26; }
 @media (max-height: 700px) { .pq-scene { height: 140px; } }
+/* la porte 18+ et l'annonce du Quartier à 320 px : « Non, masquer l'événement » passe à la ligne au lieu d'être coupé */
+.pq-porte .btn.large b, .pq-sheet .btn.large b { white-space: normal; overflow-wrap: anywhere; text-align: center; }
+@media (max-width: 339px) { .pq-porte .btn.large b, .pq-sheet .btn.large b { font-size: 17px; } }
+@media (max-width: 339px) { .carte.pq .barre .tps { display: none; } } /* 320 px : « +24,8 M € » et la durée se chevauchaient dans la barre de la Planque */

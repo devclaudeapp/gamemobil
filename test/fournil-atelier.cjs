@@ -104,6 +104,7 @@ const partir = async (p, d) => { await d.toucherEl('[data-at="jouer"]'); await a
 (async () => {
   const PORT = server.address().port, BASE = `http://localhost:${PORT}`;
   const browser = await chromium.launch();
+  { const nc = browser.newContext.bind(browser); browser.newContext = async (o) => { const c = await nc(o); await c.addInitScript(() => { window.__sansQuartier = true; }); return c; }; } // pendant sa fenêtre, l'événement « Le Quartier » (icône, annonce) ne vient pas couvrir ce test (src/evenement.js)
   const errors = [];
   const suivreErr = (p) => {
     p.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });

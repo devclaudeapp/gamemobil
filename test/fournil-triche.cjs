@@ -41,6 +41,7 @@ function fauxTelephone(decalDepart) {
 (async () => {
   const port = server.address().port, URL_JEU = `http://localhost:${port}/fournil/`;
   const browser = await chromium.launch();
+  { const nc = browser.newContext.bind(browser); browser.newContext = async (o) => { const c = await nc(o); await c.addInitScript(() => { window.__sansQuartier = true; }); return c; }; } // pendant sa fenêtre, l'événement « Le Quartier » (icône, annonce) ne vient pas couvrir ce test (src/evenement.js)
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
   await context.addInitScript(fauxTelephone, decalServeur);
   const versSupabase = []; context.on('request', (r) => { if (/supabase\.co/.test(r.url())) versSupabase.push(r.url()); });

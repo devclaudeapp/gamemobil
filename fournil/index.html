@@ -637,7 +637,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .gr-txt small { display: block; margin-top: 1px; font-size: 12px; line-height: 1.3; color: var(--texte-2); }
 .gr-txt .gr-b { color: var(--menthe-sombre); }
 .gr-txt .gr-suivant { color: var(--lavande-sombre); }
-.gr-etoiles { color: var(--beurre-sombre); letter-spacing: .5px; }
+.gr-etoiles, .gr-txt .gr-etoiles { color: var(--beurre-sombre); letter-spacing: .5px; }
 .gr-ok { font: 700 13px/1 var(--titre); color: var(--beurre-sombre); white-space: nowrap; }
 .gr-max { font: 700 12px/1.2 var(--titre); color: var(--menthe-sombre); text-align: center; min-width: 76px; }
 .gr-ameliorer { min-width: 96px; min-height: 44px; }
@@ -687,8 +687,8 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .ev.soiree { background: linear-gradient(135deg, #9A84F0, #FF6B8B); box-shadow: 0 8px 20px rgba(154, 132, 240, .4); }
 .ev.scooter { background: linear-gradient(135deg, #E1496C, #FF9A62); box-shadow: 0 8px 20px rgba(225, 73, 108, .4); }
 .pq-barre { display: flex; align-items: center; gap: 8px; padding: 8px 12px 6px; }
-.pq-barre .modes { background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; }
-.pq-barre .modes button { color: #C7B8FF; }
+.pq-barre .modes { display: flex; gap: 4px; padding: 3px; border-radius: 999px; background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; }
+.pq-barre .modes button { min-width: 42px; min-height: 38px; padding: 0 8px; border-radius: 999px; font: 700 14px/1 var(--titre); color: #C7B8FF; }
 .pq-barre .modes button.actif { background: #FFC84A; color: var(--texte); }
 .pq-am { background: #E1496C; box-shadow: 0 3px 0 #B8304F; }
 #pq-corps:empty { display: none; }
@@ -712,6 +712,15 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .carte.pq.verrou p { color: #C7B8FF; }
 .carte.pq .btn.non { background: #56516B; color: #9E95B8; box-shadow: 0 4px 0 #2E2B3A; }
 .carte.pq .staff-ok.pq { background: #2E2B3A; color: #C7B8FF; justify-content: center; }
+.carte.pq .staff-ok.pq span { white-space: normal; text-align: center; line-height: 1.15; overflow-wrap: anywhere; } /* « Nourrice Mémé Jacqueline » sur deux lignes plutôt que coupée */
+.pq-barre .modes { flex: 0 1 auto; min-width: 0; }
+.pq-am { flex: 0 0 auto; }
+@media (max-width: 379px) { /* 360 et 320 : la barre ×1 ×10 ×100 Max + Combines tient sur la largeur */
+  .pq-barre { gap: 6px; padding-inline: 10px; }
+  .pq-barre .modes button { min-width: 34px; padding: 0 5px; font-size: 13px; }
+  .pq-am { padding: 0 12px 0 10px; }
+}
+@media (max-width: 339px) { .pq-am .ico { display: none; } .pq-am { padding: 0 12px; } .pq-barre .modes button { min-width: 30px; padding: 0 3px; } }
 .carte.pq .icone .niv { box-shadow: 0 0 0 2px #3F3A50; }
 .carte.pq.gouter { box-shadow: 0 0 0 3px var(--beurre), 0 6px 16px rgba(0, 0, 0, .3); }
 .carte.pq .badge-critique { background: var(--beurre); color: var(--texte); }
@@ -749,6 +758,10 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .pq-palier .pq-etat { font: 700 18px/1 var(--titre); color: var(--menthe-sombre); text-align: center; }
 #planque .btn.sombre { background: #1E1B26; }
 @media (max-height: 700px) { .pq-scene { height: 140px; } }
+/* la porte 18+ et l'annonce du Quartier à 320 px : « Non, masquer l'événement » passe à la ligne au lieu d'être coupé */
+.pq-porte .btn.large b, .pq-sheet .btn.large b { white-space: normal; overflow-wrap: anywhere; text-align: center; }
+@media (max-width: 339px) { .pq-porte .btn.large b, .pq-sheet .btn.large b { font-size: 17px; } }
+@media (max-width: 339px) { .carte.pq .barre .tps { display: none; } } /* 320 px : « +24,8 M € » et la durée se chevauchaient dans la barre de la Planque */
 </style>
 </head>
 <body>
@@ -5096,18 +5109,17 @@ const GARDEROBE_UI = (() => {
     const cartes = liste.map((v) => {
       const o = g.objets[v.id], base = v.collection === 'base', actuel = porte === v.id, max = o.niv >= GR.nivMax, cout = G.coutVetement(st, v.id), ok = cout > 0 && st.etoiles >= cout;
       const now = G.texteBonus(G.bonusPiece(v.id, o.niv)), suivant = max || base ? [] : G.texteBonus(G.bonusPiece(v.id, o.niv + 1));
-      return `<div class="gr-piece ${actuel ? 'porte' : ''} ${v.collection}"><button type="button" class="gr-choisir" data-gr-porter="${v.id}" aria-pressed="${actuel}"><span class="gr-ico">${icone(v)}</span><span class="gr-txt"><b>${esc(v.nom)}</b><small>${esc(COLLECTION[v.collection] || v.collection)}${base ? '' : ` · ${RARETE[v.rarete] || v.rarete} · <span class="gr-etoiles" aria-label="niveau ${o.niv} sur ${GR.nivMax}">${etoiles(o.niv)}</span>`}</small><small class="gr-b">${base ? esc(v.desc) : now.join(' · ')}</small>${suivant.length ? `<small class="gr-suivant">Niveau ${o.niv + 1} : ${suivant.join(' · ')}</small>` : ''}</span>${actuel ? '<span class="gr-ok">Porté ✓</span>' : ''}</button>
+      return `<div class="gr-piece ${actuel ? 'porte' : ''} ${v.collection}"><button type="button" class="gr-choisir" data-gr-porter="${v.id}" aria-pressed="${actuel}"><span class="gr-ico">${icone(v)}</span><span class="gr-txt"><b>${esc(v.nom)}</b><small>${esc(COLLECTION[v.collection] || v.collection)}${base ? '' : ` · ${RARETE[v.rarete] || v.rarete}`}</small>${base ? '' : `<small class="gr-etoiles" aria-label="niveau ${o.niv} sur ${GR.nivMax}">${etoiles(o.niv)}</small>`}<small class="gr-b">${base ? esc(v.desc) : now.join(' · ')}</small>${suivant.length ? `<small class="gr-suivant">Niveau ${o.niv + 1} : ${suivant.join(' · ')}</small>` : ''}</span>${actuel ? '<span class="gr-ok">Porté ✓</span>' : ''}</button>
         ${base ? '' : max ? '<span class="gr-max">Niveau max ✓</span>' : `<button type="button" class="btn ${ok ? 'beurre' : 'non'} gr-ameliorer" data-gr-ameliorer="${v.id}" aria-label="Améliorer ${esc(v.nom)} : ${cout} étoile${cout > 1 ? 's' : ''}"><small>Améliorer</small><b>${cout} ★</b></button>`}</div>`;
     }).join('');
-    const vide = !liste.some((v) => v.collection !== 'base') && !rien ? '' : '';
     const indice = liste.length <= 1 && p !== 'accessoire' ? `<p class="note centre">Une seule pièce ici pour l’instant. Les podiums du classement et les événements en offrent d’autres.</p>` : '';
     const ensembles = Object.keys(GR.ensembles).map((c) => {
       const pieces = Object.values(GR.objets).filter((v) => v.collection === c), eues = pieces.filter((v) => g.objets[v.id]).length, portees = pieces.filter((v) => g.equipe[v.piece] === v.id).length, complet = ens === c;
-      return `<div class="gr-ensemble ${c} ${complet ? 'complet' : ''} ${eues ? '' : 'absent'}"><span class="gr-minis" aria-hidden="true">${pieces.map((v) => `<i class="${g.objets[v.id] ? '' : 'manque'}">${icone(v)}</i>`).join('')}</span><span class="gr-txt"><b>${esc(GR.ensembles[c].nom)}</b><small>${complet ? 'Ensemble complet porté : ' + G.texteBonus(GR.ensembles[c].bonus).join(' · ') : eues ? `${eues === 4 ? `${portees}/4 portée${portees > 1 ? 's' : ''}` : `${eues}/4 pièce${eues > 1 ? 's' : ''}`} · les quatre ensemble : ${G.texteBonus(GR.ensembles[c].bonus).join(' · ').toLowerCase()}` : esc(QUELLE[c] || '')}</small></span>${eues === 4 && !complet ? `<button type="button" class="btn clair gr-tout" data-gr-ensemble="${c}"><b>Tout porter</b></button>` : complet ? '<span class="gr-ok">✓</span>' : ''}</div>`;
+      return `<div class="gr-ensemble ${c} ${complet ? 'complet' : ''} ${eues ? '' : 'absent'}"><span class="gr-minis" aria-hidden="true">${pieces.map((v) => `<i class="${g.objets[v.id] ? '' : 'manque'}">${icone(v)}</i>`).join('')}</span><span class="gr-txt"><b>${esc(GR.ensembles[c].nom)}</b><small>${complet ? 'Ensemble complet porté : ' + G.texteBonus(GR.ensembles[c].bonus).join(' · ') : eues ? `${eues === 4 ? `${portees}/4 portée${portees > 1 ? 's' : ''}` : `${eues}/4 pièce${eues > 1 ? 's' : ''}`} · au complet : ${G.texteBonus(GR.ensembles[c].bonus).join(' · ').toLowerCase()}` : esc(QUELLE[c] || '')}</small></span>${eues === 4 && !complet ? `<button type="button" class="btn clair gr-tout" data-gr-ensemble="${c}"><b>Tout porter</b></button>` : complet ? '<span class="gr-ok">✓</span>' : ''}</div>`;
     }).join('');
     return `<div class="cl gr" data-cl="garderobe"><div class="cl-tete"><span class="pic">${ICONS.UI.garderobe}</span><div><h2>Garde-robe</h2><p class="sous">Choisis ce que porte ton boulanger, pièce par pièce. Les étoiles améliorent chaque pièce (niveaux 1 à 5).</p></div></div>
       <div class="gr-tete"><span class="gr-portrait" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), G.tenueBoulanger(st))}</span><div><b>${bonus.length ? bonus.join(' · ') : 'Aucun bonus porté'}</b><small>${ens ? `${esc(GR.ensembles[ens].nom)} au complet.` : 'Les quatre pièces d’une même collection : un bonus d’ensemble en plus.'}</small><small class="gr-solde">${G.fmt(st.etoiles)} étoile${st.etoiles > 1 ? 's' : ''} à dépenser · une étoile dépensée ne compte plus dans les +5 % par étoile</small></div></div>
-      ${seg}<div class="gr-liste" role="list" aria-label="${esc(NOM_PIECE[p])}">${rien}${cartes}</div>${indice}${vide}
+      ${seg}<div class="gr-liste" role="list" aria-label="${esc(NOM_PIECE[p])}">${rien}${cartes}</div>${indice}
       <h3 class="titre-section">Les ensembles</h3><div class="gr-ensembles">${ensembles}</div>
       <button type="button" class="btn large sombre" data-a="gr-fermer" style="margin-top:14px"><b>Retour</b></button></div>`;
   }
@@ -5175,6 +5187,15 @@ const GARDEROBE_UI = (() => {
     const jour = avant ? 0 : fini ? 15 : Math.min(15, Math.round((Date.parse(dayKey(t) + 'T12:00:00Z') - Date.parse(dayKey(DEBUT) + 'T12:00:00Z')) / JOUR) + 1); // le jour de Paris : du 13 (1) au 27 (15)
     return { avant, ouvert, fini, reste: ouvert ? FIN - t : 0, dans: avant ? DEBUT - t : 0, jour, jours: 15, classement: t >= DEBUT && t < CLASSEMENT_JUSQUA };
   }
+  // l'ouverture se lit aussi sur l'HEURE SÛRE (HORLOGE.etat().sure : une borne basse du vrai temps) : une horloge du téléphone avancée
+  // hors ligne (le jeu lui accorde jusqu'à une absence d'avance) n'ouvre pas la Planque avant mardi midi. Sans heure sûre connue
+  // (artefact Claude, jamais en ligne) : le « maintenant » du jeu seul. La fin, elle, se lit toujours sur le « maintenant » du jeu.
+  function fenetreSure(now, sure) {
+    const f = fenetre(now);
+    return f.ouvert && Number.isFinite(sure) && sure > 0 && sure < DEBUT ? fenetre(sure) : f;
+  }
+  const GRACE = 3600e3; // le serveur compte encore les billets une heure après la fin (ceux d'avant la fin, plafonnés à l'enveloppe de la fin)
+  const envoiBillets = (now) => Number.isFinite(now) && now >= DEBUT && now < FIN + GRACE;
 
   // ─── les six produits de la Planque, dans l'ordre où on les débloque (les billets : en €, comme la boulangerie, mais un autre tiroir) ───
   const PRODUITS = [
@@ -5480,7 +5501,7 @@ const GARDEROBE_UI = (() => {
     if (j > 0) return `${j} j ${h} h`; if (h > 0) return `${h} h ${String(m).padStart(2, '0')}`; return `${m} min`;
   }
 
-  return { DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, VETEMENTS, VETEMENTS_OR, DECOS,
+  return { DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, GRACE, fenetreSure, envoiBillets, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, VETEMENTS, VETEMENTS_OR, DECOS,
     neuf, etat, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence,
     gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
     PROFILS, simuler, decider, fmt, fmtEur, fmtDuree, fmtChrono, fmtReste };
@@ -5501,7 +5522,7 @@ const EVENEMENT = (() => {
   const st = () => d.st();
   const now = () => d.maintenant();
   const q = () => Q.etat(st(), now());
-  const fen = () => Q.fenetre(now());
+  const fen = () => Q.fenetreSure(now(), d.sure ? d.sure() : null); // l'ouverture sur l'heure sûre (une horloge avancée hors ligne n'ouvre rien avant midi)
   const fmt = Q ? Q.fmtEur : (n) => String(n);
 
   function init(deps) {
@@ -5521,7 +5542,10 @@ const EVENEMENT = (() => {
   }
   const ouvert = () => !!el && !el.hidden;
   // ce que l'icône du coin et l'annonce décident : l'événement est-il visible ? (fenêtre ouverte, pas masqué dans les Réglages)
-  function visible() { if (!Q || !st()) return false; const qq = st().quartier; return fen().ouvert && !(qq && qq.masque); }
+  // window.__sansQuartier : un interrupteur des tests Playwright qui ne parlent pas de l'événement (posé par addInitScript) : pendant la
+  // fenêtre, ni icône ni annonce ni bilan ne viennent couvrir ce qu'ils regardent. Personne ne le pose dans le jeu.
+  const coupe = () => typeof window !== 'undefined' && !!window.__sansQuartier;
+  function visible() { if (!Q || !st() || coupe()) return false; const qq = st().quartier; return fen().ouvert && !(qq && qq.masque); }
   function masquer(on) { const qq = q(); qq.masque = !!on; d.save(); if (qq.masque && ouvert()) fermer(); }
   function majeur() { return !!(st() && st().quartier && st().quartier.majeur); }
 
@@ -5557,9 +5581,9 @@ const EVENEMENT = (() => {
 
   // ─── ouvrir : l'annonce, la porte 18+, la Planque, le bilan ───
   function annoncer() { // le premier jour (ou au premier lancement pendant l'événement) : une fois ; après la fin : le bilan, une fois
-    const s = st(); if (!s || !Q) return false;
+    const s = st(); if (!s || !Q || coupe()) return false;
     const f = fen(), qq = s.quartier;
-    if (f.fini) { if (qq && qq.total > 0 && !qq.bilan && !ouvert()) { ouvrir(); return true; } return false; }
+    if (f.fini) { if (qq && qq.total > 0 && !qq.bilan && !qq.masque && !ouvert()) { ouvrir(); return true; } return false; } // masqué : pas de bilan qui surgit
     if (!f.ouvert || (qq && (qq.masque || qq.annonce)) || !$('#feuille').hidden || ouvert()) return false;
     const neuf = q(); neuf.annonce = true; d.save();
     d.openSheet(`<div class="pq-sheet pq-annonce"><div class="pq-annonce-scene"><span class="pq-pic grand">${ICONS.QUARTIER.porte}</span></div>
@@ -5619,6 +5643,14 @@ const EVENEMENT = (() => {
     if (d.ferme) d.ferme();
   }
 
+  // au retour dans le jeu (téléphone verrouillé, autre appli) la Planque encore ouverte : les apprentis ont bossé, au ralenti, comme à l'entrée
+  function retour() {
+    if (ecran !== 'planque') return null;
+    const qq = q(), t = now(); if (Q.fenetre(t).fini) return null; // fini : la boucle ferme et montre le bilan
+    const abs = Q.absence(qq, t); renderEv();
+    if (abs.total > 0 && abs.secs > 90) d.toast(`Pendant ton absence (${G.fmtDuree(abs.secs)}) : +${fmt(abs.total)} de billets, au ralenti sans le boss.`);
+    return abs;
+  }
   // ─── la boucle : appelée chaque image par ui.js tant que la Planque est ouverte ───
   function frame(dt, t) {
     if (ecran !== 'planque') return;
@@ -5641,7 +5673,7 @@ const EVENEMENT = (() => {
     const cle = `${fmt(qq.billets)}|${fmt(taux)}|${Q.fmtReste(f.reste)}|${nb}|${f.jour}`;
     if (cle === lastHud) return; lastHud = cle;
     $('#pq-billets').textContent = fmt(qq.billets);
-    $('#pq-taux').innerHTML = taux > 0 ? `<b>+${fmt(taux)}</b> par seconde · le boss est là ×${Q.PRESENCE}` : `Touche un produit pour vendre · le boss est là ×${Q.PRESENCE}`;
+    $('#pq-taux').innerHTML = taux > 0 ? `<b>+${fmt(taux)}</b>/s · le boss est là ×${Q.PRESENCE}` : `Touche un produit pour vendre · le boss est là ×${Q.PRESENCE}`;
     $('#pq-reste').textContent = `Ferme dans ${Q.fmtReste(f.reste)}`;
     $('#pq-sous').textContent = `Jour ${f.jour} sur ${f.jours}`;
     const bp = el.querySelector('[data-pq="paliers"]'); bp.querySelector('b').textContent = `${nb}/12`; bp.classList.toggle('pret', Q.paliersDus(qq).length > 0);
@@ -5863,7 +5895,7 @@ const EVENEMENT = (() => {
     };
   }
 
-  return { init, ouvrir, fermer, annoncer, frame, visible, masquer, majeur, synchroniserRecompenses, donnerPalier, sheetPaliers, get ouvert() { return ouvert(); }, get ecran() { return ecran; }, get scene() { return scene3; } };
+  return { init, ouvrir, fermer, annoncer, frame, retour, visible, masquer, majeur, synchroniserRecompenses, donnerPalier, sheetPaliers, get ouvert() { return ouvert(); }, get ecran() { return ecran; }, get scene() { return scene3; } };
 })();
 
 /* ── ui.js ── */
@@ -5951,7 +5983,7 @@ const UI = (() => {
     non: () => beep(200, 0.12, 'square', 0.03),
     ronron: () => { beep(300, 0.25, 'sine', 0.05); beep(420, 0.28, 'sine', 0.04, 0.12); },
   };
-  function buzz(p) { if (!st.vibre) return; try { if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* pas de vibreur */ } }
+  function buzz(p) { if (!st.vibre) return; try { if (navigator.userActivation && !navigator.userActivation.hasBeenActive) return; if (navigator.vibrate) navigator.vibrate(p); } catch (e) { /* pas de vibreur */ } } // avant toute touche (un trophée au lancement), le navigateur refuse la vibration : on s'en passe
 
   // ─── cartes des produits (compactes : niveau sur l'icône, barre fine, deux boutons de 44 px) ───
   function buildCards() {
@@ -6621,7 +6653,7 @@ const UI = (() => {
   const CLM = typeof CLASSEMENT !== 'undefined' ? CLASSEMENT : null;
   const EVT = typeof EVENEMENT !== 'undefined' ? EVENEMENT : null, QT = typeof QUARTIER !== 'undefined' ? QUARTIER : null; // l'événement « Le Quartier » (src/evenement.js, src/quartier.js)
   const PERIODES = [['semaine', 'Cette semaine'], ['total', 'Tous les temps']];
-  const periodes = () => (QT && QT.fenetre(HORLOGE.maintenant()).classement ? PERIODES.concat([['quartier', 'Événement']]) : PERIODES); // l'onglet Événement : pendant le Quartier et deux semaines après (le podium final)
+  const periodes = () => (QT && QT.fenetre(HORLOGE.maintenant()).classement && !(st && st.quartier && st.quartier.masque) ? PERIODES.concat([['quartier', 'Événement']]) : PERIODES); // l'onglet Événement : pendant le Quartier et deux semaines après (le podium final)
   const MSG_RESEAU = { 'hors-ligne': 'Pas de réseau : réessaie quand le téléphone est connecté.', 'lent': 'Le classement est lent à répondre : réessaie dans un instant.', 'pas-ouvert': 'Le classement ouvre bientôt : reviens dans quelques jours.' };
   const msgReseau = (e) => MSG_RESEAU[e] || 'Le classement ne répond pas. Réessaie dans un moment.';
   function cleClassement() { if (!classement) return ''; const r = classement.resume(); return `${r.rejoint}|${r.pseudo}|${r.semaine ? r.semaine.rang + '/' + r.semaine.joueurs : ''}|${r.total ? r.total.rang + '/' + r.total.joueurs : ''}|${classement.recompenses().podiums.length}|${G.pointsSemaine(st)}`; }
@@ -6758,6 +6790,7 @@ const UI = (() => {
   function majRecompenses() { // la boutique en 3D suit les récompenses, chaque podium met ses quatre pièces dans la garde-robe, et l'annonce attend que plus rien ne soit ouvert
     const r = recVue(); if (!r) return;
     let neuves = 0; for (const m of r.coupes) neuves += G.donnerCollection(st, m).length; // un podium gagné = les quatre pièces de sa collection (or, argent ou bronze), une fois pour toutes
+    if ([1, 2, 3].includes(r.quartier)) { const n = G.donnerCollection(st, 'quartier-or').length; if (n) { neuves += n; toast('Podium final du Quartier : la tenue du quartier en or est dans ta garde-robe !'); } } // le podium final de l'événement « Le Quartier », à vie
     if (neuves) { save(); if (pageActive === 'boulanger') { lastPage = ''; renderPage(true); } }
     const k = `${r.portee}|${r.coupe}|${r.coupes.join(',')}`;
     if (k !== derniereRecScene) { derniereRecScene = k; SCENE.recompenses({ tenue: r.portee, coupe: r.coupe, coupes: r.coupes }); if (pageActive === 'boulanger') renderPage(); }
@@ -6776,7 +6809,7 @@ const UI = (() => {
     openSheet(`<div class="cl rec-annonce" data-cl="annonce"><div class="rec-scene ${m}" aria-hidden="true"><i class="rec-rayons"></i><span class="rec-coupe">${ICONS.coupe(m)}</span><span class="rec-boulanger">${ICONS.boulanger(1, m)}</span></div>
       <h2>Bravo ! ${rangDe(a.rang)} de la semaine</h2>
       <p class="rec-phrase">La tenue ${n} et la coupe ${n} sont à toi.</p>
-      <p class="sous">Semaine du ${CLM.dateCourte(a.semaine)} : ${recent ? `ton boulanger porte la tenue ${n} toute cette semaine, la coupe trône sur le comptoir, puis elle rejoint ta vitrine des trophées.` : `la coupe a rejoint ta vitrine des trophées, et la tenue t’attend dans ta garde-robe.`} Les quatre pièces (toque, tablier, chaussures, foulard) sont à toi pour toujours, dans ta garde-robe.${a.autres ? ` Et ${a.autres === 1 ? 'un autre podium t’attendait' : `${a.autres} autres podiums t’attendaient`} : ${a.autres === 1 ? 'sa tenue est' : 'leurs tenues sont'} dans ta garde-robe.` : ''}</p>
+      <p class="sous">Semaine du ${CLM.dateCourte(a.semaine)} : ${recent ? `ton boulanger porte la tenue ${n} cette semaine, la coupe trône sur le comptoir. Les quatre pièces restent à toi dans ta garde-robe.` : `la coupe est dans ta vitrine, les quatre pièces de la tenue dans ta garde-robe.`}${a.autres ? ` Et ${a.autres === 1 ? 'un autre podium t’attendait' : `${a.autres} autres podiums t’attendaient`} : ${a.autres === 1 ? 'sa tenue est' : 'leurs tenues sont'} dans ta garde-robe.` : ''}</p>
       <button type="button" class="btn large beurre" data-a="rec-voir"><b>Voir ma boutique</b></button>
       <button type="button" class="btn large clair" data-a="rec-collection" style="margin-top:8px"><b>Mes récompenses</b></button></div>`);
     vueCl = 'annonce';
@@ -6954,7 +6987,7 @@ const UI = (() => {
     $('#b-quartier').addEventListener('click', () => { audio(); son.tap(); if (EVT) EVT.ouvrir(); });
     $('#boosts').addEventListener('click', () => { audio(); son.tap(); lancerBoost(); });
     // l'événement « Le Quartier » : la Planque, ses paliers et leurs récompenses, l'annonce, le bilan (src/evenement.js)
-    if (EVT) EVT.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), save, toast, fete: () => SCENE.fete(), openSheet, closeSheet, on, recompenses: recVue,
+    if (EVT) EVT.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), sure: () => { try { const e = HORLOGE.etat(); return e ? e.sure : null; } catch (e) { return null; } }, save, toast, fete: () => SCENE.fete(), openSheet, closeSheet, on, recompenses: recVue,
       ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); majCoin(); renderCards(true); hud(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); lastPage = ''; renderPage(true); } });
     buildCards();
@@ -6984,7 +7017,7 @@ const UI = (() => {
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) { save(); return; }
       if (retourEnCours) return; retourEnCours = true;
-      HORLOGE.retour().catch(() => {}).then(() => { retourEnCours = false; const abs = G.absence(st, HORLOGE.maintenant()); absencePayee = abs.secs * 1000; if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); });
+      HORLOGE.retour().catch(() => {}).then(() => { retourEnCours = false; const abs = G.absence(st, HORLOGE.maintenant()); absencePayee = abs.secs * 1000; if (EVT && EVT.ouvert) EVT.retour(); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); });
     });
     document.addEventListener('pointerdown', () => { dernierToucher = performance.now(); }, true);
     document.addEventListener('pointerdown', () => { try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* rien */ } }, { once: true });
@@ -6998,9 +7031,10 @@ const UI = (() => {
     absencePrete = true;
     HORLOGE.surSaut(payerSaut);
     if (EVT) { setTimeout(() => { if ($('#feuille').hidden) EVT.annoncer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVT.annoncer(); } }, 1500); } }, 800); } // l'annonce du Quartier (ou son bilan) attend que la feuille du retour soit refermée
+    if (EVT) setInterval(() => { majCoinQuartier(); if (!EVT.ouvert && !MINIJEUX.ouvert && !document.hidden && $('#feuille').hidden) EVT.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
-    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.fenetre(HORLOGE.maintenant()).ouvert ? st.quartier.total : null), maintenant: () => HORLOGE.maintenant() }) : null; } catch (e) { classement = null; }
+    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), maintenant: () => HORLOGE.maintenant() }) : null; } catch (e) { classement = null; }
     if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); }); majRecompenses(); classement.demarrer(); setInterval(majRecompenses, 60e3); } // la tenue et la coupe changent aussi au lundi
     majCoin();
     lastNiveau = G.niveau(st);

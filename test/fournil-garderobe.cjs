@@ -18,6 +18,7 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
 
 (async () => {
   const browser = await chromium.launch();
+  { const nc = browser.newContext.bind(browser); browser.newContext = async (o) => { const c = await nc(o); await c.addInitScript(() => { window.__sansQuartier = true; }); return c; }; } // pendant sa fenêtre, l'événement « Le Quartier » (icône, annonce) ne vient pas couvrir ce test (src/evenement.js)
   const errors = [];
   const suivre = (p) => {
     p.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });
