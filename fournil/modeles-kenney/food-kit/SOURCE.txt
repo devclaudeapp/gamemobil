@@ -1,0 +1,5 @@
+Pack : food-kit (Kenney, https://kenney.nl/assets/food-kit)
+Licence : CC0 1.0 (voir License.txt)
+Récupéré le 2026-10-13 depuis : https://kenney.nl/media/pages/assets/food-kit/83086fa91c-1719418518/kenney_food-kit.zip
+Zip : sha256 cdad90853682499b94c9fda2f87678b24bfd8f3264e0ed323f6b6a27fd7c6f6f
+GLB copiés : 200

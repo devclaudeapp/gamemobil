@@ -1,0 +1,5 @@
+Pack : mini-market (Kenney, https://kenney.nl/assets/mini-market)
+Licence : CC0 1.0 (voir License.txt)
+Récupéré le 2026-10-13 depuis : https://kenney.nl/media/pages/assets/mini-market/463f38da51-1729865423/kenney_mini-market.zip
+Zip : sha256 6f2e69090e359204ace43e4c98dc3fb8639b75e423109672b5c890d194c45203
+GLB copiés : 20
