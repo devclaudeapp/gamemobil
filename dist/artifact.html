@@ -3278,7 +3278,10 @@ const MODELES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     gs.forEach((g, i) => {
       const m = g.attributes.position.count; pos.set(g.attributes.position.array, o * 3);
       if (g.attributes.normal) nor.set(g.attributes.normal.array, o * 3);
-      _c.set(parties[i].col || '#FFFFFF'); for (let k = 0; k < m; k++) { col[(o + k) * 3] = _c.r; col[(o + k) * 3 + 1] = _c.g; col[(o + k) * 3 + 2] = _c.b; }
+      _c.set(parties[i].col || '#FFFFFF');
+      const vc = parties[i].vc && g.attributes.color; // une pièce déjà colorée par sommet (un modèle cuit) : sa couleur, teintée par col
+      if (vc) { const a = vc.array; for (let k = 0; k < m; k++) { col[(o + k) * 3] = a[k * 3] * _c.r; col[(o + k) * 3 + 1] = a[k * 3 + 1] * _c.g; col[(o + k) * 3 + 2] = a[k * 3 + 2] * _c.b; } }
+      else for (let k = 0; k < m; k++) { col[(o + k) * 3] = _c.r; col[(o + k) * 3 + 1] = _c.g; col[(o + k) * 3 + 2] = _c.b; }
       o += m;
     });
     const out = new THREE.BufferGeometry();
@@ -3308,9 +3311,134 @@ const MODELES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     });
   }
   const partager = (m) => { PARTAGES.add(m); return m; }; // un matériau tenu en cache ailleurs : dispose ne le libère jamais
-  return { TAU, partager, boite, boiteSimple, sphere, capsule, cylindre, cone, tore, plan, anneau, disque, extrusion, mat, MAT, part, matrice, assembler, maille, mesh, texture, melange, eclaircir, assombrir, dispose, GEOS, MATS };
+  const estPartage = (m) => PARTAGES.has(m);
+  return { TAU, partager, estPartage, boite, boiteSimple, sphere, capsule, cylindre, cone, tore, plan, anneau, disque, extrusion, mat, MAT, part, matrice, assembler, maille, mesh, texture, melange, eclaircir, assombrir, dispose, GEOS, MATS };
 })();
 if (typeof module !== 'undefined') module.exports = MODELES;
+
+/* ── kenney.js ── */
+/* LE FOURNIL — les modèles 3D CC0 de Kenney (Furniture Kit, Food Kit, Mini Market ; licence dans fournil/modeles/LICENCE.txt).
+   Les GLB de fournil/modeles/ sont lus par un petit lecteur GLB (quelques dizaines de lignes au lieu des 110 Ko du GLTFLoader) et « cuits » :
+   chaque triangle prend la couleur de son matériau ou de la palette colormap.png sous son UV, convertie en linéaire. On obtient une géométrie
+   à couleurs de sommets, posée (bas sur y = 0), centrée en X/Z, qui entre telle quelle dans les maillages fusionnés de MEUBLES
+   (MODELES.assembler, parties marquées vc) : pas un appel de dessin de plus. Les couleurs d'un matériau nommé (wood, plant, metalLight…)
+   peuvent être remplacées à la volée (les couleurs du quartier). Tant que les modèles ne sont pas chargés (premier affichage, hors ligne
+   sans cache, artefact Claude sans fichiers à côté), MEUBLES garde ses meubles faits à la main : KENNEY.pret dit lequel des deux on voit. */
+const KENNEY = typeof THREE === 'undefined' ? null : (() => {
+  'use strict';
+  const PACKS = { // les modèles gardés (ceux qu'on pose dans la boutique), par pack
+    'furniture-kit': ['tableRound', 'chairRounded', 'chairCushion', 'pottedPlant', 'plantSmall2', 'kitchenFridge', 'kitchenFridgeLarge', 'rugDoormat'],
+    'food-kit': ['loaf-baguette', 'loaf-round', 'loaf', 'croissant', 'pie', 'cup-saucer', 'cup-coffee', 'rollingPin', 'bowl', 'whisk'],
+    'mini-market': ['freezers-standing', 'cash-register'],
+  };
+  const MODS = new Map(), CACHE = new Map(), attente = [];
+  let pret = false, enCours = null, erreur = null, octets = 0;
+  // ─── le lecteur GLB : JSON + binaire, nœuds (matrice ou TRS), primitives triangles, accesseurs flottants ou entiers ───
+  const COMP = { 5120: [Int8Array, 1], 5121: [Uint8Array, 1], 5122: [Int16Array, 2], 5123: [Uint16Array, 2], 5125: [Uint32Array, 4], 5126: [Float32Array, 4] };
+  const TAILLE = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
+  function accesseur(j, bin, i) {
+    const a = j.accessors[i], v = j.bufferViews[a.bufferView], [T, o] = COMP[a.componentType], n = TAILLE[a.type], pas = v.byteStride ? v.byteStride / o : n;
+    const src = new T(bin.buffer, bin.byteOffset + (v.byteOffset || 0) + (a.byteOffset || 0), (a.count - 1) * pas + n), out = new Float32Array(a.count * n);
+    const k = a.normalized ? (T === Uint8Array ? 1 / 255 : T === Uint16Array ? 1 / 65535 : 1) : 1;
+    for (let e = 0; e < a.count; e++) for (let c = 0; c < n; c++) out[e * n + c] = src[e * pas + c] * k;
+    return out;
+  }
+  const lin = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4)); // sRGB → linéaire (les couleurs de sommets de MODELES sont linéaires)
+  function lire(buf, palette) { // → { pos, nor, col, mat (le nom du matériau de chaque triangle), noms }
+    const dv = new DataView(buf); if (dv.getUint32(0, true) !== 0x46546C67) throw new Error('pas un GLB');
+    const lj = dv.getUint32(12, true), j = JSON.parse(new TextDecoder().decode(new Uint8Array(buf, 20, lj)));
+    const bin = new Uint8Array(buf, 20 + lj + 8, dv.getUint32(20 + lj, true));
+    const P = [], N = [], C = [], MT = [], noms = [];
+    const m4 = new THREE.Matrix4(), m3 = new THREE.Matrix3(), v = new THREE.Vector3(), q = new THREE.Quaternion(), s = new THREE.Vector3(), t = new THREE.Vector3(), col = new THREE.Color();
+    function noeud(i, parent) {
+      const nd = j.nodes[i], m = new THREE.Matrix4();
+      if (nd.matrix) m.fromArray(nd.matrix); else m.compose(t.fromArray(nd.translation || [0, 0, 0]), q.fromArray(nd.rotation || [0, 0, 0, 1]), s.fromArray(nd.scale || [1, 1, 1]));
+      m.premultiply(parent);
+      if (nd.mesh != null) for (const pr of j.meshes[nd.mesh].primitives) {
+        if (pr.mode != null && pr.mode !== 4) continue;
+        const pos = accesseur(j, bin, pr.attributes.POSITION), nor = pr.attributes.NORMAL != null ? accesseur(j, bin, pr.attributes.NORMAL) : null, uv = pr.attributes.TEXCOORD_0 != null ? accesseur(j, bin, pr.attributes.TEXCOORD_0) : null;
+        const idx = pr.indices != null ? accesseur(j, bin, pr.indices) : null, nb = idx ? idx.length : pos.length / 3;
+        const mat = pr.material != null ? j.materials[pr.material] : {}, pbr = mat.pbrMetallicRoughness || {}, f = pbr.baseColorFactor || [1, 1, 1, 1], tex = !!pbr.baseColorTexture && palette, nom = mat.name || '';
+        if (!noms.includes(nom)) noms.push(nom);
+        m4.copy(m); m3.getNormalMatrix(m4);
+        for (let k = 0; k < nb; k += 3) {
+          let r = f[0], g = f[1], b = f[2];
+          if (tex && uv) { // la palette sous le centre du triangle
+            let u = 0, w = 0; for (let e = 0; e < 3; e++) { const ii = idx ? idx[k + e] : k + e; u += uv[ii * 2]; w += uv[ii * 2 + 1]; }
+            u = ((u / 3) % 1 + 1) % 1; w = ((w / 3) % 1 + 1) % 1;
+            const px = Math.min(palette.w - 1, Math.floor(u * palette.w)), py = Math.min(palette.h - 1, Math.floor(w * palette.h)), o = (py * palette.w + px) * 4;
+            r *= lin(palette.d[o] / 255); g *= lin(palette.d[o + 1] / 255); b *= lin(palette.d[o + 2] / 255);
+          }
+          for (let e = 0; e < 3; e++) {
+            const ii = idx ? idx[k + e] : k + e;
+            v.set(pos[ii * 3], pos[ii * 3 + 1], pos[ii * 3 + 2]).applyMatrix4(m4); P.push(v.x, v.y, v.z);
+            if (nor) { v.set(nor[ii * 3], nor[ii * 3 + 1], nor[ii * 3 + 2]).applyMatrix3(m3).normalize(); N.push(v.x, v.y, v.z); }
+            C.push(r, g, b);
+          }
+          MT.push(noms.indexOf(nom));
+        }
+      }
+      for (const c of nd.children || []) noeud(c, m);
+    }
+    for (const r of j.scenes[j.scene || 0].nodes) noeud(r, new THREE.Matrix4());
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
+    if (N.length === P.length) geo.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); else geo.computeVertexNormals();
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+    geo.computeBoundingBox(); const bb = geo.boundingBox; geo.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2); geo.computeBoundingBox(); // posé, centré
+    geo.userData.cache = true;
+    const d = geo.boundingBox.getSize(new THREE.Vector3());
+    return { geo, mat: Uint8Array.from(MT), noms, w: d.x, h: d.y, d: d.z };
+  }
+  // ─── le chargement : toutes les palettes, puis tous les GLB en parallèle ; une seule tentative par page ───
+  async function palette(url) {
+    const r = await fetch(url); if (!r.ok) throw new Error(url + ' : ' + r.status);
+    const blob = await r.blob(); octets += blob.size;
+    const img = await new Promise((ok, ko) => { const i = new Image(), u = URL.createObjectURL(blob); i.onload = () => { URL.revokeObjectURL(u); ok(i); }; i.onerror = ko; i.src = u; });
+    const cv = document.createElement('canvas'); cv.width = img.width; cv.height = img.height; const x = cv.getContext('2d'); x.drawImage(img, 0, 0);
+    return { w: cv.width, h: cv.height, d: x.getImageData(0, 0, cv.width, cv.height).data };
+  }
+  function charger(base) {
+    if (enCours) return enCours;
+    if (typeof fetch !== 'function' || !/^https?:$/.test(location.protocol)) { erreur = 'pas de réseau (page locale)'; return (enCours = Promise.resolve(false)); }
+    const t0 = performance.now();
+    enCours = (async () => {
+      const pals = {};
+      for (const pack of Object.keys(PACKS)) if (pack !== 'furniture-kit') pals[pack] = await palette(`${base}${pack}/Textures/colormap.png`);
+      await Promise.all(Object.entries(PACKS).flatMap(([pack, noms]) => noms.map(async (nom) => {
+        const r = await fetch(`${base}${pack}/${nom}.glb`); if (!r.ok) throw new Error(nom + ' : ' + r.status);
+        const buf = await r.arrayBuffer(); octets += buf.byteLength; MODS.set(nom, lire(buf, pals[pack]));
+      })));
+      pret = true; KENNEY.ms = Math.round(performance.now() - t0);
+      for (const f of attente.splice(0)) try { f(); } catch (e) { console.error(e); }
+      return true;
+    })().catch((e) => { erreur = String(e && e.message || e); console.warn('Modèles Kenney non chargés (les meubles faits à la main restent) :', erreur); MODS.clear(); return false; });
+    return enCours;
+  }
+  const quandPret = (f) => { if (pret) f(); else attente.push(f); };
+  // ─── l'usage : la géométrie (recolorée et en cache), ses cotes, une pièce prête pour MODELES.assembler ───
+  const _c = new THREE.Color();
+  function geo(nom, couleurs) { // couleurs : { nomDeMatériau: '#hex' } remplace la couleur cuite de ces triangles
+    const md = MODS.get(nom); if (!md) return null;
+    if (!couleurs) return md.geo;
+    const k = nom + JSON.stringify(couleurs); let g = CACHE.get(k); if (g) return g;
+    g = md.geo.clone(); g.userData.cache = true; const a = g.attributes.color.array;
+    const rem = md.noms.map((n) => (couleurs[n] ? _c.set(couleurs[n]).toArray() : null));
+    for (let t = 0; t < md.mat.length; t++) { const c = rem[md.mat[t]]; if (c) for (let e = 0; e < 3; e++) a.set(c, (t * 3 + e) * 3); }
+    CACHE.set(k, g); return g;
+  }
+  const dims = (nom) => { const m = MODS.get(nom); return m ? { w: m.w, h: m.h, d: m.d } : null; };
+  // une pièce : o = { w, h, d } (cotes visées ; une seule cote donnée → échelle uniforme), ou s (échelle), plus x, y, z, rx, ry, rz ; col teinte le tout
+  function part(nom, o, couleurs, col) {
+    const md = MODS.get(nom); if (!md) return null; o = o || {};
+    let sx, sy, sz;
+    if (o.s != null) sx = sy = sz = o.s;
+    else { const kw = o.w != null ? o.w / md.w : null, kh = o.h != null ? o.h / md.h : null, kd = o.d != null ? o.d / md.d : null, u = kw || kh || kd || 1; sx = kw || u; sy = kh || (kw && kd ? (kw + kd) / 2 : u); sz = kd || u; }
+    const p = MODELES.part(geo(nom, couleurs), col || null, { x: o.x, y: o.y, z: o.z, rx: o.rx, ry: o.ry, rz: o.rz, sx, sy, sz }); p.vc = true; return p;
+  }
+  return { PACKS, charger, quandPret, geo, dims, part, get pret() { return pret; }, get erreur() { return erreur; }, get octets() { return octets; }, ms: 0, MODS };
+})();
+if (typeof module !== 'undefined') module.exports = KENNEY;
 
 /* ── meubles.js ── */
 /* LE FOURNIL — le mobilier et la salle en 3D : le sol et le mur du fond (avec la fenêtre et la porte), la chambre froide, le four,
@@ -3333,6 +3461,9 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   const zSur = (c, ys, Y) => (ys - c.LAY.murH + Y * c.CY) / c.SY; // Z d'un point d'écran posé sur un plan horizontal à la hauteur Y
   const propre = (o) => new THREE.MeshLambertMaterial(o); // un matériau propre à l'objet (il sera modifié par anime)
   const lumineux = (hex, k) => propre({ color: hex, emissive: hex, emissiveIntensity: k == null ? 1 : k });
+  // les modèles CC0 de Kenney (src/kenney.js), quand ils sont chargés : une pièce cuite qui entre dans la fusion (null sinon : on garde le fait main)
+  const KN = () => (typeof KENNEY !== 'undefined' && KENNEY && KENNEY.pret ? KENNEY : null);
+  const kp = (nom, o, couleurs, col) => { const k = KN(); return k ? k.part(nom, o, couleurs, col) : null; };
   const matDe = (k, fab) => { let m = MATS.get(k); if (!m) { m = M.partager(fab()); MATS.set(k, m); } return m; }; // en cache par quartier : partagé, jamais libéré
   function forme(k, fab) { return M.extrusion(k, fab(), 1, 0); } // une forme plate extrudée d'une unité, mise en cache par clé
   const triangle = (w, h) => forme('tri' + w + '|' + h, () => { const s = new THREE.Shape(); s.moveTo(-w / 2, 0); s.lineTo(w / 2, 0); s.lineTo(0, -h); s.closePath(); return s; }); // la pointe en bas
@@ -3421,6 +3552,15 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       g.add(M.maille(pr)); return g;
     }
     const d = c.wd(f.h * 0.24), h = c.wy(f.h * 0.76), col = k >= 2 ? '#C9CED6' : '#F6F7F9', top = k >= 2 ? '#E2E6EC' : '#FFFFFF';
+    if (KN()) { // Kenney : le frigo blanc (Furniture Kit), le grand frigo inox à deux portes, puis la vitrine réfrigérée du Mini Market et sa barre à LED
+      if (k >= 3) {
+        pr.push(kp('freezers-standing', { w: f.w, h: h - 3, d, z: -d / 2 }), P(bo(f.w - 2, 4, d - 2, 1.5), '#FFFFFF', { y: h - 4, z: -d / 2 }));
+        const led = M.mesh(bo(f.w - 12, 1.5, 1, 0.4), lumineux('#6CB8FF', 1), { y: h - 2.5, z: 0 }, { ombre: false }); g.add(led);
+        g.userData.anime = (E) => { led.material.emissiveIntensity = Math.sin(E.t * 3) > 0 ? 1 : 0.25; };
+      } else pr.push(kp(k >= 2 ? 'kitchenFridgeLarge' : 'kitchenFridge', { w: f.w, h, d, z: -d / 2 }, k >= 2 ? { metalLight: '#D5DAE1', metalMedium: '#8C939E' } : { metalLight: '#FBFBF8', metal: '#B9C6D2', metalDark: '#8C939E', glass: '#CFE9FA' }));
+      if (k >= 2) pr.push(P(M.sphere(1.5, 6), '#6CB8FF', { x: -f.w / 2 + 7, y: h - 2.5, z: 0.6 }));
+      g.add(M.maille(pr)); return g;
+    }
     pr.push(P(bo(f.w, h - 4, d, 4), col, { z: -d / 2 }), P(bo(f.w, 5, d, 2), top, { y: h - 5, z: -d / 2 }));
     if (k >= 3) { // la chambre vitrée à LED : une cavité claire, trois clayettes garnies, la vitre et sa barre lumineuse
       const vw = f.w - 10, vh = h * 0.72, vy = 8, prof = d * 0.7;
@@ -3497,6 +3637,14 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   function caisse(k, c) {
     const o = surDessus(c, c.LAY.caisse), g = grp('caisse', o.x, o.y, o.z), pr = []; g.userData.zone = 'caisse';
     if (k === 0) { pr.push(P(bo(22, 9, 14, 2), c.Q.bois), P(bo(8, 2, 1.5, 0.7), '#E0A61E', { y: 3, z: 7 })); g.add(M.maille(pr)); return g; }
+    if (KN()) { // la caisse enregistreuse du Mini Market (menthe, puis anthracite au dernier cran), la clochette au dernier cran ; l'écran qui s'allume à chaque vente reste le nôtre
+      pr.push(kp('cash-register', { w: 30, h: 18, d: 20 }, null, k >= 3 ? '#9A8F9F' : '#E2FFF3'));
+      if (k >= 3) pr.push(P(bo(7, 10, 5, 1.5), '#B9C6D2', { x: 15, z: -3 }), P(M.sphere(3, 10), '#FFC84A', { x: 15, y: 12.5, z: -3 }));
+      g.add(M.maille(pr));
+      const ecran = M.mesh(bo(k >= 2 ? 12 : 9, 6, 1, 1), propre({ color: '#FFFFFF' }), { x: -8, y: 11, z: 0.6, rx: -0.2 }); g.add(ecran);
+      g.userData.anime = (E) => { ecran.material.color.copy(E.caisseFlash > 0.3 ? C_FLASH : C_BLANC); };
+      return g;
+    }
     pr.push(P(bo(24, 10, 16, 3), k >= 3 ? L : '#5FD3A4'));
     for (let r = 0; r < 2; r++) for (let q = 0; q < 3; q++) pr.push(P(bo(4, 1, 3, 0.4), '#FFFFFF', { x: -6 + q * 6, y: 10, z: 1 + r * 4.5 }));
     if (k >= 3) pr.push(P(bo(7, 12, 5, 1.5), '#B9C6D2', { x: 13.5, z: -3 }), P(M.sphere(3, 10), '#FFC84A', { x: 13.5, y: 14.5, z: -3 }));
@@ -3511,23 +3659,29 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     const { LAY, K, Q } = c, g = grp('tables'), couverts = []; g.userData.zone = 'tables'; g.userData.couverts = couverts;
     if (k === 0) { const tb = LAY.tables[0]; g.add(M.mesh(M.anneau(14 * K, 16 * K, 32), M.MAT.pointille, { x: tb.x, y: 0.4, z: c.wz(tb.y - 8 * K) }, { ombre: false })); return g; }
     const R = 16 * K, Ht = 28, pr = [], nappe = k >= 4, bougies = [];
+    const kn = KN();
     for (let i = 0; i < k; i++) {
       const tb = LAY.tables[i], x = tb.x, z = c.wz(tb.y);
-      pr.push(P(M.cylindre(6.5 * K, 7.5 * K, 2, 14), Q.bois, { x, z }), P(M.cylindre(2.4, 2.4, Ht - 5, 8), Q.bois, { x, y: 2, z }));
-      pr.push(P(M.cylindre(R, R - 1.5, 3, 22), Q.comptoir, { x, y: Ht - 3, z }), P(M.cylindre(R - 0.3, R - 0.3, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht, z }));
+      if (kn) pr.push(kp('tableRound', { w: 2 * R, d: 2 * R, h: Ht, x, z }, { wood: Q.comptoir }), P(M.cylindre(R - 1.2, R - 1.2, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht - 0.4, z })); // la table ronde du Furniture Kit, son plateau aux couleurs du quartier
+      else {
+        pr.push(P(M.cylindre(6.5 * K, 7.5 * K, 2, 14), Q.bois, { x, z }), P(M.cylindre(2.4, 2.4, Ht - 5, 8), Q.bois, { x, y: 2, z }));
+        pr.push(P(M.cylindre(R, R - 1.5, 3, 22), Q.comptoir, { x, y: Ht - 3, z }), P(M.cylindre(R - 0.3, R - 0.3, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht, z }));
+      }
       if (nappe) pr.push(P(M.cylindre(R * 0.62, R * 0.62, 0.6, 18), '#FFFFFF', { x, y: Ht + 1, z }));
-      for (const s of tb.sieges) chaise(pr, s.x, c.wz(s.y), s.dir, K, Q);
+      for (const s of tb.sieges) chaise(pr, s.x, c.wz(s.y), s.dir, K, Q, k >= 3);
       if (k >= 4 || c.crans.deco >= 3) pr.push(P(bo(4, 6, 4, 1.5), '#9BD0FF', { x, y: Ht + 1, z }), P(M.sphere(2.6, 8), ['#FF6B8B', '#FFC84A', '#B8A6FF'][i % 3], { x, y: Ht + 9, z }));
       if (c.crans.deco >= 4) { pr.push(P(M.cylindre(1.6, 1.8, 6, 8), '#FFFDF5', { x: x + 7 * K, y: Ht + 1, z: z - 2 })); const fl = M.mesh(M.sphere(1.5, 8), lumineux('#FFC84A', 0.3), { x: x + 7 * K, y: Ht + 8.5, z: z - 2, sy: 1.5 }, { ombre: false }); g.add(fl); bougies.push(fl); } // les bougies du salon
-      const cv = M.maille([P(M.cylindre(5 * K, 5 * K, 0.8, 14), '#FFFFFF', { x: -5 * K }), P(M.sphere(1.8 * K, 8), '#E8B46A', { x: -5 * K, y: 1.8 }), P(M.cylindre(2.4 * K, 2 * K, 4.5, 10), '#FFFFFF', { x: 4 * K, z: -3 }), P(M.tore(2.2, 0.6, TAU, 6, 10), '#FFFFFF', { x: 6.6 * K, y: 2.6, z: -3 })]);
+      const cv = M.maille(kn ? [P(M.cylindre(5 * K, 5 * K, 0.8, 14), '#FFFFFF', { x: -5 * K }), kp('croissant', { w: 7.5 * K, x: -5 * K, y: 0.8, ry: 0.4 }), kp('cup-saucer', { w: 7 * K, x: 4.5 * K, z: -3 }), kp('cup-coffee', { w: 4.6 * K, x: 4.5 * K, y: 0.7, z: -3, ry: -0.6 })] // le couvert : croissant, tasse et soucoupe du Food Kit
+        : [P(M.cylindre(5 * K, 5 * K, 0.8, 14), '#FFFFFF', { x: -5 * K }), P(M.sphere(1.8 * K, 8), '#E8B46A', { x: -5 * K, y: 1.8 }), P(M.cylindre(2.4 * K, 2 * K, 4.5, 10), '#FFFFFF', { x: 4 * K, z: -3 }), P(M.tore(2.2, 0.6, TAU, 6, 10), '#FFFFFF', { x: 6.6 * K, y: 2.6, z: -3 })]);
       cv.position.set(x, Ht + 1, z); cv.visible = false; couverts.push(cv); g.add(cv);
     }
     g.add(M.maille(pr, { recoit: true }));
     if (bougies.length) g.userData.anime = (E) => { for (let i = 0; i < bougies.length; i++) bougies[i].material.emissiveIntensity = 0.3 + E.lampes * (0.8 + 0.2 * Math.sin(E.t * 9 + i * 2.1)); };
     return g;
   }
-  function chaise(pr, x, z, dir, K, Q) { // assise à 16, dossier côté extérieur (dir = +1 : la chaise regarde vers +X), quatre pieds
+  function chaise(pr, x, z, dir, K, Q, coussin) { // assise à 16, dossier côté extérieur (dir = +1 : la chaise regarde vers +X), quatre pieds
     const a = 13 * K;
+    if (KN()) { pr.push(kp(coussin ? 'chairCushion' : 'chairRounded', { w: a, d: a, h: 32, x, z, ry: dir > 0 ? Math.PI / 2 : -Math.PI / 2 }, { wood: Q.bois, carpet: Q.accent })); return; } // la chaise du Furniture Kit (coussin au salon de thé)
     pr.push(P(bo(a, 3, a, 1.2), Q.comptoir2, { x, y: 13, z }));
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(bo(1.8, 13, 1.8, 0.5), Q.bois, { x: x + sx * (a / 2 - 1.2), z: z + sz * (a / 2 - 1.2) }));
     pr.push(P(bo(3, 16, a, 1.2), Q.bois, { x: x - dir * (a / 2 - 1.5), y: 16, z }));
@@ -3536,7 +3690,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   function deco(k, c) {
     const { LAY, Q, W } = c, g = grp('deco'), lampes = []; g.userData.zone = 'deco'; g.userData.lampes = lampes;
     if (k === 0) { const m = M.mesh(M.disque(1, 6), M.MAT.tache, { x: LAY.deco.x, y: 0.2, z: c.wz(LAY.deco.y) }, { ombre: false }); m.visible = false; g.add(m); return g; }
-    const pl = plante(LAY.deco.x, LAY.deco.y, c); g.add(pl); g.userData.zoneBoite = new THREE.Box3().setFromObject(pl, true); // la zone de touche : la plante seule (le reste s'accroche au mur ou au plafond)
+    const pl = plante(LAY.deco.x, LAY.deco.y, c, true); g.add(pl); g.userData.zoneBoite = new THREE.Box3().setFromObject(pl, true); // la zone de touche : la plante seule (le reste s'accroche au mur ou au plafond)
     if (k >= 2) { if (!c.trophees) g.add(cadre(LAY.cadre2.x, LAY.cadre2.y, c)); for (const a of LAY.appliques) g.add(applique(a.x, a.y - 14, c, lampes)); } // les appliques, juste au-dessus des cadres
     if (k >= 3) g.add(guirlande(c.tags && c.tags.includes('noel'), c));
     if (k >= 4) {
@@ -3561,7 +3715,8 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     const p = c.LAY.plan, Q = c.Q, d = c.wd(p.h * 0.45), h = c.wy(p.h * 0.55), g = grp('plan', p.x + p.w / 2, 0, c.wz(p.y + p.h)), pr = [], zc = -d / 2;
     pr.push(P(bo(p.w, h - 3, d, 2), Q.bois, { z: zc }), P(bo(p.w + 2, 3, d + 1.5, 1), Q.comptoir2, { y: h - 3, z: zc }));
     pr.push(P(M.sphere(5.5, 12), '#FFF3C4', { x: -p.w * 0.2, y: h + 0.5, z: zc, sy: 0.5 }), P(M.cylindre(1.7, 1.7, p.w * 0.3, 8), '#C8864F', { x: p.w * 0.2 - p.w * 0.15, y: h + 1.7, z: zc + 1, rz: -Math.PI / 2 }));
-    for (const s of [-1, 1]) pr.push(P(M.cylindre(1, 1, 3, 6), '#E8C39A', { x: p.w * 0.2 + s * (p.w * 0.15 + 1.5), y: h + 1.7, z: zc + 1, rz: -Math.PI / 2 }));
+    if (KN()) { pr.pop(); pr.push(kp('rollingPin', { w: p.w * 0.36, x: p.w * 0.05, y: h, z: zc + 1 }), kp('bowl', { w: 13, x: p.w * 0.36, y: h, z: zc - 1 }), kp('whisk', { w: 11, x: p.w * 0.36, y: h + 4, z: zc - 1, rz: -0.5, ry: 0.6 })); } // Food Kit : le rouleau, le cul-de-poule et son fouet
+    else for (const s of [-1, 1]) pr.push(P(M.cylindre(1, 1, 3, 6), '#E8C39A', { x: p.w * 0.2 + s * (p.w * 0.15 + 1.5), y: h + 1.7, z: zc + 1, rz: -Math.PI / 2 }));
     for (let i = 0; i < 4; i++) pr.push(P(M.sphere(0.9, 6), '#FFFFFF', { x: -p.w * 0.38 + i * 5, y: h + 0.4, z: zc + 2.5 }));
     g.add(M.maille(pr, { recoit: true })); return g;
   }
@@ -3569,7 +3724,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     const p = c.LAY.presentoir, Q = c.Q, d = c.wd(p.h * 0.45), h = c.wy(p.h * 0.55), g = grp('presentoir', p.x + p.w / 2, 0, c.wz(p.y + p.h)), pr = [], zc = -d / 2;
     pr.push(P(bo(p.w, h, d, 2.5), Q.bois, { z: zc }), P(bo(p.w + 4, 2.5, d + 3, 1), Q.comptoir2, { y: h, z: zc }));
     for (let i = 1; i < 4; i++) pr.push(P(bo(1.2, h - 4, 0.6, 0.2), M.assombrir(Q.bois, 0.15), { x: -p.w / 2 + i * p.w / 4, y: 2, z: 0.2 }));
-    for (let i = 0; i < n; i++) { const bx = n > 1 ? -p.w / 2 + 7 + i * (p.w - 14) / (n - 1) : 0, l = 26 + (i % 2) * 6, a = ((i % 3) - 1) * 0.14; pr.push(P(M.capsule(2.6, l, 8), i % 2 ? '#E8B46A' : '#D99A4E', { x: bx - Math.sin(a) * (l / 2 + 3), y: h - 3 + Math.cos(a) * (l / 2 + 3), z: zc, rz: a })); }
+    for (let i = 0; i < n; i++) { const bx = n > 1 ? -p.w / 2 + 7 + i * (p.w - 14) / (n - 1) : 0, l = 26 + (i % 2) * 6, a = ((i % 3) - 1) * 0.14; if (KN()) { pr.push(kp('loaf-baguette', { w: l + 6, h: 5.5, d: 5.5, x: bx - Math.sin(a) * (l / 2 + 3), y: h - 3 + Math.cos(a) * (l / 2 + 3) - 3, z: zc, rz: Math.PI / 2 + a })); continue; } pr.push(P(M.capsule(2.6, l, 8), i % 2 ? '#E8B46A' : '#D99A4E', { x: bx - Math.sin(a) * (l / 2 + 3), y: h - 3 + Math.cos(a) * (l / 2 + 3), z: zc, rz: a })); }
     g.add(M.maille(pr)); return g;
   }
   function ardoise(c) { // un chevalet : deux montants devant, un derrière, le tableau noir et ses traits de craie
@@ -3582,8 +3737,9 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     g.add(M.maille(pr)); return g;
   }
   // ─── les petits objets ───
-  function plante(x, y, c) { // une plante en pot : le pot couleur comptoir, quatre boules de feuillage
+  function plante(x, y, c, touffe) { // une plante en pot : le pot couleur comptoir, quatre boules de feuillage
     const g = grp('plante', x, 0, c.wz(y + 15) - 9), pr = [];
+    if (KN()) { pr.push(touffe ? kp('plantSmall2', { h: 50 }, { wood: c.Q.comptoir, plant: '#5FD3A4' }) : kp('pottedPlant', { h: 62 }, { wood: c.Q.comptoir, woodDark: '#6B4A3A', plant: '#4FC79A' })); g.add(M.maille(pr)); return g; } // Furniture Kit : la touffe ronde (déco) ou la plante à feuilles hautes
     pr.push(P(M.cylindre(9, 7, 18, 12), c.Q.comptoir), P(M.cylindre(9.6, 9.6, 2.5, 12), M.eclaircir(c.Q.comptoir, 0.2), { y: 16.5 }), P(M.cylindre(7.5, 7.5, 1, 12), '#6B4A3A', { y: 18 }));
     for (const [ox, oy, r] of [[0, 30, 9.5], [-8.5, 22, 7], [8.5, 22, 7], [0, 43, 7]]) pr.push(P(M.sphere(r, 10), '#5FD3A4', { x: ox, y: oy, z: 0 }));
     pr.push(P(M.sphere(3.5, 8), '#3FB889', { x: -4.5, y: 36, z: 6 }), P(M.sphere(3, 8), '#3FB889', { x: 5, y: 27, z: 6.5 }));
@@ -3607,6 +3763,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   }
   function paillasson(couleur, c) {
     const p = c.LAY.paillasson, Q = c.Q, d = c.wd(9), col = couleur ? Q.accent : Q.vue === 'ville' ? '#5A4A5E' : '#B9875A', g = grp('paillasson', p.x, 0, c.wz(p.y + 0.5)), pr = [];
+    if (KN()) { pr.push(kp('rugDoormat', { w: 40, h: 1.4, d }, { wood: col })); g.add(M.maille(pr, { ombre: false, recoit: true })); return g; } // le paillasson du Furniture Kit
     pr.push(P(bo(40, 1.2, d, 0.5), col));
     for (let k = 0; k < 4; k++) pr.push(P(bo(5, 0.5, d * 0.5, 0.2), M.eclaircir(col, 0.3), { x: -13.5 + k * 9, y: 1.1 }));
     g.add(M.maille(pr, { ombre: false, recoit: true })); return g;
@@ -3651,7 +3808,10 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       const nb = r === 1 && boites ? 2 : 5;
       for (let i = 0; i < Math.min(nb, n - r * 5); i++) {
         const px = e.x + cw * (i + 0.5), l = c.wy(11) - 5;
-        if (r === 1 && i % 2) pr.push(P(M.sphere(cw * 0.42, 10), '#D99A4E', { x: px, y: Yp + cw * 0.3, z: 5.5, sy: 0.72 }));
+        if (KN()) { // le Food Kit : baguettes debout et pains ronds en bas, croissants et pains de mie en haut
+          if (r === 0) pr.push(i % 2 ? kp('loaf-round', { w: cw * 0.9, d: 8, x: px, y: Yp, z: 5.5 }) : kp('loaf-baguette', { w: l + 5, h: 5, d: 5, x: px, y: Yp + (l + 5) / 2 - 2.5, z: 5.5, rz: Math.PI / 2 + 0.08 * (i % 4 ? -1 : 1) }));
+          else pr.push(i % 2 ? kp('croissant', { w: cw * 0.95, x: px, y: Yp, z: 5.5, ry: 0.3 }) : kp('loaf', { w: cw * 0.8, d: 8, x: px, y: Yp, z: 5.5, ry: Math.PI / 2 }));
+        } else if (r === 1 && i % 2) pr.push(P(M.sphere(cw * 0.42, 10), '#D99A4E', { x: px, y: Yp + cw * 0.3, z: 5.5, sy: 0.72 }));
         else pr.push(P(M.capsule(2.5, l, 8), i % 2 ? '#E8B46A' : '#D99A4E', { x: px, y: Yp + 2.5 + l / 2, z: 5.5, rz: 0.08 * (i % 2 ? -1 : 1) }));
       }
       if (r === 1 && boites) for (let i = 0; i < 3; i++) { const bx = e.x + e.w * 0.42 + i * e.w * 0.2 + e.w * 0.085, bw = e.w * 0.17, bh = c.wy(10); pr.push(P(bo(bw, bh, 8, 1), ['#FFE1EA', '#E7D4FF', '#FFF3C4'][i], { x: bx, y: Yp, z: 5.5 }), P(bo(1.4, bh + 0.4, 8.6, 0.3), PASTEL[i], { x: bx, y: Yp - 0.2, z: 5.5 }), P(bo(bw + 0.4, 1.4, 8.6, 0.3), PASTEL[i], { x: bx, y: Yp + bh * 0.55, z: 5.5 })); }
@@ -4298,6 +4458,7 @@ const SCENE = (() => {
     const ombres = p.ombres > 0; if (renderer.shadowMap.enabled !== ombres) { renderer.shadowMap.enabled = ombres; recompiler(); }
     if ((!ombres || dir.shadow.mapSize.x !== p.ombres) && dir.shadow.map) { dir.shadow.map.dispose(); dir.shadow.map = null; } // une carte d'ombre inutile ou à la mauvaise taille est rendue
     if (ombres) dir.shadow.mapSize.set(p.ombres, p.ombres);
+    richesse(niveau);
   }
   // l'intervalle réel entre deux images (le travail du processeur graphique compris), par fenêtres de 60 images :
   // au-dessus de 28 ms on descend d'un palier ; si la fenêtre suivante ne va pas 10 % plus vite, c'est l'écran qui plafonne la cadence (30 Hz,
@@ -4313,6 +4474,131 @@ const SCENE = (() => {
     else if (moy < 18 && k < 2) { const vers = ORDRE_Q[k + 1], n = QUAL.echecs[vers] || 0; if (n < 2 && ++QUAL.calme >= 10 * Math.pow(6, n)) { QUAL.calme = 0; QUAL.verif = { de: QUAL.niveau, avant: moy, sens: 1 }; qualite(vers); } }
     else QUAL.calme = 0;
   }
+  // ─── le rendu riche (paliers haute et moyenne ; l'éco garde exactement le rendu d'avant) ───
+  // · la lumière d'ambiance : une pièce chaude (portage de RoomEnvironment, three.js r158, MIT, d'après model-viewer) passée au PMREM,
+  //   que les matériaux standard (PBR, rugosité forte : on reste mat et cartoon) reflètent en lumière diffuse et en reflets doux ;
+  // · les matériaux : chaque Lambert de la scène a un jumeau MeshStandard (mêmes couleurs, textures, lueurs) ; on bascule de l'un à l'autre
+  //   avec le palier, sans rien reconstruire ; les jumeaux suivent la vie de leur original (partagé ou non) ;
+  // · l'occlusion ambiante : une texture d'ombres de contact peinte (sous les meubles, au pied du mur), posée en aoMap sur le sol et le mur ;
+  // · les effets (haute seulement) : la scène est rendue dans une cible MSAA, puis une passe plein écran pose un contour cartoon (écarts
+  //   de profondeur), une correction de couleur chaude et un léger vignettage. Une passe, pas de bibliothèque.
+  const RICHE = { actif: false, env: null, envK: 0.5, lueurMur: 0.6, kEnv: 0.16, kHemi: 0.35, kDir: 0.92, effets: true, chaud: 0.55, jumeaux: new WeakMap(), post: null, ao: null, aoMur: null, aoSale: true };
+  const estRiche = (niveau) => niveau !== 'eco';
+  function pieceEnv() { // la pièce d'ambiance : murs clairs, six panneaux lumineux un peu chauds, quelques volumes qui cassent l'uniformité
+    const s = new THREE.Scene(), geo = new THREE.BoxGeometry(); geo.deleteAttribute('uv');
+    const murM = new THREE.MeshStandardMaterial({ side: THREE.BackSide, color: '#FFF4E8' }), boiteM = new THREE.MeshStandardMaterial({ color: '#F2E2D2' });
+    const lum = new THREE.PointLight(0xffffff, renderer._useLegacyLights ? 5 : 900, 28, 2); lum.position.set(0.418, 16.199, 0.3); s.add(lum);
+    const b = (m, p, r, k) => { const o = new THREE.Mesh(geo, m); o.position.set(p[0], p[1], p[2]); o.rotation.set(0, r, 0); o.scale.set(k[0], k[1], k[2]); s.add(o); };
+    b(murM, [-0.757, 13.219, 0.717], 0, [31.713, 28.305, 28.591]);
+    for (const [p, r, k] of [[[-10.906, 2.009, 1.846], -0.195, [2.328, 7.905, 4.651]], [[-5.607, -0.754, -0.758], 0.994, [1.97, 1.534, 3.955]], [[6.167, 0.857, 7.803], 0.561, [3.927, 6.285, 3.687]], [[-2.017, 0.018, 6.124], 0.333, [2.002, 4.566, 2.064]], [[2.291, -0.756, -2.621], -0.286, [1.546, 1.552, 1.496]], [[-2.193, -0.369, -5.547], 0.516, [3.875, 3.487, 2.986]]]) b(boiteM, p, r, k);
+    const panneau = (k, teinte) => { const m = new THREE.MeshBasicMaterial(); m.color.set(teinte).multiplyScalar(k); return m; };
+    for (const [k, t, p, e] of [[50, '#FFE9CF', [-16.116, 14.37, 8.208], [0.1, 2.428, 2.739]], [50, '#FFE9CF', [-16.109, 18.021, -8.207], [0.1, 2.425, 2.751]], [17, '#FFF6EA', [14.904, 12.198, -1.832], [0.15, 4.265, 6.331]], [43, '#FFEBD6', [-0.462, 8.89, 14.52], [4.38, 5.441, 0.088]], [20, '#FFE2C4', [3.235, 11.486, -12.541], [2.5, 2, 0.1]], [100, '#FFF8F0', [0, 20, 0], [1, 0.1, 1]]]) b(panneau(k, t), p, 0, e);
+    return s;
+  }
+  function envMap() {
+    if (RICHE.env) return RICHE.env;
+    const pm = new THREE.PMREMGenerator(renderer), piece = pieceEnv();
+    RICHE.env = pm.fromScene(piece, 0.04).texture; pm.dispose();
+    piece.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+    return RICHE.env;
+  }
+  function rugosite(m) { if (m.transparent && m.opacity < 0.6) return 0.18; if (m.map) return 0.92; return 0.78; } // le verre brille, le sol et le mur restent mats
+  function jumeau(m) { // le MeshStandard d'un Lambert (en cache) ; partagé si l'original l'est
+    let t = RICHE.jumeaux.get(m); if (t) return t;
+    t = new THREE.MeshStandardMaterial({ color: m.color.clone(), vertexColors: m.vertexColors, map: m.map, emissive: m.emissive.clone(), emissiveMap: m.emissiveMap, emissiveIntensity: m.emissiveIntensity, transparent: m.transparent, opacity: m.opacity, depthWrite: m.depthWrite, side: m.side, alphaTest: m.alphaTest, depthTest: m.depthTest, polygonOffset: m.polygonOffset, polygonOffsetFactor: m.polygonOffsetFactor, polygonOffsetUnits: m.polygonOffsetUnits, flatShading: m.flatShading, roughness: rugosite(m), metalness: 0 });
+    Object.defineProperty(t, 'envMapIntensity', { get: () => RICHE.envK, set: () => {} }); // une seule intensité d'ambiance pour toute la scène, réglée par la phase du jour
+    t.userData.lambert = m; if (M.estPartage(m)) M.partager(t);
+    RICHE.jumeaux.set(m, t); return t;
+  }
+  function habiller(obj) { // pose les jumeaux (palier riche) ou les originaux (éco) sur tout ce que porte obj
+    const riche = RICHE.actif;
+    obj.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      const vers = (m) => (riche ? (m.isMeshLambertMaterial ? jumeau(m) : m) : (m.userData && m.userData.lambert) || m);
+      if (Array.isArray(o.material)) { if (o.material.some((m) => vers(m) !== m)) o.material = o.material.map(vers); } else { const n = vers(o.material); if (n !== o.material) o.material = n; }
+    });
+  }
+  function richesse(niveau) { // le palier change : on bascule les matériaux, l'environnement et la passe d'effets
+    const r = estRiche(niveau); if (!renderer) return;
+    if (r !== RICHE.actif) { RICHE.actif = r; scene.environment = r ? envMap() : null; habiller(scene); RICHE.aoSale = true; }
+    if (niveau !== 'haute' && RICHE.post) { RICHE.post.liberer(); RICHE.post = null; }
+  }
+  // l'occlusion ambiante peinte : sol (vu de dessus : x → u, z → v) et mur (x, hauteur) ; repeinte quand un meuble change
+  function peindreAO() {
+    if (!RICHE.actif || !salle || !LAY) return;
+    if (!RICHE.aoSale) return; RICHE.aoSale = false; // repeinte seulement quand un groupe du décor a changé
+    const D = wd(H - LAY.murH), Hm = wy(LAY.murH);
+    const sol = RICHE.ao || (RICHE.ao = { cv: document.createElement('canvas') }), mur = RICHE.aoMur || (RICHE.aoMur = { cv: document.createElement('canvas') });
+    sol.cv.width = 256; sol.cv.height = Math.max(64, Math.min(1024, Math.round(256 * D / W))); mur.cv.width = 256; mur.cv.height = 128;
+    const x = sol.cv.getContext('2d'), sx = sol.cv.width / W, sz = sol.cv.height / D;
+    x.fillStyle = '#FFFFFF'; x.fillRect(0, 0, sol.cv.width, sol.cv.height);
+    const g0 = x.createLinearGradient(0, 0, 0, 26 * sz); g0.addColorStop(0, 'rgba(70,50,40,.75)'); g0.addColorStop(1, 'rgba(70,50,40,0)'); x.fillStyle = g0; x.fillRect(0, 0, sol.cv.width, 26 * sz); // le pied du mur
+    const tache = (x0, z0, x1, z1, k, flou) => { x.save(); x.shadowColor = `rgba(60,40,30,${k})`; x.shadowBlur = flou; x.shadowOffsetX = 4000; x.fillStyle = '#000'; x.beginPath(); x.roundRect(x0 * sx - 4000, z0 * sz, Math.max(1, (x1 - x0) * sx), Math.max(1, (z1 - z0) * sz), 3); x.fill(); x.restore(); };
+    const bx = new THREE.Box3();
+    for (const id of ['froid', 'four', 'comptoir', 'plan', 'presentoir', 'ardoise', 'plante', 'sapin', 'trophees', 'chien']) {
+      const gr = groupes[id]; if (!gr) continue; bx.setFromObject(gr); if (bx.isEmpty() || bx.min.y > 2) continue;
+      tache(bx.min.x + 1, Math.max(0, bx.min.z), bx.max.x - 1, bx.max.z + 2, 0.85, 10);
+    }
+    const dc = groupes.deco && groupes.deco.userData.zoneBoite; if (dc && !dc.isEmpty()) tache(dc.min.x + 2, dc.min.z + 2, dc.max.x - 2, dc.max.z, 0.6, 8);
+    if (V.crans.tables > 0) for (let i = 0; i < V.crans.tables; i++) { const tb = LAY.tables[i], r = 14 * V.K, z = wz(tb.y); tache(tb.x - r, z - r * 0.8, tb.x + r, z + r * 0.8, 0.55, 10); for (const s of tb.sieges) { const zs = wz(s.y); tache(s.x - 6 * V.K, zs - 6 * V.K, s.x + 6 * V.K, zs + 6 * V.K, 0.4, 6); } }
+    // le mur : le pied (assombri sur 10 % de sa hauteur) et l'ombre portée des meubles adossés
+    const y = mur.cv.getContext('2d'), mx = mur.cv.width / W, my = mur.cv.height / Hm; y.fillStyle = '#FFFFFF'; y.fillRect(0, 0, mur.cv.width, mur.cv.height);
+    const g1 = y.createLinearGradient(0, mur.cv.height, 0, mur.cv.height - 30 * my); g1.addColorStop(0, 'rgba(70,50,40,.5)'); g1.addColorStop(1, 'rgba(70,50,40,0)'); y.fillStyle = g1; y.fillRect(0, mur.cv.height - 30 * my, mur.cv.width, 30 * my);
+    for (const id of ['froid', 'four', 'comptoir']) { const gr = groupes[id]; if (!gr) continue; bx.setFromObject(gr); if (bx.isEmpty() || bx.min.z > 60) continue; y.save(); y.shadowColor = 'rgba(60,40,30,.45)'; y.shadowBlur = 10; y.shadowOffsetX = 4000; y.fillStyle = '#000'; y.fillRect(bx.min.x * mx - 4000, mur.cv.height - bx.max.y * my, (bx.max.x - bx.min.x) * mx, bx.max.y * my); y.restore(); }
+    for (const a of [sol, mur]) { if (!a.tex) { a.tex = new THREE.CanvasTexture(a.cv); a.tex.userData.partagee = true; } a.tex.needsUpdate = true; }
+    RICHE.aoMur.tex.repeat.set(1 / W, 1 / Hm); RICHE.aoMur.tex.flipY = true;
+    // sur les jumeaux du sol et du mur (le mur : sa face avant seulement, le matériau 0)
+    salle.traverse((o) => {
+      if (!o.isMesh) return;
+      if (o.geometry.type === 'PlaneGeometry' && o.material.isMeshStandardMaterial && o.material.map && o.rotation.x < 0) { o.material.aoMap = sol.tex; o.material.aoMapIntensity = 1; o.material.needsUpdate = true; }
+      if (Array.isArray(o.material) && o.material[0].isMeshStandardMaterial) { o.material[0].aoMap = mur.tex; o.material[0].aoMapIntensity = 1; o.material[0].needsUpdate = true; }
+    });
+  }
+  // la passe d'effets : la scène dans une cible MSAA (couleur + profondeur), puis un triangle plein écran
+  function creerPost() {
+    const rt = new THREE.WebGLRenderTarget(4, 4, { samples: renderer.capabilities.isWebGL2 ? 4 : 0, type: THREE.UnsignedByteType });
+    rt.texture.colorSpace = THREE.SRGBColorSpace; rt.depthTexture = new THREE.DepthTexture(4, 4); rt.depthTexture.type = THREE.UnsignedIntType;
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { tCol: { value: rt.texture }, tProf: { value: rt.depthTexture }, px: { value: new THREE.Vector2() }, seuil: { value: 0.0015 }, contour: { value: 0.75 }, chaud: { value: 0.55 } },
+      vertexShader: 'varying vec2 vUv; void main() { vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: `
+        uniform sampler2D tCol; uniform sampler2D tProf; uniform vec2 px; uniform float seuil; uniform float contour; uniform float chaud; varying vec2 vUv;
+        vec3 versSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
+        void main() {
+          vec3 c = versSRGB(texture2D(tCol, vUv).rgb);
+          // le contour cartoon : un saut de profondeur (caméra orthographique : profondeur linéaire) avec ses quatre voisins
+          float d = texture2D(tProf, vUv).r, e = 0.0;
+          e = max(e, abs(d - texture2D(tProf, vUv + vec2(px.x, 0.0)).r)); e = max(e, abs(d - texture2D(tProf, vUv - vec2(px.x, 0.0)).r));
+          e = max(e, abs(d - texture2D(tProf, vUv + vec2(0.0, px.y)).r)); e = max(e, abs(d - texture2D(tProf, vUv - vec2(0.0, px.y)).r));
+          float k = smoothstep(seuil, seuil * 2.5, e) * contour;
+          c = mix(c, c * vec3(0.42, 0.32, 0.27), k);
+          // la correction chaude : un peu de saturation, des ombres relevées vers le miel, des hautes lumières crème, une courbe douce
+          float l = dot(c, vec3(0.299, 0.587, 0.114));
+          c = mix(vec3(l), c, 1.0 + 0.10 * chaud);
+          c += chaud * vec3(0.030, 0.012, -0.012) * (1.0 - l);
+          c *= mix(vec3(1.0), vec3(1.025, 1.0, 0.955), chaud);
+          c = mix(c, c * c * (3.0 - 2.0 * c), 0.10 * chaud);
+          // le vignettage, léger et chaud
+          vec2 q = vUv - 0.5; float v = smoothstep(0.85, 0.25, length(q * vec2(1.0, 0.75)));
+          c *= mix(vec3(0.93, 0.90, 0.87), vec3(1.0), v);
+          gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
+        }`,
+      depthTest: false, depthWrite: false,
+    });
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
+    const quad = new THREE.Mesh(geo, mat); quad.frustumCulled = false; const sc = new THREE.Scene(); sc.add(quad); const cam = new THREE.Camera();
+    return {
+      rt, mat,
+      rendre(hv) {
+        const w = Math.round(W * DPR), h = Math.round(H * DPR);
+        if (rt.width !== w || rt.height !== h) { rt.setSize(w, h); mat.uniforms.px.value.set(1 / w, 1 / h); }
+        rt.scissorTest = hv < H; rt.scissor.set(0, Math.floor((H - hv) * DPR), w, Math.ceil(hv * DPR)); rt.viewport.set(0, 0, w, h);
+        renderer.setRenderTarget(rt); renderer.render(scene, camera); renderer.setRenderTarget(null);
+        renderer.info.autoReset = false; renderer.render(sc, cam); renderer.info.autoReset = true; // les stats : la passe de la scène + 1 (comme sans effets, la passe d'ombre n'est pas comptée)
+      },
+      liberer() { rt.dispose(); rt.depthTexture.dispose(); mat.dispose(); geo.dispose(); },
+    };
+  }
   // ─── mise en route ───
   function init(canvas, ui) {
     cv = canvas; cvUi = ui; ctx2 = ui ? ui.getContext('2d') : null;
@@ -4324,7 +4610,7 @@ const SCENE = (() => {
     const q = /[?&]qualite=(haute|moyenne|eco)/.exec(location.search);
     if (q) { QUAL.niveau = q[1]; QUAL.fixe = true; } else if (/SwiftShader|llvmpipe|Software/i.test(nom)) { QUAL.niveau = 'eco'; QUAL.fixe = true; } // un rendu logiciel reste en éco
     cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); perdu = performance.now(); });
-    cv.addEventListener('webglcontextrestored', () => { perdu = 0; panneau(false); toutRebatir(); });
+    cv.addEventListener('webglcontextrestored', () => { perdu = 0; panneau(false); if (RICHE.post) { RICHE.post.liberer(); RICHE.post = null; } if (RICHE.env) { RICHE.env = null; if (RICHE.actif) scene.environment = envMap(); } toutRebatir(); });
     _c1 = new THREE.Color(); _c2 = new THREE.Color(); _v = new THREE.Vector3(); _b = new THREE.Box3();
     scene = new THREE.Scene();
     camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 4000);
@@ -4333,6 +4619,9 @@ const SCENE = (() => {
     scene.add(hemi, dir, dir.target);
     for (let k = 0; k < 3; k++) { const p = new THREE.PointLight('#FFD98A', 0, 1, 1); p.castShadow = false; lampes.push(p); scene.add(p); }
     ext.tex = new THREE.CanvasTexture(ext.cv); ext.tex.colorSpace = THREE.SRGBColorSpace; ext.tex.userData.partagee = true; // le paysage vit toute la partie
+    richesse(QUAL.niveau);
+    // les modèles Kenney (fournil/modeles/) : seulement sur la page du jeu (l'artefact n'a pas les fichiers à côté) ; prêts, tout le décor est rebâti avec eux
+    if (typeof KENNEY !== 'undefined' && KENNEY && window.FOURNIL_ACCUEIL != null && !/[?&]kenney=0/.test(location.search)) KENNEY.charger('modeles/').then((ok) => { if (ok) toutRebatir(); });
     webgl = true; return true;
   }
   let tailleC = '';
@@ -4363,7 +4652,7 @@ const SCENE = (() => {
   function toutRebatir() { for (const k of Object.keys(cles)) delete cles[k]; Qc = null; zonesCache = null; if (ext.tex) ext.tex.needsUpdate = true; ext.der = -1; } // tout le décor sera reconstruit à la frame suivante ; les personnages ne dépendent pas de la taille
   function remplacer(id, g) { // pose (ou retire) un groupe nommé, en libérant l'ancien
     const vieux = groupes[id]; if (vieux) { scene.remove(vieux); M.dispose(vieux); }
-    groupes[id] = g || null; if (g) scene.add(g); zonesCache = null; recenserAnimes();
+    groupes[id] = g || null; if (g) { habiller(g); scene.add(g); } zonesCache = null; RICHE.aoSale = true; recenserAnimes();
   }
   function recenserAnimes() { animes.length = 0; scene.traverse((o) => { if (o.userData && typeof o.userData.anime === 'function') animes.push(o); }); }
   const CONDS = [ // les petits décors : une clé par frame, reconstruits quand elle change (null : absent)
@@ -4408,6 +4697,14 @@ const SCENE = (() => {
     const cp = groupes.comptoir; c.dessusY = cp ? cp.userData.dessusY : wy(LAY.comptoir.hFace); c.dessusZ = cp ? cp.userData.dessusZ : wz(LAY.comptoir.y + LAY.comptoir.hTop + LAY.comptoir.hFace) - wd(LAY.comptoir.hTop) / 2;
     return c;
   }
+  // les pâtisseries de la vitrine prises dans le Food Kit quand il est là (baguette, croissant, tarte aux pommes) ; les autres restent celles de PERSOS
+  const PAT_K = { 0: ['loaf-baguette', 0.5], 1: ['croissant', 0.4], 3: ['pie', 0] }, patK = new Map();
+  function patisserieK(i) {
+    const d = PAT_K[i]; if (!d || typeof KENNEY === 'undefined' || !KENNEY || !KENNEY.pret) return null;
+    let m = patK.get(i); if (m) return m;
+    const T = PERSOS.TAILLE_PATISSERIE || 16, dm = KENNEY.dims(d[0]), k = T * (i === 0 ? 1.15 : 1) / Math.max(dm.w, dm.d);
+    m = M.mesh(M.assembler([KENNEY.part(d[0], { s: k, ry: d[1] })]), M.MAT.vertex); m.geometry.userData.cache = true; m.userData.i = i; patK.set(i, m); return m;
+  }
   function construire(E) {
     const c = contexte(E), base = `${E.Q.id}|${W}x${H}`;
     const rs = E.st.saison && E.st.saison.niv > 0 && PERSOS.patisserieSaison ? E.st.saison.id : '', ouverts = E.niv.map((n, i) => (n > 0 ? i : -1)).filter((i) => i >= 0);
@@ -4421,7 +4718,7 @@ const SCENE = (() => {
     const kp = `${ouverts.join(',')}|${rs}|${E.crans.vitrine}|${base}`;
     if (cles.produits !== kp) { // les pâtisseries dans la vitrine
       cles.produits = kp; const g = new THREE.Group(), vit = groupes.comptoir && groupes.comptoir.userData.vitrine, liste = rs ? ouverts.concat([rs]) : ouverts, places = vit ? vit.places(liste.length) : [];
-      liste.forEach((i, k) => { const p = places[k]; if (!p) return; const m = (typeof i === 'string' ? PERSOS.patisserieSaison(i) : PERSOS.patisserie(i)).clone(); const s = (p.s || 16) / (PERSOS.TAILLE_PATISSERIE || 16); m.position.set(p.x, p.y, p.z); m.scale.setScalar(s); m.castShadow = false; g.add(m); });
+      liste.forEach((i, k) => { const p = places[k]; if (!p) return; const m = (typeof i === 'string' ? PERSOS.patisserieSaison(i) : patisserieK(i) || PERSOS.patisserie(i)).clone(); const s = (p.s || 16) / (PERSOS.TAILLE_PATISSERIE || 16); m.position.set(p.x, p.y, p.z); m.scale.setScalar(s); m.castShadow = false; g.add(m); });
       remplacer('produits', g);
     }
     const garde = G.tenueBoulanger(E.st), kb = `${E.rang}|${garde.cle}|${base}`; // le boulanger porte ce que la garde-robe équipe (REC.tenue, l'ancienne tenue du podium, ne décide plus)
@@ -4445,12 +4742,13 @@ const SCENE = (() => {
     hemi.color.set(A.hemi[0]).lerp(_c1.set(B.hemi[0]), k); hemi.groundColor.set(A.hemi[1]).lerp(_c1.set(B.hemi[1]), k); hemi.intensity = mix(A.hemi[2], B.hemi[2]);
     dir.color.set(A.dir[0]).lerp(_c1.set(B.dir[0]), k); dir.intensity = mix(A.dir[1], B.dir[1]);
     if (E.rush) { hemi.color.lerp(_c2.set('#FFF0E0'), 0.5); dir.intensity *= 1.1; }
+    if (RICHE.actif) { RICHE.envK = RICHE.kEnv * hemi.intensity / 1.3 * (1 - 0.55 * mix(A.lampes, B.lampes)); hemi.intensity *= RICHE.kHemi; dir.intensity *= RICHE.kDir; if (RICHE.post) RICHE.post.mat.uniforms.chaud.value = RICHE.chaud * (1 - 0.6 * mix(A.lampes, B.lampes)); } // l'ambiance vient surtout de la pièce (PMREM) ; le ciel ne fait plus que teinter
     lampesNiv = mix(A.lampes, B.lampes);
     const salon = E.crans.deco >= 4 && E.crans.tables > 0, tb = LAY.tables, allumees = [E.crans.deco >= 2, E.crans.deco >= 2, E.niv[2] > 0 || salon];
     const pos = [[LAY.appliques[0].x, wy(LAY.murH - LAY.appliques[0].y), 18], [LAY.appliques[1].x, wy(LAY.murH - LAY.appliques[1].y), 18], salon ? [(tb[0].x + tb[1].x) / 2, 60, wz((tb[0].y + tb[2].y) / 2)] : [LAY.lampe.x, wy(LAY.murH - LAY.lampe.y) - 10, 20]];
     lampes.forEach((p, i) => { p.position.set(pos[i][0], pos[i][1], pos[i][2]); p.distance = W * 0.9; p.intensity = allumees[i] ? 150 * lampesNiv : 0; });
     const taches = salle && salle.userData.taches; if (taches) for (const m of taches) m.material.opacity = mix(A.tache, B.tache);
-    const mm = salle && salle.userData.murMat; if (mm) { mm.emissive.copy(hemi.color); mm.emissiveIntensity = 0.42 * hemi.intensity / 1.3; } // le mur suit la lumière (sa lueur compense les faces verticales, pas la nuit)
+    const mm = salle && salle.userData.murMat; if (mm) { mm.emissive.copy(hemi.color); mm.emissiveIntensity = 0.42 * hemi.intensity / 1.3; const mj = RICHE.jumeaux.get(mm); if (mj) { mj.emissive.copy(hemi.color); mj.emissiveIntensity = RICHE.actif ? 0.42 * (hemi.intensity / RICHE.kHemi) / 1.3 * RICHE.lueurMur : mm.emissiveIntensity; } } // le mur suit la lumière (sa lueur compense les faces verticales, pas la nuit)
   }
 
   // ─── dehors : une texture repeinte dix fois par seconde, vue par la fenêtre et la porte ───
@@ -4526,13 +4824,13 @@ const SCENE = (() => {
     vus.clear();
     for (const c of V.clients) {
       let g = acteurs.get(c.id);
-      if (!g) { g = prendre(cleClient(c), () => PERSOS.creer({ haut: c.haut, peau: c.peau, cheveux: c.cheveux, coiffure: c.coiffure, bonnet: c.bonnet, lunettes: c.lunettes, or: c.or, mariniere: c.mariniere, sac: true, sacCol: c.sacCol, taille: c.taille })); g.userData.yaw = YAW[c.dir] || 0; scene.add(g); acteurs.set(c.id, g); }
+      if (!g) { g = prendre(cleClient(c), () => PERSOS.creer({ haut: c.haut, peau: c.peau, cheveux: c.cheveux, coiffure: c.coiffure, bonnet: c.bonnet, lunettes: c.lunettes, or: c.or, mariniere: c.mariniere, sac: true, sacCol: c.sacCol, taille: c.taille })); g.userData.yaw = YAW[c.dir] || 0; habiller(g); scene.add(g); acteurs.set(c.id, g); }
       vus.add(c.id); poser(g, c, E, dt);
     }
     for (const a of V.apprentis) {
       const id = 'a' + a.i; let g = acteurs.get(id);
       if (g && g.userData.grade !== (a.grade || 1)) { scene.remove(g); M.dispose(g); acteurs.delete(id); g = null; } // il a monté de grade : nouvelle tenue
-      if (!g) { g = prendre('apprenti' + a.i + '|' + (a.grade || 1), () => PERSOS.creer({ haut: V.HAUTS6[(a.i * 2 + 1) % 6], peau: V.PEAUX6[a.i % 6], cheveux: V.CHEVEUX[a.i % V.CHEVEUX.length], coiffure: 0, toque: true, tablier: true, plateau: true, produit: a.i, cle: true, grade: a.grade || 1 })); g.userData.grade = a.grade || 1; g.userData.yaw = YAW[a.dir] || 0; scene.add(g); acteurs.set(id, g); }
+      if (!g) { g = prendre('apprenti' + a.i + '|' + (a.grade || 1), () => PERSOS.creer({ haut: V.HAUTS6[(a.i * 2 + 1) % 6], peau: V.PEAUX6[a.i % 6], cheveux: V.CHEVEUX[a.i % V.CHEVEUX.length], coiffure: 0, toque: true, tablier: true, plateau: true, produit: a.i, cle: true, grade: a.grade || 1 })); g.userData.grade = a.grade || 1; g.userData.yaw = YAW[a.dir] || 0; habiller(g); scene.add(g); acteurs.set(id, g); }
       vus.add(id); poserApprenti(g, a, E, dt);
     }
     for (const [id, g] of acteurs) if (!vus.has(id)) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); }
@@ -4544,7 +4842,7 @@ const SCENE = (() => {
   function poserChat(E, dt) {
     const c = V.chat;
     if (!c || !PERSOS.chat) { if (chatG) { scene.remove(chatG); (PERSOS.libererChat || M.dispose)(chatG); chatG = null; } return; } // libererChat : le tampon d'instances des pattes
-    if (!chatG) { chatG = PERSOS.chat({}); chatG.userData.yaw = Math.PI / 2; scene.add(chatG); }
+    if (!chatG) { chatG = PERSOS.chat({}); chatG.userData.yaw = Math.PI / 2; habiller(chatG); scene.add(chatG); }
     if (chatHautCle !== cles.comptoir) { chatHautCle = cles.comptoir; chatHaut = MEUBLES.surDessus(contexte(E), LAY.chat); chatPied = V.piedComptoir(); } // recalculés quand le comptoir change
     const haut = chatHaut, pied = chatPied, zp = wz(pied.y);
     if (c.etat === 'descend' || c.etat === 'monte') { const u = c.etat === 'descend' ? c.saut : 1 - c.saut, e = u * u * (3 - 2 * u); _pc.x = haut.x + (pied.x - haut.x) * e; _pc.z = haut.z + (zp - haut.z) * e; _pc.y = haut.y * (1 - e) + Math.sin(Math.PI * u) * 14; }
@@ -4588,7 +4886,7 @@ const SCENE = (() => {
     const t0 = performance.now();
     try {
       construire(E);
-      eclairer(E); peindreExterieur(now, E);
+      eclairer(E); peindreExterieur(now, E); peindreAO();
       synchroniser(E, dt);
       EA.t = E.t; EA.chaud = E.chaud; EA.caisseFlash = E.caisseFlash; EA.nuit = E.sk.nuit; EA.lampes = lampesNiv; EA.rush = E.rush; EA.d = E.d; EA.sk = E.sk; EA.tags = E.tags;
       for (const o of animes) o.userData.anime(EA);
@@ -4608,7 +4906,8 @@ const SCENE = (() => {
   function rendre(E, complet) {
     const hv = complet ? H : Math.min(H, visH + 24);
     renderer.setScissorTest(!complet); if (!complet) renderer.setScissor(0, H - hv, W, hv);
-    renderer.render(scene, camera);
+    if (QUAL.niveau === 'haute' && RICHE.actif && RICHE.effets && renderer.capabilities.isWebGL2) { if (!RICHE.post) RICHE.post = creerPost(); RICHE.post.rendre(hv); } // les effets : haute seulement
+    else renderer.render(scene, camera);
     renderer.setScissorTest(false);
     calque(E, hv);
   }
@@ -4725,8 +5024,9 @@ const SCENE = (() => {
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
     get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0 }; }, // ce que la boutique montre (pour les tests)
     get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG) }; }, // le budget d'appels de dessin (pour les tests)
+    get _riche() { return RICHE; }, // les réglages du rendu riche (pour les tests et les captures)
     get amenager() { return amenager; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
-    get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length, geometries: renderer ? renderer.info.memory.geometries : 0, textures: renderer ? renderer.info.memory.textures : 0 }; } };
+    get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length, geometries: renderer ? renderer.info.memory.geometries : 0, textures: renderer ? renderer.info.memory.textures : 0, riche: RICHE.actif, effets: !!RICHE.post, kenney: typeof KENNEY !== 'undefined' && KENNEY ? { pret: KENNEY.pret, octets: KENNEY.octets, ms: KENNEY.ms, erreur: KENNEY.erreur } : null }; } };
   return API;
 })();
 

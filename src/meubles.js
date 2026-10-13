@@ -18,6 +18,9 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   const zSur = (c, ys, Y) => (ys - c.LAY.murH + Y * c.CY) / c.SY; // Z d'un point d'écran posé sur un plan horizontal à la hauteur Y
   const propre = (o) => new THREE.MeshLambertMaterial(o); // un matériau propre à l'objet (il sera modifié par anime)
   const lumineux = (hex, k) => propre({ color: hex, emissive: hex, emissiveIntensity: k == null ? 1 : k });
+  // les modèles CC0 de Kenney (src/kenney.js), quand ils sont chargés : une pièce cuite qui entre dans la fusion (null sinon : on garde le fait main)
+  const KN = () => (typeof KENNEY !== 'undefined' && KENNEY && KENNEY.pret ? KENNEY : null);
+  const kp = (nom, o, couleurs, col) => { const k = KN(); return k ? k.part(nom, o, couleurs, col) : null; };
   const matDe = (k, fab) => { let m = MATS.get(k); if (!m) { m = M.partager(fab()); MATS.set(k, m); } return m; }; // en cache par quartier : partagé, jamais libéré
   function forme(k, fab) { return M.extrusion(k, fab(), 1, 0); } // une forme plate extrudée d'une unité, mise en cache par clé
   const triangle = (w, h) => forme('tri' + w + '|' + h, () => { const s = new THREE.Shape(); s.moveTo(-w / 2, 0); s.lineTo(w / 2, 0); s.lineTo(0, -h); s.closePath(); return s; }); // la pointe en bas
@@ -106,6 +109,15 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       g.add(M.maille(pr)); return g;
     }
     const d = c.wd(f.h * 0.24), h = c.wy(f.h * 0.76), col = k >= 2 ? '#C9CED6' : '#F6F7F9', top = k >= 2 ? '#E2E6EC' : '#FFFFFF';
+    if (KN()) { // Kenney : le frigo blanc (Furniture Kit), le grand frigo inox à deux portes, puis la vitrine réfrigérée du Mini Market et sa barre à LED
+      if (k >= 3) {
+        pr.push(kp('freezers-standing', { w: f.w, h: h - 3, d, z: -d / 2 }), P(bo(f.w - 2, 4, d - 2, 1.5), '#FFFFFF', { y: h - 4, z: -d / 2 }));
+        const led = M.mesh(bo(f.w - 12, 1.5, 1, 0.4), lumineux('#6CB8FF', 1), { y: h - 2.5, z: 0 }, { ombre: false }); g.add(led);
+        g.userData.anime = (E) => { led.material.emissiveIntensity = Math.sin(E.t * 3) > 0 ? 1 : 0.25; };
+      } else pr.push(kp(k >= 2 ? 'kitchenFridgeLarge' : 'kitchenFridge', { w: f.w, h, d, z: -d / 2 }, k >= 2 ? { metalLight: '#D5DAE1', metalMedium: '#8C939E' } : { metalLight: '#FBFBF8', metal: '#B9C6D2', metalDark: '#8C939E', glass: '#CFE9FA' }));
+      if (k >= 2) pr.push(P(M.sphere(1.5, 6), '#6CB8FF', { x: -f.w / 2 + 7, y: h - 2.5, z: 0.6 }));
+      g.add(M.maille(pr)); return g;
+    }
     pr.push(P(bo(f.w, h - 4, d, 4), col, { z: -d / 2 }), P(bo(f.w, 5, d, 2), top, { y: h - 5, z: -d / 2 }));
     if (k >= 3) { // la chambre vitrée à LED : une cavité claire, trois clayettes garnies, la vitre et sa barre lumineuse
       const vw = f.w - 10, vh = h * 0.72, vy = 8, prof = d * 0.7;
@@ -182,6 +194,14 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   function caisse(k, c) {
     const o = surDessus(c, c.LAY.caisse), g = grp('caisse', o.x, o.y, o.z), pr = []; g.userData.zone = 'caisse';
     if (k === 0) { pr.push(P(bo(22, 9, 14, 2), c.Q.bois), P(bo(8, 2, 1.5, 0.7), '#E0A61E', { y: 3, z: 7 })); g.add(M.maille(pr)); return g; }
+    if (KN()) { // la caisse enregistreuse du Mini Market (menthe, puis anthracite au dernier cran), la clochette au dernier cran ; l'écran qui s'allume à chaque vente reste le nôtre
+      pr.push(kp('cash-register', { w: 30, h: 18, d: 20 }, null, k >= 3 ? '#9A8F9F' : '#E2FFF3'));
+      if (k >= 3) pr.push(P(bo(7, 10, 5, 1.5), '#B9C6D2', { x: 15, z: -3 }), P(M.sphere(3, 10), '#FFC84A', { x: 15, y: 12.5, z: -3 }));
+      g.add(M.maille(pr));
+      const ecran = M.mesh(bo(k >= 2 ? 12 : 9, 6, 1, 1), propre({ color: '#FFFFFF' }), { x: -8, y: 11, z: 0.6, rx: -0.2 }); g.add(ecran);
+      g.userData.anime = (E) => { ecran.material.color.copy(E.caisseFlash > 0.3 ? C_FLASH : C_BLANC); };
+      return g;
+    }
     pr.push(P(bo(24, 10, 16, 3), k >= 3 ? L : '#5FD3A4'));
     for (let r = 0; r < 2; r++) for (let q = 0; q < 3; q++) pr.push(P(bo(4, 1, 3, 0.4), '#FFFFFF', { x: -6 + q * 6, y: 10, z: 1 + r * 4.5 }));
     if (k >= 3) pr.push(P(bo(7, 12, 5, 1.5), '#B9C6D2', { x: 13.5, z: -3 }), P(M.sphere(3, 10), '#FFC84A', { x: 13.5, y: 14.5, z: -3 }));
@@ -196,23 +216,29 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     const { LAY, K, Q } = c, g = grp('tables'), couverts = []; g.userData.zone = 'tables'; g.userData.couverts = couverts;
     if (k === 0) { const tb = LAY.tables[0]; g.add(M.mesh(M.anneau(14 * K, 16 * K, 32), M.MAT.pointille, { x: tb.x, y: 0.4, z: c.wz(tb.y - 8 * K) }, { ombre: false })); return g; }
     const R = 16 * K, Ht = 28, pr = [], nappe = k >= 4, bougies = [];
+    const kn = KN();
     for (let i = 0; i < k; i++) {
       const tb = LAY.tables[i], x = tb.x, z = c.wz(tb.y);
-      pr.push(P(M.cylindre(6.5 * K, 7.5 * K, 2, 14), Q.bois, { x, z }), P(M.cylindre(2.4, 2.4, Ht - 5, 8), Q.bois, { x, y: 2, z }));
-      pr.push(P(M.cylindre(R, R - 1.5, 3, 22), Q.comptoir, { x, y: Ht - 3, z }), P(M.cylindre(R - 0.3, R - 0.3, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht, z }));
+      if (kn) pr.push(kp('tableRound', { w: 2 * R, d: 2 * R, h: Ht, x, z }, { wood: Q.comptoir }), P(M.cylindre(R - 1.2, R - 1.2, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht - 0.4, z })); // la table ronde du Furniture Kit, son plateau aux couleurs du quartier
+      else {
+        pr.push(P(M.cylindre(6.5 * K, 7.5 * K, 2, 14), Q.bois, { x, z }), P(M.cylindre(2.4, 2.4, Ht - 5, 8), Q.bois, { x, y: 2, z }));
+        pr.push(P(M.cylindre(R, R - 1.5, 3, 22), Q.comptoir, { x, y: Ht - 3, z }), P(M.cylindre(R - 0.3, R - 0.3, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht, z }));
+      }
       if (nappe) pr.push(P(M.cylindre(R * 0.62, R * 0.62, 0.6, 18), '#FFFFFF', { x, y: Ht + 1, z }));
-      for (const s of tb.sieges) chaise(pr, s.x, c.wz(s.y), s.dir, K, Q);
+      for (const s of tb.sieges) chaise(pr, s.x, c.wz(s.y), s.dir, K, Q, k >= 3);
       if (k >= 4 || c.crans.deco >= 3) pr.push(P(bo(4, 6, 4, 1.5), '#9BD0FF', { x, y: Ht + 1, z }), P(M.sphere(2.6, 8), ['#FF6B8B', '#FFC84A', '#B8A6FF'][i % 3], { x, y: Ht + 9, z }));
       if (c.crans.deco >= 4) { pr.push(P(M.cylindre(1.6, 1.8, 6, 8), '#FFFDF5', { x: x + 7 * K, y: Ht + 1, z: z - 2 })); const fl = M.mesh(M.sphere(1.5, 8), lumineux('#FFC84A', 0.3), { x: x + 7 * K, y: Ht + 8.5, z: z - 2, sy: 1.5 }, { ombre: false }); g.add(fl); bougies.push(fl); } // les bougies du salon
-      const cv = M.maille([P(M.cylindre(5 * K, 5 * K, 0.8, 14), '#FFFFFF', { x: -5 * K }), P(M.sphere(1.8 * K, 8), '#E8B46A', { x: -5 * K, y: 1.8 }), P(M.cylindre(2.4 * K, 2 * K, 4.5, 10), '#FFFFFF', { x: 4 * K, z: -3 }), P(M.tore(2.2, 0.6, TAU, 6, 10), '#FFFFFF', { x: 6.6 * K, y: 2.6, z: -3 })]);
+      const cv = M.maille(kn ? [P(M.cylindre(5 * K, 5 * K, 0.8, 14), '#FFFFFF', { x: -5 * K }), kp('croissant', { w: 7.5 * K, x: -5 * K, y: 0.8, ry: 0.4 }), kp('cup-saucer', { w: 7 * K, x: 4.5 * K, z: -3 }), kp('cup-coffee', { w: 4.6 * K, x: 4.5 * K, y: 0.7, z: -3, ry: -0.6 })] // le couvert : croissant, tasse et soucoupe du Food Kit
+        : [P(M.cylindre(5 * K, 5 * K, 0.8, 14), '#FFFFFF', { x: -5 * K }), P(M.sphere(1.8 * K, 8), '#E8B46A', { x: -5 * K, y: 1.8 }), P(M.cylindre(2.4 * K, 2 * K, 4.5, 10), '#FFFFFF', { x: 4 * K, z: -3 }), P(M.tore(2.2, 0.6, TAU, 6, 10), '#FFFFFF', { x: 6.6 * K, y: 2.6, z: -3 })]);
       cv.position.set(x, Ht + 1, z); cv.visible = false; couverts.push(cv); g.add(cv);
     }
     g.add(M.maille(pr, { recoit: true }));
     if (bougies.length) g.userData.anime = (E) => { for (let i = 0; i < bougies.length; i++) bougies[i].material.emissiveIntensity = 0.3 + E.lampes * (0.8 + 0.2 * Math.sin(E.t * 9 + i * 2.1)); };
     return g;
   }
-  function chaise(pr, x, z, dir, K, Q) { // assise à 16, dossier côté extérieur (dir = +1 : la chaise regarde vers +X), quatre pieds
+  function chaise(pr, x, z, dir, K, Q, coussin) { // assise à 16, dossier côté extérieur (dir = +1 : la chaise regarde vers +X), quatre pieds
     const a = 13 * K;
+    if (KN()) { pr.push(kp(coussin ? 'chairCushion' : 'chairRounded', { w: a, d: a, h: 32, x, z, ry: dir > 0 ? Math.PI / 2 : -Math.PI / 2 }, { wood: Q.bois, carpet: Q.accent })); return; } // la chaise du Furniture Kit (coussin au salon de thé)
     pr.push(P(bo(a, 3, a, 1.2), Q.comptoir2, { x, y: 13, z }));
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(bo(1.8, 13, 1.8, 0.5), Q.bois, { x: x + sx * (a / 2 - 1.2), z: z + sz * (a / 2 - 1.2) }));
     pr.push(P(bo(3, 16, a, 1.2), Q.bois, { x: x - dir * (a / 2 - 1.5), y: 16, z }));
@@ -221,7 +247,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   function deco(k, c) {
     const { LAY, Q, W } = c, g = grp('deco'), lampes = []; g.userData.zone = 'deco'; g.userData.lampes = lampes;
     if (k === 0) { const m = M.mesh(M.disque(1, 6), M.MAT.tache, { x: LAY.deco.x, y: 0.2, z: c.wz(LAY.deco.y) }, { ombre: false }); m.visible = false; g.add(m); return g; }
-    const pl = plante(LAY.deco.x, LAY.deco.y, c); g.add(pl); g.userData.zoneBoite = new THREE.Box3().setFromObject(pl, true); // la zone de touche : la plante seule (le reste s'accroche au mur ou au plafond)
+    const pl = plante(LAY.deco.x, LAY.deco.y, c, true); g.add(pl); g.userData.zoneBoite = new THREE.Box3().setFromObject(pl, true); // la zone de touche : la plante seule (le reste s'accroche au mur ou au plafond)
     if (k >= 2) { if (!c.trophees) g.add(cadre(LAY.cadre2.x, LAY.cadre2.y, c)); for (const a of LAY.appliques) g.add(applique(a.x, a.y - 14, c, lampes)); } // les appliques, juste au-dessus des cadres
     if (k >= 3) g.add(guirlande(c.tags && c.tags.includes('noel'), c));
     if (k >= 4) {
@@ -246,7 +272,8 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     const p = c.LAY.plan, Q = c.Q, d = c.wd(p.h * 0.45), h = c.wy(p.h * 0.55), g = grp('plan', p.x + p.w / 2, 0, c.wz(p.y + p.h)), pr = [], zc = -d / 2;
     pr.push(P(bo(p.w, h - 3, d, 2), Q.bois, { z: zc }), P(bo(p.w + 2, 3, d + 1.5, 1), Q.comptoir2, { y: h - 3, z: zc }));
     pr.push(P(M.sphere(5.5, 12), '#FFF3C4', { x: -p.w * 0.2, y: h + 0.5, z: zc, sy: 0.5 }), P(M.cylindre(1.7, 1.7, p.w * 0.3, 8), '#C8864F', { x: p.w * 0.2 - p.w * 0.15, y: h + 1.7, z: zc + 1, rz: -Math.PI / 2 }));
-    for (const s of [-1, 1]) pr.push(P(M.cylindre(1, 1, 3, 6), '#E8C39A', { x: p.w * 0.2 + s * (p.w * 0.15 + 1.5), y: h + 1.7, z: zc + 1, rz: -Math.PI / 2 }));
+    if (KN()) { pr.pop(); pr.push(kp('rollingPin', { w: p.w * 0.36, x: p.w * 0.05, y: h, z: zc + 1 }), kp('bowl', { w: 13, x: p.w * 0.36, y: h, z: zc - 1 }), kp('whisk', { w: 11, x: p.w * 0.36, y: h + 4, z: zc - 1, rz: -0.5, ry: 0.6 })); } // Food Kit : le rouleau, le cul-de-poule et son fouet
+    else for (const s of [-1, 1]) pr.push(P(M.cylindre(1, 1, 3, 6), '#E8C39A', { x: p.w * 0.2 + s * (p.w * 0.15 + 1.5), y: h + 1.7, z: zc + 1, rz: -Math.PI / 2 }));
     for (let i = 0; i < 4; i++) pr.push(P(M.sphere(0.9, 6), '#FFFFFF', { x: -p.w * 0.38 + i * 5, y: h + 0.4, z: zc + 2.5 }));
     g.add(M.maille(pr, { recoit: true })); return g;
   }
@@ -254,7 +281,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     const p = c.LAY.presentoir, Q = c.Q, d = c.wd(p.h * 0.45), h = c.wy(p.h * 0.55), g = grp('presentoir', p.x + p.w / 2, 0, c.wz(p.y + p.h)), pr = [], zc = -d / 2;
     pr.push(P(bo(p.w, h, d, 2.5), Q.bois, { z: zc }), P(bo(p.w + 4, 2.5, d + 3, 1), Q.comptoir2, { y: h, z: zc }));
     for (let i = 1; i < 4; i++) pr.push(P(bo(1.2, h - 4, 0.6, 0.2), M.assombrir(Q.bois, 0.15), { x: -p.w / 2 + i * p.w / 4, y: 2, z: 0.2 }));
-    for (let i = 0; i < n; i++) { const bx = n > 1 ? -p.w / 2 + 7 + i * (p.w - 14) / (n - 1) : 0, l = 26 + (i % 2) * 6, a = ((i % 3) - 1) * 0.14; pr.push(P(M.capsule(2.6, l, 8), i % 2 ? '#E8B46A' : '#D99A4E', { x: bx - Math.sin(a) * (l / 2 + 3), y: h - 3 + Math.cos(a) * (l / 2 + 3), z: zc, rz: a })); }
+    for (let i = 0; i < n; i++) { const bx = n > 1 ? -p.w / 2 + 7 + i * (p.w - 14) / (n - 1) : 0, l = 26 + (i % 2) * 6, a = ((i % 3) - 1) * 0.14; if (KN()) { pr.push(kp('loaf-baguette', { w: l + 6, h: 5.5, d: 5.5, x: bx - Math.sin(a) * (l / 2 + 3), y: h - 3 + Math.cos(a) * (l / 2 + 3) - 3, z: zc, rz: Math.PI / 2 + a })); continue; } pr.push(P(M.capsule(2.6, l, 8), i % 2 ? '#E8B46A' : '#D99A4E', { x: bx - Math.sin(a) * (l / 2 + 3), y: h - 3 + Math.cos(a) * (l / 2 + 3), z: zc, rz: a })); }
     g.add(M.maille(pr)); return g;
   }
   function ardoise(c) { // un chevalet : deux montants devant, un derrière, le tableau noir et ses traits de craie
@@ -267,8 +294,9 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     g.add(M.maille(pr)); return g;
   }
   // ─── les petits objets ───
-  function plante(x, y, c) { // une plante en pot : le pot couleur comptoir, quatre boules de feuillage
+  function plante(x, y, c, touffe) { // une plante en pot : le pot couleur comptoir, quatre boules de feuillage
     const g = grp('plante', x, 0, c.wz(y + 15) - 9), pr = [];
+    if (KN()) { pr.push(touffe ? kp('plantSmall2', { h: 50 }, { wood: c.Q.comptoir, plant: '#5FD3A4' }) : kp('pottedPlant', { h: 62 }, { wood: c.Q.comptoir, woodDark: '#6B4A3A', plant: '#4FC79A' })); g.add(M.maille(pr)); return g; } // Furniture Kit : la touffe ronde (déco) ou la plante à feuilles hautes
     pr.push(P(M.cylindre(9, 7, 18, 12), c.Q.comptoir), P(M.cylindre(9.6, 9.6, 2.5, 12), M.eclaircir(c.Q.comptoir, 0.2), { y: 16.5 }), P(M.cylindre(7.5, 7.5, 1, 12), '#6B4A3A', { y: 18 }));
     for (const [ox, oy, r] of [[0, 30, 9.5], [-8.5, 22, 7], [8.5, 22, 7], [0, 43, 7]]) pr.push(P(M.sphere(r, 10), '#5FD3A4', { x: ox, y: oy, z: 0 }));
     pr.push(P(M.sphere(3.5, 8), '#3FB889', { x: -4.5, y: 36, z: 6 }), P(M.sphere(3, 8), '#3FB889', { x: 5, y: 27, z: 6.5 }));
@@ -292,6 +320,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   }
   function paillasson(couleur, c) {
     const p = c.LAY.paillasson, Q = c.Q, d = c.wd(9), col = couleur ? Q.accent : Q.vue === 'ville' ? '#5A4A5E' : '#B9875A', g = grp('paillasson', p.x, 0, c.wz(p.y + 0.5)), pr = [];
+    if (KN()) { pr.push(kp('rugDoormat', { w: 40, h: 1.4, d }, { wood: col })); g.add(M.maille(pr, { ombre: false, recoit: true })); return g; } // le paillasson du Furniture Kit
     pr.push(P(bo(40, 1.2, d, 0.5), col));
     for (let k = 0; k < 4; k++) pr.push(P(bo(5, 0.5, d * 0.5, 0.2), M.eclaircir(col, 0.3), { x: -13.5 + k * 9, y: 1.1 }));
     g.add(M.maille(pr, { ombre: false, recoit: true })); return g;
@@ -336,7 +365,10 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       const nb = r === 1 && boites ? 2 : 5;
       for (let i = 0; i < Math.min(nb, n - r * 5); i++) {
         const px = e.x + cw * (i + 0.5), l = c.wy(11) - 5;
-        if (r === 1 && i % 2) pr.push(P(M.sphere(cw * 0.42, 10), '#D99A4E', { x: px, y: Yp + cw * 0.3, z: 5.5, sy: 0.72 }));
+        if (KN()) { // le Food Kit : baguettes debout et pains ronds en bas, croissants et pains de mie en haut
+          if (r === 0) pr.push(i % 2 ? kp('loaf-round', { w: cw * 0.9, d: 8, x: px, y: Yp, z: 5.5 }) : kp('loaf-baguette', { w: l + 5, h: 5, d: 5, x: px, y: Yp + (l + 5) / 2 - 2.5, z: 5.5, rz: Math.PI / 2 + 0.08 * (i % 4 ? -1 : 1) }));
+          else pr.push(i % 2 ? kp('croissant', { w: cw * 0.95, x: px, y: Yp, z: 5.5, ry: 0.3 }) : kp('loaf', { w: cw * 0.8, d: 8, x: px, y: Yp, z: 5.5, ry: Math.PI / 2 }));
+        } else if (r === 1 && i % 2) pr.push(P(M.sphere(cw * 0.42, 10), '#D99A4E', { x: px, y: Yp + cw * 0.3, z: 5.5, sy: 0.72 }));
         else pr.push(P(M.capsule(2.5, l, 8), i % 2 ? '#E8B46A' : '#D99A4E', { x: px, y: Yp + 2.5 + l / 2, z: 5.5, rz: 0.08 * (i % 2 ? -1 : 1) }));
       }
       if (r === 1 && boites) for (let i = 0; i < 3; i++) { const bx = e.x + e.w * 0.42 + i * e.w * 0.2 + e.w * 0.085, bw = e.w * 0.17, bh = c.wy(10); pr.push(P(bo(bw, bh, 8, 1), ['#FFE1EA', '#E7D4FF', '#FFF3C4'][i], { x: bx, y: Yp, z: 5.5 }), P(bo(1.4, bh + 0.4, 8.6, 0.3), PASTEL[i], { x: bx, y: Yp - 0.2, z: 5.5 }), P(bo(bw + 0.4, 1.4, 8.6, 0.3), PASTEL[i], { x: bx, y: Yp + bh * 0.55, z: 5.5 })); }

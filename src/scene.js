@@ -22,6 +22,7 @@ const SCENE = (() => {
     const ombres = p.ombres > 0; if (renderer.shadowMap.enabled !== ombres) { renderer.shadowMap.enabled = ombres; recompiler(); }
     if ((!ombres || dir.shadow.mapSize.x !== p.ombres) && dir.shadow.map) { dir.shadow.map.dispose(); dir.shadow.map = null; } // une carte d'ombre inutile ou à la mauvaise taille est rendue
     if (ombres) dir.shadow.mapSize.set(p.ombres, p.ombres);
+    richesse(niveau);
   }
   // l'intervalle réel entre deux images (le travail du processeur graphique compris), par fenêtres de 60 images :
   // au-dessus de 28 ms on descend d'un palier ; si la fenêtre suivante ne va pas 10 % plus vite, c'est l'écran qui plafonne la cadence (30 Hz,
@@ -37,6 +38,131 @@ const SCENE = (() => {
     else if (moy < 18 && k < 2) { const vers = ORDRE_Q[k + 1], n = QUAL.echecs[vers] || 0; if (n < 2 && ++QUAL.calme >= 10 * Math.pow(6, n)) { QUAL.calme = 0; QUAL.verif = { de: QUAL.niveau, avant: moy, sens: 1 }; qualite(vers); } }
     else QUAL.calme = 0;
   }
+  // ─── le rendu riche (paliers haute et moyenne ; l'éco garde exactement le rendu d'avant) ───
+  // · la lumière d'ambiance : une pièce chaude (portage de RoomEnvironment, three.js r158, MIT, d'après model-viewer) passée au PMREM,
+  //   que les matériaux standard (PBR, rugosité forte : on reste mat et cartoon) reflètent en lumière diffuse et en reflets doux ;
+  // · les matériaux : chaque Lambert de la scène a un jumeau MeshStandard (mêmes couleurs, textures, lueurs) ; on bascule de l'un à l'autre
+  //   avec le palier, sans rien reconstruire ; les jumeaux suivent la vie de leur original (partagé ou non) ;
+  // · l'occlusion ambiante : une texture d'ombres de contact peinte (sous les meubles, au pied du mur), posée en aoMap sur le sol et le mur ;
+  // · les effets (haute seulement) : la scène est rendue dans une cible MSAA, puis une passe plein écran pose un contour cartoon (écarts
+  //   de profondeur), une correction de couleur chaude et un léger vignettage. Une passe, pas de bibliothèque.
+  const RICHE = { actif: false, env: null, envK: 0.5, lueurMur: 0.6, kEnv: 0.16, kHemi: 0.35, kDir: 0.92, effets: true, chaud: 0.55, jumeaux: new WeakMap(), post: null, ao: null, aoMur: null, aoSale: true };
+  const estRiche = (niveau) => niveau !== 'eco';
+  function pieceEnv() { // la pièce d'ambiance : murs clairs, six panneaux lumineux un peu chauds, quelques volumes qui cassent l'uniformité
+    const s = new THREE.Scene(), geo = new THREE.BoxGeometry(); geo.deleteAttribute('uv');
+    const murM = new THREE.MeshStandardMaterial({ side: THREE.BackSide, color: '#FFF4E8' }), boiteM = new THREE.MeshStandardMaterial({ color: '#F2E2D2' });
+    const lum = new THREE.PointLight(0xffffff, renderer._useLegacyLights ? 5 : 900, 28, 2); lum.position.set(0.418, 16.199, 0.3); s.add(lum);
+    const b = (m, p, r, k) => { const o = new THREE.Mesh(geo, m); o.position.set(p[0], p[1], p[2]); o.rotation.set(0, r, 0); o.scale.set(k[0], k[1], k[2]); s.add(o); };
+    b(murM, [-0.757, 13.219, 0.717], 0, [31.713, 28.305, 28.591]);
+    for (const [p, r, k] of [[[-10.906, 2.009, 1.846], -0.195, [2.328, 7.905, 4.651]], [[-5.607, -0.754, -0.758], 0.994, [1.97, 1.534, 3.955]], [[6.167, 0.857, 7.803], 0.561, [3.927, 6.285, 3.687]], [[-2.017, 0.018, 6.124], 0.333, [2.002, 4.566, 2.064]], [[2.291, -0.756, -2.621], -0.286, [1.546, 1.552, 1.496]], [[-2.193, -0.369, -5.547], 0.516, [3.875, 3.487, 2.986]]]) b(boiteM, p, r, k);
+    const panneau = (k, teinte) => { const m = new THREE.MeshBasicMaterial(); m.color.set(teinte).multiplyScalar(k); return m; };
+    for (const [k, t, p, e] of [[50, '#FFE9CF', [-16.116, 14.37, 8.208], [0.1, 2.428, 2.739]], [50, '#FFE9CF', [-16.109, 18.021, -8.207], [0.1, 2.425, 2.751]], [17, '#FFF6EA', [14.904, 12.198, -1.832], [0.15, 4.265, 6.331]], [43, '#FFEBD6', [-0.462, 8.89, 14.52], [4.38, 5.441, 0.088]], [20, '#FFE2C4', [3.235, 11.486, -12.541], [2.5, 2, 0.1]], [100, '#FFF8F0', [0, 20, 0], [1, 0.1, 1]]]) b(panneau(k, t), p, 0, e);
+    return s;
+  }
+  function envMap() {
+    if (RICHE.env) return RICHE.env;
+    const pm = new THREE.PMREMGenerator(renderer), piece = pieceEnv();
+    RICHE.env = pm.fromScene(piece, 0.04).texture; pm.dispose();
+    piece.traverse((o) => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
+    return RICHE.env;
+  }
+  function rugosite(m) { if (m.transparent && m.opacity < 0.6) return 0.18; if (m.map) return 0.92; return 0.78; } // le verre brille, le sol et le mur restent mats
+  function jumeau(m) { // le MeshStandard d'un Lambert (en cache) ; partagé si l'original l'est
+    let t = RICHE.jumeaux.get(m); if (t) return t;
+    t = new THREE.MeshStandardMaterial({ color: m.color.clone(), vertexColors: m.vertexColors, map: m.map, emissive: m.emissive.clone(), emissiveMap: m.emissiveMap, emissiveIntensity: m.emissiveIntensity, transparent: m.transparent, opacity: m.opacity, depthWrite: m.depthWrite, side: m.side, alphaTest: m.alphaTest, depthTest: m.depthTest, polygonOffset: m.polygonOffset, polygonOffsetFactor: m.polygonOffsetFactor, polygonOffsetUnits: m.polygonOffsetUnits, flatShading: m.flatShading, roughness: rugosite(m), metalness: 0 });
+    Object.defineProperty(t, 'envMapIntensity', { get: () => RICHE.envK, set: () => {} }); // une seule intensité d'ambiance pour toute la scène, réglée par la phase du jour
+    t.userData.lambert = m; if (M.estPartage(m)) M.partager(t);
+    RICHE.jumeaux.set(m, t); return t;
+  }
+  function habiller(obj) { // pose les jumeaux (palier riche) ou les originaux (éco) sur tout ce que porte obj
+    const riche = RICHE.actif;
+    obj.traverse((o) => {
+      if (!o.isMesh || !o.material) return;
+      const vers = (m) => (riche ? (m.isMeshLambertMaterial ? jumeau(m) : m) : (m.userData && m.userData.lambert) || m);
+      if (Array.isArray(o.material)) { if (o.material.some((m) => vers(m) !== m)) o.material = o.material.map(vers); } else { const n = vers(o.material); if (n !== o.material) o.material = n; }
+    });
+  }
+  function richesse(niveau) { // le palier change : on bascule les matériaux, l'environnement et la passe d'effets
+    const r = estRiche(niveau); if (!renderer) return;
+    if (r !== RICHE.actif) { RICHE.actif = r; scene.environment = r ? envMap() : null; habiller(scene); RICHE.aoSale = true; }
+    if (niveau !== 'haute' && RICHE.post) { RICHE.post.liberer(); RICHE.post = null; }
+  }
+  // l'occlusion ambiante peinte : sol (vu de dessus : x → u, z → v) et mur (x, hauteur) ; repeinte quand un meuble change
+  function peindreAO() {
+    if (!RICHE.actif || !salle || !LAY) return;
+    if (!RICHE.aoSale) return; RICHE.aoSale = false; // repeinte seulement quand un groupe du décor a changé
+    const D = wd(H - LAY.murH), Hm = wy(LAY.murH);
+    const sol = RICHE.ao || (RICHE.ao = { cv: document.createElement('canvas') }), mur = RICHE.aoMur || (RICHE.aoMur = { cv: document.createElement('canvas') });
+    sol.cv.width = 256; sol.cv.height = Math.max(64, Math.min(1024, Math.round(256 * D / W))); mur.cv.width = 256; mur.cv.height = 128;
+    const x = sol.cv.getContext('2d'), sx = sol.cv.width / W, sz = sol.cv.height / D;
+    x.fillStyle = '#FFFFFF'; x.fillRect(0, 0, sol.cv.width, sol.cv.height);
+    const g0 = x.createLinearGradient(0, 0, 0, 26 * sz); g0.addColorStop(0, 'rgba(70,50,40,.75)'); g0.addColorStop(1, 'rgba(70,50,40,0)'); x.fillStyle = g0; x.fillRect(0, 0, sol.cv.width, 26 * sz); // le pied du mur
+    const tache = (x0, z0, x1, z1, k, flou) => { x.save(); x.shadowColor = `rgba(60,40,30,${k})`; x.shadowBlur = flou; x.shadowOffsetX = 4000; x.fillStyle = '#000'; x.beginPath(); x.roundRect(x0 * sx - 4000, z0 * sz, Math.max(1, (x1 - x0) * sx), Math.max(1, (z1 - z0) * sz), 3); x.fill(); x.restore(); };
+    const bx = new THREE.Box3();
+    for (const id of ['froid', 'four', 'comptoir', 'plan', 'presentoir', 'ardoise', 'plante', 'sapin', 'trophees', 'chien']) {
+      const gr = groupes[id]; if (!gr) continue; bx.setFromObject(gr); if (bx.isEmpty() || bx.min.y > 2) continue;
+      tache(bx.min.x + 1, Math.max(0, bx.min.z), bx.max.x - 1, bx.max.z + 2, 0.85, 10);
+    }
+    const dc = groupes.deco && groupes.deco.userData.zoneBoite; if (dc && !dc.isEmpty()) tache(dc.min.x + 2, dc.min.z + 2, dc.max.x - 2, dc.max.z, 0.6, 8);
+    if (V.crans.tables > 0) for (let i = 0; i < V.crans.tables; i++) { const tb = LAY.tables[i], r = 14 * V.K, z = wz(tb.y); tache(tb.x - r, z - r * 0.8, tb.x + r, z + r * 0.8, 0.55, 10); for (const s of tb.sieges) { const zs = wz(s.y); tache(s.x - 6 * V.K, zs - 6 * V.K, s.x + 6 * V.K, zs + 6 * V.K, 0.4, 6); } }
+    // le mur : le pied (assombri sur 10 % de sa hauteur) et l'ombre portée des meubles adossés
+    const y = mur.cv.getContext('2d'), mx = mur.cv.width / W, my = mur.cv.height / Hm; y.fillStyle = '#FFFFFF'; y.fillRect(0, 0, mur.cv.width, mur.cv.height);
+    const g1 = y.createLinearGradient(0, mur.cv.height, 0, mur.cv.height - 30 * my); g1.addColorStop(0, 'rgba(70,50,40,.5)'); g1.addColorStop(1, 'rgba(70,50,40,0)'); y.fillStyle = g1; y.fillRect(0, mur.cv.height - 30 * my, mur.cv.width, 30 * my);
+    for (const id of ['froid', 'four', 'comptoir']) { const gr = groupes[id]; if (!gr) continue; bx.setFromObject(gr); if (bx.isEmpty() || bx.min.z > 60) continue; y.save(); y.shadowColor = 'rgba(60,40,30,.45)'; y.shadowBlur = 10; y.shadowOffsetX = 4000; y.fillStyle = '#000'; y.fillRect(bx.min.x * mx - 4000, mur.cv.height - bx.max.y * my, (bx.max.x - bx.min.x) * mx, bx.max.y * my); y.restore(); }
+    for (const a of [sol, mur]) { if (!a.tex) { a.tex = new THREE.CanvasTexture(a.cv); a.tex.userData.partagee = true; } a.tex.needsUpdate = true; }
+    RICHE.aoMur.tex.repeat.set(1 / W, 1 / Hm); RICHE.aoMur.tex.flipY = true;
+    // sur les jumeaux du sol et du mur (le mur : sa face avant seulement, le matériau 0)
+    salle.traverse((o) => {
+      if (!o.isMesh) return;
+      if (o.geometry.type === 'PlaneGeometry' && o.material.isMeshStandardMaterial && o.material.map && o.rotation.x < 0) { o.material.aoMap = sol.tex; o.material.aoMapIntensity = 1; o.material.needsUpdate = true; }
+      if (Array.isArray(o.material) && o.material[0].isMeshStandardMaterial) { o.material[0].aoMap = mur.tex; o.material[0].aoMapIntensity = 1; o.material[0].needsUpdate = true; }
+    });
+  }
+  // la passe d'effets : la scène dans une cible MSAA (couleur + profondeur), puis un triangle plein écran
+  function creerPost() {
+    const rt = new THREE.WebGLRenderTarget(4, 4, { samples: renderer.capabilities.isWebGL2 ? 4 : 0, type: THREE.UnsignedByteType });
+    rt.texture.colorSpace = THREE.SRGBColorSpace; rt.depthTexture = new THREE.DepthTexture(4, 4); rt.depthTexture.type = THREE.UnsignedIntType;
+    const mat = new THREE.ShaderMaterial({
+      uniforms: { tCol: { value: rt.texture }, tProf: { value: rt.depthTexture }, px: { value: new THREE.Vector2() }, seuil: { value: 0.0015 }, contour: { value: 0.75 }, chaud: { value: 0.55 } },
+      vertexShader: 'varying vec2 vUv; void main() { vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }',
+      fragmentShader: `
+        uniform sampler2D tCol; uniform sampler2D tProf; uniform vec2 px; uniform float seuil; uniform float contour; uniform float chaud; varying vec2 vUv;
+        vec3 versSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
+        void main() {
+          vec3 c = versSRGB(texture2D(tCol, vUv).rgb);
+          // le contour cartoon : un saut de profondeur (caméra orthographique : profondeur linéaire) avec ses quatre voisins
+          float d = texture2D(tProf, vUv).r, e = 0.0;
+          e = max(e, abs(d - texture2D(tProf, vUv + vec2(px.x, 0.0)).r)); e = max(e, abs(d - texture2D(tProf, vUv - vec2(px.x, 0.0)).r));
+          e = max(e, abs(d - texture2D(tProf, vUv + vec2(0.0, px.y)).r)); e = max(e, abs(d - texture2D(tProf, vUv - vec2(0.0, px.y)).r));
+          float k = smoothstep(seuil, seuil * 2.5, e) * contour;
+          c = mix(c, c * vec3(0.42, 0.32, 0.27), k);
+          // la correction chaude : un peu de saturation, des ombres relevées vers le miel, des hautes lumières crème, une courbe douce
+          float l = dot(c, vec3(0.299, 0.587, 0.114));
+          c = mix(vec3(l), c, 1.0 + 0.10 * chaud);
+          c += chaud * vec3(0.030, 0.012, -0.012) * (1.0 - l);
+          c *= mix(vec3(1.0), vec3(1.025, 1.0, 0.955), chaud);
+          c = mix(c, c * c * (3.0 - 2.0 * c), 0.10 * chaud);
+          // le vignettage, léger et chaud
+          vec2 q = vUv - 0.5; float v = smoothstep(0.85, 0.25, length(q * vec2(1.0, 0.75)));
+          c *= mix(vec3(0.93, 0.90, 0.87), vec3(1.0), v);
+          gl_FragColor = vec4(clamp(c, 0.0, 1.0), 1.0);
+        }`,
+      depthTest: false, depthWrite: false,
+    });
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute([-1, -1, 0, 3, -1, 0, -1, 3, 0], 3));
+    const quad = new THREE.Mesh(geo, mat); quad.frustumCulled = false; const sc = new THREE.Scene(); sc.add(quad); const cam = new THREE.Camera();
+    return {
+      rt, mat,
+      rendre(hv) {
+        const w = Math.round(W * DPR), h = Math.round(H * DPR);
+        if (rt.width !== w || rt.height !== h) { rt.setSize(w, h); mat.uniforms.px.value.set(1 / w, 1 / h); }
+        rt.scissorTest = hv < H; rt.scissor.set(0, Math.floor((H - hv) * DPR), w, Math.ceil(hv * DPR)); rt.viewport.set(0, 0, w, h);
+        renderer.setRenderTarget(rt); renderer.render(scene, camera); renderer.setRenderTarget(null);
+        renderer.info.autoReset = false; renderer.render(sc, cam); renderer.info.autoReset = true; // les stats : la passe de la scène + 1 (comme sans effets, la passe d'ombre n'est pas comptée)
+      },
+      liberer() { rt.dispose(); rt.depthTexture.dispose(); mat.dispose(); geo.dispose(); },
+    };
+  }
   // ─── mise en route ───
   function init(canvas, ui) {
     cv = canvas; cvUi = ui; ctx2 = ui ? ui.getContext('2d') : null;
@@ -48,7 +174,7 @@ const SCENE = (() => {
     const q = /[?&]qualite=(haute|moyenne|eco)/.exec(location.search);
     if (q) { QUAL.niveau = q[1]; QUAL.fixe = true; } else if (/SwiftShader|llvmpipe|Software/i.test(nom)) { QUAL.niveau = 'eco'; QUAL.fixe = true; } // un rendu logiciel reste en éco
     cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); perdu = performance.now(); });
-    cv.addEventListener('webglcontextrestored', () => { perdu = 0; panneau(false); toutRebatir(); });
+    cv.addEventListener('webglcontextrestored', () => { perdu = 0; panneau(false); if (RICHE.post) { RICHE.post.liberer(); RICHE.post = null; } if (RICHE.env) { RICHE.env = null; if (RICHE.actif) scene.environment = envMap(); } toutRebatir(); });
     _c1 = new THREE.Color(); _c2 = new THREE.Color(); _v = new THREE.Vector3(); _b = new THREE.Box3();
     scene = new THREE.Scene();
     camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 1, 4000);
@@ -57,6 +183,9 @@ const SCENE = (() => {
     scene.add(hemi, dir, dir.target);
     for (let k = 0; k < 3; k++) { const p = new THREE.PointLight('#FFD98A', 0, 1, 1); p.castShadow = false; lampes.push(p); scene.add(p); }
     ext.tex = new THREE.CanvasTexture(ext.cv); ext.tex.colorSpace = THREE.SRGBColorSpace; ext.tex.userData.partagee = true; // le paysage vit toute la partie
+    richesse(QUAL.niveau);
+    // les modèles Kenney (fournil/modeles/) : seulement sur la page du jeu (l'artefact n'a pas les fichiers à côté) ; prêts, tout le décor est rebâti avec eux
+    if (typeof KENNEY !== 'undefined' && KENNEY && window.FOURNIL_ACCUEIL != null && !/[?&]kenney=0/.test(location.search)) KENNEY.charger('modeles/').then((ok) => { if (ok) toutRebatir(); });
     webgl = true; return true;
   }
   let tailleC = '';
@@ -87,7 +216,7 @@ const SCENE = (() => {
   function toutRebatir() { for (const k of Object.keys(cles)) delete cles[k]; Qc = null; zonesCache = null; if (ext.tex) ext.tex.needsUpdate = true; ext.der = -1; } // tout le décor sera reconstruit à la frame suivante ; les personnages ne dépendent pas de la taille
   function remplacer(id, g) { // pose (ou retire) un groupe nommé, en libérant l'ancien
     const vieux = groupes[id]; if (vieux) { scene.remove(vieux); M.dispose(vieux); }
-    groupes[id] = g || null; if (g) scene.add(g); zonesCache = null; recenserAnimes();
+    groupes[id] = g || null; if (g) { habiller(g); scene.add(g); } zonesCache = null; RICHE.aoSale = true; recenserAnimes();
   }
   function recenserAnimes() { animes.length = 0; scene.traverse((o) => { if (o.userData && typeof o.userData.anime === 'function') animes.push(o); }); }
   const CONDS = [ // les petits décors : une clé par frame, reconstruits quand elle change (null : absent)
@@ -132,6 +261,14 @@ const SCENE = (() => {
     const cp = groupes.comptoir; c.dessusY = cp ? cp.userData.dessusY : wy(LAY.comptoir.hFace); c.dessusZ = cp ? cp.userData.dessusZ : wz(LAY.comptoir.y + LAY.comptoir.hTop + LAY.comptoir.hFace) - wd(LAY.comptoir.hTop) / 2;
     return c;
   }
+  // les pâtisseries de la vitrine prises dans le Food Kit quand il est là (baguette, croissant, tarte aux pommes) ; les autres restent celles de PERSOS
+  const PAT_K = { 0: ['loaf-baguette', 0.5], 1: ['croissant', 0.4], 3: ['pie', 0] }, patK = new Map();
+  function patisserieK(i) {
+    const d = PAT_K[i]; if (!d || typeof KENNEY === 'undefined' || !KENNEY || !KENNEY.pret) return null;
+    let m = patK.get(i); if (m) return m;
+    const T = PERSOS.TAILLE_PATISSERIE || 16, dm = KENNEY.dims(d[0]), k = T * (i === 0 ? 1.15 : 1) / Math.max(dm.w, dm.d);
+    m = M.mesh(M.assembler([KENNEY.part(d[0], { s: k, ry: d[1] })]), M.MAT.vertex); m.geometry.userData.cache = true; m.userData.i = i; patK.set(i, m); return m;
+  }
   function construire(E) {
     const c = contexte(E), base = `${E.Q.id}|${W}x${H}`;
     const rs = E.st.saison && E.st.saison.niv > 0 && PERSOS.patisserieSaison ? E.st.saison.id : '', ouverts = E.niv.map((n, i) => (n > 0 ? i : -1)).filter((i) => i >= 0);
@@ -145,7 +282,7 @@ const SCENE = (() => {
     const kp = `${ouverts.join(',')}|${rs}|${E.crans.vitrine}|${base}`;
     if (cles.produits !== kp) { // les pâtisseries dans la vitrine
       cles.produits = kp; const g = new THREE.Group(), vit = groupes.comptoir && groupes.comptoir.userData.vitrine, liste = rs ? ouverts.concat([rs]) : ouverts, places = vit ? vit.places(liste.length) : [];
-      liste.forEach((i, k) => { const p = places[k]; if (!p) return; const m = (typeof i === 'string' ? PERSOS.patisserieSaison(i) : PERSOS.patisserie(i)).clone(); const s = (p.s || 16) / (PERSOS.TAILLE_PATISSERIE || 16); m.position.set(p.x, p.y, p.z); m.scale.setScalar(s); m.castShadow = false; g.add(m); });
+      liste.forEach((i, k) => { const p = places[k]; if (!p) return; const m = (typeof i === 'string' ? PERSOS.patisserieSaison(i) : patisserieK(i) || PERSOS.patisserie(i)).clone(); const s = (p.s || 16) / (PERSOS.TAILLE_PATISSERIE || 16); m.position.set(p.x, p.y, p.z); m.scale.setScalar(s); m.castShadow = false; g.add(m); });
       remplacer('produits', g);
     }
     const garde = G.tenueBoulanger(E.st), kb = `${E.rang}|${garde.cle}|${base}`; // le boulanger porte ce que la garde-robe équipe (REC.tenue, l'ancienne tenue du podium, ne décide plus)
@@ -169,12 +306,13 @@ const SCENE = (() => {
     hemi.color.set(A.hemi[0]).lerp(_c1.set(B.hemi[0]), k); hemi.groundColor.set(A.hemi[1]).lerp(_c1.set(B.hemi[1]), k); hemi.intensity = mix(A.hemi[2], B.hemi[2]);
     dir.color.set(A.dir[0]).lerp(_c1.set(B.dir[0]), k); dir.intensity = mix(A.dir[1], B.dir[1]);
     if (E.rush) { hemi.color.lerp(_c2.set('#FFF0E0'), 0.5); dir.intensity *= 1.1; }
+    if (RICHE.actif) { RICHE.envK = RICHE.kEnv * hemi.intensity / 1.3 * (1 - 0.55 * mix(A.lampes, B.lampes)); hemi.intensity *= RICHE.kHemi; dir.intensity *= RICHE.kDir; if (RICHE.post) RICHE.post.mat.uniforms.chaud.value = RICHE.chaud * (1 - 0.6 * mix(A.lampes, B.lampes)); } // l'ambiance vient surtout de la pièce (PMREM) ; le ciel ne fait plus que teinter
     lampesNiv = mix(A.lampes, B.lampes);
     const salon = E.crans.deco >= 4 && E.crans.tables > 0, tb = LAY.tables, allumees = [E.crans.deco >= 2, E.crans.deco >= 2, E.niv[2] > 0 || salon];
     const pos = [[LAY.appliques[0].x, wy(LAY.murH - LAY.appliques[0].y), 18], [LAY.appliques[1].x, wy(LAY.murH - LAY.appliques[1].y), 18], salon ? [(tb[0].x + tb[1].x) / 2, 60, wz((tb[0].y + tb[2].y) / 2)] : [LAY.lampe.x, wy(LAY.murH - LAY.lampe.y) - 10, 20]];
     lampes.forEach((p, i) => { p.position.set(pos[i][0], pos[i][1], pos[i][2]); p.distance = W * 0.9; p.intensity = allumees[i] ? 150 * lampesNiv : 0; });
     const taches = salle && salle.userData.taches; if (taches) for (const m of taches) m.material.opacity = mix(A.tache, B.tache);
-    const mm = salle && salle.userData.murMat; if (mm) { mm.emissive.copy(hemi.color); mm.emissiveIntensity = 0.42 * hemi.intensity / 1.3; } // le mur suit la lumière (sa lueur compense les faces verticales, pas la nuit)
+    const mm = salle && salle.userData.murMat; if (mm) { mm.emissive.copy(hemi.color); mm.emissiveIntensity = 0.42 * hemi.intensity / 1.3; const mj = RICHE.jumeaux.get(mm); if (mj) { mj.emissive.copy(hemi.color); mj.emissiveIntensity = RICHE.actif ? 0.42 * (hemi.intensity / RICHE.kHemi) / 1.3 * RICHE.lueurMur : mm.emissiveIntensity; } } // le mur suit la lumière (sa lueur compense les faces verticales, pas la nuit)
   }
 
   // ─── dehors : une texture repeinte dix fois par seconde, vue par la fenêtre et la porte ───
@@ -250,13 +388,13 @@ const SCENE = (() => {
     vus.clear();
     for (const c of V.clients) {
       let g = acteurs.get(c.id);
-      if (!g) { g = prendre(cleClient(c), () => PERSOS.creer({ haut: c.haut, peau: c.peau, cheveux: c.cheveux, coiffure: c.coiffure, bonnet: c.bonnet, lunettes: c.lunettes, or: c.or, mariniere: c.mariniere, sac: true, sacCol: c.sacCol, taille: c.taille })); g.userData.yaw = YAW[c.dir] || 0; scene.add(g); acteurs.set(c.id, g); }
+      if (!g) { g = prendre(cleClient(c), () => PERSOS.creer({ haut: c.haut, peau: c.peau, cheveux: c.cheveux, coiffure: c.coiffure, bonnet: c.bonnet, lunettes: c.lunettes, or: c.or, mariniere: c.mariniere, sac: true, sacCol: c.sacCol, taille: c.taille })); g.userData.yaw = YAW[c.dir] || 0; habiller(g); scene.add(g); acteurs.set(c.id, g); }
       vus.add(c.id); poser(g, c, E, dt);
     }
     for (const a of V.apprentis) {
       const id = 'a' + a.i; let g = acteurs.get(id);
       if (g && g.userData.grade !== (a.grade || 1)) { scene.remove(g); M.dispose(g); acteurs.delete(id); g = null; } // il a monté de grade : nouvelle tenue
-      if (!g) { g = prendre('apprenti' + a.i + '|' + (a.grade || 1), () => PERSOS.creer({ haut: V.HAUTS6[(a.i * 2 + 1) % 6], peau: V.PEAUX6[a.i % 6], cheveux: V.CHEVEUX[a.i % V.CHEVEUX.length], coiffure: 0, toque: true, tablier: true, plateau: true, produit: a.i, cle: true, grade: a.grade || 1 })); g.userData.grade = a.grade || 1; g.userData.yaw = YAW[a.dir] || 0; scene.add(g); acteurs.set(id, g); }
+      if (!g) { g = prendre('apprenti' + a.i + '|' + (a.grade || 1), () => PERSOS.creer({ haut: V.HAUTS6[(a.i * 2 + 1) % 6], peau: V.PEAUX6[a.i % 6], cheveux: V.CHEVEUX[a.i % V.CHEVEUX.length], coiffure: 0, toque: true, tablier: true, plateau: true, produit: a.i, cle: true, grade: a.grade || 1 })); g.userData.grade = a.grade || 1; g.userData.yaw = YAW[a.dir] || 0; habiller(g); scene.add(g); acteurs.set(id, g); }
       vus.add(id); poserApprenti(g, a, E, dt);
     }
     for (const [id, g] of acteurs) if (!vus.has(id)) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); }
@@ -268,7 +406,7 @@ const SCENE = (() => {
   function poserChat(E, dt) {
     const c = V.chat;
     if (!c || !PERSOS.chat) { if (chatG) { scene.remove(chatG); (PERSOS.libererChat || M.dispose)(chatG); chatG = null; } return; } // libererChat : le tampon d'instances des pattes
-    if (!chatG) { chatG = PERSOS.chat({}); chatG.userData.yaw = Math.PI / 2; scene.add(chatG); }
+    if (!chatG) { chatG = PERSOS.chat({}); chatG.userData.yaw = Math.PI / 2; habiller(chatG); scene.add(chatG); }
     if (chatHautCle !== cles.comptoir) { chatHautCle = cles.comptoir; chatHaut = MEUBLES.surDessus(contexte(E), LAY.chat); chatPied = V.piedComptoir(); } // recalculés quand le comptoir change
     const haut = chatHaut, pied = chatPied, zp = wz(pied.y);
     if (c.etat === 'descend' || c.etat === 'monte') { const u = c.etat === 'descend' ? c.saut : 1 - c.saut, e = u * u * (3 - 2 * u); _pc.x = haut.x + (pied.x - haut.x) * e; _pc.z = haut.z + (zp - haut.z) * e; _pc.y = haut.y * (1 - e) + Math.sin(Math.PI * u) * 14; }
@@ -312,7 +450,7 @@ const SCENE = (() => {
     const t0 = performance.now();
     try {
       construire(E);
-      eclairer(E); peindreExterieur(now, E);
+      eclairer(E); peindreExterieur(now, E); peindreAO();
       synchroniser(E, dt);
       EA.t = E.t; EA.chaud = E.chaud; EA.caisseFlash = E.caisseFlash; EA.nuit = E.sk.nuit; EA.lampes = lampesNiv; EA.rush = E.rush; EA.d = E.d; EA.sk = E.sk; EA.tags = E.tags;
       for (const o of animes) o.userData.anime(EA);
@@ -332,7 +470,8 @@ const SCENE = (() => {
   function rendre(E, complet) {
     const hv = complet ? H : Math.min(H, visH + 24);
     renderer.setScissorTest(!complet); if (!complet) renderer.setScissor(0, H - hv, W, hv);
-    renderer.render(scene, camera);
+    if (QUAL.niveau === 'haute' && RICHE.actif && RICHE.effets && renderer.capabilities.isWebGL2) { if (!RICHE.post) RICHE.post = creerPost(); RICHE.post.rendre(hv); } // les effets : haute seulement
+    else renderer.render(scene, camera);
     renderer.setScissorTest(false);
     calque(E, hv);
   }
@@ -449,7 +588,8 @@ const SCENE = (() => {
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
     get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0 }; }, // ce que la boutique montre (pour les tests)
     get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG) }; }, // le budget d'appels de dessin (pour les tests)
+    get _riche() { return RICHE; }, // les réglages du rendu riche (pour les tests et les captures)
     get amenager() { return amenager; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
-    get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length, geometries: renderer ? renderer.info.memory.geometries : 0, textures: renderer ? renderer.info.memory.textures : 0 }; } };
+    get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length, geometries: renderer ? renderer.info.memory.geometries : 0, textures: renderer ? renderer.info.memory.textures : 0, riche: RICHE.actif, effets: !!RICHE.post, kenney: typeof KENNEY !== 'undefined' && KENNEY ? { pret: KENNEY.pret, octets: KENNEY.octets, ms: KENNEY.ms, erreur: KENNEY.erreur } : null }; } };
   return API;
 })();

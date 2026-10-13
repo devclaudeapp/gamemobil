@@ -1,0 +1,27 @@
+Modèles 3D de la boutique du Fournil (essai de rendu, branche rendu-essai)
+=========================================================================
+
+Tous les fichiers de ce dossier (GLB et palettes Textures/colormap.png) sont de Kenney (www.kenney.nl),
+sous licence Creative Commons Zero (CC0 1.0) : domaine public, usage personnel, éducatif et commercial
+libre, aucune attribution requise (on crédite quand même « Kenney.nl »).
+Texte de la licence : http://creativecommons.org/publicdomain/zero/1.0/
+Le License.txt d'origine de chaque pack est copié dans son sous-dossier.
+
+Récupérés le 13-10-2026 par le workflow .github/workflows/rendu-assets.yml (branche rendu-assets,
+qui garde les packs complets dans fournil/modeles-kenney/), directement depuis kenney.nl :
+
+- Furniture Kit 2.0 — https://kenney.nl/assets/furniture-kit
+  zip https://kenney.nl/media/pages/assets/furniture-kit/440e0608a4-1677580847/kenney_furniture-kit.zip
+  sha256 e67652d0932cee41683f74711c03d3e192a2af9979ef8e6b237711f5482d46b0
+  gardés : tableRound, chairRounded, chairCushion, pottedPlant, plantSmall2, kitchenFridge, kitchenFridgeLarge, rugDoormat
+- Food Kit — https://kenney.nl/assets/food-kit
+  zip https://kenney.nl/media/pages/assets/food-kit/83086fa91c-1719418518/kenney_food-kit.zip
+  sha256 cdad90853682499b94c9fda2f87678b24bfd8f3264e0ed323f6b6a27fd7c6f6f
+  gardés : loaf-baguette, loaf-round, loaf, croissant, pie, cup-saucer, cup-coffee, rollingPin, bowl, whisk (+ Textures/colormap.png)
+- Mini Market — https://kenney.nl/assets/mini-market
+  zip https://kenney.nl/media/pages/assets/mini-market/463f38da51-1729865423/kenney_mini-market.zip
+  sha256 6f2e69090e359204ace43e4c98dc3fb8639b75e423109672b5c890d194c45203
+  gardés : freezers-standing, cash-register (+ Textures/colormap.png)
+
+Les fichiers sont tels quels (non modifiés). Le jeu les lit avec src/kenney.js (lecteur GLB minimal) et cuit
+leurs couleurs en couleurs de sommets au chargement.

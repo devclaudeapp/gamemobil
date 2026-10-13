@@ -792,7 +792,10 @@ const MODELES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     gs.forEach((g, i) => {
       const m = g.attributes.position.count; pos.set(g.attributes.position.array, o * 3);
       if (g.attributes.normal) nor.set(g.attributes.normal.array, o * 3);
-      _c.set(parties[i].col || '#FFFFFF'); for (let k = 0; k < m; k++) { col[(o + k) * 3] = _c.r; col[(o + k) * 3 + 1] = _c.g; col[(o + k) * 3 + 2] = _c.b; }
+      _c.set(parties[i].col || '#FFFFFF');
+      const vc = parties[i].vc && g.attributes.color; // une pièce déjà colorée par sommet (un modèle cuit) : sa couleur, teintée par col
+      if (vc) { const a = vc.array; for (let k = 0; k < m; k++) { col[(o + k) * 3] = a[k * 3] * _c.r; col[(o + k) * 3 + 1] = a[k * 3 + 1] * _c.g; col[(o + k) * 3 + 2] = a[k * 3 + 2] * _c.b; } }
+      else for (let k = 0; k < m; k++) { col[(o + k) * 3] = _c.r; col[(o + k) * 3 + 1] = _c.g; col[(o + k) * 3 + 2] = _c.b; }
       o += m;
     });
     const out = new THREE.BufferGeometry();
@@ -822,7 +825,8 @@ const MODELES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     });
   }
   const partager = (m) => { PARTAGES.add(m); return m; }; // un matériau tenu en cache ailleurs : dispose ne le libère jamais
-  return { TAU, partager, boite, boiteSimple, sphere, capsule, cylindre, cone, tore, plan, anneau, disque, extrusion, mat, MAT, part, matrice, assembler, maille, mesh, texture, melange, eclaircir, assombrir, dispose, GEOS, MATS };
+  const estPartage = (m) => PARTAGES.has(m);
+  return { TAU, partager, estPartage, boite, boiteSimple, sphere, capsule, cylindre, cone, tore, plan, anneau, disque, extrusion, mat, MAT, part, matrice, assembler, maille, mesh, texture, melange, eclaircir, assombrir, dispose, GEOS, MATS };
 })();
 if (typeof module !== 'undefined') module.exports = MODELES;
 
