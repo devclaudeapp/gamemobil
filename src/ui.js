@@ -98,7 +98,7 @@ const UI = (() => {
     const coll = (st.collection || {})[r.id], f = coll ? coll.fournees : 0, prix = G.coutSaison(st), ok = st.coins >= prix, max = s.niv >= G.SAISON.nivMax;
     const html = `<div class="icone">${ICONS.SAISON[r.id]}${s.niv ? `<span class="niv">${s.niv}</span>` : ''}</div>
       <div class="corps"><h3><span class="nom">${esc(r.nom)} <span class="tag saison">jusqu’au ${r.fin[1]} ${MOIS[r.fin[0] - 1]}</span></span></h3>
-        ${s.niv ? `<div class="palier"><span>Collection <b>${Math.min(f, G.SAISON.maitrise)}</b>/${G.SAISON.maitrise}${coll && coll.maitrisee ? ' · maîtrisée ✓' : ''}</span><span>niveau ${s.niv}</span><i style="width:${pct(Math.min(f, G.SAISON.maitrise), G.SAISON.maitrise)}"></i></div>
+        ${s.niv ? `<div class="palier"><span>Collection <b>${Math.min(f, G.SAISON.maitrise)}</b>/${G.SAISON.maitrise}${coll && coll.maitrisee ? ' · maîtrisée' : ''}</span><span>niveau ${s.niv}</span><i style="width:${pct(Math.min(f, G.SAISON.maitrise), G.SAISON.maitrise)}"></i></div>
         <div class="barre"><i></i><span class="rev">+${G.fmtEur(G.revenuSaison(st))}</span>${s.actif ? `<span class="tps">${G.fmtDuree(G.tempsSaison(st))}</span>` : '<span class="cuire">Touche !</span>'}</div>` : `<p>${esc(r.desc)} À cuire à la main : cent fournées pour la maîtriser.</p>`}</div>
       <div class="boutons">${max ? '<div class="staff-ok"><span>Niveau max</span></div>' : `<button type="button" class="btn ${s.niv ? '' : 'beurre'} ${ok ? '' : 'non'}" data-a="${s.niv ? 'saison-niv' : 'preparer'}"><small>${s.niv ? 'Améliorer ×1' : 'Préparer'}</small><b>${G.fmtEur(prix)}</b></button>`}</div>`;
     const cls = 'carte saison' + (s.niv ? ' manuel' : '') + (s.actif ? ' actif' : '');
@@ -180,7 +180,7 @@ const UI = (() => {
     const restant = g < 5 ? pr.prochain - pr.reste : 0; // l'expérience compte les secondes de cuisson
     openSheet(`<div class="apprenti-tete">${ICONS.apprenti(i, g)}<div><h2>${esc(p.staffNom)}</h2><p class="sous">Grade <b>${g}</b> sur 5 · s’occupe des ${esc(p.pl)}</p></div></div>
       <div class="encadre doux"><div class="stat"><span>Fournées</span><b>${vit ? `${vit} % plus rapides` : 'à la vitesse normale'}</b></div>
-        <div class="stat"><span>Talent au grade 3</span><b>${esc(a.talent)}</b></div><p class="note talent">${g >= 3 ? '✓ ' : ''}${esc(G.effetTalentApprenti(i))}</p></div>
+        <div class="stat"><span>Talent au grade 3</span><b>${esc(a.talent)}</b></div><p class="note talent">${g >= 3 ? 'Acquis : ' : ''}${esc(G.effetTalentApprenti(i))}</p></div>
       ${g < 5 ? `<div class="stat"><span>Grade ${g + 1}</span><b>encore ≈ ${G.fmtDuree(restant)} de fournil</b></div><div class="mini xp"><i style="width:${pct(pr.reste, pr.prochain)}"></i></div>` : '<p class="note">Grade maximum : un pilier de la boutique.</p>'}
       <p class="note">Un apprenti prend du métier à chaque fournée (pendant ton absence, la moitié du temps compte) et garde son grade d’une boutique à l’autre : −2 % de temps de cuisson par grade, et son talent au grade 3.</p>${btnRetour()}`);
     on('[data-a="close"]', closeSheet);
@@ -212,13 +212,16 @@ const UI = (() => {
 
   // ─── en-tête, enseigne, cloche et badges des onglets ───
   const trophesGagnes = () => G.TROPHEES.filter((t) => (st.trophees || {})[t.id]).length;
+  // les nouvelles du Journal pas encore lues : celles du carnet arrivées après la dernière visite du Journal (les trophées y sont annoncés)
+  const nonLues = () => { const vu = (st.vu && st.vu.journal) || 0; return (st.carnetEv || []).filter((e) => e.t > vu).length; };
+  const marquerLu = () => { if (!st.vu) st.vu = {}; const c = st.carnetEv || []; st.vu.journal = Math.max(st.vu.journal || 0, c.length ? c[c.length - 1].t : 0, st.now || 0); };
   const primesAReclamer = () => { const j = G.objectifsDuJour(st, st.now), sm = st.semaine; return j.objectifs.filter((o) => o.fait && !o.reclame).length + (sm && sm.fait && !sm.reclame ? 1 : 0); };
   function badge(el, n, cls) { const b = el.querySelector('.badge'); if (!b) return; b.hidden = !n; b.textContent = n > 0 && cls !== 'point' ? n : ''; b.className = 'badge' + (cls ? ' ' + cls : ''); }
   function hud() {
     const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st), marche = G.jourDeMarche(st.now), boost = st.boost && st.boost.fin > st.now ? st.boost.mult : 0;
     const bonus = G.AMELIORATIONS.filter((a) => !st.ameliorations[a.id] && st.coins >= G.prixBonus(st, a)).length + G.MOBILIER.filter((m) => G.mobilierCran(st, m.id) < m.max && st.coins >= G.prixMeuble(st, m.id)).length, primes = primesAReclamer(), pts = G.ptsTalents(st);
-    if (st.vu && pageActive === 'journal' && tiroir.pos !== 'ferme') st.vu.trophees = trophesGagnes(); // un trophée gagné pendant qu'on lit le Journal est vu aussitôt
-    const nouveaux = Math.max(0, trophesGagnes() - (st.vu ? st.vu.trophees : 0)), nom = G.nomBoutique(st), ev = st.ev ? st.ev.type : '';
+    if (pageActive === 'journal' && tiroir.pos !== 'ferme' && nonLues()) marquerLu(); // une nouvelle arrivée pendant qu'on lit le Journal est lue aussitôt
+    const nouveaux = nonLues(), nom = G.nomBoutique(st), ev = st.ev ? st.ev.type : '';
     // le marché du samedi et la bonne critique : pas de deuxième ligne sous le solde (elle repoussait la boutique à 360×640) ;
     // la ligne du rythme et les badges s'y relaient toutes les 4 s, à hauteur constante
     const br = st.boosts && st.boosts.actif && st.boosts.actif.fin > st.now ? st.boosts.actif.mult : 0; // un boost de la réserve (l'événement du quartier)
@@ -231,7 +234,8 @@ const UI = (() => {
     $('#b-etoiles').classList.toggle('pret', gain >= 3);
     $('#b-ameliorations').classList.toggle('pret', bonus > 0); badge($('#b-ameliorations'), bonus);
     $('#enseigne span').textContent = nom;
-    $('#b-cloche').classList.toggle('actif', !!ev); $('#b-cloche .point').hidden = !ev;
+    $('#b-cloche').classList.toggle('actif', !!ev); $('#b-cloche .point').hidden = !ev && !nouveaux; // la cloche : l'événement en cours, sinon les nouvelles pas lues
+    $('#b-cloche').setAttribute('aria-label', ev ? 'Événement en cours' : nouveaux ? `${nouveaux} nouvelle${nouveaux > 1 ? 's' : ''} dans le Journal` : 'Le Journal');
     badge($('#onglets [data-page="defis"]'), primes);
     badge($('#onglets [data-page="boulanger"]'), pts, 'lavande');
     badge($('#onglets [data-page="journal"]'), nouveaux, 'beurre');
@@ -305,7 +309,7 @@ const UI = (() => {
     document.querySelectorAll('#onglets button').forEach((b) => { const on = b.dataset.page === id; b.classList.toggle('actif', on); if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current'); });
     $('#pages').scrollTop = 0;
     if (id === 'boulanger') vuBoulanger = true;
-    if (id === 'journal' && st.vu) { st.vu.trophees = trophesGagnes(); }
+    if (id === 'journal') { vuAvantJournal = (st.vu && st.vu.journal) || 0; marquerLu(); }
     lastPage = ''; renderPage(true);
     if (tiroir.y > tiroir.Y.mi) tiroir.aller('mi');
     hud();
@@ -350,20 +354,20 @@ const UI = (() => {
       const j = G.objectifsDuJour(st, st.now), sm = st.semaine, serie = G.serieEnCours(st), faits = j.objectifs.filter((o) => o.fait).length, aReclamer = j.objectifs.some((o) => o.fait && !o.reclame), pain = G.PRODUITS[j.pain];
       return `${PAGE_HEAD('defis', 'Défis', serie > 0 ? `<span class="serie">${ICONS.UI.soleil}${serie} jour${serie > 1 ? 's' : ''}</span>` : '')}
       <div class="bloc">
-        <div class="card ${aReclamer ? 'pret' : ''}"><div class="c-tete"><span class="pic peche">${ICONS.CIBLE}</span><h3>Objectifs du jour</h3><span class="compte ${aReclamer ? 'ok' : j.etoileDonnee ? 'or' : ''}">${aReclamer ? 'Prime !' : j.etoileDonnee ? 'Terminés ★' : `${faits}/3`}</span></div>
+        <div class="card ${aReclamer ? 'pret' : ''}"><div class="c-tete"><span class="pic peche">${ICONS.UI.defis}</span><h3>Objectifs du jour</h3><span class="compte ${aReclamer ? 'ok' : j.etoileDonnee ? 'or' : ''}">${aReclamer ? 'Prime !' : j.etoileDonnee ? 'Terminés ★' : `${faits}/3`}</span></div>
           ${j.objectifs.map((o, k) => `<div class="ligne ${o.fait ? 'fait' : ''}"><div class="t"><span>${esc(o.txt)}</span><span class="p" data-p="${k}"></span></div>
-            ${o.reclame ? '<span class="ok">Récupéré ✓</span>' : `<button type="button" class="btn ${o.fait ? 'menthe' : 'non'}" data-k="${k}"><small>${o.fait ? 'Récupérer' : 'Prime'}</small><b>${G.fmtEur(o.prime)}</b></button>`}
+            ${o.reclame ? okChip('Récupéré') : `<button type="button" class="btn ${o.fait ? 'menthe' : 'non'}" data-k="${k}"><small>${o.fait ? 'Récupérer' : 'Prime'}</small><b>${G.fmtEur(o.prime)}</b></button>`}
             <div class="mini"><i data-b="${k}"></i></div></div>`).join('')}
           <p class="note">${j.etoileDonnee ? 'Bravo : une étoile de plus pour toujours. De nouveaux défis demain !' : 'Les trois réussis : <b>+1 étoile</b>, pour toujours.'}</p></div>
         <div class="card pain"><span class="icone">${ICONS.PRODUITS[pain.id]}</span><div><b>Pain du jour : ${esc(pain.nom)} ×${G.PAIN_DU_JOUR_MULT.toString().replace('.', ',')}</b><span>Toute la journée, chaque fournée de ${esc(pain.pl)} rapporte moitié plus. Demain, un autre produit.</span></div></div>
-        ${sm ? `<div class="card ${sm.fait && !sm.reclame ? 'pret' : ''}"><div class="c-tete"><span class="pic lav">${ICONS.UI.etoile}</span><h3>Défi de la semaine</h3><span class="compte ${sm.reclame ? 'or' : sm.fait ? 'ok' : ''}">${sm.reclame ? 'Réussi ★' : sm.fait ? 'Prime !' : 'jusqu’à dimanche'}</span></div>
+        ${sm ? `<div class="card ${sm.fait && !sm.reclame ? 'pret' : ''}"><div class="c-tete"><span class="pic or">${ICONS.UI.etoile}</span><h3>Défi de la semaine</h3><span class="compte ${sm.reclame ? 'or' : sm.fait ? 'ok' : ''}">${sm.reclame ? 'Réussi ★' : sm.fait ? 'Prime !' : 'jusqu’à dimanche'}</span></div>
           <div class="ligne ${sm.fait ? 'fait' : ''}"><div class="t"><span>${esc(sm.txt)}</span><span class="p" data-p="s"></span></div>
-            ${sm.reclame ? '<span class="ok">Récupéré ✓</span>' : `<button type="button" class="btn ${sm.fait ? 'beurre' : 'non'}" data-a="semaine"><small>${sm.fait ? 'Récupérer' : 'Récompense'}</small><b>+1 ★</b></button>`}
+            ${sm.reclame ? okChip('Récupéré') : `<button type="button" class="btn ${sm.fait ? 'beurre' : 'non'}" data-a="semaine"><small>${sm.fait ? 'Récupérer' : 'Récompense'}</small><b>+1 ★</b></button>`}
             <div class="mini beurre"><i data-b="s"></i></div></div></div>` : ''}
         ${carteAtelier()}
-        <div class="card ev-liste"><div class="c-tete"><span class="pic rose">${ICONS.UI.cloche}</span><h3>Événements</h3><span class="compte" data-p="ev"></span></div>
+        <div class="card ev-liste"><div class="c-tete"><span class="pic rose">${ICONS.UI.soleil}</span><h3>Événements surprise</h3><span class="compte" data-p="ev"></span></div>
           ${EV_LISTE.map(([type, ico, nom, desc]) => `<div class="ligne ${st.ev && st.ev.type === type ? 'en-cours' : ''}"><div class="t"><span class="ev-ico">${ico()}</span><span><b>${nom}</b><small>${desc}</small></span></div>${st.ev && st.ev.type === type ? '<span class="chrono-pill" data-p="chrono"></span>' : ''}</div>`).join('')}
-          <p class="note">Ils arrivent tout seuls pendant que tu joues, toutes les quelques minutes. La cloche en haut te prévient.</p></div>
+          <p class="note">Ils arrivent tout seuls pendant que tu joues, toutes les quelques minutes : la cloche en haut sonne et une bannière s’ouvre sur la boutique.</p></div>
       </div>`;
     },
     bind: (sec) => {
@@ -373,8 +377,8 @@ const UI = (() => {
     },
     maj: (sec) => {
       const j = G.objectifsDuJour(st, st.now), sm = st.semaine;
-      j.objectifs.forEach((o, k) => { const p = sec.querySelector(`[data-p="${k}"]`), b = sec.querySelector(`[data-b="${k}"]`); if (p) p.textContent = o.fait ? '✓' : `${G.fmt(Math.floor(o.progres))} / ${G.fmt(o.cible)}`; if (b) b.style.width = pct(o.progres, o.cible); });
-      if (sm) { const p = sec.querySelector('[data-p="s"]'), b = sec.querySelector('[data-b="s"]'); if (p) p.textContent = sm.fait ? '✓' : `${G.fmt(sm.progres)} / ${G.fmt(sm.cible)}`; if (b) b.style.width = pct(sm.progres, sm.cible); }
+      j.objectifs.forEach((o, k) => { const p = sec.querySelector(`[data-p="${k}"]`), b = sec.querySelector(`[data-b="${k}"]`); if (p) p.textContent = o.fait ? 'fait' : `${G.fmt(Math.floor(o.progres))} / ${G.fmt(o.cible)}`; if (b) b.style.width = pct(o.progres, o.cible); });
+      if (sm) { const p = sec.querySelector('[data-p="s"]'), b = sec.querySelector('[data-b="s"]'); if (p) p.textContent = sm.fait ? 'fait' : `${G.fmt(sm.progres)} / ${G.fmt(sm.cible)}`; if (b) b.style.width = pct(sm.progres, sm.cible); }
       const e = sec.querySelector('[data-p="ev"]'); if (e) e.textContent = st.ev ? 'en cours' : `prochain dans ~${Math.max(1, Math.ceil(st.evTimer / 60))} min`;
       const c = sec.querySelector('[data-p="chrono"]'); if (c && st.ev) c.textContent = G.fmtChrono(Math.max(0, (st.ev.fin - st.now) / 1000));
     },
@@ -382,17 +386,45 @@ const UI = (() => {
   // Boulanger : niveau, savoir-faire, talents permanents, la garde-robe (src/garderobe.js)
   const GRU = typeof GARDEROBE_UI !== 'undefined' ? GARDEROBE_UI : null;
   const ctxGarderobe = () => ({ st, openSheet, closeSheet, on, feuille, save, toast, son, buzz, apres: () => { renderCards(true); hud(); lastPage = ''; renderPage(true); } }); // apres : la boutique (le boulanger en 3D suit sa tenue à la frame suivante) et la page se redessinent
+  // les statistiques et records du boulanger (onglet Boulanger) : valeurs relues à chaque image, la page n'est pas redessinée pour une vente
+  function valeursStats() {
+    const S = st.stats, at = G.atelierDuJour(st).records, v = {
+      ventes: G.fmt(S.ventes), clients: G.fmt(S.clients), gagne: G.fmtEur(st.lifetime), boutiques: `n°${st.boutiques}`,
+      commande: S.meilleureCommande ? G.fmtEur(S.meilleureCommande) : '—', pourboire: S.meilleurPourboire ? G.fmtEur(S.meilleurPourboire) : '—',
+      petrissage: S.petrissageRecord ? S.petrissageRecord.toFixed(1).replace('.', ',') + ' s' : '—', semaine: pts(G.pointsSemaine(st)),
+      serie: `${S.serieMax || 0} jour${(S.serieMax || 0) > 1 ? 's' : ''}`, evenements: `${S.commandes || 0} · ${S.critiques || 0} · ${S.petrissages || 0} · ${S.pannes || 0}`,
+    };
+    G.JEUX_ATELIER.forEach((j) => { v['at-' + j.id] = at[j.id] ? G.fmt(at[j.id]) + ' pts' : '—'; });
+    if (st.chat) v.caresses = G.fmt(st.chat.caresses);
+    return v;
+  }
+  const crans = (k, max) => `<span class="crans" role="img" aria-label="${k} sur ${max}">${Array.from({ length: max }, (_, n) => `<i class="${n < k ? 'on' : ''}"></i>`).join('')}</span>`;
+  const okChip = (txt) => `<span class="ok"><i class="ico">${ICONS.UI.coche}</i>${txt}</span>`;
   const pageBoulanger = {
-    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue().cle}|${G.garderobeCle(st)}`,
+    key: () => `${st.xp}|${G.ptsTalents(st)}|${JSON.stringify(st.talents)}|${tenueVue().cle}|${G.garderobeCle(st)}|${trophesGagnes()}|${cleRecompenses()}|${!!st.chat}`,
     html: () => {
-      const np = G.niveauPour(st.xp), pts = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n);
-      return `${PAGE_HEAD('boulanger', 'Boulanger', pts ? `<span class="serie lav">${pts} point${pts > 1 ? 's' : ''}</span>` : '')}
+      const np = G.niveauPour(st.xp), pts_ = G.ptsTalents(st), rang = G.rangTitre(st), suivant = G.TITRES.find((t) => t[0] > np.n), tr = st.trophees || {}, gagnes = trophesGagnes(), v = valeursStats();
+      const stat = (k, t) => `<div class="stat"><span>${t}</span><b data-s="${k}">${v[k]}</b></div>`;
+      const troph = (t) => `<div class="troph ${tr[t.id] ? 'gagne' : ''}">${tr[t.id] ? `<i class="ico">${ICONS.UI.trophee}</i>` : ''}<b>${esc(t.nom)}</b><span>${esc(t.desc)}</span></div>`;
+      const aGagner = G.TROPHEES.filter((t) => !tr[t.id]);
+      return `${PAGE_HEAD('boulanger', 'Boulanger', pts_ ? `<span class="serie lav">${pts_} point${pts_ > 1 ? 's' : ''}</span>` : '')}
       <div class="bloc">
-        <div class="card boulanger-tete">${ICONS.boulanger(rang, tenueVue())}<div><h3>${esc(G.titre(st))}</h3><p class="sous">Niveau ${np.n} · ${G.fmt(np.reste)} / ${G.fmt(np.prochain)} savoir-faire${suivant ? `<br>${esc(suivant[1])} au niveau ${suivant[0]}` : ''}</p><div class="mini xp"><i style="width:${pct(np.reste, np.prochain)}"></i></div></div></div>
-        <div class="encadre doux">Le savoir-faire vient des défis du jour, des événements réussis, des recettes, des embauches et des nouvelles boutiques. Chaque niveau donne <b>un point de talent</b>. Les talents sont à toi pour toujours, même en changeant de boutique.</div>
-        <h3 class="titre-section">Talents${pts ? ` · <span class="pts">${pts} point${pts > 1 ? 's' : ''} à dépenser</span>` : ''}</h3>
-        <div class="liste-am">${G.TALENTS.map((t) => { const k = G.talent(st, t.id), max = k >= t.max; return `<div class="am talent ${k ? 'appris' : ''}"><div><h3>${esc(t.nom)} <span class="crans">${'●'.repeat(k)}${'○'.repeat(t.max - k)}</span></h3><p>${k ? esc(t.desc(k)) : 'Cran 1 : ' + esc(t.desc(1))}${k && !max ? `<br><em>Cran suivant : ${esc(t.desc(k + 1))}</em>` : ''}</p></div>${max ? '<span class="ok">Maîtrisé ✓</span>' : `<button type="button" class="btn ${pts ? 'lavande' : 'non'}" data-t="${t.id}"><small>Apprendre</small><b>1 point</b></button>`}</div>`; }).join('')}</div>
+        <div class="card boulanger-tete"><span class="portrait">${ICONS.boulanger(rang, tenueVue())}</span><div><h3>${esc(G.titre(st))}</h3><p class="sous">Niveau <b>${np.n}</b> · ${G.fmt(np.reste)} / ${G.fmt(np.prochain)} savoir-faire</p><div class="mini xp"><i style="width:${pct(np.reste, np.prochain)}"></i></div>${suivant ? `<p class="note">${esc(suivant[1])} au niveau ${suivant[0]}</p>` : ''}</div></div>
+        <h3 class="titre-section"><span>Talents</span>${pts_ ? `<span class="pts">${pts_} point${pts_ > 1 ? 's' : ''} à dépenser</span>` : ''}</h3>
+        <p class="note intro">Un point par niveau ; les talents restent, même en changeant de boutique.</p>
+        <div class="liste-am">${G.TALENTS.map((t) => { const k = G.talent(st, t.id), max = k >= t.max; return `<div class="am talent ${k ? 'appris' : ''}"><div><h3>${esc(t.nom)} ${crans(k, t.max)}</h3><p>${k ? esc(t.desc(k)) : 'Cran 1 : ' + esc(t.desc(1))}${k && !max ? `<br><em>Cran suivant : ${esc(t.desc(k + 1))}</em>` : ''}</p></div>${max ? okChip('Maîtrisé') : `<button type="button" class="btn ${pts_ ? 'lavande' : 'non'}" data-t="${t.id}"><small>Apprendre</small><b>1 point</b></button>`}</div>`; }).join('')}</div>
+        <h3 class="titre-section"><span>Tenue et récompenses</span></h3>
         ${GRU ? GRU.carte(st) : ''}
+        ${carteRecompenses()}
+        <div class="card"><div class="c-tete"><span class="pic or">${ICONS.UI.trophee}</span><h3>Trophées</h3><span class="compte ${gagnes ? 'or' : ''}">${gagnes}/${G.TROPHEES.length}</span></div>
+          ${gagnes ? `<div class="trophees">${G.TROPHEES.filter((t) => tr[t.id]).map(troph).join('')}</div>` : `<div class="vide"><b>Pas encore de trophée</b><span>Cuis, vends, embauche : les premiers tombent vite.</span></div>`}
+          ${aGagner.length ? `<details class="repli"><summary><span>${aGagner.length === 1 ? 'Le dernier à gagner' : `Les ${aGagner.length} à gagner`}</span><i class="ico chev">${ICONS.UI.chevron}</i></summary><div class="trophees">${aGagner.map(troph).join('')}</div></details>` : ''}</div>
+        <div class="card stats"><div class="c-tete"><span class="pic menthe">${ICONS.UI.stats}</span><h3>Statistiques</h3></div>
+          ${stat('ventes', 'Fournées vendues')}${stat('clients', 'Clients servis')}${stat('gagne', 'Gagné depuis le début')}${stat('boutiques', 'Boutique')}${st.chat ? stat('caresses', `Caresses à ${esc(st.chat.nom)}`) : ''}
+          <h4 class="sous-titre">Records</h4>
+          ${stat('commande', 'Plus grosse commande livrée')}${stat('pourboire', 'Meilleur pourboire')}${stat('petrissage', 'Pétrissage le plus rapide')}
+          ${G.JEUX_ATELIER.map((j) => stat('at-' + j.id, `Atelier : ${esc(j.court.toLowerCase())}`)).join('')}
+          ${stat('semaine', 'Points de boulanger cette semaine')}${stat('serie', 'Meilleure série d’objectifs')}${stat('evenements', 'Commandes · critiques · pétrissages · fours')}</div>
       </div>`;
     },
     bind: (sec) => {
@@ -401,69 +433,56 @@ const UI = (() => {
         if (!r.ok) { son.non(); toast(G.ptsTalents(st) ? 'Ce talent est déjà au maximum.' : 'Pas encore de point : gagne du savoir-faire.'); return; }
         son.deblocage(); buzz([10, 30, 10]); toast(`${r.talent.nom} : ${r.talent.desc(r.cran)}`); renderCards(true); hud(); save(); renderPage(true);
       });
+      onIn(sec, '[data-a="cl-recompenses"]', () => { son.tap(); sheetRecompenses(); });
       if (GRU) GRU.bind(sec, ctxGarderobe());
     },
+    maj: (sec) => { const v = valeursStats(); sec.querySelectorAll('[data-s]').forEach((el) => { const t = v[el.dataset.s]; if (t != null && el.textContent !== t) el.textContent = t; }); },
   };
   const QUAND_SAISON = { galette: 'en janvier', crepe: 'début février', paques: 'en avril', glace: 'cet été', citrouille: 'à la mi-octobre', buche: 'en décembre' };
-  // Journal : le classement en ligne, records, collection des saisons, habitués, trophées, derniers événements, partage
+  // Journal : le fil des nouvelles (les dernières en tête, les pas encore lues marquées), puis la vie du quartier : recettes de saison, habitués
   const ilYA = (ms) => { const s = Math.max(0, (HORLOGE.maintenant() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
+  let vuAvantJournal = 0; // le dernier passage avant celui-ci : ce qui est arrivé depuis est « nouveau »
   const pageJournal = {
-    key: () => `${trophesGagnes()}|${(st.carnetEv || []).length}|${(st.carnetEv || []).length ? st.carnetEv[st.carnetEv.length - 1].t : 0}|${JSON.stringify(st.habitues)}|${st.stats.commandes}|${st.stats.critiques}|${st.stats.petrissages}|${st.stats.pannes}|${JSON.stringify(st.collection)}|${st.saison ? st.saison.id + st.saison.niv : ''}|${st.chat ? st.chat.nom + st.chat.caresses : ''}|${cleClassement()}|${JSON.stringify((st.atelier || {}).records)}|${G.pointsSemaine(st)}`,
+    key: () => `${(st.carnetEv || []).length}|${(st.carnetEv || []).length ? st.carnetEv[st.carnetEv.length - 1].t : 0}|${JSON.stringify(st.habitues)}|${JSON.stringify(st.collection)}|${st.saison ? st.saison.id + st.saison.niv : ''}|${Math.floor(HORLOGE.maintenant() / 60e3)}`,
     html: () => {
-      const S = st.stats, tr = st.trophees || {}, gagnes = trophesGagnes();
-      return `${PAGE_HEAD('journal', 'Journal', `<span class="serie or">${ICONS.UI.trophee}${gagnes}/${G.TROPHEES.length}</span>`)}
+      const fil = (st.carnetEv || []).slice().reverse(), neuves = fil.filter((e) => e.t > vuAvantJournal).length;
+      return `${PAGE_HEAD('journal', 'Journal', neuves ? `<span class="serie fraise">${neuves} nouvelle${neuves > 1 ? 's' : ''}</span>` : '')}
       <div class="bloc">
-        <p class="sous">${esc(G.nomBoutique(st))} · ${G.fmt(S.ventes)} fournées, ${G.fmt(S.clients)} clients depuis le début.</p>${carteClassement()}
-        <div class="card"><div class="c-tete"><span class="pic peche">${ICONS.UI.etoile}</span><h3>Records</h3></div>
-          <div class="stat"><span>Plus grosse commande livrée</span><b>${S.meilleureCommande ? G.fmtEur(S.meilleureCommande) : '—'}</b></div>
-          <div class="stat"><span>Meilleur pourboire</span><b>${S.meilleurPourboire ? G.fmtEur(S.meilleurPourboire) : '—'}</b></div>
-          <div class="stat"><span>Pétrissage le plus rapide</span><b>${S.petrissageRecord ? S.petrissageRecord.toFixed(1).replace('.', ',') + ' s' : '—'}</b></div>
-          ${G.JEUX_ATELIER.map((j) => `<div class="stat"><span>Atelier : ${esc(j.court.toLowerCase())}</span><b>${G.atelierDuJour(st).records[j.id] ? G.fmt(G.atelierDuJour(st).records[j.id]) + ' pts' : '—'}</b></div>`).join('')}
-          <div class="stat"><span>Points de boulanger cette semaine</span><b>${pts(G.pointsSemaine(st))}</b></div>
-          <div class="stat"><span>Meilleure série d’objectifs</span><b>${S.serieMax || 0} jour${(S.serieMax || 0) > 1 ? 's' : ''}</b></div>
-          <div class="stat"><span>Commandes · critiques · pétrissages · fours</span><b>${S.commandes || 0} · ${S.critiques || 0} · ${S.petrissages || 0} · ${S.pannes || 0}</b></div>${st.chat ? `
-          <div class="stat"><span>Caresses à ${esc(st.chat.nom)}</span><b>${G.fmt(st.chat.caresses)}</b></div>` : ''}</div>
-        <div class="card"><div class="c-tete"><span class="pic peche">${ICONS.SAISON.citrouille}</span><h3>Recettes de saison</h3></div>
-          ${G.RECETTES_SAISON.map((r) => { const c = (st.collection || {})[r.id], enCours = st.saison && st.saison.id === r.id; return `<div class="ligne saison"><span class="ev-ico">${ICONS.SAISON[r.id]}</span><div class="t"><span><b>${esc(r.nom)}</b><small>${c && c.maitrisee ? `maîtrisée ✓ (${c.annee})` : c ? `${c.fournees}/${G.SAISON.maitrise} fournées${enCours ? ', en ce moment' : ''}` : enCours ? 'en ce moment : prépare-la !' : `revient ${QUAND_SAISON[r.id]}`}</small></span></div>${c && !c.maitrisee ? `<div class="mini beurre"><i style="width:${pct(c.fournees, G.SAISON.maitrise)}"></i></div>` : ''}</div>`; }).join('')}
+        <div class="card fil"><div class="c-tete"><span class="pic lav">${ICONS.UI.cloche}</span><h3>Les nouvelles</h3></div>
+          ${fil.length ? `<ol class="carnet">${fil.map((e) => `<li class="${e.t > vuAvantJournal ? 'neuf' : ''}"><i class="puce" aria-hidden="true"></i><span>${esc(e.txt)}</span><small>${ilYA(e.t)}</small></li>`).join('')}</ol>`
+            : `<div class="vide"><span class="pic">${ICONS.UI.journal}</span><b>Rien encore</b><span>Les trophées, les grades, les commandes livrées et les cadeaux des habitués s’écrivent ici.</span></div>`}</div>
+        <h3 class="titre-section"><span>La vie du quartier</span></h3>
+        <div class="card"><div class="c-tete"><span class="pic peche">${ICONS.UI.saison}</span><h3>Recettes de saison</h3></div>
+          ${G.RECETTES_SAISON.map((r) => { const c = (st.collection || {})[r.id], enCours = st.saison && st.saison.id === r.id; return `<div class="ligne saison"><span class="ev-ico">${ICONS.SAISON[r.id]}</span><div class="t"><span><b>${esc(r.nom)}</b><small>${c && c.maitrisee ? `maîtrisée (${c.annee})` : c ? `${c.fournees}/${G.SAISON.maitrise} fournées${enCours ? ', en ce moment' : ''}` : enCours ? 'en ce moment : prépare-la !' : `revient ${QUAND_SAISON[r.id]}`}</small></span></div>${c && c.maitrisee ? `<i class="ico mai">${ICONS.UI.coche}</i>` : ''}${c && !c.maitrisee ? `<div class="mini beurre"><i style="width:${pct(c.fournees, G.SAISON.maitrise)}"></i></div>` : ''}</div>`; }).join('')}
           <p class="note">Chaque saison sa recette, cuite à la main : cent fournées pour la maîtriser.</p></div>
-        <div class="card"><div class="c-tete"><span class="pic lav">${ICONS.UI.boulanger}</span><h3>Les habitués</h3></div>
+        <div class="card"><div class="c-tete"><span class="pic peche">${ICONS.UI.habitues}</span><h3>Les habitués</h3></div>
           ${G.HABITUES.map((h) => { const e = (st.habitues || {})[h.id]; return `<div class="ligne habitue"><span class="pastille-hab" style="background:${h.haut}"></span><div class="t"><span><b>${esc(h.nom)}</b><small>Passe entre ${h.debut}h et ${Math.floor(h.fin)}h${h.fin % 1 ? '30' : ''} · ${e && e.jours ? `fidèle depuis ${e.jours} jour${e.jours > 1 ? 's' : ''}` : 'première visite à venir'}</small></span></div></div>`; }).join('')}
           <p class="note">Sers un habitué cinq jours de suite : il t’offre un cadeau.</p></div>
-        <h3 class="titre-section">Trophées · ${gagnes}/${G.TROPHEES.length}</h3>
-        <div class="trophees">${G.TROPHEES.map((t) => `<div class="troph ${tr[t.id] ? 'gagne' : ''}"><b>${esc(t.nom)}</b><span>${esc(t.desc)}</span></div>`).join('')}</div>
-        <h3 class="titre-section">Derniers événements</h3>
-        <div class="carnet">${(st.carnetEv || []).slice().reverse().map((e) => `<div><span>${esc(e.txt)}</span><small>${ilYA(e.t)}</small></div>`).join('') || '<p class="sous">Rien encore : joue un peu !</p>'}</div>
-        <button type="button" class="btn large lavande" data-a="partager" style="margin-top:14px"><b>Partager ma boutique</b></button>
       </div>`;
     },
-    bind: (sec) => { onIn(sec, '[data-a="partager"]', partager); onIn(sec, '[data-a="classement"]', () => { son.tap(); sheetClassement(); }); },
+    bind: () => {},
   };
-  // Réglages : son, vibrations, nom, spécialité, sauvegarde, partage, remise à zéro
+  // Réglages : rangés par groupe ; ce qui sert peu vit ici (repeindre, masquer l'événement, quitter le classement, sauvegarde, partage)
   const pageReglages = {
-    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}`,
+    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}`,
     html: () => {
-      const q = G.QUARTIERS[G.quartier(st)];
+      const q = G.QUARTIERS[G.quartier(st)], cr = classement ? classement.resume() : null;
       const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
       const sw = (on) => `<span class="interrupteur" role="switch" aria-checked="${on}"></span>`, chev = `<i class="ico chev">${ICONS.UI.chevron}</i>`;
+      const groupe = (titre, lignes) => `<h3 class="titre-section"><span>${titre}</span></h3><div class="card reglages">${lignes}</div>`;
       return `${PAGE_HEAD('reglages', 'Réglages')}
       <div class="bloc">
-        <div class="card reglages">
-          ${ligne('son', st.son ? ICONS.UI.son : ICONS.UI.sonOff, 'Sons', 'Petites notes à chaque vente et achat', sw(st.son))}
-          ${ligne('vibre', ICONS.UI.vibre, 'Vibrations', 'Un léger retour sous le doigt', sw(st.vibre))}
-        </div>
-        <div class="card reglages">
-          ${ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)}
-          ${ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés, leurs crans et leurs prix : touche-les pour les améliorer', chev)}
-          ${st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, '')}
-          ${st.chat ? ligne('chat', ICONS.CHAT, `Renommer ${esc(st.chat.nom)}`, 'Le chat de la boutique', chev) : ''}
-          ${QT && QT.fenetre(st.now).ouvert ? ligne('quartier', ICONS.UI.quartier, 'Masquer l’événement', 'Le Quartier, une parodie réservée aux adultes : l’icône et la Planque disparaissent', sw(!!(st.quartier && st.quartier.masque))) : ''}
-          ${ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)}
-          ${ligne('partager', ICONS.UI.partager, 'Partager ma boutique', 'Une image de la boutique et ton score', chev)}
-          ${window.FOURNIL_ACCUEIL ? ligne('accueil', ICONS.UI.boutique, 'Salle de jeux', 'Revenir à l’écran d’accueil et aux autres jeux', chev) : ''}
-        </div>
-        <div class="card reglages">
-          ${ligne('reset', ICONS.UI.recommencer, 'Recommencer de zéro', 'Efface tout, étoiles comprises', chev)}
-        </div>
+        ${groupe('Le jeu', ligne('son', st.son ? ICONS.UI.son : ICONS.UI.sonOff, 'Sons', 'Petites notes à chaque vente et achat', sw(st.son)) + ligne('vibre', ICONS.UI.vibre, 'Vibrations', 'Un léger retour sous le doigt', sw(st.vibre)))}
+        ${groupe('La boutique', ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)
+          + ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés avec leurs crans : touche-les pour les améliorer', chev)
+          + (st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, ''))
+          + (st.chat ? ligne('chat', ICONS.UI.chat, `Renommer ${esc(st.chat.nom)}`, 'Le chat de la boutique', chev) : ''))}
+        ${cr && cr.rejoint ? groupe('Classement', ligne('cl-quitter', ICONS.UI.quitter, 'Quitter le classement', `Ton pseudo « ${esc(cr.pseudo)} » et tes points disparaissent du classement`, chev)) : ''}
+        ${QT && QT.fenetre(st.now).ouvert ? groupe('Événement', ligne('quartier', ICONS.UI.quartier, 'Masquer l’événement', 'Le Quartier, une parodie réservée aux adultes : l’icône et la Planque disparaissent', sw(!!(st.quartier && st.quartier.masque)))) : ''}
+        ${groupe('Sauvegarde et partage', ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)
+          + ligne('partager', ICONS.UI.partager, 'Partager ma boutique', 'Une image de la boutique et ton score', chev)
+          + (window.FOURNIL_ACCUEIL ? ligne('accueil', ICONS.UI.salle, 'Salle de jeux', 'Revenir à l’écran d’accueil et aux autres jeux', chev) : ''))}
+        <div class="card reglages danger">${ligne('reset', ICONS.UI.recommencer, 'Recommencer de zéro', 'Efface tout, étoiles comprises', chev)}</div>
         <p class="note centre">Le Fournil · boutique n°${st.boutiques} · ${esc(q.nom)}<br>Ta boutique est enregistrée toutes les 5 secondes et à chaque achat.</p>
       </div>`;
     },
@@ -477,6 +496,7 @@ const UI = (() => {
       onIn(sec, '[data-a="sauvegarde"]', sheetSauvegarde);
       onIn(sec, '[data-a="quartier"]', () => { if (!EVT) return; EVT.masquer(!(st.quartier && st.quartier.masque)); son.tap(); majCoin(); renderPage(true); });
       onIn(sec, '[data-a="partager"]', partager);
+      onIn(sec, '[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(); });
       onIn(sec, '[data-a="accueil"]', () => { save(); location.href = window.FOURNIL_ACCUEIL + '?app=accueil'; }); // ?app=accueil : l'accueil ne renvoie pas vers le jeu
       onIn(sec, '[data-a="reset"]', () => {
         openSheet(`<h2>Tout effacer ?</h2><p class="sous">Euros, recettes, apprentis, bonus et étoiles : tout repart de la première baguette. Impossible de revenir en arrière.</p><button type="button" class="btn large" data-a="oui" style="background:var(--fraise);box-shadow:0 4px 0 var(--fraise-sombre)"><b>Oui, tout effacer</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde ma boutique</b></button>`);
@@ -505,7 +525,7 @@ const UI = (() => {
     const reste = actif ? G.fmtChrono((actif.fin - st.now) / 1000) : '', key = `${actif ? actif.mult + reste : ''}|${reserve.map((x) => x.mult + ':' + x.secs).join(',')}`;
     if (key === lastBoosts) return; lastBoosts = key; el.hidden = false;
     el.className = 'ticket boosts' + (actif ? ' actif' : '');
-    el.innerHTML = `<i class="ico">${ICONS.QUARTIER ? ICONS.QUARTIER.boost : ''}</i><span class="tk-txt"><b>${actif ? `Boost ×${actif.mult} en cours` : `Boost ×${reserve[0].mult} · ${G.fmtDuree(reserve[0].secs)}`}</b><small>${actif ? `Toutes les ventes ×${actif.mult}${reserve.length ? ` · encore ${reserve.length} en réserve` : ''}` : reserve.length > 1 ? `${reserve.length} boosts en réserve, gagnés au Quartier` : 'Gagné au Quartier : lance-le quand tu veux'}</small></span><span class="tk-pill">${actif ? reste : 'Lancer'}</span>`;
+    el.innerHTML = `<i class="ico">${ICONS.UI.eclair}</i><span class="tk-txt"><b>${actif ? `Boost ×${actif.mult} en cours` : `Boost ×${reserve[0].mult} · ${G.fmtDuree(reserve[0].secs)}`}</b><small>${actif ? `Toutes les ventes ×${actif.mult}${reserve.length ? ` · encore ${reserve.length} en réserve` : ''}` : reserve.length > 1 ? `${reserve.length} boosts en réserve, gagnés au Quartier` : 'Gagné au Quartier : lance-le quand tu veux'}</small></span><span class="tk-pill">${actif ? reste : 'Lancer'}</span>`;
   }
   function lancerBoost() {
     const b = st.boosts; if (!b || (b.actif && b.actif.fin > st.now)) { toast('Un boost tourne déjà : attends la fin.'); return; }
@@ -611,16 +631,15 @@ const UI = (() => {
   const on = (sel, fn) => fc.querySelectorAll(sel).forEach((b) => b.addEventListener('click', () => fn(b)));
   const btnRetour = (a) => `<button type="button" class="btn large sombre" data-a="${a || 'close'}" style="margin-top:14px"><b>Retour</b></button>`;
   let ongletBonus = 'bonus';
-  const crans = (k, max) => `<span class="crans">${'●'.repeat(k)}${'○'.repeat(max - k)}</span>`;
   function sheetAmeliorations(tab) {
     if (tab) ongletBonus = tab;
     const bonus = G.AMELIORATIONS.map((a) => {
       const fait = st.ameliorations[a.id], prix = G.prixBonus(st, a), ok = st.coins >= prix;
-      return `<div class="am ${fait ? 'fait' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p></div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${G.fmtEur(prix)}</b></button>`}</div>`;
+      return `<div class="am ${fait ? 'fait' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p></div>${fait ? okChip('Acheté') : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${G.fmtEur(prix)}</b></button>`}</div>`;
     }).join('');
     const meubles = G.MOBILIER.map((m) => {
       const k = G.mobilierCran(st, m.id), max = k >= m.max, prix = G.prixMeuble(st, m.id), ok = !max && st.coins >= prix;
-      return `<div class="am meuble ${max ? 'fait' : ''}">${ICONS.MEUBLES[m.id]}<div><h3>${esc(m.nom)} ${crans(k, m.max)}</h3><p>${k ? esc(m.desc(k)) : 'Pas encore installé'}${max ? '' : `<br><em>Cran suivant : ${esc(m.desc(k + 1))}</em>`}</p></div>${max ? '<span class="ok">Au max ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-m="${m.id}"><small>Améliorer</small><b>${G.fmtEur(prix)}</b></button>`}</div>`;
+      return `<div class="am meuble ${max ? 'fait' : ''}">${ICONS.MEUBLES[m.id]}<div><h3>${esc(m.nom)} ${crans(k, m.max)}</h3><p>${k ? esc(m.desc(k)) : 'Pas encore installé'}${max ? '' : `<br><em>Cran suivant : ${esc(m.desc(k + 1))}</em>`}</p></div>${max ? okChip('Au max') : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-m="${m.id}"><small>Améliorer</small><b>${G.fmtEur(prix)}</b></button>`}</div>`;
     }).join('');
     openSheet(`<div class="segments" role="tablist"><button type="button" role="tab" data-tab="bonus" aria-selected="${ongletBonus === 'bonus'}" class="${ongletBonus === 'bonus' ? 'actif' : ''}">Bonus</button><button type="button" role="tab" data-tab="mobilier" aria-selected="${ongletBonus === 'mobilier'}" class="${ongletBonus === 'mobilier' ? 'actif' : ''}">Mobilier</button></div>
       ${ongletBonus === 'bonus' ? `<h2>Bonus</h2><p class="sous">Des recettes et des équipements qui multiplient tes gains, pour toujours (jusqu’à la prochaine boutique).</p><div class="liste-am">${bonus}</div>`
@@ -640,7 +659,7 @@ const UI = (() => {
     const k = G.mobilierCran(st, id), max = k >= m.max, prix = G.prixMeuble(st, id), ok = !max && st.coins >= prix;
     openSheet(`<div class="meuble-fiche">${ICONS.MEUBLES[id]}<div><h2>${esc(m.nom)}</h2><p class="sous">${crans(k, m.max)} cran ${k} sur ${m.max}</p></div></div>
       <div class="encadre espace">${k ? `<b>Maintenant :</b> ${esc(m.desc(k))}` : 'Pas encore installé.'}${max ? '' : `<br><b>Cran suivant :</b> ${esc(m.desc(k + 1))}`}</div>
-      ${max ? '<p class="sous">Ce meuble est au maximum ✓</p>' : `<button type="button" class="btn large ${ok ? 'lavande' : 'non'}" data-m="${id}"><small>Améliorer</small><b>${G.fmtEur(prix)}</b></button>`}
+      ${max ? '<p class="sous">Ce meuble est au maximum.</p>' : `<button type="button" class="btn large ${ok ? 'lavande' : 'non'}" data-m="${id}"><small>Améliorer</small><b>${G.fmtEur(prix)}</b></button>`}
       <button type="button" class="lien" data-a="tous">Tous les bonus et le mobilier</button>${btnRetour()}`);
     on('[data-a="close"]', closeSheet); on('[data-a="tous"]', () => sheetAmeliorations('mobilier'));
     on('[data-m]', (b) => acheterMeuble(b.dataset.m, () => sheetMeuble(id)));
@@ -790,7 +809,7 @@ const UI = (() => {
     const d = G.detailPoints(st), P = G.POINTS, a = d.aujourdhui, at = d.atelier.reduce((n, x) => n + x.points, 0);
     const case_ = (t, v, max, sous) => `<div class="pts-case"><small>${t}</small><b>${v}<i>/${max}</i></b>${sous ? `<small>${sous}</small>` : ''}</div>`;
     return `<div class="pts-bloc"><div class="pts-tete"><span><small>Mes points cette semaine</small><b>${pts(d.total)}</b></span><span class="pts-auj">aujourd’hui ${a.journee + a.evenements + a.ameliorations}/${a.max}</span></div>
-      <div class="pts-cases">${case_('Journées', d.journees, 7 * P.journee, a.journee ? 'faite auj. ✓' : `${P.journee} par jour`)}${case_('Événements', d.evenements, 7 * P.evenementsJour, `auj. ${a.evenements}/${P.evenementsJour}`)}${case_('Améliorations', d.ameliorations, 7 * P.ameliorationsJour, `auj. ${a.ameliorations}/${P.ameliorationsJour}`)}${case_('Défi de la semaine', d.defi, P.defi, d.defi ? 'réussi ✓' : '')}${case_('Atelier', at, P.atelier * d.atelier.length, d.atelier.map((x) => x.points).join(' · '))}</div>
+      <div class="pts-cases">${case_('Journées', d.journees, 7 * P.journee, a.journee ? 'faite auj.' : `${P.journee} par jour`)}${case_('Événements', d.evenements, 7 * P.evenementsJour, `auj. ${a.evenements}/${P.evenementsJour}`)}${case_('Améliorations', d.ameliorations, 7 * P.ameliorationsJour, `auj. ${a.ameliorations}/${P.ameliorationsJour}`)}${case_('Défi de la semaine', d.defi, P.defi, d.defi ? 'réussi ✓' : '')}${case_('Atelier', at, P.atelier * d.atelier.length, d.atelier.map((x) => x.points).join(' · '))}</div>
       <details class="pts-bareme"><summary><span>Comment marquer des points ?</span><i class="ico chev">${ICONS.UI.chevron}</i></summary><ul>
         <li><b>${P.journee} pts</b> par journée complète : les trois objectifs du jour réclamés.</li>
         <li><b>${P.defi} pts</b> pour le défi de la semaine.</li>
@@ -798,15 +817,6 @@ const UI = (() => {
         <li><b>Jusqu’à ${P.atelier} pts</b> par mini-jeu de l’Atelier : ton meilleur score de la semaine.</li>
         <li><b>1 pt</b> par tranche d’améliorations valant 10 minutes de tes propres gains (niveaux, embauches, bonus, mobilier, recette de saison), <b>+${P.palier}</b> à chaque palier ×2 (niveaux 25, 50, 100…), ${P.ameliorationsJour} au plus par jour.</li>
       </ul><p>Tout est relatif à ta boutique : un débutant et une grande boutique qui jouent pareil marquent autant. La fortune reste affichée en petit, pour information. Les compteurs repartent chaque lundi (heure de Paris).</p></details></div>`;
-  }
-  // la porte d'entrée, en tête du Journal (à côté des records) : sa dernière place connue, ou l'invitation
-  function carteClassement() {
-    if (!classement) return '';
-    const r = classement.resume();
-    const places = [placeVraie(r.semaine) && CLM.rangPhrase(r.semaine.rang, r.semaine.joueurs, 'semaine'), placeVraie(r.total) && CLM.rangPhrase(r.total.rang, r.total.joueurs, 'total')].filter(Boolean);
-    const nc = classement.recompenses().podiums.length, coupes = nc ? ` · ${nc} coupe${nc > 1 ? 's' : ''}` : '';
-    const sous = `${pts(G.pointsSemaine(st))} cette semaine · ` + (r.rejoint ? (places.length ? places.join(' · ') : `pseudo : ${esc(r.pseudo)}`) : 'mesure-toi à tes amis qui ont le lien du jeu') + coupes;
-    return `<div class="card reglages cl-carte"><button type="button" class="reglage" data-a="classement"><i class="ico or">${ICONS.UI.podium}</i><span><b>Classement des boulangers</b><small>${sous}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button></div>`;
   }
   function sheetClassement(periode) {
     if (!classement) return;
@@ -831,9 +841,9 @@ const UI = (() => {
       : '<div class="cl-squelette" role="status" aria-label="Chargement du classement"><i></i><i></i><i></i><span>On compte les euros de chacun…</span></div>';
     const ferme = c && c.etat === 'pas-ouvert';
     // pas encore inscrit : l'invitation en haut, avant la liste ; inscrit : son pseudo et ses réglages en bas
-    const invitation = ferme || r.rejoint ? '' : `<div class="cl-invitation"><p>Ton pseudo, tes points et ta fortune seront visibles de tous ceux qui ont le lien du jeu. Tu pourras quitter le classement quand tu veux.</p><button type="button" class="btn large beurre" data-a="cl-rejoindre"><b>Rejoindre le classement</b></button></div>`;
-    const pied = ferme || !r.rejoint ? '' : `<p class="cl-moi">Tu joues sous le pseudo <b>${esc(r.pseudo)}</b>.</p><button type="button" class="btn large clair" data-a="cl-pseudo"><b>Changer de pseudo</b></button><button type="button" class="lien cl-quitter" data-a="cl-quitter">Quitter le classement</button>`;
-    dernierHtmlCl = `<div class="cl" data-cl="liste"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>Classement</h2><p class="sous">Les boulangers qui ont le lien du jeu, classés en points de boulanger : la façon de jouer, pas la fortune. Chaque semaine, les trois premiers gagnent une tenue et une coupe.</p></div></div>${carteRecompenses()}${blocPoints()}${invitation}${seg}${corps}${pied}${btnRetour()}</div>`;
+    const invitation = ferme || r.rejoint ? '' : `<div class="cl-invitation"><p>Ton pseudo, tes points et ta fortune seront visibles de tous ceux qui ont le lien du jeu. Tu pourras quitter le classement quand tu veux, depuis les Réglages.</p><button type="button" class="btn large beurre" data-a="cl-rejoindre"><b>Rejoindre le classement</b></button></div>`;
+    const pied = ferme || !r.rejoint ? '' : `<p class="cl-moi">Tu joues sous le pseudo <b>${esc(r.pseudo)}</b>.</p><button type="button" class="btn large clair" data-a="cl-pseudo"><b>Changer de pseudo</b></button>`;
+    dernierHtmlCl = `<div class="cl" data-cl="liste"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>Classement</h2><p class="sous">En points de boulanger : la façon de jouer, pas la fortune. Chaque semaine, les trois premiers gagnent une tenue et une coupe.</p></div></div>${invitation}${seg}${corps}${blocPoints()}${pied}${btnRetour()}</div>`;
     return dernierHtmlCl;
   }
   function listeClassement(d, r) {
@@ -920,7 +930,8 @@ const UI = (() => {
     on('[data-a="rec-collection"]', () => { son.tap(); fin(); sheetRecompenses(); });
     const surFermeture = setInterval(() => { if (feuille.hidden || vueCl !== 'annonce') { fin(); clearInterval(surFermeture); } }, 500);
   }
-  // l'entrée « Mes récompenses », en tête de la feuille du classement (seulement après un premier podium)
+  // l'entrée « Mes récompenses », dans l'onglet Boulanger (seulement après un premier podium)
+  const cleRecompenses = () => { const r = recVue(); return r ? `${r.podiums.length}|${G.toqueMetal(st)}` : ''; };
   function carteRecompenses() {
     const r = recVue(); if (!r || !r.podiums.length) return '';
     const n = r.podiums.length, dernieres = r.podiums.slice(-5).map((p) => `<i class="rec-mini">${ICONS.coupe(CLM.metal(p.rang))}</i>`).join('');
@@ -940,10 +951,10 @@ const UI = (() => {
       <h3 class="titre-section" id="rec-titre-tenue">La tenue du boulanger</h3>
       <div class="rec-apercu" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), tenue)}<span>${tm ? `Il porte la toque ${DE_METAL[tm]}` : 'Il porte la toque blanche'}${pieces ? ` : ${pieces}.` : '.'}</span></div>
       <button type="button" class="btn large clair" data-a="rec-garderobe" style="margin-top:8px"><b>Ouvrir la garde-robe</b></button>` : ''}
-      <button type="button" class="btn large sombre" data-a="cl-retour" style="margin-top:14px"><b>Retour au classement</b></button></div>`);
+      ${btnRetour()}</div>`);
     vueCl = 'recompenses';
     on('[data-a="rec-garderobe"]', () => { son.tap(); if (GRU) GRU.ouvrir(ctxGarderobe(), 'tete'); });
-    on('[data-a="cl-retour"]', () => { son.tap(); sheetClassement(); });
+    on('[data-a="close"]', closeSheet);
   }
   // rejoindre (la première fois) ou changer de pseudo : validation en direct, « déjà pris » après l'envoi
   function sheetPseudo(changer) {
@@ -996,12 +1007,12 @@ const UI = (() => {
       <p id="cl-aide" class="cl-aide" aria-live="polite"></p></div>`);
     vueCl = 'quitter';
     let envoi = false;
-    on('[data-a="cl-non"]', () => sheetClassement());
+    on('[data-a="cl-non"]', closeSheet);
     on('[data-a="cl-oui"]', async (b) => {
       if (envoi) return; envoi = true; b.classList.add('non'); b.querySelector('b').textContent = 'Un instant…';
       const res = await classement.quitter(); envoi = false;
       const ici = vueCl === 'quitter' && fc.contains(b);
-      if (res.etat === 'ok') { toast('Tu as quitté le classement. À bientôt !'); if (ici) sheetClassement(); return; }
+      if (res.etat === 'ok') { toast('Tu as quitté le classement. À bientôt !'); if (ici) closeSheet(); majCoin(); lastPage = ''; renderPage(true); return; }
       son.non(); b.classList.remove('non'); b.querySelector('b').textContent = 'Oui, quitter le classement';
       if (!ici) { toast(msgReseau(res.etat)); return; }
       const aide = fc.querySelector('#cl-aide'); aide.textContent = msgReseau(res.etat); aide.className = 'cl-aide erreur';
@@ -1072,7 +1083,8 @@ const UI = (() => {
     const fresh = !st;
     if (fresh) st = G.newState(HORLOGE.maintenant());
     st.now = HORLOGE.maintenant();
-    if (!st.vu) st.vu = { trophees: trophesGagnes() };
+    if (!st.vu) st.vu = {};
+    if (st.vu.journal == null) { const c = st.carnetEv || []; st.vu.journal = fresh ? 0 : c.length ? c[c.length - 1].t : 0; } // une ancienne sauvegarde : son carnet compte comme lu
     document.querySelectorAll('[data-ico]').forEach((el) => { el.innerHTML = ICONS.UI[el.dataset.ico] || ''; });
     if (!SCENE.init($('#scene'), $('#scene-ui'))) $('#sans-3d').hidden = false; // sans WebGL : la boutique vit quand même, sans image
     SCENE.surServi = (r) => { if (r.cadeau) { reussite(`${r.hb.nom}, fidèle depuis ${r.jours} jours, t’offre ${G.fmtEur(r.cadeau)} !`); } else if (r.jours > 1) toast(`${r.hb.nom} : ${r.jours}e jour de suite !`); };
@@ -1099,7 +1111,7 @@ const UI = (() => {
     $('#b-etoiles').addEventListener('click', () => { audio(); sheetEtoiles(); });
     $('#objectifs').addEventListener('click', () => { audio(); showPage('defis'); });
     $('#enseigne').addEventListener('click', () => { audio(); sheetNom(false); });
-    $('#b-cloche').addEventListener('click', () => { audio(); if (st.ev) { if (tiroir.pos === 'ouvert') tiroir.aller('mi'); if (!evEtendu) basculerEvenement(); } else showPage('defis'); });
+    $('#b-cloche').addEventListener('click', () => { audio(); if (st.ev) { if (tiroir.pos === 'ouvert') tiroir.aller('mi'); if (!evEtendu) basculerEvenement(); } else { son.tap(); showPage('journal'); } }); // la cloche : l'événement en cours, sinon le fil des nouvelles
     $('#evenement').addEventListener('click', (e) => { if (e.target.closest('button')) return; audio(); basculerEvenement(); });
     document.querySelectorAll('#onglets button').forEach((b) => b.addEventListener('click', () => { audio(); if (b.dataset.page !== pageActive) { son.tap(); showPage(b.dataset.page); } else if (tiroir.pos === 'ferme') tiroir.aller('mi'); else $('#pages').scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }); }));
     $('#scene').addEventListener('pointerdown', (e) => {

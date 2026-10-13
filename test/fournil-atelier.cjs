@@ -242,9 +242,9 @@ const partir = async (p, d) => { await d.toucherEl('[data-at="jouer"]'); await a
   await p.evaluate(() => document.querySelector('#page-defis [data-atelier]').scrollIntoView({ block: 'start' })); await sleep(300);
   await p.screenshot({ path: out + '/16-defis-apres.png' });
   // le Journal : les records ; puis tout est encore là après un rechargement
-  await p.evaluate(() => window.__fournil.page('journal')); await sleep(300);
-  const journal = await p.evaluate(() => document.querySelector('#page-journal').innerText);
-  check(new RegExp(`Atelier : enfournement\\s*${rFour.score} pts`).test(journal) && /Atelier : mémoire\s*18 pts/.test(journal) && new RegExp(`Atelier : façonnage\\s*${rF.score} pts`).test(journal), 'le Journal : les trois records de l’Atelier');
+  await p.evaluate(() => window.__fournil.page('boulanger')); await sleep(300); // les records vivent dans les statistiques du Boulanger
+  const journal = await p.evaluate(() => document.querySelector('#page-boulanger').innerText);
+  check(new RegExp(`Atelier : enfournement\\s*${rFour.score} pts`).test(journal) && /Atelier : mémoire\s*18 pts/.test(journal) && new RegExp(`Atelier : façonnage\\s*${rF.score} pts`).test(journal), 'l’onglet Boulanger : les trois records de l’Atelier');
   await p.evaluate(() => window.__fournil.save());
   const avantRel = (await S(p)).atelier;
   await p.reload(); await attendre(() => p.evaluate(() => !!window.__fournil && !!window.__fournil.st)); await sleep(600);

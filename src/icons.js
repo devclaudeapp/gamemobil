@@ -82,44 +82,64 @@ const ICONS = (() => {
       default: return S(`<circle cx="24" cy="24" r="14" fill="${f}" ${st}/>`);
     }
   }
-  // les icônes d'interface : une par fonction, même trait (brun 2 px, bouts ronds), un seul accent pastel chacune, grille de 24 px
+  // les icônes d'interface : UN seul style pour toutes. Grille de 24, dessin tenu dans la zone 3–21 (mêmes marges, même taille optique),
+  // trait brun de 2 aux bouts et aux angles ronds, et UN accent pastel en aplat (deux couleurs en tout ; le trait seul pour les flèches).
+  // Le trait est posé sur le <svg> : un bouton coloré peut le passer en blanc par la feuille de style (.btn-am, la Planque).
   const U = (inner) => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="${L}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
-  const dents = () => { let d = ''; for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, x1 = 12 + Math.cos(a) * 7.2, y1 = 12 + Math.sin(a) * 7.2, x2 = 12 + Math.cos(a) * 10, y2 = 12 + Math.sin(a) * 10; d += `<path d="M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}"/>`; } return d; };
+  const A = { beurre: '#FFD66B', fraise: '#FFA3B6', menthe: '#86E0BC', lavande: '#C9BCFF', ciel: '#A8D8FF', peche: '#FFC9A3' }; // les accents
+  const dents = () => { let d = ''; for (let k = 0; k < 8; k++) { const a = k * Math.PI / 4, c = Math.cos(a), si = Math.sin(a); d += `M${(12 + c * 7.4).toFixed(2)} ${(12 + si * 7.4).toFixed(2)}L${(12 + c * 9).toFixed(2)} ${(12 + si * 9).toFixed(2)}`; } return `<path d="${d}" stroke-width="3"/>`; };
+  const etoile = (f) => `<path d="M12 3.2l2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.5l-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z" fill="${f}"/>`;
+  const toqueU = (f) => `<path d="M7.5 14.5c-2.6-.2-4.3-2-3.9-4.2.4-2 2.4-3.1 4.3-2.4.6-2.3 2.3-3.9 4.1-3.9s3.5 1.6 4.1 3.9c1.9-.7 3.9.4 4.3 2.4.4 2.2-1.3 4-3.9 4.2z" fill="${f}"/><path d="M7.5 14.5v4.3a1.2 1.2 0 001.2 1.2h6.6a1.2 1.2 0 001.2-1.2v-4.3"/>`;
   const UI = {
-    boutique: U(`<path d="M4 10.5V20h16v-9.5" fill="#fff"/><path d="M3 6.5h18l1 4H2z" fill="#FF9FB2"/><path d="M6.5 10.5v-4M12 10.5v-4M17.5 10.5v-4"/><path d="M9.5 20v-5.5h5V20" fill="#FFE0C7"/>`),
-    defis: U(`<circle cx="12" cy="12" r="9" fill="#fff"/><circle cx="12" cy="12" r="5.2" fill="#FFE0C7"/><circle cx="12" cy="12" r="1.8" fill="#FF6B8B" stroke="none"/>`),
-    boulanger: U(`<path d="M6 11c-2.2 0-3.5-1.6-3.5-3.3C2.5 5.8 4 4.4 5.8 4.6 6.4 2.9 8 1.8 9.8 2.2 10.6 1.4 11.6 1 12.6 1c1.8 0 3.3 1.1 3.8 2.7 1.9-.3 3.6 1 3.9 2.8.3 2-1.2 3.6-3 3.8V11z" fill="#fff"/><path d="M6 11h12v4.5H6z" fill="#FFE0C7"/><path d="M9 11v4.5M15 11v4.5"/>`),
-    journal: U(`<path d="M3 5.5c3-1.3 6-1.3 9 .5 3-1.8 6-1.8 9-.5V19c-3-1.3-6-1.3-9 .5-3-1.8-6-1.8-9-.5z" fill="#fff"/><path d="M12 6v13.5"/><path d="M16.5 9.2l.8 1.7 1.8.2-1.3 1.3.3 1.8-1.6-.9-1.6.9.3-1.8-1.3-1.3 1.8-.2z" fill="#FFC84A" stroke="none"/>`),
-    reglages: U(`<circle cx="12" cy="12" r="7.2" fill="#EFEAFF"/>${dents()}<circle cx="12" cy="12" r="2.6" fill="#fff"/>`),
-    cloche: U(`<path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15z" fill="#FFF3C4"/><path d="M10 20.5a2 2 0 004 0"/><path d="M12 3.5v1.5"/>`),
-    bonus: U(`<path d="M11 3l1.8 5.2L18 10l-5.2 1.8L11 17l-1.8-5.2L4 10l5.2-1.8z" fill="#fff"/><path d="M18.5 15.5l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" fill="#FFC84A" stroke="none"/>`),
-    etoile: U(`<path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6L2.5 9.4l6.6-.8z" fill="#FFC84A"/>`),
-    sauvegarde: U(`<path d="M7 18a4 4 0 01-.6-7.9A6 6 0 0118 9.5a3.8 3.8 0 01-.5 7.5z" fill="#DDF3FF"/><path d="M12 12v8M9 17l3 3 3-3"/>`),
-    son: U(`<path d="M4 9.5v5h3.5l5 4v-13l-5 4z" fill="#FFE0C7"/><path d="M16 9a4 4 0 010 6M18.5 6.5a7.5 7.5 0 010 11"/>`),
-    sonOff: U(`<path d="M4 9.5v5h3.5l5 4v-13l-5 4z" fill="#EADFD6"/><path d="M16.5 9.5l5 5M21.5 9.5l-5 5"/>`),
-    vibre: U(`<rect x="8" y="3.5" width="8" height="17" rx="2.5" fill="#fff"/><path d="M11 17.5h2"/><path d="M4.5 9c-1 2-1 4 0 6M19.5 9c1 2 1 4 0 6"/>`),
-    crayon: U(`<path d="M4 20l1-4.5L15.5 5a2.1 2.1 0 013 3L8 18.5z" fill="#FFF3C4"/><path d="M13.5 7l3 3"/>`),
-    recommencer: U(`<path d="M20 12a8 8 0 11-2.3-5.7"/><path d="M20 4v4.5h-4.5"/>`),
-    partager: U(`<path d="M5 12v8h14v-8" fill="#fff"/><path d="M12 3.5v11M8.5 7l3.5-3.5L15.5 7"/>`),
-    specialite: U(`<circle cx="12" cy="9" r="6.5" fill="#EFEAFF"/><path d="M12 5.5l1.1 2.2 2.4.3-1.8 1.7.5 2.4L12 11l-2.2 1.1.5-2.4-1.8-1.7 2.4-.3z" fill="#B8A6FF" stroke="none"/><path d="M9 14.5l-1.5 6L12 18l4.5 2.5-1.5-6"/>`),
-    soleil: U(`<circle cx="12" cy="12" r="4" fill="#FFC84A"/><path d="M12 3v2.5M12 18.5V21M3 12h2.5M18.5 12H21M5.6 5.6l1.8 1.8M16.6 16.6l1.8 1.8M5.6 18.4l1.8-1.8M16.6 7.4l1.8-1.8"/>`),
-    trophee: U(`<path d="M7 4h10v5a5 5 0 01-10 0z" fill="#FFC84A"/><path d="M7 6H4.5a2.5 2.5 0 002.5 3.5M17 6h2.5A2.5 2.5 0 0117 9.5"/><path d="M12 14v3M8.5 20h7l-.8-3H9.3z" fill="#FFE0C7"/>`),
+    // la barre d'onglets
+    boutique: U(`<path d="M5 11.5V20h14v-8.5"/><path d="M10 20v-4.5h4V20"/><path d="M4.2 4h15.6l1.7 4.6a2.4 2.4 0 01-4.7.9 2.4 2.4 0 01-4.8 0 2.4 2.4 0 01-4.8 0 2.4 2.4 0 01-4.7-.9z" fill="${A.fraise}"/>`),
+    defis: U(`<circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="4.6" fill="${A.fraise}"/><circle cx="12" cy="12" r=".6"/>`),
+    boulanger: U(toqueU(A.beurre)),
+    journal: U(`<path d="M12 6.6C10 5.1 7 4.6 3.5 5.1v13.4c3.5-.5 6.5 0 8.5 1.5V6.6z" fill="${A.lavande}"/><path d="M12 6.6c2-1.5 5-2 8.5-1.5v13.4c-3.5-.5-6.5 0-8.5 1.5"/><path d="M15 9.2c1.2-.3 2.4-.4 3.5-.3M15 12.4c1.2-.3 2.4-.4 3.5-.3"/>`),
+    reglages: U(`${dents()}<circle cx="12" cy="12" r="6.2" fill="${A.lavande}"/><circle cx="12" cy="12" r="2.3"/>`),
+    // l'en-tête, les pages, les feuilles
+    cloche: U(`<path d="M6 16.5V11a6 6 0 0112 0v5.5l1.6 2.2H4.4z" fill="${A.beurre}"/><path d="M10 21h4"/><path d="M12 3v2"/>`),
+    bonus: U(`<path d="M10.5 3.5l1.9 5.1 5.1 1.9-5.1 1.9-1.9 5.1-1.9-5.1-5.1-1.9 5.1-1.9z" fill="${A.lavande}"/><path d="M18 14.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>`),
+    etoile: U(etoile(A.beurre)),
+    sauvegarde: U(`<path d="M7 18.5a4.2 4.2 0 01-.7-8.4 6 6 0 0111.6-.6 4.5 4.5 0 01-.4 9z" fill="${A.ciel}"/><path d="M12 11v6M9.5 14.6L12 17l2.5-2.4"/>`),
+    son: U(`<path d="M3.5 9.5v5h3.6l5 4v-13l-5 4z" fill="${A.peche}"/><path d="M15.5 9a4.2 4.2 0 010 6M18.2 6.4a8 8 0 010 11.2"/>`),
+    sonOff: U(`<path d="M3.5 9.5v5h3.6l5 4v-13l-5 4z" fill="${A.peche}"/><path d="M15.5 9.5l5 5M20.5 9.5l-5 5"/>`),
+    vibre: U(`<rect x="8" y="3.5" width="8" height="17" rx="2.4" fill="${A.ciel}"/><path d="M11 17.5h2"/><path d="M4.2 9c-.9 2-.9 4 0 6M19.8 9c.9 2 .9 4 0 6"/>`),
+    crayon: U(`<path d="M4 20l1-4.6L15.4 5a2.2 2.2 0 013.1 3.1L8.6 19z" fill="${A.beurre}"/><path d="M13.6 6.8l3.6 3.6"/>`),
+    recommencer: U(`<path d="M19.5 12a7.5 7.5 0 11-2.2-5.3"/><path d="M19.7 3.8v4.6h-4.6"/><circle cx="12" cy="12" r="2.4" fill="${A.fraise}"/>`),
+    partager: U(`<path d="M5 12.5V19a1 1 0 001 1h12a1 1 0 001-1v-6.5" fill="${A.menthe}"/><path d="M12 3.5v11M8.4 7.1L12 3.5l3.6 3.6"/>`),
+    specialite: U(`<path d="M8.6 14.2L6.5 20.5l3-1 2.5 2 2.5-2 3 1-2.1-6.3"/><circle cx="12" cy="9.5" r="6" fill="${A.lavande}"/><path d="M12 6.4l1 2 2.2.3-1.6 1.5.4 2.2-2-1-2 1 .4-2.2-1.6-1.5 2.2-.3z"/>`),
+    soleil: U(`<circle cx="12" cy="12" r="4.2" fill="${A.beurre}"/><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6"/>`),
+    trophee: U(`<path d="M7.5 4h9v5a4.5 4.5 0 01-9 0z" fill="${A.beurre}"/><path d="M7.5 5.5H4.5a3 3 0 003.2 4M16.5 5.5h3a3 3 0 01-3.2 4"/><path d="M12 13.5v3M8.5 20h7l-1-3.5h-5z"/>`),
+    stats: U(`<path d="M4 20h16"/><path d="M6 20v-6h3v6M10.5 20V9h3v11M15 20v-8.5h3V20" fill="${A.menthe}"/>`),
     chevron: U(`<path d="M9.5 6l6 6-6 6"/>`),
     coche: U(`<path d="M5 12.5l4.5 4.5L19 7.5"/>`),
-    fermer: U(`<path d="M6 6l12 12M18 6L6 18"/>`),
-    amenager: U(`<rect x="3.5" y="4" width="13" height="7" rx="2.5" fill="#FFC84A"/><path d="M16.5 7.5h3.5v5h-8v3"/><rect x="10.5" y="15.5" width="3" height="6" rx="1.3" fill="#fff"/>`),
-    // l'Atelier (les mini-jeux) : un fouet de pâtissier, manche rose
-    atelier: U(`<path d="M12 15.5c-3.6 0-5.2-3.7-5.2-6.8S9 2.8 12 2.8s5.2 2.8 5.2 5.9-1.6 6.8-5.2 6.8z" fill="#FFF3C4"/><path d="M12 15.5c-1.5 0-2.3-3.7-2.3-6.8S10.6 2.8 12 2.8s2.3 2.8 2.3 5.9-.8 6.8-2.3 6.8z"/><rect x="10.4" y="15.5" width="3.2" height="6" rx="1.5" fill="#FF9FB2"/>`),
-    // le classement : un podium, la plus haute marche dorée ; le nuage barré quand le réseau manque
-    podium: U(`<path d="M9 10.5h6V21H9z" fill="#FFC84A"/><path d="M3 14h6v7H3z" fill="#fff"/><path d="M15 16h6v5h-6z" fill="#FFE0C7"/><path d="M12 3l.9 1.9 2 .3-1.5 1.4.4 2L12 7.6l-1.8 1 .4-2-1.5-1.4 2-.3z" fill="#FF6B8B" stroke="none"/>`),
-    horsLigne: U(`<path d="M7 18a4 4 0 01-.6-7.9A6 6 0 0118 9.5a3.8 3.8 0 01-.5 7.5z" fill="#EADFD6"/><path d="M4 4l16 16"/>`),
-    // la garde-robe : un cintre ; et ses quatre emplacements : couvre-chef (toque), haut (tablier), chaussures, accessoire (foulard)
-    garderobe: U(`<path d="M12 3.5a2.2 2.2 0 00-2.2 2.2c0 1.2.9 1.8 2.2 2.5v2"/><path d="M12 10.2L3.5 16.5a1.2 1.2 0 00.7 2.2h15.6a1.2 1.2 0 00.7-2.2z" fill="#FFE0C7"/>`),
-    tete: U(`<path d="M6.5 13c-2.3-.3-3.3-2-2.9-3.7.5-1.8 2.5-2.6 4.1-1.8.5-2.2 2.3-3.5 4.3-3.5s3.8 1.3 4.3 3.5c1.6-.8 3.6 0 4.1 1.8.4 1.7-.6 3.4-2.9 3.7z" fill="#fff"/><path d="M6.5 13h11v5h-11z" fill="#FFE0C7"/>`),
-    haut: U(`<path d="M9 4h6v3l3.5 2V20h-13V9L9 7z" fill="#fff"/><path d="M9 7h6"/><path d="M10 13h4v3h-4z" fill="#FFE0C7" stroke="none"/>`),
-    pieds: U(`<path d="M3.5 16c0-2.5 2.5-4 5-4h2l2.5-3h3.5l-1 3.5c3 .5 5 1.5 5 3.5v2h-17z" fill="#fff"/><path d="M3 18h18" stroke-width="2.4"/><path d="M8 13.5l3-2.5" stroke="#FF9FB2"/>`),
-    accessoire: U(`<path d="M4 9c4.5-3 11.5-3 16 0-2.5 3-5.5 4.5-8 4.5S6.5 12 4 9z" fill="#FFE0C7"/><circle cx="12" cy="14" r="2" fill="#fff"/><path d="M10.5 15.5l-1.5 4.5h3zM13.5 15.5l2 4.5h-3z" fill="#FFE0C7"/>`),
+    fermer: U(`<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>`),
+    amenager: U(`<rect x="3.5" y="4" width="13" height="6.5" rx="2.2" fill="${A.beurre}"/><path d="M16.5 7.2h3v5.3H12v3"/><rect x="10.5" y="15.5" width="3" height="5" rx="1"/>`),
+    // l'Atelier : un fouet de pâtissier, le manche en accent
+    atelier: U(`<path d="M12 14.5c-3.3 0-4.8-3.6-4.8-6.5S9.2 3 12 3s4.8 2.1 4.8 5-1.5 6.5-4.8 6.5z"/><path d="M12 14.5c-1.4 0-2.1-3.6-2.1-6.5S10.8 3 12 3"/><path d="M12 3c1.2 0 2.1 2.1 2.1 5s-.7 6.5-2.1 6.5"/><rect x="10.3" y="14.5" width="3.4" height="6.5" rx="1.7" fill="${A.fraise}"/>`),
+    // le classement : un podium, la plus haute marche en accent ; le nuage barré quand le réseau manque
+    podium: U(`<path d="M9 9.5h6V20H9z" fill="${A.beurre}"/><path d="M3.5 13.5H9V20H3.5zM15 15.5h5.5V20H15z"/><path d="M12 3.2l.9 1.8 2 .3-1.4 1.4.3 2-1.8-.9-1.8.9.3-2-1.4-1.4 2-.3z"/>`),
+    horsLigne: U(`<path d="M7 18.5a4.2 4.2 0 01-.7-8.4 6 6 0 0111.6-.6 4.5 4.5 0 01-.4 9z" fill="${A.ciel}"/><path d="M4 4l16 16"/>`),
+    quitter: U(`<path d="M13.5 4H6.5a1 1 0 00-1 1v14a1 1 0 001 1h7" fill="${A.fraise}"/><path d="M13 12h7.5M17.5 8.8l3.2 3.2-3.2 3.2"/>`),
+    pseudo: U(`<rect x="3.5" y="6" width="17" height="12" rx="3" fill="${A.beurre}"/><path d="M7.5 10.5h5M7.5 13.5h9"/>`),
+    // le Journal et le Boulanger : les nouvelles, les saisons, les habitués, le chat, la salle de jeux
+    saison: U(`<path d="M19.5 4.5C10.5 4.5 5 9 5 15c0 2.2.7 3.6.7 3.6s1.4.6 3.4.6c6 0 10.4-5.5 10.4-14.7z" fill="${A.peche}"/><path d="M4 20.5c3-4.5 6.5-8 11-11"/>`),
+    habitues: U(`<circle cx="9" cy="8.5" r="3.3" fill="${A.peche}"/><path d="M3.5 19.5c.4-3.6 2.6-5.8 5.5-5.8s5.1 2.2 5.5 5.8z" fill="${A.peche}"/><circle cx="16.5" cy="9" r="2.8"/><path d="M15.5 13.8c2.8-.4 4.9 1.6 5.2 5"/>`),
+    chat: U(`<path d="M5 9.5L5.6 3.8l4.1 3.3a8 8 0 014.6 0l4.1-3.3.6 5.7c.9 1.3 1.4 2.8 1.4 4.3 0 4-3.8 6.7-8.4 6.7S3.6 17.8 3.6 13.8c0-1.5.5-3 1.4-4.3z" fill="${A.peche}"/><path d="M9 13v.5M15 13v.5M10.8 16.3c.7.5 1.7.5 2.4 0"/>`),
+    salle: U(`<rect x="3.5" y="3.5" width="7" height="7" rx="2" fill="${A.menthe}"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2" fill="${A.menthe}"/>`),
+    eclair: U(`<path d="M13.5 3L5.5 13.5h5.5L9.5 21l8-10.5h-5.5z" fill="${A.beurre}"/>`),
+    // la garde-robe : un cintre ; ses quatre emplacements : couvre-chef (toque), haut (tablier), chaussures, accessoire (foulard)
+    garderobe: U(`<path d="M12 3.6a2.2 2.2 0 00-2.2 2.2c0 1.2.9 1.8 2.2 2.6v1.8"/><path d="M12 10.2L3.6 16.4a1.2 1.2 0 00.7 2.2h15.4a1.2 1.2 0 00.7-2.2z" fill="${A.peche}"/>`),
+    tete: U(toqueU(A.beurre)),
+    haut: U(`<path d="M9 4.5h6V9h3l-1.2 11H7.2L6 9h3z" fill="${A.peche}"/><path d="M9 4.5c.3-.9 1.4-1.4 3-1.4s2.7.5 3 1.4M6 9.3L3.5 11M18 9.3l2.5 1.7M10 13.5h4v2.6h-4z"/>`),
+    pieds: U(`<path d="M3.5 16.5c0-2.6 2.4-4.2 5-4.2h2l2.6-3.3h3.4l-1 3.6c3 .5 5 1.6 5 3.6v2.3h-17z" fill="${A.ciel}"/><path d="M3.5 18.5h17"/>`),
+    accessoire: U(`<path d="M4 8.5c4.5-3 11.5-3 16 0-2.5 3-5.5 4.6-8 4.6s-5.5-1.6-8-4.6z" fill="${A.fraise}"/><circle cx="12" cy="14.6" r="1.8"/><path d="M10.7 15.9L8.5 20.5M13.3 15.9l2.2 4.6"/>`),
+    // l'événement « Le Quartier » : une casquette à visière ; ses paliers ; ses boosts
+    quartier: U(`<path d="M5 14.5c0-5.2 3.1-9 7-9s7 3.8 7 9z" fill="${A.fraise}"/><path d="M3.5 14.5h13.8c2.4 0 3.6.8 3.2 1.9-1.4 1-3.5 1.2-5.3.8"/><path d="M12 5.5V3.8"/>`),
+    palierQ: U(`<path d="M3.5 20.5h17"/><path d="M5 20.5v-5h4v5M10 20.5v-9h4v9M15 20.5V7h4v13.5" fill="${A.beurre}"/>`),
   };
+  UI.classement = UI.podium;
   // le podium du classement : une petite toque à la couleur du métal (à côté d'un pseudo) et une coupe (l'annonce, la collection)
   const toque = (m) => { const t = METAL[m] || (m === 'blanc' ? ['#FFFFFF', '#D9CCC2', '#FFFFFF'] : METAL.or); /* 'blanc' : la toque de toujours */ return `<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6.5 14.5c-2.6-.4-3.7-2.4-3.2-4.3.6-2.1 2.9-3 4.7-2.1.6-2.5 2.6-4 4-4s3.4 1.5 4 4c1.8-.9 4.1 0 4.7 2.1.5 1.9-.6 3.9-3.2 4.3z" fill="${t[0]}" stroke="${L}" stroke-width="1.6" stroke-linejoin="round"/><rect x="6.5" y="14" width="11" height="5.5" rx="1.6" fill="${t[0]}" stroke="${L}" stroke-width="1.6"/><path d="M7.5 16.7h9" stroke="${t[1]}" stroke-width="1.6" stroke-linecap="round"/><path d="M9 8.6c.4-1.1 1.2-1.7 2-1.9" stroke="${t[2]}" stroke-width="1.4" stroke-linecap="round" fill="none"/></svg>`; };
   const coupe = (m) => { const t = METAL[m] || METAL.or; return S(`<path d="M15 9h18v9a9 9 0 01-18 0z" fill="${t[0]}" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M15 12H10.5a4.5 4.5 0 004.9 6.6M33 12h4.5a4.5 4.5 0 01-4.9 6.6" fill="none" stroke="${L}" stroke-width="2" stroke-linecap="round"/><path d="M15 12H10.5a4.5 4.5 0 004.9 6.6M33 12h4.5a4.5 4.5 0 01-4.9 6.6" fill="none" stroke="${t[0]}" stroke-width=".8" stroke-linecap="round"/><path d="M21.5 26.5h5l1 6h-7z" fill="${t[0]}" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><rect x="14" y="32.5" width="20" height="8" rx="2.5" fill="#8B5A3C" stroke="${L}" stroke-width="2"/><rect x="19" y="35" width="10" height="3" rx="1" fill="${t[1]}"/><path d="M19 12.5v5" stroke="${t[2]}" stroke-width="2.4" stroke-linecap="round"/><path d="M24 12.4l1 2 2.2.3-1.6 1.5.4 2.2-2-1.1-2 1.1.4-2.2-1.6-1.5 2.2-.3z" fill="${t[1]}"/>`); };
@@ -171,8 +191,5 @@ const ICONS = (() => {
     palier: S(`<path d="M6 40h36" stroke="${L}" stroke-width="2.4" stroke-linecap="round"/><path d="M8 40V30h10v10M18 40V22h12v18M30 40V14h10v26" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M35 6l1.5 3.2 3.5.5-2.5 2.4.6 3.5-3.1-1.7-3.1 1.7.6-3.5L30 9.7l3.5-.5z" fill="#FF6B8B" stroke="${L}" stroke-width="1.4" stroke-linejoin="round"/>`),
     boost: S(`<path d="M26 4L10 28h11l-3 16 18-26H25z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`),
   };
-  // l'icône ronde de l'événement, en haut à droite : une casquette à visière, accent fraise
-  UI.palierQ = QUARTIER.palier; // le bouton des paliers, en tête de la Planque (data-ico)
-  UI.quartier = U(`<path d="M5 14c0-5 3.2-9 7-9s7 4 7 9v2H5z" fill="#fff"/><path d="M4 15.5h16" /><path d="M19 15c2.5-.3 3.5.5 3.5 1.5-1.5 1.2-3.5 1.3-5 .8" fill="#FF9FB2"/><circle cx="12" cy="4.5" r="1.2" fill="#FF6B8B" stroke="none"/>`);
   return { PRODUITS, SAISON, CHAT, QUARTIER, apprenti, boulanger, vetement, TENUES, toque, coupe, METAL, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES, INGREDIENTS, ATELIER };
 })();
