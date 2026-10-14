@@ -10479,7 +10479,7 @@ const PCONTROLES = (() => {
     }
     if (!tactile && e.pointerType === 'touch') modeTactile(true);
     e.preventDefault();
-    if (roles.has(e.pointerId)) return;
+    if (roles.has(e.pointerId)) haut(e); // un doigt dont le « lever » s'est perdu (le navigateur réutilise son numéro) : relâché d'abord, sinon ce nouvel appui serait ignoré
     const d = prendre(); d.x = e.clientX; d.y = e.clientY; d.cmd = null;
     if (cible) {
       const cmd = cible.dataset.cmd;
@@ -13094,7 +13094,11 @@ const PUI = (() => {
       compteurs: () => ({ pas: nPas, alpha, acc: boucleFixe ? boucleFixe.acc : 0, pasDuree: PAS, max: PAS_MAX }),
       joueur: () => trouver(idMoi),
       tp: (x, z, yaw) => { const m = trouver(idMoi); if (!m) return null; m.x = x; m.z = z; try { m.y = monde.hauteur(x, z); } catch (e) { /* rien */ } m.vy = 0; if (yaw != null) m.yaw = yaw; return m; },
-      viser: (id) => { const m = trouver(idMoi), c = trouver(id); if (!m || !c) return null; const dx = c.x - m.x, dz = c.z - m.z, oeil = typeof PCORPS !== 'undefined' && PCORPS.oeil ? PCORPS.oeil(m) : m.accroupi ? (R ? R.JOUEUR.oeilAccroupi : 1) : (R ? R.JOUEUR.oeil : 1.6), dy = (c.y + 1.2) - (m.y + oeil); m.yaw = Math.atan2(-dx, -dz); m.pitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)); return { yaw: m.yaw, pitch: m.pitch }; },
+      viser: (id) => { // vers le milieu de sa capsule touchable (debout, accroupi ou couché : les robots se mettent à couvert)
+        const m = trouver(idMoi), c = trouver(id); if (!m || !c) return null;
+        let cx = c.x, cy = c.y + 1.2, cz = c.z; if (typeof PCORPS !== 'undefined' && PCORPS.capsule) { const k = PCORPS.capsule(c); cx = (k.ax + k.bx) / 2; cy = (k.ay + k.by) / 2; cz = (k.az + k.bz) / 2; }
+        const oeil = typeof PCORPS !== 'undefined' && PCORPS.oeil ? PCORPS.oeil(m) : m.accroupi ? (R ? R.JOUEUR.oeilAccroupi : 1) : (R ? R.JOUEUR.oeil : 1.6), dx = cx - m.x, dz = cz - m.z, dy = cy - (m.y + oeil);
+        m.yaw = Math.atan2(-dx, -dz); m.pitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)); return { yaw: m.yaw, pitch: m.pitch }; },
       finir: () => {
         if (!jeu) return null;
         try { if (typeof jeu.finir === 'function') jeu.finir(); else jeu.temps = Math.max(jeu.temps || 0, (R ? R.MODES.arene.duree : 180) + 0.01); } catch (e) { signaler('finir', e); }

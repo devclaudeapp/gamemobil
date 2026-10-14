@@ -145,7 +145,7 @@ const PCONTROLES = (() => {
     }
     if (!tactile && e.pointerType === 'touch') modeTactile(true);
     e.preventDefault();
-    if (roles.has(e.pointerId)) return;
+    if (roles.has(e.pointerId)) haut(e); // un doigt dont le « lever » s'est perdu (le navigateur réutilise son numéro) : relâché d'abord, sinon ce nouvel appui serait ignoré
     const d = prendre(); d.x = e.clientX; d.y = e.clientY; d.cmd = null;
     if (cible) {
       const cmd = cible.dataset.cmd;

@@ -62,7 +62,9 @@ const URL0 = `http://localhost:${PORT}/poncin/`;
   // ─── la partie : Arène solo, 3 robots faciles, graine fixe ───
   const st0 = await P(() => window.__poncin.demarrer({ bots: 3, niveau: 'facile', graine: 7 }));
   check(!!st0, 'une partie d’Arène démarre (3 robots faciles)');
-  await P(() => window.__poncin.pas(2)); await sleep(800);
+  // protégé dès le départ (jusqu'à notre premier tir) : armés de vraies armes, les robots nous élimineraient pendant le parcours du
+  // joystick (une pompe tue d'un coup à moins de 8 m) et l'on tirerait en attendant de réapparaître, puis loin de la cible
+  await P(() => { window.__poncin.joueur().invincible = 60; window.__poncin.pas(2); }); await sleep(800);
   const j0 = await P(() => { const m = window.__poncin.joueur(), jeu = window.__poncin.jeu(); return { x: m.x, z: m.z, yaw: m.yaw, bots: jeu.entites.filter((e) => e.bot).length, arene: jeu.arene ? { c: jeu.arene.centre, r: jeu.arene.rayon } : null, ecran: document.body.dataset.ecran }; });
   check(j0.bots === 3 && j0.ecran === 'partie', `en partie, avec ${j0.bots} robots`);
   const eqPartie = await P(() => { const m = window.__poncin.joueur(); return { equip: m.equip, armes: m.armes.slice(), arme: m.arme, hud: Array.from(document.querySelectorAll('#hud .h-arme')).map((b) => b.getAttribute('aria-label')) }; });
@@ -91,15 +93,14 @@ const URL0 = `http://localhost:${PORT}/poncin/`;
   // un robot à portée : on se place face à lui, on vise, on tire au bouton
   const cible = await P(() => {
     const p = window.__poncin, jeu = p.jeu(), b = jeu.entites.find((e) => e.bot && e.vivant);
-    // le robot ne bouge plus pendant le test : on le pose à 8 m devant nous, sur un point libre
-    const m = p.joueur(); let ok = null;
+    // on le pose à 8 m de nous, sur un point libre et en vue (il bouge ensuite : la visée le suit)
+    const m = p.joueur(); if (!m.vivant) return null; let ok = null;
     for (let a = 0; a < 16 && !ok; a++) { const yaw = a * Math.PI / 8, x = m.x - Math.sin(yaw) * 8, z = m.z - Math.cos(yaw) * 8; if (!jeu.monde.bloque(x, z, 0.5) && jeu.monde.vue(m.x, m.y + 1.6, m.z, x, jeu.monde.hauteur(x, z) + 1.2, z)) ok = [x, z]; }
     if (!ok) return null;
     b.x = ok[0]; b.z = ok[1]; b.y = jeu.monde.hauteur(ok[0], ok[1]); b.invincible = 0; b.vie = 100; b.armure = 0;
-    m.invincible = 30; // (les autres robots ne nous éliminent pas pendant l'essai)
     p.viser(b.id); return { id: b.id, nom: b.nom };
   });
-  check(!!cible, 'un robot posé à 8 m, dans le viseur');
+  check(!!cible, 'en vie, un robot posé à 8 m, dans le viseur');
   const tir = await page.evaluate(() => { const b = document.querySelector('.pc-tir'); if (!b) return null; const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; });
   check(!!tir, 'le bouton Tir est là');
   let touche = false, elimine = false;
@@ -107,7 +108,8 @@ const URL0 = `http://localhost:${PORT}/poncin/`;
     const vie0 = await P((id) => window.__poncin.jeu().entites.find((e) => e.id === id).vie, cible.id);
     await toucher('touchStart', [[tir[0], tir[1], 21]]);
     for (let k = 0; k < 40 && !elimine; k++) {
-      await P((id) => { window.__poncin.viser(id); window.__poncin.pas(3); }, cible.id);
+      // notre premier tir lève la protection : on tient les autres robots loin pendant l'essai
+      await P((id) => { const p = window.__poncin, m = p.joueur(); for (const o of p.jeu().entites) if (o.bot && o.id !== id) { o.x = m.x + 90; o.z = m.z + 90; } p.viser(id); p.pas(3); }, cible.id);
       const b = await P((id) => { const e = window.__poncin.jeu().entites.find((x) => x.id === id); return { vie: e.vie, vivant: e.vivant }; }, cible.id);
       if (b.vie < vie0) touche = true; if (!b.vivant) elimine = true;
     }
