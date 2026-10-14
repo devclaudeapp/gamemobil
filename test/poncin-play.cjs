@@ -168,6 +168,9 @@ const URL0 = `http://localhost:${PORT}/poncin/`;
     for (let a = 0; a < 16 && !ok; a++) { const yaw = a * Math.PI / 8, x = m.x - Math.sin(yaw) * 8, z = m.z - Math.cos(yaw) * 8; if (!jeu.monde.bloque(x, z, 0.5) && jeu.monde.vue(m.x, m.y + 1.6, m.z, x, jeu.monde.hauteur(x, z) + 1.2, z)) ok = [x, z]; }
     if (!ok) return null;
     b.x = ok[0]; b.z = ok[1]; b.y = jeu.monde.hauteur(ok[0], ok[1]); b.invincible = 0; b.vie = 100; b.armure = 0;
+    // les autres robots, loin dès maintenant : le doigt posé sur Tir, la boucle d'images tire (et lève la protection) avant le premier
+    // pas de l'essai ; un robot resté près de nous (une pompe à moins de 8 m) nous repeindrait dans ce pas-là
+    for (const o of jeu.entites) if (o.bot && o !== b) { o.x = m.x + 90; o.z = m.z + 90; }
     p.viser(b.id); return { id: b.id, nom: b.nom };
   });
   check(!!cible, 'en vie, un robot posé à 8 m, dans le viseur');
@@ -178,7 +181,7 @@ const URL0 = `http://localhost:${PORT}/poncin/`;
     const vie0 = await P((id) => window.__poncin.jeu().entites.find((e) => e.id === id).vie, cible.id);
     await toucher('touchStart', [[tir[0], tir[1], 21]]);
     for (let k = 0; k < 40 && !elimine; k++) {
-      // notre premier tir lève la protection : on tient les autres robots loin pendant l'essai
+      // notre premier tir lève la protection : on tient les autres robots loin pendant tout l'essai
       await P((id) => { const p = window.__poncin, m = p.joueur(); for (const o of p.jeu().entites) if (o.bot && o.id !== id) { o.x = m.x + 90; o.z = m.z + 90; } p.viser(id); p.pas(3); }, cible.id);
       const b = await P((id) => { const e = window.__poncin.jeu().entites.find((x) => x.id === id); return { vie: e.vie, vivant: e.vivant }; }, cible.id);
       if (b.vie < vie0) touche = true; if (!b.vivant) elimine = true;
