@@ -89,6 +89,7 @@ ${lireP('style.css')}</style>
 ${lireP('page.html')}
 <script>window.PONCIN_ACCUEIL = '../'; window.PONCIN_CARTE_V = '${carteV}';</script>
 <script src="../vendor/three.min.js"></script>
+<script src="../vendor/poncin-GLTFLoader.js"></script>
 <script src="../vendor/supabase.min.js"></script>
 <script src="config.js"></script>
 <script>

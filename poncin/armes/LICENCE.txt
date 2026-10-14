@@ -1,0 +1,9 @@
+Les armes d'Opération Poncin (poncin/armes/*.glb) — domaine public, Creative Commons Zero 1.0 Universal (CC0 1.0)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+- ak74.glb, m4.glb (« SCAR-L » du pack), mp9.glb (« MP5A5 » du pack), m24.glb, awm.glb, m1911.glb, p226.glb :
+  Quaternius, Ultimate Guns Pack (https://quaternius.com), CC0, convertis en GLB ; récupérés de
+  https://github.com/Ravi-Rutgers/airsoft-3d-model-pack (models/<id>-quaternius/model.glb ; provenance dans models.json).
+- ump.glb (« smg-full-east »), pompe.glb (« shotgun-pump-east ») :
+  Flat Guns (OpenGameArt, « CC0 Flat Guns East »), CC0 ; récupérés du même dépôt (models/<id>/model.glb).
+Les noms des fichiers sont ceux du jeu ; les modèles ne sont pas modifiés.
