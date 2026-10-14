@@ -256,7 +256,7 @@ const partir = async (p, d) => { await d.toucherEl('[data-at="jouer"]'); await a
   await p.evaluate(() => { window.__fournil.page('defis'); window.__fournil.tiroir('ouvert'); }); await sleep(300);
   await lancer(p, d, 'faconnage'); await partir(p, d); await jouerFaconnage(p, d, { formes: 3, tremble: 1 }); await finPartie(p);
   const rOff = (await etat(p)).resultat;
-  check(rOff.prime > 0 && rOff.payees === 2 && req.filter((u) => !u.startsWith(BASE) && !u.startsWith('data:')).length === 0, `hors ligne : une partie de façonnage (${rOff.score} points, +${rOff.prime} €, payées ${rOff.payees}), aucune requête ${req.filter((u) => !u.startsWith(BASE) && !u.startsWith('data:')).slice(0, 3).join(' ')}`);
+  check(rOff.prime > 0 && rOff.payees === 2 && req.filter((u) => !u.startsWith(BASE) && !/^(data|blob):/.test(u)).length === 0, `hors ligne : une partie de façonnage (${rOff.score} points, +${rOff.prime} €, payées ${rOff.payees}), aucune requête ${req.filter((u) => !u.startsWith(BASE) && !/^(data|blob):/.test(u)).slice(0, 3).join(' ')}`);
   await ctx.setOffline(false);
   await ctx.close();
 
