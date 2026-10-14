@@ -12261,6 +12261,7 @@ const PENLIGNE = (() => {
   // TENU : un appui bref (saut, recharge, arme) est répété dans les entrées pendant ce temps (une entrée perdue ne le perd pas) ;
   // LACHE : sans entrée d'un client depuis ce temps (ou 2,5 × l'intervalle mesuré), l'hôte lui lâche les commandes (plus de course sans fin)
   const JETON_MAX = 3, DETTE_MS = 600, PAS_FIXE = 1 / 60;
+  const MAX_SALON = 6; // humains au plus dans un salon (robots compris dans la partie : 6 en tout, PREGLES.SALON.max)
   // JETON_MAX : le seau de déplacement de chaque client chez l'hôte (m) : il se remplit au temps de l'HÔTE (vitesse max × 1,15 + 0,3 m/s)
   // et chaque échantillon accepté y puise sa distance ; un tc qui court devant, des refus en cascade ou des v = 0 n'y gagnent rien ;
   // DETTE_MS : un tir compté par le client (nt) que l'hôte n'arrive pas à faire en ce temps (rechargement, mort) est abandonné ;
@@ -12311,8 +12312,8 @@ const PENLIGNE = (() => {
     const ctl = {
       code: salon.code, idMoi: salon.moi.id, via: salon.via || o.via || 'local', ferme: false,
       get estHote() { return !!salon.estHote; }, get hote() { return salon.hote; },
-      // reglages.armes : les ids permis par l'hôte (null : toutes)
-      reglages: { mode: 'arene', bots: 0, niveau: 'normal', equipes: false, armes: null }, pings: {}, voies: {}, enJeu: false, partie: null,
+      // reglages : les réglages v2 normalisés (PREGLES.normaliserReglages : zone, durée, score, heure, météo, robots, vie, manches, armes…)
+      reglages: PR() ? PR().normaliserReglages({ bots: 0 }, { humains: 1 }) : { mode: 'arene', bots: 0, niveau: 'normal', equipes: false, armes: null }, pings: {}, voies: {}, enJeu: false, partie: null,
       joueurs, regler, equiper, pret, renommer, lancer, retourSalon, quitter, stats,
       sur(type, fn) { if (!abonnes.has(type)) abonnes.set(type, new Set()); abonnes.get(type).add(fn); return () => abonnes.get(type).delete(fn); },
       get salon() { return salon; },
@@ -12335,11 +12336,10 @@ const PENLIGNE = (() => {
     }
     function regler(r) {
       if (!salon.estHote || !r) return false;
-      const R = PR(), g = ctl.reglages;
-      if (r.bots != null) g.bots = Math.max(0, Math.min(4, Math.round(+r.bots) || 0));
-      if (r.niveau && (!R || R.BOTS[r.niveau])) g.niveau = r.niveau;
-      if (r.equipes != null) g.equipes = !!r.equipes;
-      if (r.armes !== undefined) g.armes = R && Array.isArray(r.armes) ? R.armesPermises(r.armes) : null;
+      const R = PR(); if (!R) return false;
+      // tous les réglages du salon (§ 6) : ceux qu'on reçoit remplacent les actuels, puis normalisés avec le nombre d'humains présents
+      const n = Object.assign({}, ctl.reglages); for (const cle of Object.keys(r)) if (r[cle] !== undefined) n[cle] = r[cle];
+      ctl.reglages = R.normaliserReglages(n, { humains: Math.max(1, joueurs().length) });
       annoncerReglages(); emettre('maj'); return true;
     }
     function equiper(eq) { // le choix d'armes du joueur, 'ak74+p226' : dans sa présence ; l'hôte le borne aux armes permises au lancement
@@ -12354,14 +12354,16 @@ const PENLIGNE = (() => {
       if (ctl.ferme) return 'salon fermé';
       if (!salon.estHote) return 'seul l’hôte lance la partie';
       const js = joueurs(); if (js.length < 2) return 'il faut être au moins deux';
+      if (js.length > MAX_SALON) return `salon complet : ${MAX_SALON} joueurs au plus`;
       if (!ctl._monde || !PJ() || !PA()) return 'le jeu n’est pas prêt';
       const R = PR(), pris = new Set(), palette = R ? R.COULEURS : [];
       const liste = js.map((j) => { let c = typeof j.couleur === 'string' && /^#[0-9a-f]{6}$/i.test(j.couleur) && !pris.has(j.couleur) ? j.couleur : palette.find((x) => !pris.has(x)) || '#FFC84A'; pris.add(c); return { id: j.id, pseudo: j.pseudo, couleur: c, eq: j.eq }; });
-      const g = ctl.reglages, options = { bots: g.bots, niveau: g.niveau, equipes: !!g.equipes, armes: R ? R.armesPermises(g.armes || R.DEFAUT_REGLAGES.armes) : g.armes, objets: true };
+      const options = R.normaliserReglages(ctl.reglages, { humains: js.length }); // robots ≤ 6 − humains
       const graine = (Math.random() * 4294967296) >>> 0;
       let P = null;
       try { k++; P = partieHote(ctl, { k, graine, options, joueurs: liste, dans: DANS }); } catch (e) { signaler('lancement', e); return 'la partie n’a pas pu démarrer'; }
-      envoyer('lancer', { k, graine, options, joueurs: P.liste, dans: DANS, carte: empreinte(ctl._carte) }, { fiable: true });
+      const Z = G('PZONES'), jz = P.jeu.zone, robots = P.jeu.arene && Array.isArray(P.jeu.arene.robots) ? P.jeu.arene.robots : null;
+      envoyer('lancer', { k, graine, options, joueurs: P.liste, robots, zone: jz && Z ? Z.pourReseau(jz) : null, dans: DANS, carte: empreinte(ctl._carte) }, { fiable: true });
       finirPartie(); ctl.partie = P; ctl.enJeu = true; annoncerReglages();
       emettre('partie', P); emettre('maj');
       return true;
@@ -12404,7 +12406,7 @@ const PENLIGNE = (() => {
     ecoute('reglages', (d) => {
       if (salon.estHote || !d) return;
       const R = PR(), g = ctl.reglages;
-      g.bots = Math.max(0, Math.min(4, d.bots | 0)); if (!R || R.BOTS[d.niveau]) g.niveau = d.niveau; g.equipes = !!d.equipes; g.armes = R && Array.isArray(d.armes) ? R.armesPermises(d.armes) : null;
+      if (R) ctl.reglages = R.normaliserReglages(d, { humains: Math.max(1, joueurs().length) }); else { g.bots = d.bots | 0; g.niveau = d.niveau; g.equipes = !!d.equipes; }
       ctl.pings = d.pings && typeof d.pings === 'object' ? d.pings : {}; ctl.voies = d.voies && typeof d.voies === 'object' ? d.voies : {}; ctl.enJeu = !!d.enJeu;
       emettre('maj');
     });
@@ -12442,7 +12444,7 @@ const PENLIGNE = (() => {
   // ═══════════════════════════════ l'hôte : le vrai PJEU, enveloppé ═══════════════════════════════
   function partieHote(ctl, L) {
     const J = PJ(), A = PA(), R = PR(), JO = R.JOUEUR, idMoi = ctl.idMoi, envoyer = ctl._envoyer, monde = ctl._monde, carte = ctl._carte;
-    const jeu = J.creer({ monde, carte, mode: A, graine: L.graine, options: L.options });
+    const jeu = J.creer({ monde, carte, mode: A, graine: L.graine, options: L.options, humains: L.joueurs.length });
     const liste = [];
     for (const j of L.joueurs) {
       const equip = R.equipementDe(j.eq, L.options); // le choix du joueur (présence), borné par les armes permises
@@ -12554,7 +12556,9 @@ const PENLIGNE = (() => {
       switch (ev.t) {
         case 'tir': { const i = ev.impact; return { t: 'tir', h, id: ev.id, arme: ev.arme, o: [r2(ev.o[0]), r2(ev.o[1]), r2(ev.o[2])], fin: [r2(ev.fin[0]), r2(ev.fin[1]), r2(ev.fin[2])], impact: i ? { x: r2(i.x), y: r2(i.y), z: r2(i.z), nx: r2(i.nx), ny: r2(i.ny), nz: r2(i.nz), quoi: i.quoi, mat: i.mat, id: i.id } : null }; }
         case 'touche': return { t: 'touche', h, de: ev.de, a: ev.a, degats: ev.degats, tete: !!ev.tete, mort: !!ev.mort };
-        case 'mort': return { t: 'mort', h, a: ev.a, par: ev.par, arme: ev.arme, tete: !!ev.tete };
+        case 'mort': return { t: 'mort', h, a: ev.a, par: ev.par, arme: ev.arme, tete: !!ev.tete, allie: ev.allie ? true : undefined };
+        case 'manche': return { t: 'manche', h, quoi: ev.quoi, n: ev.n, total: ev.total, vainqueur: ev.vainqueur, nom: ev.nom, equipes: ev.equipes, gagnees: ev.gagnees };
+        case 'elimine': return { t: 'elimine', h, id: ev.id, par: ev.par, enLice: ev.enLice };
         case 'reapparition': return { t: 'reapparition', h, id: ev.id };
         case 'ramasse': return { t: 'ramasse', h, id: ev.id, objet: ev.objet, oid: ev.oid };
         case 'recharge': return { t: 'recharge', h, id: ev.id };
@@ -12689,7 +12693,7 @@ const PENLIGNE = (() => {
     const J = PJ(), A = PA(), R = PR(), JO = R.JOUEUR, idMoi = ctl.idMoi, envoyer = ctl._envoyer, monde = ctl._monde, carte = ctl._carte;
     if (!monde || !J || !A) return null;
     const options = L.options || {};
-    const jeu = J.creer({ monde, carte, mode: A, graine: L.graine, options, nav: false });
+    const jeu = J.creer({ monde, carte, mode: A, graine: L.graine, options, nav: false, humains: L.joueurs.length, zone: L.zone || null, robots: Array.isArray(L.robots) ? L.robots : null }); // la zone et les robots de l'hôte, tels quels
     for (const j of L.joueurs) {
       if (!j || typeof j.id !== 'string') continue;
       const e = jeu.ajouterJoueur({ id: j.id, nom: j.pseudo, couleur: j.couleur, humain: true, equipe: options.equipes ? (j.equipe === 1 ? 1 : 0) : j.id, equip: R.equipementDe(j.eq, options) });
@@ -12768,8 +12772,20 @@ const PENLIGNE = (() => {
         if (v.t === 'parti') { if (v.id !== idMoi) { jeu.retirerJoueur(v.id); pasDe.delete(v.id); } continue; }
         if (v.t === 'tir' && v.id === idMoi) continue; // déjà montré sur place
         if (v.t === 'mort' && v.a === idMoi) { moi.vivant = false; moi.vie = 0; }
+        if (v.t === 'manche' || v.t === 'elimine') manche(v);
         const pourMoi = v.id === idMoi || v.a === idMoi || v.de === idMoi || v.par === idMoi || v.t === 'annonce';
         if (pourMoi) immediats.push(v); else attente.push(v); // les autres : à l'heure où on les voit (100 ms en arrière)
+      }
+    }
+    // « dernier debout » : la façade suit les manches de l'hôte (jeu.manche, jeu.treve, e.score.manches), que le HUD lit
+    function manche(v) {
+      const M = jeu.manche || (jeu.manche = { n: 1, total: 1, enLice: [], gagnees: {}, debut: 0, fin: null, vainqueur: null });
+      if (v.t === 'elimine') { M.enLiceN = v.enLice | 0; return; }
+      if (fini(v.n)) M.n = v.n | 0; if (fini(v.total)) M.total = v.total | 0;
+      if (v.quoi === 'debut') { jeu.treve = false; jeu.debutChrono = jeu.temps; M.fin = null; M.vainqueur = null; M.enLiceN = undefined; }
+      else if (v.quoi === 'fin') {
+        jeu.treve = true; M.fin = jeu.temps; M.vainqueur = v.vainqueur; M.gagnees = v.gagnees && typeof v.gagnees === 'object' ? v.gagnees : {};
+        for (const e of jeu.entites) { const c = v.equipes ? e.equipe : e.id, g = M.gagnees[c]; e.score.manches = fini(+g) ? +g : 0; }
       }
     }
     function recevoirFin(d) {
