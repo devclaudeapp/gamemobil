@@ -324,7 +324,8 @@ const PAS = 1 / 60;
   await P(() => { const v = window.__evR = []; const j = window.__poncin.jeu(), vrai = j.etape; j.etape = function (dt, en) { const r = vrai.call(this, dt, en); for (const e of r || []) if (e.t === 'recharge' && e.id === window.__poncin.etat().idMoi) v.push(e); return r; }; });
   await toucher('touchStart', [[pastilles[1].r[0], pastilles[1].r[1], 51]]); await toucher('touchEnd', []); await images(5);
   const recharge = await P(() => window.__evR.length);
-  check(avantR.mun[avantR.arme] < 12 && recharge === 1, `toucher la pastille en main recharge (${avantR.mun[avantR.arme]} balles, ${recharge} recharge)`);
+  const plein = await P((id) => PREGLES.arme(id).chargeur, avantR.arme); // le chargeur plein de l'arme en main (P226 : 15)
+  check(avantR.mun[avantR.arme] < plein && recharge === 1, `toucher la pastille en main recharge (${avantR.mun[avantR.arme]} balles, ${recharge} recharge)`);
   // clavier : 1 / 2, Q, Maj, C, X
   await P(() => PCONTROLES.modeTactile(false));
   await page.keyboard.press('Digit1'); await images(40);
