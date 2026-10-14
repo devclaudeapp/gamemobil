@@ -95,7 +95,6 @@ body.sans-3d #vue3d { display: none; }
 .cm-ico { width: 52px; height: 52px; flex: 0 0 auto; display: grid; place-items: center; border-radius: 16px; background: #FFE3EA; border: 3px solid var(--encre); }
 .cm-ico svg { width: 38px; height: 38px; }
 .arene { display: flex; flex-direction: column; gap: 8px; background: linear-gradient(160deg, #FFFFFF, var(--creme) 60%); }
-.cm-options { display: grid; gap: 7px; }
 .opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .opt > span { font: 700 15px/1 var(--titre); }
 .cm-pied { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -471,14 +470,7 @@ body.gaucher .h-bas { left: 60%; }
 .h-fin-btns .bouton { padding: 0 12px; }
 
 /* ─── l'équipement : la pilule du menu et du salon, l'écran des armes ─── */
-.equip-pilule { min-height: 44px; min-width: 0; flex: 0 1 auto; max-width: min(300px, 46vw); overflow: hidden; padding: 0 14px 0 8px; font-size: 14px; }
-.equip-resume { display: flex; align-items: center; gap: 6px; min-width: 0; }
-.eq-ico svg { width: 52px; height: 20px; }
-.eq-noms { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.opt-armes small { margin-left: 4px; font: 700 12px/1 var(--texte); color: var(--encre-2); }
 #salon-liste .sj-equip { display: block; margin-top: 2px; font: 700 11px/1.1 var(--texte); color: var(--encre-2); overflow: hidden; text-overflow: ellipsis; }
-.armes-ecran { background: rgba(43, 42, 76, .62); }
-.armes-ecran h2 { white-space: nowrap; }
 .ar-note { flex: 1 1 auto; min-width: 0; color: #fff; font: 700 12px/1.3 var(--texte); text-shadow: 0 1px 3px rgba(43, 42, 76, .9); }
 .ar-grille { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 2.7fr) minmax(0, 1fr); gap: 12px; padding: 8px 0 4px; min-height: 0; align-content: start; }
 .ar-col { padding: 8px 12px 12px; min-width: 0; }
@@ -506,7 +498,6 @@ body.gaucher .h-bas { left: 60%; }
 @media (max-height: 400px) {
   .bouton.gros { min-height: 52px; font-size: 21px; }
   .carte-mode { padding: 9px 12px; }
-  .cm-options { gap: 5px; }
   .barre-haut { min-height: 50px; }
   .h-annonce { font-size: 28px; }
   .h-fin-carte { padding: 10px 14px 12px; gap: 14px; }
@@ -514,9 +505,9 @@ body.gaucher .h-bas { left: 60%; }
   .p1 .h-pod-socle { height: 64px; } .p2 .h-pod-socle { height: 54px; } .p3 .h-pod-socle { height: 46px; }
 }
 @media (max-height: 430px) and (orientation: landscape) {
-  .salon-reglages { gap: 5px; } .salon-reglages .seg button { min-height: 38px; } .salon-reglages .equip-pilule { min-height: 40px; } .salon-etat { font-size: 12px; }
-  .arene .cm-tete p { display: none; } .arene { gap: 5px; padding: 8px 12px; } .arene .cm-ico { width: 40px; height: 40px; } .arene .cm-ico svg { width: 30px; height: 30px; }
-  .arene .cm-options { gap: 5px; } .arene .seg button { min-height: 38px; } .arene .equip-pilule { min-height: 40px; }
+  .salon-reglages { gap: 6px; } .salon-etat { font-size: 12px; }
+  .arene .cm-tete p { display: none; } .arene { gap: 6px; padding: 8px 12px; } .arene .cm-ico { width: 40px; height: 40px; } .arene .cm-ico svg { width: 30px; height: 30px; }
+  .resume-partie { gap: 5px; } .rp-l { min-height: 40px; }
 }
 @media (max-height: 385px) and (orientation: landscape) {
   .cm-ico { width: 44px; height: 44px; border-radius: 14px; } .cm-ico svg { width: 32px; height: 32px; }
@@ -528,7 +519,6 @@ body.gaucher .h-bas { left: 60%; }
   .cm-h3 { font-size: 16px; } .cm-texte small { font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .salon-code b { font-size: 26px; } .salon-partage .pilule span { display: none; } .salon-partage .pilule { padding: 0 10px; }
   .salon-joueurs, .salon-reglages { padding: 8px 12px; } .salon-reglages { gap: 6px; }
-  .salon-reglages .seg button { min-height: 38px; } .salon-reglages .equip-pilule { min-height: 40px; }
   #salon-liste li { min-height: 36px; padding: 3px 8px; }
 }
 @media (max-width: 720px) and (orientation: landscape) {
@@ -560,3 +550,89 @@ body.gaucher .h-bas { left: 60%; }
 .h-bas { left: 40%; gap: 8px; }
 .h-vie { width: 140px; }
 @media (max-width: 760px) { .h-vie { width: 118px; } .h-arme { width: 76px; } .h-arme-ico svg { width: 56px; } }
+
+/* ─── le résumé des réglages de la partie (carte Arène du menu, salon) : une ligne par onglet du panneau, qui l'ouvre ─── */
+.resume-partie { display: grid; gap: 6px; min-width: 0; }
+.rp-l { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; min-height: 44px; padding: 3px 6px 3px 12px; border-radius: 14px; background: #fff; border: 2.5px solid var(--encre); box-shadow: 0 3px 0 var(--encre); text-align: left; }
+.rp-l:active { transform: translateY(3px); box-shadow: none; }
+.rp-l > b { flex: 0 0 62px; font: 700 15px/1 var(--titre); }
+.rp-v { flex: 1 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 700 13px/1.2 var(--texte); color: var(--encre-2); }
+.rp-v small { font: 700 11px/1 var(--texte); opacity: .8; }
+.eq-ico { display: inline-block; vertical-align: middle; margin: -3px 4px 0 0; } .eq-ico svg { width: 46px; height: 18px; }
+.rp-fl { flex: 0 0 auto; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: var(--ciel); color: #fff; border: 2.5px solid var(--encre); }
+.rp-fl svg { width: 16px; height: 16px; }
+.salon-reglages.lecture .rp-fl { background: #EFEAFF; color: var(--encre-2); }
+
+/* ─── le panneau des réglages de la partie (solo et salon) : onglets Carte / Partie / Robots / Armes ─── */
+.options-ecran { background: rgba(43, 42, 76, .62); }
+.op-haut { flex-wrap: nowrap; }
+.op-haut h2 { white-space: nowrap; }
+.op-onglets { display: flex; margin-left: auto; min-width: 0; border: 3px solid var(--encre); border-radius: 14px; background: var(--carte); box-shadow: 0 3px 0 var(--encre); }
+.op-onglets button { position: relative; min-height: 44px; padding: 0 16px; font: 700 16px/1 var(--titre); color: var(--encre-2); border-left: 2px solid var(--ligne); white-space: nowrap; }
+.op-onglets button:first-child { border-left: 0; border-radius: 11px 0 0 11px; } .op-onglets button:last-child { border-radius: 0 11px 11px 0; }
+.op-onglets button::after { content: ""; position: absolute; left: 0; right: 0; top: -4px; bottom: -4px; }
+.op-onglets button[aria-selected="true"] { background: var(--fraise); color: #fff; text-shadow: 0 2px 0 var(--encre); }
+.op-lecture { flex: 0 0 auto; padding: 7px 11px; border-radius: 999px; background: var(--beurre); border: 2.5px solid var(--encre); font: 800 12px/1 var(--texte); }
+.op-defaut { flex: 0 0 auto; min-height: 44px; padding: 0 14px; font-size: 14px; }
+.op-corps { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; padding: 8px 0 2px; }
+.op-page { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 14px; }
+.op-armes { display: flex; flex-direction: column; padding: 0; }
+.op-armes .ar-grille { flex: 0 0 auto; padding-top: 6px; }
+.op-lignes { display: grid; gap: 6px 22px; align-content: start; min-width: 0; }
+.op-lignes.deux { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.op-l { min-height: 46px; padding-bottom: 5px; border-bottom: 2px solid var(--ligne); min-width: 0; }
+.op-l > span { display: grid; gap: 1px; min-width: 0; font: inherit; }
+.op-l b { font: 700 15px/1.1 var(--titre); }
+.op-l small { font: 700 11px/1.2 var(--texte); color: var(--encre-2); }
+.op-l .seg button { min-height: 40px; min-width: 42px; padding: 0 10px; font-size: 14px; }
+.op-l[data-k="reapparition"] { grid-column: 1 / -1; }
+.op-l.inactif > span { opacity: .55; } .op-l.inactif .seg { opacity: .45; box-shadow: none; }
+.seg button:disabled:not([aria-pressed="true"]) { color: #B4B0D2; }
+.options-ecran.lecture .op-l .seg, .options-ecran.lecture .op-zone { box-shadow: none; }
+.options-ecran.lecture .op-l .seg button:disabled, .options-ecran.lecture .op-zone:disabled { cursor: default; }
+.op-note { margin-top: 10px; font: 700 13px/1.3 var(--texte); color: var(--encre-2); }
+.op-carte { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 14px; }
+.op-vignette { position: relative; height: 100%; max-height: 300px; aspect-ratio: 1 / 1; align-self: start; border-radius: 16px; overflow: hidden; border: 3px solid var(--encre); background: #9C9BB3; }
+#op-vignette { display: block; width: 100%; height: 100%; }
+.op-vignette-nom { position: absolute; left: 8px; bottom: 8px; max-width: calc(100% - 16px); padding: 4px 8px; border-radius: 10px; background: rgba(255, 255, 255, .92); border: 2px solid var(--encre); font: 700 13px/1.1 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.op-carte-d { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.op-zones { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.op-zone { display: grid; gap: 3px; justify-items: start; min-width: 0; min-height: 48px; padding: 6px 10px; border-radius: 14px; background: #fff; border: 2.5px solid var(--encre); box-shadow: 0 3px 0 var(--encre); text-align: left; }
+.op-zone:active:not(:disabled) { transform: translateY(3px); box-shadow: none; }
+.op-zone b { max-width: 100%; font: 700 13px/1.1 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.op-zone small { font: 700 11px/1 var(--texte); color: var(--encre-2); }
+.op-zone[aria-pressed="true"] { background: var(--beurre); }
+.op-zone:disabled:not([aria-pressed="true"]) { opacity: .55; }
+@media (orientation: portrait) {
+  .rp-v { white-space: normal; } .cm-pied { flex-wrap: wrap; } .cm-pied .bouton { flex: 1 1 100%; } .cm-resume { flex: 1 1 100%; } /* une colonne ; les onglets sous le titre, sur toute la largeur ; la page défile avec l'écran */
+  .op-haut { flex-wrap: wrap; row-gap: 10px; } .op-haut h2 { font-size: 22px; } .op-defaut { margin-left: auto; }
+  .op-onglets { order: 5; flex: 1 1 100%; margin-left: 0; } .op-onglets button { flex: 1 1 0; padding: 0 4px; font-size: 15px; }
+  .op-corps { flex: 0 0 auto; min-height: auto; } .op-page { flex: 0 0 auto; overflow: visible; }
+  .op-lignes.deux, .op-carte { grid-template-columns: minmax(0, 1fr); }
+  .op-vignette { height: auto; width: 100%; max-width: 360px; max-height: none; justify-self: center; }
+  .op-zones { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .op-l { flex-wrap: wrap; row-gap: 5px; padding-bottom: 8px; } .op-l .seg { margin-left: auto; } .op-l .seg button { padding: 0 9px; }
+  .op-l[data-k="reapparition"] .seg button { padding: 0 7px; font-size: 13px; }
+  .ar-liste { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ar-sec .ar-liste { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-height: 400px) and (orientation: landscape) {
+  .op-haut h2 { font-size: 22px; } .op-onglets button { padding: 0 13px; font-size: 15px; }
+  .op-page { padding: 8px 12px; } .op-l { min-height: 44px; } .op-zone { min-height: 44px; padding: 5px 9px; }
+  .salon-reglages .bouton.gros { min-height: 50px; font-size: 21px; } .salon-etat { line-height: 1.2; }
+}
+
+/* ─── HUD des manches (« dernier debout ») ─── */
+.h-manche { font: 800 10px/1 var(--texte); font-style: normal; letter-spacing: .05em; text-transform: uppercase; color: var(--beurre); margin-bottom: 2px; }
+.h-chrono small.pique { animation: pique .7s ease-out; }
+@keyframes pique { 0% { transform: scale(1.5); color: #fff; } 100% { transform: scale(1); } }
+.h-bandeau { position: absolute; left: 50%; top: calc(var(--sh) + 100px); display: grid; justify-items: center; gap: 3px; max-width: 90vw; padding: 7px 24px 9px; border-radius: 18px; background: var(--encre); border: 3px solid #fff; box-shadow: 0 5px 0 rgba(43, 42, 76, .5); color: #fff; text-align: center; opacity: 0; transform: translateX(-50%); pointer-events: none; } /* sous « Limite de la zone », au-dessus du viseur */
+.h-bandeau.vu { animation: bandeau 3.2s cubic-bezier(.2, 1.4, .4, 1) both; }
+.h-bandeau.fin { background: var(--fraise-sombre); } .h-bandeau.gagne { background: var(--menthe-sombre); }
+.h-bandeau-t { font: 700 28px/1.1 var(--titre); text-shadow: 0 2px 0 rgba(43, 42, 76, .6); }
+.h-bandeau-s { font: 700 13px/1.25 var(--texte); color: #E8E5FF; } .h-bandeau-s:empty { display: none; }
+@keyframes bandeau { 0% { opacity: 0; transform: translateX(-50%) scale(.6); } 9% { opacity: 1; transform: translateX(-50%) scale(1.06); } 15% { transform: translateX(-50%) scale(1); } 86% { opacity: 1; } 100% { opacity: 0; transform: translateX(-50%) scale(1); } }
+.h-mort-lice { max-width: 260px; font: 700 14px/1.25 var(--titre); color: var(--encre-2); text-align: center; }
+.h-obj { margin: -2px 0 6px; font: 700 13px/1.2 var(--texte); color: var(--encre-2); }
+.h-table tr.hors td { opacity: .5; }
+@media (max-height: 400px) { .h-bandeau-t { font-size: 25px; } .h-bandeau-s { font-size: 12px; } .h-scores-carte { padding: 9px 14px; } .h-scores .h-table td { padding: 3px 6px; } }
+@media (prefers-reduced-motion: reduce) { .h-bandeau.vu { animation: none; opacity: 1; } }

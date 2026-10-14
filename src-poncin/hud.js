@@ -3,9 +3,16 @@
    A.visee.viseur : 'point' / 'point rouge' à vise ≥ 0,7, 'lunette' à vise ≥ 0,85, 'fer' / 'aucun' : un petit point blanc), marqueur
    de touche, chiffres de dégâts, vie et armure, icône de posture (debout, accroupi, couché, glissade, course), les deux emplacements
    d'armes (pastilles : icône, « 30 | 120 », « ∞ » pour la réserve de l'arme de secours ; au doigt, toucher l'autre pastille change
-   d'arme, toucher celle en main recharge), anneau de recharge, chrono (« ∞ » sans limite), score, fil des éliminations, minicarte
-   ronde de Poncin (canvas : bâtiments, eau, rues, ta position et ton cap, les ennemis vus), flèches de direction des dégâts, flash
-   rouge quand on est touché, refus (« Pas la place de te coucher »), tableau des scores, écran de fin, annonces.
+   d'arme, toucher celle en main recharge), anneau de recharge, chrono (« ∞ » sans limite), score et objectif (« premier à N », ou
+   « Encore en lice : N » en « dernier debout »), « Manche 2/3 » et le bandeau de manche (début ; vainqueur à la fin), fil des
+   éliminations, minicarte ronde de Poncin (canvas : bâtiments, eau, rues, la zone jouée — sa limite, le dehors grisé —, ta position et
+   ton cap, les ennemis vus), « Limite de la zone » à moins de 3 m du bord, flèches de direction des dégâts, flash rouge quand on est
+   touché, refus (« Pas la place de te coucher »), tableau des scores (6 lignes, l'objectif en tête, les manches gagnées en « dernier
+   debout »), écran de fin, annonces. PHUD.vignette(canvas, idZone) peint la zone sur la carte pour le panneau des réglages (ui.js).
+   Réglages de la partie : jeu.reglages (normalisés), sinon jeu.options complétées par ceux que PUI passe à reinit({ reglages }).
+   Manches (contrat du groupe des règles, lu avec un repli tolérant) : jeu.manche { n, total, enLice: [ids], fin?, gagnees? },
+   événements { t: 'manche', quoi: 'debut' | 'fin', n, total, vainqueur } et { t: 'elimine', id } ; une 'annonce' du même pas qu'un
+   événement 'manche' n'est pas montrée (le bandeau le dit déjà).
    Les libellés et les icônes des armes viennent de PREGLES.ARMES (nom, classe ; repli tolérant si un champ manque) :
    PHUD.iconeArme(id), PHUD.nomArme(id), PHUD.classeArme(id), PHUD.nomClasse(classe) servent aussi aux menus (ui.js).
    Rien n'est écrit dans le DOM si la valeur n'a pas changé ; les animations courtes (touche, chiffres, flèches) sont menées à la main,
@@ -89,7 +96,7 @@ const PHUD = (() => {
         <div class="h-carte"><canvas></canvas><span class="h-n">N</span></div>
         <div class="h-tableau">
           <div class="h-equipe h-moi"><span class="h-pastille"></span><b>0</b></div>
-          <div class="h-chrono"><b>3:00</b><small>premier à 25</small></div>
+          <div class="h-chrono"><em class="h-manche" hidden>Manche 1/3</em><b>3:00</b><small>premier à 25</small></div>
           <div class="h-equipe h-eux"><span class="h-pastille"></span><b>0</b></div>
         </div>
         <div class="h-btns">
@@ -99,6 +106,7 @@ const PHUD = (() => {
       </div>
       <div class="h-fil" aria-live="polite"></div>
       <div class="h-annonces" aria-live="polite"><div class="h-annonce"></div></div>
+      <div class="h-bandeau" aria-live="polite"><b class="h-bandeau-t"></b><small class="h-bandeau-s"></small></div>
       <div class="h-bas">
         <span class="h-posture" aria-hidden="true"></span>
         <div class="h-vie">
@@ -110,7 +118,7 @@ const PHUD = (() => {
       <div class="h-ramasse"></div>
       <div class="h-refus" aria-live="polite"></div>
       <div class="h-limite" hidden>Limite de la zone</div>
-      <div class="h-mort" hidden><div class="h-mort-carte"><small>Oups !</small><b class="h-mort-par">Repeint !</b><span class="h-mort-arme"></span><div class="h-mort-retour">Retour dans <b>3</b></div></div></div>
+      <div class="h-mort" hidden><div class="h-mort-carte"><small>Oups !</small><b class="h-mort-par">Repeint !</b><span class="h-mort-arme"></span><div class="h-mort-retour">Retour dans <b>3</b></div><div class="h-mort-lice" hidden></div></div></div>
       <div class="h-scores" hidden><div class="h-scores-carte"></div></div>
       <div class="h-fin" hidden></div>`;
     const q = (s) => racine.querySelector(s);
@@ -120,6 +128,7 @@ const PHUD = (() => {
       carte: q('.h-carte canvas'), nord: q('.h-n'), chrono: q('.h-chrono b'), objectif: q('.h-chrono small'), scoreMoi: q('.h-moi b'), scoreEux: q('.h-eux b'), pastMoi: q('.h-moi .h-pastille'), pastEux: q('.h-eux .h-pastille'),
       fil: q('.h-fil'), annonce: q('.h-annonce'), vieBarre: q('.h-barre.vie i'), vieFant: q('.h-barre.vie em'), vieN: q('.h-vie-n'), armureL: q('.h-armure-l'), armureBarre: q('.h-barre.armure i'), armureN: q('.h-armure-n'), vie: q('.h-vie'),
       posture: q('.h-posture'), refus: q('.h-refus'), limite: q('.h-limite'), ramasse: q('.h-ramasse'),
+      bandeau: q('.h-bandeau'), bandeauT: q('.h-bandeau-t'), bandeauS: q('.h-bandeau-s'), manche: q('.h-manche'), mortRetourL: q('.h-mort-retour'), mortLice: q('.h-mort-lice'), mortPetit: q('.h-mort-carte small'),
       mort: q('.h-mort'), mortPar: q('.h-mort-par'), mortArme: q('.h-mort-arme'), mortRetour: q('.h-mort-retour b'), scores: q('.h-scores'), scoresCarte: q('.h-scores-carte'), fin: q('.h-fin'),
       noms: Array.from(racine.querySelectorAll('.h-nom')), nombres: Array.from(racine.querySelectorAll('.h-nombre')),
     });
@@ -153,40 +162,179 @@ const PHUD = (() => {
     vu.ecart = -1;
   }
 
-  // ─── la minicarte : le fond (bâtiments, eau, rues, végétation, limite de l'arène) peint une fois ───
-  let fond = null, kFond = 1, Lcarte = 600, limite = null, mondeCarte = null, ox = 0, oz = 0; // (ox, oz) : le coin nord-ouest du fond, en mètres
+  // ─── la minicarte : le fond (bâtiments, eau, rues, végétation) peint une fois autour de la zone jouée, la zone par-dessus ───
+  // La zone vient de jeu.zone.limite (sinon monde.limite) : { centre, rayon } (un cercle), ou la limite v2 { forme: 'cercles' | 'poly' |
+  // 'carre', cercles: [[x, z, r], …] | poly: [[x, z], …] | polys | boite: [x0, z0, x1, z1] | marge, aretes: [[x0, z0, x1, z1], …] ou à plat,
+  // dedans(x, z)?, distance(x, z)? } ; englobant : jeu.zone.englobant { centre, rayon }. Hors zone : grisé ; le bord : un trait blanc.
+  let fond = null, kFond = 1, Lcarte = 600, carteC = null, mondeCarte = null, ox = 0, oz = 0, fondCle = ''; // (ox, oz) : le coin nord-ouest du fond, en mètres
+  let limiteVue = null, formeVue = null; // la limite de la partie et sa forme normalisée (minicarte, « Limite de la zone »)
+  const nb = (v) => typeof v === 'number' && v - v === 0;
   function carte(c, m) {
-    fond = null; mondeCarte = m || null; if (!c) return;
+    fond = null; fondCle = ''; base = null; zonesVues.clear(); carteC = c || null; mondeCarte = m || null; limiteVue = null; formeVue = null; if (!c) return;
+    Lcarte = (m && m.L) || c.taille || 600;
+    const a = c.zones && c.zones.arene; // en Arène, l'arène et ses abords (moins de mémoire) ; sinon tout le carré
+    peindreFond(a && a.centre ? formeDe({ centre: a.centre, rayon: a.rayon }) : null);
+  }
+  function peindreCarte(g, c, m, x0, z0, k, W, H) { // la carte vue du ciel : (x0, z0) au coin haut-gauche, k px/m
+    const PX = (v) => (v - x0) * k, PZ = (v) => (v - z0) * k, f = Math.min(1, k / 2); // f : traits plus fins quand la carte est petite
+    const trace = (p) => { g.beginPath(); for (let i = 0; i < p.length; i++) { const x = PX(p[i][0]), z = PZ(p[i][1]); if (i) g.lineTo(x, z); else g.moveTo(x, z); } g.closePath(); };
+    const ligne = (l) => { g.beginPath(); for (let i = 0; i < l.length; i++) { const x = PX(l[i][0]), z = PZ(l[i][1]); if (i) g.lineTo(x, z); else g.moveTo(x, z); } };
+    g.fillStyle = '#D8EDC2'; g.fillRect(0, 0, W, H);
+    const VEG = { bois: '#A9D79A', vigne: '#D6E7A2', pre: '#DDF0C6', jardin: '#C6E8AE' };
+    for (const v of c.vegetation || []) { if (!v.p || v.p.length < 3) continue; g.fillStyle = VEG[v.t] || '#D0EAB8'; trace(v.p); g.fill(); }
+    g.lineCap = 'round'; g.lineJoin = 'round';
+    for (const r of c.rues || []) { if (!r.l || r.l.length < 2) continue; g.strokeStyle = '#E2D3BF'; g.lineWidth = Math.max(2.5 * f, (r.w || 5) * k) + 2 * f; ligne(r.l); g.stroke(); }
+    for (const r of c.rues || []) { if (!r.l || r.l.length < 2) continue; g.strokeStyle = r.t === 'chemin' ? '#F4EBDD' : '#FFFDF8'; g.lineWidth = Math.max(2 * f, (r.w || 5) * k); ligne(r.l); g.stroke(); }
+    for (const e of c.eau || []) { if (!e.p || e.p.length < 3) continue; g.fillStyle = '#8DD0F2'; trace(e.p); g.fill(); g.strokeStyle = '#5DB4E2'; g.lineWidth = 1.5 * f; g.stroke(); }
+    for (const p of c.ponts || []) { if (!p.l) continue; g.strokeStyle = '#2B2A4C'; g.globalAlpha = 0.5; g.lineWidth = (p.w || 6) * k + 2 * f; ligne(p.l); g.stroke(); g.globalAlpha = 1; g.strokeStyle = '#F6E7D2'; g.lineWidth = (p.w || 6) * k; g.stroke(); }
+    const BAT = { eglise: '#FFD98A', chateau: '#D9CCFF', mairie: '#FFE2A8', tour: '#FFC9A8', commerce: '#FFD0DC', annexe: '#EBDCD0', maison: '#F7CDBE' };
+    const bats = (m && m.batiments) || c.batiments || [];
+    g.lineWidth = 1.4 * f;
+    for (const b of bats) { if (!b.p || b.p.length < 3) continue; g.fillStyle = BAT[b.t] || '#F7CDBE'; trace(b.p); g.fill(); g.strokeStyle = 'rgba(43,42,76,.55)'; g.stroke(); }
+    for (const z of c.interdit || []) { if (!z.p || z.p.length < 3) continue; g.fillStyle = 'rgba(255,107,139,.22)'; trace(z.p); g.fill(); g.setLineDash([4 * f, 3 * f]); g.strokeStyle = '#E1496C'; g.lineWidth = 1.5 * f; g.stroke(); g.setLineDash([]); }
+  }
+  // la forme d'une limite, normalisée : { cercles, polys, rect, aretes (à plat), dedans, distance, englobant: { x, z, r }, cle } | null
+  function formeDe(L, englobant) {
+    if (!L || typeof L !== 'object') return null;
+    const s = L.forme && typeof L.forme === 'object' ? Object.assign({}, L.forme, L) : L;
+    const f = { cercles: null, polys: null, rect: null, aretes: null, dedans: null, distance: null, englobant: null, cle: '' };
+    const pt = (p) => (Array.isArray(p) ? [+p[0], +p[1]] : p && nb(+p.x) ? [+p.x, +p.z] : null);
+    const cercle = (c) => (Array.isArray(c) ? [+c[0], +c[1], +c[2]] : c && c.centre ? [+c.centre[0], +c.centre[1], +c.rayon] : c ? [+c.x, +c.z, +(c.r || c.rayon)] : null);
+    if (s.centre && nb(+s.rayon) && +s.rayon > 0 && (!s.forme || s.forme === 'cercle' || typeof s.forme === 'object')) f.cercles = [[+s.centre[0], +s.centre[1], +s.rayon]];
+    if (Array.isArray(s.cercles)) f.cercles = s.cercles.map(cercle).filter((c) => c && nb(c[0]) && nb(c[1]) && c[2] > 0);
+    const P = s.polys || s.polygones || (s.poly ? [s.poly] : s.p ? [s.p] : s.points ? [s.points] : null);
+    if (Array.isArray(P)) f.polys = P.map((p) => (Array.isArray(p) ? p.map(pt).filter((q) => q && nb(q[0]) && nb(q[1])) : [])).filter((p) => p.length >= 3);
+    if (s.forme === 'carre' || s.boite || s.carre) {
+      const b = Array.isArray(s.boite) ? s.boite : Array.isArray(s.carre) ? s.carre : null;
+      if (b && b.length >= 4) f.rect = b.slice(0, 4).map(Number); else { const m = nb(+s.marge) ? +s.marge : 8, h = (nb(+s.L) ? +s.L : Lcarte) / 2; f.rect = [-h + m, -h + m, h - m, h - m]; }
+    }
+    const A = s.aretes;
+    if (A && A.length) {
+      if (Array.isArray(A[0])) { f.aretes = new Float64Array(A.length * 4); for (let i = 0; i < A.length; i++) for (let k = 0; k < 4; k++) f.aretes[i * 4 + k] = +A[i][k]; }
+      else if (A.length % 4 === 0) f.aretes = A;
+    }
+    if (typeof L.dedans === 'function') f.dedans = (x, z) => L.dedans(x, z);
+    if (typeof L.distance === 'function') f.distance = (x, z) => L.distance(x, z);
+    if (f.cercles && !f.cercles.length) f.cercles = null; if (f.polys && !f.polys.length) f.polys = null;
+    if (!f.cercles && !f.polys && !f.rect && !f.aretes && !f.dedans && !f.distance) return null;
+    // la boîte englobante (donnée, sinon calculée sur les formes et les arêtes)
+    const E = englobant || L.englobant;
+    if (E && E.centre && +E.rayon > 0) f.englobant = { x: +E.centre[0], z: +E.centre[1], r: +E.rayon };
+    else {
+      let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; const pris = (x, z, r) => { r = r || 0; if (x - r < x0) x0 = x - r; if (x + r > x1) x1 = x + r; if (z - r < z0) z0 = z - r; if (z + r > z1) z1 = z + r; };
+      for (const c of f.cercles || []) pris(c[0], c[1], c[2]); for (const p of f.polys || []) for (const q of p) pris(q[0], q[1]); if (f.rect) { pris(f.rect[0], f.rect[1]); pris(f.rect[2], f.rect[3]); }
+      if (f.aretes) for (let i = 0; i < f.aretes.length; i += 2) pris(f.aretes[i], f.aretes[i + 1]);
+      f.englobant = x1 > x0 ? { x: (x0 + x1) / 2, z: (z0 + z1) / 2, r: Math.hypot(x1 - x0, z1 - z0) / 2 } : { x: 0, z: 0, r: Lcarte / 2 };
+    }
+    const r1 = (v) => Math.round(v * 10) / 10;
+    f.cle = [(f.cercles || []).map((c) => c.map(r1).join(',')).join(';'), (f.polys || []).map((p) => p.length + ':' + p[0].map(r1)).join(';'), f.rect ? f.rect.map(r1).join(',') : '', f.aretes ? f.aretes.length + ':' + r1(f.aretes[0]) + ',' + r1(f.aretes[f.aretes.length - 1]) : '', f.dedans ? 'd' : ''].join('|');
+    return f;
+  }
+  function peindreZone(g, f, x0, z0, k, W, H, epais) { // hors zone grisé, puis le bord (blanc sur un liseré sombre)
+    const PX = (v) => (v - x0) * k, PZ = (v) => (v - z0) * k;
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H; const h = cv.getContext('2d');
+    h.fillStyle = 'rgba(43,42,76,.42)'; h.fillRect(0, 0, W, H);
+    let troue = false;
+    h.globalCompositeOperation = 'destination-out'; h.fillStyle = '#000';
+    if (f.cercles) { for (const c of f.cercles) { h.beginPath(); h.arc(PX(c[0]), PZ(c[1]), c[2] * k, 0, TAU); h.fill(); } troue = true; }
+    if (f.polys) { h.beginPath(); for (const p of f.polys) { for (let i = 0; i < p.length; i++) { if (i) h.lineTo(PX(p[i][0]), PZ(p[i][1])); else h.moveTo(PX(p[i][0]), PZ(p[i][1])); } h.closePath(); } h.fill('evenodd'); troue = true; }
+    if (f.rect) { h.fillRect(PX(f.rect[0]), PZ(f.rect[1]), (f.rect[2] - f.rect[0]) * k, (f.rect[3] - f.rect[1]) * k); troue = true; }
+    h.globalCompositeOperation = 'source-over';
+    if (!troue && f.dedans) { // sans forme : le masque de la limite, case par case (4 m)
+      h.clearRect(0, 0, W, H); h.fillStyle = 'rgba(43,42,76,.42)'; const pas = 4, n = Math.ceil(W / k / pas), m = Math.ceil(H / k / pas);
+      for (let j = 0; j < m; j++) for (let i = 0; i < n; i++) { const x = x0 + (i + 0.5) * pas, z = z0 + (j + 0.5) * pas; let d = true; try { d = f.dedans(x, z); } catch (e) { d = true; } if (!d) h.fillRect(Math.floor(PX(x - pas / 2)), Math.floor(PZ(z - pas / 2)), Math.ceil(pas * k) + 1, Math.ceil(pas * k) + 1); }
+      troue = true;
+    }
+    if (troue) g.drawImage(cv, 0, 0);
+    g.beginPath();
+    if (f.aretes) { const A = f.aretes; for (let i = 0; i < A.length; i += 4) { g.moveTo(PX(A[i]), PZ(A[i + 1])); g.lineTo(PX(A[i + 2]), PZ(A[i + 3])); } }
+    else {
+      if (f.cercles) { // le bord de l'union des cercles : les bouts d'arc qui ne sont dans aucun autre cercle
+        const C = f.cercles;
+        for (let i = 0; i < C.length; i++) {
+          const c = C[i], n = Math.max(24, Math.ceil(TAU * c[2] / 2)); let ouvert = false;
+          for (let s = 0; s <= n; s++) {
+            const a = s / n * TAU, am = (s + 0.5) / n * TAU, mx = c[0] + Math.cos(am) * c[2], mz = c[1] + Math.sin(am) * c[2];
+            let dedans = false; for (let j = 0; j < C.length && !dedans; j++) if (j !== i) { const dx = mx - C[j][0], dz = mz - C[j][1]; dedans = dx * dx + dz * dz < (C[j][2] - 0.05) * (C[j][2] - 0.05); }
+            const x = PX(c[0] + Math.cos(a) * c[2]), z = PZ(c[1] + Math.sin(a) * c[2]);
+            if (!ouvert) g.moveTo(x, z); else g.lineTo(x, z);
+            ouvert = !dedans && s < n;
+          }
+        }
+      }
+      if (f.polys) for (const p of f.polys) { for (let i = 0; i < p.length; i++) { if (i) g.lineTo(PX(p[i][0]), PZ(p[i][1])); else g.moveTo(PX(p[i][0]), PZ(p[i][1])); } g.closePath(); }
+      if (f.rect) g.rect(PX(f.rect[0]), PZ(f.rect[1]), (f.rect[2] - f.rect[0]) * k, (f.rect[3] - f.rect[1]) * k);
+    }
+    g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = 'rgba(43,42,76,.6)'; g.lineWidth = epais + 2; g.stroke(); g.strokeStyle = '#FFFFFF'; g.lineWidth = epais; g.stroke();
+  }
+  function peindreFond(f) { // le fond de la minicarte : la boîte englobante de la zone et 80 m autour (tout le carré sans zone)
+    if (!carteC) return;
+    const cle = f ? f.cle : '-'; if (fond && cle === fondCle) return;
     try {
-      Lcarte = (m && m.L) || c.taille || 600;
-      const a0 = c.zones && c.zones.arene; // en Arène, on ne peint que l'arène et ses abords (moins de mémoire) ; sinon tout le carré
-      const cote = a0 ? Math.min(Lcarte, 2 * (a0.rayon + 80)) : Lcarte;
-      ox = a0 ? a0.centre[0] - cote / 2 : -Lcarte / 2; oz = a0 ? a0.centre[1] - cote / 2 : -Lcarte / 2;
+      const E = f && f.englobant, cote = E ? Math.min(Lcarte, 2 * (E.r + 80)) : Lcarte;
+      ox = E ? E.x - cote / 2 : -Lcarte / 2; oz = E ? E.z - cote / 2 : -Lcarte / 2;
       kFond = Math.min(2.2, 1400 / cote);
       const S = Math.ceil(cote * kFond), cv = document.createElement('canvas'); cv.width = S; cv.height = S;
-      const g = cv.getContext('2d'), PX = (v) => (v - ox) * kFond, PZ = (v) => (v - oz) * kFond;
-      const trace = (p) => { g.beginPath(); for (let i = 0; i < p.length; i++) { const x = PX(p[i][0]), z = PZ(p[i][1]); if (i) g.lineTo(x, z); else g.moveTo(x, z); } g.closePath(); };
-      const ligne = (l) => { g.beginPath(); for (let i = 0; i < l.length; i++) { const x = PX(l[i][0]), z = PZ(l[i][1]); if (i) g.lineTo(x, z); else g.moveTo(x, z); } };
-      g.fillStyle = '#D8EDC2'; g.fillRect(0, 0, S, S);
-      const VEG = { bois: '#A9D79A', vigne: '#D6E7A2', pre: '#DDF0C6', jardin: '#C6E8AE' };
-      for (const v of c.vegetation || []) { if (!v.p || v.p.length < 3) continue; g.fillStyle = VEG[v.t] || '#D0EAB8'; trace(v.p); g.fill(); }
-      g.lineCap = 'round'; g.lineJoin = 'round';
-      for (const r of c.rues || []) { if (!r.l || r.l.length < 2) continue; g.strokeStyle = '#E2D3BF'; g.lineWidth = Math.max(2.5, (r.w || 5) * kFond) + 2; ligne(r.l); g.stroke(); }
-      for (const r of c.rues || []) { if (!r.l || r.l.length < 2) continue; g.strokeStyle = r.t === 'chemin' ? '#F4EBDD' : '#FFFDF8'; g.lineWidth = Math.max(2, (r.w || 5) * kFond); ligne(r.l); g.stroke(); }
-      for (const e of c.eau || []) { if (!e.p || e.p.length < 3) continue; g.fillStyle = '#8DD0F2'; trace(e.p); g.fill(); g.strokeStyle = '#5DB4E2'; g.lineWidth = 1.5; g.stroke(); }
-      for (const p of c.ponts || []) { if (!p.l) continue; g.strokeStyle = '#2B2A4C'; g.globalAlpha = 0.5; g.lineWidth = (p.w || 6) * kFond + 2; ligne(p.l); g.stroke(); g.globalAlpha = 1; g.strokeStyle = '#F6E7D2'; g.lineWidth = (p.w || 6) * kFond; g.stroke(); }
-      const BAT = { eglise: '#FFD98A', chateau: '#D9CCFF', mairie: '#FFE2A8', tour: '#FFC9A8', commerce: '#FFD0DC', annexe: '#EBDCD0', maison: '#F7CDBE' };
-      const bats = (m && m.batiments) || c.batiments || [];
-      g.lineWidth = 1.4;
-      for (const b of bats) { if (!b.p || b.p.length < 3) continue; g.fillStyle = BAT[b.t] || '#F7CDBE'; trace(b.p); g.fill(); g.strokeStyle = 'rgba(43,42,76,.55)'; g.stroke(); }
-      for (const z of c.interdit || []) { if (!z.p || z.p.length < 3) continue; g.fillStyle = 'rgba(255,107,139,.22)'; trace(z.p); g.fill(); g.setLineDash([4, 3]); g.strokeStyle = '#E1496C'; g.lineWidth = 1.5; g.stroke(); g.setLineDash([]); }
-      const a = c.zones && c.zones.arene; limite = a ? { x: a.centre[0], z: a.centre[1], r: a.rayon } : null;
-      if (limite) { // hors de l'arène : grisé
-        g.beginPath(); g.rect(0, 0, S, S); g.arc(PX(limite.x), PZ(limite.z), limite.r * kFond, 0, TAU, true); g.fillStyle = 'rgba(43,42,76,.38)'; g.fill('evenodd');
-        g.beginPath(); g.arc(PX(limite.x), PZ(limite.z), limite.r * kFond, 0, TAU); g.strokeStyle = '#FFFFFF'; g.lineWidth = 3; g.setLineDash([8, 6]); g.stroke(); g.setLineDash([]);
+      const g = cv.getContext('2d');
+      peindreCarte(g, carteC, mondeCarte, ox, oz, kFond, S, S);
+      if (f) peindreZone(g, f, ox, oz, kFond, S, S, 3);
+      fond = cv; fondCle = cle;
+    } catch (e) { fond = null; fondCle = ''; }
+  }
+  function zoneDuJeu(jeu) { // la limite de la partie a changé : sa forme, et le fond repeint s'il le faut (une fois par partie, pendant le compte à rebours)
+    const z = jeu.zone && typeof jeu.zone === 'object' ? jeu.zone : null, L = (z && z.limite) || (jeu.monde && jeu.monde.limite) || null;
+    if (L === limiteVue) return;
+    limiteVue = L; formeVue = formeDe(L, z && z.englobant); peindreFond(formeVue);
+  }
+  function distSeg(x, z, ax, az, bx, bz) { const dx = bx - ax, dz = bz - az, l = dx * dx + dz * dz; let t = l > 0 ? ((x - ax) * dx + (z - az) * dz) / l : 0; t = t < 0 ? 0 : t > 1 ? 1 : t; const ex = ax + dx * t - x, ez = az + dz * t - z; return Math.sqrt(ex * ex + ez * ez); }
+  function distanceBord(f, x, z) { // la distance au bord de la zone, depuis l'intérieur (m)
+    if (f.distance) return +f.distance(x, z);
+    let d = Infinity;
+    if (f.aretes) { const A = f.aretes; for (let i = 0; i < A.length; i += 4) { const s = distSeg(x, z, A[i], A[i + 1], A[i + 2], A[i + 3]); if (s < d) d = s; } return d; }
+    if (f.cercles) { let m = -Infinity; for (const c of f.cercles) { const v = c[2] - Math.hypot(x - c[0], z - c[1]); if (v > m) m = v; } d = Math.min(d, m); }
+    if (f.polys) for (const p of f.polys) for (let i = 0; i < p.length; i++) { const q = p[(i + 1) % p.length]; d = Math.min(d, distSeg(x, z, p[i][0], p[i][1], q[0], q[1])); }
+    if (f.rect) d = Math.min(d, x - f.rect[0], f.rect[2] - x, z - f.rect[1], f.rect[3] - z);
+    return d;
+  }
+  // la vignette du menu (onglet Carte) : la carte autour de la zone, la zone par-dessus ; la carte entière est peinte une fois
+  let base = null, kBase = 1; const zonesVues = new Map();
+  const ZONES_REPLI = { place: [99, 1.5, 55], eglise: [52, 78, 70], bourg: [110, 20, 190] }; // la conception (§ 7), si PZONES ne donne pas la forme
+  function formeZone(id) {
+    if (zonesVues.has(id)) return zonesVues.get(id);
+    let f = null;
+    try { // la forme que donne le module des zones (sans préparer la zone : pas de navigation dans le menu)
+      if (typeof PZONES !== 'undefined') { const d = typeof PZONES.forme === 'function' ? PZONES.forme(carteC, id) : PZONES.FORMES ? PZONES.FORMES[id] : null; if (d && typeof d === 'object') f = formeDe(d.limite || d, d.englobant); }
+    } catch (e) { f = null; }
+    if (!f) f = formeRepli(id);
+    zonesVues.set(id, f); return f;
+  }
+  function formeRepli(id) {
+    const a = carteC && carteC.zones && carteC.zones.arene;
+    if (id === 'centre' || !id) return formeDe(a && a.centre ? { centre: a.centre, rayon: a.rayon } : { centre: [0, 0], rayon: 110 });
+    if (ZONES_REPLI[id]) { const c = ZONES_REPLI[id]; return formeDe({ centre: [c[0], c[1]], rayon: c[2] }); }
+    if (id === 'tout') return formeDe({ forme: 'carre', marge: 8 });
+    if (id === 'rivieres') { // le Veyron dans le bourg et ses deux ponts : des cercles de 45 m sur les berges, d'un pont à l'autre (60 m de plus)
+      const ponts = (carteC.ponts || []).filter((p) => p && p.l), xs = []; ponts.forEach((p) => p.l.forEach((q) => xs.push(+q[0])));
+      const eau = (carteC.eau || []).find((e) => /veyron/i.test(e.n || '')) || (carteC.eau || [])[0];
+      if (eau && eau.p && xs.length) {
+        const x0 = Math.min.apply(null, xs) - 60, x1 = Math.max.apply(null, xs) + 60, cs = [];
+        for (const q of eau.p) if (q[0] >= x0 && q[0] <= x1 && cs.every((c) => Math.hypot(c[0] - q[0], c[1] - q[1]) >= 30)) cs.push([+q[0], +q[1], 45]);
+        if (cs.length) return formeDe({ forme: 'cercles', cercles: cs });
       }
-      fond = cv;
-    } catch (e) { fond = null; }
+    }
+    return formeRepli('centre');
+  }
+  function vignetteZone(cv, id) {
+    if (!carteC || !cv || !cv.width || !cv.height) return false;
+    if (!base) { kBase = Math.min(1.75, 1400 / Lcarte); const S = Math.ceil(Lcarte * kBase); base = document.createElement('canvas'); base.width = base.height = S; peindreCarte(base.getContext('2d'), carteC, mondeCarte, -Lcarte / 2, -Lcarte / 2, kBase, S, S); }
+    const f = formeZone(id), W = cv.width, H = cv.height, g = cv.getContext('2d'), E = (f && f.englobant) || { x: 0, z: 0, r: Lcarte / 2 };
+    const cote = Math.min(Lcarte, Math.max(240, E.r * 2.4)), k = Math.min(W, H) / cote, vw = W / k, vh = H / k, h = Lcarte / 2;
+    const cx = vw >= Lcarte ? 0 : Math.max(-h + vw / 2, Math.min(h - vw / 2, E.x)), cz = vh >= Lcarte ? 0 : Math.max(-h + vh / 2, Math.min(h - vh / 2, E.z));
+    const x0 = cx - vw / 2, z0 = cz - vh / 2;
+    g.setTransform(1, 0, 0, 1, 0, 0); g.fillStyle = '#9C9BB3'; g.fillRect(0, 0, W, H);
+    g.drawImage(base, (x0 + h) * kBase, (z0 + h) * kBase, vw * kBase, vh * kBase, 0, 0, W, H);
+    if (f) peindreZone(g, f, x0, z0, k, W, H, Math.max(2, Math.min(W, H) / 120));
+    return true;
   }
   const RAYON_CARTE = 62; // mètres montrés du centre au bord
   function dessinerCarte(jeu) {
@@ -237,14 +385,55 @@ const PHUD = (() => {
 
   // ─── utilitaires ───
   function trouver(jeu, id) { const es = jeu.entites; for (let i = 0; i < es.length; i++) if (es[i].id === id) return es[i]; return null; }
-  let equipesPartie = false; // donné par PUI à reinit, au cas où le jeu n'expose pas ses options
-  const estEquipes = (jeu) => !!(jeu.options && jeu.options.equipes != null ? jeu.options.equipes : jeu.equipes != null ? jeu.equipes : equipesPartie);
-  // les réglages de la partie (jeu.options : réglages normalisés du salon, § 6), sinon ceux du mode
-  const opt = (jeu) => jeu.options || {};
+  let equipesPartie = false, reglagesPartie = null; // donnés par PUI à reinit, au cas où le jeu n'expose pas ses réglages
+  let optJeu = null, optOpts = null, optCache = {};
+  function opt(jeu) { // les réglages de la partie : jeu.reglages (normalisés, § 6), sinon jeu.options complétées par ceux du lancement (PUI)
+    if (jeu.reglages && typeof jeu.reglages === 'object') return jeu.reglages;
+    if (jeu !== optJeu || jeu.options !== optOpts) { optJeu = jeu; optOpts = jeu.options; optCache = Object.assign({}, reglagesPartie || {}, jeu.options || {}); }
+    return optCache;
+  }
+  const estEquipes = (jeu) => { const o = opt(jeu); return !!(o.equipes != null ? o.equipes : jeu.equipes != null ? jeu.equipes : equipesPartie); };
   function duree(jeu) { if (opt(jeu).duree > 0) return opt(jeu).duree; const id = (jeu.mode && jeu.mode.id) || 'arene'; return (typeof PREGLES !== 'undefined' && PREGLES.MODES[id] && PREGLES.MODES[id].duree) || 180; }
   function objectif(jeu) { if (opt(jeu).score > 0) return opt(jeu).score; const id = (jeu.mode && jeu.mode.id) || 'arene'; return (typeof PREGLES !== 'undefined' && PREGLES.MODES[id] && PREGLES.MODES[id].scoreVictoire) || 25; }
   function delaiRetour(jeu) { const R = RG(), r = opt(jeu).reapparition, t = R && R.SALON && R.SALON.reapparitions ? R.SALON.reapparitions[r] : null; return t > 0 ? t : (R && R.MODES.arene.reapparition) || 3; }
-  const sansRetour = (jeu) => opt(jeu).reapparition === 'aucune'; // « dernier debout »
+  const sansRetour = (jeu) => opt(jeu).reapparition === 'aucune' || !!(jeu.manche && typeof jeu.manche === 'object'); // « dernier debout »
+  // « dernier debout » en manches : jeu.manche { n, total, enLice: [ids], fin? } (règles) ; sinon la dernière manche des événements 'manche'
+  // et le compte des vivants. Rend un objet réutilisé { n, total, lice, fin } ou null.
+  let mancheEv = null; const MANCHE = { n: 1, total: 1, lice: 0, fin: null };
+  function mancheDe(jeu) {
+    const m = jeu.manche && typeof jeu.manche === 'object' ? jeu.manche : null;
+    if (!m && !sansRetour(jeu)) return null;
+    MANCHE.n = m && m.n > 0 ? +m.n : mancheEv ? mancheEv.n : 1;
+    MANCHE.total = m && m.total > 0 ? +m.total : mancheEv && mancheEv.total ? mancheEv.total : +opt(jeu).manches || 1;
+    if (m && Array.isArray(m.enLice)) MANCHE.lice = m.enLice.length; else { let n = 0; for (let i = 0; i < jeu.entites.length; i++) if (jeu.entites[i].vivant) n++; MANCHE.lice = n; }
+    MANCHE.fin = m && m.fin ? m.fin : null;
+    return MANCHE;
+  }
+  // le bandeau de manche : « Manche 2/3 » au début, le vainqueur à la fin (une fois par manche et par phase, qu'il vienne d'un événement ou de jeu.manche)
+  let bandeauCle = '', bandeauT = -1;
+  function bandeau(cle, titre, sous, cls) {
+    if (!el.bandeau || cle === bandeauCle) return; bandeauCle = cle;
+    el.bandeauT.textContent = titre; el.bandeauS.textContent = sous || ''; el.bandeau.className = 'h-bandeau ' + (cls || ''); relance(el.bandeau, 'vu'); bandeauT = performance.now();
+  }
+  const NOMS_EQ = ['L’équipe jaune', 'L’équipe rose'];
+  function vainqueurTxt(jeu, v, equipe) { // v : l'id d'une entité, ou une équipe (0 | 1) ; null : personne
+    const e = v != null && typeof v !== 'object' ? trouver(jeu, v) : v && typeof v === 'object' && v.id != null ? trouver(jeu, v.id) : null;
+    const eq = equipe != null ? equipe : (v === 0 || v === 1) && !e ? v : v && typeof v === 'object' && v.equipe != null ? v.equipe : null;
+    if (estEquipes(jeu) && (eq === 0 || eq === 1)) return moi && eq === moi.equipe ? 'Ton équipe gagne la manche !' : `${NOMS_EQ[eq]} gagne la manche !`;
+    if (e) return e.id === idMoi ? 'Tu gagnes la manche !' : `${e.nom} gagne la manche !`;
+    return 'Fin de la manche : personne ne reste debout';
+  }
+  function mancheDebut(n, total) { if (total > 1) bandeau(`d${n}`, `Manche ${n}/${total}`, n === total ? 'Dernière manche : reste debout !' : 'Reste debout : pas de retour !', 'debut'); else bandeau('d1', 'Dernier debout', 'Pas de retour : reste en lice !', 'debut'); }
+  function mancheFin(jeu, n, total, v, equipe) {
+    const t = vainqueurTxt(jeu, v, equipe), gagne = /^(Tu|Ton)/.test(t);
+    bandeau(`f${n}`, t, n < total ? `Manche ${n}/${total} · la suivante arrive` : total > 1 ? `Manche ${n}/${total} · fin de la partie` : '', gagne ? 'fin gagne' : 'fin');
+  }
+  function evManche(jeu, e) { // { t: 'manche', quoi | phase | etat: 'debut' | 'fin', n, total, vainqueur | gagnant, equipe? }
+    const ph = String(e.quoi || e.phase || e.etat || (e.fin === true || e.vainqueur !== undefined || e.gagnant !== undefined ? 'fin' : 'debut')), fin = /^fin/.test(ph);
+    const n = +e.n > 0 ? +e.n : mancheEv ? mancheEv.n : 1, total = +e.total > 0 ? +e.total : mancheEv && mancheEv.total ? mancheEv.total : +opt(jeu).manches || 1;
+    mancheEv = { n, total };
+    if (fin) mancheFin(jeu, n, total, e.vainqueur !== undefined ? e.vainqueur : e.gagnant !== undefined ? e.gagnant : e.id, e.equipe); else mancheDebut(n, total);
+  }
   const kills = (e) => (e && e.score ? e.score.kills || 0 : 0);
   const points = (e) => (e && e.score ? e.score.points || 0 : e && e.points || 0);
   function ecrire(cle, elem, v, pre) { if (vu[cle] !== v) { vu[cle] = v; elem.textContent = pre ? pre + v : String(v); } } // le texte n'est construit que si la valeur change
@@ -256,6 +445,7 @@ const PHUD = (() => {
   let toucheT = -1, toucheType = '', vignette = 0, flashT = -1, sousT = -1, ramasseT = -1, limiteT = -1;
   const REFUS = { couche: 'Pas la place de te coucher' };
   function lireEvenements(jeu, evs) {
+    let avecManche = false; for (let i = 0; i < evs.length; i++) if (evs[i].t === 'manche') avecManche = true; // le bandeau dit déjà ce qu'annoncerait la règle
     for (let i = 0; i < evs.length; i++) {
       const e = evs[i];
       switch (e.t) {
@@ -276,7 +466,9 @@ const PHUD = (() => {
           break;
         }
         case 'reapparition': if (e.id === idMoi) { tMort = -1; vignette = 0; } break;
-        case 'annonce': annonce(e.texte); break;
+        case 'annonce': if (!avecManche) annonce(e.texte); break;
+        case 'manche': evManche(jeu, e); break;
+        case 'elimine': { const id = e.id != null ? e.id : e.a; if (id === idMoi && tMort < 0) { tMort = jeu.temps; parQui = e.par != null ? e.par : parQui; } break; } // « dernier debout » : pas de retour
         case 'ramasse': if (e.id === idMoi) ramasse(e.objet); break;
         case 'refus': if (e.id === idMoi) refus(REFUS[e.quoi] || e.texte || ''); break;
       }
@@ -385,14 +577,24 @@ const PHUD = (() => {
     const mun = moi.munitions ? moi.munitions[moi.arme] : 0;
     const vide = mun === 0 && !(moi.rechargeJusqua > jeu.temps) && moi.vivant; if (vide !== vu.vide) { vu.vide = vide; el.centre.classList.toggle('vide', vide); }
     // chrono (« ∞ » sans limite de durée) et scores
-    const sansFin = !!(jeu.options && jeu.options.duree === 0);
-    const reste = Math.max(0, typeof jeu.reste === 'number' ? jeu.reste : duree(jeu) - (jeu.temps || 0)), sec = sansFin ? -1 : Math.ceil(reste);
+    // sans limite : la partie le dit (jeu.reste indéfini) et les réglages aussi (durée 0) ; une partie qui compte encore son temps le montre
+    const sansFin = typeof jeu.reste === 'number' && jeu.reste - jeu.reste === 0 ? false : opt(jeu).duree === 0;
+    const reste = Math.max(0, typeof jeu.reste === 'number' && jeu.reste - jeu.reste === 0 ? jeu.reste : duree(jeu) - (jeu.temps || 0)), sec = sansFin ? -1 : Math.ceil(reste);
     if (sec !== vu.sec) { vu.sec = sec; el.chrono.textContent = sec < 0 ? '∞' : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; el.chrono.parentNode.classList.toggle('fin', sec >= 0 && sec <= 15); }
     majScores(jeu);
-    // « Limite de la zone » à moins de 3 m du bord (monde.limite : { centre, rayon }, ou limite.distance(x, z) si la forme v2 la donne)
+    // « dernier debout » : « Manche 2/3 » sous le chrono ; le bandeau au début (dès que la partie tourne) et à la fin de chaque manche
+    const M = mancheDe(jeu), mTxt = M && M.total > 1 ? `Manche ${M.n}/${M.total}` : '';
+    if (mTxt !== vu.manche) { vu.manche = mTxt; el.manche.hidden = !mTxt; el.manche.textContent = mTxt; }
+    if (M && tj > 0) {
+      if (M.n !== vu.mancheN) { vu.mancheN = M.n; mancheDebut(M.n, M.total); }
+      if (M.fin && vu.mancheFin !== M.n) { vu.mancheFin = M.n; const f = M.fin; mancheFin(jeu, M.n, M.total, f && typeof f === 'object' ? (f.vainqueur !== undefined ? f.vainqueur : f.gagnant) : null, f && typeof f === 'object' ? f.equipe : null); }
+    }
+    if (bandeauT >= 0 && now - bandeauT > 3200) { bandeauT = -1; el.bandeau.classList.remove('vu'); }
+    // « Limite de la zone » à moins de 3 m du bord (la forme de jeu.zone.limite ou de monde.limite : cercles, polygones, carré, arêtes, distance())
+    zoneDuJeu(jeu);
     if (jeu.temps - limiteT > 0.2 || limiteT < 0) {
-      limiteT = jeu.temps; let d = Infinity; const L = jeu.monde && jeu.monde.limite;
-      try { if (L && typeof L.distance === 'function') d = +L.distance(moi.x, moi.z); else if (L && L.centre && L.rayon > 0) d = L.rayon - Math.hypot(moi.x - L.centre[0], moi.z - L.centre[1]); } catch (e) { d = Infinity; }
+      limiteT = jeu.temps; let d = Infinity;
+      try { if (formeVue) d = distanceBord(formeVue, moi.x, moi.z); } catch (e) { d = Infinity; }
       const pres = moi.vivant !== false && d < 3; if (pres !== vu.limite) { vu.limite = pres; el.limite.hidden = !pres; }
     }
     // vignette de dégâts et vie basse
@@ -424,7 +626,12 @@ const PHUD = (() => {
     // repeint : l'écran d'attente
     const mort = !moi.vivant && tMort >= 0;
     if (mort !== vu.mort) { vu.mort = mort; el.mort.hidden = !mort; racine.classList.toggle('mort', mort); if (mort) { el.mortPar.textContent = parQui && parQui !== idMoi ? `Repeint par ${nomDe(jeu, parQui)} !` : 'Repeint !'; el.mortArme.innerHTML = iconeArme(armeMort); } }
-    if (mort) { const rr = Math.max(0, delaiRetour(jeu) - (jeu.temps - tMort)); ecrire('retour', el.mortRetour, Math.ceil(rr)); }
+    if (mort) {
+      const lice = M ? M.lice : 0, sr = !!M; // « dernier debout » : pas de retour, on attend la manche suivante
+      if (sr !== vu.mortSr) { vu.mortSr = sr; el.mortRetourL.hidden = sr; el.mortLice.hidden = !sr; el.mortPetit.textContent = sr ? 'Éliminé !' : 'Oups !'; }
+      if (sr) { const t = `Encore en lice : ${lice} · ${M.n < M.total ? 'attends la manche suivante' : 'attends la fin de la manche'}`; if (t !== vu.mortLice) { vu.mortLice = t; el.mortLice.textContent = t; } }
+      else { const rr = Math.max(0, delaiRetour(jeu) - (jeu.temps - tMort)); ecrire('retour', el.mortRetour, Math.ceil(rr)); }
+    }
     // minicarte
     if (jeu.temps - objetsT > 0.5 || objetsT < 0) { objetsT = jeu.temps; try { const M = jeu.mode && jeu.mode.objets ? jeu.mode : typeof PARENE !== 'undefined' ? PARENE : null; objets = M && M.objets ? M.objets(jeu) || [] : []; } catch (e) { objets = []; } }
     majVus(jeu); if (now - carteT > 32) { carteT = now; dessinerCarte(jeu); } // la minicarte à ~30 images/s
@@ -438,7 +645,7 @@ const PHUD = (() => {
     ecrire('sa', el.scoreMoi, a); ecrire('sb', el.scoreEux, b);
     const cA = moi.couleur || '#FFC84A'; if (cA !== vu.cA) { vu.cA = cA; el.pastMoi.style.background = cA; } // en équipes, la couleur de l'équipe (celle du joueur)
     if (cB !== vu.cB) { vu.cB = cB; el.pastEux.style.background = cB; }
-    if (sansRetour(jeu)) { let n = 0; for (let i = 0; i < es.length; i++) if (es[i].vivant) n++; if ('lice' + n !== vu.obj) { vu.obj = 'lice' + n; el.objectif.textContent = `Encore en lice : ${n}`; } return; }
+    const M = mancheDe(jeu); if (M) { const n = M.lice; if ('lice' + n !== vu.obj) { const moins = typeof vu.obj === 'string' && +vu.obj.slice(4) > n; vu.obj = 'lice' + n; el.objectif.textContent = `Encore en lice : ${n}`; if (moins) relance(el.objectif, 'pique'); } return; }
     const cleObj = eq ? -1 : rang; if (cleObj !== vu.obj) { vu.obj = cleObj; el.objectif.textContent = `${eq ? 'équipe' : rang === 1 ? '1er' : rang + 'e'} · premier à ${objectif(jeu)}`; }
   }
   function majNoms(jeu) {
@@ -456,13 +663,21 @@ const PHUD = (() => {
   function lignes(jeu) { // les entités triées (classement du jeu s'il existe)
     let c = null; try { c = jeu.classement ? jeu.classement() : null; } catch (e) { c = null; }
     if (!Array.isArray(c) || !c.length) c = jeu.entites.slice().sort((x, y) => kills(y) - kills(x) || points(y) - points(x));
-    return c.map((x) => { const e = x && x.score ? x : trouver(jeu, x && x.id) || x || {}; const s = e.score || x || {}; return { id: e.id, nom: e.id === idMoi ? (e.nom || 'Toi') : e.nom, couleur: e.couleur, equipe: e.equipe, bot: e.bot, kills: s.kills || 0, morts: s.morts || 0, points: s.points || 0 }; });
+    const m = jeu.manche && typeof jeu.manche === 'object' ? jeu.manche : null, g = m && m.gagnees && typeof m.gagnees === 'object' ? m.gagnees : null, dd = !!mancheDe(jeu);
+    return c.map((x) => { const e = x && x.score ? x : trouver(jeu, x && x.id) || x || {}; const s = e.score || x || {};
+      const manches = s.manches != null ? s.manches : g && g[e.id] != null ? g[e.id] : dd ? 0 : null;
+      return { id: e.id, nom: e.id === idMoi ? (e.nom || 'Toi') : e.nom, couleur: e.couleur, equipe: e.equipe, bot: e.bot, kills: s.kills || 0, morts: s.morts || 0, points: s.points || 0, manches, horsJeu: dd && e.vivant === false }; });
   }
   function tableHtml(jeu, ls) {
-    const eq = estEquipes(jeu);
-    return `<table class="h-table"><thead><tr><th></th><th>Joueur</th><th>Repeints</th><th>Subis</th><th>Points</th></tr></thead><tbody>${ls.map((l, i) => `<tr class="${l.id === idMoi ? 'moi' : ''}${eq ? (l.equipe === (moi && moi.equipe) ? ' allie' : ' ennemi') : ''}"><td>${i + 1}</td><td><i style="background:${esc(l.couleur || '#ccc')}"></i>${esc(l.nom)}${l.bot ? ' <small>robot</small>' : ''}</td><td>${l.kills}</td><td>${l.morts}</td><td><b>${l.points}</b></td></tr>`).join('')}</tbody></table>`;
+    const eq = estEquipes(jeu), avecManches = ls.some((l) => l.manches != null);
+    return `<table class="h-table${avecManches ? ' manches' : ''}"><thead><tr><th></th><th>Joueur</th>${avecManches ? '<th>Manches</th>' : ''}<th>Repeints</th><th>Subis</th><th>Points</th></tr></thead><tbody>${ls.map((l, i) => `<tr class="${l.id === idMoi ? 'moi' : ''}${eq ? (l.equipe === (moi && moi.equipe) ? ' allie' : ' ennemi') : ''}${l.horsJeu ? ' hors' : ''}"><td>${i + 1}</td><td><i style="background:${esc(l.couleur || '#ccc')}"></i>${esc(l.nom)}${l.bot ? ' <small>robot</small>' : ''}</td>${avecManches ? `<td><b>${l.manches != null ? l.manches : 0}</b></td>` : ''}<td>${l.kills}</td><td>${l.morts}</td><td>${avecManches ? l.points : `<b>${l.points}</b>`}</td></tr>`).join('')}</tbody></table>`;
   }
-  function remplirScores(jeu) { scoresT = performance.now(); if (!jeu) return; el.scoresCarte.innerHTML = `<h2>Scores</h2>${tableHtml(jeu, lignes(jeu))}<p class="h-note">Touche pour fermer</p>`; }
+  function objectifTxt(jeu) { // l'en-tête du tableau : « Premier à 25 repeints · 2:41 » ; « Dernier debout · manche 2/3 · encore en lice : 3 »
+    const M = mancheDe(jeu), r = jeu.reste, t = typeof r === 'number' && r - r === 0 ? `${Math.floor(Math.ceil(r) / 60)}:${String(Math.ceil(r) % 60).padStart(2, '0')}` : opt(jeu).duree === 0 ? 'sans limite de temps' : '';
+    if (M) return `Dernier debout${M.total > 1 ? ` · manche ${M.n}/${M.total}` : ''} · encore en lice : ${M.lice}`;
+    return `Premier à ${objectif(jeu)} repeints${estEquipes(jeu) ? ' (par équipe)' : ''}${t ? ' · ' + t : ''}`;
+  }
+  function remplirScores(jeu) { scoresT = performance.now(); if (!jeu) return; el.scoresCarte.innerHTML = `<h2>Scores</h2><p class="h-obj">${esc(objectifTxt(jeu))}</p>${tableHtml(jeu, lignes(jeu).slice(0, 6))}<p class="h-note">Touche pour fermer</p>`; }
   function scores(on) { scoresOuverts = !!on && !!jeuVu && !finie; if (!el.scores) return; el.scores.hidden = !scoresOuverts; if (scoresOuverts) remplirScores(jeuVu); if (actions.scores) actions.scores(scoresOuverts); }
 
   // ─── écran de fin ───
@@ -493,8 +708,9 @@ const PHUD = (() => {
     el.fin.hidden = false; el.mort.hidden = true; vu.mort = false; racine.classList.add('finie'); racine.classList.remove('mort');
     return { gagne, rang, points: me.points, kills: me.kills };
   }
-  function reinit(o) { // une nouvelle partie
-    if (!racine) return; equipesPartie = !!(o && o.equipes);
+  function reinit(o) { // une nouvelle partie (o : { equipes, reglages } ; reglages : les réglages normalisés du lancement, si le jeu ne les expose pas)
+    if (!racine) return; equipesPartie = !!(o && o.equipes); reglagesPartie = o && o.reglages && typeof o.reglages === 'object' ? o.reglages : null; optJeu = null;
+    mancheEv = null; bandeauCle = ''; bandeauT = -1; if (el.bandeau) el.bandeau.classList.remove('vu');
     finie = false; jeuVu = null; moi = null; tMort = -1; parQui = null; gonfle = 0; vitesse = 0; vignette = 0; toucheT = -1; flashT = -1; limiteT = -1; objets = []; objetsT = -1; vusT = -1;
     coupsDe.clear(); vusCache.clear(); for (const k in vu) delete vu[k]; vu.ecart = -1; carteT = 0;
     racine.classList.remove('finie', 'mort'); el.fil.innerHTML = ''; el.fin.hidden = true; el.fin.innerHTML = ''; el.mort.hidden = true; el.scores.hidden = true; scoresOuverts = false;
@@ -503,5 +719,6 @@ const PHUD = (() => {
     el.annonce.classList.remove('vu'); el.sous.classList.remove('vu'); el.ramasse.classList.remove('vu'); el.refus.classList.remove('vu');
     for (const s of slots) { s.id = null; s.m = null; s.res = null; s.main = null; s.bas = null; }
   }
-  return { init, carte, taille, maj, fin, reinit, annonce, scores, iconeArme, nomArme, classeArme, nomClasse, get scoresOuverts() { return scoresOuverts; }, get finie() { return finie; } };
+  return { init, carte, taille, maj, fin, reinit, annonce, scores, iconeArme, nomArme, classeArme, nomClasse, vignette: vignetteZone, formeZone, formeDe, distanceBord,
+    get zone() { return formeVue ? { cle: formeVue.cle, englobant: Object.assign({}, formeVue.englobant), fond: fondCle } : null; }, get scoresOuverts() { return scoresOuverts; }, get finie() { return finie; } };
 })();
