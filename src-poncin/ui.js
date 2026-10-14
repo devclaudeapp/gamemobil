@@ -1,9 +1,16 @@
 /* OPÉRATION PONCIN — le point d'entrée : écran titre sur le survol 3D de Poncin, choix du mode (Arène jouable seul ou « Avec les
-   copains » en ligne ; Extraction, Jour / Nuit « bientôt »), réglages, crédits, pause, compte à rebours, la boucle de jeu (commandes →
-   aide à la visée → simulation → effets, sons, HUD → image), la sauvegarde 'poncin.v1' (réglages, pseudo, records) et les crochets de
-   test window.__poncin. En ligne (PENLIGNE) : créer un salon (code de 4 lettres, partager le lien …/poncin/?salle=CODE, copier le code)
-   ou le rejoindre (code tapé, ou lien ouvert), le salon (joueurs, ping, voie ; l'hôte règle robots, niveau et format, et lance ; les
-   autres disent « Prêt »), puis la même partie qu'en solo : jeu.etape vient du vrai PJEU chez l'hôte, de la façade chez les clients.
+   copains » en ligne ; Extraction, Jour / Nuit « bientôt »), le choix de l'équipement (principale + secondaire, parmi les armes
+   permises : en solo c'est le joueur qui les coche, dans un salon c'est l'hôte ; libellés et icônes depuis PREGLES.ARMES), réglages
+   (dont la sensibilité en visée, la visée en bascule ou maintenue, la course au joystick ou au bouton), crédits, pause, compte à
+   rebours, la boucle de jeu (commandes → aide à la visée → simulation → effets, sons, HUD → image), la sauvegarde 'poncin.v2'
+   (réglages, pseudo, records, équipement et armes permises ; reprise de 'poncin.v1', dont une copie des records reste écrite pour la
+   Salle de jeux) et les crochets de test window.__poncin. En ligne (PENLIGNE) : créer un salon (code de 4 lettres, partager le lien
+   …/poncin/?salle=CODE, copier le code) ou le rejoindre (code tapé, ou lien ouvert), le salon (joueurs et leur équipement, ping,
+   voie ; l'hôte règle robots, niveau, format et armes permises, et lance ; les autres disent « Prêt »), puis la même partie qu'en
+   solo : jeu.etape vient du vrai PJEU chez l'hôte, de la façade chez les clients.
+   Équipement en ligne (par les fonctions existantes de enligne.js / reseau.js) : chacun publie le sien par la présence
+   (ctl.salon.majMoi({ equip: 'p+s' })) ; l'hôte pose ctl.reglages.armes et l'annonce par ctl.regler({ armes }) (le message
+   'reglages' reprend ctl.reglages) ; les autres le lisent dans ce message (ctl.salon.sur('reglages')).
    Le joueur local est idMoi : 'moi' en solo, son id de salon en ligne. Voie réseau : 'supabase' si window.PONCIN_CONFIG est rempli,
    'local' sinon (ou avec ?reseau=local : entre onglets du même navigateur).
    Tout appel aux autres modules est gardé : sans Three.js ou sans WebGL, un panneau clair ; une erreur ne fige jamais l'écran.
@@ -12,10 +19,13 @@
    chaque pas prend son entrée (PCONTROLES.consommer) ; l'image reçoit alpha (la fraction du pas en cours) pour interpoler. */
 const PUI = (() => {
   'use strict';
-  const CLE = 'poncin.v1', $ = (s) => document.querySelector(s), $$ = (s) => Array.from(document.querySelectorAll(s));
+  const CLE = 'poncin.v2', CLE_V1 = 'poncin.v1', $ = (s) => document.querySelector(s), $$ = (s) => Array.from(document.querySelectorAll(s));
   const R = typeof PREGLES !== 'undefined' ? PREGLES : null;
   let _compte = null; const elCompte = () => _compte || (_compte = $('#compte'));
-  const DEFAUT = () => ({ v: 1, reglages: { sensibilite: 1, inverserY: false, gaucher: false, tirAuto: true, qualite: 'auto', balancement: 'normal', son: true, vibre: true, nom: '', pseudo: '' }, records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { format: 'solo', bots: 4, niveau: 'facile' }, derniere: 0 });
+  const equipDefaut = () => (R && R.DEFAUT_EQUIP ? { p: R.DEFAUT_EQUIP.p, s: R.DEFAUT_EQUIP.s } : { p: null, s: null });
+  const armesDefaut = () => (R && R.DEFAUT_REGLAGES && Array.isArray(R.DEFAUT_REGLAGES.armes) ? R.DEFAUT_REGLAGES.armes.slice() : []);
+  const DEFAUT = () => ({ v: 2, reglages: { sensibilite: 1, sensibiliteVisee: 1, visee: 'auto', course: 'joystick', inverserY: false, gaucher: false, tirAuto: true, qualite: 'auto', balancement: 'normal', son: true, vibre: true, nom: '', pseudo: '' },
+    records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { format: 'solo', bots: 4, niveau: 'facile', equip: equipDefaut(), armes: armesDefaut(), armesSalon: armesDefaut() }, derniere: 0 });
   let sauv = DEFAUT(), carte = null, monde = null, rendu3d = false, jeu = null, ecran = 'chargement', retourReglages = 'titre', avantPause = 'partie', optsPartie = null;
   let J, A, RENDU, CARTEPROV, MONDE; // les modules, résolus au démarrage
   let aideVue = null; // l'aide à la visée du dernier pas (le viseur « sur la cible » des images où avantImage rend des événements)
@@ -31,20 +41,30 @@ const PUI = (() => {
   const idSalon = 'j' + Math.random().toString(36).slice(2, 10);
 
   // ─── sauvegarde ───
-  function lireSauv() {
+  function lireSauv() { // 'poncin.v2', sinon la reprise de 'poncin.v1' (réglages, records, choix)
     const d = DEFAUT(); let s = null;
     try { s = JSON.parse(localStorage.getItem(CLE) || 'null'); } catch (e) { s = null; }
-    if (!s || s.v !== 1) return d;
+    if (!s || s.v !== 2) { let v1 = null; try { v1 = JSON.parse(localStorage.getItem(CLE_V1) || 'null'); } catch (e) { v1 = null; } s = v1 && v1.v === 1 ? v1 : null; }
+    if (!s) return d;
     Object.assign(d.reglages, s.reglages || {}); Object.assign(d.records.arene, (s.records && s.records.arene) || {}); Object.assign(d.choix, s.choix || {}); d.derniere = s.derniere || 0;
+    d.choix.armes = armesValides(d.choix.armes); d.choix.armesSalon = armesValides(d.choix.armesSalon); d.choix.equip = equipValide(d.choix.equip, d.choix.armes);
     return d;
   }
+  // les armes permises et l'équipement, validés par PREGLES (une arme inconnue — l'arsenal a changé — prend le défaut)
+  function armesValides(l) { if (!R) return Array.isArray(l) ? l.slice() : []; try { return R.armesPermises ? R.armesPermises(Array.isArray(l) ? l : armesDefaut()) : (Array.isArray(l) ? l : armesDefaut()).filter((id) => R.estArme(id)); } catch (e) { return armesDefaut(); } }
+  function equipValide(q, armes) { if (!R || !R.equipementDe) return q && q.p ? { p: q.p, s: q.s } : equipDefaut(); try { return R.equipementDe(q || null, { armes: armesValides(armes) }); } catch (e) { return equipDefaut(); } }
   function pseudoParDefaut() { // tiré une fois (« Castor Turbo 42 »), gardé dans la sauvegarde
     if (!sauv.reglages.pseudo) { try { sauv.reglages.pseudo = typeof PENLIGNE !== 'undefined' ? PENLIGNE.pseudoAuHasard() : 'Joueur ' + Math.floor(Math.random() * 100); } catch (e) { sauv.reglages.pseudo = 'Joueur'; } sauver(); }
     return sauv.reglages.pseudo;
   }
   const pseudoJoueur = () => (sauv.reglages.nom || '').trim() || pseudoParDefaut();
   const couleurJoueur = () => { try { return PENLIGNE.couleurDe(pseudoJoueur()); } catch (e) { return '#FFC84A'; } };
-  function sauver() { try { localStorage.setItem(CLE, JSON.stringify(sauv)); } catch (e) { /* stockage indisponible : on joue quand même */ } }
+  function sauver() {
+    try {
+      localStorage.setItem(CLE, JSON.stringify(sauv));
+      localStorage.setItem(CLE_V1, JSON.stringify({ v: 1, reglages: sauv.reglages, records: sauv.records, derniere: sauv.derniere })); // la Salle de jeux lit les records ici
+    } catch (e) { /* stockage indisponible : on joue quand même */ }
+  }
   function signaler(ou, e) { erreursTotal++; derniereErreur = ou + ' : ' + (e && e.message ? e.message : e); if (erreursTotal < 20) console.error('[Poncin]', ou, e); }
 
   // ─── écrans ───
@@ -60,6 +80,7 @@ const PUI = (() => {
     if (nom === 'reglages') majReglages();
     if (nom === 'copains') majCopains();
     if (nom === 'salon') majSalon();
+    if (nom === 'armes') { armesVues = ''; majArmes(); }
   }
   function majTitre() {
     const a = sauv.records.arene, r = $('#records');
@@ -100,6 +121,8 @@ const PUI = (() => {
     try { PCONTROLES.regler(g); } catch (e) { signaler('controles.regler', e); }
     try { PSONS.regler({ son: g.son, vibre: g.vibre }); } catch (e) { signaler('sons.regler', e); }
     if (BALANCEMENTS.indexOf(g.balancement) < 0) g.balancement = 'normal';
+    if (['auto', 'bascule', 'maintenir'].indexOf(g.visee) < 0) g.visee = 'auto';
+    if (['joystick', 'bouton'].indexOf(g.course) < 0) g.course = 'joystick';
     try { if (typeof PRENDU !== 'undefined' && typeof PRENDU.reglages === 'function') PRENDU.reglages({ balancement: g.balancement }); } catch (e) { signaler('rendu.reglages', e); }
     document.body.classList.toggle('gaucher', !!g.gaucher);
   }
@@ -135,8 +158,79 @@ const PUI = (() => {
     $('#resume-arene').textContent = c.format === 'equipes' ? `Toi et un robot allié contre 2 robots ${niv}.` : `Toi contre ${c.bots} robots ${niv}, chacun pour soi.`;
     const ok = rendu3d && !!J && !!A; $('#b-lancer').disabled = !ok; $('#b-lancer').title = ok ? '' : 'La 3D n’est pas disponible';
     const bc = $('#b-copains'); if (bc) { bc.disabled = !ok || typeof PENLIGNE === 'undefined'; bc.title = bc.disabled ? 'Le jeu en ligne n’est pas disponible' : ''; }
+    const pe = $('#e-modes .equip-resume'); if (pe) pe.innerHTML = resumeEquip(equipValide(c.equip, c.armes));
   }
-  function choixPartie() { const c = sauv.choix, eq = c.format === 'equipes'; return { bots: eq ? 3 : Math.max(3, Math.min(5, +c.bots || 4)), niveau: c.niveau in (R ? R.BOTS : { facile: 1, normal: 1, fort: 1 }) ? c.niveau : 'normal', equipes: eq }; }
+  function choixPartie() {
+    const c = sauv.choix, eq = c.format === 'equipes', armes = armesValides(c.armes);
+    return { bots: eq ? 3 : Math.max(3, Math.min(5, +c.bots || 4)), niveau: c.niveau in (R ? R.BOTS : { facile: 1, normal: 1, fort: 1 }) ? c.niveau : 'normal', equipes: eq, armes, equip: equipValide(c.equip, armes) };
+  }
+
+  // ─── l'équipement : principale + secondaire, parmi les armes permises (solo : le joueur les coche ; salon : l'hôte) ───
+  let armesCtx = 'solo', armesRecues = null; // armesRecues : la liste annoncée par l'hôte (message 'reglages'), chez les autres
+  const echapA = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+  const nomA = (id) => { try { return PHUD.nomArme(id); } catch (e) { return String(id || ''); } };
+  const icoA = (id) => { try { return PHUD.iconeArme(id); } catch (e) { return ''; } };
+  const classeA = (id) => { try { return PHUD.nomClasse(PHUD.classeArme(id)); } catch (e) { return ''; } };
+  function listeArmes(role) { return R && Array.isArray(R.ARMES) ? R.ARMES.filter((a) => a && a.id && a.role === role) : []; }
+  function permisesSalon() {
+    if (!ctl) return armesValides(sauv.choix.armesSalon);
+    if (Array.isArray(ctl.reglages && ctl.reglages.armes)) return armesValides(ctl.reglages.armes);
+    return armesValides(ctl.estHote ? sauv.choix.armesSalon : armesRecues || armesDefaut());
+  }
+  const enSalon = () => armesCtx === 'salon' && !!ctl;
+  const permises = () => (enSalon() ? permisesSalon() : armesValides(sauv.choix.armes));
+  const peutPermettre = () => !enSalon() || !!ctl.estHote; // en solo le joueur, dans un salon l'hôte
+  function resumeEquip(q) { return q && q.p ? `<span class="eq-ico">${icoA(q.p)}</span><span class="eq-noms">${echapA(nomA(q.p))} + ${echapA(nomA(q.s))}</span>` : ''; }
+  function carteArme(A, q, perm, hote) {
+    const ok = perm.indexOf(A.id) >= 0, choisie = ok && (q.p === A.id || q.s === A.id);
+    return `<div class="ar-carte${choisie ? ' choisie' : ''}${ok ? '' : ' interdite'}">
+      <button type="button" class="ar-choisir" data-a="arme-choix" data-id="${echapA(A.id)}" aria-pressed="${choisie}"${ok ? '' : ' disabled'}><span class="ar-ico">${icoA(A.id)}</span><b>${echapA(nomA(A.id))}</b><small>${echapA(classeA(A.id))}${A.chargeur ? ` · ${A.chargeur} coups` : ''}</small>${ok ? '' : '<em>Pas permise</em>'}</button>
+      ${hote ? `<button type="button" class="ar-permise" data-a="arme-permise" data-id="${echapA(A.id)}" aria-pressed="${ok}" aria-label="${ok ? 'Interdire' : 'Permettre'} : ${echapA(nomA(A.id))}" title="${ok ? 'Permise' : 'Pas permise'}"><i aria-hidden="true"></i></button>` : ''}</div>`;
+  }
+  let armesVues = '';
+  function majArmes() {
+    const perm = permises(), q = equipValide(sauv.choix.equip, perm), hote = peutPermettre();
+    const cle = [armesCtx, hote, q.p, q.s, perm.join(',')].join('|'); if (cle === armesVues && ecran === 'armes') return; // rien n'a changé : pas de nouveaux boutons sous le doigt
+    armesVues = cle;
+    const lp = $('#ar-principales'), ls = $('#ar-secondaires');
+    if (lp) lp.innerHTML = listeArmes('principale').map((A) => carteArme(A, q, perm, hote)).join('');
+    if (ls) ls.innerHTML = listeArmes('secondaire').map((A) => carteArme(A, q, perm, hote)).join('');
+    const n = $('#ar-note');
+    if (n) n.textContent = !enSalon() ? 'Touche une arme pour la prendre. La case verte : les armes permises (les robots s’équipent parmi elles).'
+      : ctl.estHote ? 'Touche une arme pour la prendre. La case verte : les armes permises pour tout le salon.' : 'Touche une arme pour la prendre. C’est l’hôte qui choisit les armes permises.';
+    $('#e-armes').classList.toggle('permettre', hote);
+  }
+  function choisirArme(id) {
+    if (!R || !R.estArme(id)) return;
+    const perm = permises(); if (perm.indexOf(id) < 0) return;
+    const q = equipValide(sauv.choix.equip, perm), A = R.arme(id);
+    if (A.role === 'secondaire') q.s = id; else q.p = id;
+    sauv.choix.equip = q; sauver(); majArmes();
+    if (enSalon()) publierEquip();
+  }
+  function permettreArme(id) {
+    if (!R || !R.estArme(id) || !peutPermettre()) return;
+    const perm = permises(), i = perm.indexOf(id);
+    if (i >= 0) { const role = R.arme(id).role; if (perm.filter((x) => R.arme(x).role === role).length <= 1) { toast('Il faut au moins une arme par emplacement.'); return; } perm.splice(i, 1); } // au moins une principale et une secondaire
+    else perm.push(id);
+    const l = armesValides(perm);
+    if (enSalon()) { sauv.choix.armesSalon = l; annoncerArmes(l); publierEquip(); } else sauv.choix.armes = l;
+    sauver(); majArmes();
+  }
+  function publierEquip() { // l'équipement de chacun passe par la présence : salon.majMoi({ equip: 'p+s' })
+    if (!ctl) return;
+    const q = equipValide(sauv.choix.equip, permisesSalon());
+    try { if (ctl.salon && typeof ctl.salon.majMoi === 'function') ctl.salon.majMoi({ equip: q.p + '+' + q.s }); } catch (e) { signaler('équipement', e); }
+  }
+  function annoncerArmes(liste) { // l'hôte : les armes permises dans ctl.reglages, annoncées avec les autres réglages (message 'reglages')
+    if (!ctl || !ctl.estHote) return;
+    try { ctl.reglages.armes = liste.slice(); ctl.regler({ armes: liste.slice() }); } catch (e) { signaler('armes permises', e); }
+  }
+  function equipDe(j) { // l'équipement d'un joueur du salon : le mien, sinon celui de sa présence (s'il est publié)
+    if (j.moi) return equipValide(sauv.choix.equip, permisesSalon());
+    let e = j.equip; if (!e && ctl && ctl.salon && ctl.salon.joueurs && ctl.salon.joueurs.get) { const p = ctl.salon.joueurs.get(j.id); e = p && p.equip; }
+    return typeof e === 'string' && e.indexOf('+') > 0 ? equipValide(e, permisesSalon()) : null;
+  }
 
   // ─── plein écran, paysage, écran allumé ───
   const android = /Android/i.test(navigator.userAgent || '');
@@ -164,10 +258,13 @@ const PUI = (() => {
     try {
       const graine = o.graine != null ? o.graine >>> 0 : ((Date.now() ^ Math.floor(Math.random() * 4294967296)) >>> 0);
       if (ctl) quitterSalon(); // une partie seul : on quitte le salon éventuel
-      jeu = J.creer({ monde, carte, mode: A, graine, options: { bots: o.bots, niveau: o.niveau, equipes: !!o.equipes } });
+      // les options : les réglages normalisés (§ 6 ; en solo, ceux du menu et les armes permises), l'équipement validé
+      let options = { bots: o.bots, niveau: o.niveau, equipes: !!o.equipes, armes: armesValides(o.armes) };
+      if (R && R.normaliserReglages) { try { options = R.normaliserReglages(options, { humains: 1 }); } catch (e) { signaler('reglages', e); } }
+      jeu = J.creer({ monde, carte, mode: A, graine, options });
       const nom = (sauv.reglages.nom || '').trim() || 'Toi';
       idMoi = 'moi'; enLigne = false; partieL = null; entrees = { moi: null };
-      jeu.ajouterJoueur({ id: 'moi', nom, couleur: '#FFC84A', equipe: o.equipes ? 0 : 'moi', humain: true });
+      jeu.ajouterJoueur({ id: 'moi', nom, couleur: '#FFC84A', equipe: o.equipes ? 0 : 'moi', humain: true, equip: equipValide(o.equip, options.armes) });
     } catch (e) { signaler('jeu.creer', e); jeu = null; oups('La partie n’a pas pu démarrer', 'Recharge la page et réessaie.'); return false; }
     optsPartie = o; finTraitee = false; surDepuis = 0; aideVue = null; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null; remettrePas();
     try { PHUD.reinit({ equipes: !!o.equipes }); } catch (e) { signaler('hud.reinit', e); }
@@ -180,8 +277,8 @@ const PUI = (() => {
   function astuce(oui) { // les trois premières parties : comment on joue, pendant le compte à rebours
     const a = $('#astuce'); if (!a) return;
     if (!oui || (sauv.records.arene.parties || 0) >= 3) { a.hidden = true; return; }
-    a.innerHTML = PCONTROLES.tactile ? '<b>Pouce gauche</b> : marcher · <b>glisse à droite</b> : viser · viseur rouge : <b>ça tire tout seul</b> !'
-      : '<b>Clique</b> pour viser à la souris · <b>ZQSD / WASD</b> : marcher · <b>clic</b> : tirer · <b>Échap</b> : pause';
+    a.innerHTML = PCONTROLES.tactile ? '<b>Pouce gauche</b> : marcher (<b>à fond</b> : courir) · <b>glisse à droite</b> : tourner · <b>Viser</b> pour zoomer · viseur rouge : <b>ça tire tout seul</b> !'
+      : '<b>Clique</b> pour viser à la souris · <b>ZQSD / WASD</b> : marcher · <b>Maj</b> : courir · <b>clic droit</b> : viser · <b>Échap</b> : pause';
     a.hidden = false;
   }
   function lancer() { // le bouton « C'est parti ! » (dans le geste : plein écran, paysage, pointeur, son)
@@ -228,15 +325,18 @@ const PUI = (() => {
     return { pas: PAS, max: PAS_MAX, avancer(d, f) { if (d > 0) acc = Math.min(acc + d, PAS_MAX * PAS); while (acc >= PAS - EPS) { acc -= PAS; if (acc < 0) acc = 0; f(PAS); } return acc / PAS; }, remettre() { acc = 0; }, get acc() { return acc; } };
   }
   function pasJeu(dt) { if (jeu && !finTraitee) pasPartie(dt); } // un pas de la boucle (la partie a pu finir au pas d'avant)
+  const NIVEAUX = ['avant', 'cote', 'tir', 'accroupi', 'course', 'couche', 'vise'];
   function pasPartie(dt) { // un pas de simulation (1/60 s) : son entrée, aide à la visée, jeu, effets, sons, HUD
     const e = PCONTROLES.consommer(); nPas++;
     if (force) { // l'entrée imposée par les tests
-      if (force.avant != null) e.avant = force.avant; if (force.cote != null) e.cote = force.cote; if (force.tir != null) e.tir = force.tir; if (force.accroupi != null) e.accroupi = force.accroupi;
+      for (const k of NIVEAUX) if (force[k] != null) e[k] = force[k];
       if (force.dyaw) { e.dyaw += force.dyaw; force.dyaw = 0; } if (force.dpitch) { e.dpitch += force.dpitch; force.dpitch = 0; }
-      if (force.saut) { e.saut = true; force.saut = false; } if (force.recharge) { e.recharge = true; force.recharge = false; } if (force.arme) { e.arme = force.arme; force.arme = null; }
+      if (force.saut) { e.saut = true; force.saut = false; } if (force.recharge) { e.recharge = true; force.recharge = false; } if (force.changer) { e.changer = true; force.changer = false; }
+      if (force.arme != null) { e.arme = force.arme; force.arme = null; }
     }
     let aide = null;
-    if (jeu.aideVisee) { try { aide = jeu.aideVisee(idMoi, PCONTROLES.tactile ? 1 : 0); } catch (err) { aide = null; } }
+    const aidePermise = !(jeu.options && jeu.options.aide === false); // l'hôte peut couper l'aide à la visée (ralentissement, aimant, tir auto)
+    if (jeu.aideVisee && aidePermise) { try { aide = jeu.aideVisee(idMoi, PCONTROLES.tactile ? 1 : 0); } catch (err) { aide = null; } }
     if (aide && PCONTROLES.tactile && PCONTROLES.actif) { // (en ligne, la partie continue pendant la pause : pas de tir auto)
       const ral = Math.max(0, Math.min(0.9, +aide.ralentir || 0)); e.dyaw *= 1 - ral; e.dpitch *= 1 - ral; // la visée ralentit sur une cible
       PCONTROLES.attenuer(1 - ral); // et le regard affiché d'ici au pas suivant aussi (sinon il avance de 100 %, puis recule de ral)
@@ -255,7 +355,7 @@ const PUI = (() => {
     if (rendu3d) { try { RENDU.evenements(evs, jeu); } catch (err) { signaler('rendu.evenements', err); } }
     try { PSONS.evenements(evs, jeu, idMoi); } catch (err) { signaler('sons', err); }
     try { PHUD.maj(jeu, idMoi, evs, aide); } catch (err) { signaler('hud.maj', err); }
-    try { PCONTROLES.maj(jeu, trouver(idMoi)); } catch (err) { signaler('controles.maj', err); }
+    try { PCONTROLES.maj(jeu, trouver(idMoi), evs); } catch (err) { signaler('controles.maj', err); }
     let evFin = null;
     for (let i = 0; i < evs.length; i++) { const v = evs[i]; if (v.t === 'mort') { if (v.par === idMoi && v.a !== idMoi) { elims++; serie++; if (serie > serieMax) serieMax = serie; } if (v.a === idMoi) serie = 0; } else if (v.t === 'fin') evFin = v; }
     if (evFin || fini()) terminer(evFin);
@@ -289,7 +389,7 @@ const PUI = (() => {
         if (!enLigne) compteT -= dt; const n = Math.ceil(compteT - 0.6);
         if (n !== compteVu) { compteVu = n; const c = elCompte(); c.hidden = false; c.firstElementChild.textContent = n > 0 ? String(n) : 'Repeins !'; c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); c.classList.toggle('go', n <= 0); PSONS.compte(n); }
         try { PHUD.maj(jeu, idMoi, VIDE, null); PCONTROLES.maj(jeu, trouver(idMoi)); } catch (err) { signaler('hud.maj', err); }
-        if (compteT <= 0) { elCompte().hidden = true; astuce(false); montrer('partie'); PCONTROLES.activer(true); PHUD.annonce(optsPartie && optsPartie.equipes ? (enLigne ? annonceEquipe() : 'Deux contre deux : couvre ton robot allié !') : `Premier à ${R ? R.MODES.arene.scoreVictoire : 25} repeints !`); }
+        if (compteT <= 0) { elCompte().hidden = true; astuce(false); montrer('partie'); PCONTROLES.activer(true); PHUD.annonce(optsPartie && optsPartie.equipes ? (enLigne ? annonceEquipe() : 'Deux contre deux : couvre ton robot allié !') : `Premier à ${(jeu.options && jeu.options.score) || (R ? R.MODES.arene.scoreVictoire : 25)} repeints !`); }
       }
       if (ecran !== 'compte' && !elCompte().hidden) { elCompte().hidden = true; astuce(false); }
     } catch (err) { signaler('boucle', err); }
@@ -340,6 +440,10 @@ const PUI = (() => {
       case 'partager': partager(); break;
       case 'copier': copier(ctl ? ctl.code : '', 'Code copié : '); break;
       case 'salon-action': actionSalon(); break;
+      case 'armes': armesCtx = ecran === 'salon' && ctl ? 'salon' : 'solo'; montrer('armes'); break;
+      case 'armes-retour': montrer(armesCtx === 'salon' && ctl ? 'salon' : 'modes'); break;
+      case 'arme-choix': choisirArme(b.dataset.id); break;
+      case 'arme-permise': permettreArme(b.dataset.id); break;
       case 'sopt': { if (!ctl || !ctl.estHote) return; const s = b.closest('.seg'), k = s.dataset.sopt, v = b.dataset.v; ctl.regler({ [k]: k === 'bots' ? +v : k === 'equipes' ? v === '1' : v }); majSalon(); break; }
     }
     PSONS.ui(a === 'retour' || a === 'titre' ? 'retour' : 'tap');
@@ -362,7 +466,7 @@ const PUI = (() => {
     document.addEventListener('keydown', (e) => {
       PSONS.debloquer();
       if (e.target && (e.target.tagName === 'INPUT')) return;
-      if (e.code === 'Escape') { if (ecran === 'pause') { e.stopPropagation(); reprendre(); } else if (ecran === 'reglages' || ecran === 'credits') action('retour'); else if (ecran === 'modes') action('titre'); else if (ecran === 'copains') action('modes'); }
+      if (e.code === 'Escape') { if (ecran === 'pause') { e.stopPropagation(); reprendre(); } else if (ecran === 'reglages' || ecran === 'credits') action('retour'); else if (ecran === 'modes') action('titre'); else if (ecran === 'copains') action('modes'); else if (ecran === 'armes') action('armes-retour'); }
       else if ((e.code === 'Enter' || e.code === 'Space') && ecran === 'fin') { e.preventDefault(); rejouer(); }
     });
     window.addEventListener('resize', taille); window.addEventListener('orientationchange', () => setTimeout(taille, 120));
@@ -419,7 +523,17 @@ const PUI = (() => {
     if (code && c.estHote && c.joueurs().length < 2) toast(`Personne dans le salon ${code} pour l’instant : tu en es l’hôte. Vérifie le code, ou partage-le !`);
   }
   function brancherSalon(c) {
-    c.sur('maj', () => { if (c !== ctl) return; if (ecran === 'salon') majSalon(); });
+    armesRecues = null;
+    c.sur('maj', () => {
+      if (c !== ctl) return;
+      if (c.estHote && !Array.isArray(c.reglages.armes)) annoncerArmes(armesValides(sauv.choix.armesSalon)); // (aussi quand on devient l'hôte)
+      if (ecran === 'salon') majSalon(); else if (ecran === 'armes') majArmes();
+    });
+    try { // les armes permises annoncées par l'hôte (dans le message 'reglages', qui reprend ctl.reglages)
+      if (c.salon && typeof c.salon.sur === 'function') c.salon.sur('reglages', (d) => { if (c !== ctl || c.estHote || !d || !Array.isArray(d.armes)) return; armesRecues = armesValides(d.armes); if (ecran === 'salon') majSalon(); else if (ecran === 'armes') majArmes(); });
+    } catch (e) { signaler('salon.sur', e); }
+    if (c.estHote) annoncerArmes(armesValides(sauv.choix.armesSalon));
+    publierEquip();
     c.sur('partie', (P) => { if (c !== ctl) return; demarrerEnLigne(P); });
     c.sur('salon', () => { if (c !== ctl) return; jeu = null; partieL = null; enLigne = false; finTraitee = false; force = null; astuce(false); PCONTROLES.activer(false); eveille(false); try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('salon'); });
     c.sur('ferme', (d) => { if (c !== ctl) return; ctl = null; partieL = null; if (enLigne || ecran === 'salon') { enLigne = false; jeu = null; try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('copains'); noteCopains(d && d.raison === 'carte' ? 'Ta carte de Poncin n’est pas celle de l’hôte : rechargez la page tous les deux, puis recréez le salon.' : 'Le salon a été fermé.', true); } });
@@ -433,13 +547,15 @@ const PUI = (() => {
     const code = $('#salon-code'); if (code) code.textContent = ctl.code;
     const nb = $('#salon-nb'); if (nb) nb.textContent = `(${js.length})`;
     const l = $('#salon-liste');
-    if (l) l.innerHTML = js.map((j) => `<li class="${j.moi ? 'moi' : ''}"><i class="pastille" style="background:${echap(j.couleur || '#ccc')}"></i><span class="sj-nom">${echap(j.pseudo)}${j.moi ? ' <small>(toi)</small>' : ''}</span>`
+    if (l) l.innerHTML = js.map((j) => { const q = equipDe(j); return `<li class="${j.moi ? 'moi' : ''}"><i class="pastille" style="background:${echap(j.couleur || '#ccc')}"></i><span class="sj-nom">${echap(j.pseudo)}${j.moi ? ' <small>(toi)</small>' : ''}${q ? `<small class="sj-equip">${echap(nomA(q.p))} + ${echap(nomA(q.s))}</small>` : ''}</span>`
       + `<span class="sj-info">${j.hote ? '' : j.ping != null ? `${j.ping} ms` : '…'}${j.voie && !j.hote ? `<br>${echap(VOIES[j.voie] || j.voie)}` : ''}</span>`
-      + `<span class="sj-etat${j.hote ? ' hote' : j.pret ? ' pret' : ''}">${j.hote ? 'Hôte' : j.pret ? 'Prêt' : '…'}</span></li>`).join('')
+      + `<span class="sj-etat${j.hote ? ' hote' : j.pret ? ' pret' : ''}">${j.hote ? 'Hôte' : j.pret ? 'Prêt' : '…'}</span></li>`; }).join('')
       + (js.length < 2 ? '<li class="vide">En attente des copains…</li>' : '');
     const val = { bots: String(g.bots), niveau: g.niveau, equipes: g.equipes ? '1' : '0' };
     $$('#e-salon .seg[data-sopt]').forEach((s) => s.querySelectorAll('button').forEach((b) => { b.setAttribute('aria-pressed', String(b.dataset.v === val[s.dataset.sopt])); b.disabled = !hote; }));
     const reg = $('.salon-reglages'); if (reg) reg.classList.toggle('lecture', !hote);
+    const pe = $('#e-salon .equip-resume'); if (pe) pe.innerHTML = resumeEquip(equipValide(sauv.choix.equip, permisesSalon()));
+    const pa = $('#salon-armes'); if (pa) { const n = permisesSalon().length, t = listeArmes('principale').length + listeArmes('secondaire').length; pa.textContent = `${n}/${t}`; pa.title = hote ? 'Armes permises (à cocher en touchant tes armes)' : 'Armes permises par l’hôte'; }
     const etat = $('#salon-etat'), bouton = $('#b-salon-action');
     const prets = js.filter((j) => !j.hote && j.pret).length, autres = js.length - 1;
     if (hote) {
@@ -511,7 +627,7 @@ const PUI = (() => {
     sauv = lireSauv();
     const tactile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints || 0) > 0;
     try { PCONTROLES.init($('#commandes'), { tactile, reglages: sauv.reglages, actions: { pause, scores: (on) => PHUD.scores(on), verrouPerdu: pause } }); } catch (e) { signaler('controles.init', e); }
-    try { PHUD.init($('#hud'), { actions: { pause, rejouer, menu: quitter, salon: () => auSalon() } }); } catch (e) { signaler('hud.init', e); }
+    try { PHUD.init($('#hud'), { actions: { pause, rejouer, menu: quitter, salon: () => auSalon(), arme: (i) => PCONTROLES.emplacement(i), recharger: () => PCONTROLES.recharger() } }); } catch (e) { signaler('hud.init', e); }
     appliquerReglages(); brancher(); montrer('chargement');
     last = performance.now(); tFps = last; requestAnimationFrame(boucle);
     installerCrochets();
@@ -551,7 +667,7 @@ const PUI = (() => {
       compteurs: () => ({ pas: nPas, alpha, acc: boucleFixe ? boucleFixe.acc : 0, pasDuree: PAS, max: PAS_MAX }),
       joueur: () => trouver(idMoi),
       tp: (x, z, yaw) => { const m = trouver(idMoi); if (!m) return null; m.x = x; m.z = z; try { m.y = monde.hauteur(x, z); } catch (e) { /* rien */ } m.vy = 0; if (yaw != null) m.yaw = yaw; return m; },
-      viser: (id) => { const m = trouver(idMoi), c = trouver(id); if (!m || !c) return null; const dx = c.x - m.x, dz = c.z - m.z, oeil = m.accroupi ? (R ? R.JOUEUR.oeilAccroupi : 1) : (R ? R.JOUEUR.oeil : 1.6), dy = (c.y + 1.2) - (m.y + oeil); m.yaw = Math.atan2(-dx, -dz); m.pitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)); return { yaw: m.yaw, pitch: m.pitch }; },
+      viser: (id) => { const m = trouver(idMoi), c = trouver(id); if (!m || !c) return null; const dx = c.x - m.x, dz = c.z - m.z, oeil = typeof PCORPS !== 'undefined' && PCORPS.oeil ? PCORPS.oeil(m) : m.accroupi ? (R ? R.JOUEUR.oeilAccroupi : 1) : (R ? R.JOUEUR.oeil : 1.6), dy = (c.y + 1.2) - (m.y + oeil); m.yaw = Math.atan2(-dx, -dz); m.pitch = Math.atan2(dy, Math.sqrt(dx * dx + dz * dz)); return { yaw: m.yaw, pitch: m.pitch }; },
       finir: () => {
         if (!jeu) return null;
         try { if (typeof jeu.finir === 'function') jeu.finir(); else jeu.temps = Math.max(jeu.temps || 0, (R ? R.MODES.arene.duree : 180) + 0.01); } catch (e) { signaler('finir', e); }

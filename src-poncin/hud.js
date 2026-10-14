@@ -1,14 +1,19 @@
 /* OPÉRATION PONCIN — l'affichage tête haute, en DOM par-dessus la 3D : viseur dynamique (s'élargit avec la dispersion, rouge sur
-   une cible), marqueur de touche, chiffres de dégâts, vie et armure, munitions et anneau de recharge, chrono, score, fil des
-   éliminations (« X a repeint Y »), minicarte ronde de Poncin (canvas : bâtiments, eau, rues, ta position et ton cap, les ennemis
-   vus), flèches de direction des dégâts, tableau des scores, écran de fin, annonces. Rien n'est écrit dans le DOM si la valeur
-   n'a pas changé ; les animations courtes (touche, chiffres, flèches) sont menées à la main, sans reflow. */
+   une cible, s'efface en visée et disparaît en course), point rouge et lunette en surimpression quand on vise (selon
+   A.visee.viseur : 'point' / 'point rouge' à vise ≥ 0,7, 'lunette' à vise ≥ 0,85, 'fer' / 'aucun' : un petit point blanc), marqueur
+   de touche, chiffres de dégâts, vie et armure, icône de posture (debout, accroupi, couché, glissade, course), les deux emplacements
+   d'armes (pastilles : icône, « 30 | 120 », « ∞ » pour la réserve de l'arme de secours ; au doigt, toucher l'autre pastille change
+   d'arme, toucher celle en main recharge), anneau de recharge, chrono (« ∞ » sans limite), score, fil des éliminations, minicarte
+   ronde de Poncin (canvas : bâtiments, eau, rues, ta position et ton cap, les ennemis vus), flèches de direction des dégâts, flash
+   rouge quand on est touché, refus (« Pas la place de te coucher »), tableau des scores, écran de fin, annonces.
+   Les libellés et les icônes des armes viennent de PREGLES.ARMES (nom, classe ; repli tolérant si un champ manque) :
+   PHUD.iconeArme(id), PHUD.nomArme(id), PHUD.classeArme(id), PHUD.nomClasse(classe) servent aussi aux menus (ui.js).
+   Rien n'est écrit dans le DOM si la valeur n'a pas changé ; les animations courtes (touche, chiffres, flèches) sont menées à la main,
+   sans reflow. */
 const PHUD = (() => {
   'use strict';
   const TAU = Math.PI * 2, DEG = Math.PI / 180;
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-  const NOM_ARME = { rafale: 'Blaster rafale', pompe: 'Pompe à peinture', precision: 'Long-tir' };
-  const COUL_ARME = { rafale: '#FF6B8B', pompe: '#5FD3A4', precision: '#B8A6FF' };
   let racine = null, actions = {}, W = 1, H = 1, DPR = 1, tactile = false;
   let jeuVu = null, moi = null, idMoi = 'moi', tPrec = 0, px = 0, pz = 0, vitesse = 0, gonfle = 0, tMort = -1, parQui = null, armeMort = '', scoresOuverts = false, scoresT = 0, finie = false;
   const el = {}; // les éléments
@@ -16,17 +21,51 @@ const PHUD = (() => {
   const coupsDe = new Map(); // id → dernier tir (temps de jeu) : un tireur se trahit sur la minicarte
   let vusCache = new Map(), vusT = -1, objets = [], objetsT = -1, carteT = 0;
 
-  // ─── icônes ───
-  const SVG_ARME = {
-    rafale: '<svg viewBox="0 0 64 40" aria-hidden="true"><path d="M6 14h34l5-5h9a3 3 0 0 1 3 3v9a3 3 0 0 1-3 3h-9l-4-3H26l-3 11a2 2 0 0 1-2 1.5h-6a2 2 0 0 1-2-2.5l2.5-10H6a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2z" fill="#FF6B8B" stroke="#2B2A4C" stroke-width="3" stroke-linejoin="round"/><rect x="16" y="6" width="14" height="8" rx="3" fill="#FFC84A" stroke="#2B2A4C" stroke-width="3"/></svg>',
-    pompe: '<svg viewBox="0 0 64 40" aria-hidden="true"><path d="M4 15h46a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3H24l-4 10a2 2 0 0 1-2 1.3h-6a2 2 0 0 1-1.8-2.8L14 25H4a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2z" fill="#5FD3A4" stroke="#2B2A4C" stroke-width="3" stroke-linejoin="round"/><rect x="30" y="24" width="18" height="7" rx="3" fill="#FFC84A" stroke="#2B2A4C" stroke-width="3"/></svg>',
-    precision: '<svg viewBox="0 0 64 40" aria-hidden="true"><path d="M2 19h50l6-3h3v8h-3l-6-3H26l-5 12a2 2 0 0 1-2 1.3h-5a2 2 0 0 1-1.8-2.8L16 23H4a2 2 0 0 1-2-2z" fill="#B8A6FF" stroke="#2B2A4C" stroke-width="3" stroke-linejoin="round"/><rect x="22" y="7" width="20" height="8" rx="4" fill="#7FB3FF" stroke="#2B2A4C" stroke-width="3"/></svg>',
+  // ─── les armes : libellés et icônes (PREGLES.ARMES : nom, classe, role ; repli si un champ manque) ───
+  const RG = () => (typeof PREGLES !== 'undefined' ? PREGLES : null);
+  const estArme = (id) => { const R = RG(); return !!R && (R.estArme ? R.estArme(id) : !!(R.ARMES || []).find((a) => a.id === id)); };
+  const armeDe = (id) => (estArme(id) ? RG().arme(id) : null);
+  // les classes des blasters d'avant (régime historique, en attendant l'arsenal du contrat)
+  const CLASSE_HIST = { rafale: 'fusil', carabine: 'fusil', pompe: 'pompe', precision: 'sniper', petoire: 'pistolet', arroseuse: 'mitraillette', arrosoir: 'mitraillette' };
+  const NOMS_CLASSES = { fusil: 'Fusil d’assaut', mitraillette: 'Mitraillette', pompe: 'Fusil à pompe', sniper: 'Fusil de précision', pistolet: 'Pistolet' };
+  function classeArme(id) { const A = armeDe(id); return (A && A.classe) || CLASSE_HIST[id] || (A && A.role === 'secondaire' ? 'pistolet' : 'fusil'); }
+  function nomClasse(c) { const R = RG(), v = R && R.CLASSES ? R.CLASSES[c] : null; return typeof v === 'string' ? v : (v && (v.nom || v.libelle)) || NOMS_CLASSES[c] || String(c || ''); }
+  function nomArme(id) { const A = armeDe(id); return (A && A.nom) || (id ? String(id) : ''); }
+  // les silhouettes (profil, canon à droite), dessinées pour 64 × 24 : métal, bois, polymère, kaki
+  const C = { m: '#4A4F5F', n: '#363A47', b: '#B57240', k: '#6F7A4E', i: '#A3AAB8', r: '#FF4D6D' };
+  const P = (d, c) => `<path d="${d}" fill="${C[c]}"/>`;
+  const FORMES = {
+    ak74: P('M2 8.5L15 9.5V14L3.5 17.5Q1.5 18 1.6 16Z', 'b') + P('M14 8H40V13.5H14Z', 'm') + P('M40 8.6H49V13H40Z', 'b') + P('M49 9.3H62V11H49ZM58.5 6.8H60V9.3H58.5Z', 'm') + P('M28 13.5H34Q35 18 38.5 21.5L33.5 23Q30 19 28 13.5Z', 'n') + P('M18 13.5H22.5L20.5 20H16.5Z', 'b'),
+    m4: P('M2 9H12V13.5L4 15H2ZM12 10H16V12H12Z', 'n') + P('M15 8H38V13.5H15Z', 'm') + P('M38 8.4H50V12.8H38Z', 'n') + P('M50 9.6H62V11H50Z', 'm') + P('M24 4.5H32V8H24Z', 'n') + P('M28 13.5H33L34.5 21H29.5Z', 'n') + P('M18 13.5H22L20.3 19.5H16.5Z', 'n') + '<circle cx="30.6" cy="6.2" r="1.1" fill="#FF4D6D"/>',
+    ump: P('M2 9H13V11.5H5V14H2Z', 'n') + P('M12 7H42V14H12Z', 'n') + P('M16 5.5H34V7H16Z', 'm') + P('M42 9.5H50V11.5H42Z', 'm') + P('M30 14H35V22H30Z', 'n') + P('M17 14H21.5L20 20.5H16Z', 'n'),
+    mp9: P('M2 8H5V14H2ZM4 9.5H14V11H4Z', 'n') + P('M14 8H40V13H14Z', 'm') + P('M40 9.5H46V11H40Z', 'm') + P('M20 13H25L24 23H19Z', 'n') + P('M33 13H36V18H33Z', 'n'),
+    pompe: P('M2 9L16 9.8V13.8L3 17Q1.6 17.3 1.6 15.6Z', 'b') + P('M15.5 8.4H30V13.2H15.5Z', 'm') + P('M30 8.6H62V10.4H30ZM30 11H52V12.8H30Z', 'm') + P('M36 10.6H47V14.2H36Z', 'b') + P('M19 13.2H23L22 16H19.5Z', 'm'),
+    m24: P('M2 9.5L22 10V14.2H12L9 18.5H5L6.5 15L2.6 16.4Z', 'b') + P('M22 10.2H44V13.4H22Z', 'b') + P('M18 8.6H30V11.4H18Z', 'm') + P('M44 10.2H62V11.6H44Z', 'm') + P('M19 4.2H36V7.4H19ZM17 3.4H21V8.2H17ZM34 3H38.5V8.6H34ZM24 7.4H26V8.8H24ZM30 7.4H32V8.8H30Z', 'n'),
+    awm: P('M2 8.5H24V14.5H17L14.5 19H9.5L11 14.6H2Z', 'k') + P('M24 9.4H44V13.4H24Z', 'k') + P('M44 10H58V11.6H44Z', 'm') + P('M58 9.2H62.4V12.4H58Z', 'n') + P('M27 13.4H31V16.5H27Z', 'n') + P('M19 4.2H36V7.4H19ZM17 3.4H21V8.2H17ZM34 3H38.5V8.6H34ZM24 7.4H26V8.8H24ZM30 7.4H32V8.8H30Z', 'n'),
+    m1911: P('M14 6H46V11.5H14Z', 'i') + P('M16 11.5H44V14H16Z', 'm') + P('M17 14H26L24 23H14.5Z', 'b') + '<path d="M26 14H32.5Q32.5 18 29 18H26" fill="none" stroke="#2B2A4C" stroke-width="1.6"/>',
+    p226: P('M14 6H46V11.8H14Z', 'n') + P('M16 11.8H45V14.4H16Z', 'm') + P('M17 14H26.5L24.5 23H14.5Z', 'n') + '<path d="M26.5 14.4H33Q33 18.4 29.4 18.4H26.5" fill="none" stroke="#2B2A4C" stroke-width="1.6"/>',
   };
+  const FORME_CLASSE = { fusil: 'm4', mitraillette: 'ump', pompe: 'pompe', sniper: 'm24', pistolet: 'p226' };
+  const icones = new Map();
+  function iconeArme(id) { // le SVG d'une arme (le modèle, sinon la classe), gardé en cache
+    if (!id) return '';
+    if (icones.has(id)) return icones.get(id);
+    const A = armeDe(id), m = A && typeof A.modele === 'string' ? A.modele.replace(/\.glb$/, '') : '';
+    const f = FORMES[id] || FORMES[m] || FORMES[FORME_CLASSE[classeArme(id)]] || FORMES.m4;
+    const s = `<svg viewBox="0 0 64 24" aria-hidden="true"><g stroke="#2B2A4C" stroke-width="1.3" stroke-linejoin="round">${f}</g></svg>`;
+    icones.set(id, s); return s;
+  }
+  // les viseurs : 'lunette' ; 'point' (ou 'point rouge') ; 'fer' (ou 'aucun') : un petit point blanc
+  function viseurDe(A) { const v = A && A.visee && A.visee.viseur; return v === 'lunette' ? 'lunette' : v === 'point' || v === 'point rouge' ? 'point' : 'fer'; }
+  const ICO = (n) => (typeof PCONTROLES !== 'undefined' && PCONTROLES.ICONES && PCONTROLES.ICONES[n]) || '';
   const SVG_COEUR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5l-1.4-1.3C5.4 14.5 2 11.4 2 7.6 2 4.5 4.4 2 7.5 2c1.7 0 3.4.8 4.5 2.1C13.1 2.8 14.8 2 16.5 2 19.6 2 22 4.5 22 7.6c0 3.8-3.4 6.9-8.6 11.6z" fill="#FF6B8B" stroke="#2B2A4C" stroke-width="2.2" stroke-linejoin="round"/></svg>';
   const SVG_BOUCLIER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5z" fill="#7FB3FF" stroke="#2B2A4C" stroke-width="2.2" stroke-linejoin="round"/></svg>';
   const SVG_PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4.5" height="14" rx="1.6" fill="#2B2A4C"/><rect x="13.5" y="5" width="4.5" height="14" rx="1.6" fill="#2B2A4C"/></svg>';
   const SVG_SCORES = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v5a5 5 0 0 1-10 0z" fill="#FFC84A" stroke="#2B2A4C" stroke-width="2.2" stroke-linejoin="round"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v3M8 20h8l-1-3H9z" fill="none" stroke="#2B2A4C" stroke-width="2.2" stroke-linejoin="round"/></svg>';
-  const SPLAT = '<svg viewBox="0 0 100 100" aria-hidden="true"><path d="M50 8c6 0 7 12 13 13s14-9 18-4-5 13-1 18 16 3 16 10-13 6-14 12 9 13 4 17-13-4-18 0-4 18-12 18-6-14-12-15-13 10-18 5 4-14 0-19-17-3-17-10 14-6 15-12-8-14-3-18 13 5 18 1 5-16 12-16z" fill="currentColor"/></svg>';
+  // la lunette : l'écran noir percé d'un cercle (CSS), et dans le cercle le réticule, les graduations et un léger reflet bleuté
+  const LUNETTE = `<svg class="h-lun-ret" viewBox="-100 -100 200 200" aria-hidden="true"><defs><radialGradient id="h-reflet" cx="-30" cy="-35" r="120" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#BFE3FF" stop-opacity=".16"/><stop offset=".6" stop-color="#7FB3FF" stop-opacity=".05"/><stop offset="1" stop-color="#0B1830" stop-opacity=".35"/></radialGradient></defs>
+    <circle r="100" fill="url(#h-reflet)"/><path d="M-100 0H-6M6 0H100M0 -100V-6M0 6V100" stroke="#0A0B10" stroke-width="1.1"/><path d="M-100 0H-42M42 0H100M0 42V100" stroke="#0A0B10" stroke-width="3.2"/>
+    ${[-30, -20, -10, 10, 20, 30].map((v) => `<path d="M${v} -2.6V2.6M-2.6 ${v}H2.6" stroke="#0A0B10" stroke-width="1"/>`).join('')}<circle r="1.2" fill="#FF4D6D"/><circle r="99" fill="none" stroke="#000" stroke-width="3"/></svg>`;
 
   // ─── construction ───
   function init(r, o) {
@@ -35,11 +74,12 @@ const PHUD = (() => {
     racine.classList.add('hud');
     racine.innerHTML = `
       <div class="h-vignette" aria-hidden="true"></div>
-      <div class="h-splat" aria-hidden="true">${SPLAT}</div>
-      <div class="h-noms" aria-hidden="true">${'<span class="h-nom"></span>'.repeat(4)}</div>
+      <div class="h-flash" aria-hidden="true"></div>
+      <div class="h-noms" aria-hidden="true">${'<span class="h-nom"></span>'.repeat(5)}</div>
       <div class="h-nombres" aria-hidden="true">${'<b class="h-nombre"></b>'.repeat(12)}</div>
       <div class="h-centre" aria-hidden="true">
         <div class="h-viseur"><i class="h-v h-v1"></i><i class="h-v h-v2"></i><i class="h-v h-v3"></i><i class="h-v h-v4"></i><i class="h-rond"></i><i class="h-point"></i></div>
+        <i class="h-pr"></i>
         <svg class="h-recharge" viewBox="0 0 64 64"><circle class="fond" cx="32" cy="32" r="26"/><circle class="arc" cx="32" cy="32" r="26" pathLength="100"/></svg>
         <div class="h-touche"><i></i><i></i><i></i><i></i></div>
         ${'<div class="h-fleche"><i></i></div>'.repeat(4)}
@@ -60,26 +100,38 @@ const PHUD = (() => {
       <div class="h-fil" aria-live="polite"></div>
       <div class="h-annonces" aria-live="polite"><div class="h-annonce"></div></div>
       <div class="h-bas">
+        <span class="h-posture" aria-hidden="true"></span>
         <div class="h-vie">
           <div class="h-ligne h-armure-l">${SVG_BOUCLIER}<div class="h-barre armure"><i></i></div><b class="h-armure-n">0</b></div>
           <div class="h-ligne">${SVG_COEUR}<div class="h-barre vie"><i></i><em></em></div><b class="h-vie-n">100</b></div>
         </div>
-        <div class="h-mun"><span class="h-arme-ico"></span><div><b class="h-mun-n">30</b><small class="h-mun-r">/ 120</small><em class="h-arme-nom">Blaster rafale</em></div></div>
+        <div class="h-armes">${[0, 1].map((i) => `<button type="button" class="h-arme" data-slot="${i}" aria-label="${i ? 'Arme secondaire' : 'Arme principale'}"><b class="h-slot">${i + 1}</b><span class="h-arme-ico"></span><span class="h-mun"><b class="h-mun-n">0</b><small class="h-mun-r">| 0</small></span></button>`).join('')}</div>
       </div>
       <div class="h-ramasse"></div>
+      <div class="h-refus" aria-live="polite"></div>
+      <div class="h-limite" hidden>Limite de la zone</div>
       <div class="h-mort" hidden><div class="h-mort-carte"><small>Oups !</small><b class="h-mort-par">Repeint !</b><span class="h-mort-arme"></span><div class="h-mort-retour">Retour dans <b>3</b></div></div></div>
       <div class="h-scores" hidden><div class="h-scores-carte"></div></div>
       <div class="h-fin" hidden></div>`;
     const q = (s) => racine.querySelector(s);
     Object.assign(el, {
-      vignette: q('.h-vignette'), splat: q('.h-splat'), centre: q('.h-centre'), viseur: q('.h-viseur'), vs: Array.from(racine.querySelectorAll('.h-v')), rond: q('.h-rond'),
+      vignette: q('.h-vignette'), flash: q('.h-flash'), pr: q('.h-pr'), centre: q('.h-centre'), viseur: q('.h-viseur'), vs: Array.from(racine.querySelectorAll('.h-v')), rond: q('.h-rond'),
       recharge: q('.h-recharge'), rechargeArc: q('.h-recharge .arc'), touche: q('.h-touche'), fleches: Array.from(racine.querySelectorAll('.h-fleche')), sous: q('.h-sous'),
       carte: q('.h-carte canvas'), nord: q('.h-n'), chrono: q('.h-chrono b'), objectif: q('.h-chrono small'), scoreMoi: q('.h-moi b'), scoreEux: q('.h-eux b'), pastMoi: q('.h-moi .h-pastille'), pastEux: q('.h-eux .h-pastille'),
       fil: q('.h-fil'), annonce: q('.h-annonce'), vieBarre: q('.h-barre.vie i'), vieFant: q('.h-barre.vie em'), vieN: q('.h-vie-n'), armureL: q('.h-armure-l'), armureBarre: q('.h-barre.armure i'), armureN: q('.h-armure-n'), vie: q('.h-vie'),
-      mun: q('.h-mun'), munN: q('.h-mun-n'), munR: q('.h-mun-r'), armeIco: q('.h-arme-ico'), armeNom: q('.h-arme-nom'), ramasse: q('.h-ramasse'),
+      posture: q('.h-posture'), refus: q('.h-refus'), limite: q('.h-limite'), ramasse: q('.h-ramasse'),
       mort: q('.h-mort'), mortPar: q('.h-mort-par'), mortArme: q('.h-mort-arme'), mortRetour: q('.h-mort-retour b'), scores: q('.h-scores'), scoresCarte: q('.h-scores-carte'), fin: q('.h-fin'),
       noms: Array.from(racine.querySelectorAll('.h-nom')), nombres: Array.from(racine.querySelectorAll('.h-nombre')),
     });
+    slots = Array.from(racine.querySelectorAll('.h-arme')).map((b) => ({ el: b, ico: b.querySelector('.h-arme-ico'), n: b.querySelector('.h-mun-n'), r: b.querySelector('.h-mun-r'), id: null, m: null, res: null, main: null, bas: null }));
+    for (const s of slots) s.el.addEventListener('pointerdown', (e) => { // au doigt : l'autre pastille change d'arme, celle en main recharge
+      e.preventDefault(); e.stopPropagation();
+      const i = slots.indexOf(s); if (!moi || !s.id) return;
+      if (s.main) { if (actions.recharger) actions.recharger(); } else if (actions.arme) actions.arme(i);
+    });
+    // la lunette : à côté du HUD, sous les commandes (le HUD passe au-dessus des commandes, la lunette ne doit pas les cacher)
+    el.lunette = document.createElement('div'); el.lunette.className = 'h-lunette'; el.lunette.setAttribute('aria-hidden', 'true'); el.lunette.innerHTML = LUNETTE;
+    if (racine.parentNode) racine.parentNode.insertBefore(el.lunette, racine); else racine.appendChild(el.lunette);
     nombres = el.nombres.map((e) => ({ el: e, t: -1, x: 0, y: 0, z: 0, dx: 0 }));
     fleches = el.fleches.map((e) => ({ el: e, t: -1, x: 0, z: 0 }));
     noms = el.noms.map((e) => ({ el: e, id: null, txt: '', vu: false }));
@@ -90,13 +142,14 @@ const PHUD = (() => {
     el.fin.addEventListener('click', (e) => { const b = e.target.closest('[data-fin]'); if (!b || b.disabled) return; const a = b.dataset.fin; if (typeof actions[a] === 'function') { try { actions[a](); } catch (err) { console.warn('[Poncin] fin', a, err); } } }); // rejouer, menu, salon…
     taille();
   }
-  let nombres = [], fleches = [], noms = [], ctxCarte = null, tailleCarte = 112;
+  let nombres = [], fleches = [], noms = [], slots = [], ctxCarte = null, tailleCarte = 112;
   function taille(w, h) {
     if (!racine) return;
     W = w || racine.clientWidth || window.innerWidth; H = h || racine.clientHeight || window.innerHeight; DPR = Math.min(2, window.devicePixelRatio || 1);
     tailleCarte = Math.round(Math.max(84, Math.min(124, H * 0.29)));
     el.carte.width = Math.round(tailleCarte * DPR); el.carte.height = Math.round(tailleCarte * DPR);
     el.carte.style.width = el.carte.style.height = tailleCarte + 'px'; el.carte.parentNode.style.width = el.carte.parentNode.style.height = tailleCarte + 'px';
+    el.lunette.style.setProperty('--rl', Math.round(0.42 * Math.min(W, H)) + 'px'); // le rayon du cercle de la lunette
     vu.ecart = -1;
   }
 
@@ -148,7 +201,7 @@ const PHUD = (() => {
       const o = objets[i]; if (!o || o.dispo === false) continue;
       const u = (o.x - moi.x) * s, v = (o.z - moi.z) * s, X = R + u * c - v * sn, Y = R + u * sn + v * c;
       if ((X - R) * (X - R) + (Y - R) * (Y - R) > (R - 6 * DPR) * (R - 6 * DPR)) continue;
-      g.fillStyle = o.objet === 'soin' ? '#5FD3A4' : o.objet === 'armure' ? '#7FB3FF' : COUL_ARME[o.objet] || '#FFC84A';
+      g.fillStyle = o.objet === 'soin' ? '#5FD3A4' : o.objet === 'armure' ? '#7FB3FF' : o.objet === 'munitions' ? '#FF9F5A' : '#FFC84A';
       g.strokeStyle = '#2B2A4C'; g.lineWidth = 1.5 * DPR; g.beginPath(); g.rect(X - 3.5 * DPR, Y - 3.5 * DPR, 7 * DPR, 7 * DPR); g.fill(); g.stroke();
     }
     // les autres : alliés toujours, ennemis s'ils sont vus ou s'ils viennent de tirer
@@ -186,8 +239,12 @@ const PHUD = (() => {
   function trouver(jeu, id) { const es = jeu.entites; for (let i = 0; i < es.length; i++) if (es[i].id === id) return es[i]; return null; }
   let equipesPartie = false; // donné par PUI à reinit, au cas où le jeu n'expose pas ses options
   const estEquipes = (jeu) => !!(jeu.options && jeu.options.equipes != null ? jeu.options.equipes : jeu.equipes != null ? jeu.equipes : equipesPartie);
-  function duree(jeu) { const id = (jeu.mode && jeu.mode.id) || 'arene'; return (typeof PREGLES !== 'undefined' && PREGLES.MODES[id] && PREGLES.MODES[id].duree) || 180; }
-  function objectif(jeu) { const id = (jeu.mode && jeu.mode.id) || 'arene'; return (typeof PREGLES !== 'undefined' && PREGLES.MODES[id] && PREGLES.MODES[id].scoreVictoire) || 25; }
+  // les réglages de la partie (jeu.options : réglages normalisés du salon, § 6), sinon ceux du mode
+  const opt = (jeu) => jeu.options || {};
+  function duree(jeu) { if (opt(jeu).duree > 0) return opt(jeu).duree; const id = (jeu.mode && jeu.mode.id) || 'arene'; return (typeof PREGLES !== 'undefined' && PREGLES.MODES[id] && PREGLES.MODES[id].duree) || 180; }
+  function objectif(jeu) { if (opt(jeu).score > 0) return opt(jeu).score; const id = (jeu.mode && jeu.mode.id) || 'arene'; return (typeof PREGLES !== 'undefined' && PREGLES.MODES[id] && PREGLES.MODES[id].scoreVictoire) || 25; }
+  function delaiRetour(jeu) { const R = RG(), r = opt(jeu).reapparition, t = R && R.SALON && R.SALON.reapparitions ? R.SALON.reapparitions[r] : null; return t > 0 ? t : (R && R.MODES.arene.reapparition) || 3; }
+  const sansRetour = (jeu) => opt(jeu).reapparition === 'aucune'; // « dernier debout »
   const kills = (e) => (e && e.score ? e.score.kills || 0 : 0);
   const points = (e) => (e && e.score ? e.score.points || 0 : e && e.points || 0);
   function ecrire(cle, elem, v, pre) { if (vu[cle] !== v) { vu[cle] = v; elem.textContent = pre ? pre + v : String(v); } } // le texte n'est construit que si la valeur change
@@ -196,19 +253,20 @@ const PHUD = (() => {
   function relance(elem, cls) { elem.classList.remove(cls); void elem.offsetWidth; elem.classList.add(cls); } // relance une animation CSS (événements rares)
 
   // ─── les événements de l'image ───
-  let toucheT = -1, toucheType = '', vignette = 0, splatT = -1, sousT = -1, ramasseT = -1;
+  let toucheT = -1, toucheType = '', vignette = 0, flashT = -1, sousT = -1, ramasseT = -1, limiteT = -1;
+  const REFUS = { couche: 'Pas la place de te coucher' };
   function lireEvenements(jeu, evs) {
     for (let i = 0; i < evs.length; i++) {
       const e = evs[i];
       switch (e.t) {
-        case 'tir': if (e.id === idMoi) gonfle = Math.min(1, gonfle + (e.arme === 'pompe' ? 0.8 : e.arme === 'precision' ? 1 : 0.22)); else coupsDe.set(e.id, jeu.temps); break;
+        case 'tir': if (e.id === idMoi) { const A = armeDe(e.arme); gonfle = Math.min(1, gonfle + (A && A.gonfle != null ? A.gonfle : 0.22)); } else coupsDe.set(e.id, jeu.temps); break;
         case 'touche':
           if (e.de === idMoi && e.a !== idMoi) {
             const nv = e.mort ? 'mort' : e.tete ? 'tete' : 'corps'; if (toucheT < 0 || jeu.temps - toucheT > 0.05 || nv === 'mort' || (nv === 'tete' && toucheType === 'corps')) toucheType = nv; toucheT = jeu.temps;
             const v = trouver(jeu, e.a); if (v) nombre(jeu, v, e.degats, e.tete, e.mort);
           } else if (e.a === idMoi) {
             vignette = Math.min(1, vignette + Math.max(0.25, (e.degats || 10) / 45));
-            const de = trouver(jeu, e.de); if (de) { fleche(jeu, de); splat(de.couleur); }
+            const de = trouver(jeu, e.de); if (de) fleche(jeu, de); flashT = performance.now(); // le flash rouge
           }
           break;
         case 'mort': {
@@ -220,6 +278,7 @@ const PHUD = (() => {
         case 'reapparition': if (e.id === idMoi) { tMort = -1; vignette = 0; } break;
         case 'annonce': annonce(e.texte); break;
         case 'ramasse': if (e.id === idMoi) ramasse(e.objet); break;
+        case 'refus': if (e.id === idMoi) refus(REFUS[e.quoi] || e.texte || ''); break;
       }
     }
   }
@@ -229,18 +288,20 @@ const PHUD = (() => {
     n.el.textContent = String(Math.round(degats || 0)); n.el.className = 'h-nombre' + (mort ? ' mort' : tete ? ' tete' : '');
   }
   function fleche(jeu, de) { let f = fleches[0]; for (let i = 0; i < fleches.length; i++) { if (fleches[i].t < 0 || jeu.temps - fleches[i].t > 1.2) { f = fleches[i]; break; } if (fleches[i].t < f.t) f = fleches[i]; } f.t = jeu.temps; f.x = de.x; f.z = de.z; }
-  function splat(couleur) { splatT = performance.now(); el.splat.style.color = couleur || '#FF6B8B'; const coin = (Math.random() * 2) | 0; el.splat.dataset.coin = String(coin); el.splat.style.setProperty('--r', ((Math.random() * 360) | 0) + 'deg'); }
+  let refusT = 0;
+  function refus(txt) { if (!txt) return; const now = performance.now(); if (now - refusT < 700 && el.refus.textContent === txt) return; refusT = now; el.refus.textContent = txt; relance(el.refus, 'vu'); }
   function sous(txt, plus) { el.sous.innerHTML = `${plus ? `<b>${esc(plus)}</b>` : ''}<span>${txt}</span>`; relance(el.sous, 'vu'); sousT = performance.now(); }
   function ramasse(o) {
     const type = typeof o === 'string' ? o : o && (o.objet || o.type || o.arme);
     const R = typeof PREGLES !== 'undefined' ? PREGLES.OBJETS[type] : null;
-    const txt = type === 'soin' ? `+${R ? R.vie : 50} vie` : type === 'armure' ? `+${R ? R.armure : 50} armure` : `${NOM_ARME[type] || 'Arme'} !`;
-    el.ramasse.innerHTML = `${type === 'soin' ? SVG_COEUR : type === 'armure' ? SVG_BOUCLIER : SVG_ARME[type] || ''}<span>${esc(txt)}</span>`; relance(el.ramasse, 'vu'); ramasseT = performance.now();
+    const id = R && R.type === 'arme' ? R.arme : type;
+    const txt = type === 'soin' ? `+${R ? R.vie : 50} vie` : type === 'armure' ? `+${R ? R.armure : 50} armure` : type === 'munitions' ? 'Munitions !' : `${nomArme(id) || 'Arme'} !`;
+    el.ramasse.innerHTML = `${type === 'soin' ? SVG_COEUR : type === 'armure' ? SVG_BOUCLIER : type === 'munitions' ? '' : iconeArme(id)}<span>${esc(txt)}</span>`; relance(el.ramasse, 'vu'); ramasseT = performance.now();
   }
   function ajouterFil(jeu, e) { // « X a repeint Y »
     const tueur = trouver(jeu, e.par), victime = trouver(jeu, e.a);
     const row = document.createElement('div'); row.className = 'h-fil-l' + (e.par === idMoi ? ' moi' : '') + (e.a === idMoi ? ' victime' : '');
-    const nom = (e2) => `<span class="h-fil-n"><i style="background:${esc(e2 && e2.couleur || '#ccc')}"></i>${esc(e2 ? e2.nom : '?')}</span>`, ico = `<span class="h-fil-a">${SVG_ARME[e.arme] || ''}</span>`;
+    const nom = (e2) => `<span class="h-fil-n"><i style="background:${esc(e2 && e2.couleur || '#ccc')}"></i>${esc(e2 ? e2.nom : '?')}</span>`, ico = `<span class="h-fil-a">${iconeArme(e.arme)}</span>`;
     row.innerHTML = !tueur || e.par === e.a ? `${nom(victime)}<span>s’est repeint tout seul</span>`
       : e.par === idMoi ? `${ico}<span>Tu as repeint</span>${nom(victime)}`
       : e.a === idMoi ? `${nom(tueur)}${ico}<span>t’a repeint</span>`
@@ -262,18 +323,30 @@ const PHUD = (() => {
     // vitesse lissée (le viseur s'ouvre en courant)
     if (dt > 0) { const v = Math.sqrt((moi.x - px) * (moi.x - px) + (moi.z - pz) * (moi.z - pz)) / dt; vitesse += (Math.min(8, v) - vitesse) * Math.min(1, dt * 10); }
     px = moi.x; pz = moi.z; gonfle = Math.max(0, gonfle - dt * 3.2);
-    const R = typeof PREGLES !== 'undefined' ? PREGLES : null, A = R ? R.arme(moi.arme) : { dispersion: 0.02, dispersionMouvement: 0.02, recharge: 1.6, chargeur: 30 };
-    // viseur : écart = dispersion (arme + mouvement + recul) convertie en pixels avec le champ de vision vertical
-    const fov = (typeof PRENDU !== 'undefined' && PRENDU.fov) || 70, pxRad = (H / 2) / Math.tan(fov * DEG / 2);
-    const vmax = R ? R.JOUEUR.vitesse : 5.2, mvt = Math.min(1, vitesse / vmax) + (moi.auSol === false ? 0.6 : 0);
-    const disp = (A.dispersionAvantVisee != null ? A.dispersionAvantVisee : A.dispersion) * (moi.accroupi ? 0.7 : 1) + (A.dispersionMouvement || 0) * mvt + gonfle * (A.recul || 0.02) * 1.6;
-    const ecart = Math.round(Math.max(4, Math.min(80, disp * pxRad)) * 2) / 2;
-    if (ecart !== vu.ecart || moi.arme !== vu.armeV) {
-      vu.ecart = ecart; vu.armeV = moi.arme; el.viseur.dataset.arme = moi.arme;
+    const R = RG(), A = armeDe(moi.arme) || { dispersion: 0.02, dispersionMouvement: 0.02, recharge: 1.6, chargeur: 30, visee: null };
+    // la visée : z = 1 + (zoom − 1)·smoothstep(vise) ; le viseur de hanche s'efface entre vise 0,3 et 0,7 et disparaît en course
+    const vise = Math.max(0, Math.min(1, +moi.vise || 0)), sv = vise * vise * (3 - 2 * vise), zoom = A.visee && A.visee.zoom > 1 ? A.visee.zoom : 1, z = 1 + (zoom - 1) * sv;
+    const viseur = viseurDe(A), lunette = viseur === 'lunette' && vise >= 0.85 && moi.vivant !== false, pr = viseur === 'point' && vise >= 0.7 && moi.vivant !== false;
+    // viseur : écart = dispersion convertie en pixels avec le champ de vision vertical affiché (PRENDU.fovVue s'il existe : zoom compris ;
+    // sinon PRENDU.fov, la base, divisée par le zoom de la visée)
+    const fovVue = typeof PRENDU !== 'undefined' && PRENDU.fovVue > 0 ? PRENDU.fovVue : 0, fov0 = (typeof PRENDU !== 'undefined' && PRENDU.fov) || 70;
+    const fov = fovVue || 2 * Math.atan(Math.tan(fov0 * DEG / 2) / z) / DEG, pxRad = (H / 2) / Math.tan(fov * DEG / 2);
+    let disp = NaN;
+    if (moi.equip && typeof PARMES !== 'undefined' && PARMES.dispersion) { try { disp = PARMES.dispersion(moi, A); } catch (e) { disp = NaN; } } // la dispersion v2 de la simulation (§ 4)
+    if (!(disp >= 0)) { const vmax = R ? R.JOUEUR.vitesse : 5.2, mvt = Math.min(1, vitesse / vmax) + (moi.auSol === false ? 0.6 : 0); disp = (A.dispersionAvantVisee != null ? A.dispersionAvantVisee : A.dispersion) * (moi.accroupi ? 0.7 : 1) + (A.dispersionMouvement || 0) * mvt + gonfle * (A.recul || 0.02) * 1.6; }
+    const ecart = Math.round(Math.max(4, Math.min(80, disp * pxRad)) * 2) / 2, classe = classeArme(moi.arme);
+    if (ecart !== vu.ecart || classe !== vu.classeV) {
+      vu.ecart = ecart; vu.classeV = classe; el.viseur.dataset.classe = classe;
       el.viseur.style.setProperty('--e', ecart + 'px');
     }
+    const oLignes = moi.course || lunette ? 0 : Math.round((1 - Math.max(0, Math.min(1, (vise - 0.3) / 0.4))) * 20) / 20; // les branches
+    const oPoint = moi.course || lunette || pr ? 0 : viseur === 'fer' ? 1 : oLignes; // le petit point blanc reste aux organes de visée
+    if (oLignes !== vu.oL) { vu.oL = oLignes; el.viseur.style.setProperty('--o', String(oLignes)); }
+    if (oPoint !== vu.oP) { vu.oP = oPoint; el.viseur.style.setProperty('--op', String(oPoint)); }
+    if (lunette !== vu.lunette) { vu.lunette = lunette; el.lunette.classList.toggle('vu', lunette); racine.classList.toggle('lunette', lunette); }
+    if (pr !== vu.pr) { vu.pr = pr; el.pr.classList.toggle('vu', pr); }
     const cible = !!(aide && aide.surCible) && moi.vivant;
-    if (cible !== vu.cible) { vu.cible = cible; el.viseur.classList.toggle('cible', cible); }
+    if (cible !== vu.cible) { vu.cible = cible; el.viseur.classList.toggle('cible', cible); el.pr.classList.toggle('cible', cible); }
     // marqueur de touche
     const at = toucheT < 0 ? 1 : (jeu.temps - toucheT) / 0.28;
     if (at < 1) { if (vu.toucheType !== toucheType) { vu.toucheType = toucheType; el.touche.className = 'h-touche ' + toucheType; } el.touche.style.opacity = (1 - at * at).toFixed(2); el.touche.style.transform = `scale(${(toucheType === 'mort' ? 1.35 : 1.1) - at * 0.25})`; vu.toucheVis = true; }
@@ -283,7 +356,8 @@ const PHUD = (() => {
     const pq = p < 0 ? -1 : Math.round(Math.max(0, Math.min(1, p)) * 100);
     if (pq !== vu.rech) { vu.rech = pq; el.recharge.classList.toggle('vu', pq >= 0); if (pq >= 0) el.rechargeArc.style.strokeDashoffset = String(100 - pq); }
     // vie, armure
-    const vie = Math.max(0, Math.round(moi.vie || 0)), arm = Math.max(0, Math.round(moi.armure || 0)), vieMax = R ? R.JOUEUR.vie : 100, armMax = R ? R.JOUEUR.armureMax : 50;
+    const vie = Math.max(0, Math.round(moi.vie || 0)), arm = Math.max(0, Math.round(moi.armure || 0));
+    const vieMax = jeu.vieMax > 0 ? jeu.vieMax : R ? R.JOUEUR.vie : 100, armMax = jeu.armureMax > 0 ? jeu.armureMax : R ? R.JOUEUR.armureMax : 50;
     if (vie !== vu.vie) {
       el.vieBarre.style.transform = `scaleX(${(vie / vieMax).toFixed(3)})`; el.vieN.textContent = String(vie);
       if (vu.vie != null && vie < vu.vie) { vu.fant = Math.max(vu.fant || 0, vu.vie); vu.fantT = now; }
@@ -292,20 +366,39 @@ const PHUD = (() => {
     if (vu.fant) { const k = (now - vu.fantT) / 600; const f = k < 0.5 ? vu.fant : vie + (vu.fant - vie) * Math.max(0, 1 - (k - 0.5) * 2); el.vieFant.style.transform = `scaleX(${(f / vieMax).toFixed(3)})`; if (k > 1) { vu.fant = 0; el.vieFant.style.transform = 'scaleX(0)'; } } // la vie perdue s'efface doucement
     if (arm !== vu.arm) { vu.arm = arm; el.armureBarre.style.transform = `scaleX(${(arm / armMax).toFixed(3)})`; el.armureN.textContent = String(arm); el.armureL.classList.toggle('vide', arm <= 0); }
     const inv = (moi.invincible || 0) > 0; if (inv !== vu.inv) { vu.inv = inv; el.vie.classList.toggle('protege', inv); }
-    // munitions
-    const mun = moi.munitions ? moi.munitions[moi.arme] : 0, res = moi.reserve ? moi.reserve[moi.arme] : 0;
-    ecrire('mun', el.munN, mun == null ? 0 : mun); ecrire('res', el.munR, moi.arme === 'rafale' ? '∞' : res == null ? 0 : res, '/ '); // le blaster rafale recharge à l'infini
-    if (moi.arme !== vu.arme) { vu.arme = moi.arme; el.armeIco.innerHTML = SVG_ARME[moi.arme] || ''; el.armeNom.textContent = (R && R.arme(moi.arme).nom) || NOM_ARME[moi.arme] || ''; }
-    const bas = mun != null && A.chargeur ? mun <= Math.ceil(A.chargeur * 0.25) : false; if (bas !== vu.munBas) { vu.munBas = bas; el.mun.classList.toggle('bas', bas); }
+    // la posture (près de la vie)
+    const posture = moi.course ? 'course' : moi.vers || moi.posture || (moi.accroupi ? 'accroupi' : 'debout');
+    if (posture !== vu.posture) { vu.posture = posture; el.posture.innerHTML = ICO(posture) || ICO('debout'); el.posture.dataset.p = posture; }
+    // les deux emplacements : icône, « 30 | 120 » (« ∞ » : la réserve de l'arme de secours, qui ne tombe jamais en panne)
+    let secours = null; try { secours = typeof PARMES !== 'undefined' && PARMES.secours ? PARMES.secours(moi) : moi.equip ? moi.armes[1] : 'rafale'; } catch (e) { secours = null; }
+    const armes = Array.isArray(moi.armes) ? moi.armes : [moi.arme];
+    for (let i = 0; i < slots.length; i++) {
+      const s = slots[i], id = armes[i] || null;
+      if (id !== s.id) { s.id = id; s.el.hidden = !id; s.ico.innerHTML = iconeArme(id); s.el.setAttribute('aria-label', id ? `${i ? 'Secondaire' : 'Principale'} : ${nomArme(id)}` : ''); s.el.title = id ? nomArme(id) : ''; }
+      if (!id) continue;
+      const m = moi.munitions && moi.munitions[id] != null ? moi.munitions[id] : 0, r = id === secours ? '∞' : moi.reserve && moi.reserve[id] != null ? moi.reserve[id] : 0;
+      if (m !== s.m) { s.m = m; s.n.textContent = String(m); }
+      if (r !== s.res) { s.res = r; s.r.textContent = '| ' + r; }
+      const main = id === moi.arme; if (main !== s.main) { s.main = main; s.el.classList.toggle('main', main); }
+      const Ai = armeDe(id), bas = !!(Ai && Ai.chargeur) && m <= Math.ceil(Ai.chargeur * 0.25); if (bas !== s.bas) { s.bas = bas; s.el.classList.toggle('bas', bas); }
+    }
+    const mun = moi.munitions ? moi.munitions[moi.arme] : 0;
     const vide = mun === 0 && !(moi.rechargeJusqua > jeu.temps) && moi.vivant; if (vide !== vu.vide) { vu.vide = vide; el.centre.classList.toggle('vide', vide); }
-    // chrono et scores
-    const reste = Math.max(0, typeof jeu.reste === 'number' ? jeu.reste : duree(jeu) - (jeu.temps || 0)), sec = Math.ceil(reste);
-    if (sec !== vu.sec) { vu.sec = sec; el.chrono.textContent = `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; el.chrono.parentNode.classList.toggle('fin', sec <= 15); }
+    // chrono (« ∞ » sans limite de durée) et scores
+    const sansFin = !!(jeu.options && jeu.options.duree === 0);
+    const reste = Math.max(0, typeof jeu.reste === 'number' ? jeu.reste : duree(jeu) - (jeu.temps || 0)), sec = sansFin ? -1 : Math.ceil(reste);
+    if (sec !== vu.sec) { vu.sec = sec; el.chrono.textContent = sec < 0 ? '∞' : `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; el.chrono.parentNode.classList.toggle('fin', sec >= 0 && sec <= 15); }
     majScores(jeu);
+    // « Limite de la zone » à moins de 3 m du bord (monde.limite : { centre, rayon }, ou limite.distance(x, z) si la forme v2 la donne)
+    if (jeu.temps - limiteT > 0.2 || limiteT < 0) {
+      limiteT = jeu.temps; let d = Infinity; const L = jeu.monde && jeu.monde.limite;
+      try { if (L && typeof L.distance === 'function') d = +L.distance(moi.x, moi.z); else if (L && L.centre && L.rayon > 0) d = L.rayon - Math.hypot(moi.x - L.centre[0], moi.z - L.centre[1]); } catch (e) { d = Infinity; }
+      const pres = moi.vivant !== false && d < 3; if (pres !== vu.limite) { vu.limite = pres; el.limite.hidden = !pres; }
+    }
     // vignette de dégâts et vie basse
     vignette = Math.max(vie > 0 && vie <= 30 ? 0.35 + 0.12 * Math.sin(now / 260) : 0, vignette - dt * 1.4);
     const vg = Math.round(vignette * 50) / 50; if (vg !== vu.vg) { vu.vg = vg; el.vignette.style.opacity = String(vg); }
-    const sk = splatT < 0 ? 1 : (now - splatT) / 900; if (sk < 1) { el.splat.style.opacity = (0.75 * (1 - sk)).toFixed(2); vu.splatVis = true; } else if (vu.splatVis) { vu.splatVis = false; el.splat.style.opacity = '0'; }
+    const fk = flashT < 0 ? 1 : (now - flashT) / 260; if (fk < 1) { el.flash.style.opacity = (0.55 * (1 - fk)).toFixed(2); vu.flashVis = true; } else if (vu.flashVis) { vu.flashVis = false; el.flash.style.opacity = '0'; }
     // flèches de direction des dégâts (elles suivent ton cap)
     const cy = Math.cos(moi.yaw || 0), sy = Math.sin(moi.yaw || 0);
     for (let i = 0; i < fleches.length; i++) {
@@ -330,8 +423,8 @@ const PHUD = (() => {
     const fil = el.fil; if (fil.lastChild && now - fil.lastChild._t > 6000) fil.lastChild.remove();
     // repeint : l'écran d'attente
     const mort = !moi.vivant && tMort >= 0;
-    if (mort !== vu.mort) { vu.mort = mort; el.mort.hidden = !mort; racine.classList.toggle('mort', mort); if (mort) { el.mortPar.textContent = parQui && parQui !== idMoi ? `Repeint par ${nomDe(jeu, parQui)} !` : 'Repeint !'; el.mortArme.innerHTML = SVG_ARME[armeMort] || ''; } }
-    if (mort) { const rr = Math.max(0, ((R && R.MODES.arene.reapparition) || 3) - (jeu.temps - tMort)); ecrire('retour', el.mortRetour, Math.ceil(rr)); }
+    if (mort !== vu.mort) { vu.mort = mort; el.mort.hidden = !mort; racine.classList.toggle('mort', mort); if (mort) { el.mortPar.textContent = parQui && parQui !== idMoi ? `Repeint par ${nomDe(jeu, parQui)} !` : 'Repeint !'; el.mortArme.innerHTML = iconeArme(armeMort); } }
+    if (mort) { const rr = Math.max(0, delaiRetour(jeu) - (jeu.temps - tMort)); ecrire('retour', el.mortRetour, Math.ceil(rr)); }
     // minicarte
     if (jeu.temps - objetsT > 0.5 || objetsT < 0) { objetsT = jeu.temps; try { const M = jeu.mode && jeu.mode.objets ? jeu.mode : typeof PARENE !== 'undefined' ? PARENE : null; objets = M && M.objets ? M.objets(jeu) || [] : []; } catch (e) { objets = []; } }
     majVus(jeu); if (now - carteT > 32) { carteT = now; dessinerCarte(jeu); } // la minicarte à ~30 images/s
@@ -345,6 +438,7 @@ const PHUD = (() => {
     ecrire('sa', el.scoreMoi, a); ecrire('sb', el.scoreEux, b);
     const cA = moi.couleur || '#FFC84A'; if (cA !== vu.cA) { vu.cA = cA; el.pastMoi.style.background = cA; } // en équipes, la couleur de l'équipe (celle du joueur)
     if (cB !== vu.cB) { vu.cB = cB; el.pastEux.style.background = cB; }
+    if (sansRetour(jeu)) { let n = 0; for (let i = 0; i < es.length; i++) if (es[i].vivant) n++; if ('lice' + n !== vu.obj) { vu.obj = 'lice' + n; el.objectif.textContent = `Encore en lice : ${n}`; } return; }
     const cleObj = eq ? -1 : rang; if (cleObj !== vu.obj) { vu.obj = cleObj; el.objectif.textContent = `${eq ? 'équipe' : rang === 1 ? '1er' : rang + 'e'} · premier à ${objectif(jeu)}`; }
   }
   function majNoms(jeu) {
@@ -374,6 +468,7 @@ const PHUD = (() => {
   // ─── écran de fin ───
   function fin(res, jeu, id, infos) {
     if (!racine) return; finie = true; scores(false); infos = infos || {};
+    el.lunette.classList.remove('vu'); vu.lunette = false; racine.classList.remove('lunette');
     jeu = jeu || jeuVu; idMoi = id || idMoi;
     let ls = []; try { ls = jeu ? lignes(jeu) : []; } catch (e) { ls = []; }
     const eq = jeu ? estEquipes(jeu) : false, me = ls.find((l) => l.id === idMoi) || { points: 0, kills: 0, morts: 0 }, rang = ls.findIndex((l) => l.id === idMoi) + 1;
@@ -400,12 +495,13 @@ const PHUD = (() => {
   }
   function reinit(o) { // une nouvelle partie
     if (!racine) return; equipesPartie = !!(o && o.equipes);
-    finie = false; jeuVu = null; moi = null; tMort = -1; parQui = null; gonfle = 0; vitesse = 0; vignette = 0; toucheT = -1; splatT = -1; objets = []; objetsT = -1; vusT = -1;
+    finie = false; jeuVu = null; moi = null; tMort = -1; parQui = null; gonfle = 0; vitesse = 0; vignette = 0; toucheT = -1; flashT = -1; limiteT = -1; objets = []; objetsT = -1; vusT = -1;
     coupsDe.clear(); vusCache.clear(); for (const k in vu) delete vu[k]; vu.ecart = -1; carteT = 0;
     racine.classList.remove('finie', 'mort'); el.fil.innerHTML = ''; el.fin.hidden = true; el.fin.innerHTML = ''; el.mort.hidden = true; el.scores.hidden = true; scoresOuverts = false;
-    el.touche.style.opacity = '0'; el.splat.style.opacity = '0'; el.vignette.style.opacity = '0'; el.vieFant.style.transform = 'scaleX(0)';
+    el.touche.style.opacity = '0'; el.flash.style.opacity = '0'; el.lunette.classList.remove('vu'); el.pr.classList.remove('vu'); el.vignette.style.opacity = '0'; el.vieFant.style.transform = 'scaleX(0)';
     for (const n of nombres) { n.t = -1; n.el.style.opacity = '0'; } for (const f of fleches) { f.t = -1; f.el.style.opacity = '0'; } for (const n of noms) { n.vu = false; n.el.style.opacity = '0'; }
-    el.annonce.classList.remove('vu'); el.sous.classList.remove('vu'); el.ramasse.classList.remove('vu');
+    el.annonce.classList.remove('vu'); el.sous.classList.remove('vu'); el.ramasse.classList.remove('vu'); el.refus.classList.remove('vu');
+    for (const s of slots) { s.id = null; s.m = null; s.res = null; s.main = null; s.bas = null; }
   }
-  return { init, carte, taille, maj, fin, reinit, annonce, scores, get scoresOuverts() { return scoresOuverts; }, get finie() { return finie; } };
+  return { init, carte, taille, maj, fin, reinit, annonce, scores, iconeArme, nomArme, classeArme, nomClasse, get scoresOuverts() { return scoresOuverts; }, get finie() { return finie; } };
 })();

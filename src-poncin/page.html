@@ -29,7 +29,7 @@
         <text x="260" y="171" text-anchor="middle" textLength="430" lengthAdjust="spacingAndGlyphs" font-family="Fredoka, Nunito, sans-serif" font-weight="700" font-size="112" fill="#FF6B8B" stroke="#2B2A4C" stroke-width="11" stroke-linejoin="round" paint-order="stroke">PONCIN</text>
       </svg>
     </h1>
-    <p class="accroche">Blasters à peinture contre robots farceurs, dans les vraies rues de Poncin.</p>
+    <p class="accroche">Fusils, pompes et lunettes contre robots farceurs, dans les vraies rues de Poncin.</p>
     <div class="titre-actions">
       <button type="button" class="bouton gros fraise" data-a="jouer"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5z" fill="#fff" stroke="#2B2A4C" stroke-width="2.2" stroke-linejoin="round"/></svg>Jouer</button>
       <div class="records" id="records"></div>
@@ -51,6 +51,7 @@
         <div class="opt"><span>Format</span><div class="seg" data-opt="format" role="group" aria-label="Format"><button type="button" data-v="solo">Chacun pour soi</button><button type="button" data-v="equipes">2 contre 2</button></div></div>
         <div class="opt" id="opt-bots"><span>Robots</span><div class="seg" data-opt="bots" role="group" aria-label="Nombre de robots"><button type="button" data-v="3">3</button><button type="button" data-v="4">4</button><button type="button" data-v="5">5</button></div></div>
         <div class="opt"><span>Niveau</span><div class="seg" data-opt="niveau" role="group" aria-label="Niveau des robots"><button type="button" data-v="facile">Facile</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="fort">Fort</button></div></div>
+        <div class="opt"><span>Armes</span><button type="button" class="pilule equip-pilule" data-a="armes" aria-label="Choisir tes armes"><span class="equip-resume"></span></button></div>
       </div>
       <div class="cm-pied"><p class="cm-resume" id="resume-arene"></p><button type="button" class="bouton gros menthe" id="b-lancer" data-a="lancer">C’est parti !</button></div>
     </article>
@@ -102,9 +103,22 @@
       <div class="opt"><span>Robots en plus</span><div class="seg" data-sopt="bots" role="group" aria-label="Robots en plus"><button type="button" data-v="0">0</button><button type="button" data-v="1">1</button><button type="button" data-v="2">2</button><button type="button" data-v="3">3</button><button type="button" data-v="4">4</button></div></div>
       <div class="opt"><span>Niveau</span><div class="seg" data-sopt="niveau" role="group" aria-label="Niveau des robots"><button type="button" data-v="facile">Facile</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="fort">Fort</button></div></div>
       <div class="opt"><span>Format</span><div class="seg" data-sopt="equipes" role="group" aria-label="Format"><button type="button" data-v="0">Chacun pour soi</button><button type="button" data-v="1">2 équipes</button></div></div>
+      <div class="opt opt-armes"><span>Armes<small id="salon-armes"></small></span><button type="button" class="pilule equip-pilule" data-a="armes" aria-label="Choisir tes armes"><span class="equip-resume"></span></button></div>
       <p class="salon-etat" id="salon-etat" aria-live="polite"></p>
       <button type="button" class="bouton gros menthe" id="b-salon-action" data-a="salon-action">Lancer la partie</button>
     </div>
+  </div>
+</section>
+
+<section class="ecran armes-ecran" id="e-armes" data-e="armes" hidden>
+  <header class="barre-haut">
+    <button type="button" class="rond" data-a="armes-retour" aria-label="Retour"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <h2>Ton équipement</h2>
+    <p class="ar-note" id="ar-note"></p>
+  </header>
+  <div class="ar-grille">
+    <div class="panneau ar-col"><h3>Principale</h3><div class="ar-liste" id="ar-principales"></div></div>
+    <div class="panneau ar-col ar-sec"><h3>Secondaire</h3><div class="ar-liste" id="ar-secondaires"></div></div>
   </div>
 </section>
 
@@ -115,11 +129,14 @@
   </header>
   <div class="panneau grille-reglages">
     <label class="reg large"><span><b>Sensibilité</b><small>Vitesse de la visée au doigt et à la souris</small></span><input type="range" min="0.4" max="2.5" step="0.05" data-r="sensibilite"><output>1,00</output></label>
+    <label class="reg large"><span><b>Sensibilité en visée</b><small>En plus du zoom de l’arme</small></span><input type="range" min="0.5" max="1.5" step="0.05" data-r="sensibiliteVisee"><output>1,00</output></label>
+    <div class="reg large"><span><b>Visée</b><small>Auto : un appui au doigt, maintenue au clic droit</small></span><div class="seg" data-r="visee" role="group" aria-label="Mode de visée"><button type="button" data-v="auto">Auto</button><button type="button" data-v="bascule">Appui</button><button type="button" data-v="maintenir">Maintenir</button></div></div>
+    <div class="reg large"><span><b>Courir</b><small>Joystick poussé à fond, ou un bouton</small></span><div class="seg" data-r="course" role="group" aria-label="Pour courir"><button type="button" data-v="joystick">Joystick</button><button type="button" data-v="bouton">Bouton</button></div></div>
     <label class="reg inter"><span><b>Tir auto</b><small>Au doigt : tire tout seul quand le viseur est sur un robot</small></span><input type="checkbox" data-r="tirAuto"><i aria-hidden="true"></i></label>
     <label class="reg inter"><span><b>Mode gaucher</b><small>Joystick à droite, boutons à gauche</small></span><input type="checkbox" data-r="gaucher"><i aria-hidden="true"></i></label>
     <div class="reg large"><span><b>Balancement</b><small>Le mouvement de la vue quand tu marches</small></span><div class="seg" data-r="balancement" role="group" aria-label="Balancement de la vue"><button type="button" data-v="normal">Normal</button><button type="button" data-v="doux">Doux</button><button type="button" data-v="aucun">Aucun</button></div></div>
     <label class="reg inter"><span><b>Y inversé</b><small>Glisser vers le haut fait regarder en bas</small></span><input type="checkbox" data-r="inverserY"><i aria-hidden="true"></i></label>
-    <label class="reg inter"><span><b>Son</b><small>Blasters, splats et petites musiques</small></span><input type="checkbox" data-r="son"><i aria-hidden="true"></i></label>
+    <label class="reg inter"><span><b>Son</b><small>Coups de feu, impacts et petites musiques</small></span><input type="checkbox" data-r="son"><i aria-hidden="true"></i></label>
     <label class="reg inter"><span><b>Vibrations</b><small>Quand tu touches ou qu’on te touche</small></span><input type="checkbox" data-r="vibre"><i aria-hidden="true"></i></label>
     <div class="reg large"><span><b>Qualité</b><small>Auto s’adapte à ton téléphone</small></span><div class="seg" data-r="qualite" role="group" aria-label="Qualité"><button type="button" data-v="auto">Auto</button><button type="button" data-v="haute">Haute</button><button type="button" data-v="moyenne">Moyenne</button><button type="button" data-v="eco">Éco</button></div></div>
     <label class="reg large"><span><b>Ton pseudo</b><small>Dans le fil des éliminations et pour les copains en ligne</small></span><input type="text" maxlength="20" autocomplete="off" spellcheck="false" placeholder="Toi" data-r="nom"></label>
@@ -132,10 +149,11 @@
     <h2>Crédits</h2>
   </header>
   <div class="panneau texte-credits">
-    <div><h3>Opération Poncin</h3><p>Un FPS cartoon de la Salle de jeux, dans le vrai village de Poncin (Ain, 01450). Des blasters à peinture, des robots farceurs, jamais de sang.</p>
+    <div><h3>Opération Poncin</h3><p>Un FPS entre copains de la Salle de jeux, dans le vrai village de Poncin (Ain, 01450). De vraies armes, des robots farceurs, jamais de sang.</p>
       <h3>À savoir</h3><p>Le château de Poncin et ses jardins sont privés : on ne les voit que depuis la rue. Rien n’est inventé : pas d’intérieurs, pas de portes de ville.</p></div>
     <div><h3>La carte</h3><p class="attribution">© IGN – © contributeurs OpenStreetMap</p><p>Données OpenStreetMap sous licence ODbL ; données de l’IGN sous Licence Ouverte Etalab 2.0.</p><p id="credits-carte"></p>
-      <h3>Logiciels et polices</h3><p>Three.js (licence MIT) · Fredoka et Nunito (SIL Open Font License).</p></div>
+      <h3>Logiciels et polices</h3><p>Three.js (licence MIT) · Fredoka et Nunito (SIL Open Font License).</p>
+      <h3>Armes</h3><p>Modèles 3D : Ultimate Guns Pack de Quaternius et Flat Guns (OpenGameArt), domaine public (CC0).</p></div>
   </div>
 </section>
 

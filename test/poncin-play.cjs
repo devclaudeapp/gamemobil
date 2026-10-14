@@ -1,5 +1,6 @@
 // Opération Poncin : parcours de bout en bout sur un téléphone simulé en paysage (la vraie page poncin/index.html, la vraie carte).
-// Titre → Arène solo → joystick, visée au doigt, tir sur un robot → élimination → fin de partie → record lu par la Salle de jeux.
+// Titre → Arène solo → choix de l'équipement (principale + secondaire parmi les armes permises, libellés de PREGLES.ARMES) → joystick,
+// visée au doigt, tir sur un robot → élimination → fin de partie → record lu par la Salle de jeux.
 // NODE_PATH=/opt/node22/lib/node_modules node test/poncin-play.cjs
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -37,12 +38,36 @@ const URL0 = `http://localhost:${PORT}/poncin/`;
   check(source === true, 'la vraie carte de Poncin est chargée (pas la carte provisoire)');
   await page.screenshot({ path: out + '/01-titre.png' });
 
+  // ─── le choix de l'équipement : Modes → Armes ; une arme décochée n'est plus permise ───
+  await P(() => window.__poncin.montrer('modes')); await sleep(300);
+  await page.tap('#e-modes [data-a="armes"]'); await sleep(300);
+  const ar = await P(() => ({ ecran: document.body.dataset.ecran, p: Array.from(document.querySelectorAll('#ar-principales .ar-choisir')).map((b) => ({ id: b.dataset.id, nom: b.querySelector('b').textContent, ok: !b.disabled })), s: Array.from(document.querySelectorAll('#ar-secondaires .ar-choisir')).map((b) => ({ id: b.dataset.id, nom: b.querySelector('b').textContent, ok: !b.disabled })),
+    ref: PREGLES.ARMES.map((a) => ({ id: a.id, nom: a.nom, role: a.role })), permises: document.querySelectorAll('#e-armes .ar-permise').length }));
+  const refP = ar.ref.filter((a) => a.role === 'principale'), refS = ar.ref.filter((a) => a.role === 'secondaire');
+  check(ar.ecran === 'armes' && ar.p.length === refP.length && ar.s.length === refS.length && ar.p.every((c, i) => c.id === refP[i].id && c.nom === refP[i].nom), `l’écran des armes : ${ar.p.length} principales, ${ar.s.length} secondaires, libellés de PREGLES.ARMES (${ar.p.map((c) => c.nom).join(', ')})`);
+  check(ar.permises === ar.p.length + ar.s.length, 'en solo, chaque arme a sa case « permise »');
+  const choixP = ar.p.filter((c) => c.ok)[1] || ar.p[0], choixS = ar.s.filter((c) => c.ok).slice(-1)[0] || ar.s[0], interdite = ar.p.filter((c) => c.ok && c.id !== choixP.id).slice(-1)[0];
+  await page.tap(`#ar-principales .ar-choisir[data-id="${choixP.id}"]`); await page.tap(`#ar-secondaires .ar-choisir[data-id="${choixS.id}"]`);
+  if (interdite) await page.tap(`#ar-principales .ar-permise[data-id="${interdite.id}"]`);
+  await sleep(200);
+  const ar2 = await P((x) => ({ sauv: window.__poncin.sauvegarde().choix, choisies: Array.from(document.querySelectorAll('#e-armes .ar-carte.choisie .ar-choisir')).map((b) => b.dataset.id), interdite: x ? document.querySelector(`#ar-principales .ar-choisir[data-id="${x}"]`).disabled : true }), interdite && interdite.id);
+  check(ar2.sauv.equip.p === choixP.id && ar2.sauv.equip.s === choixS.id && ar2.choisies.indexOf(choixP.id) >= 0 && ar2.choisies.indexOf(choixS.id) >= 0, `choisies et sauvegardées : ${choixP.nom} + ${choixS.nom}`);
+  check(!interdite || (ar2.interdite && ar2.sauv.armes.indexOf(interdite.id) < 0), `décochée, ${interdite ? interdite.nom : '—'} n’est plus permise (ni prenable)`);
+  await page.screenshot({ path: out + '/01b-armes.png' });
+  await page.tap('#e-armes [data-a="armes-retour"]'); await sleep(300);
+  const pil = await P(() => ({ ecran: document.body.dataset.ecran, txt: document.querySelector('#e-modes .equip-resume').textContent }));
+  check(pil.ecran === 'modes' && pil.txt.includes(choixP.nom) && pil.txt.includes(choixS.nom), `retour au menu, qui le rappelle : « ${pil.txt} »`);
+  await P(() => window.__poncin.montrer('titre'));
+
   // ─── la partie : Arène solo, 3 robots faciles, graine fixe ───
   const st0 = await P(() => window.__poncin.demarrer({ bots: 3, niveau: 'facile', graine: 7 }));
   check(!!st0, 'une partie d’Arène démarre (3 robots faciles)');
   await P(() => window.__poncin.pas(2)); await sleep(800);
   const j0 = await P(() => { const m = window.__poncin.joueur(), jeu = window.__poncin.jeu(); return { x: m.x, z: m.z, yaw: m.yaw, bots: jeu.entites.filter((e) => e.bot).length, arene: jeu.arene ? { c: jeu.arene.centre, r: jeu.arene.rayon } : null, ecran: document.body.dataset.ecran }; });
   check(j0.bots === 3 && j0.ecran === 'partie', `en partie, avec ${j0.bots} robots`);
+  const eqPartie = await P(() => { const m = window.__poncin.joueur(); return { equip: m.equip, armes: m.armes.slice(), arme: m.arme, hud: Array.from(document.querySelectorAll('#hud .h-arme')).map((b) => b.getAttribute('aria-label')) }; });
+  check(eqPartie.equip && eqPartie.armes[0] === choixP.id && eqPartie.armes[1] === choixS.id && eqPartie.arme === choixP.id, `on part avec son équipement, la principale en main (${eqPartie.armes.join(' + ')})`);
+  check(eqPartie.hud.length === 2 && eqPartie.hud[0].includes(choixP.nom) && eqPartie.hud[1].includes(choixS.nom), `le HUD montre les deux emplacements (${eqPartie.hud.join(' ; ')})`);
   check(j0.arene && Math.hypot(j0.arene.c[0] - 99, j0.arene.c[1] - 1.5) < 5, 'l’arène est sur la place Xavier-Bichat de la vraie carte');
   await page.screenshot({ path: out + '/02-partie.png' });
 
@@ -71,6 +96,7 @@ const URL0 = `http://localhost:${PORT}/poncin/`;
     for (let a = 0; a < 16 && !ok; a++) { const yaw = a * Math.PI / 8, x = m.x - Math.sin(yaw) * 8, z = m.z - Math.cos(yaw) * 8; if (!jeu.monde.bloque(x, z, 0.5) && jeu.monde.vue(m.x, m.y + 1.6, m.z, x, jeu.monde.hauteur(x, z) + 1.2, z)) ok = [x, z]; }
     if (!ok) return null;
     b.x = ok[0]; b.z = ok[1]; b.y = jeu.monde.hauteur(ok[0], ok[1]); b.invincible = 0; b.vie = 100; b.armure = 0;
+    m.invincible = 30; // (les autres robots ne nous éliminent pas pendant l'essai)
     p.viser(b.id); return { id: b.id, nom: b.nom };
   });
   check(!!cible, 'un robot posé à 8 m, dans le viseur');
@@ -91,7 +117,7 @@ const URL0 = `http://localhost:${PORT}/poncin/`;
   check(elimine, 'le robot est repeint (éliminé)');
   await sleep(300); await page.screenshot({ path: out + '/03-elimination.png' });
   const fil = await P(() => document.querySelector('#hud') ? document.querySelector('#hud').innerText : '');
-  check(cible && fil.includes(cible.nom), 'le fil des éliminations le dit : ' + (fil.split('\n').find((l) => cible && l.includes(cible.nom)) || '—'));
+  check(cible && fil.split('\n').some((l) => l.includes(cible.nom) && /Tu as repeint/.test(l)), 'le fil des éliminations le dit : ' + (fil.split('\n').find((l) => cible && l.includes(cible.nom)) || '—'));
 
   // les robots jouent : 20 s de partie, sans erreur
   for (let k = 0; k < 12; k++) await P(() => window.__poncin.pas(100));
