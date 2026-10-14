@@ -46,18 +46,13 @@
   <div class="modes-grille">
     <article class="carte-mode arene">
       <div class="cm-tete"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="#fff" stroke="#2B2A4C" stroke-width="3.5"/><circle cx="24" cy="24" r="12" fill="#FF6B8B" stroke="#2B2A4C" stroke-width="3.5"/><circle cx="24" cy="24" r="5" fill="#fff" stroke="#2B2A4C" stroke-width="3"/><path d="M33 9c4-1 7 2 6 6" stroke="#5FD3A4" stroke-width="4" stroke-linecap="round" fill="none"/></svg></span>
-        <div><h3>Arène</h3><p>Autour de la place du village : 3 minutes, le premier à 25 repeints gagne.</p></div></div>
-      <div class="cm-options">
-        <div class="opt"><span>Format</span><div class="seg" data-opt="format" role="group" aria-label="Format"><button type="button" data-v="solo">Chacun pour soi</button><button type="button" data-v="equipes">2 contre 2</button></div></div>
-        <div class="opt" id="opt-bots"><span>Robots</span><div class="seg" data-opt="bots" role="group" aria-label="Nombre de robots"><button type="button" data-v="3">3</button><button type="button" data-v="4">4</button><button type="button" data-v="5">5</button></div></div>
-        <div class="opt"><span>Niveau</span><div class="seg" data-opt="niveau" role="group" aria-label="Niveau des robots"><button type="button" data-v="facile">Facile</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="fort">Fort</button></div></div>
-        <div class="opt"><span>Armes</span><button type="button" class="pilule equip-pilule" data-a="armes" aria-label="Choisir tes armes"><span class="equip-resume"></span></button></div>
-      </div>
+        <div><h3>Arène</h3><p id="arene-desc">Autour de la place du village : 3 minutes, le premier à 25 repeints gagne.</p></div></div>
+      <div class="resume-partie" id="resume-solo" role="group" aria-label="Réglages de la partie"></div>
       <div class="cm-pied"><p class="cm-resume" id="resume-arene"></p><button type="button" class="bouton gros menthe" id="b-lancer" data-a="lancer">C’est parti !</button></div>
     </article>
     <div class="modes-bientot">
       <button type="button" class="carte-mode copains" id="b-copains" data-a="copains"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="17" cy="18" r="6.5" fill="#7FB3FF" stroke="#2B2A4C" stroke-width="3.5"/><circle cx="32" cy="18" r="6.5" fill="#5FD3A4" stroke="#2B2A4C" stroke-width="3.5"/><path d="M6 38c1-8 6-11 11-11s10 3 11 11zM21 38c1-8 6-11 11-11s10 3 11 11z" fill="#fff" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/></svg></span>
-        <span class="cm-texte"><b class="cm-h3">Avec les copains <em class="nouveau">En ligne</em></b><small>L’Arène à 2, 3 ou 4 sur vos téléphones, avec ou sans robots.</small></span><span class="cm-fleche" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.5 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
+        <span class="cm-texte"><b class="cm-h3">Avec les copains <em class="nouveau">En ligne</em></b><small>L’Arène de 2 à 6 sur vos téléphones, avec ou sans robots.</small></span><span class="cm-fleche" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.5 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
       <article class="carte-mode bientot"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="9" y="16" width="30" height="24" rx="5" fill="#FFC84A" stroke="#2B2A4C" stroke-width="3.5"/><path d="M9 24h30M24 16v24" stroke="#2B2A4C" stroke-width="3.5"/><path d="M24 16c-4-8-12-8-11-3s11 3 11 3c4-8 12-8 11-3s-11 3-11 3" fill="#FF6B8B" stroke="#2B2A4C" stroke-width="3" stroke-linejoin="round"/></svg></span>
         <div><h3>Extraction <em>Bientôt</em></h3><p>Récupère le butin dans le village et file au point d’extraction.</p></div></article>
       <article class="carte-mode bientot"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="18" cy="20" r="9" fill="#FFC84A" stroke="#2B2A4C" stroke-width="3.5"/><path d="M38 28a11 11 0 1 1-12-14 9 9 0 0 0 12 14z" fill="#B8A6FF" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/></svg></span>
@@ -100,25 +95,40 @@
   <div class="salon-grille">
     <div class="panneau salon-joueurs"><h3>Joueurs <span id="salon-nb"></span></h3><ul id="salon-liste"></ul></div>
     <div class="panneau salon-reglages">
-      <div class="opt"><span>Robots en plus</span><div class="seg" data-sopt="bots" role="group" aria-label="Robots en plus"><button type="button" data-v="0">0</button><button type="button" data-v="1">1</button><button type="button" data-v="2">2</button><button type="button" data-v="3">3</button><button type="button" data-v="4">4</button></div></div>
-      <div class="opt"><span>Niveau</span><div class="seg" data-sopt="niveau" role="group" aria-label="Niveau des robots"><button type="button" data-v="facile">Facile</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="fort">Fort</button></div></div>
-      <div class="opt"><span>Format</span><div class="seg" data-sopt="equipes" role="group" aria-label="Format"><button type="button" data-v="0">Chacun pour soi</button><button type="button" data-v="1">2 équipes</button></div></div>
-      <div class="opt opt-armes"><span>Armes<small id="salon-armes"></small></span><button type="button" class="pilule equip-pilule" data-a="armes" aria-label="Choisir tes armes"><span class="equip-resume"></span></button></div>
+      <div class="resume-partie" id="resume-salon" role="group" aria-label="Réglages du salon"></div>
       <p class="salon-etat" id="salon-etat" aria-live="polite"></p>
       <button type="button" class="bouton gros menthe" id="b-salon-action" data-a="salon-action">Lancer la partie</button>
     </div>
   </div>
 </section>
 
-<section class="ecran armes-ecran" id="e-armes" data-e="armes" hidden>
-  <header class="barre-haut">
-    <button type="button" class="rond" data-a="armes-retour" aria-label="Retour"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
-    <h2>Ton équipement</h2>
-    <p class="ar-note" id="ar-note"></p>
+<section class="ecran options-ecran" id="e-options" data-e="options" hidden>
+  <header class="barre-haut op-haut">
+    <button type="button" class="rond" data-a="options-retour" aria-label="Retour"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <h2 id="op-titre">La partie</h2>
+    <div class="op-onglets" role="tablist" aria-label="Réglages de la partie">
+      <button type="button" role="tab" data-a="onglet" data-onglet="carte" aria-controls="op-carte">Carte</button>
+      <button type="button" role="tab" data-a="onglet" data-onglet="partie" aria-controls="op-partie">Partie</button>
+      <button type="button" role="tab" data-a="onglet" data-onglet="robots" aria-controls="op-robots">Robots</button>
+      <button type="button" role="tab" data-a="onglet" data-onglet="armes" aria-controls="op-armes">Armes</button>
+    </div>
+    <span class="op-lecture" id="op-lecture" hidden>Réglé par l’hôte</span>
+    <button type="button" class="pilule op-defaut" id="op-defaut" data-a="options-defaut">Par défaut</button>
   </header>
-  <div class="ar-grille">
-    <div class="panneau ar-col"><h3>Principale</h3><div class="ar-liste" id="ar-principales"></div></div>
-    <div class="panneau ar-col ar-sec"><h3>Secondaire</h3><div class="ar-liste" id="ar-secondaires"></div></div>
+  <div class="op-corps">
+    <div class="panneau op-page op-carte" id="op-carte" role="tabpanel" data-page="carte">
+      <div class="op-vignette"><canvas id="op-vignette" aria-label="La zone sur la carte de Poncin"></canvas><span class="op-vignette-nom" id="op-vignette-nom"></span></div>
+      <div class="op-carte-d"><div class="op-zones" id="op-zones" role="group" aria-label="Zone de la carte"></div><div class="op-lignes" data-lignes="carte"></div></div>
+    </div>
+    <div class="panneau op-page op-partie" id="op-partie" role="tabpanel" data-page="partie"><div class="op-lignes deux" data-lignes="partie"></div></div>
+    <div class="panneau op-page op-robots" id="op-robots" role="tabpanel" data-page="robots"><div class="op-lignes" data-lignes="robots"></div><p class="op-note" id="op-robots-note"></p></div>
+    <div class="op-page op-armes" id="op-armes" role="tabpanel" data-page="armes">
+      <p class="ar-note" id="ar-note"></p>
+      <div class="ar-grille">
+        <div class="panneau ar-col"><h3>Principale</h3><div class="ar-liste" id="ar-principales"></div></div>
+        <div class="panneau ar-col ar-sec"><h3>Secondaire</h3><div class="ar-liste" id="ar-secondaires"></div></div>
+      </div>
+    </div>
   </div>
 </section>
 
@@ -132,7 +142,7 @@
     <label class="reg large"><span><b>Sensibilité en visée</b><small>En plus du zoom de l’arme</small></span><input type="range" min="0.5" max="1.5" step="0.05" data-r="sensibiliteVisee"><output>1,00</output></label>
     <div class="reg large"><span><b>Visée</b><small>Auto : un appui au doigt, maintenue au clic droit</small></span><div class="seg" data-r="visee" role="group" aria-label="Mode de visée"><button type="button" data-v="auto">Auto</button><button type="button" data-v="bascule">Appui</button><button type="button" data-v="maintenir">Maintenir</button></div></div>
     <div class="reg large"><span><b>Courir</b><small>Joystick poussé à fond, ou un bouton</small></span><div class="seg" data-r="course" role="group" aria-label="Pour courir"><button type="button" data-v="joystick">Joystick</button><button type="button" data-v="bouton">Bouton</button></div></div>
-    <label class="reg inter"><span><b>Tir auto</b><small>Au doigt : tire tout seul quand le viseur est sur un robot</small></span><input type="checkbox" data-r="tirAuto"><i aria-hidden="true"></i></label>
+    <label class="reg inter" id="reg-tirauto"><span><b>Tir auto</b><small>Au doigt : tire tout seul quand le viseur est sur un robot</small></span><input type="checkbox" data-r="tirAuto"><i aria-hidden="true"></i></label>
     <label class="reg inter"><span><b>Mode gaucher</b><small>Joystick à droite, boutons à gauche</small></span><input type="checkbox" data-r="gaucher"><i aria-hidden="true"></i></label>
     <div class="reg large"><span><b>Balancement</b><small>Le mouvement de la vue quand tu marches</small></span><div class="seg" data-r="balancement" role="group" aria-label="Balancement de la vue"><button type="button" data-v="normal">Normal</button><button type="button" data-v="doux">Doux</button><button type="button" data-v="aucun">Aucun</button></div></div>
     <label class="reg inter"><span><b>Y inversé</b><small>Glisser vers le haut fait regarder en bas</small></span><input type="checkbox" data-r="inverserY"><i aria-hidden="true"></i></label>

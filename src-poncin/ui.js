@@ -1,16 +1,22 @@
 /* OPÉRATION PONCIN — le point d'entrée : écran titre sur le survol 3D de Poncin, choix du mode (Arène jouable seul ou « Avec les
-   copains » en ligne ; Extraction, Jour / Nuit « bientôt »), le choix de l'équipement (principale + secondaire, parmi les armes
-   permises : en solo c'est le joueur qui les coche, dans un salon c'est l'hôte ; libellés et icônes depuis PREGLES.ARMES), réglages
-   (dont la sensibilité en visée, la visée en bascule ou maintenue, la course au joystick ou au bouton), crédits, pause, compte à
-   rebours, la boucle de jeu (commandes → aide à la visée → simulation → effets, sons, HUD → image), la sauvegarde 'poncin.v2'
-   (réglages, pseudo, records, équipement et armes permises ; reprise de 'poncin.v1', dont une copie des records reste écrite pour la
-   Salle de jeux) et les crochets de test window.__poncin. En ligne (PENLIGNE) : créer un salon (code de 4 lettres, partager le lien
-   …/poncin/?salle=CODE, copier le code) ou le rejoindre (code tapé, ou lien ouvert), le salon (joueurs et leur équipement, ping,
-   voie ; l'hôte règle robots, niveau, format et armes permises, et lance ; les autres disent « Prêt »), puis la même partie qu'en
-   solo : jeu.etape vient du vrai PJEU chez l'hôte, de la façade chez les clients.
-   Équipement en ligne (par les fonctions existantes de enligne.js / reseau.js) : chacun publie le sien par la présence
-   (ctl.equiper('p+s'), dans la présence : joueurs()[i].eq) ; l'hôte pose ctl.reglages.armes et l'annonce par ctl.regler({ armes }) (le message
-   'reglages' reprend ctl.reglages) ; les autres le lisent dans ce message (ctl.salon.sur('reglages')).
+   copains » en ligne ; Extraction, Jour / Nuit « bientôt »), le panneau des réglages de la partie, commun au solo et au salon (onglets
+   Carte : zone avec sa vignette sur la carte, heure, météo ; Partie : format, durée, score, vie, réapparition ou « dernier debout » en
+   manches, tir allié, objets, aide à la visée ; Robots : nombre et niveau ; Armes : l'équipement, principale + secondaire, parmi les
+   armes permises ; en solo c'est le joueur qui règle tout, dans un salon l'hôte, les autres le voient en lecture seule et ne choisissent
+   que leur équipement), réglages du joueur (dont la sensibilité en visée, la visée en bascule ou maintenue, la course au joystick ou au
+   bouton), crédits, pause, compte à rebours, la boucle de jeu (commandes → aide à la visée → simulation → effets, sons, HUD → image), la
+   sauvegarde 'poncin.v2' (réglages, pseudo, records, équipement, choix.reglages : les réglages de partie du solo, choix.salon : ceux du
+   salon que l'on mène ; reprise de 'poncin.v1' et des anciens choix format / bots / niveau / armes, dont une copie des records reste
+   écrite pour la Salle de jeux) et les crochets de test window.__poncin. Le jeu reçoit toujours des réglages normalisés
+   (PREGLES.normaliserReglages) : en solo PJEU.creer({ …, options: normaliserReglages(choix solo, { humains: 1 }) }).
+   En ligne (PENLIGNE) : créer un salon (code de 4 lettres, partager le lien …/poncin/?salle=CODE, copier le code) ou le rejoindre (code
+   tapé, ou lien ouvert), le salon (6 joueurs au plus, robots compris ; joueurs et leur équipement, ping, voie ; le résumé des réglages ;
+   l'hôte règle et lance, les autres disent « Prêt »), puis la même partie qu'en solo : jeu.etape vient du vrai PJEU chez l'hôte, de la
+   façade chez les clients.
+   Réglages et équipement en ligne (par les fonctions de enligne.js / reseau.js) : chacun publie son équipement par la présence
+   (ctl.equiper('p+s'), dans la présence : joueurs()[i].eq) ; l'hôte annonce TOUS ses réglages normalisés par ctl.regler(r) (le message
+   'reglages' reprend ctl.reglages, ou les porte dans d.r) ; les autres les lisent dans ce message (ctl.salon.sur('reglages')) et dans
+   ctl.reglages, normalisés ici avec le nombre de joueurs (repli tolérant : un champ absent prend le défaut).
    Le joueur local est idMoi : 'moi' en solo, son id de salon en ligne. Voie réseau : 'supabase' si window.PONCIN_CONFIG est rempli,
    'local' sinon (ou avec ?reseau=local : entre onglets du même navigateur).
    Tout appel aux autres modules est gardé : sans Three.js ou sans WebGL, un panneau clair ; une erreur ne fige jamais l'écran.
@@ -24,8 +30,20 @@ const PUI = (() => {
   let _compte = null; const elCompte = () => _compte || (_compte = $('#compte'));
   const equipDefaut = () => (R && R.DEFAUT_EQUIP ? { p: R.DEFAUT_EQUIP.p, s: R.DEFAUT_EQUIP.s } : { p: null, s: null });
   const armesDefaut = () => (R && R.DEFAUT_REGLAGES && Array.isArray(R.DEFAUT_REGLAGES.armes) ? R.DEFAUT_REGLAGES.armes.slice() : []);
+  const MAX_JOUEURS = () => (R && R.SALON && R.SALON.max) || 6;
+  // les réglages de partie par défaut : ceux de PREGLES ; en solo, des robots faciles pour commencer ; dans un salon, pas de robots
+  function reglagesDefaut(salon) {
+    const D = R && R.DEFAUT_REGLAGES ? R.DEFAUT_REGLAGES : { v: 2, mode: 'arene', zone: 'centre', duree: 180, score: 25, heure: 'jour', meteo: 'clair', equipes: false, bots: 4, niveau: 'normal', tirAllie: false, vie: 'normale', reapparition: 'rapide', manches: 3, objets: true, aide: true };
+    const r = Object.assign({}, D, { armes: armesDefaut() });
+    if (salon) r.bots = 0; else r.niveau = 'facile';
+    return r;
+  }
+  function normaliser(r, humains) { // PREGLES.normaliserReglages (une copie bornée) ; sans lui, une copie telle quelle
+    if (!R || !R.normaliserReglages) return Object.assign({}, r);
+    try { return R.normaliserReglages(r, { humains: humains || 1 }); } catch (e) { signaler('reglages', e); return Object.assign({}, r); }
+  }
   const DEFAUT = () => ({ v: 2, reglages: { sensibilite: 1, sensibiliteVisee: 1, visee: 'auto', course: 'joystick', inverserY: false, gaucher: false, tirAuto: true, qualite: 'auto', balancement: 'normal', son: true, vibre: true, nom: '', pseudo: '' },
-    records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { format: 'solo', bots: 4, niveau: 'facile', equip: equipDefaut(), armes: armesDefaut(), armesSalon: armesDefaut() }, derniere: 0 });
+    records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { equip: equipDefaut(), reglages: reglagesDefaut(false), salon: reglagesDefaut(true) }, derniere: 0 });
   let sauv = DEFAUT(), carte = null, monde = null, rendu3d = false, jeu = null, ecran = 'chargement', retourReglages = 'titre', avantPause = 'partie', optsPartie = null;
   let J, A, RENDU, CARTEPROV, MONDE; // les modules, résolus au démarrage
   let aideVue = null; // l'aide à la visée du dernier pas (le viseur « sur la cible » des images où avantImage rend des événements)
@@ -46,8 +64,14 @@ const PUI = (() => {
     try { s = JSON.parse(localStorage.getItem(CLE) || 'null'); } catch (e) { s = null; }
     if (!s || s.v !== 2) { let v1 = null; try { v1 = JSON.parse(localStorage.getItem(CLE_V1) || 'null'); } catch (e) { v1 = null; } s = v1 && v1.v === 1 ? v1 : null; }
     if (!s) return d;
-    Object.assign(d.reglages, s.reglages || {}); Object.assign(d.records.arene, (s.records && s.records.arene) || {}); Object.assign(d.choix, s.choix || {}); d.derniere = s.derniere || 0;
-    d.choix.armes = armesValides(d.choix.armes); d.choix.armesSalon = armesValides(d.choix.armesSalon); d.choix.equip = equipValide(d.choix.equip, d.choix.armes);
+    Object.assign(d.reglages, s.reglages || {}); Object.assign(d.records.arene, (s.records && s.records.arene) || {}); d.derniere = s.derniere || 0;
+    const c = s.choix && typeof s.choix === 'object' ? s.choix : {}, objet = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
+    // les réglages de partie : choix.reglages (solo) et choix.salon ; sinon repris des anciens choix (format, bots, niveau, armes, armesSalon)
+    const solo = objet(c.reglages) ? c.reglages : Object.assign(reglagesDefaut(false), c.format != null ? { equipes: c.format === 'equipes' } : {}, c.bots != null ? { bots: +c.bots } : {}, c.niveau ? { niveau: c.niveau } : {}, Array.isArray(c.armes) ? { armes: c.armes } : {});
+    const salon = objet(c.salon) ? c.salon : Object.assign(reglagesDefaut(true), Array.isArray(c.armesSalon) ? { armes: c.armesSalon } : {});
+    d.choix.reglages = normaliser(Object.assign(reglagesDefaut(false), solo), 1); if (!(d.choix.reglages.bots > 0)) d.choix.reglages.bots = 1; // seul, au moins un robot
+    d.choix.salon = normaliser(Object.assign(reglagesDefaut(true), salon), 1);
+    d.choix.equip = equipValide(c.equip, d.choix.reglages.armes);
     return d;
   }
   // les armes permises et l'équipement, validés par PREGLES (une arme inconnue — l'arsenal a changé — prend le défaut)
@@ -80,7 +104,7 @@ const PUI = (() => {
     if (nom === 'reglages') majReglages();
     if (nom === 'copains') majCopains();
     if (nom === 'salon') majSalon();
-    if (nom === 'armes') { armesVues = ''; majArmes(); }
+    if (nom === 'options') { armesVues = ''; optVus = ''; vignetteVue = ''; majOptions(); }
   }
   function majTitre() {
     const a = sauv.records.arene, r = $('#records');
@@ -135,6 +159,12 @@ const PUI = (() => {
       else if (i.type === 'text') { i.value = g[k] || ''; if (k === 'nom') i.placeholder = pseudoParDefaut(); }
       else if (i.classList.contains('seg')) i.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(g[k]))));
     });
+    // l'aide à la visée coupée (par l'hôte, ou dans les réglages de la partie) : le tir auto est grisé, avec la raison
+    const coupee = jeu ? reglagesPartie().aide === false : ctl ? reglagesSalon().aide === false : false, ta = $('#reg-tirauto');
+    if (ta) {
+      const c = ta.querySelector('input'), sm = ta.querySelector('small'); ta.classList.toggle('coupee', coupee); if (c) c.disabled = coupee;
+      if (sm) { if (!sm.dataset.texte) sm.dataset.texte = sm.textContent; sm.textContent = !coupee ? sm.dataset.texte : (ctl || enLigne) && !(ctl && ctl.estHote) ? 'Désactivée par l’hôte' : 'Aide à la visée coupée dans les réglages de la partie'; }
+    }
   }
   function brancherReglages() {
     $$('[data-r]').forEach((i) => {
@@ -149,38 +179,157 @@ const PUI = (() => {
     });
   }
 
-  // ─── choix du mode ───
-  function majModes() {
-    const c = sauv.choix;
-    $$('#e-modes .seg[data-opt]').forEach((s) => s.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(c[s.dataset.opt])))));
-    $('#opt-bots').hidden = c.format === 'equipes';
-    const niv = { facile: 'faciles', normal: 'malins', fort: 'redoutables' }[c.niveau] || '';
-    $('#resume-arene').textContent = c.format === 'equipes' ? `Toi et un robot allié contre 2 robots ${niv}.` : `Toi contre ${c.bots} robots ${niv}, chacun pour soi.`;
-    const ok = rendu3d && !!J && !!A; $('#b-lancer').disabled = !ok; $('#b-lancer').title = ok ? '' : 'La 3D n’est pas disponible';
-    const bc = $('#b-copains'); if (bc) { bc.disabled = !ok || typeof PENLIGNE === 'undefined'; bc.title = bc.disabled ? 'Le jeu en ligne n’est pas disponible' : ''; }
-    const pe = $('#e-modes .equip-resume'); if (pe) pe.innerHTML = resumeEquip(equipValide(c.equip, c.armes));
+  // ─── les libellés des réglages de partie ───
+  const T = {
+    zone: { place: 'Place Bichat', centre: 'Cœur du village', eglise: 'Autour de l’église', bourg: 'Tout le bourg', rivieres: 'Le Veyron', tout: 'Tout Poncin' },
+    conseil: { place: '2 à 4 joueurs', centre: '2 à 6 joueurs', eglise: '2 à 4 joueurs', bourg: '4 à 6 joueurs', rivieres: '4 à 6 joueurs', tout: '6 joueurs' },
+    heure: { jour: 'Jour', soir: 'Soir', nuit: 'Nuit' }, meteo: { clair: 'Clair', brouillard: 'Brouillard', pluie: 'Pluie' },
+    vie: { normale: 'Normale', unCoup: 'Un coup', costaud: 'Costaud' },
+    reapparition: { rapide: 'Rapide', normale: 'Normale', lente: 'Lente', aucune: 'Dernier debout' },
+    niveau: { facile: 'Facile', normal: 'Normal', fort: 'Fort' }, robots: { facile: ['facile', 'faciles'], normal: ['malin', 'malins'], fort: ['redoutable', 'redoutables'] },
+  };
+  const SAL = (k, defaut) => (R && R.SALON && R.SALON[k] ? R.SALON[k] : defaut);
+  const nomZone = (id) => { try { if (typeof PZONES !== 'undefined' && PZONES.NOMS && PZONES.NOMS[id]) return PZONES.NOMS[id]; } catch (e) { /* repli */ } return T.zone[id] || String(id || ''); };
+  const pluriel = (n, mot, pl) => `${n} ${n > 1 ? pl || mot + 's' : mot}`;
+  const dureeTxt = (d) => (d > 0 ? `${Math.round(d / 60)} min` : '∞');
+  const robotsTxt = (r) => (r.bots > 0 ? `${pluriel(r.bots, 'robot')} ${(T.robots[r.niveau] || ['', ''])[r.bots > 1 ? 1 : 0]}` : 'Aucun robot');
+  const delaiTxt = (r) => { const t = SAL('reapparitions', {})[r.reapparition]; return t > 0 ? `Retour au jeu au bout de ${t} s` : ''; };
+  function partieTxt(r) { // « Chacun pour soi · 3 min · premier à 25 » ; « 2 équipes · dernier debout, 3 manches · un coup »
+    return (r.equipes ? '2 équipes' : 'Chacun pour soi') + ' · ' + (r.reapparition === 'aucune' ? `dernier debout, ${pluriel(r.manches, 'manche')}` : `${r.duree > 0 ? dureeTxt(r.duree) : 'sans limite'} · premier à ${r.score}`)
+      + (r.vie && r.vie !== 'normale' ? ' · ' + (T.vie[r.vie] || r.vie).toLowerCase() : '');
   }
-  function choixPartie() {
-    const c = sauv.choix, eq = c.format === 'equipes', armes = armesValides(c.armes);
-    return { bots: eq ? 3 : Math.max(3, Math.min(5, +c.bots || 4)), niveau: c.niveau in (R ? R.BOTS : { facile: 1, normal: 1, fort: 1 }) ? c.niveau : 'normal', equipes: eq, armes, equip: equipValide(c.equip, armes) };
+  function descPartie(r) { // la phrase de la carte Arène
+    return `${nomZone(r.zone)} : ` + (r.reapparition === 'aucune' ? `dernier debout en ${pluriel(r.manches, 'manche')}, sans réapparition.` : `${r.duree > 0 ? `${Math.round(r.duree / 60)} minutes` : 'sans limite de temps'}, le premier à ${r.score} repeints gagne.`);
+  }
+  function phraseSolo(r) {
+    const b = r.bots, adj = (n) => (T.robots[r.niveau] || ['', ''])[n > 1 ? 1 : 0];
+    if (r.equipes) { const al = Math.floor(b / 2), en = b - al; return al ? `Toi et ${pluriel(al, 'robot allié', 'robots alliés')} contre ${pluriel(en, 'robot')} ${adj(en)}.` : `Toi contre ${pluriel(en, 'robot')} ${adj(en)}, en équipes.`; }
+    return `Toi contre ${pluriel(b, 'robot')} ${adj(b)}, chacun pour soi.`;
+  }
+  // le résumé des réglages (carte Arène du menu, salon) : une ligne par onglet du panneau, qui l'ouvre sur cet onglet
+  const FLECHE = '<i class="rp-fl" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.5 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></i>';
+  function resumeHtml(r, q) {
+    const ligne = (o, titre, val) => `<button type="button" class="rp-l" data-a="options" data-onglet="${o}"><b>${titre}</b><span class="rp-v">${val}</span>${FLECHE}</button>`;
+    const tot = listeArmes('principale').length + listeArmes('secondaire').length, n = Array.isArray(r.armes) ? r.armes.length : tot;
+    const armes = q && q.p ? `<span class="eq-ico">${icoA(q.p)}</span>${echapA(nomA(q.p))} + ${echapA(nomA(q.s))}${n < tot ? ` <small>${n}/${tot} permises</small>` : ''}` : '';
+    return ligne('carte', 'Carte', echapA(`${nomZone(r.zone)} · ${T.heure[r.heure] || r.heure} · ${T.meteo[r.meteo] || r.meteo}`)) + ligne('partie', 'Partie', echapA(partieTxt(r)))
+      + ligne('robots', 'Robots', echapA(robotsTxt(r))) + ligne('armes', 'Armes', armes);
   }
 
-  // ─── l'équipement : principale + secondaire, parmi les armes permises (solo : le joueur les coche ; salon : l'hôte) ───
-  let armesCtx = 'solo', armesRecues = null; // armesRecues : la liste annoncée par l'hôte (message 'reglages'), chez les autres
+  // ─── choix du mode : la carte Arène résume les réglages du solo ───
+  function majModes() {
+    const r = reglagesSolo(), q = equipValide(sauv.choix.equip, r.armes);
+    const rs = $('#resume-solo'), cle = JSON.stringify(r) + q.p + q.s; if (rs && rs._cle !== cle) { rs._cle = cle; rs.innerHTML = resumeHtml(r, q); }
+    $('#resume-arene').textContent = phraseSolo(r);
+    const d = $('#arene-desc'); if (d) d.textContent = descPartie(r);
+    const ok = rendu3d && !!J && !!A; $('#b-lancer').disabled = !ok; $('#b-lancer').title = ok ? '' : 'La 3D n’est pas disponible';
+    const bc = $('#b-copains'); if (bc) { bc.disabled = !ok || typeof PENLIGNE === 'undefined'; bc.title = bc.disabled ? 'Le jeu en ligne n’est pas disponible' : ''; }
+  }
+  function reglagesSolo() { const r = normaliser(sauv.choix.reglages, 1); if (!(r.bots > 0)) r.bots = 1; return r; } // seul : au moins un robot
+  function choixPartie() { const r = reglagesSolo(); r.equip = equipValide(sauv.choix.equip, r.armes); return r; }
+
+  // ─── le panneau des réglages de la partie : commun au solo et au salon (lecture seule chez ceux qui ne sont pas l'hôte) ───
+  let optCtx = 'solo', onglet = 'carte', reglagesRecus = null, optVus = '', dernierAnnonce = '';
+  const ONGLETS = ['carte', 'partie', 'robots', 'armes'];
+  const enSalon = () => optCtx === 'salon' && !!ctl;
+  const humainsSalon = () => { try { return ctl ? Math.max(1, Math.min(MAX_JOUEURS(), ctl.joueurs().length)) : 1; } catch (e) { return 1; } };
+  const peutRegler = () => !enSalon() || !!ctl.estHote; // en solo le joueur, dans un salon l'hôte
+  function reglagesSalon() { // chez l'hôte, les siens ; chez les autres, ceux qu'il annonce (message 'reglages' : d.r ou d ; ctl.reglages), un champ absent au défaut
+    if (!ctl) return normaliser(sauv.choix.salon, 1);
+    if (ctl.estHote) return normaliser(sauv.choix.salon, humainsSalon());
+    const r = Object.assign(reglagesDefaut(true), reglagesRecus || {}), g = ctl.reglages || {};
+    for (const k in g) if (g[k] != null) r[k] = g[k];
+    return normaliser(r, humainsSalon());
+  }
+  const reglagesVus = () => (enSalon() ? reglagesSalon() : reglagesSolo());
+  function annoncerReglages(forcer) { // l'hôte : tous ses réglages, normalisés avec le nombre de joueurs (robots ≤ 6 − joueurs), par ctl.regler
+    if (!ctl || !ctl.estHote) return;
+    const r = normaliser(sauv.choix.salon, humainsSalon()), sig = JSON.stringify(r);
+    if (sig === dernierAnnonce && !forcer) return; dernierAnnonce = sig; // (ctl.regler émet 'maj', qui nous rappelle : rien de neuf, on s'arrête)
+    try { ctl.regler(r); } catch (e) { signaler('réglages du salon', e); }
+  }
+  // une valeur des boutons (data-v) dans le type du réglage
+  function lireValeur(k, v) { const d = reglagesDefaut(false)[k]; return typeof d === 'boolean' ? v === 'true' : typeof d === 'number' ? +v : v; }
+  function regler(k, v) { // un réglage changé : sauvegardé (choix.reglages en solo, choix.salon dans un salon), annoncé par l'hôte
+    if (!peutRegler()) return;
+    const cle = enSalon() ? 'salon' : 'reglages', r = Object.assign({}, sauv.choix[cle]); r[k] = v;
+    sauv.choix[cle] = normaliser(r, 1); sauver();
+    if (cle === 'salon') { annoncerReglages(); if (k === 'armes') publierEquip(); }
+    majOptions();
+  }
+  function parDefaut() { // tout revient au défaut, sauf les armes permises (elles ont leur onglet)
+    if (!peutRegler()) return;
+    const cle = enSalon() ? 'salon' : 'reglages', armes = (sauv.choix[cle] || {}).armes;
+    sauv.choix[cle] = normaliser(Object.assign(reglagesDefaut(cle === 'salon'), Array.isArray(armes) ? { armes } : {}), 1); sauver();
+    if (cle === 'salon') annoncerReglages();
+    majOptions(); toast('Réglages remis par défaut.');
+  }
+  // les lignes de chaque onglet : [valeur, libellé] ; actif(r) : sinon grisée ; aide : la petite ligne sous le titre
+  const LIGNES = {
+    carte: [
+      { k: 'heure', titre: 'Heure', vals: () => SAL('heures', ['jour', 'soir', 'nuit']).map((v) => [v, T.heure[v] || v]) },
+      { k: 'meteo', titre: 'Météo', vals: () => SAL('meteos', ['clair', 'brouillard', 'pluie']).map((v) => [v, T.meteo[v] || v]) },
+    ],
+    partie: [ // en paysage, deux colonnes : Format | Tir allié ; Réapparition (toute la largeur) ; Manches | Durée ; Premier à | Vie ; Objets | Aide
+      { k: 'equipes', titre: 'Format', vals: () => [[false, 'Chacun pour soi'], [true, '2 équipes']] },
+      { k: 'tirAllie', titre: 'Tir allié', vals: () => [[false, 'Non'], [true, 'Oui']], actif: (r) => r.equipes, aide: (r) => (r.equipes ? (r.tirAllie ? 'Repeindre un équipier : −100 points' : 'Les équipiers ne se blessent pas') : 'En équipes seulement') },
+      { k: 'reapparition', titre: 'Réapparition', vals: () => Object.keys(SAL('reapparitions', T.reapparition)).map((v) => [v, T.reapparition[v] || v]), aide: (r) => (r.reapparition === 'aucune' ? 'Pas de retour : le dernier en lice gagne la manche' : delaiTxt(r)) },
+      { k: 'manches', titre: 'Manches', vals: () => SAL('manches', [1, 3, 5]).map((v) => [v, String(v)]), actif: (r) => r.reapparition === 'aucune', aide: (r) => (r.reapparition === 'aucune' ? 'Le plus de manches gagnées l’emporte' : 'Avec « Dernier debout »') },
+      { k: 'duree', titre: 'Durée', vals: () => SAL('durees', [180, 300, 600, 0]).map((v) => [v, dureeTxt(v)]), aide: (r) => (r.duree > 0 ? '' : 'Sans limite de temps') },
+      { k: 'score', titre: 'Premier à', vals: () => SAL('scores', [10, 25, 50]).map((v) => [v, String(v)]), actif: (r) => r.reapparition !== 'aucune', aide: (r) => (r.reapparition === 'aucune' ? 'Pas en « Dernier debout »' : 'repeints pour gagner') },
+      { k: 'vie', titre: 'Vie', vals: () => Object.keys(SAL('vies', T.vie)).map((v) => [v, T.vie[v] || v]), aide: (r) => { const v = SAL('vies', {})[r.vie]; return v && v.vie ? `${v.vie} PV${v.armureMax ? `, armure ${v.armureMax}` : ', ni soin ni armure'}` : ''; } },
+      { k: 'objets', titre: 'Objets au sol', vals: () => [[true, 'Oui'], [false, 'Non']], aide: () => 'Armes, soins, armures, munitions' },
+      { k: 'aide', titre: 'Aide à la visée', vals: () => [[true, 'Permise'], [false, 'Coupée']], aide: (r) => (r.aide ? 'Au doigt : ralentit et tire tout seul' : 'Pour tout le monde, robots non compris') },
+    ],
+    robots: [
+      { k: 'bots', titre: 'Robots', vals: (r, h) => { const max = MAX_JOUEURS() - h, l = []; for (let n = enSalon() ? 0 : 1; n <= MAX_JOUEURS() - 1; n++) l.push([n, String(n), n > max]); return l; }, aide: (r, h) => (enSalon() ? `${pluriel(h, 'joueur')} + ${pluriel(r.bots, 'robot')} (6 au plus)` : `Toi + ${pluriel(r.bots, 'robot')}`) },
+      { k: 'niveau', titre: 'Niveau', vals: () => Object.keys(R && R.BOTS ? R.BOTS : T.niveau).map((v) => [v, T.niveau[v] || v]), actif: (r) => r.bots > 0, aide: (r) => ({ facile: 'Ils visent mal et réagissent lentement', normal: 'Des robots malins', fort: 'Rapides et précis' }[r.niveau] || '') },
+    ],
+  };
+  function ligneHtml(L, r, peut, h) {
+    const actif = !L.actif || L.actif(r), v = String(r[L.k]), aide = typeof L.aide === 'function' ? L.aide(r, h) : L.aide || '';
+    return `<div class="opt op-l${actif ? '' : ' inactif'}" data-k="${L.k}"><span><b>${L.titre}</b>${aide ? `<small>${echapA(aide)}</small>` : ''}</span><div class="seg" role="group" aria-label="${echapA(L.titre)}">`
+      + L.vals(r, h).map((x) => `<button type="button" data-a="oopt" data-k="${L.k}" data-v="${echapA(String(x[0]))}" aria-pressed="${String(x[0]) === v}"${!peut || !actif || x[2] ? ' disabled' : ''}>${echapA(x[1])}</button>`).join('') + '</div></div>';
+  }
+  function majOptions() {
+    if (ecran !== 'options') return;
+    if (ONGLETS.indexOf(onglet) < 0) onglet = 'carte';
+    const r = reglagesVus(), peut = peutRegler(), h = enSalon() ? humainsSalon() : 1, e = $('#e-options');
+    $$('#e-options [role="tab"]').forEach((b) => { const on = b.dataset.onglet === onglet; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
+    $$('#e-options .op-page').forEach((p) => { p.hidden = p.dataset.page !== onglet; });
+    e.classList.toggle('lecture', !peut); e.dataset.onglet = onglet;
+    const t = $('#op-titre'); if (t) t.textContent = enSalon() ? 'Le salon' : 'Ta partie';
+    const lec = $('#op-lecture'); if (lec) lec.hidden = peut;
+    const def = $('#op-defaut'); if (def) def.hidden = !peut || onglet === 'armes';
+    const cle = [optCtx, peut, h, JSON.stringify(r)].join('|');
+    if (cle !== optVus) {
+      optVus = cle;
+      for (const p of ['carte', 'partie', 'robots']) { const c = $(`#e-options [data-lignes="${p}"]`); if (c) c.innerHTML = LIGNES[p].map((L) => ligneHtml(L, r, peut, h)).join(''); }
+      const z = $('#op-zones'); if (z) z.innerHTML = SAL('zones', Object.keys(T.zone)).map((id) => `<button type="button" class="op-zone" data-a="oopt" data-k="zone" data-v="${echapA(id)}" aria-pressed="${id === r.zone}"${peut ? '' : ' disabled'}><b>${echapA(nomZone(id))}</b><small>${echapA(T.conseil[id] || '')}</small></button>`).join('');
+      const n = $('#op-robots-note'); if (n) n.textContent = enSalon() ? (peut ? 'Les robots complètent le salon : 6 joueurs au plus, robots compris.' : 'C’est l’hôte qui choisit les robots.') : 'Les robots s’équipent parmi les armes permises.';
+    }
+    if (onglet === 'carte') vignette(r.zone);
+    if (onglet === 'armes') majArmes();
+  }
+  let vignetteVue = '';
+  function vignette(zone) { // la zone sur la carte (PHUD.vignette peint la carte et la zone), repeinte si la zone ou la taille change
+    const c = $('#op-vignette'); if (!c || !c.clientWidth) return;
+    const dpr = Math.min(2, window.devicePixelRatio || 1), w = Math.round(c.clientWidth * dpr), h = Math.round(c.clientHeight * dpr), cle = zone + '|' + w + 'x' + h;
+    const nom = $('#op-vignette-nom'); if (nom) nom.textContent = nomZone(zone);
+    if (cle === vignetteVue) return; vignetteVue = cle;
+    c.width = w; c.height = h;
+    try { if (!PHUD.vignette || !PHUD.vignette(c, zone)) { const g = c.getContext('2d'); g.fillStyle = '#D8EDC2'; g.fillRect(0, 0, w, h); } } catch (e) { signaler('vignette', e); }
+  }
+  function ouvrirOptions(o) { optCtx = ecran === 'salon' && ctl ? 'salon' : ecran === 'options' ? optCtx : 'solo'; onglet = ONGLETS.indexOf(o) >= 0 ? o : 'carte'; montrer('options'); }
+
+  // ─── l'équipement : principale + secondaire, parmi les armes permises (l'onglet Armes ; solo : le joueur les coche ; salon : l'hôte) ───
   const echapA = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   const nomA = (id) => { try { return PHUD.nomArme(id); } catch (e) { return String(id || ''); } };
   const icoA = (id) => { try { return PHUD.iconeArme(id); } catch (e) { return ''; } };
   const classeA = (id) => { try { return PHUD.nomClasse(PHUD.classeArme(id)); } catch (e) { return ''; } };
   function listeArmes(role) { return R && Array.isArray(R.ARMES) ? R.ARMES.filter((a) => a && a.id && a.role === role) : []; }
-  function permisesSalon() {
-    if (!ctl) return armesValides(sauv.choix.armesSalon);
-    if (Array.isArray(ctl.reglages && ctl.reglages.armes)) return armesValides(ctl.reglages.armes);
-    return armesValides(ctl.estHote ? sauv.choix.armesSalon : armesRecues || armesDefaut());
-  }
-  const enSalon = () => armesCtx === 'salon' && !!ctl;
-  const permises = () => (enSalon() ? permisesSalon() : armesValides(sauv.choix.armes));
-  const peutPermettre = () => !enSalon() || !!ctl.estHote; // en solo le joueur, dans un salon l'hôte
-  function resumeEquip(q) { return q && q.p ? `<span class="eq-ico">${icoA(q.p)}</span><span class="eq-noms">${echapA(nomA(q.p))} + ${echapA(nomA(q.s))}</span>` : ''; }
+  const permisesSalon = () => armesValides(reglagesSalon().armes);
+  const permises = () => armesValides(reglagesVus().armes);
   function carteArme(A, q, perm, hote) {
     const ok = perm.indexOf(A.id) >= 0, choisie = ok && (q.p === A.id || q.s === A.id);
     return `<div class="ar-carte${choisie ? ' choisie' : ''}${ok ? '' : ' interdite'}">
@@ -189,8 +338,8 @@ const PUI = (() => {
   }
   let armesVues = '';
   function majArmes() {
-    const perm = permises(), q = equipValide(sauv.choix.equip, perm), hote = peutPermettre();
-    const cle = [armesCtx, hote, q.p, q.s, perm.join(',')].join('|'); if (cle === armesVues && ecran === 'armes') return; // rien n'a changé : pas de nouveaux boutons sous le doigt
+    const perm = permises(), q = equipValide(sauv.choix.equip, perm), hote = peutRegler();
+    const cle = [optCtx, hote, q.p, q.s, perm.join(',')].join('|'); if (cle === armesVues) return; // rien n'a changé : pas de nouveaux boutons sous le doigt
     armesVues = cle;
     const lp = $('#ar-principales'), ls = $('#ar-secondaires');
     if (lp) lp.innerHTML = listeArmes('principale').map((A) => carteArme(A, q, perm, hote)).join('');
@@ -198,7 +347,7 @@ const PUI = (() => {
     const n = $('#ar-note');
     if (n) n.textContent = !enSalon() ? 'Touche une arme pour la prendre. La case verte : les armes permises (les robots s’équipent parmi elles).'
       : ctl.estHote ? 'Touche une arme pour la prendre. La case verte : les armes permises pour tout le salon.' : 'Touche une arme pour la prendre. C’est l’hôte qui choisit les armes permises.';
-    $('#e-armes').classList.toggle('permettre', hote);
+    $('#e-options').classList.toggle('permettre', hote);
   }
   function choisirArme(id) {
     if (!R || !R.estArme(id)) return;
@@ -209,22 +358,16 @@ const PUI = (() => {
     if (enSalon()) publierEquip();
   }
   function permettreArme(id) {
-    if (!R || !R.estArme(id) || !peutPermettre()) return;
+    if (!R || !R.estArme(id) || !peutRegler()) return;
     const perm = permises(), i = perm.indexOf(id);
     if (i >= 0) { const role = R.arme(id).role; if (perm.filter((x) => R.arme(x).role === role).length <= 1) { toast('Il faut au moins une arme par emplacement.'); return; } perm.splice(i, 1); } // au moins une principale et une secondaire
     else perm.push(id);
-    const l = armesValides(perm);
-    if (enSalon()) { sauv.choix.armesSalon = l; annoncerArmes(l); publierEquip(); } else sauv.choix.armes = l;
-    sauver(); majArmes();
+    regler('armes', armesValides(perm));
   }
   function publierEquip() { // l'équipement de chacun passe par la présence : ctl.equiper('p+s')
     if (!ctl) return;
     const q = equipValide(sauv.choix.equip, permisesSalon());
     try { if (typeof ctl.equiper === 'function') ctl.equiper(q.p + '+' + q.s); } catch (e) { signaler('équipement', e); }
-  }
-  function annoncerArmes(liste) { // l'hôte : les armes permises dans ctl.reglages, annoncées avec les autres réglages (message 'reglages')
-    if (!ctl || !ctl.estHote) return;
-    try { ctl.regler({ armes: liste.slice() }); } catch (e) { signaler('armes permises', e); }
   }
   function equipDe(j) { // l'équipement d'un joueur du salon : le mien, sinon celui de sa présence (s'il est publié)
     if (j.moi) return equipValide(sauv.choix.equip, permisesSalon());
@@ -258,16 +401,15 @@ const PUI = (() => {
     try {
       const graine = o.graine != null ? o.graine >>> 0 : ((Date.now() ^ Math.floor(Math.random() * 4294967296)) >>> 0);
       if (ctl) quitterSalon(); // une partie seul : on quitte le salon éventuel
-      // les options : les réglages normalisés (§ 6 ; en solo, ceux du menu et les armes permises), l'équipement validé
-      let options = { bots: o.bots, niveau: o.niveau, equipes: !!o.equipes, armes: armesValides(o.armes) };
-      if (R && R.normaliserReglages) { try { options = R.normaliserReglages(options, { humains: 1 }); } catch (e) { signaler('reglages', e); } }
+      // les options : les réglages normalisés (§ 6 ; en solo, ceux du panneau, que les tests peuvent surcharger), l'équipement validé
+      const options = normaliser(o, 1);
       jeu = J.creer({ monde, carte, mode: A, graine, options });
       const nom = (sauv.reglages.nom || '').trim() || 'Toi';
       idMoi = 'moi'; enLigne = false; partieL = null; entrees = { moi: null };
       jeu.ajouterJoueur({ id: 'moi', nom, couleur: '#FFC84A', equipe: o.equipes ? 0 : 'moi', humain: true, equip: equipValide(o.equip, options.armes) });
     } catch (e) { signaler('jeu.creer', e); jeu = null; oups('La partie n’a pas pu démarrer', 'Recharge la page et réessaie.'); return false; }
-    optsPartie = o; finTraitee = false; surDepuis = 0; aideVue = null; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null; remettrePas();
-    try { PHUD.reinit({ equipes: !!o.equipes }); } catch (e) { signaler('hud.reinit', e); }
+    optsPartie = Object.assign({}, o, { reglages: normaliser(o, 1) }); finTraitee = false; surDepuis = 0; aideVue = null; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null; remettrePas();
+    try { PHUD.reinit({ equipes: !!o.equipes, reglages: jeu.reglages || normaliser(o, 1) }); } catch (e) { signaler('hud.reinit', e); }
     try { PCONTROLES.reinit(); } catch (e) { signaler('controles.reinit', e); }
     if (compte) { compteT = 3.6; compteVu = -1; montrer('compte'); PCONTROLES.activer(false); astuce(true); }
     else { montrer('partie'); PCONTROLES.activer(true); }
@@ -335,7 +477,7 @@ const PUI = (() => {
       if (force.arme != null) { e.arme = force.arme; force.arme = null; }
     }
     let aide = null;
-    const aidePermise = !(jeu.options && jeu.options.aide === false); // l'hôte peut couper l'aide à la visée (ralentissement, aimant, tir auto)
+    const aidePermise = reglagesPartie(jeu).aide !== false; // l'hôte peut couper l'aide à la visée (ralentissement, aimant, tir auto)
     if (jeu.aideVisee && aidePermise) { try { aide = jeu.aideVisee(idMoi, PCONTROLES.tactile ? 1 : 0); } catch (err) { aide = null; } }
     if (aide && PCONTROLES.tactile && PCONTROLES.actif) { // (en ligne, la partie continue pendant la pause : pas de tir auto)
       const ral = Math.max(0, Math.min(0.9, +aide.ralentir || 0)); e.dyaw *= 1 - ral; e.dpitch *= 1 - ral; // la visée ralentit sur une cible
@@ -389,7 +531,7 @@ const PUI = (() => {
         if (!enLigne) compteT -= dt; const n = Math.ceil(compteT - 0.6);
         if (n !== compteVu) { compteVu = n; const c = elCompte(); c.hidden = false; c.firstElementChild.textContent = n > 0 ? String(n) : 'Repeins !'; c.classList.remove('pop'); void c.offsetWidth; c.classList.add('pop'); c.classList.toggle('go', n <= 0); PSONS.compte(n); }
         try { PHUD.maj(jeu, idMoi, VIDE, null); PCONTROLES.maj(jeu, trouver(idMoi)); } catch (err) { signaler('hud.maj', err); }
-        if (compteT <= 0) { elCompte().hidden = true; astuce(false); montrer('partie'); PCONTROLES.activer(true); PHUD.annonce(optsPartie && optsPartie.equipes ? (enLigne ? annonceEquipe() : 'Deux contre deux : couvre ton robot allié !') : `Premier à ${(jeu.options && jeu.options.score) || (R ? R.MODES.arene.scoreVictoire : 25)} repeints !`); }
+        if (compteT <= 0) { elCompte().hidden = true; astuce(false); montrer('partie'); PCONTROLES.activer(true); PHUD.annonce(annonceDepart()); }
       }
       if (ecran !== 'compte' && !elCompte().hidden) { elCompte().hidden = true; astuce(false); }
     } catch (err) { signaler('boucle', err); }
@@ -415,6 +557,7 @@ const PUI = (() => {
     try { PHUD.taille(w, h); } catch (e) { signaler('hud.taille', e); }
     try { PCONTROLES.taille(); } catch (e) { signaler('controles.taille', e); }
     if (portrait() && (ecran === 'partie' || ecran === 'compte')) pause();
+    if (ecran === 'options') majOptions(); // la vignette suit la taille
   }
 
   // ─── les boutons ───
@@ -431,7 +574,6 @@ const PUI = (() => {
       case 'accueil': location.href = (window.PONCIN_ACCUEIL || '../') + '?app=accueil'; break; // ?app=accueil : l'accueil ne renvoie pas vers un jeu
       case 'recharger': location.reload(); break;
       case 'oups-menu': $('#oups').hidden = true; if (!rendu3d) panneau3d(true); else montrer('titre'); break;
-      case 'opt': { const s = b.closest('.seg'); const k = s.dataset.opt, v = b.dataset.v; sauv.choix[k] = k === 'bots' ? +v : v; majModes(); sauver(); break; }
       case 'modes': montrer('modes'); break;
       case 'copains': montrer('copains'); break;
       case 'creer': ouvrirSalon(null); break;
@@ -440,11 +582,14 @@ const PUI = (() => {
       case 'partager': partager(); break;
       case 'copier': copier(ctl ? ctl.code : '', 'Code copié : '); break;
       case 'salon-action': actionSalon(); break;
-      case 'armes': armesCtx = ecran === 'salon' && ctl ? 'salon' : 'solo'; montrer('armes'); break;
-      case 'armes-retour': montrer(armesCtx === 'salon' && ctl ? 'salon' : 'modes'); break;
+      case 'armes': ouvrirOptions('armes'); break;
+      case 'options': ouvrirOptions(b && b.dataset.onglet); break;
+      case 'onglet': onglet = b.dataset.onglet; majOptions(); break;
+      case 'oopt': regler(b.dataset.k, lireValeur(b.dataset.k, b.dataset.v)); break;
+      case 'options-defaut': parDefaut(); break;
+      case 'armes-retour': case 'options-retour': montrer(optCtx === 'salon' && ctl ? 'salon' : 'modes'); break;
       case 'arme-choix': choisirArme(b.dataset.id); break;
       case 'arme-permise': permettreArme(b.dataset.id); break;
-      case 'sopt': { if (!ctl || !ctl.estHote) return; const s = b.closest('.seg'), k = s.dataset.sopt, v = b.dataset.v; ctl.regler({ [k]: k === 'bots' ? +v : k === 'equipes' ? v === '1' : v }); majSalon(); break; }
     }
     PSONS.ui(a === 'retour' || a === 'titre' ? 'retour' : 'tap');
   }
@@ -453,8 +598,6 @@ const PUI = (() => {
       const b = e.target.closest('[data-a]'); if (!b || b.disabled) return;
       PSONS.debloquer(); try { action(b.dataset.a, b); } catch (err) { signaler('bouton ' + b.dataset.a, err); }
     });
-    $$('#e-modes .seg[data-opt]').forEach((s) => s.querySelectorAll('button').forEach((b) => { b.dataset.a = 'opt'; }));
-    $$('#e-salon .seg[data-sopt]').forEach((s) => s.querySelectorAll('button').forEach((b) => { b.dataset.a = 'sopt'; }));
     const champCode = $('#code-salon');
     if (champCode) {
       champCode.addEventListener('input', () => { const v = champCode.value.toUpperCase().replace(/[^BCDFGHJKLMNPQRSTVWXZ]/g, '').slice(0, 4); if (v !== champCode.value) champCode.value = v; });
@@ -466,7 +609,9 @@ const PUI = (() => {
     document.addEventListener('keydown', (e) => {
       PSONS.debloquer();
       if (e.target && (e.target.tagName === 'INPUT')) return;
-      if (e.code === 'Escape') { if (ecran === 'pause') { e.stopPropagation(); reprendre(); } else if (ecran === 'reglages' || ecran === 'credits') action('retour'); else if (ecran === 'modes') action('titre'); else if (ecran === 'copains') action('modes'); else if (ecran === 'armes') action('armes-retour'); }
+      if (e.code === 'Escape') { if (ecran === 'pause') { e.stopPropagation(); reprendre(); } else if (ecran === 'reglages' || ecran === 'credits') action('retour'); else if (ecran === 'modes') action('titre'); else if (ecran === 'copains') action('modes'); else if (ecran === 'options') action('options-retour'); }
+      else if (ecran === 'options' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight') && e.target && e.target.getAttribute && e.target.getAttribute('role') === 'tab') { // les onglets au clavier
+        const i = ONGLETS.indexOf(onglet), n = ONGLETS[(i + (e.code === 'ArrowRight' ? 1 : ONGLETS.length - 1)) % ONGLETS.length]; onglet = n; majOptions(); const t = $(`#e-options [data-onglet="${n}"]`); if (t) t.focus(); }
       else if ((e.code === 'Enter' || e.code === 'Space') && ecran === 'fin') { e.preventDefault(); rejouer(); }
     });
     window.addEventListener('resize', taille); window.addEventListener('orientationchange', () => setTimeout(taille, 120));
@@ -499,7 +644,7 @@ const PUI = (() => {
     if (!ok) noteCopains('Le jeu en ligne n’est pas disponible sur cette page.', true);
     else if (localForce()) noteCopains(`Voie ${reseauForce() === 'local' ? 'locale' : 'WebRTC locale'} (essais) : seulement entre les onglets de ce navigateur.`);
     else if (!configEnLigne()) noteCopains('Le jeu en ligne n’est pas encore configuré ici : seuls les onglets de ce navigateur peuvent jouer ensemble.', true);
-    else noteCopains('2 à 4 joueurs, chacun sur son téléphone, en 4G ou en wifi.');
+    else noteCopains(`2 à ${MAX_JOUEURS()} joueurs, chacun sur son téléphone, en 4G ou en wifi.`);
   }
   async function ouvrirSalon(code) {
     if (ctl || ouverture) return;
@@ -523,43 +668,48 @@ const PUI = (() => {
     if (code && c.estHote && c.joueurs().length < 2) toast(`Personne dans le salon ${code} pour l’instant : tu en es l’hôte. Vérifie le code, ou partage-le !`);
   }
   function brancherSalon(c) {
-    armesRecues = null;
+    reglagesRecus = null; dernierAnnonce = '';
     c.sur('maj', () => {
       if (c !== ctl) return;
-      if (c.estHote && !Array.isArray(c.reglages.armes)) annoncerArmes(armesValides(sauv.choix.armesSalon)); // (aussi quand on devient l'hôte)
-      if (ecran === 'salon') majSalon(); else if (ecran === 'armes') majArmes();
+      if (c.estHote) annoncerReglages(); // (aussi quand on devient l'hôte, et quand le nombre de joueurs change : robots ≤ 6 − joueurs)
+      if (ecran === 'salon') majSalon(); else if (ecran === 'options' && optCtx === 'salon') majOptions();
     });
-    try { // les armes permises annoncées par l'hôte (dans le message 'reglages', qui reprend ctl.reglages)
-      if (c.salon && typeof c.salon.sur === 'function') c.salon.sur('reglages', (d) => { if (c !== ctl || c.estHote || !d || !Array.isArray(d.armes)) return; armesRecues = armesValides(d.armes); if (ecran === 'salon') majSalon(); else if (ecran === 'armes') majArmes(); });
+    try { // les réglages annoncés par l'hôte (message 'reglages' : tous les champs dans d.r, sinon à plat dans d, comme ctl.reglages)
+      if (c.salon && typeof c.salon.sur === 'function') c.salon.sur('reglages', (d) => { if (c !== ctl || c.estHote || !d || typeof d !== 'object') return; reglagesRecus = d.r && typeof d.r === 'object' ? d.r : d; if (ecran === 'salon') majSalon(); else if (ecran === 'options' && optCtx === 'salon') majOptions(); });
     } catch (e) { signaler('salon.sur', e); }
-    if (c.estHote) annoncerArmes(armesValides(sauv.choix.armesSalon));
+    if (c.estHote) annoncerReglages(true);
     publierEquip();
     c.sur('partie', (P) => { if (c !== ctl) return; demarrerEnLigne(P); });
     c.sur('salon', () => { if (c !== ctl) return; jeu = null; partieL = null; enLigne = false; finTraitee = false; force = null; astuce(false); PCONTROLES.activer(false); eveille(false); try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('salon'); });
-    c.sur('ferme', (d) => { if (c !== ctl) return; ctl = null; partieL = null; if (enLigne || ecran === 'salon') { enLigne = false; jeu = null; try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('copains'); noteCopains(d && d.raison === 'carte' ? 'Ta carte de Poncin n’est pas celle de l’hôte : rechargez la page tous les deux, puis recréez le salon.' : 'Le salon a été fermé.', true); } });
+    c.sur('ferme', (d) => {
+      if (c !== ctl) return; ctl = null; partieL = null;
+      if (enLigne || ecran === 'salon' || (ecran === 'options' && optCtx === 'salon')) {
+        enLigne = false; jeu = null; try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('copains');
+        const r = d && d.raison;
+        noteCopains(r === 'carte' ? 'Ta carte de Poncin n’est pas celle de l’hôte : rechargez la page tous les deux, puis recréez le salon.' : r === 'complet' ? `Le salon est complet : ${MAX_JOUEURS()} joueurs au plus.` : 'Le salon a été fermé.', true);
+      }
+    });
   }
   function quitterSalon() { const c = ctl; ctl = null; partieL = null; enLigne = false; if (c) { try { c.quitter(); } catch (e) { console.warn('[Poncin] quitter le salon', e); } } }
   const VOIES = { local: 'même appareil', hote: 'hôte', p2p: 'direct', webrtc: 'direct', direct: 'direct', relais: 'relais', supabase: 'relais', faux: 'essai' };
   const echap = (t) => String(t == null ? '' : t).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   function majSalon() {
     if (!ctl) return;
-    const js = ctl.joueurs(), hote = ctl.estHote, g = ctl.reglages, moi = js.find((j) => j.moi) || {};
+    const js = ctl.joueurs(), hote = ctl.estHote, moi = js.find((j) => j.moi) || {};
     const code = $('#salon-code'); if (code) code.textContent = ctl.code;
-    const nb = $('#salon-nb'); if (nb) nb.textContent = `(${js.length})`;
+    const nb = $('#salon-nb'); if (nb) nb.textContent = `(${js.length}/${MAX_JOUEURS()})`;
     const l = $('#salon-liste');
     if (l) l.innerHTML = js.map((j) => { const q = equipDe(j); return `<li class="${j.moi ? 'moi' : ''}"><i class="pastille" style="background:${echap(j.couleur || '#ccc')}"></i><span class="sj-nom">${echap(j.pseudo)}${j.moi ? ' <small>(toi)</small>' : ''}${q ? `<small class="sj-equip">${echap(nomA(q.p))} + ${echap(nomA(q.s))}</small>` : ''}</span>`
       + `<span class="sj-info">${j.hote ? '' : j.ping != null ? `${j.ping} ms` : '…'}${j.voie && !j.hote ? `<br>${echap(VOIES[j.voie] || j.voie)}` : ''}</span>`
       + `<span class="sj-etat${j.hote ? ' hote' : j.pret ? ' pret' : ''}">${j.hote ? 'Hôte' : j.pret ? 'Prêt' : '…'}</span></li>`; }).join('')
       + (js.length < 2 ? '<li class="vide">En attente des copains…</li>' : '');
-    const val = { bots: String(g.bots), niveau: g.niveau, equipes: g.equipes ? '1' : '0' };
-    $$('#e-salon .seg[data-sopt]').forEach((s) => s.querySelectorAll('button').forEach((b) => { b.setAttribute('aria-pressed', String(b.dataset.v === val[s.dataset.sopt])); b.disabled = !hote; }));
+    const r = reglagesSalon(), q = equipValide(sauv.choix.equip, r.armes), rs = $('#resume-salon'), cleR = JSON.stringify(r) + q.p + q.s; // le résumé : une ligne par onglet du panneau
+    if (rs && rs._cle !== cleR) { rs._cle = cleR; rs.innerHTML = resumeHtml(r, q); }
     const reg = $('.salon-reglages'); if (reg) reg.classList.toggle('lecture', !hote);
-    const pe = $('#e-salon .equip-resume'); if (pe) pe.innerHTML = resumeEquip(equipValide(sauv.choix.equip, permisesSalon()));
-    const pa = $('#salon-armes'); if (pa) { const n = permisesSalon().length, t = listeArmes('principale').length + listeArmes('secondaire').length; pa.textContent = `${n}/${t}`; pa.title = hote ? 'Armes permises (à cocher en touchant tes armes)' : 'Armes permises par l’hôte'; }
     const etat = $('#salon-etat'), bouton = $('#b-salon-action');
     const prets = js.filter((j) => !j.hote && j.pret).length, autres = js.length - 1;
     if (hote) {
-      if (etat) etat.textContent = js.length < 2 ? 'Donne le code aux copains : la partie se lance à partir de 2 joueurs.' : `${prets}/${autres} copain${autres > 1 ? 's' : ''} prêt${prets > 1 ? 's' : ''}. Tu lances quand tu veux ; garde le jeu ouvert pendant la partie : c’est ton téléphone qui la fait tourner.`;
+      if (etat) etat.textContent = js.length < 2 ? 'Donne le code aux copains : la partie se lance à partir de 2 joueurs.' : `${prets}/${autres} copain${autres > 1 ? 's' : ''} prêt${prets > 1 ? 's' : ''}${js.length >= MAX_JOUEURS() ? ' · salon complet' : ''}. Tu lances quand tu veux ; garde le jeu ouvert pendant la partie : c’est ton téléphone qui la fait tourner.`;
       if (bouton) { bouton.textContent = 'Lancer la partie'; bouton.disabled = js.length < 2; bouton.removeAttribute('aria-pressed'); }
     } else {
       if (etat) etat.textContent = ctl.enJeu ? 'Une partie est en cours : tu joueras à la suivante.' : 'L’hôte règle la partie et la lance.';
@@ -594,8 +744,8 @@ const PUI = (() => {
       astuce(false);
       jeu = P.jeu; idMoi = P.idMoi; enLigne = true; partieL = P; entrees = {}; entrees[idMoi] = null;
       const eq = !!(jeu.options && jeu.options.equipes);
-      optsPartie = { equipes: eq, enLigne: true }; finTraitee = false; surDepuis = 0; aideVue = null; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null; remettrePas();
-      try { PHUD.reinit({ equipes: eq }); } catch (e) { signaler('hud.reinit', e); }
+      optsPartie = { equipes: eq, enLigne: true, reglages: P.reglages || jeu.reglages || (ctl ? reglagesSalon() : null) }; finTraitee = false; surDepuis = 0; aideVue = null; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null; remettrePas();
+      try { PHUD.reinit({ equipes: eq, reglages: reglagesPartie() }); } catch (e) { signaler('hud.reinit', e); }
       try { PCONTROLES.reinit(); } catch (e) { signaler('controles.reinit', e); }
       compteT = Math.max(0.5, +P.dans || 3.6); compteFin = performance.now() + compteT * 1000; compteVu = -1; montrer('compte'); PCONTROLES.activer(false); astuce(true);
       eveille(true);
@@ -613,6 +763,14 @@ const PUI = (() => {
     try { r = PHUD.fin(res, jeu, idMoi, { mode: 'Arène entre copains', message, boutons, titre: raison ? 'Partie interrompue' : '', attente: hote ? '' : raison ? 'Retourne au salon pour en lancer une autre.' : 'Si l’hôte relance, tu repars directement avec lui.' }); } catch (e) { signaler('hud.fin', e); }
     PSONS.jouer(r && r.gagne ? 'victoire' : 'defaite'); if (r && r.gagne) PSONS.vibrer([20, 40, 20, 40, 60]);
     montrer('fin');
+  }
+  // les réglages de la partie en cours : jeu.reglages (normalisés, groupe des règles), sinon jeu.options, complétés par ceux du lancement
+  function reglagesPartie(j) { j = j || jeu; if (!j) return {}; if (j.reglages && typeof j.reglages === 'object') return j.reglages; return Object.assign({}, (optsPartie && optsPartie.reglages) || {}, j.options || {}); }
+  function annonceDepart() { // l'annonce du « Repeins ! »
+    const r = reglagesPartie(), eq = !!(optsPartie && optsPartie.equipes);
+    if (r.reapparition === 'aucune') return ''; // le bandeau de manche du HUD le dit (« Manche 1/3 · reste debout »)
+    if (eq) return enLigne ? annonceEquipe() : 'En équipes : couvre tes robots alliés !';
+    return `Premier à ${r.score || (R ? R.MODES.arene.scoreVictoire : 25)} repeints !`;
   }
   function annonceEquipe() { const m = trouver(idMoi), j = !m || m.equipe !== 1; return `Équipe ${j ? 'jaune' : 'rose'} : repeins l’équipe ${j ? 'rose' : 'jaune'} !`; }
   function auSalon() { if (ctl) ctl.retourSalon(); else quitter(); }

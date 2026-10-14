@@ -369,9 +369,13 @@ const PAS = 1 / 60;
       let ok = null; for (let a = 0; a < 32 && !ok; a++) { const x = L.centre[0] + Math.cos(a * 0.2) * (L.rayon - 1.5), z = L.centre[1] + Math.sin(a * 0.2) * (L.rayon - 1.5); if (!M.bloque(x, z, 0.5)) ok = [x, z]; }
       if (ok) { p.tp(ok[0], ok[1]); p.images(Array(20).fill(1 / 60)); r.bord = !document.querySelector('.h-limite').hidden; p.tp(L.centre[0], L.centre[1]); p.images(Array(20).fill(1 / 60)); r.centre = !document.querySelector('.h-limite').hidden; }
     }
-    const o = j.options; j.options = Object.assign({}, o, { duree: 0, reapparition: 'aucune' }); p.images(Array(3).fill(1 / 60));
+    // une partie sans limite (jeu.reste indéfini) et sans réapparition, au contrat des règles (jeu.reglages normalisés), le temps de 3 images
+    const g0 = j.reglages, d0 = Object.getOwnPropertyDescriptor(j, 'reste');
+    j.reglages = Object.assign({}, g0 || j.options, { duree: 0, reapparition: 'aucune' }); Object.defineProperty(j, 'reste', { get: () => undefined, configurable: true });
+    p.images(Array(3).fill(1 / 60));
     r.chrono = document.querySelector('.h-chrono b').textContent; r.objectif = document.querySelector('.h-chrono small').textContent;
-    j.options = o; p.images([1 / 60]);
+    if (g0 === undefined) delete j.reglages; else j.reglages = g0; if (d0) Object.defineProperty(j, 'reste', d0); else delete j.reste;
+    p.images([1 / 60]);
     return r;
   });
   check(hud2.bord === true && hud2.centre === false, `« Limite de la zone » à moins de 3 m du bord, pas au centre (${hud2.bord}, ${hud2.centre})`);
@@ -393,7 +397,7 @@ const PAS = 1 / 60;
   await P(() => { localStorage.removeItem('poncin.v2'); localStorage.setItem('poncin.v1', JSON.stringify({ v: 1, reglages: { sensibilite: 1.7, balancement: 'doux', nom: 'Vieux' }, records: { arene: { meilleur: 321, parties: 4, eliminations: 9, victoires: 1, serie: 2 } }, choix: { format: 'solo', bots: 5, niveau: 'fort' }, derniere: 12345 })); });
   await page.goto(`http://localhost:${server.address().port}/poncin/`, { waitUntil: 'domcontentloaded', timeout: 60000 }); await page.waitForFunction(() => window.__poncin && document.body.dataset.ecran === 'titre', null, { timeout: 60000 }).catch(() => {});
   const rep = await P(() => window.__poncin.sauvegarde());
-  check(rep.v === 2 && rep.reglages.sensibilite === 1.7 && rep.reglages.balancement === 'doux' && rep.reglages.nom === 'Vieux' && rep.records.arene.meilleur === 321 && rep.choix.niveau === 'fort' && rep.reglages.visee === 'auto' && rep.choix.equip && rep.choix.equip.p, `poncin.v1 repris dans poncin.v2 (sensibilité ${rep.reglages.sensibilite}, record ${rep.records.arene.meilleur}, équipement ${rep.choix.equip && rep.choix.equip.p} + ${rep.choix.equip && rep.choix.equip.s})`);
+  check(rep.v === 2 && rep.reglages.sensibilite === 1.7 && rep.reglages.balancement === 'doux' && rep.reglages.nom === 'Vieux' && rep.records.arene.meilleur === 321 && rep.choix.reglages && rep.choix.reglages.niveau === 'fort' && rep.choix.reglages.bots === 5 && rep.choix.reglages.v === 2 && rep.reglages.visee === 'auto' && rep.choix.equip && rep.choix.equip.p, `poncin.v1 repris dans poncin.v2 (sensibilité ${rep.reglages.sensibilite}, record ${rep.records.arene.meilleur}, anciens choix devenus choix.reglages : ${rep.choix.reglages && rep.choix.reglages.bots} robots ${rep.choix.reglages && rep.choix.reglages.niveau}, équipement ${rep.choix.equip && rep.choix.equip.p} + ${rep.choix.equip && rep.choix.equip.s})`);
   await page.goto(`http://localhost:${server.address().port}/poncin/manifest.webmanifest`);
   await P(() => { localStorage.removeItem('poncin.v1'); localStorage.removeItem('poncin.v2'); });
   await page.goto(`http://localhost:${server.address().port}/poncin/`, { waitUntil: 'domcontentloaded', timeout: 60000 }); await page.waitForFunction(() => window.__poncin && document.body.dataset.ecran === 'titre', null, { timeout: 60000 }).catch(() => {});
