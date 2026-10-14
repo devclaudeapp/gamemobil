@@ -10953,7 +10953,7 @@ const PHUD = (() => {
             const nv = e.mort ? 'mort' : e.tete ? 'tete' : 'corps'; if (toucheT < 0 || jeu.temps - toucheT > 0.05 || nv === 'mort' || (nv === 'tete' && toucheType === 'corps')) toucheType = nv; toucheT = jeu.temps;
             const v = trouver(jeu, e.a); if (v) nombre(jeu, v, e.degats, e.tete, e.mort);
           } else if (e.a === idMoi) {
-            vignette = Math.min(1, vignette + Math.max(0.25, (e.degats || 10) / 45));
+            vignette = Math.min(1, vignette + Math.max(0.12, (e.degats || 10) / 90)); // moitié moins qu'avant : le rendu ajoute son voile rouge (PRENDU)
             const de = trouver(jeu, e.de); if (de) fleche(jeu, de); flashT = performance.now(); // le flash rouge
           }
           break;
