@@ -5,6 +5,15 @@
 // - fronts : un saut ou un appui bref sur Tir donnés pendant une image sans pas, ou avant une image de 2 pas, partent une fois et une seule ;
 // - le réglage « Balancement » est sauvegardé et transmis au rendu (PRENDU.reglages) ;
 // - l'aide à la visée à 120 Hz : un glissé sur une cible ne fait jamais reculer le regard affiché de plus de 0,15° (PCONTROLES.attenuer).
+// Commandes v2 (conception § 10, contrat de la livraison 2) :
+// - l'entrée v2 { …, accroupi, course, couche, vise, arme: null | 0 | 1, changer } ; la course au joystick poussé à fond (≥ 0,92, ≤ 40° ;
+//   sortie sous 0,85 ou au-delà de 50°) avec l'anneau jaune, qui efface la bascule accroupi et la visée ; le bouton Courir en option ;
+// - Accroupi : toucher = accroupi tout de suite ; en courant = glissade (la simulation glisse, puis l'on se relève en courant) ; appui long
+//   (350 ms) = couché ; toucher couché = accroupi ; un refus efface la bascule couché ;
+// - Viser : bascule au doigt (ou maintenu, réglage), clic droit maintenu à la souris ; la vue tourne × (1/z)^0,9 × la sensibilité en visée ;
+// - clavier : Maj (courir), C (accroupi), X (couché), 1 / 2 (emplacement), Q (changer) ; les pastilles d'armes du HUD (changer, recharger) ;
+// - HUD v2 : pastilles « 30 | 120 » et « ∞ », icône de posture, point rouge et lunette selon A.visee.viseur, le refus ;
+// - réglages (sensibilité en visée, visée, course) sauvegardés dans poncin.v2, et la reprise de poncin.v1.
 // NODE_PATH=/opt/node22/lib/node_modules node test/poncin-commandes.cjs
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -172,6 +181,222 @@ const PAS = 1 / 60;
     check(ral > 0 && recul * 180 / Math.PI <= 0.15, `120 Hz, glissé sur une cible (aide ${ral.toFixed(2)}) : le regard affiché recule au plus de ${(recul * 180 / Math.PI).toFixed(3)}° (≤ 0,15° ; ${n} image(s) sur ${vus.length - 1})`);
     await P(() => PCONTROLES.modeTactile(false));
   } else check(false, "l'aide à la visée est là (jeu.aideVisee)");
+
+  // ═══════════════════════════ commandes v2 ═══════════════════════════
+  await P(() => { const j = window.__poncin.jeu(); if (j.__aide) j.aideVisee = null; PCONTROLES.modeTactile(true); window.__poncin.rendu(false); }); // (la 3D coupée : la simulation, les commandes et le HUD seuls)
+  // un endroit dégagé : 24 m de ligne droite libre devant soi, à plat (course, glissade, couché)
+  const place = await P(() => {
+    const p = window.__poncin, j = p.jeu(), M = j.monde;
+    for (let r = 0; r < 60; r += 4) for (let a = 0; a < 16; a++) {
+      const x = 99 + r * Math.cos(a * 0.7), z = 1.5 + r * Math.sin(a * 0.7);
+      for (let k = 0; k < 16; k++) {
+        const yaw = k * Math.PI / 8; let ok = !M.bloque(x, z, 1.2);
+        for (let d = 1; d <= 24 && ok; d += 1) ok = !M.bloque(x - Math.sin(yaw) * d, z - Math.cos(yaw) * d, 1.0) && Math.abs(M.hauteur(x - Math.sin(yaw) * d, z - Math.cos(yaw) * d) - M.hauteur(x, z)) < 1.2;
+        if (ok) return { x, z, yaw };
+      }
+    }
+    return null;
+  });
+  check(!!place, `un endroit dégagé pour courir (${place ? place.x.toFixed(0) + ', ' + place.z.toFixed(0) : '—'})`);
+  const aPlace = () => P((pl) => { const p = window.__poncin, m = p.joueur(); PCONTROLES.reinit(); p.tp(pl.x, pl.z, pl.yaw); m.pitch = 0; m.vx = m.vz = 0; m.ax = m.x; m.az = m.z; m.ay = m.y; m.invincible = 1e9; m.vie = 100; p.images(Array(30).fill(1 / 60)); }, place);
+  const moiV2 = () => P(() => { const m = window.__poncin.joueur(); return { posture: m.posture, vers: m.vers, course: !!m.course, vise: m.vise || 0, arme: m.arme, armes: m.armes.slice(), slot: m.slot, equip: m.equip, v: Math.hypot(m.vx || 0, m.vz || 0), mun: Object.assign({}, m.munitions) }; });
+  const cumulV = () => P(() => { const c = PCONTROLES.lire(); return { accroupi: c.accroupi, course: c.course, couche: c.couche, vise: c.vise, arme: c.arme, changer: c.changer }; });
+  const images = (n) => P((n) => window.__poncin.images(Array(n).fill(1 / 60)), n);
+  // un toucher d'un second doigt pendant que le pouce tient le joystick (un PointerEvent : relâcher un seul doigt par CDP n'est pas possible)
+  const tapDoigt = (sel, id) => P(([sel, id]) => { const b = document.querySelector(sel), r = b.getBoundingClientRect(), o = { pointerId: id, pointerType: 'touch', isPrimary: false, bubbles: true, cancelable: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 };
+    b.dispatchEvent(new PointerEvent('pointerdown', o)); b.dispatchEvent(new PointerEvent('pointerup', o)); }, [sel, id]);
+  await aPlace();
+  // l'entrée v2
+  const en0 = await P(() => { const p = window.__poncin, j = p.jeu(), vrai = j.etape; let vu = null; j.etape = function (dt, en) { if (!vu) vu = Object.assign({}, en[p.etat().idMoi]); return vrai.call(this, dt, en); }; p.images([1 / 60]); j.etape = vrai; return vu; });
+  check(en0 && ['accroupi', 'course', 'couche', 'vise', 'changer'].every((k) => typeof en0[k] === 'boolean') && en0.arme === null && 'tir' in en0 && 'saut' in en0 && 'recharge' in en0, `l'entrée v2 a ses niveaux et ses fronts (${en0 ? Object.keys(en0).join(', ') : '—'})`);
+  const eq0 = await moiV2();
+  check(!!eq0.equip && eq0.armes.length === 2 && eq0.arme === eq0.armes[0], `le joueur a ses deux emplacements, la principale en main (${eq0.armes.join(' + ')})`);
+
+  // ─── courir : le joystick poussé à fond ───
+  const J0 = [160, 300];
+  await toucher('touchStart', [[J0[0], J0[1], 30]]);
+  await toucher('touchMove', [[J0[0], J0[1] - 40, 30]]); await images(1);
+  const c50 = await cumulV();
+  await toucher('touchMove', [[J0[0], J0[1] - 59, 30]]); await images(1); // (au-delà du rayon, la base suivrait le pouce)
+  const c100 = await cumulV(), anneau = await P(() => document.querySelector('.pc-joy').classList.contains('course'));
+  await toucher('touchMove', [[J0[0] + 59 * Math.sin(0.785), J0[1] - 59 * Math.cos(0.785), 30]]); await images(1);
+  const c45 = await cumulV();
+  await toucher('touchMove', [[J0[0] + 59 * Math.sin(0.96), J0[1] - 59 * Math.cos(0.96), 30]]); await images(1);
+  const c55 = await cumulV();
+  await toucher('touchMove', [[J0[0] + 59 * Math.sin(0.785), J0[1] - 59 * Math.cos(0.785), 30]]); await images(1);
+  const c45b = await cumulV();
+  check(!c50.course && c100.course && anneau, `joystick à 2/3 : on marche ; poussé à fond : on court, l'anneau jaune s'allume`);
+  check(c45.course && !c55.course && !c45b.course, `à 45° on court encore (sortie au-delà de 50°), à 55° plus, et revenir à 45° ne suffit pas (entrée ≤ 40°)`);
+  await toucher('touchMove', [[J0[0], J0[1] - 70, 30]]); await images(40);
+  const court = await moiV2();
+  check(court.course && court.v > 6.2, `la simulation court (${court.v.toFixed(2)} m/s)`);
+  // la glissade : Accroupi touché en courant
+  const accB = await centre('.pc-accroupi');
+  await tapDoigt('.pc-accroupi', 931);
+  const gl = []; for (let k = 0; k < 90; k++) { await images(1); const m = await moiV2(); gl.push(m.vers); }
+  const glisse = gl.indexOf('glisse'), fini = gl.lastIndexOf('glisse');
+  const finGl = await moiV2(), cApres = await cumulV();
+  check(glisse >= 0 && glisse < 4, `Accroupi en courant : la glissade part tout de suite (au pas ${glisse}), dure ${((fini - glisse + 1) / 60).toFixed(2)} s`);
+  check(!cApres.accroupi && finGl.vers === "debout" && finGl.course, `à la fin de la glissade, le joystick toujours poussé : on se relève et l’on court (${finGl.vers}, course ${finGl.course})`);
+  // commencer à courir efface la bascule accroupi
+  await toucher('touchMove', [[J0[0], J0[1] - 20, 30]]); await images(5);
+  await tapDoigt('.pc-accroupi', 932); await images(20);
+  const acc1 = await cumulV(), accM = await moiV2();
+  await toucher('touchMove', [[J0[0], J0[1] - 70, 30]]); await images(2);
+  const acc2 = await cumulV();
+  check(acc1.accroupi && accM.posture === 'accroupi' && !acc2.accroupi, `toucher Accroupi en marchant : accroupi ; pousser le joystick à fond l'efface (${acc1.accroupi} → ${acc2.accroupi})`);
+  await toucher('touchEnd', []); await images(30);
+  check(!(await cumulV()).course, 'lâcher le joystick arrête la course');
+
+  // ─── couché : appui long ; toucher couché → accroupi ───
+  await aPlace();
+  await toucher('touchStart', [[accB[0], accB[1], 33]]); await sleep(450); await images(1);
+  const vib = await P(() => document.querySelector('.pc-accroupi').getAttribute('aria-pressed'));
+  await toucher('touchEnd', []); await images(50);
+  const cou = await moiV2(), cCou = await cumulV(), icoCou = await P(() => document.querySelector('.pc-accroupi').dataset.p === 'couche');
+  check(cCou.couche && cou.posture === 'couche' && icoCou && vib === 'true', `appui long sur Accroupi (450 ms) : couché (${cou.posture} ; niveau couché ${cCou.couche}, bouton ${vib}), l'icône du bouton suit`);
+  const hudPost = await P(() => document.querySelector('.h-posture').dataset.p);
+  check(hudPost === 'couche', `le HUD montre l'icône de posture (${hudPost})`);
+  await toucher('touchStart', [[accB[0], accB[1], 34]]); await toucher('touchEnd', []); await images(40);
+  const dec = await moiV2(), cDec = await cumulV();
+  check(!cDec.couche && cDec.accroupi && dec.posture === 'accroupi', `toucher Accroupi couché : accroupi (${dec.posture})`);
+  await toucher('touchStart', [[accB[0], accB[1], 35]]); await toucher('touchEnd', []); await images(20);
+  check((await moiV2()).posture === 'debout', 'un autre toucher : debout');
+  // un refus de la simulation efface la bascule couché, et le HUD le dit
+  await P(() => { const p = window.__poncin, j = p.jeu(), M = j.monde, m = p.joueur(); M.__bloque = M.bloque; M.bloque = (x, z, r) => (r >= 0.8 ? true : M.__bloque(x, z, r)); });
+  await toucher('touchStart', [[accB[0], accB[1], 36]]); await sleep(450); await images(1); await toucher('touchEnd', []); await images(10);
+  const refus = await P(() => { const M = window.__poncin.jeu().monde; M.bloque = M.__bloque; return { txt: document.querySelector('.h-refus').textContent, vu: document.querySelector('.h-refus').classList.contains('vu'), posture: window.__poncin.joueur().posture }; });
+  const cRef = await cumulV();
+  check(refus.vu && /Pas la place de te coucher/.test(refus.txt) && !cRef.couche && refus.posture !== 'couche', `pas la place : « ${refus.txt} », la bascule couché s'efface`);
+  await toucher('touchStart', [[accB[0], accB[1], 37]]); await toucher('touchEnd', []); await images(20); // (l'appui avait aussi basculé accroupi)
+
+  // ─── viser : bascule au doigt ; la vue tourne moins vite ; courir annule la visée ───
+  await aPlace();
+  const viseB = await centre('.pc-vise');
+  check(!!viseB, 'le bouton Viser est là');
+  await toucher('touchStart', [[viseB[0], viseB[1], 40]]); await toucher('touchEnd', []); await images(30);
+  const mv1 = await moiV2(), cv1 = await cumulV(), vOn = await P(() => document.querySelector('.pc-vise').getAttribute('aria-pressed'));
+  check(cv1.vise && mv1.vise === 1 && vOn === 'true', `toucher Viser : la visée monte et reste (vise ${mv1.vise.toFixed(2)}, bouton ${vOn})`);
+  const zoomA = await P(() => { const m = window.__poncin.joueur(), A = PREGLES.arme(m.arme); return A.visee && A.visee.zoom || 1; });
+  const glisse20 = async () => { await toucher('touchStart', [[600, 150, 41]]); await toucher('touchMove', [[620, 150, 41]]); await toucher('touchEnd', []); const d = await P(() => PCONTROLES.enAttente().dyaw); await images(1); return d; };
+  const dVise = await glisse20();
+  await toucher('touchStart', [[viseB[0], viseB[1], 42]]); await toucher('touchEnd', []); await images(40);
+  const dHanche = await glisse20();
+  const kTheo = Math.pow(1 / zoomA, 0.9);
+  check(Math.abs(dVise / dHanche - kTheo) < 0.02, `en visée (zoom ${zoomA}), un même glissé tourne × ${(dVise / dHanche).toFixed(3)} (théorie (1/z)^0,9 = ${kTheo.toFixed(3)})`);
+  await P(() => PCONTROLES.regler({ sensibiliteVisee: 0.5 }));
+  await toucher('touchStart', [[viseB[0], viseB[1], 43]]); await toucher('touchEnd', []); await images(30);
+  const dVise2 = await glisse20();
+  check(Math.abs(dVise2 / dHanche - kTheo * 0.5) < 0.02, `sensibilité en visée 0,5 : × ${(dVise2 / dHanche).toFixed(3)}`);
+  await P(() => PCONTROLES.regler({ sensibiliteVisee: 1 }));
+  await toucher('touchStart', [[J0[0], J0[1], 44]]); await toucher('touchMove', [[J0[0], J0[1] - 70, 44]]); await images(2);
+  const cv2 = await cumulV();
+  await toucher('touchEnd', []); await images(30);
+  check(!cv2.vise && cv2.course, 'se mettre à courir annule la visée');
+  // réglage « maintenir » : la visée ne dure que l'appui
+  await P(() => PCONTROLES.regler({ visee: 'maintenir' }));
+  await toucher('touchStart', [[viseB[0], viseB[1], 45]]); await images(2); const tenu = await cumulV(); await toucher('touchEnd', []); await images(2); const lache = await cumulV();
+  check(tenu.vise && !lache.vise, 'réglage « maintenir » : on vise tant que le doigt reste sur Viser');
+  await P(() => PCONTROLES.regler({ visee: 'auto' }));
+
+  // ─── le bouton Courir (réglage) ───
+  await P(() => PCONTROLES.regler({ course: 'bouton' }));
+  const courB = await centre('.pc-course'), visible = await P(() => getComputedStyle(document.querySelector('.pc-course')).display !== 'none');
+  await toucher('touchStart', [[J0[0], J0[1], 46]]); await toucher('touchMove', [[J0[0], J0[1] - 70, 46]]); await images(2);
+  const sansBouton = await cumulV();
+  await tapDoigt('.pc-course', 947); await images(2);
+  const avecBouton = await cumulV();
+  await toucher('touchEnd', []); await images(2);
+  const relache = await cumulV();
+  check(visible && !sansBouton.course && avecBouton.course && !relache.course, `course « bouton » : le bouton Courir apparaît ; le joystick seul ne court plus, le bouton oui ; lâcher le joystick l'éteint`);
+  await P(() => PCONTROLES.regler({ course: 'joystick' }));
+  check(await P(() => getComputedStyle(document.querySelector('.pc-course')).display === 'none'), 'course « joystick » : pas de bouton Courir');
+
+  // ─── les armes : pastilles du HUD (changer, recharger) ───
+  await aPlace();
+  const pastilles = await P(() => Array.from(document.querySelectorAll('.h-arme')).map((b) => ({ texte: b.querySelector('.h-mun').textContent, main: b.classList.contains('main'), svg: !!b.querySelector('svg'), r: (() => { const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })() })));
+  check(pastilles.length === 2 && pastilles[0].main && pastilles.every((x) => x.svg) && /^\d+\s*\|\s*\d+$/.test(pastilles[0].texte.trim()) && /\|\s*∞$/.test(pastilles[1].texte.trim()), `deux pastilles : « ${pastilles.map((x) => x.texte.trim()).join(' » et « ')} »`);
+  await toucher('touchStart', [[pastilles[1].r[0], pastilles[1].r[1], 50]]); await toucher('touchEnd', []); await images(40);
+  const sec = await moiV2(), main2 = await P(() => document.querySelectorAll('.h-arme')[1].classList.contains('main'));
+  check(sec.slot === 1 && sec.arme === sec.armes[1] && main2, `toucher la seconde pastille : la secondaire en main (${sec.arme})`);
+  await P(() => { const p = window.__poncin; p.entree({ tir: true }); p.images(Array(30).fill(1 / 60)); p.entree({ tir: false }); p.images([1 / 60]); p.entree(null); });
+  const avantR = await moiV2();
+  await P(() => { const v = window.__evR = []; const j = window.__poncin.jeu(), vrai = j.etape; j.etape = function (dt, en) { const r = vrai.call(this, dt, en); for (const e of r || []) if (e.t === 'recharge' && e.id === window.__poncin.etat().idMoi) v.push(e); return r; }; });
+  await toucher('touchStart', [[pastilles[1].r[0], pastilles[1].r[1], 51]]); await toucher('touchEnd', []); await images(5);
+  const recharge = await P(() => window.__evR.length);
+  check(avantR.mun[avantR.arme] < 12 && recharge === 1, `toucher la pastille en main recharge (${avantR.mun[avantR.arme]} balles, ${recharge} recharge)`);
+  // clavier : 1 / 2, Q, Maj, C, X
+  await P(() => PCONTROLES.modeTactile(false));
+  await page.keyboard.press('Digit1'); await images(40);
+  const k1 = await moiV2();
+  await page.keyboard.press('KeyQ'); const kq = await cumulV(); await images(40);
+  const k2 = await moiV2();
+  check(k1.slot === 0 && kq.changer && k2.slot === 1, `clavier : 1 → la principale, Q → l'autre emplacement (${k1.arme} → ${k2.arme})`);
+  await page.keyboard.down('ShiftLeft'); const kmaj = await cumulV(); await page.keyboard.up('ShiftLeft'); const kmaj2 = await cumulV();
+  await page.keyboard.press('KeyX'); const kx = await cumulV(); await page.keyboard.press('KeyX'); const kx2 = await cumulV();
+  await page.keyboard.press('KeyC'); const kc = await cumulV(); await page.keyboard.press('KeyC'); const kc2 = await cumulV();
+  check(kmaj.course && !kmaj2.course && kx.couche && !kx2.couche && kc.accroupi && !kc2.accroupi, 'clavier : Maj maintenue = courir, X = couché, C = accroupi (bascules)');
+  await P(() => PCONTROLES.modeTactile(true)); await images(30);
+
+  // ─── HUD v2 : point rouge et lunette selon le viseur de l'arme ───
+  const viseurs = await P(() => { const o = {}; for (const A of PREGLES.ARMES) { const v = A.visee && A.visee.viseur; const k = v === 'lunette' ? 'lunette' : v === 'point' || v === 'point rouge' ? 'point' : 'fer'; if (!o[k]) o[k] = A.id; } return o; });
+  const essaiViseur = (id) => P((id) => {
+    const p = window.__poncin, m = p.joueur(), A = PREGLES.arme(id);
+    m.armes[0] = id; m.munitions[id] = A.chargeur; m.reserve[id] = A.reserve; m.arme = null; p.entree({ arme: 0 }); p.images(Array(40).fill(1 / 60));
+    p.entree({ vise: true }); const r = []; for (let k = 0; k < 30; k++) { p.images([1 / 60]); r.push({ v: m.vise, lun: document.querySelector('.h-lunette').classList.contains('vu'), pr: document.querySelector('.h-pr').classList.contains('vu'), o: +getComputedStyle(document.querySelector('.h-v1')).opacity }); }
+    p.entree({ vise: false }); p.images(Array(30).fill(1 / 60)); p.entree(null);
+    return r;
+  }, id);
+  if (viseurs.lunette) {
+    const r = await essaiViseur(viseurs.lunette); const premier = r.find((x) => x.lun), fin = r[r.length - 1];
+    check(premier && premier.v >= 0.85 && !r.some((x) => x.lun && x.v < 0.85) && fin.lun && fin.o === 0, `lunette (${viseurs.lunette}) : elle apparaît à vise ${premier ? premier.v.toFixed(2) : '—'} (≥ 0,85), le viseur de hanche disparaît`);
+    check(!(await P(() => document.querySelector('.h-lunette').classList.contains('vu'))), 'la lunette disparaît quand on ne vise plus');
+  } else check(false, 'une arme à lunette dans PREGLES.ARMES');
+  if (viseurs.point) {
+    const r = await essaiViseur(viseurs.point); const premier = r.find((x) => x.pr);
+    check(premier && premier.v >= 0.7 && !r.some((x) => x.lun), `point rouge (${viseurs.point}) : il apparaît à vise ${premier ? premier.v.toFixed(2) : '—'} (≥ 0,7)`);
+  } else check(false, 'une arme à point rouge dans PREGLES.ARMES');
+  if (viseurs.fer) {
+    const r = await essaiViseur(viseurs.fer); const fin = r[r.length - 1], op = await P(() => getComputedStyle(document.querySelector('.h-viseur')).getPropertyValue('--op').trim());
+    check(!r.some((x) => x.lun || x.pr) && fin.o === 0, `organes de visée (${viseurs.fer}) : ni lunette ni point rouge, les branches s'effacent (le petit point reste)`);
+  }
+
+  // ─── HUD v2 : la limite de la zone, le chrono sans limite, « Encore en lice » ───
+  const hud2 = await P(() => {
+    const p = window.__poncin, j = p.jeu(), M = j.monde, L = M.limite, m = p.joueur(), r = {};
+    if (L && L.centre && L.rayon > 0) {
+      let ok = null; for (let a = 0; a < 32 && !ok; a++) { const x = L.centre[0] + Math.cos(a * 0.2) * (L.rayon - 1.5), z = L.centre[1] + Math.sin(a * 0.2) * (L.rayon - 1.5); if (!M.bloque(x, z, 0.5)) ok = [x, z]; }
+      if (ok) { p.tp(ok[0], ok[1]); p.images(Array(20).fill(1 / 60)); r.bord = !document.querySelector('.h-limite').hidden; p.tp(L.centre[0], L.centre[1]); p.images(Array(20).fill(1 / 60)); r.centre = !document.querySelector('.h-limite').hidden; }
+    }
+    const o = j.options; j.options = Object.assign({}, o, { duree: 0, reapparition: 'aucune' }); p.images(Array(3).fill(1 / 60));
+    r.chrono = document.querySelector('.h-chrono b').textContent; r.objectif = document.querySelector('.h-chrono small').textContent;
+    j.options = o; p.images([1 / 60]);
+    return r;
+  });
+  check(hud2.bord === true && hud2.centre === false, `« Limite de la zone » à moins de 3 m du bord, pas au centre (${hud2.bord}, ${hud2.centre})`);
+  check(hud2.chrono === '∞' && /Encore en lice : \d/.test(hud2.objectif), `sans limite de durée le chrono affiche « ${hud2.chrono} » ; sans réapparition : « ${hud2.objectif} »`);
+
+  // ─── les réglages v2 sauvegardés (poncin.v2), et la reprise de poncin.v1 ───
+  await P(() => { window.__poncin.rendu(true); window.__poncin.manuel(false); });
+  await P(() => window.__poncin.menu()); await P(() => window.__poncin.montrer('reglages')); await sleep(200);
+  const sv = await centre('.seg[data-r="visee"] button[data-v="maintenir"]'), sc = await centre('.seg[data-r="course"] button[data-v="bouton"]');
+  check(!!sv && !!sc && !!(await centre('input[data-r="sensibiliteVisee"]')), 'les réglages proposent la sensibilité en visée, la visée (auto / appui / maintenir) et la course (joystick / bouton)');
+  if (sv) await page.mouse.click(sv[0], sv[1]); if (sc) await page.mouse.click(sc[0], sc[1]);
+  await P(() => { const i = document.querySelector('input[data-r="sensibiliteVisee"]'); i.value = '0.75'; i.dispatchEvent(new Event('input', { bubbles: true })); });
+  const reg = await P(() => ({ s: window.__poncin.sauvegarde(), v2: JSON.parse(localStorage.getItem('poncin.v2')), v1: JSON.parse(localStorage.getItem('poncin.v1')), c: Object.assign({}, PCONTROLES.reglages) }));
+  check(reg.v2 && reg.v2.v === 2 && reg.v2.reglages.visee === 'maintenir' && reg.v2.reglages.course === 'bouton' && reg.v2.reglages.sensibiliteVisee === 0.75, `sauvegardés dans poncin.v2 (visée ${reg.v2 && reg.v2.reglages.visee}, course ${reg.v2 && reg.v2.reglages.course}, sensibilité en visée ${reg.v2 && reg.v2.reglages.sensibiliteVisee})`);
+  check(reg.c.visee === 'maintenir' && reg.c.course === 'bouton' && reg.c.sensibiliteVisee === 0.75, 'et transmis aux commandes');
+  check(reg.v1 && reg.v1.v === 1 && reg.v1.records && reg.v1.records.arene, 'une copie v1 (records) reste écrite pour la Salle de jeux');
+  // la reprise : une vieille sauvegarde v1 seule
+  await page.goto(`http://localhost:${server.address().port}/poncin/manifest.webmanifest`); // une page du même site sans le jeu (en partant, le jeu sauvegarde : pagehide)
+  await P(() => { localStorage.removeItem('poncin.v2'); localStorage.setItem('poncin.v1', JSON.stringify({ v: 1, reglages: { sensibilite: 1.7, balancement: 'doux', nom: 'Vieux' }, records: { arene: { meilleur: 321, parties: 4, eliminations: 9, victoires: 1, serie: 2 } }, choix: { format: 'solo', bots: 5, niveau: 'fort' }, derniere: 12345 })); });
+  await page.goto(`http://localhost:${server.address().port}/poncin/`, { waitUntil: 'domcontentloaded', timeout: 60000 }); await page.waitForFunction(() => window.__poncin && document.body.dataset.ecran === 'titre', null, { timeout: 60000 }).catch(() => {});
+  const rep = await P(() => window.__poncin.sauvegarde());
+  check(rep.v === 2 && rep.reglages.sensibilite === 1.7 && rep.reglages.balancement === 'doux' && rep.reglages.nom === 'Vieux' && rep.records.arene.meilleur === 321 && rep.choix.niveau === 'fort' && rep.reglages.visee === 'auto' && rep.choix.equip && rep.choix.equip.p, `poncin.v1 repris dans poncin.v2 (sensibilité ${rep.reglages.sensibilite}, record ${rep.records.arene.meilleur}, équipement ${rep.choix.equip && rep.choix.equip.p} + ${rep.choix.equip && rep.choix.equip.s})`);
+  await page.goto(`http://localhost:${server.address().port}/poncin/manifest.webmanifest`);
+  await P(() => { localStorage.removeItem('poncin.v1'); localStorage.removeItem('poncin.v2'); });
+  await page.goto(`http://localhost:${server.address().port}/poncin/`, { waitUntil: 'domcontentloaded', timeout: 60000 }); await page.waitForFunction(() => window.__poncin && document.body.dataset.ecran === 'titre', null, { timeout: 60000 }).catch(() => {});
+  await demarrer(7);
 
   // ─── la boucle normale reprend ───
   await P(() => window.__poncin.manuel(false)); await sleep(500);

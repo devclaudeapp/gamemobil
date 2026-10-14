@@ -190,21 +190,22 @@ body.sans-3d #vue3d { display: none; }
 .pc-tir svg { width: 62%; height: 62%; }
 .pc-tir.appui { background: var(--fraise-sombre); }
 .pc-saut { width: 64px; height: 64px; right: calc(var(--sd) + 10px); bottom: calc(var(--sb) + 138px); background: rgba(127, 179, 255, .9); }
+.pc-vise { width: 60px; height: 60px; right: calc(var(--sd) + 136px); bottom: calc(var(--sb) + 100px); }
+.pc-vise.on { background: var(--beurre); }
 .pc-accroupi { width: 56px; height: 56px; right: calc(var(--sd) + 140px); bottom: calc(var(--sb) + 14px); }
 .pc-accroupi.on { background: var(--beurre); }
-.pc-recharge { width: 56px; height: 56px; right: calc(var(--sd) + 142px); bottom: calc(var(--sb) + 104px); }
+.pc-ico { display: grid; place-items: center; width: 100%; height: 100%; pointer-events: none; }
+.pc-ico svg { width: 62%; height: 62%; }
+.pc-course { display: none; width: 56px; height: 56px; right: calc(var(--sd) + 206px); bottom: calc(var(--sb) + 14px); }
+.pc.course-bouton .pc-course { display: grid; }
+.pc-course.on { background: var(--beurre); }
+.pc-recharge { width: 48px; height: 48px; right: calc(var(--sd) + 18px); bottom: calc(var(--sb) + 214px); }
+.pc-recharge svg { width: 62%; height: 62%; }
 .pc-anneau { position: absolute; inset: -9px; width: calc(100% + 18px) !important; height: calc(100% + 18px) !important; transform: rotate(-90deg); opacity: 0; transition: opacity .15s; }
 .pc-anneau circle { fill: none; stroke: var(--beurre); stroke-width: 5; stroke-linecap: round; stroke-dasharray: 100; stroke-dashoffset: 100; }
 .pc-recharge.charge .pc-anneau { opacity: 1; }
-.pc-armes { position: absolute; left: 50%; bottom: calc(var(--sb) + 4px); transform: translateX(-50%); display: flex; gap: 8px; }
-.pc-arme { position: relative; display: grid; place-items: center; width: 60px; height: 50px; border-radius: 14px; background: rgba(255, 255, 255, .86); border: 3px solid var(--encre); box-shadow: 0 3px 0 rgba(43, 42, 76, .65); }
-.pc-arme svg { width: 44px; height: 28px; pointer-events: none; }
-.pc-arme b { position: absolute; left: -7px; top: -9px; width: 20px; height: 20px; border-radius: 50%; background: var(--encre); color: #fff; font: 700 12px/20px var(--titre); text-align: center; }
-.pc-arme span { position: absolute; right: 3px; bottom: 1px; font: 700 11px/1 var(--titre); color: var(--encre); pointer-events: none; }
-.pc-arme.choisie { background: #FFF3CF; border-color: var(--encre); box-shadow: 0 0 0 3px var(--beurre), 0 3px 0 rgba(43, 42, 76, .65); transform: translateY(-3px); }
-.pc-arme.absente { opacity: .38; filter: grayscale(1); }
-.pc-arme.absente span { display: none; }
-.pc-arme.appui { transform: translateY(2px); box-shadow: none; }
+/* courir : l'anneau jaune du joystick poussé à fond */
+.pc-joy.course .pc-joy-base { border-color: var(--beurre); box-shadow: 0 0 0 3px rgba(43, 42, 76, .45), 0 0 0 7px rgba(255, 200, 74, .55), inset 0 0 0 2px rgba(43, 42, 76, .2); }
 .pc-aide { display: none; position: absolute; left: 50%; top: 62%; transform: translateX(-50%); max-width: min(560px, 90vw); padding: 10px 16px; border-radius: 16px; background: rgba(43, 42, 76, .78); color: #fff; text-align: center; pointer-events: none; }
 .pc-aide b { display: block; font: 700 18px/1.2 var(--titre); }
 .pc-aide small { display: block; margin-top: 3px; font: 700 12px/1.4 var(--texte); color: #DCD8FF; }
@@ -214,7 +215,9 @@ body.sans-3d #vue3d { display: none; }
 .pc.gaucher .pc-tir { right: auto; left: calc(var(--sg) + 34px); }
 .pc.gaucher .pc-saut { right: auto; left: calc(var(--sg) + 10px); }
 .pc.gaucher .pc-accroupi { right: auto; left: calc(var(--sg) + 140px); }
-.pc.gaucher .pc-recharge { right: auto; left: calc(var(--sg) + 142px); }
+.pc.gaucher .pc-recharge { right: auto; left: calc(var(--sg) + 18px); }
+.pc.gaucher .pc-vise { right: auto; left: calc(var(--sg) + 136px); }
+.pc.gaucher .pc-course { right: auto; left: calc(var(--sg) + 206px); }
 .pc.gaucher .pc-joy:not(.vivant) .pc-joy-base { left: auto; right: calc(var(--sd) + 40px); }
 .pc.gaucher .pc-joy:not(.vivant) .pc-joy-bouton { left: auto; right: calc(var(--sd) + 74px); }
 
@@ -222,22 +225,30 @@ body.sans-3d #vue3d { display: none; }
 #hud { position: fixed; inset: 0; z-index: 8; pointer-events: none; color: #fff; font-family: var(--titre); }
 .hud button { pointer-events: auto; }
 .h-vignette { position: absolute; inset: 0; opacity: 0; will-change: opacity; background: radial-gradient(ellipse at center, rgba(255, 107, 139, 0) 52%, rgba(255, 107, 139, .5) 82%, rgba(225, 73, 108, .85) 100%); }
-.h-splat { position: absolute; width: 52vh; height: 52vh; opacity: 0; color: var(--fraise); will-change: opacity; }
-.h-splat svg { width: 100%; height: 100%; transform: rotate(var(--r, 0deg)); }
-.h-splat[data-coin="0"] { left: -14vh; top: -14vh; } .h-splat[data-coin="1"] { right: -14vh; top: -14vh; } .h-splat[data-coin="2"] { left: -14vh; bottom: -14vh; } .h-splat[data-coin="3"] { right: -14vh; bottom: -14vh; }
+/* touché : un flash rouge sur les bords (jamais de sang) */
+.h-flash { position: absolute; inset: 0; opacity: 0; will-change: opacity; background: radial-gradient(ellipse at center, rgba(255, 40, 60, 0) 45%, rgba(255, 40, 60, .55) 85%, rgba(200, 20, 40, .8) 100%); }
+/* la lunette : l'écran noir percé d'un cercle de rayon 0,42·min(W, H), le réticule, apparition en 80 ms */
+.h-lunette { position: fixed; inset: 0; z-index: 4; pointer-events: none; opacity: 0; visibility: hidden; transition: opacity .08s linear, visibility 0s .08s; background: radial-gradient(circle at 50% 50%, rgba(0, 0, 0, 0) calc(var(--rl, 160px) - 1px), #050608 var(--rl, 160px)); }
+.h-lunette.vu { opacity: 1; visibility: visible; transition: opacity .08s linear; }
+.h-lun-ret { position: absolute; left: 50%; top: 50%; width: calc(var(--rl, 160px) * 2); height: calc(var(--rl, 160px) * 2); transform: translate(-50%, -50%); }
+.hud.lunette .h-nombres, .hud.lunette .h-noms { visibility: hidden; }
+/* le point rouge, au centre exact de l'écran (là où part le tir) */
+.h-pr { position: absolute; left: -3px; top: -3px; width: 6px; height: 6px; border-radius: 50%; background: #FF2E4D; box-shadow: 0 0 0 1px rgba(80, 0, 10, .6), 0 0 6px 2px rgba(255, 46, 77, .65); opacity: 0; transition: opacity .06s; }
+.h-pr.vu { opacity: 1; }
+.h-pr.cible { background: #FF7A8F; }
 /* le centre : viseur, recharge, marqueur de touche, flèches de dégâts */
 .h-centre { position: absolute; left: 50%; top: 50%; width: 0; height: 0; }
 .h-viseur { --e: 8px; position: absolute; left: 0; top: 0; }
-.h-v { position: absolute; left: 0; top: 0; width: 3px; height: 10px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 1.5px rgba(43, 42, 76, .9); transition: background .08s; }
+.h-v { position: absolute; left: 0; top: 0; width: 3px; height: 10px; border-radius: 2px; background: #fff; box-shadow: 0 0 0 1.5px rgba(43, 42, 76, .9); transition: background .08s; opacity: var(--o, 1); }
 .h-v1 { transform: translate(-50%, calc(-100% - var(--e))); }
 .h-v2 { transform: translate(-50%, var(--e)); }
 .h-v3 { width: 10px; height: 3px; transform: translate(calc(-100% - var(--e)), -50%); }
 .h-v4 { width: 10px; height: 3px; transform: translate(var(--e), -50%); }
-.h-point { position: absolute; left: -2.5px; top: -2.5px; width: 5px; height: 5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1.5px rgba(43, 42, 76, .9); }
-.h-rond { display: none; position: absolute; left: 0; top: 0; width: calc(var(--e) * 2); height: calc(var(--e) * 2); transform: translate(-50%, -50%); border-radius: 50%; border: 2.5px solid #fff; box-shadow: 0 0 0 1.5px rgba(43, 42, 76, .8), inset 0 0 0 1.5px rgba(43, 42, 76, .8); }
-.h-viseur[data-arme="pompe"] .h-rond { display: block; }
-.h-viseur[data-arme="pompe"] .h-v { height: 7px; } .h-viseur[data-arme="pompe"] .h-v3, .h-viseur[data-arme="pompe"] .h-v4 { width: 7px; height: 3px; }
-.h-viseur[data-arme="precision"] .h-v { width: 2px; height: 14px; } .h-viseur[data-arme="precision"] .h-v3, .h-viseur[data-arme="precision"] .h-v4 { width: 14px; height: 2px; }
+.h-point { position: absolute; left: -2.5px; top: -2.5px; width: 5px; height: 5px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 1.5px rgba(43, 42, 76, .9); opacity: var(--op, 1); }
+.h-rond { display: none; position: absolute; left: 0; top: 0; width: calc(var(--e) * 2); height: calc(var(--e) * 2); transform: translate(-50%, -50%); border-radius: 50%; border: 2.5px solid #fff; box-shadow: 0 0 0 1.5px rgba(43, 42, 76, .8), inset 0 0 0 1.5px rgba(43, 42, 76, .8); opacity: var(--o, 1); }
+.h-viseur[data-classe="pompe"] .h-rond { display: block; }
+.h-viseur[data-classe="pompe"] .h-v { height: 7px; } .h-viseur[data-classe="pompe"] .h-v3, .h-viseur[data-classe="pompe"] .h-v4 { width: 7px; height: 3px; }
+.h-viseur[data-classe="sniper"] .h-v { width: 2px; height: 14px; } .h-viseur[data-classe="sniper"] .h-v3, .h-viseur[data-classe="sniper"] .h-v4 { width: 14px; height: 2px; }
 .h-viseur.cible .h-v, .h-viseur.cible .h-point { background: var(--rouge); }
 .h-viseur.cible .h-rond { border-color: var(--rouge); }
 .h-recharge { position: absolute; left: -32px; top: -32px; width: 64px; height: 64px; transform: rotate(-90deg); opacity: 0; }
@@ -295,7 +306,7 @@ body.sans-3d #vue3d { display: none; }
 .h-fil-l.moi .h-fil-n { color: var(--encre); }
 .h-fil-l.moi .h-fil-n i { border-color: var(--encre); }
 .h-fil-l.victime { background: rgba(225, 73, 108, .85); }
-.h-fil-a svg { width: 26px; height: 16px; }
+.h-fil-a svg { width: 30px; height: 12px; filter: drop-shadow(0 0 1px rgba(255, 255, 255, .9)); }
 @keyframes fil { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: none; } }
 /* annonces */
 .h-annonces { position: absolute; left: 0; right: 0; top: 24%; display: grid; justify-items: center; }
@@ -303,8 +314,11 @@ body.sans-3d #vue3d { display: none; }
 .h-annonce.vu { animation: annonce 2.4s cubic-bezier(.2, 1.4, .4, 1) both; }
 @keyframes annonce { 0% { opacity: 0; transform: scale(.4) rotate(-6deg); } 12% { opacity: 1; transform: scale(1.12) rotate(1deg); } 20%, 80% { opacity: 1; transform: scale(1); } 100% { opacity: 0; transform: translateY(-14px); } }
 /* en bas : vie, armure, munitions */
-.h-bas { position: absolute; left: 50%; bottom: calc(var(--sb) + 8px); transform: translateX(-50%); display: flex; align-items: flex-end; gap: 10px; }
-html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
+.h-bas { position: absolute; left: 50%; bottom: calc(var(--sb) + 6px); transform: translateX(-50%); display: flex; align-items: flex-end; gap: 10px; }
+/* la posture, près de la vie */
+.h-posture { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 auto; align-self: center; border-radius: 50%; background: rgba(255, 255, 255, .92); border: 3px solid var(--encre); box-shadow: 0 3px 0 rgba(43, 42, 76, .6); }
+.h-posture svg { width: 28px; height: 28px; }
+.h-posture:not([data-p="debout"]) { background: #FFF1C9; }
 .h-vie { display: grid; gap: 2px; width: 186px; padding: 4px 9px 5px; border-radius: 16px; background: rgba(255, 255, 255, .92); border: 3px solid var(--encre); box-shadow: 0 3px 0 rgba(43, 42, 76, .6); }
 .h-ligne { display: flex; align-items: center; gap: 6px; }
 .h-ligne svg { width: 16px; height: 16px; flex: 0 0 auto; }
@@ -320,13 +334,21 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
 .h-vie.bas .h-barre.vie i { background: linear-gradient(180deg, #FF9AB0, var(--fraise-sombre)); }
 .h-vie.bas { animation: battre .9s ease-in-out infinite; }
 .h-vie.protege { box-shadow: 0 0 0 3px var(--ciel), 0 3px 0 rgba(43, 42, 76, .6); }
-.h-mun { display: flex; align-items: center; gap: 6px; height: 48px; padding: 0 11px 0 7px; border-radius: 16px; background: rgba(255, 255, 255, .92); border: 3px solid var(--encre); box-shadow: 0 3px 0 rgba(43, 42, 76, .6); color: var(--encre); }
-.h-arme-ico svg { width: 42px; height: 26px; }
-.h-mun > div { display: grid; grid-template-columns: auto auto; align-items: baseline; column-gap: 3px; }
-.h-mun-n { font: 700 24px/1 var(--titre); font-variant-numeric: tabular-nums; }
-.h-mun-r { font: 700 13px/1 var(--titre); color: var(--encre-2); }
-.h-arme-nom { grid-column: 1 / -1; font: 700 10px/1.1 var(--texte); font-style: normal; color: var(--encre-2); white-space: nowrap; }
-.h-mun.bas .h-mun-n { color: var(--fraise-sombre); }
+/* les deux emplacements : l'icône de l'arme et « 30 | 120 » ; au doigt, toucher l'autre change d'arme, celle en main recharge */
+.h-armes { display: flex; gap: 8px; align-items: flex-end; }
+.h-arme { position: relative; display: grid; justify-items: center; align-content: center; gap: 1px; width: 84px; height: 50px; padding: 2px 4px 0; border-radius: 14px; background: rgba(255, 255, 255, .78); border: 3px solid var(--encre); box-shadow: 0 3px 0 rgba(43, 42, 76, .6); color: var(--encre); touch-action: none; opacity: .82; }
+html:not(.tactile) .h-arme { pointer-events: none; }
+.h-arme.main { opacity: 1; background: #FFF3CF; box-shadow: 0 0 0 3px var(--beurre), 0 3px 0 rgba(43, 42, 76, .6); transform: translateY(-3px); }
+.h-slot { position: absolute; left: -7px; top: -9px; width: 20px; height: 20px; border-radius: 50%; background: var(--encre); color: #fff; font: 700 12px/20px var(--titre); text-align: center; }
+.h-arme-ico svg { width: 62px; height: 23px; }
+.h-mun { display: flex; align-items: baseline; gap: 3px; white-space: nowrap; }
+.h-mun-n { font: 700 17px/1 var(--titre); font-variant-numeric: tabular-nums; }
+.h-mun-r { font: 700 11px/1 var(--titre); color: var(--encre-2); font-variant-numeric: tabular-nums; }
+.h-arme.bas .h-mun-n { color: var(--fraise-sombre); }
+.h-refus { position: absolute; left: 50%; bottom: calc(var(--sb) + 104px); transform: translateX(-50%); padding: 6px 14px; border-radius: 999px; background: rgba(43, 42, 76, .85); border: 2px solid #fff; color: #fff; font: 700 14px/1 var(--titre); opacity: 0; white-space: nowrap; }
+.h-refus.vu { animation: ramasse 1.8s ease-out both; }
+.h-limite { position: absolute; left: 50%; top: calc(var(--sh) + 64px); transform: translateX(-50%); padding: 5px 14px; border-radius: 999px; background: var(--fraise-sombre); border: 2px solid #fff; color: #fff; font: 700 14px/1 var(--titre); white-space: nowrap; animation: clignote .8s ease-in-out infinite alternate; }
+body.gaucher .h-bas { left: 60%; }
 .h-ramasse { position: absolute; left: 50%; bottom: calc(var(--sb) + 136px); transform: translateX(-50%); display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: rgba(255, 255, 255, .95); border: 3px solid var(--encre); color: var(--encre); font: 700 15px/1 var(--titre); opacity: 0; white-space: nowrap; }
 .h-ramasse svg { width: 30px; height: 20px; }
 .h-ramasse.vu { animation: ramasse 1.8s ease-out both; }
@@ -339,7 +361,7 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
 .h-mort-arme svg { width: 64px; height: 40px; }
 .h-mort-retour { font: 700 15px/1 var(--titre); color: var(--encre-2); }
 .h-mort-retour b { color: var(--fraise-sombre); font-size: 20px; }
-.hud.mort .h-viseur, .hud.mort .h-recharge, .hud.mort .h-centre::after { visibility: hidden; }
+.hud.mort .h-viseur, .hud.mort .h-recharge, .hud.mort .h-centre::after, .hud.mort .h-pr, .hud.mort .h-lunette { visibility: hidden; }
 .hud.finie > :not(.h-fin) { visibility: hidden; }
 /* tableau des scores */
 .h-scores { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(43, 42, 76, .45); pointer-events: auto; }
@@ -448,6 +470,38 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
 .h-fin-btns.trois { grid-template-columns: 1.2fr 1fr 1fr; }
 .h-fin-btns .bouton { padding: 0 12px; }
 
+/* ─── l'équipement : la pilule du menu et du salon, l'écran des armes ─── */
+.equip-pilule { min-height: 44px; min-width: 0; flex: 0 1 auto; max-width: min(300px, 46vw); overflow: hidden; padding: 0 14px 0 8px; font-size: 14px; }
+.equip-resume { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.eq-ico svg { width: 52px; height: 20px; }
+.eq-noms { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.opt-armes small { margin-left: 4px; font: 700 12px/1 var(--texte); color: var(--encre-2); }
+#salon-liste .sj-equip { display: block; margin-top: 2px; font: 700 11px/1.1 var(--texte); color: var(--encre-2); overflow: hidden; text-overflow: ellipsis; }
+.armes-ecran { background: rgba(43, 42, 76, .62); }
+.armes-ecran h2 { white-space: nowrap; }
+.ar-note { flex: 1 1 auto; min-width: 0; color: #fff; font: 700 12px/1.3 var(--texte); text-shadow: 0 1px 3px rgba(43, 42, 76, .9); }
+.ar-grille { flex: 1 1 auto; display: grid; grid-template-columns: minmax(0, 2.7fr) minmax(0, 1fr); gap: 12px; padding: 8px 0 4px; min-height: 0; align-content: start; }
+.ar-col { padding: 8px 12px 12px; min-width: 0; }
+.ar-col h3 { font: 700 17px/1.1 var(--titre); margin-bottom: 6px; }
+.ar-liste { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.ar-sec .ar-liste { grid-template-columns: minmax(0, 1fr); }
+.ar-carte { position: relative; min-width: 0; }
+.ar-choisir { display: grid; justify-items: center; align-content: start; gap: 2px; width: 100%; min-height: 96px; padding: 8px 6px 7px; border-radius: 16px; background: #fff; border: 3px solid var(--encre); box-shadow: 0 3px 0 var(--encre); text-align: center; }
+.ar-choisir:active:not(:disabled) { transform: translateY(3px); box-shadow: none; }
+.ar-ico svg { width: 84px; height: 32px; }
+.ar-choisir b { font: 700 15px/1.1 var(--titre); }
+.ar-choisir small { font: 700 11px/1.2 var(--texte); color: var(--encre-2); }
+.ar-choisir em { font: 800 10px/1 var(--texte); font-style: normal; text-transform: uppercase; letter-spacing: .04em; color: var(--encre-2); }
+.ar-carte.choisie .ar-choisir { background: #FFF3CF; box-shadow: 0 0 0 3px var(--beurre), 0 3px 0 var(--encre); }
+.ar-carte.interdite .ar-choisir { opacity: .5; filter: grayscale(.8); box-shadow: none; border-style: dashed; }
+.ar-permise { position: absolute; right: -6px; top: -8px; width: 30px; height: 30px; border-radius: 10px; background: #fff; border: 3px solid var(--encre); box-shadow: 0 2px 0 var(--encre); display: none; place-items: center; }
+.ar-permise::after { content: ""; position: absolute; inset: -8px; } /* la cible tactile : 46 px */
+.ar-permise i { width: 12px; height: 7px; border-left: 3px solid #fff; border-bottom: 3px solid #fff; transform: translateY(-2px) rotate(-45deg); opacity: 0; }
+.ar-permise[aria-pressed="true"] { background: var(--menthe); }
+.ar-permise[aria-pressed="true"] i { opacity: 1; }
+.permettre .ar-permise { display: grid; }
+@media (max-height: 400px) { .ar-choisir { min-height: 88px; padding: 6px 4px; } .ar-ico svg { width: 72px; height: 28px; } }
+
 /* ─── petits écrans paysage (iPhone SE…) ─── */
 @media (max-height: 400px) {
   .bouton.gros { min-height: 52px; font-size: 21px; }
@@ -459,8 +513,12 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
   .h-fin-g h2 { font-size: 26px; }
   .p1 .h-pod-socle { height: 64px; } .p2 .h-pod-socle { height: 54px; } .p3 .h-pod-socle { height: 46px; }
 }
+@media (max-height: 430px) and (orientation: landscape) {
+  .salon-reglages { gap: 5px; } .salon-reglages .seg button { min-height: 38px; } .salon-reglages .equip-pilule { min-height: 40px; } .salon-etat { font-size: 12px; }
+  .arene .cm-tete p { display: none; } .arene { gap: 5px; padding: 8px 12px; } .arene .cm-ico { width: 40px; height: 40px; } .arene .cm-ico svg { width: 30px; height: 30px; }
+  .arene .cm-options { gap: 5px; } .arene .seg button { min-height: 38px; } .arene .equip-pilule { min-height: 40px; }
+}
 @media (max-height: 385px) and (orientation: landscape) {
-  .arene .cm-tete p { display: none; }
   .cm-ico { width: 44px; height: 44px; border-radius: 14px; } .cm-ico svg { width: 32px; height: 32px; }
   .bientot { padding: 8px 12px; } .bientot .cm-ico { width: 40px; height: 40px; } .bientot .cm-ico svg { width: 30px; height: 30px; }
   .bientot h3 { font-size: 16px; }
@@ -470,15 +528,11 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
   .cm-h3 { font-size: 16px; } .cm-texte small { font-size: 12px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .salon-code b { font-size: 26px; } .salon-partage .pilule span { display: none; } .salon-partage .pilule { padding: 0 10px; }
   .salon-joueurs, .salon-reglages { padding: 8px 12px; } .salon-reglages { gap: 6px; }
+  .salon-reglages .seg button { min-height: 38px; } .salon-reglages .equip-pilule { min-height: 40px; }
   #salon-liste li { min-height: 36px; padding: 3px 8px; }
 }
 @media (max-width: 720px) and (orientation: landscape) {
-  .h-bas { left: calc(50% - 26px); gap: 8px; }
-  .h-arme-nom { display: none; }
-  .h-mun { height: 44px; }
-  .h-vie { width: 150px; }
-  .h-mun { padding: 0 10px 0 6px; }
-  .h-arme-ico svg { width: 36px; height: 23px; }
+  .h-bas { gap: 6px; }
   .h-tableau { gap: 4px; } .h-equipe { min-width: 48px; padding: 0 8px 0 6px; } .h-chrono { min-width: 80px; padding: 3px 10px 4px; }
 }
 /* ─── portrait (les menus marchent dans les deux sens) ─── */
@@ -488,7 +542,8 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
   .logo { width: min(440px, 92vw); }
   .titre-actions { justify-content: center; }
   .records { justify-content: center; max-width: none; }
-  .modes-grille, .grille-reglages, .texte-credits, .copains-grille, .salon-grille { grid-template-columns: minmax(0, 1fr); }
+  .modes-grille, .grille-reglages, .texte-credits, .copains-grille, .salon-grille, .ar-grille { grid-template-columns: minmax(0, 1fr); }
+  .ar-liste { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ar-sec .ar-liste { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .salon .barre-haut { flex-wrap: wrap; } .salon-partage .pilule span { display: none; }
   .copains-ecran .barre-haut h2, .salon .barre-haut h2 { font-size: 21px; }
   .modes-grille { align-content: start; }
@@ -501,11 +556,7 @@ html.tactile .h-bas { bottom: calc(var(--sb) + 62px); }
   .logo, .h-chrono.fin, .h-vie.bas, .h-record, .goutte i, #tourne .tel { animation: none; }
 }
 
-/* ─── disposition en partie : la colonne vie / munitions / armes à gauche du centre, pour que le blaster en vue subjective (à droite du centre) reste visible ─── */
-.pc-armes { left: 38.5%; }
-.h-bas { left: 38.5%; gap: 8px; }
-.h-vie { width: 150px; }
-.h-mun { height: 44px; padding: 0 10px 0 6px; }
-.h-mun .h-arme-nom { display: none; }
-.h-mun .h-arme-ico svg { width: 30px; height: 20px; }
-@media (max-width: 760px) { .pc-armes, .h-bas { left: 40%; } .h-vie { width: 130px; } }
+/* ─── disposition en partie : la rangée posture / vie / armes à gauche du centre, pour que l'arme en vue subjective (à droite du centre) reste visible ─── */
+.h-bas { left: 40%; gap: 8px; }
+.h-vie { width: 140px; }
+@media (max-width: 760px) { .h-vie { width: 118px; } .h-arme { width: 76px; } .h-arme-ico svg { width: 56px; } }
