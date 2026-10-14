@@ -48,6 +48,7 @@ jobs:
           node test/fournil-hd.cjs
           node test/fournil-sons.cjs
           node test/fournil-reveil.cjs
+          node test/fournil-persos.cjs
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules

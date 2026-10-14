@@ -4419,7 +4419,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   }
   // ─── un personnage : jambes, buste, tête, visage, bras, accessoires ───
   // Hiérarchie : g (lacet par la scène) > racine (échelle ×1,25 du patron, saut) > jambes ; racine > haut (rebond, respiration, assise) >
-  // corps, tête, visage, bras, accessoires. userData.parts = { racine, haut, jambes[2], corps, tete, visage, bras[2], sac?, plateau?, cle?,
+  // corps, cou > (tête, visage), bras, accessoires. userData.parts = { racine, haut, jambes[2], corps, cou, tete, visage, bras[2], sac?, plateau?, cle?,
   // halo?, sueur? } : toque et chapeau sont FUSIONNÉS dans tete, la pâtisserie dans plateau (un seul maillage, le produit est fixé à la
   // création : la scène ne le change jamais). Appels de dessin : 7 de base (2 jambes, corps, tête, visage, 2 bras) + 1 accessoire visible
   // à la fois (sac OU halo OU plateau OU clé ; sueur pour le patron) = 8 au plus. L'option `taille` est volontairement ignorée : la
@@ -4487,9 +4487,10 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     }
     if (o.or) tete.push(M.part(M.cylindre(11.8, 11.8, 1.6, 16), L, { y: 9.6 }), M.part(M.cylindre(7.4, 7.2, 15, 14), L, { y: 10 }), M.part(bande(7.7, 2.2), OR, { y: 13 }));
     if (o.moustache) tete.push(M.part(M.capsule(1.3, 3.2, 6), '#8C5A3C', { x: -2.6, y: 2.4, z: 10.1, rz: 1.05 }), M.part(M.capsule(1.3, 3.2, 6), '#8C5A3C', { x: 2.6, y: 2.4, z: 10.1, rz: -1.05 }));
-    P.tete = M.maille(tete); P.tete.position.y = 63; ht.add(P.tete);
+    P.cou = new THREE.Group(); P.cou.position.y = 52; ht.add(P.cou); // le cou : pivot de la tête et du visage (incliner, tourner, mâcher)
+    P.tete = M.maille(tete); P.tete.position.y = 11; P.cou.add(P.tete);
     for (let k = 0; k < NCEL; k++) geoVisage(k); // pré-chauffe les 8 cases du visage : animer n'allouera jamais une géométrie à la volée
-    P.visage = new THREE.Mesh(geoVisage(lunettes ? 4 : 0), visageMat()); P.visage.position.y = 63; P.visage.userData.k = lunettes ? 4 : 0; ht.add(P.visage);
+    P.visage = new THREE.Mesh(geoVisage(lunettes ? 4 : 0), visageMat()); P.visage.position.y = 11; P.visage.userData.k = lunettes ? 4 : 0; P.cou.add(P.visage);
     for (const sx of [-1, 1]) { // les bras : la peau, ou la manche du sweat (poignet et main fusionnés : toujours un maillage par bras)
       const c = tnH || TENUES.quartier, b = sweat ? M.maille([M.part(pendu(2.6, 11, 0), c.tissu), M.part(bande(2.85, 1.6), c.fonce, { y: -10.4 }), M.part(M.sphere(2.4, 8), peau, { y: -12.4 })]) : M.mesh(pendu(2.6, 11, 0), M.mat(peau));
       b.position.set(sx * 11.6, 46, 0); b.rotation.z = sx * 0.1; P.bras.push(b); ht.add(b);
@@ -4537,29 +4538,64 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   const lacet = (dir) => (dir === 1 ? HP : dir === -1 ? -HP : dir === 2 ? Math.PI : 0);
   // les angles CALCULÉS s'écrivent dans les champs d'Euler (_x, _z) suivis de tourner() (voir animerChat) : passés au setter rotation.x
   // depuis un appel polymorphe (clients et apprentis mêlés), V8 les mettrait en boîte à chaque image
+  // o : { marche, assis, phase, t, plateau, cle, sac, or, pris, attend, blink, expression } et, pour la vie de la salle, joie (0 à 1 : le
+  // petit saut bras levés d'un client servi, ou la fête de la Planque), attente (s passées immobile dans la file : au-delà de 6 s, bras
+  // croisés et pied qui tape), geste ('salut' à la porte, 'mange' à table, 'petrit' au four, 'depose' au comptoir), rush, graine (décale
+  // les gestes d'un personnage à l'autre). Tout est recalculé à chaque appel : rien ne reste d'une pose à l'autre.
   function animer(g, o) {
-    const P = g.userData.parts, marche = !!o.marche, assis = !!o.assis, ph = o.phase || 0, t = o.t || 0, s = marche ? Math.sin(ph) * 0.5 : 0;
-    const bg = P.bras[0], bd = P.bras[1], jg = P.jambes[0], jd = P.jambes[1];
-    P.haut.position.y = assis ? -3 : marche ? Math.abs(Math.sin(ph)) * 2 / CY : 0;
+    const P = g.userData.parts, marche = !!o.marche, assis = !!o.assis, ph = o.phase || 0, t = o.t || 0, s = marche ? Math.sin(ph) * 0.55 : 0;
+    const bg = P.bras[0], bd = P.bras[1], jg = P.jambes[0], jd = P.jambes[1], ht = P.haut, cou = P.cou, gr = o.graine || 0, geste = o.geste || '';
+    const joie = o.joie > 0 ? Math.min(1, o.joie) : 0, impatient = !marche && !assis && o.attente > 6 && !o.plateau && !o.cle, rush = o.rush ? 1.6 : 1;
+    let hy = 0, hsy = 1, hrx = 0, hrz = 0, cx = 0, cyw = 0, cz = 0;
+    let bgx = -s, bdx = s, bgz = -0.1, bdz = 0.1, jgx = s, jdx = -s;
+    if (assis) {
+      hy = -3; jgx = jdx = CUISSE_ASSIS; bgx = bdx = -0.5;
+      const balance = Math.sin(t * 2.4 + gr) * 0.1; jgx += balance; jdx -= balance; // les jambes se balancent sous la table
+      if (geste === 'mange') { // toutes les 2,6 s environ, une bouchée : la main monte à la bouche, puis on mâche
+        const c = (t * 0.38 + gr * 0.13) % 1, k = c < 0.22 ? Math.sin(c / 0.22 * Math.PI) : 0;
+        bdx = -0.5 - k * 1.75; bdz = 0.1 - k * 0.45; cx = c >= 0.18 && c < 0.45 ? Math.sin(t * 14) * 0.05 : 0.04;
+      }
+    } else if (marche) { // le pas : rebond, léger écrasement au contact, buste penché, hanches qui roulent, la tête qui compense
+      const b = Math.abs(Math.sin(ph)); hy = b * 2.6 / CY; hsy = 0.95 + b * 0.05; hrx = 0.07; hrz = Math.sin(ph) * 0.06; cz = -hrz * 0.7; cx = -0.05;
+    } else { // debout : respiration, le poids d'une jambe sur l'autre, et le regard qui balaie la salle de temps en temps
+      hsy = 1 + Math.sin(t * 2.2 + gr) * 0.015; hrz = Math.sin(t * 0.8 + gr) * 0.03; cz = -hrz * 0.5;
+      const r = Math.sin(t * 0.55 + gr * 1.7); cyw = r > 0.55 ? (r - 0.55) * 1.6 * (Math.sin(gr * 3.1) > 0 ? 1 : -1) : 0;
+    }
+    if (impatient) { // bras croisés, pied qui tape, la tête un peu penchée
+      bgx = bdx = -1.15; bgz = 0.75; bdz = -0.75; jdx = -Math.max(0, Math.sin(t * 9 + gr)) * 0.3; cz = 0.12; cyw = 0;
+    }
+    if (o.plateau) { bgx = bdx = -1.45; bgz = -0.1; bdz = 0.1; }
+    else if (o.cle) { bdx = -1.0; bdz = 0.25; bgx = s; }
+    else if (geste === 'petrit') { const k = Math.sin(t * 7 * rush + gr); bgx = -1.05 - k * 0.3; bdx = -1.05 + k * 0.3; bgz = 0.3; bdz = -0.3; cx = 0.2; hrx = 0.1; hsy = 1 + Math.abs(k) * 0.02; }
+    else if (geste === 'depose') { hrx = 0.22; cx = 0.15; bgx = bdx = -0.9; }
+    else if (geste === 'salut') { bdx = -0.15; bdz = 2.45 + Math.sin(t * 13) * 0.35; } // la main qui salue, à la porte
+    if (joie > 0) { // servi : un petit saut, bras levés, et l'écrasement-étirement du saut
+      const k = Math.sin(joie * Math.PI); hy += k * 5 / CY; hsy *= 1 + k * 0.06; bgx = bdx = -0.2; bgz = -0.1 - k * 2.3; bdz = 0.1 + k * 2.3; cx = -0.12 * k;
+    }
+    ht.position.y = hy; ht.scale.y = hsy; ht.rotation._x = hrx; ht.rotation._z = hrz; tourner(ht);
+    cou.rotation._x = cx; cou.rotation._y = cyw; cou.rotation._z = cz; tourner(cou);
     jg.position.y = jd.position.y = assis ? 19 : 17.5; // assis : les cuisses horizontales (r = 3) reposent exactement sur l'assise à y = 16
-    jg.rotation._x = assis ? CUISSE_ASSIS : s; jd.rotation._x = assis ? CUISSE_ASSIS : -s; tourner(jg); tourner(jd);
-    bg.rotation._z = -0.1; bd.rotation._z = 0.1;
-    if (o.plateau) { bg.rotation._x = bd.rotation._x = -1.45; }
-    else if (o.cle) { bd.rotation._x = -1.0; bd.rotation._z = 0.25; bg.rotation._x = s; }
-    else if (assis) { bg.rotation._x = bd.rotation._x = -0.5; }
-    else { bg.rotation._x = -s; bd.rotation._x = s; }
-    tourner(bg); tourner(bd);
+    jg.rotation._x = jgx; jd.rotation._x = jdx; tourner(jg); tourner(jd);
+    bg.rotation._x = bgx; bg.rotation._z = bgz; bd.rotation._x = bdx; bd.rotation._z = bdz; tourner(bg); tourner(bd);
     if (P.sac) P.sac.visible = !!o.sac && !assis;
     const halo = !!(o.or && !o.pris && o.attend);
     if (P.halo) { P.halo.visible = halo; if (halo) { const k = Math.sin(t * 3); P.halo.scale.x = 54 + k * 4; P.halo.scale.y = 70 + k * 5; } }
-    if (P.plateau) P.plateau.visible = !!o.plateau; // la pâtisserie est fusionnée au plateau (o.produit est fixé à la création)
+    if (P.plateau) { P.plateau.visible = !!o.plateau; if (o.plateau) P.plateau.position.y = 44 + (marche ? Math.abs(Math.cos(ph)) * 1.2 : 0); } // la pâtisserie est fusionnée au plateau (o.produit est fixé à la création)
     if (P.cle) { P.cle.visible = !!o.cle; if (o.cle) { P.cle.rotation._z = Math.sin(t * 20) * 0.5; tourner(P.cle); } }
-    visage(P, o.blink > 3.25 ? 3 : EXPR[o.expression] || 0);
+    visage(P, joie > 0.05 ? 1 : o.blink > 3.25 ? 3 : EXPR[o.expression] || 0);
   }
+  // le patron : respiration ; de temps en temps il s'essuie le front ou se frotte les mains (au repos seulement) ; un grand saut de joie (hop)
   function animerBoulanger(g, o) {
-    const P = g.userData.parts, t = o.t || 0, hop = o.hop || 0, bg = P.bras[0], bd = P.bras[1];
-    P.haut.scale.y = 1 + Math.sin(t * 1.6) * 0.012; P.racine.position.y = hop * 4 / CY;
-    bg.rotation._z = -(0.25 + hop * 2); bd.rotation._z = 0.25 + hop * 2; bg.rotation._x = bd.rotation._x = -0.25 - hop * 0.4; tourner(bg); tourner(bd);
+    const P = g.userData.parts, t = o.t || 0, hop = o.hop || 0, bg = P.bras[0], bd = P.bras[1], cou = P.cou;
+    P.haut.scale.y = 1 + Math.sin(t * 1.6) * 0.012; P.racine.position.y = hop * 6 / CY;
+    let bgx = -0.25 - hop * 0.4, bdx = bgx, bgz = -(0.25 + hop * 2.3), bdz = 0.25 + hop * 2.3, cx = -hop * 0.15, cz = Math.sin(t * 0.7) * 0.04;
+    if (!hop && !o.rush) {
+      const w = (t * 0.09) % 1;
+      if (w < 0.07) { const k = Math.sin(w / 0.07 * Math.PI); bdx = -0.25 - k * 1.9; bdz = 0.25 - k * 0.9 + Math.sin(t * 9) * 0.15 * k; cx = -0.1 * k; } // le revers de la main sur le front
+      else if (w > 0.5 && w < 0.58) { const k = Math.sin((w - 0.5) / 0.08 * Math.PI), f = Math.sin(t * 16) * 0.12 * k; bgx = bdx = -0.25 - k * 0.85; bgz = -0.25 + k * 0.75 + f; bdz = 0.25 - k * 0.75 + f; cx = 0.12 * k; } // il se frotte les mains
+    }
+    bg.rotation._x = bgx; bd.rotation._x = bdx; bg.rotation._z = bgz; bd.rotation._z = bdz; tourner(bg); tourner(bd);
+    cou.rotation._x = cx; cou.rotation._z = cz; tourner(cou);
     if (P.sueur) P.sueur.visible = !!o.rush;
     visage(P, o.blink > 3.25 ? 3 : 1);
   }
@@ -4832,8 +4868,8 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
 if (typeof module !== 'undefined') module.exports = PERSOS;
 
 /* ── hd.js ── */
-/* LE FOURNIL — les modèles HD : KayKit (CC0, Kay Lousberg : Furniture, City Builder, Halloween, Restaurant Bits ; personnages riggés et animés
-   Adventurers, rhabillés par leur palette), compressés en meshopt dans fournil/hd/, chargés par vendor/fournil-hd.min.js (GLTFLoader, SkeletonUtils,
+/* LE FOURNIL — les modèles HD : KayKit (CC0, Kay Lousberg : Furniture, City Builder, Halloween, Restaurant Bits) et les Mini Characters de
+   Kenney (CC0, riggés et animés : l'équipe de la Planque), compressés en meshopt dans fournil/hd/, chargés par vendor/fournil-hd.min.js (GLTFLoader, SkeletonUtils,
    MeshoptDecoder de three r158 ; postprocessing 6.33.4 ; n8ao 1.8.4). La Planque y prend ses meubles, sa rue de nuit et son équipe animée ; la
    boutique garde ses personnages et reçoit quelques décors. En qualité éco, sans WebGL2, dans l'artefact ou avec ?hd=0 : le rendu habituel. */
 const HDM = (() => {
@@ -4843,19 +4879,21 @@ const HDM = (() => {
   if (!actif) return API;
   const X = FOURNIL_HD, L = new X.GLTFLoader(), BASE = 'hd/'; if (X.MeshoptDecoder) L.setMeshoptDecoder(X.MeshoptDecoder);
   // deux lots chargés à la demande : la boutique (quelques décors, après le premier rendu), la Planque (à sa première ouverture)
+  // l'équipe de la Planque : six Mini Characters de Kenney (fournil/hd/mini/, environ 105 Ko chacun ; clips idle, walk, sit, emote-yes, holding-both, interact-right)
+  const MINI = ['male-b', 'female-a', 'male-d', 'female-c', 'male-f', 'female-e'].map((n) => 'character-' + n);
   const LOTS = {
     boutique: { meubles: ['cactus_medium_A', 'cactus_small_A', 'lamp_standing'], halloween: ['pumpkin_orange', 'pumpkin_orange_jackolantern', 'pumpkin_yellow_small'], resto: ['jar_A_large', 'jar_B_medium'] },
-    planque: { meubles: ['rug_oval_A', 'cactus_medium_A', 'cactus_small_A', 'pictureframe_medium', 'lamp_standing', 'couch_pillows', 'armchair_pillows', 'table_low'], ville: ['building_D', 'building_F', 'streetlight', 'car_sedan', 'firehydrant', 'trash_A', 'dumpster'], persos: ['Rogue', 'Mage', 'Knight', 'Barbarian'] },
+    planque: { meubles: ['rug_oval_A', 'cactus_medium_A', 'cactus_small_A', 'pictureframe_medium', 'lamp_standing', 'couch_pillows', 'armchair_pillows', 'table_low'], ville: ['building_D', 'building_F', 'streetlight', 'car_sedan', 'firehydrant', 'trash_A', 'dumpster'], mini: MINI },
   };
-  const VARIANTES = ['Rogue', 'Mage', 'Knight', 'Barbarian'], MOD = {}, PER = {}, etat = {};
+  const MOD = {}, PER = {}, etat = {};
   const lire = (u) => new Promise((ok, ko) => L.load(BASE + u, ok, null, ko));
   function charger(lot) {
     if (etat[lot]) return etat[lot].promesse; const e = etat[lot] = { pret: false };
     const t = []; for (const [dossier, noms] of Object.entries(LOTS[lot] || {})) for (const n of noms) {
-      if (dossier === 'persos') { if (!PER[n]) t.push(lire(`persos/${n}.glb`).then((g) => { PER[n] = g; }, () => {})); }
+      if (dossier === 'mini') { if (!PER[n]) t.push(lire(`mini/${n}.glb`).then((g) => { PER[n] = g; }, () => console.warn('HD : personnage manquant', n))); }
       else if (!MOD[n]) t.push(lire(`${dossier}/${n}.glb`).then((g) => { MOD[n] = g.scene; }, () => console.warn('HD : modèle manquant', n))); // un décor manquant est simplement omis
     }
-    e.promesse = Promise.all(t).then(() => { if (LOTS[lot].persos && !VARIANTES.every((v) => PER[v])) throw new Error('personnages HD manquants'); e.pret = true; API.version++; return true; }).catch((err) => { e.erreur = String(err && err.message || err); console.warn('HD : modèles non chargés, rendu habituel', e.erreur); return false; });
+    e.promesse = Promise.all(t).then(() => { if (LOTS[lot].mini && !LOTS[lot].mini.some((v) => PER[v])) throw new Error('personnages HD manquants'); e.pret = true; API.version++; return true; }).catch((err) => { e.erreur = String(err && err.message || err); console.warn('HD : modèles non chargés, rendu habituel', e.erreur); return false; });
     return e.promesse;
   }
   const pret = (lot) => !!(etat[lot] && etat[lot].pret);
@@ -4875,40 +4913,14 @@ const HDM = (() => {
     g.userData.taille = { x: b.max.x - b.min.x, y: b.max.y - b.min.y, z: b.max.z - b.min.z }; return g;
   }
 
-  // ─── rhabiller : la texture-palette (8 × 8 cases) ; la peau, les cheveux sombres et les gris restent, le reste prend la teinte voulue ───
-  const texCache = new Map();
-  function hsl(r, g, b) { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; if (mx === mn) return [0, 0, l]; const d = mx - mn, s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn); const h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return [h * 60, s, l]; }
-  function rgb(h, s, l) { const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2; const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x]; return [r + m, g + m, b + m]; }
-  function rhabiller(map, cible, gris, cle) {
-    if (texCache.has(cle)) return texCache.get(cle);
-    const img = map.image, n = img.width, cv = document.createElement('canvas'); cv.width = n; cv.height = n; const x = cv.getContext('2d'); x.drawImage(img, 0, 0);
-    const d = x.getImageData(0, 0, n, n), a = d.data, cell = n / 8, c = new THREE.Color(cible), [th, ts, tl] = hsl(c.r, c.g, c.b);
-    for (let cy = 0; cy < 8; cy++) for (let cx = 0; cx < 8; cx++) {
-      let r = 0, g = 0, b = 0, k = 0; for (let yy = 0; yy < cell; yy += 8) for (let xx = 0; xx < cell; xx += 8) { const i = ((cy * cell + yy) * n + cx * cell + xx) * 4; r += a[i]; g += a[i + 1]; b += a[i + 2]; k++; }
-      const [h, s, l] = hsl(r / k / 255, g / k / 255, b / k / 255);
-      if ((h >= 8 && h <= 42 && s > 0.2 && l > 0.42) || l < 0.22 || (s < 0.14 && !gris)) continue;
-      for (let yy = 0; yy < cell; yy++) for (let xx = 0; xx < cell; xx++) {
-        const i = ((cy * cell + yy) * n + cx * cell + xx) * 4, [, , pl] = hsl(a[i] / 255, a[i + 1] / 255, a[i + 2] / 255);
-        const [nr, ng, nb] = rgb(th, ts, Math.min(0.96, Math.max(0.05, pl - l + tl))); a[i] = nr * 255; a[i + 1] = ng * 255; a[i + 2] = nb * 255;
-      }
-    }
-    x.putImageData(d, 0, 0); const t = new THREE.CanvasTexture(cv); t.flipY = map.flipY; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.userData.partagee = true; texCache.set(cle, t); return t;
-  }
-
-  // ─── un personnage : clone riggé, rhabillé, toque en option sur l'os de la tête, mélangeur d'animations ───
-  const blanc = new THREE.MeshStandardMaterial({ color: '#FFFFFF', roughness: 0.85 });
-  function perso(variante, couleur, o = {}) {
-    const src = PER[variante] || PER.Rogue, g = X.SkeletonUtils.clone(src.scene);
-    g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; if (m.material && m.material.map) { m.material = m.material.clone(); m.material.map = rhabiller(m.material.map, couleur, !!o.gris, variante + couleur + (o.gris ? 'g' : '')); } } });
-    if (o.toque) {
-      let tete = null; g.traverse((b) => { if (!tete && b.isBone && /head/i.test(b.name)) tete = b; });
-      if (tete) { const t = new THREE.Group(), fut = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.33, 0.42, 20), blanc); fut.position.y = 0.21; t.add(fut);
-        for (let k = 0; k < 5; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), blanc), a = k / 5 * Math.PI * 2; b.position.set(Math.cos(a) * 0.2, 0.5, Math.sin(a) * 0.2); t.add(b); }
-        t.position.y = 0.95; t.traverse((m) => { if (m.isMesh) m.castShadow = true; }); tete.add(t); }
-    }
+  // ─── un Mini Character : clone riggé (gros chibi Kenney, 0,67 unité de haut, regard vers +z) et son mélangeur d'animations ;
+  //     nom absent (modèle pas arrivé) : un autre de l'équipe ───
+  function mini(nom, o = {}) {
+    const src = PER[nom] || PER[MINI.find((n) => PER[n])]; if (!src) return null; const g = X.SkeletonUtils.clone(src.scene);
+    g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; } });
     const mixer = new THREE.AnimationMixer(g), actions = {};
     for (const clip of src.animations) actions[clip.name] = mixer.clipAction(clip);
-    const a = { g, mixer, actions, joue: null, yaw: 0 }; jouer(a, o.anim || 'Idle', 0); mixer.update(Math.random() * 3); return a;
+    const a = { g, mixer, actions, joue: null, yaw: 0 }; jouer(a, o.anim || 'idle', 0); mixer.update(Math.random() * 2); return a;
   }
   function jouer(a, nom, fondu = 0.25) {
     if (a.joue === nom || !a.actions[nom]) return; const n = a.actions[nom].reset().play();
@@ -4926,7 +4938,7 @@ const HDM = (() => {
     c.addPass(new X.EffectPass(camera, ...fx)); c.setSize(W, H);
     return { rendre: (dt) => c.render(dt), liberer: () => c.dispose(), n8 };
   }
-  return Object.assign(API, { pret, permis, charger, etat, coupe, couper, remettre, modele, perso, jouer, liberer, effets, VARIANTES });
+  return Object.assign(API, { pret, permis, charger, etat, coupe, couper, remettre, modele, mini, MINI, jouer, liberer, effets });
 })();
 if (typeof module !== 'undefined') module.exports = HDM;
 
@@ -5381,6 +5393,11 @@ const SCENE = (() => {
     g.visible = c.alpha > 0.05; g.scale.setScalar(s * (0.7 + 0.3 * Math.min(1, c.alpha)));
     g.position.set(c.x, 0, wz(c.y) - (1 - c.alpha) * 30);
     tourner(g, c.dir, dt);
+    const u = g.userData; // la joie d'être servi (le client quitte la file), et le temps passé immobile dans la file
+    if (u.etatP === 'attend' && c.etat !== 'attend') u.joie = 1; else if (u.joie > 0) u.joie = Math.max(0, u.joie - dt / 0.8);
+    u.etatP = c.etat; u.tAtt = c.etat === 'attend' && !c.glisse ? (u.tAtt || 0) + dt : 0;
+    oAnim.joie = u.joie || 0; oAnim.attente = u.tAtt; oAnim.graine = c.id * 1.7; oAnim.rush = false;
+    oAnim.geste = assis ? 'mange' : (c.etat === 'entre' && c.wp === 0) || (c.etat === 'sort' && c.wp >= c.chemin.length - 1) ? 'salut' : '';
     oAnim.marche = marche; oAnim.phase = c.phase; oAnim.assis = assis; oAnim.dir = c.dir; oAnim.sac = c.sac && !assis; oAnim.or = c.or; oAnim.pris = c.pris; oAnim.attend = c.etat === 'attend'; oAnim.plateau = false; oAnim.produit = null; oAnim.cle = false; oAnim.t = E.t; oAnim.blink = (E.blink + c.phase) % 3.4; oAnim.expression = c.or ? 'sourire' : assis ? 'sourire' : 'neutre';
     PERSOS.animer(g, oAnim);
   }
@@ -5388,6 +5405,7 @@ const SCENE = (() => {
     const s = V.K * 0.95, saute = a.etat === 'four' && E.rush ? Math.abs(Math.sin(E.t * 8 + a.lane)) * 2 / CY : 0;
     g.visible = true; g.scale.setScalar(s); g.position.set(a.x, saute, wz(a.y));
     tourner(g, a.etat === 'panne' ? 0 : a.dir, dt);
+    oAnim.joie = 0; oAnim.attente = 0; oAnim.graine = a.lane * 2.1 + a.i; oAnim.rush = !!E.rush; oAnim.geste = a.etat === 'four' ? 'petrit' : a.etat === 'depose' ? 'depose' : '';
     oAnim.marche = a.etat === 'porte' || a.etat === 'retour'; oAnim.phase = a.phase; oAnim.assis = false; oAnim.dir = a.dir; oAnim.sac = false; oAnim.or = false; oAnim.pris = false; oAnim.attend = false; oAnim.plateau = a.plateau; oAnim.produit = a.i; oAnim.cle = a.etat === 'panne'; oAnim.t = E.t; oAnim.blink = (E.blink + a.lane) % 3.4; oAnim.expression = a.etat === 'panne' ? 'surpris' : 'neutre';
     PERSOS.animer(g, oAnim);
   }
@@ -7085,15 +7103,41 @@ const EVENEMENT = (() => {
       const n = Math.min(6, 1 + qq.postes.filter((s) => s.staff).length), spots = [[0.1, 0.3, 0, false], [0.4, 0.52, 0, false], [0.72, 0.5, 2, false], [0.5, 0.95, 0, false], [0.66, 0.85, -1, false], [0.15, 0.95, 1, false]];
       const hd = hdOk();
       for (let k = 0; k < n; k++) {
-        if (hd) { const [ux, uy, dir] = spots[k], assis = k === 1, a = HDM.perso(HDM.VARIANTES[(k + 1) % 4], tenues[k].haut); a.g.scale.setScalar(W * 0.08 * 0.72 * (K || 1));
-          a.g.position.set(assis ? W * 0.22 + 14 : W * ux, assis ? 12 : 0, assis ? wz(murH + 22 * (K || 1)) : wz(murH + uy * 60 * (K || 1))); a.g.rotation.y = Math.PI + (assis ? 0 : { 0: 0, 1: Math.PI / 2, '-1': -Math.PI / 2, 2: Math.PI }[dir]);
-          HDM.jouer(a, assis ? 'Sit_Chair_Idle' : k % 2 ? 'Interact' : 'Idle', 0); G3.add(a.g); persos.push({ g: a.g, hd: a, assis, dir, phase: k * 1.3 }); continue; }
+        if (hd) { // un Mini Character de Kenney (src/hd.js) : assis sur le canapé, ou debout à son poste
+          const [ux, uy, dir] = SPOTS_HD[k], assis = k === 1, a = HDM.mini(HDM.MINI[k % HDM.MINI.length]); if (!a) continue;
+          a.g.scale.setScalar(MINI_ECHELLE * (K || 1)); const yaw = assis ? 0 : YAW_PQ[dir];
+          a.g.position.set(assis ? W * 0.22 + 14 : W * ux, assis ? MINI_ASSIS_Y * (K || 1) : 0, assis ? wz(murH + 22 * (K || 1)) : wz(murH + uy * 60 * (K || 1))); a.g.rotation.y = yaw;
+          const base = assis ? 'sit' : k % 2 ? 'interact-right' : 'idle'; HDM.jouer(a, base, 0); G3.add(a.g);
+          persos.push({ g: a.g, hd: a, assis, dir, phase: k * 1.3, base, yaw, K: K || 1, x0: a.g.position.x, vie: { t: 4 + k * 2.5, mode: '', cx: 0, retour: false } }); continue; }
         const g = PERSOS.creer(Object.assign({ sac: false, taille: 1 }, tenues[k])), [ux, uy, dir, assis] = spots[k];
         g.position.set(W * ux, assis ? 14 : 0, wz(murH + uy * 60 * (K || 1))); g.rotation.y = { 0: 0, 1: Math.PI / 2, '-1': -Math.PI / 2, 2: Math.PI }[dir]; g.scale.setScalar(0.9 * (K || 1));
         G3.add(g); persos.push({ g, assis, dir, phase: k * 1.3 });
       }
     }
-    const oAnim = { marche: false, phase: 0, assis: false, dir: 0, sac: false, or: false, pris: false, attend: true, plateau: false, produit: null, cle: false, t: 0, blink: 0, expression: 'neutre' };
+    const oAnim = { marche: false, phase: 0, assis: false, dir: 0, sac: false, or: false, pris: false, attend: true, plateau: false, produit: null, cle: false, t: 0, blink: 0, expression: 'neutre', joie: 0, attente: 0, geste: '', graine: 0, rush: false };
+    // les places de l'équipe HD (x en part de la largeur, profondeur en part de 60 × K depuis le mur, orientation) : autour des meubles HD, pas dedans
+    const SPOTS_HD = [[0.11, 1.15, 1], [0, 0, 0], [0.72, 0.5, 2], [0.45, 1.6, 0], [0.8, 1.05, -1], [0.22, 1.55, 1]];
+    const YAW_PQ = { 0: 0, 1: Math.PI / 2, '-1': -Math.PI / 2, 2: Math.PI }, MINI_ECHELLE = 82, MINI_ASSIS_Y = 12; // un Mini Character fait 0,67 unité : × 100, la taille d'un chibi
+    // la vie de l'équipe HD : chacun à son poste (idle, interact-right, sit) ; toutes les 6 à 12 s, un « ouais ! » (emote-yes) ou quelques pas
+    // de côté et retour (walk) ; à la fête (un palier, une vente), tous ceux qui sont debout font emote-yes
+    function vieMini(p, dt) {
+      const a = p.hd, v = p.vie, g = a.g;
+      if (p.assis) { HDM.jouer(a, 'sit'); return; }
+      if (fete > 0 && v.mode !== 'marche') { HDM.jouer(a, 'emote-yes'); return; }
+      v.t -= dt;
+      if (v.mode === 'marche') {
+        const dx = v.cx - g.position.x, pas = 34 * p.K * dt;
+        if (Math.abs(dx) <= pas) { g.position.x = v.cx; if (v.retour) { v.mode = ''; g.rotation.y = p.yaw; } else { v.retour = true; v.cx = p.x0; } }
+        else { g.position.x += Math.sign(dx) * pas; g.rotation.y = dx > 0 ? Math.PI / 2 : -Math.PI / 2; }
+        HDM.jouer(a, v.mode === 'marche' ? 'walk' : p.base); return;
+      }
+      if (v.mode === 'ouais') { if (v.t <= 0) { v.mode = ''; v.t = 6 + Math.random() * 6; } else { HDM.jouer(a, 'emote-yes'); return; } }
+      if (v.t <= 0) {
+        if (Math.random() < 0.5) { v.mode = 'ouais'; v.t = 1.8; HDM.jouer(a, 'emote-yes'); return; }
+        const sens = p.x0 > W / 2 ? -1 : 1; v.mode = 'marche'; v.retour = false; v.cx = p.x0 + sens * (30 + Math.random() * 25) * p.K; v.t = 6 + Math.random() * 6; return;
+      }
+      HDM.jouer(a, p.base);
+    }
     const _px = new Uint8Array(4);
     function ecranNoir() { // cinq points de l'image : tout noir alors que le fond de la Planque est violet = la HD ne s'affiche pas
       if (window.__hdNoir) return true; const gl = renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight; let somme = 0;
@@ -7138,7 +7182,7 @@ const EVENEMENT = (() => {
       for (const f of animes) f(E);
       if (hdOk() ? hdVu !== HDM.version : hdVu !== 0) batir(); // les modèles viennent d'arriver, ou le palier est passé en éco
       if (rue && hdVu) rue.frame(dt);
-      for (const p of persos) { if (p.hd) { HDM.jouer(p.hd, fete > 0 && !p.assis ? 'Cheer' : p.assis ? 'Sit_Chair_Idle' : (persos.indexOf(p) % 2 ? 'Interact' : 'Idle')); p.hd.mixer.update(dt); continue; } oAnim.phase = t * 2 + p.phase; oAnim.assis = p.assis; oAnim.dir = p.dir; oAnim.t = t; oAnim.blink = (t + p.phase) % 3.4; oAnim.expression = fete > 0 ? 'sourire' : 'neutre'; oAnim.attend = !p.assis; try { PERSOS.animer(p.g, oAnim); } catch (e) { /* un personnage sans ce champ */ } }
+      for (const p of persos) { if (p.hd) { vieMini(p, dt); p.hd.mixer.update(dt); continue; } oAnim.phase = t * 2 + p.phase; oAnim.assis = p.assis; oAnim.dir = p.dir; oAnim.t = t; oAnim.blink = (t + p.phase) % 3.4; oAnim.expression = fete > 0 ? 'sourire' : 'neutre'; oAnim.attend = !p.assis; oAnim.graine = p.phase; oAnim.joie = fete > 0 && !p.assis ? (t * 1.4 + p.phase) % 1 : 0; try { PERSOS.animer(p.g, oAnim); } catch (e) { /* un personnage sans ce champ */ } }
       if (fete > 0) fete -= dt;
       renderer.render(scene, camera);
       if (hdVu && verifs < 8) { tVerif += dt; if (tVerif > 0.4) { tVerif = 0; verifs++; noirs = ecranNoir() ? noirs + 1 : 0; // la HD s'affiche-t-elle vraiment ? (lu juste après le rendu)

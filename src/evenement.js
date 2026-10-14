@@ -386,15 +386,41 @@ const EVENEMENT = (() => {
       const n = Math.min(6, 1 + qq.postes.filter((s) => s.staff).length), spots = [[0.1, 0.3, 0, false], [0.4, 0.52, 0, false], [0.72, 0.5, 2, false], [0.5, 0.95, 0, false], [0.66, 0.85, -1, false], [0.15, 0.95, 1, false]];
       const hd = hdOk();
       for (let k = 0; k < n; k++) {
-        if (hd) { const [ux, uy, dir] = spots[k], assis = k === 1, a = HDM.perso(HDM.VARIANTES[(k + 1) % 4], tenues[k].haut); a.g.scale.setScalar(W * 0.08 * 0.72 * (K || 1));
-          a.g.position.set(assis ? W * 0.22 + 14 : W * ux, assis ? 12 : 0, assis ? wz(murH + 22 * (K || 1)) : wz(murH + uy * 60 * (K || 1))); a.g.rotation.y = Math.PI + (assis ? 0 : { 0: 0, 1: Math.PI / 2, '-1': -Math.PI / 2, 2: Math.PI }[dir]);
-          HDM.jouer(a, assis ? 'Sit_Chair_Idle' : k % 2 ? 'Interact' : 'Idle', 0); G3.add(a.g); persos.push({ g: a.g, hd: a, assis, dir, phase: k * 1.3 }); continue; }
+        if (hd) { // un Mini Character de Kenney (src/hd.js) : assis sur le canapé, ou debout à son poste
+          const [ux, uy, dir] = SPOTS_HD[k], assis = k === 1, a = HDM.mini(HDM.MINI[k % HDM.MINI.length]); if (!a) continue;
+          a.g.scale.setScalar(MINI_ECHELLE * (K || 1)); const yaw = assis ? 0 : YAW_PQ[dir];
+          a.g.position.set(assis ? W * 0.22 + 14 : W * ux, assis ? MINI_ASSIS_Y * (K || 1) : 0, assis ? wz(murH + 22 * (K || 1)) : wz(murH + uy * 60 * (K || 1))); a.g.rotation.y = yaw;
+          const base = assis ? 'sit' : k % 2 ? 'interact-right' : 'idle'; HDM.jouer(a, base, 0); G3.add(a.g);
+          persos.push({ g: a.g, hd: a, assis, dir, phase: k * 1.3, base, yaw, K: K || 1, x0: a.g.position.x, vie: { t: 4 + k * 2.5, mode: '', cx: 0, retour: false } }); continue; }
         const g = PERSOS.creer(Object.assign({ sac: false, taille: 1 }, tenues[k])), [ux, uy, dir, assis] = spots[k];
         g.position.set(W * ux, assis ? 14 : 0, wz(murH + uy * 60 * (K || 1))); g.rotation.y = { 0: 0, 1: Math.PI / 2, '-1': -Math.PI / 2, 2: Math.PI }[dir]; g.scale.setScalar(0.9 * (K || 1));
         G3.add(g); persos.push({ g, assis, dir, phase: k * 1.3 });
       }
     }
-    const oAnim = { marche: false, phase: 0, assis: false, dir: 0, sac: false, or: false, pris: false, attend: true, plateau: false, produit: null, cle: false, t: 0, blink: 0, expression: 'neutre' };
+    const oAnim = { marche: false, phase: 0, assis: false, dir: 0, sac: false, or: false, pris: false, attend: true, plateau: false, produit: null, cle: false, t: 0, blink: 0, expression: 'neutre', joie: 0, attente: 0, geste: '', graine: 0, rush: false };
+    // les places de l'équipe HD (x en part de la largeur, profondeur en part de 60 × K depuis le mur, orientation) : autour des meubles HD, pas dedans
+    const SPOTS_HD = [[0.11, 1.15, 1], [0, 0, 0], [0.72, 0.5, 2], [0.45, 1.6, 0], [0.8, 1.05, -1], [0.22, 1.55, 1]];
+    const YAW_PQ = { 0: 0, 1: Math.PI / 2, '-1': -Math.PI / 2, 2: Math.PI }, MINI_ECHELLE = 82, MINI_ASSIS_Y = 12; // un Mini Character fait 0,67 unité : × 100, la taille d'un chibi
+    // la vie de l'équipe HD : chacun à son poste (idle, interact-right, sit) ; toutes les 6 à 12 s, un « ouais ! » (emote-yes) ou quelques pas
+    // de côté et retour (walk) ; à la fête (un palier, une vente), tous ceux qui sont debout font emote-yes
+    function vieMini(p, dt) {
+      const a = p.hd, v = p.vie, g = a.g;
+      if (p.assis) { HDM.jouer(a, 'sit'); return; }
+      if (fete > 0 && v.mode !== 'marche') { HDM.jouer(a, 'emote-yes'); return; }
+      v.t -= dt;
+      if (v.mode === 'marche') {
+        const dx = v.cx - g.position.x, pas = 34 * p.K * dt;
+        if (Math.abs(dx) <= pas) { g.position.x = v.cx; if (v.retour) { v.mode = ''; g.rotation.y = p.yaw; } else { v.retour = true; v.cx = p.x0; } }
+        else { g.position.x += Math.sign(dx) * pas; g.rotation.y = dx > 0 ? Math.PI / 2 : -Math.PI / 2; }
+        HDM.jouer(a, v.mode === 'marche' ? 'walk' : p.base); return;
+      }
+      if (v.mode === 'ouais') { if (v.t <= 0) { v.mode = ''; v.t = 6 + Math.random() * 6; } else { HDM.jouer(a, 'emote-yes'); return; } }
+      if (v.t <= 0) {
+        if (Math.random() < 0.5) { v.mode = 'ouais'; v.t = 1.8; HDM.jouer(a, 'emote-yes'); return; }
+        const sens = p.x0 > W / 2 ? -1 : 1; v.mode = 'marche'; v.retour = false; v.cx = p.x0 + sens * (30 + Math.random() * 25) * p.K; v.t = 6 + Math.random() * 6; return;
+      }
+      HDM.jouer(a, p.base);
+    }
     const _px = new Uint8Array(4);
     function ecranNoir() { // cinq points de l'image : tout noir alors que le fond de la Planque est violet = la HD ne s'affiche pas
       if (window.__hdNoir) return true; const gl = renderer.getContext(), w = gl.drawingBufferWidth, h = gl.drawingBufferHeight; let somme = 0;
@@ -439,7 +465,7 @@ const EVENEMENT = (() => {
       for (const f of animes) f(E);
       if (hdOk() ? hdVu !== HDM.version : hdVu !== 0) batir(); // les modèles viennent d'arriver, ou le palier est passé en éco
       if (rue && hdVu) rue.frame(dt);
-      for (const p of persos) { if (p.hd) { HDM.jouer(p.hd, fete > 0 && !p.assis ? 'Cheer' : p.assis ? 'Sit_Chair_Idle' : (persos.indexOf(p) % 2 ? 'Interact' : 'Idle')); p.hd.mixer.update(dt); continue; } oAnim.phase = t * 2 + p.phase; oAnim.assis = p.assis; oAnim.dir = p.dir; oAnim.t = t; oAnim.blink = (t + p.phase) % 3.4; oAnim.expression = fete > 0 ? 'sourire' : 'neutre'; oAnim.attend = !p.assis; try { PERSOS.animer(p.g, oAnim); } catch (e) { /* un personnage sans ce champ */ } }
+      for (const p of persos) { if (p.hd) { vieMini(p, dt); p.hd.mixer.update(dt); continue; } oAnim.phase = t * 2 + p.phase; oAnim.assis = p.assis; oAnim.dir = p.dir; oAnim.t = t; oAnim.blink = (t + p.phase) % 3.4; oAnim.expression = fete > 0 ? 'sourire' : 'neutre'; oAnim.attend = !p.assis; oAnim.graine = p.phase; oAnim.joie = fete > 0 && !p.assis ? (t * 1.4 + p.phase) % 1 : 0; try { PERSOS.animer(p.g, oAnim); } catch (e) { /* un personnage sans ce champ */ } }
       if (fete > 0) fete -= dt;
       renderer.render(scene, camera);
       if (hdVu && verifs < 8) { tVerif += dt; if (tVerif > 0.4) { tVerif = 0; verifs++; noirs = ecranNoir() ? noirs + 1 : 0; // la HD s'affiche-t-elle vraiment ? (lu juste après le rendu)

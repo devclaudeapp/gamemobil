@@ -1,5 +1,5 @@
-/* LE FOURNIL — les modèles HD : KayKit (CC0, Kay Lousberg : Furniture, City Builder, Halloween, Restaurant Bits ; personnages riggés et animés
-   Adventurers, rhabillés par leur palette), compressés en meshopt dans fournil/hd/, chargés par vendor/fournil-hd.min.js (GLTFLoader, SkeletonUtils,
+/* LE FOURNIL — les modèles HD : KayKit (CC0, Kay Lousberg : Furniture, City Builder, Halloween, Restaurant Bits) et les Mini Characters de
+   Kenney (CC0, riggés et animés : l'équipe de la Planque), compressés en meshopt dans fournil/hd/, chargés par vendor/fournil-hd.min.js (GLTFLoader, SkeletonUtils,
    MeshoptDecoder de three r158 ; postprocessing 6.33.4 ; n8ao 1.8.4). La Planque y prend ses meubles, sa rue de nuit et son équipe animée ; la
    boutique garde ses personnages et reçoit quelques décors. En qualité éco, sans WebGL2, dans l'artefact ou avec ?hd=0 : le rendu habituel. */
 const HDM = (() => {
@@ -9,19 +9,21 @@ const HDM = (() => {
   if (!actif) return API;
   const X = FOURNIL_HD, L = new X.GLTFLoader(), BASE = 'hd/'; if (X.MeshoptDecoder) L.setMeshoptDecoder(X.MeshoptDecoder);
   // deux lots chargés à la demande : la boutique (quelques décors, après le premier rendu), la Planque (à sa première ouverture)
+  // l'équipe de la Planque : six Mini Characters de Kenney (fournil/hd/mini/, environ 105 Ko chacun ; clips idle, walk, sit, emote-yes, holding-both, interact-right)
+  const MINI = ['male-b', 'female-a', 'male-d', 'female-c', 'male-f', 'female-e'].map((n) => 'character-' + n);
   const LOTS = {
     boutique: { meubles: ['cactus_medium_A', 'cactus_small_A', 'lamp_standing'], halloween: ['pumpkin_orange', 'pumpkin_orange_jackolantern', 'pumpkin_yellow_small'], resto: ['jar_A_large', 'jar_B_medium'] },
-    planque: { meubles: ['rug_oval_A', 'cactus_medium_A', 'cactus_small_A', 'pictureframe_medium', 'lamp_standing', 'couch_pillows', 'armchair_pillows', 'table_low'], ville: ['building_D', 'building_F', 'streetlight', 'car_sedan', 'firehydrant', 'trash_A', 'dumpster'], persos: ['Rogue', 'Mage', 'Knight', 'Barbarian'] },
+    planque: { meubles: ['rug_oval_A', 'cactus_medium_A', 'cactus_small_A', 'pictureframe_medium', 'lamp_standing', 'couch_pillows', 'armchair_pillows', 'table_low'], ville: ['building_D', 'building_F', 'streetlight', 'car_sedan', 'firehydrant', 'trash_A', 'dumpster'], mini: MINI },
   };
-  const VARIANTES = ['Rogue', 'Mage', 'Knight', 'Barbarian'], MOD = {}, PER = {}, etat = {};
+  const MOD = {}, PER = {}, etat = {};
   const lire = (u) => new Promise((ok, ko) => L.load(BASE + u, ok, null, ko));
   function charger(lot) {
     if (etat[lot]) return etat[lot].promesse; const e = etat[lot] = { pret: false };
     const t = []; for (const [dossier, noms] of Object.entries(LOTS[lot] || {})) for (const n of noms) {
-      if (dossier === 'persos') { if (!PER[n]) t.push(lire(`persos/${n}.glb`).then((g) => { PER[n] = g; }, () => {})); }
+      if (dossier === 'mini') { if (!PER[n]) t.push(lire(`mini/${n}.glb`).then((g) => { PER[n] = g; }, () => console.warn('HD : personnage manquant', n))); }
       else if (!MOD[n]) t.push(lire(`${dossier}/${n}.glb`).then((g) => { MOD[n] = g.scene; }, () => console.warn('HD : modèle manquant', n))); // un décor manquant est simplement omis
     }
-    e.promesse = Promise.all(t).then(() => { if (LOTS[lot].persos && !VARIANTES.every((v) => PER[v])) throw new Error('personnages HD manquants'); e.pret = true; API.version++; return true; }).catch((err) => { e.erreur = String(err && err.message || err); console.warn('HD : modèles non chargés, rendu habituel', e.erreur); return false; });
+    e.promesse = Promise.all(t).then(() => { if (LOTS[lot].mini && !LOTS[lot].mini.some((v) => PER[v])) throw new Error('personnages HD manquants'); e.pret = true; API.version++; return true; }).catch((err) => { e.erreur = String(err && err.message || err); console.warn('HD : modèles non chargés, rendu habituel', e.erreur); return false; });
     return e.promesse;
   }
   const pret = (lot) => !!(etat[lot] && etat[lot].pret);
@@ -41,40 +43,14 @@ const HDM = (() => {
     g.userData.taille = { x: b.max.x - b.min.x, y: b.max.y - b.min.y, z: b.max.z - b.min.z }; return g;
   }
 
-  // ─── rhabiller : la texture-palette (8 × 8 cases) ; la peau, les cheveux sombres et les gris restent, le reste prend la teinte voulue ───
-  const texCache = new Map();
-  function hsl(r, g, b) { const mx = Math.max(r, g, b), mn = Math.min(r, g, b), l = (mx + mn) / 2; if (mx === mn) return [0, 0, l]; const d = mx - mn, s = l > 0.5 ? d / (2 - mx - mn) : d / (mx + mn); const h = mx === r ? (g - b) / d + (g < b ? 6 : 0) : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return [h * 60, s, l]; }
-  function rgb(h, s, l) { const c = (1 - Math.abs(2 * l - 1)) * s, x = c * (1 - Math.abs((h / 60) % 2 - 1)), m = l - c / 2; const [r, g, b] = h < 60 ? [c, x, 0] : h < 120 ? [x, c, 0] : h < 180 ? [0, c, x] : h < 240 ? [0, x, c] : h < 300 ? [x, 0, c] : [c, 0, x]; return [r + m, g + m, b + m]; }
-  function rhabiller(map, cible, gris, cle) {
-    if (texCache.has(cle)) return texCache.get(cle);
-    const img = map.image, n = img.width, cv = document.createElement('canvas'); cv.width = n; cv.height = n; const x = cv.getContext('2d'); x.drawImage(img, 0, 0);
-    const d = x.getImageData(0, 0, n, n), a = d.data, cell = n / 8, c = new THREE.Color(cible), [th, ts, tl] = hsl(c.r, c.g, c.b);
-    for (let cy = 0; cy < 8; cy++) for (let cx = 0; cx < 8; cx++) {
-      let r = 0, g = 0, b = 0, k = 0; for (let yy = 0; yy < cell; yy += 8) for (let xx = 0; xx < cell; xx += 8) { const i = ((cy * cell + yy) * n + cx * cell + xx) * 4; r += a[i]; g += a[i + 1]; b += a[i + 2]; k++; }
-      const [h, s, l] = hsl(r / k / 255, g / k / 255, b / k / 255);
-      if ((h >= 8 && h <= 42 && s > 0.2 && l > 0.42) || l < 0.22 || (s < 0.14 && !gris)) continue;
-      for (let yy = 0; yy < cell; yy++) for (let xx = 0; xx < cell; xx++) {
-        const i = ((cy * cell + yy) * n + cx * cell + xx) * 4, [, , pl] = hsl(a[i] / 255, a[i + 1] / 255, a[i + 2] / 255);
-        const [nr, ng, nb] = rgb(th, ts, Math.min(0.96, Math.max(0.05, pl - l + tl))); a[i] = nr * 255; a[i + 1] = ng * 255; a[i + 2] = nb * 255;
-      }
-    }
-    x.putImageData(d, 0, 0); const t = new THREE.CanvasTexture(cv); t.flipY = map.flipY; t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; t.userData.partagee = true; texCache.set(cle, t); return t;
-  }
-
-  // ─── un personnage : clone riggé, rhabillé, toque en option sur l'os de la tête, mélangeur d'animations ───
-  const blanc = new THREE.MeshStandardMaterial({ color: '#FFFFFF', roughness: 0.85 });
-  function perso(variante, couleur, o = {}) {
-    const src = PER[variante] || PER.Rogue, g = X.SkeletonUtils.clone(src.scene);
-    g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; if (m.material && m.material.map) { m.material = m.material.clone(); m.material.map = rhabiller(m.material.map, couleur, !!o.gris, variante + couleur + (o.gris ? 'g' : '')); } } });
-    if (o.toque) {
-      let tete = null; g.traverse((b) => { if (!tete && b.isBone && /head/i.test(b.name)) tete = b; });
-      if (tete) { const t = new THREE.Group(), fut = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.33, 0.42, 20), blanc); fut.position.y = 0.21; t.add(fut);
-        for (let k = 0; k < 5; k++) { const b = new THREE.Mesh(new THREE.SphereGeometry(0.2, 14, 10), blanc), a = k / 5 * Math.PI * 2; b.position.set(Math.cos(a) * 0.2, 0.5, Math.sin(a) * 0.2); t.add(b); }
-        t.position.y = 0.95; t.traverse((m) => { if (m.isMesh) m.castShadow = true; }); tete.add(t); }
-    }
+  // ─── un Mini Character : clone riggé (gros chibi Kenney, 0,67 unité de haut, regard vers +z) et son mélangeur d'animations ;
+  //     nom absent (modèle pas arrivé) : un autre de l'équipe ───
+  function mini(nom, o = {}) {
+    const src = PER[nom] || PER[MINI.find((n) => PER[n])]; if (!src) return null; const g = X.SkeletonUtils.clone(src.scene);
+    g.traverse((m) => { if (m.isMesh) { m.castShadow = true; m.receiveShadow = true; m.frustumCulled = false; } });
     const mixer = new THREE.AnimationMixer(g), actions = {};
     for (const clip of src.animations) actions[clip.name] = mixer.clipAction(clip);
-    const a = { g, mixer, actions, joue: null, yaw: 0 }; jouer(a, o.anim || 'Idle', 0); mixer.update(Math.random() * 3); return a;
+    const a = { g, mixer, actions, joue: null, yaw: 0 }; jouer(a, o.anim || 'idle', 0); mixer.update(Math.random() * 2); return a;
   }
   function jouer(a, nom, fondu = 0.25) {
     if (a.joue === nom || !a.actions[nom]) return; const n = a.actions[nom].reset().play();
@@ -92,6 +68,6 @@ const HDM = (() => {
     c.addPass(new X.EffectPass(camera, ...fx)); c.setSize(W, H);
     return { rendre: (dt) => c.render(dt), liberer: () => c.dispose(), n8 };
   }
-  return Object.assign(API, { pret, permis, charger, etat, coupe, couper, remettre, modele, perso, jouer, liberer, effets, VARIANTES });
+  return Object.assign(API, { pret, permis, charger, etat, coupe, couper, remettre, modele, mini, MINI, jouer, liberer, effets });
 })();
 if (typeof module !== 'undefined') module.exports = HDM;

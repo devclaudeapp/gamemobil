@@ -448,6 +448,11 @@ const SCENE = (() => {
     g.visible = c.alpha > 0.05; g.scale.setScalar(s * (0.7 + 0.3 * Math.min(1, c.alpha)));
     g.position.set(c.x, 0, wz(c.y) - (1 - c.alpha) * 30);
     tourner(g, c.dir, dt);
+    const u = g.userData; // la joie d'être servi (le client quitte la file), et le temps passé immobile dans la file
+    if (u.etatP === 'attend' && c.etat !== 'attend') u.joie = 1; else if (u.joie > 0) u.joie = Math.max(0, u.joie - dt / 0.8);
+    u.etatP = c.etat; u.tAtt = c.etat === 'attend' && !c.glisse ? (u.tAtt || 0) + dt : 0;
+    oAnim.joie = u.joie || 0; oAnim.attente = u.tAtt; oAnim.graine = c.id * 1.7; oAnim.rush = false;
+    oAnim.geste = assis ? 'mange' : (c.etat === 'entre' && c.wp === 0) || (c.etat === 'sort' && c.wp >= c.chemin.length - 1) ? 'salut' : '';
     oAnim.marche = marche; oAnim.phase = c.phase; oAnim.assis = assis; oAnim.dir = c.dir; oAnim.sac = c.sac && !assis; oAnim.or = c.or; oAnim.pris = c.pris; oAnim.attend = c.etat === 'attend'; oAnim.plateau = false; oAnim.produit = null; oAnim.cle = false; oAnim.t = E.t; oAnim.blink = (E.blink + c.phase) % 3.4; oAnim.expression = c.or ? 'sourire' : assis ? 'sourire' : 'neutre';
     PERSOS.animer(g, oAnim);
   }
@@ -455,6 +460,7 @@ const SCENE = (() => {
     const s = V.K * 0.95, saute = a.etat === 'four' && E.rush ? Math.abs(Math.sin(E.t * 8 + a.lane)) * 2 / CY : 0;
     g.visible = true; g.scale.setScalar(s); g.position.set(a.x, saute, wz(a.y));
     tourner(g, a.etat === 'panne' ? 0 : a.dir, dt);
+    oAnim.joie = 0; oAnim.attente = 0; oAnim.graine = a.lane * 2.1 + a.i; oAnim.rush = !!E.rush; oAnim.geste = a.etat === 'four' ? 'petrit' : a.etat === 'depose' ? 'depose' : '';
     oAnim.marche = a.etat === 'porte' || a.etat === 'retour'; oAnim.phase = a.phase; oAnim.assis = false; oAnim.dir = a.dir; oAnim.sac = false; oAnim.or = false; oAnim.pris = false; oAnim.attend = false; oAnim.plateau = a.plateau; oAnim.produit = a.i; oAnim.cle = a.etat === 'panne'; oAnim.t = E.t; oAnim.blink = (E.blink + a.lane) % 3.4; oAnim.expression = a.etat === 'panne' ? 'surpris' : 'neutre';
     PERSOS.animer(g, oAnim);
   }

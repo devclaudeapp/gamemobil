@@ -105,7 +105,7 @@ const PAVATARS = typeof THREE === 'undefined' || typeof MODELES === 'undefined' 
     mats();
     const h = hash(String(e.id || e.nom || '')), P0 = PERSOS.creer({ haut: col, peau: PEAUX[h % PEAUX.length], cheveux: CHEVEUX[(h >>> 3) % CHEVEUX.length], coiffure: (h >>> 6) % 2 });
     const g = new THREE.Group(), racine = new THREE.Group(); g.add(racine); P0.scale.setScalar(K); racine.add(P0);
-    const P = P0.userData.parts, casque = M.mesh(geoCasque(col), M.MAT.vertex, { y: 63 }); P.haut.add(casque);
+    const P = P0.userData.parts, casque = M.mesh(geoCasque(col), M.MAT.vertex, { y: P.cou ? 11 : 63 }); (P.cou || P.haut).add(casque); // sur le cou : il suit la tête
     const visee = new THREE.Object3D(); visee.position.set(0, 46, 0); P.haut.add(visee);
     const arm = M.mesh(blaster(arme), M.MAT.vertex, { x: -2.5, y: -2.5, z: 15, ry: Math.PI, s: 1.25 / K }); visee.add(arm);
     const bouche = new THREE.Object3D(); visee.add(bouche);

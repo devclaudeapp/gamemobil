@@ -50,14 +50,14 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 200) {
   let { ctx, page, erreurs } = await ouvrir('?qualite=haute');
   check(await page.evaluate(() => typeof HDM !== 'undefined' && HDM.actif), 'le module HD est là (vendor/fournil-hd.min.js chargé)');
   check(await attendre(() => page.evaluate(() => SCENE.decorHD > 0)), 'après les premières images, la boutique reçoit ses décors HD');
-  check(await page.evaluate(() => window.__fournil.stats().acteurs > 0 || true) && demandes.every((d) => !/persos\//.test(d)), `la boutique ne charge aucun personnage HD (${demandes.length} modèles demandés, tous des décors)`);
+  check(await page.evaluate(() => window.__fournil.stats().acteurs > 0 || true) && demandes.every((d) => !/(persos|mini)\//.test(d)), `la boutique ne charge aucun personnage HD (${demandes.length} modèles demandés, tous des décors)`);
   const poidsB = demandes.reduce((s, d) => s + fs.statSync(path.join(root, d)).size, 0); check(poidsB < 400e3, `les décors de la boutique pèsent ${Math.round(poidsB / 1024)} Ko (< 400 Ko)`);
 
   console.log('── qualité haute : la Planque ──');
   await page.evaluate(() => { window.__fournil.quartier(); }); await sleep(500);
   await page.evaluate(() => { const b = document.querySelector('#pq-corps [data-pq="oui"]'); if (b) b.click(); }); await sleep(500);
   await page.evaluate(() => { const q = window.__fournil.st.quartier; q.billets = 1e6; }); await sleep(300);
-  for (let k = 0; k < 3; k++) await page.evaluate(() => { const b = document.querySelector('#pq-cartes [data-a="embaucher"]'); if (b) b.click(); });
+  for (let k = 0; k < 5; k++) await page.evaluate(() => { const b = document.querySelector('#pq-cartes [data-a="embaucher"]'); if (b) b.click(); });
   check(await attendre(() => page.evaluate(() => { const s = window.__fournil.evenement.scene; return s && s.hd.actif; })), 'la Planque passe en HD dès que ses modèles sont là');
   const hd = await page.evaluate(() => window.__fournil.evenement.scene.hd);
   check(hd.persos >= 1 && hd.rue, `meubles, rue de nuit derrière la fenêtre, ${hd.persos} personnage(s) animé(s)`);
@@ -86,7 +86,7 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 200) {
   demandes.length = 0; await page.reload(); await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 });
   await page.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); });
   check(await attendre(() => page.evaluate(() => HDM.pret('planque')), 20000), 'quelques secondes après le lancement, les modèles de la Planque sont déjà là (sans l’ouvrir)');
-  check(demandes.some((d) => /persos\//.test(d)), `préchargés en arrière-plan (${demandes.filter((d) => /persos\//.test(d)).length} personnages)`);
+  check(demandes.some((d) => /mini\//.test(d)), `préchargés en arrière-plan (${demandes.filter((d) => /mini\//.test(d)).length} personnages)`);
   const t1 = Date.now(); await page.evaluate(() => window.__fournil.quartier());
   check(await attendre(() => page.evaluate(() => { const s = window.__fournil.evenement.scene; return s && s.hd.actif; }), 3000), `la Planque s'ouvre directement en HD (${Date.now() - t1} ms)`);
   await page.evaluate(() => document.querySelector('[data-pq="fermer"]').click()); await sleep(300);
