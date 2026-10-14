@@ -11694,6 +11694,7 @@ const PENLIGNE = (() => {
       if (fini(d.ya)) en.yaw = d.ya; if (fini(d.pi)) en.pitch = d.pi;
       c.tiNiveau = !!d.ti; if (fini(d.nt)) { c.compteTirs = true; c.nt = Math.max(c.nt, d.nt | 0); }
       c.sa = en.saut = !!d.sa; en.accroupi = !!d.ac; en.recharge = !!d.re; en.arme = J.ARMES_ID.indexOf(d.ar) >= 0 ? d.ar : null;
+      en.course = !!d.cr; en.couche = !!d.cc; en.vise = !!d.vi; // l'entrée v2 : la posture et la visée se jouent chez l'hôte (capsule, dispersion)
       if (fini(d.tc)) { c.v2 = true; recevoirPiste(c, d, now); } // C5 : la piste (un client sans tc reste servi comme avant : adopter)
       const p = c.pos;
       if (!c.v2 && fini(d.x) && fini(d.y) && fini(d.z)) { p.x = d.x; p.y = d.y; p.z = d.z; p.m = d.m | 0; p.v = !!d.v; p.vy = num(d.vy, -40, 40); p.sol = !!d.sol; p.neuf = true; }
@@ -11921,6 +11922,7 @@ const PENLIGNE = (() => {
           m: moi.score.morts, v: vit ? 1 : 0, tv: r3(tRenduVu), ae: dernierN, ad: Math.round(now - dernierRecu), nt: nTirs };
         // les champs nuls ne partent pas (l'hôte lit l'absence comme 0 / false / null) : l'entrée tient sous 220 o
         if (en && en.cote) m.co = r2(num(en.cote, -1, 1)); if (tirDepuis) m.ti = 1; if (now - sautA < tenu) m.sa = 1; if (en && en.accroupi) m.ac = 1;
+        if (en && en.course) m.cr = 1; if (en && en.couche) m.cc = 1; if (en && en.vise) m.vi = 1;
         if (now - rechA < tenu) m.re = 1; if (now - armeA < tenu && armeVoulue) m.ar = armeVoulue;
         if (vit && nPiste > 1) m.tr = traceDepuis(relais);
         if (envoyer('entree', m, { fiable: false })) envoyes++;
@@ -11998,7 +12000,7 @@ const PENLIGNE = (() => {
    voie ; l'hôte règle robots, niveau, format et armes permises, et lance ; les autres disent « Prêt »), puis la même partie qu'en
    solo : jeu.etape vient du vrai PJEU chez l'hôte, de la façade chez les clients.
    Équipement en ligne (par les fonctions existantes de enligne.js / reseau.js) : chacun publie le sien par la présence
-   (ctl.salon.majMoi({ equip: 'p+s' })) ; l'hôte pose ctl.reglages.armes et l'annonce par ctl.regler({ armes }) (le message
+   (ctl.equiper('p+s'), dans la présence : joueurs()[i].eq) ; l'hôte pose ctl.reglages.armes et l'annonce par ctl.regler({ armes }) (le message
    'reglages' reprend ctl.reglages) ; les autres le lisent dans ce message (ctl.salon.sur('reglages')).
    Le joueur local est idMoi : 'moi' en solo, son id de salon en ligne. Voie réseau : 'supabase' si window.PONCIN_CONFIG est rempli,
    'local' sinon (ou avec ?reseau=local : entre onglets du même navigateur).
@@ -12206,18 +12208,18 @@ const PUI = (() => {
     if (enSalon()) { sauv.choix.armesSalon = l; annoncerArmes(l); publierEquip(); } else sauv.choix.armes = l;
     sauver(); majArmes();
   }
-  function publierEquip() { // l'équipement de chacun passe par la présence : salon.majMoi({ equip: 'p+s' })
+  function publierEquip() { // l'équipement de chacun passe par la présence : ctl.equiper('p+s')
     if (!ctl) return;
     const q = equipValide(sauv.choix.equip, permisesSalon());
-    try { if (ctl.salon && typeof ctl.salon.majMoi === 'function') ctl.salon.majMoi({ equip: q.p + '+' + q.s }); } catch (e) { signaler('équipement', e); }
+    try { if (typeof ctl.equiper === 'function') ctl.equiper(q.p + '+' + q.s); } catch (e) { signaler('équipement', e); }
   }
   function annoncerArmes(liste) { // l'hôte : les armes permises dans ctl.reglages, annoncées avec les autres réglages (message 'reglages')
     if (!ctl || !ctl.estHote) return;
-    try { ctl.reglages.armes = liste.slice(); ctl.regler({ armes: liste.slice() }); } catch (e) { signaler('armes permises', e); }
+    try { ctl.regler({ armes: liste.slice() }); } catch (e) { signaler('armes permises', e); }
   }
   function equipDe(j) { // l'équipement d'un joueur du salon : le mien, sinon celui de sa présence (s'il est publié)
     if (j.moi) return equipValide(sauv.choix.equip, permisesSalon());
-    let e = j.equip; if (!e && ctl && ctl.salon && ctl.salon.joueurs && ctl.salon.joueurs.get) { const p = ctl.salon.joueurs.get(j.id); e = p && p.equip; }
+    const e = j.eq; // la présence du joueur ('ak74+p226'), rendue par ctl.joueurs()
     return typeof e === 'string' && e.indexOf('+') > 0 ? equipValide(e, permisesSalon()) : null;
   }
 

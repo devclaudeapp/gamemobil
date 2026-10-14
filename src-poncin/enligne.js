@@ -424,6 +424,7 @@ const PENLIGNE = (() => {
       if (fini(d.ya)) en.yaw = d.ya; if (fini(d.pi)) en.pitch = d.pi;
       c.tiNiveau = !!d.ti; if (fini(d.nt)) { c.compteTirs = true; c.nt = Math.max(c.nt, d.nt | 0); }
       c.sa = en.saut = !!d.sa; en.accroupi = !!d.ac; en.recharge = !!d.re; en.arme = J.ARMES_ID.indexOf(d.ar) >= 0 ? d.ar : null;
+      en.course = !!d.cr; en.couche = !!d.cc; en.vise = !!d.vi; // l'entrée v2 : la posture et la visée se jouent chez l'hôte (capsule, dispersion)
       if (fini(d.tc)) { c.v2 = true; recevoirPiste(c, d, now); } // C5 : la piste (un client sans tc reste servi comme avant : adopter)
       const p = c.pos;
       if (!c.v2 && fini(d.x) && fini(d.y) && fini(d.z)) { p.x = d.x; p.y = d.y; p.z = d.z; p.m = d.m | 0; p.v = !!d.v; p.vy = num(d.vy, -40, 40); p.sol = !!d.sol; p.neuf = true; }
@@ -651,6 +652,7 @@ const PENLIGNE = (() => {
           m: moi.score.morts, v: vit ? 1 : 0, tv: r3(tRenduVu), ae: dernierN, ad: Math.round(now - dernierRecu), nt: nTirs };
         // les champs nuls ne partent pas (l'hôte lit l'absence comme 0 / false / null) : l'entrée tient sous 220 o
         if (en && en.cote) m.co = r2(num(en.cote, -1, 1)); if (tirDepuis) m.ti = 1; if (now - sautA < tenu) m.sa = 1; if (en && en.accroupi) m.ac = 1;
+        if (en && en.course) m.cr = 1; if (en && en.couche) m.cc = 1; if (en && en.vise) m.vi = 1;
         if (now - rechA < tenu) m.re = 1; if (now - armeA < tenu && armeVoulue) m.ar = armeVoulue;
         if (vit && nPiste > 1) m.tr = traceDepuis(relais);
         if (envoyer('entree', m, { fiable: false })) envoyes++;

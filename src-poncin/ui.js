@@ -9,7 +9,7 @@
    voie ; l'hôte règle robots, niveau, format et armes permises, et lance ; les autres disent « Prêt »), puis la même partie qu'en
    solo : jeu.etape vient du vrai PJEU chez l'hôte, de la façade chez les clients.
    Équipement en ligne (par les fonctions existantes de enligne.js / reseau.js) : chacun publie le sien par la présence
-   (ctl.salon.majMoi({ equip: 'p+s' })) ; l'hôte pose ctl.reglages.armes et l'annonce par ctl.regler({ armes }) (le message
+   (ctl.equiper('p+s'), dans la présence : joueurs()[i].eq) ; l'hôte pose ctl.reglages.armes et l'annonce par ctl.regler({ armes }) (le message
    'reglages' reprend ctl.reglages) ; les autres le lisent dans ce message (ctl.salon.sur('reglages')).
    Le joueur local est idMoi : 'moi' en solo, son id de salon en ligne. Voie réseau : 'supabase' si window.PONCIN_CONFIG est rempli,
    'local' sinon (ou avec ?reseau=local : entre onglets du même navigateur).
@@ -217,18 +217,18 @@ const PUI = (() => {
     if (enSalon()) { sauv.choix.armesSalon = l; annoncerArmes(l); publierEquip(); } else sauv.choix.armes = l;
     sauver(); majArmes();
   }
-  function publierEquip() { // l'équipement de chacun passe par la présence : salon.majMoi({ equip: 'p+s' })
+  function publierEquip() { // l'équipement de chacun passe par la présence : ctl.equiper('p+s')
     if (!ctl) return;
     const q = equipValide(sauv.choix.equip, permisesSalon());
-    try { if (ctl.salon && typeof ctl.salon.majMoi === 'function') ctl.salon.majMoi({ equip: q.p + '+' + q.s }); } catch (e) { signaler('équipement', e); }
+    try { if (typeof ctl.equiper === 'function') ctl.equiper(q.p + '+' + q.s); } catch (e) { signaler('équipement', e); }
   }
   function annoncerArmes(liste) { // l'hôte : les armes permises dans ctl.reglages, annoncées avec les autres réglages (message 'reglages')
     if (!ctl || !ctl.estHote) return;
-    try { ctl.reglages.armes = liste.slice(); ctl.regler({ armes: liste.slice() }); } catch (e) { signaler('armes permises', e); }
+    try { ctl.regler({ armes: liste.slice() }); } catch (e) { signaler('armes permises', e); }
   }
   function equipDe(j) { // l'équipement d'un joueur du salon : le mien, sinon celui de sa présence (s'il est publié)
     if (j.moi) return equipValide(sauv.choix.equip, permisesSalon());
-    let e = j.equip; if (!e && ctl && ctl.salon && ctl.salon.joueurs && ctl.salon.joueurs.get) { const p = ctl.salon.joueurs.get(j.id); e = p && p.equip; }
+    const e = j.eq; // la présence du joueur ('ak74+p226'), rendue par ctl.joueurs()
     return typeof e === 'string' && e.indexOf('+') > 0 ? equipValide(e, permisesSalon()) : null;
   }
 
