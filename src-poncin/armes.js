@@ -1,14 +1,16 @@
 /* OPÉRATION PONCIN — les armes d'une entité : deux emplacements (principale, secondaire), changement, recharge, visée, dispersion, tirs
-   instantanés (un rayon par plomb, depuis l'œil, contre le monde puis les capsules des ennemis, compensation de latence), objets.
-   Conception du lot Gameplay, § 4 et § 5 ; les chiffres sont dans regles.js (PREGLES.ARMES).
+   instantanés (un rayon par plomb, depuis l'œil, contre le monde puis les capsules des ennemis, compensation de latence), objets, et ce
+   qu'il faut au rendu pour les impacts (point, normale, matière : 'mur' | 'metal' | 'sol' | 'corps').
+   Conception du lot Gameplay, § 4 et § 5 ; les chiffres sont dans regles.js (PREGLES.ARMES : les neuf vraies armes).
    Module pur (aucun DOM, aucun THREE) : tourne aussi dans Node. Utilisé par jeu.js (PJEU.tirVisuel et PJEU.dispersion en sont des alias).
 
    Deux régimes, choisis par entité :
-   - historique (e.equip === null : la partie actuelle) : on commence au blaster rafale, les armes ramassées s'ajoutent (e.armes = les
-     armes possédées), une arme vide de tout est lâchée, le rafale ne tombe jamais en panne, changement en 0,3 s, dispersion d'avant
-     (le Long-tir garde sa dispersion de hanche de 0,0015 tant que la visée n'est pas branchée : A.dispersionAvantVisee) ;
-   - emplacements (e.equip = { p, s }, posé par PARMES.equiper avec un équipement) : e.armes = [principale, secondaire], la secondaire
-     jamais à sec, changement en A.changement, visée, dispersion v2 (§ 4), une arme ramassée remplace la principale jusqu'à la mort.
+   - emplacements (e.equip = { p, s }, posé par PARMES.equiper avec un équipement) : LE JEU (jeu.js équipe tout le monde ainsi) ;
+     e.armes = [principale, secondaire], la secondaire jamais à sec, changement en A.changement, visée, dispersion v2 (§ 4), une arme
+     ramassée remplace la principale jusqu'à la mort ;
+   - historique (e.equip === null, PARMES.equiper(e, null)) : gardé pour les vieux tests seulement, plus aucun chemin du jeu ne le
+     prend : on commence à l'arme par défaut (DEFAUT_EQUIP.p), les armes ramassées s'ajoutent, une arme vide de tout est lâchée,
+     l'arme de base ne tombe jamais en panne, changement en 0,3 s, dispersion d'avant la visée.
    Le tir a besoin de la partie : jeu.temps, jeu.dt (le pas en cours), jeu.rnd, jeu.monde, jeu.entites, jeu.ennemis, et des crochets que
    PJEU expose pour ce module : jeu.rembobiner(tireur), jeu.restaurer(), jeu.blesser(cible, de, degats, tete, arme, out), jeu.faireBruit(e, portee). */
 (function (root, factory) {
@@ -19,11 +21,11 @@
   const J = REGLES.JOUEUR, P = J.postures;
   const CHANGE_ARME = 0.3;  // historique : le temps de sortir une autre arme (s)
   const KICK = 0.6;         // la part du recul de l'arme qui relève le regard
-  const BASE = 'rafale';    // historique : le blaster de base, qui ne tombe jamais en panne
+  const BASE = REGLES.DEFAUT_EQUIP.p; // historique : l'arme de base, qui ne tombe jamais en panne
   const borne = (v, a, b) => (v < a ? a : v > b ? b : v);
   const angle = (a) => { a = a % (2 * Math.PI); return a > Math.PI ? a - 2 * Math.PI : a <= -Math.PI ? a + 2 * Math.PI : a; };
 
-  // l'arme qui ne tombe jamais en panne (sa réserve ne descend jamais sous un chargeur) : la secondaire, ou le rafale (historique)
+  // l'arme qui ne tombe jamais en panne (sa réserve ne descend jamais sous un chargeur) : la secondaire, ou l'arme de base (historique)
   const secours = (e) => (e.equip ? e.armes[1] : BASE);
 
   // ─── la dispersion (rad) ───
@@ -33,8 +35,7 @@
   function dispersion(e, A) {
     if (!e.equip) {
       const mvt = Math.min(1, e.vitesse / J.vitesse) + (e.auSol ? 0 : 0.6);
-      const d = A.dispersionAvantVisee != null ? A.dispersionAvantVisee : A.dispersion; // le Long-tir, jusqu'au branchement de la visée
-      return d * (e.accroupi ? 0.7 : 1) + (A.dispersionMouvement || 0) * mvt + e.gonfle * (A.recul || 0.02) * 1.6;
+      return A.dispersion * (e.accroupi ? 0.7 : 1) + (A.dispersionMouvement || 0) * mvt + e.gonfle * (A.recul || 0.02) * 1.6;
     }
     const vise = e.vise > 0 ? e.vise : 0, V = A.visee || null;
     const post = e.corpsV2 ? (P[e.vers] && P[e.vers].dispersion != null ? P[e.vers].dispersion : 1) : (e.accroupi ? 0.7 : 1);
@@ -45,7 +46,7 @@
   }
 
   // ─── l'équipement ───
-  // PARMES.equiper(e, equip, reglages) : equip null → l'équipement historique (rafale seul) ; sinon { p, s } (ou 'p+s'), validé par
+  // PARMES.equiper(e, equip, reglages) : equip null → l'équipement historique (l'arme de base seule, vieux tests) ; sinon { p, s } (ou 'p+s'), validé par
   // PREGLES.equipementDe(equip, reglages) ; la principale en main, chargeurs pleins, réserves pleines
   function equiper(e, equip, reglages) {
     e.enRecharge = false; e.rechargeJusqua = 0; e.gonfle = 0; e.vise = 0; e.viseStable = 0; e.changeJusqua = 0; e.changeReste = 0; e.slot = 0;
@@ -117,7 +118,25 @@
     return true;
   }
 
+  // ─── la matière touchée, pour les impacts du rendu ───
+  // 'corps' (une entité : jamais de sang, un marqueur de touche), 'sol' (terrain, chaussée : poussière), 'metal' (toit de zinc,
+  // clôture, portail, croix, abribus, banc, petit mobilier : étincelles), 'mur' (pierre, crépi, bois, troncs, voûtes : éclats, poussière).
+  // h : le résultat de monde.rayon (de, i, k) ; monde.carte sert aux murs et au mobilier (sans elle : 'mur' et 'metal').
+  const METAL_MURS = { cloture: 1, portail: 1 }, PIERRE_MOBILIER = { fontaine: 1, monument: 1 };
+  function matiere(h, monde) {
+    if (!h) return null;
+    if (h.de === 'terrain' || h.quoi === 'sol') return 'sol';
+    const c = monde && monde.carte;
+    if (h.de === 'batiment' || h.de === 'voute') { const b = h.quoi === 'toit' && monde.batiments ? monde.batiments[h.i] : null; return b && b.toit === 'zinc' ? 'metal' : 'mur'; }
+    if (h.de === 'mur') { const m = c && c.murs ? c.murs[h.k] : null; return m && METAL_MURS[m.t] ? 'metal' : 'mur'; }
+    if (h.de === 'mobilier') { const o = h.k >= 0 && c && c.mobilier ? c.mobilier[h.k] : null; return o && PIERRE_MOBILIER[o.t] ? 'mur' : 'metal'; }
+    return 'mur';
+  }
+
   // ─── un tir : un rayon par plomb, depuis l'œil, contre le monde puis les capsules ───
+  // Un événement par plomb : { t: 'tir', id, arme, o: [x, y, z] (l'œil), fin: [x, y, z], impact } ; impact = null (dans le vide, à la
+  // portée) ou { x, y, z (le point), nx, ny, nz (la normale, unitaire, vers le tireur), quoi: 'mur' | 'toit' | 'sol' | 'entite',
+  // mat: 'mur' | 'metal' | 'sol' | 'corps', id (l'entité touchée) }.
   const CIBLES = [], DEGATS = [], TETES = []; // les touchés d'un tir (agrégés par cible : la pompe fait un seul « touche » par victime)
   function tirer(e, jeu, out) {
     const A = REGLES.arme(e.arme), T = jeu.temps, dt = jeu.dt || 0, monde = jeu.monde, entites = jeu.entites;
@@ -150,12 +169,12 @@
       let impact = null;
       if (cible) {
         const nx = fx - cx, ny = fy - cyy, nz = fz - cz, nl = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
-        impact = { x: fx, y: fy, z: fz, nx: nx / nl, ny: ny / nl, nz: nz / nl, quoi: 'entite', id: cible.id };
+        impact = { x: fx, y: fy, z: fz, nx: nx / nl, ny: ny / nl, nz: nz / nl, quoi: 'entite', mat: 'corps', id: cible.id };
         const deg = REGLES.degatsA(A, tMax, tete);
         let i = 0; while (i < nc && CIBLES[i] !== cible) i++;
         if (i === nc) { CIBLES[nc] = cible; DEGATS[nc] = 0; TETES[nc] = false; nc++; }
         DEGATS[i] += deg; if (tete) TETES[i] = true;
-      } else if (h) impact = { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, quoi: h.quoi };
+      } else if (h) impact = { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, quoi: h.quoi, mat: matiere(h, monde) };
       out.push({ t: 'tir', id: e.id, arme: A.id, o: [ox, oy, oz], fin: [fx, fy, fz], impact });
     }
     if (rembobine) jeu.restaurer();
@@ -185,7 +204,7 @@
         const t = CORPS.rayon(ox, oy, oz, dx, dy, dz, c, tMax); if (t >= 0 && t < tMax) { tMax = t; cible = c; }
       }
       const fx = ox + dx * tMax, fy = oy + dy * tMax, fz = oz + dz * tMax;
-      const impact = cible ? { x: fx, y: fy, z: fz, nx: -dx, ny: -dy, nz: -dz, quoi: 'entite', id: cible.id } : h ? { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, quoi: h.quoi } : null;
+      const impact = cible ? { x: fx, y: fy, z: fz, nx: -dx, ny: -dy, nz: -dz, quoi: 'entite', mat: 'corps', id: cible.id } : h ? { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, quoi: h.quoi, mat: matiere(h, monde) } : null;
       out.push({ t: 'tir', id: e.id, arme: A.id, o: [ox, oy, oz], fin: [fx, fy, fz], impact, local: true });
     }
     return out;
@@ -234,5 +253,5 @@
     else if (e.arme === O.arme && e.enRecharge) { e.enRecharge = false; e.rechargeJusqua = 0; }
   }
 
-  return { dispersion, tirer, tirVisuel, majVisee, changer, recharger, finirRecharge, equiper, agir, peutTirer, utile, prendre, secours, CHANGE_ARME, KICK };
+  return { dispersion, tirer, tirVisuel, majVisee, changer, recharger, finirRecharge, equiper, agir, peutTirer, utile, prendre, secours, matiere, CHANGE_ARME, KICK };
 });

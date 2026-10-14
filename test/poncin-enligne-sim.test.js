@@ -6,7 +6,9 @@
 // interpolée ax → x avec alpha). Un hôte H, deux clients C et D, deux robots. C marche dans la rue du 11 Novembre ; D reste sur la place
 // et regarde ; H tourne en rond ; personne ne meurt (vie remise à 10 000 : pas de téléportation).
 // Mesures après 3 s : « à-coups » = |Δv| horizontal d'une image à la suivante (rms, m/s) ; recalages nets des clients.
-// Seuils (§ 14) : C vu par D ≤ 0,6 (mauvais ≤ 0,8) ; C vu par H ≤ 1,3 (mauvais ≤ 1,6) ; robot vu par D ≤ 1,8 × la vérité (vu par H) ;
+// Seuils (§ 14) : C vu par D ≤ 0,6 (mauvais ≤ 0,8) ; C vu par H ≤ 1,3 (mauvais ≤ 1,6) ; robot vu par D ≤ 1,8 × la vérité (vu par H),
+// ou sous le seuil d'un client vu par un autre (un robot qui court en ligne droite, livraison 2 : sa vérité est presque lisse, et
+// l'horloge douce du client, ±5 %, fait à elle seule ~0,05 × 6 m/s d'à-coups) ;
 // aucun recalage net hors du premier ; l'hôte ne refuse aucun échantillon d'un client honnête. Variante : 5 clients et 1 robot en
 // direct, pas de l'hôte ≤ 2 ms en moyenne.
 // Non-régression de la relecture du lot : appuis brefs sur Tir (un pas sur un, toutes les 737 ms, et calés sur le relais toutes les
@@ -194,7 +196,7 @@ function acoups(o) { // |Δv| horizontal d'une image à la suivante, rms (m/s)
     if (DETAIL) console.log(`     ${lib} : C chez D ${f2(a.cD)}, C chez H ${f2(a.cH)} (C chez lui ${f2(a.cC)}), robot chez D ${f2(a.bD)} (vérité ${f2(a.bH)}) ; nets C ${m.stats.c.cales} D ${m.stats.d.cales}, doux ${m.stats.c.douces} ; délai D ${m.stats.d.delai} s, prolongée ${m.stats.d.prolonge}, sauts d'horloge ${m.stats.d.sautsHorloge} ; hôte : piste ${hc.piste != null ? hc.piste + ' D ' + hc.D + ' ms (gigue ' + hc.gigue + '), prolongée ' + hc.prolonge + ', rejets ' + hc.rejets : '—'} ; entrée ${Math.round(m.octets.entree[0] / Math.max(1, m.octets.entree[1]))} o, état ${Math.round(m.octets.etat[0] / Math.max(1, m.octets.etat[1]))} o ; pas de l'hôte ${m.cpu.toFixed(3)} ms`);
     check(a.cD <= S.cD, `${lib} : un client vu par un autre client, à-coups ${f2(a.cD)} m/s rms ≤ ${S.cD}`);
     check(a.cH <= S.cH, `${lib} : un client vu par l'hôte, à-coups ${f2(a.cH)} m/s rms ≤ ${S.cH}`);
-    check(a.bD <= 1.8 * a.bH, `${lib} : un robot vu par un client, à-coups ${f2(a.bD)} ≤ 1,8 × la vérité (${f2(a.bH)})`);
+    check(a.bD <= Math.max(1.8 * a.bH, S.cD), `${lib} : un robot vu par un client, à-coups ${f2(a.bD)} ≤ 1,8 × la vérité (${f2(a.bH)}) ou ≤ ${S.cD}`);
     check(nets === 2, `${lib} : aucun recalage net hors du premier (C ${m.stats.c.cales}, D ${m.stats.d.cales})`);
     check(hc.rejets === 0, `${lib} : l'hôte ne refuse aucun échantillon du client honnête (rejets ${hc.rejets})`);
     if (m.erreurs) check(false, `${lib} : ${m.erreurs} erreur(s) rattrapée(s) dans enligne.js`);
@@ -233,7 +235,7 @@ function acoups(o) { // |Δv| horizontal d'une image à la suivante, rms (m/s)
     for (const [profil, graine] of [['direct', 3], ['mauvais', 4]]) {
       const g = await simuler({ profil, graine, clients: ['c', 'd'], bots: 2, duree: 30, gigueImage: 1 });
       const S = SEUILS[profil], cD = acoups(g.T.cD), bD = acoups(g.T.bD), bH = acoups(g.T.bH);
-      check(cD <= S.cD && bD <= 1.8 * bH, `${profil} ${graine}, heure d'image à 1 ms près : client vu par l'autre ${f2(cD)} ≤ ${S.cD}, robot ${f2(bD)} ≤ 1,8 × ${f2(bH)}`);
+      check(cD <= S.cD && bD <= Math.max(1.8 * bH, S.cD), `${profil} ${graine}, heure d'image à 1 ms près : client vu par l'autre ${f2(cD)} ≤ ${S.cD}, robot ${f2(bD)} ≤ 1,8 × ${f2(bH)} ou ≤ ${S.cD}`);
     }
   }
   console.log(`\n${oks} ok, ${fails} échec(s)`);

@@ -1,5 +1,5 @@
-/* OPÉRATION PONCIN — les règles chiffrées : le joueur (et ses postures), les blasters à peinture, les objets, les modes, les réglages du
-   salon (défauts, bornes, normalisation), le niveau des bots, le hasard rejouable.
+/* OPÉRATION PONCIN — les règles chiffrées : le joueur (et ses postures), l'arsenal (neuf vraies armes, deux emplacements), les objets,
+   les modes, les réglages du salon (défauts, bornes, normalisation), le niveau et l'équipement des robots, le hasard rejouable.
    Module pur (aucun DOM, aucun THREE) : tourne aussi dans Node pour les tests. Voir src-poncin/ARCHITECTURE.md (« Lot Gameplay : contrat »)
    et, pour l'origine des chiffres, la conception du lot Gameplay (§ 3, 5, 6). */
 (function (root, factory) {
@@ -39,43 +39,51 @@
     pente: { montee: 0.8, plancher: 0.6, descente: 0.3, plafond: 1.15 }, // montée ×(1 − 0,8·p) ≥ 0,6 ; descente ×(1 + 0,3·|p|) ≤ 1,15
   };
 
-  // ─── les blasters à peinture (§ 5) ───
-  // chute : [début, fin, minimum] — pleine puissance jusqu'à début, puis baisse linéaire jusqu'à minimum (fraction) à fin.
-  // role : 'principale' | 'secondaire' ; modele : le modèle du pack (Blaster Kit) ; semiAuto : garder le doigt appuyé tire au rythme
-  // maximal ; vitesse : facteur de déplacement arme en main ; changement : temps pour la sortir (s) ; gonfle : ouverture du viseur par tir
-  // (retombe de 3,2/s) ; visee : { viseur, zoom, dispersion (facteur de la dispersion de hanche), vitesse (facteur de déplacement),
-  // entree (mise en joue, s), oeil (point de mire du modèle, donné par le lot du pack : null en attendant) }.
-  // option : hors de la liste des armes autorisées par défaut.
+  // ─── l'arsenal (§ 5, livraison 2 « Vraies armes ») : neuf armes réelles, deux emplacements ───
+  // Champs : id, nom, classe (PREGLES.CLASSES), role ('principale' | 'secondaire'), modele (= id : poncin/armes/<id>.glb), degats (par
+  // balle, ou par plomb), plombs, cadence (tirs/s), semiAuto (garder le doigt appuyé tire au rythme maximal), chargeur, reserve,
+  // recharge (s), dispersion (rad, à la hanche), dispersionMouvement (rad, en plus à 5,2 m/s), portee (m), chute : [début, fin, minimum]
+  // (pleine puissance jusqu'à début, puis baisse linéaire jusqu'à minimum à fin), tete (multiplicateur), recul (rad : le regard se
+  // relève de recul × 0,6), vitesse (facteur de déplacement arme en main), changement (temps pour la sortir, s), gonfle (ouverture du
+  // viseur par tir, retombe de 3,2/s), visee : { viseur: 'lunette' | 'point' | 'fer', zoom, dispersion (facteur de la dispersion de
+  // hanche), vitesse (facteur de déplacement), entree (mise en joue, s), oeil (point de mire du modèle, mesuré par le rendu : null) },
+  // couleur (la pastille du HUD, par classe).
+  // Temps pour éliminer 100 PV (sans armure, au corps, à portée utile ; ⌈100 / dégâts⌉ balles, (n − 1) / cadence) — les duels de
+  // test/poncin-armes.test.js le vérifient dans la simulation :
+  //   AK-74 5 × 24, 8,5/s → 0,47 s ; M4 5 × 22, 8,8/s → 0,45 s ; UMP 5 × 22, 10/s → 0,40 s ; MP9 7 × 15, 15/s → 0,40 s ;
+  //   pompe 9 plombs × 15 → un coup jusqu'à 8 m (plus à 10 m : la gerbe s'ouvre, les plombs faiblissent) ; M24 75 (tête × 2 = 150), 0,8/s, et AWM 90 (× 2), 0,75/s, plus lourd : un coup à la tête, deux au corps ;
+  //   M1911 4 × 30, 3,3/s → 0,91 s ; P226 5 × 22, 4,5/s → 0,89 s.
+  const CLASSES = { fusil: 'Fusil d’assaut', mitraillette: 'Mitraillette', pompe: 'Fusil à pompe', sniper: 'Fusil de précision', pistolet: 'Pistolet' };
+  const VISEE = (viseur, zoom, dispersion, vitesse, entree) => ({ viseur, zoom, dispersion, vitesse, entree, oeil: null });
   const ARMES = [
-    { id: 'rafale', nom: 'Blaster rafale', role: 'principale', modele: 'blaster-d', degats: 13, plombs: 1, cadence: 9, semiAuto: false, chargeur: 30, reserve: 120, recharge: 1.6, dispersion: 0.022, dispersionMouvement: 0.02, portee: 70, chute: [18, 45, 0.55], tete: 1.5, recul: 0.012, vitesse: 1, changement: 0.36, gonfle: 0.22, visee: { viseur: 'aucun', zoom: 1.25, dispersion: 0.45, vitesse: 0.6, entree: 0.18, oeil: null }, couleur: '#FF6B8B' },
-    { id: 'pompe', nom: 'Pompe à peinture', role: 'principale', modele: 'blaster-h', degats: 11, plombs: 8, cadence: 1.15, semiAuto: false, chargeur: 6, reserve: 24, recharge: 2.2, dispersion: 0.085, dispersionMouvement: 0.02, portee: 28, chute: [6, 20, 0.25], tete: 1.25, recul: 0.06, vitesse: 1, changement: 0.36, gonfle: 0.8, visee: { viseur: 'aucun', zoom: 1.1, dispersion: 0.8, vitesse: 0.7, entree: 0.15, oeil: null }, couleur: '#5FD3A4' },
-    // Long-tir : la dispersion de hanche v2 est 0,03 (× 0,05 en visée = 0,0015). TANT QUE LA VISÉE N'EST PAS BRANCHÉE (lot 2/2), la partie
-    // actuelle garde l'ancienne dispersion de hanche, dispersionAvantVisee = 0,0015 (PARMES.dispersion, mode historique) : le Long-tir
-    // tire comme aujourd'hui. À retirer au branchement de la visée (et les robots viseront, § 11).
-    { id: 'precision', nom: 'Long-tir', role: 'principale', modele: 'blaster-e', degats: 72, plombs: 1, cadence: 0.85, semiAuto: false, chargeur: 5, reserve: 20, recharge: 2.4, dispersion: 0.03, dispersionAvantVisee: 0.0015, dispersionMouvement: 0.06, portee: 160, chute: [80, 160, 0.8], tete: 1.6, recul: 0.05, vitesse: 0.95, changement: 0.4, gonfle: 1, visee: { viseur: 'lunette', zoom: 3, dispersion: 0.05, vitesse: 0.45, entree: 0.25, oeil: null }, couleur: '#B8A6FF' },
-    { id: 'carabine', nom: 'Carabine Marqueur', role: 'principale', modele: 'blaster-f', degats: 30, plombs: 1, cadence: 3.2, semiAuto: true, chargeur: 10, reserve: 40, recharge: 1.9, dispersion: 0.012, dispersionMouvement: 0.035, portee: 110, chute: [40, 100, 0.7], tete: 1.5, recul: 0.03, vitesse: 0.95, changement: 0.36, gonfle: 0.45, visee: { viseur: 'point rouge', zoom: 1.6, dispersion: 0.25, vitesse: 0.55, entree: 0.2, oeil: null }, couleur: '#FFC84A' },
-    { id: 'petoire', nom: 'Pistolet Pétoire', role: 'secondaire', modele: 'blaster-b', degats: 24, plombs: 1, cadence: 4, semiAuto: true, chargeur: 12, reserve: 48, recharge: 1.1, dispersion: 0.012, dispersionMouvement: 0.012, portee: 55, chute: [15, 40, 0.6], tete: 1.6, recul: 0.035, vitesse: 1.05, changement: 0.22, gonfle: 0.35, visee: { viseur: 'aucun', zoom: 1.2, dispersion: 0.4, vitesse: 0.75, entree: 0.12, oeil: null }, couleur: '#7FB3FF' },
-    { id: 'arroseuse', nom: 'Mitraillette Arroseuse', role: 'secondaire', modele: 'blaster-k', degats: 8, plombs: 1, cadence: 14, semiAuto: false, chargeur: 24, reserve: 96, recharge: 1.3, dispersion: 0.04, dispersionMouvement: 0.008, portee: 30, chute: [8, 24, 0.45], tete: 1.4, recul: 0.008, vitesse: 1.05, changement: 0.25, gonfle: 0.15, visee: { viseur: 'aucun', zoom: 1.15, dispersion: 0.6, vitesse: 0.75, entree: 0.12, oeil: null }, couleur: '#4FD1E0' },
-    { id: 'arrosoir', nom: 'Arrosoir', role: 'principale', option: true, modele: 'blaster-p', degats: 11, plombs: 1, cadence: 11, semiAuto: false, chargeur: 60, reserve: 120, recharge: 3.2, dispersion: 0.032, dispersionMouvement: 0.04, portee: 60, chute: [15, 45, 0.5], tete: 1.3, recul: 0.009, vitesse: 0.85, changement: 0.5, gonfle: 0.2, visee: { viseur: 'aucun', zoom: 1.2, dispersion: 0.6, vitesse: 0.5, entree: 0.25, oeil: null }, couleur: '#FF9F5A' },
+    { id: 'ak74', nom: 'AK-74', classe: 'fusil', role: 'principale', modele: 'ak74', degats: 24, plombs: 1, cadence: 8.5, semiAuto: false, chargeur: 30, reserve: 120, recharge: 2.3, dispersion: 0.034, dispersionMouvement: 0.032, portee: 150, chute: [30, 90, 0.7], tete: 1.5, recul: 0.016, vitesse: 1, changement: 0.45, gonfle: 0.26, visee: VISEE('point', 1.5, 0.28, 0.6, 0.24), couleur: '#E8A25A' },
+    { id: 'm4', nom: 'M4', classe: 'fusil', role: 'principale', modele: 'm4', degats: 22, plombs: 1, cadence: 8.8, semiAuto: false, chargeur: 30, reserve: 120, recharge: 2.1, dispersion: 0.028, dispersionMouvement: 0.028, portee: 150, chute: [35, 100, 0.72], tete: 1.5, recul: 0.012, vitesse: 1, changement: 0.42, gonfle: 0.2, visee: VISEE('point', 1.5, 0.26, 0.62, 0.22), couleur: '#E8A25A' },
+    { id: 'ump', nom: 'UMP', classe: 'mitraillette', role: 'principale', modele: 'ump', degats: 22, plombs: 1, cadence: 10, semiAuto: false, chargeur: 25, reserve: 125, recharge: 2.0, dispersion: 0.036, dispersionMouvement: 0.018, portee: 80, chute: [12, 35, 0.5], tete: 1.4, recul: 0.011, vitesse: 1.03, changement: 0.36, gonfle: 0.18, visee: VISEE('point', 1.45, 0.5, 0.72, 0.18), couleur: '#5FC2D9' },
+    { id: 'mp9', nom: 'MP9', classe: 'mitraillette', role: 'principale', modele: 'mp9', degats: 15, plombs: 1, cadence: 15, semiAuto: false, chargeur: 30, reserve: 120, recharge: 1.8, dispersion: 0.042, dispersionMouvement: 0.014, portee: 70, chute: [10, 30, 0.45], tete: 1.4, recul: 0.008, vitesse: 1.05, changement: 0.32, gonfle: 0.11, visee: VISEE('point', 1.4, 0.55, 0.75, 0.16), couleur: '#5FC2D9' },
+    { id: 'pompe', nom: 'Fusil à pompe', classe: 'pompe', role: 'principale', modele: 'pompe', degats: 15, plombs: 9, cadence: 1.2, semiAuto: false, chargeur: 6, reserve: 30, recharge: 2.8, dispersion: 0.055, dispersionMouvement: 0.02, portee: 40, chute: [6, 22, 0.15], tete: 1.25, recul: 0.07, vitesse: 0.97, changement: 0.5, gonfle: 0.8, visee: VISEE('fer', 1.25, 0.85, 0.7, 0.2), couleur: '#7FCF7A' },
+    { id: 'm24', nom: 'M24', classe: 'sniper', role: 'principale', modele: 'm24', degats: 75, plombs: 1, cadence: 0.8, semiAuto: false, chargeur: 5, reserve: 25, recharge: 3.0, dispersion: 0.06, dispersionMouvement: 0.08, portee: 300, chute: [120, 300, 0.85], tete: 2, recul: 0.06, vitesse: 0.92, changement: 0.6, gonfle: 1, visee: VISEE('lunette', 4, 0.02, 0.42, 0.3), couleur: '#B8A6FF' },
+    { id: 'awm', nom: 'AWM', classe: 'sniper', role: 'principale', modele: 'awm', degats: 90, plombs: 1, cadence: 0.75, semiAuto: false, chargeur: 5, reserve: 20, recharge: 3.4, dispersion: 0.065, dispersionMouvement: 0.09, portee: 300, chute: [140, 300, 0.85], tete: 2, recul: 0.075, vitesse: 0.88, changement: 0.65, gonfle: 1, visee: VISEE('lunette', 4, 0.016, 0.38, 0.3), couleur: '#B8A6FF' },
+    { id: 'm1911', nom: 'M1911', classe: 'pistolet', role: 'secondaire', modele: 'm1911', degats: 30, plombs: 1, cadence: 3.3, semiAuto: true, chargeur: 7, reserve: 35, recharge: 1.6, dispersion: 0.02, dispersionMouvement: 0.015, portee: 60, chute: [15, 45, 0.6], tete: 1.6, recul: 0.04, vitesse: 1.05, changement: 0.3, gonfle: 0.4, visee: VISEE('fer', 1.25, 0.5, 0.85, 0.14), couleur: '#7FB3FF' },
+    { id: 'p226', nom: 'P226', classe: 'pistolet', role: 'secondaire', modele: 'p226', degats: 22, plombs: 1, cadence: 4.5, semiAuto: true, chargeur: 15, reserve: 45, recharge: 1.5, dispersion: 0.018, dispersionMouvement: 0.013, portee: 60, chute: [18, 50, 0.6], tete: 1.6, recul: 0.03, vitesse: 1.05, changement: 0.28, gonfle: 0.3, visee: VISEE('fer', 1.25, 0.5, 0.85, 0.13), couleur: '#7FB3FF' },
   ];
-  // l'ordre du réseau (indices dans l'instantané) : il ne fait que s'allonger ; 'splash' (Lance-bombes) est réservé, pas encore une arme
-  const ARMES_ID = ['rafale', 'pompe', 'precision', 'carabine', 'petoire', 'arroseuse', 'arrosoir', 'splash'];
+  // l'ordre du réseau (indices dans l'instantané) : repart à zéro avec la VERSION 2 du réseau, puis ne fait que s'allonger
+  const ARMES_ID = ['ak74', 'm4', 'ump', 'mp9', 'pompe', 'm24', 'awm', 'm1911', 'p226'];
   const PAR_ID = Object.create(null); for (const a of ARMES) PAR_ID[a.id] = a;
-  const arme = (id) => PAR_ID[id] || ARMES[0];
+  const arme = (id) => PAR_ID[id] || ARMES[0]; // un id inconnu rend la première arme (l'AK-74)
   const estArme = (id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(PAR_ID, id);
   function degatsA(a, distance, tete) { // dégâts d'un plomb à cette distance
     const [d0, d1, mini] = a.chute, k = distance <= d0 ? 1 : distance >= d1 ? mini : 1 - (1 - mini) * (distance - d0) / (d1 - d0);
     return Math.round(a.degats * k * (tete ? a.tete : 1));
   }
-  // les objets à ramasser : soin, armure, munitions (remplit les deux réserves), armes.
-  // Une arme au sol (type 'arme') : aujourd'hui (mode historique) elle s'ajoute aux armes possédées ; avec les emplacements (v2), elle
-  // remplace la principale jusqu'à la mort (ou remplit sa réserve si c'est déjà la sienne). 'arme' : l'arme posée est dite par la zone.
+  // les objets à ramasser : soin, armure, caisse de munitions (remplit les deux réserves), armes réelles (une par principale, sous son
+  // id). Une arme au sol remplace la principale jusqu'à la mort (ou remplit sa réserve si c'est déjà la sienne). 'precision' : l'ancien
+  // nom des cartes (zones.armes), un fusil de précision que le mode remplace par une vraie arme (alias: true, jamais posé tel quel).
   const OBJETS = {
-    pompe: { type: 'arme', arme: 'pompe', retour: 20 }, precision: { type: 'arme', arme: 'precision', retour: 25 },
     soin: { type: 'soin', vie: 50, retour: 15 }, armure: { type: 'armure', armure: 50, retour: 25 },
     munitions: { type: 'munitions', retour: 15 },
   };
-  for (const a of ARMES) if (a.role === 'principale' && !OBJETS[a.id]) OBJETS[a.id] = { type: 'arme', arme: a.id, retour: 20 };
+  for (const a of ARMES) if (a.role === 'principale') OBJETS[a.id] = { type: 'arme', arme: a.id, retour: a.classe === 'sniper' ? 25 : 20 };
+  OBJETS.precision = { type: 'arme', arme: 'm24', retour: 25, alias: true };
 
   // ─── les modes ───
   const MODES = {
@@ -102,9 +110,9 @@
   const DEFAUT_REGLAGES = Object.freeze({
     v: 2, mode: 'arene', zone: 'centre', duree: 180, score: 25, heure: 'jour', meteo: 'clair', equipes: false,
     bots: 4, niveau: 'normal', tirAllie: false, vie: 'normale', reapparition: 'rapide', manches: 3, objets: true, aide: true,
-    armes: Object.freeze(['rafale', 'pompe', 'precision', 'carabine', 'petoire', 'arroseuse']),
+    armes: Object.freeze(ARMES_ID.slice()),
   });
-  const DEFAUT_EQUIP = Object.freeze({ p: 'rafale', s: 'petoire' });
+  const DEFAUT_EQUIP = Object.freeze({ p: 'ak74', s: 'p226' });
   const dans = (v, liste, defaut) => (liste.indexOf(v) >= 0 ? v : defaut);
   const cle = (v, obj, defaut) => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(obj, v) ? v : defaut);
   const bool = (v, defaut) => (typeof v === 'boolean' ? v : defaut);
@@ -133,7 +141,7 @@
       objets: bool(r.objets, D.objets), aide: bool(r.aide, D.aide), armes: armesPermises(r.armes),
     };
   }
-  // equipementDe(demande, reglages) → { p, s } : demande { p, s } ou 'carabine+arroseuse' ; une arme non autorisée (ou du mauvais
+  // equipementDe(demande, reglages) → { p, s } : demande { p, s } ou 'm4+m1911' ; une arme non autorisée (ou du mauvais
   // emplacement) devient la première arme autorisée de l'emplacement (DEFAUT_EQUIP d'abord, s'il est autorisé)
   function equipementDe(demande, reglages) {
     const permises = armesPermises(reglages && Array.isArray(reglages.armes) ? reglages.armes : DEFAUT_REGLAGES.armes);
@@ -147,10 +155,24 @@
     };
     return { p: choisir(p, 'principale', DEFAUT_EQUIP.p), s: choisir(s, 'secondaire', DEFAUT_EQUIP.s) };
   }
+  // l'équipement d'un robot (§ 11) : tiré au hasard rejouable parmi les armes permises, pondéré par classe (les fusils de précision
+  // plus souvent chez les « fort ») ; rend { p, s }
+  const POIDS_ROBOTS = { fusil: 3, mitraillette: 2, pompe: 2, sniper: 1, pistolet: 1 };
+  function equipementRobot(rnd, reglages, niveau) {
+    const permises = armesPermises(reglages && Array.isArray(reglages.armes) ? reglages.armes : DEFAUT_REGLAGES.armes);
+    const tirer = (role) => {
+      let total = 0; const ps = [];
+      for (const id of permises) { const a = PAR_ID[id]; if (a.role !== role) continue; const w = a.classe === 'sniper' && niveau === 'fort' ? 2 : POIDS_ROBOTS[a.classe] || 1; ps.push(id, w); total += w; }
+      let r = rnd() * total;
+      for (let i = 0; i < ps.length; i += 2) { r -= ps[i + 1]; if (r < 0) return ps[i]; }
+      return ps.length ? ps[ps.length - 2] : null;
+    };
+    return equipementDe({ p: tirer('principale'), s: tirer('secondaire') }, { armes: permises });
+  }
 
   // ─── hasard rejouable ───
   function mulberry32(a) { a = a >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   const hash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
 
-  return { JOUEUR, ARMES, ARMES_ID, arme, estArme, degatsA, OBJETS, MODES, BOTS, NOMS_BOTS, COULEURS, SALON, DEFAUT_REGLAGES, DEFAUT_EQUIP, normaliserReglages, equipementDe, armesPermises, mulberry32, hash };
+  return { JOUEUR, ARMES, ARMES_ID, CLASSES, arme, estArme, degatsA, OBJETS, MODES, BOTS, NOMS_BOTS, COULEURS, SALON, DEFAUT_REGLAGES, DEFAUT_EQUIP, normaliserReglages, equipementDe, armesPermises, equipementRobot, mulberry32, hash };
 });

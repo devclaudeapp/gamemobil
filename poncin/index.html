@@ -1348,8 +1348,8 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
 if (typeof module !== 'undefined') module.exports = PERSOS;
 
 /* ── regles.js ── */
-/* OPÉRATION PONCIN — les règles chiffrées : le joueur (et ses postures), les blasters à peinture, les objets, les modes, les réglages du
-   salon (défauts, bornes, normalisation), le niveau des bots, le hasard rejouable.
+/* OPÉRATION PONCIN — les règles chiffrées : le joueur (et ses postures), l'arsenal (neuf vraies armes, deux emplacements), les objets,
+   les modes, les réglages du salon (défauts, bornes, normalisation), le niveau et l'équipement des robots, le hasard rejouable.
    Module pur (aucun DOM, aucun THREE) : tourne aussi dans Node pour les tests. Voir src-poncin/ARCHITECTURE.md (« Lot Gameplay : contrat »)
    et, pour l'origine des chiffres, la conception du lot Gameplay (§ 3, 5, 6). */
 (function (root, factory) {
@@ -1389,43 +1389,51 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     pente: { montee: 0.8, plancher: 0.6, descente: 0.3, plafond: 1.15 }, // montée ×(1 − 0,8·p) ≥ 0,6 ; descente ×(1 + 0,3·|p|) ≤ 1,15
   };
 
-  // ─── les blasters à peinture (§ 5) ───
-  // chute : [début, fin, minimum] — pleine puissance jusqu'à début, puis baisse linéaire jusqu'à minimum (fraction) à fin.
-  // role : 'principale' | 'secondaire' ; modele : le modèle du pack (Blaster Kit) ; semiAuto : garder le doigt appuyé tire au rythme
-  // maximal ; vitesse : facteur de déplacement arme en main ; changement : temps pour la sortir (s) ; gonfle : ouverture du viseur par tir
-  // (retombe de 3,2/s) ; visee : { viseur, zoom, dispersion (facteur de la dispersion de hanche), vitesse (facteur de déplacement),
-  // entree (mise en joue, s), oeil (point de mire du modèle, donné par le lot du pack : null en attendant) }.
-  // option : hors de la liste des armes autorisées par défaut.
+  // ─── l'arsenal (§ 5, livraison 2 « Vraies armes ») : neuf armes réelles, deux emplacements ───
+  // Champs : id, nom, classe (PREGLES.CLASSES), role ('principale' | 'secondaire'), modele (= id : poncin/armes/<id>.glb), degats (par
+  // balle, ou par plomb), plombs, cadence (tirs/s), semiAuto (garder le doigt appuyé tire au rythme maximal), chargeur, reserve,
+  // recharge (s), dispersion (rad, à la hanche), dispersionMouvement (rad, en plus à 5,2 m/s), portee (m), chute : [début, fin, minimum]
+  // (pleine puissance jusqu'à début, puis baisse linéaire jusqu'à minimum à fin), tete (multiplicateur), recul (rad : le regard se
+  // relève de recul × 0,6), vitesse (facteur de déplacement arme en main), changement (temps pour la sortir, s), gonfle (ouverture du
+  // viseur par tir, retombe de 3,2/s), visee : { viseur: 'lunette' | 'point' | 'fer', zoom, dispersion (facteur de la dispersion de
+  // hanche), vitesse (facteur de déplacement), entree (mise en joue, s), oeil (point de mire du modèle, mesuré par le rendu : null) },
+  // couleur (la pastille du HUD, par classe).
+  // Temps pour éliminer 100 PV (sans armure, au corps, à portée utile ; ⌈100 / dégâts⌉ balles, (n − 1) / cadence) — les duels de
+  // test/poncin-armes.test.js le vérifient dans la simulation :
+  //   AK-74 5 × 24, 8,5/s → 0,47 s ; M4 5 × 22, 8,8/s → 0,45 s ; UMP 5 × 22, 10/s → 0,40 s ; MP9 7 × 15, 15/s → 0,40 s ;
+  //   pompe 9 plombs × 15 → un coup jusqu'à 8 m (plus à 10 m : la gerbe s'ouvre, les plombs faiblissent) ; M24 75 (tête × 2 = 150), 0,8/s, et AWM 90 (× 2), 0,75/s, plus lourd : un coup à la tête, deux au corps ;
+  //   M1911 4 × 30, 3,3/s → 0,91 s ; P226 5 × 22, 4,5/s → 0,89 s.
+  const CLASSES = { fusil: 'Fusil d’assaut', mitraillette: 'Mitraillette', pompe: 'Fusil à pompe', sniper: 'Fusil de précision', pistolet: 'Pistolet' };
+  const VISEE = (viseur, zoom, dispersion, vitesse, entree) => ({ viseur, zoom, dispersion, vitesse, entree, oeil: null });
   const ARMES = [
-    { id: 'rafale', nom: 'Blaster rafale', role: 'principale', modele: 'blaster-d', degats: 13, plombs: 1, cadence: 9, semiAuto: false, chargeur: 30, reserve: 120, recharge: 1.6, dispersion: 0.022, dispersionMouvement: 0.02, portee: 70, chute: [18, 45, 0.55], tete: 1.5, recul: 0.012, vitesse: 1, changement: 0.36, gonfle: 0.22, visee: { viseur: 'aucun', zoom: 1.25, dispersion: 0.45, vitesse: 0.6, entree: 0.18, oeil: null }, couleur: '#FF6B8B' },
-    { id: 'pompe', nom: 'Pompe à peinture', role: 'principale', modele: 'blaster-h', degats: 11, plombs: 8, cadence: 1.15, semiAuto: false, chargeur: 6, reserve: 24, recharge: 2.2, dispersion: 0.085, dispersionMouvement: 0.02, portee: 28, chute: [6, 20, 0.25], tete: 1.25, recul: 0.06, vitesse: 1, changement: 0.36, gonfle: 0.8, visee: { viseur: 'aucun', zoom: 1.1, dispersion: 0.8, vitesse: 0.7, entree: 0.15, oeil: null }, couleur: '#5FD3A4' },
-    // Long-tir : la dispersion de hanche v2 est 0,03 (× 0,05 en visée = 0,0015). TANT QUE LA VISÉE N'EST PAS BRANCHÉE (lot 2/2), la partie
-    // actuelle garde l'ancienne dispersion de hanche, dispersionAvantVisee = 0,0015 (PARMES.dispersion, mode historique) : le Long-tir
-    // tire comme aujourd'hui. À retirer au branchement de la visée (et les robots viseront, § 11).
-    { id: 'precision', nom: 'Long-tir', role: 'principale', modele: 'blaster-e', degats: 72, plombs: 1, cadence: 0.85, semiAuto: false, chargeur: 5, reserve: 20, recharge: 2.4, dispersion: 0.03, dispersionAvantVisee: 0.0015, dispersionMouvement: 0.06, portee: 160, chute: [80, 160, 0.8], tete: 1.6, recul: 0.05, vitesse: 0.95, changement: 0.4, gonfle: 1, visee: { viseur: 'lunette', zoom: 3, dispersion: 0.05, vitesse: 0.45, entree: 0.25, oeil: null }, couleur: '#B8A6FF' },
-    { id: 'carabine', nom: 'Carabine Marqueur', role: 'principale', modele: 'blaster-f', degats: 30, plombs: 1, cadence: 3.2, semiAuto: true, chargeur: 10, reserve: 40, recharge: 1.9, dispersion: 0.012, dispersionMouvement: 0.035, portee: 110, chute: [40, 100, 0.7], tete: 1.5, recul: 0.03, vitesse: 0.95, changement: 0.36, gonfle: 0.45, visee: { viseur: 'point rouge', zoom: 1.6, dispersion: 0.25, vitesse: 0.55, entree: 0.2, oeil: null }, couleur: '#FFC84A' },
-    { id: 'petoire', nom: 'Pistolet Pétoire', role: 'secondaire', modele: 'blaster-b', degats: 24, plombs: 1, cadence: 4, semiAuto: true, chargeur: 12, reserve: 48, recharge: 1.1, dispersion: 0.012, dispersionMouvement: 0.012, portee: 55, chute: [15, 40, 0.6], tete: 1.6, recul: 0.035, vitesse: 1.05, changement: 0.22, gonfle: 0.35, visee: { viseur: 'aucun', zoom: 1.2, dispersion: 0.4, vitesse: 0.75, entree: 0.12, oeil: null }, couleur: '#7FB3FF' },
-    { id: 'arroseuse', nom: 'Mitraillette Arroseuse', role: 'secondaire', modele: 'blaster-k', degats: 8, plombs: 1, cadence: 14, semiAuto: false, chargeur: 24, reserve: 96, recharge: 1.3, dispersion: 0.04, dispersionMouvement: 0.008, portee: 30, chute: [8, 24, 0.45], tete: 1.4, recul: 0.008, vitesse: 1.05, changement: 0.25, gonfle: 0.15, visee: { viseur: 'aucun', zoom: 1.15, dispersion: 0.6, vitesse: 0.75, entree: 0.12, oeil: null }, couleur: '#4FD1E0' },
-    { id: 'arrosoir', nom: 'Arrosoir', role: 'principale', option: true, modele: 'blaster-p', degats: 11, plombs: 1, cadence: 11, semiAuto: false, chargeur: 60, reserve: 120, recharge: 3.2, dispersion: 0.032, dispersionMouvement: 0.04, portee: 60, chute: [15, 45, 0.5], tete: 1.3, recul: 0.009, vitesse: 0.85, changement: 0.5, gonfle: 0.2, visee: { viseur: 'aucun', zoom: 1.2, dispersion: 0.6, vitesse: 0.5, entree: 0.25, oeil: null }, couleur: '#FF9F5A' },
+    { id: 'ak74', nom: 'AK-74', classe: 'fusil', role: 'principale', modele: 'ak74', degats: 24, plombs: 1, cadence: 8.5, semiAuto: false, chargeur: 30, reserve: 120, recharge: 2.3, dispersion: 0.034, dispersionMouvement: 0.032, portee: 150, chute: [30, 90, 0.7], tete: 1.5, recul: 0.016, vitesse: 1, changement: 0.45, gonfle: 0.26, visee: VISEE('point', 1.5, 0.28, 0.6, 0.24), couleur: '#E8A25A' },
+    { id: 'm4', nom: 'M4', classe: 'fusil', role: 'principale', modele: 'm4', degats: 22, plombs: 1, cadence: 8.8, semiAuto: false, chargeur: 30, reserve: 120, recharge: 2.1, dispersion: 0.028, dispersionMouvement: 0.028, portee: 150, chute: [35, 100, 0.72], tete: 1.5, recul: 0.012, vitesse: 1, changement: 0.42, gonfle: 0.2, visee: VISEE('point', 1.5, 0.26, 0.62, 0.22), couleur: '#E8A25A' },
+    { id: 'ump', nom: 'UMP', classe: 'mitraillette', role: 'principale', modele: 'ump', degats: 22, plombs: 1, cadence: 10, semiAuto: false, chargeur: 25, reserve: 125, recharge: 2.0, dispersion: 0.036, dispersionMouvement: 0.018, portee: 80, chute: [12, 35, 0.5], tete: 1.4, recul: 0.011, vitesse: 1.03, changement: 0.36, gonfle: 0.18, visee: VISEE('point', 1.45, 0.5, 0.72, 0.18), couleur: '#5FC2D9' },
+    { id: 'mp9', nom: 'MP9', classe: 'mitraillette', role: 'principale', modele: 'mp9', degats: 15, plombs: 1, cadence: 15, semiAuto: false, chargeur: 30, reserve: 120, recharge: 1.8, dispersion: 0.042, dispersionMouvement: 0.014, portee: 70, chute: [10, 30, 0.45], tete: 1.4, recul: 0.008, vitesse: 1.05, changement: 0.32, gonfle: 0.11, visee: VISEE('point', 1.4, 0.55, 0.75, 0.16), couleur: '#5FC2D9' },
+    { id: 'pompe', nom: 'Fusil à pompe', classe: 'pompe', role: 'principale', modele: 'pompe', degats: 15, plombs: 9, cadence: 1.2, semiAuto: false, chargeur: 6, reserve: 30, recharge: 2.8, dispersion: 0.055, dispersionMouvement: 0.02, portee: 40, chute: [6, 22, 0.15], tete: 1.25, recul: 0.07, vitesse: 0.97, changement: 0.5, gonfle: 0.8, visee: VISEE('fer', 1.25, 0.85, 0.7, 0.2), couleur: '#7FCF7A' },
+    { id: 'm24', nom: 'M24', classe: 'sniper', role: 'principale', modele: 'm24', degats: 75, plombs: 1, cadence: 0.8, semiAuto: false, chargeur: 5, reserve: 25, recharge: 3.0, dispersion: 0.06, dispersionMouvement: 0.08, portee: 300, chute: [120, 300, 0.85], tete: 2, recul: 0.06, vitesse: 0.92, changement: 0.6, gonfle: 1, visee: VISEE('lunette', 4, 0.02, 0.42, 0.3), couleur: '#B8A6FF' },
+    { id: 'awm', nom: 'AWM', classe: 'sniper', role: 'principale', modele: 'awm', degats: 90, plombs: 1, cadence: 0.75, semiAuto: false, chargeur: 5, reserve: 20, recharge: 3.4, dispersion: 0.065, dispersionMouvement: 0.09, portee: 300, chute: [140, 300, 0.85], tete: 2, recul: 0.075, vitesse: 0.88, changement: 0.65, gonfle: 1, visee: VISEE('lunette', 4, 0.016, 0.38, 0.3), couleur: '#B8A6FF' },
+    { id: 'm1911', nom: 'M1911', classe: 'pistolet', role: 'secondaire', modele: 'm1911', degats: 30, plombs: 1, cadence: 3.3, semiAuto: true, chargeur: 7, reserve: 35, recharge: 1.6, dispersion: 0.02, dispersionMouvement: 0.015, portee: 60, chute: [15, 45, 0.6], tete: 1.6, recul: 0.04, vitesse: 1.05, changement: 0.3, gonfle: 0.4, visee: VISEE('fer', 1.25, 0.5, 0.85, 0.14), couleur: '#7FB3FF' },
+    { id: 'p226', nom: 'P226', classe: 'pistolet', role: 'secondaire', modele: 'p226', degats: 22, plombs: 1, cadence: 4.5, semiAuto: true, chargeur: 15, reserve: 45, recharge: 1.5, dispersion: 0.018, dispersionMouvement: 0.013, portee: 60, chute: [18, 50, 0.6], tete: 1.6, recul: 0.03, vitesse: 1.05, changement: 0.28, gonfle: 0.3, visee: VISEE('fer', 1.25, 0.5, 0.85, 0.13), couleur: '#7FB3FF' },
   ];
-  // l'ordre du réseau (indices dans l'instantané) : il ne fait que s'allonger ; 'splash' (Lance-bombes) est réservé, pas encore une arme
-  const ARMES_ID = ['rafale', 'pompe', 'precision', 'carabine', 'petoire', 'arroseuse', 'arrosoir', 'splash'];
+  // l'ordre du réseau (indices dans l'instantané) : repart à zéro avec la VERSION 2 du réseau, puis ne fait que s'allonger
+  const ARMES_ID = ['ak74', 'm4', 'ump', 'mp9', 'pompe', 'm24', 'awm', 'm1911', 'p226'];
   const PAR_ID = Object.create(null); for (const a of ARMES) PAR_ID[a.id] = a;
-  const arme = (id) => PAR_ID[id] || ARMES[0];
+  const arme = (id) => PAR_ID[id] || ARMES[0]; // un id inconnu rend la première arme (l'AK-74)
   const estArme = (id) => typeof id === 'string' && Object.prototype.hasOwnProperty.call(PAR_ID, id);
   function degatsA(a, distance, tete) { // dégâts d'un plomb à cette distance
     const [d0, d1, mini] = a.chute, k = distance <= d0 ? 1 : distance >= d1 ? mini : 1 - (1 - mini) * (distance - d0) / (d1 - d0);
     return Math.round(a.degats * k * (tete ? a.tete : 1));
   }
-  // les objets à ramasser : soin, armure, munitions (remplit les deux réserves), armes.
-  // Une arme au sol (type 'arme') : aujourd'hui (mode historique) elle s'ajoute aux armes possédées ; avec les emplacements (v2), elle
-  // remplace la principale jusqu'à la mort (ou remplit sa réserve si c'est déjà la sienne). 'arme' : l'arme posée est dite par la zone.
+  // les objets à ramasser : soin, armure, caisse de munitions (remplit les deux réserves), armes réelles (une par principale, sous son
+  // id). Une arme au sol remplace la principale jusqu'à la mort (ou remplit sa réserve si c'est déjà la sienne). 'precision' : l'ancien
+  // nom des cartes (zones.armes), un fusil de précision que le mode remplace par une vraie arme (alias: true, jamais posé tel quel).
   const OBJETS = {
-    pompe: { type: 'arme', arme: 'pompe', retour: 20 }, precision: { type: 'arme', arme: 'precision', retour: 25 },
     soin: { type: 'soin', vie: 50, retour: 15 }, armure: { type: 'armure', armure: 50, retour: 25 },
     munitions: { type: 'munitions', retour: 15 },
   };
-  for (const a of ARMES) if (a.role === 'principale' && !OBJETS[a.id]) OBJETS[a.id] = { type: 'arme', arme: a.id, retour: 20 };
+  for (const a of ARMES) if (a.role === 'principale') OBJETS[a.id] = { type: 'arme', arme: a.id, retour: a.classe === 'sniper' ? 25 : 20 };
+  OBJETS.precision = { type: 'arme', arme: 'm24', retour: 25, alias: true };
 
   // ─── les modes ───
   const MODES = {
@@ -1452,9 +1460,9 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   const DEFAUT_REGLAGES = Object.freeze({
     v: 2, mode: 'arene', zone: 'centre', duree: 180, score: 25, heure: 'jour', meteo: 'clair', equipes: false,
     bots: 4, niveau: 'normal', tirAllie: false, vie: 'normale', reapparition: 'rapide', manches: 3, objets: true, aide: true,
-    armes: Object.freeze(['rafale', 'pompe', 'precision', 'carabine', 'petoire', 'arroseuse']),
+    armes: Object.freeze(ARMES_ID.slice()),
   });
-  const DEFAUT_EQUIP = Object.freeze({ p: 'rafale', s: 'petoire' });
+  const DEFAUT_EQUIP = Object.freeze({ p: 'ak74', s: 'p226' });
   const dans = (v, liste, defaut) => (liste.indexOf(v) >= 0 ? v : defaut);
   const cle = (v, obj, defaut) => (typeof v === 'string' && Object.prototype.hasOwnProperty.call(obj, v) ? v : defaut);
   const bool = (v, defaut) => (typeof v === 'boolean' ? v : defaut);
@@ -1483,7 +1491,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       objets: bool(r.objets, D.objets), aide: bool(r.aide, D.aide), armes: armesPermises(r.armes),
     };
   }
-  // equipementDe(demande, reglages) → { p, s } : demande { p, s } ou 'carabine+arroseuse' ; une arme non autorisée (ou du mauvais
+  // equipementDe(demande, reglages) → { p, s } : demande { p, s } ou 'm4+m1911' ; une arme non autorisée (ou du mauvais
   // emplacement) devient la première arme autorisée de l'emplacement (DEFAUT_EQUIP d'abord, s'il est autorisé)
   function equipementDe(demande, reglages) {
     const permises = armesPermises(reglages && Array.isArray(reglages.armes) ? reglages.armes : DEFAUT_REGLAGES.armes);
@@ -1497,12 +1505,26 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     };
     return { p: choisir(p, 'principale', DEFAUT_EQUIP.p), s: choisir(s, 'secondaire', DEFAUT_EQUIP.s) };
   }
+  // l'équipement d'un robot (§ 11) : tiré au hasard rejouable parmi les armes permises, pondéré par classe (les fusils de précision
+  // plus souvent chez les « fort ») ; rend { p, s }
+  const POIDS_ROBOTS = { fusil: 3, mitraillette: 2, pompe: 2, sniper: 1, pistolet: 1 };
+  function equipementRobot(rnd, reglages, niveau) {
+    const permises = armesPermises(reglages && Array.isArray(reglages.armes) ? reglages.armes : DEFAUT_REGLAGES.armes);
+    const tirer = (role) => {
+      let total = 0; const ps = [];
+      for (const id of permises) { const a = PAR_ID[id]; if (a.role !== role) continue; const w = a.classe === 'sniper' && niveau === 'fort' ? 2 : POIDS_ROBOTS[a.classe] || 1; ps.push(id, w); total += w; }
+      let r = rnd() * total;
+      for (let i = 0; i < ps.length; i += 2) { r -= ps[i + 1]; if (r < 0) return ps[i]; }
+      return ps.length ? ps[ps.length - 2] : null;
+    };
+    return equipementDe({ p: tirer('principale'), s: tirer('secondaire') }, { armes: permises });
+  }
 
   // ─── hasard rejouable ───
   function mulberry32(a) { a = a >>> 0; return function () { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   const hash = (s) => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; };
 
-  return { JOUEUR, ARMES, ARMES_ID, arme, estArme, degatsA, OBJETS, MODES, BOTS, NOMS_BOTS, COULEURS, SALON, DEFAUT_REGLAGES, DEFAUT_EQUIP, normaliserReglages, equipementDe, armesPermises, mulberry32, hash };
+  return { JOUEUR, ARMES, ARMES_ID, CLASSES, arme, estArme, degatsA, OBJETS, MODES, BOTS, NOMS_BOTS, COULEURS, SALON, DEFAUT_REGLAGES, DEFAUT_EQUIP, normaliserReglages, equipementDe, armesPermises, equipementRobot, mulberry32, hash };
 });
 
 /* ── carte-provisoire.js ── */
@@ -1991,7 +2013,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
    (bz − az, ax − bx) / longueur), passages (ci-dessous).
    En plus : passe(ax, az, bx, bz, r) (la capsule du segment ne touche rien), dedans(x, z) (dans une région pleine), pente(x, z) →
    [dh/dx, dh/dz] (tableau partagé, à copier), sousVoute(x, z) → l'indice du passage dont on est sous la voûte, sinon −1 ; arche(p, x, z)
-   → y de l'intrados du passage p au-dessus du point ; couloirs (les ponts), interdits, stats ; accessible (x, z) → bool, branché par
+   → y de l'intrados du passage p au-dessus du point ; couloirs (les ponts), interdits, stats ; carte (celle d'origine) ; accessible (x, z) → bool, branché par
    PNAV.creer : libre() préfère alors la composante principale de la navigation (jamais une cour fermée).
    monde.passages (normalisés, pour rendu.js) : [{ n, l: [[ax, az], [bx, bz]], w, h, u: [ux, uz], long, sol: [ya, yb] (relief aux deux
    bouts), b: [indices de monde.batiments], bats: [{ i, entree: { x, z, a, s }, sortie: { x, z, a, s }, coupes: [{ a, s0, s1 }] }] }] :
@@ -2776,6 +2798,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     const secours = () => limiteOk(monde.limite) ? libre(rndDefaut) : libre(rndDefaut, [0, 0], L / 2); // une position perdue (NaN) revient sur un point libre
 
     const monde = {
+      carte, // la carte d'origine (la matière des murs et du mobilier pour les impacts : PARMES.matiere)
       L, limite: null, batiments, interdits, couloirs, passages, bancs, tabliers,
       hauteur, relief, chaussee, bloque, deplacer, rayon, vue, libre,
       passe, dedans, pente, sousVoute, arche,
@@ -3411,9 +3434,9 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       } else if (pos === 'couche') changerPosture(e, veutAcc ? 'accroupi' : 'debout', veutAcc ? TR.coucheAccroupi : TR.coucheDebout);
       else { const v = veutAcc ? 'accroupi' : 'debout'; if (v !== pos) changerPosture(e, v, TR.accroupi); }
     }
-    // ─ la course ─
+    // ─ la course (demander la visée la coupe : refusée en course, la visée ne monterait jamais) ─
     const etaitCourse = e.course;
-    e.course = !glisse && !!en.course && e.vers === 'debout' && e.posture === 'debout' && e.transition <= 0 && e.auSol && av >= CR.avant && Math.abs(Math.atan2(co, av)) <= CR.angle && vise < CR.vise && !en.tir;
+    e.course = !glisse && !!en.course && e.vers === 'debout' && e.posture === 'debout' && e.transition <= 0 && e.auSol && av >= CR.avant && Math.abs(Math.atan2(co, av)) <= CR.angle && vise < CR.vise && !en.vise && !en.tir;
     if (etaitCourse && en.tir) e.remonte = CR.remonte; // tirer coupe la course : le temps de remonter l'arme
     const sy = Math.sin(e.yaw), cy = Math.cos(e.yaw);
     let dep;
@@ -3519,16 +3542,18 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
 
 /* ── armes.js ── */
 /* OPÉRATION PONCIN — les armes d'une entité : deux emplacements (principale, secondaire), changement, recharge, visée, dispersion, tirs
-   instantanés (un rayon par plomb, depuis l'œil, contre le monde puis les capsules des ennemis, compensation de latence), objets.
-   Conception du lot Gameplay, § 4 et § 5 ; les chiffres sont dans regles.js (PREGLES.ARMES).
+   instantanés (un rayon par plomb, depuis l'œil, contre le monde puis les capsules des ennemis, compensation de latence), objets, et ce
+   qu'il faut au rendu pour les impacts (point, normale, matière : 'mur' | 'metal' | 'sol' | 'corps').
+   Conception du lot Gameplay, § 4 et § 5 ; les chiffres sont dans regles.js (PREGLES.ARMES : les neuf vraies armes).
    Module pur (aucun DOM, aucun THREE) : tourne aussi dans Node. Utilisé par jeu.js (PJEU.tirVisuel et PJEU.dispersion en sont des alias).
 
    Deux régimes, choisis par entité :
-   - historique (e.equip === null : la partie actuelle) : on commence au blaster rafale, les armes ramassées s'ajoutent (e.armes = les
-     armes possédées), une arme vide de tout est lâchée, le rafale ne tombe jamais en panne, changement en 0,3 s, dispersion d'avant
-     (le Long-tir garde sa dispersion de hanche de 0,0015 tant que la visée n'est pas branchée : A.dispersionAvantVisee) ;
-   - emplacements (e.equip = { p, s }, posé par PARMES.equiper avec un équipement) : e.armes = [principale, secondaire], la secondaire
-     jamais à sec, changement en A.changement, visée, dispersion v2 (§ 4), une arme ramassée remplace la principale jusqu'à la mort.
+   - emplacements (e.equip = { p, s }, posé par PARMES.equiper avec un équipement) : LE JEU (jeu.js équipe tout le monde ainsi) ;
+     e.armes = [principale, secondaire], la secondaire jamais à sec, changement en A.changement, visée, dispersion v2 (§ 4), une arme
+     ramassée remplace la principale jusqu'à la mort ;
+   - historique (e.equip === null, PARMES.equiper(e, null)) : gardé pour les vieux tests seulement, plus aucun chemin du jeu ne le
+     prend : on commence à l'arme par défaut (DEFAUT_EQUIP.p), les armes ramassées s'ajoutent, une arme vide de tout est lâchée,
+     l'arme de base ne tombe jamais en panne, changement en 0,3 s, dispersion d'avant la visée.
    Le tir a besoin de la partie : jeu.temps, jeu.dt (le pas en cours), jeu.rnd, jeu.monde, jeu.entites, jeu.ennemis, et des crochets que
    PJEU expose pour ce module : jeu.rembobiner(tireur), jeu.restaurer(), jeu.blesser(cible, de, degats, tete, arme, out), jeu.faireBruit(e, portee). */
 (function (root, factory) {
@@ -3539,11 +3564,11 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   const J = REGLES.JOUEUR, P = J.postures;
   const CHANGE_ARME = 0.3;  // historique : le temps de sortir une autre arme (s)
   const KICK = 0.6;         // la part du recul de l'arme qui relève le regard
-  const BASE = 'rafale';    // historique : le blaster de base, qui ne tombe jamais en panne
+  const BASE = REGLES.DEFAUT_EQUIP.p; // historique : l'arme de base, qui ne tombe jamais en panne
   const borne = (v, a, b) => (v < a ? a : v > b ? b : v);
   const angle = (a) => { a = a % (2 * Math.PI); return a > Math.PI ? a - 2 * Math.PI : a <= -Math.PI ? a + 2 * Math.PI : a; };
 
-  // l'arme qui ne tombe jamais en panne (sa réserve ne descend jamais sous un chargeur) : la secondaire, ou le rafale (historique)
+  // l'arme qui ne tombe jamais en panne (sa réserve ne descend jamais sous un chargeur) : la secondaire, ou l'arme de base (historique)
   const secours = (e) => (e.equip ? e.armes[1] : BASE);
 
   // ─── la dispersion (rad) ───
@@ -3553,8 +3578,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   function dispersion(e, A) {
     if (!e.equip) {
       const mvt = Math.min(1, e.vitesse / J.vitesse) + (e.auSol ? 0 : 0.6);
-      const d = A.dispersionAvantVisee != null ? A.dispersionAvantVisee : A.dispersion; // le Long-tir, jusqu'au branchement de la visée
-      return d * (e.accroupi ? 0.7 : 1) + (A.dispersionMouvement || 0) * mvt + e.gonfle * (A.recul || 0.02) * 1.6;
+      return A.dispersion * (e.accroupi ? 0.7 : 1) + (A.dispersionMouvement || 0) * mvt + e.gonfle * (A.recul || 0.02) * 1.6;
     }
     const vise = e.vise > 0 ? e.vise : 0, V = A.visee || null;
     const post = e.corpsV2 ? (P[e.vers] && P[e.vers].dispersion != null ? P[e.vers].dispersion : 1) : (e.accroupi ? 0.7 : 1);
@@ -3565,7 +3589,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   }
 
   // ─── l'équipement ───
-  // PARMES.equiper(e, equip, reglages) : equip null → l'équipement historique (rafale seul) ; sinon { p, s } (ou 'p+s'), validé par
+  // PARMES.equiper(e, equip, reglages) : equip null → l'équipement historique (l'arme de base seule, vieux tests) ; sinon { p, s } (ou 'p+s'), validé par
   // PREGLES.equipementDe(equip, reglages) ; la principale en main, chargeurs pleins, réserves pleines
   function equiper(e, equip, reglages) {
     e.enRecharge = false; e.rechargeJusqua = 0; e.gonfle = 0; e.vise = 0; e.viseStable = 0; e.changeJusqua = 0; e.changeReste = 0; e.slot = 0;
@@ -3637,7 +3661,25 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     return true;
   }
 
+  // ─── la matière touchée, pour les impacts du rendu ───
+  // 'corps' (une entité : jamais de sang, un marqueur de touche), 'sol' (terrain, chaussée : poussière), 'metal' (toit de zinc,
+  // clôture, portail, croix, abribus, banc, petit mobilier : étincelles), 'mur' (pierre, crépi, bois, troncs, voûtes : éclats, poussière).
+  // h : le résultat de monde.rayon (de, i, k) ; monde.carte sert aux murs et au mobilier (sans elle : 'mur' et 'metal').
+  const METAL_MURS = { cloture: 1, portail: 1 }, PIERRE_MOBILIER = { fontaine: 1, monument: 1 };
+  function matiere(h, monde) {
+    if (!h) return null;
+    if (h.de === 'terrain' || h.quoi === 'sol') return 'sol';
+    const c = monde && monde.carte;
+    if (h.de === 'batiment' || h.de === 'voute') { const b = h.quoi === 'toit' && monde.batiments ? monde.batiments[h.i] : null; return b && b.toit === 'zinc' ? 'metal' : 'mur'; }
+    if (h.de === 'mur') { const m = c && c.murs ? c.murs[h.k] : null; return m && METAL_MURS[m.t] ? 'metal' : 'mur'; }
+    if (h.de === 'mobilier') { const o = h.k >= 0 && c && c.mobilier ? c.mobilier[h.k] : null; return o && PIERRE_MOBILIER[o.t] ? 'mur' : 'metal'; }
+    return 'mur';
+  }
+
   // ─── un tir : un rayon par plomb, depuis l'œil, contre le monde puis les capsules ───
+  // Un événement par plomb : { t: 'tir', id, arme, o: [x, y, z] (l'œil), fin: [x, y, z], impact } ; impact = null (dans le vide, à la
+  // portée) ou { x, y, z (le point), nx, ny, nz (la normale, unitaire, vers le tireur), quoi: 'mur' | 'toit' | 'sol' | 'entite',
+  // mat: 'mur' | 'metal' | 'sol' | 'corps', id (l'entité touchée) }.
   const CIBLES = [], DEGATS = [], TETES = []; // les touchés d'un tir (agrégés par cible : la pompe fait un seul « touche » par victime)
   function tirer(e, jeu, out) {
     const A = REGLES.arme(e.arme), T = jeu.temps, dt = jeu.dt || 0, monde = jeu.monde, entites = jeu.entites;
@@ -3670,12 +3712,12 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       let impact = null;
       if (cible) {
         const nx = fx - cx, ny = fy - cyy, nz = fz - cz, nl = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1;
-        impact = { x: fx, y: fy, z: fz, nx: nx / nl, ny: ny / nl, nz: nz / nl, quoi: 'entite', id: cible.id };
+        impact = { x: fx, y: fy, z: fz, nx: nx / nl, ny: ny / nl, nz: nz / nl, quoi: 'entite', mat: 'corps', id: cible.id };
         const deg = REGLES.degatsA(A, tMax, tete);
         let i = 0; while (i < nc && CIBLES[i] !== cible) i++;
         if (i === nc) { CIBLES[nc] = cible; DEGATS[nc] = 0; TETES[nc] = false; nc++; }
         DEGATS[i] += deg; if (tete) TETES[i] = true;
-      } else if (h) impact = { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, quoi: h.quoi };
+      } else if (h) impact = { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, quoi: h.quoi, mat: matiere(h, monde) };
       out.push({ t: 'tir', id: e.id, arme: A.id, o: [ox, oy, oz], fin: [fx, fy, fz], impact });
     }
     if (rembobine) jeu.restaurer();
@@ -3705,7 +3747,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
         const t = CORPS.rayon(ox, oy, oz, dx, dy, dz, c, tMax); if (t >= 0 && t < tMax) { tMax = t; cible = c; }
       }
       const fx = ox + dx * tMax, fy = oy + dy * tMax, fz = oz + dz * tMax;
-      const impact = cible ? { x: fx, y: fy, z: fz, nx: -dx, ny: -dy, nz: -dz, quoi: 'entite', id: cible.id } : h ? { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, quoi: h.quoi } : null;
+      const impact = cible ? { x: fx, y: fy, z: fz, nx: -dx, ny: -dy, nz: -dz, quoi: 'entite', mat: 'corps', id: cible.id } : h ? { x: h.x, y: h.y, z: h.z, nx: h.nx, ny: h.ny, nz: h.nz, quoi: h.quoi, mat: matiere(h, monde) } : null;
       out.push({ t: 'tir', id: e.id, arme: A.id, o: [ox, oy, oz], fin: [fx, fy, fz], impact, local: true });
     }
     return out;
@@ -3754,7 +3796,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     else if (e.arme === O.arme && e.enRecharge) { e.enRecharge = false; e.rechargeJusqua = 0; }
   }
 
-  return { dispersion, tirer, tirVisuel, majVisee, changer, recharger, finirRecharge, equiper, agir, peutTirer, utile, prendre, secours, CHANGE_ARME, KICK };
+  return { dispersion, tirer, tirVisuel, majVisee, changer, recharger, finirRecharge, equiper, agir, peutTirer, utile, prendre, secours, matiere, CHANGE_ARME, KICK };
 });
 
 /* ── zones.js ── */
@@ -3801,16 +3843,21 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
 });
 
 /* ── bots.js ── */
-/* OPÉRATION PONCIN — les robots. PBOTS.penser(bot, jeu, dt, rnd) → une entrée de la même forme que celle d'un humain : le robot « joue »
-   au joystick (avant, côté, dyaw, dpitch, tir, saut, accroupi, recharge, arme), jamais en trichant sur sa position.
-   Perception (toutes les 0,1 s) : un cône de PREGLES.BOTS[niveau].champ radians devant lui, 45 m au plus, en ligne de vue (monde.vue,
-   vers la poitrine ou la tête) ; il sent quelqu'un collé à lui (2,5 m) ; il entend les tirs à 30 m et les pas (debout) à 10 m
-   (jeu.bruits) ; touché, il voit son agresseur jusqu'à 160 m pendant 6 s (pas de long-tir sans riposte) ; touché par quelqu'un qu'il
-   ne voit pas, il se retourne vers lui et va le chercher.
-   États : patrouille (chemin PNAV vers un objet utile, un point libre, ou vers là où ça se passe), chasse (dernière position vue ou bruit
-   entendu, puis un tour d'horizon), combat (temps de réaction, erreur de visée qui se resserre, vitesse de rotation bornée ; tir par
-   rafales ; pas de côté ; garde la bonne distance pour son arme : 8–20 m au blaster ; recharge à l'abri), fuite vers un soin sous 25 %
-   de vie. Jamais coincé : s'il voulait avancer et n'a presque pas bougé en une seconde, il saute, se dégage de côté et refait son
+/* OPÉRATION PONCIN — les robots. PBOTS.penser(bot, jeu, dt, rnd) → une entrée v2 de la même forme que celle d'un humain : le robot
+   « joue » au joystick (avant, côté, dyaw, dpitch, tir, saut, accroupi, couche, course, vise, recharge, arme : emplacement 0 / 1,
+   changer), jamais en trichant sur sa position. Il est équipé comme un humain (deux emplacements, tirés par l'Arène parmi les armes
+   permises : PREGLES.equipementRobot).
+   Perception (toutes les 0,1 s) : un cône de PREGLES.BOTS[niveau].champ radians devant lui, 45 m au plus (90 m un fusil de précision
+   en main, à la lunette), en ligne de vue (monde.vue, vers la poitrine ou la tête, selon la posture de la cible) ; il sent quelqu'un
+   collé à lui (2,5 m) ; il entend les tirs à 30 m et les pas (debout) à 10 ou 16 m en course (jeu.bruits) ; touché, il voit son
+   agresseur jusqu'à 160 m pendant 6 s (pas de tir de loin sans riposte) ; touché par quelqu'un qu'il ne voit pas, il se retourne vers
+   lui et va le chercher.
+   États : patrouille (chemin PNAV vers un objet utile, un point libre, ou vers là où ça se passe ; il court sur les longs trajets),
+   chasse (dernière position vue ou bruit entendu, puis un tour d'horizon), combat (temps de réaction, erreur de visée qui se resserre,
+   vitesse de rotation bornée ; tir par rafales ; pas de côté ; garde la bonne distance pour son arme (BANDE) ; vise au-delà de 12 m et
+   toujours au fusil de précision, qu'il ne tire qu'une fois la lunette posée ; accroupi pour tirer de loin au fusil d'assaut, couché au
+   fusil de précision (« fort ») ; passe à la secondaire quand la principale est vide ou ne convient pas à la distance ; recharge à
+   l'abri, accroupi), fuite vers un soin sous 25 % de vie. Jamais coincé : s'il voulait avancer et n'a presque pas bougé en une seconde, il saute, se dégage de côté et refait son
    chemin ; trois fois de suite, il change de but. Les requêtes de chemin passent par jeu.budgetNav (2 par image pour tous les bots).
    L'état du robot est rangé dans bot.ia (et son entrée, réutilisée d'une image à l'autre). Module pur (aucun DOM, aucun THREE).
    Voir src-poncin/ARCHITECTURE.md. */
@@ -3822,26 +3869,37 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   const J = REGLES.JOUEUR;
   const VUE = 45, SENT = 2.5, PERCEPTION = 0.1;  // portée de vue (m), « on le sent dans son dos » (m), période de perception (s)
   const VUE_AGRESSEUR = 160, AGRESSEUR = 6;      // celui qui vient de le toucher : vu jusqu'à 160 m (le long-tir) pendant 6 s
-  const BANDE = { rafale: [8, 20], pompe: [2.5, 7], precision: [20, 42] }; // la distance que le robot cherche à garder selon son arme
-  const PORTEE = { rafale: 50, pompe: 18, precision: 140 };                // au-delà, il ne tire pas
+  // la distance que le robot cherche à garder selon la classe de son arme, et sa portée de tir (au-delà, il ne tire pas) ; par arme
+  const BANDE_CLASSE = { fusil: [10, 30], mitraillette: [3, 12], pompe: [2, 7], sniper: [28, 70], pistolet: [5, 16] };
+  const PORTEE_CLASSE = { fusil: 90, mitraillette: 35, pompe: 14, sniper: 220, pistolet: 40 };
+  const BANDE = {}, PORTEE = {};
+  for (const a of REGLES.ARMES) { BANDE[a.id] = BANDE_CLASSE[a.classe] || BANDE_CLASSE.fusil; PORTEE[a.id] = Math.min(a.portee, PORTEE_CLASSE[a.classe] || 60); }
+  const VUE_LUNETTE = 90;                        // un fusil de précision en main : il voit (à la lunette) jusqu'à 90 m
+  const STABLE = { facile: 0.35, normal: 0.25, fort: 0.15 }; // la lunette posée (viseStable, s) avant de tirer au fusil de précision
+  const VISE_LOIN = 12;                          // il vise au-delà de 12 m (et toujours au fusil de précision)
   const VIE_FUITE = 25, VIE_RASSURE = 50;
   const R_PASSE = 0.38;                          // le couloir vérifié pour couper au plus court (un peu plus que le rayon d'un joueur)
   const MEMOIRE = 7;                             // on chasse une cible perdue (ou un bruit) pendant 7 s
   const fini = (v) => typeof v === 'number' && v - v === 0;
   const angle = (a) => { a = a % (2 * Math.PI); return a > Math.PI ? a - 2 * Math.PI : a <= -Math.PI ? a + 2 * Math.PI : a; };
-  const oeil = (e) => (e.accroupi ? J.oeilAccroupi : J.oeil);
+  const oeil = (e) => (e.corpsV2 && e.oeil > 0 ? e.oeil : e.accroupi ? J.oeilAccroupi : J.oeil);
+  const haut = (e) => (e.corpsV2 && e.hautCapsule > 0 ? e.hautCapsule : e.accroupi ? J.tailleAccroupi : J.taille);
+  const couche = (e) => e.vers === 'couche';
+  // les points qu'il regarde sur une cible (au-dessus des pieds) : la poitrine et la tête ; couché, le corps est à 0,3 m
+  const poitrine = (c) => (couche(c) ? 0.3 : haut(c) * 0.62), tete = (c) => (couche(c) ? 0.3 : haut(c) - 0.15);
+  const classe = (id) => REGLES.arme(id).classe;
   const DIR8 = [[1, 0], [0.7071, 0.7071], [0, 1], [-0.7071, 0.7071], [-1, 0], [-0.7071, -0.7071], [0, -1], [0.7071, -0.7071]];
 
   function cerveau(jeu, rnd) {
     return {
-      jeu, ne: -1, entree: { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null },
+      jeu, ne: -1, entree: { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, couche: false, course: false, vise: false, recharge: false, arme: null, changer: false },
       etat: 'patrouille', etatA: 0,
       cible: null, vuA: -1e9, reagitA: 0, cx: 0, cy: 0, cz: 0, cvx: 0, cvz: 0, erreur: 0, ex: 0, ey: 0,
       alerteA: -1e9, ax: 0, az: 0, retourne: false, bruitN: 0, toucheVu: -1, agresseur: null, agresseurA: -1e9,
       chemin: null, ic: 0, but: '', butX: 0, butZ: 0, butObjet: null, veut: false, raccourciA: 0, fouilleA: -1, fouilleSens: 1,
       mx: 0, mz: 0, vit: 1,
       strafe: 1, strafeA: 0, derive: 0, rafale: false, rafaleA: 0, changeA: 0, directA: 0, direct: true, approcheA: 0,
-      abri: false, abriX: 0, abriZ: 0, abriEssai: -1,
+      abri: false, abriX: 0, abriZ: 0, abriEssai: -1, posTir: false,
       percoA: jeu.temps + rnd() * PERCEPTION, regard: 0, regardA: 0,
       sx: 0, sz: 0, surveilleA: 0, envie: 0, nEnvie: 0, coince: 0, decoinceA: 0, ddx: 0, ddz: 0, echecs: 0, grilleA: 0,
       fuiteA: -1e9, pasDeFuiteAvant: 0, proie: null, flairA: 0, fox: 0, foz: 0,
@@ -3866,14 +3924,14 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     const T = jeu.temps, monde = jeu.monde, es = jeu.entites;
     const ox = bot.x, oy = bot.y + oeil(bot), oz = bot.z, fx = -Math.sin(bot.yaw), fz = -Math.cos(bot.yaw), cosC = Math.cos(niv.champ / 2);
     let best = null, bs = Infinity;
+    const loin = classe(bot.arme) === 'sniper' ? VUE_LUNETTE : VUE;
     const agr = ia.agresseur && T - ia.agresseurA < AGRESSEUR ? ia.agresseur : null; // celui qui vient de le toucher : vu bien plus loin
     for (let k = 0; k < es.length; k++) {
       const c = es[k]; if (c === bot || !c.vivant || !jeu.ennemis(bot, c)) continue;
-      const dx = c.x - ox, dz = c.z - oz, d2 = dx * dx + dz * dz, vue = c === agr ? VUE_AGRESSEUR : VUE; if (d2 > vue * vue) continue;
+      const dx = c.x - ox, dz = c.z - oz, d2 = dx * dx + dz * dz, vue = c === agr ? VUE_AGRESSEUR : loin; if (d2 > vue * vue) continue;
       const d = Math.sqrt(d2);
       if (d > SENT && dx * fx + dz * fz < cosC * d) continue; // hors du cône
-      const h = c.accroupi ? J.tailleAccroupi : J.taille;
-      if (!monde.vue(ox, oy, oz, c.x, c.y + h * 0.65, c.z) && !monde.vue(ox, oy, oz, c.x, c.y + h - 0.15, c.z)) continue;
+      if (!monde.vue(ox, oy, oz, c.x, c.y + poitrine(c), c.z) && !monde.vue(ox, oy, oz, c.x, c.y + tete(c), c.z)) continue;
       let s = d; if (c === ia.cible) s -= 10; if (bot.parQui === c.id && T - bot.toucheA < 2) s -= 6;
       if (s < bs) { bs = s; best = c; }
     }
@@ -3881,7 +3939,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       if (best !== ia.cible || T - ia.vuA > 1.5) { // nouvelle cible (ou revue après un moment) : le temps de réagir, l'erreur pleine
         ia.cible = best; ia.reagitA = T + niv.reaction * (0.75 + 0.5 * rnd());
         ia.erreur = niv.erreur * (0.8 + 0.6 * rnd()); const a = rnd() * 2 * Math.PI; ia.ex = Math.cos(a); ia.ey = Math.sin(a) * 0.6;
-        ia.rafale = false; ia.rafaleA = 0;
+        ia.rafale = false; ia.rafaleA = 0; ia.posTir = rnd() < 0.5; // une fois sur deux, il se pose (accroupi) pour tirer de loin
       }
       ia.vuA = T; ia.cx = best.x; ia.cy = best.y; ia.cz = best.z; ia.cvx = best.vx; ia.cvz = best.vz;
     }
@@ -3954,7 +4012,9 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     for (let k = 0; k < objs.length; k++) {
       const o = objs[k]; if (!o.dispo) continue;
       const O = REGLES.OBJETS[o.objet]; if (!O) continue;
-      const interet = O.type === 'arme' ? (bot.armes.indexOf(O.arme) < 0 ? 1 : 0) : O.type === 'soin' ? (bot.vie < 70 ? 1.5 : 0) : O.type === 'armure' ? (bot.armure < 25 ? 0.6 : 0) : 0;
+      // une autre arme le tente un peu (elle remplacerait sa principale) ; la sienne ou une caisse, quand sa principale manque de réserve
+      const p = bot.armes[0], bas = p && (bot.reserve[p] | 0) < REGLES.arme(p).reserve * 0.5;
+      const interet = O.type === 'arme' ? (O.arme !== p ? 0.4 : bas ? 1 : 0) : O.type === 'munitions' ? (bas ? 1.2 : 0) : O.type === 'soin' ? (bot.vie < 70 ? 1.5 : 0) : O.type === 'armure' ? (bot.armure < 25 ? 0.6 : 0) : 0;
       if (!interet) continue;
       const d = Math.sqrt((o.x - bot.x) ** 2 + (o.z - bot.z) ** 2); if (d > 60 * interet) continue; // un détour raisonnable
       if (d / interet < bd) { bd = d / interet; ob = o; }
@@ -3974,6 +4034,13 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     }
     ia.but = 'balade';
     return jeu.monde.libre(rnd);
+  }
+
+  // se coucher : au sol, la place (0,8 m), pente ≤ 35 % (les règles de PCORPS.peutCoucher)
+  function peutCoucher(bot, monde) {
+    if (!bot.auSol || monde.bloque(bot.x, bot.z, J.couche.place)) return false;
+    if (monde.pente) { const g = monde.pente(bot.x, bot.z); if (g[0] * g[0] + g[1] * g[1] > J.couche.penteMax * J.couche.penteMax) return false; }
+    return true;
   }
 
   function soinProche(bot, jeu, dmax) { // un soin disponible à moins de dmax mètres ?
@@ -4007,30 +4074,53 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     return false;
   }
 
-  // ─── viser et tirer sur la cible : réaction, erreur qui se resserre, rafales ───
+  // ─── l'emplacement qui convient (§ 11) : la secondaire si la principale est vide (chargeur vide et cible à moins de 15 m : plus vite
+  // que la recharge ; ou plus rien du tout), ou si elle ne convient pas à la distance (fusil de précision à moins de 8 m, pompe à plus
+  // de 20 m) ; la principale sinon. Au plus un changement toutes les 1,5 s. hz < 0 : pas de cible (on reprend la principale si elle a
+  // de quoi tirer). ───
+  function emplacement(bot, ia, T, hz, en) {
+    if (!bot.equip || bot.armes.length < 2 || T < ia.changeA) return;
+    const p = bot.armes[0], cp = classe(p), mp = bot.munitions[p] | 0, rp = bot.reserve[p] | 0;
+    let veut = 0;
+    if (mp + rp <= 0) veut = 1;
+    else if (hz >= 0 && ((mp <= 0 && hz < 15) || (cp === 'sniper' && hz < 8) || (cp === 'pompe' && hz > 20))) veut = 1;
+    else if (hz >= 0 && bot.slot === 1 && mp <= 0) veut = 1; // la principale à recharger : on la reprendra à l'abri
+    if (veut !== bot.slot) { en.arme = veut; ia.changeA = T + 1.5; }
+  }
+
+  // ─── viser et tirer sur la cible : réaction, erreur qui se resserre, rafales ; la visée (lunette posée au fusil de précision) ───
   function viser(bot, ia, jeu, niv, rnd, dt, en) {
     const T = jeu.temps, c = ia.cible; if (!c) return false;
     const vu = T - ia.vuA < 0.2 && c.vivant;
-    const px = vu ? c.x : ia.cx, pz = vu ? c.z : ia.cz, py = (vu ? c.y : ia.cy) + (c.accroupi ? 0.72 : 1.12);
+    const px = vu ? c.x : ia.cx, pz = vu ? c.z : ia.cz, py = (vu ? c.y : ia.cy) + poitrine(c);
     const ox = bot.x, oy = bot.y + oeil(bot), oz = bot.z, dx = px - ox, dz = pz - oz, hz = Math.sqrt(dx * dx + dz * dz);
     if (T < ia.reagitA) return false; // il ne l'a pas encore « vu »
     ia.erreur *= Math.exp(-niv.resserre * dt);
     const yawC = Math.atan2(-dx, -dz) + ia.ex * ia.erreur, pitchC = Math.atan2(py - oy, hz) + ia.ey * ia.erreur;
     tourner(bot, en, yawC, pitchC, niv.vise, dt);
-    // l'arme qui convient à la distance
-    let voulue = 'rafale';
-    if (bot.armes.indexOf('pompe') >= 0 && ((bot.munitions.pompe | 0) + (bot.reserve.pompe | 0)) > 0 && hz < 11) voulue = 'pompe';
-    else if (bot.armes.indexOf('precision') >= 0 && ((bot.munitions.precision | 0) + (bot.reserve.precision | 0)) > 0 && hz > 26) voulue = 'precision';
-    if (voulue !== bot.arme && T >= ia.changeA) { en.arme = voulue; ia.changeA = T + 1.5; }
+    emplacement(bot, ia, T, hz, en);
+    const A = REGLES.arme(bot.arme), cl = A.classe, sniper = cl === 'sniper', auto = cl === 'fusil' || cl === 'mitraillette';
+    // la visée : au-delà de 12 m (dans sa bande : pas en approchant de loin), et toujours au fusil de précision ; pas en rechargeant
+    en.vise = (sniper || (hz > VISE_LOIN && hz <= (BANDE[bot.arme] || BANDE_CLASSE.fusil)[1] * 1.2)) && !bot.enRecharge;
     // les rafales : des fenêtres de tir et de pause ; une fenêtre sur (1 − precision) est une hésitation
     if (T >= ia.rafaleA) {
-      if (ia.rafale) { ia.rafale = false; ia.rafaleA = T + (bot.arme === 'rafale' ? 0.15 + 0.35 * rnd() : 0.05 + 0.15 * rnd()); }
-      else { ia.rafale = rnd() < niv.precision; ia.rafaleA = T + (bot.arme === 'rafale' ? 0.35 + 0.6 * rnd() : 0.45); }
+      if (ia.rafale) { ia.rafale = false; ia.rafaleA = T + (auto ? 0.15 + 0.35 * rnd() : 0.05 + 0.15 * rnd()); }
+      else { ia.rafale = rnd() < niv.precision; ia.rafaleA = T + (auto ? 0.35 + 0.6 * rnd() : 0.45); }
     }
-    const ry = angle(bot.yaw + en.dyaw - yawC), rp = bot.pitch + en.dpitch - pitchC, tol = Math.atan(0.5 / Math.max(1, hz)) + 0.02;
+    // aligné : à une demi-largeur de corps près (plus serré au coup par coup : fusil de précision, pompe)
+    const serre = sniper || cl === 'pompe', ry = angle(bot.yaw + en.dyaw - yawC), rp = bot.pitch + en.dpitch - pitchC, tol = Math.atan((serre ? 0.3 : 0.5) / Math.max(1, hz)) + (sniper ? 0.004 : serre ? 0.008 : 0.02);
     const aligne = Math.abs(ry) < tol && Math.abs(rp) < tol * 1.5;
-    en.tir = ia.rafale && aligne && vu && hz <= (PORTEE[bot.arme] || 50) && !bot.enRecharge;
+    // au fusil de précision : seulement la lunette posée (pleine visée, stabilisée selon le niveau)
+    const pret = !sniper || (bot.vise >= 1 && (bot.viseStable || 0) >= (STABLE[bot.niveau] != null ? STABLE[bot.niveau] : STABLE.normal));
+    en.tir = ia.rafale && aligne && pret && vu && hz <= (PORTEE[bot.arme] || 50) && !bot.enRecharge;
     return true;
+  }
+  // la longueur du chemin qui reste (m)
+  function reste(bot, ia) {
+    const c = ia.chemin; if (!c) return 0;
+    let d = 0, x = bot.x, z = bot.z;
+    for (let i = ia.ic; i < c.length; i++) { d += Math.sqrt((c[i][0] - x) ** 2 + (c[i][1] - z) ** 2); x = c[i][0]; z = c[i][1]; }
+    return d;
   }
 
   // ─── l'entrée de l'image ───
@@ -4039,6 +4129,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     if (!ia || ia.jeu !== jeu) { ia = bot.ia = cerveau(jeu, rnd); }
     const en = ia.entree;
     en.avant = 0; en.cote = 0; en.dyaw = 0; en.dpitch = 0; en.tir = false; en.saut = false; en.accroupi = false; en.recharge = false; en.arme = null;
+    en.couche = false; en.course = false; en.vise = false; en.changer = false;
     if (!bot.vivant || jeu.fini) return en;
     if (ia.ne !== bot.apparuA) renaitre(bot, ia, jeu);
     const T = jeu.temps, niv = REGLES.BOTS[bot.niveau] || REGLES.BOTS.normal, monde = jeu.monde;
@@ -4072,8 +4163,10 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
         else if ((p.x + ia.fox - ia.butX) ** 2 + (p.z + ia.foz - ia.butZ) ** 2 > 64) demander(bot, ia, jeu, p.x + ia.fox, p.z + ia.foz);
       }
       suivre(bot, ia, jeu);
+      emplacement(bot, ia, T, -1, en); // pas d'ennemi : la principale (qu'il recharge s'il le faut)
       if (mun < A.chargeur * 0.5 && !bot.enRecharge) en.recharge = true;
       if (T >= ia.regardA) { ia.regardA = T + 1.5 + 2.5 * rnd(); ia.regard = rnd() < 0.45 ? 0 : (rnd() * 2 - 1) * 0.8; }
+      if (ia.chemin && reste(bot, ia) > 15) { en.course = true; ia.regard = 0; } // un long trajet : il court (sans coups d'œil)
     } else if (etat === 'chasse') {
       const recente = ia.cible && ia.vuA >= ia.alerteA;
       const gx = recente ? ia.cx + ia.cvx * 0.8 : ia.ax, gz = recente ? ia.cz + ia.cvz * 0.8 : ia.az;
@@ -4081,6 +4174,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
         if ((!ia.chemin && !ia.veut) || (ia.butX - gx) ** 2 + (ia.butZ - gz) ** 2 > 25) { if (demander(bot, ia, jeu, gx, gz) && !ia.chemin) { ia.cible = null; ia.alerteA = -1e9; } }
         else if (ia.veut) demander(bot, ia, jeu, ia.butX, ia.butZ);
         if (suivre(bot, ia, jeu)) { ia.fouilleA = T + 1 + rnd(); ia.fouilleSens = rnd() < 0.5 ? -1 : 1; }
+        else if (!ia.cible && ia.chemin && reste(bot, ia) > 15) en.course = true; // un bruit lointain : il y court
         if (ia.retourne && T - ia.alerteA < 1.6) { // touché de dos : on fait face à l'agresseur
           regarde = false; tourner(bot, en, Math.atan2(-(ia.ax - bot.x), -(ia.az - bot.z)), 0, niv.vise, dt); ia.vit = 0.5;
         }
@@ -4110,19 +4204,23 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       if (viser(bot, ia, jeu, niv, rnd, dt, en)) {
         regarde = false;
         if (mun <= 0 && !bot.enRecharge) en.recharge = true;
-        const bande = BANDE[bot.arme] || BANDE.rafale;
-        // à l'abri pour recharger
+        const bande = BANDE[bot.arme] || BANDE_CLASSE.fusil, cl = classe(bot.arme);
+        // à l'abri pour recharger : accroupi (couché au fusil de précision, « fort »)
         if (bot.enRecharge && !ia.abri && T >= ia.abriEssai) { ia.abriEssai = T + 0.8; chercherAbri(bot, ia, jeu, c, rnd); }
         if (!bot.enRecharge) ia.abri = false;
         if (ia.abri) {
           const ax = ia.abriX - bot.x, az = ia.abriZ - bot.z, ad = Math.sqrt(ax * ax + az * az);
-          if (ad > 0.5) { ia.mx = ax / ad; ia.mz = az / ad; } else { ia.mx = 0; ia.mz = 0; en.accroupi = true; }
+          if (ad > 0.5) { ia.mx = ax / ad; ia.mz = az / ad; } else { ia.mx = 0; ia.mz = 0; if (cl === 'sniper' && niv === REGLES.BOTS.fort && peutCoucher(bot, monde)) en.couche = true; else en.accroupi = true; }
         } else {
           if (T >= ia.strafeA) { ia.strafeA = T + 0.5 + 1.1 * rnd(); const r = rnd(); ia.strafe = r < 0.15 ? 0 : r < 0.575 ? -1 : 1; ia.derive = (rnd() * 2 - 1) * 0.3; }
           let radial = d > bande[1] ? 1 : d < bande[0] ? -1 : ia.derive;
           if (bot.enRecharge) radial = -0.8; // pas d'abri : on recule en rechargeant
           let strafe = ia.strafe;
-          if (bot.arme === 'precision' && !bot.enRecharge) { strafe = 0; if (radial > 0) radial = 0; if (niv !== REGLES.BOTS.facile) en.accroupi = true; } // le long-tir se tire posé
+          if (cl === 'sniper' && !bot.enRecharge) { // le fusil de précision se tire posé : immobile, accroupi (couché « fort », de loin, s'il n'est pas pris pour cible)
+            strafe = 0; if (radial > 0 && d < bande[1] * 1.3) radial = 0; if (radial < 0 && d > 10) radial = 0;
+            if (niv === REGLES.BOTS.fort && d > 45 && T - bot.toucheA > 3 && peutCoucher(bot, monde)) en.couche = true;
+            else if (niv !== REGLES.BOTS.facile) en.accroupi = true;
+          } else if (cl === 'fusil' && d > 15 && d <= bande[1] && niv !== REGLES.BOTS.facile && ia.posTir && !bot.enRecharge) { strafe = 0; radial = 0; en.accroupi = true; } // posé pour tirer de loin (dans sa bande)
           // trop loin et pas de passage direct : on suit un chemin vers elle
           if (radial > 0 && T >= ia.directA) { ia.directA = T + 0.6; ia.direct = monde.passe(bot.x, bot.z, c.x, c.z, R_PASSE); }
           if (radial > 0 && !ia.direct) {
@@ -4130,7 +4228,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
             suivre(bot, ia, jeu); ia.mx += -uz * strafe * 0.3; ia.mz += ux * strafe * 0.3;
           } else { ia.chemin = null; ia.mx = ux * radial - uz * strafe; ia.mz = uz * radial + ux * strafe; }
           const l = Math.sqrt(ia.mx * ia.mx + ia.mz * ia.mz); if (l > 1) { ia.mx /= l; ia.mz /= l; }
-          if (bot.auSol && rnd() < dt * (niv === REGLES.BOTS.fort ? 0.3 : niv === REGLES.BOTS.normal ? 0.1 : 0)) en.saut = true; // un saut de côté, pour surprendre
+          if (bot.auSol && !en.accroupi && !en.couche && cl !== 'sniper' && rnd() < dt * (niv === REGLES.BOTS.fort ? 0.3 : niv === REGLES.BOTS.normal ? 0.1 : 0)) en.saut = true; // un saut de côté, pour surprendre
         }
       } else suivre(bot, ia, jeu); // pas encore réagi : il continue sa route
     }
@@ -4166,20 +4264,25 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     return en;
   }
 
-  return { penser, BANDE, PORTEE, VUE };
+  return { penser, BANDE, PORTEE, VUE, VUE_LUNETTE };
 });
 
 /* ── jeu.js ── */
-/* OPÉRATION PONCIN — la simulation d'une partie (autoritaire chez l'hôte) : déplacements (marche, accroupi, saut, gravité, marche de
-   0,45 m, glissement le long des murs par monde.deplacer), blasters à peinture (cadence, chargeur, réserve, recharge, dispersion qui
-   s'ouvre en mouvement et en l'air, recul, plombs de la pompe, chute de dégâts), tirs instantanés contre le monde (monde.rayon) et les
-   capsules des joueurs (tête = 0,35 m du haut), vie et armure (qui absorbe 60 %), invincibilité après l'apparition (cesse au premier
-   tir), objets à ramasser, aide à la visée au doigt. Les bots sont pilotés ici par PBOTS ; le mode (PARENE…) est un jeu de crochets.
+/* OPÉRATION PONCIN — la simulation d'une partie (autoritaire chez l'hôte) : déplacements et postures (marche, course, accroupi,
+   glissade, couché, saut, gravité, marche de 0,45 m, glissement le long des murs par monde.deplacer), vraies armes à deux emplacements
+   (cadence, chargeur, réserve, recharge, visée, dispersion qui s'ouvre en mouvement et en l'air, recul, plombs de la pompe, chute de
+   dégâts), tirs instantanés contre le monde (monde.rayon) et les capsules des joueurs (par posture ; la tête en haut), vie et armure
+   (qui absorbe 60 %), invincibilité après l'apparition (cesse au premier tir), objets à ramasser, aide à la visée au doigt. Les bots
+   sont pilotés ici par PBOTS ; le mode (PARENE…) est un jeu de crochets.
+   Régime v2 pour tous (livraison 2) : chaque entité est équipée (e.equip = { p, s }, PARMES.equiper) et chaque entrée est jouée en v2
+   (une entrée sans les niveaux course / couche / vise les reçoit à false : plus aucun chemin du jeu ne prend le régime historique).
    Module pur (aucun DOM, aucun THREE) : tourne aussi dans Node. Voir src-poncin/ARCHITECTURE.md (x à l'est, z au sud, y en haut ;
    yaw 0 = nord, positif vers l'ouest ; regard d = (−sin yaw·cos pitch, sin pitch, −cos yaw·cos pitch)).
    Le corps (déplacement, postures, capsules, caméra) est dans corps.js (PCORPS), les armes (tir, recharge, changement, visée) dans
    armes.js (PARMES) : PJEU.deplacer, PJEU.dispersion et PJEU.tirVisuel en sont des alias.
-   API (contrat) : PJEU.creer({ monde, mode, graine, options: { bots, niveau, equipes }, carte? }) → jeu ; jeu.ajouterJoueur(o) → entité ;
+   API (contrat) : PJEU.creer({ monde, mode, graine, options: { bots, niveau, equipes, armes, objets }, carte? }) → jeu ;
+   jeu.ajouterJoueur({ id, nom, couleur, equipe, humain | bot, niveau, equip }) → entité (equip { p, s } ou 'p+s', validé par
+   PREGLES.equipementDe contre options.armes ; sans lui, l'équipement par défaut permis) ;
    jeu.etape(dt, entrees) → événements ; jeu.entites, jeu.temps, jeu.fini, jeu.classement(), jeu.aideVisee(id, force).
    En plus : jeu.carte (pour les zones du mode : passée à creer, ou monde.carte), jeu.monde, jeu.mode, jeu.options, jeu.nav (PNAV),
    jeu.duree / jeu.reste, jeu.finir(), jeu.trouver(id), jeu.retirerJoueur(id), jeu.ennemis(a, b), jeu.reapparaitre(e, evs) (pour le
@@ -4191,6 +4294,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
    Entité v2 (lot Gameplay, § 3) : posture, vers, transition, oeil, hautCapsule, course, gv / gdx / gdz, relanceA, receptionA, remonte,
    vise, viseStable, accroupiPrec, couchePrec, corpsV2, ax / ay / az / aoeil (la position au début du pas : le rendu interpole entre
    elle et la position), armes / slot / equip / changeJusqua ; e.accroupi reste (posture ≠ 'debout').
+   Événements de tir pour le rendu (impacts, traceurs, douilles) : voir PARMES.tirer (point, normale, quoi, mat, arme).
    PJEU.pasFixe({ pas: 1/60, max: 4 }) → { avancer(dtImage, fnPas) → alpha, remettre() } : la boucle à pas fixe (§ 2), pure. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'), require('./nav.js'), require('./bots.js'), require('./corps.js'), require('./armes.js'));
@@ -4212,7 +4316,16 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   const num = (v, a, b) => { v = +v; return fini(v) ? borne(v, a, b) : 0; };
   const angle = (a) => { a = a % (2 * Math.PI); return a > Math.PI ? a - 2 * Math.PI : a <= -Math.PI ? a + 2 * Math.PI : a; };
   const taille = CORPS.haut, oeil = CORPS.oeil;
-  const NEUTRE = CORPS.NEUTRE;
+  const NEUTRE = Object.freeze(Object.assign({}, CORPS.NEUTRE, { course: false, couche: false, vise: false, changer: false }));
+  // une entrée sans les niveaux v2 (vieux client, entrée abîmée) est jouée en v2 : copiée dans EN2 (réutilisé), niveaux à false
+  const EN2 = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, yaw: undefined, pitch: undefined, tir: false, saut: false, accroupi: false, recharge: false, arme: null, changer: false, origine: undefined, course: false, couche: false, vise: false };
+  function entreeV2(en) {
+    if (!en || typeof en !== 'object') return NEUTRE;
+    if (CORPS.estV2(en)) return en;
+    EN2.avant = en.avant; EN2.cote = en.cote; EN2.dyaw = en.dyaw; EN2.dpitch = en.dpitch; EN2.yaw = en.yaw; EN2.pitch = en.pitch;
+    EN2.tir = en.tir; EN2.saut = en.saut; EN2.accroupi = en.accroupi; EN2.recharge = en.recharge; EN2.arme = en.arme; EN2.changer = en.changer; EN2.origine = en.origine;
+    return EN2;
+  }
 
   // un mode minimal quand on n'en donne pas : réapparition au bout de 3 s sur un point libre, jamais de fin
   const MODE_LIBRE = {
@@ -4243,21 +4356,26 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     };
   }
 
-  // ─── l'instantané compact (le jeu en ligne : l'hôte l'envoie à 20 Hz) ───
-  // { t, e: [[id, x, y, z, yaw, pitch, vie, armure, drapeaux, arme, kills, morts, points (+ pour les humains : m0, m1, m2, r0, r1, r2, recharge, ack)], …], o, r }
-  // drapeaux : 1 vivant, 2 au sol, 4 accroupi, 8 invincible, 16 en recharge ; arme : indice dans ARMES_ID ; m / r : munitions et réserve par arme (−1 : pas
-  // possédée) ; recharge : secondes restantes ; ack : numéro de la dernière entrée appliquée (réseau) ; o : '1' / '0' par objet du mode (disponible) ; r : reste (s).
-  // ARMES_ID : l'ordre du réseau (PREGLES.ARMES_ID, qui ne fait que s'allonger) ; le format v1 de la ligne garde les trois premières
-  // armes pour les munitions (le format v2, § 9.3, est pour le lot 2/2)
-  const ARMES_ID = REGLES.ARMES_ID, NA1 = 3;
+  // ─── l'instantané compact v2 (§ 9.3 ; le jeu en ligne : l'hôte l'envoie à 20 Hz) ───
+  // { t, e: [[id, x, y, z, yaw, pitch, vie, armure, drapeaux, arme, kills, morts, points (+ pour les humains : p, s, mP, rP, mS, rS,
+  // recharge, ack)], …], o, r, f }
+  // drapeaux : 1 vivant, 2 au sol, 4 accroupi (posture ≠ debout), 8 invincible, 16 en recharge, 32 couché (posture visée), 64 glissade,
+  // 128 course, 256 vise ≥ 0,5, 512 en transition, 1024 lampe ; arme : l'arme en main, indice dans ARMES_ID ; p, s : les armes des deux
+  // emplacements (indices ; p peut être une arme ramassée) ; mP / rP, mS / rS : munitions et réserve de chacune ; recharge : secondes
+  // restantes ; ack : numéro de la dernière entrée appliquée (réseau) ; o : '1' / '0' par objet du mode (disponible) ; r : reste (s).
+  // ARMES_ID : l'ordre du réseau (PREGLES.ARMES_ID, reparti à zéro avec la VERSION 2 du réseau, puis ne fait que s'allonger)
+  const ARMES_ID = REGLES.ARMES_ID, PO = J.postures;
   const r2 = (v) => Math.round(v * 100) / 100, r3 = (v) => Math.round(v * 1000) / 1000;
+  const idx = (id) => Math.max(0, ARMES_ID.indexOf(id));
+  function drapeaux(e) {
+    return (e.vivant ? 1 : 0) | (e.auSol ? 2 : 0) | (e.accroupi ? 4 : 0) | (e.invincible > 0 ? 8 : 0) | (e.enRecharge ? 16 : 0) |
+      (e.vers === 'couche' ? 32 : 0) | (e.vers === 'glisse' ? 64 : 0) | (e.course ? 128 : 0) | (e.vise >= 0.5 ? 256 : 0) | (e.transition > 0 ? 512 : 0) | (e.lampe ? 1024 : 0);
+  }
   function ligneDe(e, temps, ack) {
-    const fl = (e.vivant ? 1 : 0) | (e.auSol ? 2 : 0) | (e.accroupi ? 4 : 0) | (e.invincible > 0 ? 8 : 0) | (e.enRecharge ? 16 : 0);
-    const l = [e.id, r2(e.x), r2(e.y), r2(e.z), r3(e.yaw), r3(e.pitch), Math.max(0, Math.round(e.vie)), Math.round(e.armure), fl, Math.max(0, ARMES_ID.indexOf(e.arme)), e.score.kills, e.score.morts, e.score.points];
+    const l = [e.id, r2(e.x), r2(e.y), r2(e.z), r3(e.yaw), r3(e.pitch), Math.max(0, Math.round(e.vie)), Math.round(e.armure), drapeaux(e), idx(e.arme), e.score.kills, e.score.morts, e.score.points];
     if (e.humain) {
-      for (let i = 0; i < NA1; i++) { const a = ARMES_ID[i]; l.push(e.armes.indexOf(a) >= 0 ? e.munitions[a] | 0 : -1); }
-      for (let i = 0; i < NA1; i++) { const a = ARMES_ID[i]; l.push(e.armes.indexOf(a) >= 0 ? e.reserve[a] | 0 : -1); }
-      l.push(e.enRecharge ? r2(Math.max(0, e.rechargeJusqua - temps)) : 0, ack | 0);
+      const p = e.armes[0], s = e.armes[1] || p;
+      l.push(idx(p), idx(s), e.munitions[p] | 0, e.reserve[p] | 0, e.munitions[s] | 0, e.reserve[s] | 0, e.enRecharge ? r2(Math.max(0, e.rechargeJusqua - temps)) : 0, ack | 0);
     }
     return l;
   }
@@ -4272,20 +4390,27 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
         e.x = l[1]; e.y = l[2]; e.z = l[3];
       }
       if (fini(l[4])) e.yaw = angle(l[4]); if (fini(l[5])) e.pitch = borne(l[5], -1.45, 1.45);
-      e.vivant = !!(fl & 1); e.auSol = !!(fl & 2); e.accroupi = !!(fl & 4); e.invincible = fl & 8 ? 1 : 0;
-      // format v1 : la posture se lit sur le drapeau accroupi (régime historique du corps)
-      e.corpsV2 = false; e.posture = e.vers = e.accroupi ? 'accroupi' : 'debout'; e.transition = 0;
-      e.oeil = e.accroupi ? J.oeilAccroupi : J.oeil; e.hautCapsule = e.accroupi ? J.tailleAccroupi : J.taille;
+      e.vivant = !!(fl & 1); e.auSol = !!(fl & 2); e.invincible = fl & 8 ? 1 : 0;
+      // la posture (v2) : celle que vise le corps (couché, glissade, accroupi, debout), sans la transition (le rendu lisse l'œil)
+      const vers = fl & 32 ? 'couche' : fl & 64 ? 'glisse' : fl & 4 ? 'accroupi' : 'debout';
+      e.corpsV2 = true; e.posture = e.vers = vers; e.transition = 0; e.accroupi = vers !== 'debout';
+      e.oeil = PO[vers].oeil; e.hautCapsule = PO[vers].haut; e.course = !!(fl & 128); e.vise = fl & 256 ? 1 : 0; e.enTransition = !!(fl & 512); e.lampe = !!(fl & 1024);
       if (saut) { e.ax = e.x; e.ay = e.y; e.az = e.z; e.aoeil = e.oeil; }
-      e.arme = ARMES_ID[l[9] | 0] || 'rafale';
+      e.arme = ARMES_ID[l[9] | 0] || REGLES.DEFAUT_EQUIP.p;
+      if (e.armes) { const s = e.armes.indexOf(e.arme); if (s >= 0) e.slot = s; }
     }
     if (quoi !== 'corps') {
       if (fini(l[6])) e.vie = l[6]; if (fini(l[7])) e.armure = l[7];
       e.score.kills = l[10] | 0; e.score.morts = l[11] | 0; e.score.points = l[12] | 0;
-      if (l.length >= 21) {
-        const armes = [];
-        for (let i = 0; i < NA1; i++) { const a = ARMES_ID[i], m = l[13 + i]; if (m >= 0) { armes.push(a); e.munitions[a] = m | 0; e.reserve[a] = Math.max(0, l[16 + i] | 0); } else { delete e.munitions[a]; delete e.reserve[a]; } }
-        if (armes.length) e.armes = armes;
+      if (l.length >= 21) { // les deux emplacements, leurs munitions et réserves
+        const p = ARMES_ID[l[13] | 0], s = ARMES_ID[l[14] | 0];
+        if (p && s) {
+          if (!e.armes || e.armes.length !== 2) e.armes = [p, s]; else { e.armes[0] = p; e.armes[1] = s; }
+          for (const k in e.munitions) if (k !== p && k !== s) { delete e.munitions[k]; delete e.reserve[k]; }
+          e.munitions[s] = Math.max(0, l[17] | 0); e.reserve[s] = Math.max(0, l[18] | 0);
+          e.munitions[p] = Math.max(0, l[15] | 0); e.reserve[p] = Math.max(0, l[16] | 0);
+          const k = e.armes.indexOf(e.arme); if (k >= 0) e.slot = k;
+        }
         e.enRecharge = !!(fl & 16); e.rechargeJusqua = e.enRecharge ? temps + (+l[19] || 0) : 0;
       }
     }
@@ -4300,6 +4425,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     const options = {
       bots: fini(+o.bots) ? Math.max(0, Math.min(REGLES.NOMS_BOTS.length, Math.round(+o.bots))) : REGLES.MODES.arene.bots.defaut || 4,
       niveau: REGLES.BOTS[o.niveau] ? o.niveau : 'normal', equipes: !!o.equipes,
+      armes: REGLES.armesPermises(o.armes), objets: o.objets !== false, // les armes permises (ordre du réseau) ; les objets au sol
     };
     let graine = params.graine;
     graine = fini(+graine) ? (+graine >>> 0) : REGLES.hash(String(graine));
@@ -4336,23 +4462,22 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       const bot = d.bot === true || d.humain === false;
       let id = d.id != null && String(d.id) ? String(d.id) : (bot ? 'bot' : 'j') + (entites.length + 1);
       const deja = trouver(id); if (deja) return deja;
-      const A = REGLES.arme('rafale');
       const e = { // (voir l'entité v2 en tête de fichier ; placer remet tout à l'apparition)
         id, nom: String(d.nom || (bot ? 'Robot' : 'Joueur')).slice(0, 24), couleur: typeof d.couleur === 'string' ? d.couleur : REGLES.COULEURS[entites.length % REGLES.COULEURS.length],
         equipe: options.equipes ? (d.equipe === 0 || d.equipe === 1 ? d.equipe : plusPetiteEquipe()) : id,
         humain: !bot, bot, niveau: bot ? (REGLES.BOTS[d.niveau] ? d.niveau : options.niveau) : null,
         x: 0, y: 0, z: 0, vx: 0, vz: 0, vy: 0, vitesse: 0, yaw: 0, pitch: 0, auSol: true, accroupi: false,
-        posture: 'debout', vers: 'debout', transition: 0, oeil: J.oeil, hautCapsule: J.taille, corpsV2: false,
+        posture: 'debout', vers: 'debout', transition: 0, oeil: PO.debout.oeil, hautCapsule: PO.debout.haut, corpsV2: true,
         course: false, gv: 0, gdx: 0, gdz: 0, relanceA: 0, receptionA: 0, remonte: 0, vise: 0, viseStable: 0, accroupiPrec: false, couchePrec: false,
-        ax: 0, ay: 0, az: 0, aoeil: J.oeil,
+        ax: 0, ay: 0, az: 0, aoeil: PO.debout.oeil,
         vie: J.vie, armure: 0, vivant: true, mortDepuis: -1, apparuA: 0, invincible: 0,
-        arme: 'rafale', armes: ['rafale'], slot: 0, equip: null, changeJusqua: 0, changeReste: 0,
-        munitions: { rafale: A.chargeur }, reserve: { rafale: A.reserve }, rechargeJusqua: 0, enRecharge: false, prochainTir: 0,
+        arme: null, armes: [], slot: 0, equip: null, changeJusqua: 0, changeReste: 0,
+        munitions: {}, reserve: {}, rechargeJusqua: 0, enRecharge: false, prochainTir: 0,
         score: { kills: 0, morts: 0, points: 0 }, serie: 0,
-        dispersion: A.dispersion, gonfle: 0, dernierTir: -1, toucheA: -1, parQui: null, tueTete: false, foulee: 0, ia: null,
+        dispersion: 0, gonfle: 0, dernierTir: -1, toucheA: -1, parQui: null, tueTete: false, foulee: 0, ia: null, lampe: false,
       };
-      // l'équipement (emplacements, lot Gameplay) : seulement s'il est donné ; sans lui, l'équipement historique (rafale seul)
-      if (d.equip != null) e.equip = REGLES.equipementDe(d.equip, options);
+      // l'équipement (deux emplacements) : celui demandé s'il est permis, sinon l'équipement par défaut permis (placer l'applique)
+      e.equip = REGLES.equipementDe(d.equip, options);
       entites.push(e);
       placer(e);
       return e;
@@ -4377,11 +4502,11 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       if (!p || !fini(+p[0]) || !fini(+p[1]) || monde.bloque(+p[0], +p[1], J.rayon)) { const q = monde.libre(jeu.rnd); p = [q[0], q[1], (jeu.rnd() * 2 - 1) * Math.PI]; }
       e.x = +p[0]; e.z = +p[1]; e.y = monde.hauteur(e.x, e.z); e.yaw = fini(+p[2]) ? angle(+p[2]) : 0; e.pitch = 0;
       e.vx = e.vz = e.vy = 0; e.vitesse = 0; e.auSol = true; e.accroupi = false;
-      e.posture = e.vers = 'debout'; e.transition = 0; e.oeil = J.oeil; e.hautCapsule = J.taille; e.corpsV2 = false;
+      e.posture = e.vers = 'debout'; e.transition = 0; e.oeil = PO.debout.oeil; e.hautCapsule = PO.debout.haut; e.corpsV2 = true;
       e.course = false; e.gv = 0; e.gdx = 0; e.gdz = 0; e.relanceA = 0; e.receptionA = 0; e.remonte = 0; e.accroupiPrec = false; e.couchePrec = false;
       e.ax = e.x; e.ay = e.y; e.az = e.z; e.aoeil = e.oeil; // une téléportation : pas d'interpolation à travers
       e.vie = J.vie; e.armure = 0; e.vivant = true; e.apparuA = jeu.temps; e.invincible = reglesMode.invincible || 0;
-      ARMES.equiper(e, e.equip, options); // l'équipement choisi (principale en main), ou l'historique (rafale seul)
+      ARMES.equiper(e, e.equip || REGLES.equipementDe(null, options), options); // l'équipement choisi, la principale en main
       e.prochainTir = jeu.temps + 0.2; e.foulee = 0; e.tueTete = false;
     }
     function reapparaitre(e, out) { placer(e); (out || evs).push({ t: 'reapparition', id: e.id }); }
@@ -4460,7 +4585,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       const abs = Math.min(c.armure, Math.round(degats * ABSORBE));
       c.armure -= abs; c.vie -= degats - abs; c.toucheA = jeu.temps; c.parQui = de ? de.id : null;
       const mort = c.vie <= 0;
-      out.push({ t: 'touche', de: de ? de.id : null, a: c.id, degats, tete: !!tete, mort });
+      out.push({ t: 'touche', de: de ? de.id : null, a: c.id, degats, tete: !!tete, mort, arme: armeId });
       if (mort) tuer(c, de, armeId, tete, out);
     }
     function tuer(v, k, armeId, tete, out) {
@@ -4474,6 +4599,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     // ─── une entité joue son entrée ───
     const P_DEBOUT = J.postures.debout.bruit, P_COURSE = J.postures.course.bruit;
     function appliquer(e, en, dt, out) {
+      en = entreeV2(en);
       const mv = CORPS.deplacer(e, en, dt, monde, REGLES.arme(e.arme)), dep = mv.dep;
       if (mv.saut) out.push({ t: 'saut', id: e.id });
       if (mv.refus) out.push({ t: 'refus', id: e.id, quoi: mv.refus }); // local : « Pas la place de te coucher »
@@ -4505,6 +4631,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     // ─── les objets du mode : ramassés au passage s'ils servent, de retour au bout de « retour » secondes ───
     function utile(e, nom) {
       const O = REGLES.OBJETS[nom]; if (!O) return false;
+      if (O.type === 'arme' && options.armes.indexOf(O.arme) < 0) return false; // une arme que l'hôte n'a pas permise ne se prend pas
       if (O.type === 'soin') return e.vie < J.vie;
       if (O.type === 'armure') return e.armure < J.armureMax;
       return ARMES.utile(e, O); // armes et munitions
@@ -4547,7 +4674,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
         let en = null;
         if (e.bot) { if (BOTS) { try { en = BOTS.penser(e, jeu, dt, jeu.rndBots); } catch (err) { erreur('bot ' + e.id, err); en = null; } } }
         else en = entrees ? entrees[e.id] : null;
-        appliquer(e, en && typeof en === 'object' ? en : NEUTRE, dt, evs);
+        appliquer(e, en, dt, evs);
       }
       separer();
       ramasser(evs);
@@ -4614,8 +4741,9 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
 /* OPÉRATION PONCIN — le mode Arène : chacun pour soi ou deux contre deux autour de la place Bichat. 180 s ou 25 repeints (par joueur,
    ou par équipe en 2 contre 2 : le classement suit les repeints, départagés par les points) ; réapparition au bout de 3 s à ~35 m des
    ennemis, de préférence hors de leur vue (invincible 1,5 s, jusqu'au premier tir) ; points : élimination 100, série de 3 (à chaque
-   multiple de 3 sans mourir) 50, élimination à la tête 25 ; objets de carte.zones.armes (long-tir, pompe, soin, armure) qui
-   réapparaissent ; murs invisibles au bord de zones.arene (monde.limite) ; annonces (premier repeint, séries, prise de tête, dernière minute…).
+   multiple de 3 sans mourir) 50, élimination à la tête 25 ; objets de carte.zones.armes (armes réelles permises par l'hôte : 'precision'
+   devient un fusil de précision, une arme non permise une autre de sa classe ; soin, armure) et caisses de munitions, qui réapparaissent
+   (aucun si options.objets est faux) ; robots équipés au hasard rejouable parmi les armes permises (PREGLES.equipementRobot) ; murs invisibles au bord de zones.arene (monde.limite) ; annonces (premier repeint, séries, prise de tête, dernière minute…).
    Un mode est un jeu de crochets appelés par PJEU (voir src-poncin/ARCHITECTURE.md) : init(jeu), tick(jeu, dt, evs), surMort(jeu,
    victime, tueur, evs), apparition(jeu, entite) → [x, z, yaw], objets(jeu) → [{ id, x, z, objet, dispo }], fini(jeu), resultat(jeu).
    L'état de la manche est rangé dans jeu.arene. Les zones viennent de jeu.carte (carte v1) ; sans carte, une arène de secours est
@@ -4651,10 +4779,19 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       const p = monde.libre(rnd);
       if (dedans(p[0], p[1], 3) && apparitions.every((q) => (q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2 > 18 * 18)) apparitions.push([p[0], p[1]]);
     }
-    // les objets : ceux de la carte dans l'arène ; sans rien, deux de chaque tirés au hasard
-    const objets = [];
-    for (const o of z.armes || VIDE) if (o && REGLES.OBJETS[o.arme] && fin(+o.x) && fin(+o.z) && dedans(+o.x, +o.z, 1)) objets.push({ id: 'o' + objets.length, x: +o.x, z: +o.z, y: null, objet: o.arme, dispo: true, revient: 0 });
-    if (!objets.length) for (const nom of ['precision', 'pompe', 'soin', 'armure', 'precision', 'pompe', 'soin', 'armure']) { const p = monde.libre(rnd); objets.push({ id: 'o' + objets.length, x: p[0], z: p[1], y: null, objet: nom, dispo: true, revient: 0 }); }
+    // les objets : ceux de la carte dans l'arène (les armes devenues de vraies armes permises) ; sans rien, deux de chaque tirés au
+    // hasard ; plus une caisse de munitions pour deux armes au sol (deux au moins), sur des points libres de l'arène
+    const objets = [], ajouter = (x, zz, nom) => objets.push({ id: 'o' + objets.length, x, z: zz, y: null, objet: nom, dispo: true, revient: 0 });
+    if (jeu.options.objets !== false) {
+      for (const o of z.armes || VIDE) if (o && REGLES.OBJETS[o.arme] && fin(+o.x) && fin(+o.z) && dedans(+o.x, +o.z, 1)) ajouter(+o.x, +o.z, armeReelle(jeu, o.arme, rnd));
+      if (!objets.length) for (const nom of ['precision', 'pompe', 'soin', 'armure', 'precision', 'pompe', 'soin', 'armure']) { const p = monde.libre(rnd); ajouter(p[0], p[1], armeReelle(jeu, nom, rnd)); }
+      const nArmes = objets.filter((o) => REGLES.OBJETS[o.objet].type === 'arme').length;
+      for (let k = 0, n = Math.max(2, Math.ceil(nArmes / 2)), essais = 0; k < n && essais < 60; essais++) {
+        const p = monde.libre(rnd, centre, rayon - 4);
+        if (!dedans(p[0], p[1], 2) || objets.some((o) => (o.x - p[0]) ** 2 + (o.z - p[1]) ** 2 < 12 * 12)) continue; // pas collée à un autre objet
+        ajouter(p[0], p[1], 'munitions'); k++;
+      }
+    }
     jeu.duree = M.duree;
     jeu.arene = { centre, rayon, apparitions, objets, victoire: M.scoreVictoire, equipes: !!jeu.options.equipes, premier: false, meneur: null, meneurA: -1e9, chrono: {}, proche: {} };
     // les robots : noms et couleurs tirés au sort (rejouable) ; en 2 contre 2, le premier va en face, le deuxième avec le joueur…
@@ -4663,8 +4800,19 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     const couleurs = REGLES.COULEURS.filter((c) => c !== COULEURS_EQUIPES[0]), dc = Math.floor(rnd() * couleurs.length);
     for (let k = 0; k < jeu.options.bots; k++) {
       const equipe = jeu.options.equipes ? (k % 2 === 0 ? 1 : 0) : undefined;
-      jeu.ajouterJoueur({ id: 'bot' + (k + 1), nom: noms[k % noms.length], couleur: jeu.options.equipes ? COULEURS_EQUIPES[equipe] : couleurs[(dc + k) % couleurs.length], equipe, bot: true, niveau: jeu.options.niveau });
+      const equip = REGLES.equipementRobot(rnd, jeu.options, jeu.options.niveau); // parmi les armes permises, tiré par jeu.rnd
+      jeu.ajouterJoueur({ id: 'bot' + (k + 1), nom: noms[k % noms.length], couleur: jeu.options.equipes ? COULEURS_EQUIPES[equipe] : couleurs[(dc + k) % couleurs.length], equipe, bot: true, niveau: jeu.options.niveau, equip });
     }
+  }
+
+  // l'arme réelle posée à la place d'un objet de carte : 'precision' (l'ancien nom) → un fusil de précision permis ; une arme non
+  // permise → une arme permise de sa classe, sinon une principale permise ; les autres objets restent tels quels
+  function armeReelle(jeu, nom, rnd) {
+    const O = REGLES.OBJETS[nom]; if (!O || O.type !== 'arme') return nom;
+    const permises = (jeu.options.armes || REGLES.ARMES_ID).filter((id) => REGLES.OBJETS[id] && REGLES.OBJETS[id].type === 'arme');
+    if (!O.alias && permises.indexOf(O.arme) >= 0) return O.arme;
+    const classe = REGLES.arme(O.arme).classe, memes = permises.filter((id) => REGLES.arme(id).classe === classe), liste = memes.length ? memes : permises;
+    return liste.length ? liste[Math.floor(rnd() * liste.length)] : 'munitions';
   }
 
   // le point d'apparition à bonne distance des ennemis vivants (~35 m, jamais à moins de 15 m ; un peu de hasard départage), jamais sur quelqu'un,
@@ -4675,7 +4823,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     for (let k = 0; k < es.length; k++) {
       const c = es[k]; if (c === e || !c.vivant || c.equipe === e.equipe) continue;
       const dx = c.x - x, dz = c.z - z; if (dx * dx + dz * dz > VU_MAX * VU_MAX) continue;
-      if (monde.vue(c.x, c.y + (c.accroupi ? J.oeilAccroupi : J.oeil), c.z, x, y, z)) return true;
+      if (monde.vue(c.x, c.y + (c.oeil || J.oeil), c.z, x, y, z)) return true;
     }
     return false;
   }

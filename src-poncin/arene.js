@@ -1,8 +1,9 @@
 /* OPÉRATION PONCIN — le mode Arène : chacun pour soi ou deux contre deux autour de la place Bichat. 180 s ou 25 repeints (par joueur,
    ou par équipe en 2 contre 2 : le classement suit les repeints, départagés par les points) ; réapparition au bout de 3 s à ~35 m des
    ennemis, de préférence hors de leur vue (invincible 1,5 s, jusqu'au premier tir) ; points : élimination 100, série de 3 (à chaque
-   multiple de 3 sans mourir) 50, élimination à la tête 25 ; objets de carte.zones.armes (long-tir, pompe, soin, armure) qui
-   réapparaissent ; murs invisibles au bord de zones.arene (monde.limite) ; annonces (premier repeint, séries, prise de tête, dernière minute…).
+   multiple de 3 sans mourir) 50, élimination à la tête 25 ; objets de carte.zones.armes (armes réelles permises par l'hôte : 'precision'
+   devient un fusil de précision, une arme non permise une autre de sa classe ; soin, armure) et caisses de munitions, qui réapparaissent
+   (aucun si options.objets est faux) ; robots équipés au hasard rejouable parmi les armes permises (PREGLES.equipementRobot) ; murs invisibles au bord de zones.arene (monde.limite) ; annonces (premier repeint, séries, prise de tête, dernière minute…).
    Un mode est un jeu de crochets appelés par PJEU (voir src-poncin/ARCHITECTURE.md) : init(jeu), tick(jeu, dt, evs), surMort(jeu,
    victime, tueur, evs), apparition(jeu, entite) → [x, z, yaw], objets(jeu) → [{ id, x, z, objet, dispo }], fini(jeu), resultat(jeu).
    L'état de la manche est rangé dans jeu.arene. Les zones viennent de jeu.carte (carte v1) ; sans carte, une arène de secours est
@@ -38,10 +39,19 @@
       const p = monde.libre(rnd);
       if (dedans(p[0], p[1], 3) && apparitions.every((q) => (q[0] - p[0]) ** 2 + (q[1] - p[1]) ** 2 > 18 * 18)) apparitions.push([p[0], p[1]]);
     }
-    // les objets : ceux de la carte dans l'arène ; sans rien, deux de chaque tirés au hasard
-    const objets = [];
-    for (const o of z.armes || VIDE) if (o && REGLES.OBJETS[o.arme] && fin(+o.x) && fin(+o.z) && dedans(+o.x, +o.z, 1)) objets.push({ id: 'o' + objets.length, x: +o.x, z: +o.z, y: null, objet: o.arme, dispo: true, revient: 0 });
-    if (!objets.length) for (const nom of ['precision', 'pompe', 'soin', 'armure', 'precision', 'pompe', 'soin', 'armure']) { const p = monde.libre(rnd); objets.push({ id: 'o' + objets.length, x: p[0], z: p[1], y: null, objet: nom, dispo: true, revient: 0 }); }
+    // les objets : ceux de la carte dans l'arène (les armes devenues de vraies armes permises) ; sans rien, deux de chaque tirés au
+    // hasard ; plus une caisse de munitions pour deux armes au sol (deux au moins), sur des points libres de l'arène
+    const objets = [], ajouter = (x, zz, nom) => objets.push({ id: 'o' + objets.length, x, z: zz, y: null, objet: nom, dispo: true, revient: 0 });
+    if (jeu.options.objets !== false) {
+      for (const o of z.armes || VIDE) if (o && REGLES.OBJETS[o.arme] && fin(+o.x) && fin(+o.z) && dedans(+o.x, +o.z, 1)) ajouter(+o.x, +o.z, armeReelle(jeu, o.arme, rnd));
+      if (!objets.length) for (const nom of ['precision', 'pompe', 'soin', 'armure', 'precision', 'pompe', 'soin', 'armure']) { const p = monde.libre(rnd); ajouter(p[0], p[1], armeReelle(jeu, nom, rnd)); }
+      const nArmes = objets.filter((o) => REGLES.OBJETS[o.objet].type === 'arme').length;
+      for (let k = 0, n = Math.max(2, Math.ceil(nArmes / 2)), essais = 0; k < n && essais < 60; essais++) {
+        const p = monde.libre(rnd, centre, rayon - 4);
+        if (!dedans(p[0], p[1], 2) || objets.some((o) => (o.x - p[0]) ** 2 + (o.z - p[1]) ** 2 < 12 * 12)) continue; // pas collée à un autre objet
+        ajouter(p[0], p[1], 'munitions'); k++;
+      }
+    }
     jeu.duree = M.duree;
     jeu.arene = { centre, rayon, apparitions, objets, victoire: M.scoreVictoire, equipes: !!jeu.options.equipes, premier: false, meneur: null, meneurA: -1e9, chrono: {}, proche: {} };
     // les robots : noms et couleurs tirés au sort (rejouable) ; en 2 contre 2, le premier va en face, le deuxième avec le joueur…
@@ -50,8 +60,19 @@
     const couleurs = REGLES.COULEURS.filter((c) => c !== COULEURS_EQUIPES[0]), dc = Math.floor(rnd() * couleurs.length);
     for (let k = 0; k < jeu.options.bots; k++) {
       const equipe = jeu.options.equipes ? (k % 2 === 0 ? 1 : 0) : undefined;
-      jeu.ajouterJoueur({ id: 'bot' + (k + 1), nom: noms[k % noms.length], couleur: jeu.options.equipes ? COULEURS_EQUIPES[equipe] : couleurs[(dc + k) % couleurs.length], equipe, bot: true, niveau: jeu.options.niveau });
+      const equip = REGLES.equipementRobot(rnd, jeu.options, jeu.options.niveau); // parmi les armes permises, tiré par jeu.rnd
+      jeu.ajouterJoueur({ id: 'bot' + (k + 1), nom: noms[k % noms.length], couleur: jeu.options.equipes ? COULEURS_EQUIPES[equipe] : couleurs[(dc + k) % couleurs.length], equipe, bot: true, niveau: jeu.options.niveau, equip });
     }
+  }
+
+  // l'arme réelle posée à la place d'un objet de carte : 'precision' (l'ancien nom) → un fusil de précision permis ; une arme non
+  // permise → une arme permise de sa classe, sinon une principale permise ; les autres objets restent tels quels
+  function armeReelle(jeu, nom, rnd) {
+    const O = REGLES.OBJETS[nom]; if (!O || O.type !== 'arme') return nom;
+    const permises = (jeu.options.armes || REGLES.ARMES_ID).filter((id) => REGLES.OBJETS[id] && REGLES.OBJETS[id].type === 'arme');
+    if (!O.alias && permises.indexOf(O.arme) >= 0) return O.arme;
+    const classe = REGLES.arme(O.arme).classe, memes = permises.filter((id) => REGLES.arme(id).classe === classe), liste = memes.length ? memes : permises;
+    return liste.length ? liste[Math.floor(rnd() * liste.length)] : 'munitions';
   }
 
   // le point d'apparition à bonne distance des ennemis vivants (~35 m, jamais à moins de 15 m ; un peu de hasard départage), jamais sur quelqu'un,
@@ -62,7 +83,7 @@
     for (let k = 0; k < es.length; k++) {
       const c = es[k]; if (c === e || !c.vivant || c.equipe === e.equipe) continue;
       const dx = c.x - x, dz = c.z - z; if (dx * dx + dz * dz > VU_MAX * VU_MAX) continue;
-      if (monde.vue(c.x, c.y + (c.accroupi ? J.oeilAccroupi : J.oeil), c.z, x, y, z)) return true;
+      if (monde.vue(c.x, c.y + (c.oeil || J.oeil), c.z, x, y, z)) return true;
     }
     return false;
   }

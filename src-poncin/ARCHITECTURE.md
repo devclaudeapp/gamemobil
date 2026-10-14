@@ -16,7 +16,7 @@ FPS cartoon sur la vraie carte de Poncin (01450). Ce fichier est le **contrat** 
   ```
 - **Globales du navigateur** : `PREGLES`, `PCARTEPROV`, `PMONDE`, `PNAV`, `PCORPS`, `PARMES`, `PZONES`, `PBOTS`, `PJEU`, `PARENE`, `PAVATARS`, `PRENDU`, `PSONS`, `PCONTROLES`, `PHUD`, `PUI`. Three.js (r158, global `THREE`) et `MODELES` (`src/modeles.js`, réutilisé tel quel : `boite`, `capsule`, `sphere`, `cylindre`, `cone`, `mat`, `MAT`, `part`, `assembler`, `maille`, `mesh`, `texture`, `dispose`, `partager`…) sont chargés avant. Sans WebGL ou sans Three.js, le jeu affiche un panneau clair au lieu de planter.
 - **Ordre de construction** (`build.js`) : `src/modeles.js`, `src/persos.js`, puis `regles.js`, `carte-provisoire.js`, `monde.js`, `nav.js`, `corps.js`, `armes.js`, `zones.js`, `bots.js`, `jeu.js`, `arene.js`, `avatars.js`, `textures.js`, `vegetation.js`, `decor.js`, `rendu.js`, `sons.js`, `controles.js`, `hud.js`, `reseau.js`, `enligne.js`, `ui.js` (point d'entrée). La page charge aussi `../vendor/three.min.js`, `../vendor/supabase.min.js` et `config.js`.
-- **Style** : low-poly arrondi pastel comme Le Fournil (`src/modeles.js`) ; blasters à peinture, impacts de peinture colorés, robots rigolos ; jamais de sang.
+- **Style** : low-poly arrondi pastel comme Le Fournil (`src/modeles.js`) ; depuis la livraison 2, de **vraies armes** (modèles GLB de `poncin/armes/`) et des impacts réalistes (trous de balle, poussière, étincelles, douilles, traceurs discrets), robots rigolos ; **jamais de sang** (une touche sur un corps : un marqueur, un flash rouge chez celui qui est touché) ; le ton reste un jeu entre copains.
 - **Écran** : on joue **en paysage** (en portrait, un panneau « Tourne ton téléphone » ; les menus marchent dans les deux sens). Marges `env(safe-area-inset-*)`, joystick décalé du bord (le geste retour de Safari).
 - **Faits réels** : tout nom, toute forme particulière vient des données (OSM, BD TOPO) ; rien d'inventé (pas de portes de ville, pas d'intérieurs) ; le château et ses jardins (privés) ne sont visibles que de la rue, jamais accessibles.
 
@@ -43,7 +43,7 @@ Fichier `poncin/carte/poncin.json` produit par `outils/carte-poncin.js` (IGN + O
   zones: {
     arene: { centre: [x, z], rayon: 110 },              // la zone jouée en Arène (murs invisibles au-delà)
     apparitions: [[x, z], …],                            // ≥ 12 points libres
-    armes: [{ x, z, arme: 'pompe' | 'precision' | 'soin' | 'armure' }],
+    armes: [{ x, z, arme: 'pompe' | 'precision' | 'soin' | 'armure' | 'munitions' | <id d'une principale> }],   // 'precision' : un fusil de précision (livraison 2)
     extraction: [[x, z], …], base: [x, z]                // modes suivants
   }
 }
@@ -57,18 +57,18 @@ Les polygones n'ont pas de point répété à la fin ; l'orientation est quelcon
 ```js
 {
   JOUEUR: { rayon: 0.35, taille: 1.8, oeil: 1.6, vitesse: 5.2, vitesseAccroupi: 2.4, saut: 5.0, gravite: 14, vie: 100, armureMax: 50 },
-  ARMES: [ { id: 'rafale', nom, degats, plombs: 1, cadence /* tirs/s */, chargeur, recharge /* s */, dispersion /* rad */, portee, chute: [debut, fin, minimum], tete: 1.5, recul, couleur }, { id: 'pompe', … plombs: 8 }, { id: 'precision', … } ],
-  arme(id) → définition,
+  ARMES: [ { id: 'ak74', nom: 'AK-74', classe: 'fusil', role: 'principale', modele: 'ak74', degats, plombs: 1, cadence /* tirs/s */, chargeur, reserve, recharge /* s */, dispersion /* rad */, portee, chute: [debut, fin, minimum], tete: 1.5, recul, vitesse, changement, gonfle, visee: {…}, couleur }, … ],  // les 9 vraies armes (livraison 2, ci-dessous)
+  ARMES_ID, CLASSES: { fusil, mitraillette, pompe, sniper, pistolet } (libellés), arme(id) → définition (un id inconnu : l'AK-74),
   degatsA(arme, distance, tete) → nombre,                 // avec la chute de dégâts
   MODES: { arene: { duree: 180, reapparition: 3, scoreVictoire: 25, bots: { min: 3, max: 5 }, invincible: 1.5 } },
-  OBJETS: { pompe: { type: 'arme', arme, retour }, precision: {…}, soin: { type: 'soin', vie, retour }, armure: { type: 'armure', armure, retour } },
+  OBJETS: { ak74: { type: 'arme', arme: 'ak74', retour }, … (une par principale), munitions: { type: 'munitions', retour: 15 }, soin: { type: 'soin', vie, retour }, armure: { type: 'armure', armure, retour }, precision: { alias: true, arme: 'm24' } /* vieilles cartes */ },
   BOTS: { facile: { reaction, erreur, resserre, precision, vise, champ }, normal: {…}, fort: {…} },  // réaction (s), erreur de visée (rad) qui se resserre (/s), probabilité de tirer, vitesse de visée (rad/s), champ de vision (rad)
   NOMS_BOTS: [...], COULEURS: [...],
   mulberry32(graine) → rnd, hash(texte) → entier
 }
 Les chiffres exacts sont dans `regles.js` (source de vérité).
 ```
-Depuis le lot Gameplay, `PREGLES` porte aussi `JOUEUR` v2 (postures…), les 7 armes v2, `ARMES_ID`, `OBJETS.munitions`, `SALON`, `DEFAUT_REGLAGES`, `DEFAUT_EQUIP`, `normaliserReglages`, `equipementDe` : voir « Lot Gameplay : contrat » plus bas.
+Depuis le lot Gameplay, `PREGLES` porte aussi `JOUEUR` v2 (postures…), `ARMES_ID`, `OBJETS.munitions`, `SALON`, `DEFAUT_REGLAGES`, `DEFAUT_EQUIP`, `normaliserReglages`, `equipementDe`, et depuis la livraison 2 les 9 vraies armes, `CLASSES` et `equipementRobot` : voir « Lot Gameplay : contrat » et « Livraison 2 » plus bas.
 
 ## `monde.js` → `PMONDE`
 
@@ -108,25 +108,25 @@ nav.libre(x, z) → bool ; nav.proche(x, z) → [x, z]   // le point navigable l
 
 ```js
 const jeu = PJEU.creer({ monde, mode: PARENE, graine, options: { bots: 4, niveau: 'normal', equipes: false } });
-jeu.ajouterJoueur({ id: 'moi', nom, couleur, equipe, humain: true }) → entite
+jeu.ajouterJoueur({ id: 'moi', nom, couleur, equipe, humain: true, equip: { p, s } | 'p+s' }) → entite   // equip validé contre options.armes ; sans lui : l'équipement par défaut permis
 jeu.etape(dt, entrees) → evenements        // entrees : { [id]: entree } ; les bots sont pilotés en interne par PBOTS ; dt borné à 1/20 s
 jeu.entites                                 // tableau d'entités (ci-dessous)
 jeu.temps, jeu.fini, jeu.classement()        // tri par score
 jeu.aideVisee(id, force) → { dyaw, dpitch, surCible: bool, ralentir: 0..1 }   // au doigt : à ≤ 4° d'une cible à ≤ 40 m en vue, la visée ralentit (ralentir ≈ 0,4) et s'aimante doucement (≤ 2,5° × (1 − d/50)) ; surCible = cône de 1,5° sur un ennemi en vue (tir auto après ~120 ms)
 ```
-**Entité** : `{ id, nom, couleur, equipe, humain, bot: bool, x, y, z, vy, yaw, pitch, auSol, accroupi, vie, armure, vivant, mortDepuis, invincible, arme: 'rafale', armes: ['rafale'], munitions: { rafale: 30 }, reserve: { rafale: 90 }, rechargeJusqua, prochainTir, score: { kills, morts, points }, serie }`.
+**Entité** : `{ id, nom, couleur, equipe, humain, bot: bool, x, y, z, vy, yaw, pitch, auSol, accroupi, vie, armure, vivant, mortDepuis, invincible, arme: 'ak74', armes: ['ak74', 'p226'], slot: 0, equip: { p, s }, munitions: { ak74: 30, p226: 15 }, reserve: { ak74: 120, p226: 45 }, rechargeJusqua, prochainTir, score: { kills, morts, points }, serie }` + les champs v2 (« Entité v2 » plus bas).
 
-**Entrée** (une par image et par joueur, même forme pour les bots) : `{ avant: -1..1, cote: -1..1, dyaw, dpitch, tir: bool, saut: bool, accroupi: bool, recharge: bool, arme: null | 'rafale' | 'pompe' | 'precision' }` (`dyaw`/`dpitch` : variations depuis l'image précédente).
+**Entrée** (une par image et par joueur, même forme pour les bots) : l'entrée v2 (plus bas : `avant, cote, dyaw, dpitch, tir, saut, accroupi, couche, course, vise, recharge, arme: null | 0 | 1, changer`). Une entrée sans les niveaux `course` / `couche` / `vise` est jouée en v2, ces niveaux à `false`.
 
 **Événements** (rendus, sons, HUD, réseau) :
 ```js
-{ t: 'tir', id, arme, o: [x, y, z], fin: [x, y, z], impact: { x, y, z, nx, ny, nz, quoi } | null }
-{ t: 'touche', de, a, degats, tete, mort: bool }
+{ t: 'tir', id, arme, o: [x, y, z], fin: [x, y, z], impact: { x, y, z, nx, ny, nz, quoi, mat, id? } | null }   // un par plomb ; détail : « Livraison 2 »
+{ t: 'touche', de, a, degats, tete, mort: bool, arme }   { t: 'refus', id, quoi: 'couche' }
 { t: 'mort', a, par, arme }      { t: 'reapparition', id }
 { t: 'ramasse', id, objet }      { t: 'recharge', id }      { t: 'saut', id }      { t: 'pas', id }
 { t: 'annonce', texte }          { t: 'fin', classement }
 ```
-Tirs : à balle instantanée, depuis l'œil (`y + oeil`, ou `y + 1.0` accroupi), dans la direction du regard plus une dispersion tirée par `rnd` ; le premier touché parmi le monde (`monde.rayon`) et les capsules des entités vivantes (rayon 0.4, du pied à `taille`, tête = 0.35 m du haut) ; dégâts par `PREGLES.degatsA`.
+Tirs : à balle instantanée, depuis l'œil (`y + e.oeil`, selon la posture), dans la direction du regard plus une dispersion tirée par `rnd` ; le premier touché parmi le monde (`monde.rayon`) et les capsules des entités vivantes (`PCORPS.capsule` : par posture, la tête en haut) ; dégâts par `PREGLES.degatsA`.
 
 ## `arene.js` → `PARENE` (un mode = des crochets appelés par `jeu`)
 
@@ -140,9 +140,10 @@ Tirs : à balle instantanée, depuis l'œil (`y + oeil`, ou `y + 1.0` accroupi),
 ## `bots.js` → `PBOTS`
 
 ```js
-PBOTS.penser(bot, jeu, dt, rnd) → entree     // même forme qu'une entrée humaine : le bot « joue » au joystick
+PBOTS.penser(bot, jeu, dt, rnd) → entree     // une entrée v2, même forme qu'une entrée humaine : le bot « joue » au joystick
+PBOTS.BANDE[id], PBOTS.PORTEE[id]             // la distance qu'il garde et sa portée de tir, par arme (selon la classe)
 ```
-États : patrouille (chemin `nav` vers un point libre ou un objet), chasse (dernière position vue), combat (vise avec un retard de réaction et une erreur selon `PREGLES.BOTS[niveau]`, tire par rafales, se déplace de côté), fuite à faible vie vers un soin. Ils ne voient qu'en ligne de vue (`monde.vue`) et dans un cône de 110°.
+États : patrouille (chemin `nav` vers un point libre ou un objet ; il court sur plus de 15 m), chasse (dernière position vue), combat (vise avec un retard de réaction et une erreur selon `PREGLES.BOTS[niveau]`, tire par rafales, se déplace de côté), fuite à faible vie vers un soin. Ils ne voient qu'en ligne de vue (`monde.vue`) et dans un cône de 110° (45 m, 90 m un fusil de précision en main). Livraison 2 : équipés comme les humains (l'Arène tire `PREGLES.equipementRobot` parmi les armes permises), ils visent au-delà de 12 m (dans leur bande) et toujours au fusil de précision, qu'ils ne tirent qu'une fois la lunette posée ; ils s'accroupissent pour tirer de loin au fusil d'assaut (normal et fort, une fois sur deux) et pour recharger à l'abri, se couchent au fusil de précision (« fort », de loin, s'ils ne sont pas pris pour cible, et s'il y a la place) ; ils passent à la secondaire quand la principale est vide (chargeur vide et cible à moins de 15 m, ou plus rien) ou ne convient pas (fusil de précision à moins de 8 m, pompe à plus de 20 m), au plus toutes les 1,5 s, et reprennent la principale hors combat.
 
 ## `rendu.js` → `PRENDU` (Three.js)
 
@@ -246,7 +247,9 @@ Déplacements fluides, postures, nouvelles armes à deux emplacements, visée, r
 | piste chez l'hôte (C5), horloge douce et `jeu.avantImage` (C6), tirs comptés (`nt`), seau de déplacement | **[branché]** (format d'entrée v1 + `tc`, `tr`, `nt`) |
 | sol des ponts (C7) : `monde.hauteur` suit les tabliers ; `monde.relief`, `monde.chaussee`, `monde.tabliers` | **[branché]** |
 | `PJEU.creer` : options = réglages normalisés, paramètre `zone` ; `jeu.peutBlesser`, `jeu.vieMax`, `jeu.armureMax` ; crochet de mode `apresNav` | **[lot 2/2]** |
-| instantané v2 (`ligneDe` / `lireLigne`, § 9.3) ; entrée réseau v2 (cr, cc, vi, po, oe ; validation de posture ; `en.origine`) | **[lot 2/2]** (le format v1 reste ; `ARMES_ID` s'allonge seulement) |
+| instantané v2 (`ligneDe` / `lireLigne`, § 9.3 : arme, emplacements, munitions, posture) | **[branché]** dans jeu.js (livraison 2 ; `ARMES_ID` reparti à zéro : `PRESEAU` VERSION 2 à poser par l'intégrateur) |
+| régime v2 pour tous dans le jeu (équipement, entrée v2 forcée), 9 vraies armes, objets réels et caisses de munitions, robots équipés, événements de tir enrichis (`mat`) | **[branché]** (livraison 2, voir plus bas) |
+| entrée réseau v2 (cr, cc, vi, po, oe ; validation de posture ; `en.origine`) | **[lot 2/2]** |
 | `PMONDE.limiteDe` et `monde.limite` v2 | **[lot 2/2]** (monde.js) |
 | `PRENDU.ambiance({ heure, meteo })` ; commandes v2 (course, couché, visée, emplacements dans le même cumul) ; HUD v2 ; `PRESEAU` VERSION 2, salon de 6, budget de relais (`httpSend` sur `poncin:CODE:h`, `relaisComptesParS`) | **[lot 2/2]** |
 
@@ -269,11 +272,11 @@ PCORPS.oeil(e), PCORPS.haut(e), PCORPS.vitesseMax(e, A, monde, dx?, dz?), PCORPS
 PCORPS.POSTURES = ['debout', 'accroupi', 'glisse', 'couche'], PCORPS.NEUTRE, PCORPS.estV2(en)
 PCORPS.camera(opts?) → f(e, dt) → { y, cote, roulis, k, phase }   // opts.balancement : 'normal' | 'doux' | 'aucun' ; f.regler(opts), f.remettre() ; objet rendu réutilisé
 ```
-- **Deux régimes, choisis par l'entrée.** Entrée *historique* (aucun des niveaux `course`, `couche`, `vise`) : le déplacement d'avant, accroupi immédiat (2,4 m/s, œil 1,0, capsule 1,2), seul `k` a changé **[branché]**. Entrée *v2* (au moins un de ces niveaux, même à `false`) : postures et transitions linéaires (0,18 s accroupi, 0,6 / 0,45 s couché, 0,1 s pour se relever en sautant), course à 7,0 m/s (avant ≥ 0,7, ≤ 40°, vise < 0,1, sans tir ; tirer la coupe et `e.remonte = 0,18 s`), glissade (front accroupi en course à ≥ 6 m/s, attente 0,8 s), couché (place 0,8 m, pente ≤ 35 %, refus `{ t: 'refus', id, quoi: 'couche' }`), réception (vy < −7 → ×0,5 pendant 0,25 s), facteurs arme / visée / pente **[prêt]**. `e.corpsV2` dit quel régime a joué le dernier pas ; `PCORPS.oeil` / `haut` / `capsule` d'une entité historique se lisent sur `e.accroupi`.
+- **Deux régimes, choisis par l'entrée.** Entrée *historique* (aucun des niveaux `course`, `couche`, `vise`) : le déplacement d'avant, accroupi immédiat (2,4 m/s, œil 1,0, capsule 1,2), seul `k` a changé (gardé pour les vieux tests et `PJEU.deplacer` appelé avec une entrée v1 : **jeu.js ne le prend plus**, livraison 2). Entrée *v2* (au moins un de ces niveaux, même à `false`) : postures et transitions linéaires (0,18 s accroupi, 0,6 / 0,45 s couché, 0,1 s pour se relever en sautant), course à 7,0 m/s (avant ≥ 0,7, ≤ 40°, vise < 0,1 et pas demandée, sans tir ; tirer la coupe et `e.remonte = 0,18 s`), glissade (front accroupi en course à ≥ 6 m/s, attente 0,8 s), couché (place 0,8 m, pente ≤ 35 %, refus `{ t: 'refus', id, quoi: 'couche' }`), réception (vy < −7 → ×0,5 pendant 0,25 s), facteurs arme / visée / pente **[prêt]**. `e.corpsV2` dit quel régime a joué le dernier pas ; `PCORPS.oeil` / `haut` / `capsule` d'une entité historique se lisent sur `e.accroupi`.
 - Les minuteries du corps (`relanceA`, `receptionA`, `remonte`) sont des **durées restantes** (s), pas des dates : la prédiction du client n'a pas besoin d'horloge.
 - **Caméra** : y = œil lissé (Holt, `a = 1 − e^(−dt/0,05)`, `b = 1 − e^(−dt/0,09)`, net au-delà de 0,6 m) − A·(1 − cos 2φ)/2 + creux d'atterrissage (−min(0,10 ; 0,02·|vy|), ressort ω = 14/s) ; φ += π·d/(0,75 + 0,2·v) ; A = 1,2 cm debout, 1,8 en course, 0,6 accroupi, 0 couché ou en glissade, ×0,2 en visée ; côté 0,6 cm·sin φ, roulis 0,0025·sin φ. `phase` sert à l'arme subjective et aux avatars (C3). Le tir part toujours de l'œil de la simulation.
 
-**Entité v2** (valeurs par défaut posées par `ajouterJoueur` et `placer`) : `posture`, `vers`, `transition` (s restantes), `oeil`, `hautCapsule`, `corpsV2` ; `course`, `gv`, `gdx`, `gdz` (glissade), `relanceA`, `receptionA`, `remonte` ; `vise` (0..1), `viseStable` (s) ; `accroupiPrec`, `couchePrec` (fronts) ; `ax`, `ay`, `az`, `aoeil` ; `armes`, `slot` (0 | 1), `equip` (`null` = équipement historique, ou `{ p, s }`), `changeJusqua`, `changeReste`. `e.accroupi` reste (`posture ≠ 'debout'`).
+**Entité v2** (valeurs par défaut posées par `ajouterJoueur` et `placer` ; livraison 2 : `corpsV2` vrai et `equip` posé pour tous) : `posture`, `vers`, `transition` (s restantes), `oeil`, `hautCapsule`, `corpsV2` ; `course`, `gv`, `gdx`, `gdz` (glissade), `relanceA`, `receptionA`, `remonte` ; `vise` (0..1), `viseStable` (s) ; `accroupiPrec`, `couchePrec` (fronts) ; `ax`, `ay`, `az`, `aoeil` ; `armes`, `slot` (0 | 1), `equip` (`{ p, s }` ; `null` = équipement historique, plus jamais dans le jeu), `changeJusqua`, `changeReste`, `lampe`. `e.accroupi` reste (`posture ≠ 'debout'`).
 
 **Entrée v2** : `{ avant, cote, dyaw, dpitch | yaw, pitch, tir, saut, accroupi, couche, course, vise, recharge, arme: null | 0 | 1 (emplacement) | id (compat), changer (front), origine? }`. Accroupi, couché, course et visée sont des **niveaux** (une entrée perdue ne perd rien ; la simulation trouve elle-même le front accroupi de la glissade). `origine` (tir d'un client depuis sa position) : **[lot 2/2]**.
 
@@ -287,10 +290,10 @@ PARMES.utile(e, O), PARMES.prendre(e, O, jeu)   // objets 'arme' et 'munitions' 
 PARMES.peutTirer(e), PARMES.secours(e)          // pas de tir en course, pendant la remontée de l'arme, ni en transition vers / depuis couché ; l'arme jamais à sec
 ```
 - Le tir utilise `jeu.temps`, `jeu.dt` (le pas en cours), `jeu.rnd`, `jeu.monde`, `jeu.entites`, `jeu.ennemis` et des crochets exposés par `PJEU` pour ce module : `jeu.rembobiner(tireur)`, `jeu.restaurer()`, `jeu.blesser(cible, de, degats, tete, arme, out)`, `jeu.faireBruit(e, portee)`. L'historique de compensation de latence garde la posture, la hauteur de capsule et le yaw.
-- **Régime historique** (`e.equip === null`, la partie actuelle) **[branché]** : rafale au départ, armes ramassées ajoutées à `e.armes`, arme vide de tout lâchée, le rafale jamais à sec, changement en 0,3 s, dispersion d'avant ; le Long-tir garde **0,0015 rad à la hanche** (`A.dispersionAvantVisee`) tant que la visée n'est pas branchée — la table v2 dit 0,03 (× 0,05 en visée).
-- **Emplacements** (`ajouterJoueur({ …, equip })`) **[prêt]** : `e.armes = [principale, secondaire]`, secondaire jamais sous un chargeur de réserve, changement en `A.changement` (annule recharge et visée), arme ramassée = nouvelle principale jusqu'à la mort, objet `munitions` = deux réserves pleines, dispersion v2 (§ 4 : posture, visée, stabilisation de la lunette en 0,35 s, mouvement ×(1 − 0,5·vise), recul ×(1 − 0,3·vise)).
-- **Armes** : `ARMES_ID = ['rafale', 'pompe', 'precision', 'carabine', 'petoire', 'arroseuse', 'arrosoir', 'splash']` (ordre du réseau, ne fait que s'allonger ; `splash` réservé). Champs : `id, nom, role ('principale' | 'secondaire'), option?, modele, degats, plombs, cadence, semiAuto, chargeur, reserve, recharge, dispersion, dispersionMouvement, portee, chute, tete, recul, vitesse, changement, gonfle, visee: { viseur: 'aucun' | 'point rouge' | 'lunette', zoom, dispersion (facteur), vitesse (facteur), entree (s), oeil (point de mire du pack : null en attendant) }, couleur`. `GONFLE` de jeu.js est remplacé par `A.gonfle`.
-- Duels robot contre robot (§ 14) et choix d'arme des robots (§ 11) : **[lot 2/2]**.
+- **Régime historique** (`e.equip === null`, `PARMES.equiper(e, null)`) : gardé dans le module pour les vieux tests, **plus aucun chemin du jeu ne le prend** (livraison 2) : l'arme de base (`DEFAUT_EQUIP.p`) au départ, armes ramassées ajoutées, arme vide de tout lâchée, l'arme de base jamais à sec, changement en 0,3 s, dispersion d'avant la visée (`dispersionAvantVisee` a disparu avec les blasters).
+- **Emplacements** (`ajouterJoueur({ …, equip })`) **[branché]** (livraison 2, tout le monde) : `e.armes = [principale, secondaire]`, secondaire jamais sous un chargeur de réserve, changement en `A.changement` (annule recharge et visée), arme ramassée = nouvelle principale jusqu'à la mort, objet `munitions` = deux réserves pleines, dispersion v2 (§ 4 : posture, visée, stabilisation de la lunette en 0,35 s, mouvement ×(1 − 0,5·vise), recul ×(1 − 0,3·vise)).
+- **Armes** : les 9 vraies armes de la livraison 2 (plus bas). Champs : `id, nom, classe, role ('principale' | 'secondaire'), modele (= id), degats, plombs, cadence, semiAuto, chargeur, reserve, recharge, dispersion, dispersionMouvement, portee, chute, tete, recul, vitesse, changement, gonfle, visee: { viseur: 'lunette' | 'point' | 'fer', zoom, dispersion (facteur), vitesse (facteur), entree (s), oeil (point de mire du modèle : null, mesuré par le rendu) }, couleur`. `GONFLE` de jeu.js est remplacé par `A.gonfle`.
+- Duels robot contre robot (§ 14) et choix d'arme des robots (§ 11) : **[branché]** (livraison 2 ; `test/poncin-armes.test.js`).
 
 ### Réglages du salon (§ 6) — `PREGLES`
 
@@ -298,13 +301,14 @@ PARMES.peutTirer(e), PARMES.secours(e)          // pas de tir en course, pendant
 SALON = { max: 6, zones, durees: [180, 300, 600, 0], scores: [10, 25, 50], heures, meteos, vies: { normale, unCoup, costaud }, reapparitions: { rapide: 3, normale: 6, lente: 10, aucune: -1 }, manches: [1, 3, 5] }
 DEFAUT_REGLAGES = { v: 2, mode: 'arene', zone: 'centre', duree: 180, score: 25, heure: 'jour', meteo: 'clair', equipes: false, bots: 4, niveau: 'normal',
   tirAllie: false, vie: 'normale', reapparition: 'rapide', manches: 3 /* « dernier debout » : lu seulement si reapparition = 'aucune' */, objets: true, aide: true,
-  armes: ['rafale', 'pompe', 'precision', 'carabine', 'petoire', 'arroseuse'] }
-DEFAUT_EQUIP = { p: 'rafale', s: 'petoire' }
+  armes: ['ak74', 'm4', 'ump', 'mp9', 'pompe', 'm24', 'awm', 'm1911', 'p226'] }
+DEFAUT_EQUIP = { p: 'ak74', s: 'p226' }
 normaliserReglages(r, { humains }) → copie bornée   // inconnu → défaut ; booléens stricts ; bots ≤ 6 − humains ; armes ⊂ ARMES (ordre du réseau), au moins une principale et une secondaire
 equipementDe(demande /* { p, s } ou 'p+s' */, reglages) → { p, s }   // DEFAUT_EQUIP s'il est permis, sinon la première arme permise de l'emplacement
 armesPermises(liste) → liste normalisée
+equipementRobot(rnd, reglages, niveau) → { p, s }     // au hasard rejouable parmi les armes permises : fusils 3, mitraillettes et pompe 2, fusils de précision 1 (2 en « fort »), pistolets 1
 ```
-**[prêt]** ; leur usage dans la partie (durée 0, score, vie, tir allié, réapparition « aucune » en manches, aide) : **[lot 2/2]**.
+**[prêt]** ; dans la partie, `PJEU.creer({ options })` lit déjà `armes` (permises) et `objets` (livraison 2) ; le reste (durée 0, score, vie, tir allié, réapparition « aucune » en manches, aide) : **[lot 2/2]**.
 
 ### Zones (§ 7) — `PZONES` (zones.js)
 
@@ -315,9 +319,9 @@ PZONES.IDS, PZONES.NOMS
 ```
 `rnd` = `mulberry32(graine ^ 0x2F6E2B1)` (à part, pour que `jeu.rnd` reste le même chez l'hôte et la façade). **'centre'** reprend telles quelles les zones de la carte (`zones.arene`, `apparitions`, `armes`) **[prêt]** ; les autres zones rendent 'centre' avec `avertissement` en attendant `PMONDE.limiteDe` **[lot 2/2]** (rivières = le Veyron dans le bourg et ses deux ponts, décision du joueur).
 
-### Instantané v2 (§ 9.3) — **[lot 2/2]**
+### Instantané v2 (§ 9.3) — **[branché]** dans jeu.js (livraison 2)
 
-Ligne `[id, x, y, z, yaw, pitch, vie, armure, drapeaux, arme, kills, morts, points]`, plus pour les humains `[p, s, mP, rP, mS, rS, recharge restante, ack]` (p, s : indices dans `ARMES_ID`). Drapeaux : 1 vivant, 2 au sol, 4 accroupi (posture ≠ debout), 8 invincible, 16 en recharge, 32 couché, 64 glissade, 128 course, 256 vise ≥ 0,5, 512 en transition, 1024 lampe. `PRESEAU` VERSION 2 (« Mets le jeu à jour : recharge la page »). Aujourd'hui `ligneDe` / `lireLigne` gardent le format v1 (munitions des trois premières armes de `ARMES_ID`).
+Ligne `[id, x, y, z, yaw, pitch, vie, armure, drapeaux, arme, kills, morts, points]` (`arme` : l'arme en main, indice dans `ARMES_ID`), plus pour les humains `[p, s, mP, rP, mS, rS, recharge restante, ack]` (p, s : les armes des deux emplacements, indices dans `ARMES_ID` ; p peut être une arme ramassée ; mP / rP, mS / rS : munitions et réserves). Drapeaux : 1 vivant, 2 au sol, 4 accroupi (posture ≠ debout), 8 invincible, 16 en recharge, 32 couché (posture visée), 64 glissade, 128 course, 256 vise ≥ 0,5, 512 en transition, 1024 lampe. `lireLigne` (« corps ») relit la posture visée (couché, glissade, accroupi, debout : `posture = vers`, œil et capsule de la table, sans transition : le rendu lisse), `course`, `vise` (0 | 1), `enTransition`, `lampe`, l'arme en main et `slot` ; (« état ») les deux emplacements, munitions et réserves. Comme `ARMES_ID` repart à zéro, `PRESEAU` passe en VERSION 2 (« Mets le jeu à jour : recharge la page ») : **à faire par l'intégrateur** (reseau.js, enligne.js).
 
 ### Récapitulatif (§ 13)
 
@@ -326,10 +330,10 @@ Ligne `[id, x, y, z, yaw, pitch, vie, armure, drapeaux, arme, kills, morts, poin
 | Nouveaux modules purs | corps.js → PCORPS ; armes.js → PARMES ; zones.js → PZONES **[branché]** |
 | Ordre de build.js | … regles, carte-provisoire, monde, nav, **corps, armes, zones**, bots, jeu, arene, avatars, … ui **[branché]** |
 | PJEU.creer | options = réglages normalisés ; paramètre zone **[lot 2/2]** |
-| Entités | ajouterJoueur({ …, equip }) ; entité v2 **[prêt]** (valeurs par défaut posées) |
+| Entités | ajouterJoueur({ …, equip }) ; entité v2 **[branché]** (livraison 2 : tout le monde équipé, corps v2) |
 | PJEU.deplacer | alias de PCORPS.deplacer **[branché]** |
 | PJEU.pasFixe | boucle à pas fixe **[branché]** |
-| Instantané | ligneDe / lireLigne v2 **[lot 2/2]** |
+| Instantané | ligneDe / lireLigne v2 **[branché]** (jeu.js ; VERSION 2 du réseau : intégrateur) |
 | Nouveaux champs du jeu | jeu.peutBlesser, jeu.vieMax, jeu.armureMax **[lot 2/2]** ; jeu.dt, jeu.rembobiner / restaurer / blesser / faireBruit **[branché]** |
 | Façade en ligne | jeu.avantImage(maintenant) **[branché]** |
 | Mode | crochet apresNav **[lot 2/2]** |
@@ -342,4 +346,40 @@ Ligne `[id, x, y, z, yaw, pitch, vie, armure, drapeaux, arme, kills, morts, poin
 
 Les anciens champs (`accroupi`, `JOUEUR.oeil`, `oeilAccroupi`, `taille`, `tailleAccroupi`, `vitesseAccroupi`, l'entrée `arme: id`) restent lisibles pendant tout le lot.
 
-**Notes** : `hud.js` (ligne du viseur) lit `A.dispersionAvantVisee` quand elle existe (le Long-tir à la hanche du régime historique, comme la simulation) ; le HUD v2 lira `PJEU.dispersion(moi, A)`. `enligne.js` lit `PREGLES.arme(id).gonfle`.
+**Notes** : `A.dispersionAvantVisee` a disparu avec les blasters (livraison 2) : le HUD lit `PJEU.dispersion(moi, A)`. `enligne.js` lit `PREGLES.arme(id).gonfle`.
+
+## Livraison 2 « Vraies armes, corps et visée » : l'arsenal et les impacts
+
+**Le régime.** Dans le jeu, tout le monde est en régime v2 : `ajouterJoueur` pose `e.equip = PREGLES.equipementDe(d.equip, options)` (défaut : l'équipement par défaut permis) et `placer` équipe (`PARMES.equiper`) ; `jeu.etape` joue chaque entrée en v2 (une entrée sans `course` / `couche` / `vise` les reçoit à `false`, copiée dans un objet réutilisé). `PJEU.creer({ options })` lit `armes` (permises par l'hôte, normalisées par `PREGLES.armesPermises` ; défaut : les 9) et `objets` (faux : aucun objet au sol).
+
+**L'arsenal** (`PREGLES.ARMES`, ordre du réseau = `ARMES_ID`, reparti à zéro) ; temps pour éliminer 100 PV au corps, sans armure, à portée utile, mesurés par les duels de `test/poncin-armes.test.js` :
+
+| id | nom | classe | rôle | dégâts × balles | cadence (/s) | chargeur / réserve | viseur, zoom | temps pour éliminer |
+|---|---|---|---|---|---|---|---|---|
+| ak74 | AK-74 | fusil | principale | 24 × 5 | 8,5 | 30 / 120 | point 1,5× | 0,48 s à 20 m |
+| m4 | M4 | fusil | principale | 22 × 5 | 8,8 | 30 / 120 | point 1,5× | 0,47 s à 20 m |
+| ump | UMP | mitraillette | principale | 22 × 5 | 10 | 25 / 125 | point 1,45× | 0,42 s à 8 m (0,62 s à 25 m) |
+| mp9 | MP9 | mitraillette | principale | 15 × 7 | 15 | 30 / 120 | point 1,4× | 0,42 s à 8 m (0,82 s à 25 m) |
+| pompe | Fusil à pompe | pompe | principale | 9 plombs × 15 | 1,2 | 6 / 30 | fer 1,25× | un coup jusqu'à 8 m, jamais à 12 m |
+| m24 | M24 | sniper | principale | 75 (tête × 2) | 0,8 | 5 / 25 | lunette 4× | un coup à la tête, deux au corps (1,27 s) |
+| awm | AWM | sniper | principale | 90 (tête × 2) | 0,75 | 5 / 20 | lunette 4× | un coup à la tête, deux au corps (1,35 s) |
+| m1911 | M1911 | pistolet | secondaire | 30 × 4 | 3,3 | 7 / 35 | fer 1,25× | 0,92 s |
+| p226 | P226 | pistolet | secondaire | 22 × 5 | 4,5 | 15 / 45 | fer 1,25× | 0,9 s |
+
+Les autres chiffres (recharge, dispersions, chute, recul, vitesse, changement, gonfle, mise en joue) sont dans `regles.js`, source de vérité. `PREGLES.CLASSES` donne les libellés des classes (HUD, menus) ; `A.couleur` une couleur de pastille par classe ; `A.modele` = `A.id` (`poncin/armes/<id>.glb`). La visée au fusil de précision : 0,06 rad à la hanche (inutile), × 0,02 lunette posée (stabilisée en 0,35 s d'immobilité, deux fois plus vite couché).
+
+**Objets au sol** (`PARENE.objets`, `OBJETS`) : les armes de `carte.zones.armes` deviennent de vraies armes permises (`'precision'`, l'ancien nom des cartes, devient un fusil de précision permis ; une arme non permise, une arme permise de sa classe, sinon une principale permise), soin et armure comme avant, plus une caisse de munitions (`'munitions'` : les deux réserves pleines, 15 s) pour deux armes au sol (deux au moins), à 12 m au moins des autres objets. Une arme ramassée remplace la principale jusqu'à la mort ; une arme non permise ne se ramasse pas. L'événement `ramasse` porte l'id réel (`objet: 'awm'`).
+
+**Événements de tir pour les impacts** (`PARMES.tirer` et `PARMES.tirVisuel`, un événement par plomb) :
+```js
+{ t: 'tir', id, arme /* id de l'arme : classe, son, traceur, douille */, o: [x, y, z] /* l'œil du tireur */, fin: [x, y, z] /* le bout du rayon */,
+  impact: null /* dans le vide, à la portée */ | {
+    x, y, z,          // le point d'impact (m)
+    nx, ny, nz,       // la normale de la surface touchée, unitaire, tournée vers le tireur (corps : depuis l'axe de la capsule)
+    quoi: 'mur' | 'toit' | 'sol' | 'entite',      // (compatibilité)
+    mat: 'mur' | 'metal' | 'sol' | 'corps',       // la matière, pour l'effet : éclats et poussière, étincelles, poussière de terre, marqueur (jamais de sang)
+    id                // l'entité touchée (mat 'corps' seulement)
+  }, local? /* tirVisuel : le tir montré tout de suite par le client */ }
+{ t: 'touche', de, a, degats, tete, mort, arme }  // le marqueur de touche du tireur, le flash rouge de la victime
+```
+La matière (`PARMES.matiere(h, monde)` sur le résultat de `monde.rayon`) : terrain et chaussée → `'sol'` ; toit de zinc (`batiments[i].toit === 'zinc'`), clôture et portail (`carte.murs[k].t`), banc, croix, abribus et petit mobilier → `'metal'` ; murs de bâtiments, voûtes, murs de pierre, troncs, fontaine et monument → `'mur'` ; une entité → `'corps'`. `monde.carte` (la carte d'origine, nouvelle dans monde.js) donne `murs` et `mobilier`. **À faire par l'intégrateur** : `enligne.js` (sérialisation de `evts`, `case 'tir'`) doit recopier `impact.mat` (aujourd'hui il ne garde que x, y, z, nx, ny, nz, quoi, id) ; le rendu peut retomber sur `quoi` quand `mat` manque.

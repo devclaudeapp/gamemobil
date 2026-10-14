@@ -6,7 +6,7 @@
 'use strict';
 const fs = require('fs'), path = require('path');
 const R = require('../src-poncin/regles.js'), PM = require('../src-poncin/monde.js'), PN = require('../src-poncin/nav.js');
-const PJ = require('../src-poncin/jeu.js'), PB = require('../src-poncin/bots.js'), PA = require('../src-poncin/arene.js'), PC = require('../src-poncin/carte-provisoire.js');
+const PC2 = require('../src-poncin/corps.js'), PJ = require('../src-poncin/jeu.js'), PB = require('../src-poncin/bots.js'), PA = require('../src-poncin/arene.js'), PC = require('../src-poncin/carte-provisoire.js');
 let fails = 0, oks = 0;
 const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (ok) oks++; else fails++; };
 const titre = (t) => console.log('\n── ' + t);
@@ -35,10 +35,14 @@ function partie(monde, carte, ids, opts) {
   for (const e of es) e.invincible = 0;
   return { jeu, es };
 }
-function poser(jeu, e, x, z, yaw) { e.x = x; e.z = z; e.y = jeu.monde.hauteur(x, z); e.vx = e.vz = e.vy = 0; e.auSol = true; if (yaw != null) e.yaw = yaw; e.pitch = 0; e.gonfle = 0; e.prochainTir = 0; e.invincible = 0; }
-function viserSur(e, c, hauteur) { const dx = c.x - e.x, dz = c.z - e.z, dy = c.y + hauteur - (e.y + (e.accroupi ? J.oeilAccroupi : J.oeil)); e.yaw = Math.atan2(-dx, -dz); e.pitch = Math.atan2(dy, Math.hypot(dx, dz)); }
+function poser(jeu, e, x, z, yaw) { e.x = x; e.z = z; e.y = jeu.monde.hauteur(x, z); e.vx = e.vz = e.vy = 0; e.auSol = true; if (yaw != null) e.yaw = yaw; e.pitch = 0; e.gonfle = 0; e.prochainTir = 0; e.invincible = 0; PC2.changerPosture(e, 'debout', 0); e.accroupi = false; }
+function viserSur(e, c, hauteur) { const dx = c.x - e.x, dz = c.z - e.z, dy = c.y + hauteur - (e.y + e.oeil); e.yaw = Math.atan2(-dx, -dz); e.pitch = Math.atan2(dy, Math.hypot(dx, dz)); }
 function cible(jeu, e, x, z) { poser(jeu, e, x, z); e.vivant = true; e.vie = 100; e.armure = 0; e.accroupi = false; }
-function donner(e, arme) { const A = R.arme(arme); if (e.armes.indexOf(arme) < 0) e.armes.push(arme); e.arme = arme; e.munitions[arme] = A.chargeur; e.reserve[arme] = A.reserve; e.enRecharge = false; e.rechargeJusqua = 0; e.prochainTir = 0; }
+// donner une arme : à son emplacement (principale ou secondaire), en main, chargeur et réserve pleins, l'arme à la hanche
+function donner(e, arme) { const A = R.arme(arme), s = A.role === 'secondaire' ? 1 : 0; if (e.armes[s] !== arme) { delete e.munitions[e.armes[s]]; delete e.reserve[e.armes[s]]; e.armes[s] = arme; } e.slot = s; e.arme = arme; e.munitions[arme] = A.chargeur; e.reserve[arme] = A.reserve; e.enRecharge = false; e.rechargeJusqua = 0; e.prochainTir = 0; e.vise = 0; e.viseStable = 0; e.changeReste = 0; }
+// épauler : la visée posée (et la lunette stabilisée) ; tirer posé : l'entrée garde la visée
+function epauler(e) { e.vise = 1; e.viseStable = 1; }
+const TIRP = () => entree({ tir: true, vise: true });
 function pas(jeu, n, entrees, surEvs) { for (let i = 0; i < n; i++) { const evs = jeu.etape(DT, entrees); if (surEvs) for (const v of evs) surEvs(v); } }
 const evsDe = (jeu, n, entrees) => { const out = []; pas(jeu, n, entrees, (v) => out.push(v)); return out; };
 
@@ -49,7 +53,7 @@ titre('Création, joueurs, API');
   const a = es[0];
   check(typeof jeu.etape === 'function' && typeof jeu.ajouterJoueur === 'function' && typeof jeu.classement === 'function' && typeof jeu.aideVisee === 'function' && Array.isArray(jeu.entites) && jeu.temps === 0 && jeu.fini === false, 'PJEU.creer → etape, ajouterJoueur, entites, temps, fini, classement, aideVisee');
   const champs = ['id', 'nom', 'couleur', 'equipe', 'humain', 'bot', 'x', 'y', 'z', 'vy', 'yaw', 'pitch', 'auSol', 'accroupi', 'vie', 'armure', 'vivant', 'mortDepuis', 'invincible', 'arme', 'armes', 'munitions', 'reserve', 'rechargeJusqua', 'prochainTir', 'score', 'serie'];
-  check(champs.every((k) => k in a) && a.arme === 'rafale' && a.armes.join() === 'rafale' && a.munitions.rafale === 30 && a.reserve.rafale === R.arme('rafale').reserve && a.score.kills === 0 && a.score.points === 0 && a.vie === 100 && a.armure === 0, 'entité au format du contrat (rafale 30 + réserve ' + R.arme('rafale').reserve + ', vie 100)');
+  check(champs.every((k) => k in a) && a.arme === 'ak74' && a.armes.join() === 'ak74,p226' && a.equip.p === 'ak74' && a.munitions.ak74 === 30 && a.reserve.ak74 === R.arme('ak74').reserve && a.score.kills === 0 && a.score.points === 0 && a.vie === 100 && a.armure === 0, 'entité au format du contrat (équipée : AK-74 30 + réserve ' + R.arme('ak74').reserve + ', P226 ; vie 100)');
   check(jeu.ajouterJoueur({ id: 'a' }) === a && jeu.entites.length === 2, 'ajouter deux fois le même id rend la même entité');
   check(Math.abs(jeu.monde.limite.rayon - 190) < 1e-9 && jeu.duree === 180 && jeu.reste === 180 && jeu.mode === PA && jeu.options.bots === 0, 'Arène : monde.limite = zones.arene, durée 180 s');
   const evs = jeu.etape(DT, {}); const evs2 = jeu.etape(DT, {});
@@ -58,6 +62,10 @@ titre('Création, joueurs, API');
   const moi = j2.ajouterJoueur({ id: 'moi', nom: 'Toi', couleur: '#FFC84A', equipe: 0, humain: true });
   const eq = [0, 1].map((k) => j2.entites.filter((e) => e.equipe === k).length);
   check(j2.entites.filter((e) => e.bot).length === 4 && j2.entites.every((e) => !e.bot || e.niveau === 'fort') && eq[0] === 3 && eq[1] === 2 && moi.equipe === 0, `2 contre 2 : robots répartis (équipe 0 : ${eq[0]}, équipe 1 : ${eq[1]}), niveau transmis`);
+  const jr = PJ.creer({ monde: mondePlat, carte: cartePl, mode: PA, graine: 8, options: { bots: 6, armes: ['m4', 'mp9', 'm24', 'm1911'] } }), eqs = jr.entites.map((e) => e.equip.p + '+' + e.equip.s);
+  const jr2 = PJ.creer({ monde: mondePlat, carte: cartePl, mode: PA, graine: 8, options: { bots: 6, armes: ['m4', 'mp9', 'm24', 'm1911'] } });
+  check(jr.entites.every((e) => ['m4', 'mp9', 'm24'].indexOf(e.equip.p) >= 0 && e.equip.s === 'm1911' && e.arme === e.equip.p) && new Set(eqs).size > 1 && jr2.entites.map((e) => e.equip.p + '+' + e.equip.s).join() === eqs.join(),
+    `robots équipés au hasard rejouable parmi les armes permises (${eqs.join(', ')})`);
   const j3 = PJ.creer({ monde: mondePlat, carte: cartePl, mode: PA, graine: 5, options: { bots: 3 } });
   const m3 = j3.ajouterJoueur({ id: 'moi', nom: 'Toi', equipe: 'moi', humain: true });
   check(new Set(j3.entites.map((e) => e.equipe)).size === 4 && new Set(j3.entites.map((e) => e.nom)).size === 4 && m3.equipe === 'moi', 'chacun pour soi : une équipe par joueur, noms des robots différents');
@@ -76,7 +84,7 @@ titre('Déplacements');
   poser(jeu, a, 0, 100, 0); pas(jeu, 60, { a: entree({ avant: -1 }) });
   check(Math.abs(a.vitesse - J.vitesse * J.vitesseRecul) < 0.01, `à reculons : ${f2(a.vitesse)} m/s (×${J.vitesseRecul})`);
   poser(jeu, a, 0, 100, 0); pas(jeu, 60, { a: entree({ avant: 1, accroupi: true }) });
-  check(Math.abs(a.vitesse - J.vitesseAccroupi) < 0.01 && a.accroupi, `accroupi : ${f2(a.vitesse)} m/s`);
+  check(Math.abs(a.vitesse - J.postures.accroupi.vitesse) < 0.01 && a.accroupi && a.posture === 'accroupi', `accroupi : ${f2(a.vitesse)} m/s (posture v2)`);
   poser(jeu, a, 0, 100, 0); pas(jeu, 60, { a: entree({ avant: 1, cote: 1 }) });
   check(Math.abs(a.vitesse - J.vitesse) < 0.01, 'en diagonale, pas plus vite');
   // le saut
@@ -136,8 +144,8 @@ const carteP = PC.creer(), mondeP = PM.creer(carteP);
   const m = PM.creer(c), { jeu, es: [a] } = partie(m, c, ['a']);
   poser(jeu, a, -3, 0, -Math.PI / 2); pas(jeu, 120, { a: entree({ avant: 1 }) });
   check(a.x < 0.05 && a.y < 0.5, `talus de pente 2 (4 m sur 2 m) : bloqué au pied (x = ${f2(a.x)})`);
-  poser(jeu, a, 3, 0, -Math.PI / 2); pas(jeu, 120, { a: entree({ avant: 1 }) });
-  check(a.x > 10 && Math.abs(a.y - m.hauteur(a.x, a.z)) < 1e-9, `pente de 0,5 : on la monte (x = ${f2(a.x)}, y = ${f2(a.y)})`);
+  poser(jeu, a, 3, 0, -Math.PI / 2); pas(jeu, 180, { a: entree({ avant: 1 }) });
+  check(a.x > 10 && Math.abs(a.y - m.hauteur(a.x, a.z)) < 1e-9, `pente de 0,5 : on la monte, moins vite (x = ${f2(a.x)} en 3 s, y = ${f2(a.y)})`);
   poser(jeu, a, 1.9, 0, Math.PI / 2); pas(jeu, 60, { a: entree({ avant: 1 }) });
   check(a.x < 0 && a.auSol, 'on redescend du talus');
 }
@@ -145,32 +153,33 @@ const carteP = PC.creer(), mondeP = PM.creer(carteP);
 titre('Tirs : portée, dispersion, chute de dégâts, tête, pompe, cadence, recharge, armure');
 {
   const { jeu, es: [a, b] } = partie(mondePlat, cartePl, ['a', 'b']);
-  // portée du long-tir
-  const P = R.arme('precision');
-  poser(jeu, a, 0, 170, 0); donner(a, 'precision'); poser(jeu, b, 0, 170 - (P.portee - 2)); viserSur(a, b, 1.1);
-  let evs = evsDe(jeu, 1, { a: entree({ tir: true }) });
+  // portée du fusil de précision (lunette posée)
+  const P = R.arme('m24');
+  poser(jeu, a, 0, 170, 0); donner(a, 'm24'); epauler(a); poser(jeu, b, 0, 170 - (P.portee - 2)); viserSur(a, b, 1.1);
+  let evs = evsDe(jeu, 1, { a: TIRP() });
   const t1 = evs.find((v) => v.t === 'tir'), h1 = evs.find((v) => v.t === 'touche');
   check(t1 && h1 && h1.a === 'b' && h1.degats === R.degatsA(P, Math.hypot(t1.fin[0] - t1.o[0], t1.fin[1] - t1.o[1], t1.fin[2] - t1.o[2]), false) && t1.impact && t1.impact.quoi === 'entite' && t1.impact.id === 'b',
-    `long-tir à ${P.portee - 2} m : touché, ${h1 ? h1.degats : '?'} dégâts (= degatsA), impact sur l'entité`);
-  b.vie = 100; poser(jeu, a, 0, 170, 0); donner(a, 'precision'); poser(jeu, b, 0, 170 - (P.portee + 2)); viserSur(a, b, 1.1);
-  evs = evsDe(jeu, 1, { a: entree({ tir: true }) });
+    `M24 à ${P.portee - 2} m : touché, ${h1 ? h1.degats : '?'} dégâts (= degatsA), impact sur l'entité`);
+  b.vie = 100; poser(jeu, a, 0, 170, 0); donner(a, 'm24'); epauler(a); poser(jeu, b, 0, 170 - (P.portee + 2)); viserSur(a, b, 1.1);
+  evs = evsDe(jeu, 1, { a: TIRP() });
   const t2 = evs.find((v) => v.t === 'tir');
   check(t2 && !evs.some((v) => v.t === 'touche') && Math.abs(Math.hypot(t2.fin[0] - t2.o[0], t2.fin[1] - t2.o[1], t2.fin[2] - t2.o[2]) - P.portee) < 1e-6 && t2.impact === null, `à ${P.portee + 2} m : hors de portée, le tir s'arrête à ${P.portee} m`);
-  // portée du blaster : jamais touché à 72 m
-  const A = R.arme('rafale');
-  poser(jeu, a, 0, 100, 0); donner(a, 'rafale'); poser(jeu, b, 0, 100 - (A.portee + 2)); b.vie = 100;
+  // portée de la mitraillette : jamais touché à 72 m
+  const A = R.arme('mp9');
+  poser(jeu, a, 0, 100, 0); donner(a, 'mp9'); poser(jeu, b, 0, 100 - (A.portee + 2)); b.vie = 100;
   let touches = 0, tirs = 0;
-  for (let k = 0; k < 40; k++) { viserSur(a, b, 1.1); a.gonfle = 0; const e = evsDe(jeu, 8, { a: entree({ tir: true }) }); tirs += e.filter((v) => v.t === 'tir').length; touches += e.filter((v) => v.t === 'touche').length; if (a.munitions.rafale < 3) donner(a, 'rafale'); }
-  check(tirs > 30 && touches === 0, `blaster à ${A.portee + 2} m : ${tirs} tirs, 0 touche (portée ${A.portee} m)`);
+  for (let k = 0; k < 40; k++) { viserSur(a, b, 1.1); a.gonfle = 0; const e = evsDe(jeu, 8, { a: entree({ tir: true }) }); tirs += e.filter((v) => v.t === 'tir').length; touches += e.filter((v) => v.t === 'touche').length; if (a.munitions.mp9 < 3) donner(a, 'mp9'); }
+  check(tirs > 30 && touches === 0, `MP9 à ${A.portee + 2} m : ${tirs} tirs, 0 touche (portée ${A.portee} m)`);
 }
 {
   // dispersion : debout immobile, en marchant, en l'air, accroupi (tirs isolés, l'ouverture retombée)
   const { jeu, es: [a] } = partie(mondePlat, cartePl, ['a']);
-  const A = R.arme('rafale');
+  const A = R.arme('ak74');
   function mesure(cfg) {
     const ecarts = [];
     for (let k = 0; k < 160; k++) {
-      poser(jeu, a, 0, 150, 0); donner(a, 'rafale'); a.pitch = 0.3; a.accroupi = !!cfg.accroupi;
+      poser(jeu, a, 0, 150, 0); donner(a, 'ak74'); a.pitch = 0.3;
+      if (cfg.accroupi) { for (let i = 0; i < 20; i++) jeu.etape(DT, { a: entree({ accroupi: true }) }); poser(jeu, a, 0, 150, 0); a.pitch = 0.3; } // accroupi pour de bon (0,18 s)
       if (cfg.marche) { a.vx = 0; a.vz = -J.vitesse; a.vitesse = J.vitesse; }
       if (cfg.air) { a.auSol = false; a.y = 1; a.vy = 2; }
       const yaw = a.yaw, pitch = a.pitch, d = [-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch)];
@@ -185,49 +194,49 @@ titre('Tirs : portée, dispersion, chute de dégâts, tête, pompe, cadence, rec
   check(imm.n === 160 && imm.max <= A.dispersion + 1e-9 && Math.abs(imm.moy - A.dispersion * 2 / 3) < A.dispersion * 0.12, `immobile : écart ≤ ${deg(A.dispersion)} (max ${deg(imm.max)}, moyenne ${deg(imm.moy)} ≈ 2/3 du cône)`);
   check(mar.max > A.dispersion && mar.moy > imm.moy * 1.5 && mar.max <= A.dispersion + A.dispersionMouvement + 1e-9, `en courant : plus large (moyenne ${deg(mar.moy)}, max ${deg(mar.max)})`);
   check(air.moy > imm.moy * 1.2, `en l'air : plus large (moyenne ${deg(air.moy)})`);
-  check(acc.max <= A.dispersion * 0.7 + 1e-9 && acc.moy < imm.moy, `accroupi : plus serré (max ${deg(acc.max)})`);
+  check(acc.max <= A.dispersion * J.postures.accroupi.dispersion + 1e-9 && acc.moy < imm.moy, `accroupi : plus serré (max ${deg(acc.max)}, × ${J.postures.accroupi.dispersion})`);
   // l'ouverture des tirs en rafale et le recul qui relève le regard
-  poser(jeu, a, 0, 150, 0); donner(a, 'rafale'); a.pitch = 0.3; const p0 = a.pitch;
+  poser(jeu, a, 0, 150, 0); donner(a, 'ak74'); a.pitch = 0.3; const p0 = a.pitch;
   pas(jeu, 30, { a: entree({ tir: true }) });
   check(a.gonfle > 0 && a.dispersion > A.dispersion && a.pitch > p0, `en rafale : le viseur s'ouvre (${deg(a.dispersion)}, comme le HUD) et le regard monte de ${deg(a.pitch - p0)}`);
 }
 {
   // chute de dégâts et tête, blaster et long-tir
   const { jeu, es: [a, b] } = partie(mondePlat, cartePl, ['a', 'b']);
-  const A = R.arme('rafale'), P = R.arme('precision');
+  const A = R.arme('ump'), P = R.arme('m24');
   let bons = 0, total = 0, tetes = 0, mauvais = [];
   for (const d of [5, 15, 25, 35, 50, 65]) {
     for (let k = 0; k < 12; k++) {
-      poser(jeu, a, 0, 150, 0); donner(a, 'rafale'); poser(jeu, b, 0, 150 - d); b.vie = 100; b.armure = 0; b.vivant = true; viserSur(a, b, 1.1);
-      const evs = evsDe(jeu, 1, { a: entree({ tir: true }) }), t = evs.find((v) => v.t === 'tir'), h = evs.find((v) => v.t === 'touche');
+      poser(jeu, a, 0, 150, 0); donner(a, 'ump'); epauler(a); poser(jeu, b, 0, 150 - d); b.vie = 100; b.armure = 0; b.vivant = true; viserSur(a, b, 1.1);
+      const evs = evsDe(jeu, 1, { a: TIRP() }), t = evs.find((v) => v.t === 'tir'), h = evs.find((v) => v.t === 'touche');
       if (!h) continue; total++; if (h.tete) tetes++;
       const dist = Math.hypot(t.fin[0] - t.o[0], t.fin[1] - t.o[1], t.fin[2] - t.o[2]), att = R.degatsA(A, dist, h.tete);
       if (h.degats === att && b.vie === 100 - att) bons++; else mauvais.push([d, h.degats, att]);
     }
   }
-  check(total > 40 && bons === total, `blaster de 5 à 65 m : ${total} touches, dégâts = degatsA(distance) pour toutes ${mauvais.length ? JSON.stringify(mauvais.slice(0, 3)) : ''}`);
-  const premiereTouche = (d, haut) => { for (let k = 0; k < 40; k++) { poser(jeu, a, 0, 150, 0); donner(a, 'rafale'); cible(jeu, b, 0, 150 - d); viserSur(a, b, haut); const h = evsDe(jeu, 1, { a: entree({ tir: true }) }).find((v) => v.t === 'touche'); if (h && !h.tete) return h; } return null; };
+  check(total > 40 && bons === total, `UMP de 5 à 65 m (${total} touches sur 72) : ${total} touches, dégâts = degatsA(distance) pour toutes ${mauvais.length ? JSON.stringify(mauvais.slice(0, 3)) : ''}`);
+  const premiereTouche = (d, haut) => { for (let k = 0; k < 40; k++) { poser(jeu, a, 0, 150, 0); donner(a, 'ump'); epauler(a); cible(jeu, b, 0, 150 - d); viserSur(a, b, haut); const h = evsDe(jeu, 1, { a: TIRP() }).find((v) => v.t === 'touche'); if (h && !h.tete) return h; } return null; };
   const h10 = premiereTouche(10, 1.0), h40 = premiereTouche(40, 1.0);
   check(h10 && h10.degats === A.degats && h40 && h40.degats < A.degats && h40.degats === R.degatsA(A, 40, false) || (h40 && Math.abs(h40.degats - R.degatsA(A, 40, false)) <= 1), `chute : ${h10 ? h10.degats : '?'} à 10 m, ${h40 ? h40.degats : '?'} à 40 m (degatsA : ${R.degatsA(A, 40, false)})`);
   let h;
-  // la tête au long-tir (immobile : dispersion de ${P.dispersion} rad)
-  poser(jeu, a, 0, 150, 0); donner(a, 'precision'); cible(jeu, b, 0, 130); viserSur(a, b, J.taille - 0.12);
-  let evs = evsDe(jeu, 1, { a: entree({ tir: true }) }); h = evs.find((v) => v.t === 'touche');
-  check(h && h.tete && h.degats === R.degatsA(P, 20, true) && h.mort && !b.vivant && evs.some((v) => v.t === 'mort' && v.a === 'b' && v.par === 'a' && v.arme === 'precision' && v.tete),
-    `long-tir à la tête à 20 m : ${h ? h.degats : '?'} dégâts (×${P.tete}), éliminé d'un coup`);
-  poser(jeu, a, 0, 150, 0); donner(a, 'precision'); cible(jeu, b, 0, 130); viserSur(a, b, 1.0);
-  h = evsDe(jeu, 1, { a: entree({ tir: true }) }).find((v) => v.t === 'touche');
+  // la tête au fusil de précision (lunette posée)
+  poser(jeu, a, 0, 150, 0); donner(a, 'm24'); epauler(a); cible(jeu, b, 0, 130); viserSur(a, b, J.taille - 0.12);
+  let evs = evsDe(jeu, 1, { a: TIRP() }); h = evs.find((v) => v.t === 'touche');
+  check(h && h.tete && h.degats === R.degatsA(P, 20, true) && h.mort && !b.vivant && evs.some((v) => v.t === 'mort' && v.a === 'b' && v.par === 'a' && v.arme === 'm24' && v.tete),
+    `M24 à la tête à 20 m : ${h ? h.degats : '?'} dégâts (×${P.tete}), éliminé d'un coup`);
+  poser(jeu, a, 0, 150, 0); donner(a, 'm24'); epauler(a); cible(jeu, b, 0, 130); viserSur(a, b, 1.0);
+  h = evsDe(jeu, 1, { a: TIRP() }).find((v) => v.t === 'touche');
   check(h && !h.tete && h.degats === P.degats && b.vie === 100 - P.degats, `au corps : ${h ? h.degats : '?'} dégâts, il reste ${b.vie} de vie`);
   // accroupi, la tête descend
-  cible(jeu, b, 0, 130); b.accroupi = true; poser(jeu, a, 0, 150, 0); donner(a, 'precision'); viserSur(a, b, J.tailleAccroupi - 0.12);
-  h = evsDe(jeu, 1, { a: entree({ tir: true }), b: entree({ accroupi: true }) }).find((v) => v.t === 'touche');
-  check(h && h.tete, 'cible accroupie : la tête est à 1,2 m');
-  cible(jeu, b, 0, 130); poser(jeu, a, 0, 150, 0); donner(a, 'precision'); viserSur(a, b, J.taille + 0.15);
-  h = evsDe(jeu, 1, { a: entree({ tir: true }) }).find((v) => v.t === 'touche');
+  cible(jeu, b, 0, 130); pas(jeu, 20, { b: entree({ accroupi: true }) }); poser(jeu, a, 0, 150, 0); donner(a, 'm24'); epauler(a); viserSur(a, b, b.hautCapsule - 0.12);
+  h = evsDe(jeu, 1, { a: TIRP(), b: entree({ accroupi: true }) }).find((v) => v.t === 'touche');
+  check(h && h.tete && Math.abs(b.hautCapsule - J.postures.accroupi.haut) < 1e-9, `cible accroupie : la tête est à ${J.postures.accroupi.haut} m`);
+  pas(jeu, 20, { b: entree() }); cible(jeu, b, 0, 130); poser(jeu, a, 0, 150, 0); donner(a, 'm24'); epauler(a); viserSur(a, b, J.taille + 0.15);
+  h = evsDe(jeu, 1, { a: TIRP() }).find((v) => v.t === 'touche');
   check(!h && b.vivant && b.vie === 100, 'au-dessus de la tête : raté');
   // l'armure absorbe 60 %
-  cible(jeu, b, 0, 130); b.armure = 50; poser(jeu, a, 0, 150, 0); donner(a, 'precision'); viserSur(a, b, 1.0);
-  h = evsDe(jeu, 1, { a: entree({ tir: true }) }).find((v) => v.t === 'touche');
+  cible(jeu, b, 0, 130); b.armure = 50; poser(jeu, a, 0, 150, 0); donner(a, 'm24'); epauler(a); viserSur(a, b, 1.0);
+  h = evsDe(jeu, 1, { a: TIRP() }).find((v) => v.t === 'touche');
   const abs = Math.min(50, Math.round(P.degats * 0.6));
   check(h && b.armure === 50 - abs && b.vie === 100 - (P.degats - abs), `armure : ${abs} absorbés, vie ${b.vie}, armure ${b.armure}`);
 }
@@ -239,7 +248,7 @@ titre('Tirs : portée, dispersion, chute de dégâts, tête, pompe, cadence, rec
   let evs = evsDe(jeu, 1, { a: entree({ tir: true }) });
   const tirs = evs.filter((v) => v.t === 'tir'), hs = evs.filter((v) => v.t === 'touche');
   const somme = tirs.filter((t) => t.impact && t.impact.id === 'b').reduce((s, t) => s + R.degatsA(Q, Math.hypot(t.fin[0] - t.o[0], t.fin[1] - t.o[1], t.fin[2] - t.o[2]), t.fin[1] >= b.y + J.taille - 0.35), 0);
-  check(tirs.length === Q.plombs && hs.length === 1 && hs[0].degats === somme && somme >= 4 * Q.degats && a.munitions.pompe === Q.chargeur - 1, `pompe à 5 m : ${tirs.length} plombs, un seul « touche » de ${hs[0] ? hs[0].degats : '?'} (somme des plombs), une cartouche`);
+  check(tirs.length === Q.plombs && hs.length === 1 && hs[0].degats === somme && somme >= 7 * Q.degats && a.munitions.pompe === Q.chargeur - 1, `pompe à 5 m : ${tirs.length} plombs, un seul « touche » de ${hs[0] ? hs[0].degats : '?'} (somme des plombs), une cartouche`);
   let moy25 = 0; for (let k = 0; k < 10; k++) { b.vie = 100; b.vivant = true; poser(jeu, a, 0, 150, 0); donner(a, 'pompe'); poser(jeu, b, 0, 125); viserSur(a, b, 1.0); const e = evsDe(jeu, 1, { a: entree({ tir: true }) }).find((v) => v.t === 'touche'); moy25 += e ? e.degats : 0; }
   moy25 /= 10;
   check(moy25 < hs[0].degats / 3, `pompe à 25 m : ${f2(moy25)} dégâts en moyenne (bien moins qu'à 5 m)`);
@@ -248,13 +257,13 @@ titre('Tirs : portée, dispersion, chute de dégâts, tête, pompe, cadence, rec
   // cadence et recharge
   const { jeu, es: [a] } = partie(mondePlat, cartePl, ['a']);
   const cad = {};
-  for (const id of ['rafale', 'pompe', 'precision']) {
+  for (const id of ['ak74', 'pompe', 'm24']) {
     poser(jeu, a, 0, 150, 0); donner(a, id); a.pitch = 0.5; const A = R.arme(id);
     const n = evsDe(jeu, 120, { a: entree({ tir: true }) }).filter((v) => v.t === 'tir').length / A.plombs;
     cad[id] = n; // 2 s
   }
-  check(Math.abs(cad.rafale - 1 - 2 * R.arme('rafale').cadence) <= 1 && cad.pompe === 3 && cad.precision === 2, `cadence sur 2 s : rafale ${cad.rafale} tirs (${R.arme('rafale').cadence}/s), pompe ${cad.pompe}, long-tir ${cad.precision}`);
-  poser(jeu, a, 0, 150, 0); donner(a, 'rafale'); a.pitch = 0.5; const A = R.arme('rafale');
+  check(Math.abs(cad.ak74 - 1 - 2 * R.arme('ak74').cadence) <= 1 && cad.pompe === 3 && cad.m24 === 2, `cadence sur 2 s : AK-74 ${cad.ak74} tirs (${R.arme('ak74').cadence}/s), pompe ${cad.pompe}, M24 ${cad.m24}`);
+  poser(jeu, a, 0, 150, 0); donner(a, 'ak74'); a.pitch = 0.5; const A = R.arme('ak74');
   let n = 0, tRech = -1, tFin = -1, tirPendant = 0, rech = 0;
   for (let i = 0; i < 60 * 8; i++) {
     const evs = jeu.etape(DT, { a: entree({ tir: true }) });
@@ -262,43 +271,43 @@ titre('Tirs : portée, dispersion, chute de dégâts, tête, pompe, cadence, rec
     if (tRech >= 0 && tFin < 0 && !a.enRecharge) tFin = jeu.temps;
   }
   check(rech >= 1 && tirPendant === 0 && Math.abs(tFin - tRech - A.recharge) < 2 * DT, `chargeur vide : recharge seule, ${f2(tFin - tRech)} s sans tirer (${A.recharge} s)`);
-  donner(a, 'rafale'); a.munitions.rafale = 10; a.reserve.rafale = 50;
+  donner(a, 'ak74'); a.munitions.ak74 = 10; a.reserve.ak74 = 50;
   let e = evsDe(jeu, 1, { a: entree({ recharge: true }) });
   const r0 = e.some((v) => v.t === 'recharge' && v.id === 'a') && a.rechargeJusqua > jeu.temps;
   pas(jeu, Math.ceil(A.recharge / DT) + 2, {});
-  check(r0 && a.munitions.rafale === 30 && a.reserve.rafale === 30 && a.rechargeJusqua <= jeu.temps, `recharge demandée : 10 + 20 de la réserve → 30, réserve 50 → ${a.reserve.rafale}`);
-  { // le blaster rafale recharge à l'infini : sa réserve ne descend jamais sous un chargeur (le HUD n'affiche jamais « / 0 »)
-    donner(a, 'rafale'); a.pitch = 0.5; let mini = Infinity;
-    for (let i = 0; i < 60 * 40; i++) { jeu.etape(DT, { a: entree({ tir: true }) }); mini = Math.min(mini, a.reserve.rafale); }
-    check(mini >= A.chargeur && a.munitions.rafale >= 0, `blaster rafale : 40 s de tir continu, la réserve ne descend pas sous ${A.chargeur} (minimum ${mini})`);
-    donner(a, 'rafale');
+  check(r0 && a.munitions.ak74 === 30 && a.reserve.ak74 === 30 && a.rechargeJusqua <= jeu.temps, `recharge demandée : 10 + 20 de la réserve → 30, réserve 50 → ${a.reserve.ak74}`);
+  { // la secondaire recharge à l'infini : sa réserve ne descend jamais sous un chargeur (le HUD peut afficher « ∞ »)
+    const S = R.arme('p226'); donner(a, 'p226'); a.pitch = 0.5; let mini = Infinity;
+    for (let i = 0; i < 60 * 40; i++) { jeu.etape(DT, { a: entree({ tir: true }) }); mini = Math.min(mini, a.reserve.p226); }
+    check(mini >= S.chargeur && a.munitions.p226 >= 0, `P226 (secondaire) : 40 s de tir continu, la réserve ne descend pas sous ${S.chargeur} (minimum ${mini})`);
+    donner(a, 'ak74');
   }
   e = evsDe(jeu, 1, { a: entree({ recharge: true }) });
   check(!e.some((v) => v.t === 'recharge'), 'chargeur plein : pas de recharge');
   donner(a, 'pompe'); a.munitions.pompe = 0; a.reserve.pompe = 0; pas(jeu, 30, { a: entree({ tir: true }) });
-  check(a.arme === 'rafale' && a.armes.indexOf('pompe') < 0, 'pompe vide de tout : lâchée, retour au blaster');
-  donner(a, 'rafale'); a.munitions.rafale = 0; a.reserve.rafale = 0; pas(jeu, Math.ceil(A.recharge / DT) + 30, { a: entree({}) });
-  check(a.munitions.rafale === 30, 'le blaster de base ne tombe jamais en panne (réserve de secours)');
-  donner(a, 'precision'); donner(a, 'rafale'); pas(jeu, 1, { a: entree({ arme: 'precision' }) });
+  check(a.arme === 'pompe' && a.armes[0] === 'pompe' && !a.enRecharge, 'principale vide de tout : gardée (ni tir ni recharge : il faut une caisse de munitions)');
+  donner(a, 'p226'); a.munitions.p226 = 0; a.reserve.p226 = 0; pas(jeu, Math.ceil(R.arme('p226').recharge / DT) + 30, { a: entree({}) });
+  check(a.munitions.p226 === R.arme('p226').chargeur, 'la secondaire ne tombe jamais en panne (réserve de secours)');
+  donner(a, 'm24'); donner(a, 'p226'); pas(jeu, 1, { a: entree({ arme: 0 }) });
   const pt = a.prochainTir - jeu.temps;
-  check(a.arme === 'precision' && pt > 0.2, `changer d'arme : ${f2(pt)} s avant de pouvoir tirer`);
-  pas(jeu, 1, { a: entree({ arme: 'pompe' }) });
-  check(a.arme === 'precision', 'une arme qu\'on n\'a pas ne se prend pas');
+  check(a.arme === 'm24' && pt > 0.2, `changer d'arme (emplacement 0) : ${f2(pt)} s avant de pouvoir tirer`);
+  pas(jeu, 1, { a: entree({ arme: 'ump' }) });
+  check(a.arme === 'm24', 'une arme qu\'on n\'a pas ne se prend pas');
 }
 {
   // les murs arrêtent les tirs ; l'invincibilité ; les alliés ne se touchent pas
   const { jeu, es: [a, b] } = partie(mondePlat, cartePl, ['a', 'b']);
-  poser(jeu, a, 30, 0, 0); poser(jeu, b, 60, 0); viserSur(a, b, 1.1); donner(a, 'precision');
-  let evs = evsDe(jeu, 1, { a: entree({ tir: true }) }); const t = evs.find((v) => v.t === 'tir');
-  check(t && t.impact && t.impact.quoi === 'mur' && Math.abs(t.impact.x - 40) < 1e-6 && !evs.some((v) => v.t === 'touche') && b.vie === 100, 'une maison entre les deux : impact sur le mur à x = 40, pas de touche');
-  poser(jeu, a, 0, 100, 0); poser(jeu, b, 0, 80); b.invincible = 1.5; donner(a, 'precision'); viserSur(a, b, 1.0);
-  evs = evsDe(jeu, 1, { a: entree({ tir: true }) });
+  poser(jeu, a, 30, 0, 0); poser(jeu, b, 60, 0); viserSur(a, b, 1.1); donner(a, 'm24'); epauler(a);
+  let evs = evsDe(jeu, 1, { a: TIRP() }); const t = evs.find((v) => v.t === 'tir');
+  check(t && t.impact && t.impact.quoi === 'mur' && t.impact.mat === 'mur' && Math.abs(t.impact.x - 40) < 1e-6 && !evs.some((v) => v.t === 'touche') && b.vie === 100, 'une maison entre les deux : impact sur le mur à x = 40 (mat \'mur\'), pas de touche');
+  poser(jeu, a, 0, 100, 0); poser(jeu, b, 0, 80); b.invincible = 1.5; donner(a, 'm24'); epauler(a); viserSur(a, b, 1.0);
+  evs = evsDe(jeu, 1, { a: TIRP() });
   check(!evs.some((v) => v.t === 'touche') && b.vie === 100, 'invincible : aucun dégât');
-  donner(b, 'rafale'); b.prochainTir = 0; b.pitch = 0.4; pas(jeu, 1, { b: entree({ tir: true }) });
+  donner(b, 'ak74'); b.prochainTir = 0; b.pitch = 0.4; pas(jeu, 1, { b: entree({ tir: true }) });
   check(b.invincible === 0, 'l\'invincibilité cesse au premier tir');
   const j2 = partie(mondePlat, cartePl, ['a', 'b', 'c'], { equipes: true, equipesDe: { a: 0, b: 0, c: 1 } });
-  const [a2, b2, c2] = j2.es; poser(j2.jeu, a2, 0, 100, 0); poser(j2.jeu, b2, 0, 90); poser(j2.jeu, c2, 0, 80); donner(a2, 'precision'); viserSur(a2, c2, 1.0);
-  evs = evsDe(j2.jeu, 1, { a: entree({ tir: true }) });
+  const [a2, b2, c2] = j2.es; poser(j2.jeu, a2, 0, 100, 0); poser(j2.jeu, b2, 0, 90); poser(j2.jeu, c2, 0, 80); donner(a2, 'm24'); epauler(a2); viserSur(a2, c2, 1.0);
+  evs = evsDe(j2.jeu, 1, { a: TIRP() });
   check(evs.some((v) => v.t === 'touche' && v.a === 'c') && !evs.some((v) => v.t === 'touche' && v.a === 'b') && b2.vie === 100, '2 contre 2 : le tir traverse l\'allié et touche l\'ennemi derrière');
   check(j2.jeu.aideVisee('a', 1).surCible === true && j2.jeu.ennemis(a2, c2) && !j2.jeu.ennemis(a2, b2), 'jeu.ennemis : équipes respectées');
 }
@@ -307,10 +316,10 @@ titre('Mort, points, réapparition');
 {
   const { jeu, es: [a, b, c] } = partie(mondePlat, cartePl, ['a', 'b', 'c']);
   poser(jeu, a, 0, 100, 0); poser(jeu, b, 0, 80); poser(jeu, c, -100, -100);
-  donner(a, 'precision'); viserSur(a, b, 1.0);
-  let evs = []; for (let i = 0; i < 120 && b.vivant; i++) { viserSur(a, b, 1.0); for (const v of jeu.etape(DT, { a: entree({ tir: true }) })) evs.push(v); }
+  donner(a, 'm24'); epauler(a); viserSur(a, b, 1.0);
+  let evs = []; for (let i = 0; i < 120 && b.vivant; i++) { viserSur(a, b, 1.0); for (const v of jeu.etape(DT, { a: TIRP() })) evs.push(v); }
   const mort = evs.find((v) => v.t === 'mort'), t0 = jeu.temps;
-  check(mort && mort.a === 'b' && mort.par === 'a' && mort.arme === 'precision' && !b.vivant && b.vie === 0 && b.mortDepuis === jeu.temps, 'deux long-tirs au corps : « mort » de b par a au long-tir');
+  check(mort && mort.a === 'b' && mort.par === 'a' && mort.arme === 'm24' && !b.vivant && b.vie === 0 && b.mortDepuis === jeu.temps, 'deux balles de M24 au corps : « mort » de b par a au M24');
   check(a.score.kills === 1 && a.score.points === R.MODES.arene.points.kill && a.serie === 1 && b.score.morts === 1 && b.serie === 0, `points : +${R.MODES.arene.points.kill} pour l'élimination, série 1, une mort pour b`);
   check(evs.some((v) => v.t === 'annonce' && /Premier repeint/.test(v.texte)), 'annonce du premier repeint');
   // pas de dégâts aux morts, pas de mouvement
@@ -318,7 +327,7 @@ titre('Mort, points, réapparition');
   check(b.x === x0 && !b.vivant, 'un mort ne bouge pas et ne tire pas');
   let rea = null; for (let i = 0; i < 4 * 60 && !rea; i++) { const e = jeu.etape(DT, {}).find((v) => v.t === 'reapparition'); if (e) rea = e; }
   const pts = jeu.arene.apparitions, distEnn = (p) => Math.min(Math.hypot(p[0] - a.x, p[1] - a.z), Math.hypot(p[0] - c.x, p[1] - c.z)), meilleur = Math.max(...pts.map(distEnn));
-  check(rea && rea.id === 'b' && Math.abs(jeu.temps - t0 - R.MODES.arene.reapparition) < 2 * DT && b.vivant && b.vie === 100 && b.armure === 0 && b.arme === 'rafale' && b.armes.length === 1, `réapparition au bout de ${f2(jeu.temps - t0)} s, vie 100, blaster seul`);
+  check(rea && rea.id === 'b' && Math.abs(jeu.temps - t0 - R.MODES.arene.reapparition) < 2 * DT && b.vivant && b.vie === 100 && b.armure === 0 && b.arme === 'ak74' && b.armes.join() === 'ak74,p226', `réapparition au bout de ${f2(jeu.temps - t0)} s, vie 100, son équipement (la principale en main)`);
   // la règle : un point d'apparition à ~35 m de l'ennemi le plus proche (jamais à moins de 15 m s'il existe mieux), pour que l'action reprenne vite,
   // et de préférence hors de la vue des ennemis (un point vu compte comme 25 m plus loin de l'idéal)
   const vuDe = (p) => [a, c].some((q) => q.vivant && Math.hypot(q.x - p[0], q.z - p[1]) < 75 && mondePlat.vue(q.x, q.y + J.oeil, q.z, p[0], mondePlat.hauteur(p[0], p[1]) + 1.2, p[1]));
@@ -329,8 +338,8 @@ titre('Mort, points, réapparition');
   const { jeu: j2, es: [k, ...vs] } = partie(mondePlat, cartePl, ['k', 'v1', 'v2', 'v3']);
   poser(j2, k, 0, 100, 0); let pAvant = 0; const gains = [];
   for (let i = 0; i < 3; i++) {
-    const v = vs[i]; poser(j2, v, (i - 1) * 3, 85); donner(k, 'precision'); viserSur(k, v, i === 2 ? J.taille - 0.1 : 1.0);
-    let n = 0; while (v.vivant && n++ < 200) { viserSur(k, v, i === 2 ? J.taille - 0.1 : 1.0); j2.etape(DT, { k: entree({ tir: true }) }); }
+    const v = vs[i]; poser(j2, v, (i - 1) * 3, 85); donner(k, 'm24'); epauler(k); viserSur(k, v, i === 2 ? J.taille - 0.1 : 1.0);
+    let n = 0; while (v.vivant && n++ < 200) { viserSur(k, v, i === 2 ? J.taille - 0.1 : 1.0); j2.etape(DT, { k: TIRP() }); }
     gains.push(k.score.points - pAvant); pAvant = k.score.points;
   }
   const P = R.MODES.arene.points;
@@ -346,7 +355,12 @@ titre('Objets à ramasser');
 {
   const { jeu, es: [a] } = partie(mondePlat, cartePl, ['a']);
   const objs = PA.objets(jeu), soin = objs.find((o) => o.objet === 'soin'), armure = objs.find((o) => o.objet === 'armure'), pompe = objs.find((o) => o.objet === 'pompe');
-  check(objs.length === 4 && objs.every((o) => o.id && finiNb(o.x) && finiNb(o.z) && o.dispo === true && R.OBJETS[o.objet]) && PA.objets(jeu) === objs, 'PARENE.objets : les objets de zones.armes, { id, x, z, objet, dispo }, toujours le même tableau');
+  const sniper = objs[3], caisses = objs.filter((o) => o.objet === 'munitions');
+  check(objs.length >= 6 && objs.slice(0, 4).map((o) => o.objet).join().replace(sniper.objet, 'S') === 'soin,armure,pompe,S' && R.arme(sniper.objet).classe === 'sniper' && caisses.length >= 2 && objs.every((o) => o.id && finiNb(o.x) && finiNb(o.z) && o.dispo === true && R.OBJETS[o.objet] && !R.OBJETS[o.objet].alias) && PA.objets(jeu) === objs,
+    `PARENE.objets : ceux de zones.armes (\'precision\' devenu un vrai fusil de précision : ${sniper.objet}) + ${caisses.length} caisses de munitions ; { id, x, z, objet, dispo }, toujours le même tableau`);
+  const j0 = PJ.creer({ monde: mondePlat, carte: cartePl, mode: PA, graine: 1, options: { bots: 0, objets: false } });
+  const j1 = PJ.creer({ monde: mondePlat, carte: cartePl, mode: PA, graine: 1, options: { bots: 0, armes: ['ump', 'awm', 'm1911'] } });
+  check(PA.objets(j0).length === 0 && ['ump', 'awm'].indexOf(PA.objets(j1)[2].objet) >= 0 && PA.objets(j1)[3].objet === 'awm', `options.objets faux : aucun objet ; armes permises (UMP, AWM) : la pompe devient ${PA.objets(j1)[2].objet}, le fusil de précision ${PA.objets(j1)[3].objet}`);
   poser(jeu, a, soin.x, soin.z + 5, 0); a.vie = 100;
   pas(jeu, 120, { a: entree({ avant: 1 }) });
   check(soin.dispo && a.vie === 100, 'vie pleine : le soin reste là');
@@ -361,7 +375,9 @@ titre('Objets à ramasser');
   poser(jeu, a, armure.x, armure.z, 0); evs = evsDe(jeu, 2, {});
   check(a.armure === J.armureMax && evs.some((v) => v.t === 'ramasse' && v.objet === 'armure'), `armure ramassée : ${a.armure}`);
   poser(jeu, a, pompe.x, pompe.z, 0); evs = evsDe(jeu, 2, {});
-  check(a.armes.indexOf('pompe') >= 0 && a.arme === 'pompe' && a.munitions.pompe === R.arme('pompe').chargeur && a.reserve.pompe === R.arme('pompe').reserve, 'pompe ramassée : en main, chargeur et réserve pleins');
+  check(a.armes[0] === 'pompe' && a.armes[1] === 'p226' && a.arme === 'pompe' && a.munitions.pompe === R.arme('pompe').chargeur && a.reserve.pompe === R.arme('pompe').reserve, 'fusil à pompe ramassé : il remplace la principale, en main, chargeur et réserve pleins');
+  a.reserve.pompe = 0; a.reserve.p226 = 10; const caisse = caisses[0]; poser(jeu, a, caisse.x, caisse.z, 0); evs = evsDe(jeu, 2, {});
+  check(a.reserve.pompe === R.arme('pompe').reserve && a.reserve.p226 === R.arme('p226').reserve && evs.some((v) => v.t === 'ramasse' && v.objet === 'munitions'), 'caisse de munitions : les deux réserves pleines');
   // le HUD et le rendu lisent jeu.mode.objets
   check(jeu.mode.objets(jeu) === objs, 'jeu.mode.objets(jeu) : les mêmes objets');
 }
@@ -397,8 +413,8 @@ titre('Aide à la visée');
   check(!r.surCible && r.dyaw === 0 && r.ralentir === 0, 'un robot n\'a pas d\'aide');
   check(jeu.aideVisee('personne', 1).surCible === false, 'id inconnu : rien, pas d\'erreur');
   poser(jeu, a, 0, 100, 0); poser(jeu, b, 0, 70); donner(a, 'pompe'); viserSur(a, b, 1.1); const rp = jeu.aideVisee('a', 1).surCible;
-  donner(a, 'rafale'); viserSur(a, b, 1.1); const rr = jeu.aideVisee('a', 1).surCible;
-  check(!rp && rr, 'à 30 m : pas de tir auto à la pompe (inutile si loin), oui au blaster');
+  donner(a, 'ak74'); viserSur(a, b, 1.1); const rr = jeu.aideVisee('a', 1).surCible;
+  check(!rp && rr, 'à 30 m : pas de tir auto à la pompe (inutile si loin), oui au fusil d\'assaut');
 }
 
 titre('Robots : perception, combat, fuite, déblocage');
@@ -481,14 +497,14 @@ titre('Jeu en ligne : regard absolu, prédiction du client, historique et compen
   const rnd = R.mulberry32(9); let ecartMax = 0, n = 0;
   for (let k = 0; k < 20; k++) {
     const p = mondeP.libre(rnd); poser(jeu, a, p[0], p[1], rnd() * 6.28);
-    const ombre = { x: a.x, y: a.y, z: a.z, vx: 0, vz: 0, vy: 0, vitesse: 0, yaw: a.yaw, pitch: 0, auSol: true, accroupi: false };
+    const ombre = { x: a.x, y: a.y, z: a.z, vx: 0, vz: 0, vy: 0, vitesse: 0, yaw: a.yaw, pitch: 0, auSol: true, accroupi: false, corpsV2: true, posture: 'debout', vers: 'debout', transition: 0, oeil: a.oeil, hautCapsule: a.hautCapsule, course: false, gv: 0, relanceA: 0, receptionA: 0, remonte: 0, vise: 0, accroupiPrec: false, couchePrec: false };
     for (let i = 0; i < 150; i++) {
-      const e = entree({ avant: Math.sin(i / 17 + k), cote: Math.cos(i / 23), yaw: Math.sin(i / 40 + k) * 3, pitch: 0.1, saut: i % 47 === 0, accroupi: i % 90 > 70 });
-      jeu.etape(DT, { a: e }); PJ.deplacer(ombre, e, DT, mondeP); n++;
+      const e = entree({ avant: Math.sin(i / 17 + k), cote: Math.cos(i / 23), yaw: Math.sin(i / 40 + k) * 3, pitch: 0.1, saut: i % 47 === 0, accroupi: i % 90 > 70, course: i % 60 < 30, couche: false, vise: false });
+      jeu.etape(DT, { a: e }); PJ.deplacer(ombre, e, DT, mondeP, R.arme(a.arme)); n++;
       ecartMax = Math.max(ecartMax, Math.abs(ombre.x - a.x) + Math.abs(ombre.y - a.y) + Math.abs(ombre.z - a.z) + Math.abs(ombre.yaw - a.yaw));
     }
   }
-  check(ecartMax < 1e-9, `PJEU.deplacer : ${n} pas avec murs, relief et sauts, identiques à la simulation (écart max ${ecartMax})`);
+  check(ecartMax < 1e-9, `PJEU.deplacer (entrée v2, arme en main) : ${n} pas avec murs, relief, course et sauts, identiques à la simulation (écart max ${ecartMax})`);
   const o = { x: 0, y: 0, z: 100, vx: 0, vz: 0, vy: 0, vitesse: 0, yaw: 0, pitch: 0, auSol: true, accroupi: false };
   const mv = PJ.deplacer(o, entree({ saut: true, avant: 1 }), DT, mondePlat);
   check(mv.saut === true && !o.auSol && mv.dep > 0, 'PJEU.deplacer rend { dep, saut } (pour les sons « pas » et « saut »)');
@@ -505,9 +521,9 @@ titre('Jeu en ligne : regard absolu, prédiction du client, historique et compen
   const tirSur = (retard) => {
     // on fige b là où il est (il court toujours pendant l'image du tir), on vise sa position d'il y a 0,2 s, au long-tir
     const passe = jeu.historique('b', jeu.temps - 0.2); const px = passe.x, pz = passe.z, py = passe.y;
-    donner(a, 'precision'); a.gonfle = 0; jeu.reglerRetard('a', retard); b.vie = 100; b.armure = 0; b.invincible = 0;
-    const dx = px - a.x, dz = pz - a.z; a.yaw = Math.atan2(-dx, -dz); a.pitch = Math.atan2(py + 1.1 - (a.y + J.oeil), Math.hypot(dx, dz));
-    const evs = evsDe(jeu, 1, { a: entree({ tir: true }), b: entree({ cote: -1 }) });
+    donner(a, 'm24'); epauler(a); a.gonfle = 0; jeu.reglerRetard('a', retard); b.vie = 100; b.armure = 0; b.invincible = 0;
+    const dx = px - a.x, dz = pz - a.z; a.yaw = Math.atan2(-dx, -dz); a.pitch = Math.atan2(py + 1.1 - (a.y + a.oeil), Math.hypot(dx, dz));
+    const evs = evsDe(jeu, 1, { a: TIRP(), b: entree({ cote: -1 }) });
     return evs.some((v) => v.t === 'touche' && v.a === 'b');
   };
   const sansRetard = tirSur(0), avecRetard = tirSur(0.2);
@@ -515,8 +531,8 @@ titre('Jeu en ligne : regard absolu, prédiction du client, historique et compen
   check(Math.abs(b.x - pos[pos.length - 1].x) < 2 && jeu.retardDe('a') === 0.2 && jeu.reglerRetard('a', 3) === 0.25 && jeu.reglerRetard('a', -1) === 0 && jeu.retardDe('a') === 0, 'après le tir, b est rendu à sa vraie place ; retard borné à [0, 0,25 s]');
   // un mort qui vient de réapparaître n'est pas touchable à son ancienne place
   poser(jeu, b, 0, 80); b.vivant = true; pas(jeu, 30, {}); b.vivant = false; pas(jeu, 6, {}); b.vivant = true; poser(jeu, b, 100, 100); b.invincible = 0; pas(jeu, 3, {});
-  donner(a, 'precision'); a.gonfle = 0; jeu.reglerRetard('a', 0.06); a.yaw = 0; a.pitch = Math.atan2(1.1 - J.oeil, 20);
-  const fantome = evsDe(jeu, 1, { a: entree({ tir: true }) }).some((v) => v.t === 'touche');
+  donner(a, 'm24'); epauler(a); a.gonfle = 0; jeu.reglerRetard('a', 0.06); a.yaw = 0; a.pitch = Math.atan2(1.1 - a.oeil, 20);
+  const fantome = evsDe(jeu, 1, { a: TIRP() }).some((v) => v.t === 'touche');
   check(!fantome, 'rembobiné à un moment où la cible était morte : intouchable (pas de « fantôme »)');
 }
 {
@@ -524,14 +540,21 @@ titre('Jeu en ligne : regard absolu, prédiction du client, historique et compen
   const j1 = PJ.creer({ monde: mondeP, carte: carteP, mode: PA, graine: 21, options: { bots: 3, niveau: 'fort' } });
   const h1 = j1.ajouterJoueur({ id: 'h1', nom: 'Castor Turbo 42', humain: true });
   for (let i = 0; i < 60 * 25; i++) j1.etape(DT, { h1: entree({ avant: 1, yaw: Math.sin(i / 50), tir: i % 60 < 20 }) });
-  h1.armes.push('pompe'); h1.munitions.pompe = 4; h1.reserve.pompe = 12;
+  h1.armes[0] = 'pompe'; h1.munitions.pompe = 4; h1.reserve.pompe = 12; h1.munitions.p226 = 9; // une pompe ramassée (principale), le P226
+  if (h1.vivant) { h1.vers = h1.posture = 'couche'; h1.accroupi = true; h1.vise = 1; h1.transition = 0; } // couché, en visée
   const inst = j1.instantane({ h1: 77 }), txt = JSON.stringify(inst);
   const j2 = PJ.creer({ monde: mondeP, carte: carteP, mode: PA, graine: 21, options: { bots: 3, niveau: 'fort' }, nav: false });
   j2.ajouterJoueur({ id: 'h1', nom: 'Castor Turbo 42', humain: true });
   let lus = 0; for (const l of inst.e) if (PJ.lireLigne(l, j2.trouver(l[0]), j2.temps, 'tout')) lus++;
   const pareil = j1.entites.every((e) => { const f = j2.trouver(e.id); return f && Math.abs(f.x - e.x) <= 0.005 && Math.abs(f.z - e.z) <= 0.005 && Math.abs(f.y - e.y) <= 0.005 && Math.abs(f.yaw - e.yaw) < 6e-4 && f.vivant === e.vivant && f.vie === Math.max(0, Math.round(e.vie)) && f.arme === e.arme && f.score.kills === e.score.kills && f.score.points === e.score.points && f.score.morts === e.score.morts; });
   const f1 = j2.trouver('h1');
-  check(lus === 4 && pareil && f1.armes.join() === h1.armes.join() && f1.munitions.pompe === 4 && f1.reserve.pompe === 12 && inst.e.find((l) => l[0] === 'h1')[20] === 77, `instantané : 4 entités relues à l'arrondi près (positions au cm, regard, vie, scores, armes et munitions, ack) ; ${txt.length} octets en JSON`);
+  const lh = inst.e.find((l) => l[0] === 'h1');
+  check(lus === 4 && pareil && f1.armes.join() === h1.armes.join() && f1.munitions.pompe === 4 && f1.reserve.pompe === 12 && f1.munitions.p226 === 9 && lh.length === 21 && lh[20] === 77 && lh[13] === R.ARMES_ID.indexOf('pompe') && lh[14] === R.ARMES_ID.indexOf('p226'),
+    `instantané v2 : 4 entités relues à l'arrondi près (positions au cm, regard, vie, scores, arme en main, emplacements p / s, munitions et réserves, ack) ; ${txt.length} octets en JSON`);
+  check(!h1.vivant || ((lh[8] & 32) && (lh[8] & 256) && (lh[8] & 4) && f1.vers === 'couche' && f1.posture === 'couche' && f1.vise === 1 && Math.abs(f1.hautCapsule - J.postures.couche.haut) < 1e-9 && Math.abs(f1.oeil - J.postures.couche.oeil) < 1e-9),
+    'drapeaux v2 : couché (32), vise (256), accroupi (4 : posture ≠ debout) → posture, œil et capsule relus');
+  const df = (e) => PJ.ligneDe(e, 0, 0)[8], e0 = { vivant: true, auSol: true, accroupi: false, invincible: 0, enRecharge: false, vers: 'debout', course: false, vise: 0, transition: 0, score: { kills: 0, morts: 0, points: 0 }, armes: [], munitions: {}, reserve: {} };
+  check(df(Object.assign({}, e0, { course: true })) === 3 + 128 && df(Object.assign({}, e0, { vers: 'glisse', accroupi: true, transition: 0.1 })) === 3 + 4 + 64 + 512 && df(Object.assign({}, e0, { vise: 0.4 })) === 3 && df(Object.assign({}, e0, { vise: 0.5 })) === 3 + 256, 'drapeaux : course 128, glissade 64, transition 512, vise ≥ 0,5 → 256');
   check(txt.length < 1200 && inst.o.length === j1.arene.objets.length && /^[01]+$/.test(inst.o) && Math.abs(inst.r - j1.reste) < 0.01 && !j2.nav, 'compact (< 1,2 Ko pour 4 entités), objets disponibles en 0/1, reste ; un jeu « client » sans navigation (nav: false)');
   const ev = []; PJ.tirVisuel(f1, mondeP, j2.entites, R.mulberry32(1), ev);
   check(ev.length === R.arme(f1.arme).plombs && ev.every((v) => v.t === 'tir' && v.id === 'h1' && v.o.length === 3 && v.fin.length === 3) && j2.entites.every((e) => e.vie === j2.trouver(e.id).vie), 'PJEU.tirVisuel : les traînées d\'un tir pour l\'image, sans effet sur le jeu');
@@ -554,17 +577,17 @@ titre('Corrections de la relecture');
   const h = jeu.ajouterJoueur({ id: 'h', humain: true }), bot = jeu.ajouterJoueur({ id: 'r', bot: true, niveau: 'normal' });
   poser(jeu, bot, 0, 30, 0); poser(jeu, h, 0, 100, 0); bot.invincible = 0; h.invincible = 0; // le robot regarde au nord, le tireur est à 70 m dans son dos
   pas(jeu, 10, {});
-  donner(h, 'precision'); viserSur(h, bot, 1.0); h.gonfle = 0;
-  const touche = evsDe(jeu, 1, { h: entree({ tir: true }) }).some((v) => v.t === 'touche' && v.a === 'r');
+  donner(h, 'm24'); epauler(h); viserSur(h, bot, 1.0); h.gonfle = 0;
+  const touche = evsDe(jeu, 1, { h: TIRP() }).some((v) => v.t === 'touche' && v.a === 'r');
   const d0 = Math.hypot(bot.x - h.x, bot.z - h.z); let combat = false, tirs = 0, dMin = d0;
   for (let i = 0; i < 6 * 60; i++) { for (const v of jeu.etape(DT, {})) if (v.t === 'tir' && v.id === 'r') tirs++; if (bot.ia.etat === 'combat' && bot.ia.cible === h) combat = true; dMin = Math.min(dMin, Math.hypot(bot.x - h.x, bot.z - h.z)); h.vie = 100; }
-  check(touche && combat && dMin < d0 - 15 && tirs > 0, `robot touché au long-tir à ${f2(d0)} m : il voit le tireur, le prend en chasse (${f2(d0 - dMin)} m gagnés en 6 s) et riposte (${tirs} tirs)`);
+  check(touche && combat && dMin < d0 - 15 && tirs > 0, `robot touché au fusil de précision à ${f2(d0)} m : il voit le tireur, le prend en chasse (${f2(d0 - dMin)} m gagnés en 6 s) et riposte (${tirs} tirs)`);
 }
 {
   // (c) le tir auto s'arrête à la portée utile de l'arme : la pompe à ~12 m
   const { jeu, es: [a, b] } = partie(mondePlat, cartePl, ['a', 'b']);
   const sur = (d, arme) => { poser(jeu, a, 0, 100, 0); poser(jeu, b, 0, 100 - d); donner(a, arme); viserSur(a, b, 1.1); return jeu.aideVisee('a', 1).surCible; };
-  check(sur(8, 'pompe') && sur(11.5, 'pompe') && !sur(14, 'pompe') && !sur(20, 'pompe') && sur(20, 'rafale') && sur(40, 'rafale') && sur(55, 'precision'), 'tir auto : pompe jusqu\'à 12 m (pas à 14 ni 20 m), blaster à 40 m, long-tir à 55 m');
+  check(sur(8, 'pompe') && sur(11.5, 'pompe') && !sur(14, 'pompe') && !sur(20, 'pompe') && sur(20, 'ak74') && sur(40, 'ak74') && sur(55, 'm24'), 'tir auto : pompe jusqu\'à 12 m (pas à 14 ni 20 m), fusil d\'assaut à 40 m, fusil de précision à 55 m');
 }
 {
   // (e) chacun pour soi : la fin et la victoire suivent le même critère (les repeints, départagés par les points)
@@ -604,8 +627,8 @@ titre('Entrées abîmées, dt extrêmes : jamais d\'exception ni de NaN');
   try { const j = PJ.creer({ monde: mondeP, graine: 'abc', options: { bots: 'beaucoup', niveau: 'extrême' } }); j.ajouterJoueur(); j.ajouterJoueur(null); for (let i = 0; i < 300; i++) j.etape(DT, null); j.classement(); j.aideVisee(undefined); }
   catch (err) { ok2 = false; console.log('     ', err.stack); }
   check(ok2, 'sans mode ni carte, options absurdes : le jeu tourne quand même');
-  const jsc = PJ.creer({ monde: mondeP, mode: PA, graine: 3, options: { bots: 3 } });
-  check(jsc.monde.limite && jsc.arene.apparitions.length >= 12 && jsc.arene.objets.length > 0 && jsc.entites.every((e) => !mondeP.bloque(e.x, e.z, J.rayon)), 'Arène sans carte : une zone et des points de secours (12 apparitions, objets)');
+  const mondeSans = PM.creer(Object.assign({}, carteP, { zones: undefined })), jsc = PJ.creer({ monde: mondeSans, mode: PA, graine: 3, options: { bots: 3 } });
+  check(jsc.carte === mondeSans.carte && jsc.monde.limite && jsc.arene.apparitions.length >= 12 && jsc.arene.objets.length > 0 && jsc.entites.every((e) => !mondeP.bloque(e.x, e.z, J.rayon)), 'Arène sans carte : une zone et des points de secours (12 apparitions, objets)');
   mondeP.limite = { centre: carteP.zones.arene.centre, rayon: carteP.zones.arene.rayon };
 }
 

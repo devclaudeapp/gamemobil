@@ -32,7 +32,7 @@
    (bz − az, ax − bx) / longueur), passages (ci-dessous).
    En plus : passe(ax, az, bx, bz, r) (la capsule du segment ne touche rien), dedans(x, z) (dans une région pleine), pente(x, z) →
    [dh/dx, dh/dz] (tableau partagé, à copier), sousVoute(x, z) → l'indice du passage dont on est sous la voûte, sinon −1 ; arche(p, x, z)
-   → y de l'intrados du passage p au-dessus du point ; couloirs (les ponts), interdits, stats ; accessible (x, z) → bool, branché par
+   → y de l'intrados du passage p au-dessus du point ; couloirs (les ponts), interdits, stats ; carte (celle d'origine) ; accessible (x, z) → bool, branché par
    PNAV.creer : libre() préfère alors la composante principale de la navigation (jamais une cour fermée).
    monde.passages (normalisés, pour rendu.js) : [{ n, l: [[ax, az], [bx, bz]], w, h, u: [ux, uz], long, sol: [ya, yb] (relief aux deux
    bouts), b: [indices de monde.batiments], bats: [{ i, entree: { x, z, a, s }, sortie: { x, z, a, s }, coupes: [{ a, s0, s1 }] }] }] :
@@ -817,6 +817,7 @@
     const secours = () => limiteOk(monde.limite) ? libre(rndDefaut) : libre(rndDefaut, [0, 0], L / 2); // une position perdue (NaN) revient sur un point libre
 
     const monde = {
+      carte, // la carte d'origine (la matière des murs et du mobilier pour les impacts : PARMES.matiere)
       L, limite: null, batiments, interdits, couloirs, passages, bancs, tabliers,
       hauteur, relief, chaussee, bloque, deplacer, rayon, vue, libre,
       passe, dedans, pente, sousVoute, arche,

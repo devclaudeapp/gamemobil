@@ -257,9 +257,9 @@
       } else if (pos === 'couche') changerPosture(e, veutAcc ? 'accroupi' : 'debout', veutAcc ? TR.coucheAccroupi : TR.coucheDebout);
       else { const v = veutAcc ? 'accroupi' : 'debout'; if (v !== pos) changerPosture(e, v, TR.accroupi); }
     }
-    // ─ la course ─
+    // ─ la course (demander la visée la coupe : refusée en course, la visée ne monterait jamais) ─
     const etaitCourse = e.course;
-    e.course = !glisse && !!en.course && e.vers === 'debout' && e.posture === 'debout' && e.transition <= 0 && e.auSol && av >= CR.avant && Math.abs(Math.atan2(co, av)) <= CR.angle && vise < CR.vise && !en.tir;
+    e.course = !glisse && !!en.course && e.vers === 'debout' && e.posture === 'debout' && e.transition <= 0 && e.auSol && av >= CR.avant && Math.abs(Math.atan2(co, av)) <= CR.angle && vise < CR.vise && !en.vise && !en.tir;
     if (etaitCourse && en.tir) e.remonte = CR.remonte; // tirer coupe la course : le temps de remonter l'arme
     const sy = Math.sin(e.yaw), cy = Math.cos(e.yaw);
     let dep;
