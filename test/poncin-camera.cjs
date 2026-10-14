@@ -120,7 +120,7 @@ const ROUTES = {
       + ` à-coups vy > 0,25 m/s : caméra ${r.acoups.n} (max ${f2(r.acoups.max)} m/s), œil de la simulation ${r.acoupsOeil.n} (max ${f2(r.acoupsOeil.max)}) ; écart à l'œil ${cm(r.ecartOeil)} ;`
       + ` arme ${r.fArme} Hz, crête ${cm(r.cArme)}, cassure ${f2(r.cassureArme)}`);
     check(ecartTrajet < 1e-9, `${R.nom} : le même trajet avec et sans balancement (écart ${ecartTrajet.toExponential(1)} m)`);
-    check(vMoy > 4.9, `${R.nom} : à fond, ${f2(vMoy)} m/s`);
+    check(vMoy > 4.5, `${R.nom} : à fond, ${f2(vMoy)} m/s`); // 4,5 : en régime v2, la montée ralentit (× (1 − 0,8·pente), § 3) ; la rue du Mazet grimpe au retour
     check(r.fBob >= 2 && r.fBob <= 3.5 && r.cBob <= 0.013 && r.cBob > 0.004, `${R.nom} : balancement vertical à ${r.fBob} Hz (2 à 3,5), ${cm(r.cBob)} crête à crête (≤ 1,3 cm)`);
     check(Math.abs(r.cBobDoux - r.cBob / 2) < 0.001, `${R.nom} : « doux » divise le balancement par 2 (${cm(r.cBobDoux)})`);
     check(r.hpRms <= (cle === 'place' ? 0.010 : 0.015), `${R.nom} : passe-haut de la caméra ${cm(r.hpRms)} rms (≤ ${cle === 'place' ? '1,0' : '1,5'} cm)`);
