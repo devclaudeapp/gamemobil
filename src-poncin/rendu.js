@@ -1,5 +1,7 @@
 /* OPÉRATION PONCIN — le rendu 3D (Three.js r158) : le vrai Poncin en « réaliste stylisé » (matières, végétation, mobilier vrais, couleurs
-   justes un peu saturées, lumière chaude de fin d'après-midi), vu à la première personne ; les personnages et les blasters restent cartoon.
+   justes un peu saturées, lumière chaude de fin d'après-midi), vu à la première personne ; les personnages restent cartoon, les armes sont
+   vraies (PAVATARS.armes : les modèles poncin/armes/*.glb, lus en arrière-plan par init ; dossier : celui de la carte, « armes/ » au lieu
+   de « carte/ », ou opts.armes).
    rendu.js est le chef d'orchestre du décor, construit une fois par init :
    - le sol : le relief maillé avec EXACTEMENT la triangulation de monde.hauteur (diagonale (i+1, j)–(i, j+1)), habillé de la photo aérienne
      (carte.sol.petite) et, autour de l'arène, de la photo fine carte.sol.arene fondue sans couture ; un masque peint d'après les données
@@ -22,8 +24,12 @@
    - l'eau animée, les ponts de pierre à arches, les clôtures de pierre des zones interdites, le ciel peint (dégradé chaud, halo du soleil
      bas, nuages) qui suit la caméra, une brume légère bleutée au loin qui fond avec l'horizon de PDECOR ; ombres du soleil en haute.
    Replis : sans PVEGETATION, arbres et vignes en InstancedMesh ; sans PDECOR, des collines peintes (la « jupe ») et des montagnes dans le ciel.
-   Les personnages viennent de PAVATARS (avatars.js). L'arme en vue subjective est une scène à part, rendue après le monde avec clearDepth.
-   Effets en pools (InstancedMesh) : traînées, éclairs, impacts de peinture orientés, particules (confettis, gouttes). Qualité haute /
+   Les personnages viennent de PAVATARS (avatars.js), posés selon leur posture. L'arme en vue subjective est une scène à part, rendue après
+   le monde avec clearDepth : la vraie arme et les mains, hanche ↔ visée (le point de mire sur l'axe de la caméra), recul, balancement,
+   course, changement, recharge ; le champ de vision suit le zoom de la visée (lunette : l'arme se cache, le HUD dessine la lunette), la
+   course (+ 4°) et la glissade (+ 6°). Effets en pools (InstancedMesh), jamais de sang : traceurs discrets, étincelles, éclairs de bouche,
+   trous de balle orientés selon la matière (mur, toit, sol, métal, bois), poussière, éclats, douilles, voile rouge d'une touche, confettis
+   d'une élimination. Qualité haute /
    moyenne / éco (ombres seulement en haute), adaptée au temps d'image comme src/scene.js. Budgets de l'image entière (passe d'ombre
    comprise, renderer.info remis à zéro avant chaque image) : ≤ 110 / 90 / 70 appels de dessin, ≤ 300k / 200k / 120k triangles ; mémoire
    des textures ≤ 96 / 64 / 32 Mo (stats.memoire). Aucune allocation par image dans les chemins chauds (vecteurs de travail, tableaux
@@ -32,7 +38,8 @@
    image(jeu, idCamera, dt, t, alpha?) (jeu = null : survol de Poncin ; alpha ∈ [0, 1], 1 par défaut : chaque entité est dessinée à
    a + (x − a)·alpha, a = ax / ay / az / aoeil posés par jeu.js au début de chaque pas ; caméra de PCORPS.camera, regard = e.yaw/e.pitch
    + PCONTROLES.enAttente()) ; reglages({ balancement: 'normal' | 'doux' | 'aucun' }) → { balancement } ; evenements(evs, jeu) ; qualite(q?) ; stats ; projeter(x, y, z) → { x, y, devant }
-   (objet partagé, à lire tout de suite). En plus : fov (champ vertical en degrés, lu par le HUD), webgl, survol(o) (règle le survol). */
+   (objet partagé, à lire tout de suite). En plus : fov (le champ vertical affiché en degrés, zoom de la visée compris : lu par le HUD),
+   visee → { vise, viseur: 'lunette' | 'point' | 'fer', zoom, cache (l'arme cachée derrière la lunette), arme }, webgl, survol(o). */
 const PRENDU = (() => {
   'use strict';
   const OK3 = typeof THREE !== 'undefined' && typeof MODELES !== 'undefined' && !!MODELES;
@@ -56,9 +63,9 @@ const PRENDU = (() => {
   // photo : la photo aérienne du carré (petite : 1024 px) ; arene : côté (px) de la photo fine de l'arène ; masque : côté du masque des
   // surfaces ; ciel : largeur de la toile du ciel ; chaines : chaînes d'angle ; arc : facettes des voûtes
   const PALIERS = {
-    haute: { dpr: 2, ombres: 1024, brume: [170, 640], detail: 175, arbres: 420, splats: 120, part: 260, memoire: 96, photo: 'petite', arene: 2048, masque: 1024, ciel: 2048, chaines: true, arc: 14 },
-    moyenne: { dpr: 1.5, ombres: 0, brume: [120, 430], detail: 125, arbres: 300, splats: 90, part: 200, memoire: 64, photo: 'petite', arene: 1024, masque: 1024, ciel: 1024, chaines: true, arc: 12 },
-    eco: { dpr: 1, ombres: 0, brume: [80, 280], detail: 80, arbres: 210, splats: 60, part: 140, memoire: 32, photo: 'petite', arene: 1024, masque: 512, ciel: 1024, chaines: false, arc: 8 },
+    haute: { dpr: 2, ombres: 1024, brume: [170, 640], detail: 175, arbres: 420, trous: 140, part: 260, fumees: 48, memoire: 96, photo: 'petite', arene: 2048, masque: 1024, ciel: 2048, chaines: true, arc: 14 },
+    moyenne: { dpr: 1.5, ombres: 0, brume: [120, 430], detail: 125, arbres: 300, trous: 100, part: 200, fumees: 40, memoire: 64, photo: 'petite', arene: 1024, masque: 1024, ciel: 1024, chaines: true, arc: 12 },
+    eco: { dpr: 1, ombres: 0, brume: [80, 280], detail: 80, arbres: 210, trous: 70, part: 140, fumees: 28, memoire: 32, photo: 'petite', arene: 1024, masque: 512, ciel: 1024, chaines: false, arc: 8 },
   };
   const BUDGETS = { haute: { calls: 110, triangles: 300000, memoire: 96 }, moyenne: { calls: 90, triangles: 200000, memoire: 64 }, eco: { calls: 70, triangles: 120000, memoire: 32 } };
   const ORDRE_Q = ['eco', 'moyenne', 'haute'];
@@ -996,72 +1003,133 @@ const PRENDU = (() => {
   }
 
   // ═══════════════════════════════ les effets (pools) ═══════════════════════════════
+  // Des balles réelles, jamais de sang (décision du joueur) : traceurs discrets, étincelles sur le métal, éclairs de bouche, trous de
+  // balle (décalques en anneau : les plus vieux sont recouverts), poussière (bouffées douces), éclats et douilles (particules), confettis
+  // à l'élimination (le ton reste un jeu entre copains), le voile rouge quand on est touché (scène de l'arme). Chaque pool est UN
+  // InstancedMesh (un appel de dessin, seulement quand il sert) ; les tailles sont celles de la haute, la qualité en borne l'usage
+  // (PALIERS : trous, part, fumees).
   const FX = {};
-  const NTRAIT = 40, NECL = 16;
+  const NTRAIT = 56, NECL = 16;
+  // la couleur des matières touchées : le trou (son bord ébréché), la poussière, les éclats
+  const MATIERE = {
+    mur: { trou: '#D8CCB8', poussiere: '#E4DCCB', eclat: '#9E8F76', taille: 1 },
+    toit: { trou: '#C9906E', poussiere: '#D2A88C', eclat: '#9E5B3E', taille: 0.9 },
+    sol: { trou: '#9C9284', poussiere: '#C2B49A', eclat: '#7D705E', taille: 1.25 },
+    metal: { trou: '#E3E5E8', poussiere: '#9A9DA3', eclat: '#C9CCD1', taille: 0.7 },
+    bois: { trou: '#B08458', poussiere: '#C4A27A', eclat: '#8A6238', taille: 0.95 },
+    corps: { trou: '#FFFFFF', poussiere: '#C9CED6', eclat: '#E8ECF2', taille: 0 },
+  };
   function construireEffets() {
     const P = PALIERS.haute;
-    // traînées : une boîte unité le long de +z, étirée de la queue à la tête
+    // traînées (traceurs, étincelles) : une boîte unité le long de +z, étirée de la queue à la tête
     const gt = new THREE.BoxGeometry(1, 1, 1).translate(0, 0, 0.5);
-    FX.traits = { im: new THREE.InstancedMesh(gt, new THREE.MeshBasicMaterial({ color: '#FFFFFF', transparent: true, opacity: 0.85, depthWrite: false }), NTRAIT), l: [] };
-    for (let i = 0; i < NTRAIT; i++) FX.traits.l.push({ on: false, ox: 0, oy: 0, oz: 0, fx: 0, fy: 0, fz: 0, len: 0, age: 0, v: 240, q: 3, w: 0.05 });
-    // éclairs : une étoile plate face à la caméra
-    const s = new THREE.Shape(); for (let k = 0; k < 12; k++) { const a = k * TAU / 12, r = k % 2 ? 0.38 : 1; if (k) s.lineTo(Math.cos(a) * r, Math.sin(a) * r); else s.moveTo(r, 0); } s.closePath();
+    FX.traits = { im: new THREE.InstancedMesh(gt, new THREE.MeshBasicMaterial({ color: '#FFFFFF', transparent: true, opacity: 0.8, depthWrite: false }), NTRAIT), l: [] };
+    for (let i = 0; i < NTRAIT; i++) FX.traits.l.push({ on: false, ox: 0, oy: 0, oz: 0, fx: 0, fy: 0, fz: 0, len: 0, age: 0, v: 240, q: 3, w: 0.05, vie: 1.5 });
+    // éclairs de bouche (et la petite étoile blanche d'une touche) : une étoile plate face à la caméra
+    const s = new THREE.Shape(); for (let k = 0; k < 12; k++) { const a = k * TAU / 12, r = k % 2 ? 0.34 : 1; if (k) s.lineTo(Math.cos(a) * r, Math.sin(a) * r); else s.moveTo(r, 0); } s.closePath();
     FX.eclairs = { im: new THREE.InstancedMesh(new THREE.ShapeGeometry(s), new THREE.MeshBasicMaterial({ color: '#FFFFFF', side: THREE.DoubleSide, transparent: true, opacity: 0.95, depthWrite: false }), NECL), l: [] };
-    for (let i = 0; i < NECL; i++) FX.eclairs.l.push({ on: false, x: 0, y: 0, z: 0, age: 0, r: 0, s: 0.3 });
-    // impacts de peinture : une tache à lobes, en anneau (les plus vieilles sont recouvertes)
-    const tache = new THREE.Shape(), rnd = mulberry32(9), NL = 9;
-    for (let k = 0; k <= 36; k++) { const a = k / 36 * TAU, lobe = 1 + 0.22 * Math.max(0, Math.cos(a * NL)) ** 4 + 0.08 * Math.sin(a * 3), x = Math.cos(a) * lobe, y = Math.sin(a) * lobe; if (k) tache.lineTo(x, y); else tache.moveTo(x, y); }
-    const gTache = [new THREE.ShapeGeometry(tache, 2)]; for (let k = 0; k < 5; k++) { const a = rnd() * TAU, d = 1.3 + rnd() * 0.6, r = 0.08 + rnd() * 0.12; gTache.push(new THREE.CircleGeometry(r, 7).translate(Math.cos(a) * d, Math.sin(a) * d, 0)); }
-    const gT = M.assembler(gTache.map((g) => ({ geo: g, col: '#FFFFFF' }))); gTache.forEach((g) => g.dispose());
-    const mT = new THREE.MeshLambertMaterial({ color: '#FFFFFF', polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, depthWrite: false, transparent: true, opacity: 0.96 });
-    FX.taches = { im: new THREE.InstancedMesh(gT, mT, P.splats), l: [], i: 0, n: P.splats };
-    for (let i = 0; i < P.splats; i++) FX.taches.l.push({ on: false, x: 0, y: 0, z: 0, nx: 0, ny: 1, nz: 0, rot: 0, s: 0.3, age: 9 });
-    FX.taches.im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(P.splats * 3), 3);
-    // particules : confettis et gouttes
+    for (let i = 0; i < NECL; i++) FX.eclairs.l.push({ on: false, x: 0, y: 0, z: 0, age: 0, r: 0, s: 0.3, vie: 0.07 });
+    // trous de balle : un disque au centre noir, un bord ébréché clair qui s'efface (couleurs et alpha par sommet ; la matière teinte le tout)
+    const N = 14, pos = [], col = [], rnd = mulberry32(17), rs = [];
+    for (let k = 0; k < N; k++) rs.push(0.75 + rnd() * 0.5);
+    const pt = (a, r, c, al) => { pos.push(Math.cos(a) * r, Math.sin(a) * r, 0); col.push(c, c, c, al); };
+    for (let k = 0; k < N; k++) {
+      const a0 = k / N * TAU, a1 = (k + 1) / N * TAU, r0 = rs[k], r1 = rs[(k + 1) % N];
+      pt(0, 0, 0.02, 1); pt(a0, 0.32, 0.05, 1); pt(a1, 0.32, 0.05, 1); // le trou
+      pt(a0, 0.32, 0.05, 1); pt(a0, r0, 0.85, 0); pt(a1, r1, 0.85, 0); pt(a0, 0.32, 0.05, 1); pt(a1, r1, 0.85, 0); pt(a1, 0.32, 0.05, 1); // l'éclat, qui s'efface
+      pt(a0, 0.32, 0.05, 1); pt(a0, 0.5, 0.55, 0.95); pt(a1, 0.5, 0.55, 0.95); // un liseré clair autour du trou (la matière arrachée)
+    }
+    const gTrou = new THREE.BufferGeometry(); gTrou.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); gTrou.setAttribute('color', new THREE.Float32BufferAttribute(col, 4)); gTrou.setAttribute('normal', new THREE.Float32BufferAttribute(pos.map((v, i) => (i % 3 === 2 ? 1 : 0)), 3));
+    const mT = new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, depthWrite: false });
+    FX.trous = { im: new THREE.InstancedMesh(gTrou, mT, P.trous), l: [], i: 0, n: P.trous };
+    for (let i = 0; i < P.trous; i++) FX.trous.l.push({ on: false, x: 0, y: 0, z: 0, nx: 0, ny: 1, nz: 0, rot: 0, s: 0.03 });
+    FX.trous.im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(P.trous * 3), 3);
+    // particules : éclats, douilles, confettis
     const gp = new THREE.PlaneGeometry(1, 1);
-    FX.parts = { im: new THREE.InstancedMesh(gp, new THREE.MeshBasicMaterial({ color: '#FFFFFF', side: THREE.DoubleSide }), P.part), l: [], i: 0, n: P.part };
-    for (let i = 0; i < P.part; i++) FX.parts.l.push({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, ax: 1, ay: 0, az: 0, a: 0, va: 0, s: 0.1, vie: 0, age: 0, sol: false, conf: true });
+    FX.parts = { im: new THREE.InstancedMesh(gp, new THREE.MeshLambertMaterial({ color: '#FFFFFF', side: THREE.DoubleSide, emissive: '#FFFFFF', emissiveIntensity: 0.25 }), P.part), l: [], i: 0, n: P.part };
+    for (let i = 0; i < P.part; i++) FX.parts.l.push({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, ax: 1, ay: 0, az: 0, a: 0, va: 0, s: 0.1, sl: 1, vie: 0, age: 0, sol: false, conf: true, rebond: 0 });
     FX.parts.im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(P.part * 3), 3);
     FX.traits.im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(NTRAIT * 3), 3);
     FX.eclairs.im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(NECL * 3), 3);
-    // ombres rondes des personnages (sans carte d'ombre) et objets à ramasser
+    // poussière : des bouffées douces face à la caméra (texture ronde, alpha par instance : un attribut lu par un petit ajout au shader)
+    const tx = M.texture((c, w, h) => { const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); g.addColorStop(0, 'rgba(255,255,255,0.9)'); g.addColorStop(0.45, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h); }, 64, 64);
+    const mF = new THREE.MeshBasicMaterial({ map: tx, transparent: true, depthWrite: false, color: '#FFFFFF' });
+    mF.onBeforeCompile = (sh) => {
+      sh.vertexShader = 'attribute float aAlpha;\nvarying float vAlpha;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vAlpha = aAlpha;');
+      sh.fragmentShader = 'varying float vAlpha;\n' + sh.fragmentShader.replace('#include <dithering_fragment>', '#include <dithering_fragment>\n  gl_FragColor.a *= vAlpha;');
+    };
+    mF.customProgramCacheKey = () => 'poncin-fumee';
+    const gF = new THREE.PlaneGeometry(1, 1), alphas = new THREE.InstancedBufferAttribute(new Float32Array(P.fumees), 1); alphas.setUsage(THREE.DynamicDrawUsage); gF.setAttribute('aAlpha', alphas);
+    FX.fumees = { im: new THREE.InstancedMesh(gF, mF, P.fumees), l: [], i: 0, n: P.fumees, alpha: alphas };
+    for (let i = 0; i < P.fumees; i++) FX.fumees.l.push({ on: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, s0: 0.1, s1: 0.5, a: 0.6, vie: 1, age: 0, r: 0 });
+    FX.fumees.im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(P.fumees * 3), 3);
+    // ombres rondes des personnages (sans carte d'ombre)
     const gombre = new THREE.CircleGeometry(0.5, 16).rotateX(-HP);
     FX.ombres = { im: new THREE.InstancedMesh(gombre, new THREE.MeshBasicMaterial({ color: '#3D3A55', transparent: true, opacity: 0.22, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), 16) };
-    for (const k of ['traits', 'eclairs', 'taches', 'parts', 'ombres']) { const im = FX[k].im; im.frustumCulled = false; im.castShadow = false; im.receiveShadow = false; im.count = 0; im.visible = false; im.name = 'fx-' + k; im.renderOrder = k === 'eclairs' ? 5 : k === 'traits' ? 4 : 1; scene.add(im); }
-    FX.taches.im.receiveShadow = true;
+    const ORDRE = { eclairs: 6, traits: 5, fumees: 4, parts: 2, trous: 1, ombres: 1 };
+    for (const k of ['traits', 'eclairs', 'trous', 'parts', 'fumees', 'ombres']) { const im = FX[k].im; im.frustumCulled = false; im.castShadow = false; im.receiveShadow = false; im.count = 0; im.visible = false; im.name = 'fx-' + k; im.renderOrder = ORDRE[k]; scene.add(im); }
+    FX.trous.im.receiveShadow = true;
   }
-  function couleurArme(id) { return AV ? AV.couleurArme(id) : '#FF6B8B'; }
-  function trait(ox, oy, oz, fx, fy, fz, col, arme) {
-    const T = FX.traits; let t = null; for (let i = 0; i < NTRAIT; i++) if (!T.l[i].on) { t = T.l[i]; break; } if (!t) { t = T.l[0]; let a = -1; for (let i = 0; i < NTRAIT; i++) if (T.l[i].age > a) { a = T.l[i].age; t = T.l[i]; } }
-    const dx = fx - ox, dy = fy - oy, dz = fz - oz, len = Math.sqrt(dx * dx + dy * dy + dz * dz); if (!(len > 0.2)) return;
-    t.on = true; t.ox = ox; t.oy = oy; t.oz = oz; t.fx = fx; t.fy = fy; t.fz = fz; t.len = len; t.age = 0; t.col = col;
-    t.v = arme === 'precision' ? 420 : arme === 'pompe' ? 170 : 230; t.q = arme === 'precision' ? 10 : arme === 'pompe' ? 1.4 : 2.8; t.w = arme === 'precision' ? 0.03 : arme === 'pompe' ? 0.026 : 0.034;
-    const cl = lin(col), i = T.l.indexOf(t); T.im.instanceColor.setXYZ(i, cl[0], cl[1], cl[2]); T.im.instanceColor.needsUpdate = true;
+  // un trait : de o à f, la tête file à v m/s, la queue la suit à q m derrière, épaisseur w ; vie : au plus (s)
+  function trait(ox, oy, oz, fx, fy, fz, col, v, q, w, vie) {
+    const T = FX.traits; let t = null, i = -1; for (let k = 0; k < NTRAIT; k++) if (!T.l[k].on) { t = T.l[k]; i = k; break; }
+    if (!t) { let a = -1; for (let k = 0; k < NTRAIT; k++) if (T.l[k].age > a) { a = T.l[k].age; t = T.l[k]; i = k; } }
+    const dx = fx - ox, dy = fy - oy, dz = fz - oz, len = Math.sqrt(dx * dx + dy * dy + dz * dz); if (!(len > 0.02)) return;
+    t.on = true; t.ox = ox; t.oy = oy; t.oz = oz; t.fx = fx; t.fy = fy; t.fz = fz; t.len = len; t.age = 0; t.v = v; t.q = q; t.w = w; t.vie = vie || 1.5;
+    const cl = lin(col); T.im.instanceColor.setXYZ(i, cl[0], cl[1], cl[2]); T.im.instanceColor.needsUpdate = true;
   }
-  function eclair(x, y, z, col, s) {
-    const E = FX.eclairs; let e = null, k = 0; for (let i = 0; i < NECL; i++) if (!E.l[i].on) { e = E.l[i]; k = i; break; } if (!e) { e = E.l[0]; k = 0; }
-    e.on = true; e.x = x; e.y = y; e.z = z; e.age = 0; e.r = (frame * 2.39996) % TAU; e.s = s || 0.32;
-    const cl = lin(col); E.im.instanceColor.setXYZ(k, cl[0] * 0.45 + 0.55, cl[1] * 0.45 + 0.55, cl[2] * 0.45 + 0.55); E.im.instanceColor.needsUpdate = true;
-  }
-  function tache(x, y, z, nx, ny, nz, col, taille) {
-    const T = FX.taches, i = T.i, t = T.l[i]; T.i = (i + 1) % T.n;
-    const dec = (Math.abs(ny) > 0.7 ? 0.015 : 0.065) + (i % 4) * 0.003; // devant les fenêtres et les portes (décollées de 2 à 5 cm), en quinconce
-    t.on = true; t.x = x + nx * dec; t.y = y + ny * dec; t.z = z + nz * dec; t.nx = nx; t.ny = ny; t.nz = nz; t.rot = (i * 2.39996) % TAU; t.s = taille; t.age = 0;
-    const cl = lin(col), k = 0.9 + ((i * 37) % 20) / 100; T.im.instanceColor.setXYZ(i, cl[0] * k, cl[1] * k, cl[2] * k); T.im.instanceColor.needsUpdate = true;
-    poserTache(i, 0.25);
-  }
-  function poserTache(i, k) { const t = FX.taches.l[i]; _v.set(t.nx, t.ny, t.nz); if (_v.lengthSq() < 1e-6) _v.set(0, 1, 0); _v.normalize(); _q.setFromUnitVectors(_Z, _v); _q2.setFromAxisAngle(_Z, t.rot); _q.multiply(_q2); _v2.set(t.x, t.y, t.z); const s = t.s * k; _s.set(s, s, s); _m.compose(_v2, _q, _s); FX.taches.im.setMatrixAt(i, _m); FX.taches.im.instanceMatrix.needsUpdate = true; }
-  const CONF = ['#FF6B8B', '#5FD3A4', '#7FB3FF', '#FFC84A', '#B8A6FF', '#FF9F5A', '#4FD1E0', '#F48FD8', '#FFFFFF'];
-  function particules(x, y, z, n, col, conf, force) {
-    const P = FX.parts;
+  // un traceur : discret (fin, rapide, une traînée chaude) ; le sniper un peu plus long, les plombs de la pompe à peine visibles
+  const TRACEUR = { fusil: [520, 4, 0.012], mitraillette: [480, 3, 0.011], pompe: [380, 1.6, 0.008], sniper: [760, 9, 0.014], pistolet: [420, 2.5, 0.01] };
+  function traceur(ox, oy, oz, fx, fy, fz, classe) { const T = TRACEUR[classe] || TRACEUR.fusil; trait(ox, oy, oz, fx, fy, fz, '#FFE2A8', T[0], T[1], T[2], 0.6); }
+  function etincelles(x, y, z, nx, ny, nz, n) { // de courts traits orange qui jaillissent de l'impact (le rebond, plus ou moins le long de la normale)
     for (let k = 0; k < n; k++) {
-      const i = P.i, p = P.l[i]; P.i = (i + 1) % P.n;
-      const a = (frame * 0.618 + k * 2.39996) % TAU, b = ((k * 0.7548) % 1) * 2 - 1, r = Math.sqrt(1 - b * b), v = (conf ? 2.2 + ((k * 0.381) % 1) * 3.2 : 1.6 + ((k * 0.43) % 1) * 2.2) * (force || 1);
-      p.on = true; p.x = x; p.y = y; p.z = z; p.vx = Math.cos(a) * r * v; p.vy = Math.abs(b) * v * (conf ? 1.1 : 0.8) + (conf ? 2.5 : 1.2); p.vz = Math.sin(a) * r * v;
-      p.ax = Math.cos(a * 3.1); p.ay = 0.4; p.az = Math.sin(a * 1.7); p.a = a; p.va = (conf ? 6 : 0) + ((k * 0.29) % 1) * 9; p.s = conf ? 0.09 + ((k * 0.61) % 1) * 0.06 : 0.05 + ((k * 0.47) % 1) * 0.06; p.vie = conf ? 2.2 + ((k * 0.13) % 1) : 0.7; p.age = 0; p.sol = false; p.conf = conf;
+      const a = (frame * 0.618 + k * 2.39996) % TAU, b = ((k * 0.7548 + frame * 0.31) % 1) * 2 - 1, r = Math.sqrt(1 - b * b), l = 0.18 + ((k * 0.37) % 1) * 0.3;
+      let dx = Math.cos(a) * r + nx * 1.4, dy = b + ny * 1.4 + 0.3, dz = Math.sin(a) * r + nz * 1.4; const n2 = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1; dx /= n2; dy /= n2; dz /= n2;
+      trait(x, y, z, x + dx * l, y + dy * l, z + dz * l, k % 2 ? '#FFC45A' : '#FFF0B8', 5 + k, 0.07, 0.008, 0.18);
+    }
+  }
+  function eclair(x, y, z, col, s, vie) {
+    const E = FX.eclairs; let e = null, k = 0; for (let i = 0; i < NECL; i++) if (!E.l[i].on) { e = E.l[i]; k = i; break; } if (!e) { e = E.l[0]; k = 0; }
+    e.on = true; e.x = x; e.y = y; e.z = z; e.age = 0; e.r = (frame * 2.39996) % TAU; e.s = s || 0.25; e.vie = vie || 0.06;
+    const cl = lin(col); E.im.instanceColor.setXYZ(k, cl[0], cl[1], cl[2]); E.im.instanceColor.needsUpdate = true;
+  }
+  // un trou de balle orienté par la normale, décollé de la surface (devant les détails des façades), tourné au hasard
+  function trou(x, y, z, nx, ny, nz, col, taille) {
+    const T = FX.trous, n = Math.min(T.n, PALIERS[QUAL.niveau].trous), i = T.i % n, t = T.l[i]; T.i = (i + 1) % n;
+    const dec = Math.abs(ny) > 0.7 ? 0.012 : 0.03;
+    t.on = true; t.x = x + nx * dec; t.y = y + ny * dec; t.z = z + nz * dec; t.nx = nx; t.ny = ny; t.nz = nz; t.rot = (i * 2.39996) % TAU; t.s = taille;
+    const cl = lin(col), k = 0.92 + ((i * 37) % 16) / 100; T.im.instanceColor.setXYZ(i, cl[0] * k, cl[1] * k, cl[2] * k); T.im.instanceColor.needsUpdate = true;
+    _v.set(nx, ny, nz); if (_v.lengthSq() < 1e-6) _v.set(0, 1, 0); _v.normalize(); _q.setFromUnitVectors(_Z, _v); _q2.setFromAxisAngle(_Z, t.rot); _q.multiply(_q2); _v2.set(t.x, t.y, t.z); _s.set(taille, taille, taille); _m.compose(_v2, _q, _s);
+    T.im.setMatrixAt(i, _m); T.im.instanceMatrix.needsUpdate = true; if (i + 1 > T.im.count) T.im.count = i + 1; T.im.visible = true;
+  }
+  // une bouffée de poussière : grossit en ralentissant, monte un peu, s'efface
+  function fumee(x, y, z, vx, vy, vz, col, s0, s1, a, vie) {
+    const F = FX.fumees, n = Math.min(F.n, PALIERS[QUAL.niveau].fumees), i = F.i % n, f = F.l[i]; F.i = (i + 1) % n;
+    f.on = true; f.x = x; f.y = y; f.z = z; f.vx = vx; f.vy = vy; f.vz = vz; f.s0 = s0; f.s1 = s1; f.a = a; f.vie = vie; f.age = 0; f.r = (i * 2.39996 + frame) % TAU;
+    const cl = lin(col); F.im.instanceColor.setXYZ(i, cl[0], cl[1], cl[2]); F.im.instanceColor.needsUpdate = true;
+  }
+  const CONF = ['#FF6B8B', '#5FD3A4', '#7FB3FF', '#FFC84A', '#B8A6FF', '#FF9F5A', '#4FD1E0', '#F48FD8', '#FFFFFF'];
+  // des particules : confettis (conf) ou éclats (qui retombent et se posent) ; force : la vitesse
+  function particules(x, y, z, n, col, conf, force, nx, ny, nz) {
+    const P = FX.parts, lim = Math.min(P.n, PALIERS[QUAL.niveau].part);
+    for (let k = 0; k < n; k++) {
+      const i = P.i % lim, p = P.l[i]; P.i = (i + 1) % lim;
+      const a = (frame * 0.618 + k * 2.39996) % TAU, b = ((k * 0.7548) % 1) * 2 - 1, r = Math.sqrt(1 - b * b), v = (conf ? 2.2 + ((k * 0.381) % 1) * 3.2 : 1.2 + ((k * 0.43) % 1) * 2.2) * (force || 1);
+      p.on = true; p.x = x; p.y = y; p.z = z; p.vx = Math.cos(a) * r * v; p.vy = Math.abs(b) * v * (conf ? 1.1 : 0.8) + (conf ? 2.5 : 1.0); p.vz = Math.sin(a) * r * v;
+      if (nx !== undefined) { p.vx += nx * v * 0.8; p.vy += ny * v * 0.8; p.vz += nz * v * 0.8; } // les éclats partent du mur
+      p.ax = Math.cos(a * 3.1); p.ay = 0.4; p.az = Math.sin(a * 1.7); p.a = a; p.va = (conf ? 6 : 4) + ((k * 0.29) % 1) * 9; p.s = conf ? 0.09 + ((k * 0.61) % 1) * 0.06 : 0.012 + ((k * 0.47) % 1) * 0.018; p.sl = conf ? 0.6 : 1;
+      p.vie = conf ? 2.2 + ((k * 0.13) % 1) : 0.9; p.age = 0; p.sol = false; p.conf = conf; p.rebond = 0;
       const cl = lin(col || CONF[(k + frame) % CONF.length]); P.im.instanceColor.setXYZ(i, cl[0], cl[1], cl[2]);
     }
     P.im.instanceColor.needsUpdate = true;
+  }
+  // une douille éjectée (ou une cartouche de la pompe) : de (x, y, z) à la vitesse (vx, vy, vz), elle tourne, rebondit une fois, reste un peu
+  const DOUILLE = { fusil: ['#A47A26', 0.009, 0.03], mitraillette: ['#A47A26', 0.008, 0.022], pompe: ['#9A2E26', 0.017, 0.055], sniper: ['#A47A26', 0.011, 0.055], pistolet: ['#A47A26', 0.008, 0.02] };
+  function douille(x, y, z, vx, vy, vz, classe) {
+    const P = FX.parts, lim = Math.min(P.n, PALIERS[QUAL.niveau].part), i = P.i % lim, p = P.l[i], D = DOUILLE[classe] || DOUILLE.fusil; P.i = (i + 1) % lim;
+    p.on = true; p.x = x; p.y = y; p.z = z; p.vx = vx; p.vy = vy; p.vz = vz; p.ax = 0.3; p.ay = 1; p.az = 0.2; p.a = 0; p.va = 18; p.s = D[1]; p.sl = D[2] / D[1];
+    p.vie = 1.6; p.age = 0; p.sol = false; p.conf = false; p.rebond = 1;
+    const cl = lin(D[0]); P.im.instanceColor.setXYZ(i, cl[0], cl[1], cl[2]); P.im.instanceColor.needsUpdate = true;
   }
   function majEffets(dt) {
     // traînées
@@ -1069,42 +1137,77 @@ const PRENDU = (() => {
     for (let i = 0; i < NTRAIT; i++) {
       const t = T.l[i]; if (!t.on) { T.im.setMatrixAt(i, ZERO); continue; }
       t.age += dt; const d = t.age * t.v, tete = Math.min(t.len, d), queue = Math.min(t.len, Math.max(0, d - t.q)); // la tête file à t.v, la queue la suit à t.q derrière
-      if (queue >= t.len - 0.01 || t.age > 1.5) { t.on = false; T.im.setMatrixAt(i, ZERO); continue; }
+      if (queue >= t.len - 0.001 || t.age > t.vie) { t.on = false; T.im.setMatrixAt(i, ZERO); continue; }
       const k0 = queue / t.len, k1 = tete / t.len, dx = t.fx - t.ox, dy = t.fy - t.oy, dz = t.fz - t.oz;
-      _v.set(t.ox + dx * k0, t.oy + dy * k0, t.oz + dz * k0); _v2.set(dx, dy, dz).normalize(); _q.setFromUnitVectors(_Z, _v2); _s.set(t.w, t.w, Math.max(0.01, (k1 - k0) * t.len)); _m.compose(_v, _q, _s); T.im.setMatrixAt(i, _m); nt = i + 1;
+      _v.set(t.ox + dx * k0, t.oy + dy * k0, t.oz + dz * k0); _v2.set(dx, dy, dz).normalize(); _q.setFromUnitVectors(_Z, _v2); _s.set(t.w, t.w, Math.max(0.005, (k1 - k0) * t.len)); _m.compose(_v, _q, _s); T.im.setMatrixAt(i, _m); nt = i + 1;
     }
     T.im.count = nt; T.im.visible = nt > 0; if (nt) T.im.instanceMatrix.needsUpdate = true;
     // éclairs (face à la caméra)
     const E = FX.eclairs; let ne = 0;
     for (let i = 0; i < NECL; i++) {
-      const e = E.l[i]; if (e.on) { e.age += dt; if (e.age > 0.07) e.on = false; }
+      const e = E.l[i]; if (e.on) { e.age += dt; if (e.age > e.vie) e.on = false; }
       if (!e.on) { E.im.setMatrixAt(i, ZERO); continue; }
-      const k = e.s * (1 - e.age / 0.07 * 0.6); _q2.setFromAxisAngle(_Z, e.r); _q.copy(camera.quaternion).multiply(_q2); _v.set(e.x, e.y, e.z); _s.set(k, k, k); _m.compose(_v, _q, _s); E.im.setMatrixAt(i, _m); ne = i + 1;
+      const k = e.s * (1 - e.age / e.vie * 0.6); _q2.setFromAxisAngle(_Z, e.r); _q.copy(camera.quaternion).multiply(_q2); _v.set(e.x, e.y, e.z); _s.set(k, k, k); _m.compose(_v, _q, _s); E.im.setMatrixAt(i, _m); ne = i + 1;
     }
     E.im.count = ne; E.im.visible = ne > 0; if (ne) E.im.instanceMatrix.needsUpdate = true;
-    // impacts : ils « éclosent » en 0,08 s
-    const S = FX.taches; let ns = 0;
-    for (let i = 0; i < S.n; i++) { const t = S.l[i]; if (!t.on) continue; ns = i + 1; if (t.age < 0.1) { t.age += dt; poserTache(i, Math.min(1, 0.25 + t.age / 0.08 * 0.85) * (t.age < 0.08 ? 1 : 1.1 - Math.min(0.1, (t.age - 0.08) * 5))); } }
-    S.im.count = ns; S.im.visible = ns > 0;
-    // particules : gravité, freinage (les confettis flottent), elles se posent au sol
+    // poussière : grossit vite puis lentement (1 − (1 − u)²), freine, monte, s'efface
+    const F = FX.fumees; let nf = 0;
+    for (let i = 0; i < F.n; i++) {
+      const f = F.l[i]; if (!f.on) { F.alpha.setX(i, 0); F.im.setMatrixAt(i, ZERO); continue; }
+      f.age += dt; if (f.age > f.vie) { f.on = false; F.alpha.setX(i, 0); F.im.setMatrixAt(i, ZERO); continue; }
+      const u = f.age / f.vie, fr = Math.exp(-dt * 3.2); f.vx *= fr; f.vz *= fr; f.vy = f.vy * fr + 0.25 * dt; f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt;
+      const sc = f.s0 + (f.s1 - f.s0) * (1 - (1 - u) * (1 - u)); _q2.setFromAxisAngle(_Z, f.r + u * 0.6); _q.copy(camera.quaternion).multiply(_q2); _v.set(f.x, f.y, f.z); _s.set(sc, sc, sc); _m.compose(_v, _q, _s);
+      F.im.setMatrixAt(i, _m); F.alpha.setX(i, f.a * (1 - u) * (1 - u) * Math.min(1, f.age / 0.03)); nf = i + 1;
+    }
+    F.im.count = nf; F.im.visible = nf > 0; if (nf) { F.im.instanceMatrix.needsUpdate = true; F.alpha.needsUpdate = true; }
+    FX.trous.im.visible = FX.trous.im.count > 0;
+    // particules : gravité, freinage (les confettis flottent), elles se posent au sol (une douille rebondit d'abord)
     const P = FX.parts; let np = 0;
     for (let i = 0; i < P.n; i++) {
       const p = P.l[i]; if (!p.on) { P.im.setMatrixAt(i, ZERO); continue; }
       p.age += dt; if (p.age > p.vie) { p.on = false; P.im.setMatrixAt(i, ZERO); continue; }
       if (!p.sol) {
-        const fr = p.conf ? Math.exp(-dt * 2.6) : Math.exp(-dt * 0.6); p.vx *= fr; p.vz *= fr; p.vy = p.vy * fr - (p.conf ? 5 : 13) * dt;
+        const fr = p.conf ? Math.exp(-dt * 2.6) : Math.exp(-dt * 0.5); p.vx *= fr; p.vz *= fr; p.vy = p.vy * fr - (p.conf ? 5 : 11) * dt;
         p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.a += p.va * dt;
-        const g = HS(p.x, p.z) + 0.02; if (p.y < g) { p.y = g; p.sol = true; p.ax = 1; p.ay = 0; p.az = 0; p.a = -HP; }
+        const g = HS(p.x, p.z) + 0.01; if (p.y < g) { p.y = g; if (p.rebond > 0 && p.vy < -1) { p.rebond--; p.vy = -p.vy * 0.3; p.vx *= 0.5; p.vz *= 0.5; p.va *= 0.5; } else { p.sol = true; p.ax = 1; p.ay = 0; p.az = 0; p.a = -HP; } }
       }
       const fin = p.vie - p.age, k = p.s * (fin < 0.3 ? fin / 0.3 : 1);
-      _v2.set(p.ax, p.ay, p.az).normalize(); _q.setFromAxisAngle(_v2, p.a); _v.set(p.x, p.y, p.z); _s.set(k, p.conf ? k * 0.6 : k, k); _m.compose(_v, _q, _s); P.im.setMatrixAt(i, _m); np = i + 1;
+      _v2.set(p.ax, p.ay, p.az).normalize(); _q.setFromAxisAngle(_v2, p.a); _v.set(p.x, p.y, p.z); _s.set(k, k * p.sl, k); _m.compose(_v, _q, _s); P.im.setMatrixAt(i, _m); np = i + 1;
     }
     P.im.count = np; P.im.visible = np > 0; if (np) P.im.instanceMatrix.needsUpdate = true;
+    // le voile rouge d'une touche (scène de l'arme)
+    if (FX.rouge) { const r = FX.rouge; r.t = Math.max(0, r.t - dt); r.mesh.visible = r.t > 0; if (r.t > 0) r.mesh.material.opacity = Math.min(1, r.t / 0.32) * r.force; }
+  }
+  // l'impact d'une balle selon la matière touchée (événement « tir » : impact.materiau du contrat, sinon déduit de quoi / de)
+  function matiereDe(im) {
+    const m = im.materiau || im.mat || im.matiere;
+    if (im.de === 'arbre') return 'bois';
+    if (m === 'mur' || m === 'metal' || m === 'sol' || m === 'corps' || m === 'bois' || m === 'toit') return m;
+    if (im.quoi === 'entite' || im.quoi === 'corps') return 'corps';
+    if (im.de === 'mobilier') return 'metal';
+    return im.quoi === 'sol' ? 'sol' : im.quoi === 'toit' ? 'toit' : 'mur';
+  }
+  const TAILLE_TROU = { fusil: 0.06, mitraillette: 0.055, pompe: 0.034, sniper: 0.075, pistolet: 0.05 }; // le rayon du décalque (le trou noir en fait le tiers)
+  function impact(im, classe, k, moi) { // k : le rang du plomb (la pompe en tire huit : poussière et éclats pour quelques-uns seulement)
+    const x = +im.x, y = +im.y, z = +im.z; let nx = +im.nx || 0, ny = fini(+im.ny) ? +im.ny : 1, nz = +im.nz || 0; const nl = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+    const mat = matiereDe(im), Mt = MATIERE[mat], plomb = classe === 'pompe', loin = Math.hypot(x - camera.position.x, z - camera.position.z), detail = loin < (QUAL.niveau === 'eco' ? 45 : 70);
+    if (mat === 'corps') { // une touche : jamais de sang ; un petit nuage gris de tissu et une étoile blanche (le marqueur de touche dans le monde)
+      if (!plomb || k % 3 === 0) { fumee(x, y, z, nx * 0.6, 0.2, nz * 0.6, Mt.poussiere, 0.08, 0.32, 0.55, 0.45); if (moi) eclair(x + nx * 0.05, y + ny * 0.05, z + nz * 0.05, '#FFFFFF', 0.11, 0.09); }
+      return;
+    }
+    trou(x, y, z, nx, ny, nz, Mt.trou, (TAILLE_TROU[classe] || 0.045) * Mt.taille * (0.85 + ((FX.trous.i * 7) % 10) / 30));
+    if (!detail || (plomb && k % 3 !== 0)) return;
+    const f = mat === 'sol' ? 1.4 : 1;
+    fumee(x + nx * 0.04, y + ny * 0.04, z + nz * 0.04, nx * 1.4 * f, ny * 1.2 + 0.35, nz * 1.4 * f, Mt.poussiere, 0.08, (mat === 'sol' ? 0.7 : 0.55) * (plomb ? 0.7 : 1), mat === 'metal' ? 0.4 : 0.9, mat === 'sol' ? 1.2 : 0.95);
+    if (!plomb && mat !== 'metal') fumee(x + nx * 0.08, y + ny * 0.08, z + nz * 0.08, nx * 0.5, 0.25, nz * 0.5, Mt.poussiere, 0.04, 0.22, 0.5, 0.6);
+    if (mat === 'metal') etincelles(x + nx * 0.02, y + ny * 0.02, z + nz * 0.02, nx, ny, nz, QUAL.niveau === 'eco' ? 4 : 6);
+    else particules(x + nx * 0.03, y + ny * 0.03, z + nz * 0.03, plomb ? 1 : 3, Mt.eclat, false, 0.8, nx, ny, nz);
   }
   let ZERO = null;
 
   // ═══════════════════════════════ les objets à ramasser ═══════════════════════════════
-  const OBJ = { liste: [], t: -1, types: {} };
+  // les vraies armes (une par modèle, qui flotte et tourne), les caisses de munitions, les soins et l'armure ; un anneau au sol
+  const OBJ = { liste: [], t: -1, types: {}, v: -1 };
   function construireObjets() {
     const mk = (geo, n, nom) => { const im = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true, emissive: '#FFFFFF', emissiveIntensity: 0.12 }), n); im.frustumCulled = false; im.count = 0; im.visible = false; im.name = 'objet-' + nom; im.castShadow = false; scene.add(im); return im; };
     const coeur = new THREE.Shape(); coeur.moveTo(0, -0.32); coeur.bezierCurveTo(-0.5, 0.0, -0.32, 0.36, 0, 0.16); coeur.bezierCurveTo(0.32, 0.36, 0.5, 0.0, 0, -0.32);
@@ -1115,24 +1218,31 @@ const PRENDU = (() => {
     const ge = new THREE.ExtrudeGeometry(etoile, { depth: 0.04, bevelEnabled: false }); ge.center();
     OBJ.types.soin = mk(M.assembler([{ geo: gc, col: '#FF8FB1' }, M.part(M.boiteSimple(0.07, 0.22, 0.05), '#FFFFFF', { y: -0.09, z: 0.1 }), M.part(M.boiteSimple(0.22, 0.07, 0.05), '#FFFFFF', { y: -0.035, z: 0.1 })]), 8, 'soin');
     OBJ.types.armure = mk(M.assembler([{ geo: gb, col: '#7FB3FF' }, { geo: ge, col: '#FFC84A', m: M.matrice({ z: 0.09 }) }]), 8, 'armure');
-    if (AV) { OBJ.types.pompe = mk(AV.blaster('pompe'), 8, 'pompe'); OBJ.types.precision = mk(AV.blaster('precision'), 8, 'precision'); }
+    // la caisse de munitions : bois kaki, couvercle, bande jaune, poignées
+    OBJ.types.munitions = mk(M.assembler([M.part(M.boite(0.46, 0.22, 0.26, 0.015), '#5C6A43', { y: -0.13 }), M.part(M.boite(0.48, 0.05, 0.28, 0.012), '#4D5938', { y: 0.08 }), M.part(M.boiteSimple(0.47, 0.035, 0.265), '#E2B93B', { y: -0.04 }), M.part(M.boiteSimple(0.06, 0.03, 0.03), '#2F3426', { x: -0.25, y: -0.02 }), M.part(M.boiteSimple(0.06, 0.03, 0.03), '#2F3426', { x: 0.25, y: -0.02 })]), 8, 'munitions');
+    if (AV) for (const id of AV.armes.IDS) OBJ.types[id] = mk(AV.armes.geo(id), 4, id);
+    OBJ.v = AV ? AV.armes.version : 0;
     gc.dispose(); gb.dispose(); ge.dispose();
     const anneau = new THREE.RingGeometry(0.55, 0.85, 28).rotateX(-HP);
     OBJ.anneaux = new THREE.InstancedMesh(anneau, new THREE.MeshBasicMaterial({ color: '#FFFFFF', transparent: true, opacity: 0.85, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }), 16);
     OBJ.anneaux.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(16 * 3), 3); OBJ.anneaux.frustumCulled = false; OBJ.anneaux.count = 0; OBJ.anneaux.visible = false; OBJ.anneaux.name = 'objets-anneaux'; scene.add(OBJ.anneaux);
   }
-  const COUL_OBJ = { pompe: '#5FD3A4', precision: '#B8A6FF', soin: '#FF8FB1', armure: '#7FB3FF' };
+  const COUL_OBJ = { soin: '#FF8FB1', armure: '#7FB3FF', munitions: '#D9C26A', arme: '#FFD27A' };
+  // le type d'un objet : 'soin' | 'armure' | 'munitions' | l'id du modèle d'une arme (o.arme, ou l'objet lui-même : 'ak74', 'pompe'…)
+  function typeObjet(o) { const n = o.objet; if (n === 'soin' || n === 'armure' || n === 'munitions') return n; if (!AV) return null; const a = typeof o.arme === 'string' ? o.arme : n; return typeof a === 'string' ? AV.armes.modele(a) : null; }
   function majObjets(jeu, t) {
     if (t - OBJ.t > 0.25 || OBJ.t < 0 || t < OBJ.t) { OBJ.t = t; let l = null; try { const md = jeu.mode && typeof jeu.mode.objets === 'function' ? jeu.mode : typeof PARENE !== 'undefined' && PARENE && typeof PARENE.objets === 'function' ? PARENE : null; l = md ? md.objets(jeu) : null; } catch (e) { l = null; } OBJ.liste = Array.isArray(l) ? l : []; }
     const ty = OBJ.types, TL = OBJ.liste_types || (OBJ.liste_types = Object.keys(ty).map((k) => ty[k])); for (let k = 0; k < TL.length; k++) TL[k].count = 0;
+    if (AV && OBJ.v !== AV.armes.version) { OBJ.v = AV.armes.version; for (const id of AV.armes.IDS) if (ty[id]) ty[id].geometry = AV.armes.geo(id); } // les modèles GLB sont arrivés
     let na = 0;
     for (let i = 0; i < OBJ.liste.length && na < 16; i++) {
-      const o = OBJ.liste[i]; if (!o || !fini(+o.x) || !fini(+o.z)) continue; const x = +o.x, z = +o.z, y = HS(x, z), col = COUL_OBJ[o.objet] || '#FFFFFF';
+      const o = OBJ.liste[i]; if (!o || !fini(+o.x) || !fini(+o.z)) continue; const x = +o.x, z = +o.z, y = HS(x, z), type = typeObjet(o), arme = !!type && !COUL_OBJ[type], col = arme ? COUL_OBJ.arme : COUL_OBJ[type] || '#FFFFFF';
       _v.set(x, y + 0.04, z); _q.identity(); const pulse = o.dispo ? 1 + Math.sin(t * 3 + i) * 0.06 : 0.8; _s.set(pulse, 1, pulse); _m.compose(_v, _q, _s); OBJ.anneaux.setMatrixAt(na, _m);
       const cl = lin(col), kd = o.dispo ? 0 : 0.6; OBJ.anneaux.instanceColor.setXYZ(na, cl[0] + (1 - cl[0]) * kd, cl[1] + (1 - cl[1]) * kd, cl[2] + (1 - cl[2]) * kd); na++;
-      const im = ty[o.objet]; if (!im || !o.dispo || im.count >= 8) continue;
-      _v.set(x, y + 1.05 + Math.sin(t * 2.2 + i) * 0.12, z); _e.set(o.objet === 'pompe' || o.objet === 'precision' ? 0.25 : 0, t * 1.6 + i, 0, 'YXZ'); _q.setFromEuler(_e); const sc = o.objet === 'pompe' || o.objet === 'precision' ? 2 : 1.5; _s.set(sc, sc, sc); _m.compose(_v, _q, _s);
-      if (o.objet === 'pompe' || o.objet === 'precision') { _m2.makeTranslation(0, 0, 0.22); _m.multiply(_m2); }
+      const im = type ? ty[type] : null; if (!im || !o.dispo || im.count >= im.instanceMatrix.count) continue;
+      _v.set(x, y + (arme ? 0.95 : 1.05) + Math.sin(t * 2.2 + i) * 0.1, z); _e.set(arme ? 0.18 : 0, t * 1.4 + i, 0, 'YXZ'); _q.setFromEuler(_e);
+      const I = arme ? AV.armes.infos(type) : null, sc = arme ? borne(0.95 / I.long, 1.1, 3.2) : 1.5; _s.set(sc, sc, sc); _m.compose(_v, _q, _s);
+      if (arme) { _m2.makeTranslation(0, 0.03, -(I.bouche[2] + I.arriere[2]) / 2); _m.multiply(_m2); } // elle tourne autour de son milieu
       im.setMatrixAt(im.count++, _m);
     }
     OBJ.anneaux.count = na; OBJ.anneaux.visible = na > 0; OBJ.anneaux.instanceMatrix.needsUpdate = true; OBJ.anneaux.instanceColor.needsUpdate = true;
@@ -1140,7 +1250,6 @@ const PRENDU = (() => {
   }
   function cacherObjets() { if (OBJ.anneaux) OBJ.anneaux.visible = false; for (const k in OBJ.types) OBJ.types[k].visible = false; }
   let _m2 = null;
-
   // ═══════════════════════════════ la barrière de l'arène (monde.limite) ═══════════════════════════════
   let barriere = null;
   function majBarriere(cx, cz) {
@@ -1193,50 +1302,117 @@ const PRENDU = (() => {
   function trouver(jeu, id) { const es = jeu && jeu.entites; if (!es) return null; for (let i = 0; i < es.length; i++) if (es[i] && es[i].id === id) return es[i]; return null; }
 
   // ═══════════════════════════════ l'arme en vue subjective (scène à part) ═══════════════════════════════
-  const FP = { groupe: null, arme: null, mains: null, flash: null, id: 'rafale', col: '', recul: 0, phase: 0, swx: 0, swy: 0, lastYaw: 0, lastPitch: 0, change: 0, nouvelle: '', recharge: 0, flashT: 0 };
-  // les mains de la vue subjective : moufles crème, manches à la couleur du joueur (une capsule tendue entre deux points)
+  // La vraie arme (PAVATARS.armes : à sa taille réelle, l'origine à la poignée, canon vers −z) et les mains gantées (manches à la couleur
+  // du joueur) dans une scène à part, avec sa propre caméra proche, rendue après le monde avec clearDepth. Deux poses mêlées par
+  // smoothstep(e.vise) : la hanche (par classe d'arme, en bas à droite, tournée un peu vers le centre) et la visée (le point de mire du
+  // modèle sur l'axe de la caméra : la ligne de visée passe au centre exact de l'écran, là où part le tir). Par-dessus : le balancement sur
+  // la phase de la foulée (C3, × 0,2 en visée), l'inertie du regard, le recul (par classe, moindre en visée), la course (l'arme basse et
+  // tournée), la glissade (penchée), le changement d'arme (elle descend, change à mi-course, remonte : A.changement), la recharge
+  // (basculée, la main gauche au chargeur). Lunette (m24, awm) : à vise ≥ 0,85 l'arme se cache, le HUD dessine la lunette.
+  const FP = { groupe: null, arme: null, mains: null, flash: null, bouche: null, ejection: null, id: '', v: -1, col: '', info: null, classe: 'fusil', viseur: 'fer', zoom: 1.25,
+    recul: 0, phase: 0, swx: 0, swy: 0, lastYaw: 0, lastPitch: 0, change: 0, changeDu: 0.36, nouvelle: '', flashT: 0, vise: 0, course: 0, glisse: 0, cache: false, douilleT: -1 };
+  // la poignée à la hanche (repère de la caméra, m) et l'arme un peu tournée vers le centre : [x, y, z, rx, ry, rz]
+  const HANCHE_FP = {
+    fusil: [0.12, -0.155, -0.2, 0.02, 0.05, -0.05], mitraillette: [0.12, -0.15, -0.25, 0.02, 0.055, -0.05], pompe: [0.13, -0.16, -0.15, 0.02, 0.045, -0.05],
+    sniper: [0.13, -0.16, -0.12, 0.02, 0.04, -0.05], pistolet: [0.12, -0.15, -0.36, 0.03, 0.07, -0.04] };
+  const RECUL_FP = { fusil: 1, mitraillette: 0.75, pompe: 2.2, sniper: 2.6, pistolet: 1.5 };
+  const ECLAIR_FP = { fusil: 0.07, mitraillette: 0.055, pompe: 0.11, sniper: 0.1, pistolet: 0.05 };
+  // les mains : la droite sur la poignée, la gauche sous la garde (aux pistolets, elle enveloppe la droite) ; gants sombres, manches
+  // à la couleur du joueur (une capsule tendue entre deux points) ; une géométrie par modèle et par couleur
   function entre(geo, col, a, b) { const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), l = A.distanceTo(B), d = B.clone().sub(A).normalize(), q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d); return { geo, col, m: new THREE.Matrix4().compose(A.clone().add(d.multiplyScalar(l / 2)), q, new THREE.Vector3(1, 1, 1)) }; }
-  const geoMains = (col) => { const k = 'pr-mains|' + col; let g = M.GEOS.get(k); if (!g) { const gant = '#FFF3E2', manche = col, poignet = M.eclaircir(col, 0.35); g = M.assembler([
-    M.part(M.sphere(0.05, 12), gant, { x: 0.0, y: -0.075, z: 0.035, sx: 1.05, sy: 1.15, sz: 1.2 }), M.part(M.sphere(0.022, 8), gant, { x: -0.035, y: -0.04, z: 0.0 }), entre(M.capsule(0.052, 0.1, 10), poignet, [0.01, -0.12, 0.07], [0.03, -0.16, 0.13]), entre(M.capsule(0.06, 0.34, 10), manche, [0.03, -0.16, 0.13], [0.12, -0.36, 0.42]),
-    M.part(M.sphere(0.048, 12), gant, { x: -0.005, y: -0.03, z: -0.26, sx: 1.2, sy: 0.95, sz: 1.1 }), entre(M.capsule(0.048, 0.08, 10), poignet, [-0.03, -0.07, -0.22], [-0.07, -0.11, -0.16]), entre(M.capsule(0.056, 0.38, 10), manche, [-0.07, -0.11, -0.16], [-0.3, -0.33, 0.12])]); g.userData.cache = true; M.GEOS.set(k, g); } return g; };
+  const geoMains = (m, col) => {
+    const k = 'pr-mains2|' + m + '|' + col; let g = M.GEOS.get(k); if (g) return g;
+    const I = AV.armes.infos(m), G = I.garde, pist = I.classe === 'pistolet', gant = '#3B3D35', gantC = '#55574C', manche = M.assombrir(col, 0.12), poignet = M.assombrir(col, 0.32);
+    const p = [
+      M.part(M.sphere(0.034, 10), gant, { x: 0.006, y: -0.03, z: 0.01, sx: 0.85, sy: 1.4, sz: 1.15 }), // la main droite autour de la poignée
+      M.part(M.capsule(0.009, 0.035, 6), gantC, { x: -0.019, y: 0.008, z: -0.035, rx: HP }), // l'index le long de la carcasse
+      entre(M.capsule(0.033, 0.05, 8), poignet, [0.012, -0.06, 0.035], [0.03, -0.095, 0.085]),
+      entre(M.capsule(0.043, 0.32, 8), manche, [0.03, -0.095, 0.085], [0.11, -0.3, 0.38]),
+    ];
+    if (pist) p.push(M.part(M.sphere(0.031, 10), gant, { x: -0.024, y: -0.045, z: 0.0, sx: 0.9, sy: 1.25, sz: 1.1 }), entre(M.capsule(0.032, 0.05, 8), poignet, [-0.03, -0.075, 0.03], [-0.06, -0.11, 0.08]), entre(M.capsule(0.042, 0.32, 8), manche, [-0.06, -0.11, 0.08], [-0.2, -0.3, 0.36]));
+    else p.push(M.part(M.sphere(0.032, 10), gant, { x: -0.008, y: G[1] - 0.022, z: G[2], sx: 1.05, sy: 0.9, sz: 1.35 }), entre(M.capsule(0.032, 0.05, 8), poignet, [-0.02, G[1] - 0.05, G[2] + 0.03], [-0.045, G[1] - 0.085, G[2] + 0.075]), entre(M.capsule(0.042, 0.34, 8), manche, [-0.045, G[1] - 0.085, G[2] + 0.075], [-0.2, G[1] - 0.3, G[2] + 0.36]));
+    g = M.assembler(p); g.userData.cache = true; M.GEOS.set(k, g); return g;
+  };
   function construireArme() {
     sceneArme = new THREE.Scene(); camArme = new THREE.PerspectiveCamera(52, 2, 0.01, 6);
     hemiA = new THREE.HemisphereLight(C.cielHemi, C.solHemi, 2.1); soleilA = new THREE.DirectionalLight(C.soleil, 1.8); soleilA.position.set(-0.5, 1, 0.6); sceneArme.add(hemiA, soleilA);
-    FP.groupe = new THREE.Group(); FP.groupe.scale.setScalar(0.9); sceneArme.add(FP.groupe);
+    FP.groupe = new THREE.Group(); sceneArme.add(FP.groupe);
     const matFP = new THREE.MeshLambertMaterial({ vertexColors: true }); // propre à cette scène (autre éclairage, pas de brume) : partager MAT.vertex ferait rechercher à Three son programme deux fois par image
-    FP.arme = new THREE.Mesh(AV ? AV.blaster('rafale') : new THREE.BoxGeometry(0.08, 0.1, 0.4), matFP); FP.groupe.add(FP.arme);
-    FP.mains = new THREE.Mesh(geoMains('#FFC84A'), matFP); FP.groupe.add(FP.mains);
-    const s = new THREE.Shape(); for (let k = 0; k < 14; k++) { const a = k * TAU / 14, r = k % 2 ? 0.42 : 1; if (k) s.lineTo(Math.cos(a) * r, Math.sin(a) * r); else s.moveTo(r, 0); } s.closePath();
-    FP.flash = new THREE.Mesh(new THREE.ShapeGeometry(s), new THREE.MeshBasicMaterial({ color: '#FFF6D8', transparent: true, opacity: 0.95, depthWrite: false, side: THREE.DoubleSide })); FP.flash.visible = false; FP.groupe.add(FP.flash);
+    FP.arme = new THREE.Mesh(AV ? AV.armes.geo('ak74') : new THREE.BoxGeometry(0.04, 0.08, 0.6), matFP); FP.groupe.add(FP.arme);
+    FP.mains = new THREE.Mesh(AV ? geoMains('ak74', '#FFC84A') : new THREE.BoxGeometry(0.01, 0.01, 0.01), matFP); FP.groupe.add(FP.mains);
+    FP.bouche = new THREE.Object3D(); FP.ejection = new THREE.Object3D(); FP.groupe.add(FP.bouche, FP.ejection);
+    const s = new THREE.Shape(); for (let k = 0; k < 16; k++) { const a = k * TAU / 16, r = k % 2 ? 0.3 : k % 4 ? 0.7 : 1; if (k) s.lineTo(Math.cos(a) * r, Math.sin(a) * r); else s.moveTo(r, 0); } s.closePath();
+    FP.flash = new THREE.Mesh(new THREE.ShapeGeometry(s), new THREE.MeshBasicMaterial({ color: '#FFE1A6', transparent: true, opacity: 0.92, depthWrite: false, side: THREE.DoubleSide })); FP.flash.visible = false; FP.flash.renderOrder = 2; FP.groupe.add(FP.flash);
     FP.groupe.visible = false;
+    // le voile rouge d'une touche : un plan devant la caméra, transparent au centre, rouge sur les bords (posé à la bonne taille par taille())
+    const tx = M.texture((c, w, h) => { const g = c.createRadialGradient(w / 2, h / 2, w * 0.22, w / 2, h / 2, w * 0.72); g.addColorStop(0, 'rgba(200,20,20,0)'); g.addColorStop(0.55, 'rgba(200,24,24,0.35)'); g.addColorStop(1, 'rgba(170,10,10,0.85)'); c.fillStyle = g; c.fillRect(0, 0, w, h); }, 128, 128);
+    const rouge = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: tx, transparent: true, depthTest: false, depthWrite: false, opacity: 0 }));
+    rouge.position.z = -0.05; rouge.renderOrder = 20; rouge.visible = false; rouge.frustumCulled = false; sceneArme.add(rouge); FX.rouge = { mesh: rouge, t: 0, force: 0 };
   }
-  const BASE_FP = [0.27, -0.28, -0.62];
+  function armeDe(id) { return REG && typeof REG.estArme === 'function' && REG.estArme(id) ? REG.arme(id) : null; }
+  const ZOOM = { lunette: 4, point: 1.5, fer: 1.25 };
+  // le viseur et le zoom d'une arme : PREGLES (visee.viseur, visee.zoom) d'abord ; sinon le gabarit du modèle
+  function viseurDe(id) { const A = armeDe(id), v = A && A.visee ? A.visee.viseur : null; if (v === 'lunette') return 'lunette'; if (v === 'point' || v === 'point rouge') return 'point'; if (v === 'fer' || v === 'aucun') return 'fer'; return AV ? AV.armes.infos(id).viseur : 'fer'; }
+  function zoomDe(id) { const A = armeDe(id), z = A && A.visee ? +A.visee.zoom : NaN; return z >= 1 ? z : ZOOM[viseurDe(id)] || 1.25; }
+  function poserArmeFP(id) { // l'arme en main change (à mi-course du changement), ou son modèle GLB arrive
+    FP.id = id; FP.v = AV ? AV.armes.version : 0; if (!AV) return;
+    const I = FP.info = AV.armes.infos(id); FP.classe = AV.armes.classe(id); FP.viseur = viseurDe(id); FP.zoom = zoomDe(id);
+    FP.arme.geometry = AV.armes.geo(id); FP.mains.geometry = geoMains(I.id, FP.col || '#FFC84A');
+    FP.bouche.position.set(I.bouche[0], I.bouche[1], I.bouche[2]); FP.ejection.position.set(I.ejection[0], I.ejection[1], I.ejection[2]);
+  }
+  const lisse = (v) => v * v * (3 - 2 * v);
   function majArme(e, jeu, dt, t) {
     const g = FP.groupe; if (!e || e.vivant === false) { g.visible = false; return; }
-    g.visible = true;
-    const id = AV && AV.BOUCHE[e.arme] ? e.arme : 'rafale';
-    if (id !== FP.id && FP.change <= 0) { FP.change = 0.36; FP.nouvelle = id; }
-    if (FP.change > 0) { FP.change -= dt; if (FP.change <= 0.18 && FP.id !== FP.nouvelle) { FP.id = FP.nouvelle; if (AV) FP.arme.geometry = AV.blaster(FP.id); } }
-    const col = typeof e.couleur === 'string' && /^#[0-9a-f]{6}$/i.test(e.couleur) ? e.couleur : '#FFC84A'; if (col !== FP.col) { FP.col = col; FP.mains.geometry = geoMains(col); }
+    // l'arme en main : un changement la descend, la change à mi-course, la remonte (la durée de la simulation : A.changement)
+    const id = e.arme || 'ak74';
+    if (id !== FP.nouvelle) { FP.nouvelle = id; if (FP.id) { const A = armeDe(id); FP.changeDu = A && A.changement > 0 ? +A.changement : 0.36; FP.change = FP.changeDu; } }
+    if (FP.change > 0) FP.change = Math.max(0, FP.change - dt);
+    if (FP.id !== FP.nouvelle && FP.change <= FP.changeDu / 2) poserArmeFP(FP.nouvelle);
+    const col = typeof e.couleur === 'string' && /^#[0-9a-f]{6}$/i.test(e.couleur) ? e.couleur : '#FFC84A';
+    if (col !== FP.col || (AV && FP.v !== AV.armes.version)) { FP.col = col; poserArmeFP(FP.id || id); }
+    if (!FP.info) { g.visible = false; return; }
+    const I = FP.info, H = HANCHE_FP[FP.classe] || HANCHE_FP.fusil, mi = I.mire;
+    // les poses : hanche ↔ visée, course, glissade
+    const vs = e.vise > 0 ? Math.min(1, +e.vise) : 0, kv = lisse(vs), pos = AV ? AV.posture(e) : (e.accroupi ? 'accroupi' : 'debout');
+    FP.vise = vs; FP.course += ((e.course && vs < 0.1 ? 1 : 0) - FP.course) * Math.min(1, dt * 10); FP.glisse += ((pos === 'glisse' ? 1 : 0) - FP.glisse) * Math.min(1, dt * 10);
+    const kc = FP.course * (1 - kv), kg = FP.glisse * (1 - kv), pist = FP.classe === 'pistolet';
+    let px = H[0] + (-mi[0] - H[0]) * kv, py = H[1] + (-mi[1] - H[1]) * kv, pz = H[2] + (-mi[2] - H[2]) * kv, rx = H[3] * (1 - kv), ry = H[4] * (1 - kv), rz = H[5] * (1 - kv);
     // le balancement de marche (C3 : la phase φ de la foulée de la caméra, une descente douce par pas, le côté une fois par foulée ;
-    // × 0,2 en visée), l'inertie de la visée, le recul, la recharge, le changement d'arme
-    const k = CAM.k * (1 - 0.8 * (e.vise > 0 ? Math.min(1, e.vise) : 0)) * CAM.bal, ph = CAM.phi;
+    // × 0,2 en visée), l'inertie de la visée (moindre en visée), le recul, la recharge, le changement d'arme
+    const k = CAM.k * (1 - 0.8 * kv) * CAM.bal, ph = CAM.phi;
     FP.phase = ph; const bobY = -0.006 * k * (1 - Math.cos(2 * ph)) / 2, bobX = 0.008 * k * Math.sin(ph);
     let dyaw = CAM.yaw - FP.lastYaw; dyaw = Math.atan2(Math.sin(dyaw), Math.cos(dyaw)); const dp = CAM.pitch - FP.lastPitch; FP.lastYaw = CAM.yaw; FP.lastPitch = CAM.pitch;
     FP.swx = (FP.swx + borne(dyaw, -0.2, 0.2) * 0.35) * Math.exp(-dt * 9); FP.swy = (FP.swy - borne(dp, -0.2, 0.2) * 0.35) * Math.exp(-dt * 9);
-    FP.recul *= Math.exp(-dt * 13);
-    let rech = 0; const fin = +e.rechargeJusqua, tj = +jeu.temps; if (fini(fin) && fini(tj) && fin > tj) { const A = REG ? REG.arme(e.arme) : null, du = A ? A.recharge : 1.6; rech = Math.sin(Math.PI * borne(1 - (fin - tj) / du, 0, 1)); }
-    const ch = FP.change > 0 ? Math.sin(Math.PI * (1 - FP.change / 0.36)) : 0;
-    g.position.set(BASE_FP[0] + bobX + FP.swx * 0.12, BASE_FP[1] + bobY + FP.swy * 0.12 - rech * 0.16 - ch * 0.3 + Math.sin(t * 1.7) * 0.002, BASE_FP[2] + FP.recul * 0.07 + (e.accroupi ? 0.02 : 0));
-    const gr = g.rotation; gr._x = 0.03 + FP.recul * 0.16 - rech * 0.35 + FP.swy * 0.4; gr._y = 0.05 + FP.swx * 0.6; gr._z = -0.05 + rech * 0.55 + FP.swx * 0.3; tourner(g); // champs d'Euler + quaternion (pas de mise en boîte, voir avatars.js)
+    const ksw = 1 - 0.75 * kv;
+    FP.recul *= Math.exp(-dt * (pist ? 16 : 12)); const rc = FP.recul * (RECUL_FP[FP.classe] || 1);
+    let rech = 0; const fin = +e.rechargeJusqua, tj = +jeu.temps; if (fini(fin) && fini(tj) && fin > tj) { const A = armeDe(e.arme), du = A && A.recharge > 0 ? A.recharge : 1.6; rech = Math.sin(Math.PI * borne(1 - (fin - tj) / du, 0, 1)); }
+    const ch = FP.change > 0 ? Math.sin(Math.PI * (1 - FP.change / FP.changeDu)) : 0;
+    px += bobX + FP.swx * 0.1 * ksw - rech * 0.04 - kc * (pist ? 0.02 : 0.04);
+    py += bobY + FP.swy * 0.1 * ksw - rech * 0.1 - ch * 0.28 + Math.sin(t * 1.7) * 0.002 * ksw - kc * 0.05 - kg * 0.02 + rc * 0.004;
+    pz += rc * 0.04 * (1 - 0.4 * kv) + kc * 0.03;
+    rx += rc * 0.09 * (1 - 0.7 * kv) - rech * 0.45 - ch * 0.7 + FP.swy * 0.35 * ksw - kc * (pist ? 0.65 : 0.3);
+    ry += FP.swx * 0.5 * ksw + kc * (pist ? 0.15 : 0.6);
+    rz += rech * 0.55 + FP.swx * 0.25 * ksw + kc * (pist ? 0.1 : 0.35) + kg * 0.25;
+    g.position.set(px, py, pz);
+    const gr = g.rotation; gr._x = rx; gr._y = ry; gr._z = rz; tourner(g); // champs d'Euler + quaternion (pas de mise en boîte, voir avatars.js)
+    // la lunette : l'arme se cache quand l'œil est dedans (le HUD dessine la lunette)
+    FP.cache = FP.viseur === 'lunette' && vs >= 0.85; g.visible = !FP.cache;
     // l'éclair au bout du canon
-    if (FP.flashT > 0) { FP.flashT -= dt; const b = AV ? AV.BOUCHE[FP.id] : [0, 0.07, -0.47]; FP.flash.visible = FP.flashT > 0; FP.flash.position.set(b[0], b[1], b[2] - 0.03); const s2 = 0.07 + FP.flashT * 1.4; FP.flash.scale.set(s2, s2, s2); FP.flash.rotation._z = (frame * 1.3) % TAU; tourner(FP.flash); } else FP.flash.visible = false;
+    if (FP.flashT > 0) { FP.flashT -= dt; const b = I.bouche; FP.flash.visible = FP.flashT > 0; FP.flash.position.set(b[0], b[1], b[2] - 0.02); const s2 = (ECLAIR_FP[FP.classe] || 0.07) * (0.6 + FP.flashT * 9); FP.flash.scale.set(s2, s2, s2); FP.flash.rotation._z = (frame * 1.3) % TAU; tourner(FP.flash); } else FP.flash.visible = false;
+    // la douille de la pompe (à la pompe) et du sniper (à la culasse) sort après le tir
+    if (FP.douilleT >= 0) { FP.douilleT -= dt; if (FP.douilleT < 0) ejecter(FP.classe); }
   }
-  function tirSubjectif(col) { FP.recul = Math.min(1.6, FP.recul + 1); FP.flashT = 0.055; const cl = lin(col); FP.flash.material.color.setRGB(cl[0] * 0.4 + 0.6, cl[1] * 0.4 + 0.6, cl[2] * 0.4 + 0.6); }
-  function boucheSubjective(v) { // le bout du canon de la vue subjective, en coordonnées monde (approché : la caméra de l'arme suit la vraie)
-    const b = AV ? AV.BOUCHE[FP.id] : [0, 0.07, -0.47]; v.set(BASE_FP[0] + b[0], BASE_FP[1] + b[1], BASE_FP[2] + b[2]); v.multiplyScalar(1.0); return camera.localToWorld(v);
+  function tirSubjectif(classe) { FP.recul = Math.min(1.6, FP.recul + 1); FP.flashT = 0.05; if (classe === 'pompe' || classe === 'sniper') FP.douilleT = classe === 'pompe' ? 0.38 : 0.55; else ejecter(classe); }
+  // un point de la scène de l'arme → le monde : même direction vue par la caméra du monde (les deux caméras n'ont pas le même champ)
+  function versMonde(o3, v) {
+    o3.getWorldPosition(v); const ka = Math.tan(camera.fov * Math.PI / 360) / Math.tan(camArme.fov * Math.PI / 360);
+    v.x *= ka; v.y *= ka; return camera.localToWorld(v);
   }
-
+  function boucheSubjective(v) { return versMonde(FP.bouche, v); } // le bout du canon de la vue subjective, en coordonnées monde
+  function ejecter(classe) { // une douille sort de la fenêtre d'éjection, vers la droite et le haut
+    if (!FP.groupe || !FP.groupe.visible || !FX.parts) return; FP.groupe.updateMatrixWorld(true); versMonde(FP.ejection, _v3);
+    _v.set(1.5 + (frame % 5) * 0.12, 1.6 + (frame % 3) * 0.2, 0.4).applyQuaternion(camera.quaternion); douille(_v3.x, _v3.y, _v3.z, _v.x, _v.y, _v.z, classe);
+  }
   // ═══════════════════════════════ la caméra ═══════════════════════════════
   // CAM.f : la caméra subjective de PCORPS.camera (C1 balancement calé sur la foulée, C2 œil lissé par Holt, creux d'atterrissage) ;
   // CAM.yaw / CAM.pitch : le regard affiché (celui de la simulation + les variations pas encore consommées : PCONTROLES.enAttente) ;
@@ -1287,6 +1463,7 @@ const PRENDU = (() => {
       CAM.yawM += Math.atan2(Math.sin(yw - CAM.yawM), Math.cos(yw - CAM.yawM)) * Math.min(1, dt * 3 * s); CAM.pitchM += (pt - 0.12 - CAM.pitchM) * Math.min(1, dt * 3 * s);
       camera.position.set(x, y + CAM.oeil + s * 1.2, z); const cr = camera.rotation; cr._x = CAM.pitchM; cr._y = CAM.yawM; cr._z = s * 0.18; tourner(camera);
       CAM.k = 0; if (CAM.f) CAM.f.remettre(); // au retour, l'œil repart net
+      champ(null, dt);
       return true;
     }
     CAM.morte = 0; CAM.yawM = yaw; CAM.pitchM = pitch;
@@ -1298,9 +1475,26 @@ const PRENDU = (() => {
       const o = f(VUE, dt > 0 ? dt : 1e-4); cy = o.y; cote = o.cote; roulis = o.roulis; CAM.phi = o.phase; CAM.k = o.k;
     } else CAM.k = 0;
     CAM.phase = CAM.phi;
+    champ(e, dt);
     camera.position.set(x + Math.cos(yaw) * cote, cy + Math.sin(t * 61) * sh * 0.05, z - Math.sin(yaw) * cote);
     const cr = camera.rotation; cr._x = pitch + CAM.kick * 0.012 + Math.sin(t * 53) * sh * 0.02; cr._y = yaw + Math.sin(t * 47) * sh * 0.02; cr._z = roulis; tourner(camera); // ordre YXZ fixé à l'init
     return true;
+  }
+  // le champ de vision (§ 4) : fovV de base (96° horizontaux, borné à 50–74°) ; en visée fov = 2·atan(tan(fovV/2)/z), z = 1 + (zoom − 1)·
+  // smoothstep(vise) (lunette ≈ 4×, point ≈ 1,5×, organes de visée ≈ 1,25× : A.visee.zoom) ; + 4° en course et + 6° en glissade, lissés sur
+  // 0,15 s. La caméra de l'arme se resserre un peu (sa ligne de visée reste au centre). e = null : le champ de base (survol, éliminé)
+  const CHAMP = { course: 0, glisse: 0, fov: 60, arme: 52, z: 1 };
+  function champ(e, dt) {
+    let z = 1, c = 0, gl = 0;
+    if (e) { const vs = e.vise > 0 ? Math.min(1, +e.vise) : 0; z = 1 + (zoomDe(e.arme) - 1) * lisse(vs); c = e.course ? 4 : 0; gl = AV && AV.posture(e) === 'glisse' ? 6 : 0; }
+    const kf = dt > 0 ? 1 - Math.exp(-dt / 0.05) : 1; CHAMP.course += (c - CHAMP.course) * kf; CHAMP.glisse += (gl - CHAMP.glisse) * kf; CHAMP.z = z;
+    const f = Math.atan(Math.tan(fovV * Math.PI / 360) / z) * 360 / Math.PI + CHAMP.course + CHAMP.glisse, fa = borne(fovV * 0.95, 48, 70) / (1 + (z - 1) * 0.12);
+    if (Math.abs(f - camera.fov) > 1e-4) { camera.fov = f; camera.updateProjectionMatrix(); }
+    if (camArme && Math.abs(fa - camArme.fov) > 1e-4) { camArme.fov = fa; camArme.updateProjectionMatrix(); voileRouge(); }
+    CHAMP.fov = f; CHAMP.arme = fa;
+  }
+  function voileRouge() { // le plan du voile rouge couvre l'écran de la caméra de l'arme
+    if (!FX.rouge || !camArme) return; const d = -FX.rouge.mesh.position.z, h = 2 * d * Math.tan(camArme.fov * Math.PI / 360) * 1.04; FX.rouge.mesh.scale.set(h * camArme.aspect, h, 1);
   }
   // PRENDU.reglages({ balancement: 'normal' | 'doux' | 'aucun' }) → les réglages en cours (copie)
   function reglages(o) {
@@ -1351,6 +1545,8 @@ const PRENDU = (() => {
       soleil = new THREE.DirectionalLight(C.soleil, C.iSoleil); soleil.castShadow = true; soleil.shadow.mapSize.set(PALIERS.haute.ombres, PALIERS.haute.ombres); soleil.shadow.bias = -0.0006; soleil.shadow.normalBias = 0.04;
       const sc = soleil.shadow.camera; sc.left = -40; sc.right = 40; sc.top = 40; sc.bottom = -40; sc.near = 1; sc.far = 400; sc.updateProjectionMatrix();
       scene.add(hemi, soleil, soleil.target);
+      // les vraies armes (poncin/armes/*.glb) : lues en arrière-plan ; d'ici là, les armes procédurales au même gabarit
+      if (AV) { try { AV.armes.charger(typeof opts.armes === 'string' ? opts.armes : dossier.replace(/carte\/?$/, '') + 'armes/'); } catch (e) { signaler('armes', e); } }
       const etapes = [['index des rues', construireIndexRues], ['matières', matieres], ['décor', construireDecor], ['ciel', construireCiel], ['sol', construireSol], ['bâtiments', construireBatiments], ['eau', construireEau], ['ponts', construirePonts], ['clôtures', construireClotures], ['végétation', construireVegetation], ['effets', construireEffets], ['objets', construireObjets], ['arme', construireArme]];
       for (const [nom, f] of etapes) { try { f(); } catch (e) { signaler(nom, e); } }
       if (!FX.traits) return false; // sans les effets, rien ne tient : on préfère le panneau sans 3D
@@ -1368,12 +1564,12 @@ const PRENDU = (() => {
       if (veg) { try { veg.liberer(); } catch (e) { signaler('végétation.liberer', e); } if (veg.groupe && veg.groupe.parent) veg.groupe.parent.remove(veg.groupe); veg = null; }
       if (decor) { try { decor.liberer(); } catch (e) { signaler('décor.liberer', e); } decor = null; }
       imgSol = null; imgArene = null;
-      if (scene) scene.traverse((o) => { if (o.geometry && !o.geometry.userData.cache) o.geometry.dispose(); const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : []; for (const m of ms) { if (m.map && !(m.map.userData && m.map.userData.partagee)) m.map.dispose(); if (!partage(m)) m.dispose(); } });
+      for (const sc of [scene, sceneArme]) if (sc) sc.traverse((o) => { if (o.geometry && !o.geometry.userData.cache) o.geometry.dispose(); const ms = Array.isArray(o.material) ? o.material : o.material ? [o.material] : []; for (const m of ms) { if (m.map && !(m.map.userData && m.map.userData.partagee)) m.map.dispose(); if (!partage(m)) m.dispose(); } });
       for (const t of [texArene, texMasque]) if (t) t.dispose(); texArene = null; texMasque = null;
       if (cv) { cv.removeEventListener('webglcontextlost', surPerte, false); cv.removeEventListener('webglcontextrestored', surRetour, false); }
       renderer.dispose();
     } catch (e) { signaler('libérer', e); }
-    renderer = null; scene = null; tuiles = []; nbTuiles = 0; voutesM = null; ARBRES.types = []; for (const k of Object.keys(FX)) delete FX[k]; OBJ.types = {}; OBJ.liste_types = null; OBJ.anneaux = null; barriere = null; eau = null; eauMat = null; ciel = null; sol = null; solMat = null; jupe = null; ponts = null; clotures = null; pret = false;
+    renderer = null; scene = null; sceneArme = null; FP.id = ''; FP.nouvelle = ''; FP.info = null; tuiles = []; nbTuiles = 0; voutesM = null; ARBRES.types = []; for (const k of Object.keys(FX)) delete FX[k]; OBJ.types = {}; OBJ.liste_types = null; OBJ.anneaux = null; barriere = null; eau = null; eauMat = null; ciel = null; sol = null; solMat = null; jupe = null; ponts = null; clotures = null; pret = false;
   }
   function surPerte(e) { if (e && e.preventDefault) e.preventDefault(); perdu = true; }
   function surRetour() { // Three recrée son état ; on remet les textures et les programmes à jour, le décor revient tel quel
@@ -1391,7 +1587,8 @@ const PRENDU = (() => {
     DPR = Math.min(PALIERS[QUAL.niveau].dpr, (typeof window !== 'undefined' && window.devicePixelRatio) || 1); renderer.setPixelRatio(DPR); renderer.setSize(W, H, false);
     const asp = W / H; fovV = borne(2 * Math.atan(Math.tan(96 * Math.PI / 360) / asp) * 180 / Math.PI, 50, 74);
     camera.aspect = asp; camera.fov = fovV; camera.updateProjectionMatrix();
-    if (camArme) { camArme.aspect = asp; camArme.fov = borne(fovV * 0.95, 48, 70); camArme.updateProjectionMatrix(); }
+    if (camArme) { camArme.aspect = asp; camArme.fov = borne(fovV * 0.95, 48, 70); camArme.updateProjectionMatrix(); voileRouge(); }
+    CHAMP.fov = fovV; CHAMP.arme = camArme ? camArme.fov : 52;
   }
   let brumeK = 1;
   function brume(k) { if (k === brumeK) return; brumeK = k; const p = PALIERS[QUAL.niveau]; scene.fog.near = p.brume[0] * k; scene.fog.far = p.brume[1] * k; camera.far = p.brume[1] * k + 40; camera.updateProjectionMatrix(); }
@@ -1468,7 +1665,7 @@ const PRENDU = (() => {
     if (e && CAM.id !== idCamera) { CAM.id = idCamera; if (CAM.f) CAM.f.remettre(); FP.lastYaw = +e.yaw || 0; FP.lastPitch = +e.pitch || 0; }
     let enJeu = false;
     try { enJeu = !!(e && poserCameraJeu(jeu, e, dt, t)); } catch (err) { signaler('caméra', err); }
-    if (!enJeu) { try { poserCameraSurvol(t); } catch (err) { signaler('survol', err); } }
+    if (!enJeu) { try { champ(null, 0); poserCameraSurvol(t); } catch (err) { signaler('survol', err); } }
     brume(enJeu ? 1 : QUAL.niveau === 'eco' ? 2.5 : 1.75); // le survol voit plus loin (pas de partie à faire tourner) : la vallée de l'Ain et le Bugey derrière
     camera.updateMatrixWorld();
     const cx = camera.position.x, cz = camera.position.z;
@@ -1490,17 +1687,21 @@ const PRENDU = (() => {
     // l'arme subjective (plus sombre sous une voûte)
     const armeVis = enJeu && e && e.vivant !== false;
     try { if (armeVis) majArme(e, jeu, dt, t); else if (FP.groupe) FP.groupe.visible = false; } catch (err) { signaler('arme', err); }
+    if (FX.rouge && !armeVis) FX.rouge.t = 0;
     if (armeVis && hemiA) { let sv = -1; try { sv = monde.sousVoute ? monde.sousVoute(+e.x, +e.z) : -1; } catch (err) { sv = -1; } lumA += ((sv >= 0 ? 0.5 : 1) - lumA) * Math.min(1, dt * 6); hemiA.intensity = C.iHemi * 1.15 * lumA; soleilA.intensity = C.iSoleil * 0.75 * lumA; }
     // le rendu : le monde, puis l'arme par-dessus (profondeur effacée)
     renderer.info.reset();
     renderer.clear(true, true, true);
     renderer.render(scene, camera);
-    if (FP.groupe && FP.groupe.visible) { renderer.clearDepth(); renderer.render(sceneArme, camArme); }
+    if ((FP.groupe && FP.groupe.visible) || (FX.rouge && FX.rouge.mesh.visible)) { renderer.clearDepth(); renderer.render(sceneArme, camArme); }
     const fin = typeof performance !== 'undefined' ? performance.now() : 0; cpuMs = cpuMs * 0.9 + (fin - t0) * 0.1;
   }
 
   // ═══════════════════════════════ les événements ═══════════════════════════════
-  const DERN = new Map(); // tireur → couleur de son dernier tir (pour les gouttes d'une touche)
+  // 'tir' (un par plomb : les plombs d'un même tireur dans la même image ne refont ni l'éclair, ni le recul, ni la douille) : éclair de
+  // bouche, recul, douille, traceur discret, impact selon la matière (impact.materiau du contrat : 'mur' | 'metal' | 'sol' | 'corps' ;
+  // sinon déduit de impact.quoi / impact.de) ; 'touche' : la victime clignote, ma caméra tremble et le voile rouge passe ; 'mort' : confettis
+  const PLOMB = { id: null, frame: -1, k: 0 };
   function evenements(evs, jeu) {
     if (!pret || !evs || !evs.length || !FX.traits) return;
     for (let i = 0; i < evs.length; i++) { const ev = evs[i]; if (!ev || !ev.t) continue; try { evenement(ev, jeu); } catch (err) { signaler('événement ' + ev.t, err); } }
@@ -1509,37 +1710,36 @@ const PRENDU = (() => {
     const idCam = CAM.id;
     switch (ev.t) {
       case 'tir': {
-        const col = couleurArme(ev.arme), o = ev.o, f = ev.fin; DERN.set(ev.id, col);
-        if (!Array.isArray(o) || !Array.isArray(f)) return;
+        const o = ev.o, f = ev.fin; if (!Array.isArray(o) || !Array.isArray(f)) return;
+        if (PLOMB.id === ev.id && PLOMB.frame === frame) PLOMB.k++; else { PLOMB.id = ev.id; PLOMB.frame = frame; PLOMB.k = 0; }
+        const k = PLOMB.k, classe = AV ? AV.armes.classe(ev.arme) : 'fusil';
         let ox = +o[0], oy = +o[1], oz = +o[2];
         const av = acteurs.get(ev.id), moi = ev.id === idCam && jeu && trouver(jeu, idCam);
-        if (moi && moi.vivant !== false) { boucheSubjective(_v3); ox = _v3.x; oy = _v3.y; oz = _v3.z; if (FP.flashT <= 0.03) { tirSubjectif(col); CAM.kick = 1; } }
-        else if (av && av.groupe.visible) { av.groupe.updateMatrixWorld(true); AV.bouche(av, _v3); ox = _v3.x; oy = _v3.y; oz = _v3.z; if (av.flashFrame !== frame) { av.flashFrame = frame; eclair(ox, oy, oz, col, ev.arme === 'pompe' ? 0.42 : 0.3); AV.tir(av); } }
-        if (fini(ox) && fini(+f[0])) trait(ox, oy, oz, +f[0], +f[1], +f[2], col, ev.arme);
-        const im = ev.impact;
-        if (im && fini(+im.x) && fini(+im.y) && fini(+im.z)) {
-          if (im.quoi === 'mur' || im.quoi === 'toit' || im.quoi === 'sol') { const tl = ev.arme === 'pompe' ? 0.24 : ev.arme === 'precision' ? 0.52 : 0.38; tache(+im.x, +im.y, +im.z, +im.nx || 0, fini(+im.ny) ? +im.ny : 1, +im.nz || 0, col, tl * (0.85 + ((FX.taches.i * 7) % 10) / 30)); particules(+im.x + (+im.nx || 0) * 0.05, +im.y + (+im.ny || 0) * 0.05, +im.z + (+im.nz || 0) * 0.05, ev.arme === 'pompe' ? 1 : 3, col, false, 0.7); }
-          else particules(+im.x, +im.y, +im.z, 5, col, false, 0.9);
+        if (moi && moi.vivant !== false && FP.groupe) { boucheSubjective(_v3); ox = _v3.x; oy = _v3.y; oz = _v3.z; if (k === 0) { tirSubjectif(classe); CAM.kick = classe === 'sniper' || classe === 'pompe' ? 1.6 : 1; } }
+        else if (av && av.groupe.visible) {
+          av.groupe.updateMatrixWorld(true); AV.bouche(av, _v3); ox = _v3.x; oy = _v3.y; oz = _v3.z;
+          if (k === 0 && av.flashFrame !== frame) { av.flashFrame = frame; eclair(ox, oy, oz, '#FFE1A6', classe === 'pompe' ? 0.3 : classe === 'pistolet' || classe === 'mitraillette' ? 0.17 : 0.23, 0.05); AV.tir(av); }
         }
+        if (fini(ox) && fini(+f[0]) && (classe !== 'pompe' || k % 4 === 0)) traceur(ox, oy, oz, +f[0], +f[1], +f[2], classe);
+        const im = ev.impact;
+        if (im && fini(+im.x) && fini(+im.y) && fini(+im.z)) impact(im, classe, k, !!moi);
         return;
       }
       case 'touche': {
         const av = acteurs.get(ev.a); if (av) AV.touche(av);
-        if (ev.a === idCam) CAM.secousse = Math.min(1.2, CAM.secousse + (ev.tete ? 0.9 : 0.6));
-        const e = jeu && trouver(jeu, ev.a); if (e && fini(+e.x) && ev.a !== idCam) particules(+e.x, (+e.y || 0) + (ev.tete ? 1.55 : 1.1), +e.z, ev.tete ? 9 : 6, DERN.get(ev.de) || '#FF6B8B', false, 1);
+        if (ev.a === idCam) { CAM.secousse = Math.min(1.2, CAM.secousse + (ev.tete ? 0.9 : 0.6)); if (FX.rouge) { FX.rouge.t = 0.32; FX.rouge.force = borne(0.35 + (+ev.degats || 10) / 70, 0.35, 0.9); } }
         return;
       }
       case 'mort': {
         const e = jeu && trouver(jeu, ev.a); if (ev.a === idCam) { CAM.par = ev.par != null ? ev.par : null; CAM.morte = 0; }
-        if (e && fini(+e.x)) { const n = QUAL.niveau === 'eco' ? 40 : 70; particules(+e.x, (+e.y || 0) + 1.1, +e.z, n, null, true, 1); particules(+e.x, (+e.y || 0) + 1.1, +e.z, 10, e.couleur || DERN.get(ev.par), false, 1.3); }
+        if (e && fini(+e.x)) { const n = QUAL.niveau === 'eco' ? 36 : 60; particules(+e.x, (+e.y || 0) + 1.1, +e.z, n, null, true, 1); fumee(+e.x, (+e.y || 0) + 0.9, +e.z, 0, 0.4, 0, '#E8E4F0', 0.3, 1.2, 0.5, 0.8); }
         return;
       }
       case 'reapparition': { const e = jeu && trouver(jeu, ev.id); if (e && fini(+e.x)) particules(+e.x, (+e.y || 0) + 0.4, +e.z, 14, '#FFFFFF', true, 0.6); if (ev.id === idCam) { CAM.par = null; CAM.morte = 0; } return; }
-      case 'ramasse': { const e = jeu && trouver(jeu, ev.id); if (e && fini(+e.x)) particules(+e.x, (+e.y || 0) + 1, +e.z, 12, COUL_OBJ[ev.objet] || '#FFC84A', true, 0.5); OBJ.t = -1; return; }
+      case 'ramasse': { const e = jeu && trouver(jeu, ev.id), ty = typeObjet({ objet: ev.objet }); if (e && fini(+e.x)) particules(+e.x, (+e.y || 0) + 1, +e.z, 12, COUL_OBJ[ty] || COUL_OBJ.arme, true, 0.5); OBJ.t = -1; return; }
       default:
     }
   }
-
   // ═══════════════════════════════ projeter, stats ═══════════════════════════════
   const PROJ = { x: 0, y: 0, devant: false };
   function projeter(x, y, z) {
@@ -1567,13 +1767,13 @@ const PRENDU = (() => {
   }
   const API = {
     init, taille, image, evenements, qualite, projeter, survol, reglages,
-    get fov() { return fovV; }, get webgl() { return webgl && !perdu; }, get budgets() { return BUDGETS; },
+    get fov() { return CHAMP.fov || fovV; }, get visee() { return { vise: FP.vise, viseur: FP.viseur, zoom: CHAMP.z, cache: FP.cache, arme: FP.id }; }, get webgl() { return webgl && !perdu; }, get budgets() { return BUDGETS; },
     get _interne() { return { scene, sceneArme, camera, camArme, renderer, FP, FX, CAM, tuiles, voutes: voutesM, acteurs, decor, veg, BATI, ATL, USOL, soleil, hemi, QUAL, SOLEIL, palier: changerPalier }; }, // pour l'atelier et les tests (palier : un changement de la qualité adaptative)
     get stats() {
       const i = renderer ? renderer.info : null; let ds = null, vs = null, ps = null;
       try { ds = decor ? decor.stats : null; } catch (e) { ds = null; } try { vs = veg ? veg.stats : null; } catch (e) { vs = null; } try { ps = PTX ? PTX.stats() : null; } catch (e) { ps = null; }
       return { webgl: webgl && !perdu, perdu, qualite: QUAL.niveau, fixe: QUAL.fixe, calls: i ? i.render.calls : 0, triangles: i ? i.render.triangles : 0, geometries: i ? i.memory.geometries : 0, textures: i ? i.memory.textures : 0,
-        ms: Math.round((QUAL.moy || 0) * 10) / 10, cpu: Math.round(cpuMs * 100) / 100, dpr: DPR, fov: Math.round(fovV * 10) / 10, sol: solEtat, tuiles: nbTuiles, acteurs: acteurs.size, erreurs, derniereErreur, gpu: QUAL.gpu || '',
+        ms: Math.round((QUAL.moy || 0) * 10) / 10, cpu: Math.round(cpuMs * 100) / 100, dpr: DPR, fov: Math.round(fovV * 10) / 10, champ: Math.round(CHAMP.fov * 10) / 10, armes: AV ? AV.armes.etat : 'aucun', trous: FX.trous ? FX.trous.im.count : 0, sol: solEtat, tuiles: nbTuiles, acteurs: acteurs.size, erreurs, derniereErreur, gpu: QUAL.gpu || '',
         arbres: vs ? vs.arbres : ARBRES.types.reduce((s, T) => s + T.im.count + T.imL.count, 0), budget: BUDGETS[QUAL.niveau], memoire: memoire(), voutes: nVoutes, bati: BATI ? 'couches' : 'couleurs',
         decor: ds ? { appels: ds.appels, triangles: ds.triangles, appelsOmbre: ds.appelsOmbre, trianglesOmbre: ds.trianglesOmbre, memoire: Math.round((ds.memoire || 0) / 104857.6) / 10, erreurs: (ds.erreurs || []).length } : null,
         vegetation: vs ? { appels: vs.appels, triangles: vs.triangles, appelsOmbre: vs.appelsOmbre, trianglesOmbre: vs.trianglesOmbre, memoire: Math.round((vs.memoire || 0) / 104857.6) / 10, arbres: vs.arbres, buissons: vs.buissons } : null,

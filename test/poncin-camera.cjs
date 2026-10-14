@@ -38,6 +38,7 @@ function frequenceDominante(s) { // transformée de Fourier discrète sur 0,5 à
   for (let q = 0.5; q <= 15; q += 0.1) { let re = 0, im = 0; for (let i = 0; i < s.length; i++) { const a = TAU * q * i / F; re += (s[i] - m) * Math.cos(a); im += (s[i] - m) * Math.sin(a); } const p = re * re + im * im; if (p > best) { best = p; bf = q; } }
   return Math.round(bf * 10) / 10;
 }
+const PSONS_LOIN = (S) => ['fusil', 'mitraillette', 'pompe', 'sniper', 'pistolet'].every((n) => S[n + 'Loin'].attaque < S[n].attaque * 0.8 && S[n + 'Loin'].duree >= S[n].duree * 0.9);
 function acoups(y, seuil) { // changements de vitesse verticale de plus de seuil m/s d'une image à la suivante
   let n = 0, max = 0, vp = null;
   for (let i = 1; i < y.length; i++) { const v = (y[i] - y[i - 1]) * F; if (vp !== null) { const d = Math.abs(v - vp); if (d > seuil) n++; if (d > max) max = d; } vp = v; }
@@ -172,6 +173,38 @@ const ROUTES = {
     return { y: m.y, chaussee: j.monde.chaussee(m.x, m.z), relief: j.monde.relief(m.x, m.z), cam: I.camera.position.y };
   });
   check(Math.abs(pont.y - pont.chaussee) < 1e-6 && Math.abs(pont.cam - pont.chaussee - 1.6) < 0.01, `pont du Veyron : le joueur sur la chaussée (${f2(pont.y - pont.relief)} m au-dessus du relief), la caméra à ${f2(pont.cam - pont.chaussee)} m de la chaussée`);
+
+  // ─── la visée et la course (§ 4) : le champ suit le zoom de l'arme en main (fov = 2·atan(tan(base/2)/zoom)), + 4° en course, puis revient ;
+  // en visée, la ligne de mire de l'arme subjective passe au centre de l'écran ───
+  const ch = await page.evaluate(() => {
+    const P = window.__poncin, j = P.jeu(), I = PRENDU._interne, idMoi = P.etat().idMoi, m = P.joueur(), r = { base: PRENDU.stats.fov, arme: m.arme, armes: PAVATARS.armes.etat };
+    const img = (n, t0) => { for (let i = 0; i < n; i++) PRENDU.image(j, idMoi, 1 / 60, t0 + i / 60, 1); };
+    m.vise = 1; img(30, 30); r.vise = PRENDU.fov; r.zoom = PRENDU.visee.zoom;
+    const FP = I.FP, V = new THREE.Vector3(); FP.groupe.updateMatrixWorld(true); V.set(FP.info.mire[0], FP.info.mire[1], FP.info.mire[2] - 0.5); FP.arme.localToWorld(V); V.project(I.camArme); r.mire = [V.x, V.y];
+    m.vise = 0; img(30, 31); r.hanche = PRENDU.fov; m.course = true; img(30, 32); r.course = PRENDU.fov; m.course = false; img(30, 33); r.retour = PRENDU.fov;
+    return r;
+  });
+  const attendu = Math.atan(Math.tan(ch.base * Math.PI / 360) / ch.zoom) * 360 / Math.PI;
+  check(ch.zoom > 1.1 && Math.abs(ch.vise - attendu) < 0.3 && Math.hypot(...ch.mire) < 0.03, `visée (${ch.arme}, armes ${ch.armes}) : champ ${f2(ch.vise)}° pour ${f2(attendu)}° attendus (zoom ${f2(ch.zoom)}, base ${ch.base}°), la ligne de mire au centre (${ch.mire.map(f2)})`);
+  check(Math.abs(ch.hanche - ch.base) < 0.1 && Math.abs(ch.course - ch.base - 4) < 0.3 && Math.abs(ch.retour - ch.base) < 0.3, `course : + 4° (${f2(ch.course)}°), puis le champ revient (${f2(ch.retour)}°)`);
+
+  // ─── les sons des vraies armes (rendus hors ligne) : un coup de feu par classe, audible, différent ; de loin, moins de claquement ;
+  // la recharge, les impacts, la glissade, les pas ───
+  const sons = await page.evaluate(async () => {
+    const r = {};
+    for (const n of PSONS.CLASSES) { r[n] = await PSONS.mesurer(n, 2.4); r[n + 'Loin'] = await PSONS.mesurer(n, 2.4, 1, 1); }
+    for (const n of ['impactMur', 'impactMetal', 'impactSol', 'impactBois', 'impactCorps', 'glissade', 'ramper', 'pasCourse', 'pasAccroupi', 'changement', 'visee', 'douille', 'reception']) r[n] = await PSONS.mesurer(n, 1.2);
+    r.rechargePompe = await PSONS.mesurer('recharge', 3.4, 2.6, 2); r.rechargeFusil = await PSONS.mesurer('recharge', 3.4, 2.2, 0); r.rechargePistolet = await PSONS.mesurer('recharge', 3.4, 1.4, 4);
+    return r;
+  });
+  const S = sons, dd = (n) => S[n] ? `${n} ${f2(S[n].duree)} s, pic ${f2(S[n].pic)}` : `${n} ?`;
+  console.log('   sons : ' + Object.keys(S).map(dd).join(' ; '));
+  const tous = Object.keys(S).every((n) => S[n] && S[n].pic > 0.012 && S[n].pic < 1.6 && S[n].duree > 0.02);
+  check(tous, `tous les sons sonnent sans saturer (pic entre 0,012 et 1,6)`);
+  check(S.sniper.duree > S.fusil.duree && S.fusil.duree > S.pistolet.duree && S.pompe.duree > S.mitraillette.duree && S.sniper.attaque > S.mitraillette.attaque, `cinq coups de feu différents : durées sniper ${f2(S.sniper.duree)} > fusil ${f2(S.fusil.duree)} > pistolet ${f2(S.pistolet.duree)} s ; pompe ${f2(S.pompe.duree)} > mitraillette ${f2(S.mitraillette.duree)} s`);
+  check(PSONS_LOIN(S), `de loin, le claquement s'efface (attaque : ${['fusil', 'sniper', 'pistolet'].map((n) => `${n} ${f2(S[n].attaque)} → ${f2(S[n + 'Loin'].attaque)}`).join(', ')})`);
+  check(S.rechargePompe.duree > 2 && S.rechargeFusil.duree > 1.7 && S.rechargePistolet.duree < 1.6, `recharges : pompe ${f2(S.rechargePompe.duree)} s (cartouche par cartouche), fusil ${f2(S.rechargeFusil.duree)} s, pistolet ${f2(S.rechargePistolet.duree)} s`);
+  check(S.glissade.duree > 0.3 && S.ramper.duree > 0.15 && S.glissade.pic > S.ramper.pic, `glissade ${f2(S.glissade.duree)} s, rampé ${f2(S.ramper.duree)} s`);
 
   check(erreurs.length === 0, `aucune erreur dans la page${erreurs.length ? ' : ' + erreurs.slice(0, 3).join(' | ') : ''}`);
   console.log(`\nCaptures : ${path.relative(root, out)}/ ; ${oks} ok, ${echecs} en échec`);

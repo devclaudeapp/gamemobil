@@ -1,6 +1,8 @@
 // Opération Poncin — captures du rendu 3D (Playwright, iPhone en paysage : 844×390, deviceScaleFactor 2), carte réelle puis provisoire,
 // qualité haute puis éco : une rue du bourg, la place de l'arène, le château et le clocher vus de la rue, la rivière et un pont, une vue
-// d'en haut, personnages et robots de près, tirs (traînées, éclairs, impacts de peinture), confettis d'une élimination, le survol du titre ;
+// d'en haut, personnages et robots de près, tirs (traceurs, éclairs de bouche, trous de balle), confettis d'une élimination, le survol du titre ;
+// les vraies armes (poncin/armes/*.glb) : l'AK-74 à la hanche, le M4 en visée (le point de mire au centre de l'écran), la lunette de l'AWM
+// (l'arme cachée, le champ serré), les impacts selon la matière (mur, métal, sol, un robot touché : jamais de sang), les postures ;
 // sur la carte réelle, le Poncin « authentique » : la place Xavier-Bichat (mairie, tabac, banque) et son sol, la terrasse du Bar des Sports,
 // la Porte Bouvent des deux côtés et dedans, l'Impasse du Bonheur des deux côtés, la nef de l'église (portail, vitraux), les bords de l'Ain
 // (saules, peupliers), l'horizon du Bugey.
@@ -21,9 +23,9 @@ const racine = path.join(__dirname, '..'), out = path.join(__dirname, 'shots', '
 const arg = (k, d) => { const a = process.argv.find((x) => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
 const CARTES = arg('carte', 'reelle,provisoire').split(','), QUALITES = arg('qualite', 'haute,eco').split(',');
 const AUTH = ['place-sol', 'mairie', 'tabac', 'banque', 'terrasse', 'bouvent-nord', 'bouvent-dedans', 'bouvent-sud', 'bonheur-est', 'bonheur-ouest', 'nef', 'ain', 'horizon']; // carte réelle seulement
-const SCENES0 = arg('scenes', ['rue', 'place', ...AUTH, 'chateau', 'eglise', 'pont', 'haut', 'persos', 'tir', 'confettis', 'survol'].join(',')).split(',');
+const SCENES0 = arg('scenes', ['rue', 'place', ...AUTH, 'chateau', 'eglise', 'pont', 'haut', 'persos', 'tir', 'confettis', 'survol', 'armes', 'visee', 'lunette', 'impacts', 'postures'].join(',')).split(',');
 const TABLEAU = [];
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.css': 'text/css' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.css': 'text/css', '.glb': 'model/gltf-binary' };
 const serveur = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html';
   const f = path.join(racine, path.normalize(p)); if (!f.startsWith(racine)) { res.writeHead(403); res.end(); return; }
@@ -74,6 +76,14 @@ const mediane = (a) => { const s = a.slice().sort((x, y) => x - y); return s.len
       await page.screenshot({ path: path.join(out, `${carte}-${qualite}-place-sol-mesure.png`), timeout: 180000 });
     }
     if (pret.stats.tuiles > 16) verif(false, `≤ 16 tuiles de bâtiments (${pret.stats.tuiles})`);
+    { // les vraies armes : les 9 GLB lus et aplatis (un appel de dessin chacun), à leur longueur réelle, canon vers −z, l'origine à la poignée
+      const a = await page.evaluate(() => { const A = PAVATARS.armes, r = { etat: A.etat, erreurs: A.erreurs, l: [] };
+        for (const id of A.IDS) { const g = A.geo(id), b = g.boundingBox || (g.computeBoundingBox(), g.boundingBox), I = A.infos(id); r.l.push({ id, glb: g.userData.glb === id, tri: g.attributes.position.count / 3, long: b.max.z - b.min.z, voulu: A.GABARITS[id].long, bouche: b.min.z - I.bouche[2], poignee: b.min.z < 0 && b.max.z > 0 && b.min.y < 0 && b.max.y > 0 }); }
+        return r; });
+      verif(a.etat === 'glb' && !a.erreurs.length, `les 9 armes GLB sont lues (${a.etat}${a.erreurs.length ? ' : ' + a.erreurs.join(' ; ') : ''})`);
+      const mal = a.l.filter((o) => !o.glb || o.tri > 3000 || Math.abs(o.long / o.voulu - 1) > 0.02 || Math.abs(o.bouche) > 0.005 || !o.poignee);
+      verif(!mal.length, `armes à leur longueur réelle, canon vers −z, l'origine dans la poignée : ${a.l.map((o) => `${o.id} ${(o.long * 100).toFixed(0)} cm ${o.tri} tri`).join(', ')}${mal.length ? ' — en défaut : ' + mal.map((o) => o.id).join(', ') : ''}`);
+    }
     // le sol est maillé avec la triangulation de monde.hauteur : un rayon vertical sur le maillage retrouve la hauteur du monde, au millimètre
     const sol = await page.evaluate(() => {
       const I = PRENDU._interne, m = I.scene.getObjectByName('sol'), M = atelier.monde, L = M.L, rc = new THREE.Raycaster(), bas = new THREE.Vector3(0, -1, 0); let pire = 0, n = 0;
@@ -88,6 +98,22 @@ const mediane = (a) => { const s = a.slice().sort((x, y) => x - y); return s.len
       if (!s) { verif(false, `scène ${nom} inconnue`); continue; }
       await page.screenshot({ path: path.join(out, `${carte}-${qualite}-${nom}.png`), timeout: 180000 });
       stats[nom] = s;
+      if (nom === 'visee' || nom === 'lunette' || nom === 'armes') { // la visée : la ligne de mire au centre de l'écran (où part le tir), le champ du zoom ; la lunette cache l'arme
+        const v = await page.evaluate(() => { const I = PRENDU._interne, FP = I.FP, V = new THREE.Vector3(); FP.groupe.updateMatrixWorld(true); const inf = FP.info;
+          const p = (z) => { V.set(inf.mire[0], inf.mire[1], inf.mire[2] + z); FP.arme.localToWorld(V); V.project(I.camArme); return [V.x, V.y]; }; // deux points de la ligne de mire, devant l'œil
+          return { a: p(-0.3), b: p(-0.6), vis: FP.groupe.visible, fov: PRENDU.fov, base: PRENDU.stats.fov, visee: PRENDU.visee }; });
+        if (nom === 'visee') verif(Math.hypot(...v.a) < 0.02 && Math.hypot(...v.b) < 0.02 && v.vis && v.fov < v.base / 1.25, `visée (M4) : la ligne de mire passe au centre de l'écran (écarts ${v.a.map((x) => x.toFixed(3))} ; ${v.b.map((x) => x.toFixed(3))}), champ ${v.fov.toFixed(1)}° pour ${v.base}° (zoom ${v.visee.zoom.toFixed(2)})`);
+        if (nom === 'lunette') verif(!v.vis && v.fov < v.base / 2.5 && v.visee.cache && v.visee.viseur === 'lunette', `lunette (AWM) : l'arme cachée, le champ serré à ${v.fov.toFixed(1)}° (zoom ${v.visee.zoom.toFixed(2)})`);
+        if (nom === 'armes') verif(v.vis && Math.abs(v.fov - v.base) < 0.05 && v.a[0] > 0.05 && v.a[1] < 0, `hanche (AK-74) : l'arme en bas à droite, le champ de base (${v.fov.toFixed(1)}°)`);
+      }
+      if (nom === 'impacts') {
+        const im = await page.evaluate(() => { const F = PRENDU._interne.FX; return { trous: F.trous.im.count, fumees: F.fumees.im.count, traits: F.traits.im.count, peinture: !!PRENDU._interne.scene.getObjectByName('fx-taches') }; });
+        verif(im.trous >= 10 && im.fumees > 0 && !im.peinture, `impacts réalistes : ${im.trous} trous de balle, ${im.fumees} bouffées de poussière, ${im.traits} traceurs ou étincelles, plus de taches de peinture`);
+      }
+      if (nom === 'postures') {
+        const po = await page.evaluate(() => { const A = PRENDU._interne.acteurs, r = {}; for (const id of ['ami', 'b1', 'b2', 'b3']) { const a = A.get(id); r[id] = a ? { rx: a.racine.rotation.x, y: a.racine.position.y, vis: a.groupe.visible, accr: a.accr, vise: a.vise } : null; } return r; });
+        verif(po.ami && po.ami.accr > 0.9 && po.b1 && Math.abs(po.b1.rx - Math.PI / 2) < 0.05 && po.b2 && po.b2.rx < -0.5 && po.b3 && po.b3.vise > 0.9, `postures : accroupi (Léa, ${po.ami && po.ami.accr.toFixed(2)}), couché (Boulon, corps à ${po.b1 && po.b1.rx.toFixed(2)} rad), glissade (Pixel, penché de ${po.b2 && po.b2.rx.toFixed(2)}), en visée (Turbo, ${po.b3 && po.b3.vise.toFixed(2)})`);
+      }
       verif(s.calls <= budget.calls && s.triangles <= budget.triangles && s.memoire <= budget.memoire, `${nom.padEnd(14)} ${fmt(s)}, ${s.memoire} Mo (budget ${budget.calls} / ${budget.triangles / 1000}k / ${budget.memoire} Mo)`);
       TABLEAU.push([carte, qualite, nom, s.calls, Math.round(s.triangles / 100) / 10, s.memoire, s.decor ? s.decor.appels : '-', s.vegetation ? s.vegetation.appels : '-']);
     }
