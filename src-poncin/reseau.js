@@ -20,7 +20,7 @@
      salon.envoyer(type, data, { fiable = true, a = null }) → bool   (client → hôte seulement ; hôte → a, ou tous si a = null) ; un envoi à tous sérialise ses données une seule fois
        fiable : livré une fois, dans l'ordre (numéroté, acquitté, renvoyé si besoin, même en changeant de voie) ;
        non fiable : le dernier compte (en relais, seul le dernier de chaque type part, 5 fois/s au plus) ; jeté si le tampon dépasse 64 Ko.
-     salon.majMoi({ pret, pseudo, couleur }), salon.stats(), salon.quitter()
+     salon.majMoi({ pret, pseudo, couleur, eq }), salon.stats(), salon.quitter()
    Sur le fil (voies WebRTC) : chaque message est un tableau JSON : [0, type, data] non fiable (DataChannel 'etat', id 0, sans ordre ni renvoi),
    [1, n°, type, data] fiable (DataChannel 'evts', id 1), [2, t, acquis, infos, partis] ping (de l'hôte : { id: [ping, voie] } et les instances parties), [3, t, acquis] pong, [4] au revoir.
    Le relais : un envoi 'relais' { de, i (instance), v, l: { idDestinataire: [messages…] } } toutes les 200 ms au plus (tous les destinataires dans le même envoi).
@@ -30,7 +30,7 @@ const PRESEAU = (() => {
   const LETTRES = 'BCDFGHJKLMNPQRSTVWXZ'; // des consonnes : pas de mot vexant ; 160 000 codes
   const nouveauCode = () => { let c = ''; for (let i = 0; i < 4; i++) c += LETTRES[Math.floor(Math.random() * LETTRES.length)]; return c; };
   const codeValide = (c) => typeof c === 'string' && /^[BCDFGHJKLMNPQRSTVWXZ]{4}$/.test(c);
-  const VERSION = 1; // version du protocole : deux versions différentes ne jouent pas ensemble
+  const VERSION = 2; // version du protocole : deux versions différentes ne jouent pas ensemble (2 : les vraies armes, l'entrée et l'instantané v2)
   // réglages (ms) : collecte ICE, attente du pair-à-pair avant le relais, pings, cadence du relais (≤ 5 envois/s), tampon max pour l'état,
   // renvoi des fiables non acquittés, grâce d'un joueur sorti de la présence (lien direct vivant / sinon : le temps qu'il se reconnecte), essais WebRTC suivants (en relais)
   const R = { collecte: 3000, attente: 8000, ping: 2000, pingRelais: 4000, relais: 200, tampon: 65536, renvoi: 4000, grace: 15000, graceCourte: 5000, essais: [10000, 20000, 40000, 60000] };
@@ -68,7 +68,7 @@ const PRESEAU = (() => {
     if (typeof BroadcastChannel === 'undefined') throw new Error('BroadcastChannel indisponible');
     const code = codeValide(o.code) ? o.code : nouveauCode(), s = socle(code, o.moi), bc = new BroadcastChannel('poncin-salle-' + code);
     const depuis = Date.now() + Math.random() / 1000, vus = new Map(); // id → dernier signe de vie
-    const moiPublic = () => ({ id: s.moi.id, pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, depuis, v: VERSION });
+    const moiPublic = () => ({ id: s.moi.id, pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, eq: typeof s.moi.eq === 'string' ? s.moi.eq.slice(0, 24) : '', depuis, v: VERSION });
     const poser = (j) => { const avant = s.joueurs.get(j.id); s.joueurs.set(j.id, Object.assign(avant || {}, { id: j.id, pseudo: j.pseudo, couleur: j.couleur, pret: !!j.pret, depuis: j.depuis, ping: 0, voie: 'local' })); vus.set(j.id, Date.now()); };
     const poster = (m) => { try { const t = JSON.stringify(m); s._stats.envoyes++; s._stats.octets += t.length; bc.postMessage(t); } catch (e) { /* fermé */ } };
     const listeChangee = () => { s._elire(); s._emettre('joueurs', Array.from(s.joueurs.values())); };
@@ -202,7 +202,7 @@ const PRESEAU = (() => {
     const liens = new Map(), presents = new Map(), absents = new Map(); // liens : id → lien ; presents : ce que dit la présence ; absents : id → depuis quand un joueur au lien direct vivant manque à la présence
     let depuis = Date.now(), demarre = false, relaisT = null, relaisDernier = 0, signature = '', infosHote = {};
     const partis = new Map(); // instances qui ont dit au revoir (→ quand) : retirées tout de suite, même si la présence traîne
-    const moiPublic = () => ({ pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, depuis, c: creer ? 1 : 0, v: VERSION, i: inst });
+    const moiPublic = () => ({ pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, eq: typeof s.moi.eq === 'string' ? s.moi.eq.slice(0, 24) : '', depuis, c: creer ? 1 : 0, v: VERSION, i: inst });
     const rappels = { presence: (l) => majPresence(l), signal: (p) => surSignal(p), relais: (p) => surRelais(p) };
     const transport = local ? transportBC(code, s.moi.id, rappels) : transportSupabase(code, s.moi.id, o, rappels);
     s.via = via;
