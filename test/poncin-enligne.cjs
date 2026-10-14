@@ -81,9 +81,14 @@ const URL0 = `http://localhost:${PORT}/poncin/?qualite=eco${RESEAU === 'supabase
   // prêts, réglages de l'hôte
   await cliquer(B, '#b-salon-action'); await cliquer(C, '#b-salon-action');
   check(await attendre(A, () => /2\/2/.test(document.querySelector('#salon-etat').textContent)), 'B et C disent « Prêt » : l’hôte le voit (2/2)');
-  await cliquer(A, '#e-salon [data-sopt="bots"] [data-v="1"]');
-  await cliquer(A, '#e-salon [data-sopt="niveau"] [data-v="facile"]');
-  check(await attendre(B, () => { const b = document.querySelector('#e-salon [data-sopt="bots"] [data-v="1"]'); return b && b.getAttribute('aria-pressed') === 'true' && b.disabled; }), 'l’hôte ajoute 1 robot : B voit le réglage (en lecture seule)');
+  // le panneau des réglages (onglet Robots) : l'hôte règle, B le voit en lecture seule
+  await cliquer(A, '#resume-salon [data-onglet="robots"]');
+  await cliquer(A, '#e-options button[data-k="bots"][data-v="1"]');
+  await cliquer(A, '#e-options button[data-k="niveau"][data-v="facile"]');
+  await cliquer(A, '#e-options [data-a="options-retour"]');
+  await cliquer(B, '#resume-salon [data-onglet="robots"]');
+  check(await attendre(B, () => { const b = document.querySelector('#e-options button[data-k="bots"][data-v="1"]'); return b && b.getAttribute('aria-pressed') === 'true' && b.disabled; }), 'l’hôte ajoute 1 robot : B voit le réglage (en lecture seule)');
+  await cliquer(B, '#e-options [data-a="options-retour"]');
   await sleep(2600); // un tour de pings
   await photo(A, '02-salon-hote.png');
   await photo(B, '03-salon-client.png');

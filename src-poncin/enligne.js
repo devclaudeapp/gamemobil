@@ -181,6 +181,8 @@ const PENLIGNE = (() => {
       if (salon.estHote || !d) return;
       const R = PR(), g = ctl.reglages;
       if (R) ctl.reglages = R.normaliserReglages(d, { humains: Math.max(1, joueurs().length) }); else { g.bots = d.bots | 0; g.niveau = d.niveau; g.equipes = !!d.equipes; }
+      // un salon plein (plus de 6) : les derniers arrivés s'en vont, avec la raison (l'écran du salon l'affiche)
+      const js = joueurs(); if (js.length > MAX_SALON && js.findIndex((j) => j.moi) >= MAX_SALON && !ctl.enJeu) { quitter(); emettre('ferme', { raison: 'complet' }); return; }
       ctl.pings = d.pings && typeof d.pings === 'object' ? d.pings : {}; ctl.voies = d.voies && typeof d.voies === 'object' ? d.voies : {}; ctl.enJeu = !!d.enJeu;
       emettre('maj');
     });
