@@ -185,10 +185,12 @@
       if (!demarre) { demarre = true; m.demarrer(); } else if (!ok) m.recaler(false);
       return m.info();
     }
-    async function retour() { // le retour dans le jeu (la page redevient visible) : une heure sûre fraîche, sinon le téléphone borné
+    async function retour() { // le retour dans le jeu (la page redevient visible, ou se réveille) : une heure sûre fraîche, sinon le téléphone
+      // borné, mais seulement hors ligne. En ligne, une lecture ratée (coupée par un rechargement, réseau lent) ne laisse pas entrer l'heure du
+      // téléphone, peut-être avancée exprès : le jeu ne bouge pas, et l'heure sûre suivante paiera le saut (surSaut)
       const ok = await attendre(synchroniser());
-      if (!demarre) { demarre = true; m.demarrer(); } else if (!ok) m.recaler(false);
-      return m.info();
+      if (!demarre) { demarre = true; m.demarrer(); } else if (!ok && !enLigne()) m.recaler(false);
+      return Object.assign(m.info(), { frais: ok });
     }
     // toutes les 30 min quand la page est visible ; après un échec, un nouvel essai 5 min plus tard (pas une requête par minute dans l'artefact Claude)
     setInterval(() => { if (!(w.document && w.document.visibilityState === 'hidden') && perf() - derniereLecture >= REGLES.periode && perf() - derniereTentative >= REGLES.reessai) synchroniser(); }, 60e3);

@@ -47,6 +47,7 @@ jobs:
           node test/fournil-blackjack.cjs
           node test/fournil-hd.cjs
           node test/fournil-sons.cjs
+          node test/fournil-reveil.cjs
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules

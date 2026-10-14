@@ -2519,10 +2519,12 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       if (!demarre) { demarre = true; m.demarrer(); } else if (!ok) m.recaler(false);
       return m.info();
     }
-    async function retour() { // le retour dans le jeu (la page redevient visible) : une heure sûre fraîche, sinon le téléphone borné
+    async function retour() { // le retour dans le jeu (la page redevient visible, ou se réveille) : une heure sûre fraîche, sinon le téléphone
+      // borné, mais seulement hors ligne. En ligne, une lecture ratée (coupée par un rechargement, réseau lent) ne laisse pas entrer l'heure du
+      // téléphone, peut-être avancée exprès : le jeu ne bouge pas, et l'heure sûre suivante paiera le saut (surSaut)
       const ok = await attendre(synchroniser());
-      if (!demarre) { demarre = true; m.demarrer(); } else if (!ok) m.recaler(false);
-      return m.info();
+      if (!demarre) { demarre = true; m.demarrer(); } else if (!ok && !enLigne()) m.recaler(false);
+      return Object.assign(m.info(), { frais: ok });
     }
     // toutes les 30 min quand la page est visible ; après un échec, un nouvel essai 5 min plus tard (pas une requête par minute dans l'artefact Claude)
     setInterval(() => { if (!(w.document && w.document.visibilityState === 'hidden') && perf() - derniereLecture >= REGLES.periode && perf() - derniereTentative >= REGLES.reessai) synchroniser(); }, 60e3);
@@ -7336,7 +7338,7 @@ const UI = (() => {
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   let st, lastFrame = 0, lastSave = 0, cards = [], carteSaison = null, lastHud = '', lastObj = '', lastEv = '', lastPage = '', hintStep = -1, hintUntil = 0, hintDefile = -1, toastTimer = 0, lastNiveau = 0, vuBoulanger = false, dernierToucher = -1e9;
   let pageActive = 'boutique', evEtendu = false, retourEnCours = false; // retourEnCours : la page redevient visible, l'heure sûre est en route
-  let absencePrete = false, absencePayee = 0; // l'absence du lancement est comptée ; ce qui a été payé (ms) pour l'absence en cours (lancement, retour, sauts)
+  let absencePrete = false, absencePayee = 0, dernierRetour = ''; // l'absence du lancement est comptée ; ce qui a été payé (ms) pour l'absence en cours (lancement, retour, sauts) ; ce qui a lancé le dernier retour (pour les tests)
   let classement = null, ongletCl = 'semaine', vueCl = ''; // le classement en ligne : son moteur, l'onglet choisi, la feuille qu'il occupe
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const PAGES = ['boutique', 'defis', 'boulanger', 'journal', 'reglages'];
@@ -8379,6 +8381,7 @@ const UI = (() => {
 
   // ─── boucle ───
   function frame(now) {
+    verifierReveil(); // chaque image : la page vient-elle de dormir ?
     if (retourEnCours) { lastFrame = now; requestAnimationFrame(frame); return; } // l'absence n'est pas encore comptée : rien ne bouge
     const dt = Math.min(0.25, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
     const planque = !!(EVT && EVT.ouvert), atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert); // pendant l'Atelier ou la Planque : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran de jeu
@@ -8416,6 +8419,27 @@ const UI = (() => {
     tiroir.layout(h, miH);
   }
 
+  // ─── le retour dans le jeu : une heure sûre fraîche (2,5 s au plus), puis l'absence est payée (feuille « Pendant ton absence » après 90 s).
+  //     Déclenché quand la page redevient visible, revient du cache, ou quand le détecteur de réveil voit que la page a dormi : sur iPhone,
+  //     une app installée qu'on verrouille ne prévient pas toujours, et performance.now() (le temps du jeu) s'arrête pendant la veille.
+  let reveilW = Date.now(), reveilP = performance.now();
+  function reprendre(raison) {
+    reveilW = Date.now(); reveilP = performance.now(); // le détecteur repart d'ici : pas de second retour pour le même sommeil
+    if (!st || !absencePrete || fige || retourEnCours) return false; retourEnCours = true; dernierRetour = raison;
+    // en ligne, seule une heure sûre fraîche fait avancer le jeu (HORLOGE.retour) : si elle manque, on la redemande toutes les 5 s
+    HORLOGE.retour().catch(() => null).then((info) => { if (!(info && info.frais) && navigator.onLine !== false) relancerHeure(); retourEnCours = false; reveilW = Date.now(); reveilP = performance.now(); const abs = G.absence(st, HORLOGE.maintenant()); absencePayee = abs.secs * 1000; if (EVT && EVT.ouvert) EVT.retour(); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); save(); });
+    return true;
+  }
+  // l'heure sûre n'est pas venue au réveil (réseau pas encore revenu) : nouvel essai toutes les 5 s pendant une minute ; quand elle arrive,
+  // le saut est payé comme une absence (payerSaut, une seule fois pour une même absence)
+  let relances = 0, tRelance = 0;
+  function relancerHeure() { relances = 12; clearTimeout(tRelance); const essai = () => { if (relances-- <= 0) return; HORLOGE.synchroniser().then((ok) => { if (!ok) tRelance = setTimeout(essai, 5000); else relances = 0; }); }; tRelance = setTimeout(essai, 5000); }
+  // la page a dormi : l'heure du téléphone a avancé de plus de 5 s de plus que performance.now(). Le détecteur ne fait que lancer le retour :
+  // c'est l'heure sûre (HORLOGE.retour) qui fixe le temps payé, donc avancer l'heure du téléphone ne rapporte rien de plus qu'avant.
+  function verifierReveil() {
+    const w = Date.now(), p = performance.now(), ecart = (w - reveilW) - (p - reveilP); reveilW = w; reveilP = p;
+    if (ecart > 5000 && !(document.visibilityState === 'hidden')) reprendre('reveil');
+  }
   // une heure sûre arrivée en cours de partie (le réseau revient après des jours hors ligne, une lecture arrivée après les 2,5 s d'attente,
   // un téléphone endormi page ouverte) a fait sauter le jeu vers l'avant : ce vrai temps passé est payé comme une absence, une seule
   // pour une même absence (avec ce qui a été payé au lancement ou au retour, jamais plus que heuresAbsence) ; voir src/horloge.js (d)
@@ -8489,11 +8513,10 @@ const UI = (() => {
       else { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) sheetMeuble(id); else SCENE.tap(); }
     });
     // au retour dans le jeu : une heure sûre fraîche (2,5 s au plus) avant de compter l'absence ; le jeu attend, sans rien sauver entre-temps
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden) { save(); return; }
-      if (retourEnCours) return; retourEnCours = true;
-      HORLOGE.retour().catch(() => {}).then(() => { retourEnCours = false; const abs = G.absence(st, HORLOGE.maintenant()); absencePayee = abs.secs * 1000; if (EVT && EVT.ouvert) EVT.retour(); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); });
-    });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { save(); return; } reprendre('visible'); });
+    window.addEventListener('pageshow', (e) => { if (e.persisted) reprendre('cache'); else verifierReveil(); });
+    for (const ev of ['focus', 'resume']) (ev === 'resume' ? document : window).addEventListener(ev, verifierReveil);
+    setInterval(verifierReveil, 1000);
     document.addEventListener('pointerdown', () => { dernierToucher = performance.now(); }, true);
     document.addEventListener('pointerdown', () => { try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* rien */ } }, { once: true });
     window.addEventListener('pagehide', save);
@@ -8518,7 +8541,7 @@ const UI = (() => {
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, G, SCENE, save, son, confettis, audio, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
+    window.__fournil = { get st() { return st; }, get retour() { return { enCours: retourEnCours, dernier: dernierRetour }; }, G, SCENE, save, son, confettis, audio, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
       quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin,

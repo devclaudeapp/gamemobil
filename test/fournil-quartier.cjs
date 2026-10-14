@@ -266,7 +266,7 @@ async function gerer(route) {
   console.log('── la fin de l’événement : la Planque fermée, le bilan, l’icône partie, le podium final ──');
   faux.joueurs.get(MOI.id).quartier = 5e12; // ses derniers billets le mettent en tête : le podium final (figé à la première requête après la fin) sera le sien
   decal = Q.FIN + 3 * HEURE - Date.now();
-  await page.evaluate((d) => window.__heureTel(d), decal);
+  await page.evaluate((d) => localStorage.setItem('test.tel', String(d)), decal); // l'heure du prochain lancement : la page ouverte ne la voit pas (sinon c'est un réveil, test/fournil-reveil.cjs)
   await page.evaluate(() => window.__fournil.save());
   await charger();
   c = await ev(() => window.__fournil.coin());

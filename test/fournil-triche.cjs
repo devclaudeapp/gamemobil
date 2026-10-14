@@ -49,6 +49,8 @@ function fauxTelephone(decalDepart) {
   const errors = []; page.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });
   // le téléphone : son heure = le vrai temps + ecart
   const heureTel = (ecart) => page.evaluate((d) => window.__heureTel(d), decalServeur + ecart);
+  // l'heure du téléphone au prochain lancement seulement : la page ouverte ne voit pas le saut (sinon c'est un réveil, payé sur place : test/fournil-reveil.cjs)
+  const heureTelRelance = (ecart) => page.evaluate((d) => localStorage.setItem('test.tel', String(d)), decalServeur + ecart);
   const pret = async () => { await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 15000 }); await sleep(600); };
   const charger = async () => { await page.reload(); await pret(); };
   const etat = () => page.evaluate(() => {
@@ -77,7 +79,7 @@ function fauxTelephone(decalDepart) {
 
   // ─── en ligne : avancer l'heure du téléphone, relancer ───
   for (const [ecart, nom] of [[8 * HEURE, 'de 8 h'], [JOUR, 'd’un jour'], [3 * JOUR, 'de 3 jours']]) {
-    await heureTel(ecart); const t0 = Date.now(); await charger();
+    await heureTelRelance(ecart); const t0 = Date.now(); await charger();
     const e = await etat(), lena = await servirLena(), duree = (Date.now() - t0) / 1000 + 5;
     check(!e.retour && Math.abs(e.now - vrai()) < 3000 && e.now >= prec.now, `téléphone avancé ${nom}, jeu relancé : pas d’absence, le jeu reste à la vraie heure (écart ${Math.round((e.now - vrai()) / 1000)} s)`);
     check(e.jour === e0.jour && e.semaine === e0.semaine && e.etoiles === e0.etoiles && e.serie === e0.serie && e.dernierJour === e0.dernierJour, `  même journée (${e.jour}), même semaine, ni étoile ni jour de série en plus`);
@@ -86,7 +88,7 @@ function fauxTelephone(decalDepart) {
     check(e.lifetime - prec.lifetime <= e.taux * duree * 2 + 1, `  rien gagné que le temps réel de jeu (+${Math.round(e.lifetime - prec.lifetime)} € en ${Math.round(duree)} s)`);
     prec = e;
   }
-  await heureTel(0); await charger();
+  await heureTelRelance(0); await charger();
   { const e = await etat(); check(!e.retour && e.now >= prec.now && Math.abs(e.now - vrai()) < 3000 && e.jour === e0.jour, 'l’heure du téléphone remise : le jeu ne recule pas, pas d’absence'); prec = e; }
 
   // ─── en cours de partie : avancer l'heure, quitter le jeu et revenir ───
@@ -96,7 +98,7 @@ function fauxTelephone(decalDepart) {
   await heureTel(0);
 
   // ─── une vraie absence : le serveur avance aussi ───
-  decalServeur += 3 * HEURE; await heureTel(0); await charger();
+  decalServeur += 3 * HEURE; await heureTelRelance(0); await charger();
   { const e = await etat(); check(e.retour && Math.abs(e.lifetime - prec.lifetime - e.taux * 3 * 3600) < e.taux * 3 * 3600 * 0.1 + e.taux * 60, `une vraie absence de 3 h (jeu relancé) rapporte bien : ${e.retourTxt}`); await page.screenshot({ path: out + '/triche-vraie-absence.png' }); await fermerFeuille(); prec = e; }
   await page.evaluate(() => window.__cacher(true)); decalServeur += HEURE; await heureTel(0); await sleep(300);
   await page.evaluate(() => window.__cacher(false)); await sleep(1200);
@@ -119,7 +121,7 @@ function fauxTelephone(decalDepart) {
   await charger();
   { const e = await etat(); check(!e.retour && e.now >= hors.now && e.now - hors.now < 30e3 && e.source === 'telephone', 'relancé sans heure sûre, téléphone toujours +3 jours : rien de plus, la dernière heure sûre borne tout'); prec = e; }
   await page.unroute('**/*heure=*');
-  await heureTel(0); await charger();
+  await heureTelRelance(0); await charger();
   { const e = await etat(); check(!e.retour && e.now >= prec.now && e.source === 'page' && e.lifetime - prec.lifetime < e.taux * 60, `de retour en ligne, heure remise : le jeu ne recule pas (${fmtH(e.now - vrai())} d’avance, à rendre), rien de plus`); prec = e; }
   // le vrai temps rattrape : l'avance prise est déduite de la vraie absence suivante
   const avance = prec.now - vrai();
@@ -163,7 +165,7 @@ function fauxTelephone(decalDepart) {
   { const e = await e3(); check(!e.retour && e.lifetime - apres.lifetime < e.taux * 60, 'relancé ensuite : l’absence est soldée, rien de payé deux fois'); }
   // une heure sûre en retard au lancement (plus de 2,5 s) après 12 h d'absence : une absence au lancement, le saut qui suit ne paie rien de plus
   await p3.evaluate(() => window.__fournil.save());
-  decalServeur += 12 * HEURE; await p3.evaluate((d) => window.__heureTel(d), decalServeur);
+  decalServeur += 12 * HEURE; await p3.evaluate((d) => localStorage.setItem('test.tel', String(d)), decalServeur); // l'heure du prochain lancement : la page ouverte ne la voit pas (sinon c'est un réveil, payé sur place : test/fournil-reveil.cjs)
   await p3.route('**/*heure=*', async (r) => { await sleep(4500); try { await r.continue(); } catch (e) { /* page partie */ } });
   const avantLent = await e3();
   await p3.reload(); await p3.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 15000 }); await sleep(800);
