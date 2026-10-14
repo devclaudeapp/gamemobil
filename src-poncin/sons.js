@@ -7,6 +7,12 @@
    l'élimination ; les pas selon la posture (marche, course, accroupi, rampé), la glissade, le saut, la réception ; le ramassage, le
    compte à rebours ; plus les vibrations. Le contexte audio naît au premier geste (debloquer) : iOS et Chrome refusent de jouer avant.
    Les sons des autres s'atténuent avec la distance et se placent à gauche ou à droite.
+   L'ambiance (salon : heure et météo) : la pluie (un bruit filtré en boucle, le crépitement aigu et la rumeur grave, des gouttes et, de
+   loin en loin, un tonnerre lointain), le vent de nuit (un souffle grave dont le filtre et le volume ondulent lentement, un hibou de temps
+   en temps), un souffle plus léger dans le brouillard. Ces boucles ne jouent que pendant la partie : prises dans jeu.reglages (sinon
+   jeu.options, sinon le dernier PSONS.ambiance({ heure, meteo })) à chaque appel d'evenements, elles s'éteignent en ~1 s quand on ne
+   l'appelle plus (menus, fin). Les manches (« dernier debout ») : un gong au début d'une manche, une petite fanfare à sa fin, un « toc »
+   sourd quand un joueur est éliminé de la manche (événements 'manche' et 'elimine' de l'Arène).
    L'arme d'un événement : PREGLES.arme(id).classe (le contrat), sinon PAVATARS.armes.classe(id) (le modèle), sinon 'fusil'. Les
    changements d'état du joueur (posture, arme en main, visée, déplacement accroupi ou couché) sont lus sur l'entité à chaque appel
    d'evenements (une fois par pas, même sans événement). */
@@ -143,13 +149,20 @@ const PSONS = (() => {
     victoire(t, v, d) { [523, 659, 784, 1047, 784, 1047].forEach((f, i) => osc('triangle', f, f, t + i * 0.11, i === 5 ? 0.5 : 0.14, 0.2 * v, d)); },
     defaite(t, v, d) { [523, 494, 466, 440].forEach((f, i) => osc('triangle', f, f, t + i * 0.16, i === 3 ? 0.45 : 0.15, 0.16 * v, d)); },
     vide(t, v, d) { clic(t, 3400, 0.16 * v, d); },
+    // l'ambiance et les manches
+    goutte(t, v, d, h) { osc('sine', 1400 * h, 520 * h, t, 0.11, 0.07 * v, d, 0.002); souffle('bandpass', 3000 * h, 2000, 2, t, 0.02, 0.04 * v, d, 0.001); }, // une goutte tombée d'un toit
+    tonnerre(t, v, d, h) { souffle('lowpass', 420, 60, 0.7, t, 2.6, 0.5 * v, d, 0.35); souffle('lowpass', 900 * h, 120, 0.8, t + 0.12, 0.9, 0.22 * v, d, 0.05); osc('sine', 48, 32, t + 0.05, 2.2, 0.25 * v, d, 0.4); }, // un roulement lointain
+    hibou(t, v, d, h) { for (const [dt, f0, f1, du] of [[0, 520, 470, 0.32], [0.55, 560, 520, 0.18], [0.82, 540, 470, 0.5]]) { osc('sine', f0 * h, f1 * h, t + dt, du, 0.07 * v, d, 0.06); osc('triangle', f0 * h * 2, f1 * h * 2, t + dt, du * 0.8, 0.008 * v, d, 0.06); } }, // hou… hou-hou
+    manche(t, v, d) { osc('sine', 196, 194, t, 1.6, 0.3 * v, d, 0.004); osc('sine', 392, 389, t, 1.2, 0.14 * v, d, 0.004); osc('triangle', 587, 583, t, 0.9, 0.06 * v, d, 0.004); [523, 659, 784].forEach((f, i) => osc('triangle', f, f, t + 0.35 + i * 0.09, 0.22, 0.11 * v, d)); }, // un gong, puis trois notes qui montent
+    mancheFin(t, v, d) { [784, 659, 784, 1047].forEach((f, i) => osc('triangle', f, f, t + i * 0.12, i === 3 ? 0.55 : 0.14, 0.17 * v, d)); osc('sine', 1568, 1568, t + 0.36, 0.5, 0.05 * v, d); souffle('highpass', 6000, 5000, 1, t + 0.36, 0.25, 0.04 * v, d, 0.01); }, // la manche est gagnée
+    elimine(t, v, d) { osc('sine', 330, 180, t, 0.3, 0.2 * v, d, 0.004); osc('triangle', 165, 110, t + 0.02, 0.35, 0.08 * v, d); }, // éliminé de la manche : un « toc » sourd qui descend
     refus(t, v, d) { osc('square', 220, 200, t, 0.09, 0.05 * v, d); },
     tap(t, v, d) { osc('triangle', 520, 520, t, 0.07, 0.07 * v, d); },
     ok(t, v, d) { osc('triangle', 520, 520, t, 0.08, 0.07 * v, d); osc('triangle', 780, 780, t + 0.07, 0.1, 0.07 * v, d); },
     retour(t, v, d) { osc('triangle', 600, 400, t, 0.1, 0.06 * v, d); },
   };
   // intervalle mini entre deux mêmes sons (s) ; une mitraillette à 14 coups/s passe (0,05 s)
-  const ECART = { fusil: 0.05, mitraillette: 0.045, pistolet: 0.06, pompe: 0.15, sniper: 0.15, impactMur: 0.04, impactSol: 0.04, impactMetal: 0.05, impactBois: 0.05, impactCorps: 0.04, pas: 0.11, pasCourse: 0.1, pasAccroupi: 0.2, ramper: 0.3, ploc: 0.03, blesse: 0.08, vide: 0.12, douille: 0.07, cartouche: 0.2, glissade: 0.5, changement: 0.15, visee: 0.25 };
+  const ECART = { goutte: 0.05, tonnerre: 8, hibou: 6, manche: 1, mancheFin: 1, elimine: 0.2, fusil: 0.05, mitraillette: 0.045, pistolet: 0.06, pompe: 0.15, sniper: 0.15, impactMur: 0.04, impactSol: 0.04, impactMetal: 0.05, impactBois: 0.05, impactCorps: 0.04, pas: 0.11, pasCourse: 0.1, pasAccroupi: 0.2, ramper: 0.3, ploc: 0.03, blesse: 0.08, vide: 0.12, douille: 0.07, cartouche: 0.2, glissade: 0.5, changement: 0.15, visee: 0.25 };
   function jouer(nom, v, p, h, extra, retard) { // v : volume 0..1, p : panoramique, h : hauteur relative, retard (s)
     if (!pret() || !SONS[nom]) return;
     const t = ctx.currentTime;
@@ -158,6 +171,42 @@ const PSONS = (() => {
     try { SONS[nom](t + 0.005 + (retard || 0), v == null ? 1 : v, sortie(p || 0), h || 1, extra); } catch (err) { /* un nœud refusé ne coupe pas le jeu */ }
   }
   function vibrer(motif) { if (!vibre) return; try { if (navigator.vibrate) navigator.vibrate(motif); } catch (e) { /* pas de vibreur */ } }
+
+  // ─── l'ambiance : boucles de bruit filtré (pluie, vent), créées au premier besoin, puis gardées (volume à 0 hors partie) ───
+  const AMB = { voulue: null, heure: 'jour', meteo: 'clair', pluie: null, vent: null, plan: -1, cible: { pluie: 0, vent: 0 }, prochain: { goutte: 0, tonnerre: 0, hibou: 0 }, long: null };
+  const HEURES = ['jour', 'soir', 'nuit'], METEOS = ['clair', 'brouillard', 'pluie'];
+  function bruitLong() { if (!AMB.long) { const n = Math.floor(ctx.sampleRate * 4.3), b = ctx.createBuffer(1, n, ctx.sampleRate), d = b.getChannelData(0); let r = 0; for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; r = 0.97 * r + 0.03 * w; d[i] = w * 0.6 + r * 2.2; } AMB.long = b; } return AMB.long; } // blanc + un peu de rose : moins sec
+  function boucle(nom) {
+    const src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = bruitLong(); src.loop = true; g.gain.value = 0; g.connect(maitre);
+    const B = { src, g, nodes: [] };
+    if (nom === 'pluie') { // le crépitement (aigu, large) et la rumeur (grave)
+      const a = ctx.createBiquadFilter(), b = ctx.createBiquadFilter(), c = ctx.createBiquadFilter(), gb = ctx.createGain(); a.type = 'highpass'; a.frequency.value = 900; b.type = 'lowpass'; b.frequency.value = 7000; c.type = 'lowpass'; c.frequency.value = 280; gb.gain.value = 0.7;
+      src.connect(a); a.connect(b); b.connect(g); src.connect(c); c.connect(gb); gb.connect(g); B.nodes.push(a, b, c, gb);
+    } else { // le vent : un souffle grave, filtre et volume qui ondulent lentement (deux oscillateurs très lents)
+      const f = ctx.createBiquadFilter(), lfo = ctx.createOscillator(), pf = ctx.createGain(), lfo2 = ctx.createOscillator(), pv = ctx.createGain(), gv = ctx.createGain();
+      f.type = 'bandpass'; f.frequency.value = 380; f.Q.value = 1.6; lfo.frequency.value = 0.07; pf.gain.value = 170; lfo2.frequency.value = 0.11; pv.gain.value = 0.45; gv.gain.value = 0.7;
+      lfo.connect(pf); pf.connect(f.frequency); lfo2.connect(pv); pv.connect(gv.gain); src.connect(f); f.connect(gv); gv.connect(g); lfo.start(); lfo2.start(); B.nodes.push(f, lfo, pf, lfo2, pv, gv);
+    }
+    src.start(0, Math.random() * 3); return B;
+  }
+  function ambiance(o) { // PSONS.ambiance({ heure, meteo }) : l'ambiance d'une partie dont le jeu ne porte pas de réglages ; null : aucune
+    if (o === null) AMB.voulue = null; else if (o && typeof o === 'object') AMB.voulue = { heure: HEURES.includes(o.heure) ? o.heure : 'jour', meteo: METEOS.includes(o.meteo) ? o.meteo : 'clair' };
+    return { heure: AMB.heure, meteo: AMB.meteo, pluie: AMB.cible.pluie, vent: AMB.cible.vent, boucles: !!(AMB.pluie || AMB.vent) };
+  }
+  function majAmbiance(jeu) { // à chaque appel d'evenements (une fois par pas) : on replanifie au plus quatre fois par seconde
+    if (!pret()) return; const t = ctx.currentTime; if (t - AMB.plan < 0.25) return; AMB.plan = t;
+    const r = jeu && (jeu.reglages || jeu.options), v = AMB.voulue;
+    AMB.heure = r && HEURES.includes(r.heure) ? r.heure : v ? v.heure : 'jour'; AMB.meteo = r && METEOS.includes(r.meteo) ? r.meteo : v ? v.meteo : 'clair';
+    AMB.cible.pluie = AMB.meteo === 'pluie' ? 0.17 : 0; AMB.cible.vent = AMB.heure === 'nuit' ? 0.08 : AMB.meteo === 'brouillard' ? 0.05 : AMB.meteo === 'pluie' ? 0.04 : 0;
+    for (const nom of ['pluie', 'vent']) {
+      const c = AMB.cible[nom]; if (!c && !AMB[nom]) continue; if (!AMB[nom]) { try { AMB[nom] = boucle(nom); } catch (e) { continue; } }
+      const g = AMB[nom].g.gain; g.cancelScheduledValues(t); g.setTargetAtTime(c, t, 0.5); g.setTargetAtTime(0, t + 0.8, 0.3); // sans nouvel appel, la boucle s'éteint
+    }
+    // de loin en loin : gouttes (pluie), tonnerre lointain (pluie), hibou (nuit claire)
+    const P = AMB.prochain, alea = Math.random;
+    if (AMB.meteo === 'pluie') { if (t > P.goutte) { P.goutte = t + 0.15 + alea() * 0.6; jouer('goutte', 0.5 + alea() * 0.4, (alea() - 0.5) * 1.6, 0.8 + alea() * 0.5); } if (t > P.tonnerre) { if (P.tonnerre) jouer('tonnerre', 0.6 + alea() * 0.3, (alea() - 0.5) * 1.2, 0.8 + alea() * 0.4); P.tonnerre = t + 25 + alea() * 35; } }
+    if (AMB.heure === 'nuit' && AMB.meteo === 'clair' && t > P.hibou) { if (P.hibou) jouer('hibou', 0.7, (alea() - 0.5) * 1.6, 0.92 + alea() * 0.16); P.hibou = t + 30 + alea() * 40; }
+  }
 
   // ─── les événements d'une image de jeu ───
   let moi = null, _pan = 0, _dist = 0;
@@ -192,6 +241,7 @@ const PSONS = (() => {
     if (!jeu) return;
     moi = trouver(jeu, idMoi); // retrouvée à chaque fois : rien ne casse si le jeu remplace l'objet
     try { suivre(jeu, idMoi); } catch (e) { /* rien */ }
+    try { majAmbiance(jeu); } catch (e) { /* rien */ }
     if (!evs || !evs.length) return;
     vusTir.clear(); let impacts = 0;
     for (let i = 0; i < evs.length; i++) {
@@ -228,6 +278,8 @@ const PSONS = (() => {
           break;
         }
         case 'annonce': jouer('annonce', 0.8); break;
+        case 'manche': jouer(e.quoi === 'fin' || e.fin || e.vainqueur != null || e.gagnant != null ? 'mancheFin' : 'manche', 0.9); break; // « dernier debout » : début ou fin d'une manche
+        case 'elimine': if (e.id !== idMoi && e.a !== idMoi) jouer('elimine', 0.6); break; // un autre est sorti de la manche (pour moi, 'mort' a déjà joué)
         case 'fin': break; // l'écran de fin joue victoire ou défaite
       }
     }
@@ -247,5 +299,5 @@ const PSONS = (() => {
   }
   function compte(n) { jouer(n > 0 ? 'compte' : 'go', 1); if (n <= 0) vibrer(30); }
   function ui(nom) { jouer(nom || 'tap', 1); }
-  return { debloquer, regler, suspendre, jouer, vibrer, evenements, compte, ui, mesurer, classe: classeDe, CLASSES, noms: Object.keys(SONS), get pret() { return pret(); }, get contexte() { return ctx; } };
+  return { debloquer, regler, suspendre, jouer, vibrer, evenements, compte, ui, mesurer, ambiance, classe: classeDe, CLASSES, noms: Object.keys(SONS), get pret() { return pret(); }, get contexte() { return ctx; } };
 })();

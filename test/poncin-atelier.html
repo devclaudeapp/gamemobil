@@ -58,6 +58,7 @@ window.atelier = (() => {
     const Z = carte.zones || {}; objets = (Z.armes || []).slice(0, 8).map((a, i) => ({ id: 'o' + i, x: a.x, z: a.z, objet: a.arme, dispo: i % 3 !== 2 }));
     const cv = document.getElementById('vue3d');
     ok = PRENDU.init(cv, carte, monde, { qualite: q.get('qualite') || undefined, dossier: '../poncin/carte/', capture: true });
+    if (q.get('heure') || q.get('meteo')) PRENDU.ambiance({ heure: q.get('heure') || 'jour', meteo: q.get('meteo') || 'clair' }); // ?heure=jour|soir|nuit&meteo=clair|brouillard|pluie
     if (typeof PAVATARS !== 'undefined' && PAVATARS) await PAVATARS.armes.charger('../poncin/armes/'); // (init les a déjà demandées : la même promesse)
     PRENDU.taille(innerWidth, innerHeight); addEventListener('resize', () => PRENDU.taille(innerWidth, innerHeight));
     await attendreSol();
@@ -313,10 +314,24 @@ window.atelier = (() => {
   // le contexte WebGL perdu puis retrouvé (extension WEBGL_lose_context)
   let extPerte = null; // gardée : getExtension rend null une fois le contexte perdu
   const ext = () => { try { return extPerte || (extPerte = PRENDU._interne.renderer.getContext().getExtension('WEBGL_lose_context')); } catch (e) { return null; } };
+  // la clarté (luminance moyenne, 0–255, et l'écart de couleur) d'un personnage à l'écran et de ce qui l'entoure : le torse (3 × 5 points sur la hauteur du corps)
+  // contre des points à 0,9 m de chaque côté ; null s'il n'est pas devant la caméra (lu tout de suite après l'image : preserveDrawingBuffer)
+  function clarte(id) {
+    const e = trouver(id), cv = document.getElementById('vue3d'); if (!e) return null; const k = cv.width / Math.max(1, cv.clientWidth);
+    { const I = PRENDU._interne; I.renderer.clear(true, true, true); I.renderer.render(I.scene, I.camera); } // le monde seul : l'arme en main ne cache personne
+    const c2 = document.createElement('canvas'); c2.width = cv.width; c2.height = cv.height; const g = c2.getContext('2d', { willReadFrequently: true }); g.drawImage(cv, 0, 0);
+    const m = trouver('moi'), ux = Math.cos(m.yaw), uz = -Math.sin(m.yaw), lum = (x, y, z) => { const p = PRENDU.projeter(x, y, z); if (!p || !p.devant) return null; const px = Math.round(p.x * k), py = Math.round(p.y * k); if (px < 1 || py < 1 || px >= c2.width - 1 || py >= c2.height - 1) return null; const d = g.getImageData(px - 1, py - 1, 3, 3).data, c = [0, 0, 0]; for (let i = 0; i < d.length; i += 4) for (let k = 0; k < 3; k++) c[k] += d[i + k] / 9; return c; };
+    const moy = (l) => { const v = l.filter((x) => x != null); return v.length ? [0, 1, 2].map((k) => v.reduce((a, b) => a + b[k], 0) / v.length) : null; }, Y = (c) => 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    const corps = [], fond = []; for (const h of [0.5, 0.8, 1.1, 1.3, 1.5]) { corps.push(lum(e.x, e.y + h, e.z)); for (const sg of [-1, 1]) fond.push(lum(e.x + ux * 0.9 * sg, e.y + h, e.z + uz * 0.9 * sg)); }
+    const c = moy(corps), f = moy(fond); if (!c || !f) return null;
+    return { corps: Y(c), fond: Y(f), ecart: Math.hypot(c[0] - f[0], c[1] - f[1], c[2] - f[2]) }; // luminances (0–255) et écart de couleur (distance RGB)
+  }
   function perdre() { const x = ext(); if (!x) return false; x.loseContext(); return true; }
   function retrouver() { const x = ext(); if (!x) return false; x.restoreContext(); return true; }
   pret = charger();
   return { pret, get carte() { return carte; }, get monde() { return monde; }, get jeu() { return jeu; }, get t() { return t; }, set marche(v) { marche = !!v; }, titre: false, SCENES: Object.keys(SCENES),
-    camera, regarder, poser, devant, tir, touche, eliminer, revivre, etape, image, vues, trouver, scene, solPlace, perdre, retrouver, stats: () => PRENDU.stats };
+    camera, regarder, poser, devant, tir, touche, eliminer, revivre, etape, image, vues, trouver, scene, solPlace, perdre, retrouver, stats: () => PRENDU.stats,
+    // l'ambiance (test/poncin-ambiances.cjs) : PRENDU.ambiance ; la zone jouée (jeu.zone, comme PJEU la pose) ; la clarté d'un personnage à l'écran
+    ambiance: (heure, meteo) => PRENDU.ambiance({ heure, meteo }), zone: (z) => { jeu.zone = z || undefined; return !!z; }, clarte };
 })();
 </script></body></html>
