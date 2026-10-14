@@ -14217,6 +14217,7 @@ const PUI = (() => {
   }
   function quitter() { // la partie (et, en ligne, le salon) : retour au menu
     astuce(false); jeu = null; force = null; aideVue = null; PCONTROLES.activer(false); eveille(false); try { PHUD.reinit(); } catch (e) { /* rien */ }
+    try { if (rendu3d && typeof RENDU.ambiance === 'function') RENDU.ambiance({ heure: 'jour', meteo: 'clair' }); } catch (e) { signaler('rendu.ambiance', e); } // les menus repassent au jour
     if (ctl || enLigne) { quitterSalon(); montrer('copains'); } else montrer('titre');
   }
   function terminer(evFin) {
