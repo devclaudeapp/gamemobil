@@ -87,7 +87,7 @@ monde.rayon(ox, oy, oz, dx, dy, dz, max) → { t, x, y, z, nx, ny, nz, quoi: 'mu
                                             // de : 'batiment' | 'voute' | 'arbre' | 'mur' | 'mobilier' | 'terrain' ; k : indice dans carte.arbres / murs / mobilier, ou du passage
 monde.vue(ax, ay, az, bx, by, bz) → bool    // ligne de vue libre
 monde.libre(rnd, centre?, rayon?) → [x, z]  // un point libre au hasard
-monde.limite = { centre: [x, z], rayon } | null   // fixé par le mode (Arène : la zone de l'arène)
+monde.limite = { centre: [x, z], rayon } | limite v2 (PMONDE.limiteDe) | null   // fixé par la zone de la partie (PZONES ; voir « Livraison 3 »)
 monde.batiments                             // [{ p, h, t, base, sommet, aabb: [x0, z0, x1, z1] }] normalisés (p à aire signée > 0)
 monde.passe(ax, az, bx, bz, r) → bool ; monde.dedans(x, z) → bool ; monde.pente(x, z) → [dh/dx, dh/dz] (partagé)
 monde.sousVoute(x, z) → indice du passage dont on est sous la voûte, sinon −1 ; monde.arche(p, x, z) → y de l'intrados du passage p
@@ -170,7 +170,7 @@ Le décor : sol = relief maillé (triangulation partagée) avec la photo aérien
 
 ## Tests
 
-- `test/poncin.test.js` (Node, dans la CI) lance `poncin-carte`, `poncin-monde`, `poncin-corps`, `poncin-armes`, `poncin-salon`, `poncin-zones`, `poncin-jeu` et `poncin-enligne-sim` (`*.test.js`) : règles, collisions, rayons, A*, bots, postures et caméra, armes, réglages, zones, une partie d'Arène simulée de bout en bout (bots contre bots, sans erreur, scores cohérents, rejouable à l'identique avec la même graine), et le jeu en ligne simulé (enligne.js tel quel dans vm, faux salon direct / relais / mauvais : à-coups des autres, recalages, rejets, appuis brefs sur Tir, tricheurs, gigue de l'heure d'image ; ~5 s).
+- `test/poncin.test.js` (Node, dans la CI) lance `poncin-carte`, `poncin-monde`, `poncin-corps`, `poncin-armes`, `poncin-salon`, `poncin-zones`, `poncin-jeu`, `poncin-bots` et `poncin-enligne-sim` (`*.test.js`) : règles, collisions, rayons, A*, bots, postures et caméra, armes, réglages, zones, une partie d'Arène simulée de bout en bout (bots contre bots, sans erreur, scores cohérents, rejouable à l'identique avec la même graine), et le jeu en ligne simulé (enligne.js tel quel dans vm, faux salon direct / relais / mauvais : à-coups des autres, recalages, rejets, appuis brefs sur Tir, tricheurs, gigue de l'heure d'image ; ~5 s).
 - Playwright (`NODE_PATH=/opt/node22/lib/node_modules node test/….cjs`) : `poncin-play` (iPhone simulé), `poncin-scene` (captures), `poncin-camera` (balancement 2–3,5 Hz, œil lissé, arme au même rythme), `poncin-commandes` (pas fixe, cumul, fronts, réglage Balancement, aide à la visée à 120 Hz), `poncin-enligne` (trois pages, voie locale ; aussi `RESEAU=webrtc-local` et, sur GitHub Actions, `RESEAU=supabase`), `poncin-reseau`, `poncin-en-ligne-ci` (Supabase réel, workflow `en-ligne.yml`, qui lance aussi `poncin-commandes` et `poncin-camera`).
 
 ## Authenticité (extension du format de carte v1 : champs facultatifs, rétrocompatibles)
@@ -246,11 +246,11 @@ Déplacements fluides, postures, nouvelles armes à deux emplacements, visée, r
 | `PCORPS.camera` (C1 + C2), arme et avatars sur la phase de foulée (C3), `PRENDU.image(…, alpha)`, `PRENDU.reglages({ balancement })` | **[branché]** |
 | piste chez l'hôte (C5), horloge douce et `jeu.avantImage` (C6), tirs comptés (`nt`), seau de déplacement | **[branché]** (format d'entrée v1 + `tc`, `tr`, `nt`) |
 | sol des ponts (C7) : `monde.hauteur` suit les tabliers ; `monde.relief`, `monde.chaussee`, `monde.tabliers` | **[branché]** |
-| `PJEU.creer` : options = réglages normalisés, paramètre `zone` ; `jeu.peutBlesser`, `jeu.vieMax`, `jeu.armureMax` ; crochet de mode `apresNav` | **[lot 2/2]** |
+| `PJEU.creer` : options = réglages normalisés, paramètre `zone` ; `jeu.peutBlesser`, `jeu.vieMax`, `jeu.armureMax` ; crochet de mode `apresNav` | **[branché]** (livraison 3, « Le salon » : voir plus bas) |
 | instantané v2 (`ligneDe` / `lireLigne`, § 9.3 : arme, emplacements, munitions, posture) | **[branché]** dans jeu.js (livraison 2 ; `ARMES_ID` reparti à zéro : `PRESEAU` VERSION 2 à poser par l'intégrateur) |
 | régime v2 pour tous dans le jeu (équipement, entrée v2 forcée), 9 vraies armes, objets réels et caisses de munitions, robots équipés, événements de tir enrichis (`mat`) | **[branché]** (livraison 2, voir plus bas) |
 | entrée réseau v2 (cr, cc, vi, po, oe ; validation de posture ; `en.origine`) | **[lot 2/2]** |
-| `PMONDE.limiteDe` et `monde.limite` v2 | **[lot 2/2]** (monde.js) |
+| `PMONDE.limiteDe` et `monde.limite` v2 ; les six zones (`PZONES`) | **[branché]** (livraison 3) |
 | `PRENDU.ambiance({ heure, meteo })` ; commandes v2 (course, couché, visée, emplacements dans le même cumul) ; HUD v2 ; `PRESEAU` VERSION 2, salon de 6, budget de relais (`httpSend` sur `poncin:CODE:h`, `relaisComptesParS`) | **[lot 2/2]** |
 
 ### La boucle à pas fixe (§ 2) — `PJEU.pasFixe` [branché]
@@ -308,16 +308,16 @@ equipementDe(demande /* { p, s } ou 'p+s' */, reglages) → { p, s }   // DEFAUT
 armesPermises(liste) → liste normalisée
 equipementRobot(rnd, reglages, niveau) → { p, s }     // au hasard rejouable parmi les armes permises : fusils 3, mitraillettes et pompe 2, fusils de précision 1 (2 en « fort »), pistolets 1
 ```
-**[prêt]** ; dans la partie, `PJEU.creer({ options })` lit déjà `armes` (permises) et `objets` (livraison 2) ; le reste (durée 0, score, vie, tir allié, réapparition « aucune » en manches, aide) : **[lot 2/2]**.
+**[branché]** : `PJEU.creer({ options })` les normalise et les applique tous (livraison 3 : durée 0, score, vie, tir allié, réapparition dont « aucune » en manches, aide, objets, zone, heure et météo ; voir « Livraison 3 »). `normaliserReglages(r, { humains: 0 })` est permis (une partie de robots seuls : robots ≤ 6).
 
 ### Zones (§ 7) — `PZONES` (zones.js)
 
 ```js
-PZONES.preparer(carte, monde, nav, id, rnd) → { id, demande, nom, limite, englobant: { centre, rayon }, apparitions: [[x, z], …], objets: [[x, z, objet], …], aire, avertissement? }
-PZONES.distanceReapparition(zone) → clamp(0,32 · rayon englobant, 15, 60)     // 35 m pour 'centre'
-PZONES.IDS, PZONES.NOMS
+PZONES.preparer(carte, monde, nav, id, rnd, reglages?) → { id, demande, nom, limite, englobant: { centre, rayon }, apparitions: [[x, z], …], objets: [[x, z, objet], …], aire, joueurs, avertissement? }
+PZONES.definition(carte, monde, id), PZONES.adopter(z, monde), PZONES.pourReseau(z), PZONES.distanceReapparition(zone) → clamp(0,32 · rayon englobant, 15, 60)
+PZONES.IDS, PZONES.NOMS, PZONES.JOUEURS
 ```
-`rnd` = `mulberry32(graine ^ 0x2F6E2B1)` (à part, pour que `jeu.rnd` reste le même chez l'hôte et la façade). **'centre'** reprend telles quelles les zones de la carte (`zones.arene`, `apparitions`, `armes`) **[prêt]** ; les autres zones rendent 'centre' avec `avertissement` en attendant `PMONDE.limiteDe` **[lot 2/2]** (rivières = le Veyron dans le bourg et ses deux ponts, décision du joueur).
+`rnd` = `mulberry32(graine ^ 0x2F6E2B1)` (à part, pour que `jeu.rnd` reste le même chez l'hôte et la façade). **[branché]** (livraison 3) : les six zones, 'centre' telle quelle (`zones.arene`, `apparitions`, `armes`) ; détail et mesures dans « Livraison 3 » plus bas.
 
 ### Instantané v2 (§ 9.3) — **[branché]** dans jeu.js (livraison 2)
 
@@ -329,16 +329,16 @@ Ligne `[id, x, y, z, yaw, pitch, vie, armure, drapeaux, arme, kills, morts, poin
 |---|---|
 | Nouveaux modules purs | corps.js → PCORPS ; armes.js → PARMES ; zones.js → PZONES **[branché]** |
 | Ordre de build.js | … regles, carte-provisoire, monde, nav, **corps, armes, zones**, bots, jeu, arene, avatars, … ui **[branché]** |
-| PJEU.creer | options = réglages normalisés ; paramètre zone **[lot 2/2]** |
+| PJEU.creer | options = réglages normalisés ; paramètre zone **[branché]** (livraison 3) |
 | Entités | ajouterJoueur({ …, equip }) ; entité v2 **[branché]** (livraison 2 : tout le monde équipé, corps v2) |
 | PJEU.deplacer | alias de PCORPS.deplacer **[branché]** |
 | PJEU.pasFixe | boucle à pas fixe **[branché]** |
 | Instantané | ligneDe / lireLigne v2 **[branché]** (jeu.js ; VERSION 2 du réseau : intégrateur) |
-| Nouveaux champs du jeu | jeu.peutBlesser, jeu.vieMax, jeu.armureMax **[lot 2/2]** ; jeu.dt, jeu.rembobiner / restaurer / blesser / faireBruit **[branché]** |
+| Nouveaux champs du jeu | jeu.peutBlesser, jeu.vieMax, jeu.armureMax, jeu.zone, jeu.reglages, jeu.manche, jeu.visibilite **[branché]** (livraison 3) ; jeu.dt, jeu.rembobiner / restaurer / blesser / faireBruit **[branché]** |
 | Façade en ligne | jeu.avantImage(maintenant) **[branché]** |
-| Mode | crochet apresNav **[lot 2/2]** |
+| Mode | crochet apresNav, drapeau zones **[branché]** (livraison 3) |
 | Rendu | PRENDU.image(jeu, id, dt, t, alpha), PRENDU.reglages({ balancement }), PCORPS.camera **[branché]** ; PRENDU.ambiance({ heure, meteo }) ; PRENDU.stats.ambiance **[lot 2/2]** |
-| Monde | monde.hauteur suit les tabliers de pont ; monde.relief, monde.chaussee, monde.tabliers **[branché]** ; monde.limite v2 et PMONDE.limiteDe **[lot 2/2]** |
+| Monde | monde.hauteur suit les tabliers de pont ; monde.relief, monde.chaussee, monde.tabliers **[branché]** ; monde.limite v2 et PMONDE.limiteDe **[branché]** (livraison 3) |
 | Commandes | PCONTROLES.lire() (cumul), consommer(), enAttente() → { dyaw, dpitch }, attenuer(k) **[branché]** ; niveaux v2 (course, couche, vise, emplacement, changer) dans le même cumul **[lot 2/2]** |
 | HUD | PHUD.maj lit l'entité v2 **[lot 2/2]** |
 | Réseau | PRESEAU VERSION 2 ; salon limité à 6 ; budget de relais **[lot 2/2]** |
@@ -383,3 +383,76 @@ Les autres chiffres (recharge, dispersions, chute, recul, vitesse, changement, g
 { t: 'touche', de, a, degats, tete, mort, arme }  // le marqueur de touche du tireur, le flash rouge de la victime
 ```
 La matière (`PARMES.matiere(h, monde)` sur le résultat de `monde.rayon`) : terrain et chaussée → `'sol'` ; toit de zinc (`batiments[i].toit === 'zinc'`), clôture et portail (`carte.murs[k].t`), banc, croix, abribus et petit mobilier → `'metal'` ; murs de bâtiments, voûtes, murs de pierre, troncs, fontaine et monument → `'mur'` ; une entité → `'corps'`. `monde.carte` (la carte d'origine, nouvelle dans monde.js) donne `murs` et `mobilier`. **À faire par l'intégrateur** : `enligne.js` (sérialisation de `evts`, `case 'tir'`) doit recopier `impact.mat` (aujourd'hui il ne garde que x, y, z, nx, ny, nz, quoi, id) ; le rendu peut retomber sur `quoi` quand `mat` manque.
+
+## Livraison 3 « Le salon » : zones et règles de partie (groupe B)
+
+Le jeu reçoit les réglages du salon (§ 6 de la conception) et les applique tous ; la partie se joue dans l'une des six zones de la carte (§ 7, décision du joueur : « rivières » = le Veyron dans le bourg et ses deux ponts). Fichiers : `regles.js`, `monde.js`, `nav.js`, `zones.js`, `jeu.js`, `arene.js`, `bots.js` (et deux lignes d'`armes.js` : le tir allié). Tests : `poncin-zones`, `poncin-salon` (parties simulées), `poncin-jeu`, `poncin-bots` (nouveau).
+
+### `PJEU.creer` : les réglages, la zone, les robots
+
+```js
+const jeu = PJEU.creer({ monde, carte, mode: PARENE, graine,
+  options,            // les réglages (PREGLES.normaliserReglages) : normalisés encore ici (idempotent)
+  humains?,           // le nombre d'humains (0 par défaut) : robots ≤ 6 − humains
+  zone?,              // une zone reçue ('lancer' : PZONES.pourReseau(jeu.zone) de l'hôte) ; sinon préparée ici depuis options.zone et la graine
+  robots?,            // [{ id, nom, couleur, equipe, equip: 'p+s' | { p, s }, niveau }] : les robots listés par l'hôte (jeu.arene.robots), ajoutés tels quels
+  nav? });            // false : pas de navigation pour les robots (la zone, elle, la construit quand même : même zone partout)
+```
+Ordre : réglages → zone (avant `mode.init`, si `mode.zones` : PARENE) → `mode.init` (apparitions et objets de la zone, robots) → navigation (en cache sur le monde : celle de la zone) → `mode.apresNav(jeu)`.
+
+| champ | sens |
+|---|---|
+| `jeu.reglages` (=== `jeu.options`) | les réglages normalisés `{ v: 2, mode, zone, duree, score, heure, meteo, equipes, bots, niveau, tirAllie, vie, reapparition, manches, objets, aide, armes }` ; `bots` = le nombre de robots listés quand `robots` est donné |
+| `jeu.zone` | `{ id, demande, nom, limite, englobant: { centre, rayon }, apparitions: [[x, z], …], objets: [[x, z, objet], …], aire (m² joignables), joueurs: [min, max], avertissement? }` (null sans mode à zones) ; `monde.limite === jeu.zone.limite` |
+| `jeu.vieMax`, `jeu.armureMax` | `SALON.vies[vie]` : normale 100 / 50, unCoup 1 / 0, costaud 200 / 100 ; apparition à `vieMax`, soin et armure bornés ; en « un coup », ni soin ni armure au sol |
+| `jeu.peutBlesser(a, b)` | `a ≠ b` et (équipes différentes ou `tirAllie`) : `PARMES.tirer` ne touche que là (sans tir allié, les balles traversent un équipier) ; repeindre un équipier : −100 points, pas de repeint, `{ t: 'mort', …, allie: true }` |
+| `jeu.ennemis(a, b)` | inchangé (équipes différentes) : ce que visent l'aide à la visée et les robots |
+| `jeu.aideVisee(id, force)` | `+ permise` (= `reglages.aide`) ; faux : ni ralenti ni aimant (`dyaw = dpitch = ralentir = 0`), `surCible` reste pour le viseur rouge (le tir auto : `ui.js` ne l'arme pas) |
+| `jeu.duree`, `jeu.reste`, `jeu.debutChrono` | `duree` = `reglages.duree` (0 : sans limite, `reste` undefined, `instantane().r = −1`) ; `reste = duree − (temps − debutChrono)` (le chrono d'une manche) |
+| `jeu.arene.victoire`, `.reapparition`, `.distance`, `.dernier`, `.robots` | score à atteindre ; délai de réapparition (3 / 6 / 10 s ; −1 : dernier debout) ; distance idéale de réapparition `clamp(0,32 · rayon englobant, 15, 60)` ; « dernier debout » ; la liste des robots pour 'lancer' |
+| `jeu.manche` | « dernier debout » seulement (sinon null) : `{ n, total, enLice: [ids des vivants], gagnees: { camp: n }, debut, fin: null \| t, vainqueur: camp \| null }` ; camp = l'id (chacun pour soi) ou l'équipe 0 / 1 |
+| `jeu.treve` | vrai entre deux manches (4 s) : personne n'est blessé |
+| `e.score.manches` | les manches gagnées (le score de la partie en dernier debout ; chaque membre du camp vainqueur) ; `jeu.classement()` et `resume()` trient d'abord par elles (0 hors dernier debout : rien ne change) |
+| `jeu.visibilite`, `jeu.visibiliteLampe`, `jeu.lampes` | la vue des robots (m) d'après heure et météo : nuit 25, brouillard 30, sinon `Infinity` ; une cible dont la lampe éclaire le robot à ±35° : 45 m la nuit (30 dans le brouillard) ; `lampes` (la nuit) : `e.lampe` vrai pour tous (drapeau 1024 de l'instantané) |
+
+**Événements nouveaux** (« dernier debout ») :
+```js
+{ t: 'manche', quoi: 'debut', n, total }                                       // au premier pas de chaque manche (+ une annonce « Manche 2/3 : dernier debout ! »)
+{ t: 'manche', quoi: 'fin', n, total, vainqueur /* camp | null */, nom, equipes, gagnees: { camp: n } }   // + annonce « Boulon gagne la manche 1 ! »
+{ t: 'elimine', id, par, enLice /* vivants restants */ }                        // « Encore en lice : N » (+ « Duel final ! » à deux)
+```
+Règles : une manche finit quand il ne reste qu'un camp en lice (après 5 s de jeu ; il faut au moins deux camps dans la partie), ou au bout de la durée (le camp qui a le plus de joueurs en lice, puis le plus de vie + armure ; à égalité, nul) ; trêve de 4 s ; puis tout le monde réapparaît (événements 'reapparition'), objets remis, chrono reparti. La partie finit 2 s après la dernière manche, ou dès que le premier ne peut plus être rattrapé (3 manches : premier à 2) ; `PARENE.resultat(jeu)` : `gagnant` au plus de manches (à égalité : null), `scores` (équipes) = manches gagnées, `manches: { total, jouees, gagnees }`. Le score de repeints ne finit pas une partie en dernier debout ; les points (élimination, tête, séries) départagent.
+
+### `PMONDE.limiteDe(def)` et `monde.limite` v2
+
+```js
+def = { forme: 'cercle', centre: [x, z], rayon } | { forme: 'cercles', cercles: [[x, z, r], …] /* leur union */ } | { forme: 'poly', p: [[x, z], …] } | { forme: 'carre', centre: [x, z], cote }
+PMONDE.limiteDe(def) → { v: 2, forme, def /* JSON : ce qui voyage */, centre, rayon /* cercle englobant */, boite: [x0, z0, x1, z1],
+  aretes: Float64Array [ax, az, bx, bz, …] /* le bord, ≤ 1500 : la clôture du rendu, la minicarte */, n, aire /* m², masque */, cercles?,
+  dedans(x, z), distance(x, z) /* au bord, > 0 dedans */, pres(x, z, r), touche(ax, az, bx, bz, r), rassembler(x0, z0, x1, z1) → nombre (dans cand) } | null
+PMONDE.limiteV2(l) → bool   // une limite lue par ses arêtes (toutes les formes sauf 'cercle')
+```
+- Cercles : cordes de 3 m, coupées là où un autre cercle les recouvre ; arêtes rangées dans une grille à part (8 m, inscrites à 2 m près) ; `dedans` lit un masque de 4 m (plein, vide, ou mêlé : vrai test).
+- `monde.limite` : `{ centre, rayon }` (et la forme 'cercle' de limiteDe) gardent le chemin rapide d'avant ; une limite v2 bloque `bloque` (dehors, ou plus près d'une arête que r), `deplacer` (les arêtes sont des murs fins ; parti dedans, on y reste), `passe` et la navigation (`nav.js` couvre sa boîte ; cases libres : dedans à plus de la marge des arêtes), **jamais les tirs ni les vues** ; `monde.libre` tire dans sa boîte.
+- Le HUD lit `limite.distance(x, z)` (« Limite de la zone » à moins de 3 m) ; le rendu et la minicarte dessinent `limite.aretes` (pour 'centre', un cercle de 231 arêtes).
+
+### Les six zones (`PZONES.preparer`) — mesures sur la vraie carte (Node, graine 1)
+
+| id | nom | limite | aire joignable | apparitions (espacement) | objets | calcul (navigation comprise) |
+|---|---|---|---|---|---|---|
+| place | Place Bichat | cercle 55 m autour de `zones.arene.centre` | 0,37 ha | 25 (14 m) | 4 | ≈ 15–45 ms |
+| centre | Cœur du village (défaut) | `zones.arene` (99 ; 1,5), r 110 : apparitions et objets de la carte, tels quels | 1,92 ha | 20 (carte) | 8 (carte) + caisses | ≈ 20–60 ms |
+| eglise | Autour de l'église | cercle 70 m autour de « Église Saint-Martin » (`carte.noms`) | 0,84 ha | 30 (18 m) | 4 | ≈ 10–20 ms |
+| bourg | Tout le bourg | cercle 190 m centré entre la place et le barycentre des bâtiments à moins de 200 m d'elle (114 ; 6) | 7,54 ha | 180 (18 m, au plus 180) | 16 | ≈ 45–80 ms |
+| rivieres | Le Veyron | 26 cercles de 45 m tous les 30 m sur les berges du Veyron, entre ses deux ponts (74 ; 162) et (346 ; 199), 35 m au-delà ; 357 arêtes | 2,66 ha | 77 (18 m), sur les deux rives | 11 | ≈ 50–65 ms |
+| tout | Tout Poncin | le carré, marge de 8 m (`carre`, 4 arêtes) | 44,9 ha | 180 (18 m) | 16 | ≈ 230–250 ms |
+
+Apparitions : `monde.libre(rnd)` dans la zone, joignables (`nav.accessible`), à 1 m des murs et de la limite, espacées de 18 m (14 m pour 'place') jusqu'à 400 échecs de suite, 12 au moins (l'espacement se resserre s'il le faut), 180 au plus. Objets : `clamp(arrondi(aire joignable / 2500 m²), 4, 16)`, à 8 m des apparitions et 12 m l'un de l'autre (moins s'il le faut), soin, armure, munitions puis une principale permise, à tour de rôle. Sans rivière ni pont (carte provisoire sans nom, vieille carte), une zone impossible retombe sur 'centre' avec `avertissement`.
+
+**Réseau** : `PZONES.pourReseau(jeu.zone)` → `{ id, nom, limite: def, englobant, apparitions, objets, aire }` (JSON, ≈ 2 à 4 Ko ; 'tout' et 'bourg' : 180 apparitions) ; chez les autres, `PJEU.creer({ zone: celle-là, robots: jeu.arene.robots, … })` (ou `PZONES.adopter(z, monde)`). Sans `zone`, la façade prépare la même zone depuis la graine (même résultat, navigation construite : jusqu'à ≈ 0,3 s pour 'tout').
+
+### Pour l'intégrateur (enligne.js, reseau.js)
+- `PJEU.creer` chez l'hôte : `options` = réglages normalisés avec le nombre d'humains, et `humains: L.joueurs.length` (sinon le jeu borne les robots à 6 seulement).
+- 'lancer' : `zone: PZONES.pourReseau(jeu.zone)` et `robots: jeu.arene.robots` (après création chez l'hôte) ; la façade : `PJEU.creer({ …, zone, robots, nav: false })`.
+- `evts` : relayer aussi 'manche', 'elimine' et `allie` de 'mort' ; chez le client, `jeu.manche` (n, total, enLice, gagnees, fin, vainqueur), `jeu.treve`, `jeu.debutChrono` et `e.score.manches` sont à tenir à jour d'après ces événements (la façade ne simule pas le mode) ; `instantane().r` est déjà le reste de la manche.
+- `PJEU.tirVisuel` (le tir montré tout de suite par le client) traverse encore les équipiers : avec le tir allié, la traînée locale peut passer à travers un équipier que l'hôte, lui, touche.

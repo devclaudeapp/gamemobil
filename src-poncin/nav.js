@@ -6,7 +6,8 @@
    huit repères au bout de la zone dont on connaît la distance à chaque case (Dijkstra à seaux) ; la recherche « voit » ainsi la rivière
    et file vers le pont au lieu d'inonder la rive. Les cases sont groupées en composantes connexes : on ne cherche jamais vers une poche
    fermée (cour intérieure), et monde.libre préfère la composante principale (monde.accessible, branché ici).
-   La grille couvre le carré de monde.limite (l'arène) s'il y en a une, sinon toute la carte ; la limite est relue à chaque requête :
+   La grille couvre le carré de monde.limite (l'arène) s'il y en a une — la boîte englobante d'une limite v2 (PMONDE.limiteDe : ses
+   cases libres sont celles du dedans à plus de « marge » de ses arêtes) —, sinon toute la carte ; la limite est relue à chaque requête :
    la grille suit quand elle change, et se reconstruit plus grande si la nouvelle sort de la zone couverte.
    Les passages voûtés sont, pour monde.bloque et monde.passe, des couloirs libres entre leurs piédroits : les chemins y passent comme
    dans une rue. Les troncs, murs et objets massifs sont des arêtes épaisses (monde._interne.EW : un tronc est un point de rayon w) :
@@ -26,6 +27,7 @@
   const BORD_ZONE = 3;          // la grille d'une limite déborde de 3 m autour d'elle
   const fini = (v) => typeof v === 'number' && v - v === 0;
   const limiteOk = (l) => !!(l && l.centre && fini(+l.centre[0]) && fini(+l.centre[1]) && fini(+l.rayon) && l.rayon > 0);
+  const limiteV2 = (l) => !!(l && l.v === 2 && l.forme !== 'cercle' && l.aretes && typeof l.dedans === 'function' && typeof l.pres === 'function' && Array.isArray(l.boite));
   const d2PtSeg = (px, pz, ax, az, bx, bz) => { const ex = bx - ax, ez = bz - az, l2 = ex * ex + ez * ez; let t = l2 > 0 ? ((px - ax) * ex + (pz - az) * ez) / l2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t; return (px - ax - t * ex) ** 2 + (pz - az - t * ez) ** 2; };
   const orient = (px, pz, qx, qz, rx, rz) => (qx - px) * (rz - pz) - (qz - pz) * (rx - px);
   function croise(ax, az, bx, bz, cx, cz, dx, dz) { const d1 = orient(cx, cz, dx, dz, ax, az), d2 = orient(cx, cz, dx, dz, bx, bz), d3 = orient(ax, az, bx, bz, cx, cz), d4 = orient(ax, az, bx, bz, dx, dz); return ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) && ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0)); }
@@ -45,7 +47,7 @@
     let X0 = XM, Z0 = XM, W = 3, N = 9, NW = 1, zone = null;
     let FIXE, LIB, COMP, GC, HN, PAR, ETAT, POS, TAS, TF, CH, EVD, EVG, EVB, EVH, DR, VOIS, COIN_A, COIN_B, REPERES = [];
     let msGrille = 0, msReperes = 0, serres = 0, libres = 0, constructions = 0;
-    let gen = 0, nt = 0, ouvertes = 0, tailles = [0], PRINC = 0, REP = -1, lOk = null, lx = 0, lz = 0, lr = 0, CIBLE = -1, CI = -1, CJ = -1, NA = 0;
+    let gen = 0, nt = 0, ouvertes = 0, tailles = [0], PRINC = 0, REP = -1, lOk = null, lx = 0, lz = 0, lr = 0, lref = null, CIBLE = -1, CI = -1, CJ = -1, NA = 0;
     const COUT = [1, 1, 1, 1, RAC2, RAC2, RAC2, RAC2], AK = new Int32Array(ACTIFS), AV = new Int32Array(ACTIFS), BORNE = new Float64Array(Math.max(1, K));
     const SEAUX = new Int32Array(16), DIRS = new Int32Array(16);
     const cx = (c) => X0 + (c % W + 0.5) * pas, cz = (c) => Z0 + ((c / W | 0) + 0.5) * pas;
@@ -56,7 +58,8 @@
     // avec un anneau de cases bloquées tout autour (aucun test de bornes dans les boucles)
     function zoneVoulue() {
       const l = monde.limite; let a = XM, b = XM, a1 = XM + L, b1 = XM + L;
-      if (limiteOk(l)) { const m = +l.rayon + BORD_ZONE; a = Math.max(a, l.centre[0] - m); b = Math.max(b, l.centre[1] - m); a1 = Math.min(a1, +l.centre[0] + m); b1 = Math.min(b1, +l.centre[1] + m); }
+      if (limiteV2(l)) { const bt = l.boite; a = Math.max(a, bt[0] - BORD_ZONE); b = Math.max(b, bt[1] - BORD_ZONE); a1 = Math.min(a1, bt[2] + BORD_ZONE); b1 = Math.min(b1, bt[3] + BORD_ZONE); }
+      else if (limiteOk(l)) { const m = +l.rayon + BORD_ZONE; a = Math.max(a, l.centre[0] - m); b = Math.max(b, l.centre[1] - m); a1 = Math.min(a1, +l.centre[0] + m); b1 = Math.min(b1, +l.centre[1] + m); }
       if (!(a1 > a) || !(b1 > b)) { a = XM; b = XM; a1 = XM + L; b1 = XM + L; } // limite hors de la carte : toute la carte
       const i0 = Math.floor((a - XM) / pas) - 1, j0 = Math.floor((b - XM) / pas) - 1;
       const w = Math.max(3, Math.max(Math.ceil((a1 - XM) / pas) - i0, Math.ceil((b1 - XM) / pas) - j0) + 1);
@@ -158,12 +161,16 @@
     }
     let msLimite = 0;
     function synchro() { // la grille courante suit monde.limite
-      const l = monde.limite, ok = limiteOk(l);
-      if (ok === lOk && (!ok || (+l.centre[0] === lx && +l.centre[1] === lz && +l.rayon === lr))) return;
+      const l = monde.limite, ok = limiteOk(l), v2 = ok && limiteV2(l);
+      if (ok === lOk && (!ok || (v2 ? l === lref : !lref && +l.centre[0] === lx && +l.centre[1] === lz && +l.rayon === lr))) return;
       const t0 = Date.now(), zv = zoneVoulue();
       if (!couvre(zv)) construire(zv);
-      lOk = ok;
-      if (ok) {
+      lOk = ok; lref = v2 ? l : null;
+      if (v2) { // dedans, et à plus de « marge » des arêtes (seules les cases de la boîte peuvent l'être)
+        lx = +l.centre[0]; lz = +l.centre[1]; lr = +l.rayon; LIB.fill(0);
+        const bt = l.boite, i0 = Math.max(0, Math.floor((bt[0] - X0) / pas)), i1 = Math.min(W - 1, Math.ceil((bt[2] - X0) / pas)), j0 = Math.max(0, Math.floor((bt[1] - Z0) / pas)), j1 = Math.min(W - 1, Math.ceil((bt[3] - Z0) / pas));
+        for (let j = j0; j <= j1; j++) for (let i = i0; i <= i1; i++) { const c = j * W + i; if (FIXE[c]) { const x = cx(c), z = cz(c); LIB[c] = l.dedans(x, z) && !l.pres(x, z, marge) ? 1 : 0; } }
+      } else if (ok) {
         lx = +l.centre[0]; lz = +l.centre[1]; lr = +l.rayon; const m = Math.max(0, lr - marge), m2 = m * m;
         for (let c = 0; c < N; c++) LIB[c] = FIXE[c] && (cx(c) - lx) ** 2 + (cz(c) - lz) ** 2 <= m2 ? 1 : 0;
       } else LIB.set(FIXE);

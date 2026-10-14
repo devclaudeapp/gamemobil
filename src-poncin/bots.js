@@ -6,7 +6,11 @@
    en main, à la lunette), en ligne de vue (monde.vue, vers la poitrine ou la tête, selon la posture de la cible) ; il sent quelqu'un
    collé à lui (2,5 m) ; il entend les tirs à 30 m et les pas (debout) à 10 ou 16 m en course (jeu.bruits) ; touché, il voit son
    agresseur jusqu'à 160 m pendant 6 s (pas de tir de loin sans riposte) ; touché par quelqu'un qu'il ne voit pas, il se retourne vers
-   lui et va le chercher.
+   lui et va le chercher. La nuit et dans le brouillard (jeu.visibilite, posé par PJEU d'après l'heure et la météo : 25 m la nuit, 30 m
+   dans le brouillard), il ne voit pas plus loin ; une cible dont la lampe (la nuit) l'éclaire à ±35° se voit jusqu'à
+   jeu.visibiliteLampe (45 m, 30 dans le brouillard) ; son agresseur, jusqu'au double de la visibilité.
+   Tir allié (2 contre 2) : il ne tire pas si un équipier vivant est à moins de 1 m de sa ligne de tir. Ses seuils de vie (fuite sous
+   25 %, rassuré à 50 %, envie d'un soin sous 70 %) sont relatifs à jeu.vieMax.
    États : patrouille (chemin PNAV vers un objet utile, un point libre, ou vers là où ça se passe ; il court sur les longs trajets),
    chasse (dernière position vue ou bruit entendu, puis un tour d'horizon), combat (temps de réaction, erreur de visée qui se resserre,
    vitesse de rotation bornée ; tir par rafales ; pas de côté ; garde la bonne distance pour son arme (BANDE) ; vise au-delà de 12 m et
@@ -30,6 +34,9 @@
   const BANDE = {}, PORTEE = {};
   for (const a of REGLES.ARMES) { BANDE[a.id] = BANDE_CLASSE[a.classe] || BANDE_CLASSE.fusil; PORTEE[a.id] = Math.min(a.portee, PORTEE_CLASSE[a.classe] || 60); }
   const VUE_LUNETTE = 90;                        // un fusil de précision en main : il voit (à la lunette) jusqu'à 90 m
+  const COS_LAMPE = Math.cos(35 * Math.PI / 180); // la lampe d'une cible l'éclaire à ±35° : il la voit de plus loin
+  const LIGNE_ALLIE = 1;                         // un équipier à moins de 1 m de la ligne de tir : il ne tire pas
+  const pv = (bot, jeu) => bot.vie * 100 / (jeu.vieMax > 0 ? jeu.vieMax : 100); // la vie en % (costaud 200, un coup 1)
   const STABLE = { facile: 0.35, normal: 0.25, fort: 0.15 }; // la lunette posée (viseStable, s) avant de tirer au fusil de précision
   const VISE_LOIN = 12;                          // il vise au-delà de 12 m (et toujours au fusil de précision)
   const VIE_FUITE = 25, VIE_RASSURE = 50;
@@ -79,11 +86,19 @@
     const T = jeu.temps, monde = jeu.monde, es = jeu.entites;
     const ox = bot.x, oy = bot.y + oeil(bot), oz = bot.z, fx = -Math.sin(bot.yaw), fz = -Math.cos(bot.yaw), cosC = Math.cos(niv.champ / 2);
     let best = null, bs = Infinity;
-    const loin = classe(bot.arme) === 'sniper' ? VUE_LUNETTE : VUE;
+    const vis = jeu.visibilite > 0 ? jeu.visibilite : Infinity, visL = jeu.visibiliteLampe > 0 ? jeu.visibiliteLampe : 0; // la nuit, le brouillard
+    const loin0 = classe(bot.arme) === 'sniper' ? VUE_LUNETTE : VUE, loin = Math.min(loin0, vis), loinL = Math.min(loin0, Math.max(vis, visL));
     const agr = ia.agresseur && T - ia.agresseurA < AGRESSEUR ? ia.agresseur : null; // celui qui vient de le toucher : vu bien plus loin
+    const vAgr = Math.min(VUE_AGRESSEUR, 2 * vis);
     for (let k = 0; k < es.length; k++) {
       const c = es[k]; if (c === bot || !c.vivant || !jeu.ennemis(bot, c)) continue;
-      const dx = c.x - ox, dz = c.z - oz, d2 = dx * dx + dz * dz, vue = c === agr ? VUE_AGRESSEUR : loin; if (d2 > vue * vue) continue;
+      const dx = c.x - ox, dz = c.z - oz, d2 = dx * dx + dz * dz;
+      let vue = c === agr ? vAgr : loin;
+      if (loinL > vue && c.lampe && d2 <= loinL * loinL && d2 > 1e-6) { // sa lampe l'éclaire (à ±35° de son regard) : on la voit de plus loin
+        const l = Math.sqrt(d2), fx2 = -Math.sin(c.yaw), fz2 = -Math.cos(c.yaw);
+        if ((-dx * fx2 - dz * fz2) >= COS_LAMPE * l) vue = loinL;
+      }
+      if (d2 > vue * vue) continue;
       const d = Math.sqrt(d2);
       if (d > SENT && dx * fx + dz * fz < cosC * d) continue; // hors du cône
       if (!monde.vue(ox, oy, oz, c.x, c.y + poitrine(c), c.z) && !monde.vue(ox, oy, oz, c.x, c.y + tete(c), c.z)) continue;
@@ -169,7 +184,7 @@
       const O = REGLES.OBJETS[o.objet]; if (!O) continue;
       // une autre arme le tente un peu (elle remplacerait sa principale) ; la sienne ou une caisse, quand sa principale manque de réserve
       const p = bot.armes[0], bas = p && (bot.reserve[p] | 0) < REGLES.arme(p).reserve * 0.5;
-      const interet = O.type === 'arme' ? (O.arme !== p ? 0.4 : bas ? 1 : 0) : O.type === 'munitions' ? (bas ? 1.2 : 0) : O.type === 'soin' ? (bot.vie < 70 ? 1.5 : 0) : O.type === 'armure' ? (bot.armure < 25 ? 0.6 : 0) : 0;
+      const interet = O.type === 'arme' ? (O.arme !== p ? 0.4 : bas ? 1 : 0) : O.type === 'munitions' ? (bas ? 1.2 : 0) : O.type === 'soin' ? (pv(bot, jeu) < 70 ? 1.5 : 0) : O.type === 'armure' ? (bot.armure < 25 ? 0.6 : 0) : 0;
       if (!interet) continue;
       const d = Math.sqrt((o.x - bot.x) ** 2 + (o.z - bot.z) ** 2); if (d > 60 * interet) continue; // un détour raisonnable
       if (d / interet < bd) { bd = d / interet; ob = o; }
@@ -268,7 +283,19 @@
     // au fusil de précision : seulement la lunette posée (pleine visée, stabilisée selon le niveau)
     const pret = !sniper || (bot.vise >= 1 && (bot.viseStable || 0) >= (STABLE[bot.niveau] != null ? STABLE[bot.niveau] : STABLE.normal));
     en.tir = ia.rafale && aligne && pret && vu && hz <= (PORTEE[bot.arme] || 50) && !bot.enRecharge;
+    if (en.tir && jeu.options && jeu.options.equipes && allieSurLaLigne(bot, jeu, px, pz, hz)) en.tir = false; // un équipier devant : pas de tir
     return true;
+  }
+  // un équipier vivant à moins de LIGNE_ALLIE m de la ligne de tir (dans le plan, entre le robot et sa cible)
+  function allieSurLaLigne(bot, jeu, px, pz, hz) {
+    if (!(hz > 0.5)) return false;
+    const ux = (px - bot.x) / hz, uz = (pz - bot.z) / hz, es = jeu.entites;
+    for (let k = 0; k < es.length; k++) {
+      const e = es[k]; if (e === bot || !e.vivant || jeu.ennemis(bot, e)) continue;
+      const vx = e.x - bot.x, vz = e.z - bot.z, t = vx * ux + vz * uz; if (t <= 0 || t >= hz) continue;
+      const ex = vx - ux * t, ez = vz - uz * t; if (ex * ex + ez * ez < LIGNE_ALLIE * LIGNE_ALLIE) return true;
+    }
+    return false;
   }
   // la longueur du chemin qui reste (m)
   function reste(bot, ia) {
@@ -293,9 +320,9 @@
     const voit = !!ia.cible && T - ia.vuA < 0.35;
 
     // ─── l'état ───
-    if (ia.etat === 'fuite' && (bot.vie >= VIE_RASSURE || T - ia.fuiteA > 9)) { ia.pasDeFuiteAvant = T + 8; ia.etat = ''; }
+    if (ia.etat === 'fuite' && (pv(bot, jeu) >= VIE_RASSURE || T - ia.fuiteA > 9)) { ia.pasDeFuiteAvant = T + 8; ia.etat = ''; }
     let etat;
-    if (ia.etat === 'fuite' || (bot.vie < VIE_FUITE && bot.invincible <= 0 && T >= ia.pasDeFuiteAvant && soinProche(bot, jeu, 50))) etat = 'fuite';
+    if (ia.etat === 'fuite' || (pv(bot, jeu) < VIE_FUITE && bot.invincible <= 0 && T >= ia.pasDeFuiteAvant && soinProche(bot, jeu, 50))) etat = 'fuite';
     else if (voit) etat = 'combat';
     else if ((ia.cible && T - ia.vuA < MEMOIRE) || T - ia.alerteA < MEMOIRE) etat = 'chasse';
     else etat = 'patrouille';
@@ -419,5 +446,5 @@
     return en;
   }
 
-  return { penser, BANDE, PORTEE, VUE, VUE_LUNETTE };
+  return { penser, BANDE, PORTEE, VUE, VUE_LUNETTE, COS_LAMPE, LIGNE_ALLIE };
 });

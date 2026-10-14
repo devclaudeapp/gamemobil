@@ -331,8 +331,8 @@ titre('Mort, points, réapparition');
   // la règle : un point d'apparition à ~35 m de l'ennemi le plus proche (jamais à moins de 15 m s'il existe mieux), pour que l'action reprenne vite,
   // et de préférence hors de la vue des ennemis (un point vu compte comme 25 m plus loin de l'idéal)
   const vuDe = (p) => [a, c].some((q) => q.vivant && Math.hypot(q.x - p[0], q.z - p[1]) < 75 && mondePlat.vue(q.x, q.y + J.oeil, q.z, p[0], mondePlat.hauteur(p[0], p[1]) + 1.2, p[1]));
-  const ecart = (p) => { const d = distEnn(p); return (d < 15 ? 1000 + (15 - d) : Math.abs(d - 35)) + (vuDe(p) ? 25 : 0); }, ideal = Math.min(...pts.map(ecart));
-  check(pts.some((p) => Math.abs(p[0] - b.x) < 1e-9 && Math.abs(p[1] - b.z) < 1e-9) && ecart([b.x, b.z]) <= ideal + 6 && (distEnn([b.x, b.z]) >= 15 || meilleur < 15), `au point d'apparition à bonne distance des ennemis (${f2(distEnn([b.x, b.z]))} m ; visé ~35 m, jamais < 15 m, de préférence caché ; le plus loin possible : ${f2(meilleur)} m)`);
+  const dIdeale = jeu.arene.distance, ecart = (p) => { const d = distEnn(p); return (d < 15 ? 1000 + (15 - d) : Math.abs(d - dIdeale)) + (vuDe(p) ? 25 : 0); }, ideal = Math.min(...pts.map(ecart));
+  check(pts.some((p) => Math.abs(p[0] - b.x) < 1e-9 && Math.abs(p[1] - b.z) < 1e-9) && ecart([b.x, b.z]) <= ideal + 6 && (distEnn([b.x, b.z]) >= 15 || meilleur < 15), `au point d'apparition à bonne distance des ennemis (${f2(distEnn([b.x, b.z]))} m ; visé ~${f2(dIdeale)} m = clamp(0,32 · rayon englobant, 15, 60), jamais < 15 m, de préférence caché ; le plus loin possible : ${f2(meilleur)} m)`);
   check(b.invincible === R.MODES.arene.invincible && pts.length === 12, `invincible ${R.MODES.arene.invincible} s après la réapparition ; le point hors de l'arène est écarté (${pts.length} points)`);
   // série de 3 et tête : les points
   const { jeu: j2, es: [k, ...vs] } = partie(mondePlat, cartePl, ['k', 'v1', 'v2', 'v3']);
@@ -477,7 +477,7 @@ titre('Robots : perception, combat, fuite, déblocage');
   nav.chemin = function () { parImage++; total++; return vrai.apply(this, arguments); };
   for (let i = 0; i < 20 * 60; i++) { parImage = 0; jn.etape(DT, {}); maxImage = Math.max(maxImage, parImage); }
   nav.chemin = vrai;
-  check(maxImage <= 2 && total > 20, `9 robots, 20 s : ${total} requêtes de chemin, au plus ${maxImage} par image`);
+  check(jn.entites.length === 6 && maxImage <= 2 && total > 20, `9 robots demandés → ${jn.entites.length} (6 joueurs au plus), 20 s : ${total} requêtes de chemin, au plus ${maxImage} par image`);
 }
 
 titre('Jeu en ligne : regard absolu, prédiction du client, historique et compensation de latence, instantané');
@@ -563,7 +563,7 @@ titre('Jeu en ligne : regard absolu, prédiction du client, historique et compen
 titre('Corrections de la relecture');
 {
   // (a) la réapparition préfère un point hors de la vue des ennemis (à distance comparable)
-  const c = cartePlate(); c.batiments.push({ p: [[-4, -46], [4, -46], [4, -40], [-4, -40]], h: 6, t: 'maison' });
+  const c = cartePlate(); c.batiments.push({ p: [[-4, -46], [4, -46], [4, -40], [-4, -40]], h: 6, t: 'maison' }); c.zones.arene.rayon = 110; // ~35 m visés (0,32 · 110)
   c.zones.apparitions = [[30, 0], [0, -52]]; // (30, 0) : à 35 m de l'ennemi, en vue ; (0, -52) : à 37 m, derrière la maison
   const m = PM.creer(c), jeu = PJ.creer({ monde: m, carte: c, mode: PA, graine: 3, options: { bots: 0 } });
   const en = jeu.ajouterJoueur({ id: 'en', humain: true }), v = jeu.ajouterJoueur({ id: 'v', humain: true });

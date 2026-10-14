@@ -160,7 +160,7 @@
       const h = monde.rayon(ox, oy, oz, dx, dy, dz, A.portee);
       let tMax = h ? h.t : A.portee, cible = null, tete = false, cx = 0, cyy = 0, cz = 0;
       for (let k = 0; k < entites.length; k++) {
-        const c = entites[k]; if (!c.vivant || !jeu.ennemis(e, c)) continue;
+        const c = entites[k]; if (!c.vivant || !(jeu.peutBlesser ? jeu.peutBlesser(e, c) : jeu.ennemis(e, c))) continue; // le tir allié : jeu.peutBlesser
         const ddx = c.x - ox, ddz = c.z - oz; if (ddx * ddx + ddz * ddz > (tMax + 1.5) * (tMax + 1.5)) continue;
         const t = CORPS.rayon(ox, oy, oz, dx, dy, dz, c, tMax);
         if (t >= 0 && t < tMax) { tMax = t; cible = c; tete = CORPS.TOUCHE.tete; cx = CORPS.TOUCHE.cx; cyy = CORPS.TOUCHE.cy; cz = CORPS.TOUCHE.cz; }

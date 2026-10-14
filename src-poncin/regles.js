@@ -128,7 +128,7 @@
   function normaliserReglages(r, o) {
     r = r && typeof r === 'object' ? r : {};
     const D = DEFAUT_REGLAGES;
-    let humains = o && Number.isFinite(+o.humains) ? Math.round(+o.humains) : 1; humains = Math.max(1, Math.min(SALON.max, humains));
+    let humains = o && o.humains != null && Number.isFinite(+o.humains) ? Math.round(+o.humains) : 1; humains = Math.max(0, Math.min(SALON.max, humains)); // 0 : une partie de robots seuls (PJEU, tests)
     const n = (v, liste, defaut) => { const x = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? +v : NaN; return liste.indexOf(x) >= 0 ? x : defaut; };
     let bots = typeof r.bots === 'number' || (typeof r.bots === 'string' && r.bots.trim() !== '') ? Math.round(+r.bots) : D.bots;
     if (!Number.isFinite(bots)) bots = D.bots;

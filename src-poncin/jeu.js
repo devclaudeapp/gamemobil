@@ -25,11 +25,26 @@
    vise, viseStable, accroupiPrec, couchePrec, corpsV2, ax / ay / az / aoeil (la position au début du pas : le rendu interpole entre
    elle et la position), armes / slot / equip / changeJusqua ; e.accroupi reste (posture ≠ 'debout').
    Événements de tir pour le rendu (impacts, traceurs, douilles) : voir PARMES.tirer (point, normale, quoi, mat, arme).
-   PJEU.pasFixe({ pas: 1/60, max: 4 }) → { avancer(dtImage, fnPas) → alpha, remettre() } : la boucle à pas fixe (§ 2), pure. */
+   PJEU.pasFixe({ pas: 1/60, max: 4 }) → { avancer(dtImage, fnPas) → alpha, remettre() } : la boucle à pas fixe (§ 2), pure.
+   Livraison 3 « Le salon » : les options SONT les réglages normalisés (jeu.reglages === jeu.options = PREGLES.normaliserReglages(options,
+   { humains }) ; humains : params.humains, 0 par défaut, pour borner les robots à 6 − humains) :
+   - la zone (mode.zones vrai, PARENE) : jeu.zone = params.zone (reçue : PZONES.adopter) ou PZONES.preparer(carte, monde, null,
+     reglages.zone, mulberry32(graine ^ 0x2F6E2B1), reglages), AVANT mode.init (qui y lit apparitions et objets) ; monde.limite = zone.limite ;
+   - la vie : jeu.vieMax, jeu.armureMax (SALON.vies[vie] : normale 100 / 50, unCoup 1 / 0, costaud 200 / 100) ;
+   - jeu.peutBlesser(a, b) = a ≠ b et (équipes différentes ou tirAllie) : PARMES ne touche que là ; repeindre un équipier coûte 100 points
+     et ne compte pas de repeint ('mort' porte allie: true) ; jeu.treve (vrai entre deux manches) : personne n'est blessé ;
+   - l'aide (reglages.aide faux) : aideVisee ne ralentit ni n'aimante plus (permise: false ; surCible reste, pour le viseur rouge) ;
+   - l'heure et la météo : jeu.visibilite (m, la vue des robots : 25 la nuit, 30 dans le brouillard, Infinity sinon), jeu.visibiliteLampe
+     (45 m la nuit, 30 dans le brouillard : une cible dont la lampe éclaire le robot à ±35° se voit jusque-là), jeu.lampes (la nuit :
+     e.lampe vrai pour tous, drapeau 1024) ;
+   - params.robots (ou options.robots) : [{ id, nom, couleur, equipe, equip, niveau }], les robots listés par l'hôte (message 'lancer') :
+     le mode les ajoute tels quels au lieu de les tirer au sort ;
+   - jeu.duree (0 : sans limite, jeu.reste undefined), jeu.debutChrono (le chrono d'une manche part de là), jeu.manche (« dernier
+     debout », PARENE) ; crochet de mode apresNav(jeu), appelé une fois la navigation construite. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'), require('./nav.js'), require('./bots.js'), require('./corps.js'), require('./armes.js'));
-  else root.PJEU = factory(root.PREGLES, root.PNAV, root.PBOTS, root.PCORPS, root.PARMES);
-})(typeof self !== 'undefined' ? self : this, function (REGLES, NAV, BOTS, CORPS, ARMES) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'), require('./nav.js'), require('./bots.js'), require('./corps.js'), require('./armes.js'), require('./zones.js'));
+  else root.PJEU = factory(root.PREGLES, root.PNAV, root.PBOTS, root.PCORPS, root.PARMES, root.PZONES);
+})(typeof self !== 'undefined' ? self : this, function (REGLES, NAV, BOTS, CORPS, ARMES, ZONES) {
   'use strict';
   const J = REGLES.JOUEUR;
   const DT_MAX = 1 / 20;              // une image ne simule jamais plus de 50 ms
@@ -40,6 +55,14 @@
   const ECART = 0.7;                  // deux joueurs ne se superposent pas : ils se poussent doucement à moins de 0,7 m
   const AIDE_CONE = 4 * Math.PI / 180, AIDE_DIST = 40, AIDE_MAX = 2.5 * Math.PI / 180, AIDE_SUR = 1.5 * Math.PI / 180, AIDE_RALENTIR = 0.4;
   const NB_BRUITS = 24;
+  const PENALITE_ALLIE = 100;          // repeindre un équipier (tir allié) : −100 points, pas de repeint
+  // la vue des robots selon l'heure et la météo (conception § 8) : { vue, lampe } en m
+  function visibiliteDe(heure, meteo) {
+    let vue = Infinity, lampe = 0;
+    if (heure === 'nuit') { vue = 25; lampe = 45; }
+    if (meteo === 'brouillard') { vue = Math.min(vue, 30); if (lampe) lampe = 30; }
+    return { vue, lampe };
+  }
   const PORTEE_AUTO = { pompe: 12 };   // le tir auto de la pompe s'arrête à sa portée utile ; les autres : min(portée, 60, 1,2 × fin de la chute)
   const fini = (v) => typeof v === 'number' && v - v === 0;
   const borne = (v, a, b) => (v < a ? a : v > b ? b : v);
@@ -152,11 +175,13 @@
     const monde = params.monde;
     if (!monde || typeof monde.deplacer !== 'function') throw new Error('PJEU.creer : il faut un monde (PMONDE.creer)');
     const o = params.options || {};
-    const options = {
-      bots: fini(+o.bots) ? Math.max(0, Math.min(REGLES.NOMS_BOTS.length, Math.round(+o.bots))) : REGLES.MODES.arene.bots.defaut || 4,
-      niveau: REGLES.BOTS[o.niveau] ? o.niveau : 'normal', equipes: !!o.equipes,
-      armes: REGLES.armesPermises(o.armes), objets: o.objets !== false, // les armes permises (ordre du réseau) ; les objets au sol
-    };
+    // les options = les réglages normalisés (§ 6) : déjà normalisés par ui.js / enligne.js, normalisés encore ici (idempotent)
+    const humains = fini(+params.humains) ? Math.max(0, Math.min(REGLES.SALON.max, Math.round(+params.humains))) : 0;
+    const options = REGLES.normaliserReglages(o, { humains });
+    // les robots listés par l'hôte ('lancer') : tels quels (6 au plus)
+    let robots = Array.isArray(params.robots) ? params.robots : Array.isArray(o.robots) ? o.robots : null;
+    if (robots) { robots = robots.filter((r) => r && typeof r === 'object').slice(0, REGLES.SALON.max); options.bots = robots.length; }
+    const vies = REGLES.SALON.vies[options.vie] || REGLES.SALON.vies.normale, vis = visibiliteDe(options.heure, options.meteo);
     let graine = params.graine;
     graine = fini(+graine) ? (+graine >>> 0) : REGLES.hash(String(graine));
     const mode = params.mode && typeof params.mode === 'object' ? params.mode : MODE_LIBRE;
@@ -166,12 +191,14 @@
     let finDemandee = false;
 
     const jeu = {
-      monde, mode, options, graine, carte: params.carte || o.carte || monde.carte || null, nav: null,
+      monde, mode, options, reglages: options, graine, carte: params.carte || o.carte || monde.carte || null, nav: null, zone: null, robots,
+      vieMax: vies.vie, armureMax: vies.armureMax, visibilite: vis.vue, visibiliteLampe: vis.lampe, lampes: options.heure === 'nuit',
+      manche: null, treve: false, debutChrono: 0,
       entites, temps: 0, dt: 0, fini: false, duree: 0, image: 0, evenements: evs,
       rnd: REGLES.mulberry32(graine), rndBots: REGLES.mulberry32((graine ^ 0x9E3779B9) >>> 0),
       bruits, nBruits: 0, budgetNav: 2, erreurs: 0, derniereErreur: null,
-      get reste() { return jeu.duree > 0 ? Math.max(0, jeu.duree - jeu.temps) : undefined; },
-      ajouterJoueur, retirerJoueur, etape, classement, aideVisee, finir, trouver, ennemis, reapparaitre, resume,
+      get reste() { return jeu.duree > 0 ? Math.max(0, jeu.duree - (jeu.temps - jeu.debutChrono)) : undefined; },
+      ajouterJoueur, retirerJoueur, etape, classement, aideVisee, finir, trouver, ennemis, peutBlesser, reapparaitre, resume,
       reglerRetard, retardDe, historique, instantane,
       // pour PARMES (le tir) : compensation de latence, dégâts, bruits
       rembobiner, restaurer, blesser, faireBruit,
@@ -179,6 +206,7 @@
 
     function trouver(id) { for (let i = 0; i < entites.length; i++) if (entites[i].id === id) return entites[i]; return null; }
     function ennemis(a, b) { return !!a && !!b && a !== b && a.equipe !== b.equipe; }
+    function peutBlesser(a, b) { return !!a && !!b && a !== b && (a.equipe !== b.equipe || options.tirAllie === true); } // le tir allié
     function erreur(ou, err) { jeu.erreurs++; jeu.derniereErreur = ou + ' : ' + (err && err.message ? err.message : String(err)); }
     function faireBruit(e, portee) {
       const b = bruits[jeu.nBruits % NB_BRUITS]; jeu.nBruits++;
@@ -203,8 +231,8 @@
         vie: J.vie, armure: 0, vivant: true, mortDepuis: -1, apparuA: 0, invincible: 0,
         arme: null, armes: [], slot: 0, equip: null, changeJusqua: 0, changeReste: 0,
         munitions: {}, reserve: {}, rechargeJusqua: 0, enRecharge: false, prochainTir: 0,
-        score: { kills: 0, morts: 0, points: 0 }, serie: 0,
-        dispersion: 0, gonfle: 0, dernierTir: -1, toucheA: -1, parQui: null, tueTete: false, foulee: 0, ia: null, lampe: false,
+        score: { kills: 0, morts: 0, points: 0, manches: 0 }, serie: 0,
+        dispersion: 0, gonfle: 0, dernierTir: -1, toucheA: -1, parQui: null, tueTete: false, foulee: 0, ia: null, lampe: jeu.lampes,
       };
       // l'équipement (deux emplacements) : celui demandé s'il est permis, sinon l'équipement par défaut permis (placer l'applique)
       e.equip = REGLES.equipementDe(d.equip, options);
@@ -235,7 +263,7 @@
       e.posture = e.vers = 'debout'; e.transition = 0; e.oeil = PO.debout.oeil; e.hautCapsule = PO.debout.haut; e.corpsV2 = true;
       e.course = false; e.gv = 0; e.gdx = 0; e.gdz = 0; e.relanceA = 0; e.receptionA = 0; e.remonte = 0; e.accroupiPrec = false; e.couchePrec = false;
       e.ax = e.x; e.ay = e.y; e.az = e.z; e.aoeil = e.oeil; // une téléportation : pas d'interpolation à travers
-      e.vie = J.vie; e.armure = 0; e.vivant = true; e.apparuA = jeu.temps; e.invincible = reglesMode.invincible || 0;
+      e.vie = jeu.vieMax; e.armure = 0; e.vivant = true; e.apparuA = jeu.temps; e.invincible = reglesMode.invincible || 0; e.lampe = jeu.lampes;
       ARMES.equiper(e, e.equip || REGLES.equipementDe(null, options), options); // l'équipement choisi, la principale en main
       e.prochainTir = jeu.temps + 0.2; e.foulee = 0; e.tueTete = false;
     }
@@ -306,12 +334,14 @@
       for (let k = 0; k < entites.length; k++) e[k] = ligneDe(entites[k], jeu.temps, acks ? acks[entites[k].id] : 0);
       let o = ''; let objs = null; try { objs = mode.objets ? mode.objets(jeu) : null; } catch (err) { objs = null; }
       if (objs) for (let i = 0; i < objs.length; i++) o += objs[i].dispo ? '1' : '0';
-      return { t: r3(jeu.temps), e, o, r: jeu.duree > 0 ? r2(Math.max(0, jeu.duree - jeu.temps)) : -1, f: jeu.fini ? 1 : 0 };
+      const reste = jeu.reste;
+      return { t: r3(jeu.temps), e, o, r: reste !== undefined ? r2(reste) : -1, f: jeu.fini ? 1 : 0 };
     }
 
     // ─── les armes : PARMES (armes.js) ; le tir appelle les crochets jeu.rembobiner / restaurer / blesser / faireBruit ───
     function blesser(c, de, degats, tete, armeId, out) {
-      if (!c.vivant || !(degats > 0) || c.invincible > 0) return; // protégé juste après l'apparition
+      if (!c.vivant || !(degats > 0) || c.invincible > 0 || jeu.treve) return; // protégé juste après l'apparition ; entre deux manches
+      if (de && de !== c && !peutBlesser(de, c)) return;                     // un équipier sans tir allié
       const abs = Math.min(c.armure, Math.round(degats * ABSORBE));
       c.armure -= abs; c.vie -= degats - abs; c.toucheA = jeu.temps; c.parQui = de ? de.id : null;
       const mort = c.vie <= 0;
@@ -321,8 +351,11 @@
     function tuer(v, k, armeId, tete, out) {
       v.vie = 0; v.vivant = false; v.mortDepuis = jeu.temps; v.vx = v.vz = v.vy = 0; v.vitesse = 0; v.enRecharge = false; v.rechargeJusqua = 0;
       v.score.morts++; v.serie = 0; v.tueTete = !!tete;
-      if (k && k !== v) { k.score.kills++; k.serie++; }
-      out.push({ t: 'mort', a: v.id, par: k ? k.id : null, arme: armeId, tete: !!tete });
+      const allie = !!k && k !== v && !ennemis(k, v);
+      if (allie) k.score.points -= PENALITE_ALLIE; // un équipier repeint (tir allié) : une pénalité, pas un repeint
+      else if (k && k !== v) { k.score.kills++; k.serie++; }
+      const ev = { t: 'mort', a: v.id, par: k ? k.id : null, arme: armeId, tete: !!tete }; if (allie) ev.allie = true;
+      out.push(ev);
       if (mode.surMort) { try { mode.surMort(jeu, v, k, out); } catch (err) { erreur('mode.surMort', err); } }
     }
 
@@ -362,14 +395,14 @@
     function utile(e, nom) {
       const O = REGLES.OBJETS[nom]; if (!O) return false;
       if (O.type === 'arme' && options.armes.indexOf(O.arme) < 0) return false; // une arme que l'hôte n'a pas permise ne se prend pas
-      if (O.type === 'soin') return e.vie < J.vie;
-      if (O.type === 'armure') return e.armure < J.armureMax;
+      if (O.type === 'soin') return e.vie < jeu.vieMax;
+      if (O.type === 'armure') return e.armure < jeu.armureMax;
       return ARMES.utile(e, O); // armes et munitions
     }
     function prendre(e, nom) {
       const O = REGLES.OBJETS[nom];
-      if (O.type === 'soin') e.vie = Math.min(J.vie, e.vie + O.vie);
-      else if (O.type === 'armure') e.armure = Math.min(J.armureMax, e.armure + O.armure);
+      if (O.type === 'soin') e.vie = Math.min(jeu.vieMax, e.vie + O.vie);
+      else if (O.type === 'armure') e.armure = Math.min(jeu.armureMax, e.armure + O.armure);
       else ARMES.prendre(e, O, jeu);
     }
     function ramasser(out) {
@@ -419,16 +452,16 @@
 
     // ─── le classement : les repeints (le critère de fin de l'Arène), départagés par les points, puis le moins de morts ; à égalité
     // parfaite, les humains devant les robots ───
-    const parScore = (a, b) => b.score.kills - a.score.kills || b.score.points - a.score.points || a.score.morts - b.score.morts || (a.bot === b.bot ? 0 : a.bot ? 1 : -1) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+    const parScore = (a, b) => (b.score.manches | 0) - (a.score.manches | 0) || b.score.kills - a.score.kills || b.score.points - a.score.points || a.score.morts - b.score.morts || (a.bot === b.bot ? 0 : a.bot ? 1 : -1) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
     function classement() { return entites.slice().sort(parScore); }
-    function resume() { return classement().map((e) => ({ id: e.id, nom: e.nom, couleur: e.couleur, equipe: e.equipe, bot: e.bot, humain: e.humain, kills: e.score.kills, morts: e.score.morts, points: e.score.points })); }
+    function resume() { return classement().map((e) => ({ id: e.id, nom: e.nom, couleur: e.couleur, equipe: e.equipe, bot: e.bot, humain: e.humain, kills: e.score.kills, morts: e.score.morts, points: e.score.points, manches: e.score.manches | 0 })); }
 
     // ─── l'aide à la visée (humains au doigt) : ralentit et aimante doucement près d'une cible, dit si le viseur est dessus ───
-    const AIDE = { dyaw: 0, dpitch: 0, surCible: false, ralentir: 0, cible: null };
+    const AIDE = { dyaw: 0, dpitch: 0, surCible: false, ralentir: 0, cible: null, permise: true };
     function aideVisee(id, force) {
-      AIDE.dyaw = 0; AIDE.dpitch = 0; AIDE.surCible = false; AIDE.ralentir = 0; AIDE.cible = null;
+      AIDE.dyaw = 0; AIDE.dpitch = 0; AIDE.surCible = false; AIDE.ralentir = 0; AIDE.cible = null; AIDE.permise = options.aide !== false;
       const e = trouver(id); if (!e || !e.vivant || e.bot || jeu.fini) return AIDE;
-      force = num(force, 0, 1);
+      force = AIDE.permise ? num(force, 0, 1) : 0; // l'hôte a coupé l'aide : ni ralenti ni aimant (le viseur rouge reste)
       const A = REGLES.arme(e.arme), ox = e.x, oy = e.y + oeil(e), oz = e.z;
       const sy = Math.sin(e.yaw), cy = Math.cos(e.yaw), sp = Math.sin(e.pitch), cp = Math.cos(e.pitch), dx = -sy * cp, dy = sp, dz = -cy * cp;
       const porteeSur = PORTEE_AUTO[A.id] || Math.min(A.portee, 60, A.chute[1] * 1.2); // le tir auto seulement là où l'arme sert (la pompe à 18 m ne fait plus que 3 à 6 dégâts)
@@ -456,10 +489,18 @@
       return AIDE;
     }
 
-    // ─── la mise en place : le mode (zones, bots), puis la navigation des bots sur la zone jouée ───
+    // ─── la mise en place : la zone (reçue, ou préparée avec son hasard à part), le mode (apparitions, objets, bots), puis la navigation
+    // des bots sur la zone jouée (déjà construite par la zone : en cache sur le monde) et le crochet apresNav ───
+    if (mode.zones && ZONES) {
+      try {
+        let z = params.zone ? ZONES.adopter(params.zone, monde) : null;
+        if (!z) z = ZONES.preparer(jeu.carte, monde, null, options.zone, REGLES.mulberry32((graine ^ 0x2F6E2B1) >>> 0), options);
+        jeu.zone = z;
+      } catch (err) { erreur('zone', err); jeu.zone = null; }
+    }
     try { if (mode.init) mode.init(jeu); } catch (err) { erreur('mode.init', err); }
-    if (!jeu.duree && reglesMode && mode !== MODE_LIBRE) jeu.duree = reglesMode.duree || 0;
     if (NAV && params.nav !== false && typeof monde.passe === 'function') { try { jeu.nav = NAV.creer(monde, { pas: 1.5, marge: 0.45 }); } catch (err) { erreur('nav', err); jeu.nav = null; } }
+    if (mode.apresNav) { try { mode.apresNav(jeu); } catch (err) { erreur('mode.apresNav', err); } }
     return jeu;
   }
 

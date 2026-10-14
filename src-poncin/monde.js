@@ -27,7 +27,9 @@
    prof (Float64Array n + 1), max }] (le profil que rendu.js dessine, chaussée à prof + PMONDE.CHAUSSEE), bloque(x, z, r), deplacer(x, z, dx, dz, r) → [x, z], rayon(o…, d…, max) → { t, x, y, z,
    nx, ny, nz, quoi: 'mur' | 'toit' | 'sol', i, de, k } | null (i : indice du bâtiment, −1 sinon ; de : 'batiment' | 'voute' | 'arbre' |
    'mur' | 'mobilier' | 'terrain' ; k : l'indice dans carte.arbres, carte.murs ou carte.mobilier, celui du passage pour une voûte, −1
-   sinon ; normale unitaire tournée vers le tireur), vue(a…, b…), libre(rnd, centre?, rayon?) → [x, z], limite, batiments [{ p, h, t,
+   sinon ; normale unitaire tournée vers le tireur), vue(a…, b…), libre(rnd, centre?, rayon?) → [x, z], limite (null, { centre, rayon }
+   — le chemin rapide d'avant, aussi pour une limite PMONDE.limiteDe de forme 'cercle' — ou une limite v2 de PMONDE.limiteDe : ses
+   arêtes bloquent bloque, deplacer, passe et la navigation, pas les tirs ; libre tire alors dans sa boîte), batiments [{ p, h, t,
    base, sommet, aabb, … }] (p dans le sens d'aire signée Σ(x_i·z_{i+1} − x_{i+1}·z_i) > 0 : la normale extérieure de l'arête a→b est
    (bz − az, ax − bx) / longueur), passages (ci-dessous).
    En plus : passe(ax, az, bx, bz, r) (la capsule du segment ne touche rien), dedans(x, z) (dans une région pleine), pente(x, z) →
@@ -118,6 +120,151 @@
     return Math.min(dr(ax, az), dr(bx, bz), d2PtSeg(x0, z0, ax, az, bx, bz), d2PtSeg(x1, z0, ax, az, bx, bz), d2PtSeg(x0, z1, ax, az, bx, bz), d2PtSeg(x1, z1, ax, az, bx, bz));
   }
   function boite(p) { let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity; for (const [x, z] of p) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); } return [x0, z0, x1, z1]; }
+
+  // ─── la limite d'une zone (v2, conception § 7) : PMONDE.limiteDe(def) → limite | null ───
+  // def (JSON simple, c'est lui qui voyage sur le réseau) : { forme: 'cercle', centre: [x, z], rayon } | { forme: 'cercles', cercles:
+  // [[x, z, r], …] } (leur union) | { forme: 'poly', p: [[x, z], …] } | { forme: 'carre', centre: [x, z], cote }.
+  // La limite rendue : { v: 2, forme, def, centre, rayon (le cercle englobant), boite: [x0, z0, x1, z1], aretes: Float64Array [ax, az,
+  // bx, bz, …] (le bord, ≤ 1500 arêtes : cordes de L_CORDE m sur les cercles, coupées là où un autre cercle les recouvre), n, aire (m²,
+  // lue sur le masque), dedans(x, z), distance(x, z) (au bord le plus proche, > 0 dedans), pres(x, z, r) (une arête à moins de r),
+  // touche(ax, az, bx, bz, r) (la capsule du segment touche une arête), rassembler(x0, z0, x1, z1) → nombre d'arêtes dont la boîte touche
+  // ce rectangle, rangées dans cand }. Les arêtes sont rangées dans une petite grille à part (L_CELLULE m, inscrites à L_MARGE m près) ;
+  // dedans() lit un masque de L_MASQUE m (cases pleines, vides ou mêlées : un vrai test seulement dans les cases que traverse le bord).
+  // 'cercle' garde le chemin rapide de monde.js ({ centre, rayon } : comme l'arène d'avant) ; les arêtes ne servent alors qu'au dessin.
+  // Les arêtes bloquent bloque, deplacer, passe et la navigation, jamais les tirs ni les vues.
+  const L_CELLULE = 8, L_MARGE = 2, L_MASQUE = 4, L_CORDE = 3, L_MAX = 1500;
+  function limiteDe(def) {
+    if (!def || typeof def !== 'object') return null;
+    const forme = def.forme || (def.centre && def.rayon > 0 ? 'cercle' : null);
+    const segs = []; let cercles = null, f = null, cc = null, demi = 0, propre = null;
+    const corde = (r) => Math.max(24, Math.ceil(2 * Math.PI * r / L_CORDE));
+    if (forme === 'cercle' || forme === 'cercles') {
+      const liste = forme === 'cercle' ? [[def.centre && +def.centre[0], def.centre && +def.centre[1], +def.rayon]] : Array.isArray(def.cercles) ? def.cercles : [];
+      cercles = [];
+      for (const c of liste) if (c && fini(+c[0]) && fini(+c[1]) && fini(+c[2]) && c[2] > 0.5) cercles.push([+c[0], +c[1], +c[2]]);
+      if (!cercles.length) return null;
+      // les cordes de chaque cercle, moins les morceaux qui sont dans un autre cercle (intervalles en t sur la corde)
+      let total = 0; for (const c of cercles) total += corde(c[2]);
+      const k = total > L_MAX * 2.5 ? total / (L_MAX * 2.5) : 1; // beaucoup de cercles : des cordes plus longues
+      for (let i = 0; i < cercles.length; i++) {
+        const [x, z, r] = cercles[i], n = Math.max(12, Math.round(corde(r) / k));
+        for (let s = 0; s < n; s++) {
+          const a0 = 2 * Math.PI * s / n, a1 = 2 * Math.PI * (s + 1) / n;
+          const ax = x + r * Math.cos(a0), az = z + r * Math.sin(a0), bx = x + r * Math.cos(a1), bz = z + r * Math.sin(a1), ex = bx - ax, ez = bz - az, l2 = ex * ex + ez * ez;
+          let morceaux = [[0, 1]];
+          for (let j = 0; j < cercles.length && morceaux.length; j++) {
+            if (j === i) continue;
+            const [cx, cz, cr] = cercles[j], px = ax - cx, pz = az - cz, B = px * ex + pz * ez, C = px * px + pz * pz - cr * cr, D = B * B - l2 * C;
+            if (D <= 0) continue;
+            const t1 = (-B - Math.sqrt(D)) / l2, t2 = (-B + Math.sqrt(D)) / l2; if (t2 <= 0 || t1 >= 1) continue;
+            const suite = [];
+            for (const [u, v] of morceaux) { if (t1 > u) suite.push([u, Math.min(v, t1)]); if (t2 < v) suite.push([Math.max(u, t2), v]); }
+            morceaux = suite.filter((m) => m[1] - m[0] > 1e-6);
+          }
+          for (const [u, v] of morceaux) segs.push(ax + ex * u, az + ez * u, ax + ex * v, az + ez * v);
+        }
+      }
+      if (forme === 'cercle') { cc = [cercles[0][0], cercles[0][1]]; propre = { forme, centre: cc.slice(), rayon: cercles[0][2] }; }
+      else propre = { forme, cercles: cercles.map((c) => c.slice()) };
+    } else if (forme === 'poly') {
+      const q = nettoyer(def.p); if (!q) return null;
+      f = aplatir(q);
+      for (let i = 0; i < q.length; i++) { const a = q[i], b = q[(i + 1) % q.length]; segs.push(a[0], a[1], b[0], b[1]); }
+      propre = { forme, p: q.map((p) => p.slice()) };
+    } else if (forme === 'carre') {
+      const c = def.centre; demi = +def.cote / 2;
+      if (!c || !fini(+c[0]) || !fini(+c[1]) || !(demi > 1)) return null;
+      cc = [+c[0], +c[1]];
+      const x0 = cc[0] - demi, z0 = cc[1] - demi, x1 = cc[0] + demi, z1 = cc[1] + demi;
+      segs.push(x0, z0, x1, z0, x1, z0, x1, z1, x1, z1, x0, z1, x0, z1, x0, z0);
+      propre = { forme, centre: cc.slice(), cote: 2 * demi };
+    } else return null;
+    const n = segs.length / 4;
+    if (!n || n > L_MAX) return null;
+    const A = new Float64Array(segs);
+    // la boîte et le cercle englobant
+    let bx0 = Infinity, bz0 = Infinity, bx1 = -Infinity, bz1 = -Infinity;
+    if (cercles) for (const [x, z, r] of cercles) { bx0 = Math.min(bx0, x - r); bz0 = Math.min(bz0, z - r); bx1 = Math.max(bx1, x + r); bz1 = Math.max(bz1, z + r); }
+    else for (let k = 0; k < A.length; k += 2) { bx0 = Math.min(bx0, A[k]); bx1 = Math.max(bx1, A[k]); bz0 = Math.min(bz0, A[k + 1]); bz1 = Math.max(bz1, A[k + 1]); }
+    const centre = cc ? cc.slice() : [(bx0 + bx1) / 2, (bz0 + bz1) / 2];
+    let rayon = 0;
+    if (forme === 'cercle') rayon = cercles[0][2];
+    else if (cercles) for (const [x, z, r] of cercles) rayon = Math.max(rayon, Math.hypot(x - centre[0], z - centre[1]) + r);
+    else for (let k = 0; k < A.length; k += 2) rayon = Math.max(rayon, Math.hypot(A[k] - centre[0], A[k + 1] - centre[1]));
+    // le vrai test « dedans »
+    const exact = cercles ? (x, z) => { for (let i = 0; i < cercles.length; i++) { const c = cercles[i], dx = x - c[0], dz = z - c[1]; if (dx * dx + dz * dz <= c[2] * c[2]) return true; } return false; }
+      : f ? (x, z) => dansPoly(f, x, z) : (x, z) => Math.abs(x - cc[0]) <= demi && Math.abs(z - cc[1]) <= demi;
+    // la grille des arêtes (cellules de L_CELLULE m, chaque arête inscrite à L_MARGE m près)
+    const GX0 = bx0 - L_MARGE - 1, GZ0 = bz0 - L_MARGE - 1, GW = Math.max(1, Math.ceil((bx1 - bx0 + 2 * L_MARGE + 2) / L_CELLULE)), GH = Math.max(1, Math.ceil((bz1 - bz0 + 2 * L_MARGE + 2) / L_CELLULE));
+    const gi = (x) => { const i = Math.floor((x - GX0) / L_CELLULE); return i < 0 ? 0 : i >= GW ? GW - 1 : i; }, gj = (z) => { const j = Math.floor((z - GZ0) / L_CELLULE); return j < 0 ? 0 : j >= GH ? GH - 1 : j; };
+    const listes = Array.from({ length: GW * GH }, () => []);
+    for (let k = 0; k < n; k++) {
+      const o = 4 * k, ax = A[o], az = A[o + 1], bx = A[o + 2], bz = A[o + 3];
+      for (let j = gj(Math.min(az, bz) - L_MARGE); j <= gj(Math.max(az, bz) + L_MARGE); j++)
+        for (let i = gi(Math.min(ax, bx) - L_MARGE); i <= gi(Math.max(ax, bx) + L_MARGE); i++)
+          if (d2SegRect(ax, az, bx, bz, GX0 + i * L_CELLULE, GZ0 + j * L_CELLULE, GX0 + (i + 1) * L_CELLULE, GZ0 + (j + 1) * L_CELLULE) <= L_MARGE * L_MARGE) listes[j * GW + i].push(k);
+    }
+    const D0 = new Int32Array(GW * GH + 1); let tot = 0; for (let c = 0; c < GW * GH; c++) { D0[c] = tot; tot += listes[c].length; } D0[GW * GH] = tot;
+    const DV = new Int32Array(tot); for (let c = 0; c < GW * GH; c++) DV.set(listes[c], D0[c]);
+    // le masque (cases de L_MASQUE m) : 0 dehors, 1 dedans, 2 le bord la traverse (vrai test)
+    const MX0 = bx0 - L_MASQUE, MZ0 = bz0 - L_MASQUE, MW = Math.ceil((bx1 - bx0) / L_MASQUE) + 2, MH = Math.ceil((bz1 - bz0) / L_MASQUE) + 2, MASQUE = new Uint8Array(MW * MH);
+    let pleines = 0, melees = 0;
+    for (let j = 0; j < MH; j++) for (let i = 0; i < MW; i++) {
+      const x0 = MX0 + i * L_MASQUE, z0 = MZ0 + j * L_MASQUE, x1 = x0 + L_MASQUE, z1 = z0 + L_MASQUE;
+      let bord = false; const c = gj((z0 + z1) / 2) * GW + gi((x0 + x1) / 2);
+      for (let s = D0[c]; s < D0[c + 1] && !bord; s++) { const o = 4 * DV[s]; if (d2SegRect(A[o], A[o + 1], A[o + 2], A[o + 3], x0, z0, x1, z1) <= 0) bord = true; }
+      // (une case de 4 m tient dans une cellule de 8 m, à L_MARGE près : sa cellule a toutes les arêtes qui la traversent, sauf à cheval)
+      if (!bord) for (const [xx, zz] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) { const c2 = gj(zz) * GW + gi(xx); if (c2 === c) continue; for (let s = D0[c2]; s < D0[c2 + 1] && !bord; s++) { const o = 4 * DV[s]; if (d2SegRect(A[o], A[o + 1], A[o + 2], A[o + 3], x0, z0, x1, z1) <= 0) bord = true; } }
+      const v = bord ? 2 : exact((x0 + x1) / 2, (z0 + z1) / 2) ? 1 : 0; MASQUE[j * MW + i] = v; if (v === 1) pleines++; else if (v === 2) melees++;
+    }
+    function dedans(x, z) {
+      if (!fini(x) || !fini(z)) return false;
+      const i = Math.floor((x - MX0) / L_MASQUE), j = Math.floor((z - MZ0) / L_MASQUE);
+      if (i < 0 || j < 0 || i >= MW || j >= MH) return false;
+      const v = MASQUE[j * MW + i]; return v === 2 ? exact(x, z) : v === 1;
+    }
+    const VU = new Uint32Array(n), cand = new Int32Array(n); let tour = 0;
+    const nouveau = () => { if (++tour > 4e9) { VU.fill(0); tour = 1; } return tour; };
+    function rassembler(x0, z0, x1, z1) { // les arêtes dont la boîte touche [x0, x1] × [z0, z1] → cand ; renvoie leur nombre
+      const t = nouveau(); let m = 0;
+      for (let j = gj(z0 - L_MARGE); j <= gj(z1 + L_MARGE); j++) for (let i = gi(x0 - L_MARGE); i <= gi(x1 + L_MARGE); i++) {
+        const c = j * GW + i;
+        for (let s = D0[c]; s < D0[c + 1]; s++) {
+          const k = DV[s]; if (VU[k] === t) continue; VU[k] = t;
+          const o = 4 * k, ax = A[o], az = A[o + 1], bx = A[o + 2], bz = A[o + 3];
+          if ((ax < bx ? ax : bx) > x1 || (ax > bx ? ax : bx) < x0 || (az < bz ? az : bz) > z1 || (az > bz ? az : bz) < z0) continue;
+          cand[m++] = k;
+        }
+      }
+      return m;
+    }
+    function pres(x, z, r) { // une arête à moins de r du point
+      if (!fini(x) || !fini(z)) return true;
+      r = r > 0 ? +r : 0;
+      if (r <= L_MARGE) { const c = gj(z) * GW + gi(x); for (let s = D0[c]; s < D0[c + 1]; s++) { const o = 4 * DV[s]; if (d2PtSeg(x, z, A[o], A[o + 1], A[o + 2], A[o + 3]) < r * r) return true; } return false; }
+      const m = rassembler(x - r, z - r, x + r, z + r);
+      for (let s = 0; s < m; s++) { const o = 4 * cand[s]; if (d2PtSeg(x, z, A[o], A[o + 1], A[o + 2], A[o + 3]) < r * r) return true; }
+      return false;
+    }
+    function touche(ax, az, bx, bz, r) { // la capsule de rayon r le long de a→b touche (ou croise) une arête
+      r = r > 0 ? +r : 0;
+      const m = rassembler(Math.min(ax, bx) - r, Math.min(az, bz) - r, Math.max(ax, bx) + r, Math.max(az, bz) + r);
+      for (let s = 0; s < m; s++) { const o = 4 * cand[s]; if (d2SegSeg(ax, az, bx, bz, A[o], A[o + 1], A[o + 2], A[o + 3]) < r * r) return true; }
+      return false;
+    }
+    function distance(x, z) { // au bord le plus proche (m), > 0 dedans, < 0 dehors
+      if (!fini(x) || !fini(z)) return -Infinity;
+      let d2 = Infinity; for (let o = 0; o < A.length; o += 4) { const d = d2PtSeg(x, z, A[o], A[o + 1], A[o + 2], A[o + 3]); if (d < d2) d2 = d; }
+      const d = Math.sqrt(d2); return dedans(x, z) ? d : -d;
+    }
+    return {
+      v: 2, forme, def: propre, centre, rayon, boite: [bx0, bz0, bx1, bz1], aretes: A, n,
+      aire: (pleines + melees / 2) * L_MASQUE * L_MASQUE, cercles: cercles ? cercles.map((c) => c.slice()) : null,
+      dedans, distance, pres, touche, rassembler, cand,
+    };
+  }
+  // une limite v2 que monde.js lit par ses arêtes (toutes sauf 'cercle', qui garde le chemin rapide { centre, rayon })
+  const limiteV2 = (l) => !!(l && l.v === 2 && l.forme !== 'cercle' && l.aretes && typeof l.dedans === 'function');
   function croisementsPoly(q, ax, az, bx, bz) { // où le segment a→b coupe le bord du polygone q : [{ t (0..1 sur a→b), a (arête q[a]→q[a+1]), s (m depuis q[a]) }], dans l'ordre
     const r = [], ex = bx - ax, ez = bz - az;
     for (let k = 0; k < q.length; k++) {
@@ -553,7 +700,8 @@
       if (!fini(x) || !fini(z)) return true;
       if (x < X0 + r || x > X1 - r || z < X0 + r || z > X1 - r) return true;
       const lim = monde.limite;
-      if (limiteOk(lim)) { const dx = x - lim.centre[0], dz = z - lim.centre[1], m = lim.rayon - r; if (m <= 0 || dx * dx + dz * dz > m * m) return true; }
+      if (limiteV2(lim)) { if (!lim.dedans(x, z) || lim.pres(x, z, r)) return true; } // la limite v2 : dedans, et pas plus près d'une arête que r
+      else if (limiteOk(lim)) { const dx = x - lim.centre[0], dz = z - lim.centre[1], m = lim.rayon - r; if (m <= 0 || dx * dx + dz * dz > m * m) return true; }
       if (r <= MARGE) {
         const c = ci(z) * G + ci(x);
         for (let s = cA0[c]; s < cA0[c + 1]; s++) { const k = cA[s], o = 4 * k, rr = r + EW[k]; if (d2PtSeg(x, z, E[o], E[o + 1], E[o + 2], E[o + 3]) < rr * rr) return true; }
@@ -568,6 +716,7 @@
     // à la fin de chaque sous-pas, aucune arête plus près que le rayon (plus sa demi-épaisseur) et aucune arête franchie ; sinon on essaie
     // l'axe x seul, l'axe z seul, ou on reste. Une position de départ déjà enfoncée peut en sortir, jamais s'enfoncer davantage. ───
     let QX = 0, QZ = 0, NC = 0, BX0 = 0, BZ0 = 0, BX1 = 0, BZ1 = 0, SEUIL = 0, SEUIL2 = 0, LCX = 0, LCZ = 0, LM = -1;
+    let NL = 0, LE = null, LCA = null, LIM = null, LIN = false; // la limite v2 : ses arêtes candidates (LCA, NL) dans LE, et si l'on partait dedans
     function essai(px, pz, sx, sz, r) {
       let qx = px + sx, qz = pz + sz;
       for (let it = 0; it < 5; it++) {
@@ -585,6 +734,16 @@
           } else { const kk = (rr + PEAU - d) / d; qx += dx * kk; qz += dz * kk; }
           bouge = true;
         }
+        for (let s = 0; s < NL; s++) { // les arêtes de la limite v2 : des murs fins
+          const o = 4 * LCA[s], ax = LE[o], az = LE[o + 1], ex = LE[o + 2] - ax, ez = LE[o + 3] - az, l2 = ex * ex + ez * ez;
+          let t = l2 > 0 ? ((qx - ax) * ex + (qz - az) * ez) / l2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+          let dx = qx - ax - t * ex, dz = qz - az - t * ez; const d2 = dx * dx + dz * dz;
+          if (d2 >= r * r) continue;
+          let d = Math.sqrt(d2);
+          if (d < 1e-9) { dx = ez; dz = -ex; d = Math.sqrt(l2) || 1; if ((px - ax) * dx + (pz - az) * dz < 0) { dx = -dx; dz = -dz; } qx += dx / d * (r + PEAU); qz += dz / d * (r + PEAU); }
+          else { const kk = (r + PEAU - d) / d; qx += dx * kk; qz += dz * kk; }
+          bouge = true;
+        }
         if (LM >= 0) { const dx = qx - LCX, dz = qz - LCZ, d = Math.sqrt(dx * dx + dz * dz); if (d > LM) { const k = (LM - PEAU) / d; qx = LCX + dx * k; qz = LCZ + dz * k; bouge = true; } }
         if (!bouge) break;
       }
@@ -594,6 +753,11 @@
         if (w > 0) { const sw = SEUIL + w; if (sw > 0 && d2 < sw * sw) return false; } else if (d2 < SEUIL2) return false;
         if (croise(px, pz, qx, qz, ax, az, bx, bz)) return false;
       }
+      for (let s = 0; s < NL; s++) {
+        const o = 4 * LCA[s], ax = LE[o], az = LE[o + 1], bx = LE[o + 2], bz = LE[o + 3];
+        if (d2PtSeg(qx, qz, ax, az, bx, bz) < SEUIL2 || croise(px, pz, qx, qz, ax, az, bx, bz)) return false;
+      }
+      if (LIN && !LIM.dedans(qx, qz)) return false; // parti dedans : on y reste (même par un interstice entre deux cordes)
       if (LM >= 0) { const dx = qx - LCX, dz = qz - LCZ; if (dx * dx + dz * dz > (LM + 1e-6) * (LM + 1e-6)) return false; }
       QX = qx; QZ = qz; return true;
     }
@@ -615,14 +779,16 @@
       if (n > 400) { const k = 400 * pas / lg; dx *= k; dz *= k; lg *= k; n = 400; } // un « déplacement » de plus de 400 sous-pas n'en est pas un
       const m = 3 * r + 0.1, x0 = Math.min(x, x + dx), x1 = Math.max(x, x + dx), z0 = Math.min(z, z + dz), z1 = Math.max(z, z + dz);
       NC = rassembler(x0, z0, x1, z1, m); BX0 = x0 - 2 * r; BX1 = x1 + 2 * r; BZ0 = z0 - 2 * r; BZ1 = z1 + 2 * r;
+      const lim = monde.limite; LM = -1; NL = 0; LIN = false; LIM = null;
+      if (limiteV2(lim)) { LIM = lim; LE = lim.aretes; LCA = lim.cand; NL = lim.rassembler(x0 - m, z0 - m, x1 + m, z1 + m); LIN = lim.dedans(x, z); }
+      else if (limiteOk(lim)) { LCX = +lim.centre[0]; LCZ = +lim.centre[1]; LM = Math.max(lim.rayon - r, Math.hypot(x - LCX, z - LCZ)); }
       let jeu2 = Infinity, jeuW = Infinity; // le dégagement de départ : un cercle déjà enfoncé a le droit de le rester, pas de s'enfoncer plus
       for (let s = 0; s < NC; s++) {
         const k = CAND[s], o = 4 * k, d2 = d2PtSeg(x, z, E[o], E[o + 1], E[o + 2], E[o + 3]), w = EW[k];
         if (w > 0) { const d = Math.sqrt(d2) - w; if (d < jeuW) jeuW = d; } else if (d2 < jeu2) jeu2 = d2;
       }
+      for (let s = 0; s < NL; s++) { const o = 4 * LCA[s], d2 = d2PtSeg(x, z, LE[o], LE[o + 1], LE[o + 2], LE[o + 3]); if (d2 < jeu2) jeu2 = d2; }
       const seuil = Math.min(r - 1e-3, Math.sqrt(jeu2) - 1e-6, jeuW - 1e-6); SEUIL = seuil; SEUIL2 = seuil > 0 ? seuil * seuil : 0;
-      const lim = monde.limite; LM = -1;
-      if (limiteOk(lim)) { LCX = +lim.centre[0]; LCZ = +lim.centre[1]; LM = Math.max(lim.rayon - r, Math.hypot(x - LCX, z - LCZ)); }
       const sx = dx / n, sz = dz / n; let px = x, pz = z;
       for (let k = 0; k < n; k++) {
         if (essai(px, pz, sx, sz, r) || essai(px, pz, sx, 0, r) || essai(px, pz, 0, sz, r)) { px = QX; pz = QZ; }
@@ -635,6 +801,7 @@
     function passe(ax, az, bx, bz, r) {
       r = r > 0 ? +r : 0;
       if (bloque(ax, az, r) || bloque(bx, bz, r)) return false;
+      const lim = monde.limite; if (limiteV2(lim) && lim.touche(ax, az, bx, bz, r)) return false; // la limite v2 arrête le passage (pas les tirs)
       if (r <= MARGE) {
         const t = nouveauTour(), n = traverser(ax, az, bx, bz);
         for (let s = 0; s < n; s++) {
@@ -791,18 +958,21 @@
       return !lancer(ax, ay, az, dx / l, dy / l, dz / l, l - 0.02);
     }
 
-    // ─── libre : un point au hasard à au moins 1 m de tout mur (dans le cercle donné, sinon la limite, sinon tout le carré) ───
+    // ─── libre : un point au hasard à au moins 1 m de tout mur (dans le cercle donné, sinon la limite — sa boîte pour une limite v2 —,
+    // sinon tout le carré) ───
     const rndDefaut = REGLES && REGLES.mulberry32 ? REGLES.mulberry32(0x504f4e43) : (() => { let s = 1; return () => (s = (s * 16807) % 2147483647) / 2147483647; })();
     function libre(rnd, centre, rayonZone) {
       if (typeof rnd !== 'function') rnd = rndDefaut;
-      let cx = 0, cz = 0, R = 0, carre = true;
+      let cx = 0, cz = 0, R = 0, carre = true, bt = null;
       const lim = monde.limite;
       if (centre && fini(+centre[0]) && fini(+centre[1])) { cx = +centre[0]; cz = +centre[1]; R = fini(+rayonZone) && rayonZone > 0 ? +rayonZone : 30; carre = false; }
+      else if (limiteV2(lim)) { cx = +lim.centre[0]; cz = +lim.centre[1]; R = +lim.rayon; bt = lim.boite; carre = false; }
       else if (limiteOk(lim)) { cx = +lim.centre[0]; cz = +lim.centre[1]; R = +lim.rayon; carre = false; }
       const acc = typeof monde.accessible === 'function' ? monde.accessible : null;
       for (let k = 0; k < 600; k++) {
         let x, z;
         if (carre) { x = X0 + 2 + (L - 4) * rnd(); z = X0 + 2 + (L - 4) * rnd(); }
+        else if (bt) { x = bt[0] + (bt[2] - bt[0]) * rnd(); z = bt[1] + (bt[3] - bt[1]) * rnd(); }
         else { const a = rnd() * Math.PI * 2, d = R * Math.sqrt(rnd()); x = cx + Math.cos(a) * d; z = cz + Math.sin(a) * d; }
         if (bloque(x, z, 1)) continue;
         if (acc && k < 450 && !acc(x, z)) continue; // de préférence là où l'on peut aller (si une navigation est branchée)
@@ -829,5 +999,5 @@
     return monde;
   }
 
-  return { creer, CELLULE, MARGE, SUR_TABLIER, CHAUSSEE, SOURCE, MARCHE, MOBILIER, VOUTE, rTronc, hTronc, rFeuillage, nettoyer, dansPoly };
+  return { creer, limiteDe, limiteV2, CELLULE, MARGE, SUR_TABLIER, CHAUSSEE, SOURCE, MARCHE, MOBILIER, VOUTE, rTronc, hTronc, rFeuillage, nettoyer, dansPoly };
 });
