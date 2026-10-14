@@ -12,7 +12,7 @@
 // doivent rester stables quand on rejoue toutes les scènes, et le contexte WebGL perdu puis retrouvé doit redonner une image ; sur la carte
 // réelle enfin, un palier de la qualité adaptative ne refait ni les textures ni les bâtiments, et des allers-retours de qualité choisie
 // (vers l'éco et retour) rendent la mémoire JS (rien de mort gardé par MODELES.partager) et la mémoire des textures. Un tableau des comptes
-// par vue et par qualité termine la sortie.
+// par vue et par qualité termine la sortie. Enfin une nuit de pluie (PRENDU.ambiance) sur la place, dans les budgets, puis le retour au jour.
 // Le rendu est logiciel (SwiftShader) : on ne juge pas les images par seconde, seulement les budgets et les images.
 // Usage : node test/poncin-scene.cjs [--carte=reelle,provisoire] [--qualite=haute,eco] [--scenes=rue,tir]
 // (NODE_PATH=/opt/node22/lib/node_modules si Playwright est installé globalement). Captures dans test/shots/poncin-scene/.
@@ -154,6 +154,13 @@ const mediane = (a) => { const s = a.slice().sort((x, y) => x - y); return s.len
       verif(apres.ptx === qualite && apres.qualite === qualite && apres.memoire <= base.memoire + 0.3 && apres.textures <= base.textures && apres.calls === base.calls && Math.abs(apres.triangles - base.triangles) < 200,
         `allers-retours ${qualite} ↔ ${autre} choisis : textures refaites (${apres.ptx}), même image, rien de plus en mémoire (${base.calls} → ${apres.calls} appels, ${base.memoire} → ${apres.memoire} Mo de textures, ${base.textures} → ${apres.textures} textures)`);
       verif(H[2] - H[1] < 4 && H[1] - H[0] < 4, `la mémoire JS revient après chaque aller-retour (${H.map((h) => h.toFixed(1)).join(' → ')} Mo : moins de 4 Mo d'écart ; la fuite d'avant gardait ≈ 34 Mo par aller-retour)`);
+    }
+    { // l'ambiance du salon (détail : test/poncin-ambiances.cjs) : une nuit de pluie sur la place, dans les budgets, puis retour au jour
+      const nu = await page.evaluate(() => { atelier.ambiance('nuit', 'pluie'); const s = atelier.scene('place'); return { s, a: s.ambiance }; });
+      await page.screenshot({ path: path.join(out, `${carte}-${qualite}-nuit-pluie.png`), timeout: 180000 });
+      const jo = await page.evaluate(() => { atelier.ambiance('jour', 'clair'); const s = atelier.scene('place'); return { s, a: s.ambiance }; });
+      verif(nu.a.heure === 'nuit' && nu.a.meteo === 'pluie' && nu.s.calls <= budget.calls && nu.s.triangles <= budget.triangles && jo.a.heure === 'jour' && jo.a.appels === 0 && jo.a.lumieres === 0,
+        `ambiance : nuit de pluie ${nu.s.calls} appels (+ ${nu.a.appels}), ${(nu.s.triangles / 1000).toFixed(1)}k triangles, ${nu.a.lumieres} lumières ; retour au jour (${jo.s.calls} appels, + ${jo.a.appels})`);
     }
     const fin = await page.evaluate(() => PRENDU.stats);
     verif(fin.erreurs === 0, `aucune erreur interne du rendu (${fin.erreurs}${fin.derniereErreur ? ' : ' + fin.derniereErreur : ''})`);

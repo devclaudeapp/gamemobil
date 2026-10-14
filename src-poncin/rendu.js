@@ -39,7 +39,12 @@
    a + (x − a)·alpha, a = ax / ay / az / aoeil posés par jeu.js au début de chaque pas ; caméra de PCORPS.camera, regard = e.yaw/e.pitch
    + PCONTROLES.enAttente()) ; reglages({ balancement: 'normal' | 'doux' | 'aucun' }) → { balancement } ; evenements(evs, jeu) ; qualite(q?) ; stats ; projeter(x, y, z) → { x, y, devant }
    (objet partagé, à lire tout de suite). En plus : fov (le champ vertical affiché en degrés, zoom de la visée compris : lu par le HUD),
-   visee → { vise, viseur: 'lunette' | 'point' | 'fer', zoom, cache (l'arme cachée derrière la lunette), arme }, webgl, survol(o). */
+   visee → { vise, viseur: 'lunette' | 'point' | 'fer', zoom, cache (l'arme cachée derrière la lunette), arme }, webgl, survol(o).
+   Salon (livraison 3) : ambiance({ heure: 'jour' | 'soir' | 'nuit', meteo: 'clair' | 'brouillard' | 'pluie' }) → { heure, meteo } (appliquée et
+   compilée tout de suite : à appeler pendant le compte à rebours ; sans appel, la partie prend jeu.reglages / jeu.options ; détail dans la
+   section « l'ambiance »), stats.ambiance → { heure, meteo, nuit, appels (ajoutés), lumieres, lampe, sources, gouttes, brume, ombres,
+   compile (ms), programmes, cloture: { forme, aretes, tranches, piquets, distance } } ; la clôture suit jeu.zone.limite (arêtes), sinon
+   monde.limite (section « la clôture de la zone »). */
 const PRENDU = (() => {
   'use strict';
   const OK3 = typeof THREE !== 'undefined' && typeof MODELES !== 'undefined' && !!MODELES;
@@ -319,7 +324,7 @@ const PRENDU = (() => {
   // l'asphalte ailleurs ; sur R et G, le vert de la photo — des couronnes vues d'avion — devient un asphalte ombragé), l'occlusion au pied
   // des murs et dans les voûtes (A du masque ; uDetail.w : la plus sombre, plus sombre sans carte d'ombre) ───
   let texArene = null, texMasque = null, texNeutre = null, texGris = null, imgSol = null, imgArene = null;
-  const USOL = { tArene: { value: null }, uArene: { value: null }, uAreneK: { value: 0 }, tMasque: { value: null }, tPaquet: { value: null }, uDetail: { value: null } };
+  const USOL = { tArene: { value: null }, uArene: { value: null }, uAreneK: { value: 0 }, tMasque: { value: null }, tPaquet: { value: null }, uDetail: { value: null }, uMouille: { value: 1 } }; // uMouille : le sol mouillé de la pluie (× 0,85)
   const DETAIL_SOL = { haute: [2.3, 55, 0.8, 0.5], moyenne: [2.3, 45, 0.75, 0.32], eco: [2.3, 32, 0.7, 0.32] }; // période du grain (m), portée (m), force, occlusion la plus sombre (sans carte d'ombre, plus sombre : le sol des voûtes)
   const PHOTO = [1.14, 1.16, 1.05]; // la photo, retouchée (choix de style) : gamma, saturation, gain — un peu moins pâle, des couleurs justes
   function texPixel(r, g, b, a) { const t = new THREE.DataTexture(new Uint8Array([r, g, b, a]), 1, 1); t.needsUpdate = true; return t; }
@@ -331,7 +336,7 @@ const PRENDU = (() => {
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, USOL);
       sh.vertexShader = 'varying vec3 vSolM;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvSolM = transformed;');
-      sh.fragmentShader = 'uniform sampler2D tArene;\nuniform vec4 uArene;\nuniform float uAreneK;\nuniform sampler2D tMasque;\nuniform sampler2D tPaquet;\nuniform vec4 uDetail;\nvarying vec3 vSolM;\n' + sh.fragmentShader.replace('#include <map_fragment>', [
+      sh.fragmentShader = 'uniform sampler2D tArene;\nuniform vec4 uArene;\nuniform float uAreneK;\nuniform sampler2D tMasque;\nuniform sampler2D tPaquet;\nuniform vec4 uDetail;\nuniform float uMouille;\nvarying vec3 vSolM;\n' + sh.fragmentShader.replace('#include <map_fragment>', [
         '#ifdef USE_MAP',
         '{',
         '\tvec3 c = texture2D( map, vMapUv ).rgb;',
@@ -349,7 +354,7 @@ const PRENDU = (() => {
         '\tc = mix( c, vec3( 1.06, 1.02, 0.94 ) * max( lc * 1.25, 0.35 ), dur * vert );',
         '\tfloat f =clamp( 1.0 - length( vViewPosition ) / uDetail.y, 0.0, 1.0 ) * uDetail.z;',
         '\tc *= mix( 1.0, 2.0 * dot( w, texture2D( tPaquet, vSolM.xz / uDetail.x ) ), f ) * mix( uDetail.w, 1.0, m.a );',
-        '\tdiffuseColor.rgb *= c;',
+        '\tdiffuseColor.rgb *= c * uMouille;',
         '}',
         '#endif'].join('\n'));
     };
@@ -533,6 +538,24 @@ const PRENDU = (() => {
   let tuiles = [], nbTuiles = 0, TUILE = 150, habille = new Map(), arcsPar = new Map(), nVoutes = 0, AC = [0, 0], voutesM = null;
   const cleF = (a, c) => a[0] + ',' + a[1] + '|' + c[0] + ',' + c[1];
   const batOk = (b) => b && Array.isArray(b.p) && b.p.length >= 3 && fini(b.base) && fini(b.sommet) && Array.isArray(b.aabb);
+  // les ouvertures des façades : l'atlas PTEXTURES.details × couleurs de sommet, dans un matériau à nous (celui de PTEXTURES est partagé avec
+  // decor.js) : la nuit (UNUIT, posé par l'ambiance), le verre bleuté des fenêtres marquées (attribut couche : 1 une fenêtre allumée, 35 %
+  // tirés par hachage ; 1,5 une vitrine) devient une lueur chaude #FFD27A ; l'encadrement, les volets, les portes restent dans l'ombre.
+  // Un uniforme : jamais de recompilation, aucun appel de dessin de plus (§ 8)
+  const UNUIT = { value: 0 }; let matOuv = null, matOuvAtl = null;
+  function materiauOuvertures(atl) {
+    if (matOuv && matOuvAtl === atl.texture) return matOuv;
+    if (matOuv) matOuv.dispose();
+    const m = new THREE.MeshLambertMaterial({ map: atl.texture, alphaTest: 0.5, vertexColors: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }); m.name = 'ouvertures-nuit';
+    m.onBeforeCompile = (sh) => {
+      sh.uniforms.uNuit = UNUIT;
+      sh.vertexShader = 'attribute float couche;\nvarying float vLum;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvLum = couche;');
+      sh.fragmentShader = 'uniform float uNuit;\nvarying float vLum;\n' + sh.fragmentShader
+        .replace('#include <map_fragment>', '#include <map_fragment>\n\tfloat vitreM = 0.0;\n#ifdef USE_MAP\n\tvitreM = smoothstep( 0.015, 0.07, sampledDiffuseColor.b - sampledDiffuseColor.r );\n#endif')
+        .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += vec3( 1.0, 0.64, 0.25 ) * ( vitreM * vLum * uNuit * 0.9 );');
+    };
+    m.customProgramCacheKey = () => 'ouvertures-nuit'; matOuv = m; matOuvAtl = atl.texture; return m;
+  }
   function construireBatiments() {
     tuiles = []; nbTuiles = 0;
     const bats = monde.batiments || [];
@@ -553,7 +576,7 @@ const PRENDU = (() => {
     // haute, c'est l'intrados (faces arrière dans la passe d'ombre) qui ombre le sol du couloir
     nVoutes = 0; const TV = new Tampon(tex);
     (monde.passages || []).forEach((V) => { for (const bt of V.bats || []) { const b = bats[bt.i]; if (!batOk(b)) continue; try { voute(TV, V, bt.i); nVoutes++; } catch (e) { signaler('voûte ' + V.n, e); } } });
-    const matG = BATI ? BATI.materiau() : M.MAT.vertex, matD = ATL ? ATL.materiau({ couleurs: true }) : null;
+    const matG = BATI ? BATI.materiau() : M.MAT.vertex, matD = ATL ? materiauOuvertures(ATL) : null;
     if (!TV.vide()) {
       const g = TV.geometrie(), nn = g.attributes.normal.array, lh = Math.hypot(SOLEIL[0], SOLEIL[2]), ox = -SOLEIL[0] / lh, oz = -SOLEIL[2] / lh;
       for (let i = 0; i < nn.length; i += 3) { nn[i] = ox; nn[i + 1] = 0; nn[i + 2] = oz; }
@@ -632,11 +655,11 @@ const PRENDU = (() => {
     const c = ATL.cellules[nom]; if (!c) return false;
     const l = (o && o.l) || c.l, kr = o && o.coupe ? o.coupe : 1, hh = ((o && o.h) || c.h) * kr, uv = c.uv, mi = !!(o && o.miroir), col = (o && o.col) || BLANC;
     const u0 = mi ? uv[2] : uv[0], u1 = mi ? uv[0] : uv[2], v0 = uv[1], v1 = uv[1] + (uv[3] - uv[1]) * kr;
-    T.quad4(PF(w, s + l / 2, y, off), PF(w, s - l / 2, y, off), PF(w, s - l / 2, y + hh, off), PF(w, s + l / 2, y + hh, off), col, col, col, col, [u0, v0, u1, v0, u1, v1, u0, v1], 0);
+    T.quad4(PF(w, s + l / 2, y, off), PF(w, s - l / 2, y, off), PF(w, s - l / 2, y + hh, off), PF(w, s + l / 2, y + hh, off), col, col, col, col, [u0, v0, u1, v0, u1, v1, u0, v1], (o && o.lum) || 0); // couche : la lueur de la nuit (fenêtres allumées, vitrines)
     return true;
   }
-  function fenetre(T, w, nom, s, y0, vol, ferme, col) { // la fenêtre (encadrement, appui) et ses volets persiennes, ouverts ou fermés
-    const F = ATL.cellules[nom]; if (!F) return; cellule(T, w, nom, s, y0, 0.04, { col });
+  function fenetre(T, w, nom, s, y0, vol, ferme, col, lum) { // la fenêtre (encadrement, appui) et ses volets persiennes, ouverts ou fermés ; lum : allumée la nuit
+    const F = ATL.cellules[nom]; if (!F) return; cellule(T, w, nom, s, y0, 0.04, { col, lum: ferme ? 0 : lum });
     const V = vol ? ATL.cellules[vol] : null; if (!V) return;
     const ou = F.ouverture || [0.1, 0.1, F.l - 0.1, F.h - 0.1];
     if (ferme) { const lo = (ou[2] - ou[0]) / 2, xo = s + F.l / 2 - ou[0], ho = ou[3] - ou[1]; cellule(T, w, vol, xo - lo / 2, y0 + ou[1], 0.055, { l: lo, h: ho, col }); cellule(T, w, vol, xo - lo * 1.5, y0 + ou[1], 0.055, { l: lo, h: ho, col, miroir: true }); }
@@ -679,10 +702,10 @@ const PRENDU = (() => {
         const s = (k + 0.5) * pas, g = Math.max(H0(w.a[0] + w.ux * s + w.nx * 0.3, w.a[1] + w.uz * s + w.nz * 0.3), base);
         for (let e = 0; ; e++) {
           const y0 = g + y00 + e * etage; if (y0 + F.h > sommet - (grand ? 0.5 : 0.45)) break;
-          if (e === 0 && vitrines) { if (!pris(s, 0.8, 0, 0)) cellule(Td, w, k === kp ? 'vitrine-porte' : 'vitrine', s, g - 0.02, 0.045, { l: Math.min(pas - 0.25, k === kp ? 1.05 : 2.2), h: 2.7, col }); continue; }
+          if (e === 0 && vitrines) { if (!pris(s, 0.8, 0, 0)) cellule(Td, w, k === kp ? 'vitrine-porte' : 'vitrine', s, g - 0.02, 0.045, { l: Math.min(pas - 0.25, k === kp ? 1.05 : 2.2), h: 2.7, col, lum: 1.5 }); continue; }
           if (e === 0 && k === kp) { cellule(Td, w, t === 'mairie' ? 'porte-ancienne' : nomP, s, g - 0.02, 0.045, { col }); continue; }
           if (pris(s, F.l / 2 + 0.35, e, y0)) continue;
-          fenetre(Td, w, nomF, s, y0, vol, vol && ((o.hs >>> ((k * 5 + e * 3) % 27)) & 15) === 0, col);
+          fenetre(Td, w, nomF, s, y0, vol, vol && ((o.hs >>> ((k * 5 + e * 3) % 27)) & 15) === 0, col, hash('nuit|' + idx + '|' + w.i + '|' + k + '|' + e) % 100 < 35 ? 1 : 0); // 35 % des fenêtres allumées la nuit (§ 8)
         }
       }
       if (vitrines) { const g = solF(w, w.len / 2, base); store(Tg, w, 0.4, w.len - 0.4, g + 3.02, g + 2.6, 1.05, lin(STORES[(o.hs >>> 10) % STORES.length])); }
@@ -962,44 +985,92 @@ const PRENDU = (() => {
   }
 
   // ═══════════════════════════════ le ciel ═══════════════════════════════
-  // une toile (u = φ / 2π, v = θ / π) : dégradé de fin d'après-midi (zénith bleu franc, horizon pâle et bleuté = la brume), halo doré du
-  // soleil bas, cumulus ; sans PDECOR, les montagnes du Bugey peintes (avec PDECOR, son horizon de relief réel les remplace)
+  // une toile (u = φ / 2π, v = θ / π), peinte selon l'ambiance (AMB, PRENDU.ambiance) et repeinte quand elle change :
+  // - jour : dégradé de fin d'après-midi (zénith bleu franc, horizon pâle et bleuté = la brume), halo doré du soleil bas, cumulus ;
+  // - soir : zénith bleu soutenu → horizon orangé (#5E86C8 → #F7B27A), le soleil rasant à l'ouest-sud-ouest, gros halo, nuages roses ;
+  // - nuit : #05070F → #16233F, des étoiles (plus nombreuses au zénith), la lune et son halo à sa place (la direction de sa lumière) ;
+  // - brouillard : uni, couleur de la brume, à peine plus clair en haut ; pluie : couvert gris, nuées sombres, rien du soleil.
+  // Sans PDECOR, les montagnes du Bugey peintes (avec PDECOR, son horizon de relief réel les remplace). L'horizon fond dans la brume.
   let ciel = null;
   function construireCiel() {
     const Wt = PALIERS[QUAL.niveau].ciel, Ht = Wt / 2, cvs = document.createElement('canvas'); cvs.width = Wt; cvs.height = Ht;
-    const c = cvs.getContext('2d'), w = Wt, h = Ht, montagnes = !decor;
-    const g = c.createLinearGradient(0, 0, 0, h / 2); g.addColorStop(0, '#4C8ED2'); g.addColorStop(0.42, '#78B2E3'); g.addColorStop(0.78, '#B4D2E8'); g.addColorStop(1, C.brume);
-    c.fillStyle = g; c.fillRect(0, 0, w, h / 2); c.fillStyle = C.brume; c.fillRect(0, h / 2, w, h / 2);
-    // le soleil, à sa vraie place, et sa lumière chaude : un halo large et doux, plus doré vers l'horizon
-    const th = Math.acos(SOLEIL[1]), ph = Math.atan2(SOLEIL[2], -SOLEIL[0]), sx = ((ph / TAU) % 1 + 1) % 1 * w, sy = th / Math.PI * h;
-    for (const dx of [-w, 0, w]) {
-      c.save(); c.translate(sx + dx, h / 2); c.scale(2.6, 1); const gh = c.createRadialGradient(0, 0, 0, 0, 0, h * 0.34); gh.addColorStop(0, 'rgba(255,214,168,.55)'); gh.addColorStop(0.45, 'rgba(255,220,186,.22)'); gh.addColorStop(1, 'rgba(255,226,200,0)'); c.fillStyle = gh; c.fillRect(-h, -h * 0.4, 2 * h, h * 0.4); c.restore();
-      const gs = c.createRadialGradient(sx + dx, sy, 0, sx + dx, sy, h * 0.42); gs.addColorStop(0, 'rgba(255,246,222,.98)'); gs.addColorStop(0.05, 'rgba(255,238,204,.9)'); gs.addColorStop(0.18, 'rgba(255,222,180,.38)'); gs.addColorStop(1, 'rgba(255,220,190,0)'); c.fillStyle = gs; c.fillRect(0, 0, w, h / 2);
-    }
-    // des cumulus : des grappes de boules douces, ventre gris-lavande, bord doré du côté du soleil, plus petits vers l'horizon
-    const rnd = mulberry32(21), boule = (x, y, r, a, col) => { const g2 = c.createRadialGradient(x, y, 0, x, y, r); g2.addColorStop(0, `rgba(${col},${a})`); g2.addColorStop(0.55, `rgba(${col},${a * 0.85})`); g2.addColorStop(1, `rgba(${col},0)`); c.fillStyle = g2; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); };
-    for (let i = 0; i < 20; i++) {
-      const y = h * (0.28 + rnd() * 0.16), x = rnd() * w, taille = h * 0.02 * (0.7 + rnd() * 0.8) * (0.6 + (y / h - 0.28) * 3), nb = 5 + Math.floor(rnd() * 5), large = taille * (2.2 + rnd() * 2.2);
-      const ds = Math.min(Math.abs(x - sx), w - Math.abs(x - sx)) / w, dore = ds < 0.18 ? '255,236,206' : '255,252,246';
+    peindreCiel(cvs);
+    const tx = new THREE.CanvasTexture(cvs); tx.colorSpace = THREE.SRGBColorSpace; tx.generateMipmaps = false; tx.minFilter = THREE.LinearFilter; tx.name = 'ciel';
+    const mat = new THREE.MeshBasicMaterial({ map: tx, side: THREE.BackSide, fog: false, depthWrite: false });
+    ciel = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), mat); ciel.frustumCulled = false; ciel.renderOrder = -10; ciel.name = 'ciel'; scene.add(ciel);
+  }
+  function repeindreCiel() { if (!ciel || !ciel.material.map) return; const tx = ciel.material.map; peindreCiel(tx.image); tx.needsUpdate = true; }
+  const hexa = (col) => '#' + col.getHexString(THREE.SRGBColorSpace);
+  function peindreCiel(cvs) {
+    const c = cvs.getContext('2d'), w = cvs.width, h = cvs.height, montagnes = !decor, A = AMB, brumeH = hexa(A.brume), D = A.dir;
+    const th = Math.acos(borne(D[1], -1, 1)), ph = Math.atan2(D[2], -D[0]), sx = ((ph / TAU) % 1 + 1) % 1 * w, sy = th / Math.PI * h;
+    const degrade = (arrets) => { const g = c.createLinearGradient(0, 0, 0, h / 2); for (const [o, col] of arrets) g.addColorStop(o, col); c.fillStyle = g; c.fillRect(0, 0, w, h / 2); };
+    c.clearRect(0, 0, w, h);
+    const meteo = A.meteo, heure = A.heure, rnd = mulberry32(21);
+    const boule = (x, y, r, a, col) => { const g2 = c.createRadialGradient(x, y, 0, x, y, r); g2.addColorStop(0, `rgba(${col},${a})`); g2.addColorStop(0.55, `rgba(${col},${a * 0.85})`); g2.addColorStop(1, `rgba(${col},0)`); c.fillStyle = g2; c.beginPath(); c.arc(x, y, r, 0, TAU); c.fill(); };
+    if (meteo === 'brouillard') { // uni : la brume, un peu plus claire (ou moins sombre) en haut
+      _c.copy(A.brume).multiplyScalar(heure === 'nuit' ? 0.8 : 1.06); degrade([[0, hexa(_c)], [1, brumeH]]);
+    } else if (meteo === 'pluie') { // couvert : un gris qui descend vers la brume, des nuées sombres
+      const haut = heure === 'nuit' ? '#080B12' : heure === 'soir' ? '#55596A' : '#6F7A86', milieu = heure === 'nuit' ? '#0D121C' : heure === 'soir' ? '#8E8A90' : '#8D97A2';
+      degrade([[0, haut], [0.55, milieu], [1, brumeH]]);
+      const nue = heure === 'nuit' ? '20,24,32' : heure === 'soir' ? '70,66,78' : '96,104,114';
+      for (let i = 0; i < 70; i++) { const y = h * (0.06 + rnd() * 0.4), x = rnd() * w, r = h * (0.05 + rnd() * 0.09); for (const dx of [-w, 0, w]) if (x + dx > -r && x + dx < w + r) boule(x + dx, y, r * 1.6, 0.22, nue); }
+    } else if (heure === 'nuit') {
+      degrade([[0, '#05070F'], [0.5, '#0A1022'], [0.88, '#16233F'], [1, brumeH]]);
+      // les étoiles : plus nombreuses et plus vives au zénith, quelques-unes bleutées ou dorées
+      const n = Math.round(500 * w / 2048) + 160;
+      for (let i = 0; i < n; i++) {
+        const v = Math.acos(1 - rnd() * 0.92) / Math.PI, y = v * h, x = rnd() * w, b = rnd(), a = (0.35 + 0.65 * b * b) * (1 - Math.pow(v * 2, 6) * 0.8), r = b > 0.93 ? 1.6 : b > 0.7 ? 1.1 : 0.75;
+        const teinte = b > 0.96 ? '255,226,190' : b < 0.08 ? '190,210,255' : '235,240,255';
+        c.fillStyle = `rgba(${teinte},${borne(a, 0, 1).toFixed(3)})`; c.beginPath(); c.arc(x, y, r * w / 2048, 0, TAU); c.fill();
+      }
+      // une voie lactée discrète : une bande de poussière claire
+      c.save(); c.globalAlpha = 0.07; for (let i = 0; i < 260; i++) { const u = rnd(), x = u * w, y = h * (0.12 + 0.18 * Math.sin(u * TAU * 1.0 + 0.6) + (rnd() - 0.5) * 0.06); boule(x, y, h * (0.01 + rnd() * 0.025), 1, '200,210,240'); } c.restore();
+      // la lune : un halo large, le disque nacré et ses mers
       for (const dx of [-w, 0, w]) {
-        if (x + dx < -large * 2 || x + dx > w + large * 2) continue;
-        boule(x + dx, y + taille * 0.55, large * 0.9, 0.26, '176,180,206');
-        for (let k = 0; k < nb; k++) { const u = k / (nb - 1) - 0.5, r = taille * (1.15 - Math.abs(u) * 0.9) * (0.85 + rnd() * 0.3); boule(x + dx + u * large * 1.6, y - r * 0.35, r * 1.25, 0.92, dore); }
+        const mx = sx + dx, R = h * 0.022;
+        const gh = c.createRadialGradient(mx, sy, 0, mx, sy, h * 0.2); gh.addColorStop(0, 'rgba(200,214,255,0.35)'); gh.addColorStop(0.25, 'rgba(160,180,240,0.12)'); gh.addColorStop(1, 'rgba(120,140,220,0)'); c.fillStyle = gh; c.fillRect(mx - h * 0.2, sy - h * 0.2, h * 0.4, h * 0.4);
+        c.fillStyle = '#F2F0E6'; c.beginPath(); c.ellipse(mx, sy, R * 1.25, R, 0, 0, TAU); c.fill(); // (la toile est équirectangulaire : un peu plus large en u)
+        c.fillStyle = 'rgba(170,176,190,0.45)'; for (const [ox, oy, rr] of [[-0.3, -0.2, 0.32], [0.25, 0.1, 0.24], [-0.05, 0.38, 0.2], [0.35, -0.35, 0.14]]) { c.beginPath(); c.ellipse(mx + ox * R * 1.25, sy + oy * R, rr * R * 1.25, rr * R, 0, 0, TAU); c.fill(); }
+      }
+      // de rares nuages, éclairés par la lune sur le bord
+      for (let i = 0; i < 9; i++) { const y = h * (0.3 + rnd() * 0.15), x = rnd() * w, r = h * (0.02 + rnd() * 0.03); for (const dx of [-w, 0, w]) if (x + dx > -r * 4 && x + dx < w + r * 4) for (let k = 0; k < 5; k++) boule(x + dx + (k - 2) * r * 0.9, y + rnd() * r * 0.3, r * 1.3, 0.35, '24,30,52'); }
+    } else {
+      const soir = heure === 'soir';
+      degrade(soir ? [[0, '#3E5FA6'], [0.38, '#5E86C8'], [0.72, '#C9A2A0'], [0.9, '#F7B27A'], [1, brumeH]] : [[0, '#4C8ED2'], [0.42, '#78B2E3'], [0.78, '#B4D2E8'], [1, brumeH]]);
+      // le soleil, à sa vraie place, et sa lumière chaude : un halo large et doux, plus doré vers l'horizon (le soir : rasant, orangé, immense)
+      for (const dx of [-w, 0, w]) {
+        c.save(); c.translate(sx + dx, h / 2); c.scale(soir ? 3.4 : 2.6, 1); const gh = c.createRadialGradient(0, 0, 0, 0, 0, h * (soir ? 0.42 : 0.34));
+        if (soir) { gh.addColorStop(0, 'rgba(255,170,96,.75)'); gh.addColorStop(0.4, 'rgba(255,160,110,.3)'); gh.addColorStop(1, 'rgba(255,170,130,0)'); } else { gh.addColorStop(0, 'rgba(255,214,168,.55)'); gh.addColorStop(0.45, 'rgba(255,220,186,.22)'); gh.addColorStop(1, 'rgba(255,226,200,0)'); }
+        c.fillStyle = gh; c.fillRect(-h, -h * 0.45, 2 * h, h * 0.45); c.restore();
+        const gs = c.createRadialGradient(sx + dx, sy, 0, sx + dx, sy, h * (soir ? 0.3 : 0.42));
+        if (soir) { gs.addColorStop(0, 'rgba(255,240,200,1)'); gs.addColorStop(0.06, 'rgba(255,214,150,.95)'); gs.addColorStop(0.2, 'rgba(255,170,100,.45)'); gs.addColorStop(1, 'rgba(255,150,100,0)'); } else { gs.addColorStop(0, 'rgba(255,246,222,.98)'); gs.addColorStop(0.05, 'rgba(255,238,204,.9)'); gs.addColorStop(0.18, 'rgba(255,222,180,.38)'); gs.addColorStop(1, 'rgba(255,220,190,0)'); }
+        c.fillStyle = gs; c.fillRect(0, 0, w, h / 2);
+      }
+      // des cumulus : des grappes de boules douces, ventre gris-lavande, bord doré du côté du soleil, plus petits vers l'horizon (le soir : roses et mauves)
+      for (let i = 0; i < 20; i++) {
+        const y = h * (0.28 + rnd() * 0.16), x = rnd() * w, taille = h * 0.02 * (0.7 + rnd() * 0.8) * (0.6 + (y / h - 0.28) * 3), nb = 5 + Math.floor(rnd() * 5), large = taille * (2.2 + rnd() * 2.2);
+        const ds = Math.min(Math.abs(x - sx), w - Math.abs(x - sx)) / w, dore = soir ? (ds < 0.2 ? '255,190,150' : '232,170,176') : ds < 0.18 ? '255,236,206' : '255,252,246';
+        for (const dx of [-w, 0, w]) {
+          if (x + dx < -large * 2 || x + dx > w + large * 2) continue;
+          boule(x + dx, y + taille * 0.55, large * 0.9, 0.26, soir ? '120,100,150' : '176,180,206');
+          for (let k = 0; k < nb; k++) { const u = k / (nb - 1) - 0.5, r = taille * (1.15 - Math.abs(u) * 0.9) * (0.85 + rnd() * 0.3); boule(x + dx + u * large * 1.6, y - r * 0.35, r * 1.25, 0.92, dore); }
+        }
       }
     }
-    if (montagnes) { // repli sans PDECOR : les montagnes du Bugey, trois plans de crêtes de plus en plus pâles
-      const plans = [['#C2CEE2', 0.07, 0.5, 31], ['#B2C3DA', 0.048, 0.62, 47], ['#A6BCCB', 0.027, 0.7, 63]];
+    if (montagnes && meteo !== 'brouillard') { // repli sans PDECOR : les montagnes du Bugey, trois plans de crêtes de plus en plus pâles (assombris la nuit)
+      const plans = [['#C2CEE2', 0.07, 0.5, 31], ['#B2C3DA', 0.048, 0.62, 47], ['#A6BCCB', 0.027, 0.7, 63]], kl = heure === 'nuit' ? 0.14 : heure === 'soir' ? 0.75 : meteo === 'pluie' ? 0.8 : 1;
       for (const [col, amp, rug, graine] of plans) {
         const r2 = mulberry32(graine), pts = 48, hs = []; for (let i = 0; i < pts; i++) hs.push(r2());
-        c.fillStyle = col; c.beginPath(); c.moveTo(0, h / 2 + 2);
+        _c.set(col).multiplyScalar(kl).lerp(A.brume, 0.35); c.fillStyle = hexa(_c); c.beginPath(); c.moveTo(0, h / 2 + 2);
         for (let x = 0; x <= w; x += w / 512) { const u = x / w * pts, i = Math.floor(u), f = u - i, a = hs[i % pts], b = hs[(i + 1) % pts], s2 = f * f * (3 - 2 * f), v = a + (b - a) * s2, det = Math.sin(x / w * TAU * 23 + graine) * 0.08 * rug + Math.sin(x / w * TAU * 61) * 0.03 * rug; c.lineTo(x, h / 2 - h * amp * (0.35 + 0.65 * v + det)); }
         c.lineTo(w, h / 2 + 2); c.closePath(); c.fill();
       }
     }
-    const gb = c.createLinearGradient(0, h / 2 - h * 0.035, 0, h / 2 + 4); gb.addColorStop(0, 'rgba(211,222,231,0)'); gb.addColorStop(1, C.brume); c.fillStyle = gb; c.fillRect(0, h / 2 - h * 0.035, w, h * 0.035 + 4);
-    const tx = new THREE.CanvasTexture(cvs); tx.colorSpace = THREE.SRGBColorSpace; tx.generateMipmaps = false; tx.minFilter = THREE.LinearFilter; tx.name = 'ciel';
-    const mat = new THREE.MeshBasicMaterial({ map: tx, side: THREE.BackSide, fog: false, depthWrite: false });
-    ciel = new THREE.Mesh(new THREE.SphereGeometry(1, 48, 24), mat); ciel.frustumCulled = false; ciel.renderOrder = -10; ciel.name = 'ciel'; scene.add(ciel);
+    // le bas : la brume, et un raccord doux juste au-dessus de l'horizon
+    c.fillStyle = brumeH; c.fillRect(0, h / 2, w, h / 2);
+    const rgb = [1, 3, 5].map((i) => parseInt(brumeH.slice(i, i + 2), 16)).join(','), gb = c.createLinearGradient(0, h / 2 - h * 0.035, 0, h / 2 + 4);
+    gb.addColorStop(0, `rgba(${rgb},0)`); gb.addColorStop(1, brumeH); c.fillStyle = gb; c.fillRect(0, h / 2 - h * 0.035, w, h * 0.035 + 4);
   }
 
   // ═══════════════════════════════ les effets (pools) ═══════════════════════════════
@@ -1250,31 +1321,320 @@ const PRENDU = (() => {
   }
   function cacherObjets() { if (OBJ.anneaux) OBJ.anneaux.visible = false; for (const k in OBJ.types) OBJ.types[k].visible = false; }
   let _m2 = null;
-  // ═══════════════════════════════ la barrière de l'arène (monde.limite) ═══════════════════════════════
-  let barriere = null;
-  function majBarriere(cx, cz) {
-    const lim = monde && monde.limite, ok = lim && Array.isArray(lim.centre) && fini(+lim.centre[0]) && fini(+lim.centre[1]) && fini(+lim.rayon) && lim.rayon > 1;
-    if (!ok) { if (barriere) barriere.visible = false; return; }
-    if (!(barriere && barriere.userData.x === +lim.centre[0] && barriere.userData.z === +lim.centre[1] && barriere.userData.r === +lim.rayon)) { // seulement quand la limite change (rare)
-      if (barriere) { scene.remove(barriere); barriere.geometry.dispose(); }
-      const N = 160, pos = [], uv = [], x0 = +lim.centre[0], z0 = +lim.centre[1], r = +lim.rayon;
-      for (let i = 0; i <= N; i++) { const a = i / N * TAU, x = x0 + Math.cos(a) * r, z = z0 + Math.sin(a) * r, g = H0(x, z); pos.push(x, g - 0.6, z, x, g + 4.2, z); uv.push(i / N * r / 2.5, 0, i / N * r / 2.5, 1); }
-      const idx = []; for (let i = 0; i < N; i++) { const a = 2 * i, b = a + 1, c = a + 2, d = a + 3; idx.push(a, c, b, b, c, d); }
-      const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeBoundingSphere();
-      if (!barriere) {
-        const tx = M.texture((c, w, h) => { // un ruban : des rayures pastel nettes en bas, qui s'effacent vers le haut
-          const gr = c.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, 'rgba(255,214,228,.5)'); gr.addColorStop(0.5, 'rgba(255,224,236,.18)'); gr.addColorStop(1, 'rgba(255,230,240,0)'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
-          const rs = c.createLinearGradient(0, h, 0, 0); rs.addColorStop(0, 'rgba(255,120,165,.95)'); rs.addColorStop(0.3, 'rgba(255,150,190,.55)'); rs.addColorStop(0.75, 'rgba(255,170,205,0)'); c.fillStyle = rs;
-          for (let x = -h; x < w + h; x += 16) { c.beginPath(); c.moveTo(x, h); c.lineTo(x + 6, h); c.lineTo(x + 6 + h, 0); c.lineTo(x + h, 0); c.fill(); }
-        }, 64, 64, { repete: [1, 1] });
-        tx.wrapT = THREE.ClampToEdgeWrapping; // en hauteur, pas de répétition : le haut transparent ne reprend pas le bas
-        barriere = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tx, transparent: true, side: THREE.DoubleSide, depthWrite: false, opacity: 0.7 })); barriere.renderOrder = 3; barriere.name = 'barriere'; scene.add(barriere);
-      } else { barriere.geometry = g; scene.add(barriere); }
-      barriere.userData.x = x0; barriere.userData.z = z0; barriere.userData.r = r;
+  // ═══════════════════════════════ la clôture de la zone (jeu.zone.limite, sinon monde.limite) ═══════════════════════════════
+  // La limite v2 des zones (§ 7) est un ensemble d'arêtes ; on lit jeu.zone.limite, sinon monde.limite (le cercle d'aujourd'hui). Lecture
+  // tolérante (le format exact est celui de PMONDE.limiteDe) : { aretes | bord: [ax, az, bx, bz, …] (4 nombres par arête, ou n arêtes :
+  // longueur / n nombres) ou [[ax, az, bx, bz] | [[ax, az], [bx, bz]] | { ax, az, bx, bz }, …] } ; { forme: 'cercles', cercles: [[x, z, r] |
+  // { x, z, r }, …] } (le bord de leur union, échantillonné tous les ~3 m) ; { forme: 'poly', poly | p | polys: un polygone [[x, z], …] ou une
+  // liste de polygones } ; { forme: 'carre', marge } ; { centre, rayon } ; à défaut jeu.zone.englobant. Dessin (§ 7) : à moins de 60 m de la
+  // caméra, un ruban rayé pastel (tranches de ≤ 3 m qui suivent le relief, un maillage) et des piquets (un InstancedMesh) : 2 appels de
+  // dessin ; refait quand la caméra a bougé de 6 m ou que la limite change, dans des tampons préparés (aucune allocation par image).
+  const CLOT = { lim: null, zone: null, ar: null, n: 0, cx: 1e9, cz: 1e9, ruban: null, piquets: null, nq: 0, np: 0, seg: null, ns: 0, d: 99, forme: 'aucune' };
+  const CLOT_MAXQ = 640, CLOT_MAXP = 400, CLOT_R = 60, CLOT_PAS = 3;
+  const nb = (v) => (typeof v === 'number' ? v : +v);
+  function aretesDe(lim, englobant) { // → { ar: Float32Array [ax, az, bx, bz, …], n, forme } | null
+    const out = [], pousser = (ax, az, bx, bz) => { ax = nb(ax); az = nb(az); bx = nb(bx); bz = nb(bz); if (fini(ax) && fini(az) && fini(bx) && fini(bz) && (ax !== bx || az !== bz) && out.length < 4 * 6000) out.push(ax, az, bx, bz); };
+    const cercle = (x, z, r, sauf) => { // le cercle, moins ce qui est dans un autre (l'union de cercles)
+      const n = borne(Math.round(TAU * r / CLOT_PAS), 24, 360), dedans = (px, pz) => sauf && sauf.some((c) => c !== sauf.moi && Math.hypot(px - c[0], pz - c[1]) < c[2] - 0.05);
+      for (let k = 0; k < n; k++) { const a0 = k / n * TAU, a1 = (k + 1) / n * TAU, am = (a0 + a1) / 2; if (dedans(x + Math.cos(am) * r, z + Math.sin(am) * r)) continue; pousser(x + Math.cos(a0) * r, z + Math.sin(a0) * r, x + Math.cos(a1) * r, z + Math.sin(a1) * r); }
+    };
+    const poly = (p) => { if (!Array.isArray(p) || p.length < 2) return; for (let i = 0; i < p.length; i++) { const u = p[i], v = p[(i + 1) % p.length]; if (u && v) pousser(u[0], u[1], v[0], v[1]); } };
+    let forme = 'aucune';
+    const E = lim.aretes || lim.bord || lim.segments;
+    if (E && typeof E.length === 'number' && E.length) {
+      forme = 'aretes';
+      if (typeof E[0] === 'number' || typeof E[0] === 'string') { const n = fini(+lim.nAretes) ? +lim.nAretes : fini(+lim.n) ? +lim.n : 0, pas = n > 0 && E.length % n === 0 ? E.length / n : 4; if (pas >= 4) for (let o = 0; o + 3 < E.length; o += pas) pousser(E[o], E[o + 1], E[o + 2], E[o + 3]); }
+      else for (const e of E) { if (!e) continue; if (Array.isArray(e) && e.length >= 4 && !Array.isArray(e[0])) pousser(e[0], e[1], e[2], e[3]); else if (Array.isArray(e) && Array.isArray(e[0]) && Array.isArray(e[1])) pousser(e[0][0], e[0][1], e[1][0], e[1][1]); else if (e.a && e.b) pousser(e.a[0], e.a[1], e.b[0], e.b[1]); else pousser(e.ax, e.az, e.bx, e.bz); }
     }
-    barriere.visible = true;
-    const d = Math.abs(Math.hypot(cx - barriere.userData.x, cz - barriere.userData.z) - barriere.userData.r);
-    barriere.material.opacity = borne(1.1 - d / 35, 0.15, 0.75); barriere.material.map.offset.x = (barriere.material.map.offset.x + 0.004) % 1;
+    if (!out.length && Array.isArray(lim.cercles) && lim.cercles.length) {
+      forme = 'cercles'; const cs = lim.cercles.map((c) => (Array.isArray(c) ? [+c[0], +c[1], +c[2]] : c ? [+c.x, +c.z, +(c.r != null ? c.r : c.rayon)] : null)).filter((c) => c && fini(c[0]) && fini(c[1]) && c[2] > 0.5);
+      for (const c of cs) { cs.moi = c; cercle(c[0], c[1], c[2], cs); }
+    }
+    if (!out.length) { const P = lim.polys || lim.poly || lim.p || lim.polygone; if (Array.isArray(P) && P.length) { forme = 'poly'; if (Array.isArray(P[0]) && Array.isArray(P[0][0])) P.forEach(poly); else poly(P); } }
+    if (!out.length && lim.forme === 'carre') { forme = 'carre'; const m = fini(+lim.marge) ? +lim.marge : 8, h = L / 2 - m; poly([[-h, -h], [h, -h], [h, h], [-h, h]]); }
+    const rond = (o) => o && Array.isArray(o.centre) && fini(+o.centre[0]) && fini(+o.centre[1]) && fini(+o.rayon) && o.rayon > 1;
+    if (!out.length && rond(lim)) { forme = 'cercle'; cercle(+lim.centre[0], +lim.centre[1], +lim.rayon, null); }
+    if (!out.length && rond(englobant)) { forme = 'englobant'; cercle(+englobant.centre[0], +englobant.centre[1], +englobant.rayon, null); }
+    return out.length ? { ar: new Float32Array(out), n: out.length / 4, forme } : null;
+  }
+  function construireCloture() {
+    const tx = M.texture((c, w, h) => { // un ruban : des rayures pastel nettes en bas, qui s'effacent vers le haut
+      const gr = c.createLinearGradient(0, h, 0, 0); gr.addColorStop(0, 'rgba(255,214,228,.5)'); gr.addColorStop(0.5, 'rgba(255,224,236,.18)'); gr.addColorStop(1, 'rgba(255,230,240,0)'); c.fillStyle = gr; c.fillRect(0, 0, w, h);
+      const rs = c.createLinearGradient(0, h, 0, 0); rs.addColorStop(0, 'rgba(255,120,165,.95)'); rs.addColorStop(0.3, 'rgba(255,150,190,.55)'); rs.addColorStop(0.75, 'rgba(255,170,205,0)'); c.fillStyle = rs;
+      for (let x = -h; x < w + h; x += 16) { c.beginPath(); c.moveTo(x, h); c.lineTo(x + 6, h); c.lineTo(x + 6 + h, 0); c.lineTo(x + h, 0); c.fill(); }
+    }, 64, 64, { repete: [1, 1] });
+    tx.wrapT = THREE.ClampToEdgeWrapping; // en hauteur, pas de répétition : le haut transparent ne reprend pas le bas
+    const g = new THREE.BufferGeometry(), pos = new Float32Array(CLOT_MAXQ * 12), uv = new Float32Array(CLOT_MAXQ * 8), idx = new Uint16Array(CLOT_MAXQ * 6);
+    for (let q = 0; q < CLOT_MAXQ; q++) { const a = 4 * q; idx.set([a, a + 2, a + 1, a + 1, a + 2, a + 3], 6 * q); }
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3).setUsage(THREE.DynamicDrawUsage)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2).setUsage(THREE.DynamicDrawUsage)); g.setIndex(new THREE.BufferAttribute(idx, 1)); g.setDrawRange(0, 0);
+    const ruban = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ map: tx, transparent: true, side: THREE.DoubleSide, depthWrite: false, opacity: 0.7 })); ruban.renderOrder = 3; ruban.name = 'barriere'; ruban.frustumCulled = false; ruban.visible = false; scene.add(ruban);
+    const gp = new THREE.CylinderGeometry(0.04, 0.05, 1.3, 6, 1); gp.translate(0, 0.55, 0);
+    const piquets = new THREE.InstancedMesh(gp, new THREE.MeshLambertMaterial({ color: '#F4D6E2' }), CLOT_MAXP); piquets.name = 'barriere-piquets'; piquets.count = 0; piquets.frustumCulled = false; piquets.visible = false; piquets.castShadow = false; piquets.instanceMatrix.setUsage(THREE.DynamicDrawUsage); scene.add(piquets);
+    CLOT.ruban = ruban; CLOT.piquets = piquets; CLOT.seg = new Float32Array(CLOT_MAXQ * 4);
+  }
+  function refaireCloture(cx, cz) {
+    const A = CLOT.ar, pos = CLOT.ruban.geometry.attributes.position, uvA = CLOT.ruban.geometry.attributes.uv, P = pos.array, U = uvA.array, S = CLOT.seg, PI = CLOT.piquets, R2 = (CLOT_R + 3) * (CLOT_R + 3);
+    let nq = 0, np = 0;
+    for (let o = 0; o < CLOT.n * 4 && nq < CLOT_MAXQ; o += 4) {
+      const ax = A[o], az = A[o + 1], bx = A[o + 2], bz = A[o + 3]; if (d2Seg(cx, cz, ax, az, bx, bz) > R2) continue;
+      const len = Math.hypot(bx - ax, bz - az), k = Math.max(1, Math.ceil(len / CLOT_PAS));
+      for (let j = 0; j < k && nq < CLOT_MAXQ; j++) {
+        const t0 = j / k, t1 = (j + 1) / k, x0 = ax + (bx - ax) * t0, z0 = az + (bz - az) * t0, x1 = ax + (bx - ax) * t1, z1 = az + (bz - az) * t1;
+        if (d2Seg(cx, cz, x0, z0, x1, z1) > CLOT_R * CLOT_R) continue;
+        const g0 = H0(x0, z0), g1 = H0(x1, z1), p = 12 * nq, u = 8 * nq, u0 = t0 * len / 2.5, u1 = t1 * len / 2.5;
+        P[p] = x0; P[p + 1] = g0 - 0.3; P[p + 2] = z0; P[p + 3] = x1; P[p + 4] = g1 - 0.3; P[p + 5] = z1; P[p + 6] = x0; P[p + 7] = g0 + 3.0; P[p + 8] = z0; P[p + 9] = x1; P[p + 10] = g1 + 3.0; P[p + 11] = z1;
+        U[u] = u0; U[u + 1] = 0; U[u + 2] = u1; U[u + 3] = 0; U[u + 4] = u0; U[u + 5] = 1; U[u + 6] = u1; U[u + 7] = 1;
+        S[4 * nq] = x0; S[4 * nq + 1] = z0; S[4 * nq + 2] = x1; S[4 * nq + 3] = z1; nq++;
+        if (j % 2 === 0 && np < CLOT_MAXP) { _m.makeTranslation(x0, g0 - 0.1, z0); PI.setMatrixAt(np++, _m); }
+      }
+    }
+    CLOT.nq = nq; CLOT.ns = nq; CLOT.np = np; CLOT.cx = cx; CLOT.cz = cz;
+    pos.updateRange.offset = 0; pos.updateRange.count = nq * 12; pos.needsUpdate = true; uvA.updateRange.offset = 0; uvA.updateRange.count = nq * 8; uvA.needsUpdate = true;
+    CLOT.ruban.geometry.setDrawRange(0, nq * 6); PI.count = np; PI.instanceMatrix.needsUpdate = true;
+  }
+  function majCloture(jeu, cx, cz) {
+    const zone = jeu && jeu.zone && typeof jeu.zone === 'object' ? jeu.zone : null, lim = (zone && zone.limite) || (monde && monde.limite) || null;
+    if (lim !== CLOT.lim || zone !== CLOT.zone) {
+      CLOT.lim = lim; CLOT.zone = zone; CLOT.cx = 1e9; CLOT.ar = null; CLOT.n = 0; CLOT.forme = 'aucune';
+      if (lim && typeof lim === 'object') { const r = aretesDe(lim, zone && zone.englobant); if (r) { CLOT.ar = r.ar; CLOT.n = r.n; CLOT.forme = r.forme; } }
+    }
+    if (!CLOT.n) { if (CLOT.ruban) { CLOT.ruban.visible = false; CLOT.piquets.visible = false; } CLOT.d = 99; return; }
+    if (!CLOT.ruban) construireCloture();
+    if ((cx - CLOT.cx) * (cx - CLOT.cx) + (cz - CLOT.cz) * (cz - CLOT.cz) > 36) refaireCloture(cx, cz);
+    let d2 = 1e9; const S = CLOT.seg; for (let i = 0; i < CLOT.ns; i++) { const v = d2Seg(cx, cz, S[4 * i], S[4 * i + 1], S[4 * i + 2], S[4 * i + 3]); if (v < d2) d2 = v; }
+    CLOT.d = CLOT.ns ? Math.sqrt(d2) : 99;
+    const vis = CLOT.nq > 0; CLOT.ruban.visible = vis; CLOT.piquets.visible = vis && CLOT.np > 0;
+    const m = CLOT.ruban.material; m.opacity = borne(1.1 - CLOT.d / 35, 0.15, 0.75) * (AMB.nuit ? 0.8 : 1); m.map.offset.x = (m.map.offset.x + 0.004) % 1;
+  }
+
+  // ═══════════════════════════════ l'ambiance : l'heure et la météo (PRENDU.ambiance, § 8) ═══════════════════════════════
+  // PRENDU.ambiance({ heure: 'jour' | 'soir' | 'nuit', meteo: 'clair' | 'brouillard' | 'pluie' }) → { heure, meteo } : appliquée tout de suite
+  // (pendant le compte à rebours), puis renderer.compile : aucune recompilation de shader en partie, le nombre de lumières reste constant
+  // pendant la partie. Sans appel, la partie prend l'heure et la météo de ses réglages (jeu.reglages, sinon jeu.options : les réglages
+  // normalisés de PREGLES) à sa première image ; hors partie (jeu = null), l'ambiance du dernier appel (le jour par défaut).
+  // - jour : la lumière de toujours ; soir : soleil à 9° à l'ouest-sud-ouest #FFB070, ombres longues en haute, brume #F1C6A0 (× 0,85) ;
+  //   nuit : la lune (0,3 ; 0,55 ; −0,78) #A8BEFF sans ombres, hémisphère #2A3D66 / #141018, brume #0D1424 [25, 160] (× 0,85, × 0,7 en éco),
+  //   ciel étoilé, lanternes, candélabres et lampadaires de PDECOR allumés (halos : un appel ; flaques de lumière au sol : un appel ;
+  //   4 vraies lumières en haute, 2 en moyenne, posées sur les plus proches), fenêtres (35 %), vitrines et enseignes allumées, la lampe
+  //   torche du joueur (un SpotLight sur la caméra, en partie) ;
+  // - brouillard : soleil × 0,6, hémisphère × 0,9, brume #CDD5D9 [6, 70] (éco [5, 55], × 0,8 la nuit), camera.far = loin + 20, ciel uni ;
+  //   pluie : soleil × 0,55, hémisphère × 0,85, brume #AEB8C0 × 0,65, sol mouillé (× 0,85), traits de pluie dans une boîte de 36 × 22 × 36 m
+  //   qui suit la caméra, animés dans le shader (2000 / 1200 en haute / moyenne : un appel) et 48 éclaboussures autour du joueur (un appel) ;
+  //   sans ombres (le ciel est couvert) ;
+  // - éco (repli) : teintes, brume, ciel, fenêtres et enseignes seulement (aucun appel de dessin ni aucune lumière de plus).
+  // Appels de plus : jour, soir 0 ; nuit + 2 (+ 0 en éco) ; pluie + 2 (+ 0 en éco). PRENDU.stats.ambiance les compte.
+  const unit3 = (x, y, z) => { const l = Math.hypot(x, y, z); return [x / l, y / l, z / l]; };
+  const HEURES = {
+    jour: { dir: SOLEIL, soleil: C.soleil, iSoleil: C.iSoleil, ciel: C.cielHemi, sol: C.solHemi, iHemi: C.iHemi, brume: C.brume, kBrume: 1, ombres: true },
+    soir: { dir: unit3(-0.913, 0.156, 0.378), soleil: '#FFB070', iSoleil: 2.2, ciel: '#FFD8B5', sol: '#7A5E4C', iHemi: 1.15, brume: '#F1C6A0', kBrume: 0.85, ombres: true },
+    nuit: { dir: unit3(0.3, 0.55, -0.78), soleil: '#A8BEFF', iSoleil: 0.55, ciel: '#5D6E96', sol: '#2A2430', iHemi: 0.62, brume: '#0D1424', D: { haute: [25, 160], moyenne: [21, 136], eco: [17.5, 112] }, ombres: false, nuit: 1 },
+  };
+  const METEOS = {
+    clair: { kS: 1, kH: 1 },
+    brouillard: { kS: 0.6, kH: 0.9, brume: '#CDD5D9', mixe: { jour: 1, soir: 0.6, nuit: 0.14 }, D: { haute: [6, 70], moyenne: [6, 70], eco: [5, 55] }, kNuit: 0.8, uni: true },
+    pluie: { kS: 0.55, kH: 0.85, brume: '#AEB8C0', mixe: { jour: 1, soir: 0.55, nuit: 0.1 }, kD: 0.65, pluie: true, mouille: 0.85 },
+  };
+  const NPL = { haute: 4, moyenne: 2, eco: 0 }, NGOUTTES = { haute: 2000, moyenne: 1200, eco: 0 }, NECLAB = 48;
+  const I_LANTERNE = 9, I_LAMPE = 38;
+  const AMB = { iHemi: 0, iSoleil: 0, lunePorte: false, heure: 'jour', meteo: 'clair', voulue: { heure: 'jour', meteo: 'clair' }, dir: SOLEIL, brume: null, brumeQ: { haute: null, moyenne: null, eco: null }, nuit: 0, pluie: false, uni: false, kArmeH: 1, kArmeS: 1, compileMs: 0, changements: 0 };
+  const UBRUME = { value: null }; // (near, far) de la brume en cours : halos, flaques et pluie s'y effacent comme le reste
+  const NUIT = { construit: false, n: 0, lum: null, halos: null, flaques: null, pl: [], slots: [], npl: 0, choix: new Int32Array(4), dch: new Float64Array(4), spot: null };
+  const PLUIE = { mesh: null, ecl: null, cycle: new Float64Array(NECLAB), n: 0, rnd: mulberry32(77) };
+  const UAMB = { uT: { value: 0 }, uCoulHalo: { value: null }, uCoulFlaque: { value: null }, uCoulPluie: { value: null }, uAPluie: { value: 0.3 } };
+  const normHeure = (h) => (HEURES[h] ? h : null), normMeteo = (m) => (METEOS[m] ? m : null);
+  function ambiance(o) {
+    if (o && typeof o === 'object') {
+      AMB.voulue.heure = normHeure(o.heure) || 'jour'; AMB.voulue.meteo = normMeteo(o.meteo) || 'clair';
+      if (pret && renderer) { try { appliquerAmbiance(AMB.voulue.heure, AMB.voulue.meteo, true); } catch (e) { signaler('ambiance', e); } }
+    }
+    return { heure: AMB.heure, meteo: AMB.meteo };
+  }
+  function ambianceDuJeu(jeu) { // l'ambiance voulue pour cette image : celle des réglages de la partie, sinon celle du dernier appel
+    const r = jeu ? jeu.reglages || jeu.options : null, h = (r && normHeure(r.heure)) || AMB.voulue.heure, m = (r && normMeteo(r.meteo)) || AMB.voulue.meteo;
+    if (h !== AMB.heure || m !== AMB.meteo) { try { appliquerAmbiance(h, m, true); } catch (e) { signaler('ambiance', e); } }
+  }
+  function brumesPour(heure, meteo) { // les distances de la brume par palier
+    const H = HEURES[heure], E = METEOS[meteo];
+    for (const k of ORDRE_Q) {
+      let d = H.D ? [H.D[k][0], H.D[k][1]] : [PALIERS[k].brume[0] * H.kBrume, PALIERS[k].brume[1] * H.kBrume];
+      if (E.D) { const kn = heure === 'nuit' ? E.kNuit : 1; d = [E.D[k][0] * kn, E.D[k][1] * kn]; } else if (E.kD) d = [d[0] * E.kD, d[1] * E.kD];
+      AMB.brumeQ[k] = d;
+    }
+  }
+  function appliquerAmbiance(heure, meteo, compiler) {
+    const t0 = typeof performance !== 'undefined' ? performance.now() : 0, H = HEURES[heure], E = METEOS[meteo];
+    AMB.heure = heure; AMB.meteo = meteo; AMB.nuit = H.nuit || 0; AMB.pluie = !!E.pluie; AMB.uni = !!E.uni; AMB.dir = H.dir; AMB.changements++;
+    AMB.brume.set(H.brume); if (E.brume) AMB.brume.lerp(_c.set(E.brume), E.mixe[heure]);
+    brumesPour(heure, meteo);
+    scene.fog.color.copy(AMB.brume); renderer.setClearColor(AMB.brume);
+    soleil.color.set(H.soleil); if (meteo !== 'clair') soleil.color.lerp(_c.set('#C9CED4'), 0.55); AMB.iSoleil = H.iSoleil * E.kS; soleil.intensity = AMB.iSoleil; soleil.castShadow = !!H.ombres && meteo === 'clair'; // ciel couvert : une lumière grise
+    hemi.color.set(H.ciel); hemi.groundColor.set(H.sol); if (meteo !== 'clair') hemi.color.lerp(AMB.brume, 0.45); AMB.iHemi = H.iHemi * E.kH; hemi.intensity = AMB.iHemi;
+    // l'arme en main : le même ciel, un peu plus de lumière la nuit (la lampe la touche)
+    if (hemiA) {
+      if (AMB.nuit) { hemiA.color.set('#A9BBDD'); hemiA.groundColor.set('#4A403C'); soleilA.color.set('#FFE2B8'); } // la nuit : le reflet de la lampe, un ciel moins noir
+      else { hemiA.color.copy(hemi.color); hemiA.groundColor.copy(hemi.groundColor); soleilA.color.copy(soleil.color); }
+    }
+    AMB.kArmeH = AMB.nuit ? 0.62 : hemi.intensity / C.iHemi; AMB.kArmeS = AMB.nuit ? 0.32 : soleil.intensity / C.iSoleil;
+    repeindreCiel();
+    if (decor && typeof decor.nuit === 'function') { try { decor.nuit(AMB.nuit); } catch (e) { signaler('décor.nuit', e); } }
+    UNUIT.value = AMB.nuit; USOL.uMouille.value = E.mouille || 1;
+    _c.set(heure === 'nuit' ? '#8EA0C0' : heure === 'soir' ? '#E8CDBE' : '#D6DEE6'); UAMB.uCoulPluie.value.copy(_c); UAMB.uAPluie.value = heure === 'nuit' ? 0.4 : 0.5;
+    objetsAmbiance();
+    brumeK = 0; ARBRES.cx = 1e9;
+    if (compiler) { try { renderer.compile(scene, camera); if (sceneArme) renderer.compile(sceneArme, camArme); } catch (e) { signaler('compilation', e); } }
+    AMB.compileMs = Math.round(((typeof performance !== 'undefined' ? performance.now() : 0) - t0) * 10) / 10;
+  }
+  // les objets de l'ambiance selon le palier : vraies lumières, lampe, halos et flaques, pluie (et leur nombre) ; aussi après un changement
+  // de palier (la qualité adaptative en refait les programmes, comme pour les ombres)
+  function objetsAmbiance() {
+    const q = QUAL.niveau, eco = q === 'eco', nuit = AMB.nuit > 0;
+    // la nuit en éco, sans lampe ni lanterne : un ciel un peu plus clair, et la lune « suit » le joueur (sa lumière vient de derrière lui et
+    // d'en haut : ce qu'il regarde est éclairé de face, comme par une lampe, sans la moindre lumière de plus ni appel de dessin)
+    AMB.lunePorte = nuit && eco;
+    if (hemi && AMB.iHemi) hemi.intensity = AMB.iHemi * (AMB.lunePorte ? 1.3 : 1);
+    if (soleil && AMB.iSoleil) { soleil.intensity = AMB.iSoleil * (AMB.lunePorte ? 2.4 : 1); if (AMB.lunePorte) soleil.color.set('#E2E6F2'); else if (AMB.heure === 'nuit') soleil.color.set(HEURES.nuit.soleil); } // (une lumière blanche : les couleurs des joueurs restent lisibles)
+    if (nuit && !eco && !NUIT.construit) construireNuit();
+    const halos = nuit && !eco && NUIT.n > 0; if (NUIT.halos) { NUIT.halos.visible = halos; NUIT.flaques.visible = halos; }
+    const n = nuit && NUIT.n > 0 ? NPL[q] : 0;
+    while (NUIT.pl.length < n) { const l = new THREE.PointLight('#FFC27A', 0, 15, 2); l.name = 'lanterne-' + NUIT.pl.length; l.castShadow = false; NUIT.pl.push(l); NUIT.slots.push({ i: -1, vers: -1, k: 0 }); }
+    for (let i = 0; i < NUIT.pl.length; i++) { const l = NUIT.pl[i], sl = NUIT.slots[i]; l.intensity = 0; sl.i = -1; sl.vers = -1; sl.k = 0; if (i < n) { if (!l.parent) scene.add(l); } else if (l.parent) l.parent.remove(l); }
+    NUIT.npl = n;
+    const lampe = nuit && !eco;
+    if (lampe && !NUIT.spot) { const sp = new THREE.SpotLight('#FFF1DC', 0, 34, 0.42, 0.6, 1.4); sp.name = 'lampe'; sp.castShadow = false; sp.target.name = 'lampe-cible'; NUIT.spot = sp; }
+    if (NUIT.spot) { const sp = NUIT.spot; sp.intensity = 0; if (lampe) { if (!sp.parent) scene.add(sp, sp.target); } else if (sp.parent) { scene.remove(sp); scene.remove(sp.target); } }
+    const ng = AMB.pluie ? NGOUTTES[q] : 0;
+    if (ng > 0 && !PLUIE.mesh) construirePluie();
+    if (PLUIE.mesh) { PLUIE.mesh.visible = ng > 0; PLUIE.mesh.geometry.setDrawRange(0, ng * 6); PLUIE.ecl.visible = ng > 0; PLUIE.cycle.fill(-1); }
+    PLUIE.n = ng;
+  }
+  // les sources : les points lumineux de PDECOR (lanternes, candélabres, lampadaires OSM), sinon les lampadaires de carte.mobilier ; 200 au plus
+  function sourcesLumiere() {
+    let l = decor && Array.isArray(decor.lumieres) ? decor.lumieres : null;
+    if (!l || !l.length) l = (carte.mobilier || []).filter((m) => m && m.t === 'lampadaire' && fini(+m.x) && fini(+m.z)).map((m) => ({ x: +m.x, y: H0(+m.x, +m.z) + 3.1, z: +m.z, t: 'lampadaire', nx: 0, nz: 0 }));
+    const n = Math.min(200, l.length), a = new Float32Array(n * 6);
+    for (let i = 0; i < n; i++) { const o = l[i]; a[6 * i] = +o.x; a[6 * i + 1] = +o.y; a[6 * i + 2] = +o.z; a[6 * i + 3] = o.t === 'lanterne' ? 0 : 1; a[6 * i + 4] = +o.nx || 0; a[6 * i + 5] = +o.nz || 0; }
+    return { a, n };
+  }
+  // halos (billboards additifs, un appel) et flaques de lumière au sol (quads posés sur la pente locale, un appel) : InstancedBufferGeometry,
+  // aucune texture (les dégradés sont calculés dans le shader), effacés par la brume comme le reste
+  function construireNuit() {
+    NUIT.construit = true; const S = sourcesLumiere(); NUIT.lum = S.a; NUIT.n = S.n; if (!S.n) return;
+    const n = S.n, A = S.a;
+    const quad = (plat) => { const g = new THREE.InstancedBufferGeometry(); const p = plat ? [-1, 0, -1, 1, 0, -1, 1, 0, 1, -1, 0, 1] : [-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0]; g.setAttribute('position', new THREE.Float32BufferAttribute(p, 3)); g.setIndex(plat ? [0, 2, 1, 0, 3, 2] : [0, 1, 2, 0, 2, 3]); g.instanceCount = n; return g; };
+    const gh = quad(false), ch = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) { ch[4 * i] = A[6 * i] + A[6 * i + 4] * 0.04; ch[4 * i + 1] = A[6 * i + 1]; ch[4 * i + 2] = A[6 * i + 2] + A[6 * i + 5] * 0.04; ch[4 * i + 3] = A[6 * i + 3]; }
+    gh.setAttribute('aCentre', new THREE.InstancedBufferAttribute(ch, 4));
+    const mh = new THREE.ShaderMaterial({
+      uniforms: { uBrumeD: UBRUME, uCouleur: UAMB.uCoulHalo, uT: UAMB.uT },
+      vertexShader: 'uniform vec2 uBrumeD;\nattribute vec4 aCentre;\nvarying vec2 vUv;\nvarying float vF;\nvoid main() {\n\tvec4 mv = modelViewMatrix * vec4( aCentre.xyz, 1.0 );\n\tfloat d = -mv.z;\n\tfloat s = ( aCentre.w > 0.5 ? 1.25 : 1.05 ) * ( 1.0 + 0.012 * d );\n\tmv.xyz += normalize( -mv.xyz ) * min( 0.7, d * 0.5 );\n\tmv.xy += position.xy * s;\n\tvUv = position.xy;\n\tvF = 1.0 - smoothstep( uBrumeD.x, uBrumeD.y * 1.15, d );\n\tgl_Position = projectionMatrix * mv;\n}',
+      fragmentShader: 'uniform vec3 uCouleur;\nvarying vec2 vUv;\nvarying float vF;\nvoid main() {\n\tfloat r2 = dot( vUv, vUv );\n\tif ( r2 > 1.0 ) discard;\n\tfloat a = exp( -r2 * 22.0 ) * 1.1 + exp( -r2 * 5.0 ) * 0.32 + ( 1.0 - r2 ) * 0.05;\n\tgl_FragColor = vec4( uCouleur * ( a * vF ), 1.0 );\n}',
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false,
+    });
+    const halos = new THREE.Mesh(gh, mh); halos.name = 'nuit-halos'; halos.frustumCulled = false; halos.renderOrder = 4; halos.visible = false; scene.add(halos);
+    const gf = quad(true), cf = new Float32Array(n * 4), pf = new Float32Array(n * 2);
+    for (let i = 0; i < n; i++) {
+      const lan = A[6 * i + 3] < 0.5, x = A[6 * i] + A[6 * i + 4] * (lan ? 1.3 : 0), z = A[6 * i + 2] + A[6 * i + 5] * (lan ? 1.3 : 0), r = lan ? 4.6 : 5.2, g = H0(x, z);
+      const dx = (H0(x + 1.5, z) - H0(x - 1.5, z)) / 3, dz = (H0(x, z + 1.5) - H0(x, z - 1.5)) / 3;
+      cf[4 * i] = x; cf[4 * i + 1] = g; cf[4 * i + 2] = z; cf[4 * i + 3] = r; pf[2 * i] = borne(dx, -0.4, 0.4); pf[2 * i + 1] = borne(dz, -0.4, 0.4);
+    }
+    gf.setAttribute('aCentre', new THREE.InstancedBufferAttribute(cf, 4)); gf.setAttribute('aPente', new THREE.InstancedBufferAttribute(pf, 2));
+    const mf = new THREE.ShaderMaterial({
+      uniforms: { uBrumeD: UBRUME, uCouleur: UAMB.uCoulFlaque },
+      vertexShader: 'uniform vec2 uBrumeD;\nattribute vec4 aCentre;\nattribute vec2 aPente;\nvarying vec2 vUv;\nvarying float vF;\nvoid main() {\n\tvec2 o = position.xz * aCentre.w;\n\tvec3 p = vec3( aCentre.x + o.x, aCentre.y + aPente.x * o.x + aPente.y * o.y + 0.07, aCentre.z + o.y );\n\tvec4 mv = modelViewMatrix * vec4( p, 1.0 );\n\tvUv = position.xz;\n\tvF = 1.0 - smoothstep( uBrumeD.x, uBrumeD.y, -mv.z );\n\tgl_Position = projectionMatrix * mv;\n}',
+      fragmentShader: 'uniform vec3 uCouleur;\nvarying vec2 vUv;\nvarying float vF;\nvoid main() {\n\tfloat r2 = dot( vUv, vUv );\n\tif ( r2 > 1.0 ) discard;\n\tfloat a = 1.0 - r2;\n\ta = a * a * ( 0.6 + 0.4 * a );\n\tgl_FragColor = vec4( uCouleur * ( a * vF ), 1.0 );\n}',
+      transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -8,
+    });
+    const flaques = new THREE.Mesh(gf, mf); flaques.name = 'nuit-flaques'; flaques.frustumCulled = false; flaques.renderOrder = 2; flaques.visible = false; scene.add(flaques);
+    NUIT.halos = halos; NUIT.flaques = flaques;
+  }
+  // les vraies lumières : posées sur les sources les plus proches du point regardé (7 m devant la caméra), toutes les 6 images ; une lumière
+  // qui change de source s'éteint d'abord (0,12 s) puis se rallume ailleurs : pas de saut d'éclairage
+  function choisirLumieres(fx, fz) {
+    const N = NUIT.npl, A = NUIT.lum, C2 = NUIT.choix, D2 = NUIT.dch; C2.fill(-1); D2.fill(Infinity);
+    for (let i = 0; i < NUIT.n; i++) {
+      const dx = A[6 * i] - fx, dz = A[6 * i + 2] - fz, d = dx * dx + dz * dz; if (d > 45 * 45 || d >= D2[N - 1]) continue;
+      let k = N - 1; while (k > 0 && D2[k - 1] > d) { D2[k] = D2[k - 1]; C2[k] = C2[k - 1]; k--; } D2[k] = d; C2[k] = i;
+    }
+    for (let s = 0; s < N; s++) { const sl = NUIT.slots[s], cur = sl.vers >= 0 ? sl.vers : sl.i; let garde = false; for (let k = 0; k < N; k++) if (C2[k] === cur && cur >= 0) { C2[k] = -2; garde = true; break; } sl.garde = garde; }
+    for (let k = 0; k < N; k++) {
+      if (C2[k] < 0) continue;
+      for (let s = 0; s < N; s++) { const sl = NUIT.slots[s]; if (sl.garde) continue; sl.garde = true; if (sl.i < 0) { sl.i = C2[k]; sl.k = 0; poserLumiere(s); } else sl.vers = C2[k]; break; }
+    }
+  }
+  function poserLumiere(s) { const i = NUIT.slots[s].i, A = NUIT.lum, l = NUIT.pl[s]; l.position.set(A[6 * i] + A[6 * i + 4] * 0.25, A[6 * i + 1] - 0.05, A[6 * i + 2] + A[6 * i + 5] * 0.25); l.updateMatrixWorld(); }
+  function majNuit(enJeu, dt) {
+    const N = NUIT.npl;
+    if (N > 0) {
+      camera.getWorldDirection(_v2); const l2 = Math.hypot(_v2.x, _v2.z) || 1;
+      if (frame % 6 === 0 || NUIT.slots[0].i < 0) choisirLumieres(camera.position.x + _v2.x / l2 * 7, camera.position.z + _v2.z / l2 * 7);
+      const kf = dt > 0 ? 1 - Math.exp(-dt / 0.12) : 1;
+      for (let s = 0; s < N; s++) {
+        const sl = NUIT.slots[s];
+        if (sl.vers >= 0) { sl.k = dt > 0 ? sl.k * (1 - kf) : 0; if (sl.k < 0.03) { sl.i = sl.vers; sl.vers = -1; sl.k = 0; poserLumiere(s); } }
+        else if (sl.i >= 0) sl.k += (1 - sl.k) * kf;
+        NUIT.pl[s].intensity = sl.i >= 0 ? I_LANTERNE * sl.k : 0;
+      }
+    }
+    const sp = NUIT.spot;
+    if (sp && sp.parent) {
+      if (enJeu) { // la lampe torche : un peu à droite et sous l'œil, vers le regard
+        camera.getWorldDirection(_v2); _v3.set(1, 0, 0).applyQuaternion(camera.quaternion);
+        sp.position.copy(camera.position).addScaledVector(_v3, 0.22); sp.position.y -= 0.22; sp.target.position.copy(camera.position).addScaledVector(_v2, 12);
+        sp.updateMatrixWorld(); sp.target.updateMatrixWorld(); sp.intensity = I_LAMPE;
+      } else sp.intensity = 0;
+    }
+  }
+  // la pluie : des traits (quads de 2 × 50 cm) dont la place est calculée dans le shader (graine × boîte, chute de 9 m/s, un peu de vent,
+  // repliés autour de la caméra : aucun calcul par image sur le processeur) ; 48 éclaboussures au sol autour du joueur (une nouvelle place
+  // à chaque cycle de 0,45 s, prise sur monde.hauteur)
+  function construirePluie() {
+    const n = NGOUTTES.haute, pos = new Float32Array(n * 12), gr = new Float32Array(n * 12), idx = new Uint32Array(n * 6), r = mulberry32(5);
+    for (let i = 0; i < n; i++) {
+      const gx = r(), gy = r(), gz = r();
+      for (let k = 0; k < 4; k++) { const o = 12 * i + 3 * k; pos[o] = k === 0 || k === 3 ? -1 : 1; pos[o + 1] = k < 2 ? 0 : 1; pos[o + 2] = 0; gr[o] = gx; gr[o + 1] = gy; gr[o + 2] = gz; }
+      const a = 4 * i; idx.set([a, a + 1, a + 2, a, a + 2, a + 3], 6 * i);
+    }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('aGraine', new THREE.BufferAttribute(gr, 3)); g.setIndex(new THREE.BufferAttribute(idx, 1));
+    const m = new THREE.ShaderMaterial({
+      uniforms: { uT: UAMB.uT, uBrumeD: UBRUME, uCouleur: UAMB.uCoulPluie, uA: UAMB.uAPluie },
+      vertexShader: 'uniform float uT;\nuniform vec2 uBrumeD;\nattribute vec3 aGraine;\nvarying float vA;\nvarying float vX;\nconst vec3 B = vec3( 36.0, 22.0, 36.0 );\nconst vec2 VENT = vec2( 1.1, 0.5 );\nvoid main() {\n\tvec3 g = aGraine * B;\n\tvec3 c = cameraPosition;\n\tvec3 w = vec3( mod( g.x - c.x - VENT.x * uT, B.x ) - B.x * 0.5 + c.x, mod( g.y - uT * 9.0 - c.y, B.y ) - B.y * 0.5 + c.y, mod( g.z - c.z - VENT.y * uT, B.z ) - B.z * 0.5 + c.z );\n\tvec3 dir = normalize( vec3( VENT.x, -9.0, VENT.y ) );\n\tvec4 mv = viewMatrix * vec4( w - dir * position.y * 0.5, 1.0 );\n\tmv.x += position.x * 0.012;\n\tfloat d = length( mv.xyz );\n\tvA = ( 1.0 - smoothstep( 11.0, 17.5, d ) ) * ( 1.0 - smoothstep( uBrumeD.x, uBrumeD.y, d ) ) * smoothstep( 0.3, 1.0, d );\n\tvX = position.x;\n\tgl_Position = projectionMatrix * mv;\n}',
+      fragmentShader: 'uniform vec3 uCouleur;\nuniform float uA;\nvarying float vA;\nvarying float vX;\nvoid main() {\n\tgl_FragColor = vec4( uCouleur, uA * vA * ( 1.0 - abs( vX ) * 0.5 ) );\n}',
+      transparent: true, depthWrite: false, fog: false,
+    });
+    const pluie = new THREE.Mesh(g, m); pluie.name = 'pluie'; pluie.frustumCulled = false; pluie.renderOrder = 5; pluie.visible = false; scene.add(pluie);
+    // les éclaboussures : 48 quads au sol (un anneau qui s'ouvre et s'efface), aEc = (x, y, z, décalage) recopié à chaque nouvelle place
+    const pe = new Float32Array(NECLAB * 12), ae = new Float32Array(NECLAB * 16), ie = new Uint16Array(NECLAB * 6);
+    for (let i = 0; i < NECLAB; i++) { const c4 = [[-1, -1], [1, -1], [1, 1], [-1, 1]]; for (let k = 0; k < 4; k++) { pe[12 * i + 3 * k] = c4[k][0]; pe[12 * i + 3 * k + 2] = c4[k][1]; ae[16 * i + 4 * k + 1] = -1000; ae[16 * i + 4 * k + 3] = i / NECLAB; } const a = 4 * i; ie.set([a, a + 2, a + 1, a, a + 3, a + 2], 6 * i); }
+    const ge = new THREE.BufferGeometry(); ge.setAttribute('position', new THREE.BufferAttribute(pe, 3)); ge.setAttribute('aEc', new THREE.BufferAttribute(ae, 4).setUsage(THREE.DynamicDrawUsage)); ge.setIndex(new THREE.BufferAttribute(ie, 1));
+    const me = new THREE.ShaderMaterial({
+      uniforms: { uT: UAMB.uT, uCouleur: UAMB.uCoulPluie, uA: UAMB.uAPluie },
+      vertexShader: 'uniform float uT;\nattribute vec4 aEc;\nvarying vec2 vUv;\nvarying float vPh;\nvoid main() {\n\tfloat ph = fract( uT * 2.2 + aEc.w );\n\tfloat r = 0.05 + ph * 0.2;\n\tvec4 mv = modelViewMatrix * vec4( aEc.x + position.x * r, aEc.y + 0.03, aEc.z + position.z * r, 1.0 );\n\tvUv = position.xz;\n\tvPh = ph;\n\tgl_Position = projectionMatrix * mv;\n}',
+      fragmentShader: 'uniform vec3 uCouleur;\nuniform float uA;\nvarying vec2 vUv;\nvarying float vPh;\nvoid main() {\n\tfloat d = length( vUv );\n\tif ( d > 1.0 ) discard;\n\tfloat a = smoothstep( 0.55, 0.85, d ) * ( 1.0 - smoothstep( 0.88, 1.0, d ) ) * ( 1.0 - vPh );\n\tgl_FragColor = vec4( uCouleur, a * uA * 1.2 );\n}',
+      transparent: true, depthWrite: false, fog: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4,
+    });
+    const ecl = new THREE.Mesh(ge, me); ecl.name = 'pluie-eclaboussures'; ecl.frustumCulled = false; ecl.renderOrder = 5; ecl.visible = false; scene.add(ecl);
+    PLUIE.mesh = pluie; PLUIE.ecl = ecl;
+  }
+  function majPluie(t) {
+    const a = PLUIE.ecl.geometry.attributes.aEc, A = a.array, C3 = PLUIE.cycle, cx = camera.position.x, cz = camera.position.z; let sale = false;
+    camera.getWorldDirection(_v2); const cap = Math.atan2(_v2.x, _v2.z);
+    for (let i = 0; i < NECLAB; i++) {
+      const cy = Math.floor(t * 2.2 + i / NECLAB); if (cy === C3[i]) continue; C3[i] = cy; sale = true;
+      const ang = cap + (PLUIE.rnd() - 0.5) * 2.4, d = 1.2 + PLUIE.rnd() * 7.5, x = cx + Math.sin(ang) * d, z = cz + Math.cos(ang) * d, y = HS(x, z);
+      for (let k = 0; k < 4; k++) { const o = 16 * i + 4 * k; A[o] = x; A[o + 1] = y; A[o + 2] = z; }
+    }
+    if (sale) a.needsUpdate = true;
+  }
+  function majAmbiance(enJeu, dt, t) {
+    UAMB.uT.value = t % 600;
+    if (AMB.nuit > 0) majNuit(enJeu, dt);
+    if (PLUIE.n > 0 && PLUIE.ecl) majPluie(t % 600);
+  }
+  function statsAmbiance() {
+    const vis = (m) => !!(m && m.visible && m.parent), appels = [NUIT.halos, NUIT.flaques, PLUIE.mesh, PLUIE.ecl].filter(vis).length;
+    let lumieres = 0; for (let i = 0; i < NUIT.npl; i++) if (NUIT.pl[i].parent) lumieres++;
+    return { heure: AMB.heure, meteo: AMB.meteo, voulue: AMB.voulue.heure + '|' + AMB.voulue.meteo, nuit: AMB.nuit, appels, lumieres, lampe: !!(NUIT.spot && NUIT.spot.parent), sources: NUIT.n, gouttes: PLUIE.n, brume: AMB.brumeQ[QUAL.niveau] ? AMB.brumeQ[QUAL.niveau].slice() : null,
+      ombres: !!(soleil && soleil.castShadow), compile: AMB.compileMs, changements: AMB.changements, programmes: renderer && renderer.info.programs ? renderer.info.programs.length : 0, cloture: { forme: CLOT.forme, aretes: CLOT.n, tranches: CLOT.nq, piquets: CLOT.np, distance: Math.round(CLOT.d * 10) / 10 } };
   }
 
   // ═══════════════════════════════ les personnages ═══════════════════════════════
@@ -1539,11 +1899,14 @@ const PRENDU = (() => {
       cv.addEventListener('webglcontextlost', surPerte, false); cv.addEventListener('webglcontextrestored', surRetour, false);
       // les textures du décor : WebGL2 ou non (sans WebGL2, PTEXTURES.bati rend null : les couleurs seules), la taille selon la qualité
       if (PTX) { try { PTX.init(renderer); PTX.qualite(QUAL.niveau); } catch (e) { signaler('PTEXTURES.init', e); } }
+      // l'ambiance (heure, météo) : le jour en attendant ; celle demandée avant cette init est remise à la fin
+      AMB.brume = new THREE.Color(C.brume); AMB.dir = SOLEIL; AMB.heure = 'jour'; AMB.meteo = 'clair'; AMB.nuit = 0; AMB.pluie = false; AMB.uni = false; brumesPour('jour', 'clair');
+      UBRUME.value = new THREE.Vector2(PALIERS[QUAL.niveau].brume[0], PALIERS[QUAL.niveau].brume[1]); UAMB.uCoulHalo.value = new THREE.Color('#FFB45E'); UAMB.uCoulFlaque.value = new THREE.Color('#FF9A3C').multiplyScalar(0.3); UAMB.uCoulPluie.value = new THREE.Color('#D6DEE6');
       scene = new THREE.Scene(); scene.fog = new THREE.Fog(C.brume, PALIERS[QUAL.niveau].brume[0], PALIERS[QUAL.niveau].brume[1]);
       camera = new THREE.PerspectiveCamera(60, 2, 0.1, PALIERS[QUAL.niveau].brume[1] + 40); camera.rotation.order = 'YXZ'; scene.add(camera);
       hemi = new THREE.HemisphereLight(C.cielHemi, C.solHemi, C.iHemi);
       soleil = new THREE.DirectionalLight(C.soleil, C.iSoleil); soleil.castShadow = true; soleil.shadow.mapSize.set(PALIERS.haute.ombres, PALIERS.haute.ombres); soleil.shadow.bias = -0.0006; soleil.shadow.normalBias = 0.04;
-      const sc = soleil.shadow.camera; sc.left = -40; sc.right = 40; sc.top = 40; sc.bottom = -40; sc.near = 1; sc.far = 400; sc.updateProjectionMatrix();
+      const sc = soleil.shadow.camera; sc.left = -40; sc.right = 40; sc.top = 40; sc.bottom = -40; sc.near = 1; sc.far = 225; // la lumière est à 160 m de la cible : au-delà de ~60 m derrière elle, rien ne projette d'ombre visible (un soleil bas du soir ne ramasse pas tout le bourg) sc.updateProjectionMatrix();
       scene.add(hemi, soleil, soleil.target);
       // les vraies armes (poncin/armes/*.glb) : lues en arrière-plan ; d'ici là, les armes procédurales au même gabarit
       if (AV) { try { AV.armes.charger(typeof opts.armes === 'string' ? opts.armes : dossier.replace(/carte\/?$/, '') + 'armes/'); } catch (e) { signaler('armes', e); } }
@@ -1552,6 +1915,7 @@ const PRENDU = (() => {
       if (!FX.traits) return false; // sans les effets, rien ne tient : on préfère le panneau sans 3D
       try { habillerSol(); } catch (e) { signaler('habiller le sol', e); }
       webgl = true; pret = true; perdu = false; frame = 0; tPrecImage = 0; lumA = 1; memoireSale = true;
+      if (AMB.voulue.heure !== 'jour' || AMB.voulue.meteo !== 'clair') { try { appliquerAmbiance(AMB.voulue.heure, AMB.voulue.meteo, false); } catch (e) { signaler('ambiance', e); } }
       taille(typeof window !== 'undefined' ? window.innerWidth : 844, typeof window !== 'undefined' ? window.innerHeight : 390);
       if (ARBRES.types.length) majArbres(0, 0, true);
       return true;
@@ -1569,7 +1933,7 @@ const PRENDU = (() => {
       if (cv) { cv.removeEventListener('webglcontextlost', surPerte, false); cv.removeEventListener('webglcontextrestored', surRetour, false); }
       renderer.dispose();
     } catch (e) { signaler('libérer', e); }
-    renderer = null; scene = null; sceneArme = null; FP.id = ''; FP.nouvelle = ''; FP.info = null; tuiles = []; nbTuiles = 0; voutesM = null; ARBRES.types = []; for (const k of Object.keys(FX)) delete FX[k]; OBJ.types = {}; OBJ.liste_types = null; OBJ.anneaux = null; barriere = null; eau = null; eauMat = null; ciel = null; sol = null; solMat = null; jupe = null; ponts = null; clotures = null; pret = false;
+    renderer = null; scene = null; sceneArme = null; FP.id = ''; FP.nouvelle = ''; FP.info = null; tuiles = []; nbTuiles = 0; voutesM = null; ARBRES.types = []; for (const k of Object.keys(FX)) delete FX[k]; OBJ.types = {}; OBJ.liste_types = null; OBJ.anneaux = null; CLOT.ruban = null; CLOT.piquets = null; CLOT.lim = null; CLOT.zone = null; CLOT.n = 0; CLOT.nq = 0; CLOT.np = 0; NUIT.construit = false; NUIT.n = 0; NUIT.halos = null; NUIT.flaques = null; NUIT.pl = []; NUIT.slots = []; NUIT.npl = 0; NUIT.spot = null; PLUIE.mesh = null; PLUIE.ecl = null; PLUIE.n = 0; matOuv = null; matOuvAtl = null; eau = null; eauMat = null; ciel = null; sol = null; solMat = null; jupe = null; ponts = null; clotures = null; pret = false;
   }
   function surPerte(e) { if (e && e.preventDefault) e.preventDefault(); perdu = true; }
   function surRetour() { // Three recrée son état ; on remet les textures et les programmes à jour, le décor revient tel quel
@@ -1591,7 +1955,10 @@ const PRENDU = (() => {
     CHAMP.fov = fovV; CHAMP.arme = camArme ? camArme.fov : 52;
   }
   let brumeK = 1;
-  function brume(k) { if (k === brumeK) return; brumeK = k; const p = PALIERS[QUAL.niveau]; scene.fog.near = p.brume[0] * k; scene.fog.far = p.brume[1] * k; camera.far = p.brume[1] * k + 40; camera.updateProjectionMatrix(); }
+  function brume(k) { // les distances de l'ambiance au palier en cours (× k : le survol voit plus loin) ; camera.far = loin + 40 (+ 20 dans le brouillard)
+    if (k === brumeK) return; brumeK = k; const b = AMB.brumeQ[QUAL.niveau] || PALIERS[QUAL.niveau].brume; scene.fog.near = b[0] * k; scene.fog.far = b[1] * k; camera.far = b[1] * k + (AMB.uni ? 20 : 40); camera.updateProjectionMatrix();
+    if (UBRUME.value) UBRUME.value.set(scene.fog.near, scene.fog.far);
+  }
   // les textures suivent la qualité CHOISIE (réglages, PRENDU.qualite) : haute et moyenne ont les mêmes tailles (seule l'anisotropie change) ;
   // vers ou depuis l'éco (tailles / 2), PTEXTURES est vidé puis refait et les bâtiments reconstruits avec les nouvelles matières (≈ 1 à 2 s
   // sur un téléphone lent), la photo de l'arène, le masque du sol et le ciel prennent la taille du palier. La qualité adaptative (auto) n'y
@@ -1626,6 +1993,7 @@ const PRENDU = (() => {
     if (!ombres && soleil.shadow.map) { soleil.shadow.map.dispose(); soleil.shadow.map = null; }
     brumeK = 0; brume(1); ARBRES.cx = 1e9;
     if (ancien && ancien !== QUAL.niveau) texturesPour(QUAL.niveau, auto);
+    try { objetsAmbiance(); } catch (e) { signaler('ambiance du palier', e); } // vraies lumières, halos, pluie : selon le palier
   }
   function qualite(q) {
     if (q === undefined) return QUAL.niveau;
@@ -1661,6 +2029,7 @@ const PRENDU = (() => {
     if (tPrecImage) mesurer(t0 - tPrecImage); tPrecImage = t0;
     if (perdu) return; // la simulation continue ; le décor reviendra avec le contexte
     dt = fini(dt) && dt > 0 ? Math.min(dt, 0.1) : 0; t = fini(t) ? t : 0; frame++;
+    ambianceDuJeu(jeu); // l'heure et la météo de la partie (ses réglages), sinon celles du dernier PRENDU.ambiance
     const e = jeu ? trouver(jeu, idCamera) : null;
     if (e && CAM.id !== idCamera) { CAM.id = idCamera; if (CAM.f) CAM.f.remettre(); FP.lastYaw = +e.yaw || 0; FP.lastPitch = +e.pitch || 0; }
     let enJeu = false;
@@ -1670,25 +2039,27 @@ const PRENDU = (() => {
     camera.updateMatrixWorld();
     const cx = camera.position.x, cz = camera.position.z;
     try { if (jeu) { majActeurs(jeu, idCamera, dt, t, !!(e && e.vivant === false)); majObjets(jeu, +jeu.temps || t); } else { cacherActeurs(); cacherObjets(); } } catch (err) { signaler('acteurs', err); }
-    try { majBarriere(cx, cz); } catch (err) { signaler('barrière', err); }
+    try { majCloture(jeu, cx, cz); } catch (err) { signaler('clôture', err); }
+    try { majAmbiance(enJeu, dt, t); } catch (err) { signaler('ambiance', err); }
     try { majEffets(dt); } catch (err) { signaler('effets', err); }
     if (veg) { try { veg.maj(camera, t); } catch (err) { signaler('végétation', err); } } else if (ARBRES.types.length) { try { majArbres(cx, cz, false); } catch (err) { signaler('arbres', err); } }
     if (decor) { try { decor.maj(camera, t); } catch (err) { signaler('décor', err); } }
     // les détails des façades : seulement les tuiles proches
-    const D = PALIERS[QUAL.niveau].detail;
+    const D = Math.min(PALIERS[QUAL.niveau].detail, scene.fog.far + 10); // (au-delà de la brume, rien à voir)
     for (let i = 0; i < nbTuiles; i++) { const ti = tuiles[i]; if (!ti.det) continue; const dx = cx < ti.x0 ? ti.x0 - cx : cx > ti.x1 ? cx - ti.x1 : 0, dz = cz < ti.z0 ? ti.z0 - cz : cz > ti.z1 ? cz - ti.z1 : 0; ti.det.visible = dx * dx + dz * dz < D * D; }
     // le ciel suit la caméra ; le soleil et sa carte d'ombre aussi (calée sur la grille des texels : pas de scintillement)
     if (ciel) { ciel.position.copy(camera.position); const r = camera.far * 0.92; ciel.scale.set(r, r, r); }
     if (renderer.shadowMap.enabled) {
       const px = 80 / PALIERS.haute.ombres, fx = cx - Math.sin(camera.rotation.y) * 18, fz = cz - Math.cos(camera.rotation.y) * 18, sx = Math.round(fx / px) * px, sz = Math.round(fz / px) * px, sy = H0(sx, sz);
-      soleil.target.position.set(sx, sy, sz); soleil.position.set(sx + SOLEIL[0] * 160, sy + SOLEIL[1] * 160, sz + SOLEIL[2] * 160); soleil.target.updateMatrixWorld();
-    } else { soleil.position.set(cx + SOLEIL[0] * 160, SOLEIL[1] * 160, cz + SOLEIL[2] * 160); soleil.target.position.set(cx, 0, cz); soleil.target.updateMatrixWorld(); }
+      const S = AMB.dir; soleil.target.position.set(sx, sy, sz); soleil.position.set(sx + S[0] * 160, sy + S[1] * 160, sz + S[2] * 160); soleil.target.updateMatrixWorld();
+    } else if (AMB.lunePorte && enJeu) { camera.getWorldDirection(_v2); const l = Math.hypot(_v2.x, _v2.z) || 1; _v.set(-_v2.x / l, 0.9, -_v2.z / l).normalize(); soleil.position.set(cx + _v.x * 160, _v.y * 160, cz + _v.z * 160); soleil.target.position.set(cx, 0, cz); soleil.target.updateMatrixWorld(); }
+    else { const S = AMB.dir; soleil.position.set(cx + S[0] * 160, S[1] * 160, cz + S[2] * 160); soleil.target.position.set(cx, 0, cz); soleil.target.updateMatrixWorld(); }
     if (eauMat) { const o = eauMat.normalMap.offset; o.x = (t * 0.021) % 1; o.y = (t * 0.013) % 1; }
     // l'arme subjective (plus sombre sous une voûte)
     const armeVis = enJeu && e && e.vivant !== false;
     try { if (armeVis) majArme(e, jeu, dt, t); else if (FP.groupe) FP.groupe.visible = false; } catch (err) { signaler('arme', err); }
     if (FX.rouge && !armeVis) FX.rouge.t = 0;
-    if (armeVis && hemiA) { let sv = -1; try { sv = monde.sousVoute ? monde.sousVoute(+e.x, +e.z) : -1; } catch (err) { sv = -1; } lumA += ((sv >= 0 ? 0.5 : 1) - lumA) * Math.min(1, dt * 6); hemiA.intensity = C.iHemi * 1.15 * lumA; soleilA.intensity = C.iSoleil * 0.75 * lumA; }
+    if (armeVis && hemiA) { let sv = -1; try { sv = monde.sousVoute ? monde.sousVoute(+e.x, +e.z) : -1; } catch (err) { sv = -1; } lumA += ((sv >= 0 ? 0.5 : 1) - lumA) * Math.min(1, dt * 6); hemiA.intensity = C.iHemi * 1.15 * lumA * AMB.kArmeH; soleilA.intensity = C.iSoleil * 0.75 * lumA * AMB.kArmeS; }
     // le rendu : le monde, puis l'arme par-dessus (profondeur effacée)
     renderer.info.reset();
     renderer.clear(true, true, true);
@@ -1766,9 +2137,9 @@ const PRENDU = (() => {
     memoireMo = Math.round(o / 104857.6) / 10; memoireSale = false; return memoireMo;
   }
   const API = {
-    init, taille, image, evenements, qualite, projeter, survol, reglages,
+    init, taille, image, evenements, qualite, projeter, survol, reglages, ambiance,
     get fov() { return CHAMP.fov || fovV; }, get visee() { return { vise: FP.vise, viseur: FP.viseur, zoom: CHAMP.z, cache: FP.cache, arme: FP.id }; }, get webgl() { return webgl && !perdu; }, get budgets() { return BUDGETS; },
-    get _interne() { return { scene, sceneArme, camera, camArme, renderer, FP, FX, CAM, tuiles, voutes: voutesM, acteurs, decor, veg, BATI, ATL, USOL, soleil, hemi, QUAL, SOLEIL, palier: changerPalier }; }, // pour l'atelier et les tests (palier : un changement de la qualité adaptative)
+    get _interne() { return { scene, sceneArme, camera, camArme, renderer, FP, FX, CAM, tuiles, voutes: voutesM, acteurs, decor, veg, BATI, ATL, USOL, soleil, hemi, QUAL, SOLEIL, AMB, NUIT, PLUIE, CLOT, palier: changerPalier, aretesDe }; }, // pour l'atelier et les tests (palier : un changement de la qualité adaptative)
     get stats() {
       const i = renderer ? renderer.info : null; let ds = null, vs = null, ps = null;
       try { ds = decor ? decor.stats : null; } catch (e) { ds = null; } try { vs = veg ? veg.stats : null; } catch (e) { vs = null; } try { ps = PTX ? PTX.stats() : null; } catch (e) { ps = null; }
@@ -1777,7 +2148,7 @@ const PRENDU = (() => {
         arbres: vs ? vs.arbres : ARBRES.types.reduce((s, T) => s + T.im.count + T.imL.count, 0), budget: BUDGETS[QUAL.niveau], memoire: memoire(), voutes: nVoutes, bati: BATI ? 'couches' : 'couleurs',
         decor: ds ? { appels: ds.appels, triangles: ds.triangles, appelsOmbre: ds.appelsOmbre, trianglesOmbre: ds.trianglesOmbre, memoire: Math.round((ds.memoire || 0) / 104857.6) / 10, erreurs: (ds.erreurs || []).length } : null,
         vegetation: vs ? { appels: vs.appels, triangles: vs.triangles, appelsOmbre: vs.appelsOmbre, trianglesOmbre: vs.trianglesOmbre, memoire: Math.round((vs.memoire || 0) / 104857.6) / 10, arbres: vs.arbres, buissons: vs.buissons } : null,
-        textures3d: ps ? { mo: ps.mo, ms: ps.ms, pages: ps.pages } : null };
+        textures3d: ps ? { mo: ps.mo, ms: ps.ms, pages: ps.pages } : null, ambiance: renderer ? statsAmbiance() : null };
     },
   };
   return API;

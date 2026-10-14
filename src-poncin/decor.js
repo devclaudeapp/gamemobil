@@ -6,7 +6,8 @@
    (raccord de couleur de l'horizon), zones.arene (la place). RIEN D'INVENTÉ DANS LES DONNÉES : noms, positions des objets réels et
    façades viennent d'OSM et de l'IGN. Sont des CHOIX DE STYLE (ambiance générique, jamais présentée comme une donnée) : dessins,
    teintes, devantures, stores, terrasses (3–4 tables, un parasol) des bars et restaurants, perron, horloge (17 h 10, l'heure du soleil
-   de rendu.js) et drapeaux de la mairie, lanternes murales anciennes (rues du bourg, ~27 m, jamais deux à moins de 15 m), fenêtres
+   de rendu.js) et drapeaux de la mairie, lanternes murales anciennes (rues du bourg, ~27 m, jamais deux à moins de 15 m), candélabres
+   au bord des rues sans façade (24 au plus, décision du joueur : des lampadaires d'ambiance, allumés la nuit), fenêtres
    fleuries et pots près de la place, bancs sous les arbres de la place (posés par monde.js), plaques de rue émaillées aux carrefours
    (une au plus), l'intérieur derrière les glaces (pains, bureau à glace dépolie, salle à brise-bise, salon de coiffure ; sinon des
    étagères). Aucun logo de marque : Crédit Agricole, La Poste, Petit Casino s'écrivent en lettres, couleurs génériques ; la « carotte »
@@ -29,8 +30,10 @@
    onBeforeRender). Les objets du décor ne bloquent rien : monde.js décide des collisions (troncs, murs, mobilier OSM massif) ; les bancs
    de la place sont à lui (monde.bancs [[x, z, yaw]] : il les pose et les rend pleins, decor.js les dessine là) ; les terrasses (tables,
    chaises, parasol), contre les façades, restent traversables.
-   API : creer(carte, monde, { qualite, textures, bati, dossier, photo }) → { groupe, maj(camera, t), qualite(q?), retour(), liberer(),
-   stats, remarquables, facades, atlas } ; textures = PTEXTURES (défaut : le global s'il est chargé ; null pour s'en passer) ; bati =
+   API : creer(carte, monde, { qualite, textures, bati, dossier, photo }) → { groupe, maj(camera, t), qualite(q?), nuit(k?), retour(),
+   liberer(), stats, remarquables, facades, lumieres, atlas } ; nuit(k ∈ [0, 1]) : allume (uniforme seulement) les vitres des lanternes et
+   des candélabres, les glaces des devantures, 35 % des fenêtres fleuries, les intérieurs des vitrines et les enseignes ; lumieres :
+   [{ x, y, z, t: 'lanterne' | 'candelabre' | 'lampadaire', nx, nz, sol }] les points lumineux (rendu.js y pose halos, flaques et lumières) ; textures = PTEXTURES (défaut : le global s'il est chargé ; null pour s'en passer) ; bati =
    l'objet PTEXTURES.bati(…) de rendu.js, ou une fonction qui le rend (relue à chaque construction), pour partager sa texture en couches ;
    dossier : où lire carte.sol (défaut window.PONCIN_CARTE_DOSSIER ou 'carte/') ; photo: false pour ne pas la lire. groupe : à ajouter
    à la scène ; maj(camera, t) après avoir placé la caméra (t en secondes : le vent des drapeaux ; reconstruit si qualite a changé) ;
@@ -346,6 +349,8 @@ const PDECOR = (() => {
     const BANCS = (Array.isArray(monde.bancs) ? monde.bancs : []).filter((b) => Array.isArray(b) && fini(b[0]) && fini(b[1]) && fini(b[2]));
     const presBanc = (x, z, r) => BANCS.some(([bx, bz, yaw]) => d2Seg(x, z, bx - Math.cos(yaw) * 0.9, bz + Math.sin(yaw) * 0.9, bx + Math.cos(yaw) * 0.9, bz - Math.sin(yaw) * 0.9) < (r + 0.25) ** 2);
 
+    // les points lumineux de la nuit (rendu.js : halos, flaques, vraies lumières) : lanternes murales, candélabres, lampadaires OSM
+    const lanternes = [], candelabres = [], lumieres = [];
     // ─── les façades : une arête d'un bâtiment de monde, vue du dehors ───
     function Facade(bi, i) { // bi : indice dans BATS ; arête p[i] → p[i+1] ; normale sortante (uz, −ux)
       const b = BATS[bi], p = b.p, a = p[i], c = p[(i + 1) % p.length], len = Math.hypot(c[0] - a[0], c[1] - a[1]);
@@ -432,9 +437,9 @@ const PDECOR = (() => {
         if (nom === 'dab') { // un trumeau de pierre et le distributeur encastré
           boite(S, R, x, x + w, -0.3, 2.72, 0, 0.05, lin('#CFC6B6'), 'db'); const c = lots.cel('dab'); panneau(lots.atlas, R, x + w / 2 - 0.3, x + w / 2 + 0.3, 0.95, 1.8, 0.055, [1, 1, 1], c);
           boite(S, R, x + w / 2 - 0.36, x + w / 2 + 0.36, 1.83, 1.9, 0, 0.2, lin('#8E959A'), 'd');
-        } else if (D && D.cellules[nom]) { const c = D.cellules[nom]; panneau(lots.details, R, x, x + w, -0.02, 2.7, 0.07, [1, 1, 1], c.uv); }
+        } else if (D && D.cellules[nom]) { const c = D.cellules[nom]; panneau(lots.details, R, x, x + w, -0.02, 2.7, 0.07, [1, 1, 1], c.uv, 1.5); } // e : la glace s'allume la nuit
         else { boite(S, R, x, x + w, -0.3, 2.7, 0, 0.07, cad, 'db'); panneau(S, R, x + 0.08, x + w - 0.08, nom === 'vitrine' ? 0.55 : 0.05, 2.6, 0.075, lin('#3E5468'), null, 0, lin('#8FA7BC')); }
-        if (o.interieur && nom === 'vitrine') panneau(lots.atlas, R, x + w * 0.05, x + w * 0.95, 0.574, 2.62, 0.078, [1, 1, 1], lots.cel(o.interieur)); // la glace de l'atlas (1,6 × 2,7 m : marges 8 cm, soubassement 55 cm)
+        if (o.interieur && nom === 'vitrine') panneau(lots.atlas, R, x + w * 0.05, x + w * 0.95, 0.574, 2.62, 0.078, [1, 1, 1], lots.cel(o.interieur), -1); // la glace de l'atlas (1,6 × 2,7 m : marges 8 cm, soubassement 55 cm) ; e = −1 : éclairée de l'intérieur la nuit
       }
       // pilastres, corniche (le bandeau de l'enseigne), moulure ; seuil
       boite(S, R, -W / 2, -W / 2 + 0.18, -0.3, ys, 0, 0.14, cad, 'db', cadH); boite(S, R, W / 2 - 0.18, W / 2, -0.3, ys, 0, 0.14, cad, 'db', cadH);
@@ -478,7 +483,7 @@ const PDECOR = (() => {
         for (let i = 0; i < 4; i++) {
           const j = (i + 1) % 4, P = [[b[i], y0], [b[j], y0], [h[j], y1], [h[i], y1]].map(([c, y]) => [c[0], y, c[1]]), cx = (P[0][0] + P[1][0] + P[2][0] + P[3][0]) / 4, cy = (y0 + y1) / 2, cz = (P[0][2] + P[1][2] + P[2][2] + P[3][2]) / 4;
           const nx = (b[i][0] + b[j][0]) / 2, nz = (b[i][1] + b[j][1]) / 2, nl = Math.hypot(nx, nz), Q = P.map((v) => R.pt(v[0] + (cx - v[0]) * k + nx / nl * 0.004, v[1] + (cy - v[1]) * k * 0.6, zc + v[2] + (cz - v[2]) * k + nz / nl * 0.004));
-          S.quad(Q[0], Q[1], Q[2], Q[3], verreB, null, 0, verre);
+          S.quad(Q[0], Q[1], Q[2], Q[3], verreB, null, 1, verre); // e = 1 : la vitre s'allume la nuit (aLum)
         }
       }
       if (fin) boite(S, R, -0.11, 0.11, yt - 0.52, yt - 0.48, zc - 0.11, zc + 0.11, fer); // le culot
@@ -740,7 +745,7 @@ const PDECOR = (() => {
         else if (t === 'monument') { cellule('plaque-bronze', 'plaqueBronze', 160, 110); ordre('monument', (lots, q) => dessinerMonument(lots, q, R), x, z); }
         else if (t === 'poubelle') ordre('poubelle', (lots, q) => dessinerPoubelle(lots, q, R), x, z);
         else if (t === 'banc') ordre('banc', (lots, q) => dessinerBanc(lots, q, R), x, z);
-        else if (t === 'lampadaire') ordre('lampadaire', (lots, q) => dessinerLampadaire(lots, q, R), x, z);
+        else if (t === 'lampadaire') { ordre('lampadaire', (lots, q) => dessinerLampadaire(lots, q, R), x, z); const L0 = R.pt(0, 3.45 - 0.38, -0.52 + 0.52); lumieres.push({ x: +L0[0].toFixed(2), y: +L0[1].toFixed(2), z: +L0[2].toFixed(2), t: 'lampadaire', nx: 0, nz: 0, sol: +y.toFixed(2) }); }
         else if (t === 'fontaine') ordre('fontaine', (lots, q) => dessinerFontaine(lots, q, R), x, z);
         else if (t === 'borne') ordre('borne', (lots, q) => { cylindre(lots.solides, R, [0, -0.1, 0], [0, 0.85, 0], 0.09, 0.08, q.seg, lin('#2E3236'), 'b'); }, x, z);
         else if (t === 'abribus') ordre('abribus', (lots, q) => dessinerAbribus(lots, q, R), x, z);
@@ -781,6 +786,23 @@ const PDECOR = (() => {
     function dessinerLampadaire(lots, q, R) { // repli pour les cartes qui en ont (OSM) : un candélabre de style et sa lanterne
       const S = lots.solides, f = lin('#1E2022'); cylindre(S, R, [0, -0.1, 0], [0, 0.6, 0], 0.11, 0.08, q.seg, f); cylindre(S, R, [0, 0.6, 0], [0, 3.4, 0], 0.06, 0.045, q.seg, f);
       const p = R.pt(0, 3.45, -0.52); dessinerLanterne(lots, q, new Rep(p[0], p[1], p[2], R.xx, R.xz));
+    }
+    // un candélabre de style (fonte noire) : socle mouluré, fût cannelé qui s'affine, bagues, la lanterne ancienne pendue à sa potence au-dessus
+    // de la rue (repère R au pied, +Z vers la chaussée), un fleuron au sommet ; la vitre s'allume la nuit (rendu.js y pose halo et flaque)
+    function dessinerCandelabre(lots, q, R) {
+      const S = lots.solides, f = lin('#1E2124'), fH = lin('#3A3E42'), n = Math.min(6, q.seg);
+      if (q.fusion) { // éco : un fût carré, la lanterne en tronc de pyramide et ses vitres (~40 triangles)
+        tronc(S, R, 0, -0.15, 0.4, 0, 0.26, 0.26, 0.18, 0.18, f, fH, 'h'); tronc(S, R, 0, 0.4, 3.55, 0, 0.1, 0.1, 0.07, 0.07, f, fH);
+        boite(S, R, -0.02, 0.02, 3.42, 3.47, 0, 0.55, f, 'db'); const v = lin('#C9A659'), vh = lin('#F0D898');
+        tronc(S, R, 0, 2.95, 3.32, 0.52, 0.17, 0.17, 0.26, 0.26, v, vh, 'h'); pyramide(S, R, 0, 3.32, 0.52, 0.32, 0.32, 0.12, f, true, fH);
+        S.quad(R.pt(-0.085, 2.95, 0.605), R.pt(0.085, 2.95, 0.605), R.pt(0.13, 3.32, 0.65), R.pt(-0.13, 3.32, 0.65), v, null, 1, vh); S.quad(R.pt(0.085, 2.95, 0.435), R.pt(-0.085, 2.95, 0.435), R.pt(-0.13, 3.32, 0.39), R.pt(0.13, 3.32, 0.39), v, null, 1, vh);
+        return;
+      }
+      cylindre(S, R, [0, -0.15, 0], [0, 0.32, 0], 0.15, 0.12, n, f, 'b', fH); cylindre(S, R, [0, 0.32, 0], [0, 0.55, 0], 0.09, 0.075, n, f, null, fH);
+      cylindre(S, R, [0, 0.55, 0], [0, 3.55, 0], 0.062, 0.045, n, f, null, fH);
+      cylindre(S, R, [0, 2.4, 0], [0, 2.47, 0], 0.08, 0.08, n, fH); // une bague
+      cylindre(S, R, [0, 3.55, 0], [0, 3.7, 0], 0.06, 0.012, 4, fH, 'a'); // le fleuron
+      const p = R.pt(0, 3.5, 0.03); dessinerLanterne(lots, Object.assign({}, q, { fin: 0 }), new Rep(p[0], p[1], p[2], R.xx, R.xz));
     }
     function dessinerFontaine(lots, q, R) { // repli : un bassin de pierre octogonal et sa colonne
       const Lp = lots.pierre, r = 1.1, p = '#CFC5B2', S = lots.solides, eau = lin('#5E8CA8');
@@ -871,7 +893,6 @@ const PDECOR = (() => {
       }
       if (!best) return null; const f = new Facade(best.k, best.i); f.s = best.s; f.t = best.t; return f;
     }
-    const lanternes = [];
     { // les lanternes murales des rues du bourg : tous les ~27 m le long des rues nommées à moins de 230 m de la place, en alternant les côtés
       const RB = 200; let cote = 1;
       for (const r of carte.rues || []) {
@@ -889,6 +910,7 @@ const PDECOR = (() => {
               if (lanternes.some((o) => Math.hypot(o[0] - lx, o[1] - lz) < 15)) continue;
               if (!libreSur(f, f.s - 1.2, f.s + 1.2)) continue;
               lanternes.push([lx, lz]); reserver(f, f.s - 0.5, f.s + 0.5, 'lanterne', -1); const fs = f.s, yl = g + 3.3; ordre('lanterne', (lots, q) => dessinerLanterne(lots, q, f.rep(fs, yl, 0)), lx, lz);
+              lumieres.push({ x: +f.x(fs, 0.52).toFixed(2), y: +(yl - 0.38).toFixed(2), z: +f.z(fs, 0.52).toFixed(2), t: 'lanterne', nx: +f.nx.toFixed(3), nz: +f.nz.toFixed(3), sol: +g.toFixed(2) });
               pose = true; cote = -sg; break;
             }
             s += pose ? 27 : 6;
@@ -897,6 +919,43 @@ const PDECOR = (() => {
         }
       }
       NOTES.lanternes = lanternes.length;
+    }
+    { // les candélabres (choix de style, décision du joueur : des lampadaires d'ambiance le long des rues du bourg, jamais présentés comme
+      // une donnée) : là où aucune façade ne porte de lanterne (places, parkings, rues bordées de jardins), au bord de la chaussée, tous les
+      // ~24 m au plus, à 13 m au moins d'une lanterne et à 22 m d'un autre candélabre ; jamais dans un bâtiment, sur l'eau, sur une autre rue,
+      // contre un tronc ou un banc ; 24 au plus, simplifiés et sans ombre portée (le budget du décor : ~140 triangles chacun). Ils ne bloquent
+      // rien (monde.js décide des collisions) : posés au ras de la chaussée, côté trottoir
+      const RB = 210, MAX = 24, eaux = (carte.eau || []).filter((e) => e && Array.isArray(e.p) && e.p.length >= 3).map((e) => e.p);
+      const surEau = (x, z) => eaux.some((p) => dPoly(p, x, z));
+      const loinDe = (x, z, d) => !lanternes.some((o) => Math.hypot(o[0] - x, o[1] - z) < d) && !candelabres.some((o) => Math.hypot(o[0] - x, o[1] - z) < 22);
+      let cote = 1;
+      for (const r of carte.rues || []) {
+        if (candelabres.length >= MAX) break;
+        if (!r || !Array.isArray(r.l) || r.l.length < 2 || r.t === 'chemin') continue; const w = fini(+r.w) ? +r.w : 5;
+        if (!r.l.some((p) => p && Math.hypot(p[0] - PC[0], p[1] - PC[1]) < RB)) continue;
+        let reste = 6;
+        for (let i = 0; i + 1 < r.l.length && candelabres.length < MAX; i++) {
+          const a = r.l[i], b = r.l[i + 1]; if (!a || !b) continue; const dx = b[0] - a[0], dz = b[1] - a[1], d = Math.hypot(dx, dz); if (d < 0.1) continue; const tx = dx / d, tz = dz / d;
+          let s = reste;
+          while (s <= d && candelabres.length < MAX) {
+            const cx = a[0] + tx * s, cz = a[1] + tz * s; let pose = false;
+            if (Math.hypot(cx - PC[0], cz - PC[1]) < RB) for (const sg of [cote, -cote]) {
+              const nx = -tz * sg, nz = tx * sg, x = cx + nx * (w / 2 + 0.45), z = cz + nz * (w / 2 + 0.45);
+              if (dansBat(x, z) >= 0 || dansBat(x + nx * 0.9, z + nz * 0.9) >= 0 || dansBat(x - tz * 0.8, z + tx * 0.8) >= 0 || dansBat(x + tz * 0.8, z - tx * 0.8) >= 0) continue;
+              if (surEau(x, z) || surEau(cx, cz) || distRue(x, z) < 0.25 || presArbre(x, z, 0.9) || presBanc(x, z, 0.8) || !loinDe(x, z, 13)) continue;
+              if (segsReserves.some((sr) => d2Seg(x, z, sr[0], sr[1], sr[2], sr[3]) < 2.2 * 2.2)) continue; // pas devant une devanture, une terrasse
+              const g = H0(x, z), yaw = Math.atan2(-tz * sg, tx * sg); // +Z (devant) vers la chaussée : la lanterne pend au-dessus du bord de la rue
+              candelabres.push([x, z]); const R = repYaw(x, g, z, yaw), L0 = R.pt(0, 3.12, 0.55);
+              ORDRES.push([(lots, q) => dessinerCandelabre(lots, q, R), false]); COMPTE.candelabre = (COMPTE.candelabre || 0) + 1; // dans les maillages « loin » : sans ombre
+              lumieres.push({ x: +L0[0].toFixed(2), y: +L0[1].toFixed(2), z: +L0[2].toFixed(2), t: 'candelabre', nx: 0, nz: 0, sol: +g.toFixed(2) });
+              pose = true; cote = -sg; break;
+            }
+            s += pose ? 24 : 5;
+          }
+          reste = s - d;
+        }
+      }
+      NOTES.candelabres = candelabres.length;
     }
     { // les bancs de la place, sous les arbres (choix de style) : monde.js les pose (règle dans monde.js : à 1,9 m d'un tronc mesuré, dos à lui,
       // hors des rues, des bâtiments et des autres troncs, 4 au plus) et les rend pleins pour les pas et les tirs ; le décor ne fait que les dessiner
@@ -925,7 +984,7 @@ const PDECOR = (() => {
       }
       for (const [f, s, y0, vol, var2] of pris) ordre('fenetre', (lots, q) => {
         const D2 = DETAILS(); if (!D2) return; const R = f.rep(s, y0), fe = D2.cellules.fenetre, v = D2.cellules['volet-' + vol], ou = fe.ouverture || [0.1, 0.1, fe.l - 0.1, fe.h - 0.1];
-        panneau(lots.details, R, -fe.l / 2, fe.l / 2, 0, fe.h, 0.065, [1, 1, 1], fe.uv);
+        panneau(lots.details, R, -fe.l / 2, fe.l / 2, 0, fe.h, 0.065, [1, 1, 1], fe.uv, hash('allume|' + f.cle + '|' + s.toFixed(1)) % 100 < 35 ? 1 : 0); // e : allumée la nuit (35 %)
         if (v) { const yo = ou[1] - 0.03, ho = ou[3] - ou[1] + 0.06; panneau(lots.details, R, -fe.l / 2 - v.l + 0.07, -fe.l / 2 + 0.07, yo, yo + ho, 0.075, [1, 1, 1], v.uv); panneau(lots.details, R, fe.l / 2 - 0.07, fe.l / 2 - 0.07 + v.l, yo, yo + ho, 0.075, [1, 1, 1], [v.uv[2], v.uv[1], v.uv[0], v.uv[3]]); }
         const yj = ou[1] - 0.2, S = lots.solides, bac = var2 ? lin('#B4643F') : lin('#4F6B4A'); boite(S, R, -0.5, 0.5, yj, yj + 0.2, 0.06, 0.28, bac, '', var2 ? lin('#C97A50') : lin('#5E7D57'));
         boite(S, R, -0.45, -0.42, yj - 0.1, yj, 0.08, 0.26, lin('#2A2A2A')); boite(S, R, 0.42, 0.45, yj - 0.1, yj, 0.08, 0.26, lin('#2A2A2A'));
@@ -1023,10 +1082,32 @@ const PDECOR = (() => {
     }
 
     // ═══════════════════════════════ les matériaux, les maillages, la qualité ═══════════════════════════════
-    const U = { uTemps: { value: 0 }, uK: { value: 1 }, uSolRef: { value: SOL_REF }, uVoile: { value: new THREE.Color() } };
-    const _c = new THREE.Color(), BLEU = new THREE.Color('#8FA9C6');
-    const MATS = {};
+    // uNuit (0 le jour, 1 la nuit, posé par nuit(k)) : les vitres des lanternes (attribut aLum des solides), les glaces des devantures et 35 %
+    // des fenêtres fleuries (aLum des ouvertures : leur verre bleuté seulement, pas l'encadrement), les intérieurs des vitrines (aVent < 0
+    // dans l'atlas) s'allument ; les enseignes (emissiveMap = leur page) aussi. Une valeur d'uniforme : aucune recompilation, aucun appel
+    const U = { uTemps: { value: 0 }, uK: { value: 1 }, uSolRef: { value: SOL_REF }, uVoile: { value: new THREE.Color() }, uNuit: { value: 0 } };
+    const _c = new THREE.Color(), BLEU = new THREE.Color('#8FA9C6'), LUEUR = new THREE.Color('#FFD27A');
+    const MATS = {}; let nuitK = 0;
     MATS.solides = new THREE.MeshLambertMaterial({ vertexColors: true }); MATS.solides.name = 'pdecor-solides';
+    MATS.solides.onBeforeCompile = (sh) => {
+      sh.uniforms.uNuit = U.uNuit;
+      sh.vertexShader = 'attribute float aLum;\nvarying float vLum;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvLum = aLum;');
+      sh.fragmentShader = 'uniform float uNuit;\nvarying float vLum;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += diffuseColor.rgb * ( vLum * uNuit * 2.6 );');
+    };
+    MATS.solides.customProgramCacheKey = () => 'pdecor-solides';
+    // les ouvertures du décor (glaces des devantures, fenêtres fleuries) : l'atlas PTEXTURES.details, dans un matériau à nous (le sien est
+    // partagé avec rendu.js) ; refait à chaque construction (après PTEXTURES.vider(), l'atlas change)
+    function matOuvertures(D) {
+      const m = new THREE.MeshLambertMaterial({ map: D.texture, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }); m.name = 'pdecor-ouvertures';
+      m.onBeforeCompile = (sh) => {
+        sh.uniforms.uNuit = U.uNuit;
+        sh.vertexShader = 'attribute float aLum;\nvarying float vLum;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvLum = aLum;');
+        sh.fragmentShader = 'uniform float uNuit;\nvarying float vLum;\n' + sh.fragmentShader
+          .replace('#include <map_fragment>', '#include <map_fragment>\n\tfloat vitreM = 0.0;\n#ifdef USE_MAP\n\tvitreM = smoothstep( 0.015, 0.07, sampledDiffuseColor.b - sampledDiffuseColor.r );\n#endif')
+          .replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += vec3( 1.0, 0.64, 0.25 ) * ( vitreM * vLum * uNuit * 0.9 );');
+      };
+      m.customProgramCacheKey = () => 'pdecor-ouvertures'; return m;
+    }
     MATS.horizon = new THREE.MeshLambertMaterial({ vertexColors: true, depthWrite: false }); MATS.horizon.name = 'pdecor-horizon';
     MATS.horizon.onBeforeCompile = (sh) => {
       sh.uniforms.uK = U.uK; sh.uniforms.uSolRef = U.uSolRef; sh.uniforms.uVoile = U.uVoile;
@@ -1059,14 +1140,15 @@ const PDECOR = (() => {
       matMoellons.map = texPierre; MATS.pierre = matMoellons;
     }
     const groupe = new THREE.Group(); groupe.name = 'decor';
-    const MAILLE = { q: null, meshes: [], atlas: null, matAtlas: null, matOmbre: null, matPages: new Map(), horizon: null, st: {} };
+    const MAILLE = { q: null, meshes: [], atlas: null, matAtlas: null, matOmbre: null, matPages: new Map(), matOuv: null, horizon: null, st: {} };
     function atlasPour(S) { // l'atlas du décor (une fois par taille), son matériau (toiles qui ondulent) et celui des ombres
       if (MAILLE.atlas && MAILLE.atlas.S === S) return; viderAtlas();
       MAILLE.atlas = peindreAtlas(S, [...CELL.values()]);
       const m = new THREE.MeshLambertMaterial({ map: MAILLE.atlas.tx, vertexColors: true, alphaTest: 0.5, side: THREE.DoubleSide }); m.name = 'pdecor-atlas';
       m.onBeforeCompile = (sh) => {
-        sh.uniforms.uTemps = U.uTemps;
-        sh.vertexShader = 'attribute float aVent;\nuniform float uTemps;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n\tif ( aVent > 0.0 ) { float ph = position.x * 0.9 + position.z * 0.7 + position.y * 1.9; transformed += objectNormal * aVent * ( sin( uTemps * 3.1 + ph ) * 0.65 + sin( uTemps * 5.3 + ph * 2.3 ) * 0.35 ); }');
+        sh.uniforms.uTemps = U.uTemps; sh.uniforms.uNuit = U.uNuit;
+        sh.vertexShader = 'attribute float aVent;\nuniform float uTemps;\nvarying float vLum;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvLum = max( -aVent, 0.0 );\n\tif ( aVent > 0.0 ) { float ph = position.x * 0.9 + position.z * 0.7 + position.y * 1.9; transformed += objectNormal * aVent * ( sin( uTemps * 3.1 + ph ) * 0.65 + sin( uTemps * 5.3 + ph * 2.3 ) * 0.35 ); }');
+        sh.fragmentShader = 'uniform float uNuit;\nvarying float vLum;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += diffuseColor.rgb * vec3( 1.0, 0.85, 0.62 ) * ( vLum * uNuit * 1.1 );'); // l'intérieur des vitrines, éclairé la nuit
       };
       m.customProgramCacheKey = () => 'pdecor-atlas'; MAILLE.matAtlas = m;
       MAILLE.matOmbre = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: MAILLE.atlas.tx, alphaTest: 0.5, side: THREE.DoubleSide });
@@ -1074,7 +1156,7 @@ const PDECOR = (() => {
     function viderAtlas() { if (!MAILLE.atlas) return; MAILLE.atlas.tx.dispose(); if (MAILLE.matAtlas) MAILLE.matAtlas.dispose(); if (MAILLE.matOmbre) MAILLE.matOmbre.dispose(); MAILLE.atlas = null; MAILLE.matAtlas = null; MAILLE.matOmbre = null; }
     function viderMaillage() {
       for (const m of MAILLE.meshes) { groupe.remove(m); m.geometry.dispose(); } MAILLE.meshes = []; MAILLE.horizon = null;
-      for (const m of MAILLE.matPages.values()) m.dispose(); MAILLE.matPages.clear();
+      for (const m of MAILLE.matPages.values()) m.dispose(); MAILLE.matPages.clear(); if (MAILLE.matOuv) { MAILLE.matOuv.dispose(); MAILLE.matOuv = null; }
     }
     function ajouter(nom, geo, mat, ombre, ordre) { const m = new THREE.Mesh(geo, mat); m.name = nom; m.castShadow = !!ombre; m.receiveShadow = true; m.matrixAutoUpdate = false; m.updateMatrix(); if (ordre != null) m.renderOrder = ordre; groupe.add(m); MAILLE.meshes.push(m); return m; }
     function construire() {
@@ -1083,19 +1165,19 @@ const PDECOR = (() => {
       const loin = q.fusion ? lots : Object.assign({}, lots, { solides: new Lot(), pierre: new Lot() }); // le décor hors du bourg : mêmes atlas, sans ombres
       for (const [o, proche] of ORDRES) { try { o(proche ? lots : loin, q); } catch (e) { signaler('dessin', e); } }
       const st = { appels: 0, triangles: 0, appelsOmbre: 0, trianglesOmbre: 0, parMaillage: {} }, compte = (m) => { const n = m.geometry.index ? m.geometry.index.count / 3 : m.geometry.attributes.position.count / 3; st.appels++; st.triangles += n; st.parMaillage[m.name] = Math.round(n); if (m.castShadow) { st.appelsOmbre++; st.trianglesOmbre += n; } };
-      if (lots.solides.nb()) compte(ajouter('decor-solides', lots.solides.geometrie(), MATS.solides, q.ombres));
-      if (lots.pierre.nb()) compte(ajouter('decor-pierre', lots.pierre.geometrie(MATS.pierre === MATS.solides ? null : 'couche'), MATS.pierre, q.ombres));
-      if (loin !== lots && loin.solides.nb()) compte(ajouter('decor-solides-loin', loin.solides.geometrie(), MATS.solides, false));
-      if (loin !== lots && loin.pierre.nb()) compte(ajouter('decor-pierre-loin', loin.pierre.geometrie(MATS.pierre === MATS.solides ? null : 'couche'), MATS.pierre, false));
+      if (lots.solides.nb()) compte(ajouter('decor-solides', lots.solides.geometrie('aLum'), MATS.solides, q.ombres));
+      if (lots.pierre.nb()) compte(ajouter('decor-pierre', lots.pierre.geometrie(MATS.pierre === MATS.solides ? 'aLum' : 'couche'), MATS.pierre, q.ombres));
+      if (loin !== lots && loin.solides.nb()) compte(ajouter('decor-solides-loin', loin.solides.geometrie('aLum'), MATS.solides, false));
+      if (loin !== lots && loin.pierre.nb()) compte(ajouter('decor-pierre-loin', loin.pierre.geometrie(MATS.pierre === MATS.solides ? 'aLum' : 'couche'), MATS.pierre, false));
       if (lots.atlas.nb()) { const m = ajouter('decor-atlas', lots.atlas.geometrie('aVent'), MAILLE.matAtlas, q.ombres); m.customDepthMaterial = MAILLE.matOmbre; compte(m); }
-      const D = DETAILS(); if (lots.details.nb() && D) compte(ajouter('decor-ouvertures', lots.details.geometrie(), D.materiau(), false));
-      let ip = 0; lots.pages.forEach((l, tex) => { const m = new THREE.MeshLambertMaterial({ map: tex, alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }); m.name = 'pdecor-enseignes'; MAILLE.matPages.set(tex, m); compte(ajouter('decor-enseignes-' + ip++, l.geometrie(), m, false)); });
+      const D = DETAILS(); if (lots.details.nb() && D) { MAILLE.matOuv = matOuvertures(D); compte(ajouter('decor-ouvertures', lots.details.geometrie('aLum'), MAILLE.matOuv, false)); }
+      let ip = 0; lots.pages.forEach((l, tex) => { const m = new THREE.MeshLambertMaterial({ map: tex, emissiveMap: tex, emissive: '#000000', alphaTest: 0.5, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4 }); m.name = 'pdecor-enseignes'; m.emissive.copy(LUEUR).multiplyScalar(0.55 * nuitK); /* allumées la nuit (nuit(k)) */ MAILLE.matPages.set(tex, m); compte(ajouter('decor-enseignes-' + ip++, l.geometrie(), m, false)); });
       const gh = horizonGeo(q); if (PHOTO_BORD) horizonRecolorer(gh);
       const h = ajouter('decor-horizon', gh, MATS.horizon, false, -9); h.receiveShadow = false; h.frustumCulled = false; h.matrixWorldAutoUpdate = false; MAILLE.horizon = h; compte(h);
       h.onBeforeRender = (renderer, scene, camera) => { // l'homothétie de centre l'œil : même image, toujours en deçà de camera.far
         const e = camera.matrixWorld.elements, cx = e[12], cy = e[13], cz = e[14], k = Math.min(1, 0.9 * (camera.far || 1000) / (gh.userData.rmax + Math.hypot(cx, cz) + Math.abs(cy - SOL_REF) + 600)), m = h.matrixWorld.elements;
         m[0] = k; m[1] = 0; m[2] = 0; m[3] = 0; m[4] = 0; m[5] = k; m[6] = 0; m[7] = 0; m[8] = 0; m[9] = 0; m[10] = k; m[11] = 0; m[12] = cx * (1 - k); m[13] = cy * (1 - k); m[14] = cz * (1 - k); m[15] = 1; U.uK.value = k;
-        if (scene && scene.fog && scene.fog.color) { _c.copy(scene.fog.color).lerp(BLEU, 0.42); _c.getRGB(U.uVoile.value, renderer.getRenderTarget() === null ? renderer.outputColorSpace : THREE.LinearSRGBColorSpace); }
+        if (scene && scene.fog && scene.fog.color) { _c.copy(scene.fog.color).lerp(BLEU, 0.42 * (1 - nuitK)); /* la nuit : le voile reste sombre */ _c.getRGB(U.uVoile.value, renderer.getRenderTarget() === null ? renderer.outputColorSpace : THREE.LinearSRGBColorSpace); }
       };
       st.horizon = { anneaux: gh.userData.anneaux, triangles: gh.userData.tris, rayon: Math.round(gh.userData.rmax), relief: okH ? 'ign' : 'collines' };
       st.construction = Math.round((maintenant() - tC) * 10) / 10; MAILLE.st = st; aRefaire = false;
@@ -1119,6 +1201,8 @@ const PDECOR = (() => {
 
     function maj(camera, t) { if (libere) return; if (aRefaire) { try { construire(); } catch (e) { signaler('construction', e); aRefaire = false; } } U.uTemps.value = fini(t) ? t % 3600 : 0; }
     function qualite(q) { if (q === undefined || !QUALITES[q]) return nomQ; if (q !== nomQ) { nomQ = q; aRefaire = true; } return nomQ; }
+    // la nuit (rendu.js, PRENDU.ambiance) : k ∈ [0, 1], 0 le jour ; lanternes, glaces, intérieurs et enseignes allumés ; rend k
+    function nuit(k) { if (k === undefined) return nuitK; nuitK = borne(+k || 0, 0, 1); U.uNuit.value = nuitK; for (const m of MAILLE.matPages.values()) m.emissive.copy(LUEUR).multiplyScalar(0.55 * nuitK); return nuitK; }
     function retour() { if (MAILLE.atlas) MAILLE.atlas.tx.needsUpdate = true; if (texPierre) texPierre.needsUpdate = true; }
     function liberer() {
       if (libere) return; libere = true; if (image) { image.onload = null; image = null; }
@@ -1128,12 +1212,12 @@ const PDECOR = (() => {
     try { construire(); } catch (e) { signaler('construction', e); }
     const tCree = Math.round((maintenant() - t0) * 10) / 10;
     return {
-      groupe, maj, qualite, retour, liberer, remarquables, facades,
+      groupe, maj, qualite, nuit, retour, liberer, remarquables, facades, lumieres,
       get atlas() { return MAILLE.atlas ? MAILLE.atlas.tx.image : null; }, // la toile de l'atlas du décor (pages de test)
       get stats() {
         const s = MAILLE.st, n = Object.assign({}, NOTES); delete n.terrassesRefusees; delete n.bancsXZ;
         return { qualite: nomQ, appels: s.appels, triangles: Math.round(s.triangles || 0), appelsOmbre: s.appelsOmbre, trianglesOmbre: Math.round(s.trianglesOmbre || 0), parMaillage: s.parMaillage, horizon: s.horizon,
-          objets: n, ordres: Object.assign({}, COMPTE), terrassesRefusees: NOTES.terrassesRefusees.slice(), bancs: NOTES.bancsXZ, lanternes: lanternes.map((l) => [+l[0].toFixed(1), +l[1].toFixed(1)]), pierre: BATI ? 'bati' : texPierre ? 'moellons' : 'couleurs', textures: !!T,
+          objets: n, ordres: Object.assign({}, COMPTE), terrassesRefusees: NOTES.terrassesRefusees.slice(), bancs: NOTES.bancsXZ, lanternes: lanternes.map((l) => [+l[0].toFixed(1), +l[1].toFixed(1)]), candelabres: candelabres.map((l) => [+l[0].toFixed(1), +l[1].toFixed(1)]), lumieres: lumieres.length, nuit: nuitK, pierre: BATI ? 'bati' : texPierre ? 'moellons' : 'couleurs', textures: !!T,
           atlas: MAILLE.atlas ? MAILLE.atlas.S : 0, memoire: MAILLE.atlas ? MAILLE.atlas.octets : 0, cellules: CELL.size, photo: !!PHOTO_BORD, creation: tCree, construction: s.construction, erreurs: erreurs.slice(0, 8) };
       },
     };
