@@ -270,6 +270,7 @@ async function gerer(route) {
   faux.joueurs.get(MOI.id).quartier = 5e12; // ses derniers billets le mettent en tête : le podium final (figé à la première requête après la fin) sera le sien
   decal = Q.FIN + 3 * HEURE - Date.now();
   await page.evaluate((d) => localStorage.setItem('test.tel', String(d)), decal); // l'heure du prochain lancement : la page ouverte ne la voit pas (sinon c'est un réveil, test/fournil-reveil.cjs)
+  const avantFin = await ev((fin) => { const q = window.__fournil.st.quartier; q.lastSeen = fin - 2 * 3600e3; return q.total; }, Q.FIN); // parti 2 h avant la fermeture
   await page.evaluate(() => window.__fournil.save());
   await charger();
   c = await ev(() => window.__fournil.coin());
@@ -278,6 +279,7 @@ async function gerer(route) {
   p = await planque();
   check(/Bilan du quartier/.test(p.corps) && /paliers/.test(p.corps) && /Ce qui reste à vie/.test(p.corps) && /étoile/.test(p.corps), `le bilan : ${p.corps.split('\n').slice(0, 4).join(' / ')}`);
   await shot('13-bilan');
+  { const q2 = await qst(); check(q2.total > avantFin && q2.lastSeen === Q.FIN, `parti 2 h avant la fermeture, revenu après : les apprentis ont travaillé jusqu’à la fermeture (+${Math.round(q2.total - avantFin)} billets), pas au-delà`); }
   await clic('[data-pq="fin"]'); await sleep(400);
   s = await qst(); p = await planque();
   check(!p.ouvert && s.bilan === true, 'refermé : le bilan ne reviendra plus');

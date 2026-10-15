@@ -7901,6 +7901,8 @@ const EVENEMENTS = (() => {
       const qq = q(); ecran = 'bilan'; el.dataset.ecran = ecran;
       liberer3();
       cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
+      // parti avant la fermeture, revenu après : les apprentis ont travaillé jusqu'à la fermeture (une fois, au ralenti, plafonné comme toute absence)
+      if (qq.lastSeen && qq.lastSeen < Q.FIN && !qq.absenceFin) { qq.absenceFin = true; Q.absence(qq, Q.FIN); d.save(); }
       rattraper(); fileSheets = []; // un palier dû pas encore donné (les paliers bonus d'une vieille sauvegarde) : compté dans le bilan, sans feuille
       entete(F.t.bilanTitre, 'L’événement est terminé'); const bp = el.querySelector('[data-pq="paliers"] b'); if (bp) bp.textContent = `${Q.paliersAtteints(qq).length}/${nbPaliers(qq)}`;
       const rec = d.recompenses ? d.recompenses() : null, rang = rec ? F.rangFinal(rec) : null, nb = Q.paliersAtteints(qq).length;
