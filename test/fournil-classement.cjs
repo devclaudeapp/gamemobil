@@ -379,6 +379,24 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
   await p3.screenshot({ path: out + '/13-320px.png' });
   await c2.close();
 
+  // ─── la liste ouverte se relit toute seule (toutes les 30 s ; ici 1,2 s), et plus rien une fois la feuille fermée ───
+  {
+    const c5 = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+    await c5.addInitScript(() => { window.__sansQuartier = true; window.__relireClassement = 1200; });
+    await c5.route(SUPA + '/rest/v1/rpc/*', gerer);
+    const p5 = await c5.newPage(); suivre(p5);
+    await p5.goto(BASE + '/fournil/'); await sleep(1300);
+    const lectures = () => faux.appels.filter((x) => x.nom === 'fournil_classement').length;
+    await p5.evaluate(() => window.__fournil.feuilleClassement('semaine'));
+    await attendre(() => p5.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste')), 5000);
+    const n0 = lectures(); await sleep(3000); const n1 = lectures();
+    check(n1 - n0 >= 2, `feuille ouverte : la liste se relit toute seule (${n1 - n0} lectures en 3 s, une toutes les 1,2 s dans ce test ; 30 s en vrai)`);
+    await p5.evaluate(() => document.querySelector('[data-a="close"]').click()); await sleep(300);
+    const n2 = lectures(); await sleep(2600);
+    check(lectures() === n2, 'feuille fermée : plus aucune lecture');
+    await c5.close();
+  }
+
   // ─── l'artefact Claude : pas de config.js, le classement se cache ───
   const c3 = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, serviceWorkers: 'block' });
   const p4 = await c3.newPage(); suivre(p4);
