@@ -17,6 +17,9 @@
      plus 180 ;
    - objets : n = clamp(arrondi(aire joignable / 2500 m²), 4, 16), à plus de 8 m des apparitions et 12 m l'un de l'autre (moins s'il le
      faut) ; types tournants : soin, armure, munitions, puis une arme principale permise (reglages.armes ; à tour de rôle).
+   L'Extraction (reglages.mode === 'extraction') : la même zone que l'Arène (même graine), plus zone.extractions (le pont, la cale de
+   la rivière ; repli : les apparitions les plus éloignées du départ), zone.depart et zone.coffres [[x, z, rareté, special?], …] (voir
+   extraction() plus bas ; PZONES.extraction(carte, monde, nav, zone, rnd, reglages) les ajoute à une zone préparée).
    PZONES.definition(carte, monde, id) → la forme de la limite (le def de PMONDE.limiteDe : du JSON simple) ou null ;
    PZONES.adopter(z, monde) → une zone reçue (limite en def ou déjà construite) prête à jouer ; PZONES.pourReseau(z) → { id, nom, limite:
    def, englobant, apparitions, objets, aire } (JSON, arrondi au cm) ; PZONES.distanceReapparition(z) ; PZONES.IDS, NOMS, JOUEURS.
@@ -138,6 +141,8 @@
     const demande = typeof id === 'string' && IDS.indexOf(id) >= 0 ? id : 'centre';
     const poser = (z) => { if (monde) { monde.limite = z.limite; z.aire = aireJoignable(navDe(monde, nav), z); } return z; }; // la navigation d'abord : monde.libre la lit (même zone partout)
     const repli = (raison) => { const z = centre(carte); z.demande = typeof id === 'string' ? id : demande; z.avertissement = raison; return poser(z); };
+    const ex = reglages && reglages.mode === 'extraction'; // l'Extraction : coffres, points d'extraction et départ en plus (hasard à part)
+    if (ex) { const z = preparer(carte, monde, nav, id, rnd, Object.assign({}, reglages, { mode: 'arene' })); extraction(carte, monde, navDe(monde, nav), z, rnd, reglages); return z; }
     if (demande !== id) return repli(`zone « ${typeof id === 'string' ? id : String(id)} » inconnue : on joue « centre »`);
     if (demande === 'centre') return poser(centre(carte));
     if (!monde) return repli(`zone « ${id} » : il faut le monde pour la préparer : on joue « centre »`);
@@ -177,6 +182,117 @@
     return zone;
   }
 
+  // ─── l'Extraction (mode 'extraction') : les points d'extraction, le départ, les coffres ───
+  // - le pont : le milieu d'un pont de la carte (carte.ponts) dans la zone, joignable (le plus près du centre de la zone s'il y en a
+  //   plusieurs) ; la cale de la rivière : un point de la berge d'une rivière (carte.eau 'riviere'), 2,5 à 6 m hors de l'eau, joignable,
+  //   à clamp(0,6 · rayon englobant, 80, 220) m du pont au mieux (au moins 60 m). 'bourg' (graine 1) : le pont de l'église (74 ; 162) et
+  //   la berge nord du Veyron (≈ 191 ; 179), à 117 m ;
+  // - le départ : l'apparition la plus éloignée des deux points (sans les deux : la plus proche du centre de la zone, et les points
+  //   manquants sont les apparitions les plus éloignées du départ, écartées l'une de l'autre : « Sortie » + la rue la plus proche) ;
+  // - les coffres : n = clamp(arrondi(aire joignable / 2500 m²), 20, 40) (bourg 30, tout 40), joignables, à 10 m l'un de l'autre, à 20 m
+  //   du départ, hors des cercles d'extraction, de préférence contre un mur ; raretés PBUTIN-compatibles (7 % légendaires, au moins un ;
+  //   15 % épiques ; 28 % rares), les plus rares les plus loin du départ ; l'hôtel de ville dans la zone : un coffre légendaire 'mairie'
+  //   (le trésor de la mairie) à côté.
+  // zone.extractions = [{ id: 'pont' | 'cale' | 'sortieN', nom, x, z, rayon }] ; zone.depart = [x, z] ; zone.coffres = [[x, z, rarete, special?], …]
+  const EX = REGLES.MODES.extraction || {}, EX_RAYON = (EX.extraction && EX.extraction.rayon) || 10, C = EX.coffres || { aire: 2500, min: 20, max: 40, ecart: 10 };
+  const PARTS = { legendaire: 0.07, epique: 0.15, rare: 0.28 }; // (les mêmes que PBUTIN.PARTS)
+  function berges(carte, ok) { // les points de berge (tous les 4 m, 2,5 à 6 m hors de l'eau) qui conviennent
+    const out = [];
+    for (const e of (carte && carte.eau) || []) {
+      if (!e || e.t !== 'riviere' || !Array.isArray(e.p) || e.p.length < 3) continue;
+      const p = e.p.map((q) => [+q[0], +q[1]]), n = p.length; let aire = 0;
+      for (let i = 0; i < n; i++) { const a = p[i], b = p[(i + 1) % n]; aire += a[0] * b[1] - b[0] * a[1]; }
+      for (let i = 0; i < n; i++) {
+        const a = p[i], b = p[(i + 1) % n], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.sqrt(dx * dx + dz * dz); if (!(l > 0)) continue;
+        let nx = dz / l, nz = -dx / l; if (aire < 0) { nx = -nx; nz = -nz; } // la normale vers la terre
+        for (let t = 0; t < l; t += 4) {
+          const x = a[0] + dx * t / l, z = a[1] + dz * t / l;
+          for (const off of [2.5, 4, 6]) { const q = [r2(x + nx * off), r2(z + nz * off)]; if (ok(q) && !dansPoly(p, q[0], q[1])) { out.push(q); break; } }
+        }
+      }
+    }
+    return out;
+  }
+  function nomVers(carte, zone, p) { // « Sortie » + la rue nommée la plus proche (30 m), sinon le côté de la zone
+    let best = null, bd = 30;
+    for (const r of (carte && carte.rues) || []) {
+      if (!r || typeof r.n !== 'string' || !r.n || !Array.isArray(r.l)) continue;
+      for (let i = 0; i + 1 < r.l.length; i++) { const d = distSeg(r.l[i], r.l[i + 1], p[0], p[1]); if (d < bd) { bd = d; best = r.n; } }
+    }
+    if (best) return 'Sortie ' + best;
+    const c = zone.englobant.centre, dx = p[0] - c[0], dz = p[1] - c[1];
+    return Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 'Sortie est' : 'Sortie ouest') : (dz > 0 ? 'Sortie sud' : 'Sortie nord');
+  }
+  function distSeg(a, b, x, z) {
+    const ex = b[0] - a[0], ez = b[1] - a[1], l2 = ex * ex + ez * ez;
+    let t = l2 > 0 ? ((x - a[0]) * ex + (z - a[1]) * ez) / l2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const dx = x - a[0] - t * ex, dz = z - a[1] - t * ez; return Math.sqrt(dx * dx + dz * dz);
+  }
+  function extraction(carte, monde, nav, zone, rnd0, reglages) {
+    const rnd = REGLES.mulberry32(typeof rnd0 === 'function' ? (rnd0() * 4294967296) >>> 0 : 0x5EC0FF3), lim = zone.limite;
+    const ok = (p, r) => fin(p[0]) && fin(p[1]) && lim.dedans(p[0], p[1]) && (!lim.pres || !lim.pres(p[0], p[1], 1)) && !(monde && monde.bloque(p[0], p[1], r || 1)) && (!nav || nav.accessible(p[0], p[1]));
+    const R = zone.englobant.rayon, C0 = zone.englobant.centre, pts = [];
+    // le pont
+    let pont = null, bp = Infinity;
+    for (const q of (carte && carte.ponts) || []) {
+      if (!q || !Array.isArray(q.l) || q.l.length < 2) continue;
+      const a = q.l[0], b = q.l[q.l.length - 1], m = [r2((+a[0] + +b[0]) / 2), r2((+a[1] + +b[1]) / 2)];
+      if (!ok(m, 0.4)) continue;
+      const d = d2(m, C0); if (d < bp) { bp = d; pont = m; }
+    }
+    if (pont) pts.push({ id: 'pont', nom: 'Le pont', x: pont[0], z: pont[1], rayon: EX_RAYON });
+    // la cale de la rivière
+    const ideal = Math.max(80, Math.min(220, 0.6 * R));
+    let cale = null, bc = Infinity;
+    for (const q of berges(carte, (p) => ok(p, 1))) {
+      const d = pont ? Math.sqrt(d2(q, pont)) : ideal; if (pont && d < 60) continue;
+      const s = Math.abs(d - ideal) + (pont ? 0 : Math.sqrt(d2(q, C0)) * 0.01); if (s < bc) { bc = s; cale = q; }
+    }
+    if (cale) pts.push({ id: 'cale', nom: 'La cale de la rivière', x: cale[0], z: cale[1], rayon: EX_RAYON });
+    // le départ (une apparition joignable)
+    const apps = zone.apparitions.filter((p) => ok(p, 0.6));
+    const dmin = (p) => { let m = Infinity; for (const e of pts) m = Math.min(m, Math.sqrt(d2(p, [e.x, e.z]))); return m; };
+    let depart = null, bd = -Infinity;
+    if (pts.length === 2) { for (const p of apps) { const v = dmin(p); if (v > bd) { bd = v; depart = p; } } }
+    else { for (const p of apps) { const v = -d2(p, C0); if (v > bd) { bd = v; depart = p; } } }
+    if (!depart) { const q = monde ? monde.libre(rnd) : [C0[0], C0[1]]; depart = [r2(q[0]), r2(q[1])]; }
+    // les points manquants : les apparitions les plus éloignées du départ, écartées des autres points
+    for (let k = 0; pts.length < 2 && k < 2; k++) {
+      let best = null, bv = -Infinity;
+      for (const p of apps) { const dd = Math.sqrt(d2(p, depart)); if (pts.length && dmin(p) < Math.max(40, 0.6 * R)) continue; if (dd > bv) { bv = dd; best = p; } }
+      if (!best) for (const p of apps) { const dd = Math.sqrt(d2(p, depart)) + (pts.length ? dmin(p) : 0); if (dd > bv && (!pts.length || dmin(p) > 1)) { bv = dd; best = p; } }
+      if (!best) break;
+      pts.push({ id: 'sortie' + (pts.length + 1), nom: nomVers(carte, zone, best), x: best[0], z: best[1], rayon: EX_RAYON });
+    }
+    // les coffres
+    const aire = zone.aire > 0 ? zone.aire : lim.aire || 0, n = Math.max(C.min, Math.min(C.max, Math.round(aire / C.aire)));
+    const coffres = [], loinDe = (p, e) => coffres.every((q) => d2(p, q) >= e * e);
+    const libreEx = (p) => pts.every((e) => d2(p, [e.x, e.z]) >= (e.rayon + 5) * (e.rayon + 5)) && d2(p, depart) >= 20 * 20;
+    // l'hôtel de ville : le trésor de la mairie
+    const mairie = nomme(carte, /^(Hôtel de ville|Mairie)/i);
+    if (mairie && monde) {
+      for (let k = 0; k < 200; k++) {
+        const a = rnd() * 2 * Math.PI, r = 3 + 12 * Math.sqrt(rnd()), p = [r2(mairie[0] + Math.cos(a) * r), r2(mairie[1] + Math.sin(a) * r)];
+        if (ok(p, 0.8) && libreEx(p)) { coffres.push([p[0], p[1], 'legendaire', 'mairie']); break; }
+      }
+    }
+    for (let ecart = C.ecart; coffres.length < n && ecart >= 4; ecart *= 0.75) {
+      for (let essai = 0, rate = 0; coffres.length < n && essai < 6000 && rate < 400; essai++) {
+        const q0 = monde ? monde.libre(rnd) : [C0[0] + (rnd() * 2 - 1) * R, C0[1] + (rnd() * 2 - 1) * R], p = [r2(q0[0]), r2(q0[1])];
+        if (!ok(p, 0.8) || !libreEx(p) || !loinDe(p, ecart)) { rate++; continue; }
+        if (monde && !monde.bloque(p[0], p[1], 3) && rnd() > 0.35) { rate++; continue; } // de préférence contre un mur
+        coffres.push([p[0], p[1], 'commun']); rate = 0;
+      }
+    }
+    // les raretés : les plus rares le plus loin du départ (un peu de hasard)
+    const nl = Math.max(1, Math.round(coffres.length * PARTS.legendaire)), ne = Math.round(coffres.length * PARTS.epique), nr = Math.round(coffres.length * PARTS.rare);
+    const libres = coffres.filter((c) => !c[3]).map((c) => ({ c, d: Math.sqrt(d2(c, depart)) * (0.7 + 0.6 * rnd()) })).sort((a, b) => b.d - a.d);
+    let k = coffres.some((c) => c[3] === 'mairie') ? 1 : 0;
+    for (const o of libres) { o.c[2] = k < nl ? 'legendaire' : k < nl + ne ? 'epique' : k < nl + ne + nr ? 'rare' : 'commun'; k++; }
+    zone.extractions = pts; zone.depart = depart; zone.coffres = coffres;
+    return zone;
+  }
+
   // une zone reçue (le message 'lancer', ou passée à PJEU.creer) : la limite reconstruite depuis son def si besoin ; null si inutilisable
   function adopter(z, monde) {
     if (!z || typeof z !== 'object') return null;
@@ -188,17 +304,24 @@
     const out = { id, demande: typeof z.demande === 'string' ? z.demande : id, nom: typeof z.nom === 'string' ? z.nom : NOMS[id], limite, englobant: { centre: limite.centre.slice(), rayon: limite.rayon },
       apparitions: pts(z.apparitions, 2), objets: pts(z.objets, 3), aire: fin(+z.aire) ? +z.aire : limite.aire, joueurs: (JOUEURS[id] || JOUEURS.centre).slice() };
     if (typeof z.avertissement === 'string') out.avertissement = z.avertissement;
+    if (Array.isArray(z.coffres)) out.coffres = z.coffres.filter((c) => Array.isArray(c) && fin(+c[0]) && fin(+c[1]) && typeof c[2] === 'string').map((c) => (typeof c[3] === 'string' ? [+c[0], +c[1], c[2], c[3]] : [+c[0], +c[1], c[2]]));
+    if (Array.isArray(z.extractions)) out.extractions = z.extractions.filter((e) => e && fin(+e.x) && fin(+e.z)).map((e) => ({ id: String(e.id), nom: String(e.nom || ''), x: +e.x, z: +e.z, rayon: fin(+e.rayon) && e.rayon > 0 ? +e.rayon : EX_RAYON }));
+    if (Array.isArray(z.depart) && fin(+z.depart[0]) && fin(+z.depart[1])) out.depart = [+z.depart[0], +z.depart[1]];
     if (monde) { monde.limite = limite; navDe(monde, null); } // la navigation aussi : monde.libre la lit (les caisses du mode tombent au même endroit que chez l'hôte)
     return out;
   }
   // la zone en JSON simple pour le réseau (la limite par son def ; arrondi au cm)
   function pourReseau(z) {
     if (!z || !z.limite) return null;
-    return { id: z.id, nom: z.nom, limite: z.limite.def || z.limite, englobant: { centre: z.englobant.centre.map(r2), rayon: r2(z.englobant.rayon) },
+    const out = { id: z.id, nom: z.nom, limite: z.limite.def || z.limite, englobant: { centre: z.englobant.centre.map(r2), rayon: r2(z.englobant.rayon) },
       apparitions: z.apparitions.map((p) => [r2(p[0]), r2(p[1])]), objets: z.objets.map((o) => [r2(o[0]), r2(o[1]), o[2]]), aire: Math.round(z.aire) };
+    if (z.coffres) out.coffres = z.coffres.map((c) => (c[3] ? [r2(c[0]), r2(c[1]), c[2], c[3]] : [r2(c[0]), r2(c[1]), c[2]])); // l'Extraction
+    if (z.extractions) out.extractions = z.extractions.map((e) => ({ id: e.id, nom: e.nom, x: r2(e.x), z: r2(e.z), rayon: e.rayon }));
+    if (z.depart) out.depart = [r2(z.depart[0]), r2(z.depart[1])];
+    return out;
   }
   // la distance idéale de réapparition : clamp(0,32 · rayon englobant, 15, 60) m (35 m pour 'centre')
   const distanceReapparition = (z) => Math.max(15, Math.min(60, 0.32 * (z && z.englobant ? z.englobant.rayon : 110)));
 
-  return { preparer, definition, adopter, pourReseau, distanceReapparition, IDS, NOMS, JOUEURS };
+  return { preparer, definition, adopter, pourReseau, distanceReapparition, extraction, IDS, NOMS, JOUEURS };
 });
