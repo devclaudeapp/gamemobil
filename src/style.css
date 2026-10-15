@@ -1134,6 +1134,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 #hantee .pq-mini .at-pill { background: var(--ht-carte); box-shadow: 0 3px 0 var(--ht-ombre); }
 #hantee .pq-mini .at-pill small { color: var(--ht-lavande); }
 #hantee .pq-mini .at-pill.chaud { background: var(--ht-orange); color: #2A1608; }
+#hantee .pq-mini .at-pill.chaud small { color: #5A2A08; }
 #hantee .pq-mini-consigne { color: #FFC07A; }
 #hantee .pq-compte-btn { background: var(--ht-orange); color: #2A1608; box-shadow: 0 4px 0 var(--ht-orange2); }
 #hantee .pq-compte-btn.juste { background: var(--ht-vert); box-shadow: 0 4px 0 #4FA866; }

@@ -7,7 +7,9 @@
 // d'absence plafonnés, « Masquer l'événement » dans les Réglages, l'onglet Événement du classement, puis la fin : la Planque fermée, le bilan,
 // l'icône disparue, le podium final dans le classement. Puis, dans un second téléphone, la mise à jour « après le boss » : une sauvegarde déjà
 // au 12e (le 15 octobre) reçoit les paliers bonus déjà dépassés dans la boutique, une fois ; la liste « Après le boss » (13 à 20) lisible à
-// 390 px ; les combines en plus ; le 20e et sa casquette néon ; le bilan qui compte jusqu'à 20.
+// 390 px ; les combines en plus ; le 20e et sa casquette néon ; le bilan qui compte jusqu'à 20. Enfin, dans un troisième téléphone, les
+// activités (test/fournil-activites-ecran.cjs) : la barre des trois boutons, une partie de chaque mini-jeu au doigt, un contrat réclamé,
+// une opération lancée puis ramassée.
 // Captures dans test/shots/quartier/ (et dans le dossier donné par SHOTS_QUARTIER).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-quartier.cjs
 'use strict';
@@ -382,6 +384,11 @@ async function gerer(route) {
     check(/20\/20 paliers/.test(bil) && /Casquette néon/.test(bil) && /13 étoiles/.test(bil), `le bilan compte jusqu’à 20 : ${bil.split('\n').filter((l) => /paliers|reste/.test(l)).join(' / ')}`);
     await shot2('b7-bilan-20');
     await ctx2.close(); }
+
+  // les activités (src/activites.js) dans un troisième téléphone, le vendredi 16 octobre (4e jour) : la barre, les trois mini-jeux au doigt,
+  // un contrat, une opération (test/fournil-activites-ecran.cjs, le même parcours que la Maison hantée)
+  await require('./fournil-activites-ecran.cjs')({ browser, url: URL_JEU, heure: (ms) => { decal = ms - Date.now(); }, quand: new Date('2026-10-16T10:00:00+02:00').getTime(), fauxTelephone, route: [SUPA + '/rest/v1/rpc/*', gerer],
+    check, errors, dirs: [out, out2].filter(Boolean), prefixe: '', racine: '#planque', ev: 'evenement', ouvrir: 'quartier', cle: 'quartier', nom: 'la Planque' });
 
   check(errors.length === 0, errors.length ? `erreurs de page : ${errors.join(' | ')}` : 'aucune erreur de page');
   await browser.close(); server.close();

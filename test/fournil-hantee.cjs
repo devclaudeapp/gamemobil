@@ -7,7 +7,8 @@
 // chat noir dans la boutique, « Masquer la Maison hantée » dans les Réglages ; le décor éco (chibis costumés) ; puis la fin : le Manoir
 // fermé, le bilan, l'icône partie, le chat noir au choix. Puis, dans un second téléphone, « après le maître » : une sauvegarde déjà au 12e
 // reçoit les paliers bonus déjà dépassés, une fois ; la liste « Après le maître du Manoir » (13 à 20) lisible à 390 px ; les Sortilèges en
-// plus ; le 20e et son chapeau phosphorescent ; le bilan qui compte jusqu'à 20.
+// plus ; le 20e et son chapeau phosphorescent ; le bilan qui compte jusqu'à 20. Enfin, dans un troisième téléphone, les activités
+// (test/fournil-activites-ecran.cjs) : la barre des trois boutons, une partie de chaque mini-jeu au doigt, un contrat, une opération.
 // Captures dans test/shots/hantee/ (et dans le dossier donné par SHOTS_HANTEE).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-hantee.cjs
 'use strict';
@@ -301,6 +302,11 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
     check(/20\/20 paliers/.test(bil) && /Chapeau phosphorescent/.test(bil), `le bilan compte jusqu’à 20 : ${bil.split('\n').filter((l) => /paliers|reste/.test(l)).join(' / ')}`);
     await shot2('h5-bilan-20');
     await ctx2.close(); }
+
+  // les activités (src/activites.js) dans un troisième téléphone, le mercredi 28 octobre à 15 h (2e jour) : la barre, les trois mini-jeux au
+  // doigt, un contrat, une opération (test/fournil-activites-ecran.cjs, le même parcours que la Planque)
+  await require('./fournil-activites-ecran.cjs')({ browser, url: URL_JEU + '?qualite=eco', heure: (ms) => { decal = ms - Date.now(); }, quand: HT.DEBUT + 27 * HEURE, fauxTelephone, route: [/supabase\.co/, (r) => r.abort()],
+    check, errors, dirs: [out, out2].filter(Boolean), prefixe: '', racine: '#hantee', ev: 'evHantee', ouvrir: 'hantee', cle: 'hantee', nom: 'le Manoir' });
 
   check(errors.length === 0, errors.length ? `erreurs de page : ${errors.join(' | ')}` : 'aucune erreur de page');
   await browser.close(); server.close();

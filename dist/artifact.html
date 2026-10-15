@@ -1139,6 +1139,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 #hantee .pq-mini .at-pill { background: var(--ht-carte); box-shadow: 0 3px 0 var(--ht-ombre); }
 #hantee .pq-mini .at-pill small { color: var(--ht-lavande); }
 #hantee .pq-mini .at-pill.chaud { background: var(--ht-orange); color: #2A1608; }
+#hantee .pq-mini .at-pill.chaud small { color: #5A2A08; }
 #hantee .pq-mini-consigne { color: #FFC07A; }
 #hantee .pq-compte-btn { background: var(--ht-orange); color: #2A1608; box-shadow: 0 4px 0 var(--ht-orange2); }
 #hantee .pq-compte-btn.juste { background: var(--ht-vert); box-shadow: 0 4px 0 #4FA866; }
@@ -8280,11 +8281,10 @@ const EVENEMENTS = (() => {
       if (out.nouvelEv) { const c = coup(out.nouvelEv); if (c.son === 'sirene' && d.son.sirene) d.son.sirene(); else d.son.evenement(); d.buzz([15, 40, 15]); d.toast(c.debut); if (scene3 && scene3.coup) scene3.coup(genre(out.nouvelEv)); }
       if (out.finEv) { const c = coup(out.finEv); d.toast(genre(out.finEv) === 'taper' ? c.perte(fmt((out.fin && out.fin.saisi) || 0)) : c.fin); if (genre(out.finEv) === 'taper') d.son.non(); }
       for (const p of out.paliers) if (donnerPalier(p) && d.confettis) d.confettis(1); // un palier atteint : confettis
-      if (!miniOuvert()) montrerSheetsEnAttente(); // un palier franchi pendant une partie : sa feuille attend la fin
-      hud(); renderCartes(); renderEv();
+      if (!miniOuvert()) { montrerSheetsEnAttente(); hud(); renderCartes(); renderEv(); } // sous un mini-jeu : un palier franchi attend la fin de la partie pour sa feuille, et l'écran caché n'est pas redessiné
       if (!scene3 && essais3 > 0 && essais3 < 6 && performance.now() - tEssai3 > 1000) creer3(true); // le contexte avait été refusé : on réessaie
       if (scene3 && scene3.perdu && performance.now() - scene3.perdu > 1000) { liberer3(); creer3(false); } // perdu en route et pas revenu : une scène neuve
-      if (scene3 && !scene3.perdu) scene3.frame(dt, qq);
+      if (scene3 && !scene3.perdu && !miniOuvert()) scene3.frame(dt, qq); // sous un mini-jeu, la 3D attend (la boutique, elle, continue de vendre)
       if (performance.now() - dernierSave > 5000) { dernierSave = performance.now(); qq.lastSeen = t; d.save(); }
     }
     function hud() {
@@ -8477,7 +8477,7 @@ const EVENEMENTS = (() => {
     function majActivites(force) {
       if (!barreAct || ecran !== F.ecran) return;
       const qq = q(), t = now(), ouv = Q.activitesOuvertes(t), j = Q.jetonsMini(qq, t), n = Q.aReclamer(qq, t), op = Q.etatOperation(qq, t), l = Q.etatContrats(qq, t);
-      const mini = !ouv || j.plafond ? 'pour le record' : j.jetons >= 1 ? `${j.jetons} payée${j.jetons > 1 ? 's' : ''}` : `payée dans ${G.fmtDuree(Math.max(60, j.prochain / 1000))}`;
+      const mini = !ouv || j.plafond ? 'pour le record' : j.jetons >= 1 ? `${j.jetons} payée${j.jetons > 1 ? 's' : ''}` : `dans ${G.fmtDuree(Math.max(60, j.prochain / 1000))}`;
       const ctr = !ouv ? 'dès demain' : n ? `${n} à réclamer` : `${l.filter((c) => c.reclame).length}/${l.length} faits`;
       const opt = op ? (op.finie ? 'terminée !' : G.fmtChrono(op.reste / 1000)) : !ouv ? 'dès demain' : 'à lancer';
       const ch = document.querySelector('#feuille [data-op-chrono]'); if (ch && op) { ch.textContent = op.finie ? 'Terminée !' : G.fmtChrono(op.reste / 1000); const b = document.querySelector('#feuille [data-op-barre]'); if (b) b.style.width = (op.part * 100).toFixed(1) + '%'; }
@@ -8571,7 +8571,7 @@ const EVENEMENTS = (() => {
     function fermerMini() { arreterMini(); if (mv) { mv.hidden = true; mz.innerHTML = ''; } miniEcran = ''; miniJeu = null; resultatMini = null; if (el) el.classList.remove('en-mini'); majActivites(true); }
     function arreterMini() { cancelAnimationFrame(rafMini); rafMini = 0; if (partie && partie.fin) partie.fin(); partie = null; }
     function demarrerMini(jid) {
-      arreterMini(); miniEcran = 'jeu'; mz.innerHTML = ''; horlogeMini = performance.now(); enteteMini(miniJeu.nom, miniJeu.desc, true);
+      arreterMini(); miniEcran = 'jeu'; mz.innerHTML = ''; horlogeMini = performance.now(); enteteMini(miniJeu.nom, `${TA().mini} · ${F.lieu}`, true);
       const graine = Math.floor(Math.random() * 4294967296) >>> 0, M = Q.MOTEURS[jid];
       partie = ({ guet: vueGuet, compte: vueCompte, tournee: vueTournee })[jid](M, M.nouveau(graine));
       const boucle = () => { if (!partie) return; rattraperMini(performance.now()); if (partie && partie.e.fini) { terminerMini(); return; } partie.vue(); rafMini = requestAnimationFrame(boucle); };
