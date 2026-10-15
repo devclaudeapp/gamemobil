@@ -158,6 +158,11 @@ const ICONS = (() => {
     chatNoir: U(`<path d="M5.5 10.5L5 4l4.3 3M18.5 10.5L19 4l-4.3 3"/><path d="M12 7c-4.4 0-7.5 2.8-7.5 6.6S7.6 20 12 20s7.5-2.6 7.5-6.4S16.4 7 12 7z" fill="#5A5266"/><circle cx="9.3" cy="12.6" r="1.1" fill="#FFD84A" stroke="none"/><circle cx="14.7" cy="12.6" r="1.1" fill="#FFD84A" stroke="none"/><path d="M11 15.5l1 .8 1-.8"/>`),
     quartier: U(`<path d="M5 14.5c0-5.2 3.1-9 7-9s7 3.8 7 9z" fill="${A.fraise}"/><path d="M3.5 14.5h13.8c2.4 0 3.6.8 3.2 1.9-1.4 1-3.5 1.2-5.3.8"/><path d="M12 5.5V3.8"/>`),
     palierQ: U(`<path d="M3.5 20.5h17"/><path d="M5 20.5v-5h4v5M10 20.5v-9h4v9M15 20.5V7h4v13.5" fill="${A.beurre}"/>`),
+    // les copains (classement v6) : les notifications (une cloche qui sonne), l'objectif commun (une cocarde), le pourboire (une pièce et un cœur)
+    notifs: U(`<path d="M6 16.5V11a6 6 0 0112 0v5.5l1.6 2.2H4.4z" fill="${A.menthe}"/><path d="M10 21h4"/><path d="M2.8 8.5c.4-1.8 1.3-3.3 2.7-4.4M21.2 8.5c-.4-1.8-1.3-3.3-2.7-4.4"/>`),
+    equipe: U(`<path d="M9.2 13.8L7 21l3-1.4 2 2 .1-6.8M14.8 13.8L17 21l-3-1.4-2 2" fill="${A.lavande}"/><circle cx="12" cy="9.3" r="6.3" fill="${A.beurre}"/><path d="M12 6.2l.9 1.9 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z"/>`),
+    pourboire: U(`<circle cx="9.5" cy="13.5" r="6" fill="${A.beurre}"/><circle cx="9.5" cy="13.5" r="3"/><path d="M16.8 9.6c-1.6-1.3-2.8-2.4-2.8-3.8 0-1 .8-1.8 1.8-1.8.6 0 1 .3 1.3.7.3-.4.7-.7 1.3-.7 1 0 1.8.8 1.8 1.8 0 1.4-1.2 2.5-2.8 3.8z" fill="${A.fraise}"/>`),
+    oeil: U(`<path d="M2.8 12c2.2-4 5.4-6 9.2-6s7 2 9.2 6c-2.2 4-5.4 6-9.2 6s-7-2-9.2-6z" fill="${A.ciel}"/><circle cx="12" cy="12" r="2.8"/>`),
   };
   UI.classement = UI.podium;
   // le podium du classement : une petite toque à la couleur du métal (à côté d'un pseudo) et une coupe (l'annonce, la collection)

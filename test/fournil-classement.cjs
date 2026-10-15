@@ -6,10 +6,14 @@
 // Parcours : l'icône ronde du classement en haut à droite (et sa pastille de rang), rejoindre, pseudo pris, onglets, ses points de la semaine,
 // sa ligne mise en avant, rang hors des 50, changer de pseudo, envoi en arrière-plan, envoi au lancement, la Salle de jeux qui montre le rang,
 // quitter, hors ligne, pas encore ouvert, un serveur encore en v2, 320 px, l'artefact sans classement.
+// Contrat v6 (les copains) : la photo envoyée avec fournil_publier, l'objectif commun en tête de la feuille, une ligne qu'on touche ouvre
+// « La boutique de X » (la vraie scène, en lecture seule), le pourboire donné, les pourboires reçus et l'objectif réussi à l'ouverture,
+// le bloc Notifications des Réglages (« bientôt » sans clé publique) ; un serveur plus ancien cache tout cela. Captures 390×844 dans
+// test/shots/classement/ et, si COPAINS_CAPTURES est donné, dans ce dossier.
 // Lancer : NODE_PATH=/opt/node22/lib/node_modules node test/fournil-classement.cjs   (captures dans test/shots/classement/)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
-const CL = require('../src/classement.js');
+const CL = require('../src/classement.js'), G = require('../src/game.js');
 const root = path.join(__dirname, '..');
 const PORT = +process.env.PORT_CLASSEMENT || 8783, BASE = `http://localhost:${PORT}`, SUPA = 'https://jklbitrlkfrktmnarejc.supabase.co';
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
@@ -24,7 +28,8 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
 
 // ─── le faux Supabase : le contrat, en mémoire ───
 const sha = (t) => crypto.createHash('sha256').update(String(t), 'utf8').digest('hex');
-const faux = { joueurs: new Map(), palmares: new Map(), mode: 'normal', appels: [] }; // palmares : id → rang au podium de la semaine passée
+const faux = { joueurs: new Map(), palmares: new Map(), mode: 'normal', appels: [], // palmares : id → rang au podium de la semaine passée
+  v6: false, photos: new Map(), dons: [], recus: new Map(), lus: new Map(), objectifs: new Map(), objectif: { but: 2400, total: 1234, joueurs: 46 } }; // v6 : les photos, pourboires donnés et reçus, l'objectif commun
 const lundi = () => CL.lundiParis(Date.now());
 const avant = (iso) => { const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 7); return d.toISOString().slice(0, 10); };
 { // 60 boulangers : 45 ont joué cette semaine, 15 pas encore
@@ -42,7 +47,8 @@ function rangs(id) {
   const tous = [...faux.joueurs.values()];
   return { rang_semaine: j.semaine === l ? tous.filter((a) => a.semaine === l && a.points > j.points).length + 1 : null, rang_total: tous.filter((a) => a.ptsTotal > j.ptsTotal).length + 1, points_semaine: j.semaine === l ? j.points : null, points_total: j.ptsTotal };
 }
-function reponse(erreur, id) { const l = lundi(); return { ok: !erreur, erreur: erreur || null, version: faux.v2 ? undefined : 3, ...(erreur ? { rang_semaine: null, rang_total: null } : rangs(id)), joueurs: faux.joueurs.size, joueurs_total: faux.joueurs.size, joueurs_semaine: [...faux.joueurs.values()].filter((a) => a.semaine === l).length, semaine: l }; }
+const versionFaux = () => (faux.v2 ? undefined : faux.v6 ? 6 : 3);
+function reponse(erreur, id) { const l = lundi(); return { ok: !erreur, erreur: erreur || null, version: versionFaux(), ...(erreur ? { rang_semaine: null, rang_total: null } : rangs(id)), joueurs: faux.joueurs.size, joueurs_total: faux.joueurs.size, joueurs_semaine: [...faux.joueurs.values()].filter((a) => a.semaine === l).length, semaine: l }; }
 const ptsDe = (c) => (Number.isInteger(c.p_points) && c.p_lundi === lundi() ? Math.min(510, c.p_points) : null); // les points de la semaine du serveur (les vrais plafonds : test SQL)
 const RPC = {
   fournil_publier: (c) => {
@@ -58,11 +64,13 @@ const RPC = {
       const compte = Math.max(0, c.p_fortune - j.sommet); // (le vrai serveur plafonne aussi par le temps réel écoulé : test/fournil-classement-sql.cjs)
       const p = faux.v2 ? null : ptsDe(c), pc = p == null ? 0 : Math.max(0, p - j.points);
       j.sommet = Math.max(j.sommet, c.p_fortune); j.total += compte; j.gain += compte; j.points += pc; j.ptsTotal += pc; j.pseudo = pseudo; j.maj = Date.now();
-      return { ...reponse(null, c.p_id), compte, plafonne: false, points_comptes: pc, points_plafonnes: false };
+      if (faux.v6 && c.p_photo) faux.photos.set(c.p_id, c.p_photo);
+      return { ...reponse(null, c.p_id), compte, plafonne: false, points_comptes: pc, points_plafonnes: false, ...(faux.v6 ? { photo_maj: new Date().toISOString() } : {}) };
     }
     if (pris(null)) return reponse('pseudo_pris');
     const p0 = faux.v2 ? 0 : ptsDe(c) || 0;
     faux.joueurs.set(c.p_id, { jeton: sha(c.p_jeton), pseudo, sommet: c.p_fortune, total: 0, gain: 0, semaine: l, maj: Date.now(), points: p0, ptsTotal: p0 }); // l'argent part de zéro à l'arrivée, les points de la semaine comptent
+    if (faux.v6 && c.p_photo) faux.photos.set(c.p_id, c.p_photo);
     return { ...reponse(null, c.p_id), compte: 0, plafonne: false, points_comptes: p0, points_plafonnes: false };
   },
   fournil_classement: (c) => {
@@ -73,14 +81,26 @@ const RPC = {
     v.forEach((x) => { x.rang = v.filter((y) => y[cle] > x[cle]).length + 1; });
     const lim = Math.min(100, Math.max(1, c.p_limite || 50)), moi = v.find((x) => x.id === c.p_id);
     const ligne = (x) => (faux.v2 ? { rang: x.rang, pseudo: x.pseudo, valeur: x.valeur, moi: x.id === c.p_id, podium: x.podium } : { rang: x.rang, pseudo: x.pseudo, points: x.points, valeur: x.valeur, moi: x.id === c.p_id, podium: x.podium });
-    return { ...(faux.v2 ? {} : { version: 3 }), semaine: l, periode: c.p_periode, joueurs: v.length, lignes: v.slice(0, lim).map(ligne), moi: moi ? (faux.v2 ? { rang: moi.rang, valeur: moi.valeur, podium: moi.podium } : { rang: moi.rang, points: moi.points, valeur: moi.valeur, podium: moi.podium }) : null };
+    return { ...(faux.v2 ? {} : { version: versionFaux() }), semaine: l, periode: c.p_periode, joueurs: v.length, lignes: v.slice(0, lim).map(ligne), moi: moi ? (faux.v2 ? { rang: moi.rang, valeur: moi.valeur, podium: moi.podium } : { rang: moi.rang, points: moi.points, valeur: moi.valeur, podium: moi.podium }) : null };
   },
   fournil_retirer: (c) => { const j = faux.joueurs.get(c.p_id); if (!j) return { ok: true, erreur: null }; if (j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: 'jeton' }; faux.joueurs.delete(c.p_id); faux.palmares.delete(c.p_id); return { ok: true, erreur: null }; },
   fournil_recompenses: (c) => {
     const j = faux.joueurs.get(c.p_id); if (j && j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: 'jeton', podiums: [], derniere: null };
     const sem = avant(lundi()), podium = [...faux.palmares.entries()].filter(([id]) => faux.joueurs.has(id)).map(([id, rang]) => ({ rang, pseudo: faux.joueurs.get(id).pseudo, points: 400 - 50 * rang, valeur: 1e9 / rang })).sort((a, b) => a.rang - b.rang);
-    return { ok: true, erreur: null, podiums: j && faux.palmares.has(c.p_id) ? [{ semaine: sem, rang: faux.palmares.get(c.p_id) }] : [], derniere: podium.length ? { semaine: sem, podium } : null };
+    return { ok: true, erreur: null, podiums: j && faux.palmares.has(c.p_id) ? [{ semaine: sem, rang: faux.palmares.get(c.p_id) }] : [], derniere: podium.length ? { semaine: sem, podium } : null,
+      ...(faux.v6 ? (() => { const o = { pourboires: faux.recus.get(c.p_id) || [], objectif: faux.objectifs.get(c.p_id) || null }; faux.recus.delete(c.p_id); faux.objectifs.delete(c.p_id); faux.lus.set(c.p_id, (faux.lus.get(c.p_id) || 0) + o.pourboires.length); return o; })() : {}) }; // v6 : rendus une seule fois (la lecture les marque vus)
   },
+  // ─── v6 : les copains (le vrai serveur : supabase/fournil-classement.sql, vérifié dans test/fournil-classement-sql.cjs) ───
+  fournil_boutique: (c) => { const e = [...faux.joueurs.entries()].find(([, a]) => a.pseudo.toLowerCase() === String(c.p_pseudo || '').toLowerCase()); if (!e) return { ok: false, erreur: 'inconnu' }; const miens = faux.dons.filter((d) => d.de === c.p_id);
+    return { ok: true, erreur: null, pseudo: e[1].pseudo, photo: faux.photos.get(e[0]) || null, maj: faux.photos.has(e[0]) ? new Date().toISOString() : null, en_ligne: e[1].pseudo === 'Mamie Jo', ...(c.p_id && faux.joueurs.has(c.p_id) ? { restants: 3 - miens.length, deja: miens.some((d) => d.a === e[1].pseudo) } : {}) }; },
+  fournil_pourboire: (c) => {
+    const j = faux.joueurs.get(c.p_id); if (!j || j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: 'jeton', restants: 0 };
+    const a = [...faux.joueurs.values()].find((x) => x.pseudo.toLowerCase() === String(c.p_pour || '').toLowerCase()), miens = faux.dons.filter((d) => d.de === c.p_id), restants = 3 - miens.length;
+    if (!a) return { ok: false, erreur: 'inconnu', restants }; if (a === j) return { ok: false, erreur: 'soi', restants };
+    if (miens.some((d) => d.a === a.pseudo)) return { ok: false, erreur: 'deja', restants }; if (restants <= 0) return { ok: false, erreur: 'quota', restants: 0 };
+    faux.dons.push({ de: c.p_id, a: a.pseudo }); j.points += 1; j.ptsTotal += 1; return { ok: true, erreur: null, restants: restants - 1, points_semaine: j.points };
+  },
+  fournil_objectif: () => ({ semaine: lundi(), but: faux.objectif.but, total: faux.objectif.total, joueurs: faux.objectif.joueurs, reussi: faux.objectif.total >= faux.objectif.but, pourcent: Math.min(100, Math.floor(faux.objectif.total / faux.objectif.but * 100)) }),
   fournil_heure: () => ({ ms: Date.now() }),
 };
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'apikey, authorization, content-type, x-client-info', 'access-control-allow-methods': 'POST, OPTIONS' };
@@ -92,6 +112,7 @@ async function gerer(route) {
   faux.appels.push({ nom, corps, apikey: h.apikey, auth: h.authorization, type: h['content-type'], t: Date.now(), mode: faux.mode });
   if (faux.mode === 'hors-ligne') return route.abort('internetdisconnected');
   if (faux.mode === 'pas-ouvert') return route.fulfill({ status: 404, headers: CORS, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST202', details: null, hint: null, message: `Could not find the function public.${nom} in the schema cache` }) });
+  if (!faux.v6 && /^fournil_(boutique|pourboire|objectif|abonner|desabonner|planifier|notif_essai)$/.test(nom)) return route.fulfill({ status: 404, headers: CORS, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST202' }) }); // un serveur v5 ou plus ancien
   if (!RPC[nom] || !corps) return route.fulfill({ status: 404, headers: CORS, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST202' }) });
   if (faux.v2 && nom === 'fournil_publier' && 'p_points' in corps) return route.fulfill({ status: 404, headers: CORS, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST202', message: 'Could not find the function public.fournil_publier(p_fortune, p_id, p_jeton, p_lundi, p_points, p_pseudo) in the schema cache' }) }); // un serveur encore en version 2
   return route.fulfill({ status: 200, headers: CORS, contentType: 'application/json', body: JSON.stringify(RPC[nom](corps)) });
@@ -351,7 +372,7 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
   await page.goto(BASE + '/fournil/'); await sleep(1200);
   const nV2 = faux.appels.length;
   const rv2 = await page.evaluate(() => window.__fournil.classement().choisirPseudo('Vieux serveur').then((r) => r.etat));
-  const pv2 = faux.appels.slice(nV2).filter((x) => x.nom === 'fournil_publier');
+  const pv2 = faux.appels.slice(nV2).filter((x) => x.nom === 'fournil_publier' && !('p_photo' in x.corps)); // (le premier envoi essaie aussi la photo, v6 : refusée de même)
   check(rv2 === 'ok' && pv2.length === 2 && 'p_points' in pv2[0].corps && !('p_points' in pv2[1].corps) && await page.evaluate(() => window.__fournil.classement().version()) === 2, 'serveur v2 : l’envoi avec points est refusé (fonction introuvable), aussitôt renvoyé sans : rejoint quand même');
   await ouvrir('semaine');
   const lv2 = await page.evaluate(() => [...document.querySelectorAll('#feuille .cl-val')].slice(0, 3).map((v) => ({ txt: v.innerText.replace(/\s+/g, ' '), petit: !!v.querySelector('small') })));
@@ -395,6 +416,106 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     const n2 = lectures(); await sleep(2600);
     check(lectures() === n2, 'feuille fermée : plus aucune lecture');
     await c5.close();
+  }
+
+  // ─── contrat v6 : les copains (visite, pourboire, objectif commun, pourboires reçus) et le bloc Notifications ───
+  {
+    const cap = process.env.COPAINS_CAPTURES || '';
+    if (cap) fs.mkdirSync(cap, { recursive: true });
+    const capture = async (p, nom, o) => { await p.screenshot({ path: `${out}/v6-${nom}.png`, ...(o || {}) }); if (cap) await p.screenshot({ path: `${cap}/${nom}.png`, ...(o || {}) }); };
+    faux.v6 = true; faux.mode = 'normal';
+    for (const j of faux.joueurs.values()) j.maj = 0;
+    // la boutique de Mamie Jo (1re) : une belle boutique ; Tonton Jo n'a pas encore de photo
+    const mamie = [...faux.joueurs.entries()].find(([, a]) => a.pseudo === 'Mamie Jo')[0];
+    { const s = G.newState(Date.now()); s.nomBoutique = 'Chez Mamie Jo'; s.boutiques = 2; s.stations.forEach((x, i) => { x.niv = i < 6 ? 140 - i * 20 : 0; x.staff = i < 4; });
+      for (const m of G.MOBILIER) s.mobilier[m.id] = m.id === 'tables' ? m.max - 1 : m.max; s.chat = { nom: 'Réglisse' }; s.chatNoir = true; s.chatPelage = 'noir';
+      s.xp = 0; for (let n = 1; n < 22; n++) s.xp += G.XP_NIVEAU(n); for (const id of ['or-toque', 'or-tablier']) { G.donnerVetement(s, id); G.equiper(s, G.vetement(id).piece, id); }
+      faux.photos.set(mamie, CL.photo(s, { G, coupes: ['or', 'argent'], badge: true, dq: ['neon'], dh: ['citrouilles'] })); }
+    const c6 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+    await c6.addInitScript(() => { window.__sansQuartier = true; });
+    await c6.route(SUPA + '/rest/v1/rpc/*', gerer);
+    const p6 = await c6.newPage(); suivre(p6);
+    await p6.goto(BASE + '/fournil/'); await sleep(1300);
+    await p6.evaluate(() => { window.__fournil.give(5e5); window.__fournil.meuble('four'); });
+    const rj = await p6.evaluate(() => window.__fournil.classement().choisirPseudo('Lucas').then((r) => r.etat));
+    const moiId = await p6.evaluate(() => window.__fournil.classement().etat().id);
+    check(rj === 'ok' && faux.photos.has(moiId) && faux.photos.get(moiId).v === 1 && faux.photos.get(moiId).m.four >= 1 && CL.octetsJson(faux.photos.get(moiId)) <= 2048, `v6 : rejoindre envoie aussi la photo de sa boutique (p_photo, ${CL.octetsJson(faux.photos.get(moiId) || {})} octets ≤ 2 Ko)`);
+    await p6.evaluate(() => window.__fournil.feuilleClassement('semaine'));
+    await attendre(() => p6.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste') && !!document.querySelector('#feuille .obj-carte')));
+    await sleep(400);
+    const v1 = await p6.evaluate(() => { const o = document.querySelector('#feuille .obj-carte'), lis = [...document.querySelectorAll('#feuille .cl-ligne')]; return { obj: o ? o.innerText.replace(/\s+/g, ' ') : '', jauge: o ? o.querySelector('.obj-jauge i').style.width : '', avant: o && !!(o.compareDocumentPosition(document.querySelector('#feuille .pts-bloc')) & Node.DOCUMENT_POSITION_FOLLOWING), n: lis.length, vis: lis.filter((l) => l.matches('.visitable[data-visite][role="button"]')).length, moiVis: !!document.querySelector('#feuille .cl-ligne.moi.visitable, #feuille .cl-ligne.moi[data-visite]'), label: (document.querySelector('#feuille [data-visite="Mamie Jo"]') || {}).getAttribute && document.querySelector('#feuille [data-visite="Mamie Jo"]').getAttribute('aria-label') }; });
+    check(/Objectif commun/.test(v1.obj) && /À nous tous : 1\s234 \/ 2\s400 croissants/.test(v1.obj) && parseFloat(v1.jauge) === 51 && v1.avant, `l’objectif commun en tête de la feuille, avant ses points : « ${v1.obj.slice(0, 90)}… », jauge ${v1.jauge}`);
+    check(v1.n > 40 && v1.vis === v1.n - 1 && !v1.moiVis && v1.label === 'Visiter la boutique de Mamie Jo', `chaque ligne d’un copain se touche (${v1.vis} sur ${v1.n}), pas la sienne ; « ${v1.label} »`);
+    await capture(p6, '5-objectif-commun');
+    await p6.evaluate(() => { const f = document.querySelector('#feuille'), l = document.querySelector('#feuille .cl-liste'); f.scrollTop = l.offsetTop - 120; }); await sleep(250);
+    await capture(p6, '1-liste-ligne-touchable');
+    // l'état du joueur avant la visite (rien ne doit bouger chez lui)
+    const avantSt = await p6.evaluate(() => { const s = window.__fournil.st; return JSON.stringify({ m: s.mobilier, n: s.stations.map((x) => x.niv), nom: s.nomBoutique, g: s.garderobe.equipe, c: s.chat }); });
+    const avantScene = await p6.evaluate(() => JSON.stringify(window.__fournil.SCENE.recompensesVues));
+    await p6.tap('#feuille [data-visite="Mamie Jo"]');
+    check(await attendre(() => p6.evaluate(() => { const v = window.__fournil.visite(); return v && !v.charge && v.scene; }), 6000), 'toucher « Mamie Jo » ouvre « La boutique de Mamie Jo » sur la vraie scène 3D');
+    await sleep(1500);
+    const vis = await p6.evaluate(() => ({ titre: document.querySelector('#vi-titre').textContent, sous: document.querySelector('#vi-sous').textContent, ligne: !document.querySelector('#vi-ligne').hidden, feuille: document.querySelector('#feuille').hidden, corps: document.body.classList.contains('visite'), enseigne: (document.querySelector('.vi-enseigne') || {}).textContent, pb: (document.querySelector('[data-vi="pourboire"]') || {}).innerText || '', rec: window.__fournil.SCENE.recompensesVues, tiroir: window.__fournil.tiroir(), coin: getComputedStyle(document.querySelector('#coin')).visibility }));
+    check(vis.titre === 'La boutique de Mamie Jo' && /En ligne · Chez Mamie Jo · le coin de rue parisien/.test(vis.sous) && vis.ligne && vis.feuille && vis.corps && vis.enseigne === 'Chez Mamie Jo' && vis.coin === 'hidden', `l’écran de visite : « ${vis.titre} », « ${vis.sous} », son enseigne, la feuille du classement refermée, les boutons du coin cachés`);
+    check(vis.rec.equipe && vis.rec.coupes === 2 && vis.rec.coupe === null && vis.tiroir === 'ferme', 'la scène montre SA boutique : ses deux coupes en vitrine, son badge « Esprit d’équipe » au mur, le tiroir replié');
+    check(/Laisser un pourboire/.test(vis.pb) && /encore 3 aujourd’hui/.test(vis.pb), `le bouton « ${vis.pb.replace(/\s+/g, ' ')} » montre les restants du jour`);
+    await capture(p6, '2-boutique-copain');
+    // lecture seule : toucher la scène n'agit sur rien (meuble, boulanger, chat)
+    const nAppels = faux.appels.length;
+    for (const [x, y] of [[195, 300], [60, 250], [300, 420], [195, 200]]) { await p6.touchscreen.tap(x, y); await sleep(120); }
+    const apres = await p6.evaluate(() => ({ feuille: document.querySelector('#feuille').hidden, page: document.querySelector('#onglets .actif').dataset.page, v: !!window.__fournil.visite() }));
+    check(apres.feuille && apres.page === 'boutique' && apres.v, 'des touches sur la scène : aucune fiche, aucune page ne s’ouvre (lecture seule)');
+    await p6.tap('[data-vi="pourboire"]');
+    check(await attendre(() => p6.evaluate(() => /Pourboire laissé/.test((document.querySelector('[data-vi="pourboire"]') || {}).innerText || ''))), 'le pourboire part');
+    await sleep(500);
+    const pb = await p6.evaluate(() => ({ b: document.querySelector('[data-vi="pourboire"]').innerText.replace(/\s+/g, ' '), dis: document.querySelector('[data-vi="pourboire"]').getAttribute('aria-disabled'), toast: (document.querySelector('.toast') || {}).textContent || '' }));
+    const don = faux.appels.filter((a) => a.nom === 'fournil_pourboire').pop();
+    check(don && don.corps.p_id === moiId && don.corps.p_pour === 'Mamie Jo' && /^[0-9a-f]{64}$/.test(don.corps.p_jeton) && faux.dons.length === 1, 'fournil_pourboire(p_id, p_jeton, p_pour « Mamie Jo »)');
+    check(/Pourboire laissé ✓/.test(pb.b) && /encore 2 aujourd’hui/.test(pb.b) && pb.dis === 'true' && /Pourboire laissé à Mamie Jo/.test(pb.toast), `après : « ${pb.b} », « ${pb.toast} »`);
+    await capture(p6, '3-pourboire-donne');
+    await p6.tap('#vi-bas [data-vi="retour"]'); await sleep(600);
+    const ret = await p6.evaluate(() => ({ v: window.__fournil.visite(), cl: !!document.querySelector('#feuille-contenu .cl-liste, #feuille-contenu .cl-squelette'), corps: document.body.classList.contains('visite'), st: (() => { const s = window.__fournil.st; return JSON.stringify({ m: s.mobilier, n: s.stations.map((x) => x.niv), nom: s.nomBoutique, g: s.garderobe.equipe, c: s.chat }); })(), rec: JSON.stringify(window.__fournil.SCENE.recompensesVues) }));
+    check(!ret.v && ret.cl && !ret.corps, '« Retour » ferme la visite et rouvre le classement');
+    check(ret.st === avantSt && ret.rec === avantScene, 'sa boutique n’a pas bougé (mobilier, postes, nom, tenue, chat), sa scène retrouve ses récompenses');
+    await p6.evaluate(() => window.__fournil.feuilleClassement('semaine')); await attendre(() => p6.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste')));
+    await p6.tap('#feuille [data-visite="Tonton Jo"]');
+    await attendre(() => p6.evaluate(() => { const v = window.__fournil.visite(); return v && !v.charge; }));
+    const sans = await p6.evaluate(() => ({ v: window.__fournil.visite(), txt: document.querySelector('#vi-vue').innerText, carte: document.querySelector('#vi-vue').classList.contains('carte'), pb: (document.querySelector('[data-vi="pourboire"]') || {}).innerText || '' }));
+    check(!sans.v.scene && sans.carte && /Pas encore ouverte aux visites/.test(sans.txt) && /encore 2 aujourd’hui/.test(sans.pb), 'un copain sans photo : une carte texte, le pourboire reste possible');
+    await p6.evaluate(() => window.__fournil.finVisite(false)); await sleep(300);
+    // à l'ouverture : deux pourboires reçus, puis l'objectif commun réussi de la semaine passée
+    const q0 = new Date(Date.now() - 3600e3).toISOString(), q1 = new Date(Date.now() - 600e3).toISOString(), semP = avant(lundi());
+    faux.recus.set(moiId, [{ de: 'Mamie Jo', quand: q0 }, { de: 'Tonton Jo', quand: q1 }]); faux.objectifs.set(moiId, { semaine: semP, reussi: true, recompense: true });
+    await p6.evaluate(() => window.__fournil.save()); await p6.reload(); await sleep(400);
+    check(await attendre(() => p6.evaluate(() => !document.querySelector('#feuille').hidden && /laissé un pourboire/.test(document.querySelector('#feuille-contenu').innerText)), 8000), 'à l’ouverture, la feuille des pourboires reçus');
+    await sleep(900);
+    const recu = await p6.evaluate(() => ({ txt: document.querySelector('#feuille-contenu').innerText.replace(/\s+/g, ' '), res: window.__fournil.boosts().reserve.map((x) => `${x.mult}:${x.secs}`) }));
+    check(/Mamie Jo et Tonton Jo t’ont laissé un pourboire\s!/.test(recu.txt) && /2 boosts ×2 de 10 min t’attendent dans ta réserve/.test(recu.txt) && recu.res.filter((x) => x === '2:600').length === 2 && faux.lus.get(moiId) === 2 && !faux.appels.some((a) => a.nom === 'fournil_vu_pourboires'), `« ${recu.txt.slice(0, 110)}… » ; réserve ${recu.res.join(', ')} ; lus une seule fois au serveur`);
+    await capture(p6, '4-pourboire-recu');
+    await p6.tap('[data-a="cp-plus-tard"]');
+    check(await attendre(() => p6.evaluate(() => /Objectif commun réussi/.test(document.querySelector('#feuille-contenu').innerText)), 6000), 'puis la feuille de l’objectif commun réussi');
+    await sleep(900);
+    const obj = await p6.evaluate(() => ({ txt: document.querySelector('#feuille-contenu').innerText.replace(/\s+/g, ' '), res: window.__fournil.boosts().reserve.map((x) => `${x.mult}:${x.secs}`), badge: window.__fournil.classement().recompenses().badge }));
+    check(/boost ×5 de 15 min et le badge « Esprit d’équipe »/.test(obj.txt) && obj.res.includes('5:900') && obj.badge, `« ${obj.txt.slice(0, 100)}… » ; un boost ×5 de 15 min dans la réserve, le badge gagné`);
+    await capture(p6, '4b-objectif-reussi');
+    await p6.tap('[data-a="cp-lancer"]'); await sleep(800);
+    const lance = await p6.evaluate(() => ({ actif: window.__fournil.boosts().actif, equipe: window.__fournil.SCENE.recompensesVues.equipe, f: document.querySelector('#feuille').hidden }));
+    check(lance.actif && lance.actif.mult === 5 && lance.equipe && lance.f, '« Lancer le boost ×5 » : il tourne, et la rosette « Esprit d’équipe » est au mur de sa boutique');
+    await p6.reload(); await sleep(1800);
+    check(await p6.evaluate(() => document.querySelector('#feuille').hidden), 'relancé : les pourboires et l’objectif ne reviennent pas');
+    // les Réglages : le bloc Notifications (pas de clé publique dans config.js : « bientôt »)
+    await p6.evaluate(() => window.__fournil.page('reglages')); await sleep(400);
+    const reg = await p6.evaluate(() => { const t = [...document.querySelectorAll('#page-reglages .titre-section')].find((h) => /Notifications/.test(h.textContent)); return t ? { txt: t.nextElementSibling.innerText.replace(/\s+/g, ' '), sw: !!t.nextElementSibling.querySelector('[role="switch"]') } : null; });
+    check(reg && /Me prévenir/.test(reg.txt) && /Bientôt disponible/.test(reg.txt) && !reg.sw, `Réglages : le bloc Notifications dit « bientôt » sans clé publique (« ${reg && reg.txt} »)`);
+    await p6.evaluate(() => { const t = [...document.querySelectorAll('#page-reglages .titre-section')].find((h) => /Notifications/.test(h.textContent)); window.__fournil.tiroir('ouvert'); t.scrollIntoView({ block: 'center' }); }); await sleep(500);
+    await capture(p6, '6b-reglages-bientot');
+    // un serveur v5 (ou plus ancien) : ni objectif commun, ni ligne à toucher
+    faux.v6 = false; await p6.evaluate(() => window.__fournil.page('boutique')); await p6.reload(); await sleep(1300);
+    await p6.evaluate(() => window.__fournil.feuilleClassement('semaine')); await attendre(() => p6.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste'))); await sleep(500);
+    const v5 = await p6.evaluate(() => ({ vis: document.querySelectorAll('#feuille .visitable, #feuille [data-visite]').length, obj: !!document.querySelector('#feuille .obj-carte') }));
+    check(v5.vis === 0 && !v5.obj, 'serveur sans la mise à jour des copains : pas d’objectif commun, aucune ligne à toucher, le classement comme avant');
+    await c6.close();
+    faux.v6 = false;
   }
 
   // ─── l'artefact Claude : pas de config.js, le classement se cache ───

@@ -2,7 +2,7 @@
 // Son cache porte le préfixe « fournil-jeu- » ; il ne touche jamais aux caches des autres pages du dépôt (l'écran d'accueil a le sien).
 // Le classement en ligne : config.js (adresse et clé publique) passe par le réseau d'abord ; les appels à Supabase ne sont jamais interceptés ni mis en cache.
 // L'horloge de confiance (src/horloge.js) lit l'heure du serveur dans l'en-tête Date d'une requête « ?heure=… » : elle va toujours au réseau, jamais au cache.
-const CACHE = 'fournil-jeu-v2';
+const CACHE = 'fournil-jeu-v3';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './config.js', '../vendor/three.min.js', '../icons/icon.svg', '../icons/icon-180.png', '../icons/icon-192.png', '../icons/icon-512.png', '../icons/icon-maskable-512.png'];
 const enCache = (req, res) => { if (res.ok || res.type === 'opaque') { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); } return res; };
 // à l'installation, contourner le cache HTTP (GitHub Pages le garde 10 min) pour ne pas figer une vieille copie
@@ -22,3 +22,27 @@ self.addEventListener('fetch', (e) => {
   if (local && (url.pathname.endsWith('.webmanifest') || url.pathname === new URL('./config.js', self.location).pathname)) { e.respondWith(fetch(req).then((res) => enCache(req, res)).catch(() => caches.match(req))); return; } // le manifeste et la configuration : le réseau d'abord
   if (local || /(^|\.)fonts\.(googleapis|gstatic)\.com$/.test(url.hostname)) e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => enCache(req, res))));
 });
+// Les notifications (Web Push, version 6 du classement) : la fonction « notifier » de Supabase envoie { titre, texte, url, type } chiffré pour cet
+// abonnement ; on l'affiche avec l'icône du jeu, une seule à la fois par type (tag). Toucher la notification ramène la fenêtre du jeu au
+// premier plan, ou l'ouvre. Les textes viennent de notre serveur, mais restent bornés ; l'adresse n'ouvre jamais qu'une page de ce site.
+const ICONE = new URL('../icons/icon-192.png', self.location).href;
+const ICI = () => new URL('./', self.registration.scope).href;
+function adresse(u) { try { const x = new URL(typeof u === 'string' && u ? u : './', self.registration.scope); return x.origin === self.location.origin ? x.href : ICI(); } catch (e) { return ICI(); } }
+function afficherPush(e) { // (une fonction nommée : les tests l'appellent dans le service worker, test/fournil-notifs.cjs)
+  let d = {};
+  try { d = e.data ? e.data.json() : {}; } catch (x) { try { d = { texte: e.data.text() }; } catch (y) { d = {}; } }
+  if (!d || typeof d !== 'object') d = {};
+  const titre = String(d.titre || 'Le Fournil').slice(0, 80), texte = String(d.texte || '').slice(0, 240), type = /^[a-z]{1,20}$/.test(String(d.type || '')) ? d.type : 'fournil';
+  e.waitUntil(self.registration.showNotification(titre, { body: texte, icon: ICONE, badge: ICONE, tag: 'fournil-' + type, renotify: true, data: { url: adresse(d.url), type } }));
+}
+function ouvrirJeu(e) {
+  e.notification.close();
+  const cible = (e.notification.data && e.notification.data.url) || ICI(), racine = new URL('./', self.registration.scope).pathname;
+  e.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((liste) => {
+    const w = liste.find((c) => { try { return new URL(c.url).pathname.startsWith(racine); } catch (x) { return false; } });
+    if (w && 'focus' in w) return w.focus();
+    return self.clients.openWindow ? self.clients.openWindow(cible) : null;
+  }));
+}
+self.addEventListener('push', afficherPush);
+self.addEventListener('notificationclick', ouvrirJeu);

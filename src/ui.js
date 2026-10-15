@@ -491,7 +491,7 @@ const UI = (() => {
   };
   // Réglages : rangés par groupe ; ce qui sert peu vit ici (repeindre, masquer l'événement, quitter le classement, sauvegarde, partage)
   const pageReglages = {
-    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}`,
+    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}`,
     html: () => {
       const q = G.QUARTIERS[G.quartier(st)], cr = classement ? classement.resume() : null;
       const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
@@ -506,6 +506,7 @@ const UI = (() => {
           + (st.chat ? ligne('chat', ICONS.UI.chat, `Renommer ${esc(st.chat.nom)}`, 'Le chat de la boutique', chev) : '')
           + (st.chat && chatNoirDispo() && !chatNoirForce() ? ligne('chat-noir', ICONS.UI.chatNoir, `${esc(st.chat.nom)} en chat noir`, 'Le souvenir de la Maison hantée : robe noire et yeux jaunes', sw(chatNoir())) : ''))}
         ${cr && cr.rejoint ? groupe('Classement', ligne('cl-quitter', ICONS.UI.quitter, 'Quitter le classement', `Ton pseudo « ${esc(cr.pseudo)} » et tes points disparaissent du classement`, chev)) : ''}
+        ${blocNotifs(ligne, sw)}
         ${QT && QT.fenetre(st.now).ouvert ? groupe('Événement', ligne('quartier', ICONS.UI.quartier, 'Masquer l’événement', 'Le Quartier, une parodie réservée aux adultes : l’icône et la Planque disparaissent', sw(!!(st.quartier && st.quartier.masque))) + (typeof HDM !== 'undefined' && HDM.actif ? ligne('hd', ICONS.UI.quartier, 'Planque en HD', HDM.raison === 'écran noir' ? 'Coupée : l’écran restait noir sur ce téléphone. Touche pour réessayer' : 'Meubles, rue de nuit et équipe animée (à couper si l’écran reste noir)', sw(!HDM.coupe())) : '')) : ''}
         ${HTE && HTE.fenetre() && HTE.fenetre().ouvert ? groupe('Halloween', ligne('hantee', ICONS.UI.hantee, 'Masquer la Maison hantée', 'L’icône citrouille et le manoir disparaissent ; le reste du jeu ne change pas', sw(!!(st[HTE.cle] && st[HTE.cle].masque)))) : ''}
         ${groupe('Sauvegarde et partage', ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)
@@ -529,6 +530,10 @@ const UI = (() => {
       onIn(sec, '[data-a="chat-noir"]', () => { choisirPelage(chatNoir() ? 'roux' : 'noir'); son.tap(); renderPage(true); });
       onIn(sec, '[data-a="partager"]', partager);
       onIn(sec, '[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(); });
+      onIn(sec, '[data-a="notifs"]', () => basculerNotifs()); // la permission est demandée tout de suite, dans le geste (Safari l'exige)
+      for (const [k] of CAS_NOTIFS) onIn(sec, `[data-a="notif-${k}"]`, () => { const p = classement.notifs().prefs; p[k] = !p[k]; basculerNotifs(p); });
+      onIn(sec, '[data-a="notif-essai"]', essaiNotif);
+      onIn(sec, '[data-a="cl-rejoindre-notifs"]', () => { son.tap(); sheetPseudo(false); });
       onIn(sec, '[data-a="accueil"]', () => { save(); location.href = window.FOURNIL_ACCUEIL + '?app=accueil'; }); // ?app=accueil : l'accueil ne renvoie pas vers le jeu
       onIn(sec, '[data-a="reset"]', () => {
         openSheet(`<h2>Tout effacer ?</h2><p class="sous">Euros, recettes, apprentis, bonus et étoiles : tout repart de la première baguette. Impossible de revenir en arrière.</p><button type="button" class="btn large" data-a="oui" style="background:var(--fraise);box-shadow:0 4px 0 var(--fraise-sombre)"><b>Oui, tout effacer</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde ma boutique</b></button>`);
@@ -563,7 +568,7 @@ const UI = (() => {
     const b = st.boosts; if (!b || (b.actif && b.actif.fin > st.now)) { toast('Un boost tourne déjà : attends la fin.'); return; }
     if (!b.reserve.length) return;
     if (b.reserve.length === 1) { const r = G.lancerBoostReserve(st, 0); if (r.ok) reussite(`Boost ×${r.boost.mult} lancé : toutes les ventes ×${r.boost.mult} pendant ${G.fmtDuree((r.boost.fin - st.now) / 1000)} !`); return; }
-    openSheet(`<h2>La réserve de boosts</h2><p class="sous">Gagnés aux paliers du Quartier. Un seul à la fois ; il tourne sur l'horloge, même la boutique fermée.</p><div class="liste-am">${b.reserve.map((x, k) => `<div class="am"><div><h3>Boost ×${x.mult}</h3><p>Toutes les ventes ×${x.mult} pendant ${G.fmtDuree(x.secs)}</p></div><button type="button" class="btn beurre" data-k="${k}"><small>Lancer</small><b>×${x.mult}</b></button></div>`).join('')}</div>${btnRetour()}`);
+    openSheet(`<h2>La réserve de boosts</h2><p class="sous">Gagnés aux paliers des événements, avec les pourboires des copains et l’objectif commun. Un seul à la fois ; il tourne sur l'horloge, même la boutique fermée.</p><div class="liste-am">${b.reserve.map((x, k) => `<div class="am"><div><h3>Boost ×${x.mult}</h3><p>Toutes les ventes ×${x.mult} pendant ${G.fmtDuree(x.secs)}</p></div><button type="button" class="btn beurre" data-k="${k}"><small>Lancer</small><b>×${x.mult}</b></button></div>`).join('')}</div>${btnRetour()}`);
     on('[data-a="close"]', closeSheet);
     on('[data-k]', (el) => { const r = G.lancerBoostReserve(st, +el.dataset.k); closeSheet(); if (r.ok) reussite(`Boost ×${r.boost.mult} lancé : toutes les ventes ×${r.boost.mult} pendant ${G.fmtDuree((r.boost.fin - st.now) / 1000)} !`); else son.non(); });
   }
@@ -877,6 +882,7 @@ const UI = (() => {
     if (!periodes().some(([id]) => id === ongletCl)) ongletCl = 'semaine'; // l'onglet d'un événement a disparu (deux semaines après la fin)
     openSheet(htmlClassement()); vueCl = 'liste'; lierClassement();
     classement.ouvrir(ongletCl); // d'abord sa fortune (si on a rejoint), puis la liste
+    classement.objectif(); // l'objectif commun de la semaine (classement v6 ; une fois par minute au plus)
   }
   let dernierHtmlCl = '';
   function rafraichirClassement(force) { // le moteur a du nouveau : la feuille ouverte se redessine sur place, sans remonter
@@ -896,7 +902,7 @@ const UI = (() => {
     // pas encore inscrit : l'invitation en haut, avant la liste ; inscrit : son pseudo et ses réglages en bas
     const invitation = ferme || r.rejoint ? '' : `<div class="cl-invitation"><p>Ton pseudo, tes points et ta fortune seront visibles de tous ceux qui ont le lien du jeu. Tu pourras quitter le classement quand tu veux.</p><button type="button" class="btn large beurre" data-a="cl-rejoindre"><b>Rejoindre le classement</b></button></div>`;
     const pied = ferme || !r.rejoint ? '' : `<p class="cl-moi">Tu joues sous le pseudo <b>${esc(r.pseudo)}</b>.</p><button type="button" class="btn large clair" data-a="cl-pseudo"><b>Changer de pseudo</b></button><button type="button" class="lien cl-quitter" data-a="cl-quitter">Quitter le classement</button>`;
-    dernierHtmlCl = `<div class="cl" data-cl="liste"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>Classement</h2><p class="sous">Les boulangers qui ont le lien du jeu, classés en points de boulanger : la façon de jouer, pas la fortune. Chaque semaine, les trois premiers gagnent une tenue et une coupe.</p></div></div>${carteRecompenses()}${blocPoints()}${invitation}${seg}${corps}${pied}${btnRetour()}</div>`;
+    dernierHtmlCl = `<div class="cl" data-cl="liste"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>Classement</h2><p class="sous">Les boulangers qui ont le lien du jeu, classés en points de boulanger : la façon de jouer, pas la fortune. Chaque semaine, les trois premiers gagnent une tenue et une coupe.${classement.copains() && classement.objectifVu() ? ' Touche un copain pour visiter sa boutique.' : ''}</p></div></div>${carteObjectif()}${carteRecompenses()}${blocPoints()}${invitation}${seg}${corps}${pied}${btnRetour()}</div>`;
     return dernierHtmlCl;
   }
   function listeClassement(d, r) {
@@ -910,7 +916,8 @@ const UI = (() => {
     const tete = `<div class="cl-info"><span>${info}</span>${enLigne}<b>${CLM.boulangers(d.joueurs)}</b></div>`
       + (r.rejoint && d.moi && d.moi.rang > 5 ? `<div class="cl-place"><span class="cl-rang${d.moi.rang <= 3 ? ' r' + d.moi.rang : ''}">${d.moi.rang}<small>${d.moi.rang === 1 ? 'er' : 'e'}</small></span><span><b>Ta place ${semaine ? 'cette semaine' : 'de tous les temps'}</b><small>sur ${CLM.boulangers(d.joueurs)}</small></span>${val(d.moi)}</div>` : ''); // sa place d'un coup d'œil quand sa ligne est loin dans la liste
     if (!d.lignes.length) return `${tete}<div class="cl-etat"><span class="pic">${ICONS.UI.podium}</span><b>${hantee ? 'Personne encore au manoir' : quartier ? 'Personne encore au Quartier' : semaine ? 'Personne encore cette semaine' : 'Personne encore'}</b><span>${hantee ? 'Les bonbons du manoir arrivent avec le prochain envoi.' : quartier ? 'Les billets de la Planque arrivent avec le prochain envoi.' : r.rejoint ? 'Tes points arrivent dans un instant.' : 'Rejoins le classement et ouvre le bal !'}</span></div>`;
-    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : ''}"${moi ? ' aria-current="true"' : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom">${l.enLigne || (moi && d.enLigneN > 0) ? '<i class="cl-en-ligne" role="img" aria-label="en ligne" title="En ligne"></i>' : ''}<span>${esc(l.pseudo)}</span>${quartier ? (l.podium ? `<i class="tag">${rangDe(l.podium)} ${hantee ? 'du manoir' : 'du Quartier'}</i>` : '') : toqueDe(l.podium, l.toque, moi)}${moi ? '<i class="tag">toi</i>' : ''}</span>${val(l)}</li>`;
+    const visites = classement.copains(); // classement v6 : toucher la ligne d'un copain ouvre sa boutique
+    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : visites ? ' visitable' : ''}"${moi ? ' aria-current="true"' : visites ? ` data-visite="${esc(l.pseudo)}" role="button" tabindex="0" aria-label="Visiter la boutique de ${esc(l.pseudo)}"` : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom">${l.enLigne || (moi && d.enLigneN > 0) ? '<i class="cl-en-ligne" role="img" aria-label="en ligne" title="En ligne"></i>' : ''}<span>${esc(l.pseudo)}</span>${quartier ? (l.podium ? `<i class="tag">${rangDe(l.podium)} ${hantee ? 'du manoir' : 'du Quartier'}</i>` : '') : toqueDe(l.podium, l.toque, moi)}${moi ? '<i class="tag">toi</i>' : ''}</span>${val(l)}${!moi && visites ? `<i class="cl-chev" aria-hidden="true">${ICONS.UI.chevron}</i>` : ''}</li>`;
     let html = d.lignes.map((l) => ligne(l, l.moi && r.rejoint)).join('');
     if (r.rejoint && d.moi && !d.lignes.some((l) => l.moi)) html += `<li class="cl-sep" aria-hidden="true"><i></i><i></i><i></i></li>${ligne({ rang: d.moi.rang, pseudo: r.pseudo, points: d.moi.points, valeur: d.moi.valeur, podium: d.moi.podium }, true)}`; // loin derrière : sa ligne quand même, sous les 50 premiers
     const absent = r.rejoint && !d.moi ? `<p class="note">${semaine ? 'Tu n’apparais pas encore cette semaine : tes points partent dès que le réseau le permet.' : 'Tes points ne sont pas encore arrivés : ils partent dès que le réseau le permet.'}</p>` : '';
@@ -936,6 +943,10 @@ const UI = (() => {
     on('[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(true); });
     on('[data-a="cl-recompenses"]', () => { son.tap(); sheetRecompenses(true); });
     on('[data-a="close"]', closeSheet);
+    fc.querySelectorAll('[data-visite]').forEach((li) => { // visiter la boutique d'un copain (classement v6)
+      li.addEventListener('click', () => visiter(li.dataset.visite, true));
+      li.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); visiter(li.dataset.visite, true); } });
+    });
   }
   // ─── les récompenses du podium : chaque semaine, les trois premiers gagnent une tenue (toque et tablier) et une coupe, or, argent ou bronze ───
   // Portées d'office la semaine qui suit le podium (tenue « automatique »), puis gardées à vie : la coupe dans la vitrine des trophées, la tenue
@@ -958,14 +969,15 @@ const UI = (() => {
     const xh = HTE ? r[HTE.cle] || (r.evenements && r.evenements[HTE.cle]) : null, rh = typeof xh === 'number' ? xh : xh && xh.rang; // classement v5 : evenements.hantee = { rang, podium }
     if ([1, 2, 3].includes(rh)) { const n = G.donnerCollection(st, `${HTE.cle}-or`).length; if (n) { neuves += n; toast('Podium final de la Maison hantée : la tenue d’Halloween en or est dans ta garde-robe !'); } } // le podium final de la Maison hantée, à vie
     if (neuves) { save(); if (pageActive === 'boulanger') { lastPage = ''; renderPage(true); } }
-    const k = `${r.portee}|${r.coupe}|${r.coupes.join(',')}`;
-    if (k !== derniereRecScene) { derniereRecScene = k; SCENE.recompenses({ tenue: r.portee, coupe: r.coupe, coupes: r.coupes }); if (pageActive === 'boulanger') renderPage(); }
+    if (visite && visite.scene) return; // la scène montre la boutique du copain : les siennes reviennent au retour
+    const k = `${r.portee}|${r.coupe}|${r.coupes.join(',')}|${r.badge ? 'e' : ''}`;
+    if (k !== derniereRecScene) { derniereRecScene = k; SCENE.recompenses({ tenue: r.portee, coupe: r.coupe, coupes: r.coupes, equipe: !!r.badge }); if (pageActive === 'boulanger') renderPage(); }
     if (r.annonce && !annonceOuverte) tenterAnnonce();
   }
   function tenterAnnonce() { // au premier lancement après un podium, une fois la feuille du retour (gains d'absence) refermée
     clearTimeout(annonceMinuteur); annonceMinuteur = 0;
     const r = recVue(); if (!r || !r.annonce || annonceOuverte) return;
-    if (!feuille.hidden || document.hidden) { annonceMinuteur = setTimeout(tenterAnnonce, 1500); return; }
+    if (!feuille.hidden || document.hidden || visite) { annonceMinuteur = setTimeout(tenterAnnonce, 1500); return; }
     sheetAnnonce(r.annonce);
   }
   function sheetAnnonce(a) {
@@ -1077,33 +1089,218 @@ const UI = (() => {
     });
   }
 
+  // ─── les copains (classement v6) : visiter la boutique d'un copain, lui laisser un pourboire, l'objectif commun, les pourboires reçus ───
+  // La visite montre la VRAIE scène 3D, en lecture seule : un état rebâti depuis la photo du copain (CLASSEMENT.boutiqueDepuisPhoto) prend la
+  // place du sien dans SCENE.frame tant que l'écran est ouvert. Sa boutique à lui continue de tourner (G.tick), sans événement, client mystère
+  // ni vente à l'écran ; rien de la visite n'est sauvé ; un voile capte toutes les touches. Au retour, ses récompenses, ses décos et son chat reviennent.
+  // Sans 3D, ou sans photo (le copain n'a pas encore joué depuis la mise à jour), une carte texte. Un serveur v5 : les lignes ne se touchent pas.
+  let visite = null; // { pseudo, depuisCl, charge, etat, data (la réponse de fournil_boutique), b (la boutique rebâtie), scene (la 3D montre b), tiroir, envoi }
+  const nomQuartier = (q) => { const x = G.QUARTIERS[(q | 0) % G.QUARTIERS.length]; return x ? x.nom : ''; };
+  async function visiter(pseudo, depuisCl) {
+    if (!classement || visite || !pseudo) return;
+    audio(); son.tap();
+    visite = { pseudo: String(pseudo), depuisCl: !!depuisCl, charge: true, etat: '', data: null, b: null, scene: false, tiroir: tiroir.pos, envoi: false };
+    closeSheet(); vueCl = '';
+    $('#visite').hidden = false; document.body.classList.add('visite');
+    peindreVisite();
+    const v = visite, r = await classement.boutique(v.pseudo);
+    if (visite !== v) return; // refermée pendant la lecture
+    v.charge = false; v.etat = r.etat; v.data = r.etat === 'ok' ? r.data : null;
+    const ph = v.data && v.data.photo; v.b = ph ? CLM.boutiqueDepuisPhoto(ph, { G, maintenant: HORLOGE.maintenant() }) : null;
+    v.scene = !!v.b && !!(SCENE.stats && SCENE.stats.webgl);
+    if (v.scene) { // sa boutique à lui, à la place de la sienne : ses coupes, son badge, ses décos, son chat ; le tiroir replié, la scène entière
+      amenager(false); tiroir.aller('ferme', false);
+      SCENE.recompenses({ tenue: null, coupe: null, coupes: v.b.coupes, equipe: v.b.badge }); SCENE.decosQuartier(v.b.decosQuartier); SCENE.decosHantee(v.b.decosHantee); if (SCENE.pelageChat) SCENE.pelageChat(v.b.pelage);
+    }
+    peindreVisite();
+  }
+  function finVisite(versCl) {
+    if (!visite) return; const v = visite; visite = null;
+    $('#visite').hidden = true; document.body.classList.remove('visite'); $('#vi-vue').innerHTML = ''; $('#vi-bas').innerHTML = '';
+    if (v.scene) { // tout ce que la scène montrait de lui revient à soi
+      derniereRecScene = ''; majRecompenses(); SCENE.decosQuartier(st.quartier ? st.quartier.decos : []); SCENE.decosHantee(HTE && st[HTE.cle] ? st[HTE.cle].decos : []);
+      dernierPelage = ''; majChat(); tiroir.aller(v.tiroir, false);
+    }
+    lastFrame = performance.now();
+    if (v.depuisCl && versCl !== false && classement) sheetClassement();
+  }
+  function carteVisite(v) { // le milieu de l'écran sans la scène : on frappe à la porte, la boutique sans photo, sans 3D, ou une erreur
+    const d = v.data, ph = d && d.photo, carte = (pic, titre, txt, plus) => `<div class="vi-carte"><span class="pic">${pic}</span><b>${titre}</b>${txt ? `<span>${txt}</span>` : ''}${plus || ''}</div>`;
+    if (v.charge) return carte(ICONS.UI.boutique, 'On frappe à la porte…', `La boutique de ${esc(v.pseudo)} va s’ouvrir.`);
+    if (v.etat === 'pas-installe') return carte(ICONS.UI.boutique, 'Les visites arrivent bientôt', 'Le classement n’a pas encore la mise à jour des copains. Reviens dans quelques jours.');
+    if (v.etat === 'refus') return carte(ICONS.UI.boutique, 'Cette boutique a fermé ses portes', `${esc(v.pseudo)} n’est plus au classement.`);
+    if (!d) return carte(ICONS.UI.horsLigne, 'La porte ne s’ouvre pas', esc(msgReseau(v.etat)), '<button type="button" class="btn clair" data-vi="reessayer"><b>Réessayer</b></button>');
+    if (!v.b) return carte(ICONS.UI.boutique, 'Pas encore ouverte aux visites', `La boutique de ${esc(v.pseudo)} apparaîtra après sa prochaine partie. Tu peux déjà lui laisser un pourboire.`);
+    const s = v.b.st, postes = s.stations.filter((x) => x.niv > 0).length, apprentis = s.stations.filter((x) => x.staff).length, crans = G.MOBILIER.reduce((n, m) => n + G.mobilierCran(s, m.id), 0), max = G.MOBILIER.reduce((n, m) => n + m.max, 0);
+    const li = [`Niveau ${G.niveau(s)} · ${esc(G.titre(s))}`, `${postes} recette${postes > 1 ? 's' : ''} au four · ${apprentis} apprenti${apprentis > 1 ? 's' : ''}`, `Mobilier : ${crans} cran${crans > 1 ? 's' : ''} sur ${max}`];
+    if (s.chat) li.push(`Le chat : ${esc(s.chat.nom)}`); if (v.b.coupes.length) li.push(`${v.b.coupes.length} coupe${v.b.coupes.length > 1 ? 's' : ''} en vitrine`); if (v.b.badge) li.push('Le badge « Esprit d’équipe »');
+    return carte(ICONS.UI.boutique, esc(v.b.nom), esc(nomQuartier(ph.q)), `<ul>${li.map((x) => `<li>${x}</li>`).join('')}</ul>`);
+  }
+  function basVisite(v) { // le pourboire (avec ses restants du jour) et le retour
+    let pb = '';
+    if (!v.charge && v.etat === 'ok' && classement.copains()) {
+      const r = classement.resume(), dn = classement.dons(), deja = dn.deja(v.pseudo), reste = `encore ${dn.restants} aujourd’hui`;
+      if (!r.rejoint) pb = `<p class="vi-note">Rejoins le classement pour laisser un pourboire à ${esc(v.pseudo)}.</p>`;
+      else if (deja) pb = `<button type="button" class="btn large menthe" data-vi="pourboire" aria-disabled="true"><b>Pourboire laissé ✓</b><small>${dn.restants ? `${reste} pour d’autres copains` : 'tes 3 pourboires du jour sont donnés'}</small></button>`;
+      else if (!dn.restants) pb = `<button type="button" class="btn large non" data-vi="pourboire" aria-disabled="true"><b>Plus de pourboire aujourd’hui</b><small>3 par jour : reviens demain</small></button>`;
+      else pb = `<button type="button" class="btn large beurre" data-vi="pourboire"${v.envoi ? ' aria-busy="true"' : ''}><b>${v.envoi ? 'Un instant…' : 'Laisser un pourboire'}</b><small>${reste} · +1 point pour toi</small></button>`;
+    }
+    return `${pb}<button type="button" class="btn large sombre" data-vi="retour"><b>Retour</b></button>`;
+  }
+  function peindreVisite() {
+    const v = visite; if (!v) return;
+    const d = v.data, ph = d && d.photo, vue = $('#vi-vue');
+    $('#vi-titre').textContent = `La boutique de ${v.pseudo}`;
+    $('#vi-sous').textContent = v.charge ? 'On frappe à la porte…' : d ? `${d.enLigne ? 'En ligne · ' : ''}${v.b ? `${v.b.nom} · ${nomQuartier(ph.q)}` : 'Visite'}` : '';
+    $('#vi-ligne').hidden = !(d && d.enLigne);
+    vue.classList.toggle('carte', !v.scene);
+    vue.innerHTML = v.scene ? `<span class="vi-enseigne">${esc(v.b.nom)}</span><span class="vi-lecture"><i class="ico">${ICONS.UI.oeil}</i>Tu visites : rien ne change chez ${esc(v.pseudo)}</span>` : carteVisite(v);
+    $('#vi-bas').innerHTML = basVisite(v);
+    document.querySelectorAll('#visite [data-vi]').forEach((b) => { b.onclick = () => clicVisite(b); });
+  }
+  async function clicVisite(b) {
+    const v = visite; if (!v) return; audio();
+    const a = b.dataset.vi;
+    if (a === 'retour') { son.tap(); finVisite(); return; }
+    if (a === 'reessayer') { son.tap(); const p = v.pseudo, cl = v.depuisCl; visite = null; visiter(p, cl); return; }
+    if (a !== 'pourboire') return;
+    if (b.getAttribute('aria-disabled') === 'true') { son.non(); return; }
+    if (v.envoi) return;
+    v.envoi = true; peindreVisite();
+    const r = await classement.pourboire(v.pseudo); v.envoi = false;
+    if (visite !== v) return;
+    if (r.etat === 'ok') { son.deblocage(); buzz([10, 30, 10]); confettis(0.5); if (v.scene && SCENE.texte) SCENE.texte('Merci !'); toast(`Pourboire laissé à ${v.pseudo} ! +1 point de boulanger pour toi.`); }
+    else {
+      son.non();
+      toast(r.etat === 'refus' ? ({ deja: `Tu as déjà laissé un pourboire à ${v.pseudo} aujourd’hui.`, quota: 'Tes 3 pourboires du jour sont donnés : reviens demain.', soi: 'C’est ta propre boutique !', inconnu: 'Cette boutique a fermé ses portes.', jeton: 'Ton inscription au classement a changé : rouvre le classement.' }[r.erreur] || 'Le pourboire n’est pas passé. Réessaie dans un moment.')
+        : r.etat === 'pas-installe' ? 'Les pourboires arrivent bientôt.' : r.etat === 'pas-rejoint' ? 'Rejoins le classement pour laisser un pourboire.' : msgReseau(r.etat));
+    }
+    peindreVisite();
+  }
+  // l'objectif commun de la semaine : une carte en tête de la feuille du classement (la jauge, « À nous tous : X / Y croissants »)
+  function carteObjectif() {
+    const o = classement && classement.copains() ? classement.objectifVu() : null; if (!o || o.etat !== 'ok') return '';
+    const d = o.data, pc = Math.max(0, Math.min(100, d.pourcent)), fmt = (n) => Math.round(n).toLocaleString('fr-FR');
+    return `<div class="obj-carte${d.reussi ? ' reussi' : ''}" role="group" aria-label="Objectif commun de la semaine"><span class="pic">${ICONS.UI.equipe}</span><div class="obj-corps">
+      <div class="obj-tete"><b>Objectif commun</b><small>${d.reussi ? 'réussi cette semaine ✓' : `cette semaine${d.joueurs ? ` · ${CLM.boulangers(d.joueurs)}` : ''}`}</small></div>
+      <div class="obj-jauge" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(pc)}"><i style="width:${pc.toFixed(1)}%"></i></div>
+      <p>À nous tous : <b>${fmt(d.total)} / ${fmt(d.but)}</b> croissants</p>
+      <small>${d.reussi ? 'Lundi, chacun de ceux qui ont marqué 30 points cette semaine reçoit un boost ×5 et le badge « Esprit d’équipe ».' : 'Chaque point de boulanger compte. Réussi : un boost ×5 et le badge « Esprit d’équipe » pour qui a marqué 30 points cette semaine.'}</small></div></div>`;
+  }
+  // à l'ouverture : « X t'a laissé un pourboire ! » (un boost ×2 de 10 min dans la réserve, 3 par jour au plus), puis la récompense de l'objectif
+  // commun réussi (un boost ×5 de 15 min et le badge « Esprit d'équipe ») ; chacune attend que plus rien ne soit ouvert
+  let copainsOuvert = false, copainsMinuteur = 0;
+  function tenterCopains() {
+    clearTimeout(copainsMinuteur); copainsMinuteur = 0;
+    if (!classement || copainsOuvert || !st) return;
+    const recus = classement.pourboiresRecus(), r = recVue(), obj = r && r.objectifAnnonce;
+    if (!recus.length && !obj) return;
+    if (!feuille.hidden || document.hidden || visite || annonceOuverte || retourEnCours || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert)) { copainsMinuteur = setTimeout(tenterCopains, 1500); return; }
+    if (recus.length) sheetPourboireRecu(); else sheetObjectifReussi(obj);
+  }
+  function indexBoost(mult, secs) { const l = (st.boosts && st.boosts.reserve) || []; for (let k = l.length - 1; k >= 0; k--) if (l[k].mult === mult && l[k].secs === secs) return k; return -1; }
+  function feuilleCopain(html, mult, secs, n) { // la feuille commune : un bouton pour lancer tout de suite le boost reçu, ou plus tard
+    const actif = st.boosts && st.boosts.actif && st.boosts.actif.fin > st.now;
+    openSheet(`${html}${n && !actif ? `<button type="button" class="btn large beurre" data-a="cp-lancer"><b>Lancer le boost ×${mult}</b></button><button type="button" class="btn large clair" data-a="cp-plus-tard" style="margin-top:8px"><b>Plus tard</b></button>` : '<button type="button" class="btn large beurre" data-a="cp-plus-tard"><b>Merci !</b></button>'}</div>`);
+    vueCl = 'copains'; copainsOuvert = true;
+    let touche = true; try { touche = !navigator.userActivation || navigator.userActivation.hasBeenActive; } catch (e) { /* rien */ }
+    son.deblocage(); if (touche) buzz([20, 40, 20]); confettis(0.8);
+    const fin = () => { copainsOuvert = false; closeSheet(); setTimeout(tenterCopains, 400); };
+    on('[data-a="cp-plus-tard"]', () => { son.tap(); fin(); });
+    on('[data-a="cp-lancer"]', () => { const k = indexBoost(mult, secs); copainsOuvert = false; closeSheet(); const r = k >= 0 ? G.lancerBoostReserve(st, k) : { ok: false }; if (r.ok) reussite(`Boost ×${r.boost.mult} lancé : toutes les ventes ×${r.boost.mult} pendant ${G.fmtDuree((r.boost.fin - st.now) / 1000)} !`); renderBoosts(); setTimeout(tenterCopains, 400); });
+    const surFermeture = setInterval(() => { if (feuille.hidden || vueCl !== 'copains') { copainsOuvert = false; clearInterval(surFermeture); } }, 500);
+  }
+  function sheetPourboireRecu() {
+    copainsOuvert = true; // (accueillir prévient le moteur, qui rappelle tenterCopains : la feuille est déjà à nous)
+    const a = classement.accueillirPourboires(); if (!a.liste.length) { copainsOuvert = false; return; }
+    const [mult, secs] = CLM.REGLES.boostPourboire;
+    for (let k = 0; k < a.boosts; k++) G.donnerBoostReserve(st, mult, secs);
+    save(); renderBoosts();
+    const noms = [...new Set(a.liste.map((x) => x.de))], n = noms.length, c = a.liste.length;
+    const qui = n === 1 ? noms[0] : n === 2 ? `${noms[0]} et ${noms[1]}` : `${noms[0]}, ${noms[1]} et ${n - 2 === 1 ? 'un autre copain' : `${n - 2} autres copains`}`;
+    const titre = n === 1 ? `${qui} t’a laissé ${c > 1 ? `${c} pourboires` : 'un pourboire'}\u00A0!` : `${qui} t’ont laissé ${c === n ? 'un pourboire' : `${c} pourboires`}\u00A0!`;
+    const phrase = a.boosts ? (a.boosts === 1 ? `Un boost ×${mult} de ${G.fmtDuree(secs)} t’attend dans ta réserve.` : `${a.boosts} boosts ×${mult} de ${G.fmtDuree(secs)} t’attendent dans ta réserve.`) : 'Ta réserve a déjà reçu ses 3 boosts du jour : le geste compte quand même !';
+    feuilleCopain(`<div class="cl rec-annonce cp-annonce" data-cl="pourboire-recu"><div class="rec-scene pourboire" aria-hidden="true"><i class="rec-rayons"></i><span class="rec-coupe">${ICONS.PRODUITS.croissant}</span><span class="cp-coeur">${ICONS.UI.pourboire}</span></div>
+      <h2>${esc(titre)}</h2><p class="rec-phrase">${phrase}</p><p class="sous">Un pourboire, c’est un copain qui est passé voir ta boutique depuis le classement. Rends-lui la pareille : touche son nom dans la liste.</p>`, mult, secs, a.boosts);
+  }
+  function sheetObjectifReussi(semaine) {
+    copainsOuvert = true;
+    if (!classement.objectifFait(semaine)) { copainsOuvert = false; return; } // annoncée une fois : la semaine rejoint le badge
+    const [mult, secs] = CLM.REGLES.boostObjectif;
+    G.donnerBoostReserve(st, mult, secs); save(); renderBoosts(); majRecompenses();
+    feuilleCopain(`<div class="cl rec-annonce cp-annonce" data-cl="objectif-reussi"><div class="rec-scene equipe" aria-hidden="true"><i class="rec-rayons"></i><span class="rec-coupe">${ICONS.UI.equipe}</span></div>
+      <h2>Objectif commun réussi&nbsp;!</h2><p class="rec-phrase">Un boost ×${mult} de ${G.fmtDuree(secs)} et le badge « Esprit d’équipe » sont à toi.</p>
+      <p class="sous">Semaine du ${CLM.dateCourte(semaine)} : à vous tous, vous avez atteint le but. Le badge est accroché au mur de ta boutique, et les copains le verront en la visitant.</p>`, mult, secs, 1);
+  }
+
+  // ─── les notifications (Web Push, classement v6) : le bloc « Notifications » des Réglages ───
+  // La clé publique se lit dans fournil/config.js (vapid) : absente, le bloc dit « bientôt ». Sur iPhone, il faut iOS 16.4 et le jeu ajouté
+  // à l'écran d'accueil ; le bloc le dit, comme une permission refusée. Les notifications passent par sa ligne du classement : il faut l'avoir rejoint.
+  const CAS_NOTIFS = [['pleine', 'Ta boutique est pleine', 'Quand tes heures d’absence sont atteintes'], ['evenements', 'Les événements', 'L’ouverture et la fin'], ['pourboires', 'Les pourboires', 'Quand un copain t’en laisse un'], ['objectif', 'L’objectif commun', 'Quand il est réussi']];
+  let notifEnCours = false;
+  const permissionNotifs = () => { try { return window.Notification ? Notification.permission : 'absent'; } catch (e) { return 'absent'; } };
+  function cleNotifs() { if (!classement) return ''; return `${classement.notifsPossibles()}|${JSON.stringify(classement.notifs())}|${permissionNotifs()}|${notifEnCours}`; }
+  function blocNotifs(ligne, sw) {
+    if (!classement) return '';
+    const raison = classement.notifsPossibles(), n = classement.notifs(), r = classement.resume(), ico = ICONS.UI.notifs;
+    const info = (titre, sous) => `<div class="reglage info"><i class="ico">${ico}</i><span><b>${titre}</b><small>${sous}</small></span><span></span></div>`;
+    let corps;
+    if (raison === 'absent') return '';
+    if (raison === 'bientot' || raison === 'pas-installe') corps = info('Me prévenir', 'Bientôt disponible : ta boutique pleine, les événements, les pourboires et l’objectif commun, sur ton téléphone.');
+    else if (raison === 'impossible') { const ios = CLM.iosHorsEcran(window); corps = info('Me prévenir', ios.ios && ios.vieux ? 'Il faut iOS 16.4 ou plus récent pour recevoir les notifications du jeu.' : ios.ios && ios.horsEcran ? 'Sur iPhone, ajoute d’abord le jeu à l’écran d’accueil : Partager, puis « Sur l’écran d’accueil », et ouvre-le depuis son icône.' : 'Ce navigateur ne sait pas recevoir de notifications.'); }
+    else if (permissionNotifs() === 'denied') corps = info('Notifications bloquées', 'Tu les as refusées pour le jeu : autorise-les dans les réglages du téléphone (Notifications › Le Fournil), puis reviens ici.');
+    else if (!r.rejoint) corps = info('Me prévenir', 'Les notifications passent par le classement : rejoins-le d’abord.') + ligne('cl-rejoindre-notifs', ICONS.UI.podium, 'Rejoindre le classement', 'Ton pseudo, tes points, puis les notifications', `<i class="ico chev">${ICONS.UI.chevron}</i>`);
+    else {
+      corps = ligne('notifs', ico, 'Me prévenir', n.actif ? 'Le Fournil te prévient sur ce téléphone' : 'Ta boutique pleine, les événements, les pourboires, l’objectif commun', sw(n.actif));
+      if (n.actif) corps += CAS_NOTIFS.map(([k, t, s]) => ligne(`notif-${k}`, '', t, s, sw(n.prefs[k])).replace('class="reglage"', 'class="reglage cas"')).join('') + ligne('notif-essai', ICONS.UI.cloche, 'M’envoyer un essai', 'Une notification de test, dans les 5 minutes', `<i class="ico chev">${ICONS.UI.chevron}</i>`);
+    }
+    return `<h3 class="titre-section"><span>Notifications</span></h3><div class="card reglages notifs"${notifEnCours ? ' aria-busy="true"' : ''}>${corps}</div>`;
+  }
+  async function basculerNotifs(prefs) { // prefs : changer un cas (abonné) ; sinon, activer ou couper
+    if (!classement || notifEnCours) return;
+    const n = classement.notifs(), couper = !prefs && n.actif;
+    notifEnCours = true; lastPage = ''; renderPage(true);
+    const r = couper ? await classement.desabonner() : await classement.abonner(prefs || n.prefs);
+    notifEnCours = false; lastPage = ''; renderPage(true);
+    if (r.etat === 'ok') { son.tap(); if (!prefs) toast(couper ? 'Plus de notifications du Fournil sur ce téléphone.' : 'C’est noté : le Fournil te préviendra.'); return; }
+    son.non();
+    toast(r.etat === 'refus' && r.erreur === 'trop_vite' ? 'Doucement : réessaie dans une minute.' : r.etat === 'refus' && r.erreur === 'abonnement' ? 'Ce téléphone n’a pas pu s’abonner : réessaie dans un moment.' : r.etat === 'refus' && r.erreur === 'preferences' ? 'Ces réglages n’ont pas été acceptés : réessaie.' : { refuse: 'Notifications refusées : autorise-les dans les réglages du téléphone.', ignore: 'Pas de réponse à la demande : réessaie.', 'pas-installe': 'Les notifications arrivent bientôt.', bientot: 'Les notifications arrivent bientôt.', impossible: 'Ce téléphone ne peut pas recevoir les notifications du jeu.', 'pas-rejoint': 'Rejoins d’abord le classement.', sw: 'Le jeu n’est pas encore installé sur ce téléphone : rouvre-le dans un instant.' }[r.etat] || (r.etat === 'refus' ? 'Le serveur a refusé l’abonnement. Réessaie dans un moment.' : msgReseau(r.etat)));
+  }
+  async function essaiNotif() {
+    if (!classement || notifEnCours) return;
+    const r = await classement.essai();
+    if (r.etat === 'ok') { son.tap(); toast('Essai envoyé : la notification arrive d’ici quelques minutes.'); return; }
+    son.non(); toast(r.etat === 'refus' ? (r.erreur === 'trop_vite' ? 'Un essai toutes les 2 minutes au plus.' : 'L’essai n’est pas parti. Réessaie dans un moment.') : r.etat === 'pas-installe' ? 'Les notifications arrivent bientôt.' : msgReseau(r.etat));
+  }
+
   // ─── boucle ───
   function frame(now) {
     verifierReveil(); // chaque image : la page vient-elle de dormir ?
     if (retourEnCours) { lastFrame = now; requestAnimationFrame(frame); return; } // l'absence n'est pas encore comptée : rien ne bouge
     const dt = Math.min(0.25, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
-    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert); // pendant l'Atelier ou la Planque : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran de jeu
+    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite; // pendant l'Atelier, la Planque ou une visite : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
     if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); }
     const out = G.tick(st, dt, HORLOGE.maintenant(), atelier ? () => 0.999 : undefined);
     if (out.ventes.length) {
       const gros = out.ventes.reduce((a, v) => a + v.montant, 0), first = out.ventes[0];
-      if (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), !st.stations[first.i].staff); son.vente(gros); }
+      if (!visite && (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15)) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), !st.stations[first.i].staff); son.vente(gros); } // en visite : ses ventes ne s'affichent pas chez le copain
       if (!st.stations[first.i].staff && pageActive === 'boutique' && tiroir.pos !== 'ferme') { const r = cards[first.i].el.querySelector('.barre').getBoundingClientRect(); if (r.top > $('#tiroir').getBoundingClientRect().top + 20 && r.bottom < $('#onglets').getBoundingClientRect().top) flottant(r.left + r.width / 2 - 30, r.top - 10, '+' + G.fmtEur(first.montant)); }
     }
     if (out.nouvelEv) { son.evenement(); buzz([15, 40, 15]); toast(TXT_EV[out.nouvelEv.type]); }
     if (out.finEv) { toast(FIN_EV[out.finEv.type]); if (out.finEv.type === 'critique' || out.finEv.type === 'petrissage') son.non(); }
-    if (out.mystere && $('#feuille').hidden) { if (SCENE.mystere()) toast('Un client mystère ! Touche-le vite.'); }
-    if (out.habitue) { SCENE.habitue(out.habitue); son.achat(); toast(`${out.habitue.nom} : « ${out.habitue.phrase} »`); }
+    if (out.mystere && $('#feuille').hidden && !visite) { if (SCENE.mystere()) toast('Un client mystère ! Touche-le vite.'); }
+    if (out.habitue && !visite) { SCENE.habitue(out.habitue); son.achat(); toast(`${out.habitue.nom} : « ${out.habitue.phrase} »`); }
     if (out.grades && out.grades.length) annoncerGrade(out.grades[0]);
-    if (out.chat && $('#feuille').hidden) sheetChat(true);
+    if (out.chat && $('#feuille').hidden && !visite) sheetChat(true);
     if (out.saison) { son.evenement(); toast(`Nouvelle recette de saison : ${out.saison.nom}, jusqu’au ${out.saison.fin[1]} ${MOIS[out.saison.fin[0] - 1]} !`); renderCards(true); }
-    if (out.venteSaison) { SCENE.vente(0, out.venteSaison.montant, '+' + G.fmtEur(out.venteSaison.montant), true); son.vente(out.venteSaison.montant); }
+    if (out.venteSaison && !visite) { SCENE.vente(0, out.venteSaison.montant, '+' + G.fmtEur(out.venteSaison.montant), true); son.vente(out.venteSaison.montant); }
     if (out.maitrise) reussite(`${out.maitrise.nom} : recette maîtrisée !`);
     if (out.trophees && out.trophees.length) { const t0 = out.trophees[0]; son.deblocage(); buzz([10, 30, 10, 30, 10]); feter(); toast(`Trophée : ${t0.nom} !${out.trophees.length > 1 ? ` (+${out.trophees.length - 1})` : ''}`); }
     const nv = G.niveau(st);
     if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); feter(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
     renderCards(); hud(); renderObjectifs(); renderEvenement(); renderPage();
     if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant()); // l'écran de l'Atelier (ou de l'arrière-salle) couvre la boutique : la 3D attend
+    else if (visite && visite.scene) { const t = HORLOGE.maintenant(); visite.b.st.now = t; SCENE.frame(dt, visite.b.st, t); } // la visite : la scène montre la boutique du copain (rien n'est sauvé)
     if (planque) ecranEv.frame(dt, HORLOGE.maintenant()); // l'écran de l'événement (la Planque, le Manoir) vit tant qu'il est ouvert (fermé, il rattrape une absence)
     if (++tChat > 30) { tChat = 0; majChat(); } // le chat noir arrive (ou repart) avec la Maison hantée
     renderBoosts();
@@ -1168,7 +1365,7 @@ const UI = (() => {
     if (st.vu.journal == null) { const c = st.carnetEv || []; st.vu.journal = fresh ? 0 : c.length ? c[c.length - 1].t : 0; } // une ancienne sauvegarde : son carnet compte comme lu
     document.querySelectorAll('[data-ico]').forEach((el) => { el.innerHTML = ICONS.UI[el.dataset.ico] || ''; });
     if (!SCENE.init($('#scene'), $('#scene-ui'))) $('#sans-3d').hidden = false; // sans WebGL : la boutique vit quand même, sans image
-    SCENE.surServi = (r) => { if (r.cadeau) { reussite(`${r.hb.nom}, fidèle depuis ${r.jours} jours, t’offre ${G.fmtEur(r.cadeau)} !`); } else if (r.jours > 1) toast(`${r.hb.nom} : ${r.jours}e jour de suite !`); };
+    SCENE.surServi = (r) => { if (visite) return; if (r.cadeau) { reussite(`${r.hb.nom}, fidèle depuis ${r.jours} jours, t’offre ${G.fmtEur(r.cadeau)} !`); } else if (r.jours > 1) toast(`${r.hb.nom} : ${r.jours}e jour de suite !`); };
     tiroir.init();
     layout();
     tiroir.aller(['ouvert', 'mi', 'ferme'].includes(st.tiroir) ? st.tiroir : 'mi', false);
@@ -1228,7 +1425,7 @@ const UI = (() => {
     document.addEventListener('freeze', save);
     window.addEventListener('blur', save);
     window.addEventListener('resize', layout);
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (visite && $('#feuille').hidden) finVisite(); else closeSheet(); } });
     if (!fresh) { const abs = G.absence(st, HORLOGE.maintenant()); absencePayee = abs.secs * 1000; if (abs.total > 0 && abs.secs > 90) sheetRetour(abs); }
     absencePrete = true;
     HORLOGE.surSaut(payerSaut);
@@ -1236,11 +1433,14 @@ const UI = (() => {
     // l'écran d'un événement se prépare en arrière-plan (5 s après le lancement) pour qui y est déjà entré : il s'ouvrira directement en HD
     if (EVT) setTimeout(() => { try { if (EVT.visible() && st.quartier && st.quartier.majeur && SCENE.precharger) SCENE.precharger('planque'); } catch (e) { /* rien */ } }, 5000);
     if (HTE) setTimeout(() => { try { if (HTE.visible() && st[HTE.cle] && st[HTE.cle].ouvertLe && SCENE.precharger) SCENE.precharger('hantee'); } catch (e) { /* rien */ } }, 5000);
-    if (EVS) setInterval(() => { majCoinQuartier(); majChat(); if (!EVS.ouvert && !MINIJEUX.ouvert && !(AR && AR.ouvert) && !document.hidden && $('#feuille').hidden) EVS.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
+    if (EVS) setInterval(() => { majCoinQuartier(); majChat(); if (!EVS.ouvert && !MINIJEUX.ouvert && !(AR && AR.ouvert) && !visite && !document.hidden && $('#feuille').hidden) EVS.annoncer(); }, 20e3); // midi sonne (ou la fin) pendant qu'on joue : l'icône, l'annonce ou le bilan arrivent sans relancer
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
-    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant() }) : null; } catch (e) { classement = null; }
-    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); }); majRecompenses(); classement.demarrer(); setInterval(majRecompenses, 60e3);
+    // classement v6 : la photo de sa boutique (pour les visites des copains), et l'heure où elle sera pleine (la notification, en quittant le jeu)
+    const photo = () => { if (!st || !CLM.photo) return null; const r = recVue(); return CLM.photo(st, { G, coupes: r ? r.coupes : [], badge: !!(r && r.badge), dh: HTE && st[HTE.cle] ? st[HTE.cle].decos : [] }); };
+    const pleineA = () => (st ? HORLOGE.maintenant() + G.heuresAbsence(st) * 3600e3 : null);
+    try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant(), photo, pleineA }) : null; } catch (e) { classement = null; }
+    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); if (pageActive === 'reglages') renderPage(); if (visite) peindreVisite(); tenterCopains(); }); majRecompenses(); classement.demarrer(); setInterval(majRecompenses, 60e3);
     // la liste ouverte se relit toute seule toutes les 30 s (qui vient d'arriver « en ligne », les points qui bougent) : seulement
     // sur l'onglet de la liste, page visible, sans doubler une lecture en vol ; la feuille fermée, plus rien
     setInterval(() => { if (vueCl === 'liste' && !feuille.hidden && document.visibilityState === 'visible' && !classement.enChargement(ongletCl)) classement.charger(ongletCl); }, (window.__relireClassement | 0) || 30e3); } // la tenue et la coupe changent aussi au lundi
@@ -1254,6 +1454,7 @@ const UI = (() => {
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden, hantee: !$('#b-hantee').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
       quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT,
       hantee: () => (HTE ? HTE.ouvrir() : false), fermerHantee: () => { if (HTE) HTE.fermer(); }, evHantee: HTE, HT, annoncerEvenements: (f) => (EVS ? EVS.annoncer(f !== false) : false), chatNoir, choisirPelage, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin,
+      visiter: (p) => visiter(p, true), finVisite, visite: () => (visite ? { pseudo: visite.pseudo, scene: visite.scene, charge: visite.charge, etat: visite.etat, nom: visite.b ? visite.b.nom : null } : null), tenterCopains, // classement v6 (pour les tests)
       arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false), fermerArriere: () => { if (AR) AR.fermer(); }, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }
   document.addEventListener('DOMContentLoaded', boot);
