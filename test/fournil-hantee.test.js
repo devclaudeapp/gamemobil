@@ -235,6 +235,7 @@ console.log('── les activités du Manoir (src/activites.js) ──');
     [0, 1, 2, 3, 4, 5, 6].map((k) => HT.contratsDuJour(HT.DEBUT + k * 864e5).map((c) => c.texte))]);
   const mots = textes.match(/\b(drogues?|alcools?|bi[eè]res?|vins?|cigarettes?|herbe|shit|coke|ecsta|police|adultes?|sang|tuer|meurtre|couteaux?|armes?|cadavres?|18 ans|saisi[se]?)\b/gi);
   check(!mots && /chauves-souris/.test(textes), `tous âges : les activités d’Halloween n’ont rien d’adulte (les chauves-souris gourmandes chipent des bonbons)${mots ? ' — ' + mots.join(', ') : ''}`); }
+check(HT.PAUSE_EV === G.PAUSE_EV * 1000, `la pause d’un coup de pouce : la même sortie que pour la boutique (G.PAUSE_EV, ${G.PAUSE_EV} s)`);
 require('./fournil-activites.js')(HT, check, { S: { marathon: S.marathon, 'très actif': S.tresactif, assidu: S.assidu, quotidien: S.quotidien }, nom: 'le Manoir' });
 
 console.log(fails ? `\n${fails} échec(s) sur ${n}` : `\nTout passe (${n} vérifications).`);

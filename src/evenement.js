@@ -15,7 +15,11 @@
    donne HANTEE.FICHE (src/hantee.js, groupe H1 : id, nom, lieu, devise { nom, un }, couleurs, textes, coups) passe par-dessus les
    valeurs par défaut écrites ici (repli tolérant : tout marche avec une fiche vide). Les coups de pouce de HANTEE : ceux de QUARTIER
    (descente, grosclient, soiree, scooter et planquer, livrer, attraper) ou d'autres noms, dont le genre se lit alors sur la forme du coup
-   (n et taps : taper ; i et fait : livrer ; prime : attraper ; sinon mult) et l'action sur HANTEE.taper / livrer / attraper. */
+   (n et taps : taper ; i et fait : livrer ; prime : attraper ; sinon mult) et l'action sur HANTEE.taper / livrer / attraper.
+   Les activités (src/activites.js, communes à tous les événements : mini-jeux, contrats de la nuit, opérations) : une barre de trois
+   boutons sous la scène et les mini-jeux en plein écran, bâtis ici pour toute fiche dont les règles exportent l'API des activités ;
+   l'habillage (noms, textes, couleurs des toiles, motif) vient de R.MINI, R.TEXTES_ACTIVITES (la fiche de l'événement). Un coup de
+   pouce en cours se met en pause pendant une partie, et pendant une courte sortie (R.pauseCoup, R.PAUSE_EV). */
 const EVENEMENTS = (() => {
   'use strict';
   const G = GAME, $ = (s) => document.querySelector(s);

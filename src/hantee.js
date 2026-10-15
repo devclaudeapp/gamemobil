@@ -303,7 +303,7 @@
   const TROU = 10000, REPRISE = 90; // un trou de plus de 10 s entre deux pas (téléphone verrouillé, autre appli) : c'était une absence
   // une sortie de 10 min au plus (l'appli quittée sans le vouloir, l'écran refermé un instant) : le coup de pouce en cours, et le boost de
   // l'événement s'il y en a un, sont EN PAUSE : leurs échéances avancent de la durée de la sortie, on les retrouve tels quels au retour
-  const PAUSE_EV = 600e3;
+  const PAUSE_EV = 600e3; // la même que celle de la boutique (G.PAUSE_EV, 600 s, src/game.js), en millisecondes : ce fichier ne dépend pas de game.js
   function pauseCoup(q, ms) { if (!(ms > 0)) return; for (const o of [q.ev, q.boost]) if (o && typeof o === 'object') for (const k of ['debut', 'fin']) if (Number.isFinite(o[k])) o[k] += ms; }
   function tick(q, dt, nowMs, rnd) {
     rnd = rnd || Math.random;

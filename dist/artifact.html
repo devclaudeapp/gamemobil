@@ -7439,7 +7439,7 @@ const GARDEROBE_UI = (() => {
   const TROU = 10000, REPRISE = 90; // un trou de plus de 10 s entre deux pas (téléphone verrouillé, autre appli) : c'était une absence
   // une sortie de 10 min au plus (l'appli quittée sans le vouloir, l'écran refermé un instant) : le coup de pouce en cours, et le boost de
   // l'événement s'il y en a un, sont EN PAUSE : leurs échéances avancent de la durée de la sortie, on les retrouve tels quels au retour
-  const PAUSE_EV = 600e3;
+  const PAUSE_EV = 600e3; // la même que celle de la boutique (G.PAUSE_EV, 600 s, src/game.js), en millisecondes : ce fichier ne dépend pas de game.js
   function pauseCoup(q, ms) { if (!(ms > 0)) return; for (const o of [q.ev, q.boost]) if (o && typeof o === 'object') for (const k of ['debut', 'fin']) if (Number.isFinite(o[k])) o[k] += ms; }
   function tick(q, dt, nowMs, rnd) {
     rnd = rnd || Math.random;
@@ -7906,7 +7906,7 @@ const GARDEROBE_UI = (() => {
   const TROU = 10000, REPRISE = 90; // un trou de plus de 10 s entre deux pas (téléphone verrouillé, autre appli) : c'était une absence
   // une sortie de 10 min au plus (l'appli quittée sans le vouloir, l'écran refermé un instant) : le coup de pouce en cours, et le boost de
   // l'événement s'il y en a un, sont EN PAUSE : leurs échéances avancent de la durée de la sortie, on les retrouve tels quels au retour
-  const PAUSE_EV = 600e3;
+  const PAUSE_EV = 600e3; // la même que celle de la boutique (G.PAUSE_EV, 600 s, src/game.js), en millisecondes : ce fichier ne dépend pas de game.js
   function pauseCoup(q, ms) { if (!(ms > 0)) return; for (const o of [q.ev, q.boost]) if (o && typeof o === 'object') for (const k of ['debut', 'fin']) if (Number.isFinite(o[k])) o[k] += ms; }
   function tick(q, dt, nowMs, rnd) {
     rnd = rnd || Math.random;
@@ -8112,7 +8112,11 @@ const GARDEROBE_UI = (() => {
    donne HANTEE.FICHE (src/hantee.js, groupe H1 : id, nom, lieu, devise { nom, un }, couleurs, textes, coups) passe par-dessus les
    valeurs par défaut écrites ici (repli tolérant : tout marche avec une fiche vide). Les coups de pouce de HANTEE : ceux de QUARTIER
    (descente, grosclient, soiree, scooter et planquer, livrer, attraper) ou d'autres noms, dont le genre se lit alors sur la forme du coup
-   (n et taps : taper ; i et fait : livrer ; prime : attraper ; sinon mult) et l'action sur HANTEE.taper / livrer / attraper. */
+   (n et taps : taper ; i et fait : livrer ; prime : attraper ; sinon mult) et l'action sur HANTEE.taper / livrer / attraper.
+   Les activités (src/activites.js, communes à tous les événements : mini-jeux, contrats de la nuit, opérations) : une barre de trois
+   boutons sous la scène et les mini-jeux en plein écran, bâtis ici pour toute fiche dont les règles exportent l'API des activités ;
+   l'habillage (noms, textes, couleurs des toiles, motif) vient de R.MINI, R.TEXTES_ACTIVITES (la fiche de l'événement). Un coup de
+   pouce en cours se met en pause pendant une partie, et pendant une courte sortie (R.pauseCoup, R.PAUSE_EV). */
 const EVENEMENTS = (() => {
   'use strict';
   const G = GAME, $ = (s) => document.querySelector(s);

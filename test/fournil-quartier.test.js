@@ -260,6 +260,7 @@ check(G.nouvelleBoutique({ ...G.newState(now0), lifetimeRun: 1e30, boosts: { res
 console.log('── les activités de la Planque (src/activites.js) ──');
 { const sans = Q.simuler('marathon', 14, { activites: false }), part = S.marathon.total / sans.total;
   check(part > 1 && part < 1.25, `au marathon, les activités jouées au mieux ajoutent ${((part - 1) * 100).toFixed(1)} % au total (l’enveloppe, plus haut, reste ×2 dessous)`); }
+check(Q.PAUSE_EV === G.PAUSE_EV * 1000, `la pause d’un coup de pouce : la même sortie que pour la boutique (G.PAUSE_EV, ${G.PAUSE_EV} s)`);
 require('./fournil-activites.js')(Q, check, { S: { marathon: S.marathon, 'très actif': S.tresactif, assidu: S.assidu, quotidien: S.quotidien }, nom: 'la Planque' });
 
 console.log(fails ? `\n${fails} échec(s)` : '\ntout est bon');
