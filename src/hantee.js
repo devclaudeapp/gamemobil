@@ -34,11 +34,13 @@
        textes: { titre, sousTitre, annonceTitre, annonce, ouvrir, fermer, absence(dur, montant), bilanTitre, bilan, palier12,
                  paliersNote, ameliorations: 'Sortilèges', equipe: 'Les monstres', manuel: 'Touche !', ferme } }
    Les vêtements (src/game.js, GARDEROBE) : collection 'hantee' (paliers 3, 6, 9, 12) et 'hantee-or' (le podium final), formes pour
-   persos.js : 'chapeau' (chapeau pointu de sorcière), 'cape', 'bottes', 'lanterne' (une petite citrouille-lanterne à la main). */
+   persos.js : 'chapeau' (chapeau pointu de sorcière), 'cape', 'bottes', 'lanterne' (une petite citrouille-lanterne à la main).
+   FICHE.activites : l'habillage d'Halloween des activités (src/activites.js, le moteur commun à tous les événements : les mini-jeux « Le
+   guet », « Le compte », « La tournée », les contrats de la nuit, les opérations) ; leur API est exportée telle quelle, comme au Quartier. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.HANTEE = factory();
-})(typeof self !== 'undefined' ? self : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./activites.js'));
+  else root.HANTEE = factory(root.ACTIVITES);
+})(typeof self !== 'undefined' ? self : this, function (ACT) {
   'use strict';
 
   // ─── l'heure de Paris (la même règle que game.js, classement.js et quartier.js) ───
@@ -153,7 +155,7 @@
   function neuf(now) {
     return { v: 1, majeur: true, masque: false, annonce: false, bilan: false, billets: 0, total: 0, postes: postesNeufs(), ameliorations: {}, mode: 1,
       ev: null, evTimer: 150, dernierEv: '', boost: null, lastSeen: now, now, ouvertLe: 0, paliers: [], vetements: [], decos: [], chat: false, etoiles: 0, boosts: 0,
-      stats: { ventes: 0, taps: 0, descentes: 0, descentesRatees: 0, grosClients: 0, scooters: 0, soirees: 0, embauches: 0, saisi: 0 }, carnet: [] };
+      stats: { ventes: 0, taps: 0, descentes: 0, descentesRatees: 0, grosClients: 0, scooters: 0, soirees: 0, embauches: 0, saisi: 0 }, carnet: [], mini: null, contrats: null, operation: null };
   }
   // q.billets / q.total : les bonbons en poche / gagnés en tout (les mêmes noms qu'au Quartier, pour le moteur d'écran) ; bonbons(q) les lit
   function etat(st, now) { // l'état de l'événement, remis d'aplomb
@@ -166,6 +168,7 @@
     if (!q.ameliorations || typeof q.ameliorations !== 'object') q.ameliorations = {};
     if (!(q.billets >= 0)) q.billets = 0; if (!(q.total >= 0)) q.total = 0;
     q.majeur = true; // pas de porte : tous âges
+    A.reparer(q); // les activités : q.mini, q.contrats, q.operation, et leurs compteurs (une vieille sauvegarde n'en a pas)
     return q;
   }
   const bonbons = (q) => (q ? q.billets : 0);
@@ -298,9 +301,16 @@
 
   // ─── un pas de jeu dans le Manoir (dt en secondes, nowMs sur l'horloge de confiance) ───
   const TROU = 10000, REPRISE = 90; // un trou de plus de 10 s entre deux pas (téléphone verrouillé, autre appli) : c'était une absence
+  // une sortie de 10 min au plus (l'appli quittée sans le vouloir, l'écran refermé un instant) : le coup de pouce en cours, et le boost de
+  // l'événement s'il y en a un, sont EN PAUSE : leurs échéances avancent de la durée de la sortie, on les retrouve tels quels au retour
+  const PAUSE_EV = 600e3;
+  function pauseCoup(q, ms) { if (!(ms > 0)) return; for (const o of [q.ev, q.boost]) if (o && typeof o === 'object') for (const k of ['debut', 'fin']) if (Number.isFinite(o[k])) o[k] += ms; }
   function tick(q, dt, nowMs, rnd) {
     rnd = rnd || Math.random;
-    if (q.now && nowMs - q.now > TROU) { q.ev = null; q.evTimer = Math.max(q.evTimer, REPRISE + rnd() * 60); } // le coup de pouce en cours s'efface sans pénalité, et rien ne surgit au retour
+    if (q.now && nowMs - q.now > TROU) { // un trou : une courte sortie (PAUSE_EV) met le coup de pouce en pause ; plus longue, il s'efface sans pénalité (pas de descente ratée sans toi), et rien ne surgit au retour
+      const ecart = nowMs - q.now;
+      if (ecart <= PAUSE_EV) pauseCoup(q, ecart); else { q.ev = null; q.evTimer = Math.max(q.evTimer, REPRISE + rnd() * 60); }
+    }
     q.now = nowMs;
     const out = { ventes: [], nouvelEv: null, finEv: null, paliers: [] };
     q.postes.forEach((s, i) => {
@@ -308,7 +318,7 @@
       const T = temps(q, i); s.prog += dt; if (s.prog < T) return;
       let n = Math.floor(s.prog / T);
       if (!s.staff) { n = 1; s.prog = 0; s.actif = false; } else s.prog -= n * T;
-      const m = revenuFournee(q, i) * n; gagner(q, m); q.stats.ventes += n;
+      const m = revenuFournee(q, i) * n; gagner(q, m); q.stats.ventes += n; q.stats.vendus[i] += n;
       if (q.ev && q.ev.type === 'grosclient' && q.ev.i === i) q.ev.fait = Math.min(q.ev.n, q.ev.fait + n);
       out.ventes.push({ i, montant: m, n });
     });
@@ -319,17 +329,22 @@
   }
   // ─── l'absence : les monstres ont travaillé (8 h au plus, 12 h sous la couette), les fournées en cours se terminent ; pas de coup de pouce sans toi ───
   function absence(q, nowMs) {
-    q.now = nowMs; q.ev = null; q.evTimer = Math.max(q.evTimer || 0, REPRISE);
+    // courte (PAUSE_EV) : le coup de pouce et le boost en pause, retrouvés tels quels ; plus longue : effacés sans pénalité, et au moins
+    // 1 min 30 avant le prochain coup de pouce (REPRISE). Jamais de gain gratuit : l'absence se calcule sans eux (ni le ×2 d'une soirée).
+    const ecart = q.now ? nowMs - q.now : Infinity, court = ecart >= 0 && ecart <= PAUSE_EV, garde = { ev: q.ev, boost: q.boost };
+    q.ev = null; q.boost = null; q.now = nowMs;
     const secs = Math.min(heuresAbsence(q) * 3600, Math.max(0, (nowMs - q.lastSeen) / 1000)), part = partAbsence(q);
     let total = 0; const detail = [];
     q.postes.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
       const T = temps(q, i);
-      if (s.staff) { const n = Math.floor((s.prog + secs) / T); s.prog = (s.prog + secs) % T; if (n > 0) { const m = revenuBase(q, i) * n * part; total += m; detail.push({ i, n, m }); q.stats.ventes += n; } }
-      else if (s.prog + secs >= T) { const m = revenuBase(q, i) * 1.5 * part; total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; q.stats.ventes++; }
+      if (s.staff) { const n = Math.floor((s.prog + secs) / T); s.prog = (s.prog + secs) % T; if (n > 0) { const m = revenuBase(q, i) * n * part; total += m; detail.push({ i, n, m }); q.stats.ventes += n; q.stats.vendus[i] += n; } }
+      else if (s.prog + secs >= T) { const m = revenuBase(q, i) * 1.5 * part; total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; q.stats.ventes++; q.stats.vendus[i]++; }
       else s.prog += secs;
     });
     if (total > 0) gagner(q, total);
+    q.boost = garde.boost;
+    if (court) { q.ev = garde.ev; pauseCoup(q, ecart); } else { q.evTimer = Math.max(q.evTimer || 0, REPRISE); }
     q.lastSeen = nowMs;
     return { secs, total, detail };
   }
@@ -367,6 +382,7 @@
   }
   function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour }, trace: [{ t (jours depuis l'ouverture), total }] } ; opts : { graine, debut, offertes }
     opts = opts || {}; const prof = PROFILS[profil] || PROFILS.assidu, rnd = mulberry32(opts.graine || 7), st = {}, t0 = opts.debut || DEBUT;
+    const jeu = opts.activites === false ? null : A.politique(profil), rndA = mulberry32((opts.graine || 7) + 101); // les activités, jouées comme ce profil (leur propre hasard : les coups de pouce ne changent pas)
     const q = etat(st, t0), parJour = [], paliersJour = {}, trace = []; q.lastSeen = t0;
     const H = 3600e3, nJ = jours || JOURS;
     const minuit0 = t0 - (paris(t0).getUTCHours() * 3600e3 + paris(t0).getUTCMinutes() * 60e3); // minuit, heure de Paris, du premier jour
@@ -387,9 +403,10 @@
           }
           for (const p of out.paliers) { marquerPalier(q, p.n); paliersJour[p.n] = j + 1; if (opts.offertes && p.n === PALIERS_BOSS) for (const a of AMELIORATIONS) if (a.apres) q.ameliorations[a.id] = true; } // offertes : le pire cas de l'enveloppe (tous les Sortilèges dès le 12e, sans les payer)
           if (s % 3 === 0) decider(q);
+          if (jeu && s % 20 === 0) A.sim.pas(q, now, jeu, rndA);
           if (s % 60 === 0) trace.push({ t: (now - t0) / JOUR, total: q.total });
         }
-        q.lastSeen = Math.min(debut + minutes * 60e3, FIN); trace.push({ t: (q.lastSeen - t0) / JOUR, total: q.total });
+        q.lastSeen = Math.min(debut + minutes * 60e3, FIN); if (jeu) A.sim.fin(q, Math.min(q.lastSeen, FIN - 1), jeu, rndA); trace.push({ t: (q.lastSeen - t0) / JOUR, total: q.total });
       }
       parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length });
     }
@@ -445,10 +462,31 @@
       vide: 'Personne encore au Manoir', videSous: 'Les bonbons du Manoir arrivent avec le prochain envoi.', podium: (rang) => `${rang === 1 ? '1er' : rang + 'e'} du Manoir`,
       podiumFinal: 'Podium final de la Maison hantée : la tenue d’Halloween en or est dans ta garde-robe !',
     },
+    // les activités (src/activites.js) : l'habillage d'Halloween ; les réglages des gains sont ceux du moteur commun (l'enveloppe du serveur)
+    activites: {
+      jeux: {
+        guet: { nom: 'Le guet', desc: 'Éclaire le petit fantôme quand il passe devant la lanterne.', regles: ['Un petit fantôme flotte dans le couloir : touche quand il passe devant la lanterne.', 'Pile dans la lueur : bouh parfait, et le combo grimpe.', 'Trop tôt ou trop tard, le combo retombe. Et il file de plus en plus vite !'], consigne: 'Touche quand il est dans la lueur !' },
+        compte: { nom: 'Le compte', desc: 'Compte les bonbons d’un coup d’œil.', regles: ['Des bonbons tombent du chaudron, une seconde à peine.', 'Combien y en avait-il ? Touche le bon nombre.', 'Vite et juste : la série rapporte plus. Quarante secondes.'], consigne: 'Combien de bonbons ?', objets: 'bonbons' },
+        tournee: { nom: 'La tournée', desc: 'Trace la tournée des bonbons, citrouille après citrouille.', regles: ['Six citrouilles numérotées : relie-les au doigt, dans l’ordre.', 'Tu peux lever le doigt et reprendre où tu t’es arrêté.', 'Trois tournées de douze secondes : plus tu es rapide, plus ça paie.'], consigne: 'Relie les citrouilles dans l’ordre !' },
+      },
+      decor: { motif: 'hantee', fond: '#1F1A2E', sol: '#2E2742', accent: '#FF8A1F', accent2: '#7CD992', clair: '#B9AED6', texte: '#F6EEDD' },
+      contrats: { textes: {
+        descentes: (n) => `Chasse ${n} nuée${n > 1 ? 's' : ''} de chauves-souris`, grosClients: (n) => `Sers ${n} cortège${n > 1 ? 's' : ''} d’enfants déguisés`,
+        scooters: (n) => `Attrape ${n} fois le sac du balai`, soirees: (n) => `Profite de ${n} pleine${n > 1 ? 's' : ''} lune${n > 1 ? 's' : ''} jusqu’au bout`,
+        vente: (n, p) => `Vends ${n} ${p ? p.pl : 'friandises'}`, mini: (n) => `Réussis ${n} mini-jeu${n > 1 ? 'x' : ''} (la moitié des points au moins)`,
+        operation: (n) => `Réussis ${n} opération${n > 1 ? 's' : ''} bonbons sans rien perdre` } },
+      operations: [
+        { id: 'court', nom: 'Le tour de la rue', desc: 'Cinq minutes de porte-à-porte. Presque rien ne peut arriver.' },
+        { id: 'moyen', nom: 'Le tour du village', desc: 'Un quart d’heure de sonnettes, sacs bien serrés.' },
+        { id: 'long', nom: 'La grande tournée de la forêt', desc: 'Une heure au clair de lune : le plus gros sac, et des chauves-souris gourmandes.' },
+      ],
+      textes: { saisie: 'Des chauves-souris gourmandes', saisieTxt: (m) => `Des chauves-souris gourmandes ont chipé ${m}.`, operation: 'Opération', enCours: 'Les monstres font du porte-à-porte' },
+    },
   };
+  const A = ACT.equiper({ id: 'hantee', rythme, gagner, note, dayKey, fmt: fmtDevise, arrondi, fenetre, PRODUITS }, FICHE.activites); // les activités (src/activites.js)
 
-  return { FICHE, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, JOURS, GRACE, fenetreSure, envoiBonbons, envoiBillets: envoiBonbons, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
-    neuf, etat, bonbons, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
+  return { FICHE, ...A.api, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, JOURS, GRACE, fenetreSure, envoiBonbons, envoiBillets: envoiBonbons, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
+    PAUSE_EV, pauseCoup, neuf, etat, bonbons, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
     gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, chasser: planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
     PROFILS, simuler, decider, fmt, fmtEur, fmtDevise, fmtDuree, fmtChrono, fmtReste };
 });

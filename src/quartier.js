@@ -6,11 +6,14 @@
    est toujours donné par l'appelant, jamais lu ici). Douze paliers de billets gagnés, les mêmes pour tous, donnent des récompenses
    POUR LA BOULANGERIE (étoiles, boosts en réserve, décos du quartier, vêtements) : voir PALIERS ; huit paliers bonus « après le boss »
    (13 à 20) et quatre combines de plus attendent ceux qui ont franchi le 12e avant la fin. À la fin, la Planque ferme ; tout le
-   reste reste à vie. Aucune dépendance au DOM ni à game.js : tourne aussi dans Node (test/fournil-quartier.test.js, qui simule le rythme). */
+   reste reste à vie. Aucune dépendance au DOM ni à game.js : tourne aussi dans Node (test/fournil-quartier.test.js, qui simule le rythme).
+   Les activités (src/activites.js, le moteur commun à tous les événements) : les mini-jeux, les contrats de la nuit et les opérations ;
+   leur habillage du quartier est dans FICHE.activites, plus bas ; leur API (MINI, finirMini, contratsDuJour, lancerOperation…) est
+   exportée ici telle quelle, comme celle de la Maison hantée. */
 (function (root, factory) {
-  if (typeof module === 'object' && module.exports) module.exports = factory();
-  else root.QUARTIER = factory();
-})(typeof self !== 'undefined' ? self : this, function () {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./activites.js'));
+  else root.QUARTIER = factory(root.ACTIVITES);
+})(typeof self !== 'undefined' ? self : this, function (ACT) {
   'use strict';
 
   // ─── l'heure de Paris (la même règle que game.js et classement.js : l'heure d'été du dernier dimanche de mars au dernier dimanche d'octobre, à 1 h UTC) ───
@@ -125,7 +128,7 @@
   function neuf(now) {
     return { v: 1, majeur: false, masque: false, annonce: false, bilan: false, billets: 0, total: 0, postes: postesNeufs(), ameliorations: {}, mode: 1,
       ev: null, evTimer: 150, dernierEv: '', boost: null, lastSeen: now, now, ouvertLe: 0, paliers: [], vetements: [], decos: [], etoiles: 0, boosts: 0,
-      stats: { ventes: 0, taps: 0, descentes: 0, descentesRatees: 0, grosClients: 0, scooters: 0, soirees: 0, embauches: 0, saisi: 0 }, carnet: [] };
+      stats: { ventes: 0, taps: 0, descentes: 0, descentesRatees: 0, grosClients: 0, scooters: 0, soirees: 0, embauches: 0, saisi: 0 }, carnet: [], mini: null, contrats: null, operation: null };
   }
   function etat(st, now) { // l'état de l'événement, remis d'aplomb
     let q = st.quartier;
@@ -135,6 +138,7 @@
     if (!q.stats || typeof q.stats !== 'object') q.stats = neuf(now).stats;
     if (!q.ameliorations || typeof q.ameliorations !== 'object') q.ameliorations = {};
     if (!(q.billets >= 0)) q.billets = 0; if (!(q.total >= 0)) q.total = 0;
+    A.reparer(q); // les activités : q.mini, q.contrats, q.operation, et leurs compteurs (une vieille sauvegarde n'en a pas)
     return q;
   }
   const note = (q, txt) => { q.carnet.push({ t: q.now, txt }); if (q.carnet.length > 12) q.carnet.shift(); };
@@ -262,9 +266,16 @@
 
   // ─── un pas de jeu dans la Planque (dt en secondes, nowMs sur l'horloge de confiance) ───
   const TROU = 10000, REPRISE = 90; // un trou de plus de 10 s entre deux pas (téléphone verrouillé, autre appli) : c'était une absence
+  // une sortie de 10 min au plus (l'appli quittée sans le vouloir, l'écran refermé un instant) : le coup de pouce en cours, et le boost de
+  // l'événement s'il y en a un, sont EN PAUSE : leurs échéances avancent de la durée de la sortie, on les retrouve tels quels au retour
+  const PAUSE_EV = 600e3;
+  function pauseCoup(q, ms) { if (!(ms > 0)) return; for (const o of [q.ev, q.boost]) if (o && typeof o === 'object') for (const k of ['debut', 'fin']) if (Number.isFinite(o[k])) o[k] += ms; }
   function tick(q, dt, nowMs, rnd) {
     rnd = rnd || Math.random;
-    if (q.now && nowMs - q.now > TROU) { q.ev = null; q.evTimer = Math.max(q.evTimer, REPRISE + rnd() * 60); } // le coup de pouce en cours s'efface sans pénalité (pas de descente ratée sans toi), et rien ne surgit au retour
+    if (q.now && nowMs - q.now > TROU) { // un trou : une courte sortie (PAUSE_EV) met le coup de pouce en pause ; plus longue, il s'efface sans pénalité (pas de descente ratée sans toi), et rien ne surgit au retour
+      const ecart = nowMs - q.now;
+      if (ecart <= PAUSE_EV) pauseCoup(q, ecart); else { q.ev = null; q.evTimer = Math.max(q.evTimer, REPRISE + rnd() * 60); }
+    }
     q.now = nowMs;
     const out = { ventes: [], nouvelEv: null, finEv: null, paliers: [] };
     q.postes.forEach((s, i) => {
@@ -272,7 +283,7 @@
       const T = temps(q, i); s.prog += dt; if (s.prog < T) return;
       let n = Math.floor(s.prog / T);
       if (!s.staff) { n = 1; s.prog = 0; s.actif = false; } else s.prog -= n * T;
-      const m = revenuFournee(q, i) * n; gagner(q, m); q.stats.ventes += n;
+      const m = revenuFournee(q, i) * n; gagner(q, m); q.stats.ventes += n; q.stats.vendus[i] += n;
       if (q.ev && q.ev.type === 'grosclient' && q.ev.i === i) q.ev.fait = Math.min(q.ev.n, q.ev.fait + n);
       out.ventes.push({ i, montant: m, n });
     });
@@ -283,17 +294,22 @@
   }
   // ─── l'absence : les apprentis ont bossé (8 h au plus, 12 h avec le matelas), les fournées en cours se terminent ; pas de coup de pouce sans toi ───
   function absence(q, nowMs) {
-    q.now = nowMs; q.ev = null; q.evTimer = Math.max(q.evTimer || 0, REPRISE); // au retour, au moins 1 min 30 avant le prochain coup de pouce
+    // courte (PAUSE_EV) : le coup de pouce et le boost en pause, retrouvés tels quels ; plus longue : effacés sans pénalité, et au moins
+    // 1 min 30 avant le prochain coup de pouce (REPRISE). Jamais de gain gratuit : l'absence se calcule sans eux (ni le ×2 d'une soirée).
+    const ecart = q.now ? nowMs - q.now : Infinity, court = ecart >= 0 && ecart <= PAUSE_EV, garde = { ev: q.ev, boost: q.boost };
+    q.ev = null; q.boost = null; q.now = nowMs;
     const secs = Math.min(heuresAbsence(q) * 3600, Math.max(0, (nowMs - q.lastSeen) / 1000)), part = partAbsence(q);
     let total = 0; const detail = [];
     q.postes.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
       const T = temps(q, i);
-      if (s.staff) { const n = Math.floor((s.prog + secs) / T); s.prog = (s.prog + secs) % T; if (n > 0) { const m = revenuBase(q, i) * n * part; total += m; detail.push({ i, n, m }); q.stats.ventes += n; } }
-      else if (s.prog + secs >= T) { const m = revenuBase(q, i) * 1.5 * part; total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; q.stats.ventes++; }
+      if (s.staff) { const n = Math.floor((s.prog + secs) / T); s.prog = (s.prog + secs) % T; if (n > 0) { const m = revenuBase(q, i) * n * part; total += m; detail.push({ i, n, m }); q.stats.ventes += n; q.stats.vendus[i] += n; } }
+      else if (s.prog + secs >= T) { const m = revenuBase(q, i) * 1.5 * part; total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; q.stats.ventes++; q.stats.vendus[i]++; }
       else s.prog += secs;
     });
     if (total > 0) gagner(q, total);
+    q.boost = garde.boost;
+    if (court) { q.ev = garde.ev; pauseCoup(q, ecart); } else { q.evTimer = Math.max(q.evTimer || 0, REPRISE); }
     q.lastSeen = nowMs;
     return { secs, total, detail };
   }
@@ -329,8 +345,9 @@
     }
     return fait;
   }
-  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour } } ; opts : { graine, debut, offertes }
+  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour } } ; opts : { graine, debut, offertes, activites }
     opts = opts || {}; const prof = PROFILS[profil] || PROFILS.assidu, rnd = mulberry32(opts.graine || 7), st = {}, t0 = opts.debut || DEBUT;
+    const jeu = opts.activites === false ? null : A.politique(profil), rndA = mulberry32((opts.graine || 7) + 101); // les activités, jouées comme ce profil (leur propre hasard : les coups de pouce ne changent pas)
     const q = etat(st, t0), parJour = [], paliersJour = {}, trace = []; q.lastSeen = t0;
     const H = 3600e3, nJ = jours || 14;
     const minuit0 = t0 - (paris(t0).getUTCHours() * 3600e3 + paris(t0).getUTCMinutes() * 60e3); // minuit, heure de Paris, du premier jour
@@ -351,9 +368,10 @@
           }
           for (const p of out.paliers) { marquerPalier(q, p.n); paliersJour[p.n] = j + 1; if (opts.offertes && p.n === PALIERS_BOSS) for (const a of AMELIORATIONS) if (a.apres) q.ameliorations[a.id] = true; } // offertes : le pire cas de l'enveloppe (toutes les combines dès le 12e, sans les payer)
           if (s % 3 === 0) decider(q);
+          if (jeu && s % 20 === 0) A.sim.pas(q, now, jeu, rndA);
           if (s % 60 === 0) trace.push({ t: (now - t0) / JOUR, total: q.total });
         }
-        q.lastSeen = debut + minutes * 60e3; trace.push({ t: (q.lastSeen - t0) / JOUR, total: q.total });
+        q.lastSeen = debut + minutes * 60e3; if (jeu) A.sim.fin(q, Math.min(q.lastSeen, FIN - 1), jeu, rndA); trace.push({ t: (q.lastSeen - t0) / JOUR, total: q.total });
       }
       parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length });
     }
@@ -378,8 +396,35 @@
     if (j > 0) return `${j} j ${h} h`; if (h > 0) return `${h} h ${String(m).padStart(2, '0')}`; return `${m} min`;
   }
 
-  return { DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, GRACE, fenetreSure, envoiBillets, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
-    neuf, etat, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
+  // ─── la fiche de l'événement (pour l'écran, src/evenement.js, qui a ses valeurs par défaut) : ici, l'habillage du quartier de ses activités ───
+  // activites : voir src/activites.js (réglages des gains, mini-jeux, couleurs des toiles, contrats, opérations) ; tout ce qui manque prend
+  // la valeur par défaut du moteur commun.
+  const FICHE = {
+    id: 'quartier', nom: 'Le Quartier', lieu: 'la Planque', cle: 'quartier', adulte: true,
+    activites: {
+      jeux: {
+        guet: { nom: 'Le guet', desc: 'Siffle quand la patrouille passe sous le lampadaire.', regles: ['La patrouille longe la rue : touche quand elle passe sous le lampadaire.', 'Pile dans la lumière : coup de sifflet parfait, et le combo grimpe.', 'Trop tôt ou trop tard, le combo retombe. Et ça accélère !'], consigne: 'Siffle quand elle est sous le lampadaire !' },
+        compte: { nom: 'Le compte', desc: 'Compte la liasse d’un coup d’œil.', regles: ['Des billets s’étalent sur la table, une seconde à peine.', 'Combien y en avait-il ? Touche le bon nombre.', 'Vite et juste : la série rapporte plus. Quarante secondes.'], consigne: 'Combien de billets ?', objets: 'billets' },
+        tournee: { nom: 'La tournée', desc: 'Trace la tournée du livreur, porte après porte.', regles: ['Six portes numérotées : relie-les au doigt, dans l’ordre.', 'Tu peux lever le doigt et reprendre où tu t’es arrêté.', 'Trois tournées de douze secondes : plus tu es rapide, plus ça paie.'], consigne: 'Relie les portes dans l’ordre !' },
+      },
+      decor: { motif: 'quartier', fond: '#2E2B3A', sol: '#3F3A50', accent: '#FFC84A', accent2: '#5FD3A4', clair: '#C7B8FF', texte: '#FFF7EC' },
+      contrats: { textes: {
+        descentes: (n) => `Déjoue ${n} descente${n > 1 ? 's' : ''} de police`, grosClients: (n) => `Livre ${n} gros client${n > 1 ? 's' : ''}`,
+        scooters: (n) => `Attrape ${n} fois le bonus du livreur`, soirees: (n) => `Tiens ${n} soirée${n > 1 ? 's' : ''} jusqu’au bout`,
+        vente: (n, p) => `Vends ${n} ${p ? p.pl : 'produits'}`, mini: (n) => `Réussis ${n} mini-jeu${n > 1 ? 'x' : ''} (la moitié des points au moins)`,
+        operation: (n) => `Réussis ${n} opération${n > 1 ? 's' : ''} sans contrôle` } },
+      operations: [
+        { id: 'court', nom: 'Le petit coup du square', desc: 'Un aller-retour au banc du square. Presque sans risque.' },
+        { id: 'moyen', nom: 'La livraison du bâtiment C', desc: 'Un quart d’heure dans les escaliers : l’ascenseur est en panne.' },
+        { id: 'long', nom: 'Le gros coup du PMU', desc: 'Une heure dans l’arrière-salle : le meilleur gain, le plus de risque.' },
+      ],
+      textes: { saisie: 'Contrôle de police', saisieTxt: (m) => `Contrôle de police : ${m} saisis.`, operation: 'Opération', enCours: 'L’équipe est sur le coup' },
+    },
+  };
+  const A = ACT.equiper({ id: 'quartier', rythme, gagner, note, dayKey, fmt: fmtEur, arrondi, fenetre, PRODUITS }, FICHE.activites); // les activités (src/activites.js)
+
+  return { FICHE, ...A.api, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, GRACE, fenetreSure, envoiBillets, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
+    PAUSE_EV, pauseCoup, neuf, etat, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
     gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
     PROFILS, simuler, decider, fmt, fmtEur, fmtDuree, fmtChrono, fmtReste };
 });

@@ -5,7 +5,9 @@
 // seule fois (étoiles, boosts, décos, tenue d'Halloween, chat noir), le rythme simulé (assidu → palier 12 le dernier jour ou la veille,
 // quotidien → 8-9, occasionnel → 5-7), les paliers bonus « après le maître » (13 à 20) et les Sortilèges en plus, la reprise d'une sauvegarde
 // déjà au 12e, l'enveloppe du serveur (le marathon 24 h/24 reste sous la table de fournil_evts(), avec marge, Sortilèges compris), et la
-// longévité (sept jours de marathon sans dérive, sauvegarde relue en route, récompenses distribuées dans la boulangerie de src/game.js).
+// longévité (sept jours de marathon sans dérive, sauvegarde relue en route, récompenses distribuées dans la boulangerie de src/game.js), et
+// les activités d'Halloween (src/activites.js, vérifiées par test/fournil-activites.js ; jouées au mieux dans le marathon de l'enveloppe), avec
+// la pause des coups de pouce pendant une courte sortie.
 // Lancer : TZ=Europe/Paris node test/fournil-hantee.test.js
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -90,8 +92,8 @@ check(r.ok && r.fini && q.ev === null && q.billets === b0 + r.prime && q.stats.d
 HT.lancerEvenement(q, () => 0.5, 'descente'); b0 = q.billets; const enjeu = q.ev.enjeu;
 { const t0 = q.now; out = null; for (let k = 1; k <= 20 && !(out && out.finEv); k++) out = HT.tick(q, 1, t0 + k * 1000, () => 0.5); }
 check(out.finEv && out.fin.saisi === enjeu && q.billets === b0 - enjeu && q.stats.descentesRatees === 1, `pas chassées à temps : elles emportent ${enjeu} bonbons`);
-{ q.now = now0 + 200e3; HT.lancerEvenement(q, () => 0.5, 'descente'); const b1 = q.billets; const o = HT.tick(q, 0.25, q.now + 600e3, () => 0.5);
-  check(!o.finEv && !o.nouvelEv && q.ev === null && q.billets >= b1 && q.evTimer >= 90, 'retour après 10 min hors ligne : rien d’emporté, rien ne surgit tout de suite'); }
+{ q.now = now0 + 200e3; HT.lancerEvenement(q, () => 0.5, 'descente'); const b1 = q.billets; const o = HT.tick(q, 0.25, q.now + 1800e3, () => 0.5);
+  check(!o.finEv && !o.nouvelEv && q.ev === null && q.billets >= b1 && q.evTimer >= 90, 'retour après 30 min hors ligne : rien d’emporté, rien ne surgit tout de suite'); }
 q.now = now0 + 5000e3; ev = HT.lancerEvenement(q, () => 0.5, 'grosclient');
 check(ev.type === 'grosclient' && ev.n >= 3 && ev.prime > 0 && !HT.livrer(q).ok, `un cortège d’enfants déguisés : ${ev.n} ${HT.PRODUITS[ev.i].pl}, prime ${HT.fmt(ev.prime)} ; pas servi avant d’avoir tout`);
 { const i = ev.i, s = q.postes[i]; for (let k = 0; k < 400 && q.ev && q.ev.fait < q.ev.n; k++) { if (!s.staff && !s.actif) HT.lancer(q, i); HT.tick(q, HT.PRODUITS[i].temps, q.now + 1000, () => 0.5); } }
@@ -225,6 +227,15 @@ console.log('── la longévité : sept jours de marathon, une sauvegarde relu
   const b = G.newState(now0), q1 = Q.etat(b, now0), q2 = HT.etat(b, now0); Q.gagner(q1, 10); HT.gagner(q2, 20);
   check(b.quartier.total === 10 && b.hantee.total === 20 && b.quartier !== b.hantee, 'st.quartier et st.hantee côte à côte, sans se mélanger');
   check(G.nouvelleBoutique({ ...b, lifetimeRun: 1e30 }, now0).ok, 'une nouvelle boutique (étoiles) ne casse rien'); }
+
+console.log('── les activités du Manoir (src/activites.js) ──');
+{ const sans = HT.simuler('marathon', 7, { activites: false }), part = S.marathon.total / sans.total;
+  check(part > 1 && part < 1.25, `au marathon, les activités jouées au mieux ajoutent ${((part - 1) * 100).toFixed(1)} % au total (l’enveloppe, plus haut, reste ×2 dessous)`);
+  const A = HT.FICHE.activites, textes = JSON.stringify([HT.MINI.jeux.map((j) => [j.nom, j.desc, j.regles, j.consigne]), HT.OPERATIONS.map((o) => [o.nom, o.desc]), A.textes.saisie, A.textes.saisieTxt('3 bonbons'), A.textes.enCours,
+    [0, 1, 2, 3, 4, 5, 6].map((k) => HT.contratsDuJour(HT.DEBUT + k * 864e5).map((c) => c.texte))]);
+  const mots = textes.match(/\b(drogues?|alcools?|bi[eè]res?|vins?|cigarettes?|herbe|shit|coke|ecsta|police|adultes?|sang|tuer|meurtre|couteaux?|armes?|cadavres?|18 ans|saisi[se]?)\b/gi);
+  check(!mots && /chauves-souris/.test(textes), `tous âges : les activités d’Halloween n’ont rien d’adulte (les chauves-souris gourmandes chipent des bonbons)${mots ? ' — ' + mots.join(', ') : ''}`); }
+require('./fournil-activites.js')(HT, check, { S: { marathon: S.marathon, 'très actif': S.tresactif, assidu: S.assidu, quotidien: S.quotidien }, nom: 'le Manoir' });
 
 console.log(fails ? `\n${fails} échec(s) sur ${n}` : `\nTout passe (${n} vérifications).`);
 process.exit(fails ? 1 : 0);

@@ -4,8 +4,10 @@
 // les gains d'absence plafonnés (8 h, au ralenti), les douze paliers donnés une seule fois, la simulation du rythme (assidu → palier 12
 // le 11e jour, quotidien → paliers 8-9), les paliers bonus « après le boss » (13 à 20 : très actif → un tous les jour ou deux, marathon →
 // le 20e vers le 13e jour), les combines en plus, la reprise d'une sauvegarde déjà au 12e, l'enveloppe du serveur (le marathon 24 h/24
-// reste sous la table du SQL, combines comprises), et la réserve de boosts
-// de la boulangerie (src/game.js : st.boosts, lancer, multiplicateur, absence). Lancer : TZ=Europe/Paris node test/fournil-quartier.test.js
+// reste sous la table du SQL, combines comprises, les trois activités jouées au mieux), la réserve de boosts de la boulangerie (src/game.js :
+// st.boosts, lancer, multiplicateur, absence), et les activités (src/activites.js, vérifiées par test/fournil-activites.js : mini-jeux et
+// leurs gains plafonnés, contrats déterministes par jour et réclamés une fois, opération qui finit pendant une absence, saisie, vieille
+// sauvegarde, rythme) avec la pause des coups de pouce pendant une courte sortie. Lancer : TZ=Europe/Paris node test/fournil-quartier.test.js
 'use strict';
 const fs = require('fs'), path = require('path');
 const Q = require('../src/quartier.js'), G = require('../src/game.js');
@@ -87,10 +89,10 @@ check(!Q.planquer(q).ok, 'sans descente, planquer ne fait rien');
 Q.lancerEvenement(q, () => 0.5, 'descente'); b0 = q.billets; const enjeu = q.ev.enjeu;
 { const t0 = (q.now - now0) / 1000; out = null; for (let k = 1; k <= 20 && !(out && out.finEv); k++) out = Q.tick(q, 1, T(t0 + k), () => 0.5); } // en jouant, seconde par seconde, sans toucher
 check(out.finEv && out.finEv.type === 'descente' && out.fin.saisi === enjeu && q.billets === b0 - enjeu && q.ev === null && q.stats.descentesRatees === 1 && q.stats.saisi === enjeu, `une descente ratée : la police embarque ${enjeu} €`);
-// hors ligne (téléphone verrouillé, Planque ouverte) : la descente en cours s'efface sans pénalité, rien ne surgit au retour
+// hors ligne plus de 10 min (téléphone verrouillé, Planque ouverte) : la descente en cours s'efface sans pénalité, rien ne surgit au retour
 { q.now = T(200); Q.lancerEvenement(q, () => 0.5, 'descente'); const b1 = q.billets, ratees = q.stats.descentesRatees;
-  const o = Q.tick(q, 0.25, T(200 + 600), () => 0.5); // la première image au retour, 10 min plus tard
-  check(!o.finEv && !o.nouvelEv && q.ev === null && q.billets >= b1 && q.stats.descentesRatees === ratees && q.evTimer >= 90, `retour après 10 min hors ligne : pas de descente ratée ni de saisie, prochain coup de pouce dans ${Math.round(q.evTimer)} s au moins`);
+  const o = Q.tick(q, 0.25, T(200 + 1800), () => 0.5); // la première image au retour, 30 min plus tard
+  check(!o.finEv && !o.nouvelEv && q.ev === null && q.billets >= b1 && q.stats.descentesRatees === ratees && q.evTimer >= 90, `retour après 30 min hors ligne : pas de descente ratée ni de saisie, prochain coup de pouce dans ${Math.round(q.evTimer)} s au moins`);
   let n = 0; for (let k = 1; k <= 80; k++) if (Q.tick(q, 1, T(800 + k), () => 0.5).nouvelEv) n++;
   check(n === 0, 'la première minute et demie après le retour : aucun coup de pouce');
   q.evTimer = 0; q.lastSeen = T(900); Q.absence(q, T(900 + 3600)); check(q.evTimer >= 90 && q.ev === null, `les gains d'absence (entrée dans la Planque) reportent aussi le prochain coup de pouce (${Math.round(q.evTimer)} s)`); }
@@ -126,7 +128,8 @@ abs = Q.absence(q, q.lastSeen + 30 * 3600e3);
 check(abs.secs === 8 * 3600 && Math.abs(abs.total - taux * 8 * 3600 * Q.ABSENCE_PART) / abs.total < 0.02, '30 h d’absence : 8 h payées, pas plus');
 abs = Q.absence(q, q.lastSeen - 3600e3);
 check(abs.secs === 0 && abs.total === 0, 'une heure dans le passé (horloge reculée) : rien');
-{ Q.lancerEvenement(q, () => 0.5, 'descente'); const b = q.billets; Q.absence(q, q.lastSeen + 60e3); check(q.ev === null && q.billets >= b, 'une descente en cours est oubliée pendant l’absence, sans rien saisir'); }
+{ q.now = q.lastSeen; Q.lancerEvenement(q, () => 0.5, 'descente'); const b = q.billets, reste = q.ev.fin - q.now; Q.absence(q, q.lastSeen + 60e3); check(q.ev && q.ev.type === 'descente' && q.ev.fin - q.now === reste && q.billets >= b, 'une descente en cours, une absence d’une minute : en pause, retrouvée avec le même temps'); q.ev = null; }
+{ q.now = q.lastSeen; Q.lancerEvenement(q, () => 0.5, 'descente'); const b = q.billets, r0 = q.stats.descentesRatees; Q.absence(q, q.lastSeen + 1800e3); check(q.ev === null && q.billets >= b && q.stats.descentesRatees === r0, 'une descente en cours, 30 min d’absence : oubliée, sans rien saisir'); }
 { const s = q.postes[1]; q.postes[1].staff = false; q.postes[1].actif = true; q.postes[1].prog = 0; const b = q.billets; Q.absence(q, q.lastSeen + 3600e3); check(!s.actif && q.billets > b, 'une fournée à la main lancée avant de partir se termine pendant l’absence'); }
 
 console.log('── les douze paliers, une seule fois ──');
@@ -253,6 +256,11 @@ check(st.boosts.actif === null, 'une absence qui dépasse sa fin : il s’étein
 check(!G.lancerBoostReserve(st, 5).ok && !G.lancerBoostReserve(st, -1).ok, 'un rang absent : refusé');
 { const s2 = JSON.parse(JSON.stringify(G.newState(now0))); delete s2.boosts; check(G.boostMult(s2) === 1 && !G.lancerBoostReserve(s2, 0).ok && G.donnerBoostReserve(s2, 2, 60) && s2.boosts.reserve.length === 1, 'une vieille sauvegarde sans réserve marche, et en reçoit une au premier boost'); }
 check(G.nouvelleBoutique({ ...G.newState(now0), lifetimeRun: 1e30, boosts: { reserve: [{ mult: 2, secs: 60 }], actif: { mult: 2, fin: now0 + 1 } } }, now0).ok, 'une nouvelle boutique (étoiles) ne casse rien');
+
+console.log('── les activités de la Planque (src/activites.js) ──');
+{ const sans = Q.simuler('marathon', 14, { activites: false }), part = S.marathon.total / sans.total;
+  check(part > 1 && part < 1.25, `au marathon, les activités jouées au mieux ajoutent ${((part - 1) * 100).toFixed(1)} % au total (l’enveloppe, plus haut, reste ×2 dessous)`); }
+require('./fournil-activites.js')(Q, check, { S: { marathon: S.marathon, 'très actif': S.tresactif, assidu: S.assidu, quotidien: S.quotidien }, nom: 'la Planque' });
 
 console.log(fails ? `\n${fails} échec(s)` : '\ntout est bon');
 process.exit(fails ? 1 : 0);

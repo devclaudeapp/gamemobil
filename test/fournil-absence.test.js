@@ -3,7 +3,8 @@
 // La boutique (G.absence) : payée au rythme des apprentis, plafonnée (heuresAbsence), jamais négative, rien de payé deux fois ; un boost
 // de la réserve encore en cours au retour compte, un boost fini pendant l'absence non. Les deux événements (Q : la Planque ; HT : la Maison
 // hantée) : au ralenti (ABSENCE_PART), plafonnés à 8 h, et avec la combine d'absence « après le boss » à 12 h et 20 % ; une heure qui
-// recule ne paie rien ; deux retours de suite ne paient qu'une fois ; parti avant la fermeture : payé jusqu'à la fermeture seulement.
+// recule ne paie rien ; deux retours de suite ne paient qu'une fois ; parti avant la fermeture : payé jusqu'à la fermeture seulement ; une
+// opération (src/activites.js) lancée en partant tourne pendant l'absence et se ramasse au retour, sans rien payer deux fois.
 // Usage : TZ=Europe/Paris node test/fournil-absence.test.js
 'use strict';
 const G = require('../src/game.js'), Q = require('../src/quartier.js'), HT = require('../src/hantee.js');
@@ -37,7 +38,7 @@ console.log('── la boutique');
 for (const [nom, M] of [['la Planque (Quartier)', Q], ['la Maison hantée', HT]]) {
   console.log('── ' + nom);
   const S = M.simuler('assidu', 6), q0 = copie(S.q), t0 = M.DEBUT + 3 * 24 * H;
-  q0.lastSeen = t0;
+  q0.lastSeen = t0; q0.operation = null; // (la simulation laisse une opération en route : on part sans)
   const taux = M.tauxBase ? M.tauxBase(q0) : M.tauxParSeconde(q0) / M.PRESENCE;
   const essai = (ms, prep) => { const q = copie(q0); if (prep) prep(q); const b0 = q.total, r = M.absence(q, t0 + ms); return { r, gain: q.total - b0, q }; };
   const a2 = essai(2 * H), a8 = essai(8 * H), a20 = essai(20 * H);
@@ -55,6 +56,13 @@ for (const [nom, M] of [['la Planque (Quartier)', Q], ['la Maison hantée', HT]]
   { const q = copie(q0); M.absence(q, t0 + 2 * H); const b1 = q.total, r2 = M.absence(q, t0 + 2 * H); check(r2.total === 0 && q.total === b1, 'deux retours au même instant : payé une fois'); }
   // parti 3 h avant la fermeture, revenu bien après : l'écran du bilan paie jusqu'à M.FIN (src/evenement.js montrerBilan), pas au-delà
   { const q = copie(q0); q.lastSeen = M.FIN - 3 * H; const b0 = q.total, r = M.absence(q, M.FIN); check(r.secs === 3 * 3600 && q.total > b0 && q.lastSeen === M.FIN, `parti 3 h avant la fermeture : 3 h payées (${M.fmt(q.total - b0)}), pas plus`); }
+  // une opération (src/activites.js) lancée en partant : elle tourne pendant l'absence, sur l'horloge de confiance, et se ramasse au retour ;
+  // l'absence, elle, paie ses heures comme sans elle (rien de payé deux fois)
+  { const q = copie(q0), sans = copie(q0), o = M.OPERATIONS[2], r = M.lancerOperation(q, o.id, t0, () => 0.99), gain = q.operation && q.operation.gain;
+    const a = M.absence(q, t0 + 3 * H), b = M.absence(sans, t0 + 3 * H), b1 = q.total, ram = M.ramasserOperation(q, t0 + 3 * H);
+    check(r.ok && a.total === b.total && ram && ram.net === gain && q.total === b1 + gain && q.operation === null, `une opération de ${o.min} min lancée en partant, 3 h d’absence : l’absence paie pareil (${M.fmt(a.total)}), l’opération +${M.fmt(gain)} au retour, une fois`);
+    const q2 = copie(q0); M.lancerOperation(q2, o.id, t0, () => 0.99); M.absence(q2, t0 + 20 * 60e3);
+    check(q2.operation && M.ramasserOperation(q2, t0 + 20 * 60e3) === null && M.etatOperation(q2, t0 + 20 * 60e3).reste === 40 * 60e3, 'revenu au bout de 20 min : elle tourne encore (40 min restantes)'); }
 }
 
 console.log(`\n${oks} ok, ${fails} en échec`);

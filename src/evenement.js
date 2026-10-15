@@ -42,7 +42,7 @@ const EVENEMENTS = (() => {
 
     function init(deps) {
       d = deps; el = $(F.racine); if (!el || !Q) return false;
-      cartesEl = id('cartes'); evEl = id('ev');
+      cartesEl = id('cartes'); evEl = id('ev'); construireActivites();
       const ico = el.querySelector('.pq-ico'); if (ico) ico.innerHTML = F.ico.devise;
       if (F.couleurs) for (const [k, v] of Object.entries(F.couleurs)) if (/^#[0-9a-f]{3,8}$/i.test(String(v))) el.style.setProperty('--evt-' + k, v);
       el.querySelector('[data-pq="fermer"]').addEventListener('click', () => { d.audio(); d.son.tap(); fermer(); });
@@ -52,7 +52,7 @@ const EVENEMENTS = (() => {
       el.querySelectorAll('.pq-modes button').forEach((b) => b.addEventListener('click', () => { d.audio(); const qq = q(); qq.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; el.querySelectorAll('.pq-modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCartes(true); }));
       cartesEl.addEventListener('click', onCarte);
       evEl.addEventListener('click', (e) => { if (e.target.closest('button')) return; evEl.classList.toggle('etendu'); });
-      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && ouvert() && $('#feuille').hidden) fermer(); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && ouvert() && $('#feuille').hidden) { if (miniOuvert()) fermerMini(); else fermer(); } });
       window.addEventListener('resize', () => { if (scene3) scene3.redim(); });
       if (F.cle === 'hantee' || F.p === 'ht') st0 = () => d.st();
       synchroniserRecompenses();
@@ -156,10 +156,12 @@ const EVENEMENTS = (() => {
       if (!scene3) { essais3 = 0; creer3(false); }
       if (abs.total > 0 && abs.secs > 90) d.toast(F.t.absence(G.fmtDuree(abs.secs), fmt(abs.total)));
       else if (qq.stats.taps === 0) d.toast(F.t.premier);
+      lastAct = ''; ramasser(true); majActivites(true); // une opération finie pendant l'absence : ramassée à l'ouverture, avec sa feuille
       dernierSave = performance.now();
     }
     function fermer() {
       if (!ouvert()) return;
+      if (miniOuvert()) fermerMini();
       if (ecran === F.ecran) { const qq = q(); qq.lastSeen = now(); d.save(); }
       if (ecran === 'bilan') { const qq = q(); qq.bilan = true; d.save(); }
       liberer3();
@@ -174,6 +176,7 @@ const EVENEMENTS = (() => {
       const qq = q(), t = now(); if (Q.fenetre(t).fini) return null; // fini : la boucle ferme et montre le bilan
       const abs = Q.absence(qq, t); renderEv();
       if (abs.total > 0 && abs.secs > 90) d.toast(F.t.absence(G.fmtDuree(abs.secs), fmt(abs.total)));
+      if (!miniOuvert()) ramasser(true);
       return abs;
     }
     // ─── la boucle : appelée chaque image par ui.js tant que l'écran est ouvert ───
@@ -181,12 +184,14 @@ const EVENEMENTS = (() => {
       if (ecran !== F.ecran) return;
       const qq = q(), f = Q.fenetre(t);
       if (f.fini) { Q.tick(qq, dt, t); d.toast(F.t.ferme); qq.lastSeen = t; montrerBilan(); return; }
+      if (miniOuvert()) { qq.evTimer = Math.max(qq.evTimer, 5); if (qq.ev && genre(qq.ev) !== 'mult' && Q.pauseCoup) Q.pauseCoup(qq, dt * 1000); } // une partie de mini-jeu : le coup de pouce à toucher attend, aucun ne surgit
       const out = Q.tick(qq, dt, t);
+      if (avecAct() && performance.now() - tAct > 400) { tAct = performance.now(); if (qq.operation && qq.operation.fin <= t) ramasser(!miniOuvert()); majActivites(); }
       if (out.ventes.length) { const gros = out.ventes.reduce((a, v) => a + v.montant, 0); if (Math.random() < 0.2 || out.ventes.some((v) => Q.PRODUITS[v.i].temps >= 12)) { d.son.vente(gros); if (scene3) scene3.vente(gros); } }
       if (out.nouvelEv) { const c = coup(out.nouvelEv); if (c.son === 'sirene' && d.son.sirene) d.son.sirene(); else d.son.evenement(); d.buzz([15, 40, 15]); d.toast(c.debut); if (scene3 && scene3.coup) scene3.coup(genre(out.nouvelEv)); }
       if (out.finEv) { const c = coup(out.finEv); d.toast(genre(out.finEv) === 'taper' ? c.perte(fmt((out.fin && out.fin.saisi) || 0)) : c.fin); if (genre(out.finEv) === 'taper') d.son.non(); }
       for (const p of out.paliers) if (donnerPalier(p) && d.confettis) d.confettis(1); // un palier atteint : confettis
-      montrerSheetsEnAttente();
+      if (!miniOuvert()) montrerSheetsEnAttente(); // un palier franchi pendant une partie : sa feuille attend la fin
       hud(); renderCartes(); renderEv();
       if (!scene3 && essais3 > 0 && essais3 < 6 && performance.now() - tEssai3 > 1000) creer3(true); // le contexte avait été refusé : on réessaie
       if (scene3 && scene3.perdu && performance.now() - scene3.perdu > 1000) { liberer3(); creer3(false); } // perdu en route et pas revenu : une scène neuve
@@ -325,6 +330,7 @@ const EVENEMENTS = (() => {
       cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
       // parti avant la fermeture, revenu après : les apprentis ont travaillé jusqu'à la fermeture (une fois, au ralenti, plafonné comme toute absence)
       if (qq.lastSeen && qq.lastSeen < Q.FIN && !qq.absenceFin) { qq.absenceFin = true; Q.absence(qq, Q.FIN); d.save(); }
+      if (avecAct() && qq.operation) Q.ramasserOperation(qq, Math.min(now(), Q.FIN)); // une opération en cours à la fermeture : finie avant elle (on ne lance rien qui la dépasse), comptée
       rattraper(); fileSheets = []; // un palier dû pas encore donné (les paliers bonus d'une vieille sauvegarde) : compté dans le bilan, sans feuille
       entete(F.t.bilanTitre, 'L’événement est terminé'); const bp = el.querySelector('[data-pq="paliers"] b'); if (bp) bp.textContent = `${Q.paliersAtteints(qq).length}/${nbPaliers(qq)}`;
       const rec = d.recompenses ? d.recompenses() : null, rang = rec ? F.rangFinal(rec) : null, nb = Q.paliersAtteints(qq).length;
@@ -347,7 +353,312 @@ const EVENEMENTS = (() => {
       id('corps').querySelector('[data-pq="fin"]').addEventListener('click', () => { d.audio(); d.son.tap(); fermer(); });
     }
 
+
+    // ═══ les activités (src/activites.js : le moteur commun à tous les événements ; l'habillage vient de la fiche de l'événement) ═══
+    // Une barre de trois boutons sous la scène : Mini-jeux, Contrats (la pastille : combien sont à réclamer), Opération (son chrono quand
+    // elle tourne). Les mini-jeux s'ouvrent en plein écran par-dessus la boutique, avec la mécanique de l'Atelier (src/atelier.js) : le
+    // temps de la partie est celui de performance.now(), avancé par pas de 1/60 s ; un trou de plus d'une seconde (l'arrière-plan) est une
+    // pause ; une touche fait d'abord avancer la partie jusqu'à son instant ; aucune heure du téléphone : seule la fin de partie lit
+    // HORLOGE (d.maintenant). Pendant la partie, la boutique continue de tourner (frame ne s'arrête pas) ; un coup de pouce à toucher
+    // attend la fin de la partie (en pause, Q.pauseCoup), et aucun nouveau ne surgit.
+    const MPAS = 1 / 60, MTROU = 1;
+    const avecAct = () => !!(Q && Q.finirMini && Q.MINI);
+    const TA = () => Object.assign({ mini: 'Mini-jeux', contrats: 'Contrats', operation: 'Opération', saisie: 'Une saisie', saisieTxt: (m) => `Une partie du gain s’est perdue en route : ${m}.`, enCours: 'En cours' }, Q.TEXTES_ACTIVITES || {});
+    const icoAct = (k) => (typeof ICONS !== 'undefined' && ICONS.ACTIVITES && ICONS.ACTIVITES[k]) || '';
+    let barreAct = null, mv = null, mz = null, lastAct = '', tAct = 0, miniEcran = '', miniJeu = null, partie = null, rafMini = 0, horlogeMini = 0, resultatMini = null;
+    const mid = (k) => mv.querySelector(`[data-mini="${k}"]`);
+    const miniOuvert = () => !!mv && !mv.hidden;
+    const DECOR = () => (Q.MINI && Q.MINI.decor) || {};
+
+    function construireActivites() {
+      if (!avecAct() || barreAct) return;
+      const t = TA();
+      barreAct = document.createElement('div'); barreAct.className = 'pq-act'; barreAct.setAttribute('role', 'group'); barreAct.setAttribute('aria-label', 'Les activités');
+      barreAct.innerHTML = [['mini', t.mini], ['contrats', t.contrats], ['operation', t.operation]].map(([k, nom]) => `<button type="button" class="pq-act-btn" data-act="${k}"><span class="pq-act-ico">${icoAct(k)}</span><span class="pq-act-txt"><b>${esc(nom)}</b><small></small></span>${k === 'contrats' ? '<i class="pq-pastille" hidden></i>' : ''}</button>`).join('');
+      el.querySelector('.pq-scene').after(barreAct);
+      barreAct.addEventListener('click', (e) => { const b = e.target.closest('[data-act]'); if (!b) return; d.audio(); d.son.tap(); ({ mini: sheetMini, contrats: sheetContrats, operation: sheetOperation })[b.dataset.act](); });
+      mv = document.createElement('div'); mv.className = 'pq-mini'; mv.hidden = true; mv.setAttribute('role', 'dialog'); mv.setAttribute('aria-modal', 'true');
+      mv.innerHTML = `<div class="at-haut"><button type="button" class="at-fermer" data-mini="fermer" aria-label="Quitter le mini-jeu"><i class="ico">${(ICONS.UI && ICONS.UI.fermer) || '×'}</i></button><div class="at-titre"><b data-mini="titre"></b><small data-mini="sous"></small></div><b class="at-chrono" data-mini="chrono" hidden></b></div>
+        <div class="at-bandeau" data-mini="bandeau" hidden></div><p class="pq-mini-consigne" data-mini="consigne"></p><div class="pq-mini-zone" data-mini="zone"></div>`;
+      el.appendChild(mv); mz = mid('zone');
+      mid('fermer').addEventListener('click', () => { d.audio(); d.son.tap(); fermerMini(); });
+      window.addEventListener('resize', () => { if (partie && partie.T) partie.T.redim(); });
+    }
+    // les trois petites lignes de la barre : les parties payées qui attendent, les contrats faits, le chrono de l'opération
+    function majActivites(force) {
+      if (!barreAct || ecran !== F.ecran) return;
+      const qq = q(), t = now(), ouv = Q.activitesOuvertes(t), j = Q.jetonsMini(qq, t), n = Q.aReclamer(qq, t), op = Q.etatOperation(qq, t), l = Q.etatContrats(qq, t);
+      const mini = !ouv || j.plafond ? 'pour le record' : j.jetons >= 1 ? `${j.jetons} payée${j.jetons > 1 ? 's' : ''}` : `payée dans ${G.fmtDuree(Math.max(60, j.prochain / 1000))}`;
+      const ctr = !ouv ? 'dès demain' : n ? `${n} à réclamer` : `${l.filter((c) => c.reclame).length}/${l.length} faits`;
+      const opt = op ? (op.finie ? 'terminée !' : G.fmtChrono(op.reste / 1000)) : !ouv ? 'dès demain' : 'à lancer';
+      const ch = document.querySelector('#feuille [data-op-chrono]'); if (ch && op) { ch.textContent = op.finie ? 'Terminée !' : G.fmtChrono(op.reste / 1000); const b = document.querySelector('#feuille [data-op-barre]'); if (b) b.style.width = (op.part * 100).toFixed(1) + '%'; }
+      const cle = `${mini}|${ctr}|${n}|${opt}`; if (!force && cle === lastAct) return; lastAct = cle;
+      const b = (k) => barreAct.querySelector(`[data-act="${k}"]`);
+      b('mini').querySelector('small').textContent = mini; b('mini').classList.toggle('pret', ouv && j.payable);
+      b('contrats').querySelector('small').textContent = ctr; b('contrats').classList.toggle('pret', n > 0);
+      const pa = b('contrats').querySelector('.pq-pastille'); pa.hidden = !n; pa.textContent = String(n);
+      b('contrats').setAttribute('aria-label', `${TA().contrats} : ${ctr}`);
+      b('operation').querySelector('small').textContent = opt; b('operation').classList.toggle('actif', !!op && !op.finie); b('operation').classList.toggle('pret', !!op && op.finie);
+    }
+
+    // ─── l'opération : lancée depuis sa feuille ; ramassée dès qu'elle est finie (écran ouvert), ou à l'ouverture suivante ───
+    function ramasser(feuille) {
+      if (!avecAct()) return null; const qq = q(), r = Q.ramasserOperation(qq, now()); if (!r) return null;
+      const t = TA(), txt = r.saisi > 0 ? `${r.o.nom} : ${t.saisieTxt(fmt(r.saisi))} Il reste +${fmt(r.net)}.` : `${r.o.nom} : réussie, +${fmt(r.net)} !`;
+      if (r.saisi > 0) d.son.non(); else { d.son.deblocage(); d.buzz([10, 30, 10]); if (scene3) scene3.fete(); }
+      if (feuille && $('#feuille').hidden && !sheetOuverte) {
+        d.openSheet(`<div class="pq-sheet ${F.classe}"><div class="pq-palier-tete"><span class="pq-pic">${icoAct('operation')}</span><div><h2>${esc(r.o.nom)}</h2><p class="sous">${r.saisi > 0 ? esc(t.saisie) : 'Mission accomplie'} · ${r.o.min} min</p></div></div>
+          <p class="pq-grand pq-op-gain">+${prix(r.net)}</p>${r.saisi > 0 ? `<p class="encadre">${esc(t.saisieTxt(fmt(r.saisi)))}</p>` : '<p class="encadre">Tout est rentré, rien n’a été perdu en route.</p>'}
+          <button type="button" class="btn large beurre" data-a="pq-op-ok" style="margin-top:14px"><b>Ramasser</b></button></div>`);
+        d.on('[data-a="pq-op-ok"]', () => { d.son.tap(); d.closeSheet(); });
+      } else d.toast(txt);
+      lastHud = ''; hud(); renderCartes(true); d.save(); majActivites(true); return r;
+    }
+    function sheetOperation() {
+      const qq = q(), t = now(), e = Q.etatOperation(qq, t), T = TA();
+      if (e && e.finie) { ramasser(true); return; }
+      let corps;
+      if (e) corps = `<div class="pq-op-cours"><b>${esc(e.o.nom)}</b><p>${esc(e.o.desc)}</p><span class="pq-op-barre"><i data-op-barre style="width:${(e.part * 100).toFixed(1)}%"></i></span>
+          <div class="at-infos"><span><small>Fin dans</small><b data-op-chrono>${G.fmtChrono(e.reste / 1000)}</b></span><span><small>Gain promis</small><b>${prix(e.op.gain)}</b></span><span><small>Risque</small><b>${Math.round(e.o.risque * 100)} %</b></span></div>
+          <p class="note">${esc(T.enCours)} : l’opération continue même si tu quittes l’écran ou le jeu. Le gain t’attend ici à ton retour.</p></div>`;
+      else {
+        const ouv = Q.activitesOuvertes(t), f = fen();
+        corps = (ouv ? '' : '<p class="encadre">Les opérations ouvrent demain, à minuit : aujourd’hui, tout le monde part de zéro.</p>') + `<div class="liste-am">${Q.OPERATIONS.map((o) => { const tard = f.reste < o.min * 60e3, ok = ouv && !tard;
+          return `<div class="am pq-op"><div><h3>${esc(o.nom)} <small>${o.min} min</small></h3><p>${esc(o.desc)}</p><p class="pq-op-chiffres">Gain ${prix(Q.gainOperation(qq, o))} · risque ${Math.round(o.risque * 100)} %${tard ? ' · trop tard aujourd’hui' : ''}</p></div><button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-op="${o.id}"><small>Lancer</small><b>${o.min} min</b></button></div>`; }).join('')}</div>
+          <p class="note">Une seule à la fois. Elle tourne même hors de l’écran et pendant ton absence ; le gain est fixé au départ, et un risque (${esc(T.saisie.toLowerCase())}) peut en emporter ${Math.round(Q.SAISIE * 100)} %.</p>`;
+      }
+      d.openSheet(`<div class="pq-sheet ${F.classe}"><div class="pq-palier-tete"><span class="pq-pic">${icoAct('operation')}</span><div><h2>${esc(T.operation)}</h2><p class="sous">${e ? esc(T.enCours) : 'Un coup de 5, 15 ou 60 minutes'}</p></div></div>${corps}
+        <button type="button" class="btn large sombre" data-a="pq-retour" style="margin-top:14px"><b>Retour</b></button></div>`);
+      d.on('[data-op]', (b) => { const r = Q.lancerOperation(q(), b.dataset.op, now()); if (!r.ok) { d.son.non(); d.toast(r.ferme ? 'Les opérations ouvrent demain.' : r.tard ? 'Trop tard : l’événement ferme avant la fin.' : 'Une opération tourne déjà.'); return; }
+        d.son.achat(); d.buzz([10, 30, 10]); d.toast(`${r.o.nom} : c’est parti pour ${r.o.min} min !`); d.save(); majActivites(true); sheetOperation(); });
+      d.on('[data-a="pq-retour"]', () => d.closeSheet());
+    }
+
+    // ─── les contrats de la nuit ───
+    function sheetContrats() {
+      const qq = q(), t = now(), l = Q.etatContrats(qq, t);
+      const lignes = l.length ? l.map((c) => `<div class="pq-ctr${c.reclame ? ' fait' : c.pret ? ' pret' : ''}"><div class="pq-ctr-txt"><b>${esc(c.texte)}</b><span class="pq-ctr-barre"><i style="width:${(c.fait / c.n * 100).toFixed(0)}%"></i></span>
+          <small>${Q.fmt ? Q.fmt(c.fait) : c.fait}/${Q.fmt ? Q.fmt(c.n) : c.n}${c.boost ? ` · + un boost ×${c.boost.mult} de ${G.fmtDuree(c.boost.secs)} pour la boulangerie` : ''}</small></div>
+          ${c.reclame ? '<span class="ok">Réclamé ✓</span>' : `<button type="button" class="btn ${c.pret ? 'menthe' : 'non'}" data-k="${c.k}"><small>${c.pret ? 'Réclamer' : 'En cours'}</small><b>${prix(c.prime)}</b></button>`}</div>`).join('')
+        : '<p class="encadre">Les premiers contrats arrivent demain, à minuit : aujourd’hui, tout le monde part de zéro.</p>';
+      d.openSheet(`<div class="pq-sheet ${F.classe}"><div class="pq-palier-tete"><span class="pq-pic">${icoAct('contrats')}</span><div><h2>Les contrats de la nuit</h2><p class="sous">Trois objectifs du jour, les mêmes pour tout le monde. De nouveaux à minuit.</p></div></div>
+        <div class="pq-ctrs">${lignes}</div><p class="note">Ils se comptent depuis ton premier passage du jour. Chacun se réclame une fois ; la prime suit ton rythme du moment.</p>
+        <button type="button" class="btn large sombre" data-a="pq-retour" style="margin-top:14px"><b>Retour</b></button></div>`);
+      d.on('[data-k]', (b) => { const r = Q.reclamerContrat(q(), +b.dataset.k, now()); if (!r.ok) { d.son.non(); d.toast(r.deja ? 'Déjà réclamé.' : 'Pas encore rempli.'); return; }
+        if (r.boost && typeof G.donnerBoostReserve === 'function') G.donnerBoostReserve(st(), r.boost.mult, r.boost.secs);
+        reussite(`Contrat rempli : +${fmt(r.prime)}${r.boost ? ` et un boost ×${r.boost.mult} en réserve dans la boutique` : ''}`); d.apres(); majActivites(true); sheetContrats(); });
+      d.on('[data-a="pq-retour"]', () => d.closeSheet());
+    }
+
+    // ─── les mini-jeux : la feuille du choix, l'accueil (règles, record, gain), la partie, le résultat ───
+    function ligneGainMini() {
+      const qq = q(), j = Q.jetonsMini(qq, now()), pp = Q.primePleineMini(qq);
+      if (!j.ouvertes) return 'Les parties paient à partir de demain : aujourd’hui, on joue pour le record.';
+      if (j.plafond) return `<b>Plafond du jour atteint</b> (${j.parJour} parties payées, ${prix(j.gains)}) : pour le record jusqu’à minuit.`;
+      if (j.jetons < 1) return `Prochaine partie payée dans <b>${G.fmtDuree(Math.max(60, j.prochain / 1000))}</b> ; d’ici là, pour le record.`;
+      return `<b>${j.jetons} partie${j.jetons > 1 ? 's' : ''} payée${j.jetons > 1 ? 's' : ''}</b> en attente (une de plus toutes les ${Q.MINI.periode} min, ${j.parJour} par jour). Une belle partie rapporte jusqu’à <b>${prix(pp)}</b>.`;
+    }
+    function sheetMini() {
+      const qq = q(), rec = qq.mini.records;
+      d.openSheet(`<div class="pq-sheet ${F.classe}"><div class="pq-palier-tete"><span class="pq-pic">${icoAct('mini')}</span><div><h2>Les mini-jeux</h2><p class="sous">De 30 à 45 secondes ; la boutique continue de tourner.</p></div></div>
+        <p class="pq-act-info">${ligneGainMini()}</p>
+        <div class="pq-jeux">${Q.MINI.jeux.map((g) => `<button type="button" class="pq-jeu" data-jeu="${g.id}"><span class="pq-jeu-ico">${icoAct(g.id)}</span><span class="pq-jeu-txt"><b>${esc(g.nom)}</b><small>${esc(g.desc)}</small><small class="pq-jeu-rec">Record ${rec[g.id] ? Q.fmt(rec[g.id]) : '—'} · ${Math.round(g.duree)} s</small></span></button>`).join('')}</div>
+        <button type="button" class="btn large sombre" data-a="pq-retour" style="margin-top:14px"><b>Retour</b></button></div>`);
+      d.on('[data-jeu]', (b) => { d.son.tap(); d.closeSheet(); ouvrirMini(b.dataset.jeu); });
+      d.on('[data-a="pq-retour"]', () => d.closeSheet());
+    }
+    function enteteMini(t, s, chrono) { mid('titre').textContent = t; mid('sous').textContent = s || ''; mid('chrono').hidden = !chrono; const b = mid('bandeau'); b.hidden = true; b.innerHTML = ''; mid('consigne').textContent = ''; }
+    function pilules(html) { const b = mid('bandeau'); b.hidden = false; if (b.innerHTML !== html) b.innerHTML = html; }
+    function ouvrirMini(jid) {
+      const g = Q.jeuMini(jid); if (!g || !mv) return;
+      arreterMini(); miniJeu = g; miniEcran = 'accueil'; resultatMini = null; mv.hidden = false; mv.dataset.jeu = jid; el.classList.add('en-mini');
+      enteteMini(g.nom, `${TA().mini} · ${F.lieu}`);
+      const rec = q().mini.records[jid];
+      mz.innerHTML = `<div class="at-carte pq-mini-carte"><span class="at-icone">${icoAct(jid)}</span><ol class="at-regles">${(g.regles || []).map((r) => `<li>${esc(r)}</li>`).join('')}</ol>
+        <div class="at-infos"><span><small>Record</small><b>${rec ? Q.fmt(rec) : '—'}</b></span><span><small>Durée</small><b>${Math.round(g.duree)} s</b></span></div>
+        <p class="at-gain">${ligneGainMini()}</p><button type="button" class="btn large beurre" data-mini="jouer"><b>C’est parti !</b></button></div>`;
+      mz.querySelector('[data-mini="jouer"]').addEventListener('click', () => { d.audio(); d.son.tap(); demarrerMini(jid); });
+    }
+    function fermerMini() { arreterMini(); if (mv) { mv.hidden = true; mz.innerHTML = ''; } miniEcran = ''; miniJeu = null; resultatMini = null; if (el) el.classList.remove('en-mini'); majActivites(true); }
+    function arreterMini() { cancelAnimationFrame(rafMini); rafMini = 0; if (partie && partie.fin) partie.fin(); partie = null; }
+    function demarrerMini(jid) {
+      arreterMini(); miniEcran = 'jeu'; mz.innerHTML = ''; horlogeMini = performance.now(); enteteMini(miniJeu.nom, miniJeu.desc, true);
+      const graine = Math.floor(Math.random() * 4294967296) >>> 0, M = Q.MOTEURS[jid];
+      partie = ({ guet: vueGuet, compte: vueCompte, tournee: vueTournee })[jid](M, M.nouveau(graine));
+      const boucle = () => { if (!partie) return; rattraperMini(performance.now()); if (partie && partie.e.fini) { terminerMini(); return; } partie.vue(); rafMini = requestAnimationFrame(boucle); };
+      rafMini = requestAnimationFrame(boucle);
+    }
+    function rattraperMini(t) { // amène la partie jusqu'à l'instant t (ms de performance.now()) par pas de 1/60 s au plus ; un long trou est une pause
+      if (!partie) return; let dt = (t - horlogeMini) / 1000; if (!(dt > 0)) return; horlogeMini = t;
+      if (dt > MTROU) return;
+      while (dt > 1e-6 && partie && !partie.e.fini) { const h = Math.min(MPAS, dt); partie.pas(h); dt -= h; }
+    }
+    const instantMini = (ev) => { const n = performance.now(), t = ev && ev.timeStamp; return Number.isFinite(t) && t > 0 ? Math.min(n, Math.max(horlogeMini, t)) : n; };
+    function terminerMini() {
+      const g = miniJeu, e = partie.e, bilan = partie.bilan(); arreterMini();
+      const qq = q(), r = Q.finirMini(qq, g.id, e.score, d.maintenant()); resultatMini = r; miniEcran = 'resultat'; d.save(); lastHud = ''; hud();
+      if (r.prime > 0 || r.record) { d.son.deblocage(); d.buzz([10, 30, 10]); if (scene3) scene3.fete(); } else d.son.tap();
+      enteteMini(g.nom, 'Partie terminée');
+      const gain = r.prime > 0 ? `<p class="at-prime">+${prix(r.prime)}</p><p class="at-gain">${r.jetons >= 1 && !r.plafond ? `Encore ${r.jetons} partie${r.jetons > 1 ? 's' : ''} payée${r.jetons > 1 ? 's' : ''} en attente.` : 'Les prochaines parties paient quand un jeton revient (toutes les ' + Q.MINI.periode + ' min).'}</p>`
+        : r.ferme ? '<p class="at-gain">Aujourd’hui, pour le record : les parties paient à partir de demain.</p>'
+          : r.pourLeRecord ? `<p class="at-gain"><b>${r.plafond ? 'Plafond du jour atteint' : 'Pas de partie payée en attente'} :</b> le record compte, le gain reviendra ${r.plafond ? 'demain' : 'avec le prochain jeton'}.</p>`
+            : '<p class="at-gain">Pas de gain cette fois : vise un meilleur score.</p>';
+      mz.innerHTML = `<div class="at-carte pq-mini-carte at-resultat${r.record ? ' record' : ''}">${r.record ? '<span class="at-ruban">Nouveau record !</span>' : ''}<span class="at-icone">${icoAct(g.id)}</span>
+        <p class="at-score" data-score="${r.score}">${Q.fmt(r.score)}<small>point${r.score > 1 ? 's' : ''}</small></p><p class="at-bilan">${esc(bilan)}</p>
+        <div class="at-infos"><span><small>Record</small><b>${Q.fmt(qq.mini.records[g.id])}</b></span><span><small>Gagné aujourd’hui</small><b>${prix(qq.mini.gains)}</b></span></div>${gain}
+        <button type="button" class="btn large beurre" data-mini="rejouer"><b>Rejouer</b></button><button type="button" class="btn large clair" data-mini="retour" style="margin-top:8px"><b>Retour</b></button></div>`;
+      const carte = mz.querySelector('.at-resultat'); carte.classList.add('repos'); setTimeout(() => carte.classList.remove('repos'), 600); // les touches en rafale de la fin ne tombent pas sur un bouton
+      mz.querySelector('[data-mini="rejouer"]').addEventListener('click', () => { d.audio(); d.son.tap(); ouvrirMini(g.id); });
+      mz.querySelector('[data-mini="retour"]').addEventListener('click', () => { d.son.tap(); fermerMini(); });
+      majActivites(true);
+    }
+
+    // ─── une toile nette qui remplit son cadre (comme l'Atelier) ; un doigt se lit d'après le rectangle affiché ───
+    function toileMini(parent) {
+      const cv = document.createElement('canvas'); cv.className = 'at-toile'; parent.appendChild(cv);
+      const o = { cv, ctx: cv.getContext('2d'), W: 1, H: 1, k: 1 };
+      o.redim = () => { const k = Math.min(3, window.devicePixelRatio || 1), r = cv.getBoundingClientRect(); o.k = k; o.W = Math.max(1, r.width || parent.clientWidth); o.H = Math.max(1, r.height || parent.clientHeight); cv.width = Math.round(o.W * k); cv.height = Math.round(o.H * k); o.ctx.setTransform(k, 0, 0, k, 0, 0); };
+      o.ajuster = () => { const r = cv.getBoundingClientRect(); if (Math.abs(r.width - o.W) > 0.5 || Math.abs(r.height - o.H) > 0.5) o.redim(); };
+      o.point = (ev) => { const r = cv.getBoundingClientRect(); return [(ev.clientX - r.left) * o.W / (r.width || 1), (ev.clientY - r.top) * o.H / (r.height || 1)]; };
+      o.ecran = (x, y) => { const r = cv.getBoundingClientRect(); return [r.left + x * r.width / o.W, r.top + y * r.height / o.H]; };
+      o.redim(); return o;
+    }
+    const rr = (c, x, y, w, h, r) => { c.beginPath(); c.moveTo(x + r, y); c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r); c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r); c.closePath(); };
+    function mot(c, f, t) { const age = t - f.t0, al = Math.max(0, 1 - Math.max(0, age - 0.5) / 0.5); c.save(); c.globalAlpha = al; c.font = `700 ${f.taille || 22}px Fredoka, Nunito, sans-serif`; c.textAlign = 'center'; c.lineJoin = 'round'; c.lineWidth = 5; c.strokeStyle = 'rgba(0,0,0,.55)'; c.strokeText(f.txt, f.x, f.y - age * 40); c.fillStyle = f.couleur; c.fillText(f.txt, f.x, f.y - age * 40); c.restore(); }
+    const motsVivants = (c, fl, t) => { for (let i = fl.length - 1; i >= 0; i--) { if (t - fl[i].t0 > 1) fl.splice(i, 1); else mot(c, fl[i], t); } };
+    const pill = (nom, v, chaud) => `<span class="at-pill${chaud ? ' chaud' : ''}"><small>${nom}</small><b>${v}</b></span>`;
+
+    // ═══ 1. Le guet : la rue de nuit et la patrouille (le Quartier), le couloir et le petit fantôme (la Maison hantée), des formes neutres sinon ═══
+    function vueGuet(M, e) {
+      const D = DECOR(), T = toileMini(mz), fl = [], R = M.regles; let temps = 0, flash = 0;
+      const geo = () => { const x0 = 26, x1 = T.W - 26, y = Math.round(T.H * 0.68); return { x0, x1, w: x1 - x0, y, X: (u) => x0 + u * (x1 - x0) }; };
+      mid('consigne').textContent = miniJeu.consigne || '';
+      T.cv.addEventListener('pointerdown', (ev) => {
+        ev.preventDefault(); d.audio(); rattraperMini(instantMini(ev)); if (e.fini) return;
+        const g = geo(), x = g.X(e.x), r = M.toucher(e); if (!r) return;
+        if (r.type === 'parfait') { d.son.vente(Math.pow(10, Math.min(6, 1 + r.combo))); d.buzz(r.combo >= 3 ? [10, 30, 10] : 12); flash = temps; fl.push({ txt: r.combo > 1 ? `Parfait ! ×${r.combo}` : 'Parfait !', x, y: g.y - 70, t0: temps, couleur: D.accent2, taille: 26 }); }
+        else if (r.type === 'bon') { d.son.tap(); d.buzz(8); fl.push({ txt: 'Bien !', x, y: g.y - 70, t0: temps, couleur: D.accent }); }
+        else { d.son.non(); d.buzz(30); fl.push({ txt: r.type === 'tot' ? 'Trop tôt !' : 'Trop tard !', x, y: g.y - 70, t0: temps, couleur: '#FF6B8B' }); }
+      });
+      function decor(c, g) {
+        const W = T.W, H = T.H; c.fillStyle = D.fond; c.fillRect(0, 0, W, H);
+        if (D.motif === 'quartier') { // des immeubles, leurs fenêtres allumées, le trottoir, la chaussée
+          for (let k = 0; k < 6; k++) { const bx = k * W / 6 - 6, bh = H * (0.28 + 0.12 * ((k * 7) % 3)), by = g.y - 40 - bh; c.fillStyle = k % 2 ? '#3A3550' : '#433D5C'; c.fillRect(bx, by, W / 6 + 4, bh + 40);
+            for (let r = 0; r < 4; r++) for (let s = 0; s < 2; s++) { const on = ((k * 5 + r * 3 + s) % 4) !== 0; c.fillStyle = on ? 'rgba(255,214,120,.85)' : 'rgba(30,27,38,.8)'; c.fillRect(bx + 10 + s * (W / 12), by + 14 + r * 22, 10, 12); } }
+          c.fillStyle = '#4A4458'; c.fillRect(0, g.y - 40, W, 30); c.fillStyle = D.sol; c.fillRect(0, g.y - 10, W, H - g.y + 10);
+          c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 3; c.setLineDash([18, 14]); c.beginPath(); c.moveTo(0, g.y + 26); c.lineTo(W, g.y + 26); c.stroke(); c.setLineDash([]);
+        } else if (D.motif === 'hantee') { // un couloir violet, des portraits, un tapis
+          c.fillStyle = '#2A2140'; c.fillRect(0, 0, W, g.y - 10); for (let k = 0; k < 4; k++) { const px = 30 + k * (W - 60) / 3.2; c.fillStyle = '#C8A24A'; rr(c, px - 18, H * 0.16, 36, 46, 6); c.fill(); c.fillStyle = '#3E3456'; rr(c, px - 13, H * 0.16 + 5, 26, 36, 4); c.fill(); c.fillStyle = 'rgba(255,255,255,.75)'; c.beginPath(); c.arc(px, H * 0.16 + 22, 7, 0, Math.PI * 2); c.fill(); }
+          c.fillStyle = D.sol; c.fillRect(0, g.y - 10, W, H - g.y + 10); c.fillStyle = '#6B2E4F'; c.fillRect(0, g.y + 8, W, 26);
+        } else { c.fillStyle = D.sol; c.fillRect(0, g.y - 10, W, H - g.y + 10); }
+      }
+      function passant(c, x, y) {
+        if (D.motif === 'quartier') { const bleu = Math.sin(temps * 14) > 0; // la voiture de patrouille, ses gyrophares
+          c.save(); c.translate(x, y); c.scale(1.25, 1.25); c.fillStyle = '#F6F7FB'; c.strokeStyle = '#1E1B26'; c.lineWidth = 2; rr(c, -34, -26, 68, 22, 8); c.fill(); c.stroke(); rr(c, -20, -40, 40, 16, 6); c.fill(); c.stroke();
+          c.fillStyle = '#2B5BD7'; c.fillRect(-34, -18, 68, 6); c.fillStyle = bleu ? '#4FA3FF' : '#FF4D6A'; rr(c, -9, -47, 8, 7, 2); c.fill(); c.fillStyle = bleu ? '#FF4D6A' : '#4FA3FF'; rr(c, 1, -47, 8, 7, 2); c.fill();
+          c.fillStyle = '#1E1B26'; for (const sx of [-20, 20]) { c.beginPath(); c.arc(sx, -4, 7, 0, Math.PI * 2); c.fill(); } c.restore(); return; }
+        if (D.motif === 'hantee') { const fy = y - 34 + Math.sin(temps * 5) * 4; // le petit fantôme, un drap qui flotte
+          c.save(); c.translate(x, fy); c.scale(1.25, 1.25); c.fillStyle = 'rgba(246,238,221,.95)'; c.strokeStyle = '#1E1824'; c.lineWidth = 2; c.beginPath(); c.arc(0, -8, 18, Math.PI, 0); c.lineTo(18, 16);
+          for (let k = 0; k < 4; k++) c.quadraticCurveTo(18 - k * 9 - 4.5, 22 + (k % 2 ? -4 : 4), 18 - (k + 1) * 9, 16); c.closePath(); c.fill(); c.stroke();
+          c.fillStyle = '#1E1824'; c.beginPath(); c.arc(-6, -8, 2.6, 0, Math.PI * 2); c.arc(6, -8, 2.6, 0, Math.PI * 2); c.fill(); c.fillStyle = '#FF9FB2'; c.beginPath(); c.arc(-10, -2, 2.4, 0, Math.PI * 2); c.arc(10, -2, 2.4, 0, Math.PI * 2); c.fill(); c.restore(); return; }
+        c.fillStyle = D.accent2; c.beginPath(); c.arc(x, y - 18, 16, 0, Math.PI * 2); c.fill();
+      }
+      function dessiner() {
+        const c = T.ctx, g = geo(); c.clearRect(0, 0, T.W, T.H); decor(c, g);
+        const cx = g.X(e.cible), large = e.tol * g.w, coeur = e.tol * 0.4 * g.w, actif = e.phase === 'passe';
+        // la lumière (le lampadaire, la lanterne) : un halo ; au sol, la zone et son cœur (le parfait)
+        const hx = cx, hy = g.y - 120;
+        c.fillStyle = D.accent + (actif ? '40' : '22'); c.beginPath(); c.moveTo(hx - 8, hy + 10); c.lineTo(hx + 8, hy + 10); c.lineTo(cx + large, g.y); c.lineTo(cx - large, g.y); c.closePath(); c.fill(); // le cône de lumière
+        const hl = c.createRadialGradient(hx, g.y - 20, 4, hx, g.y - 20, Math.max(40, large * 1.6)); hl.addColorStop(0, D.accent + (actif ? 'AA' : '66')); hl.addColorStop(1, D.accent + '00'); c.fillStyle = hl; c.fillRect(hx - large * 2 - 40, hy - 40, large * 4 + 80, 200);
+        c.strokeStyle = D.motif === 'hantee' ? '#8E5CF7' : '#6E6A80'; c.lineWidth = 4; c.beginPath(); c.moveTo(hx, g.y - 10); c.lineTo(hx, hy); c.lineTo(hx + (D.motif === 'hantee' ? 0 : 14), hy); c.stroke();
+        c.fillStyle = D.accent; c.beginPath(); if (D.motif === 'hantee') { c.arc(hx, hy + 12, 9, 0, Math.PI * 2); } else { c.arc(hx + 14, hy + 6, 7, 0, Math.PI * 2); } c.fill();
+        c.globalAlpha = actif ? 0.55 : 0.25; c.fillStyle = D.accent; rr(c, cx - large, g.y - 6, large * 2, 12, 6); c.fill(); c.globalAlpha = actif ? 0.95 : 0.4; c.fillStyle = D.accent2; rr(c, cx - coeur, g.y - 6, coeur * 2, 12, 6); c.fill(); c.globalAlpha = 1;
+        if (actif || e.phase === 'pause') passant(c, g.X(e.phase === 'passe' ? e.x : e.cible + e.tol), g.y);
+        if (flash && temps - flash < 0.25) { c.fillStyle = `rgba(255,236,170,${0.3 * (1 - (temps - flash) / 0.25)})`; c.fillRect(0, 0, T.W, T.H); }
+        motsVivants(c, fl, temps);
+      }
+      return { T, e, fin: () => {}, bilan: () => { const b = M.bilan(e); return `${b.parfaits} parfait${b.parfaits > 1 ? 's' : ''}, ${b.bons} bien${b.bons > 1 ? 's' : ''}, ${b.rates} raté${b.rates > 1 ? 's' : ''} · meilleur combo ×${b.comboMax}`; },
+        pas(dt) { temps += dt; const r = M.avancer(e, dt); if (r && r.type === 'passe') { d.son.non(); d.buzz(20); const g = geo(); fl.push({ txt: 'Raté !', x: Math.min(T.W - 40, g.X(e.cible + e.tol)), y: g.y - 70, t0: temps, couleur: '#FF6B8B' }); } },
+        vue() { T.ajuster(); mid('chrono').textContent = G.fmtChrono(Math.ceil(Math.max(0, R.duree - e.t))); pilules(pill('Score', Q.fmt(e.score)) + pill('Combo', '×' + e.combo, e.combo > 1) + pill('Record', Q.fmt(q().mini.records.guet || 0))); dessiner(); },
+        etat: () => { const g = geo(), [tx, ty] = T.ecran(g.X(e.cible), g.y - 60); return { jeu: 'guet', phase: e.phase, x: e.x, cible: e.cible, tol: e.tol, vitesse: e.vitesse, t: e.t, score: e.score, combo: e.combo, parfaits: e.parfaits, touche: { x: tx, y: ty } }; } };
+    }
+
+    // ═══ 2. Le compte : les objets sur la table (billets, bonbons…), cachés sous un torchon, puis quatre réponses ═══
+    function vueCompte(M, e) {
+      const D = DECOR(), R = M.regles; let temps = 0, vu = -1;
+      mz.innerHTML = `<div class="pq-compte"><div class="pq-compte-vue"></div><div class="pq-compte-choix" role="group" aria-label="Combien ?"></div></div>`;
+      const vueEl = mz.querySelector('.pq-compte-vue'), choixEl = mz.querySelector('.pq-compte-choix'), T = toileMini(vueEl), fl = [];
+      const majChoix = () => { const cle = `${e.k}|${e.phase}`; if (cle === vu) return; vu = cle; const m = e.manche;
+        choixEl.innerHTML = m.choix.map((v) => `<button type="button" class="pq-compte-btn${e.phase === 'verdict' && v === m.n ? ' juste' : ''}${e.phase === 'verdict' && e.dernier && e.dernier.v === v && !e.dernier.ok ? ' faux' : ''}" data-v="${v}" ${e.phase === 'choix' ? '' : 'disabled'}>${v}</button>`).join('');
+        mid('consigne').textContent = e.phase === 'montre' ? `Regarde bien… (${miniJeu.objets || 'objets'})` : e.phase === 'choix' ? (miniJeu.consigne || 'Combien ?') : e.dernier && e.dernier.ok ? 'Juste !' : `C’était ${m.n}.`; };
+      choixEl.addEventListener('pointerdown', (ev) => { const b = ev.target.closest('[data-v]'); if (!b) return; ev.preventDefault(); d.audio(); rattraperMini(instantMini(ev)); const r = M.repondre(e, b.dataset.v); if (!r) return;
+        if (r.ok) { d.son.vente(Math.pow(10, Math.min(6, r.pts + 1))); d.buzz(12); fl.push({ txt: `+${r.pts}`, x: T.W / 2, y: T.H / 2, t0: temps, couleur: D.accent2, taille: 30 }); } else { d.son.non(); d.buzz(30); } majChoix(); });
+      function objet(c, o, S, ox, oy) {
+        const [x, y, v, a] = o, px = ox + x * S, py = oy + y * S, k = S / 300;
+        c.save(); c.translate(px, py); c.rotate(a); c.scale(k, k);
+        if (D.motif === 'quartier') { c.fillStyle = ['#5FD3A4', '#8FE3C2', '#4DBB8D'][v]; c.strokeStyle = '#1E3B2E'; c.lineWidth = 2; rr(c, -24, -13, 48, 26, 5); c.fill(); c.stroke(); c.strokeStyle = 'rgba(255,255,255,.7)'; c.beginPath(); c.arc(0, 0, 7, 0, Math.PI * 2); c.stroke(); c.fillStyle = '#1E3B2E'; c.font = '700 11px Fredoka, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('€', 0, 1); }
+        else if (D.motif === 'hantee') { const col = ['#FF8A1F', '#8E5CF7', '#7CD992'][v]; c.fillStyle = col; c.strokeStyle = '#1E1824'; c.lineWidth = 2; c.beginPath(); c.moveTo(-14, 0); c.lineTo(-24, -9); c.lineTo(-24, 9); c.closePath(); c.moveTo(14, 0); c.lineTo(24, -9); c.lineTo(24, 9); c.closePath(); c.fill(); c.stroke(); c.beginPath(); c.ellipse(0, 0, 15, 11, 0, 0, Math.PI * 2); c.fill(); c.stroke(); c.strokeStyle = 'rgba(255,255,255,.6)'; c.beginPath(); c.moveTo(-6, -6); c.quadraticCurveTo(0, 0, -6, 6); c.moveTo(4, -7); c.quadraticCurveTo(10, 0, 4, 7); c.stroke(); }
+        else { c.fillStyle = [D.accent, D.accent2, D.clair][v]; c.beginPath(); c.arc(0, 0, 14, 0, Math.PI * 2); c.fill(); }
+        c.restore();
+      }
+      function dessiner() {
+        const c = T.ctx, W = T.W, H = T.H, S = Math.min(W - 20, H - 20), ox = (W - S) / 2, oy = (H - S) / 2; c.clearRect(0, 0, W, H);
+        c.fillStyle = D.fond; c.fillRect(0, 0, W, H); c.fillStyle = D.motif === 'hantee' ? '#3B2A1E' : '#5A4535'; rr(c, ox, oy, S, S, 22); c.fill(); // la table (le Quartier), la marmite renversée (la Maison hantée)
+        c.strokeStyle = 'rgba(255,255,255,.08)'; c.lineWidth = 2; for (let k = 1; k < 6; k++) { c.beginPath(); c.moveTo(ox + 10, oy + k * S / 6); c.lineTo(ox + S - 10, oy + k * S / 6); c.stroke(); }
+        if (e.phase === 'choix') { c.fillStyle = D.motif === 'hantee' ? '#4B2F7A' : '#C9CED6'; rr(c, ox + 10, oy + 10, S - 20, S - 20, 18); c.fill(); c.fillStyle = D.motif === 'hantee' ? D.accent : '#4A4458'; c.font = `700 ${Math.round(S * 0.3)}px Fredoka, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText('?', W / 2, H / 2 + 4); c.textBaseline = 'alphabetic'; }
+        else for (const o of e.manche.objets) objet(c, o, S, ox, oy);
+        if (e.phase === 'montre') { c.fillStyle = D.accent; c.fillRect(ox, oy + S - 6, S * Math.max(0, e.reste) / Math.max(0.01, Math.max(R.montreMin, R.montre - 0.07 * e.k)), 6); }
+        if (e.phase === 'choix') { c.fillStyle = D.accent2; c.fillRect(ox, oy + S - 6, S * Math.max(0, e.reste) / R.choix, 6); }
+        motsVivants(c, fl, temps);
+      }
+      majChoix();
+      return { T, e, fin: () => {}, bilan: () => `${e.bons} bon${e.bons > 1 ? 's' : ''} compte${e.bons > 1 ? 's' : ''}, ${e.rates} raté${e.rates > 1 ? 's' : ''} · meilleure série ${e.serieMax}`,
+        pas(dt) { temps += dt; const r = M.avancer(e, dt); if (r && r.type === 'temps') d.son.non(); },
+        vue() { T.ajuster(); majChoix(); mid('chrono').textContent = G.fmtChrono(Math.ceil(Math.max(0, R.duree - e.t))); pilules(pill('Score', Q.fmt(e.score)) + pill('Série', e.serie, e.serie >= 3) + pill('Record', Q.fmt(q().mini.records.compte || 0))); dessiner(); },
+        etat: () => ({ jeu: 'compte', phase: e.phase, k: e.k, n: e.manche.n, choix: e.manche.choix.slice(), score: e.score, bons: e.bons, rates: e.rates, t: e.t }) };
+    }
+
+    // ═══ 3. La tournée : le plan du quartier et ses portes, le chemin du village et ses citrouilles ; on relie au doigt ═══
+    function vueTournee(M, e) {
+      const D = DECOR(), R = M.regles, T = toileMini(mz), fl = []; let temps = 0, doigt = null, trace = [], k0 = 0;
+      const geo = () => { const S = Math.max(160, Math.min(T.W - 24, T.H - 24)); return { S, ox: (T.W - S) / 2, oy: (T.H - S) / 2 }; };
+      const unite = (x, y) => { const g = geo(); return [(x - g.ox) / g.S, (y - g.oy) / g.S]; };
+      mid('consigne').textContent = miniJeu.consigne || '';
+      const passer = (a, b) => { const avant = e.suivant, r = M.tracer(e, a, b); if (!r) return; const g = geo();
+        for (let k = avant; k < e.suivant && k < e.arrets.length; k++) { const p = e.arrets[k]; fl.push({ txt: '+10', x: g.ox + p[0] * g.S, y: g.oy + p[1] * g.S - 20, t0: temps, couleur: D.accent2 }); }
+        if (r.bouclee) { d.son.vente(1e5); d.buzz([10, 30, 10]); fl.push({ txt: `Bouclée ! +${r.note.bonus}`, x: T.W / 2, y: T.H / 2, t0: temps, couleur: D.accent, taille: 28 }); } else { d.son.tap(); d.buzz(6); } };
+      T.cv.addEventListener('pointerdown', (ev) => { ev.preventDefault(); d.audio(); rattraperMini(instantMini(ev)); if (e.fini || e.phase !== 'trace') return; try { T.cv.setPointerCapture(ev.pointerId); } catch (x) { /* rien */ } T.ajuster(); const [x, y] = T.point(ev), u = unite(x, y); doigt = { id: ev.pointerId, der: u }; trace.push([u]); passer(u, u); });
+      T.cv.addEventListener('pointermove', (ev) => { if (!doigt || ev.pointerId !== doigt.id) return; ev.preventDefault(); rattraperMini(instantMini(ev)); const [x, y] = T.point(ev), u = unite(x, y); if (trace.length) trace[trace.length - 1].push(u); passer(doigt.der, u); doigt.der = u; });
+      const lever = (ev) => { if (doigt && ev.pointerId === doigt.id) doigt = null; };
+      T.cv.addEventListener('pointerup', lever); T.cv.addEventListener('pointercancel', lever);
+      function arret(c, p, n, etat, g) {
+        const x = g.ox + p[0] * g.S, y = g.oy + p[1] * g.S, r = Math.max(14, R.rayon * g.S * 0.75);
+        if (etat === 'suivant') { c.strokeStyle = D.accent; c.lineWidth = 3; c.globalAlpha = 0.5 + 0.5 * Math.abs(Math.sin(temps * 5)); c.beginPath(); c.arc(x, y, r + 7, 0, Math.PI * 2); c.stroke(); c.globalAlpha = 1; }
+        if (D.motif === 'quartier') { c.fillStyle = etat === 'fait' ? D.accent2 : '#8A5A3C'; c.strokeStyle = '#1E1B26'; c.lineWidth = 2; rr(c, x - r * 0.75, y - r, r * 1.5, r * 2, 5); c.fill(); c.stroke(); c.fillStyle = '#FFC84A'; c.beginPath(); c.arc(x + r * 0.4, y + 2, 2.2, 0, Math.PI * 2); c.fill(); }
+        else if (D.motif === 'hantee') { c.fillStyle = etat === 'fait' ? D.accent2 : D.accent; c.strokeStyle = '#1E1824'; c.lineWidth = 2; c.beginPath(); c.ellipse(x, y, r, r * 0.85, 0, 0, Math.PI * 2); c.fill(); c.stroke(); c.strokeStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.moveTo(x, y - r * 0.85); c.lineTo(x, y + r * 0.85); c.stroke(); c.fillStyle = '#5B8C3A'; c.fillRect(x - 2, y - r * 0.85 - 6, 4, 7); }
+        else { c.fillStyle = etat === 'fait' ? D.accent2 : D.accent; c.beginPath(); c.arc(x, y, r, 0, Math.PI * 2); c.fill(); }
+        c.fillStyle = etat === 'fait' ? '#1E1B26' : '#FFF'; c.font = `700 ${Math.round(r * 0.95)}px Fredoka, Nunito, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.lineWidth = 3; c.strokeStyle = 'rgba(0,0,0,.45)'; c.strokeText(String(n), x, y + 1); c.fillText(String(n), x, y + 1); c.textBaseline = 'alphabetic';
+      }
+      function dessiner() {
+        const c = T.ctx, g = geo(), { S, ox, oy } = g; c.clearRect(0, 0, T.W, T.H); c.fillStyle = D.fond; c.fillRect(0, 0, T.W, T.H);
+        if (D.motif === 'quartier') { c.fillStyle = '#433D5C'; rr(c, ox, oy, S, S, 18); c.fill(); c.strokeStyle = D.sol; c.lineWidth = 14; for (let k = 1; k < 4; k++) { c.beginPath(); c.moveTo(ox + k * S / 4, oy + 6); c.lineTo(ox + k * S / 4, oy + S - 6); c.moveTo(ox + 6, oy + k * S / 4); c.lineTo(ox + S - 6, oy + k * S / 4); c.stroke(); } }
+        else if (D.motif === 'hantee') { c.fillStyle = '#24302A'; rr(c, ox, oy, S, S, 18); c.fill(); c.fillStyle = 'rgba(124,217,146,.12)'; for (let k = 0; k < 30; k++) { c.beginPath(); c.arc(ox + ((k * 37) % 100) / 100 * S, oy + ((k * 61) % 100) / 100 * S, 3, 0, Math.PI * 2); c.fill(); } c.fillStyle = '#FFE7A3'; c.beginPath(); c.arc(ox + S - 34, oy + 34, 16, 0, Math.PI * 2); c.fill(); }
+        else { c.fillStyle = D.sol; rr(c, ox, oy, S, S, 18); c.fill(); }
+        // le chemin prévu (pointillés entre les arrêts), puis le trait du doigt
+        c.save(); c.setLineDash([2, 10]); c.lineCap = 'round'; c.strokeStyle = 'rgba(255,255,255,.35)'; c.lineWidth = 4; c.beginPath(); e.arrets.forEach((p, k) => { const x = ox + p[0] * S, y = oy + p[1] * S; if (k) c.lineTo(x, y); else c.moveTo(x, y); }); c.stroke(); c.restore();
+        c.save(); c.lineCap = 'round'; c.lineJoin = 'round'; c.strokeStyle = D.accent; c.lineWidth = 6; for (const t of trace) { if (t.length < 2) continue; c.beginPath(); t.forEach((p, k) => { const x = ox + p[0] * S, y = oy + p[1] * S; if (k) c.lineTo(x, y); else c.moveTo(x, y); }); c.stroke(); } c.restore();
+        e.arrets.forEach((p, k) => arret(c, p, k + 1, k < e.suivant ? 'fait' : k === e.suivant && e.phase === 'trace' ? 'suivant' : '', g));
+        motsVivants(c, fl, temps);
+      }
+      return { T, e, fin: () => {}, bilan: () => `${e.notes.map((n, k) => `tournée ${k + 1} : ${n.arrets}/${R.arrets}${n.bonus ? ` (+${n.bonus})` : ''}`).join(' · ')}`,
+        pas(dt) { temps += dt; const r = M.avancer(e, dt); if (r && r.type === 'tournee' && !r.bouclee) { d.son.non(); fl.push({ txt: 'Le temps !', x: T.W / 2, y: T.H / 2, t0: temps, couleur: '#FF6B8B' }); } if (e.k !== k0) { k0 = e.k; trace = []; doigt = null; } },
+        vue() { T.ajuster(); mid('chrono').textContent = G.fmtChrono(Math.ceil(Math.max(0, e.phase === 'trace' ? e.reste : 0))); pilules(pill('Tournée', `${Math.min(e.k + 1, R.tournees)}/${R.tournees}`) + pill('Score', Q.fmt(e.score)) + pill('Record', Q.fmt(q().mini.records.tournee || 0))); dessiner(); },
+        etat: () => { const g = geo(); return { jeu: 'tournee', phase: e.phase, k: e.k, suivant: e.suivant, score: e.score, arrets: e.arrets.map((p) => T.ecran(g.ox + p[0] * g.S, g.oy + p[1] * g.S)), rayon: R.rayon * g.S }; } };
+    }
+    const etatMini = () => ({ ouvert: miniOuvert(), ecran: miniEcran, jeu: miniJeu && miniJeu.id, partie: partie && partie.etat ? partie.etat() : null, resultat: resultatMini });
+
     return { init, ouvrir, fermer, annoncer, frame, retour, visible, masquer, majeur, bilanEnAttente, synchroniserRecompenses, donnerPalier, sheetPaliers, cle: F.cle, R: Q, F,
+      mini: etatMini, ouvrirMini, fermerMini, sheetMini, sheetContrats, sheetOperation, majActivites,
       fenetre: () => (Q && d ? fen() : null), get ouvert() { return ouvert(); }, get ecran() { return ecran; }, get scene() { return scene3; } };
   }
 

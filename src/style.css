@@ -1051,3 +1051,91 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .card.arriere-carte small { display: block; font-size: 12.5px; color: var(--texte-2); }
 .card.arriere-carte .chev svg { width: 20px; height: 20px; }
 .card.arriere-carte:active { transform: translateY(2px); }
+
+/* ─── les activités des événements (src/activites.js, src/evenement.js) : la barre de trois boutons sous la scène, les mini-jeux en plein
+   écran par-dessus la boutique de l'événement, les feuilles des contrats et de l'opération. Les mêmes pour tous les événements ; la Maison
+   hantée les teinte (--ht-*). ─── */
+.pq-act { flex: 0 0 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 8px 10px 0; }
+.pq-act-btn { position: relative; display: flex; align-items: center; gap: 5px; min-width: 0; min-height: 48px; padding: 6px 6px 6px 5px; border-radius: 16px; background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; color: #FFF7EC; text-align: left; }
+.pq-act-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 #1E1B26; }
+.pq-act-ico { flex: 0 0 auto; display: grid; place-items: center; width: 24px; height: 24px; }
+.pq-act-ico svg { width: 24px; height: 24px; }
+.pq-act-txt { min-width: 0; flex: 1 1 auto; }
+.pq-act-txt b { display: block; font: 700 13.5px/1.1 var(--titre); letter-spacing: -.01em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pq-act-txt small { display: block; margin-top: 2px; font-size: 11px; line-height: 1.1; color: #C7B8FF; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
+.pq-act-btn.pret { box-shadow: 0 3px 0 #1E1B26, inset 0 0 0 2px var(--menthe); }
+.pq-act-btn.pret small { color: #8FE3C2; }
+.pq-act-btn.actif small { color: var(--beurre); font-weight: 800; }
+.pq-pastille { position: absolute; top: -7px; right: -4px; min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--fraise); color: #fff; font: 700 13px/22px var(--titre); font-style: normal; text-align: center; box-shadow: 0 2px 0 var(--fraise-sombre); animation: pulse 1.2s ease-in-out infinite; }
+:is(#planque, #hantee):is([data-ecran="porte"], [data-ecran="bilan"]) .pq-act { display: none; }
+@media (max-width: 359px) { .pq-act { gap: 4px; padding-inline: 8px; } .pq-act-btn { padding: 6px 4px; gap: 3px; } .pq-act-ico, .pq-act-ico svg { width: 18px; height: 18px; } .pq-act-txt b { font-size: 12px; } }
+@media (max-height: 700px) { .pq-act-btn { min-height: 44px; } }
+/* le mini-jeu, par-dessus la boutique (qui continue de tourner dessous) */
+.pq-mini { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; background: #2E2B3A; padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); animation: atEntre .2s ease-out; }
+.pq-mini[hidden] { display: none; }
+.pq-mini .at-chrono { background: var(--beurre); color: #2E2B3A; }
+.pq-mini .at-pill { background: #3F3A50; box-shadow: 0 3px 0 #1E1B26; color: #FFF7EC; }
+.pq-mini .at-pill small { color: #C7B8FF; }
+.pq-mini .at-pill.chaud { background: var(--beurre); color: #2E2B3A; box-shadow: 0 3px 0 var(--beurre-sombre); }
+.pq-mini .at-pill.chaud small { color: #6B4A3A; }
+.pq-mini-consigne { flex: 0 0 auto; margin: 0; padding: 0 14px 6px; min-height: 26px; font: 700 15px/1.3 var(--titre); color: #FFE27A; text-align: center; }
+.pq-mini-zone { position: relative; flex: 1 1 auto; min-height: 0; margin: 0 10px 10px; border-radius: 22px; overflow: hidden; }
+.pq-mini-zone:has(> .at-carte) { overflow-y: auto; border-radius: 0; }
+.pq-mini-zone > .at-carte { margin: 4px 2px 0; }
+.at-carte.pq-mini-carte { background: #FFF7EC; color: var(--texte); }
+.pq-mini-carte .at-icone { background: #EFEAFF; }
+.pq-mini-carte .at-bilan { margin: 4px 0 10px; text-align: center; font-size: 13px; color: var(--texte-2); }
+.pq-mini-carte.repos .btn { pointer-events: none; }
+.pq-compte { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 10px; }
+.pq-compte-vue { position: relative; flex: 1 1 auto; min-height: 0; border-radius: 22px; overflow: hidden; }
+.pq-compte-choix { flex: 0 0 auto; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding-bottom: 4px; }
+.pq-compte-btn { min-height: 64px; border-radius: 18px; background: var(--beurre); color: #2E2B3A; font: 700 28px/1 var(--titre); box-shadow: 0 4px 0 var(--beurre-sombre); font-variant-numeric: tabular-nums; touch-action: manipulation; }
+.pq-compte-btn:disabled { opacity: .5; }
+.pq-compte-btn.juste { background: var(--menthe); box-shadow: 0 4px 0 var(--menthe-sombre); opacity: 1; }
+.pq-compte-btn.faux { background: var(--fraise); color: #fff; box-shadow: 0 4px 0 var(--fraise-sombre); opacity: 1; }
+/* les feuilles : le choix du mini-jeu, les contrats, l'opération */
+.pq-act-info { margin: 0 0 10px; padding: 10px 12px; border-radius: 16px; background: var(--lavande-clair); font-size: 14px; line-height: 1.35; }
+.pq-jeux { display: grid; gap: 8px; }
+.pq-jeu { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 64px; padding: 10px 12px; border-radius: 18px; background: var(--carte); box-shadow: 0 3px 0 var(--gris); color: var(--texte); text-align: left; }
+.pq-jeu:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--gris); }
+.pq-jeu-ico { flex: 0 0 auto; display: grid; place-items: center; width: 52px; height: 52px; border-radius: 16px; background: var(--lavande-clair); }
+.pq-jeu-ico svg { width: 40px; height: 40px; }
+.pq-jeu-txt { min-width: 0; }
+.pq-jeu-txt b { display: block; font: 700 17px/1.15 var(--titre); }
+.pq-jeu-txt small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.3; color: var(--texte-2); }
+.pq-jeu-txt .pq-jeu-rec { font-weight: 800; color: var(--lavande-sombre); }
+.pq-ctrs { display: grid; gap: 8px; }
+.pq-ctr { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 18px; background: var(--carte); box-shadow: 0 3px 0 var(--gris); }
+.pq-ctr-txt { flex: 1 1 auto; min-width: 0; }
+.pq-ctr-txt b { display: block; font: 700 15px/1.25 var(--titre); }
+.pq-ctr-barre { display: block; height: 8px; margin: 6px 0 4px; border-radius: 999px; background: var(--creme); overflow: hidden; }
+.pq-ctr-barre i { display: block; height: 100%; border-radius: 999px; background: var(--menthe); }
+.pq-ctr-txt small { display: block; font-size: 12px; line-height: 1.3; color: var(--texte-2); }
+.pq-ctr .btn { flex: 0 0 auto; min-width: 104px; }
+.pq-ctr.pret { box-shadow: 0 3px 0 var(--menthe-sombre), inset 0 0 0 2px var(--menthe); }
+.pq-ctr.fait { opacity: .65; box-shadow: none; background: #FFFBF4; }
+.pq-op-cours { padding: 12px; border-radius: 18px; background: var(--carte); box-shadow: 0 3px 0 var(--gris); }
+.pq-op-cours > b { display: block; font: 700 17px/1.2 var(--titre); }
+.pq-op-cours > p { margin: 3px 0 0; font-size: 13px; line-height: 1.35; color: var(--texte-2); }
+.pq-op-barre { display: block; height: 10px; margin: 10px 0 12px; border-radius: 999px; background: var(--creme); overflow: hidden; }
+.pq-op-barre i { display: block; height: 100%; border-radius: 999px; background: var(--lavande); transition: width .4s linear; }
+.am.pq-op h3 small { font: 700 12px/1 var(--texte-font); color: var(--lavande-sombre); }
+.am.pq-op .pq-op-chiffres { font-weight: 800; color: var(--texte); }
+.pq-op-gain { text-align: center; margin: 6px 0 10px; }
+@media (max-width: 359px) { .pq-ctr { flex-wrap: wrap; } .pq-ctr .btn { width: 100%; } .pq-compte-btn { min-height: 56px; font-size: 24px; } }
+/* la Maison hantée : violet nuit et orange citrouille */
+#hantee .pq-act-btn { background: var(--ht-carte); box-shadow: 0 3px 0 var(--ht-ombre); }
+#hantee .pq-act-txt small { color: var(--ht-lavande); }
+#hantee .pq-act-btn.pret { box-shadow: 0 3px 0 var(--ht-ombre), inset 0 0 0 2px var(--ht-vert); }
+#hantee .pq-act-btn.actif small { color: var(--ht-orange); }
+#hantee .pq-pastille { background: var(--ht-orange); color: #2A1608; box-shadow: 0 2px 0 var(--ht-orange2); }
+#hantee .pq-mini { background: var(--ht-fond); }
+#hantee .pq-mini .at-chrono { background: var(--ht-orange); color: #2A1608; }
+#hantee .pq-mini .at-pill { background: var(--ht-carte); box-shadow: 0 3px 0 var(--ht-ombre); }
+#hantee .pq-mini .at-pill small { color: var(--ht-lavande); }
+#hantee .pq-mini .at-pill.chaud { background: var(--ht-orange); color: #2A1608; }
+#hantee .pq-mini-consigne { color: #FFC07A; }
+#hantee .pq-compte-btn { background: var(--ht-orange); color: #2A1608; box-shadow: 0 4px 0 var(--ht-orange2); }
+#hantee .pq-compte-btn.juste { background: var(--ht-vert); box-shadow: 0 4px 0 #4FA866; }
+#hantee .pq-mini-carte .at-icone { background: #FFE6D2; }
+.pq-sheet.ht .pq-jeu-ico { background: #FFE6D2; }
