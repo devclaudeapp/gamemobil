@@ -1641,6 +1641,21 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   // ─── les modes ───
   const MODES = {
     arene: { duree: 180, reapparition: 3, scoreVictoire: 25, bots: { min: 3, max: 5, defaut: 4 }, invincible: 1.5, points: { kill: 100, serie3: 50, tete: 25 } },
+    // l'Extraction (8 min) : 1 à 3 humains ensemble (equipes vrai, le défaut) ou chacun pour soi, contre des robots gardiens (leur
+    // nombre suit le niveau, pas le réglage bots) ; coffres à ouvrir (ouverture s, à distance m), deux points d'extraction qui s'ouvrent
+    // à mi-partie (rester duree s dans le cercle de rayon m sans être touché) ; à terre en équipe : relever (duree s à distance m) dans
+    // les delai s ; détail : extraction.js et butin.js
+    extraction: { duree: 480, durees: [300, 480, 720], zone: 'bourg', zones: ['bourg', 'tout'], humains: [1, 3], invincible: 1.5,
+      coffres: { aire: 2500, min: 20, max: 40, ecart: 10 }, ouverture: { duree: 1.2, distance: 1.8, bouge: 0.6 }, ramasser: { duree: 0.5, distance: 1.6 },
+      extraction: { duree: 8, rayon: 10, ouvre: 0.5 }, relever: { duree: 4, distance: 2, delai: 30, vie: 0.3 },
+      gardiens: { facile: { legendaire: 2, epique: 1, rare: 0, patrouilles: 1, max: 10 }, normal: { legendaire: 3, epique: 2, rare: 0.5, patrouilles: 2, max: 14 }, fort: { legendaire: 3, epique: 2, rare: 1, patrouilles: 3, max: 18 }, parHumain: 2, plafond: 24 },
+      formats: ['ensemble', 'equipes', 'chacun'], nEquipes: [2, 3], // ensemble : tous les humains contre les robots ; equipes : 2 ou 3 équipes rivales ; chacun pour soi
+      largage: { decalage: 30, gardes: 2, arrivee: 20, legendaire: 0.4 },                 // la caisse tombe 30 s après l'ouverture des extractions ; 2 gardes 20 s après
+      coffreFort: { duree: 4 },                                                          // il faut la clé (dans un coffre rare ou mieux) ; 4 s pour l'ouvrir
+      boss: { vie: 6, armure: 1, ralenti: 0.3, renforts: 0.5, nRenforts: { facile: 1, normal: 2, fort: 3 }, points: 100 }, // le Gardien : vie × 6, armure pleine, 30 % plus lent ; renforts à 50 %
+      poids: { seuil: 4, parCase: 0.025, max: 0.2 },                                     // au-delà de 4 cases, −2,5 % de vitesse par case, −20 % au plus
+      bruits: { ouvrir: 18, coffreFort: 30, tirSilencieux: 8, tir: 30 },                 // la portée (m) à laquelle les robots entendent
+      prime: { periode: 30, premier: 60, seuil: 150, part: 0.25, min: 25, max: 250 } },  // le plus riche révélé toutes les 30 s ; prime = 25 % de ce qu'il porte, 25 à 250
   };
   // ─── le niveau des bots : temps de réaction (s), erreur de visée (rad, qui se resserre en visant), probabilité de tirer quand la cible est dans le viseur ───
   const BOTS = {
@@ -1658,12 +1673,13 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     vies: { normale: { vie: 100, armureMax: 50 }, unCoup: { vie: 1, armureMax: 0 }, costaud: { vie: 200, armureMax: 100 } },
     reapparitions: { rapide: 3, normale: 6, lente: 10, aucune: -1 },
     manches: [1, 3, 5], // « dernier debout » (réapparition 'aucune') : nombre de manches
+    modes: ['arene', 'extraction'], // les modes jouables (l'ordre des menus)
   };
   // bots : 4 en solo, 0 dans un salon (l'hôte les ajoute) ; manches : lu seulement quand reapparition = 'aucune'
   const DEFAUT_REGLAGES = Object.freeze({
     v: 2, mode: 'arene', zone: 'centre', duree: 180, score: 25, heure: 'jour', meteo: 'clair', equipes: false,
     bots: 4, niveau: 'normal', tirAllie: false, vie: 'normale', reapparition: 'rapide', manches: 3, objets: true, aide: true,
-    armes: Object.freeze(ARMES_ID.slice()),
+    armes: Object.freeze(ARMES_ID.slice()), formatExtraction: 'ensemble', equipesExtraction: 2,
   });
   const DEFAUT_EQUIP = Object.freeze({ p: 'ak74', s: 'p226' });
   const dans = (v, liste, defaut) => (liste.indexOf(v) >= 0 ? v : defaut);
@@ -1686,12 +1702,16 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     let bots = typeof r.bots === 'number' || (typeof r.bots === 'string' && r.bots.trim() !== '') ? Math.round(+r.bots) : D.bots;
     if (!Number.isFinite(bots)) bots = D.bots;
     bots = Math.max(0, Math.min(SALON.max - humains, bots));
+    // l'Extraction : zone 'bourg' par défaut, durée 300 / 480 / 720 s (480 par défaut ; jamais sans limite) ; formatExtraction
+    // ('ensemble' par défaut, 'equipes' : equipesExtraction 2 | 3 équipes rivales, 'chacun' : chacun pour soi) ; equipes = format ≠ 'chacun'
+    const mode = dans(r.mode, SALON.modes, D.mode), X = mode === 'extraction' ? MODES.extraction : null;
     return {
-      v: 2, mode: cle(r.mode, MODES, D.mode), zone: dans(r.zone, SALON.zones, D.zone), duree: n(r.duree, SALON.durees, D.duree), score: n(r.score, SALON.scores, D.score),
-      heure: dans(r.heure, SALON.heures, D.heure), meteo: dans(r.meteo, SALON.meteos, D.meteo), equipes: bool(r.equipes, D.equipes),
+      v: 2, mode, zone: dans(r.zone, SALON.zones, X ? X.zone : D.zone), duree: X ? n(r.duree, X.durees, X.duree) : n(r.duree, SALON.durees, D.duree), score: n(r.score, SALON.scores, D.score),
+      heure: dans(r.heure, SALON.heures, D.heure), meteo: dans(r.meteo, SALON.meteos, D.meteo), equipes: X ? dans(r.formatExtraction, X.formats, 'ensemble') !== 'chacun' : bool(r.equipes, D.equipes),
       bots, niveau: cle(r.niveau, BOTS, D.niveau), tirAllie: bool(r.tirAllie, D.tirAllie), vie: cle(r.vie, SALON.vies, D.vie),
       reapparition: cle(r.reapparition, SALON.reapparitions, D.reapparition), manches: n(r.manches, SALON.manches, D.manches),
       objets: bool(r.objets, D.objets), aide: bool(r.aide, D.aide), armes: armesPermises(r.armes),
+      formatExtraction: dans(r.formatExtraction, MODES.extraction.formats, 'ensemble'), equipesExtraction: n(r.equipesExtraction, MODES.extraction.nEquipes, 2),
     };
   }
   // equipementDe(demande, reglages) → { p, s } : demande { p, s } ou 'm4+m1911' ; une arme non autorisée (ou du mauvais
@@ -3704,6 +3724,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     if (e.posture === 'glisse' || e.vers === 'glisse') return v;
     if (A) { v *= A.vitesse || 1; if (A.visee && e.vise > 0) v *= 1 + ((A.visee.vitesse || 1) - 1) * e.vise; }
     if (e.receptionA > 0) v *= RE.facteur;
+    if (e.ralenti > 0) v *= 1 - Math.min(0.5, e.ralenti); // l'Extraction : le poids du sac (≤ 20 %), le Gardien (lent)
     if (monde) {
       if (dx === undefined) { const l = Math.sqrt(e.vx * e.vx + e.vz * e.vz); if (l > 1e-6) { dx = e.vx / l; dz = e.vz / l; } else { dx = 0; dz = 0; } }
       if (dx || dz) v *= facteurPente(penteLe(monde, e.x, e.z, dx, dz));
@@ -3941,6 +3962,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   else root.PARMES = factory(root.PREGLES, root.PCORPS);
 })(typeof self !== 'undefined' ? self : this, function (REGLES, CORPS) {
   'use strict';
+  const SILENCIEUX = (REGLES.MODES.extraction && REGLES.MODES.extraction.bruits && REGLES.MODES.extraction.bruits.tirSilencieux) || 8; // la portée du bruit d'un tir au silencieux (m)
   const J = REGLES.JOUEUR, P = J.postures;
   const CHANGE_ARME = 0.3;  // historique : le temps de sortir une autre arme (s)
   const KICK = 0.6;         // la part du recul de l'arme qui relève le regard
@@ -4106,7 +4128,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     e.gonfle = Math.min(1, e.gonfle + (A.gonfle != null ? A.gonfle : 0.3));
     e.pitch = borne(e.pitch + (A.recul || 0) * kr * KICK * (0.7 + 0.3 * rnd()), -1.45, 1.45);
     e.yaw = angle(e.yaw + (A.recul || 0) * kr * KICK * 0.35 * (rnd() * 2 - 1));
-    jeu.faireBruit(e, 30);
+    jeu.faireBruit(e, e.silencieux && e.silencieux === e.arme ? SILENCIEUX : 30); // un silencieux (l'Extraction) sur l'arme en main : on l'entend à peine
     for (let i = 0; i < nc; i++) { const c = CIBLES[i]; CIBLES[i] = null; jeu.blesser(c, e, DEGATS[i], TETES[i], A.id, out); }
   }
 
@@ -4199,6 +4221,9 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
      plus 180 ;
    - objets : n = clamp(arrondi(aire joignable / 2500 m²), 4, 16), à plus de 8 m des apparitions et 12 m l'un de l'autre (moins s'il le
      faut) ; types tournants : soin, armure, munitions, puis une arme principale permise (reglages.armes ; à tour de rôle).
+   L'Extraction (reglages.mode === 'extraction') : la même zone que l'Arène (même graine), plus zone.extractions (le pont, la cale de
+   la rivière ; repli : les apparitions les plus éloignées du départ), zone.depart et zone.coffres [[x, z, rareté, special?], …] (voir
+   extraction() plus bas ; PZONES.extraction(carte, monde, nav, zone, rnd, reglages) les ajoute à une zone préparée).
    PZONES.definition(carte, monde, id) → la forme de la limite (le def de PMONDE.limiteDe : du JSON simple) ou null ;
    PZONES.adopter(z, monde) → une zone reçue (limite en def ou déjà construite) prête à jouer ; PZONES.pourReseau(z) → { id, nom, limite:
    def, englobant, apparitions, objets, aire } (JSON, arrondi au cm) ; PZONES.distanceReapparition(z) ; PZONES.IDS, NOMS, JOUEURS.
@@ -4320,6 +4345,8 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     const demande = typeof id === 'string' && IDS.indexOf(id) >= 0 ? id : 'centre';
     const poser = (z) => { if (monde) { monde.limite = z.limite; z.aire = aireJoignable(navDe(monde, nav), z); } return z; }; // la navigation d'abord : monde.libre la lit (même zone partout)
     const repli = (raison) => { const z = centre(carte); z.demande = typeof id === 'string' ? id : demande; z.avertissement = raison; return poser(z); };
+    const ex = reglages && reglages.mode === 'extraction'; // l'Extraction : coffres, points d'extraction et départ en plus (hasard à part)
+    if (ex) { const z = preparer(carte, monde, nav, id, rnd, Object.assign({}, reglages, { mode: 'arene' })); extraction(carte, monde, navDe(monde, nav), z, rnd, reglages); return z; }
     if (demande !== id) return repli(`zone « ${typeof id === 'string' ? id : String(id)} » inconnue : on joue « centre »`);
     if (demande === 'centre') return poser(centre(carte));
     if (!monde) return repli(`zone « ${id} » : il faut le monde pour la préparer : on joue « centre »`);
@@ -4359,6 +4386,141 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     return zone;
   }
 
+  // ─── l'Extraction (mode 'extraction') : les points d'extraction, le départ, les coffres ───
+  // - le pont : le milieu d'un pont de la carte (carte.ponts) dans la zone, joignable (le plus près du centre de la zone s'il y en a
+  //   plusieurs) ; la cale de la rivière : un point de la berge d'une rivière (carte.eau 'riviere'), 2,5 à 6 m hors de l'eau, joignable,
+  //   à clamp(0,6 · rayon englobant, 80, 220) m du pont au mieux (au moins 60 m). 'bourg' (graine 1) : le pont de l'église (74 ; 162) et
+  //   la berge nord du Veyron (≈ 191 ; 179), à 117 m ;
+  // - le départ : l'apparition la plus éloignée des deux points (sans les deux : la plus proche du centre de la zone, et les points
+  //   manquants sont les apparitions les plus éloignées du départ, écartées l'une de l'autre : « Sortie » + la rue la plus proche) ;
+  // - les coffres : n = clamp(arrondi(aire joignable / 2500 m²), 20, 40) (bourg 30, tout 40), joignables, à 10 m l'un de l'autre, à 20 m
+  //   du départ, hors des cercles d'extraction, de préférence contre un mur ; raretés PBUTIN-compatibles (7 % légendaires, au moins un ;
+  //   15 % épiques ; 28 % rares), les plus rares les plus loin du départ ;
+  // - les lieux (zone.lieux : un emplacement propre, sans intérieur pour l'instant) : le coffre-fort (légendaire, verrouillé : il faut la
+  //   clé, cachée dans un coffre rare ou mieux, special 'cle') devant l'hôtel de ville (sinon la banque, la poste ; repli : le légendaire
+  //   le plus loin du départ, « Coffre verrouillé »), et le poste du Gardien (le boss) à 5–10 m ;
+  // - le largage : un point dégagé (zone.largage), à 50 m du départ, 30 m des extractions et 10 m des coffres.
+  // zone.extractions = [{ id: 'pont' | 'cale' | 'sortieN', nom, x, z, rayon }] ; zone.depart = [x, z] ; zone.coffres = [[x, z, rarete,
+  // special? ('coffre-fort' | 'cle')], …] ; zone.lieux = [{ id: 'coffre-fort' | 'gardien', nom, x, z, lieu? }] ; zone.largage = [x, z] | null
+  const EX = REGLES.MODES.extraction || {}, EX_RAYON = (EX.extraction && EX.extraction.rayon) || 10, C = EX.coffres || { aire: 2500, min: 20, max: 40, ecart: 10 };
+  const PARTS = { legendaire: 0.07, epique: 0.15, rare: 0.28 }; // (les mêmes que PBUTIN.PARTS)
+  function berges(carte, ok) { // les points de berge (tous les 4 m, 2,5 à 6 m hors de l'eau) qui conviennent
+    const out = [];
+    for (const e of (carte && carte.eau) || []) {
+      if (!e || e.t !== 'riviere' || !Array.isArray(e.p) || e.p.length < 3) continue;
+      const p = e.p.map((q) => [+q[0], +q[1]]), n = p.length; let aire = 0;
+      for (let i = 0; i < n; i++) { const a = p[i], b = p[(i + 1) % n]; aire += a[0] * b[1] - b[0] * a[1]; }
+      for (let i = 0; i < n; i++) {
+        const a = p[i], b = p[(i + 1) % n], dx = b[0] - a[0], dz = b[1] - a[1], l = Math.sqrt(dx * dx + dz * dz); if (!(l > 0)) continue;
+        let nx = dz / l, nz = -dx / l; if (aire < 0) { nx = -nx; nz = -nz; } // la normale vers la terre
+        for (let t = 0; t < l; t += 4) {
+          const x = a[0] + dx * t / l, z = a[1] + dz * t / l;
+          for (const off of [2.5, 4, 6]) { const q = [r2(x + nx * off), r2(z + nz * off)]; if (ok(q) && !dansPoly(p, q[0], q[1])) { out.push(q); break; } }
+        }
+      }
+    }
+    return out;
+  }
+  function nomVers(carte, zone, p) { // « Sortie » + la rue nommée la plus proche (30 m), sinon le côté de la zone
+    let best = null, bd = 30;
+    for (const r of (carte && carte.rues) || []) {
+      if (!r || typeof r.n !== 'string' || !r.n || !Array.isArray(r.l)) continue;
+      for (let i = 0; i + 1 < r.l.length; i++) { const d = distSeg(r.l[i], r.l[i + 1], p[0], p[1]); if (d < bd) { bd = d; best = r.n; } }
+    }
+    if (best) return 'Sortie ' + best;
+    const c = zone.englobant.centre, dx = p[0] - c[0], dz = p[1] - c[1];
+    return Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? 'Sortie est' : 'Sortie ouest') : (dz > 0 ? 'Sortie sud' : 'Sortie nord');
+  }
+  function distSeg(a, b, x, z) {
+    const ex = b[0] - a[0], ez = b[1] - a[1], l2 = ex * ex + ez * ez;
+    let t = l2 > 0 ? ((x - a[0]) * ex + (z - a[1]) * ez) / l2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+    const dx = x - a[0] - t * ex, dz = z - a[1] - t * ez; return Math.sqrt(dx * dx + dz * dz);
+  }
+  function extraction(carte, monde, nav, zone, rnd0, reglages) {
+    const rnd = REGLES.mulberry32(typeof rnd0 === 'function' ? (rnd0() * 4294967296) >>> 0 : 0x5EC0FF3), lim = zone.limite;
+    const ok = (p, r) => fin(p[0]) && fin(p[1]) && lim.dedans(p[0], p[1]) && (!lim.pres || !lim.pres(p[0], p[1], 1)) && !(monde && monde.bloque(p[0], p[1], r || 1)) && (!nav || nav.accessible(p[0], p[1]));
+    const R = zone.englobant.rayon, C0 = zone.englobant.centre, pts = [];
+    // le pont
+    let pont = null, bp = Infinity;
+    for (const q of (carte && carte.ponts) || []) {
+      if (!q || !Array.isArray(q.l) || q.l.length < 2) continue;
+      const a = q.l[0], b = q.l[q.l.length - 1], m = [r2((+a[0] + +b[0]) / 2), r2((+a[1] + +b[1]) / 2)];
+      if (!ok(m, 0.4)) continue;
+      const d = d2(m, C0); if (d < bp) { bp = d; pont = m; }
+    }
+    if (pont) pts.push({ id: 'pont', nom: 'Le pont', x: pont[0], z: pont[1], rayon: EX_RAYON });
+    // la cale de la rivière
+    const ideal = Math.max(80, Math.min(220, 0.6 * R));
+    let cale = null, bc = Infinity;
+    for (const q of berges(carte, (p) => ok(p, 1))) {
+      const d = pont ? Math.sqrt(d2(q, pont)) : ideal; if (pont && d < 60) continue;
+      const s = Math.abs(d - ideal) + (pont ? 0 : Math.sqrt(d2(q, C0)) * 0.01); if (s < bc) { bc = s; cale = q; }
+    }
+    if (cale) pts.push({ id: 'cale', nom: 'La cale de la rivière', x: cale[0], z: cale[1], rayon: EX_RAYON });
+    // le départ (une apparition joignable)
+    const apps = zone.apparitions.filter((p) => ok(p, 0.6));
+    const dmin = (p) => { let m = Infinity; for (const e of pts) m = Math.min(m, Math.sqrt(d2(p, [e.x, e.z]))); return m; };
+    let depart = null, bd = -Infinity;
+    if (pts.length === 2) { for (const p of apps) { const v = dmin(p); if (v > bd) { bd = v; depart = p; } } }
+    else { for (const p of apps) { const v = -d2(p, C0); if (v > bd) { bd = v; depart = p; } } }
+    if (!depart) { const q = monde ? monde.libre(rnd) : [C0[0], C0[1]]; depart = [r2(q[0]), r2(q[1])]; }
+    // les points manquants : les apparitions les plus éloignées du départ, écartées des autres points
+    for (let k = 0; pts.length < 2 && k < 2; k++) {
+      let best = null, bv = -Infinity;
+      for (const p of apps) { const dd = Math.sqrt(d2(p, depart)); if (pts.length && dmin(p) < Math.max(40, 0.6 * R)) continue; if (dd > bv) { bv = dd; best = p; } }
+      if (!best) for (const p of apps) { const dd = Math.sqrt(d2(p, depart)) + (pts.length ? dmin(p) : 0); if (dd > bv && (!pts.length || dmin(p) > 1)) { bv = dd; best = p; } }
+      if (!best) break;
+      pts.push({ id: 'sortie' + (pts.length + 1), nom: nomVers(carte, zone, best), x: best[0], z: best[1], rayon: EX_RAYON });
+    }
+    // les coffres
+    const aire = zone.aire > 0 ? zone.aire : lim.aire || 0, n = Math.max(C.min, Math.min(C.max, Math.round(aire / C.aire)));
+    const coffres = [], loinDe = (p, e) => coffres.every((q) => d2(p, q) >= e * e);
+    const libreEx = (p) => pts.every((e) => d2(p, [e.x, e.z]) >= (e.rayon + 5) * (e.rayon + 5)) && d2(p, depart) >= 20 * 20;
+    // les lieux : le coffre-fort (devant la mairie, sinon la banque, sinon la poste : le trésor), le Gardien à côté
+    const lieux = [], pres = (c, r0, r1, rr) => { for (let k = 0; k < 300 && monde; k++) { const a = rnd() * 2 * Math.PI, r = r0 + (r1 - r0) * Math.sqrt(rnd()), p = [r2(c[0] + Math.cos(a) * r), r2(c[1] + Math.sin(a) * r)]; if (ok(p, rr || 0.8) && libreEx(p)) return p; } return null; };
+    const LIEUX = [[/^(Hôtel de ville|Mairie)/i, 'mairie', 'Coffre-fort de la mairie'], [/(Crédit|Banque|Caisse d)/i, 'banque', 'Coffre-fort de la banque'], [/^La Poste/i, 'poste', 'Coffre-fort de la poste']];
+    for (const [re, t, nom] of LIEUX) {
+      let c = nomme(carte, re), src = null;
+      if (!c) for (const e of (carte && carte.enseignes) || []) if (e && e.t === t && fin(+e.x) && fin(+e.z)) { c = [+e.x, +e.z]; src = e.n; break; }
+      if (!c || !lim.dedans(c[0], c[1])) continue;
+      const p = pres(c, 3, 15); if (!p) continue;
+      if (!src) for (const n of (carte && carte.noms) || []) if (n && re.test(n.n)) { src = n.n; break; }
+      coffres.push([p[0], p[1], 'legendaire', 'coffre-fort']); lieux.push({ id: 'coffre-fort', nom, x: p[0], z: p[1], lieu: src || null });
+      break;
+    }
+    for (let ecart = C.ecart; coffres.length < n && ecart >= 4; ecart *= 0.75) {
+      for (let essai = 0, rate = 0; coffres.length < n && essai < 6000 && rate < 400; essai++) {
+        const q0 = monde ? monde.libre(rnd) : [C0[0] + (rnd() * 2 - 1) * R, C0[1] + (rnd() * 2 - 1) * R], p = [r2(q0[0]), r2(q0[1])];
+        if (!ok(p, 0.8) || !libreEx(p) || !loinDe(p, ecart)) { rate++; continue; }
+        if (monde && !monde.bloque(p[0], p[1], 3) && rnd() > 0.35) { rate++; continue; } // de préférence contre un mur
+        coffres.push([p[0], p[1], 'commun']); rate = 0;
+      }
+    }
+    // les raretés : les plus rares le plus loin du départ (un peu de hasard)
+    const nl = Math.max(1, Math.round(coffres.length * PARTS.legendaire)), ne = Math.round(coffres.length * PARTS.epique), nr = Math.round(coffres.length * PARTS.rare);
+    const libres = coffres.filter((c) => !c[3]).map((c) => ({ c, d: Math.sqrt(d2(c, depart)) * (0.7 + 0.6 * rnd()) })).sort((a, b) => b.d - a.d);
+    let k = coffres.some((c) => c[3] === 'coffre-fort') ? 1 : 0;
+    for (const o of libres) { o.c[2] = k < nl ? 'legendaire' : k < nl + ne ? 'epique' : k < nl + ne + nr ? 'rare' : 'commun'; k++; }
+    // sans lieu : le légendaire le plus loin du départ devient un coffre verrouillé
+    if (!lieux.length) { const c = libres.length ? libres[0].c : null; if (c) { c[2] = 'legendaire'; c[3] = 'coffre-fort'; lieux.push({ id: 'coffre-fort', nom: 'Coffre verrouillé', x: c[0], z: c[1], lieu: null }); } }
+    const fort = lieux[0];
+    // la clé : dans un coffre rare ou mieux (au hasard, de préférence à 60 m au moins du coffre-fort)
+    if (fort) {
+      const cand = coffres.filter((c) => !c[3] && c[2] !== 'commun'), loin = cand.filter((c) => d2(c, [fort.x, fort.z]) >= 60 * 60), l = loin.length ? loin : cand;
+      if (l.length) l[Math.floor(rnd() * l.length)][3] = 'cle';
+      const g = pres([fort.x, fort.z], 5, 10, 0.6); if (g) lieux.push({ id: 'gardien', nom: 'Le Gardien', x: g[0], z: g[1], lieu: null });
+    }
+    // le largage : un point dégagé, à 50 m du départ, 30 m des extractions, 10 m des coffres
+    let largage = null;
+    for (let essai = 0; essai < 3000 && !largage; essai++) {
+      const q0 = monde ? monde.libre(rnd) : [C0[0] + (rnd() * 2 - 1) * R * 0.7, C0[1] + (rnd() * 2 - 1) * R * 0.7], p = [r2(q0[0]), r2(q0[1])];
+      if (!ok(p, 1) || (monde && monde.bloque(p[0], p[1], essai < 1500 ? 4 : 1.5)) || d2(p, depart) < 50 * 50 || !pts.every((e) => d2(p, [e.x, e.z]) >= 30 * 30) || !coffres.every((c) => d2(p, c) >= 100)) continue;
+      largage = p;
+    }
+    zone.extractions = pts; zone.depart = depart; zone.coffres = coffres; zone.lieux = lieux; zone.largage = largage;
+    return zone;
+  }
+
   // une zone reçue (le message 'lancer', ou passée à PJEU.creer) : la limite reconstruite depuis son def si besoin ; null si inutilisable
   function adopter(z, monde) {
     if (!z || typeof z !== 'object') return null;
@@ -4370,19 +4532,445 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     const out = { id, demande: typeof z.demande === 'string' ? z.demande : id, nom: typeof z.nom === 'string' ? z.nom : NOMS[id], limite, englobant: { centre: limite.centre.slice(), rayon: limite.rayon },
       apparitions: pts(z.apparitions, 2), objets: pts(z.objets, 3), aire: fin(+z.aire) ? +z.aire : limite.aire, joueurs: (JOUEURS[id] || JOUEURS.centre).slice() };
     if (typeof z.avertissement === 'string') out.avertissement = z.avertissement;
+    if (Array.isArray(z.coffres)) out.coffres = z.coffres.filter((c) => Array.isArray(c) && fin(+c[0]) && fin(+c[1]) && typeof c[2] === 'string').map((c) => (typeof c[3] === 'string' ? [+c[0], +c[1], c[2], c[3]] : [+c[0], +c[1], c[2]]));
+    if (Array.isArray(z.extractions)) out.extractions = z.extractions.filter((e) => e && fin(+e.x) && fin(+e.z)).map((e) => ({ id: String(e.id), nom: String(e.nom || ''), x: +e.x, z: +e.z, rayon: fin(+e.rayon) && e.rayon > 0 ? +e.rayon : EX_RAYON }));
+    if (Array.isArray(z.depart) && fin(+z.depart[0]) && fin(+z.depart[1])) out.depart = [+z.depart[0], +z.depart[1]];
+    if (Array.isArray(z.lieux)) out.lieux = z.lieux.filter((l) => l && typeof l.id === 'string' && fin(+l.x) && fin(+l.z)).map((l) => ({ id: l.id, nom: String(l.nom || ''), x: +l.x, z: +l.z, lieu: typeof l.lieu === 'string' ? l.lieu : null }));
+    if (Array.isArray(z.largage) && fin(+z.largage[0]) && fin(+z.largage[1])) out.largage = [+z.largage[0], +z.largage[1]];
     if (monde) { monde.limite = limite; navDe(monde, null); } // la navigation aussi : monde.libre la lit (les caisses du mode tombent au même endroit que chez l'hôte)
     return out;
   }
   // la zone en JSON simple pour le réseau (la limite par son def ; arrondi au cm)
   function pourReseau(z) {
     if (!z || !z.limite) return null;
-    return { id: z.id, nom: z.nom, limite: z.limite.def || z.limite, englobant: { centre: z.englobant.centre.map(r2), rayon: r2(z.englobant.rayon) },
+    const out = { id: z.id, nom: z.nom, limite: z.limite.def || z.limite, englobant: { centre: z.englobant.centre.map(r2), rayon: r2(z.englobant.rayon) },
       apparitions: z.apparitions.map((p) => [r2(p[0]), r2(p[1])]), objets: z.objets.map((o) => [r2(o[0]), r2(o[1]), o[2]]), aire: Math.round(z.aire) };
+    if (z.coffres) out.coffres = z.coffres.map((c) => (c[3] ? [r2(c[0]), r2(c[1]), c[2], c[3]] : [r2(c[0]), r2(c[1]), c[2]])); // l'Extraction
+    if (z.extractions) out.extractions = z.extractions.map((e) => ({ id: e.id, nom: e.nom, x: r2(e.x), z: r2(e.z), rayon: e.rayon }));
+    if (z.depart) out.depart = [r2(z.depart[0]), r2(z.depart[1])];
+    if (z.lieux) out.lieux = z.lieux.map((l) => ({ id: l.id, nom: l.nom, x: r2(l.x), z: r2(l.z), lieu: l.lieu || null }));
+    if (z.extractions) out.largage = z.largage ? [r2(z.largage[0]), r2(z.largage[1])] : null;
+    return out;
   }
   // la distance idéale de réapparition : clamp(0,32 · rayon englobant, 15, 60) m (35 m pour 'centre')
   const distanceReapparition = (z) => Math.max(15, Math.min(60, 0.32 * (z && z.englobant ? z.englobant.rayon : 110)));
 
-  return { preparer, definition, adopter, pourReseau, distanceReapparition, IDS, NOMS, JOUEURS };
+  return { preparer, definition, adopter, pourReseau, distanceReapparition, extraction, IDS, NOMS, JOUEURS };
+});
+
+/* ── butin.js ── */
+/* OPÉRATION PONCIN — le butin et le coffre personnel. Le mode Extraction s'en sert aujourd'hui ; « Défense de Poncin » et « Raid sur
+   les QG robots » s'en serviront ensuite (l'Arène, jamais : elle reste équitable). Module pur (aucun DOM, aucun THREE) : tourne aussi
+   dans Node ; le hasard vient d'un rnd() passé en paramètre (mulberry32).
+   - Les raretés des coffres (commun, rare, épique, légendaire : gris, bleu, violet, or) et leur contenu (munitions, soins, armure, une
+     meilleure arme principale, des objets de valeur aux noms du coin).
+   - Le sac d'une partie : des cases ; il porte des objets de valeur (1 à 3 cases) et des consommables ('soin', 'armure', 'munitions' :
+     1 case), rangés par leur id (sac.objets = ['montre', 'soin', …]).
+   - Le coffre personnel (sauvegarde 'poncin.v2', champ coffre ; format v2 documenté dans src-poncin/ARCHITECTURE.md « Extraction ») :
+     les pièces, les objets de valeur gardés (non vendus), le MATÉRIEL ramené (armes réelles avec leur rareté, armures, soins, munitions),
+     la collection (tout ce qu'on a déjà trouvé), les achats faits dans le catalogue (aujourd'hui les améliorations de l'Extraction,
+     demain les défenses de la base), le record et des compteurs. Toutes les fonctions du coffre sont pures : elles rendent un coffre
+     NEUF (lireCoffre de l'entrée, jamais modifiée).
+   API :
+   RARETES, RARETE[r] = { id, nom, couleur, rang } ; VALEURS[id] = { id, nom, rarete, valeur, cases } ; CONSOMMABLES[id] = { id, nom,
+     cases, prix } ; valeur(id) → pièces (0 pour un consommable) ; nomDe(id) ; tirerContenu(rarete, rnd, { armes, special }) → [{ type:
+     'valeur', id } | { type: 'munitions' | 'soin' | 'armure' | 'silencieux' | 'cle' } | { type: 'arme', arme, rarete }] (special
+     'coffre-fort' : le trésor de la mairie ; 'cle' : la clé du coffre-fort) ;
+     raretes(n) → n raretés (les plus rares d'abord) ;
+   le sac : sacVide(cases) → { cases, objets } ; place(sac) ; tient(sac, id) ; ajouter(sac, id) → bool ; retirer(sac, i) → id | null ;
+     valeurSac(sac), valeurDe(ids), casesDe(ids), consommablesDe(ids) ;
+   le coffre : VERSION (2) ; coffreVide() ; lireCoffre(o) → coffre v2 borné (reprend un coffre v1 { pieces, objets }) ;
+     deposer(coffre, { objets, materiel, score, extrait, primes, zoneSemaine }, { vendre = true }) → { coffre, gain, record, score } : ce
+       qui est sorti d'une partie (objets de valeur vendus contre des pièces, ou gardés avec vendre: false ; primes versées si extrait ;
+       +25 % dans la zone de la semaine ; matériel rangé ; collection et record) — une ligne de PEXTRACTION.resultat().extraction.joueurs ;
+     lister(coffre, filtre?) → [{ ref, type: 'valeur' | 'arme' | 'armure' | 'soin' | 'munitions', id, arme?, rarete, n, nom, prix }]
+       (filtre : un type, ou une fonction) ; prendre(coffre, [{ ref, n }]) → { ok, coffre, pris: [articles] } (sortir pour une partie) ;
+       rendre(coffre, articles) → { coffre } (ce qui revient) ; perdre(coffre, articles) → { coffre } (ce qui est tombé : compté) ;
+       vendre(coffre, ref, n?) → { ok, coffre, gain } ; prixVente(article) ; depenser(coffre, pieces, motif) → { ok, coffre } ;
+     le catalogue : CATALOGUE[nom][id] = { id, nom, texte, prix: [par niveau], effet: [niveau 0, 1, …] } ; ajouterCatalogue(nom, articles) ;
+       niveau(coffre, id, catalogue?) ; prix(coffre, id, catalogue?) → pièces du niveau suivant | null ; acheter(coffre, id, catalogue?)
+       → { ok, coffre, prix, raison: null | 'inconnue' | 'max' | 'pieces' } (catalogue par défaut : 'extraction') ;
+     les améliorations de l'Extraction : AMELIORATIONS (= CATALOGUE.extraction), bornerAmeliorations(a), effets(a) → { cases,
+       ouverture, armure, chargeurs } ; POINTS (éliminations) ; score({ valeur, points, primes }) ;
+   le calendrier (heure de Paris, pur : règle européenne de l'heure d'été) : jourDeParis(ms) → 'AAAA-MM-JJ' ; semaineDeParis(ms) →
+     numéro de la semaine (lundi 0 h) ; zoneDeLaSemaine(ms) → id de zone (rotation parmi ZONES_SEMAINE ; +25 % de pièces : BONUS_SEMAINE) ;
+   les contrats du jour : contratsDuJour(ms | 'AAAA-MM-JJ') → 3 contrats { type: 'ramener' (id) | 'sortie' (point) | 'coffres' (rarete,
+     n) | 'robots' (n) | 'valeur' (x), texte, but, recompense } ; progression(coffre, ligne, ms) → { coffre, avances: [i] } (l'état du
+     jour dans coffre.contrats) ; reclamer(coffre, i, ms) → { ok, coffre, gain }. */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'));
+  else root.PBUTIN = factory(root.PREGLES);
+})(typeof self !== 'undefined' ? self : this, function (REGLES) {
+  'use strict';
+  const fin = (v) => typeof v === 'number' && v - v === 0;
+  const own = (o, k) => typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k);
+
+  // ─── les raretés (la couleur du coffre et de sa lueur) ───
+  const RARETES = ['commun', 'rare', 'epique', 'legendaire'];
+  const RARETE = {
+    commun: { id: 'commun', nom: 'Commun', couleur: '#A7AEB8', rang: 0 },
+    rare: { id: 'rare', nom: 'Rare', couleur: '#4F8DFF', rang: 1 },
+    epique: { id: 'epique', nom: 'Épique', couleur: '#A45CFF', rang: 2 },
+    legendaire: { id: 'legendaire', nom: 'Légendaire', couleur: '#FFC23D', rang: 3 },
+  };
+  // la part de chaque rareté parmi les coffres d'une zone (au moins un légendaire)
+  const PARTS = { legendaire: 0.07, epique: 0.15, rare: 0.28 };
+
+  // ─── les objets de valeur à ramener (noms du coin ; valeur en pièces ; cases prises dans le sac) ───
+  const V = (id, nom, rarete, valeur, cases) => ({ id, nom, rarete, valeur, cases });
+  const LISTE = [
+    V('cartes', 'Cartes postales du vieux Poncin', 'commun', 10, 1),
+    V('cerdon', 'Bouteille de Cerdon', 'commun', 14, 1),
+    V('etain', 'Couverts en étain', 'commun', 16, 1),
+    V('transistor', 'Vieux transistor', 'commun', 18, 1),
+    V('moulin', 'Moulin à café', 'commun', 20, 1),
+    V('montre', 'Montre à gousset', 'rare', 45, 1),
+    V('appareil', 'Appareil photo argentique', 'rare', 55, 1),
+    V('cuivre', 'Bassine en cuivre', 'rare', 50, 2),
+    V('pendule', 'Pendule de cheminée', 'rare', 65, 2),
+    V('bijoux', 'Coffret à bijoux', 'epique', 120, 1),
+    V('jeannette', 'Croix de Savoie en or', 'epique', 140, 1),
+    V('ecus', 'Écus de Savoie', 'epique', 130, 1),
+    V('statuette', 'Statuette de saint Martin', 'epique', 160, 2),
+    V('lingot', 'Lingot d’or', 'legendaire', 320, 2),
+    V('calice', 'Calice en vermeil', 'legendaire', 380, 2),
+    V('tresor', 'Le trésor de la mairie', 'legendaire', 500, 3),
+  ];
+  const VALEURS = Object.create(null); for (const v of LISTE) VALEURS[v.id] = v;
+  const PAR_RARETE = {}; for (const r of RARETES) PAR_RARETE[r] = LISTE.filter((v) => v.rarete === r && v.id !== 'tresor');
+  const valeur = (id) => (own(VALEURS, id) ? VALEURS[id].valeur : 0);
+
+  // ─── le contenu des coffres ───
+  // chaque coffre : des objets de valeur (sa rareté, parfois celle d'en dessous), et des consommables ; les rares et mieux, parfois une
+  // meilleure principale (rare : fusil ou mitraillette ; épique : fusil, mitraillette, pompe ou fusil de précision ; légendaire : toujours)
+  const TABLES = {
+    commun: { valeurs: [1, 1], basse: 0.45, conso: [1, 2], arme: 0, classes: [], silencieux: 0 },
+    rare: { valeurs: [1, 2], basse: 0.4, conso: [1, 2], arme: 0.25, classes: ['fusil', 'mitraillette'], silencieux: 0.15 },
+    epique: { valeurs: [2, 2], basse: 0.35, conso: [1, 2], arme: 0.5, classes: ['fusil', 'mitraillette', 'pompe', 'sniper'], silencieux: 0.3 },
+    legendaire: { valeurs: [2, 3], basse: 0.4, conso: [2, 2], arme: 1, classes: ['sniper', 'fusil'], silencieux: 0.4 },
+  };
+  const CONSOS = ['munitions', 'munitions', 'soin', 'armure']; // les munitions deux fois plus souvent
+  const entre = (rnd, a, b) => a + Math.floor(rnd() * (b - a + 1));
+  function armesPrincipales(armes) {
+    const l = REGLES.armesPermises(Array.isArray(armes) ? armes : null);
+    return l.filter((id) => REGLES.arme(id).role === 'principale');
+  }
+  function tirerContenu(rarete, rnd, o) {
+    if (!own(TABLES, rarete)) rarete = 'commun';
+    if (typeof rnd !== 'function') rnd = REGLES.mulberry32(1);
+    const T = TABLES[rarete], rang = RARETE[rarete].rang, out = [];
+    // les objets de valeur
+    const nV = entre(rnd, T.valeurs[0], T.valeurs[1]);
+    const sp = o && o.special;
+    if (sp === 'coffre-fort' || sp === 'mairie') out.push({ type: 'valeur', id: 'tresor' }); // le coffre-fort : le trésor de la mairie
+    if (sp === 'cle') out.push({ type: 'cle' });                                            // la clé du coffre-fort
+    for (let k = 0; k < nV; k++) {
+      const r = rang > 0 && rnd() < T.basse ? RARETES[rang - 1] : rarete, l = PAR_RARETE[r];
+      out.push({ type: 'valeur', id: l[Math.floor(rnd() * l.length)].id });
+    }
+    // une meilleure principale
+    if (T.arme > 0 && rnd() < T.arme) {
+      const prin = armesPrincipales(o && o.armes), l = prin.filter((id) => T.classes.indexOf(REGLES.arme(id).classe) >= 0), liste = l.length ? l : prin;
+      if (liste.length) out.push({ type: 'arme', arme: liste[Math.floor(rnd() * liste.length)], rarete });
+    }
+    // un silencieux (rare et mieux : il se fixe à l'arme en main)
+    if (T.silencieux > 0 && rnd() < T.silencieux) out.push({ type: 'silencieux' });
+    // les consommables
+    const nC = entre(rnd, T.conso[0], T.conso[1]);
+    for (let k = 0; k < nC; k++) out.push({ type: CONSOS[Math.floor(rnd() * CONSOS.length)] });
+    return out;
+  }
+  // n raretés : au moins un légendaire, puis les parts ; les plus rares d'abord
+  function raretes(n) {
+    n = Math.max(0, Math.round(+n) || 0);
+    const nl = n > 0 ? Math.max(1, Math.round(n * PARTS.legendaire)) : 0, ne = Math.round(n * PARTS.epique), nr = Math.round(n * PARTS.rare), out = [];
+    for (let k = 0; k < n; k++) out.push(k < nl ? 'legendaire' : k < nl + ne ? 'epique' : k < nl + ne + nr ? 'rare' : 'commun');
+    return out;
+  }
+
+
+  // ─── les consommables (dans un coffre, dans le sac, au coffre personnel) ───
+  const CONSOMMABLES = {
+    soin: { id: 'soin', nom: 'Trousse de soin', cases: 1, prix: 10 },
+    armure: { id: 'armure', nom: 'Plaque d’armure', cases: 1, prix: 15 },
+    munitions: { id: 'munitions', nom: 'Caisse de munitions', cases: 1, prix: 8 },
+  };
+  const estConso = (id) => own(CONSOMMABLES, id);
+  const nomDe = (id) => (own(VALEURS, id) ? VALEURS[id].nom : estConso(id) ? CONSOMMABLES[id].nom : REGLES.estArme(id) ? REGLES.arme(id).nom : String(id));
+
+  // ─── le sac : des cases ───
+  const SAC = { cases: 8, max: 16 };
+  const casesDe1 = (id) => (own(VALEURS, id) ? VALEURS[id].cases : estConso(id) ? CONSOMMABLES[id].cases : 1);
+  function sacVide(cases) { return { cases: fin(+cases) ? Math.max(1, Math.min(SAC.max, Math.round(+cases))) : SAC.cases, objets: [] }; }
+  function casesDe(ids) { let n = 0; for (const id of ids || []) n += casesDe1(id); return n; }
+  function valeurDe(ids) { let n = 0; for (const id of ids || []) n += valeur(id); return n; }
+  const consommablesDe = (ids) => (ids || []).filter(estConso);
+  const place = (sac) => (sac ? sac.cases - casesDe(sac.objets) : 0);
+  const tient = (sac, id) => !!sac && (own(VALEURS, id) || estConso(id)) && casesDe1(id) <= place(sac);
+  function ajouter(sac, id) { if (!tient(sac, id)) return false; sac.objets.push(id); return true; }
+  function retirer(sac, i) { if (!sac || !(i >= 0 && i < sac.objets.length)) return null; return sac.objets.splice(i | 0, 1)[0]; }
+  const valeurSac = (sac) => (sac ? valeurDe(sac.objets) : 0);
+
+  // ─── le catalogue : ce qu'on achète avec les pièces (extensible : ajouterCatalogue('defense', { … }) pour la base) ───
+  const CATALOGUE = {
+    extraction: { // les améliorations permanentes de l'Extraction (jamais en Arène)
+      sac: { id: 'sac', nom: 'Sac plus grand', texte: '+2 cases par niveau', prix: [150, 400, 900], effet: [0, 2, 4, 6] },
+      ouverture: { id: 'ouverture', nom: 'Ouverture plus rapide', texte: 'les coffres s’ouvrent plus vite', prix: [120, 350, 800], effet: [1.2, 1.0, 0.85, 0.7] },
+      armure: { id: 'armure', nom: 'Armure de départ', texte: 'on part avec de l’armure', prix: [200, 500, 1000], effet: [0, 15, 30, 50] },
+      chargeur: { id: 'chargeur', nom: 'Deuxième chargeur', texte: 'un chargeur de plus en réserve pour chaque arme', prix: [250], effet: [0, 1] },
+    },
+  };
+  const NOM_CATALOGUE = /^[a-z][a-z0-9-]{0,23}$/;
+  // un catalogue de plus (ou des articles de plus) : { id: { nom, texte, prix: [par niveau], effet: [niveau 0, 1, …] } } ; rend le catalogue
+  function ajouterCatalogue(nom, articles) {
+    if (!NOM_CATALOGUE.test(nom) || !articles || typeof articles !== 'object') return null;
+    const c = own(CATALOGUE, nom) ? CATALOGUE[nom] : (CATALOGUE[nom] = {});
+    for (const id of Object.keys(articles)) {
+      const a = articles[id]; if (!NOM_CATALOGUE.test(id) || !a || !Array.isArray(a.prix) || !a.prix.every((x) => fin(x) && x >= 0)) continue;
+      c[id] = { id, nom: String(a.nom || id), texte: String(a.texte || ''), prix: a.prix.slice(), effet: Array.isArray(a.effet) ? a.effet.slice() : a.prix.map((x, i) => i).concat(a.prix.length) };
+    }
+    return c;
+  }
+  const AMELIORATIONS = CATALOGUE.extraction;
+  const IDS_AMELIORATIONS = Object.keys(AMELIORATIONS);
+  function bornerAmeliorations(a) {
+    const out = {};
+    for (const id of IDS_AMELIORATIONS) { const v = a && typeof a === 'object' ? Math.round(+a[id]) : 0; out[id] = fin(v) ? Math.max(0, Math.min(AMELIORATIONS[id].prix.length, v)) : 0; }
+    return out;
+  }
+  // les effets d'un jeu d'améliorations : cases du sac, durée d'ouverture d'un coffre (s), armure de départ, chargeurs en plus
+  function effets(a) {
+    const b = bornerAmeliorations(a), A = AMELIORATIONS;
+    return { cases: SAC.cases + A.sac.effet[b.sac], ouverture: A.ouverture.effet[b.ouverture], armure: A.armure.effet[b.armure], chargeurs: A.chargeur.effet[b.chargeur] };
+  }
+
+  // ─── le score d'une partie : la valeur extraite, plus les éliminations ───
+  const POINTS = { gardien: 10, joueur: 25 };
+  const score = (r) => Math.max(0, Math.round((r && fin(+r.valeur) ? +r.valeur : 0) + (r && fin(+r.points) ? +r.points : 0) + (r && fin(+r.primes) ? +r.primes : 0)));
+
+  // ─── le calendrier de Paris (pur : UTC+1, UTC+2 du dernier dimanche de mars au dernier dimanche d'octobre, à 1 h UTC) ───
+  function dernierDimanche(an, mois) { const d = new Date(Date.UTC(an, mois + 1, 0)); return Date.UTC(an, mois, d.getUTCDate() - d.getUTCDay(), 1); }
+  function decalageParis(ms) { const an = new Date(ms).getUTCFullYear(); return ms >= dernierDimanche(an, 2) && ms < dernierDimanche(an, 9) ? 2 : 1; }
+  const jourLocal = (ms) => Math.floor((ms + decalageParis(ms) * 3600000) / 86400000); // jours depuis le 1er janvier 1970, à Paris
+  const msDe = (ms) => (fin(+ms) ? +ms : ms instanceof Date ? ms.getTime() : 0);
+  function jourDeParis(ms) { const d = new Date(jourLocal(msDe(ms)) * 86400000); return d.toISOString().slice(0, 10); }
+  const semaineDeParis = (ms) => Math.floor((jourLocal(msDe(ms)) - 4) / 7); // le 5 janvier 1970 était un lundi
+  const ZONES_SEMAINE = ['bourg', 'rivieres', 'tout', 'centre'], BONUS_SEMAINE = 0.25;
+  function zoneDeLaSemaine(ms) { const s = semaineDeParis(ms), n = ZONES_SEMAINE.length; return ZONES_SEMAINE[((s % n) + n) % n]; } // une rotation : chaque zone revient toutes les 4 semaines
+
+  // ─── les contrats du jour (3, tirés de la date de Paris) ───
+  const TYPES_CONTRATS = ['ramener', 'sortie', 'coffres', 'robots', 'valeur'];
+  function contratsDuJour(quand) {
+    const jour = typeof quand === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(quand) ? quand : jourDeParis(quand), rnd = REGLES.mulberry32(REGLES.hash('contrats ' + jour));
+    const types = TYPES_CONTRATS.slice(); for (let i = types.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)), t = types[i]; types[i] = types[j]; types[j] = t; }
+    return types.slice(0, 3).map((type) => {
+      if (type === 'ramener') { const l = LISTE.filter((v) => v.rarete === 'rare' || v.rarete === 'epique'), v = l[Math.floor(rnd() * l.length)]; return { type, id: v.id, but: 1, recompense: v.rarete === 'epique' ? 150 : 100, texte: `Ramener : ${v.nom}` }; }
+      if (type === 'sortie') { const pt = rnd() < 0.5 ? 'pont' : 'cale'; return { type, point: pt, but: 1, recompense: 60, texte: pt === 'pont' ? 'Sortir par le pont' : 'Sortir par la cale de la rivière' }; }
+      if (type === 'coffres') { const ep = rnd() < 0.4, n = ep ? 2 + Math.floor(rnd() * 2) : 4 + Math.floor(rnd() * 3); return { type, rarete: ep ? 'epique' : 'rare', n, but: n, recompense: ep ? 110 : 80, texte: `Ouvrir ${n} coffres ${ep ? 'épiques' : 'rares'} (ou mieux)` }; }
+      if (type === 'robots') { const n = 5 + Math.floor(rnd() * 6); return { type, n, but: n, recompense: 50 + 6 * n, texte: `Éliminer ${n} robots` }; }
+      const x = 150 + 50 * Math.floor(rnd() * 6); return { type: 'valeur', x, but: 1, recompense: Math.round(x * 0.4), texte: `Sortir avec au moins ${x} pièces de valeur` };
+    });
+  }
+  // l'état des contrats du coffre, remis à neuf s'il n'est pas d'aujourd'hui
+  function contratsDe(c, jour) {
+    if (!c.contrats || c.contrats.jour !== jour) c.contrats = { jour, etats: contratsDuJour(jour).map(() => ({ prog: 0, fait: false, reclame: false })) };
+    return c.contrats;
+  }
+  // une partie jouée (une ligne de PEXTRACTION.resultat().extraction.joueurs) fait avancer les contrats du jour
+  function progression(coffre, r, quand) {
+    const c = lireCoffre(coffre), jour = jourDeParis(quand), defs = contratsDuJour(jour), et = contratsDe(c, jour).etats, avances = [];
+    if (!r || typeof r !== 'object') return { coffre: c, avances };
+    const ids = Array.isArray(r.objets) ? r.objets : [], cp = r.coffresPar && typeof r.coffresPar === 'object' ? r.coffresPar : {};
+    defs.forEach((d, i) => {
+      const e = et[i]; if (!e || e.fait) return;
+      let v = 0;
+      if (d.type === 'ramener') v = r.extrait && ids.indexOf(d.id) >= 0 ? 1 : 0;
+      else if (d.type === 'sortie') v = r.extrait && r.point === d.point ? 1 : 0;
+      else if (d.type === 'valeur') v = r.extrait && +r.valeur >= d.x ? 1 : 0;
+      else if (d.type === 'coffres') { for (const k of RARETES) if (RARETE[k].rang >= RARETE[d.rarete].rang) v += entier(cp[k], 999); }
+      else if (d.type === 'robots') v = entier(r.killsRobots, 999);
+      if (v > 0) { e.prog = Math.min(d.but, e.prog + v); if (e.prog >= d.but) e.fait = true; avances.push(i); }
+    });
+    return { coffre: c, avances };
+  }
+  function reclamer(coffre, i, quand) {
+    const c = lireCoffre(coffre), jour = jourDeParis(quand), defs = contratsDuJour(jour), et = contratsDe(c, jour).etats, e = et[i];
+    if (!e || !e.fait || e.reclame) return { ok: false, coffre: c, gain: 0 };
+    e.reclame = true; c.pieces = Math.min(MAX_PIECES, c.pieces + defs[i].recompense);
+    return { ok: true, coffre: c, gain: defs[i].recompense };
+  }
+
+  // ─── le coffre personnel (format v2) ───
+  // { v: 2, pieces, objets: [{ id, n }] (objets de valeur gardés), materiel: [{ ref, type: 'arme' | 'armure' | 'soin' | 'munitions',
+  //   arme? (id réel), rarete, n }] (une arme par entrée, n = 1 ; les consommables empilés par type), collection: [{ id, n }] (déjà
+  //   trouvés), achats: { catalogue: { id: niveau } }, ameliorations (= achats.extraction, bornées), record, parties, extractions,
+  //   perdus (articles perdus en partie), suivant (le prochain numéro de ref) }
+  const VERSION = 2, MAX_PIECES = 1e9, MAX_MATERIEL = 200, MAX_N = 9999;
+  const TYPES_MATERIEL = ['arme', 'armure', 'soin', 'munitions'];
+  const PRIX_ARME = { commun: 20, rare: 40, epique: 80, legendaire: 150 };
+  const entier = (v, max) => (fin(+v) ? Math.max(0, Math.min(max || MAX_PIECES, Math.floor(+v))) : 0);
+  function coffreVide() {
+    return { v: VERSION, pieces: 0, objets: [], materiel: [], collection: [], achats: { extraction: bornerAmeliorations(null) }, ameliorations: bornerAmeliorations(null),
+      record: 0, parties: 0, extractions: 0, perdus: 0, suivant: 1, contrats: null };
+  }
+  const empiler = (l, id, n) => { const x = l.find((y) => y.id === id); if (x) x.n = Math.min(MAX_N, x.n + n); else l.push({ id, n: Math.min(MAX_N, n) }); };
+  const rangValeur = (a, b) => RARETE[VALEURS[b.id].rarete].rang - RARETE[VALEURS[a.id].rarete].rang || VALEURS[b.id].valeur - VALEURS[a.id].valeur || (a.id < b.id ? -1 : 1);
+  // un article de matériel valide (ou null) : { type, arme?, rarete, n }
+  function lireArticle(m) {
+    if (!m || typeof m !== 'object' || TYPES_MATERIEL.indexOf(m.type) < 0) return null;
+    const rarete = own(RARETE, m.rarete) ? m.rarete : 'commun';
+    if (m.type === 'arme') return REGLES.estArme(m.arme) ? { type: 'arme', arme: m.arme, rarete, n: 1 } : null;
+    const n = m.n == null ? 1 : entier(m.n, MAX_N); return n > 0 ? { type: m.type, rarete: 'commun', n } : null;
+  }
+  // ranger un article dans le matériel (les consommables s'empilent)
+  function ranger(c, a) {
+    if (a.type !== 'arme') { const x = c.materiel.find((y) => y.type === a.type); if (x) { x.n = Math.min(MAX_N, x.n + a.n); return; } }
+    if (c.materiel.length >= MAX_MATERIEL) return;
+    const m = { ref: 'm' + c.suivant++, type: a.type, rarete: a.rarete, n: a.n }; if (a.type === 'arme') m.arme = a.arme;
+    c.materiel.push(m);
+  }
+  // la copie bornée de ce qu'on a lu (localStorage) ; un coffre v1 ({ pieces, objets, ameliorations, record… }) est repris tel quel
+  function lireCoffre(o) {
+    const c = coffreVide(); if (!o || typeof o !== 'object') return c;
+    c.pieces = entier(o.pieces); c.record = entier(o.record); c.parties = entier(o.parties); c.extractions = entier(o.extractions); c.perdus = entier(o.perdus);
+    c.suivant = Math.max(1, entier(o.suivant));
+    const achats = o.achats && typeof o.achats === 'object' ? o.achats : {};
+    for (const nom of Object.keys(CATALOGUE)) {
+      const a = achats[nom] && typeof achats[nom] === 'object' ? achats[nom] : nom === 'extraction' ? o.ameliorations : null, out = {};
+      for (const id of Object.keys(CATALOGUE[nom])) { const v = a ? Math.round(+a[id]) : 0; out[id] = fin(v) ? Math.max(0, Math.min(CATALOGUE[nom][id].prix.length, v)) : 0; }
+      c.achats[nom] = out;
+    }
+    for (const nom of Object.keys(achats)) if (!own(c.achats, nom) && NOM_CATALOGUE.test(nom) && achats[nom] && typeof achats[nom] === 'object') { // un catalogue pas encore chargé : gardé tel quel (borné)
+      const out = {}; for (const id of Object.keys(achats[nom]).slice(0, 50)) if (NOM_CATALOGUE.test(id)) out[id] = entier(achats[nom][id], 99); c.achats[nom] = out;
+    }
+    c.ameliorations = Object.assign({}, c.achats.extraction);
+    const v1 = !(o.v >= 2), garder = Array.isArray(o.objets) ? o.objets : [];
+    for (const x of garder) if (x && own(VALEURS, x.id) && entier(x.n, MAX_N) > 0) empiler(v1 ? c.collection : c.objets, x.id, entier(x.n, MAX_N)); // v1 : les objets étaient déjà vendus
+    if (Array.isArray(o.collection)) for (const x of o.collection) if (x && own(VALEURS, x.id) && entier(x.n, MAX_N) > 0) empiler(c.collection, x.id, entier(x.n, MAX_N));
+    c.objets.sort(rangValeur); c.collection.sort(rangValeur);
+    const refs = new Set();
+    if (Array.isArray(o.materiel)) for (const m of o.materiel) {
+      const a = lireArticle(m); if (!a) continue;
+      const ref = typeof m.ref === 'string' && /^m\d{1,9}$/.test(m.ref) && !refs.has(m.ref) ? m.ref : null;
+      if (ref) { const k = +ref.slice(1); if (k >= c.suivant) c.suivant = k + 1; }
+      if (a.type !== 'arme' && c.materiel.some((y) => y.type === a.type)) { ranger(c, a); continue; }
+      if (c.materiel.length >= MAX_MATERIEL) continue;
+      const mm = { ref: ref || '', type: a.type, rarete: a.rarete, n: a.n }; if (a.type === 'arme') mm.arme = a.arme;
+      if (ref) refs.add(ref); c.materiel.push(mm);
+    }
+    for (const m of c.materiel) if (!m.ref) m.ref = 'm' + c.suivant++;
+    const ct = o.contrats; // l'état des contrats du jour (repris tel quel s'il est bien formé)
+    if (ct && typeof ct.jour === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ct.jour) && Array.isArray(ct.etats) && ct.etats.length === 3) {
+      const defs = contratsDuJour(ct.jour);
+      c.contrats = { jour: ct.jour, etats: ct.etats.map((e, i) => { const p = Math.min(defs[i].but, entier(e && e.prog, 999)); return { prog: p, fait: p >= defs[i].but, reclame: !!(e && e.reclame) && p >= defs[i].but }; }) };
+    }
+    return c;
+  }
+  // déposer ce qui est sorti d'une partie : r = { objets: [ids du sac : objets de valeur et consommables], materiel: [{ type, arme?,
+  // rarete, n? }], score, extrait } ; les objets de valeur sont vendus (vendre: true, le défaut) ou gardés ; la collection et le record
+  function deposer(coffre, r, o) {
+    const c = lireCoffre(coffre), vendreV = !(o && o.vendre === false);
+    const ids = r && Array.isArray(r.objets) ? r.objets : [], valeurs = ids.filter((id) => own(VALEURS, id));
+    let gain = 0;
+    for (const id of valeurs) { empiler(c.collection, id, 1); if (vendreV) gain += VALEURS[id].valeur; else empiler(c.objets, id, 1); }
+    if (r && r.extrait && fin(+r.primes) && r.primes > 0) gain += Math.min(10000, Math.round(+r.primes)); // les primes : versées seulement si l'on est sorti
+    if (r && r.zoneSemaine && gain > 0) gain = Math.round(gain * (1 + BONUS_SEMAINE));                // la zone de la semaine : +25 %
+    for (const id of ids) if (estConso(id)) ranger(c, { type: id, rarete: 'commun', n: 1 });
+    if (r && Array.isArray(r.materiel)) for (const m of r.materiel) { const a = lireArticle(m); if (a) ranger(c, a); }
+    c.pieces = Math.min(MAX_PIECES, c.pieces + gain); c.parties++; if (r && r.extrait) c.extractions++;
+    c.objets.sort(rangValeur); c.collection.sort(rangValeur);
+    const s = r && fin(+r.score) ? Math.max(0, Math.round(+r.score)) : valeurDe(valeurs), record = s > c.record;
+    if (record) c.record = s;
+    return { coffre: c, gain, record, score: s };
+  }
+  function prixVente(a) {
+    if (!a) return 0;
+    if (a.type === 'valeur') return valeur(a.id);
+    if (a.type === 'arme') return PRIX_ARME[a.rarete] || PRIX_ARME.commun;
+    return estConso(a.type) ? CONSOMMABLES[a.type].prix : 0;
+  }
+  // la liste du coffre (objets de valeur gardés, puis matériel) ; ref : 'v:<id>' pour un objet de valeur, 'm<n>' pour le matériel
+  function lister(coffre, filtre) {
+    const c = lireCoffre(coffre), out = [];
+    for (const x of c.objets) out.push({ ref: 'v:' + x.id, type: 'valeur', id: x.id, rarete: VALEURS[x.id].rarete, n: x.n, nom: VALEURS[x.id].nom, prix: VALEURS[x.id].valeur });
+    for (const m of c.materiel) {
+      const a = { ref: m.ref, type: m.type, id: m.type === 'arme' ? m.arme : m.type, rarete: m.rarete, n: m.n, nom: nomDe(m.type === 'arme' ? m.arme : m.type) };
+      if (m.type === 'arme') a.arme = m.arme; a.prix = prixVente(a); out.push(a);
+    }
+    return typeof filtre === 'function' ? out.filter(filtre) : typeof filtre === 'string' ? out.filter((a) => a.type === filtre) : out;
+  }
+  // retirer n exemplaires d'une ref ; rend l'article retiré (ou null)
+  function oter(c, ref, n) {
+    n = n == null ? 1 : entier(n, MAX_N); if (n <= 0 || typeof ref !== 'string') return null;
+    if (ref.slice(0, 2) === 'v:') {
+      const id = ref.slice(2), x = c.objets.find((y) => y.id === id); if (!x || x.n < n) return null;
+      x.n -= n; if (!x.n) c.objets.splice(c.objets.indexOf(x), 1);
+      return { type: 'valeur', id, rarete: VALEURS[id].rarete, n };
+    }
+    const i = c.materiel.findIndex((m) => m.ref === ref); if (i < 0) return null;
+    const m = c.materiel[i]; if (m.n < n) return null;
+    m.n -= n; if (!m.n) c.materiel.splice(i, 1);
+    const a = { type: m.type, rarete: m.rarete, n, ref: m.ref }; if (m.type === 'arme') a.arme = m.arme;
+    return a;
+  }
+  // sortir du coffre pour une partie (tout ou rien) : demandes = [{ ref, n? }] → pris = [articles { type, id? | arme?, rarete, n, ref }]
+  function prendre(coffre, demandes) {
+    const c = lireCoffre(coffre), pris = [];
+    for (const d of Array.isArray(demandes) ? demandes : []) { const a = oter(c, d && d.ref, d && d.n); if (!a) return { ok: false, coffre: lireCoffre(coffre), pris: [] }; pris.push(a); }
+    return { ok: true, coffre: c, pris };
+  }
+  // ce qui revient d'une partie (des articles pris, ou trouvés) : rangé de nouveau
+  function rendre(coffre, articles) {
+    const c = lireCoffre(coffre);
+    for (const a of Array.isArray(articles) ? articles : []) {
+      if (a && a.type === 'valeur' && own(VALEURS, a.id)) empiler(c.objets, a.id, Math.max(1, entier(a.n == null ? 1 : a.n, MAX_N)));
+      else { const b = lireArticle(a); if (b) ranger(c, b); }
+    }
+    c.objets.sort(rangValeur);
+    return { coffre: c };
+  }
+  // ce qui est tombé en partie (déjà sorti du coffre par prendre) : seulement compté
+  function perdre(coffre, articles) {
+    const c = lireCoffre(coffre); let n = 0;
+    for (const a of Array.isArray(articles) ? articles : []) if (a && typeof a === 'object') n += a.type === 'arme' ? 1 : Math.max(1, entier(a.n == null ? 1 : a.n, MAX_N));
+    c.perdus = entier(c.perdus + n); return { coffre: c, n };
+  }
+  function vendre(coffre, ref, n) {
+    const c = lireCoffre(coffre), a = oter(c, ref, n);
+    if (!a) return { ok: false, coffre: lireCoffre(coffre), gain: 0 };
+    const gain = prixVente(a) * (a.type === 'arme' ? 1 : a.n);
+    c.pieces = Math.min(MAX_PIECES, c.pieces + gain);
+    return { ok: true, coffre: c, gain };
+  }
+  function depenser(coffre, pieces, motif) {
+    const c = lireCoffre(coffre), p = entier(pieces);
+    if (!(fin(+pieces) && +pieces >= 0) || c.pieces < p) return { ok: false, coffre: c, motif: motif || null };
+    c.pieces -= p; return { ok: true, coffre: c, motif: motif || null };
+  }
+  const cat = (nom) => (typeof nom === 'string' && own(CATALOGUE, nom) ? nom : 'extraction');
+  function niveau(coffre, id, catalogue) { const c = lireCoffre(coffre), n = cat(catalogue); return own(CATALOGUE[n], id) ? c.achats[n][id] | 0 : 0; }
+  function prix(coffre, id, catalogue) {
+    const n = cat(catalogue); if (!own(CATALOGUE[n], id)) return null;
+    const niv = niveau(coffre, id, n), P = CATALOGUE[n][id].prix;
+    return niv < P.length ? P[niv] : null;
+  }
+  function acheter(coffre, id, catalogue) {
+    const c = lireCoffre(coffre), n = cat(catalogue);
+    if (!own(CATALOGUE[n], id)) return { ok: false, coffre: c, prix: null, raison: 'inconnue' };
+    const p = prix(c, id, n);
+    if (p == null) return { ok: false, coffre: c, prix: null, raison: 'max' };
+    if (c.pieces < p) return { ok: false, coffre: c, prix: p, raison: 'pieces' };
+    c.pieces -= p; c.achats[n][id] = (c.achats[n][id] | 0) + 1; c.ameliorations = Object.assign({}, c.achats.extraction);
+    return { ok: true, coffre: c, prix: p, raison: null };
+  }
+
+  return {
+    RARETES, RARETE, PARTS, VALEURS, LISTE, CONSOMMABLES, TABLES, valeur, nomDe, tirerContenu, raretes, armesPrincipales,
+    SAC, sacVide, casesDe, valeurDe, consommablesDe, place, tient, ajouter, retirer, valeurSac,
+    CATALOGUE, ajouterCatalogue, AMELIORATIONS, IDS_AMELIORATIONS, bornerAmeliorations, effets, POINTS, score,
+    jourDeParis, semaineDeParis, zoneDeLaSemaine, ZONES_SEMAINE, BONUS_SEMAINE, TYPES_CONTRATS, contratsDuJour, progression, reclamer,
+    VERSION, TYPES_MATERIEL, PRIX_ARME, coffreVide, lireCoffre, deposer, lister, prendre, rendre, perdre, vendre, prixVente, depenser, niveau, prix, acheter,
+  };
 });
 
 /* ── bots.js ── */
@@ -4406,6 +4994,10 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
    fusil de précision (« fort ») ; passe à la secondaire quand la principale est vide ou ne convient pas à la distance ; recharge à
    l'abri, accroupi), fuite vers un soin sous 25 % de vie. Jamais coincé : s'il voulait avancer et n'a presque pas bougé en une seconde, il saute, se dégage de côté et refait son
    chemin ; trois fois de suite, il change de but. Les requêtes de chemin passent par jeu.budgetNav (2 par image pour tous les bots).
+   Gardien (mode Extraction : bot.garde = { x, z, cx, cz, laisse, ronde, depart }) : hors combat, il tient son poste (y revient, guette
+   en balayant du regard le côté opposé à ce qu'il garde) ou marche sa ronde (une pause à chaque point) ; il ne va jamais « flairer »
+   les joueurs ni chercher d'objets ; il chasse jusqu'à sa laisse (m de son poste), puis y retourne ; en combat, il n'avance plus au-delà
+   de la laisse + 10 m.
    L'état du robot est rangé dans bot.ia (et son entrée, réutilisée d'une image à l'autre). Module pur (aucun DOM, aucun THREE).
    Voir src-poncin/ARCHITECTURE.md. */
 (function (root, factory) {
@@ -4693,6 +5285,34 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     return d;
   }
 
+  // ─── un gardien (l'Extraction) hors combat : sa ronde (marche d'un point à l'autre, une pause à chacun), ou son poste (il y revient,
+  // puis guette en balayant du regard le côté opposé à ce qu'il garde) ; rend vrai s'il dirige lui-même son regard ───
+  function garder(bot, ia, jeu, g, rnd, en, dt, niv) {
+    const T = jeu.temps;
+    if (ia.ronde == null) { ia.ronde = g.depart | 0; ia.pauseA = 0; }
+    if (g.ronde) {
+      const p = g.ronde[ia.ronde % g.ronde.length];
+      if (T < ia.pauseA) { ia.chemin = null; return false; }
+      if ((bot.x - p[0]) ** 2 + (bot.z - p[1]) ** 2 < 2.5 * 2.5) { ia.ronde++; ia.pauseA = T + 0.8 + 1.5 * rnd(); ia.chemin = null; ia.veut = false; return false; }
+      if (!ia.chemin && !ia.veut) demander(bot, ia, jeu, p[0], p[1]); else if (ia.veut) demander(bot, ia, jeu, ia.butX, ia.butZ);
+      ia.but = 'ronde';
+      if (suivre(bot, ia, jeu)) { ia.ronde++; ia.pauseA = T + 0.8 + 1.5 * rnd(); }
+      if (ia.chemin && reste(bot, ia) > 25) en.course = true; else ia.vit = 0.75; // il marche sa ronde (court s'il l'a perdue de loin)
+      return false;
+    }
+    const dp2 = (bot.x - g.x) ** 2 + (bot.z - g.z) ** 2;
+    if (dp2 > 2.5 * 2.5) {
+      if (!ia.chemin && !ia.veut) demander(bot, ia, jeu, g.x, g.z); else if (ia.veut) demander(bot, ia, jeu, ia.butX, ia.butZ);
+      ia.but = 'poste'; suivre(bot, ia, jeu);
+      if (ia.chemin && reste(bot, ia) > 15) en.course = true;
+      return false;
+    }
+    ia.chemin = null; ia.veut = false; ia.but = 'poste';
+    if (T >= ia.regardA) { ia.regardA = T + 2 + 2.5 * rnd(); ia.regard = Math.atan2(-(g.x - g.cx), -(g.z - g.cz)) + (rnd() * 2 - 1) * 1.3; }
+    tourner(bot, en, ia.regard, -0.03, Math.min(niv.vise, 3) * 0.5, dt);
+    return true;
+  }
+
   // ─── l'entrée de l'image ───
   function penser(bot, jeu, dt, rnd) {
     let ia = bot.ia;
@@ -4706,6 +5326,10 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     if (T >= ia.percoA) { ia.percoA = T + PERCEPTION; percevoir(bot, ia, jeu, niv, rnd); }
     if (ia.cible && !ia.cible.vivant) { ia.cible = null; ia.vuA = -1e9; }
     const voit = !!ia.cible && T - ia.vuA < 0.35;
+    const g = bot.garde && typeof bot.garde === 'object' ? bot.garde : null; // un gardien (l'Extraction) : son poste, sa laisse, sa ronde
+    if (g && !voit && (bot.x - g.x) ** 2 + (bot.z - g.z) ** 2 > g.laisse * g.laisse && (ia.cible || T - ia.alerteA < MEMOIRE)) { // trop loin de son poste : il y retourne
+      ia.cible = null; ia.vuA = -1e9; ia.alerteA = -1e9; ia.fouilleA = -1; ia.chemin = null; ia.veut = false; ia.but = '';
+    }
 
     // ─── l'état ───
     if (ia.etat === 'fuite' && (pv(bot, jeu) >= VIE_RASSURE || T - ia.fuiteA > 9)) { ia.pasDeFuiteAvant = T + 8; ia.etat = ''; }
@@ -4723,7 +5347,11 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     let regarde = true; // regarder là où l'on marche (sauf en combat)
     ia.vit = 1; ia.mx = 0; ia.mz = 0;
 
-    if (etat === 'patrouille') {
+    if (etat === 'patrouille' && g) {
+      if (garder(bot, ia, jeu, g, rnd, en, dt, niv)) regarde = false;
+      emplacement(bot, ia, T, -1, en);
+      if (mun < A.chargeur * 0.5 && !bot.enRecharge) en.recharge = true;
+    } else if (etat === 'patrouille') {
       if (!ia.chemin && !ia.veut) { const p = choisirBut(bot, ia, jeu, rnd); demander(bot, ia, jeu, p[0], p[1]); }
       else if (ia.veut) demander(bot, ia, jeu, ia.butX, ia.butZ);
       if (ia.but === 'objet' && ia.butObjet && !ia.butObjet.dispo) { ia.chemin = null; ia.veut = false; } // quelqu'un l'a pris
@@ -4785,6 +5413,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
           if (T >= ia.strafeA) { ia.strafeA = T + 0.5 + 1.1 * rnd(); const r = rnd(); ia.strafe = r < 0.15 ? 0 : r < 0.575 ? -1 : 1; ia.derive = (rnd() * 2 - 1) * 0.3; }
           let radial = d > bande[1] ? 1 : d < bande[0] ? -1 : ia.derive;
           if (bot.enRecharge) radial = -0.8; // pas d'abri : on recule en rechargeant
+          if (g && radial > 0 && (bot.x - g.x) ** 2 + (bot.z - g.z) ** 2 > (g.laisse + 10) * (g.laisse + 10)) radial = 0; // un gardien ne s'éloigne pas plus de son poste
           let strafe = ia.strafe;
           if (cl === 'sniper' && !bot.enRecharge) { // le fusil de précision se tire posé : immobile, accroupi (couché « fort », de loin, s'il n'est pas pris pour cible)
             strafe = 0; if (radial > 0 && d < bande[1] * 1.3) radial = 0; if (radial < 0 && d > 10) radial = 0;
@@ -4880,7 +5509,12 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
    - params.robots (ou options.robots) : [{ id, nom, couleur, equipe, equip, niveau }], les robots listés par l'hôte (message 'lancer') :
      le mode les ajoute tels quels au lieu de les tirer au sort ;
    - jeu.duree (0 : sans limite, jeu.reste undefined), jeu.debutChrono (le chrono d'une manche part de là), jeu.manche (« dernier
-     debout », PARENE) ; crochet de mode apresNav(jeu), appelé une fois la navigation construite. */
+     debout », PARENE) ; crochet de mode apresNav(jeu), appelé une fois la navigation construite.
+   L'Extraction (PEXTRACTION, extraction.js) : crochets de mode facultatifs nouveau(jeu, e, d) (dans ajouterJoueur, avant la première
+   apparition : camp, sac, améliorations d.ameliorations, poste du gardien d.garde), place(jeu, e) (à la fin de chaque placer), agir(jeu,
+   e, en, dt, evs) (après l'entrée de chaque humain vivant : en.lacher, utiliser, lampe, signal), trier(a, b) (le classement) ;
+   jeu.humains (le nombre d'humains annoncé) ; jeu.maintenant (params.maintenant : l'heure réelle en ms, la zone de la semaine) ; un objet du mode marqué unique ne revient pas une fois pris ; drapeaux 2048 (à terre) et 4096 (extrait) de l'instantané ;
+   robots listés jusqu'au plafond des gardiens (MODES.extraction.gardiens.plafond). */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'), require('./nav.js'), require('./bots.js'), require('./corps.js'), require('./armes.js'), require('./zones.js'));
   else root.PJEU = factory(root.PREGLES, root.PNAV, root.PBOTS, root.PCORPS, root.PARMES, root.PZONES);
@@ -4953,7 +5587,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   // { t, e: [[id, x, y, z, yaw, pitch, vie, armure, drapeaux, arme, kills, morts, points (+ pour les humains : p, s, mP, rP, mS, rS,
   // recharge, ack)], …], o, r, f }
   // drapeaux : 1 vivant, 2 au sol, 4 accroupi (posture ≠ debout), 8 invincible, 16 en recharge, 32 couché (posture visée), 64 glissade,
-  // 128 course, 256 vise ≥ 0,5, 512 en transition, 1024 lampe ; arme : l'arme en main, indice dans ARMES_ID ; p, s : les armes des deux
+  // 128 course, 256 vise ≥ 0,5, 512 en transition, 1024 lampe, 2048 à terre (l'Extraction : attend d'être relevé), 4096 extrait ; arme : l'arme en main, indice dans ARMES_ID ; p, s : les armes des deux
   // emplacements (indices ; p peut être une arme ramassée) ; mP / rP, mS / rS : munitions et réserve de chacune ; recharge : secondes
   // restantes ; ack : numéro de la dernière entrée appliquée (réseau) ; o : '1' / '0' par objet du mode (disponible) ; r : reste (s).
   // ARMES_ID : l'ordre du réseau (PREGLES.ARMES_ID, reparti à zéro avec la VERSION 2 du réseau, puis ne fait que s'allonger)
@@ -4962,7 +5596,8 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   const idx = (id) => Math.max(0, ARMES_ID.indexOf(id));
   function drapeaux(e) {
     return (e.vivant ? 1 : 0) | (e.auSol ? 2 : 0) | (e.accroupi ? 4 : 0) | (e.invincible > 0 ? 8 : 0) | (e.enRecharge ? 16 : 0) |
-      (e.vers === 'couche' ? 32 : 0) | (e.vers === 'glisse' ? 64 : 0) | (e.course ? 128 : 0) | (e.vise >= 0.5 ? 256 : 0) | (e.transition > 0 ? 512 : 0) | (e.lampe ? 1024 : 0);
+      (e.vers === 'couche' ? 32 : 0) | (e.vers === 'glisse' ? 64 : 0) | (e.course ? 128 : 0) | (e.vise >= 0.5 ? 256 : 0) | (e.transition > 0 ? 512 : 0) | (e.lampe ? 1024 : 0) |
+      (e.aTerre ? 2048 : 0) | (e.extrait ? 4096 : 0);
   }
   function ligneDe(e, temps, ack) {
     const l = [e.id, r2(e.x), r2(e.y), r2(e.z), r3(e.yaw), r3(e.pitch), Math.max(0, Math.round(e.vie)), Math.round(e.armure), drapeaux(e), idx(e.arme), e.score.kills, e.score.morts, e.score.points];
@@ -4988,6 +5623,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       const vers = fl & 32 ? 'couche' : fl & 64 ? 'glisse' : fl & 4 ? 'accroupi' : 'debout';
       e.corpsV2 = true; e.posture = e.vers = vers; e.transition = 0; e.accroupi = vers !== 'debout';
       e.oeil = PO[vers].oeil; e.hautCapsule = PO[vers].haut; e.course = !!(fl & 128); e.vise = fl & 256 ? 1 : 0; e.enTransition = !!(fl & 512); e.lampe = !!(fl & 1024);
+      if (fl & 6144 || e.aTerre || e.extrait) { e.aTerre = !!(fl & 2048); e.extrait = !!(fl & 4096); } // l'Extraction : à terre, extrait
       if (saut) { e.ax = e.x; e.ay = e.y; e.az = e.z; e.aoeil = e.oeil; }
       e.arme = ARMES_ID[l[9] | 0] || REGLES.DEFAUT_EQUIP.p;
       if (e.armes) { const s = e.armes.indexOf(e.arme); if (s >= 0) e.slot = s; }
@@ -5018,20 +5654,21 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     // les options = les réglages normalisés (§ 6) : déjà normalisés par ui.js / enligne.js, normalisés encore ici (idempotent)
     const humains = fini(+params.humains) ? Math.max(0, Math.min(REGLES.SALON.max, Math.round(+params.humains))) : 0;
     const options = REGLES.normaliserReglages(o, { humains });
-    // les robots listés par l'hôte ('lancer') : tels quels (6 au plus)
+    const mode = params.mode && typeof params.mode === 'object' ? params.mode : MODE_LIBRE;
+    const reglesMode = REGLES.MODES[mode.id] || REGLES.MODES.arene;
+    // les robots listés par l'hôte ('lancer') : tels quels (6 au plus ; les gardiens de l'Extraction : leur plafond)
     let robots = Array.isArray(params.robots) ? params.robots : Array.isArray(o.robots) ? o.robots : null;
-    if (robots) { robots = robots.filter((r) => r && typeof r === 'object').slice(0, REGLES.SALON.max); options.bots = robots.length; }
+    const maxRobots = reglesMode.gardiens && reglesMode.gardiens.plafond > 0 ? reglesMode.gardiens.plafond : REGLES.SALON.max;
+    if (robots) { robots = robots.filter((r) => r && typeof r === 'object').slice(0, maxRobots); options.bots = robots.length; }
     const vies = REGLES.SALON.vies[options.vie] || REGLES.SALON.vies.normale, vis = visibiliteDe(options.heure, options.meteo);
     let graine = params.graine;
     graine = fini(+graine) ? (+graine >>> 0) : REGLES.hash(String(graine));
-    const mode = params.mode && typeof params.mode === 'object' ? params.mode : MODE_LIBRE;
-    const reglesMode = REGLES.MODES[mode.id] || REGLES.MODES.arene;
     const entites = [], evs = [];
     const bruits = []; for (let k = 0; k < NB_BRUITS; k++) bruits.push({ n: 0, x: 0, z: 0, t: -1e9, e: null, portee: 0 });
     let finDemandee = false;
 
     const jeu = {
-      monde, mode, options, reglages: options, graine, carte: params.carte || o.carte || monde.carte || null, nav: null, zone: null, robots,
+      monde, mode, options, reglages: options, graine, humains, maintenant: fini(+params.maintenant) ? +params.maintenant : null, carte: params.carte || o.carte || monde.carte || null, nav: null, zone: null, robots,
       vieMax: vies.vie, armureMax: vies.armureMax, visibilite: vis.vue, visibiliteLampe: vis.lampe, lampes: options.heure === 'nuit',
       manche: null, treve: false, debutChrono: 0,
       entites, temps: 0, dt: 0, fini: false, duree: 0, image: 0, evenements: evs,
@@ -5076,6 +5713,8 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       };
       // l'équipement (deux emplacements) : celui demandé s'il est permis, sinon l'équipement par défaut permis (placer l'applique)
       e.equip = REGLES.equipementDe(d.equip, options);
+      // le crochet du mode (l'Extraction : camp, sac, améliorations, poste du gardien), avant la première apparition
+      if (mode.nouveau) { try { mode.nouveau(jeu, e, d); } catch (err) { erreur('mode.nouveau', err); } }
       entites.push(e);
       placer(e);
       return e;
@@ -5106,6 +5745,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
       e.vie = jeu.vieMax; e.armure = 0; e.vivant = true; e.apparuA = jeu.temps; e.invincible = reglesMode.invincible || 0; e.lampe = jeu.lampes;
       ARMES.equiper(e, e.equip || REGLES.equipementDe(null, options), options); // l'équipement choisi, la principale en main
       e.prochainTir = jeu.temps + 0.2; e.foulee = 0; e.tueTete = false;
+      if (mode.place) { try { mode.place(jeu, e); } catch (err) { erreur('mode.place', err); } } // l'Extraction : armure de départ, chargeur en plus
     }
     function reapparaitre(e, out) { placer(e); (out || evs).push({ t: 'reapparition', id: e.id }); }
 
@@ -5256,7 +5896,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
         for (let k = 0; k < entites.length; k++) {
           const e = entites[k]; if (!e.vivant) continue;
           const dx = e.x - ob.x, dz = e.z - ob.z; if (dx * dx + dz * dz > RAMASSE * RAMASSE || Math.abs(e.y - ob.y) > 2.2 || !utile(e, ob.objet)) continue;
-          prendre(e, ob.objet); ob.dispo = false; ob.revient = jeu.temps + ((REGLES.OBJETS[ob.objet] || {}).retour || 20);
+          prendre(e, ob.objet); ob.dispo = false; ob.revient = ob.unique ? 0 : jeu.temps + ((REGLES.OBJETS[ob.objet] || {}).retour || 20); // unique (l'Extraction) : ne revient pas
           out.push({ t: 'ramasse', id: e.id, objet: ob.objet, oid: ob.id });
           break;
         }
@@ -5278,6 +5918,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
         if (e.bot) { if (BOTS) { try { en = BOTS.penser(e, jeu, dt, jeu.rndBots); } catch (err) { erreur('bot ' + e.id, err); en = null; } } }
         else en = entrees ? entrees[e.id] : null;
         appliquer(e, en, dt, evs);
+        if (mode.agir && !e.bot) { try { mode.agir(jeu, e, en, dt, evs); } catch (err) { erreur('mode.agir', err); } } // l'Extraction : lâcher un objet du sac
       }
       separer();
       ramasser(evs);
@@ -5293,7 +5934,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
     // ─── le classement : les repeints (le critère de fin de l'Arène), départagés par les points, puis le moins de morts ; à égalité
     // parfaite, les humains devant les robots ───
     const parScore = (a, b) => (b.score.manches | 0) - (a.score.manches | 0) || b.score.kills - a.score.kills || b.score.points - a.score.points || a.score.morts - b.score.morts || (a.bot === b.bot ? 0 : a.bot ? 1 : -1) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-    function classement() { return entites.slice().sort(parScore); }
+    function classement() { return entites.slice().sort(typeof mode.trier === 'function' ? mode.trier : parScore); } // l'Extraction : par score
     function resume() { return classement().map((e) => ({ id: e.id, nom: e.nom, couleur: e.couleur, equipe: e.equipe, bot: e.bot, humain: e.humain, kills: e.score.kills, morts: e.score.morts, points: e.score.points, manches: e.score.manches | 0 })); }
 
     // ─── l'aide à la visée (humains au doigt) : ralentit et aimante doucement près d'une cible, dit si le viseur est dessus ───
@@ -5637,6 +6278,633 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
   }
 
   return { id: 'arene', nom: 'Arène', zones: true, init, tick, surMort, apparition, objets, fini, resultat, COULEURS_EQUIPES, NOMS_EQUIPES, DEBUT_MIN, PAUSE_MANCHE };
+});
+
+/* ── extraction.js ── */
+/* OPÉRATION PONCIN — le mode Extraction : 8 minutes (5 / 8 / 12) dans la zone choisie (par défaut tout le bourg), contre des robots
+   gardiens. Trois formats (réglage formatExtraction) : 'ensemble' (tous les humains dans une équipe ; en solo, toi contre les robots),
+   'equipes' (2 ou 3 équipes rivales de 1 à 3 humains, réglage equipesExtraction, réparties de façon équilibrée), 'chacun' (chacun pour
+   soi). Le tir allié suit tirAllie à l'intérieur d'une équipe ; entre équipes rivales, on se blesse.
+   On part avec l'équipement choisi (plus les améliorations du coffre personnel : armure de départ, chargeur en plus, sac plus grand,
+   ouverture plus rapide). Dans la zone, 20 à 40 coffres (posés par PZONES avec la zone : mêmes chez tous) commun / rare / épique /
+   légendaire, à ouvrir en restant 1,2 s à côté sans bouger (coupé si l'on bouge ou si l'on est touché ; ça fait du bruit) : objets de
+   valeur dans le sac (des cases, PBUTIN), soins, armure et munitions pris s'ils servent (sinon rangés dans le sac, sinon posés), une
+   meilleure principale posée à côté (avec sa rareté : ramenée si on la porte en sortant), un silencieux (fixé à l'arme en main : le tir
+   ne s'entend plus qu'à 8 m), la clé du coffre-fort. Ce qui ne tient pas reste au sol (un sac au sol, à ramasser en restant 0,5 s à
+   côté). Entrées en plus (des fronts) : en.lacher = i (l'objet i du sac au sol), en.utiliser = i (un consommable du sac), en.lampe
+   (allumer / éteindre sa lampe, la nuit : éteinte, les robots ne la voient plus de loin), en.signal = { type: 'coffre' | 'ennemi' |
+   'sortie' | 'ici', x, y, z } (un marqueur de 12 s pour son équipe, 3 au plus par joueur).
+   Le poids du sac ralentit : au-delà de 4 cases, −2,5 % par case (−20 % au plus : e.ralenti, lu par PCORPS).
+   À mi-partie, deux points d'extraction s'ouvrent (le pont, la cale de la rivière : PZONES ; balise + annonce) : rester 8 s dans le
+   cercle de 10 m sans être touché = extrait (plusieurs joueurs peuvent y être : les sorties se disputent). 30 s plus tard, un largage :
+   une caisse épique ou légendaire tombe (annoncée 15 s avant ; fumée rouge côté rendu), deux gardiens y arrivent 20 s après.
+   Le coffre-fort (devant la mairie, PZONES : zone.lieux) est verrouillé : il faut la clé (dans un coffre rare ou mieux) ; 4 s pour
+   l'ouvrir ; dedans, le trésor de la mairie. Le Gardien (le boss : e.boss = { nom, vieMax }, vie × 6, armure pleine, 30 % plus lent)
+   le garde et appelle des renforts à 50 % de sa vie.
+   Mort : le sac tombe au sol (n'importe qui peut le ramasser : piller un rival, récupérer celui d'un équipier) ; seul (ou sans
+   équipier en jeu), on est éliminé ; avec un équipier : à terre, relevé en restant 4 s à côté dans les 30 s, sinon éliminé. Fin du
+   temps : ceux qui ne sont pas sortis perdent ce qu'ils portent. En 'equipes' et 'chacun', le plus riche (au-delà de 150 pièces portées)
+   est révélé à tous toutes les 30 s (événement 'prime') ; l'éliminer rapporte une prime (25 % de ce qu'il porte, 25 à 250 pièces),
+   versée seulement si l'on sort.
+   Score : la valeur extraite + 10 par gardien (100 le Gardien), 25 par joueur éliminé + les primes versées (PBUTIN). Après la partie,
+   resultat(jeu).extraction.joueurs donne pour chacun ce qui est sorti (objets et materiel, à déposer : PBUTIN.deposer(coffre, ligne)),
+   ce qui est perdu, les éliminations (robots / joueurs), les primes, le format, la zone de la semaine (jeu.maintenant : PJEU.creer({
+   maintenant: Date.now() }) ; +25 % de pièces au dépôt).
+   Les gardiens (PBOTS, entité e.garde = { x, z, cx, cz, laisse, ronde, depart, arrivee? }) : des groupes près des coffres rares et
+   mieux, des patrouilles à deux sur une ronde entre les coffres ; tous dans le camp 'gardiens'.
+   Un mode est un jeu de crochets appelés par PJEU (comme PARENE) : zones, init, nouveau, place, apparition, agir, tick, surMort,
+   objets, fini, resultat, trier. L'état est dans jeu.extraction (jeu.arene = { robots } pour enligne.js). Événements : voir
+   src-poncin/ARCHITECTURE.md « Extraction ». Module pur (aucun DOM, aucun THREE) : tourne aussi dans Node. */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'), require('./butin.js'), require('./zones.js'));
+  else root.PEXTRACTION = factory(root.PREGLES, root.PBUTIN, root.PZONES);
+})(typeof self !== 'undefined' ? self : this, function (REGLES, BUTIN, ZONES) {
+  'use strict';
+  const X = REGLES.MODES.extraction, J = REGLES.JOUEUR, G = X.gardiens;
+  const VIDE = [];
+  const fin = (v) => typeof v === 'number' && v - v === 0;
+  const r2 = (v) => Math.round(v * 100) / 100;
+  const d2 = (ax, az, bx, bz) => (ax - bx) * (ax - bx) + (az - bz) * (az - bz);
+  const COULEUR_GARDIENS = ['#FF6B8B', '#7FB3FF', '#5FD3A4', '#B8A6FF', '#FF9F5A', '#4FD1E0', '#F48FD8'];
+  const COULEUR_BOSS = '#5A5F73';
+  const SIGNAUX = ['coffre', 'ennemi', 'sortie', 'ici'], SIGNAL_DUREE = 12, SIGNAL_MAX = 3;
+  const nomDe = (e) => (e.humain && e.nom === 'Toi' ? 'Tu' : e.nom);
+  const toi = (e) => (e.humain && e.nom === 'Toi' ? 'toi' : e.nom);
+  const verbe = (e, tu, il) => (e.humain && e.nom === 'Toi' ? tu : il);
+  const minuscule = (s) => s.charAt(0).toLowerCase() + s.slice(1);
+  function annonce(evs, texte) { evs.push({ t: 'annonce', texte }); }
+  const enJeu = (e) => e.humain && !!e.sac && !e.extrait && !e.elimine && !e.retire;   // encore dans la partie (vivant ou à terre)
+
+  // ─── la mise en place : coffres, points d'extraction, largage, coffre-fort, gardiens ───
+  function init(jeu) {
+    const monde = jeu.monde, R = jeu.reglages || jeu.options;
+    let zone = jeu.zone;
+    if (zone && !zone.coffres && ZONES && ZONES.extraction) { try { ZONES.extraction(jeu.carte, monde, null, zone, REGLES.mulberry32((jeu.graine ^ 0x5EC0FF3) >>> 0), R); } catch (err) { /* repli ci-dessous */ } }
+    if (!zone || !zone.coffres || !zone.extractions) zone = secours(jeu, zone);
+    if (zone.limite) monde.limite = zone.limite;
+    jeu.duree = R.duree > 0 ? R.duree : X.duree;
+    const rndC = REGLES.mulberry32((jeu.graine ^ 0xC0FF3E) >>> 0); // le contenu des coffres : un hasard à part, le même partout
+    const coffres = zone.coffres.map((c, i) => coffreDe(jeu, R, rndC, 'c' + i, +c[0], +c[1], c[2], c[3] || null));
+    const extractions = zone.extractions.map((e) => ({ id: e.id, nom: e.nom, x: +e.x, z: +e.z, y: monde.hauteur(+e.x, +e.z), rayon: e.rayon > 0 ? +e.rayon : X.extraction.rayon }));
+    const format = X.formats.indexOf(R.formatExtraction) >= 0 ? R.formatExtraction : 'ensemble';
+    const ouvreA = jeu.duree * X.extraction.ouvre;
+    // le largage : sa caisse est tirée dès maintenant (même hasard partout), posée quand elle tombe
+    let largage = null;
+    if (zone.largage) {
+      const rar = rndC() < X.largage.legendaire ? 'legendaire' : 'epique';
+      largage = { x: +zone.largage[0], z: +zone.largage[1], A: ouvreA + X.largage.decalage, annonce: false, tombe: false, gardesA: Infinity, coffre: coffreDe(jeu, R, rndC, 'largage', +zone.largage[0], +zone.largage[1], rar, 'largage') };
+    }
+    const A = jeu.extraction = {
+      zone, coffres, extractions, format, nEquipes: format === 'equipes' ? (R.equipesExtraction === 3 ? 3 : 2) : format === 'ensemble' ? 1 : 0,
+      depart: (zone.depart || [extractions[0].x, extractions[0].z]).slice(), departs: null, lieux: (zone.lieux || []).map((l) => Object.assign({}, l)),
+      ouvreA, ouvertes: false, largage, sacs: [], objets: [], signaux: [], nSacs: 0, nObjets: 0, nSignaux: 0, nRobots: 0,
+      prime: { prochainA: X.prime.premier, id: null, valeur: 0, montant: 0 }, zoneSemaine: fin(jeu.maintenant) && zone.id === BUTIN.zoneDeLaSemaine(jeu.maintenant),
+      equipes: format !== 'chacun', chrono: {}, termine: false, finA: Infinity, robots: [], nHumains: 0, premierCoffre: false, boss: null,
+    };
+    jeu.arene = { robots: A.robots }; // enligne.js lit jeu.arene.robots pour le message 'lancer'
+    // les gardiens : ceux que l'hôte a listés (jeu.robots), sinon posés ici (le Gardien d'abord)
+    const liste = Array.isArray(jeu.robots) ? jeu.robots : gardiens(jeu, A, R);
+    for (const r of liste) ajouterRobot(jeu, A, R, r);
+  }
+  function coffreDe(jeu, R, rnd, id, x, z, rarete, special) {
+    return { id, x, z, y: jeu.monde.hauteur(x, z), rarete, special, verrou: special === 'coffre-fort', contenu: BUTIN.tirerContenu(rarete, rnd, { armes: R.armes, special }), ouvert: false, par: null, ouvertA: -1 };
+  }
+  function ajouterRobot(jeu, A, R, r) {
+    const k = A.nRobots++;
+    const e = jeu.ajouterJoueur({ id: typeof r.id === 'string' && r.id ? r.id : 'bot' + (k + 1), nom: typeof r.nom === 'string' ? r.nom : REGLES.NOMS_BOTS[k % REGLES.NOMS_BOTS.length],
+      couleur: typeof r.couleur === 'string' ? r.couleur : COULEUR_GARDIENS[k % COULEUR_GARDIENS.length], bot: true, niveau: REGLES.BOTS[r.niveau] ? r.niveau : R.niveau, equip: r.equip, garde: r.garde, boss: r.boss === true });
+    const l = { id: e.id, nom: e.nom, couleur: e.couleur, equip: e.equip.p + '+' + e.equip.s, niveau: e.niveau, garde: e.garde };
+    if (e.boss) { l.boss = true; A.boss = e.id; }
+    A.robots.push(l);
+    return l;
+  }
+  // sans zone préparée (PJEU sans PZONES) : 20 coffres et deux sorties au hasard rejouable autour du centre
+  function secours(jeu, z) {
+    const monde = jeu.monde, rnd = REGLES.mulberry32((jeu.graine ^ 0x5EC0FF3) >>> 0), c = z && z.englobant ? z.englobant.centre : [0, 0], r = z && z.englobant ? z.englobant.rayon : 110;
+    const pt = () => monde.libre(rnd, c, r - 5), coffres = [], raretes = BUTIN.raretes(X.coffres.min);
+    for (let k = 0; k < X.coffres.min; k++) { const p = pt(); coffres.push([p[0], p[1], raretes[k]]); }
+    const a = pt(); let b = pt(); for (let k = 0; k < 30 && d2(a[0], a[1], b[0], b[1]) < r * r; k++) b = pt();
+    return Object.assign({}, z || {}, { englobant: { centre: c.slice(), rayon: r }, apparitions: (z && z.apparitions) || [], coffres, depart: pt(), lieux: [], largage: null,
+      extractions: [{ id: 'sortie1', nom: 'Sortie A', x: a[0], z: a[1], rayon: X.extraction.rayon }, { id: 'sortie2', nom: 'Sortie B', x: b[0], z: b[1], rayon: X.extraction.rayon }] });
+  }
+  // un point libre (dans la zone, joignable) à r0–r1 m de (cx, cz)
+  function autour(jeu, rnd, cx, cz, r0, r1) {
+    const monde = jeu.monde, lim = monde.limite;
+    for (let k = 0; k < 60; k++) {
+      const a = rnd() * 2 * Math.PI, r = r0 + (r1 - r0) * rnd(), x = cx + Math.cos(a) * r, z = cz + Math.sin(a) * r;
+      if (!monde.bloque(x, z, 0.6) && (typeof monde.accessible !== 'function' || monde.accessible(x, z)) && (!lim || typeof lim.dedans !== 'function' || lim.dedans(x, z))) return [r2(x), r2(z)];
+    }
+    return null;
+  }
+  const equipRobot = (jeu, R, niveau) => { const q = REGLES.equipementRobot(jeu.rnd, R, niveau); return q.p + '+' + q.s; };
+  // les postes des gardiens : le Gardien (boss), groupes autour des coffres rares et mieux, patrouilles à deux ; plafond selon le niveau
+  function gardiens(jeu, A, R) {
+    const rnd = jeu.rnd, niv = G[R.niveau] || G.normal;
+    const max = Math.min(G.plafond, niv.max + G.parHumain * Math.max(0, (jeu.humains || 1) - 1));
+    const postes = [], groupe = (c, n, laisse) => { for (let k = 0; k < n; k++) { const p = autour(jeu, rnd, c.x, c.z, 3, 7); if (p) postes.push({ x: p[0], z: p[1], cx: c.x, cz: c.z, laisse, ronde: null }); } };
+    const par = (r) => A.coffres.filter((c) => c.rarete === r);
+    // le Gardien : à son poste (zone.lieux), sinon près du coffre-fort ou du légendaire le plus loin du départ
+    const fort = A.coffres.find((c) => c.special === 'coffre-fort') || par('legendaire').sort((a, b) => d2(b.x, b.z, A.depart[0], A.depart[1]) - d2(a.x, a.z, A.depart[0], A.depart[1]))[0];
+    const lieu = A.lieux.find((l) => l.id === 'gardien');
+    const pb = lieu ? [lieu.x, lieu.z] : fort ? autour(jeu, rnd, fort.x, fort.z, 4, 9) : null;
+    const boss = pb ? { x: pb[0], z: pb[1], cx: fort ? fort.x : pb[0], cz: fort ? fort.z : pb[1], laisse: 25, ronde: null } : null;
+    for (const c of par('legendaire')) groupe(c, c === fort && boss ? Math.max(0, niv.legendaire - 1) : niv.legendaire, 40);
+    // les patrouilles : à deux, une ronde de 4 coffres voisins (rangés autour de leur centre)
+    const rondes = [];
+    for (let k = 0; k < niv.patrouilles && A.coffres.length >= 4; k++) {
+      const c0 = A.coffres[Math.floor(rnd() * A.coffres.length)], proches = A.coffres.slice().sort((a, b) => d2(a.x, a.z, c0.x, c0.z) - d2(b.x, b.z, c0.x, c0.z)).slice(0, 4);
+      const mx = proches.reduce((s, c) => s + c.x, 0) / 4, mz = proches.reduce((s, c) => s + c.z, 0) / 4;
+      proches.sort((a, b) => Math.atan2(a.z - mz, a.x - mx) - Math.atan2(b.z - mz, b.x - mx));
+      const ronde = []; for (const c of proches) { const p = autour(jeu, rnd, c.x, c.z, 2, 5); if (p) ronde.push(p); }
+      if (ronde.length >= 2) rondes.push({ ronde, mx, mz });
+    }
+    const patrouilles = [];
+    for (const r of rondes) for (let k = 0; k < 2; k++) { const p = autour(jeu, rnd, r.ronde[0][0], r.ronde[0][1], 0.8, 2.5) || r.ronde[0]; patrouilles.push({ x: p[0], z: p[1], cx: r.mx, cz: r.mz, laisse: 70, ronde: r.ronde, depart: k }); }
+    const epiques = []; for (const c of par('epique')) { const n0 = postes.length; groupe(c, niv.epique, 35); epiques.push(...postes.splice(n0)); }
+    const rares = []; par('rare').forEach((c, i) => { const n = Math.floor((i + 1) * niv.rare) - Math.floor(i * niv.rare); const n0 = postes.length; groupe(c, n, 30); rares.push(...postes.splice(n0)); });
+    const tous = postes.concat(patrouilles, epiques, rares).slice(0, max);
+    // noms (mélangés, rejouables) et équipement (parmi les armes permises)
+    const noms = REGLES.NOMS_BOTS.slice();
+    for (let i = noms.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)), t = noms[i]; noms[i] = noms[j]; noms[j] = t; }
+    const out = tous.map((g, k) => ({ id: 'bot' + (k + 1), nom: noms[k % noms.length] + (k >= noms.length ? ' ' + (Math.floor(k / noms.length) + 1) : ''), couleur: COULEUR_GARDIENS[k % COULEUR_GARDIENS.length],
+      niveau: R.niveau, equip: equipRobot(jeu, R, R.niveau), garde: { x: r2(g.x), z: r2(g.z), cx: r2(g.cx), cz: r2(g.cz), laisse: g.laisse, ronde: g.ronde, depart: g.depart | 0 } }));
+    if (boss) { // l'arme lourde : un fusil d'assaut (AK-74, sinon une principale permise), et le niveau « fort »
+      const lourde = ['ak74', 'm4', 'pompe'].find((a) => R.armes.indexOf(a) >= 0);
+      out.unshift({ id: 'gardien', nom: 'Le Gardien', couleur: COULEUR_BOSS, niveau: 'fort', boss: true, equip: lourde ? lourde + '+' + (R.armes.indexOf('m1911') >= 0 ? 'm1911' : 'p226') : equipRobot(jeu, R, 'fort'),
+        garde: { x: r2(boss.x), z: r2(boss.z), cx: r2(boss.cx), cz: r2(boss.cz), laisse: boss.laisse, ronde: null, depart: 0 } });
+    }
+    return out;
+  }
+  function lireGarde(g) {
+    if (!g || typeof g !== 'object' || !fin(+g.x) || !fin(+g.z)) return null;
+    const ronde = Array.isArray(g.ronde) ? g.ronde.filter((p) => Array.isArray(p) && fin(+p[0]) && fin(+p[1])).map((p) => [+p[0], +p[1]]) : null;
+    const out = { x: +g.x, z: +g.z, cx: fin(+g.cx) ? +g.cx : +g.x, cz: fin(+g.cz) ? +g.cz : +g.z, laisse: fin(+g.laisse) && g.laisse > 5 ? +g.laisse : 35, ronde: ronde && ronde.length >= 2 ? ronde : null, depart: g.depart | 0 };
+    if (Array.isArray(g.arrivee) && fin(+g.arrivee[0]) && fin(+g.arrivee[1])) out.arrivee = [+g.arrivee[0], +g.arrivee[1]];
+    return out;
+  }
+  // des renforts (le largage, le Gardien) : n robots qui arrivent de 35–50 m et prennent leur poste autour de (cx, cz)
+  function renforts(jeu, A, n, cx, cz, quoi, evs) {
+    const R = jeu.reglages, liste = [];
+    for (let k = 0; k < n; k++) {
+      const poste = autour(jeu, jeu.rnd, cx, cz, 2.5, 6), dep = autour(jeu, jeu.rnd, cx, cz, 35, 50) || autour(jeu, jeu.rnd, cx, cz, 15, 30);
+      if (!poste || !dep) continue;
+      const i = A.nRobots + 1, nom = REGLES.NOMS_BOTS[(i * 7) % REGLES.NOMS_BOTS.length] + ' ' + (Math.floor(i / REGLES.NOMS_BOTS.length) + 2);
+      liste.push(ajouterRobot(jeu, A, R, { id: 'bot' + i + (jeu.trouver('bot' + i) ? 'r' : ''), nom, niveau: R.niveau, equip: equipRobot(jeu, R, R.niveau),
+        garde: { x: poste[0], z: poste[1], cx: r2(cx), cz: r2(cz), laisse: 40, ronde: null, depart: 0, arrivee: dep } }));
+    }
+    if (liste.length) evs.push({ t: 'renforts', quoi, robots: liste.map((l) => Object.assign({}, l)) }); // la façade les ajoute tels quels
+    return liste;
+  }
+
+  // ─── un joueur arrive : son camp, son sac, ses améliorations ; un robot : son poste (et le Gardien, sa vie) ───
+  function nouveau(jeu, e, d) {
+    const A = jeu.extraction;
+    if (e.bot) {
+      e.equipe = 'gardiens'; e.garde = lireGarde(d && d.garde);
+      if (d && d.boss === true) e.boss = { nom: e.nom, vieMax: Math.round(jeu.vieMax * X.boss.vie), renforts: false };
+      return;
+    }
+    e.equipe = equipeDe(jeu, A, e, d);
+    e.ameliorations = BUTIN.bornerAmeliorations(d && d.ameliorations);
+    const ef = BUTIN.effets(e.ameliorations);
+    e.sac = BUTIN.sacVide(ef.cases); e.dureeOuverture = ef.ouverture;
+    e.extrait = false; e.aTerre = false; e.aTerreJusqua = 0; e.elimine = false; e.perdu = false; e.cle = false; e.silencieux = null; e.verrouVu = null;
+    e.interaction = null; e.sortie = 0; e.sortiePoint = null; e.toucheVu = -1; e.ralenti = 0;
+    e.butin = { coffres: 0, coffresPar: { commun: 0, rare: 0, epique: 0, legendaire: 0 }, extrait: [], materiel: [], perdu: [], materielPerdu: [], point: null, valeurExtraite: 0, valeurPerdue: 0, killsRobots: 0, killsJoueurs: 0, boss: false, primes: 0 };
+    e.armeTrouvee = null;
+    e.rang = A ? A.nHumains++ : 0;
+  }
+  // le camp d'un humain : 0 (ensemble), son id (chacun pour soi), ou l'équipe la moins nombreuse (equipes ; d.equipe si elle est valable)
+  function equipeDe(jeu, A, e, d) {
+    if (!A || A.format === 'ensemble') return 0;
+    if (A.format === 'chacun') return e.id;
+    const n = A.nEquipes; if (d && Number.isInteger(d.equipe) && d.equipe >= 0 && d.equipe < n) return d.equipe;
+    const compte = new Array(n).fill(0); for (const c of jeu.entites) if (c.humain && c.sac && c.equipe >= 0 && c.equipe < n) compte[c.equipe]++;
+    let best = 0; for (let i = 1; i < n; i++) if (compte[i] < compte[best]) best = i;
+    return best;
+  }
+  // à chaque apparition (placer a rééquipé) : l'armure de départ et le chargeur en plus ; le Gardien : sa vie, son armure, sa lenteur
+  function place(jeu, e) {
+    if (e.boss) { e.vie = e.boss.vieMax; e.armure = Math.round(jeu.armureMax * X.boss.armure); e.ralenti = X.boss.ralenti; return; }
+    if (e.bot || !e.ameliorations) return;
+    const ef = BUTIN.effets(e.ameliorations);
+    e.armure = Math.min(jeu.armureMax, ef.armure);
+    if (ef.chargeurs > 0) for (const id of e.armes) e.reserve[id] = (e.reserve[id] | 0) + ef.chargeurs * REGLES.arme(id).chargeur;
+  }
+  // le point d'apparition : le poste du gardien (ou son point d'arrivée) ; le départ de son camp (en petit cercle)
+  function apparition(jeu, e) {
+    const A = jeu.extraction, monde = jeu.monde;
+    if (e.bot && e.garde) {
+      const g = e.garde; let x = g.x, z = g.z;
+      if (g.arrivee) { x = g.arrivee[0]; z = g.arrivee[1]; }
+      else if (g.ronde && g.depart) { const p = g.ronde[g.depart % g.ronde.length]; if (!monde.bloque(p[0], p[1], J.rayon)) { x = p[0]; z = p[1]; } }
+      return [x, z, g.arrivee ? Math.atan2(-(g.x - x), -(g.z - z)) : Math.atan2(-(x - g.cx), -(z - g.cz))]; // dos à ce qu'il garde : il regarde qui arrive
+    }
+    if (!A) return null;
+    const l = departs(jeu, A);
+    let dep = A.depart, k = 0;
+    if (e.humain && A.format === 'chacun') dep = l[(e.rang | 0) % l.length];
+    else if (e.humain && A.format === 'equipes') dep = l[(e.equipe | 0) % l.length];
+    if (e.humain) for (const c of jeu.entites) if (c !== e && c.humain && c.sac && c.equipe === e.equipe && c.rang < e.rang) k++; // son rang dans son camp
+    const c = A.zone.englobant ? A.zone.englobant.centre : [0, 0], yaw = Math.atan2(-(c[0] - dep[0]), -(c[1] - dep[1]));
+    for (const r of k ? [2.2, 1.2, 3.2] : [0, 1.5]) {
+      const a = k * 2.1, x = dep[0] + Math.cos(a) * r, z = dep[1] + Math.sin(a) * r;
+      if (!monde.bloque(x, z, J.rayon)) return [x, z, yaw];
+    }
+    return [dep[0], dep[1], yaw];
+  }
+  // des départs écartés (60 m au moins, sinon 40), loin des points d'extraction : un par camp ('equipes', 'chacun')
+  function departs(jeu, A) {
+    if (A.departs) return A.departs;
+    const l = [A.depart], apps = (A.zone.apparitions || []).slice();
+    const loinEx = (p) => Math.min(...A.extractions.map((x) => Math.sqrt(d2(p[0], p[1], x.x, x.z))));
+    apps.sort((a, b) => loinEx(b) - loinEx(a));
+    for (const ecart of [60, 40, 20]) for (const p of apps) { if (l.length >= REGLES.SALON.max) break; if (l.every((q) => d2(p[0], p[1], q[0], q[1]) >= ecart * ecart) && !jeu.monde.bloque(p[0], p[1], 0.6)) l.push([p[0], p[1]]); }
+    A.departs = l; return l;
+  }
+
+  // ─── les entrées du mode (des fronts) : utiliser, lâcher, lampe, signal ───
+  function agir(jeu, e, en, dt, evs) {
+    const A = jeu.extraction; if (!A || !e.sac || !e.vivant || !en) return;
+    if (en.utiliser != null) {
+      const i = +en.utiliser, id = i >= 0 && i < e.sac.objets.length ? e.sac.objets[i | 0] : null;
+      if (id && servir(jeu, e, id)) { e.sac.objets.splice(i | 0, 1); evs.push({ t: 'butin', id: e.id, quoi: id, objet: id, utilise: true }); }
+    }
+    if (en.lampe === true && jeu.lampes) { e.lampe = !e.lampe; evs.push({ t: 'lampe', id: e.id, allumee: e.lampe }); }
+    if (en.signal && typeof en.signal === 'object') signal(jeu, A, e, en.signal, evs);
+    if (en.lacher == null) return;
+    const i = +en.lacher; if (!(i >= 0 && i < e.sac.objets.length)) return;
+    const id = BUTIN.retirer(e.sac, i | 0); if (!id) return;
+    const s = poserSac(jeu, A, e.x, e.z, [id], e.id, evs);
+    s.attend[e.id] = true; // pas repris tout de suite par celui qui l'a lâché (il doit s'en éloigner)
+  }
+  // un signal d'équipe : 12 s, 3 au plus par joueur (le plus ancien remplacé), à 300 m au plus ; visible de son camp (equipe)
+  function signal(jeu, A, e, s, evs) {
+    if (SIGNAUX.indexOf(s.type) < 0 || !fin(+s.x) || !fin(+s.z)) return;
+    const x = +s.x, z = +s.z, y = fin(+s.y) ? +s.y : jeu.monde.hauteur(x, z);
+    if (d2(x, z, e.x, e.z) > 300 * 300) return;
+    const miens = A.signaux.filter((g) => g.de === e.id);
+    if (miens.length >= SIGNAL_MAX) A.signaux.splice(A.signaux.indexOf(miens[0]), 1);
+    const g = { id: 'g' + A.nSignaux++, de: e.id, equipe: e.equipe, type: s.type, x: r2(x), y: r2(y), z: r2(z), jusqua: jeu.temps + SIGNAL_DUREE };
+    A.signaux.push(g);
+    evs.push({ t: 'signal', id: g.id, de: e.id, equipe: e.equipe, type: g.type, x: g.x, y: g.y, z: g.z, duree: SIGNAL_DUREE });
+  }
+  // les signaux que voit un joueur (ceux de son camp, encore valables)
+  function signauxPour(jeu, id) {
+    const A = jeu.extraction, e = jeu.trouver(id); if (!A || !e) return [];
+    return A.signaux.filter((g) => g.jusqua > jeu.temps && g.equipe === e.equipe);
+  }
+
+  // un consommable appliqué s'il sert : rend vrai si oui
+  function servir(jeu, e, type) {
+    if (type === 'soin') { if (e.vie >= jeu.vieMax || jeu.vieMax <= 1) return false; e.vie = Math.min(jeu.vieMax, e.vie + REGLES.OBJETS.soin.vie); return true; }
+    if (type === 'armure') { if (e.armure >= jeu.armureMax) return false; e.armure = Math.min(jeu.armureMax, e.armure + REGLES.OBJETS.armure.armure); return true; }
+    if (type === 'munitions') { if (!e.armes.some((id) => (e.reserve[id] | 0) < REGLES.arme(id).reserve)) return false; for (const id of e.armes) e.reserve[id] = Math.max(e.reserve[id] | 0, REGLES.arme(id).reserve); return true; }
+    return false;
+  }
+
+  // ─── les sacs au sol (objets de valeur, consommables, la clé) et les objets posés (ramassés au passage par PJEU, une seule fois) ───
+  function poserSac(jeu, A, x, z, objets, de, evs, cle) {
+    const s = { id: 's' + A.nSacs++, x, z, y: jeu.monde.hauteur(x, z), objets: objets.slice(), de: de || null, dispo: true, attend: {}, cle: !!cle };
+    A.sacs.push(s);
+    evs.push({ t: 'sac', quoi: 'pose', sac: s.id, x: r2(x), z: r2(z), objets: s.objets.slice(), de: s.de, cle: s.cle });
+    return s;
+  }
+  function poserObjet(jeu, A, x, z, nom, rarete) {
+    const o = { id: 'x' + A.nObjets++, x, z, y: null, objet: nom, dispo: true, revient: 0, unique: true, rarete: rarete || null };
+    A.objets.push(o); return o;
+  }
+  // un point libre à ~1,5 m de (x, z), du côté opposé à (ox, oz) (on ne ramasse pas l'arme sans le vouloir)
+  function aCote(jeu, x, z, ox, oz, k) {
+    const monde = jeu.monde, base = Math.atan2(z - oz, x - ox);
+    for (let i = 0; i < 8; i++) {
+      const a = base + (k * 0.9) + (i % 2 ? 1 : -1) * Math.ceil(i / 2) * 0.6, px = x + Math.cos(a) * 1.5, pz = z + Math.sin(a) * 1.5;
+      if (!monde.bloque(px, pz, 0.3) && monde.passe(x, z, px, pz, 0.1)) return [px, pz];
+    }
+    return [x, z];
+  }
+  // le silencieux : fixé à l'arme en main (la secondaire si c'est la pompe)
+  function fixerSilencieux(e) {
+    const a = REGLES.arme(e.arme).classe === 'pompe' ? e.armes[1] : e.arme;
+    if (!a || e.silencieux === a) return null;
+    e.silencieux = a; return a;
+  }
+
+  // ─── ouvrir un coffre ───
+  function ouvrir(jeu, A, e, c, evs) {
+    c.ouvert = true; c.par = e.id; c.ouvertA = jeu.temps; e.butin.coffres++; e.butin.coffresPar[c.rarete] = (e.butin.coffresPar[c.rarete] | 0) + 1;
+    if (c.verrou) { e.cle = false; evs.push({ t: 'cle', id: e.id, quoi: 'utilisee', coffre: c.id }); }
+    evs.push({ t: 'coffre', id: c.id, par: e.id, rarete: c.rarete, special: c.special, x: r2(c.x), z: r2(c.z), contenu: c.contenu.map((o) => Object.assign({}, o)) });
+    const reste = []; let k = 0, cle = false;
+    for (const o of c.contenu) {
+      if (o.type === 'valeur') {
+        if (BUTIN.ajouter(e.sac, o.id)) evs.push({ t: 'butin', id: e.id, quoi: 'valeur', objet: o.id, valeur: BUTIN.valeur(o.id), coffre: c.id });
+        else { reste.push(o.id); evs.push({ t: 'plein', id: e.id, objet: o.id }); }
+      } else if (o.type === 'cle') {
+        if (!e.cle) { e.cle = true; evs.push({ t: 'cle', id: e.id, quoi: 'trouvee', coffre: c.id }); annonce(evs, `${nomDe(e)} ${verbe(e, 'trouves', 'trouve')} la clé du coffre-fort !`); } else cle = true;
+      } else if (o.type === 'silencieux') {
+        const a = fixerSilencieux(e); if (a) evs.push({ t: 'butin', id: e.id, quoi: 'silencieux', objet: a, coffre: c.id });
+      } else if (o.type !== 'arme' && servir(jeu, e, o.type)) evs.push({ t: 'butin', id: e.id, quoi: o.type, objet: o.type, coffre: c.id }); // sert tout de suite
+      else if (o.type !== 'arme' && BUTIN.ajouter(e.sac, o.type)) evs.push({ t: 'butin', id: e.id, quoi: o.type, objet: o.type, coffre: c.id, sac: true }); // dans le sac (pour plus tard, ou ramené)
+      else {
+        // une arme (au choix : posée à côté, avec sa rareté), ou un consommable qui ne tient plus (posé pour un équipier)
+        const nom = o.type === 'arme' ? o.arme : o.type; if (!REGLES.OBJETS[nom]) continue;
+        if ((nom === 'soin' && jeu.vieMax <= 1) || (nom === 'armure' && jeu.armureMax <= 0)) continue;
+        const p = aCote(jeu, c.x, c.z, e.x, e.z, k++); poserObjet(jeu, A, p[0], p[1], nom, o.type === 'arme' ? o.rarete || c.rarete : null);
+      }
+    }
+    if (reste.length || cle) { const p = aCote(jeu, c.x, c.z, e.x, e.z, k++); poserSac(jeu, A, p[0], p[1], reste, null, evs, cle); }
+    if (c.special === 'coffre-fort') annonce(evs, `${nomDe(e)} ${verbe(e, 'ouvres', 'ouvre')} le coffre-fort : le trésor de la mairie !`);
+    else if (c.rarete === 'legendaire') annonce(evs, `${nomDe(e)} ${verbe(e, 'ouvres', 'ouvre')} un coffre légendaire !`);
+    else if (!A.premierCoffre) annonce(evs, `Premier coffre : ${toi(e)} !`);
+    A.premierCoffre = true;
+  }
+  // ramasser un sac au sol : la clé, puis ce qui tient, le plus précieux d'abord
+  function ramasserSac(jeu, A, e, s, evs) {
+    if (s.cle && !e.cle) { s.cle = false; e.cle = true; evs.push({ t: 'cle', id: e.id, quoi: 'trouvee', sac: s.id }); }
+    const pris = [], ordre = s.objets.slice().sort((a, b) => BUTIN.valeur(b) - BUTIN.valeur(a));
+    for (const id of ordre) if (BUTIN.ajouter(e.sac, id)) { pris.push(id); s.objets.splice(s.objets.indexOf(id), 1); evs.push({ t: 'butin', id: e.id, quoi: BUTIN.VALEURS[id] ? 'valeur' : id, objet: id, valeur: BUTIN.valeur(id), sac: s.id, de: s.de }); }
+    if (!s.objets.length && !s.cle) s.dispo = false;
+    evs.push({ t: 'sac', quoi: s.dispo ? 'pris' : 'vide', sac: s.id, par: e.id, de: s.de, pris, objets: s.objets.slice(), cle: s.cle });
+    if (s.dispo && s.objets.length) evs.push({ t: 'plein', id: e.id, objet: s.objets[0] });
+  }
+  // relever un équipier à terre
+  function relever(jeu, A, e, v, evs) {
+    v.aTerre = false; v.vivant = true; v.vie = Math.max(1, Math.round(jeu.vieMax * X.relever.vie)); v.armure = 0; v.invincible = 1;
+    v.vx = v.vz = v.vy = 0; v.auSol = true; v.y = jeu.monde.hauteur(v.x, v.z); v.ax = v.x; v.ay = v.y; v.az = v.z;
+    v.posture = v.vers = 'debout'; v.transition = 0; v.accroupi = false; v.oeil = J.postures.debout.oeil; v.hautCapsule = J.postures.debout.haut; v.aoeil = v.oeil;
+    v.prochainTir = jeu.temps + 0.3; v.interaction = null; v.sortie = 0;
+    evs.push({ t: 'releve', id: v.id, par: e.id });
+    annonce(evs, `${nomDe(e)} ${verbe(e, 'relèves', 'relève')} ${toi(v)} !`);
+  }
+  // sortir par un point d'extraction
+  function extraire(jeu, A, e, p, evs) {
+    const objets = e.sac.objets.slice(), valeur = BUTIN.valeurDe(objets);
+    e.extrait = true; e.vivant = false; e.interaction = null; e.sortie = 0; e.sortiePoint = null; e.mortDepuis = jeu.temps; e.cle = false;
+    const materiel = e.armeTrouvee && e.armes[0] === e.armeTrouvee.arme ? [{ type: 'arme', arme: e.armeTrouvee.arme, rarete: e.armeTrouvee.rarete }] : [];
+    e.butin.extrait = objets; e.butin.materiel = materiel; e.butin.point = p.id; e.butin.valeurExtraite = valeur; e.score.points += valeur + e.butin.primes;
+    evs.push({ t: 'extrait', id: e.id, point: p.id, nom: p.nom, valeur, objets, materiel, primes: e.butin.primes });
+    annonce(evs, `${nomDe(e)} ${verbe(e, 'sors', 'sort')} par ${minuscule(p.nom)} avec ${valeur} pièces !`);
+  }
+  // perdre ce qu'on porte (mort : le sac tombe au sol, avec la clé ; fin du temps : perdu)
+  function perdre(jeu, A, e, raison, evs) {
+    const objets = e.sac.objets.slice(), valeur = BUTIN.valeurDe(objets), cle = e.cle;
+    if ((objets.length || cle) && raison === 'mort') poserSac(jeu, A, e.x, e.z, objets, e.id, evs, cle);
+    const arme = e.armeTrouvee && e.armes[0] === e.armeTrouvee.arme ? e.armeTrouvee : null; e.armeTrouvee = null; // l'arme trouvée est perdue aussi
+    e.butin.perdu = e.butin.perdu.concat(objets); e.butin.valeurPerdue += valeur; e.sac.objets.length = 0; e.cle = false;
+    if (arme) e.butin.materielPerdu.push({ type: 'arme', arme: arme.arme, rarete: arme.rarete });
+    evs.push({ t: 'perdu', id: e.id, raison, valeur, objets, arme: arme ? arme.arme : null });
+  }
+  function eliminer(jeu, A, e, par, evs) {
+    e.elimine = true; e.aTerre = false; e.vivant = false; e.interaction = null;
+    let n = 0; for (const c of jeu.entites) if (enJeu(c)) n++;
+    evs.push({ t: 'elimine', id: e.id, par: par || null, enLice: n });
+  }
+
+  // ─── chaque pas : extractions, largage, Gardien, prime, signaux, interactions, extraction, fin ───
+  function tick(jeu, dt, evs) {
+    const A = jeu.extraction; if (!A) return;
+    const T = jeu.temps, reste = jeu.reste, es = jeu.entites;
+    if (!A.ouvertes && T >= A.ouvreA) {
+      A.ouvertes = true;
+      evs.push({ t: 'extractions', quoi: 'ouvertes', points: A.extractions.map((p) => ({ id: p.id, nom: p.nom, x: r2(p.x), z: r2(p.z), rayon: p.rayon })) });
+      annonce(evs, A.extractions.length === 2 ? `Extractions ouvertes : ${minuscule(A.extractions[0].nom)} et ${minuscule(A.extractions[1].nom)} !` : 'Extractions ouvertes !');
+    }
+    if (reste !== undefined) for (const [s, texte] of [[60, 'Plus qu’une minute pour sortir !'], [30, '30 secondes pour sortir !'], [10, '10 secondes !']]) if (reste <= s && reste > 0 && !A.chrono[s] && jeu.duree > s) { A.chrono[s] = true; annonce(evs, texte); }
+    largage(jeu, A, T, evs);
+    gardien(jeu, A, evs);
+    if (A.format !== 'ensemble' && T >= A.prime.prochainA) prime(jeu, A, evs);
+    if (A.signaux.length) for (let i = A.signaux.length - 1; i >= 0; i--) if (A.signaux[i].jusqua <= T) A.signaux.splice(i, 1);
+    // une arme d'un coffre ramassée (PJEU : 'ramasse' de ce pas) : elle devient la principale, avec sa rareté (ramenée si l'on sort)
+    for (let i = 0; i < evs.length; i++) {
+      const ev = evs[i]; if (ev.t !== 'ramasse' || typeof ev.oid !== 'string' || ev.oid[0] !== 'x') continue;
+      const o = A.objets.find((q) => q.id === ev.oid), e = jeu.trouver(ev.id);
+      if (o && e && e.sac && REGLES.OBJETS[o.objet] && REGLES.OBJETS[o.objet].type === 'arme') e.armeTrouvee = { arme: REGLES.OBJETS[o.objet].arme, rarete: o.rarete || 'commun' };
+    }
+    const P = X.poids;
+    for (let k = 0; k < es.length; k++) {
+      const e = es[k]; if (!e.humain || !e.sac || e.extrait || e.elimine) continue;
+      if (e.aTerre) { // personne pour le relever (ou le délai passé) : éliminé
+        let quelquun = false; for (const c of es) if (c !== e && c.humain && c.vivant && !c.extrait && !jeu.ennemis(c, e)) quelquun = true;
+        if (T >= e.aTerreJusqua || !quelquun) eliminer(jeu, A, e, e.parQui, evs);
+        continue;
+      }
+      if (!e.vivant) continue;
+      e.ralenti = Math.min(P.max, Math.max(0, BUTIN.casesDe(e.sac.objets) - P.seuil) * P.parCase); // le poids du sac
+      const touche = e.toucheA > e.toucheVu; e.toucheVu = e.toucheA;
+      // l'extraction : dans un cercle ouvert, sans être touché
+      let p = null;
+      if (A.ouvertes) for (const q of A.extractions) if (d2(e.x, e.z, q.x, q.z) <= q.rayon * q.rayon) { p = q; break; }
+      if (p) {
+        if (e.sortiePoint !== p.id) { e.sortiePoint = p.id; e.sortie = 0; evs.push({ t: 'ouverture', id: e.id, quoi: 'extraction', cible: p.id, duree: X.extraction.duree, etat: 'debut' }); }
+        if (touche) { if (e.sortie > 0) evs.push({ t: 'ouverture', id: e.id, quoi: 'extraction', cible: p.id, duree: X.extraction.duree, etat: 'coupe' }); e.sortie = 0; }
+        else e.sortie += dt;
+        if (e.sortie >= X.extraction.duree) { evs.push({ t: 'ouverture', id: e.id, quoi: 'extraction', cible: p.id, duree: X.extraction.duree, etat: 'fin' }); extraire(jeu, A, e, p, evs); continue; }
+      } else if (e.sortiePoint) { evs.push({ t: 'ouverture', id: e.id, quoi: 'extraction', cible: e.sortiePoint, duree: X.extraction.duree, etat: 'coupe' }); e.sortiePoint = null; e.sortie = 0; }
+      // les sacs qu'on a lâchés : repris seulement après s'en être éloigné
+      for (const s of A.sacs) if (s.dispo && s.attend[e.id] && d2(e.x, e.z, s.x, s.z) > 2.5 * 2.5) delete s.attend[e.id];
+      interagir(jeu, A, e, touche, dt, evs);
+    }
+    // la fin : le temps écoulé (ceux qui ne sont pas sortis perdent ce qu'ils portent), ou plus personne dans la partie
+    if (!A.termine) {
+      let humains = 0, dedans = 0; for (const e of es) if (e.humain && e.sac) { humains++; if (enJeu(e)) dedans++; }
+      if (reste !== undefined && reste <= 0) {
+        for (const e of es) if (enJeu(e)) { perdre(jeu, A, e, 'temps', evs); e.perdu = true; e.interaction = null; }
+        annonce(evs, 'Temps écoulé !'); A.termine = true; A.finA = T;
+      } else if (humains > 0 && dedans === 0) { A.termine = true; A.finA = T + 2; }
+    }
+  }
+  // le largage : annoncé 15 s avant, la caisse tombe (un coffre de plus), deux gardiens arrivent 20 s après
+  function largage(jeu, A, T, evs) {
+    const L = A.largage; if (!L) return;
+    if (!L.annonce && T >= L.A - 15) { L.annonce = true; evs.push({ t: 'largage', quoi: 'annonce', x: r2(L.x), z: r2(L.z), dans: r2(Math.max(0, L.A - T)) }); annonce(evs, 'Un largage arrive : cherchez la fumée rouge !'); }
+    if (!L.tombe && T >= L.A) {
+      L.tombe = true; L.gardesA = T + X.largage.arrivee; A.coffres.push(L.coffre);
+      evs.push({ t: 'largage', quoi: 'tombe', id: L.coffre.id, x: r2(L.x), z: r2(L.z), rarete: L.coffre.rarete });
+      annonce(evs, L.coffre.rarete === 'legendaire' ? 'Largage ! Une caisse légendaire est tombée.' : 'Largage ! Une caisse épique est tombée.');
+    }
+    if (L.tombe && T >= L.gardesA) { L.gardesA = Infinity; renforts(jeu, A, X.largage.gardes, L.x, L.z, 'largage', evs); }
+  }
+  // le Gardien : à la moitié de sa vie, il appelle des renforts
+  function gardien(jeu, A, evs) {
+    if (!A.boss) return;
+    const b = jeu.trouver(A.boss); if (!b || !b.boss || b.boss.renforts || !b.vivant) return;
+    if (b.vie > b.boss.vieMax * X.boss.renforts) return;
+    b.boss.renforts = true;
+    renforts(jeu, A, X.boss.nRenforts[jeu.reglages.niveau] || 2, b.x, b.z, 'boss', evs);
+    annonce(evs, 'Le Gardien appelle des renforts !');
+  }
+  // la prime : le plus riche (au-delà du seuil) révélé à tous
+  function prime(jeu, A, evs) {
+    const Pr = X.prime; A.prime.prochainA += Pr.periode;
+    let best = null, bv = Pr.seuil - 1;
+    for (const e of jeu.entites) if (e.humain && e.sac && e.vivant && !e.extrait) { const v = BUTIN.valeurSac(e.sac); if (v > bv) { bv = v; best = e; } }
+    if (!best) { A.prime.id = null; return; }
+    const montant = Math.max(Pr.min, Math.min(Pr.max, Math.round(bv * Pr.part)));
+    A.prime.id = best.id; A.prime.valeur = bv; A.prime.montant = montant;
+    evs.push({ t: 'prime', quoi: 'revele', id: best.id, x: r2(best.x), z: r2(best.z), valeur: bv, prime: montant });
+    annonce(evs, `Prime de ${montant} pièces sur ${toi(best)} (${bv} pièces dans le sac) !`);
+  }
+
+  // l'interaction en cours (coffre, sac, relever) : immobile, à côté, sans être touché ; sinon coupée ; ouvrir fait du bruit
+  function interagir(jeu, A, e, touche, dt, evs) {
+    const immobile = e.auSol && !(e.vitesse > X.ouverture.bouge);
+    let it = e.interaction;
+    if (it) {
+      const c = cibleDe(jeu, A, it), ok = c && valide(jeu, A, e, it.quoi, c) && immobile && !touche;
+      if (!ok) { evs.push({ t: 'ouverture', id: e.id, quoi: it.quoi, cible: it.cible, duree: it.duree, etat: 'coupe' }); e.interaction = it = null; }
+      else {
+        const avant = Math.floor(it.t / 0.5); it.t += dt; it.prog = Math.min(1, it.t / it.duree);
+        if (it.quoi === 'coffre' && Math.floor(it.t / 0.5) > avant) jeu.faireBruit(e, c.verrou ? X.bruits.coffreFort : X.bruits.ouvrir);
+        if (it.t >= it.duree) {
+          e.interaction = null;
+          evs.push({ t: 'ouverture', id: e.id, quoi: it.quoi, cible: it.cible, duree: it.duree, etat: 'fin' });
+          if (it.quoi === 'coffre') ouvrir(jeu, A, e, c, evs); else if (it.quoi === 'sac') ramasserSac(jeu, A, e, c, evs); else relever(jeu, A, e, c, evs);
+        }
+        return;
+      }
+    }
+    if (!immobile || touche) return;
+    // une nouvelle : relever (un équipier à terre) > coffre fermé (verrouillé : avec la clé) > sac au sol (si quelque chose y tient)
+    let quoi = null, cible = null, bd = Infinity, verrou = null;
+    for (const v of jeu.entites) if (v !== e && v.aTerre && v.humain && !jeu.ennemis(e, v)) { const d = d2(e.x, e.z, v.x, v.z); if (d <= X.relever.distance * X.relever.distance && d < bd) { bd = d; quoi = 'relever'; cible = v; } }
+    if (!cible) for (const c of A.coffres) if (!c.ouvert) {
+      const d = d2(e.x, e.z, c.x, c.z); if (d > X.ouverture.distance * X.ouverture.distance || d >= bd || Math.abs(e.y - c.y) >= 2) continue;
+      if (c.verrou && !e.cle) { verrou = c; continue; }
+      bd = d; quoi = 'coffre'; cible = c;
+    }
+    if (!cible) for (const s of A.sacs) if (valide(jeu, A, e, 'sac', s)) { const d = d2(e.x, e.z, s.x, s.z); if (d < bd) { bd = d; quoi = 'sac'; cible = s; } }
+    if (verrou && !cible) { if (e.verrouVu !== verrou.id) { e.verrouVu = verrou.id; evs.push({ t: 'verrou', id: e.id, coffre: verrou.id }); } } else if (!verrou) e.verrouVu = null;
+    if (!cible) return;
+    const duree = quoi === 'relever' ? X.relever.duree : quoi === 'sac' ? X.ramasser.duree : cible.verrou ? X.coffreFort.duree : e.dureeOuverture || X.ouverture.duree;
+    e.interaction = { quoi, cible: cible.id, t: 0, prog: 0, duree };
+    evs.push({ t: 'ouverture', id: e.id, quoi, cible: cible.id, duree, etat: 'debut' });
+    if (quoi === 'coffre') jeu.faireBruit(e, cible.verrou ? X.bruits.coffreFort : X.bruits.ouvrir);
+  }
+  function cibleDe(jeu, A, it) {
+    if (it.quoi === 'relever') return jeu.trouver(it.cible);
+    const l = it.quoi === 'coffre' ? A.coffres : A.sacs; for (let i = 0; i < l.length; i++) if (l[i].id === it.cible) return l[i];
+    return null;
+  }
+  function valide(jeu, A, e, quoi, c) {
+    if (quoi === 'relever') return c.aTerre && !c.elimine && d2(e.x, e.z, c.x, c.z) <= X.relever.distance * X.relever.distance;
+    if (quoi === 'coffre') return !c.ouvert && (!c.verrou || e.cle) && d2(e.x, e.z, c.x, c.z) <= X.ouverture.distance * X.ouverture.distance;
+    if (!c.dispo || c.attend[e.id] || d2(e.x, e.z, c.x, c.z) > X.ramasser.distance * X.ramasser.distance) return false;
+    if (c.cle && !e.cle) return true;
+    for (const id of c.objets) if (BUTIN.tient(e.sac, id)) return true;
+    return false;
+  }
+
+  // ─── une mort : points, prime, sac au sol, à terre (avec un équipier) ou éliminé ───
+  function surMort(jeu, v, k, evs) {
+    const A = jeu.extraction; if (!A) return;
+    if (k && k !== v && k.humain && k.butin && jeu.ennemis(k, v)) {
+      k.score.points += v.boss ? X.boss.points : v.bot ? BUTIN.POINTS.gardien : BUTIN.POINTS.joueur;
+      if (v.bot) k.butin.killsRobots++; else k.butin.killsJoueurs++;
+      if (v.boss) k.butin.boss = true;
+      if (!v.bot && A.prime.id === v.id) { // la prime : au tueur, versée s'il sort
+        k.butin.primes += A.prime.montant;
+        evs.push({ t: 'prime', quoi: 'gagnee', id: k.id, cible: v.id, prime: A.prime.montant });
+        annonce(evs, `${nomDe(k)} ${verbe(k, 'gagnes', 'gagne')} la prime : ${A.prime.montant} pièces (s’${k.humain && k.nom === 'Toi' ? 'tu sors' : 'il sort'}) !`);
+      }
+    }
+    if (!v.bot && A.prime.id === v.id) A.prime.id = null;
+    if (v.bot) { // un gardien laisse parfois des munitions ou un soin
+      if (v.boss) annonce(evs, k && k.humain ? `${nomDe(k)} ${verbe(k, 'abats', 'abat')} le Gardien !` : 'Le Gardien est tombé !');
+      const r = jeu.rnd();
+      if (r < 0.5 || v.boss) poserObjet(jeu, A, v.x, v.z, r < 0.35 ? 'munitions' : jeu.vieMax > 1 ? 'soin' : 'munitions');
+      return;
+    }
+    if (!v.sac) return;
+    v.interaction = null; v.sortie = 0; v.sortiePoint = null;
+    perdre(jeu, A, v, 'mort', evs);
+    let equipier = false;
+    for (const c of jeu.entites) if (c !== v && c.humain && c.vivant && !c.extrait && !jeu.ennemis(c, v)) equipier = true;
+    if (A.equipes && equipier) {
+      v.aTerre = true; v.aTerreJusqua = jeu.temps + X.relever.delai;
+      evs.push({ t: 'a-terre', id: v.id, par: k ? k.id : null, jusqua: r2(v.aTerreJusqua) });
+      annonce(evs, v.humain && v.nom === 'Toi' ? 'Tu es à terre : un équipier peut te relever !' : `${v.nom} est à terre : relève-le !`);
+    } else eliminer(jeu, A, v, k ? k.id : null, evs);
+  }
+
+  function objets(jeu) { return jeu.extraction ? jeu.extraction.objets : VIDE; }
+  function fini(jeu) { const A = jeu.extraction; if (!A) return jeu.duree > 0 && jeu.temps >= jeu.duree; return A.termine && jeu.temps >= A.finA; }
+  // le classement : le score (valeur extraite + éliminations + primes), puis les éliminations ; les humains devant les robots
+  const trier = (a, b) => (a.bot === b.bot ? 0 : a.bot ? 1 : -1) || b.score.points - a.score.points || b.score.kills - a.score.kills || a.score.morts - b.score.morts || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+
+  // la ligne de résultat d'un joueur (le classement « Butin » de l'intégrateur la reprend ; PBUTIN.deposer et progression la lisent)
+  function bilan(e, A) {
+    const b = e.butin || { coffres: 0, coffresPar: {}, extrait: [], materiel: [], perdu: [], materielPerdu: [], point: null, valeurExtraite: 0, valeurPerdue: 0, killsRobots: 0, killsJoueurs: 0, boss: false, primes: 0 };
+    const versees = e.extrait ? b.primes : 0, points = e.score.points - b.valeurExtraite - versees;
+    return { id: e.id, nom: e.nom, couleur: e.couleur, equipe: e.equipe, format: A ? A.format : 'ensemble', zoneSemaine: !!(A && A.zoneSemaine),
+      extrait: !!e.extrait, point: b.point, objets: b.extrait.slice(), materiel: b.materiel.map((m) => Object.assign({}, m)), valeur: b.valeurExtraite,
+      perdu: b.perdu.slice(), materielPerdu: b.materielPerdu.map((m) => Object.assign({}, m)), valeurPerdue: b.valeurPerdue, porte: e.sac ? e.sac.objets.slice() : [],
+      coffres: b.coffres, coffresPar: Object.assign({}, b.coffresPar), kills: e.score.kills, killsRobots: b.killsRobots, killsJoueurs: b.killsJoueurs, boss: b.boss, morts: e.score.morts,
+      primesGagnees: b.primes, primes: versees, points, score: BUTIN.score({ valeur: b.valeurExtraite, points, primes: versees }) };
+  }
+  function resultat(jeu) {
+    const A = jeu.extraction, classement = jeu.resume ? jeu.resume() : jeu.classement();
+    const joueurs = jeu.entites.filter((e) => e.humain && e.sac).map((e) => bilan(e, A)).sort((a, b) => b.score - a.score || b.valeur - a.valeur);
+    let gagnant = null, equipes = null;
+    if (A && A.format === 'equipes') { // les équipes : la somme des scores de leurs membres
+      equipes = []; for (let i = 0; i < A.nEquipes; i++) { const m = joueurs.filter((j) => j.equipe === i); equipes.push({ equipe: i, membres: m.map((j) => j.id), valeur: m.reduce((s, j) => s + j.valeur, 0), score: m.reduce((s, j) => s + j.score, 0) }); }
+      const tri = equipes.slice().sort((a, b) => b.score - a.score); if (tri.length && tri[0].score > 0 && (tri.length < 2 || tri[0].score > tri[1].score)) gagnant = tri[0].equipe;
+    } else gagnant = joueurs.length && joueurs[0].score > 0 && (joueurs.length < 2 || joueurs[0].score > joueurs[1].score) ? joueurs[0].id : null;
+    return { classement, gagnant, duree: jeu.duree > 0 ? Math.min(jeu.temps, jeu.duree) : jeu.temps, equipes: !!(A && A.equipes), scores: equipes ? equipes.map((q) => q.score) : null,
+      extraction: { format: A ? A.format : 'ensemble', zone: A && A.zone ? A.zone.id || null : null, zoneSemaine: !!(A && A.zoneSemaine), joueurs, equipes,
+        coffres: { total: A ? A.coffres.length : 0, ouverts: A ? A.coffres.filter((c) => c.ouvert).length : 0 },
+        valeurExtraite: joueurs.reduce((s, j) => s + j.valeur, 0), points: A ? A.extractions.map((p) => ({ id: p.id, nom: p.nom })) : [] } };
+  }
+
+  // ─── pour le jeu en ligne : l'état du mode en JSON compact (l'hôte fait autorité) et sa lecture chez un client ───
+  // { o: '0110…' (coffres ouverts, dans l'ordre de jeu.extraction.coffres ; la caisse du largage à la fin une fois tombée), x: 0 | 1
+  //   (extractions ouvertes), l: 0 | 1 (largage tombé), s: [[id, x, z, [objets], cle 0 | 1], …] (sacs au sol disponibles),
+  //   j: [[id, [objets du sac], drapeaux (1 à terre, 2 extrait, 4 éliminé, 8 perdu, 16 a la clé, 32 lampe), quoi ('' | 'coffre' | 'sac' |
+  //   'relever'), prog, sortie, silencieux ('' | arme)], …], p: [id primé, montant] | 0, g: [[id, de, equipe, type, x, y, z, reste], …] }
+  function etat(jeu) {
+    const A = jeu.extraction; if (!A) return null;
+    let o = ''; for (const c of A.coffres) o += c.ouvert ? '1' : '0';
+    const s = []; for (const q of A.sacs) if (q.dispo) s.push([q.id, r2(q.x), r2(q.z), q.objets.slice(), q.cle ? 1 : 0]);
+    const j = []; for (const e of jeu.entites) if (e.humain && e.sac) j.push([e.id, e.sac.objets.slice(), (e.aTerre ? 1 : 0) | (e.extrait ? 2 : 0) | (e.elimine ? 4 : 0) | (e.perdu ? 8 : 0) | (e.cle ? 16 : 0) | (e.lampe ? 32 : 0), e.interaction ? e.interaction.quoi : '', e.interaction ? r2(e.interaction.prog) : 0, r2(e.sortie || 0), e.silencieux || '']);
+    const g = A.signaux.map((q) => [q.id, q.de, q.equipe, q.type, q.x, q.y, q.z, r2(Math.max(0, q.jusqua - jeu.temps))]);
+    return { o, x: A.ouvertes ? 1 : 0, l: A.largage && A.largage.tombe ? 1 : 0, s, j, p: A.prime.id ? [A.prime.id, A.prime.montant] : 0, g };
+  }
+  const objetConnu = (id) => !!(BUTIN.VALEURS[id] || BUTIN.CONSOMMABLES[id]);
+  function lireEtat(jeu, et) {
+    const A = jeu.extraction; if (!A || !et || typeof et !== 'object') return false;
+    if (et.l === 1 && A.largage && !A.largage.tombe) { A.largage.tombe = true; A.coffres.push(A.largage.coffre); }
+    if (typeof et.o === 'string') for (let i = 0; i < A.coffres.length && i < et.o.length; i++) A.coffres[i].ouvert = et.o[i] === '1';
+    A.ouvertes = et.x === 1;
+    if (Array.isArray(et.s)) {
+      const vus = new Set();
+      for (const q of et.s) {
+        if (!Array.isArray(q) || typeof q[0] !== 'string' || !fin(+q[1]) || !fin(+q[2])) continue; vus.add(q[0]);
+        let s = A.sacs.find((x) => x.id === q[0]);
+        if (!s) { s = { id: q[0], x: +q[1], z: +q[2], y: jeu.monde.hauteur(+q[1], +q[2]), objets: [], de: null, dispo: true, attend: {}, cle: false }; A.sacs.push(s); }
+        s.objets = Array.isArray(q[3]) ? q[3].filter(objetConnu) : []; s.cle = q[4] === 1; s.dispo = true;
+      }
+      for (const s of A.sacs) if (!vus.has(s.id)) s.dispo = false;
+    }
+    if (Array.isArray(et.j)) for (const l of et.j) {
+      const e = Array.isArray(l) ? jeu.trouver(l[0]) : null; if (!e || !e.sac) continue;
+      e.sac.objets = Array.isArray(l[1]) ? l[1].filter(objetConnu) : [];
+      const f = l[2] | 0; e.aTerre = !!(f & 1); e.extrait = !!(f & 2); e.elimine = !!(f & 4); e.perdu = !!(f & 8); e.cle = !!(f & 16); e.lampe = !!(f & 32);
+      e.interaction = l[3] ? { quoi: l[3], cible: null, t: 0, prog: +l[4] || 0, duree: 1 } : null; e.sortie = +l[5] || 0; e.silencieux = typeof l[6] === 'string' && l[6] ? l[6] : null;
+    }
+    A.prime.id = Array.isArray(et.p) ? String(et.p[0]) : null; A.prime.montant = Array.isArray(et.p) ? +et.p[1] || 0 : 0;
+    if (Array.isArray(et.g)) A.signaux = et.g.filter((q) => Array.isArray(q) && SIGNAUX.indexOf(q[3]) >= 0).map((q) => ({ id: String(q[0]), de: String(q[1]), equipe: q[2], type: q[3], x: +q[4], y: +q[5], z: +q[6], jusqua: jeu.temps + (+q[7] || 0) }));
+    return true;
+  }
+
+  // le point d'extraction le plus proche (HUD : flèche et distance) → { point, d } | null
+  function plusProche(jeu, x, z) {
+    const A = jeu.extraction; if (!A) return null;
+    let best = null, bd = Infinity; for (const p of A.extractions) { const d = Math.sqrt(d2(x, z, p.x, p.z)); if (d < bd) { bd = d; best = p; } }
+    return best ? { point: best, d: bd } : null;
+  }
+
+  return { id: 'extraction', nom: 'Extraction', zones: true, init, nouveau, place, apparition, agir, tick, surMort, objets, fini, resultat, trier,
+    etat, lireEtat, plusProche, signauxPour, bilan, renforts, COULEUR_GARDIENS, COULEUR_BOSS, SIGNAUX, SIGNAL_DUREE, SIGNAL_MAX };
 });
 
 /* ── avatars.js ── */

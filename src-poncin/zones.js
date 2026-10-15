@@ -191,9 +191,13 @@
   //   manquants sont les apparitions les plus éloignées du départ, écartées l'une de l'autre : « Sortie » + la rue la plus proche) ;
   // - les coffres : n = clamp(arrondi(aire joignable / 2500 m²), 20, 40) (bourg 30, tout 40), joignables, à 10 m l'un de l'autre, à 20 m
   //   du départ, hors des cercles d'extraction, de préférence contre un mur ; raretés PBUTIN-compatibles (7 % légendaires, au moins un ;
-  //   15 % épiques ; 28 % rares), les plus rares les plus loin du départ ; l'hôtel de ville dans la zone : un coffre légendaire 'mairie'
-  //   (le trésor de la mairie) à côté.
-  // zone.extractions = [{ id: 'pont' | 'cale' | 'sortieN', nom, x, z, rayon }] ; zone.depart = [x, z] ; zone.coffres = [[x, z, rarete, special?], …]
+  //   15 % épiques ; 28 % rares), les plus rares les plus loin du départ ;
+  // - les lieux (zone.lieux : un emplacement propre, sans intérieur pour l'instant) : le coffre-fort (légendaire, verrouillé : il faut la
+  //   clé, cachée dans un coffre rare ou mieux, special 'cle') devant l'hôtel de ville (sinon la banque, la poste ; repli : le légendaire
+  //   le plus loin du départ, « Coffre verrouillé »), et le poste du Gardien (le boss) à 5–10 m ;
+  // - le largage : un point dégagé (zone.largage), à 50 m du départ, 30 m des extractions et 10 m des coffres.
+  // zone.extractions = [{ id: 'pont' | 'cale' | 'sortieN', nom, x, z, rayon }] ; zone.depart = [x, z] ; zone.coffres = [[x, z, rarete,
+  // special? ('coffre-fort' | 'cle')], …] ; zone.lieux = [{ id: 'coffre-fort' | 'gardien', nom, x, z, lieu? }] ; zone.largage = [x, z] | null
   const EX = REGLES.MODES.extraction || {}, EX_RAYON = (EX.extraction && EX.extraction.rayon) || 10, C = EX.coffres || { aire: 2500, min: 20, max: 40, ecart: 10 };
   const PARTS = { legendaire: 0.07, epique: 0.15, rare: 0.28 }; // (les mêmes que PBUTIN.PARTS)
   function berges(carte, ok) { // les points de berge (tous les 4 m, 2,5 à 6 m hors de l'eau) qui conviennent
@@ -268,13 +272,17 @@
     const aire = zone.aire > 0 ? zone.aire : lim.aire || 0, n = Math.max(C.min, Math.min(C.max, Math.round(aire / C.aire)));
     const coffres = [], loinDe = (p, e) => coffres.every((q) => d2(p, q) >= e * e);
     const libreEx = (p) => pts.every((e) => d2(p, [e.x, e.z]) >= (e.rayon + 5) * (e.rayon + 5)) && d2(p, depart) >= 20 * 20;
-    // l'hôtel de ville : le trésor de la mairie
-    const mairie = nomme(carte, /^(Hôtel de ville|Mairie)/i);
-    if (mairie && monde) {
-      for (let k = 0; k < 200; k++) {
-        const a = rnd() * 2 * Math.PI, r = 3 + 12 * Math.sqrt(rnd()), p = [r2(mairie[0] + Math.cos(a) * r), r2(mairie[1] + Math.sin(a) * r)];
-        if (ok(p, 0.8) && libreEx(p)) { coffres.push([p[0], p[1], 'legendaire', 'mairie']); break; }
-      }
+    // les lieux : le coffre-fort (devant la mairie, sinon la banque, sinon la poste : le trésor), le Gardien à côté
+    const lieux = [], pres = (c, r0, r1, rr) => { for (let k = 0; k < 300 && monde; k++) { const a = rnd() * 2 * Math.PI, r = r0 + (r1 - r0) * Math.sqrt(rnd()), p = [r2(c[0] + Math.cos(a) * r), r2(c[1] + Math.sin(a) * r)]; if (ok(p, rr || 0.8) && libreEx(p)) return p; } return null; };
+    const LIEUX = [[/^(Hôtel de ville|Mairie)/i, 'mairie', 'Coffre-fort de la mairie'], [/(Crédit|Banque|Caisse d)/i, 'banque', 'Coffre-fort de la banque'], [/^La Poste/i, 'poste', 'Coffre-fort de la poste']];
+    for (const [re, t, nom] of LIEUX) {
+      let c = nomme(carte, re), src = null;
+      if (!c) for (const e of (carte && carte.enseignes) || []) if (e && e.t === t && fin(+e.x) && fin(+e.z)) { c = [+e.x, +e.z]; src = e.n; break; }
+      if (!c || !lim.dedans(c[0], c[1])) continue;
+      const p = pres(c, 3, 15); if (!p) continue;
+      if (!src) for (const n of (carte && carte.noms) || []) if (n && re.test(n.n)) { src = n.n; break; }
+      coffres.push([p[0], p[1], 'legendaire', 'coffre-fort']); lieux.push({ id: 'coffre-fort', nom, x: p[0], z: p[1], lieu: src || null });
+      break;
     }
     for (let ecart = C.ecart; coffres.length < n && ecart >= 4; ecart *= 0.75) {
       for (let essai = 0, rate = 0; coffres.length < n && essai < 6000 && rate < 400; essai++) {
@@ -287,9 +295,25 @@
     // les raretés : les plus rares le plus loin du départ (un peu de hasard)
     const nl = Math.max(1, Math.round(coffres.length * PARTS.legendaire)), ne = Math.round(coffres.length * PARTS.epique), nr = Math.round(coffres.length * PARTS.rare);
     const libres = coffres.filter((c) => !c[3]).map((c) => ({ c, d: Math.sqrt(d2(c, depart)) * (0.7 + 0.6 * rnd()) })).sort((a, b) => b.d - a.d);
-    let k = coffres.some((c) => c[3] === 'mairie') ? 1 : 0;
+    let k = coffres.some((c) => c[3] === 'coffre-fort') ? 1 : 0;
     for (const o of libres) { o.c[2] = k < nl ? 'legendaire' : k < nl + ne ? 'epique' : k < nl + ne + nr ? 'rare' : 'commun'; k++; }
-    zone.extractions = pts; zone.depart = depart; zone.coffres = coffres;
+    // sans lieu : le légendaire le plus loin du départ devient un coffre verrouillé
+    if (!lieux.length) { const c = libres.length ? libres[0].c : null; if (c) { c[2] = 'legendaire'; c[3] = 'coffre-fort'; lieux.push({ id: 'coffre-fort', nom: 'Coffre verrouillé', x: c[0], z: c[1], lieu: null }); } }
+    const fort = lieux[0];
+    // la clé : dans un coffre rare ou mieux (au hasard, de préférence à 60 m au moins du coffre-fort)
+    if (fort) {
+      const cand = coffres.filter((c) => !c[3] && c[2] !== 'commun'), loin = cand.filter((c) => d2(c, [fort.x, fort.z]) >= 60 * 60), l = loin.length ? loin : cand;
+      if (l.length) l[Math.floor(rnd() * l.length)][3] = 'cle';
+      const g = pres([fort.x, fort.z], 5, 10, 0.6); if (g) lieux.push({ id: 'gardien', nom: 'Le Gardien', x: g[0], z: g[1], lieu: null });
+    }
+    // le largage : un point dégagé, à 50 m du départ, 30 m des extractions, 10 m des coffres
+    let largage = null;
+    for (let essai = 0; essai < 3000 && !largage; essai++) {
+      const q0 = monde ? monde.libre(rnd) : [C0[0] + (rnd() * 2 - 1) * R * 0.7, C0[1] + (rnd() * 2 - 1) * R * 0.7], p = [r2(q0[0]), r2(q0[1])];
+      if (!ok(p, 1) || (monde && monde.bloque(p[0], p[1], essai < 1500 ? 4 : 1.5)) || d2(p, depart) < 50 * 50 || !pts.every((e) => d2(p, [e.x, e.z]) >= 30 * 30) || !coffres.every((c) => d2(p, c) >= 100)) continue;
+      largage = p;
+    }
+    zone.extractions = pts; zone.depart = depart; zone.coffres = coffres; zone.lieux = lieux; zone.largage = largage;
     return zone;
   }
 
@@ -307,6 +331,8 @@
     if (Array.isArray(z.coffres)) out.coffres = z.coffres.filter((c) => Array.isArray(c) && fin(+c[0]) && fin(+c[1]) && typeof c[2] === 'string').map((c) => (typeof c[3] === 'string' ? [+c[0], +c[1], c[2], c[3]] : [+c[0], +c[1], c[2]]));
     if (Array.isArray(z.extractions)) out.extractions = z.extractions.filter((e) => e && fin(+e.x) && fin(+e.z)).map((e) => ({ id: String(e.id), nom: String(e.nom || ''), x: +e.x, z: +e.z, rayon: fin(+e.rayon) && e.rayon > 0 ? +e.rayon : EX_RAYON }));
     if (Array.isArray(z.depart) && fin(+z.depart[0]) && fin(+z.depart[1])) out.depart = [+z.depart[0], +z.depart[1]];
+    if (Array.isArray(z.lieux)) out.lieux = z.lieux.filter((l) => l && typeof l.id === 'string' && fin(+l.x) && fin(+l.z)).map((l) => ({ id: l.id, nom: String(l.nom || ''), x: +l.x, z: +l.z, lieu: typeof l.lieu === 'string' ? l.lieu : null }));
+    if (Array.isArray(z.largage) && fin(+z.largage[0]) && fin(+z.largage[1])) out.largage = [+z.largage[0], +z.largage[1]];
     if (monde) { monde.limite = limite; navDe(monde, null); } // la navigation aussi : monde.libre la lit (les caisses du mode tombent au même endroit que chez l'hôte)
     return out;
   }
@@ -318,6 +344,8 @@
     if (z.coffres) out.coffres = z.coffres.map((c) => (c[3] ? [r2(c[0]), r2(c[1]), c[2], c[3]] : [r2(c[0]), r2(c[1]), c[2]])); // l'Extraction
     if (z.extractions) out.extractions = z.extractions.map((e) => ({ id: e.id, nom: e.nom, x: r2(e.x), z: r2(e.z), rayon: e.rayon }));
     if (z.depart) out.depart = [r2(z.depart[0]), r2(z.depart[1])];
+    if (z.lieux) out.lieux = z.lieux.map((l) => ({ id: l.id, nom: l.nom, x: r2(l.x), z: r2(l.z), lieu: l.lieu || null }));
+    if (z.extractions) out.largage = z.largage ? [r2(z.largage[0]), r2(z.largage[1])] : null;
     return out;
   }
   // la distance idéale de réapparition : clamp(0,32 · rayon englobant, 15, 60) m (35 m pour 'centre')

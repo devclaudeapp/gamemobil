@@ -43,8 +43,8 @@
      debout », PARENE) ; crochet de mode apresNav(jeu), appelé une fois la navigation construite.
    L'Extraction (PEXTRACTION, extraction.js) : crochets de mode facultatifs nouveau(jeu, e, d) (dans ajouterJoueur, avant la première
    apparition : camp, sac, améliorations d.ameliorations, poste du gardien d.garde), place(jeu, e) (à la fin de chaque placer), agir(jeu,
-   e, en, dt, evs) (après l'entrée de chaque humain vivant : en.lacher), trier(a, b) (le classement) ; jeu.humains (le nombre d'humains
-   annoncé) ; un objet du mode marqué unique ne revient pas une fois pris ; drapeaux 2048 (à terre) et 4096 (extrait) de l'instantané ;
+   e, en, dt, evs) (après l'entrée de chaque humain vivant : en.lacher, utiliser, lampe, signal), trier(a, b) (le classement) ;
+   jeu.humains (le nombre d'humains annoncé) ; jeu.maintenant (params.maintenant : l'heure réelle en ms, la zone de la semaine) ; un objet du mode marqué unique ne revient pas une fois pris ; drapeaux 2048 (à terre) et 4096 (extrait) de l'instantané ;
    robots listés jusqu'au plafond des gardiens (MODES.extraction.gardiens.plafond). */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'), require('./nav.js'), require('./bots.js'), require('./corps.js'), require('./armes.js'), require('./zones.js'));
@@ -199,7 +199,7 @@
     let finDemandee = false;
 
     const jeu = {
-      monde, mode, options, reglages: options, graine, humains, carte: params.carte || o.carte || monde.carte || null, nav: null, zone: null, robots,
+      monde, mode, options, reglages: options, graine, humains, maintenant: fini(+params.maintenant) ? +params.maintenant : null, carte: params.carte || o.carte || monde.carte || null, nav: null, zone: null, robots,
       vieMax: vies.vie, armureMax: vies.armureMax, visibilite: vis.vue, visibiliteLampe: vis.lampe, lampes: options.heure === 'nuit',
       manche: null, treve: false, debutChrono: 0,
       entites, temps: 0, dt: 0, fini: false, duree: 0, image: 0, evenements: evs,

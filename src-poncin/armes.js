@@ -18,6 +18,7 @@
   else root.PARMES = factory(root.PREGLES, root.PCORPS);
 })(typeof self !== 'undefined' ? self : this, function (REGLES, CORPS) {
   'use strict';
+  const SILENCIEUX = (REGLES.MODES.extraction && REGLES.MODES.extraction.bruits && REGLES.MODES.extraction.bruits.tirSilencieux) || 8; // la portée du bruit d'un tir au silencieux (m)
   const J = REGLES.JOUEUR, P = J.postures;
   const CHANGE_ARME = 0.3;  // historique : le temps de sortir une autre arme (s)
   const KICK = 0.6;         // la part du recul de l'arme qui relève le regard
@@ -183,7 +184,7 @@
     e.gonfle = Math.min(1, e.gonfle + (A.gonfle != null ? A.gonfle : 0.3));
     e.pitch = borne(e.pitch + (A.recul || 0) * kr * KICK * (0.7 + 0.3 * rnd()), -1.45, 1.45);
     e.yaw = angle(e.yaw + (A.recul || 0) * kr * KICK * 0.35 * (rnd() * 2 - 1));
-    jeu.faireBruit(e, 30);
+    jeu.faireBruit(e, e.silencieux && e.silencieux === e.arme ? SILENCIEUX : 30); // un silencieux (l'Extraction) sur l'arme en main : on l'entend à peine
     for (let i = 0; i < nc; i++) { const c = CIBLES[i]; CIBLES[i] = null; jeu.blesser(c, e, DEGATS[i], TETES[i], A.id, out); }
   }
 

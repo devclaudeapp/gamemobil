@@ -13,13 +13,15 @@
    API :
    RARETES, RARETE[r] = { id, nom, couleur, rang } ; VALEURS[id] = { id, nom, rarete, valeur, cases } ; CONSOMMABLES[id] = { id, nom,
      cases, prix } ; valeur(id) → pièces (0 pour un consommable) ; nomDe(id) ; tirerContenu(rarete, rnd, { armes, special }) → [{ type:
-     'valeur', id } | { type: 'munitions' | 'soin' | 'armure' } | { type: 'arme', arme, rarete }] (special 'mairie' : le trésor de la mairie) ;
+     'valeur', id } | { type: 'munitions' | 'soin' | 'armure' | 'silencieux' | 'cle' } | { type: 'arme', arme, rarete }] (special
+     'coffre-fort' : le trésor de la mairie ; 'cle' : la clé du coffre-fort) ;
      raretes(n) → n raretés (les plus rares d'abord) ;
    le sac : sacVide(cases) → { cases, objets } ; place(sac) ; tient(sac, id) ; ajouter(sac, id) → bool ; retirer(sac, i) → id | null ;
      valeurSac(sac), valeurDe(ids), casesDe(ids), consommablesDe(ids) ;
    le coffre : VERSION (2) ; coffreVide() ; lireCoffre(o) → coffre v2 borné (reprend un coffre v1 { pieces, objets }) ;
-     deposer(coffre, { objets, materiel, score, extrait }, { vendre = true }) → { coffre, gain, record, score } : ce qui est sorti d'une
-       partie (objets de valeur vendus contre des pièces, ou gardés avec vendre: false ; matériel rangé ; collection et record) ;
+     deposer(coffre, { objets, materiel, score, extrait, primes, zoneSemaine }, { vendre = true }) → { coffre, gain, record, score } : ce
+       qui est sorti d'une partie (objets de valeur vendus contre des pièces, ou gardés avec vendre: false ; primes versées si extrait ;
+       +25 % dans la zone de la semaine ; matériel rangé ; collection et record) — une ligne de PEXTRACTION.resultat().extraction.joueurs ;
      lister(coffre, filtre?) → [{ ref, type: 'valeur' | 'arme' | 'armure' | 'soin' | 'munitions', id, arme?, rarete, n, nom, prix }]
        (filtre : un type, ou une fonction) ; prendre(coffre, [{ ref, n }]) → { ok, coffre, pris: [articles] } (sortir pour une partie) ;
        rendre(coffre, articles) → { coffre } (ce qui revient) ; perdre(coffre, articles) → { coffre } (ce qui est tombé : compté) ;
@@ -28,7 +30,12 @@
        niveau(coffre, id, catalogue?) ; prix(coffre, id, catalogue?) → pièces du niveau suivant | null ; acheter(coffre, id, catalogue?)
        → { ok, coffre, prix, raison: null | 'inconnue' | 'max' | 'pieces' } (catalogue par défaut : 'extraction') ;
      les améliorations de l'Extraction : AMELIORATIONS (= CATALOGUE.extraction), bornerAmeliorations(a), effets(a) → { cases,
-       ouverture, armure, chargeurs } ; POINTS (éliminations) ; score({ valeur, points }). */
+       ouverture, armure, chargeurs } ; POINTS (éliminations) ; score({ valeur, points, primes }) ;
+   le calendrier (heure de Paris, pur : règle européenne de l'heure d'été) : jourDeParis(ms) → 'AAAA-MM-JJ' ; semaineDeParis(ms) →
+     numéro de la semaine (lundi 0 h) ; zoneDeLaSemaine(ms) → id de zone (rotation parmi ZONES_SEMAINE ; +25 % de pièces : BONUS_SEMAINE) ;
+   les contrats du jour : contratsDuJour(ms | 'AAAA-MM-JJ') → 3 contrats { type: 'ramener' (id) | 'sortie' (point) | 'coffres' (rarete,
+     n) | 'robots' (n) | 'valeur' (x), texte, but, recompense } ; progression(coffre, ligne, ms) → { coffre, avances: [i] } (l'état du
+     jour dans coffre.contrats) ; reclamer(coffre, i, ms) → { ok, coffre, gain }. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'));
   else root.PBUTIN = factory(root.PREGLES);
@@ -76,10 +83,10 @@
   // chaque coffre : des objets de valeur (sa rareté, parfois celle d'en dessous), et des consommables ; les rares et mieux, parfois une
   // meilleure principale (rare : fusil ou mitraillette ; épique : fusil, mitraillette, pompe ou fusil de précision ; légendaire : toujours)
   const TABLES = {
-    commun: { valeurs: [1, 1], basse: 0.45, conso: [1, 2], arme: 0, classes: [] },
-    rare: { valeurs: [1, 2], basse: 0.4, conso: [1, 2], arme: 0.25, classes: ['fusil', 'mitraillette'] },
-    epique: { valeurs: [2, 2], basse: 0.35, conso: [1, 2], arme: 0.5, classes: ['fusil', 'mitraillette', 'pompe', 'sniper'] },
-    legendaire: { valeurs: [2, 3], basse: 0.4, conso: [2, 2], arme: 1, classes: ['sniper', 'fusil'] },
+    commun: { valeurs: [1, 1], basse: 0.45, conso: [1, 2], arme: 0, classes: [], silencieux: 0 },
+    rare: { valeurs: [1, 2], basse: 0.4, conso: [1, 2], arme: 0.25, classes: ['fusil', 'mitraillette'], silencieux: 0.15 },
+    epique: { valeurs: [2, 2], basse: 0.35, conso: [1, 2], arme: 0.5, classes: ['fusil', 'mitraillette', 'pompe', 'sniper'], silencieux: 0.3 },
+    legendaire: { valeurs: [2, 3], basse: 0.4, conso: [2, 2], arme: 1, classes: ['sniper', 'fusil'], silencieux: 0.4 },
   };
   const CONSOS = ['munitions', 'munitions', 'soin', 'armure']; // les munitions deux fois plus souvent
   const entre = (rnd, a, b) => a + Math.floor(rnd() * (b - a + 1));
@@ -93,7 +100,9 @@
     const T = TABLES[rarete], rang = RARETE[rarete].rang, out = [];
     // les objets de valeur
     const nV = entre(rnd, T.valeurs[0], T.valeurs[1]);
-    if (o && o.special === 'mairie') out.push({ type: 'valeur', id: 'tresor' });
+    const sp = o && o.special;
+    if (sp === 'coffre-fort' || sp === 'mairie') out.push({ type: 'valeur', id: 'tresor' }); // le coffre-fort : le trésor de la mairie
+    if (sp === 'cle') out.push({ type: 'cle' });                                            // la clé du coffre-fort
     for (let k = 0; k < nV; k++) {
       const r = rang > 0 && rnd() < T.basse ? RARETES[rang - 1] : rarete, l = PAR_RARETE[r];
       out.push({ type: 'valeur', id: l[Math.floor(rnd() * l.length)].id });
@@ -103,6 +112,8 @@
       const prin = armesPrincipales(o && o.armes), l = prin.filter((id) => T.classes.indexOf(REGLES.arme(id).classe) >= 0), liste = l.length ? l : prin;
       if (liste.length) out.push({ type: 'arme', arme: liste[Math.floor(rnd() * liste.length)], rarete });
     }
+    // un silencieux (rare et mieux : il se fixe à l'arme en main)
+    if (T.silencieux > 0 && rnd() < T.silencieux) out.push({ type: 'silencieux' });
     // les consommables
     const nC = entre(rnd, T.conso[0], T.conso[1]);
     for (let k = 0; k < nC; k++) out.push({ type: CONSOS[Math.floor(rnd() * CONSOS.length)] });
@@ -174,7 +185,59 @@
 
   // ─── le score d'une partie : la valeur extraite, plus les éliminations ───
   const POINTS = { gardien: 10, joueur: 25 };
-  const score = (r) => Math.max(0, Math.round((r && fin(+r.valeur) ? +r.valeur : 0) + (r && fin(+r.points) ? +r.points : 0)));
+  const score = (r) => Math.max(0, Math.round((r && fin(+r.valeur) ? +r.valeur : 0) + (r && fin(+r.points) ? +r.points : 0) + (r && fin(+r.primes) ? +r.primes : 0)));
+
+  // ─── le calendrier de Paris (pur : UTC+1, UTC+2 du dernier dimanche de mars au dernier dimanche d'octobre, à 1 h UTC) ───
+  function dernierDimanche(an, mois) { const d = new Date(Date.UTC(an, mois + 1, 0)); return Date.UTC(an, mois, d.getUTCDate() - d.getUTCDay(), 1); }
+  function decalageParis(ms) { const an = new Date(ms).getUTCFullYear(); return ms >= dernierDimanche(an, 2) && ms < dernierDimanche(an, 9) ? 2 : 1; }
+  const jourLocal = (ms) => Math.floor((ms + decalageParis(ms) * 3600000) / 86400000); // jours depuis le 1er janvier 1970, à Paris
+  const msDe = (ms) => (fin(+ms) ? +ms : ms instanceof Date ? ms.getTime() : 0);
+  function jourDeParis(ms) { const d = new Date(jourLocal(msDe(ms)) * 86400000); return d.toISOString().slice(0, 10); }
+  const semaineDeParis = (ms) => Math.floor((jourLocal(msDe(ms)) - 4) / 7); // le 5 janvier 1970 était un lundi
+  const ZONES_SEMAINE = ['bourg', 'rivieres', 'tout', 'centre'], BONUS_SEMAINE = 0.25;
+  function zoneDeLaSemaine(ms) { const s = semaineDeParis(ms), n = ZONES_SEMAINE.length; return ZONES_SEMAINE[((s % n) + n) % n]; } // une rotation : chaque zone revient toutes les 4 semaines
+
+  // ─── les contrats du jour (3, tirés de la date de Paris) ───
+  const TYPES_CONTRATS = ['ramener', 'sortie', 'coffres', 'robots', 'valeur'];
+  function contratsDuJour(quand) {
+    const jour = typeof quand === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(quand) ? quand : jourDeParis(quand), rnd = REGLES.mulberry32(REGLES.hash('contrats ' + jour));
+    const types = TYPES_CONTRATS.slice(); for (let i = types.length - 1; i > 0; i--) { const j = Math.floor(rnd() * (i + 1)), t = types[i]; types[i] = types[j]; types[j] = t; }
+    return types.slice(0, 3).map((type) => {
+      if (type === 'ramener') { const l = LISTE.filter((v) => v.rarete === 'rare' || v.rarete === 'epique'), v = l[Math.floor(rnd() * l.length)]; return { type, id: v.id, but: 1, recompense: v.rarete === 'epique' ? 150 : 100, texte: `Ramener : ${v.nom}` }; }
+      if (type === 'sortie') { const pt = rnd() < 0.5 ? 'pont' : 'cale'; return { type, point: pt, but: 1, recompense: 60, texte: pt === 'pont' ? 'Sortir par le pont' : 'Sortir par la cale de la rivière' }; }
+      if (type === 'coffres') { const ep = rnd() < 0.4, n = ep ? 2 + Math.floor(rnd() * 2) : 4 + Math.floor(rnd() * 3); return { type, rarete: ep ? 'epique' : 'rare', n, but: n, recompense: ep ? 110 : 80, texte: `Ouvrir ${n} coffres ${ep ? 'épiques' : 'rares'} (ou mieux)` }; }
+      if (type === 'robots') { const n = 5 + Math.floor(rnd() * 6); return { type, n, but: n, recompense: 50 + 6 * n, texte: `Éliminer ${n} robots` }; }
+      const x = 150 + 50 * Math.floor(rnd() * 6); return { type: 'valeur', x, but: 1, recompense: Math.round(x * 0.4), texte: `Sortir avec au moins ${x} pièces de valeur` };
+    });
+  }
+  // l'état des contrats du coffre, remis à neuf s'il n'est pas d'aujourd'hui
+  function contratsDe(c, jour) {
+    if (!c.contrats || c.contrats.jour !== jour) c.contrats = { jour, etats: contratsDuJour(jour).map(() => ({ prog: 0, fait: false, reclame: false })) };
+    return c.contrats;
+  }
+  // une partie jouée (une ligne de PEXTRACTION.resultat().extraction.joueurs) fait avancer les contrats du jour
+  function progression(coffre, r, quand) {
+    const c = lireCoffre(coffre), jour = jourDeParis(quand), defs = contratsDuJour(jour), et = contratsDe(c, jour).etats, avances = [];
+    if (!r || typeof r !== 'object') return { coffre: c, avances };
+    const ids = Array.isArray(r.objets) ? r.objets : [], cp = r.coffresPar && typeof r.coffresPar === 'object' ? r.coffresPar : {};
+    defs.forEach((d, i) => {
+      const e = et[i]; if (!e || e.fait) return;
+      let v = 0;
+      if (d.type === 'ramener') v = r.extrait && ids.indexOf(d.id) >= 0 ? 1 : 0;
+      else if (d.type === 'sortie') v = r.extrait && r.point === d.point ? 1 : 0;
+      else if (d.type === 'valeur') v = r.extrait && +r.valeur >= d.x ? 1 : 0;
+      else if (d.type === 'coffres') { for (const k of RARETES) if (RARETE[k].rang >= RARETE[d.rarete].rang) v += entier(cp[k], 999); }
+      else if (d.type === 'robots') v = entier(r.killsRobots, 999);
+      if (v > 0) { e.prog = Math.min(d.but, e.prog + v); if (e.prog >= d.but) e.fait = true; avances.push(i); }
+    });
+    return { coffre: c, avances };
+  }
+  function reclamer(coffre, i, quand) {
+    const c = lireCoffre(coffre), jour = jourDeParis(quand), defs = contratsDuJour(jour), et = contratsDe(c, jour).etats, e = et[i];
+    if (!e || !e.fait || e.reclame) return { ok: false, coffre: c, gain: 0 };
+    e.reclame = true; c.pieces = Math.min(MAX_PIECES, c.pieces + defs[i].recompense);
+    return { ok: true, coffre: c, gain: defs[i].recompense };
+  }
 
   // ─── le coffre personnel (format v2) ───
   // { v: 2, pieces, objets: [{ id, n }] (objets de valeur gardés), materiel: [{ ref, type: 'arme' | 'armure' | 'soin' | 'munitions',
@@ -187,7 +250,7 @@
   const entier = (v, max) => (fin(+v) ? Math.max(0, Math.min(max || MAX_PIECES, Math.floor(+v))) : 0);
   function coffreVide() {
     return { v: VERSION, pieces: 0, objets: [], materiel: [], collection: [], achats: { extraction: bornerAmeliorations(null) }, ameliorations: bornerAmeliorations(null),
-      record: 0, parties: 0, extractions: 0, perdus: 0, suivant: 1 };
+      record: 0, parties: 0, extractions: 0, perdus: 0, suivant: 1, contrats: null };
   }
   const empiler = (l, id, n) => { const x = l.find((y) => y.id === id); if (x) x.n = Math.min(MAX_N, x.n + n); else l.push({ id, n: Math.min(MAX_N, n) }); };
   const rangValeur = (a, b) => RARETE[VALEURS[b.id].rarete].rang - RARETE[VALEURS[a.id].rarete].rang || VALEURS[b.id].valeur - VALEURS[a.id].valeur || (a.id < b.id ? -1 : 1);
@@ -235,6 +298,11 @@
       if (ref) refs.add(ref); c.materiel.push(mm);
     }
     for (const m of c.materiel) if (!m.ref) m.ref = 'm' + c.suivant++;
+    const ct = o.contrats; // l'état des contrats du jour (repris tel quel s'il est bien formé)
+    if (ct && typeof ct.jour === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(ct.jour) && Array.isArray(ct.etats) && ct.etats.length === 3) {
+      const defs = contratsDuJour(ct.jour);
+      c.contrats = { jour: ct.jour, etats: ct.etats.map((e, i) => { const p = Math.min(defs[i].but, entier(e && e.prog, 999)); return { prog: p, fait: p >= defs[i].but, reclame: !!(e && e.reclame) && p >= defs[i].but }; }) };
+    }
     return c;
   }
   // déposer ce qui est sorti d'une partie : r = { objets: [ids du sac : objets de valeur et consommables], materiel: [{ type, arme?,
@@ -244,6 +312,8 @@
     const ids = r && Array.isArray(r.objets) ? r.objets : [], valeurs = ids.filter((id) => own(VALEURS, id));
     let gain = 0;
     for (const id of valeurs) { empiler(c.collection, id, 1); if (vendreV) gain += VALEURS[id].valeur; else empiler(c.objets, id, 1); }
+    if (r && r.extrait && fin(+r.primes) && r.primes > 0) gain += Math.min(10000, Math.round(+r.primes)); // les primes : versées seulement si l'on est sorti
+    if (r && r.zoneSemaine && gain > 0) gain = Math.round(gain * (1 + BONUS_SEMAINE));                // la zone de la semaine : +25 %
     for (const id of ids) if (estConso(id)) ranger(c, { type: id, rarete: 'commun', n: 1 });
     if (r && Array.isArray(r.materiel)) for (const m of r.materiel) { const a = lireArticle(m); if (a) ranger(c, a); }
     c.pieces = Math.min(MAX_PIECES, c.pieces + gain); c.parties++; if (r && r.extrait) c.extractions++;
@@ -337,6 +407,7 @@
     RARETES, RARETE, PARTS, VALEURS, LISTE, CONSOMMABLES, TABLES, valeur, nomDe, tirerContenu, raretes, armesPrincipales,
     SAC, sacVide, casesDe, valeurDe, consommablesDe, place, tient, ajouter, retirer, valeurSac,
     CATALOGUE, ajouterCatalogue, AMELIORATIONS, IDS_AMELIORATIONS, bornerAmeliorations, effets, POINTS, score,
+    jourDeParis, semaineDeParis, zoneDeLaSemaine, ZONES_SEMAINE, BONUS_SEMAINE, TYPES_CONTRATS, contratsDuJour, progression, reclamer,
     VERSION, TYPES_MATERIEL, PRIX_ARME, coffreVide, lireCoffre, deposer, lister, prendre, rendre, perdre, vendre, prixVente, depenser, niveau, prix, acheter,
   };
 });

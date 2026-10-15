@@ -95,7 +95,14 @@
     extraction: { duree: 480, durees: [300, 480, 720], zone: 'bourg', zones: ['bourg', 'tout'], humains: [1, 3], invincible: 1.5,
       coffres: { aire: 2500, min: 20, max: 40, ecart: 10 }, ouverture: { duree: 1.2, distance: 1.8, bouge: 0.6 }, ramasser: { duree: 0.5, distance: 1.6 },
       extraction: { duree: 8, rayon: 10, ouvre: 0.5 }, relever: { duree: 4, distance: 2, delai: 30, vie: 0.3 },
-      gardiens: { facile: { legendaire: 2, epique: 1, rare: 0, patrouilles: 1, max: 10 }, normal: { legendaire: 3, epique: 2, rare: 0.5, patrouilles: 2, max: 14 }, fort: { legendaire: 3, epique: 2, rare: 1, patrouilles: 3, max: 18 }, parHumain: 2, plafond: 20 } },
+      gardiens: { facile: { legendaire: 2, epique: 1, rare: 0, patrouilles: 1, max: 10 }, normal: { legendaire: 3, epique: 2, rare: 0.5, patrouilles: 2, max: 14 }, fort: { legendaire: 3, epique: 2, rare: 1, patrouilles: 3, max: 18 }, parHumain: 2, plafond: 24 },
+      formats: ['ensemble', 'equipes', 'chacun'], nEquipes: [2, 3], // ensemble : tous les humains contre les robots ; equipes : 2 ou 3 équipes rivales ; chacun pour soi
+      largage: { decalage: 30, gardes: 2, arrivee: 20, legendaire: 0.4 },                 // la caisse tombe 30 s après l'ouverture des extractions ; 2 gardes 20 s après
+      coffreFort: { duree: 4 },                                                          // il faut la clé (dans un coffre rare ou mieux) ; 4 s pour l'ouvrir
+      boss: { vie: 6, armure: 1, ralenti: 0.3, renforts: 0.5, nRenforts: { facile: 1, normal: 2, fort: 3 }, points: 100 }, // le Gardien : vie × 6, armure pleine, 30 % plus lent ; renforts à 50 %
+      poids: { seuil: 4, parCase: 0.025, max: 0.2 },                                     // au-delà de 4 cases, −2,5 % de vitesse par case, −20 % au plus
+      bruits: { ouvrir: 18, coffreFort: 30, tirSilencieux: 8, tir: 30 },                 // la portée (m) à laquelle les robots entendent
+      prime: { periode: 30, premier: 60, seuil: 150, part: 0.25, min: 25, max: 250 } },  // le plus riche révélé toutes les 30 s ; prime = 25 % de ce qu'il porte, 25 à 250
   };
   // ─── le niveau des bots : temps de réaction (s), erreur de visée (rad, qui se resserre en visant), probabilité de tirer quand la cible est dans le viseur ───
   const BOTS = {
@@ -119,7 +126,7 @@
   const DEFAUT_REGLAGES = Object.freeze({
     v: 2, mode: 'arene', zone: 'centre', duree: 180, score: 25, heure: 'jour', meteo: 'clair', equipes: false,
     bots: 4, niveau: 'normal', tirAllie: false, vie: 'normale', reapparition: 'rapide', manches: 3, objets: true, aide: true,
-    armes: Object.freeze(ARMES_ID.slice()),
+    armes: Object.freeze(ARMES_ID.slice()), formatExtraction: 'ensemble', equipesExtraction: 2,
   });
   const DEFAUT_EQUIP = Object.freeze({ p: 'ak74', s: 'p226' });
   const dans = (v, liste, defaut) => (liste.indexOf(v) >= 0 ? v : defaut);
@@ -142,14 +149,16 @@
     let bots = typeof r.bots === 'number' || (typeof r.bots === 'string' && r.bots.trim() !== '') ? Math.round(+r.bots) : D.bots;
     if (!Number.isFinite(bots)) bots = D.bots;
     bots = Math.max(0, Math.min(SALON.max - humains, bots));
-    // l'Extraction : zone 'bourg' par défaut, durée 300 / 480 / 720 s (480 par défaut ; jamais sans limite), humains ensemble par défaut
+    // l'Extraction : zone 'bourg' par défaut, durée 300 / 480 / 720 s (480 par défaut ; jamais sans limite) ; formatExtraction
+    // ('ensemble' par défaut, 'equipes' : equipesExtraction 2 | 3 équipes rivales, 'chacun' : chacun pour soi) ; equipes = format ≠ 'chacun'
     const mode = dans(r.mode, SALON.modes, D.mode), X = mode === 'extraction' ? MODES.extraction : null;
     return {
       v: 2, mode, zone: dans(r.zone, SALON.zones, X ? X.zone : D.zone), duree: X ? n(r.duree, X.durees, X.duree) : n(r.duree, SALON.durees, D.duree), score: n(r.score, SALON.scores, D.score),
-      heure: dans(r.heure, SALON.heures, D.heure), meteo: dans(r.meteo, SALON.meteos, D.meteo), equipes: bool(r.equipes, X ? true : D.equipes),
+      heure: dans(r.heure, SALON.heures, D.heure), meteo: dans(r.meteo, SALON.meteos, D.meteo), equipes: X ? dans(r.formatExtraction, X.formats, 'ensemble') !== 'chacun' : bool(r.equipes, D.equipes),
       bots, niveau: cle(r.niveau, BOTS, D.niveau), tirAllie: bool(r.tirAllie, D.tirAllie), vie: cle(r.vie, SALON.vies, D.vie),
       reapparition: cle(r.reapparition, SALON.reapparitions, D.reapparition), manches: n(r.manches, SALON.manches, D.manches),
       objets: bool(r.objets, D.objets), aide: bool(r.aide, D.aide), armes: armesPermises(r.armes),
+      formatExtraction: dans(r.formatExtraction, MODES.extraction.formats, 'ensemble'), equipesExtraction: n(r.equipesExtraction, MODES.extraction.nEquipes, 2),
     };
   }
   // equipementDe(demande, reglages) → { p, s } : demande { p, s } ou 'm4+m1911' ; une arme non autorisée (ou du mauvais
