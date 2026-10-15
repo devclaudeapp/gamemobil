@@ -42,6 +42,7 @@ jobs:
           node test/fournil-garderobe.test.js
           node test/fournil-garderobe.cjs
           node test/fournil-quartier.test.js
+          node test/fournil-hantee.test.js
           node test/fournil-quartier.cjs
           node test/fournil-blackjack.test.js
           node test/fournil-blackjack.cjs
@@ -69,7 +70,7 @@ jobs:
       - uses: actions/configure-pages@v5
         with:
           enablement: true
-      - run: node build.js && node test/econ.test.js && node test/longevite.js --test && node test/poncin.test.js && node test/fournil-classement.test.js && node test/fournil-horloge.test.js && node test/fournil-atelier.test.js && node test/fournil-points.test.js && node test/fournil-quartier.test.js && node test/fournil-blackjack.test.js
+      - run: node build.js && node test/econ.test.js && node test/longevite.js --test && node test/poncin.test.js && node test/fournil-classement.test.js && node test/fournil-horloge.test.js && node test/fournil-atelier.test.js && node test/fournil-points.test.js && node test/fournil-quartier.test.js && node test/fournil-hantee.test.js && node test/fournil-blackjack.test.js
         env:
           TZ: Europe/Paris
       - uses: actions/upload-pages-artifact@v3

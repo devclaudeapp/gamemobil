@@ -300,7 +300,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   check(CL.metal(1) === 'or' && CL.metal(2) === 'argent' && CL.metal(3) === 'bronze' && CL.metal(4) === null && CL.metal(null) === null, '1er : or, 2e : argent, 3e : bronze ; au-delà, rien');
   check(CL.decalerSemaine('2026-10-12', -1) === '2026-10-05' && CL.decalerSemaine('2027-01-04', -1) === '2026-12-28' && CL.decalerSemaine('2026-10-19', 1) === '2026-10-26' && CL.decalerSemaine('2027-03-22', 1) === '2027-03-29' && CL.decalerSemaine('n’importe', 1) === '', 'la semaine d’avant, d’après (passage de l’année et changements d’heure compris)');
   { const r = CL.nettoyerRecompenses({ podiums: [{ semaine: '2026-10-05', rang: 2 }, { semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 3 }, { semaine: 'hier', rang: 1 }, { semaine: '2026-09-21', rang: 4 }, null, { semaine: '2026-09-14', rang: '1' }], tenue: 'platine', vu: 12 });
-    check(egal(r, { podiums: [{ semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '', quartier: null, quartierPodium: null }), 'récompenses nettoyées : une coupe par semaine (la meilleure), triées, rangs 1 à 3 seulement ; tenue inconnue → automatique'); }
+    check(egal(r, { podiums: [{ semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '', quartier: null, quartierPodium: null, evenements: {} }), 'récompenses nettoyées : une coupe par semaine (la meilleure), triées, rangs 1 à 3 seulement ; tenue inconnue → automatique'); }
   check(CL.nettoyerRecompenses({ tenue: null }).tenue === null && CL.nettoyerRecompenses({ tenue: 'bronze' }).tenue === 'bronze' && egal(CL.nettoyerRecompenses('abîmé'), CL.recompensesNeuves()), 'tenue « aucune » (null) gardée ; réponse absurde : rien');
   { const rec = { podiums: [{ semaine: '2026-09-21', rang: 3 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '' }, L = '2026-10-12';
     check(CL.tenuePortee(rec, L) === 'argent' && CL.coupeDuComptoir(rec, L) === 'argent', 'automatique : la semaine qui suit le podium, la tenue et la coupe d’argent');
@@ -436,6 +436,91 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const r = CL.nettoyerRecompensesServeur({ ok: true, podiums: [], derniere: null, quartier: 7, quartier_podium: [{ rang: 1, pseudo: 'A', valeur: 'x' }, { rang: 4, pseudo: 'B', valeur: 1 }] });
     check(r.quartier === null && r.quartierPodium.length === 1 && r.quartierPodium[0].valeur === 0, 'un rang absurde est écarté, le podium garde les rangs 1 à 3 (valeur illisible → 0)');
     check(CL.nettoyerRecompensesServeur({ ok: true, podiums: [] }).quartierPodium === null && CL.nettoyerRecompenses({ podiums: [], quartier: 1, quartierPodium: 'x' }).quartier === 1, 'un serveur v3 : pas de podium (null) ; un état local avec son rang : gardé'); }
+  console.log('── La Maison hantée (contrat v5 : p_evt, période « hantee ») et « en ligne » (fournil_vu) ──');
+  { // un serveur v5 : les bonbons partent avec p_evt / p_score, la période « hantee », le podium final gardé à vie, le battement
+    horloge = Date.UTC(2026, 9, 28, 12); let bonbons = 5e6, cache = true, enLigneNav = true; const vus = [];
+    const v5 = (url, c) => {
+      const nom = url.split('/rpc/')[1];
+      if (nom === 'fournil_publier') return { ok: true, erreur: null, version: 5, rang_semaine: 1, rang_total: 2, joueurs: 9, semaine: '2026-10-26', points_semaine: c.p_points, points_total: 5, compte: 0, evt: c.p_evt || null, evt_score: c.p_score || null, rang_evt: c.p_evt ? 2 : null, evt_plafonne: c.p_evt ? false : null };
+      if (nom === 'fournil_vu') { vus.push(c); return { ok: true, erreur: null }; }
+      if (nom === 'fournil_recompenses') return { ok: true, erreur: null, podiums: [], derniere: null, quartier: null, quartier_podium: [], evenements: { hantee: { rang: 3, podium: [{ rang: 1, pseudo: 'Mamie', valeur: 9e14 }, { rang: 2, pseudo: 'Jo', valeur: 5e14 }, { rang: 3, pseudo: 'Léa', valeur: 4e14 }] }, inconnu: { rang: 1, podium: [] } } };
+      return { version: 5, semaine: '2026-10-26', periode: c.p_periode, joueurs: 4, en_ligne_n: 1, lignes: [{ rang: 1, pseudo: 'Mamie', points: null, valeur: 9e14, moi: false, podium: null, en_ligne: true }, { rang: 2, pseudo: 'Léa', points: null, valeur: 5e6, moi: true, podium: null, en_ligne: false }], moi: { rang: 2, points: null, valeur: 5e6, podium: null, en_ligne: false } };
+    };
+    const r = faux(async (url, init, c) => rep(200, v5(url, c)));
+    const m = moteur(r, { points: () => ({ points: 3, lundi: '2026-10-26' }), evenement: () => ({ id: 'hantee', score: bonbons + 0.7 }), visible: () => cache, enLigne: () => enLigneNav }); fortune = 5000;
+    let res = await m.choisirPseudo('Léa');
+    const c = r.appels[0].corps;
+    check(res.etat === 'ok' && egal(Object.keys(c).sort(), ['p_evt', 'p_fortune', 'p_id', 'p_jeton', 'p_lundi', 'p_points', 'p_pseudo', 'p_score']) && c.p_evt === 'hantee' && c.p_score === 5e6 && m.version() === 5, 'rejoindre : fournil_publier avec ses bonbons (p_evt = « hantee », p_score arrondi vers le bas) ; serveur v5');
+    check(m.resume().hantee && m.resume().hantee.rang === 2 && egal(m.etat().evt, { id: 'hantee', valeur: 5e6 }), 'son rang à Halloween revient dans le résumé (resume().hantee), ses bonbons envoyés sont notés');
+    horloge += 20e3; res = await m.envoyer('feuille');
+    check(res.etat === 'saute' && res.pourquoi === 'inchange', 'rien de neuf : rien ne part');
+    bonbons = 7e6; res = await m.envoyer('feuille');
+    check(res.etat === 'ok' && r.appels[r.appels.length - 1].corps.p_score === 7e6 && !('p_quartier' in r.appels[r.appels.length - 1].corps), 'des bonbons en plus : ils partent (sans p_quartier : pas de billets)');
+    { const n0 = r.appels.length; res = await m.battre('periodique');
+      check(res.etat === 'saute' && res.pourquoi === 'recent' && r.appels.length === n0, 'un envoi accepté par la v5 vaut un signe de vie : pas de battement juste après'); }
+    horloge += 2 * 60e3; res = await m.battre('periodique');
+    check(res.etat === 'ok' && vus.length === 1 && egal(Object.keys(vus[0]).sort(), ['p_id', 'p_jeton']) && vus[0].p_id === m.etat().id, '2 min plus tard : un battement fournil_vu (p_id, p_jeton), rien d’autre');
+    horloge += 60e3; res = await m.battre('periodique');
+    check(res.etat === 'saute' && res.pourquoi === 'recent' && vus.length === 1, 'pas plus d’un battement toutes les 2 min');
+    cache = false; horloge += 5 * 60e3; res = await m.battre('periodique');
+    check(res.etat === 'saute' && res.pourquoi === 'cachee' && vus.length === 1, 'page cachée (arrière-plan) : aucun battement');
+    res = await m.tick(); check(res.etat === 'saute' && vus.length === 1, 'le minuteur, page cachée : ni envoi ni battement');
+    cache = true; enLigneNav = false; res = await m.battre('retour');
+    check(res.etat === 'saute' && res.pourquoi === 'hors-ligne' && vus.length === 1, 'hors ligne : aucun battement');
+    enLigneNav = true; res = await m.battre('retour');
+    check(res.etat === 'ok' && vus.length === 2, 'retour au premier plan : un battement tout de suite');
+    horloge += 5e3; res = await m.battre('retour');
+    check(res.etat === 'saute' && vus.length === 2, 'deux retours en 5 s : un seul battement');
+    horloge += 2 * 60e3; const n1 = r.appels.length; res = await m.tick();
+    check(res.etat === 'saute' && vus.length === 3 && r.appels.length === n1 + 2, 'le minuteur, page visible, rien de neuf à envoyer : les récompenses, puis un battement');
+    const l = await m.charger('hantee');
+    check(l.etat === 'ok' && l.data.lignes.length === 2 && l.data.lignes[0].enLigne === true && l.data.lignes[1].enLigne === false && l.data.moi.enLigne === false && l.data.enLigneN === 1 && m.cache('hantee') === l && m.resume().hantee.rang === 2 && m.resume().hantee.joueurs === 4 && r.appels[r.appels.length - 1].corps.p_periode === 'hantee',
+      'la période « hantee » (onglet Halloween) : la liste en bonbons, « moi » 2e, chaque ligne porte enLigne, la liste enLigneN (1 en ligne)');
+    const rec = await m.chargerRecompenses({ ecart: 0 });
+    check(rec.etat === 'ok' && m.recompenses().evenements.hantee && m.recompenses().evenements.hantee.rang === 3 && m.recompenses().evenements.hantee.podium.length === 3 && !('inconnu' in m.recompenses().evenements), 'le podium final d’Halloween lu : 3e, les trois premiers gardés (un événement inconnu est ignoré)');
+    const q = await m.quitter();
+    check(q.etat === 'ok' && m.recompenses().evenements.hantee.rang === 3, 'quitter le classement : le rang au podium final d’Halloween reste sur le téléphone');
+    res = await m.battre('retour'); check(res.etat === 'saute' && res.pourquoi === 'pas-rejoint', 'sans avoir rejoint : aucun battement'); }
+  { // un serveur encore en version 4 : p_evt inconnu → renvoyé sans (avec les billets s'il y en a), plus jamais de bonbons, aucun battement
+    horloge = Date.UTC(2026, 9, 27, 11, 30);
+    const r = faux(async (url, init, c) => {
+      if (url.endsWith('/fournil_publier') && 'p_evt' in c) return rep(404, { code: 'PGRST202', message: 'Could not find the function public.fournil_publier(p_evt, p_fortune, p_id, p_jeton, p_lundi, p_points, p_pseudo, p_quartier, p_score)' });
+      if (url.endsWith('/fournil_vu')) return rep(404, { code: 'PGRST202' });
+      return rep(200, url.endsWith('/fournil_publier') ? { ok: true, erreur: null, version: 4, rang_semaine: 1, rang_total: 1, rang_quartier: 1, quartier: c.p_quartier || 0, joueurs: 3, semaine: '2026-10-26', points_semaine: 8, points_total: 8, compte: 0 } : { version: 4, semaine: '2026-10-26', joueurs: 1, lignes: [{ rang: 1, pseudo: 'Léa', points: 8, valeur: 1, moi: true, podium: null }], moi: { rang: 1, points: 8, valeur: 1, podium: null } });
+    });
+    const m = moteur(r, { points: () => ({ points: 8, lundi: '2026-10-26' }), quartier: () => 777, evenement: () => ({ id: 'hantee', score: 99 }) }); fortune = 70;
+    const res = await m.choisirPseudo('Léa');
+    check(res.etat === 'ok' && r.appels.length === 2 && 'p_evt' in r.appels[0].corps && r.appels[0].corps.p_quartier === 777 && !('p_evt' in r.appels[1].corps) && r.appels[1].corps.p_quartier === 777 && m.version() === 4 && m.etat().evt === null && m.etat().quartier === 777,
+      'serveur v4 (à l’heure de grâce du Quartier) : refus « fonction introuvable » avec les bonbons, aussitôt renvoyé avec les billets seuls — accepté, aucun bonbon noté');
+    horloge += 31 * 60e3; fortune = 90; await m.envoyer('periodique');
+    check(r.appels.length === 3 && !('p_evt' in r.appels[2].corps) && 'p_quartier' in r.appels[2].corps, 'ensuite, plus de bonbons envoyés à ce serveur (jusqu’au prochain lancement)');
+    const b = await m.battre('retour');
+    check(b.etat === 'saute' && b.pourquoi === 'ancien-serveur' && !r.appels.some((a) => a.url.endsWith('/fournil_vu')), 'un serveur v4 connu : aucun battement (fournil_vu n’existe pas)');
+    const l = await m.charger('semaine');
+    check(l.etat === 'ok' && !('enLigne' in l.data.lignes[0]) && !('enLigne' in l.data.moi) && !('enLigneN' in l.data), 'sa liste : enLigne et enLigneN absents (rien ne casse)'); }
+  { // la version du serveur pas encore connue, fournil_vu absente : un seul essai, puis plus rien jusqu'au prochain lancement
+    horloge = Date.UTC(2026, 9, 28, 12);
+    const r = faux(async (url) => (url.endsWith('/fournil_vu') ? rep(404, { code: 'PGRST202' }) : rep(200, { ok: true })));
+    const st = memoire(); CL.ecrireEtat(st, Object.assign(CL.etatNeuf(), { id: '0b9a3e4c-1d2e-4f50-8a6b-7c8d9e0f1a2b', jeton: 'a'.repeat(64), pseudo: 'Léa', rejoint: true }));
+    const m = moteur(r, { stockage: st });
+    let b = await m.battre('lancement'); check(b.etat === 'pas-ouvert' && r.appels.length === 1, 'premier battement : « fonction introuvable »');
+    horloge += 10 * 60e3; b = await m.battre('periodique');
+    check(b.etat === 'saute' && b.pourquoi === 'ancien-serveur' && r.appels.length === 1, 'ensuite : plus aucun battement vers ce serveur'); }
+  { // sans configuration (l'artefact Claude) : rien
+    const m = CL.creerMoteur({ config: () => null, stockage: memoire(), fetch: async () => { throw new Error('jamais'); } });
+    check((await m.battre('retour')).etat === 'absent', 'sans configuration : aucun battement'); }
+  { // l'état local : le dernier score d'événement et le rang d'Halloween se relisent ; les absurdités sont écartées
+    const e = CL.nettoyerEtat({ id: '0b9a3e4c-1d2e-4f50-8a6b-7c8d9e0f1a2b', jeton: 'b'.repeat(64), pseudo: 'Léa', rejoint: true, evt: { id: 'hantee', valeur: 12 }, dernier: { hantee: { rang: 4, joueurs: 9 }, quand: 5 }, recompenses: { podiums: [], evenements: { hantee: { rang: 2, podium: [{ rang: 1, pseudo: 'Jo', valeur: 3 }] }, autre: { rang: 1 } } } });
+    check(egal(e.evt, { id: 'hantee', valeur: 12 }) && e.dernier && e.dernier.hantee.rang === 4 && e.recompenses.evenements.hantee.rang === 2 && !('autre' in e.recompenses.evenements), 'le score envoyé, le rang et le podium final d’Halloween se relisent');
+    const f = CL.nettoyerEtat({ evt: { id: 'quartier', valeur: 3 }, recompenses: { evenements: { hantee: { rang: 9, podium: 'x' } } } });
+    check(f.evt === null && f.recompenses.evenements.hantee.rang === null && egal(f.recompenses.evenements.hantee.podium, []), 'un événement inconnu ou un rang absurde : écartés'); }
+  { // les onglets d'événement du classement (pour l'interface)
+    const Q = require('../src/quartier.js'), H = require('../src/hantee.js');
+    const liste = (masque) => [{ periode: 'quartier', nom: 'Événement', regles: Q, masque: !!masque }, { periode: 'hantee', nom: 'Halloween', regles: H }];
+    check(egal(CL.ongletsEvenements(liste(), Date.UTC(2026, 9, 20)), [['quartier', 'Événement']]), 'le 20 octobre : l’onglet Événement seul');
+    check(egal(CL.ongletsEvenements(liste(), H.DEBUT + 3600e3), [['quartier', 'Événement'], ['hantee', 'Halloween']]) && egal(CL.ongletsEvenements(liste(true), H.DEBUT + 3600e3), [['hantee', 'Halloween']]), 'le 27 octobre après midi : le podium final du Quartier et Halloween (le Quartier masqué : Halloween seul)');
+    check(egal(CL.ongletsEvenements(liste(), H.FIN + 13 * 864e5), [['hantee', 'Halloween']]) && egal(CL.ongletsEvenements(liste(), H.FIN + 15 * 864e5), []), 'deux semaines après Halloween, l’onglet s’efface');
+    check(CL.PERIODES.includes('hantee') && CL.EVTS.join() === 'hantee', 'la période « hantee » est connue du moteur'); }
   console.log(echecs ? `${echecs} échec(s)` : 'Tout passe.');
   process.exit(echecs ? 1 : 0);
 })().catch((e) => { console.error('FAIL', e); process.exit(1); });

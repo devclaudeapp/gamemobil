@@ -1240,6 +1240,14 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 
   // ─── le chat de la boutique : il miaule à la porte quand les éclairs sont au menu ; adopté, on le caresse et il porte chance ───
   const CHAT = { chance: 0.2, attente: 60e3, defaut: 'Brioche', apparition: 45, rappel: 30 };
+  // le pelage du chat : roux depuis toujours ; noir d'office pendant la Maison hantée (src/hantee.js : l'appelant dit si elle est ouverte),
+  // et, une fois le chat noir gagné (un palier de l'événement : donnerChatNoir), au choix ensuite dans la garde-robe ou les Réglages.
+  // st.chatNoir : gagné (à vie) ; st.chatPelage : le choix ('roux' par défaut). Pour scene.js / persos.js : pelageChat(st, halloween).
+  const PELAGES = ['roux', 'noir'];
+  function donnerChatNoir(st) { const nouveau = !st.chatNoir; st.chatNoir = true; if (nouveau) note(st, 'Le chat noir : un nouveau pelage pour le chat de la boutique'); return { nouveau }; }
+  function choisirPelage(st, p) { if (!PELAGES.includes(p) || (p === 'noir' && !st.chatNoir)) return false; st.chatPelage = p; return true; }
+  const pelagesChat = (st) => (st.chatNoir ? PELAGES.slice() : ['roux']); // les pelages au choix
+  function pelageChat(st, halloween) { if (halloween) return 'noir'; return st.chatNoir && st.chatPelage === 'noir' ? 'noir' : 'roux'; }
   const nomChat = (nom) => String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16) || CHAT.defaut;
   const chatPossible = (st) => !st.chat && !!st.stations[4] && st.stations[4].niv > 0 && st.chatRefuse !== dayKey(st.now);
   function adopterChat(st, nom) { if (st.chat) return { ok: false }; st.chat = { nom: nomChat(nom), caresses: 0, dernier: 0, adopte: st.now }; gagnerXp(st, 10); note(st, `${st.chat.nom} a adopté la boutique`); return { ok: true, chat: st.chat }; }
@@ -1319,11 +1327,12 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
   // ─── la garde-robe : quatre pièces (couvre-chef, haut, chaussures, accessoire) gagnées aux podiums du classement et aux événements ───
   // Chaque pièce porte un bonus modeste qui grandit avec son niveau (1 à 5, payé en étoiles : 1, 1, 2, 2 — une étoile dépensée ne compte
   // plus dans les +5 % par étoile) ; les quatre pièces d'une même collection portées ensemble ajoutent le bonus de l'ensemble.
-  // Tout équipé au maximum, les gains par seconde montent d'environ +41 % (collection d'or, ou celle du quartier en or), +31 % (argent),
-  // +23 % (bronze), +22 % (quartier, plus les pains au chocolat ×1,24) : le mélange des meilleures pièces sans ensemble fait moins
+  // Tout équipé au maximum, les gains par seconde montent d'environ +41 % (collection d'or, ou celle du quartier ou d'Halloween en or), +31 % (argent),
+  // +23 % (bronze), +22 % (quartier, plus les pains au chocolat ×1,24 ; Halloween, plus les tartes ×1,24) : le mélange des meilleures pièces sans ensemble fait moins
   // (+26 %), si bien que le plafond est à +41 % (mesuré dans test/fournil-garderobe.test.js). Le classement en points n'en dépend pas.
   // Les pièces de base (toque et tablier blancs, sabots, lunettes rondes) sont à tout le monde dès le départ, sans bonus.
-  // Pour persos.js : chaque objet a une forme (toque, casquette, tablier, sweat, chaussures, baskets, foulard, chaine, lunettes) et sa
+  // Pour persos.js : chaque objet a une forme (toque, casquette, tablier, sweat, chaussures, baskets, foulard, chaine, lunettes ; Halloween :
+  // chapeau (le chapeau pointu de sorcière), cape, bottes, lanterne (une petite citrouille-lanterne à la main)) et sa
   // collection sert de métal ('base' : la tenue blanche de toujours). Les bonus (au niveau 1) : gains { produit: id | null, pct }, vitesse
   // (pct de temps de cuisson en moins), absence (heures de gains hors ligne en plus) ; multipliés par 1, 1,5, 2, 2,5 et 3 selon le niveau.
   const GR_PIECES = ['tete', 'haut', 'pieds', 'accessoire'];
@@ -1354,12 +1363,23 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
     ajouter(vet('quartier-or-sweat', 'Sweat doré', 'haut', 'quartier-or', 'sweat', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Noir et or, rien d’autre.'));
     ajouter(vet('quartier-or-baskets', 'Baskets dorées', 'pieds', 'quartier-or', 'baskets', { vitesse: 2 }, 'legendaire', 'Édition limitée, une seule paire.'));
     ajouter(vet('quartier-or-chaine', 'Chaîne en or', 'accessoire', 'quartier-or', 'chaine', { absence: 0.5 }, 'legendaire', 'La vraie, pas la plaquée.'));
+    // l'événement « La Maison hantée » (src/hantee.js) : la tenue d'Halloween aux paliers 3, 6, 9 et 12, la même en or pour le podium final
+    ajouter(vet('hantee-chapeau', 'Chapeau pointu', 'tete', 'hantee', 'chapeau', { gains: { produit: 'tarte', pct: 8 } }, 'rare', 'Pointu, étoilé, et il tient même dans le vent du four.'));
+    ajouter(vet('hantee-cape', 'Cape de minuit', 'haut', 'hantee', 'cape', { gains: { produit: null, pct: 2.5 } }, 'rare', 'Doublée de violet. Elle fait « whoosh » quand on se retourne.'));
+    ajouter(vet('hantee-bottes', 'Bottes qui claquent', 'pieds', 'hantee', 'bottes', { vitesse: 1.5 }, 'rare', 'Clac, clac, clac : on les entend arriver du fournil.'));
+    ajouter(vet('hantee-lanterne', 'Citrouille-lanterne', 'accessoire', 'hantee', 'lanterne', { absence: 0.5 }, 'rare', 'Une petite citrouille qui éclaire les fournées de nuit.'));
+    ajouter(vet('hantee-or-chapeau', 'Chapeau pointu doré', 'tete', 'hantee-or', 'chapeau', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Le podium final de la Maison hantée.'));
+    ajouter(vet('hantee-or-cape', 'Cape dorée', 'haut', 'hantee-or', 'cape', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Noire dehors, dorée dedans.'));
+    ajouter(vet('hantee-or-bottes', 'Bottes dorées', 'pieds', 'hantee-or', 'bottes', { vitesse: 2 }, 'legendaire', 'Elles claquent en or massif.'));
+    ajouter(vet('hantee-or-lanterne', 'Lanterne dorée', 'accessoire', 'hantee-or', 'lanterne', { absence: 0.5 }, 'legendaire', 'Une citrouille en or qui ne s’éteint jamais.'));
     const ensembles = {
       or: { nom: 'Tenue d’or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
       argent: { nom: 'Tenue d’argent', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
       bronze: { nom: 'Tenue de bronze', bonus: { gains: { produit: null, pct: 4 }, vitesse: 2, absence: 0.5 } },
       quartier: { nom: 'Tenue du quartier', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
       'quartier-or': { nom: 'Tenue du quartier en or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
+      hantee: { nom: 'Tenue d’Halloween', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
+      'hantee-or': { nom: 'Tenue d’Halloween en or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
     };
     return { pieces: GR_PIECES, objets, ensembles, niveaux: GR_NIVEAUX, couts: GR_COUTS, nivMax: GR_NIV_MAX, base: GR_BASE };
   })();
@@ -1457,7 +1477,8 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
       stats: { taps: 0, ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false, meubles: 0 },
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null, tiroir: 'mi',
-      apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, saison: null, saisonAnnoncee: '', collection: {},
+      apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, chatNoir: false, chatPelage: 'roux', saison: null, saisonAnnoncee: '', collection: {},
+      // st.quartier (src/quartier.js) et st.hantee (src/hantee.js) : l'état des événements, créés à la première visite par leurs règles
       atelier: atelierNeuf(), points: pointsNeufs(semaineKey(nowMs), dayKey(nowMs)), garderobe: garderobeNeuve(), boosts: boostsNeufs(),
     };
   }
@@ -2160,7 +2181,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
   const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
   return { APPRENTIS, APPRENTI_NIVEAUX, APPRENTI_VITESSE, APPRENTI_ABSENCE, xpApprenti, gradeApprenti, progresApprenti, creditApprenti, apprentiTempsMult, apprentiRevMult, effetTalentApprenti,
-    CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser,
+    CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, PELAGES, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
     PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
@@ -2563,7 +2584,10 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 /* LE FOURNIL — le classement en ligne des boulangers, en POINTS DE BOULANGER (src/game.js : journées, défi, événements, Atelier, améliorations
    relatives à ses propres gains) : ceux de la semaine (depuis lundi, heure de Paris) et ceux depuis l'arrivée ; la fortune (st.lifetime) part aussi,
    affichée en petit, pour information. Serveur : supabase/fournil-classement.sql (version 4 : + l'événement « Le Quartier », ses billets envoyés
-   avec p_quartier, son classement à part (periode 'quartier') et son podium final ; un serveur encore en version 3 ou 2 reste servi).
+   avec p_quartier, son classement à part (periode 'quartier') et son podium final ; version 5 : + les événements génériques, dont « La Maison
+   hantée » (src/hantee.js) : ses bonbons envoyés avec p_evt = 'hantee' et p_score, son classement à part (periode 'hantee', l'onglet
+   « Halloween ») et son podium final (recompenses().evenements.hantee) ; + « en ligne » : un battement fournil_vu toutes les 2 min tant que la
+   page est visible, et chaque ligne du classement porte enLigne (booléen), la liste enLigneN ; un serveur encore en version 4, 3 ou 2 reste servi).
    Une partie pure, testée dans Node (lundi de Paris, pseudo, rangs, décision d'envoi, état local), et une partie réseau : de simples POST
    vers les fonctions Supabase du classement (PostgREST, /rest/v1/rpc/…), avec la clé PUBLIQUE de fournil/config.js. Aucune erreur ne remonte
    jamais au jeu : chaque appel rend un état ('ok', 'hors-ligne', 'lent' (pas de réponse en 8 s), 'pas-ouvert', 'erreur', 'absent'). Sans configuration (l'artefact Claude), rien ne part. */
@@ -2582,6 +2606,8 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
     serveur: 10.5e3, // le serveur ne prend qu'un envoi toutes les 10 s par joueur : un changement de pseudo attend son tour
     delaiMax: 8e3, // un appel abandonné au bout de 8 s
     limite: 50, // les 50 premiers
+    vu: 2 * 60e3, // « en ligne » : un battement (fournil_vu) toutes les 2 min tant que la page est visible et qu'on a rejoint
+    vuRetour: 10e3, // au retour au premier plan, un battement tout de suite (pas plus d'un toutes les 10 s)
   };
 
   // ─── le lundi de la semaine, heure de Paris (règle européenne : l'heure d'été va du dernier dimanche de mars au dernier dimanche d'octobre, à 1 h UTC) ───
@@ -2646,7 +2672,10 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, JETON = /^[0-9a-f]{64}$/;
   const fini = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
   const entier = (v) => (Number.isInteger(v) && v > 0 ? v : null);
-  const etatNeuf = () => ({ id: null, jeton: null, pseudo: '', rejoint: false, dernierEnvoi: 0, valeur: null, points: null, lundiPoints: '', quartier: null, essai: 0, dernier: null, recompenses: recompensesNeuves() });
+  const etatNeuf = () => ({ id: null, jeton: null, pseudo: '', rejoint: false, dernierEnvoi: 0, valeur: null, points: null, lundiPoints: '', quartier: null, evt: null, essai: 0, dernier: null, recompenses: recompensesNeuves() });
+  // les événements génériques que ce téléphone connaît (version 5 du serveur : p_evt) ; chacun est aussi une période du classement
+  const EVTS = ['hantee'];
+  const evtOk = (id) => EVTS.includes(id);
 
   // ─── les récompenses du podium : les trois premiers de chaque semaine gagnent une tenue (toque et tablier) et une coupe, or, argent ou bronze ───
   // recompenses : { podiums: [{ semaine: 'AAAA-MM-JJ' (le lundi de la semaine du podium), rang: 1 | 2 | 3 }] du plus ancien au plus récent,
@@ -2655,7 +2684,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
   const METAUX = ['or', 'argent', 'bronze'], JOUR = /^\d{4}-\d{2}-\d{2}$/;
   const metal = (rang) => METAUX[rang - 1] || null; // 1 → 'or', 2 → 'argent', 3 → 'bronze'
   const NOMS_METAL = { or: 'd’or', argent: 'd’argent', bronze: 'de bronze' }; // « la tenue d’or », « la coupe de bronze »
-  const recompensesNeuves = () => ({ podiums: [], tenue: 'auto', vu: '', quartier: null, quartierPodium: null }); // quartier : son rang au podium final de l'événement « Le Quartier » (1, 2, 3), quartierPodium : les trois premiers
+  const recompensesNeuves = () => ({ podiums: [], tenue: 'auto', vu: '', quartier: null, quartierPodium: null, evenements: {} }); // quartier : son rang au podium final de l'événement « Le Quartier » (1, 2, 3), quartierPodium : les trois premiers ; evenements : { hantee: { rang: 1 | 2 | 3 | null, podium: [{ rang, pseudo, valeur }] } } (version 5)
   function decalerSemaine(lundi, k) { // '2026-10-12', -1 → '2026-10-05'
     if (!JOUR.test(String(lundi || ''))) return '';
     const d = new Date(lundi + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + 7 * k); return d.toISOString().slice(0, 10);
@@ -2676,6 +2705,25 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
     if (typeof r.vu === 'string' && JOUR.test(r.vu)) o.vu = r.vu;
     if ([1, 2, 3].includes(r.quartier)) o.quartier = r.quartier;
     if (Array.isArray(r.quartierPodium)) o.quartierPodium = nettoyerPodiumQuartier(r.quartierPodium);
+    o.evenements = nettoyerEvenements(r.evenements);
+    return o;
+  }
+  // les podiums finaux des événements génériques : { id: { rang: 1 | 2 | 3 | null, podium: [...] } }, seulement les événements connus
+  function nettoyerEvenements(e) {
+    const o = {};
+    if (!e || typeof e !== 'object' || Array.isArray(e)) return o;
+    for (const id of EVTS) {
+      const x = e[id]; if (!x || typeof x !== 'object' || Array.isArray(x)) continue;
+      o[id] = { rang: [1, 2, 3].includes(x.rang) ? x.rang : null, podium: Array.isArray(x.podium) ? nettoyerPodiumQuartier(x.podium) : [] };
+    }
+    return o;
+  }
+  function fusionnerEvenements(a, b) { // l'union : un rang gagné n'est jamais retiré, le podium le plus récent (b) l'emporte
+    const o = {};
+    for (const id of EVTS) {
+      const x = a && a[id], y = b && b[id]; if (!x && !y) continue;
+      o[id] = { rang: (y && y.rang) || (x && x.rang) || null, podium: (y && y.podium && y.podium.length ? y.podium : x && x.podium) || [] };
+    }
     return o;
   }
   function nettoyerPodiumQuartier(l) { return l.slice(0, 30).filter((x) => x && typeof x === 'object' && [1, 2, 3].includes(x.rang)).map((x) => { const v = Number(x.valeur); return { rang: x.rang, pseudo: String(x.pseudo == null ? '' : x.pseudo).slice(0, 40), valeur: Number.isFinite(v) ? v : 0 }; }); }
@@ -2719,10 +2767,12 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
     e.points = Number.isInteger(s.points) && s.points >= 0 ? s.points : null;
     e.lundiPoints = typeof s.lundiPoints === 'string' && JOUR.test(s.lundiPoints) ? s.lundiPoints : '';
     e.quartier = typeof s.quartier === 'number' && Number.isFinite(s.quartier) && s.quartier >= 0 ? s.quartier : null;
+    if (s.evt && typeof s.evt === 'object' && evtOk(s.evt.id) && typeof s.evt.valeur === 'number' && Number.isFinite(s.evt.valeur) && s.evt.valeur >= 0) e.evt = { id: s.evt.id, valeur: s.evt.valeur }; // le dernier score d'événement accepté (version 5)
     if (s.dernier && typeof s.dernier === 'object') {
       const d = { semaine: nettoyerRang(s.dernier.semaine, true), total: nettoyerRang(s.dernier.total), quand: fini(s.dernier.quand) }, q = nettoyerRang(s.dernier.quartier);
       if (q) d.quartier = q; // son rang à l'événement « Le Quartier » (version 4)
-      if (d.semaine || d.total || q) e.dernier = d;
+      let ev = false; for (const id of EVTS) { const r = nettoyerRang(s.dernier[id]); if (r) { d[id] = r; ev = true; } } // son rang aux événements génériques (version 5)
+      if (d.semaine || d.total || q || ev) e.dernier = d;
     }
     e.recompenses = nettoyerRecompenses(s.recompenses);
     return e;
@@ -2753,7 +2803,8 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
   // ─── la décision d'envoyer ses points et sa fortune ───
   // raison : 'lancement', 'feuille', 'fond' (passage en arrière-plan), 'periodique' ; pts : { points, lundi } (facultatif)
   const ptsOk = (p) => !!p && Number.isInteger(p.points) && p.points >= 0 && p.points <= 1e5 && JOUR.test(String(p.lundi || ''));
-  function deciderEnvoi(etat, fortune, maintenant, raison, pts, quartier) {
+  // evt : { id, score } (le score de l'événement générique en cours, facultatif)
+  function deciderEnvoi(etat, fortune, maintenant, raison, pts, quartier, evt) {
     if (!etat || !etat.rejoint || !etat.id || !etat.jeton || !etat.pseudo) return { envoyer: false, pourquoi: 'pas-rejoint' };
     if (typeof fortune !== 'number' || !Number.isFinite(fortune) || fortune < 0) return { envoyer: false, pourquoi: 'valeur' };
     const depuis = (t) => (t > maintenant + 60e3 ? Infinity : maintenant - (t || 0)); // une horloge remise en arrière ne bloque pas tout
@@ -2762,7 +2813,8 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
     if (raison === 'periodique' && essai < REGLES.periode) return { envoyer: false, pourquoi: 'periode' };
     const memesPoints = !ptsOk(pts) || (etat.points === pts.points && etat.lundiPoints === pts.lundi);
     const memesBillets = !(typeof quartier === 'number' && Number.isFinite(quartier) && quartier > 0) || etat.quartier === quartier;
-    if (etat.valeur === fortune && memesPoints && memesBillets && depuis(etat.dernierEnvoi) < REGLES.rafraichir) return { envoyer: false, pourquoi: 'inchange' };
+    const memesBonbons = !(evt && evtOk(evt.id) && typeof evt.score === 'number' && Number.isFinite(evt.score) && evt.score > 0) || (!!etat.evt && etat.evt.id === evt.id && etat.evt.valeur === evt.score);
+    if (etat.valeur === fortune && memesPoints && memesBillets && memesBonbons && depuis(etat.dernierEnvoi) < REGLES.rafraichir) return { envoyer: false, pourquoi: 'inchange' };
     return { envoyer: true, pourquoi: raison || '' };
   }
 
@@ -2777,11 +2829,14 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
       for (const l of d.lignes.slice(0, 100)) {
         if (!l || typeof l !== 'object' || !entier(l.rang)) continue;
         const v = Number(l.valeur);
-        o.lignes.push({ rang: l.rang, pseudo: String(l.pseudo == null ? '' : l.pseudo).slice(0, 40), points: pts(l.points), valeur: Number.isFinite(v) ? v : 0, moi: l.moi === true, podium: [1, 2, 3].includes(l.podium) ? l.podium : null, toque: toqueOk(l.toque) });
+        const ligne = { rang: l.rang, pseudo: String(l.pseudo == null ? '' : l.pseudo).slice(0, 40), points: pts(l.points), valeur: Number.isFinite(v) ? v : 0, moi: l.moi === true, podium: [1, 2, 3].includes(l.podium) ? l.podium : null, toque: toqueOk(l.toque) };
+        if (typeof l.en_ligne === 'boolean') ligne.enLigne = l.en_ligne; // version 5 : « en ligne » (absent avec un serveur plus ancien)
+        o.lignes.push(ligne);
       }
     }
     o.joueurs = Math.max(entier(d.joueurs) || 0, o.lignes.length);
-    if (d.moi && typeof d.moi === 'object' && entier(d.moi.rang)) { const v = Number(d.moi.valeur); o.moi = { rang: d.moi.rang, points: pts(d.moi.points), valeur: Number.isFinite(v) ? v : 0, podium: [1, 2, 3].includes(d.moi.podium) ? d.moi.podium : null, toque: toqueOk(d.moi.toque) }; o.joueurs = Math.max(o.joueurs, o.moi.rang); }
+    if (d.moi && typeof d.moi === 'object' && entier(d.moi.rang)) { const v = Number(d.moi.valeur); o.moi = { rang: d.moi.rang, points: pts(d.moi.points), valeur: Number.isFinite(v) ? v : 0, podium: [1, 2, 3].includes(d.moi.podium) ? d.moi.podium : null, toque: toqueOk(d.moi.toque) }; if (typeof d.moi.en_ligne === 'boolean') o.moi.enLigne = d.moi.en_ligne; o.joueurs = Math.max(o.joueurs, o.moi.rang); }
+    if (Number.isInteger(d.en_ligne_n) && d.en_ligne_n >= 0) o.enLigneN = Math.min(d.en_ligne_n, o.joueurs); // combien de joueurs de cette liste sont en ligne (version 5)
     return o;
   }
   // la toque portée, vue des autres : la pièce de tête de la garde-robe quand elle vient d'un podium ('or', 'argent', 'bronze' ; null sinon).
@@ -2795,6 +2850,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
     o.ok = d.ok === true; o.podiums = nettoyerPodiums(d.podiums);
     o.quartier = [1, 2, 3].includes(d.quartier) ? d.quartier : null; // le podium final de l'événement « Le Quartier » (version 4)
     o.quartierPodium = Array.isArray(d.quartier_podium) ? nettoyerPodiumQuartier(d.quartier_podium) : null;
+    o.evenements = nettoyerEvenements(d.evenements); // les podiums finaux des événements génériques (version 5 ; {} sinon)
     const r = d.derniere;
     if (r && typeof r === 'object' && JOUR.test(String(r.semaine || '')) && Array.isArray(r.podium)) {
       const podium = r.podium.slice(0, 30).filter((x) => x && typeof x === 'object' && [1, 2, 3].includes(x.rang)).map((x) => { const v = Number(x.valeur); return { rang: x.rang, pseudo: String(x.pseudo == null ? '' : x.pseudo).slice(0, 40), points: Number.isInteger(x.points) && x.points >= 0 ? x.points : null, valeur: Number.isFinite(v) ? v : 0 }; });
@@ -2848,20 +2904,35 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 
   // ─── le moteur : l'état du joueur, les envois automatiques, la liste, le pseudo ───
   // env : { config(), fetch, stockage, maintenant(), fortune(), points() → { points, lundi } (ses points de la semaine), quartier() → ses billets de
-  //         l'événement « Le Quartier » (null : rien à envoyer), enLigne(), visible(), attendre(ms), delaiMax }
-  const PERIODES = ['semaine', 'total', 'quartier'];
+  //         l'événement « Le Quartier » (null : rien à envoyer), evenement() → { id: 'hantee', score } (le score de l'événement générique en
+  //         cours, null : rien à envoyer), enLigne(), visible(), attendre(ms), delaiMax }
+  const PERIODES = ['semaine', 'total', 'quartier', ...EVTS];
   const periodeDe = (p) => (PERIODES.includes(p) ? p : 'semaine');
+  // les onglets d'événement du classement, pour l'interface : regles = [{ periode: 'quartier', nom: 'Événement', regles: QUARTIER, masque },
+  // { periode: 'hantee', nom: 'Halloween', regles: HANTEE, masque }] ; un onglet se montre pendant son événement et deux semaines après
+  // (regles.fenetre(maintenant).classement : le podium final), sauf si l'événement est masqué. Rend [[periode, nom], …], dans l'ordre donné.
+  function ongletsEvenements(liste, maintenant) {
+    const o = [];
+    for (const x of Array.isArray(liste) ? liste : []) {
+      if (!x || !PERIODES.includes(x.periode) || x.masque) continue;
+      let f = null; try { f = x.regles && typeof x.regles.fenetre === 'function' ? x.regles.fenetre(maintenant) : null; } catch (e) { f = null; }
+      if (f && f.classement) o.push([x.periode, String(x.nom || x.periode)]);
+    }
+    return o;
+  }
   function creerMoteur(env) {
-    const E = Object.assign({ maintenant: () => Date.now(), attendre: (ms) => new Promise((r) => setTimeout(r, ms)), enLigne: () => true, visible: () => true, fortune: () => NaN, points: () => null, quartier: () => null }, env || {});
+    const E = Object.assign({ maintenant: () => Date.now(), attendre: (ms) => new Promise((r) => setTimeout(r, ms)), enLigne: () => true, visible: () => true, fortune: () => NaN, points: () => null, quartier: () => null, evenement: () => null }, env || {});
     let etat = lireEtat(E.stockage);
-    const ecouteurs = [], cache = { semaine: null, total: null, quartier: null }, charge = { semaine: false, total: false, quartier: false };
-    const enVol = { semaine: null, total: null, quartier: null }; // une seule lecture de la liste à la fois par onglet : qui la redemande reçoit la même
+    const ecouteurs = [], cache = {}, charge = {}, enVol = {}; // par période ; une seule lecture de la liste à la fois par onglet : qui la redemande reçoit la même
+    for (const p of PERIODES) { cache[p] = null; charge[p] = false; enVol[p] = null; }
+    const viderCache = () => { for (const p of PERIODES) cache[p] = null; };
     let enCours = null, statut = '', demarre = false, minuteur = 0;
     let retrait = false; // « Quitter » en route : plus aucun envoi automatique (fond, minuteur) tant que le serveur n'a pas répondu
     let nettoyage = null; // au lancement, l'effacement discret d'une inscription dont la réponse s'était perdue
     let ecrit = true; // la dernière écriture dans le stockage a-t-elle réussi ? (sinon, le stockage est en retard sur la mémoire)
     let lundiServeur = ''; // le lundi de la semaine en cours d'après le serveur (appris à chaque réponse) : l'heure du téléphone ne décide pas seule
-    let version = 0; // la version du serveur : 4 (l'événement du quartier), 3 (points), 2 (argent seulement : on n'envoie plus de points jusqu'au prochain lancement), 0 (pas encore vue)
+    let version = 0; // la version du serveur : 5 (événements génériques, en ligne), 4 (l'événement du quartier), 3 (points), 2 (argent seulement : on n'envoie plus de points jusqu'au prochain lancement), 0 (pas encore vue)
+    let dernierVu = 0, vuVol = null, vuAbsent = false; // « en ligne » : le dernier signe de vie envoyé, le battement en vol, un serveur sans fournil_vu (jusqu'au prochain lancement)
     let recVol = null, recQuand = 0, derniere = null; // la lecture des récompenses en cours, l'heure de la dernière, le podium de la semaine passée
     const config = () => { try { return lireConfig(E.config ? E.config() : null); } catch (e) { return null; } };
     const sauver = () => { ecrit = ecrireEtat(E.stockage, etat); return ecrit; };
@@ -2869,6 +2940,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
     const fortune = () => { try { const v = E.fortune(); return typeof v === 'number' ? Math.floor(v) : NaN; } catch (e) { return NaN; } };
     const points = () => { try { const p = E.points(); return ptsOk(p) ? { points: p.points, lundi: p.lundi } : null; } catch (e) { return null; } };
     const quartier = () => { try { const v = E.quartier(); return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : null; } catch (e) { return null; } }; // ses billets : seulement s'il y en a
+    const evenement = () => { try { const v = E.evenement(); return v && typeof v === 'object' && evtOk(v.id) && typeof v.score === 'number' && Number.isFinite(v.score) && v.score > 0 ? { id: v.id, score: Math.floor(v.score) } : null; } catch (e) { return null; } }; // son score d'événement : seulement s'il y en a
     const rpc = (nom, corps, o) => appeler(config(), nom, corps, { fetch: E.fetch, enLigne: E.enLigne, delaiMax: E.delaiMax, keepalive: o && o.keepalive });
 
     // une autre fenêtre (l'appli installée et l'onglet du navigateur partagent le même stockage) a pu écrire :
@@ -2879,11 +2951,11 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
       if (brut == null) return false; // stockage vide ou indisponible : on garde l'état en mémoire
       const f = lireEtat(E.stockage);
       // les récompenses : l'union des podiums (rien ne se perd), la tenue choisie dans l'autre fenêtre (chaque choix est écrit aussitôt), le dernier annoncé
-      const rec = { podiums: nettoyerPodiums(etat.recompenses.podiums.concat(f.recompenses.podiums)), tenue: f.recompenses.tenue, vu: f.recompenses.vu > etat.recompenses.vu ? f.recompenses.vu : etat.recompenses.vu, quartier: f.recompenses.quartier || etat.recompenses.quartier, quartierPodium: f.recompenses.quartierPodium || etat.recompenses.quartierPodium };
-      if (f.id !== etat.id || f.jeton !== etat.jeton || f.rejoint !== etat.rejoint || f.pseudo !== etat.pseudo) { etat = f; etat.recompenses = rec; cache.semaine = cache.total = cache.quartier = null; prevenir(); return true; }
+      const rec = { podiums: nettoyerPodiums(etat.recompenses.podiums.concat(f.recompenses.podiums)), tenue: f.recompenses.tenue, vu: f.recompenses.vu > etat.recompenses.vu ? f.recompenses.vu : etat.recompenses.vu, quartier: f.recompenses.quartier || etat.recompenses.quartier, quartierPodium: f.recompenses.quartierPodium || etat.recompenses.quartierPodium, evenements: fusionnerEvenements(etat.recompenses.evenements, f.recompenses.evenements) };
+      if (f.id !== etat.id || f.jeton !== etat.jeton || f.rejoint !== etat.rejoint || f.pseudo !== etat.pseudo) { etat = f; etat.recompenses = rec; viderCache(); prevenir(); return true; }
       const avantRec = JSON.stringify(etat.recompenses); etat.recompenses = rec; if (JSON.stringify(rec) !== avantRec) prevenir();
       etat.essai = Math.max(etat.essai, f.essai);
-      if (f.dernierEnvoi > etat.dernierEnvoi) { etat.dernierEnvoi = f.dernierEnvoi; etat.valeur = f.valeur; etat.quartier = f.quartier; etat.dernier = f.dernier; }
+      if (f.dernierEnvoi > etat.dernierEnvoi) { etat.dernierEnvoi = f.dernierEnvoi; etat.valeur = f.valeur; etat.quartier = f.quartier; etat.evt = f.evt; etat.dernier = f.dernier; }
       return false;
     }
     const noterLundi = (l) => { if (typeof l === 'string' && JOUR.test(l.slice(0, 10)) && l.slice(0, 10) > lundiServeur) lundiServeur = l.slice(0, 10); };
@@ -2899,14 +2971,26 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
       if (semaine && Number.isInteger(d.points_semaine)) semaine.points = d.points_semaine;
       if (total && Number.isInteger(d.points_total)) total.points = d.points_total;
       const q = entier(d.rang_quartier) ? { rang: d.rang_quartier, joueurs: Math.max(d.rang_quartier, (avant.quartier && avant.quartier.joueurs) || 0) } : null; // son rang à l'événement (version 4) ; les joueurs : appris en lisant la liste
-      etat.dernier = (semaine || total || q) ? { semaine, total, quartier: q, quand: maintenant } : etat.dernier;
+      const ev = evtOk(d.evt) && entier(d.rang_evt) ? { rang: d.rang_evt, joueurs: Math.max(d.rang_evt, (avant[d.evt] && avant[d.evt].joueurs) || 0) } : null; // son rang à l'événement générique (version 5)
+      if (semaine || total || q || ev) {
+        const n = { semaine, total, quartier: q, quand: maintenant };
+        for (const id of EVTS) if (avant[id] && !(ev && d.evt === id)) n[id] = avant[id]; // les rangs des autres événements restent
+        if (ev) n[d.evt] = ev;
+        etat.dernier = n;
+      }
     }
     // un envoi au serveur ; le pseudo ne change dans l'état local qu'une fois accepté
-    async function publier(pseudo, valeur, o, pts, billets) {
+    async function publier(pseudo, valeur, o, pts, billets, ev) {
       etat.essai = E.maintenant(); sauver();
-      const avecPoints = !!pts && version !== 2, avecBillets = avecPoints && billets != null && version !== 3;
+      const avecPoints = !!pts && version !== 2, avecBillets = avecPoints && billets != null && version !== 3, avecEvt = avecPoints && !!ev && !(version >= 2 && version <= 4);
       const INTROUVABLE = (r) => r.etat === 'pas-ouvert' && ['PGRST202', '42883'].includes(r.code); // la fonction n'a pas cette forme : le SQL n'est pas recollé
-      let r = avecBillets ? await rpc('fournil_publier', { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur, p_points: pts.points, p_lundi: pts.lundi, p_quartier: billets }, o) : null;
+      let r = null;
+      if (avecEvt) { // version 5 : le score de l'événement générique (p_evt, p_score), avec les billets du Quartier s'il y en a encore
+        r = avecBillets ? await rpc('fournil_publier', { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur, p_points: pts.points, p_lundi: pts.lundi, p_quartier: billets, p_evt: ev.id, p_score: ev.score }, o)
+          : await rpc('fournil_publier', { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur, p_points: pts.points, p_lundi: pts.lundi, p_evt: ev.id, p_score: ev.score }, o);
+        if (INTROUVABLE(r)) { version = 4; r = null; } // un serveur encore en version 4 : pas de bonbons (le reste part comme avant)
+      }
+      if (!r && avecBillets) r = await rpc('fournil_publier', { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur, p_points: pts.points, p_lundi: pts.lundi, p_quartier: billets }, o);
       if (r && INTROUVABLE(r)) { version = 3; r = null; } // un serveur encore en version 3 : les points sans les billets
       if (!r && avecPoints) r = await rpc('fournil_publier', { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur, p_points: pts.points, p_lundi: pts.lundi }, o);
       if (r && avecPoints && INTROUVABLE(r)) { version = 2; r = null; } // un serveur encore en version 2 (SQL pas recollé) : sa fortune seule, comme avant
@@ -2919,8 +3003,10 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
         const t = E.maintenant(); etat.pseudo = pseudo; etat.dernierEnvoi = t; etat.valeur = valeur;
         if (avecPoints && version >= 3) { etat.points = pts.points; etat.lundiPoints = pts.lundi; }
         if (avecBillets && version >= 4) etat.quartier = billets;
+        if (avecEvt && version >= 5) { etat.evt = { id: ev.id, valeur: ev.score }; }
+        if (version >= 5) dernierVu = t; // un envoi accepté par la version 5 est aussi un signe de vie
         noterRangs(d, t); sauver();
-        for (const c of [cache.semaine, cache.total, cache.quartier]) if (c) c.quand = 0; // les listes gardées ne montrent plus la bonne fortune : à relire au prochain coup d'œil
+        for (const p of PERIODES) if (cache[p]) cache[p].quand = 0; // les listes gardées ne montrent plus la bonne fortune : à relire au prochain coup d'œil
         prevenir();
         return { etat: 'ok', data: d };
       }
@@ -2933,9 +3019,9 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
       if (enCours) return enCours;
       if (retrait) return Promise.resolve({ etat: 'saute', pourquoi: 'retrait' }); // le joueur est en train de quitter : surtout ne pas le réinscrire
       resynchroniser();
-      const v = fortune(), p = version === 2 ? null : points(), b = version === 2 || version === 3 || !p ? null : quartier(), d = deciderEnvoi(etat, v, E.maintenant(), raison, p, b);
+      const v = fortune(), p = version === 2 ? null : points(), b = version === 2 || version === 3 || !p ? null : quartier(), ev = (version >= 2 && version <= 4) || !p ? null : evenement(), d = deciderEnvoi(etat, v, E.maintenant(), raison, p, b, ev);
       if (!d.envoyer) return Promise.resolve({ etat: 'saute', pourquoi: d.pourquoi });
-      enCours = publier(etat.pseudo, v, o, p, b).then((r) => {
+      enCours = publier(etat.pseudo, v, o, p, b, ev).then((r) => {
         // la ligne n'est plus à nous (jeton), ou elle a été effacée par le ménage des 90 jours et son pseudo repris entre-temps (pseudo_pris) :
         // on sort du classement, le pseudo reste proposé, et on rejoindra avec une nouvelle identité
         if (r.etat === 'refus' && (r.erreur === 'jeton' || r.erreur === 'pseudo_pris')) { etat.rejoint = false; etat.id = null; etat.jeton = null; etat.dernier = null; sauver(); prevenir(); }
@@ -2968,19 +3054,19 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
       if (!etat.id || !etat.jeton) { etat.id = nouvelId(); etat.jeton = nouveauJeton(); sauver(); } // gardés avant l'envoi : une réponse perdue se rattrape au suivant
       await attendreTour(siAttente);
       if (annule()) return { etat: 'annule' };
-      let r = await publier(v.pseudo, valeur, null, points(), quartier());
+      let r = await publier(v.pseudo, valeur, null, points(), quartier(), evenement());
       if (r.etat === 'refus' && r.erreur === 'trop_vite') {
         if (siAttente) { try { siAttente(REGLES.serveur); } catch (e) { /* rien */ } }
         await E.attendre(REGLES.serveur);
         if (annule()) return { etat: 'annule' };
-        r = await publier(v.pseudo, valeur, null, points(), quartier());
+        r = await publier(v.pseudo, valeur, null, points(), quartier(), evenement());
       }
       if (r.etat === 'refus' && r.erreur === 'jeton' && !etat.rejoint) {
         etat.id = nouvelId(); etat.jeton = nouveauJeton(); sauver(); await attendreTour(siAttente);
         if (annule()) return { etat: 'annule' };
-        r = await publier(v.pseudo, valeur, null, points(), quartier());
+        r = await publier(v.pseudo, valeur, null, points(), quartier(), evenement());
       }
-      if (r.etat === 'ok') { etat.rejoint = true; sauver(); cache.semaine = cache.total = cache.quartier = null; prevenir(); }
+      if (r.etat === 'ok') { etat.rejoint = true; sauver(); viderCache(); prevenir(); }
       return r;
     }
     async function quitter() {
@@ -2998,7 +3084,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
       if (r.etat !== 'ok') { prevenir(); return r; } // pas de réponse : on reste inscrit, avec son jeton, pour réessayer
       // (un refus « jeton » veut dire que la ligne n'est pas à nous : on oublie l'identité, comme pour un retrait réussi)
       const pseudo = etat.pseudo, rec = etat.recompenses; etat = etatNeuf(); etat.pseudo = pseudo; etat.recompenses = rec; sauver(); // une nouvelle identité au prochain retour ; le pseudo reste proposé, les coupes et les tenues restent à lui
-      cache.semaine = cache.total = cache.quartier = null; prevenir();
+      viderCache(); prevenir();
       return { etat: 'ok' };
     }
     function charger(periode) {
@@ -3015,7 +3101,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
             const d = etat.dernier || { semaine: null, total: null, quand: t };
             d[p] = p === 'semaine' ? { rang: data.moi.rang, joueurs: data.joueurs, lundi: data.semaine || lundiParis(t) } : { rang: data.moi.rang, joueurs: data.joueurs };
             if (data.moi.points != null) d[p].points = data.moi.points;
-            if (p === 'quartier') d[p].valeur = data.moi.valeur;
+            if (p === 'quartier' || evtOk(p)) d[p].valeur = data.moi.valeur;
             d.quand = t; etat.dernier = d; sauver();
           }
         } else cache[p] = { etat: r.etat, data: null, quand: t };
@@ -3049,11 +3135,12 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
         if (!d.ok) return { etat: 'refus', erreur: r.data && typeof r.data.erreur === 'string' ? r.data.erreur : 'inconnue' };
         resynchroniser();
         derniere = d.derniere; if (derniere) noterLundi(decalerSemaine(derniere.semaine, 1));
-        const avant = JSON.stringify([etat.recompenses.podiums, etat.recompenses.quartier, etat.recompenses.quartierPodium]);
+        const avant = JSON.stringify([etat.recompenses.podiums, etat.recompenses.quartier, etat.recompenses.quartierPodium, etat.recompenses.evenements]);
         etat.recompenses.podiums = nettoyerPodiums(etat.recompenses.podiums.concat(d.podiums));
         if (d.quartier) etat.recompenses.quartier = d.quartier; // le podium final de l'événement, gardé à vie (jamais retiré)
         if (d.quartierPodium) etat.recompenses.quartierPodium = d.quartierPodium;
-        if (JSON.stringify([etat.recompenses.podiums, etat.recompenses.quartier, etat.recompenses.quartierPodium]) !== avant) sauver();
+        etat.recompenses.evenements = fusionnerEvenements(etat.recompenses.evenements, d.evenements); // les podiums finaux des événements génériques, gardés à vie
+        if (JSON.stringify([etat.recompenses.podiums, etat.recompenses.quartier, etat.recompenses.quartierPodium, etat.recompenses.evenements]) !== avant) sauver();
         return { etat: 'ok', data: d };
       }).catch(() => { recQuand = 0; return { etat: 'erreur' }; }).then((r) => { recVol = null; prevenir(); return r; });
       return recVol;
@@ -3075,7 +3162,31 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
     // pour l'interface et la boutique en 3D : ce qui se voit cette semaine
     function recompenses() {
       const rec = etat.recompenses, l = lundi();
-      return { podiums: rec.podiums.slice(), tenue: rec.tenue, vu: rec.vu, lundi: l, portee: tenuePortee(rec, l), coupe: coupeDuComptoir(rec, l), coupes: rec.podiums.map((p) => metal(p.rang)), gagnees: tenuesGagnees(rec), annonce: aAnnoncer(rec, l), derniere, quartier: rec.quartier, quartierPodium: rec.quartierPodium };
+      return { podiums: rec.podiums.slice(), tenue: rec.tenue, vu: rec.vu, lundi: l, portee: tenuePortee(rec, l), coupe: coupeDuComptoir(rec, l), coupes: rec.podiums.map((p) => metal(p.rang)), gagnees: tenuesGagnees(rec), annonce: aAnnoncer(rec, l), derniere, quartier: rec.quartier, quartierPodium: rec.quartierPodium, evenements: JSON.parse(JSON.stringify(rec.evenements || {})) };
+    }
+    // « en ligne » : un battement (fournil_vu) qui ne compte rien ; raison : 'periodique' (le minuteur : un toutes les 2 min), 'retour' (la page
+    // revient au premier plan : tout de suite, pas plus d'un toutes les 10 s), 'lancement'. Jamais caché, hors ligne, sans configuration, ni sans
+    // avoir rejoint ; un serveur sans fournil_vu (version 4 ou plus ancienne) : plus aucun battement jusqu'au prochain lancement.
+    function battre(raison) {
+      if (!config()) return Promise.resolve({ etat: 'absent' });
+      if (vuAbsent || (version >= 2 && version <= 4)) return Promise.resolve({ etat: 'saute', pourquoi: 'ancien-serveur' });
+      if (vuVol) return vuVol;
+      if (retrait) return Promise.resolve({ etat: 'saute', pourquoi: 'retrait' });
+      let vu = true; try { vu = E.visible() !== false; } catch (e) { vu = true; }
+      if (!vu) return Promise.resolve({ etat: 'saute', pourquoi: 'cachee' });
+      let co = true; try { co = E.enLigne() !== false; } catch (e) { co = true; }
+      if (!co) return Promise.resolve({ etat: 'saute', pourquoi: 'hors-ligne' });
+      resynchroniser();
+      if (!etat.rejoint || !etat.id || !etat.jeton) return Promise.resolve({ etat: 'saute', pourquoi: 'pas-rejoint' });
+      const t = E.maintenant(), depuis = t - dernierVu, ecart = raison === 'retour' ? REGLES.vuRetour : REGLES.vu - 5e3;
+      if (dernierVu && depuis >= 0 && depuis < ecart) return Promise.resolve({ etat: 'saute', pourquoi: 'recent' });
+      dernierVu = t;
+      vuVol = rpc('fournil_vu', { p_id: etat.id, p_jeton: etat.jeton }).then((r) => {
+        if (r.etat === 'pas-ouvert') vuAbsent = true; // un serveur encore en version 4 : plus de battement (rien ne casse, enLigne reste absent)
+        else if (r.etat !== 'ok') dernierVu = 0; // pas de réponse : on réessaiera au prochain tour du minuteur
+        return r;
+      }).catch(() => { dernierVu = 0; return { etat: 'erreur' }; }).then((r) => { vuVol = null; return r; });
+      return vuVol;
     }
     function demarrer(o) {
       if (demarre || !config()) return false;
@@ -3087,27 +3198,28 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
           if (r.etat === 'ok' && r.data && r.data.ok === true && !etat.rejoint && etat.id === id) { etat.id = null; etat.jeton = null; sauver(); } // sinon on garde l'identité : on réessaiera au prochain lancement
         }).catch(() => { /* rien */ }).then(() => { nettoyage = null; });
       }
-      envoyer('lancement');
+      envoyer('lancement').then((r) => { if (!(r && r.etat === 'ok')) battre('lancement'); }).catch(() => { /* rien */ }); // un envoi accepté vaut un signe de vie ; sinon, un battement
       chargerRecompenses({ ecart: 0 });
       const pas = (o && o.pas) || 60e3;
       if (o && o.minuteur === false) return true;
       minuteur = setInterval(() => { tick(); }, pas);
       return true;
     }
-    function tick() { // le minuteur : un envoi toutes les 5 min, seulement quand la page est visible
+    function tick() { // le minuteur : un envoi toutes les 5 min et un battement toutes les 2 min, seulement quand la page est visible
       let vu = true; try { vu = E.visible(); } catch (e) { vu = true; }
       if (vu) chargerRecompenses();
-      return vu ? envoyer('periodique') : Promise.resolve({ etat: 'saute', pourquoi: 'cachee' });
+      if (!vu) return Promise.resolve({ etat: 'saute', pourquoi: 'cachee' });
+      return envoyer('periodique').then((r) => { if (!(r && r.etat === 'ok')) battre('periodique'); return r; });
     }
     function arreter() { if (minuteur) clearInterval(minuteur); minuteur = 0; demarre = false; }
     function resume() { // pour l'interface : rejoint, pseudo, et les dernières places connues (celle de la semaine seulement si c'est cette semaine, ou une plus récente : le téléphone peut retarder sur le serveur)
       const t = E.maintenant(), d = etat.dernier || {}, lundi = lundiParis(t);
-      return { disponible: !!config(), rejoint: etat.rejoint, pseudo: etat.pseudo, semaine: d.semaine && typeof d.semaine.lundi === 'string' && d.semaine.lundi >= lundi ? d.semaine : null, total: d.total || null, quartier: d.quartier || null, quand: d.quand || 0, statut, version };
+      return { disponible: !!config(), rejoint: etat.rejoint, pseudo: etat.pseudo, semaine: d.semaine && typeof d.semaine.lundi === 'string' && d.semaine.lundi >= lundi ? d.semaine : null, total: d.total || null, quartier: d.quartier || null, hantee: d.hantee || null, quand: d.quand || 0, statut, version };
     }
     return {
       disponible: () => !!config(), etat: () => etat, resume, version: () => version, cache: (p) => cache[periodeDe(p)], enChargement: (p) => charge[periodeDe(p)],
       envoyer, charger, ouvrir, choisirPseudo, quitter, demarrer, arreter, ecouter: (f) => { ecouteurs.push(f); },
-      chargerRecompenses, recompenses, choisirTenue, annonceFaite, lundi,
+      chargerRecompenses, recompenses, choisirTenue, annonceFaite, lundi, battre,
       relire: () => { etat = lireEtat(E.stockage); prevenir(); return etat; },
       resynchroniser, tick,
     };
@@ -3120,12 +3232,13 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
     let stockage = null; try { stockage = w.localStorage; } catch (e) { stockage = null; }
     const m = creerMoteur({
       config: () => w.FOURNIL_CONFIG, fetch: (u, i) => w.fetch(u, i), stockage, fortune: o && o.fortune, ...(o && typeof o.points === 'function' ? { points: o.points } : {}), ...(o && typeof o.quartier === 'function' ? { quartier: o.quartier } : {}),
+      ...(o && typeof o.evenement === 'function' ? { evenement: o.evenement } : {}), // le score de l'événement générique en cours : { id: 'hantee', score } (null : rien)
       ...(o && typeof o.maintenant === 'function' ? { maintenant: o.maintenant } : {}), // l'horloge de confiance du jeu (HORLOGE), plutôt que celle du téléphone
       enLigne: () => !(w.navigator && w.navigator.onLine === false), visible: () => !(w.document && w.document.visibilityState === 'hidden'),
     });
-    if (w.document) { // au passage en arrière-plan : un dernier envoi qui survit à la fermeture (fetch keepalive)
+    if (w.document) { // au passage en arrière-plan : un dernier envoi qui survit à la fermeture (fetch keepalive) ; au retour au premier plan : un signe de vie
       const fond = () => { m.envoyer('fond', { keepalive: true }); };
-      w.document.addEventListener('visibilitychange', () => { if (w.document.visibilityState === 'hidden') fond(); });
+      w.document.addEventListener('visibilitychange', () => { if (w.document.visibilityState === 'hidden') fond(); else m.battre('retour'); });
       w.addEventListener('pagehide', fond);
     }
     // une autre fenêtre du jeu (appli installée + onglet) a changé le classement : on suit tout de suite
@@ -3133,7 +3246,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
     return m;
   }
 
-  return { CLE, REGLES, PERIODES, PSEUDO_MIN, PSEUDO_MAX, lundiParis, decalageParis, dateCourte, normaliserPseudo, verifierPseudo, messagePseudo, rangTexte, rangPhrase, boulangers,
+  return { CLE, REGLES, PERIODES, EVTS, ongletsEvenements, nettoyerEvenements, PSEUDO_MIN, PSEUDO_MAX, lundiParis, decalageParis, dateCourte, normaliserPseudo, verifierPseudo, messagePseudo, rangTexte, rangPhrase, boulangers,
     etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur,
     METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce };
 });
@@ -6727,6 +6840,435 @@ const GARDEROBE_UI = (() => {
     neuf, etat, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence,
     gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
     PROFILS, simuler, decider, fmt, fmtEur, fmtDuree, fmtChrono, fmtReste };
+});
+
+/* ── hantee.js ── */
+/* LE FOURNIL — l'événement d'Halloween « La Maison hantée » : les règles pures du Manoir, la seconde boutique à part de l'automne (du
+   mardi 27 octobre 2026 à midi au lundi 2 novembre 2026 à 20 h, heure de Paris), juste après « Le Quartier » (src/quartier.js, qui
+   finit le 27 à midi). Pour tous les âges : mignon-effrayant, des fantômes gourmands et des citrouilles qui grimacent, rien d'autre.
+   Tout le monde part de zéro, avec sa propre monnaie (les bonbons), ses six friandises, ses postes, ses monstres « apprentis », ses
+   améliorations (les Sortilèges), ses coups de pouce ; les gains d'absence sont plafonnés comme ceux de la boulangerie (sur l'horloge de
+   confiance : « maintenant » est toujours donné par l'appelant, jamais lu ici). Douze paliers de bonbons gagnés, les mêmes pour tous,
+   donnent des récompenses POUR LA BOULANGERIE (étoiles, boosts en réserve, décos d'Halloween, la tenue d'Halloween, le chat noir) : voir
+   PALIERS. À la fin, le Manoir ferme ; tout le reste reste à vie. Aucune dépendance au DOM ni à game.js : tourne aussi dans Node
+   (test/fournil-hantee.test.js, qui simule le rythme).
+
+   La même forme d'API que src/quartier.js (QUARTIER), mot pour mot : DEBUT, FIN, GRACE, CLASSEMENT_JUSQUA, fenetre, fenetreSure,
+   envoiBillets (alias d'envoiBonbons), PRODUITS, PALIERS_POSTE, AMELIORATIONS, EVENEMENTS, PALIERS, VETEMENTS, VETEMENTS_OR, DECOS, neuf,
+   etat, tick, absence, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, livrer, attraper, paliersDus, marquerPalier,
+   simuler, fmt, fmtEur… : un moteur d'écran écrit pour le Quartier sert la Maison hantée en changeant d'objet de règles. Différences :
+     · l'état vit dans st.hantee (pas st.quartier), et n'a pas de porte « 18 ans et + » (q.majeur est toujours vrai) ;
+     · les coups de pouce gardent les CLÉS DE MÉCANIQUE du Quartier ('descente', 'grosclient', 'soiree', 'scooter') et les mêmes
+       actions (planquer, livrer, attraper) ; leur habillage d'Halloween est dans FICHE.evenements (une nuée de chauves-souris à
+       chasser, un cortège d'enfants déguisés, la pleine lune, le balai de la sorcière) ;
+     · un palier peut donner le chat noir (p.chat === 'noir' : GAME.donnerChatNoir) ;
+     · fmtEur écrit des bonbons (« 1,2 k bonbons ») ; fmt seul, le nombre.
+
+   HT.FICHE — la fiche de l'événement, pour l'écran (src/evenement.js paramétré) et le classement :
+     { id: 'hantee'               l'identifiant (st.hantee, la période du classement, p_evt du serveur),
+       nom: 'La Maison hantée', lieu: 'le Manoir' (la boutique à part, comme « la Planque »), adulte: false (pas de porte 18+),
+       cle: 'hantee'              la clé de l'état dans la sauvegarde (st[cle]),
+       classement: { periode: 'hantee', onglet: 'Halloween', evt: 'hantee' }  (onglet du classement ; p_evt envoyé au serveur),
+       devise: { nom: 'bonbons', un: 'bonbon', icone: 'bonbons' (la clé de l'icône, ICONS.HANTEE.bonbons), svg: un bonbon en SVG
+                 (repli tant que l'icône n'existe pas) },
+       couleurs: { nuit, nuit2, citrouille, violet, slime, lune, texte, doux } (le fond du Manoir, l'accent, le second accent…),
+       dates: { debut, fin, texteFin: 'lundi 2 novembre à 20 h', texteDebut: 'mardi 27 octobre à midi' },
+       produits: PRODUITS (id, nom, pl, desc, staffNom, staffDesc, poste…), paliers: PALIERS, ameliorations: AMELIORATIONS,
+       evenements: { descente | grosclient | soiree | scooter: { nom, annonce, action, bouton, fin } } (l'habillage des coups de pouce),
+       vetements: { id: { nom, piece, forme } }, decos: { id: texte }, chat: 'noir',
+       textes: { titre, sousTitre, annonceTitre, annonce, ouvrir, fermer, absence(dur, montant), bilanTitre, bilan, palier12,
+                 paliersNote, ameliorations: 'Sortilèges', equipe: 'Les monstres', manuel: 'Touche !', ferme } }
+   Les vêtements (src/game.js, GARDEROBE) : collection 'hantee' (paliers 3, 6, 9, 12) et 'hantee-or' (le podium final), formes pour
+   persos.js : 'chapeau' (chapeau pointu de sorcière), 'cape', 'bottes', 'lanterne' (une petite citrouille-lanterne à la main). */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.HANTEE = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+
+  // ─── l'heure de Paris (la même règle que game.js, classement.js et quartier.js) ───
+  function decalageParis(ms) {
+    const a = new Date(ms).getUTCFullYear();
+    const dernierDimanche = (mois) => { const d = new Date(Date.UTC(a, mois + 1, 0, 1)); d.setUTCDate(d.getUTCDate() - d.getUTCDay()); return d.getTime(); };
+    return ms >= dernierDimanche(2) && ms < dernierDimanche(9) ? 2 * 3600e3 : 3600e3;
+  }
+  const paris = (ms) => new Date(ms + decalageParis(ms));
+  function parisMs(a, m, j, h) { // une heure de Paris → ms (en deux passes : le décalage dépend de la date)
+    let t = Date.UTC(a, m - 1, j, h) - 3600e3; t = Date.UTC(a, m - 1, j, h) - decalageParis(t); return Date.UTC(a, m - 1, j, h) - decalageParis(t);
+  }
+  const dayKey = (ms) => { const d = paris(ms); return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`; };
+
+  // ─── la fenêtre : du mardi 27 octobre 2026 à 12 h au lundi 2 novembre 2026 à 20 h, heure de Paris (heure d'hiver : 11 h et 19 h UTC) ───
+  const DEBUT = parisMs(2026, 10, 27, 12), FIN = parisMs(2026, 11, 2, 20), JOUR = 864e5, JOURS = 7;
+  const CLASSEMENT_JUSQUA = FIN + 14 * JOUR; // l'onglet « Halloween » du classement reste visible deux semaines après la fin (le podium final)
+  function fenetre(now) {
+    const t = Number.isFinite(now) ? now : 0;
+    const avant = t < DEBUT, fini = t >= FIN, ouvert = !avant && !fini;
+    const jour = avant ? 0 : fini ? JOURS : Math.min(JOURS, Math.round((Date.parse(dayKey(t) + 'T12:00:00Z') - Date.parse(dayKey(DEBUT) + 'T12:00:00Z')) / JOUR) + 1); // le jour de Paris : du 27 (1) au 2 novembre (7)
+    return { avant, ouvert, fini, reste: ouvert ? FIN - t : 0, dans: avant ? DEBUT - t : 0, jour, jours: JOURS, classement: t >= DEBUT && t < CLASSEMENT_JUSQUA };
+  }
+  // l'ouverture se lit aussi sur l'HEURE SÛRE (HORLOGE.etat().sure) : une horloge avancée hors ligne n'ouvre pas le Manoir avant mardi midi
+  // (sans heure sûre connue, l'artefact Claude : le « maintenant » du jeu seul). La fin se lit toujours sur le « maintenant » du jeu.
+  function fenetreSure(now, sure) {
+    const f = fenetre(now);
+    return f.ouvert && Number.isFinite(sure) && sure > 0 && sure < DEBUT ? fenetre(sure) : f;
+  }
+  const GRACE = 3600e3; // le serveur compte encore les bonbons une heure après la fin (ceux d'avant la fin, plafonnés à l'enveloppe de la fin)
+  const envoiBonbons = (now) => Number.isFinite(now) && now >= DEBUT && now < FIN + GRACE;
+
+  // ─── les six friandises du Manoir, dans l'ordre où on les débloque ; leurs monstres (les « apprentis ») ───
+  // Les chiffres sont ceux du Quartier, resserrés pour six jours et demi (croissance des prix plus douce, déblocages plus proches) :
+  // réglés sur la simulation (test/fournil-hantee.test.js).
+  const PRODUITS = [
+    { id: 'acidule', nom: 'Bonbons acidulés', pl: 'sachets de bonbons acidulés', cout: 4, debloquer: 0, rev: 1, temps: 1.5, croiss: 1.07, staff: 1500, staffNom: 'Hubert le fantôme', staffDesc: 'Il passe à travers les murs pour livrer plus vite. Il dit « Bouh » aux clients, poliment.', poste: 'Le grenier qui grince', desc: 'Ça pique la langue et ça fait faire des grimaces.' },
+    { id: 'pomme', nom: 'Pommes d’amour', pl: 'pommes d’amour', cout: 60, debloquer: 120, rev: 20, temps: 3, croiss: 1.14, staff: 22500, staffNom: 'Ramsès la momie', staffDesc: 'Emballe chaque pomme comme elle s’emballe elle-même : avec beaucoup de bandelettes.', poste: 'La crypte du sous-sol', desc: 'Rouges, brillantes, et elles collent aux dents.' },
+    { id: 'cookie', nom: 'Cookies fantômes', pl: 'cookies fantômes', cout: 720, debloquer: 1440, rev: 150, temps: 6, croiss: 1.13, staff: 150000, staffNom: 'Osvaldo le squelette', staffDesc: 'Pétrit avec ses doigts tout fins. Il n’a pas d’estomac, alors il ne goûte jamais.', poste: 'La cuisine aux casseroles volantes', desc: 'Ils disparaissent dès qu’on a le dos tourné.' },
+    { id: 'toile', nom: 'Toiles d’araignée en sucre', pl: 'toiles d’araignée en sucre', cout: 8640, debloquer: 17280, rev: 1200, temps: 12, croiss: 1.12, staff: 750000, staffNom: 'Comte Vladimir', staffDesc: 'Un vampire très chic qui ne mord que dans la barbe à papa. Il travaille de nuit, forcément.', poste: 'La tour de l’horloge', desc: 'Filées par une araignée très gourmande. Elle a dit oui.' },
+    { id: 'potion', nom: 'Potions fumantes', pl: 'potions fumantes', cout: 1e5, debloquer: 2e8, rev: 10000, temps: 24, croiss: 1.11, staff: 4e8, staffNom: 'Berthe la sorcière', staffDesc: 'Touille le chaudron en chantant faux. Les potions adorent ça.', poste: 'Le chaudron du salon', desc: 'Goût fraise-citrouille. La fumée verte est offerte.' },
+    { id: 'citrouille', nom: 'Citrouilles sculptées', pl: 'citrouilles sculptées', cout: 1.2e6, debloquer: 1e10, rev: 9e4, temps: 96, croiss: 1.1, staff: 3e10, staffNom: 'Jack la Lanterne', staffDesc: 'Une citrouille qui sculpte des citrouilles. Elle a toujours le sourire, il est gravé.', poste: 'Le potager au clair de lune', desc: 'Chacune a sa grimace. Aucune ne se ressemble.' },
+  ];
+  const PALIERS_POSTE = [25, 50, 100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000]; // comme la boulangerie : les gains doublent
+  const AMELIORATIONS = [ // les Sortilèges
+    { id: 'petillant', nom: 'Sucre qui pétille', cout: 50000, cible: ['acidule'], mult: 3, desc: 'Bonbons acidulés ×3' },
+    { id: 'caramel', nom: 'Caramel enchanté', cout: 600000, cible: ['pomme'], mult: 3, desc: 'Pommes d’amour ×3' },
+    { id: 'balai', nom: 'Balai à réaction', cout: 3e6, cible: null, mult: 2, desc: 'Tout ×2' },
+    { id: 'four', nom: 'Four hanté', cout: 8e6, cible: ['cookie'], mult: 3, desc: 'Cookies fantômes ×3' },
+    { id: 'araignee', nom: 'Araignée pâtissière', cout: 6e7, cible: ['toile'], mult: 3, desc: 'Toiles en sucre ×3' },
+    { id: 'lune', nom: 'Pleine lune de sucre', cout: 1.5e8, cible: ['acidule', 'pomme'], mult: 5, desc: 'Acidulés et pommes d’amour ×5' },
+    { id: 'grimoire', nom: 'Grimoire des recettes', cout: 4e8, cible: null, mult: 2, desc: 'Tout ×2' },
+    { id: 'chaudron', nom: 'Chaudron géant', cout: 3e9, cible: ['potion'], mult: 3, desc: 'Potions ×3' },
+    { id: 'graines', nom: 'Graines de citrouille magiques', cout: 6e10, cible: ['citrouille'], mult: 3, desc: 'Citrouilles ×3' },
+    { id: 'bal', nom: 'Le grand bal des monstres', cout: 1e12, cible: null, mult: 3, desc: 'Tout ×3' },
+  ];
+  const ABSENCE_MAX_H = 8;   // les monstres travaillent 8 h au plus pendant une absence, comme à la boulangerie…
+  const ABSENCE_PART = 0.1;  // … mais au ralenti : sans toi, le Manoir somnole (10 % du rythme)
+  const PRESENCE = 6;        // tu es là : toutes les ventes ×6 tant que le Manoir est ouvert (c'est en jouant qu'on grimpe)
+  const REPUTATION = 1.5;    // chaque palier franchi fait la réputation du Manoir : toutes les ventes ×1,5 de plus
+  const EVENEMENTS = { // les clés de mécanique du Quartier (voir l'en-tête) ; l'habillage d'Halloween : FICHE.evenements
+    descente: { duree: 15, n: 12, part: 0.1 },  // une nuée de chauves-souris : 12 touches en 15 s pour les chasser (prime) ; sinon elles emportent 10 % des bonbons
+    grosclient: { duree: 180, prime: 6 },        // un cortège d'enfants déguisés : N friandises en 3 min, payées 6 fois
+    soiree: { duree: 120, mult: 2 },             // la pleine lune : toutes les ventes ×2 pendant 2 min
+    scooter: { duree: 10 },                      // le balai de la sorcière passe : attraper le bonus en 10 s
+  };
+
+  // ─── les douze paliers : des bonbons gagnés (total), les mêmes pour tous ; chacun donne une récompense pour la boulangerie ───
+  // Réglés sur la simulation (test/fournil-hantee.test.js) : un assidu (80 min par jour, en quatre sessions) franchit le 12e le
+  // dernier jour (le 6e ou le 7e jour de Paris) ; un quotidien (36 min) va jusqu'au 8e-9e ; un occasionnel (17 min) passe le 5e.
+  const PALIERS = [
+    { n: 1, total: 4e8, etoiles: 1, boost: { mult: 2, secs: 1800 }, titre: 'Premiers bonbons' },
+    { n: 2, total: 1e10, deco: 'citrouilles', titre: 'Les citrouilles du perron' },
+    { n: 3, total: 1.5e11, vetement: 'hantee-chapeau', titre: 'Le chapeau pointu' },
+    { n: 4, total: 6e11, chat: 'noir', etoiles: 1, titre: 'Le chat noir' },
+    { n: 5, total: 2e12, deco: 'toiles', titre: 'Les toiles d’araignée' },
+    { n: 6, total: 5e12, vetement: 'hantee-cape', titre: 'La cape de minuit' },
+    { n: 7, total: 1e13, boost: { mult: 5, secs: 900 }, titre: 'La nuit des farces' },
+    { n: 8, total: 1.5e13, deco: 'chaudron', titre: 'Le chaudron qui bouillonne' },
+    { n: 9, total: 4e13, vetement: 'hantee-bottes', titre: 'Les bottes qui claquent' },
+    { n: 10, total: 1.2e14, etoiles: 2, boost: { mult: 2, secs: 3600 }, titre: 'Le Manoir affiche complet' },
+    { n: 11, total: 2.5e14, etoiles: 1, boost: { mult: 2, secs: 1800 }, titre: 'Le bal des citrouilles' },
+    { n: 12, total: 4e14, vetement: 'hantee-lanterne', etoiles: 3, boost: { mult: 5, secs: 1800 }, titre: 'Le maître du Manoir' },
+  ];
+  const VETEMENTS = ['hantee-chapeau', 'hantee-cape', 'hantee-bottes', 'hantee-lanterne'];
+  const VETEMENTS_OR = ['hantee-or-chapeau', 'hantee-or-cape', 'hantee-or-bottes', 'hantee-or-lanterne']; // le podium final
+  const DECOS = ['citrouilles', 'toiles', 'chaudron'];
+
+  // ─── l'état : st.hantee, créé à la première visite (dans la sauvegarde du jeu) ───
+  function postesNeufs() { return PRODUITS.map((p, i) => ({ niv: i === 0 ? 1 : 0, staff: false, prog: 0, actif: false })); }
+  function neuf(now) {
+    return { v: 1, majeur: true, masque: false, annonce: false, bilan: false, billets: 0, total: 0, postes: postesNeufs(), ameliorations: {}, mode: 1,
+      ev: null, evTimer: 150, dernierEv: '', boost: null, lastSeen: now, now, ouvertLe: 0, paliers: [], vetements: [], decos: [], chat: false, etoiles: 0, boosts: 0,
+      stats: { ventes: 0, taps: 0, descentes: 0, descentesRatees: 0, grosClients: 0, scooters: 0, soirees: 0, embauches: 0, saisi: 0 }, carnet: [] };
+  }
+  // q.billets / q.total : les bonbons en poche / gagnés en tout (les mêmes noms qu'au Quartier, pour le moteur d'écran) ; bonbons(q) les lit
+  function etat(st, now) { // l'état de l'événement, remis d'aplomb
+    let q = st.hantee;
+    if (!q || typeof q !== 'object' || !Array.isArray(q.postes)) q = st.hantee = neuf(now);
+    while (q.postes.length < PRODUITS.length) q.postes.push({ niv: 0, staff: false, prog: 0, actif: false });
+    if (q.postes.length > PRODUITS.length) q.postes.length = PRODUITS.length;
+    for (const k of ['paliers', 'vetements', 'decos', 'carnet']) if (!Array.isArray(q[k])) q[k] = [];
+    if (!q.stats || typeof q.stats !== 'object') q.stats = neuf(now).stats;
+    if (!q.ameliorations || typeof q.ameliorations !== 'object') q.ameliorations = {};
+    if (!(q.billets >= 0)) q.billets = 0; if (!(q.total >= 0)) q.total = 0;
+    q.majeur = true; // pas de porte : tous âges
+    return q;
+  }
+  const bonbons = (q) => (q ? q.billets : 0);
+  const note = (q, txt) => { q.carnet.push({ t: q.now, txt }); if (q.carnet.length > 12) q.carnet.shift(); };
+
+  // ─── calculs (les mêmes formules qu'au Quartier) ───
+  const palierMult = (niv) => Math.pow(2, PALIERS_POSTE.filter((p) => niv >= p).length);
+  const prochainPalier = (niv) => PALIERS_POSTE.find((p) => p > niv) || null;
+  function ameliorationMult(q, i) { let m = 1; for (const a of AMELIORATIONS) if (q.ameliorations[a.id] && (a.cible === null || a.cible.includes(PRODUITS[i].id))) m *= a.mult; return m; }
+  function boostMult(q) { let m = PRESENCE; if (q.ev && q.ev.type === 'soiree' && q.ev.fin > q.now) m *= EVENEMENTS.soiree.mult; return m; } // en ta présence
+  const reputationMult = (q) => Math.pow(REPUTATION, paliersAtteints(q).length);
+  const temps = (q, i) => PRODUITS[i].temps;
+  const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(q, i) * reputationMult(q); };
+  const revenu = (q, i) => revenuBase(q, i) * boostMult(q);
+  const revenuFournee = (q, i) => revenu(q, i) * (q.postes[i].staff ? 1 : 1.5); // à la main, on sert un client de plus
+  const coutNiveau = (i, niv) => (niv === 0 ? PRODUITS[i].debloquer : PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv));
+  function coutNiveaux(i, niv, n) { if (niv === 0) return PRODUITS[i].debloquer; const r = PRODUITS[i].croiss; return PRODUITS[i].cout * Math.pow(r, niv) * (Math.pow(r, n) - 1) / (r - 1); }
+  function maxNiveaux(i, niv, billets) { const r = PRODUITS[i].croiss, a = PRODUITS[i].cout * Math.pow(r, niv); if (billets < a) return 0; return Math.floor(Math.log(billets * (r - 1) / a + 1) / Math.log(r)); }
+  function quantite(q, i) { const s = q.postes[i]; if (s.niv === 0) return 1; if (q.mode === 'max') return Math.max(1, maxNiveaux(i, s.niv, q.billets)); return q.mode; }
+  const prixNiveaux = (q, i, n) => coutNiveaux(i, q.postes[i].niv, n);
+  const prixStaff = (q, i) => PRODUITS[i].staff;
+  function tauxBase(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenuBase(q, i) / temps(q, i); }); return t; }
+  function tauxParSeconde(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenu(q, i) / temps(q, i); }); return t; }
+  function rythme(q) { const t = tauxBase(q); if (t > 0) return t; let best = 0; q.postes.forEach((s, i) => { if (s.niv > 0) best = Math.max(best, revenuBase(q, i) / Math.max(1, temps(q, i)) * 0.5); }); return Math.max(0.5, best); }
+  function arrondi(n) { if (n < 10) return Math.max(1, Math.round(n)); const p = Math.pow(10, Math.floor(Math.log10(n)) - 1); return Math.round(n / p) * p; }
+  const heuresAbsence = () => ABSENCE_MAX_H;
+
+  // ─── actions ───
+  function gagner(q, montant) { q.billets += montant; q.total += montant; }
+  function acheter(q, i) {
+    const s = q.postes[i], n = quantite(q, i), prix = prixNiveaux(q, i, n);
+    if (i > 0 && s.niv === 0 && q.postes[i - 1].niv === 0) return { ok: false, prix, verrou: true };
+    if (q.billets < prix) return { ok: false, prix };
+    q.billets -= prix; const deblocage = s.niv === 0; s.niv += n;
+    if (deblocage) note(q, `${PRODUITS[i].nom} : nouvelle friandise`);
+    return { ok: true, n, prix, deblocage };
+  }
+  function embaucher(q, i) {
+    const s = q.postes[i], prix = prixStaff(q, i);
+    if (s.staff || s.niv <= 0 || q.billets < prix) return { ok: false, prix };
+    q.billets -= prix; s.staff = true; s.actif = true; q.stats.embauches++; note(q, `${PRODUITS[i].staffNom} rejoint le Manoir`);
+    return { ok: true, prix };
+  }
+  function lancer(q, i) { const s = q.postes[i]; if (s.niv <= 0 || s.actif) return false; s.actif = true; s.prog = 0; q.stats.taps++; return true; }
+  function amelioration(q, id) {
+    const a = AMELIORATIONS.find((x) => x.id === id), prix = a ? a.cout : 0;
+    if (!a || q.ameliorations[id] || q.billets < prix) return { ok: false, prix };
+    q.billets -= prix; q.ameliorations[id] = true; note(q, `${a.nom} : ${a.desc}`);
+    return { ok: true, a, prix };
+  }
+
+  // ─── les coups de pouce : un toutes les 2 à 5 minutes de jeu dans le Manoir, jamais deux fois le même d'affilée ───
+  const TYPES_EV = [
+    { type: 'descente', poids: 2, ok: (q) => q.billets > 0 },
+    { type: 'grosclient', poids: 2, ok: (q) => q.postes.some((s, i) => s.niv > 0 && PRODUITS[i].temps <= 15) },
+    { type: 'soiree', poids: 2, ok: () => true },
+    { type: 'scooter', poids: 1.5, ok: () => true },
+  ];
+  function lancerEvenement(q, rnd, type) {
+    rnd = rnd || Math.random;
+    if (!type) {
+      const choix = TYPES_EV.filter((t) => t.ok(q) && t.type !== q.dernierEv);
+      if (!choix.length) return null;
+      let total = 0; const poids = choix.map((t) => { total += t.poids; return t.poids; });
+      let r = rnd() * total; type = choix[choix.length - 1].type;
+      for (let k = 0; k < choix.length; k++) { r -= poids[k]; if (r <= 0) { type = choix[k].type; break; } }
+    }
+    q.dernierEv = type;
+    const E = EVENEMENTS;
+    if (type === 'descente') q.ev = { type, taps: 0, n: E.descente.n, debut: q.now, fin: q.now + E.descente.duree * 1000, prime: arrondi(Math.max(20, rythme(q) * 240)), enjeu: Math.floor(q.billets * E.descente.part) };
+    else if (type === 'grosclient') {
+      const idx = q.postes.map((s, i) => i).filter((i) => q.postes[i].niv > 0 && PRODUITS[i].temps <= 15);
+      if (!idx.length) return lancerEvenement(q, rnd, 'soiree');
+      const i = idx[Math.floor(rnd() * idx.length)], s = q.postes[i], n = Math.max(3, Math.min(s.staff ? 400 : 20, arrondi(E.grosclient.duree / PRODUITS[i].temps * (s.staff ? 0.7 : 0.3))));
+      q.ev = { type, i, n, fait: 0, debut: q.now, fin: q.now + E.grosclient.duree * 1000, prime: arrondi(revenuBase(q, i) * n * E.grosclient.prime), livree: false };
+    } else if (type === 'scooter') q.ev = { type, debut: q.now, fin: q.now + E.scooter.duree * 1000, prime: arrondi(Math.max(10, rythme(q) * 120)) };
+    else q.ev = { type: 'soiree', debut: q.now, fin: q.now + E.soiree.duree * 1000 };
+    return q.ev;
+  }
+  function planquer(q) { // les chauves-souris : une touche ; à la 12e, elles sont toutes chassées et la prime tombe
+    const ev = q.ev; if (!ev || ev.type !== 'descente' || ev.fin <= q.now) return { ok: false };
+    ev.taps++; if (ev.taps < ev.n) return { ok: true, fini: false, taps: ev.taps };
+    gagner(q, ev.prime); q.stats.descentes++; note(q, `Chauves-souris chassées : +${fmt(ev.prime)} bonbons`); q.ev = null;
+    return { ok: true, fini: true, prime: ev.prime };
+  }
+  function livrer(q) { // le cortège d'enfants déguisés : la commande servie
+    const ev = q.ev; if (!ev || ev.type !== 'grosclient' || ev.fait < ev.n || ev.livree) return { ok: false };
+    ev.livree = true; gagner(q, ev.prime); q.stats.grosClients++; note(q, `Cortège servi : +${fmt(ev.prime)} bonbons`); q.ev = null;
+    return { ok: true, prime: ev.prime };
+  }
+  function attraper(q) { // le balai de la sorcière : on attrape le sac de bonbons avant qu'il reparte
+    const ev = q.ev; if (!ev || ev.type !== 'scooter' || ev.fin <= q.now) return { ok: false };
+    gagner(q, ev.prime); q.stats.scooters++; note(q, `Le balai a lâché +${fmt(ev.prime)} bonbons`); q.ev = null;
+    return { ok: true, prime: ev.prime };
+  }
+  function finEvenement(q, ev) { // un coup de pouce qui finit sans toi : les chauves-souris emportent leur part de bonbons
+    if (ev.type === 'descente') { const saisi = Math.min(q.billets, ev.enjeu || 0); q.billets -= saisi; q.stats.descentesRatees++; q.stats.saisi += saisi; note(q, `Les chauves-souris emportent ${fmt(saisi)} bonbons`); return { saisi }; }
+    if (ev.type === 'soiree') q.stats.soirees++;
+    return {};
+  }
+
+  // ─── les paliers franchis : ce qu'il reste à donner (chaque palier une seule fois, dans l'ordre) ───
+  const paliersAtteints = (q) => PALIERS.filter((p) => q.total >= p.total);
+  function paliersDus(q) { return PALIERS.filter((p) => q.total >= p.total && !q.paliers.includes(p.n)); }
+  function marquerPalier(q, n) { // le palier n est réclamé : on note ce qu'il donne (l'interface le distribue dans la boulangerie)
+    const p = PALIERS.find((x) => x.n === n); if (!p || q.paliers.includes(n) || q.total < p.total) return null;
+    q.paliers.push(n);
+    if (p.vetement && !q.vetements.includes(p.vetement)) q.vetements.push(p.vetement);
+    if (p.deco && !q.decos.includes(p.deco)) q.decos.push(p.deco);
+    if (p.chat) q.chat = true;
+    if (p.etoiles) q.etoiles += p.etoiles; if (p.boost) q.boosts++;
+    note(q, `Palier ${n} : ${p.titre}`);
+    return p;
+  }
+  const ensembleComplet = (q) => VETEMENTS.every((v) => q.vetements.includes(v));
+  const NOMS_DECOS = { citrouilles: 'des citrouilles sur le perron', toiles: 'des toiles d’araignée aux fenêtres', chaudron: 'un chaudron qui bouillonne' };
+  const NOMS_VETEMENTS = { 'hantee-chapeau': 'chapeau pointu de sorcière', 'hantee-cape': 'cape de minuit', 'hantee-bottes': 'bottes qui claquent', 'hantee-lanterne': 'citrouille-lanterne (la tenue complète)' };
+  function phrasePalier(p) { // ce que donne un palier, en une ligne
+    const l = [];
+    if (p.etoiles) l.push(`${p.etoiles} étoile${p.etoiles > 1 ? 's' : ''}`);
+    if (p.boost) l.push(`boost ×${p.boost.mult} ${fmtDuree(p.boost.secs)}`);
+    if (p.chat) l.push('le chat noir');
+    if (p.deco) l.push(NOMS_DECOS[p.deco]);
+    if (p.vetement) l.push(NOMS_VETEMENTS[p.vetement]);
+    return l.join(' · ');
+  }
+
+  // ─── un pas de jeu dans le Manoir (dt en secondes, nowMs sur l'horloge de confiance) ───
+  const TROU = 10000, REPRISE = 90; // un trou de plus de 10 s entre deux pas (téléphone verrouillé, autre appli) : c'était une absence
+  function tick(q, dt, nowMs, rnd) {
+    rnd = rnd || Math.random;
+    if (q.now && nowMs - q.now > TROU) { q.ev = null; q.evTimer = Math.max(q.evTimer, REPRISE + rnd() * 60); } // le coup de pouce en cours s'efface sans pénalité, et rien ne surgit au retour
+    q.now = nowMs;
+    const out = { ventes: [], nouvelEv: null, finEv: null, paliers: [] };
+    q.postes.forEach((s, i) => {
+      if (s.niv <= 0 || !s.actif) return;
+      const T = temps(q, i); s.prog += dt; if (s.prog < T) return;
+      let n = Math.floor(s.prog / T);
+      if (!s.staff) { n = 1; s.prog = 0; s.actif = false; } else s.prog -= n * T;
+      const m = revenuFournee(q, i) * n; gagner(q, m); q.stats.ventes += n;
+      if (q.ev && q.ev.type === 'grosclient' && q.ev.i === i) q.ev.fait = Math.min(q.ev.n, q.ev.fait + n);
+      out.ventes.push({ i, montant: m, n });
+    });
+    if (q.ev && q.ev.fin <= nowMs && !(q.ev.type === 'grosclient' && q.ev.fait >= q.ev.n)) { out.finEv = q.ev; out.fin = finEvenement(q, q.ev); q.ev = null; }
+    if (!q.ev) { q.evTimer -= dt; if (q.evTimer <= 0) { q.evTimer = 120 + rnd() * 180; out.nouvelEv = lancerEvenement(q, rnd); } }
+    out.paliers = paliersDus(q);
+    return out;
+  }
+  // ─── l'absence : les monstres ont travaillé (8 h au plus), les fournées en cours se terminent ; pas de coup de pouce sans toi ───
+  function absence(q, nowMs) {
+    q.now = nowMs; q.ev = null; q.evTimer = Math.max(q.evTimer || 0, REPRISE);
+    const secs = Math.min(heuresAbsence() * 3600, Math.max(0, (nowMs - q.lastSeen) / 1000));
+    let total = 0; const detail = [];
+    q.postes.forEach((s, i) => {
+      if (s.niv <= 0 || !s.actif) return;
+      const T = temps(q, i);
+      if (s.staff) { const n = Math.floor((s.prog + secs) / T); s.prog = (s.prog + secs) % T; if (n > 0) { const m = revenuBase(q, i) * n * ABSENCE_PART; total += m; detail.push({ i, n, m }); q.stats.ventes += n; } }
+      else if (s.prog + secs >= T) { const m = revenuBase(q, i) * 1.5 * ABSENCE_PART; total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; q.stats.ventes++; }
+      else s.prog += secs;
+    });
+    if (total > 0) gagner(q, total);
+    q.lastSeen = nowMs;
+    return { secs, total, detail };
+  }
+
+  // ─── la simulation du rythme (pour les tests et le réglage des paliers) : des sessions par jour, une politique gloutonne ───
+  const PROFILS = { // comme test/longevite.js : les heures de Paris des sessions et leur durée en minutes
+    assidu: { sessions: [[7.5, 15], [12.25, 15], [18, 20], [22, 30]] },
+    quotidien: { sessions: [[7.75, 8], [12.5, 8], [21, 20]] },
+    occasionnel: { sessions: [[8, 5], [20.5, 12]] },
+    marathon: { sessions: [[0, 714], [12, 714]] }, // 23 h 48 sur 24 (deux sessions, l'une à midi) : l'enveloppe du serveur
+  };
+  function mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+  function decider(q) { // acheter : monstre, déblocage, sortilège, puis le meilleur rapport gain / prix
+    let fait = false;
+    for (let i = 0; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv > 0 && !s.staff && q.billets >= prixStaff(q, i)) { embaucher(q, i); fait = true; } }
+    for (let i = 1; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv === 0 && q.postes[i - 1].niv > 0 && q.billets >= PRODUITS[i].debloquer) { acheter(q, i); fait = true; break; } }
+    for (const a of AMELIORATIONS) if (!q.ameliorations[a.id] && q.billets >= a.cout * 1.2) { amelioration(q, a.id); fait = true; }
+    const next = q.postes.findIndex((s) => s.niv === 0), taux = tauxParSeconde(q);
+    if (next > 0 && q.billets < PRODUITS[next].debloquer && q.billets + taux * 600 >= PRODUITS[next].debloquer) return fait; // on économise pour la prochaine friandise
+    for (let k = 0; k < 3; k++) {
+      let best = -1, bestR = 0, bestN = 1;
+      for (let i = 0; i < PRODUITS.length; i++) {
+        const s = q.postes[i]; if (s.niv === 0) continue; const n = Math.min(10, maxNiveaux(i, s.niv, q.billets)); if (n < 1) continue;
+        const prix = coutNiveaux(i, s.niv, n), gain = (PRODUITS[i].rev * (s.niv + n) * palierMult(s.niv + n) - PRODUITS[i].rev * s.niv * palierMult(s.niv)) * ameliorationMult(q, i) / PRODUITS[i].temps * (s.staff ? 1 : 0.3);
+        const r = gain / prix; if (r > bestR) { bestR = r; best = i; bestN = n; }
+      }
+      if (best < 0) break;
+      q.mode = q.billets > 30 * coutNiveaux(best, q.postes[best].niv, bestN) ? 'max' : bestN;
+      if (acheter(q, best).ok) fait = true;
+    }
+    return fait;
+  }
+  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour }, trace: [{ t (jours depuis l'ouverture), total }] }
+    opts = opts || {}; const prof = PROFILS[profil] || PROFILS.assidu, rnd = mulberry32(opts.graine || 7), st = {}, t0 = opts.debut || DEBUT;
+    const q = etat(st, t0), parJour = [], paliersJour = {}, trace = []; q.lastSeen = t0;
+    const H = 3600e3, nJ = jours || JOURS;
+    const minuit0 = t0 - (paris(t0).getUTCHours() * 3600e3 + paris(t0).getUTCMinutes() * 60e3); // minuit, heure de Paris, du premier jour
+    for (let j = 0; j < nJ; j++) {
+      const jourDebut = minuit0 + j * JOUR;
+      for (const [h, minutes] of prof.sessions) {
+        const debut = jourDebut + h * H; // les sessions sont des heures de Paris ; le premier jour, l'événement ouvre à midi : celles du matin sont perdues
+        if (debut < t0 || debut >= FIN) continue;
+        absence(q, debut);
+        for (let s = 0; s < minutes * 60; s++) {
+          const now = debut + s * 1000; if (now >= FIN) break;
+          let lances = 0; q.postes.forEach((x, i) => { if (x.niv > 0 && !x.staff && !x.actif && lances < 2) { lancer(q, i); lances++; } });
+          const out = tick(q, 1, now, rnd);
+          if (q.ev) {
+            if (q.ev.type === 'descente') { planquer(q); if (rnd() < 0.7) planquer(q); }
+            else if (q.ev.type === 'grosclient' && q.ev.fait >= q.ev.n) livrer(q);
+            else if (q.ev.type === 'scooter' && rnd() < 0.5) attraper(q);
+          }
+          for (const p of out.paliers) { marquerPalier(q, p.n); paliersJour[p.n] = j + 1; }
+          if (s % 3 === 0) decider(q);
+          if (s % 60 === 0) trace.push({ t: (now - t0) / JOUR, total: q.total });
+        }
+        q.lastSeen = Math.min(debut + minutes * 60e3, FIN); trace.push({ t: (q.lastSeen - t0) / JOUR, total: q.total });
+      }
+      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length });
+    }
+    return { q, total: q.total, parJour, paliersJour, trace };
+  }
+
+  // ─── formats ───
+  const SUFF = ['', 'k', 'M', 'Md', 'Bn', 'Bd', 'Tn', 'Td'];
+  function fmt(n) {
+    if (!Number.isFinite(n)) return '∞';
+    if (n < 0) return '−' + fmt(-n);
+    if (n < 1000) return (n < 10 && n !== Math.floor(n) ? n.toFixed(1) : Math.floor(n).toString()).replace('.', ',');
+    let k = 0, v = n; while (v >= 1000 && k < SUFF.length - 1) { v /= 1000; k++; }
+    if (v >= 1000) return n.toExponential(1).replace('.', ',').replace('e+', ' e');
+    return (v >= 100 ? v.toFixed(0) : v.toFixed(1)).replace('.0', '').replace('.', ',') + ' ' + SUFF[k];
+  }
+  const fmtDevise = (n) => `${fmt(n)} bonbon${Math.abs(n) >= 2 ? 's' : ''}`;
+  const fmtEur = fmtDevise; // le nom du Quartier : le moteur d'écran écrit la monnaie de l'événement actif avec fmtEur
+  function fmtDuree(s) { if (s < 59.5) return Math.round(s) + ' s'; const mn = Math.round(s / 60); if (mn < 60) return mn + ' min'; const h = Math.floor(mn / 60), m = mn % 60; return m ? `${h} h ${String(m).padStart(2, '0')}` : `${h} h`; }
+  const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
+  function fmtReste(ms) { // « 6 j 4 h », « 4 h 12 », « 12 min »
+    const mn = Math.max(0, Math.round(ms / 60e3)), j = Math.floor(mn / 1440), h = Math.floor((mn % 1440) / 60), m = mn % 60;
+    if (j > 0) return `${j} j ${h} h`; if (h > 0) return `${h} h ${String(m).padStart(2, '0')}`; return `${m} min`;
+  }
+
+  // ─── la fiche de l'événement (voir l'en-tête) ───
+  const BONBON_SVG = '<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M8 14 15 21 8 24 15 27 8 34 4 24Z" fill="#8E5CF7"/><path d="M40 14 33 21 40 24 33 27 40 34 44 24Z" fill="#8E5CF7"/><circle cx="24" cy="24" r="10" fill="#FF8A1F"/><path d="M17 20c4 3 10 3 14 0M17 28c4-3 10-3 14 0" stroke="#FFE7C2" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>';
+  const FICHE = {
+    id: 'hantee', nom: 'La Maison hantée', lieu: 'le Manoir', Lieu: 'Le Manoir', adulte: false, cle: 'hantee',
+    classement: { periode: 'hantee', onglet: 'Halloween', evt: 'hantee' },
+    devise: { nom: 'bonbons', un: 'bonbon', icone: 'bonbons', svg: BONBON_SVG },
+    couleurs: { nuit: '#1B1530', nuit2: '#2A2047', citrouille: '#FF8A1F', violet: '#8E5CF7', slime: '#7CD992', lune: '#FFE7A3', texte: '#F6EEDD', doux: '#B9AED6' },
+    dates: { debut: DEBUT, fin: FIN, texteDebut: 'mardi 27 octobre à midi', texteFin: 'lundi 2 novembre à 20 h' },
+    produits: PRODUITS, paliers: PALIERS, ameliorations: AMELIORATIONS,
+    evenements: {
+      descente: { nom: 'Une nuée de chauves-souris !', annonce: 'Des chauves-souris foncent sur les bonbons : chasse-les, vite !', action: 'chasser', bouton: 'Ouste !', detail: (ev) => `${ev.n} touches pour les chasser · prime ${fmtDevise(ev.prime)} · sinon elles emportent ${fmtDevise(ev.enjeu)}`, fin: 'Les chauves-souris sont reparties avec leur butin.' },
+      grosclient: { nom: 'Un cortège d’enfants déguisés', annonce: 'Un cortège d’enfants déguisés frappe à la porte : « Des bonbons ou un sort ! »', action: 'servir', bouton: 'Servir !', detail: (ev) => `${ev.n} ${PRODUITS[ev.i] ? PRODUITS[ev.i].pl : ''} · prime ${fmtDevise(ev.prime)}`, fin: 'Le cortège est allé sonner ailleurs.' },
+      soiree: { nom: 'La pleine lune', annonce: 'Pleine lune sur le Manoir : tout se vend ×2 !', action: null, bouton: null, detail: () => `Toutes les ventes ×${EVENEMENTS.soiree.mult}`, fin: 'La lune se cache derrière un nuage.' },
+      scooter: { nom: 'Le balai de la sorcière', annonce: 'Le balai de la sorcière passe en rase-motte : attrape le sac de bonbons !', action: 'attraper', bouton: 'Attraper', detail: (ev) => `Attrape le sac avant qu’il reparte : ${fmtDevise(ev.prime)}`, fin: 'Le balai est reparti dans la nuit.' },
+    },
+    vetements: { 'hantee-chapeau': { nom: 'Chapeau pointu', piece: 'tete', forme: 'chapeau' }, 'hantee-cape': { nom: 'Cape de minuit', piece: 'haut', forme: 'cape' }, 'hantee-bottes': { nom: 'Bottes qui claquent', piece: 'pieds', forme: 'bottes' }, 'hantee-lanterne': { nom: 'Citrouille-lanterne', piece: 'accessoire', forme: 'lanterne' } },
+    decos: NOMS_DECOS, chat: 'noir',
+    textes: {
+      titre: 'La Maison hantée', sousTitre: 'Le Manoir · Halloween',
+      annonceTitre: 'La Maison hantée ouvre ses portes !',
+      annonce: 'Jusqu’au lundi 2 novembre à 20 h : une boutique à part, « le Manoir », où tout le monde part de zéro. Ses bonbons rapportent des récompenses pour ta boulangerie : étoiles, boosts, décos d’Halloween, le chat noir et une tenue de sorcière à vie.',
+      ouvrir: 'Entrer dans le Manoir', fermer: 'Retour à la boulangerie', ameliorations: 'Sortilèges', equipe: 'Les monstres', manuel: 'Touche !',
+      absence: (dur, montant) => `Pendant ton absence (${dur}) : +${montant}, les monstres ont travaillé au ralenti.`,
+      bilanTitre: 'Bilan de la Maison hantée', bilan: 'Le Manoir a fermé ses volets. Tout ce que tu as gagné reste à vie.',
+      palier12: 'Le maître du Manoir, c’est toi. Tout ça reste à vie, même après Halloween.',
+      paliersNote: 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue d’Halloween se porte depuis la garde-robe du boulanger, et le chat noir se choisit dans la garde-robe ou les Réglages.',
+      ferme: 'Le Manoir est fermé.', classementInfo: 'Les bonbons gagnés au Manoir · podium final le 2 nov. à 20 h', classementFini: 'La Maison hantée est finie : le podium final est figé',
+      vide: 'Personne encore au Manoir', videSous: 'Les bonbons du Manoir arrivent avec le prochain envoi.', podium: (rang) => `${rang === 1 ? '1er' : rang + 'e'} du Manoir`,
+      podiumFinal: 'Podium final de la Maison hantée : la tenue d’Halloween en or est dans ta garde-robe !',
+    },
+  };
+
+  return { FICHE, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, JOURS, GRACE, fenetreSure, envoiBonbons, envoiBillets: envoiBonbons, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, VETEMENTS, VETEMENTS_OR, DECOS,
+    neuf, etat, bonbons, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence,
+    gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, chasser: planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
+    PROFILS, simuler, decider, fmt, fmtEur, fmtDevise, fmtDuree, fmtChrono, fmtReste };
 });
 
 /* ── evenement.js ── */

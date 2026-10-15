@@ -1,10 +1,27 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
---  Le Fournil — le classement en ligne entre amis, en POINTS DE BOULANGER (version 4 : + l'événement « Le Quartier »)
+--  Le Fournil — le classement en ligne entre amis, en POINTS DE BOULANGER (version 5 : + les événements génériques, « La Maison hantée »)
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 --
 --  À coller TEL QUEL dans Supabase : SQL Editor → New query → coller tout → Run.
---  On peut le recoller autant de fois qu'on veut, et par-dessus la version 2 ou 3 : les joueurs déjà inscrits, le palmarès et
---  les points restent, les fonctions sont remplacées par la nouvelle version, les droits sont remis d'aplomb.
+--  On peut le recoller autant de fois qu'on veut, et par-dessus la version 2, 3 ou 4 : les joueurs déjà inscrits, le palmarès,
+--  les points, les billets et le podium du Quartier restent, les fonctions sont remplacées par la nouvelle version, les droits
+--  sont remis d'aplomb.
+--
+--  Version 5 (15 oct. 2026) : les ÉVÉNEMENTS GÉNÉRIQUES, et le premier d'entre eux, « LA MAISON HANTÉE » (Halloween, du mardi
+--  27 octobre 2026 à midi au lundi 2 novembre 2026 à 20 h, heure de Paris ; src/hantee.js). Collée par-dessus la v4 : rien ne se
+--  perd, et le Quartier reste lisible tel quel (ses colonnes, son classement 'quartier', son podium final, ses champs de réponse).
+--    · un événement = une ligne de fournil_evts() (partie 3 ter) : son identifiant ('hantee'), sa fenêtre, et l'enveloppe de son
+--      score (une table de log10 à pas fixe, tirée de la simulation de son fichier de règles, marge d'au moins ×2) ; en ajouter un
+--      autre plus tard, c'est ajouter une ligne, rien d'autre ;
+--    · le téléphone envoie son score (les bonbons) avec p_evt = 'hantee' et p_score (facultatifs) ; le score ne fait que monter,
+--      jamais au-delà de l'enveloppe, et ne compte que dans la fenêtre (plus une heure de grâce) ; il vit dans fournil_evt_scores
+--      (une ligne par joueur et par événement : la colonne evt et son score) ;
+--    · un classement à part par événement (p_periode = 'hantee'), et un podium final figé une fois après la fin
+--      (fournil_evt_podium), rendu par fournil_recompenses (evenements : { hantee: { rang, podium } }) ;
+--    · « EN LIGNE » : fournil_joueurs.vu (l'heure du serveur du dernier signe de vie : un envoi accepté de fournil_publier, ou un
+--      battement de la nouvelle fonction fournil_vu, qui ne compte rien) ; le classement rend pour chaque ligne en_ligne (vu il y a
+--      moins de 4 minutes), et en_ligne_n (combien de joueurs de cette liste sont en ligne) ; jamais l'heure elle-même ;
+--    · un téléphone de la v4 (sans p_evt) est toujours accepté ; un téléphone de la v5 face à une v4 renvoie sans p_evt.
 --
 --  Version 4 (12 oct. 2026) : l'ÉVÉNEMENT « LE QUARTIER » (du mardi 13 octobre 2026 à midi au mardi 27 octobre à midi, heure de
 --  Paris ; src/quartier.js) : le téléphone envoie en plus les billets gagnés dans sa Planque (p_quartier, facultatif) ; un classement
@@ -29,9 +46,11 @@
 --    · public.fournil_portes : les inscriptions des dernières 24 h, par source (seulement une empreinte de l'adresse) ;
 --    · public.fournil_quartier_podium : les trois premiers de l'événement « Le Quartier », figés après sa fin ;
 --    · public.fournil_evenements : les événements dont le podium est figé ;
---    · cinq fonctions appelées par le jeu : fournil_publier, fournil_classement, fournil_retirer, fournil_recompenses,
---      fournil_heure.
---  Personne ne lit ni n'écrit les tables directement : tout passe par ces cinq fonctions, qui vérifient tout.
+--    · public.fournil_evt_scores : le score de chaque joueur à chaque événement générique (version 5) ;
+--    · public.fournil_evt_podium : les podiums finaux des événements génériques, figés après leur fin ;
+--    · six fonctions appelées par le jeu : fournil_publier, fournil_classement, fournil_retirer, fournil_recompenses,
+--      fournil_heure, fournil_vu.
+--  Personne ne lit ni n'écrit les tables directement : tout passe par ces six fonctions, qui vérifient tout.
 --
 --  Les points (ce qui classe) :
 --    · le jeu compte ses points de boulanger (src/game.js), du lundi au dimanche, heure de Paris : journée complète (les trois
@@ -140,9 +159,11 @@ alter table public.fournil_joueurs add column if not exists points_jour  date;
 -- version 4 : les billets de l'événement « Le Quartier » (la plus haute valeur plausible envoyée) et l'heure de ce dernier envoi
 alter table public.fournil_joueurs add column if not exists quartier     double precision not null default 0;
 alter table public.fournil_joueurs add column if not exists quartier_maj timestamptz;
+-- version 5 : le dernier signe de vie (heure du serveur), pour « en ligne » ; jamais rendu tel quel
+alter table public.fournil_joueurs add column if not exists vu           timestamptz;
 
 comment on table public.fournil_joueurs is
-  'Le Fournil : le classement entre amis. Accès uniquement par les fonctions fournil_publier, fournil_classement, fournil_retirer et fournil_recompenses.';
+  'Le Fournil : le classement entre amis. Accès uniquement par les fonctions fournil_publier, fournil_classement, fournil_retirer, fournil_recompenses et fournil_vu.';
 
 -- un pseudo ne sert qu'une fois, sans tenir compte des majuscules (« Marie » et « MARIE » sont le même pseudo)
 create unique index if not exists fournil_joueurs_pseudo on public.fournil_joueurs (lower(pseudo));
@@ -187,6 +208,30 @@ create table if not exists public.fournil_evenements (
 comment on table public.fournil_evenements is
   'Le Fournil : les événements dont le podium est figé. Accès uniquement par les fonctions du jeu.';
 
+-- version 5 : les événements génériques (fournil_evts, partie 3 ter). Un score par joueur et par événement (evt : son identifiant,
+-- 'hantee' ; valeur : la plus haute valeur plausible envoyée), et le podium final de chaque événement, figé une fois après sa fin.
+create table if not exists public.fournil_evt_scores (
+  evt    text not null,                                -- l'événement ('hantee')
+  id     uuid not null,                                -- le joueur (jamais renvoyé au jeu)
+  valeur double precision not null default 0,          -- son score (les bonbons de la Maison hantée)
+  maj    timestamptz not null,                         -- le dernier envoi qui l'a fait monter (heure du serveur)
+  primary key (evt, id)
+);
+create index if not exists fournil_evt_scores_id on public.fournil_evt_scores (id);
+comment on table public.fournil_evt_scores is
+  'Le Fournil : les scores des événements (un par joueur et par événement). Accès uniquement par les fonctions du jeu.';
+create table if not exists public.fournil_evt_podium (
+  evt    text not null,
+  id     uuid not null,                                -- le joueur (jamais renvoyé au jeu)
+  rang   integer not null check (rang between 1 and 3),
+  pseudo text not null,
+  valeur double precision not null,                    -- son score à la fin
+  primary key (evt, id)
+);
+create index if not exists fournil_evt_podium_id on public.fournil_evt_podium (id);
+comment on table public.fournil_evt_podium is
+  'Le Fournil : les podiums finaux des événements, figés une fois. Accès uniquement par les fonctions du jeu.';
+
 -- les portes : une ligne par inscription réussie, avec l'empreinte de sa source (sha256 de « ip:<adresse> »), gardée 24 h.
 -- Elle sert à limiter les inscriptions par source, pour qu'un seul robot ne bloque pas les amis qui arrivent.
 create table if not exists public.fournil_portes (
@@ -205,13 +250,16 @@ alter table public.fournil_semaines enable row level security;
 alter table public.fournil_portes enable row level security;
 alter table public.fournil_quartier_podium enable row level security;
 alter table public.fournil_evenements enable row level security;
+alter table public.fournil_evt_scores enable row level security;
+alter table public.fournil_evt_podium enable row level security;
 do $$
 declare
   r record;
 begin
   for r in select tablename, policyname from pg_catalog.pg_policies
             where schemaname = 'public'
-              and tablename in ('fournil_joueurs', 'fournil_palmares', 'fournil_semaines', 'fournil_portes', 'fournil_quartier_podium', 'fournil_evenements') loop
+              and tablename in ('fournil_joueurs', 'fournil_palmares', 'fournil_semaines', 'fournil_portes', 'fournil_quartier_podium', 'fournil_evenements',
+                                'fournil_evt_scores', 'fournil_evt_podium') loop
     execute format('drop policy if exists %I on public.%I', r.policyname, r.tablename);
   end loop;
 end
@@ -220,7 +268,7 @@ $$;
 -- aucun droit direct sur les tables pour les visiteurs (anon) ni pour les comptes (authenticated) :
 -- Supabase en donne par défaut aux nouvelles tables, on les retire explicitement.
 revoke all on table public.fournil_joueurs, public.fournil_palmares, public.fournil_semaines, public.fournil_portes,
-  public.fournil_quartier_podium, public.fournil_evenements
+  public.fournil_quartier_podium, public.fournil_evenements, public.fournil_evt_scores, public.fournil_evt_podium
   from public, anon, authenticated;
 
 -- les fonctions d'une version plus ancienne dont la forme a changé (une ancienne forme laissée en place rendrait l'appel
@@ -231,6 +279,9 @@ drop function if exists public.fournil_publier(uuid, text, text, double precisio
 -- version 3 → 4 : fournil_publier prend p_quartier, fournil_reponse rend les billets et le rang de l'événement
 drop function if exists public.fournil_reponse(text, uuid, date, double precision, boolean, integer, boolean);
 drop function if exists public.fournil_publier(uuid, text, text, double precision, integer, date);
+-- version 4 → 5 : fournil_publier prend p_evt et p_score, fournil_reponse rend le score de l'événement
+drop function if exists public.fournil_reponse(text, uuid, date, double precision, boolean, integer, boolean, boolean);
+drop function if exists public.fournil_publier(uuid, text, text, double precision, integer, date, double precision);
 
 
 -- ─── 2. Les petites fonctions internes (le jeu ne peut pas les appeler) ─────────────────────────
@@ -586,6 +637,83 @@ end
 $$;
 
 
+-- ─── 3 ter. Les événements génériques (version 5) : la liste, l'enveloppe de leur score, le podium final ───
+-- Un événement = une ligne : son identifiant (jamais 'quartier', ni 'semaine' ni 'total' : ce sont des périodes du classement),
+-- sa fenêtre (les mêmes bornes que son fichier de règles), et l'enveloppe de son score : le log10 de ce qu'un joueur qui ne lâche
+-- jamais l'événement (23 h 48 sur 24, tous les coups de pouce, toutes les bonnes décisions) aurait gagné k pas après l'ouverture
+-- (pas : en heures), avec une marge d'au moins ×2, tirée de la simulation du fichier de règles (son test vérifie cette table).
+-- Entre deux pas, interpolation du log10 ; au-delà du dernier, constante. Les fenêtres de deux événements génériques ne se
+-- chevauchent jamais, et chacun garde son score à part.
+--   · 'hantee' : « La Maison hantée » (src/hantee.js, test/fournil-hantee.test.js), du mardi 27 octobre 2026 à midi au lundi
+--     2 novembre 2026 à 20 h, heure de Paris ; un pas de 6 heures (27 valeurs : 6 j 12 h).
+create or replace function public.fournil_evts()
+returns table (nom text, debut timestamptz, fin timestamptz, pas double precision, tableau double precision[])
+language sql
+immutable
+set search_path = ''
+as $$
+  values ('hantee'::text, '2026-10-27 12:00:00 Europe/Paris'::timestamptz, '2026-11-02 20:00:00 Europe/Paris'::timestamptz, 6::double precision,
+          '{11.65,13.8,15.25,15.8,16.05,16.2,16.35,16.45,16.55,16.65,16.75,16.8,16.9,16.95,17,17,17.05,17.1,17.15,17.15,17.2,17.2,17.25,17.25,17.3,17.3,17.3}'::double precision[])
+$$;
+
+-- la plus haute valeur de score acceptée pour l'événement p_evt à l'instant p_quand (0 avant l'ouverture, ou pour un événement inconnu)
+create or replace function public.fournil_evt_borne(p_evt text, p_quand timestamptz)
+returns double precision
+language plpgsql
+immutable
+set search_path = ''
+as $$
+declare
+  e record;
+  n integer;
+  j double precision;
+  k integer;
+begin
+  select * into e from public.fournil_evts() x where x.nom = p_evt;
+  if not found or p_quand is null or p_quand < e.debut then
+    return 0;
+  end if;
+  n := array_length(e.tableau, 1);
+  j := least(extract(epoch from (p_quand - e.debut)) / (e.pas * 3600.0), (n - 1)::double precision);
+  k := floor(j)::int;
+  if k >= n - 1 then
+    return power(10::double precision, e.tableau[n]);
+  end if;
+  return power(10::double precision, e.tableau[k + 1] + (e.tableau[k + 2] - e.tableau[k + 1]) * (j - k));
+end
+$$;
+
+-- les podiums finaux : chaque événement fini (après son heure de grâce) est figé une fois, à la première requête qui suit (les trois
+-- premiers au score, ex æquo au même rang, score > 0). La ligne de fournil_evenements fait verrou, comme pour le Quartier.
+create or replace function public.fournil_evt_figer(p_maintenant timestamptz)
+returns void
+language plpgsql
+volatile
+set search_path = ''
+as $$
+declare
+  e record;
+  v_n integer;
+begin
+  for e in select x.nom from public.fournil_evts() x
+            where p_maintenant >= x.fin + interval '1 hour'
+              and not exists (select 1 from public.fournil_evenements f where f.nom = x.nom) loop
+    insert into public.fournil_evenements (nom, figee) values (e.nom, p_maintenant) on conflict (nom) do nothing;
+    get diagnostics v_n = row_count;
+    if v_n = 1 then
+      insert into public.fournil_evt_podium (evt, id, rang, pseudo, valeur)
+      select e.nom, r.id, r.rang, r.pseudo, r.valeur
+        from (select s.id, j.pseudo, s.valeur, rank() over (order by s.valeur desc)::int as rang
+                from public.fournil_evt_scores s join public.fournil_joueurs j on j.id = s.id
+               where s.evt = e.nom and s.valeur > 0) r
+       where r.rang <= 3
+      on conflict (evt, id) do nothing;
+    end if;
+  end loop;
+end
+$$;
+
+
 -- ─── 4. Le palmarès : chaque semaine finie est figée une fois, à la première requête qui suit ───
 -- Appelée au début de chaque fonction du jeu. Les semaines à figer : celle qui vient de finir (même vide), et toute semaine
 -- plus ancienne dont des joueurs gardent encore le gain (personne n'est venu depuis). Deux requêtes simultanées ne figent
@@ -602,6 +730,7 @@ declare
   v_pts boolean;
 begin
   perform public.fournil_quartier_figer(public.fournil_maintenant()); -- l'événement « Le Quartier », une fois fini
+  perform public.fournil_evt_figer(public.fournil_maintenant());      -- les événements génériques (version 5), une fois finis
   if exists (select 1 from public.fournil_semaines where semaine = p_lundi - 7) then
     return; -- le chemin de tous les jours : la semaine passée est déjà figée, donc toutes les précédentes aussi
   end if;
@@ -635,11 +764,13 @@ end
 $$;
 
 -- la réponse de fournil_publier : ok/erreur, et, si p_id est donné, les rangs de ce joueur (en points), ses points, ce qui a été
--- compté (argent et points), et ses billets de l'événement « Le Quartier » (quartier, rang_quartier, quartier_plafonne)
+-- compté (argent et points), ses billets de l'événement « Le Quartier » (quartier, rang_quartier, quartier_plafonne), et son score à
+-- l'événement générique envoyé (evt, evt_score, rang_evt, evt_plafonne ; null sans p_evt)
 create or replace function public.fournil_reponse(p_erreur text, p_id uuid, p_lundi date,
                                                   p_compte double precision, p_plafonne boolean,
                                                   p_points_comptes integer, p_points_plafonnes boolean,
-                                                  p_quartier_plafonne boolean default null)
+                                                  p_quartier_plafonne boolean default null,
+                                                  p_evt text default null, p_evt_plafonne boolean default null)
 returns json
 language sql
 stable
@@ -648,7 +779,14 @@ as $$
   select json_build_object(
     'ok', p_erreur is null,
     'erreur', p_erreur,
-    'version', 4,
+    'version', 5,
+    'evt', case when p_evt is not null and exists (select 1 from public.fournil_evts() x where x.nom = p_evt) then p_evt end,
+    'evt_score', (select s.valeur from public.fournil_evt_scores s where p_evt is not null and s.evt = p_evt and s.id = p_id),
+    'rang_evt', (
+      select (select count(*) from public.fournil_evt_scores a where a.evt = p_evt and a.valeur > m.valeur)::int + 1
+      from public.fournil_evt_scores m
+      where p_evt is not null and m.evt = p_evt and m.id = p_id and m.valeur > 0),
+    'evt_plafonne', p_evt_plafonne,
     'quartier', (select m.quartier from public.fournil_joueurs m where m.id = p_id),
     'rang_quartier', (
       select (select count(*) from public.fournil_joueurs a where a.quartier > m.quartier)::int + 1
@@ -682,7 +820,12 @@ $$;
 -- Les deux sont facultatifs : un téléphone de la version 2 les omet (sa fortune compte, ses points ne bougent pas).
 -- p_quartier (facultatif, version 4) : les billets gagnés dans la Planque de l'événement « Le Quartier » ; comptés seulement pendant
 -- la fenêtre de l'événement (une heure de grâce après la fin), jamais en baisse, jamais au-delà de l'enveloppe (partie 3 bis).
--- Réponse : { ok, erreur: null | 'pseudo_pris' | 'pseudo_invalide' | 'jeton' | 'valeur' | 'trop_vite' | 'complet', version: 4,
+-- p_evt, p_score (facultatifs, version 5) : l'identifiant d'un événement générique ('hantee') et son score (les bonbons) ; comptés
+-- seulement pendant sa fenêtre (une heure de grâce après la fin), jamais en baisse, jamais au-delà de son enveloppe (partie 3 ter) ;
+-- un événement inconnu est ignoré. Un envoi accepté pose aussi le signe de vie (vu : « en ligne »).
+-- Réponse : { ok, erreur: null | 'pseudo_pris' | 'pseudo_invalide' | 'jeton' | 'valeur' | 'trop_vite' | 'complet', version: 5,
+--             evt : l'événement envoyé (null s'il est inconnu ou absent), evt_score : son score compté, rang_evt : son rang à cet
+--             événement (null sans score), evt_plafonne : vrai si une partie du score n'a pas été comptée (null hors fenêtre) ;
 --             quartier : ses billets comptés, rang_quartier : son rang à l'événement (null sans billets), quartier_plafonne : vrai si
 --             une partie des billets n'a pas été comptée (null si rien n'était envoyé) ;
 --             rang_semaine, rang_total (en points), joueurs et joueurs_total (tous les temps), joueurs_semaine, semaine: 'AAAA-MM-JJ',
@@ -699,7 +842,8 @@ $$;
 -- Un identifiant effacé par le ménage (90 jours sans nouvelles) repasse simplement par l'inscription.
 create or replace function public.fournil_publier(p_id uuid, p_jeton text, p_pseudo text, p_fortune double precision,
                                                   p_points integer default null, p_lundi date default null,
-                                                  p_quartier double precision default null)
+                                                  p_quartier double precision default null,
+                                                  p_evt text default null, p_score double precision default null)
 returns json
 language plpgsql
 volatile
@@ -730,6 +874,10 @@ declare
   v_q_borne    double precision;
   v_q_plaf     boolean;
   v_fenetre    record := public.fournil_quartier_fenetre();
+  v_e          boolean;                              -- le score de l'événement générique compte-t-il à cet envoi ? (connu, dans sa fenêtre)
+  v_e_borne    double precision;
+  v_e_plaf     boolean;
+  v_evt        record;
   j            public.fournil_joueurs%rowtype;
 begin
   perform public.fournil_figer(v_lundi);
@@ -753,11 +901,20 @@ begin
   if p_quartier is not null and not (p_quartier >= 0 and p_quartier <= 1e24) then
     return public.fournil_reponse('valeur', null, v_lundi, null, null, null, null);
   end if;
+  -- le score d'un événement : de même
+  if p_score is not null and not (p_score >= 0 and p_score <= 1e24) then
+    return public.fournil_reponse('valeur', null, v_lundi, null, null, null, null);
+  end if;
   v_fortune := p_fortune + 0; -- un éventuel « −0 » devient 0
   -- les billets ne comptent que pendant l'événement (et une heure de grâce après sa fin, le temps du dernier envoi)
   v_q := p_quartier is not null and v_maintenant >= v_fenetre.debut and v_maintenant < v_fenetre.fin + interval '1 hour';
   v_q_borne := public.fournil_quartier_borne(least(v_maintenant, v_fenetre.fin));
   v_q_plaf := null;
+  -- le score d'un événement générique : seulement un événement connu, pendant sa fenêtre (et une heure de grâce), sous son enveloppe
+  select x.debut, x.fin into v_evt from public.fournil_evts() x where p_evt is not null and x.nom = p_evt;
+  v_e := found and p_score is not null and v_maintenant >= v_evt.debut and v_maintenant < v_evt.fin + interval '1 hour';
+  v_e_borne := case when v_e then public.fournil_evt_borne(p_evt, least(v_maintenant, v_evt.fin)) else 0 end;
+  v_e_plaf := null;
   -- seuls comptent les points de la semaine du serveur : à minuit le lundi, un téléphone en retard (ou en avance) de quelques
   -- minutes ne mélange pas deux semaines ; un ancien téléphone (sans points) ne change pas les siens
   v_pts := p_points is not null and p_lundi is not null and p_lundi = v_lundi;
@@ -782,6 +939,8 @@ begin
   )
   delete from public.fournil_palmares where id in (select id from partis);
   delete from public.fournil_quartier_podium where id in (select id from public.fournil_quartier_podium q where not exists (select 1 from public.fournil_joueurs x where x.id = q.id));
+  delete from public.fournil_evt_scores s where not exists (select 1 from public.fournil_joueurs x where x.id = s.id);
+  delete from public.fournil_evt_podium q where not exists (select 1 from public.fournil_joueurs x where x.id = q.id);
 
   if v_inscrit then
     -- ── un joueur déjà inscrit ──
@@ -844,7 +1003,7 @@ begin
          set pseudo = v_pseudo, fortune = v_fortune, sommet = j.sommet, plausible = j.plausible, reserve = j.reserve,
              total = j.total, gain = j.gain, semaine = j.semaine, maj = v_maintenant,
              points = j.points, points_total = j.points_total, points_jour = j.points_jour,
-             quartier = j.quartier, quartier_maj = j.quartier_maj
+             quartier = j.quartier, quartier_maj = j.quartier_maj, vu = v_maintenant
        where id = p_id;
     exception when unique_violation then
       return public.fournil_reponse('pseudo_pris', null, v_lundi, null, null, null, null); -- un autre a pris ce pseudo au même instant
@@ -893,11 +1052,11 @@ begin
         v_q_plaf := p_quartier > v_q_borne;
       end if;
       insert into public.fournil_joueurs (id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj,
-                                          points, points_total, points_jour, quartier, quartier_maj)
+                                          points, points_total, points_jour, quartier, quartier_maj, vu)
       values (p_id, v_empreinte, v_pseudo, v_fortune, v_fortune, least(v_fortune, 1e20), 86400, 0, 0,
               v_lundi, v_maintenant, v_maintenant,
               v_pts_compte, v_pts_compte, case when v_pts then v_jour end,
-              case when v_q then least(p_quartier, v_q_borne) else 0 end, case when v_q then v_maintenant end);
+              case when v_q then least(p_quartier, v_q_borne) else 0 end, case when v_q then v_maintenant end, v_maintenant);
       if v_porte is not null then
         insert into public.fournil_portes (empreinte, quand) values (v_porte, v_maintenant);
       end if;
@@ -913,22 +1072,33 @@ begin
     v_plafonne := false;
   end if;
 
-  return public.fournil_reponse(null, p_id, v_lundi, v_compte, v_plafonne, v_pts_compte, v_pts_plaf, v_q_plaf);
+  -- le score de l'événement générique (inscription comme envoi suivant) : la plus haute valeur envoyée, sous l'enveloppe du moment
+  if v_e then
+    v_e_plaf := p_score > v_e_borne;
+    insert into public.fournil_evt_scores (evt, id, valeur, maj) values (p_evt, p_id, least(p_score, v_e_borne), v_maintenant)
+    on conflict (evt, id) do update set valeur = excluded.valeur, maj = excluded.maj
+      where excluded.valeur > public.fournil_evt_scores.valeur;
+  end if;
+
+  return public.fournil_reponse(null, p_id, v_lundi, v_compte, v_plafonne, v_pts_compte, v_pts_plaf, v_q_plaf, p_evt, v_e_plaf);
 end
 $$;
 
 
 -- ─── 6. fournil_classement : lire le classement ─────────────────────────────────────────────────
--- p_periode : 'semaine' (les points depuis lundi, seulement ceux qui ont envoyé cette semaine), 'total' (depuis l'arrivée), ou
+-- p_periode : 'semaine' (les points depuis lundi, seulement ceux qui ont envoyé cette semaine), 'total' (depuis l'arrivée),
 -- 'quartier' (l'événement « Le Quartier » : les billets de la Planque, ceux qui en ont ; points : null ; podium : le rang au podium
--- FINAL, une fois l'événement fini et figé, sinon null).
+-- FINAL, une fois l'événement fini et figé, sinon null), ou l'identifiant d'un événement générique de fournil_evts() ('hantee' : les
+-- bonbons de la Maison hantée, ceux qui en ont ; points : null ; podium : le rang à son podium final, une fois figé).
 -- p_id : son propre identifiant (facultatif), pour se retrouver même hors des premiers.
 -- p_limite : le nombre de lignes (50 par défaut, 100 au plus).
--- Réponse : { version: 4, semaine: 'AAAA-MM-JJ', periode, joueurs, lignes: [{ rang, pseudo, points, valeur, moi, podium }],
---             moi: { rang, points, valeur, podium } | null }
+-- Réponse : { version: 5, semaine: 'AAAA-MM-JJ', periode, joueurs, en_ligne_n,
+--             lignes: [{ rang, pseudo, points, valeur, moi, podium, en_ligne }], moi: { rang, points, valeur, podium, en_ligne } | null }
 -- Le rang se fait sur les POINTS (de la semaine, ou depuis l'arrivée) ; valeur : l'argent gagné sur la même période, pour
 -- information (un téléphone de la version 2 l'affiche encore comme avant, dans l'ordre des points).
 -- podium : 1, 2 ou 3 si ce joueur était sur le podium de la semaine PASSÉE (sa toque à côté du pseudo), sinon null.
+-- en_ligne : vrai si ce joueur a donné signe de vie il y a moins de 4 minutes (un envoi accepté, ou fournil_vu) ; en_ligne_n :
+-- combien de joueurs de toute cette liste (pas seulement des lignes rendues) sont en ligne. Jamais l'heure elle-même.
 -- Les ex æquo ont le même rang (puis l'ordre des pseudos) ; jamais d'identifiant ni de jeton dans la réponse.
 create or replace function public.fournil_classement(p_periode text, p_id uuid default null, p_limite integer default 50)
 returns json
@@ -938,40 +1108,48 @@ security definer
 set search_path = ''
 as $$
 declare
-  v_lundi  date := public.fournil_lundi(public.fournil_maintenant());
+  v_maintenant timestamptz := public.fournil_maintenant();
+  v_lundi  date := public.fournil_lundi(v_maintenant);
   v_limite integer := least(greatest(coalesce(p_limite, 50), 1), 100);
+  v_evt    boolean := p_periode is not null and p_periode not in ('semaine', 'total', 'quartier')
+                      and exists (select 1 from public.fournil_evts() x where x.nom = p_periode);
   v_res    json;
 begin
-  if p_periode is null or p_periode not in ('semaine', 'total', 'quartier') then
-    raise exception using errcode = '22023', message = 'fournil_classement : période inconnue (« semaine », « total » ou « quartier »)';
+  if p_periode is null or (p_periode not in ('semaine', 'total', 'quartier') and not v_evt) then
+    raise exception using errcode = '22023', message = 'fournil_classement : période inconnue (« semaine », « total », « quartier » ou un événement)';
   end if;
   perform public.fournil_figer(v_lundi);
 
   with valeurs as (
     select j.id, j.pseudo,
            case when p_periode = 'semaine' then j.points when p_periode = 'total' then j.points_total else null end as points,
-           case when p_periode = 'semaine' then j.gain when p_periode = 'total' then j.total else j.quartier end as valeur,
-           case when p_periode = 'quartier' then q.rang else p.rang end as podium
+           case when p_periode = 'semaine' then j.gain when p_periode = 'total' then j.total when p_periode = 'quartier' then j.quartier else s.valeur end as valeur,
+           case when p_periode = 'quartier' then q.rang when v_evt then e.rang else p.rang end as podium,
+           coalesce(j.vu > v_maintenant - interval '4 minutes' and j.vu <= v_maintenant + interval '1 minute', false) as en_ligne
       from public.fournil_joueurs j
       left join public.fournil_palmares p on p.id = j.id and p.semaine = v_lundi - 7
       left join public.fournil_quartier_podium q on q.id = j.id
+      left join public.fournil_evt_scores s on v_evt and s.evt = p_periode and s.id = j.id
+      left join public.fournil_evt_podium e on v_evt and e.evt = p_periode and e.id = j.id
      where (p_periode = 'total') or (p_periode = 'semaine' and j.semaine = v_lundi) or (p_periode = 'quartier' and j.quartier > 0)
+        or (v_evt and s.valeur > 0)
   ), rangs as (
-    select id, pseudo, points, valeur, podium,
-           rank() over (order by case when p_periode = 'quartier' then valeur else points::double precision end desc)::int as rang,
-           row_number() over (order by case when p_periode = 'quartier' then valeur else points::double precision end desc, lower(pseudo), id) as ordre
+    select id, pseudo, points, valeur, podium, en_ligne,
+           rank() over (order by case when p_periode = 'quartier' or v_evt then valeur else points::double precision end desc)::int as rang,
+           row_number() over (order by case when p_periode = 'quartier' or v_evt then valeur else points::double precision end desc, lower(pseudo), id) as ordre
       from valeurs
   )
   select json_build_object(
-           'version', 4,
+           'version', 5,
            'semaine', to_char(v_lundi, 'YYYY-MM-DD'),
            'periode', p_periode,
            'joueurs', (select count(*)::int from rangs),
+           'en_ligne_n', (select count(*)::int from rangs where en_ligne),
            'lignes', coalesce((select json_agg(json_build_object('rang', r.rang, 'pseudo', r.pseudo, 'points', r.points, 'valeur', r.valeur,
-                                                                 'moi', coalesce(r.id = p_id, false), 'podium', r.podium)
+                                                                 'moi', coalesce(r.id = p_id, false), 'podium', r.podium, 'en_ligne', r.en_ligne)
                                                order by r.ordre)
                                  from rangs r where r.ordre <= v_limite), '[]'::json),
-           'moi', (select json_build_object('rang', r.rang, 'points', r.points, 'valeur', r.valeur, 'podium', r.podium) from rangs r where r.id = p_id)
+           'moi', (select json_build_object('rang', r.rang, 'points', r.points, 'valeur', r.valeur, 'podium', r.podium, 'en_ligne', r.en_ligne) from rangs r where r.id = p_id)
          )
     into v_res;
   return v_res;
@@ -981,7 +1159,7 @@ $$;
 
 -- ─── 7. fournil_retirer : quitter le classement ─────────────────────────────────────────────────
 -- Réponse : { ok: true } (retiré, ou déjà absent) ou { ok: false, erreur: 'jeton' } (ce n'est pas son jeton).
--- Son palmarès part avec lui (ses coupes et ses tenues restent sur son téléphone).
+-- Son palmarès part avec lui, ses scores et ses places aux podiums des événements aussi (ses coupes et ses tenues restent sur son téléphone).
 create or replace function public.fournil_retirer(p_id uuid, p_jeton text)
 returns json
 language plpgsql
@@ -1005,6 +1183,8 @@ begin
   end if;
   delete from public.fournil_palmares where id = p_id;
   delete from public.fournil_quartier_podium where id = p_id;
+  delete from public.fournil_evt_scores where id = p_id;
+  delete from public.fournil_evt_podium where id = p_id;
   delete from public.fournil_joueurs where id = p_id;
   return json_build_object('ok', true, 'erreur', null);
 end
@@ -1016,7 +1196,9 @@ $$;
 --             podiums: [{ semaine: 'AAAA-MM-JJ' (le lundi de la semaine du podium), rang: 1 | 2 | 3 }], du plus ancien au plus récent,
 --             derniere: { semaine, podium: [{ rang, pseudo, points, valeur }] } | null (null : personne n'a marqué la semaine passée),
 --             quartier: 1 | 2 | 3 | null (son rang au podium FINAL de l'événement « Le Quartier », une fois figé),
---             quartier_podium: [{ rang, pseudo, valeur }] | null (le podium final, figé ; null tant que l'événement n'est pas fini) }
+--             quartier_podium: [{ rang, pseudo, valeur }] | null (le podium final, figé ; null tant que l'événement n'est pas fini),
+--             evenements: { <evt>: { rang: 1 | 2 | 3 | null, podium: [{ rang, pseudo, valeur }] } } (version 5 : un champ par événement
+--             générique dont le podium final est figé, 'hantee' compris ; {} tant qu'aucun n'est fini) }
 -- Un identifiant inconnu (jamais inscrit, ou effacé par le ménage) : ok, aucun podium. Le jeton d'un autre : 'jeton', rien.
 create or replace function public.fournil_recompenses(p_id uuid, p_jeton text)
 returns json
@@ -1033,12 +1215,12 @@ declare
 begin
   perform public.fournil_figer(v_lundi);
   if p_id is null or not public.fournil_jeton_valable(p_jeton) then
-    return json_build_object('ok', false, 'erreur', 'jeton', 'podiums', '[]'::json, 'derniere', null, 'quartier', null, 'quartier_podium', null);
+    return json_build_object('ok', false, 'erreur', 'jeton', 'podiums', '[]'::json, 'derniere', null, 'quartier', null, 'quartier_podium', null, 'evenements', '{}'::json);
   end if;
   select jeton into v_jeton from public.fournil_joueurs where id = p_id;
   v_inscrit := found;
   if v_inscrit and v_jeton <> public.fournil_empreinte(p_jeton) then
-    return json_build_object('ok', false, 'erreur', 'jeton', 'podiums', '[]'::json, 'derniere', null, 'quartier', null, 'quartier_podium', null);
+    return json_build_object('ok', false, 'erreur', 'jeton', 'podiums', '[]'::json, 'derniere', null, 'quartier', null, 'quartier_podium', null, 'evenements', '{}'::json);
   end if;
   select json_build_object('semaine', to_char(v_lundi - 7, 'YYYY-MM-DD'),
                            'podium', json_agg(json_build_object('rang', p.rang, 'pseudo', p.pseudo, 'points', p.points, 'valeur', p.valeur)
@@ -1058,7 +1240,14 @@ begin
     'quartier', (select q.rang from public.fournil_quartier_podium q where v_inscrit and q.id = p_id),
     'quartier_podium', case when exists (select 1 from public.fournil_evenements where nom = 'quartier')
       then coalesce((select json_agg(json_build_object('rang', q.rang, 'pseudo', q.pseudo, 'valeur', q.valeur) order by q.rang, lower(q.pseudo))
-                       from public.fournil_quartier_podium q), '[]'::json) end
+                       from public.fournil_quartier_podium q), '[]'::json) end,
+    'evenements', coalesce((
+      select json_object_agg(x.nom, json_build_object(
+               'rang', (select e.rang from public.fournil_evt_podium e where v_inscrit and e.evt = x.nom and e.id = p_id),
+               'podium', coalesce((select json_agg(json_build_object('rang', e.rang, 'pseudo', e.pseudo, 'valeur', e.valeur) order by e.rang, lower(e.pseudo))
+                                     from public.fournil_evt_podium e where e.evt = x.nom), '[]'::json)))
+        from public.fournil_evts() x
+       where exists (select 1 from public.fournil_evenements f where f.nom = x.nom)), '{}'::json)
   );
 end
 $$;
@@ -1083,9 +1272,41 @@ end
 $$;
 
 
--- ─── 10. Les droits : le jeu n'appelle que les cinq fonctions ───────────────────────────────────
+-- ─── 9 bis. fournil_vu : un signe de vie (version 5), pour « en ligne » ─────────────────────────
+-- Le téléphone l'appelle toutes les 2 minutes tant que le jeu est au premier plan (et au retour au premier plan) : elle vérifie le
+-- jeton et pose vu = l'heure du serveur, rien d'autre (aucun compte, aucun palmarès, pas de ménage). Le classement en tire en_ligne
+-- (vu il y a moins de 4 minutes), jamais l'heure elle-même.
+-- Réponse : { ok: true } ou { ok: false, erreur: 'jeton' (identifiant ou jeton mal formé, ou le jeton d'un autre) | 'inconnu'
+-- (pas inscrit, ou effacé par le ménage : le prochain envoi de fournil_publier le réinscrit) }.
+create or replace function public.fournil_vu(p_id uuid, p_jeton text)
+returns json
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_jeton text;
+begin
+  if p_id is null or not public.fournil_jeton_valable(p_jeton) then
+    return json_build_object('ok', false, 'erreur', 'jeton');
+  end if;
+  select jeton into v_jeton from public.fournil_joueurs where id = p_id;
+  if not found then
+    return json_build_object('ok', false, 'erreur', 'inconnu');
+  end if;
+  if v_jeton <> public.fournil_empreinte(p_jeton) then
+    return json_build_object('ok', false, 'erreur', 'jeton');
+  end if;
+  update public.fournil_joueurs set vu = public.fournil_maintenant() where id = p_id;
+  return json_build_object('ok', true, 'erreur', null);
+end
+$$;
+
+
+-- ─── 10. Les droits : le jeu n'appelle que les six fonctions ────────────────────────────────────
 -- Postgres et Supabase donnent par défaut le droit d'exécuter les nouvelles fonctions à tout le monde :
--- on le retire partout, puis on le rend seulement pour les cinq fonctions du jeu.
+-- on le retire partout, puis on le rend seulement pour les six fonctions du jeu.
 revoke all on function public.fournil_maintenant() from public, anon, authenticated;
 revoke all on function public.fournil_lundi(timestamptz) from public, anon, authenticated;
 revoke all on function public.fournil_jour(timestamptz) from public, anon, authenticated;
@@ -1098,22 +1319,27 @@ revoke all on function public.fournil_segment(integer) from public, anon, authen
 revoke all on function public.fournil_duree(double precision, double precision) from public, anon, authenticated;
 revoke all on function public.fournil_borne(double precision, double precision) from public, anon, authenticated;
 revoke all on function public.fournil_figer(date) from public, anon, authenticated;
-revoke all on function public.fournil_reponse(text, uuid, date, double precision, boolean, integer, boolean, boolean) from public, anon, authenticated;
+revoke all on function public.fournil_reponse(text, uuid, date, double precision, boolean, integer, boolean, boolean, text, boolean) from public, anon, authenticated;
 revoke all on function public.fournil_quartier_fenetre() from public, anon, authenticated;
 revoke all on function public.fournil_quartier_table() from public, anon, authenticated;
 revoke all on function public.fournil_quartier_borne(timestamptz) from public, anon, authenticated;
 revoke all on function public.fournil_quartier_figer(timestamptz) from public, anon, authenticated;
+revoke all on function public.fournil_evts() from public, anon, authenticated;
+revoke all on function public.fournil_evt_borne(text, timestamptz) from public, anon, authenticated;
+revoke all on function public.fournil_evt_figer(timestamptz) from public, anon, authenticated;
 
-revoke all on function public.fournil_publier(uuid, text, text, double precision, integer, date, double precision) from public;
+revoke all on function public.fournil_publier(uuid, text, text, double precision, integer, date, double precision, text, double precision) from public;
 revoke all on function public.fournil_classement(text, uuid, integer) from public;
 revoke all on function public.fournil_retirer(uuid, text) from public;
 revoke all on function public.fournil_recompenses(uuid, text) from public;
 revoke all on function public.fournil_heure() from public;
-grant execute on function public.fournil_publier(uuid, text, text, double precision, integer, date, double precision) to anon, authenticated;
+revoke all on function public.fournil_vu(uuid, text) from public;
+grant execute on function public.fournil_publier(uuid, text, text, double precision, integer, date, double precision, text, double precision) to anon, authenticated;
 grant execute on function public.fournil_classement(text, uuid, integer) to anon, authenticated;
 grant execute on function public.fournil_retirer(uuid, text) to anon, authenticated;
 grant execute on function public.fournil_recompenses(uuid, text) to anon, authenticated;
 grant execute on function public.fournil_heure() to anon, authenticated;
+grant execute on function public.fournil_vu(uuid, text) to anon, authenticated;
 
 commit;
 

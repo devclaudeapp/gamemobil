@@ -13,7 +13,7 @@ console.log('── la garde-robe : le contrat ──');
 check(JSON.stringify(GR.pieces) === JSON.stringify(['tete', 'haut', 'pieds', 'accessoire']), 'quatre pièces : tete, haut, pieds, accessoire');
 check(ids.every((id) => { const o = GR.objets[id]; return o.id === id && typeof o.nom === 'string' && GR.pieces.includes(o.piece) && typeof o.collection === 'string' && o.bonus && typeof o.bonus === 'object' && typeof o.rarete === 'string' && typeof o.forme === 'string'; }), `${ids.length} objets : { nom, piece, collection, bonus, rarete } (+ forme pour la 3D)`);
 check(['quartier-casquette', 'quartier-sweat', 'quartier-baskets', 'quartier-chaine'].every((id) => GR.objets[id] && GR.objets[id].collection === 'quartier') && ['quartier-or-casquette', 'quartier-or-sweat', 'quartier-or-baskets', 'quartier-or-chaine'].every((id) => GR.objets[id] && GR.objets[id].collection === 'quartier-or'), 'les ids de l’événement : quartier-casquette / sweat / baskets / chaine, et quartier-or-…');
-for (const c of ['or', 'argent', 'bronze', 'quartier', 'quartier-or']) check(GR.pieces.every((p) => ids.some((id) => GR.objets[id].collection === c && GR.objets[id].piece === p)) && GR.ensembles[c] && GR.ensembles[c].nom && GR.ensembles[c].bonus, `collection « ${c} » : une pièce par emplacement, un ensemble { nom, bonus }`);
+for (const c of ['or', 'argent', 'bronze', 'quartier', 'quartier-or', 'hantee', 'hantee-or']) check(GR.pieces.every((p) => ids.some((id) => GR.objets[id].collection === c && GR.objets[id].piece === p)) && GR.ensembles[c] && GR.ensembles[c].nom && GR.ensembles[c].bonus, `collection « ${c} » : une pièce par emplacement, un ensemble { nom, bonus }`);
 check(['toque-blanche', 'tablier-blanc', 'sabots', 'lunettes-rondes'].every((id) => GR.objets[id] && GR.objets[id].collection === 'base' && !Object.keys(GR.objets[id].bonus).length), 'la tenue de base (toque, tablier, sabots, lunettes rondes) : sans bonus');
 
 console.log('── l’état neuf, les vieilles sauvegardes ──');
@@ -58,20 +58,24 @@ console.log('── l’équilibre : tout équipé au maximum ──');
 function boutique() { const s = G.newState(T0); s.stations.forEach((x) => { x.niv = 60; x.staff = true; x.actif = true; }); s.etoiles = 0; return s; }
 const ref = boutique(), tauxRef = G.tauxBase(ref), absRef = G.heuresAbsence(ref);
 const mesures = {};
-for (const c of ['or', 'argent', 'bronze', 'quartier', 'quartier-or']) {
+for (const c of ['or', 'argent', 'bronze', 'quartier', 'quartier-or', 'hantee', 'hantee-or']) {
   const s = boutique(); G.donnerCollection(s, c); G.equiperCollection(s, c); s.etoiles = 1000;
   for (const v of Object.values(GR.objets)) if (v.collection === c) while (G.ameliorerVetement(s, v.id).ok);
   s.etoiles = 0; // les étoiles ont payé les niveaux : on compare à étoiles égales
-  const b = G.bonusGardeRobe(s), taux = G.tauxBase(s) / tauxRef, painchoc = G.revenuBase(s, 2) / G.temps(s, 2) / (G.revenuBase(ref, 2) / G.temps(ref, 2));
-  mesures[c] = { taux, painchoc, absence: G.heuresAbsence(s) - absRef, vitesse: b.vitesse };
+  const b = G.bonusGardeRobe(s), taux = G.tauxBase(s) / tauxRef, painchoc = G.revenuBase(s, 2) / G.temps(s, 2) / (G.revenuBase(ref, 2) / G.temps(ref, 2)), tarte = G.revenuBase(s, 3) / G.temps(s, 3) / (G.revenuBase(ref, 3) / G.temps(ref, 3));
+  mesures[c] = { taux, painchoc, tarte, absence: G.heuresAbsence(s) - absRef, vitesse: b.vitesse };
   console.log(`       ${c.padEnd(12)} gains/s ${pct(taux)} · pains au chocolat ${pct(painchoc)} · cuisson ×${b.vitesse} · absence +${mesures[c].absence} h · ensemble ${G.ensembleComplet(s)}`);
 }
 check(mesures.or.taux > 1.38 && mesures.or.taux < 1.45, `la tenue d’or au maximum : ${pct(mesures.or.taux)} de gains par seconde (visé +30 à +50 %)`);
 check(mesures['quartier-or'].taux > 1.38 && mesures['quartier-or'].taux < 1.45 && mesures.argent.taux > 1.28 && mesures.argent.taux < 1.35 && mesures.bronze.taux > 1.18 && mesures.bronze.taux < 1.28, `quartier en or ${pct(mesures['quartier-or'].taux)}, argent ${pct(mesures.argent.taux)}, bronze ${pct(mesures.bronze.taux)}`);
 check(mesures.quartier.taux > 1.18 && mesures.quartier.taux < 1.28 && mesures.quartier.painchoc > 1.45 && mesures.quartier.painchoc < 1.6, `quartier ${pct(mesures.quartier.taux)} en tout, pains au chocolat ${pct(mesures.quartier.painchoc)}`);
 check(mesures.or.absence === 2.5 && mesures.quartier.absence === 2.5 && mesures.bronze.absence === 2, 'absence : +2,5 h (or, quartier), +2 h (bronze) au maximum');
+check(Math.abs(mesures['hantee-or'].taux - mesures['quartier-or'].taux) < 1e-9 && mesures.hantee.taux > 1.18 && mesures.hantee.taux < 1.28 && mesures.hantee.tarte > 1.45 && mesures.hantee.tarte < 1.6 && mesures.hantee.absence === 2.5,
+  `Halloween : en or ${pct(mesures['hantee-or'].taux)} (comme le quartier en or), la tenue ${pct(mesures.hantee.taux)} en tout, tartes aux pommes ${pct(mesures.hantee.tarte)}, +2,5 h d’absence`);
+check(['hantee-chapeau', 'hantee-cape', 'hantee-bottes', 'hantee-lanterne'].map((id) => GR.objets[id].forme).join() === 'chapeau,cape,bottes,lanterne' && ['hantee-or-chapeau', 'hantee-or-cape', 'hantee-or-bottes', 'hantee-or-lanterne'].every((id) => GR.objets[id].collection === 'hantee-or') && GR.ensembles.hantee.nom === 'Tenue d’Halloween',
+  'les ids d’Halloween (hantee-chapeau / cape / bottes / lanterne, et hantee-or-…), leurs formes pour persos.js : chapeau, cape, bottes, lanterne');
 { // le mélange des meilleures pièces de collections différentes ne fait pas mieux qu'un ensemble : le plafond reste +41 %
-  const s = boutique(); for (const c of ['or', 'quartier-or', 'quartier']) G.donnerCollection(s, c); s.etoiles = 1000;
+  const s = boutique(); for (const c of ['or', 'quartier-or', 'quartier', 'hantee', 'hantee-or']) G.donnerCollection(s, c); s.etoiles = 1000;
   for (const v of Object.values(GR.objets)) if (s.garderobe.objets[v.id]) while (G.ameliorerVetement(s, v.id).ok);
   s.etoiles = 0; let best = 0; const pieces = (p) => Object.values(GR.objets).filter((v) => v.piece === p && s.garderobe.objets[v.id]);
   for (const a of pieces('tete')) for (const b of pieces('haut')) for (const c of pieces('pieds')) for (const d of pieces('accessoire')) { G.equiper(s, 'tete', a.id); G.equiper(s, 'haut', b.id); G.equiper(s, 'pieds', c.id); G.equiper(s, 'accessoire', d.id); best = Math.max(best, G.tauxBase(s) / tauxRef); }

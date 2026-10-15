@@ -132,6 +132,14 @@
 
   // ─── le chat de la boutique : il miaule à la porte quand les éclairs sont au menu ; adopté, on le caresse et il porte chance ───
   const CHAT = { chance: 0.2, attente: 60e3, defaut: 'Brioche', apparition: 45, rappel: 30 };
+  // le pelage du chat : roux depuis toujours ; noir d'office pendant la Maison hantée (src/hantee.js : l'appelant dit si elle est ouverte),
+  // et, une fois le chat noir gagné (un palier de l'événement : donnerChatNoir), au choix ensuite dans la garde-robe ou les Réglages.
+  // st.chatNoir : gagné (à vie) ; st.chatPelage : le choix ('roux' par défaut). Pour scene.js / persos.js : pelageChat(st, halloween).
+  const PELAGES = ['roux', 'noir'];
+  function donnerChatNoir(st) { const nouveau = !st.chatNoir; st.chatNoir = true; if (nouveau) note(st, 'Le chat noir : un nouveau pelage pour le chat de la boutique'); return { nouveau }; }
+  function choisirPelage(st, p) { if (!PELAGES.includes(p) || (p === 'noir' && !st.chatNoir)) return false; st.chatPelage = p; return true; }
+  const pelagesChat = (st) => (st.chatNoir ? PELAGES.slice() : ['roux']); // les pelages au choix
+  function pelageChat(st, halloween) { if (halloween) return 'noir'; return st.chatNoir && st.chatPelage === 'noir' ? 'noir' : 'roux'; }
   const nomChat = (nom) => String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16) || CHAT.defaut;
   const chatPossible = (st) => !st.chat && !!st.stations[4] && st.stations[4].niv > 0 && st.chatRefuse !== dayKey(st.now);
   function adopterChat(st, nom) { if (st.chat) return { ok: false }; st.chat = { nom: nomChat(nom), caresses: 0, dernier: 0, adopte: st.now }; gagnerXp(st, 10); note(st, `${st.chat.nom} a adopté la boutique`); return { ok: true, chat: st.chat }; }
@@ -211,11 +219,12 @@
   // ─── la garde-robe : quatre pièces (couvre-chef, haut, chaussures, accessoire) gagnées aux podiums du classement et aux événements ───
   // Chaque pièce porte un bonus modeste qui grandit avec son niveau (1 à 5, payé en étoiles : 1, 1, 2, 2 — une étoile dépensée ne compte
   // plus dans les +5 % par étoile) ; les quatre pièces d'une même collection portées ensemble ajoutent le bonus de l'ensemble.
-  // Tout équipé au maximum, les gains par seconde montent d'environ +41 % (collection d'or, ou celle du quartier en or), +31 % (argent),
-  // +23 % (bronze), +22 % (quartier, plus les pains au chocolat ×1,24) : le mélange des meilleures pièces sans ensemble fait moins
+  // Tout équipé au maximum, les gains par seconde montent d'environ +41 % (collection d'or, ou celle du quartier ou d'Halloween en or), +31 % (argent),
+  // +23 % (bronze), +22 % (quartier, plus les pains au chocolat ×1,24 ; Halloween, plus les tartes ×1,24) : le mélange des meilleures pièces sans ensemble fait moins
   // (+26 %), si bien que le plafond est à +41 % (mesuré dans test/fournil-garderobe.test.js). Le classement en points n'en dépend pas.
   // Les pièces de base (toque et tablier blancs, sabots, lunettes rondes) sont à tout le monde dès le départ, sans bonus.
-  // Pour persos.js : chaque objet a une forme (toque, casquette, tablier, sweat, chaussures, baskets, foulard, chaine, lunettes) et sa
+  // Pour persos.js : chaque objet a une forme (toque, casquette, tablier, sweat, chaussures, baskets, foulard, chaine, lunettes ; Halloween :
+  // chapeau (le chapeau pointu de sorcière), cape, bottes, lanterne (une petite citrouille-lanterne à la main)) et sa
   // collection sert de métal ('base' : la tenue blanche de toujours). Les bonus (au niveau 1) : gains { produit: id | null, pct }, vitesse
   // (pct de temps de cuisson en moins), absence (heures de gains hors ligne en plus) ; multipliés par 1, 1,5, 2, 2,5 et 3 selon le niveau.
   const GR_PIECES = ['tete', 'haut', 'pieds', 'accessoire'];
@@ -246,12 +255,23 @@
     ajouter(vet('quartier-or-sweat', 'Sweat doré', 'haut', 'quartier-or', 'sweat', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Noir et or, rien d’autre.'));
     ajouter(vet('quartier-or-baskets', 'Baskets dorées', 'pieds', 'quartier-or', 'baskets', { vitesse: 2 }, 'legendaire', 'Édition limitée, une seule paire.'));
     ajouter(vet('quartier-or-chaine', 'Chaîne en or', 'accessoire', 'quartier-or', 'chaine', { absence: 0.5 }, 'legendaire', 'La vraie, pas la plaquée.'));
+    // l'événement « La Maison hantée » (src/hantee.js) : la tenue d'Halloween aux paliers 3, 6, 9 et 12, la même en or pour le podium final
+    ajouter(vet('hantee-chapeau', 'Chapeau pointu', 'tete', 'hantee', 'chapeau', { gains: { produit: 'tarte', pct: 8 } }, 'rare', 'Pointu, étoilé, et il tient même dans le vent du four.'));
+    ajouter(vet('hantee-cape', 'Cape de minuit', 'haut', 'hantee', 'cape', { gains: { produit: null, pct: 2.5 } }, 'rare', 'Doublée de violet. Elle fait « whoosh » quand on se retourne.'));
+    ajouter(vet('hantee-bottes', 'Bottes qui claquent', 'pieds', 'hantee', 'bottes', { vitesse: 1.5 }, 'rare', 'Clac, clac, clac : on les entend arriver du fournil.'));
+    ajouter(vet('hantee-lanterne', 'Citrouille-lanterne', 'accessoire', 'hantee', 'lanterne', { absence: 0.5 }, 'rare', 'Une petite citrouille qui éclaire les fournées de nuit.'));
+    ajouter(vet('hantee-or-chapeau', 'Chapeau pointu doré', 'tete', 'hantee-or', 'chapeau', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Le podium final de la Maison hantée.'));
+    ajouter(vet('hantee-or-cape', 'Cape dorée', 'haut', 'hantee-or', 'cape', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Noire dehors, dorée dedans.'));
+    ajouter(vet('hantee-or-bottes', 'Bottes dorées', 'pieds', 'hantee-or', 'bottes', { vitesse: 2 }, 'legendaire', 'Elles claquent en or massif.'));
+    ajouter(vet('hantee-or-lanterne', 'Lanterne dorée', 'accessoire', 'hantee-or', 'lanterne', { absence: 0.5 }, 'legendaire', 'Une citrouille en or qui ne s’éteint jamais.'));
     const ensembles = {
       or: { nom: 'Tenue d’or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
       argent: { nom: 'Tenue d’argent', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
       bronze: { nom: 'Tenue de bronze', bonus: { gains: { produit: null, pct: 4 }, vitesse: 2, absence: 0.5 } },
       quartier: { nom: 'Tenue du quartier', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
       'quartier-or': { nom: 'Tenue du quartier en or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
+      hantee: { nom: 'Tenue d’Halloween', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
+      'hantee-or': { nom: 'Tenue d’Halloween en or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
     };
     return { pieces: GR_PIECES, objets, ensembles, niveaux: GR_NIVEAUX, couts: GR_COUTS, nivMax: GR_NIV_MAX, base: GR_BASE };
   })();
@@ -349,7 +369,8 @@
       stats: { taps: 0, ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false, meubles: 0 },
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null, tiroir: 'mi',
-      apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, saison: null, saisonAnnoncee: '', collection: {},
+      apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, chatNoir: false, chatPelage: 'roux', saison: null, saisonAnnoncee: '', collection: {},
+      // st.quartier (src/quartier.js) et st.hantee (src/hantee.js) : l'état des événements, créés à la première visite par leurs règles
       atelier: atelierNeuf(), points: pointsNeufs(semaineKey(nowMs), dayKey(nowMs)), garderobe: garderobeNeuve(), boosts: boostsNeufs(),
     };
   }
@@ -1052,7 +1073,7 @@
   const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
   return { APPRENTIS, APPRENTI_NIVEAUX, APPRENTI_VITESSE, APPRENTI_ABSENCE, xpApprenti, gradeApprenti, progresApprenti, creditApprenti, apprentiTempsMult, apprentiRevMult, effetTalentApprenti,
-    CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser,
+    CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, PELAGES, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
     PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
