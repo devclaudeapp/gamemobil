@@ -39,6 +39,8 @@ jobs:
         run: node test/poncin-butin-sql.cjs "$RUNNER_TEMP/pglite"
         env:
           TZ: Europe/Paris
+      - name: Le Fournil, la fonction d'envoi des notifications (faux web-push, faux Supabase)
+        run: node test/fournil-notifier.test.cjs
   supabase:
     name: Supabase réel
     runs-on: ubuntu-latest
