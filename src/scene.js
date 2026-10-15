@@ -243,12 +243,20 @@ const SCENE = (() => {
     { id: 'graffiti', cle: () => (QDECO.graffiti && MEUBLES.graffiti ? '1' : null), faire: (k, c) => MEUBLES.graffiti(c) },
     { id: 'neon', cle: () => (QDECO.neon && MEUBLES.neon ? '1' : null), faire: (k, c) => MEUBLES.neon(c) },
     { id: 'chien', cle: () => (QDECO.chien && MEUBLES.chien ? '1' : null), faire: (k, c) => MEUBLES.chien(c) },
+    // les décos de la Maison hantée (src/hantee.js, gagnées aux paliers, à vie) : citrouilles-lanternes, toiles d'araignée, chaudron, petit fantôme
+    ...['citrouilles', 'toiles', 'chaudron', 'fantome'].map((id) => ({ id: 'ht-' + id, cle: () => (HDECO[id] && MEUBLES[id] ? '1' : null), faire: (k, c) => MEUBLES[id](c) })),
   ];
   const MEUBLES_IDS = ['froid', 'four', 'comptoir', 'caisse', 'tables', 'deco'];
   // les récompenses du podium du classement (src/classement.js) : la tenue du boulanger, la coupe du comptoir, les coupes de la vitrine
   const REC = { tenue: null, coupe: null, coupes: [] }, METAUX = ['or', 'argent', 'bronze'];
   const QDECO = { graffiti: false, neon: false, scooter: false, chien: false }; // les décos du quartier posées dans la boutique
   function decosQuartier(liste) { const l = Array.isArray(liste) ? liste : []; for (const k of Object.keys(QDECO)) QDECO[k] = l.includes(k); ext.der = -1; }
+  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
+  const ALIAS_HT = { citrouille: 'citrouilles', lanternes: 'citrouilles', toile: 'toiles', araignees: 'toiles', chaudrons: 'chaudron', fantomes: 'fantome' };
+  function decosHantee(liste) { const l = (Array.isArray(liste) ? liste : []).map((k) => ALIAS_HT[k] || k); for (const k of Object.keys(HDECO)) HDECO[k] = l.includes(k); }
+  // le chat : roux tigré, ou noir aux yeux jaunes (pendant la Maison hantée, puis au choix) ; changé, il est rebâti à l'image suivante
+  let pelage = 'roux';
+  function pelageChat(p) { const n = p === 'noir' ? 'noir' : 'roux'; if (n === pelage) return; pelage = n; if (chatG) { scene.remove(chatG); (PERSOS.libererChat || M.dispose)(chatG); chatG = null; } }
   function recompenses(o) {
     o = o || {};
     REC.tenue = METAUX.includes(o.tenue) ? o.tenue : null; REC.coupe = METAUX.includes(o.coupe) ? o.coupe : null;
@@ -424,7 +432,7 @@ const SCENE = (() => {
   function poserChat(E, dt) {
     const c = V.chat;
     if (!c || !PERSOS.chat) { if (chatG) { scene.remove(chatG); (PERSOS.libererChat || M.dispose)(chatG); chatG = null; } return; } // libererChat : le tampon d'instances des pattes
-    if (!chatG) { chatG = PERSOS.chat({}); chatG.userData.yaw = Math.PI / 2; habiller(chatG); scene.add(chatG); }
+    if (!chatG) { chatG = PERSOS.chat(pelage === 'noir' && PERSOS.CHAT_NOIR ? Object.assign({}, PERSOS.CHAT_NOIR) : {}); chatG.userData.yaw = Math.PI / 2; chatG.userData.pelage = pelage; habiller(chatG); scene.add(chatG); }
     if (chatHautCle !== cles.comptoir) { chatHautCle = cles.comptoir; chatHaut = MEUBLES.surDessus(contexte(E), LAY.chat); chatPied = V.piedComptoir(); } // recalculés quand le comptoir change
     const haut = chatHaut, pied = chatPied, zp = wz(pied.y);
     if (c.etat === 'descend' || c.etat === 'monte') { const u = c.etat === 'descend' ? c.saut : 1 - c.saut, e = u * u * (3 - 2 * u); _pc.x = haut.x + (pied.x - haut.x) * e; _pc.z = haut.z + (zp - haut.z) * e; _pc.y = haut.y * (1 - e) + Math.sin(Math.PI * u) * 14; }
@@ -609,10 +617,12 @@ const SCENE = (() => {
     }
   }
 
-  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitArriere, zoneArriere, hitChat, hitTrophees, recompenses, decosQuartier, ronron, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
+  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitArriere, zoneArriere, hitChat, hitTrophees, recompenses, decosQuartier, decosHantee, pelageChat, ronron, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
     vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
+    get decosHanteeVues() { return Object.keys(HDECO).filter((k) => HDECO[k] && groupes['ht-' + k]); }, // les décos de la Maison hantée posées (pour les tests)
+    get chatVu() { return chatG ? chatG.userData.pelage : null; }, // le pelage du chat dans la boutique (pour les tests)
     precharger(lot) { if (typeof HDM === 'undefined' || !webgl || !HDM.permis(renderer)) return false; HDM.charger(lot); return true; }, // en arrière-plan, si le palier le permet
     alleger() { if (RICHE.post) { RICHE.post.liberer(); RICHE.post = null; } }, // un écran plein (la Planque) couvre la boutique : la passe d'effets rend sa mémoire, recréée au retour
     get decorHD() { return hdDecor ? hdDecor.children.length : 0; }, // les décors HD posés (pour les tests)

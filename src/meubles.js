@@ -6,7 +6,7 @@
    se partagent le rectangle, si bien que la boîte projetée recouvre le rectangle du plan sans jamais déborder vers l'avant. */
 const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (fichier non chargé), le module vaut null et le jeu démarre sans 3D
   'use strict';
-  const M = MODELES, P = M.part, TAU = Math.PI * 2, L = '#4A3328';
+  const M = MODELES, P = M.part, TAU = Math.PI * 2, HP = Math.PI / 2, L = '#4A3328';
   const PASTEL = ['#FF9FB2', '#8FE3C2', '#C7B8FF', '#FFD98A', '#9BD0FF', '#FFB48A', '#B5E88A'];
   const TEX = new Map(), MATS = new Map(); // textures et matériaux de la salle, par quartier
   const C_BLANC = new THREE.Color('#FFFFFF'), C_FLASH = new THREE.Color('#FFF3C4'), C_CHAUD = new THREE.Color('#FFB65A'), C_FROID = new THREE.Color('#6B5950');
@@ -506,6 +506,53 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     g.userData.anime = (E) => { queue.rotation.y = Math.sin(E.t * 6) * 0.55; };
     return g;
   }
+  // ─── les décos de la Maison hantée (src/hantee.js), gagnées aux paliers et gardées à vie : mignonnes-effrayantes, jamais dans le passage ───
+  const partsCitrouille = (x, y, z, r) => { const pr = []; for (let k = 0; k < 5; k++) { const a = k / 5 * TAU; pr.push(P(M.sphere(r * 0.62, 10), k % 2 ? '#F28C28' : '#FF9A3D', { x: x + Math.cos(a) * r * 0.42, y: y + r * 0.72, z: z + Math.sin(a) * r * 0.3, sy: 1.05 })); } pr.push(P(M.cylindre(r * 0.12, r * 0.16, r * 0.42, 6), '#5A7A2E', { x, y: y + r * 1.32, z })); return pr; };
+  const partsVisageCitrouille = (x, y, z, r) => [P(M.cone(r * 0.2, r * 0.26, 3), '#FFE27A', { x: x - r * 0.3, y: y + r * 0.86, z: z + r * 0.6, rx: HP }), P(M.cone(r * 0.2, r * 0.26, 3), '#FFE27A', { x: x + r * 0.3, y: y + r * 0.86, z: z + r * 0.6, rx: HP }), P(bo(r * 0.7, r * 0.16, r * 0.12, r * 0.05), '#FFE27A', { x, y: y + r * 0.42, z: z + r * 0.64 })];
+  // les citrouilles-lanternes : trois, au pied du mur près de la petite porte, qui s'allument le soir (le visage s'illumine)
+  function citrouilles(c) {
+    const { LAY, W, K } = c, g = grp('citrouilles', 0, 0, 0), pr = [], vis = [];
+    for (const [u, dy, r] of [[0.335, 10, 10], [0.362, 19, 7.5], [0.308, 20, 6.5]]) { const x = W * u, z = c.wz(LAY.murH + dy * K), rr = r * K; pr.push(...partsCitrouille(x, 0, z, rr)); vis.push(...partsVisageCitrouille(x, 0, z, rr)); }
+    g.add(M.maille(pr)); const yeux = M.maille(vis, { ombre: false }); yeux.material = propre({ vertexColors: true, emissive: '#FFB347', emissiveIntensity: 0.4 }); g.add(yeux);
+    g.userData.anime = (E) => { yeux.material.emissiveIntensity = 0.35 + 0.65 * E.lampes + 0.1 * Math.sin(E.t * 9); };
+    return g;
+  }
+  // les toiles d'araignée : deux coins hauts du mur (une toile peinte, un plan chacun) et une petite araignée souriante au bout de son fil
+  const toileAraignee = () => { let tx = TEX.get('toile-ht'); if (tx) return tx; tx = M.texture((x, w, h) => {
+    x.strokeStyle = 'rgba(120,110,150,.75)'; x.lineWidth = 2.2; x.lineCap = 'round';
+    for (let k = 0; k <= 5; k++) { const a = k / 5 * Math.PI / 2; x.beginPath(); x.moveTo(0, 0); x.lineTo(Math.cos(a) * w, Math.sin(a) * h); x.stroke(); }
+    x.lineWidth = 1.6; for (let r = w * 0.18; r < w; r += w * 0.17) { x.beginPath(); for (let k = 0; k <= 5; k++) { const a = k / 5 * Math.PI / 2, px = Math.cos(a) * r, py = Math.sin(a) * r; if (k === 0) x.moveTo(px, py); else { const am = (k - 0.5) / 5 * Math.PI / 2; x.quadraticCurveTo(Math.cos(am) * r * 0.86, Math.sin(am) * r * 0.86, px, py); } } x.stroke(); }
+  }, 128, 128); tx.userData.partagee = true; TEX.set('toile-ht', tx); return tx; };
+  function toiles(c) {
+    const { LAY, W, K } = c, s = 34 * K, g = grp('toiles', 0, 0, 0.5), mat = matDe('toile-ht', () => new THREE.MeshBasicMaterial({ map: toileAraignee(), transparent: true, depthWrite: false })), yh = murY(c, 0);
+    g.add(M.mesh(M.plan(s, s), mat, { x: s / 2, y: yh - s / 2, rz: 0 }, { ombre: false }), M.mesh(M.plan(s, s), mat, { x: LAY.porte.x - s / 2 - 2, y: yh - s / 2, rz: -HP }, { ombre: false }));
+    const fil = M.mesh(M.cylindre(0.25, 0.25, 1, 4), M.mat('#9C94B8'), { x: s * 0.62, y: yh, z: 1 }, { ombre: false }), ar = M.maille([P(M.sphere(2.6 * K, 8), '#2E2547'), P(M.sphere(1.8 * K, 8), '#2E2547', { y: -2.6 * K }), P(M.sphere(0.6 * K, 6), '#FFFFFF', { x: -0.8 * K, y: -2.8 * K, z: 1.6 * K }), P(M.sphere(0.6 * K, 6), '#FFFFFF', { x: 0.8 * K, y: -2.8 * K, z: 1.6 * K })], { ombre: false });
+    g.add(fil, ar);
+    g.userData.anime = (E) => { const l = s * (0.45 + 0.25 * Math.sin(E.t * 0.8)); fil.scale.y = l; fil.position.y = yh - l; ar.position.set(s * 0.62, yh - l - 2 * K, 1); };
+    return g;
+  }
+  // le chaudron : sur trois pieds au bord du fournil, une potion verte qui bouillonne et fume doucement (le reflet vert s'allume le soir)
+  function chaudron(c) {
+    const { LAY, W, K } = c, r = 10 * K, x = W * 0.085, z = c.wz(LAY.murH + 54 * K), g = grp('chaudron', x, 0, z), pr = [];
+    pr.push(P(M.sphere(r, 14), '#2B2533', { y: r * 0.95, sy: 0.8 }), P(M.tore(r * 0.9, 1.4 * K, TAU, 6, 18), '#4A4060', { y: r * 1.62, rx: HP }));
+    for (let k = 0; k < 3; k++) { const a = k * TAU / 3 + 0.5; pr.push(P(M.cylindre(1.2 * K, 0.9 * K, 5 * K, 6), '#2B2533', { x: Math.cos(a) * r * 0.65, z: Math.sin(a) * r * 0.65 })); }
+    g.add(M.maille(pr));
+    const potion = M.mesh(M.cylindre(r * 0.84, r * 0.84, 1, 16), lumineux('#8FE36B', 0.7), { y: r * 1.58 }, { ombre: false }); g.add(potion);
+    const bulles = []; for (let k = 0; k < 3; k++) { const b = M.mesh(M.sphere(1.7 * K, 8), lumineux('#C6FF8F', 0.8), { y: r * 1.6 }, { ombre: false }); g.add(b); bulles.push(b); }
+    g.userData.anime = (E) => { potion.material.emissiveIntensity = 0.45 + 0.35 * E.lampes + 0.15 * Math.sin(E.t * 3); bulles.forEach((b, k) => { const ph = (E.t * 0.6 + k / 3) % 1; b.position.set(Math.sin(k * 2.3 + E.t) * r * 0.4, r * 1.6 + ph * 14 * K, Math.cos(k * 1.9) * r * 0.3); b.scale.setScalar(Math.sin(ph * Math.PI) + 0.05); }); };
+    return g;
+  }
+  // le petit fantôme : un drap en cloche translucide qui flotte devant la fenêtre, va et vient, deux yeux et des joues roses
+  function fantome(c) {
+    const { LAY, W, K } = c, f = LAY.fenetre, g = grp('fantome', 0, 0, 0), r = 9 * K, pr = [];
+    pr.push(P(M.sphere(r, 14), '#FFFFFF', { y: r * 1.2, sy: 1.05 }), P(M.cylindre(r, r * 1.15, r * 1.2, 14), '#FFFFFF', { y: 0 }));
+    for (let k = 0; k < 6; k++) { const a = k / 6 * TAU; pr.push(P(M.sphere(r * 0.3, 8), '#FFFFFF', { x: Math.cos(a) * r * 0.9, z: Math.sin(a) * r * 0.9 })); }
+    const corps = M.maille(pr, { ombre: false }); corps.material = propre({ vertexColors: true, transparent: true, opacity: 0.86, emissive: '#D9D2FF', emissiveIntensity: 0.4 }); g.add(corps);
+    g.add(M.maille([P(M.sphere(1.5 * K, 8), L, { x: -3 * K, y: r * 1.35, z: r * 0.92, sy: 1.4, sz: 0.4 }), P(M.sphere(1.5 * K, 8), L, { x: 3 * K, y: r * 1.35, z: r * 0.92, sy: 1.4, sz: 0.4 }), P(M.sphere(1.4 * K, 8), '#FF9FB2', { x: -5.6 * K, y: r * 1.05, z: r * 0.82, sz: 0.3 }), P(M.sphere(1.4 * K, 8), '#FF9FB2', { x: 5.6 * K, y: r * 1.05, z: r * 0.82, sz: 0.3 })], { ombre: false }));
+    const x0 = f.x + f.w * 0.5, y0 = murY(c, f.y + f.h) - r * 0.5, z0 = c.wz(LAY.murH + 26 * K);
+    g.userData.anime = (E) => { g.position.set(x0 + Math.sin(E.t * 0.4) * f.w * 0.6, y0 + Math.sin(E.t * 1.7) * 4 * K, z0); g.rotation.y = Math.cos(E.t * 0.4) * 0.5; corps.material.opacity = 0.78 + 0.1 * Math.sin(E.t * 2.2); };
+    return g;
+  }
   // ─── la composition d'ensemble (pour l'atelier et la scène) ───
   function vitrineDemo(k, c) { // le comptoir et, à chaque place de la vitrine, une boule dorée de la taille d'une pâtisserie
     const cp = comptoir(k, c), n = c.niv ? c.niv.filter((v) => v > 0).length : 4, g = grp('pâtisseries');
@@ -522,6 +569,6 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     if (c.coupe) out.push(coupe(c.coupe, c));
     return out;
   }
-  return { textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien };
+  return { textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome };
 })();
 if (typeof module !== 'undefined') module.exports = MEUBLES;

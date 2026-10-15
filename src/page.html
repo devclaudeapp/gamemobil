@@ -19,6 +19,7 @@
       <button id="b-classement" class="rond" type="button" aria-label="Classement des boulangers" hidden><i class="ico" data-ico="podium"></i><i class="rang-pastille" aria-hidden="true" hidden></i></button>
       <button id="b-atelier" class="rond" type="button" aria-label="L’Atelier : les mini-jeux"><i class="ico" data-ico="atelier"></i></button>
       <button id="b-quartier" class="rond quartier" type="button" aria-label="L’événement : Le Quartier" hidden><i class="ico" data-ico="quartier"></i></button>
+      <button id="b-hantee" class="rond hantee" type="button" aria-label="L’événement : La Maison hantée" hidden><i class="ico" data-ico="hantee"></i></button>
     </div>
     <button id="b-fini" type="button" hidden>Terminé</button>
   </div>
@@ -99,6 +100,19 @@
   <div class="pq-barre"><div class="modes pq-modes" role="group" aria-label="Quantité à acheter"><button type="button" data-mode="1" class="actif">×1</button><button type="button" data-mode="10">×10</button><button type="button" data-mode="100">×100</button><button type="button" data-mode="max">Max</button></div><button type="button" class="btn-am pq-am" data-pq="ameliorations"><i class="ico" data-ico="bonus"></i>Combines</button></div>
   <div id="pq-corps"></div>
   <div id="pq-cartes"></div>
+</div>
+<div id="hantee" class="ht" role="dialog" aria-modal="true" aria-labelledby="ht-titre" data-ecran="" hidden>
+  <div class="at-haut">
+    <button type="button" class="at-fermer" data-pq="fermer" aria-label="Quitter le manoir"><i class="ico" data-ico="fermer"></i></button>
+    <div class="at-titre"><b id="ht-titre">Le Manoir</b><small id="ht-sous"></small></div>
+    <button type="button" class="pq-paliers-btn pq-cl-btn" data-pq="classement" aria-label="Le classement de l’événement" hidden><i class="ico" data-ico="classement"></i><b></b></button>
+    <button type="button" class="pq-paliers-btn" data-pq="paliers" aria-label="Les paliers de l’événement"><i class="ico" data-ico="palierQ"></i><b>0/12</b></button>
+  </div>
+  <div class="pq-solde"><span class="pq-ico" aria-hidden="true"></span><div><b id="ht-billets">0</b><small id="ht-taux"></small></div><span id="ht-reste" class="pq-reste"></span></div>
+  <div class="pq-scene"><canvas id="ht-canvas" aria-label="Le Manoir en 3D : le salon hanté, la cheminée et son chaudron, la fenêtre sur le jardin, le petit fantôme et l’équipe costumée."></canvas><div id="ht-ev" class="pq-ev" hidden></div></div>
+  <div class="pq-barre"><div class="modes pq-modes" role="group" aria-label="Quantité à acheter"><button type="button" data-mode="1" class="actif">×1</button><button type="button" data-mode="10">×10</button><button type="button" data-mode="100">×100</button><button type="button" data-mode="max">Max</button></div><button type="button" class="btn-am pq-am" data-pq="ameliorations"><i class="ico" data-ico="bonus"></i>Sortilèges</button></div>
+  <div id="ht-corps" class="pq-corps"></div>
+  <div id="ht-cartes" class="pq-cartes-liste"></div>
 </div>
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
