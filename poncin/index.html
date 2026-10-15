@@ -826,6 +826,15 @@ body.gaucher .h-bas { left: 60%; }
 .h-fin-contrats .cf-contrat { padding: 3px 6px 3px 10px; } .h-fin-contrats .cf-contrat b { font-size: 12px; } .h-fin-contrats .bouton { min-height: 34px; font-size: 13px; }
 .h-fin-d .h-table.ext.rivaux th:nth-child(n+2) { width: 50px; } .h-table.ext.rivaux td { font-size: 13px; }
 .op-l[data-k="formatExtraction"] { grid-column: 1 / -1; }
+.h-sac { cursor: pointer; } .h-sac[aria-expanded="true"] { background: #FFF1C9; }
+.h-sac-liste { position: absolute; left: var(--sg); top: calc(var(--sh) + var(--hc, 112px) + 50px); width: min(300px, 46vw); max-height: calc(100% - var(--hc, 112px) - 150px); overflow-y: auto; display: grid; gap: 4px; padding: 6px; border-radius: 14px; background: rgba(255, 247, 236, .95); border: 2.5px solid var(--encre); box-shadow: 0 4px 0 rgba(43, 42, 76, .45); pointer-events: auto; }
+.h-sl { display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 6px; border-radius: 10px; background: #fff; box-shadow: inset 4px 0 0 var(--r, var(--r-commun)); }
+.h-sl > i { width: 11px; height: 11px; flex: 0 0 auto; transform: rotate(45deg); border-radius: 3px; background: var(--r, var(--r-commun)); border: 1.5px solid var(--encre); margin-left: 4px; }
+.h-sl > span { flex: 1 1 auto; min-width: 0; display: grid; } .h-sl b { font: 700 12px/1.15 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .h-sl small { font: 700 10px/1.2 var(--texte); color: var(--encre-2); }
+.h-sl-b { flex: 0 0 auto; min-height: 34px; padding: 0 8px; border-radius: 10px; border: 2px solid var(--encre); background: #fff; font: 700 12px/1 var(--titre); }
+.h-sl-b[data-sac="utiliser"] { background: var(--menthe); color: #fff; text-shadow: 0 1px 0 var(--encre); }
+.h-sl-vide { font: 700 12px/1.3 var(--texte); color: var(--encre-2); padding: 6px; }
+.h-noms .h-nom.rival { text-shadow: 0 1px 0 #2B2A4C, 0 -1px 0 #2B2A4C, 1px 0 0 #2B2A4C, -1px 0 0 #2B2A4C; }
 </style>
 </head>
 <body>
@@ -9270,7 +9279,10 @@ if (typeof module !== 'undefined') module.exports = PDECOR;
    compilée tout de suite : à appeler pendant le compte à rebours ; sans appel, la partie prend jeu.reglages / jeu.options ; détail dans la
    section « l'ambiance »), stats.ambiance → { heure, meteo, nuit, appels (ajoutés), lumieres, lampe, sources, gouttes, brume, ombres,
    compile (ms), programmes, cloture: { forme, aretes, tranches, piquets, distance } } ; la clôture suit jeu.zone.limite (arêtes), sinon
-   monde.limite (section « la clôture de la zone »). */
+   monde.limite (section « la clôture de la zone »).
+   L'Extraction (section « l'Extraction ») : coffres par rareté (formes simples ; de près et hors éco, les modèles Poly Haven CC0 de
+   poncin/objets/, lus en arrière-plan : stats.objets3d), coffre-fort, sacs au sol, balises de sortie (radio, colonne de lumière, cercle
+   drapé), largage sous parachute et fumée rouge, le Gardien (robot plus massif, sombre, aux yeux rouges), d'après jeu.extraction. */
 const PRENDU = (() => {
   'use strict';
   const OK3 = typeof THREE !== 'undefined' && typeof MODELES !== 'undefined' && !!MODELES;
@@ -10560,7 +10572,7 @@ const PRENDU = (() => {
   // de fumée rouge (les bouffées de FX.fumees). Les formes sont simples et colorées par rareté (toujours en éco) ; PRENDU.objets3d(geos)
   // peut leur substituer des modèles chargés (poncin/objets/*.glb, voir chargerObjets3d).
   const RARS3 = ['commun', 'rare', 'epique', 'legendaire'], COUL_R3 = { commun: '#B8BCC8', rare: '#4F8DFF', epique: '#A66BFF', legendaire: '#FFC23A' };
-  const SORTES = ['commun', 'rare', 'epique', 'legendaire', 'fort', 'sac', 'largage', 'radio'];
+  const SORTES = ['commun', 'rare', 'epique', 'legendaire', 'fort', 'sac', 'largage', 'radio', 'eco'];
   const EX3 = { im: {}, pres: {}, lueurs: null, colonnes: null, cercles: null, parachute: null, cleCercles: '', t: -1, fumeeT: 0, n: 0, charge: null, erreurs: [] };
   const rar3 = (c) => { const r = c && (c.rarete != null ? c.rarete : c.rang); if (typeof r === 'number') return RARS3[Math.max(0, Math.min(3, r | 0))]; if (r === 'épique') return 'epique'; if (r === 'légendaire') return 'legendaire'; return RARS3.indexOf(r) >= 0 ? r : 'commun'; };
   const px3 = (o, k) => (o ? (fini(+o[k ? 'z' : 'x']) ? +o[k ? 'z' : 'x'] : Array.isArray(o.p) ? +o.p[k] : NaN) : NaN);
@@ -10571,6 +10583,10 @@ const PRENDU = (() => {
     if (r === 'epique') return M.assembler([P(B(0.95, 0.52, 0.58, 0.05), '#4A4F5F'), P(B(0.97, 0.18, 0.6, 0.06), '#3B3F4C', { y: 0.5 }), P(S(0.99, 0.06, 0.62), c, { y: 0.2 }), P(S(0.99, 0.06, 0.62), c, { y: 0.45 }), P(S(0.18, 0.16, 0.04), '#FFD27A', { y: 0.3, z: 0.3 }), P(S(0.4, 0.04, 0.08), '#9EA4B4', { y: 0.7 })]);
     const arc = M.cylindre(0.3, 0.3, 0.9, 12); // légendaire : le couvercle bombé, les ferrures dorées
     return M.assembler([P(B(0.95, 0.48, 0.62, 0.04), '#8B4E2B'), { geo: arc, col: '#A35E34', m: M.matrice({ rz: HP, x: 0.45, y: 0.46 }) }, P(S(0.97, 0.06, 0.64), c, { y: 0.06 }), P(S(0.97, 0.06, 0.64), c, { y: 0.42 }), P(S(0.06, 0.78, 0.64), c, { x: -0.3 }), P(S(0.06, 0.78, 0.64), c, { x: 0.3 }), P(S(0.18, 0.2, 0.04), c, { y: 0.32, z: 0.32 })]);
+  }
+  function geoCoffreEco() { // la forme blanche (teintée par instance) des coffres en éco : caisse, bandes plus sombres, serrure claire
+    const P = M.part, B = M.boite, S = M.boiteSimple;
+    return M.assembler([P(B(0.9, 0.52, 0.6, 0.04), '#FFFFFF'), P(S(0.92, 0.07, 0.62), '#8A8A8A', { y: 0.14 }), P(S(0.92, 0.07, 0.62), '#8A8A8A', { y: 0.42 }), P(S(0.18, 0.14, 0.03), '#F4F4F4', { y: 0.3, z: 0.31 })]);
   }
   function geoSorte(k) {
     if (RARS3.indexOf(k) >= 0) return geoCoffre(k);
@@ -10583,8 +10599,10 @@ const PRENDU = (() => {
   }
   function construireExtraction() {
     EX3.pres = {}; EX3.charge = null; EX3.cleCercles = '';
-    const mk = (geo, n, nom) => { const im = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }), n); im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3); im.frustumCulled = false; im.count = 0; im.visible = false; im.name = 'ext-' + nom; im.castShadow = true; im.receiveShadow = false; scene.add(im); return im; };
-    for (const k of SORTES) EX3.im[k] = mk(geoSorte(k), k === 'fort' || k === 'radio' || k === 'largage' ? 4 : k === 'sac' ? 8 : 48, k);
+    const mk = (geo, n, nom) => { const im = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }), n); im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3); im.frustumCulled = false; im.count = 0; im.visible = false; im.name = 'ext-' + nom; im.castShadow = false; im.receiveShadow = false; scene.add(im); return im; };
+    for (const k of SORTES) if (k !== 'eco') EX3.im[k] = mk(geoSorte(k), k === 'fort' || k === 'radio' || k === 'largage' ? 4 : k === 'sac' ? 8 : 48, k);
+    // en éco, tous les coffres (raretés, coffre-fort, largage) par UNE forme, teintée par sa couleur d'instance : un seul appel de dessin
+    EX3.im.eco = mk(geoCoffreEco(), 64, 'coffres-eco');
     // la lueur : un cylindre ouvert, dégradé vers le haut, additif
     const gl = new THREE.CylinderGeometry(0.5, 0.62, 1.7, 14, 1, true).translate(0, 0.85, 0), n = gl.attributes.position.count, ca = new Float32Array(n * 4);
     for (let i = 0; i < n; i++) { const y = gl.attributes.position.getY(i); ca[i * 4] = ca[i * 4 + 1] = ca[i * 4 + 2] = 1; ca[i * 4 + 3] = y < 0.5 ? 0.55 : 0; }
@@ -10632,12 +10650,12 @@ const PRENDU = (() => {
     const coffres = Array.isArray(E.coffres) ? E.coffres : crochet3(jeu, 'coffres') || [];
     for (let i = 0; i < coffres.length; i++) {
       const c = coffres[i]; if (!c) continue; const x = px3(c, 0), z = px3(c, 1); if (!fini(x) || !fini(z) || (x - cx) * (x - cx) + (z - cz) * (z - cz) > D2) continue;
-      if (c.special === 'largage') continue; // la caisse du largage : dessinée avec lui (et sa fumée)
+      if (c.special === 'largage' || c.id === 'largage') continue; // la caisse du largage : dessinée avec lui (et sa fumée)
       const fort = !!(c.fort || c.verrou || c.special === 'coffre-fort' || c.special === 'mairie' || c.type === 'coffre-fort' || c.type === 'fort'), r = rar3(c), k = fort ? 'fort' : r, im = EX3.im[k]; if (im.count >= im.instanceMatrix.count) continue;
       const ouvert = !!(c.ouvert || c.etat === 'ouvert' || c.vide || c.dispo === false), y = HS(x, z), ry = fini(+c.yaw) ? +c.yaw : ((i * 2.399) % TAU);
       _v.set(x, y, z); _e.set(0, ry, 0); _q.setFromEuler(_e); _s.set(1, 1, 1); _m.compose(_v, _q, _s);
       const kk = ouvert ? 0.42 : 1, pres = (x - cx) * (x - cx) + (z - cz) * (z - cz) < PRES3 * PRES3; poserInstance(k, pres, kk);
-      if (!ouvert && EX3.lueurs.count < 48) { // la lueur de la rareté (plus vive pour les beaux coffres), qui respire
+      if (!ouvert && EX3.lueurs.count < 48 && QUAL.niveau !== 'eco') { // la lueur de la rareté (plus vive pour les beaux coffres), qui respire
         const L = EX3.lueurs, n = L.count++, f = (r === 'commun' ? 0.35 : r === 'rare' ? 0.65 : 0.9) * (0.85 + 0.15 * Math.sin(t * 2.4 + i)) * borne((Math.hypot(x - cx, z - cz) - 1) / 5, 0.25, 1), cl = lin(fort ? COUL_R3.legendaire : COUL_R3[r]);
         _s.set(fort ? 1.25 : 1, r === 'legendaire' || fort ? 1.5 : 1, fort ? 1.25 : 1); _m.compose(_v, _q, _s); L.setMatrixAt(n, _m); L.instanceColor.setXYZ(n, cl[0] * f, cl[1] * f, cl[2] * f);
       }
@@ -10697,19 +10715,22 @@ const PRENDU = (() => {
     const parts = []; const bb = new THREE.Box3();
     racine.traverse((o) => { if (!o.isMesh || !o.geometry) return; const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld); g.computeBoundingBox(); bb.union(g.boundingBox); parts.push({ g, m: o.material }); });
     if (!parts.length) return;
+    if (parts.length > 1) { parts.sort((a, b) => b.g.attributes.position.count - a.g.attributes.position.count); parts.length = 1; bb.makeEmpty(); bb.union(parts[0].g.boundingBox); } // (le plus gros morceau seul : un appel de dessin)
     const dx = bb.max.x - bb.min.x, dz = bb.max.z - bb.min.z, sc = (TAILLE3[k] || 0.8) / Math.max(0.01, dx, dz), cx = (bb.max.x + bb.min.x) / 2, cz = (bb.max.z + bb.min.z) / 2;
     const n = k === 'radio' || k === 'largage' || k === 'jerrycan' ? 4 : k === 'sac' ? 8 : 12, ims = [];
     for (const p of parts) {
       p.g.translate(-cx, -bb.min.y, -cz); p.g.scale(sc, sc, sc); if (!p.g.attributes.normal) p.g.computeVertexNormals();
       const src = Array.isArray(p.m) ? p.m[0] : p.m, map = src && src.map ? src.map : null; if (map) { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4; }
       const mat = new THREE.MeshLambertMaterial({ color: map ? '#FFFFFF' : src && src.color ? src.color : '#B98A57', map });
-      const im = new THREE.InstancedMesh(p.g, mat, n); im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3); im.frustumCulled = false; im.count = 0; im.visible = false; im.castShadow = true; im.name = 'ext-glb-' + k; scene.add(im); ims.push(im);
+      const im = new THREE.InstancedMesh(p.g, mat, n); im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3); im.frustumCulled = false; im.count = 0; im.visible = false; im.castShadow = false; im.name = 'ext-glb-' + k; scene.add(im); ims.push(im);
     }
     EX3.pres[k] = ims; memoireSale = true;
   }
+  const TEINTE_ECO = { commun: '#C9B08A', rare: '#6FA0FF', epique: '#B47BFF', legendaire: '#FFC23A', fort: '#7C8494', largage: '#7E8C55' };
   function poserInstance(k, j, kk, loinIm) { // _m posé : près, le modèle (tous ses morceaux) ; sinon la forme simple
-    const ims = EX3.pres[k];
-    if (ims && j && QUAL.niveau !== 'eco') { for (const im of ims) { if (im.count >= im.instanceMatrix.count) return false; const n = im.count++; im.setMatrixAt(n, _m); im.instanceColor.setXYZ(n, kk, kk, kk); } return true; }
+    const ims = EX3.pres[k], eco = QUAL.niveau === 'eco';
+    if (ims && j && !eco) { for (const im of ims) { if (im.count >= im.instanceMatrix.count) return false; const n = im.count++; im.setMatrixAt(n, _m); im.instanceColor.setXYZ(n, kk, kk, kk); } return true; }
+    if (eco && TEINTE_ECO[k] && EX3.im.eco) { const im = EX3.im.eco; if (im.count >= im.instanceMatrix.count) return false; const n = im.count++, c = lin(TEINTE_ECO[k]); _s.set(k === 'fort' ? 1.05 : k === 'largage' ? 1.25 : 1, k === 'fort' ? 2.2 : k === 'largage' ? 1.4 : 1, k === 'largage' ? 1.8 : 1); _m2.makeScale(_s.x, _s.y, _s.z); _m.multiply(_m2); im.setMatrixAt(n, _m); im.instanceColor.setXYZ(n, c[0] * kk, c[1] * kk, c[2] * kk); return true; }
     const im = loinIm || EX3.im[k]; if (!im || im.count >= im.instanceMatrix.count) return false; const n = im.count++; im.setMatrixAt(n, _m); im.instanceColor.setXYZ(n, kk, kk, kk); return true;
   }
   function finirPres() { for (const k in EX3.pres) for (const im of EX3.pres[k]) { im.visible = im.count > 0; if (im.count) { im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; } } }
@@ -11575,7 +11596,11 @@ if (typeof module !== 'undefined') module.exports = PRENDU;
    sourd quand un joueur est éliminé de la manche (événements 'manche' et 'elimine' de l'Arène).
    L'arme d'un événement : PREGLES.arme(id).classe (le contrat), sinon PAVATARS.armes.classe(id) (le modèle), sinon 'fusil'. Les
    changements d'état du joueur (posture, arme en main, visée, déplacement accroupi ou couché) sont lus sur l'entité à chaque appel
-   d'evenements (une fois par pas, même sans événement). */
+   d'evenements (une fois par pas, même sans événement).
+   L'Extraction : la main au coffre, le coffre qui grince et s'ouvre, le butin qui tinte (plus riche selon la rareté), l'alarme des
+   sorties qui s'ouvrent, le tic de chaque seconde dans le cercle, l'extraction réussie, relever, le sac qui tombe, le sac plein, le
+   largage (l'avion qui passe, la caisse qui touche le sol), la prime, la clé, la lampe, le « ping » d'un signal d'équipe, l'achat et la
+   vente au coffre personnel. */
 const PSONS = (() => {
   'use strict';
   let ctx = null, maitre = null, comp = null, bruit = null, actif = true, vibre = true, volume = 0.85, budget = 0, budgetT = 0, pasAlterne = 0;
@@ -11926,14 +11951,18 @@ const PSONS = (() => {
    multiplie par k (ui.js : 1 − ralentir de l'aide à la visée, pour que le regard affiché entre deux pas ne montre pas plus que ce que le
    pas appliquera : il ne recule jamais).
    PCONTROLES.maj(jeu, moi, evs) : l'état des boutons (icône de posture, visée, recharge, course), le zoom de l'arme pour la sensibilité,
-   les refus. PCONTROLES.ICONES : les icônes (postures comprises, reprises par le HUD). Objets réutilisés : aucune allocation par image. */
+   les refus. PCONTROLES.ICONES : les icônes (postures comprises, reprises par le HUD). Objets réutilisés : aucune allocation par image.
+   L'Extraction : le bouton d'action contextuel (PCONTROLES.contexte({ quoi: 'ouvrir' | 'ramasser' | 'relever', texte, p }) le montre, son
+   libellé et sa progression ; tenu ou E / F au clavier : le niveau entree.action), la lampe la nuit (bouton, L : le front entree.lampe) et
+   la roue des signaux (appui long de 400 ms immobile sur la vue, ou G tenu : Coffre ici, Ennemi, On sort par là, Ici ; le front
+   entree.signal = le type, ui.js y ajoute le point visé) ; PCONTROLES.mode({ extraction, nuit }). */
 const PCONTROLES = (() => {
   'use strict';
   const DEG = Math.PI / 180, RAYON = 60, MORTE = 0.08, K_DOIGT = 0.22 * DEG, EXPO = 1.15, K_SOURIS = 0.0022;
   // courir au joystick : entrer à |j| ≥ 0,92 et ≤ 40° de l'avant, sortir sous 0,85 ou au-delà de 50° ; l'appui long d'Accroupi (ms)
   const COURSE_IN = 0.92, COURSE_OUT = 0.85, ANGLE_IN = 40 * DEG, ANGLE_OUT = 50 * DEG, APPUI_LONG = 350;
-  const entree = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, course: false, couche: false, vise: false, recharge: false, arme: null, changer: false, action: false, lampe: false, signal: null }; // l'entrée d'un pas
-  const cumul = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, course: false, couche: false, vise: false, recharge: false, arme: null, changer: false, tirBref: false, action: false, actionBref: false, lampe: false, signal: null }; // depuis le dernier pas
+  const entree = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, course: false, couche: false, vise: false, recharge: false, arme: null, changer: false, action: false, lampe: false, signal: null, lacher: null, utiliser: null }; // l'entrée d'un pas
+  const cumul = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, course: false, couche: false, vise: false, recharge: false, arme: null, changer: false, tirBref: false, action: false, actionBref: false, lampe: false, signal: null, lacher: null, utiliser: null }; // depuis le dernier pas
   const ATTENTE = { dyaw: 0, dpitch: 0 };
   let kAttente = 1; // la part du regard en attente que le rendu montre (attenuer)
   // les réglages du joueur : visee 'auto' (bascule au doigt, maintenue à la souris) | 'bascule' | 'maintenir' ; course 'joystick' | 'bouton'
@@ -12169,7 +12198,7 @@ const PCONTROLES = (() => {
   }
   function viderCumul() {
     cumul.avant = 0; cumul.cote = 0; cumul.dyaw = 0; cumul.dpitch = 0; cumul.tir = false; cumul.saut = false; cumul.accroupi = false; cumul.course = false; cumul.couche = false; cumul.vise = false;
-    cumul.recharge = false; cumul.arme = null; cumul.changer = false; cumul.tirBref = false; cumul.action = false; cumul.actionBref = false; cumul.lampe = false; cumul.signal = null;
+    cumul.recharge = false; cumul.arme = null; cumul.changer = false; cumul.tirBref = false; cumul.action = false; cumul.actionBref = false; cumul.lampe = false; cumul.signal = null; cumul.lacher = null; cumul.utiliser = null;
   }
 
   // ─── clavier ───
@@ -12209,6 +12238,8 @@ const PCONTROLES = (() => {
   function molette(e) { if (!actif || !verrouille() || nArmes < 2 || !e.deltaY) return; changerL = true; }
   window.addEventListener('wheel', molette, { passive: true });
   // les ordres venus du HUD (les pastilles d'armes, le compteur de munitions)
+  // un objet du sac (Extraction, depuis la liste du HUD) : { lacher: i } ou { utiliser: i }, des fronts
+  function objetSac(o) { if (!actif || !o) return; if (o.lacher != null) cumul.lacher = o.lacher | 0; if (o.utiliser != null) cumul.utiliser = o.utiliser | 0; }
   function emplacement(slot) { if (actif && (slot === 0 || slot === 1)) armeL = slot; }
   function recharger() { if (actif) rechargeL = true; }
 
@@ -12251,6 +12282,7 @@ const PCONTROLES = (() => {
     entree.saut = cumul.saut; entree.recharge = cumul.recharge; entree.arme = cumul.arme; entree.changer = cumul.changer;
     entree.action = cumul.action || cumul.actionBref; // tenu, ou un appui bref (relâché avant l'image) : une fois
     entree.lampe = cumul.lampe; entree.signal = cumul.signal; cumul.lampe = false; cumul.signal = null; // des fronts (l'Extraction)
+    entree.lacher = cumul.lacher; entree.utiliser = cumul.utiliser; cumul.lacher = null; cumul.utiliser = null;
     cumul.dyaw = 0; cumul.dpitch = 0; cumul.saut = false; cumul.recharge = false; cumul.arme = null; cumul.changer = false; cumul.tirBref = false; cumul.actionBref = false;
     return entree;
   }
@@ -12308,7 +12340,7 @@ const PCONTROLES = (() => {
     if (q !== vu.rech) { vu.rech = q; elAnneau.style.strokeDashoffset = String(100 - q); elRecharge.classList.toggle('charge', q > 0 && q < 100); }
   }
 
-  return { init, lire, consommer, enAttente, attenuer, regler, activer, taille, reinit, maj, modeTactile, verrouiller, lacher, emplacement, recharger, contexte, mode, SIGNAUX, ICONES, get roue() { return roue ? { choix: roue.choix } : null; }, ICO_ACTION, get contexteVu() { return ctxVu; },
+  return { init, lire, consommer, enAttente, attenuer, regler, activer, taille, reinit, maj, modeTactile, verrouiller, lacher, emplacement, recharger, objetSac, contexte, mode, SIGNAUX, ICONES, get roue() { return roue ? { choix: roue.choix } : null; }, ICO_ACTION, get contexteVu() { return ctxVu; },
     get reglages() { return R; }, get tactile() { return tactile; }, get actif() { return actif; }, get verrouille() { return verrouille(); } };
 })();
 
@@ -12331,7 +12363,14 @@ const PCONTROLES = (() => {
    Les libellés et les icônes des armes viennent de PREGLES.ARMES (nom, classe ; repli tolérant si un champ manque) :
    PHUD.iconeArme(id), PHUD.nomArme(id), PHUD.classeArme(id), PHUD.nomClasse(classe) servent aussi aux menus (ui.js).
    Rien n'est écrit dans le DOM si la valeur n'a pas changé ; les animations courtes (touche, chiffres, flèches) sont menées à la main,
-   sans reflow. */
+   sans reflow.
+   L'Extraction (section « l'Extraction », lecture tolérante de jeu.extraction et des entités de PEXTRACTION) : le sac (cases prises / cases,
+   valeur, poids, clé du coffre-fort), la boussole vers la sortie la plus proche (et le compte à rebours de leur ouverture), celle du
+   largage, les jauges (ouverture d'un coffre ou d'un sac, extraction, relever, se faire relever), à terre / extrait, la barre de vie du
+   Gardien, le bruit que l'on fait, le rappel du contrat du jour, les étiquettes posées dans la vue (signaux d'équipe, au bord de
+   l'écran s'ils sont hors champ ; prime ; « Sac de Léa » ; coffre-fort), la minicarte (coffres vus, sorties, sacs, largage, prime,
+   signaux, couleurs d'équipe), les bandeaux (sorties ouvertes, largage, prime, « Tu es la cible ! ») et l'écran de fin du mode.
+   PHUD.extraction(jeu, id) → la vue lue (réutilisée) ; PHUD.contexte → l'action possible ici ; PHUD.bilanExtraction(res, jeu, id). */
 const PHUD = (() => {
   'use strict';
   const TAU = Math.PI * 2, DEG = Math.PI / 180;
@@ -12433,7 +12472,8 @@ const PHUD = (() => {
         <div class="h-armes">${[0, 1].map((i) => `<button type="button" class="h-arme" data-slot="${i}" aria-label="${i ? 'Arme secondaire' : 'Arme principale'}"><b class="h-slot">${i + 1}</b><span class="h-arme-ico"></span><span class="h-mun"><b class="h-mun-n">0</b><small class="h-mun-r">| 0</small></span></button>`).join('')}</div>
       </div>
       <div class="h-ext" aria-live="polite">
-        <div class="h-sac" hidden><span class="h-sac-ico" aria-hidden="true">${SVG_SAC}</span><b class="h-sac-n">0</b><small class="h-sac-max"></small><span class="h-poids" aria-hidden="true"><i></i></span><span class="h-cle" title="La clé du coffre-fort">${SVG_CLE}</span><span class="h-sac-v"><i class="h-piece" aria-hidden="true"></i><b>0</b></span></div>
+        <button type="button" class="h-sac" hidden aria-label="Le sac" aria-expanded="false"><span class="h-sac-ico" aria-hidden="true">${SVG_SAC}</span><b class="h-sac-n">0</b><small class="h-sac-max"></small><span class="h-poids" aria-hidden="true"><i></i></span><span class="h-cle" title="La clé du coffre-fort">${SVG_CLE}</span><span class="h-sac-v"><i class="h-piece" aria-hidden="true"></i><b>0</b></span></button>
+        <div class="h-sac-liste" hidden></div>
         <div class="h-boussole h-largage" hidden><i class="h-bo-fl" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2l7 18-7-4-7 4z" fill="#FF6B5A" stroke="#2B2A4C" stroke-width="2.2" stroke-linejoin="round"/></svg></i><span class="h-bo-t"><b>Largage</b><small></small></span></div>
         <div class="h-contrat" hidden></div>
         <div class="h-boss" hidden><b></b><div class="h-jauge-b"><i></i></div></div>
@@ -12461,7 +12501,7 @@ const PHUD = (() => {
       noms: Array.from(racine.querySelectorAll('.h-nom')), nombres: Array.from(racine.querySelectorAll('.h-nombre')),
       sac: q('.h-sac'), sacN: q('.h-sac-n'), sacMax: q('.h-sac-max'), sacV: q('.h-sac-v b'), boussole: q('.h-boussole:not(.h-largage)'), boFl: q('.h-boussole:not(.h-largage) .h-bo-fl'), boT: q('.h-boussole:not(.h-largage) .h-bo-t b'), boS: q('.h-boussole:not(.h-largage) .h-bo-t small'),
       largage: q('.h-largage'), laFl: q('.h-largage .h-bo-fl'), laS: q('.h-largage .h-bo-t small'), contrat: q('.h-contrat'), boss: q('.h-boss'), bossN: q('.h-boss b'), bossB: q('.h-boss .h-jauge-b i'), bruit: q('.h-bruit'), poids: q('.h-poids i'),
-      etqs: Array.from(racine.querySelectorAll('.h-etq')),
+      etqs: Array.from(racine.querySelectorAll('.h-etq')), sacListe: q('.h-sac-liste'),
       jauge: q('.h-jauge'), jaugeT: q('.h-jauge-t'), jaugeB: q('.h-jauge .h-jauge-b i'), voileExt: q('.h-voile-ext'), voileP: q('.h-voile-carte small'), voileB: q('.h-voile-carte b'), voileS: q('.h-voile-carte span'), eqMoi: q('.h-moi'), eqEux: q('.h-eux'),
     });
     slots = Array.from(racine.querySelectorAll('.h-arme')).map((b) => ({ el: b, ico: b.querySelector('.h-arme-ico'), n: b.querySelector('.h-mun-n'), r: b.querySelector('.h-mun-r'), id: null, m: null, res: null, main: null, bas: null }));
@@ -12478,12 +12518,15 @@ const PHUD = (() => {
     noms = el.noms.map((e) => ({ el: e, id: null, txt: '', vu: false }));
     ctxCarte = el.carte.getContext('2d');
     q('.h-b-pause').addEventListener('click', () => { if (actions.pause) actions.pause(); });
+    // le sac (Extraction) : le toucher ouvre sa liste ; chaque objet : Utiliser (un consommable), Lâcher (au sol)
+    el.sac.addEventListener('click', () => { sacOuvert = !sacOuvert; vu.sacL = ''; el.sac.setAttribute('aria-expanded', String(sacOuvert)); el.sacListe.hidden = !sacOuvert; });
+    el.sacListe.addEventListener('click', (e) => { const b = e.target.closest('[data-sac]'); if (!b) return; const i = +b.dataset.i; if (typeof actions.sac === 'function') actions.sac(b.dataset.sac === 'utiliser' ? { utiliser: i } : { lacher: i }); });
     q('.h-b-scores').addEventListener('click', () => scores(!scoresOuverts));
     el.scores.addEventListener('click', () => scores(false));
     el.fin.addEventListener('click', (e) => { const b = e.target.closest('[data-fin]'); if (!b || b.disabled) return; const a = b.dataset.fin; if (typeof actions[a] === 'function') { try { if (actions[a](b) === true && a === 'reclamer') { b.disabled = true; b.textContent = 'Réclamé'; } } catch (err) { console.warn('[Poncin] fin', a, err); } } }); // rejouer, menu, salon…
     taille();
   }
-  let nombres = [], fleches = [], noms = [], slots = [], ctxCarte = null, tailleCarte = 112;
+  let nombres = [], fleches = [], noms = [], slots = [], ctxCarte = null, tailleCarte = 112, sacOuvert = false;
   function taille(w, h) {
     if (!racine) return;
     W = w || racine.clientWidth || window.innerWidth; H = h || racine.clientHeight || window.innerHeight; DPR = Math.min(2, window.devicePixelRatio || 1);
@@ -12895,7 +12938,8 @@ const PHUD = (() => {
   }
   const VX = { actif: false, coffres: [], points: [], sacs: [], signaux: [], ouvert: false, ouvreA: null, ouvreDans: 0, sac: { liste: [], n: 0, max: 0, valeur: 0, plein: false, cle: false, ralenti: 0 }, ouverture: null, extraction: null, extrait: false, aTerre: null, releve: null, relever: null, proche: null, plus: null, largage: null, prime: null, boss: null, format: 'ensemble' };
   const SIG = [];
-  const COF = [], PTS = [], SACS = []; // réutilisés
+  const COF = [], PTS = [], SACS = []; // réutilisés (et leurs objets, dans POOLS : aucune allocation par image)
+  const POOLS = new Map(); function pris(l) { let p = POOLS.get(l); if (!p) { p = []; POOLS.set(l, p); } const o = p[l.length] || (p[l.length] = {}); l.push(o); return o; }
   function lireExtraction(jeu, id) {
     const V = VX; V.actif = estExt(jeu); V.coffres = COF; V.points = PTS; V.sacs = SACS; COF.length = 0; PTS.length = 0; SACS.length = 0;
     V.ouverture = V.extraction = V.aTerre = V.releve = V.relever = V.proche = V.plus = V.largage = V.prime = V.boss = null; V.extrait = false; V.signaux = SIG; SIG.length = 0; V.sac.liste = []; V.sac.n = 0; V.sac.max = 0; V.sac.valeur = 0; V.sac.plein = false;
@@ -12903,17 +12947,18 @@ const PHUD = (() => {
     const S = jeu.extraction && typeof jeu.extraction === 'object' ? jeu.extraction : {}, t = +jeu.temps || 0;
     const cs = Array.isArray(S.coffres) ? S.coffres : crochet(jeu, 'coffres') || jeu.coffres || [];
     for (let i = 0; i < cs.length; i++) { const c = cs[i]; if (!c) continue; const x = px2(c, 0), z = px2(c, 1); if (!nb(x) || !nb(z)) continue;
-      COF.push({ id: c.id != null ? c.id : 'c' + i, x, z, rarete: rarete(c), ouvert: !!(c.ouvert || c.etat === 'ouvert' || c.vide || c.dispo === false || c.ouvertPar != null), vide: !!c.vide, fort: !!(c.fort || c.verrou || c.special === 'coffre-fort' || c.special === 'mairie' || c.type === 'coffre-fort'), largage: c.special === 'largage' }); }
+      const o = pris(COF); o.id = c.id != null ? c.id : 'c' + i; o.x = x; o.z = z; o.rarete = rarete(c); o.ouvert = !!(c.ouvert || c.etat === 'ouvert' || c.vide || c.dispo === false || c.ouvertPar != null); o.vide = !!c.vide;
+      o.fort = !!(c.fort || c.verrou || c.special === 'coffre-fort' || c.special === 'mairie' || c.type === 'coffre-fort'); o.largage = c.special === 'largage' || c.id === 'largage'; }
     let ouvreA = nb(+S.ouvreA) ? +S.ouvreA : nb(+S.ouvertureA) ? +S.ouvertureA : nb(+S.ouverture) ? +S.ouverture : nb(+S.mi) ? +S.mi : jeu.duree > 0 ? (+jeu.debutChrono || 0) + jeu.duree / 2 : null;
     V.ouvert = S.ouvert != null ? !!S.ouvert : S.ouvertes != null ? !!S.ouvertes : ouvreA != null ? t >= ouvreA : false;
     V.ouvreA = ouvreA; V.ouvreDans = V.ouvert || ouvreA == null ? 0 : Math.max(0, ouvreA - t);
     const ps = Array.isArray(S.points) ? S.points : Array.isArray(S.sorties) ? S.sorties : Array.isArray(S.extractions) ? S.extractions : Array.isArray(S.balises) ? S.balises : crochet(jeu, 'points') || [];
     const NOMS = ['Le pont', 'La cale de la rivière'];
     for (let i = 0; i < ps.length; i++) { const p = ps[i]; if (!p) continue; const x = px2(p, 0), z = px2(p, 1); if (!nb(x) || !nb(z)) continue;
-      PTS.push({ id: p.id != null ? p.id : 'x' + i, nom: p.nom || p.n || NOMS[i] || 'Sortie', x, z, rayon: +p.rayon > 0 ? +p.rayon : +p.r > 0 ? +p.r : 10, ouvert: p.ouvert != null ? !!p.ouvert : V.ouvert }); }
+      const o = pris(PTS); o.id = p.id != null ? p.id : 'x' + i; o.nom = p.nom || p.n || NOMS[i] || 'Sortie'; o.x = x; o.z = z; o.rayon = +p.rayon > 0 ? +p.rayon : +p.r > 0 ? +p.r : 10; o.ouvert = p.ouvert != null ? !!p.ouvert : V.ouvert; }
     const ss = Array.isArray(S.sacs) ? S.sacs : Array.isArray(S.sacsAuSol) ? S.sacsAuSol : crochet(jeu, 'sacs') || [];
     for (let i = 0; i < ss.length; i++) { const b = ss[i]; if (!b || b.pris || b.dispo === false) continue; const x = px2(b, 0), z = px2(b, 1); if (!nb(x) || !nb(z)) continue; const l = Array.isArray(b.objets) ? b.objets : Array.isArray(b.contenu) ? b.contenu : [];
-      SACS.push({ id: b.id != null ? b.id : 's' + i, x, z, valeur: b.valeur != null ? valeur(b) : l.reduce((a, o) => a + valeur(o), 0), de: b.de || null, attend: !!(b.attend && b.attend[id]) }); }
+      const o = pris(SACS); o.id = b.id != null ? b.id : 's' + i; o.x = x; o.z = z; let v = 0; if (b.valeur != null) v = valeur(b); else for (let k = 0; k < l.length; k++) v += valeur(l[k]); o.valeur = v; o.de = b.de || null; o.attend = !!(b.attend && b.attend[id]); }
     V.format = S.format || opt(jeu).formatExtraction || 'ensemble';
     // le largage (annoncé, qui tombe, posé : un coffre de plus), la prime (le plus riche révélé), le Gardien, les signaux de mon équipe
     const L = S.largage && typeof S.largage === 'object' ? S.largage : null;
@@ -12922,7 +12967,7 @@ const PHUD = (() => {
     if (P && P.id != null) { const c = trouver(jeu, P.id); if (c && c.vivant !== false && !c.extrait) V.prime = { id: P.id, nom: c.nom, valeur: +P.valeur || 0, montant: +P.montant || +P.prime || 0, x: nb(+P.x) ? +P.x : c.x, z: nb(+P.z) ? +P.z : c.z, depuis: nb(+P.reveleA) ? +P.reveleA : null }; }
     for (const c of jeu.entites) if (c.boss && c.vivant !== false) { V.boss = { id: c.id, nom: (c.boss && c.boss.nom) || c.nom || 'Le Gardien', vie: Math.max(0, c.vie), vieMax: +(c.boss && c.boss.vieMax) || 600, armure: c.armure || 0, x: c.x, y: c.y, z: c.z }; break; }
     const e = trouver(jeu, id); if (!e) return V;
-    if (Array.isArray(S.signaux)) for (const g of S.signaux) { if (!g || !nb(+g.x) || (g.equipe != null && g.equipe !== e.equipe) || (nb(+g.jusqua) && g.jusqua < t)) continue; SIG.push({ id: g.id, type: g.type || 'ici', x: +g.x, y: nb(+g.y) ? +g.y : null, z: +g.z, de: g.de }); }
+    if (Array.isArray(S.signaux)) for (const g of S.signaux) { if (!g || !nb(+g.x) || (g.equipe != null && g.equipe !== e.equipe) || (nb(+g.jusqua) && g.jusqua < t)) continue; const o = pris(SIG); o.id = g.id; o.type = g.type || 'ici'; o.x = +g.x; o.y = nb(+g.y) ? +g.y : null; o.z = +g.z; o.de = g.de; }
     // le sac
     const sc = e.sac, l = Array.isArray(sc) ? sc : sc && typeof sc === 'object' ? (Array.isArray(sc.objets) ? sc.objets : Array.isArray(sc.contenu) ? sc.contenu : Array.isArray(sc.items) ? sc.items : []) : [];
     V.sac.liste = l; V.sac.valeur = sc && !Array.isArray(sc) && sc.valeur != null ? valeur(sc) : l.reduce((a, o) => a + valeur(o), 0);
@@ -13007,6 +13052,7 @@ const PHUD = (() => {
     etiquettes(jeu, V);
     // le sac : « 3/8 · 420 »
     const sacK = V.sac.n + '/' + V.sac.max + '/' + V.sac.valeur;
+    if (sacOuvert && (sacK + (V.extrait || V.aTerre ? 'x' : '')) !== vu.sacL) { vu.sacL = sacK + (V.extrait || V.aTerre ? 'x' : ''); listeSac(V); }
     if (sacK !== vu.sacK) { const plus = vu.sacV != null && V.sac.valeur > vu.sacV; vu.sacK = sacK; vu.sacV = V.sac.valeur; el.sacN.textContent = String(V.sac.n); el.sacMax.textContent = V.sac.max ? '/' + V.sac.max : ''; el.sacV.textContent = String(V.sac.valeur); el.sac.classList.toggle('plein', V.sac.plein); if (plus) relance(el.sac, 'pique'); }
     // les coffres vus (minicarte) : à moins de 18 m, ou en vue à moins de 45 m (testé quatre fois par seconde)
     if (jeu.temps - vusExtT > 0.25 || vusExtT < 0) { vusExtT = jeu.temps; const m = jeu.monde || mondeCarte, oy = moi.y + 1.5;
@@ -13039,6 +13085,12 @@ const PHUD = (() => {
     contexte = V.proche;
   }
   let moiJeu = null;
+  function listeSac(V) { // la liste du sac (ouverte d'un toucher) : nom, valeur, cases ; Utiliser (soin, armure, munitions), Lâcher
+    const l = V.sac.liste, CONSO = { soin: 1, armure: 1, munitions: 1 };
+    el.sacListe.innerHTML = l.length ? l.map((o0, i) => { const o = objetDe(o0), r = rarete(o0), v = valeur(o0);
+      return `<div class="h-sl r-${r}"><i aria-hidden="true"></i><span><b>${esc(o.nom)}</b><small>${v ? v + ' pièces · ' : ''}${+o.cases || 1} case${+o.cases > 1 ? 's' : ''}</small></span>${CONSO[o.id] ? `<button type="button" class="h-sl-b" data-sac="utiliser" data-i="${i}">Utiliser</button>` : ''}<button type="button" class="h-sl-b" data-sac="lacher" data-i="${i}">Lâcher</button></div>`; }).join('')
+      : '<p class="h-sl-vide">Ton sac est vide : ouvre des coffres !</p>';
+  }
   function dessinerExtraction(g, R, s, c, sn) { // les coffres vus, les sacs au sol, les sorties (dans le cercle de la minicarte ; une sortie au loin : au bord)
     const V = VX; if (!V.actif) return;
     const pos = (x, z) => { const u = (x - moi.x) * s, v = (z - moi.z) * s; P2[0] = R + u * c - v * sn; P2[1] = R + u * sn + v * c; return (P2[0] - R) * (P2[0] - R) + (P2[1] - R) * (P2[1] - R); };
@@ -13232,10 +13284,13 @@ const PHUD = (() => {
   }
   function majNoms(jeu) {
     const eq = estEquipes(jeu), es = jeu.entites; let k = 0;
-    if (eq) for (let i = 0; i < es.length && k < noms.length; i++) {
-      const e = es[i]; if (e === moi || !e.vivant || e.equipe !== moi.equipe) continue;
+    const ext = VX.actif; // l'Extraction : aussi les joueurs des équipes rivales (vus), à la couleur de leur équipe
+    if (eq || ext) for (let i = 0; i < es.length && k < noms.length; i++) {
+      const e = es[i]; if (e === moi || !e.vivant) continue;
+      const allie = eq && e.equipe === moi.equipe; if (!allie && !(ext && !e.bot && vusCache.get(e.id))) continue;
       const pr = projeter(e.x, e.y + 2.15, e.z); if (!pr || pr.devant === false) continue;
       const n = noms[k++]; if (n.txt !== e.nom) { n.txt = e.nom; n.el.textContent = e.nom; }
+      const c = allie ? '' : e.couleur || '#FF6B8B'; if (n.c !== c) { n.c = c; n.el.style.color = c; n.el.classList.toggle('rival', !allie); }
       n.el.style.transform = `translate3d(${pr.x.toFixed(1)}px, ${pr.y.toFixed(1)}px, 0) translate(-50%, -100%)`; if (!n.vu) { n.vu = true; n.el.style.opacity = '1'; }
     }
     for (; k < noms.length; k++) if (noms[k].vu) { noms[k].vu = false; noms[k].el.style.opacity = '0'; }
@@ -13327,7 +13382,7 @@ const PHUD = (() => {
     el.annonce.classList.remove('vu'); el.sous.classList.remove('vu'); el.ramasse.classList.remove('vu'); el.refus.classList.remove('vu');
     for (const s of slots) { s.id = null; s.m = null; s.res = null; s.main = null; s.bas = null; }
     contratPartie = o && o.contrat && o.contrat.texte ? o.contrat : null;
-    coffresVus.clear(); vusExtT = -1; ouvertVu = null; contexte = null; cacherEtiquettes(); racine.classList.remove('extraction'); el.sac.hidden = true; el.boussole.hidden = true; el.jauge.hidden = true; el.voileExt.hidden = true;
+    coffresVus.clear(); vusExtT = -1; ouvertVu = null; contexte = null; cacherEtiquettes(); sacOuvert = false; el.sacListe.hidden = true; el.sac.setAttribute('aria-expanded', 'false'); racine.classList.remove('extraction'); el.sac.hidden = true; el.boussole.hidden = true; el.jauge.hidden = true; el.voileExt.hidden = true;
   }
   return { init, carte, taille, maj, fin, reinit, annonce, scores, iconeArme, nomArme, classeArme, nomClasse, vignette: vignetteZone, formeZone, formeDe, distanceBord,
     extraction: (jeu, id) => lireExtraction(jeu, id || idMoi), bilanExtraction, rarete, COUL_RAR, get contexte() { return contexte; }, SVG_SAC,
@@ -14607,7 +14662,16 @@ const PENLIGNE = (() => {
    Tout appel aux autres modules est gardé : sans Three.js ou sans WebGL, un panneau clair ; une erreur ne fige jamais l'écran.
    La boucle (conception § 2) : la partie avance par pas fixes de 1/60 s (PJEU.pasFixe, au plus 4 pas par image, au-delà le temps est
    perdu), en solo, chez l'hôte et chez le client ; les commandes sont lues une fois par image dans un cumul (PCONTROLES.lire) et
-   chaque pas prend son entrée (PCONTROLES.consommer) ; l'image reçoit alpha (la fraction du pas en cours) pour interpoler. */
+   chaque pas prend son entrée (PCONTROLES.consommer) ; l'image reçoit alpha (la fraction du pas en cours) pour interpoler.
+   L'Extraction (PEXTRACTION, PBUTIN : le groupe des règles ; tout est lu avec un repli tolérant, et sans eux la carte « Bientôt ») : le
+   mode est un réglage (reglages.mode : la carte de mission du menu et l'onglet Partie ; la zone et la durée de chaque mode sont gardées
+   dans choix.parMode), avec ses lignes (durées 5 / 8 / 12 min, zones conseillées et zone de la semaine, gardiens ; à plusieurs : format
+   ensemble / équipes rivales (2 ou 3) / chacun pour soi : formatExtraction, equipesExtraction) ; la partie (PJEU.creer({ mode:
+   PEXTRACTION, humains, maintenant }), le joueur part avec ses améliorations : ajouterJoueur({ ameliorations })) ; l'action contextuelle
+   (PHUD.contexte → PCONTROLES.contexte), les signaux posés là où l'on vise (entrée signal { type, x, y, z }), la lampe ; la fin
+   (PEXTRACTION.resultat lu par PHUD.bilanExtraction : écran de fin, PBUTIN.deposer et progression des contrats, record) ; le coffre
+   personnel 'coffre' (sauv.coffre, format de PBUTIN.lireCoffre) : des onglets extensibles (ONGLETS_COFFRE : Matériel avec « Vendre »,
+   Contrats du jour avec « Réclamer », Améliorations ; demain « Base », « Raid »). Jamais rien de tout ça en Arène. */
 const PUI = (() => {
   'use strict';
   const CLE = 'poncin.v2', CLE_V1 = 'poncin.v1', $ = (s) => document.querySelector(s), $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -14958,7 +15022,7 @@ const PUI = (() => {
       const d = appelCoffre('depenser', prix); if (d && !d.ok) { toast('Pas assez de pièces.'); majCoffre(); return; }
       if (!d) sauv.coffre.pieces -= prix; if (!sauv.coffre.ameliorations) sauv.coffre.ameliorations = {}; sauv.coffre.ameliorations[id] = n + 1; ok = true;
     } else if (!ok && r.r && r.r.raison) toast(String(r.r.raison));
-    if (ok) { sauver(); PSONS.ui('achat'); toast(`${a.nom} : niveau ${n + 1} !`); }
+    if (ok) { sauver(); PSONS.ui('achat'); toast(`${a.nom} : niveau ${n + 1} !`); publierAmeliorations(); }
     majCoffre();
   }
   // après une partie : ce qui est sorti entre au coffre (PBUTIN.rendre(coffre, objets), ou deposer ; sinon ici), comme matériel à garder ou vendre
@@ -15139,6 +15203,10 @@ const PUI = (() => {
     const q = equipValide(sauv.choix.equip, permisesSalon());
     try { if (typeof ctl.equiper === 'function') ctl.equiper(q.p + '+' + q.s); } catch (e) { signaler('équipement', e); }
   }
+  function publierAmeliorations() { // les améliorations du coffre personnel passent par le salon (l'hôte les donne à chacun au lancement)
+    if (!ctl) return; const f = typeof ctl.ameliorer === 'function' ? ctl.ameliorer : ctl.salon && typeof ctl.salon.ameliorer === 'function' ? ctl.salon.ameliorer.bind(ctl.salon) : null;
+    if (f) { try { f.call(ctl, Object.assign({}, sauv.coffre.ameliorations || {})); } catch (e) { signaler('améliorations', e); } }
+  }
   function equipDe(j) { // l'équipement d'un joueur du salon : le mien, sinon celui de sa présence (s'il est publié)
     if (j.moi) return equipValide(sauv.choix.equip, permisesSalon());
     const e = j.eq; // la présence du joueur ('ak74+p226'), rendue par ctl.joueurs()
@@ -15246,15 +15314,19 @@ const PUI = (() => {
     finTraitee = true; PCONTROLES.activer(false); eveille(false); astuce(false);
     const M = EXT(); let res = null; try { res = M && M.resultat ? M.resultat(jeu) : null; } catch (e) { signaler('extraction.resultat', e); res = null; }
     if (!res && evFin && evFin.resultat) res = evFin.resultat;
+    finExtraction(res, { mode: 'Extraction', boutons: [{ fin: 'rejouer', texte: 'Rejouer', cls: 'menthe' }, { fin: 'coffre', texte: 'Coffre', cls: 'blanc' }, { fin: 'menu', texte: 'Menu', cls: 'blanc' }] });
+  }
+  function finExtraction(res, o) {
     let b = null; try { b = PHUD.bilanExtraction(res, jeu, idMoi); } catch (e) { signaler('bilan', e); b = { sorti: false, objets: [], perdus: [], valeur: 0, kills: 0 }; }
     const rec = sauv.records.extraction, ancien = rec.meilleur || 0, record = b.sorti && b.valeur > ancien;
     rec.parties = (rec.parties || 0) + 1; rec.eliminations = (rec.eliminations || 0) + (b.kills || 0);
-    let gain = null; if (b.sorti) { rec.sorties = (rec.sorties || 0) + 1; rec.valeur = (rec.valeur || 0) + b.valeur; if (record) rec.meilleur = b.valeur; gain = deposer(b); }
+    let gain = null; if (b.sorti) { rec.sorties = (rec.sorties || 0) + 1; rec.valeur = (rec.valeur || 0) + b.valeur; if (record) rec.meilleur = b.valeur; }
+    if (b.sorti || b.ligne) gain = deposer(b); // (PBUTIN.deposer compte aussi les parties sans sortie)
     let avances = []; if (b.ligne) { const r = appelCoffre('progression', copie(b.ligne), Date.now()); if (r && r.ok && r.r && Array.isArray(r.r.avances)) avances = r.r.avances; }
     const contrats = contratsDuJour().filter((c) => avances.indexOf(c.i) >= 0 || (c.fait && !c.reclame));
     const zs = zoneSemaine(), semaine = !!(jeu.extraction && jeu.extraction.zoneSemaine) || !!(zs && reglagesPartie(jeu).zone === zs.id);
     sauv.derniere = Date.now(); sauver();
-    try { PHUD.fin(res, jeu, idMoi, { mode: 'Extraction', extraction: b, record, meilleur: ancien, pieces: sauv.coffre.pieces, gain, contrats, semaine: semaine && zs ? zs.bonus : 0, boutons: [{ fin: 'rejouer', texte: 'Rejouer', cls: 'menthe' }, { fin: 'coffre', texte: 'Coffre', cls: 'blanc' }, { fin: 'menu', texte: 'Menu', cls: 'blanc' }] }); } catch (e) { signaler('hud.fin', e); }
+    try { PHUD.fin(res, jeu, idMoi, { mode: o.mode, extraction: b, record, meilleur: ancien, pieces: sauv.coffre.pieces, gain, contrats, semaine: semaine && zs ? zs.bonus : 0, boutons: o.boutons, attente: o.attente || '' }); } catch (e) { signaler('hud.fin', e); }
     PSONS.jouer(b.sorti ? 'victoire' : 'defaite'); if (b.sorti) PSONS.vibrer([20, 40, 20, 40, 60]);
     montrer('fin');
   }
@@ -15506,7 +15578,7 @@ const PUI = (() => {
       if (c.salon && typeof c.salon.sur === 'function') c.salon.sur('reglages', (d) => { if (c !== ctl || c.estHote || !d || typeof d !== 'object') return; reglagesRecus = d.r && typeof d.r === 'object' ? d.r : d; if (ecran === 'salon') majSalon(); else if (ecran === 'options' && optCtx === 'salon') majOptions(); });
     } catch (e) { signaler('salon.sur', e); }
     if (c.estHote) annoncerReglages(true);
-    publierEquip();
+    publierEquip(); publierAmeliorations();
     c.sur('partie', (P) => { if (c !== ctl) return; demarrerEnLigne(P); });
     c.sur('salon', () => { if (c !== ctl) return; jeu = null; partieL = null; enLigne = false; finTraitee = false; force = null; astuce(false); PCONTROLES.activer(false); eveille(false); try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('salon'); });
     c.sur('ferme', (d) => {
@@ -15582,8 +15654,13 @@ const PUI = (() => {
   function terminerEnLigne(evFin) {
     finTraitee = true; PCONTROLES.activer(false); eveille(false); astuce(false);
     let res = evFin && evFin.resultat ? evFin.resultat : partieL && partieL.resultat ? partieL.resultat : null;
+    if (!res && estExtraction(jeu)) { try { const M = EXT(); res = M && M.resultat ? M.resultat(jeu) : null; } catch (e) { res = null; } }
     if (!res) { try { res = A.resultat(jeu); } catch (e) { res = evFin && evFin.classement ? { classement: evFin.classement } : null; } }
     const raison = res && res.raison, hote = !!(ctl && ctl.estHote) && ctl.joueurs().length >= 2; // relancer : l'hôte, à deux au moins
+    if (estExtraction(jeu) && !raison) { // l'Extraction entre copains : le résultat de l'hôte ; la ligne du joueur local va à son coffre
+      const boutons = hote ? [{ fin: 'rejouer', texte: 'Rejouer', cls: 'menthe' }, { fin: 'salon', texte: 'Salon', cls: 'blanc' }, { fin: 'menu', texte: 'Quitter', cls: 'blanc' }] : [{ fin: 'salon', texte: 'Salon', cls: 'menthe' }, { fin: 'menu', texte: 'Quitter', cls: 'blanc' }]; // (le butin est déjà au coffre)
+      finExtraction(res, { mode: 'Extraction entre copains', boutons, attente: hote ? '' : 'Si l’hôte relance, tu repars directement avec lui.' }); return;
+    }
     const message = raison === 'hote' ? 'L’hôte a quitté la partie' : raison === 'exclu' ? 'Tu as été déconnecté de la partie' : '';
     const boutons = hote ? [{ fin: 'rejouer', texte: 'Rejouer', cls: 'menthe' }, { fin: 'salon', texte: 'Salon', cls: 'blanc' }, { fin: 'menu', texte: 'Quitter', cls: 'blanc' }]
       : [{ fin: 'salon', texte: 'Salon', cls: 'menthe' }, { fin: 'menu', texte: 'Quitter', cls: 'blanc' }];
@@ -15614,7 +15691,7 @@ const PUI = (() => {
     sauv = lireSauv();
     const tactile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints || 0) > 0;
     try { PCONTROLES.init($('#commandes'), { tactile, reglages: sauv.reglages, actions: { pause, scores: (on) => PHUD.scores(on), verrouPerdu: pause } }); } catch (e) { signaler('controles.init', e); }
-    try { PHUD.init($('#hud'), { actions: { pause, rejouer, menu: quitter, salon: () => auSalon(), coffre: () => action('coffre'), reclamer: (b) => reclamer(b && b.dataset ? b.dataset.i : 0), arme: (i) => PCONTROLES.emplacement(i), recharger: () => PCONTROLES.recharger() } }); } catch (e) { signaler('hud.init', e); }
+    try { PHUD.init($('#hud'), { actions: { pause, rejouer, menu: quitter, salon: () => auSalon(), coffre: () => action('coffre'), reclamer: (b) => reclamer(b && b.dataset ? b.dataset.i : 0), sac: (o) => { if (PCONTROLES.objetSac) PCONTROLES.objetSac(o); }, arme: (i) => PCONTROLES.emplacement(i), recharger: () => PCONTROLES.recharger() } }); } catch (e) { signaler('hud.init', e); }
     appliquerReglages(); brancher(); montrer('chargement');
     last = performance.now(); tFps = last; requestAnimationFrame(boucle);
     installerCrochets();
@@ -15669,7 +15746,7 @@ const PUI = (() => {
       },
       menu: quitter, pause, reprendre, montrer, sauvegarde: () => JSON.parse(JSON.stringify(sauv)),
       // Extraction : la vue lue par le HUD (coffres, sorties, sac…), le coffre personnel, des pièces pour les essais
-      extraction: () => (jeu ? PHUD.extraction(jeu, idMoi) : null), coffre: () => JSON.parse(JSON.stringify(sauv.coffre)),
+      extraction: () => (jeu ? PHUD.extraction(jeu, idMoi) : null), coffre: (c) => { if (c && typeof c === 'object') { sauv.coffre = coffreValide(c); sauver(); if (ecran === 'coffre') majCoffre(); } return JSON.parse(JSON.stringify(sauv.coffre)); },
       pieces: (n) => { sauv.coffre.pieces = Math.max(0, Math.round(+n || 0)); sauver(); if (ecran === 'coffre') majCoffre(); if (ecran === 'modes') majModes(); return sauv.coffre.pieces; },
       enLigne: {
         etat: etatEnLigne,

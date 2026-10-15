@@ -220,7 +220,7 @@ window.atelier = (() => {
   }
   // ─── les scènes des captures (test/poncin-scene.cjs) : chacune repart d'un état propre ───
   const loin = (d, c) => devant(d, c);
-  function remettre() { centres = {}; for (const e of jeu.entites) { e.vivant = true; e.invincible = 0; e.accroupi = false; e.auSol = true; e.pitch = 0; e.rechargeJusqua = 0; e.vise = 0; e.posture = 'debout'; e.vers = 'debout'; e.transition = 0; e.course = false; e.corpsV2 = true; e.oeil = 1.6; } poser('moi', { arme: 'ak74' }); poser('ami', { arme: 'm4' }); poser('b1', { arme: 'ak74' }); poser('b2', { arme: 'pompe' }); poser('b3', { arme: 'awm' }); marche = false; atelier.titre = false; }
+  function remettre() { centres = {}; delete jeu.extraction; jeu.mode.id = 'arene'; for (const e of jeu.entites) { e.vivant = true; e.invincible = 0; e.accroupi = false; e.auSol = true; e.pitch = 0; e.rechargeJusqua = 0; e.vise = 0; e.posture = 'debout'; e.vers = 'debout'; e.transition = 0; e.course = false; e.corpsV2 = true; e.oeil = 1.6; } poser('moi', { arme: 'ak74' }); poser('ami', { arme: 'm4' }); poser('b1', { arme: 'ak74' }); poser('b2', { arme: 'pompe' }); poser('b3', { arme: 'awm' }); marche = false; atelier.titre = false; }
   function groupe(pts) { ['ami', 'b1', 'b2', 'b3'].forEach((id, i) => { const p = pts[i] || [60, 0]; const q = loin(p[0], p[1]); if (p[2] != null) q.yaw += p[2]; poser(id, q); }); }
   function murDevant(min, max) { const m = trouver('moi'); for (let k = 0; k < 64; k++) { const yaw = m.yaw + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 0.1, h = monde.rayon(m.x, m.y + 1.6, m.z, -Math.sin(yaw), 0, -Math.cos(yaw), max); if (h && h.quoi === 'mur' && h.t > min) { m.yaw = yaw; return h; } } return null; }
   const SCENES = {
@@ -257,6 +257,16 @@ window.atelier = (() => {
         for (const d of [[-0.8, 3.5], [0.4, 4.2], [-0.2, 2.8]]) { tir('moi', [m.x - Math.sin(m.yaw) * d[1] + ux * d[0], monde.hauteur(m.x - Math.sin(m.yaw) * d[1] + ux * d[0], m.z - Math.cos(m.yaw) * d[1] + uz * d[0]), m.z - Math.cos(m.yaw) * d[1] + uz * d[0]], 'ak74'); image(0.02); }
         const b = trouver('b1'); tir('moi', [b.x, b.y + 1.0, b.z], 'ak74'); PRENDU.evenements([{ t: 'tir', id: 'moi', arme: 'ak74', o: [m.x, m.y + 1.6, m.z], fin: [b.x, b.y + 1.0, b.z], impact: { x: b.x + Math.sin(m.yaw) * 0.38, y: b.y + 1.0, z: b.z + Math.cos(m.yaw) * 0.38, nx: Math.sin(m.yaw), ny: 0, nz: Math.cos(m.yaw), quoi: 'entite', id: 'b1' } }], jeu); touche('moi', 'b1');
         image(0.06); image(0.06); } },
+    // l'Extraction (au format de jeu.extraction, PEXTRACTION) : des coffres de chaque rareté (un ouvert), le coffre-fort, un sac au sol, une
+    // sortie ouverte (colonne de lumière, cercle, radio) et une fermée, un largage qui descend sous son parachute
+    extraction(R) { const p = R.place; camera(p.x, p.z, p.yaw, -0.06); groupe([[60, 0], [60, 0], [60, 0], [60, 0]]); jeu.mode.id = 'extraction';
+      const pt = (d, c) => { const q = loin(d, c); return [q.x, q.z]; }, cof = (d, c, rarete, o) => { const [x, z] = pt(d, c); return Object.assign({ id: 'c' + d + c, x, z, rarete, ouvert: false }, o || {}); };
+      const s1 = pt(26, -3), s2 = pt(90, 30), lg = pt(16, 5);
+      jeu.extraction = { coffres: [cof(4.5, -1.6, 'commun'), cof(5.5, 1.4, 'rare'), cof(8, -3.2, 'epique'), cof(9.5, 2.6, 'legendaire'), cof(12, -0.5, 'legendaire', { special: 'coffre-fort', verrou: true }), cof(7, 4.5, 'rare', { ouvert: true }), cof(40, -8, 'epique')],
+        extractions: [{ id: 'pont', nom: 'Le pont', x: s1[0], z: s1[1], rayon: 10 }, { id: 'cale', nom: 'La cale', x: s2[0], z: s2[1], rayon: 10 }], ouvertes: true, ouvreA: 0,
+        sacs: [{ id: 's0', x: pt(6, -0.2)[0], z: pt(6, -0.2)[1], objets: ['montre'], dispo: true, de: 'b1', attend: {} }], objets: [], signaux: [],
+        largage: { x: lg[0], z: lg[1], A: jeu.temps + 1.6, annonce: true, tombe: false, coffre: { id: 'lg', ouvert: false } } };
+      for (let i = 0; i < 6; i++) image(0.1); },
     // les postures, de près : le chibi (Léa) et un robot (Boulon) côte à côte ; postures : la scène de chacune et une vue d'ensemble
     postures(R) { const p = R.place; camera(p.x, p.z, p.yaw, -0.1); groupe([[3.6, -1.6, 0.6], [4.4, 1.4, -0.4], [6.2, -0.2, 0.2], [5.4, 2.8, -0.9]]);
       poser('ami', { posture: 'accroupi', vers: 'accroupi', accroupi: true, arme: 'mp9' }); poser('b1', { posture: 'couche', vers: 'couche', accroupi: true, arme: 'm24' }); poser('b2', { posture: 'glisse', vers: 'glisse', accroupi: true, arme: 'pompe', auSol: true }); poser('b3', { vise: 1, arme: 'awm' });

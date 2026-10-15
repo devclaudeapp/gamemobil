@@ -15,7 +15,11 @@
    sourd quand un joueur est éliminé de la manche (événements 'manche' et 'elimine' de l'Arène).
    L'arme d'un événement : PREGLES.arme(id).classe (le contrat), sinon PAVATARS.armes.classe(id) (le modèle), sinon 'fusil'. Les
    changements d'état du joueur (posture, arme en main, visée, déplacement accroupi ou couché) sont lus sur l'entité à chaque appel
-   d'evenements (une fois par pas, même sans événement). */
+   d'evenements (une fois par pas, même sans événement).
+   L'Extraction : la main au coffre, le coffre qui grince et s'ouvre, le butin qui tinte (plus riche selon la rareté), l'alarme des
+   sorties qui s'ouvrent, le tic de chaque seconde dans le cercle, l'extraction réussie, relever, le sac qui tombe, le sac plein, le
+   largage (l'avion qui passe, la caisse qui touche le sol), la prime, la clé, la lampe, le « ping » d'un signal d'équipe, l'achat et la
+   vente au coffre personnel. */
 const PSONS = (() => {
   'use strict';
   let ctx = null, maitre = null, comp = null, bruit = null, actif = true, vibre = true, volume = 0.85, budget = 0, budgetT = 0, pasAlterne = 0;

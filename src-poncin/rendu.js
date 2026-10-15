@@ -44,7 +44,10 @@
    compilée tout de suite : à appeler pendant le compte à rebours ; sans appel, la partie prend jeu.reglages / jeu.options ; détail dans la
    section « l'ambiance »), stats.ambiance → { heure, meteo, nuit, appels (ajoutés), lumieres, lampe, sources, gouttes, brume, ombres,
    compile (ms), programmes, cloture: { forme, aretes, tranches, piquets, distance } } ; la clôture suit jeu.zone.limite (arêtes), sinon
-   monde.limite (section « la clôture de la zone »). */
+   monde.limite (section « la clôture de la zone »).
+   L'Extraction (section « l'Extraction ») : coffres par rareté (formes simples ; de près et hors éco, les modèles Poly Haven CC0 de
+   poncin/objets/, lus en arrière-plan : stats.objets3d), coffre-fort, sacs au sol, balises de sortie (radio, colonne de lumière, cercle
+   drapé), largage sous parachute et fumée rouge, le Gardien (robot plus massif, sombre, aux yeux rouges), d'après jeu.extraction. */
 const PRENDU = (() => {
   'use strict';
   const OK3 = typeof THREE !== 'undefined' && typeof MODELES !== 'undefined' && !!MODELES;
@@ -1334,7 +1337,7 @@ const PRENDU = (() => {
   // de fumée rouge (les bouffées de FX.fumees). Les formes sont simples et colorées par rareté (toujours en éco) ; PRENDU.objets3d(geos)
   // peut leur substituer des modèles chargés (poncin/objets/*.glb, voir chargerObjets3d).
   const RARS3 = ['commun', 'rare', 'epique', 'legendaire'], COUL_R3 = { commun: '#B8BCC8', rare: '#4F8DFF', epique: '#A66BFF', legendaire: '#FFC23A' };
-  const SORTES = ['commun', 'rare', 'epique', 'legendaire', 'fort', 'sac', 'largage', 'radio'];
+  const SORTES = ['commun', 'rare', 'epique', 'legendaire', 'fort', 'sac', 'largage', 'radio', 'eco'];
   const EX3 = { im: {}, pres: {}, lueurs: null, colonnes: null, cercles: null, parachute: null, cleCercles: '', t: -1, fumeeT: 0, n: 0, charge: null, erreurs: [] };
   const rar3 = (c) => { const r = c && (c.rarete != null ? c.rarete : c.rang); if (typeof r === 'number') return RARS3[Math.max(0, Math.min(3, r | 0))]; if (r === 'épique') return 'epique'; if (r === 'légendaire') return 'legendaire'; return RARS3.indexOf(r) >= 0 ? r : 'commun'; };
   const px3 = (o, k) => (o ? (fini(+o[k ? 'z' : 'x']) ? +o[k ? 'z' : 'x'] : Array.isArray(o.p) ? +o.p[k] : NaN) : NaN);
@@ -1345,6 +1348,10 @@ const PRENDU = (() => {
     if (r === 'epique') return M.assembler([P(B(0.95, 0.52, 0.58, 0.05), '#4A4F5F'), P(B(0.97, 0.18, 0.6, 0.06), '#3B3F4C', { y: 0.5 }), P(S(0.99, 0.06, 0.62), c, { y: 0.2 }), P(S(0.99, 0.06, 0.62), c, { y: 0.45 }), P(S(0.18, 0.16, 0.04), '#FFD27A', { y: 0.3, z: 0.3 }), P(S(0.4, 0.04, 0.08), '#9EA4B4', { y: 0.7 })]);
     const arc = M.cylindre(0.3, 0.3, 0.9, 12); // légendaire : le couvercle bombé, les ferrures dorées
     return M.assembler([P(B(0.95, 0.48, 0.62, 0.04), '#8B4E2B'), { geo: arc, col: '#A35E34', m: M.matrice({ rz: HP, x: 0.45, y: 0.46 }) }, P(S(0.97, 0.06, 0.64), c, { y: 0.06 }), P(S(0.97, 0.06, 0.64), c, { y: 0.42 }), P(S(0.06, 0.78, 0.64), c, { x: -0.3 }), P(S(0.06, 0.78, 0.64), c, { x: 0.3 }), P(S(0.18, 0.2, 0.04), c, { y: 0.32, z: 0.32 })]);
+  }
+  function geoCoffreEco() { // la forme blanche (teintée par instance) des coffres en éco : caisse, bandes plus sombres, serrure claire
+    const P = M.part, B = M.boite, S = M.boiteSimple;
+    return M.assembler([P(B(0.9, 0.52, 0.6, 0.04), '#FFFFFF'), P(S(0.92, 0.07, 0.62), '#8A8A8A', { y: 0.14 }), P(S(0.92, 0.07, 0.62), '#8A8A8A', { y: 0.42 }), P(S(0.18, 0.14, 0.03), '#F4F4F4', { y: 0.3, z: 0.31 })]);
   }
   function geoSorte(k) {
     if (RARS3.indexOf(k) >= 0) return geoCoffre(k);
@@ -1357,8 +1364,10 @@ const PRENDU = (() => {
   }
   function construireExtraction() {
     EX3.pres = {}; EX3.charge = null; EX3.cleCercles = '';
-    const mk = (geo, n, nom) => { const im = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }), n); im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3); im.frustumCulled = false; im.count = 0; im.visible = false; im.name = 'ext-' + nom; im.castShadow = true; im.receiveShadow = false; scene.add(im); return im; };
-    for (const k of SORTES) EX3.im[k] = mk(geoSorte(k), k === 'fort' || k === 'radio' || k === 'largage' ? 4 : k === 'sac' ? 8 : 48, k);
+    const mk = (geo, n, nom) => { const im = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }), n); im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3); im.frustumCulled = false; im.count = 0; im.visible = false; im.name = 'ext-' + nom; im.castShadow = false; im.receiveShadow = false; scene.add(im); return im; };
+    for (const k of SORTES) if (k !== 'eco') EX3.im[k] = mk(geoSorte(k), k === 'fort' || k === 'radio' || k === 'largage' ? 4 : k === 'sac' ? 8 : 48, k);
+    // en éco, tous les coffres (raretés, coffre-fort, largage) par UNE forme, teintée par sa couleur d'instance : un seul appel de dessin
+    EX3.im.eco = mk(geoCoffreEco(), 64, 'coffres-eco');
     // la lueur : un cylindre ouvert, dégradé vers le haut, additif
     const gl = new THREE.CylinderGeometry(0.5, 0.62, 1.7, 14, 1, true).translate(0, 0.85, 0), n = gl.attributes.position.count, ca = new Float32Array(n * 4);
     for (let i = 0; i < n; i++) { const y = gl.attributes.position.getY(i); ca[i * 4] = ca[i * 4 + 1] = ca[i * 4 + 2] = 1; ca[i * 4 + 3] = y < 0.5 ? 0.55 : 0; }
@@ -1406,12 +1415,12 @@ const PRENDU = (() => {
     const coffres = Array.isArray(E.coffres) ? E.coffres : crochet3(jeu, 'coffres') || [];
     for (let i = 0; i < coffres.length; i++) {
       const c = coffres[i]; if (!c) continue; const x = px3(c, 0), z = px3(c, 1); if (!fini(x) || !fini(z) || (x - cx) * (x - cx) + (z - cz) * (z - cz) > D2) continue;
-      if (c.special === 'largage') continue; // la caisse du largage : dessinée avec lui (et sa fumée)
+      if (c.special === 'largage' || c.id === 'largage') continue; // la caisse du largage : dessinée avec lui (et sa fumée)
       const fort = !!(c.fort || c.verrou || c.special === 'coffre-fort' || c.special === 'mairie' || c.type === 'coffre-fort' || c.type === 'fort'), r = rar3(c), k = fort ? 'fort' : r, im = EX3.im[k]; if (im.count >= im.instanceMatrix.count) continue;
       const ouvert = !!(c.ouvert || c.etat === 'ouvert' || c.vide || c.dispo === false), y = HS(x, z), ry = fini(+c.yaw) ? +c.yaw : ((i * 2.399) % TAU);
       _v.set(x, y, z); _e.set(0, ry, 0); _q.setFromEuler(_e); _s.set(1, 1, 1); _m.compose(_v, _q, _s);
       const kk = ouvert ? 0.42 : 1, pres = (x - cx) * (x - cx) + (z - cz) * (z - cz) < PRES3 * PRES3; poserInstance(k, pres, kk);
-      if (!ouvert && EX3.lueurs.count < 48) { // la lueur de la rareté (plus vive pour les beaux coffres), qui respire
+      if (!ouvert && EX3.lueurs.count < 48 && QUAL.niveau !== 'eco') { // la lueur de la rareté (plus vive pour les beaux coffres), qui respire
         const L = EX3.lueurs, n = L.count++, f = (r === 'commun' ? 0.35 : r === 'rare' ? 0.65 : 0.9) * (0.85 + 0.15 * Math.sin(t * 2.4 + i)) * borne((Math.hypot(x - cx, z - cz) - 1) / 5, 0.25, 1), cl = lin(fort ? COUL_R3.legendaire : COUL_R3[r]);
         _s.set(fort ? 1.25 : 1, r === 'legendaire' || fort ? 1.5 : 1, fort ? 1.25 : 1); _m.compose(_v, _q, _s); L.setMatrixAt(n, _m); L.instanceColor.setXYZ(n, cl[0] * f, cl[1] * f, cl[2] * f);
       }
@@ -1471,19 +1480,22 @@ const PRENDU = (() => {
     const parts = []; const bb = new THREE.Box3();
     racine.traverse((o) => { if (!o.isMesh || !o.geometry) return; const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld); g.computeBoundingBox(); bb.union(g.boundingBox); parts.push({ g, m: o.material }); });
     if (!parts.length) return;
+    if (parts.length > 1) { parts.sort((a, b) => b.g.attributes.position.count - a.g.attributes.position.count); parts.length = 1; bb.makeEmpty(); bb.union(parts[0].g.boundingBox); } // (le plus gros morceau seul : un appel de dessin)
     const dx = bb.max.x - bb.min.x, dz = bb.max.z - bb.min.z, sc = (TAILLE3[k] || 0.8) / Math.max(0.01, dx, dz), cx = (bb.max.x + bb.min.x) / 2, cz = (bb.max.z + bb.min.z) / 2;
     const n = k === 'radio' || k === 'largage' || k === 'jerrycan' ? 4 : k === 'sac' ? 8 : 12, ims = [];
     for (const p of parts) {
       p.g.translate(-cx, -bb.min.y, -cz); p.g.scale(sc, sc, sc); if (!p.g.attributes.normal) p.g.computeVertexNormals();
       const src = Array.isArray(p.m) ? p.m[0] : p.m, map = src && src.map ? src.map : null; if (map) { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4; }
       const mat = new THREE.MeshLambertMaterial({ color: map ? '#FFFFFF' : src && src.color ? src.color : '#B98A57', map });
-      const im = new THREE.InstancedMesh(p.g, mat, n); im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3); im.frustumCulled = false; im.count = 0; im.visible = false; im.castShadow = true; im.name = 'ext-glb-' + k; scene.add(im); ims.push(im);
+      const im = new THREE.InstancedMesh(p.g, mat, n); im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3); im.frustumCulled = false; im.count = 0; im.visible = false; im.castShadow = false; im.name = 'ext-glb-' + k; scene.add(im); ims.push(im);
     }
     EX3.pres[k] = ims; memoireSale = true;
   }
+  const TEINTE_ECO = { commun: '#C9B08A', rare: '#6FA0FF', epique: '#B47BFF', legendaire: '#FFC23A', fort: '#7C8494', largage: '#7E8C55' };
   function poserInstance(k, j, kk, loinIm) { // _m posé : près, le modèle (tous ses morceaux) ; sinon la forme simple
-    const ims = EX3.pres[k];
-    if (ims && j && QUAL.niveau !== 'eco') { for (const im of ims) { if (im.count >= im.instanceMatrix.count) return false; const n = im.count++; im.setMatrixAt(n, _m); im.instanceColor.setXYZ(n, kk, kk, kk); } return true; }
+    const ims = EX3.pres[k], eco = QUAL.niveau === 'eco';
+    if (ims && j && !eco) { for (const im of ims) { if (im.count >= im.instanceMatrix.count) return false; const n = im.count++; im.setMatrixAt(n, _m); im.instanceColor.setXYZ(n, kk, kk, kk); } return true; }
+    if (eco && TEINTE_ECO[k] && EX3.im.eco) { const im = EX3.im.eco; if (im.count >= im.instanceMatrix.count) return false; const n = im.count++, c = lin(TEINTE_ECO[k]); _s.set(k === 'fort' ? 1.05 : k === 'largage' ? 1.25 : 1, k === 'fort' ? 2.2 : k === 'largage' ? 1.4 : 1, k === 'largage' ? 1.8 : 1); _m2.makeScale(_s.x, _s.y, _s.z); _m.multiply(_m2); im.setMatrixAt(n, _m); im.instanceColor.setXYZ(n, c[0] * kk, c[1] * kk, c[2] * kk); return true; }
     const im = loinIm || EX3.im[k]; if (!im || im.count >= im.instanceMatrix.count) return false; const n = im.count++; im.setMatrixAt(n, _m); im.instanceColor.setXYZ(n, kk, kk, kk); return true;
   }
   function finirPres() { for (const k in EX3.pres) for (const im of EX3.pres[k]) { im.visible = im.count > 0; if (im.count) { im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; } } }

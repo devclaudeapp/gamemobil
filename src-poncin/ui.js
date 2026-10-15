@@ -22,7 +22,16 @@
    Tout appel aux autres modules est gardé : sans Three.js ou sans WebGL, un panneau clair ; une erreur ne fige jamais l'écran.
    La boucle (conception § 2) : la partie avance par pas fixes de 1/60 s (PJEU.pasFixe, au plus 4 pas par image, au-delà le temps est
    perdu), en solo, chez l'hôte et chez le client ; les commandes sont lues une fois par image dans un cumul (PCONTROLES.lire) et
-   chaque pas prend son entrée (PCONTROLES.consommer) ; l'image reçoit alpha (la fraction du pas en cours) pour interpoler. */
+   chaque pas prend son entrée (PCONTROLES.consommer) ; l'image reçoit alpha (la fraction du pas en cours) pour interpoler.
+   L'Extraction (PEXTRACTION, PBUTIN : le groupe des règles ; tout est lu avec un repli tolérant, et sans eux la carte « Bientôt ») : le
+   mode est un réglage (reglages.mode : la carte de mission du menu et l'onglet Partie ; la zone et la durée de chaque mode sont gardées
+   dans choix.parMode), avec ses lignes (durées 5 / 8 / 12 min, zones conseillées et zone de la semaine, gardiens ; à plusieurs : format
+   ensemble / équipes rivales (2 ou 3) / chacun pour soi : formatExtraction, equipesExtraction) ; la partie (PJEU.creer({ mode:
+   PEXTRACTION, humains, maintenant }), le joueur part avec ses améliorations : ajouterJoueur({ ameliorations })) ; l'action contextuelle
+   (PHUD.contexte → PCONTROLES.contexte), les signaux posés là où l'on vise (entrée signal { type, x, y, z }), la lampe ; la fin
+   (PEXTRACTION.resultat lu par PHUD.bilanExtraction : écran de fin, PBUTIN.deposer et progression des contrats, record) ; le coffre
+   personnel 'coffre' (sauv.coffre, format de PBUTIN.lireCoffre) : des onglets extensibles (ONGLETS_COFFRE : Matériel avec « Vendre »,
+   Contrats du jour avec « Réclamer », Améliorations ; demain « Base », « Raid »). Jamais rien de tout ça en Arène. */
 const PUI = (() => {
   'use strict';
   const CLE = 'poncin.v2', CLE_V1 = 'poncin.v1', $ = (s) => document.querySelector(s), $$ = (s) => Array.from(document.querySelectorAll(s));
@@ -373,7 +382,7 @@ const PUI = (() => {
       const d = appelCoffre('depenser', prix); if (d && !d.ok) { toast('Pas assez de pièces.'); majCoffre(); return; }
       if (!d) sauv.coffre.pieces -= prix; if (!sauv.coffre.ameliorations) sauv.coffre.ameliorations = {}; sauv.coffre.ameliorations[id] = n + 1; ok = true;
     } else if (!ok && r.r && r.r.raison) toast(String(r.r.raison));
-    if (ok) { sauver(); PSONS.ui('achat'); toast(`${a.nom} : niveau ${n + 1} !`); }
+    if (ok) { sauver(); PSONS.ui('achat'); toast(`${a.nom} : niveau ${n + 1} !`); publierAmeliorations(); }
     majCoffre();
   }
   // après une partie : ce qui est sorti entre au coffre (PBUTIN.rendre(coffre, objets), ou deposer ; sinon ici), comme matériel à garder ou vendre
@@ -554,6 +563,10 @@ const PUI = (() => {
     const q = equipValide(sauv.choix.equip, permisesSalon());
     try { if (typeof ctl.equiper === 'function') ctl.equiper(q.p + '+' + q.s); } catch (e) { signaler('équipement', e); }
   }
+  function publierAmeliorations() { // les améliorations du coffre personnel passent par le salon (l'hôte les donne à chacun au lancement)
+    if (!ctl) return; const f = typeof ctl.ameliorer === 'function' ? ctl.ameliorer : ctl.salon && typeof ctl.salon.ameliorer === 'function' ? ctl.salon.ameliorer.bind(ctl.salon) : null;
+    if (f) { try { f.call(ctl, Object.assign({}, sauv.coffre.ameliorations || {})); } catch (e) { signaler('améliorations', e); } }
+  }
   function equipDe(j) { // l'équipement d'un joueur du salon : le mien, sinon celui de sa présence (s'il est publié)
     if (j.moi) return equipValide(sauv.choix.equip, permisesSalon());
     const e = j.eq; // la présence du joueur ('ak74+p226'), rendue par ctl.joueurs()
@@ -661,15 +674,19 @@ const PUI = (() => {
     finTraitee = true; PCONTROLES.activer(false); eveille(false); astuce(false);
     const M = EXT(); let res = null; try { res = M && M.resultat ? M.resultat(jeu) : null; } catch (e) { signaler('extraction.resultat', e); res = null; }
     if (!res && evFin && evFin.resultat) res = evFin.resultat;
+    finExtraction(res, { mode: 'Extraction', boutons: [{ fin: 'rejouer', texte: 'Rejouer', cls: 'menthe' }, { fin: 'coffre', texte: 'Coffre', cls: 'blanc' }, { fin: 'menu', texte: 'Menu', cls: 'blanc' }] });
+  }
+  function finExtraction(res, o) {
     let b = null; try { b = PHUD.bilanExtraction(res, jeu, idMoi); } catch (e) { signaler('bilan', e); b = { sorti: false, objets: [], perdus: [], valeur: 0, kills: 0 }; }
     const rec = sauv.records.extraction, ancien = rec.meilleur || 0, record = b.sorti && b.valeur > ancien;
     rec.parties = (rec.parties || 0) + 1; rec.eliminations = (rec.eliminations || 0) + (b.kills || 0);
-    let gain = null; if (b.sorti) { rec.sorties = (rec.sorties || 0) + 1; rec.valeur = (rec.valeur || 0) + b.valeur; if (record) rec.meilleur = b.valeur; gain = deposer(b); }
+    let gain = null; if (b.sorti) { rec.sorties = (rec.sorties || 0) + 1; rec.valeur = (rec.valeur || 0) + b.valeur; if (record) rec.meilleur = b.valeur; }
+    if (b.sorti || b.ligne) gain = deposer(b); // (PBUTIN.deposer compte aussi les parties sans sortie)
     let avances = []; if (b.ligne) { const r = appelCoffre('progression', copie(b.ligne), Date.now()); if (r && r.ok && r.r && Array.isArray(r.r.avances)) avances = r.r.avances; }
     const contrats = contratsDuJour().filter((c) => avances.indexOf(c.i) >= 0 || (c.fait && !c.reclame));
     const zs = zoneSemaine(), semaine = !!(jeu.extraction && jeu.extraction.zoneSemaine) || !!(zs && reglagesPartie(jeu).zone === zs.id);
     sauv.derniere = Date.now(); sauver();
-    try { PHUD.fin(res, jeu, idMoi, { mode: 'Extraction', extraction: b, record, meilleur: ancien, pieces: sauv.coffre.pieces, gain, contrats, semaine: semaine && zs ? zs.bonus : 0, boutons: [{ fin: 'rejouer', texte: 'Rejouer', cls: 'menthe' }, { fin: 'coffre', texte: 'Coffre', cls: 'blanc' }, { fin: 'menu', texte: 'Menu', cls: 'blanc' }] }); } catch (e) { signaler('hud.fin', e); }
+    try { PHUD.fin(res, jeu, idMoi, { mode: o.mode, extraction: b, record, meilleur: ancien, pieces: sauv.coffre.pieces, gain, contrats, semaine: semaine && zs ? zs.bonus : 0, boutons: o.boutons, attente: o.attente || '' }); } catch (e) { signaler('hud.fin', e); }
     PSONS.jouer(b.sorti ? 'victoire' : 'defaite'); if (b.sorti) PSONS.vibrer([20, 40, 20, 40, 60]);
     montrer('fin');
   }
@@ -921,7 +938,7 @@ const PUI = (() => {
       if (c.salon && typeof c.salon.sur === 'function') c.salon.sur('reglages', (d) => { if (c !== ctl || c.estHote || !d || typeof d !== 'object') return; reglagesRecus = d.r && typeof d.r === 'object' ? d.r : d; if (ecran === 'salon') majSalon(); else if (ecran === 'options' && optCtx === 'salon') majOptions(); });
     } catch (e) { signaler('salon.sur', e); }
     if (c.estHote) annoncerReglages(true);
-    publierEquip();
+    publierEquip(); publierAmeliorations();
     c.sur('partie', (P) => { if (c !== ctl) return; demarrerEnLigne(P); });
     c.sur('salon', () => { if (c !== ctl) return; jeu = null; partieL = null; enLigne = false; finTraitee = false; force = null; astuce(false); PCONTROLES.activer(false); eveille(false); try { PHUD.reinit(); } catch (e) { /* rien */ } montrer('salon'); });
     c.sur('ferme', (d) => {
@@ -997,8 +1014,13 @@ const PUI = (() => {
   function terminerEnLigne(evFin) {
     finTraitee = true; PCONTROLES.activer(false); eveille(false); astuce(false);
     let res = evFin && evFin.resultat ? evFin.resultat : partieL && partieL.resultat ? partieL.resultat : null;
+    if (!res && estExtraction(jeu)) { try { const M = EXT(); res = M && M.resultat ? M.resultat(jeu) : null; } catch (e) { res = null; } }
     if (!res) { try { res = A.resultat(jeu); } catch (e) { res = evFin && evFin.classement ? { classement: evFin.classement } : null; } }
     const raison = res && res.raison, hote = !!(ctl && ctl.estHote) && ctl.joueurs().length >= 2; // relancer : l'hôte, à deux au moins
+    if (estExtraction(jeu) && !raison) { // l'Extraction entre copains : le résultat de l'hôte ; la ligne du joueur local va à son coffre
+      const boutons = hote ? [{ fin: 'rejouer', texte: 'Rejouer', cls: 'menthe' }, { fin: 'salon', texte: 'Salon', cls: 'blanc' }, { fin: 'menu', texte: 'Quitter', cls: 'blanc' }] : [{ fin: 'salon', texte: 'Salon', cls: 'menthe' }, { fin: 'menu', texte: 'Quitter', cls: 'blanc' }]; // (le butin est déjà au coffre)
+      finExtraction(res, { mode: 'Extraction entre copains', boutons, attente: hote ? '' : 'Si l’hôte relance, tu repars directement avec lui.' }); return;
+    }
     const message = raison === 'hote' ? 'L’hôte a quitté la partie' : raison === 'exclu' ? 'Tu as été déconnecté de la partie' : '';
     const boutons = hote ? [{ fin: 'rejouer', texte: 'Rejouer', cls: 'menthe' }, { fin: 'salon', texte: 'Salon', cls: 'blanc' }, { fin: 'menu', texte: 'Quitter', cls: 'blanc' }]
       : [{ fin: 'salon', texte: 'Salon', cls: 'menthe' }, { fin: 'menu', texte: 'Quitter', cls: 'blanc' }];
@@ -1029,7 +1051,7 @@ const PUI = (() => {
     sauv = lireSauv();
     const tactile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints || 0) > 0;
     try { PCONTROLES.init($('#commandes'), { tactile, reglages: sauv.reglages, actions: { pause, scores: (on) => PHUD.scores(on), verrouPerdu: pause } }); } catch (e) { signaler('controles.init', e); }
-    try { PHUD.init($('#hud'), { actions: { pause, rejouer, menu: quitter, salon: () => auSalon(), coffre: () => action('coffre'), reclamer: (b) => reclamer(b && b.dataset ? b.dataset.i : 0), arme: (i) => PCONTROLES.emplacement(i), recharger: () => PCONTROLES.recharger() } }); } catch (e) { signaler('hud.init', e); }
+    try { PHUD.init($('#hud'), { actions: { pause, rejouer, menu: quitter, salon: () => auSalon(), coffre: () => action('coffre'), reclamer: (b) => reclamer(b && b.dataset ? b.dataset.i : 0), sac: (o) => { if (PCONTROLES.objetSac) PCONTROLES.objetSac(o); }, arme: (i) => PCONTROLES.emplacement(i), recharger: () => PCONTROLES.recharger() } }); } catch (e) { signaler('hud.init', e); }
     appliquerReglages(); brancher(); montrer('chargement');
     last = performance.now(); tFps = last; requestAnimationFrame(boucle);
     installerCrochets();
@@ -1084,7 +1106,7 @@ const PUI = (() => {
       },
       menu: quitter, pause, reprendre, montrer, sauvegarde: () => JSON.parse(JSON.stringify(sauv)),
       // Extraction : la vue lue par le HUD (coffres, sorties, sac…), le coffre personnel, des pièces pour les essais
-      extraction: () => (jeu ? PHUD.extraction(jeu, idMoi) : null), coffre: () => JSON.parse(JSON.stringify(sauv.coffre)),
+      extraction: () => (jeu ? PHUD.extraction(jeu, idMoi) : null), coffre: (c) => { if (c && typeof c === 'object') { sauv.coffre = coffreValide(c); sauver(); if (ecran === 'coffre') majCoffre(); } return JSON.parse(JSON.stringify(sauv.coffre)); },
       pieces: (n) => { sauv.coffre.pieces = Math.max(0, Math.round(+n || 0)); sauver(); if (ecran === 'coffre') majCoffre(); if (ecran === 'modes') majModes(); return sauv.coffre.pieces; },
       enLigne: {
         etat: etatEnLigne,

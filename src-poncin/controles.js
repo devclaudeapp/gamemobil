@@ -25,14 +25,18 @@
    multiplie par k (ui.js : 1 − ralentir de l'aide à la visée, pour que le regard affiché entre deux pas ne montre pas plus que ce que le
    pas appliquera : il ne recule jamais).
    PCONTROLES.maj(jeu, moi, evs) : l'état des boutons (icône de posture, visée, recharge, course), le zoom de l'arme pour la sensibilité,
-   les refus. PCONTROLES.ICONES : les icônes (postures comprises, reprises par le HUD). Objets réutilisés : aucune allocation par image. */
+   les refus. PCONTROLES.ICONES : les icônes (postures comprises, reprises par le HUD). Objets réutilisés : aucune allocation par image.
+   L'Extraction : le bouton d'action contextuel (PCONTROLES.contexte({ quoi: 'ouvrir' | 'ramasser' | 'relever', texte, p }) le montre, son
+   libellé et sa progression ; tenu ou E / F au clavier : le niveau entree.action), la lampe la nuit (bouton, L : le front entree.lampe) et
+   la roue des signaux (appui long de 400 ms immobile sur la vue, ou G tenu : Coffre ici, Ennemi, On sort par là, Ici ; le front
+   entree.signal = le type, ui.js y ajoute le point visé) ; PCONTROLES.mode({ extraction, nuit }). */
 const PCONTROLES = (() => {
   'use strict';
   const DEG = Math.PI / 180, RAYON = 60, MORTE = 0.08, K_DOIGT = 0.22 * DEG, EXPO = 1.15, K_SOURIS = 0.0022;
   // courir au joystick : entrer à |j| ≥ 0,92 et ≤ 40° de l'avant, sortir sous 0,85 ou au-delà de 50° ; l'appui long d'Accroupi (ms)
   const COURSE_IN = 0.92, COURSE_OUT = 0.85, ANGLE_IN = 40 * DEG, ANGLE_OUT = 50 * DEG, APPUI_LONG = 350;
-  const entree = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, course: false, couche: false, vise: false, recharge: false, arme: null, changer: false, action: false, lampe: false, signal: null }; // l'entrée d'un pas
-  const cumul = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, course: false, couche: false, vise: false, recharge: false, arme: null, changer: false, tirBref: false, action: false, actionBref: false, lampe: false, signal: null }; // depuis le dernier pas
+  const entree = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, course: false, couche: false, vise: false, recharge: false, arme: null, changer: false, action: false, lampe: false, signal: null, lacher: null, utiliser: null }; // l'entrée d'un pas
+  const cumul = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, course: false, couche: false, vise: false, recharge: false, arme: null, changer: false, tirBref: false, action: false, actionBref: false, lampe: false, signal: null, lacher: null, utiliser: null }; // depuis le dernier pas
   const ATTENTE = { dyaw: 0, dpitch: 0 };
   let kAttente = 1; // la part du regard en attente que le rendu montre (attenuer)
   // les réglages du joueur : visee 'auto' (bascule au doigt, maintenue à la souris) | 'bascule' | 'maintenir' ; course 'joystick' | 'bouton'
@@ -268,7 +272,7 @@ const PCONTROLES = (() => {
   }
   function viderCumul() {
     cumul.avant = 0; cumul.cote = 0; cumul.dyaw = 0; cumul.dpitch = 0; cumul.tir = false; cumul.saut = false; cumul.accroupi = false; cumul.course = false; cumul.couche = false; cumul.vise = false;
-    cumul.recharge = false; cumul.arme = null; cumul.changer = false; cumul.tirBref = false; cumul.action = false; cumul.actionBref = false; cumul.lampe = false; cumul.signal = null;
+    cumul.recharge = false; cumul.arme = null; cumul.changer = false; cumul.tirBref = false; cumul.action = false; cumul.actionBref = false; cumul.lampe = false; cumul.signal = null; cumul.lacher = null; cumul.utiliser = null;
   }
 
   // ─── clavier ───
@@ -308,6 +312,8 @@ const PCONTROLES = (() => {
   function molette(e) { if (!actif || !verrouille() || nArmes < 2 || !e.deltaY) return; changerL = true; }
   window.addEventListener('wheel', molette, { passive: true });
   // les ordres venus du HUD (les pastilles d'armes, le compteur de munitions)
+  // un objet du sac (Extraction, depuis la liste du HUD) : { lacher: i } ou { utiliser: i }, des fronts
+  function objetSac(o) { if (!actif || !o) return; if (o.lacher != null) cumul.lacher = o.lacher | 0; if (o.utiliser != null) cumul.utiliser = o.utiliser | 0; }
   function emplacement(slot) { if (actif && (slot === 0 || slot === 1)) armeL = slot; }
   function recharger() { if (actif) rechargeL = true; }
 
@@ -350,6 +356,7 @@ const PCONTROLES = (() => {
     entree.saut = cumul.saut; entree.recharge = cumul.recharge; entree.arme = cumul.arme; entree.changer = cumul.changer;
     entree.action = cumul.action || cumul.actionBref; // tenu, ou un appui bref (relâché avant l'image) : une fois
     entree.lampe = cumul.lampe; entree.signal = cumul.signal; cumul.lampe = false; cumul.signal = null; // des fronts (l'Extraction)
+    entree.lacher = cumul.lacher; entree.utiliser = cumul.utiliser; cumul.lacher = null; cumul.utiliser = null;
     cumul.dyaw = 0; cumul.dpitch = 0; cumul.saut = false; cumul.recharge = false; cumul.arme = null; cumul.changer = false; cumul.tirBref = false; cumul.actionBref = false;
     return entree;
   }
@@ -407,6 +414,6 @@ const PCONTROLES = (() => {
     if (q !== vu.rech) { vu.rech = q; elAnneau.style.strokeDashoffset = String(100 - q); elRecharge.classList.toggle('charge', q > 0 && q < 100); }
   }
 
-  return { init, lire, consommer, enAttente, attenuer, regler, activer, taille, reinit, maj, modeTactile, verrouiller, lacher, emplacement, recharger, contexte, mode, SIGNAUX, ICONES, get roue() { return roue ? { choix: roue.choix } : null; }, ICO_ACTION, get contexteVu() { return ctxVu; },
+  return { init, lire, consommer, enAttente, attenuer, regler, activer, taille, reinit, maj, modeTactile, verrouiller, lacher, emplacement, recharger, objetSac, contexte, mode, SIGNAUX, ICONES, get roue() { return roue ? { choix: roue.choix } : null; }, ICO_ACTION, get contexteVu() { return ctxVu; },
     get reglages() { return R; }, get tactile() { return tactile; }, get actif() { return actif; }, get verrouille() { return verrouille(); } };
 })();

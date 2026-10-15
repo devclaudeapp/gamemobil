@@ -803,3 +803,12 @@ body.gaucher .h-bas { left: 60%; }
 .h-fin-contrats .cf-contrat { padding: 3px 6px 3px 10px; } .h-fin-contrats .cf-contrat b { font-size: 12px; } .h-fin-contrats .bouton { min-height: 34px; font-size: 13px; }
 .h-fin-d .h-table.ext.rivaux th:nth-child(n+2) { width: 50px; } .h-table.ext.rivaux td { font-size: 13px; }
 .op-l[data-k="formatExtraction"] { grid-column: 1 / -1; }
+.h-sac { cursor: pointer; } .h-sac[aria-expanded="true"] { background: #FFF1C9; }
+.h-sac-liste { position: absolute; left: var(--sg); top: calc(var(--sh) + var(--hc, 112px) + 50px); width: min(300px, 46vw); max-height: calc(100% - var(--hc, 112px) - 150px); overflow-y: auto; display: grid; gap: 4px; padding: 6px; border-radius: 14px; background: rgba(255, 247, 236, .95); border: 2.5px solid var(--encre); box-shadow: 0 4px 0 rgba(43, 42, 76, .45); pointer-events: auto; }
+.h-sl { display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 6px; border-radius: 10px; background: #fff; box-shadow: inset 4px 0 0 var(--r, var(--r-commun)); }
+.h-sl > i { width: 11px; height: 11px; flex: 0 0 auto; transform: rotate(45deg); border-radius: 3px; background: var(--r, var(--r-commun)); border: 1.5px solid var(--encre); margin-left: 4px; }
+.h-sl > span { flex: 1 1 auto; min-width: 0; display: grid; } .h-sl b { font: 700 12px/1.15 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .h-sl small { font: 700 10px/1.2 var(--texte); color: var(--encre-2); }
+.h-sl-b { flex: 0 0 auto; min-height: 34px; padding: 0 8px; border-radius: 10px; border: 2px solid var(--encre); background: #fff; font: 700 12px/1 var(--titre); }
+.h-sl-b[data-sac="utiliser"] { background: var(--menthe); color: #fff; text-shadow: 0 1px 0 var(--encre); }
+.h-sl-vide { font: 700 12px/1.3 var(--texte); color: var(--encre-2); padding: 6px; }
+.h-noms .h-nom.rival { text-shadow: 0 1px 0 #2B2A4C, 0 -1px 0 #2B2A4C, 1px 0 0 #2B2A4C, -1px 0 0 #2B2A4C; }

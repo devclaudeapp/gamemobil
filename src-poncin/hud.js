@@ -16,7 +16,14 @@
    Les libellés et les icônes des armes viennent de PREGLES.ARMES (nom, classe ; repli tolérant si un champ manque) :
    PHUD.iconeArme(id), PHUD.nomArme(id), PHUD.classeArme(id), PHUD.nomClasse(classe) servent aussi aux menus (ui.js).
    Rien n'est écrit dans le DOM si la valeur n'a pas changé ; les animations courtes (touche, chiffres, flèches) sont menées à la main,
-   sans reflow. */
+   sans reflow.
+   L'Extraction (section « l'Extraction », lecture tolérante de jeu.extraction et des entités de PEXTRACTION) : le sac (cases prises / cases,
+   valeur, poids, clé du coffre-fort), la boussole vers la sortie la plus proche (et le compte à rebours de leur ouverture), celle du
+   largage, les jauges (ouverture d'un coffre ou d'un sac, extraction, relever, se faire relever), à terre / extrait, la barre de vie du
+   Gardien, le bruit que l'on fait, le rappel du contrat du jour, les étiquettes posées dans la vue (signaux d'équipe, au bord de
+   l'écran s'ils sont hors champ ; prime ; « Sac de Léa » ; coffre-fort), la minicarte (coffres vus, sorties, sacs, largage, prime,
+   signaux, couleurs d'équipe), les bandeaux (sorties ouvertes, largage, prime, « Tu es la cible ! ») et l'écran de fin du mode.
+   PHUD.extraction(jeu, id) → la vue lue (réutilisée) ; PHUD.contexte → l'action possible ici ; PHUD.bilanExtraction(res, jeu, id). */
 const PHUD = (() => {
   'use strict';
   const TAU = Math.PI * 2, DEG = Math.PI / 180;
@@ -118,7 +125,8 @@ const PHUD = (() => {
         <div class="h-armes">${[0, 1].map((i) => `<button type="button" class="h-arme" data-slot="${i}" aria-label="${i ? 'Arme secondaire' : 'Arme principale'}"><b class="h-slot">${i + 1}</b><span class="h-arme-ico"></span><span class="h-mun"><b class="h-mun-n">0</b><small class="h-mun-r">| 0</small></span></button>`).join('')}</div>
       </div>
       <div class="h-ext" aria-live="polite">
-        <div class="h-sac" hidden><span class="h-sac-ico" aria-hidden="true">${SVG_SAC}</span><b class="h-sac-n">0</b><small class="h-sac-max"></small><span class="h-poids" aria-hidden="true"><i></i></span><span class="h-cle" title="La clé du coffre-fort">${SVG_CLE}</span><span class="h-sac-v"><i class="h-piece" aria-hidden="true"></i><b>0</b></span></div>
+        <button type="button" class="h-sac" hidden aria-label="Le sac" aria-expanded="false"><span class="h-sac-ico" aria-hidden="true">${SVG_SAC}</span><b class="h-sac-n">0</b><small class="h-sac-max"></small><span class="h-poids" aria-hidden="true"><i></i></span><span class="h-cle" title="La clé du coffre-fort">${SVG_CLE}</span><span class="h-sac-v"><i class="h-piece" aria-hidden="true"></i><b>0</b></span></button>
+        <div class="h-sac-liste" hidden></div>
         <div class="h-boussole h-largage" hidden><i class="h-bo-fl" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2l7 18-7-4-7 4z" fill="#FF6B5A" stroke="#2B2A4C" stroke-width="2.2" stroke-linejoin="round"/></svg></i><span class="h-bo-t"><b>Largage</b><small></small></span></div>
         <div class="h-contrat" hidden></div>
         <div class="h-boss" hidden><b></b><div class="h-jauge-b"><i></i></div></div>
@@ -146,7 +154,7 @@ const PHUD = (() => {
       noms: Array.from(racine.querySelectorAll('.h-nom')), nombres: Array.from(racine.querySelectorAll('.h-nombre')),
       sac: q('.h-sac'), sacN: q('.h-sac-n'), sacMax: q('.h-sac-max'), sacV: q('.h-sac-v b'), boussole: q('.h-boussole:not(.h-largage)'), boFl: q('.h-boussole:not(.h-largage) .h-bo-fl'), boT: q('.h-boussole:not(.h-largage) .h-bo-t b'), boS: q('.h-boussole:not(.h-largage) .h-bo-t small'),
       largage: q('.h-largage'), laFl: q('.h-largage .h-bo-fl'), laS: q('.h-largage .h-bo-t small'), contrat: q('.h-contrat'), boss: q('.h-boss'), bossN: q('.h-boss b'), bossB: q('.h-boss .h-jauge-b i'), bruit: q('.h-bruit'), poids: q('.h-poids i'),
-      etqs: Array.from(racine.querySelectorAll('.h-etq')),
+      etqs: Array.from(racine.querySelectorAll('.h-etq')), sacListe: q('.h-sac-liste'),
       jauge: q('.h-jauge'), jaugeT: q('.h-jauge-t'), jaugeB: q('.h-jauge .h-jauge-b i'), voileExt: q('.h-voile-ext'), voileP: q('.h-voile-carte small'), voileB: q('.h-voile-carte b'), voileS: q('.h-voile-carte span'), eqMoi: q('.h-moi'), eqEux: q('.h-eux'),
     });
     slots = Array.from(racine.querySelectorAll('.h-arme')).map((b) => ({ el: b, ico: b.querySelector('.h-arme-ico'), n: b.querySelector('.h-mun-n'), r: b.querySelector('.h-mun-r'), id: null, m: null, res: null, main: null, bas: null }));
@@ -163,12 +171,15 @@ const PHUD = (() => {
     noms = el.noms.map((e) => ({ el: e, id: null, txt: '', vu: false }));
     ctxCarte = el.carte.getContext('2d');
     q('.h-b-pause').addEventListener('click', () => { if (actions.pause) actions.pause(); });
+    // le sac (Extraction) : le toucher ouvre sa liste ; chaque objet : Utiliser (un consommable), Lâcher (au sol)
+    el.sac.addEventListener('click', () => { sacOuvert = !sacOuvert; vu.sacL = ''; el.sac.setAttribute('aria-expanded', String(sacOuvert)); el.sacListe.hidden = !sacOuvert; });
+    el.sacListe.addEventListener('click', (e) => { const b = e.target.closest('[data-sac]'); if (!b) return; const i = +b.dataset.i; if (typeof actions.sac === 'function') actions.sac(b.dataset.sac === 'utiliser' ? { utiliser: i } : { lacher: i }); });
     q('.h-b-scores').addEventListener('click', () => scores(!scoresOuverts));
     el.scores.addEventListener('click', () => scores(false));
     el.fin.addEventListener('click', (e) => { const b = e.target.closest('[data-fin]'); if (!b || b.disabled) return; const a = b.dataset.fin; if (typeof actions[a] === 'function') { try { if (actions[a](b) === true && a === 'reclamer') { b.disabled = true; b.textContent = 'Réclamé'; } } catch (err) { console.warn('[Poncin] fin', a, err); } } }); // rejouer, menu, salon…
     taille();
   }
-  let nombres = [], fleches = [], noms = [], slots = [], ctxCarte = null, tailleCarte = 112;
+  let nombres = [], fleches = [], noms = [], slots = [], ctxCarte = null, tailleCarte = 112, sacOuvert = false;
   function taille(w, h) {
     if (!racine) return;
     W = w || racine.clientWidth || window.innerWidth; H = h || racine.clientHeight || window.innerHeight; DPR = Math.min(2, window.devicePixelRatio || 1);
@@ -580,7 +591,8 @@ const PHUD = (() => {
   }
   const VX = { actif: false, coffres: [], points: [], sacs: [], signaux: [], ouvert: false, ouvreA: null, ouvreDans: 0, sac: { liste: [], n: 0, max: 0, valeur: 0, plein: false, cle: false, ralenti: 0 }, ouverture: null, extraction: null, extrait: false, aTerre: null, releve: null, relever: null, proche: null, plus: null, largage: null, prime: null, boss: null, format: 'ensemble' };
   const SIG = [];
-  const COF = [], PTS = [], SACS = []; // réutilisés
+  const COF = [], PTS = [], SACS = []; // réutilisés (et leurs objets, dans POOLS : aucune allocation par image)
+  const POOLS = new Map(); function pris(l) { let p = POOLS.get(l); if (!p) { p = []; POOLS.set(l, p); } const o = p[l.length] || (p[l.length] = {}); l.push(o); return o; }
   function lireExtraction(jeu, id) {
     const V = VX; V.actif = estExt(jeu); V.coffres = COF; V.points = PTS; V.sacs = SACS; COF.length = 0; PTS.length = 0; SACS.length = 0;
     V.ouverture = V.extraction = V.aTerre = V.releve = V.relever = V.proche = V.plus = V.largage = V.prime = V.boss = null; V.extrait = false; V.signaux = SIG; SIG.length = 0; V.sac.liste = []; V.sac.n = 0; V.sac.max = 0; V.sac.valeur = 0; V.sac.plein = false;
@@ -588,17 +600,18 @@ const PHUD = (() => {
     const S = jeu.extraction && typeof jeu.extraction === 'object' ? jeu.extraction : {}, t = +jeu.temps || 0;
     const cs = Array.isArray(S.coffres) ? S.coffres : crochet(jeu, 'coffres') || jeu.coffres || [];
     for (let i = 0; i < cs.length; i++) { const c = cs[i]; if (!c) continue; const x = px2(c, 0), z = px2(c, 1); if (!nb(x) || !nb(z)) continue;
-      COF.push({ id: c.id != null ? c.id : 'c' + i, x, z, rarete: rarete(c), ouvert: !!(c.ouvert || c.etat === 'ouvert' || c.vide || c.dispo === false || c.ouvertPar != null), vide: !!c.vide, fort: !!(c.fort || c.verrou || c.special === 'coffre-fort' || c.special === 'mairie' || c.type === 'coffre-fort'), largage: c.special === 'largage' }); }
+      const o = pris(COF); o.id = c.id != null ? c.id : 'c' + i; o.x = x; o.z = z; o.rarete = rarete(c); o.ouvert = !!(c.ouvert || c.etat === 'ouvert' || c.vide || c.dispo === false || c.ouvertPar != null); o.vide = !!c.vide;
+      o.fort = !!(c.fort || c.verrou || c.special === 'coffre-fort' || c.special === 'mairie' || c.type === 'coffre-fort'); o.largage = c.special === 'largage' || c.id === 'largage'; }
     let ouvreA = nb(+S.ouvreA) ? +S.ouvreA : nb(+S.ouvertureA) ? +S.ouvertureA : nb(+S.ouverture) ? +S.ouverture : nb(+S.mi) ? +S.mi : jeu.duree > 0 ? (+jeu.debutChrono || 0) + jeu.duree / 2 : null;
     V.ouvert = S.ouvert != null ? !!S.ouvert : S.ouvertes != null ? !!S.ouvertes : ouvreA != null ? t >= ouvreA : false;
     V.ouvreA = ouvreA; V.ouvreDans = V.ouvert || ouvreA == null ? 0 : Math.max(0, ouvreA - t);
     const ps = Array.isArray(S.points) ? S.points : Array.isArray(S.sorties) ? S.sorties : Array.isArray(S.extractions) ? S.extractions : Array.isArray(S.balises) ? S.balises : crochet(jeu, 'points') || [];
     const NOMS = ['Le pont', 'La cale de la rivière'];
     for (let i = 0; i < ps.length; i++) { const p = ps[i]; if (!p) continue; const x = px2(p, 0), z = px2(p, 1); if (!nb(x) || !nb(z)) continue;
-      PTS.push({ id: p.id != null ? p.id : 'x' + i, nom: p.nom || p.n || NOMS[i] || 'Sortie', x, z, rayon: +p.rayon > 0 ? +p.rayon : +p.r > 0 ? +p.r : 10, ouvert: p.ouvert != null ? !!p.ouvert : V.ouvert }); }
+      const o = pris(PTS); o.id = p.id != null ? p.id : 'x' + i; o.nom = p.nom || p.n || NOMS[i] || 'Sortie'; o.x = x; o.z = z; o.rayon = +p.rayon > 0 ? +p.rayon : +p.r > 0 ? +p.r : 10; o.ouvert = p.ouvert != null ? !!p.ouvert : V.ouvert; }
     const ss = Array.isArray(S.sacs) ? S.sacs : Array.isArray(S.sacsAuSol) ? S.sacsAuSol : crochet(jeu, 'sacs') || [];
     for (let i = 0; i < ss.length; i++) { const b = ss[i]; if (!b || b.pris || b.dispo === false) continue; const x = px2(b, 0), z = px2(b, 1); if (!nb(x) || !nb(z)) continue; const l = Array.isArray(b.objets) ? b.objets : Array.isArray(b.contenu) ? b.contenu : [];
-      SACS.push({ id: b.id != null ? b.id : 's' + i, x, z, valeur: b.valeur != null ? valeur(b) : l.reduce((a, o) => a + valeur(o), 0), de: b.de || null, attend: !!(b.attend && b.attend[id]) }); }
+      const o = pris(SACS); o.id = b.id != null ? b.id : 's' + i; o.x = x; o.z = z; let v = 0; if (b.valeur != null) v = valeur(b); else for (let k = 0; k < l.length; k++) v += valeur(l[k]); o.valeur = v; o.de = b.de || null; o.attend = !!(b.attend && b.attend[id]); }
     V.format = S.format || opt(jeu).formatExtraction || 'ensemble';
     // le largage (annoncé, qui tombe, posé : un coffre de plus), la prime (le plus riche révélé), le Gardien, les signaux de mon équipe
     const L = S.largage && typeof S.largage === 'object' ? S.largage : null;
@@ -607,7 +620,7 @@ const PHUD = (() => {
     if (P && P.id != null) { const c = trouver(jeu, P.id); if (c && c.vivant !== false && !c.extrait) V.prime = { id: P.id, nom: c.nom, valeur: +P.valeur || 0, montant: +P.montant || +P.prime || 0, x: nb(+P.x) ? +P.x : c.x, z: nb(+P.z) ? +P.z : c.z, depuis: nb(+P.reveleA) ? +P.reveleA : null }; }
     for (const c of jeu.entites) if (c.boss && c.vivant !== false) { V.boss = { id: c.id, nom: (c.boss && c.boss.nom) || c.nom || 'Le Gardien', vie: Math.max(0, c.vie), vieMax: +(c.boss && c.boss.vieMax) || 600, armure: c.armure || 0, x: c.x, y: c.y, z: c.z }; break; }
     const e = trouver(jeu, id); if (!e) return V;
-    if (Array.isArray(S.signaux)) for (const g of S.signaux) { if (!g || !nb(+g.x) || (g.equipe != null && g.equipe !== e.equipe) || (nb(+g.jusqua) && g.jusqua < t)) continue; SIG.push({ id: g.id, type: g.type || 'ici', x: +g.x, y: nb(+g.y) ? +g.y : null, z: +g.z, de: g.de }); }
+    if (Array.isArray(S.signaux)) for (const g of S.signaux) { if (!g || !nb(+g.x) || (g.equipe != null && g.equipe !== e.equipe) || (nb(+g.jusqua) && g.jusqua < t)) continue; const o = pris(SIG); o.id = g.id; o.type = g.type || 'ici'; o.x = +g.x; o.y = nb(+g.y) ? +g.y : null; o.z = +g.z; o.de = g.de; }
     // le sac
     const sc = e.sac, l = Array.isArray(sc) ? sc : sc && typeof sc === 'object' ? (Array.isArray(sc.objets) ? sc.objets : Array.isArray(sc.contenu) ? sc.contenu : Array.isArray(sc.items) ? sc.items : []) : [];
     V.sac.liste = l; V.sac.valeur = sc && !Array.isArray(sc) && sc.valeur != null ? valeur(sc) : l.reduce((a, o) => a + valeur(o), 0);
@@ -692,6 +705,7 @@ const PHUD = (() => {
     etiquettes(jeu, V);
     // le sac : « 3/8 · 420 »
     const sacK = V.sac.n + '/' + V.sac.max + '/' + V.sac.valeur;
+    if (sacOuvert && (sacK + (V.extrait || V.aTerre ? 'x' : '')) !== vu.sacL) { vu.sacL = sacK + (V.extrait || V.aTerre ? 'x' : ''); listeSac(V); }
     if (sacK !== vu.sacK) { const plus = vu.sacV != null && V.sac.valeur > vu.sacV; vu.sacK = sacK; vu.sacV = V.sac.valeur; el.sacN.textContent = String(V.sac.n); el.sacMax.textContent = V.sac.max ? '/' + V.sac.max : ''; el.sacV.textContent = String(V.sac.valeur); el.sac.classList.toggle('plein', V.sac.plein); if (plus) relance(el.sac, 'pique'); }
     // les coffres vus (minicarte) : à moins de 18 m, ou en vue à moins de 45 m (testé quatre fois par seconde)
     if (jeu.temps - vusExtT > 0.25 || vusExtT < 0) { vusExtT = jeu.temps; const m = jeu.monde || mondeCarte, oy = moi.y + 1.5;
@@ -724,6 +738,12 @@ const PHUD = (() => {
     contexte = V.proche;
   }
   let moiJeu = null;
+  function listeSac(V) { // la liste du sac (ouverte d'un toucher) : nom, valeur, cases ; Utiliser (soin, armure, munitions), Lâcher
+    const l = V.sac.liste, CONSO = { soin: 1, armure: 1, munitions: 1 };
+    el.sacListe.innerHTML = l.length ? l.map((o0, i) => { const o = objetDe(o0), r = rarete(o0), v = valeur(o0);
+      return `<div class="h-sl r-${r}"><i aria-hidden="true"></i><span><b>${esc(o.nom)}</b><small>${v ? v + ' pièces · ' : ''}${+o.cases || 1} case${+o.cases > 1 ? 's' : ''}</small></span>${CONSO[o.id] ? `<button type="button" class="h-sl-b" data-sac="utiliser" data-i="${i}">Utiliser</button>` : ''}<button type="button" class="h-sl-b" data-sac="lacher" data-i="${i}">Lâcher</button></div>`; }).join('')
+      : '<p class="h-sl-vide">Ton sac est vide : ouvre des coffres !</p>';
+  }
   function dessinerExtraction(g, R, s, c, sn) { // les coffres vus, les sacs au sol, les sorties (dans le cercle de la minicarte ; une sortie au loin : au bord)
     const V = VX; if (!V.actif) return;
     const pos = (x, z) => { const u = (x - moi.x) * s, v = (z - moi.z) * s; P2[0] = R + u * c - v * sn; P2[1] = R + u * sn + v * c; return (P2[0] - R) * (P2[0] - R) + (P2[1] - R) * (P2[1] - R); };
@@ -917,10 +937,13 @@ const PHUD = (() => {
   }
   function majNoms(jeu) {
     const eq = estEquipes(jeu), es = jeu.entites; let k = 0;
-    if (eq) for (let i = 0; i < es.length && k < noms.length; i++) {
-      const e = es[i]; if (e === moi || !e.vivant || e.equipe !== moi.equipe) continue;
+    const ext = VX.actif; // l'Extraction : aussi les joueurs des équipes rivales (vus), à la couleur de leur équipe
+    if (eq || ext) for (let i = 0; i < es.length && k < noms.length; i++) {
+      const e = es[i]; if (e === moi || !e.vivant) continue;
+      const allie = eq && e.equipe === moi.equipe; if (!allie && !(ext && !e.bot && vusCache.get(e.id))) continue;
       const pr = projeter(e.x, e.y + 2.15, e.z); if (!pr || pr.devant === false) continue;
       const n = noms[k++]; if (n.txt !== e.nom) { n.txt = e.nom; n.el.textContent = e.nom; }
+      const c = allie ? '' : e.couleur || '#FF6B8B'; if (n.c !== c) { n.c = c; n.el.style.color = c; n.el.classList.toggle('rival', !allie); }
       n.el.style.transform = `translate3d(${pr.x.toFixed(1)}px, ${pr.y.toFixed(1)}px, 0) translate(-50%, -100%)`; if (!n.vu) { n.vu = true; n.el.style.opacity = '1'; }
     }
     for (; k < noms.length; k++) if (noms[k].vu) { noms[k].vu = false; noms[k].el.style.opacity = '0'; }
@@ -1012,7 +1035,7 @@ const PHUD = (() => {
     el.annonce.classList.remove('vu'); el.sous.classList.remove('vu'); el.ramasse.classList.remove('vu'); el.refus.classList.remove('vu');
     for (const s of slots) { s.id = null; s.m = null; s.res = null; s.main = null; s.bas = null; }
     contratPartie = o && o.contrat && o.contrat.texte ? o.contrat : null;
-    coffresVus.clear(); vusExtT = -1; ouvertVu = null; contexte = null; cacherEtiquettes(); racine.classList.remove('extraction'); el.sac.hidden = true; el.boussole.hidden = true; el.jauge.hidden = true; el.voileExt.hidden = true;
+    coffresVus.clear(); vusExtT = -1; ouvertVu = null; contexte = null; cacherEtiquettes(); sacOuvert = false; el.sacListe.hidden = true; el.sac.setAttribute('aria-expanded', 'false'); racine.classList.remove('extraction'); el.sac.hidden = true; el.boussole.hidden = true; el.jauge.hidden = true; el.voileExt.hidden = true;
   }
   return { init, carte, taille, maj, fin, reinit, annonce, scores, iconeArme, nomArme, classeArme, nomClasse, vignette: vignetteZone, formeZone, formeDe, distanceBord,
     extraction: (jeu, id) => lireExtraction(jeu, id || idMoi), bilanExtraction, rarete, COUL_RAR, get contexte() { return contexte; }, SVG_SAC,

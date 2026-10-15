@@ -5,7 +5,8 @@
 // (l'arme cachée, le champ serré), les impacts selon la matière (mur, métal, sol, un robot touché : jamais de sang), les postures ;
 // sur la carte réelle, le Poncin « authentique » : la place Xavier-Bichat (mairie, tabac, banque) et son sol, la terrasse du Bar des Sports,
 // la Porte Bouvent des deux côtés et dedans, l'Impasse du Bonheur des deux côtés, la nef de l'église (portail, vitraux), les bords de l'Ain
-// (saules, peupliers), l'horizon du Bugey.
+// (saules, peupliers), l'horizon du Bugey ; l'Extraction : coffres par rareté (formes simples, modèles Poly Haven de près hors éco),
+// coffre-fort, sac au sol, balises de sortie (colonne de lumière, cercle drapé, radio), largage sous parachute, dans les budgets.
 // Pour chaque image : appels de dessin, triangles (passe d'ombre comprise), géométries, mémoire des textures, comparés aux budgets du
 // contrat ; décor (PDECOR), végétation (PVEGETATION), matières en couches et voûtes branchés ; le sol de la place est un asphalte gris même
 // là où la photo montre les couronnes des platanes ; l'intérieur des voûtes ne voit jamais le soleil ; puis les géométries et les textures
@@ -23,7 +24,7 @@ const racine = path.join(__dirname, '..'), out = path.join(__dirname, 'shots', '
 const arg = (k, d) => { const a = process.argv.find((x) => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : d; };
 const CARTES = arg('carte', 'reelle,provisoire').split(','), QUALITES = arg('qualite', 'haute,eco').split(',');
 const AUTH = ['place-sol', 'mairie', 'tabac', 'banque', 'terrasse', 'bouvent-nord', 'bouvent-dedans', 'bouvent-sud', 'bonheur-est', 'bonheur-ouest', 'nef', 'ain', 'horizon']; // carte réelle seulement
-const SCENES0 = arg('scenes', ['rue', 'place', ...AUTH, 'chateau', 'eglise', 'pont', 'haut', 'persos', 'tir', 'confettis', 'survol', 'armes', 'visee', 'lunette', 'impacts', 'postures'].join(',')).split(',');
+const SCENES0 = arg('scenes', ['rue', 'place', ...AUTH, 'chateau', 'eglise', 'pont', 'haut', 'persos', 'tir', 'confettis', 'survol', 'armes', 'visee', 'lunette', 'impacts', 'postures', 'extraction'].join(',')).split(',');
 const TABLEAU = [];
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json', '.jpg': 'image/jpeg', '.png': 'image/png', '.css': 'text/css', '.glb': 'model/gltf-binary' };
 const serveur = http.createServer((req, res) => {
@@ -109,6 +110,13 @@ const mediane = (a) => { const s = a.slice().sort((x, y) => x - y); return s.len
       if (nom === 'impacts') {
         const im = await page.evaluate(() => { const F = PRENDU._interne.FX; return { trous: F.trous.im.count, fumees: F.fumees.im.count, traits: F.traits.im.count, peinture: !!PRENDU._interne.scene.getObjectByName('fx-taches') }; });
         verif(im.trous >= 10 && im.fumees > 0 && !im.peinture, `impacts réalistes : ${im.trous} trous de balle, ${im.fumees} bouffées de poussière, ${im.traits} traceurs ou étincelles, plus de taches de peinture`);
+      }
+      if (nom === 'extraction') { // l'Extraction : coffres par rareté (modèles réalistes de près, sauf en éco), coffre-fort, sac, balises, largage
+        const x = await page.evaluate(() => { const I = PRENDU._interne, E = I.EX3, vis = (o) => !!o && o.visible && (o.count == null || o.count > 0), n = (k) => (E.im[k] && E.im[k].visible ? E.im[k].count : 0) + (E.pres[k] ? Math.max(0, ...E.pres[k].map((m) => (m.visible ? m.count : 0))) : 0);
+          return { charge: E.charge, erreurs: E.erreurs, coffres: ['commun', 'rare', 'epique', 'legendaire'].map(n), fort: n('fort'), eco: n('eco'), sac: n('sac'), radio: n('radio'), colonnes: E.colonnes.count, cercles: E.cercles.visible, lueurs: E.lueurs.count, largage: n('largage'), parachute: E.parachute.visible, pres: Object.keys(E.pres).filter((k) => E.pres[k].some((m) => m.visible)).join(','), qualite: PRENDU.stats.qualite }; });
+        const eco = x.qualite === 'eco';
+        verif((eco ? x.eco >= 8 && x.lueurs === 0 && !x.pres : x.coffres.every((v) => v >= 1) && x.fort === 1 && x.largage === 1 && x.lueurs >= 5 && x.charge === 'glb' && /legendaire/.test(x.pres)) && x.sac === 1 && x.radio === 2 && x.colonnes >= 1 && x.cercles && x.parachute,
+          `Extraction : ${eco ? `${x.eco} coffres en une forme teintée par rareté (coffre-fort et largage compris), sans lueur` : `coffres ${x.coffres.join('/')} (commun/rare/épique/légendaire), coffre-fort, largage, ${x.lueurs} lueurs`}, sac, ${x.radio} radios, ${x.colonnes} colonnes de lumière, cercles, parachute ; modèles ${x.charge}${x.erreurs && x.erreurs.length ? ' (' + x.erreurs.join(' ; ') + ')' : ''}, de près : ${x.pres || 'aucun (éco)'}`);
       }
       if (nom === 'postures') {
         const po = await page.evaluate(() => { const A = PRENDU._interne.acteurs, r = {}; for (const id of ['ami', 'b1', 'b2', 'b3']) { const a = A.get(id); r[id] = a ? { rx: a.racine.rotation.x, y: a.racine.position.y, vis: a.groupe.visible, accr: a.accr, vise: a.vise } : null; } return r; });

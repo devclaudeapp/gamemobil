@@ -4,7 +4,9 @@
 // et passé au jeu normalisé → le HUD de la partie réglée (manches, « Encore en lice », tir auto grisé) → « Par défaut » → le choix de
 // l'équipement (principale + secondaire parmi les armes permises, libellés de PREGLES.ARMES) → joystick, visée au doigt, tir sur un robot →
 // élimination → le HUD des manches, de la zone et du tableau à 6 lignes (sur un jeu factice au contrat des règles) → fin de partie →
-// record lu par la Salle de jeux → en portrait : le panneau, puis « Tourne ton téléphone ».
+// record lu par la Salle de jeux → en portrait : le panneau, puis « Tourne ton téléphone » → l'Extraction seule, de bout en bout (choix du
+// mode, un coffre ouvert au bouton d'action, les sorties qui s'ouvrent, l'extraction, l'écran de fin, le coffre personnel : matériel
+// vendu, contrats, amélioration achetée, qui sert en Extraction et jamais en Arène) ; sans PEXTRACTION dans la page : la carte « Bientôt ».
 // Captures du panneau (paysage 844 × 390 et portrait 390 × 844) dans test/shots/poncin, ou dans $CAPTURES.
 // NODE_PATH=/opt/node22/lib/node_modules node test/poncin-play.cjs   (PORT_PLAY : le port du serveur de test)
 const { chromium } = require('playwright');
@@ -274,6 +276,89 @@ const URL0 = `http://localhost:${PORT}/poncin/`;
   await p2.evaluate(() => window.__poncin.demarrer({ bots: 3, niveau: 'facile', graine: 3 })); await sleep(700);
   check(await p2.evaluate(() => { const t = document.querySelector('#tourne'); return !!t && getComputedStyle(t).display !== 'none' && t.offsetHeight > 0; }), 'en portrait, en partie : « Tourne ton téléphone »');
   await p2.screenshot({ path: out + '/06-portrait.png' });
+
+  // ═══ l'Extraction, seul, de bout en bout (avec le mode du groupe des règles : PEXTRACTION, PBUTIN ; sans lui, la carte « Bientôt ») ═══
+  // le choix du mode (carte de mission, onglet Partie), une partie : ouvrir un coffre (bouton d'action, jauge), les sorties qui
+  // s'ouvrent, l'extraction (8 s dans le cercle), l'écran de fin, le coffre personnel (pièces, matériel à vendre, contrats, améliorations)
+  await page.goto(URL0); await page.waitForFunction(() => window.__poncin && document.body.dataset.ecran === 'titre', null, { timeout: 30000 }).catch(() => {}); await sleep(800);
+  const avecExt = await P(() => typeof PEXTRACTION !== 'undefined' && !!PREGLES.MODES.extraction);
+  if (!avecExt) {
+    await P(() => window.__poncin.montrer('modes')); await sleep(300);
+    check(await P(() => !document.querySelector('#extraction-bientot').hidden && document.querySelector('#carte-mission [data-v="extraction"]').disabled), 'sans le mode Extraction (PEXTRACTION absent) : la carte « Bientôt », le choix grisé');
+    console.log('  info Extraction : PEXTRACTION absent de cette page, la partie d’Extraction n’est pas jouée');
+  } else {
+    const CX = capt, avant = await P(() => window.__poncin.sauvegarde().choix.reglages);
+    await P(() => window.__poncin.montrer('modes')); await sleep(300);
+    await page.tap('#carte-mission [data-v="extraction"]'); await sleep(300);
+    const mx = await P(() => ({ l: Array.from(document.querySelectorAll('#resume-solo .rp-v')).map((b) => b.textContent), cls: document.querySelector('#carte-mission').className, coffre: !document.querySelector('#b-coffre').hidden, r: window.__poncin.sauvegarde().choix.reglages }));
+    check(/extraction/.test(mx.cls) && /Extraction · 8 min/.test(mx.l[1]) && /Tout le bourg/.test(mx.l[0]) && mx.r.mode === 'extraction' && mx.r.zone === 'bourg' && mx.r.duree === 480 && mx.coffre, `Extraction choisie sur la carte de mission : ${mx.l.slice(0, 3).join(' | ')} ; la carte « Ton coffre »`);
+    await page.screenshot({ path: CX + '/extraction-0-menu.png' });
+    await page.tap('#resume-solo [data-onglet="partie"]'); await sleep(300);
+    const op = await P(() => ({ ks: Array.from(document.querySelectorAll('#e-options .op-partie .op-l')).map((d) => d.dataset.k), durees: Array.from(document.querySelectorAll('#e-options [data-k="duree"][data-v]')).map((b) => b.dataset.v).join(','), mode: (document.querySelector('#e-options [data-k="mode"][aria-pressed="true"]') || {}).dataset }));
+    check(op.mode && op.mode.v === 'extraction' && op.durees === '300,480,720' && op.ks.indexOf('reapparition') < 0 && op.ks.indexOf('score') < 0, `onglet Partie de l’Extraction : ${op.ks.join(', ')} ; durées ${op.durees}`);
+    await page.screenshot({ path: CX + '/extraction-1-partie.png' });
+    await page.tap('#e-options [data-onglet="carte"]'); await sleep(300); await page.screenshot({ path: CX + '/extraction-2-carte.png' });
+    await page.tap('#e-options [data-onglet="partie"]'); await sleep(250); await page.tap('#e-options [data-k="mode"][data-v="arene"]'); await sleep(200);
+    const retour = await P(() => window.__poncin.sauvegarde().choix.reglages);
+    check(retour.mode === 'arene' && retour.zone === avant.zone && retour.duree === avant.duree, `retour à l’Arène : sa zone et sa durée reviennent (${retour.zone}, ${retour.duree} s)`);
+    await page.tap('#e-options [data-k="mode"][data-v="extraction"]'); await sleep(200);
+    await page.tap('#e-options [data-a="options-retour"]'); await sleep(250);
+    // la partie
+    await page.tap('#b-lancer'); await sleep(500);
+    const d0 = await P(() => { const p = window.__poncin; p.pas(2); const j = p.jeu(), A = j.extraction, m = p.joueur(); return { mode: j.mode.id, coffres: A.coffres.length, sorties: A.extractions.map((x) => x.nom), sac: m.sac, gardiens: j.entites.filter((e) => e.bot).length, hud: document.querySelector('#hud').classList.contains('extraction') }; });
+    check(d0.mode === 'extraction' && d0.coffres >= 20 && d0.sorties.length === 2 && d0.hud, `la partie d’Extraction démarre : ${d0.coffres} coffres, ${d0.gardiens} gardiens, sorties ${d0.sorties.join(' et ')}, HUD du mode`);
+    // le coffre le plus proche du départ (sans le coffre-fort), éloigner les gardiens
+    const c0 = await P(() => { const p = window.__poncin, j = p.jeu(), m = p.joueur(); for (const e of j.entites) if (e.bot) { e.x += 400; e.z += 400; } let c = null, bd = 1e9; for (const k of j.extraction.coffres) { if (k.verrou || k.special) continue; const d = Math.hypot(k.x - m.x, k.z - m.z); if (d < bd) { bd = d; c = k; } } window.__c0 = c.id;
+      p.tp(c.x, c.z + 1.3, 0); m.pitch = -0.6; p.pas(30); return { id: c.id, r: c.rarete, ctx: PHUD.contexte, btn: !document.querySelector('#commandes .pc-action').hidden && document.querySelector('#commandes .pc-action-t').textContent, jauge: !document.querySelector('#hud .h-jauge').hidden && document.querySelector('#hud .h-jauge-t').textContent }; });
+    check(c0.ctx && c0.ctx.quoi === 'ouvrir' && c0.btn === 'Ouvrir' && /Ouverture du coffre/.test(c0.jauge), `à côté d’un coffre ${c0.r} : le bouton « ${c0.btn} », la jauge « ${c0.jauge} »`);
+    await page.screenshot({ path: CX + '/extraction-3-ouverture.png' });
+    const c1 = await P(() => { const p = window.__poncin; p.pas(60); const j = p.jeu(), c = j.extraction.coffres.find((k) => k.id === window.__c0); return { ouvert: c.ouvert, sac: p.extraction().sac.valeur, n: p.extraction().sac.n, chip: document.querySelector('#hud .h-sac').textContent }; });
+    check(c1.ouvert && c1.n > 0, `le coffre s’ouvre : ${c1.n} case(s) dans le sac, ${c1.sac} pièces (« ${c1.chip.replace(/\s+/g, ' ').trim()} »)`);
+    // un signal d'équipe : appui long sur la vue (la roue), glisser vers « Ennemi », lâcher : le marqueur posé là où l'on vise
+    await P(() => { const m = window.__poncin.joueur(); m.pitch = -0.05; });
+    await toucher('touchStart', [[480, 150, 7]]); await sleep(650);
+    const roue = await P(() => !document.querySelector('#commandes .pc-roue').hidden);
+    for (let k = 1; k <= 4; k++) { await toucher('touchMove', [[480 + k * 12, 150, 7]]); await sleep(40); }
+    await toucher('touchEnd', []); await sleep(400);
+    const sg = await P(() => { const j = window.__poncin.jeu(); return { n: (j.extraction.signaux || []).length, type: ((j.extraction.signaux || [])[0] || {}).type, etq: Array.from(document.querySelectorAll('#hud .h-etq')).filter((e) => e.style.opacity === '1').map((e) => e.textContent), lampe: document.querySelector('#commandes .pc-lampe').hidden }; });
+    check(roue && sg.n >= 1 && sg.type === 'ennemi' && sg.etq.some((t) => /Ennemi/.test(t)) && sg.lampe, `appui long sur la vue : la roue des signaux, « ${sg.type} » posé (${sg.etq.join(', ')}) ; pas de bouton Lampe le jour`);
+    await page.screenshot({ path: CX + '/extraction-3b-signal.png' });
+    // un deuxième coffre, de valeur cette fois (pour sortir avec quelque chose)
+    await P(() => { const p = window.__poncin, j = p.jeu(), m = p.joueur(); for (const k of j.extraction.coffres) { if (k.ouvert || k.verrou || k.special || k.rarete === 'commun') continue; p.tp(k.x, k.z + 1.3, 0); p.pas(100); if (p.extraction().sac.valeur > 0) break; } });
+    // les sorties s'ouvrent à mi-partie : le bandeau, la boussole
+    const s0 = await P(() => { const p = window.__poncin, j = p.jeu(); j.temps = j.extraction.ouvreA - 0.02; p.pas(4); return { ouvertes: j.extraction.ouvertes, bandeau: document.querySelector('#hud .h-bandeau-t').textContent, bo: document.querySelector('#hud .h-boussole:not(.h-largage)').className }; });
+    check(s0.ouvertes && /sorties sont ouvertes/.test(s0.bandeau) && /ouverte/.test(s0.bo), `à mi-partie : « ${s0.bandeau} », la boussole mène à la sortie`);
+    await page.screenshot({ path: CX + '/extraction-4-sorties.png' });
+    const s1 = await P(() => { const p = window.__poncin, j = p.jeu(), pt = j.extraction.extractions[0]; p.tp(pt.x + 1, pt.z + 1, 0); p.pas(240); return { ext: p.extraction().extraction, jauge: document.querySelector('#hud .h-jauge-t').textContent }; });
+    check(s1.ext && s1.ext.p > 0.4 && /Extraction/.test(s1.jauge), `dans le cercle : « ${s1.jauge} »`);
+    await page.screenshot({ path: CX + '/extraction-5-extraction.png' });
+    const st2 = await P(() => window.__poncin.stats().rendu || {});
+    check(st2.calls > 0 && st2.calls <= (st2.budget ? st2.budget.calls : 110) && st2.triangles <= (st2.budget ? st2.budget.triangles : 300000), `budget du rendu tenu en Extraction (${st2.calls} appels, ${Math.round((st2.triangles || 0) / 1000)}k triangles, qualité ${st2.qualite}, objets ${st2.objets3d})`);
+    const f0 = await P(() => { const p = window.__poncin; for (let i = 0; i < 8 && p.etat().ecran !== 'fin'; i++) p.pas(120); return { ecran: p.etat().ecran, texte: document.querySelector('#hud .h-fin').innerText, sauv: p.sauvegarde() }; });
+    check(f0.ecran === 'fin' && /Extrait/.test(f0.texte) && f0.sauv.records.extraction.sorties === 1 && f0.sauv.coffre.pieces > 0, `l’écran de fin : « Extrait ! », ${f0.sauv.coffre.pieces} pièces au coffre, record ${f0.sauv.records.extraction.meilleur}`);
+    await page.screenshot({ path: CX + '/extraction-6-fin.png' });
+    // le coffre personnel : matériel (vendre), contrats, améliorations (acheter)
+    await page.tap('#hud [data-fin="coffre"]'); await sleep(400);
+    await P(() => { const p = window.__poncin, c = p.coffre(); const r = PBUTIN.rendre(c, [{ type: 'arme', arme: 'awm', rarete: 'legendaire' }, { type: 'munitions', n: 3 }, { type: 'valeur', id: 'montre', n: 1 }]); p.coffre(r.coffre); p.montrer('coffre'); });
+    await sleep(300);
+    const k0 = await P(() => ({ ecran: document.body.dataset.ecran, onglets: Array.from(document.querySelectorAll('#cf-onglets [role="tab"]')).map((b) => b.dataset.onglet), objets: Array.from(document.querySelectorAll('#cf-objets .cf-o b')).map((b) => b.textContent), pieces: +document.querySelector('#cf-pieces').textContent.replace(/\D/g, '') }));
+    check(k0.ecran === 'coffre' && k0.onglets.join() === 'materiel,contrats,ameliorations' && k0.objets.some((t) => /AWM/.test(t)) && k0.objets.length >= 3, `le coffre personnel : onglets ${k0.onglets.join(', ')} ; matériel ${k0.objets.join(', ')}`);
+    await page.screenshot({ path: CX + '/extraction-7-coffre-materiel.png' });
+    await page.tap('#cf-objets .cf-o.r-legendaire [data-a="vendre"]'); await sleep(250);
+    const k1 = await P(() => ({ pieces: window.__poncin.coffre().pieces, awm: Array.from(document.querySelectorAll('#cf-objets .cf-o b')).some((b) => /AWM/.test(b.textContent)) }));
+    check(!k1.awm && k1.pieces > k0.pieces, `« Vendre » l’AWM légendaire : ${k0.pieces} → ${k1.pieces} pièces`);
+    await page.tap('#cf-onglets [data-onglet="contrats"]'); await sleep(250);
+    check(await P(() => document.querySelectorAll('#cf-contrats .cf-contrat').length === 3), 'les trois contrats du jour');
+    await page.screenshot({ path: CX + '/extraction-8-coffre-contrats.png' });
+    await P(() => window.__poncin.pieces(2000)); await page.tap('#cf-onglets [data-onglet="ameliorations"]'); await sleep(250);
+    await page.tap('#cf-amelio [data-am="sac"] [data-a="amelio"]'); await sleep(250);
+    const k2 = await P(() => { const c = window.__poncin.coffre(); return { niv: c.ameliorations.sac, pieces: c.pieces }; });
+    check(k2.niv === 1 && k2.pieces < 2000, `acheter « Sac plus grand » : niveau ${k2.niv}, ${k2.pieces} pièces`);
+    await page.screenshot({ path: CX + '/extraction-9-coffre-ameliorations.png' });
+    // l'amélioration sert en Extraction (10 cases), jamais en Arène
+    const k3 = await P(() => { const p = window.__poncin; p.demarrer({ mode: 'extraction', graine: 5 }); const ext = p.joueur().sac ? p.joueur().sac.cases : null; p.menu(); p.demarrer({ mode: 'arene', graine: 5, bots: 2 }); const ar = p.joueur(); const r = { ext, arene: !!ar.sac || !!ar.ameliorations, armure: ar.armure }; p.menu(); return r; });
+    check(k3.ext === 10 && !k3.arene && k3.armure === 0, `le sac plus grand en Extraction (${k3.ext} cases), rien en Arène`);
+  }
 
   console.log(errors.length ? 'ERRORS ' + errors.slice(0, 5).join(' | ') : 'ERRORS none');
   console.log(fails ? `${fails} échec(s)` : 'Tout passe.');
