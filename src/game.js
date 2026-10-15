@@ -37,6 +37,7 @@
   const ETOILE_BASE = 4e10;      // la première étoile demande ~40 Md € gagnés dans la boutique (le mobilier accélère chaque boutique)
   const ETOILE_FREIN = 25;       // chaque tranche de 25 étoiles possédées rend les suivantes 2 fois plus chères (pas d'emballement)
   const ABSENCE_MAX_H = 8;       // les apprentis travaillent 8 h au plus pendant une absence
+  const PAUSE_EV = 600;          // une sortie de 10 min au plus (autre appli, écran verrouillé sans le vouloir) : l'événement en cours et le coup de feu attendent
   const RUSH = { duree: 60, mult: 3 };          // coup de feu : toutes les ventes ×3 pendant 60 s
   const COMMANDE = { duree: 180, prime: 6 };    // commande spéciale : N fournées en 3 min, payées 6 fois le prix
   const CRITIQUE = { duree: 120, mult: 2, boost: 300 }; // le critique : vends trois recettes différentes en 2 min → tout ×2 pendant 5 min
@@ -1039,7 +1040,11 @@
     return out;
   }
   // ─── absence : les apprentis ont travaillé (8 h au plus), les fournées en cours se terminent ; pas d'événement sans toi ───
+  // Une sortie courte (PAUSE_EV) met l'événement en cours et le coup de feu (st.boost) EN PAUSE : leurs échéances sont repoussées de la
+  // durée de la sortie, on les retrouve tels quels ; l'absence elle-même se paie sans eux. Une sortie plus longue les efface (sans pénalité).
   function absence(st, nowMs) {
+    const sortie = Math.max(0, nowMs - st.lastSeen), garder = sortie <= PAUSE_EV * 1000;
+    const ev = garder ? st.ev : null, boost = garder ? st.boost : null;
     st.now = nowMs; st.ev = null; st.boost = null;
     if (st.boosts && st.boosts.actif && st.boosts.actif.fin <= nowMs) st.boosts.actif = null; // un boost de la réserve fini pendant l'absence s'éteint (le reste de l'absence est sans lui)
     const secs = Math.min(heuresAbsence(st) * 3600, Math.max(0, (nowMs - st.lastSeen) / 1000));
@@ -1057,8 +1062,10 @@
     const ss = st.saison; // une fournée de saison lancée avant de partir se termine
     if (ss && ss.actif && ss.prog + secs >= tempsSaison(st)) { const r = recetteSaison(st), m = cuireSaison(st, null, true); total += m; detail.push({ i: -1, nom: r.nom, n: 1, m }); } else if (ss && ss.actif) ss.prog += secs;
     if (total > 0) gagner(st, total, true);
+    if (ev) { if (Number.isFinite(ev.debut)) ev.debut += sortie; if (Number.isFinite(ev.fin)) ev.fin += sortie; st.ev = ev; } // en pause : il reprend où on l'a laissé
+    if (boost) { boost.fin += sortie; st.boost = boost; }
     st.lastSeen = nowMs;
-    return { secs, total, detail, grades };
+    return { secs, total, detail, grades, pause: !!(ev || boost) };
   }
 
   // ─── format des nombres : 1 234 €, 12,5 k €, 3,4 M €, 2,1 Md € ───
@@ -1079,7 +1086,7 @@
   return { APPRENTIS, APPRENTI_NIVEAUX, APPRENTI_VITESSE, APPRENTI_ABSENCE, xpApprenti, gradeApprenti, progresApprenti, creditApprenti, apprentiTempsMult, apprentiRevMult, effetTalentApprenti,
     CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, PELAGES, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
-    PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
+    PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, boostsNeufs, donnerBoostReserve, lancerBoostReserve,
