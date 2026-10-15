@@ -32,6 +32,16 @@ console.log('── la boutique');
   const enCours = essai(1 * H, boost(2 * H)), fini = essai(3 * H, boost(1 * H));
   check(enCours.gain > a1.gain * 1.5, `boost ×2 encore en cours au retour : ${G.fmt(enCours.gain)} € pour 1 h (sans : ${G.fmt(a1.gain)})`);
   check(fini.s.boosts.actif === null && fini.gain < essai(3 * H).gain * 1.01, 'boost fini pendant l’absence : éteint, l’absence payée sans lui (jamais plus)');
+  // une sortie sans le vouloir (autre appli, écran verrouillé) : l'événement en cours et le coup de feu attendent (PAUSE_EV), jamais payés pendant
+  for (const type of ['rush', 'petrissage', 'commande', 'panne', 'anniversaire', 'critique', 'meunier']) {
+    const s = copie(base); s.now = T0; G.lancerEvenement(s, () => 0.3, type); const ev = s.ev; if (!ev) { check(false, `événement ${type} lancé`); continue; }
+    const reste = ev.fin - T0, sortie = 20e3, r = G.absence(s, T0 + sortie);
+    check(s.ev && s.ev.type === type && s.ev.fin - (T0 + sortie) === reste && r.pause, `${type} : une sortie de 20 s le met en pause (${Math.round(reste / 1000)} s restantes, pareil au retour)`);
+  }
+  { const s = copie(base); s.now = T0; G.donnerBoost(s, 3, 60); const c0 = s.coins; const r = G.absence(s, T0 + 30e3); const sans = essai(30e3).gain;
+    check(s.boost && s.boost.fin === T0 + 30e3 + 60e3 && Math.abs((s.coins - c0) - sans) < 1e-6 * sans + 1e-9 && r.pause, 'coup de feu ×3 : en pause pendant une sortie de 30 s, et l’absence payée sans lui'); }
+  { const s = copie(base); s.now = T0; G.lancerEvenement(s, () => 0.3, 'rush'); G.donnerBoost(s, 3, 60); G.absence(s, T0 + (G.PAUSE_EV + 60) * 1000);
+    check(s.ev === null && s.boost === null, `une sortie de plus de ${G.PAUSE_EV / 60} min : l’événement et le coup de feu sont effacés (sans pénalité)`); }
 }
 
 for (const [nom, M] of [['la Planque (Quartier)', Q], ['la Maison hantée', HT]]) {
