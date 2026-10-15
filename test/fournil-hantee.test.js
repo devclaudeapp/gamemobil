@@ -3,7 +3,8 @@
 // 2 nov. à 20 h, heure de Paris), l'enchaînement avec le Quartier, la fiche (HT.FICHE) et la même forme d'API que src/quartier.js, le Manoir
 // (friandises, postes, monstres, Sortilèges, coups de pouce), les gains d'absence plafonnés (8 h, au ralenti), les douze paliers donnés une
 // seule fois (étoiles, boosts, décos, tenue d'Halloween, chat noir), le rythme simulé (assidu → palier 12 le dernier jour ou la veille,
-// quotidien → 8-9, occasionnel → 5-7), l'enveloppe du serveur (le marathon 24 h/24 reste sous la table de fournil_evts(), avec marge), et la
+// quotidien → 8-9, occasionnel → 5-7), les paliers bonus « après le maître » (13 à 20) et les Sortilèges en plus, la reprise d'une sauvegarde
+// déjà au 12e, l'enveloppe du serveur (le marathon 24 h/24 reste sous la table de fournil_evts(), avec marge, Sortilèges compris), et la
 // longévité (sept jours de marathon sans dérive, sauvegarde relue en route, récompenses distribuées dans la boulangerie de src/game.js).
 // Lancer : TZ=Europe/Paris node test/fournil-hantee.test.js
 'use strict';
@@ -75,7 +76,7 @@ r = HT.embaucher(q, 1);
 check(r.ok && q.postes[1].staff && q.postes[1].actif && q.stats.embauches === 1 && !HT.embaucher(q, 1).ok && !HT.embaucher(q, 3).ok, `Ramsès la momie embauchée (${HT.fmtEur(r.prix)}) ; pas deux fois, pas sans poste ouvert`);
 r = HT.amelioration(q, 'petillant');
 check(r.ok && HT.ameliorationMult(q, 0) === 3 && HT.ameliorationMult(q, 1) === 1 && !HT.amelioration(q, 'petillant').ok && !HT.amelioration(q, 'inconnu').ok, 'le Sortilège « Sucre qui pétille » : acidulés ×3, une seule fois');
-check(HT.AMELIORATIONS.length === 10 && HT.AMELIORATIONS.every((a) => a.cible === null || a.cible.every((c) => HT.PRODUITS.some((p) => p.id === c))) && HT.AMELIORATIONS.slice(1).every((a, k) => a.cout > HT.AMELIORATIONS[k].cout), 'dix Sortilèges, de prix croissants, qui visent des friandises qui existent');
+check(HT.AMELIORATIONS.length === 14 && HT.AMELIORATIONS.filter((a) => !a.apres).length === 10 && HT.AMELIORATIONS.every((a) => a.cible === null || a.cible.every((c) => HT.PRODUITS.some((p) => p.id === c))) && HT.AMELIORATIONS.slice(1).every((a, k) => a.cout > HT.AMELIORATIONS[k].cout), 'dix Sortilèges (et quatre de plus après le maître), de prix croissants, qui visent des friandises qui existent');
 check(HT.tauxParSeconde(q) === HT.tauxBase(q) * HT.PRESENCE && HT.rythme(q) > 0, 'le taux par seconde compte les monstres (en ta présence) ; le rythme de référence, sans toi');
 
 console.log('── les coups de pouce (chauves-souris, cortège, pleine lune, balai) ──');
@@ -115,11 +116,12 @@ abs = HT.absence(q, q.lastSeen - 3600e3);
 check(abs.secs === 0 && abs.total === 0, 'une heure dans le passé (horloge reculée) : rien');
 
 console.log('── les douze paliers, une seule fois ──');
-check(HT.PALIERS.length === 12 && HT.PALIERS.every((p, k) => p.n === k + 1 && (k === 0 || p.total > HT.PALIERS[k - 1].total)), 'douze paliers croissants');
-check(HT.PALIERS.filter((p) => p.vetement).map((p) => `${p.n}:${p.vetement}`).join() === '3:hantee-chapeau,6:hantee-cape,9:hantee-bottes,12:hantee-lanterne' && HT.VETEMENTS.join() === 'hantee-chapeau,hantee-cape,hantee-bottes,hantee-lanterne', 'la tenue d’Halloween aux paliers 3, 6, 9 et 12 (chapeau pointu, cape, bottes, citrouille-lanterne)');
+const DOUZE = HT.PALIERS.filter((p) => !p.bonus), BONUS = HT.PALIERS.filter((p) => p.bonus);
+check(HT.PALIERS.length === 20 && HT.PALIERS_BOSS === 12 && HT.PALIERS.every((p, k) => p.n === k + 1 && (k === 0 || p.total > HT.PALIERS[k - 1].total)) && DOUZE.length === 12 && BONUS.every((p) => p.n > 12), 'vingt paliers croissants : les douze, puis huit bonus (13 à 20)');
+check(DOUZE.filter((p) => p.vetement).map((p) => `${p.n}:${p.vetement}`).join() === '3:hantee-chapeau,6:hantee-cape,9:hantee-bottes,12:hantee-lanterne' && HT.VETEMENTS.join() === 'hantee-chapeau,hantee-cape,hantee-bottes,hantee-lanterne', 'la tenue d’Halloween aux paliers 3, 6, 9 et 12 (chapeau pointu, cape, bottes, citrouille-lanterne)');
 check(HT.PALIERS.filter((p) => p.deco).map((p) => `${p.n}:${p.deco}`).join() === '2:citrouilles,5:toiles,8:chaudron' && HT.DECOS.join() === 'citrouilles,toiles,chaudron', 'les trois décos : citrouilles, toiles d’araignée, chaudron');
 check(HT.PALIERS.filter((p) => p.chat).map((p) => `${p.n}:${p.chat}`).join() === '4:noir', 'le chat noir au palier 4');
-check(HT.PALIERS.reduce((s, p) => s + (p.etoiles || 0), 0) === 8 && HT.PALIERS.filter((p) => p.boost).length === 5, '8 étoiles et 5 boosts en tout, comme au Quartier');
+check(DOUZE.reduce((s, p) => s + (p.etoiles || 0), 0) === 8 && DOUZE.filter((p) => p.boost).length === 5, '8 étoiles et 5 boosts dans les douze, comme au Quartier');
 check(HT.PALIERS.every((p) => HT.phrasePalier(p).length > 3) && /chat noir/.test(HT.phrasePalier(HT.PALIERS[3])), 'chaque palier se décrit en une ligne');
 check(HT.VETEMENTS.concat(HT.VETEMENTS_OR).every((id) => G.vetement(id) && G.vetement(id).collection === (id.startsWith('hantee-or') ? 'hantee-or' : 'hantee')) && HT.VETEMENTS.every((id) => F.vetements[id] && F.vetements[id].forme === G.vetement(id).forme), 'chaque pièce existe dans la garde-robe de src/game.js (collections hantee et hantee-or), de la forme que dit la fiche');
 q = HT.etat({}, now0);
@@ -130,6 +132,28 @@ let p = HT.marquerPalier(q, 4);
 check(p && p.n === 4 && q.chat === true && q.etoiles === 1 && HT.marquerPalier(q, 4) === null, 'le palier 4 réclamé : le chat noir noté, une étoile ; une seule fois');
 HT.gagner(q, 1e15); HT.PALIERS.forEach((x) => HT.marquerPalier(q, x.n));
 check(q.paliers.length === 12 && HT.ensembleComplet(q) && q.decos.length === 3 && q.etoiles === 8 && q.boosts === 5 && HT.tick(q, 1, now0 + 1000, () => 0.5).paliers.length === 0, 'tout en haut : 12 paliers, la tenue complète, 3 décos, 8 étoiles, 5 boosts ; le pas de jeu ne redonne rien');
+
+console.log('── après le maître : les paliers 13 à 20, les Sortilèges en plus ──');
+check(HT.PALIERS[12].total > HT.PALIERS[11].total && BONUS.every((p) => p.titre && (p.etoiles || p.boost) && !p.deco && !p.chat) && new Set(HT.PALIERS.map((p) => p.titre)).size === 20, `huit paliers bonus (de ${HT.fmt(BONUS[0].total)} à ${HT.fmt(BONUS[7].total)}), chacun son titre, des étoiles ou un boost`);
+check(BONUS.every((p) => !p.vetement || p.n === 20) && HT.PALIERS[19].vetement === HT.TROPHEE && HT.TROPHEE === 'hantee-lueur-chapeau' && !HT.VETEMENTS.includes(HT.TROPHEE) && !HT.VETEMENTS_OR.includes(HT.TROPHEE) && G.vetement(HT.TROPHEE).collection === 'hantee-lueur' && F.vetements[HT.TROPHEE].forme === G.vetement(HT.TROPHEE).forme, 'au 20e, le trophée : le chapeau phosphorescent (collection à part ; la tenue en or reste au podium)');
+check(BONUS.reduce((s, p) => s + (p.etoiles || 0), 0) === 5 && BONUS.filter((p) => p.boost).length === 5 && /phosphorescent/.test(HT.phrasePalier(HT.PALIERS[19])), '5 étoiles et 5 boosts de plus, comme au Quartier ; le 20e se décrit');
+q = HT.etat({}, now0); HT.gagner(q, 1e17); HT.paliersDus(q).forEach((x) => HT.marquerPalier(q, x.n));
+check(q.paliers.length === 20 && q.etoiles === 13 && q.boosts === 10 && q.vetements.includes(HT.TROPHEE) && HT.reputationMult(q) === Math.pow(HT.REPUTATION, 12) && HT.marquerPalier(q, 20) === null, 'tout en haut : vingt paliers, 13 étoiles, 10 boosts, le chapeau phosphorescent ; la réputation reste ×1,5¹² ; une seule fois');
+const COMB = HT.AMELIORATIONS.filter((a) => a.apres);
+check(COMB.length === 4 && COMB.every((a) => a.apres === 12 && a.effet && a.mult === 1 && a.cout >= 5e14), `quatre Sortilèges de plus après le palier 12, chers (${COMB.map((a) => `${a.nom} ${HT.fmt(a.cout)}`).join(', ')})`);
+q = HT.etat({}, now0); HT.gagner(q, 3e14); q.billets = 1e17;
+check(!HT.amelioration(q, COMB[0].id).ok && HT.amelioration(q, COMB[0].id).verrou, 'avant le maître : verrouillés');
+HT.gagner(q, 1e14); q.billets = 1e17; const rb = HT.revenuBase(q, 0);
+check(COMB.every((a) => HT.amelioration(q, a.id).ok) && HT.revenuBase(q, 0) === rb, 'après : achetés, sans multiplier aucune vente');
+ev = HT.lancerEvenement(q, () => 0.5, 'descente'); const evS = HT.lancerEvenement(q, () => 0.5, 'soiree'), evB = HT.lancerEvenement(q, () => 0.5, 'scooter');
+check(ev.n === 8 && ev.enjeu === Math.floor(q.billets * 0.05) && evS.fin - evS.debut === 180e3 && evB.fin - evB.debut === 20e3 && HT.heuresAbsence(q) === 12 && HT.partAbsence(q) === 0.2, 'leurs effets : chauves-souris en 8 touches (5 % emportés), pleine lune de 3 min, balai qui attend 20 s, absence de 12 h à 20 %');
+{ // la reprise d'une sauvegarde d'avant la mise à jour : 12 paliers marqués, 3 000 Bn gagnés (au-delà des 13e et 14e)
+  const b = G.newState(now0), qv = HT.etat(b, now0); HT.gagner(qv, 3e15); for (let k = 1; k <= 12; k++) HT.marquerPalier(qv, k);
+  const json = JSON.parse(JSON.stringify(b)), q2 = HT.etat(json, now0), e0 = json.etoiles;
+  check(HT.paliersDus(q2).map((p) => p.n).join() === '13,14', 'relue après la mise à jour : les paliers 13 et 14, déjà dépassés, sont dus');
+  for (const p of HT.paliersDus(q2)) { if (HT.marquerPalier(q2, p.n) && p.etoiles) json.etoiles += p.etoiles; }
+  for (const p of HT.PALIERS) HT.marquerPalier(q2, p.n);
+  check(q2.paliers.length === 14 && json.etoiles === e0 + 1 && q2.etoiles === 9 && HT.paliersDus(q2).length === 0, 'donnés une fois chacun, pas de double récompense'); }
 
 console.log('── le rythme simulé (sept jours de Paris) ──');
 const S = {}; for (const prof of ['assidu', 'quotidien', 'occasionnel', 'marathon']) S[prof] = HT.simuler(prof);
@@ -145,6 +169,13 @@ check(S.assidu.parJour.every((d, k) => k === 0 || d.total >= S.assidu.parJour[k 
 check(HT.simuler('assidu', 7, { graine: 7 }).total === S.assidu.total, 'la simulation est déterministe (graine)');
 { const res = []; let ok = true; for (let g = 1; g <= 8; g++) { const s = HT.simuler('assidu', 7, { graine: g }), j = s.paliersJour[12] || Infinity; res.push(j); if (!(j >= 6 && j <= 7)) ok = false; }
   check(ok, `et quel que soit le hasard des coups de pouce (8 graines) : palier 12 les jours ${res.join(', ')}`); }
+{ // après le maître : le très actif (8 h par jour) et le marathon
+  S.tresactif = HT.simuler('tresactif'); const T = S.tresactif.paliersJour;
+  console.log(`  très actif : ${HT.fmtEur(S.tresactif.total)}, paliers ${JSON.stringify(T)}`);
+  const jours = [12, 13, 14, 15, 16, 17, 18].map((k) => T[k] || Infinity), ecarts = jours.slice(1).map((j, k) => j - jours[k]);
+  check(T[12] <= 2 && T[18] <= 7 && ecarts.every((e) => e >= 0 && e <= 2) && !T[20], `le très actif : le 12e le ${T[12]}e jour, puis un bonus par jour ou presque (13e le ${T[13]}e, 15e le ${T[15]}e, 16e le ${T[16]}e, 17e le ${T[17]}e, 18e le ${T[18]}e) ; le 20e reste aux marathoniens`);
+  check(jourDe('marathon', 20) >= 6 && jourDe('marathon', 20) <= 7, `le marathon n’atteint le 20e que le ${jourDe('marathon', 20)}e jour sur 7`);
+  check(!S.assidu.paliersJour[13] && !S.quotidien.paliersJour[13], 'l’assidu et le quotidien ne voient pas les paliers bonus : leur rythme ne change pas'); }
 
 console.log('── l’enveloppe du serveur (fournil_evts, version 5 du SQL) ──');
 const SQL = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement.sql'), 'utf8');
@@ -157,9 +188,9 @@ if (mEvt) {
   check(table.length >= Math.ceil((HT.FIN - HT.DEBUT) / 864e5 / pasJ) + 1 && table.every((v, k) => k === 0 || v >= table[k - 1]), `une table croissante qui couvre toute la fenêtre (${table.length} valeurs, un pas de ${mEvt[3]} h)`);
   const borne = (t) => { const j = Math.min(t / pasJ, table.length - 1), k = Math.floor(j); return k >= table.length - 1 ? table[table.length - 1] : table[k] + (table[k + 1] - table[k]) * (j - k); }; // log10, t en jours depuis l'ouverture
   let minM = Infinity, maxM = -Infinity;
-  for (const g of [7, 1, 2, 3]) { const s = g === 7 ? S.marathon : HT.simuler('marathon', 7, { graine: g });
+  for (const g of [7, 1, 2, 3]) for (const offertes of [false, true]) { const s = g === 7 && !offertes ? S.marathon : HT.simuler('marathon', 7, { graine: g, offertes }); // offertes : le pire cas, tous les Sortilèges d'après le maître dès le 12e
     for (const x of s.trace) if (x.total > 0) { const m = borne(x.t) - Math.log10(x.total); minM = Math.min(minM, m); if (x.t > 0.25) maxM = Math.max(maxM, m); } }
-  check(minM >= Math.log10(2), `le marathon 24 h/24 (quatre graines, minute par minute) reste sous l’enveloppe avec au moins ×2 de marge (×${Math.pow(10, minM).toFixed(2)} au plus juste)`);
+  check(minM >= Math.log10(2), `le marathon 24 h/24 (quatre graines, minute par minute, Sortilèges en plus achetés ou offerts dès le 12e) reste sous l’enveloppe avec au moins ×2 de marge (×${Math.pow(10, minM).toFixed(2)} au plus juste) — le SQL ne change pas`);
   check(maxM <= Math.log10(20), `mais pas plus de ×20 après les six premières heures (×${Math.pow(10, maxM).toFixed(1)} au plus large) : un tricheur ne s’envole pas`);
   check(S.assidu.trace.every((x) => x.total === 0 || borne(x.t) - Math.log10(x.total) >= 1), 'un assidu honnête est toujours au moins dix fois sous l’enveloppe');
 }

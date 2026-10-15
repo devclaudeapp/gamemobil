@@ -255,6 +255,8 @@
     ajouter(vet('quartier-or-sweat', 'Sweat doré', 'haut', 'quartier-or', 'sweat', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Noir et or, rien d’autre.'));
     ajouter(vet('quartier-or-baskets', 'Baskets dorées', 'pieds', 'quartier-or', 'baskets', { vitesse: 2 }, 'legendaire', 'Édition limitée, une seule paire.'));
     ajouter(vet('quartier-or-chaine', 'Chaîne en or', 'accessoire', 'quartier-or', 'chaine', { absence: 0.5 }, 'legendaire', 'La vraie, pas la plaquée.'));
+    // le trophée du palier bonus 20 du Quartier (après le boss) : une seule pièce, sans ensemble, distincte de la tenue en or du podium
+    ajouter(vet('quartier-neon-casquette', 'Casquette néon', 'tete', 'quartier-neon', 'casquette', { vitesse: 1 }, 'epique', 'Le palier 20 du quartier. Elle clignote un peu.'));
     // l'événement « La Maison hantée » (src/hantee.js) : la tenue d'Halloween aux paliers 3, 6, 9 et 12, la même en or pour le podium final
     ajouter(vet('hantee-chapeau', 'Chapeau pointu', 'tete', 'hantee', 'chapeau', { gains: { produit: 'tarte', pct: 8 } }, 'rare', 'Pointu, étoilé, et il tient même dans le vent du four.'));
     ajouter(vet('hantee-cape', 'Cape de minuit', 'haut', 'hantee', 'cape', { gains: { produit: null, pct: 2.5 } }, 'rare', 'Doublée de violet. Elle fait « whoosh » quand on se retourne.'));
@@ -264,6 +266,8 @@
     ajouter(vet('hantee-or-cape', 'Cape dorée', 'haut', 'hantee-or', 'cape', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Noire dehors, dorée dedans.'));
     ajouter(vet('hantee-or-bottes', 'Bottes dorées', 'pieds', 'hantee-or', 'bottes', { vitesse: 2 }, 'legendaire', 'Elles claquent en or massif.'));
     ajouter(vet('hantee-or-lanterne', 'Lanterne dorée', 'accessoire', 'hantee-or', 'lanterne', { absence: 0.5 }, 'legendaire', 'Une citrouille en or qui ne s’éteint jamais.'));
+    // le trophée du palier bonus 20 de la Maison hantée (après le maître) : une seule pièce, sans ensemble, distincte de la tenue en or
+    ajouter(vet('hantee-lueur-chapeau', 'Chapeau phosphorescent', 'tete', 'hantee-lueur', 'chapeau', { vitesse: 1 }, 'epique', 'Le palier 20 du Manoir. Il brille dans le noir.'));
     const ensembles = {
       or: { nom: 'Tenue d’or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
       argent: { nom: 'Tenue d’argent', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },

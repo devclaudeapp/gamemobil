@@ -41,7 +41,7 @@ const ICONS = (() => {
   // les métaux du podium du classement : teinte, ombre, reflet (les mêmes que la tenue et les coupes en 3D)
   const METAL = { or: ['#FFC84A', '#D4921A', '#FFF2C2'], argent: ['#D3DCE6', '#7F8FA3', '#FFFFFF'], bronze: ['#E2A06A', '#9E5A2A', '#F8D6B6'] };
   // les palettes de la garde-robe : les métaux du podium, le quartier (anthracite, accent fraise) et le quartier en or (noir et or), la base (blanc)
-  const TENUES = Object.assign({ quartier: ['#2E2B3A', '#E1496C', '#56516B'], 'quartier-or': ['#1E1B26', '#FFC84A', '#4A4458'], hantee: ['#4B2F7A', '#FF8A3D', '#8E6BD8'], 'hantee-or': ['#1E1B26', '#FFC84A', '#4A4458'], base: ['#FFFFFF', '#D9CCC2', '#FFFFFF'] }, METAL); // et la Maison hantée (violet nuit, orange citrouille ; en or : noir et or)
+  const TENUES = Object.assign({ quartier: ['#2E2B3A', '#E1496C', '#56516B'], 'quartier-or': ['#1E1B26', '#FFC84A', '#4A4458'], hantee: ['#4B2F7A', '#FF8A3D', '#8E6BD8'], 'hantee-or': ['#1E1B26', '#FFC84A', '#4A4458'], 'quartier-neon': ['#FF2E9A', '#2EF2FF', '#FF8AD0'], 'hantee-lueur': ['#2E2547', '#7CFF6B', '#B8FF9E'], base: ['#FFFFFF', '#D9CCC2', '#FFFFFF'] }, METAL); // et la Maison hantée (violet nuit, orange citrouille ; en or : noir et or)
   // tenue : 'or', 'argent' ou 'bronze' (toque et tablier du podium), ou la garde-robe de GAME.tenueBoulanger(st) ({ tete, haut, accessoire: { forme, metal } })
   function boulanger(rang, tenue) {
     const gd = tenue && typeof tenue === 'object' ? tenue : null, pal = (p) => (gd && gd[p] && gd[p].metal && TENUES[gd[p].metal]) || null;

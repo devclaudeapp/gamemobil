@@ -679,6 +679,7 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 .gr-piece.porte { background: #FFF3C4; box-shadow: inset 0 0 0 2.5px var(--beurre-sombre), 0 4px 12px var(--ombre); }
 .gr-piece.quartier .gr-ico, .gr-piece.quartier-or .gr-ico { background: #EFEAFF; }
 .gr-piece.hantee .gr-ico, .gr-piece.hantee-or .gr-ico { background: #FFE6D2; } /* la Maison hantée : un fond citrouille */
+.gr-piece.quartier-neon .gr-ico { background: #2E2B3A; } .gr-piece.hantee-lueur .gr-ico { background: #1B1530; } /* les trophées du palier 20 : sur fond de nuit, pour que le néon ressorte */
 .gr-chat { width: 100%; text-align: left; } .gr-chat[disabled] { opacity: .75; }
 .gr-choisir { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 56px; width: 100%; text-align: left; }
 button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; min-height: 56px; width: 100%; text-align: left; }
@@ -819,6 +820,16 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .pq-palier b small { font: 700 11px/1 var(--texte-font); color: var(--texte-2); }
 .pq-palier div > span { display: block; font-size: 12px; line-height: 1.3; color: var(--texte-2); }
 .pq-palier .pq-etat { font: 700 18px/1 var(--titre); color: var(--menthe-sombre); text-align: center; }
+/* après le boss : l'intertitre des paliers bonus (13 à 20) et des combines en plus ; les pastilles bonus en violet nuit, les atteintes en néon */
+.pq-inter { display: flex; align-items: center; gap: 8px; margin: 12px 2px 0; font: 700 15px/1.2 var(--titre); color: var(--texte); }
+.pq-inter::before, .pq-inter::after { content: ''; flex: 1 1 0; min-width: 12px; height: 2px; border-radius: 2px; background: currentColor; opacity: .25; }
+.pq-inter-sous { margin: 0 2px 2px; font-size: 12px; line-height: 1.35; color: var(--texte-2); text-align: center; }
+.liste-am .pq-inter { margin-top: 6px; }
+.pq-palier.bonus .pq-num { background: #3F3A50; box-shadow: inset 0 0 0 2px #FF2E9A; }
+.pq-palier.bonus.atteint { background: #FFE4F3; box-shadow: inset 0 0 0 2px #FF2E9A; }
+.pq-palier.bonus.atteint .pq-num { background: #FF2E9A; color: #fff; box-shadow: none; }
+.am.bonus:not(.fait) { box-shadow: inset 0 0 0 2px #FF2E9A, var(--ombre-carte); }
+.pq-am-bientot { margin: 4px 2px 0; text-align: center; }
 :is(#planque, #hantee) .btn.sombre { background: #1E1B26; }
 @media (max-height: 700px) { .pq-scene { height: 140px; } }
 /* la porte 18+ et l'annonce du Quartier à 320 px : « Non, masquer l'événement » passe à la ligne au lieu d'être coupé */
@@ -872,6 +883,10 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .pq-bilan.ht .pq-grand { color: #C9652B; }
 .pq-sheet.ht .pq-palier.atteint { background: #FFE6D2; box-shadow: inset 0 0 0 2px #FF8A3D; }
 .pq-sheet.ht .pq-palier.atteint .pq-num { background: #FF8A3D; color: #2A1608; }
+.pq-sheet.ht .pq-palier.bonus .pq-num { background: #2E2547; box-shadow: inset 0 0 0 2px #5FD3A4; }
+.pq-sheet.ht .pq-palier.bonus.atteint { background: #E3FBE9; box-shadow: inset 0 0 0 2px #3FBF7F; }
+.pq-sheet.ht .pq-palier.bonus.atteint .pq-num { background: #3FBF7F; color: #10261A; box-shadow: none; }
+.pq-sheet.ht .am.bonus:not(.fait) { box-shadow: inset 0 0 0 2px #3FBF7F, var(--ombre-carte); }
 .ht-annonce { text-align: center; }
 .ht-annonce-scene { position: relative; display: grid; place-items: center; height: 132px; margin: 0 auto 10px; border-radius: 24px; overflow: hidden; background: linear-gradient(180deg, #1B1438 0%, #3B2A66 78%, #2A2140 100%); }
 .ht-annonce-scene::after { content: ''; position: absolute; left: -10%; right: -10%; bottom: -16px; height: 44px; border-radius: 50%; background: #2A1F45; }
@@ -1445,6 +1460,8 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
     ajouter(vet('quartier-or-sweat', 'Sweat doré', 'haut', 'quartier-or', 'sweat', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Noir et or, rien d’autre.'));
     ajouter(vet('quartier-or-baskets', 'Baskets dorées', 'pieds', 'quartier-or', 'baskets', { vitesse: 2 }, 'legendaire', 'Édition limitée, une seule paire.'));
     ajouter(vet('quartier-or-chaine', 'Chaîne en or', 'accessoire', 'quartier-or', 'chaine', { absence: 0.5 }, 'legendaire', 'La vraie, pas la plaquée.'));
+    // le trophée du palier bonus 20 du Quartier (après le boss) : une seule pièce, sans ensemble, distincte de la tenue en or du podium
+    ajouter(vet('quartier-neon-casquette', 'Casquette néon', 'tete', 'quartier-neon', 'casquette', { vitesse: 1 }, 'epique', 'Le palier 20 du quartier. Elle clignote un peu.'));
     // l'événement « La Maison hantée » (src/hantee.js) : la tenue d'Halloween aux paliers 3, 6, 9 et 12, la même en or pour le podium final
     ajouter(vet('hantee-chapeau', 'Chapeau pointu', 'tete', 'hantee', 'chapeau', { gains: { produit: 'tarte', pct: 8 } }, 'rare', 'Pointu, étoilé, et il tient même dans le vent du four.'));
     ajouter(vet('hantee-cape', 'Cape de minuit', 'haut', 'hantee', 'cape', { gains: { produit: null, pct: 2.5 } }, 'rare', 'Doublée de violet. Elle fait « whoosh » quand on se retourne.'));
@@ -1454,6 +1471,8 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
     ajouter(vet('hantee-or-cape', 'Cape dorée', 'haut', 'hantee-or', 'cape', { gains: { produit: null, pct: 3 } }, 'legendaire', 'Noire dehors, dorée dedans.'));
     ajouter(vet('hantee-or-bottes', 'Bottes dorées', 'pieds', 'hantee-or', 'bottes', { vitesse: 2 }, 'legendaire', 'Elles claquent en or massif.'));
     ajouter(vet('hantee-or-lanterne', 'Lanterne dorée', 'accessoire', 'hantee-or', 'lanterne', { absence: 0.5 }, 'legendaire', 'Une citrouille en or qui ne s’éteint jamais.'));
+    // le trophée du palier bonus 20 de la Maison hantée (après le maître) : une seule pièce, sans ensemble, distincte de la tenue en or
+    ajouter(vet('hantee-lueur-chapeau', 'Chapeau phosphorescent', 'tete', 'hantee-lueur', 'chapeau', { vitesse: 1 }, 'epique', 'Le palier 20 du Manoir. Il brille dans le noir.'));
     const ensembles = {
       or: { nom: 'Tenue d’or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
       argent: { nom: 'Tenue d’argent', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
@@ -3377,7 +3396,7 @@ const ICONS = (() => {
   // les métaux du podium du classement : teinte, ombre, reflet (les mêmes que la tenue et les coupes en 3D)
   const METAL = { or: ['#FFC84A', '#D4921A', '#FFF2C2'], argent: ['#D3DCE6', '#7F8FA3', '#FFFFFF'], bronze: ['#E2A06A', '#9E5A2A', '#F8D6B6'] };
   // les palettes de la garde-robe : les métaux du podium, le quartier (anthracite, accent fraise) et le quartier en or (noir et or), la base (blanc)
-  const TENUES = Object.assign({ quartier: ['#2E2B3A', '#E1496C', '#56516B'], 'quartier-or': ['#1E1B26', '#FFC84A', '#4A4458'], hantee: ['#4B2F7A', '#FF8A3D', '#8E6BD8'], 'hantee-or': ['#1E1B26', '#FFC84A', '#4A4458'], base: ['#FFFFFF', '#D9CCC2', '#FFFFFF'] }, METAL); // et la Maison hantée (violet nuit, orange citrouille ; en or : noir et or)
+  const TENUES = Object.assign({ quartier: ['#2E2B3A', '#E1496C', '#56516B'], 'quartier-or': ['#1E1B26', '#FFC84A', '#4A4458'], hantee: ['#4B2F7A', '#FF8A3D', '#8E6BD8'], 'hantee-or': ['#1E1B26', '#FFC84A', '#4A4458'], 'quartier-neon': ['#FF2E9A', '#2EF2FF', '#FF8AD0'], 'hantee-lueur': ['#2E2547', '#7CFF6B', '#B8FF9E'], base: ['#FFFFFF', '#D9CCC2', '#FFFFFF'] }, METAL); // et la Maison hantée (violet nuit, orange citrouille ; en or : noir et or)
   // tenue : 'or', 'argent' ou 'bronze' (toque et tablier du podium), ou la garde-robe de GAME.tenueBoulanger(st) ({ tete, haut, accessoire: { forme, metal } })
   function boulanger(rang, tenue) {
     const gd = tenue && typeof tenue === 'object' ? tenue : null, pal = (p) => (gd && gd[p] && gd[p].metal && TENUES[gd[p].metal]) || null;
@@ -6637,8 +6656,15 @@ const GARDEROBE_UI = (() => {
   const PIECES = [['tete', 'Couvre-chef', 'Tête'], ['haut', 'Haut', 'Haut'], ['pieds', 'Chaussures', 'Pieds'], ['accessoire', 'Accessoire', 'Accessoire']];
   const NOM_PIECE = Object.fromEntries(PIECES.map(([id, nom]) => [id, nom]));
   const RARETE = { commun: 'de toujours', rare: 'rare', epique: 'épique', legendaire: 'légendaire' };
-  const COLLECTION = { base: 'La tenue de toujours', or: 'Podium d’or', argent: 'Podium d’argent', bronze: 'Podium de bronze', quartier: 'Le Quartier', 'quartier-or': 'Le Quartier, podium final', hantee: 'La Maison hantée', 'hantee-or': 'La Maison hantée, podium final' };
-  const QUELLE = { or: 'Termine 1er de la semaine au classement.', argent: 'Termine 2e de la semaine au classement.', bronze: 'Termine 3e de la semaine au classement.', quartier: 'Les paliers de l’événement « Le Quartier ».', 'quartier-or': 'Le podium final de l’événement « Le Quartier ».', hantee: 'Les paliers de l’événement « La Maison hantée ».', 'hantee-or': 'Le podium final de « La Maison hantée ».' };
+  // les trophées des paliers bonus (20e) : leurs palettes pour la 3D du boulanger, posées ici (persos.js est partagé avec Poncin, qu'on
+  // laisse tel quel) : la casquette néon (rose et cyan) et le chapeau phosphorescent (vert qui brille dans la nuit)
+  if (typeof PERSOS !== 'undefined' && PERSOS && PERSOS.TENUES) {
+    const T = PERSOS.TENUES;
+    if (!T['quartier-neon']) T['quartier-neon'] = { tissu: '#FF2E9A', fonce: '#2EF2FF', clair: '#FF8AD0', bijou: '#2EF2FF' };
+    if (!T['hantee-lueur']) T['hantee-lueur'] = { tissu: '#2E2547', fonce: '#7CFF6B', clair: '#B8FF9E', bijou: '#7CFF6B' };
+  }
+  const COLLECTION = { base: 'La tenue de toujours', or: 'Podium d’or', argent: 'Podium d’argent', bronze: 'Podium de bronze', quartier: 'Le Quartier', 'quartier-or': 'Le Quartier, podium final', hantee: 'La Maison hantée', 'hantee-or': 'La Maison hantée, podium final', 'quartier-neon': 'Le Quartier, palier 20', 'hantee-lueur': 'La Maison hantée, palier 20' };
+  const QUELLE = { or: 'Termine 1er de la semaine au classement.', argent: 'Termine 2e de la semaine au classement.', bronze: 'Termine 3e de la semaine au classement.', quartier: 'Les paliers de l’événement « Le Quartier ».', 'quartier-or': 'Le podium final de l’événement « Le Quartier ».', hantee: 'Les paliers de l’événement « La Maison hantée ».', 'hantee-or': 'Le podium final de « La Maison hantée ».', 'quartier-neon': 'Le palier bonus 20 de l’événement « Le Quartier ».', 'hantee-lueur': 'Le palier bonus 20 de « La Maison hantée ».' };
   let pieceOuverte = 'tete';
   const virg = (n) => String(+n.toFixed(2)).replace('.', ',');
   const etoiles = (n) => `${'★'.repeat(n)}${'☆'.repeat(GR.nivMax - n)}`;
@@ -6728,7 +6754,8 @@ const GARDEROBE_UI = (() => {
    Tout le monde part de zéro, avec sa propre monnaie (les billets), ses six produits, ses postes, ses « apprentis », ses améliorations,
    ses coups de pouce ; les gains d'absence sont plafonnés comme ceux de la boulangerie (sur l'horloge de confiance : « maintenant »
    est toujours donné par l'appelant, jamais lu ici). Douze paliers de billets gagnés, les mêmes pour tous, donnent des récompenses
-   POUR LA BOULANGERIE (étoiles, boosts en réserve, décos du quartier, vêtements) : voir PALIERS. À la fin, la Planque ferme ; tout le
+   POUR LA BOULANGERIE (étoiles, boosts en réserve, décos du quartier, vêtements) : voir PALIERS ; huit paliers bonus « après le boss »
+   (13 à 20) et quatre combines de plus attendent ceux qui ont franchi le 12e avant la fin. À la fin, la Planque ferme ; tout le
    reste reste à vie. Aucune dépendance au DOM ni à game.js : tourne aussi dans Node (test/fournil-quartier.test.js, qui simule le rythme). */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -6788,7 +6815,14 @@ const GARDEROBE_UI = (() => {
     { id: 'vip', nom: 'Clientèle VIP', cout: 1e10, cible: ['coke'], mult: 3, desc: 'Coke ×3' },
     { id: 'kebab', nom: 'Camion à kebabs blindé', cout: 3e11, cible: ['specialite'], mult: 3, desc: 'Spécialité ×3' },
     { id: 'cartel', nom: 'Franchise du cartel', cout: 6e12, cible: null, mult: 3, desc: 'Tout ×3' },
+    // après le boss (palier 12 franchi) : quatre combines chères qui ne multiplient pas les ventes (l'enveloppe du serveur, voir
+    // fournil_quartier_table : le marathon simulé doit rester ×2 dessous) ; elles adoucissent les coups de pouce et l'absence (effet)
+    { id: 'guetteurs', nom: 'Guetteurs sur les toits', cout: 1e15, apres: 12, cible: [], mult: 1, effet: { descenteN: 8, descentePart: 0.05 }, desc: 'Descentes : 8 touches suffisent, la police n’embarque plus que 5 %' },
+    { id: 'matelas', nom: 'Le matelas de Mémé Jacqueline', cout: 2e15, apres: 12, cible: [], mult: 1, effet: { absenceH: 12, absencePart: 0.2 }, desc: 'Absence : l’équipe bosse 12 h, à 20 % du rythme' },
+    { id: 'sono', nom: 'Sono qui fait trembler le square', cout: 4e15, apres: 12, cible: [], mult: 1, effet: { soireeDuree: 180 }, desc: 'Soirées : 3 min au lieu de 2' },
+    { id: 'trottinette', nom: 'Trottinette électrique du livreur', cout: 8e15, apres: 12, cible: [], mult: 1, effet: { scooterDuree: 20, scooterPrime: 3 }, desc: 'Le livreur attend 20 s, son bonus ×3' },
   ];
+  const effet = (q, cle, defaut) => { for (const a of AMELIORATIONS) if (a.effet && a.effet[cle] != null && q.ameliorations && q.ameliorations[a.id]) return a.effet[cle]; return defaut; }; // une combine « après le boss » achetée change ce réglage
   const ABSENCE_MAX_H = 8;   // les apprentis bossent 8 h au plus pendant une absence, comme à la boulangerie…
   const ABSENCE_PART = 0.1;  // … mais au ralenti : sans le boss, le quartier dort (10 % du rythme)
   const PRESENCE = 6;        // le boss est là : toutes les ventes ×6 tant que la Planque est ouverte (c'est en jouant qu'on grimpe)
@@ -6804,6 +6838,10 @@ const GARDEROBE_UI = (() => {
   // Réglés sur la simulation (test/fournil-quartier.test.js, et scratchpad quartier/evenement/regler.js) : un assidu (80 min par jour, en
   // quatre sessions) franchit le 12e le 11e jour ; un quotidien (36 min par jour) le 8e le 9e jour, le 9e le 11e, le 10e le dernier jour ;
   // un occasionnel (17 min) le 6e vers le 8e jour. C'est en jouant qu'on grimpe (PRESENCE) : les gains d'absence ne font que suivre.
+  // Après le boss (bonus: true), les paliers 13 à 20 : pour ceux qui franchissent le 12e bien avant la fin. Un très actif (8 h par jour,
+  // le 12e au 3e jour) en franchit un tous les jour ou deux ; le marathon (24 h/24) n'atteint le 20e que vers le 13e jour. Ils ne font
+  // plus la réputation (REPUTATION ne compte que les douze premiers : l'enveloppe du serveur ne bouge pas) ; ils donnent des étoiles,
+  // des boosts, un titre, et au 20e la casquette néon (un trophée de la garde-robe, distinct de la tenue en or du podium final).
   const PALIERS = [
     { n: 1, total: 1.2e8, etoiles: 1, boost: { mult: 2, secs: 1800 }, titre: 'Premiers billets' },
     { n: 2, total: 2.5e8, deco: 'graffiti', titre: 'Le mur du quartier' },
@@ -6817,7 +6855,17 @@ const GARDEROBE_UI = (() => {
     { n: 10, total: 1e14, etoiles: 2, boost: { mult: 2, secs: 3600 }, titre: 'Le caïd' },
     { n: 11, total: 2e14, deco: 'chien', titre: 'Le chien du quartier' },
     { n: 12, total: 5e14, vetement: 'quartier-chaine', etoiles: 3, boost: { mult: 5, secs: 1800 }, titre: 'Le boss du quartier' },
+    { n: 13, total: 1.5e15, bonus: true, boost: { mult: 2, secs: 1800 }, titre: 'Le boss a pris des vacances (non)' },
+    { n: 14, total: 3.5e15, bonus: true, etoiles: 1, titre: 'Les pigeons du square te saluent' },
+    { n: 15, total: 6e15, bonus: true, boost: { mult: 2, secs: 3600 }, titre: 'Le PMU t’ouvre une ardoise' },
+    { n: 16, total: 9e15, bonus: true, etoiles: 1, titre: 'Ta tête sur les tee-shirts du marché' },
+    { n: 17, total: 1.3e16, bonus: true, boost: { mult: 5, secs: 900 }, titre: 'Mémé Jacqueline te tricote un bonnet' },
+    { n: 18, total: 1.8e16, bonus: true, etoiles: 1, titre: 'Le chien du quartier porte ton nom' },
+    { n: 19, total: 2.2e16, bonus: true, boost: { mult: 2, secs: 3600 }, titre: 'La mairie parle d’une statue' },
+    { n: 20, total: 1.1e17, bonus: true, vetement: 'quartier-neon-casquette', etoiles: 2, boost: { mult: 5, secs: 1800 }, titre: 'La légende en néon' },
   ];
+  const PALIERS_BOSS = 12; // le dernier palier « normal » ; après lui, les paliers bonus
+  const TROPHEE = 'quartier-neon-casquette'; // la casquette néon du palier 20 (garde-robe : collection « quartier-neon »)
   const VETEMENTS = ['quartier-casquette', 'quartier-sweat', 'quartier-baskets', 'quartier-chaine'];
   const VETEMENTS_OR = ['quartier-or-casquette', 'quartier-or-sweat', 'quartier-or-baskets', 'quartier-or-chaine']; // le podium final
   const DECOS = ['graffiti', 'neon', 'scooter', 'chien'];
@@ -6846,7 +6894,7 @@ const GARDEROBE_UI = (() => {
   const prochainPalier = (niv) => PALIERS_POSTE.find((p) => p > niv) || null;
   function ameliorationMult(q, i) { let m = 1; for (const a of AMELIORATIONS) if (q.ameliorations[a.id] && (a.cible === null || a.cible.includes(PRODUITS[i].id))) m *= a.mult; return m; }
   function boostMult(q) { let m = PRESENCE; if (q.ev && q.ev.type === 'soiree' && q.ev.fin > q.now) m *= EVENEMENTS.soiree.mult; return m; } // en présence du boss
-  const reputationMult = (q) => Math.pow(REPUTATION, paliersAtteints(q).length);
+  const reputationMult = (q) => Math.pow(REPUTATION, paliersAtteints(q).filter((p) => !p.bonus).length); // les paliers bonus ne font plus la réputation
   const temps = (q, i) => PRODUITS[i].temps;
   const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(q, i) * reputationMult(q); };
   const revenu = (q, i) => revenuBase(q, i) * boostMult(q);
@@ -6861,7 +6909,8 @@ const GARDEROBE_UI = (() => {
   function tauxParSeconde(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenu(q, i) / temps(q, i); }); return t; }
   function rythme(q) { const t = tauxBase(q); if (t > 0) return t; let best = 0; q.postes.forEach((s, i) => { if (s.niv > 0) best = Math.max(best, revenuBase(q, i) / Math.max(1, temps(q, i)) * 0.5); }); return Math.max(0.5, best); }
   function arrondi(n) { if (n < 10) return Math.max(1, Math.round(n)); const p = Math.pow(10, Math.floor(Math.log10(n)) - 1); return Math.round(n / p) * p; }
-  const heuresAbsence = () => ABSENCE_MAX_H;
+  const heuresAbsence = (q) => (q ? effet(q, 'absenceH', ABSENCE_MAX_H) : ABSENCE_MAX_H);
+  const partAbsence = (q) => (q ? effet(q, 'absencePart', ABSENCE_PART) : ABSENCE_PART);
 
   // ─── actions ───
   function gagner(q, montant) { q.billets += montant; q.total += montant; }
@@ -6880,8 +6929,10 @@ const GARDEROBE_UI = (() => {
     return { ok: true, prix };
   }
   function lancer(q, i) { const s = q.postes[i]; if (s.niv <= 0 || s.actif) return false; s.actif = true; s.prog = 0; q.stats.taps++; return true; }
+  const combineOuverte = (q, a) => !a.apres || q.total >= PALIERS[a.apres - 1].total; // les combines « après le boss » : une fois le palier franchi
   function amelioration(q, id) {
     const a = AMELIORATIONS.find((x) => x.id === id), prix = a ? a.cout : 0;
+    if (a && !combineOuverte(q, a)) return { ok: false, prix, verrou: true };
     if (!a || q.ameliorations[id] || q.billets < prix) return { ok: false, prix };
     q.billets -= prix; q.ameliorations[id] = true; note(q, `${a.nom} : ${a.desc}`);
     return { ok: true, a, prix };
@@ -6905,14 +6956,14 @@ const GARDEROBE_UI = (() => {
     }
     q.dernierEv = type;
     const E = EVENEMENTS;
-    if (type === 'descente') q.ev = { type, taps: 0, n: E.descente.n, debut: q.now, fin: q.now + E.descente.duree * 1000, prime: arrondi(Math.max(20, rythme(q) * 240)), enjeu: Math.floor(q.billets * E.descente.part) };
+    if (type === 'descente') q.ev = { type, taps: 0, n: effet(q, 'descenteN', E.descente.n), debut: q.now, fin: q.now + E.descente.duree * 1000, prime: arrondi(Math.max(20, rythme(q) * 240)), enjeu: Math.floor(q.billets * effet(q, 'descentePart', E.descente.part)) };
     else if (type === 'grosclient') {
       const idx = q.postes.map((s, i) => i).filter((i) => q.postes[i].niv > 0 && PRODUITS[i].temps <= 15);
       if (!idx.length) return lancerEvenement(q, rnd, 'soiree');
       const i = idx[Math.floor(rnd() * idx.length)], s = q.postes[i], n = Math.max(3, Math.min(s.staff ? 400 : 20, arrondi(E.grosclient.duree / PRODUITS[i].temps * (s.staff ? 0.7 : 0.3))));
       q.ev = { type, i, n, fait: 0, debut: q.now, fin: q.now + E.grosclient.duree * 1000, prime: arrondi(revenuBase(q, i) * n * E.grosclient.prime), livree: false };
-    } else if (type === 'scooter') q.ev = { type, debut: q.now, fin: q.now + E.scooter.duree * 1000, prime: arrondi(Math.max(10, rythme(q) * 120)) };
-    else q.ev = { type: 'soiree', debut: q.now, fin: q.now + E.soiree.duree * 1000 };
+    } else if (type === 'scooter') q.ev = { type, debut: q.now, fin: q.now + effet(q, 'scooterDuree', E.scooter.duree) * 1000, prime: arrondi(Math.max(10, rythme(q) * 120) * effet(q, 'scooterPrime', 1)) };
+    else q.ev = { type: 'soiree', debut: q.now, fin: q.now + effet(q, 'soireeDuree', E.soiree.duree) * 1000 };
     return q.ev;
   }
   function planquer(q) { // la descente : une touche ; à la 12e, tout est planqué et la prime tombe
@@ -6955,7 +7006,7 @@ const GARDEROBE_UI = (() => {
     if (p.etoiles) l.push(`${p.etoiles} étoile${p.etoiles > 1 ? 's' : ''}`);
     if (p.boost) l.push(`boost ×${p.boost.mult} ${fmtDuree(p.boost.secs)}`);
     if (p.deco) l.push({ graffiti: 'graffiti sur le mur', neon: 'enseigne néon', scooter: 'scooter devant la porte', chien: 'le chien du quartier' }[p.deco]);
-    if (p.vetement) l.push({ 'quartier-casquette': 'casquette du quartier', 'quartier-sweat': 'sweat à capuche', 'quartier-baskets': 'baskets', 'quartier-chaine': 'chaîne en or (l’ensemble complet)' }[p.vetement]);
+    if (p.vetement) l.push({ 'quartier-casquette': 'casquette du quartier', 'quartier-sweat': 'sweat à capuche', 'quartier-baskets': 'baskets', 'quartier-chaine': 'chaîne en or (l’ensemble complet)', 'quartier-neon-casquette': 'la casquette néon (le trophée)' }[p.vetement]);
     return l.join(' · ');
   }
 
@@ -6980,16 +7031,16 @@ const GARDEROBE_UI = (() => {
     out.paliers = paliersDus(q);
     return out;
   }
-  // ─── l'absence : les apprentis ont bossé (8 h au plus), les fournées en cours se terminent ; pas de coup de pouce sans toi ───
+  // ─── l'absence : les apprentis ont bossé (8 h au plus, 12 h avec le matelas), les fournées en cours se terminent ; pas de coup de pouce sans toi ───
   function absence(q, nowMs) {
     q.now = nowMs; q.ev = null; q.evTimer = Math.max(q.evTimer || 0, REPRISE); // au retour, au moins 1 min 30 avant le prochain coup de pouce
-    const secs = Math.min(heuresAbsence() * 3600, Math.max(0, (nowMs - q.lastSeen) / 1000));
+    const secs = Math.min(heuresAbsence(q) * 3600, Math.max(0, (nowMs - q.lastSeen) / 1000)), part = partAbsence(q);
     let total = 0; const detail = [];
     q.postes.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
       const T = temps(q, i);
-      if (s.staff) { const n = Math.floor((s.prog + secs) / T); s.prog = (s.prog + secs) % T; if (n > 0) { const m = revenuBase(q, i) * n * ABSENCE_PART; total += m; detail.push({ i, n, m }); q.stats.ventes += n; } }
-      else if (s.prog + secs >= T) { const m = revenuBase(q, i) * 1.5 * ABSENCE_PART; total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; q.stats.ventes++; }
+      if (s.staff) { const n = Math.floor((s.prog + secs) / T); s.prog = (s.prog + secs) % T; if (n > 0) { const m = revenuBase(q, i) * n * part; total += m; detail.push({ i, n, m }); q.stats.ventes += n; } }
+      else if (s.prog + secs >= T) { const m = revenuBase(q, i) * 1.5 * part; total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; q.stats.ventes++; }
       else s.prog += secs;
     });
     if (total > 0) gagner(q, total);
@@ -7003,6 +7054,7 @@ const GARDEROBE_UI = (() => {
     quotidien: { sessions: [[7.75, 8], [12.5, 8], [21, 20]] },
     occasionnel: { sessions: [[8, 5], [20.5, 12]] },
     marathon: { sessions: [[0, 714], [12, 714]] }, // 23 h 48 sur 24 (deux sessions, l'une à midi) : l'enveloppe du serveur
+    tresactif: { sessions: [[7, 90], [11.5, 120], [16.5, 120], [20.5, 150]] }, // 8 h par jour : le 12e au 3e jour, comme les plus mordus (puis les paliers bonus)
   };
   function mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   function decider(q) { // acheter : apprenti, déblocage, amélioration, puis le meilleur rapport gain / prix
@@ -7012,6 +7064,8 @@ const GARDEROBE_UI = (() => {
     for (const a of AMELIORATIONS) if (!q.ameliorations[a.id] && q.billets >= a.cout * 1.2) { amelioration(q, a.id); fait = true; }
     const next = q.postes.findIndex((s) => s.niv === 0), taux = tauxParSeconde(q);
     if (next > 0 && q.billets < PRODUITS[next].debloquer && q.billets + taux * 600 >= PRODUITS[next].debloquer) return fait; // on économise pour le prochain produit
+    const vise = AMELIORATIONS.find((a) => a.apres && !q.ameliorations[a.id] && combineOuverte(q, a)); // après le boss : on met de côté pour la combine suivante (huit heures de ventes au plus)
+    if (vise && q.billets < vise.cout * 1.2 && vise.cout <= taux * 8 * 3600) return fait;
     for (let k = 0; k < 3; k++) {
       let best = -1, bestR = 0, bestN = 1;
       for (let i = 0; i < PRODUITS.length; i++) {
@@ -7025,7 +7079,7 @@ const GARDEROBE_UI = (() => {
     }
     return fait;
   }
-  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour } }
+  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour } } ; opts : { graine, debut, offertes }
     opts = opts || {}; const prof = PROFILS[profil] || PROFILS.assidu, rnd = mulberry32(opts.graine || 7), st = {}, t0 = opts.debut || DEBUT;
     const q = etat(st, t0), parJour = [], paliersJour = {}, trace = []; q.lastSeen = t0;
     const H = 3600e3, nJ = jours || 14;
@@ -7045,7 +7099,7 @@ const GARDEROBE_UI = (() => {
             else if (q.ev.type === 'grosclient' && q.ev.fait >= q.ev.n) livrer(q);
             else if (q.ev.type === 'scooter' && rnd() < 0.5) attraper(q);
           }
-          for (const p of out.paliers) { marquerPalier(q, p.n); paliersJour[p.n] = j + 1; }
+          for (const p of out.paliers) { marquerPalier(q, p.n); paliersJour[p.n] = j + 1; if (opts.offertes && p.n === PALIERS_BOSS) for (const a of AMELIORATIONS) if (a.apres) q.ameliorations[a.id] = true; } // offertes : le pire cas de l'enveloppe (toutes les combines dès le 12e, sans les payer)
           if (s % 3 === 0) decider(q);
           if (s % 60 === 0) trace.push({ t: (now - t0) / JOUR, total: q.total });
         }
@@ -7074,8 +7128,8 @@ const GARDEROBE_UI = (() => {
     if (j > 0) return `${j} j ${h} h`; if (h > 0) return `${h} h ${String(m).padStart(2, '0')}`; return `${m} min`;
   }
 
-  return { DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, GRACE, fenetreSure, envoiBillets, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, VETEMENTS, VETEMENTS_OR, DECOS,
-    neuf, etat, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence,
+  return { DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, GRACE, fenetreSure, envoiBillets, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
+    neuf, etat, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
     gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
     PROFILS, simuler, decider, fmt, fmtEur, fmtDuree, fmtChrono, fmtReste };
 });
@@ -7088,7 +7142,7 @@ const GARDEROBE_UI = (() => {
    améliorations (les Sortilèges), ses coups de pouce ; les gains d'absence sont plafonnés comme ceux de la boulangerie (sur l'horloge de
    confiance : « maintenant » est toujours donné par l'appelant, jamais lu ici). Douze paliers de bonbons gagnés, les mêmes pour tous,
    donnent des récompenses POUR LA BOULANGERIE (étoiles, boosts en réserve, décos d'Halloween, la tenue d'Halloween, le chat noir) : voir
-   PALIERS. À la fin, le Manoir ferme ; tout le reste reste à vie. Aucune dépendance au DOM ni à game.js : tourne aussi dans Node
+   PALIERS ; huit paliers bonus « après le maître » (13 à 20) et quatre Sortilèges de plus attendent ceux qui ont franchi le 12e tôt. À la fin, le Manoir ferme ; tout le reste reste à vie. Aucune dépendance au DOM ni à game.js : tourne aussi dans Node
    (test/fournil-hantee.test.js, qui simule le rythme).
 
    La même forme d'API que src/quartier.js (QUARTIER), mot pour mot : DEBUT, FIN, GRACE, CLASSEMENT_JUSQUA, fenetre, fenetreSure,
@@ -7177,7 +7231,14 @@ const GARDEROBE_UI = (() => {
     { id: 'chaudron', nom: 'Chaudron géant', cout: 3e9, cible: ['potion'], mult: 3, desc: 'Potions ×3' },
     { id: 'graines', nom: 'Graines de citrouille magiques', cout: 6e10, cible: ['citrouille'], mult: 3, desc: 'Citrouilles ×3' },
     { id: 'bal', nom: 'Le grand bal des monstres', cout: 1e12, cible: null, mult: 3, desc: 'Tout ×3' },
+    // après le maître du Manoir (palier 12 franchi) : quatre Sortilèges chers qui ne multiplient pas les ventes (l'enveloppe du serveur,
+    // fournil_evts() de la v5 : le marathon simulé doit rester ×2 dessous) ; ils adoucissent les coups de pouce et l'absence (effet)
+    { id: 'epouvantail', nom: 'Épouvantail à chauves-souris', cout: 8e14, apres: 12, cible: [], mult: 1, effet: { descenteN: 8, descentePart: 0.05 }, desc: 'Chauves-souris : 8 touches suffisent, elles n’emportent plus que 5 %' },
+    { id: 'couette', nom: 'Couette des fantômes', cout: 1.5e15, apres: 12, cible: [], mult: 1, effet: { absenceH: 12, absencePart: 0.2 }, desc: 'Absence : les monstres travaillent 12 h, à 20 % du rythme' },
+    { id: 'nuages', nom: 'Nuages chassés d’un coup de baguette', cout: 3e15, apres: 12, cible: [], mult: 1, effet: { soireeDuree: 180 }, desc: 'Pleine lune : 3 min au lieu de 2' },
+    { id: 'turbo', nom: 'Balai à turbo', cout: 6e15, apres: 12, cible: [], mult: 1, effet: { scooterDuree: 20, scooterPrime: 3 }, desc: 'Le balai attend 20 s, son sac ×3' },
   ];
+  const effet = (q, cle, defaut) => { for (const a of AMELIORATIONS) if (a.effet && a.effet[cle] != null && q.ameliorations && q.ameliorations[a.id]) return a.effet[cle]; return defaut; }; // un Sortilège « après le maître » acheté change ce réglage
   const ABSENCE_MAX_H = 8;   // les monstres travaillent 8 h au plus pendant une absence, comme à la boulangerie…
   const ABSENCE_PART = 0.1;  // … mais au ralenti : sans toi, le Manoir somnole (10 % du rythme)
   const PRESENCE = 6;        // tu es là : toutes les ventes ×6 tant que le Manoir est ouvert (c'est en jouant qu'on grimpe)
@@ -7192,6 +7253,10 @@ const GARDEROBE_UI = (() => {
   // ─── les douze paliers : des bonbons gagnés (total), les mêmes pour tous ; chacun donne une récompense pour la boulangerie ───
   // Réglés sur la simulation (test/fournil-hantee.test.js) : un assidu (80 min par jour, en quatre sessions) franchit le 12e le
   // dernier jour (le 6e ou le 7e jour de Paris) ; un quotidien (36 min) va jusqu'au 8e-9e ; un occasionnel (17 min) passe le 5e.
+  // Après le maître (bonus: true), les paliers 13 à 20 : un très actif (8 h par jour, le 12e au 2e jour) en franchit un par jour ou
+  // presque ; le marathon (24 h/24) n'atteint le 20e que le 6e ou le 7e jour. Ils ne font plus la réputation (REPUTATION ne compte que
+  // les douze premiers : l'enveloppe du serveur ne bouge pas) ; étoiles, boosts, un titre, et au 20e le chapeau phosphorescent (un
+  // trophée de la garde-robe, distinct de la tenue en or du podium final).
   const PALIERS = [
     { n: 1, total: 4e8, etoiles: 1, boost: { mult: 2, secs: 1800 }, titre: 'Premiers bonbons' },
     { n: 2, total: 1e10, deco: 'citrouilles', titre: 'Les citrouilles du perron' },
@@ -7205,7 +7270,17 @@ const GARDEROBE_UI = (() => {
     { n: 10, total: 1.2e14, etoiles: 2, boost: { mult: 2, secs: 3600 }, titre: 'Le Manoir affiche complet' },
     { n: 11, total: 2.5e14, etoiles: 1, boost: { mult: 2, secs: 1800 }, titre: 'Le bal des citrouilles' },
     { n: 12, total: 4e14, vetement: 'hantee-lanterne', etoiles: 3, boost: { mult: 5, secs: 1800 }, titre: 'Le maître du Manoir' },
+    { n: 13, total: 1.2e15, bonus: true, boost: { mult: 2, secs: 1800 }, titre: 'Hubert fait des heures sup’' },
+    { n: 14, total: 2.5e15, bonus: true, etoiles: 1, titre: 'Les citrouilles t’applaudissent' },
+    { n: 15, total: 4.5e15, bonus: true, boost: { mult: 2, secs: 3600 }, titre: 'Le comte Vladimir veut un autographe' },
+    { n: 16, total: 7e15, bonus: true, etoiles: 1, titre: 'Ramsès se déroule de joie' },
+    { n: 17, total: 1e16, bonus: true, boost: { mult: 5, secs: 900 }, titre: 'Osvaldo en rit jusqu’aux os' },
+    { n: 18, total: 1.3e16, bonus: true, etoiles: 1, titre: 'Berthe chante juste (une fois)' },
+    { n: 19, total: 2.5e16, bonus: true, boost: { mult: 2, secs: 3600 }, titre: 'La lune se lève rien que pour toi' },
+    { n: 20, total: 6e16, bonus: true, vetement: 'hantee-lueur-chapeau', etoiles: 2, boost: { mult: 5, secs: 1800 }, titre: 'La légende phosphorescente' },
   ];
+  const PALIERS_BOSS = 12; // le dernier palier « normal » ; après lui, les paliers bonus
+  const TROPHEE = 'hantee-lueur-chapeau'; // le chapeau phosphorescent du palier 20 (garde-robe : collection « hantee-lueur »)
   const VETEMENTS = ['hantee-chapeau', 'hantee-cape', 'hantee-bottes', 'hantee-lanterne'];
   const VETEMENTS_OR = ['hantee-or-chapeau', 'hantee-or-cape', 'hantee-or-bottes', 'hantee-or-lanterne']; // le podium final
   const DECOS = ['citrouilles', 'toiles', 'chaudron'];
@@ -7238,7 +7313,7 @@ const GARDEROBE_UI = (() => {
   const prochainPalier = (niv) => PALIERS_POSTE.find((p) => p > niv) || null;
   function ameliorationMult(q, i) { let m = 1; for (const a of AMELIORATIONS) if (q.ameliorations[a.id] && (a.cible === null || a.cible.includes(PRODUITS[i].id))) m *= a.mult; return m; }
   function boostMult(q) { let m = PRESENCE; if (q.ev && q.ev.type === 'soiree' && q.ev.fin > q.now) m *= EVENEMENTS.soiree.mult; return m; } // en ta présence
-  const reputationMult = (q) => Math.pow(REPUTATION, paliersAtteints(q).length);
+  const reputationMult = (q) => Math.pow(REPUTATION, paliersAtteints(q).filter((p) => !p.bonus).length); // les paliers bonus ne font plus la réputation
   const temps = (q, i) => PRODUITS[i].temps;
   const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(q, i) * reputationMult(q); };
   const revenu = (q, i) => revenuBase(q, i) * boostMult(q);
@@ -7253,7 +7328,8 @@ const GARDEROBE_UI = (() => {
   function tauxParSeconde(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenu(q, i) / temps(q, i); }); return t; }
   function rythme(q) { const t = tauxBase(q); if (t > 0) return t; let best = 0; q.postes.forEach((s, i) => { if (s.niv > 0) best = Math.max(best, revenuBase(q, i) / Math.max(1, temps(q, i)) * 0.5); }); return Math.max(0.5, best); }
   function arrondi(n) { if (n < 10) return Math.max(1, Math.round(n)); const p = Math.pow(10, Math.floor(Math.log10(n)) - 1); return Math.round(n / p) * p; }
-  const heuresAbsence = () => ABSENCE_MAX_H;
+  const heuresAbsence = (q) => (q ? effet(q, 'absenceH', ABSENCE_MAX_H) : ABSENCE_MAX_H);
+  const partAbsence = (q) => (q ? effet(q, 'absencePart', ABSENCE_PART) : ABSENCE_PART);
 
   // ─── actions ───
   function gagner(q, montant) { q.billets += montant; q.total += montant; }
@@ -7272,8 +7348,10 @@ const GARDEROBE_UI = (() => {
     return { ok: true, prix };
   }
   function lancer(q, i) { const s = q.postes[i]; if (s.niv <= 0 || s.actif) return false; s.actif = true; s.prog = 0; q.stats.taps++; return true; }
+  const combineOuverte = (q, a) => !a.apres || q.total >= PALIERS[a.apres - 1].total; // les Sortilèges « après le maître » : une fois le palier franchi
   function amelioration(q, id) {
     const a = AMELIORATIONS.find((x) => x.id === id), prix = a ? a.cout : 0;
+    if (a && !combineOuverte(q, a)) return { ok: false, prix, verrou: true };
     if (!a || q.ameliorations[id] || q.billets < prix) return { ok: false, prix };
     q.billets -= prix; q.ameliorations[id] = true; note(q, `${a.nom} : ${a.desc}`);
     return { ok: true, a, prix };
@@ -7297,14 +7375,14 @@ const GARDEROBE_UI = (() => {
     }
     q.dernierEv = type;
     const E = EVENEMENTS;
-    if (type === 'descente') q.ev = { type, taps: 0, n: E.descente.n, debut: q.now, fin: q.now + E.descente.duree * 1000, prime: arrondi(Math.max(20, rythme(q) * 240)), enjeu: Math.floor(q.billets * E.descente.part) };
+    if (type === 'descente') q.ev = { type, taps: 0, n: effet(q, 'descenteN', E.descente.n), debut: q.now, fin: q.now + E.descente.duree * 1000, prime: arrondi(Math.max(20, rythme(q) * 240)), enjeu: Math.floor(q.billets * effet(q, 'descentePart', E.descente.part)) };
     else if (type === 'grosclient') {
       const idx = q.postes.map((s, i) => i).filter((i) => q.postes[i].niv > 0 && PRODUITS[i].temps <= 15);
       if (!idx.length) return lancerEvenement(q, rnd, 'soiree');
       const i = idx[Math.floor(rnd() * idx.length)], s = q.postes[i], n = Math.max(3, Math.min(s.staff ? 400 : 20, arrondi(E.grosclient.duree / PRODUITS[i].temps * (s.staff ? 0.7 : 0.3))));
       q.ev = { type, i, n, fait: 0, debut: q.now, fin: q.now + E.grosclient.duree * 1000, prime: arrondi(revenuBase(q, i) * n * E.grosclient.prime), livree: false };
-    } else if (type === 'scooter') q.ev = { type, debut: q.now, fin: q.now + E.scooter.duree * 1000, prime: arrondi(Math.max(10, rythme(q) * 120)) };
-    else q.ev = { type: 'soiree', debut: q.now, fin: q.now + E.soiree.duree * 1000 };
+    } else if (type === 'scooter') q.ev = { type, debut: q.now, fin: q.now + effet(q, 'scooterDuree', E.scooter.duree) * 1000, prime: arrondi(Math.max(10, rythme(q) * 120) * effet(q, 'scooterPrime', 1)) };
+    else q.ev = { type: 'soiree', debut: q.now, fin: q.now + effet(q, 'soireeDuree', E.soiree.duree) * 1000 };
     return q.ev;
   }
   function planquer(q) { // les chauves-souris : une touche ; à la 12e, elles sont toutes chassées et la prime tombe
@@ -7344,7 +7422,7 @@ const GARDEROBE_UI = (() => {
   }
   const ensembleComplet = (q) => VETEMENTS.every((v) => q.vetements.includes(v));
   const NOMS_DECOS = { citrouilles: 'des citrouilles sur le perron', toiles: 'des toiles d’araignée aux fenêtres', chaudron: 'un chaudron qui bouillonne' };
-  const NOMS_VETEMENTS = { 'hantee-chapeau': 'chapeau pointu de sorcière', 'hantee-cape': 'cape de minuit', 'hantee-bottes': 'bottes qui claquent', 'hantee-lanterne': 'citrouille-lanterne (la tenue complète)' };
+  const NOMS_VETEMENTS = { 'hantee-chapeau': 'chapeau pointu de sorcière', 'hantee-cape': 'cape de minuit', 'hantee-bottes': 'bottes qui claquent', 'hantee-lanterne': 'citrouille-lanterne (la tenue complète)', 'hantee-lueur-chapeau': 'le chapeau phosphorescent (le trophée)' };
   function phrasePalier(p) { // ce que donne un palier, en une ligne
     const l = [];
     if (p.etoiles) l.push(`${p.etoiles} étoile${p.etoiles > 1 ? 's' : ''}`);
@@ -7376,16 +7454,16 @@ const GARDEROBE_UI = (() => {
     out.paliers = paliersDus(q);
     return out;
   }
-  // ─── l'absence : les monstres ont travaillé (8 h au plus), les fournées en cours se terminent ; pas de coup de pouce sans toi ───
+  // ─── l'absence : les monstres ont travaillé (8 h au plus, 12 h sous la couette), les fournées en cours se terminent ; pas de coup de pouce sans toi ───
   function absence(q, nowMs) {
     q.now = nowMs; q.ev = null; q.evTimer = Math.max(q.evTimer || 0, REPRISE);
-    const secs = Math.min(heuresAbsence() * 3600, Math.max(0, (nowMs - q.lastSeen) / 1000));
+    const secs = Math.min(heuresAbsence(q) * 3600, Math.max(0, (nowMs - q.lastSeen) / 1000)), part = partAbsence(q);
     let total = 0; const detail = [];
     q.postes.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
       const T = temps(q, i);
-      if (s.staff) { const n = Math.floor((s.prog + secs) / T); s.prog = (s.prog + secs) % T; if (n > 0) { const m = revenuBase(q, i) * n * ABSENCE_PART; total += m; detail.push({ i, n, m }); q.stats.ventes += n; } }
-      else if (s.prog + secs >= T) { const m = revenuBase(q, i) * 1.5 * ABSENCE_PART; total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; q.stats.ventes++; }
+      if (s.staff) { const n = Math.floor((s.prog + secs) / T); s.prog = (s.prog + secs) % T; if (n > 0) { const m = revenuBase(q, i) * n * part; total += m; detail.push({ i, n, m }); q.stats.ventes += n; } }
+      else if (s.prog + secs >= T) { const m = revenuBase(q, i) * 1.5 * part; total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; q.stats.ventes++; }
       else s.prog += secs;
     });
     if (total > 0) gagner(q, total);
@@ -7399,6 +7477,7 @@ const GARDEROBE_UI = (() => {
     quotidien: { sessions: [[7.75, 8], [12.5, 8], [21, 20]] },
     occasionnel: { sessions: [[8, 5], [20.5, 12]] },
     marathon: { sessions: [[0, 714], [12, 714]] }, // 23 h 48 sur 24 (deux sessions, l'une à midi) : l'enveloppe du serveur
+    tresactif: { sessions: [[7, 90], [11.5, 120], [16.5, 120], [20.5, 150]] }, // 8 h par jour : le 12e au 2e jour, comme les plus mordus (puis les paliers bonus)
   };
   function mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   function decider(q) { // acheter : monstre, déblocage, sortilège, puis le meilleur rapport gain / prix
@@ -7408,6 +7487,8 @@ const GARDEROBE_UI = (() => {
     for (const a of AMELIORATIONS) if (!q.ameliorations[a.id] && q.billets >= a.cout * 1.2) { amelioration(q, a.id); fait = true; }
     const next = q.postes.findIndex((s) => s.niv === 0), taux = tauxParSeconde(q);
     if (next > 0 && q.billets < PRODUITS[next].debloquer && q.billets + taux * 600 >= PRODUITS[next].debloquer) return fait; // on économise pour la prochaine friandise
+    const vise = AMELIORATIONS.find((a) => a.apres && !q.ameliorations[a.id] && combineOuverte(q, a)); // après le maître : on met de côté pour le Sortilège suivant (huit heures de ventes au plus)
+    if (vise && q.billets < vise.cout * 1.2 && vise.cout <= taux * 8 * 3600) return fait;
     for (let k = 0; k < 3; k++) {
       let best = -1, bestR = 0, bestN = 1;
       for (let i = 0; i < PRODUITS.length; i++) {
@@ -7421,7 +7502,7 @@ const GARDEROBE_UI = (() => {
     }
     return fait;
   }
-  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour }, trace: [{ t (jours depuis l'ouverture), total }] }
+  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour }, trace: [{ t (jours depuis l'ouverture), total }] } ; opts : { graine, debut, offertes }
     opts = opts || {}; const prof = PROFILS[profil] || PROFILS.assidu, rnd = mulberry32(opts.graine || 7), st = {}, t0 = opts.debut || DEBUT;
     const q = etat(st, t0), parJour = [], paliersJour = {}, trace = []; q.lastSeen = t0;
     const H = 3600e3, nJ = jours || JOURS;
@@ -7441,7 +7522,7 @@ const GARDEROBE_UI = (() => {
             else if (q.ev.type === 'grosclient' && q.ev.fait >= q.ev.n) livrer(q);
             else if (q.ev.type === 'scooter' && rnd() < 0.5) attraper(q);
           }
-          for (const p of out.paliers) { marquerPalier(q, p.n); paliersJour[p.n] = j + 1; }
+          for (const p of out.paliers) { marquerPalier(q, p.n); paliersJour[p.n] = j + 1; if (opts.offertes && p.n === PALIERS_BOSS) for (const a of AMELIORATIONS) if (a.apres) q.ameliorations[a.id] = true; } // offertes : le pire cas de l'enveloppe (tous les Sortilèges dès le 12e, sans les payer)
           if (s % 3 === 0) decider(q);
           if (s % 60 === 0) trace.push({ t: (now - t0) / JOUR, total: q.total });
         }
@@ -7486,7 +7567,7 @@ const GARDEROBE_UI = (() => {
       soiree: { nom: 'La pleine lune', annonce: 'Pleine lune sur le Manoir : tout se vend ×2 !', action: null, bouton: null, detail: () => `Toutes les ventes ×${EVENEMENTS.soiree.mult}`, fin: 'La lune se cache derrière un nuage.' },
       scooter: { nom: 'Le balai de la sorcière', annonce: 'Le balai de la sorcière passe en rase-motte : attrape le sac de bonbons !', action: 'attraper', bouton: 'Attraper', detail: (ev) => `Attrape le sac avant qu’il reparte : ${fmtDevise(ev.prime)}`, fin: 'Le balai est reparti dans la nuit.' },
     },
-    vetements: { 'hantee-chapeau': { nom: 'Chapeau pointu', piece: 'tete', forme: 'chapeau' }, 'hantee-cape': { nom: 'Cape de minuit', piece: 'haut', forme: 'cape' }, 'hantee-bottes': { nom: 'Bottes qui claquent', piece: 'pieds', forme: 'bottes' }, 'hantee-lanterne': { nom: 'Citrouille-lanterne', piece: 'accessoire', forme: 'lanterne' } },
+    vetements: { 'hantee-chapeau': { nom: 'Chapeau pointu', piece: 'tete', forme: 'chapeau' }, 'hantee-cape': { nom: 'Cape de minuit', piece: 'haut', forme: 'cape' }, 'hantee-bottes': { nom: 'Bottes qui claquent', piece: 'pieds', forme: 'bottes' }, 'hantee-lanterne': { nom: 'Citrouille-lanterne', piece: 'accessoire', forme: 'lanterne' }, 'hantee-lueur-chapeau': { nom: 'Chapeau phosphorescent', piece: 'tete', forme: 'chapeau' } },
     decos: NOMS_DECOS, chat: 'noir',
     textes: {
       titre: 'La Maison hantée', sousTitre: 'Le Manoir · Halloween',
@@ -7503,8 +7584,8 @@ const GARDEROBE_UI = (() => {
     },
   };
 
-  return { FICHE, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, JOURS, GRACE, fenetreSure, envoiBonbons, envoiBillets: envoiBonbons, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, VETEMENTS, VETEMENTS_OR, DECOS,
-    neuf, etat, bonbons, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence,
+  return { FICHE, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, JOURS, GRACE, fenetreSure, envoiBonbons, envoiBillets: envoiBonbons, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
+    neuf, etat, bonbons, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
     gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, chasser: planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
     PROFILS, simuler, decider, fmt, fmtEur, fmtDevise, fmtDuree, fmtChrono, fmtReste };
 });
@@ -7548,7 +7629,9 @@ const EVENEMENTS = (() => {
     const q = () => Q.etat(st(), now());
     const fen = () => (Q.fenetreSure ? Q.fenetreSure(now(), d.sure ? d.sure() : null) : Q.fenetre(now())); // l'ouverture sur l'heure sûre (une horloge avancée hors ligne n'ouvre rien avant l'heure)
     const fmt = (n) => F.fmt(n), prix = (n) => F.prix(n);
-    const nbPaliers = () => Q.PALIERS.length;
+    const boss = () => Q.PALIERS_BOSS || Q.PALIERS.length; // le 12e : le dernier palier « normal » ; au-delà, les paliers bonus (après le boss)
+    const nbPaliers = (qq) => (qq && Q.paliersAtteints(qq).length >= boss() ? Q.PALIERS.length : boss()); // « 4/12 » jusqu'au boss, puis « 14/20 »
+    const ouverte = (qq, a) => (Q.combineOuverte ? Q.combineOuverte(qq, a) : !a.apres); // une combine « après le boss » se montre une fois le palier franchi
 
     function init(deps) {
       d = deps; el = $(F.racine); if (!el || !Q) return false;
@@ -7597,13 +7680,14 @@ const EVENEMENTS = (() => {
       fileSheets.push({ p, dons }); d.save(); d.apres();
       return dons;
     }
+    function rattraper() { const qq = q(); let n = 0; for (const p of Q.paliersDus(qq)) if (donnerPalier(p)) n++; return n; } // chaque palier dû, une fois (q.paliers fait foi)
     function montrerSheetsEnAttente() {
       if (sheetOuverte || !fileSheets.length || !$('#feuille').hidden) return;
       const { p, dons } = fileSheets.shift(); sheetOuverte = true;
       d.son.deblocage(); d.buzz([10, 30, 10, 30, 10]); if (d.fete) d.fete();
       d.openSheet(`<div class="pq-sheet ${F.classe}"><div class="pq-palier-tete"><span class="pq-pic">${F.ico.palier}</span><div><h2>Palier ${p.n} · ${esc(p.titre)}</h2><p class="sous">${esc(F.t.palierSous(fmt(p.total)))}</p></div></div>
         <ul class="pq-dons">${dons.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
-        ${p.n === nbPaliers() ? `<p class="encadre">${esc(F.t.palierFinal)}</p>` : ''}
+        ${p.n === boss() ? `<p class="encadre">${esc(F.t.palierFinal)}</p>` : p.n === Q.PALIERS.length && p.n > boss() ? `<p class="encadre">${esc(F.t.palierBonusFinal)}</p>` : p.n === boss() + 1 ? `<p class="encadre">${esc(F.t.palierBonus)}</p>` : ''}
         <button type="button" class="btn large beurre" data-a="pq-ok" style="margin-top:14px"><b>${esc(F.t.palierOk)}</b></button></div>`);
       d.on('[data-a="pq-ok"]', () => { d.son.tap(); d.closeSheet(); });
       const surFermeture = setInterval(() => { if ($('#feuille').hidden) { sheetOuverte = false; clearInterval(surFermeture); montrerSheetsEnAttente(); } }, 300);
@@ -7614,6 +7698,8 @@ const EVENEMENTS = (() => {
       if (!Q || !d) return false; const s = st(); if (!s || coupe()) return false;
       const f = fen(), qq = s[F.cle];
       if (f.fini) { if (qq && qq.total > 0 && !qq.bilan && !qq.masque && !ouvert()) { ouvrir(); return true; } return false; } // masqué : pas de bilan qui surgit
+      // des paliers dus hors de la Planque (une mise à jour qui en ajoute : les paliers bonus d'une sauvegarde déjà au-delà du 12e) : donnés une fois, annoncés dans la boutique
+      if (f.ouvert && qq && Array.isArray(qq.postes) && qq.annonce && (qq.majeur || !F.porte) && !qq.masque && !ouvert() && !sheetOuverte && $('#feuille').hidden && Q.paliersDus(Q.etat(s, now())).length) { rattraper(); montrerSheetsEnAttente(); return true; }
       if (!f.ouvert || (qq && (qq.masque || qq.annonce)) || !$('#feuille').hidden || ouvert()) return false;
       const neuf = q(); neuf.annonce = true; d.save();
       d.openSheet(F.t.annonce(f));
@@ -7711,7 +7797,7 @@ const EVENEMENTS = (() => {
       id('sous').textContent = `Jour ${f.jour} sur ${f.jours}`;
       const bc = el.querySelector('[data-pq="classement"]'); bc.hidden = cl == null; bc.querySelector('b').textContent = cl ? (cl === 1 ? '1er' : cl + 'e') : 'Top';
       bc.setAttribute('aria-label', cl ? `Le classement de l’événement : tu es ${cl === 1 ? '1er' : cl + 'e'}` : 'Le classement de l’événement');
-      const bp = el.querySelector('[data-pq="paliers"]'); bp.querySelector('b').textContent = `${nb}/${nbPaliers()}`; bp.classList.toggle('pret', Q.paliersDus(qq).length > 0);
+      const bp = el.querySelector('[data-pq="paliers"]'); bp.querySelector('b').textContent = `${nb}/${nbPaliers(qq)}`; bp.classList.toggle('pret', Q.paliersDus(qq).length > 0);
     }
 
     // ─── les cartes des six produits (même grammaire que la boulangerie) ───
@@ -7772,7 +7858,7 @@ const EVENEMENTS = (() => {
     function genre(ev) { return F.genres[ev.type] || (ev.n != null && ev.taps != null ? 'taper' : ev.i != null && ev.fait != null ? 'livrer' : ev.prime != null ? 'attraper' : 'mult'); }
     function coup(ev) { const g = genre(ev), base = F.coups[g], sur = F.coupsType && F.coupsType[ev.type]; return sur ? Object.assign({}, base, sur) : base; }
     const action = (g) => { for (const n of [F.actions[g], g, { taper: 'planquer' }[g]]) if (n && typeof Q[n] === 'function') return Q[n]; return () => ({ ok: false }); };
-    const dureeEv = (ev) => (Q.EVENEMENTS && Q.EVENEMENTS[ev.type] && Q.EVENEMENTS[ev.type].duree) || Math.max(1, (ev.fin - ev.debut) / 1000);
+    const dureeEv = (ev) => (ev.fin > ev.debut ? (ev.fin - ev.debut) / 1000 : (Q.EVENEMENTS && Q.EVENEMENTS[ev.type] && Q.EVENEMENTS[ev.type].duree) || 1); // la vraie durée du coup (une combine peut l'allonger)
     const multEv = (ev) => (Q.EVENEMENTS && Q.EVENEMENTS[ev.type] && Q.EVENEMENTS[ev.type].mult) || 2;
     function renderEv() {
       const qq = q(), ev = qq.ev;
@@ -7804,15 +7890,21 @@ const EVENEMENTS = (() => {
     // ─── les feuilles : les améliorations, les paliers ───
     function sheetAmeliorations() {
       const qq = q();
-      const liste = Q.AMELIORATIONS.map((a) => { const fait = qq.ameliorations[a.id], ok = qq.billets >= a.cout; return `<div class="am ${fait ? 'fait' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p></div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${prix(a.cout)}</b></button>`}</div>`; }).join('');
+      const ligne = (a) => { const fait = qq.ameliorations[a.id], ok = qq.billets >= a.cout; return `<div class="am ${fait ? 'fait' : ''}${a.apres ? ' bonus' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p></div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${prix(a.cout)}</b></button>`}</div>`; };
+      const bonus = Q.AMELIORATIONS.filter((a) => a.apres), ouvertes = bonus.filter((a) => ouverte(qq, a));
+      const liste = Q.AMELIORATIONS.filter((a) => !a.apres).map(ligne).join('')
+        + (ouvertes.length ? `<h3 class="pq-inter">${esc(F.t.apresBoss)}</h3><p class="pq-inter-sous">${esc(F.t.amBonus)}</p>${ouvertes.map(ligne).join('')}` : '')
+        + (bonus.length > ouvertes.length ? `<p class="note pq-am-bientot">${esc(F.t.amBientot(bonus.length - ouvertes.length, boss()))}</p>` : '');
       d.openSheet(`<div class="pq-sheet ${F.classe}"><h2>${esc(F.t.amTitre)}</h2><p class="sous">${esc(F.t.amSous)}</p><div class="liste-am">${liste}</div><button type="button" class="btn large sombre" data-a="pq-retour" style="margin-top:14px"><b>Retour</b></button></div>`);
       d.on('[data-id]', (b) => { const r = Q.amelioration(q(), b.dataset.id); if (!r.ok) { d.son.non(); d.toast(`Il manque ${fmt(r.prix - q().billets)}`); return; } d.son.deblocage(); d.buzz([10, 30, 10]); d.toast(`${r.a.nom} : ${r.a.desc}`); renderCartes(true); lastHud = ''; hud(); d.save(); sheetAmeliorations(); });
       d.on('[data-a="pq-retour"]', () => d.closeSheet());
     }
     function sheetPaliers() {
       const qq = q(), nb = Q.paliersAtteints(qq).length;
-      const lignes = Q.PALIERS.map((p) => { const atteint = qq.total >= p.total, recu = qq.paliers.includes(p.n); return `<div class="pq-palier ${atteint ? 'atteint' : ''}"><span class="pq-num">${p.n}</span><div><b>${esc(p.titre)} <small>${prix(p.total)}</small></b><span>${esc(Q.phrasePalier(p))}</span></div><span class="pq-etat">${recu ? '✓' : atteint ? '…' : ''}</span></div>`; }).join('');
-      d.openSheet(`<div class="pq-sheet ${F.classe}"><div class="pq-palier-tete"><span class="pq-pic">${F.ico.palier}</span><div><h2>Les paliers</h2><p class="sous">${esc(F.t.paliersSous(fmt(qq.total), nb, nbPaliers()))}</p></div></div>
+      const ligne = (p) => { const atteint = qq.total >= p.total, recu = qq.paliers.includes(p.n); return `<div class="pq-palier ${atteint ? 'atteint' : ''}${p.bonus ? ' bonus' : ''}"><span class="pq-num">${p.n}</span><div><b>${esc(p.titre)} <small>${prix(p.total)}</small></b><span>${esc(Q.phrasePalier(p))}</span></div><span class="pq-etat">${recu ? '✓' : atteint ? '…' : ''}</span></div>`; };
+      const bonus = Q.PALIERS.filter((p) => p.bonus); // après le boss : sous leur intertitre
+      const lignes = Q.PALIERS.filter((p) => !p.bonus).map(ligne).join('') + (bonus.length ? `<h3 class="pq-inter">${esc(F.t.apresBoss)}</h3><p class="pq-inter-sous">${esc(F.t.apresBossSous)}</p>${bonus.map(ligne).join('')}` : '');
+      d.openSheet(`<div class="pq-sheet ${F.classe}"><div class="pq-palier-tete"><span class="pq-pic">${F.ico.palier}</span><div><h2>Les paliers</h2><p class="sous">${esc(F.t.paliersSous(fmt(qq.total), nb, nbPaliers(qq)))}</p></div></div>
         <div class="pq-paliers">${lignes}</div>
         <p class="note">${esc(F.t.paliersNote)}</p>
         <button type="button" class="btn large sombre" data-a="pq-retour" style="margin-top:14px"><b>Retour</b></button></div>`);
@@ -7824,19 +7916,22 @@ const EVENEMENTS = (() => {
       const qq = q(); ecran = 'bilan'; el.dataset.ecran = ecran;
       liberer3();
       cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
-      entete(F.t.bilanTitre, 'L’événement est terminé'); const bp = el.querySelector('[data-pq="paliers"] b'); if (bp) bp.textContent = `${Q.paliersAtteints(qq).length}/${nbPaliers()}`;
+      rattraper(); fileSheets = []; // un palier dû pas encore donné (les paliers bonus d'une vieille sauvegarde) : compté dans le bilan, sans feuille
+      entete(F.t.bilanTitre, 'L’événement est terminé'); const bp = el.querySelector('[data-pq="paliers"] b'); if (bp) bp.textContent = `${Q.paliersAtteints(qq).length}/${nbPaliers(qq)}`;
       const rec = d.recompenses ? d.recompenses() : null, rang = rec ? F.rangFinal(rec) : null, nb = Q.paliersAtteints(qq).length;
       const dons = [];
       if (qq.etoiles) dons.push(`${qq.etoiles} étoile${qq.etoiles > 1 ? 's' : ''}`);
       if (qq.boosts) dons.push(`${qq.boosts} boost${qq.boosts > 1 ? 's' : ''} en réserve`);
       if (qq.decos.length) dons.push(F.t.bilanDecos(qq.decos.length));
-      if (qq.vetements.length) dons.push(`${qq.vetements.length} pièce${qq.vetements.length > 1 ? 's' : ''} ${F.t.bilanTenue}${Q.ensembleComplet(qq) ? ' (complète)' : ''}`);
+      const tenue = qq.vetements.filter((v) => !Q.VETEMENTS || Q.VETEMENTS.includes(v)), trophees = qq.vetements.filter((v) => Q.VETEMENTS && !Q.VETEMENTS.includes(v));
+      if (tenue.length) dons.push(`${tenue.length} pièce${tenue.length > 1 ? 's' : ''} ${F.t.bilanTenue}${Q.ensembleComplet(qq) ? ' (complète)' : ''}`);
+      for (const v of trophees) { const o = typeof G.vetement === 'function' ? G.vetement(v) : null; dons.push(`${o ? o.nom : v} (le trophée du palier ${Q.PALIERS.length})`); }
       if (F.bilanPlus) for (const t of F.bilanPlus(qq)) dons.push(t);
       if (rang) dons.push(`${rang === 1 ? '1er' : rang + 'e'} du podium final : ${F.t.bilanOr}`);
       const stats = F.stats.map(([nom, cles]) => { const k = [].concat(cles).find((x) => qq.stats[x] != null); const v = k ? qq.stats[k] : 0; return `<span><small>${esc(nom)}</small><b>${k === 'ventes' ? Q.fmt(v) : v}</b></span>`; }).join('');
       id('corps').innerHTML = `<div class="at-carte pq-bilan ${F.classe}"><span class="pq-pic grand">${F.ico.bilan}</span>
         <h2>${esc(F.t.bilanH2)}</h2>
-        <p class="pq-grand">${prix(qq.total)}</p><p class="sous">${esc(F.t.bilanSous)} · ${nb}/${nbPaliers()} paliers${rang ? ` · ${rang === 1 ? '1er' : rang + 'e'} du classement de l’événement` : ''}</p>
+        <p class="pq-grand">${prix(qq.total)}</p><p class="sous">${esc(F.t.bilanSous)} · ${nb}/${nbPaliers(qq)} paliers${rang ? ` · ${rang === 1 ? '1er' : rang + 'e'} du classement de l’événement` : ''}</p>
         <div class="pq-stats">${stats}</div>
         ${dons.length ? `<p class="encadre"><b>Ce qui reste à vie :</b> ${dons.map(esc).join(' · ')}.</p>` : `<p class="encadre">${esc(F.t.bilanVide)}</p>`}
         <button type="button" class="btn large beurre" data-pq="fin"><b>Retour à la boulangerie</b></button></div>`;
@@ -8383,6 +8478,9 @@ const EVENEMENTS = (() => {
       vetementNom: (v) => v, tenueComplete: ' : la tenue du quartier est complète !',
       palierSous: (m) => `${m} de billets gagnés dans la Planque. Pour la boulangerie :`, palierFinal: 'Le boss du quartier, c’est toi. Tout ça reste à vie, même après la fermeture de la Planque.', palierOk: 'Trop bien',
       amTitre: 'Les combines', amSous: 'Des améliorations qui multiplient les ventes de la Planque, jusqu’à la fin de l’événement.',
+      apresBoss: 'Après le boss', apresBossSous: 'Huit paliers bonus pour ceux qui ont déjà tout : des étoiles, des boosts, et au 20e la casquette néon.',
+      amBonus: 'Pour souffler une fois boss : elles ne multiplient pas les ventes, elles rendent la vie plus douce.', amBientot: (n, k) => `${n} combine${n > 1 ? 's' : ''} de plus après le palier ${k}.`,
+      palierBonus: 'Après le boss, ça continue : huit paliers bonus et quatre combines de plus t’attendent.', palierBonusFinal: 'Une légende en néon. Le quartier n’a plus rien à t’apprendre : la casquette néon est dans ta garde-robe, à vie.',
       paliersSous: (m, nb, n) => `${m} de billets gagnés · ${nb}/${n}. Les mêmes seuils pour tout le monde ; chaque palier donne quelque chose pour la boulangerie, à vie.`,
       paliersNote: 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue du quartier se porte depuis la garde-robe du boulanger.',
       bilanTitre: 'La Planque a fermé', bilanH2: 'Bilan du quartier', bilanSous: 'de billets gagnés en deux semaines', bilanDecos: (n) => `${n} déco${n > 1 ? 's' : ''} du quartier dans la boutique`, bilanTenue: 'de la tenue du quartier', bilanOr: 'la tenue du quartier en or',
@@ -8439,6 +8537,9 @@ const EVENEMENTS = (() => {
         vetementNom: (v) => v, tenueComplete: ' : la tenue d’Halloween est complète !',
         palierSous: (m) => `${m} gagnés au manoir. Pour la boulangerie :`, palierFinal: txt('palier12', txt('palierFinal', 'La reine de la nuit, c’est toi. Tout ça reste à vie, même après la fermeture du manoir.')), palierOk: 'Trop chouette',
         amTitre: typeof T.ameliorations === 'string' ? `Les ${T.ameliorations.toLowerCase()}` : txt('amTitre', 'Les sortilèges'), amSous: txt('amSous', 'Des sorts qui multiplient les ventes du manoir, jusqu’à la fin de l’événement.'),
+        apresBoss: txt('apresBoss', 'Après le maître du Manoir'), apresBossSous: txt('apresBossSous', 'Huit paliers bonus pour ceux qui ont déjà tout : des étoiles, des boosts, et au 20e le chapeau phosphorescent.'),
+        amBonus: txt('amBonus', 'Des sorts de confort : ils ne multiplient pas les ventes, ils rendent la nuit plus douce.'), amBientot: (n, k) => `${n} sortilège${n > 1 ? 's' : ''} de plus après le palier ${k}.`,
+        palierBonus: txt('palierBonus', 'Et ce n’est pas fini : huit paliers bonus et quatre sortilèges de plus t’attendent au Manoir.'), palierBonusFinal: txt('palierBonusFinal', 'Une légende qui brille dans le noir : le chapeau phosphorescent est dans ta garde-robe, à vie.'),
         paliersSous: (m, nb, n) => `${m} gagnés · ${nb}/${n}. Les mêmes seuils pour tout le monde ; chaque palier donne quelque chose pour la boulangerie, à vie.`,
         paliersNote: txt('paliersNote', 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue d’Halloween se porte depuis la garde-robe du boulanger.'),
         bilanTitre: `${lieu} a fermé`, bilanH2: txt('bilanTitre', 'Bilan de la nuit'), bilanSous: txt('bilanSous', `${nomDevise} gagnés en une semaine`), bilanDecos: (n) => `${n} déco${n > 1 ? 's' : ''} d’Halloween dans la boutique`, bilanTenue: 'de la tenue d’Halloween', bilanOr: 'la tenue d’Halloween en or',

@@ -5,7 +5,10 @@
 // débloquer, embaucher, les sortilèges, les coups de pouce (tous les types de HANTEE.EVENEMENTS), les paliers et leurs récompenses dans la
 // boulangerie (étoiles, boosts, décos d'Halloween, tenue de la garde-robe), les gains d'absence plafonnés et le retour Planque ouverte, le
 // chat noir dans la boutique, « Masquer la Maison hantée » dans les Réglages ; le décor éco (chibis costumés) ; puis la fin : le Manoir
-// fermé, le bilan, l'icône partie, le chat noir au choix. Captures dans test/shots/hantee/ (et dans le dossier donné par SHOTS_HANTEE).
+// fermé, le bilan, l'icône partie, le chat noir au choix. Puis, dans un second téléphone, « après le maître » : une sauvegarde déjà au 12e
+// reçoit les paliers bonus déjà dépassés, une fois ; la liste « Après le maître du Manoir » (13 à 20) lisible à 390 px ; les Sortilèges en
+// plus ; le 20e et son chapeau phosphorescent ; le bilan qui compte jusqu'à 20.
+// Captures dans test/shots/hantee/ (et dans le dossier donné par SHOTS_HANTEE).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-hantee.cjs
 'use strict';
 const { chromium } = require('playwright');
@@ -145,7 +148,7 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   else passe(`la garde-robe ne connaît pas encore ${vet4.join(', ')} (src/game.js, groupe H1) : la pièce attend dans st.hantee.vetements`);
   for (let k = 0; k < 4; k++) { await clic('#feuille [data-a="pq-ok"]'); await sleep(450); }
   check((await feuille()) === '', 'les quatre annonces de palier passent l’une après l’autre');
-  m = await manoir(); check(m.paliers === `4/${HT.PALIERS.length}`, `le bouton des paliers : ${m.paliers}`);
+  m = await manoir(); check(m.paliers === `4/${HT.PALIERS_BOSS}`, `le bouton des paliers : ${m.paliers} (sur douze tant que le maître n’est pas franchi)`);
   await clic('#hantee [data-pq="paliers"]'); await sleep(300);
   check(/Les paliers/.test(await feuille()) && (await feuille()).split('✓').length === 5, 'la feuille des paliers : quatre cochés');
   await shot('06-paliers'); await clic('#feuille [data-a="pq-retour"]'); await sleep(200);
@@ -241,6 +244,63 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   await ev(() => { window.__fournil.SCENE.decosHantee(['citrouilles', 'toiles', 'chaudron', 'fantome']); window.__fournil.tiroir('ferme'); }); await sleep(1500);
   await shot('13-boutique-nuit', '#scene');
   await ev(() => { const F = window.__fournil; F.SCENE.decosHantee(F.st[F.evHantee.cle].decos); F.tiroir('mi'); });
+
+
+  console.log('── après le maître : une sauvegarde déjà au 12e, à la mise à jour (le 28 octobre) ──');
+  await ctx.close(); // le premier téléphone a fini (sa scène HD en rendu logiciel ne ralentit plus le second)
+  { decal = new Date('2026-10-28T10:00:00+01:00').getTime() - Date.now();
+    const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+    await ctx2.addInitScript(fauxTelephone, decal); await ctx2.route(/supabase\.co/, (r) => r.abort());
+    const pg = await ctx2.newPage(); pg.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });
+    const ev2 = (fn, arg) => pg.evaluate(fn, arg), clic2 = (sel) => pg.evaluate((x) => { const b = document.querySelector(x); if (!b) return false; b.click(); return true; }, sel);
+    const feuille2 = () => pg.evaluate(() => (document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText));
+    const shot2 = async (nom) => { const f = path.join(out, nom + '.png'); await pg.screenshot({ path: f }); if (out2) fs.copyFileSync(f, path.join(out2, nom + '.png')); };
+    const charger2 = async () => { await pg.goto(URL_JEU + '?qualite=eco'); await pg.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 }); await sleep(900); };
+    await pg.goto('about:blank'); await charger2();
+    const av = await ev2(() => { const F = window.__fournil, R = F.HT, st = F.st, q = R.etat(st, HORLOGE.maintenant()); q.annonce = true; R.gagner(q, 3e15); q.billets = 1e14; for (let k = 1; k <= 12; k++) R.marquerPalier(q, k); q.lastSeen = HORLOGE.maintenant(); F.save();
+      return { etoiles: st.etoiles, reserve: st.boosts.reserve.length, paliers: q.paliers.length, dus: R.paliersDus(q).map((p) => p.n).join() }; });
+    check(av.paliers === 12 && av.dus === '13,14', 'la sauvegarde d’avant : douze paliers reçus, 3 000 Bn de bonbons (au-delà des 13e et 14e, pas encore donnés)');
+    await charger2();
+    check(await attendre(async () => /Palier 13/.test(await feuille2()), 8000), 'dans la boutique, sans ouvrir le Manoir : la feuille « Palier 13 » arrive toute seule');
+    check(/huit paliers bonus/.test(await feuille2()), 'avec l’annonce des paliers bonus');
+    await shot2('h1-palier-13-boutique');
+    await clic2('#feuille [data-a="pq-ok"]'); await attendre(async () => /Palier 14/.test(await feuille2()), 3000);
+    await clic2('#feuille [data-a="pq-ok"]'); await sleep(700);
+    const ap = await ev2(() => { const F = window.__fournil; return { etoiles: F.st.etoiles, reserve: F.st.boosts.reserve.length, paliers: F.st[F.evHantee.cle].paliers.join(), feuille: !document.querySelector('#feuille').hidden }; });
+    check(ap.paliers === '1,2,3,4,5,6,7,8,9,10,11,12,13,14' && ap.etoiles === av.etoiles + 1 && ap.reserve === av.reserve + 1 && !ap.feuille, `donnés une fois : +1 étoile, +1 boost (${JSON.stringify({ etoiles: ap.etoiles, reserve: ap.reserve })})`);
+    await ev2(() => window.__fournil.annoncerEvenements(true)); await sleep(600);
+    check((await feuille2()) === '' && (await ev2(() => window.__fournil.st.etoiles)) === ap.etoiles, 'une seconde annonce ne redonne rien');
+    await ev2(() => window.__fournil.hantee()); await sleep(1200);
+    check(await ev2(() => document.querySelector('#hantee [data-pq="paliers"] b').textContent) === '14/20', 'le bouton des paliers passe à « 14/20 »');
+    await clic2('#hantee [data-pq="paliers"]'); await sleep(400);
+    const lis = await ev2(() => { const h = document.querySelector('#feuille .pq-inter'), f = document.querySelector('#feuille'); if (!h) return null; h.scrollIntoView({ block: 'start' }); f.scrollTop -= 40;
+      const r = h.getBoundingClientRect(), lignes = [...document.querySelectorAll('#feuille .pq-palier.bonus')];
+      return { txt: h.textContent, h: r.height, gauche: r.left, droite: r.right, taille: parseFloat(getComputedStyle(h).fontSize), n: lignes.length, nums: lignes.map((l) => l.querySelector('.pq-num').textContent).join(), recus: lignes.filter((l) => /✓/.test(l.textContent)).length, deborde: lignes.some((l) => l.getBoundingClientRect().right > innerWidth + 0.5 || l.scrollWidth > l.clientWidth + 1), horiz: f.scrollWidth > f.clientWidth + 1 }; });
+    check(lis && lis.txt === 'Après le maître du Manoir' && lis.h > 10 && lis.gauche >= 0 && lis.droite <= 390 && lis.taille >= 14, `l’intertitre « ${lis && lis.txt} », dans l’écran`);
+    check(lis && lis.n === 8 && lis.nums === '13,14,15,16,17,18,19,20' && lis.recus === 2 && !lis.deborde && !lis.horiz, 'dessous, les paliers 13 à 20 (13 et 14 cochés), sans déborder à 390 px');
+    await sleep(300); await shot2('h2-paliers-apres-le-maitre');
+    await clic2('#feuille [data-a="pq-retour"]'); await sleep(300);
+    await clic2('#hantee [data-pq="ameliorations"]'); await sleep(400);
+    const f2 = await feuille2();
+    check(/Après le maître du Manoir/.test(f2) && /Épouvantail à chauves-souris/.test(f2) && /Balai à turbo/.test(f2), 'les Sortilèges : les quatre nouveaux sous « Après le maître du Manoir »');
+    await ev2(() => { const l = [...document.querySelectorAll('#feuille .am.bonus')]; if (l[0]) l[0].scrollIntoView({ block: 'center' }); }); await sleep(250);
+    await shot2('h3-sortileges-apres-le-maitre');
+    await clic2('#feuille [data-a="pq-retour"]'); await sleep(300);
+    await ev2(() => { const F = window.__fournil, q = F.st[F.evHantee.cle]; q.total = 7e16; q.billets = 1e15; });
+    check(await attendre(async () => /Palier 15/.test(await feuille2()), 5000), 'au-delà de 60 Bd : les paliers 15 à 20 s’annoncent');
+    for (let k = 0; k < 5 && !/Palier 20/.test(await feuille2()); k++) { await clic2('#feuille [data-a="pq-ok"]'); await sleep(450); }
+    check(/Palier 20 · La légende phosphorescente/.test(await feuille2()) && /Chapeau phosphorescent/.test(await feuille2()), 'le palier 20 : le chapeau phosphorescent pour la garde-robe');
+    await shot2('h4-palier-20');
+    await clic2('#feuille [data-a="pq-ok"]'); await sleep(400);
+    check(await ev2(() => { const F = window.__fournil; return F.G.possede(F.st, 'hantee-lueur-chapeau') && !F.G.possede(F.st, 'hantee-or-chapeau'); }), 'le chapeau phosphorescent est dans la garde-robe (pas le doré du podium)');
+    decal = HT.FIN + 3 * HEURE - Date.now();
+    await pg.evaluate((d) => localStorage.setItem('test.tel', String(d)), decal); await ev2(() => window.__fournil.save());
+    await charger2();
+    check(await attendre(() => pg.evaluate(() => document.querySelector('#hantee').dataset.ecran === 'bilan'), 6000), 'après la fin : le bilan');
+    const bil = await ev2(() => document.querySelector('#ht-corps').innerText);
+    check(/20\/20 paliers/.test(bil) && /Chapeau phosphorescent/.test(bil), `le bilan compte jusqu’à 20 : ${bil.split('\n').filter((l) => /paliers|reste/.test(l)).join(' / ')}`);
+    await shot2('h5-bilan-20');
+    await ctx2.close(); }
 
   check(errors.length === 0, errors.length ? `erreurs de page : ${errors.join(' | ')}` : 'aucune erreur de page');
   await browser.close(); server.close();

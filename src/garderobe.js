@@ -9,8 +9,15 @@ const GARDEROBE_UI = (() => {
   const PIECES = [['tete', 'Couvre-chef', 'Tête'], ['haut', 'Haut', 'Haut'], ['pieds', 'Chaussures', 'Pieds'], ['accessoire', 'Accessoire', 'Accessoire']];
   const NOM_PIECE = Object.fromEntries(PIECES.map(([id, nom]) => [id, nom]));
   const RARETE = { commun: 'de toujours', rare: 'rare', epique: 'épique', legendaire: 'légendaire' };
-  const COLLECTION = { base: 'La tenue de toujours', or: 'Podium d’or', argent: 'Podium d’argent', bronze: 'Podium de bronze', quartier: 'Le Quartier', 'quartier-or': 'Le Quartier, podium final', hantee: 'La Maison hantée', 'hantee-or': 'La Maison hantée, podium final' };
-  const QUELLE = { or: 'Termine 1er de la semaine au classement.', argent: 'Termine 2e de la semaine au classement.', bronze: 'Termine 3e de la semaine au classement.', quartier: 'Les paliers de l’événement « Le Quartier ».', 'quartier-or': 'Le podium final de l’événement « Le Quartier ».', hantee: 'Les paliers de l’événement « La Maison hantée ».', 'hantee-or': 'Le podium final de « La Maison hantée ».' };
+  // les trophées des paliers bonus (20e) : leurs palettes pour la 3D du boulanger, posées ici (persos.js est partagé avec Poncin, qu'on
+  // laisse tel quel) : la casquette néon (rose et cyan) et le chapeau phosphorescent (vert qui brille dans la nuit)
+  if (typeof PERSOS !== 'undefined' && PERSOS && PERSOS.TENUES) {
+    const T = PERSOS.TENUES;
+    if (!T['quartier-neon']) T['quartier-neon'] = { tissu: '#FF2E9A', fonce: '#2EF2FF', clair: '#FF8AD0', bijou: '#2EF2FF' };
+    if (!T['hantee-lueur']) T['hantee-lueur'] = { tissu: '#2E2547', fonce: '#7CFF6B', clair: '#B8FF9E', bijou: '#7CFF6B' };
+  }
+  const COLLECTION = { base: 'La tenue de toujours', or: 'Podium d’or', argent: 'Podium d’argent', bronze: 'Podium de bronze', quartier: 'Le Quartier', 'quartier-or': 'Le Quartier, podium final', hantee: 'La Maison hantée', 'hantee-or': 'La Maison hantée, podium final', 'quartier-neon': 'Le Quartier, palier 20', 'hantee-lueur': 'La Maison hantée, palier 20' };
+  const QUELLE = { or: 'Termine 1er de la semaine au classement.', argent: 'Termine 2e de la semaine au classement.', bronze: 'Termine 3e de la semaine au classement.', quartier: 'Les paliers de l’événement « Le Quartier ».', 'quartier-or': 'Le podium final de l’événement « Le Quartier ».', hantee: 'Les paliers de l’événement « La Maison hantée ».', 'hantee-or': 'Le podium final de « La Maison hantée ».', 'quartier-neon': 'Le palier bonus 20 de l’événement « Le Quartier ».', 'hantee-lueur': 'Le palier bonus 20 de « La Maison hantée ».' };
   let pieceOuverte = 'tete';
   const virg = (n) => String(+n.toFixed(2)).replace('.', ',');
   const etoiles = (n) => `${'★'.repeat(n)}${'☆'.repeat(GR.nivMax - n)}`;

@@ -5,7 +5,10 @@
 // main, débloquer, embaucher, les combines), les coups de pouce (descente, scooter, soirée, gros client), les paliers et leurs récompenses dans la
 // boulangerie (étoiles, boosts en réserve lancés depuis la pastille, décos du quartier dans la boutique, vêtements de la garde-robe), les gains
 // d'absence plafonnés, « Masquer l'événement » dans les Réglages, l'onglet Événement du classement, puis la fin : la Planque fermée, le bilan,
-// l'icône disparue, le podium final dans le classement. Captures dans test/shots/quartier/ (et dans le dossier donné par SHOTS_QUARTIER).
+// l'icône disparue, le podium final dans le classement. Puis, dans un second téléphone, la mise à jour « après le boss » : une sauvegarde déjà
+// au 12e (le 15 octobre) reçoit les paliers bonus déjà dépassés dans la boutique, une fois ; la liste « Après le boss » (13 à 20) lisible à
+// 390 px ; les combines en plus ; le 20e et sa casquette néon ; le bilan qui compte jusqu'à 20.
+// Captures dans test/shots/quartier/ (et dans le dossier donné par SHOTS_QUARTIER).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-quartier.cjs
 'use strict';
 const { chromium } = require('playwright');
@@ -301,6 +304,83 @@ async function gerer(route) {
     await ev(() => window.__fournil.feuilleClassement('quartier')); await sleep(600);
     check(await ev(() => document.querySelectorAll('#feuille [data-tab]').length > 0 && !document.querySelector('#feuille [data-tab="quartier"]')), 'masqué : le classement n’a plus d’onglet Événement');
   }
+
+  console.log('── après le boss : une sauvegarde déjà au 12e, à la mise à jour (le 15 octobre, 3e jour) ──');
+  { decal = new Date('2026-10-15T10:00:00+02:00').getTime() - Date.now();
+    const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+    await ctx2.addInitScript(fauxTelephone, decal); await ctx2.route(SUPA + '/rest/v1/rpc/*', gerer);
+    const pg = await ctx2.newPage(); pg.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });
+    const ev2 = (fn, arg) => pg.evaluate(fn, arg), clic2 = (sel) => pg.evaluate((x) => { const b = document.querySelector(x); if (!b) return false; b.click(); return true; }, sel);
+    const feuille2 = () => pg.evaluate(() => (document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText));
+    const shot2 = async (nom) => { const f = path.join(out, nom + '.png'); await pg.screenshot({ path: f }); if (out2) fs.copyFileSync(f, path.join(out2, nom + '.png')); };
+    const charger2 = async () => { await pg.goto(URL_JEU); await pg.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 20000 }); await sleep(800); };
+    await pg.goto('about:blank'); await charger2();
+    // la sauvegarde d'avant la mise à jour : déjà entré, annonce vue, 4 000 Bn gagnés et les douze paliers reçus (ce que donnait l'ancienne version)
+    const av = await ev2(() => { const F = window.__fournil, Qd = F.Q, st = F.st, q = Qd.etat(st, HORLOGE.maintenant()); q.majeur = true; q.annonce = true; Qd.gagner(q, 4e15); q.billets = 1e14; for (let k = 1; k <= 12; k++) Qd.marquerPalier(q, k); q.lastSeen = HORLOGE.maintenant(); F.save();
+      return { etoiles: st.etoiles, reserve: st.boosts.reserve.length, paliers: q.paliers.length, dus: Qd.paliersDus(q).map((p) => p.n).join() }; });
+    check(av.paliers === 12 && av.dus === '13,14', 'la sauvegarde d’avant : douze paliers reçus, 4 000 Bn de billets (au-delà des 13e et 14e, pas encore donnés)');
+    await charger2();
+    check(await attendre(async () => /Palier 13/.test(await feuille2()), 8000), 'dans la boutique, sans ouvrir la Planque : la feuille « Palier 13 » arrive toute seule');
+    let f2 = await feuille2();
+    check(/Après le boss, ça continue/.test(f2) && /boost ×2/.test(f2), `le palier 13 : ${f2.split('\n').slice(0, 2).join(' · ')}`);
+    await shot2('b1-palier-13-boutique');
+    await clic2('#feuille [data-a="pq-ok"]'); await attendre(async () => /Palier 14/.test(await feuille2()), 3000);
+    check(/Palier 14/.test(await feuille2()) && /étoile/.test(await feuille2()), 'puis le palier 14 : une étoile');
+    await clic2('#feuille [data-a="pq-ok"]'); await sleep(700);
+    let ap = await ev2(() => ({ etoiles: window.__fournil.st.etoiles, reserve: window.__fournil.st.boosts.reserve.length, paliers: window.__fournil.st.quartier.paliers.slice(), feuille: !document.querySelector('#feuille').hidden }));
+    check(ap.paliers.join() === '1,2,3,4,5,6,7,8,9,10,11,12,13,14' && ap.etoiles === av.etoiles + 1 && ap.reserve === av.reserve + 1 && !ap.feuille, `donnés une fois : +1 étoile, +1 boost en réserve (${JSON.stringify({ etoiles: ap.etoiles, reserve: ap.reserve })})`);
+    await ev2(() => window.__fournil.annoncerEvenements(true)); await sleep(600);
+    check((await feuille2()) === '' && (await ev2(() => window.__fournil.st.etoiles)) === ap.etoiles, 'une seconde annonce ne redonne rien');
+    // la Planque : la liste « Après le boss »
+    await ev2(() => window.__fournil.quartier()); await sleep(900);
+    check(await ev2(() => document.querySelector('[data-pq="paliers"] b').textContent) === '14/20', 'le bouton des paliers passe à « 14/20 » une fois le boss franchi');
+    await clic2('[data-pq="paliers"]'); await sleep(400);
+    const lis = await ev2(() => { const h = document.querySelector('#feuille .pq-inter'), f = document.querySelector('#feuille'); if (!h) return null; h.scrollIntoView({ block: 'start' }); f.scrollTop -= 40;
+      const r = h.getBoundingClientRect(), cs = getComputedStyle(h), lignes = [...document.querySelectorAll('#feuille .pq-palier.bonus')];
+      return { txt: h.textContent, h: r.height, gauche: r.left, droite: r.right, taille: parseFloat(cs.fontSize), n: lignes.length, deborde: lignes.some((l) => l.getBoundingClientRect().right > innerWidth + 0.5 || l.scrollWidth > l.clientWidth + 1), horiz: f.scrollWidth > f.clientWidth + 1, nums: lignes.map((l) => l.querySelector('.pq-num').textContent).join(), recus: lignes.filter((l) => /✓/.test(l.textContent)).length, sous: (document.querySelector('#feuille .pq-inter-sous') || {}).textContent, titreTaille: Math.min(...lignes.map((l) => parseFloat(getComputedStyle(l.querySelector('b')).fontSize))) }; });
+    check(lis && lis.txt === 'Après le boss' && lis.h > 10 && lis.gauche >= 0 && lis.droite <= 390 && lis.taille >= 14, `l’intertitre « ${lis && lis.txt} » est là, dans l’écran (${lis && Math.round(lis.gauche)}–${lis && Math.round(lis.droite)} px, ${lis && lis.taille} px)`);
+    check(lis && lis.n === 8 && lis.nums === '13,14,15,16,17,18,19,20' && lis.recus === 2 && !lis.deborde && !lis.horiz && lis.titreTaille >= 13, `dessous, les paliers 13 à 20 (13 et 14 cochés), sans déborder à 390 px : ${lis && lis.sous}`);
+    await sleep(300); await shot2('b2-paliers-apres-le-boss');
+    await ev2(() => { const l = [...document.querySelectorAll('#feuille .pq-palier.bonus')].pop(); l.scrollIntoView({ block: 'end' }); }); await sleep(200);
+    await shot2('b3-paliers-20');
+    await clic2('#feuille [data-a="pq-retour"]'); await sleep(300);
+    // les combines en plus
+    await clic2('[data-pq="ameliorations"]'); await sleep(400);
+    f2 = await feuille2();
+    check(/Après le boss/.test(f2) && /Guetteurs sur les toits/.test(f2) && /Trottinette électrique/.test(f2) && !/de plus après le palier/.test(f2), 'les combines : les quatre nouvelles apparaissent sous « Après le boss »');
+    const am = await ev2(() => { const l = [...document.querySelectorAll('#feuille .am.bonus')]; l[0].scrollIntoView({ block: 'center' }); return { n: l.length, deborde: l.some((x) => x.getBoundingClientRect().right > innerWidth + 0.5) }; });
+    check(am.n === 4 && !am.deborde, 'quatre lignes, sans déborder');
+    await ev2(() => { window.__fournil.st.quartier.billets = 3e15; }); await clic2('#feuille [data-id="guetteurs"]'); await sleep(400);
+    check(await ev2(() => window.__fournil.st.quartier.ameliorations.guetteurs === true), 'les guetteurs s’achètent (1 Bd)');
+    await ev2(() => { const l = [...document.querySelectorAll('#feuille .am.bonus')]; if (l[0]) l[0].scrollIntoView({ block: 'center' }); }); await sleep(200);
+    await shot2('b4-combines-apres-le-boss');
+    await clic2('#feuille [data-a="pq-retour"]'); await sleep(300);
+    await ev2(() => { const Qd = window.__fournil.Q, q = window.__fournil.st.quartier; q.evTimer = 9999; Qd.lancerEvenement(q, Math.random, 'descente'); }); await sleep(300);
+    check(/0\/8/.test(await ev2(() => document.querySelector('#pq-ev').innerText)), 'une descente se planque maintenant en 8 touches');
+    await ev2(() => { const q = window.__fournil.st.quartier; q.ev = null; });
+    // le 20e : la casquette néon
+    await ev2(() => { const q = window.__fournil.st.quartier; q.total = 1.2e17; q.billets = 1e16; });
+    check(await attendre(async () => /Palier 15/.test(await feuille2()), 5000), 'au-delà de 110 Bd : les paliers 15 à 20 s’annoncent');
+    for (let k = 0; k < 5 && !/Palier 20/.test(await feuille2()); k++) { await clic2('#feuille [data-a="pq-ok"]'); await sleep(450); }
+    f2 = await feuille2();
+    check(/Palier 20 · La légende en néon/.test(f2) && /Casquette néon/.test(f2) && /casquette néon est dans ta garde-robe/.test(f2), 'le palier 20 : « La légende en néon », la casquette néon pour la garde-robe');
+    await shot2('b5-palier-20');
+    await clic2('#feuille [data-a="pq-ok"]'); await sleep(500);
+    const fin2 = await ev2(() => { const F = window.__fournil; return { casquette: F.G.possede(F.st, 'quartier-neon-casquette'), or: F.G.possede(F.st, 'quartier-or-casquette'), btn: document.querySelector('[data-pq="paliers"] b').textContent, paliers: F.st.quartier.paliers.length }; });
+    check(fin2.casquette && !fin2.or && fin2.btn === '20/20' && fin2.paliers === 20, `la casquette néon est dans la garde-robe (pas la dorée du podium) ; « ${fin2.btn} »`);
+    await ev2(() => { const F = window.__fournil; F.G.equiper(F.st, 'tete', 'quartier-neon-casquette'); F.save(); });
+    await clic2('[data-pq="fermer"]'); await sleep(900); await ev2(() => window.__fournil.tiroir && window.__fournil.tiroir('ferme')); await sleep(900);
+    await shot2('b6-boutique-casquette-neon');
+    // la fin : le bilan compte jusqu'à 20
+    decal = Q.FIN + 3 * HEURE - Date.now();
+    await pg.evaluate((d) => localStorage.setItem('test.tel', String(d)), decal); await ev2(() => window.__fournil.save());
+    await charger2();
+    check(await attendre(() => pg.evaluate(() => document.querySelector('#planque').dataset.ecran === 'bilan'), 6000), 'après la fin : le bilan');
+    const bil = await ev2(() => document.querySelector('#pq-corps').innerText);
+    check(/20\/20 paliers/.test(bil) && /Casquette néon/.test(bil) && /13 étoiles/.test(bil), `le bilan compte jusqu’à 20 : ${bil.split('\n').filter((l) => /paliers|reste/.test(l)).join(' / ')}`);
+    await shot2('b7-bilan-20');
+    await ctx2.close(); }
+
   check(errors.length === 0, errors.length ? `erreurs de page : ${errors.join(' | ')}` : 'aucune erreur de page');
   await browser.close(); server.close();
   console.log(fails ? `\n${fails} échec(s)` : '\ntout est bon');

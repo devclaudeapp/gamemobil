@@ -656,6 +656,7 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 .gr-piece.porte { background: #FFF3C4; box-shadow: inset 0 0 0 2.5px var(--beurre-sombre), 0 4px 12px var(--ombre); }
 .gr-piece.quartier .gr-ico, .gr-piece.quartier-or .gr-ico { background: #EFEAFF; }
 .gr-piece.hantee .gr-ico, .gr-piece.hantee-or .gr-ico { background: #FFE6D2; } /* la Maison hantée : un fond citrouille */
+.gr-piece.quartier-neon .gr-ico { background: #2E2B3A; } .gr-piece.hantee-lueur .gr-ico { background: #1B1530; } /* les trophées du palier 20 : sur fond de nuit, pour que le néon ressorte */
 .gr-chat { width: 100%; text-align: left; } .gr-chat[disabled] { opacity: .75; }
 .gr-choisir { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; align-items: center; min-height: 56px; width: 100%; text-align: left; }
 button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; min-height: 56px; width: 100%; text-align: left; }
@@ -796,6 +797,16 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .pq-palier b small { font: 700 11px/1 var(--texte-font); color: var(--texte-2); }
 .pq-palier div > span { display: block; font-size: 12px; line-height: 1.3; color: var(--texte-2); }
 .pq-palier .pq-etat { font: 700 18px/1 var(--titre); color: var(--menthe-sombre); text-align: center; }
+/* après le boss : l'intertitre des paliers bonus (13 à 20) et des combines en plus ; les pastilles bonus en violet nuit, les atteintes en néon */
+.pq-inter { display: flex; align-items: center; gap: 8px; margin: 12px 2px 0; font: 700 15px/1.2 var(--titre); color: var(--texte); }
+.pq-inter::before, .pq-inter::after { content: ''; flex: 1 1 0; min-width: 12px; height: 2px; border-radius: 2px; background: currentColor; opacity: .25; }
+.pq-inter-sous { margin: 0 2px 2px; font-size: 12px; line-height: 1.35; color: var(--texte-2); text-align: center; }
+.liste-am .pq-inter { margin-top: 6px; }
+.pq-palier.bonus .pq-num { background: #3F3A50; box-shadow: inset 0 0 0 2px #FF2E9A; }
+.pq-palier.bonus.atteint { background: #FFE4F3; box-shadow: inset 0 0 0 2px #FF2E9A; }
+.pq-palier.bonus.atteint .pq-num { background: #FF2E9A; color: #fff; box-shadow: none; }
+.am.bonus:not(.fait) { box-shadow: inset 0 0 0 2px #FF2E9A, var(--ombre-carte); }
+.pq-am-bientot { margin: 4px 2px 0; text-align: center; }
 :is(#planque, #hantee) .btn.sombre { background: #1E1B26; }
 @media (max-height: 700px) { .pq-scene { height: 140px; } }
 /* la porte 18+ et l'annonce du Quartier à 320 px : « Non, masquer l'événement » passe à la ligne au lieu d'être coupé */
@@ -849,6 +860,10 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .pq-bilan.ht .pq-grand { color: #C9652B; }
 .pq-sheet.ht .pq-palier.atteint { background: #FFE6D2; box-shadow: inset 0 0 0 2px #FF8A3D; }
 .pq-sheet.ht .pq-palier.atteint .pq-num { background: #FF8A3D; color: #2A1608; }
+.pq-sheet.ht .pq-palier.bonus .pq-num { background: #2E2547; box-shadow: inset 0 0 0 2px #5FD3A4; }
+.pq-sheet.ht .pq-palier.bonus.atteint { background: #E3FBE9; box-shadow: inset 0 0 0 2px #3FBF7F; }
+.pq-sheet.ht .pq-palier.bonus.atteint .pq-num { background: #3FBF7F; color: #10261A; box-shadow: none; }
+.pq-sheet.ht .am.bonus:not(.fait) { box-shadow: inset 0 0 0 2px #3FBF7F, var(--ombre-carte); }
 .ht-annonce { text-align: center; }
 .ht-annonce-scene { position: relative; display: grid; place-items: center; height: 132px; margin: 0 auto 10px; border-radius: 24px; overflow: hidden; background: linear-gradient(180deg, #1B1438 0%, #3B2A66 78%, #2A2140 100%); }
 .ht-annonce-scene::after { content: ''; position: absolute; left: -10%; right: -10%; bottom: -16px; height: 44px; border-radius: 50%; background: #2A1F45; }

@@ -2,7 +2,9 @@
 // L'événement « Le Quartier » du Fournil (src/quartier.js, règles pures) : la fenêtre (du mardi 13 oct. 2026 à midi au mardi 27 oct. à midi,
 // heure de Paris, heure d'hiver comprise), les jours de Paris, la Planque (produits, postes, apprentis, améliorations, coups de pouce),
 // les gains d'absence plafonnés (8 h, au ralenti), les douze paliers donnés une seule fois, la simulation du rythme (assidu → palier 12
-// le 11e jour, quotidien → paliers 8-9), l'enveloppe du serveur (le marathon 24 h/24 reste sous la table du SQL), et la réserve de boosts
+// le 11e jour, quotidien → paliers 8-9), les paliers bonus « après le boss » (13 à 20 : très actif → un tous les jour ou deux, marathon →
+// le 20e vers le 13e jour), les combines en plus, la reprise d'une sauvegarde déjà au 12e, l'enveloppe du serveur (le marathon 24 h/24
+// reste sous la table du SQL, combines comprises), et la réserve de boosts
 // de la boulangerie (src/game.js : st.boosts, lancer, multiplicateur, absence). Lancer : TZ=Europe/Paris node test/fournil-quartier.test.js
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -128,10 +130,11 @@ check(abs.secs === 0 && abs.total === 0, 'une heure dans le passé (horloge recu
 { const s = q.postes[1]; q.postes[1].staff = false; q.postes[1].actif = true; q.postes[1].prog = 0; const b = q.billets; Q.absence(q, q.lastSeen + 3600e3); check(!s.actif && q.billets > b, 'une fournée à la main lancée avant de partir se termine pendant l’absence'); }
 
 console.log('── les douze paliers, une seule fois ──');
-check(Q.PALIERS.length === 12 && Q.PALIERS.every((p, k) => p.n === k + 1 && (k === 0 || p.total > Q.PALIERS[k - 1].total)), 'douze paliers croissants');
-check(Q.PALIERS.filter((p) => p.vetement).map((p) => p.vetement).join() === Q.VETEMENTS.join() && Q.PALIERS[11].vetement === 'quartier-chaine', 'les quatre vêtements du quartier aux paliers 3, 6, 9 et 12 : l’ensemble complet au 12e');
+const DOUZE = Q.PALIERS.filter((p) => !p.bonus), BONUS = Q.PALIERS.filter((p) => p.bonus);
+check(Q.PALIERS.length === 20 && Q.PALIERS_BOSS === 12 && Q.PALIERS.every((p, k) => p.n === k + 1 && (k === 0 || p.total > Q.PALIERS[k - 1].total)) && DOUZE.length === 12 && DOUZE.every((p) => p.n <= 12) && BONUS.every((p) => p.n > 12), 'vingt paliers croissants : les douze, puis huit bonus (13 à 20)');
+check(DOUZE.filter((p) => p.vetement).map((p) => p.vetement).join() === Q.VETEMENTS.join() && Q.PALIERS[11].vetement === 'quartier-chaine', 'les quatre vêtements du quartier aux paliers 3, 6, 9 et 12 : l’ensemble complet au 12e');
 check(Q.PALIERS.filter((p) => p.deco).map((p) => p.deco).join() === 'graffiti,neon,scooter,chien', 'les quatre décos : graffiti, néon, scooter, chien');
-check(Q.PALIERS.reduce((s, p) => s + (p.etoiles || 0), 0) === 8 && Q.PALIERS.filter((p) => p.boost).length === 5, '8 étoiles et 5 boosts en tout (bonus modérés pour la boulangerie)');
+check(DOUZE.reduce((s, p) => s + (p.etoiles || 0), 0) === 8 && DOUZE.filter((p) => p.boost).length === 5, '8 étoiles et 5 boosts dans les douze (bonus modérés pour la boulangerie)');
 check(Q.PALIERS.every((p) => Q.phrasePalier(p).length > 3), 'chaque palier se décrit en une ligne');
 q = Q.etat({}, now0);
 check(Q.paliersDus(q).length === 0 && Q.reputationMult(q) === 1 && Q.marquerPalier(q, 1) === null, 'rien à réclamer à zéro ; un palier pas atteint ne se marque pas');
@@ -146,6 +149,51 @@ check(q.paliers.length === 12 && q.vetements.join() === Q.VETEMENTS.join() && Q.
 out = Q.tick(q, 1, now0 + 1000, () => 0.5);
 check(out.paliers.length === 0, 'le pas de jeu ne redonne rien');
 
+console.log('── après le boss : les paliers 13 à 20 ──');
+check(Q.PALIERS[12].total > Q.PALIERS[11].total && Q.PALIERS[11].total === 5e14 && BONUS.length === 8, `huit paliers bonus au-delà des 500 Bn du boss (de ${Q.fmt(BONUS[0].total)} à ${Q.fmt(BONUS[7].total)} €)`);
+check(BONUS.every((p) => p.titre && p.titre.length > 5 && (p.etoiles || p.boost) && !p.deco) && new Set(Q.PALIERS.map((p) => p.titre)).size === 20, 'chacun a son titre (vingt titres différents) et donne des étoiles ou un boost, pas de déco');
+check(BONUS.every((p) => !p.vetement || p.n === 20) && Q.PALIERS[19].vetement === Q.TROPHEE && Q.TROPHEE === 'quartier-neon-casquette' && !Q.VETEMENTS.includes(Q.TROPHEE) && !Q.VETEMENTS_OR.includes(Q.TROPHEE), 'au 20e seulement, le trophée : la casquette néon (pas une pièce de la tenue, ni de l’or du podium)');
+{ const v = G.vetement(Q.TROPHEE); check(v && v.collection === 'quartier-neon' && v.piece === 'tete' && v.forme === 'casquette' && !G.GARDEROBE.ensembles['quartier-neon'] && Q.VETEMENTS_OR.every((id) => G.vetement(id).collection === 'quartier-or'), `elle existe dans la garde-robe (« ${v && v.nom} », collection à part, sans ensemble) ; la tenue en or reste au podium`); }
+{ const e = BONUS.reduce((s, p) => s + (p.etoiles || 0), 0), b = BONUS.filter((p) => p.boost).length; check(e === 5 && b === 5 && BONUS.every((p) => !p.boost || p.boost.mult <= 5 && p.boost.secs <= 3600), `${e} étoiles et ${b} boosts de plus (×2 ou ×5, une heure au plus) : modérés`); }
+check(/casquette néon/.test(Q.phrasePalier(Q.PALIERS[19])) && BONUS.every((p) => Q.phrasePalier(p).length > 3), 'chacun se décrit en une ligne (le 20e : « la casquette néon »)');
+q = Q.etat({}, now0); Q.gagner(q, 2e15);
+check(Q.paliersDus(q).map((p) => p.n).join() === '1,2,3,4,5,6,7,8,9,10,11,12,13' && Q.reputationMult(q) === Math.pow(Q.REPUTATION, 12), 'à 2 000 Bn : treize paliers dus, mais la réputation s’arrête au boss (×1,5¹², les bonus n’en ajoutent pas)');
+Q.gagner(q, 2e17); Q.paliersDus(q).forEach((x) => Q.marquerPalier(q, x.n));
+check(q.paliers.length === 20 && q.etoiles === 13 && q.boosts === 10 && q.vetements.includes(Q.TROPHEE) && Q.ensembleComplet(q) && Q.reputationMult(q) === Math.pow(Q.REPUTATION, 12), 'tout en haut : vingt paliers, 13 étoiles, 10 boosts, la casquette néon en plus de la tenue complète ; la réputation toujours ×1,5¹²');
+check(Q.paliersDus(q).length === 0 && Q.marquerPalier(q, 20) === null && Q.tick(q, 1, now0 + 1000, () => 0.5).paliers.length === 0 && q.etoiles === 13, 'une seule fois : rien de plus au pas suivant');
+
+console.log('── les combines en plus, après le boss ──');
+const COMB = Q.AMELIORATIONS.filter((a) => a.apres);
+check(COMB.length === 4 && COMB.every((a) => a.apres === 12 && a.effet && a.mult === 1 && a.cible.length === 0 && a.desc && a.nom) && Q.AMELIORATIONS.length === 14, `quatre combines de plus (${COMB.map((a) => a.nom).join(', ')}), après le palier 12`);
+check(COMB.every((a) => a.cout >= 1e15) && COMB.slice(1).every((a, k) => a.cout > COMB[k].cout) && Q.AMELIORATIONS.slice(1).every((a, k) => a.cout > Q.AMELIORATIONS[k].cout), `chères (${COMB.map((a) => Q.fmt(a.cout)).join(', ')} €), de prix croissants après celles d’avant`);
+q = Q.etat({}, now0); Q.gagner(q, 4e14); q.billets = 1e17;
+let rc = Q.amelioration(q, 'guetteurs');
+check(!rc.ok && rc.verrou && !q.ameliorations.guetteurs && !Q.combineOuverte(q, COMB[0]), 'avant le boss : verrouillées, même avec de quoi payer');
+Q.gagner(q, 1e14); q.billets = 1e17; const tous = Q.revenuBase(q, 0);
+for (const a of COMB) { rc = Q.amelioration(q, a.id); check(rc.ok && q.ameliorations[a.id] && q.billets === 1e17 - COMB.slice(0, COMB.indexOf(a) + 1).reduce((s, x) => s + x.cout, 0), `${a.nom} : ${a.desc}`); }
+check(Q.revenuBase(q, 0) === tous && Q.PRODUITS.every((p, i) => Q.ameliorationMult(q, i) === 1), 'elles ne multiplient aucune vente (l’enveloppe du serveur)');
+q.now = now0; Q.gagner(q, 0); ev = Q.lancerEvenement(q, () => 0.5, 'descente');
+check(ev.n === 8 && ev.enjeu === Math.floor(q.billets * 0.05), 'les guetteurs : une descente se planque en 8 touches, la police n’embarque que 5 %');
+ev = Q.lancerEvenement(q, () => 0.5, 'soiree'); check(ev.fin - ev.debut === 180e3, 'la sono : la soirée dure 3 min');
+{ const sansT = Q.etat({}, now0); Q.gagner(sansT, 5e14); const e0 = Q.lancerEvenement(sansT, () => 0.5, 'scooter'); ev = Q.lancerEvenement(q, () => 0.5, 'scooter');
+  check(ev.fin - ev.debut === 20e3 && e0.fin - e0.debut === 10e3, 'la trottinette : le livreur attend 20 s (10 s sans)'); }
+check(Q.heuresAbsence(q) === 12 && Q.partAbsence(q) === 0.2 && Q.heuresAbsence(Q.etat({}, now0)) === 8 && Q.heuresAbsence() === 8, 'le matelas : l’équipe bosse 12 h pendant l’absence, à 20 % (8 h et 10 % sans)');
+{ Q.gagner(q, 1e9); Q.acheter(q, 1); Q.embaucher(q, 0); Q.embaucher(q, 1); q.lastSeen = now0; const t = Q.tauxBase(q); const a = Q.absence(q, now0 + 30 * 3600e3);
+  check(a.secs === 12 * 3600 && Math.abs(a.total - t * 12 * 3600 * 0.2) / a.total < 0.02, `30 h d’absence avec le matelas : 12 h payées à 20 % (${Q.fmt(a.total)} €)`); }
+
+console.log('── la reprise d’une sauvegarde déjà au boss (la mise à jour) ──');
+{ // une sauvegarde d'avant la mise à jour : 12 paliers marqués, 4 000 Bn gagnés (au-delà des paliers 13 et 14), en JSON comme le jeu
+  const vieux = G.newState(now0), qv = Q.etat(vieux, now0); Q.gagner(qv, 4e15); for (let k = 1; k <= 12; k++) Q.marquerPalier(qv, k);
+  delete qv.ameliorations.guetteurs; const json = JSON.parse(JSON.stringify(vieux)); json.quartier.paliers = json.quartier.paliers.filter((n) => n <= 12);
+  const e0 = json.etoiles, r0 = (json.boosts && json.boosts.reserve ? json.boosts.reserve.length : 0), q2 = Q.etat(json, now0);
+  check(q2.paliers.length === 12 && q2.etoiles === 8 && Q.paliersDus(q2).map((p) => p.n).join() === '13,14', 'relue après la mise à jour : les paliers 13 et 14, déjà dépassés, sont dus (et eux seuls)');
+  for (const p of Q.paliersDus(q2)) { if (!Q.marquerPalier(q2, p.n)) continue; if (p.etoiles) json.etoiles += p.etoiles; if (p.boost) G.donnerBoostReserve(json, p.boost.mult, p.boost.secs); } // ce que fait l'écran (donnerPalier)
+  check(q2.paliers.join() === '1,2,3,4,5,6,7,8,9,10,11,12,13,14' && json.etoiles === e0 + 1 && json.boosts.reserve.length === r0 + 1, 'donnés une fois : une étoile (le 14e) et un boost ×2 (le 13e) dans la boulangerie');
+  for (const p of Q.PALIERS) Q.marquerPalier(q2, p.n); const out2 = Q.tick(q2, 1, now0 + 1000, () => 0.5);
+  check(q2.paliers.length === 14 && q2.etoiles === 9 && out2.paliers.length === 0, 'pas de double récompense : remarquer tout ne redonne rien, le pas de jeu non plus'); }
+{ const tres = { quartier: { postes: [{ niv: 5 }], billets: 1, total: 6e14, paliers: [1, 2, 3], ameliorations: { cartel: true } } }; const q3 = Q.etat(tres, now0); // une très vieille sauvegarde, abîmée
+  check(q3.postes.length === 6 && Q.paliersDus(q3).length === 9 && Q.heuresAbsence(q3) === 8 && Q.effet(q3, 'descenteN', 12) === 12, 'une très vieille sauvegarde se relit sans erreur (ses paliers dus suivent, sans combine bonus)'); }
+
 console.log('── le rythme simulé ──');
 const S = {}; for (const prof of ['assidu', 'quotidien', 'occasionnel', 'marathon']) S[prof] = Q.simuler(prof, 14);
 const jourDe = (prof, n) => S[prof].paliersJour[n] || Infinity; // Infinity : jamais atteint en 14 jours
@@ -156,6 +204,18 @@ check(jourDe('occasionnel', 5) <= 14 && jourDe('occasionnel', 9) > 14, `l’occa
 check(S.assidu.total > S.quotidien.total && S.quotidien.total > S.occasionnel.total && S.marathon.total > S.assidu.total, 'plus on joue, plus on gagne : marathon > assidu > quotidien > occasionnel');
 check(S.assidu.parJour.every((d, k) => k === 0 || d.total >= S.assidu.parJour[k - 1].total) && S.assidu.q.stats.descentes > 0 && S.assidu.q.stats.grosClients > 0, 'les totaux ne reculent jamais ; les coups de pouce ont joué');
 check(Q.simuler('assidu', 14, { graine: 7 }).total === S.assidu.total, 'la simulation est déterministe (graine)');
+{ // après le boss : le très actif (8 h par jour, le 12e au 3e jour comme les plus mordus) et le marathon
+  S.tresactif = Q.simuler('tresactif', 14); const T = S.tresactif.paliersJour, jours = [12, 13, 14, 15, 16, 17, 18, 19].map((n) => T[n] || Infinity);
+  console.log(`  très actif : ${Q.fmt(S.tresactif.total)} €, paliers ${JSON.stringify(T)}`);
+  check(T[12] === 3, `le très actif franchit le 12e le ${T[12]}e jour (comme le joueur du 15 octobre)`);
+  const ecarts = jours.slice(1).filter(Number.isFinite).map((j, k) => j - jours[k]);
+  check(T[18] <= 12 && T[19] <= 14 && ecarts.length >= 6 && ecarts.every((e) => e >= 0 && e <= 2), `puis un palier bonus tous les jour ou deux : 13e le ${T[13]}e jour, 14e le ${T[14]}e, 15e le ${T[15]}e, 16e le ${T[16]}e, 17e le ${T[17]}e, 18e le ${T[18]}e, 19e le ${T[19]}e (écarts ${ecarts.join(', ')})`);
+  check(!T[20] && S.tresactif.total < Q.PALIERS[19].total, 'le 20e reste au-dessus de lui : un trophée pour les marathoniens');
+  check(jourDe('marathon', 12) <= 2 && jourDe('marathon', 20) >= 12 && jourDe('marathon', 20) <= 14, `le marathon (24 h/24) : le 12e le ${jourDe('marathon', 12)}e jour, le 20e seulement le ${jourDe('marathon', 20)}e (visé : 12e-14e)`);
+  const off = Q.simuler('marathon', 14, { offertes: true });
+  check(off.paliersJour[20] >= 12 && off.paliersJour[20] <= 14, `même avec toutes les combines offertes dès le 12e : le 20e le ${off.paliersJour[20]}e jour`);
+  check(jourDe('assidu', 13) >= 13 && !S.quotidien.paliersJour[13], `l’assidu effleure le 13e en toute fin (${jourDe('assidu', 13) === Infinity ? 'jamais' : jourDe('assidu', 13) + 'e jour'}) ; le quotidien, jamais`);
+  S.offertes = off; }
 // l'enveloppe du serveur : la table du SQL (log10 des billets par jour depuis le début) reste au-dessus du marathon 24 h/24, avec marge
 const SQL = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement.sql'), 'utf8');
 const mTable = /fournil_quartier_table\(\)[\s\S]*?select '\{([-\d.,]+)\}'::double precision\[\]/.exec(SQL);
@@ -165,6 +225,11 @@ if (table) {
   const marge = S.marathon.parJour.map((d, k) => table[k + 1] - Math.log10(d.total));
   check(marge.every((m) => m >= Math.log10(2)) && table.every((v, k) => k === 0 || v >= table[k - 1]), `au-dessus du marathon d’au moins ×2 chaque jour (marges ×${marge.map((m) => Math.pow(10, m).toFixed(1)).join(', ×')}), et croissante`);
   check(marge.every((m) => m <= 1.3), 'mais pas plus de ×20 : un tricheur ne s’envole pas');
+  const combines = Object.keys(S.marathon.q.ameliorations).filter((id) => COMB.some((a) => a.id === id));
+  check(combines.length >= 2, `le marathon achète les combines d’après le boss (${combines.join(', ')})`);
+  for (const g of [7, 1, 2]) { // le pire cas : toutes les combines offertes dès le 12e (sans les payer), trois hasards
+    const o = g === 7 ? S.offertes : Q.simuler('marathon', 14, { graine: g, offertes: true }), m = o.parJour.map((d, k) => table[k + 1] - Math.log10(d.total));
+    check(m.every((x) => x >= Math.log10(2)), `combines offertes dès le 12e (graine ${g}) : toujours ×2 sous l’enveloppe (au plus juste ×${Math.pow(10, Math.min(...m)).toFixed(2)}) — le SQL ne change pas`); }
 }
 
 console.log('── la réserve de boosts de la boulangerie (src/game.js) ──');

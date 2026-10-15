@@ -36,7 +36,9 @@ const EVENEMENTS = (() => {
     const q = () => Q.etat(st(), now());
     const fen = () => (Q.fenetreSure ? Q.fenetreSure(now(), d.sure ? d.sure() : null) : Q.fenetre(now())); // l'ouverture sur l'heure sûre (une horloge avancée hors ligne n'ouvre rien avant l'heure)
     const fmt = (n) => F.fmt(n), prix = (n) => F.prix(n);
-    const nbPaliers = () => Q.PALIERS.length;
+    const boss = () => Q.PALIERS_BOSS || Q.PALIERS.length; // le 12e : le dernier palier « normal » ; au-delà, les paliers bonus (après le boss)
+    const nbPaliers = (qq) => (qq && Q.paliersAtteints(qq).length >= boss() ? Q.PALIERS.length : boss()); // « 4/12 » jusqu'au boss, puis « 14/20 »
+    const ouverte = (qq, a) => (Q.combineOuverte ? Q.combineOuverte(qq, a) : !a.apres); // une combine « après le boss » se montre une fois le palier franchi
 
     function init(deps) {
       d = deps; el = $(F.racine); if (!el || !Q) return false;
@@ -85,13 +87,14 @@ const EVENEMENTS = (() => {
       fileSheets.push({ p, dons }); d.save(); d.apres();
       return dons;
     }
+    function rattraper() { const qq = q(); let n = 0; for (const p of Q.paliersDus(qq)) if (donnerPalier(p)) n++; return n; } // chaque palier dû, une fois (q.paliers fait foi)
     function montrerSheetsEnAttente() {
       if (sheetOuverte || !fileSheets.length || !$('#feuille').hidden) return;
       const { p, dons } = fileSheets.shift(); sheetOuverte = true;
       d.son.deblocage(); d.buzz([10, 30, 10, 30, 10]); if (d.fete) d.fete();
       d.openSheet(`<div class="pq-sheet ${F.classe}"><div class="pq-palier-tete"><span class="pq-pic">${F.ico.palier}</span><div><h2>Palier ${p.n} · ${esc(p.titre)}</h2><p class="sous">${esc(F.t.palierSous(fmt(p.total)))}</p></div></div>
         <ul class="pq-dons">${dons.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
-        ${p.n === nbPaliers() ? `<p class="encadre">${esc(F.t.palierFinal)}</p>` : ''}
+        ${p.n === boss() ? `<p class="encadre">${esc(F.t.palierFinal)}</p>` : p.n === Q.PALIERS.length && p.n > boss() ? `<p class="encadre">${esc(F.t.palierBonusFinal)}</p>` : p.n === boss() + 1 ? `<p class="encadre">${esc(F.t.palierBonus)}</p>` : ''}
         <button type="button" class="btn large beurre" data-a="pq-ok" style="margin-top:14px"><b>${esc(F.t.palierOk)}</b></button></div>`);
       d.on('[data-a="pq-ok"]', () => { d.son.tap(); d.closeSheet(); });
       const surFermeture = setInterval(() => { if ($('#feuille').hidden) { sheetOuverte = false; clearInterval(surFermeture); montrerSheetsEnAttente(); } }, 300);
@@ -102,6 +105,8 @@ const EVENEMENTS = (() => {
       if (!Q || !d) return false; const s = st(); if (!s || coupe()) return false;
       const f = fen(), qq = s[F.cle];
       if (f.fini) { if (qq && qq.total > 0 && !qq.bilan && !qq.masque && !ouvert()) { ouvrir(); return true; } return false; } // masqué : pas de bilan qui surgit
+      // des paliers dus hors de la Planque (une mise à jour qui en ajoute : les paliers bonus d'une sauvegarde déjà au-delà du 12e) : donnés une fois, annoncés dans la boutique
+      if (f.ouvert && qq && Array.isArray(qq.postes) && qq.annonce && (qq.majeur || !F.porte) && !qq.masque && !ouvert() && !sheetOuverte && $('#feuille').hidden && Q.paliersDus(Q.etat(s, now())).length) { rattraper(); montrerSheetsEnAttente(); return true; }
       if (!f.ouvert || (qq && (qq.masque || qq.annonce)) || !$('#feuille').hidden || ouvert()) return false;
       const neuf = q(); neuf.annonce = true; d.save();
       d.openSheet(F.t.annonce(f));
@@ -199,7 +204,7 @@ const EVENEMENTS = (() => {
       id('sous').textContent = `Jour ${f.jour} sur ${f.jours}`;
       const bc = el.querySelector('[data-pq="classement"]'); bc.hidden = cl == null; bc.querySelector('b').textContent = cl ? (cl === 1 ? '1er' : cl + 'e') : 'Top';
       bc.setAttribute('aria-label', cl ? `Le classement de l’événement : tu es ${cl === 1 ? '1er' : cl + 'e'}` : 'Le classement de l’événement');
-      const bp = el.querySelector('[data-pq="paliers"]'); bp.querySelector('b').textContent = `${nb}/${nbPaliers()}`; bp.classList.toggle('pret', Q.paliersDus(qq).length > 0);
+      const bp = el.querySelector('[data-pq="paliers"]'); bp.querySelector('b').textContent = `${nb}/${nbPaliers(qq)}`; bp.classList.toggle('pret', Q.paliersDus(qq).length > 0);
     }
 
     // ─── les cartes des six produits (même grammaire que la boulangerie) ───
@@ -260,7 +265,7 @@ const EVENEMENTS = (() => {
     function genre(ev) { return F.genres[ev.type] || (ev.n != null && ev.taps != null ? 'taper' : ev.i != null && ev.fait != null ? 'livrer' : ev.prime != null ? 'attraper' : 'mult'); }
     function coup(ev) { const g = genre(ev), base = F.coups[g], sur = F.coupsType && F.coupsType[ev.type]; return sur ? Object.assign({}, base, sur) : base; }
     const action = (g) => { for (const n of [F.actions[g], g, { taper: 'planquer' }[g]]) if (n && typeof Q[n] === 'function') return Q[n]; return () => ({ ok: false }); };
-    const dureeEv = (ev) => (Q.EVENEMENTS && Q.EVENEMENTS[ev.type] && Q.EVENEMENTS[ev.type].duree) || Math.max(1, (ev.fin - ev.debut) / 1000);
+    const dureeEv = (ev) => (ev.fin > ev.debut ? (ev.fin - ev.debut) / 1000 : (Q.EVENEMENTS && Q.EVENEMENTS[ev.type] && Q.EVENEMENTS[ev.type].duree) || 1); // la vraie durée du coup (une combine peut l'allonger)
     const multEv = (ev) => (Q.EVENEMENTS && Q.EVENEMENTS[ev.type] && Q.EVENEMENTS[ev.type].mult) || 2;
     function renderEv() {
       const qq = q(), ev = qq.ev;
@@ -292,15 +297,21 @@ const EVENEMENTS = (() => {
     // ─── les feuilles : les améliorations, les paliers ───
     function sheetAmeliorations() {
       const qq = q();
-      const liste = Q.AMELIORATIONS.map((a) => { const fait = qq.ameliorations[a.id], ok = qq.billets >= a.cout; return `<div class="am ${fait ? 'fait' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p></div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${prix(a.cout)}</b></button>`}</div>`; }).join('');
+      const ligne = (a) => { const fait = qq.ameliorations[a.id], ok = qq.billets >= a.cout; return `<div class="am ${fait ? 'fait' : ''}${a.apres ? ' bonus' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p></div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${prix(a.cout)}</b></button>`}</div>`; };
+      const bonus = Q.AMELIORATIONS.filter((a) => a.apres), ouvertes = bonus.filter((a) => ouverte(qq, a));
+      const liste = Q.AMELIORATIONS.filter((a) => !a.apres).map(ligne).join('')
+        + (ouvertes.length ? `<h3 class="pq-inter">${esc(F.t.apresBoss)}</h3><p class="pq-inter-sous">${esc(F.t.amBonus)}</p>${ouvertes.map(ligne).join('')}` : '')
+        + (bonus.length > ouvertes.length ? `<p class="note pq-am-bientot">${esc(F.t.amBientot(bonus.length - ouvertes.length, boss()))}</p>` : '');
       d.openSheet(`<div class="pq-sheet ${F.classe}"><h2>${esc(F.t.amTitre)}</h2><p class="sous">${esc(F.t.amSous)}</p><div class="liste-am">${liste}</div><button type="button" class="btn large sombre" data-a="pq-retour" style="margin-top:14px"><b>Retour</b></button></div>`);
       d.on('[data-id]', (b) => { const r = Q.amelioration(q(), b.dataset.id); if (!r.ok) { d.son.non(); d.toast(`Il manque ${fmt(r.prix - q().billets)}`); return; } d.son.deblocage(); d.buzz([10, 30, 10]); d.toast(`${r.a.nom} : ${r.a.desc}`); renderCartes(true); lastHud = ''; hud(); d.save(); sheetAmeliorations(); });
       d.on('[data-a="pq-retour"]', () => d.closeSheet());
     }
     function sheetPaliers() {
       const qq = q(), nb = Q.paliersAtteints(qq).length;
-      const lignes = Q.PALIERS.map((p) => { const atteint = qq.total >= p.total, recu = qq.paliers.includes(p.n); return `<div class="pq-palier ${atteint ? 'atteint' : ''}"><span class="pq-num">${p.n}</span><div><b>${esc(p.titre)} <small>${prix(p.total)}</small></b><span>${esc(Q.phrasePalier(p))}</span></div><span class="pq-etat">${recu ? '✓' : atteint ? '…' : ''}</span></div>`; }).join('');
-      d.openSheet(`<div class="pq-sheet ${F.classe}"><div class="pq-palier-tete"><span class="pq-pic">${F.ico.palier}</span><div><h2>Les paliers</h2><p class="sous">${esc(F.t.paliersSous(fmt(qq.total), nb, nbPaliers()))}</p></div></div>
+      const ligne = (p) => { const atteint = qq.total >= p.total, recu = qq.paliers.includes(p.n); return `<div class="pq-palier ${atteint ? 'atteint' : ''}${p.bonus ? ' bonus' : ''}"><span class="pq-num">${p.n}</span><div><b>${esc(p.titre)} <small>${prix(p.total)}</small></b><span>${esc(Q.phrasePalier(p))}</span></div><span class="pq-etat">${recu ? '✓' : atteint ? '…' : ''}</span></div>`; };
+      const bonus = Q.PALIERS.filter((p) => p.bonus); // après le boss : sous leur intertitre
+      const lignes = Q.PALIERS.filter((p) => !p.bonus).map(ligne).join('') + (bonus.length ? `<h3 class="pq-inter">${esc(F.t.apresBoss)}</h3><p class="pq-inter-sous">${esc(F.t.apresBossSous)}</p>${bonus.map(ligne).join('')}` : '');
+      d.openSheet(`<div class="pq-sheet ${F.classe}"><div class="pq-palier-tete"><span class="pq-pic">${F.ico.palier}</span><div><h2>Les paliers</h2><p class="sous">${esc(F.t.paliersSous(fmt(qq.total), nb, nbPaliers(qq)))}</p></div></div>
         <div class="pq-paliers">${lignes}</div>
         <p class="note">${esc(F.t.paliersNote)}</p>
         <button type="button" class="btn large sombre" data-a="pq-retour" style="margin-top:14px"><b>Retour</b></button></div>`);
@@ -312,19 +323,22 @@ const EVENEMENTS = (() => {
       const qq = q(); ecran = 'bilan'; el.dataset.ecran = ecran;
       liberer3();
       cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
-      entete(F.t.bilanTitre, 'L’événement est terminé'); const bp = el.querySelector('[data-pq="paliers"] b'); if (bp) bp.textContent = `${Q.paliersAtteints(qq).length}/${nbPaliers()}`;
+      rattraper(); fileSheets = []; // un palier dû pas encore donné (les paliers bonus d'une vieille sauvegarde) : compté dans le bilan, sans feuille
+      entete(F.t.bilanTitre, 'L’événement est terminé'); const bp = el.querySelector('[data-pq="paliers"] b'); if (bp) bp.textContent = `${Q.paliersAtteints(qq).length}/${nbPaliers(qq)}`;
       const rec = d.recompenses ? d.recompenses() : null, rang = rec ? F.rangFinal(rec) : null, nb = Q.paliersAtteints(qq).length;
       const dons = [];
       if (qq.etoiles) dons.push(`${qq.etoiles} étoile${qq.etoiles > 1 ? 's' : ''}`);
       if (qq.boosts) dons.push(`${qq.boosts} boost${qq.boosts > 1 ? 's' : ''} en réserve`);
       if (qq.decos.length) dons.push(F.t.bilanDecos(qq.decos.length));
-      if (qq.vetements.length) dons.push(`${qq.vetements.length} pièce${qq.vetements.length > 1 ? 's' : ''} ${F.t.bilanTenue}${Q.ensembleComplet(qq) ? ' (complète)' : ''}`);
+      const tenue = qq.vetements.filter((v) => !Q.VETEMENTS || Q.VETEMENTS.includes(v)), trophees = qq.vetements.filter((v) => Q.VETEMENTS && !Q.VETEMENTS.includes(v));
+      if (tenue.length) dons.push(`${tenue.length} pièce${tenue.length > 1 ? 's' : ''} ${F.t.bilanTenue}${Q.ensembleComplet(qq) ? ' (complète)' : ''}`);
+      for (const v of trophees) { const o = typeof G.vetement === 'function' ? G.vetement(v) : null; dons.push(`${o ? o.nom : v} (le trophée du palier ${Q.PALIERS.length})`); }
       if (F.bilanPlus) for (const t of F.bilanPlus(qq)) dons.push(t);
       if (rang) dons.push(`${rang === 1 ? '1er' : rang + 'e'} du podium final : ${F.t.bilanOr}`);
       const stats = F.stats.map(([nom, cles]) => { const k = [].concat(cles).find((x) => qq.stats[x] != null); const v = k ? qq.stats[k] : 0; return `<span><small>${esc(nom)}</small><b>${k === 'ventes' ? Q.fmt(v) : v}</b></span>`; }).join('');
       id('corps').innerHTML = `<div class="at-carte pq-bilan ${F.classe}"><span class="pq-pic grand">${F.ico.bilan}</span>
         <h2>${esc(F.t.bilanH2)}</h2>
-        <p class="pq-grand">${prix(qq.total)}</p><p class="sous">${esc(F.t.bilanSous)} · ${nb}/${nbPaliers()} paliers${rang ? ` · ${rang === 1 ? '1er' : rang + 'e'} du classement de l’événement` : ''}</p>
+        <p class="pq-grand">${prix(qq.total)}</p><p class="sous">${esc(F.t.bilanSous)} · ${nb}/${nbPaliers(qq)} paliers${rang ? ` · ${rang === 1 ? '1er' : rang + 'e'} du classement de l’événement` : ''}</p>
         <div class="pq-stats">${stats}</div>
         ${dons.length ? `<p class="encadre"><b>Ce qui reste à vie :</b> ${dons.map(esc).join(' · ')}.</p>` : `<p class="encadre">${esc(F.t.bilanVide)}</p>`}
         <button type="button" class="btn large beurre" data-pq="fin"><b>Retour à la boulangerie</b></button></div>`;
@@ -871,6 +885,9 @@ const EVENEMENTS = (() => {
       vetementNom: (v) => v, tenueComplete: ' : la tenue du quartier est complète !',
       palierSous: (m) => `${m} de billets gagnés dans la Planque. Pour la boulangerie :`, palierFinal: 'Le boss du quartier, c’est toi. Tout ça reste à vie, même après la fermeture de la Planque.', palierOk: 'Trop bien',
       amTitre: 'Les combines', amSous: 'Des améliorations qui multiplient les ventes de la Planque, jusqu’à la fin de l’événement.',
+      apresBoss: 'Après le boss', apresBossSous: 'Huit paliers bonus pour ceux qui ont déjà tout : des étoiles, des boosts, et au 20e la casquette néon.',
+      amBonus: 'Pour souffler une fois boss : elles ne multiplient pas les ventes, elles rendent la vie plus douce.', amBientot: (n, k) => `${n} combine${n > 1 ? 's' : ''} de plus après le palier ${k}.`,
+      palierBonus: 'Après le boss, ça continue : huit paliers bonus et quatre combines de plus t’attendent.', palierBonusFinal: 'Une légende en néon. Le quartier n’a plus rien à t’apprendre : la casquette néon est dans ta garde-robe, à vie.',
       paliersSous: (m, nb, n) => `${m} de billets gagnés · ${nb}/${n}. Les mêmes seuils pour tout le monde ; chaque palier donne quelque chose pour la boulangerie, à vie.`,
       paliersNote: 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue du quartier se porte depuis la garde-robe du boulanger.',
       bilanTitre: 'La Planque a fermé', bilanH2: 'Bilan du quartier', bilanSous: 'de billets gagnés en deux semaines', bilanDecos: (n) => `${n} déco${n > 1 ? 's' : ''} du quartier dans la boutique`, bilanTenue: 'de la tenue du quartier', bilanOr: 'la tenue du quartier en or',
@@ -927,6 +944,9 @@ const EVENEMENTS = (() => {
         vetementNom: (v) => v, tenueComplete: ' : la tenue d’Halloween est complète !',
         palierSous: (m) => `${m} gagnés au manoir. Pour la boulangerie :`, palierFinal: txt('palier12', txt('palierFinal', 'La reine de la nuit, c’est toi. Tout ça reste à vie, même après la fermeture du manoir.')), palierOk: 'Trop chouette',
         amTitre: typeof T.ameliorations === 'string' ? `Les ${T.ameliorations.toLowerCase()}` : txt('amTitre', 'Les sortilèges'), amSous: txt('amSous', 'Des sorts qui multiplient les ventes du manoir, jusqu’à la fin de l’événement.'),
+        apresBoss: txt('apresBoss', 'Après le maître du Manoir'), apresBossSous: txt('apresBossSous', 'Huit paliers bonus pour ceux qui ont déjà tout : des étoiles, des boosts, et au 20e le chapeau phosphorescent.'),
+        amBonus: txt('amBonus', 'Des sorts de confort : ils ne multiplient pas les ventes, ils rendent la nuit plus douce.'), amBientot: (n, k) => `${n} sortilège${n > 1 ? 's' : ''} de plus après le palier ${k}.`,
+        palierBonus: txt('palierBonus', 'Et ce n’est pas fini : huit paliers bonus et quatre sortilèges de plus t’attendent au Manoir.'), palierBonusFinal: txt('palierBonusFinal', 'Une légende qui brille dans le noir : le chapeau phosphorescent est dans ta garde-robe, à vie.'),
         paliersSous: (m, nb, n) => `${m} gagnés · ${nb}/${n}. Les mêmes seuils pour tout le monde ; chaque palier donne quelque chose pour la boulangerie, à vie.`,
         paliersNote: txt('paliersNote', 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue d’Halloween se porte depuis la garde-robe du boulanger.'),
         bilanTitre: `${lieu} a fermé`, bilanH2: txt('bilanTitre', 'Bilan de la nuit'), bilanSous: txt('bilanSous', `${nomDevise} gagnés en une semaine`), bilanDecos: (n) => `${n} déco${n > 1 ? 's' : ''} d’Halloween dans la boutique`, bilanTenue: 'de la tenue d’Halloween', bilanOr: 'la tenue d’Halloween en or',
