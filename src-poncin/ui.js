@@ -218,6 +218,7 @@ const PUI = (() => {
   // ─── le mode Extraction (PEXTRACTION, PBUTIN : le groupe des règles ; lus avec un repli tolérant, résolus à chaque usage) ───
   const EXT = () => (typeof PEXTRACTION !== 'undefined' && PEXTRACTION && typeof PEXTRACTION === 'object' ? PEXTRACTION : null);
   const BUT = () => (typeof PBUTIN !== 'undefined' && PBUTIN && typeof PBUTIN === 'object' ? PBUTIN : null);
+  const CLA = () => (typeof PCLASSEMENT !== 'undefined' && PCLASSEMENT && typeof PCLASSEMENT.lire === 'function' ? PCLASSEMENT : null); // le classement du butin
   const MX = () => (R && R.MODES && R.MODES.extraction) || null; // les chiffres du mode (durée, durées permises, zone conseillée…)
   const extractionDispo = () => !!(EXT() && MX());
   const modeDe = (r) => (r && r.mode === 'extraction' && extractionDispo() ? 'extraction' : 'arene');
@@ -316,7 +317,32 @@ const PUI = (() => {
     if (!Array.isArray(l)) l = sauv.coffre.objets || [];
     return l.filter((o) => o && typeof o === 'object').map((o, i) => ({ o, uid: o.ref != null ? o.ref : o.uid != null ? o.uid : i }));
   }
-  const ONGLETS_COFFRE = [{ id: 'materiel', titre: 'Matériel', maj: majMateriel }, { id: 'contrats', titre: 'Contrats', maj: majContrats }, { id: 'ameliorations', titre: 'Améliorations', maj: majAmeliorations }];
+  const ONGLETS_COFFRE = [{ id: 'materiel', titre: 'Matériel', maj: majMateriel }, { id: 'contrats', titre: 'Contrats', maj: majContrats }, { id: 'ameliorations', titre: 'Améliorations', maj: majAmeliorations }].concat(CLA() ? [{ id: 'classement', titre: 'Classement', maj: majClassement }] : []);
+  // ─── le classement du butin (PCLASSEMENT, supabase/poncin-butin.sql) : la partie publiée à la fin, la liste dans le coffre ───
+  let periodeCl = 'semaine', clVu = null, clT = 0;
+  function majClassement(relire) {
+    const C = CLA(), el = $('#cl-liste'), info = $('#cl-info'); if (!C || !el) return;
+    $$('.cl-periodes [role="tab"]').forEach((b) => b.setAttribute('aria-selected', String(b.dataset.p === periodeCl)));
+    const dessiner = (r) => {
+      if (!r || !r.ok) { el.innerHTML = `<li class="cf-vide">${!r ? 'Chargement…' : r.erreur === 'absent' || r.erreur === 'pas-installe' ? 'Le classement n’est pas encore ouvert.' : r.erreur === 'hors-ligne' ? 'Pas de réseau : le classement revient avec lui.' : 'Le classement ne répond pas, réessaie plus tard.'}</li>`; if (info) info.textContent = ''; return; }
+      const rec = r.periode === 'records';
+      if (info) info.innerHTML = (r.enLigneN > 0 ? `<i class="cl-en-ligne"></i>${r.enLigneN} en ligne · ` : '') + `${r.joueurs | 0} joueur${(r.joueurs | 0) > 1 ? 's' : ''}`;
+      el.innerHTML = r.lignes.length ? r.lignes.map((l) => `<li class="cl-ligne${l.moi ? ' moi' : ''}"><span class="cl-rang">${l.rang}</span><span class="cl-nom">${l.enLigne ? '<i class="cl-en-ligne" role="img" aria-label="en ligne"></i>' : ''}${echapA(l.pseudo)}${l.moi ? ' <em>toi</em>' : ''}</span><span class="cl-val">${rec ? `${nombreTxt(l.record)} <small>record · ${nombreTxt(l.total)} en tout</small>` : `${nombreTxt(l.pieces)} <small>pièces · ${l.extractions | 0} sortie${(l.extractions | 0) > 1 ? 's' : ''} sur ${l.parties | 0}</small>`}</span></li>`).join('')
+        : `<li class="cf-vide">${rec ? 'Aucun record pour l’instant.' : 'Personne n’a encore sorti de butin cette semaine.'} Termine une Extraction pour ouvrir le bal !</li>`;
+    };
+    const p = periodeCl, gardee = clVu && clVu.periode === p ? clVu : null;
+    dessiner(gardee);
+    if (gardee && !relire && Date.now() - clT < 30e3) return;
+    C.lire(p).then((r) => { if (r && r.ok) { clVu = r; clT = Date.now(); } if (ecran === 'coffre' && ongletCoffre === 'classement' && periodeCl === p) dessiner(r); }).catch(() => {});
+  }
+  setInterval(() => { if (ecran === 'coffre' && ongletCoffre === 'classement' && !document.hidden) majClassement(true); }, 30e3); // la liste ouverte se relit (comme au Fournil)
+  function publierPartie(ligne) { // la fin d'une Extraction (seul ou en ligne) : la ligne du joueur part au classement (rien sans réseau ni configuration)
+    const C = CLA(); if (!C || !ligne) return;
+    C.publier(copie(ligne), { pseudo: pseudoJoueur() }).then((r) => {
+      if (!r || !r.ok) { if (r && (r.erreur === 'pseudo_pris' || r.erreur === 'pseudo_invalide')) toast('Classement : ce pseudo est déjà pris, change-le dans les Réglages.'); return; }
+      clVu = null; const s = r.semaine; if (s && s.rang) toast(`Classement du butin : ${s.rang}${s.rang === 1 ? 'er' : 'e'} cette semaine sur ${s.joueurs | 0}`);
+    }).catch(() => {});
+  }
   // la zone de la semaine (PBUTIN.zoneDeLaSemaine : +25 % de pièces) : { id, bonus } | null
   function zoneSemaine() { const B = BUT(); if (!B || typeof B.zoneDeLaSemaine !== 'function') return null; try { const id = B.zoneDeLaSemaine(Date.now()); return id ? { id, bonus: Math.round((+B.BONUS_SEMAINE || 0.25) * 100) } : null; } catch (e) { return null; } }
   function majContrats() {
@@ -682,6 +708,7 @@ const PUI = (() => {
     rec.parties = (rec.parties || 0) + 1; rec.eliminations = (rec.eliminations || 0) + (b.kills || 0);
     let gain = null; if (b.sorti) { rec.sorties = (rec.sorties || 0) + 1; rec.valeur = (rec.valeur || 0) + b.valeur; if (record) rec.meilleur = b.valeur; }
     if (b.sorti || b.ligne) gain = deposer(b); // (PBUTIN.deposer compte aussi les parties sans sortie)
+    if (b.ligne) publierPartie(b.ligne); // le classement du butin (seul ou en ligne : chacun publie sa propre ligne)
     let avances = []; if (b.ligne) { const r = appelCoffre('progression', copie(b.ligne), Date.now()); if (r && r.ok && r.r && Array.isArray(r.r.avances)) avances = r.r.avances; }
     const contrats = contratsDuJour().filter((c) => avances.indexOf(c.i) >= 0 || (c.fait && !c.reclame));
     const zs = zoneSemaine(), semaine = !!(jeu.extraction && jeu.extraction.zoneSemaine) || !!(zs && reglagesPartie(jeu).zone === zs.id);
@@ -849,6 +876,7 @@ const PUI = (() => {
       case 'onglet-coffre': ongletCoffre = b.dataset.onglet; majCoffre(); break;
       case 'vendre': vendre([b.dataset.uid]); return;
       case 'reclamer': reclamer(b.dataset.i); return;
+      case 'cl-periode': periodeCl = b.dataset.p === 'records' ? 'records' : 'semaine'; majClassement(); return;
       case 'vendre-valeurs': vendre(materiel().filter((x) => typeObj(x.o) === 'valeur').map((x) => x.uid)); return;
     }
     PSONS.ui(a === 'retour' || a === 'titre' ? 'retour' : 'tap');

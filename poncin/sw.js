@@ -5,9 +5,9 @@
 // empreinte (carte/poncin.json?v=…, posée par build.js) : une nouvelle carte a une nouvelle adresse, aucun cache ne sert celle d'hier (sinon
 // pas de voûtes au premier lancement, et en ligne l'hôte et ses copains joueraient sur deux cartes) ; on n'en garde qu'une version, et hors
 // ligne la carte en cache sert quelle que soit son empreinte.
-const CACHE = 'poncin-jeu-v3';
+const CACHE = 'poncin-jeu-v4';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './config.js', '../vendor/three.min.js', '../vendor/poncin-GLTFLoader.js', '../icons/poncin.svg', '../icons/poncin-192.png', '../icons/poncin-512.png'];
-const OPTIONNELS = ['./carte/poncin.json', './carte/sol-1024.jpg', './carte/sol-arene-2048.jpg', '../vendor/supabase.min.js', ...['ak74', 'm4', 'ump', 'mp9', 'pompe', 'm24', 'awm', 'm1911', 'p226'].map((n) => `./armes/${n}.glb`)]; // absents au début : leur échec n'empêche pas l'installation
+const OPTIONNELS = ['./carte/poncin.json', './carte/sol-1024.jpg', './carte/sol-arene-2048.jpg', '../vendor/supabase.min.js', ...['ak74', 'm4', 'ump', 'mp9', 'pompe', 'm24', 'awm', 'm1911', 'p226'].map((n) => `./armes/${n}.glb`), ...['commun', 'rare', 'epique', 'legendaire', 'sac', 'soin', 'munitions', 'jerrycan', 'radio'].map((n) => `./objets/${n}.glb`)]; // absents au début : leur échec n'empêche pas l'installation
 const enCache = (req, res) => {
   if (res.ok || res.type === 'opaque') {
     const copy = res.clone(), u = new URL(req.url);

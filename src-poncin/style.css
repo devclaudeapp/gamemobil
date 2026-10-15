@@ -796,6 +796,7 @@ body.gaucher .h-bas { left: 60%; }
 
 .h-largage { top: calc(var(--sh) + 94px); } .h-largage .h-bo-t b { color: #FFB4A8; }
 .h-boss { top: calc(var(--sh) + 132px); }
+.hud.extraction .h-limite { top: auto; bottom: calc(env(safe-area-inset-bottom, 0px) + 80px); } /* en Extraction, le haut est à la boussole (sortie, largage, Gardien) : l’avertissement passe au-dessus des armes */
 .h-bandeau.largage { background: #C9473B; } .h-bandeau.prime { background: #B8324F; }
 .cf-semaine { font: 700 13px/1.4 var(--texte); color: var(--encre-2); }
 #cf-onglets [data-n]:not([data-n=""])::before { content: attr(data-n); position: absolute; top: -8px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; background: var(--fraise); color: #fff; font: 800 11px/18px var(--texte); border: 2px solid var(--encre); z-index: 1; }
@@ -812,3 +813,15 @@ body.gaucher .h-bas { left: 60%; }
 .h-sl-b[data-sac="utiliser"] { background: var(--menthe); color: #fff; text-shadow: 0 1px 0 var(--encre); }
 .h-sl-vide { font: 700 12px/1.3 var(--texte); color: var(--encre-2); padding: 6px; }
 .h-noms .h-nom.rival { text-shadow: 0 1px 0 #2B2A4C, 0 -1px 0 #2B2A4C, 1px 0 0 #2B2A4C, -1px 0 0 #2B2A4C; }
+/* le classement du butin (coffre → Classement) */
+.cl-periodes { margin: 0; }
+.cl-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cl-ligne { display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 6px 12px; border-radius: 14px; background: #fff; border: 2.5px solid var(--encre); box-shadow: 0 3px 0 var(--encre); }
+.cl-ligne.moi { background: #FFF1C9; }
+.cl-rang { flex: 0 0 34px; font: 700 18px/1 var(--titre); text-align: center; font-variant-numeric: tabular-nums; }
+.cl-ligne:nth-child(1) .cl-rang { color: #C99400; } .cl-ligne:nth-child(2) .cl-rang { color: #8A93A3; } .cl-ligne:nth-child(3) .cl-rang { color: #B8683A; }
+.cl-nom { flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 6px; font: 700 15px/1.2 var(--titre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-nom em { font: 700 11px/1 var(--texte); font-style: normal; padding: 3px 6px; border-radius: 999px; background: var(--encre); color: #fff; }
+.cl-val { flex: 0 0 auto; text-align: right; font: 700 16px/1.1 var(--titre); font-variant-numeric: tabular-nums; display: grid; }
+.cl-val small { font: 700 11px/1.2 var(--texte); color: var(--encre-2); }
+.cl-en-ligne { display: inline-block; flex: 0 0 auto; width: 10px; height: 10px; border-radius: 50%; background: #3BC46A; box-shadow: 0 0 0 2px #fff, 0 0 6px #3BC46A; margin-right: 4px; vertical-align: middle; }

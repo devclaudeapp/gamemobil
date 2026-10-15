@@ -27,6 +27,16 @@ const URL0 = `http://localhost:${PORT}/poncin/`;
 (async () => {
   const browser = await chromium.launch();
   const context = await browser.newContext({ viewport: { width: 844, height: 390 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', serviceWorkers: 'block' });
+  // le classement du butin : un faux Supabase (rien ne part vers le vrai projet) ; les appels sont notés
+  const rpc = [];
+  await context.route(/\/rest\/v1\/rpc\/poncin_/, async (route) => {
+    const nom = route.request().url().split('/rpc/')[1].split('?')[0]; let corps = {}; try { corps = JSON.parse(route.request().postData() || '{}'); } catch (e) { corps = {}; }
+    rpc.push({ nom, corps });
+    const json = nom === 'poncin_publier' ? { ok: true, compte: { pieces: corps.p_valeur | 0, score: corps.p_score | 0, record: true }, semaine: '2026-10-12', rang_semaine: 2, joueurs_semaine: 3, pieces: corps.p_valeur | 0, parties: 1, extractions: 1, rang_records: 2, joueurs: 3, record: corps.p_score | 0, total: corps.p_valeur | 0, parties_total: 1, parties_jour: 1 }
+      : nom === 'poncin_classement' ? { semaine: '2026-10-12', joueurs: 3, en_ligne_n: 1, lignes: [{ rang: 1, pseudo: 'Castor Turbo', pieces: 1250, parties: 4, extractions: 3, record: 900, total: 3100, en_ligne: true }, { rang: 2, pseudo: 'Moi', pieces: 400, parties: 1, extractions: 1, record: 420, total: 400, moi: true }, { rang: 3, pseudo: 'Loutre Zen', pieces: 0, parties: 2, extractions: 0, record: 0, total: 150 }] }
+      : { ok: true };
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(json) });
+  });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });
@@ -343,7 +353,7 @@ const URL0 = `http://localhost:${PORT}/poncin/`;
     await P(() => { const p = window.__poncin, c = p.coffre(); const r = PBUTIN.rendre(c, [{ type: 'arme', arme: 'awm', rarete: 'legendaire' }, { type: 'munitions', n: 3 }, { type: 'valeur', id: 'montre', n: 1 }]); p.coffre(r.coffre); p.montrer('coffre'); });
     await sleep(300);
     const k0 = await P(() => ({ ecran: document.body.dataset.ecran, onglets: Array.from(document.querySelectorAll('#cf-onglets [role="tab"]')).map((b) => b.dataset.onglet), objets: Array.from(document.querySelectorAll('#cf-objets .cf-o b')).map((b) => b.textContent), pieces: +document.querySelector('#cf-pieces').textContent.replace(/\D/g, '') }));
-    check(k0.ecran === 'coffre' && k0.onglets.join() === 'materiel,contrats,ameliorations' && k0.objets.some((t) => /AWM/.test(t)) && k0.objets.length >= 3, `le coffre personnel : onglets ${k0.onglets.join(', ')} ; matériel ${k0.objets.join(', ')}`);
+    check(k0.ecran === 'coffre' && k0.onglets.join() === 'materiel,contrats,ameliorations,classement' && k0.objets.some((t) => /AWM/.test(t)) && k0.objets.length >= 3, `le coffre personnel : onglets ${k0.onglets.join(', ')} ; matériel ${k0.objets.join(', ')}`);
     await page.screenshot({ path: CX + '/extraction-7-coffre-materiel.png' });
     await page.tap('#cf-objets .cf-o.r-legendaire [data-a="vendre"]'); await sleep(250);
     const k1 = await P(() => ({ pieces: window.__poncin.coffre().pieces, awm: Array.from(document.querySelectorAll('#cf-objets .cf-o b')).some((b) => /AWM/.test(b.textContent)) }));
@@ -356,6 +366,15 @@ const URL0 = `http://localhost:${PORT}/poncin/`;
     const k2 = await P(() => { const c = window.__poncin.coffre(); return { niv: c.ameliorations.sac, pieces: c.pieces }; });
     check(k2.niv === 1 && k2.pieces < 2000, `acheter « Sac plus grand » : niveau ${k2.niv}, ${k2.pieces} pièces`);
     await page.screenshot({ path: CX + '/extraction-9-coffre-ameliorations.png' });
+    // le classement du butin : la partie publiée à la fin (la ligne du joueur), la liste dans le coffre
+    const pub = rpc.find((x) => x.nom === 'poncin_publier');
+    check(!!pub && pub.corps.p_extrait === true && pub.corps.p_valeur > 0 && typeof pub.corps.p_pseudo === 'string' && pub.corps.p_pseudo.length >= 2, `la fin publie la partie au classement du butin (${pub ? pub.corps.p_valeur + ' pièces, « ' + pub.corps.p_pseudo + ' »' : 'rien'})`);
+    await page.tap('#cf-onglets [data-onglet="classement"]'); await sleep(500);
+    const cl = await P(() => ({ lignes: Array.from(document.querySelectorAll('#cl-liste .cl-ligne')).map((l) => l.innerText.replace(/\s+/g, ' ')), moi: !!document.querySelector('#cl-liste .cl-ligne.moi'), vert: document.querySelectorAll('#cl-liste .cl-en-ligne').length, info: document.querySelector('#cl-info').textContent }));
+    check(cl.lignes.length === 3 && cl.moi && cl.vert === 1 && /1 en ligne/.test(cl.info), `l’onglet Classement : ${cl.lignes.join(' | ')} (${cl.info})`);
+    await page.screenshot({ path: CX + '/extraction-10-classement.png' });
+    await page.tap('.cl-periodes [data-p="records"]'); await sleep(500);
+    check(rpc.some((x) => x.nom === 'poncin_classement' && x.corps.p_periode === 'records') && /record/.test(await P(() => document.querySelector('#cl-liste').innerText)), 'les records (meilleure partie, total)');
     // l'amélioration sert en Extraction (10 cases), jamais en Arène
     const k3 = await P(() => { const p = window.__poncin; p.demarrer({ mode: 'extraction', graine: 5 }); const ext = p.joueur().sac ? p.joueur().sac.cases : null; p.menu(); p.demarrer({ mode: 'arene', graine: 5, bots: 2 }); const ar = p.joueur(); const r = { ext, arene: !!ar.sac || !!ar.ameliorations, armure: ar.armure }; p.menu(); return r; });
     check(k3.ext === 10 && !k3.arene && k3.armure === 0, `le sac plus grand en Extraction (${k3.ext} cases), rien en Arène`);

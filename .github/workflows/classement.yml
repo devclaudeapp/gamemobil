@@ -50,3 +50,6 @@ jobs:
           node-version: 22
       - name: Le classement sur le projet Supabase du jeu (joueurs de test, tous retirés à la fin)
         run: node test/fournil-classement-ci.cjs
+      - name: Opération Poncin, le classement du butin sur le projet Supabase du jeu (deux joueurs de test, retirés à la fin)
+        if: always()
+        run: node test/poncin-butin-ci.cjs
