@@ -1,0 +1,15 @@
+Les objets 3D d'Opération Poncin (poncin/objets/*.glb) — domaine public, Creative Commons Zero 1.0 Universal (CC0 1.0)
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Modèles de Poly Haven (https://polyhaven.com, CC0), téléchargés en glTF 1k (géométrie et couleur seulement), simplifiés, soudés,
+quantifiés et leur texture réduite (256 px, 512 px pour le coffre légendaire), puis convertis en GLB :
+- commun.glb     « Wooden Crate 01 »            (wooden_crate_01)            James Ray Cock
+- rare.glb       « Old Military Crate »         (old_military_crate)         Jack Mava          (aussi la caisse du largage)
+- epique.glb     « Metal Tool Chest »           (metal_tool_chest)           Yann Kervran, John Hutcheson
+- legendaire.glb « Treasure Chest »             (treasure_chest)             Rico Cilliers
+- sac.glb        « Vintage Suitcase »           (vintage_suitcase)           Maximilian Schuster (le sac lâché au sol)
+- radio.glb      « Vintage Radio Transceiver »  (vintage_radio_transceiver)  Mateusz Sadek      (la balise d'extraction)
+- soin.glb       « Medical Box »                (medical_box)                Ulan Cabanilla
+- munitions.glb  « Ammo Box »                   (ammo_box)                   DanKit
+- jerrycan.glb   « Metal Jerrycan »             (metal_jerrycan)             Sean Buckley       (posé près des balises)
+Les noms des fichiers sont ceux du jeu. Merci aux auteurs de Poly Haven.

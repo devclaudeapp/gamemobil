@@ -16,7 +16,14 @@
    Les libellés et les icônes des armes viennent de PREGLES.ARMES (nom, classe ; repli tolérant si un champ manque) :
    PHUD.iconeArme(id), PHUD.nomArme(id), PHUD.classeArme(id), PHUD.nomClasse(classe) servent aussi aux menus (ui.js).
    Rien n'est écrit dans le DOM si la valeur n'a pas changé ; les animations courtes (touche, chiffres, flèches) sont menées à la main,
-   sans reflow. */
+   sans reflow.
+   L'Extraction (section « l'Extraction », lecture tolérante de jeu.extraction et des entités de PEXTRACTION) : le sac (cases prises / cases,
+   valeur, poids, clé du coffre-fort), la boussole vers la sortie la plus proche (et le compte à rebours de leur ouverture), celle du
+   largage, les jauges (ouverture d'un coffre ou d'un sac, extraction, relever, se faire relever), à terre / extrait, la barre de vie du
+   Gardien, le bruit que l'on fait, le rappel du contrat du jour, les étiquettes posées dans la vue (signaux d'équipe, au bord de
+   l'écran s'ils sont hors champ ; prime ; « Sac de Léa » ; coffre-fort), la minicarte (coffres vus, sorties, sacs, largage, prime,
+   signaux, couleurs d'équipe), les bandeaux (sorties ouvertes, largage, prime, « Tu es la cible ! ») et l'écran de fin du mode.
+   PHUD.extraction(jeu, id) → la vue lue (réutilisée) ; PHUD.contexte → l'action possible ici ; PHUD.bilanExtraction(res, jeu, id). */
 const PHUD = (() => {
   'use strict';
   const TAU = Math.PI * 2, DEG = Math.PI / 180;
@@ -67,6 +74,8 @@ const PHUD = (() => {
   const ICO = (n) => (typeof PCONTROLES !== 'undefined' && PCONTROLES.ICONES && PCONTROLES.ICONES[n]) || '';
   const SVG_COEUR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5l-1.4-1.3C5.4 14.5 2 11.4 2 7.6 2 4.5 4.4 2 7.5 2c1.7 0 3.4.8 4.5 2.1C13.1 2.8 14.8 2 16.5 2 19.6 2 22 4.5 22 7.6c0 3.8-3.4 6.9-8.6 11.6z" fill="#FF6B8B" stroke="#2B2A4C" stroke-width="2.2" stroke-linejoin="round"/></svg>';
   const SVG_BOUCLIER = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.4 9.4-8 11-4.6-1.6-8-6-8-11V5z" fill="#7FB3FF" stroke="#2B2A4C" stroke-width="2.2" stroke-linejoin="round"/></svg>';
+  const SVG_SAC = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7V5.5a4 4 0 0 1 8 0V7" fill="none" stroke="#2B2A4C" stroke-width="2.2"/><path d="M4.5 9.5A2.5 2.5 0 0 1 7 7h10a2.5 2.5 0 0 1 2.5 2.5l.8 9A2.5 2.5 0 0 1 17.8 21H6.2a2.5 2.5 0 0 1-2.5-2.5z" fill="#D88F4E" stroke="#2B2A4C" stroke-width="2.2" stroke-linejoin="round"/><path d="M8 12h8" stroke="#2B2A4C" stroke-width="2" stroke-linecap="round"/></svg>';
+  const SVG_CLE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="7.5" cy="12" r="4.5" fill="#FFC23D" stroke="#2B2A4C" stroke-width="2.2"/><path d="M12 12h10M18 12v4M21 12v3" fill="none" stroke="#2B2A4C" stroke-width="2.4" stroke-linecap="round"/><circle cx="7.5" cy="12" r="1.6" fill="#2B2A4C"/></svg>';
   const SVG_PAUSE = '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4.5" height="14" rx="1.6" fill="#2B2A4C"/><rect x="13.5" y="5" width="4.5" height="14" rx="1.6" fill="#2B2A4C"/></svg>';
   const SVG_SCORES = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v5a5 5 0 0 1-10 0z" fill="#FFC84A" stroke="#2B2A4C" stroke-width="2.2" stroke-linejoin="round"/><path d="M7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v3M8 20h8l-1-3H9z" fill="none" stroke="#2B2A4C" stroke-width="2.2" stroke-linejoin="round"/></svg>';
   // la lunette : l'écran noir percé d'un cercle (CSS), et dans le cercle le réticule, les graduations et un léger reflet bleuté
@@ -115,6 +124,18 @@ const PHUD = (() => {
         </div>
         <div class="h-armes">${[0, 1].map((i) => `<button type="button" class="h-arme" data-slot="${i}" aria-label="${i ? 'Arme secondaire' : 'Arme principale'}"><b class="h-slot">${i + 1}</b><span class="h-arme-ico"></span><span class="h-mun"><b class="h-mun-n">0</b><small class="h-mun-r">| 0</small></span></button>`).join('')}</div>
       </div>
+      <div class="h-ext" aria-live="polite">
+        <button type="button" class="h-sac" hidden aria-label="Le sac" aria-expanded="false"><span class="h-sac-ico" aria-hidden="true">${SVG_SAC}</span><b class="h-sac-n">0</b><small class="h-sac-max"></small><span class="h-poids" aria-hidden="true"><i></i></span><span class="h-cle" title="La clé du coffre-fort">${SVG_CLE}</span><span class="h-sac-v"><i class="h-piece" aria-hidden="true"></i><b>0</b></span></button>
+        <div class="h-sac-liste" hidden></div>
+        <div class="h-boussole h-largage" hidden><i class="h-bo-fl" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2l7 18-7-4-7 4z" fill="#FF6B5A" stroke="#2B2A4C" stroke-width="2.2" stroke-linejoin="round"/></svg></i><span class="h-bo-t"><b>Largage</b><small></small></span></div>
+        <div class="h-contrat" hidden></div>
+        <div class="h-boss" hidden><b></b><div class="h-jauge-b"><i></i></div></div>
+        <span class="h-bruit" aria-hidden="true"><svg viewBox="0 0 34 22"><path d="M4 11h3M11 6c2 3 2 7 0 10M17 3c4 5 4 11 0 16M23 1c5 6 5 14 0 20" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg></span>
+        <div class="h-etiquettes">${'<span class="h-etq"></span>'.repeat(10)}</div>
+        <div class="h-boussole" hidden><i class="h-bo-fl" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 2l7 18-7-4-7 4z" fill="#5FD3A4" stroke="#2B2A4C" stroke-width="2.2" stroke-linejoin="round"/></svg></i><span class="h-bo-t"><b></b><small></small></span></div>
+        <div class="h-jauge" hidden><small class="h-jauge-t"></small><div class="h-jauge-b"><i></i></div></div>
+        <div class="h-voile-ext" hidden><div class="h-voile-carte"><small></small><b></b><span></span></div></div>
+      </div>
       <div class="h-ramasse"></div>
       <div class="h-refus" aria-live="polite"></div>
       <div class="h-limite" hidden>Limite de la zone</div>
@@ -131,6 +152,10 @@ const PHUD = (() => {
       bandeau: q('.h-bandeau'), bandeauT: q('.h-bandeau-t'), bandeauS: q('.h-bandeau-s'), manche: q('.h-manche'), mortRetourL: q('.h-mort-retour'), mortLice: q('.h-mort-lice'), mortPetit: q('.h-mort-carte small'),
       mort: q('.h-mort'), mortPar: q('.h-mort-par'), mortArme: q('.h-mort-arme'), mortRetour: q('.h-mort-retour b'), scores: q('.h-scores'), scoresCarte: q('.h-scores-carte'), fin: q('.h-fin'),
       noms: Array.from(racine.querySelectorAll('.h-nom')), nombres: Array.from(racine.querySelectorAll('.h-nombre')),
+      sac: q('.h-sac'), sacN: q('.h-sac-n'), sacMax: q('.h-sac-max'), sacV: q('.h-sac-v b'), boussole: q('.h-boussole:not(.h-largage)'), boFl: q('.h-boussole:not(.h-largage) .h-bo-fl'), boT: q('.h-boussole:not(.h-largage) .h-bo-t b'), boS: q('.h-boussole:not(.h-largage) .h-bo-t small'),
+      largage: q('.h-largage'), laFl: q('.h-largage .h-bo-fl'), laS: q('.h-largage .h-bo-t small'), contrat: q('.h-contrat'), boss: q('.h-boss'), bossN: q('.h-boss b'), bossB: q('.h-boss .h-jauge-b i'), bruit: q('.h-bruit'), poids: q('.h-poids i'),
+      etqs: Array.from(racine.querySelectorAll('.h-etq')), sacListe: q('.h-sac-liste'),
+      jauge: q('.h-jauge'), jaugeT: q('.h-jauge-t'), jaugeB: q('.h-jauge .h-jauge-b i'), voileExt: q('.h-voile-ext'), voileP: q('.h-voile-carte small'), voileB: q('.h-voile-carte b'), voileS: q('.h-voile-carte span'), eqMoi: q('.h-moi'), eqEux: q('.h-eux'),
     });
     slots = Array.from(racine.querySelectorAll('.h-arme')).map((b) => ({ el: b, ico: b.querySelector('.h-arme-ico'), n: b.querySelector('.h-mun-n'), r: b.querySelector('.h-mun-r'), id: null, m: null, res: null, main: null, bas: null }));
     for (const s of slots) s.el.addEventListener('pointerdown', (e) => { // au doigt : l'autre pastille change d'arme, celle en main recharge
@@ -146,17 +171,21 @@ const PHUD = (() => {
     noms = el.noms.map((e) => ({ el: e, id: null, txt: '', vu: false }));
     ctxCarte = el.carte.getContext('2d');
     q('.h-b-pause').addEventListener('click', () => { if (actions.pause) actions.pause(); });
+    // le sac (Extraction) : le toucher ouvre sa liste ; chaque objet : Utiliser (un consommable), Lâcher (au sol)
+    el.sac.addEventListener('click', () => { sacOuvert = !sacOuvert; vu.sacL = ''; el.sac.setAttribute('aria-expanded', String(sacOuvert)); el.sacListe.hidden = !sacOuvert; });
+    el.sacListe.addEventListener('click', (e) => { const b = e.target.closest('[data-sac]'); if (!b) return; const i = +b.dataset.i; if (typeof actions.sac === 'function') actions.sac(b.dataset.sac === 'utiliser' ? { utiliser: i } : { lacher: i }); });
     q('.h-b-scores').addEventListener('click', () => scores(!scoresOuverts));
     el.scores.addEventListener('click', () => scores(false));
-    el.fin.addEventListener('click', (e) => { const b = e.target.closest('[data-fin]'); if (!b || b.disabled) return; const a = b.dataset.fin; if (typeof actions[a] === 'function') { try { actions[a](); } catch (err) { console.warn('[Poncin] fin', a, err); } } }); // rejouer, menu, salon…
+    el.fin.addEventListener('click', (e) => { const b = e.target.closest('[data-fin]'); if (!b || b.disabled) return; const a = b.dataset.fin; if (typeof actions[a] === 'function') { try { if (actions[a](b) === true && a === 'reclamer') { b.disabled = true; b.textContent = 'Réclamé'; } } catch (err) { console.warn('[Poncin] fin', a, err); } } }); // rejouer, menu, salon…
     taille();
   }
-  let nombres = [], fleches = [], noms = [], slots = [], ctxCarte = null, tailleCarte = 112;
+  let nombres = [], fleches = [], noms = [], slots = [], ctxCarte = null, tailleCarte = 112, sacOuvert = false;
   function taille(w, h) {
     if (!racine) return;
     W = w || racine.clientWidth || window.innerWidth; H = h || racine.clientHeight || window.innerHeight; DPR = Math.min(2, window.devicePixelRatio || 1);
     tailleCarte = Math.round(Math.max(84, Math.min(124, H * 0.29)));
     el.carte.width = Math.round(tailleCarte * DPR); el.carte.height = Math.round(tailleCarte * DPR);
+    racine.style.setProperty('--hc', tailleCarte + 'px'); // (le sac de l'Extraction se pose sous la minicarte)
     el.carte.style.width = el.carte.style.height = tailleCarte + 'px'; el.carte.parentNode.style.width = el.carte.parentNode.style.height = tailleCarte + 'px';
     el.lunette.style.setProperty('--rl', Math.round(0.42 * Math.min(W, H)) + 'px'); // le rayon du cercle de la lunette
     vu.ecart = -1;
@@ -352,15 +381,18 @@ const PHUD = (() => {
       g.fillStyle = o.objet === 'soin' ? '#5FD3A4' : o.objet === 'armure' ? '#7FB3FF' : o.objet === 'munitions' ? '#FF9F5A' : '#FFC84A';
       g.strokeStyle = '#2B2A4C'; g.lineWidth = 1.5 * DPR; g.beginPath(); g.rect(X - 3.5 * DPR, Y - 3.5 * DPR, 7 * DPR, 7 * DPR); g.fill(); g.stroke();
     }
+    dessinerExtraction(g, R, s, c, sn);
     // les autres : alliés toujours, ennemis s'ils sont vus ou s'ils viennent de tirer
     const es = jeu.entites, equipes = estEquipes(jeu);
     for (let i = 0; i < es.length; i++) {
-      const e = es[i]; if (e === moi || !e.vivant) continue;
+      const e = es[i]; if (e === moi || (!e.vivant && !(e.aTerre && VX.actif))) continue;
       const allie = equipes && e.equipe === moi.equipe;
+      if (!e.vivant) { if (!allie) continue; const u = (e.x - moi.x) * s, v = (e.z - moi.z) * s, X = R + u * c - v * sn, Y = R + u * sn + v * c, k = 0.5 + 0.5 * Math.sin(performance.now() / 180); // un équipier à terre : une croix qui bat
+        g.beginPath(); g.arc(X, Y, (5 + 2 * k) * DPR, 0, TAU); g.fillStyle = '#FF6B8B'; g.fill(); g.lineWidth = 2 * DPR; g.strokeStyle = '#FFFFFF'; g.stroke(); g.beginPath(); g.moveTo(X - 3 * DPR, Y); g.lineTo(X + 3 * DPR, Y); g.moveTo(X, Y - 3 * DPR); g.lineTo(X, Y + 3 * DPR); g.stroke(); continue; }
       if (!allie && !vusCache.get(e.id)) { const t = coupsDe.get(e.id); if (t == null || jeu.temps - t > 1.6) continue; }
       const u = (e.x - moi.x) * s, v = (e.z - moi.z) * s, X = R + u * c - v * sn, Y = R + u * sn + v * c;
       if ((X - R) * (X - R) + (Y - R) * (Y - R) > (R - 5 * DPR) * (R - 5 * DPR)) continue;
-      g.beginPath(); g.arc(X, Y, 4.6 * DPR, 0, TAU); g.fillStyle = allie ? '#7FB3FF' : '#FF4D6D'; g.fill(); g.lineWidth = 1.8 * DPR; g.strokeStyle = '#FFFFFF'; g.stroke();
+      g.beginPath(); g.arc(X, Y, 4.6 * DPR, 0, TAU); g.fillStyle = allie ? '#7FB3FF' : VX.actif && !e.bot ? (e.couleur || '#FF9F5A') : '#FF4D6D'; if (VX.actif && e.boss) { g.fill(); g.beginPath(); g.arc(X, Y, 7 * DPR, 0, TAU); g.fillStyle = '#3B1A2A'; } g.fill(); g.lineWidth = 1.8 * DPR; g.strokeStyle = '#FFFFFF'; g.stroke();
     }
     // moi : un cône de vue et une flèche vers le haut (la carte tourne avec le cap)
     g.beginPath(); g.moveTo(R, R); g.arc(R, R, R * 0.62, -Math.PI / 2 - 0.62, -Math.PI / 2 + 0.62); g.closePath(); g.fillStyle = 'rgba(255,255,255,.32)'; g.fill();
@@ -445,7 +477,7 @@ const PHUD = (() => {
   let toucheT = -1, toucheType = '', vignette = 0, flashT = -1, sousT = -1, ramasseT = -1, limiteT = -1;
   const REFUS = { couche: 'Pas la place de te coucher' };
   function lireEvenements(jeu, evs) {
-    let avecManche = false; for (let i = 0; i < evs.length; i++) if (evs[i].t === 'manche') avecManche = true; // le bandeau dit déjà ce qu'annoncerait la règle
+    let avecManche = false; for (let i = 0; i < evs.length; i++) { const t = evs[i].t; if (t === 'manche' || t === 'extractions' || t === 'largage' || (t === 'prime' && evs[i].quoi !== 'gagnee') || t === 'extrait' && evs[i].id === idMoi) avecManche = true; } // le bandeau dit déjà ce qu'annoncerait la règle
     for (let i = 0; i < evs.length; i++) {
       const e = evs[i];
       switch (e.t) {
@@ -471,6 +503,21 @@ const PHUD = (() => {
         case 'elimine': { const id = e.id != null ? e.id : e.a; if (id === idMoi && tMort < 0) { tMort = jeu.temps; parQui = e.par != null ? e.par : parQui; } break; } // « dernier debout » : pas de retour
         case 'ramasse': if (e.id === idMoi) ramasse(e.objet); break;
         case 'refus': if (e.id === idMoi) refus(REFUS[e.quoi] || e.texte || ''); break;
+        // l'Extraction (événements du groupe des règles, lus avec tolérance)
+        case 'butin': if (e.id === idMoi) { const l = Array.isArray(e.objets) ? e.objets : e.objet ? [e.objet] : []; for (const o of l.slice(0, 1)) butin(o, l.length); } break;
+        case 'coffre': if ((e.id === idMoi || e.par === idMoi) && (e.vide || (Array.isArray(e.objets) && !e.objets.length))) sous('Coffre vide…'); break;
+        case 'extrait': if (e.id === idMoi) bandeau('extrait', 'Extrait !', `${e.valeur != null ? valeur(e) : VX.sac.valeur} pièces mises à l’abri`, 'ext fin gagne'); else { const x = trouver(jeu, e.id); if (x && !x.bot) annonce(`${x.nom} est sorti !`); } break;
+        case 'releve': if (e.id === idMoi) annonce(e.par ? `${nomDe(jeu, e.par)} t’a relevé !` : 'Relevé !'); else if (e.par === idMoi) sous(`Tu as relevé ${esc(nomDe(jeu, e.id))}`); break;
+        case 'aterre': case 'aTerre': case 'a-terre': if (e.id === idMoi || e.a === idMoi) { tMort = -1; } break;
+        case 'sac': if ((e.par === idMoi || e.id === idMoi) && (e.quoi === 'ramasse' || e.quoi === 'pris' || e.quoi === 'vide')) { const s0 = !e.de && jeu.extraction && Array.isArray(jeu.extraction.sacs) ? jeu.extraction.sacs.find((x) => x.id === e.sac) : null, qui = e.de || (s0 && s0.de), de = qui && qui !== idMoi ? trouver(jeu, qui) : null, v = Array.isArray(e.pris) ? e.pris.reduce((a, o) => a + valeur(o), 0) : null; annonce(de ? `Tu as récupéré le sac de ${de.nom} !` : `Sac ramassé${v ? ` : ${v} pièces` : ''}`); } break;
+        case 'plein': if (e.id === idMoi) refus('Sac plein : lâche un objet, ou sors !'); break;
+        case 'perdu': if (e.id === idMoi && e.raison === 'temps') bandeau('perdu', 'Temps écoulé…', `${e.valeur || 0} pièces perdues`, 'fin'); break;
+        case 'largage': if (e.quoi === 'annonce') bandeau('largage', 'Un largage arrive !', 'Cherche la fumée rouge : une caisse épique ou mieux', 'largage'); else if (e.quoi === 'tombe') annonce('Le largage est au sol !'); break;
+        case 'prime': if (e.quoi === 'revele' || e.quoi == null) { const c = trouver(jeu, e.id); if (e.id === idMoi) bandeau('prime' + Math.round(jeu.temps), 'Tu es la cible !', `Tout le monde te voit : ta tête vaut ${e.prime || 0} pièces`, 'fin'); else if (c) bandeau('prime' + Math.round(jeu.temps), `Prime sur ${c.nom} : ${e.prime || 0} pièces`, `Il porte ${e.valeur || 0} pièces`, 'prime'); } else if (e.quoi === 'gagnee' && e.id === idMoi) sous('Prime gagnée (versée si tu sors)', '+' + (e.prime || 0)); break;
+        case 'cle': if (e.id === idMoi && e.quoi === 'trouvee') sous('La clé du coffre-fort !'); break;
+        case 'verrou': if (e.id === idMoi) refus('Verrouillé : il faut la clé du coffre-fort'); break;
+        case 'signal': break; // (la minicarte et les étiquettes lisent jeu.extraction.signaux ; le son : PSONS)
+        case 'extraction': case 'extractions': case 'sorties': if (/ouv/.test(String(e.quoi || e.etat || 'ouvert'))) { ouvertVu = true; const ps = lireExtraction(jeu, idMoi).points; bandeau('ext-ouv', 'Les sorties sont ouvertes !', ps.map((p) => p.nom).join(' · ') || 'Rejoins une balise', 'ext'); } break;
       }
     }
   }
@@ -488,7 +535,14 @@ const PHUD = (() => {
     const R = typeof PREGLES !== 'undefined' ? PREGLES.OBJETS[type] : null;
     const id = R && R.type === 'arme' ? R.arme : type;
     const txt = type === 'soin' ? `+${R ? R.vie : 50} vie` : type === 'armure' ? `+${R ? R.armure : 50} armure` : type === 'munitions' ? 'Munitions !' : `${nomArme(id) || 'Arme'} !`;
+    el.ramasse.className = 'h-ramasse';
     el.ramasse.innerHTML = `${type === 'soin' ? SVG_COEUR : type === 'armure' ? SVG_BOUCLIER : type === 'munitions' ? '' : iconeArme(id)}<span>${esc(txt)}</span>`; relance(el.ramasse, 'vu'); ramasseT = performance.now();
+  }
+  function butin(o, n) { // « + Montre à gousset · 120 », à la couleur de la rareté (une arme : son icône)
+    const r = rarete(o), arme = o && (o.arme || (o.type === 'arme' && o.id)), id = typeof arme === 'string' && estArme(arme) ? arme : null;
+    const nom = (o && (o.nom || (id ? nomArme(id) : o.id))) || 'Butin', v = valeur(o);
+    el.ramasse.innerHTML = `${id ? iconeArme(id) : `<i class="h-gemme r-${r}" aria-hidden="true"></i>`}<span>${esc(nom)}${v ? ` <small>${v}</small>` : ''}${n > 1 ? ` <small>+${n - 1}</small>` : ''}</span>`;
+    el.ramasse.className = 'h-ramasse butin r-' + r; relance(el.ramasse, 'vu'); ramasseT = performance.now();
   }
   function ajouterFil(jeu, e) { // « X a repeint Y »
     const tueur = trouver(jeu, e.par), victime = trouver(jeu, e.a);
@@ -503,6 +557,237 @@ const PHUD = (() => {
   }
   let annT = -1;
   function annonce(texte, cls) { if (!el.annonce || !texte) return; el.annonce.textContent = texte; el.annonce.className = 'h-annonce ' + (cls || ''); relance(el.annonce, 'vu'); annT = performance.now(); }
+
+  // ═══════════════════════════════ l'Extraction ═══════════════════════════════
+  // La lecture de l'état du mode (PEXTRACTION, groupe des règles), tolérante : jeu.extraction (sinon les crochets du mode coffres(jeu),
+  // points(jeu), sacs(jeu)) { coffres: [{ id, x, z, rarete: 'commun' | 'rare' | 'epique' | 'legendaire' (ou 0..3), ouvert, vide }],
+  // points | sorties: [{ id, nom, x, z, rayon (10 m), ouvert }], ouvreA (s de jeu ; sinon ouverture, sinon la mi-partie), ouvert,
+  // sacs: [{ id, x, z, valeur | objets }] } ; l'entité : sac (tableau, ou { objets | contenu, max | cases | places, valeur }),
+  // ouverture { coffre, debut, duree | fin, p? }, extraction { point, debut, duree | fin, p? }, extrait, aTerre (+ aTerreDepuis, aTerreJusqua),
+  // releve { par, p | debut, duree } (on me relève), relever { cible, p | debut, duree } (je relève). PHUD.extraction(jeu, id) rend une vue
+  // réutilisée ; PHUD.contexte : l'action possible ici ({ quoi: 'ouvrir' | 'ramasser' | 'relever', texte, p }) pour le bouton de PCONTROLES.
+  const RARS = ['commun', 'rare', 'epique', 'legendaire'];
+  const COUL_RAR = { commun: '#C9CBD6', rare: '#5B9BFF', epique: '#B57BFF', legendaire: '#FFC84A' };
+  const NOM_RAR = { commun: 'commun', rare: 'rare', epique: 'épique', legendaire: 'légendaire' };
+  function rarete(o) { o = objetDe(o); const r = o && (o.rarete != null ? o.rarete : o.rang != null ? o.rang : o.r); if (typeof r === 'number') return RARS[Math.max(0, Math.min(3, r | 0))]; if (r === 'épique') return 'epique'; if (r === 'légendaire') return 'legendaire'; return RARS.indexOf(r) >= 0 ? r : 'commun'; }
+  const BU = () => (typeof PBUTIN !== 'undefined' && PBUTIN) || null;
+  // un objet du butin, lu tel quel ou depuis son id (PBUTIN : le sac range des ids, 'montre', 'soin'…) → { id, nom, valeur, rarete, type, arme }
+  function objetDe(o) {
+    if (o && typeof o === 'object') return o;
+    const B = BU(), id = String(o == null ? '' : o), V = B && B.VALEURS && B.VALEURS[id], C = B && B.CONSOMMABLES && B.CONSOMMABLES[id];
+    if (V) return { id, nom: V.nom, valeur: V.valeur, rarete: V.rarete, type: 'valeur', cases: V.cases };
+    if (C) return { id, nom: C.nom, valeur: 0, rarete: 'commun', type: id, cases: C.cases };
+    if (estArme(id)) return { id, nom: nomArme(id), valeur: 0, rarete: 'commun', type: 'arme', arme: id };
+    return { id, nom: B && B.nomDe ? B.nomDe(id) : id, valeur: 0, rarete: 'commun', type: 'valeur' };
+  }
+  const valeur = (o) => { o = objetDe(o); return Math.max(0, Math.round(+(o && (o.valeur != null ? o.valeur : o.prix != null ? o.prix : o.pieces)) || 0)); };
+  const px2 = (o, k) => (o ? (nb(+o[k === 0 ? 'x' : 'z']) ? +o[k === 0 ? 'x' : 'z'] : Array.isArray(o.p) ? +o.p[k] : Array.isArray(o.pos) ? +o.pos[k] : NaN) : NaN);
+  const MODE_EXT = () => (typeof PEXTRACTION !== 'undefined' && PEXTRACTION) || null;
+  function estExt(jeu) { return !!jeu && ((jeu.mode && jeu.mode.id === 'extraction') || opt(jeu).mode === 'extraction' || !!(jeu.extraction && typeof jeu.extraction === 'object')); }
+  function crochet(jeu, nom) { const M = jeu.mode && typeof jeu.mode[nom] === 'function' ? jeu.mode : MODE_EXT(); if (!M || typeof M[nom] !== 'function') return null; try { return M[nom](jeu); } catch (e) { return null; } }
+  function progres(o, jeu, defaut) { // la part faite d'une action en cours : o.p (0..1), sinon (temps − debut) / duree
+    if (o == null || o === false) return -1; if (typeof o === 'number') return o >= 0 && o <= 1 ? o : -1; if (typeof o !== 'object') return 0;
+    const p = o.p != null ? +o.p : o.progres != null ? +o.progres : o.part != null ? +o.part : NaN; if (nb(p)) return Math.max(0, Math.min(1, p));
+    const d0 = nb(+o.debut) ? +o.debut : nb(+o.depuis) ? +o.depuis : nb(+o.t0) ? +o.t0 : NaN, du = nb(+o.duree) ? +o.duree : nb(+o.fin) && nb(d0) ? +o.fin - d0 : defaut;
+    return nb(d0) && du > 0 ? Math.max(0, Math.min(1, (jeu.temps - d0) / du)) : 0;
+  }
+  const VX = { actif: false, coffres: [], points: [], sacs: [], signaux: [], ouvert: false, ouvreA: null, ouvreDans: 0, sac: { liste: [], n: 0, max: 0, valeur: 0, plein: false, cle: false, ralenti: 0 }, ouverture: null, extraction: null, extrait: false, aTerre: null, releve: null, relever: null, proche: null, plus: null, largage: null, prime: null, boss: null, format: 'ensemble' };
+  const SIG = [];
+  const COF = [], PTS = [], SACS = []; // réutilisés (et leurs objets, dans POOLS : aucune allocation par image)
+  const POOLS = new Map(); function pris(l) { let p = POOLS.get(l); if (!p) { p = []; POOLS.set(l, p); } const o = p[l.length] || (p[l.length] = {}); l.push(o); return o; }
+  function lireExtraction(jeu, id) {
+    const V = VX; V.actif = estExt(jeu); V.coffres = COF; V.points = PTS; V.sacs = SACS; COF.length = 0; PTS.length = 0; SACS.length = 0;
+    V.ouverture = V.extraction = V.aTerre = V.releve = V.relever = V.proche = V.plus = V.largage = V.prime = V.boss = null; V.extrait = false; V.signaux = SIG; SIG.length = 0; V.sac.liste = []; V.sac.n = 0; V.sac.max = 0; V.sac.valeur = 0; V.sac.plein = false;
+    if (!V.actif) return V;
+    const S = jeu.extraction && typeof jeu.extraction === 'object' ? jeu.extraction : {}, t = +jeu.temps || 0;
+    const cs = Array.isArray(S.coffres) ? S.coffres : crochet(jeu, 'coffres') || jeu.coffres || [];
+    for (let i = 0; i < cs.length; i++) { const c = cs[i]; if (!c) continue; const x = px2(c, 0), z = px2(c, 1); if (!nb(x) || !nb(z)) continue;
+      const o = pris(COF); o.id = c.id != null ? c.id : 'c' + i; o.x = x; o.z = z; o.rarete = rarete(c); o.ouvert = !!(c.ouvert || c.etat === 'ouvert' || c.vide || c.dispo === false || c.ouvertPar != null); o.vide = !!c.vide;
+      o.fort = !!(c.fort || c.verrou || c.special === 'coffre-fort' || c.special === 'mairie' || c.type === 'coffre-fort'); o.largage = c.special === 'largage' || c.id === 'largage'; }
+    let ouvreA = nb(+S.ouvreA) ? +S.ouvreA : nb(+S.ouvertureA) ? +S.ouvertureA : nb(+S.ouverture) ? +S.ouverture : nb(+S.mi) ? +S.mi : jeu.duree > 0 ? (+jeu.debutChrono || 0) + jeu.duree / 2 : null;
+    V.ouvert = S.ouvert != null ? !!S.ouvert : S.ouvertes != null ? !!S.ouvertes : ouvreA != null ? t >= ouvreA : false;
+    V.ouvreA = ouvreA; V.ouvreDans = V.ouvert || ouvreA == null ? 0 : Math.max(0, ouvreA - t);
+    const ps = Array.isArray(S.points) ? S.points : Array.isArray(S.sorties) ? S.sorties : Array.isArray(S.extractions) ? S.extractions : Array.isArray(S.balises) ? S.balises : crochet(jeu, 'points') || [];
+    const NOMS = ['Le pont', 'La cale de la rivière'];
+    for (let i = 0; i < ps.length; i++) { const p = ps[i]; if (!p) continue; const x = px2(p, 0), z = px2(p, 1); if (!nb(x) || !nb(z)) continue;
+      const o = pris(PTS); o.id = p.id != null ? p.id : 'x' + i; o.nom = p.nom || p.n || NOMS[i] || 'Sortie'; o.x = x; o.z = z; o.rayon = +p.rayon > 0 ? +p.rayon : +p.r > 0 ? +p.r : 10; o.ouvert = p.ouvert != null ? !!p.ouvert : V.ouvert; }
+    const ss = Array.isArray(S.sacs) ? S.sacs : Array.isArray(S.sacsAuSol) ? S.sacsAuSol : crochet(jeu, 'sacs') || [];
+    for (let i = 0; i < ss.length; i++) { const b = ss[i]; if (!b || b.pris || b.dispo === false) continue; const x = px2(b, 0), z = px2(b, 1); if (!nb(x) || !nb(z)) continue; const l = Array.isArray(b.objets) ? b.objets : Array.isArray(b.contenu) ? b.contenu : [];
+      const o = pris(SACS); o.id = b.id != null ? b.id : 's' + i; o.x = x; o.z = z; let v = 0; if (b.valeur != null) v = valeur(b); else for (let k = 0; k < l.length; k++) v += valeur(l[k]); o.valeur = v; o.de = b.de || null; o.attend = !!(b.attend && b.attend[id]); }
+    V.format = S.format || opt(jeu).formatExtraction || 'ensemble';
+    // le largage (annoncé, qui tombe, posé : un coffre de plus), la prime (le plus riche révélé), le Gardien, les signaux de mon équipe
+    const L = S.largage && typeof S.largage === 'object' ? S.largage : null;
+    if (L && (L.annonce || L.tombe) && nb(+L.x)) { const c = L.coffre && L.coffre.id != null ? COF.find((k) => k.id === L.coffre.id) : null; if (!(c && c.ouvert)) V.largage = { x: +L.x, z: +L.z, tombe: !!L.tombe, dans: L.tombe ? 0 : Math.max(0, (+L.A || t) - t), rarete: c ? c.rarete : 'epique' }; }
+    const P = S.prime && typeof S.prime === 'object' ? S.prime : null;
+    if (P && P.id != null) { const c = trouver(jeu, P.id); if (c && c.vivant !== false && !c.extrait) V.prime = { id: P.id, nom: c.nom, valeur: +P.valeur || 0, montant: +P.montant || +P.prime || 0, x: nb(+P.x) ? +P.x : c.x, z: nb(+P.z) ? +P.z : c.z, depuis: nb(+P.reveleA) ? +P.reveleA : null }; }
+    for (const c of jeu.entites) if (c.boss && c.vivant !== false) { V.boss = { id: c.id, nom: (c.boss && c.boss.nom) || c.nom || 'Le Gardien', vie: Math.max(0, c.vie), vieMax: +(c.boss && c.boss.vieMax) || 600, armure: c.armure || 0, x: c.x, y: c.y, z: c.z }; break; }
+    const e = trouver(jeu, id); if (!e) return V;
+    if (Array.isArray(S.signaux)) for (const g of S.signaux) { if (!g || !nb(+g.x) || (g.equipe != null && g.equipe !== e.equipe) || (nb(+g.jusqua) && g.jusqua < t)) continue; const o = pris(SIG); o.id = g.id; o.type = g.type || 'ici'; o.x = +g.x; o.y = nb(+g.y) ? +g.y : null; o.z = +g.z; o.de = g.de; }
+    // le sac
+    const sc = e.sac, l = Array.isArray(sc) ? sc : sc && typeof sc === 'object' ? (Array.isArray(sc.objets) ? sc.objets : Array.isArray(sc.contenu) ? sc.contenu : Array.isArray(sc.items) ? sc.items : []) : [];
+    V.sac.liste = l; V.sac.valeur = sc && !Array.isArray(sc) && sc.valeur != null ? valeur(sc) : l.reduce((a, o) => a + valeur(o), 0);
+    V.sac.n = l.reduce((a, o) => a + (+objetDe(o).cases || 1), 0); // les cases prises (PBUTIN : 1 à 3 par objet)
+    V.sac.max = +(sc && !Array.isArray(sc) && (sc.cases || sc.max || sc.places || sc.capacite)) || +e.sacMax || 0; V.sac.plein = V.sac.max > 0 && V.sac.n >= V.sac.max;
+    V.sac.cle = !!e.cle || l.some((o) => /^cle/.test(String(objetDe(o).id || objetDe(o).type || ''))); // la clé du coffre-fort
+    V.sac.ralenti = Math.max(0, +e.ralenti || 0); // le poids du sac ralentit (0 à 0,2)
+    // les actions en cours
+    const it = e.interaction && typeof e.interaction === 'object' ? e.interaction : null, iq = it ? it.quoi : null;
+    const ov = it && iq !== 'relever' ? it : e.ouverture || e.ouvre || null, pO = progres(ov && ov.prog != null ? { p: ov.prog } : ov, jeu, 1.2);
+    if (pO >= 0 && ov) { const cid = typeof ov === 'object' ? (ov.cible != null ? ov.cible : ov.coffre != null ? ov.coffre : ov.id) : null, c = COF.find((k) => k.id === cid);
+      V.ouverture = { p: pO, coffre: cid, quoi: iq === 'sac' ? 'sac' : 'coffre', rarete: c ? c.rarete : 'commun', fort: !!(c && c.fort), duree: +ov.duree || 1.2 }; }
+    const DX = (typeof PREGLES !== 'undefined' && PREGLES.MODES.extraction && PREGLES.MODES.extraction.extraction && PREGLES.MODES.extraction.extraction.duree) || 8;
+    if (e.sortiePoint != null && nb(+e.sortie)) { const pt = PTS.find((k) => k.id === e.sortiePoint), pX = Math.max(0, Math.min(1, +e.sortie / DX)); V.extraction = { p: pX, point: pt ? pt.nom : null, reste: Math.max(0, DX - +e.sortie) }; }
+    else { const ex = e.extraction && typeof e.extraction === 'object' ? e.extraction : null, pX = progres(ex, jeu, DX); if (pX >= 0 && ex) { const pid = ex.point != null ? ex.point : ex.id, pt = PTS.find((k) => k.id === pid); V.extraction = { p: pX, point: pt ? pt.nom : null, reste: nb(+ex.duree) ? Math.max(0, (+ex.duree) * (1 - pX)) : DX * (1 - pX) }; } }
+    V.extrait = !!(e.extrait || e.sorti || e.etat === 'extrait');
+    const terre = !!(e.aTerre || e.aterre || e.etat === 'a-terre' || e.etat === 'aterre');
+    if (terre) { const fin = nb(+e.aTerreJusqua) && e.aTerreJusqua > 0 ? +e.aTerreJusqua : nb(+e.aTerreDepuis) ? +e.aTerreDepuis + 30 : nb(+e.mortDepuis) ? +e.mortDepuis + 30 : t + 30; V.aTerre = { reste: Math.max(0, fin - t) };
+      for (const c of jeu.entites) { const ci = c.interaction; if (c !== e && ci && ci.quoi === 'relever' && (ci.cible === e.id || ci.cible == null)) { V.releve = { p: Math.max(0, Math.min(1, +ci.prog || 0)), par: c.id }; break; } } // on me relève
+      const r = e.releve || e.relevePar; if (!V.releve && r) { const pr = progres(r, jeu, 4); if (pr >= 0) V.releve = { p: pr, par: typeof r === 'object' ? r.par || r.id : r }; } }
+    if (iq === 'relever') V.relever = { p: Math.max(0, Math.min(1, +it.prog || 0)), cible: it.cible };
+    else { const rl = e.relever || e.releveCible || null, pR = progres(rl, jeu, 4); if (pR >= 0 && rl) V.relever = { p: pR, cible: typeof rl === 'object' ? rl.cible || rl.id : rl }; }
+    // ce qui est à portée (le bouton d'action) : relever un équipier à terre, ramasser un sac, ouvrir un coffre
+    if (e.vivant !== false && !V.extrait && !terre) {
+      let best = null, bd = 1e9;
+      for (const c of jeu.entites) { if (c === e || !(c.aTerre || c.aterre || c.etat === 'a-terre') || (c.equipe !== e.equipe)) continue; const d = Math.hypot(c.x - e.x, c.z - e.z); if (d < 2.6 && d < bd) { bd = d; best = { quoi: 'relever', id: c.id, texte: 'Relever', d, nom: c.nom }; } }
+      if (!best) for (const c of COF) { if (c.ouvert) continue; const d = Math.hypot(c.x - e.x, c.z - e.z); if (d < 2.4 && d < bd) { bd = d; best = { quoi: 'ouvrir', id: c.id, texte: c.fort ? (!V.sac.cle ? 'Il faut la clé' : 'Coffre-fort') : 'Ouvrir', d, rarete: c.fort ? 'legendaire' : c.rarete, ferme: !!(c.fort && !V.sac.cle) }; } }
+      if (!best) for (const b of SACS) { if (b.attend) continue; const d = Math.hypot(b.x - e.x, b.z - e.z); if (d < 2.2 && d < bd) { bd = d; const autre = b.de && b.de !== e.id ? trouver(jeu, b.de) : null; best = { quoi: 'ramasser', id: b.id, texte: autre ? 'Fouiller' : 'Ramasser', d, de: autre ? autre.nom : null }; } }
+      if (V.relever) best = { quoi: 'relever', texte: 'Relever', p: V.relever.p };
+      else if (V.ouverture) best = { quoi: V.ouverture.quoi === 'sac' ? 'ramasser' : 'ouvrir', texte: V.ouverture.quoi === 'sac' ? 'Fouiller' : V.ouverture.fort ? 'Coffre-fort' : 'Ouvrir', p: V.ouverture.p, rarete: V.ouverture.rarete };
+      V.proche = best;
+    }
+    // la sortie la plus proche (la boussole)
+    let bp = null, bd2 = 1e18; for (const p of PTS) { const d = (p.x - e.x) * (p.x - e.x) + (p.z - e.z) * (p.z - e.z); if ((p.ouvert || !V.ouvert) && d < bd2) { bd2 = d; bp = p; } }
+    V.plus = bp ? { nom: bp.nom, x: bp.x, z: bp.z, d: Math.sqrt(bd2), ouvert: bp.ouvert, dedans: Math.sqrt(bd2) <= bp.rayon } : null;
+    return V;
+  }
+  // le bilan d'une partie pour l'écran de fin et le coffre : PEXTRACTION.resultat (res.joueurs [{ id, extrait | sorti, objets, valeur,
+  // perdus, kills }], ou res.extraits [ids] et res.butin { id: [objets] }), sinon l'état des entités (extrait, sac)
+  function bilanExtraction(res, jeu, id) {
+    res = res && typeof res === 'object' ? res : {};
+    const X = res.extraction && typeof res.extraction === 'object' ? res.extraction : res, js = Array.isArray(X.joueurs) ? X.joueurs : Array.isArray(res.bilan) ? res.bilan : null, es = jeu ? jeu.entites : [];
+    const ligne = (e) => { const r = js ? js.find((x) => x && x.id === e.id) : null, sc = e.sac, l = Array.isArray(sc) ? sc : sc && (sc.objets || sc.contenu) || [];
+      const sorti = r ? !!(r.extrait || r.sorti || r.etat === 'extrait') : Array.isArray(res.extraits) ? res.extraits.indexOf(e.id) >= 0 : !!(e.extrait || e.sorti);
+      const objets = (r && Array.isArray(r.objets) ? r.objets : res.butin && Array.isArray(res.butin[e.id]) ? res.butin[e.id] : sorti ? l : []).concat(r && Array.isArray(r.materiel) ? r.materiel : []);
+      const perdus = (r && Array.isArray(r.perdu) ? r.perdu : r && Array.isArray(r.perdus) ? r.perdus : sorti ? [] : l).concat(r && Array.isArray(r.materielPerdu) ? r.materielPerdu : []);
+      const val = r && r.valeur != null ? Math.round(+r.valeur || 0) : objets.reduce((a, o) => a + valeur(o), 0);
+      const kills = r && r.kills != null ? +r.kills : e.score ? e.score.kills || 0 : 0, kJ = r && r.joueurs != null ? +r.joueurs : r && r.killsJoueurs != null ? +r.killsJoueurs : null;
+      return { id: e.id, nom: e.id === id ? (e.nom || 'Toi') : e.nom, couleur: e.couleur, equipe: e.equipe, bot: !!e.bot, sorti, mort: !sorti && (e.vivant === false || !!(r && r.mort)), objets, perdus, valeur: sorti ? val : 0,
+        perdu: r && r.valeurPerdue != null ? +r.valeurPerdue : perdus.reduce((a, o) => a + valeur(o), 0), kills, killsJoueurs: kJ, killsRobots: r && r.gardiens != null ? +r.gardiens : r && r.killsRobots != null ? +r.killsRobots : kJ != null ? kills - kJ : null,
+        primes: r && r.primes != null ? +r.primes : r && r.prime != null ? +r.prime : 0, score: r && r.score != null ? +r.score : val, ligne: r || null };
+    };
+    const joueurs = es.filter((e) => !e.bot).map(ligne), moiL = joueurs.find((l) => l.id === id) || { sorti: false, mort: false, objets: [], perdus: [], valeur: 0, perdu: 0, kills: 0, pieces: null };
+    return Object.assign({}, moiL, { joueurs, gardiens: es.filter((e) => e.bot && e.vivant === false).length, duree: res.duree != null ? res.duree : jeu ? jeu.temps : 0 });
+  }
+  // ─── l'affichage, à chaque image (rien n'est écrit si rien ne change) ───
+  const coffresVus = new Set(); let vusExtT = -1, ouvertVu = null, contexte = null;
+  function majExtraction(jeu, now) {
+    const V = lireExtraction(jeu, idMoi), on = V.actif; moiJeu = jeu;
+    if (on !== vu.ext) { vu.ext = on; racine.classList.toggle('extraction', on); el.sac.hidden = !on; el.boussole.hidden = !on; if (!on) { el.jauge.hidden = true; el.voileExt.hidden = true; el.largage.hidden = true; el.boss.hidden = true; el.contrat.hidden = true; cacherEtiquettes(); } }
+    contexte = null; if (!on) return;
+    // le poids (les cases prises), la clé
+    const pk = Math.round((V.sac.max ? V.sac.n / V.sac.max : 0) * 20) + (V.sac.ralenti > 0 ? 100 : 0) + (V.sac.cle ? 1000 : 0);
+    if (pk !== vu.poids) { vu.poids = pk; el.poids.style.transform = `scaleX(${(V.sac.max ? Math.min(1, V.sac.n / V.sac.max) : 0).toFixed(2)})`; el.sac.classList.toggle('lourd', V.sac.ralenti > 0); el.sac.classList.toggle('cle', V.sac.cle); el.sac.title = V.sac.ralenti > 0 ? `Sac lourd : −${Math.round(V.sac.ralenti * 100)} % de vitesse` : ''; }
+    // le bruit que je fais (jeu.bruits : tirs, pas de course, coffres) : une onde près de la posture
+    let br = 0; const B = jeu.bruits; if (Array.isArray(B)) for (let i = 0; i < B.length; i++) { const b = B[i]; if (b && b.e === moi && jeu.temps - b.t < 0.45 && b.portee > br) br = b.portee; }
+    const bk = br <= 0 ? 0 : br >= 16 ? 2 : 1; if (bk !== vu.bruit) { vu.bruit = bk; el.bruit.classList.toggle('vu', bk > 0); el.bruit.classList.toggle('fort', bk === 2); }
+    // le largage : une seconde boussole (annoncé : dans combien de temps ; posé : la distance)
+    if (V.largage && !V.extrait) {
+      const dx = V.largage.x - moi.x, dz = V.largage.z - moi.z, cy = Math.cos(moi.yaw || 0), sy = Math.sin(moi.yaw || 0), ang = Math.round(Math.atan2(dx * cy - dz * sy, -dx * sy - dz * cy) / DEG / 3) * 3;
+      if (ang !== vu.laAng) { vu.laAng = ang; el.laFl.style.transform = `rotate(${ang}deg)`; }
+      ecrire('laS', el.laS, V.largage.tombe ? `${Math.round(Math.hypot(dx, dz))} m · fumée rouge` : `tombe dans ${Math.ceil(V.largage.dans)} s · ${Math.round(Math.hypot(dx, dz))} m`);
+      if (vu.laVis !== true) { vu.laVis = true; el.largage.hidden = false; }
+    } else if (vu.laVis !== false) { vu.laVis = false; el.largage.hidden = true; }
+    // le Gardien : sa barre de vie en haut, quand on le voit (ou qu'il est tout près)
+    const Bo = V.boss, bv = !!Bo && (vusCache.get(Bo.id) || Math.hypot(Bo.x - moi.x, Bo.z - moi.z) < 20);
+    if (bv !== vu.bossVis) { vu.bossVis = bv; el.boss.hidden = !bv; }
+    if (bv) { ecrire('bossN', el.bossN, Bo.nom); const k = Math.round(Math.min(1, Bo.vie / Bo.vieMax) * 100); if (k !== vu.bossK) { vu.bossK = k; el.bossB.style.transform = `scaleX(${(k / 100).toFixed(2)})`; } }
+    // le contrat du jour (rappel discret)
+    const ct = contratPartie ? `Contrat : ${contratPartie.texte} ${contratPartie.prog}/${contratPartie.but}` : '';
+    if (ct !== vu.contrat) { vu.contrat = ct; el.contrat.hidden = !ct; el.contrat.textContent = ct; }
+    etiquettes(jeu, V);
+    // le sac : « 3/8 · 420 »
+    const sacK = V.sac.n + '/' + V.sac.max + '/' + V.sac.valeur;
+    if (sacOuvert && (sacK + (V.extrait || V.aTerre ? 'x' : '')) !== vu.sacL) { vu.sacL = sacK + (V.extrait || V.aTerre ? 'x' : ''); listeSac(V); }
+    if (sacK !== vu.sacK) { const plus = vu.sacV != null && V.sac.valeur > vu.sacV; vu.sacK = sacK; vu.sacV = V.sac.valeur; el.sacN.textContent = String(V.sac.n); el.sacMax.textContent = V.sac.max ? '/' + V.sac.max : ''; el.sacV.textContent = String(V.sac.valeur); el.sac.classList.toggle('plein', V.sac.plein); if (plus) relance(el.sac, 'pique'); }
+    // les coffres vus (minicarte) : à moins de 18 m, ou en vue à moins de 45 m (testé quatre fois par seconde)
+    if (jeu.temps - vusExtT > 0.25 || vusExtT < 0) { vusExtT = jeu.temps; const m = jeu.monde || mondeCarte, oy = moi.y + 1.5;
+      for (const c of V.coffres) { if (coffresVus.has(c.id)) continue; const d = Math.hypot(c.x - moi.x, c.z - moi.z); let ok = d < 18; if (!ok && d < 45) { try { ok = !!(m && m.vue && m.vue(moi.x, oy, moi.z, c.x, (m.hauteur ? m.hauteur(c.x, c.z) : moi.y) + 0.6, c.z)); } catch (e) { ok = false; } } if (ok) coffresVus.add(c.id); } }
+    // l'ouverture des sorties : le bandeau (une fois), sinon le compte à rebours
+    if (ouvertVu === null) ouvertVu = V.ouvert;
+    if (V.ouvert && !ouvertVu) { ouvertVu = true; bandeau('ext-ouv', 'Les sorties sont ouvertes !', V.points.map((p) => p.nom).join(' · ') || 'Rejoins une balise', 'ext'); }
+    // la boussole : la sortie la plus proche (flèche, nom, distance), ou le temps avant l'ouverture
+    if (V.plus && !V.extrait) {
+      const dx = V.plus.x - moi.x, dz = V.plus.z - moi.z, cy = Math.cos(moi.yaw || 0), sy = Math.sin(moi.yaw || 0), av = -dx * sy - dz * cy, dr = dx * cy - dz * sy, ang = Math.round(Math.atan2(dr, av) / DEG / 3) * 3;
+      if (ang !== vu.boAng) { vu.boAng = ang; el.boFl.style.transform = `rotate(${ang}deg)`; }
+      const t1 = V.plus.dedans && V.ouvert ? `${V.plus.nom} : tu y es !` : `${V.plus.nom} · ${Math.round(V.plus.d)} m`, t2 = V.ouvert ? 'Sortie ouverte' : `Ouvre dans ${Math.floor(Math.ceil(V.ouvreDans) / 60)}:${String(Math.ceil(V.ouvreDans) % 60).padStart(2, '0')}`;
+      ecrire('boT', el.boT, t1); ecrire('boS', el.boS, t2); if (V.ouvert !== vu.boOuv) { vu.boOuv = V.ouvert; el.boussole.classList.toggle('ouverte', V.ouvert); }
+      if (vu.boVis !== true) { vu.boVis = true; el.boussole.hidden = false; }
+    } else if (vu.boVis !== false) { vu.boVis = false; el.boussole.hidden = true; }
+    // la jauge : extraction (8 s dans le cercle), ouverture d'un coffre, relever, se faire relever
+    let j = null;
+    if (V.extraction) j = { cls: 'sortie', p: V.extraction.p, t: `Extraction… ${Math.ceil(V.extraction.reste)} s · ne te fais pas toucher` };
+    else if (V.releve) j = { cls: 'relever', p: V.releve.p, t: 'On te relève…' };
+    else if (V.relever) j = { cls: 'relever', p: V.relever.p, t: 'Tu relèves ton équipier…' };
+    else if (V.ouverture) j = { cls: 'r-' + V.ouverture.rarete, p: V.ouverture.p, t: `Ouverture du coffre ${NOM_RAR[V.ouverture.rarete]}…` };
+    if (j) { const pq = Math.round(j.p * 100); if (vu.jaugeVis !== true) { vu.jaugeVis = true; el.jauge.hidden = false; } if (j.cls !== vu.jaugeCls) { vu.jaugeCls = j.cls; el.jauge.className = 'h-jauge ' + j.cls; } ecrire('jaugeT', el.jaugeT, j.t); if (pq !== vu.jaugeP) { vu.jaugeP = pq; el.jaugeB.style.transform = `scaleX(${(pq / 100).toFixed(2)})`; } }
+    else if (vu.jaugeVis !== false) { vu.jaugeVis = false; el.jauge.hidden = true; }
+    // à terre (un équipier peut relever), ou sorti (la partie continue pour les autres)
+    let vo = null;
+    if (V.extrait) vo = { cls: 'sorti', p: 'Extrait !', b: `${V.sac.valeur} pièces à l’abri`, s: 'Les autres continuent : attends la fin de la partie.' };
+    else if (V.aTerre) vo = { cls: 'terre', p: 'À terre !', b: V.releve ? 'On te relève…' : `Un équipier peut te relever : ${Math.ceil(V.aTerre.reste)} s`, s: 'Ton sac reste avec toi tant qu’on peut te relever.' };
+    const voK = vo ? vo.cls + vo.b : '';
+    if (voK !== vu.voK) { vu.voK = voK; el.voileExt.hidden = !vo; if (vo) { el.voileExt.className = 'h-voile-ext ' + vo.cls; el.voileP.textContent = vo.p; el.voileB.textContent = vo.b; el.voileS.textContent = vo.s; } }
+    contexte = V.proche;
+  }
+  let moiJeu = null;
+  function listeSac(V) { // la liste du sac (ouverte d'un toucher) : nom, valeur, cases ; Utiliser (soin, armure, munitions), Lâcher
+    const l = V.sac.liste, CONSO = { soin: 1, armure: 1, munitions: 1 };
+    el.sacListe.innerHTML = l.length ? l.map((o0, i) => { const o = objetDe(o0), r = rarete(o0), v = valeur(o0);
+      return `<div class="h-sl r-${r}"><i aria-hidden="true"></i><span><b>${esc(o.nom)}</b><small>${v ? v + ' pièces · ' : ''}${+o.cases || 1} case${+o.cases > 1 ? 's' : ''}</small></span>${CONSO[o.id] ? `<button type="button" class="h-sl-b" data-sac="utiliser" data-i="${i}">Utiliser</button>` : ''}<button type="button" class="h-sl-b" data-sac="lacher" data-i="${i}">Lâcher</button></div>`; }).join('')
+      : '<p class="h-sl-vide">Ton sac est vide : ouvre des coffres !</p>';
+  }
+  function dessinerExtraction(g, R, s, c, sn) { // les coffres vus, les sacs au sol, les sorties (dans le cercle de la minicarte ; une sortie au loin : au bord)
+    const V = VX; if (!V.actif) return;
+    const pos = (x, z) => { const u = (x - moi.x) * s, v = (z - moi.z) * s; P2[0] = R + u * c - v * sn; P2[1] = R + u * sn + v * c; return (P2[0] - R) * (P2[0] - R) + (P2[1] - R) * (P2[1] - R); };
+    const lim = (R - 6 * DPR) * (R - 6 * DPR);
+    for (const k of V.coffres) { if (!coffresVus.has(k.id) || pos(k.x, k.z) > lim) continue; const w = (k.rarete === 'legendaire' ? 4.6 : 3.8) * DPR;
+      g.beginPath(); g.rect(P2[0] - w, P2[1] - w * 0.8, w * 2, w * 1.6); if (k.ouvert) { g.fillStyle = 'rgba(255,255,255,.35)'; g.fill(); g.lineWidth = 1.2 * DPR; g.strokeStyle = 'rgba(43,42,76,.7)'; g.stroke(); } else { g.fillStyle = COUL_RAR[k.rarete]; g.fill(); g.lineWidth = 1.6 * DPR; g.strokeStyle = '#2B2A4C'; g.stroke(); } }
+    for (const b of V.sacs) { if (pos(b.x, b.z) > lim) continue; g.beginPath(); g.arc(P2[0], P2[1], 3.6 * DPR, 0, TAU); g.fillStyle = '#D88F4E'; g.fill(); g.lineWidth = 1.6 * DPR; g.strokeStyle = '#2B2A4C'; g.stroke(); }
+    const bordure = (x, z) => { const d2 = pos(x, z); if (d2 > (R - 9 * DPR) * (R - 9 * DPR)) { const a = Math.atan2(P2[1] - R, P2[0] - R), rr = R - 9 * DPR; P2[0] = R + Math.cos(a) * rr; P2[1] = R + Math.sin(a) * rr; } };
+    for (const s of V.signaux) { bordure(s.x, s.z); g.beginPath(); g.moveTo(P2[0], P2[1] + 5 * DPR); g.lineTo(P2[0] + 4.5 * DPR, P2[1] - 3 * DPR); g.lineTo(P2[0] - 4.5 * DPR, P2[1] - 3 * DPR); g.closePath(); g.fillStyle = '#FFC84A'; g.fill(); g.lineWidth = 1.6 * DPR; g.strokeStyle = '#2B2A4C'; g.stroke(); }
+    if (V.largage) { bordure(V.largage.x, V.largage.z); const w = 4.5 * DPR; g.beginPath(); g.rect(P2[0] - w, P2[1] - w, 2 * w, 2 * w); g.fillStyle = '#FF6B5A'; g.fill(); g.lineWidth = 1.8 * DPR; g.strokeStyle = '#2B2A4C'; g.stroke(); g.beginPath(); g.arc(P2[0], P2[1] - w * 1.6, w * 1.2, Math.PI, 0); g.strokeStyle = '#FFFFFF'; g.lineWidth = 1.6 * DPR; g.stroke(); }
+    if (V.prime && V.prime.id !== idMoi) { const c = moiJeu && trouver(moiJeu, V.prime.id), vuP = c && vusCache.get(c.id); bordure(vuP ? c.x : V.prime.x, vuP ? c.z : V.prime.z); const k = 0.5 + 0.5 * Math.sin(performance.now() / 160); g.beginPath(); g.arc(P2[0], P2[1], (6 + 3 * k) * DPR, 0, TAU); g.fillStyle = `rgba(255,77,109,${(0.35 + 0.3 * k).toFixed(2)})`; g.fill(); g.beginPath(); g.arc(P2[0], P2[1], 4 * DPR, 0, TAU); g.fillStyle = '#FF4D6D'; g.fill(); g.lineWidth = 1.6 * DPR; g.strokeStyle = '#FFFFFF'; g.stroke(); }
+    for (const p of V.points) {
+      const d2 = pos(p.x, p.z), loin = d2 > (R - 9 * DPR) * (R - 9 * DPR);
+      if (loin) { const a = Math.atan2(P2[1] - R, P2[0] - R), rr = R - 9 * DPR; P2[0] = R + Math.cos(a) * rr; P2[1] = R + Math.sin(a) * rr; }
+      else { g.beginPath(); g.arc(P2[0], P2[1], Math.max(5 * DPR, p.rayon * s), 0, TAU); g.fillStyle = p.ouvert ? 'rgba(95,211,164,.35)' : 'rgba(255,255,255,.18)'; g.fill(); g.lineWidth = 1.6 * DPR; g.strokeStyle = p.ouvert ? '#36B585' : 'rgba(43,42,76,.55)'; g.setLineDash(p.ouvert ? [] : [3 * DPR, 3 * DPR]); g.stroke(); g.setLineDash([]); }
+      g.beginPath(); g.moveTo(P2[0], P2[1] - 6 * DPR); g.lineTo(P2[0] + 5 * DPR, P2[1] + 4 * DPR); g.lineTo(P2[0] - 5 * DPR, P2[1] + 4 * DPR); g.closePath();
+      g.fillStyle = p.ouvert ? '#5FD3A4' : '#FFFFFF'; g.fill(); g.lineWidth = 1.8 * DPR; g.strokeStyle = '#2B2A4C'; g.stroke();
+    }
+  }
+  const P2 = [0, 0];
+  // les étiquettes posées dans la vue (PRENDU.projeter) : les signaux de mon équipe (au bord de l'écran s'ils sont hors champ), la prime
+  // au-dessus du plus riche quand on le voit, les sacs au sol (« Sac de Léa »), le coffre-fort (la clé)
+  const NOMS_SIGNAL = { coffre: 'Coffre ici', ennemi: 'Ennemi', sortie: 'On sort par là', ici: 'Ici' };
+  let contratPartie = null;
+  function poserEtq(i, cle, txt, cls, x, y, z, bord) {
+    const E = el.etqs[i]; if (!E) return false;
+    const pr = projeter(x, y, z); if (!pr) return false;
+    let px = pr.x, py = pr.y, auBord = false;
+    if (!pr.devant || px < 20 || px > W - 20 || py < 20 || py > H - 20) { if (!bord) return false; // hors champ : au bord, dans sa direction
+      let dx = px - W / 2, dy = py - H / 2; if (!pr.devant) { dx = -dx; dy = -dy; } const k = Math.min((W / 2 - 40) / Math.max(1e-3, Math.abs(dx)), (H / 2 - 30) / Math.max(1e-3, Math.abs(dy))); px = W / 2 + dx * k; py = H / 2 + dy * k; auBord = true; }
+    const k2 = cle + '|' + txt; if (E._k !== k2) { E._k = k2; E.textContent = txt; E.className = 'h-etq ' + cls + (auBord ? ' bord' : ''); } else E.classList.toggle('bord', auBord);
+    E.style.transform = `translate3d(${px.toFixed(0)}px, ${py.toFixed(0)}px, 0) translate(-50%, -100%)`; if (E._vu !== true) { E._vu = true; E.style.opacity = '1'; } return true;
+  }
+  function etiquettes(jeu, V) {
+    let n = 0; const m = jeu.monde || mondeCarte, H0 = (x, z) => { try { return m && m.hauteur ? m.hauteur(x, z) : moi.y; } catch (e) { return moi.y; } };
+    for (const g of V.signaux) { if (n >= el.etqs.length) break; const d = Math.round(Math.hypot(g.x - moi.x, g.z - moi.z)); if (poserEtq(n, 'g' + g.id, `${NOMS_SIGNAL[g.type] || 'Ici'} · ${d} m`, 'signal', g.x, (g.y != null ? g.y : H0(g.x, g.z)) + 1.2, g.z, true)) n++; }
+    if (V.prime && V.prime.id !== idMoi && n < el.etqs.length && vusCache.get(V.prime.id)) { const c = trouver(jeu, V.prime.id); if (c && poserEtq(n, 'p', `Prime ${V.prime.montant || V.prime.valeur}`, 'prime', c.x, c.y + 2.3, c.z, false)) n++; }
+    for (const b of V.sacs) { if (n >= el.etqs.length) break; if (!b.de || b.de === idMoi) continue; const d = Math.hypot(b.x - moi.x, b.z - moi.z); if (d > 22) continue; const c = trouver(jeu, b.de); if (c && poserEtq(n, 's' + b.id, `Sac de ${c.nom}`, '', b.x, H0(b.x, b.z) + 0.9, b.z, false)) n++; }
+    for (const c of V.coffres) { if (n >= el.etqs.length) break; if (!c.fort || c.ouvert || Math.hypot(c.x - moi.x, c.z - moi.z) > 18) continue; if (poserEtq(n, 'f' + c.id, V.sac.cle ? 'Coffre-fort : tu as la clé' : 'Coffre-fort : il faut la clé', 'signal', c.x, H0(c.x, c.z) + 1.3, c.z, false)) n++; }
+    for (; n < el.etqs.length; n++) { const E = el.etqs[n]; if (E._vu) { E._vu = false; E.style.opacity = '0'; } }
+  }
+  function cacherEtiquettes() { if (el.etqs) for (const E of el.etqs) { E._vu = false; E._k = ''; E.style.opacity = '0'; } }
 
   // ─── la mise à jour, une fois par image ───
   function maj(jeu, id, evs, aide) {
@@ -590,6 +875,8 @@ const PHUD = (() => {
       if (M.fin && vu.mancheFin !== M.n) { vu.mancheFin = M.n; const f = M.fin; mancheFin(jeu, M.n, M.total, f && typeof f === 'object' ? (f.vainqueur !== undefined ? f.vainqueur : f.gagnant) : null, f && typeof f === 'object' ? f.equipe : null); }
     }
     if (bandeauT >= 0 && now - bandeauT > 3200) { bandeauT = -1; el.bandeau.classList.remove('vu'); }
+    // l'Extraction : sac, boussole vers la sortie, jauges, à terre / extrait, le bouton d'action
+    majExtraction(jeu, now);
     // « Limite de la zone » à moins de 3 m du bord (la forme de jeu.zone.limite ou de monde.limite : cercles, polygones, carré, arêtes, distance())
     zoneDuJeu(jeu);
     if (jeu.temps - limiteT > 0.2 || limiteT < 0) {
@@ -624,12 +911,13 @@ const PHUD = (() => {
     // fil : on efface les vieilles lignes
     const fil = el.fil; if (fil.lastChild && now - fil.lastChild._t > 6000) fil.lastChild.remove();
     // repeint : l'écran d'attente
-    const mort = !moi.vivant && tMort >= 0;
+    const mort = !moi.vivant && tMort >= 0 && !(VX.actif && (VX.aTerre || VX.extrait)); // (Extraction : à terre ou sorti, le voile du mode le dit)
     if (mort !== vu.mort) { vu.mort = mort; el.mort.hidden = !mort; racine.classList.toggle('mort', mort); if (mort) { el.mortPar.textContent = parQui && parQui !== idMoi ? `Repeint par ${nomDe(jeu, parQui)} !` : 'Repeint !'; el.mortArme.innerHTML = iconeArme(armeMort); } }
     if (mort) {
-      const lice = M ? M.lice : 0, sr = !!M; // « dernier debout » : pas de retour, on attend la manche suivante
+      const lice = M ? M.lice : 0, sr = !!M || VX.actif; // « dernier debout » : pas de retour, on attend la manche suivante ; Extraction : pas de retour non plus
       if (sr !== vu.mortSr) { vu.mortSr = sr; el.mortRetourL.hidden = sr; el.mortLice.hidden = !sr; el.mortPetit.textContent = sr ? 'Éliminé !' : 'Oups !'; }
-      if (sr) { const t = `Encore en lice : ${lice} · ${M.n < M.total ? 'attends la manche suivante' : 'attends la fin de la manche'}`; if (t !== vu.mortLice) { vu.mortLice = t; el.mortLice.textContent = t; } }
+      if (VX.actif) { const t = 'Ton sac est tombé : ce que tu portais est perdu. Attends la fin de la partie.'; if (t !== vu.mortLice) { vu.mortLice = t; el.mortLice.textContent = t; } }
+      else if (sr) { const t = `Encore en lice : ${lice} · ${M.n < M.total ? 'attends la manche suivante' : 'attends la fin de la manche'}`; if (t !== vu.mortLice) { vu.mortLice = t; el.mortLice.textContent = t; } }
       else { const rr = Math.max(0, delaiRetour(jeu) - (jeu.temps - tMort)); ecrire('retour', el.mortRetour, Math.ceil(rr)); }
     }
     // minicarte
@@ -645,15 +933,19 @@ const PHUD = (() => {
     ecrire('sa', el.scoreMoi, a); ecrire('sb', el.scoreEux, b);
     const cA = moi.couleur || '#FFC84A'; if (cA !== vu.cA) { vu.cA = cA; el.pastMoi.style.background = cA; } // en équipes, la couleur de l'équipe (celle du joueur)
     if (cB !== vu.cB) { vu.cB = cB; el.pastEux.style.background = cB; }
+    if (VX.actif) { const t = VX.extrait ? 'Tu es sorti' : VX.ouvert ? 'Sorties ouvertes' : `sorties dans ${Math.floor(Math.ceil(VX.ouvreDans) / 60)}:${String(Math.ceil(VX.ouvreDans) % 60).padStart(2, '0')}`; if (t !== vu.obj) { vu.obj = t; el.objectif.textContent = t; } return; }
     const M = mancheDe(jeu); if (M) { const n = M.lice; if ('lice' + n !== vu.obj) { const moins = typeof vu.obj === 'string' && +vu.obj.slice(4) > n; vu.obj = 'lice' + n; el.objectif.textContent = `Encore en lice : ${n}`; if (moins) relance(el.objectif, 'pique'); } return; }
     const cleObj = eq ? -1 : rang; if (cleObj !== vu.obj) { vu.obj = cleObj; el.objectif.textContent = `${eq ? 'équipe' : rang === 1 ? '1er' : rang + 'e'} · premier à ${objectif(jeu)}`; }
   }
   function majNoms(jeu) {
     const eq = estEquipes(jeu), es = jeu.entites; let k = 0;
-    if (eq) for (let i = 0; i < es.length && k < noms.length; i++) {
-      const e = es[i]; if (e === moi || !e.vivant || e.equipe !== moi.equipe) continue;
+    const ext = VX.actif; // l'Extraction : aussi les joueurs des équipes rivales (vus), à la couleur de leur équipe
+    if (eq || ext) for (let i = 0; i < es.length && k < noms.length; i++) {
+      const e = es[i]; if (e === moi || !e.vivant) continue;
+      const allie = eq && e.equipe === moi.equipe; if (!allie && !(ext && !e.bot && vusCache.get(e.id))) continue;
       const pr = projeter(e.x, e.y + 2.15, e.z); if (!pr || pr.devant === false) continue;
       const n = noms[k++]; if (n.txt !== e.nom) { n.txt = e.nom; n.el.textContent = e.nom; }
+      const c = allie ? '' : e.couleur || '#FF6B8B'; if (n.c !== c) { n.c = c; n.el.style.color = c; n.el.classList.toggle('rival', !allie); }
       n.el.style.transform = `translate3d(${pr.x.toFixed(1)}px, ${pr.y.toFixed(1)}px, 0) translate(-50%, -100%)`; if (!n.vu) { n.vu = true; n.el.style.opacity = '1'; }
     }
     for (; k < noms.length; k++) if (noms[k].vu) { noms[k].vu = false; noms[k].el.style.opacity = '0'; }
@@ -674,6 +966,7 @@ const PHUD = (() => {
   }
   function objectifTxt(jeu) { // l'en-tête du tableau : « Premier à 25 repeints · 2:41 » ; « Dernier debout · manche 2/3 · encore en lice : 3 »
     const M = mancheDe(jeu), r = jeu.reste, t = typeof r === 'number' && r - r === 0 ? `${Math.floor(Math.ceil(r) / 60)}:${String(Math.ceil(r) % 60).padStart(2, '0')}` : opt(jeu).duree === 0 ? 'sans limite de temps' : '';
+    if (VX.actif) return `Extraction · ${VX.ouvert ? 'sorties ouvertes' : `sorties dans ${Math.floor(Math.ceil(VX.ouvreDans) / 60)}:${String(Math.ceil(VX.ouvreDans) % 60).padStart(2, '0')}`}${t ? ' · ' + t : ''} · ton sac : ${VX.sac.valeur} pièces`;
     if (M) return `Dernier debout${M.total > 1 ? ` · manche ${M.n}/${M.total}` : ''} · encore en lice : ${M.lice}`;
     return `Premier à ${objectif(jeu)} repeints${estEquipes(jeu) ? ' (par équipe)' : ''}${t ? ' · ' + t : ''}`;
   }
@@ -685,6 +978,7 @@ const PHUD = (() => {
     if (!racine) return; finie = true; scores(false); infos = infos || {};
     el.lunette.classList.remove('vu'); vu.lunette = false; racine.classList.remove('lunette');
     jeu = jeu || jeuVu; idMoi = id || idMoi;
+    if (infos.extraction) return finExtraction(jeu, infos);
     let ls = []; try { ls = jeu ? lignes(jeu) : []; } catch (e) { ls = []; }
     const eq = jeu ? estEquipes(jeu) : false, me = ls.find((l) => l.id === idMoi) || { points: 0, kills: 0, morts: 0 }, rang = ls.findIndex((l) => l.id === idMoi) + 1;
     let titre, gagne;
@@ -708,6 +1002,31 @@ const PHUD = (() => {
     el.fin.hidden = false; el.mort.hidden = true; vu.mort = false; racine.classList.add('finie'); racine.classList.remove('mort');
     return { gagne, rang, points: me.points, kills: me.kills };
   }
+  // l'écran de fin d'une Extraction : ce qui est sorti (et rejoint le coffre) ou ce qui est perdu ; l'équipe ; Rejouer, Coffre, Menu
+  function puce(o, perdu) { o = objetDe(o); const r = rarete(o), a = o && (o.arme || (o.type === 'arme' && o.id)), id = typeof a === 'string' && estArme(a) ? a : null;
+    return `<span class="h-obj r-${r}${perdu ? ' perdu' : ''}">${id ? `<span class="h-obj-ico">${iconeArme(id)}</span>` : '<i aria-hidden="true"></i>'}<b>${esc((o && (o.nom || (id ? nomArme(id) : o.id))) || 'Objet')}</b><small>${valeur(o)}</small></span>`; }
+  function finExtraction(jeu, infos) {
+    const b = infos.extraction, sorti = !!b.sorti, objets = sorti ? b.objets || [] : b.perdus || [];
+    const titre = infos.titre || (sorti ? 'Extrait !' : b.mort ? 'Repeint… le sac est perdu' : 'Pas sorti à temps…');
+    const bout = Array.isArray(infos.boutons) && infos.boutons.length ? infos.boutons : [{ fin: 'rejouer', texte: 'Rejouer', cls: 'menthe' }, { fin: 'menu', texte: 'Menu', cls: 'blanc' }];
+    const etat = (l) => (l.sorti ? '<em class="ok">Sorti</em>' : l.mort ? '<em class="ko">Repeint</em>' : '<em class="ko">Resté</em>');
+    const js = (b.joueurs || []).slice().sort((x, y) => (y.score || 0) - (x.score || 0) || y.valeur - x.valeur), best = js.length > 1 && (js[0].score || js[0].valeur) > 0 ? js[0].id : null, rival = js.length > 1;
+    const lignesJ = js.map((l) => `<tr class="${l.id === idMoi ? 'moi' : ''}${l.id === best ? ' meilleur' : ''}"><td><i style="background:${esc(l.couleur || '#ccc')}"></i>${esc(l.nom)}</td><td>${etat(l)}</td><td><b>${l.sorti ? l.valeur : 0}</b></td><td>${l.killsRobots != null ? l.killsRobots : l.kills}</td>${rival ? `<td>${l.killsJoueurs != null ? l.killsJoueurs : '–'}</td><td>${l.primes || 0}</td>` : ''}</tr>`).join('');
+    el.fin.innerHTML = `<div class="h-fin-carte ext ${sorti ? 'gagne' : 'rate'}">
+      <div class="h-fin-g"><small>${esc(infos.mode || 'Extraction')} · fin de partie</small><h2>${esc(titre)}</h2>
+        <div class="h-fin-butin"><span class="h-fin-gros">${sorti ? '+' : ''}${sorti ? b.valeur : b.perdu || 0}<i class="h-piece" aria-hidden="true"></i></span><small>${sorti ? `${objets.length} objet${objets.length > 1 ? 's' : ''} rapporté${objets.length > 1 ? 's' : ''} dans ton coffre` : objets.length ? `${objets.length} objet${objets.length > 1 ? 's' : ''} perdu${objets.length > 1 ? 's' : ''}` : 'Ton sac était vide'}</small></div>
+        <div class="h-fin-objs${sorti ? '' : ' perdus'}">${objets.slice(0, 8).map((o) => puce(o, !sorti)).join('')}${objets.length > 8 ? `<span class="h-obj plus">+${objets.length - 8}</span>` : ''}</div>
+        ${infos.record ? '<div class="h-record">Meilleure sortie !</div>' : infos.meilleur ? `<div class="h-record ancien">Meilleure sortie : ${infos.meilleur}</div>` : ''}
+      </div>
+      <div class="h-fin-d"><table class="h-table ext${rival ? ' rivaux' : ''}"><thead><tr><th>Joueur</th><th></th><th>Butin</th><th>Robots</th>${rival ? '<th>Joueurs</th><th>Primes</th>' : ''}</tr></thead><tbody>${lignesJ}</tbody></table>
+        ${(infos.contrats || []).length ? `<div class="cf-contrats h-fin-contrats">${infos.contrats.map((c) => `<div class="cf-contrat${c.fait ? ' fait' : ''}"><span><b>${esc(c.texte)}</b><small>${c.prog | 0}/${c.but || 1} · ${c.recompense} pièces</small></span>${c.fait && !c.reclame ? `<button type="button" class="bouton menthe" data-fin="reclamer" data-i="${c.i}">Réclamer</button>` : ''}</div>`).join('')}</div>` : ''}
+        ${infos.semaine ? `<p class="h-fin-semaine">Zone de la semaine : +${infos.semaine} % de pièces</p>` : ''}
+        <p class="h-fin-attente">${b.gardiens ? `${b.gardiens} gardien${b.gardiens > 1 ? 's' : ''} repeint${b.gardiens > 1 ? 's' : ''} · ` : ''}${infos.pieces != null ? `Ton coffre : ${infos.pieces} pièces` : ''}</p>
+        <div class="h-fin-btns${bout.length > 2 ? ' trois' : ''}">${bout.map((x) => `<button type="button" class="bouton ${esc(x.cls || 'blanc')}" data-fin="${esc(x.fin)}">${esc(x.texte)}</button>`).join('')}</div></div>
+    </div>`;
+    el.fin.hidden = false; el.mort.hidden = true; vu.mort = false; el.voileExt.hidden = true; vu.voK = ''; el.jauge.hidden = true; racine.classList.add('finie'); racine.classList.remove('mort');
+    return { gagne: sorti, rang: 1, points: b.valeur, kills: b.kills };
+  }
   function reinit(o) { // une nouvelle partie (o : { equipes, reglages } ; reglages : les réglages normalisés du lancement, si le jeu ne les expose pas)
     if (!racine) return; equipesPartie = !!(o && o.equipes); reglagesPartie = o && o.reglages && typeof o.reglages === 'object' ? o.reglages : null; optJeu = null;
     mancheEv = null; bandeauCle = ''; bandeauT = -1; if (el.bandeau) el.bandeau.classList.remove('vu');
@@ -718,7 +1037,10 @@ const PHUD = (() => {
     for (const n of nombres) { n.t = -1; n.el.style.opacity = '0'; } for (const f of fleches) { f.t = -1; f.el.style.opacity = '0'; } for (const n of noms) { n.vu = false; n.el.style.opacity = '0'; }
     el.annonce.classList.remove('vu'); el.sous.classList.remove('vu'); el.ramasse.classList.remove('vu'); el.refus.classList.remove('vu');
     for (const s of slots) { s.id = null; s.m = null; s.res = null; s.main = null; s.bas = null; }
+    contratPartie = o && o.contrat && o.contrat.texte ? o.contrat : null;
+    coffresVus.clear(); vusExtT = -1; ouvertVu = null; contexte = null; cacherEtiquettes(); sacOuvert = false; el.sacListe.hidden = true; el.sac.setAttribute('aria-expanded', 'false'); racine.classList.remove('extraction'); el.sac.hidden = true; el.boussole.hidden = true; el.jauge.hidden = true; el.voileExt.hidden = true;
   }
   return { init, carte, taille, maj, fin, reinit, annonce, scores, iconeArme, nomArme, classeArme, nomClasse, vignette: vignetteZone, formeZone, formeDe, distanceBord,
+    extraction: (jeu, id) => lireExtraction(jeu, id || idMoi), bilanExtraction, rarete, COUL_RAR, get contexte() { return contexte; }, SVG_SAC,
     get zone() { return formeVue ? { cle: formeVue.cle, englobant: Object.assign({}, formeVue.englobant), fond: fondCle } : null; }, get scoresOuverts() { return scoresOuverts; }, get finie() { return finie; } };
 })();
