@@ -385,8 +385,10 @@ const PHUD = (() => {
     // les autres : alliés toujours, ennemis s'ils sont vus ou s'ils viennent de tirer
     const es = jeu.entites, equipes = estEquipes(jeu);
     for (let i = 0; i < es.length; i++) {
-      const e = es[i]; if (e === moi || !e.vivant) continue;
+      const e = es[i]; if (e === moi || (!e.vivant && !(e.aTerre && VX.actif))) continue;
       const allie = equipes && e.equipe === moi.equipe;
+      if (!e.vivant) { if (!allie) continue; const u = (e.x - moi.x) * s, v = (e.z - moi.z) * s, X = R + u * c - v * sn, Y = R + u * sn + v * c, k = 0.5 + 0.5 * Math.sin(performance.now() / 180); // un équipier à terre : une croix qui bat
+        g.beginPath(); g.arc(X, Y, (5 + 2 * k) * DPR, 0, TAU); g.fillStyle = '#FF6B8B'; g.fill(); g.lineWidth = 2 * DPR; g.strokeStyle = '#FFFFFF'; g.stroke(); g.beginPath(); g.moveTo(X - 3 * DPR, Y); g.lineTo(X + 3 * DPR, Y); g.moveTo(X, Y - 3 * DPR); g.lineTo(X, Y + 3 * DPR); g.stroke(); continue; }
       if (!allie && !vusCache.get(e.id)) { const t = coupsDe.get(e.id); if (t == null || jeu.temps - t > 1.6) continue; }
       const u = (e.x - moi.x) * s, v = (e.z - moi.z) * s, X = R + u * c - v * sn, Y = R + u * sn + v * c;
       if ((X - R) * (X - R) + (Y - R) * (Y - R) > (R - 5 * DPR) * (R - 5 * DPR)) continue;
@@ -964,6 +966,7 @@ const PHUD = (() => {
   }
   function objectifTxt(jeu) { // l'en-tête du tableau : « Premier à 25 repeints · 2:41 » ; « Dernier debout · manche 2/3 · encore en lice : 3 »
     const M = mancheDe(jeu), r = jeu.reste, t = typeof r === 'number' && r - r === 0 ? `${Math.floor(Math.ceil(r) / 60)}:${String(Math.ceil(r) % 60).padStart(2, '0')}` : opt(jeu).duree === 0 ? 'sans limite de temps' : '';
+    if (VX.actif) return `Extraction · ${VX.ouvert ? 'sorties ouvertes' : `sorties dans ${Math.floor(Math.ceil(VX.ouvreDans) / 60)}:${String(Math.ceil(VX.ouvreDans) % 60).padStart(2, '0')}`}${t ? ' · ' + t : ''} · ton sac : ${VX.sac.valeur} pièces`;
     if (M) return `Dernier debout${M.total > 1 ? ` · manche ${M.n}/${M.total}` : ''} · encore en lice : ${M.lice}`;
     return `Premier à ${objectif(jeu)} repeints${estEquipes(jeu) ? ' (par équipe)' : ''}${t ? ' · ' + t : ''}`;
   }

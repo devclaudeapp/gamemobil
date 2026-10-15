@@ -255,7 +255,7 @@ const PUI = (() => {
     return `${nomZone(r.zone)} : ` + (r.reapparition === 'aucune' ? `dernier debout en ${pluriel(r.manches, 'manche')}, sans réapparition.` : `${r.duree > 0 ? `${Math.round(r.duree / 60)} minutes` : 'sans limite de temps'}, le premier à ${r.score} repeints gagne.`);
   }
   function phraseSolo(r) {
-    if (modeDe(r) === 'extraction') return 'Fouille les coffres, évite les gardiens, sors avant la fin : ce qui reste dans ton sac est perdu.';
+    if (modeDe(r) === 'extraction') return 'Fouille, puis sors à temps : sinon, ton sac est perdu.';
     const b = r.bots, adj = (n) => (T.robots[r.niveau] || ['', ''])[n > 1 ? 1 : 0];
     if (r.equipes) { const al = Math.floor(b / 2), en = b - al; return al ? `Toi et ${pluriel(al, 'robot allié', 'robots alliés')} contre ${pluriel(en, 'robot')} ${adj(en)}.` : `Toi contre ${pluriel(en, 'robot')} ${adj(en)}, en équipes.`; }
     return `Toi contre ${pluriel(b, 'robot')} ${adj(b)}, chacun pour soi.`;

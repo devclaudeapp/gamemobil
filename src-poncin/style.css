@@ -672,7 +672,7 @@ body.gaucher .h-bas { left: 60%; }
 .cf-barre { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
 .cf-note { font: 700 13px/1.3 var(--texte); color: var(--encre-2); }
 .cf-tout { min-height: 40px; font-size: 14px; flex: 0 0 auto; }
-.cf-objets { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px; align-content: start; }
+.cf-objets { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 8px; align-content: start; }
 .cf-o { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 6px 6px 6px 8px; border-radius: 14px; background: #fff; border: 2.5px solid var(--encre); box-shadow: inset 5px 0 0 var(--r, var(--r-commun)), 0 3px 0 var(--encre); }
 .cf-o-ico { flex: 0 0 auto; width: 54px; height: 36px; display: grid; place-items: center; border-radius: 10px; background: color-mix(in srgb, var(--r, #A7AEB8) 22%, #fff); }
 .cf-o-ico.arme svg { width: 52px; height: 20px; }
@@ -680,8 +680,8 @@ body.gaucher .h-bas { left: 60%; }
 .cf-o-ico.t-soin i { background: #FF8FB1; border-radius: 50%; } .cf-o-ico.t-armure i { background: #7FB3FF; border-radius: 6px 6px 50% 50%; } .cf-o-ico.t-munitions i { background: #8D9A5E; }
 .cf-o-ico.t-valeur i { transform: rotate(45deg); width: 20px; height: 20px; border-radius: 4px; }
 .cf-o-t { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
-.cf-o-t b { font: 700 14px/1.15 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cf-o-t small { font: 700 11px/1.2 var(--texte); color: var(--encre-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-o-t b { font: 700 14px/1.15 var(--titre); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.cf-o-t small { font: 700 11px/1.3 var(--texte); color: var(--encre-2); }
 .rar { font-style: normal; padding: 1px 5px; border-radius: 6px; background: var(--r); color: #fff; text-shadow: 0 1px 0 rgba(43, 42, 76, .55); }
 .cf-vendre { flex: 0 0 auto; min-height: 40px; padding: 0 10px; font-size: 14px; border-radius: 12px; box-shadow: 0 3px 0 var(--encre); display: grid; gap: 1px; justify-items: center; }
 .cf-vendre small { font: 700 11px/1 var(--texte); color: var(--encre-2); display: inline-flex; gap: 3px; align-items: center; }
@@ -804,11 +804,11 @@ body.gaucher .h-bas { left: 60%; }
 .h-fin-d .h-table.ext.rivaux th:nth-child(n+2) { width: 50px; } .h-table.ext.rivaux td { font-size: 13px; }
 .op-l[data-k="formatExtraction"] { grid-column: 1 / -1; }
 .h-sac { cursor: pointer; } .h-sac[aria-expanded="true"] { background: #FFF1C9; }
-.h-sac-liste { position: absolute; left: var(--sg); top: calc(var(--sh) + var(--hc, 112px) + 50px); width: min(300px, 46vw); max-height: calc(100% - var(--hc, 112px) - 150px); overflow-y: auto; display: grid; gap: 4px; padding: 6px; border-radius: 14px; background: rgba(255, 247, 236, .95); border: 2.5px solid var(--encre); box-shadow: 0 4px 0 rgba(43, 42, 76, .45); pointer-events: auto; }
+.h-sac-liste { color: var(--encre); position: absolute; left: var(--sg); top: calc(var(--sh) + var(--hc, 112px) + 50px); width: min(300px, 46vw); max-height: calc(100% - var(--hc, 112px) - 150px); overflow-y: auto; display: grid; gap: 4px; padding: 6px; border-radius: 14px; background: rgba(255, 247, 236, .95); border: 2.5px solid var(--encre); box-shadow: 0 4px 0 rgba(43, 42, 76, .45); pointer-events: auto; }
 .h-sl { display: flex; align-items: center; gap: 6px; padding: 3px 4px 3px 6px; border-radius: 10px; background: #fff; box-shadow: inset 4px 0 0 var(--r, var(--r-commun)); }
 .h-sl > i { width: 11px; height: 11px; flex: 0 0 auto; transform: rotate(45deg); border-radius: 3px; background: var(--r, var(--r-commun)); border: 1.5px solid var(--encre); margin-left: 4px; }
 .h-sl > span { flex: 1 1 auto; min-width: 0; display: grid; } .h-sl b { font: 700 12px/1.15 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } .h-sl small { font: 700 10px/1.2 var(--texte); color: var(--encre-2); }
-.h-sl-b { flex: 0 0 auto; min-height: 34px; padding: 0 8px; border-radius: 10px; border: 2px solid var(--encre); background: #fff; font: 700 12px/1 var(--titre); }
+.h-sl-b { flex: 0 0 auto; min-height: 34px; padding: 0 8px; border-radius: 10px; border: 2px solid var(--encre); background: #fff; color: var(--encre); font: 700 12px/1 var(--titre); }
 .h-sl-b[data-sac="utiliser"] { background: var(--menthe); color: #fff; text-shadow: 0 1px 0 var(--encre); }
 .h-sl-vide { font: 700 12px/1.3 var(--texte); color: var(--encre-2); padding: 6px; }
 .h-noms .h-nom.rival { text-shadow: 0 1px 0 #2B2A4C, 0 -1px 0 #2B2A4C, 1px 0 0 #2B2A4C, -1px 0 0 #2B2A4C; }

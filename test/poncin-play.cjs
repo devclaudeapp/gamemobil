@@ -316,12 +316,12 @@ const URL0 = `http://localhost:${PORT}/poncin/`;
     check(c1.ouvert && c1.n > 0, `le coffre s’ouvre : ${c1.n} case(s) dans le sac, ${c1.sac} pièces (« ${c1.chip.replace(/\s+/g, ' ').trim()} »)`);
     // un signal d'équipe : appui long sur la vue (la roue), glisser vers « Ennemi », lâcher : le marqueur posé là où l'on vise
     await P(() => { const m = window.__poncin.joueur(); m.pitch = -0.05; });
-    await toucher('touchStart', [[480, 150, 7]]); await sleep(650);
-    const roue = await P(() => !document.querySelector('#commandes .pc-roue').hidden);
+    await toucher('touchStart', [[480, 150, 7]]); let roue = false;
+    for (let k = 0; k < 40 && !roue; k++) { await sleep(100); roue = await P(() => !document.querySelector('#commandes .pc-roue').hidden); } // (400 ms, plus le temps d'une image lente)
     for (let k = 1; k <= 4; k++) { await toucher('touchMove', [[480 + k * 12, 150, 7]]); await sleep(40); }
     await toucher('touchEnd', []); await sleep(400);
     const sg = await P(() => { const j = window.__poncin.jeu(); return { n: (j.extraction.signaux || []).length, type: ((j.extraction.signaux || [])[0] || {}).type, etq: Array.from(document.querySelectorAll('#hud .h-etq')).filter((e) => e.style.opacity === '1').map((e) => e.textContent), lampe: document.querySelector('#commandes .pc-lampe').hidden }; });
-    check(roue && sg.n >= 1 && sg.type === 'ennemi' && sg.etq.some((t) => /Ennemi/.test(t)) && sg.lampe, `appui long sur la vue : la roue des signaux, « ${sg.type} » posé (${sg.etq.join(', ')}) ; pas de bouton Lampe le jour`);
+    check(roue && sg.n >= 1 && sg.type === 'ennemi' && sg.etq.some((t) => /Ennemi/.test(t)) && sg.lampe, `appui long sur la vue : la roue des signaux${roue ? '' : ' (pas vue)'}, « ${sg.type} » posé (${sg.etq.join(', ')}) ; ${sg.lampe ? 'pas de bouton Lampe le jour' : 'un bouton Lampe le jour ?'}`);
     await page.screenshot({ path: CX + '/extraction-3b-signal.png' });
     // un deuxième coffre, de valeur cette fois (pour sortir avec quelque chose)
     await P(() => { const p = window.__poncin, j = p.jeu(), m = p.joueur(); for (const k of j.extraction.coffres) { if (k.ouvert || k.verrou || k.special || k.rarete === 'commun') continue; p.tp(k.x, k.z + 1.3, 0); p.pas(100); if (p.extraction().sac.valeur > 0) break; } });
@@ -332,8 +332,9 @@ const URL0 = `http://localhost:${PORT}/poncin/`;
     const s1 = await P(() => { const p = window.__poncin, j = p.jeu(), pt = j.extraction.extractions[0]; p.tp(pt.x + 1, pt.z + 1, 0); p.pas(240); return { ext: p.extraction().extraction, jauge: document.querySelector('#hud .h-jauge-t').textContent }; });
     check(s1.ext && s1.ext.p > 0.4 && /Extraction/.test(s1.jauge), `dans le cercle : « ${s1.jauge} »`);
     await page.screenshot({ path: CX + '/extraction-5-extraction.png' });
-    const st2 = await P(() => window.__poncin.stats().rendu || {});
-    check(st2.calls > 0 && st2.calls <= (st2.budget ? st2.budget.calls : 110) && st2.triangles <= (st2.budget ? st2.budget.triangles : 300000), `budget du rendu tenu en Extraction (${st2.calls} appels, ${Math.round((st2.triangles || 0) / 1000)}k triangles, qualité ${st2.qualite}, objets ${st2.objets3d})`);
+    await sleep(600); // (une image rendue)
+    const st2 = await P(() => { const r = window.__poncin.stats().rendu || {}, I = PRENDU._interne; let ext = 0; I.scene.traverse((o) => { if (!/^ext-/.test(o.name || '')) return; let v = true, q = o; while (q) { if (!q.visible) { v = false; break; } q = q.parent; } if (v) ext++; }); return Object.assign({ ext }, r); });
+    check(st2.calls > 0 && st2.calls <= 110 && st2.triangles <= 300000 && st2.ext <= 10, `budget du rendu tenu en Extraction (${st2.calls} appels dont ${st2.ext} pour le mode, ${Math.round((st2.triangles || 0) / 1000)}k triangles, qualité ${st2.qualite}, objets ${st2.objets3d})`);
     const f0 = await P(() => { const p = window.__poncin; for (let i = 0; i < 8 && p.etat().ecran !== 'fin'; i++) p.pas(120); return { ecran: p.etat().ecran, texte: document.querySelector('#hud .h-fin').innerText, sauv: p.sauvegarde() }; });
     check(f0.ecran === 'fin' && /Extrait/.test(f0.texte) && f0.sauv.records.extraction.sorties === 1 && f0.sauv.coffre.pieces > 0, `l’écran de fin : « Extrait ! », ${f0.sauv.coffre.pieces} pièces au coffre, record ${f0.sauv.records.extraction.meilleur}`);
     await page.screenshot({ path: CX + '/extraction-6-fin.png' });
