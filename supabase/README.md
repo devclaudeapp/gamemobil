@@ -41,6 +41,14 @@ Le jeu marche sans Supabase : solo contre les bots, et à plusieurs onglets sur 
 - Dans le jeu : `poncin/?relais=1` empêche le pair-à-pair (pour essayer le relais entre copains) ; `poncin/?reseau=local` joue entre onglets du même navigateur, sans Supabase.
 - Si plus rien ne se connecte : le projet s'est peut-être **mis en pause** (7 jours sans activité) ; le réveiller depuis le tableau de bord Supabase, puis relancer le workflow En ligne.
 
+## Le classement du butin (Opération Poncin, mode Extraction)
+
+Après chaque partie d'Extraction, le jeu publie la ligne du joueur ; le classement montre, entre amis, **cette semaine** (les pièces extraites, comptées comme au coffre personnel, bonus de la zone de la semaine compris ; les parties et les extractions réussies) et les **records** (le meilleur score d'une partie, le total depuis l'arrivée), avec la pastille « en ligne ». Le serveur, c'est `supabase/poncin-butin.sql` : à coller **tel quel** dans **SQL Editor** → **New query** → **Run** (une fois ; il se recolle sans rien perdre, ne touche à rien du Fournil et n'en a pas besoin). Il borne ce que le téléphone peut prétendre (une partie : 3 040 pièces de valeur et 5 750 de primes au plus, une partie comptée toutes les 2 minutes, 60 par jour ; le détail et le calcul sont en tête du fichier et dans `src-poncin/ARCHITECTURE.md`, « Classement du butin »). Le tester sans Supabase :
+```sh
+npm install --prefix /tmp/pglite --no-save --no-package-lock @electric-sql/pglite@0.5.8
+TZ=Europe/Paris node test/poncin-butin-sql.cjs /tmp/pglite
+```
+
 ## Le classement du Fournil
 
 Le Fournil a un classement entre amis, en **points de boulanger** (version 3 du SQL, version 4 avec l'événement « Le Quartier », version 5 avec « La Maison hantée » et « en ligne ») : ils récompensent la façon de jouer, pas l'ancienneté. Un débutant et une grande boutique qui jouent pareil marquent autant (vérifié par `test/fournil-points.test.js`). Le barème, compté par le jeu (`src/game.js`) du lundi au dimanche, heure de Paris :
