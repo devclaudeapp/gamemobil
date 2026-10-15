@@ -156,13 +156,32 @@ const PSONS = (() => {
     manche(t, v, d) { osc('sine', 196, 194, t, 1.6, 0.3 * v, d, 0.004); osc('sine', 392, 389, t, 1.2, 0.14 * v, d, 0.004); osc('triangle', 587, 583, t, 0.9, 0.06 * v, d, 0.004); [523, 659, 784].forEach((f, i) => osc('triangle', f, f, t + 0.35 + i * 0.09, 0.22, 0.11 * v, d)); }, // un gong, puis trois notes qui montent
     mancheFin(t, v, d) { [784, 659, 784, 1047].forEach((f, i) => osc('triangle', f, f, t + i * 0.12, i === 3 ? 0.55 : 0.14, 0.17 * v, d)); osc('sine', 1568, 1568, t + 0.36, 0.5, 0.05 * v, d); souffle('highpass', 6000, 5000, 1, t + 0.36, 0.25, 0.04 * v, d, 0.01); }, // la manche est gagnée
     elimine(t, v, d) { osc('sine', 330, 180, t, 0.3, 0.2 * v, d, 0.004); osc('triangle', 165, 110, t + 0.02, 0.35, 0.08 * v, d); }, // éliminé de la manche : un « toc » sourd qui descend
+    // l'Extraction : le coffre qui grince et s'ouvre, le butin (des pièces qui tintent, plus riches selon la rareté : h = 1 à 4), l'alarme des
+    // sorties qui s'ouvrent (deux tons, trois fois), le tic de l'extraction (chaque seconde dans le cercle), l'extraction réussie, relever,
+    // le sac qui tombe, et l'achat ou la vente au coffre personnel
+    ouvrir(t, v, d) { souffle('bandpass', 700, 1100, 6, t, 0.25, 0.1 * v, d, 0.04); clic(t + 0.02, 1500, 0.08 * v, d); }, // on met la main au coffre
+    coffre(t, v, d) { osc('sawtooth', 180, 320, t, 0.32, 0.05 * v, d, 0.05); souffle('bandpass', 500, 900, 5, t, 0.3, 0.12 * v, d, 0.05); souffle('lowpass', 400, 120, 0.8, t + 0.3, 0.12, 0.3 * v, d, 0.002); osc('sine', 110, 60, t + 0.3, 0.1, 0.22 * v, d); }, // le grincement, puis le couvercle qui retombe
+    butin(t, v, d, h) { const n = 2 + Math.round(h || 1); for (let i = 0; i < n; i++) { const f = 1800 + ((i * 7) % 5) * 260 + (h || 1) * 120; osc('sine', f, f * 1.01, t + i * 0.06, 0.18, 0.07 * v, d, 0.002); osc('triangle', f * 2.4, f * 2.4, t + i * 0.06, 0.06, 0.02 * v, d, 0.001); }
+      if (h >= 3) [784, 988, 1319].forEach((f, i) => osc('triangle', f, f, t + 0.25 + i * 0.08, 0.22, 0.1 * v, d)); }, // épique, légendaire : trois notes de plus
+    alarme(t, v, d) { for (let i = 0; i < 3; i++) { osc('square', 660, 660, t + i * 0.5, 0.22, 0.05 * v, d, 0.01); osc('square', 880, 880, t + i * 0.5 + 0.24, 0.22, 0.05 * v, d, 0.01); osc('sine', 330, 330, t + i * 0.5, 0.46, 0.08 * v, d, 0.02); } },
+    tic(t, v, d, h) { osc('sine', 1200 * (h || 1), 1180 * (h || 1), t, 0.07, 0.1 * v, d, 0.002); },
+    extrait(t, v, d) { osc('sine', 300, 1200, t, 0.5, 0.12 * v, d, 0.02); [523, 659, 784, 1047, 1319].forEach((f, i) => osc('triangle', f, f, t + 0.3 + i * 0.09, i === 4 ? 0.6 : 0.16, 0.15 * v, d)); souffle('highpass', 5000, 3000, 1, t, 0.6, 0.05 * v, d, 0.2); },
+    releve(t, v, d) { [392, 523, 659].forEach((f, i) => osc('triangle', f, f, t + i * 0.1, 0.18, 0.13 * v, d)); },
+    sacTombe(t, v, d) { souffle('lowpass', 600, 140, 0.8, t, 0.18, 0.3 * v, d, 0.004); [1400, 1700, 1250].forEach((f, i) => osc('sine', f, f, t + 0.05 + i * 0.07, 0.08, 0.04 * v, d, 0.002)); },
+    achat(t, v, d) { [1568, 2093].forEach((f, i) => osc('sine', f, f, t + i * 0.07, 0.2, 0.09 * v, d, 0.002)); [523, 784, 1047].forEach((f, i) => osc('triangle', f, f, t + 0.12 + i * 0.07, 0.16, 0.1 * v, d)); },
+    vente(t, v, d) { for (let i = 0; i < 4; i++) osc('sine', 2000 + i * 180, 2010 + i * 180, t + i * 0.05, 0.14, 0.07 * v, d, 0.002); },
+    signal(t, v, d) { osc('sine', 1320, 1320, t, 0.12, 0.12 * v, d, 0.003); osc('sine', 1760, 1760, t + 0.09, 0.16, 0.1 * v, d, 0.003); }, // un « ping » d'équipe
+    lampe(t, v, d) { clic(t, 2600, 0.14 * v, d); },
+    largage(t, v, d) { osc('sawtooth', 110, 96, t, 2.2, 0.035 * v, d, 0.6); osc('sawtooth', 112, 98, t, 2.2, 0.03 * v, d, 0.6); souffle('lowpass', 300, 200, 0.7, t, 2.4, 0.18 * v, d, 0.7); }, // l'avion qui passe, au loin
+    prime(t, v, d) { [988, 784, 988, 784].forEach((f, i) => osc('square', f, f, t + i * 0.13, 0.11, 0.045 * v, d, 0.005)); },
+    cle(t, v, d) { [1047, 1319, 1568, 2093].forEach((f, i) => osc('triangle', f, f, t + i * 0.06, 0.2, 0.09 * v, d)); },
     refus(t, v, d) { osc('square', 220, 200, t, 0.09, 0.05 * v, d); },
     tap(t, v, d) { osc('triangle', 520, 520, t, 0.07, 0.07 * v, d); },
     ok(t, v, d) { osc('triangle', 520, 520, t, 0.08, 0.07 * v, d); osc('triangle', 780, 780, t + 0.07, 0.1, 0.07 * v, d); },
     retour(t, v, d) { osc('triangle', 600, 400, t, 0.1, 0.06 * v, d); },
   };
   // intervalle mini entre deux mêmes sons (s) ; une mitraillette à 14 coups/s passe (0,05 s)
-  const ECART = { goutte: 0.05, tonnerre: 8, hibou: 6, manche: 1, mancheFin: 1, elimine: 0.2, fusil: 0.05, mitraillette: 0.045, pistolet: 0.06, pompe: 0.15, sniper: 0.15, impactMur: 0.04, impactSol: 0.04, impactMetal: 0.05, impactBois: 0.05, impactCorps: 0.04, pas: 0.11, pasCourse: 0.1, pasAccroupi: 0.2, ramper: 0.3, ploc: 0.03, blesse: 0.08, vide: 0.12, douille: 0.07, cartouche: 0.2, glissade: 0.5, changement: 0.15, visee: 0.25 };
+  const ECART = { signal: 0.25, prime: 2, largage: 5, butin: 0.15, coffre: 0.3, ouvrir: 0.3, alarme: 3, tic: 0.5, extrait: 2, sacTombe: 0.5, goutte: 0.05, tonnerre: 8, hibou: 6, manche: 1, mancheFin: 1, elimine: 0.2, fusil: 0.05, mitraillette: 0.045, pistolet: 0.06, pompe: 0.15, sniper: 0.15, impactMur: 0.04, impactSol: 0.04, impactMetal: 0.05, impactBois: 0.05, impactCorps: 0.04, pas: 0.11, pasCourse: 0.1, pasAccroupi: 0.2, ramper: 0.3, ploc: 0.03, blesse: 0.08, vide: 0.12, douille: 0.07, cartouche: 0.2, glissade: 0.5, changement: 0.15, visee: 0.25 };
   function jouer(nom, v, p, h, extra, retard) { // v : volume 0..1, p : panoramique, h : hauteur relative, retard (s)
     if (!pret() || !SONS[nom]) return;
     const t = ctx.currentTime;
@@ -210,7 +229,7 @@ const PSONS = (() => {
 
   // ─── les événements d'une image de jeu ───
   let moi = null, _pan = 0, _dist = 0;
-  const SUIVI = { id: null, arme: null, posture: 'debout', vise: 0, x: 0, z: 0, d: 0, pasEv: -9, t: 0 };
+  const SUIVI = { exK: -1, id: null, arme: null, posture: 'debout', vise: 0, x: 0, z: 0, d: 0, pasEv: -9, t: 0 };
   function trouver(jeu, id) { const es = jeu.entites; for (let i = 0; i < es.length; i++) if (es[i].id === id) return es[i]; return null; }
   function ecoute(x, z, portee) { // atténuation et panoramique d'un son placé en (x, z), vus depuis moi ; _dist : la distance
     if (!moi) { _dist = 0; _pan = 0; return 1; }
@@ -230,6 +249,8 @@ const PSONS = (() => {
     const S = SUIVI, t = ctx ? ctx.currentTime : 0, pos = posture(moi);
     if (S.id !== idMoi) { S.id = idMoi; S.arme = moi.arme; S.posture = pos; S.vise = +moi.vise || 0; S.x = +moi.x; S.z = +moi.z; S.d = 0; return; }
     if (moi.arme !== S.arme) { S.arme = moi.arme; jouer('changement', 0.7); }
+    const ex = moi.extraction || moi.sortie, d0 = ex && typeof ex === 'object' ? +(ex.debut != null ? ex.debut : ex.depuis) : NaN; // Extraction : un tic par seconde dans le cercle, plus aigu à la fin
+    if (d0 >= 0 && jeu.temps >= d0) { const k = Math.floor(jeu.temps - d0); if (k !== S.exK) { S.exK = k; if (k > 0) jouer('tic', 0.7, 0, k >= 5 ? 1.5 : 1); } } else S.exK = -1;
     const vs = +moi.vise || 0; if (vs > 0.15 && S.vise <= 0.15) jouer('visee', 0.6); S.vise = vs;
     if (pos === 'glisse' && S.posture !== 'glisse') jouer('glissade', 0.75);
     S.posture = pos;
@@ -281,6 +302,21 @@ const PSONS = (() => {
         case 'manche': jouer(e.quoi === 'fin' || e.fin || e.vainqueur != null || e.gagnant != null ? 'mancheFin' : 'manche', 0.9); break; // « dernier debout » : début ou fin d'une manche
         case 'elimine': if (e.id !== idMoi && e.a !== idMoi) jouer('elimine', 0.6); break; // un autre est sorti de la manche (pour moi, 'mort' a déjà joué)
         case 'fin': break; // l'écran de fin joue victoire ou défaite
+        // l'Extraction (événements du groupe des règles, lus avec tolérance)
+        case 'ouverture': if (e.id === idMoi && e.quoi !== 'extraction' && /debut/.test(String(e.etat || 'debut'))) jouer('ouvrir', 0.8); else if (e.id === idMoi && /coupe/.test(String(e.etat || ''))) jouer('refus', 0.5); break;
+        case 'coffre': if (e.id === idMoi || e.par === idMoi) { jouer('coffre', 0.9); vibrer(15); } else if (e.x != null) { const k = ecoute(+e.x, +e.z, 25); if (k > 0.05) jouer('coffre', 0.5 * k, _pan); } break;
+        case 'butin': if (e.id === idMoi) { const l = Array.isArray(e.objets) ? e.objets : e.objet ? [e.objet] : []; let h = 1; for (const o of l) { const r = o && (o.rarete != null ? o.rarete : o.rang); const k = typeof r === 'number' ? r + 1 : { rare: 2, epique: 3, 'épique': 3, legendaire: 4, 'légendaire': 4 }[r] || 1; if (k > h) h = k; } jouer('butin', 0.85, 0, h, 0, 0.25); } break;
+        case 'extraction': case 'extractions': case 'sorties': if (/ouv/.test(String(e.quoi || e.etat || 'ouvert'))) { jouer('alarme', 0.85); vibrer([30, 60, 30]); } break;
+        case 'extrait': if (e.id === idMoi) { jouer('extrait', 1); vibrer([20, 40, 20, 40, 80]); } else jouer('releve', 0.5); break;
+        case 'releve': if (e.id === idMoi || e.par === idMoi) jouer('releve', 0.9); break;
+        case 'sac': if (e.quoi === 'pose' || e.quoi === 'tombe' || e.quoi === 'lache') { const k = e.x != null ? ecoute(+e.x, +e.z, 30) : 1; if (k > 0.05) jouer('sacTombe', 0.7 * k, _pan); } else if (e.par === idMoi || e.id === idMoi) jouer('ramasse', 0.9); break;
+        case 'plein': if (e.id === idMoi) jouer('refus', 0.7); break;
+        case 'signal': { const m = moi; if (!m || e.equipe == null || e.equipe === m.equipe) jouer('signal', e.de === idMoi ? 0.6 : 0.9); break; }
+        case 'lampe': if (e.id === idMoi) jouer('lampe', 0.8); break;
+        case 'largage': if (e.quoi === 'annonce') jouer('largage', 0.9); else if (e.quoi === 'tombe') { const k = e.x != null ? ecoute(+e.x, +e.z, 120) : 0.5; jouer('sacTombe', 0.4 + 0.6 * k, _pan); } break;
+        case 'prime': if (e.quoi === 'revele' || e.quoi == null) { jouer('prime', e.id === idMoi ? 1 : 0.7); if (e.id === idMoi) vibrer([40, 60, 40]); } else if (e.quoi === 'gagnee' && e.id === idMoi) jouer('butin', 0.9, 0, 3); break;
+        case 'cle': if (e.id === idMoi && e.quoi === 'trouvee') jouer('cle', 0.9); break;
+        case 'verrou': if (e.id === idMoi) jouer('refus', 0.7); break;
       }
     }
   }

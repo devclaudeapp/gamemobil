@@ -43,7 +43,10 @@ const PUI = (() => {
     try { return R.normaliserReglages(r, { humains: humains || 1 }); } catch (e) { signaler('reglages', e); return Object.assign({}, r); }
   }
   const DEFAUT = () => ({ v: 2, reglages: { sensibilite: 1, sensibiliteVisee: 1, visee: 'auto', course: 'joystick', inverserY: false, gaucher: false, tirAuto: true, qualite: 'auto', balancement: 'normal', son: true, vibre: true, nom: '', pseudo: '' },
-    records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 } }, choix: { equip: equipDefaut(), reglages: reglagesDefaut(false), salon: reglagesDefaut(true) }, derniere: 0 });
+    records: { arene: { meilleur: 0, parties: 0, eliminations: 0, victoires: 0, serie: 0 }, extraction: { meilleur: 0, parties: 0, sorties: 0, valeur: 0, eliminations: 0 } },
+    choix: { equip: equipDefaut(), reglages: reglagesDefaut(false), salon: reglagesDefaut(true), parMode: {} }, coffre: coffreVide(), derniere: 0 });
+  // le coffre personnel (mode Extraction) : les pièces, les objets rapportés (les derniers), les améliorations achetées { id: niveau }
+  const coffreVide = () => { const B = typeof PBUTIN !== 'undefined' && PBUTIN; if (B && typeof B.coffreVide === 'function') { try { return B.coffreVide(); } catch (e) { /* repli */ } } return { pieces: 0, objets: [], ameliorations: {} }; };
   let sauv = DEFAUT(), carte = null, monde = null, rendu3d = false, jeu = null, ecran = 'chargement', retourReglages = 'titre', avantPause = 'partie', optsPartie = null;
   let J, A, RENDU, CARTEPROV, MONDE; // les modules, résolus au démarrage
   let aideVue = null; // l'aide à la visée du dernier pas (le viseur « sur la cible » des images où avantImage rend des événements)
@@ -64,7 +67,8 @@ const PUI = (() => {
     try { s = JSON.parse(localStorage.getItem(CLE) || 'null'); } catch (e) { s = null; }
     if (!s || s.v !== 2) { let v1 = null; try { v1 = JSON.parse(localStorage.getItem(CLE_V1) || 'null'); } catch (e) { v1 = null; } s = v1 && v1.v === 1 ? v1 : null; }
     if (!s) return d;
-    Object.assign(d.reglages, s.reglages || {}); Object.assign(d.records.arene, (s.records && s.records.arene) || {}); d.derniere = s.derniere || 0;
+    Object.assign(d.reglages, s.reglages || {}); Object.assign(d.records.arene, (s.records && s.records.arene) || {}); Object.assign(d.records.extraction, (s.records && s.records.extraction) || {}); d.derniere = s.derniere || 0;
+    d.coffre = coffreValide(s.coffre);
     const c = s.choix && typeof s.choix === 'object' ? s.choix : {}, objet = (o) => !!o && typeof o === 'object' && !Array.isArray(o);
     // les réglages de partie : choix.reglages (solo) et choix.salon ; sinon repris des anciens choix (format, bots, niveau, armes, armesSalon)
     const solo = objet(c.reglages) ? c.reglages : Object.assign(reglagesDefaut(false), c.format != null ? { equipes: c.format === 'equipes' } : {}, c.bots != null ? { bots: +c.bots } : {}, c.niveau ? { niveau: c.niveau } : {}, Array.isArray(c.armes) ? { armes: c.armes } : {});
@@ -72,7 +76,18 @@ const PUI = (() => {
     d.choix.reglages = normaliser(Object.assign(reglagesDefaut(false), solo), 1); if (!(d.choix.reglages.bots > 0)) d.choix.reglages.bots = 1; // seul, au moins un robot
     d.choix.salon = normaliser(Object.assign(reglagesDefaut(true), salon), 1);
     d.choix.equip = equipValide(c.equip, d.choix.reglages.armes);
+    d.choix.parMode = objet(c.parMode) ? c.parMode : {};
     return d;
+  }
+  function coffreValide(c) { // un coffre lu (sauvegarde, ou rendu par PBUTIN) : PBUTIN.lireCoffre (coffre v2) s'il existe ; sinon borné ici
+    const B = BUT(); if (B && typeof B.lireCoffre === 'function') { try { const k = B.lireCoffre(c); if (k && typeof k === 'object') return k; } catch (e) { signaler('PBUTIN.lireCoffre', e); } }
+    const o = coffreVide(); if (!c || typeof c !== 'object') return o;
+    o.pieces = Math.max(0, Math.min(1e9, Math.round(+c.pieces || 0)));
+    if (Array.isArray(c.objets)) o.objets = c.objets.filter((x) => x && typeof x === 'object').slice(-200);
+    const a = c.ameliorations && typeof c.ameliorations === 'object' ? c.ameliorations : {};
+    for (const k in a) { const n = Math.round(+a[k]); if (n > 0 && n < 20 && /^[\w-]{1,24}$/.test(k)) o.ameliorations[k] = n; }
+    for (const k in c) if (!(k in o)) o[k] = c[k]; // ce que PBUTIN y range d'autre (historique…) reste
+    return o;
   }
   // les armes permises et l'équipement, validés par PREGLES (une arme inconnue — l'arsenal a changé — prend le défaut)
   function armesValides(l) { if (!R) return Array.isArray(l) ? l.slice() : []; try { return R.armesPermises ? R.armesPermises(Array.isArray(l) ? l : armesDefaut()) : (Array.isArray(l) ? l : armesDefaut()).filter((id) => R.estArme(id)); } catch (e) { return armesDefaut(); } }
@@ -105,6 +120,7 @@ const PUI = (() => {
     if (nom === 'copains') majCopains();
     if (nom === 'salon') majSalon();
     if (nom === 'options') { armesVues = ''; optVus = ''; vignetteVue = ''; majOptions(); }
+    if (nom === 'coffre') majCoffre();
   }
   function majTitre() {
     const a = sauv.records.arene, r = $('#records');
@@ -186,22 +202,51 @@ const PUI = (() => {
     heure: { jour: 'Jour', soir: 'Soir', nuit: 'Nuit' }, meteo: { clair: 'Clair', brouillard: 'Brouillard', pluie: 'Pluie' },
     vie: { normale: 'Normale', unCoup: 'Un coup', costaud: 'Costaud' },
     reapparition: { rapide: 'Rapide', normale: 'Normale', lente: 'Lente', aucune: 'Dernier debout' },
-    niveau: { facile: 'Facile', normal: 'Normal', fort: 'Fort' }, robots: { facile: ['facile', 'faciles'], normal: ['malin', 'malins'], fort: ['redoutable', 'redoutables'] },
+    niveau: { facile: 'Facile', normal: 'Normal', fort: 'Fort' }, gardiens: { facile: 'Endormis', normal: 'Vigilants', fort: 'Redoutables' },
+    mode: { arene: 'Arène', extraction: 'Extraction' }, robots: { facile: ['facile', 'faciles'], normal: ['malin', 'malins'], fort: ['redoutable', 'redoutables'] },
   };
   const SAL = (k, defaut) => (R && R.SALON && R.SALON[k] ? R.SALON[k] : defaut);
+  // ─── le mode Extraction (PEXTRACTION, PBUTIN : le groupe des règles ; lus avec un repli tolérant, résolus à chaque usage) ───
+  const EXT = () => (typeof PEXTRACTION !== 'undefined' && PEXTRACTION && typeof PEXTRACTION === 'object' ? PEXTRACTION : null);
+  const BUT = () => (typeof PBUTIN !== 'undefined' && PBUTIN && typeof PBUTIN === 'object' ? PBUTIN : null);
+  const MX = () => (R && R.MODES && R.MODES.extraction) || null; // les chiffres du mode (durée, durées permises, zone conseillée…)
+  const extractionDispo = () => !!(EXT() && MX());
+  const modeDe = (r) => (r && r.mode === 'extraction' && extractionDispo() ? 'extraction' : 'arene');
+  const DUREES_EXT = [300, 480, 720];
+  const dureesDe = (m) => (m === 'extraction' ? ((MX() && Array.isArray(MX().durees) && MX().durees.length ? MX().durees : null) || DUREES_EXT) : ((R && R.MODES && R.MODES.arene && R.MODES.arene.durees) || SAL('durees', [180, 300, 600, 0])).filter((d) => [180, 300, 600, 0].indexOf(d) >= 0));
+  const ZONES_EXT = () => (MX() && Array.isArray(MX().zones) && MX().zones.length ? MX().zones : ['bourg', 'tout']); // les zones conseillées
+  const defautsMode = (m) => (m === 'extraction' ? { zone: (MX() && MX().zone) || ZONES_EXT()[0], duree: (MX() && MX().duree) || 480 } : { zone: (R && R.DEFAUT_REGLAGES && R.DEFAUT_REGLAGES.zone) || 'centre', duree: (R && R.MODES && R.MODES.arene && R.MODES.arene.duree) || 180 });
+  // les améliorations du coffre personnel : PBUTIN.AMELIORATIONS si le groupe des règles les donne ; sinon ces quatre-là (bornées)
+  const AMELIO_REPLI = [
+    { id: 'sac', nom: 'Sac plus grand', effet: '+2 places dans le sac', prix: [300, 700, 1500] },
+    { id: 'ouverture', nom: 'Ouverture rapide', effet: 'Les coffres s’ouvrent 15 % plus vite', prix: [250, 600, 1200] },
+    { id: 'armure', nom: 'Armure de départ', effet: '+25 d’armure au départ', prix: [400, 1000] },
+    { id: 'chargeur', nom: '2e chargeur', effet: 'Un chargeur de plus pour la principale', prix: [500] },
+  ];
+  function ameliorations() {
+    const B = BUT(); let cat = B && B.catalogue; if (typeof cat === 'function') { try { cat = cat.call(B, 'ameliorations'); } catch (e) { cat = null; } }
+    let l = B && (B.AMELIORATIONS || (Array.isArray(B.ameliorations) ? B.ameliorations : null) || (cat && (Array.isArray(cat) ? cat : cat.ameliorations))); if (l && !Array.isArray(l) && typeof l === 'object') l = Object.keys(l).map((id) => Object.assign({ id }, l[id]));
+    if (!Array.isArray(l) || !l.length) l = AMELIO_REPLI;
+    return l.filter((a) => a && a.id).map((a) => { const prix = Array.isArray(a.prix) ? a.prix.map(Number) : Array.isArray(a.couts) ? a.couts.map(Number) : [+a.prix || 500];
+      const txt = typeof a.effet === 'string' ? a.effet : a.texte || a.description || '';
+      return { id: String(a.id), nom: a.nom || a.titre || String(a.id), effet: txt ? txt.charAt(0).toUpperCase() + txt.slice(1) : '', prix, max: +a.max || +a.niveaux || prix.length, ico: a.icone || a.id }; });
+  }
   const nomZone = (id) => { try { if (typeof PZONES !== 'undefined' && PZONES.NOMS && PZONES.NOMS[id]) return PZONES.NOMS[id]; } catch (e) { /* repli */ } return T.zone[id] || String(id || ''); };
   const pluriel = (n, mot, pl) => `${n} ${n > 1 ? pl || mot + 's' : mot}`;
   const dureeTxt = (d) => (d > 0 ? `${Math.round(d / 60)} min` : '∞');
   const robotsTxt = (r) => (r.bots > 0 ? `${pluriel(r.bots, 'robot')} ${(T.robots[r.niveau] || ['', ''])[r.bots > 1 ? 1 : 0]}` : 'Aucun robot');
   const delaiTxt = (r) => { const t = SAL('reapparitions', {})[r.reapparition]; return t > 0 ? `Retour au jeu au bout de ${t} s` : ''; };
-  function partieTxt(r) { // « Chacun pour soi · 3 min · premier à 25 » ; « 2 équipes · dernier debout, 3 manches · un coup »
+  function partieTxt(r) { // « Chacun pour soi · 3 min · premier à 25 » ; « 2 équipes · dernier debout, 3 manches · un coup » ; « Extraction · 8 min · seul »
+    if (modeDe(r) === 'extraction') return `Extraction · ${dureeTxt(r.duree)} · ${optCtx === 'salon' && ctl ? (formatDe(r) === 'equipes' ? `${r.equipesExtraction === 3 ? 3 : 2} équipes rivales` : FORMATS_TXT[formatDe(r)]) : 'seul'}` + (r.vie && r.vie !== 'normale' ? ' · ' + (T.vie[r.vie] || r.vie).toLowerCase() : '');
     return (r.equipes ? '2 équipes' : 'Chacun pour soi') + ' · ' + (r.reapparition === 'aucune' ? `dernier debout, ${pluriel(r.manches, 'manche')}` : `${r.duree > 0 ? dureeTxt(r.duree) : 'sans limite'} · premier à ${r.score}`)
       + (r.vie && r.vie !== 'normale' ? ' · ' + (T.vie[r.vie] || r.vie).toLowerCase() : '');
   }
   function descPartie(r) { // la phrase de la carte Arène
+    if (modeDe(r) === 'extraction') return `${nomZone(r.zone)} : ${dureeTxt(r.duree)} pour fouiller les coffres et sortir par le pont ou la cale.`;
     return `${nomZone(r.zone)} : ` + (r.reapparition === 'aucune' ? `dernier debout en ${pluriel(r.manches, 'manche')}, sans réapparition.` : `${r.duree > 0 ? `${Math.round(r.duree / 60)} minutes` : 'sans limite de temps'}, le premier à ${r.score} repeints gagne.`);
   }
   function phraseSolo(r) {
+    if (modeDe(r) === 'extraction') return 'Fouille les coffres, évite les gardiens, sors avant la fin : ce qui reste dans ton sac est perdu.';
     const b = r.bots, adj = (n) => (T.robots[r.niveau] || ['', ''])[n > 1 ? 1 : 0];
     if (r.equipes) { const al = Math.floor(b / 2), en = b - al; return al ? `Toi et ${pluriel(al, 'robot allié', 'robots alliés')} contre ${pluriel(en, 'robot')} ${adj(en)}.` : `Toi contre ${pluriel(en, 'robot')} ${adj(en)}, en équipes.`; }
     return `Toi contre ${pluriel(b, 'robot')} ${adj(b)}, chacun pour soi.`;
@@ -213,12 +258,16 @@ const PUI = (() => {
     const tot = listeArmes('principale').length + listeArmes('secondaire').length, n = Array.isArray(r.armes) ? r.armes.length : tot;
     const armes = q && q.p ? `<span class="eq-ico">${icoA(q.p)}</span>${echapA(nomA(q.p))} + ${echapA(nomA(q.s))}${n < tot ? ` <small>${n}/${tot} permises</small>` : ''}` : '';
     return ligne('carte', 'Carte', echapA(`${nomZone(r.zone)} · ${T.heure[r.heure] || r.heure} · ${T.meteo[r.meteo] || r.meteo}`)) + ligne('partie', 'Partie', echapA(partieTxt(r)))
-      + ligne('robots', 'Robots', echapA(robotsTxt(r))) + ligne('armes', 'Armes', armes);
+      + ligne('robots', 'Robots', echapA(modeDe(r) === 'extraction' ? `Gardiens ${(T.gardiens[r.niveau] || r.niveau || '').toLowerCase()}` : robotsTxt(r))) + ligne('armes', 'Armes', armes);
   }
 
   // ─── choix du mode : la carte Arène résume les réglages du solo ───
   function majModes() {
-    const r = reglagesSolo(), q = equipValide(sauv.choix.equip, r.armes);
+    const r = reglagesSolo(), q = equipValide(sauv.choix.equip, r.armes), m = modeDe(r), dispo = extractionDispo();
+    const cm = $('#carte-mission'); if (cm) cm.classList.toggle('extraction', m === 'extraction'); // (la classe arene reste : la mise en page de la carte de mission)
+    $$('#carte-mission .cm-modes button').forEach((b) => { b.setAttribute('aria-pressed', String(b.dataset.v === m)); if (b.dataset.v === 'extraction') { b.disabled = !dispo; b.title = dispo ? '' : 'Bientôt'; } });
+    const eb = $('#extraction-bientot'), bcf = $('#b-coffre'); if (eb) eb.hidden = dispo; if (bcf) bcf.hidden = !dispo;
+    if (dispo) { const c = sauv.coffre, n = Object.keys(c.ameliorations || {}).reduce((a, k) => a + (c.ameliorations[k] | 0), 0); const p = $('#coffre-pieces'); if (p) p.textContent = nombreTxt(c.pieces); const rs = $('#coffre-resume'); if (rs) rs.textContent = n ? `${pluriel(n, 'amélioration')} · ${pluriel(sauv.records.extraction.sorties || 0, 'sortie réussie', 'sorties réussies')}` : 'Le butin rapporté, et des améliorations pour l’Extraction.'; }
     const rs = $('#resume-solo'), cle = JSON.stringify(r) + q.p + q.s; if (rs && rs._cle !== cle) { rs._cle = cle; rs.innerHTML = resumeHtml(r, q); }
     $('#resume-arene').textContent = phraseSolo(r);
     const d = $('#arene-desc'); if (d) d.textContent = descPartie(r);
@@ -227,6 +276,117 @@ const PUI = (() => {
   }
   function reglagesSolo() { const r = normaliser(sauv.choix.reglages, 1); if (!(r.bots > 0)) r.bots = 1; return r; } // seul : au moins un robot
   function choixPartie() { const r = reglagesSolo(); r.equip = equipValide(sauv.choix.equip, r.armes); return r; }
+
+  // ─── le coffre personnel : les pièces, le MATÉRIEL ramené (armes réelles, armures, soins, munitions, objets de valeur : « Vendre »), les
+  // améliorations ; il servira aussi aux prochains modes (Défense de Poncin, Raid sur les QG robots) : les onglets sont une liste
+  // (ONGLETS_COFFRE : id, titre, une page data-page dans #cf-corps, sa fonction de mise à jour) où l'on ajoutera « Base » et « Raid ».
+  // L'API du coffre est celle de PBUTIN (butin.js, groupe des règles) : lister(coffre) → objets, vendre(coffre, uid) → { coffre, pieces } |
+  // coffre, rendre(coffre, objets) (ce qui est sorti d'une partie), depenser(coffre, n), acheter(coffre, id), catalogue (les améliorations…),
+  // prixVente(objet) ; tout est lu avec un repli tolérant (sans PBUTIN : le repli d'ici, sur sauv.coffre). Rien de tout ça n'entre en Arène.
+  const nombreTxt = (n) => String(Math.max(0, Math.round(+n || 0))).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+  const RARETES = { commun: 'Commun', rare: 'Rare', epique: 'Épique', legendaire: 'Légendaire' };
+  const TYPES_OBJ = { arme: 'Arme', armure: 'Armure', soin: 'Soin', munitions: 'Munitions', valeur: 'Objet de valeur' };
+  const rareteDe = (o) => { try { return PHUD.rarete(o); } catch (e) { return 'commun'; } };
+  const valeurDe = (o) => Math.max(0, Math.round(+(o && (o.valeur != null ? o.valeur : o.prix != null ? o.prix : o.pieces)) || 0));
+  const armeObj = (o) => { const a = o && (o.arme || (o.type === 'arme' ? o.id : null)); return typeof a === 'string' && R && R.estArme(a) ? a : null; };
+  const typeObj = (o) => { const t = o && (o.type || o.genre || o.sorte); if (armeObj(o)) return 'arme'; return TYPES_OBJ[t] ? t : t === 'objet' || t === 'tresor' ? 'valeur' : 'valeur'; };
+  const nomObjet = (o) => (o && (o.nom || o.libelle || (armeObj(o) ? nomA(armeObj(o)) : o.id))) || 'Objet';
+  const prixVente1 = (o) => { if (o && o.prix != null && +o.prix >= 0) return Math.round(+o.prix); const B = BUT(); if (B && typeof B.prixVente === 'function') { try { const v = +B.prixVente(o); if (v >= 0) return Math.round(v); } catch (e) { /* repli */ } } return valeurDe(o); };
+  const prixVente = (o) => prixVente1(o) * (o && o.type !== 'arme' && +o.n > 1 ? +o.n : 1); // toute la pile
+  const niveauAmelio = (id) => { const B = BUT(); if (B && typeof B.niveau === 'function') { try { return Math.max(0, B.niveau(sauv.coffre, id) | 0); } catch (e) { /* repli */ } } return Math.max(0, (sauv.coffre.ameliorations || {})[id] | 0); };
+  const copie = (o) => JSON.parse(JSON.stringify(o));
+  function appelCoffre(nom, ...args) { // PBUTIN[nom](coffre copié, …) → { ok, coffre, r } ; le coffre rendu (ou modifié en place) remplace le nôtre
+    const B = BUT(), f = B && (typeof B[nom] === 'function' ? B[nom] : B.coffre && typeof B.coffre[nom] === 'function' ? B.coffre[nom] : null); if (!f) return null;
+    try { const c0 = copie(sauv.coffre), r = f.call(B, c0, ...args), c1 = r && typeof r === 'object' && !Array.isArray(r) ? (r.coffre && typeof r.coffre === 'object' ? r.coffre : r.pieces != null && (r.objets || r.ameliorations) ? r : c0) : c0;
+      const ok = r !== false && !(r && r.ok === false); if (ok) sauv.coffre = coffreValide(c1); return { ok, r };
+    } catch (e) { signaler('PBUTIN.' + nom, e); return { ok: false, r: null }; }
+  }
+  function materiel() { // les objets du coffre (PBUTIN.lister, sinon coffre.objets), chacun avec son uid
+    const B = BUT(); let l = null;
+    if (B && typeof B.lister === 'function') { try { l = B.lister(copie(sauv.coffre)); } catch (e) { signaler('PBUTIN.lister', e); l = null; } }
+    if (!Array.isArray(l)) l = sauv.coffre.objets || [];
+    return l.filter((o) => o && typeof o === 'object').map((o, i) => ({ o, uid: o.ref != null ? o.ref : o.uid != null ? o.uid : i }));
+  }
+  const ONGLETS_COFFRE = [{ id: 'materiel', titre: 'Matériel', maj: majMateriel }, { id: 'contrats', titre: 'Contrats', maj: majContrats }, { id: 'ameliorations', titre: 'Améliorations', maj: majAmeliorations }];
+  // la zone de la semaine (PBUTIN.zoneDeLaSemaine : +25 % de pièces) : { id, bonus } | null
+  function zoneSemaine() { const B = BUT(); if (!B || typeof B.zoneDeLaSemaine !== 'function') return null; try { const id = B.zoneDeLaSemaine(Date.now()); return id ? { id, bonus: Math.round((+B.BONUS_SEMAINE || 0.25) * 100) } : null; } catch (e) { return null; } }
+  function majContrats() {
+    const l = contratsDuJour(), el = $('#cf-contrats'), zs = zoneSemaine(), sm = $('#cf-semaine');
+    if (sm) { sm.hidden = !zs; if (zs) sm.innerHTML = `<span class="badge-semaine">Zone de la semaine +${zs.bonus} %</span> ${echapA(nomZone(zs.id))} : ${zs.bonus} % de pièces en plus pour ce que tu en rapportes.`; }
+    if (!el) return;
+    el.innerHTML = l.length ? l.map((c) => `<div class="cf-contrat${c.reclame ? ' reclame' : c.fait ? ' fait' : ''}"><span><b>${echapA(c.texte)}</b><small>${c.prog | 0}/${c.but || 1} · récompense ${nombreTxt(c.recompense)} pièces</small></span>`
+      + (c.reclame ? '<em class="rar r-commun">Réclamé</em>' : `<button type="button" class="bouton ${c.fait ? 'menthe' : 'blanc'}" data-a="reclamer" data-i="${c.i}"${c.fait ? '' : ' disabled'}>Réclamer</button>`) + '</div>').join('')
+      : '<p class="cf-vide">Les contrats du jour arrivent avec l’Extraction.</p>';
+    const t = $('#cf-onglets [data-onglet="contrats"]'), n = l.filter((c) => c.fait && !c.reclame).length; if (t) t.dataset.n = n ? String(n) : '';
+  }
+  function reclamer(i) {
+    const r = appelCoffre('reclamer', +i, Date.now());
+    if (r && r.ok) { sauver(); PSONS.ui('achat'); toast(`Contrat rempli : +${nombreTxt(r.r && r.r.gain)} pièces`); } else toast('Ce contrat n’est pas encore rempli.');
+    if (ecran === 'coffre') majCoffre(); return !!(r && r.ok);
+  }
+  let ongletCoffre = 'materiel';
+  function majCoffre() {
+    const el = $('#cf-pieces'); if (el) el.textContent = nombreTxt(sauv.coffre.pieces);
+    if (!ONGLETS_COFFRE.some((o) => o.id === ongletCoffre)) ongletCoffre = ONGLETS_COFFRE[0].id;
+    const t = $('#cf-onglets'); if (t && t.dataset.n !== String(ONGLETS_COFFRE.length)) { t.dataset.n = String(ONGLETS_COFFRE.length); t.innerHTML = ONGLETS_COFFRE.map((o) => `<button type="button" role="tab" data-a="onglet-coffre" data-onglet="${o.id}">${echapA(o.titre)}</button>`).join(''); }
+    $$('#cf-onglets [role="tab"]').forEach((b) => { const on = b.dataset.onglet === ongletCoffre; b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1; });
+    $$('#cf-corps .cf-page').forEach((p) => { p.hidden = p.dataset.page !== ongletCoffre; });
+    const o = ONGLETS_COFFRE.find((x) => x.id === ongletCoffre); if (o && o.maj) o.maj();
+  }
+  function icoObjet(o) { const a = armeObj(o); if (a) return `<span class="cf-o-ico arme">${icoA(a)}</span>`; return `<span class="cf-o-ico t-${typeObj(o)}" aria-hidden="true"><i></i></span>`; }
+  function majMateriel() {
+    const l = materiel(), el = $('#cf-objets'), n = $('#cf-note-mat'), bt = $('#cf-vendre-tout'), valeurs = l.filter((x) => typeObj(x.o) === 'valeur');
+    if (n) n.textContent = l.length ? `${pluriel(l.length, 'objet')} ramené${l.length > 1 ? 's' : ''} : garde le matériel pour tes prochaines missions, ou vends-le.` : '';
+    if (bt) { bt.hidden = !valeurs.length; bt.textContent = `Vendre les objets de valeur · ${nombreTxt(valeurs.reduce((a, x) => a + prixVente(x.o), 0))}`; }
+    if (!el) return;
+    if (!l.length) { el.innerHTML = '<p class="cf-vide">Ton coffre est vide. Fouille les coffres de Poncin en Extraction et sors vivant : armes, armures, soins, munitions et objets de valeur arrivent ici.</p>'; return; }
+    const ordre = { legendaire: 0, epique: 1, rare: 2, commun: 3 };
+    el.innerHTML = l.slice().sort((a, b) => ordre[rareteDe(a.o)] - ordre[rareteDe(b.o)] || prixVente(b.o) - prixVente(a.o)).map(({ o, uid }) => { const r = rareteDe(o), t = typeObj(o), q = +o.quantite || +o.n || 0;
+      return `<div class="cf-o r-${r}">${icoObjet(o)}<span class="cf-o-t"><b>${echapA(nomObjet(o))}${q > 1 ? ` <small>×${q}</small>` : ''}</b><small><em class="rar r-${r}">${RARETES[r]}</em> ${echapA(t === 'arme' ? classeA(armeObj(o)) : TYPES_OBJ[t])}</small></span>`
+        + `<button type="button" class="bouton blanc cf-vendre" data-a="vendre" data-uid="${echapA(String(uid))}" aria-label="Vendre ${echapA(nomObjet(o))}">Vendre<small><i class="piece" aria-hidden="true"></i>${nombreTxt(prixVente(o))}</small></button></div>`; }).join('');
+  }
+  function majAmeliorations() {
+    const c = sauv.coffre, rec = sauv.records.extraction, l = $('#cf-amelio');
+    if (l) l.innerHTML = ameliorations().map((a) => { const n = Math.min(a.max, niveauAmelio(a.id)), fini = n >= a.max, prix = fini ? 0 : a.prix[Math.min(n, a.prix.length - 1)] || 0, peut = !fini && c.pieces >= prix;
+      return `<div class="cf-am${fini ? ' max' : ''}" data-am="${echapA(a.id)}"><span class="cf-am-ico ico-${echapA(a.ico)}" aria-hidden="true"></span><span class="cf-am-t"><b>${echapA(a.nom)}</b><small>${echapA(a.effet)}</small><i class="cf-niv" aria-label="Niveau ${n} sur ${a.max}">${Array.from({ length: a.max }, (_, k) => `<em class="${k < n ? 'on' : ''}"></em>`).join('')}</i></span>`
+        + `<button type="button" class="bouton ${peut ? 'menthe' : 'blanc'} cf-acheter" data-a="amelio" data-id="${echapA(a.id)}"${fini || !peut ? ' disabled' : ''}>${fini ? 'Au max' : `<i class="piece" aria-hidden="true"></i>${nombreTxt(prix)}`}</button></div>`; }).join('');
+    const r = $('#cf-records'); if (r) r.innerHTML = `<span><b>${nombreTxt(rec.meilleur || 0)}</b> meilleure sortie</span><span><b>${rec.sorties || 0}</b>/${rec.parties || 0} sorties réussies</span><span><b>${nombreTxt(rec.valeur || 0)}</b> rapportés en tout</span>`;
+  }
+  function vendre(uids) {
+    const l = materiel(); let gain = 0, n = 0;
+    for (const uid of uids) {
+      const x = l.find((y) => String(y.uid) === String(uid)); if (!x) continue;
+      const avant = sauv.coffre.pieces, r = appelCoffre('vendre', x.uid, x.o.type !== 'arme' && +x.o.n > 1 ? +x.o.n : undefined);
+      if (r) { if (r.ok) { n++; gain += sauv.coffre.pieces - avant; } continue; }
+      // repli : retiré de coffre.objets, sa valeur en pièces
+      const i = (sauv.coffre.objets || []).indexOf(x.o); if (i < 0) continue; sauv.coffre.objets.splice(i, 1); const v = prixVente(x.o); sauv.coffre.pieces += v; gain += v; n++;
+    }
+    if (n) { sauver(); PSONS.ui('vente'); toast(`${n > 1 ? pluriel(n, 'objet') + ' vendus' : 'Vendu'} : +${nombreTxt(gain)} pièces`); }
+    majCoffre();
+  }
+  function acheterAmelio(id) {
+    const a = ameliorations().find((x) => x.id === id); if (!a) return;
+    const n = niveauAmelio(id); if (n >= a.max) return;
+    const prix = a.prix[Math.min(n, a.prix.length - 1)] || 0; if (sauv.coffre.pieces < prix) { toast('Pas assez de pièces.'); return; }
+    let r = appelCoffre('acheter', id), ok = !!(r && r.ok && niveauAmelio(id) > n);
+    if (!r) { // sans PBUTIN.acheter : dépenser (PBUTIN.depenser, sinon ici), puis le niveau
+      const d = appelCoffre('depenser', prix); if (d && !d.ok) { toast('Pas assez de pièces.'); majCoffre(); return; }
+      if (!d) sauv.coffre.pieces -= prix; if (!sauv.coffre.ameliorations) sauv.coffre.ameliorations = {}; sauv.coffre.ameliorations[id] = n + 1; ok = true;
+    } else if (!ok && r.r && r.r.raison) toast(String(r.r.raison));
+    if (ok) { sauver(); PSONS.ui('achat'); toast(`${a.nom} : niveau ${n + 1} !`); }
+    majCoffre();
+  }
+  // après une partie : ce qui est sorti entre au coffre (PBUTIN.rendre(coffre, objets), ou deposer ; sinon ici), comme matériel à garder ou vendre
+  // b : le bilan du joueur (PHUD.bilanExtraction) ; b.ligne : sa ligne de PEXTRACTION.resultat (objets : ids, materiel, score, extrait)
+  function deposer(b) {
+    const ligne = b && b.ligne ? b.ligne : { objets: b ? b.objets : [], extrait: !!(b && b.sorti), score: b ? b.score : 0 };
+    const r = appelCoffre('deposer', copie(ligne));
+    if (r) return r.ok && r.r && r.r.gain != null ? +r.r.gain : null;
+    // sans PBUTIN : les objets de valeur vendus (leur valeur en pièces), le reste gardé comme matériel
+    let k = Date.now() % 1e6, gain = 0; const garde = [];
+    for (const o0 of (b && b.objets) || []) { const o = typeof o0 === 'object' ? o0 : { id: o0, type: 'valeur' }; if (typeObj(o) === 'valeur') gain += valeurDe(o); else garde.push(Object.assign({ uid: 'u' + (k++).toString(36) }, copie(o))); }
+    sauv.coffre.pieces += gain; sauv.coffre.objets = (sauv.coffre.objets || []).concat(garde).slice(-200); return gain;
+  }
 
   // ─── le panneau des réglages de la partie : commun au solo et au salon (lecture seule chez ceux qui ne sont pas l'hôte) ───
   let optCtx = 'solo', onglet = 'carte', reglagesRecus = null, optVus = '', dernierAnnonce = '';
@@ -249,18 +409,29 @@ const PUI = (() => {
     try { ctl.regler(r); } catch (e) { signaler('réglages du salon', e); }
   }
   // une valeur des boutons (data-v) dans le type du réglage
-  function lireValeur(k, v) { const d = reglagesDefaut(false)[k]; return typeof d === 'boolean' ? v === 'true' : typeof d === 'number' ? +v : v; }
+  function lireValeur(k, v) { if (k === 'equipesExtraction') return +v; if (k === 'formatExtraction') return v; const d = reglagesDefaut(false)[k]; return typeof d === 'boolean' ? v === 'true' : typeof d === 'number' ? +v : v; }
   function regler(k, v) { // un réglage changé : sauvegardé (choix.reglages en solo, choix.salon dans un salon), annoncé par l'hôte
     if (!peutRegler()) return;
-    const cle = enSalon() ? 'salon' : 'reglages', r = Object.assign({}, sauv.choix[cle]); r[k] = v;
+    const cle = enSalon() ? 'salon' : 'reglages', r = Object.assign({}, sauv.choix[cle]);
+    if (k === 'mode') changerMode(r, v, cle); else r[k] = v;
     sauv.choix[cle] = normaliser(r, 1); sauver();
     if (cle === 'salon') { annoncerReglages(); if (k === 'armes') publierEquip(); }
     majOptions();
   }
+  // changer de mode : la zone et la durée du mode quitté sont gardées pour lui (choix.parMode), celles de l'autre reviennent (sinon ses
+  // défauts : l'Extraction dans tout le bourg, 8 min)
+  function changerMode(r, v, cle) {
+    const avant = modeDe(r), apres = v === 'extraction' && extractionDispo() ? 'extraction' : 'arene'; if (avant === apres) { r.mode = apres; return; }
+    const pm = sauv.choix.parMode && typeof sauv.choix.parMode === 'object' ? sauv.choix.parMode : (sauv.choix.parMode = {});
+    const k0 = cle + ':' + avant, k1 = cle + ':' + apres; pm[k0] = { zone: r.zone, duree: r.duree };
+    const g = Object.assign({}, defautsMode(apres), pm[k1] || {});
+    if (dureesDe(apres).indexOf(+g.duree) < 0) g.duree = defautsMode(apres).duree;
+    r.mode = apres; r.zone = g.zone; r.duree = g.duree;
+  }
   function parDefaut() { // tout revient au défaut, sauf les armes permises (elles ont leur onglet)
     if (!peutRegler()) return;
-    const cle = enSalon() ? 'salon' : 'reglages', armes = (sauv.choix[cle] || {}).armes;
-    sauv.choix[cle] = normaliser(Object.assign(reglagesDefaut(cle === 'salon'), Array.isArray(armes) ? { armes } : {}), 1); sauver();
+    const cle = enSalon() ? 'salon' : 'reglages', armes = (sauv.choix[cle] || {}).armes, m = modeDe(sauv.choix[cle]); // le mode reste (ses défauts à lui)
+    sauv.choix[cle] = normaliser(Object.assign(reglagesDefaut(cle === 'salon'), Array.isArray(armes) ? { armes } : {}, m === 'extraction' ? Object.assign({ mode: m }, defautsMode(m)) : {}), 1); sauver();
     if (cle === 'salon') annoncerReglages();
     majOptions(); toast('Réglages remis par défaut.');
   }
@@ -270,22 +441,33 @@ const PUI = (() => {
       { k: 'heure', titre: 'Heure', vals: () => SAL('heures', ['jour', 'soir', 'nuit']).map((v) => [v, T.heure[v] || v]) },
       { k: 'meteo', titre: 'Météo', vals: () => SAL('meteos', ['clair', 'brouillard', 'pluie']).map((v) => [v, T.meteo[v] || v]) },
     ],
-    partie: [ // en paysage, deux colonnes : Format | Tir allié ; Réapparition (toute la largeur) ; Manches | Durée ; Premier à | Vie ; Objets | Aide
-      { k: 'equipes', titre: 'Format', vals: () => [[false, 'Chacun pour soi'], [true, '2 équipes']] },
-      { k: 'tirAllie', titre: 'Tir allié', vals: () => [[false, 'Non'], [true, 'Oui']], actif: (r) => r.equipes, aide: (r) => (r.equipes ? (r.tirAllie ? 'Repeindre un équipier : −100 points' : 'Les équipiers ne se blessent pas') : 'En équipes seulement') },
-      { k: 'reapparition', titre: 'Réapparition', vals: () => Object.keys(SAL('reapparitions', T.reapparition)).map((v) => [v, T.reapparition[v] || v]), aide: (r) => (r.reapparition === 'aucune' ? 'Pas de retour : le dernier en lice gagne la manche' : delaiTxt(r)) },
-      { k: 'manches', titre: 'Manches', vals: () => SAL('manches', [1, 3, 5]).map((v) => [v, String(v)]), actif: (r) => r.reapparition === 'aucune', aide: (r) => (r.reapparition === 'aucune' ? 'Le plus de manches gagnées l’emporte' : 'Avec « Dernier debout »') },
-      { k: 'duree', titre: 'Durée', vals: () => SAL('durees', [180, 300, 600, 0]).map((v) => [v, dureeTxt(v)]), aide: (r) => (r.duree > 0 ? '' : 'Sans limite de temps') },
-      { k: 'score', titre: 'Premier à', vals: () => SAL('scores', [10, 25, 50]).map((v) => [v, String(v)]), actif: (r) => r.reapparition !== 'aucune', aide: (r) => (r.reapparition === 'aucune' ? 'Pas en « Dernier debout »' : 'repeints pour gagner') },
+    // en paysage, deux colonnes ; Arène : Mode (toute la largeur) ; Format | Tir allié ; Réapparition (toute la largeur) ; Manches | Durée ;
+    // Premier à | Vie ; Objets | Aide. Extraction : Mode ; (en salon : Format | Tir allié) ; Durée | Vie ; Aide. modes : les modes où la ligne sert
+    partie: [
+      { k: 'mode', titre: 'Mode', vals: () => [['arene', 'Arène'], ['extraction', 'Extraction', !extractionDispo()]], aide: (r) => (!extractionDispo() ? 'L’Extraction arrive bientôt' : modeDe(r) === 'extraction' ? 'Fouille, ramène le butin, sors à temps' : 'Repeins les robots, le premier au score gagne') },
+      { k: 'equipes', titre: 'Format', modes: ['arene'], vals: () => [[false, 'Chacun pour soi'], [true, '2 équipes']] },
+      { k: 'formatExtraction', titre: 'Format', modes: ['extraction'], salon: true, vals: () => [['ensemble', 'Ensemble'], ['equipes', 'Équipes rivales'], ['chacun', 'Chacun pour soi']],
+        aide: (r) => ({ ensemble: 'Tous contre les gardiens ; on se relève', equipes: 'Les équipes se disputent le butin ; prime sur le plus riche', chacun: 'Chacun son butin ; on pille les sacs des autres' }[formatDe(r)] || '') },
+      { k: 'equipesExtraction', titre: 'Équipes', modes: ['extraction'], salon: true, vals: () => [[2, '2 équipes'], [3, '3 équipes']], actif: (r) => formatDe(r) === 'equipes', aide: (r) => (formatDe(r) === 'equipes' ? 'Réparties de façon équilibrée' : 'Avec « Équipes rivales »') },
+      { k: 'tirAllie', titre: 'Tir allié', vals: () => [[false, 'Non'], [true, 'Oui']], salonExt: true, actif: (r) => r.equipes, aide: (r) => (r.equipes ? (r.tirAllie ? 'Repeindre un équipier : −100 points' : 'Les équipiers ne se blessent pas') : 'En équipes seulement') },
+      { k: 'reapparition', titre: 'Réapparition', modes: ['arene'], vals: () => Object.keys(SAL('reapparitions', T.reapparition)).map((v) => [v, T.reapparition[v] || v]), aide: (r) => (r.reapparition === 'aucune' ? 'Pas de retour : le dernier en lice gagne la manche' : delaiTxt(r)) },
+      { k: 'manches', titre: 'Manches', modes: ['arene'], vals: () => SAL('manches', [1, 3, 5]).map((v) => [v, String(v)]), actif: (r) => r.reapparition === 'aucune', aide: (r) => (r.reapparition === 'aucune' ? 'Le plus de manches gagnées l’emporte' : 'Avec « Dernier debout »') },
+      { k: 'duree', titre: 'Durée', vals: (r) => dureesDe(modeDe(r)).map((v) => [v, dureeTxt(v)]), aide: (r) => (modeDe(r) === 'extraction' ? `Les sorties s’ouvrent à ${dureeTxt(Math.round((r.duree || 480) / 2))}` : r.duree > 0 ? '' : 'Sans limite de temps') },
+      { k: 'score', titre: 'Premier à', modes: ['arene'], vals: () => SAL('scores', [10, 25, 50]).map((v) => [v, String(v)]), actif: (r) => r.reapparition !== 'aucune', aide: (r) => (r.reapparition === 'aucune' ? 'Pas en « Dernier debout »' : 'repeints pour gagner') },
       { k: 'vie', titre: 'Vie', vals: () => Object.keys(SAL('vies', T.vie)).map((v) => [v, T.vie[v] || v]), aide: (r) => { const v = SAL('vies', {})[r.vie]; return v && v.vie ? `${v.vie} PV${v.armureMax ? `, armure ${v.armureMax}` : ', ni soin ni armure'}` : ''; } },
-      { k: 'objets', titre: 'Objets au sol', vals: () => [[true, 'Oui'], [false, 'Non']], aide: () => 'Armes, soins, armures, munitions' },
+      { k: 'objets', titre: 'Objets au sol', modes: ['arene'], vals: () => [[true, 'Oui'], [false, 'Non']], aide: () => 'Armes, soins, armures, munitions' },
       { k: 'aide', titre: 'Aide à la visée', vals: () => [[true, 'Permise'], [false, 'Coupée']], aide: (r) => (r.aide ? 'Au doigt : ralentit et tire tout seul' : 'Pour tout le monde, robots non compris') },
     ],
     robots: [
-      { k: 'bots', titre: 'Robots', vals: (r, h) => { const max = MAX_JOUEURS() - h, l = []; for (let n = enSalon() ? 0 : 1; n <= MAX_JOUEURS() - 1; n++) l.push([n, String(n), n > max]); return l; }, aide: (r, h) => (enSalon() ? `${pluriel(h, 'joueur')} + ${pluriel(r.bots, 'robot')} (6 au plus)` : `Toi + ${pluriel(r.bots, 'robot')}`) },
-      { k: 'niveau', titre: 'Niveau', vals: () => Object.keys(R && R.BOTS ? R.BOTS : T.niveau).map((v) => [v, T.niveau[v] || v]), actif: (r) => r.bots > 0, aide: (r) => ({ facile: 'Ils visent mal et réagissent lentement', normal: 'Des robots malins', fort: 'Rapides et précis' }[r.niveau] || '') },
+      { k: 'bots', titre: 'Robots', modes: ['arene'], vals: (r, h) => { const max = MAX_JOUEURS() - h, l = []; for (let n = enSalon() ? 0 : 1; n <= MAX_JOUEURS() - 1; n++) l.push([n, String(n), n > max]); return l; }, aide: (r, h) => (enSalon() ? `${pluriel(h, 'joueur')} + ${pluriel(r.bots, 'robot')} (6 au plus)` : `Toi + ${pluriel(r.bots, 'robot')}`) },
+      { k: 'niveau', titre: 'Niveau', modes: ['arene'], vals: () => Object.keys(R && R.BOTS ? R.BOTS : T.niveau).map((v) => [v, T.niveau[v] || v]), actif: (r) => r.bots > 0, aide: (r) => ({ facile: 'Ils visent mal et réagissent lentement', normal: 'Des robots malins', fort: 'Rapides et précis' }[r.niveau] || '') },
+      { k: 'niveau', titre: 'Gardiens', modes: ['extraction'], vals: () => Object.keys(R && R.BOTS ? R.BOTS : T.niveau).map((v) => [v, T.gardiens[v] || v]), aide: (r) => ({ facile: 'Peu nombreux, ils visent mal', normal: 'Des groupes près des beaux coffres, des patrouilles', fort: 'Nombreux, rapides et précis' }[r.niveau] || '') },
     ],
   };
+  const formatDe = (r) => (r && ['ensemble', 'equipes', 'chacun'].indexOf(r.formatExtraction) >= 0 ? r.formatExtraction : r && r.equipes === false ? 'chacun' : 'ensemble'); // l'Extraction à plusieurs
+  const FORMATS_TXT = { ensemble: 'ensemble', equipes: 'équipes rivales', chacun: 'chacun pour soi' };
+  // les lignes d'un onglet pour ce mode (et ce contexte : certaines ne servent qu'à plusieurs)
+  const lignesDe = (p, r) => { const m = modeDe(r); return LIGNES[p].filter((L) => (!L.modes || L.modes.indexOf(m) >= 0) && !(L.salon && !enSalon()) && !(L.salonExt && m === 'extraction' && !enSalon())); };
   function ligneHtml(L, r, peut, h) {
     const actif = !L.actif || L.actif(r), v = String(r[L.k]), aide = typeof L.aide === 'function' ? L.aide(r, h) : L.aide || '';
     return `<div class="opt op-l${actif ? '' : ' inactif'}" data-k="${L.k}"><span><b>${L.titre}</b>${aide ? `<small>${echapA(aide)}</small>` : ''}</span><div class="seg" role="group" aria-label="${echapA(L.titre)}">`
@@ -304,9 +486,12 @@ const PUI = (() => {
     const cle = [optCtx, peut, h, JSON.stringify(r)].join('|');
     if (cle !== optVus) {
       optVus = cle;
-      for (const p of ['carte', 'partie', 'robots']) { const c = $(`#e-options [data-lignes="${p}"]`); if (c) c.innerHTML = LIGNES[p].map((L) => ligneHtml(L, r, peut, h)).join(''); }
-      const z = $('#op-zones'); if (z) z.innerHTML = SAL('zones', Object.keys(T.zone)).map((id) => `<button type="button" class="op-zone" data-a="oopt" data-k="zone" data-v="${echapA(id)}" aria-pressed="${id === r.zone}"${peut ? '' : ' disabled'}><b>${echapA(nomZone(id))}</b><small>${echapA(T.conseil[id] || '')}</small></button>`).join('');
-      const n = $('#op-robots-note'); if (n) n.textContent = enSalon() ? (peut ? 'Les robots complètent le salon : 6 joueurs au plus, robots compris.' : 'C’est l’hôte qui choisit les robots.') : 'Les robots s’équipent parmi les armes permises.';
+      const ext = modeDe(r) === 'extraction';
+      for (const p of ['carte', 'partie', 'robots']) { const c = $(`#e-options [data-lignes="${p}"]`); if (c) { c.innerHTML = lignesDe(p, r).map((L) => ligneHtml(L, r, peut, h)).join(''); c.dataset.mode = modeDe(r); } }
+      const zs = zoneSemaine(), z = $('#op-zones'); if (z) z.innerHTML = SAL('zones', Object.keys(T.zone)).map((id) => { const cons = ext ? (ZONES_EXT().indexOf(id) >= 0 ? (id === ZONES_EXT()[0] ? 'Conseillée' : 'Conseillée · grande') : 'Petite pour fouiller') : T.conseil[id] || '';
+        const sem = ext && zs && zs.id === id ? `<em class="semaine">Zone de la semaine +${zs.bonus} %</em>` : '';
+        return `<button type="button" class="op-zone${ext && ZONES_EXT().indexOf(id) >= 0 ? ' conseil' : ''}${sem ? ' de-la-semaine' : ''}" data-a="oopt" data-k="zone" data-v="${echapA(id)}" aria-pressed="${id === r.zone}"${peut ? '' : ' disabled'}><b>${echapA(nomZone(id))}</b>${sem || `<small>${echapA(cons)}</small>`}</button>`; }).join('');
+      const n = $('#op-robots-note'); if (n) n.textContent = ext ? 'Les gardiens veillent sur les beaux coffres et patrouillent ; ils s’équipent parmi les armes permises.' : enSalon() ? (peut ? 'Les robots complètent le salon : 6 joueurs au plus, robots compris.' : 'C’est l’hôte qui choisit les robots.') : 'Les robots s’équipent parmi les armes permises.';
     }
     if (onglet === 'carte') vignette(r.zone);
     if (onglet === 'armes') majArmes();
@@ -402,15 +587,19 @@ const PUI = (() => {
       const graine = o.graine != null ? o.graine >>> 0 : ((Date.now() ^ Math.floor(Math.random() * 4294967296)) >>> 0);
       if (ctl) quitterSalon(); // une partie seul : on quitte le salon éventuel
       // les options : les réglages normalisés (§ 6 ; en solo, ceux du panneau, que les tests peuvent surcharger), l'équipement validé
-      const options = normaliser(o, 1);
-      jeu = J.creer({ monde, carte, mode: A, graine, options });
+      const options = normaliser(o, 1), ext = modeDe(options) === 'extraction';
+      jeu = J.creer(Object.assign({ monde, carte, mode: ext ? EXT() : A, graine, options }, ext ? { humains: 1, maintenant: Date.now() } : {})); // (maintenant : la zone de la semaine)
       const nom = (sauv.reglages.nom || '').trim() || 'Toi';
       idMoi = 'moi'; enLigne = false; partieL = null; entrees = { moi: null };
-      jeu.ajouterJoueur({ id: 'moi', nom, couleur: '#FFC84A', equipe: o.equipes ? 0 : 'moi', humain: true, equip: equipValide(o.equip, options.armes) });
+      // en Extraction, les améliorations du coffre personnel partent avec le joueur (jamais en Arène)
+      const d = { id: 'moi', nom, couleur: '#FFC84A', equipe: o.equipes || ext ? 0 : 'moi', humain: true, equip: equipValide(o.equip, options.armes) };
+      if (ext) d.ameliorations = Object.assign({}, sauv.coffre.ameliorations);
+      jeu.ajouterJoueur(d);
     } catch (e) { signaler('jeu.creer', e); jeu = null; oups('La partie n’a pas pu démarrer', 'Recharge la page et réessaie.'); return false; }
     optsPartie = Object.assign({}, o, { reglages: normaliser(o, 1) }); finTraitee = false; surDepuis = 0; aideVue = null; erreursEtape = 0; serie = 0; serieMax = 0; elims = 0; force = null; remettrePas();
-    try { PHUD.reinit({ equipes: !!o.equipes, reglages: jeu.reglages || normaliser(o, 1) }); } catch (e) { signaler('hud.reinit', e); }
+    try { PHUD.reinit({ equipes: !!o.equipes, reglages: jeu.reglages || normaliser(o, 1), contrat: estExtraction(jeu) ? contratEnCours() : null }); } catch (e) { signaler('hud.reinit', e); }
     try { PCONTROLES.reinit(); } catch (e) { signaler('controles.reinit', e); }
+    modeCommandes();
     if (compte) { compteT = 3.6; compteVu = -1; montrer('compte'); PCONTROLES.activer(false); astuce(true); }
     else { montrer('partie'); PCONTROLES.activer(true); }
     eveille(true);
@@ -418,7 +607,9 @@ const PUI = (() => {
   }
   function astuce(oui) { // les trois premières parties : comment on joue, pendant le compte à rebours
     const a = $('#astuce'); if (!a) return;
-    if (!oui || (sauv.records.arene.parties || 0) >= 3) { a.hidden = true; return; }
+    const ext = !!jeu && estExtraction(jeu);
+    if (!oui || ((ext ? sauv.records.extraction.parties : sauv.records.arene.parties) || 0) >= 3) { a.hidden = true; return; }
+    if (ext) { a.innerHTML = `<b>Reste à côté d’un coffre</b> pour l’ouvrir${PCONTROLES.tactile ? ' (ou touche <b>Ouvrir</b>)' : ' (ou <b>E</b>)'} · la boussole mène à la <b>sortie</b> la plus proche · <b>8 s</b> dans le cercle pour sortir`; a.hidden = false; return; }
     a.innerHTML = PCONTROLES.tactile ? '<b>Pouce gauche</b> : marcher (<b>à fond</b> : courir) · <b>glisse à droite</b> : tourner · <b>Viser</b> pour zoomer · viseur rouge : <b>ça tire tout seul</b> !'
       : '<b>Clique</b> pour viser à la souris · <b>ZQSD / WASD</b> : marcher · <b>Maj</b> : courir · <b>clic droit</b> : viser · <b>Échap</b> : pause';
     a.hidden = false;
@@ -431,7 +622,9 @@ const PUI = (() => {
     if (ecran !== 'partie' && ecran !== 'compte') return;
     avantPause = ecran; PCONTROLES.activer(false); montrer('pause'); PHUD.scores(false);
     const pe = $('#pause-enligne'); if (pe) pe.hidden = !enLigne;
-    const m = trouver(idMoi); $('#pause-score').innerHTML = m && m.score ? `<span><b>${m.score.points || 0}</b> points</span><span><b>${m.score.kills || 0}</b> repeints</span><span><b>${m.score.morts || 0}</b> fois repeint</span>` : '';
+    const m = trouver(idMoi), bx = estExtraction(jeu) ? PHUD.extraction(jeu, idMoi) : null;
+    if (bx) { $('#pause-score').innerHTML = `<span><b>${nombreTxt(bx.sac.valeur)}</b> dans ton sac</span><span><b>${bx.sac.n}</b> objet${bx.sac.n > 1 ? 's' : ''}</span><span><b>${m && m.score ? m.score.kills || 0 : 0}</b> gardiens repeints</span>`; return; }
+    $('#pause-score').innerHTML = m && m.score ? `<span><b>${m.score.points || 0}</b> points</span><span><b>${m.score.kills || 0}</b> repeints</span><span><b>${m.score.morts || 0}</b> fois repeint</span>` : '';
   }
   function reprendre() {
     if (ecran !== 'pause' || !jeu) return;
@@ -445,9 +638,11 @@ const PUI = (() => {
     try { if (rendu3d && typeof RENDU.ambiance === 'function') RENDU.ambiance({ heure: 'jour', meteo: 'clair' }); } catch (e) { signaler('rendu.ambiance', e); } // les menus repassent au jour
     if (ctl || enLigne) { quitterSalon(); montrer('copains'); } else montrer('titre');
   }
+  const estExtraction = (j) => !!j && ((j.mode && j.mode.id === 'extraction') || (reglagesPartie(j).mode === 'extraction'));
   function terminer(evFin) {
     if (finTraitee || !jeu) return;
     if (enLigne) { terminerEnLigne(evFin); return; }
+    if (estExtraction(jeu)) { terminerExtraction(evFin); return; }
     finTraitee = true;
     PCONTROLES.activer(false); eveille(false);
     const m = trouver('moi'), pts = m && m.score ? m.score.points || 0 : 0, k = m && m.score ? m.score.kills || 0 : 0;
@@ -460,6 +655,25 @@ const PUI = (() => {
     montrer('fin');
   }
 
+  // la fin d'une Extraction (seul) : ce qui est sorti va au coffre personnel (en pièces), le record ; l'écran de fin dit ce qui est
+  // sorti et ce qui est perdu. Le résultat : PEXTRACTION.resultat(jeu) (lu par PHUD.bilanExtraction, tolérant), sinon l'état du joueur.
+  function terminerExtraction(evFin) {
+    finTraitee = true; PCONTROLES.activer(false); eveille(false); astuce(false);
+    const M = EXT(); let res = null; try { res = M && M.resultat ? M.resultat(jeu) : null; } catch (e) { signaler('extraction.resultat', e); res = null; }
+    if (!res && evFin && evFin.resultat) res = evFin.resultat;
+    let b = null; try { b = PHUD.bilanExtraction(res, jeu, idMoi); } catch (e) { signaler('bilan', e); b = { sorti: false, objets: [], perdus: [], valeur: 0, kills: 0 }; }
+    const rec = sauv.records.extraction, ancien = rec.meilleur || 0, record = b.sorti && b.valeur > ancien;
+    rec.parties = (rec.parties || 0) + 1; rec.eliminations = (rec.eliminations || 0) + (b.kills || 0);
+    let gain = null; if (b.sorti) { rec.sorties = (rec.sorties || 0) + 1; rec.valeur = (rec.valeur || 0) + b.valeur; if (record) rec.meilleur = b.valeur; gain = deposer(b); }
+    let avances = []; if (b.ligne) { const r = appelCoffre('progression', copie(b.ligne), Date.now()); if (r && r.ok && r.r && Array.isArray(r.r.avances)) avances = r.r.avances; }
+    const contrats = contratsDuJour().filter((c) => avances.indexOf(c.i) >= 0 || (c.fait && !c.reclame));
+    const zs = zoneSemaine(), semaine = !!(jeu.extraction && jeu.extraction.zoneSemaine) || !!(zs && reglagesPartie(jeu).zone === zs.id);
+    sauv.derniere = Date.now(); sauver();
+    try { PHUD.fin(res, jeu, idMoi, { mode: 'Extraction', extraction: b, record, meilleur: ancien, pieces: sauv.coffre.pieces, gain, contrats, semaine: semaine && zs ? zs.bonus : 0, boutons: [{ fin: 'rejouer', texte: 'Rejouer', cls: 'menthe' }, { fin: 'coffre', texte: 'Coffre', cls: 'blanc' }, { fin: 'menu', texte: 'Menu', cls: 'blanc' }] }); } catch (e) { signaler('hud.fin', e); }
+    PSONS.jouer(b.sorti ? 'victoire' : 'defaite'); if (b.sorti) PSONS.vibrer([20, 40, 20, 40, 60]);
+    montrer('fin');
+  }
+
   // ─── la boucle ───
   function remettrePas() { if (boucleFixe) boucleFixe.remettre(); alpha = 1; }
   function nouvelleBoucle() { // PJEU.pasFixe ; sans lui (module absent), la même règle ici
@@ -468,7 +682,7 @@ const PUI = (() => {
     return { pas: PAS, max: PAS_MAX, avancer(d, f) { if (d > 0) acc = Math.min(acc + d, PAS_MAX * PAS); while (acc >= PAS - EPS) { acc -= PAS; if (acc < 0) acc = 0; f(PAS); } return acc / PAS; }, remettre() { acc = 0; }, get acc() { return acc; } };
   }
   function pasJeu(dt) { if (jeu && !finTraitee) pasPartie(dt); } // un pas de la boucle (la partie a pu finir au pas d'avant)
-  const NIVEAUX = ['avant', 'cote', 'tir', 'accroupi', 'course', 'couche', 'vise'];
+  const NIVEAUX = ['avant', 'cote', 'tir', 'accroupi', 'course', 'couche', 'vise', 'action'];
   function pasPartie(dt) { // un pas de simulation (1/60 s) : son entrée, aide à la visée, jeu, effets, sons, HUD
     const e = PCONTROLES.consommer(); nPas++;
     if (force) { // l'entrée imposée par les tests
@@ -476,7 +690,9 @@ const PUI = (() => {
       if (force.dyaw) { e.dyaw += force.dyaw; force.dyaw = 0; } if (force.dpitch) { e.dpitch += force.dpitch; force.dpitch = 0; }
       if (force.saut) { e.saut = true; force.saut = false; } if (force.recharge) { e.recharge = true; force.recharge = false; } if (force.changer) { e.changer = true; force.changer = false; }
       if (force.arme != null) { e.arme = force.arme; force.arme = null; }
+      if (force.lampe) { e.lampe = true; force.lampe = false; } if (force.signal) { e.signal = force.signal; force.signal = null; } if (force.lacher != null) { e.lacher = force.lacher; force.lacher = null; }
     }
+    if (typeof e.signal === 'string') e.signal = pointVise(e.signal); // un signal d'équipe : posé là où l'on vise
     let aide = null;
     const aidePermise = reglagesPartie(jeu).aide !== false; // l'hôte peut couper l'aide à la visée (ralentissement, aimant, tir auto)
     if (jeu.aideVisee && aidePermise) { try { aide = jeu.aideVisee(idMoi, PCONTROLES.tactile ? 1 : 0); } catch (err) { aide = null; } }
@@ -494,11 +710,28 @@ const PUI = (() => {
     catch (err) { signaler('jeu.etape', err); evs = VIDE; if (++erreursEtape >= 3) { quitter(); oups('La partie s’est emmêlé les pinceaux', 'Une erreur a interrompu la partie. Tu peux en relancer une depuis le menu.'); } return; }
     traiter(evs, aide);
   }
+  const SIG = { type: 'ici', x: 0, y: 0, z: 0 }; // (réutilisé : un signal par pas au plus)
+  function pointVise(type) { // le point visé (monde.rayon depuis l'œil, 150 m au plus ; sinon à 40 m devant)
+    const m = trouver(idMoi); if (!m || !monde) return null;
+    const oy = m.y + (typeof PCORPS !== 'undefined' && PCORPS.oeil ? PCORPS.oeil(m) : 1.6), cp = Math.cos(m.pitch || 0), dx = -Math.sin(m.yaw) * cp, dy = Math.sin(m.pitch || 0), dz = -Math.cos(m.yaw) * cp;
+    let h = null; try { h = monde.rayon(m.x, oy, m.z, dx, dy, dz, 150); } catch (err) { h = null; }
+    const t = h && h.t > 0 ? h.t : 40; SIG.type = type; SIG.x = Math.round((m.x + dx * t) * 100) / 100; SIG.y = Math.round((oy + dy * t) * 100) / 100; SIG.z = Math.round((m.z + dz * t) * 100) / 100; return SIG;
+  }
+  function modeCommandes() { try { if (PCONTROLES.mode) PCONTROLES.mode({ extraction: !!jeu && estExtraction(jeu), nuit: !!jeu && (reglagesPartie(jeu).heure === 'nuit' || !!jeu.lampes) }); } catch (e) { signaler('controles.mode', e); } }
+  // le premier contrat du jour pas encore fait (PBUTIN.contratsDuJour + coffre.contrats) : { texte, prog, but } pour le rappel du HUD
+  function contratsDuJour() {
+    const B = BUT(); if (!B || typeof B.contratsDuJour !== 'function') return [];
+    let defs = []; try { defs = B.contratsDuJour(Date.now()) || []; } catch (e) { return []; }
+    const c = sauv.coffre.contrats, jour = typeof B.jourDeParis === 'function' ? B.jourDeParis(Date.now()) : null, et = c && c.jour === jour && Array.isArray(c.etats) ? c.etats : [];
+    return defs.map((d, i) => Object.assign({ i, prog: 0, fait: false, reclame: false }, d, et[i] || {}));
+  }
+  function contratEnCours() { const l = contratsDuJour().filter((c) => !c.fait); return l.length ? { texte: l[0].texte, prog: l[0].prog | 0, but: l[0].but || 1 } : null; }
   function traiter(evs, aide) { // les événements d'un pas (ou de avantImage) : image, sons, HUD, fin
     if (rendu3d) { try { RENDU.evenements(evs, jeu); } catch (err) { signaler('rendu.evenements', err); } }
     try { PSONS.evenements(evs, jeu, idMoi); } catch (err) { signaler('sons', err); }
     try { PHUD.maj(jeu, idMoi, evs, aide); } catch (err) { signaler('hud.maj', err); }
     try { PCONTROLES.maj(jeu, trouver(idMoi), evs); } catch (err) { signaler('controles.maj', err); }
+    try { if (PCONTROLES.contexte) PCONTROLES.contexte(PHUD.contexte || null); } catch (err) { signaler('controles.contexte', err); } // le bouton d'action (Extraction : Ouvrir, Ramasser, Relever)
     let evFin = null;
     for (let i = 0; i < evs.length; i++) { const v = evs[i]; if (v.t === 'mort') { if (v.par === idMoi && v.a !== idMoi) { elims++; serie++; if (serie > serieMax) serieMax = serie; } if (v.a === idMoi) serie = 0; } else if (v.t === 'fin') evFin = v; }
     if (evFin || fini()) terminer(evFin);
@@ -591,6 +824,15 @@ const PUI = (() => {
       case 'armes-retour': case 'options-retour': montrer(optCtx === 'salon' && ctl ? 'salon' : 'modes'); break;
       case 'arme-choix': choisirArme(b.dataset.id); break;
       case 'arme-permise': permettreArme(b.dataset.id); break;
+      case 'mode': optCtx = 'solo'; regler('mode', b.dataset.v); majModes(); break;
+      case 'coffre': if (ecran === 'fin') quitter(); montrer('coffre'); break;
+      case 'coffre-retour': montrer('modes'); break;
+      case 'coffre-jouer': optCtx = 'solo'; if (modeDe(reglagesSolo()) !== 'extraction') regler('mode', 'extraction'); montrer('modes'); break;
+      case 'amelio': acheterAmelio(b.dataset.id); return;
+      case 'onglet-coffre': ongletCoffre = b.dataset.onglet; majCoffre(); break;
+      case 'vendre': vendre([b.dataset.uid]); return;
+      case 'reclamer': reclamer(b.dataset.i); return;
+      case 'vendre-valeurs': vendre(materiel().filter((x) => typeObj(x.o) === 'valeur').map((x) => x.uid)); return;
     }
     PSONS.ui(a === 'retour' || a === 'titre' ? 'retour' : 'tap');
   }
@@ -610,7 +852,7 @@ const PUI = (() => {
     document.addEventListener('keydown', (e) => {
       PSONS.debloquer();
       if (e.target && (e.target.tagName === 'INPUT')) return;
-      if (e.code === 'Escape') { if (ecran === 'pause') { e.stopPropagation(); reprendre(); } else if (ecran === 'reglages' || ecran === 'credits') action('retour'); else if (ecran === 'modes') action('titre'); else if (ecran === 'copains') action('modes'); else if (ecran === 'options') action('options-retour'); }
+      if (e.code === 'Escape') { if (ecran === 'pause') { e.stopPropagation(); reprendre(); } else if (ecran === 'reglages' || ecran === 'credits') action('retour'); else if (ecran === 'modes') action('titre'); else if (ecran === 'copains') action('modes'); else if (ecran === 'options') action('options-retour'); else if (ecran === 'coffre') action('coffre-retour'); }
       else if (ecran === 'options' && (e.code === 'ArrowLeft' || e.code === 'ArrowRight') && e.target && e.target.getAttribute && e.target.getAttribute('role') === 'tab') { // les onglets au clavier
         const i = ONGLETS.indexOf(onglet), n = ONGLETS[(i + (e.code === 'ArrowRight' ? 1 : ONGLETS.length - 1)) % ONGLETS.length]; onglet = n; majOptions(); const t = $(`#e-options [data-onglet="${n}"]`); if (t) t.focus(); }
       else if ((e.code === 'Enter' || e.code === 'Space') && ecran === 'fin') { e.preventDefault(); rejouer(); }
@@ -769,6 +1011,7 @@ const PUI = (() => {
   function reglagesPartie(j) { j = j || jeu; if (!j) return {}; if (j.reglages && typeof j.reglages === 'object') return j.reglages; return Object.assign({}, (optsPartie && optsPartie.reglages) || {}, j.options || {}); }
   function annonceDepart() { // l'annonce du « Repeins ! »
     const r = reglagesPartie(), eq = !!(optsPartie && optsPartie.equipes);
+    if (estExtraction(jeu)) return `Fouille les coffres ! Les sorties s’ouvrent dans ${dureeTxt(Math.round((jeu.duree || r.duree || 480) / 2))}`;
     if (r.reapparition === 'aucune') return ''; // le bandeau de manche du HUD le dit (« Manche 1/3 · reste debout »)
     if (eq) return enLigne ? annonceEquipe() : 'En équipes : couvre tes robots alliés !';
     return `Premier à ${r.score || (R ? R.MODES.arene.scoreVictoire : 25)} repeints !`;
@@ -786,7 +1029,7 @@ const PUI = (() => {
     sauv = lireSauv();
     const tactile = !!(window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (navigator.maxTouchPoints || 0) > 0;
     try { PCONTROLES.init($('#commandes'), { tactile, reglages: sauv.reglages, actions: { pause, scores: (on) => PHUD.scores(on), verrouPerdu: pause } }); } catch (e) { signaler('controles.init', e); }
-    try { PHUD.init($('#hud'), { actions: { pause, rejouer, menu: quitter, salon: () => auSalon(), arme: (i) => PCONTROLES.emplacement(i), recharger: () => PCONTROLES.recharger() } }); } catch (e) { signaler('hud.init', e); }
+    try { PHUD.init($('#hud'), { actions: { pause, rejouer, menu: quitter, salon: () => auSalon(), coffre: () => action('coffre'), reclamer: (b) => reclamer(b && b.dataset ? b.dataset.i : 0), arme: (i) => PCONTROLES.emplacement(i), recharger: () => PCONTROLES.recharger() } }); } catch (e) { signaler('hud.init', e); }
     appliquerReglages(); brancher(); montrer('chargement');
     last = performance.now(); tFps = last; requestAnimationFrame(boucle);
     installerCrochets();
@@ -840,6 +1083,9 @@ const PUI = (() => {
         return etat();
       },
       menu: quitter, pause, reprendre, montrer, sauvegarde: () => JSON.parse(JSON.stringify(sauv)),
+      // Extraction : la vue lue par le HUD (coffres, sorties, sac…), le coffre personnel, des pièces pour les essais
+      extraction: () => (jeu ? PHUD.extraction(jeu, idMoi) : null), coffre: () => JSON.parse(JSON.stringify(sauv.coffre)),
+      pieces: (n) => { sauv.coffre.pieces = Math.max(0, Math.round(+n || 0)); sauver(); if (ecran === 'coffre') majCoffre(); if (ecran === 'modes') majModes(); return sauv.coffre.pieces; },
       enLigne: {
         etat: etatEnLigne,
         creer: async () => { await ouvrirSalon(null); return etatEnLigne(); },

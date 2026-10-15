@@ -44,17 +44,19 @@
     <h2>Choisis ta mission</h2>
   </header>
   <div class="modes-grille">
-    <article class="carte-mode arene">
-      <div class="cm-tete"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="#fff" stroke="#2B2A4C" stroke-width="3.5"/><circle cx="24" cy="24" r="12" fill="#FF6B8B" stroke="#2B2A4C" stroke-width="3.5"/><circle cx="24" cy="24" r="5" fill="#fff" stroke="#2B2A4C" stroke-width="3"/><path d="M33 9c4-1 7 2 6 6" stroke="#5FD3A4" stroke-width="4" stroke-linecap="round" fill="none"/></svg></span>
-        <div><h3>Arène</h3><p id="arene-desc">Autour de la place du village : 3 minutes, le premier à 25 repeints gagne.</p></div></div>
+    <article class="carte-mode arene" id="carte-mission">
+      <div class="cm-tete"><span class="cm-ico" aria-hidden="true"><svg class="ico-arene" viewBox="0 0 48 48"><circle cx="24" cy="24" r="19" fill="#fff" stroke="#2B2A4C" stroke-width="3.5"/><circle cx="24" cy="24" r="12" fill="#FF6B8B" stroke="#2B2A4C" stroke-width="3.5"/><circle cx="24" cy="24" r="5" fill="#fff" stroke="#2B2A4C" stroke-width="3"/><path d="M33 9c4-1 7 2 6 6" stroke="#5FD3A4" stroke-width="4" stroke-linecap="round" fill="none"/></svg><svg class="ico-extraction" viewBox="0 0 48 48"><path d="M8 21h32v18a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3z" fill="#B57240" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/><path d="M8 21c0-8 6-12 16-12s16 4 16 12z" fill="#D88F4E" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/><path d="M8 27h32" stroke="#2B2A4C" stroke-width="3"/><rect x="20" y="23" width="8" height="9" rx="2" fill="#FFC84A" stroke="#2B2A4C" stroke-width="3"/><path d="M38 6l1.6 3.4L43 11l-3.4 1.6L38 16l-1.6-3.4L33 11l3.4-1.6z" fill="#FFC84A" stroke="#2B2A4C" stroke-width="1.6" stroke-linejoin="round"/></svg></span>
+        <div class="cm-titre"><div class="seg cm-modes" role="group" aria-label="Mode de jeu"><button type="button" data-a="mode" data-v="arene" aria-pressed="true">Arène</button><button type="button" data-a="mode" data-v="extraction" aria-pressed="false">Extraction</button></div><p id="arene-desc">Autour de la place du village : 3 minutes, le premier à 25 repeints gagne.</p></div></div>
       <div class="resume-partie" id="resume-solo" role="group" aria-label="Réglages de la partie"></div>
       <div class="cm-pied"><p class="cm-resume" id="resume-arene"></p><button type="button" class="bouton gros menthe" id="b-lancer" data-a="lancer">C’est parti !</button></div>
     </article>
     <div class="modes-bientot">
       <button type="button" class="carte-mode copains" id="b-copains" data-a="copains"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="17" cy="18" r="6.5" fill="#7FB3FF" stroke="#2B2A4C" stroke-width="3.5"/><circle cx="32" cy="18" r="6.5" fill="#5FD3A4" stroke="#2B2A4C" stroke-width="3.5"/><path d="M6 38c1-8 6-11 11-11s10 3 11 11zM21 38c1-8 6-11 11-11s10 3 11 11z" fill="#fff" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/></svg></span>
         <span class="cm-texte"><b class="cm-h3">Avec les copains <em class="nouveau">En ligne</em></b><small>L’Arène de 2 à 6 sur vos téléphones, avec ou sans robots.</small></span><span class="cm-fleche" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.5 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
-      <article class="carte-mode bientot"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="9" y="16" width="30" height="24" rx="5" fill="#FFC84A" stroke="#2B2A4C" stroke-width="3.5"/><path d="M9 24h30M24 16v24" stroke="#2B2A4C" stroke-width="3.5"/><path d="M24 16c-4-8-12-8-11-3s11 3 11 3c4-8 12-8 11-3s-11 3-11 3" fill="#FF6B8B" stroke="#2B2A4C" stroke-width="3" stroke-linejoin="round"/></svg></span>
+      <article class="carte-mode bientot" id="extraction-bientot"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><rect x="9" y="16" width="30" height="24" rx="5" fill="#FFC84A" stroke="#2B2A4C" stroke-width="3.5"/><path d="M9 24h30M24 16v24" stroke="#2B2A4C" stroke-width="3.5"/><path d="M24 16c-4-8-12-8-11-3s11 3 11 3c4-8 12-8 11-3s-11 3-11 3" fill="#FF6B8B" stroke="#2B2A4C" stroke-width="3" stroke-linejoin="round"/></svg></span>
         <div><h3>Extraction <em>Bientôt</em></h3><p>Récupère le butin dans le village et file au point d’extraction.</p></div></article>
+      <button type="button" class="carte-mode copains coffre-carte" id="b-coffre" data-a="coffre" hidden><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><path d="M7 20h34v19a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3z" fill="#B57240" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/><path d="M7 20c0-7 7-11 17-11s17 4 17 11z" fill="#D88F4E" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/><path d="M7 26h34" stroke="#2B2A4C" stroke-width="3"/><rect x="20" y="22" width="8" height="9" rx="2" fill="#FFC84A" stroke="#2B2A4C" stroke-width="3"/></svg></span>
+        <span class="cm-texte"><b class="cm-h3">Ton coffre <em class="pieces-pastille" id="coffre-pieces">0</em></b><small id="coffre-resume">Le butin rapporté, et des améliorations pour l’Extraction.</small></span><span class="cm-fleche" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M9.5 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span></button>
       <article class="carte-mode bientot"><span class="cm-ico" aria-hidden="true"><svg viewBox="0 0 48 48"><circle cx="18" cy="20" r="9" fill="#FFC84A" stroke="#2B2A4C" stroke-width="3.5"/><path d="M38 28a11 11 0 1 1-12-14 9 9 0 0 0 12 14z" fill="#B8A6FF" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/></svg></span>
         <div><h3>Jour / Nuit <em>Bientôt</em></h3><p>Le jour on fortifie la base, la nuit les robots attaquent.</p></div></article>
     </div>
@@ -128,6 +130,31 @@
         <div class="panneau ar-col"><h3>Principale</h3><div class="ar-liste" id="ar-principales"></div></div>
         <div class="panneau ar-col ar-sec"><h3>Secondaire</h3><div class="ar-liste" id="ar-secondaires"></div></div>
       </div>
+    </div>
+  </div>
+</section>
+
+<section class="ecran coffre-ecran" id="e-coffre" data-e="coffre" hidden>
+  <header class="barre-haut cf-haut">
+    <button type="button" class="rond" data-a="coffre-retour" aria-label="Retour"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+    <h2>Ton coffre</h2>
+    <div class="op-onglets cf-onglets" role="tablist" aria-label="Le coffre" id="cf-onglets"></div>
+    <div class="cf-pieces" aria-label="Tes pièces"><i class="piece" aria-hidden="true"></i><b id="cf-pieces">0</b></div>
+  </header>
+  <div class="cf-corps" id="cf-corps">
+    <div class="panneau cf-page cf-materiel" data-page="materiel" role="tabpanel">
+      <div class="cf-barre"><p class="cf-note" id="cf-note-mat"></p><button type="button" class="pilule cf-tout" id="cf-vendre-tout" data-a="vendre-valeurs">Vendre les objets de valeur</button></div>
+      <div class="cf-objets" id="cf-objets"></div>
+    </div>
+    <div class="panneau cf-page cf-contrats-page" data-page="contrats" role="tabpanel" hidden>
+      <p class="cf-semaine" id="cf-semaine" hidden></p>
+      <div class="cf-contrats" id="cf-contrats"></div>
+      <p class="cf-note">Trois contrats par jour, en Extraction : réclame la récompense une fois le contrat rempli.</p>
+    </div>
+    <div class="panneau cf-page cf-amelio" data-page="ameliorations" role="tabpanel" hidden>
+      <p class="cf-note">Pour l’Extraction et les prochaines missions : jamais en Arène, qui reste à armes égales.</p>
+      <div class="cf-liste" id="cf-amelio"></div>
+      <div class="cf-records" id="cf-records"></div>
     </div>
   </div>
 </section>

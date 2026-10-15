@@ -31,8 +31,8 @@ const PCONTROLES = (() => {
   const DEG = Math.PI / 180, RAYON = 60, MORTE = 0.08, K_DOIGT = 0.22 * DEG, EXPO = 1.15, K_SOURIS = 0.0022;
   // courir au joystick : entrer à |j| ≥ 0,92 et ≤ 40° de l'avant, sortir sous 0,85 ou au-delà de 50° ; l'appui long d'Accroupi (ms)
   const COURSE_IN = 0.92, COURSE_OUT = 0.85, ANGLE_IN = 40 * DEG, ANGLE_OUT = 50 * DEG, APPUI_LONG = 350;
-  const entree = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, course: false, couche: false, vise: false, recharge: false, arme: null, changer: false }; // l'entrée d'un pas
-  const cumul = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, course: false, couche: false, vise: false, recharge: false, arme: null, changer: false, tirBref: false }; // depuis le dernier pas
+  const entree = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, course: false, couche: false, vise: false, recharge: false, arme: null, changer: false, action: false, lampe: false, signal: null }; // l'entrée d'un pas
+  const cumul = { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, course: false, couche: false, vise: false, recharge: false, arme: null, changer: false, tirBref: false, action: false, actionBref: false, lampe: false, signal: null }; // depuis le dernier pas
   const ATTENTE = { dyaw: 0, dpitch: 0 };
   let kAttente = 1; // la part du regard en attente que le rendu montre (attenuer)
   // les réglages du joueur : visee 'auto' (bascule au doigt, maintenue à la souris) | 'bascule' | 'maintenir' ; course 'joystick' | 'bouton'
@@ -50,8 +50,17 @@ const PCONTROLES = (() => {
   let glissadeT = 0, coucheT = 0, appuiAcc = null, appuiAccT = 0; // l'heure de la demande (ms) ; l'appui long d'Accroupi en cours
   let kVue = 1;                // le facteur de sensibilité de la visée (zoom de l'arme, réglage)
   // clavier et souris
-  const touches = { avant: false, arriere: false, gauche: false, droite: false, accroupi: false, course: false };
+  const touches = { avant: false, arriere: false, gauche: false, droite: false, accroupi: false, course: false, action: false };
   let tirSouris = false, nArmes = 2;
+  // le bouton d'action contextuel (Extraction : Ouvrir, Ramasser, Relever) : un NIVEAU tenu (doigt sur le bouton, ou E / F), plus le
+  // front d'un appui bref ; il n'apparaît que si PCONTROLES.contexte({ quoi, texte, p? }) dit qu'il y a quelque chose à faire ici
+  let actionDoigt = 0, actionL = false, ctxVu = '', ctxP = -1, elAction = null, elActionT = null, elActionA = null;
+  // l'Extraction (PCONTROLES.mode({ extraction, nuit })) : la lampe (bouton la nuit, touche L : un front 'lampe') et les signaux d'équipe :
+  // un appui long (400 ms, le doigt immobile à 10 px près) sur la vue, ou G tenu au clavier, ouvre une roue de 4 choix (Coffre ici, Ennemi,
+  // On sort par là, Ici) ; glisser vers un choix puis lâcher l'envoie (un front 'signal' = le type ; ui.js y ajoute le point visé). Pendant la
+  // roue, le doigt ne tourne plus la vue ; avant les 400 ms, il vise comme d'habitude (l'appui long reste distinct du glisser)
+  const SIGNAUX = ['coffre', 'ennemi', 'sortie', 'ici'], NOMS_SIGNAUX = ['Coffre ici', 'Ennemi', 'On sort par là', 'Ici'];
+  let modeExt = false, nuit = false, lampeL = false, signalL = null, elLampe = null, elRoue = null, roue = null, appuiVue = null, appuiVueT = 0, roueG = false;
   // les éléments
   let elJoy, elJoyBase, elJoyBouton, elTir, elAccroupi, elAccIco, elRecharge, elAnneau, elVise, elCourse;
   const vu = { posture: '', on: null, vise: null, course: null, joyCourse: null, rech: -1 };
@@ -81,11 +90,16 @@ const PCONTROLES = (() => {
         <button type="button" class="pc-btn pc-saut" data-cmd="saut" aria-label="Sauter">${ICONES.saut}</button>
         <button type="button" class="pc-btn pc-accroupi" data-cmd="accroupi" aria-label="S’accroupir (appui long : se coucher)" aria-pressed="false"><span class="pc-ico">${ICONES.accroupi}</span></button>
         <button type="button" class="pc-btn pc-course" data-cmd="course" aria-label="Courir" aria-pressed="false">${ICONES.course}</button>
+        <button type="button" class="pc-btn pc-action" data-cmd="action" aria-label="Ouvrir" hidden><span class="pc-action-ico" aria-hidden="true"></span><b class="pc-action-t">Ouvrir</b><svg class="pc-anneau" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="26" pathLength="100"/></svg></button>
+        <button type="button" class="pc-btn pc-lampe" data-cmd="lampe" aria-label="Lampe" aria-pressed="false" hidden><svg viewBox="0 0 48 48"><path d="M14 18h20l-4 10H18z" fill="#FFC84A" stroke="#2B2A4C" stroke-width="3" stroke-linejoin="round"/><rect x="18" y="28" width="12" height="12" rx="2" fill="#fff" stroke="#2B2A4C" stroke-width="3"/><path d="M24 4v6M12 8l3 5M36 8l-3 5" stroke="#2B2A4C" stroke-width="3" stroke-linecap="round"/></svg></button>
         <button type="button" class="pc-btn pc-recharge" data-cmd="recharge" aria-label="Recharger">${ICONES.recharge}<svg class="pc-anneau" viewBox="0 0 60 60" aria-hidden="true"><circle cx="30" cy="30" r="26" pathLength="100"/></svg></button>
       </div>
+      <div class="pc-roue" hidden>${NOMS_SIGNAUX.map((n) => `<i>${n}</i>`).join('')}</div>
       <div class="pc-aide"><b>Clique pour viser à la souris</b><small>ZQSD ou WASD : bouger · Maj : courir · clic droit : viser · C : s’accroupir (en courant : glisser) · X : se coucher · Espace : sauter · R : recharger · 1 2 ou Q : armes · Tab : scores · Échap : pause</small></div>`;
     elJoy = racine.querySelector('.pc-joy'); elJoyBase = racine.querySelector('.pc-joy-base'); elJoyBouton = racine.querySelector('.pc-joy-bouton');
     elTir = racine.querySelector('.pc-tir'); elVise = racine.querySelector('.pc-vise'); elCourse = racine.querySelector('.pc-course');
+    elLampe = racine.querySelector('.pc-lampe'); elRoue = racine.querySelector('.pc-roue');
+    elAction = racine.querySelector('.pc-action'); elActionT = racine.querySelector('.pc-action-t'); elActionA = racine.querySelector('.pc-action .pc-anneau circle');
     elAccroupi = racine.querySelector('.pc-accroupi'); elAccIco = racine.querySelector('.pc-accroupi .pc-ico'); elRecharge = racine.querySelector('.pc-recharge'); elAnneau = racine.querySelector('.pc-anneau circle');
     racine.addEventListener('pointerdown', bas, { passive: false });
     racine.addEventListener('pointermove', bouge, { passive: false });
@@ -153,6 +167,8 @@ const PCONTROLES = (() => {
       else {
         d.role = 'bouton'; d.cmd = cible; cible.classList.add('appui');
         if (cmd === 'saut') sautL = true;
+        else if (cmd === 'action') { actionDoigt++; actionL = true; }
+        else if (cmd === 'lampe') { lampeL = true; vibrer(8); }
         else if (cmd === 'recharge') rechargeL = true;
         else if (cmd === 'vise') { if (viseeBascule(true)) viseBascule = !viseBascule; else viseDoigt++; }
         else if (cmd === 'course') { courseBascule = !courseBascule; if (courseBascule) viseBascule = false; }
@@ -164,7 +180,7 @@ const PCONTROLES = (() => {
     } else if (joyId < 0 && coteJoy(e.clientX)) { // le joystick apparaît sous le pouce, un peu écarté des bords (geste retour de Safari)
       d.role = 'joy'; joyId = e.pointerId; joyBx = e.clientX; joyBy = e.clientY; joyVx = 0; joyVy = 0; // le centre est là où le pouce s'est posé
       placerJoy(); elJoy.classList.add('vivant');
-    } else d.role = 'vise';
+    } else { d.role = 'vise'; if (modeExt && !roue) { appuiVue = { id: e.pointerId, x: e.clientX, y: e.clientY }; clearTimeout(appuiVueT); appuiVueT = setTimeout(ouvrirRoue, 400); } }
     roles.set(e.pointerId, d);
     try { racine.setPointerCapture(e.pointerId); } catch (err) { /* rien */ }
   }
@@ -188,18 +204,35 @@ const PCONTROLES = (() => {
       let vx = e.clientX - joyBx, vy = e.clientY - joyBy; const l = Math.sqrt(vx * vx + vy * vy);
       if (l > RAYON) { joyBx += vx * (1 - RAYON / l); joyBy += vy * (1 - RAYON / l); vx *= RAYON / l; vy *= RAYON / l; } // la base suit le pouce qui dépasse
       joyVx = vx / RAYON; joyVy = vy / RAYON; joyCourir(); placerJoy();
-    } else if (d.role === 'vise' || d.role === 'tir') viser(dx, dy);
+    } else if (roue && roue.id === e.pointerId) choisirRoue(e.clientX - roue.x, e.clientY - roue.y); // la roue ouverte : le doigt choisit, la vue ne tourne pas
+    else if (d.role === 'vise' || d.role === 'tir') { if (appuiVue && appuiVue.id === e.pointerId && Math.hypot(e.clientX - appuiVue.x, e.clientY - appuiVue.y) > 10) { clearTimeout(appuiVueT); appuiVue = null; } viser(dx, dy); }
   }
+  // ─── la roue des signaux ───
+  function ouvrirRoue(x, y, id) {
+    if (!actif || !modeExt || !elRoue) return;
+    const a = appuiVue; appuiVue = null;
+    roue = { id: id != null ? id : a ? a.id : -1, x: x != null ? x : a ? a.x : W / 2, y: y != null ? y : a ? a.y : H / 2, choix: -1, sx: 0, sy: 0 };
+    elRoue.style.transform = `translate3d(${Math.max(110, Math.min(W - 110, roue.x))}px, ${Math.max(110, Math.min(H - 110, roue.y))}px, 0)`; elRoue.hidden = false; choisirRoue(0, 0); vibrer(12);
+  }
+  function choisirRoue(dx, dy) { // en haut Coffre, à droite Ennemi, en bas Sortie, à gauche Ici ; au centre : rien (Ici au lâcher)
+    if (!roue) return; roue.sx = dx; roue.sy = dy;
+    const k = Math.hypot(dx, dy) < 28 ? -1 : Math.abs(dx) > Math.abs(dy) ? (dx > 0 ? 1 : 3) : (dy < 0 ? 0 : 2);
+    if (k !== roue.choix) { roue.choix = k; elRoue.querySelectorAll('i').forEach((el, i) => el.classList.toggle('on', i === k)); }
+  }
+  function fermerRoue(envoyer) { if (!roue) return; if (envoyer) { signalL = SIGNAUX[roue.choix >= 0 ? roue.choix : 3]; vibrer(10); } roue = null; if (elRoue) elRoue.hidden = true; }
   function haut(e) {
     if (e.pointerType === 'mouse') return;
     const d = roles.get(e.pointerId); if (!d) return;
     roles.delete(e.pointerId);
+    if (appuiVue && appuiVue.id === e.pointerId) { clearTimeout(appuiVueT); appuiVue = null; }
+    if (roue && roue.id === e.pointerId) fermerRoue(true);
     if (d.role === 'joy') { joyId = -1; joyVx = 0; joyVy = 0; joyCourse = false; courseBascule = false; elJoy.classList.remove('vivant'); placerJoy(); } // lâcher le joystick arrête la course
     else if (d.role === 'tir') { tirDoigt = Math.max(0, tirDoigt - 1); if (!tirDoigt) elTir.classList.remove('appui'); }
     else if (d.role === 'bouton' && d.cmd) {
       d.cmd.classList.remove('appui');
       const cmd = d.cmd.dataset.cmd;
       if (cmd === 'vise' && viseDoigt > 0) viseDoigt--;
+      else if (cmd === 'action' && actionDoigt > 0) actionDoigt--;
       else if (cmd === 'accroupi' && appuiAcc && appuiAcc.id === e.pointerId) { clearTimeout(appuiAccT); appuiAccT = 0; appuiAcc = null; }
     }
     d.cmd = null; pool.push(d);
@@ -213,6 +246,7 @@ const PCONTROLES = (() => {
   function souris(e) {
     if (!actif || !verrouille()) return;
     if (tactile) modeTactile(false);
+    if (roue && roueG) { choisirRoue(roue.sx + (e.movementX || 0), roue.sy + (e.movementY || 0)); return; } // G tenu : la souris choisit dans la roue
     const k = K_SOURIS * R.sensibilite * kVue;
     accYaw -= (e.movementX || 0) * k; accPitch -= (e.movementY || 0) * k * (R.inverserY ? -1 : 1);
   }
@@ -225,7 +259,8 @@ const PCONTROLES = (() => {
   function sourisHaut(e) { if (e.button === 0) tirSouris = false; else if (e.button === 2) viseSouris = false; }
   function lacher() { // tout relâcher (fenêtre quittée, menu) : jamais de doigt ou de touche coincés (les bascules restent)
     roles.forEach((d) => { if (d.cmd) d.cmd.classList.remove('appui'); d.cmd = null; pool.push(d); }); roles.clear();
-    joyId = -1; joyVx = 0; joyVy = 0; joyCourse = false; courseBascule = false; tirDoigt = 0; tirSouris = false; viseDoigt = 0; viseSouris = false;
+    joyId = -1; joyVx = 0; joyVy = 0; joyCourse = false; courseBascule = false; tirDoigt = 0; tirSouris = false; viseDoigt = 0; viseSouris = false; actionDoigt = 0; actionL = false; touches.action = false;
+    clearTimeout(appuiVueT); appuiVue = null; lampeL = false; signalL = null; roueG = false; if (roue) fermerRoue(false);
     clearTimeout(appuiAccT); appuiAccT = 0; appuiAcc = null;
     if (elJoy) { elJoy.classList.remove('vivant'); placerJoy(); elTir.classList.remove('appui'); }
     touches.avant = touches.arriere = touches.gauche = touches.droite = touches.accroupi = touches.course = false;
@@ -233,7 +268,7 @@ const PCONTROLES = (() => {
   }
   function viderCumul() {
     cumul.avant = 0; cumul.cote = 0; cumul.dyaw = 0; cumul.dpitch = 0; cumul.tir = false; cumul.saut = false; cumul.accroupi = false; cumul.course = false; cumul.couche = false; cumul.vise = false;
-    cumul.recharge = false; cumul.arme = null; cumul.changer = false; cumul.tirBref = false;
+    cumul.recharge = false; cumul.arme = null; cumul.changer = false; cumul.tirBref = false; cumul.action = false; cumul.actionBref = false; cumul.lampe = false; cumul.signal = null;
   }
 
   // ─── clavier ───
@@ -256,6 +291,9 @@ const PCONTROLES = (() => {
       case 'Digit1': case 'Numpad1': armeL = 0; break;
       case 'Digit2': case 'Numpad2': armeL = 1; break;
       case 'KeyQ': if (!e.repeat) changerL = true; break; // A sur un clavier AZERTY
+      case 'KeyE': case 'KeyF': touches.action = true; if (!e.repeat) actionL = true; break; // l'action (Extraction : ouvrir, ramasser, relever)
+      case 'KeyL': if (!e.repeat && modeExt) lampeL = true; break;
+      case 'KeyG': if (!e.repeat && modeExt && !roue) { roueG = true; ouvrirRoue(W / 2, H / 2, -2); } break;
       case 'Tab': e.preventDefault(); if (!e.repeat && actions.scores) actions.scores(true); break;
     }
   }
@@ -263,6 +301,8 @@ const PCONTROLES = (() => {
     const dir = DIRS[e.code]; if (dir) { touches[dir] = false; return; }
     if (e.code === 'ControlLeft' || e.code === 'ControlRight') touches.accroupi = false;
     else if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') touches.course = false;
+    else if (e.code === 'KeyE' || e.code === 'KeyF') touches.action = false;
+    else if (e.code === 'KeyG' && roueG) { roueG = false; fermerRoue(true); }
     else if (e.code === 'Tab' && actions.scores) actions.scores(false);
   }
   function molette(e) { if (!actif || !verrouille() || nArmes < 2 || !e.deltaY) return; changerL = true; }
@@ -296,6 +336,8 @@ const PCONTROLES = (() => {
     if (tirL) cumul.tirBref = true; tirL = false;
     if (armeL !== null) cumul.arme = armeL; armeL = null;
     if (changerL) cumul.changer = true; changerL = false;
+    cumul.action = actionDoigt > 0 || touches.action; if (actionL) cumul.actionBref = true; actionL = false;
+    if (lampeL) cumul.lampe = true; lampeL = false; if (signalL) cumul.signal = signalL; signalL = null;
     // l'anneau jaune du joystick : on court
     if (joyCourse !== vu.joyCourse && elJoy) { vu.joyCourse = joyCourse; elJoy.classList.toggle('course', joyCourse); }
     return cumul;
@@ -306,14 +348,31 @@ const PCONTROLES = (() => {
     entree.dyaw = cumul.dyaw; entree.dpitch = cumul.dpitch;
     entree.tir = cumul.tir || cumul.tirBref; // un appui bref sur Tir (relâché avant l'image) tire une fois
     entree.saut = cumul.saut; entree.recharge = cumul.recharge; entree.arme = cumul.arme; entree.changer = cumul.changer;
-    cumul.dyaw = 0; cumul.dpitch = 0; cumul.saut = false; cumul.recharge = false; cumul.arme = null; cumul.changer = false; cumul.tirBref = false;
+    entree.action = cumul.action || cumul.actionBref; // tenu, ou un appui bref (relâché avant l'image) : une fois
+    entree.lampe = cumul.lampe; entree.signal = cumul.signal; cumul.lampe = false; cumul.signal = null; // des fronts (l'Extraction)
+    cumul.dyaw = 0; cumul.dpitch = 0; cumul.saut = false; cumul.recharge = false; cumul.arme = null; cumul.changer = false; cumul.tirBref = false; cumul.actionBref = false;
     return entree;
   }
   function enAttente() { ATTENTE.dyaw = actif ? (cumul.dyaw + accYaw) * kAttente : 0; ATTENTE.dpitch = actif ? (cumul.dpitch + accPitch) * kAttente : 0; return ATTENTE; } // y compris ce qui est arrivé depuis lire()
   function attenuer(k) { kAttente = k > 0 && k <= 1 ? k : 1; }
   function reinit() {
     lacher(); accroupiBascule = false; coucheBascule = false; viseBascule = false; glissade = 0; courseAvant = false; kVue = 1;
-    vu.posture = ''; vu.on = null; vu.vise = null; vu.course = null; vu.joyCourse = null; vu.rech = -1;
+    vu.posture = ''; vu.on = null; vu.vise = null; vu.course = null; vu.joyCourse = null; vu.rech = -1; contexte(null);
+  }
+  // le bouton d'action : visible avec son libellé quand le jeu dit qu'il y a quelque chose à faire ici (null : caché) ; p ∈ [0, 1] : l'anneau
+  const ICO_ACTION = {
+    ouvrir: '<svg viewBox="0 0 48 48"><path d="M8 22h32v16a3 3 0 0 1-3 3H11a3 3 0 0 1-3-3z" fill="#D88F4E" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/><path d="M9 20L13 9l27 5-3 8z" fill="#FFC84A" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/><rect x="20" y="25" width="8" height="8" rx="2" fill="#fff" stroke="#2B2A4C" stroke-width="3"/></svg>',
+    ramasser: '<svg viewBox="0 0 48 48"><path d="M16 15v-3a8 8 0 0 1 16 0v3" fill="none" stroke="#2B2A4C" stroke-width="3.5"/><path d="M9 20a4 4 0 0 1 4-5h22a4 4 0 0 1 4 5l2 16a4 4 0 0 1-4 5H11a4 4 0 0 1-4-5z" fill="#D88F4E" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/></svg>',
+    relever: '<svg viewBox="0 0 48 48"><circle cx="24" cy="11" r="6" fill="#fff" stroke="#2B2A4C" stroke-width="3.5"/><path d="M13 42l3-17 8-3 8 3 3 17" fill="#7FB3FF" stroke="#2B2A4C" stroke-width="3.5" stroke-linejoin="round"/><path d="M24 25v-9M19 20l5-5 5 5" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  };
+  // le mode de la partie : l'Extraction (signaux, lampe la nuit) ; ailleurs rien de tout ça
+  function mode(o) { modeExt = !!(o && o.extraction); nuit = !!(o && o.nuit); if (elLampe) elLampe.hidden = !(modeExt && nuit); if (!modeExt) fermerRoue(false); }
+  function contexte(c) {
+    if (!elAction) return;
+    const quoi = c && typeof c === 'object' && ICO_ACTION[c.quoi] ? c.quoi : null, cle = quoi ? quoi + '|' + (c.texte || '') + '|' + (c.rarete || '') : '';
+    if (cle !== ctxVu) { ctxVu = cle; elAction.hidden = !quoi; if (quoi) { elAction.querySelector('.pc-action-ico').innerHTML = ICO_ACTION[quoi]; elActionT.textContent = c.texte || quoi; elAction.setAttribute('aria-label', c.texte || quoi); elAction.dataset.quoi = quoi; elAction.dataset.rarete = c.rarete || ''; } else if (actionDoigt) { actionDoigt = 0; elAction.classList.remove('appui'); } }
+    const p = quoi && c.p >= 0 ? Math.round(Math.min(1, c.p) * 100) : -1;
+    if (p !== ctxP) { ctxP = p; elAction.style.setProperty('--p', String(Math.max(0, p) / 100)); elAction.classList.toggle('charge', p > 0 && p < 100); }
   }
 
   // ─── l'état affiché sur les boutons, et ce que la partie dit en retour (posture, zoom de l'arme, refus) ───
@@ -340,6 +399,7 @@ const PCONTROLES = (() => {
     if (ico !== vu.posture) { vu.posture = ico; elAccIco.innerHTML = ICONES[ico]; elAccroupi.dataset.p = ico; }
     if (on !== vu.on) { vu.on = on; elAccroupi.classList.toggle('on', on); elAccroupi.setAttribute('aria-pressed', on ? 'true' : 'false'); }
     const vise = viseBascule || viseDoigt > 0 || viseSouris; if (vise !== vu.vise) { vu.vise = vise; elVise.classList.toggle('on', vise); elVise.setAttribute('aria-pressed', vise ? 'true' : 'false'); }
+    if (elLampe && !elLampe.hidden) { const l = !!moi.lampe; if (l !== vu.lampe) { vu.lampe = l; elLampe.classList.toggle('on', l); elLampe.setAttribute('aria-pressed', String(l)); } }
     if (courseBascule !== vu.course) { vu.course = courseBascule; elCourse.classList.toggle('on', courseBascule); elCourse.setAttribute('aria-pressed', courseBascule ? 'true' : 'false'); }
     let q = 0; // la recharge en cours, de 0 à 1
     if (jeu && moi.rechargeJusqua > jeu.temps) { const d = A.recharge || 1.6; q = 1 - (moi.rechargeJusqua - jeu.temps) / d; }
@@ -347,6 +407,6 @@ const PCONTROLES = (() => {
     if (q !== vu.rech) { vu.rech = q; elAnneau.style.strokeDashoffset = String(100 - q); elRecharge.classList.toggle('charge', q > 0 && q < 100); }
   }
 
-  return { init, lire, consommer, enAttente, attenuer, regler, activer, taille, reinit, maj, modeTactile, verrouiller, lacher, emplacement, recharger, ICONES,
+  return { init, lire, consommer, enAttente, attenuer, regler, activer, taille, reinit, maj, modeTactile, verrouiller, lacher, emplacement, recharger, contexte, mode, SIGNAUX, ICONES, get roue() { return roue ? { choix: roue.choix } : null; }, ICO_ACTION, get contexteVu() { return ctxVu; },
     get reglages() { return R; }, get tactile() { return tactile; }, get actif() { return actif; }, get verrouille() { return verrouille(); } };
 })();

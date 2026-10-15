@@ -1311,6 +1311,7 @@ const PRENDU = (() => {
       _v.set(x, y + 0.04, z); _q.identity(); const pulse = o.dispo ? 1 + Math.sin(t * 3 + i) * 0.06 : 0.8; _s.set(pulse, 1, pulse); _m.compose(_v, _q, _s); OBJ.anneaux.setMatrixAt(na, _m);
       const cl = lin(col), kd = o.dispo ? 0 : 0.6; OBJ.anneaux.instanceColor.setXYZ(na, cl[0] + (1 - cl[0]) * kd, cl[1] + (1 - cl[1]) * kd, cl[2] + (1 - cl[2]) * kd); na++;
       const im = type ? ty[type] : null; if (!im || !o.dispo || im.count >= im.instanceMatrix.count) continue;
+      if ((type === 'soin' || type === 'munitions') && EX3.pres[type] && QUAL.niveau !== 'eco' && jeu.mode && jeu.mode.id === 'extraction' && (x - camera.position.x) * (x - camera.position.x) + (z - camera.position.z) * (z - camera.position.z) < PRES3 * PRES3) continue; // (le modèle réaliste, posé par majExtraction3d)
       _v.set(x, y + (arme ? 0.95 : 1.05) + Math.sin(t * 2.2 + i) * 0.1, z); _e.set(arme ? 0.18 : 0, t * 1.4 + i, 0, 'YXZ'); _q.setFromEuler(_e);
       const I = arme ? AV.armes.infos(type) : null, sc = arme ? borne(0.95 / I.long, 1.1, 3.2) : 1.5; _s.set(sc, sc, sc); _m.compose(_v, _q, _s);
       if (arme) { _m2.makeTranslation(0, 0.03, -(I.bouche[2] + I.arriere[2]) / 2); _m.multiply(_m2); } // elle tourne autour de son milieu
@@ -1321,6 +1322,173 @@ const PRENDU = (() => {
   }
   function cacherObjets() { if (OBJ.anneaux) OBJ.anneaux.visible = false; for (const k in OBJ.types) OBJ.types[k].visible = false; }
   let _m2 = null;
+  // ═══════════════════════════════ l'Extraction : coffres, coffre-fort, sacs au sol, balises de sortie, largages ═══════════════════════════════
+  // L'état du mode (groupe des règles) est lu avec tolérance, comme le HUD : jeu.extraction (sinon les crochets du mode coffres(jeu),
+  // points(jeu), sacs(jeu), largages(jeu)) { coffres: [{ id, x, z, rarete (commun | rare | epique | legendaire, ou 0..3), ouvert, vide,
+  // fort (le coffre-fort de la mairie : type 'coffre-fort') }], points | sorties: [{ x, z, rayon, ouvert }], ouvert, sacs: [{ x, z }],
+  // largages: [{ x, z, arriveA | atterrit (s de jeu), y?, ouvert }] }.
+  // Un InstancedMesh par sorte (coffre de chaque rareté, coffre-fort, sac, caisse de largage, radio de la balise) : un appel de dessin
+  // chacune, seulement quand elle sert ; la couleur d'instance assombrit un coffre ouvert ; une lueur (un seul InstancedMesh additif,
+  // colorée par rareté) au-dessus des coffres fermés ; la balise : une colonne de lumière (InstancedMesh) et un cercle au sol drapé sur
+  // le relief (un maillage, refait quand les sorties changent) ; le largage : la caisse sous un parachute qui descend, puis une colonne
+  // de fumée rouge (les bouffées de FX.fumees). Les formes sont simples et colorées par rareté (toujours en éco) ; PRENDU.objets3d(geos)
+  // peut leur substituer des modèles chargés (poncin/objets/*.glb, voir chargerObjets3d).
+  const RARS3 = ['commun', 'rare', 'epique', 'legendaire'], COUL_R3 = { commun: '#B8BCC8', rare: '#4F8DFF', epique: '#A66BFF', legendaire: '#FFC23A' };
+  const SORTES = ['commun', 'rare', 'epique', 'legendaire', 'fort', 'sac', 'largage', 'radio'];
+  const EX3 = { im: {}, pres: {}, lueurs: null, colonnes: null, cercles: null, parachute: null, cleCercles: '', t: -1, fumeeT: 0, n: 0, charge: null, erreurs: [] };
+  const rar3 = (c) => { const r = c && (c.rarete != null ? c.rarete : c.rang); if (typeof r === 'number') return RARS3[Math.max(0, Math.min(3, r | 0))]; if (r === 'épique') return 'epique'; if (r === 'légendaire') return 'legendaire'; return RARS3.indexOf(r) >= 0 ? r : 'commun'; };
+  const px3 = (o, k) => (o ? (fini(+o[k ? 'z' : 'x']) ? +o[k ? 'z' : 'x'] : Array.isArray(o.p) ? +o.p[k] : NaN) : NaN);
+  function geoCoffre(r) { // un coffre : caisse de bois (commun), caisse militaire (rare), coffre ferré (épique), coffre au trésor (légendaire)
+    const c = COUL_R3[r], P = M.part, B = M.boite, S = M.boiteSimple;
+    if (r === 'commun') return M.assembler([P(B(0.9, 0.55, 0.6, 0.03), '#B98A57'), P(S(0.92, 0.07, 0.62), '#8A6238', { y: 0.12 }), P(S(0.92, 0.07, 0.62), '#8A6238', { y: 0.4 }), P(S(0.07, 0.56, 0.62), '#8A6238', { x: -0.36 }), P(S(0.07, 0.56, 0.62), '#8A6238', { x: 0.36 }), P(S(0.3, 0.1, 0.02), c, { y: 0.24, z: 0.31 })]);
+    if (r === 'rare') return M.assembler([P(B(1.0, 0.5, 0.55, 0.04), '#5E6B43'), P(B(1.02, 0.12, 0.57, 0.03), '#4D5937', { y: 0.46 }), P(S(1.04, 0.08, 0.59), c, { y: 0.3 }), P(S(0.1, 0.05, 0.05), '#2F3426', { x: -0.53, y: 0.3 }), P(S(0.1, 0.05, 0.05), '#2F3426', { x: 0.53, y: 0.3 }), P(S(0.16, 0.12, 0.03), '#DADDE4', { y: 0.36, z: 0.29 })]);
+    if (r === 'epique') return M.assembler([P(B(0.95, 0.52, 0.58, 0.05), '#4A4F5F'), P(B(0.97, 0.18, 0.6, 0.06), '#3B3F4C', { y: 0.5 }), P(S(0.99, 0.06, 0.62), c, { y: 0.2 }), P(S(0.99, 0.06, 0.62), c, { y: 0.45 }), P(S(0.18, 0.16, 0.04), '#FFD27A', { y: 0.3, z: 0.3 }), P(S(0.4, 0.04, 0.08), '#9EA4B4', { y: 0.7 })]);
+    const arc = M.cylindre(0.3, 0.3, 0.9, 12); // légendaire : le couvercle bombé, les ferrures dorées
+    return M.assembler([P(B(0.95, 0.48, 0.62, 0.04), '#8B4E2B'), { geo: arc, col: '#A35E34', m: M.matrice({ rz: HP, x: 0.45, y: 0.46 }) }, P(S(0.97, 0.06, 0.64), c, { y: 0.06 }), P(S(0.97, 0.06, 0.64), c, { y: 0.42 }), P(S(0.06, 0.78, 0.64), c, { x: -0.3 }), P(S(0.06, 0.78, 0.64), c, { x: 0.3 }), P(S(0.18, 0.2, 0.04), c, { y: 0.32, z: 0.32 })]);
+  }
+  function geoSorte(k) {
+    if (RARS3.indexOf(k) >= 0) return geoCoffre(k);
+    const P = M.part, B = M.boite, S = M.boiteSimple;
+    if (k === 'fort') return M.assembler([P(B(0.95, 1.2, 0.8, 0.05), '#59606E'), P(S(0.8, 1.02, 0.03), '#6C7484', { y: 0.09, z: 0.4 }), { geo: M.cylindre(0.13, 0.13, 0.05, 16), col: '#FFC23A', m: M.matrice({ rx: HP, y: 0.62, z: 0.44 }) }, P(S(0.05, 0.3, 0.05), '#C9CED8', { x: 0.3, y: 0.45, z: 0.43 }), P(S(0.98, 0.06, 0.83), '#3B3F4C', { y: 1.16 })]);
+    if (k === 'sac') return M.assembler([P(B(0.62, 0.42, 0.24, 0.07), '#8A5A33'), P(S(0.3, 0.05, 0.05), '#3E2A1A', { y: 0.45 }), P(S(0.06, 0.08, 0.05), '#3E2A1A', { x: -0.13, y: 0.41 }), P(S(0.06, 0.08, 0.05), '#3E2A1A', { x: 0.13, y: 0.41 }), P(S(0.64, 0.05, 0.26), '#C9A15B', { y: 0.2 })]);
+    if (k === 'largage') return M.assembler([P(B(1.1, 0.8, 1.1, 0.04), '#5E6B43'), P(S(1.14, 0.1, 1.14), '#E2493D', { y: 0.55 }), P(S(0.14, 0.82, 1.14), '#4D5937', { x: 0 }), P(S(1.14, 0.82, 0.14), '#4D5937')]);
+    if (k === 'radio') return M.assembler([P(B(0.5, 0.36, 0.3, 0.04), '#5E6B43'), P(S(0.36, 0.14, 0.02), '#2F3426', { y: 0.12, z: 0.15 }), { geo: M.cylindre(0.012, 0.012, 1.1, 5), col: '#2F3426', m: M.matrice({ x: 0.18, y: 0.36 }) }, { geo: M.sphere(0.04, 6), col: '#5FD3A4', m: M.matrice({ x: 0.18, y: 1.46 }) }]);
+    return M.assembler([P(S(0.5, 0.5, 0.5), '#FFFFFF')]);
+  }
+  function construireExtraction() {
+    EX3.pres = {}; EX3.charge = null; EX3.cleCercles = '';
+    const mk = (geo, n, nom) => { const im = new THREE.InstancedMesh(geo, new THREE.MeshLambertMaterial({ vertexColors: true }), n); im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3); im.frustumCulled = false; im.count = 0; im.visible = false; im.name = 'ext-' + nom; im.castShadow = true; im.receiveShadow = false; scene.add(im); return im; };
+    for (const k of SORTES) EX3.im[k] = mk(geoSorte(k), k === 'fort' || k === 'radio' || k === 'largage' ? 4 : k === 'sac' ? 8 : 48, k);
+    // la lueur : un cylindre ouvert, dégradé vers le haut, additif
+    const gl = new THREE.CylinderGeometry(0.5, 0.62, 1.7, 14, 1, true).translate(0, 0.85, 0), n = gl.attributes.position.count, ca = new Float32Array(n * 4);
+    for (let i = 0; i < n; i++) { const y = gl.attributes.position.getY(i); ca[i * 4] = ca[i * 4 + 1] = ca[i * 4 + 2] = 1; ca[i * 4 + 3] = y < 0.5 ? 0.55 : 0; }
+    gl.setAttribute('color', new THREE.BufferAttribute(ca, 4));
+    const ml = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: true });
+    EX3.lueurs = new THREE.InstancedMesh(gl, ml, 48); EX3.lueurs.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(48 * 3), 3); EX3.lueurs.frustumCulled = false; EX3.lueurs.count = 0; EX3.lueurs.visible = false; EX3.lueurs.name = 'ext-lueurs'; EX3.lueurs.renderOrder = 2; scene.add(EX3.lueurs);
+    // la colonne de lumière des balises : haute, dégradée, additive
+    const gc = new THREE.CylinderGeometry(1.1, 1.6, 46, 18, 4, true).translate(0, 23, 0), m2 = gc.attributes.position.count, cc = new Float32Array(m2 * 4);
+    for (let i = 0; i < m2; i++) { const y = gc.attributes.position.getY(i) / 46; cc[i * 4] = cc[i * 4 + 1] = cc[i * 4 + 2] = 1; cc[i * 4 + 3] = 0.42 * Math.pow(1 - y, 1.6); }
+    gc.setAttribute('color', new THREE.BufferAttribute(cc, 4));
+    EX3.colonnes = new THREE.InstancedMesh(gc, ml.clone(), 4); EX3.colonnes.material.fog = false; EX3.colonnes.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(4 * 3), 3); EX3.colonnes.frustumCulled = false; EX3.colonnes.count = 0; EX3.colonnes.visible = false; EX3.colonnes.name = 'ext-colonnes'; EX3.colonnes.renderOrder = 2; scene.add(EX3.colonnes);
+    EX3.cercles = new THREE.Mesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.9, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -4, side: THREE.DoubleSide }));
+    EX3.cercles.frustumCulled = false; EX3.cercles.visible = false; EX3.cercles.name = 'ext-cercles'; EX3.cercles.renderOrder = 1; scene.add(EX3.cercles);
+    // le parachute du largage : une calotte rayée et ses suspentes (un maillage, posé au-dessus de la caisse qui tombe)
+    const cal = new THREE.SphereGeometry(1.7, 12, 5, 0, TAU, 0, HP * 0.85); cal.translate(0, 2.2, 0);
+    const parts = [{ geo: cal, col: '#F4EDE2' }]; for (let k = 0; k < 6; k++) { const a = k / 6 * TAU; parts.push({ geo: M.cylindre(0.012, 0.012, 2.4, 3), col: '#3B3F4C', m: M.matrice({ x: Math.cos(a) * 0.7, z: Math.sin(a) * 0.7, y: 0.45, rz: Math.cos(a) * 0.42, rx: -Math.sin(a) * 0.42 }) }); }
+    EX3.parachute = new THREE.Mesh(M.assembler(parts), new THREE.MeshLambertMaterial({ vertexColors: true, side: THREE.DoubleSide })); EX3.parachute.visible = false; EX3.parachute.name = 'ext-parachute'; scene.add(EX3.parachute);
+    cal.dispose();
+  }
+  function cercles3d(points) { // les cercles des sorties, drapés sur le relief (un ruban de 0,5 m, en dedans du bord) ; vert ouvert, blanc fermé
+    const cle = points.map((p) => p.x.toFixed(1) + ',' + p.z.toFixed(1) + ',' + p.r + ',' + (p.ouvert ? 1 : 0)).join(';'); if (cle === EX3.cleCercles) return; EX3.cleCercles = cle;
+    const pos = [], col = [], N = 64;
+    for (const p of points) {
+      const cl = lin(p.ouvert ? '#5FD3A4' : '#FFFFFF');
+      for (let k = 0; k < N; k++) {
+        if (!p.ouvert && k % 4 >= 2) continue; // fermée : un pointillé
+        const a0 = k / N * TAU, a1 = (k + 1) / N * TAU, ri = p.r - 0.55, ro = p.r;
+        const q = [[Math.cos(a0) * ri, Math.sin(a0) * ri], [Math.cos(a0) * ro, Math.sin(a0) * ro], [Math.cos(a1) * ro, Math.sin(a1) * ro], [Math.cos(a1) * ri, Math.sin(a1) * ri]].map(([dx, dz]) => [p.x + dx, HS(p.x + dx, p.z + dz) + 0.08, p.z + dz]);
+        for (const i of [0, 1, 2, 0, 2, 3]) { pos.push(q[i][0], q[i][1], q[i][2]); col.push(cl[0], cl[1], cl[2]); }
+      }
+    }
+    const g = EX3.cercles.geometry; g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); g.computeBoundingSphere();
+  }
+  function crochet3(jeu, nom) { const md = jeu.mode && typeof jeu.mode[nom] === 'function' ? jeu.mode : typeof PEXTRACTION !== 'undefined' && PEXTRACTION && typeof PEXTRACTION[nom] === 'function' ? PEXTRACTION : null; if (!md) return null; try { const r = md[nom](jeu); return Array.isArray(r) ? r : null; } catch (e) { return null; } }
+  const PTS3 = [], LG3 = [];
+  function majExtraction3d(jeu, t, cx, cz) {
+    const S = jeu && jeu.extraction && typeof jeu.extraction === 'object' ? jeu.extraction : null, ext = !!S || !!(jeu && jeu.mode && jeu.mode.id === 'extraction');
+    for (const k of SORTES) EX3.im[k].count = 0; EX3.lueurs.count = 0; EX3.colonnes.count = 0; viderPres();
+    if (!ext) { cacherExtraction(); return; }
+    // les objets posés par le mode (soins, munitions) : de près, la trousse et la caisse réalistes (les armes, les formes de majObjets)
+    if (EX3.pres.soin || EX3.pres.munitions) { const ob = crochet3(jeu, 'objets') || [];
+      for (let i = 0; i < ob.length; i++) { const o = ob[i]; if (!o || !o.dispo || (o.objet !== 'soin' && o.objet !== 'munitions') || !EX3.pres[o.objet] || QUAL.niveau === 'eco') continue; const x = +o.x, z = +o.z; if (!fini(x) || (x - cx) * (x - cx) + (z - cz) * (z - cz) > PRES3 * PRES3) continue;
+        _v.set(x, HS(x, z), z); _e.set(0, i * 2.1, 0); _q.setFromEuler(_e); _s.set(1, 1, 1); _m.compose(_v, _q, _s); poserInstance(o.objet, true, 1); } }
+    const E = S || {}, tj = +jeu.temps || t, D2 = 130 * 130;
+    const coffres = Array.isArray(E.coffres) ? E.coffres : crochet3(jeu, 'coffres') || [];
+    for (let i = 0; i < coffres.length; i++) {
+      const c = coffres[i]; if (!c) continue; const x = px3(c, 0), z = px3(c, 1); if (!fini(x) || !fini(z) || (x - cx) * (x - cx) + (z - cz) * (z - cz) > D2) continue;
+      if (c.special === 'largage') continue; // la caisse du largage : dessinée avec lui (et sa fumée)
+      const fort = !!(c.fort || c.verrou || c.special === 'coffre-fort' || c.special === 'mairie' || c.type === 'coffre-fort' || c.type === 'fort'), r = rar3(c), k = fort ? 'fort' : r, im = EX3.im[k]; if (im.count >= im.instanceMatrix.count) continue;
+      const ouvert = !!(c.ouvert || c.etat === 'ouvert' || c.vide || c.dispo === false), y = HS(x, z), ry = fini(+c.yaw) ? +c.yaw : ((i * 2.399) % TAU);
+      _v.set(x, y, z); _e.set(0, ry, 0); _q.setFromEuler(_e); _s.set(1, 1, 1); _m.compose(_v, _q, _s);
+      const kk = ouvert ? 0.42 : 1, pres = (x - cx) * (x - cx) + (z - cz) * (z - cz) < PRES3 * PRES3; poserInstance(k, pres, kk);
+      if (!ouvert && EX3.lueurs.count < 48) { // la lueur de la rareté (plus vive pour les beaux coffres), qui respire
+        const L = EX3.lueurs, n = L.count++, f = (r === 'commun' ? 0.35 : r === 'rare' ? 0.65 : 0.9) * (0.85 + 0.15 * Math.sin(t * 2.4 + i)) * borne((Math.hypot(x - cx, z - cz) - 1) / 5, 0.25, 1), cl = lin(fort ? COUL_R3.legendaire : COUL_R3[r]);
+        _s.set(fort ? 1.25 : 1, r === 'legendaire' || fort ? 1.5 : 1, fort ? 1.25 : 1); _m.compose(_v, _q, _s); L.setMatrixAt(n, _m); L.instanceColor.setXYZ(n, cl[0] * f, cl[1] * f, cl[2] * f);
+      }
+    }
+    // les sacs au sol (un joueur repeint : son butin attend là), qui se balancent un peu
+    const sacs = Array.isArray(E.sacs) ? E.sacs : Array.isArray(E.sacsAuSol) ? E.sacsAuSol : crochet3(jeu, 'sacs') || [];
+    for (let i = 0; i < sacs.length; i++) { const b = sacs[i]; if (!b || b.pris || b.dispo === false) continue; const x = px3(b, 0), z = px3(b, 1); if (!fini(x) || !fini(z)) continue;
+      _v.set(x, HS(x, z), z); _e.set(0, i * 1.7, 0); _q.setFromEuler(_e); _s.set(1, 1, 1); _m.compose(_v, _q, _s); poserInstance('sac', (x - cx) * (x - cx) + (z - cz) * (z - cz) < PRES3 * PRES3, 1); }
+    // les sorties : une radio posée au centre, la colonne de lumière (ouvertes), le cercle au sol (toujours ; pointillé tant qu'elles sont fermées)
+    const pts = Array.isArray(E.points) ? E.points : Array.isArray(E.sorties) ? E.sorties : Array.isArray(E.extractions) ? E.extractions : Array.isArray(E.balises) ? E.balises : crochet3(jeu, 'points') || [];
+    const ouvA = fini(+E.ouvreA) ? +E.ouvreA : fini(+E.ouverture) ? +E.ouverture : jeu.duree > 0 ? (+jeu.debutChrono || 0) + jeu.duree / 2 : Infinity, ouvTous = E.ouvert != null ? !!E.ouvert : E.ouvertes != null ? !!E.ouvertes : tj >= ouvA;
+    PTS3.length = 0;
+    for (let i = 0; i < pts.length && i < 4; i++) { const p = pts[i]; if (!p) continue; const x = px3(p, 0), z = px3(p, 1); if (!fini(x) || !fini(z)) continue; const ouvert = p.ouvert != null ? !!p.ouvert : ouvTous, y = HS(x, z);
+      PTS3.push({ x, z, r: +p.rayon > 0 ? +p.rayon : +p.r > 0 ? +p.r : 10, ouvert });
+      _v.set(x, y, z); _e.set(0, i * 1.3, 0); _q.setFromEuler(_e); _s.set(1, 1, 1); _m.compose(_v, _q, _s); const prR = (x - cx) * (x - cx) + (z - cz) * (z - cz) < PRES3 * PRES3; poserInstance('radio', prR, 1);
+      if (prR && EX3.pres.jerrycan) { _v.set(x + 0.9, HS(x + 0.9, z + 0.3), z + 0.3); _e.set(0, i * 1.3 + 0.6, 0); _q.setFromEuler(_e); _m.compose(_v, _q, _s); poserInstance('jerrycan', true, 1); _v.set(x, y, z); _e.set(0, i * 1.3, 0); _q.setFromEuler(_e); _m.compose(_v, _q, _s); } // un jerrican à côté de la radio
+      if (ouvert) { const C = EX3.colonnes, n = C.count++, dc = Math.hypot(x - cx, z - cz), f = (0.75 + 0.25 * Math.sin(t * 3 + i * 2)) * borne((dc - 3) / 12, 0.08, 1), cl = lin('#5FD3A4'); /* (s'efface quand on est dedans : pas de voile vert sur la vue) */ _e.set(0, t * 0.4, 0); _q.setFromEuler(_e); _s.set(1, 1, 1); _m.compose(_v, _q, _s); C.setMatrixAt(n, _m); C.instanceColor.setXYZ(n, cl[0] * f, cl[1] * f, cl[2] * f); }
+    }
+    cercles3d(PTS3); EX3.cercles.visible = PTS3.length > 0;
+    // les largages : la caisse sous son parachute descend jusqu'au sol ; posée, une colonne de fumée rouge tant qu'elle n'est pas ouverte
+    const lg0 = Array.isArray(E.largages) ? E.largages : E.largage && typeof E.largage === 'object' ? [E.largage] : crochet3(jeu, 'largages') || [];
+    LG3.length = 0; for (const l of lg0) { if (!l || !(l.annonce || l.tombe || l.arriveA != null || l.atterrit != null)) continue; const c = l.coffre && typeof l.coffre === 'object' ? l.coffre : null; LG3.push({ x: l.x, z: l.z, arriveA: fini(+l.A) ? +l.A : l.arriveA, atterrit: l.atterrit, y: l.y, ouvert: !!(l.ouvert || (c && c.ouvert)), pris: l.pris }); }
+    const lg = LG3;
+    let para = false;
+    for (let i = 0; i < lg.length; i++) { const l = lg[i]; if (!l || l.pris) continue; const x = px3(l, 0), z = px3(l, 1), im = EX3.im.largage; if (!fini(x) || !fini(z) || im.count >= im.instanceMatrix.count) continue;
+      const sol = HS(x, z), arr = fini(+l.arriveA) ? +l.arriveA : fini(+l.atterrit) ? +l.atterrit : fini(+l.arrive) ? +l.arrive : tj, h = fini(+l.y) ? Math.max(0, +l.y - sol) : Math.max(0, (arr - tj) * 5), ouvert = !!(l.ouvert || l.vide);
+      if (h > 60) continue;
+      _v.set(x, sol + h, z); _e.set(h > 0 ? 0.08 * Math.sin(t * 1.7) : 0, i + t * (h > 0 ? 0.3 : 0), h > 0 ? 0.08 * Math.cos(t * 1.3) : 0); _q.setFromEuler(_e); _s.set(1, 1, 1); _m.compose(_v, _q, _s); poserInstance('largage', (x - cx) * (x - cx) + (z - cz) * (z - cz) < PRES3 * PRES3, ouvert ? 0.45 : 1);
+      if (h > 0 && !para) { para = true; EX3.parachute.position.set(x, sol + h + 0.8, z); EX3.parachute.rotation.set(_e.x, _e.y, _e.z); }
+      if (!ouvert && t - EX3.fumeeT > 0.12 && FX.fumees) { EX3.fumeeT = t; fumee(x + (Math.random() - 0.5) * 0.4, (h > 0 ? sol + h : sol) + 0.6, z + (Math.random() - 0.5) * 0.4, 0.2 * Math.sin(t * 0.7), 2.4 + Math.random(), 0.2 * Math.cos(t * 0.5), '#E8453C', 0.6, 3.2, 0.62, 3.4); }
+    }
+    EX3.parachute.visible = para; finirPres();
+    for (const k of SORTES) { const im = EX3.im[k]; im.visible = im.count > 0; if (im.count) { im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; } }
+    for (const im of [EX3.lueurs, EX3.colonnes]) { im.visible = im.count > 0; if (im.count) { im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; } }
+  }
+  function cacherExtraction() { cacherPres(); if (!EX3.lueurs) return; for (const k of SORTES) EX3.im[k].visible = false; EX3.lueurs.visible = false; EX3.colonnes.visible = false; EX3.cercles.visible = false; EX3.parachute.visible = false; }
+  // ─── les modèles réalistes (Poly Haven, CC0 : poncin/objets/*.glb, voir poncin/objets/LICENCE.txt), lus en arrière-plan par init : de
+  // près (≤ 35 m) et hors éco, un coffre est dessiné par son modèle texturé ; de loin et en éco, par sa forme simple colorée par rareté.
+  // Chaque modèle est posé au sol, centré et mis à la taille de sa forme (TAILLE : la plus grande dimension horizontale, m) ; un
+  // InstancedMesh par matériau (un ou deux par modèle), seulement quand il sert. ─────────────────────────────────────────────────────────
+  const MODELES3 = { commun: 'commun', rare: 'rare', epique: 'epique', legendaire: 'legendaire', sac: 'sac', radio: 'radio', largage: 'rare', soin: 'soin', munitions: 'munitions', jerrycan: 'jerrycan' };
+  const TAILLE3 = { commun: 0.9, rare: 1.0, epique: 0.95, legendaire: 1.0, sac: 0.7, radio: 0.55, largage: 1.25, soin: 0.5, munitions: 0.5, jerrycan: 0.5 };
+  const PRES3 = 35;
+  function chargerObjets3d(d) {
+    if (typeof THREE.GLTFLoader !== 'function' || EX3.charge) return; EX3.charge = 'charge'; EX3.erreurs = [];
+    const loader = new THREE.GLTFLoader(), fichiers = {}; for (const k in MODELES3) fichiers[MODELES3[k]] = true;
+    const lus = {};
+    const fin = () => { for (const k in MODELES3) if (lus[MODELES3[k]]) poserModele(k, lus[MODELES3[k]]); EX3.charge = EX3.erreurs.length ? 'partiel' : 'glb'; };
+    let reste = Object.keys(fichiers).length;
+    for (const f of Object.keys(fichiers)) {
+      loader.load(d + f + '.glb', (g) => { lus[f] = g.scene; if (--reste === 0) fin(); }, undefined, (err) => { EX3.erreurs.push(f + ' : ' + (err && err.message ? err.message : 'introuvable')); if (--reste === 0) fin(); });
+    }
+  }
+  function poserModele(k, racine) { // les morceaux du modèle (par matériau), dans un repère posé au sol, à la taille voulue
+    if (!scene || !EX3.lueurs) return;
+    racine.updateMatrixWorld(true);
+    const parts = []; const bb = new THREE.Box3();
+    racine.traverse((o) => { if (!o.isMesh || !o.geometry) return; const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld); g.computeBoundingBox(); bb.union(g.boundingBox); parts.push({ g, m: o.material }); });
+    if (!parts.length) return;
+    const dx = bb.max.x - bb.min.x, dz = bb.max.z - bb.min.z, sc = (TAILLE3[k] || 0.8) / Math.max(0.01, dx, dz), cx = (bb.max.x + bb.min.x) / 2, cz = (bb.max.z + bb.min.z) / 2;
+    const n = k === 'radio' || k === 'largage' || k === 'jerrycan' ? 4 : k === 'sac' ? 8 : 12, ims = [];
+    for (const p of parts) {
+      p.g.translate(-cx, -bb.min.y, -cz); p.g.scale(sc, sc, sc); if (!p.g.attributes.normal) p.g.computeVertexNormals();
+      const src = Array.isArray(p.m) ? p.m[0] : p.m, map = src && src.map ? src.map : null; if (map) { map.colorSpace = THREE.SRGBColorSpace; map.anisotropy = 4; }
+      const mat = new THREE.MeshLambertMaterial({ color: map ? '#FFFFFF' : src && src.color ? src.color : '#B98A57', map });
+      const im = new THREE.InstancedMesh(p.g, mat, n); im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(n * 3).fill(1), 3); im.frustumCulled = false; im.count = 0; im.visible = false; im.castShadow = true; im.name = 'ext-glb-' + k; scene.add(im); ims.push(im);
+    }
+    EX3.pres[k] = ims; memoireSale = true;
+  }
+  function poserInstance(k, j, kk, loinIm) { // _m posé : près, le modèle (tous ses morceaux) ; sinon la forme simple
+    const ims = EX3.pres[k];
+    if (ims && j && QUAL.niveau !== 'eco') { for (const im of ims) { if (im.count >= im.instanceMatrix.count) return false; const n = im.count++; im.setMatrixAt(n, _m); im.instanceColor.setXYZ(n, kk, kk, kk); } return true; }
+    const im = loinIm || EX3.im[k]; if (!im || im.count >= im.instanceMatrix.count) return false; const n = im.count++; im.setMatrixAt(n, _m); im.instanceColor.setXYZ(n, kk, kk, kk); return true;
+  }
+  function finirPres() { for (const k in EX3.pres) for (const im of EX3.pres[k]) { im.visible = im.count > 0; if (im.count) { im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; } } }
+  function viderPres() { for (const k in EX3.pres) for (const im of EX3.pres[k]) im.count = 0; }
+  function cacherPres() { for (const k in EX3.pres) for (const im of EX3.pres[k]) im.visible = false; }
   // ═══════════════════════════════ la clôture de la zone (jeu.zone.limite, sinon monde.limite) ═══════════════════════════════
   // La limite v2 des zones (§ 7) est un ensemble d'arêtes ; on lit jeu.zone.limite, sinon monde.limite (le cercle d'aujourd'hui). Lecture
   // tolérante (le format exact est celui de PMONDE.limiteDe) : { aretes | bord: [ax, az, bx, bz, …] (4 nombres par arête, ou n arêtes :
@@ -1640,6 +1808,7 @@ const PRENDU = (() => {
   // ═══════════════════════════════ les personnages ═══════════════════════════════
   const acteurs = new Map(); let jeuVu = null;
   function balayer(av, id) { if (av.vu !== frame) { AV.liberer(av); acteurs.delete(id); } }
+  let MAT_BOSS = null; const COUL_BOSS = '#4A4458';
   function majActeurs(jeu, idCam, dt, t, camMorte) {
     if (!AV) return;
     if (jeu !== jeuVu) { acteurs.forEach((av) => AV.liberer(av)); acteurs.clear(); jeuVu = jeu; }
@@ -1647,11 +1816,16 @@ const PRENDU = (() => {
     for (let i = 0; i < es.length; i++) {
       const e = es[i]; if (!e || e.id == null) continue;
       let av = acteurs.get(e.id); const robot = !!(e.bot || !e.humain);
-      if (av && (av.robot !== robot || (typeof e.couleur === 'string' && av.col !== e.couleur && /^#[0-9a-f]{6}$/i.test(e.couleur)))) { AV.liberer(av); acteurs.delete(e.id); av = null; }
-      if (!av) { try { av = AV.creer(e); scene.add(av.groupe); acteurs.set(e.id, av); } catch (err) { signaler('avatar', err); continue; } }
+      const col = e.boss && robot ? COUL_BOSS : e.couleur; // le Gardien (Extraction) : un robot sombre
+      if (av && (av.robot !== robot || (typeof col === 'string' && av.col !== col && /^#[0-9a-f]{6}$/i.test(col)))) { AV.liberer(av); acteurs.delete(e.id); av = null; }
+      if (!av) { try { av = AV.creer(col !== e.couleur ? Object.assign({}, e, { couleur: col }) : e); scene.add(av.groupe); acteurs.set(e.id, av); } catch (err) { signaler('avatar', err); continue; } }
       av.vu = frame;
       affiche(e);
       try { AV.animer(av, e, dt, t, AFF.x, AFF.y, AFF.z); } catch (err) { signaler('animer', err); }
+      if (e.boss && av.robot) { // le Gardien (Extraction) : un robot plus massif, sombre (sa couleur), aux yeux rouges
+        if (!av.boss) { av.boss = true; av.groupe.scale.setScalar(1.45); if (!MAT_BOSS) MAT_BOSS = new THREE.MeshBasicMaterial({ color: '#FF2B3D' }); }
+        if (av.yeux && av.yeux.material !== MAT_BOSS) av.yeux.material = MAT_BOSS;
+      }
       if (e.id === idCam && !camMorte) av.groupe.visible = false; // la vue subjective : on ne se voit pas
       if (ombres && av.groupe.visible && e.vivant !== false && no < 16 && fini(AFF.x)) { const g = HS(AFF.x, AFF.z), hh = Math.max(0, AFF.y - g), k = 1 / (1 + hh * 0.6); _v.set(AFF.x, g + 0.03, AFF.z); _q.identity(); _s.set(1.2 * k, 1, 1.2 * k); _m.compose(_v, _q, _s); ombre.setMatrixAt(no++, _m); }
     }
@@ -1909,8 +2083,9 @@ const PRENDU = (() => {
       const sc = soleil.shadow.camera; sc.left = -40; sc.right = 40; sc.top = 40; sc.bottom = -40; sc.near = 1; sc.far = 225; // la lumière est à 160 m de la cible : au-delà de ~60 m derrière elle, rien ne projette d'ombre visible (un soleil bas du soir ne ramasse pas tout le bourg) sc.updateProjectionMatrix();
       scene.add(hemi, soleil, soleil.target);
       // les vraies armes (poncin/armes/*.glb) : lues en arrière-plan ; d'ici là, les armes procédurales au même gabarit
+      try { chargerObjets3d(typeof opts.objets === 'string' ? opts.objets : dossier.replace(/carte\/?$/, '') + 'objets/'); } catch (e) { signaler('objets 3D', e); }
       if (AV) { try { AV.armes.charger(typeof opts.armes === 'string' ? opts.armes : dossier.replace(/carte\/?$/, '') + 'armes/'); } catch (e) { signaler('armes', e); } }
-      const etapes = [['index des rues', construireIndexRues], ['matières', matieres], ['décor', construireDecor], ['ciel', construireCiel], ['sol', construireSol], ['bâtiments', construireBatiments], ['eau', construireEau], ['ponts', construirePonts], ['clôtures', construireClotures], ['végétation', construireVegetation], ['effets', construireEffets], ['objets', construireObjets], ['arme', construireArme]];
+      const etapes = [['index des rues', construireIndexRues], ['matières', matieres], ['décor', construireDecor], ['ciel', construireCiel], ['sol', construireSol], ['bâtiments', construireBatiments], ['eau', construireEau], ['ponts', construirePonts], ['clôtures', construireClotures], ['végétation', construireVegetation], ['effets', construireEffets], ['objets', construireObjets], ['extraction', construireExtraction], ['arme', construireArme]];
       for (const [nom, f] of etapes) { try { f(); } catch (e) { signaler(nom, e); } }
       if (!FX.traits) return false; // sans les effets, rien ne tient : on préfère le panneau sans 3D
       try { habillerSol(); } catch (e) { signaler('habiller le sol', e); }
@@ -2039,6 +2214,7 @@ const PRENDU = (() => {
     camera.updateMatrixWorld();
     const cx = camera.position.x, cz = camera.position.z;
     try { if (jeu) { majActeurs(jeu, idCamera, dt, t, !!(e && e.vivant === false)); majObjets(jeu, +jeu.temps || t); } else { cacherActeurs(); cacherObjets(); } } catch (err) { signaler('acteurs', err); }
+    try { if (jeu && EX3.lueurs) majExtraction3d(jeu, t, cx, cz); else cacherExtraction(); } catch (err) { signaler('extraction', err); }
     try { majCloture(jeu, cx, cz); } catch (err) { signaler('clôture', err); }
     try { majAmbiance(enJeu, dt, t); } catch (err) { signaler('ambiance', err); }
     try { majEffets(dt); } catch (err) { signaler('effets', err); }
@@ -2139,12 +2315,12 @@ const PRENDU = (() => {
   const API = {
     init, taille, image, evenements, qualite, projeter, survol, reglages, ambiance,
     get fov() { return CHAMP.fov || fovV; }, get visee() { return { vise: FP.vise, viseur: FP.viseur, zoom: CHAMP.z, cache: FP.cache, arme: FP.id }; }, get webgl() { return webgl && !perdu; }, get budgets() { return BUDGETS; },
-    get _interne() { return { scene, sceneArme, camera, camArme, renderer, FP, FX, CAM, tuiles, voutes: voutesM, acteurs, decor, veg, BATI, ATL, USOL, soleil, hemi, QUAL, SOLEIL, AMB, NUIT, PLUIE, CLOT, palier: changerPalier, aretesDe }; }, // pour l'atelier et les tests (palier : un changement de la qualité adaptative)
+    get _interne() { return { scene, sceneArme, camera, camArme, renderer, FP, FX, CAM, tuiles, voutes: voutesM, EX3, acteurs, decor, veg, BATI, ATL, USOL, soleil, hemi, QUAL, SOLEIL, AMB, NUIT, PLUIE, CLOT, palier: changerPalier, aretesDe }; }, // pour l'atelier et les tests (palier : un changement de la qualité adaptative)
     get stats() {
       const i = renderer ? renderer.info : null; let ds = null, vs = null, ps = null;
       try { ds = decor ? decor.stats : null; } catch (e) { ds = null; } try { vs = veg ? veg.stats : null; } catch (e) { vs = null; } try { ps = PTX ? PTX.stats() : null; } catch (e) { ps = null; }
       return { webgl: webgl && !perdu, perdu, qualite: QUAL.niveau, fixe: QUAL.fixe, calls: i ? i.render.calls : 0, triangles: i ? i.render.triangles : 0, geometries: i ? i.memory.geometries : 0, textures: i ? i.memory.textures : 0,
-        ms: Math.round((QUAL.moy || 0) * 10) / 10, cpu: Math.round(cpuMs * 100) / 100, dpr: DPR, fov: Math.round(fovV * 10) / 10, champ: Math.round(CHAMP.fov * 10) / 10, armes: AV ? AV.armes.etat : 'aucun', trous: FX.trous ? FX.trous.im.count : 0, sol: solEtat, tuiles: nbTuiles, acteurs: acteurs.size, erreurs, derniereErreur, gpu: QUAL.gpu || '',
+        ms: Math.round((QUAL.moy || 0) * 10) / 10, cpu: Math.round(cpuMs * 100) / 100, dpr: DPR, fov: Math.round(fovV * 10) / 10, champ: Math.round(CHAMP.fov * 10) / 10, armes: AV ? AV.armes.etat : 'aucun', objets3d: EX3.charge || 'aucun', trous: FX.trous ? FX.trous.im.count : 0, sol: solEtat, tuiles: nbTuiles, acteurs: acteurs.size, erreurs, derniereErreur, gpu: QUAL.gpu || '',
         arbres: vs ? vs.arbres : ARBRES.types.reduce((s, T) => s + T.im.count + T.imL.count, 0), budget: BUDGETS[QUAL.niveau], memoire: memoire(), voutes: nVoutes, bati: BATI ? 'couches' : 'couleurs',
         decor: ds ? { appels: ds.appels, triangles: ds.triangles, appelsOmbre: ds.appelsOmbre, trianglesOmbre: ds.trianglesOmbre, memoire: Math.round((ds.memoire || 0) / 104857.6) / 10, erreurs: (ds.erreurs || []).length } : null,
         vegetation: vs ? { appels: vs.appels, triangles: vs.triangles, appelsOmbre: vs.appelsOmbre, trianglesOmbre: vs.trianglesOmbre, memoire: Math.round((vs.memoire || 0) / 104857.6) / 10, arbres: vs.arbres, buissons: vs.buissons } : null,
