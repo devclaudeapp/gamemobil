@@ -11,5 +11,4 @@ quantifiés et leur texture réduite (256 px, 512 px pour le coffre légendaire)
 - radio.glb      « Vintage Radio Transceiver »  (vintage_radio_transceiver)  Mateusz Sadek      (la balise d'extraction)
 - soin.glb       « Medical Box »                (medical_box)                Ulan Cabanilla
 - munitions.glb  « Ammo Box »                   (ammo_box)                   DanKit
-- jerrycan.glb   « Metal Jerrycan »             (metal_jerrycan)             Sean Buckley       (posé près des balises)
 Les noms des fichiers sont ceux du jeu. Merci aux auteurs de Poly Haven.

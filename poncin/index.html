@@ -12255,7 +12255,7 @@ const PRENDU = (() => {
   // près (≤ 35 m) et hors éco, un coffre est dessiné par son modèle texturé ; de loin et en éco, par sa forme simple colorée par rareté.
   // Chaque modèle est posé au sol, centré et mis à la taille de sa forme (TAILLE : la plus grande dimension horizontale, m) ; un
   // InstancedMesh par matériau (un ou deux par modèle), seulement quand il sert. ─────────────────────────────────────────────────────────
-  const MODELES3 = { commun: 'commun', rare: 'rare', epique: 'epique', legendaire: 'legendaire', sac: 'sac', radio: 'radio', largage: 'rare', soin: 'soin', munitions: 'munitions', jerrycan: 'jerrycan' };
+  const MODELES3 = { commun: 'commun', rare: 'rare', epique: 'epique', legendaire: 'legendaire', sac: 'sac', radio: 'radio', soin: 'soin', munitions: 'munitions' }; // (la caisse du largage de près : le modèle du coffre rare, agrandi, dans les mêmes appels de dessin)
   const TAILLE3 = { commun: 0.9, rare: 1.0, epique: 0.95, legendaire: 1.0, sac: 0.7, radio: 0.55, largage: 1.25, soin: 0.5, munitions: 0.5, jerrycan: 0.5 };
   const PRES3 = 35;
   function chargerObjets3d(d) {
@@ -12287,9 +12287,11 @@ const PRENDU = (() => {
   }
   const TEINTE_ECO = { commun: '#C9B08A', rare: '#6FA0FF', epique: '#B47BFF', legendaire: '#FFC23A', fort: '#7C8494', largage: '#7E8C55' };
   function poserInstance(k, j, kk, loinIm) { // _m posé : près, le modèle (tous ses morceaux) ; sinon la forme simple
+    if (k === 'largage' && j && QUAL.niveau !== 'eco' && EX3.pres.rare) { _m2.makeScale(1.25, 1.25, 1.25); _m.multiply(_m2); k = 'rare'; } // de près : le coffre rare, plus grand
     const ims = EX3.pres[k], eco = QUAL.niveau === 'eco';
     if (ims && j && !eco) { for (const im of ims) { if (im.count >= im.instanceMatrix.count) return false; const n = im.count++; im.setMatrixAt(n, _m); im.instanceColor.setXYZ(n, kk, kk, kk); } return true; }
-    if (eco && TEINTE_ECO[k] && EX3.im.eco) { const im = EX3.im.eco; if (im.count >= im.instanceMatrix.count) return false; const n = im.count++, c = lin(TEINTE_ECO[k]); _s.set(k === 'fort' ? 1.05 : k === 'largage' ? 1.25 : 1, k === 'fort' ? 2.2 : k === 'largage' ? 1.4 : 1, k === 'largage' ? 1.8 : 1); _m2.makeScale(_s.x, _s.y, _s.z); _m.multiply(_m2); im.setMatrixAt(n, _m); im.instanceColor.setXYZ(n, c[0] * kk, c[1] * kk, c[2] * kk); return true; }
+    // de loin (et toujours en éco) : les coffres des quatre raretés en une seule forme teintée, un seul appel de dessin
+    if ((eco || RARS3.indexOf(k) >= 0) && TEINTE_ECO[k] && EX3.im.eco) { const im = EX3.im.eco; if (im.count >= im.instanceMatrix.count) return false; const n = im.count++, c = lin(TEINTE_ECO[k]); _s.set(k === 'fort' ? 1.05 : k === 'largage' ? 1.25 : 1, k === 'fort' ? 2.2 : k === 'largage' ? 1.4 : 1, k === 'largage' ? 1.8 : 1); _m2.makeScale(_s.x, _s.y, _s.z); _m.multiply(_m2); im.setMatrixAt(n, _m); im.instanceColor.setXYZ(n, c[0] * kk, c[1] * kk, c[2] * kk); return true; }
     const im = loinIm || EX3.im[k]; if (!im || im.count >= im.instanceMatrix.count) return false; const n = im.count++; im.setMatrixAt(n, _m); im.instanceColor.setXYZ(n, kk, kk, kk); return true;
   }
   function finirPres() { for (const k in EX3.pres) for (const im of EX3.pres[k]) { im.visible = im.count > 0; if (im.count) { im.instanceMatrix.needsUpdate = true; im.instanceColor.needsUpdate = true; } } }
