@@ -9,8 +9,8 @@ const GARDEROBE_UI = (() => {
   const PIECES = [['tete', 'Couvre-chef', 'Tête'], ['haut', 'Haut', 'Haut'], ['pieds', 'Chaussures', 'Pieds'], ['accessoire', 'Accessoire', 'Accessoire']];
   const NOM_PIECE = Object.fromEntries(PIECES.map(([id, nom]) => [id, nom]));
   const RARETE = { commun: 'de toujours', rare: 'rare', epique: 'épique', legendaire: 'légendaire' };
-  const COLLECTION = { base: 'La tenue de toujours', or: 'Podium d’or', argent: 'Podium d’argent', bronze: 'Podium de bronze', quartier: 'Le Quartier', 'quartier-or': 'Le Quartier, podium final' };
-  const QUELLE = { or: 'Termine 1er de la semaine au classement.', argent: 'Termine 2e de la semaine au classement.', bronze: 'Termine 3e de la semaine au classement.', quartier: 'Les paliers de l’événement « Le Quartier ».', 'quartier-or': 'Le podium final de l’événement « Le Quartier ».' };
+  const COLLECTION = { base: 'La tenue de toujours', or: 'Podium d’or', argent: 'Podium d’argent', bronze: 'Podium de bronze', quartier: 'Le Quartier', 'quartier-or': 'Le Quartier, podium final', hantee: 'La Maison hantée', 'hantee-or': 'La Maison hantée, podium final' };
+  const QUELLE = { or: 'Termine 1er de la semaine au classement.', argent: 'Termine 2e de la semaine au classement.', bronze: 'Termine 3e de la semaine au classement.', quartier: 'Les paliers de l’événement « Le Quartier ».', 'quartier-or': 'Le podium final de l’événement « Le Quartier ».', hantee: 'Les paliers de l’événement « La Maison hantée ».', 'hantee-or': 'Le podium final de « La Maison hantée ».' };
   let pieceOuverte = 'tete';
   const virg = (n) => String(+n.toFixed(2)).replace('.', ',');
   const etoiles = (n) => `${'★'.repeat(n)}${'☆'.repeat(GR.nivMax - n)}`;
@@ -35,6 +35,13 @@ const GARDEROBE_UI = (() => {
       <button type="button" class="btn large clair" data-gr-ouvrir="tete"><b>Ouvrir la garde-robe</b></button></div>`;
   }
   // ─── la feuille : la pièce choisie en segments, ce qu'on possède, porter, améliorer, puis les ensembles ───
+  // le chat de la boutique : roux ou noir, au choix pour qui a joué à la Maison hantée (pendant l'événement, il est noir d'office)
+  let ctxChat = null;
+  function blocChat(st, c) {
+    if (!c || !st.chat || !c.dispo()) return '';
+    const noir = c.noir(), force = c.force(), choix = (p, ico, nom, sous) => `<button type="button" class="gr-piece gr-chat ${(p === 'noir') === noir ? 'porte' : ''}" data-gr-chat="${p}" aria-pressed="${(p === 'noir') === noir}" ${force ? 'disabled' : ''}><span class="gr-ico">${ico}</span><span class="gr-txt"><b>${nom}</b><small>${sous}</small></span>${(p === 'noir') === noir ? '<span class="gr-ok">Choisi ✓</span>' : ''}</button>`;
+    return `<h3 class="titre-section">Le chat de la boutique</h3><div class="gr-liste">${choix('roux', ICONS.CHAT, `${esc(st.chat.nom)}, roux tigré`, 'Comme au premier jour')}${choix('noir', ICONS.CHAT_NOIR || ICONS.CHAT, `${esc(st.chat.nom)}, chat noir`, 'Le souvenir de la Maison hantée')}</div>${force ? '<p class="note centre">Pendant la Maison hantée, le chat est noir. Le choix revient après.</p>' : ''}`;
+  }
   function html(st) {
     const g = G.garderobe(st), p = pieceOuverte, porte = g.equipe[p], bonus = resumeBonus(st), ens = G.ensembleComplet(st);
     const seg = `<div class="segments gr-seg" role="tablist" aria-label="Emplacement">${PIECES.map(([id, , court]) => `<button type="button" role="tab" data-gr-piece="${id}" aria-selected="${p === id}" class="${p === id ? 'actif' : ''}">${court}</button>`).join('')}</div>`;
@@ -54,11 +61,11 @@ const GARDEROBE_UI = (() => {
     return `<div class="cl gr" data-cl="garderobe"><div class="cl-tete"><span class="pic">${ICONS.UI.garderobe}</span><div><h2>Garde-robe</h2><p class="sous">Choisis ce que porte ton boulanger, pièce par pièce. Les étoiles améliorent chaque pièce (niveaux 1 à 5).</p></div></div>
       <div class="gr-tete"><span class="gr-portrait" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), G.tenueBoulanger(st))}</span><div><b>${bonus.length ? bonus.join(' · ') : 'Aucun bonus porté'}</b><small>${ens ? `${esc(GR.ensembles[ens].nom)} au complet.` : 'Les quatre pièces d’une même collection : un bonus d’ensemble en plus.'}</small><small class="gr-solde">${G.fmt(st.etoiles)} étoile${st.etoiles > 1 ? 's' : ''} à dépenser · une étoile dépensée ne compte plus dans les +5 % par étoile</small></div></div>
       ${seg}<div class="gr-liste" role="list" aria-label="${esc(NOM_PIECE[p])}">${rien}${cartes}</div>${indice}
-      <h3 class="titre-section">Les ensembles</h3><div class="gr-ensembles">${ensembles}</div>
+      <h3 class="titre-section">Les ensembles</h3><div class="gr-ensembles">${ensembles}</div>${blocChat(st, ctxChat)}
       <button type="button" class="btn large sombre" data-a="gr-fermer" style="margin-top:14px"><b>Retour</b></button></div>`;
   }
   function ouvrir(ctx, piece) {
-    if (GR.pieces.includes(piece)) pieceOuverte = piece;
+    if (GR.pieces.includes(piece)) pieceOuverte = piece; ctxChat = ctx.chat || null;
     ctx.openSheet(html(ctx.st)); lier(ctx);
   }
   function redessiner(ctx, cible) { // la feuille se redessine sur place, sans remonter, le bouton touché garde le focus
@@ -80,6 +87,7 @@ const GARDEROBE_UI = (() => {
     });
     ctx.on('[data-gr-ensemble]', (b) => { const n = G.equiperCollection(st, b.dataset.grEnsemble); if (!n) { ctx.son.non(); return; } ctx.son.deblocage(); ctx.buzz([10, 30, 10]); ctx.toast(`${GR.ensembles[b.dataset.grEnsemble].nom} : les quatre pièces portées.`); ctx.save(); ctx.apres(); redessiner(ctx); });
     ctx.on('[data-a="gr-fermer"]', () => { ctx.son.tap(); ctx.closeSheet(); });
+    ctx.on('[data-gr-chat]', (b) => { if (!ctx.chat || ctx.chat.force()) return; ctx.chat.choisir(b.dataset.grChat); ctx.son.tap(); ctx.buzz(8); ctx.save(); redessiner(ctx, `[data-gr-chat="${b.dataset.grChat}"]`); });
   }
   function bind(sec, ctx) { sec.querySelectorAll('[data-gr-ouvrir]').forEach((b) => b.addEventListener('click', () => { ctx.son.tap(); ouvrir(ctx, b.dataset.grOuvrir); })); }
   return { carte, html, ouvrir, bind, resumeBonus, NOM_PIECE, COLLECTION, get piece() { return pieceOuverte; } };

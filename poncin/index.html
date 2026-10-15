@@ -1069,13 +1069,19 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   // le dessin (toque ou casquette ; tablier ou sweat à capuche ; sabots, chaussures ou baskets ; foulard, chaîne ou lunettes), le métal
   // sa palette dans TENUES (or, argent, bronze, quartier, quartier-or ; null : la tenue blanche). Le sweat colore aussi les bras (manches,
   // poignets, mains fusionnés en un maillage par bras), les chaussures sont fusionnées à chaque jambe : 8 appels de dessin, comme avant.
+  // La garde-robe d'Halloween (la Maison hantée) : chapeau pointu de sorcière ou capuche de fantôme (fusionnés dans la tête), cape (le
+  // buste prend la robe claire, la cape doublée et son col sont fusionnés dans le buste, les manches dans les bras), bottes à bout relevé
+  // (fusionnées aux jambes), balai miniature en bandoulière (dans le buste) ou lanterne-citrouille (dans le bras droit) : toujours 8 appels.
+  // Les costumes de l'équipe du manoir en éco : o.bandes (les bandelettes de la momie), o.os (le pyjama squelette), fusionnés dans le buste.
   function construire(o) {
     const peau = o.peau || '#FFD7B5', chev = o.cheveux || L, large = o.tablier === 'large', phiT = large ? 1.9 : 1.3;
     const gd = o.garde || null, pieceG = (p) => (gd && gd[p] ? gd[p] : null), metalDe = (p) => { const x = pieceG(p); return x && x.metal && TENUES[x.metal] ? TENUES[x.metal] : null; };
     const tnL = o.tenue && o.tenue.tissu ? o.tenue : null; // l'ancienne option : toque et tablier au même métal
     const tnT = metalDe('tete') || tnL, tnH = metalDe('haut') || tnL, tnP = metalDe('pieds'), tnA = metalDe('accessoire');
     const casquette = !!pieceG('tete') && pieceG('tete').forme === 'casquette', sweat = !!pieceG('haut') && pieceG('haut').forme === 'sweat', pieds = pieceG('pieds'), acc = pieceG('accessoire');
-    const haut = sweat ? (tnH || TENUES.quartier).tissu : o.or ? OR : o.haut || '#FF9FB2';
+    const formeT = pieceG('tete') ? FORMES_HT[pieceG('tete').forme] || null : null, chapeau = formeT === 'chapeau', capuche = formeT === 'capuche', cape = !!pieceG('haut') && pieceG('haut').forme === 'cape'; // la garde-robe d'Halloween
+    const tnC = tnH || TENUES.hantee; // la palette de la cape (et de la robe dessous)
+    const haut = sweat ? (tnH || TENUES.quartier).tissu : cape ? tnC.clair : o.or ? OR : o.haut || '#FF9FB2';
     const tissuT = tnT ? tnT.tissu : BLANC, galonT = tnT ? tnT.fonce : OR, tissuH = tnH ? tnH.tissu : BLANC, galonH = tnH ? tnH.fonce : OR;
     const grade = o.toque && o.tablier ? Math.max(1, Math.min(5, Math.round(+o.grade || 1))) : 1, lisere = o.lisere || grade >= 5;
     const lunettes = !!o.lunettes || !!(acc && acc.forme === 'lunettes');
@@ -1086,7 +1092,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     // le buste : une capsule, rayures de marinière, tablier qui épouse le corps (ou le sweat à capuche), col et foulard du patron
     const corps = [M.part(M.capsule(11, 12, 12), haut, { y: 36 })];
     if (o.mariniere) for (const y of [31.5, 36, 40.5, 44.8]) corps.push(M.part(bande(11.4, 2.2), '#3A86C8', { y }));
-    if (o.tablier && !sweat) {
+    if (o.tablier && !sweat && !cape) {
       corps.push(M.part(patchS(11.7, phiT, 1.05, HP - 1.05), tissuH, { y: 42 }), M.part(patchC(11.7, 12, phiT), tissuH, { y: 36 }), M.part(patchS(11.7, phiT, HP, 0.95), tissuH, { y: 30 }));
       if (lisere || tnH) corps.push(M.part(patchS(12, phiT, HP + 0.4, 0.28), galonH, { y: 30 }));
       if (tnH) corps.push(M.part(patchC(11.85, 11, 0.2), tnH.clair, { y: 36.5, ry: -0.45 })); // le reflet du métal, une bande claire sur la gauche du tablier
@@ -1100,6 +1106,10 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       corps.push(M.part(patchC(11.75, 5.5, 1.35), poche, { y: 25.5 }), M.part(patchC(11.85, 0.7, 1.35), c.fonce, { y: 30.6 }), M.part(patchS(11.75, 1.35, HP, 0.4), poche, { y: 30 }));
       corps.push(M.part(etoile(2.4, 1, 0.8), c.fonce, ETOILE));
     }
+    if (cape) corps.push(...partsCape(tnC)); // la cape : dans le dos, évasée, doublée ; le col dressé et l'agrafe (fusionnés dans le buste)
+    if (o.bandes) for (const [y, r] of [[27, 0.25], [32, -0.2], [37.5, 0.18], [43, -0.15]]) corps.push(M.part(bande(11.3, 2), o.bandes, { y, rz: r })); // les bandelettes de la momie
+    if (o.os) corps.push(M.part(M.capsule(0.9, 9, 6), '#F4F0E6', { y: 44, z: 10.6 }), ...[40, 36.5, 33].map((y, k) => M.part(M.capsule(0.85, 9 - k * 1.2, 6), '#F4F0E6', { y, z: 10.9 - k * 0.15, rz: HP })), M.part(M.sphere(2, 8), '#F4F0E6', { y: 28, z: 10.2, sx: 1.6, sz: 0.5 })); // le pyjama squelette : la colonne, trois côtes, le bassin
+    if (acc && acc.forme === 'balai') corps.push(...partsBalai(tnA)); // le balai miniature, en bandoulière dans le dos
     if (o.col) corps.push(M.part(patchC(12, 5, 2.3), '#2B5BD7', { y: 45.5, ry: -1.45 }), M.part(patchC(12, 5, 0.6), BLANC, { y: 45.5 }), M.part(patchC(12, 5, 2.3), ROUGE, { y: 45.5, ry: 1.45 }), M.part(patchC(12, 5, 0.6), BLANC, { y: 45.5, ry: Math.PI }));
     const foulardCol = acc && acc.forme === 'foulard' ? (tnA ? tnA.tissu : ROUGE) : acc && acc.forme !== 'lunettes' ? null : o.foulard ? ROUGE : null; // l'accessoire remplace le foulard du titre (les lunettes le laissent)
     if (foulardCol) corps.push(M.part(M.tore(9.2, 2.4, TAU, 8, 16), foulardCol, { y: 51, rx: HP }), M.part(M.sphere(2.6, 8), foulardCol, { y: 49, z: 9.6 }), M.part(M.capsule(1.3, 3, 6), foulardCol, { x: -1.7, y: 46.3, z: 11.2, rz: 0.35 }), M.part(M.capsule(1.3, 3, 6), foulardCol, { x: 1.9, y: 46.6, z: 11, rz: -0.3 })); // deux pans courts qui pendent du nœud, à plat sur le tablier
@@ -1107,11 +1117,14 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     P.corps = M.maille(corps); ht.add(P.corps);
     // la tête : peau, cou, coiffure (calotte, mèches, chignon, bonnet), toque ou casquette, haut-de-forme, moustache
     const tete = [M.part(M.sphere(10, 14), peau), M.part(M.cylindre(3.6, 3.6, 8, 8), peau, { y: -14 })];
-    if (!o.toque) tete.push(M.part(calotte(10.7, 1.5), chev, { rx: -0.78 }));
+    if (!o.toque && !capuche && formeT !== 'citrouille') tete.push(M.part(calotte(10.7, 1.5), chev, { rx: -0.78 }));
     if (o.coiffure === 1 && !o.toque) tete.push(M.part(M.capsule(2.3, 7, 6), chev, { x: -9.8, z: -1.5, rz: -0.12 }), M.part(M.capsule(2.3, 7, 6), chev, { x: 9.8, z: -1.5, rz: 0.12 }));
     if (o.coiffure === 2 && !o.toque) tete.push(M.part(M.sphere(4.2, 8), chev, { y: 10.5, z: -4 }));
     if (o.coiffure === 3 && !o.toque) tete.push(M.part(bande(10, 4.2), o.bonnet || '#9BD0FF', { y: 10 }), M.part(calotte(10.2, HP, 14), o.bonnet || '#9BD0FF', { y: 12 }), M.part(M.sphere(3, 8), BLANC, { y: 22.7 }));
-    if (o.toque && casquette) { // la casquette : une calotte basse, le bandeau, la visière tournée vers l'arrière (devant, elle cacherait les yeux en plongée), le bouton ; sa couleur, celle du quartier
+    if (chapeau) tete.push(...partsChapeau(tnT || TENUES.hantee)); // le chapeau pointu de sorcière (à la place de la toque)
+    else if (capuche) tete.push(...partsCapuche(tnT || TENUES.fantome)); // la capuche de fantôme
+    else if (formeT === 'citrouille') tete.push(...partsTeteCitrouille()); // la tête de citrouille (le costume)
+    else if (o.toque && casquette) { // la casquette : une calotte basse, le bandeau, la visière tournée vers l'arrière (devant, elle cacherait les yeux en plongée), le bouton ; sa couleur, celle du quartier
       const c = tnT || TENUES.quartier;
       tete.push(M.part(calotte(10.5, 0.95, 14), c.tissu, { y: 1.4 }), M.part(bande(10.2, 1.8), c.tissu, { y: 7.6 }), M.part(M.boite(9.6, 1.1, 6.8, 0.5), c.fonce, { y: 6.6, z: -10.3, rx: -0.2 }), M.part(M.sphere(1.1, 6), c.fonce, { y: 11.9 }), M.part(patchS(10.75, 0.55, 0.2, 0.55), c.clair, { y: 1.4, ry: -0.95 }));
     } else if (o.toque) {
@@ -1127,7 +1140,10 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     for (let k = 0; k < NCEL; k++) geoVisage(k); // pré-chauffe les 8 cases du visage : animer n'allouera jamais une géométrie à la volée
     P.visage = new THREE.Mesh(geoVisage(lunettes ? 4 : 0), visageMat()); P.visage.position.y = 11; P.visage.userData.k = lunettes ? 4 : 0; P.cou.add(P.visage);
     for (const sx of [-1, 1]) { // les bras : la peau, ou la manche du sweat (poignet et main fusionnés : toujours un maillage par bras)
-      const c = tnH || TENUES.quartier, b = sweat ? M.maille([M.part(pendu(2.6, 11, 0), c.tissu), M.part(bande(2.85, 1.6), c.fonce, { y: -10.4 }), M.part(M.sphere(2.4, 8), peau, { y: -12.4 })]) : M.mesh(pendu(2.6, 11, 0), M.mat(peau));
+      const c = tnH || TENUES.quartier, lanterne = sx > 0 && acc && acc.forme === 'lanterne';
+      const b = sweat ? M.maille([M.part(pendu(2.6, 11, 0), c.tissu), M.part(bande(2.85, 1.6), c.fonce, { y: -10.4 }), M.part(M.sphere(2.4, 8), peau, { y: -12.4 }), ...(lanterne ? partsLanterne(tnA) : [])])
+        : cape || lanterne ? M.maille([M.part(pendu(2.6, 11, 0), cape ? tnC.clair : peau), ...(cape ? [M.part(bande(2.85, 1.6), tnC.fonce, { y: -10.4 }), M.part(M.sphere(2.4, 8), peau, { y: -12.4 })] : []), ...(lanterne ? partsLanterne(tnA) : [])]) // la manche de la robe sous la cape ; la lanterne-citrouille dans la main droite
+        : M.mesh(pendu(2.6, 11, 0), M.mat(peau));
       b.position.set(sx * 11.6, 46, 0); b.rotation.z = sx * 0.1; P.bras.push(b); ht.add(b);
     }
     // les accessoires, cachés tant qu'animer ne les montre pas
@@ -1149,11 +1165,41 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   // ({ tete, haut, pieds, accessoire: { forme, metal } | null }). Les palettes : les métaux du podium ; le quartier (anthracite, accent fraise,
   // bijoux argentés) et le quartier en or (noir et or). bijou : la couleur de la chaîne.
   const TENUES = { or: { tissu: '#FFD15C', fonce: '#D4921A', clair: '#FFF2C2', bijou: '#FFC84A' }, argent: { tissu: '#D3DCE6', fonce: '#7F8FA3', clair: '#F8FBFE', bijou: '#D3DCE6' }, bronze: { tissu: '#E2A06A', fonce: '#9E5A2A', clair: '#F8D6B6', bijou: '#E2A06A' },
-    quartier: { tissu: '#2E2B3A', fonce: '#E1496C', clair: '#56516B', bijou: '#D3DCE6' }, 'quartier-or': { tissu: '#1E1B26', fonce: '#FFC84A', clair: '#4A4458', bijou: '#FFC84A' } };
+    quartier: { tissu: '#2E2B3A', fonce: '#E1496C', clair: '#56516B', bijou: '#D3DCE6' }, 'quartier-or': { tissu: '#1E1B26', fonce: '#FFC84A', clair: '#4A4458', bijou: '#FFC84A' },
+    // la Maison hantée : violet nuit et orange citrouille ; en or (le podium final) : noir et or ; et trois costumes de l'équipe du manoir
+    hantee: { tissu: '#4B2F7A', fonce: '#FF8A3D', clair: '#8E6BD8', bijou: '#FFC84A' }, 'hantee-or': { tissu: '#1E1B26', fonce: '#FFC84A', clair: '#4A4458', bijou: '#FFC84A' },
+    fantome: { tissu: '#F6F3FF', fonce: '#D9D2FF', clair: '#FFFFFF', bijou: '#D9D2FF' }, vampire: { tissu: '#1E1824', fonce: '#C2243F', clair: '#3A2440', bijou: '#C2243F' }, sorciere: { tissu: '#2E2547', fonce: '#5FD3A4', clair: '#4B3D73', bijou: '#5FD3A4' } };
+  // les formes de la garde-robe d'Halloween (et leurs autres noms possibles dans GAME.GARDEROBE)
+  const FORMES_HT = { chapeau: 'chapeau', 'chapeau-sorciere': 'chapeau', sorciere: 'chapeau', capuche: 'capuche', 'capuche-fantome': 'capuche', fantome: 'capuche', citrouille: 'citrouille' };
+  // la tête de citrouille (le costume de la citrouille-lanterne) : cinq côtes orange autour de la tête, la tige, deux yeux et un sourire jaunes
+  function partsTeteCitrouille() {
+    const p = []; for (let k = 0; k < 6; k++) { const a = k / 6 * TAU; p.push(M.part(M.sphere(7.4, 10), k % 2 ? '#F28C28' : '#FF9A3D', { x: Math.sin(a) * 5.2, y: 0.5, z: Math.cos(a) * 5.2, sy: 1.25 })); }
+    p.push(M.part(M.cylindre(1.4, 1.9, 4.5, 6), '#5A7A2E', { y: 9.5, rz: 0.2 }), M.part(M.cone(1.9, 2.4, 3), '#FFE27A', { x: -4, y: 3, z: 10.4, rx: HP }), M.part(M.cone(1.9, 2.4, 3), '#FFE27A', { x: 4, y: 3, z: 10.4, rx: HP }), M.part(M.boite(8, 1.6, 1.4, 0.6), '#FFE27A', { y: -2.6, z: 10.6 }));
+    return p;
+  }
+  // le chapeau pointu (repère de la tête, centre à 0, rayon 10) : un large bord, le cône qui se plie vers l'arrière, le ruban, la boucle dorée
+  function partsChapeau(c) {
+    return [M.part(M.cylindre(15.5, 15.5, 1.3, 20), c.tissu, { y: 7.2, rx: -0.12 }), M.part(M.cylindre(9.6, 6.4, 11, 16), c.tissu, { y: 7.6, rx: -0.12 }), M.part(M.cone(6.4, 9, 12), c.tissu, { y: 17.6, z: -2.4, rx: -0.55 }), M.part(M.cone(3, 5.5, 8), c.tissu, { y: 23.2, z: -6.6, rx: -1.2 }),
+      M.part(M.cylindre(9.75, 9.3, 2.8, 16), c.fonce, { y: 8.5, rx: -0.12 }), M.part(M.boite(3.6, 3.6, 1.2, 0.5), c.bijou || OR, { y: 8.4, z: 9.6, rx: -0.12 }), M.part(M.boite(1.6, 1.6, 1.4, 0.3), c.tissu, { y: 9.4, z: 9.9, rx: -0.12 })];
+  }
+  // la capuche de fantôme : une calotte de drap qui couvre la tête (le visage reste libre), un petit bout pointu
+  function partsCapuche(c) { return [M.part(calotte(11.2, 1.75, 16), c.tissu, { rx: -0.95 }), M.part(M.cone(3.2, 5, 10), c.tissu, { y: 10, z: -3.5, rx: -0.6 }), M.part(bande(10.9, 2.4), c.fonce, { y: -6.5, rx: 0.32 })]; }
+  // la cape : un demi-cylindre évasé dans le dos (du cou aux genoux), sa doublure (faces retournées), le col dressé et l'agrafe
+  const capeExt = () => memo('cape|ext', () => new THREE.CylinderGeometry(11.9, 16, 29, 18, 1, true, HP + 0.32, Math.PI - 0.64));
+  const capeInt = () => memo('cape|int', () => { const g = new THREE.CylinderGeometry(11.5, 15.6, 29, 18, 1, true, HP + 0.32, Math.PI - 0.64), ix = g.index.array; for (let k = 0; k < ix.length; k += 3) { const t = ix[k]; ix[k] = ix[k + 2]; ix[k + 2] = t; } g.computeVertexNormals(); return g; });
+  function partsCape(c) {
+    return [M.part(capeExt(), c.tissu, { y: 36 }), M.part(capeInt(), c.fonce, { y: 36 }), M.part(patchC(11, 6, 2.6), c.fonce, { y: 52.5, ry: Math.PI, sx: 1.05, sz: 1.05 }), M.part(patchC(11.25, 6, 2.6), c.tissu, { y: 52.6, ry: Math.PI, sx: 1.08, sz: 1.08 }),
+      M.part(M.sphere(1.6, 8), c.bijou || OR, { x: -3.2, y: 49.5, z: 10 }), M.part(M.sphere(1.6, 8), c.bijou || OR, { x: 3.2, y: 49.5, z: 10 }), M.part(M.capsule(0.5, 6, 4), c.bijou || OR, { y: 49.5, z: 10.4, rz: HP })];
+  }
+  // le balai miniature, en bandoulière dans le dos : le manche en diagonale, la botte de paille et sa ficelle
+  function partsBalai(c) { const b = c ? c.fonce : '#8B5A3C'; return [M.part(M.capsule(0.9, 30, 6), '#8B5A3C', { x: 1, y: 37, z: -12.5, rz: -0.75 }), M.part(M.cone(4.2, 10, 10), '#E0B65A', { x: -11, y: 21.5, z: -12.5, rz: Math.PI - 0.75 }), M.part(bande(2.4, 1.6), b, { x: -9, y: 24.3, z: -12.5, rz: -0.75 })]; }
+  // la lanterne-citrouille au bout de la main droite (repère du bras : la main à y = −12,4)
+  function partsLanterne(c) { return [M.part(M.capsule(0.35, 4, 4), c ? c.fonce : L, { y: -15.5 }), M.part(M.sphere(3.4, 10), '#FF8A3D', { y: -20.5, sy: 0.85 }), M.part(M.cylindre(0.6, 0.8, 1.4, 6), '#5A7A2E', { y: -18.2 }), M.part(M.sphere(0.8, 6), '#FFE27A', { x: -1.2, y: -20, z: 2.8, sz: 0.4 }), M.part(M.sphere(0.8, 6), '#FFE27A', { x: 1.2, y: -20, z: 2.8, sz: 0.4 })]; }
   const METAUX_PODIUM = ['or', 'argent', 'bronze'];
   // les chaussures, fusionnées au bas d'une jambe (pivot en haut : le sol est à y = −17,5) : sabots de bois, chaussures au métal, baskets
   function partsChaussure(forme, tn) {
     if (forme === 'baskets') { const c = tn || TENUES.quartier; return [M.part(M.boiteSimple(7.8, 1.5, 10.4), BLANC, { y: -17.5, z: 1.6 }), M.part(M.boite(7, 3.8, 9.4, 1.3), c.tissu, { y: -16.1, z: 1.4 }), M.part(M.boiteSimple(0.6, 2, 4.6), c.fonce, { x: -3.55, y: -15.6, z: 0.6 }), M.part(M.boiteSimple(0.6, 2, 4.6), c.fonce, { x: 3.55, y: -15.6, z: 0.6 }), M.part(M.boiteSimple(3.2, 0.5, 0.7), BLANC, { y: -12.35, z: 3.4 }), M.part(M.boiteSimple(3.2, 0.5, 0.7), BLANC, { y: -12.35, z: 4.8 })]; }
+    if (forme === 'bottes') { const c = tn || TENUES.hantee; return [M.part(M.boite(7.2, 4.6, 9.6, 1.6), c.tissu, { y: -17.5, z: 1.6 }), M.part(M.cone(2.6, 4.6, 8), c.tissu, { y: -15.4, z: 6.4, rx: 1.15 }), M.part(M.sphere(1.1, 6), c.fonce, { y: -12.9, z: 8.6 }), M.part(M.cylindre(3.9, 3.6, 7, 10), c.tissu, { y: -14.5 }), M.part(M.cylindre(4.2, 4.2, 1.6, 10), c.fonce, { y: -8.6 }), M.part(M.boite(2.4, 2, 0.8, 0.3), c.bijou || OR, { y: -12.8, z: 3.8 })]; } // les bottes de sorcière : bout pointu relevé, tige, revers orange, boucle
     if (tn) return [M.part(M.boite(7.2, 4.4, 9.4, 1.4), tn.tissu, { y: -17.5, z: 1.4 }), M.part(M.boiteSimple(7.4, 1, 9.6), tn.fonce, { y: -17.5, z: 1.4 }), M.part(M.boiteSimple(5, 0.8, 1.2), tn.fonce, { y: -14.2, z: 3.2 })];
     return [M.part(M.boite(7.2, 4.4, 9.4, 1.4), '#C8864F', { y: -17.5, z: 1.4 }), M.part(M.boiteSimple(7.4, 1, 9.6), '#8B5A3C', { y: -17.5, z: 1.4 })]; // les sabots
   }
@@ -1242,7 +1288,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   // avant x > 0, arrière x < 0, arrière x > 0) et pattesMaille (UN InstancedMesh pour les quatre pattes, ses matrices recopiées des
   // pivots par animerChat ; son matériau et son matériau d'ombre lui sont propres, ses bornes figées, il n'est jamais écarté par le
   // frustum). Appels de dessin : corps, tête, 2 segments de queue, pattes = 5 (budget 6). Options : couleur (robe, défaut #F2A65A ; les
-  // yeux prennent une pastille crème sur une robe sombre), rayures, ventre, etat. Libération : retirer le chat directement de son
+  // yeux prennent une pastille crème sur une robe sombre, ou la couleur de yeux : le chat noir d'Halloween a les yeux jaunes), rayures, ventre, yeux, etat. Libération : retirer le chat directement de son
   // parent (scene.remove), ou appeler PERSOS.libererChat(chat) s'il part avec un groupe.
   const CHAT_Y = 11, LP = 8, PATTE_X = 2.9, PATTE_Y = -3, PATTE_Z = 7.2, LQ1 = 6.6, ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
   let matPattes = null, profPattes = null, BORNES_PATTES = null; // créés au premier chat, partagés par tous les suivants
@@ -1254,7 +1300,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   });
   const OREILLE = [2.55, 3.05, -0.45, -0.3, 0.12, 0.65, 0.94]; // x, y, z de la base, inclinaison vers l'arrière, vers l'extérieur, aplatissement, avancée du creux rose
   const sombre = (hex) => { const c = new THREE.Color(hex); return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b < 0.16; }; // une robe trop foncée pour des yeux #4A3328 (luminance linéaire)
-  const geoTeteChat = (robe, ray, creme, fermes) => memo(`chat-tete|${robe}|${ray}|${creme}|${fermes ? 1 : 0}`, () => {
+  const geoTeteChat = (robe, ray, creme, fermes, yeux) => memo(`chat-tete|${robe}|${ray}|${creme}|${fermes ? 1 : 0}|${yeux || ''}`, () => {
     const p = [M.part(M.sphere(5.2, 14), robe, { sx: 1.12, sy: 0.96 }), M.part(M.sphere(2.3, 10), creme, { y: -1.6, z: 4.1, sx: 1.45, sy: 0.85, sz: 0.85 }), M.part(M.sphere(0.75, 8), '#F28B9B', { y: -0.75, z: 5.95, sx: 1.25, sy: 0.8, sz: 0.8 })], fonce = sombre(robe);
     for (const sx of [-1, 1]) {
       // les oreilles, des cônes aplatis (des triangles de face, pas un octogone vu d'en haut) presque droits et un peu couchés vers
@@ -1263,7 +1309,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       const mo = M.matrice({ x: sx * OREILLE[0], y: OREILLE[1], z: OREILLE[2], rx: OREILLE[3], rz: -sx * OREILLE[4] });
       p.push({ geo: M.cone(2.2, 4.8, 8), col: robe, m: mo.clone().multiply(M.matrice({ sz: OREILLE[5] })) }, { geo: M.cone(1.35, 3.4, 8), col: '#FFC1B4', m: mo.clone().multiply(M.matrice({ y: 0.38, z: OREILLE[6], rx: -0.155, sz: 0.34 })) });
       p.push(M.part(M.sphere(0.95, 8), JOUE, { x: sx * 3.6, y: -0.9, z: 3.7, sy: 0.7, sz: 0.5 }));
-      if (fonce && !fermes) p.push(M.part(M.sphere(1.3, 8), creme, { x: sx * 2.1, y: 0.8, z: 4.45, sy: 1.1, sz: 0.5 })); // sur une robe sombre : une pastille crème derrière chaque œil
+      if (fonce && !fermes) p.push(M.part(M.sphere(1.3, 8), yeux || creme, { x: sx * 2.1, y: 0.8, z: 4.45, sy: 1.1, sz: 0.5 })); // sur une robe sombre : une pastille crème derrière chaque œil
       p.push(fermes ? M.part(M.tore(0.95, 0.3, Math.PI, 4, 8), fonce ? creme : L, { x: sx * 2.1, y: 0.6, z: 4.8 }) : M.part(M.sphere(0.9, 8), L, { x: sx * 2.1, y: 0.9, z: 4.5 })); // les yeux : deux billes sombres, ou deux arcs fermés (crème sur une robe sombre)
     }
     for (const [x, l] of [[-1.3, 1.1], [0, 1.6], [1.3, 1.1]]) p.push(M.part(M.capsule(0.42, l, 6), ray, { x, y: 4.45, z: 2.2, rx: -1.13 })); // le « M » du front
@@ -1279,7 +1325,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     const g = new THREE.Group(), racine = new THREE.Group(), P = { racine, queue: [], pattes: [] };
     g.add(racine); g.userData.parts = P; g.userData.options = o;
     P.corps = M.mesh(geoCorpsChat(robe, ray, creme), M.MAT.vertex); racine.add(P.corps);
-    const geos = [geoTeteChat(robe, ray, creme, false), geoTeteChat(robe, ray, creme, true)];
+    const geos = [geoTeteChat(robe, ray, creme, false, o.yeux), geoTeteChat(robe, ray, creme, true, o.yeux)];
     P.tete = M.mesh(geos[0], M.MAT.vertex); P.tete.userData.geos = geos; racine.add(P.tete);
     const q1 = M.mesh(geoQueueChat(1, robe, ray), M.MAT.vertex), q2 = M.mesh(geoQueueChat(2, robe, ray), M.MAT.vertex); q1.add(q2); racine.add(q1); P.queue.push(q1, q2);
     for (let k = 0; k < 4; k++) { const p = new THREE.Object3D(); P.pattes.push(p); racine.add(p); }
@@ -1498,7 +1544,9 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     g.userData.anime = (E) => { o.t = E.t; o.blink = E.t % 3.4; if (o.marche) o.phase = 1.2 + (E.t - 0.4) * 9; anim(p, o); };
     return g;
   }
-  return { HAUTEUR, TAILLE_PATISSERIE, SAISONS, TENUES, METAUX_PODIUM, partsChaussure, creer, animer, lacet, boulanger, animerBoulanger, chat, animerChat, libererChat, patisserie, geoPatisserie, partsPatisserie, patisserieSaison, geoPatisserieSaison, demo };
+  // le chat noir d'Halloween (pendant la Maison hantée, puis au choix) : robe noire bleutée, rayures à peine plus sombres, poitrail gris, yeux jaunes
+  const CHAT_NOIR = { couleur: '#2B2733', rayures: '#1F1C26', ventre: '#4A4458', yeux: '#FFD84A' };
+  return { HAUTEUR, TAILLE_PATISSERIE, SAISONS, TENUES, METAUX_PODIUM, FORMES_HT, CHAT_NOIR, partsChaussure, partsChapeau, partsCape, partsCapuche, creer, animer, lacet, boulanger, animerBoulanger, chat, animerChat, libererChat, patisserie, geoPatisserie, partsPatisserie, patisserieSaison, geoPatisserieSaison, demo };
 })();
 if (typeof module !== 'undefined') module.exports = PERSOS;
 
