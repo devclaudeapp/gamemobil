@@ -1,11 +1,34 @@
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
---  Le Fournil — le classement en ligne entre amis, en POINTS DE BOULANGER (version 5 : + les événements génériques, « La Maison hantée »)
+--  Le Fournil — le classement en ligne entre amis, en POINTS DE BOULANGER (version 6 : + les copains et les notifications)
 -- ═══════════════════════════════════════════════════════════════════════════════════════════════
 --
 --  À coller TEL QUEL dans Supabase : SQL Editor → New query → coller tout → Run.
---  On peut le recoller autant de fois qu'on veut, et par-dessus la version 2, 3 ou 4 : les joueurs déjà inscrits, le palmarès,
---  les points, les billets et le podium du Quartier restent, les fonctions sont remplacées par la nouvelle version, les droits
+--  On peut le recoller autant de fois qu'on veut, et par-dessus la version 2, 3, 4 ou 5 : les joueurs déjà inscrits, le palmarès,
+--  les points, les billets, les bonbons et les podiums restent, les fonctions sont remplacées par la nouvelle version, les droits
 --  sont remis d'aplomb.
+--
+--  Version 6 (15 oct. 2026) : LES COPAINS et LES NOTIFICATIONS. Collée par-dessus la v5 : rien ne se perd (joueurs, points,
+--  palmarès, billets, bonbons, podiums), et un téléphone de la v5 est toujours accepté (p_photo est facultatif).
+--    · la PHOTO de sa boutique : fournil_publier prend p_photo (facultatif), un petit objet JSON (nom, quartier, postes, mobilier,
+--      tenue, chat…) ; 2 Ko compacts côté téléphone ; le serveur mesure le texte jsonb, qui ajoute des espaces, et tolère 3 Ko ;
+--      plus gros, pas un objet, ou moins de 10 min après la précédente : ignorée, sans refuser l'envoi ; la réponse dit photo_maj.
+--      fournil_boutique(p_pseudo) la rend à tous (on visite la boutique d'un copain depuis le classement) ;
+--    · le POURBOIRE (fournil_pourboire) : un par jour et par copain, 3 par jour en tout (jour de Paris). Le donneur gagne 1 point
+--      de la semaine, compté à part (colonne points_bonus : l'envoi suivant du téléphone, qui ne connaît pas ce point, ne l'absorbe
+--      pas). Le receveur le trouve dans fournil_recompenses (pourboires, rendus UNE fois : la lecture les marque vus ;
+--      fournil_vu_pourboires peut aussi les accuser), et une notification part s'il l'a demandé ;
+--    · l'OBJECTIF COMMUN de la semaine (fournil_objectif) : la somme des points de la semaine de tous les joueurs, contre un but de
+--      150 × les joueurs actifs de la semaine précédente, de 300 à 6 000 (fixé une fois pour la semaine). Figé avec le palmarès, à
+--      la première requête de la semaine suivante ; réussi, ceux qui y ont mis 30 points ou plus trouvent leur récompense dans
+--      fournil_recompenses (objectif), une fois, et une notification part ;
+--    · les NOTIFICATIONS (Web Push) : fournil_abonner / fournil_desabonner (5 appareils au plus par joueur, ses 4 préférences),
+--      fournil_planifier (« Ta boulangerie déborde » à l'heure où son absence est pleine), fournil_notif_essai. Une file
+--      (fournil_notifs) que vide la fonction d'envoi (supabase/functions/notifier, réveillée toutes les 5 min par
+--      supabase/fournil-notifs-cron.sql) par fournil_notifs_dues et fournil_notifs_faites, RÉSERVÉES AU RÔLE DE SERVICE : ni anon
+--      ni authenticated ne peuvent les appeler. Les ouvertures et fins d'événements (fournil_evts et le Quartier) s'annoncent
+--      d'elles-mêmes, une fois, dans l'heure qui suit ;
+--    · le ménage : les notifications de plus de 7 jours, les pourboires de plus de 30 jours ; un joueur qui part (retrait, ménage des
+--      90 jours) emporte sa photo, ses pourboires, ses appareils et ses notifications (clés étrangères « on delete cascade »).
 --
 --  Version 5 (15 oct. 2026) : les ÉVÉNEMENTS GÉNÉRIQUES, et le premier d'entre eux, « LA MAISON HANTÉE » (Halloween, du mardi
 --  27 octobre 2026 à midi au lundi 2 novembre 2026 à 20 h, heure de Paris ; src/hantee.js). Collée par-dessus la v4 : rien ne se
@@ -48,9 +71,13 @@
 --    · public.fournil_evenements : les événements dont le podium est figé ;
 --    · public.fournil_evt_scores : le score de chaque joueur à chaque événement générique (version 5) ;
 --    · public.fournil_evt_podium : les podiums finaux des événements génériques, figés après leur fin ;
---    · six fonctions appelées par le jeu : fournil_publier, fournil_classement, fournil_retirer, fournil_recompenses,
---      fournil_heure, fournil_vu.
---  Personne ne lit ni n'écrit les tables directement : tout passe par ces six fonctions, qui vérifient tout.
+--    · version 6 : public.fournil_photos, fournil_pourboires, fournil_objectif, fournil_objectif_gagnants, fournil_abonnements,
+--      fournil_notif_prefs, fournil_notifs (la file des notifications), fournil_annonces (les événements déjà annoncés) ;
+--    · les fonctions appelées par le jeu : fournil_publier, fournil_classement, fournil_retirer, fournil_recompenses,
+--      fournil_heure, fournil_vu ; et depuis la version 6 : fournil_boutique, fournil_pourboire, fournil_vu_pourboires,
+--      fournil_objectif, fournil_abonner, fournil_desabonner, fournil_planifier, fournil_notif_essai ;
+--    · deux fonctions pour la fonction d'envoi seulement (rôle service_role) : fournil_notifs_dues, fournil_notifs_faites.
+--  Personne ne lit ni n'écrit les tables directement : tout passe par ces fonctions, qui vérifient tout.
 --
 --  Les points (ce qui classe) :
 --    · le jeu compte ses points de boulanger (src/game.js), du lundi au dimanche, heure de Paris : journée complète (les trois
@@ -161,9 +188,12 @@ alter table public.fournil_joueurs add column if not exists quartier     double 
 alter table public.fournil_joueurs add column if not exists quartier_maj timestamptz;
 -- version 5 : le dernier signe de vie (heure du serveur), pour « en ligne » ; jamais rendu tel quel
 alter table public.fournil_joueurs add column if not exists vu           timestamptz;
+-- version 6 : les points de la semaine gagnés en donnant des pourboires (déjà comptés dans points et points_total) ; à part, pour que
+-- l'envoi suivant du téléphone (qui ne les connaît pas) ne les absorbe pas
+alter table public.fournil_joueurs add column if not exists points_bonus integer not null default 0;
 
 comment on table public.fournil_joueurs is
-  'Le Fournil : le classement entre amis. Accès uniquement par les fonctions fournil_publier, fournil_classement, fournil_retirer, fournil_recompenses et fournil_vu.';
+  'Le Fournil : le classement entre amis. Accès uniquement par les fonctions du jeu (fournil_publier, fournil_classement, fournil_retirer, fournil_recompenses, fournil_vu, fournil_boutique, fournil_pourboire…).';
 
 -- un pseudo ne sert qu'une fois, sans tenir compte des majuscules (« Marie » et « MARIE » sont le même pseudo)
 create unique index if not exists fournil_joueurs_pseudo on public.fournil_joueurs (lower(pseudo));
@@ -232,6 +262,101 @@ create index if not exists fournil_evt_podium_id on public.fournil_evt_podium (i
 comment on table public.fournil_evt_podium is
   'Le Fournil : les podiums finaux des événements, figés une fois. Accès uniquement par les fonctions du jeu.';
 
+-- ─── version 6 : les copains et les notifications ───
+-- Chaque ligne appartient à un joueur : elle part avec lui (retrait, ménage des 90 jours), par la clé étrangère.
+
+-- la photo de sa boutique (un petit objet JSON, 3 Ko de texte jsonb au plus), une par joueur, mise à jour au plus toutes les 10 min
+create table if not exists public.fournil_photos (
+  id    uuid primary key references public.fournil_joueurs (id) on delete cascade,
+  photo jsonb not null,
+  maj   timestamptz not null                           -- la dernière photo gardée (heure du serveur)
+);
+comment on table public.fournil_photos is
+  'Le Fournil : la photo de la boutique de chaque joueur (visite entre copains). Accès uniquement par les fonctions du jeu.';
+
+-- les pourboires : un par jour (de Paris) et par copain, 3 par jour en tout pour un donneur ; gardés 30 jours
+create table if not exists public.fournil_pourboires (
+  de    uuid not null references public.fournil_joueurs (id) on delete cascade,   -- le donneur
+  a     uuid not null references public.fournil_joueurs (id) on delete cascade,   -- le receveur
+  jour  date not null,                                  -- le jour du don, heure de Paris
+  quand timestamptz not null,
+  vu    timestamptz,                                    -- quand le receveur l'a reçu (fournil_recompenses) ; null : pas encore
+  primary key (de, a, jour)
+);
+create index if not exists fournil_pourboires_a on public.fournil_pourboires (a, vu);
+create index if not exists fournil_pourboires_jour on public.fournil_pourboires (de, jour);
+comment on table public.fournil_pourboires is
+  'Le Fournil : les pourboires entre copains (30 jours). Accès uniquement par les fonctions du jeu.';
+
+-- l'objectif commun : une ligne par semaine, son but fixé une fois, puis figé (total, joueurs actifs, réussi) au début de la suivante
+create table if not exists public.fournil_objectif (
+  semaine date primary key,                             -- le lundi
+  but     integer not null,                             -- 150 × les joueurs actifs de la semaine précédente, de 300 à 6 000
+  total   integer,                                      -- la somme des points de la semaine (null tant qu'elle n'est pas figée)
+  joueurs integer,                                      -- les joueurs actifs de la semaine (au moins 1 point ; null avant)
+  reussi  boolean,                                      -- null tant qu'elle n'est pas figée
+  fige    timestamptz
+);
+comment on table public.fournil_objectif is
+  'Le Fournil : l’objectif commun de chaque semaine. Accès uniquement par les fonctions du jeu.';
+-- ceux qui ont mis 30 points ou plus dans une semaine réussie ; recu : quand fournil_recompenses le leur a rendu
+create table if not exists public.fournil_objectif_gagnants (
+  semaine date not null,
+  id      uuid not null references public.fournil_joueurs (id) on delete cascade,
+  recu    timestamptz,
+  primary key (semaine, id)
+);
+create index if not exists fournil_objectif_gagnants_id on public.fournil_objectif_gagnants (id);
+comment on table public.fournil_objectif_gagnants is
+  'Le Fournil : les récompenses de l’objectif commun. Accès uniquement par les fonctions du jeu.';
+
+-- les appareils abonnés aux notifications (Web Push) : 5 au plus par joueur ; un appareil (son endpoint) n'a qu'un joueur
+create table if not exists public.fournil_abonnements (
+  endpoint text primary key,                            -- l'adresse du service de notifications du navigateur (https, 1 000 caractères au plus)
+  joueur   uuid not null references public.fournil_joueurs (id) on delete cascade,
+  p256dh   text not null,                               -- la clé publique de l'appareil (base64url)
+  auth     text not null,                               -- son secret d'authentification (base64url)
+  cree     timestamptz not null
+);
+create index if not exists fournil_abonnements_joueur on public.fournil_abonnements (joueur, cree);
+comment on table public.fournil_abonnements is
+  'Le Fournil : les appareils abonnés aux notifications. Accès uniquement par les fonctions du jeu et la fonction d’envoi.';
+-- ses préférences : les quatre cas, gardés par joueur
+create table if not exists public.fournil_notif_prefs (
+  id         uuid primary key references public.fournil_joueurs (id) on delete cascade,
+  pleine     boolean not null default true,             -- « Ta boulangerie déborde »
+  evenements boolean not null default true,             -- ouverture et fin d'un événement
+  pourboires boolean not null default true,             -- « X t'a laissé un pourboire »
+  objectif   boolean not null default true,             -- l'objectif commun réussi
+  maj        timestamptz not null
+);
+comment on table public.fournil_notif_prefs is
+  'Le Fournil : les préférences de notifications de chaque joueur. Accès uniquement par les fonctions du jeu.';
+-- la file : une ligne par notification à envoyer (type 'pleine', 'pourboire', 'evenement', 'objectif' ou 'essai') ; gardée 7 jours
+create table if not exists public.fournil_notifs (
+  id      bigint generated by default as identity primary key,
+  joueur  uuid not null references public.fournil_joueurs (id) on delete cascade,
+  type    text not null check (type in ('pleine', 'pourboire', 'evenement', 'objectif', 'essai')),
+  titre   text not null,
+  texte   text not null,
+  url     text not null,
+  due     timestamptz not null,                         -- à envoyer à partir de cette heure
+  envoyee timestamptz,                                  -- envoyée (null : pas encore)
+  cree    timestamptz not null,
+  prise   timestamptz                                   -- prise par la fonction d'envoi (pour que deux tournées n'envoient pas deux fois)
+);
+create index if not exists fournil_notifs_due on public.fournil_notifs (due) where envoyee is null;
+create index if not exists fournil_notifs_joueur on public.fournil_notifs (joueur, type);
+comment on table public.fournil_notifs is
+  'Le Fournil : la file des notifications. Accès uniquement par les fonctions du jeu et la fonction d’envoi.';
+-- les ouvertures et fins d'événements déjà annoncées (cle : « hantee:ouverture », « quartier:fin »…)
+create table if not exists public.fournil_annonces (
+  cle   text primary key,
+  quand timestamptz not null
+);
+comment on table public.fournil_annonces is
+  'Le Fournil : les événements déjà annoncés par notification. Accès uniquement par les fonctions du jeu.';
+
 -- les portes : une ligne par inscription réussie, avec l'empreinte de sa source (sha256 de « ip:<adresse> »), gardée 24 h.
 -- Elle sert à limiter les inscriptions par source, pour qu'un seul robot ne bloque pas les amis qui arrivent.
 create table if not exists public.fournil_portes (
@@ -252,6 +377,14 @@ alter table public.fournil_quartier_podium enable row level security;
 alter table public.fournil_evenements enable row level security;
 alter table public.fournil_evt_scores enable row level security;
 alter table public.fournil_evt_podium enable row level security;
+alter table public.fournil_photos enable row level security;
+alter table public.fournil_pourboires enable row level security;
+alter table public.fournil_objectif enable row level security;
+alter table public.fournil_objectif_gagnants enable row level security;
+alter table public.fournil_abonnements enable row level security;
+alter table public.fournil_notif_prefs enable row level security;
+alter table public.fournil_notifs enable row level security;
+alter table public.fournil_annonces enable row level security;
 do $$
 declare
   r record;
@@ -259,7 +392,8 @@ begin
   for r in select tablename, policyname from pg_catalog.pg_policies
             where schemaname = 'public'
               and tablename in ('fournil_joueurs', 'fournil_palmares', 'fournil_semaines', 'fournil_portes', 'fournil_quartier_podium', 'fournil_evenements',
-                                'fournil_evt_scores', 'fournil_evt_podium') loop
+                                'fournil_evt_scores', 'fournil_evt_podium', 'fournil_photos', 'fournil_pourboires', 'fournil_objectif',
+                                'fournil_objectif_gagnants', 'fournil_abonnements', 'fournil_notif_prefs', 'fournil_notifs', 'fournil_annonces') loop
     execute format('drop policy if exists %I on public.%I', r.policyname, r.tablename);
   end loop;
 end
@@ -268,8 +402,11 @@ $$;
 -- aucun droit direct sur les tables pour les visiteurs (anon) ni pour les comptes (authenticated) :
 -- Supabase en donne par défaut aux nouvelles tables, on les retire explicitement.
 revoke all on table public.fournil_joueurs, public.fournil_palmares, public.fournil_semaines, public.fournil_portes,
-  public.fournil_quartier_podium, public.fournil_evenements, public.fournil_evt_scores, public.fournil_evt_podium
+  public.fournil_quartier_podium, public.fournil_evenements, public.fournil_evt_scores, public.fournil_evt_podium,
+  public.fournil_photos, public.fournil_pourboires, public.fournil_objectif, public.fournil_objectif_gagnants,
+  public.fournil_abonnements, public.fournil_notif_prefs, public.fournil_notifs, public.fournil_annonces
   from public, anon, authenticated;
+revoke all on sequence public.fournil_notifs_id_seq from public, anon, authenticated;
 
 -- les fonctions d'une version plus ancienne dont la forme a changé (une ancienne forme laissée en place rendrait l'appel
 -- ambigu pour l'API : on la retire avant de créer la nouvelle)
@@ -282,6 +419,8 @@ drop function if exists public.fournil_publier(uuid, text, text, double precisio
 -- version 4 → 5 : fournil_publier prend p_evt et p_score, fournil_reponse rend le score de l'événement
 drop function if exists public.fournil_reponse(text, uuid, date, double precision, boolean, integer, boolean, boolean);
 drop function if exists public.fournil_publier(uuid, text, text, double precision, integer, date, double precision);
+-- version 5 → 6 : fournil_publier prend p_photo
+drop function if exists public.fournil_publier(uuid, text, text, double precision, integer, date, double precision, text, double precision);
 
 
 -- ─── 2. Les petites fonctions internes (le jeu ne peut pas les appeler) ─────────────────────────
@@ -714,6 +853,170 @@ end
 $$;
 
 
+-- ─── 3 quater. Les copains et les notifications (version 6) : les petites fonctions internes ───
+
+-- une heure en texte ISO, temps universel (« 2026-10-15T08:00:00.000Z ») : ce que lit Date.parse sur le téléphone
+create or replace function public.fournil_iso(p_quand timestamptz)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select to_char(p_quand at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+$$;
+
+-- le nom d'un événement dans une phrase (« la Maison hantée », « le Quartier ») ; un événement à venir sans nom : son identifiant
+create or replace function public.fournil_evt_titre(p_evt text)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select case p_evt when 'hantee' then 'la Maison hantée' when 'quartier' then 'le Quartier' else coalesce(p_evt, 'l''événement') end
+$$;
+
+-- une adresse d'abonnement plausible : https, 1 000 caractères au plus, et seulement chez les services de notifications des
+-- navigateurs (Google/Chrome, Mozilla/Firefox, Apple/Safari, Microsoft/Edge) : la fonction d'envoi ne poste jamais ailleurs
+create or replace function public.fournil_endpoint_valable(p_endpoint text)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select p_endpoint is not null and char_length(p_endpoint) <= 1000
+     and p_endpoint ~ '^https://(fcm\.googleapis\.com|android\.googleapis\.com|updates\.push\.services\.mozilla\.com|push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+(\.[a-z0-9-]+)*\.push\.apple\.com|[a-z0-9-]+(\.[a-z0-9-]+)*\.notify\.windows\.com)/[!-~]*$'
+$$;
+
+-- ce joueur veut-il ce type de notification ? (au moins un appareil abonné, et le cas coché ; l'essai : un appareil suffit)
+create or replace function public.fournil_notif_permise(p_joueur uuid, p_type text)
+returns boolean
+language sql
+stable
+set search_path = ''
+as $$
+  select exists (select 1 from public.fournil_abonnements a where a.joueur = p_joueur)
+     and (p_type = 'essai' or coalesce((select case p_type when 'pleine' then p.pleine when 'pourboire' then p.pourboires
+                                                           when 'evenement' then p.evenements when 'objectif' then p.objectif else false end
+                                          from public.fournil_notif_prefs p where p.id = p_joueur), false))
+$$;
+
+-- mettre une notification dans la file (seulement si le joueur la veut) ; vrai si elle y est
+create or replace function public.fournil_notif_mettre(p_joueur uuid, p_type text, p_texte text, p_due timestamptz)
+returns boolean
+language plpgsql
+volatile
+set search_path = ''
+as $$
+begin
+  if not public.fournil_notif_permise(p_joueur, p_type) then
+    return false;
+  end if;
+  insert into public.fournil_notifs (joueur, type, titre, texte, url, due, cree)
+  values (p_joueur, p_type, 'Le Fournil', p_texte, './', p_due, public.fournil_maintenant());
+  return true;
+end
+$$;
+
+-- le but de l'objectif commun d'une semaine : fixé une fois (la première fois qu'on le demande), 150 × les joueurs actifs (au moins
+-- 1 point) de la semaine précédente, de 300 à 6 000. Sans semaine précédente figée (la première semaine de la version 6) : les
+-- joueurs qui ont des points cette semaine-là ou la précédente.
+create or replace function public.fournil_objectif_but(p_lundi date)
+returns integer
+language plpgsql
+volatile
+set search_path = ''
+as $$
+declare
+  v_but    integer;
+  v_actifs integer;
+begin
+  select o.but into v_but from public.fournil_objectif o where o.semaine = p_lundi;
+  if found then
+    return v_but;
+  end if;
+  select o.joueurs into v_actifs from public.fournil_objectif o where o.semaine = p_lundi - 7 and o.joueurs is not null;
+  if not found then
+    select count(*)::int into v_actifs from public.fournil_joueurs j where j.semaine between p_lundi - 7 and p_lundi and j.points > 0;
+  end if;
+  v_but := least(greatest(150 * coalesce(v_actifs, 0), 300), 6000);
+  insert into public.fournil_objectif (semaine, but) values (p_lundi, v_but) on conflict (semaine) do nothing;
+  select o.but into v_but from public.fournil_objectif o where o.semaine = p_lundi;
+  return v_but;
+end
+$$;
+
+-- figer l'objectif d'une semaine finie (appelée par fournil_figer, une fois, quand la semaine est figée : tous les joueurs y ont
+-- encore leurs points). Réussie (et p_recompenser : la semaine qui vient de finir, pas une plus ancienne rattrapée au réveil du
+-- projet) : ceux qui y ont mis 30 points ou plus sont inscrits pour la récompense, et prévenus s'ils l'ont demandé.
+create or replace function public.fournil_objectif_figer(p_semaine date, p_maintenant timestamptz, p_recompenser boolean)
+returns void
+language plpgsql
+volatile
+set search_path = ''
+as $$
+declare
+  v_but   integer := public.fournil_objectif_but(p_semaine);
+  v_total integer;
+  v_n     integer;
+  v_ok    boolean;
+  v_k     integer;
+  g       record;
+begin
+  select coalesce(sum(j.points), 0)::int, (count(*) filter (where j.points > 0))::int into v_total, v_n
+    from public.fournil_joueurs j where j.semaine = p_semaine;
+  v_ok := v_total >= v_but;
+  update public.fournil_objectif set total = v_total, joueurs = v_n, reussi = v_ok, fige = p_maintenant
+   where semaine = p_semaine and fige is null;
+  get diagnostics v_k = row_count;
+  if v_k = 1 and v_ok and p_recompenser then
+    for g in insert into public.fournil_objectif_gagnants (semaine, id)
+             select p_semaine, j.id from public.fournil_joueurs j where j.semaine = p_semaine and j.points >= 30
+             on conflict (semaine, id) do nothing
+             returning id loop
+      perform public.fournil_notif_mettre(g.id, 'objectif', 'Objectif commun réussi ! Une récompense t''attend.', p_maintenant);
+    end loop;
+  end if;
+end
+$$;
+
+-- annoncer les ouvertures et les fins d'événements (le Quartier et ceux de fournil_evts) passées depuis moins d'une heure et pas
+-- encore annoncées : une notification par joueur qui veut les événements. Appelée par fournil_notifs_dues (toutes les 5 min).
+create or replace function public.fournil_annoncer(p_maintenant timestamptz)
+returns void
+language plpgsql
+volatile
+set search_path = ''
+as $$
+declare
+  e   record;
+  j   record;
+  v_n integer;
+  v_t text;
+begin
+  for e in
+    select x.nom, x.genre from (
+      select 'quartier'::text as nom, f.debut as quand, 'ouverture'::text as genre from public.fournil_quartier_fenetre() f
+      union all select 'quartier', f.fin, 'fin' from public.fournil_quartier_fenetre() f
+      union all select v.nom, v.debut, 'ouverture' from public.fournil_evts() v
+      union all select v.nom, v.fin, 'fin' from public.fournil_evts() v) x
+     where p_maintenant >= x.quand and p_maintenant < x.quand + interval '1 hour'
+     order by x.quand
+  loop
+    insert into public.fournil_annonces (cle, quand) values (e.nom || ':' || e.genre, p_maintenant) on conflict (cle) do nothing;
+    get diagnostics v_n = row_count;
+    if v_n = 1 then
+      v_t := public.fournil_evt_titre(e.nom);
+      v_t := case when e.genre = 'ouverture' then upper(left(v_t, 1)) || substr(v_t, 2) || ' ouvre ses portes ! Viens jouer.'
+                  else 'C''est fini pour ' || v_t || ' : viens voir le podium !' end;
+      for j in select distinct a.joueur from public.fournil_abonnements a loop
+        perform public.fournil_notif_mettre(j.joueur, 'evenement', v_t, p_maintenant);
+      end loop;
+    end if;
+  end loop;
+end
+$$;
+
+
 -- ─── 4. Le palmarès : chaque semaine finie est figée une fois, à la première requête qui suit ───
 -- Appelée au début de chaque fonction du jeu. Les semaines à figer : celle qui vient de finir (même vide), et toute semaine
 -- plus ancienne dont des joueurs gardent encore le gain (personne n'est venu depuis). Deux requêtes simultanées ne figent
@@ -758,14 +1061,18 @@ begin
                where j.semaine = v_s and (case when v_pts then j.points > 0 else j.gain > 0 end)) r
        where r.rang <= 3
       on conflict (semaine, id) do nothing;
+      -- l'objectif commun de cette semaine-là (version 6), figé en même temps : récompensé seulement pour la semaine qui vient de finir
+      perform public.fournil_objectif_figer(v_s, public.fournil_maintenant(), v_s = p_lundi - 7);
     end if;
   end loop;
+  perform public.fournil_objectif_but(p_lundi); -- le but de la semaine qui commence, fixé une fois
 end
 $$;
 
 -- la réponse de fournil_publier : ok/erreur, et, si p_id est donné, les rangs de ce joueur (en points), ses points, ce qui a été
 -- compté (argent et points), ses billets de l'événement « Le Quartier » (quartier, rang_quartier, quartier_plafonne), et son score à
--- l'événement générique envoyé (evt, evt_score, rang_evt, evt_plafonne ; null sans p_evt)
+-- l'événement générique envoyé (evt, evt_score, rang_evt, evt_plafonne ; null sans p_evt) ; version 6 : photo_maj, l'heure de la
+-- photo de sa boutique gardée sur le serveur (null : aucune)
 create or replace function public.fournil_reponse(p_erreur text, p_id uuid, p_lundi date,
                                                   p_compte double precision, p_plafonne boolean,
                                                   p_points_comptes integer, p_points_plafonnes boolean,
@@ -779,7 +1086,8 @@ as $$
   select json_build_object(
     'ok', p_erreur is null,
     'erreur', p_erreur,
-    'version', 5,
+    'version', 6,
+    'photo_maj', (select public.fournil_iso(f.maj) from public.fournil_photos f where f.id = p_id),
     'evt', case when p_evt is not null and exists (select 1 from public.fournil_evts() x where x.nom = p_evt) then p_evt end,
     'evt_score', (select s.valeur from public.fournil_evt_scores s where p_evt is not null and s.evt = p_evt and s.id = p_id),
     'rang_evt', (
@@ -823,7 +1131,11 @@ $$;
 -- p_evt, p_score (facultatifs, version 5) : l'identifiant d'un événement générique ('hantee') et son score (les bonbons) ; comptés
 -- seulement pendant sa fenêtre (une heure de grâce après la fin), jamais en baisse, jamais au-delà de son enveloppe (partie 3 ter) ;
 -- un événement inconnu est ignoré. Un envoi accepté pose aussi le signe de vie (vu : « en ligne »).
--- Réponse : { ok, erreur: null | 'pseudo_pris' | 'pseudo_invalide' | 'jeton' | 'valeur' | 'trop_vite' | 'complet', version: 5,
+-- p_photo (facultatif, version 6) : la photo de sa boutique, un objet JSON ; gardée si l'envoi est accepté, si c'est un objet de
+-- 3 Ko au plus (texte jsonb ; le téléphone l'envoie sous 2 Ko compacts) et si la précédente a 10 min ou plus ; sinon ignorée, sans
+-- refuser l'envoi.
+-- Réponse : { ok, erreur: null | 'pseudo_pris' | 'pseudo_invalide' | 'jeton' | 'valeur' | 'trop_vite' | 'complet', version: 6,
+--             photo_maj : l'heure (ISO, temps universel) de la photo gardée sur le serveur, null s'il n'y en a pas ;
 --             evt : l'événement envoyé (null s'il est inconnu ou absent), evt_score : son score compté, rang_evt : son rang à cet
 --             événement (null sans score), evt_plafonne : vrai si une partie du score n'a pas été comptée (null hors fenêtre) ;
 --             quartier : ses billets comptés, rang_quartier : son rang à l'événement (null sans billets), quartier_plafonne : vrai si
@@ -843,7 +1155,8 @@ $$;
 create or replace function public.fournil_publier(p_id uuid, p_jeton text, p_pseudo text, p_fortune double precision,
                                                   p_points integer default null, p_lundi date default null,
                                                   p_quartier double precision default null,
-                                                  p_evt text default null, p_score double precision default null)
+                                                  p_evt text default null, p_score double precision default null,
+                                                  p_photo jsonb default null)
 returns json
 language plpgsql
 volatile
@@ -958,17 +1271,19 @@ begin
     if j.semaine <> v_lundi then
       j.gain := 0;
       j.points := 0;
+      j.points_bonus := 0;
       j.semaine := v_lundi;
     end if;
-    -- les points : seulement ce qui dépasse ceux déjà comptés cette semaine, dans les plafonds du barème
+    -- les points : seulement ce qui dépasse ceux déjà comptés cette semaine, dans les plafonds du barème (les points des pourboires
+    -- donnés, version 6, sont à part : le téléphone ne les connaît pas, ils ne se mélangent pas aux siens)
     v_pts_compte := 0;
     v_pts_plaf := false;
     if v_pts then
       -- (pas de second plafond « depuis l'envoi précédent » : chaque envoi le remettrait à zéro, toutes les 10 s, sans rien
       -- borner ; et un joueur honnête peut prendre 150 points en quelques minutes : Atelier, défi, journée, améliorations)
       v_pts_cible := least(p_points, public.fournil_points_plafond(v_jour - v_lundi + 1));
-      v_pts_compte := greatest(v_pts_cible - j.points, 0);
-      v_pts_plaf := p_points > j.points + v_pts_compte;
+      v_pts_compte := greatest(v_pts_cible - (j.points - j.points_bonus), 0);
+      v_pts_plaf := p_points > (j.points - j.points_bonus) + v_pts_compte;
       j.points := j.points + v_pts_compte;
       j.points_total := j.points_total + v_pts_compte;
       j.points_jour := v_jour;
@@ -1002,7 +1317,7 @@ begin
       update public.fournil_joueurs
          set pseudo = v_pseudo, fortune = v_fortune, sommet = j.sommet, plausible = j.plausible, reserve = j.reserve,
              total = j.total, gain = j.gain, semaine = j.semaine, maj = v_maintenant,
-             points = j.points, points_total = j.points_total, points_jour = j.points_jour,
+             points = j.points, points_total = j.points_total, points_jour = j.points_jour, points_bonus = j.points_bonus,
              quartier = j.quartier, quartier_maj = j.quartier_maj, vu = v_maintenant
        where id = p_id;
     exception when unique_violation then
@@ -1080,6 +1395,13 @@ begin
       where excluded.valeur > public.fournil_evt_scores.valeur;
   end if;
 
+  -- la photo de sa boutique (version 6) : un objet, 3 Ko de texte jsonb au plus, au plus une toutes les 10 min ; sinon ignorée
+  if p_photo is not null and jsonb_typeof(p_photo) = 'object' and octet_length(p_photo::text) <= 3072 then
+    insert into public.fournil_photos (id, photo, maj) values (p_id, p_photo, v_maintenant)
+    on conflict (id) do update set photo = excluded.photo, maj = excluded.maj
+      where public.fournil_photos.maj <= excluded.maj - interval '10 minutes';
+  end if;
+
   return public.fournil_reponse(null, p_id, v_lundi, v_compte, v_plafonne, v_pts_compte, v_pts_plaf, v_q_plaf, p_evt, v_e_plaf);
 end
 $$;
@@ -1092,7 +1414,7 @@ $$;
 -- bonbons de la Maison hantée, ceux qui en ont ; points : null ; podium : le rang à son podium final, une fois figé).
 -- p_id : son propre identifiant (facultatif), pour se retrouver même hors des premiers.
 -- p_limite : le nombre de lignes (50 par défaut, 100 au plus).
--- Réponse : { version: 5, semaine: 'AAAA-MM-JJ', periode, joueurs, en_ligne_n,
+-- Réponse : { version: 6, semaine: 'AAAA-MM-JJ', periode, joueurs, en_ligne_n,
 --             lignes: [{ rang, pseudo, points, valeur, moi, podium, en_ligne }], moi: { rang, points, valeur, podium, en_ligne } | null }
 -- Le rang se fait sur les POINTS (de la semaine, ou depuis l'arrivée) ; valeur : l'argent gagné sur la même période, pour
 -- information (un téléphone de la version 2 l'affiche encore comme avant, dans l'ordre des points).
@@ -1140,7 +1462,7 @@ begin
       from valeurs
   )
   select json_build_object(
-           'version', 5,
+           'version', 6,
            'semaine', to_char(v_lundi, 'YYYY-MM-DD'),
            'periode', p_periode,
            'joueurs', (select count(*)::int from rangs),
@@ -1160,6 +1482,8 @@ $$;
 -- ─── 7. fournil_retirer : quitter le classement ─────────────────────────────────────────────────
 -- Réponse : { ok: true } (retiré, ou déjà absent) ou { ok: false, erreur: 'jeton' } (ce n'est pas son jeton).
 -- Son palmarès part avec lui, ses scores et ses places aux podiums des événements aussi (ses coupes et ses tenues restent sur son téléphone).
+-- Version 6 : sa photo, ses pourboires (donnés et reçus), ses appareils abonnés, ses préférences et ses notifications partent aussi
+-- (clés étrangères « on delete cascade »).
 create or replace function public.fournil_retirer(p_id uuid, p_jeton text)
 returns json
 language plpgsql
@@ -1198,7 +1522,11 @@ $$;
 --             quartier: 1 | 2 | 3 | null (son rang au podium FINAL de l'événement « Le Quartier », une fois figé),
 --             quartier_podium: [{ rang, pseudo, valeur }] | null (le podium final, figé ; null tant que l'événement n'est pas fini),
 --             evenements: { <evt>: { rang: 1 | 2 | 3 | null, podium: [{ rang, pseudo, valeur }] } } (version 5 : un champ par événement
---             générique dont le podium final est figé, 'hantee' compris ; {} tant qu'aucun n'est fini) }
+--             générique dont le podium final est figé, 'hantee' compris ; {} tant qu'aucun n'est fini),
+--             pourboires: [{ de: pseudo, quand: ISO }] (version 6 : les pourboires reçus pas encore rendus, du plus ancien au plus
+--             récent, 20 au plus ; CETTE LECTURE LES MARQUE VUS : ils ne sont rendus qu'une fois),
+--             objectif: { semaine: 'AAAA-MM-JJ', reussi: true, recompense: true } | null (version 6 : l'objectif commun d'une semaine
+--             finie réussie à laquelle il a mis 30 points ou plus, rendu UNE fois : la lecture le marque reçu) }
 -- Un identifiant inconnu (jamais inscrit, ou effacé par le ménage) : ok, aucun podium. Le jeton d'un autre : 'jeton', rien.
 create or replace function public.fournil_recompenses(p_id uuid, p_jeton text)
 returns json
@@ -1212,16 +1540,43 @@ declare
   v_jeton    text;
   v_inscrit  boolean;
   v_derniere json;
+  v_maintenant timestamptz := public.fournil_maintenant();
+  v_pourboires json;
+  v_objectif   json;
 begin
   perform public.fournil_figer(v_lundi);
   if p_id is null or not public.fournil_jeton_valable(p_jeton) then
-    return json_build_object('ok', false, 'erreur', 'jeton', 'podiums', '[]'::json, 'derniere', null, 'quartier', null, 'quartier_podium', null, 'evenements', '{}'::json);
+    return json_build_object('ok', false, 'erreur', 'jeton', 'podiums', '[]'::json, 'derniere', null, 'quartier', null, 'quartier_podium', null, 'evenements', '{}'::json, 'pourboires', '[]'::json, 'objectif', null);
   end if;
   select jeton into v_jeton from public.fournil_joueurs where id = p_id;
   v_inscrit := found;
   if v_inscrit and v_jeton <> public.fournil_empreinte(p_jeton) then
-    return json_build_object('ok', false, 'erreur', 'jeton', 'podiums', '[]'::json, 'derniere', null, 'quartier', null, 'quartier_podium', null, 'evenements', '{}'::json);
+    return json_build_object('ok', false, 'erreur', 'jeton', 'podiums', '[]'::json, 'derniere', null, 'quartier', null, 'quartier_podium', null, 'evenements', '{}'::json, 'pourboires', '[]'::json, 'objectif', null);
   end if;
+  -- version 6 : les pourboires reçus pas encore rendus (20 au plus, les plus récents), marqués vus par cette lecture
+  with neufs as (
+    select p.de, p.a, p.jour, p.quand from public.fournil_pourboires p
+     where v_inscrit and p.a = p_id and p.vu is null
+     order by p.quand desc limit 20
+  ), vus as (
+    update public.fournil_pourboires p set vu = v_maintenant
+      from neufs n where p.de = n.de and p.a = n.a and p.jour = n.jour
+    returning p.de, p.quand
+  )
+  select coalesce(json_agg(json_build_object('de', j.pseudo, 'quand', public.fournil_iso(v.quand)) order by v.quand), '[]'::json)
+    into v_pourboires
+    from vus v join public.fournil_joueurs j on j.id = v.de;
+  -- les plus vieux qui dépassent (plus de 20 d'un coup) : vus aussi, pour ne pas les rendre des jours plus tard
+  update public.fournil_pourboires set vu = v_maintenant where v_inscrit and a = p_id and vu is null;
+  -- version 6 : la récompense de l'objectif commun (la plus récente semaine pas encore rendue), rendue une fois
+  with g as (
+    update public.fournil_objectif_gagnants set recu = v_maintenant
+     where v_inscrit and id = p_id and recu is null
+    returning semaine
+  )
+  select json_build_object('semaine', to_char(max(g.semaine), 'YYYY-MM-DD'), 'reussi', true, 'recompense', true)
+    into v_objectif
+    from g having count(*) > 0;
   select json_build_object('semaine', to_char(v_lundi - 7, 'YYYY-MM-DD'),
                            'podium', json_agg(json_build_object('rang', p.rang, 'pseudo', p.pseudo, 'points', p.points, 'valeur', p.valeur)
                                               order by p.rang, lower(p.pseudo)))
@@ -1247,7 +1602,9 @@ begin
                'podium', coalesce((select json_agg(json_build_object('rang', e.rang, 'pseudo', e.pseudo, 'valeur', e.valeur) order by e.rang, lower(e.pseudo))
                                      from public.fournil_evt_podium e where e.evt = x.nom), '[]'::json)))
         from public.fournil_evts() x
-       where exists (select 1 from public.fournil_evenements f where f.nom = x.nom)), '{}'::json)
+       where exists (select 1 from public.fournil_evenements f where f.nom = x.nom)), '{}'::json),
+    'pourboires', v_pourboires,
+    'objectif', v_objectif
   );
 end
 $$;
@@ -1304,9 +1661,426 @@ end
 $$;
 
 
--- ─── 10. Les droits : le jeu n'appelle que les six fonctions ────────────────────────────────────
+-- ─── 9 ter. Les copains et les notifications (version 6) ──────────────────────────────────────────
+-- Toutes vérifient le jeton (p_id + p_jeton, comme fournil_publier), sauf fournil_boutique et fournil_objectif, lisibles par tous.
+-- Les erreurs communes : 'jeton' (identifiant ou jeton mal formé, ou le jeton d'un autre), 'inconnu' (pas inscrit au classement, ou
+-- effacé par le ménage : le prochain envoi de fournil_publier le réinscrit).
+
+-- vérifier un joueur (et tenir sa ligne jusqu'à la fin de l'appel : ses appels simultanés passent un à un) : null si c'est bien lui,
+-- sinon 'jeton' ou 'inconnu'
+create or replace function public.fournil_joueur_verifie(p_id uuid, p_jeton text)
+returns text
+language plpgsql
+volatile
+set search_path = ''
+as $$
+declare
+  v_jeton text;
+begin
+  if p_id is null or not public.fournil_jeton_valable(p_jeton) then
+    return 'jeton';
+  end if;
+  select jeton into v_jeton from public.fournil_joueurs where id = p_id for update;
+  if not found then
+    return 'inconnu';
+  end if;
+  if v_jeton <> public.fournil_empreinte(p_jeton) then
+    return 'jeton';
+  end if;
+  return null;
+end
+$$;
+
+-- ─── 9 ter a. fournil_boutique : la boutique d'un copain (sa photo), lisible par tous ───
+-- p_pseudo : son pseudo (sans tenir compte des majuscules). p_id, p_jeton (facultatifs) : les siens, pour savoir s'il peut encore lui
+-- laisser un pourboire aujourd'hui.
+-- Réponse : { ok: true, erreur: null, pseudo, photo: l'objet envoyé par son téléphone | null (pas encore de photo), maj: ISO | null,
+--             en_ligne: booléen (signe de vie il y a moins de 4 minutes), restants: 0 à 3 | null (sans p_id/p_jeton valables),
+--             deja: vrai s'il lui a déjà laissé un pourboire aujourd'hui | null }
+--           ou { ok: false, erreur: 'inconnu' } (aucun joueur de ce pseudo). Jamais d'identifiant ni de jeton.
+-- La photo vient du téléphone de ce joueur : le jeu l'affiche comme du texte, jamais comme du HTML.
+create or replace function public.fournil_boutique(p_pseudo text, p_id uuid default null, p_jeton text default null)
+returns json
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_maintenant timestamptz := public.fournil_maintenant();
+  v_jour       date := public.fournil_jour(v_maintenant);
+  v_moi        boolean;
+  b            record;
+begin
+  perform public.fournil_figer(public.fournil_lundi(v_maintenant));
+  if p_pseudo is null or char_length(p_pseudo) > 64 then
+    return json_build_object('ok', false, 'erreur', 'inconnu');
+  end if;
+  select j.id, j.pseudo, j.vu, f.photo, f.maj into b
+    from public.fournil_joueurs j left join public.fournil_photos f on f.id = j.id
+   where lower(j.pseudo) = lower(btrim(p_pseudo));
+  if not found then
+    return json_build_object('ok', false, 'erreur', 'inconnu');
+  end if;
+  v_moi := p_id is not null and public.fournil_jeton_valable(p_jeton)
+           and exists (select 1 from public.fournil_joueurs m where m.id = p_id and m.jeton = public.fournil_empreinte(p_jeton));
+  return json_build_object(
+    'ok', true,
+    'erreur', null,
+    'pseudo', b.pseudo,
+    'photo', b.photo,
+    'maj', public.fournil_iso(b.maj),
+    'en_ligne', coalesce(b.vu > v_maintenant - interval '4 minutes' and b.vu <= v_maintenant + interval '1 minute', false),
+    'restants', case when v_moi then greatest(3 - (select count(*) from public.fournil_pourboires p where p.de = p_id and p.jour = v_jour), 0)::int end,
+    'deja', case when v_moi then exists (select 1 from public.fournil_pourboires p where p.de = p_id and p.a = b.id and p.jour = v_jour) end
+  );
+end
+$$;
+
+-- ─── 9 ter b. fournil_pourboire : laisser un pourboire à un copain ───
+-- Un par jour (heure de Paris) et par copain, 3 par jour en tout. Le donneur gagne 1 point de la semaine (points et points_total ;
+-- gardé aussi dans points_bonus, pour que l'envoi suivant de son téléphone ne l'absorbe pas) ; le receveur le trouvera dans
+-- fournil_recompenses (pourboires) et reçoit une notification s'il l'a demandé.
+-- Réponse : { ok, erreur: null | 'jeton' | 'inconnu' (le donneur n'est pas inscrit, ou aucun joueur de ce pseudo) | 'soi' (son propre
+--             pseudo) | 'deja' (déjà donné aujourd'hui à ce copain) | 'quota' (3 aujourd'hui), restants: ce qu'il peut encore donner
+--             aujourd'hui (null si le jeton est refusé), points_semaine: ses points de la semaine (null si refusé) }
+create or replace function public.fournil_pourboire(p_id uuid, p_jeton text, p_pour text)
+returns json
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_maintenant timestamptz := public.fournil_maintenant();
+  v_lundi      date := public.fournil_lundi(v_maintenant);
+  v_jour       date := public.fournil_jour(v_maintenant);
+  v_erreur     text;
+  v_n          integer;
+  v_k          integer;
+  v_a          uuid;
+  v_pseudo     text;
+  v_points     integer;
+begin
+  perform public.fournil_figer(v_lundi);
+  v_erreur := public.fournil_joueur_verifie(p_id, p_jeton); -- tient sa ligne : ses pourboires simultanés passent un à un
+  if v_erreur is not null then
+    return json_build_object('ok', false, 'erreur', v_erreur, 'restants', null, 'points_semaine', null);
+  end if;
+  v_n := (select count(*) from public.fournil_pourboires where de = p_id and jour = v_jour);
+  select id into v_a from public.fournil_joueurs
+   where p_pour is not null and char_length(p_pour) <= 64 and lower(pseudo) = lower(btrim(p_pour));
+  if v_a is null then
+    return json_build_object('ok', false, 'erreur', 'inconnu', 'restants', greatest(3 - v_n, 0), 'points_semaine', null);
+  end if;
+  if v_a = p_id then
+    return json_build_object('ok', false, 'erreur', 'soi', 'restants', greatest(3 - v_n, 0), 'points_semaine', null);
+  end if;
+  if exists (select 1 from public.fournil_pourboires where de = p_id and a = v_a and jour = v_jour) then
+    return json_build_object('ok', false, 'erreur', 'deja', 'restants', greatest(3 - v_n, 0), 'points_semaine', null);
+  end if;
+  if v_n >= 3 then
+    return json_build_object('ok', false, 'erreur', 'quota', 'restants', 0, 'points_semaine', null);
+  end if;
+  insert into public.fournil_pourboires (de, a, jour, quand) values (p_id, v_a, v_jour, v_maintenant) on conflict do nothing;
+  get diagnostics v_k = row_count;
+  if v_k = 0 then
+    return json_build_object('ok', false, 'erreur', 'deja', 'restants', greatest(3 - v_n, 0), 'points_semaine', null);
+  end if;
+  -- son point de la semaine (une nouvelle semaine : ses compteurs de la semaine repartent de zéro, comme dans fournil_publier ; ceux
+  -- de la semaine finie sont déjà figés par fournil_figer)
+  update public.fournil_joueurs
+     set gain = case when semaine <> v_lundi then 0 else gain end,
+         points = case when semaine <> v_lundi then 0 else points end + 1,
+         points_bonus = case when semaine <> v_lundi then 0 else points_bonus end + 1,
+         points_total = points_total + 1,
+         semaine = v_lundi
+   where id = p_id
+  returning pseudo, points into v_pseudo, v_points;
+  perform public.fournil_notif_mettre(v_a, 'pourboire', v_pseudo || ' t''a laissé un pourboire 🥐', v_maintenant);
+  return json_build_object('ok', true, 'erreur', null, 'restants', greatest(3 - v_n - 1, 0), 'points_semaine', v_points);
+end
+$$;
+
+-- ─── 9 ter c. fournil_vu_pourboires : accuser les pourboires reçus (facultatif) ───
+-- fournil_recompenses marque déjà vus les pourboires qu'elle rend ; celle-ci marque vus tous ceux reçus jusqu'à p_jusqua (null :
+-- maintenant), pour un téléphone qui préfère accuser lui-même. Réponse : { ok, erreur: null | 'jeton' | 'inconnu' }.
+create or replace function public.fournil_vu_pourboires(p_id uuid, p_jeton text, p_jusqua timestamptz default null)
+returns json
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_maintenant timestamptz := public.fournil_maintenant();
+  v_erreur     text := public.fournil_joueur_verifie(p_id, p_jeton);
+begin
+  if v_erreur is not null then
+    return json_build_object('ok', false, 'erreur', v_erreur);
+  end if;
+  update public.fournil_pourboires set vu = v_maintenant
+   where a = p_id and vu is null and quand <= least(coalesce(p_jusqua, v_maintenant), v_maintenant);
+  return json_build_object('ok', true, 'erreur', null);
+end
+$$;
+
+-- ─── 9 ter d. fournil_objectif : l'objectif commun de la semaine, lisible par tous ───
+-- Réponse : { semaine: 'AAAA-MM-JJ' (le lundi), but: 300 à 6 000 (150 × les joueurs actifs de la semaine précédente, fixé une fois),
+--             total: la somme des points de la semaine de tous les joueurs (affichée en « croissants »), joueurs: ceux qui ont au moins
+--             1 point cette semaine, reussi: total ≥ but, pourcent: 0 à 100,
+--             precedente: { semaine, but, total, reussi } | null (la semaine passée, figée) }
+create or replace function public.fournil_objectif()
+returns json
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_lundi date := public.fournil_lundi(public.fournil_maintenant());
+  v_but   integer;
+  v_total integer;
+  v_n     integer;
+  v_prec  json;
+begin
+  perform public.fournil_figer(v_lundi);
+  v_but := public.fournil_objectif_but(v_lundi);
+  select coalesce(sum(j.points), 0)::int, (count(*) filter (where j.points > 0))::int into v_total, v_n
+    from public.fournil_joueurs j where j.semaine = v_lundi;
+  select json_build_object('semaine', to_char(o.semaine, 'YYYY-MM-DD'), 'but', o.but, 'total', o.total, 'reussi', o.reussi) into v_prec
+    from public.fournil_objectif o where o.semaine = v_lundi - 7 and o.fige is not null;
+  return json_build_object(
+    'semaine', to_char(v_lundi, 'YYYY-MM-DD'),
+    'but', v_but,
+    'total', v_total,
+    'joueurs', v_n,
+    'reussi', v_total >= v_but,
+    'pourcent', least(100, floor(100.0 * v_total / v_but))::int,
+    'precedente', v_prec
+  );
+end
+$$;
+
+-- ─── 9 ter e. fournil_abonner / fournil_desabonner : les notifications de cet appareil ───
+-- p_sub : l'abonnement du navigateur (PushSubscription.toJSON()) : { endpoint, keys: { p256dh, auth } }, 2 Ko au plus ; l'endpoint en
+-- https, 1 000 caractères au plus, chez un service de notifications de navigateur (fournil_endpoint_valable). 5 appareils au plus par
+-- joueur : au-delà, le plus ancien est remplacé. Un appareil déjà abonné par un autre joueur (même navigateur, autre partie) passe à
+-- celui-ci.
+-- p_prefs (facultatif) : { pleine, evenements, pourboires, objectif } (des booléens ; une clé absente ne change rien ; tout est
+-- coché au premier abonnement). Gardées par joueur, pour tous ses appareils.
+-- Réponse : { ok, erreur: null | 'jeton' | 'inconnu' | 'abonnement' (p_sub mal formé) | 'preferences' (p_prefs pas un objet),
+--             prefs: { pleine, evenements, pourboires, objectif } | null, appareils: combien de ses appareils sont abonnés }
+create or replace function public.fournil_abonner(p_id uuid, p_jeton text, p_sub jsonb, p_prefs jsonb default null)
+returns json
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_maintenant timestamptz := public.fournil_maintenant();
+  v_erreur     text := public.fournil_joueur_verifie(p_id, p_jeton);
+  v_end        text;
+  v_p256dh     text;
+  v_auth       text;
+begin
+  if v_erreur is not null then
+    return json_build_object('ok', false, 'erreur', v_erreur, 'prefs', null, 'appareils', null);
+  end if;
+  if p_sub is null or jsonb_typeof(p_sub) <> 'object' or octet_length(p_sub::text) > 2048 then
+    return json_build_object('ok', false, 'erreur', 'abonnement', 'prefs', null, 'appareils', null);
+  end if;
+  v_end := p_sub ->> 'endpoint';
+  v_p256dh := p_sub #>> '{keys,p256dh}';
+  v_auth := p_sub #>> '{keys,auth}';
+  if not public.fournil_endpoint_valable(v_end)
+     or not coalesce(v_p256dh ~ '^[A-Za-z0-9_+/-]{40,200}={0,2}$', false)
+     or not coalesce(v_auth ~ '^[A-Za-z0-9_+/-]{8,64}={0,2}$', false) then
+    return json_build_object('ok', false, 'erreur', 'abonnement', 'prefs', null, 'appareils', null);
+  end if;
+  if p_prefs is not null and jsonb_typeof(p_prefs) <> 'object' then
+    return json_build_object('ok', false, 'erreur', 'preferences', 'prefs', null, 'appareils', null);
+  end if;
+  insert into public.fournil_notif_prefs (id, maj) values (p_id, v_maintenant) on conflict (id) do nothing;
+  update public.fournil_notif_prefs
+     set pleine     = case when jsonb_typeof(p_prefs -> 'pleine') = 'boolean' then (p_prefs ->> 'pleine')::boolean else pleine end,
+         evenements = case when jsonb_typeof(p_prefs -> 'evenements') = 'boolean' then (p_prefs ->> 'evenements')::boolean else evenements end,
+         pourboires = case when jsonb_typeof(p_prefs -> 'pourboires') = 'boolean' then (p_prefs ->> 'pourboires')::boolean else pourboires end,
+         objectif   = case when jsonb_typeof(p_prefs -> 'objectif') = 'boolean' then (p_prefs ->> 'objectif')::boolean else objectif end,
+         maj = v_maintenant
+   where id = p_id;
+  insert into public.fournil_abonnements (endpoint, joueur, p256dh, auth, cree) values (v_end, p_id, v_p256dh, v_auth, v_maintenant)
+  on conflict (endpoint) do update set joueur = excluded.joueur, p256dh = excluded.p256dh, auth = excluded.auth, cree = excluded.cree;
+  delete from public.fournil_abonnements
+   where joueur = p_id
+     and endpoint in (select a.endpoint from public.fournil_abonnements a where a.joueur = p_id order by a.cree desc, a.endpoint offset 5);
+  return json_build_object(
+    'ok', true,
+    'erreur', null,
+    'prefs', (select json_build_object('pleine', p.pleine, 'evenements', p.evenements, 'pourboires', p.pourboires, 'objectif', p.objectif)
+                from public.fournil_notif_prefs p where p.id = p_id),
+    'appareils', (select count(*)::int from public.fournil_abonnements a where a.joueur = p_id)
+  );
+end
+$$;
+
+-- p_endpoint : l'appareil à retirer (null : tous ses appareils). Réponse : { ok, erreur: null | 'jeton' | 'inconnu', retires: n }.
+create or replace function public.fournil_desabonner(p_id uuid, p_jeton text, p_endpoint text)
+returns json
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_erreur text := public.fournil_joueur_verifie(p_id, p_jeton);
+  v_n      integer;
+begin
+  if v_erreur is not null then
+    return json_build_object('ok', false, 'erreur', v_erreur, 'retires', 0);
+  end if;
+  delete from public.fournil_abonnements where joueur = p_id and (p_endpoint is null or endpoint = p_endpoint);
+  get diagnostics v_n = row_count;
+  return json_build_object('ok', true, 'erreur', null, 'retires', v_n);
+end
+$$;
+
+-- ─── 9 ter f. fournil_planifier : « Ta boulangerie déborde », à l'heure où son absence est pleine ───
+-- Le téléphone l'appelle en quittant le jeu (p_pleine_a : l'heure où ses apprentis auront fini, G.heuresAbsence), et avec null au
+-- retour. Elle remplace sa notification 'pleine' en attente ; une heure dans moins de 10 min ou dans plus de 24 h est ignorée (les
+-- apprentis travaillent de 8 h à une quinzaine d'heures avec les talents et le mobilier).
+-- Réponse : { ok, erreur: null | 'jeton' | 'inconnu', planifiee: vrai si une notification attend (il est abonné, le cas est coché) }
+create or replace function public.fournil_planifier(p_id uuid, p_jeton text, p_pleine_a timestamptz)
+returns json
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_maintenant timestamptz := public.fournil_maintenant();
+  v_erreur     text := public.fournil_joueur_verifie(p_id, p_jeton);
+  v_ok         boolean := false;
+begin
+  if v_erreur is not null then
+    return json_build_object('ok', false, 'erreur', v_erreur, 'planifiee', false);
+  end if;
+  delete from public.fournil_notifs where joueur = p_id and type = 'pleine' and envoyee is null;
+  if p_pleine_a is not null and p_pleine_a >= v_maintenant + interval '10 minutes' and p_pleine_a <= v_maintenant + interval '24 hours' then
+    v_ok := public.fournil_notif_mettre(p_id, 'pleine', 'Ta boulangerie déborde ! Tes apprentis t''attendent.', p_pleine_a);
+  end if;
+  return json_build_object('ok', true, 'erreur', null, 'planifiee', v_ok);
+end
+$$;
+
+-- ─── 9 ter g. fournil_notif_essai : « M'envoyer un essai » ───
+-- Une notification 'essai' due tout de suite (partie au plus 5 min plus tard, à la prochaine tournée de la fonction d'envoi), au plus
+-- une toutes les 2 minutes. Réponse : { ok, erreur: null | 'jeton' | 'inconnu' | 'abonnement' (aucun appareil abonné) | 'trop_vite' }
+create or replace function public.fournil_notif_essai(p_id uuid, p_jeton text)
+returns json
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_maintenant timestamptz := public.fournil_maintenant();
+  v_erreur     text := public.fournil_joueur_verifie(p_id, p_jeton);
+begin
+  if v_erreur is not null then
+    return json_build_object('ok', false, 'erreur', v_erreur);
+  end if;
+  if not exists (select 1 from public.fournil_abonnements where joueur = p_id) then
+    return json_build_object('ok', false, 'erreur', 'abonnement');
+  end if;
+  if exists (select 1 from public.fournil_notifs where joueur = p_id and type = 'essai' and cree > v_maintenant - interval '2 minutes') then
+    return json_build_object('ok', false, 'erreur', 'trop_vite');
+  end if;
+  perform public.fournil_notif_mettre(p_id, 'essai', 'Ça marche ! Le Fournil te préviendra ici.', v_maintenant);
+  return json_build_object('ok', true, 'erreur', null);
+end
+$$;
+
+
+-- ─── 9 quater. La fonction d'envoi (supabase/functions/notifier) : RÉSERVÉES AU RÔLE DE SERVICE ───────
+-- Jamais ouvertes à anon ni à authenticated : seule la fonction d'envoi, avec la clé de service que Supabase lui donne dans son
+-- environnement, les appelle.
+
+-- les notifications dues : d'abord le ménage (notifications de plus de 7 jours, celles restées 6 h sans partir, pourboires de plus
+-- de 30 jours), le palmarès et l'objectif du lundi (fournil_figer : même si personne n'ouvre le jeu), les annonces d'événements ;
+-- puis au plus p_limite (1 à 500, 100 par défaut) notifications dues, prises pour 2 minutes (deux tournées ne les envoient pas deux
+-- fois ; pas accusées à temps, elles repartent), seulement celles que leur joueur veut encore (les autres sont retirées).
+-- Réponse : [{ notif_id, type, titre, texte, url, subs: [{ endpoint, p256dh, auth }] }] (du plus ancien au plus récent).
+create or replace function public.fournil_notifs_dues(p_limite integer default 100)
+returns json
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_maintenant timestamptz := public.fournil_maintenant();
+  v_ids        bigint[];
+  v_res        json;
+begin
+  perform public.fournil_figer(public.fournil_lundi(v_maintenant));
+  delete from public.fournil_notifs where cree < v_maintenant - interval '7 days';
+  delete from public.fournil_notifs where envoyee is null and due < v_maintenant - interval '6 hours';
+  delete from public.fournil_pourboires where quand < v_maintenant - interval '30 days';
+  delete from public.fournil_objectif_gagnants where semaine < public.fournil_lundi(v_maintenant) - 35;
+  delete from public.fournil_annonces where quand < v_maintenant - interval '30 days';
+  perform public.fournil_annoncer(v_maintenant);
+  delete from public.fournil_notifs n
+   where n.envoyee is null and n.due <= v_maintenant and not public.fournil_notif_permise(n.joueur, n.type);
+  with prises as (
+    select n.id from public.fournil_notifs n
+     where n.envoyee is null and n.due <= v_maintenant and (n.prise is null or n.prise < v_maintenant - interval '2 minutes')
+     order by n.due, n.id
+     limit least(greatest(coalesce(p_limite, 100), 1), 500)
+       for update skip locked
+  ), maj as (
+    update public.fournil_notifs n set prise = v_maintenant from prises p where n.id = p.id returning n.id
+  )
+  select array_agg(id) into v_ids from maj;
+  select coalesce(json_agg(json_build_object(
+           'notif_id', n.id, 'type', n.type, 'titre', n.titre, 'texte', n.texte, 'url', n.url,
+           'subs', coalesce((select json_agg(json_build_object('endpoint', a.endpoint, 'p256dh', a.p256dh, 'auth', a.auth) order by a.cree, a.endpoint)
+                               from public.fournil_abonnements a where a.joueur = n.joueur), '[]'::json))
+           order by n.due, n.id), '[]'::json)
+    into v_res
+    from public.fournil_notifs n where n.id = any(coalesce(v_ids, '{}'::bigint[]));
+  return v_res;
+end
+$$;
+
+-- après l'envoi : p_ids, les notifications traitées (envoyées, ou essayées sans succès : elles ne repartent pas) ; p_morts, les
+-- appareils que le service de notifications dit disparus (404, 410), retirés. Réponse : { ok, faites: n, retires: n }.
+create or replace function public.fournil_notifs_faites(p_ids bigint[], p_morts text[])
+returns json
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_maintenant timestamptz := public.fournil_maintenant();
+  v_f integer;
+  v_r integer;
+begin
+  update public.fournil_notifs set envoyee = v_maintenant where id = any(coalesce(p_ids, '{}'::bigint[])) and envoyee is null;
+  get diagnostics v_f = row_count;
+  delete from public.fournil_abonnements where endpoint = any(coalesce(p_morts, '{}'::text[]));
+  get diagnostics v_r = row_count;
+  return json_build_object('ok', true, 'faites', v_f, 'retires', v_r);
+end
+$$;
+
+
+-- ─── 10. Les droits : le jeu n'appelle que ses fonctions ────────────────────────────────────────
 -- Postgres et Supabase donnent par défaut le droit d'exécuter les nouvelles fonctions à tout le monde :
--- on le retire partout, puis on le rend seulement pour les six fonctions du jeu.
+-- on le retire partout, puis on le rend seulement pour les fonctions du jeu (anon et authenticated), et pour les deux fonctions
+-- de la fonction d'envoi (service_role seulement).
 revoke all on function public.fournil_maintenant() from public, anon, authenticated;
 revoke all on function public.fournil_lundi(timestamptz) from public, anon, authenticated;
 revoke all on function public.fournil_jour(timestamptz) from public, anon, authenticated;
@@ -1327,19 +2101,50 @@ revoke all on function public.fournil_quartier_figer(timestamptz) from public, a
 revoke all on function public.fournil_evts() from public, anon, authenticated;
 revoke all on function public.fournil_evt_borne(text, timestamptz) from public, anon, authenticated;
 revoke all on function public.fournil_evt_figer(timestamptz) from public, anon, authenticated;
+revoke all on function public.fournil_iso(timestamptz) from public, anon, authenticated;
+revoke all on function public.fournil_evt_titre(text) from public, anon, authenticated;
+revoke all on function public.fournil_endpoint_valable(text) from public, anon, authenticated;
+revoke all on function public.fournil_notif_permise(uuid, text) from public, anon, authenticated;
+revoke all on function public.fournil_notif_mettre(uuid, text, text, timestamptz) from public, anon, authenticated;
+revoke all on function public.fournil_objectif_but(date) from public, anon, authenticated;
+revoke all on function public.fournil_objectif_figer(date, timestamptz, boolean) from public, anon, authenticated;
+revoke all on function public.fournil_annoncer(timestamptz) from public, anon, authenticated;
+revoke all on function public.fournil_joueur_verifie(uuid, text) from public, anon, authenticated;
 
-revoke all on function public.fournil_publier(uuid, text, text, double precision, integer, date, double precision, text, double precision) from public;
+revoke all on function public.fournil_publier(uuid, text, text, double precision, integer, date, double precision, text, double precision, jsonb) from public;
 revoke all on function public.fournil_classement(text, uuid, integer) from public;
 revoke all on function public.fournil_retirer(uuid, text) from public;
 revoke all on function public.fournil_recompenses(uuid, text) from public;
 revoke all on function public.fournil_heure() from public;
 revoke all on function public.fournil_vu(uuid, text) from public;
-grant execute on function public.fournil_publier(uuid, text, text, double precision, integer, date, double precision, text, double precision) to anon, authenticated;
+grant execute on function public.fournil_publier(uuid, text, text, double precision, integer, date, double precision, text, double precision, jsonb) to anon, authenticated;
 grant execute on function public.fournil_classement(text, uuid, integer) to anon, authenticated;
 grant execute on function public.fournil_retirer(uuid, text) to anon, authenticated;
 grant execute on function public.fournil_recompenses(uuid, text) to anon, authenticated;
 grant execute on function public.fournil_heure() to anon, authenticated;
 grant execute on function public.fournil_vu(uuid, text) to anon, authenticated;
+-- version 6 : les copains et les notifications
+revoke all on function public.fournil_boutique(text, uuid, text) from public;
+revoke all on function public.fournil_pourboire(uuid, text, text) from public;
+revoke all on function public.fournil_vu_pourboires(uuid, text, timestamptz) from public;
+revoke all on function public.fournil_objectif() from public;
+revoke all on function public.fournil_abonner(uuid, text, jsonb, jsonb) from public;
+revoke all on function public.fournil_desabonner(uuid, text, text) from public;
+revoke all on function public.fournil_planifier(uuid, text, timestamptz) from public;
+revoke all on function public.fournil_notif_essai(uuid, text) from public;
+grant execute on function public.fournil_boutique(text, uuid, text) to anon, authenticated;
+grant execute on function public.fournil_pourboire(uuid, text, text) to anon, authenticated;
+grant execute on function public.fournil_vu_pourboires(uuid, text, timestamptz) to anon, authenticated;
+grant execute on function public.fournil_objectif() to anon, authenticated;
+grant execute on function public.fournil_abonner(uuid, text, jsonb, jsonb) to anon, authenticated;
+grant execute on function public.fournil_desabonner(uuid, text, text) to anon, authenticated;
+grant execute on function public.fournil_planifier(uuid, text, timestamptz) to anon, authenticated;
+grant execute on function public.fournil_notif_essai(uuid, text) to anon, authenticated;
+-- la fonction d'envoi seulement : jamais anon ni authenticated
+revoke all on function public.fournil_notifs_dues(integer) from public, anon, authenticated;
+revoke all on function public.fournil_notifs_faites(bigint[], text[]) from public, anon, authenticated;
+grant execute on function public.fournil_notifs_dues(integer) to service_role;
+grant execute on function public.fournil_notifs_faites(bigint[], text[]) to service_role;
 
 commit;
 
