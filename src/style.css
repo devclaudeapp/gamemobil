@@ -1140,3 +1140,63 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 #hantee .pq-compte-btn.juste { background: var(--ht-vert); box-shadow: 0 4px 0 #4FA866; }
 #hantee .pq-mini-carte .at-icone { background: #FFE6D2; }
 .pq-sheet.ht .pq-jeu-ico { background: #FFE6D2; }
+
+/* ─── les copains (classement v6) : les lignes qu'on touche, la visite d'une boutique, l'objectif commun, les feuilles des pourboires ─── */
+.cl-ligne.visitable { grid-template-columns: 46px minmax(0, 1fr) auto 14px; cursor: pointer; border-radius: 12px; transition: background .12s; }
+.cl-ligne.visitable:active { background: var(--creme); }
+.cl-chev { display: grid; place-items: center; width: 14px; opacity: .45; }
+.cl-chev svg { width: 16px; height: 16px; }
+/* l'écran « La boutique de X » : un bandeau en haut, la vraie scène 3D au milieu (le voile transparent capte les touches), le pourboire en bas */
+#visite { position: fixed; inset: 0; z-index: 6; display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); pointer-events: auto; animation: atEntre .22s ease-out; }
+#visite .vi-haut { background: var(--creme); box-shadow: 0 2px 10px rgba(74, 51, 40, .08); padding-bottom: 8px; }
+#visite .at-titre small { display: flex; align-items: center; gap: 6px; }
+#vi-sous { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vi-vue { position: relative; flex: 1 1 auto; min-height: 0; touch-action: none; }
+.vi-vue.carte { display: grid; place-items: center; padding: 16px; background: var(--creme); overflow-y: auto; touch-action: pan-y; }
+.vi-enseigne { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); max-width: 80%; padding: 7px 16px; border-radius: 999px; background: rgba(255, 255, 255, .92); box-shadow: 0 3px 0 rgba(74, 51, 40, .12);
+  font: 700 15px/1.1 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vi-lecture { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); display: inline-flex; align-items: center; gap: 6px; max-width: calc(100% - 24px); padding: 5px 12px 5px 6px; border-radius: 999px;
+  background: rgba(74, 51, 40, .72); color: #fff; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.vi-lecture .ico svg { width: 18px; height: 18px; stroke: #fff; }
+.vi-carte { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; max-width: 340px; padding: 22px 18px; border-radius: var(--r-carte); background: var(--carte); box-shadow: var(--ombre-carte); text-align: center; }
+.vi-carte .pic { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; background: var(--rose-clair); }
+.vi-carte .pic svg { width: 38px; height: 38px; }
+.vi-carte > b { font: 700 20px/1.2 var(--titre); }
+.vi-carte > span { font-size: 14px; color: var(--texte-2); }
+.vi-carte ul { list-style: none; margin: 8px 0 0; padding: 0; width: 100%; text-align: left; }
+.vi-carte li { padding: 8px 4px; border-top: 1px solid var(--ligne); font-size: 14px; }
+.vi-carte .btn { margin-top: 10px; padding: 0 20px; }
+.vi-bas { display: grid; gap: 10px; padding: 12px 16px calc(env(safe-area-inset-bottom, 0px) + 12px); background: var(--creme); box-shadow: 0 -2px 12px rgba(74, 51, 40, .10); border-radius: 22px 22px 0 0; }
+.vi-bas .btn.large { min-height: 58px; }
+.vi-bas .btn small { opacity: .85; }
+.vi-bas .btn.large.sombre { min-height: 48px; }
+.vi-bas .btn[aria-disabled="true"] { box-shadow: none; transform: translateY(4px); }
+.vi-note { margin: 0; font-size: 14px; text-align: center; color: var(--texte-2); }
+body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidden; }
+/* la carte de l'objectif commun, en tête de la feuille du classement */
+.obj-carte { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 12px; padding: 12px 14px; border-radius: var(--r-carte); background: var(--lavande-clair); }
+.obj-carte.reussi { background: var(--menthe-clair); }
+.obj-carte > .pic { display: grid; place-items: center; width: 44px; height: 44px; flex: 0 0 auto; border-radius: 14px; background: #fff; }
+.obj-carte > .pic svg { width: 30px; height: 30px; }
+.obj-corps { flex: 1 1 auto; min-width: 0; }
+.obj-tete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; column-gap: 8px; }
+.obj-tete b { font: 700 17px/1.2 var(--titre); }
+.obj-tete small { font-size: 12px; color: var(--texte-2); }
+.obj-jauge { height: 12px; margin: 8px 0 6px; border-radius: 999px; background: #fff; overflow: hidden; box-shadow: inset 0 1px 2px rgba(74, 51, 40, .12); }
+.obj-jauge i { display: block; height: 100%; min-width: 6px; border-radius: 999px; background: linear-gradient(90deg, var(--lavande-sombre), var(--fraise)); transition: width .6s ease-out; }
+.obj-carte.reussi .obj-jauge i { background: linear-gradient(90deg, var(--menthe-sombre), var(--menthe)); }
+.obj-carte p { margin: 0; font-size: 14px; }
+.obj-carte p b { font: 700 16px/1.2 var(--titre); font-variant-numeric: tabular-nums; }
+.obj-carte > .obj-corps > small { display: block; margin-top: 4px; font-size: 12px; line-height: 1.35; color: var(--texte-2); }
+/* « X t'a laissé un pourboire ! » et « Objectif commun réussi ! » : les feuilles d'annonce, sur le modèle de celle du podium */
+.rec-scene.pourboire { background: var(--rose-clair); }
+.rec-scene.equipe { background: var(--lavande-clair); }
+.cp-coeur { position: absolute; right: 52px; top: 22px; animation: jaillit .7s cubic-bezier(.3, 1.6, .5, 1) .3s both; }
+.cp-coeur svg { width: 44px; height: 44px; }
+/* le bloc Notifications des Réglages : les quatre cas, en retrait sous « Me prévenir » */
+.reglage.info { cursor: default; }
+.reglage.info:active { background: none; }
+.reglage.cas { grid-template-columns: 24px minmax(0, 1fr) auto; min-height: 52px; padding-left: 20px; }
+.reglage.cas > .ico { width: 8px; height: 8px; border-radius: 50%; background: var(--menthe); justify-self: center; }
+.reglage.cas + .reglage::before, .reglage + .reglage.cas::before { left: 44px; }
+.card.reglages.notifs[aria-busy="true"] { opacity: .6; pointer-events: none; }

@@ -25,6 +25,10 @@
     limite: 50, // les 50 premiers
     vu: 2 * 60e3, // « en ligne » : un battement (fournil_vu) toutes les 2 min tant que la page est visible et qu'on a rejoint
     vuRetour: 10e3, // au retour au premier plan, un battement tout de suite (pas plus d'un toutes les 10 s)
+    pourboiresJour: 3, // version 6 : 3 pourboires donnés par jour (le serveur compte aussi), et au plus 3 boosts ×2 reçus par jour sur ce téléphone
+    boostPourboire: [2, 600], // un pourboire reçu : un boost ×2 de 10 min dans la réserve
+    boostObjectif: [5, 900], // l'objectif commun réussi (et qu'on y a contribué) : un boost ×5 de 15 min, et le badge « Esprit d'équipe »
+    objectif: 60e3, // l'objectif commun relu une fois par minute au plus
   };
 
   // ─── le lundi de la semaine, heure de Paris (règle européenne : l'heure d'été va du dernier dimanche de mars au dernier dimanche d'octobre, à 1 h UTC) ───
@@ -89,7 +93,15 @@
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i, JETON = /^[0-9a-f]{64}$/;
   const fini = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : 0);
   const entier = (v) => (Number.isInteger(v) && v > 0 ? v : null);
-  const etatNeuf = () => ({ id: null, jeton: null, pseudo: '', rejoint: false, dernierEnvoi: 0, valeur: null, points: null, lundiPoints: '', quartier: null, evt: null, essai: 0, dernier: null, recompenses: recompensesNeuves() });
+  const etatNeuf = () => ({ id: null, jeton: null, pseudo: '', rejoint: false, dernierEnvoi: 0, valeur: null, points: null, lundiPoints: '', quartier: null, evt: null, essai: 0, dernier: null, recompenses: recompensesNeuves(),
+    photoQuand: 0, photoCle: '', dons: donsNeufs(), recus: recusNeufs(), notifs: notifsNeuves() }); // version 6 : la photo envoyée, les pourboires donnés et reçus, les notifications
+  // les pourboires donnés aujourd'hui (jour de Paris) : à qui (pseudos en minuscules), et combien il en reste d'après le serveur (null : pas encore su)
+  const donsNeufs = () => ({ jour: '', a: [], restants: null });
+  // les pourboires reçus : ceux qui attendent la feuille « X t'a laissé un pourboire ! » (attente), le plus récent déjà accueilli (vu),
+  // et les boosts déjà donnés aujourd'hui (n, au plus REGLES.pourboiresJour)
+  const recusNeufs = () => ({ attente: [], vu: '', jour: '', n: 0 });
+  // les notifications : actif (abonné), ses quatre cas, l'adresse d'envoi (endpoint) et l'heure « boutique pleine » déjà annoncée au serveur
+  const notifsNeuves = (prefs) => ({ actif: false, prefs: nettoyerPrefs(prefs), endpoint: '', pleineA: 0 });
   // les événements génériques que ce téléphone connaît (version 5 du serveur : p_evt) ; chacun est aussi une période du classement
   const EVTS = ['hantee'];
   const evtOk = (id) => EVTS.includes(id);
@@ -101,7 +113,7 @@
   const METAUX = ['or', 'argent', 'bronze'], JOUR = /^\d{4}-\d{2}-\d{2}$/;
   const metal = (rang) => METAUX[rang - 1] || null; // 1 → 'or', 2 → 'argent', 3 → 'bronze'
   const NOMS_METAL = { or: 'd’or', argent: 'd’argent', bronze: 'de bronze' }; // « la tenue d’or », « la coupe de bronze »
-  const recompensesNeuves = () => ({ podiums: [], tenue: 'auto', vu: '', quartier: null, quartierPodium: null, evenements: {} }); // quartier : son rang au podium final de l'événement « Le Quartier » (1, 2, 3), quartierPodium : les trois premiers ; evenements : { hantee: { rang: 1 | 2 | 3 | null, podium: [{ rang, pseudo, valeur }] } } (version 5)
+  const recompensesNeuves = () => ({ podiums: [], tenue: 'auto', vu: '', quartier: null, quartierPodium: null, evenements: {}, equipe: [], equipeAttente: '' }); // quartier : son rang au podium final de l'événement « Le Quartier » (1, 2, 3), quartierPodium : les trois premiers ; evenements : { hantee: { rang: 1 | 2 | 3 | null, podium: [{ rang, pseudo, valeur }] } } (version 5)
   function decalerSemaine(lundi, k) { // '2026-10-12', -1 → '2026-10-05'
     if (!JOUR.test(String(lundi || ''))) return '';
     const d = new Date(lundi + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + 7 * k); return d.toISOString().slice(0, 10);
@@ -123,6 +135,8 @@
     if ([1, 2, 3].includes(r.quartier)) o.quartier = r.quartier;
     if (Array.isArray(r.quartierPodium)) o.quartierPodium = nettoyerPodiumQuartier(r.quartierPodium);
     o.evenements = nettoyerEvenements(r.evenements);
+    o.equipe = Array.isArray(r.equipe) ? [...new Set(r.equipe.filter((x) => typeof x === 'string' && JOUR.test(x)))].sort().slice(-200) : []; // les semaines d'objectif commun réussi (le badge « Esprit d'équipe », version 6)
+    o.equipeAttente = typeof r.equipeAttente === 'string' && JOUR.test(r.equipeAttente) && !o.equipe.includes(r.equipeAttente) ? r.equipeAttente : ''; // sa récompense pas encore annoncée
     return o;
   }
   // les podiums finaux des événements génériques : { id: { rang: 1 | 2 | 3 | null, podium: [...] } }, seulement les événements connus
@@ -192,6 +206,10 @@
       if (d.semaine || d.total || q || ev) e.dernier = d;
     }
     e.recompenses = nettoyerRecompenses(s.recompenses);
+    e.photoQuand = fini(s.photoQuand); e.photoCle = typeof s.photoCle === 'string' ? s.photoCle.slice(0, 4096) : '';
+    if (s.dons && typeof s.dons === 'object' && JOUR.test(String(s.dons.jour || ''))) e.dons = { jour: s.dons.jour, a: (Array.isArray(s.dons.a) ? s.dons.a : []).filter((x) => typeof x === 'string').map((x) => x.slice(0, 40)).slice(0, 10), restants: Number.isInteger(s.dons.restants) && s.dons.restants >= 0 ? Math.min(REGLES.pourboiresJour, s.dons.restants) : null };
+    if (s.recus && typeof s.recus === 'object') e.recus = { attente: nettoyerPourboires(s.recus.attente).slice(-20), vu: quandOk(s.recus.vu) && s.recus.vu ? new Date(s.recus.vu).toISOString() : '', jour: JOUR.test(String(s.recus.jour || '')) ? s.recus.jour : '', n: borne(s.recus.n, 0, 99) };
+    if (s.notifs && typeof s.notifs === 'object') e.notifs = { actif: s.notifs.actif === true && !!e.id, prefs: nettoyerPrefs(s.notifs.prefs), endpoint: typeof s.notifs.endpoint === 'string' && /^https:\/\//.test(s.notifs.endpoint) ? s.notifs.endpoint.slice(0, 1000) : '', pleineA: fini(s.notifs.pleineA) };
     return e;
   }
   function lireEtat(stockage) {
@@ -268,6 +286,9 @@
     o.quartier = [1, 2, 3].includes(d.quartier) ? d.quartier : null; // le podium final de l'événement « Le Quartier » (version 4)
     o.quartierPodium = Array.isArray(d.quartier_podium) ? nettoyerPodiumQuartier(d.quartier_podium) : null;
     o.evenements = nettoyerEvenements(d.evenements); // les podiums finaux des événements génériques (version 5 ; {} sinon)
+    o.pourboires = nettoyerPourboires(d.pourboires); // version 6 : les pourboires reçus pas encore vus ([] sinon)
+    const ob = d.objectif; // version 6 : la récompense de l'objectif commun d'une semaine finie, réussie, à laquelle on a contribué (une fois)
+    o.objectif = ob && typeof ob === 'object' && JOUR.test(String(ob.semaine || '').slice(0, 10)) ? { semaine: String(ob.semaine).slice(0, 10), reussi: ob.reussi === true, recompense: ob.recompense === true || (!!ob.recompense && typeof ob.recompense === 'object') } : null;
     const r = d.derniere;
     if (r && typeof r === 'object' && JOUR.test(String(r.semaine || '')) && Array.isArray(r.podium)) {
       const podium = r.podium.slice(0, 30).filter((x) => x && typeof x === 'object' && [1, 2, 3].includes(x.rang)).map((x) => { const v = Number(x.valeur); return { rang: x.rang, pseudo: String(x.pseudo == null ? '' : x.pseudo).slice(0, 40), points: Number.isInteger(x.points) && x.points >= 0 ? x.points : null, valeur: Number.isFinite(v) ? v : 0 }; });
@@ -276,12 +297,115 @@
     return o;
   }
 
+  // ─── version 6 du serveur : les copains (visiter une boutique, laisser un pourboire, l'objectif commun) et les notifications ───
+  // La PHOTO de sa boutique : un petit JSON (2 Ko au plus, sérialisé) envoyé avec fournil_publier (p_photo), au plus une fois toutes les
+  // 10 min, et rendu aux autres par fournil_boutique(pseudo) pour la visite (une scène en lecture seule). Ce qu'elle porte :
+  //   { v: 1, nom: le nom donné à la boutique ('' : celui du quartier), q: le quartier (0-4), s: la recette de saison préparée (id) | null,
+  //     p: [[niveau, apprenti 0/1, grade 1-5], …] (les postes, dans l'ordre de GAME.PRODUITS), m: { tables, four, vitrine, caisse, froid, deco } (crans),
+  //     t: [tête, haut, pieds, accessoire] (la tenue portée, ids de la garde-robe), c: { n: nom, p: 'roux' | 'noir' } | null (le chat),
+  //     dq / dh: les décos gagnées au Quartier et à la Maison hantée, g: le niveau du boulanger (son grade), k: les coupes de la vitrine (métaux),
+  //     o: 1 si le badge « Esprit d'équipe » (objectif commun réussi) est gagné }.
+  // Celle d'un autre joueur vient du réseau : relue champ par champ (nettoyerPhoto), jamais crue.
+  const PHOTO = { max: 2048, ecart: 10 * 60e3, refaire: 6 * 3600e3 };
+  const ID_OK = /^[a-z0-9][a-z0-9-]{0,39}$/, PIECES = ['tete', 'haut', 'pieds', 'accessoire'];
+  const borne = (v, min, max) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : min; };
+  const texteCourt = (s, n) => Array.from(normaliserPseudo(s).replace(/[<>\u0000-\u001f\u007f]/g, '')).slice(0, n).join('');
+  const idsOk = (l, n) => (Array.isArray(l) ? [...new Set(l.filter((x) => typeof x === 'string' && ID_OK.test(x)))].slice(0, n) : []);
+  const octetsJson = (o) => { const j = JSON.stringify(o); try { return new TextEncoder().encode(j).length; } catch (e) { return unescape(encodeURIComponent(j)).length; } };
+  const leJeu = (G) => G || (typeof GAME !== 'undefined' ? GAME : null);
+  // la photo de SA boutique ; o : { G (GAME), coupes: ['or', …], badge, dq, dh (les décos gagnées, sinon lues dans st) }
+  function photo(st, o) {
+    o = o || {}; const G = leJeu(o.G);
+    if (!st || typeof st !== 'object' || !G || !Array.isArray(st.stations)) return null;
+    try {
+      const eq = G.garderobe(st).equipe, hd = o.dh || (st.hantee && st.hantee.decos);
+      const p = {
+        v: 1, nom: texteCourt(st.nomBoutique || '', 30), q: G.quartier(st), s: st.saison && st.saison.niv > 0 && ID_OK.test(String(st.saison.id)) ? st.saison.id : null,
+        p: st.stations.slice(0, 16).map((s, i) => [borne(s.niv, 0, 1e6), s.staff ? 1 : 0, G.gradeApprenti(st, i)]),
+        m: {}, t: PIECES.map((k) => (typeof eq[k] === 'string' && ID_OK.test(eq[k]) ? eq[k] : null)),
+        c: st.chat ? { n: texteCourt(st.chat.nom, 16), p: G.pelageChat(st, false) === 'noir' ? 'noir' : 'roux' } : null,
+        dq: idsOk(o.dq || (st.quartier && st.quartier.decos), 8), dh: idsOk(hd, 8), g: borne(G.niveau(st), 1, 9999),
+        k: (Array.isArray(o.coupes) ? o.coupes : []).filter((m) => METAUX.includes(m)).slice(-12), o: o.badge ? 1 : 0,
+      };
+      for (const m of G.MOBILIER) p.m[m.id] = borne(G.mobilierCran(st, m.id), 0, 20);
+      if (octetsJson(p) > PHOTO.max) { p.k = []; p.nom = p.nom.slice(0, 12); }
+      return octetsJson(p) <= PHOTO.max ? p : null;
+    } catch (e) { return null; }
+  }
+  function nettoyerPhoto(p) {
+    if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
+    try { if (octetsJson(p) > PHOTO.max * 2) return null; } catch (e) { return null; }
+    const o = { v: borne(p.v, 1, 99), nom: texteCourt(p.nom == null ? '' : p.nom, 30), q: borne(p.q, 0, 99), s: typeof p.s === 'string' && ID_OK.test(p.s) ? p.s : null,
+      p: (Array.isArray(p.p) ? p.p.slice(0, 16) : []).map((x) => (Array.isArray(x) ? [borne(x[0], 0, 1e6), x[1] ? 1 : 0, borne(x[2], 1, 5)] : [0, 0, 1])),
+      m: {}, t: (Array.isArray(p.t) ? p.t.slice(0, 4) : []).map((x) => (typeof x === 'string' && ID_OK.test(x) ? x : null)), c: null,
+      dq: idsOk(p.dq, 8), dh: idsOk(p.dh, 8), g: borne(p.g, 1, 9999), k: (Array.isArray(p.k) ? p.k : []).filter((m) => METAUX.includes(m)).slice(-12), o: p.o ? 1 : 0 };
+    if (p.m && typeof p.m === 'object' && !Array.isArray(p.m)) for (const k of Object.keys(p.m).slice(0, 12)) if (ID_OK.test(k)) o.m[k] = borne(p.m[k], 0, 20);
+    if (p.c && typeof p.c === 'object') o.c = { n: texteCourt(p.c.n == null ? '' : p.c.n, 16), p: p.c.p === 'noir' ? 'noir' : 'roux' };
+    return o;
+  }
+  // la boutique d'un copain, reconstruite pour la scène : un état neuf (GAME.newState) habillé des champs de la photo, marqué st.visite.
+  // Rien n'est sauvé : la scène le lit, la simulation des clients y passe, il est jeté au retour. o : { G, maintenant }
+  function boutiqueDepuisPhoto(ph, o) {
+    o = o || {}; const G = leJeu(o.G), p = nettoyerPhoto(ph); if (!G || !p) return null;
+    const now = Number.isFinite(o.maintenant) ? o.maintenant : Date.now(), st = G.newState(now);
+    st.visite = true; st.nomBoutique = p.nom; st.boutiques = (p.q % G.QUARTIERS.length) + 1;
+    st.stations.forEach((s, i) => {
+      const x = p.p[i]; s.niv = x ? x[0] : i === 0 ? 1 : 0; s.staff = !!(x && x[1] && s.niv > 0); s.prog = 0; s.actif = false;
+      if (x && x[2] > 1 && G.APPRENTI_NIVEAUX) st.apprentis[G.PRODUITS[i].id] = { xp: G.APPRENTI_NIVEAUX[x[2] - 1] };
+    });
+    if (!st.stations.some((s) => s.niv > 0)) st.stations[0].niv = 1;
+    for (const m of G.MOBILIER) st.mobilier[m.id] = Math.min(m.max, p.m[m.id] || 0);
+    const r = p.s && (G.RECETTES_SAISON || []).find((x) => x.id === p.s); if (r) st.saison = { id: r.id, annee: new Date(now).getUTCFullYear(), niv: 1, prog: 0, actif: false };
+    const g = G.garderobeNeuve();
+    PIECES.forEach((k, i) => { const id = p.t[i], v = id ? G.vetement(id) : null; if (v && v.piece === k) { g.objets[id] = { niv: 1, depuis: 0 }; g.equipe[k] = id; } else if (p.t.length > i && id === null) g.equipe[k] = null; });
+    st.garderobe = g;
+    if (p.c) { st.chat = { nom: p.c.n || 'Brioche', caresses: 0, dernier: 0, adopte: now }; st.chatNoir = p.c.p === 'noir'; st.chatPelage = p.c.p; }
+    let xp = 0; for (let n = 1; n < Math.min(p.g, 400); n++) xp += G.XP_NIVEAU(n); st.xp = xp;
+    st.evTimer = 1e9; st.mystereTimer = 1e9; st.chatAttente = null; // rien ne surgit dans la boutique d'un autre
+    const q = G.QUARTIERS[G.quartier(st)];
+    return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o };
+  }
+  // la réponse de fournil_boutique(pseudo)
+  function nettoyerBoutique(d) {
+    if (!d || typeof d !== 'object') return { ok: false, erreur: 'reponse' };
+    if (d.ok !== true) return { ok: false, erreur: typeof d.erreur === 'string' ? d.erreur.slice(0, 40) : 'inconnu' };
+    const maj = typeof d.maj === 'string' && !isNaN(Date.parse(d.maj)) ? new Date(d.maj).toISOString() : null;
+    return { ok: true, pseudo: String(d.pseudo == null ? '' : d.pseudo).slice(0, 40), photo: nettoyerPhoto(d.photo), maj, enLigne: d.en_ligne === true };
+  }
+  // la réponse de fournil_objectif() : { semaine, but, total, joueurs, reussi, pourcent }
+  function nettoyerObjectif(d) {
+    if (!d || typeof d !== 'object') return null;
+    const but = borne(d.but, 0, 1e9), total = borne(d.total, 0, 1e12); if (!(but > 0)) return null;
+    const pc = Number(d.pourcent);
+    return { semaine: JOUR.test(String(d.semaine || '').slice(0, 10)) ? String(d.semaine).slice(0, 10) : '', but, total, joueurs: borne(d.joueurs, 0, 1e6), reussi: d.reussi === true || total >= but,
+      pourcent: Number.isFinite(pc) ? Math.max(0, Math.min(100, pc)) : Math.min(100, Math.floor(total / but * 100)) };
+  }
+  const quandOk = (q) => (typeof q === 'string' || typeof q === 'number') && !isNaN(new Date(q).getTime());
+  // les pourboires reçus (fournil_recompenses, version 6) : [{ de: pseudo, quand: ISO }], du plus ancien au plus récent
+  function nettoyerPourboires(l) {
+    return (Array.isArray(l) ? l.slice(0, 50) : []).filter((x) => x && typeof x === 'object' && quandOk(x.quand) && String(x.de == null ? '' : x.de).trim())
+      .map((x) => ({ de: String(x.de).slice(0, 40), quand: new Date(x.quand).toISOString() })).sort((a, b) => (a.quand < b.quand ? -1 : a.quand > b.quand ? 1 : 0));
+  }
+  // le jour de Paris ('AAAA-MM-JJ') : les quotas de pourboires (3 donnés, 3 boosts reçus) repartent chaque jour, comme au serveur
+  function jourParis(ms) { const t = Number.isFinite(ms) ? ms : Date.now(); return new Date(t + decalageParis(t)).toISOString().slice(0, 10); }
+  // les préférences des notifications : les quatre cas (a) boutique pleine, (b) ouverture et fin d'un événement, (c) pourboire, (d) objectif commun
+  const PREFS = ['pleine', 'evenements', 'pourboires', 'objectif'];
+  function nettoyerPrefs(p) { const o = {}; for (const k of PREFS) o[k] = !(p && typeof p === 'object' && p[k] === false); return o; }
+  // la clé publique VAPID (fournil/config.js : vapid), en base64url : 65 octets non compressés (87 caractères) ; absente : « bientôt »
+  const VAPID_OK = /^[A-Za-z0-9_-]{80,100}$/;
+  function cleVapid(b64) { // base64url → Uint8Array (pour PushManager.subscribe)
+    const s = String(b64).replace(/-/g, '+').replace(/_/g, '/'), pad = s + '='.repeat((4 - (s.length % 4)) % 4);
+    const bin = typeof atob === 'function' ? atob(pad) : Buffer.from(pad, 'base64').toString('binary');
+    return Uint8Array.from(bin, (c) => c.charCodeAt(0));
+  }
+
   // ─── le réseau : un POST vers une fonction du classement ───
   function lireConfig(c) {
     if (!c || typeof c !== 'object') return null;
     const url = typeof c.supabaseUrl === 'string' ? c.supabaseUrl.trim().replace(/\/+$/, '') : '', key = typeof c.supabaseKey === 'string' ? c.supabaseKey.trim() : '';
     if (!/^https:\/\/[^/\s]+$/.test(url) || !key) return null;
-    return { url, key, bearer: c.bearer !== false }; // bearer : aussi « Authorization: Bearer <clé publique> », comme supabase-js
+    const vapid = typeof c.vapid === 'string' && VAPID_OK.test(c.vapid.trim()) ? c.vapid.trim() : ''; // la clé PUBLIQUE des notifications (version 6) ; '' : pas encore
+    return { url, key, bearer: c.bearer !== false, vapid }; // bearer : aussi « Authorization: Bearer <clé publique> », comme supabase-js
   }
   const ABSENT = ['PGRST202', 'PGRST205', '42883', '42P01']; // fonction ou table pas encore créées : le SQL n'a pas été collé
   async function appeler(config, nom, corps, o) {
@@ -338,7 +462,8 @@
     return o;
   }
   function creerMoteur(env) {
-    const E = Object.assign({ maintenant: () => Date.now(), attendre: (ms) => new Promise((r) => setTimeout(r, ms)), enLigne: () => true, visible: () => true, fortune: () => NaN, points: () => null, quartier: () => null, evenement: () => null }, env || {});
+    const E = Object.assign({ maintenant: () => Date.now(), attendre: (ms) => new Promise((r) => setTimeout(r, ms)), enLigne: () => true, visible: () => true, fortune: () => NaN, points: () => null, quartier: () => null, evenement: () => null,
+      photo: () => null, push: null }, env || {}); // version 6 : photo() → la photo de sa boutique ; push : { possible(), abonner(cleVapid) → { sub } | { erreur }, desabonner() → { endpoint } }
     let etat = lireEtat(E.stockage);
     const ecouteurs = [], cache = {}, charge = {}, enVol = {}; // par période ; une seule lecture de la liste à la fois par onglet : qui la redemande reçoit la même
     for (const p of PERIODES) { cache[p] = null; charge[p] = false; enVol[p] = null; }
@@ -351,6 +476,8 @@
     let version = 0; // la version du serveur : 5 (événements génériques, en ligne), 4 (l'événement du quartier), 3 (points), 2 (argent seulement : on n'envoie plus de points jusqu'au prochain lancement), 0 (pas encore vue)
     let dernierVu = 0, vuVol = null, vuAbsent = false; // « en ligne » : le dernier signe de vie envoyé, le battement en vol, un serveur sans fournil_vu (jusqu'au prochain lancement)
     let recVol = null, recQuand = 0, derniere = null; // la lecture des récompenses en cours, l'heure de la dernière, le podium de la semaine passée
+    let sansPhoto = false, sansCopains = false; // un serveur sans p_photo / sans les fonctions des copains (version 5 ou plus ancienne) : jusqu'au prochain lancement
+    let objCache = null, objVol = null; // l'objectif commun : la dernière lecture { etat, data, quand }, celle en vol
     const config = () => { try { return lireConfig(E.config ? E.config() : null); } catch (e) { return null; } };
     const sauver = () => { ecrit = ecrireEtat(E.stockage, etat); return ecrit; };
     const prevenir = () => { for (const f of ecouteurs.slice()) { try { f(); } catch (e) { /* l'interface ne casse pas le moteur */ } } };
@@ -368,8 +495,14 @@
       if (brut == null) return false; // stockage vide ou indisponible : on garde l'état en mémoire
       const f = lireEtat(E.stockage);
       // les récompenses : l'union des podiums (rien ne se perd), la tenue choisie dans l'autre fenêtre (chaque choix est écrit aussitôt), le dernier annoncé
-      const rec = { podiums: nettoyerPodiums(etat.recompenses.podiums.concat(f.recompenses.podiums)), tenue: f.recompenses.tenue, vu: f.recompenses.vu > etat.recompenses.vu ? f.recompenses.vu : etat.recompenses.vu, quartier: f.recompenses.quartier || etat.recompenses.quartier, quartierPodium: f.recompenses.quartierPodium || etat.recompenses.quartierPodium, evenements: fusionnerEvenements(etat.recompenses.evenements, f.recompenses.evenements) };
+      const equipe = [...new Set(etat.recompenses.equipe.concat(f.recompenses.equipe))].sort();
+      const rec = { podiums: nettoyerPodiums(etat.recompenses.podiums.concat(f.recompenses.podiums)), tenue: f.recompenses.tenue, vu: f.recompenses.vu > etat.recompenses.vu ? f.recompenses.vu : etat.recompenses.vu, quartier: f.recompenses.quartier || etat.recompenses.quartier, quartierPodium: f.recompenses.quartierPodium || etat.recompenses.quartierPodium, evenements: fusionnerEvenements(etat.recompenses.evenements, f.recompenses.evenements),
+        equipe, equipeAttente: [f.recompenses.equipeAttente, etat.recompenses.equipeAttente].find((x) => x && !equipe.includes(x)) || '' };
       if (f.id !== etat.id || f.jeton !== etat.jeton || f.rejoint !== etat.rejoint || f.pseudo !== etat.pseudo) { etat = f; etat.recompenses = rec; viderCache(); prevenir(); return true; }
+      // version 6 : les pourboires accueillis dans l'autre fenêtre ne reviennent pas ici ; ses dons du jour et ses notifications (écrits aussitôt) font foi
+      if (f.recus.vu > etat.recus.vu || (f.recus.vu === etat.recus.vu && f.recus.attente.length < etat.recus.attente.length)) etat.recus = f.recus;
+      if (f.dons.jour > etat.dons.jour || (f.dons.jour === etat.dons.jour && f.dons.a.length > etat.dons.a.length)) etat.dons = f.dons;
+      etat.notifs = f.notifs; if (f.photoQuand > etat.photoQuand) { etat.photoQuand = f.photoQuand; etat.photoCle = f.photoCle; }
       const avantRec = JSON.stringify(etat.recompenses); etat.recompenses = rec; if (JSON.stringify(rec) !== avantRec) prevenir();
       etat.essai = Math.max(etat.essai, f.essai);
       if (f.dernierEnvoi > etat.dernierEnvoi) { etat.dernierEnvoi = f.dernierEnvoi; etat.valeur = f.valeur; etat.quartier = f.quartier; etat.evt = f.evt; etat.dernier = f.dernier; }
@@ -396,22 +529,40 @@
         etat.dernier = n;
       }
     }
+    // la photo à joindre au prochain envoi, ou null (serveur trop ancien, envoyée il y a moins de 10 min, inchangée depuis moins de 6 h)
+    function photoAEnvoyer() {
+      if (sansPhoto || (version >= 2 && version <= 5)) return null;
+      const t = E.maintenant(), depuis = t - (etat.photoQuand || 0), recente = etat.photoQuand > 0 && depuis >= 0;
+      if (recente && depuis < PHOTO.ecart) return null;
+      let p = null; try { p = E.photo(); } catch (e) { p = null; }
+      if (!p || typeof p !== 'object') return null;
+      const cle = JSON.stringify(p); if (cle.length > PHOTO.max * 2) return null;
+      if (recente && cle === etat.photoCle && depuis < PHOTO.refaire) return null;
+      return { p, cle };
+    }
     // un envoi au serveur ; le pseudo ne change dans l'état local qu'une fois accepté
     async function publier(pseudo, valeur, o, pts, billets, ev) {
       etat.essai = E.maintenant(); sauver();
       const avecPoints = !!pts && version !== 2, avecBillets = avecPoints && billets != null && version !== 3, avecEvt = avecPoints && !!ev && !(version >= 2 && version <= 4);
       const INTROUVABLE = (r) => r.etat === 'pas-ouvert' && ['PGRST202', '42883'].includes(r.code); // la fonction n'a pas cette forme : le SQL n'est pas recollé
+      // version 6 : la photo de la boutique part avec, au plus une fois toutes les 10 min (et seulement si elle a changé, ou toutes les 6 h) ;
+      // un serveur qui ne connaît pas p_photo (version 5) : le même envoi aussitôt refait sans elle, et plus de photo jusqu'au prochain lancement
+      let ph = photoAEnvoyer(), photoPartie = null;
+      const pub = async (c) => {
+        if (ph) { const r1 = await rpc('fournil_publier', Object.assign({}, c, { p_photo: ph.p }), o); if (!INTROUVABLE(r1)) { photoPartie = ph; return r1; } sansPhoto = true; ph = null; }
+        return rpc('fournil_publier', c, o);
+      };
       let r = null;
       if (avecEvt) { // version 5 : le score de l'événement générique (p_evt, p_score), avec les billets du Quartier s'il y en a encore
-        r = avecBillets ? await rpc('fournil_publier', { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur, p_points: pts.points, p_lundi: pts.lundi, p_quartier: billets, p_evt: ev.id, p_score: ev.score }, o)
-          : await rpc('fournil_publier', { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur, p_points: pts.points, p_lundi: pts.lundi, p_evt: ev.id, p_score: ev.score }, o);
+        r = avecBillets ? await pub({ p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur, p_points: pts.points, p_lundi: pts.lundi, p_quartier: billets, p_evt: ev.id, p_score: ev.score })
+          : await pub({ p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur, p_points: pts.points, p_lundi: pts.lundi, p_evt: ev.id, p_score: ev.score });
         if (INTROUVABLE(r)) { version = 4; r = null; } // un serveur encore en version 4 : pas de bonbons (le reste part comme avant)
       }
-      if (!r && avecBillets) r = await rpc('fournil_publier', { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur, p_points: pts.points, p_lundi: pts.lundi, p_quartier: billets }, o);
+      if (!r && avecBillets) r = await pub({ p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur, p_points: pts.points, p_lundi: pts.lundi, p_quartier: billets });
       if (r && INTROUVABLE(r)) { version = 3; r = null; } // un serveur encore en version 3 : les points sans les billets
-      if (!r && avecPoints) r = await rpc('fournil_publier', { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur, p_points: pts.points, p_lundi: pts.lundi }, o);
+      if (!r && avecPoints) r = await pub({ p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur, p_points: pts.points, p_lundi: pts.lundi });
       if (r && avecPoints && INTROUVABLE(r)) { version = 2; r = null; } // un serveur encore en version 2 (SQL pas recollé) : sa fortune seule, comme avant
-      if (!r) r = await rpc('fournil_publier', { p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur }, o);
+      if (!r) r = await pub({ p_id: etat.id, p_jeton: etat.jeton, p_pseudo: pseudo, p_fortune: valeur });
       statut = r.etat;
       if (r.etat !== 'ok') { prevenir(); return r; }
       const d = r.data || {};
@@ -422,6 +573,7 @@
         if (avecBillets && version >= 4) etat.quartier = billets;
         if (avecEvt && version >= 5) { etat.evt = { id: ev.id, valeur: ev.score }; }
         if (version >= 5) dernierVu = t; // un envoi accepté par la version 5 est aussi un signe de vie
+        if (photoPartie && (d.photo_maj !== undefined || version >= 6)) { etat.photoQuand = t; etat.photoCle = photoPartie.cle; } // la photo est gardée par le serveur (version 6)
         noterRangs(d, t); sauver();
         for (const p of PERIODES) if (cache[p]) cache[p].quand = 0; // les listes gardées ne montrent plus la bonne fortune : à relire au prochain coup d'œil
         prevenir();
@@ -500,7 +652,7 @@
       statut = r.etat;
       if (r.etat !== 'ok') { prevenir(); return r; } // pas de réponse : on reste inscrit, avec son jeton, pour réessayer
       // (un refus « jeton » veut dire que la ligne n'est pas à nous : on oublie l'identité, comme pour un retrait réussi)
-      const pseudo = etat.pseudo, rec = etat.recompenses; etat = etatNeuf(); etat.pseudo = pseudo; etat.recompenses = rec; sauver(); // une nouvelle identité au prochain retour ; le pseudo reste proposé, les coupes et les tenues restent à lui
+      const pseudo = etat.pseudo, rec = etat.recompenses, prefs = etat.notifs.prefs; etat = etatNeuf(); etat.pseudo = pseudo; etat.recompenses = rec; etat.notifs = notifsNeuves(prefs); sauver(); // une nouvelle identité au prochain retour ; le pseudo reste proposé, les coupes et les tenues restent à lui (ses abonnements partent avec sa ligne)
       viderCache(); prevenir();
       return { etat: 'ok' };
     }
@@ -557,7 +709,13 @@
         if (d.quartier) etat.recompenses.quartier = d.quartier; // le podium final de l'événement, gardé à vie (jamais retiré)
         if (d.quartierPodium) etat.recompenses.quartierPodium = d.quartierPodium;
         etat.recompenses.evenements = fusionnerEvenements(etat.recompenses.evenements, d.evenements); // les podiums finaux des événements génériques, gardés à vie
-        if (JSON.stringify([etat.recompenses.podiums, etat.recompenses.quartier, etat.recompenses.quartierPodium, etat.recompenses.evenements]) !== avant) sauver();
+        let neuf = false;
+        // version 6 : les pourboires reçus attendent leur feuille (gardés sur le téléphone : le serveur peut les marquer vus dès cette lecture)
+        const deja = new Set(etat.recus.attente.map((x) => x.de + '|' + x.quand)), recus = d.pourboires.filter((x) => x.quand > etat.recus.vu && !deja.has(x.de + '|' + x.quand));
+        if (recus.length) { etat.recus.attente = etat.recus.attente.concat(recus).slice(-20); neuf = true; }
+        // l'objectif commun réussi d'une semaine finie : sa récompense attend son annonce (une fois par semaine)
+        const ob = d.objectif; if (ob && ob.reussi && ob.recompense && !etat.recompenses.equipe.includes(ob.semaine) && etat.recompenses.equipeAttente !== ob.semaine) { etat.recompenses.equipeAttente = ob.semaine; neuf = true; }
+        if (neuf || JSON.stringify([etat.recompenses.podiums, etat.recompenses.quartier, etat.recompenses.quartierPodium, etat.recompenses.evenements]) !== avant) sauver();
         return { etat: 'ok', data: d };
       }).catch(() => { recQuand = 0; return { etat: 'erreur' }; }).then((r) => { recVol = null; prevenir(); return r; });
       return recVol;
@@ -579,7 +737,8 @@
     // pour l'interface et la boutique en 3D : ce qui se voit cette semaine
     function recompenses() {
       const rec = etat.recompenses, l = lundi();
-      return { podiums: rec.podiums.slice(), tenue: rec.tenue, vu: rec.vu, lundi: l, portee: tenuePortee(rec, l), coupe: coupeDuComptoir(rec, l), coupes: rec.podiums.map((p) => metal(p.rang)), gagnees: tenuesGagnees(rec), annonce: aAnnoncer(rec, l), derniere, quartier: rec.quartier, quartierPodium: rec.quartierPodium, evenements: JSON.parse(JSON.stringify(rec.evenements || {})) };
+      return { podiums: rec.podiums.slice(), tenue: rec.tenue, vu: rec.vu, lundi: l, portee: tenuePortee(rec, l), coupe: coupeDuComptoir(rec, l), coupes: rec.podiums.map((p) => metal(p.rang)), gagnees: tenuesGagnees(rec), annonce: aAnnoncer(rec, l), derniere, quartier: rec.quartier, quartierPodium: rec.quartierPodium, evenements: JSON.parse(JSON.stringify(rec.evenements || {})),
+        equipe: rec.equipe.slice(), badge: rec.equipe.length > 0, objectifAnnonce: rec.equipeAttente || null }; // version 6 : le badge « Esprit d'équipe », la récompense de l'objectif à annoncer
     }
     // « en ligne » : un battement (fournil_vu) qui ne compte rien ; raison : 'periodique' (le minuteur : un toutes les 2 min), 'retour' (la page
     // revient au premier plan : tout de suite, pas plus d'un toutes les 10 s), 'lancement'. Jamais caché, hors ligne, sans configuration, ni sans
@@ -605,9 +764,133 @@
       }).catch(() => { dernierVu = 0; return { etat: 'erreur' }; }).then((r) => { vuVol = null; return r; });
       return vuVol;
     }
+    // ─── version 6 : les copains ───
+    const ancien = () => sansCopains || (version >= 2 && version <= 5); // un serveur sans les fonctions des copains : on cache les boutons
+    const pasInstalle = (r) => { if (r && r.etat === 'pas-ouvert') { sansCopains = true; prevenir(); return { etat: 'pas-installe' }; } return null; };
+    const moi = () => ({ p_id: etat.id, p_jeton: etat.jeton });
+    // la boutique d'un copain (fournil_boutique, lisible par tous) : { etat: 'ok', data: { pseudo, photo, maj, enLigne } } ; 'refus' (erreur 'inconnu'),
+    // 'pas-installe' (serveur version 5), ou un état du réseau
+    async function boutique(pseudo) {
+      if (!config()) return { etat: 'absent' };
+      const p = normaliserPseudo(pseudo); if (!p) return { etat: 'invalide' };
+      resynchroniser(); const avecMoi = etat.rejoint && etat.id && etat.jeton; // inscrit : le serveur dit aussi ses pourboires restants et s'il en a déjà laissé un à ce copain
+      const r = await rpc('fournil_boutique', avecMoi ? Object.assign({ p_pseudo: p }, moi()) : { p_pseudo: p }), x = pasInstalle(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      const d = nettoyerBoutique(r.data); if (!d.ok) return { etat: 'refus', erreur: d.erreur };
+      if (avecMoi && r.data && (Number.isInteger(r.data.restants) || typeof r.data.deja === 'boolean')) {
+        majDons(); if (Number.isInteger(r.data.restants) && r.data.restants >= 0) etat.dons.restants = Math.min(REGLES.pourboiresJour, r.data.restants);
+        const k = p.toLowerCase(); if (r.data.deja === true && !etat.dons.a.includes(k)) etat.dons.a.push(k); sauver();
+      }
+      return { etat: 'ok', data: d };
+    }
+    function majDons() { const j = jourParis(E.maintenant()); if (etat.dons.jour !== j) etat.dons = { jour: j, a: [], restants: null }; }
+    // ses pourboires du jour : combien il en reste (3 par jour), et s'il en a déjà laissé un à ce copain aujourd'hui
+    function dons() { resynchroniser(); majDons(); const d = etat.dons; return { restants: d.restants == null ? Math.max(0, REGLES.pourboiresJour - d.a.length) : d.restants, a: d.a.slice(), deja: (p) => d.a.includes(normaliserPseudo(p).toLowerCase()) }; }
+    // laisser un pourboire à un copain (fournil_pourboire) : { etat: 'ok', restants } ou { etat: 'refus', erreur: 'deja' | 'quota' | 'soi' | 'inconnu' | 'jeton', restants }
+    async function pourboire(pseudo) {
+      if (!config()) return { etat: 'absent' };
+      resynchroniser(); if (!etat.rejoint || !etat.id || !etat.jeton) return { etat: 'pas-rejoint' };
+      const p = normaliserPseudo(pseudo); if (!verifierPseudo(p).ok) return { etat: 'invalide' };
+      const r = await rpc('fournil_pourboire', Object.assign(moi(), { p_pour: p })), x = pasInstalle(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      const d = r.data || {}; resynchroniser(); majDons();
+      if (Number.isInteger(d.restants) && d.restants >= 0) etat.dons.restants = Math.min(REGLES.pourboiresJour, d.restants);
+      if ((d.ok === true || d.erreur === 'deja') && !etat.dons.a.includes(p.toLowerCase())) etat.dons.a.push(p.toLowerCase());
+      if (d.erreur === 'quota') etat.dons.restants = 0;
+      sauver(); prevenir();
+      const restants = dons().restants;
+      return d.ok === true ? { etat: 'ok', restants } : { etat: 'refus', erreur: typeof d.erreur === 'string' ? d.erreur : 'inconnue', restants };
+    }
+    // l'objectif commun de la semaine (fournil_objectif, lisible par tous) : relu une fois par minute au plus ; objectifVu() : la dernière lecture
+    function objectif(o) {
+      if (!config()) return Promise.resolve({ etat: 'absent' });
+      if (ancien()) return Promise.resolve({ etat: 'pas-installe' });
+      if (objVol) return objVol;
+      const t = E.maintenant(), ecart = o && typeof o.ecart === 'number' ? o.ecart : REGLES.objectif;
+      if (objCache && objCache.etat === 'ok' && t - objCache.quand >= 0 && t - objCache.quand < ecart) return Promise.resolve(objCache);
+      objVol = rpc('fournil_objectif', {}).then((r) => {
+        const x = pasInstalle(r); if (x) { objCache = null; return x; }
+        if (r.etat === 'ok') { const d = nettoyerObjectif(r.data); objCache = d ? { etat: 'ok', data: d, quand: E.maintenant() } : objCache; return d ? objCache : { etat: 'erreur', detail: 'reponse' }; }
+        return r;
+      }).catch(() => ({ etat: 'erreur' })).then((r) => { objVol = null; prevenir(); return r; });
+      return objVol;
+    }
+    // les pourboires reçus qui attendent leur feuille (fournil_recompenses ne les rend qu'une fois : ils sont gardés ici jusque-là) ;
+    // accueillirPourboires() les marque vus et dit combien de boosts ×2 donner (au plus 3 par jour sur ce téléphone)
+    function pourboiresRecus() { return etat.recus.attente.slice(); }
+    function accueillirPourboires() {
+      resynchroniser();
+      const l = etat.recus.attente.slice(); if (!l.length) return { liste: [], boosts: 0 };
+      const j = jourParis(E.maintenant()); if (etat.recus.jour !== j) { etat.recus.jour = j; etat.recus.n = 0; }
+      const boosts = Math.max(0, Math.min(l.length, REGLES.pourboiresJour - etat.recus.n)), jusqua = l.reduce((m, x) => (x.quand > m ? x.quand : m), etat.recus.vu);
+      etat.recus.n += boosts; etat.recus.vu = jusqua; etat.recus.attente = []; sauver(); prevenir();
+      return { liste: l, boosts }; // (le serveur v6 les marque vus dès sa lecture : rien à accuser ; recus.vu les écarte s'ils revenaient)
+    }
+    // la récompense de l'objectif commun : annoncée une fois (rend true la première fois seulement), la semaine rejoint le badge
+    function objectifFait(semaine) {
+      resynchroniser(); const r = etat.recompenses;
+      if (!JOUR.test(String(semaine || '')) || r.equipe.includes(semaine)) return false;
+      r.equipe = r.equipe.concat([semaine]).sort(); if (r.equipeAttente === semaine) r.equipeAttente = ''; sauver(); prevenir(); return true;
+    }
+
+    // ─── version 6 : les notifications (Web Push) ───
+    // pourquoi elles ne sont pas possibles : 'absent' (pas de configuration), 'bientot' (pas encore de clé publique dans config.js),
+    // 'impossible' (pas de PushManager : un iPhone hors de l'écran d'accueil, un vieux navigateur), 'pas-installe' (serveur version 5), '' : possibles
+    function notifsPossibles() {
+      const c = config(); if (!c) return 'absent';
+      if (!c.vapid) return 'bientot';
+      if (ancien()) return 'pas-installe';
+      let ok = false; try { ok = !!(E.push && E.push.possible()); } catch (e) { ok = false; }
+      return ok ? '' : 'impossible';
+    }
+    function notifs() { return { actif: etat.notifs.actif, prefs: Object.assign({}, etat.notifs.prefs), endpoint: etat.notifs.endpoint, pleineA: etat.notifs.pleineA }; }
+    // s'abonner (ou changer ses cas) : la permission, PushManager.subscribe avec la clé publique, puis fournil_abonner
+    async function abonner(prefs) {
+      const raison = notifsPossibles(); if (raison) return { etat: raison };
+      resynchroniser(); if (!etat.rejoint || !etat.id || !etat.jeton) return { etat: 'pas-rejoint' };
+      const p = nettoyerPrefs(prefs || etat.notifs.prefs);
+      let s = null; try { s = await E.push.abonner(config().vapid); } catch (e) { s = { erreur: 'erreur' }; }
+      if (!s || s.erreur || !s.sub) return { etat: (s && s.erreur) || 'erreur' }; // 'refuse' (permission refusée), 'ignore' (pas de réponse), 'erreur'
+      const r = await rpc('fournil_abonner', Object.assign(moi(), { p_sub: s.sub, p_prefs: p })), x = pasInstalle(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      if (!r.data || r.data.ok !== true) return { etat: 'refus', erreur: r.data && typeof r.data.erreur === 'string' ? r.data.erreur : 'inconnue' };
+      const pr = r.data.prefs && typeof r.data.prefs === 'object' ? nettoyerPrefs(r.data.prefs) : p; // les cas gardés par le serveur
+      resynchroniser(); etat.notifs = { actif: true, prefs: pr, endpoint: String(s.sub.endpoint).slice(0, 1000), pleineA: 0 }; sauver(); prevenir();
+      return { etat: 'ok' };
+    }
+    async function desabonner() {
+      resynchroniser();
+      let endpoint = etat.notifs.endpoint; try { const s = E.push ? await E.push.desabonner() : null; if (s && s.endpoint) endpoint = s.endpoint; } catch (e) { /* le navigateur a déjà oublié l'abonnement */ }
+      etat.notifs = notifsNeuves(etat.notifs.prefs); sauver(); prevenir();
+      if (!config() || !etat.id || !etat.jeton || !endpoint || ancien()) return { etat: 'ok' };
+      const r = await rpc('fournil_desabonner', Object.assign(moi(), { p_endpoint: endpoint }));
+      return r.etat === 'ok' || r.etat === 'pas-ouvert' ? { etat: 'ok' } : r;
+    }
+    // l'heure où la boutique sera pleine (ms), annoncée en quittant le jeu ; null au retour (annule). Un seul appel par changement.
+    function planifier(ms) {
+      if (!config() || ancien()) return Promise.resolve({ etat: 'saute', pourquoi: 'absent' });
+      if (!etat.notifs.actif || !etat.notifs.prefs.pleine || !etat.rejoint || !etat.id) return Promise.resolve({ etat: 'saute', pourquoi: 'pas-abonne' });
+      const v = Number.isFinite(ms) && ms > 0 ? Math.round(ms) : null, avant = etat.notifs.pleineA;
+      if (v == null && !avant) return Promise.resolve({ etat: 'saute', pourquoi: 'rien' });
+      if (v != null && avant && Math.abs(avant - v) < 60e3) return Promise.resolve({ etat: 'saute', pourquoi: 'deja' });
+      etat.notifs.pleineA = v || 0; sauver();
+      return rpc('fournil_planifier', Object.assign(moi(), { p_pleine_a: v == null ? null : new Date(v).toISOString() }), { keepalive: true }).then((r) => {
+        if (r.etat === 'pas-ouvert') sansCopains = true;
+        else if (r.etat !== 'ok' && etat.notifs.pleineA === (v || 0)) { etat.notifs.pleineA = avant; sauver(); } // pas parti : on réessaiera
+        return r;
+      });
+    }
+    async function essai() {
+      if (!config() || !etat.rejoint || !etat.id) return { etat: 'pas-rejoint' };
+      const r = await rpc('fournil_notif_essai', moi()), x = pasInstalle(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      return r.data && r.data.ok === true ? { etat: 'ok' } : { etat: 'refus', erreur: r.data && typeof r.data.erreur === 'string' ? r.data.erreur : 'inconnue' };
+    }
+
     function demarrer(o) {
       if (demarre || !config()) return false;
       demarre = true;
+      if (etat.notifs.pleineA) planifier(null); // le joueur est revenu : la notification « boutique pleine » n'a plus lieu d'être
       const ecart = E.maintenant() - (etat.essai || 0);
       if (!etat.rejoint && etat.id && etat.jeton && !(etat.essai && ecart >= 0 && ecart < 30e3)) { // une inscription dont la réponse s'est perdue : on efface la ligne fantôme, sans bruit (pas si une autre fenêtre inscrit à l'instant)
         const id = etat.id, jeton = etat.jeton;
@@ -637,9 +920,51 @@
       disponible: () => !!config(), etat: () => etat, resume, version: () => version, cache: (p) => cache[periodeDe(p)], enChargement: (p) => charge[periodeDe(p)],
       envoyer, charger, ouvrir, choisirPseudo, quitter, demarrer, arreter, ecouter: (f) => { ecouteurs.push(f); },
       chargerRecompenses, recompenses, choisirTenue, annonceFaite, lundi, battre,
+      copains: () => !!config() && !ancien(), boutique, dons, pourboire, objectif, objectifVu: () => objCache, pourboiresRecus, accueillirPourboires, objectifFait,
+      notifsPossibles, notifs, abonner, desabonner, planifier, essai,
       relire: () => { etat = lireEtat(E.stockage); prevenir(); return etat; },
       resynchroniser, tick,
     };
+  }
+
+  // ─── les notifications dans le navigateur : la permission, puis PushManager.subscribe (service worker fournil/sw.js) ───
+  // Sur iPhone, PushManager n'existe que dans l'app ajoutée à l'écran d'accueil (iOS 16.4 ou plus) : sinon possible() est faux.
+  // La permission est demandée en premier, encore dans le geste du joueur (Safari l'exige).
+  function pushNavigateur(w) {
+    const n = w.navigator;
+    const pret = () => Promise.race([n.serviceWorker.ready, new Promise((r) => setTimeout(() => r(null), 8000))]);
+    const memeCle = (sub, cle) => { try { const a = sub.options && sub.options.applicationServerKey; if (!a) return true; const x = new Uint8Array(a); return x.length === cle.length && x.every((v, i) => v === cle[i]); } catch (e) { return true; } };
+    return {
+      possible: () => !!(n && n.serviceWorker && 'PushManager' in w && 'Notification' in w),
+      permission: () => { try { return w.Notification ? w.Notification.permission : 'absent'; } catch (e) { return 'absent'; } },
+      async abonner(vapid) {
+        let perm = w.Notification.permission;
+        if (perm === 'default') perm = await new Promise((res) => { try { const p = w.Notification.requestPermission(res); if (p && p.then) p.then(res, () => res('default')); } catch (e) { res('default'); } });
+        if (perm !== 'granted') return { erreur: perm === 'denied' ? 'refuse' : 'ignore' };
+        const reg = await pret(); if (!reg || !reg.pushManager) return { erreur: 'sw' };
+        const cle = cleVapid(vapid);
+        let sub = await reg.pushManager.getSubscription();
+        if (sub && !memeCle(sub, cle)) { try { await sub.unsubscribe(); } catch (e) { /* rien */ } sub = null; } // une autre clé (changée dans config.js) : on se réabonne
+        if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: cle });
+        const j = sub.toJSON ? sub.toJSON() : sub, k = j.keys || {};
+        if (!j.endpoint || !k.p256dh || !k.auth) return { erreur: 'erreur' };
+        return { sub: { endpoint: j.endpoint, keys: { p256dh: k.p256dh, auth: k.auth } } };
+      },
+      async desabonner() {
+        const reg = n.serviceWorker ? await pret() : null; const sub = reg && reg.pushManager ? await reg.pushManager.getSubscription() : null;
+        if (!sub) return { endpoint: null };
+        const e = sub.endpoint; try { await sub.unsubscribe(); } catch (x) { /* rien */ } return { endpoint: e };
+      },
+    };
+  }
+  // l'iPhone (ou l'iPad) ouvert dans Safari plutôt que depuis l'écran d'accueil : les notifications demandent d'abord l'ajout à l'écran d'accueil
+  function iosHorsEcran(w) {
+    try {
+      const n = w.navigator, ua = String(n.userAgent || ''), ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && n.maxTouchPoints > 1);
+      const seule = n.standalone === true || (w.matchMedia && w.matchMedia('(display-mode: standalone)').matches);
+      const v = /OS (\d+)_(\d+)/.exec(ua), vieux = v ? +v[1] < 16 || (+v[1] === 16 && +v[2] < 4) : false;
+      return ios ? { ios: true, horsEcran: !seule, vieux } : { ios: false, horsEcran: false, vieux: false };
+    } catch (e) { return { ios: false, horsEcran: false, vieux: false }; }
   }
 
   // ─── dans le navigateur : la configuration de fournil/config.js, localStorage, fetch, la visibilité de la page ───
@@ -651,12 +976,17 @@
       config: () => w.FOURNIL_CONFIG, fetch: (u, i) => w.fetch(u, i), stockage, fortune: o && o.fortune, ...(o && typeof o.points === 'function' ? { points: o.points } : {}), ...(o && typeof o.quartier === 'function' ? { quartier: o.quartier } : {}),
       ...(o && typeof o.evenement === 'function' ? { evenement: o.evenement } : {}), // le score de l'événement générique en cours : { id: 'hantee', score } (null : rien)
       ...(o && typeof o.maintenant === 'function' ? { maintenant: o.maintenant } : {}), // l'horloge de confiance du jeu (HORLOGE), plutôt que celle du téléphone
+      ...(o && typeof o.photo === 'function' ? { photo: o.photo } : {}), // version 6 : la photo de sa boutique (CLASSEMENT.photo)
       enLigne: () => !(w.navigator && w.navigator.onLine === false), visible: () => !(w.document && w.document.visibilityState === 'hidden'),
+      push: pushNavigateur(w),
     });
     if (w.document) { // au passage en arrière-plan : un dernier envoi qui survit à la fermeture (fetch keepalive) ; au retour au premier plan : un signe de vie
-      const fond = () => { m.envoyer('fond', { keepalive: true }); };
-      w.document.addEventListener('visibilitychange', () => { if (w.document.visibilityState === 'hidden') fond(); else m.battre('retour'); });
+      // version 6 : en quittant, l'heure où la boutique sera pleine (o.pleineA() : maintenant + ses heures d'absence) pour la notification ; au retour, on l'annule
+      const pleine = () => { try { const v = o && typeof o.pleineA === 'function' ? o.pleineA() : null; if (Number.isFinite(v)) m.planifier(v); } catch (e) { /* rien */ } };
+      const fond = () => { m.envoyer('fond', { keepalive: true }); pleine(); };
+      w.document.addEventListener('visibilitychange', () => { if (w.document.visibilityState === 'hidden') fond(); else { m.battre('retour'); m.planifier(null); } });
       w.addEventListener('pagehide', fond);
+      w.addEventListener('pageshow', (e) => { if (e && e.persisted) m.planifier(null); });
     }
     // une autre fenêtre du jeu (appli installée + onglet) a changé le classement : on suit tout de suite
     try { w.addEventListener('storage', (e) => { if (!e || e.key === CLE || e.key === null) m.resynchroniser(); }); } catch (e) { /* rien */ }
@@ -665,5 +995,6 @@
 
   return { CLE, REGLES, PERIODES, EVTS, ongletsEvenements, nettoyerEvenements, PSEUDO_MIN, PSEUDO_MAX, lundiParis, decalageParis, dateCourte, normaliserPseudo, verifierPseudo, messagePseudo, rangTexte, rangPhrase, boulangers,
     etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur,
-    METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce };
+    METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce,
+    PHOTO, photo, nettoyerPhoto, boutiqueDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson };
 });

@@ -71,7 +71,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
   console.log('── la configuration et les réponses ──');
   check(CL.lireConfig(null) === null && CL.lireConfig({ supabaseUrl: '', supabaseKey: 'x' }) === null && CL.lireConfig({ supabaseUrl: 'http://exemple.supabase.co', supabaseKey: 'x' }) === null, 'pas de configuration (artefact Claude), ou pas en https : classement caché');
-  check(egal(CL.lireConfig({ supabaseUrl: 'https://abc.supabase.co/', supabaseKey: ' sb_publishable_x ' }), { url: 'https://abc.supabase.co', key: 'sb_publishable_x', bearer: true }), 'configuration lue : barre finale et espaces retirés');
+  check(egal(CL.lireConfig({ supabaseUrl: 'https://abc.supabase.co/', supabaseKey: ' sb_publishable_x ' }), { url: 'https://abc.supabase.co', key: 'sb_publishable_x', bearer: true, vapid: '' }), 'configuration lue : barre finale et espaces retirés');
   { const d = CL.nettoyerClassement({ semaine: '2026-10-05', joueurs: 2, lignes: [{ rang: 1, pseudo: 'A', valeur: '12.5', moi: false }, { rang: 0, pseudo: 'faux' }, null, { rang: 2, pseudo: '<i>B</i>', valeur: 3, moi: true }], moi: { rang: 70, valeur: 1 } });
     check(d.lignes.length === 2 && d.lignes[0].valeur === 12.5 && d.lignes[1].moi === true && d.joueurs === 70 && d.moi.rang === 70 && d.semaine === '2026-10-05', 'réponse nettoyée : lignes invalides écartées, nombre de joueurs au moins le rang'); }
   check(egal(CL.nettoyerClassement('n’importe quoi'), { semaine: '', joueurs: 0, lignes: [], moi: null, version: 0 }), 'réponse absurde : liste vide');
@@ -300,7 +300,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   check(CL.metal(1) === 'or' && CL.metal(2) === 'argent' && CL.metal(3) === 'bronze' && CL.metal(4) === null && CL.metal(null) === null, '1er : or, 2e : argent, 3e : bronze ; au-delà, rien');
   check(CL.decalerSemaine('2026-10-12', -1) === '2026-10-05' && CL.decalerSemaine('2027-01-04', -1) === '2026-12-28' && CL.decalerSemaine('2026-10-19', 1) === '2026-10-26' && CL.decalerSemaine('2027-03-22', 1) === '2027-03-29' && CL.decalerSemaine('n’importe', 1) === '', 'la semaine d’avant, d’après (passage de l’année et changements d’heure compris)');
   { const r = CL.nettoyerRecompenses({ podiums: [{ semaine: '2026-10-05', rang: 2 }, { semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 3 }, { semaine: 'hier', rang: 1 }, { semaine: '2026-09-21', rang: 4 }, null, { semaine: '2026-09-14', rang: '1' }], tenue: 'platine', vu: 12 });
-    check(egal(r, { podiums: [{ semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '', quartier: null, quartierPodium: null, evenements: {} }), 'récompenses nettoyées : une coupe par semaine (la meilleure), triées, rangs 1 à 3 seulement ; tenue inconnue → automatique'); }
+    check(egal(r, { podiums: [{ semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '', quartier: null, quartierPodium: null, evenements: {}, equipe: [], equipeAttente: '' }), 'récompenses nettoyées : une coupe par semaine (la meilleure), triées, rangs 1 à 3 seulement ; tenue inconnue → automatique'); }
   check(CL.nettoyerRecompenses({ tenue: null }).tenue === null && CL.nettoyerRecompenses({ tenue: 'bronze' }).tenue === 'bronze' && egal(CL.nettoyerRecompenses('abîmé'), CL.recompensesNeuves()), 'tenue « aucune » (null) gardée ; réponse absurde : rien');
   { const rec = { podiums: [{ semaine: '2026-09-21', rang: 3 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '' }, L = '2026-10-12';
     check(CL.tenuePortee(rec, L) === 'argent' && CL.coupeDuComptoir(rec, L) === 'argent', 'automatique : la semaine qui suit le podium, la tenue et la coupe d’argent');
@@ -521,6 +521,146 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     check(egal(CL.ongletsEvenements(liste(), H.DEBUT + 3600e3), [['quartier', 'Événement'], ['hantee', 'Halloween']]) && egal(CL.ongletsEvenements(liste(true), H.DEBUT + 3600e3), [['hantee', 'Halloween']]), 'le 27 octobre après midi : le podium final du Quartier et Halloween (le Quartier masqué : Halloween seul)');
     check(egal(CL.ongletsEvenements(liste(), H.FIN + 13 * 864e5), [['hantee', 'Halloween']]) && egal(CL.ongletsEvenements(liste(), H.FIN + 15 * 864e5), []), 'deux semaines après Halloween, l’onglet s’efface');
     check(CL.PERIODES.includes('hantee') && CL.EVTS.join() === 'hantee', 'la période « hantee » est connue du moteur'); }
+
+  console.log('── les copains (contrat v6) : la photo de la boutique ──');
+  const G = require('../src/game.js');
+  { const st = G.newState(T); st.nomBoutique = 'Chez Lucas'; st.boutiques = 2; st.stations.forEach((s, i) => { s.niv = 250 + i; s.staff = true; }); st.apprentis[G.PRODUITS[1].id] = { xp: G.APPRENTI_NIVEAUX[2] };
+    for (const m of G.MOBILIER) st.mobilier[m.id] = m.max; st.chat = { nom: 'Réglisse' }; st.chatNoir = true; st.chatPelage = 'noir'; st.xp = 0; for (let n = 1; n < 30; n++) st.xp += G.XP_NIVEAU(n);
+    G.donnerVetement(st, 'or-toque'); G.equiper(st, 'tete', 'or-toque'); st.quartier = { decos: ['graffiti', 'neon'] }; st.hantee = { decos: ['citrouilles', '<script>'] };
+    st.saison = { id: G.RECETTES_SAISON[0].id, annee: 2026, niv: 3, prog: 0, actif: false };
+    const p = CL.photo(st, { G, coupes: ['or', 'argent', 'bronze', 'platine'], badge: true }), o = CL.octetsJson(p);
+    check(p && o <= 2048 && p.nom === 'Chez Lucas' && p.q === 1 && p.p.length === 8 && p.p[1][2] === 3 && p.p[0][1] === 1 && p.m.four === 4 && p.t[0] === 'or-toque' && egal(p.c, { n: 'Réglisse', p: 'noir' }) && egal(p.dq, ['graffiti', 'neon']) && egal(p.dh, ['citrouilles']) && p.g === 30 && egal(p.k, ['or', 'argent', 'bronze']) && p.o === 1 && p.s === G.RECETTES_SAISON[0].id,
+      `la photo : nom, quartier, postes (niveau, apprenti, grade), crans, tenue, chat noir, décos, niveau, coupes, badge (${o} octets ≤ 2048)`);
+    const b = CL.boutiqueDepuisPhoto(p, { G, maintenant: T });
+    check(b && b.st.visite === true && b.nom === 'Chez Lucas' && b.quartier === G.QUARTIERS[1].nom && G.mobilierCran(b.st, 'four') === 4 && b.st.stations[3].niv === 253 && b.st.stations[3].staff && G.gradeApprenti(b.st, 1) === 3 && G.niveau(b.st) === 30 && G.toqueMetal(b.st) === 'or' && b.st.chat.nom === 'Réglisse' && G.pelageChat(b.st, false) === 'noir' && b.st.saison.niv === 1 && b.badge && b.coupes.length === 3 && b.st.coins === 0,
+      'la boutique rebâtie depuis la photo (GAME.newState + ses champs) : mêmes crans, postes, grades, niveau, toque d’or, chat noir, recette de saison');
+    const grosse = Object.assign({}, p, { nom: 'x'.repeat(5000), p: Array.from({ length: 400 }, () => [1e12, 1, 9]), k: Array(500).fill('or') });
+    const longue = CL.photo(Object.assign(G.newState(T), { nomBoutique: 'Ω'.repeat(400) }), { G, coupes: Array(400).fill('or') });
+    check(longue !== null && CL.octetsJson(longue) <= 2048, 'une boutique au nom démesuré : la photo reste sous 2 Ko');
+    check(CL.nettoyerPhoto(grosse) === null && CL.nettoyerPhoto(null) === null && CL.nettoyerPhoto([1]) === null && CL.nettoyerPhoto('x') === null, 'une photo trop grosse ou absurde venue du réseau : écartée');
+    const sale = CL.nettoyerPhoto({ nom: '<img src=x onerror=alert(1)>Fournil', q: 99, p: [[-5, 'oui', 77], 'x'], m: { four: 999, 'Mauvais id': 2 }, t: ['or-toque', '<b>', 42], c: { n: '<i>Chat</i>', p: 'vert' }, dq: ['graffiti', 'graffiti', 'A B'], k: ['or', 'diamant'], g: -3, o: 'oui' });
+    check(sale && !/[<>]/.test(sale.nom) && egal(sale.p, [[0, 1, 5], [0, 0, 1]]) && sale.m.four === 20 && !('Mauvais id' in sale.m) && egal(sale.t, ['or-toque', null, null]) && !/[<>]/.test(sale.c.n) && sale.c.p === 'roux' && egal(sale.dq, ['graffiti']) && egal(sale.k, ['or']) && sale.g === 1,
+      'une photo piégée : pas de balise, nombres bornés, ids inconnus écartés');
+    const b2 = CL.boutiqueDepuisPhoto({ q: 99, p: [], m: { four: 999 }, t: ['n-existe-pas'] }, { G, maintenant: T });
+    check(b2 && b2.st.stations[0].niv === 1 && G.mobilierCran(b2.st, 'four') === 4 && G.tenueBoulanger(b2.st).tete.forme === 'toque' && G.quartier(b2.st) < G.QUARTIERS.length, 'une photo pauvre : une boutique de départ, crans plafonnés au maximum, tenue de base'); }
+
+  console.log('── les copains (contrat v6) : le moteur ──');
+  const ID6 = '0b9a3e4c-1d2e-4f50-8a6b-7c8d9e0f1a2b', JET6 = 'c'.repeat(64);
+  const inscrit = () => { const s = memoire(); CL.ecrireEtat(s, Object.assign(CL.etatNeuf(), { id: ID6, jeton: JET6, pseudo: 'Léa', rejoint: true })); return s; };
+  // un faux serveur v6 : toutes les fonctions du contrat, en mémoire ; v5 : true → les nouvelles fonctions et p_photo n'existent pas
+  const serveur6 = (o) => {
+    const x = { v5: !!(o && o.v5), photos: 0, dons: [], pourboires: [], vus: null, abos: [], plan: [], essais: 0, objectif: { semaine: '2026-10-05', but: 600, total: 150, joueurs: 4, reussi: false, pourcent: 25 }, recompense: null };
+    x.gerer = (url, init, c) => {
+      const nom = url.split('/rpc/')[1];
+      const NOUVELLES = ['fournil_boutique', 'fournil_pourboire', 'fournil_objectif', 'fournil_abonner', 'fournil_desabonner', 'fournil_planifier', 'fournil_notif_essai', 'fournil_vu_pourboires'];
+      if (x.v5 && (NOUVELLES.includes(nom) || (nom === 'fournil_publier' && 'p_photo' in c))) return rep(404, { code: 'PGRST202' });
+      if (nom === 'fournil_publier') { if ('p_photo' in c) x.photos++; return rep(200, { ok: true, erreur: null, version: x.v5 ? 5 : 6, rang_semaine: 1, rang_total: 1, joueurs: 3, ...(x.v5 ? {} : { photo_maj: new Date(horloge).toISOString() }) }); }
+      if (nom === 'fournil_classement') return rep(200, { version: x.v5 ? 5 : 6, semaine: '2026-10-05', joueurs: 2, lignes: [{ rang: 1, pseudo: 'Lucas', points: 40, valeur: 1, moi: false }], moi: null });
+      if (nom === 'fournil_boutique') return c.p_pseudo === 'Lucas' ? rep(200, { ok: true, pseudo: 'Lucas', photo: { v: 1, nom: 'Chez Lucas', q: 2, p: [[40, 1, 2]], m: { four: 3 }, t: ['or-toque', null, null, null], c: null, g: 12 }, maj: '2026-10-09T10:00:00Z', en_ligne: true, ...(c.p_id ? { restants: 3 - x.dons.filter((d) => d.ok).length, deja: x.dons.some((d) => d.ok && d.p_pour === 'Lucas') } : {}) }) : rep(200, { ok: false, erreur: 'inconnu' });
+      if (nom === 'fournil_pourboire') { x.dons.push(c); const auj = x.dons.filter((d) => d.ok); if (c.p_pour === 'Léa') return rep(200, { ok: false, erreur: 'soi', restants: 3 - auj.length }); if (auj.some((d) => d.p_pour === c.p_pour)) return rep(200, { ok: false, erreur: 'deja', restants: 3 - auj.length }); if (auj.length >= 3) return rep(200, { ok: false, erreur: 'quota', restants: 0 }); c.ok = true; return rep(200, { ok: true, erreur: null, restants: 2 - auj.length, points_semaine: 4 }); }
+      if (nom === 'fournil_objectif') return rep(200, x.objectif);
+      if (nom === 'fournil_recompenses') return rep(200, { ok: true, podiums: [], derniere: null, pourboires: x.pourboires, objectif: x.recompense });
+      if (nom === 'fournil_vu_pourboires') { x.vus = c.p_jusqua; return rep(200, { ok: true }); }
+      if (nom === 'fournil_abonner') { x.abos.push(c); return rep(200, { ok: true, erreur: null, prefs: c.p_prefs, appareils: 1 }); }
+      if (nom === 'fournil_desabonner') { x.desabo = c; return rep(200, { ok: true, erreur: null }); }
+      if (nom === 'fournil_planifier') { x.plan.push(c.p_pleine_a); return rep(200, { ok: true, erreur: null, planifiee: !!c.p_pleine_a }); }
+      if (nom === 'fournil_notif_essai') { x.essais++; return rep(200, { ok: true, erreur: null }); }
+      if (nom === 'fournil_vu' || nom === 'fournil_retirer') return rep(200, { ok: true });
+      return rep(404, { code: 'PGRST202' });
+    };
+    return x;
+  };
+  const etat0 = G.newState(T);
+  { // la photo part avec fournil_publier : au plus une fois toutes les 10 min, et seulement si elle a changé (ou toutes les 6 h)
+    horloge = T; const sv = serveur6(), r = faux(sv.gerer), m = moteur(r, { stockage: inscrit(), photo: () => CL.photo(etat0, { G }), points: () => ({ points: 3, lundi: '2026-10-05' }) });
+    await m.envoyer('lancement'); const p1 = r.appels.filter((a) => a.url.endsWith('/fournil_publier'));
+    check(p1.length === 1 && p1[0].corps.p_photo && p1[0].corps.p_photo.v === 1 && sv.photos === 1 && m.etat().photoQuand === horloge && m.version() === 6, 'la photo part avec le premier envoi (p_photo), le serveur v6 la garde (photo_maj)');
+    horloge += 5 * 60e3; fortune += 1; await m.envoyer('periodique');
+    check(sv.photos === 1 && !('p_photo' in r.appels[r.appels.length - 1].corps), '5 min plus tard : l’envoi part sans la photo');
+    horloge += 6 * 60e3; fortune += 1; await m.envoyer('periodique');
+    check(sv.photos === 1, '11 min plus tard, rien n’a changé : pas de photo');
+    etat0.mobilier.four = 1; horloge += 6 * 60e3; fortune += 1; await m.envoyer('periodique');
+    check(sv.photos === 2 && r.appels[r.appels.length - 1].corps.p_photo.m.four === 1, 'le four amélioré : la nouvelle photo part (10 min après la précédente)');
+    horloge += 7 * 3600e3; fortune += 1; await m.envoyer('periodique');
+    check(sv.photos === 3, '7 h plus tard, même inchangée : elle repart (le serveur l’a peut-être perdue)'); }
+  { // un serveur encore en version 5 : p_photo inconnu → le même envoi refait sans elle, puis plus jamais de photo ; les boutons des copains se cachent
+    horloge = T; const sv = serveur6({ v5: true }), r = faux(sv.gerer), m = moteur(r, { stockage: inscrit(), photo: () => CL.photo(etat0, { G }), points: () => ({ points: 3, lundi: '2026-10-05' }) });
+    check(m.copains(), 'version pas encore connue : les copains sont proposés');
+    const e = await m.envoyer('lancement'); const pubs = r.appels.filter((a) => a.url.endsWith('/fournil_publier'));
+    check(e.etat === 'ok' && pubs.length === 2 && 'p_photo' in pubs[0].corps && !('p_photo' in pubs[1].corps) && pubs[1].corps.p_points === 3, 'serveur v5 : l’envoi avec photo est refusé (fonction introuvable), aussitôt refait sans elle');
+    horloge += 11 * 60e3; fortune += 5; await m.envoyer('periodique');
+    check(r.appels.filter((a) => a.url.endsWith('/fournil_publier')).length === 3 && !('p_photo' in r.appels[r.appels.length - 1].corps), 'ensuite : plus de photo (un seul appel par envoi)');
+    check(!m.copains() && (await m.objectif()).etat === 'pas-installe' && m.notifsPossibles() !== '', 'serveur v5 : copains, objectif commun et notifications cachés');
+    const v = await m.boutique('Lucas'); check(v.etat === 'pas-installe', 'visiter sur un serveur v5 : « pas-installe »'); }
+  { // visiter, laisser des pourboires
+    horloge = T; const sv = serveur6(), r = faux(sv.gerer), m = moteur(r, { stockage: inscrit() });
+    const v = await m.boutique('  Lucas '); const a = r.appels[0];
+    check(v.etat === 'ok' && v.data.pseudo === 'Lucas' && v.data.enLigne && v.data.photo.m.four === 3 && a.corps.p_pseudo === 'Lucas' && a.corps.p_id === ID6, 'fournil_boutique(p_pseudo, p_id, p_jeton) : la photo de Lucas');
+    { const r0 = faux(sv.gerer), m0 = moteur(r0, { stockage: memoire() }); const v0 = await m0.boutique('Lucas'); check(v0.etat === 'ok' && !('p_id' in r0.appels[0].corps), 'pas inscrit : fournil_boutique(p_pseudo) seul, lisible par tous'); }
+    check((await m.boutique('Personne')).etat === 'refus', 'un pseudo inconnu : refus « inconnu »');
+    check(m.dons().restants === 3 && !m.dons().deja('Lucas'), 'au matin : 3 pourboires à donner');
+    let p = await m.pourboire('Lucas'); const ap = r.appels[r.appels.length - 1];
+    check(p.etat === 'ok' && p.restants === 2 && ap.corps.p_id === ID6 && ap.corps.p_jeton === JET6 && ap.corps.p_pour === 'Lucas' && m.dons().deja('lucas'), 'fournil_pourboire(p_id, p_jeton, p_pour) : accepté, encore 2 aujourd’hui, Lucas noté');
+    p = await m.pourboire('Lucas'); check(p.etat === 'refus' && p.erreur === 'deja' && p.restants === 2, 'deux fois au même copain : « deja »');
+    { const s2 = inscrit(), m5 = moteur(faux(sv.gerer), { stockage: s2 }); await m5.boutique('Lucas'); check(m5.dons().deja('Lucas') && m5.dons().restants === 2, 'un autre téléphone : la visite apprend du serveur le pourboire déjà laissé et les restants (deja, restants)'); }
+    p = await m.pourboire('Léa'); check(p.etat === 'refus' && p.erreur === 'soi', 'à soi-même : « soi »');
+    await m.pourboire('Mamie Jo'); await m.pourboire('Tonton'); p = await m.pourboire('Papy');
+    check(p.etat === 'refus' && p.erreur === 'quota' && m.dons().restants === 0, 'le quatrième du jour : « quota », plus rien à donner');
+    horloge += 864e5; check(m.dons().restants === 3 && !m.dons().deja('Lucas'), 'le lendemain (jour de Paris) : 3 de nouveau');
+    const m2 = moteur(faux(sv.gerer), { stockage: memoire() }); const n0 = r.appels.length;
+    check((await m2.pourboire('Lucas')).etat === 'pas-rejoint' && r.appels.length === n0, 'pas rejoint : pas de pourboire, aucun appel'); }
+  { // l'objectif commun : lu une fois par minute au plus
+    horloge = T; const sv = serveur6(), r = faux(sv.gerer), m = moteur(r, { stockage: memoire() });
+    const o = await m.objectif(); await m.objectif();
+    check(o.etat === 'ok' && egal(o.data, { semaine: '2026-10-05', but: 600, total: 150, joueurs: 4, reussi: false, pourcent: 25 }) && r.appels.length === 1 && m.objectifVu().data.total === 150, 'fournil_objectif() : « 150 / 600 croissants », relu une fois par minute au plus');
+    horloge += 61e3; sv.objectif = { semaine: '2026-10-05', but: 600, total: 900, joueurs: 5 }; const o2 = await m.objectif();
+    check(r.appels.length === 2 && o2.data.reussi && o2.data.pourcent === 100, 'au-delà du but : réussi, la jauge à 100 %'); }
+  { // les pourboires reçus : la feuille, 3 boosts par jour au plus, accusés au serveur ; l'objectif réussi : un boost ×5 et le badge, une fois
+    horloge = T; const sv = serveur6(), r = faux(sv.gerer), s = inscrit(), m = moteur(r, { stockage: s });
+    sv.pourboires = [{ de: 'Lucas', quand: '2026-10-09T08:00:00Z' }, { de: 'Mamie Jo', quand: '2026-10-09T09:00:00Z' }];
+    await m.chargerRecompenses({ ecart: 0 });
+    check(egal(m.pourboiresRecus().map((x) => x.de), ['Lucas', 'Mamie Jo']), 'fournil_recompenses rend deux pourboires reçus : ils attendent leur feuille (gardés sur le téléphone)');
+    let a = m.accueillirPourboires(); await new Promise((res) => setTimeout(res, 0));
+    check(a.boosts === 2 && a.liste.length === 2 && m.pourboiresRecus().length === 0 && !r.appels.some((x) => /fournil_vu_pourboires/.test(x.url)), 'accueillis : deux boosts ×2 (le serveur les a marqués vus à la lecture : aucun accusé)');
+    horloge += 61e3; await m.chargerRecompenses({ ecart: 0 });
+    check(m.pourboiresRecus().length === 0, 'si le serveur les rendait encore : ils ne reviennent pas (déjà vus sur le téléphone)');
+    sv.pourboires = [{ de: 'Tonton', quand: '2026-10-09T10:00:00Z' }, { de: 'Papy', quand: '2026-10-09T10:05:00Z' }]; horloge += 61e3; await m.chargerRecompenses({ ecart: 0 });
+    a = m.accueillirPourboires(); check(a.liste.length === 2 && a.boosts === 1, 'deux de plus le même jour : un seul boost (3 par jour au plus sur le téléphone)');
+    check(m.recompenses().objectifAnnonce === null && !m.recompenses().badge, 'pas encore d’objectif réussi');
+    sv.recompense = { semaine: '2026-09-28', reussi: true, recompense: true }; horloge += 61e3; await m.chargerRecompenses({ ecart: 0 });
+    check(m.recompenses().objectifAnnonce === '2026-09-28', 'l’objectif de la semaine du 28 sept. réussi : sa récompense attend son annonce');
+    check(m.objectifFait('2026-09-28') === true && m.objectifFait('2026-09-28') === false && m.recompenses().badge && m.recompenses().objectifAnnonce === null, 'annoncée une fois : le badge « Esprit d’équipe » gagné, la récompense ne revient pas');
+    horloge += 61e3; await m.chargerRecompenses({ ecart: 0 }); check(m.recompenses().objectifAnnonce === null, 'relue ensuite : rien de neuf');
+    const relu = CL.lireEtat(s); check(relu.recompenses.equipe.includes('2026-09-28') && relu.recus.vu === '2026-10-09T10:05:00.000Z' && relu.recus.n === 3, 'le badge et les pourboires vus sont gardés dans le stockage');
+    const m3 = moteur(faux(sv.gerer), { stockage: s }); await m3.quitter(); const apres = CL.lireEtat(s);
+    check(apres.recompenses.equipe.includes('2026-09-28') && !apres.rejoint, 'quitter le classement : le badge reste'); }
+  { // les notifications
+    horloge = T; const sv = serveur6(), r = faux(sv.gerer);
+    const push = { possible: () => true, abonner: async (cle) => { push.cle = cle; return push.reponse || { sub: { endpoint: 'https://push.exemple/abc', keys: { p256dh: 'BP' + 'x'.repeat(85), auth: 'y'.repeat(22) } } }; }, desabonner: async () => ({ endpoint: 'https://push.exemple/abc' }) };
+    const VAPID = 'B' + 'A'.repeat(86);
+    const mN = (o) => CL.creerMoteur({ config: () => ({ supabaseUrl: URL, supabaseKey: CLEF, vapid: o && o.sansCle ? undefined : VAPID }), fetch: r.fetch, stockage: (o && o.stockage) || inscrit(), fortune: () => fortune, ...temps, push: o && o.sansPush ? null : push });
+    check(mN({ sansCle: true }).notifsPossibles() === 'bientot', 'pas de clé publique dans config.js : « bientôt »');
+    check(mN({ sansPush: true }).notifsPossibles() === 'impossible', 'pas de PushManager (iPhone hors écran d’accueil) : « impossible »');
+    check(CL.lireConfig({ supabaseUrl: URL, supabaseKey: 'k', vapid: 'pas une clé' }).vapid === '' && CL.cleVapid(VAPID).length === 65, 'la clé publique : 87 caractères base64url, 65 octets ; une valeur fausse est ignorée');
+    const s = inscrit(), m = mN({ stockage: s });
+    check(m.notifsPossibles() === '' && !m.notifs().actif, 'clé publique et PushManager : possibles, pas encore abonné');
+    const ab = await m.abonner({ pleine: true, evenements: false, pourboires: true, objectif: true }), aa = sv.abos[0];
+    check(ab.etat === 'ok' && push.cle === VAPID && aa.p_id === ID6 && aa.p_jeton === JET6 && aa.p_sub.endpoint === 'https://push.exemple/abc' && aa.p_sub.keys.auth && egal(aa.p_prefs, { pleine: true, evenements: false, pourboires: true, objectif: true }) && m.notifs().actif && CL.lireEtat(s).notifs.actif,
+      'fournil_abonner(p_id, p_jeton, p_sub { endpoint, keys }, p_prefs) : abonné, gardé sur le téléphone');
+    const pleine = horloge + 8 * 3600e3;
+    let pl = await m.planifier(pleine); check(pl.etat === 'ok' && sv.plan[0] === new Date(pleine).toISOString(), 'en quittant : fournil_planifier(p_pleine_a) à l’heure où la boutique sera pleine (8 h)');
+    pl = await m.planifier(pleine + 5e3); check(pl.etat === 'saute' && sv.plan.length === 1, 'pagehide puis visibilitychange : un seul appel');
+    pl = await m.planifier(null); check(pl.etat === 'ok' && sv.plan[1] === null && m.notifs().pleineA === 0, 'au retour : p_pleine_a null annule');
+    pl = await m.planifier(null); check(pl.etat === 'saute' && sv.plan.length === 2, 'rien d’annoncé : pas d’appel au retour');
+    check((await m.essai()).etat === 'ok' && sv.essais === 1, '« M’envoyer un essai » : fournil_notif_essai');
+    await m.abonner({ pleine: false, evenements: true, pourboires: true, objectif: true }); pl = await m.planifier(pleine);
+    check(pl.etat === 'saute' && sv.plan.length === 2, 'le cas « boutique pleine » décoché : rien n’est planifié');
+    const d = await m.desabonner(); check(d.etat === 'ok' && sv.desabo.p_endpoint === 'https://push.exemple/abc' && !m.notifs().actif && m.notifs().prefs.pleine === false, 'désactiver : fournil_desabonner(p_endpoint), les cas choisis restent');
+    push.reponse = { erreur: 'refuse' }; const n0 = sv.abos.length;
+    check((await m.abonner()).etat === 'refuse' && sv.abos.length === n0 && !m.notifs().actif, 'permission refusée : « refuse », rien d’envoyé');
+    push.reponse = null; const m4 = mN({ stockage: memoire() });
+    check((await m4.abonner()).etat === 'pas-rejoint', 'pas rejoint : on ne peut pas s’abonner (il faut une ligne au classement)'); }
+  check(CL.jourParis(Date.UTC(2026, 9, 9, 21, 59)) === '2026-10-09' && CL.jourParis(Date.UTC(2026, 9, 9, 22, 0)) === '2026-10-10', 'le jour de Paris : minuit à 22 h UTC en été');
   console.log(echecs ? `${echecs} échec(s)` : 'Tout passe.');
   process.exit(echecs ? 1 : 0);
 })().catch((e) => { console.error('FAIL', e); process.exit(1); });

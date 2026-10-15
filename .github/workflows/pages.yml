@@ -15,7 +15,8 @@ jobs:
   # Le Fournil sur la vraie page, dans Chromium : la triche au changement d'heure (téléphone avancé, hors ligne, fuseau changé,
   # réseau qui revient), les récompenses du podium, le classement en points de boulanger (Supabase simulé : rien ne part vers le
   # vrai projet ; l'icône ronde en haut à droite), l'Atelier (ses trois mini-jeux joués au doigt, records, gains et plafond du jour)
-  # et l'arrière-salle (le BlackJack caché : la porte touchée cinq fois, les mises, le tapis, aucune incidence sur la fortune).
+  # et l'arrière-salle (le BlackJack caché : la porte touchée cinq fois, les mises, le tapis, aucune incidence sur la fortune) ;
+  # les copains et les notifications (visite d'une boutique, pourboires, objectif commun ; abonnement Web Push simulé, service worker).
   # Rouge ici = pas de mise en ligne.
   fournil:
     name: Le Fournil (Playwright)
@@ -37,6 +38,7 @@ jobs:
           node test/fournil-triche.cjs
           node test/fournil-recompenses.cjs
           node test/fournil-classement.cjs
+          node test/fournil-notifs.cjs
           node test/fournil-atelier.test.js
           node test/fournil-atelier.cjs
           node test/fournil-garderobe.test.js
@@ -52,6 +54,7 @@ jobs:
           PORT_GARDEROBE: '8864'
           PORT_QUARTIER: '8865'
           PORT_BLACKJACK: '8866'
+          PORT_NOTIFS: '8867'
   # Deux tâches en parallèle : une seule dépassait les 20 minutes.
   fournil2:
     name: Le Fournil, événements et scène (Playwright)
