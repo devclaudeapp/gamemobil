@@ -147,6 +147,7 @@
     if (e.posture === 'glisse' || e.vers === 'glisse') return v;
     if (A) { v *= A.vitesse || 1; if (A.visee && e.vise > 0) v *= 1 + ((A.visee.vitesse || 1) - 1) * e.vise; }
     if (e.receptionA > 0) v *= RE.facteur;
+    if (e.ralenti > 0) v *= 1 - Math.min(0.5, e.ralenti); // l'Extraction : le poids du sac (≤ 20 %), le Gardien (lent)
     if (monde) {
       if (dx === undefined) { const l = Math.sqrt(e.vx * e.vx + e.vz * e.vz); if (l > 1e-6) { dx = e.vx / l; dz = e.vz / l; } else { dx = 0; dz = 0; } }
       if (dx || dz) v *= facteurPente(penteLe(monde, e.x, e.z, dx, dz));

@@ -40,7 +40,12 @@
    - params.robots (ou options.robots) : [{ id, nom, couleur, equipe, equip, niveau }], les robots listés par l'hôte (message 'lancer') :
      le mode les ajoute tels quels au lieu de les tirer au sort ;
    - jeu.duree (0 : sans limite, jeu.reste undefined), jeu.debutChrono (le chrono d'une manche part de là), jeu.manche (« dernier
-     debout », PARENE) ; crochet de mode apresNav(jeu), appelé une fois la navigation construite. */
+     debout », PARENE) ; crochet de mode apresNav(jeu), appelé une fois la navigation construite.
+   L'Extraction (PEXTRACTION, extraction.js) : crochets de mode facultatifs nouveau(jeu, e, d) (dans ajouterJoueur, avant la première
+   apparition : camp, sac, améliorations d.ameliorations, poste du gardien d.garde), place(jeu, e) (à la fin de chaque placer), agir(jeu,
+   e, en, dt, evs) (après l'entrée de chaque humain vivant : en.lacher, utiliser, lampe, signal), trier(a, b) (le classement) ;
+   jeu.humains (le nombre d'humains annoncé) ; jeu.maintenant (params.maintenant : l'heure réelle en ms, la zone de la semaine) ; un objet du mode marqué unique ne revient pas une fois pris ; drapeaux 2048 (à terre) et 4096 (extrait) de l'instantané ;
+   robots listés jusqu'au plafond des gardiens (MODES.extraction.gardiens.plafond). */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./regles.js'), require('./nav.js'), require('./bots.js'), require('./corps.js'), require('./armes.js'), require('./zones.js'));
   else root.PJEU = factory(root.PREGLES, root.PNAV, root.PBOTS, root.PCORPS, root.PARMES, root.PZONES);
@@ -113,7 +118,7 @@
   // { t, e: [[id, x, y, z, yaw, pitch, vie, armure, drapeaux, arme, kills, morts, points (+ pour les humains : p, s, mP, rP, mS, rS,
   // recharge, ack)], …], o, r, f }
   // drapeaux : 1 vivant, 2 au sol, 4 accroupi (posture ≠ debout), 8 invincible, 16 en recharge, 32 couché (posture visée), 64 glissade,
-  // 128 course, 256 vise ≥ 0,5, 512 en transition, 1024 lampe ; arme : l'arme en main, indice dans ARMES_ID ; p, s : les armes des deux
+  // 128 course, 256 vise ≥ 0,5, 512 en transition, 1024 lampe, 2048 à terre (l'Extraction : attend d'être relevé), 4096 extrait ; arme : l'arme en main, indice dans ARMES_ID ; p, s : les armes des deux
   // emplacements (indices ; p peut être une arme ramassée) ; mP / rP, mS / rS : munitions et réserve de chacune ; recharge : secondes
   // restantes ; ack : numéro de la dernière entrée appliquée (réseau) ; o : '1' / '0' par objet du mode (disponible) ; r : reste (s).
   // ARMES_ID : l'ordre du réseau (PREGLES.ARMES_ID, reparti à zéro avec la VERSION 2 du réseau, puis ne fait que s'allonger)
@@ -122,7 +127,8 @@
   const idx = (id) => Math.max(0, ARMES_ID.indexOf(id));
   function drapeaux(e) {
     return (e.vivant ? 1 : 0) | (e.auSol ? 2 : 0) | (e.accroupi ? 4 : 0) | (e.invincible > 0 ? 8 : 0) | (e.enRecharge ? 16 : 0) |
-      (e.vers === 'couche' ? 32 : 0) | (e.vers === 'glisse' ? 64 : 0) | (e.course ? 128 : 0) | (e.vise >= 0.5 ? 256 : 0) | (e.transition > 0 ? 512 : 0) | (e.lampe ? 1024 : 0);
+      (e.vers === 'couche' ? 32 : 0) | (e.vers === 'glisse' ? 64 : 0) | (e.course ? 128 : 0) | (e.vise >= 0.5 ? 256 : 0) | (e.transition > 0 ? 512 : 0) | (e.lampe ? 1024 : 0) |
+      (e.aTerre ? 2048 : 0) | (e.extrait ? 4096 : 0);
   }
   function ligneDe(e, temps, ack) {
     const l = [e.id, r2(e.x), r2(e.y), r2(e.z), r3(e.yaw), r3(e.pitch), Math.max(0, Math.round(e.vie)), Math.round(e.armure), drapeaux(e), idx(e.arme), e.score.kills, e.score.morts, e.score.points];
@@ -148,6 +154,7 @@
       const vers = fl & 32 ? 'couche' : fl & 64 ? 'glisse' : fl & 4 ? 'accroupi' : 'debout';
       e.corpsV2 = true; e.posture = e.vers = vers; e.transition = 0; e.accroupi = vers !== 'debout';
       e.oeil = PO[vers].oeil; e.hautCapsule = PO[vers].haut; e.course = !!(fl & 128); e.vise = fl & 256 ? 1 : 0; e.enTransition = !!(fl & 512); e.lampe = !!(fl & 1024);
+      if (fl & 6144 || e.aTerre || e.extrait) { e.aTerre = !!(fl & 2048); e.extrait = !!(fl & 4096); } // l'Extraction : à terre, extrait
       if (saut) { e.ax = e.x; e.ay = e.y; e.az = e.z; e.aoeil = e.oeil; }
       e.arme = ARMES_ID[l[9] | 0] || REGLES.DEFAUT_EQUIP.p;
       if (e.armes) { const s = e.armes.indexOf(e.arme); if (s >= 0) e.slot = s; }
@@ -178,20 +185,21 @@
     // les options = les réglages normalisés (§ 6) : déjà normalisés par ui.js / enligne.js, normalisés encore ici (idempotent)
     const humains = fini(+params.humains) ? Math.max(0, Math.min(REGLES.SALON.max, Math.round(+params.humains))) : 0;
     const options = REGLES.normaliserReglages(o, { humains });
-    // les robots listés par l'hôte ('lancer') : tels quels (6 au plus)
+    const mode = params.mode && typeof params.mode === 'object' ? params.mode : MODE_LIBRE;
+    const reglesMode = REGLES.MODES[mode.id] || REGLES.MODES.arene;
+    // les robots listés par l'hôte ('lancer') : tels quels (6 au plus ; les gardiens de l'Extraction : leur plafond)
     let robots = Array.isArray(params.robots) ? params.robots : Array.isArray(o.robots) ? o.robots : null;
-    if (robots) { robots = robots.filter((r) => r && typeof r === 'object').slice(0, REGLES.SALON.max); options.bots = robots.length; }
+    const maxRobots = reglesMode.gardiens && reglesMode.gardiens.plafond > 0 ? reglesMode.gardiens.plafond : REGLES.SALON.max;
+    if (robots) { robots = robots.filter((r) => r && typeof r === 'object').slice(0, maxRobots); options.bots = robots.length; }
     const vies = REGLES.SALON.vies[options.vie] || REGLES.SALON.vies.normale, vis = visibiliteDe(options.heure, options.meteo);
     let graine = params.graine;
     graine = fini(+graine) ? (+graine >>> 0) : REGLES.hash(String(graine));
-    const mode = params.mode && typeof params.mode === 'object' ? params.mode : MODE_LIBRE;
-    const reglesMode = REGLES.MODES[mode.id] || REGLES.MODES.arene;
     const entites = [], evs = [];
     const bruits = []; for (let k = 0; k < NB_BRUITS; k++) bruits.push({ n: 0, x: 0, z: 0, t: -1e9, e: null, portee: 0 });
     let finDemandee = false;
 
     const jeu = {
-      monde, mode, options, reglages: options, graine, carte: params.carte || o.carte || monde.carte || null, nav: null, zone: null, robots,
+      monde, mode, options, reglages: options, graine, humains, maintenant: fini(+params.maintenant) ? +params.maintenant : null, carte: params.carte || o.carte || monde.carte || null, nav: null, zone: null, robots,
       vieMax: vies.vie, armureMax: vies.armureMax, visibilite: vis.vue, visibiliteLampe: vis.lampe, lampes: options.heure === 'nuit',
       manche: null, treve: false, debutChrono: 0,
       entites, temps: 0, dt: 0, fini: false, duree: 0, image: 0, evenements: evs,
@@ -236,6 +244,8 @@
       };
       // l'équipement (deux emplacements) : celui demandé s'il est permis, sinon l'équipement par défaut permis (placer l'applique)
       e.equip = REGLES.equipementDe(d.equip, options);
+      // le crochet du mode (l'Extraction : camp, sac, améliorations, poste du gardien), avant la première apparition
+      if (mode.nouveau) { try { mode.nouveau(jeu, e, d); } catch (err) { erreur('mode.nouveau', err); } }
       entites.push(e);
       placer(e);
       return e;
@@ -266,6 +276,7 @@
       e.vie = jeu.vieMax; e.armure = 0; e.vivant = true; e.apparuA = jeu.temps; e.invincible = reglesMode.invincible || 0; e.lampe = jeu.lampes;
       ARMES.equiper(e, e.equip || REGLES.equipementDe(null, options), options); // l'équipement choisi, la principale en main
       e.prochainTir = jeu.temps + 0.2; e.foulee = 0; e.tueTete = false;
+      if (mode.place) { try { mode.place(jeu, e); } catch (err) { erreur('mode.place', err); } } // l'Extraction : armure de départ, chargeur en plus
     }
     function reapparaitre(e, out) { placer(e); (out || evs).push({ t: 'reapparition', id: e.id }); }
 
@@ -416,7 +427,7 @@
         for (let k = 0; k < entites.length; k++) {
           const e = entites[k]; if (!e.vivant) continue;
           const dx = e.x - ob.x, dz = e.z - ob.z; if (dx * dx + dz * dz > RAMASSE * RAMASSE || Math.abs(e.y - ob.y) > 2.2 || !utile(e, ob.objet)) continue;
-          prendre(e, ob.objet); ob.dispo = false; ob.revient = jeu.temps + ((REGLES.OBJETS[ob.objet] || {}).retour || 20);
+          prendre(e, ob.objet); ob.dispo = false; ob.revient = ob.unique ? 0 : jeu.temps + ((REGLES.OBJETS[ob.objet] || {}).retour || 20); // unique (l'Extraction) : ne revient pas
           out.push({ t: 'ramasse', id: e.id, objet: ob.objet, oid: ob.id });
           break;
         }
@@ -438,6 +449,7 @@
         if (e.bot) { if (BOTS) { try { en = BOTS.penser(e, jeu, dt, jeu.rndBots); } catch (err) { erreur('bot ' + e.id, err); en = null; } } }
         else en = entrees ? entrees[e.id] : null;
         appliquer(e, en, dt, evs);
+        if (mode.agir && !e.bot) { try { mode.agir(jeu, e, en, dt, evs); } catch (err) { erreur('mode.agir', err); } } // l'Extraction : lâcher un objet du sac
       }
       separer();
       ramasser(evs);
@@ -453,7 +465,7 @@
     // ─── le classement : les repeints (le critère de fin de l'Arène), départagés par les points, puis le moins de morts ; à égalité
     // parfaite, les humains devant les robots ───
     const parScore = (a, b) => (b.score.manches | 0) - (a.score.manches | 0) || b.score.kills - a.score.kills || b.score.points - a.score.points || a.score.morts - b.score.morts || (a.bot === b.bot ? 0 : a.bot ? 1 : -1) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-    function classement() { return entites.slice().sort(parScore); }
+    function classement() { return entites.slice().sort(typeof mode.trier === 'function' ? mode.trier : parScore); } // l'Extraction : par score
     function resume() { return classement().map((e) => ({ id: e.id, nom: e.nom, couleur: e.couleur, equipe: e.equipe, bot: e.bot, humain: e.humain, kills: e.score.kills, morts: e.score.morts, points: e.score.points, manches: e.score.manches | 0 })); }
 
     // ─── l'aide à la visée (humains au doigt) : ralentit et aimante doucement près d'une cible, dit si le viseur est dessus ───

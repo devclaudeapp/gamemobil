@@ -18,6 +18,10 @@
    fusil de précision (« fort ») ; passe à la secondaire quand la principale est vide ou ne convient pas à la distance ; recharge à
    l'abri, accroupi), fuite vers un soin sous 25 % de vie. Jamais coincé : s'il voulait avancer et n'a presque pas bougé en une seconde, il saute, se dégage de côté et refait son
    chemin ; trois fois de suite, il change de but. Les requêtes de chemin passent par jeu.budgetNav (2 par image pour tous les bots).
+   Gardien (mode Extraction : bot.garde = { x, z, cx, cz, laisse, ronde, depart }) : hors combat, il tient son poste (y revient, guette
+   en balayant du regard le côté opposé à ce qu'il garde) ou marche sa ronde (une pause à chaque point) ; il ne va jamais « flairer »
+   les joueurs ni chercher d'objets ; il chasse jusqu'à sa laisse (m de son poste), puis y retourne ; en combat, il n'avance plus au-delà
+   de la laisse + 10 m.
    L'état du robot est rangé dans bot.ia (et son entrée, réutilisée d'une image à l'autre). Module pur (aucun DOM, aucun THREE).
    Voir src-poncin/ARCHITECTURE.md. */
 (function (root, factory) {
@@ -305,6 +309,34 @@
     return d;
   }
 
+  // ─── un gardien (l'Extraction) hors combat : sa ronde (marche d'un point à l'autre, une pause à chacun), ou son poste (il y revient,
+  // puis guette en balayant du regard le côté opposé à ce qu'il garde) ; rend vrai s'il dirige lui-même son regard ───
+  function garder(bot, ia, jeu, g, rnd, en, dt, niv) {
+    const T = jeu.temps;
+    if (ia.ronde == null) { ia.ronde = g.depart | 0; ia.pauseA = 0; }
+    if (g.ronde) {
+      const p = g.ronde[ia.ronde % g.ronde.length];
+      if (T < ia.pauseA) { ia.chemin = null; return false; }
+      if ((bot.x - p[0]) ** 2 + (bot.z - p[1]) ** 2 < 2.5 * 2.5) { ia.ronde++; ia.pauseA = T + 0.8 + 1.5 * rnd(); ia.chemin = null; ia.veut = false; return false; }
+      if (!ia.chemin && !ia.veut) demander(bot, ia, jeu, p[0], p[1]); else if (ia.veut) demander(bot, ia, jeu, ia.butX, ia.butZ);
+      ia.but = 'ronde';
+      if (suivre(bot, ia, jeu)) { ia.ronde++; ia.pauseA = T + 0.8 + 1.5 * rnd(); }
+      if (ia.chemin && reste(bot, ia) > 25) en.course = true; else ia.vit = 0.75; // il marche sa ronde (court s'il l'a perdue de loin)
+      return false;
+    }
+    const dp2 = (bot.x - g.x) ** 2 + (bot.z - g.z) ** 2;
+    if (dp2 > 2.5 * 2.5) {
+      if (!ia.chemin && !ia.veut) demander(bot, ia, jeu, g.x, g.z); else if (ia.veut) demander(bot, ia, jeu, ia.butX, ia.butZ);
+      ia.but = 'poste'; suivre(bot, ia, jeu);
+      if (ia.chemin && reste(bot, ia) > 15) en.course = true;
+      return false;
+    }
+    ia.chemin = null; ia.veut = false; ia.but = 'poste';
+    if (T >= ia.regardA) { ia.regardA = T + 2 + 2.5 * rnd(); ia.regard = Math.atan2(-(g.x - g.cx), -(g.z - g.cz)) + (rnd() * 2 - 1) * 1.3; }
+    tourner(bot, en, ia.regard, -0.03, Math.min(niv.vise, 3) * 0.5, dt);
+    return true;
+  }
+
   // ─── l'entrée de l'image ───
   function penser(bot, jeu, dt, rnd) {
     let ia = bot.ia;
@@ -318,6 +350,10 @@
     if (T >= ia.percoA) { ia.percoA = T + PERCEPTION; percevoir(bot, ia, jeu, niv, rnd); }
     if (ia.cible && !ia.cible.vivant) { ia.cible = null; ia.vuA = -1e9; }
     const voit = !!ia.cible && T - ia.vuA < 0.35;
+    const g = bot.garde && typeof bot.garde === 'object' ? bot.garde : null; // un gardien (l'Extraction) : son poste, sa laisse, sa ronde
+    if (g && !voit && (bot.x - g.x) ** 2 + (bot.z - g.z) ** 2 > g.laisse * g.laisse && (ia.cible || T - ia.alerteA < MEMOIRE)) { // trop loin de son poste : il y retourne
+      ia.cible = null; ia.vuA = -1e9; ia.alerteA = -1e9; ia.fouilleA = -1; ia.chemin = null; ia.veut = false; ia.but = '';
+    }
 
     // ─── l'état ───
     if (ia.etat === 'fuite' && (pv(bot, jeu) >= VIE_RASSURE || T - ia.fuiteA > 9)) { ia.pasDeFuiteAvant = T + 8; ia.etat = ''; }
@@ -335,7 +371,11 @@
     let regarde = true; // regarder là où l'on marche (sauf en combat)
     ia.vit = 1; ia.mx = 0; ia.mz = 0;
 
-    if (etat === 'patrouille') {
+    if (etat === 'patrouille' && g) {
+      if (garder(bot, ia, jeu, g, rnd, en, dt, niv)) regarde = false;
+      emplacement(bot, ia, T, -1, en);
+      if (mun < A.chargeur * 0.5 && !bot.enRecharge) en.recharge = true;
+    } else if (etat === 'patrouille') {
       if (!ia.chemin && !ia.veut) { const p = choisirBut(bot, ia, jeu, rnd); demander(bot, ia, jeu, p[0], p[1]); }
       else if (ia.veut) demander(bot, ia, jeu, ia.butX, ia.butZ);
       if (ia.but === 'objet' && ia.butObjet && !ia.butObjet.dispo) { ia.chemin = null; ia.veut = false; } // quelqu'un l'a pris
@@ -397,6 +437,7 @@
           if (T >= ia.strafeA) { ia.strafeA = T + 0.5 + 1.1 * rnd(); const r = rnd(); ia.strafe = r < 0.15 ? 0 : r < 0.575 ? -1 : 1; ia.derive = (rnd() * 2 - 1) * 0.3; }
           let radial = d > bande[1] ? 1 : d < bande[0] ? -1 : ia.derive;
           if (bot.enRecharge) radial = -0.8; // pas d'abri : on recule en rechargeant
+          if (g && radial > 0 && (bot.x - g.x) ** 2 + (bot.z - g.z) ** 2 > (g.laisse + 10) * (g.laisse + 10)) radial = 0; // un gardien ne s'éloigne pas plus de son poste
           let strafe = ia.strafe;
           if (cl === 'sniper' && !bot.enRecharge) { // le fusil de précision se tire posé : immobile, accroupi (couché « fort », de loin, s'il n'est pas pris pour cible)
             strafe = 0; if (radial > 0 && d < bande[1] * 1.3) radial = 0; if (radial < 0 && d > 10) radial = 0;
