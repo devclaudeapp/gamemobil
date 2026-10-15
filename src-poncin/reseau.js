@@ -30,7 +30,8 @@ const PRESEAU = (() => {
   const LETTRES = 'BCDFGHJKLMNPQRSTVWXZ'; // des consonnes : pas de mot vexant ; 160 000 codes
   const nouveauCode = () => { let c = ''; for (let i = 0; i < 4; i++) c += LETTRES[Math.floor(Math.random() * LETTRES.length)]; return c; };
   const codeValide = (c) => typeof c === 'string' && /^[BCDFGHJKLMNPQRSTVWXZ]{4}$/.test(c);
-  const VERSION = 2; // version du protocole : deux versions différentes ne jouent pas ensemble (2 : les vraies armes, l'entrée et l'instantané v2)
+  const VERSION = 3; // version du protocole : deux versions différentes ne jouent pas ensemble (2 : les vraies armes, l'entrée et l'instantané v2 ; 3 : l'Extraction)
+  const chaine = (v, n) => (typeof v === 'string' ? v.slice(0, n) : ''); // un champ texte de la présence, borné
   // réglages (ms) : collecte ICE, attente du pair-à-pair avant le relais, pings, cadence du relais (≤ 5 envois/s), tampon max pour l'état,
   // renvoi des fiables non acquittés, grâce d'un joueur sorti de la présence (lien direct vivant / sinon : le temps qu'il se reconnecte), essais WebRTC suivants (en relais)
   const R = { collecte: 3000, attente: 8000, ping: 2000, pingRelais: 4000, relais: 200, tampon: 65536, renvoi: 4000, grace: 15000, graceCourte: 5000, essais: [10000, 20000, 40000, 60000] };
@@ -68,8 +69,8 @@ const PRESEAU = (() => {
     if (typeof BroadcastChannel === 'undefined') throw new Error('BroadcastChannel indisponible');
     const code = codeValide(o.code) ? o.code : nouveauCode(), s = socle(code, o.moi), bc = new BroadcastChannel('poncin-salle-' + code);
     const depuis = Date.now() + Math.random() / 1000, vus = new Map(); // id → dernier signe de vie
-    const moiPublic = () => ({ id: s.moi.id, pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, eq: typeof s.moi.eq === 'string' ? s.moi.eq.slice(0, 24) : '', depuis, v: VERSION });
-    const poser = (j) => { const avant = s.joueurs.get(j.id); s.joueurs.set(j.id, Object.assign(avant || {}, { id: j.id, pseudo: j.pseudo, couleur: j.couleur, pret: !!j.pret, depuis: j.depuis, ping: 0, voie: 'local' })); vus.set(j.id, Date.now()); };
+    const moiPublic = () => ({ id: s.moi.id, pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, eq: chaine(s.moi.eq, 24), am: chaine(s.moi.am, 8), depuis, v: VERSION });
+    const poser = (j) => { const avant = s.joueurs.get(j.id); s.joueurs.set(j.id, Object.assign(avant || {}, { id: j.id, pseudo: j.pseudo, couleur: j.couleur, pret: !!j.pret, eq: chaine(j.eq, 24), am: chaine(j.am, 8), depuis: j.depuis, ping: 0, voie: 'local' })); vus.set(j.id, Date.now()); };
     const poster = (m) => { try { const t = JSON.stringify(m); s._stats.envoyes++; s._stats.octets += t.length; bc.postMessage(t); } catch (e) { /* fermé */ } };
     const listeChangee = () => { s._elire(); s._emettre('joueurs', Array.from(s.joueurs.values())); };
     poser(moiPublic()); s._elire();
@@ -149,7 +150,7 @@ const PRESEAU = (() => {
     const t0 = Date.now(), journal = [], noter = (quoi) => { journal.push(Math.round((Date.now() - t0) / 100) / 10 + ' s ' + quoi); if (journal.length > 60) journal.splice(0, 20); }; // pour le diagnostic
     const liste = () => {
       const l = []; let st = {}; try { st = canal ? canal.presenceState() : {}; } catch (e) { st = {}; }
-      for (const cle of Object.keys(st)) { const metas = st[cle], m = metas && metas[metas.length - 1]; if (m) l.push({ id: cle, pseudo: m.pseudo, couleur: m.couleur, pret: !!m.pret, depuis: m.depuis, c: m.c, v: m.v, i: m.i }); }
+      for (const cle of Object.keys(st)) { const metas = st[cle], m = metas && metas[metas.length - 1]; if (m) l.push({ id: cle, pseudo: m.pseudo, couleur: m.couleur, pret: !!m.pret, eq: m.eq, am: m.am, depuis: m.depuis, c: m.c, v: m.v, i: m.i }); }
       return l;
     };
     const suivreMaintenant = (c) => { if (moiP && c === canal && joint) c.track(moiP).catch(() => { /* reprise au prochain SUBSCRIBED */ }); };
@@ -202,7 +203,7 @@ const PRESEAU = (() => {
     const liens = new Map(), presents = new Map(), absents = new Map(); // liens : id → lien ; presents : ce que dit la présence ; absents : id → depuis quand un joueur au lien direct vivant manque à la présence
     let depuis = Date.now(), demarre = false, relaisT = null, relaisDernier = 0, signature = '', infosHote = {};
     const partis = new Map(); // instances qui ont dit au revoir (→ quand) : retirées tout de suite, même si la présence traîne
-    const moiPublic = () => ({ pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, eq: typeof s.moi.eq === 'string' ? s.moi.eq.slice(0, 24) : '', depuis, c: creer ? 1 : 0, v: VERSION, i: inst });
+    const moiPublic = () => ({ pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, eq: chaine(s.moi.eq, 24), am: chaine(s.moi.am, 8), depuis, c: creer ? 1 : 0, v: VERSION, i: inst });
     const rappels = { presence: (l) => majPresence(l), signal: (p) => surSignal(p), relais: (p) => surRelais(p) };
     const transport = local ? transportBC(code, s.moi.id, rappels) : transportSupabase(code, s.moi.id, o, rappels);
     s.via = via;
@@ -213,7 +214,7 @@ const PRESEAU = (() => {
       for (const j of liste || []) if (j && j.id && j.id !== s.moi.id && j.v === VERSION && typeof j.depuis === 'number') presents.set(j.id, j);
       if (demarre) recalculer();
     }
-    const poserJoueur = (id, j) => { const e = s.joueurs.get(id) || { id, ping: 0, voie: 'connexion' }; e.pseudo = j.pseudo; e.couleur = j.couleur; e.pret = !!j.pret; e.depuis = j.depuis; e.cree = !!j.c; s.joueurs.set(id, e); };
+    const poserJoueur = (id, j) => { const e = s.joueurs.get(id) || { id, ping: 0, voie: 'connexion' }; e.pseudo = j.pseudo; e.couleur = j.couleur; e.pret = !!j.pret; e.eq = chaine(j.eq, 24); e.am = chaine(j.am, 8); e.depuis = j.depuis; e.cree = !!j.c; s.joueurs.set(id, e); };
     function recalculer() {
       if (s.ferme) return;
       const t = Date.now(), gardes = new Set([s.moi.id]);
@@ -332,7 +333,7 @@ const PRESEAU = (() => {
         if (!s.estHote) return; // seul l'hôte accepte des liens
         const l = liens.get(p.de) || nouveauLien(p.de);
         verifierInstance(l, p.i); l.vu = Date.now(); l.parti = false;
-        const j = p.j; if (j && typeof j.depuis === 'number' && j.v === VERSION) { l.j = { pseudo: String(j.pseudo || '').slice(0, 40), couleur: j.couleur, pret: !!j.pret, depuis: j.depuis, c: j.c, i: p.i }; recalculer(); }
+        const j = p.j; if (j && typeof j.depuis === 'number' && j.v === VERSION) { l.j = { pseudo: String(j.pseudo || '').slice(0, 40), couleur: j.couleur, pret: !!j.pret, eq: j.eq, am: j.am, depuis: j.depuis, c: j.c, i: p.i }; recalculer(); }
         const pc = creerPc(l, p.n); if (!pc) return;
         try {
           await pc.setRemoteDescription(filtrer(p.sdp));

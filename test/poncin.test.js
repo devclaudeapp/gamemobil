@@ -2,7 +2,7 @@
 // Opération Poncin : lance les tests Node des modules purs (carte, monde et navigation, corps, armes, réglages du salon et parties simulées, zones, simulation, robots, jeu en ligne simulé, butin et coffre personnel, mode Extraction) et additionne les échecs.
 'use strict';
 const { spawnSync } = require('child_process'), path = require('path'), fs = require('fs');
-const TESTS = ['poncin-carte.test.js', 'poncin-monde.test.js', 'poncin-corps.test.js', 'poncin-armes.test.js', 'poncin-salon.test.js', 'poncin-zones.test.js', 'poncin-jeu.test.js', 'poncin-bots.test.js', 'poncin-enligne-sim.test.js', 'poncin-butin.test.js', 'poncin-extraction.test.js'];
+const TESTS = ['poncin-carte.test.js', 'poncin-monde.test.js', 'poncin-corps.test.js', 'poncin-armes.test.js', 'poncin-salon.test.js', 'poncin-zones.test.js', 'poncin-jeu.test.js', 'poncin-bots.test.js', 'poncin-enligne-sim.test.js', 'poncin-butin.test.js', 'poncin-extraction.test.js', 'poncin-enligne-extraction.test.js'];
 let echecs = 0;
 // garde-fou : aucune clé secrète Supabase dans le dépôt (seule la clé publique a sa place, dans poncin/config.js)
 {

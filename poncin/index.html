@@ -13873,7 +13873,8 @@ const PRESEAU = (() => {
   const LETTRES = 'BCDFGHJKLMNPQRSTVWXZ'; // des consonnes : pas de mot vexant ; 160 000 codes
   const nouveauCode = () => { let c = ''; for (let i = 0; i < 4; i++) c += LETTRES[Math.floor(Math.random() * LETTRES.length)]; return c; };
   const codeValide = (c) => typeof c === 'string' && /^[BCDFGHJKLMNPQRSTVWXZ]{4}$/.test(c);
-  const VERSION = 2; // version du protocole : deux versions différentes ne jouent pas ensemble (2 : les vraies armes, l'entrée et l'instantané v2)
+  const VERSION = 3; // version du protocole : deux versions différentes ne jouent pas ensemble (2 : les vraies armes, l'entrée et l'instantané v2 ; 3 : l'Extraction)
+  const chaine = (v, n) => (typeof v === 'string' ? v.slice(0, n) : ''); // un champ texte de la présence, borné
   // réglages (ms) : collecte ICE, attente du pair-à-pair avant le relais, pings, cadence du relais (≤ 5 envois/s), tampon max pour l'état,
   // renvoi des fiables non acquittés, grâce d'un joueur sorti de la présence (lien direct vivant / sinon : le temps qu'il se reconnecte), essais WebRTC suivants (en relais)
   const R = { collecte: 3000, attente: 8000, ping: 2000, pingRelais: 4000, relais: 200, tampon: 65536, renvoi: 4000, grace: 15000, graceCourte: 5000, essais: [10000, 20000, 40000, 60000] };
@@ -13911,8 +13912,8 @@ const PRESEAU = (() => {
     if (typeof BroadcastChannel === 'undefined') throw new Error('BroadcastChannel indisponible');
     const code = codeValide(o.code) ? o.code : nouveauCode(), s = socle(code, o.moi), bc = new BroadcastChannel('poncin-salle-' + code);
     const depuis = Date.now() + Math.random() / 1000, vus = new Map(); // id → dernier signe de vie
-    const moiPublic = () => ({ id: s.moi.id, pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, eq: typeof s.moi.eq === 'string' ? s.moi.eq.slice(0, 24) : '', depuis, v: VERSION });
-    const poser = (j) => { const avant = s.joueurs.get(j.id); s.joueurs.set(j.id, Object.assign(avant || {}, { id: j.id, pseudo: j.pseudo, couleur: j.couleur, pret: !!j.pret, depuis: j.depuis, ping: 0, voie: 'local' })); vus.set(j.id, Date.now()); };
+    const moiPublic = () => ({ id: s.moi.id, pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, eq: chaine(s.moi.eq, 24), am: chaine(s.moi.am, 8), depuis, v: VERSION });
+    const poser = (j) => { const avant = s.joueurs.get(j.id); s.joueurs.set(j.id, Object.assign(avant || {}, { id: j.id, pseudo: j.pseudo, couleur: j.couleur, pret: !!j.pret, eq: chaine(j.eq, 24), am: chaine(j.am, 8), depuis: j.depuis, ping: 0, voie: 'local' })); vus.set(j.id, Date.now()); };
     const poster = (m) => { try { const t = JSON.stringify(m); s._stats.envoyes++; s._stats.octets += t.length; bc.postMessage(t); } catch (e) { /* fermé */ } };
     const listeChangee = () => { s._elire(); s._emettre('joueurs', Array.from(s.joueurs.values())); };
     poser(moiPublic()); s._elire();
@@ -13992,7 +13993,7 @@ const PRESEAU = (() => {
     const t0 = Date.now(), journal = [], noter = (quoi) => { journal.push(Math.round((Date.now() - t0) / 100) / 10 + ' s ' + quoi); if (journal.length > 60) journal.splice(0, 20); }; // pour le diagnostic
     const liste = () => {
       const l = []; let st = {}; try { st = canal ? canal.presenceState() : {}; } catch (e) { st = {}; }
-      for (const cle of Object.keys(st)) { const metas = st[cle], m = metas && metas[metas.length - 1]; if (m) l.push({ id: cle, pseudo: m.pseudo, couleur: m.couleur, pret: !!m.pret, depuis: m.depuis, c: m.c, v: m.v, i: m.i }); }
+      for (const cle of Object.keys(st)) { const metas = st[cle], m = metas && metas[metas.length - 1]; if (m) l.push({ id: cle, pseudo: m.pseudo, couleur: m.couleur, pret: !!m.pret, eq: m.eq, am: m.am, depuis: m.depuis, c: m.c, v: m.v, i: m.i }); }
       return l;
     };
     const suivreMaintenant = (c) => { if (moiP && c === canal && joint) c.track(moiP).catch(() => { /* reprise au prochain SUBSCRIBED */ }); };
@@ -14045,7 +14046,7 @@ const PRESEAU = (() => {
     const liens = new Map(), presents = new Map(), absents = new Map(); // liens : id → lien ; presents : ce que dit la présence ; absents : id → depuis quand un joueur au lien direct vivant manque à la présence
     let depuis = Date.now(), demarre = false, relaisT = null, relaisDernier = 0, signature = '', infosHote = {};
     const partis = new Map(); // instances qui ont dit au revoir (→ quand) : retirées tout de suite, même si la présence traîne
-    const moiPublic = () => ({ pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, eq: typeof s.moi.eq === 'string' ? s.moi.eq.slice(0, 24) : '', depuis, c: creer ? 1 : 0, v: VERSION, i: inst });
+    const moiPublic = () => ({ pseudo: s.moi.pseudo, couleur: s.moi.couleur, pret: !!s.moi.pret, eq: chaine(s.moi.eq, 24), am: chaine(s.moi.am, 8), depuis, c: creer ? 1 : 0, v: VERSION, i: inst });
     const rappels = { presence: (l) => majPresence(l), signal: (p) => surSignal(p), relais: (p) => surRelais(p) };
     const transport = local ? transportBC(code, s.moi.id, rappels) : transportSupabase(code, s.moi.id, o, rappels);
     s.via = via;
@@ -14056,7 +14057,7 @@ const PRESEAU = (() => {
       for (const j of liste || []) if (j && j.id && j.id !== s.moi.id && j.v === VERSION && typeof j.depuis === 'number') presents.set(j.id, j);
       if (demarre) recalculer();
     }
-    const poserJoueur = (id, j) => { const e = s.joueurs.get(id) || { id, ping: 0, voie: 'connexion' }; e.pseudo = j.pseudo; e.couleur = j.couleur; e.pret = !!j.pret; e.depuis = j.depuis; e.cree = !!j.c; s.joueurs.set(id, e); };
+    const poserJoueur = (id, j) => { const e = s.joueurs.get(id) || { id, ping: 0, voie: 'connexion' }; e.pseudo = j.pseudo; e.couleur = j.couleur; e.pret = !!j.pret; e.eq = chaine(j.eq, 24); e.am = chaine(j.am, 8); e.depuis = j.depuis; e.cree = !!j.c; s.joueurs.set(id, e); };
     function recalculer() {
       if (s.ferme) return;
       const t = Date.now(), gardes = new Set([s.moi.id]);
@@ -14175,7 +14176,7 @@ const PRESEAU = (() => {
         if (!s.estHote) return; // seul l'hôte accepte des liens
         const l = liens.get(p.de) || nouveauLien(p.de);
         verifierInstance(l, p.i); l.vu = Date.now(); l.parti = false;
-        const j = p.j; if (j && typeof j.depuis === 'number' && j.v === VERSION) { l.j = { pseudo: String(j.pseudo || '').slice(0, 40), couleur: j.couleur, pret: !!j.pret, depuis: j.depuis, c: j.c, i: p.i }; recalculer(); }
+        const j = p.j; if (j && typeof j.depuis === 'number' && j.v === VERSION) { l.j = { pseudo: String(j.pseudo || '').slice(0, 40), couleur: j.couleur, pret: !!j.pret, eq: j.eq, am: j.am, depuis: j.depuis, c: j.c, i: p.i }; recalculer(); }
         const pc = creerPc(l, p.n); if (!pc) return;
         try {
           await pc.setRemoteDescription(filtrer(p.sdp));
@@ -14403,6 +14404,15 @@ const PENLIGNE = (() => {
   const mod = (n, v) => { try { return v(); } catch (e) { return G(n); } };
   // les modules (constantes globales du même script, ou globales UMD) : résolus à l'usage
   const PJ = () => mod('PJEU', () => PJEU), PA = () => mod('PARENE', () => PARENE), PR = () => mod('PREGLES', () => PREGLES), PN = () => mod('PRESEAU', () => PRESEAU);
+  const PX = () => mod('PEXTRACTION', () => PEXTRACTION), PB = () => mod('PBUTIN', () => PBUTIN);
+  const modeDe = (o) => (o && o.mode === 'extraction' && PX()) || PA(); // le mode de la partie (réglages) : l'Extraction, sinon l'Arène
+  // les améliorations de l'Extraction dans la présence : un chiffre par amélioration, dans l'ordre de PBUTIN.AMELIORATIONS (« 2103 »)
+  const IDS_AM = () => { const B = PB(); return B && B.AMELIORATIONS ? Object.keys(B.AMELIORATIONS) : []; };
+  const amVers = (a) => IDS_AM().map((id) => Math.max(0, Math.min(9, (a && +a[id]) | 0))).join('');
+  const amDe = (t) => { const o = {}; if (typeof t !== 'string') return o; IDS_AM().forEach((id, i) => { o[id] = +t[i] || 0; }); return o; };
+  // les événements de l'Extraction relayés tels quels (copie à plat, avec l'heure h) ; 'renforts' et 'objet' sont aussi appliqués par la façade
+  const EVTS_MODE = new Set(['ouverture', 'coffre', 'verrou', 'cle', 'butin', 'plein', 'sac', 'extractions', 'largage', 'renforts', 'extrait', 'perdu', 'a-terre', 'releve', 'prime', 'signal', 'lampe']);
+  const ACTIONS = { lacher: 'l', utiliser: 'u', lampe: 'p', signal: 's' }; // les gestes du mode (entrée) : envoyés numérotés, joués une fois chez l'hôte
   let erreurs = 0, derniereErreur = '';
   function signaler(ou, e) { erreurs++; derniereErreur = ou + ' : ' + (e && e.message ? e.message : String(e)); if (erreurs <= 20) console.warn('[Poncin en ligne]', ou, e); }
 
@@ -14440,7 +14450,7 @@ const PENLIGNE = (() => {
       get estHote() { return !!salon.estHote; }, get hote() { return salon.hote; },
       // reglages : les réglages v2 normalisés (PREGLES.normaliserReglages : zone, durée, score, heure, météo, robots, vie, manches, armes…)
       reglages: PR() ? PR().normaliserReglages({ bots: 0 }, { humains: 1 }) : { mode: 'arene', bots: 0, niveau: 'normal', equipes: false, armes: null }, pings: {}, voies: {}, enJeu: false, partie: null,
-      joueurs, regler, equiper, pret, renommer, lancer, retourSalon, quitter, stats,
+      joueurs, regler, equiper, ameliorer, pret, renommer, lancer, retourSalon, quitter, stats,
       sur(type, fn) { if (!abonnes.has(type)) abonnes.set(type, new Set()); abonnes.get(type).add(fn); return () => abonnes.get(type).delete(fn); },
       get salon() { return salon; },
     };
@@ -14451,7 +14461,7 @@ const PENLIGNE = (() => {
       return l.map((j) => {
         const mesure = ctl.pings[j.id], ping = j.id === salon.hote ? null : mesure != null ? mesure : j.ping > 0 ? j.ping : null; // mesuré par nous (salon, partie), sinon par le transport
         const voie = j.id === salon.hote ? 'hote' : j.voie || ctl.voies[j.id] || ''; // la voie que donne le transport (p2p, relais, local, connexion)
-        return { id: j.id, pseudo: String(j.pseudo || 'Joueur').slice(0, 20), couleur: j.couleur, eq: typeof j.eq === 'string' ? j.eq : '', pret: !!j.pret, hote: j.id === salon.hote, moi: j.id === salon.moi.id, ping: ping == null ? null : Math.round(ping), voie: voie || '' };
+        return { id: j.id, pseudo: String(j.pseudo || 'Joueur').slice(0, 20), couleur: j.couleur, eq: typeof j.eq === 'string' ? j.eq : '', am: typeof j.am === 'string' ? j.am : '', pret: !!j.pret, hote: j.id === salon.hote, moi: j.id === salon.moi.id, ping: ping == null ? null : Math.round(ping), voie: voie || '' };
       });
     }
     function annoncerReglages() { // l'hôte : réglages, pings et voies à tous (aussi pour ceux qui arrivent)
@@ -14472,6 +14482,9 @@ const PENLIGNE = (() => {
       const R = PR(); if (!R) return false; const e = R.equipementDe(eq, { armes: ctl.reglages.armes || R.DEFAUT_REGLAGES.armes }), v = e.p + '+' + e.s;
       try { salon.majMoi({ eq: v }); } catch (x) { signaler('équipement', x); } emettre('maj'); return v;
     }
+    function ameliorer(a) { // les améliorations du coffre personnel (Extraction) : dans la présence, l'hôte les donne au joueur au lancement
+      const v = amVers(a); try { salon.majMoi({ am: v }); } catch (x) { signaler('améliorations', x); } return v;
+    }
     function pret(oui) { try { salon.majMoi({ pret: !!oui }); } catch (e) { signaler('prêt', e); } emettre('maj'); }
     function renommer(pseudo) { pseudo = String(pseudo || '').trim().slice(0, 20); if (!pseudo) return false; try { salon.majMoi({ pseudo }); } catch (e) { signaler('pseudo', e); } emettre('maj'); return true; }
 
@@ -14483,13 +14496,13 @@ const PENLIGNE = (() => {
       if (js.length > MAX_SALON) return `salon complet : ${MAX_SALON} joueurs au plus`;
       if (!ctl._monde || !PJ() || !PA()) return 'le jeu n’est pas prêt';
       const R = PR(), pris = new Set(), palette = R ? R.COULEURS : [];
-      const liste = js.map((j) => { let c = typeof j.couleur === 'string' && /^#[0-9a-f]{6}$/i.test(j.couleur) && !pris.has(j.couleur) ? j.couleur : palette.find((x) => !pris.has(x)) || '#FFC84A'; pris.add(c); return { id: j.id, pseudo: j.pseudo, couleur: c, eq: j.eq }; });
+      const liste = js.map((j) => { let c = typeof j.couleur === 'string' && /^#[0-9a-f]{6}$/i.test(j.couleur) && !pris.has(j.couleur) ? j.couleur : palette.find((x) => !pris.has(x)) || '#FFC84A'; pris.add(c); return { id: j.id, pseudo: j.pseudo, couleur: c, eq: j.eq, am: j.am }; });
       const options = R.normaliserReglages(ctl.reglages, { humains: js.length }); // robots ≤ 6 − humains
-      const graine = (Math.random() * 4294967296) >>> 0;
+      const graine = (Math.random() * 4294967296) >>> 0, quand = Date.now(); // quand : l'heure de l'hôte (la zone de la semaine de l'Extraction)
       let P = null;
-      try { k++; P = partieHote(ctl, { k, graine, options, joueurs: liste, dans: DANS }); } catch (e) { signaler('lancement', e); return 'la partie n’a pas pu démarrer'; }
+      try { k++; P = partieHote(ctl, { k, graine, options, joueurs: liste, dans: DANS, maintenant: quand }); } catch (e) { signaler('lancement', e); return 'la partie n’a pas pu démarrer'; }
       const Z = G('PZONES'), jz = P.jeu.zone, robots = P.jeu.arene && Array.isArray(P.jeu.arene.robots) ? P.jeu.arene.robots : null;
-      envoyer('lancer', { k, graine, options, joueurs: P.liste, robots, zone: jz && Z ? Z.pourReseau(jz) : null, dans: DANS, carte: empreinte(ctl._carte) }, { fiable: true });
+      envoyer('lancer', { k, graine, options, joueurs: P.liste, robots, zone: jz && Z ? Z.pourReseau(jz) : null, dans: DANS, carte: empreinte(ctl._carte), maintenant: quand }, { fiable: true });
       finirPartie(); ctl.partie = P; ctl.enJeu = true; annoncerReglages();
       emettre('partie', P); emettre('maj');
       return true;
@@ -14571,22 +14584,25 @@ const PENLIGNE = (() => {
 
   // ═══════════════════════════════ l'hôte : le vrai PJEU, enveloppé ═══════════════════════════════
   function partieHote(ctl, L) {
-    const J = PJ(), A = PA(), R = PR(), JO = R.JOUEUR, idMoi = ctl.idMoi, envoyer = ctl._envoyer, monde = ctl._monde, carte = ctl._carte;
-    const jeu = J.creer({ monde, carte, mode: A, graine: L.graine, options: L.options, humains: L.joueurs.length });
+    const J = PJ(), A = modeDe(L.options), R = PR(), JO = R.JOUEUR, idMoi = ctl.idMoi, envoyer = ctl._envoyer, monde = ctl._monde, carte = ctl._carte;
+    const ex = A.id === 'extraction', CE = A.COULEURS_EQUIPES || (PA() && PA().COULEURS_EQUIPES);
+    const jeu = J.creer({ monde, carte, mode: A, graine: L.graine, options: L.options, humains: L.joueurs.length, maintenant: L.maintenant });
     const liste = [];
     for (const j of L.joueurs) {
       const equip = R.equipementDe(j.eq, L.options); // le choix du joueur (présence), borné par les armes permises
-      const e = jeu.ajouterJoueur({ id: j.id, nom: j.pseudo, couleur: j.couleur, humain: true, equipe: L.options.equipes ? undefined : j.id, equip });
-      if (L.options.equipes && A.COULEURS_EQUIPES) e.couleur = A.COULEURS_EQUIPES[e.equipe] || e.couleur;
-      liste.push({ id: e.id, pseudo: e.nom, couleur: e.couleur, equipe: e.equipe, eq: equip.p + '+' + equip.s });
+      // l'Extraction : le camp vient du mode (ensemble, équipes, chacun pour soi) et chacun part avec ses améliorations
+      const e = jeu.ajouterJoueur({ id: j.id, nom: j.pseudo, couleur: j.couleur, humain: true, equipe: L.options.equipes || ex ? undefined : j.id, equip, ameliorations: ex ? amDe(j.am) : undefined });
+      if ((ex ? jeu.extraction && jeu.extraction.format === 'equipes' : L.options.equipes) && CE) e.couleur = CE[e.equipe] || e.couleur;
+      liste.push({ id: e.id, pseudo: e.nom, couleur: e.couleur, equipe: e.equipe, eq: equip.p + '+' + equip.s, am: ex ? amVers(e.ameliorations) : undefined });
     }
+    let nObjets = 0, modeSale = false; // l'Extraction : les objets posés déjà annoncés ; un événement du mode depuis le dernier état (l'état du mode part tout de suite)
     const vrai = jeu.etape, debut = maintenant() + L.dans * 1000;
     const clients = new Map();
     // la piste de chaque client (C5) : ses positions prédites, datées à son horloge (tc, ms), rejouées avec un petit retard
     const NP = 32, nouvellePiste = () => { const a = []; for (let i = 0; i < NP; i++) a.push({ tc: 0, x: 0, y: 0, z: 0, sol: true, po: 0 }); return a; };
     for (const j of liste) if (j.id !== idMoi) clients.set(j.id, { id: j.id, nom: j.pseudo, entree: { avant: 0, cote: 0, dyaw: 0, dpitch: 0, tir: false, saut: false, accroupi: false, recharge: false, arme: null }, n: 0, recuA: 0, vu: debut, pos: { x: 0, y: 0, z: 0, m: 0, v: false, vy: 0, sol: true, neuf: false }, adopte: false, rtt: 0, intervalle: ENTREE_MS,
       av: 0, co: 0, sa: false, v2: false, piste: nouvellePiste(), pn: 0, pi: 0, dec: null, decA: 0, gigue: 0, surPiste: false, lu: false, rx: 0, ry: 0, rz: 0, rsol: true, rvx: 0, rvz: 0, rvy: 0, px: 0, py: 0, pz: 0, foulee: 0, rejets: 0, D: 0, tl: 0, nLu: 0, nProl: 0, bx: 0, bz: 0, teleports: 0,
-      tiNiveau: false, compteTirs: false, nt: 0, ntFaits: 0, detteA: 0, tirePas: false, jeton: JETON_MAX, jetonA: 0, adX: 0, adZ: 0, adOk: false });
+      tiNiveau: false, compteTirs: false, nt: 0, ntFaits: 0, detteA: 0, tirePas: false, jeton: JETON_MAX, jetonA: 0, adX: 0, adZ: 0, adOk: false, gestes: [], gn: 0 });
     const ent = {}, ACKS = {}, envoiT = new Float64Array(64), envoiN = new Int32Array(64), aEnvoyer = [], enPlus = [];
     let nEtat = 0, dernierEtat = -1e9, dernierEvts = -1e9, derniereEtape = 0, finale = false, finEnvoyee = false, arrete = false, envoyes = 0, t0 = 0, hT = -1;
     const P = { k: L.k, jeu, idMoi, estHote: true, hote: true, hoteId: idMoi, dans: L.dans, liste, resultat: null, demarre: false };
@@ -14691,7 +14707,7 @@ const PENLIGNE = (() => {
         case 'ramasse': return { t: 'ramasse', h, id: ev.id, objet: ev.objet, oid: ev.oid };
         case 'recharge': return { t: 'recharge', h, id: ev.id };
         case 'annonce': return { t: 'annonce', h, texte: ev.texte };
-        default: return null;
+        default: if (EVTS_MODE.has(ev.t)) { modeSale = true; return Object.assign({}, ev, { h }); } return null;
       }
     }
     function reseau(now) {
@@ -14699,6 +14715,7 @@ const PENLIGNE = (() => {
         nEtat++;
         for (const c of clients.values()) ACKS[c.id] = c.adopte ? c.n : -c.n; // négatif : l'hôte n'a pas adopté sa position (le client se recale)
         const inst = jeu.instantane(ACKS); inst.k = L.k; inst.n = nEtat;
+        if (A.etat && (modeSale || nEtat % 4 === 0)) { try { inst.x = A.etat(jeu); } catch (e) { signaler('état du mode', e); } modeSale = false; } // l'Extraction : 5 fois/s, et dès qu'il s'y passe quelque chose
         envoiT[nEtat & 63] = now; envoiN[nEtat & 63] = nEtat; dernierEtat = now;
         if (clients.size) { envoyer('etat', inst, { fiable: false }); envoyes++; }
       }
@@ -14742,6 +14759,8 @@ const PENLIGNE = (() => {
         if (c.surPiste) { const b = en.tir ? echantillon(c, 0) : null; if (b) { e.x = b.x; e.y = b.y; e.z = b.z; } else { e.x = c.rx; e.y = c.ry; e.z = c.rz; } e.auSol = c.rsol; e.vx = e.vz = e.vy = 0; c.bx = e.x; c.bz = e.z; }
         else if (!c.v2) adopter(c, e, now);
         else c.lu = false;
+        en.lacher = en.utiliser = en.signal = null; en.lampe = false; // les gestes du mode : un par pas, chacun joué une fois
+        if (c.gestes.length) { const g = c.gestes.shift(); if (g[0] === 'l') en.lacher = g[1]; else if (g[0] === 'u') en.utiliser = g[1]; else if (g[0] === 'p') en.lampe = true; else if (g[0] === 's') en.signal = g[1]; }
         ent[c.id] = en;
       }
       let evs;
@@ -14760,6 +14779,10 @@ const PENLIGNE = (() => {
         if (e.auSol && !e.accroupi && (!e.posture || e.posture === 'debout') && dep > 0 && dep < 3) { c.foulee += dep; if (c.foulee >= FOULEE) { c.foulee -= FOULEE; evs.push({ t: 'pas', id: e.id }); if (jeu.faireBruit) jeu.faireBruit(e, P_PAS); } }
       }
       const h = r3(jeu.temps);
+      if (ex) { // les objets posés pendant la partie (armes sorties des coffres) : annoncés, dans l'ordre (l'instantané les suit par indice)
+        let objs = null; try { objs = A.objets(jeu); } catch (e) { objs = null; }
+        if (objs) for (; nObjets < objs.length; nObjets++) { const o = objs[nObjets]; aEnvoyer.push({ t: 'objet', h, i: nObjets, x: r2(o.x), z: r2(o.z), objet: o.objet, rarete: o.rarete || null }); }
+      }
       for (let i = 0; i < evs.length; i++) { const v = evs[i]; if (v.t === 'fin') finale = true; else { const c = compacter(v, h); if (c) aEnvoyer.push(c); } }
       for (let i = 0; i < enPlus.length; i++) evs.push(enPlus[i]); enPlus.length = 0;
       reseau(now);
@@ -14783,6 +14806,15 @@ const PENLIGNE = (() => {
       c.tiNiveau = !!d.ti; if (fini(d.nt)) { c.compteTirs = true; c.nt = Math.max(c.nt, d.nt | 0); }
       c.sa = en.saut = !!d.sa; en.accroupi = !!d.ac; en.recharge = !!d.re; en.arme = J.ARMES_ID.indexOf(d.ar) >= 0 ? d.ar : null;
       en.course = !!d.cr; en.couche = !!d.cc; en.vise = !!d.vi; // l'entrée v2 : la posture et la visée se jouent chez l'hôte (capsule, dispersion)
+      if (Array.isArray(d.xa)) for (const g of d.xa) { // les gestes du mode : [n, 'l' | 'u' | 'p' | 's', arg], répétés par le client : gardés une fois chacun
+        if (!Array.isArray(g) || !fini(g[0]) || g[0] <= c.gn || c.gestes.length >= 8) continue;
+        const t = g[1], a = g[2];
+        if ((t === 'l' || t === 'u') && fini(a)) c.gestes.push([t, a | 0]);
+        else if (t === 'p') c.gestes.push(['p']);
+        else if (t === 's' && a && typeof a === 'object' && typeof a.type === 'string' && fini(a.x) && fini(a.z)) c.gestes.push(['s', { type: a.type.slice(0, 12), x: +a.x, y: fini(a.y) ? +a.y : 0, z: +a.z }]);
+        else continue;
+        c.gn = g[0];
+      }
       if (fini(d.tc)) { c.v2 = true; recevoirPiste(c, d, now); } // C5 : la piste (un client sans tc reste servi comme avant : adopter)
       const p = c.pos;
       if (!c.v2 && fini(d.x) && fini(d.y) && fini(d.z)) { p.x = d.x; p.y = d.y; p.z = d.z; p.m = d.m | 0; p.v = !!d.v; p.vy = num(d.vy, -40, 40); p.sol = !!d.sol; p.neuf = true; }
@@ -14818,15 +14850,19 @@ const PENLIGNE = (() => {
 
   // ═══════════════════════════════ le client : la façade ═══════════════════════════════
   function partieClient(ctl, L) {
-    const J = PJ(), A = PA(), R = PR(), JO = R.JOUEUR, idMoi = ctl.idMoi, envoyer = ctl._envoyer, monde = ctl._monde, carte = ctl._carte;
+    const options = L.options || {}, J = PJ(), A = modeDe(options), R = PR(), JO = R.JOUEUR, idMoi = ctl.idMoi, envoyer = ctl._envoyer, monde = ctl._monde, carte = ctl._carte;
     if (!monde || !J || !A) return null;
-    const options = L.options || {};
-    const jeu = J.creer({ monde, carte, mode: A, graine: L.graine, options, nav: false, humains: L.joueurs.length, zone: L.zone || null, robots: Array.isArray(L.robots) ? L.robots : null }); // la zone et les robots de l'hôte, tels quels
+    const ex = A.id === 'extraction';
+    const jeu = J.creer({ monde, carte, mode: A, graine: L.graine, options, nav: false, humains: L.joueurs.length, zone: L.zone || null, robots: Array.isArray(L.robots) ? L.robots : null, maintenant: fini(L.maintenant) ? L.maintenant : undefined }); // la zone et les robots de l'hôte, tels quels
     for (const j of L.joueurs) {
       if (!j || typeof j.id !== 'string') continue;
-      const e = jeu.ajouterJoueur({ id: j.id, nom: j.pseudo, couleur: j.couleur, humain: true, equipe: options.equipes ? (j.equipe === 1 ? 1 : 0) : j.id, equip: R.equipementDe(j.eq, options) });
+      const equipe = ex ? j.equipe : options.equipes ? (j.equipe === 1 ? 1 : 0) : j.id; // l'Extraction : le camp que l'hôte a donné (0, 1, 2 ou l'id)
+      const e = jeu.ajouterJoueur({ id: j.id, nom: j.pseudo, couleur: j.couleur, humain: true, equipe, equip: R.equipementDe(j.eq, options), ameliorations: ex ? amDe(j.am) : undefined });
       if (typeof j.couleur === 'string') e.couleur = j.couleur;
+      if (ex && j.equipe != null) e.equipe = j.equipe;
     }
+    const neufs = new Map(); // l'Extraction : les robots arrivés en renfort (id → heure) : un état parti avant eux ne les retire pas
+    let nGeste = 0; const gestes = []; // les gestes du mode envoyés (numérotés, répétés TENU × 4 ms) : [n, type, arg, depuis]
     const moi = jeu.trouver(idMoi); if (!moi) return null;
     const hoteId = ctl.hote, out = [], tampon = [], attente = [], immediats = [], hist = [], tirsEnVol = [], pasDe = new Map();
     const corr = { x: 0, z: 0 };
@@ -14867,7 +14903,8 @@ const PENLIGNE = (() => {
       // ce qui ne s'interpole pas : vie, armure, scores, munitions (tout de suite)
       for (const e of jeu.entites) { const l = rows.get(e.id); if (l) J.lireLigne(l, e, jeu.temps, 'etat'); }
       // les partis (absents de l'état de l'hôte) ; moi absent : l'hôte nous a retirés
-      for (const e of jeu.entites.slice()) if (!rows.has(e.id)) { if (e === moi) { finir('exclu'); return; } jeu.retirerJoueur(e.id); pasDe.delete(e.id); }
+      for (const e of jeu.entites.slice()) if (!rows.has(e.id)) { if (e === moi) { finir('exclu'); return; } const a = neufs.get(e.id); if (a && now - a < 3000) continue; jeu.retirerJoueur(e.id); pasDe.delete(e.id); }
+      if (d.x && A.lireEtat) { try { A.lireEtat(jeu, d.x); } catch (e) { signaler('état du mode', e); } } // l'Extraction : coffres, sacs, extractions, jauges (l'hôte fait autorité)
       // les objets
       try { const objs = A.objets(jeu); if (typeof d.o === 'string') for (let i = 0; i < objs.length && i < d.o.length; i++) objs[i].dispo = d.o[i] === '1'; } catch (e) { signaler('objets', e); }
       // moi : vie, réapparition, recalage
@@ -14901,9 +14938,24 @@ const PENLIGNE = (() => {
         if (v.t === 'tir' && v.id === idMoi) continue; // déjà montré sur place
         if (v.t === 'mort' && v.a === idMoi) { moi.vivant = false; moi.vie = 0; }
         if (v.t === 'manche' || v.t === 'elimine') manche(v);
+        if (ex && (v.t === 'renforts' || v.t === 'objet' || v.t === 'coffre')) evtMode(v);
         const pourMoi = v.id === idMoi || v.a === idMoi || v.de === idMoi || v.par === idMoi || v.t === 'annonce';
         if (pourMoi) immediats.push(v); else attente.push(v); // les autres : à l'heure où on les voit (100 ms en arrière)
       }
+    }
+    // l'Extraction : les robots en renfort rejoignent la façade ; les objets posés prennent leur place (par indice) ; un coffre s'ouvre tout de suite
+    function evtMode(v) {
+      const X = jeu.extraction; if (!X) return;
+      if (v.t === 'renforts' && Array.isArray(v.robots)) for (const r of v.robots) {
+        if (!r || typeof r.id !== 'string' || jeu.trouver(r.id)) continue;
+        try { jeu.ajouterJoueur({ id: r.id, nom: r.nom, couleur: r.couleur, bot: true, niveau: r.niveau, equip: r.equip, garde: r.garde, boss: r.boss === true }); neufs.set(r.id, maintenant()); } catch (e) { signaler('renforts', e); }
+      } else if (v.t === 'objet' && fini(v.i) && v.i >= 0 && v.i < 400 && fini(v.x) && fini(v.z) && typeof v.objet === 'string') {
+        const objs = X.objets, i = v.i | 0;
+        while (objs.length < i) objs.push({ id: 'x' + objs.length, x: 0, z: 0, y: null, objet: null, dispo: false, revient: 0, unique: true, rarete: null }); // un trou : comblé quand son annonce arrive
+        const o = { id: 'x' + i, x: v.x, z: v.z, y: null, objet: v.objet, dispo: true, revient: 0, unique: true, rarete: v.rarete || null };
+        if (objs.length === i) objs.push(o); else objs[i] = o;
+        if (X.nObjets < objs.length) X.nObjets = objs.length;
+      } else if (v.t === 'coffre') { const c = X.coffres.find((q) => q.id === v.id); if (c) { c.ouvert = true; c.par = v.par || null; } }
     }
     // « dernier debout » : la façade suit les manches de l'hôte (jeu.manche, jeu.treve, e.score.manches), que le HUD lit
     function manche(v) {
@@ -14983,6 +15035,11 @@ const PENLIGNE = (() => {
         const voulue = typeof en.arme === 'number' ? moi.armes[en.arme] : en.changer && moi.equip ? moi.armes[moi.slot ? 0 : 1] : en.arme; // v2 : un emplacement (0 / 1) ou « l'autre »
         if (voulue && voulue !== moi.arme && moi.armes.indexOf(voulue) >= 0) { armeVoulue = voulue; armeA = now; armeLocaleA = now; moi.arme = voulue; tirLocalA = Math.max(tirLocalA, T + 0.3); }
       }
+      if (ex && en) for (const cle in ACTIONS) { // les gestes du mode (lâcher, utiliser, lampe, signal) : numérotés, l'hôte les joue une fois
+        const a = en[cle]; if (a == null || a === false) continue;
+        const arg = cle === 'signal' ? (a && typeof a === 'object' ? { type: a.type, x: r2(+a.x || 0), y: r2(+a.y || 0), z: r2(+a.z || 0) } : null) : cle === 'lampe' ? 1 : a | 0;
+        if (arg != null && gestes.length < 8) gestes.push([++nGeste, ACTIONS[cle], arg, now]);
+      }
       if (cale && moi.vivant && en) {
         const mv = J.deplacer(moi, en, dt, monde, R.arme(moi.arme)); // la vitesse dépend de l'arme en main (comme chez l'hôte)
         if (mv.saut) out.push({ t: 'saut', id: idMoi });
@@ -15025,6 +15082,7 @@ const PENLIGNE = (() => {
         if (en && en.course) m.cr = 1; if (en && en.couche) m.cc = 1; if (en && en.vise) m.vi = 1;
         if (now - rechA < tenu) m.re = 1; if (now - armeA < tenu && armeVoulue) m.ar = armeVoulue;
         if (vit && nPiste > 1) m.tr = traceDepuis(relais);
+        if (gestes.length) { while (gestes.length && now - gestes[0][3] > 4 * tenu) gestes.shift(); if (gestes.length) m.xa = gestes.map((g) => [g[0], g[1], g[2]]); }
         if (envoyer('entree', m, { fiable: false })) envoyes++;
         tcEnvoi = tc;
         if (vit) { hist.push({ n: nEnvoi, x: moi.x, z: moi.z }); if (hist.length > 90) hist.shift(); }
