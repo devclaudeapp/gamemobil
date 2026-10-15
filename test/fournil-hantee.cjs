@@ -200,7 +200,9 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   c = await ev(() => window.__fournil.coin()); check(c.hantee, 'démasqué : la citrouille revient');
   await ev(() => window.__fournil.page('boutique'));
   const onglet = await ev(() => { const P = typeof CLASSEMENT !== 'undefined' && CLASSEMENT.PERIODES; return !!(P && P.includes(window.__fournil.evHantee.cle)); });
-  if (onglet) { await ev(() => window.__fournil.feuilleClassement(window.__fournil.evHantee.cle)); await sleep(500); check(await ev(() => !!document.querySelector('#feuille [data-tab="hantee"]')) && /Halloween/.test(await feuille()), 'le classement a son onglet « Halloween »'); await shot('09-classement-halloween'); await clic('#feuille [data-a="close"]'); }
+  if (onglet) { await ev(() => window.__fournil.feuilleClassement(window.__fournil.evHantee.cle)); await sleep(1200); check(await ev(() => !!document.querySelector('#feuille [data-tab="hantee"]')) && /Halloween/.test(await feuille()), 'le classement a son onglet « Halloween »');
+    const tabs = await ev(() => [...document.querySelectorAll('#feuille [data-tab]')].map((b) => ({ t: b.textContent, ok: b.scrollWidth <= b.clientWidth + 1 })));
+    check(tabs.every((x) => x.ok), `les onglets tiennent sur l'iPhone, sans se chevaucher : ${tabs.map((x) => x.t).join(' · ')}`); await shot('09-classement-halloween'); await clic('#feuille [data-a="close"]'); }
   else passe('l’onglet « Halloween » du classement attend le moteur v5 (src/classement.js, groupe H1)');
 
   console.log('── le décor éco : des chibis costumés ──');
@@ -233,6 +235,7 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   check(await ev(() => !document.querySelector('[data-a="hantee"]') && !!document.querySelector('[data-a="chat-noir"]')), 'les Réglages : plus de ligne « Masquer », mais « Réglisse en chat noir »');
   await clic('[data-a="chat-noir"]'); await sleep(400);
   check(await ev(() => window.__fournil.chatNoir()) && await attendre(() => page.evaluate(() => window.__fournil.SCENE.chatVu === 'noir'), 3000), 'choisi : le chat noir revient dans la boutique, à vie');
+  await ev(() => { const b = document.querySelector('[data-a="chat-noir"]'); if (b) b.scrollIntoView({ block: 'center' }); }); await sleep(400);
   await shot('12-reglages-chat');
   await ev(() => window.__fournil.page('boutique'));
   await ev(() => { window.__fournil.SCENE.decosHantee(['citrouilles', 'toiles', 'chaudron', 'fantome']); window.__fournil.tiroir('ferme'); }); await sleep(1500);

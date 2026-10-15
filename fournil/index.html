@@ -378,6 +378,7 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 .segments { display: flex; gap: 4px; padding: 3px; margin: 0 0 12px; border-radius: 999px; background: var(--carte); box-shadow: 0 3px 0 var(--gris-sombre); }
 .segments button { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 0 6px; border-radius: 999px; font: 700 15px/1.1 var(--titre); color: var(--texte-2); }
 .segments button.actif { background: var(--texte); color: #fff; }
+.segments button:first-child:nth-last-child(4), .segments button:first-child:nth-last-child(4) ~ button { flex: 1 1 auto; padding: 0 4px; font-size: 14px; } /* quatre onglets (le classement pendant deux événements) : chacun à sa largeur */
 .am.meuble { grid-template-columns: 44px minmax(0, 1fr) auto; }
 .am.meuble > svg { width: 44px; height: 44px; background: var(--peche); border-radius: var(--r-pic); padding: 4px; }
 .am.meuble em { font-style: normal; color: var(--lavande-sombre); font-size: 12px; }
@@ -7027,7 +7028,7 @@ const EVENEMENTS = (() => {
     // ce que l'icône du coin et l'annonce décident : l'événement est-il visible ? (fenêtre ouverte, pas masqué dans les Réglages)
     function visible() { if (!Q || !d || !st() || coupe()) return false; const qq = st()[F.cle]; return fen().ouvert && !(qq && qq.masque); }
     function masquer(on) { const qq = q(); qq.masque = !!on; d.save(); if (qq.masque && ouvert()) fermer(); }
-    function majeur() { return !F.porte || !!(st() && st()[F.cle] && st()[F.cle].majeur); }
+    function majeur() { if (!d) return false; return !F.porte || !!(st() && st()[F.cle] && st()[F.cle].majeur); }
     function bilanEnAttente() { // fini, joué, bilan pas encore vu (et pas masqué) : il passe avant toute autre annonce
       if (!Q || !d || !st() || coupe()) return false; const qq = st()[F.cle];
       return Q.fenetre(now()).fini && !!qq && qq.total > 0 && !qq.bilan && !qq.masque;
@@ -7066,7 +7067,7 @@ const EVENEMENTS = (() => {
 
     // ─── ouvrir : l'annonce, la porte 18+ (le Quartier), l'écran, le bilan ───
     function annoncer() { // le premier jour (ou au premier lancement pendant l'événement) : une fois ; après la fin : le bilan, une fois
-      const s = st(); if (!s || !Q || coupe()) return false;
+      if (!Q || !d) return false; const s = st(); if (!s || coupe()) return false;
       const f = fen(), qq = s[F.cle];
       if (f.fini) { if (qq && qq.total > 0 && !qq.bilan && !qq.masque && !ouvert()) { ouvrir(); return true; } return false; } // masqué : pas de bilan qui surgit
       if (!f.ouvert || (qq && (qq.masque || qq.annonce)) || !$('#feuille').hidden || ouvert()) return false;
@@ -7896,7 +7897,7 @@ const EVENEMENTS = (() => {
         amTitre: typeof T.ameliorations === 'string' ? `Les ${T.ameliorations.toLowerCase()}` : txt('amTitre', 'Les sortilèges'), amSous: txt('amSous', 'Des sorts qui multiplient les ventes du manoir, jusqu’à la fin de l’événement.'),
         paliersSous: (m, nb, n) => `${m} gagnés · ${nb}/${n}. Les mêmes seuils pour tout le monde ; chaque palier donne quelque chose pour la boulangerie, à vie.`,
         paliersNote: txt('paliersNote', 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue d’Halloween se porte depuis la garde-robe du boulanger.'),
-        bilanTitre: txt('bilanTitre', `${lieu} a fermé`), bilanH2: txt('bilanH2', 'Bilan de la nuit'), bilanSous: txt('bilanSous', `${nomDevise} gagnés en une semaine`), bilanDecos: (n) => `${n} déco${n > 1 ? 's' : ''} d’Halloween dans la boutique`, bilanTenue: 'de la tenue d’Halloween', bilanOr: 'la tenue d’Halloween en or',
+        bilanTitre: `${lieu} a fermé`, bilanH2: txt('bilanTitre', 'Bilan de la nuit'), bilanSous: txt('bilanSous', `${nomDevise} gagnés en une semaine`), bilanDecos: (n) => `${n} déco${n > 1 ? 's' : ''} d’Halloween dans la boutique`, bilanTenue: 'de la tenue d’Halloween', bilanOr: 'la tenue d’Halloween en or',
         bilanVide: txt('bilan', 'Le manoir a fermé ses volets. À l’année prochaine !'),
         annonce: (f) => `<div class="pq-sheet ht ht-annonce"><div class="ht-annonce-scene" aria-hidden="true"><i class="ht-lune"></i><span class="ht-pic">${ICONS.HANTEE.manoir}</span><i class="ht-cs a"></i><i class="ht-cs b"></i></div>
           <h2>${esc(txt('annonceTitre', `${nom} ouvre ses portes`))}</h2>
@@ -7911,7 +7912,7 @@ const EVENEMENTS = (() => {
   }
 
   const quartier = fabriquer(QR ? ficheQuartier() : { R: null }), hantee = fabriquer(HR ? ficheHantee() : { R: null });
-  const liste = [quartier, hantee];
+  const liste = [quartier, hantee].filter((e) => e.R); // sans ses règles (un fichier absent), un événement n'existe pas
   // les annonces, dans l'ordre : le bilan d'un événement fini passe d'abord ; une seule à la fois ; et un temps de calme après un écran fermé
   function annoncer(force) {
     if (!force && performance.now() < calmeJusqua) return false;
@@ -8921,7 +8922,7 @@ const UI = (() => {
   // si le moteur du classement (src/classement.js, v5) connaît la période 'hantee'
   const ongletHantee = () => !!(HTE && CLM && CLM.PERIODES && CLM.PERIODES.includes(HTE.cle) && !(st && st[HTE.cle] && st[HTE.cle].masque) && fenetreClassementHantee());
   function fenetreClassementHantee() { const t = HORLOGE.maintenant(), f = HT.fenetre(t); if (typeof f.classement === 'boolean') return f.classement; return t >= HT.DEBUT && t < (HT.CLASSEMENT_JUSQUA || HT.FIN + 14 * 864e5); }
-  const periodes = () => { let p = QT && QT.fenetre(HORLOGE.maintenant()).classement && !(st && st.quartier && st.quartier.masque) ? PERIODES.concat([['quartier', 'Événement']]) : PERIODES; if (ongletHantee()) p = p.concat([[HTE.cle, 'Halloween']]); return p; };
+  const periodes = () => { let p = QT && QT.fenetre(HORLOGE.maintenant()).classement && !(st && st.quartier && st.quartier.masque) ? PERIODES.concat([['quartier', 'Événement']]) : PERIODES; if (ongletHantee()) p = p.concat([[HTE.cle, 'Halloween']]); return p.length > 3 ? p.map(([id, t]) => [id, { semaine: 'Semaine', total: 'Tous', quartier: 'Quartier' }[id] || t]) : p; }; // quatre onglets (les deux semaines du podium du Quartier et Halloween) : des noms courts, lisibles sur un iPhone
   const MSG_RESEAU = { 'hors-ligne': 'Pas de réseau : réessaie quand le téléphone est connecté.', 'lent': 'Le classement est lent à répondre : réessaie dans un instant.', 'pas-ouvert': 'Le classement ouvre bientôt : reviens dans quelques jours.' };
   const msgReseau = (e) => MSG_RESEAU[e] || 'Le classement ne répond pas. Réessaie dans un moment.';
   function cleClassement() { if (!classement) return ''; const r = classement.resume(); return `${r.rejoint}|${r.pseudo}|${r.semaine ? r.semaine.rang + '/' + r.semaine.joueurs : ''}|${r.total ? r.total.rang + '/' + r.total.joueurs : ''}|${classement.recompenses().podiums.length}|${G.pointsSemaine(st)}`; }

@@ -355,6 +355,7 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 .segments { display: flex; gap: 4px; padding: 3px; margin: 0 0 12px; border-radius: 999px; background: var(--carte); box-shadow: 0 3px 0 var(--gris-sombre); }
 .segments button { flex: 1 1 0; min-width: 0; min-height: 44px; padding: 0 6px; border-radius: 999px; font: 700 15px/1.1 var(--titre); color: var(--texte-2); }
 .segments button.actif { background: var(--texte); color: #fff; }
+.segments button:first-child:nth-last-child(4), .segments button:first-child:nth-last-child(4) ~ button { flex: 1 1 auto; padding: 0 4px; font-size: 14px; } /* quatre onglets (le classement pendant deux événements) : chacun à sa largeur */
 .am.meuble { grid-template-columns: 44px minmax(0, 1fr) auto; }
 .am.meuble > svg { width: 44px; height: 44px; background: var(--peche); border-radius: var(--r-pic); padding: 4px; }
 .am.meuble em { font-style: normal; color: var(--lavande-sombre); font-size: 12px; }

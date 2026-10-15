@@ -60,7 +60,7 @@ const EVENEMENTS = (() => {
     // ce que l'icône du coin et l'annonce décident : l'événement est-il visible ? (fenêtre ouverte, pas masqué dans les Réglages)
     function visible() { if (!Q || !d || !st() || coupe()) return false; const qq = st()[F.cle]; return fen().ouvert && !(qq && qq.masque); }
     function masquer(on) { const qq = q(); qq.masque = !!on; d.save(); if (qq.masque && ouvert()) fermer(); }
-    function majeur() { return !F.porte || !!(st() && st()[F.cle] && st()[F.cle].majeur); }
+    function majeur() { if (!d) return false; return !F.porte || !!(st() && st()[F.cle] && st()[F.cle].majeur); }
     function bilanEnAttente() { // fini, joué, bilan pas encore vu (et pas masqué) : il passe avant toute autre annonce
       if (!Q || !d || !st() || coupe()) return false; const qq = st()[F.cle];
       return Q.fenetre(now()).fini && !!qq && qq.total > 0 && !qq.bilan && !qq.masque;
@@ -99,7 +99,7 @@ const EVENEMENTS = (() => {
 
     // ─── ouvrir : l'annonce, la porte 18+ (le Quartier), l'écran, le bilan ───
     function annoncer() { // le premier jour (ou au premier lancement pendant l'événement) : une fois ; après la fin : le bilan, une fois
-      const s = st(); if (!s || !Q || coupe()) return false;
+      if (!Q || !d) return false; const s = st(); if (!s || coupe()) return false;
       const f = fen(), qq = s[F.cle];
       if (f.fini) { if (qq && qq.total > 0 && !qq.bilan && !qq.masque && !ouvert()) { ouvrir(); return true; } return false; } // masqué : pas de bilan qui surgit
       if (!f.ouvert || (qq && (qq.masque || qq.annonce)) || !$('#feuille').hidden || ouvert()) return false;
@@ -929,7 +929,7 @@ const EVENEMENTS = (() => {
         amTitre: typeof T.ameliorations === 'string' ? `Les ${T.ameliorations.toLowerCase()}` : txt('amTitre', 'Les sortilèges'), amSous: txt('amSous', 'Des sorts qui multiplient les ventes du manoir, jusqu’à la fin de l’événement.'),
         paliersSous: (m, nb, n) => `${m} gagnés · ${nb}/${n}. Les mêmes seuils pour tout le monde ; chaque palier donne quelque chose pour la boulangerie, à vie.`,
         paliersNote: txt('paliersNote', 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue d’Halloween se porte depuis la garde-robe du boulanger.'),
-        bilanTitre: txt('bilanTitre', `${lieu} a fermé`), bilanH2: txt('bilanH2', 'Bilan de la nuit'), bilanSous: txt('bilanSous', `${nomDevise} gagnés en une semaine`), bilanDecos: (n) => `${n} déco${n > 1 ? 's' : ''} d’Halloween dans la boutique`, bilanTenue: 'de la tenue d’Halloween', bilanOr: 'la tenue d’Halloween en or',
+        bilanTitre: `${lieu} a fermé`, bilanH2: txt('bilanTitre', 'Bilan de la nuit'), bilanSous: txt('bilanSous', `${nomDevise} gagnés en une semaine`), bilanDecos: (n) => `${n} déco${n > 1 ? 's' : ''} d’Halloween dans la boutique`, bilanTenue: 'de la tenue d’Halloween', bilanOr: 'la tenue d’Halloween en or',
         bilanVide: txt('bilan', 'Le manoir a fermé ses volets. À l’année prochaine !'),
         annonce: (f) => `<div class="pq-sheet ht ht-annonce"><div class="ht-annonce-scene" aria-hidden="true"><i class="ht-lune"></i><span class="ht-pic">${ICONS.HANTEE.manoir}</span><i class="ht-cs a"></i><i class="ht-cs b"></i></div>
           <h2>${esc(txt('annonceTitre', `${nom} ouvre ses portes`))}</h2>
@@ -944,7 +944,7 @@ const EVENEMENTS = (() => {
   }
 
   const quartier = fabriquer(QR ? ficheQuartier() : { R: null }), hantee = fabriquer(HR ? ficheHantee() : { R: null });
-  const liste = [quartier, hantee];
+  const liste = [quartier, hantee].filter((e) => e.R); // sans ses règles (un fichier absent), un événement n'existe pas
   // les annonces, dans l'ordre : le bilan d'un événement fini passe d'abord ; une seule à la fois ; et un temps de calme après un écran fermé
   function annoncer(force) {
     if (!force && performance.now() < calmeJusqua) return false;
