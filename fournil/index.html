@@ -9882,7 +9882,10 @@ const UI = (() => {
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant() }) : null; } catch (e) { classement = null; }
-    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); }); majRecompenses(); classement.demarrer(); setInterval(majRecompenses, 60e3); } // la tenue et la coupe changent aussi au lundi
+    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); }); majRecompenses(); classement.demarrer(); setInterval(majRecompenses, 60e3);
+    // la liste ouverte se relit toute seule toutes les 30 s (qui vient d'arriver « en ligne », les points qui bougent) : seulement
+    // sur l'onglet de la liste, page visible, sans doubler une lecture en vol ; la feuille fermée, plus rien
+    setInterval(() => { if (vueCl === 'liste' && !feuille.hidden && document.visibilityState === 'visible' && !classement.enChargement(ongletCl)) classement.charger(ongletCl); }, (window.__relireClassement | 0) || 30e3); } // la tenue et la coupe changent aussi au lundi
     majCoin();
     lastNiveau = G.niveau(st);
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
