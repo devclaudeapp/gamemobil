@@ -44,6 +44,7 @@ jobs:
           node test/fournil-quartier.test.js
           node test/fournil-hantee.test.js
           node test/fournil-quartier.cjs
+          node test/fournil-hantee.cjs
           node test/fournil-blackjack.test.js
           node test/fournil-blackjack.cjs
           node test/fournil-hd.cjs

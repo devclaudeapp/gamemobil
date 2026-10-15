@@ -442,6 +442,8 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 .cl-nom { min-width: 0; display: flex; align-items: center; gap: 6px; font: 700 16px/1.2 var(--titre); }
 .cl-nom > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cl-nom .tag { font-style: normal; }
+.cl-en-ligne { flex: 0 0 auto; width: 9px; height: 9px; border-radius: 50%; background: #3CC47C; box-shadow: 0 0 0 2px rgba(60, 196, 124, .25); }
+.cl-n-ligne { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: #2E8A5A; white-space: nowrap; }
 .cl-val { font: 700 15px/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
 .cl-val small { display: block; margin-top: 3px; font: 700 11px/1 var(--texte-font); color: #6E5448; } /* la fortune, en petit : pour information */
 /* ses points de la semaine, en tête de la feuille du classement */
