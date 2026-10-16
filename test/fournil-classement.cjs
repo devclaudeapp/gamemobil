@@ -8,16 +8,21 @@
 // quitter, hors ligne, pas encore ouvert, un serveur encore en v2, 320 px, l'artefact sans classement.
 // Contrat v6 (les copains) : la photo envoyée avec fournil_publier, l'objectif commun en tête de la feuille, une ligne qu'on touche ouvre
 // « La boutique de X » (la vraie scène, en lecture seule), le pourboire donné, les pourboires reçus et l'objectif réussi à l'ouverture,
-// le bloc Notifications des Réglages (« bientôt » sans clé publique) ; un serveur plus ancien cache tout cela. Captures 390×844 dans
+// le bloc Notifications des Réglages (« bientôt » sans clé publique) ; un serveur plus ancien cache tout cela. Selon l'onglet, la ligne
+// touchée : « Cette semaine », la visite de sa boutique ; « Tous les temps », sa fiche de statistiques (sans 3D) ; « Événement », sa Planque
+// en 3D (la vraie scène du Quartier, sur un canvas à part, libérée au retour), à une heure du téléphone prise dans la fenêtre du Quartier.
+// Captures 390×844 dans
 // test/shots/classement/ et, si COPAINS_CAPTURES est donné, dans ce dossier.
 // Lancer : NODE_PATH=/opt/node22/lib/node_modules node test/fournil-classement.cjs   (captures dans test/shots/classement/)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
-const CL = require('../src/classement.js'), G = require('../src/game.js');
+const CL = require('../src/classement.js'), G = require('../src/game.js'), Q = require('../src/quartier.js');
 const root = path.join(__dirname, '..');
 const PORT = +process.env.PORT_CLASSEMENT || 8783, BASE = `http://localhost:${PORT}`, SUPA = 'https://jklbitrlkfrktmnarejc.supabase.co';
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
+let decalHeure = 0; // la Planque d'un copain : l'heure du serveur (en-tête Date, fournil_heure) et celle du téléphone décalées dans la fenêtre du Quartier
 const server = http.createServer((req, res) => {
+  if (decalHeure) res.setHeader('Date', new Date(Date.now() + decalHeure).toUTCString());
   let p = decodeURIComponent(req.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html';
   fs.readFile(path.join(root, p), (err, d) => { if (err) { res.writeHead(404); res.end(); return; } res.writeHead(200, { 'content-type': types[path.extname(p)] || 'application/octet-stream' }); res.end(d); });
 }).listen(PORT);
@@ -64,13 +69,13 @@ const RPC = {
       const compte = Math.max(0, c.p_fortune - j.sommet); // (le vrai serveur plafonne aussi par le temps réel écoulé : test/fournil-classement-sql.cjs)
       const p = faux.v2 ? null : ptsDe(c), pc = p == null ? 0 : Math.max(0, p - j.points);
       j.sommet = Math.max(j.sommet, c.p_fortune); j.total += compte; j.gain += compte; j.points += pc; j.ptsTotal += pc; j.pseudo = pseudo; j.maj = Date.now();
-      if (faux.v6 && c.p_photo) faux.photos.set(c.p_id, c.p_photo);
+      if (faux.v6 && c.p_photo && JSON.stringify(c.p_photo).length <= 3072) faux.photos.set(c.p_id, c.p_photo); // gardée telle quelle (≤ 3 Ko), x et e compris
       return { ...reponse(null, c.p_id), compte, plafonne: false, points_comptes: pc, points_plafonnes: false, ...(faux.v6 ? { photo_maj: new Date().toISOString() } : {}) };
     }
     if (pris(null)) return reponse('pseudo_pris');
     const p0 = faux.v2 ? 0 : ptsDe(c) || 0;
     faux.joueurs.set(c.p_id, { jeton: sha(c.p_jeton), pseudo, sommet: c.p_fortune, total: 0, gain: 0, semaine: l, maj: Date.now(), points: p0, ptsTotal: p0 }); // l'argent part de zéro à l'arrivée, les points de la semaine comptent
-    if (faux.v6 && c.p_photo) faux.photos.set(c.p_id, c.p_photo);
+    if (faux.v6 && c.p_photo && JSON.stringify(c.p_photo).length <= 3072) faux.photos.set(c.p_id, c.p_photo);
     return { ...reponse(null, c.p_id), compte: 0, plafonne: false, points_comptes: p0, points_plafonnes: false };
   },
   fournil_classement: (c) => {
@@ -91,8 +96,10 @@ const RPC = {
       ...(faux.v6 ? (() => { const o = { pourboires: faux.recus.get(c.p_id) || [], objectif: faux.objectifs.get(c.p_id) || null }; faux.recus.delete(c.p_id); faux.objectifs.delete(c.p_id); faux.lus.set(c.p_id, (faux.lus.get(c.p_id) || 0) + o.pourboires.length); return o; })() : {}) }; // v6 : rendus une seule fois (la lecture les marque vus)
   },
   // ─── v6 : les copains (le vrai serveur : supabase/fournil-classement.sql, vérifié dans test/fournil-classement-sql.cjs) ───
+  // fournil_boutique rend la photo telle qu'elle a été envoyée : ses statistiques (x) et l'événement en cours (e) passent sans que le SQL change
   fournil_boutique: (c) => { const e = [...faux.joueurs.entries()].find(([, a]) => a.pseudo.toLowerCase() === String(c.p_pseudo || '').toLowerCase()); if (!e) return { ok: false, erreur: 'inconnu' }; const miens = faux.dons.filter((d) => d.de === c.p_id);
-    return { ok: true, erreur: null, pseudo: e[1].pseudo, photo: faux.photos.get(e[0]) || null, maj: faux.photos.has(e[0]) ? new Date().toISOString() : null, en_ligne: e[1].pseudo === 'Mamie Jo', ...(c.p_id && faux.joueurs.has(c.p_id) ? { restants: 3 - miens.length, deja: miens.some((d) => d.a === e[1].pseudo) } : {}) }; },
+    const ph = faux.photos.get(e[0]) || null; if (ph && JSON.stringify(ph).length > 3072) return { ok: false, erreur: 'photo' }; // (le serveur refuse une photo de plus de 3 Ko à l'envoi)
+    return { ok: true, erreur: null, pseudo: e[1].pseudo, photo: ph, maj: faux.photos.has(e[0]) ? new Date().toISOString() : null, en_ligne: e[1].pseudo === 'Mamie Jo', ...(c.p_id && faux.joueurs.has(c.p_id) ? { restants: 3 - miens.length, deja: miens.some((d) => d.a === e[1].pseudo) } : {}) }; },
   fournil_pourboire: (c) => {
     const j = faux.joueurs.get(c.p_id); if (!j || j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: 'jeton', restants: 0 };
     const a = [...faux.joueurs.values()].find((x) => x.pseudo.toLowerCase() === String(c.p_pour || '').toLowerCase()), miens = faux.dons.filter((d) => d.de === c.p_id), restants = 3 - miens.length;
@@ -101,7 +108,7 @@ const RPC = {
     faux.dons.push({ de: c.p_id, a: a.pseudo }); return { ok: true, erreur: null, restants: restants - 1, points_semaine: j.points, etoile: 1 }; // version 6.1 : une étoile, aucun point
   },
   fournil_objectif: () => ({ semaine: lundi(), but: faux.objectif.but, total: faux.objectif.total, joueurs: faux.objectif.joueurs, reussi: faux.objectif.total >= faux.objectif.but, pourcent: Math.min(100, Math.floor(faux.objectif.total / faux.objectif.but * 100)) }),
-  fournil_heure: () => ({ ms: Date.now() }),
+  fournil_heure: () => ({ ms: Date.now() + decalHeure }),
   // les cadeaux (supabase/fournil-cadeaux.sql) ; faux.perdreRecu : l'accusé de réception se perd (le cadeau revient à la lecture suivante)
   fournil_mes_cadeaux: (c) => { const j = faux.joueurs.get(c.p_id); if (!j || j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: j ? 'jeton' : 'inconnu', cadeaux: [] }; return { ok: true, erreur: null, cadeaux: (faux.cadeaux || []).filter((x) => x.joueur === c.p_id && !x.recu).map(({ n, montant, motif }) => ({ n, montant, motif })) }; },
   fournil_cadeau_recu: (c) => { const j = faux.joueurs.get(c.p_id); if (!j || j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: 'jeton' }; if (!faux.perdreRecu) for (const x of faux.cadeaux || []) if (x.n === c.p_n && x.joueur === c.p_id) x.recu = true; return { ok: true, erreur: null }; },
@@ -448,12 +455,19 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     const capture = async (p, nom, o) => { await p.screenshot({ path: `${out}/v6-${nom}.png`, ...(o || {}) }); if (cap) await p.screenshot({ path: `${cap}/${nom}.png`, ...(o || {}) }); };
     faux.v6 = true; faux.mode = 'normal';
     for (const j of faux.joueurs.values()) j.maj = 0;
-    // la boutique de Mamie Jo (1re) : une belle boutique ; Tonton Jo n'a pas encore de photo
+    // la boutique de Mamie Jo (1re) : une belle boutique (et sa Planque) ; Tonton Jo n'a pas encore de photo ; Petit Jo, une photo d'avant les fiches
+    let mamieTitre = '', mamieNiveau = 0;
     const mamie = [...faux.joueurs.entries()].find(([, a]) => a.pseudo === 'Mamie Jo')[0];
     { const s = G.newState(Date.now()); s.nomBoutique = 'Chez Mamie Jo'; s.boutiques = 2; s.stations.forEach((x, i) => { x.niv = i < 6 ? 140 - i * 20 : 0; x.staff = i < 4; });
       for (const m of G.MOBILIER) s.mobilier[m.id] = m.id === 'tables' ? m.max - 1 : m.max; s.chat = { nom: 'Réglisse' }; s.chatNoir = true; s.chatPelage = 'noir';
       s.xp = 0; for (let n = 1; n < 22; n++) s.xp += G.XP_NIVEAU(n); for (const id of ['or-toque', 'or-tablier']) { G.donnerVetement(s, id); G.equiper(s, G.vetement(id).piece, id); }
-      faux.photos.set(mamie, CL.photo(s, { G, coupes: ['or', 'argent'], badge: true, dq: ['neon'], dh: ['citrouilles'] })); }
+      s.etoiles = 37; s.stats.ventes = 123456; s.stats.serieMax = 6; s.lifetime = 4.2e9; s.trophees = { premiere: 1, cent: 1, dixmille: 1 };
+      const qm = Q.neuf(Date.now()); qm.majeur = true; qm.ouvertLe = Date.now(); [[150, 1], [90, 1], [40, 1], [12, 0]].forEach(([n, a], i) => { qm.postes[i].niv = n; qm.postes[i].staff = !!a; });
+      qm.decos = ['graffiti', 'neon']; qm.paliers = [1, 2, 3, 4, 5]; qm.total = Q.PALIERS[4].total + 1234;
+      faux.photos.set(mamie, CL.photo(s, { G, coupes: ['or', 'argent'], badge: true, dq: ['neon'], dh: ['citrouilles'], ev: { id: 'quartier', q: qm } }));
+      mamieTitre = G.titre(s); mamieNiveau = G.niveau(s); }
+    { const petit = [...faux.joueurs.entries()].find(([, a]) => a.pseudo === 'Petit Jo')[0], s = G.newState(Date.now()); s.nomBoutique = 'Au Petit Jo'; s.stations[0].niv = 30;
+      const vieille = CL.photo(s, { G }); delete vieille.x; faux.photos.set(petit, vieille); } // une photo envoyée avant la mise à jour : ni x ni e
     const c6 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
     await c6.addInitScript(() => { window.__sansQuartier = true; });
     await c6.route(SUPA + '/rest/v1/rpc/*', gerer);
@@ -509,6 +523,38 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     const sans = await p6.evaluate(() => ({ v: window.__fournil.visite(), txt: document.querySelector('#vi-vue').innerText, carte: document.querySelector('#vi-vue').classList.contains('carte'), pb: (document.querySelector('[data-vi="pourboire"]') || {}).innerText || '' }));
     check(!sans.v.scene && sans.carte && /Pas encore ouverte aux visites/.test(sans.txt) && /encore 2 aujourd’hui/.test(sans.pb), 'un copain sans photo : une carte texte, le pourboire reste possible');
     await p6.evaluate(() => window.__fournil.finVisite(false)); await sleep(300);
+    // ─── l'onglet « Tous les temps » : la fiche de statistiques d'un copain, sans 3D ni pourboire ───
+    await p6.evaluate(() => window.__fournil.feuilleClassement('total')); await attendre(() => p6.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste') && document.querySelector('#feuille [data-tab="total"]').getAttribute('aria-selected') === 'true')); await sleep(300);
+    const lt = await p6.evaluate(() => { // chaque contexte WebGL demandé à partir d'ici est compté : la fiche n'en crée aucun
+      if (!window.__contextes) { window.__contextes = 0; const gc = HTMLCanvasElement.prototype.getContext; HTMLCanvasElement.prototype.getContext = function (t, ...a) { if (/webgl/.test(String(t))) window.__contextes++; return gc.call(this, t, ...a); }; }
+      window.__contextes = 0; return { label: document.querySelector('#feuille [data-visite="Mamie Jo"]').getAttribute('aria-label'), sous: document.querySelector('#feuille .cl-tete .sous').textContent }; });
+    check(lt.label === 'Voir les statistiques de Mamie Jo' && /Touche un copain pour voir ses statistiques\./.test(lt.sous), `« Tous les temps » : « ${lt.label} », « …${lt.sous.slice(-45)} »`);
+    const nBoutique = faux.appels.filter((a) => a.nom === 'fournil_boutique').length;
+    await p6.tap('#feuille [data-visite="Mamie Jo"]');
+    check(await attendre(() => p6.evaluate(() => { const f = window.__fournil.fiche(); return f && !f.charge && /Records/i.test(document.querySelector('#feuille-contenu').innerText); }), 6000), 'toucher « Mamie Jo » ouvre sa fiche de statistiques');
+    await sleep(300);
+    const fi = await p6.evaluate(() => ({ txt: document.querySelector('#feuille-contenu').innerText.replace(/\s+/g, ' '), cl: document.querySelector('#feuille-contenu .cl').dataset.cl, v: window.__fournil.visite(), corps: document.body.classList.contains('visite'), vis: !document.querySelector('#visite').hidden, canvas: document.querySelectorAll('#feuille canvas, #vi-vue canvas').length, contextes: window.__contextes, pb: !!document.querySelector('[data-vi="pourboire"], #feuille [data-a*="pourboire"]'), toque: !!document.querySelector('#feuille .fi-podium .cl-toque') }));
+    const lm = await p6.evaluate(() => { const l = window.__fournil.classement().cache('total').data.lignes.find((x) => x.pseudo === 'Mamie Jo'); return `Rang ${l.rang}${l.rang === 1 ? 'er' : 'e'} sur`; });
+    const attendu = ['Mamie Jo', 'Chez Mamie Jo · le coin de rue parisien', lm, 'Points 140 depuis toujours', 'Fortune', '1er la semaine dernière', 'Sa boulangerie', `Niveau ${mamieNiveau} · ${mamieTitre}`, `Recettes ouvertes 6 sur ${G.PRODUITS.length}`, 'Apprentis 4', 'Mobilier', 'Le chat Réglisse', 'Coupes 1 or · 1 argent', 'Badge « Esprit d’équipe » ✓',
+      'RECORDS', 'Étoiles 37', 'Boutique n°2', 'Fournées vendues 123', `Trophées 3/${G.TROPHEES.length}`, 'Meilleure série d’objectifs 6 jours', 'Gagné depuis le début', 'Retour au classement'];
+    const manque = attendu.filter((t) => !fi.txt.includes(t));
+    check(fi.cl === 'fiche' && !manque.length && !/arriveront après sa prochaine partie/.test(fi.txt) && fi.toque && /Fortune 4 Md € au classement/.test(fi.txt), `la fiche : sa ligne (rang, points, fortune, podium et toque), sa boulangerie, ses records${manque.length ? ` — manque : ${manque.join(' | ')} — « ${fi.txt} »` : ''}`);
+        check(!fi.v && !fi.corps && !fi.vis && fi.canvas === 0 && fi.contextes === 0 && !fi.pb && faux.appels.filter((a) => a.nom === 'fournil_boutique').length === nBoutique + 1, `aucune 3D créée (aucun canvas, ${fi.contextes} contexte WebGL demandé), pas d’écran de visite, pas de pourboire ; une lecture de fournil_boutique`);
+    await capture(p6, 'fiche-stats');
+    await p6.evaluate(() => { document.querySelector('#feuille').scrollTop = 9999; }); await sleep(200); await capture(p6, 'fiche-stats-bas');
+    await p6.tap('#feuille [data-a="fi-retour"]');
+    check(await attendre(() => p6.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste') && document.querySelector('#feuille [data-tab="total"]').getAttribute('aria-selected') === 'true' && !window.__fournil.fiche())), '« Retour au classement » : la liste de tous les temps revient');
+    await p6.tap('#feuille [data-visite="Petit Jo"]');
+    await attendre(() => p6.evaluate(() => { const f = window.__fournil.fiche(); return f && !f.charge; })); await sleep(200);
+    const fv = await p6.evaluate(() => document.querySelector('#feuille-contenu').innerText.replace(/\s+/g, ' '));
+    check(/Au Petit Jo/.test(fv) && /Recettes ouvertes 1 sur/.test(fv) && !/Records/i.test(fv) && /Ses statistiques détaillées arriveront après sa prochaine partie\./.test(fv), 'une photo d’avant la mise à jour (sans x) : sa boulangerie, et « Ses statistiques détaillées arriveront après sa prochaine partie »');
+    await capture(p6, 'fiche-stats-ancienne');
+    await p6.tap('#feuille [data-a="fi-retour"]'); await attendre(() => p6.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste')));
+    await p6.tap('#feuille [data-visite="Tonton Jo"]');
+    await attendre(() => p6.evaluate(() => { const f = window.__fournil.fiche(); return f && !f.charge; })); await sleep(200);
+    const fs0 = await p6.evaluate(() => document.querySelector('#feuille-contenu').innerText.replace(/\s+/g, ' '));
+    check(/Tonton Jo/.test(fs0) && /Rang \d+e sur/.test(fs0) && /Points \d+ depuis toujours/.test(fs0) && !/Sa boulangerie/.test(fs0) && /arriveront après sa prochaine partie/.test(fs0), 'sans photo : sa ligne du classement, et la même phrase d’attente');
+    await p6.evaluate(() => window.__fournil.feuilleClassement('semaine')); await sleep(200); await p6.evaluate(() => { document.querySelector('#feuille [data-a="close"]').click(); }); await sleep(200);
     // à l'ouverture : deux pourboires reçus, puis l'objectif commun réussi de la semaine passée
     const q0 = new Date(Date.now() - 3600e3).toISOString(), q1 = new Date(Date.now() - 600e3).toISOString(), semP = avant(lundi());
     faux.recus.set(moiId, [{ de: 'Mamie Jo', quand: q0 }, { de: 'Tonton Jo', quand: q1 }]); faux.objectifs.set(moiId, { semaine: semP, reussi: true, recompense: true });
@@ -542,6 +588,63 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     check(v5.vis === 0 && !v5.obj, 'serveur sans la mise à jour des copains : pas d’objectif commun, aucune ligne à toucher, le classement comme avant');
     await c6.close();
     faux.v6 = false;
+
+    // ─── l'onglet « Événement » : la Planque d'un copain, en 3D (la vraie scène du Quartier), en lecture seule ───
+    // Le Quartier est ouvert du 13 au 27 octobre 2026 (midi) : hors de sa fenêtre, le téléphone et le serveur sont mis au vendredi 16 à 15 h.
+    faux.v6 = true; faux.mode = 'normal'; for (const j of faux.joueurs.values()) j.maj = 0;
+    decalHeure = Q.fenetre(Date.now()).ouvert ? 0 : new Date('2026-10-16T15:00:00+02:00').getTime() - Date.now();
+    const c7 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+    await c7.addInitScript((d) => { window.__sansQuartier = true; if (d) { const D = Date; class FauxDate extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + d); } static now() { return D.now() + d; } } window.Date = FauxDate; } }, decalHeure);
+    await c7.route(SUPA + '/rest/v1/rpc/*', gerer);
+    const p7 = await c7.newPage(); suivre(p7);
+    await p7.goto(BASE + '/fournil/'); await sleep(1300);
+    check(await p7.evaluate(() => !!EVENEMENTS.quartier.fenetre() && EVENEMENTS.quartier.fenetre().ouvert), `l’heure du jeu est dans la fenêtre du Quartier${decalHeure ? ' (téléphone et serveur décalés au 16 oct.)' : ''}`);
+    // il entre dans SA Planque (la porte 18+), y rejoint le classement : sa photo part avec e (l'événement en cours) et x (ses statistiques)
+    await p7.evaluate(() => EVENEMENTS.quartier.ouvrir()); await sleep(400); await p7.tap('#planque [data-pq="oui"]'); await sleep(900);
+    const rj7 = await p7.evaluate(() => window.__fournil.classement().choisirPseudo('Léon').then((r) => r.etat)), id7 = await p7.evaluate(() => window.__fournil.classement().etat().id), ph7 = faux.photos.get(id7);
+    check(rj7 === 'ok' && ph7 && ph7.e && ph7.e.id === 'quartier' && ph7.e.p.length === Q.PRODUITS.length && ph7.e.p[0][0] >= 1 && ph7.x && ph7.x.b >= 1 && CL.octetsJson(ph7) <= 2048, `entré dans la Planque : sa photo porte e (« ${ph7 && ph7.e && ph7.e.id} », ${ph7 && ph7.e ? ph7.e.p.length : 0} postes) et x (${CL.octetsJson(ph7 || {})} octets)`);
+    // depuis sa Planque, le classement de l'événement ; la ligne de Mamie Jo mène à SA Planque
+    await p7.tap('#planque [data-pq="classement"]').catch(() => p7.evaluate(() => window.__fournil.feuilleClassement('quartier')));
+    if (!(await attendre(() => p7.evaluate(() => !document.querySelector('#feuille').hidden), 2000))) await p7.evaluate(() => window.__fournil.feuilleClassement('quartier'));
+    await attendre(() => p7.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste') && !!document.querySelector('#feuille [data-visite="Mamie Jo"]'))); await sleep(300);
+    const le = await p7.evaluate(() => ({ tab: (document.querySelector('#feuille [data-tab="quartier"]') || {}).getAttribute && document.querySelector('#feuille [data-tab="quartier"]').getAttribute('aria-selected'), label: document.querySelector('#feuille [data-visite="Mamie Jo"]').getAttribute('aria-label'), planque: !document.querySelector('#planque').hidden, propre: JSON.stringify(window.__fournil.st.quartier.postes) }));
+    check(le.tab === 'true' && le.label === 'Visiter la Planque de Mamie Jo' && le.planque, `l’onglet Événement, ouvert depuis sa Planque : « ${le.label} »`);
+    await p7.tap('#feuille [data-visite="Mamie Jo"]');
+    check(await attendre(() => p7.evaluate(() => { const v = window.__fournil.visite(); return v && !v.charge && v.ev3 && v.images > 5; }), 8000), 'toucher « Mamie Jo » : sa Planque en 3D, la scène tourne');
+    await sleep(1500);
+    const pv = await p7.evaluate(() => { const v = window.__fournil.visite(); return { v, titre: document.querySelector('#vi-titre').textContent, sous: document.querySelector('#vi-sous').textContent, cv: document.querySelectorAll('#vi-vue canvas').length, cvW: (document.querySelector('#vi-vue canvas') || {}).clientWidth, cvH: (document.querySelector('#vi-vue canvas') || {}).clientHeight, enseigne: (document.querySelector('#vi-vue .vi-enseigne') || {}).textContent, bas: document.querySelector('#vi-bas').innerText.replace(/\s+/g, ' '), pb: !!document.querySelector('[data-vi="pourboire"]'), ouvert: !!EVENEMENTS.ouvert, planque: !document.querySelector('#planque').hidden, scenePropre: !!EVENEMENTS.quartier.scene, propre: JSON.stringify(window.__fournil.st.quartier.postes), feuille: document.querySelector('#feuille').hidden }; });
+    check(pv.v.ev === 'quartier' && pv.cv === 1 && pv.cvW > 300 && pv.cvH >= 220 && pv.v.calls > 0 && pv.titre === 'La Planque de Mamie Jo' && /En ligne · Le Quartier/.test(pv.sous) && pv.enseigne === 'Le Quartier' && pv.feuille, `« ${pv.titre} », « ${pv.sous} » : un canvas (${pv.cvW}×${pv.cvH}), ${pv.v.calls} appels de dessin, ${pv.v.images} images`);
+    check(JSON.stringify(pv.v.q.postes) === JSON.stringify([[150, true], [90, true], [40, true], [12, false], [0, false], [0, false]]) && pv.v.q.paliers === 5 && JSON.stringify(pv.v.q.decos) === JSON.stringify(['graffiti', 'neon']), 'la scène montre SA Planque : ses postes et ses trois apprentis, ses cinq paliers, ses décos');
+    check(/Palier 5\/12/.test(pv.bas) && /de billets gagnés/.test(pv.bas) && /Équipe : 3 apprentis/.test(pv.bas) && /2 décos gagnées/.test(pv.bas) && /Retour/.test(pv.bas) && !pv.pb, `le résumé : « ${pv.bas} » ; pas de pourboire`);
+    check(!pv.ouvert && !pv.planque && !pv.scenePropre && pv.propre === le.propre, 'sa propre Planque est refermée (sa scène libérée), son état n’a pas bougé');
+    await capture(p7, 'planque-copain');
+    const im0 = (await p7.evaluate(() => window.__fournil.visite().images)); await sleep(500);
+    check((await p7.evaluate(() => window.__fournil.visite().images)) > im0, 'la scène continue de tourner');
+    await p7.evaluate(() => { window.__cvVisite = document.querySelector('#vi-vue canvas'); });
+    await p7.tap('#vi-bas [data-vi="retour"]'); await sleep(600);
+    const rv = await p7.evaluate(() => { const c = window.__cvVisite, gl = c.getContext('webgl2') || c.getContext('webgl'); return { v: window.__fournil.visite(), cl: !!document.querySelector('#feuille-contenu .cl-liste, #feuille-contenu .cl-squelette'), tab: (document.querySelector('#feuille [data-tab="quartier"]') || { getAttribute: () => '' }).getAttribute('aria-selected'), corps: document.body.classList.contains('visite'), cvs: document.querySelectorAll('#vi-vue canvas').length, attache: c.isConnected, perdu: !!gl && gl.isContextLost(), propre: JSON.stringify(window.__fournil.st.quartier.postes) }; });
+    check(!rv.v && rv.cl && rv.tab === 'true' && !rv.corps, '« Retour » ferme sa Planque et rouvre le classement de l’événement');
+    check(rv.cvs === 0 && !rv.attache && rv.perdu && rv.propre === le.propre, 'la mémoire est libérée : le canvas retiré, son contexte WebGL rendu (forceContextLoss) ; rien de sauvé chez soi');
+    // Tonton Jo n'a pas de photo, Petit Jo une photo sans e : la carte d'attente
+    await attendre(() => p7.evaluate(() => !!document.querySelector('#feuille [data-visite="Petit Jo"]')));
+    await p7.tap('#feuille [data-visite="Petit Jo"]');
+    await attendre(() => p7.evaluate(() => { const v = window.__fournil.visite(); return v && !v.charge; })); await sleep(300);
+    const sansE = await p7.evaluate(() => ({ v: window.__fournil.visite(), txt: document.querySelector('#vi-vue').innerText.replace(/\s+/g, ' '), carte: document.querySelector('#vi-vue').classList.contains('carte'), cv: document.querySelectorAll('#vi-vue canvas').length, pb: !!document.querySelector('[data-vi="pourboire"]') }));
+    check(!sansE.v.ev3 && sansE.carte && sansE.cv === 0 && /Sa Planque apparaîtra après sa prochaine partie\./.test(sansE.txt) && !sansE.pb, `sans e : « ${sansE.txt} »`);
+    await capture(p7, 'planque-pas-encore');
+    await p7.tap('#vi-bas [data-vi="retour"]'); await sleep(500);
+    // sans WebGL (SCENE.stats.webgl faux) : seulement le résumé
+    await p7.evaluate(() => { const S = window.__fournil.SCENE; window.__statsD = Object.getOwnPropertyDescriptor(S, 'stats'); Object.defineProperty(S, 'stats', { configurable: true, get: () => ({ webgl: false }) }); });
+    await attendre(() => p7.evaluate(() => !!document.querySelector('#feuille [data-visite="Mamie Jo"]')));
+    await p7.tap('#feuille [data-visite="Mamie Jo"]');
+    await attendre(() => p7.evaluate(() => { const v = window.__fournil.visite(); return v && !v.charge; })); await sleep(300);
+    const s3d = await p7.evaluate(() => ({ v: window.__fournil.visite(), txt: document.querySelector('#vi-vue').innerText.replace(/\s+/g, ' '), cv: document.querySelectorAll('#vi-vue canvas').length, bas: document.querySelector('#vi-bas').innerText.replace(/\s+/g, ' ') }));
+    check(!s3d.v.ev3 && s3d.cv === 0 && /La Planque de Mamie Jo/.test(s3d.txt) && /Palier 5\/12/.test(s3d.txt) && /Équipe : 3 apprentis/.test(s3d.txt) && s3d.bas === 'Retour', `sans WebGL : le résumé seul (« ${s3d.txt.slice(0, 90)}… »)`);
+    await capture(p7, 'planque-sans-3d');
+    await p7.tap('#vi-bas [data-vi="retour"]'); await sleep(300);
+    await p7.evaluate(() => { Object.defineProperty(window.__fournil.SCENE, 'stats', window.__statsD); });
+    await c7.close();
+    decalHeure = 0; faux.v6 = false;
   }
 
   // ─── l'artefact Claude : pas de config.js, le classement se cache ───

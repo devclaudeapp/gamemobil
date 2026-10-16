@@ -544,6 +544,66 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const b2 = CL.boutiqueDepuisPhoto({ q: 99, p: [], m: { four: 999 }, t: ['n-existe-pas'] }, { G, maintenant: T });
     check(b2 && b2.st.stations[0].niv === 1 && G.mobilierCran(b2.st, 'four') === 4 && G.tenueBoulanger(b2.st).tete.forme === 'toque' && G.quartier(b2.st) < G.QUARTIERS.length, 'une photo pauvre : une boutique de départ, crans plafonnés au maximum, tenue de base'); }
 
+  console.log('── la photo : les statistiques (x) et l’événement en cours (e) ──');
+  const Q = require('../src/quartier.js'), H = require('../src/hantee.js');
+  { const st = G.newState(T); st.nomBoutique = 'Chez Lucas'; st.etoiles = 42; st.boutiques = 3; st.stats.ventes = 123456; st.stats.serieMax = 9; st.lifetime = 98765432.1;
+    st.trophees = { premiere: T, cent: T, inconnu: T };
+    const q = Q.neuf(T); q.majeur = true; q.ouvertLe = T; q.postes[0].niv = 60; q.postes[0].staff = true; q.postes[1].niv = 12; q.decos = ['graffiti', 'neon']; q.paliers = [1, 2, 3, 4]; q.total = Q.PALIERS[3].total + 5;
+    const p = CL.photo(st, { G, ev: { id: 'quartier', q } });
+    check(p && egal(p.x, { e: 42, b: 3, v: 123456, tr: 2, s: 9, f: 98770000 }), `x : étoiles, boutique, ventes, trophées (connus seulement), série, fortune à 4 chiffres (${JSON.stringify(p && p.x)})`);
+    check(p && egal(p.e, { id: 'quartier', p: [[60, 1], [12, 0], [0, 0], [0, 0], [0, 0], [0, 0]], d: ['graffiti', 'neon'], pa: 4, t: Q.PALIERS[3].total + 5 }), `e : l’événement, ses six postes (niveau, apprenti), ses décos, ses paliers, son total (${JSON.stringify(p && p.e)})`);
+    check(!('e' in CL.photo(st, { G })) && !('e' in CL.photo(st, { G, ev: { id: 'n-importe', q } })), 'sans événement en cours (ou d’un id inconnu) : pas de champ e');
+    // le pire cas : 16 postes, toutes les décos, 12 coupes, un nom long, des compteurs énormes, un événement à 16 postes et 8 décos
+    const pire = G.newState(T); pire.nomBoutique = 'Ω'.repeat(400); while (pire.stations.length < 16) pire.stations.push({ niv: 0, staff: false, prog: 0, actif: false });
+    pire.stations.forEach((x) => { x.niv = 1e9; x.staff = true; }); for (const m of G.MOBILIER) pire.mobilier[m.id] = m.max; pire.chat = { nom: 'Ω'.repeat(40) }; pire.saison = { id: G.RECETTES_SAISON[0].id, niv: 3 };
+    pire.etoiles = 1e12; pire.boutiques = 1e9; pire.stats.ventes = 1e20; pire.stats.serieMax = 1e9; pire.lifetime = 1.23456789e300; for (const t of G.TROPHEES) pire.trophees[t.id] = T; pire.xp = 1e15;
+    const qp = Q.neuf(T); qp.postes = Array.from({ length: 30 }, () => ({ niv: 1e9, staff: true })); qp.decos = Q.DECOS.concat(H.DECOS, ['fantome', 'chauvesouris', 'lanternes']); qp.paliers = Array.from({ length: 40 }, (_, k) => k + 1); qp.total = 1e30;
+    const tous = { G, coupes: Array(40).fill('bronze'), badge: true, dq: Q.DECOS.concat(['a', 'b', 'c', 'd', 'e']), dh: H.DECOS.concat(['fantome', 'chauvesouris', 'lanternes', 'x', 'y']), ev: { id: 'quartier', q: qp } };
+    const pp = CL.photo(pire, tous), op = CL.octetsJson(pp);
+    check(pp && op <= 2048 && pp.p.length === 16 && pp.k.length === 12 && pp.e && pp.e.p.length === 16 && pp.e.d.length === 8 && pp.x.f === 1e30 && pp.x.v === 1e15, `le pire cas (16 postes, toutes les décos, 12 coupes, un nom long, un événement à 16 postes) : ${op} octets ≤ 2048, rien de retiré`);
+    console.log(`       (taille au pire cas : ${op} octets)`);
+    // le repli, éprouvé en abaissant la limite : le nom et les coupes d'abord, puis e.d, puis e, puis rien
+    const max0 = CL.PHOTO.max, taille = (o) => CL.octetsJson(o), s1 = taille(Object.assign({}, pp, { k: [], nom: pp.nom.slice(0, 12) })), e2 = Object.assign({}, pp.e); delete e2.d;
+    const s2 = taille(Object.assign({}, pp, { k: [], nom: pp.nom.slice(0, 12), e: e2 })), sansE = Object.assign({}, pp, { k: [], nom: pp.nom.slice(0, 12) }); delete sansE.e; const s3 = taille(sansE);
+    try {
+      CL.PHOTO.max = op - 1; const r1 = CL.photo(pire, tous);
+      CL.PHOTO.max = s1 - 1; const r2 = CL.photo(pire, tous);
+      CL.PHOTO.max = s2 - 1; const r3 = CL.photo(pire, tous);
+      CL.PHOTO.max = s3 - 1; const r4 = CL.photo(pire, tous);
+      check(r1 && r1.k.length === 0 && r1.nom.length === 12 && r1.e && r1.e.d.length === 8 && r2 && r2.e && !('d' in r2.e) && r2.e.p.length === 16 && r3 && !('e' in r3) && r3.x && r4 === null,
+        `trop grosse : d’abord le nom et les coupes (${s1} octets), puis les décos de l’événement (${s2}), puis l’événement (${s3}), puis plus de photo`);
+    } finally { CL.PHOTO.max = max0; }
+    // relue du réseau : x et e bornés et nettoyés
+    const brute = { v: 1, nom: 'A', q: 0, p: [], m: {}, t: [], dq: [], dh: [], g: 1, k: [], o: 0,
+      x: { e: -5, b: 'trois', v: 1e40, tr: 1e6, s: '<b>', f: -1, z: 'intrus' }, e: { id: 'quartier', p: [[-3, 'oui'], 'x', { niv: 5, staff: 1 }, ...Array(40).fill([2e9, 1])], d: ['graffiti', 'A B', '<script>', 'neon', 'graffiti', ...Array(20).fill(0).map((_, k) => 'd' + k)], pa: 1e9, t: -8, a: { x: 1 } } };
+    const n1 = CL.nettoyerPhoto(brute);
+    check(n1 && egal(n1.x, { e: 0, b: 1, v: 1e15, tr: 999, s: 0, f: 0 }), `x relu : nombres bornés, types faux ramenés au minimum, champ inconnu écarté (${JSON.stringify(n1 && n1.x)})`);
+    check(n1 && n1.e && n1.e.id === 'quartier' && n1.e.p.length === 16 && egal(n1.e.p.slice(0, 4), [[0, 1], [0, 0], [0, 0], [1e6, 1]]) && egal(n1.e.d.slice(0, 3), ['graffiti', 'neon', 'd0']) && n1.e.d.length === 8 && n1.e.pa === 99 && n1.e.t === 0 && !('a' in n1.e),
+      `e relu : 16 postes au plus, niveaux bornés (un poste qui n’est pas une paire : [0, 0]), 8 décos valides au plus (sans doublon ni balise), paliers et total bornés (${JSON.stringify(n1 && n1.e).slice(0, 120)}…)`);
+    check(!('e' in CL.nettoyerPhoto(Object.assign({}, brute, { e: { id: 'casino', p: [] } }))) && !('e' in CL.nettoyerPhoto(Object.assign({}, brute, { e: [1, 2] }))) && !('e' in CL.nettoyerPhoto(Object.assign({}, brute, { e: 'quartier' }))) && !('x' in CL.nettoyerPhoto(Object.assign({}, brute, { x: [1, 2] }))),
+      'un id d’événement inconnu, un e ou un x d’un mauvais type : écartés');
+    check(CL.nettoyerPhoto(Object.assign({}, brute, { e: { id: 'quartier', p: Array(3000).fill([1, 1]) } })) === null, 'une photo gonflée par e (plus de 4 Ko) : écartée tout entière');
+    // une vieille photo (d'avant x et e) : toujours acceptée
+    const vieille = { v: 1, nom: 'Chez Lucas', q: 2, p: [[40, 1, 2]], m: { four: 3 }, t: ['or-toque', null, null, null], c: null, g: 12 };
+    const nv = CL.nettoyerPhoto(vieille), bv = CL.boutiqueDepuisPhoto(vieille, { G, maintenant: T });
+    check(nv && !('x' in nv) && !('e' in nv) && nv.m.four === 3 && bv && bv.stats === null && bv.nom === 'Chez Lucas' && CL.evenementDepuisPhoto(vieille, { R: Q, id: 'quartier', maintenant: T }) === null, 'une vieille photo sans x ni e : acceptée, sa boutique se rebâtit, pas de statistiques ni de Planque');
+    check(egal(CL.boutiqueDepuisPhoto(p, { G, maintenant: T }).stats, p.x), 'la boutique rebâtie porte ses statistiques (pour la fiche « Tous les temps »)');
+    // la Planque rebâtie depuis e
+    const r = CL.evenementDepuisPhoto(p, { R: Q, id: 'quartier', maintenant: T });
+    check(r && r.id === 'quartier' && r.q.postes.length === Q.PRODUITS.length && r.q.postes[0].niv === 60 && r.q.postes[0].staff && r.q.postes[1].niv === 12 && !r.q.postes[1].staff && egal(r.q.decos, ['graffiti', 'neon']) && egal(r.q.paliers, [1, 2, 3, 4]) && r.q.total === Q.PALIERS[3].total + 5 && r.q.billets === 0 && r.equipe === 1 && r.postes === 2 && r.q.visite && Q.paliersAtteints(r.q).length === 4,
+      'la Planque rebâtie (QUARTIER.neuf + e) : ses postes et son équipe, ses décos, ses paliers, son total ; rien en poche');
+    check(Q.tauxParSeconde(r.q) > 0 && Q.etat({ quartier: r.q }, T) === r.q, 'l’état rebâti est un état valide des règles (taux, etat() le garde tel quel)');
+    const ph = CL.photo(st, { G, ev: { id: 'hantee', q: Object.assign(H.neuf(T), { decos: ['citrouilles', 'graffiti'], total: 777, paliers: [1] }) } });
+    const rh = CL.evenementDepuisPhoto(ph, { R: H, id: 'hantee', maintenant: T });
+    check(rh && rh.q.postes.length === H.PRODUITS.length && egal(rh.q.decos, ['citrouilles']) && rh.q.total === 777 && rh.paliers === 1 && CL.evenementDepuisPhoto(ph, { R: Q, id: 'quartier', maintenant: T }) === null,
+      'le Manoir rebâti (HANTEE) : seules ses décos connues restent ; demandé depuis l’onglet du Quartier, rien');
+    const pauvre = CL.evenementDepuisPhoto({ e: { id: 'quartier', p: [], d: [], pa: 0, t: 0 } }, { R: Q, id: 'quartier', maintenant: T });
+    check(pauvre && pauvre.q.postes[0].niv === 1 && pauvre.equipe === 0, 'un e vide : une Planque de départ (le premier produit ouvert)');
+    // la clé de comparaison : les compteurs qui bougent à chaque fournée n'y sont pas
+    const p2 = CL.photo(Object.assign(st, { lifetime: st.lifetime * 2 }), { G, ev: { id: 'quartier', q: Object.assign(q, { total: q.total + 999 }) } }); st.stats.ventes += 500; const p3 = CL.photo(st, { G, ev: { id: 'quartier', q } });
+    check(CL.clePhoto(p) === CL.clePhoto(p2) && CL.clePhoto(p2) === CL.clePhoto(p3) && JSON.stringify(p) !== JSON.stringify(p3), 'la clé de la photo ignore ventes, fortune et total de l’événement');
+    q.postes[2].niv = 1; check(CL.clePhoto(CL.photo(st, { G, ev: { id: 'quartier', q } })) !== CL.clePhoto(p3), 'un poste de la Planque ouvert : la clé change'); }
+
   console.log('── les copains (contrat v6) : le moteur ──');
   const ID6 = '0b9a3e4c-1d2e-4f50-8a6b-7c8d9e0f1a2b', JET6 = 'c'.repeat(64);
   const inscrit = () => { const s = memoire(); CL.ecrireEtat(s, Object.assign(CL.etatNeuf(), { id: ID6, jeton: JET6, pseudo: 'Léa', rejoint: true })); return s; };
@@ -583,6 +643,17 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     check(sv.photos === 2 && r.appels[r.appels.length - 1].corps.p_photo.m.four === 1, 'le four amélioré : la nouvelle photo part (10 min après la précédente)');
     horloge += 7 * 3600e3; fortune += 1; await m.envoyer('periodique');
     check(sv.photos === 3, '7 h plus tard, même inchangée : elle repart (le serveur l’a peut-être perdue)'); }
+  { // la mise à jour : la photo d'avant (sans x ni e) est gardée sur le téléphone ; la nouvelle part une fois, dans les 10 min, puis plus souvent qu'avant
+    horloge = T; const sv = serveur6(), r = faux(sv.gerer), s0 = inscrit(), vieux = CL.photo(etat0, { G }); delete vieux.x;
+    CL.ecrireEtat(s0, Object.assign(CL.lireEtat(s0), { photoQuand: T - 4 * 60e3, photoCle: JSON.stringify(vieux) })); // envoyée il y a 4 min par l'ancienne version
+    const sx = G.newState(T), m = moteur(r, { stockage: s0, photo: () => CL.photo(sx, { G }), points: () => ({ points: 3, lundi: '2026-10-05' }) });
+    await m.envoyer('lancement'); check(sv.photos === 0, 'juste après la mise à jour, la dernière photo a 4 min : elle attend');
+    horloge += 6 * 60e3; fortune += 1; await m.envoyer('periodique'); const der = r.appels.filter((a) => a.url.endsWith('/fournil_publier')).pop();
+    check(sv.photos === 1 && der.corps.p_photo.x && der.corps.p_photo.x.v === 0, '10 min après la précédente : la photo avec x part (une fois)');
+    for (let k = 0; k < 6; k++) { sx.stats.ventes += 1000; sx.lifetime += 5e4; horloge += 11 * 60e3; fortune += 1; await m.envoyer('periodique'); }
+    check(sv.photos === 1, 'pendant une heure, seules les ventes et la fortune bougent : pas de nouvelle photo (pas plus souvent qu’avant)');
+    sx.etoiles += 1; horloge += 11 * 60e3; fortune += 1; await m.envoyer('periodique');
+    check(sv.photos === 2 && r.appels.filter((a) => a.url.endsWith('/fournil_publier')).pop().corps.p_photo.x.v === 6000, 'une étoile de plus : la photo repart, avec les ventes du moment'); }
   { // un serveur encore en version 5 : p_photo inconnu → le même envoi refait sans elle, puis plus jamais de photo ; les boutons des copains se cachent
     horloge = T; const sv = serveur6({ v5: true }), r = faux(sv.gerer), m = moteur(r, { stockage: inscrit(), photo: () => CL.photo(etat0, { G }), points: () => ({ points: 3, lundi: '2026-10-05' }) });
     check(m.copains(), 'version pas encore connue : les copains sont proposés');

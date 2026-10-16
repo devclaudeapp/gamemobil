@@ -1175,6 +1175,19 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .vi-bas .btn.large.sombre { min-height: 48px; }
 .vi-bas .btn[aria-disabled="true"] { box-shadow: none; transform: translateY(4px); }
 .vi-note { margin: 0; font-size: 14px; text-align: center; color: var(--texte-2); }
+/* la Planque (ou le Manoir) d'un copain : la scène de l'événement sur son propre canvas, le résumé au-dessus du retour */
+.vi-vue.vi-ev { display: grid; place-items: center; background: #2E2B3A; }
+.vi-canvas { display: block; width: calc(100% - 20px); height: clamp(220px, 44vh, 380px); border-radius: 22px; background: #3A3642; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); } /* le cadrage de l'écran de l'événement, en plus grand */
+.vi-resume { margin: 0; font-size: 14px; line-height: 1.35; text-align: center; color: var(--texte-2); }
+.vi-resume b { color: var(--texte); font-family: var(--titre); }
+.ht-carte .pic { background: #EDE4FF; }
+/* la fiche d'un copain (« Tous les temps ») : sa ligne du classement en trois cases, sa boulangerie, ses records */
+.fi-cases .pts-case { grid-column: span 2; }
+.fi-cases .pts-case b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fi-cases .pts-case small { white-space: normal; }
+.fi-podium { display: flex; align-items: center; gap: 8px; margin: 10px 2px 0; font-size: 13px; font-weight: 700; color: var(--texte-2); }
+.fi-carte { margin-top: 2px; }
+.fi-attente { margin: 12px 8px 0; }
 body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidden; }
 /* la carte de l'objectif commun, en tête de la feuille du classement */
 .obj-carte { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 12px; padding: 12px 14px; border-radius: var(--r-carte); background: var(--lavande-clair); }

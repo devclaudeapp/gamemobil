@@ -304,16 +304,29 @@
   //     p: [[niveau, apprenti 0/1, grade 1-5], …] (les postes, dans l'ordre de GAME.PRODUITS), m: { tables, four, vitrine, caisse, froid, deco } (crans),
   //     t: [tête, haut, pieds, accessoire] (la tenue portée, ids de la garde-robe), c: { n: nom, p: 'roux' | 'noir' } | null (le chat),
   //     dq / dh: les décos gagnées au Quartier et à la Maison hantée, g: le niveau du boulanger (son grade), k: les coupes de la vitrine (métaux),
-  //     o: 1 si le badge « Esprit d'équipe » (objectif commun réussi) est gagné }.
-  // Celle d'un autre joueur vient du réseau : relue champ par champ (nettoyerPhoto), jamais crue.
+  //     o: 1 si le badge « Esprit d'équipe » (objectif commun réussi) est gagné,
+  //     x (optionnel, absent chez les vieux téléphones) : ses statistiques pour la fiche « Tous les temps » { e: étoiles, b: numéro de boutique,
+  //       v: fournées vendues, tr: trophées obtenus, s: meilleure série de jours, f: fortune de toujours (st.lifetime, 4 chiffres, pour l'affichage) },
+  //     e (optionnel) : l'événement EN COURS, s'il y est entré, pour la visite de sa Planque (ou de son Manoir) { id: 'quartier' | 'hantee',
+  //       p: [[niveau, apprenti 0/1], …] (ses postes), d: les décos gagnées, pa: les paliers atteints, t: le total gagné (billets, bonbons) } }.
+  // Trop grosse : le nom raccourci et les coupes retirées (comme avant), puis e.d, puis e. Le serveur la garde telle quelle (≤ 3 Ko) : x et e
+  // n'ont demandé aucun changement du SQL. Celle d'un autre joueur vient du réseau : relue champ par champ (nettoyerPhoto), jamais crue.
   const PHOTO = { max: 2048, ecart: 10 * 60e3, refaire: 6 * 3600e3 };
+  const EV_PHOTO = ['quartier', ...EVTS]; // les événements qu'une photo peut montrer (les périodes du classement à part)
   const ID_OK = /^[a-z0-9][a-z0-9-]{0,39}$/, PIECES = ['tete', 'haut', 'pieds', 'accessoire'];
   const borne = (v, min, max) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : min; };
   const texteCourt = (s, n) => Array.from(normaliserPseudo(s).replace(/[<>\u0000-\u001f\u007f]/g, '')).slice(0, n).join('');
   const idsOk = (l, n) => (Array.isArray(l) ? [...new Set(l.filter((x) => typeof x === 'string' && ID_OK.test(x)))].slice(0, n) : []);
   const octetsJson = (o) => { const j = JSON.stringify(o); try { return new TextEncoder().encode(j).length; } catch (e) { return unescape(encodeURIComponent(j)).length; } };
   const leJeu = (G) => G || (typeof GAME !== 'undefined' ? GAME : null);
-  // la photo de SA boutique ; o : { G (GAME), coupes: ['or', …], badge, dq, dh (les décos gagnées, sinon lues dans st) }
+  const fortune4 = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.min(1e30, Number(n.toPrecision(4))) : 0; }; // 4 chiffres suffisent à l'affichage
+  // l'événement d'une photo, borné champ par champ : ses postes, ses décos, ses paliers, son total ; null si l'id n'est pas celui d'un événement connu
+  function evPhoto(e) {
+    if (!e || typeof e !== 'object' || Array.isArray(e) || !EV_PHOTO.includes(e.id)) return null;
+    return { id: e.id, p: (Array.isArray(e.p) ? e.p.slice(0, 16) : []).map((x) => (Array.isArray(x) ? [borne(x[0], 0, 1e6), x[1] ? 1 : 0] : [0, 0])), d: idsOk(e.d, 8), pa: borne(e.pa, 0, 99), t: borne(e.t, 0, 1e18) };
+  }
+  // la photo de SA boutique ; o : { G (GAME), coupes: ['or', …], badge, dq, dh (les décos gagnées, sinon lues dans st),
+  //   ev: { id, q } (l'événement en cours et son état st[id], seulement s'il y est entré : l'interface en décide) }
   function photo(st, o) {
     o = o || {}; const G = leJeu(o.G);
     if (!st || typeof st !== 'object' || !G || !Array.isArray(st.stations)) return null;
@@ -321,14 +334,20 @@
       const eq = G.garderobe(st).equipe, hd = o.dh || (st.hantee && st.hantee.decos);
       const p = {
         v: 1, nom: texteCourt(st.nomBoutique || '', 30), q: G.quartier(st), s: st.saison && st.saison.niv > 0 && ID_OK.test(String(st.saison.id)) ? st.saison.id : null,
-        p: st.stations.slice(0, 16).map((s, i) => [borne(s.niv, 0, 1e6), s.staff ? 1 : 0, G.gradeApprenti(st, i)]),
+        p: st.stations.slice(0, 16).map((s, i) => [borne(s.niv, 0, 1e6), s.staff ? 1 : 0, G.PRODUITS[i] ? G.gradeApprenti(st, i) : 1]),
         m: {}, t: PIECES.map((k) => (typeof eq[k] === 'string' && ID_OK.test(eq[k]) ? eq[k] : null)),
         c: st.chat ? { n: texteCourt(st.chat.nom, 16), p: G.pelageChat(st, false) === 'noir' ? 'noir' : 'roux' } : null,
         dq: idsOk(o.dq || (st.quartier && st.quartier.decos), 8), dh: idsOk(hd, 8), g: borne(G.niveau(st), 1, 9999),
         k: (Array.isArray(o.coupes) ? o.coupes : []).filter((m) => METAUX.includes(m)).slice(-12), o: o.badge ? 1 : 0,
       };
       for (const m of G.MOBILIER) p.m[m.id] = borne(G.mobilierCran(st, m.id), 0, 20);
-      if (octetsJson(p) > PHOTO.max) { p.k = []; p.nom = p.nom.slice(0, 12); }
+      const S = st.stats || {}, tr = st.trophees && typeof st.trophees === 'object' ? (Array.isArray(G.TROPHEES) ? G.TROPHEES.filter((t) => st.trophees[t.id]).length : Object.keys(st.trophees).length) : 0;
+      p.x = { e: borne(st.etoiles, 0, 1e9), b: borne(st.boutiques, 1, 1e6), v: borne(S.ventes, 0, 1e15), tr: borne(tr, 0, 999), s: borne(S.serieMax, 0, 99999), f: fortune4(st.lifetime) };
+      const q = o.ev && o.ev.q, e = q && Array.isArray(q.postes) ? evPhoto({ id: o.ev.id, p: q.postes.slice(0, 16).map((s) => [s && s.niv, s && s.staff]), d: q.decos, pa: Array.isArray(q.paliers) ? q.paliers.length : 0, t: q.total }) : null;
+      if (e) p.e = e;
+      if (octetsJson(p) > PHOTO.max) { p.k = []; p.nom = p.nom.slice(0, 12); } // trop grosse : d'abord le repli d'avant,
+      if (octetsJson(p) > PHOTO.max && p.e) delete p.e.d; // puis les décos de l'événement,
+      if (octetsJson(p) > PHOTO.max) delete p.e; // puis l'événement
       return octetsJson(p) <= PHOTO.max ? p : null;
     } catch (e) { return null; }
   }
@@ -341,7 +360,35 @@
       dq: idsOk(p.dq, 8), dh: idsOk(p.dh, 8), g: borne(p.g, 1, 9999), k: (Array.isArray(p.k) ? p.k : []).filter((m) => METAUX.includes(m)).slice(-12), o: p.o ? 1 : 0 };
     if (p.m && typeof p.m === 'object' && !Array.isArray(p.m)) for (const k of Object.keys(p.m).slice(0, 12)) if (ID_OK.test(k)) o.m[k] = borne(p.m[k], 0, 20);
     if (p.c && typeof p.c === 'object') o.c = { n: texteCourt(p.c.n == null ? '' : p.c.n, 16), p: p.c.p === 'noir' ? 'noir' : 'roux' };
+    const x = p.x; // ses statistiques (absentes d'une photo d'avant la fiche « Tous les temps »)
+    if (x && typeof x === 'object' && !Array.isArray(x)) o.x = { e: borne(x.e, 0, 1e9), b: borne(x.b, 1, 1e6), v: borne(x.v, 0, 1e15), tr: borne(x.tr, 0, 999), s: borne(x.s, 0, 99999), f: fortune4(x.f) };
+    const e = evPhoto(p.e); if (e) o.e = e; // l'événement en cours (absent, ou d'un id inconnu : pas de Planque à visiter)
     return o;
+  }
+  // la clé qui dit si la photo a changé (photoAEnvoyer) : sans les compteurs qui bougent à chaque fournée (x.v les ventes, x.f la fortune,
+  // e.t le total de l'événement). Ils partent avec le reste quand autre chose change, ou au plus tard au renvoi des 6 h (PHOTO.refaire) :
+  // la photo ne part pas plus souvent qu'avant x et e. Après la mise à jour, la clé change une fois (x apparaît) : la photo repart, une fois.
+  function clePhoto(p) {
+    if (!p || typeof p !== 'object') return '';
+    const c = Object.assign({}, p);
+    if (c.x && typeof c.x === 'object') { c.x = Object.assign({}, c.x); delete c.x.v; delete c.x.f; }
+    if (c.e && typeof c.e === 'object') { c.e = Object.assign({}, c.e); delete c.e.t; }
+    return JSON.stringify(c);
+  }
+  // la Planque (ou le Manoir) d'un copain, reconstruite pour la scène de l'événement depuis sa photo : un état neuf des règles (R.neuf)
+  // habillé de ses postes, de ses décos, de ses paliers et de son total. Rien n'est sauvé ni ne tourne (pas de tick) : la scène le lit, il est
+  // jeté au retour. o : { R (QUARTIER ou HANTEE), id (l'onglet : l'événement attendu), maintenant } ; null sans e, ou d'un autre événement.
+  function evenementDepuisPhoto(ph, o) {
+    o = o || {}; const p = nettoyerPhoto(ph), e = p && p.e, R = o.R;
+    if (!e || !R || typeof R.neuf !== 'function' || (o.id && e.id !== o.id)) return null;
+    const now = Number.isFinite(o.maintenant) ? o.maintenant : Date.now(), q = R.neuf(now);
+    q.postes.forEach((s, i) => { const x = e.p[i]; s.niv = x ? x[0] : i === 0 ? 1 : 0; s.staff = !!(x && x[1] && s.niv > 0); s.prog = 0; s.actif = false; });
+    if (!q.postes.some((s) => s.niv > 0)) q.postes[0].niv = 1;
+    const P = Array.isArray(R.PALIERS) ? R.PALIERS : [];
+    q.decos = Array.isArray(R.DECOS) ? e.d.filter((d) => R.DECOS.includes(d)) : e.d.slice();
+    q.paliers = P.slice(0, e.pa).map((x) => x.n); q.total = e.t; q.billets = 0;
+    q.visite = true; q.majeur = true; q.annonce = true; q.ouvertLe = now; q.evTimer = 1e9; // rien ne surgit dans la Planque d'un autre
+    return { q, id: e.id, paliers: Math.min(e.pa, P.length || e.pa), total: e.t, decos: q.decos.slice(), equipe: q.postes.filter((s) => s.staff).length, postes: q.postes.filter((s) => s.niv > 0).length };
   }
   // la boutique d'un copain, reconstruite pour la scène : un état neuf (GAME.newState) habillé des champs de la photo, marqué st.visite.
   // Rien n'est sauvé : la scène le lit, la simulation des clients y passe, il est jeté au retour. o : { G, maintenant }
@@ -363,7 +410,7 @@
     let xp = 0; for (let n = 1; n < Math.min(p.g, 400); n++) xp += G.XP_NIVEAU(n); st.xp = xp;
     st.evTimer = 1e9; st.mystereTimer = 1e9; st.chatAttente = null; // rien ne surgit dans la boutique d'un autre
     const q = G.QUARTIERS[G.quartier(st)];
-    return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o };
+    return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o, stats: p.x || null };
   }
   // la réponse de fournil_boutique(pseudo)
   function nettoyerBoutique(d) {
@@ -536,7 +583,8 @@
       if (recente && depuis < PHOTO.ecart) return null;
       let p = null; try { p = E.photo(); } catch (e) { p = null; }
       if (!p || typeof p !== 'object') return null;
-      const cle = JSON.stringify(p); if (cle.length > PHOTO.max * 2) return null;
+      if (JSON.stringify(p).length > PHOTO.max * 2) return null;
+      const cle = clePhoto(p); // sans les compteurs qui bougent à chaque fournée (voir clePhoto)
       if (recente && cle === etat.photoCle && depuis < PHOTO.refaire) return null;
       return { p, cle };
     }
@@ -1013,5 +1061,5 @@
   return { CLE, REGLES, PERIODES, EVTS, ongletsEvenements, nettoyerEvenements, PSEUDO_MIN, PSEUDO_MAX, lundiParis, decalageParis, dateCourte, normaliserPseudo, verifierPseudo, messagePseudo, rangTexte, rangPhrase, boulangers,
     etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur,
     METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce,
-    PHOTO, photo, nettoyerPhoto, boutiqueDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson };
+    PHOTO, EV_PHOTO, photo, nettoyerPhoto, clePhoto, boutiqueDepuisPhoto, evenementDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson };
 });

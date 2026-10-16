@@ -1180,6 +1180,19 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .vi-bas .btn.large.sombre { min-height: 48px; }
 .vi-bas .btn[aria-disabled="true"] { box-shadow: none; transform: translateY(4px); }
 .vi-note { margin: 0; font-size: 14px; text-align: center; color: var(--texte-2); }
+/* la Planque (ou le Manoir) d'un copain : la scène de l'événement sur son propre canvas, le résumé au-dessus du retour */
+.vi-vue.vi-ev { display: grid; place-items: center; background: #2E2B3A; }
+.vi-canvas { display: block; width: calc(100% - 20px); height: clamp(220px, 44vh, 380px); border-radius: 22px; background: #3A3642; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); } /* le cadrage de l'écran de l'événement, en plus grand */
+.vi-resume { margin: 0; font-size: 14px; line-height: 1.35; text-align: center; color: var(--texte-2); }
+.vi-resume b { color: var(--texte); font-family: var(--titre); }
+.ht-carte .pic { background: #EDE4FF; }
+/* la fiche d'un copain (« Tous les temps ») : sa ligne du classement en trois cases, sa boulangerie, ses records */
+.fi-cases .pts-case { grid-column: span 2; }
+.fi-cases .pts-case b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fi-cases .pts-case small { white-space: normal; }
+.fi-podium { display: flex; align-items: center; gap: 8px; margin: 10px 2px 0; font-size: 13px; font-weight: 700; color: var(--texte-2); }
+.fi-carte { margin-top: 2px; }
+.fi-attente { margin: 12px 8px 0; }
 body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidden; }
 /* la carte de l'objectif commun, en tête de la feuille du classement */
 .obj-carte { display: flex; gap: 12px; align-items: flex-start; margin: 0 0 12px; padding: 12px 14px; border-radius: var(--r-carte); background: var(--lavande-clair); }
@@ -3155,16 +3168,29 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   //     p: [[niveau, apprenti 0/1, grade 1-5], …] (les postes, dans l'ordre de GAME.PRODUITS), m: { tables, four, vitrine, caisse, froid, deco } (crans),
   //     t: [tête, haut, pieds, accessoire] (la tenue portée, ids de la garde-robe), c: { n: nom, p: 'roux' | 'noir' } | null (le chat),
   //     dq / dh: les décos gagnées au Quartier et à la Maison hantée, g: le niveau du boulanger (son grade), k: les coupes de la vitrine (métaux),
-  //     o: 1 si le badge « Esprit d'équipe » (objectif commun réussi) est gagné }.
-  // Celle d'un autre joueur vient du réseau : relue champ par champ (nettoyerPhoto), jamais crue.
+  //     o: 1 si le badge « Esprit d'équipe » (objectif commun réussi) est gagné,
+  //     x (optionnel, absent chez les vieux téléphones) : ses statistiques pour la fiche « Tous les temps » { e: étoiles, b: numéro de boutique,
+  //       v: fournées vendues, tr: trophées obtenus, s: meilleure série de jours, f: fortune de toujours (st.lifetime, 4 chiffres, pour l'affichage) },
+  //     e (optionnel) : l'événement EN COURS, s'il y est entré, pour la visite de sa Planque (ou de son Manoir) { id: 'quartier' | 'hantee',
+  //       p: [[niveau, apprenti 0/1], …] (ses postes), d: les décos gagnées, pa: les paliers atteints, t: le total gagné (billets, bonbons) } }.
+  // Trop grosse : le nom raccourci et les coupes retirées (comme avant), puis e.d, puis e. Le serveur la garde telle quelle (≤ 3 Ko) : x et e
+  // n'ont demandé aucun changement du SQL. Celle d'un autre joueur vient du réseau : relue champ par champ (nettoyerPhoto), jamais crue.
   const PHOTO = { max: 2048, ecart: 10 * 60e3, refaire: 6 * 3600e3 };
+  const EV_PHOTO = ['quartier', ...EVTS]; // les événements qu'une photo peut montrer (les périodes du classement à part)
   const ID_OK = /^[a-z0-9][a-z0-9-]{0,39}$/, PIECES = ['tete', 'haut', 'pieds', 'accessoire'];
   const borne = (v, min, max) => { const n = Math.floor(Number(v)); return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : min; };
   const texteCourt = (s, n) => Array.from(normaliserPseudo(s).replace(/[<>\u0000-\u001f\u007f]/g, '')).slice(0, n).join('');
   const idsOk = (l, n) => (Array.isArray(l) ? [...new Set(l.filter((x) => typeof x === 'string' && ID_OK.test(x)))].slice(0, n) : []);
   const octetsJson = (o) => { const j = JSON.stringify(o); try { return new TextEncoder().encode(j).length; } catch (e) { return unescape(encodeURIComponent(j)).length; } };
   const leJeu = (G) => G || (typeof GAME !== 'undefined' ? GAME : null);
-  // la photo de SA boutique ; o : { G (GAME), coupes: ['or', …], badge, dq, dh (les décos gagnées, sinon lues dans st) }
+  const fortune4 = (v) => { const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.min(1e30, Number(n.toPrecision(4))) : 0; }; // 4 chiffres suffisent à l'affichage
+  // l'événement d'une photo, borné champ par champ : ses postes, ses décos, ses paliers, son total ; null si l'id n'est pas celui d'un événement connu
+  function evPhoto(e) {
+    if (!e || typeof e !== 'object' || Array.isArray(e) || !EV_PHOTO.includes(e.id)) return null;
+    return { id: e.id, p: (Array.isArray(e.p) ? e.p.slice(0, 16) : []).map((x) => (Array.isArray(x) ? [borne(x[0], 0, 1e6), x[1] ? 1 : 0] : [0, 0])), d: idsOk(e.d, 8), pa: borne(e.pa, 0, 99), t: borne(e.t, 0, 1e18) };
+  }
+  // la photo de SA boutique ; o : { G (GAME), coupes: ['or', …], badge, dq, dh (les décos gagnées, sinon lues dans st),
+  //   ev: { id, q } (l'événement en cours et son état st[id], seulement s'il y est entré : l'interface en décide) }
   function photo(st, o) {
     o = o || {}; const G = leJeu(o.G);
     if (!st || typeof st !== 'object' || !G || !Array.isArray(st.stations)) return null;
@@ -3172,14 +3198,20 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       const eq = G.garderobe(st).equipe, hd = o.dh || (st.hantee && st.hantee.decos);
       const p = {
         v: 1, nom: texteCourt(st.nomBoutique || '', 30), q: G.quartier(st), s: st.saison && st.saison.niv > 0 && ID_OK.test(String(st.saison.id)) ? st.saison.id : null,
-        p: st.stations.slice(0, 16).map((s, i) => [borne(s.niv, 0, 1e6), s.staff ? 1 : 0, G.gradeApprenti(st, i)]),
+        p: st.stations.slice(0, 16).map((s, i) => [borne(s.niv, 0, 1e6), s.staff ? 1 : 0, G.PRODUITS[i] ? G.gradeApprenti(st, i) : 1]),
         m: {}, t: PIECES.map((k) => (typeof eq[k] === 'string' && ID_OK.test(eq[k]) ? eq[k] : null)),
         c: st.chat ? { n: texteCourt(st.chat.nom, 16), p: G.pelageChat(st, false) === 'noir' ? 'noir' : 'roux' } : null,
         dq: idsOk(o.dq || (st.quartier && st.quartier.decos), 8), dh: idsOk(hd, 8), g: borne(G.niveau(st), 1, 9999),
         k: (Array.isArray(o.coupes) ? o.coupes : []).filter((m) => METAUX.includes(m)).slice(-12), o: o.badge ? 1 : 0,
       };
       for (const m of G.MOBILIER) p.m[m.id] = borne(G.mobilierCran(st, m.id), 0, 20);
-      if (octetsJson(p) > PHOTO.max) { p.k = []; p.nom = p.nom.slice(0, 12); }
+      const S = st.stats || {}, tr = st.trophees && typeof st.trophees === 'object' ? (Array.isArray(G.TROPHEES) ? G.TROPHEES.filter((t) => st.trophees[t.id]).length : Object.keys(st.trophees).length) : 0;
+      p.x = { e: borne(st.etoiles, 0, 1e9), b: borne(st.boutiques, 1, 1e6), v: borne(S.ventes, 0, 1e15), tr: borne(tr, 0, 999), s: borne(S.serieMax, 0, 99999), f: fortune4(st.lifetime) };
+      const q = o.ev && o.ev.q, e = q && Array.isArray(q.postes) ? evPhoto({ id: o.ev.id, p: q.postes.slice(0, 16).map((s) => [s && s.niv, s && s.staff]), d: q.decos, pa: Array.isArray(q.paliers) ? q.paliers.length : 0, t: q.total }) : null;
+      if (e) p.e = e;
+      if (octetsJson(p) > PHOTO.max) { p.k = []; p.nom = p.nom.slice(0, 12); } // trop grosse : d'abord le repli d'avant,
+      if (octetsJson(p) > PHOTO.max && p.e) delete p.e.d; // puis les décos de l'événement,
+      if (octetsJson(p) > PHOTO.max) delete p.e; // puis l'événement
       return octetsJson(p) <= PHOTO.max ? p : null;
     } catch (e) { return null; }
   }
@@ -3192,7 +3224,35 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       dq: idsOk(p.dq, 8), dh: idsOk(p.dh, 8), g: borne(p.g, 1, 9999), k: (Array.isArray(p.k) ? p.k : []).filter((m) => METAUX.includes(m)).slice(-12), o: p.o ? 1 : 0 };
     if (p.m && typeof p.m === 'object' && !Array.isArray(p.m)) for (const k of Object.keys(p.m).slice(0, 12)) if (ID_OK.test(k)) o.m[k] = borne(p.m[k], 0, 20);
     if (p.c && typeof p.c === 'object') o.c = { n: texteCourt(p.c.n == null ? '' : p.c.n, 16), p: p.c.p === 'noir' ? 'noir' : 'roux' };
+    const x = p.x; // ses statistiques (absentes d'une photo d'avant la fiche « Tous les temps »)
+    if (x && typeof x === 'object' && !Array.isArray(x)) o.x = { e: borne(x.e, 0, 1e9), b: borne(x.b, 1, 1e6), v: borne(x.v, 0, 1e15), tr: borne(x.tr, 0, 999), s: borne(x.s, 0, 99999), f: fortune4(x.f) };
+    const e = evPhoto(p.e); if (e) o.e = e; // l'événement en cours (absent, ou d'un id inconnu : pas de Planque à visiter)
     return o;
+  }
+  // la clé qui dit si la photo a changé (photoAEnvoyer) : sans les compteurs qui bougent à chaque fournée (x.v les ventes, x.f la fortune,
+  // e.t le total de l'événement). Ils partent avec le reste quand autre chose change, ou au plus tard au renvoi des 6 h (PHOTO.refaire) :
+  // la photo ne part pas plus souvent qu'avant x et e. Après la mise à jour, la clé change une fois (x apparaît) : la photo repart, une fois.
+  function clePhoto(p) {
+    if (!p || typeof p !== 'object') return '';
+    const c = Object.assign({}, p);
+    if (c.x && typeof c.x === 'object') { c.x = Object.assign({}, c.x); delete c.x.v; delete c.x.f; }
+    if (c.e && typeof c.e === 'object') { c.e = Object.assign({}, c.e); delete c.e.t; }
+    return JSON.stringify(c);
+  }
+  // la Planque (ou le Manoir) d'un copain, reconstruite pour la scène de l'événement depuis sa photo : un état neuf des règles (R.neuf)
+  // habillé de ses postes, de ses décos, de ses paliers et de son total. Rien n'est sauvé ni ne tourne (pas de tick) : la scène le lit, il est
+  // jeté au retour. o : { R (QUARTIER ou HANTEE), id (l'onglet : l'événement attendu), maintenant } ; null sans e, ou d'un autre événement.
+  function evenementDepuisPhoto(ph, o) {
+    o = o || {}; const p = nettoyerPhoto(ph), e = p && p.e, R = o.R;
+    if (!e || !R || typeof R.neuf !== 'function' || (o.id && e.id !== o.id)) return null;
+    const now = Number.isFinite(o.maintenant) ? o.maintenant : Date.now(), q = R.neuf(now);
+    q.postes.forEach((s, i) => { const x = e.p[i]; s.niv = x ? x[0] : i === 0 ? 1 : 0; s.staff = !!(x && x[1] && s.niv > 0); s.prog = 0; s.actif = false; });
+    if (!q.postes.some((s) => s.niv > 0)) q.postes[0].niv = 1;
+    const P = Array.isArray(R.PALIERS) ? R.PALIERS : [];
+    q.decos = Array.isArray(R.DECOS) ? e.d.filter((d) => R.DECOS.includes(d)) : e.d.slice();
+    q.paliers = P.slice(0, e.pa).map((x) => x.n); q.total = e.t; q.billets = 0;
+    q.visite = true; q.majeur = true; q.annonce = true; q.ouvertLe = now; q.evTimer = 1e9; // rien ne surgit dans la Planque d'un autre
+    return { q, id: e.id, paliers: Math.min(e.pa, P.length || e.pa), total: e.t, decos: q.decos.slice(), equipe: q.postes.filter((s) => s.staff).length, postes: q.postes.filter((s) => s.niv > 0).length };
   }
   // la boutique d'un copain, reconstruite pour la scène : un état neuf (GAME.newState) habillé des champs de la photo, marqué st.visite.
   // Rien n'est sauvé : la scène le lit, la simulation des clients y passe, il est jeté au retour. o : { G, maintenant }
@@ -3214,7 +3274,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     let xp = 0; for (let n = 1; n < Math.min(p.g, 400); n++) xp += G.XP_NIVEAU(n); st.xp = xp;
     st.evTimer = 1e9; st.mystereTimer = 1e9; st.chatAttente = null; // rien ne surgit dans la boutique d'un autre
     const q = G.QUARTIERS[G.quartier(st)];
-    return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o };
+    return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o, stats: p.x || null };
   }
   // la réponse de fournil_boutique(pseudo)
   function nettoyerBoutique(d) {
@@ -3387,7 +3447,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       if (recente && depuis < PHOTO.ecart) return null;
       let p = null; try { p = E.photo(); } catch (e) { p = null; }
       if (!p || typeof p !== 'object') return null;
-      const cle = JSON.stringify(p); if (cle.length > PHOTO.max * 2) return null;
+      if (JSON.stringify(p).length > PHOTO.max * 2) return null;
+      const cle = clePhoto(p); // sans les compteurs qui bougent à chaque fournée (voir clePhoto)
       if (recente && cle === etat.photoCle && depuis < PHOTO.refaire) return null;
       return { p, cle };
     }
@@ -3864,7 +3925,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   return { CLE, REGLES, PERIODES, EVTS, ongletsEvenements, nettoyerEvenements, PSEUDO_MIN, PSEUDO_MAX, lundiParis, decalageParis, dateCourte, normaliserPseudo, verifierPseudo, messagePseudo, rangTexte, rangPhrase, boulangers,
     etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur,
     METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce,
-    PHOTO, photo, nettoyerPhoto, boutiqueDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson };
+    PHOTO, EV_PHOTO, photo, nettoyerPhoto, clePhoto, boutiqueDepuisPhoto, evenementDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson };
 });
 
 /* ── icons.js ── */
@@ -10958,7 +11019,7 @@ const UI = (() => {
     // pas encore inscrit : l'invitation en haut, avant la liste ; inscrit : son pseudo et ses réglages en bas
     const invitation = ferme || r.rejoint ? '' : `<div class="cl-invitation"><p>Ton pseudo, tes points et ta fortune seront visibles de tous ceux qui ont le lien du jeu. Tu pourras quitter le classement quand tu veux.</p><button type="button" class="btn large beurre" data-a="cl-rejoindre"><b>Rejoindre le classement</b></button></div>`;
     const pied = ferme || !r.rejoint ? '' : `<p class="cl-moi">Tu joues sous le pseudo <b>${esc(r.pseudo)}</b>.</p><button type="button" class="btn large clair" data-a="cl-pseudo"><b>Changer de pseudo</b></button><button type="button" class="lien cl-quitter" data-a="cl-quitter">Quitter le classement</button>`;
-    dernierHtmlCl = `<div class="cl" data-cl="liste"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>Classement</h2><p class="sous">Les boulangers qui ont le lien du jeu, classés en points de boulanger : la façon de jouer, pas la fortune. Chaque semaine, les trois premiers gagnent une tenue et une coupe.${classement.copains() && classement.objectifVu() ? ' Touche un copain pour visiter sa boutique.' : ''}</p></div></div>${carteObjectif()}${carteRecompenses()}${blocPoints()}${invitation}${seg}${corps}${pied}${btnRetour()}</div>`;
+    dernierHtmlCl = `<div class="cl" data-cl="liste"><div class="cl-tete"><span class="pic">${ICONS.UI.podium}</span><div><h2>Classement</h2><p class="sous">Les boulangers qui ont le lien du jeu, classés en points de boulanger : la façon de jouer, pas la fortune. Chaque semaine, les trois premiers gagnent une tenue et une coupe.${classement.copains() && classement.objectifVu() ? ` Touche un copain pour ${ongletCl === 'total' ? 'voir ses statistiques' : evDe(ongletCl) ? `visiter ${lieuDe(evDe(ongletCl)).sa}` : 'visiter sa boutique'}.` : ''}</p></div></div>${carteObjectif()}${carteRecompenses()}${blocPoints()}${invitation}${seg}${corps}${pied}${btnRetour()}</div>`;
     return dernierHtmlCl;
   }
   function listeClassement(d, r) {
@@ -10972,8 +11033,9 @@ const UI = (() => {
     const tete = `<div class="cl-info"><span>${info}</span>${enLigne}<b>${CLM.boulangers(d.joueurs)}</b></div>`
       + (r.rejoint && d.moi && d.moi.rang > 5 ? `<div class="cl-place"><span class="cl-rang${d.moi.rang <= 3 ? ' r' + d.moi.rang : ''}">${d.moi.rang}<small>${d.moi.rang === 1 ? 'er' : 'e'}</small></span><span><b>Ta place ${semaine ? 'cette semaine' : 'de tous les temps'}</b><small>sur ${CLM.boulangers(d.joueurs)}</small></span>${val(d.moi)}</div>` : ''); // sa place d'un coup d'œil quand sa ligne est loin dans la liste
     if (!d.lignes.length) return `${tete}<div class="cl-etat"><span class="pic">${ICONS.UI.podium}</span><b>${hantee ? 'Personne encore au manoir' : quartier ? 'Personne encore au Quartier' : semaine ? 'Personne encore cette semaine' : 'Personne encore'}</b><span>${hantee ? 'Les bonbons du manoir arrivent avec le prochain envoi.' : quartier ? 'Les billets de la Planque arrivent avec le prochain envoi.' : r.rejoint ? 'Tes points arrivent dans un instant.' : 'Rejoins le classement et ouvre le bal !'}</span></div>`;
-    const visites = classement.copains(); // classement v6 : toucher la ligne d'un copain ouvre sa boutique
-    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : visites ? ' visitable' : ''}"${moi ? ' aria-current="true"' : visites ? ` data-visite="${esc(l.pseudo)}" role="button" tabindex="0" aria-label="Visiter la boutique de ${esc(l.pseudo)}"` : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom">${l.enLigne || (moi && d.enLigneN > 0) ? '<i class="cl-en-ligne" role="img" aria-label="en ligne" title="En ligne"></i>' : ''}<span>${esc(l.pseudo)}</span>${quartier ? (l.podium ? `<i class="tag">${rangDe(l.podium)} ${hantee ? 'du manoir' : 'du Quartier'}</i>` : '') : toqueDe(l.podium, l.toque, moi)}${moi ? '<i class="tag">toi</i>' : ''}</span>${val(l)}${!moi && visites ? `<i class="cl-chev" aria-hidden="true">${ICONS.UI.chevron}</i>` : ''}</li>`;
+    const visites = classement.copains(); // classement v6 : toucher la ligne d'un copain ouvre sa boutique (semaine), sa fiche (tous les temps), sa Planque (événement)
+    const evL = evDe(ongletCl), quoi = ongletCl === 'total' ? 'Voir les statistiques de' : evL ? `Visiter ${lieuDe(evL).le} de` : 'Visiter la boutique de';
+    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : visites ? ' visitable' : ''}"${moi ? ' aria-current="true"' : visites ? ` data-visite="${esc(l.pseudo)}" role="button" tabindex="0" aria-label="${quoi} ${esc(l.pseudo)}"` : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom">${l.enLigne || (moi && d.enLigneN > 0) ? '<i class="cl-en-ligne" role="img" aria-label="en ligne" title="En ligne"></i>' : ''}<span>${esc(l.pseudo)}</span>${quartier ? (l.podium ? `<i class="tag">${rangDe(l.podium)} ${hantee ? 'du manoir' : 'du Quartier'}</i>` : '') : toqueDe(l.podium, l.toque, moi)}${moi ? '<i class="tag">toi</i>' : ''}</span>${val(l)}${!moi && visites ? `<i class="cl-chev" aria-hidden="true">${ICONS.UI.chevron}</i>` : ''}</li>`;
     let html = d.lignes.map((l) => ligne(l, l.moi && r.rejoint)).join('');
     if (r.rejoint && d.moi && !d.lignes.some((l) => l.moi)) html += `<li class="cl-sep" aria-hidden="true"><i></i><i></i><i></i></li>${ligne({ rang: d.moi.rang, pseudo: r.pseudo, points: d.moi.points, valeur: d.moi.valeur, podium: d.moi.podium }, true)}`; // loin derrière : sa ligne quand même, sous les 50 premiers
     const absent = r.rejoint && !d.moi ? `<p class="note">${semaine ? 'Tu n’apparais pas encore cette semaine : tes points partent dès que le réseau le permet.' : 'Tes points ne sont pas encore arrivés : ils partent dès que le réseau le permet.'}</p>` : '';
@@ -10999,10 +11061,56 @@ const UI = (() => {
     on('[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(true); });
     on('[data-a="cl-recompenses"]', () => { son.tap(); sheetRecompenses(true); });
     on('[data-a="close"]', closeSheet);
-    fc.querySelectorAll('[data-visite]').forEach((li) => { // visiter la boutique d'un copain (classement v6)
-      li.addEventListener('click', () => visiter(li.dataset.visite, true));
-      li.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); visiter(li.dataset.visite, true); } });
+    const toucher = (p) => (ongletCl === 'total' ? ficheCopain(p) : visiter(p, true, evDe(ongletCl) ? ongletCl : null)); // selon l'onglet : sa fiche, sa Planque, sa boutique
+    fc.querySelectorAll('[data-visite]').forEach((li) => { // un copain (classement v6)
+      li.addEventListener('click', () => toucher(li.dataset.visite));
+      li.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toucher(li.dataset.visite); } });
     });
+  }
+  // ─── la fiche d'un copain (l'onglet « Tous les temps ») : ses statistiques, sans 3D ni pourboire ───
+  // Sa ligne du classement (rang, points depuis toujours, fortune, podium et toque) tout de suite ; puis sa photo (fournil_boutique) : sa
+  // boutique (nom, quartier, niveau et titre, recettes, apprentis, mobilier, chat, coupes, badge) et ses records (le champ x : étoiles,
+  // boutique, ventes, trophées, série, fortune de toujours). Une photo d'avant la mise à jour (sans x), ou pas de photo : ce qu'on a.
+  let fiche = null; // { pseudo, l (sa ligne), joueurs, charge, etat, data (la réponse de fournil_boutique), b (sa boutique rebâtie, pour les calculs) }
+  function ficheCopain(pseudo) {
+    if (!classement || !pseudo) return;
+    audio(); son.tap();
+    const c = classement.cache('total'), d = c && c.etat === 'ok' ? c.data : null;
+    const f = fiche = { pseudo: String(pseudo), l: d ? d.lignes.find((x) => x.pseudo === pseudo) || null : null, joueurs: d ? d.joueurs : 0, charge: true, etat: '', data: null, b: null };
+    peindreFiche(true);
+    classement.boutique(f.pseudo).then((r) => {
+      if (fiche !== f) return; // une autre fiche, ou le retour au classement
+      f.charge = false; f.etat = r.etat; f.data = r.etat === 'ok' ? r.data : null;
+      const ph = f.data && f.data.photo; f.b = ph ? CLM.boutiqueDepuisPhoto(ph, { G, maintenant: HORLOGE.maintenant() }) : null;
+      if (vueCl === 'fiche') peindreFiche(false); // la feuille a pu être refermée entre-temps
+    });
+  }
+  function peindreFiche(neuve) {
+    const f = fiche; if (!f) return;
+    const y = neuve ? 0 : feuille.scrollTop;
+    openSheet(htmlFiche(f)); vueCl = 'fiche'; feuille.scrollTop = y;
+    on('[data-a="fi-retour"]', () => { son.tap(); fiche = null; sheetClassement('total'); });
+    on('[data-a="fi-reessayer"]', () => { son.tap(); const p = f.pseudo; fiche = null; ficheCopain(p); });
+  }
+  function htmlFiche(f) {
+    const l = f.l, b = f.b, x = b && b.stats, ph = f.data && f.data.photo;
+    const case_ = (t, v, sous) => `<div class="pts-case"><small>${t}</small><b>${v}</b>${sous ? `<small>${sous}</small>` : ''}</div>`;
+    const stat = (t, v) => `<div class="stat"><span>${t}</span><b>${v}</b></div>`;
+    const podium = l && (l.podium || l.toque) ? `<p class="fi-podium">${toqueDe(l.podium, l.toque, false)}<span>${[l.toque ? `Toque ${DE_METAL[l.toque]}` : '', l.podium ? `${rangDe(l.podium)} la semaine dernière` : ''].filter(Boolean).join(' · ')}</span></p>` : '';
+    const tete = `<div class="pts-bloc fi-bloc">${l ? `<div class="pts-cases fi-cases">${case_('Rang', `${l.rang}<i>${l.rang === 1 ? 'er' : 'e'}</i>`, f.joueurs ? `sur ${CLM.boulangers(f.joueurs)}` : 'de tous les temps')}${case_('Points', l.points != null ? G.fmt(l.points) : '–', 'depuis toujours')}${case_('Fortune', G.fmtEur(l.valeur), 'au classement')}</div>` : '<p class="note">Sa place de tous les temps n’est plus dans la liste.</p>'}${podium}</div>`;
+    let corps = '';
+    if (f.charge) corps = '<div class="cl-squelette" role="status" aria-label="Chargement de sa fiche"><i></i><i></i><i></i><span>On ouvre son carnet…</span></div>';
+    else if (!f.data) corps = `<div class="cl-etat" role="status"><span class="pic">${ICONS.UI.horsLigne}</span><b>${f.etat === 'pas-installe' ? 'Les fiches arrivent bientôt' : f.etat === 'refus' ? 'Ce boulanger a quitté le classement' : 'Sa fiche ne s’ouvre pas'}</b><span>${f.etat === 'pas-installe' || f.etat === 'refus' ? '' : esc(msgReseau(f.etat))}</span>${f.etat === 'pas-installe' || f.etat === 'refus' ? '' : '<button type="button" class="btn clair" data-a="fi-reessayer"><b>Réessayer</b></button>'}</div>`;
+    else if (b) {
+      const s = b.st, r = resumeBoutique(s), n = G.niveau(s), mets = CLM.METAUX.map((m) => [m, b.coupes.filter((k) => k === m).length]).filter(([, k]) => k);
+      corps = `<div class="card stats fi-carte"><div class="c-tete"><span class="pic peche">${ICONS.UI.boutique}</span><h3>Sa boulangerie</h3></div>
+        ${stat('Niveau', `${n} · ${esc(G.titre(s))}`)}${stat('Recettes ouvertes', `${r.postes} sur ${G.PRODUITS.length}`)}${stat('Apprentis', r.apprentis)}${stat('Mobilier', `${pluriel(r.crans, 'cran')} sur ${r.max}`)}
+        ${s.chat ? stat('Le chat', esc(s.chat.nom)) : ''}${stat('Coupes', mets.length ? mets.map(([m, k]) => `${k} ${NOM_METAL[m]}`).join(' · ') : 'pas encore')}${b.badge ? stat('Badge', '« Esprit d’équipe » ✓') : ''}
+        ${x ? `<h4 class="sous-titre">Records</h4>${stat('Étoiles', G.fmt(x.e))}${stat('Boutique', `n°${x.b}`)}${stat('Fournées vendues', G.fmt(x.v))}${stat('Trophées', `${Math.min(x.tr, G.TROPHEES.length)}/${G.TROPHEES.length}`)}${stat('Meilleure série d’objectifs', pluriel(x.s, 'jour'))}${stat('Gagné depuis le début', G.fmtEur(x.f))}` : ''}</div>`;
+    }
+    const attente = !f.charge && f.data && !x ? '<p class="note centre fi-attente">Ses statistiques détaillées arriveront après sa prochaine partie.</p>' : '';
+    return `<div class="cl" data-cl="fiche"><div class="cl-tete"><span class="pic">${ICONS.UI.stats}</span><div><h2>${esc(f.pseudo)}</h2><p class="sous">${b ? `${esc(b.nom)} · ${esc(nomQuartier(ph.q))}` : 'Ses statistiques de tous les temps'}</p></div></div>${tete}${corps}${attente}
+      <button type="button" class="btn large sombre" data-a="fi-retour" style="margin-top:14px"><b>Retour au classement</b></button></div>`;
   }
   // ─── les récompenses du podium : chaque semaine, les trois premiers gagnent une tenue (toque et tablier) et une coupe, or, argent ou bronze ───
   // Portées d'office la semaine qui suit le podium (tenue « automatique »), puis gardées à vie : la coupe dans la vitrine des trophées, la tenue
@@ -11150,19 +11258,39 @@ const UI = (() => {
   // place du sien dans SCENE.frame tant que l'écran est ouvert. Sa boutique à lui continue de tourner (G.tick), sans événement, client mystère
   // ni vente à l'écran ; rien de la visite n'est sauvé ; un voile capte toutes les touches. Au retour, ses récompenses, ses décos et son chat reviennent.
   // Sans 3D, ou sans photo (le copain n'a pas encore joué depuis la mise à jour), une carte texte. Un serveur v5 : les lignes ne se touchent pas.
-  let visite = null; // { pseudo, depuisCl, charge, etat, data (la réponse de fournil_boutique), b (la boutique rebâtie), scene (la 3D montre b), tiroir, envoi }
+  // Ce que fait la ligne touchée dépend de l'onglet : « Cette semaine », la visite de sa boutique (ici) ; « Tous les temps », sa fiche de
+  // statistiques (ficheCopain, sans 3D) ; l'onglet d'un événement, la visite de sa Planque (ou de son Manoir) : la vraie scène de l'événement
+  // (F.scene) sur un canvas à part, bâtie depuis le champ e de sa photo (CLASSEMENT.evenementDepuisPhoto), jamais sauvée, libérée au retour.
+  let visite = null; // { pseudo, depuisCl, charge, etat, data (la réponse de fournil_boutique), b (la boutique rebâtie), scene (la 3D montre b), tiroir, envoi,
+  //                    E (l'événement visité, sinon null), qe (sa Planque rebâtie), ev3 (la scène de l'événement), images, fini }
   const nomQuartier = (q) => { const x = G.QUARTIERS[(q | 0) % G.QUARTIERS.length]; return x ? x.nom : ''; };
-  async function visiter(pseudo, depuisCl) {
+  const evDe = (id) => (id === 'quartier' && EVT ? EVT : HTE && id === HTE.cle ? HTE : null); // l'écran d'un événement d'après l'onglet du classement
+  function lieuDe(E) { // « La Planque » → { le: 'la Planque', sa: 'sa Planque' } ; « Le Manoir » → { le: 'le Manoir', sa: 'son Manoir' }
+    const L = E && E.F && E.F.lieu ? E.F.lieu : 'La Planque', m = /^(La|Le|L’|L')\s*(.*)$/.exec(L), nom = m ? m[2] : L, fem = !m || m[1] !== 'Le';
+    return { Le: L, le: L[0].toLowerCase() + L.slice(1), sa: `${fem ? 'sa' : 'son'} ${nom}`, Sa: `${fem ? 'Sa' : 'Son'} ${nom}` };
+  }
+  const resumeBoutique = (s) => ({ postes: s.stations.filter((x) => x.niv > 0).length, apprentis: s.stations.filter((x) => x.staff).length, crans: G.MOBILIER.reduce((n, m) => n + G.mobilierCran(s, m.id), 0), max: G.MOBILIER.reduce((n, m) => n + m.max, 0) });
+  const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
+  async function visiter(pseudo, depuisCl, ev) {
     if (!classement || visite || !pseudo) return;
     audio(); son.tap();
-    visite = { pseudo: String(pseudo), depuisCl: !!depuisCl, charge: true, etat: '', data: null, b: null, scene: false, tiroir: tiroir.pos, envoi: false };
+    const E = ev ? evDe(ev) : null;
+    visite = { pseudo: String(pseudo), depuisCl: !!depuisCl, charge: true, etat: '', data: null, b: null, scene: false, tiroir: tiroir.pos, envoi: false, E, qe: null, ev3: null, images: 0, fini: false };
     closeSheet(); vueCl = '';
+    if (E && EVS.ouvert) EVS.ouvert.fermer(); // sa propre Planque se referme (sauvée comme à chaque sortie) : une seule scène d'événement à la fois
     $('#visite').hidden = false; document.body.classList.add('visite');
     peindreVisite();
     const v = visite, r = await classement.boutique(v.pseudo);
     if (visite !== v) return; // refermée pendant la lecture
     v.charge = false; v.etat = r.etat; v.data = r.etat === 'ok' ? r.data : null;
-    const ph = v.data && v.data.photo; v.b = ph ? CLM.boutiqueDepuisPhoto(ph, { G, maintenant: HORLOGE.maintenant() }) : null;
+    const ph = v.data && v.data.photo;
+    if (E) { // sa Planque : seulement pendant l'événement, et s'il y est entré depuis la mise à jour (le champ e de sa photo)
+      const f = E.fenetre(); v.fini = !!(f && f.fini);
+      const re = ph && !v.fini ? CLM.evenementDepuisPhoto(ph, { R: E.R, id: E.cle, maintenant: HORLOGE.maintenant() }) : null; v.qe = re ? re.q : null;
+      if (v.qe && SCENE.stats && SCENE.stats.webgl) batirEv3(v);
+      peindreVisite(); return;
+    }
+    v.b = ph ? CLM.boutiqueDepuisPhoto(ph, { G, maintenant: HORLOGE.maintenant() }) : null;
     v.scene = !!v.b && !!(SCENE.stats && SCENE.stats.webgl);
     if (v.scene) { // sa boutique à lui, à la place de la sienne : ses coupes, son badge, ses décos, son chat ; le tiroir replié, la scène entière
       amenager(false); tiroir.aller('ferme', false);
@@ -11172,7 +11300,8 @@ const UI = (() => {
   }
   function finVisite(versCl) {
     if (!visite) return; const v = visite; visite = null;
-    $('#visite').hidden = true; document.body.classList.remove('visite'); $('#vi-vue').innerHTML = ''; $('#vi-bas').innerHTML = '';
+    libererEv3(v); v.qe = null; // sa Planque : la scène détruite (géométries, matériaux, contexte WebGL rendu), son état jeté
+    $('#visite').hidden = true; document.body.classList.remove('visite'); $('#vi-vue').innerHTML = ''; $('#vi-bas').innerHTML = ''; $('#vi-vue').classList.remove('vi-ev');
     if (v.scene) { // tout ce que la scène montrait de lui revient à soi
       derniereRecScene = ''; majRecompenses(); SCENE.decosQuartier(st.quartier ? st.quartier.decos : []); SCENE.decosHantee(HTE && st[HTE.cle] ? st[HTE.cle].decos : []);
       dernierPelage = ''; majChat(); tiroir.aller(v.tiroir, false);
@@ -11187,7 +11316,7 @@ const UI = (() => {
     if (v.etat === 'refus') return carte(ICONS.UI.boutique, 'Cette boutique a fermé ses portes', `${esc(v.pseudo)} n’est plus au classement.`);
     if (!d) return carte(ICONS.UI.horsLigne, 'La porte ne s’ouvre pas', esc(msgReseau(v.etat)), '<button type="button" class="btn clair" data-vi="reessayer"><b>Réessayer</b></button>');
     if (!v.b) return carte(ICONS.UI.boutique, 'Pas encore ouverte aux visites', `La boutique de ${esc(v.pseudo)} apparaîtra après sa prochaine partie. Tu peux déjà lui laisser un pourboire.`);
-    const s = v.b.st, postes = s.stations.filter((x) => x.niv > 0).length, apprentis = s.stations.filter((x) => x.staff).length, crans = G.MOBILIER.reduce((n, m) => n + G.mobilierCran(s, m.id), 0), max = G.MOBILIER.reduce((n, m) => n + m.max, 0);
+    const s = v.b.st, { postes, apprentis, crans, max } = resumeBoutique(s);
     const li = [`Niveau ${G.niveau(s)} · ${esc(G.titre(s))}`, `${postes} recette${postes > 1 ? 's' : ''} au four · ${apprentis} apprenti${apprentis > 1 ? 's' : ''}`, `Mobilier : ${crans} cran${crans > 1 ? 's' : ''} sur ${max}`];
     if (s.chat) li.push(`Le chat : ${esc(s.chat.nom)}`); if (v.b.coupes.length) li.push(`${v.b.coupes.length} coupe${v.b.coupes.length > 1 ? 's' : ''} en vitrine`); if (v.b.badge) li.push('Le badge « Esprit d’équipe »');
     return carte(ICONS.UI.boutique, esc(v.b.nom), esc(nomQuartier(ph.q)), `<ul>${li.map((x) => `<li>${x}</li>`).join('')}</ul>`);
@@ -11203,9 +11332,42 @@ const UI = (() => {
     }
     return `${pb}<button type="button" class="btn large sombre" data-vi="retour"><b>Retour</b></button>`;
   }
+  // ─── la Planque (ou le Manoir) d'un copain : la vraie scène de l'événement, sur un canvas à part, en lecture seule ───
+  function batirEv3(v) { // le canvas est posé une fois ; peindreVisite n'y touche plus (seuls le titre et le bas changent)
+    const vue = $('#vi-vue'), L = lieuDe(v.E);
+    vue.classList.remove('carte'); vue.classList.add('vi-ev');
+    vue.innerHTML = `<canvas class="vi-canvas" role="img" aria-label="${esc(L.Le)} de ${esc(v.pseudo)} en 3D"></canvas><span class="vi-enseigne">${esc(v.E.F.nom)}</span><span class="vi-lecture"><i class="ico">${ICONS.UI.oeil}</i>Tu visites : rien ne change chez ${esc(v.pseudo)}</span>`;
+    let sc = null; try { sc = v.E.F.scene(vue.querySelector('canvas'), { q: () => v.qe }); } catch (e) { sc = null; }
+    if (!sc) { vue.innerHTML = ''; vue.classList.remove('vi-ev'); return; } // le téléphone refuse un second contexte : le résumé seul
+    v.ev3 = sc; if (SCENE.alleger) SCENE.alleger(); // la boutique, cachée, rend sa passe d'effets (recréée au retour)
+  }
+  function libererEv3(v) { if (v && v.ev3) { try { v.ev3.detruire(); } catch (e) { /* rien */ } v.ev3 = null; } }
+  function resumeEv(v) { // palier, total, équipe, décos : sous la scène, ou seul dans une carte sans 3D
+    const E = v.E, R = E.R, q = v.qe, nb = q.paliers.length >= (R.PALIERS_BOSS || R.PALIERS.length) ? R.PALIERS.length : R.PALIERS_BOSS || R.PALIERS.length, n = q.postes.filter((s) => s.staff).length, d = q.decos.length;
+    return [`Palier ${q.paliers.length}/${nb}`, `${E.F.fmt(q.total)}${E.cle === 'quartier' ? ' de billets' : ''} gagnés`, n ? `Équipe : ${pluriel(n, 'apprenti')}` : 'Pas encore d’équipe', ...(d ? [`${pluriel(d, 'déco')} gagnée${d > 1 ? 's' : ''}`] : [])];
+  }
+  function carteEv(v) { // le milieu de l'écran sans la scène de l'événement
+    const E = v.E, L = lieuDe(E), pic = (E.cle === 'quartier' ? ICONS.QUARTIER.porte : ICONS.HANTEE && ICONS.HANTEE.manoir) || E.F.ico.devise;
+    const carte = (titre, txt, plus) => `<div class="vi-carte ${E.F.classe || 'pq'}-carte"><span class="pic">${pic}</span><b>${titre}</b>${txt ? `<span>${txt}</span>` : ''}${plus || ''}</div>`;
+    if (v.charge) return carte('On frappe à la porte…', `${esc(L.Le)} de ${esc(v.pseudo)} va s’ouvrir.`);
+    if (!v.data) return carteVisite(v); // pas installé, plus au classement, ou le réseau : les mêmes cartes que la visite de la boutique
+    if (v.fini) return carte(`${esc(E.F.nom)} est fini`, `${esc(L.Le)} a fermé ses portes : plus de visite.`);
+    if (!v.qe) return carte('Pas encore ouvert aux visites', `${esc(L.Sa)} apparaîtra après sa prochaine partie.`);
+    return carte(`${esc(L.Le)} de ${esc(v.pseudo)}`, esc(E.F.nom), `<ul>${resumeEv(v).map((x) => `<li>${esc(x)}</li>`).join('')}</ul>`); // sans 3D : le résumé seul
+  }
   function peindreVisite() {
     const v = visite; if (!v) return;
     const d = v.data, ph = d && d.photo, vue = $('#vi-vue');
+    if (v.E) { // sa Planque : pas de pourboire ici, un résumé sous la scène et le retour au classement
+      const L = lieuDe(v.E);
+      $('#vi-titre').textContent = `${L.Le} de ${v.pseudo}`;
+      $('#vi-sous').textContent = v.charge ? 'On frappe à la porte…' : d ? `${d.enLigne ? 'En ligne · ' : ''}${v.E.F.nom}` : '';
+      $('#vi-ligne').hidden = !(d && d.enLigne);
+      if (!v.ev3) { vue.classList.remove('vi-ev'); vue.classList.add('carte'); vue.innerHTML = carteEv(v); }
+      $('#vi-bas').innerHTML = `${v.ev3 ? `<p class="vi-resume">${resumeEv(v).map((x, k) => (k ? esc(x) : `<b>${esc(x)}</b>`)).join(' · ')}</p>` : ''}<button type="button" class="btn large sombre" data-vi="retour"><b>Retour</b></button>`;
+      document.querySelectorAll('#visite [data-vi]').forEach((b) => { b.onclick = () => clicVisite(b); });
+      return;
+    }
     $('#vi-titre').textContent = `La boutique de ${v.pseudo}`;
     $('#vi-sous').textContent = v.charge ? 'On frappe à la porte…' : d ? `${d.enLigne ? 'En ligne · ' : ''}${v.b ? `${v.b.nom} · ${nomQuartier(ph.q)}` : 'Visite'}` : '';
     $('#vi-ligne').hidden = !(d && d.enLigne);
@@ -11218,7 +11380,7 @@ const UI = (() => {
     const v = visite; if (!v) return; audio();
     const a = b.dataset.vi;
     if (a === 'retour') { son.tap(); finVisite(); return; }
-    if (a === 'reessayer') { son.tap(); const p = v.pseudo, cl = v.depuisCl; visite = null; visiter(p, cl); return; }
+    if (a === 'reessayer') { son.tap(); const p = v.pseudo, cl = v.depuisCl, ev = v.E ? v.E.cle : null; libererEv3(v); visite = null; visiter(p, cl, ev); return; }
     if (a !== 'pourboire') return;
     if (b.getAttribute('aria-disabled') === 'true') { son.non(); return; }
     if (v.envoi) return;
@@ -11363,6 +11525,10 @@ const UI = (() => {
     renderCards(); hud(); renderObjectifs(); renderEvenement(); renderPage();
     if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant()); // l'écran de l'Atelier (ou de l'arrière-salle) couvre la boutique : la 3D attend
     else if (visite && visite.scene) { const t = HORLOGE.maintenant(); visite.b.st.now = t; SCENE.frame(dt, visite.b.st, t); } // la visite : la scène montre la boutique du copain (rien n'est sauvé)
+    else if (visite && visite.ev3) { // sa Planque : la scène de l'événement tourne sur son état rebâti (aucun tick : rien ne s'y vend, rien ne se sauve)
+      const e3 = visite.ev3;
+      if (!e3.perdu) { e3.frame(dt, visite.qe); visite.images++; } else if (performance.now() - e3.perdu > 1000) { libererEv3(visite); peindreVisite(); } // le contexte perdu ne revient pas : le résumé seul
+    }
     if (planque) ecranEv.frame(dt, HORLOGE.maintenant()); // l'écran de l'événement (la Planque, le Manoir) vit tant qu'il est ouvert (fermé, il rattrape une absence)
     if (++tChat > 30) { tChat = 0; majChat(); } // le chat noir arrive (ou repart) avec la Maison hantée
     renderBoosts();
@@ -11544,7 +11710,9 @@ const UI = (() => {
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
     // classement v6 : la photo de sa boutique (pour les visites des copains), et l'heure où elle sera pleine (la notification, en quittant le jeu)
-    const photo = () => { if (!st || !CLM.photo) return null; const r = recVue(); return CLM.photo(st, { G, coupes: r ? r.coupes : [], badge: !!(r && r.badge), dh: HTE && st[HTE.cle] ? st[HTE.cle].decos : [] }); };
+    // + ses statistiques (x) et l'événement EN COURS (e) : seulement pendant sa fenêtre, s'il y est entré (la porte passée, ouvertLe) et ne l'a pas masqué
+    const evPhoto = () => { for (const E of [EVT, HTE]) { if (!E) continue; const f = E.fenetre(), q = st[E.cle]; if (f && f.ouvert && q && q.ouvertLe > 0 && E.majeur() && !q.masque) return { id: E.cle, q }; } return null; };
+    const photo = () => { if (!st || !CLM.photo) return null; const r = recVue(); return CLM.photo(st, { G, coupes: r ? r.coupes : [], badge: !!(r && r.badge), dh: HTE && st[HTE.cle] ? st[HTE.cle].decos : [], ev: evPhoto() }); };
     const pleineA = () => (st ? HORLOGE.maintenant() + G.heuresAbsence(st) * 3600e3 : null);
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant(), photo, pleineA }) : null; } catch (e) { classement = null; }
     if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); if (pageActive === 'reglages') renderPage(); if (visite) peindreVisite(); tenterCopains(); }); majRecompenses(); classement.demarrer(); setTimeout(verifierCadeaux, 3000); setInterval(() => { if (document.visibilityState === 'visible') verifierCadeaux(); }, 10 * 60e3); setInterval(majRecompenses, 60e3);
@@ -11561,7 +11729,8 @@ const UI = (() => {
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden, hantee: !$('#b-hantee').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
       quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT,
       hantee: () => (HTE ? HTE.ouvrir() : false), fermerHantee: () => { if (HTE) HTE.fermer(); }, evHantee: HTE, HT, annoncerEvenements: (f) => (EVS ? EVS.annoncer(f !== false) : false), chatNoir, choisirPelage, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin,
-      visiter: (p) => visiter(p, true), finVisite, visite: () => (visite ? { pseudo: visite.pseudo, scene: visite.scene, charge: visite.charge, etat: visite.etat, nom: visite.b ? visite.b.nom : null } : null), tenterCopains, // classement v6 (pour les tests)
+      visiter: (p, ev) => visiter(p, true, ev), finVisite, visite: () => (visite ? { pseudo: visite.pseudo, scene: visite.scene, charge: visite.charge, etat: visite.etat, nom: visite.b ? visite.b.nom : null, ev: visite.E ? visite.E.cle : null, ev3: !!visite.ev3, images: visite.images, calls: visite.ev3 ? visite.ev3.calls : 0, q: visite.qe ? { postes: visite.qe.postes.map((x) => [x.niv, x.staff]), paliers: visite.qe.paliers.length, total: visite.qe.total, decos: visite.qe.decos.slice() } : null } : null), // classement v6 (pour les tests)
+      fiche: () => (fiche ? { pseudo: fiche.pseudo, charge: fiche.charge, etat: fiche.etat, photo: !!(fiche.data && fiche.data.photo), stats: !!(fiche.b && fiche.b.stats) } : null), ficheCopain, tenterCopains,
       arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false), fermerArriere: () => { if (AR) AR.fermer(); }, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }
   document.addEventListener('DOMContentLoaded', boot);
