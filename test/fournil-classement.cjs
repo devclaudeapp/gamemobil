@@ -526,10 +526,10 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     check(lance.actif && lance.actif.mult === 5 && lance.equipe && lance.f, '« Lancer le boost ×5 » : il tourne, et la rosette « Esprit d’équipe » est au mur de sa boutique');
     await p6.reload(); await sleep(1800);
     check(await p6.evaluate(() => document.querySelector('#feuille').hidden), 'relancé : les pourboires et l’objectif ne reviennent pas');
-    // les Réglages : le bloc Notifications (pas de clé publique dans config.js : « bientôt »)
+    // les Réglages : le bloc Notifications (la clé publique est dans config.js ; ses états sont éprouvés dans test/fournil-notifs.cjs)
     await p6.evaluate(() => window.__fournil.page('reglages')); await sleep(400);
     const reg = await p6.evaluate(() => { const t = [...document.querySelectorAll('#page-reglages .titre-section')].find((h) => /Notifications/.test(h.textContent)); return t ? { txt: t.nextElementSibling.innerText.replace(/\s+/g, ' '), sw: !!t.nextElementSibling.querySelector('[role="switch"]') } : null; });
-    check(reg && /Me prévenir/.test(reg.txt) && /Bientôt disponible/.test(reg.txt) && !reg.sw, `Réglages : le bloc Notifications dit « bientôt » sans clé publique (« ${reg && reg.txt} »)`);
+    check(reg && !/Bientôt disponible/.test(reg.txt) && /Notifications|Me prévenir/.test(reg.txt), `Réglages : le bloc Notifications n’est plus « bientôt » (la clé publique est dans config.js ; ce navigateur de test refuse les notifications : « ${reg && reg.txt} »)`);
     await p6.evaluate(() => { const t = [...document.querySelectorAll('#page-reglages .titre-section')].find((h) => /Notifications/.test(h.textContent)); window.__fournil.tiroir('ouvert'); t.scrollIntoView({ block: 'center' }); }); await sleep(500);
     await capture(p6, '6b-reglages-bientot');
     // un serveur v5 (ou plus ancien) : ni objectif commun, ni ligne à toucher
