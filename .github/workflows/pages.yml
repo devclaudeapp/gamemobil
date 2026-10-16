@@ -33,23 +33,18 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
-      - name: La triche au changement d'heure, les récompenses, le classement, l'Atelier, la garde-robe, les compagnons
+      - name: La triche au changement d'heure, les récompenses, le classement, l'Atelier, la garde-robe
         run: |
           node build.js
           node test/fournil-points.test.js
           node test/fournil-triche.cjs
           node test/fournil-recompenses.cjs
           node test/fournil-classement.cjs
-          node test/fournil-notifs.cjs
           node test/fournil-atelier.test.js
           node test/fournil-atelier.cjs
           node test/fournil-garderobe.test.js
           node test/fournil-garderobe.cjs
           node test/fournil-absence.test.js
-          node test/fournil-reveil.cjs
-          node test/fournil-compagnons.test.js
-          node test/fournil-compagnons.cjs
-          node test/fournil-version.cjs
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
@@ -97,8 +92,36 @@ jobs:
           PORT_GARDEROBE: '8864'
           PORT_QUARTIER: '8865'
           PORT_BLACKJACK: '8866'
+  # Une troisième tâche en parallèle (la première dépassait les 20 minutes) : les notifications, le réveil, les compagnons, la mise à jour.
+  fournil3:
+    name: Le Fournil, notifications, réveil, compagnons, mise à jour (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright et Chromium (hors du dépôt)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Les notifications, le réveil, les compagnons, la mise à jour
+        run: |
+          node build.js
+          node test/fournil-notifs.cjs
+          node test/fournil-reveil.cjs
+          node test/fournil-compagnons.test.js
+          node test/fournil-compagnons.cjs
+          node test/fournil-version.cjs
+        env:
+          TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+          PORT_NOTIFS: '8867'
+          PORT_COMPAGNONS: '8868'
+          PORT_VERSION: '8869'
   deploy:
-    needs: [fournil, fournil2]
+    needs: [fournil, fournil2, fournil3]
     runs-on: ubuntu-latest
     environment:
       name: github-pages
