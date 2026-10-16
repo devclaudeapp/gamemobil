@@ -2,7 +2,7 @@
    boulangerie (comme l'Atelier) :
    · « Le Quartier » (13 → 27 oct. 2026, midi) : la Planque, derrière une porte « 18 ans et + », règles dans src/quartier.js (QUARTIER) ;
    · « La Maison hantée » (27 oct. midi → 2 nov. 2026, 20 h) : le Manoir, tous âges, mignon-effrayant, règles dans src/hantee.js (HANTEE).
-   Les règles sont pures (testées dans Node) ; ici : l'écran, les cartes des six produits, les coups de pouce, le décor 3D (Three.js, bâti
+   Les règles sont pures (testées dans Node) ; ici : l'écran, les cartes des produits (six, puis huit après le boss), les coups de pouce, le décor 3D (Three.js, bâti
    à l'ouverture et libéré à la fermeture : rien ne reste en mémoire quand on est dans la boulangerie), les paliers et leurs récompenses
    distribuées dans la boulangerie (étoiles, boosts en réserve, décos, vêtements de la garde-robe), l'annonce du premier jour, le bilan de
    fin. Le temps : HORLOGE.maintenant(), par deps.maintenant.
@@ -245,7 +245,11 @@ const EVENEMENTS = (() => {
       const bp = el.querySelector('[data-pq="paliers"]'); bp.querySelector('b').textContent = `${nb}/${nbPaliers(qq)}`; bp.classList.toggle('pret', Q.paliersDus(qq).length > 0);
     }
 
-    // ─── les cartes des six produits (même grammaire que la boulangerie) ───
+    // ─── les cartes des produits (même grammaire que la boulangerie) : les six du début, puis les deux recettes « après le boss »,
+    //     montrées verrouillées (« Après le palier 13 ») tant que leur palier n'est pas franchi ───
+    const multTxt = (m) => (Math.abs(m - Math.round(m)) < 0.005 ? String(Math.round(m)) : m.toFixed(2).replace('.', ',')); // ×2, ×1,41, ×1,19
+    const paliersDe = (i) => (Q.paliersPoste ? Q.paliersPoste(i) : Q.PALIERS_POSTE);
+    const gainPal = (pal, i) => (Q.gainPalier ? Q.gainPalier(pal, i) : 2); // ce que ce palier ajoute (le vrai rapport : ×2 aux anciens paliers, ×1,41 ou ×1,19 aux intercalés)
     function construireCartes() {
       cartesEl.innerHTML = ''; cartes = [];
       Q.PRODUITS.forEach((p, i) => { const c = document.createElement('article'); c.className = 'carte pq'; c.dataset.i = i; cartesEl.appendChild(c); cartes.push({ el: c, html: '' }); });
@@ -257,19 +261,21 @@ const EVENEMENTS = (() => {
         const s = qq.postes[i], c = cartes[i]; if (!c) return;
         let html, cls;
         if (s.niv === 0) {
-          const prev = i === 0 || qq.postes[i - 1].niv > 0, ok = qq.billets >= p.debloquer;
-          cls = 'carte pq verrou' + (prev ? '' : ' secret');
-          html = `<div class="icone">${F.ico.produit(p, i)}</div><div class="corps"><h3>${esc(p.nom)}</h3><p>${esc(p.desc)} ${prev ? `Rapporte ${F.fmtPhrase(p.rev)} la vente.` : 'Débloque d’abord le produit précédent.'}</p>
-            ${prev ? `<button type="button" class="btn ${ok ? 'menthe' : 'non'}" data-a="debloquer"><small>Débloquer</small><b>${prix(p.debloquer)}</b></button>` : ''}</div>`;
+          const ferme = Q.recetteOuverte && !Q.recetteOuverte(qq, i), prev = !ferme && (i === 0 || qq.postes[i - 1].niv > 0), ok = qq.billets >= p.debloquer;
+          cls = 'carte pq verrou' + (prev ? '' : ' secret') + (ferme ? ' apres' : '');
+          const txt = ferme ? `${esc(p.desc)}` : `${esc(p.desc)} ${prev ? `Rapporte ${F.fmtPhrase(p.rev)} la vente.` : 'Débloque d’abord le produit précédent.'}`;
+          html = `<div class="icone">${F.ico.produit(p, i)}</div><div class="corps"><h3>${esc(p.nom)}</h3><p>${txt}</p>
+            ${ferme ? `<span class="pq-apres">${esc(F.t.recetteApres(p.apres))}</span>` : prev ? `<button type="button" class="btn ${ok ? 'menthe' : 'non'}" data-a="debloquer"><small>Débloquer</small><b>${prix(p.debloquer)}</b></button>` : ''}</div>`;
         } else {
-          const n = Q.quantite(qq, i), px = Q.prixNiveaux(qq, i, n), ok = qq.billets >= px, pal = Q.prochainPalier(s.niv), prec = Q.PALIERS_POSTE.filter((x) => x <= s.niv).pop() || 0, franchit = pal && s.niv + n >= pal;
+          const n = Q.quantite(qq, i), px = Q.prixNiveaux(qq, i, n), ok = qq.billets >= px, pal = Q.prochainPalier(s.niv, i), prec = paliersDe(i).filter((x) => x <= s.niv).pop() || 0, franchit = pal && s.niv + n >= pal;
+          const rem = Q.remise ? Q.remise(qq) : 1; // le Grossiste (ou le Marché des sorcières) : les niveaux à moitié prix
           const rapide = p.temps <= 1.5 && s.staff, gc = qq.ev && genre(qq.ev) === 'livrer' && qq.ev.i === i;
           cls = 'carte pq' + (s.staff ? ' auto' : ' manuel') + (s.actif ? ' actif' : '') + (gc ? ' gouter' : '');
           html = `${gc ? `<span class="badge-critique">${esc(coup(qq.ev).badge)}</span>` : ''}<div class="icone">${F.ico.produit(p, i)}<span class="niv">${s.niv}</span></div>
             <div class="corps"><h3><span class="nom">${esc(p.nom)}</span></h3><small class="pq-poste">${esc(p.poste)}</small>
-              <div class="palier ${franchit ? 'bientot' : ''}">${pal ? `<span>Palier <b>${pal}</b> · ×${Q.palierMult(pal)}</span><span>${pal - s.niv === 1 ? '1 niveau' : `${pal - s.niv} niveaux`}</span><i style="width:${((s.niv - prec) / (pal - prec) * 100).toFixed(0)}%"></i>` : `<span>Dernier palier · ×${Q.palierMult(s.niv)}</span><i style="width:100%"></i>`}</div>
+              <div class="palier ${franchit ? 'bientot' : ''}">${pal ? `<span>Palier <b>${pal}</b> ×${multTxt(gainPal(pal, i))}</span><span>${pal - s.niv} niv.</span><i style="width:${((s.niv - prec) / (pal - prec) * 100).toFixed(0)}%"></i>` : `<span>Dernier palier · ×${multTxt(Q.palierMult(s.niv, i))}</span><i style="width:100%"></i>`}</div>
               <div class="barre"><i class="${rapide ? 'rapide' : ''}"></i><span class="rev">+${prix(Q.revenuFournee(qq, i))}</span>${s.staff || s.actif ? `<span class="tps">${G.fmtDuree(Q.temps(qq, i))}</span>` : '<span class="cuire">Touche !</span>'}</div></div>
-            <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'}" data-a="ameliorer"><small>Améliorer ×${n}</small><b>${prix(px)}</b>${franchit ? `<i class="pal-badge">palier ×${Q.palierMult(pal)}</i>` : ''}</button>
+            <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'}${rem < 1 ? ' promo' : ''}" data-a="ameliorer"><small>${rem < 1 ? `−${Math.round((1 - rem) * 100)} % ×${n}` : `Améliorer ×${n}`}</small><b>${prix(px)}</b>${franchit ? `<i class="pal-badge">palier ×${multTxt(gainPal(pal, i))}</i>` : ''}</button>
               ${s.staff ? `<div class="staff-ok pq"><span>${esc(p.staffNom)}</span></div>` : `<button type="button" class="btn beurre ${qq.billets >= Q.prixStaff(qq, i) ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${prix(Q.prixStaff(qq, i))}</b></button>`}</div>`;
         }
         if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); }
@@ -285,7 +291,7 @@ const EVENEMENTS = (() => {
         const a = btn.dataset.a;
         if (a === 'debloquer' || a === 'ameliorer') {
           const r = Q.acheter(qq, i);
-          if (!r.ok) { d.son.non(); d.toast(r.verrou ? 'Débloque d’abord le produit précédent.' : `Il manque ${fmt(r.prix - qq.billets)}`); return; }
+          if (!r.ok) { d.son.non(); d.toast(r.verrou ? (r.apres ? `${F.t.recetteApres(r.apres)} : franchis-le pour l’ouvrir.` : 'Débloque d’abord le produit précédent.') : `Il manque ${fmt(r.prix - qq.billets)}`); return; }
           if (r.deblocage) { d.son.deblocage(); d.buzz([10, 30, 10]); d.toast(F.t.nouveau(Q.PRODUITS[i].nom)); } else { d.son.achat(); d.buzz(8); }
           renderCartes(true); lastHud = ''; hud(); d.save(); return;
         }
@@ -340,7 +346,7 @@ const EVENEMENTS = (() => {
       const bonus = Q.AMELIORATIONS.filter((a) => a.apres), ouvertes = bonus.filter((a) => ouverte(qq, a));
       const liste = Q.AMELIORATIONS.filter((a) => !a.apres).map(ligne).join('')
         + (ouvertes.length ? `<h3 class="pq-inter">${esc(F.t.apresBoss)}</h3><p class="pq-inter-sous">${esc(F.t.amBonus)}</p>${ouvertes.map(ligne).join('')}` : '')
-        + (bonus.length > ouvertes.length ? `<p class="note pq-am-bientot">${esc(F.t.amBientot(bonus.length - ouvertes.length, boss()))}</p>` : '');
+        + (bonus.length > ouvertes.length ? `<p class="note pq-am-bientot">${esc(F.t.amBientot(bonus.length - ouvertes.length, Math.min(...bonus.filter((a) => !ouverte(qq, a)).map((a) => a.apres || boss()))))}</p>` : '');
       d.openSheet(`<div class="pq-sheet ${F.classe}"><h2>${esc(F.t.amTitre)}</h2><p class="sous">${esc(F.t.amSous)}</p><div class="liste-am">${liste}</div><button type="button" class="btn large sombre" data-a="pq-retour" style="margin-top:14px"><b>Retour</b></button></div>`);
       d.on('[data-id]', (b) => { const r = Q.amelioration(q(), b.dataset.id); if (!r.ok) { d.son.non(); d.toast(`Il manque ${fmt(r.prix - q().billets)}`); return; } d.son.deblocage(); d.buzz([10, 30, 10]);
         let plus = ''; if (r.a.apres && (r.a.prime || r.a.etoiles)) { const lot = Q.lotCombine ? Q.lotCombine(r.a) : { etoiles: r.a.etoiles || 0, heures: r.a.prime || 0 }, v = verser(st(), lot); plus = ` · la boulangerie reçoit ${phraseVerse(v, lot.heures)}`; if (d.confettis) d.confettis(0.6); d.apres(); } // après le boss : elle paie aussi la boulangerie
@@ -818,12 +824,15 @@ const EVENEMENTS = (() => {
       // les apprentis du quartier : le guetteur (bonnet, debout près du mur), la nourrice (chignon, assise sur le canapé) ; les suivants au fur et à mesure des embauches
       equipeDe(X.q(), K);
     }
-    const tenues = [{ haut: '#2E2B3A', peau: '#C68B59', cheveux: '#2B2118', coiffure: 3, bonnet: '#2E2B3A' }, { haut: '#8A2B3A', peau: '#FFD7B5', cheveux: '#D9D9D9', coiffure: 2, lunettes: true }, { haut: '#B8A6FF', peau: '#F1B990', cheveux: '#B8762E', coiffure: 1 }, { haut: '#5FD3A4', peau: '#8D5A3C', cheveux: '#2B2118', coiffure: 0 }, { haut: '#FFC84A', peau: '#FFE3C9', cheveux: '#E0A61E', coiffure: 1, lunettes: true }, { haut: '#FF9A62', peau: '#5C3A21', cheveux: '#2B2118', coiffure: 3, bonnet: '#E1496C' }];
+    // les tenues, dans l'ordre d'arrivée ; les trois dernières : le livreur, puis les apprentis d'après le boss (le pharmacien en blouse
+    // blanche, le chimiste en combinaison jaune et lunettes)
+    const tenues = [{ haut: '#2E2B3A', peau: '#C68B59', cheveux: '#2B2118', coiffure: 3, bonnet: '#2E2B3A' }, { haut: '#8A2B3A', peau: '#FFD7B5', cheveux: '#D9D9D9', coiffure: 2, lunettes: true }, { haut: '#B8A6FF', peau: '#F1B990', cheveux: '#B8762E', coiffure: 1 }, { haut: '#5FD3A4', peau: '#8D5A3C', cheveux: '#2B2118', coiffure: 0 }, { haut: '#FFC84A', peau: '#FFE3C9', cheveux: '#E0A61E', coiffure: 1, lunettes: true }, { haut: '#FF9A62', peau: '#5C3A21', cheveux: '#2B2118', coiffure: 3, bonnet: '#E1496C' },
+      { haut: '#6CB8FF', peau: '#C68B59', cheveux: '#2B2118', coiffure: 0, bonnet: '#2B5BD7' }, { haut: '#F4F6FA', peau: '#FFD7B5', cheveux: '#BFC4CC', coiffure: 2, lunettes: true }, { haut: '#FFE04A', peau: '#F1B990', cheveux: '#3A2E26', coiffure: 0, lunettes: true }];
     // les places de l'équipe HD (x en part de la largeur, profondeur en part de 60 × K depuis le mur, orientation) : autour des meubles HD, pas dedans
-    const SPOTS_HD = [[0.11, 1.15, 1], [0, 0, 0], [0.72, 0.5, 2], [0.45, 1.6, 0], [0.8, 1.05, -1], [0.22, 1.55, 1]];
+    const SPOTS_HD = [[0.11, 1.15, 1], [0, 0, 0], [0.72, 0.5, 2], [0.45, 1.6, 0], [0.8, 1.05, -1], [0.22, 1.55, 1], [0.64, 1.7, -1], [0.34, 1.2, 1], [0.95, 1.6, -1]];
     function equipeDe(qq, K) {
       for (const p of persos) { G3.remove(p.g); if (p.hd) HDM.liberer(p.hd); else M.dispose(p.g); } persos.length = 0;
-      const n = Math.min(6, 1 + qq.postes.filter((s) => s.staff).length), spots = [[0.1, 0.3, 0, false], [0.4, 0.52, 0, false], [0.72, 0.5, 2, false], [0.5, 0.95, 0, false], [0.66, 0.85, -1, false], [0.15, 0.95, 1, false]];
+      const n = Math.min(tenues.length, 1 + qq.postes.filter((s) => s.staff).length), spots = [[0.1, 0.3, 0, false], [0.4, 0.52, 0, false], [0.72, 0.5, 2, false], [0.5, 0.95, 0, false], [0.66, 0.85, -1, false], [0.15, 0.95, 1, false], [0.84, 1.25, -1, false], [0.32, 1.25, 1, false], [0.62, 1.55, 0, false]];
       const hd = hdOk();
       for (let k = 0; k < n; k++) {
         if (hd) { // un Mini Character de Kenney (src/hd.js) : assis sur le canapé, ou debout à son poste
@@ -1001,12 +1010,16 @@ const EVENEMENTS = (() => {
     }
     // ─── l'équipe : la patronne (index 0) puis un employé costumé par produit dont l'apprenti est embauché ───
     // costumes : fantôme (un drap blanc), momie (bandelettes), squelette (pyjama noir à os blancs), vampire (cape et col), sorcière (chapeau
-    // pointu et cape), citrouille-lanterne (une tête de citrouille). Places : autour des meubles, jamais dedans.
-    const SPOTS = [[0.5, 1.4, 0], [0.44, 0.85, 0], [0.64, 0.72, -1], [0.6, 1.9, 0], [0.77, 1.5, -1], [0.27, 0.95, -1], [0.12, 1.75, 1]];
-    const COSTUMES = ['patronne', 'fantome', 'momie', 'squelette', 'vampire', 'sorciere', 'citrouille'];
+    // pointu et cape), citrouille-lanterne (une tête de citrouille) ; après le maître, le loup-garou (pelage gris-brun, oreilles pointues)
+    // et la petite dragonne (verte, deux cornes dorées). Places : autour des meubles, jamais dedans.
+    const SPOTS = [[0.5, 1.4, 0], [0.44, 0.85, 0], [0.64, 0.72, -1], [0.6, 1.9, 0], [0.77, 1.5, -1], [0.27, 0.95, -1], [0.12, 1.75, 1], [0.9, 1.78, -1], [0.3, 1.8, 1]];
+    const COSTUMES = ['patronne', 'fantome', 'momie', 'squelette', 'vampire', 'sorciere', 'citrouille', 'loupgarou', 'dragonne'];
+    // les oreilles du loup-garou, les cornes de la dragonne : dans le repère d'une tête de chibi (rayon 10, centre à l'origine)
+    const partsTete = (costume) => (costume === 'loupgarou' ? [-1, 1].flatMap((sx) => [P(M.cone(3.4, 7.5, 6), '#6E5E52', { x: sx * 6.6, y: 10, rz: -sx * 0.4 }), P(M.cone(1.8, 4.4, 6), '#FF9FB2', { x: sx * 6.5, y: 9.6, z: 1.4, rz: -sx * 0.4 })])
+      : costume === 'dragonne' ? [-1, 1].map((sx) => P(M.cone(1.9, 6.5, 6), '#FFE27A', { x: sx * 4.6, y: 10.6, z: -1.2, rz: -sx * 0.3, rx: -0.25 })) : []);
     function equipeDe(qq, K) {
       for (const p of persos) { G3.remove(p.g); if (p.hd) { HDM.liberer(p.hd); for (const m of p.mats || []) m.dispose(); for (const o of p.ajouts || []) M.dispose(o); } else M.dispose(p.g); } persos.length = 0;
-      const hd = hdOk(), qui = [0]; qq.postes.forEach((s, i) => { if (s.staff && qui.length < 7) qui.push(i + 1); });
+      const hd = hdOk(), qui = [0]; qq.postes.forEach((s, i) => { if (s.staff && qui.length < SPOTS.length) qui.push(i + 1); });
       qui.forEach((c, k) => {
         const [ux, uy, dirk] = SPOTS[c], costume = COSTUMES[c], x = W * ux, z = wz(murH + uy * 60 * K);
         if (hd) {
@@ -1017,6 +1030,7 @@ const EVENEMENTS = (() => {
           return;
         }
         const g = PERSOS.creer(Object.assign({ sac: false, taille: 1 }, CHIBIS[costume])); g.position.set(x, 0, z); g.rotation.y = YAW[dirk]; g.scale.setScalar(0.88 * K);
+        const pt = partsTete(costume), cou = g.userData.parts && g.userData.parts.cou; if (pt.length && cou) { const m = M.maille(pt, { ombre: false }); m.position.y = 11; cou.add(m); } // à la tête : elles suivent ses mouvements
         G3.add(g); persos.push({ g, assis: false, dir: dirk, phase: k * 1.3, costume });
       });
     }
@@ -1031,6 +1045,8 @@ const EVENEMENTS = (() => {
       vampire: { haut: '#3A2440', peau: '#EDE6FF', cheveux: '#1E1824', coiffure: 2, garde: tenue({ haut: { forme: 'cape', metal: 'vampire' } }) },
       sorciere: { haut: '#5FD3A4', peau: '#B9F0A6', cheveux: '#8E6BD8', coiffure: 1, garde: tenue({ tete: { forme: 'chapeau', metal: 'sorciere' }, pieds: { forme: 'bottes', metal: 'sorciere' } }) },
       citrouille: { haut: '#6FBF5A', peau: '#FFD7B5', cheveux: '#5A7A2E', coiffure: 0, garde: tenue({ tete: { forme: 'citrouille', metal: null } }) },
+      loupgarou: { haut: '#5A4A3E', peau: '#9C8A78', cheveux: '#6E5E52', coiffure: 3 },
+      dragonne: { haut: '#4FAF6A', peau: '#9FE3A6', cheveux: '#3E8A55', coiffure: 0 },
     };
     // un Mini Character costumé : ses matériaux teintés (clonés, rendus à la fin) et des pièces accrochées à ses os (la tête, le torse, la
     // racine). La tête et le corps du Mini sont MESURÉS dans le repère de leur os (une boîte : centre c, taille t) et chaque pièce s'y
@@ -1058,6 +1074,10 @@ const EVENEMENTS = (() => {
         const u = T.t.x / 20, parts = [[-0.22, 0.18], [0.06, -0.14], [0.3, 0.1]].map(([dy, rz]) => P(M.tore(9.3, 1.5, TAU, 6, 20), '#CDBE9A', { y: dy * T.t.y / u, rx: Math.PI / 2 + rz, sy: T.t.z / T.t.x }));
         const m = M.maille(parts, { ombre: false }); m.scale.setScalar(u); m.position.copy(T.c); accroche(m, os.head);
         if (B) { const v = B.t.z / 22, m2 = M.maille([P(M.tore(10.6, 1.6, TAU, 6, 20), '#CDBE9A', { y: 0, rx: Math.PI / 2 + 0.15 }), P(M.tore(10.4, 1.6, TAU, 6, 20), '#CDBE9A', { y: 6, rx: Math.PI / 2 - 0.15 })], { ombre: false }); m2.scale.setScalar(v); m2.position.set(B.c.x, B.c.y + B.t.y * 0.12, B.c.z); accroche(m2, os.torso); }
+      }
+      if ((costume === 'loupgarou' || costume === 'dragonne') && T) { // le pelage (ou les écailles) et, sur la tête, les oreilles pointues ou les deux cornes
+        teinte(corpsM, costume === 'loupgarou' ? '#6E5E52' : '#4FAF6A'); teinte(teteM, costume === 'loupgarou' ? '#9C8A78' : '#9FE3A6');
+        const u = T.t.x / 20, m = M.maille(partsTete(costume), { ombre: false }); m.scale.setScalar(u); m.position.copy(T.c); accroche(m, os.head);
       }
       if (costume === 'squelette' && B) { // le pyjama noir à os blancs : la colonne et trois côtes sur la poitrine, la tête blanche
         teinte(corpsM, '#3A3448'); teinte(teteM, '#F4F0E6');
@@ -1238,8 +1258,9 @@ const EVENEMENTS = (() => {
       palierSous: (m) => `${m} de billets gagnés dans la Planque. Pour la boulangerie :`, palierFinal: 'Le boss du quartier, c’est toi. Tout ça reste à vie, même après la fermeture de la Planque.', palierOk: 'Trop bien',
       amTitre: 'Les combines', amSous: 'Des améliorations qui multiplient les ventes de la Planque, jusqu’à la fin de l’événement.',
       apresBoss: 'Après le boss', apresBossSous: 'Huit paliers bonus pour ceux qui ont déjà tout : des étoiles par poignées, des boosts ×5 et ×10, des heures de gains pour la boulangerie, et au 20e la casquette néon.',
-      amBonus: 'Pour souffler une fois boss : elles ne multiplient pas les ventes, elles rendent la vie plus douce, et chacune paie la boulangerie (des heures de gains, des étoiles).', amBientot: (n, k) => `${n} combine${n > 1 ? 's' : ''} de plus après le palier ${k}.`,
-      palierBonus: 'Après le boss, ça continue : huit paliers bonus (jusqu’à 8 étoiles d’un coup, des boosts ×10, des heures de gains) et quatre combines qui paient la boulangerie t’attendent.', combineMot: 'combine',
+      amBonus: 'Pour souffler une fois boss : le Grossiste (les niveaux à moitié prix), un ×3 pour chaque nouvelle recette, et des combines qui rendent la vie plus douce. Chacune paie la boulangerie (des heures de gains, des étoiles).', amBientot: (n, k) => `${n} combine${n > 1 ? 's' : ''} de plus à partir du palier ${k}.`,
+      palierBonus: 'Après le boss, ça continue : huit paliers bonus (jusqu’à 8 étoiles d’un coup, des boosts ×10, des heures de gains), deux nouvelles recettes (aux paliers 13 et 16) et sept combines qui paient la boulangerie t’attendent.', combineMot: 'combine',
+      recetteApres: (n) => `Après le palier ${n}`,
       revue: (quoi) => `Tu avais déjà ${quoi || 'avancé'} au Quartier : voici, une fois, la différence avec les nouvelles récompenses. Les prochains paliers et les combines d’après le boss donnent déjà les nouvelles.`, palierBonusFinal: 'Une légende en néon. Le quartier n’a plus rien à t’apprendre : la casquette néon est dans ta garde-robe, à vie.',
       paliersSous: (m, nb, n) => `${m} de billets gagnés · ${nb}/${n}. Les mêmes seuils pour tout le monde ; chaque palier donne quelque chose pour la boulangerie, à vie.`,
       paliersNote: 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). Les heures de gains tombent tout de suite dans la caisse de la boulangerie. La tenue du quartier se porte depuis la garde-robe du boulanger, et le chien du quartier se choisit comme compagnon.',
@@ -1298,8 +1319,9 @@ const EVENEMENTS = (() => {
         palierSous: (m) => `${m} gagnés au manoir. Pour la boulangerie :`, palierFinal: txt('palier12', txt('palierFinal', 'La reine de la nuit, c’est toi. Tout ça reste à vie, même après la fermeture du manoir.')), palierOk: 'Trop chouette',
         amTitre: typeof T.ameliorations === 'string' ? `Les ${T.ameliorations.toLowerCase()}` : txt('amTitre', 'Les sortilèges'), amSous: txt('amSous', 'Des sorts qui multiplient les ventes du manoir, jusqu’à la fin de l’événement.'),
         apresBoss: txt('apresBoss', 'Après le maître du Manoir'), apresBossSous: txt('apresBossSous', 'Huit paliers bonus pour ceux qui ont déjà tout : des étoiles par poignées, des boosts ×5 et ×10, des heures de gains pour la boulangerie, et au 20e le chapeau phosphorescent.'),
-        amBonus: txt('amBonus', 'Des sorts de confort : ils ne multiplient pas les ventes, ils rendent la nuit plus douce, et chacun paie la boulangerie (des heures de gains, des étoiles).'), amBientot: (n, k) => `${n} sortilège${n > 1 ? 's' : ''} de plus après le palier ${k}.`,
-        palierBonus: txt('palierBonus', 'Et ce n’est pas fini : huit paliers bonus (jusqu’à 8 étoiles d’un coup, des boosts ×10, des heures de gains) et quatre sortilèges qui paient la boulangerie t’attendent au Manoir.'), combineMot: 'sortilège',
+        amBonus: txt('amBonus', 'Le Marché des sorcières (les niveaux à moitié prix), un ×3 pour chaque nouvelle recette, et des sorts de confort qui rendent la nuit plus douce. Chacun paie la boulangerie (des heures de gains, des étoiles).'), amBientot: (n, k) => `${n} sortilège${n > 1 ? 's' : ''} de plus à partir du palier ${k}.`,
+        palierBonus: txt('palierBonus', 'Et ce n’est pas fini : huit paliers bonus (jusqu’à 8 étoiles d’un coup, des boosts ×10, des heures de gains), deux nouvelles recettes (aux paliers 13 et 16) et sept sortilèges qui paient la boulangerie t’attendent au Manoir.'), combineMot: 'sortilège',
+        recetteApres: (n) => `Après le palier ${n}`,
         revue: (quoi) => `Tu avais déjà ${quoi || 'avancé'} au Manoir : voici, une fois, la différence avec les nouvelles récompenses. Les prochains paliers et les sortilèges d’après le maître donnent déjà les nouvelles.`, palierBonusFinal: txt('palierBonusFinal', 'Une légende qui brille dans le noir : le chapeau phosphorescent est dans ta garde-robe, à vie.'),
         paliersSous: (m, nb, n) => `${m} gagnés · ${nb}/${n}. Les mêmes seuils pour tout le monde ; chaque palier donne quelque chose pour la boulangerie, à vie.`,
         paliersNote: txt('paliersNote', 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue d’Halloween se porte depuis la garde-robe du boulanger.'),

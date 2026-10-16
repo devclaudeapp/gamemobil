@@ -1,11 +1,12 @@
 /* LE FOURNIL — l'événement « Le Quartier » : les règles pures de la Planque, la boutique à part de l'événement (du mardi 13 octobre
    2026 à midi au mardi 27 octobre 2026 à midi, heure de Paris). Une parodie pour adultes, derrière une porte « 18 ans et + » : un petit
    trafic de quartier façon dessin animé, des noms, des gags et des mécaniques de jeu — jamais la moindre information réelle.
-   Tout le monde part de zéro, avec sa propre monnaie (les billets), ses six produits, ses postes, ses « apprentis », ses améliorations,
+   Tout le monde part de zéro, avec sa propre monnaie (les billets), ses six produits (et deux recettes de plus après le boss), ses postes, ses « apprentis », ses améliorations,
    ses coups de pouce ; les gains d'absence sont plafonnés comme ceux de la boulangerie (sur l'horloge de confiance : « maintenant »
    est toujours donné par l'appelant, jamais lu ici). Douze paliers de billets gagnés, les mêmes pour tous, donnent des récompenses
    POUR LA BOULANGERIE (étoiles, boosts en réserve, décos du quartier, vêtements) : voir PALIERS ; huit paliers bonus « après le boss »
-   (13 à 20) et quatre combines de plus attendent ceux qui ont franchi le 12e avant la fin. À la fin, la Planque ferme ; tout le
+   (13 à 20), sept combines de plus (dont le Grossiste : les niveaux à moitié prix) et deux nouvelles recettes (le sirop violet au 13e,
+   le cristal bleu au 16e) attendent ceux qui ont franchi le 12e avant la fin. À la fin, la Planque ferme ; tout le
    reste reste à vie. Aucune dépendance au DOM ni à game.js : tourne aussi dans Node (test/fournil-quartier.test.js, qui simule le rythme).
    Les activités (src/activites.js, le moteur commun à tous les événements) : les mini-jeux, les contrats de la nuit et les opérations ;
    leur habillage du quartier est dans FICHE.activites, plus bas ; leur API (MINI, finirMini, contratsDuJour, lancerOperation…) est
@@ -48,6 +49,10 @@
   const envoiBillets = (now) => Number.isFinite(now) && now >= DEBUT && now < FIN + GRACE;
 
   // ─── les six produits de la Planque, dans l'ordre où on les débloque (les billets : en €, comme la boulangerie, mais un autre tiroir) ───
+  // Après le boss, deux recettes de plus (apres : le palier qui les ouvre, comme les combines) : le très actif attendait jusqu'à une heure
+  // par niveau vers le 10e jour (le prix grimpe en puissance, le gain en ligne droite) ; elles repartent du bas, leurs premiers niveaux
+  // tombent en quelques secondes, puis en quelques minutes. Leurs gains restent petits devant ceux de la Spécialité : l'enveloppe du
+  // serveur (fournil_quartier_table) ne bouge pas, le marathon simulé reste ×2 dessous (test/fournil-quartier.test.js).
   const PRODUITS = [
     { id: 'herbe', nom: 'Herbe', pl: 'sachets d’herbe', cout: 4, debloquer: 0, rev: 1, temps: 1.5, croiss: 1.07, staff: 1500, staffNom: 'Guetteur Kévin', poste: 'Le banc du square', desc: 'Le classique. Ça sent jusqu’au troisième.' },
     { id: 'shit', nom: 'Shit', pl: 'barrettes', cout: 60, debloquer: 120, rev: 20, temps: 3, croiss: 1.15, staff: 22500, staffNom: 'Charbonneur Dylan', poste: 'Le hall du bâtiment B', desc: 'Emballé dans du papier alu, comme un sandwich.' },
@@ -55,8 +60,18 @@
     { id: 'ecsta', nom: 'Ecsta', pl: 'pochons de cachetons', cout: 8640, debloquer: 17280, rev: 1200, temps: 12, croiss: 1.13, staff: 750000, staffNom: 'Rabatteur Momo', poste: 'Le parking de la boîte', desc: 'Roses, avec un petit cœur dessus.' },
     { id: 'coke', nom: 'Coke', pl: 'pochettes', cout: 1e5, debloquer: 2e8, rev: 10000, temps: 24, croiss: 1.12, staff: 6e8, staffNom: 'Comptable Tonton Serge', poste: 'L’arrière-salle du PMU', desc: 'La clientèle a des mocassins.' },
     { id: 'specialite', nom: 'La Spécialité du quartier', pl: 'Spécialités', cout: 1.2e6, debloquer: 2e10, rev: 9e4, temps: 96, croiss: 1.11, staff: 6e10, staffNom: 'Livreur Rachid', poste: 'Le camion à kebabs', desc: 'Personne ne sait ce qu’il y a dedans. Tout le monde en redemande.' },
+    { id: 'sirop', nom: 'Sirop violet', pl: 'gobelets de sirop violet', apres: 13, paliersFins: true, cout: 1e12, debloquer: 2e13, rev: 1000, temps: 120, croiss: 1.02, staff: 5e13, staffNom: 'Pharmacien Gérard', poste: 'L’arrière-boutique de la pharmacie', desc: 'Ça se boit à la paille, et ça ralentit tout le square.' },
+    { id: 'cristal', nom: 'Cristal bleu', pl: 'sachets de cristal bleu', apres: 16, paliersFins: true, cout: 1e13, debloquer: 2e14, rev: 8000, temps: 240, croiss: 1.025, staff: 5e14, staffNom: 'Chimiste Monsieur Blanc', poste: 'Le camping-car du terrain vague', desc: 'Bleu comme à la télé. Le chimiste jure qu’il est prof de chimie.' },
   ];
-  const PALIERS_POSTE = [25, 50, 100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000]; // comme la boulangerie : les gains doublent
+  // les paliers des postes : au palier franchi le plus haut, les gains sont multipliés par 2^exposant (comme la boulangerie : ×2 à 25,
+  // 50, 100, 200… 5000). Les recettes d'après le boss (paliersFins) ont en plus des paliers intercalés (75, 125, 150, 175, 250…), à
+  // exposant fractionnaire : un palier bien plus souvent, un petit ×1,19 ou ×1,41 à chaque fois, le même multiplicateur cumulé aux
+  // anciens. Les six premières gardent les anciens seuls : intercalés chez elles aussi, ils montaient leurs gains de 40 à 70 % entre deux
+  // anciens paliers, et le marathon simulé passait au-dessus de l'enveloppe du serveur (essai du 16 octobre, test/fournil-quartier.test.js).
+  const PALIERS_EXPOSANTS = [[25, 1], [50, 2], [75, 2.5], [100, 3], [125, 3.25], [150, 3.5], [175, 3.75], [200, 4], [250, 4.5], [300, 5], [350, 5.5], [400, 6], [450, 6.5],
+    [500, 7], [625, 7.5], [750, 8], [875, 8.5], [1000, 9], [1250, 9.5], [1500, 10], [1750, 10.5], [2000, 11], [2500, 11.5], [3000, 12], [4000, 12.5], [5000, 13]];
+  const PALIERS_ANCIENS = PALIERS_EXPOSANTS.filter((x) => x[1] % 1 === 0);
+  const PALIERS_POSTE = PALIERS_ANCIENS.map((x) => x[0]); // les paliers des six premières recettes (paliersPoste(i) : ceux d'une recette)
   const AMELIORATIONS = [
     { id: 'sachets', nom: 'Sachets zippés', cout: 50000, cible: ['herbe'], mult: 3, desc: 'Herbe ×3' },
     { id: 'alu', nom: 'Papier alu premium', cout: 600000, cible: ['shit'], mult: 3, desc: 'Shit ×3' },
@@ -70,11 +85,16 @@
     { id: 'cartel', nom: 'Franchise du cartel', cout: 6e12, cible: null, mult: 3, desc: 'Tout ×3' },
     // après le boss (palier 12 franchi) : quatre combines chères qui ne multiplient pas les ventes (l'enveloppe du serveur, voir
     // fournil_quartier_table : le marathon simulé doit rester ×2 dessous) ; elles adoucissent les coups de pouce et l'absence (effet) ; et,
-    // depuis la version 2 des récompenses, chacune PAIE la boulangerie à l'achat : prime (heures de son rythme) et étoiles (ACT.RECOMPENSES)
+    // depuis la version 2 des récompenses, chacune PAIE la boulangerie à l'achat : prime (heures de son rythme) et étoiles (ACT.RECOMPENSES).
+    // Le Grossiste (effet remise) : tous les niveaux de recettes à moitié prix (pas les déblocages) ; deux combines ×3 pour les recettes
+    // d'après le boss, ouvertes avec elles (13e et 16e) : les seules d'après le boss qui multiplient des ventes, réglées sur l'enveloppe.
+    { id: 'grossiste', nom: 'Le Grossiste', cout: 8e14, apres: 12, cible: [], mult: 1, effet: { remise: 0.5 }, prime: 4, etoiles: 1, desc: 'Tous les niveaux de recettes à moitié prix' },
     { id: 'guetteurs', nom: 'Guetteurs sur les toits', cout: 1e15, apres: 12, cible: [], mult: 1, effet: { descenteN: 8, descentePart: 0.05 }, prime: 6, etoiles: 1, desc: 'Descentes : 8 touches suffisent, la police n’embarque plus que 5 %' },
     { id: 'matelas', nom: 'Le matelas de Mémé Jacqueline', cout: 2e15, apres: 12, cible: [], mult: 1, effet: { absenceH: 12, absencePart: 0.2 }, prime: 10, etoiles: 2, desc: 'Absence : l’équipe bosse 12 h, à 20 % du rythme' },
+    { id: 'gobelets', nom: 'Gobelets à double fond', cout: 3e15, apres: 13, cible: ['sirop'], mult: 3, prime: 12, etoiles: 2, desc: 'Sirop violet ×3' },
     { id: 'sono', nom: 'Sono qui fait trembler le square', cout: 4e15, apres: 12, cible: [], mult: 1, effet: { soireeDuree: 180 }, prime: 16, etoiles: 2, desc: 'Soirées : 3 min au lieu de 2' },
     { id: 'trottinette', nom: 'Trottinette électrique du livreur', cout: 8e15, apres: 12, cible: [], mult: 1, effet: { scooterDuree: 20, scooterPrime: 3 }, prime: 24, etoiles: 3, desc: 'Le livreur attend 20 s, son bonus ×3' },
+    { id: 'campingcar', nom: 'Camping-car insonorisé', cout: 1.2e16, apres: 16, cible: ['cristal'], mult: 3, prime: 20, etoiles: 3, desc: 'Cristal bleu ×3' },
   ];
   const effet = (q, cle, defaut) => { for (const a of AMELIORATIONS) if (a.effet && a.effet[cle] != null && q.ameliorations && q.ameliorations[a.id]) return a.effet[cle]; return defaut; }; // une combine « après le boss » achetée change ce réglage
   const ABSENCE_MAX_H = 8;   // les apprentis bossent 8 h au plus pendant une absence, comme à la boulangerie…
@@ -154,20 +174,28 @@
   const note = (q, txt) => { q.carnet.push({ t: q.now, txt }); if (q.carnet.length > 12) q.carnet.shift(); };
 
   // ─── calculs ───
-  const palierMult = (niv) => Math.pow(2, PALIERS_POSTE.filter((p) => niv >= p).length);
-  const prochainPalier = (niv) => PALIERS_POSTE.find((p) => p > niv) || null;
+  const echelle = (i) => (i != null && PRODUITS[i] && PRODUITS[i].paliersFins ? PALIERS_EXPOSANTS : PALIERS_ANCIENS); // i absent : les anciens paliers
+  const paliersPoste = (i) => echelle(i).map((x) => x[0]);
+  const exposantPalier = (niv, i) => { let e = 0; for (const [p, x] of echelle(i)) if (niv >= p) e = x; return e; }; // l'exposant du plus haut palier franchi
+  const palierMult = (niv, i) => Math.pow(2, exposantPalier(niv, i));
+  const prochainPalier = (niv, i) => { const x = echelle(i).find((y) => y[0] > niv); return x ? x[0] : null; };
+  const gainPalier = (p, i) => palierMult(p, i) / palierMult(p - 1, i); // ce que ce palier ajoute (×2 aux anciens, ×1,41 ou ×1,19 aux intercalés) : pour l'écran
   function ameliorationMult(q, i) { let m = 1; for (const a of AMELIORATIONS) if (q.ameliorations[a.id] && (a.cible === null || a.cible.includes(PRODUITS[i].id))) m *= a.mult; return m; }
   function boostMult(q) { let m = PRESENCE; if (q.ev && q.ev.type === 'soiree' && q.ev.fin > q.now) m *= EVENEMENTS.soiree.mult; return m; } // en présence du boss
   const reputationMult = (q) => Math.pow(REPUTATION, paliersAtteints(q).filter((p) => !p.bonus).length); // les paliers bonus ne font plus la réputation
   const temps = (q, i) => PRODUITS[i].temps;
-  const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(q, i) * reputationMult(q); };
+  const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv, i) * ameliorationMult(q, i) * reputationMult(q); };
   const revenu = (q, i) => revenuBase(q, i) * boostMult(q);
   const revenuFournee = (q, i) => revenu(q, i) * (q.postes[i].staff ? 1 : 1.5); // à la main, on sert un client de plus
+  // les prix catalogue (sans q) ; ce que paie le joueur passe par prixNiveaux / quantite, qui lisent la remise du Grossiste (q)
   const coutNiveau = (i, niv) => (niv === 0 ? PRODUITS[i].debloquer : PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv));
   function coutNiveaux(i, niv, n) { if (niv === 0) return PRODUITS[i].debloquer; const r = PRODUITS[i].croiss; return PRODUITS[i].cout * Math.pow(r, niv) * (Math.pow(r, n) - 1) / (r - 1); }
   function maxNiveaux(i, niv, billets) { const r = PRODUITS[i].croiss, a = PRODUITS[i].cout * Math.pow(r, niv); if (billets < a) return 0; return Math.floor(Math.log(billets * (r - 1) / a + 1) / Math.log(r)); }
-  function quantite(q, i) { const s = q.postes[i]; if (s.niv === 0) return 1; if (q.mode === 'max') return Math.max(1, maxNiveaux(i, s.niv, q.billets)); return q.mode; }
-  const prixNiveaux = (q, i, n) => coutNiveaux(i, q.postes[i].niv, n);
+  const remise = (q) => (q ? effet(q, 'remise', 1) : 1); // le Grossiste : 0,5 (les niveaux à moitié prix ; un déblocage garde son prix)
+  const maxAchetables = (q, i) => maxNiveaux(i, q.postes[i].niv, q.billets / remise(q)); // ce que les billets paient, remise comprise
+  function quantite(q, i) { const s = q.postes[i]; if (s.niv === 0) return 1; if (q.mode === 'max') return Math.max(1, maxAchetables(q, i)); return q.mode; }
+  const prixNiveaux = (q, i, n) => { const niv = q.postes[i].niv; return niv === 0 ? coutNiveaux(i, 0, n) : coutNiveaux(i, niv, n) * remise(q); };
+  const recetteOuverte = (q, i) => !PRODUITS[i].apres || q.total >= PALIERS[PRODUITS[i].apres - 1].total; // les recettes « après le boss » : une fois leur palier franchi
   const prixStaff = (q, i) => PRODUITS[i].staff;
   function tauxBase(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenuBase(q, i) / temps(q, i); }); return t; }
   function tauxParSeconde(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenu(q, i) / temps(q, i); }); return t; }
@@ -180,6 +208,7 @@
   function gagner(q, montant) { q.billets += montant; q.total += montant; }
   function acheter(q, i) {
     const s = q.postes[i], n = quantite(q, i), prix = prixNiveaux(q, i, n);
+    if (s.niv === 0 && !recetteOuverte(q, i)) return { ok: false, prix, verrou: true, apres: PRODUITS[i].apres }; // après le boss : pas avant son palier
     if (i > 0 && s.niv === 0 && q.postes[i - 1].niv === 0) return { ok: false, prix, verrou: true };
     if (q.billets < prix) return { ok: false, prix };
     q.billets -= prix; const deblocage = s.niv === 0; s.niv += n;
@@ -338,21 +367,21 @@
   function decider(q) { // acheter : apprenti, déblocage, amélioration, puis le meilleur rapport gain / prix
     let fait = false;
     for (let i = 0; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv > 0 && !s.staff && q.billets >= prixStaff(q, i)) { embaucher(q, i); fait = true; } }
-    for (let i = 1; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv === 0 && q.postes[i - 1].niv > 0 && q.billets >= PRODUITS[i].debloquer) { acheter(q, i); fait = true; break; } }
-    for (const a of AMELIORATIONS) if (!q.ameliorations[a.id] && q.billets >= a.cout * 1.2) { amelioration(q, a.id); fait = true; }
-    const next = q.postes.findIndex((s) => s.niv === 0), taux = tauxParSeconde(q);
+    for (let i = 1; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv === 0 && q.postes[i - 1].niv > 0 && recetteOuverte(q, i) && q.billets >= PRODUITS[i].debloquer) { acheter(q, i); fait = true; break; } }
+    for (const a of AMELIORATIONS) if (!q.ameliorations[a.id] && combineOuverte(q, a) && q.billets >= a.cout * 1.2) { amelioration(q, a.id); fait = true; }
+    const next = q.postes.findIndex((s, i) => s.niv === 0 && recetteOuverte(q, i)), taux = tauxParSeconde(q); // une recette encore fermée (avant son palier) : on n'économise pas pour elle
     if (next > 0 && q.billets < PRODUITS[next].debloquer && q.billets + taux * 600 >= PRODUITS[next].debloquer) return fait; // on économise pour le prochain produit
     const vise = AMELIORATIONS.find((a) => a.apres && !q.ameliorations[a.id] && combineOuverte(q, a)); // après le boss : on met de côté pour la combine suivante (huit heures de ventes au plus)
     if (vise && q.billets < vise.cout * 1.2 && vise.cout <= taux * 8 * 3600) return fait;
     for (let k = 0; k < 3; k++) {
       let best = -1, bestR = 0, bestN = 1;
       for (let i = 0; i < PRODUITS.length; i++) {
-        const s = q.postes[i]; if (s.niv === 0) continue; const n = Math.min(10, maxNiveaux(i, s.niv, q.billets)); if (n < 1) continue;
-        const prix = coutNiveaux(i, s.niv, n), gain = (PRODUITS[i].rev * (s.niv + n) * palierMult(s.niv + n) - PRODUITS[i].rev * s.niv * palierMult(s.niv)) * ameliorationMult(q, i) / PRODUITS[i].temps * (s.staff ? 1 : 0.3);
+        const s = q.postes[i]; if (s.niv === 0) continue; const n = Math.min(10, maxAchetables(q, i)); if (n < 1) continue;
+        const prix = prixNiveaux(q, i, n), gain = (PRODUITS[i].rev * (s.niv + n) * palierMult(s.niv + n, i) - PRODUITS[i].rev * s.niv * palierMult(s.niv, i)) * ameliorationMult(q, i) / PRODUITS[i].temps * (s.staff ? 1 : 0.3);
         const r = gain / prix; if (r > bestR) { bestR = r; best = i; bestN = n; }
       }
       if (best < 0) break;
-      q.mode = q.billets > 30 * coutNiveaux(best, q.postes[best].niv, bestN) ? 'max' : bestN;
+      q.mode = q.billets > 30 * prixNiveaux(q, best, bestN) ? 'max' : bestN;
       if (acheter(q, best).ok) fait = true;
     }
     return fait;
@@ -385,7 +414,7 @@
         }
         q.lastSeen = debut + minutes * 60e3; if (jeu) A.sim.fin(q, Math.min(q.lastSeen, FIN - 1), jeu, rndA); trace.push({ t: (q.lastSeen - t0) / JOUR, total: q.total });
       }
-      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length });
+      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length, remise: remise(q) });
     }
     return { q, total: q.total, parJour, paliersJour, trace };
   }
@@ -441,7 +470,7 @@
   const revueRecompenses = (q) => R2.revue(q, PALIERS, AMELIORATIONS, ANCIENS); // une fois (q.recompensesV2) : la différence avec les anciennes
 
   return { FICHE, ...A.api, ANCIENS, phraseCombine, revueRecompenses, lotCombine: R2.lotCombine, phraseLot: R2.phraseLot, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, GRACE, fenetreSure, envoiBillets, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
-    PAUSE_EV, pauseCoup, neuf, etat, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
+    PAUSE_EV, pauseCoup, neuf, etat, palierMult, prochainPalier, gainPalier, exposantPalier, paliersPoste, PALIERS_EXPOSANTS, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, maxAchetables, recetteOuverte, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
     gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
     PROFILS, simuler, decider, fmt, fmtEur, fmtDuree, fmtChrono, fmtReste };
 });

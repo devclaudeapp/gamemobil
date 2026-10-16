@@ -1,11 +1,12 @@
 /* LE FOURNIL — l'événement d'Halloween « La Maison hantée » : les règles pures du Manoir, la seconde boutique à part de l'automne (du
    mardi 27 octobre 2026 à midi au lundi 2 novembre 2026 à 20 h, heure de Paris), juste après « Le Quartier » (src/quartier.js, qui
    finit le 27 à midi). Pour tous les âges : mignon-effrayant, des fantômes gourmands et des citrouilles qui grimacent, rien d'autre.
-   Tout le monde part de zéro, avec sa propre monnaie (les bonbons), ses six friandises, ses postes, ses monstres « apprentis », ses
+   Tout le monde part de zéro, avec sa propre monnaie (les bonbons), ses six friandises (et deux recettes de plus après le maître), ses postes, ses monstres « apprentis », ses
    améliorations (les Sortilèges), ses coups de pouce ; les gains d'absence sont plafonnés comme ceux de la boulangerie (sur l'horloge de
    confiance : « maintenant » est toujours donné par l'appelant, jamais lu ici). Douze paliers de bonbons gagnés, les mêmes pour tous,
    donnent des récompenses POUR LA BOULANGERIE (étoiles, boosts en réserve, décos d'Halloween, la tenue d'Halloween, le chat noir) : voir
-   PALIERS ; huit paliers bonus « après le maître » (13 à 20) et quatre Sortilèges de plus attendent ceux qui ont franchi le 12e tôt. À la fin, le Manoir ferme ; tout le reste reste à vie. Aucune dépendance au DOM ni à game.js : tourne aussi dans Node
+   PALIERS ; huit paliers bonus « après le maître » (13 à 20), sept Sortilèges de plus (dont le Marché des sorcières : les niveaux à
+   moitié prix) et deux nouvelles recettes (les gâteaux du cimetière au 13e, les œufs de dragon au 16e) attendent ceux qui ont franchi le 12e tôt. À la fin, le Manoir ferme ; tout le reste reste à vie. Aucune dépendance au DOM ni à game.js : tourne aussi dans Node
    (test/fournil-hantee.test.js, qui simule le rythme).
 
    La même forme d'API que src/quartier.js (QUARTIER), mot pour mot : DEBUT, FIN, GRACE, CLASSEMENT_JUSQUA, fenetre, fenetreSure,
@@ -75,7 +76,9 @@
 
   // ─── les six friandises du Manoir, dans l'ordre où on les débloque ; leurs monstres (les « apprentis ») ───
   // Les chiffres sont ceux du Quartier, resserrés pour six jours et demi (croissance des prix plus douce, déblocages plus proches) :
-  // réglés sur la simulation (test/fournil-hantee.test.js).
+  // réglés sur la simulation (test/fournil-hantee.test.js). Après le maître, deux recettes de plus (apres : le palier qui les ouvre, comme
+  // les Sortilèges), comme au Quartier : elles repartent du bas, leurs premiers niveaux tombent vite ; leurs gains restent petits devant
+  // ceux des citrouilles (l'enveloppe du serveur, fournil_evts : le marathon simulé reste ×2 dessous).
   const PRODUITS = [
     { id: 'acidule', nom: 'Bonbons acidulés', pl: 'sachets de bonbons acidulés', cout: 4, debloquer: 0, rev: 1, temps: 1.5, croiss: 1.07, staff: 1500, staffNom: 'Hubert le fantôme', staffDesc: 'Il passe à travers les murs pour livrer plus vite. Il dit « Bouh » aux clients, poliment.', poste: 'Le grenier qui grince', desc: 'Ça pique la langue et ça fait faire des grimaces.' },
     { id: 'pomme', nom: 'Pommes d’amour', pl: 'pommes d’amour', cout: 60, debloquer: 120, rev: 20, temps: 3, croiss: 1.14, staff: 22500, staffNom: 'Ramsès la momie', staffDesc: 'Emballe chaque pomme comme elle s’emballe elle-même : avec beaucoup de bandelettes.', poste: 'La crypte du sous-sol', desc: 'Rouges, brillantes, et elles collent aux dents.' },
@@ -83,8 +86,18 @@
     { id: 'toile', nom: 'Toiles d’araignée en sucre', pl: 'toiles d’araignée en sucre', cout: 8640, debloquer: 17280, rev: 1200, temps: 12, croiss: 1.12, staff: 750000, staffNom: 'Comte Vladimir', staffDesc: 'Un vampire très chic qui ne mord que dans la barbe à papa. Il travaille de nuit, forcément.', poste: 'La tour de l’horloge', desc: 'Filées par une araignée très gourmande. Elle a dit oui.' },
     { id: 'potion', nom: 'Potions fumantes', pl: 'potions fumantes', cout: 1e5, debloquer: 2e8, rev: 10000, temps: 24, croiss: 1.11, staff: 4e8, staffNom: 'Berthe la sorcière', staffDesc: 'Touille le chaudron en chantant faux. Les potions adorent ça.', poste: 'Le chaudron du salon', desc: 'Goût fraise-citrouille. La fumée verte est offerte.' },
     { id: 'citrouille', nom: 'Citrouilles sculptées', pl: 'citrouilles sculptées', cout: 1.2e6, debloquer: 1e10, rev: 9e4, temps: 96, croiss: 1.1, staff: 3e10, staffNom: 'Jack la Lanterne', staffDesc: 'Une citrouille qui sculpte des citrouilles. Elle a toujours le sourire, il est gravé.', poste: 'Le potager au clair de lune', desc: 'Chacune a sa grimace. Aucune ne se ressemble.' },
+    { id: 'cimetiere', nom: 'Gâteaux du cimetière', pl: 'gâteaux du cimetière', apres: 13, paliersFins: true, cout: 1e12, debloquer: 2e13, rev: 1000, temps: 120, croiss: 1.02, staff: 5e13, staffNom: 'Gaston le loup-garou', staffDesc: 'Il ne se transforme qu’à l’heure du goûter. Il remue la pâte avec la queue, très proprement.', poste: 'Le petit cimetière du jardin', desc: 'Des vers en gélatine sortent de la terre en chocolat.' },
+    { id: 'dragon', nom: 'Œufs de dragon en chocolat', pl: 'œufs de dragon en chocolat', apres: 16, paliersFins: true, cout: 1e13, debloquer: 2e14, rev: 8000, temps: 240, croiss: 1.025, staff: 5e14, staffNom: 'Bérénice la dragonne', staffDesc: 'Une toute petite dragonne qui couve les œufs pour les garder tièdes. Elle éternue des étincelles.', poste: 'Le donjon de la tour nord', desc: 'Ils sont tièdes et ils bougent un peu. C’est normal.' },
   ];
-  const PALIERS_POSTE = [25, 50, 100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000]; // comme la boulangerie : les gains doublent
+  // les paliers des postes : au palier franchi le plus haut, les gains sont multipliés par 2^exposant (comme la boulangerie : ×2 à 25,
+  // 50, 100, 200… 5000). Les recettes d'après le boss (paliersFins) ont en plus des paliers intercalés (75, 125, 150, 175, 250…), à
+  // exposant fractionnaire : un palier bien plus souvent, un petit ×1,19 ou ×1,41 à chaque fois, le même multiplicateur cumulé aux
+  // anciens. Les six premières gardent les anciens seuls : intercalés chez elles aussi, ils montaient leurs gains de 40 à 70 % entre deux
+  // anciens paliers, et le marathon simulé passait au-dessus de l'enveloppe du serveur (essai du 16 octobre, test/fournil-quartier.test.js).
+  const PALIERS_EXPOSANTS = [[25, 1], [50, 2], [75, 2.5], [100, 3], [125, 3.25], [150, 3.5], [175, 3.75], [200, 4], [250, 4.5], [300, 5], [350, 5.5], [400, 6], [450, 6.5],
+    [500, 7], [625, 7.5], [750, 8], [875, 8.5], [1000, 9], [1250, 9.5], [1500, 10], [1750, 10.5], [2000, 11], [2500, 11.5], [3000, 12], [4000, 12.5], [5000, 13]];
+  const PALIERS_ANCIENS = PALIERS_EXPOSANTS.filter((x) => x[1] % 1 === 0);
+  const PALIERS_POSTE = PALIERS_ANCIENS.map((x) => x[0]); // les paliers des six premières recettes (paliersPoste(i) : ceux d'une recette)
   const AMELIORATIONS = [ // les Sortilèges
     { id: 'petillant', nom: 'Sucre qui pétille', cout: 50000, cible: ['acidule'], mult: 3, desc: 'Bonbons acidulés ×3' },
     { id: 'caramel', nom: 'Caramel enchanté', cout: 600000, cible: ['pomme'], mult: 3, desc: 'Pommes d’amour ×3' },
@@ -98,11 +111,16 @@
     { id: 'bal', nom: 'Le grand bal des monstres', cout: 1e12, cible: null, mult: 3, desc: 'Tout ×3' },
     // après le maître du Manoir (palier 12 franchi) : quatre Sortilèges chers qui ne multiplient pas les ventes (l'enveloppe du serveur,
     // fournil_evts() de la v5 : le marathon simulé doit rester ×2 dessous) ; ils adoucissent les coups de pouce et l'absence (effet) ; et,
-    // depuis la version 2 des récompenses, chacun PAIE la boulangerie à l'achat : prime (heures de son rythme) et étoiles (ACT.RECOMPENSES)
+    // depuis la version 2 des récompenses, chacun PAIE la boulangerie à l'achat : prime (heures de son rythme) et étoiles (ACT.RECOMPENSES).
+    // Le Marché des sorcières (effet remise) : tous les niveaux de recettes à moitié prix (pas les déblocages) ; deux Sortilèges ×3 pour les
+    // recettes d'après le maître, ouverts avec elles (13e et 16e) : les seuls d'après le maître qui multiplient des ventes.
+    { id: 'marche', nom: 'Le Marché des sorcières', cout: 6e14, apres: 12, cible: [], mult: 1, effet: { remise: 0.5 }, prime: 4, etoiles: 1, desc: 'Tous les niveaux de recettes à moitié prix' },
     { id: 'epouvantail', nom: 'Épouvantail à chauves-souris', cout: 8e14, apres: 12, cible: [], mult: 1, effet: { descenteN: 8, descentePart: 0.05 }, prime: 6, etoiles: 1, desc: 'Chauves-souris : 8 touches suffisent, elles n’emportent plus que 5 %' },
     { id: 'couette', nom: 'Couette des fantômes', cout: 1.5e15, apres: 12, cible: [], mult: 1, effet: { absenceH: 12, absencePart: 0.2 }, prime: 10, etoiles: 2, desc: 'Absence : les monstres travaillent 12 h, à 20 % du rythme' },
-    { id: 'nuages', nom: 'Nuages chassés d’un coup de baguette', cout: 3e15, apres: 12, cible: [], mult: 1, effet: { soireeDuree: 180 }, prime: 16, etoiles: 2, desc: 'Pleine lune : 3 min au lieu de 2' },
+    { id: 'pelle', nom: 'La pelle du fossoyeur gourmand', cout: 2e15, apres: 13, cible: ['cimetiere'], mult: 3, prime: 12, etoiles: 2, desc: 'Gâteaux du cimetière ×3' },
+    { id: 'nuages', nom: 'Nuages chassés d’un coup de baguette', cout: 3e15, apres: 12, cible: [], mult: 1, effet: { soireeDuree: 150 }, prime: 16, etoiles: 2, desc: 'Pleine lune : 2 min 30 au lieu de 2' }, // 2 min 30 (et non 3) : la place du Marché des sorcières dans l'enveloppe
     { id: 'turbo', nom: 'Balai à turbo', cout: 6e15, apres: 12, cible: [], mult: 1, effet: { scooterDuree: 20, scooterPrime: 3 }, prime: 24, etoiles: 3, desc: 'Le balai attend 20 s, son sac ×3' },
+    { id: 'nid', nom: 'Le nid douillet de la dragonne', cout: 9e15, apres: 16, cible: ['dragon'], mult: 3, prime: 20, etoiles: 3, desc: 'Œufs de dragon ×3' },
   ];
   const effet = (q, cle, defaut) => { for (const a of AMELIORATIONS) if (a.effet && a.effet[cle] != null && q.ameliorations && q.ameliorations[a.id]) return a.effet[cle]; return defaut; }; // un Sortilège « après le maître » acheté change ce réglage
   const ABSENCE_MAX_H = 8;   // les monstres travaillent 8 h au plus pendant une absence, comme à la boulangerie…
@@ -183,20 +201,28 @@
   const note = (q, txt) => { q.carnet.push({ t: q.now, txt }); if (q.carnet.length > 12) q.carnet.shift(); };
 
   // ─── calculs (les mêmes formules qu'au Quartier) ───
-  const palierMult = (niv) => Math.pow(2, PALIERS_POSTE.filter((p) => niv >= p).length);
-  const prochainPalier = (niv) => PALIERS_POSTE.find((p) => p > niv) || null;
+  const echelle = (i) => (i != null && PRODUITS[i] && PRODUITS[i].paliersFins ? PALIERS_EXPOSANTS : PALIERS_ANCIENS); // i absent : les anciens paliers
+  const paliersPoste = (i) => echelle(i).map((x) => x[0]);
+  const exposantPalier = (niv, i) => { let e = 0; for (const [p, x] of echelle(i)) if (niv >= p) e = x; return e; }; // l'exposant du plus haut palier franchi
+  const palierMult = (niv, i) => Math.pow(2, exposantPalier(niv, i));
+  const prochainPalier = (niv, i) => { const x = echelle(i).find((y) => y[0] > niv); return x ? x[0] : null; };
+  const gainPalier = (p, i) => palierMult(p, i) / palierMult(p - 1, i); // ce que ce palier ajoute (×2 aux anciens, ×1,41 ou ×1,19 aux intercalés) : pour l'écran
   function ameliorationMult(q, i) { let m = 1; for (const a of AMELIORATIONS) if (q.ameliorations[a.id] && (a.cible === null || a.cible.includes(PRODUITS[i].id))) m *= a.mult; return m; }
   function boostMult(q) { let m = PRESENCE; if (q.ev && q.ev.type === 'soiree' && q.ev.fin > q.now) m *= EVENEMENTS.soiree.mult; return m; } // en ta présence
   const reputationMult = (q) => Math.pow(REPUTATION, paliersAtteints(q).filter((p) => !p.bonus).length); // les paliers bonus ne font plus la réputation
   const temps = (q, i) => PRODUITS[i].temps;
-  const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(q, i) * reputationMult(q); };
+  const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv, i) * ameliorationMult(q, i) * reputationMult(q); };
   const revenu = (q, i) => revenuBase(q, i) * boostMult(q);
   const revenuFournee = (q, i) => revenu(q, i) * (q.postes[i].staff ? 1 : 1.5); // à la main, on sert un client de plus
+  // les prix catalogue (sans q) ; ce que paie le joueur passe par prixNiveaux / quantite, qui lisent la remise du Marché des sorcières (q)
   const coutNiveau = (i, niv) => (niv === 0 ? PRODUITS[i].debloquer : PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv));
   function coutNiveaux(i, niv, n) { if (niv === 0) return PRODUITS[i].debloquer; const r = PRODUITS[i].croiss; return PRODUITS[i].cout * Math.pow(r, niv) * (Math.pow(r, n) - 1) / (r - 1); }
   function maxNiveaux(i, niv, billets) { const r = PRODUITS[i].croiss, a = PRODUITS[i].cout * Math.pow(r, niv); if (billets < a) return 0; return Math.floor(Math.log(billets * (r - 1) / a + 1) / Math.log(r)); }
-  function quantite(q, i) { const s = q.postes[i]; if (s.niv === 0) return 1; if (q.mode === 'max') return Math.max(1, maxNiveaux(i, s.niv, q.billets)); return q.mode; }
-  const prixNiveaux = (q, i, n) => coutNiveaux(i, q.postes[i].niv, n);
+  const remise = (q) => (q ? effet(q, 'remise', 1) : 1); // le Marché des sorcières : 0,5 (les niveaux à moitié prix ; un déblocage garde son prix)
+  const maxAchetables = (q, i) => maxNiveaux(i, q.postes[i].niv, q.billets / remise(q)); // ce que les bonbons paient, remise comprise
+  function quantite(q, i) { const s = q.postes[i]; if (s.niv === 0) return 1; if (q.mode === 'max') return Math.max(1, maxAchetables(q, i)); return q.mode; }
+  const prixNiveaux = (q, i, n) => { const niv = q.postes[i].niv; return niv === 0 ? coutNiveaux(i, 0, n) : coutNiveaux(i, niv, n) * remise(q); };
+  const recetteOuverte = (q, i) => !PRODUITS[i].apres || q.total >= PALIERS[PRODUITS[i].apres - 1].total; // les recettes « après le maître » : une fois leur palier franchi
   const prixStaff = (q, i) => PRODUITS[i].staff;
   function tauxBase(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenuBase(q, i) / temps(q, i); }); return t; }
   function tauxParSeconde(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenu(q, i) / temps(q, i); }); return t; }
@@ -209,6 +235,7 @@
   function gagner(q, montant) { q.billets += montant; q.total += montant; }
   function acheter(q, i) {
     const s = q.postes[i], n = quantite(q, i), prix = prixNiveaux(q, i, n);
+    if (s.niv === 0 && !recetteOuverte(q, i)) return { ok: false, prix, verrou: true, apres: PRODUITS[i].apres }; // après le maître : pas avant son palier
     if (i > 0 && s.niv === 0 && q.postes[i - 1].niv === 0) return { ok: false, prix, verrou: true };
     if (q.billets < prix) return { ok: false, prix };
     q.billets -= prix; const deblocage = s.niv === 0; s.niv += n;
@@ -371,21 +398,21 @@
   function decider(q) { // acheter : monstre, déblocage, sortilège, puis le meilleur rapport gain / prix
     let fait = false;
     for (let i = 0; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv > 0 && !s.staff && q.billets >= prixStaff(q, i)) { embaucher(q, i); fait = true; } }
-    for (let i = 1; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv === 0 && q.postes[i - 1].niv > 0 && q.billets >= PRODUITS[i].debloquer) { acheter(q, i); fait = true; break; } }
-    for (const a of AMELIORATIONS) if (!q.ameliorations[a.id] && q.billets >= a.cout * 1.2) { amelioration(q, a.id); fait = true; }
-    const next = q.postes.findIndex((s) => s.niv === 0), taux = tauxParSeconde(q);
+    for (let i = 1; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv === 0 && q.postes[i - 1].niv > 0 && recetteOuverte(q, i) && q.billets >= PRODUITS[i].debloquer) { acheter(q, i); fait = true; break; } }
+    for (const a of AMELIORATIONS) if (!q.ameliorations[a.id] && combineOuverte(q, a) && q.billets >= a.cout * 1.2) { amelioration(q, a.id); fait = true; }
+    const next = q.postes.findIndex((s, i) => s.niv === 0 && recetteOuverte(q, i)), taux = tauxParSeconde(q); // une recette encore fermée (avant son palier) : on n'économise pas pour elle
     if (next > 0 && q.billets < PRODUITS[next].debloquer && q.billets + taux * 600 >= PRODUITS[next].debloquer) return fait; // on économise pour la prochaine friandise
     const vise = AMELIORATIONS.find((a) => a.apres && !q.ameliorations[a.id] && combineOuverte(q, a)); // après le maître : on met de côté pour le Sortilège suivant (huit heures de ventes au plus)
     if (vise && q.billets < vise.cout * 1.2 && vise.cout <= taux * 8 * 3600) return fait;
     for (let k = 0; k < 3; k++) {
       let best = -1, bestR = 0, bestN = 1;
       for (let i = 0; i < PRODUITS.length; i++) {
-        const s = q.postes[i]; if (s.niv === 0) continue; const n = Math.min(10, maxNiveaux(i, s.niv, q.billets)); if (n < 1) continue;
-        const prix = coutNiveaux(i, s.niv, n), gain = (PRODUITS[i].rev * (s.niv + n) * palierMult(s.niv + n) - PRODUITS[i].rev * s.niv * palierMult(s.niv)) * ameliorationMult(q, i) / PRODUITS[i].temps * (s.staff ? 1 : 0.3);
+        const s = q.postes[i]; if (s.niv === 0) continue; const n = Math.min(10, maxAchetables(q, i)); if (n < 1) continue;
+        const prix = prixNiveaux(q, i, n), gain = (PRODUITS[i].rev * (s.niv + n) * palierMult(s.niv + n, i) - PRODUITS[i].rev * s.niv * palierMult(s.niv, i)) * ameliorationMult(q, i) / PRODUITS[i].temps * (s.staff ? 1 : 0.3);
         const r = gain / prix; if (r > bestR) { bestR = r; best = i; bestN = n; }
       }
       if (best < 0) break;
-      q.mode = q.billets > 30 * coutNiveaux(best, q.postes[best].niv, bestN) ? 'max' : bestN;
+      q.mode = q.billets > 30 * prixNiveaux(q, best, bestN) ? 'max' : bestN;
       if (acheter(q, best).ok) fait = true;
     }
     return fait;
@@ -418,7 +445,7 @@
         }
         q.lastSeen = Math.min(debut + minutes * 60e3, FIN); if (jeu) A.sim.fin(q, Math.min(q.lastSeen, FIN - 1), jeu, rndA); trace.push({ t: (q.lastSeen - t0) / JOUR, total: q.total });
       }
-      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length });
+      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length, remise: remise(q) });
     }
     return { q, total: q.total, parJour, paliersJour, trace };
   }
@@ -501,7 +528,7 @@
   const revueRecompenses = (q) => R2.revue(q, PALIERS, AMELIORATIONS, ANCIENS); // une fois (q.recompensesV2) : la différence avec les anciennes
 
   return { FICHE, ...A.api, ANCIENS, phraseCombine, revueRecompenses, lotCombine: R2.lotCombine, phraseLot: R2.phraseLot, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, JOURS, GRACE, fenetreSure, envoiBonbons, envoiBillets: envoiBonbons, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
-    PAUSE_EV, pauseCoup, neuf, etat, bonbons, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
+    PAUSE_EV, pauseCoup, neuf, etat, bonbons, palierMult, prochainPalier, gainPalier, exposantPalier, paliersPoste, PALIERS_EXPOSANTS, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, maxAchetables, recetteOuverte, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
     gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, chasser: planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
     PROFILS, simuler, decider, fmt, fmtEur, fmtDevise, fmtDuree, fmtChrono, fmtReste };
 });

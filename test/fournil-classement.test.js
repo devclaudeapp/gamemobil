@@ -551,7 +551,13 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const q = Q.neuf(T); q.majeur = true; q.ouvertLe = T; q.postes[0].niv = 60; q.postes[0].staff = true; q.postes[1].niv = 12; q.decos = ['graffiti', 'neon']; q.paliers = [1, 2, 3, 4]; q.total = Q.PALIERS[3].total + 5;
     const p = CL.photo(st, { G, ev: { id: 'quartier', q } });
     check(p && egal(p.x, { e: 42, b: 3, v: 123456, tr: 2, s: 9, f: 98770000 }), `x : étoiles, boutique, ventes, trophées (connus seulement), série, fortune à 4 chiffres (${JSON.stringify(p && p.x)})`);
-    check(p && egal(p.e, { id: 'quartier', p: [[60, 1], [12, 0], [0, 0], [0, 0], [0, 0], [0, 0]], d: ['graffiti', 'neon'], pa: 4, t: Q.PALIERS[3].total + 5 }), `e : l’événement, ses six postes (niveau, apprenti), ses décos, ses paliers, son total (${JSON.stringify(p && p.e)})`);
+    check(p && egal(p.e, { id: 'quartier', p: [[60, 1], [12, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]], d: ['graffiti', 'neon'], pa: 4, t: Q.PALIERS[3].total + 5 }), `e : l’événement, ses huit postes (niveau, apprenti), ses décos, ses paliers, son total (${JSON.stringify(p && p.e)})`);
+    { // une Planque au bout de l'événement : huit postes à des milliers de niveaux, tous les apprentis, vingt paliers, toutes les décos ; une vieille photo à six postes
+      const q8 = Q.neuf(T); q8.postes.forEach((x) => { x.niv = 4999; x.staff = true; }); q8.decos = Q.DECOS.slice(); q8.paliers = Q.PALIERS.map((x) => x.n); q8.total = 1e17;
+      const p8 = CL.photo(st, { G, coupes: Array(12).fill('or'), badge: true, ev: { id: 'quartier', q: q8 } }), r8 = CL.evenementDepuisPhoto(p8, { R: Q, id: 'quartier', maintenant: T });
+      check(p8 && p8.e && p8.e.p.length === 8 && CL.octetsJson(p8) <= 2048 && p8.e.d.length === 4 && r8 && r8.q.postes.every((x) => x.niv === 4999 && x.staff) && r8.equipe === 8 && r8.postes === 8, `huit postes : la photo porte toute la Planque (${CL.octetsJson(p8)} octets ≤ 2048, rien de retiré), rebâtie avec ses huit postes et ses huit apprentis`);
+      const v6 = JSON.parse(JSON.stringify(p8)); v6.e.p = v6.e.p.slice(0, 6); const r6 = CL.evenementDepuisPhoto(v6, { R: Q, id: 'quartier', maintenant: T });
+      check(r6 && r6.q.postes.length === 8 && r6.q.postes.slice(6).every((x) => x.niv === 0 && !x.staff) && r6.postes === 6, 'la photo d’un copain encore à six postes : ses deux dernières recettes fermées, rien de rejeté'); }
     check(!('e' in CL.photo(st, { G })) && !('e' in CL.photo(st, { G, ev: { id: 'n-importe', q } })), 'sans événement en cours (ou d’un id inconnu) : pas de champ e');
     // le pire cas : 16 postes, toutes les décos, 12 coupes, un nom long, des compteurs énormes, un événement à 16 postes et 8 décos
     const pire = G.newState(T); pire.nomBoutique = 'Ω'.repeat(400); while (pire.stations.length < 16) pire.stations.push({ niv: 0, staff: false, prog: 0, actif: false });

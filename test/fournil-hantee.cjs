@@ -17,6 +17,8 @@ const http = require('http'), fs = require('fs'), path = require('path');
 const HT = require('../src/hantee.js');
 const root = path.join(__dirname, '..');
 const PORT = +process.env.PORT_HANTEE || 9265; // les ports du groupe H2 : +400 (fournil-quartier.cjs est en 8865)
+const outR = path.join(__dirname, 'shots', 'recettes'); fs.mkdirSync(outR, { recursive: true }); // les recettes
+const photoR = async (pg, nom) => { await pg.evaluate(() => { for (const t of document.querySelectorAll('.toast')) t.style.visibility = 'hidden'; }); await pg.screenshot({ path: path.join(outR, nom + '.png') }); await pg.evaluate(() => { for (const t of document.querySelectorAll('.toast')) t.style.visibility = ''; }); }; // sans le toast du moment (une capture par écran) d'après le maître
 const out = path.join(__dirname, 'shots', 'hantee'); fs.mkdirSync(out, { recursive: true });
 const out2 = process.env.SHOTS_HANTEE ? (fs.mkdirSync(process.env.SHOTS_HANTEE, { recursive: true }), process.env.SHOTS_HANTEE) : null;
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.glb': 'model/gltf-binary', '.webmanifest': 'application/manifest+json' };
@@ -90,6 +92,12 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   check(m.ouvert && m.ecran === 'manoir' && !m.planque && m.cartes.length === HT.PRODUITS.length && /Jour 1 sur/.test(m.sous), `on entre directement : ${m.cartes.length} cartes, « ${m.titre} · ${m.sous} », ${m.reste}`);
   check(/bonbons/.test(m.billets), `le solde est en bonbons : « ${m.billets} »`);
   check(m.cartes[0].includes('manuel') && m.cartes[1].includes('verrou'), 'la première friandise à la main, la deuxième verrouillée');
+  { // les deux recettes d'après le maître, déjà visibles, fermées
+    const ap = await ev(() => [6, 7].map((i) => { const c = document.querySelector(`#ht-cartes .carte[data-i="${i}"]`); c.scrollIntoView({ block: 'end' }); const b = c.querySelector('.pq-apres'), r = c.getBoundingClientRect();
+      return { cls: c.className, nom: c.querySelector('h3').textContent, txt: b ? b.textContent : '', btn: !!c.querySelector('button'), dans: r.left >= 0 && r.right <= innerWidth + 0.5 }; }));
+    check(ap[0].nom === 'Gâteaux du cimetière' && ap[0].txt === 'Après le palier 13' && ap[1].nom === 'Œufs de dragon en chocolat' && ap[1].txt === 'Après le palier 16' && ap.every((x) => /apres/.test(x.cls) && !x.btn && x.dans), `les recettes d’après le maître : « ${ap[0].nom} » (${ap[0].txt}), « ${ap[1].nom} » (${ap[1].txt}), sans bouton`);
+    await sleep(3500); await photoR(page, 'hantee-carte-apres-palier-13');
+    await ev(() => document.querySelector('#ht-cartes').scrollTo(0, 0)); await sleep(150); }
   check(await attendre(async () => { const x = await manoir(); return x.hd && x.hd.actif && x.hd.persos >= 1; }, 30000), 'les modèles HD arrivent : le salon KayKit, le jardin par la fenêtre, la patronne en Mini Character');
   const poids = demandes.filter((d) => /hd\/hantee\//.test(d)).reduce((a, d) => a + fs.statSync(path.join(root, d)).size, 0);
   check(poids > 0 && poids < 700e3, `les modèles du manoir pèsent ${Math.round(poids / 1024)} Ko (meshopt, < 700 Ko)`);
@@ -114,12 +122,15 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
 
   console.log('── l’équipe au complet, en costumes ──');
   await ev(() => { const F = window.__fournil, h = F.st[F.evHantee.cle]; h.postes.forEach((p, i) => { p.niv = Math.max(p.niv, 25 + i * 3); p.staff = true; p.actif = true; }); h.billets = Math.max(h.billets, 5e9); F.evHantee.scene.equipe(h); });
-  check(await attendre(async () => { const x = await manoir(); return x.hd && x.hd.persos === 7; }, 5000), 'sept Mini Characters : la patronne et les six employés');
+  check(await attendre(async () => { const x = await manoir(); return x.hd && x.hd.persos === 9; }, 5000), 'neuf Mini Characters : la patronne et les huit employés (le loup-garou et la dragonne compris)');
   m = await manoir();
-  check(JSON.stringify(m.hd.costumes) === JSON.stringify(['patronne', 'fantome', 'momie', 'squelette', 'vampire', 'sorciere', 'citrouille']), `les costumes : ${m.hd.costumes.join(', ')}`);
+  check(JSON.stringify(m.hd.costumes) === JSON.stringify(['patronne', 'fantome', 'momie', 'squelette', 'vampire', 'sorciere', 'citrouille', 'loupgarou', 'dragonne']), `les costumes : ${m.hd.costumes.join(', ')}`);
   check(m.calls > 0 && m.calls <= 110, `le décor HD tourne : ${m.calls} appels de dessin (≤ 110)`);
   check(m.hd.jardin === true && m.hd.noirs === 0, 'le jardin hanté par la fenêtre (scène KayKit rendue dans une texture), pas d’écran noir');
-  await sleep(1500); await shot('02-manoir-hd'); await shot('02b-scene-hd', '#ht-canvas');
+  await sleep(3500); await shot('02-manoir-hd'); await shot('02b-scene-hd', '#ht-canvas');
+  await photoR(page, 'hantee-manoir-8-postes');
+  await ev(() => document.querySelector('#ht-cartes .carte[data-i="7"]').scrollIntoView({ block: 'end' })); await sleep(300);
+  await photoR(page, 'hantee-manoir-8-postes-bas'); await ev(() => document.querySelector('#ht-cartes').scrollTo(0, 0));
 
   console.log('── les coups de pouce ──');
   const typesEv = Object.keys(HT.EVENEMENTS);
@@ -214,9 +225,9 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   await charger('?qualite=eco');
   await ev(() => window.__fournil.hantee()); await sleep(1500);
   m = await manoir();
-  check(m.ecran === 'manoir' && m.hd && !m.hd.actif && m.calls > 0 && m.calls <= 90, `en éco : pas de HD, ${m.calls} appels de dessin (≤ 90)`);
-  check(JSON.stringify(m.hd.costumes) === JSON.stringify(['patronne', 'fantome', 'momie', 'squelette', 'vampire', 'sorciere', 'citrouille']), 'les mêmes costumes, en chibis');
-  await shot('10-manoir-eco'); await shot('10b-scene-eco', '#ht-canvas');
+  check(m.ecran === 'manoir' && m.hd && !m.hd.actif && m.calls > 0 && m.calls <= 105, `en éco : pas de HD, ${m.calls} appels de dessin (≤ 105 : neuf chibis depuis le loup-garou et la dragonne)`);
+  check(JSON.stringify(m.hd.costumes) === JSON.stringify(['patronne', 'fantome', 'momie', 'squelette', 'vampire', 'sorciere', 'citrouille', 'loupgarou', 'dragonne']), 'les mêmes costumes, en chibis');
+  await shot('10-manoir-eco'); await shot('10b-scene-eco', '#ht-canvas'); await photoR(page, 'hantee-manoir-8-postes-eco');
   await clic('#hantee [data-pq="fermer"]'); await sleep(300);
 
   console.log('── la fin : le Manoir fermé, le bilan, l’icône partie, le chat noir au choix ──');
@@ -290,6 +301,27 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
     await ev2(() => { const l = [...document.querySelectorAll('#feuille .am.bonus')]; if (l[0]) l[0].scrollIntoView({ block: 'center' }); }); await sleep(250);
     await shot2('h3-sortileges-apres-le-maitre');
     await clic2('#feuille [data-a="pq-retour"]'); await sleep(300);
+    // les recettes d'après le maître : les gâteaux du cimetière (13e franchi), Gaston, la pelle ×3 ; le Marché des sorcières divise le prix par deux
+    { const carte = (i) => ev2((k) => { const c = document.querySelector(`#ht-cartes .carte[data-i="${k}"]`); c.scrollIntoView({ block: 'center' }); const b = c.querySelector('[data-a="ameliorer"] b, [data-a="debloquer"] b'), s = c.querySelector('[data-a="ameliorer"] small');
+        return { cls: c.className, txt: c.innerText.replace(/\s+/g, ' '), prix: b ? b.textContent : '', petit: s ? s.textContent : '', pal: (c.querySelector('.palier span') || {}).textContent || '', staff: (c.querySelector('.staff-ok') || {}).textContent || '' }; }, i);
+      await ev2(() => { const F = window.__fournil, q = F.st[F.evHantee.cle]; [1, 2, 3, 4, 5].forEach((i) => { q.postes[i].niv = 150; q.postes[i].staff = true; q.postes[i].actif = true; }); q.billets = 1e16; q.mode = 1; });
+      await attendre(() => ev2(() => !!document.querySelector('#ht-cartes .carte[data-i="6"] [data-a="debloquer"]')), 6000); // (en éco, rendu logiciel : quelques images de retard)
+      let c6 = await carte(6); const c7 = await carte(7);
+      check(/Débloquer/.test(c6.txt) && /Après le palier 16/.test(c7.txt), `le 13e franchi : les gâteaux du cimetière se débloquent (${c6.prix}) ; les œufs de dragon attendent le 16e`);
+      await clic2('#ht-cartes .carte[data-i="6"] [data-a="debloquer"]'); await attendre(() => ev2(() => !!document.querySelector('#ht-cartes .carte[data-i="6"] [data-a="embaucher"]')), 6000);
+      await clic2('#ht-cartes .carte[data-i="6"] [data-a="embaucher"]'); await attendre(() => ev2(() => !!document.querySelector('#ht-cartes .carte[data-i="6"] .staff-ok')), 6000);
+      c6 = await carte(6); check(/auto/.test(c6.cls) && c6.staff === 'Gaston le loup-garou' && /Palier 25 ×2/.test(c6.pal), `débloqués, ${c6.staff} embauché ; « ${c6.pal} »`);
+      await clic2('#hantee [data-pq="ameliorations"]'); await sleep(400); await clic2('#feuille [data-id="pelle"]'); await sleep(400);
+      check(await ev2(() => { const F = window.__fournil, q = F.st[F.evHantee.cle]; return q.ameliorations.pelle === true && F.HT.ameliorationMult(q, 6) === 3; }), 'son Sortilège « La pelle du fossoyeur gourmand » : gâteaux ×3');
+      await ev2(() => { const b = document.querySelector('#feuille [data-id="marche"]'); if (b) b.scrollIntoView({ block: 'center' }); }); await sleep(3500);
+      await photoR(pg, 'hantee-sortileges-marche');
+      await clic2('#feuille [data-a="pq-retour"]'); await sleep(300);
+      await ev2(() => document.querySelector('#hantee .pq-modes button[data-mode="1"]').click()); await sleep(200);
+      const avant = await carte(5), pAvant = await ev2(() => { const F = window.__fournil; return F.HT.prixNiveaux(F.st[F.evHantee.cle], 5, 1); });
+      await clic2('#hantee [data-pq="ameliorations"]'); await sleep(400); await clic2('#feuille [data-id="marche"]'); await sleep(400); await clic2('#feuille [data-a="pq-retour"]'); await sleep(400);
+      const apres = await carte(5), pApres = await ev2(() => { const F = window.__fournil; return F.HT.prixNiveaux(F.st[F.evHantee.cle], 5, 1); });
+      check(await ev2(() => { const F = window.__fournil; return F.st[F.evHantee.cle].ameliorations.marche === true; }) && pApres === pAvant / 2 && /−50 % ×1/.test(apres.petit) && apres.prix !== avant.prix, `le Marché des sorcières acheté : un niveau de citrouilles passe de « ${avant.prix} » à « ${apres.prix} » (${apres.petit})`);
+      await ev2(() => document.querySelector('#ht-cartes').scrollTo(0, 0)); }
     await ev2(() => { const F = window.__fournil, q = F.st[F.evHantee.cle]; q.total = 7e16; q.billets = 1e15; });
     check(await attendre(async () => /Palier 15/.test(await feuille2()), 5000), 'au-delà de 60 Bd : les paliers 15 à 20 s’annoncent');
     for (let k = 0; k < 5 && !/Palier 20/.test(await feuille2()); k++) { await clic2('#feuille [data-a="pq-ok"]'); await sleep(450); }

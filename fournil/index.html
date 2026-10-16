@@ -800,6 +800,11 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .carte.pq.verrou { background: #353144; border-color: #56516B; color: #FFF7EC; }
 .carte.pq.verrou .icone { background: #3F3A50; }
 .carte.pq.verrou p { color: #C7B8FF; }
+/* une recette « après le boss » encore fermée : son nom et son gag, et le palier qui l'ouvre (pas de bouton) */
+.carte.pq.verrou.apres { opacity: 1; }
+.carte.pq.verrou.apres h3 { color: #FFF7EC; }
+.carte.pq .pq-apres { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; min-height: 30px; padding: 0 12px; border-radius: 999px; background: #2E2B3A; color: #FFC84A; font: 700 13px/1.1 var(--titre); }
+.carte.pq .pq-apres::before { content: ''; width: 10px; height: 12px; border-radius: 2px; background: currentColor; -webkit-mask: radial-gradient(circle at 50% 30%, transparent 2px, #000 2.5px); mask: radial-gradient(circle at 50% 30%, transparent 2px, #000 2.5px); }
 .carte.pq .btn.non { background: #56516B; color: #9E95B8; box-shadow: 0 4px 0 #2E2B3A; }
 .carte.pq .staff-ok.pq { background: #2E2B3A; color: #C7B8FF; justify-content: center; }
 .carte.pq .staff-ok.pq span { white-space: normal; text-align: center; line-height: 1.15; overflow-wrap: anywhere; } /* « Nourrice Mémé Jacqueline » sur deux lignes plutôt que coupée */
@@ -888,6 +893,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 #hantee .carte.pq.manuel:not(.actif) .barre { outline-color: var(--ht-orange); }
 #hantee .carte.pq.verrou { background: #251F36; border-color: #4A3F66; }
 #hantee .carte.pq.verrou .icone { background: var(--ht-carte); }
+#hantee .carte.pq .pq-apres { background: var(--ht-ombre); color: var(--ht-orange); }
 #hantee .carte.pq.verrou p { color: var(--ht-lavande); }
 #hantee .carte.pq .btn.non { background: #4A3F66; color: #A99CC9; box-shadow: 0 4px 0 var(--ht-ombre); }
 #hantee .carte.pq .staff-ok.pq { background: var(--ht-ombre); color: var(--ht-lavande); }
@@ -1222,7 +1228,8 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .vi-bas .btn[aria-disabled="true"] { box-shadow: none; transform: translateY(4px); }
 .vi-note { margin: 0; font-size: 14px; text-align: center; color: var(--texte-2); }
 /* la Planque (ou le Manoir) d'un copain : la scène de l'événement sur son propre canvas, le résumé au-dessus du retour */
-.vi-vue.vi-ev { display: grid; place-items: center; background: #2E2B3A; }
+.vi-vue.vi-ev { display: grid; place-items: center; background: #2E2B3A; overflow: hidden; }
+.vi-vue.vi-ev .vi-canvas { max-height: calc(100% - 16px); } /* « Ses recettes » dépliée (huit lignes depuis les recettes d'après le boss) : la scène se tasse au lieu de passer par-dessus la liste */
 .vi-canvas { display: block; width: calc(100% - 20px); height: clamp(220px, 44vh, 380px); border-radius: 22px; background: #3A3642; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); } /* le cadrage de l'écran de l'événement, en plus grand */
 .vi-resume { margin: 0; font-size: 14px; line-height: 1.35; text-align: center; color: var(--texte-2); }
 .vi-resume b { color: var(--texte); font-family: var(--titre); }
@@ -1406,7 +1413,7 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'a8063fc54a15';</script>
+<script>window.FOURNIL_VERSION = '0d7fa8133eca';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -4268,7 +4275,8 @@ const ICONS = (() => {
     faconnage: S(`<circle cx="24" cy="25" r="17" fill="#E8B46A" stroke="${L}" stroke-width="2"/><path d="M24 25c0-2 3-2 3 0 0 4-6 4-6 0 0-6 9-6 9 0 0 8-12 8-12 0 0-10 15-10 15 0" stroke="#B9732A" stroke-width="2.2" stroke-linecap="round" fill="none"/><circle cx="17" cy="16" r="1.8" fill="#5B3A29"/><circle cx="34" cy="31" r="1.8" fill="#5B3A29"/><circle cx="14" cy="31" r="1.6" fill="#5B3A29"/><circle cx="31" cy="15" r="1.4" fill="#5B3A29"/>`),
     memoire: S(`<rect x="9" y="6" width="28" height="36" rx="4" fill="#fff" stroke="${L}" stroke-width="2"/><path d="M15 15h5M15 23h5M15 31h5" stroke="#FFC84A" stroke-width="4" stroke-linecap="round"/><path d="M24 15h7M24 23h7M24 31h5" stroke="#D9CCC2" stroke-width="2.4" stroke-linecap="round"/><circle cx="36" cy="35" r="7" fill="#B8A6FF" stroke="${L}" stroke-width="2"/><path d="M34 33c0-2 4-2 4 0 0 1.4-2 1.6-2 3M36 38.6v.2" stroke="#fff" stroke-width="1.8" stroke-linecap="round" fill="none"/>`),
   };
-  // l'événement « Le Quartier » : les six produits de la Planque (sachets, barrettes, champignons, cachetons, pochettes, le mystère), au même trait
+  // l'événement « Le Quartier » : les six produits de la Planque (sachets, barrettes, champignons, cachetons, pochettes, le mystère) et les
+  // deux recettes d'après le boss (le gobelet de sirop violet, le sachet de cristal bleu), au même trait
   // que les pâtisseries (ce sont des gags de dessin animé : rien de réel), et ses icônes (la porte 18+, les billets, les coups de pouce, les paliers, le boost)
   const QUARTIER = {
     herbe: S(`<path d="M12 10h24l-3 30H15z" fill="#DDF3FF" stroke="${L}" stroke-width="2" stroke-linejoin="round" opacity=".9"/><path d="M12 10h24" stroke="${L}" stroke-width="2"/><path d="M24 36c-6-4-9-10-8-18 5 2 8 7 8 12 0-5 3-10 8-12 1 8-2 14-8 18z" fill="#5FD3A4" stroke="#2F8F62" stroke-width="1.6" stroke-linejoin="round"/><path d="M24 36V22" stroke="#2F8F62" stroke-width="1.6" stroke-linecap="round"/><path d="M14 13h20" stroke="#fff" stroke-width="2" opacity=".8"/>`),
@@ -4277,6 +4285,8 @@ const ICONS = (() => {
     ecsta: S(`<circle cx="19" cy="22" r="10" fill="#FF9FB2" stroke="${L}" stroke-width="2"/><path d="M19 17l1.3 2.7 3 .4-2.2 2 .5 3-2.6-1.4-2.6 1.4.5-3-2.2-2 3-.4z" fill="#fff"/><circle cx="31" cy="30" r="8" fill="#9BD0FF" stroke="${L}" stroke-width="2"/><path d="M27 27c2-2 6-2 8 0M27 33c2 2 6 2 8 0" stroke="#fff" stroke-width="1.8" stroke-linecap="round" fill="none"/><circle cx="29" cy="29" r="1" fill="${L}"/><circle cx="33" cy="29" r="1" fill="${L}"/>`),
     coke: S(`<path d="M10 14h28l-2 24H12z" fill="#fff" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M10 14h28" stroke="${L}" stroke-width="2"/><path d="M14 18h20" stroke="#DDF3FF" stroke-width="2.4" stroke-linecap="round"/><path d="M16 30c2-5 5-6 8-6s6 1 8 6z" fill="#EEF1F6" stroke="#B5A49A" stroke-width="1.2"/><circle cx="20" cy="27" r="1" fill="#fff"/><circle cx="27" cy="26" r="1.2" fill="#fff"/><path d="M30 8l2 4M34 8l-1 4" stroke="#FFC84A" stroke-width="2" stroke-linecap="round"/>`),
     specialite: S(`<path d="M9 16h30l-3 22H12z" fill="#2E2B3A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M9 16h30" stroke="${L}" stroke-width="2"/><path d="M24 20l2.2 4.6 5 .7-3.6 3.5.9 5-4.5-2.4-4.5 2.4.9-5-3.6-3.5 5-.7z" fill="#FFC84A" stroke="#E0A61E" stroke-width="1.2" stroke-linejoin="round"/><text x="24" y="14" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-weight="700" font-size="9" fill="${L}">?</text><path d="M13 22h3M32 32h3" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".5"/>`),
+    sirop: S(`<rect x="11" y="10" width="26" height="5" rx="2.5" fill="#DDF3FF" stroke="${L}" stroke-width="2"/><path d="M13 15h22l-3 27H16z" fill="#fff" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M15 23h18l-1.9 17H16.9z" fill="#9B5CF0"/><path d="M28 11l4-8h5" stroke="#FF6B8B" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="20" cy="30" r="1.8" fill="#D9C2FF"/><circle cx="26" cy="35" r="1.3" fill="#D9C2FF"/><path d="M17 18h4" stroke="#DDF3FF" stroke-width="2" stroke-linecap="round"/>`),
+    cristal: S(`<path d="M10 12h28l-2 28H12z" fill="#DDF3FF" stroke="${L}" stroke-width="2" stroke-linejoin="round" opacity=".9"/><path d="M10 12h28M11 16h26" stroke="${L}" stroke-width="2"/><path d="M16 36l3-9 5 2-1 7zM24 36l2-12 6 3-2 9zM18 26l4-6 3 4-4 4z" fill="#5FC8F5" stroke="#2B7FD7" stroke-width="1.4" stroke-linejoin="round"/><path d="M27 26l1-2M19 31l1-2" stroke="#fff" stroke-width="1.4" stroke-linecap="round"/><path d="M14 20h20" stroke="#fff" stroke-width="2" opacity=".8"/>`),
     // la porte 18+ : un rond barré rouge, le nombre dedans
     porte: S(`<circle cx="24" cy="24" r="18" fill="#fff" stroke="#E1496C" stroke-width="4"/><text x="24" y="30" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-weight="700" font-size="17" fill="#E1496C">18+</text>`),
     // les billets : une liasse verte avec son élastique
@@ -4289,7 +4299,8 @@ const ICONS = (() => {
     boost: S(`<path d="M26 4L10 28h11l-3 16 18-26H25z" fill="#FFC84A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`),
   };
   // l'événement « La Maison hantée » (tous âges, mignon-effrayant) : les six friandises du manoir (dans l'ordre : bonbons acidulés, pommes
-  // d'amour, cookies fantômes, toiles d'araignée en sucre, potions fumantes, citrouilles sculptées), les bonbons (la monnaie), le manoir,
+  // d'amour, cookies fantômes, toiles d'araignée en sucre, potions fumantes, citrouilles sculptées) et les deux recettes d'après le maître
+  // (le gâteau du cimetière, sa pierre tombale en biscuit et son ver en gélatine ; l'œuf de dragon en chocolat), les bonbons (la monnaie), le manoir,
   // les coups de pouce (par genre : taper, livrer, mult, attraper), les paliers ; au même trait que les pâtisseries
   const HT_ = {
     acidules: S(`<path d="M24 22L13 44h22z" fill="#FFF3E2" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M17 36l12 0M15 40l17 0" stroke="#FF9FB2" stroke-width="2" stroke-linecap="round"/><circle cx="16" cy="17" r="6" fill="#8FE36B" stroke="${L}" stroke-width="2"/><circle cx="28" cy="14" r="6" fill="#FF8A3D" stroke="${L}" stroke-width="2"/><circle cx="23" cy="23" r="6" fill="#B48CFF" stroke="${L}" stroke-width="2"/><path d="M14 15l3-1M26 12l3-1M21 21l3-1" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/>`),
@@ -4298,6 +4309,8 @@ const ICONS = (() => {
     toiles: S(`<path d="M24 30v16" stroke="#C8864F" stroke-width="3" stroke-linecap="round"/><circle cx="24" cy="18" r="15" fill="#FFF3E2" stroke="${L}" stroke-width="2"/><path d="M24 3v30M9 18h30M13.4 7.4l21.2 21.2M34.6 7.4L13.4 28.6" stroke="#B48CFF" stroke-width="1.4"/><circle cx="24" cy="18" r="5" fill="none" stroke="#B48CFF" stroke-width="1.4"/><circle cx="24" cy="18" r="10" fill="none" stroke="#B48CFF" stroke-width="1.4"/><circle cx="30" cy="12" r="2.6" fill="${L}"/><circle cx="29" cy="11.5" r=".7" fill="#fff"/><circle cx="31" cy="11.5" r=".7" fill="#fff"/>`),
     potions: S(`<path d="M19 6h10v8c6 3 10 9 10 15 0 9-7 15-15 15S9 38 9 29c0-6 4-12 10-15z" fill="#DDF3FF" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M11 29c0-2 4-4 13-4s13 2 13 4c0 7-6 12-13 12s-13-5-13-12z" fill="#8FE36B"/><circle cx="19" cy="31" r="2" fill="#C6FF8F"/><circle cx="27" cy="35" r="1.6" fill="#C6FF8F"/><rect x="17" y="3" width="14" height="5" rx="2" fill="#C8864F" stroke="${L}" stroke-width="2"/><path d="M33 4c3-2 6 0 5 3M36 12c2 0 3 1 3 3" stroke="#B48CFF" stroke-width="2" stroke-linecap="round" fill="none"/>`),
     citrouille: S(`<path d="M24 12c-2.6-2-6-2.8-9.4-2.2C9.2 10.8 6 16.4 6 24s4.4 13.6 11.2 14.4c2.4.2 4.8-.4 6.8-1.6 2 1.2 4.4 1.8 6.8 1.6C37.6 37.6 42 31.6 42 24s-3.2-13.2-8.6-14.2C30 9.2 26.6 10 24 12z" fill="#FF8A3D" stroke="${L}" stroke-width="2"/><path d="M24 12v26M16 13c-3 6-3 18 0 24M32 13c3 6 3 18 0 24" stroke="#E0701E" stroke-width="1.6" fill="none"/><path d="M24 12V7c0-2 1.5-3 3.5-3H30" stroke="#5A7A2E" stroke-width="3" stroke-linecap="round" fill="none"/><path d="M14 21l5 3-5 2zM34 21l-5 3 5 2zM15 30c5 4 13 4 18 0l-2 4-2.5-2-2.5 2-2-2-2 2-2.5-2-2.5 2z" fill="#FFE27A" stroke="${L}" stroke-width="1.4" stroke-linejoin="round"/>`),
+    cimetiere: S(`<path d="M6 30h36v9a4 4 0 01-4 4H10a4 4 0 01-4-4z" fill="#8B5A3C" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M6 30c3-3 6 1 9-1s6 2 9 0 6 1 9-1 6 2 9 1" fill="none" stroke="#5B3A29" stroke-width="2.4" stroke-linecap="round"/><path d="M15 31V17a7 7 0 0114 0v14z" fill="#D9D2EE" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M19 20h6M22 17v8" stroke="#8E83A8" stroke-width="2" stroke-linecap="round"/><path d="M31 31c0-5 4-5 4-2s4 3 4-2" stroke="#8FE36B" stroke-width="3.2" stroke-linecap="round" fill="none"/><circle cx="39.4" cy="26.6" r=".9" fill="${L}"/><path d="M10 37h3M30 39h4" stroke="#C8864F" stroke-width="2" stroke-linecap="round"/>`),
+    dragon: S(`<path d="M24 5c-8 0-15 13-15 22a15 15 0 0030 0C39 18 32 5 24 5z" fill="#8B5A3C" stroke="${L}" stroke-width="2"/><path d="M14 22c2 2 4 2 6 0 2 2 4 2 6 0 2 2 4 2 6 0M12 31c2 2 4 2 6 0 2 2 4 2 6 0 2 2 4 2 6 0 2 2 4 2 6 0" stroke="#7CD992" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M20 12l3 4 2-3 3 4" stroke="#FFE27A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M16 15c1-3 3-5 5-6" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".6" fill="none"/><circle cx="29" cy="37" r="1.6" fill="#FFE27A"/>`),
     bonbon: S(`<path d="M13 24L5 16l1 16z" fill="#B48CFF" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M35 24l8-8-1 16z" fill="#B48CFF" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="24" cy="24" rx="12" ry="10" fill="#FF8A3D" stroke="${L}" stroke-width="2"/><path d="M17 19c4 2 4 8 0 10M24 15c4 3 4 15 0 18M31 19c-4 2-4 8 0 10" stroke="#FFC84A" stroke-width="2.2" fill="none" stroke-linecap="round"/><path d="M17 18c2-2 4-2.6 6-2.6" stroke="#fff" stroke-width="2" stroke-linecap="round" fill="none"/>`),
     manoir: S(`<path d="M8 44V22l8-8 8 8v-6l6-8 6 8v28z" fill="#4B2F7A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M5 23l11-11 11 11M21 18l9-12 9 12" fill="none" stroke="${L}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><rect x="12" y="26" width="7" height="8" rx="3.5" fill="#FFC84A"/><rect x="27" y="20" width="6" height="7" rx="3" fill="#FFC84A"/><path d="M26 44v-9a4 4 0 018 0v9" fill="#2E2547" stroke="${L}" stroke-width="1.6"/><path d="M10 6l3 2 3-2-1 3M3 13l2 1.4 2-1.4" stroke="#1E1824" stroke-width="1.6" stroke-linecap="round" fill="none"/>`),
     palier: S(`<path d="M6 40h36" stroke="${L}" stroke-width="2.4" stroke-linecap="round"/><path d="M8 40V30h10v10M18 40V22h12v18M30 40V14h10v26" fill="#B48CFF" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M35 3.5c-1.4-.9-3-1.2-4.6-.9C28 3 27 5 27 8s1.6 5 4 5.3c1.4.1 2.8-.3 4-1 1.2.7 2.6 1.1 4 1 2.4-.3 4-2.3 4-5.3s-1-5-3.4-5.4c-1.6-.3-3.2 0-4.6.9z" fill="#FF8A3D" stroke="${L}" stroke-width="1.4"/>`),
@@ -4306,7 +4319,7 @@ const ICONS = (() => {
     mult: S(`<circle cx="24" cy="22" r="15" fill="#FFF4C9" stroke="${L}" stroke-width="2"/><circle cx="19" cy="17" r="3" fill="#F2E3A0"/><circle cx="29" cy="26" r="4" fill="#F2E3A0"/><circle cx="27" cy="14" r="1.8" fill="#F2E3A0"/><path d="M6 42l4-3 4 3-1-4M32 44l4-3 4 3-1-4" stroke="#1E1824" stroke-width="2" stroke-linecap="round" fill="none"/>`),
     attraper: S(`<path d="M24 22c-4-6-12-9-20-6 3 2 4 5 3 8 4-2 8-1 10 2 1-3 4-4 7-4zM24 22c4-6 12-9 20-6-3 2-4 5-3 8-4-2-8-1-10 2-1-3-4-4-7-4z" fill="#2E2547" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="24" cy="23" r="5.5" fill="#3E3456" stroke="${L}" stroke-width="2"/><path d="M20.5 18l1-3 1.5 2.5M27.5 18l-1-3-1.5 2.5" fill="#3E3456" stroke="${L}" stroke-width="1.4" stroke-linejoin="round"/><circle cx="22" cy="22.5" r="1" fill="#FFD84A"/><circle cx="26" cy="22.5" r="1" fill="#FFD84A"/><path d="M24 29v4" stroke="${L}" stroke-width="1.6"/><path d="M18 34h12l-1 8H19z" fill="#FF8A3D" stroke="${L}" stroke-width="2" stroke-linejoin="round"/>`),
   };
-  const HANTEE = Object.assign(HT_, { produits: [HT_.acidules, HT_.pommes, HT_.cookies, HT_.toiles, HT_.potions, HT_.citrouille], acidule: HT_.acidules, pomme: HT_.pommes, cookie: HT_.cookies, toile: HT_.toiles, potion: HT_.potions, citrouilles: HT_.citrouille, bonbons: HT_.bonbon,
+  const HANTEE = Object.assign(HT_, { produits: [HT_.acidules, HT_.pommes, HT_.cookies, HT_.toiles, HT_.potions, HT_.citrouille, HT_.cimetiere, HT_.dragon], acidule: HT_.acidules, pomme: HT_.pommes, cookie: HT_.cookies, toile: HT_.toiles, potion: HT_.potions, citrouilles: HT_.citrouille, bonbons: HT_.bonbon,
     descente: HT_.taper, grosclient: HT_.livrer, soiree: HT_.mult, scooter: HT_.attraper });
   // l'habillage des coups de pouce de src/hantee.js (H1) : la nuée de chauves-souris (descente), le cortège d'enfants déguisés (grosclient), la pleine lune, le balai de la sorcière (scooter)
   HANTEE.H1 = { descente: HT_.attraper, grosclient: HT_.taper, soiree: HT_.mult, scooter: vetement('balai', 'hantee') };
@@ -8171,11 +8184,12 @@ const GARDEROBE_UI = (() => {
 /* LE FOURNIL — l'événement « Le Quartier » : les règles pures de la Planque, la boutique à part de l'événement (du mardi 13 octobre
    2026 à midi au mardi 27 octobre 2026 à midi, heure de Paris). Une parodie pour adultes, derrière une porte « 18 ans et + » : un petit
    trafic de quartier façon dessin animé, des noms, des gags et des mécaniques de jeu — jamais la moindre information réelle.
-   Tout le monde part de zéro, avec sa propre monnaie (les billets), ses six produits, ses postes, ses « apprentis », ses améliorations,
+   Tout le monde part de zéro, avec sa propre monnaie (les billets), ses six produits (et deux recettes de plus après le boss), ses postes, ses « apprentis », ses améliorations,
    ses coups de pouce ; les gains d'absence sont plafonnés comme ceux de la boulangerie (sur l'horloge de confiance : « maintenant »
    est toujours donné par l'appelant, jamais lu ici). Douze paliers de billets gagnés, les mêmes pour tous, donnent des récompenses
    POUR LA BOULANGERIE (étoiles, boosts en réserve, décos du quartier, vêtements) : voir PALIERS ; huit paliers bonus « après le boss »
-   (13 à 20) et quatre combines de plus attendent ceux qui ont franchi le 12e avant la fin. À la fin, la Planque ferme ; tout le
+   (13 à 20), sept combines de plus (dont le Grossiste : les niveaux à moitié prix) et deux nouvelles recettes (le sirop violet au 13e,
+   le cristal bleu au 16e) attendent ceux qui ont franchi le 12e avant la fin. À la fin, la Planque ferme ; tout le
    reste reste à vie. Aucune dépendance au DOM ni à game.js : tourne aussi dans Node (test/fournil-quartier.test.js, qui simule le rythme).
    Les activités (src/activites.js, le moteur commun à tous les événements) : les mini-jeux, les contrats de la nuit et les opérations ;
    leur habillage du quartier est dans FICHE.activites, plus bas ; leur API (MINI, finirMini, contratsDuJour, lancerOperation…) est
@@ -8218,6 +8232,10 @@ const GARDEROBE_UI = (() => {
   const envoiBillets = (now) => Number.isFinite(now) && now >= DEBUT && now < FIN + GRACE;
 
   // ─── les six produits de la Planque, dans l'ordre où on les débloque (les billets : en €, comme la boulangerie, mais un autre tiroir) ───
+  // Après le boss, deux recettes de plus (apres : le palier qui les ouvre, comme les combines) : le très actif attendait jusqu'à une heure
+  // par niveau vers le 10e jour (le prix grimpe en puissance, le gain en ligne droite) ; elles repartent du bas, leurs premiers niveaux
+  // tombent en quelques secondes, puis en quelques minutes. Leurs gains restent petits devant ceux de la Spécialité : l'enveloppe du
+  // serveur (fournil_quartier_table) ne bouge pas, le marathon simulé reste ×2 dessous (test/fournil-quartier.test.js).
   const PRODUITS = [
     { id: 'herbe', nom: 'Herbe', pl: 'sachets d’herbe', cout: 4, debloquer: 0, rev: 1, temps: 1.5, croiss: 1.07, staff: 1500, staffNom: 'Guetteur Kévin', poste: 'Le banc du square', desc: 'Le classique. Ça sent jusqu’au troisième.' },
     { id: 'shit', nom: 'Shit', pl: 'barrettes', cout: 60, debloquer: 120, rev: 20, temps: 3, croiss: 1.15, staff: 22500, staffNom: 'Charbonneur Dylan', poste: 'Le hall du bâtiment B', desc: 'Emballé dans du papier alu, comme un sandwich.' },
@@ -8225,8 +8243,18 @@ const GARDEROBE_UI = (() => {
     { id: 'ecsta', nom: 'Ecsta', pl: 'pochons de cachetons', cout: 8640, debloquer: 17280, rev: 1200, temps: 12, croiss: 1.13, staff: 750000, staffNom: 'Rabatteur Momo', poste: 'Le parking de la boîte', desc: 'Roses, avec un petit cœur dessus.' },
     { id: 'coke', nom: 'Coke', pl: 'pochettes', cout: 1e5, debloquer: 2e8, rev: 10000, temps: 24, croiss: 1.12, staff: 6e8, staffNom: 'Comptable Tonton Serge', poste: 'L’arrière-salle du PMU', desc: 'La clientèle a des mocassins.' },
     { id: 'specialite', nom: 'La Spécialité du quartier', pl: 'Spécialités', cout: 1.2e6, debloquer: 2e10, rev: 9e4, temps: 96, croiss: 1.11, staff: 6e10, staffNom: 'Livreur Rachid', poste: 'Le camion à kebabs', desc: 'Personne ne sait ce qu’il y a dedans. Tout le monde en redemande.' },
+    { id: 'sirop', nom: 'Sirop violet', pl: 'gobelets de sirop violet', apres: 13, paliersFins: true, cout: 1e12, debloquer: 2e13, rev: 1000, temps: 120, croiss: 1.02, staff: 5e13, staffNom: 'Pharmacien Gérard', poste: 'L’arrière-boutique de la pharmacie', desc: 'Ça se boit à la paille, et ça ralentit tout le square.' },
+    { id: 'cristal', nom: 'Cristal bleu', pl: 'sachets de cristal bleu', apres: 16, paliersFins: true, cout: 1e13, debloquer: 2e14, rev: 8000, temps: 240, croiss: 1.025, staff: 5e14, staffNom: 'Chimiste Monsieur Blanc', poste: 'Le camping-car du terrain vague', desc: 'Bleu comme à la télé. Le chimiste jure qu’il est prof de chimie.' },
   ];
-  const PALIERS_POSTE = [25, 50, 100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000]; // comme la boulangerie : les gains doublent
+  // les paliers des postes : au palier franchi le plus haut, les gains sont multipliés par 2^exposant (comme la boulangerie : ×2 à 25,
+  // 50, 100, 200… 5000). Les recettes d'après le boss (paliersFins) ont en plus des paliers intercalés (75, 125, 150, 175, 250…), à
+  // exposant fractionnaire : un palier bien plus souvent, un petit ×1,19 ou ×1,41 à chaque fois, le même multiplicateur cumulé aux
+  // anciens. Les six premières gardent les anciens seuls : intercalés chez elles aussi, ils montaient leurs gains de 40 à 70 % entre deux
+  // anciens paliers, et le marathon simulé passait au-dessus de l'enveloppe du serveur (essai du 16 octobre, test/fournil-quartier.test.js).
+  const PALIERS_EXPOSANTS = [[25, 1], [50, 2], [75, 2.5], [100, 3], [125, 3.25], [150, 3.5], [175, 3.75], [200, 4], [250, 4.5], [300, 5], [350, 5.5], [400, 6], [450, 6.5],
+    [500, 7], [625, 7.5], [750, 8], [875, 8.5], [1000, 9], [1250, 9.5], [1500, 10], [1750, 10.5], [2000, 11], [2500, 11.5], [3000, 12], [4000, 12.5], [5000, 13]];
+  const PALIERS_ANCIENS = PALIERS_EXPOSANTS.filter((x) => x[1] % 1 === 0);
+  const PALIERS_POSTE = PALIERS_ANCIENS.map((x) => x[0]); // les paliers des six premières recettes (paliersPoste(i) : ceux d'une recette)
   const AMELIORATIONS = [
     { id: 'sachets', nom: 'Sachets zippés', cout: 50000, cible: ['herbe'], mult: 3, desc: 'Herbe ×3' },
     { id: 'alu', nom: 'Papier alu premium', cout: 600000, cible: ['shit'], mult: 3, desc: 'Shit ×3' },
@@ -8240,11 +8268,16 @@ const GARDEROBE_UI = (() => {
     { id: 'cartel', nom: 'Franchise du cartel', cout: 6e12, cible: null, mult: 3, desc: 'Tout ×3' },
     // après le boss (palier 12 franchi) : quatre combines chères qui ne multiplient pas les ventes (l'enveloppe du serveur, voir
     // fournil_quartier_table : le marathon simulé doit rester ×2 dessous) ; elles adoucissent les coups de pouce et l'absence (effet) ; et,
-    // depuis la version 2 des récompenses, chacune PAIE la boulangerie à l'achat : prime (heures de son rythme) et étoiles (ACT.RECOMPENSES)
+    // depuis la version 2 des récompenses, chacune PAIE la boulangerie à l'achat : prime (heures de son rythme) et étoiles (ACT.RECOMPENSES).
+    // Le Grossiste (effet remise) : tous les niveaux de recettes à moitié prix (pas les déblocages) ; deux combines ×3 pour les recettes
+    // d'après le boss, ouvertes avec elles (13e et 16e) : les seules d'après le boss qui multiplient des ventes, réglées sur l'enveloppe.
+    { id: 'grossiste', nom: 'Le Grossiste', cout: 8e14, apres: 12, cible: [], mult: 1, effet: { remise: 0.5 }, prime: 4, etoiles: 1, desc: 'Tous les niveaux de recettes à moitié prix' },
     { id: 'guetteurs', nom: 'Guetteurs sur les toits', cout: 1e15, apres: 12, cible: [], mult: 1, effet: { descenteN: 8, descentePart: 0.05 }, prime: 6, etoiles: 1, desc: 'Descentes : 8 touches suffisent, la police n’embarque plus que 5 %' },
     { id: 'matelas', nom: 'Le matelas de Mémé Jacqueline', cout: 2e15, apres: 12, cible: [], mult: 1, effet: { absenceH: 12, absencePart: 0.2 }, prime: 10, etoiles: 2, desc: 'Absence : l’équipe bosse 12 h, à 20 % du rythme' },
+    { id: 'gobelets', nom: 'Gobelets à double fond', cout: 3e15, apres: 13, cible: ['sirop'], mult: 3, prime: 12, etoiles: 2, desc: 'Sirop violet ×3' },
     { id: 'sono', nom: 'Sono qui fait trembler le square', cout: 4e15, apres: 12, cible: [], mult: 1, effet: { soireeDuree: 180 }, prime: 16, etoiles: 2, desc: 'Soirées : 3 min au lieu de 2' },
     { id: 'trottinette', nom: 'Trottinette électrique du livreur', cout: 8e15, apres: 12, cible: [], mult: 1, effet: { scooterDuree: 20, scooterPrime: 3 }, prime: 24, etoiles: 3, desc: 'Le livreur attend 20 s, son bonus ×3' },
+    { id: 'campingcar', nom: 'Camping-car insonorisé', cout: 1.2e16, apres: 16, cible: ['cristal'], mult: 3, prime: 20, etoiles: 3, desc: 'Cristal bleu ×3' },
   ];
   const effet = (q, cle, defaut) => { for (const a of AMELIORATIONS) if (a.effet && a.effet[cle] != null && q.ameliorations && q.ameliorations[a.id]) return a.effet[cle]; return defaut; }; // une combine « après le boss » achetée change ce réglage
   const ABSENCE_MAX_H = 8;   // les apprentis bossent 8 h au plus pendant une absence, comme à la boulangerie…
@@ -8324,20 +8357,28 @@ const GARDEROBE_UI = (() => {
   const note = (q, txt) => { q.carnet.push({ t: q.now, txt }); if (q.carnet.length > 12) q.carnet.shift(); };
 
   // ─── calculs ───
-  const palierMult = (niv) => Math.pow(2, PALIERS_POSTE.filter((p) => niv >= p).length);
-  const prochainPalier = (niv) => PALIERS_POSTE.find((p) => p > niv) || null;
+  const echelle = (i) => (i != null && PRODUITS[i] && PRODUITS[i].paliersFins ? PALIERS_EXPOSANTS : PALIERS_ANCIENS); // i absent : les anciens paliers
+  const paliersPoste = (i) => echelle(i).map((x) => x[0]);
+  const exposantPalier = (niv, i) => { let e = 0; for (const [p, x] of echelle(i)) if (niv >= p) e = x; return e; }; // l'exposant du plus haut palier franchi
+  const palierMult = (niv, i) => Math.pow(2, exposantPalier(niv, i));
+  const prochainPalier = (niv, i) => { const x = echelle(i).find((y) => y[0] > niv); return x ? x[0] : null; };
+  const gainPalier = (p, i) => palierMult(p, i) / palierMult(p - 1, i); // ce que ce palier ajoute (×2 aux anciens, ×1,41 ou ×1,19 aux intercalés) : pour l'écran
   function ameliorationMult(q, i) { let m = 1; for (const a of AMELIORATIONS) if (q.ameliorations[a.id] && (a.cible === null || a.cible.includes(PRODUITS[i].id))) m *= a.mult; return m; }
   function boostMult(q) { let m = PRESENCE; if (q.ev && q.ev.type === 'soiree' && q.ev.fin > q.now) m *= EVENEMENTS.soiree.mult; return m; } // en présence du boss
   const reputationMult = (q) => Math.pow(REPUTATION, paliersAtteints(q).filter((p) => !p.bonus).length); // les paliers bonus ne font plus la réputation
   const temps = (q, i) => PRODUITS[i].temps;
-  const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(q, i) * reputationMult(q); };
+  const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv, i) * ameliorationMult(q, i) * reputationMult(q); };
   const revenu = (q, i) => revenuBase(q, i) * boostMult(q);
   const revenuFournee = (q, i) => revenu(q, i) * (q.postes[i].staff ? 1 : 1.5); // à la main, on sert un client de plus
+  // les prix catalogue (sans q) ; ce que paie le joueur passe par prixNiveaux / quantite, qui lisent la remise du Grossiste (q)
   const coutNiveau = (i, niv) => (niv === 0 ? PRODUITS[i].debloquer : PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv));
   function coutNiveaux(i, niv, n) { if (niv === 0) return PRODUITS[i].debloquer; const r = PRODUITS[i].croiss; return PRODUITS[i].cout * Math.pow(r, niv) * (Math.pow(r, n) - 1) / (r - 1); }
   function maxNiveaux(i, niv, billets) { const r = PRODUITS[i].croiss, a = PRODUITS[i].cout * Math.pow(r, niv); if (billets < a) return 0; return Math.floor(Math.log(billets * (r - 1) / a + 1) / Math.log(r)); }
-  function quantite(q, i) { const s = q.postes[i]; if (s.niv === 0) return 1; if (q.mode === 'max') return Math.max(1, maxNiveaux(i, s.niv, q.billets)); return q.mode; }
-  const prixNiveaux = (q, i, n) => coutNiveaux(i, q.postes[i].niv, n);
+  const remise = (q) => (q ? effet(q, 'remise', 1) : 1); // le Grossiste : 0,5 (les niveaux à moitié prix ; un déblocage garde son prix)
+  const maxAchetables = (q, i) => maxNiveaux(i, q.postes[i].niv, q.billets / remise(q)); // ce que les billets paient, remise comprise
+  function quantite(q, i) { const s = q.postes[i]; if (s.niv === 0) return 1; if (q.mode === 'max') return Math.max(1, maxAchetables(q, i)); return q.mode; }
+  const prixNiveaux = (q, i, n) => { const niv = q.postes[i].niv; return niv === 0 ? coutNiveaux(i, 0, n) : coutNiveaux(i, niv, n) * remise(q); };
+  const recetteOuverte = (q, i) => !PRODUITS[i].apres || q.total >= PALIERS[PRODUITS[i].apres - 1].total; // les recettes « après le boss » : une fois leur palier franchi
   const prixStaff = (q, i) => PRODUITS[i].staff;
   function tauxBase(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenuBase(q, i) / temps(q, i); }); return t; }
   function tauxParSeconde(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenu(q, i) / temps(q, i); }); return t; }
@@ -8350,6 +8391,7 @@ const GARDEROBE_UI = (() => {
   function gagner(q, montant) { q.billets += montant; q.total += montant; }
   function acheter(q, i) {
     const s = q.postes[i], n = quantite(q, i), prix = prixNiveaux(q, i, n);
+    if (s.niv === 0 && !recetteOuverte(q, i)) return { ok: false, prix, verrou: true, apres: PRODUITS[i].apres }; // après le boss : pas avant son palier
     if (i > 0 && s.niv === 0 && q.postes[i - 1].niv === 0) return { ok: false, prix, verrou: true };
     if (q.billets < prix) return { ok: false, prix };
     q.billets -= prix; const deblocage = s.niv === 0; s.niv += n;
@@ -8508,21 +8550,21 @@ const GARDEROBE_UI = (() => {
   function decider(q) { // acheter : apprenti, déblocage, amélioration, puis le meilleur rapport gain / prix
     let fait = false;
     for (let i = 0; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv > 0 && !s.staff && q.billets >= prixStaff(q, i)) { embaucher(q, i); fait = true; } }
-    for (let i = 1; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv === 0 && q.postes[i - 1].niv > 0 && q.billets >= PRODUITS[i].debloquer) { acheter(q, i); fait = true; break; } }
-    for (const a of AMELIORATIONS) if (!q.ameliorations[a.id] && q.billets >= a.cout * 1.2) { amelioration(q, a.id); fait = true; }
-    const next = q.postes.findIndex((s) => s.niv === 0), taux = tauxParSeconde(q);
+    for (let i = 1; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv === 0 && q.postes[i - 1].niv > 0 && recetteOuverte(q, i) && q.billets >= PRODUITS[i].debloquer) { acheter(q, i); fait = true; break; } }
+    for (const a of AMELIORATIONS) if (!q.ameliorations[a.id] && combineOuverte(q, a) && q.billets >= a.cout * 1.2) { amelioration(q, a.id); fait = true; }
+    const next = q.postes.findIndex((s, i) => s.niv === 0 && recetteOuverte(q, i)), taux = tauxParSeconde(q); // une recette encore fermée (avant son palier) : on n'économise pas pour elle
     if (next > 0 && q.billets < PRODUITS[next].debloquer && q.billets + taux * 600 >= PRODUITS[next].debloquer) return fait; // on économise pour le prochain produit
     const vise = AMELIORATIONS.find((a) => a.apres && !q.ameliorations[a.id] && combineOuverte(q, a)); // après le boss : on met de côté pour la combine suivante (huit heures de ventes au plus)
     if (vise && q.billets < vise.cout * 1.2 && vise.cout <= taux * 8 * 3600) return fait;
     for (let k = 0; k < 3; k++) {
       let best = -1, bestR = 0, bestN = 1;
       for (let i = 0; i < PRODUITS.length; i++) {
-        const s = q.postes[i]; if (s.niv === 0) continue; const n = Math.min(10, maxNiveaux(i, s.niv, q.billets)); if (n < 1) continue;
-        const prix = coutNiveaux(i, s.niv, n), gain = (PRODUITS[i].rev * (s.niv + n) * palierMult(s.niv + n) - PRODUITS[i].rev * s.niv * palierMult(s.niv)) * ameliorationMult(q, i) / PRODUITS[i].temps * (s.staff ? 1 : 0.3);
+        const s = q.postes[i]; if (s.niv === 0) continue; const n = Math.min(10, maxAchetables(q, i)); if (n < 1) continue;
+        const prix = prixNiveaux(q, i, n), gain = (PRODUITS[i].rev * (s.niv + n) * palierMult(s.niv + n, i) - PRODUITS[i].rev * s.niv * palierMult(s.niv, i)) * ameliorationMult(q, i) / PRODUITS[i].temps * (s.staff ? 1 : 0.3);
         const r = gain / prix; if (r > bestR) { bestR = r; best = i; bestN = n; }
       }
       if (best < 0) break;
-      q.mode = q.billets > 30 * coutNiveaux(best, q.postes[best].niv, bestN) ? 'max' : bestN;
+      q.mode = q.billets > 30 * prixNiveaux(q, best, bestN) ? 'max' : bestN;
       if (acheter(q, best).ok) fait = true;
     }
     return fait;
@@ -8555,7 +8597,7 @@ const GARDEROBE_UI = (() => {
         }
         q.lastSeen = debut + minutes * 60e3; if (jeu) A.sim.fin(q, Math.min(q.lastSeen, FIN - 1), jeu, rndA); trace.push({ t: (q.lastSeen - t0) / JOUR, total: q.total });
       }
-      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length });
+      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length, remise: remise(q) });
     }
     return { q, total: q.total, parJour, paliersJour, trace };
   }
@@ -8611,7 +8653,7 @@ const GARDEROBE_UI = (() => {
   const revueRecompenses = (q) => R2.revue(q, PALIERS, AMELIORATIONS, ANCIENS); // une fois (q.recompensesV2) : la différence avec les anciennes
 
   return { FICHE, ...A.api, ANCIENS, phraseCombine, revueRecompenses, lotCombine: R2.lotCombine, phraseLot: R2.phraseLot, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, GRACE, fenetreSure, envoiBillets, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
-    PAUSE_EV, pauseCoup, neuf, etat, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
+    PAUSE_EV, pauseCoup, neuf, etat, palierMult, prochainPalier, gainPalier, exposantPalier, paliersPoste, PALIERS_EXPOSANTS, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, maxAchetables, recetteOuverte, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
     gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
     PROFILS, simuler, decider, fmt, fmtEur, fmtDuree, fmtChrono, fmtReste };
 });
@@ -8620,11 +8662,12 @@ const GARDEROBE_UI = (() => {
 /* LE FOURNIL — l'événement d'Halloween « La Maison hantée » : les règles pures du Manoir, la seconde boutique à part de l'automne (du
    mardi 27 octobre 2026 à midi au lundi 2 novembre 2026 à 20 h, heure de Paris), juste après « Le Quartier » (src/quartier.js, qui
    finit le 27 à midi). Pour tous les âges : mignon-effrayant, des fantômes gourmands et des citrouilles qui grimacent, rien d'autre.
-   Tout le monde part de zéro, avec sa propre monnaie (les bonbons), ses six friandises, ses postes, ses monstres « apprentis », ses
+   Tout le monde part de zéro, avec sa propre monnaie (les bonbons), ses six friandises (et deux recettes de plus après le maître), ses postes, ses monstres « apprentis », ses
    améliorations (les Sortilèges), ses coups de pouce ; les gains d'absence sont plafonnés comme ceux de la boulangerie (sur l'horloge de
    confiance : « maintenant » est toujours donné par l'appelant, jamais lu ici). Douze paliers de bonbons gagnés, les mêmes pour tous,
    donnent des récompenses POUR LA BOULANGERIE (étoiles, boosts en réserve, décos d'Halloween, la tenue d'Halloween, le chat noir) : voir
-   PALIERS ; huit paliers bonus « après le maître » (13 à 20) et quatre Sortilèges de plus attendent ceux qui ont franchi le 12e tôt. À la fin, le Manoir ferme ; tout le reste reste à vie. Aucune dépendance au DOM ni à game.js : tourne aussi dans Node
+   PALIERS ; huit paliers bonus « après le maître » (13 à 20), sept Sortilèges de plus (dont le Marché des sorcières : les niveaux à
+   moitié prix) et deux nouvelles recettes (les gâteaux du cimetière au 13e, les œufs de dragon au 16e) attendent ceux qui ont franchi le 12e tôt. À la fin, le Manoir ferme ; tout le reste reste à vie. Aucune dépendance au DOM ni à game.js : tourne aussi dans Node
    (test/fournil-hantee.test.js, qui simule le rythme).
 
    La même forme d'API que src/quartier.js (QUARTIER), mot pour mot : DEBUT, FIN, GRACE, CLASSEMENT_JUSQUA, fenetre, fenetreSure,
@@ -8694,7 +8737,9 @@ const GARDEROBE_UI = (() => {
 
   // ─── les six friandises du Manoir, dans l'ordre où on les débloque ; leurs monstres (les « apprentis ») ───
   // Les chiffres sont ceux du Quartier, resserrés pour six jours et demi (croissance des prix plus douce, déblocages plus proches) :
-  // réglés sur la simulation (test/fournil-hantee.test.js).
+  // réglés sur la simulation (test/fournil-hantee.test.js). Après le maître, deux recettes de plus (apres : le palier qui les ouvre, comme
+  // les Sortilèges), comme au Quartier : elles repartent du bas, leurs premiers niveaux tombent vite ; leurs gains restent petits devant
+  // ceux des citrouilles (l'enveloppe du serveur, fournil_evts : le marathon simulé reste ×2 dessous).
   const PRODUITS = [
     { id: 'acidule', nom: 'Bonbons acidulés', pl: 'sachets de bonbons acidulés', cout: 4, debloquer: 0, rev: 1, temps: 1.5, croiss: 1.07, staff: 1500, staffNom: 'Hubert le fantôme', staffDesc: 'Il passe à travers les murs pour livrer plus vite. Il dit « Bouh » aux clients, poliment.', poste: 'Le grenier qui grince', desc: 'Ça pique la langue et ça fait faire des grimaces.' },
     { id: 'pomme', nom: 'Pommes d’amour', pl: 'pommes d’amour', cout: 60, debloquer: 120, rev: 20, temps: 3, croiss: 1.14, staff: 22500, staffNom: 'Ramsès la momie', staffDesc: 'Emballe chaque pomme comme elle s’emballe elle-même : avec beaucoup de bandelettes.', poste: 'La crypte du sous-sol', desc: 'Rouges, brillantes, et elles collent aux dents.' },
@@ -8702,8 +8747,18 @@ const GARDEROBE_UI = (() => {
     { id: 'toile', nom: 'Toiles d’araignée en sucre', pl: 'toiles d’araignée en sucre', cout: 8640, debloquer: 17280, rev: 1200, temps: 12, croiss: 1.12, staff: 750000, staffNom: 'Comte Vladimir', staffDesc: 'Un vampire très chic qui ne mord que dans la barbe à papa. Il travaille de nuit, forcément.', poste: 'La tour de l’horloge', desc: 'Filées par une araignée très gourmande. Elle a dit oui.' },
     { id: 'potion', nom: 'Potions fumantes', pl: 'potions fumantes', cout: 1e5, debloquer: 2e8, rev: 10000, temps: 24, croiss: 1.11, staff: 4e8, staffNom: 'Berthe la sorcière', staffDesc: 'Touille le chaudron en chantant faux. Les potions adorent ça.', poste: 'Le chaudron du salon', desc: 'Goût fraise-citrouille. La fumée verte est offerte.' },
     { id: 'citrouille', nom: 'Citrouilles sculptées', pl: 'citrouilles sculptées', cout: 1.2e6, debloquer: 1e10, rev: 9e4, temps: 96, croiss: 1.1, staff: 3e10, staffNom: 'Jack la Lanterne', staffDesc: 'Une citrouille qui sculpte des citrouilles. Elle a toujours le sourire, il est gravé.', poste: 'Le potager au clair de lune', desc: 'Chacune a sa grimace. Aucune ne se ressemble.' },
+    { id: 'cimetiere', nom: 'Gâteaux du cimetière', pl: 'gâteaux du cimetière', apres: 13, paliersFins: true, cout: 1e12, debloquer: 2e13, rev: 1000, temps: 120, croiss: 1.02, staff: 5e13, staffNom: 'Gaston le loup-garou', staffDesc: 'Il ne se transforme qu’à l’heure du goûter. Il remue la pâte avec la queue, très proprement.', poste: 'Le petit cimetière du jardin', desc: 'Des vers en gélatine sortent de la terre en chocolat.' },
+    { id: 'dragon', nom: 'Œufs de dragon en chocolat', pl: 'œufs de dragon en chocolat', apres: 16, paliersFins: true, cout: 1e13, debloquer: 2e14, rev: 8000, temps: 240, croiss: 1.025, staff: 5e14, staffNom: 'Bérénice la dragonne', staffDesc: 'Une toute petite dragonne qui couve les œufs pour les garder tièdes. Elle éternue des étincelles.', poste: 'Le donjon de la tour nord', desc: 'Ils sont tièdes et ils bougent un peu. C’est normal.' },
   ];
-  const PALIERS_POSTE = [25, 50, 100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000]; // comme la boulangerie : les gains doublent
+  // les paliers des postes : au palier franchi le plus haut, les gains sont multipliés par 2^exposant (comme la boulangerie : ×2 à 25,
+  // 50, 100, 200… 5000). Les recettes d'après le boss (paliersFins) ont en plus des paliers intercalés (75, 125, 150, 175, 250…), à
+  // exposant fractionnaire : un palier bien plus souvent, un petit ×1,19 ou ×1,41 à chaque fois, le même multiplicateur cumulé aux
+  // anciens. Les six premières gardent les anciens seuls : intercalés chez elles aussi, ils montaient leurs gains de 40 à 70 % entre deux
+  // anciens paliers, et le marathon simulé passait au-dessus de l'enveloppe du serveur (essai du 16 octobre, test/fournil-quartier.test.js).
+  const PALIERS_EXPOSANTS = [[25, 1], [50, 2], [75, 2.5], [100, 3], [125, 3.25], [150, 3.5], [175, 3.75], [200, 4], [250, 4.5], [300, 5], [350, 5.5], [400, 6], [450, 6.5],
+    [500, 7], [625, 7.5], [750, 8], [875, 8.5], [1000, 9], [1250, 9.5], [1500, 10], [1750, 10.5], [2000, 11], [2500, 11.5], [3000, 12], [4000, 12.5], [5000, 13]];
+  const PALIERS_ANCIENS = PALIERS_EXPOSANTS.filter((x) => x[1] % 1 === 0);
+  const PALIERS_POSTE = PALIERS_ANCIENS.map((x) => x[0]); // les paliers des six premières recettes (paliersPoste(i) : ceux d'une recette)
   const AMELIORATIONS = [ // les Sortilèges
     { id: 'petillant', nom: 'Sucre qui pétille', cout: 50000, cible: ['acidule'], mult: 3, desc: 'Bonbons acidulés ×3' },
     { id: 'caramel', nom: 'Caramel enchanté', cout: 600000, cible: ['pomme'], mult: 3, desc: 'Pommes d’amour ×3' },
@@ -8717,11 +8772,16 @@ const GARDEROBE_UI = (() => {
     { id: 'bal', nom: 'Le grand bal des monstres', cout: 1e12, cible: null, mult: 3, desc: 'Tout ×3' },
     // après le maître du Manoir (palier 12 franchi) : quatre Sortilèges chers qui ne multiplient pas les ventes (l'enveloppe du serveur,
     // fournil_evts() de la v5 : le marathon simulé doit rester ×2 dessous) ; ils adoucissent les coups de pouce et l'absence (effet) ; et,
-    // depuis la version 2 des récompenses, chacun PAIE la boulangerie à l'achat : prime (heures de son rythme) et étoiles (ACT.RECOMPENSES)
+    // depuis la version 2 des récompenses, chacun PAIE la boulangerie à l'achat : prime (heures de son rythme) et étoiles (ACT.RECOMPENSES).
+    // Le Marché des sorcières (effet remise) : tous les niveaux de recettes à moitié prix (pas les déblocages) ; deux Sortilèges ×3 pour les
+    // recettes d'après le maître, ouverts avec elles (13e et 16e) : les seuls d'après le maître qui multiplient des ventes.
+    { id: 'marche', nom: 'Le Marché des sorcières', cout: 6e14, apres: 12, cible: [], mult: 1, effet: { remise: 0.5 }, prime: 4, etoiles: 1, desc: 'Tous les niveaux de recettes à moitié prix' },
     { id: 'epouvantail', nom: 'Épouvantail à chauves-souris', cout: 8e14, apres: 12, cible: [], mult: 1, effet: { descenteN: 8, descentePart: 0.05 }, prime: 6, etoiles: 1, desc: 'Chauves-souris : 8 touches suffisent, elles n’emportent plus que 5 %' },
     { id: 'couette', nom: 'Couette des fantômes', cout: 1.5e15, apres: 12, cible: [], mult: 1, effet: { absenceH: 12, absencePart: 0.2 }, prime: 10, etoiles: 2, desc: 'Absence : les monstres travaillent 12 h, à 20 % du rythme' },
-    { id: 'nuages', nom: 'Nuages chassés d’un coup de baguette', cout: 3e15, apres: 12, cible: [], mult: 1, effet: { soireeDuree: 180 }, prime: 16, etoiles: 2, desc: 'Pleine lune : 3 min au lieu de 2' },
+    { id: 'pelle', nom: 'La pelle du fossoyeur gourmand', cout: 2e15, apres: 13, cible: ['cimetiere'], mult: 3, prime: 12, etoiles: 2, desc: 'Gâteaux du cimetière ×3' },
+    { id: 'nuages', nom: 'Nuages chassés d’un coup de baguette', cout: 3e15, apres: 12, cible: [], mult: 1, effet: { soireeDuree: 150 }, prime: 16, etoiles: 2, desc: 'Pleine lune : 2 min 30 au lieu de 2' }, // 2 min 30 (et non 3) : la place du Marché des sorcières dans l'enveloppe
     { id: 'turbo', nom: 'Balai à turbo', cout: 6e15, apres: 12, cible: [], mult: 1, effet: { scooterDuree: 20, scooterPrime: 3 }, prime: 24, etoiles: 3, desc: 'Le balai attend 20 s, son sac ×3' },
+    { id: 'nid', nom: 'Le nid douillet de la dragonne', cout: 9e15, apres: 16, cible: ['dragon'], mult: 3, prime: 20, etoiles: 3, desc: 'Œufs de dragon ×3' },
   ];
   const effet = (q, cle, defaut) => { for (const a of AMELIORATIONS) if (a.effet && a.effet[cle] != null && q.ameliorations && q.ameliorations[a.id]) return a.effet[cle]; return defaut; }; // un Sortilège « après le maître » acheté change ce réglage
   const ABSENCE_MAX_H = 8;   // les monstres travaillent 8 h au plus pendant une absence, comme à la boulangerie…
@@ -8802,20 +8862,28 @@ const GARDEROBE_UI = (() => {
   const note = (q, txt) => { q.carnet.push({ t: q.now, txt }); if (q.carnet.length > 12) q.carnet.shift(); };
 
   // ─── calculs (les mêmes formules qu'au Quartier) ───
-  const palierMult = (niv) => Math.pow(2, PALIERS_POSTE.filter((p) => niv >= p).length);
-  const prochainPalier = (niv) => PALIERS_POSTE.find((p) => p > niv) || null;
+  const echelle = (i) => (i != null && PRODUITS[i] && PRODUITS[i].paliersFins ? PALIERS_EXPOSANTS : PALIERS_ANCIENS); // i absent : les anciens paliers
+  const paliersPoste = (i) => echelle(i).map((x) => x[0]);
+  const exposantPalier = (niv, i) => { let e = 0; for (const [p, x] of echelle(i)) if (niv >= p) e = x; return e; }; // l'exposant du plus haut palier franchi
+  const palierMult = (niv, i) => Math.pow(2, exposantPalier(niv, i));
+  const prochainPalier = (niv, i) => { const x = echelle(i).find((y) => y[0] > niv); return x ? x[0] : null; };
+  const gainPalier = (p, i) => palierMult(p, i) / palierMult(p - 1, i); // ce que ce palier ajoute (×2 aux anciens, ×1,41 ou ×1,19 aux intercalés) : pour l'écran
   function ameliorationMult(q, i) { let m = 1; for (const a of AMELIORATIONS) if (q.ameliorations[a.id] && (a.cible === null || a.cible.includes(PRODUITS[i].id))) m *= a.mult; return m; }
   function boostMult(q) { let m = PRESENCE; if (q.ev && q.ev.type === 'soiree' && q.ev.fin > q.now) m *= EVENEMENTS.soiree.mult; return m; } // en ta présence
   const reputationMult = (q) => Math.pow(REPUTATION, paliersAtteints(q).filter((p) => !p.bonus).length); // les paliers bonus ne font plus la réputation
   const temps = (q, i) => PRODUITS[i].temps;
-  const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(q, i) * reputationMult(q); };
+  const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv, i) * ameliorationMult(q, i) * reputationMult(q); };
   const revenu = (q, i) => revenuBase(q, i) * boostMult(q);
   const revenuFournee = (q, i) => revenu(q, i) * (q.postes[i].staff ? 1 : 1.5); // à la main, on sert un client de plus
+  // les prix catalogue (sans q) ; ce que paie le joueur passe par prixNiveaux / quantite, qui lisent la remise du Marché des sorcières (q)
   const coutNiveau = (i, niv) => (niv === 0 ? PRODUITS[i].debloquer : PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv));
   function coutNiveaux(i, niv, n) { if (niv === 0) return PRODUITS[i].debloquer; const r = PRODUITS[i].croiss; return PRODUITS[i].cout * Math.pow(r, niv) * (Math.pow(r, n) - 1) / (r - 1); }
   function maxNiveaux(i, niv, billets) { const r = PRODUITS[i].croiss, a = PRODUITS[i].cout * Math.pow(r, niv); if (billets < a) return 0; return Math.floor(Math.log(billets * (r - 1) / a + 1) / Math.log(r)); }
-  function quantite(q, i) { const s = q.postes[i]; if (s.niv === 0) return 1; if (q.mode === 'max') return Math.max(1, maxNiveaux(i, s.niv, q.billets)); return q.mode; }
-  const prixNiveaux = (q, i, n) => coutNiveaux(i, q.postes[i].niv, n);
+  const remise = (q) => (q ? effet(q, 'remise', 1) : 1); // le Marché des sorcières : 0,5 (les niveaux à moitié prix ; un déblocage garde son prix)
+  const maxAchetables = (q, i) => maxNiveaux(i, q.postes[i].niv, q.billets / remise(q)); // ce que les bonbons paient, remise comprise
+  function quantite(q, i) { const s = q.postes[i]; if (s.niv === 0) return 1; if (q.mode === 'max') return Math.max(1, maxAchetables(q, i)); return q.mode; }
+  const prixNiveaux = (q, i, n) => { const niv = q.postes[i].niv; return niv === 0 ? coutNiveaux(i, 0, n) : coutNiveaux(i, niv, n) * remise(q); };
+  const recetteOuverte = (q, i) => !PRODUITS[i].apres || q.total >= PALIERS[PRODUITS[i].apres - 1].total; // les recettes « après le maître » : une fois leur palier franchi
   const prixStaff = (q, i) => PRODUITS[i].staff;
   function tauxBase(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenuBase(q, i) / temps(q, i); }); return t; }
   function tauxParSeconde(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenu(q, i) / temps(q, i); }); return t; }
@@ -8828,6 +8896,7 @@ const GARDEROBE_UI = (() => {
   function gagner(q, montant) { q.billets += montant; q.total += montant; }
   function acheter(q, i) {
     const s = q.postes[i], n = quantite(q, i), prix = prixNiveaux(q, i, n);
+    if (s.niv === 0 && !recetteOuverte(q, i)) return { ok: false, prix, verrou: true, apres: PRODUITS[i].apres }; // après le maître : pas avant son palier
     if (i > 0 && s.niv === 0 && q.postes[i - 1].niv === 0) return { ok: false, prix, verrou: true };
     if (q.billets < prix) return { ok: false, prix };
     q.billets -= prix; const deblocage = s.niv === 0; s.niv += n;
@@ -8990,21 +9059,21 @@ const GARDEROBE_UI = (() => {
   function decider(q) { // acheter : monstre, déblocage, sortilège, puis le meilleur rapport gain / prix
     let fait = false;
     for (let i = 0; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv > 0 && !s.staff && q.billets >= prixStaff(q, i)) { embaucher(q, i); fait = true; } }
-    for (let i = 1; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv === 0 && q.postes[i - 1].niv > 0 && q.billets >= PRODUITS[i].debloquer) { acheter(q, i); fait = true; break; } }
-    for (const a of AMELIORATIONS) if (!q.ameliorations[a.id] && q.billets >= a.cout * 1.2) { amelioration(q, a.id); fait = true; }
-    const next = q.postes.findIndex((s) => s.niv === 0), taux = tauxParSeconde(q);
+    for (let i = 1; i < PRODUITS.length; i++) { const s = q.postes[i]; if (s.niv === 0 && q.postes[i - 1].niv > 0 && recetteOuverte(q, i) && q.billets >= PRODUITS[i].debloquer) { acheter(q, i); fait = true; break; } }
+    for (const a of AMELIORATIONS) if (!q.ameliorations[a.id] && combineOuverte(q, a) && q.billets >= a.cout * 1.2) { amelioration(q, a.id); fait = true; }
+    const next = q.postes.findIndex((s, i) => s.niv === 0 && recetteOuverte(q, i)), taux = tauxParSeconde(q); // une recette encore fermée (avant son palier) : on n'économise pas pour elle
     if (next > 0 && q.billets < PRODUITS[next].debloquer && q.billets + taux * 600 >= PRODUITS[next].debloquer) return fait; // on économise pour la prochaine friandise
     const vise = AMELIORATIONS.find((a) => a.apres && !q.ameliorations[a.id] && combineOuverte(q, a)); // après le maître : on met de côté pour le Sortilège suivant (huit heures de ventes au plus)
     if (vise && q.billets < vise.cout * 1.2 && vise.cout <= taux * 8 * 3600) return fait;
     for (let k = 0; k < 3; k++) {
       let best = -1, bestR = 0, bestN = 1;
       for (let i = 0; i < PRODUITS.length; i++) {
-        const s = q.postes[i]; if (s.niv === 0) continue; const n = Math.min(10, maxNiveaux(i, s.niv, q.billets)); if (n < 1) continue;
-        const prix = coutNiveaux(i, s.niv, n), gain = (PRODUITS[i].rev * (s.niv + n) * palierMult(s.niv + n) - PRODUITS[i].rev * s.niv * palierMult(s.niv)) * ameliorationMult(q, i) / PRODUITS[i].temps * (s.staff ? 1 : 0.3);
+        const s = q.postes[i]; if (s.niv === 0) continue; const n = Math.min(10, maxAchetables(q, i)); if (n < 1) continue;
+        const prix = prixNiveaux(q, i, n), gain = (PRODUITS[i].rev * (s.niv + n) * palierMult(s.niv + n, i) - PRODUITS[i].rev * s.niv * palierMult(s.niv, i)) * ameliorationMult(q, i) / PRODUITS[i].temps * (s.staff ? 1 : 0.3);
         const r = gain / prix; if (r > bestR) { bestR = r; best = i; bestN = n; }
       }
       if (best < 0) break;
-      q.mode = q.billets > 30 * coutNiveaux(best, q.postes[best].niv, bestN) ? 'max' : bestN;
+      q.mode = q.billets > 30 * prixNiveaux(q, best, bestN) ? 'max' : bestN;
       if (acheter(q, best).ok) fait = true;
     }
     return fait;
@@ -9037,7 +9106,7 @@ const GARDEROBE_UI = (() => {
         }
         q.lastSeen = Math.min(debut + minutes * 60e3, FIN); if (jeu) A.sim.fin(q, Math.min(q.lastSeen, FIN - 1), jeu, rndA); trace.push({ t: (q.lastSeen - t0) / JOUR, total: q.total });
       }
-      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length });
+      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length, remise: remise(q) });
     }
     return { q, total: q.total, parJour, paliersJour, trace };
   }
@@ -9120,7 +9189,7 @@ const GARDEROBE_UI = (() => {
   const revueRecompenses = (q) => R2.revue(q, PALIERS, AMELIORATIONS, ANCIENS); // une fois (q.recompensesV2) : la différence avec les anciennes
 
   return { FICHE, ...A.api, ANCIENS, phraseCombine, revueRecompenses, lotCombine: R2.lotCombine, phraseLot: R2.phraseLot, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, JOURS, GRACE, fenetreSure, envoiBonbons, envoiBillets: envoiBonbons, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
-    PAUSE_EV, pauseCoup, neuf, etat, bonbons, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
+    PAUSE_EV, pauseCoup, neuf, etat, bonbons, palierMult, prochainPalier, gainPalier, exposantPalier, paliersPoste, PALIERS_EXPOSANTS, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, maxAchetables, recetteOuverte, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
     gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, chasser: planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
     PROFILS, simuler, decider, fmt, fmtEur, fmtDevise, fmtDuree, fmtChrono, fmtReste };
 });
@@ -9130,7 +9199,7 @@ const GARDEROBE_UI = (() => {
    boulangerie (comme l'Atelier) :
    · « Le Quartier » (13 → 27 oct. 2026, midi) : la Planque, derrière une porte « 18 ans et + », règles dans src/quartier.js (QUARTIER) ;
    · « La Maison hantée » (27 oct. midi → 2 nov. 2026, 20 h) : le Manoir, tous âges, mignon-effrayant, règles dans src/hantee.js (HANTEE).
-   Les règles sont pures (testées dans Node) ; ici : l'écran, les cartes des six produits, les coups de pouce, le décor 3D (Three.js, bâti
+   Les règles sont pures (testées dans Node) ; ici : l'écran, les cartes des produits (six, puis huit après le boss), les coups de pouce, le décor 3D (Three.js, bâti
    à l'ouverture et libéré à la fermeture : rien ne reste en mémoire quand on est dans la boulangerie), les paliers et leurs récompenses
    distribuées dans la boulangerie (étoiles, boosts en réserve, décos, vêtements de la garde-robe), l'annonce du premier jour, le bilan de
    fin. Le temps : HORLOGE.maintenant(), par deps.maintenant.
@@ -9373,7 +9442,11 @@ const EVENEMENTS = (() => {
       const bp = el.querySelector('[data-pq="paliers"]'); bp.querySelector('b').textContent = `${nb}/${nbPaliers(qq)}`; bp.classList.toggle('pret', Q.paliersDus(qq).length > 0);
     }
 
-    // ─── les cartes des six produits (même grammaire que la boulangerie) ───
+    // ─── les cartes des produits (même grammaire que la boulangerie) : les six du début, puis les deux recettes « après le boss »,
+    //     montrées verrouillées (« Après le palier 13 ») tant que leur palier n'est pas franchi ───
+    const multTxt = (m) => (Math.abs(m - Math.round(m)) < 0.005 ? String(Math.round(m)) : m.toFixed(2).replace('.', ',')); // ×2, ×1,41, ×1,19
+    const paliersDe = (i) => (Q.paliersPoste ? Q.paliersPoste(i) : Q.PALIERS_POSTE);
+    const gainPal = (pal, i) => (Q.gainPalier ? Q.gainPalier(pal, i) : 2); // ce que ce palier ajoute (le vrai rapport : ×2 aux anciens paliers, ×1,41 ou ×1,19 aux intercalés)
     function construireCartes() {
       cartesEl.innerHTML = ''; cartes = [];
       Q.PRODUITS.forEach((p, i) => { const c = document.createElement('article'); c.className = 'carte pq'; c.dataset.i = i; cartesEl.appendChild(c); cartes.push({ el: c, html: '' }); });
@@ -9385,19 +9458,21 @@ const EVENEMENTS = (() => {
         const s = qq.postes[i], c = cartes[i]; if (!c) return;
         let html, cls;
         if (s.niv === 0) {
-          const prev = i === 0 || qq.postes[i - 1].niv > 0, ok = qq.billets >= p.debloquer;
-          cls = 'carte pq verrou' + (prev ? '' : ' secret');
-          html = `<div class="icone">${F.ico.produit(p, i)}</div><div class="corps"><h3>${esc(p.nom)}</h3><p>${esc(p.desc)} ${prev ? `Rapporte ${F.fmtPhrase(p.rev)} la vente.` : 'Débloque d’abord le produit précédent.'}</p>
-            ${prev ? `<button type="button" class="btn ${ok ? 'menthe' : 'non'}" data-a="debloquer"><small>Débloquer</small><b>${prix(p.debloquer)}</b></button>` : ''}</div>`;
+          const ferme = Q.recetteOuverte && !Q.recetteOuverte(qq, i), prev = !ferme && (i === 0 || qq.postes[i - 1].niv > 0), ok = qq.billets >= p.debloquer;
+          cls = 'carte pq verrou' + (prev ? '' : ' secret') + (ferme ? ' apres' : '');
+          const txt = ferme ? `${esc(p.desc)}` : `${esc(p.desc)} ${prev ? `Rapporte ${F.fmtPhrase(p.rev)} la vente.` : 'Débloque d’abord le produit précédent.'}`;
+          html = `<div class="icone">${F.ico.produit(p, i)}</div><div class="corps"><h3>${esc(p.nom)}</h3><p>${txt}</p>
+            ${ferme ? `<span class="pq-apres">${esc(F.t.recetteApres(p.apres))}</span>` : prev ? `<button type="button" class="btn ${ok ? 'menthe' : 'non'}" data-a="debloquer"><small>Débloquer</small><b>${prix(p.debloquer)}</b></button>` : ''}</div>`;
         } else {
-          const n = Q.quantite(qq, i), px = Q.prixNiveaux(qq, i, n), ok = qq.billets >= px, pal = Q.prochainPalier(s.niv), prec = Q.PALIERS_POSTE.filter((x) => x <= s.niv).pop() || 0, franchit = pal && s.niv + n >= pal;
+          const n = Q.quantite(qq, i), px = Q.prixNiveaux(qq, i, n), ok = qq.billets >= px, pal = Q.prochainPalier(s.niv, i), prec = paliersDe(i).filter((x) => x <= s.niv).pop() || 0, franchit = pal && s.niv + n >= pal;
+          const rem = Q.remise ? Q.remise(qq) : 1; // le Grossiste (ou le Marché des sorcières) : les niveaux à moitié prix
           const rapide = p.temps <= 1.5 && s.staff, gc = qq.ev && genre(qq.ev) === 'livrer' && qq.ev.i === i;
           cls = 'carte pq' + (s.staff ? ' auto' : ' manuel') + (s.actif ? ' actif' : '') + (gc ? ' gouter' : '');
           html = `${gc ? `<span class="badge-critique">${esc(coup(qq.ev).badge)}</span>` : ''}<div class="icone">${F.ico.produit(p, i)}<span class="niv">${s.niv}</span></div>
             <div class="corps"><h3><span class="nom">${esc(p.nom)}</span></h3><small class="pq-poste">${esc(p.poste)}</small>
-              <div class="palier ${franchit ? 'bientot' : ''}">${pal ? `<span>Palier <b>${pal}</b> · ×${Q.palierMult(pal)}</span><span>${pal - s.niv === 1 ? '1 niveau' : `${pal - s.niv} niveaux`}</span><i style="width:${((s.niv - prec) / (pal - prec) * 100).toFixed(0)}%"></i>` : `<span>Dernier palier · ×${Q.palierMult(s.niv)}</span><i style="width:100%"></i>`}</div>
+              <div class="palier ${franchit ? 'bientot' : ''}">${pal ? `<span>Palier <b>${pal}</b> ×${multTxt(gainPal(pal, i))}</span><span>${pal - s.niv} niv.</span><i style="width:${((s.niv - prec) / (pal - prec) * 100).toFixed(0)}%"></i>` : `<span>Dernier palier · ×${multTxt(Q.palierMult(s.niv, i))}</span><i style="width:100%"></i>`}</div>
               <div class="barre"><i class="${rapide ? 'rapide' : ''}"></i><span class="rev">+${prix(Q.revenuFournee(qq, i))}</span>${s.staff || s.actif ? `<span class="tps">${G.fmtDuree(Q.temps(qq, i))}</span>` : '<span class="cuire">Touche !</span>'}</div></div>
-            <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'}" data-a="ameliorer"><small>Améliorer ×${n}</small><b>${prix(px)}</b>${franchit ? `<i class="pal-badge">palier ×${Q.palierMult(pal)}</i>` : ''}</button>
+            <div class="boutons"><button type="button" class="btn ${ok ? '' : 'non'}${rem < 1 ? ' promo' : ''}" data-a="ameliorer"><small>${rem < 1 ? `−${Math.round((1 - rem) * 100)} % ×${n}` : `Améliorer ×${n}`}</small><b>${prix(px)}</b>${franchit ? `<i class="pal-badge">palier ×${multTxt(gainPal(pal, i))}</i>` : ''}</button>
               ${s.staff ? `<div class="staff-ok pq"><span>${esc(p.staffNom)}</span></div>` : `<button type="button" class="btn beurre ${qq.billets >= Q.prixStaff(qq, i) ? '' : 'non'}" data-a="embaucher"><small>Embaucher</small><b>${prix(Q.prixStaff(qq, i))}</b></button>`}</div>`;
         }
         if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); }
@@ -9413,7 +9488,7 @@ const EVENEMENTS = (() => {
         const a = btn.dataset.a;
         if (a === 'debloquer' || a === 'ameliorer') {
           const r = Q.acheter(qq, i);
-          if (!r.ok) { d.son.non(); d.toast(r.verrou ? 'Débloque d’abord le produit précédent.' : `Il manque ${fmt(r.prix - qq.billets)}`); return; }
+          if (!r.ok) { d.son.non(); d.toast(r.verrou ? (r.apres ? `${F.t.recetteApres(r.apres)} : franchis-le pour l’ouvrir.` : 'Débloque d’abord le produit précédent.') : `Il manque ${fmt(r.prix - qq.billets)}`); return; }
           if (r.deblocage) { d.son.deblocage(); d.buzz([10, 30, 10]); d.toast(F.t.nouveau(Q.PRODUITS[i].nom)); } else { d.son.achat(); d.buzz(8); }
           renderCartes(true); lastHud = ''; hud(); d.save(); return;
         }
@@ -9468,7 +9543,7 @@ const EVENEMENTS = (() => {
       const bonus = Q.AMELIORATIONS.filter((a) => a.apres), ouvertes = bonus.filter((a) => ouverte(qq, a));
       const liste = Q.AMELIORATIONS.filter((a) => !a.apres).map(ligne).join('')
         + (ouvertes.length ? `<h3 class="pq-inter">${esc(F.t.apresBoss)}</h3><p class="pq-inter-sous">${esc(F.t.amBonus)}</p>${ouvertes.map(ligne).join('')}` : '')
-        + (bonus.length > ouvertes.length ? `<p class="note pq-am-bientot">${esc(F.t.amBientot(bonus.length - ouvertes.length, boss()))}</p>` : '');
+        + (bonus.length > ouvertes.length ? `<p class="note pq-am-bientot">${esc(F.t.amBientot(bonus.length - ouvertes.length, Math.min(...bonus.filter((a) => !ouverte(qq, a)).map((a) => a.apres || boss()))))}</p>` : '');
       d.openSheet(`<div class="pq-sheet ${F.classe}"><h2>${esc(F.t.amTitre)}</h2><p class="sous">${esc(F.t.amSous)}</p><div class="liste-am">${liste}</div><button type="button" class="btn large sombre" data-a="pq-retour" style="margin-top:14px"><b>Retour</b></button></div>`);
       d.on('[data-id]', (b) => { const r = Q.amelioration(q(), b.dataset.id); if (!r.ok) { d.son.non(); d.toast(`Il manque ${fmt(r.prix - q().billets)}`); return; } d.son.deblocage(); d.buzz([10, 30, 10]);
         let plus = ''; if (r.a.apres && (r.a.prime || r.a.etoiles)) { const lot = Q.lotCombine ? Q.lotCombine(r.a) : { etoiles: r.a.etoiles || 0, heures: r.a.prime || 0 }, v = verser(st(), lot); plus = ` · la boulangerie reçoit ${phraseVerse(v, lot.heures)}`; if (d.confettis) d.confettis(0.6); d.apres(); } // après le boss : elle paie aussi la boulangerie
@@ -9946,12 +10021,15 @@ const EVENEMENTS = (() => {
       // les apprentis du quartier : le guetteur (bonnet, debout près du mur), la nourrice (chignon, assise sur le canapé) ; les suivants au fur et à mesure des embauches
       equipeDe(X.q(), K);
     }
-    const tenues = [{ haut: '#2E2B3A', peau: '#C68B59', cheveux: '#2B2118', coiffure: 3, bonnet: '#2E2B3A' }, { haut: '#8A2B3A', peau: '#FFD7B5', cheveux: '#D9D9D9', coiffure: 2, lunettes: true }, { haut: '#B8A6FF', peau: '#F1B990', cheveux: '#B8762E', coiffure: 1 }, { haut: '#5FD3A4', peau: '#8D5A3C', cheveux: '#2B2118', coiffure: 0 }, { haut: '#FFC84A', peau: '#FFE3C9', cheveux: '#E0A61E', coiffure: 1, lunettes: true }, { haut: '#FF9A62', peau: '#5C3A21', cheveux: '#2B2118', coiffure: 3, bonnet: '#E1496C' }];
+    // les tenues, dans l'ordre d'arrivée ; les trois dernières : le livreur, puis les apprentis d'après le boss (le pharmacien en blouse
+    // blanche, le chimiste en combinaison jaune et lunettes)
+    const tenues = [{ haut: '#2E2B3A', peau: '#C68B59', cheveux: '#2B2118', coiffure: 3, bonnet: '#2E2B3A' }, { haut: '#8A2B3A', peau: '#FFD7B5', cheveux: '#D9D9D9', coiffure: 2, lunettes: true }, { haut: '#B8A6FF', peau: '#F1B990', cheveux: '#B8762E', coiffure: 1 }, { haut: '#5FD3A4', peau: '#8D5A3C', cheveux: '#2B2118', coiffure: 0 }, { haut: '#FFC84A', peau: '#FFE3C9', cheveux: '#E0A61E', coiffure: 1, lunettes: true }, { haut: '#FF9A62', peau: '#5C3A21', cheveux: '#2B2118', coiffure: 3, bonnet: '#E1496C' },
+      { haut: '#6CB8FF', peau: '#C68B59', cheveux: '#2B2118', coiffure: 0, bonnet: '#2B5BD7' }, { haut: '#F4F6FA', peau: '#FFD7B5', cheveux: '#BFC4CC', coiffure: 2, lunettes: true }, { haut: '#FFE04A', peau: '#F1B990', cheveux: '#3A2E26', coiffure: 0, lunettes: true }];
     // les places de l'équipe HD (x en part de la largeur, profondeur en part de 60 × K depuis le mur, orientation) : autour des meubles HD, pas dedans
-    const SPOTS_HD = [[0.11, 1.15, 1], [0, 0, 0], [0.72, 0.5, 2], [0.45, 1.6, 0], [0.8, 1.05, -1], [0.22, 1.55, 1]];
+    const SPOTS_HD = [[0.11, 1.15, 1], [0, 0, 0], [0.72, 0.5, 2], [0.45, 1.6, 0], [0.8, 1.05, -1], [0.22, 1.55, 1], [0.64, 1.7, -1], [0.34, 1.2, 1], [0.95, 1.6, -1]];
     function equipeDe(qq, K) {
       for (const p of persos) { G3.remove(p.g); if (p.hd) HDM.liberer(p.hd); else M.dispose(p.g); } persos.length = 0;
-      const n = Math.min(6, 1 + qq.postes.filter((s) => s.staff).length), spots = [[0.1, 0.3, 0, false], [0.4, 0.52, 0, false], [0.72, 0.5, 2, false], [0.5, 0.95, 0, false], [0.66, 0.85, -1, false], [0.15, 0.95, 1, false]];
+      const n = Math.min(tenues.length, 1 + qq.postes.filter((s) => s.staff).length), spots = [[0.1, 0.3, 0, false], [0.4, 0.52, 0, false], [0.72, 0.5, 2, false], [0.5, 0.95, 0, false], [0.66, 0.85, -1, false], [0.15, 0.95, 1, false], [0.84, 1.25, -1, false], [0.32, 1.25, 1, false], [0.62, 1.55, 0, false]];
       const hd = hdOk();
       for (let k = 0; k < n; k++) {
         if (hd) { // un Mini Character de Kenney (src/hd.js) : assis sur le canapé, ou debout à son poste
@@ -10129,12 +10207,16 @@ const EVENEMENTS = (() => {
     }
     // ─── l'équipe : la patronne (index 0) puis un employé costumé par produit dont l'apprenti est embauché ───
     // costumes : fantôme (un drap blanc), momie (bandelettes), squelette (pyjama noir à os blancs), vampire (cape et col), sorcière (chapeau
-    // pointu et cape), citrouille-lanterne (une tête de citrouille). Places : autour des meubles, jamais dedans.
-    const SPOTS = [[0.5, 1.4, 0], [0.44, 0.85, 0], [0.64, 0.72, -1], [0.6, 1.9, 0], [0.77, 1.5, -1], [0.27, 0.95, -1], [0.12, 1.75, 1]];
-    const COSTUMES = ['patronne', 'fantome', 'momie', 'squelette', 'vampire', 'sorciere', 'citrouille'];
+    // pointu et cape), citrouille-lanterne (une tête de citrouille) ; après le maître, le loup-garou (pelage gris-brun, oreilles pointues)
+    // et la petite dragonne (verte, deux cornes dorées). Places : autour des meubles, jamais dedans.
+    const SPOTS = [[0.5, 1.4, 0], [0.44, 0.85, 0], [0.64, 0.72, -1], [0.6, 1.9, 0], [0.77, 1.5, -1], [0.27, 0.95, -1], [0.12, 1.75, 1], [0.9, 1.78, -1], [0.3, 1.8, 1]];
+    const COSTUMES = ['patronne', 'fantome', 'momie', 'squelette', 'vampire', 'sorciere', 'citrouille', 'loupgarou', 'dragonne'];
+    // les oreilles du loup-garou, les cornes de la dragonne : dans le repère d'une tête de chibi (rayon 10, centre à l'origine)
+    const partsTete = (costume) => (costume === 'loupgarou' ? [-1, 1].flatMap((sx) => [P(M.cone(3.4, 7.5, 6), '#6E5E52', { x: sx * 6.6, y: 10, rz: -sx * 0.4 }), P(M.cone(1.8, 4.4, 6), '#FF9FB2', { x: sx * 6.5, y: 9.6, z: 1.4, rz: -sx * 0.4 })])
+      : costume === 'dragonne' ? [-1, 1].map((sx) => P(M.cone(1.9, 6.5, 6), '#FFE27A', { x: sx * 4.6, y: 10.6, z: -1.2, rz: -sx * 0.3, rx: -0.25 })) : []);
     function equipeDe(qq, K) {
       for (const p of persos) { G3.remove(p.g); if (p.hd) { HDM.liberer(p.hd); for (const m of p.mats || []) m.dispose(); for (const o of p.ajouts || []) M.dispose(o); } else M.dispose(p.g); } persos.length = 0;
-      const hd = hdOk(), qui = [0]; qq.postes.forEach((s, i) => { if (s.staff && qui.length < 7) qui.push(i + 1); });
+      const hd = hdOk(), qui = [0]; qq.postes.forEach((s, i) => { if (s.staff && qui.length < SPOTS.length) qui.push(i + 1); });
       qui.forEach((c, k) => {
         const [ux, uy, dirk] = SPOTS[c], costume = COSTUMES[c], x = W * ux, z = wz(murH + uy * 60 * K);
         if (hd) {
@@ -10145,6 +10227,7 @@ const EVENEMENTS = (() => {
           return;
         }
         const g = PERSOS.creer(Object.assign({ sac: false, taille: 1 }, CHIBIS[costume])); g.position.set(x, 0, z); g.rotation.y = YAW[dirk]; g.scale.setScalar(0.88 * K);
+        const pt = partsTete(costume), cou = g.userData.parts && g.userData.parts.cou; if (pt.length && cou) { const m = M.maille(pt, { ombre: false }); m.position.y = 11; cou.add(m); } // à la tête : elles suivent ses mouvements
         G3.add(g); persos.push({ g, assis: false, dir: dirk, phase: k * 1.3, costume });
       });
     }
@@ -10159,6 +10242,8 @@ const EVENEMENTS = (() => {
       vampire: { haut: '#3A2440', peau: '#EDE6FF', cheveux: '#1E1824', coiffure: 2, garde: tenue({ haut: { forme: 'cape', metal: 'vampire' } }) },
       sorciere: { haut: '#5FD3A4', peau: '#B9F0A6', cheveux: '#8E6BD8', coiffure: 1, garde: tenue({ tete: { forme: 'chapeau', metal: 'sorciere' }, pieds: { forme: 'bottes', metal: 'sorciere' } }) },
       citrouille: { haut: '#6FBF5A', peau: '#FFD7B5', cheveux: '#5A7A2E', coiffure: 0, garde: tenue({ tete: { forme: 'citrouille', metal: null } }) },
+      loupgarou: { haut: '#5A4A3E', peau: '#9C8A78', cheveux: '#6E5E52', coiffure: 3 },
+      dragonne: { haut: '#4FAF6A', peau: '#9FE3A6', cheveux: '#3E8A55', coiffure: 0 },
     };
     // un Mini Character costumé : ses matériaux teintés (clonés, rendus à la fin) et des pièces accrochées à ses os (la tête, le torse, la
     // racine). La tête et le corps du Mini sont MESURÉS dans le repère de leur os (une boîte : centre c, taille t) et chaque pièce s'y
@@ -10186,6 +10271,10 @@ const EVENEMENTS = (() => {
         const u = T.t.x / 20, parts = [[-0.22, 0.18], [0.06, -0.14], [0.3, 0.1]].map(([dy, rz]) => P(M.tore(9.3, 1.5, TAU, 6, 20), '#CDBE9A', { y: dy * T.t.y / u, rx: Math.PI / 2 + rz, sy: T.t.z / T.t.x }));
         const m = M.maille(parts, { ombre: false }); m.scale.setScalar(u); m.position.copy(T.c); accroche(m, os.head);
         if (B) { const v = B.t.z / 22, m2 = M.maille([P(M.tore(10.6, 1.6, TAU, 6, 20), '#CDBE9A', { y: 0, rx: Math.PI / 2 + 0.15 }), P(M.tore(10.4, 1.6, TAU, 6, 20), '#CDBE9A', { y: 6, rx: Math.PI / 2 - 0.15 })], { ombre: false }); m2.scale.setScalar(v); m2.position.set(B.c.x, B.c.y + B.t.y * 0.12, B.c.z); accroche(m2, os.torso); }
+      }
+      if ((costume === 'loupgarou' || costume === 'dragonne') && T) { // le pelage (ou les écailles) et, sur la tête, les oreilles pointues ou les deux cornes
+        teinte(corpsM, costume === 'loupgarou' ? '#6E5E52' : '#4FAF6A'); teinte(teteM, costume === 'loupgarou' ? '#9C8A78' : '#9FE3A6');
+        const u = T.t.x / 20, m = M.maille(partsTete(costume), { ombre: false }); m.scale.setScalar(u); m.position.copy(T.c); accroche(m, os.head);
       }
       if (costume === 'squelette' && B) { // le pyjama noir à os blancs : la colonne et trois côtes sur la poitrine, la tête blanche
         teinte(corpsM, '#3A3448'); teinte(teteM, '#F4F0E6');
@@ -10366,8 +10455,9 @@ const EVENEMENTS = (() => {
       palierSous: (m) => `${m} de billets gagnés dans la Planque. Pour la boulangerie :`, palierFinal: 'Le boss du quartier, c’est toi. Tout ça reste à vie, même après la fermeture de la Planque.', palierOk: 'Trop bien',
       amTitre: 'Les combines', amSous: 'Des améliorations qui multiplient les ventes de la Planque, jusqu’à la fin de l’événement.',
       apresBoss: 'Après le boss', apresBossSous: 'Huit paliers bonus pour ceux qui ont déjà tout : des étoiles par poignées, des boosts ×5 et ×10, des heures de gains pour la boulangerie, et au 20e la casquette néon.',
-      amBonus: 'Pour souffler une fois boss : elles ne multiplient pas les ventes, elles rendent la vie plus douce, et chacune paie la boulangerie (des heures de gains, des étoiles).', amBientot: (n, k) => `${n} combine${n > 1 ? 's' : ''} de plus après le palier ${k}.`,
-      palierBonus: 'Après le boss, ça continue : huit paliers bonus (jusqu’à 8 étoiles d’un coup, des boosts ×10, des heures de gains) et quatre combines qui paient la boulangerie t’attendent.', combineMot: 'combine',
+      amBonus: 'Pour souffler une fois boss : le Grossiste (les niveaux à moitié prix), un ×3 pour chaque nouvelle recette, et des combines qui rendent la vie plus douce. Chacune paie la boulangerie (des heures de gains, des étoiles).', amBientot: (n, k) => `${n} combine${n > 1 ? 's' : ''} de plus à partir du palier ${k}.`,
+      palierBonus: 'Après le boss, ça continue : huit paliers bonus (jusqu’à 8 étoiles d’un coup, des boosts ×10, des heures de gains), deux nouvelles recettes (aux paliers 13 et 16) et sept combines qui paient la boulangerie t’attendent.', combineMot: 'combine',
+      recetteApres: (n) => `Après le palier ${n}`,
       revue: (quoi) => `Tu avais déjà ${quoi || 'avancé'} au Quartier : voici, une fois, la différence avec les nouvelles récompenses. Les prochains paliers et les combines d’après le boss donnent déjà les nouvelles.`, palierBonusFinal: 'Une légende en néon. Le quartier n’a plus rien à t’apprendre : la casquette néon est dans ta garde-robe, à vie.',
       paliersSous: (m, nb, n) => `${m} de billets gagnés · ${nb}/${n}. Les mêmes seuils pour tout le monde ; chaque palier donne quelque chose pour la boulangerie, à vie.`,
       paliersNote: 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). Les heures de gains tombent tout de suite dans la caisse de la boulangerie. La tenue du quartier se porte depuis la garde-robe du boulanger, et le chien du quartier se choisit comme compagnon.',
@@ -10426,8 +10516,9 @@ const EVENEMENTS = (() => {
         palierSous: (m) => `${m} gagnés au manoir. Pour la boulangerie :`, palierFinal: txt('palier12', txt('palierFinal', 'La reine de la nuit, c’est toi. Tout ça reste à vie, même après la fermeture du manoir.')), palierOk: 'Trop chouette',
         amTitre: typeof T.ameliorations === 'string' ? `Les ${T.ameliorations.toLowerCase()}` : txt('amTitre', 'Les sortilèges'), amSous: txt('amSous', 'Des sorts qui multiplient les ventes du manoir, jusqu’à la fin de l’événement.'),
         apresBoss: txt('apresBoss', 'Après le maître du Manoir'), apresBossSous: txt('apresBossSous', 'Huit paliers bonus pour ceux qui ont déjà tout : des étoiles par poignées, des boosts ×5 et ×10, des heures de gains pour la boulangerie, et au 20e le chapeau phosphorescent.'),
-        amBonus: txt('amBonus', 'Des sorts de confort : ils ne multiplient pas les ventes, ils rendent la nuit plus douce, et chacun paie la boulangerie (des heures de gains, des étoiles).'), amBientot: (n, k) => `${n} sortilège${n > 1 ? 's' : ''} de plus après le palier ${k}.`,
-        palierBonus: txt('palierBonus', 'Et ce n’est pas fini : huit paliers bonus (jusqu’à 8 étoiles d’un coup, des boosts ×10, des heures de gains) et quatre sortilèges qui paient la boulangerie t’attendent au Manoir.'), combineMot: 'sortilège',
+        amBonus: txt('amBonus', 'Le Marché des sorcières (les niveaux à moitié prix), un ×3 pour chaque nouvelle recette, et des sorts de confort qui rendent la nuit plus douce. Chacun paie la boulangerie (des heures de gains, des étoiles).'), amBientot: (n, k) => `${n} sortilège${n > 1 ? 's' : ''} de plus à partir du palier ${k}.`,
+        palierBonus: txt('palierBonus', 'Et ce n’est pas fini : huit paliers bonus (jusqu’à 8 étoiles d’un coup, des boosts ×10, des heures de gains), deux nouvelles recettes (aux paliers 13 et 16) et sept sortilèges qui paient la boulangerie t’attendent au Manoir.'), combineMot: 'sortilège',
+        recetteApres: (n) => `Après le palier ${n}`,
         revue: (quoi) => `Tu avais déjà ${quoi || 'avancé'} au Manoir : voici, une fois, la différence avec les nouvelles récompenses. Les prochains paliers et les sortilèges d’après le maître donnent déjà les nouvelles.`, palierBonusFinal: txt('palierBonusFinal', 'Une légende qui brille dans le noir : le chapeau phosphorescent est dans ta garde-robe, à vie.'),
         paliersSous: (m, nb, n) => `${m} gagnés · ${nb}/${n}. Les mêmes seuils pour tout le monde ; chaque palier donne quelque chose pour la boulangerie, à vie.`,
         paliersNote: txt('paliersNote', 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue d’Halloween se porte depuis la garde-robe du boulanger.'),

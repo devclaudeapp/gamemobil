@@ -9,8 +9,9 @@
 // au 12e (le 15 octobre) reçoit les paliers bonus déjà dépassés dans la boutique, une fois ; la liste « Après le boss » (13 à 20) lisible à
 // 390 px ; les combines en plus ; le 20e et sa casquette néon ; le bilan qui compte jusqu'à 20. Enfin, dans un troisième téléphone, les
 // activités (test/fournil-activites-ecran.cjs) : la barre des trois boutons, une partie de chaque mini-jeu au doigt, un contrat réclamé,
-// une opération lancée puis ramassée.
-// Captures dans test/shots/quartier/ (et dans le dossier donné par SHOTS_QUARTIER).
+// une opération lancée puis ramassée. Les recettes d'après le boss : les deux cartes « Après le palier 13 / 16 » dès l'entrée, puis, dans le
+// second téléphone, le sirop violet débloqué, son apprenti, sa combine ×3, le Grossiste acheté et le prix d'un niveau divisé par deux à l'écran.
+// Captures dans test/shots/quartier/ (et dans le dossier donné par SHOTS_QUARTIER) ; celles des recettes dans test/shots/recettes/.
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-quartier.cjs
 'use strict';
 const { chromium } = require('playwright');
@@ -19,6 +20,8 @@ const Q = require('../src/quartier.js'), CL = require('../src/classement.js');
 const root = path.join(__dirname, '..');
 const PORT = +process.env.PORT_QUARTIER || 8865, SUPA = 'https://jklbitrlkfrktmnarejc.supabase.co';
 const out = path.join(__dirname, 'shots', 'quartier'); fs.mkdirSync(out, { recursive: true });
+const outR = path.join(__dirname, 'shots', 'recettes'); fs.mkdirSync(outR, { recursive: true }); // les recettes
+const photoR = async (pg, nom) => { await pg.evaluate(() => { for (const t of document.querySelectorAll('.toast')) t.style.visibility = 'hidden'; }); await pg.screenshot({ path: path.join(outR, nom + '.png') }); await pg.evaluate(() => { for (const t of document.querySelectorAll('.toast')) t.style.visibility = ''; }); }; // sans le toast du moment (une capture par écran) d'après le boss
 const out2 = process.env.SHOTS_QUARTIER ? (fs.mkdirSync(process.env.SHOTS_QUARTIER, { recursive: true }), process.env.SHOTS_QUARTIER) : null;
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const HEURE = 3600e3;
@@ -127,7 +130,15 @@ async function gerer(route) {
   await shot('02-porte');
   await clic('[data-pq="oui"]'); await sleep(900);
   p = await planque(); s = await qst();
-  check(p.ecran === 'planque' && s.majeur && p.cartes.length === 6 && /Jour 2 sur 15/.test(p.sous), `on entre : six cartes, « ${p.sous} », ${p.reste}`);
+  check(p.ecran === 'planque' && s.majeur && p.cartes.length === 8 && /Jour 2 sur 15/.test(p.sous), `on entre : huit cartes, « ${p.sous} », ${p.reste}`);
+  { // les deux recettes d'après le boss, déjà visibles, fermées : « Après le palier 13 », « Après le palier 16 »
+    const ap = await ev(() => [6, 7].map((i) => { const c = document.querySelector(`#pq-cartes .carte[data-i="${i}"]`); c.scrollIntoView({ block: 'end' }); const r = c.getBoundingClientRect(), b = c.querySelector('.pq-apres'), rb = b && b.getBoundingClientRect();
+      return { cls: c.className, nom: c.querySelector('h3').textContent, txt: b ? b.textContent : '', btn: !!c.querySelector('button'), dans: r.left >= 0 && r.right <= innerWidth + 0.5 && (!rb || (rb.right <= r.right && rb.left >= r.left)) }; }));
+    check(ap[0].nom === 'Sirop violet' && ap[0].txt === 'Après le palier 13' && ap[1].nom === 'Cristal bleu' && ap[1].txt === 'Après le palier 16' && ap.every((x) => /verrou/.test(x.cls) && /apres/.test(x.cls) && !x.btn && x.dans), `les recettes d’après le boss : « ${ap[0].nom} » (${ap[0].txt}), « ${ap[1].nom} » (${ap[1].txt}), sans bouton, dans l’écran`);
+    await sleep(3500); await photoR(page, 'quartier-carte-apres-palier-13'); // le toast de bienvenue s'en va
+    await clic('#pq-cartes .carte[data-i="6"] h3'); await sleep(150);
+    check((await ev(() => window.__fournil.st.quartier.postes[6].niv)) === 0, 'toucher la carte fermée ne débloque rien');
+    await ev(() => document.querySelector('#pq-cartes').scrollTo(0, 0)); await sleep(150); }
   check(p.calls > 0 && p.calls <= 40, `le décor 3D de la Planque tourne : ${p.calls} appels de dessin (≤ 40)`);
   await shot('03-planque');
 
@@ -353,18 +364,56 @@ async function gerer(route) {
     f2 = await feuille2();
     check(/Après le boss/.test(f2) && /Guetteurs sur les toits/.test(f2) && /Trottinette électrique/.test(f2) && !/de plus après le palier/.test(f2), 'les combines : les quatre nouvelles apparaissent sous « Après le boss »');
     const am = await ev2(() => { const l = [...document.querySelectorAll('#feuille .am.bonus')]; l[0].scrollIntoView({ block: 'center' }); return { n: l.length, deborde: l.some((x) => x.getBoundingClientRect().right > innerWidth + 0.5) }; });
-    check(am.n === 4 && !am.deborde, 'quatre lignes, sans déborder');
+    check(am.n === 6 && !am.deborde && /1 combine de plus à partir du palier 16/.test(f2) && /Le Grossiste/.test(f2) && /Gobelets à double fond/.test(f2), 'six lignes (le Grossiste et la combine du sirop compris, celle du cristal attend le 16e), sans déborder');
     await ev2(() => { window.__fournil.st.quartier.billets = 3e15; }); await clic2('#feuille [data-id="guetteurs"]'); await sleep(400);
     check(await ev2(() => window.__fournil.st.quartier.ameliorations.guetteurs === true), 'les guetteurs s’achètent (1 Bd)');
     await ev2(() => { const l = [...document.querySelectorAll('#feuille .am.bonus')]; if (l[0]) l[0].scrollIntoView({ block: 'center' }); }); await sleep(200);
     await shot2('b4-combines-apres-le-boss');
     await clic2('#feuille [data-a="pq-retour"]'); await sleep(300);
+    // les recettes d'après le boss : le sirop violet (palier 13 franchi) se débloque, son apprenti, sa combine ×3 ; le Grossiste divise le prix d'un niveau par deux
+    { const carte = (i) => ev2((k) => { const c = document.querySelector(`#pq-cartes .carte[data-i="${k}"]`); c.scrollIntoView({ block: 'center' }); const b = c.querySelector('[data-a="ameliorer"] b, [data-a="debloquer"] b'), s = c.querySelector('[data-a="ameliorer"] small');
+        return { cls: c.className, txt: c.innerText.replace(/\s+/g, ' '), prix: b ? b.textContent : '', petit: s ? s.textContent : '', pal: (c.querySelector('.palier span') || {}).textContent || '', staff: (c.querySelector('.staff-ok') || {}).textContent || '' }; }, i);
+      await ev2(() => { const q = window.__fournil.st.quartier; [1, 2, 3, 4, 5].forEach((i) => { q.postes[i].niv = 150; q.postes[i].staff = true; q.postes[i].actif = true; }); }); await sleep(400); // ses six premiers postes ouverts
+      let c6 = await carte(6), c7 = await carte(7);
+      check(/verrou/.test(c6.cls) && !/apres/.test(c6.cls) && /Débloquer/.test(c6.txt) && /Après le palier 16/.test(c7.txt), `le 13e franchi : le sirop violet se débloque (${c6.prix}) ; le cristal bleu attend le 16e`);
+      await ev2(() => { window.__fournil.st.quartier.billets = 1e15; }); await clic2('#pq-cartes .carte[data-i="6"] [data-a="debloquer"]'); await sleep(400);
+      await clic2('#pq-cartes .carte[data-i="6"] [data-a="embaucher"]'); await sleep(400);
+      c6 = await carte(6);
+      check(!/verrou/.test(c6.cls) && /auto/.test(c6.cls) && c6.staff === 'Pharmacien Gérard' && /Palier 25 ×2/.test(c6.pal), `débloqué, ${c6.staff} embauché ; « ${c6.pal} »`);
+      await ev2(() => { window.__fournil.st.quartier.billets = 1e16; }); await clic2('[data-pq="ameliorations"]'); await sleep(400);
+      await ev2(() => { const b = document.querySelector('#feuille [data-id="gobelets"]'); if (b) b.scrollIntoView({ block: 'center' }); }); await sleep(150);
+      const et0 = await ev2(() => window.__fournil.st.etoiles); await clic2('#feuille [data-id="gobelets"]'); await sleep(400);
+      check(await ev2(() => window.__fournil.st.quartier.ameliorations.gobelets === true && window.__fournil.Q.ameliorationMult(window.__fournil.st.quartier, 6) === 3) && (await ev2(() => window.__fournil.st.etoiles)) === et0 + 2, 'sa combine « Gobelets à double fond » : sirop ×3, et +2 ★ pour la boulangerie');
+      await ev2(() => { const b = document.querySelector('#feuille [data-id="grossiste"]'); if (b) b.scrollIntoView({ block: 'center' }); }); await sleep(3500);
+      await photoR(pg, 'quartier-combines-grossiste');
+      await clic2('#feuille [data-a="pq-retour"]'); await sleep(300);
+      await ev2(() => { const q = window.__fournil.st.quartier; q.mode = 1; q.billets = 1e15; }); await ev2(() => document.querySelector('.pq-modes button[data-mode="1"]').click()); await sleep(200);
+      const avant = await carte(5), pAvant = await ev2(() => window.__fournil.Q.prixNiveaux(window.__fournil.st.quartier, 5, 1));
+      await clic2('[data-pq="ameliorations"]'); await sleep(400); await clic2('#feuille [data-id="grossiste"]'); await sleep(400); await clic2('#feuille [data-a="pq-retour"]'); await sleep(400);
+      const apres = await carte(5), pApres = await ev2(() => window.__fournil.Q.prixNiveaux(window.__fournil.st.quartier, 5, 1)), fmt = await ev2((x) => window.__fournil.Q.fmt(x), pAvant / 2);
+      check(await ev2(() => window.__fournil.st.quartier.ameliorations.grossiste === true) && pApres === pAvant / 2 && apres.prix.replace(/\s/g, '').startsWith(fmt.replace(/\s/g, '')) && /−50 % ×1/.test(apres.petit) && /promo/.test(await ev2(() => document.querySelector('#pq-cartes .carte[data-i="5"] [data-a="ameliorer"]').className)),
+        `le Grossiste acheté : un niveau de Spécialité passe de « ${avant.prix} » à « ${apres.prix} » (${apres.petit})`);
+      // le cristal bleu au 16e : les huit postes ouverts, leurs apprentis
+      await ev2(() => { const F = window.__fournil, q = F.st.quartier; F.Q.gagner(q, 6e15); q.billets = 1e16; }); await sleep(300);
+      for (let k = 0; k < 4 && /Palier/.test(await feuille2()); k++) { await clic2('#feuille [data-a="pq-ok"]'); await sleep(450); }
+      await clic2('#pq-cartes .carte[data-i="7"] [data-a="debloquer"]'); await sleep(300); await clic2('#pq-cartes .carte[data-i="7"] [data-a="embaucher"]'); await sleep(400);
+      await ev2(() => { const q = window.__fournil.st.quartier; [235, 214, 207, 203, 199, 192, 160, 62].forEach((n, i) => { q.postes[i].niv = n; q.postes[i].staff = true; q.postes[i].actif = true; }); const s = EVENEMENTS.quartier.scene; if (s) s.equipe(q); }); await sleep(600); // l'équipe au complet : neuf personnages
+      const huit = await ev2(() => [...document.querySelectorAll('#pq-cartes .carte')].map((c) => c.className));
+      check(huit.length === 8 && huit.every((x) => /auto/.test(x)) && (await carte(7)).staff === 'Chimiste Monsieur Blanc', 'le 16e franchi : le cristal bleu ouvert, Chimiste Monsieur Blanc embauché ; huit postes, huit apprentis');
+      const c7b = await carte(7); check(/Palier 75 ×1,41/.test(c7b.pal), `les paliers intercalés du cristal : « ${c7b.pal} »`);
+      await ev2(() => document.querySelector('#pq-cartes').scrollTo(0, 0)); await sleep(3500); // le toast de l'embauche s'en va
+      const sc = await ev2(() => { const s = EVENEMENTS.quartier.scene; return { calls: s ? s.calls : 0 }; });
+      check(sc.calls > 0 && sc.calls <= 80, `la scène avec l’équipe au complet (neuf personnages) : ${sc.calls} appels de dessin`);
+      await photoR(pg, 'quartier-planque-8-postes');
+      await ev2(() => document.querySelector('#pq-cartes .carte[data-i="7"]').scrollIntoView({ block: 'end' })); await sleep(300);
+      await photoR(pg, 'quartier-planque-8-postes-bas');
+      await ev2(() => document.querySelector('#pq-cartes').scrollTo(0, 0)); }
     await ev2(() => { const Qd = window.__fournil.Q, q = window.__fournil.st.quartier; q.evTimer = 9999; Qd.lancerEvenement(q, Math.random, 'descente'); }); await sleep(300);
     check(/0\/8/.test(await ev2(() => document.querySelector('#pq-ev').innerText)), 'une descente se planque maintenant en 8 touches');
     await ev2(() => { const q = window.__fournil.st.quartier; q.ev = null; });
     // le 20e : la casquette néon
     await ev2(() => { const q = window.__fournil.st.quartier; q.total = 1.2e17; q.billets = 1e16; });
-    check(await attendre(async () => /Palier 15/.test(await feuille2()), 5000), 'au-delà de 110 Bd : les paliers 15 à 20 s’annoncent');
+    check(await attendre(async () => /Palier 17/.test(await feuille2()), 5000), 'au-delà de 110 Bd : les paliers 17 à 20 s’annoncent (15 et 16 sont passés avec le cristal bleu)');
     for (let k = 0; k < 5 && !/Palier 20/.test(await feuille2()); k++) { await clic2('#feuille [data-a="pq-ok"]'); await sleep(450); }
     f2 = await feuille2();
     check(/Palier 20 · La légende en néon/.test(f2) && /Casquette néon/.test(f2) && /casquette néon est dans ta garde-robe/.test(f2), 'le palier 20 : « La légende en néon », la casquette néon pour la garde-robe');
@@ -381,7 +430,7 @@ async function gerer(route) {
     await charger2();
     check(await attendre(() => pg.evaluate(() => document.querySelector('#planque').dataset.ecran === 'bilan'), 6000), 'après la fin : le bilan');
     const bil = await ev2(() => document.querySelector('#pq-corps').innerText);
-    check(/20\/20 paliers/.test(bil) && /Casquette néon/.test(bil) && /40 étoiles/.test(bil) && /h de gains versées/.test(bil), `le bilan compte jusqu’à 20 : ${bil.split('\n').filter((l) => /paliers|reste/.test(l)).join(' / ')}`);
+    check(/20\/20 paliers/.test(bil) && /Casquette néon/.test(bil) && /43 étoiles/.test(bil) && /h de gains versées/.test(bil), `le bilan compte jusqu’à 20 : ${bil.split('\n').filter((l) => /paliers|reste/.test(l)).join(' / ')}`);
     await shot2('b7-bilan-20');
     await ctx2.close(); }
 

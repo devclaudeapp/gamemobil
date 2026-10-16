@@ -7,7 +7,9 @@
 // déjà au 12e, l'enveloppe du serveur (le marathon 24 h/24 reste sous la table de fournil_evts(), avec marge, Sortilèges compris), et la
 // longévité (sept jours de marathon sans dérive, sauvegarde relue en route, récompenses distribuées dans la boulangerie de src/game.js), et
 // les activités d'Halloween (src/activites.js, vérifiées par test/fournil-activites.js ; jouées au mieux dans le marathon de l'enveloppe), avec
-// la pause des coups de pouce pendant une courte sortie.
+// la pause des coups de pouce pendant une courte sortie ; et, après le maître, les deux recettes de plus (gâteaux du cimetière au 13e, œufs
+// de dragon au 16e : déblocage, vieille sauvegarde à six postes), le Marché des sorcières (les niveaux à moitié prix), les Sortilèges ×3,
+// le temps par niveau du très actif et l'enveloppe qui tient.
 // Lancer : TZ=Europe/Paris node test/fournil-hantee.test.js
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -49,9 +51,9 @@ check(Object.keys(F.evenements).sort().join() === Object.keys(HT.EVENEMENTS).sor
 check(['titre', 'annonceTitre', 'annonce', 'ouvrir', 'fermer', 'bilanTitre', 'bilan', 'palier12', 'paliersNote', 'classementInfo', 'classementFini', 'vide', 'podiumFinal'].every((k) => typeof F.textes[k] === 'string' && F.textes[k].length > 3) && typeof F.textes.absence === 'function' && /bonbons/.test(F.textes.absence('2 h', HT.fmtEur(1200))), 'les textes de l’écran, tous là');
 { const manquants = Object.keys(Q).filter((k) => !(k in HT) || typeof HT[k] !== typeof Q[k]);
   check(manquants.length === 0, `tout ce qu’exporte QUARTIER existe dans HANTEE, du même type${manquants.length ? ' — manquent : ' + manquants.join(', ') : ''}`); }
-check(HT.PRODUITS.length === 6 && HT.PRODUITS.map((p) => p.id).join() === 'acidule,pomme,cookie,toile,potion,citrouille', 'six friandises : acidulés, pommes d’amour, cookies fantômes, toiles en sucre, potions fumantes, citrouilles sculptées');
-check(HT.PRODUITS.map((p) => p.staffNom.split(' ').slice(-1)[0]).join() === 'fantôme,momie,squelette,Vladimir,sorcière,Lanterne' && HT.PRODUITS.every((p) => p.cout > 0 && p.rev > 0 && p.temps > 0 && p.croiss > 1 && p.staff > 0 && p.staffNom && p.staffDesc && p.poste && p.desc), 'leurs monstres : le fantôme, la momie, le squelette, le vampire (Comte Vladimir), la sorcière, la citrouille-lanterne ; chacun a son poste et sa phrase');
-check(HT.PRODUITS.slice(1).every((p, k) => p.debloquer > HT.PRODUITS[k].debloquer && p.rev > HT.PRODUITS[k].rev), 'les déblocages et les revenus grimpent dans l’ordre');
+check(HT.PRODUITS.length === 8 && HT.PRODUITS.map((p) => p.id).join() === 'acidule,pomme,cookie,toile,potion,citrouille,cimetiere,dragon' && HT.PRODUITS.slice(0, 6).every((p) => !p.apres), 'six friandises : acidulés, pommes d’amour, cookies fantômes, toiles en sucre, potions fumantes, citrouilles sculptées ; puis deux recettes après le maître');
+check(HT.PRODUITS.map((p) => p.staffNom.split(' ').slice(-1)[0]).join() === 'fantôme,momie,squelette,Vladimir,sorcière,Lanterne,loup-garou,dragonne' && HT.PRODUITS.every((p) => p.cout > 0 && p.rev > 0 && p.temps > 0 && p.croiss > 1 && p.staff > 0 && p.staffNom && p.staffDesc && p.poste && p.desc), 'leurs monstres : le fantôme, la momie, le squelette, le vampire (Comte Vladimir), la sorcière, la citrouille-lanterne, puis le loup-garou et la petite dragonne ; chacun a son poste et sa phrase');
+check(HT.PRODUITS.slice(1, 6).every((p, k) => p.debloquer > HT.PRODUITS[k].debloquer && p.rev > HT.PRODUITS[k].rev), 'les déblocages et les revenus grimpent dans l’ordre');
 { const textes = JSON.stringify([F.textes.annonce, F.textes.bilan, F.textes.palier12, F.textes.paliersNote, HT.PRODUITS, HT.PALIERS, HT.AMELIORATIONS, Object.values(F.evenements).map((e) => [e.nom, e.annonce, e.fin]), F.vetements, F.decos]);
   const mots = textes.match(/\b(drogues?|alcools?|bi[eè]res?|vins?|cigarettes?|herbe|shit|coke|ecsta|police|adultes?|sang|tuer|meurtre|couteaux?|armes?|cadavres?|18 ans)\b/gi);
   check(!mots, `tous âges : rien d’adulte ni de sanglant dans les textes${mots ? ' — ' + mots.join(', ') : ''}`); }
@@ -59,9 +61,9 @@ check(HT.PRODUITS.slice(1).every((p, k) => p.debloquer > HT.PRODUITS[k].debloque
 console.log('── le Manoir : état, friandises, postes, monstres ──');
 const now0 = HT.DEBUT + 3600e3;
 let st = {}, q = HT.etat(st, now0);
-check(st.hantee === q && q.billets === 0 && q.total === 0 && HT.bonbons(q) === 0 && q.postes.length === 6 && q.postes[0].niv === 1 && q.postes[1].niv === 0 && q.majeur === true && !q.masque && !q.chat, 'un état neuf (st.hantee) : zéro bonbon, les acidulés seuls ouverts, pas de porte (majeur toujours vrai), pas encore de chat noir');
+check(st.hantee === q && q.billets === 0 && q.total === 0 && HT.bonbons(q) === 0 && q.postes.length === 8 && q.postes[0].niv === 1 && q.postes[1].niv === 0 && q.majeur === true && !q.masque && !q.chat, 'un état neuf (st.hantee) : zéro bonbon, les acidulés seuls ouverts, pas de porte (majeur toujours vrai), pas encore de chat noir');
 check(!st.quartier && HT.etat(st, now0) === q, 'il vit à côté de st.quartier sans y toucher, et se relit tel quel');
-{ const s2 = { hantee: { postes: [{ niv: 3 }], billets: NaN, total: -5, paliers: 'x' } }; const q2 = HT.etat(s2, now0); check(q2.postes.length === 6 && q2.billets === 0 && q2.total === 0 && Array.isArray(q2.paliers) && q2.stats && q2.ameliorations, 'un état abîmé (vieille sauvegarde, champs faux) : remis d’aplomb'); }
+{ const s2 = { hantee: { postes: [{ niv: 3 }], billets: NaN, total: -5, paliers: 'x' } }; const q2 = HT.etat(s2, now0); check(q2.postes.length === 8 && q2.billets === 0 && q2.total === 0 && Array.isArray(q2.paliers) && q2.stats && q2.ameliorations, 'un état abîmé (vieille sauvegarde, champs faux) : remis d’aplomb'); }
 let r = HT.acheter(q, 1);
 check(!r.ok && r.prix === HT.PRODUITS[1].debloquer, 'débloquer les pommes d’amour sans bonbons : refusé, le prix est rendu');
 check(!HT.acheter(q, 2).ok && HT.acheter(q, 2).verrou, 'les cookies avant les pommes : verrouillés');
@@ -78,7 +80,7 @@ r = HT.embaucher(q, 1);
 check(r.ok && q.postes[1].staff && q.postes[1].actif && q.stats.embauches === 1 && !HT.embaucher(q, 1).ok && !HT.embaucher(q, 3).ok, `Ramsès la momie embauchée (${HT.fmtEur(r.prix)}) ; pas deux fois, pas sans poste ouvert`);
 r = HT.amelioration(q, 'petillant');
 check(r.ok && HT.ameliorationMult(q, 0) === 3 && HT.ameliorationMult(q, 1) === 1 && !HT.amelioration(q, 'petillant').ok && !HT.amelioration(q, 'inconnu').ok, 'le Sortilège « Sucre qui pétille » : acidulés ×3, une seule fois');
-check(HT.AMELIORATIONS.length === 14 && HT.AMELIORATIONS.filter((a) => !a.apres).length === 10 && HT.AMELIORATIONS.every((a) => a.cible === null || a.cible.every((c) => HT.PRODUITS.some((p) => p.id === c))) && HT.AMELIORATIONS.slice(1).every((a, k) => a.cout > HT.AMELIORATIONS[k].cout), 'dix Sortilèges (et quatre de plus après le maître), de prix croissants, qui visent des friandises qui existent');
+check(HT.AMELIORATIONS.length === 17 && HT.AMELIORATIONS.filter((a) => !a.apres).length === 10 && HT.AMELIORATIONS.every((a) => a.cible === null || a.cible.every((c) => HT.PRODUITS.some((p) => p.id === c))) && HT.AMELIORATIONS.slice(1).every((a, k) => a.cout > HT.AMELIORATIONS[k].cout), 'dix Sortilèges (et sept de plus après le maître), de prix croissants, qui visent des friandises qui existent');
 check(HT.tauxParSeconde(q) === HT.tauxBase(q) * HT.PRESENCE && HT.rythme(q) > 0, 'le taux par seconde compte les monstres (en ta présence) ; le rythme de référence, sans toi');
 
 console.log('── les coups de pouce (chauves-souris, cortège, pleine lune, balai) ──');
@@ -144,16 +146,30 @@ check(BONUS.every((p) => !p.vetement || p.n === 20) && HT.PALIERS[19].vetement =
   check(HT.PALIERS.every((p) => JSON.stringify([p.etoiles, p.boost, p.prime]) === JSON.stringify([Q.PALIERS[p.n - 1].etoiles, Q.PALIERS[p.n - 1].boost, Q.PALIERS[p.n - 1].prime]) || [4, 11].includes(p.n)), 'les mêmes principes qu’au Quartier, palier par palier (sauf les 4e et 11e, qui gardent leur étoile du chat noir et du bal)'); }
 q = HT.etat({}, now0); HT.gagner(q, 1e17); HT.paliersDus(q).forEach((x) => HT.marquerPalier(q, x.n));
 check(q.paliers.length === 20 && q.etoiles === 39 && q.boosts === 10 && q.heures === 70 && q.vetements.includes(HT.TROPHEE) && HT.reputationMult(q) === Math.pow(HT.REPUTATION, 12) && HT.marquerPalier(q, 20) === null, 'tout en haut : vingt paliers, 39 étoiles (13 avant), 10 boosts, 70 h de primes, le chapeau phosphorescent ; la réputation reste ×1,5¹² ; une seule fois');
-const COMB = HT.AMELIORATIONS.filter((a) => a.apres);
-check(COMB.length === 4 && COMB.every((a) => a.apres === 12 && a.effet && a.mult === 1 && a.cout >= 5e14), `quatre Sortilèges de plus après le palier 12, chers (${COMB.map((a) => `${a.nom} ${HT.fmt(a.cout)}`).join(', ')})`);
+const COMB = HT.AMELIORATIONS.filter((a) => a.apres), CONFORT = COMB.filter((a) => a.effet && !a.effet.remise), X3 = COMB.filter((a) => a.mult === 3), MARCHE = HT.AMELIORATIONS.find((a) => a.id === 'marche');
+check(COMB.length === 7 && CONFORT.length === 4 && CONFORT.every((a) => a.apres === 12 && a.mult === 1 && a.cout >= 5e14) && MARCHE && MARCHE.apres === 12 && MARCHE.effet.remise === 0.5 && MARCHE.mult === 1, `sept Sortilèges de plus à partir du palier 12, chers (${COMB.map((a) => `${a.nom} ${HT.fmt(a.cout)}`).join(', ')})`);
+check(X3.map((a) => `${a.apres}:${a.cible.join()}`).join() === '13:cimetiere,16:dragon', 'deux Sortilèges ×3, un pour chaque recette d’après le maître, ouverts avec elle (13e, 16e)');
 q = HT.etat({}, now0); HT.gagner(q, 3e14); q.billets = 1e17;
-check(!HT.amelioration(q, COMB[0].id).ok && HT.amelioration(q, COMB[0].id).verrou, 'avant le maître : verrouillés');
+check(!HT.amelioration(q, CONFORT[0].id).ok && HT.amelioration(q, CONFORT[0].id).verrou && HT.amelioration(q, 'marche').verrou, 'avant le maître : verrouillés');
 HT.gagner(q, 1e14); q.billets = 1e17; const rb = HT.revenuBase(q, 0);
 const eC = q.etoiles, hC = q.heures;
-check(COMB.every((a) => HT.amelioration(q, a.id).ok) && HT.revenuBase(q, 0) === rb, 'après : achetés, sans multiplier aucune vente');
-check(COMB.map((a) => `${a.prime}:${a.etoiles}`).join() === '6:1,10:2,16:2,24:3' && q.etoiles - eC === 8 && q.heures - hC === 56 && HT.phraseCombine(COMB[1]) === '+ 10 h de gains à la boulangerie, +2 ★', `et chacun paie la boulangerie (6, 10, 16 et 24 h ; 1, 2, 2 et 3 ★) : « ${HT.phraseCombine(COMB[1])} »`);
+check(HT.amelioration(q, 'pelle').verrou && CONFORT.every((a) => HT.amelioration(q, a.id).ok) && HT.amelioration(q, 'marche').ok && HT.revenuBase(q, 0) === rb, 'après : achetés, sans multiplier aucune vente (la pelle attend le 13e)');
+HT.gagner(q, 1e16); q.billets = 1e17; check(X3.every((a) => HT.amelioration(q, a.id).ok) && HT.PRODUITS.every((p, i) => HT.ameliorationMult(q, i) === (p.apres ? 3 : 1)), 'au-delà du 16e : les deux ×3, sur les seules recettes d’après le maître');
+check(COMB.map((a) => `${a.prime}:${a.etoiles}`).join() === '4:1,6:1,10:2,12:2,16:2,24:3,20:3' && q.etoiles - eC === 14 && q.heures - hC === 92 && HT.phraseCombine(CONFORT[1]) === '+ 10 h de gains à la boulangerie, +2 ★', `et chacun paie la boulangerie (4, 6, 10, 12, 16, 24 et 20 h ; 14 ★ en tout) : « ${HT.phraseCombine(CONFORT[1])} »`);
 ev = HT.lancerEvenement(q, () => 0.5, 'descente'); const evS = HT.lancerEvenement(q, () => 0.5, 'soiree'), evB = HT.lancerEvenement(q, () => 0.5, 'scooter');
-check(ev.n === 8 && ev.enjeu === Math.floor(q.billets * 0.05) && evS.fin - evS.debut === 180e3 && evB.fin - evB.debut === 20e3 && HT.heuresAbsence(q) === 12 && HT.partAbsence(q) === 0.2, 'leurs effets : chauves-souris en 8 touches (5 % emportés), pleine lune de 3 min, balai qui attend 20 s, absence de 12 h à 20 %');
+check(ev.n === 8 && ev.enjeu === Math.floor(q.billets * 0.05) && evS.fin - evS.debut === 150e3 && evB.fin - evB.debut === 20e3 && HT.heuresAbsence(q) === 12 && HT.partAbsence(q) === 0.2, 'leurs effets : chauves-souris en 8 touches (5 % emportés), pleine lune de 2 min 30 (3 min avant les recettes d’après le maître : la place du Marché dans l’enveloppe), balai qui attend 20 s, absence de 12 h à 20 %');
+{ // les deux recettes d'après le maître : fermées avant leur palier, ouvertes dès qu'il est franchi ; une vieille sauvegarde à six postes
+  const [GC, OD] = [6, 7].map((i) => HT.PRODUITS[i]), qr = HT.etat({}, now0); for (let i = 1; i < 6; i++) qr.postes[i].niv = 50; HT.gagner(qr, 1e15); qr.billets = 1e17; qr.mode = 1;
+  check(GC.apres === 13 && OD.apres === 16 && GC.paliersFins && GC.staffNom === 'Gaston le loup-garou' && OD.staffNom === 'Bérénice la dragonne' && GC.rev < HT.PRODUITS[5].rev / 10 && GC.croiss < 1.05, `« ${GC.nom} » (${GC.staffNom}, ${GC.poste}) au 13e, « ${OD.nom} » (${OD.staffNom}, ${OD.poste}) au 16e : elles repartent du bas, des gains petits (l’enveloppe)`);
+  const r0 = HT.acheter(qr, 6); check(!r0.ok && r0.verrou && r0.apres === 13 && qr.postes[6].niv === 0, 'avant le 13e : les gâteaux du cimetière restent fermés (« Après le palier 13 »)');
+  HT.gagner(qr, 3e14); check(HT.acheter(qr, 6).ok && qr.postes[6].niv === 1 && HT.acheter(qr, 7).verrou && HT.embaucher(qr, 6).ok, 'le 13e franchi : ils se débloquent, Gaston s’embauche ; les œufs de dragon attendent le 16e');
+  const vieille = { hantee: JSON.parse(JSON.stringify(HT.etat({}, now0))) }; vieille.hantee.postes = vieille.hantee.postes.slice(0, 6); vieille.hantee.postes.forEach((x) => { x.niv = 60; x.staff = true; }); vieille.hantee.total = 8e15;
+  const qv = HT.etat(vieille, now0); qv.billets = 1e15; qv.mode = 1;
+  check(qv.postes.length === 8 && qv.postes.slice(0, 6).every((x) => x.niv === 60) && qv.stats.vendus.length === 8 && HT.acheter(qv, 6).ok && HT.acheter(qv, 7).ok, 'une sauvegarde à six postes déjà au-delà du 16e : deux postes de plus, et les deux recettes se débloquent tout de suite');
+  // le Marché des sorcières : les niveaux à moitié prix
+  const qg = HT.etat({}, now0); qg.postes.forEach((x, i) => { x.niv = i < 6 ? 150 : 0; }); HT.gagner(qg, 5e14); qg.billets = 1e17; qg.mode = 10; const p0 = HT.prixNiveaux(qg, 5, 10);
+  check(HT.amelioration(qg, 'marche').ok && HT.remise(qg) === 0.5 && HT.prixNiveaux(qg, 5, 10) === p0 / 2 && HT.prixNiveaux(qg, 6, 1) === GC.debloquer, `le Marché des sorcières : dix niveaux de citrouilles à ${HT.fmtEur(p0 / 2)} au lieu de ${HT.fmtEur(p0)} ; un déblocage garde son prix`);
+  qg.mode = 'max'; qg.billets = HT.coutNiveaux(0, 150, 20) / 2; check(HT.quantite(qg, 0) === 20 && HT.acheter(qg, 0).ok && qg.postes[0].niv === 170, 'Max compte la remise : deux fois plus de niveaux pour les mêmes bonbons'); }
 { // la reprise d'une sauvegarde d'avant la mise à jour : 12 paliers marqués, 3 000 Bn gagnés (au-delà des 13e et 14e)
   const b = G.newState(now0), qv = HT.etat(b, now0); HT.gagner(qv, 3e15); for (let k = 1; k <= 12; k++) HT.marquerPalier(qv, k);
   const json = JSON.parse(JSON.stringify(b)), q2 = HT.etat(json, now0), e0 = json.etoiles;
@@ -179,6 +195,9 @@ check(S.marathon.total > S.assidu.total && S.assidu.total > S.quotidien.total &&
 check(S.assidu.parJour.findIndex((d) => d.niv.every((x) => x > 0)) <= 2 && S.assidu.parJour[3].staff === 6, `l’assidu ouvre les six friandises dès le ${S.assidu.parJour.findIndex((d) => d.niv.every((x) => x > 0)) + 1}e jour et a ses six monstres au 4e`);
 check(S.assidu.parJour.every((d, k) => k === 0 || d.total >= S.assidu.parJour[k - 1].total) && S.assidu.q.stats.descentes > 0 && S.assidu.q.stats.grosClients > 0 && S.assidu.q.stats.scooters > 0, 'les totaux ne reculent jamais ; les coups de pouce ont joué');
 check(HT.simuler('assidu', 7, { graine: 7 }).total === S.assidu.total, 'la simulation est déterministe (graine)');
+{ // les recettes d'après le maître, le Marché et les Sortilèges ×3 n'arrivent qu'après le 12e : les paliers 1 à 12 des joueurs constants ne bougent pas
+  const AVANT = { assidu: [1, 1, 2, 2, 2, 3, 3, 4, 4, 5, 5, 6], quotidien: [1, 2, 2, 3, 4, 4, 5, 6, 7], occasionnel: [2, 2, 3, 4, 6, 7] }; // les jours d'avant (16 octobre)
+  for (const [prof, jours] of Object.entries(AVANT)) check(jours.every((j, k) => S[prof].paliersJour[k + 1] === j), `${prof} : les paliers 1 à ${jours.length} aux mêmes jours qu’avant (${jours.join(', ')})`); }
 { const res = []; let ok = true; for (let g = 1; g <= 8; g++) { const s = HT.simuler('assidu', 7, { graine: g }), j = s.paliersJour[12] || Infinity; res.push(j); if (!(j >= 6 && j <= 7)) ok = false; }
   check(ok, `et quel que soit le hasard des coups de pouce (8 graines) : palier 12 les jours ${res.join(', ')}`); }
 { // après le maître : le très actif (8 h par jour) et le marathon
@@ -187,6 +206,10 @@ check(HT.simuler('assidu', 7, { graine: 7 }).total === S.assidu.total, 'la simul
   const jours = [12, 13, 14, 15, 16, 17, 18].map((k) => T[k] || Infinity), ecarts = jours.slice(1).map((j, k) => j - jours[k]);
   check(T[12] <= 2 && T[18] <= 7 && ecarts.every((e) => e >= 0 && e <= 2) && !T[20], `le très actif : le 12e le ${T[12]}e jour, puis un bonus par jour ou presque (13e le ${T[13]}e, 15e le ${T[15]}e, 16e le ${T[16]}e, 17e le ${T[17]}e, 18e le ${T[18]}e) ; le 20e reste aux marathoniens`);
   check(jourDe('marathon', 20) >= 6 && jourDe('marathon', 20) <= 7, `le marathon n’atteint le 20e que le ${jourDe('marathon', 20)}e jour sur 7`);
+  // le temps d'un niveau (le moins cher : son prix, remise comprise, ÷ le taux du Manoir ouvert) : 30 min au 6e jour et 25 min au 7e avant
+  const tNiv = (d) => Math.min(...d.niv.map((n, i) => (n > 0 ? HT.coutNiveau(i, n) * (d.remise || 1) / d.taux : Infinity))) / 60, t6 = tNiv(S.tresactif.parJour[5]), t7 = tNiv(S.tresactif.parJour[6]);
+  check(t6 < 15 && t7 < 15, `le très actif attend moins pour un niveau : ${t6.toFixed(0)} min au 6e jour (30 avant), ${t7.toFixed(0)} min au 7e (25 avant)`);
+  check(S.tresactif.q.postes[6].niv >= 100 && S.tresactif.q.postes[7].niv >= 50 && S.tresactif.q.ameliorations.marche, `il ouvre les deux recettes (gâteaux niveau ${S.tresactif.q.postes[6].niv}, œufs ${S.tresactif.q.postes[7].niv}) et le Marché des sorcières`);
   check(!S.assidu.paliersJour[13] && !S.quotidien.paliersJour[13], 'l’assidu et le quotidien ne voient pas les paliers bonus : leur rythme ne change pas'); }
 
 console.log('── l’enveloppe du serveur (fournil_evts, version 5 du SQL) ──');
@@ -205,9 +228,11 @@ if (mEvt) {
   check(minM >= Math.log10(2), `le marathon 24 h/24 (quatre graines, minute par minute, Sortilèges en plus achetés ou offerts dès le 12e) reste sous l’enveloppe avec au moins ×2 de marge (×${Math.pow(10, minM).toFixed(2)} au plus juste) — le SQL ne change pas`);
   check(maxM <= Math.log10(20), `mais pas plus de ×20 après les six premières heures (×${Math.pow(10, maxM).toFixed(1)} au plus large) : un tricheur ne s’envole pas`);
   check(S.assidu.trace.every((x) => x.total === 0 || borne(x.t) - Math.log10(x.total) >= 1), 'un assidu honnête est toujours au moins dix fois sous l’enveloppe');
-  // la version 2 des récompenses ne touche à rien de ce que rapporte le Manoir : le marathon gagne EXACTEMENT les mêmes bonbons qu'avant
-  // (les totaux de la simulation d'avant, graine 7) ; donc les mêmes marges (×2.05 au plus juste, minute par minute)
-  check(S.marathon.total === 80752435989931200 && HT.simuler('marathon', 7, { offertes: true }).total === 87614312516511840, `l’enveloppe inchangée : le marathon gagne au bonbon près ce qu’il gagnait avant la version 2 des récompenses (${HT.fmt(S.marathon.total)}, ${HT.fmt(87614312516511840)} Sortilèges offerts)`);
+  // avec les recettes d'après le maître et le Marché des sorcières (16 octobre) : les recettes prennent leur part des bonbons (le marathon
+  // simulé achète d'abord le niveau le moins cher), ce qui compense le Marché ; la pleine lune du Sortilège « Nuages » passe à 2 min 30
+  // pour la fin de la première nuit (×2,04 au plus juste, minute par minute, contre ×2,05 avant)
+  const off = HT.simuler('marathon', 7, { offertes: true }).total;
+  check(Math.abs(S.marathon.total / 7.65e16 - 1) < 0.01 && Math.abs(off / 8.86e16 - 1) < 0.01, `le marathon : ${HT.fmt(S.marathon.total)} (${HT.fmt(off)} Sortilèges offerts ; 80,8 Bd et 87,6 Bd avant les recettes d’après le maître)`);
 }
 
 console.log('── la longévité : sept jours de marathon, une sauvegarde relue en route, la boulangerie récompensée ──');

@@ -471,8 +471,8 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
       for (const m of G.MOBILIER) s.mobilier[m.id] = m.id === 'tables' ? m.max - 1 : m.max; s.chat = { nom: 'Réglisse' }; s.chatNoir = true; s.chatPelage = 'noir';
       s.xp = 0; for (let n = 1; n < 22; n++) s.xp += G.XP_NIVEAU(n); for (const id of ['or-toque', 'or-tablier']) { G.donnerVetement(s, id); G.equiper(s, G.vetement(id).piece, id); }
       s.etoiles = 37; s.stats.ventes = 123456; s.stats.serieMax = 6; s.lifetime = 4.2e9; s.trophees = { premiere: 1, cent: 1, dixmille: 1 };
-      const qm = Q.neuf(Date.now()); qm.majeur = true; qm.ouvertLe = Date.now(); [[150, 1], [90, 1], [40, 1], [12, 0]].forEach(([n, a], i) => { qm.postes[i].niv = n; qm.postes[i].staff = !!a; });
-      qm.decos = ['graffiti', 'neon']; qm.paliers = [1, 2, 3, 4, 5]; qm.total = Q.PALIERS[4].total + 1234;
+      const qm = Q.neuf(Date.now()); qm.majeur = true; qm.ouvertLe = Date.now(); [[210, 1], [200, 1], [190, 1], [180, 1], [170, 1], [160, 1], [120, 1], [40, 0]].forEach(([n, a], i) => { qm.postes[i].niv = n; qm.postes[i].staff = !!a; }); // ses huit postes : jusqu'au cristal bleu (après le palier 16)
+      qm.decos = ['graffiti', 'neon']; qm.paliers = Q.PALIERS.slice(0, 16).map((p) => p.n); qm.total = Q.PALIERS[15].total + 1234;
       faux.photos.set(mamie, CL.photo(s, { G, coupes: ['or', 'argent'], badge: true, dq: ['neon'], dh: ['citrouilles'], ev: { id: 'quartier', q: qm } }));
       mamieTitre = G.titre(s); mamieNiveau = G.niveau(s); }
     { const petit = [...faux.joueurs.entries()].find(([, a]) => a.pseudo === 'Petit Jo')[0], s = G.newState(Date.now()); s.nomBoutique = 'Au Petit Jo'; s.stations[0].niv = 30;
@@ -630,13 +630,13 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     await sleep(1500);
     const pv = await p7.evaluate(() => { const v = window.__fournil.visite(); return { v, titre: document.querySelector('#vi-titre').textContent, sous: document.querySelector('#vi-sous').textContent, cv: document.querySelectorAll('#vi-vue canvas').length, cvW: (document.querySelector('#vi-vue canvas') || {}).clientWidth, cvH: (document.querySelector('#vi-vue canvas') || {}).clientHeight, enseigne: (document.querySelector('#vi-vue .vi-enseigne') || {}).textContent, bas: document.querySelector('#vi-bas').innerText.replace(/\s+/g, ' '), pb: !!document.querySelector('[data-vi="pourboire"]'), ouvert: !!EVENEMENTS.ouvert, planque: !document.querySelector('#planque').hidden, scenePropre: !!EVENEMENTS.quartier.scene, propre: JSON.stringify(window.__fournil.st.quartier.postes), feuille: document.querySelector('#feuille').hidden }; });
     check(pv.v.ev === 'quartier' && pv.cv === 1 && pv.cvW > 300 && pv.cvH >= 220 && pv.v.calls > 0 && pv.titre === 'La Planque de Mamie Jo' && /En ligne · Le Quartier/.test(pv.sous) && pv.enseigne === 'Le Quartier' && pv.feuille, `« ${pv.titre} », « ${pv.sous} » : un canvas (${pv.cvW}×${pv.cvH}), ${pv.v.calls} appels de dessin, ${pv.v.images} images`);
-    check(JSON.stringify(pv.v.q.postes) === JSON.stringify([[150, true], [90, true], [40, true], [12, false], [0, false], [0, false]]) && pv.v.q.paliers === 5 && JSON.stringify(pv.v.q.decos) === JSON.stringify(['graffiti', 'neon']), 'la scène montre SA Planque : ses postes et ses trois apprentis, ses cinq paliers, ses décos');
-    check(/Palier 5\/12/.test(pv.bas) && /de billets gagnés/.test(pv.bas) && /Équipe : 3 apprentis/.test(pv.bas) && /2 décos gagnées/.test(pv.bas) && /Retour/.test(pv.bas) && !pv.pb, `le résumé : « ${pv.bas} » ; pas de pourboire`);
+    check(JSON.stringify(pv.v.q.postes) === JSON.stringify([[210, true], [200, true], [190, true], [180, true], [170, true], [160, true], [120, true], [40, false]]) && pv.v.q.paliers === 16 && JSON.stringify(pv.v.q.decos) === JSON.stringify(['graffiti', 'neon']), 'la scène montre SA Planque : ses huit postes (sirop et cristal compris) et ses sept apprentis, ses seize paliers, ses décos');
+    check(/Palier 16\/20/.test(pv.bas) && /de billets gagnés/.test(pv.bas) && /Équipe : 7 apprentis/.test(pv.bas) && /Ses recettes \(8\)/.test(pv.bas) && /2 décos gagnées/.test(pv.bas) && /Retour/.test(pv.bas) && !pv.pb, `le résumé : « ${pv.bas} » ; pas de pourboire`);
     check(!pv.ouvert && !pv.planque && !pv.scenePropre && pv.propre === le.propre, 'sa propre Planque est refermée (sa scène libérée), son état n’a pas bougé');
     await capture(p7, 'planque-copain');
     await p7.tap('[data-vi="recettes"]'); await sleep(200);
     const recq = await p7.evaluate(() => [...document.querySelectorAll('#vi-bas .vi-recettes li')].map((li) => li.innerText.replace(/\s+/g, ' ')));
-    check(recq.length >= 1 && recq.every((x) => /niv\. \d/.test(x)), `sa Planque : « Ses recettes » (${recq.join(' | ')})`);
+    check(recq.length === 8 && recq.every((x) => /niv\. \d/.test(x)) && /Sirop violet.*apprenti.*niv\. 120/.test(recq[6]) && /Cristal bleu.*niv\. 40/.test(recq[7]) && !/apprenti/.test(recq[7]), `sa Planque : « Ses recettes », les huit (${recq.slice(5).join(' | ')})`);
     await capture(p7, 'planque-recettes');
     await p7.tap('[data-vi="recettes"]'); await sleep(150);
     const im0 = (await p7.evaluate(() => window.__fournil.visite().images)); await sleep(500);
@@ -660,7 +660,7 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     await p7.tap('#feuille [data-visite="Mamie Jo"]');
     await attendre(() => p7.evaluate(() => { const v = window.__fournil.visite(); return v && !v.charge; })); await sleep(300);
     const s3d = await p7.evaluate(() => ({ v: window.__fournil.visite(), txt: document.querySelector('#vi-vue').innerText.replace(/\s+/g, ' '), cv: document.querySelectorAll('#vi-vue canvas').length, bas: document.querySelector('#vi-bas').innerText.replace(/\s+/g, ' ') }));
-    check(!s3d.v.ev3 && s3d.cv === 0 && /La Planque de Mamie Jo/.test(s3d.txt) && /Palier 5\/12/.test(s3d.txt) && /Équipe : 3 apprentis/.test(s3d.txt) && /Retour$/.test(s3d.bas) && !/pourboire/i.test(s3d.bas), `sans WebGL : le résumé seul (« ${s3d.txt.slice(0, 90)}… »)`);
+    check(!s3d.v.ev3 && s3d.cv === 0 && /La Planque de Mamie Jo/.test(s3d.txt) && /Palier 16\/20/.test(s3d.txt) && /Équipe : 7 apprentis/.test(s3d.txt) && /Retour$/.test(s3d.bas) && !/pourboire/i.test(s3d.bas), `sans WebGL : le résumé seul (« ${s3d.txt.slice(0, 90)}… »)`);
     await capture(p7, 'planque-sans-3d');
     await p7.tap('#vi-bas [data-vi="retour"]'); await sleep(300);
     await p7.evaluate(() => { Object.defineProperty(window.__fournil.SCENE, 'stats', window.__statsD); });

@@ -777,6 +777,11 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .carte.pq.verrou { background: #353144; border-color: #56516B; color: #FFF7EC; }
 .carte.pq.verrou .icone { background: #3F3A50; }
 .carte.pq.verrou p { color: #C7B8FF; }
+/* une recette « après le boss » encore fermée : son nom et son gag, et le palier qui l'ouvre (pas de bouton) */
+.carte.pq.verrou.apres { opacity: 1; }
+.carte.pq.verrou.apres h3 { color: #FFF7EC; }
+.carte.pq .pq-apres { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; min-height: 30px; padding: 0 12px; border-radius: 999px; background: #2E2B3A; color: #FFC84A; font: 700 13px/1.1 var(--titre); }
+.carte.pq .pq-apres::before { content: ''; width: 10px; height: 12px; border-radius: 2px; background: currentColor; -webkit-mask: radial-gradient(circle at 50% 30%, transparent 2px, #000 2.5px); mask: radial-gradient(circle at 50% 30%, transparent 2px, #000 2.5px); }
 .carte.pq .btn.non { background: #56516B; color: #9E95B8; box-shadow: 0 4px 0 #2E2B3A; }
 .carte.pq .staff-ok.pq { background: #2E2B3A; color: #C7B8FF; justify-content: center; }
 .carte.pq .staff-ok.pq span { white-space: normal; text-align: center; line-height: 1.15; overflow-wrap: anywhere; } /* « Nourrice Mémé Jacqueline » sur deux lignes plutôt que coupée */
@@ -865,6 +870,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 #hantee .carte.pq.manuel:not(.actif) .barre { outline-color: var(--ht-orange); }
 #hantee .carte.pq.verrou { background: #251F36; border-color: #4A3F66; }
 #hantee .carte.pq.verrou .icone { background: var(--ht-carte); }
+#hantee .carte.pq .pq-apres { background: var(--ht-ombre); color: var(--ht-orange); }
 #hantee .carte.pq.verrou p { color: var(--ht-lavande); }
 #hantee .carte.pq .btn.non { background: #4A3F66; color: #A99CC9; box-shadow: 0 4px 0 var(--ht-ombre); }
 #hantee .carte.pq .staff-ok.pq { background: var(--ht-ombre); color: var(--ht-lavande); }
@@ -1199,7 +1205,8 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .vi-bas .btn[aria-disabled="true"] { box-shadow: none; transform: translateY(4px); }
 .vi-note { margin: 0; font-size: 14px; text-align: center; color: var(--texte-2); }
 /* la Planque (ou le Manoir) d'un copain : la scène de l'événement sur son propre canvas, le résumé au-dessus du retour */
-.vi-vue.vi-ev { display: grid; place-items: center; background: #2E2B3A; }
+.vi-vue.vi-ev { display: grid; place-items: center; background: #2E2B3A; overflow: hidden; }
+.vi-vue.vi-ev .vi-canvas { max-height: calc(100% - 16px); } /* « Ses recettes » dépliée (huit lignes depuis les recettes d'après le boss) : la scène se tasse au lieu de passer par-dessus la liste */
 .vi-canvas { display: block; width: calc(100% - 20px); height: clamp(220px, 44vh, 380px); border-radius: 22px; background: #3A3642; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); } /* le cadrage de l'écran de l'événement, en plus grand */
 .vi-resume { margin: 0; font-size: 14px; line-height: 1.35; text-align: center; color: var(--texte-2); }
 .vi-resume b { color: var(--texte); font-family: var(--titre); }
