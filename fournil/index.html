@@ -3310,7 +3310,7 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
         v: 1, nom: texteCourt(st.nomBoutique || '', 30), q: G.quartier(st), s: st.saison && st.saison.niv > 0 && ID_OK.test(String(st.saison.id)) ? st.saison.id : null,
         p: st.stations.slice(0, 16).map((s, i) => [borne(s.niv, 0, 1e6), s.staff ? 1 : 0, G.PRODUITS[i] ? G.gradeApprenti(st, i) : 1]),
         m: {}, t: PIECES.map((k) => (typeof eq[k] === 'string' && ID_OK.test(eq[k]) ? eq[k] : null)),
-        c: st.chat ? { n: texteCourt(st.chat.nom, 16), p: G.pelageChat(st, false) === 'noir' ? 'noir' : 'roux' } : null,
+        c: st.chat ? { n: texteCourt(st.chat.nom, 16), p: G.pelageChat(st, false) === 'noir' ? 'noir' : 'roux', ...(G.compagnonActif && ID_OK.test(String(G.compagnonActif(st))) ? { a: G.compagnonActif(st) } : {}) } : null, // a : l'animal choisi (les compagnons)
         dq: idsOk(o.dq || (st.quartier && st.quartier.decos), 8), dh: idsOk(hd, 8), g: borne(G.niveau(st), 1, 9999),
         k: (Array.isArray(o.coupes) ? o.coupes : []).filter((m) => METAUX.includes(m)).slice(-12), o: o.badge ? 1 : 0,
       };
@@ -3333,7 +3333,7 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
       m: {}, t: (Array.isArray(p.t) ? p.t.slice(0, 4) : []).map((x) => (typeof x === 'string' && ID_OK.test(x) ? x : null)), c: null,
       dq: idsOk(p.dq, 8), dh: idsOk(p.dh, 8), g: borne(p.g, 1, 9999), k: (Array.isArray(p.k) ? p.k : []).filter((m) => METAUX.includes(m)).slice(-12), o: p.o ? 1 : 0 };
     if (p.m && typeof p.m === 'object' && !Array.isArray(p.m)) for (const k of Object.keys(p.m).slice(0, 12)) if (ID_OK.test(k)) o.m[k] = borne(p.m[k], 0, 20);
-    if (p.c && typeof p.c === 'object') o.c = { n: texteCourt(p.c.n == null ? '' : p.c.n, 16), p: p.c.p === 'noir' ? 'noir' : 'roux' };
+    if (p.c && typeof p.c === 'object') { o.c = { n: texteCourt(p.c.n == null ? '' : p.c.n, 16), p: p.c.p === 'noir' ? 'noir' : 'roux' }; if (typeof p.c.a === 'string' && ID_OK.test(p.c.a)) o.c.a = p.c.a; }
     const x = p.x; // ses statistiques (absentes d'une photo d'avant la fiche « Tous les temps »)
     if (x && typeof x === 'object' && !Array.isArray(x)) o.x = { e: borne(x.e, 0, 1e9), b: borne(x.b, 1, 1e6), v: borne(x.v, 0, 1e15), tr: borne(x.tr, 0, 999), s: borne(x.s, 0, 99999), f: fortune4(x.f) };
     const e = evPhoto(p.e); if (e) o.e = e; // l'événement en cours (absent, ou d'un id inconnu : pas de Planque à visiter)
@@ -3380,7 +3380,7 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
     const g = G.garderobeNeuve();
     PIECES.forEach((k, i) => { const id = p.t[i], v = id ? G.vetement(id) : null; if (v && v.piece === k) { g.objets[id] = { niv: 1, depuis: 0 }; g.equipe[k] = id; } else if (p.t.length > i && id === null) g.equipe[k] = null; });
     st.garderobe = g;
-    if (p.c) { st.chat = { nom: p.c.n || 'Brioche', caresses: 0, dernier: 0, adopte: now }; st.chatNoir = p.c.p === 'noir'; st.chatPelage = p.c.p; }
+    if (p.c) { st.chat = { nom: p.c.n || 'Brioche', caresses: 0, dernier: 0, adopte: now }; st.chatNoir = p.c.p === 'noir'; st.chatPelage = p.c.p; if (p.c.a && G.compagnon && G.compagnon(p.c.a)) st.compagnon = p.c.a; } // un animal inconnu de ce téléphone : le chat
     let xp = 0; for (let n = 1; n < Math.min(p.g, 400); n++) xp += G.XP_NIVEAU(n); st.xp = xp;
     st.evTimer = 1e9; st.mystereTimer = 1e9; st.chatAttente = null; // rien ne surgit dans la boutique d'un autre
     const q = G.QUARTIERS[G.quartier(st)];
@@ -11561,7 +11561,7 @@ const UI = (() => {
       const s = b.st, r = resumeBoutique(s), n = G.niveau(s), mets = CLM.METAUX.map((m) => [m, b.coupes.filter((k) => k === m).length]).filter(([, k]) => k);
       corps = `<div class="card stats fi-carte"><div class="c-tete"><span class="pic peche">${ICONS.UI.boutique}</span><h3>Sa boulangerie</h3></div>
         ${stat('Niveau', `${n} · ${esc(G.titre(s))}`)}${stat('Recettes ouvertes', `${r.postes} sur ${G.PRODUITS.length}`)}${stat('Apprentis', r.apprentis)}${stat('Mobilier', `${pluriel(r.crans, 'cran')} sur ${r.max}`)}
-        ${s.chat ? stat('Le chat', esc(s.chat.nom)) : ''}${stat('Coupes', mets.length ? mets.map(([m, k]) => `${k} ${NOM_METAL[m]}`).join(' · ') : 'pas encore')}${b.badge ? stat('Badge', '« Esprit d’équipe » ✓') : ''}
+        ${s.chat ? stat('Le compagnon', `${esc(s.chat.nom)}${G.compagnon && G.compagnonActif ? `, ${esc(G.compagnon(G.compagnonActif(s)).nom.toLowerCase())}` : ''}`) : ''}${stat('Coupes', mets.length ? mets.map(([m, k]) => `${k} ${NOM_METAL[m]}`).join(' · ') : 'pas encore')}${b.badge ? stat('Badge', '« Esprit d’équipe » ✓') : ''}
         ${x ? `<h4 class="sous-titre">Records</h4>${stat('Étoiles', G.fmt(x.e))}${stat('Boutique', `n°${x.b}`)}${stat('Fournées vendues', G.fmt(x.v))}${stat('Trophées', `${Math.min(x.tr, G.TROPHEES.length)}/${G.TROPHEES.length}`)}${stat('Meilleure série d’objectifs', pluriel(x.s, 'jour'))}${stat('Gagné depuis le début', G.fmtEur(x.f))}` : ''}</div>`;
     }
     const attente = !f.charge && f.data && !x ? '<p class="note centre fi-attente">Ses statistiques détaillées arriveront après sa prochaine partie.</p>' : '';

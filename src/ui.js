@@ -1080,7 +1080,7 @@ const UI = (() => {
       const s = b.st, r = resumeBoutique(s), n = G.niveau(s), mets = CLM.METAUX.map((m) => [m, b.coupes.filter((k) => k === m).length]).filter(([, k]) => k);
       corps = `<div class="card stats fi-carte"><div class="c-tete"><span class="pic peche">${ICONS.UI.boutique}</span><h3>Sa boulangerie</h3></div>
         ${stat('Niveau', `${n} · ${esc(G.titre(s))}`)}${stat('Recettes ouvertes', `${r.postes} sur ${G.PRODUITS.length}`)}${stat('Apprentis', r.apprentis)}${stat('Mobilier', `${pluriel(r.crans, 'cran')} sur ${r.max}`)}
-        ${s.chat ? stat('Le chat', esc(s.chat.nom)) : ''}${stat('Coupes', mets.length ? mets.map(([m, k]) => `${k} ${NOM_METAL[m]}`).join(' · ') : 'pas encore')}${b.badge ? stat('Badge', '« Esprit d’équipe » ✓') : ''}
+        ${s.chat ? stat('Le compagnon', `${esc(s.chat.nom)}${G.compagnon && G.compagnonActif ? `, ${esc(G.compagnon(G.compagnonActif(s)).nom.toLowerCase())}` : ''}`) : ''}${stat('Coupes', mets.length ? mets.map(([m, k]) => `${k} ${NOM_METAL[m]}`).join(' · ') : 'pas encore')}${b.badge ? stat('Badge', '« Esprit d’équipe » ✓') : ''}
         ${x ? `<h4 class="sous-titre">Records</h4>${stat('Étoiles', G.fmt(x.e))}${stat('Boutique', `n°${x.b}`)}${stat('Fournées vendues', G.fmt(x.v))}${stat('Trophées', `${Math.min(x.tr, G.TROPHEES.length)}/${G.TROPHEES.length}`)}${stat('Meilleure série d’objectifs', pluriel(x.s, 'jour'))}${stat('Gagné depuis le début', G.fmtEur(x.f))}` : ''}</div>`;
     }
     const attente = !f.charge && f.data && !x ? '<p class="note centre fi-attente">Ses statistiques détaillées arriveront après sa prochaine partie.</p>' : '';
