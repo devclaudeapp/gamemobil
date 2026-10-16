@@ -148,8 +148,11 @@ const SAISON_MAX = 2; // jouer la saison au plus double les gains d'une session
 // l'occasionnel ouvre sa première boutique au jour 7 ; et la dernière boutique de l'assidu, qui se ferme vers le jour 60,
 // dure de 10 à 11 jours (les boutiques s'allongent d'environ ×1,4 en fin de partie ; au départ du 5 octobre, elle restait ouverte au jour 60 et n'était pas comptée).
 const CIBLES = {
-  occasionnel: { piece: [6, 21], premierPrestige: [3, 7], dureeMax: 10, etoilesJ30: [150, 1500], franchise: [25, 60], attente: 0.3, joursComplets: 0.6, niveauJ30: [6, 20], niveauFin: [10, 28] },
-  regulier: { dureeMax: 10, tarte: [1, 1], eclair: [1, 2], macaron: [1, 3], millefeuille: [2, 5], piece: [6, 12], premierPrestige: [2, 4], etoilesJ7: [12, 100], etoilesJ14: [60, 400], etoilesJ30: [300, 2000], franchise: [20, 45], attente: 0.35, joursComplets: 0.7, niveauJ30: [10, 24], niveauFin: [16, 34] },
+  // depuis les paliers intercalés (16 octobre : 75, 125, 150, 175, 250…), tout avance d'environ 15 % plus vite : la franchise de l'occasionnel
+  // arrive vers le 22e jour (25 à 28 avant), le régulier vers le 18e-20e ; la première nouvelle boutique peut attendre le 5e jour (pour un plus gros gain), et l'écart le plus long entre
+  // deux nouvelles boutiques passe de 10 à 11 jours au plus
+  occasionnel: { piece: [6, 21], premierPrestige: [3, 7], dureeMax: 11, etoilesJ30: [150, 1500], franchise: [20, 60], attente: 0.3, joursComplets: 0.6, niveauJ30: [6, 20], niveauFin: [10, 28] },
+  regulier: { dureeMax: 11, tarte: [1, 1], eclair: [1, 2], macaron: [1, 3], millefeuille: [2, 5], piece: [6, 12], premierPrestige: [2, 5], etoilesJ7: [12, 100], etoilesJ14: [60, 400], etoilesJ30: [300, 2000], franchise: [16, 45], attente: 0.35, joursComplets: 0.7, niveauJ30: [10, 24], niveauFin: [16, 34] },
   assidu: { dureeMax: 12, piece: [4, 10], premierPrestige: [2, 4], etoilesJ30: [500, 3000], franchise: [15, 40], attente: 0.5, joursComplets: 0.7, niveauJ30: [12, 30], niveauFin: [18, 40] },
 };
 function tester(jours) {

@@ -16,7 +16,11 @@
     { id: 'millefeuille', pl: 'mille-feuilles', nom: 'Mille-feuille', cout: 1.5e7, debloquer: 6e11, rev: 8e5, temps: 384, croiss: 1.1, staff: 3e12, staffNom: 'Chef Augustin', desc: 'Mille, on a compté.' },
     { id: 'piece', pl: 'pièces montées', nom: 'Pièce montée', cout: 1.8e8, debloquer: 4e13, rev: 7e6, temps: 1536, croiss: 1.09, staff: 1.2e14, staffNom: 'Maître Paulin', desc: 'Pour les grands jours.' },
   ];
-  const PALIERS = [25, 50, 100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
+  // les paliers de recette : à chacun, les gains de la recette sont multipliés par 2^exposant (l'exposant du plus haut palier atteint).
+  // Les paliers d'origine (25, 50, 100, 200…, 5000) gardent leur doublement : 2, 4, 8, 16… ; depuis le 16 octobre, des paliers intercalés
+  // (75, 125, 150, 175, 250, 350…) donnent une part du doublement suivant, pour qu'un joueur régulier ne reste pas 100 niveaux sans rien
+  const PALIERS = [25, 50, 75, 100, 125, 150, 175, 200, 250, 300, 350, 400, 450, 500, 625, 750, 875, 1000, 1250, 1500, 1750, 2000, 2500, 3000, 4000, 5000];
+  const PALIERS_EXPO = [1, 2, 2.5, 3, 3.25, 3.5, 3.75, 4, 4.5, 5, 5.5, 6, 6.5, 7, 7.5, 8, 8.5, 9, 9.5, 10, 10.5, 11, 11.5, 12, 12.5, 13];
   const AMELIORATIONS = [
     { id: 'farine', nom: 'Farine de tradition', cout: 50000, cible: ['baguette'], mult: 3, desc: 'Baguettes ×3' },
     { id: 'beurre', nom: 'Beurre AOP', cout: 600000, cible: ['croissant'], mult: 3, desc: 'Croissants ×3' },
@@ -479,7 +483,9 @@
   function arrondi(n) { if (n < 10) return Math.max(1, Math.round(n)); const p = Math.pow(10, Math.floor(Math.log10(n)) - 1); return Math.round(n / p) * p; }
 
   // ─── calculs ───
-  const palierMult = (niv) => Math.pow(2, PALIERS.filter((p) => niv >= p).length);
+  const expoPalier = (niv) => { let e = 0; for (let k = 0; k < PALIERS.length && niv >= PALIERS[k]; k++) e = PALIERS_EXPO[k]; return e; }; // (à chaque fournée : une boucle, sans rien allouer)
+  const palierMult = (niv) => Math.pow(2, expoPalier(niv));
+  function fmtMult(x) { const v = x < 10 ? Math.round(x * 10) / 10 : Math.round(x); return v < 10 ? String(v).replace('.', ',') : fmt(v); } // « 9,5 », « 23 », « 8,2 k »
   const prochainPalier = (niv) => PALIERS.find((p) => p > niv) || null;
   function ameliorationMult(st, i) {
     let m = 1;
@@ -520,6 +526,13 @@
   function rythme(st) { const t = tauxBase(st); if (t > 0) return t; let best = 0; st.stations.forEach((s, i) => { if (s.niv > 0) best = Math.max(best, revenuBase(st, i) / Math.max(1, temps(st, i)) * 0.5); }); return Math.max(0.5, best); }
   function etoilesPour(lifetimeRun, etoiles) { return Math.floor(Math.sqrt(Math.max(0, lifetimeRun) / (ETOILE_BASE * (1 + (etoiles || 0) / ETOILE_FREIN)))); }
   const etoilesGagnables = (st) => Math.max(0, etoilesPour(st.lifetimeRun, st.etoiles));
+  // la jauge de la prochaine étoile : etoilesPour(L) = n tant que n² × K ≤ L < (n + 1)² × K (K : le prix de base, freiné par les étoiles possédées)
+  // → { n (à récolter), de, a (les gains de la boutique pour n et n + 1 étoiles), part (0 à 1), reste (€ encore à gagner) }
+  function prochaineEtoile(st) {
+    const K = ETOILE_BASE * (1 + (st.etoiles || 0) / ETOILE_FREIN), L = Math.max(0, st.lifetimeRun || 0), n = etoilesGagnables(st);
+    const de = n * n * K, a = (n + 1) * (n + 1) * K;
+    return { n, de, a, part: Math.max(0, Math.min(1, (L - de) / (a - de))), reste: Math.max(0, a - L) };
+  }
 
   // ─── objectifs du jour : trois par jour, tirés de la date, calibrés sur ta boutique ───
   const TYPES_OBJ = {
@@ -1033,8 +1046,9 @@
   function marquerAmelioration(st, prix, r, paliers) {
     const p = pointsDuJour(st);
     let n = 0;
-    if (Number.isFinite(prix) && prix > 0 && Number.isFinite(r) && r > 0) { p.reste += Math.min(1e6, prix / (r * POINTS.tranche)); n = Math.floor(p.reste); p.reste -= n; }
-    n += POINTS.palier * Math.max(0, Math.floor(paliers || 0));
+    if (Number.isFinite(prix) && prix > 0 && Number.isFinite(r) && r > 0) p.reste += Math.min(1e6, prix / (r * POINTS.tranche));
+    if (Number.isFinite(paliers) && paliers > 0) p.reste += POINTS.palier * Math.min(paliers, 20); // les paliers franchis, en doublements (un palier intercalé : une part)
+    n = Math.floor(p.reste); p.reste -= n;
     n = Math.min(n, Math.max(0, POINTS.ameliorationsJour - p.jAmeliorations)); // au plafond du jour, le surplus est perdu
     p.jAmeliorations += n; p.ameliorations += n;
     return n;
@@ -1045,10 +1059,10 @@
   function acheter(st, i) {
     const s = st.stations[i], n = quantite(st, i), prix = prixNiveaux(st, i, n);
     if (st.coins < prix) return { ok: false, prix };
-    const r0 = rythme(st), paliers = s.niv === 0 ? 0 : PALIERS.filter((p) => s.niv + n >= p && s.niv < p).length;
+    const r0 = rythme(st), paliers = s.niv === 0 ? 0 : expoPalier(s.niv + n) - expoPalier(s.niv); // en doublements : un palier intercalé en compte une part
     st.coins -= prix;
     let xp = 0;
-    if (s.niv === 0) { noter(st, 'recette', 1); xp = 10 + 10 * i; st.stats.recetteMax = Math.max(st.stats.recetteMax || 0, i); } else { noter(st, 'niveaux', n); xp = 8 * (PALIERS.filter((p) => s.niv + n >= p).length - PALIERS.filter((p) => s.niv >= p).length); }
+    if (s.niv === 0) { noter(st, 'recette', 1); xp = 10 + 10 * i; st.stats.recetteMax = Math.max(st.stats.recetteMax || 0, i); } else { noter(st, 'niveaux', n); xp = Math.round(8 * paliers); }
     s.niv += n;
     if (xp) gagnerXp(st, xp);
     const points = marquerAmelioration(st, prix, r0, paliers);
@@ -1173,8 +1187,8 @@
     COMPAGNONS, COMPAGNON_PLANCHER, compagnon, estChat, prixCompagnon, aCompagnon, compagnonActif, bonusCompagnon, compagnonGains, modeleCompagnon, compagnons, choisirCompagnon, acheterCompagnon,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
     PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
-    palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
-    talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
+    palierMult, expoPalier, fmtMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
+    talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables, prochaineEtoile,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, boostsNeufs, donnerBoostReserve, PRIME_HEURE_PLANCHER, primeHeures, donnerPrimeHeures, lancerBoostReserve,
     gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono,
     ATELIER, JEUX_ATELIER, jeuAtelier, atelierDuJour, qualiteAtelier, primePleineAtelier, primeAtelier, restantesAtelier, finirAtelier,

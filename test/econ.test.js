@@ -274,6 +274,26 @@ const before = R1.st.coins;
 const abs = G.absence(R1.st, R1.st.lastSeen + 8 * 3600 * 1000);
 console.log(`  gagné pendant l'absence ${G.fmtEur(abs.total)} (avant : ${G.fmtEur(before)})`);
 check(abs.total > before * 0.5, 'une absence de 8 h rapporte au moins la moitié de la cagnotte');
+console.log('── les paliers intercalés : les doublements d’origine intacts, des crans entre eux ──');
+{
+  const anciens = [25, 50, 100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
+  check(anciens.every((p, k) => G.palierMult(p) === Math.pow(2, k + 1) && G.palierMult(p - 1) < G.palierMult(p)), 'aux paliers d’origine (25, 50, 100… 5000) : ×2, ×4, ×8… comme avant');
+  check(G.PALIERS.every((p, k) => k === 0 || (p > G.PALIERS[k - 1] && G.palierMult(p) > G.palierMult(G.PALIERS[k - 1]))), `${G.PALIERS.length} paliers, chacun plus haut que le précédent`);
+  const ecarts = G.PALIERS.slice(1).map((p, k) => p - G.PALIERS[k]);
+  check(G.PALIERS.filter((p) => p > 100 && p <= 200).join() === '125,150,175,200' && Math.max(...ecarts.slice(0, 13)) <= 50, 'entre 100 et 200 : un cran tous les 25 niveaux ; jusqu’à 500, jamais plus de 50 niveaux entre deux crans');
+  check([[100, 8], [125, 9.51], [150, 11.31], [175, 13.45], [199, 13.45], [200, 16]].every(([n, m]) => Math.abs(G.palierMult(n) - m) < 0.01), 'entre 100 et 200 : ×8, ×9,5, ×11,3, ×13,5, puis ×16 (jamais plus que l’ancien palier suivant)');
+  check(G.fmtMult(G.palierMult(125)) === '9,5' && G.fmtMult(G.palierMult(250)) === '23' && G.fmtMult(G.palierMult(5000)) === G.fmt(8192), 'l’écran : « ×9,5 », « ×23 », « ×8,2 k »');
+  const s2 = G.newState(Date.UTC(2026, 9, 7, 8, 0)); s2.stations[1].niv = 120; s2.coins = 1e30; s2.mode = 10; const r = G.acheter(s2, 1);
+  check(r.ok && s2.stations[1].niv === 130 && r.xp === 2, `passer le palier 125 (un quart de doublement) : ${r.xp} points d’expérience (8 pour un doublement entier)`);
+}
+console.log('── la jauge de la prochaine étoile ──');
+{
+  const s3 = G.newState(Date.UTC(2026, 9, 7, 8, 0)); s3.etoiles = 133; s3.lifetimeRun = 524e12; const j = G.prochaineEtoile(s3);
+  check(j.n === 45 && G.etoilesPour(j.a, 133) === 46 && G.etoilesPour(j.a * 0.999999, 133) === 45 && G.etoilesPour(j.de, 133) === 45, `133 étoiles, 524 Bn € gagnés : +45 à récolter, la 46e à ${G.fmtEur(j.a)}`);
+  check(Math.abs(j.part - (524e12 - j.de) / (j.a - j.de)) < 1e-12 && j.part > 0.5 && j.part < 0.55 && Math.abs(j.reste - (j.a - 524e12)) < 1, `déjà ${Math.floor(j.part * 100)} % de la suivante, encore ${G.fmtEur(j.reste)}`);
+  const s4 = G.newState(Date.UTC(2026, 9, 7, 8, 0)); const j0 = G.prochaineEtoile(s4);
+  check(j0.n === 0 && j0.part === 0 && j0.reste === G.ETOILE_BASE, `une boutique neuve : 0 %, la première étoile à ${G.fmtEur(G.ETOILE_BASE)}`);
+}
 console.log('── formats ──');
 for (const [n, s] of [[0, '0'], [7.5, '7,5'], [999, '999'], [1234, '1,2 k'], [12345, '12,3 k'], [123456, '123 k'], [2.1e9, '2,1 Md'], [5e15, '5 Bd']]) check(G.fmt(n) === s, `${n} → ${G.fmt(n)}`);
 console.log(fails ? `\n${fails} échec(s)` : '\nTout passe.');

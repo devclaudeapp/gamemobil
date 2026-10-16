@@ -1260,3 +1260,10 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
 .maj:disabled { opacity: .85; }
 @keyframes maj-entree { from { transform: translate(-50%, -24px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .maj { animation: none; } }
+/* la jauge de la prochaine étoile (feuille Étoiles, src/ui.js jaugeEtoile) */
+.et-jauge { margin: 6px 0 14px; padding: 12px 14px; border-radius: var(--r-int); background: var(--or-clair); display: grid; gap: 7px; }
+.et-jauge-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font: 800 var(--t-corps)/1.25 var(--texte-font); color: var(--texte); }
+.et-jauge-barre { height: 12px; border-radius: 6px; background: rgba(74, 51, 40, .1); overflow: hidden; }
+.et-jauge-barre i { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--beurre), var(--beurre-sombre)); transition: width .6s ease-out; }
+.et-jauge small { font: 700 var(--t-petit)/1.3 var(--texte-font); color: var(--texte-2); }
+@media (prefers-reduced-motion: reduce) { .et-jauge-barre i { transition: none; } }
