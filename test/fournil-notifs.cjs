@@ -201,7 +201,7 @@ const fauxPush = () => {
 
   // ─── fournil/sw.js : nouvelle version de cache, les deux écouteurs ───
   const swTxt = fs.readFileSync(path.join(root, 'fournil', 'sw.js'), 'utf8');
-  check(/const CACHE = 'fournil-jeu-v3'/.test(swTxt) && /addEventListener\('push', afficherPush\)/.test(swTxt) && /addEventListener\('notificationclick', ouvrirJeu\)/.test(swTxt), 'fournil/sw.js : cache fournil-jeu-v3, écouteurs « push » et « notificationclick »');
+  check(/const CACHE = 'fournil-jeu-v\d+'/.test(swTxt) && /addEventListener\('push', afficherPush\)/.test(swTxt) && /addEventListener\('notificationclick', ouvrirJeu\)/.test(swTxt), 'fournil/sw.js : cache fournil-jeu-vN, écouteurs « push » et « notificationclick »');
   check(!/sb_secret_|PRIVATE|private_key/i.test(fs.readFileSync(path.join(root, 'fournil', 'config.js'), 'utf8')), 'fournil/config.js : aucune clé secrète');
   { const cfg = fs.readFileSync(path.join(root, 'fournil', 'config.js'), 'utf8'), m = /vapid: '([A-Za-z0-9_-]+)'/.exec(cfg), cle = m && Buffer.from(m[1], 'base64url');
     check(!!(cle && cle.length === 65 && cle[0] === 4) && /bearer: true \}/.test(cfg.replace(/,\s*\/\/[^\n]*\n\s*vapid: '[^']*'/, '')), 'fournil/config.js : la vraie clé publique des notifications (65 octets, 0x04 en tête)'); }

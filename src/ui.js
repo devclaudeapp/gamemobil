@@ -842,6 +842,31 @@ const UI = (() => {
       if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); }
     }).catch(() => { /* rien */ }).then(() => { cadeauxVol = false; });
   }
+  // la mise à jour : la page connaît sa version (window.FOURNIL_VERSION, écrite par build.js) ; le jeu relit fournil/version.json (jamais
+  // en cache) une minute après le lancement, toutes les 5 min à l'écran et à chaque retour. S'il a changé, un bandeau propose de recharger,
+  // la partie sauvée juste avant. Pas de version (l'artefact, une page ouverte en fichier) : rien
+  const VERSION = typeof window.FOURNIL_VERSION === 'string' ? window.FOURNIL_VERSION : '';
+  let versionVol = false, versionVue = -Infinity;
+  function verifierVersion() {
+    if (!VERSION || versionVol || !/^https?:$/.test(location.protocol) || document.hidden || $('.maj')) return;
+    if (performance.now() - versionVue < 60e3) return; // au plus une fois par minute
+    versionVol = true; versionVue = performance.now();
+    fetch('version.json?t=' + Date.now(), { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((d) => {
+      const v = d && typeof d.v === 'string' ? d.v : '';
+      if (/^[0-9a-f]{6,40}$/.test(v) && v !== VERSION) bandeauMaj();
+    }).catch(() => { /* hors ligne : on réessaiera */ }).then(() => { versionVol = false; });
+  }
+  function bandeauMaj() {
+    if ($('.maj')) return;
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'maj';
+    b.innerHTML = '<b>Nouvelle version du Fournil</b><span>Touche pour mettre à jour</span>';
+    b.addEventListener('click', () => {
+      b.disabled = true; b.querySelector('span').textContent = 'Mise à jour…'; save();
+      const sw = navigator.serviceWorker && navigator.serviceWorker.getRegistration ? navigator.serviceWorker.getRegistration().then((r) => (r ? r.update() : null)).catch(() => null) : Promise.resolve();
+      Promise.race([sw, new Promise((res) => setTimeout(res, 1500))]).then(() => { save(); location.reload(); });
+    });
+    document.body.appendChild(b);
+  }
   function sheetRetour(abs) {
     const detail = abs.detail.slice().sort((a, b) => b.m - a.m).map((d) => `<li><span>${esc(d.nom || G.PRODUITS[d.i].nom)} × ${G.fmt(d.n)}</span><b>${G.fmtEur(d.m)}</b></li>`).join('');
     const grades = (abs.grades || []).map((g) => `${G.APPRENTIS[g.i].prenom} passe au grade ${g.niv}`).join(' · ');
@@ -1677,7 +1702,8 @@ const UI = (() => {
       else { const id = SCENE.hitMeuble ? SCENE.hitMeuble(sx, sy) : null; if (id) sheetMeuble(id); else SCENE.tap(); }
     });
     // au retour dans le jeu : une heure sûre fraîche (2,5 s au plus) avant de compter l'absence ; le jeu attend, sans rien sauver entre-temps
-    document.addEventListener('visibilitychange', () => { if (document.hidden) { save(); return; } reprendre('visible'); });
+    document.addEventListener('visibilitychange', () => { if (document.hidden) { save(); return; } reprendre('visible'); setTimeout(verifierVersion, 4000); });
+    setTimeout(verifierVersion, 60e3); setInterval(verifierVersion, 5 * 60e3);
     window.addEventListener('pageshow', (e) => { if (e.persisted) reprendre('cache'); else verifierReveil(); });
     for (const ev of ['focus', 'resume']) (ev === 'resume' ? document : window).addEventListener(ev, verifierReveil);
     setInterval(verifierReveil, 1000);

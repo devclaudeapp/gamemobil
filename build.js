@@ -48,11 +48,19 @@ if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
 </body>
 </html>
 `;
+// la version du jeu : l'empreinte de la page et des fichiers qu'elle charge. Elle est écrite dans la page (window.FOURNIL_VERSION) et dans
+// fournil/version.json ; le jeu ouvert relit ce fichier de temps en temps, et s'il a changé, propose de se mettre à jour (src/ui.js, verifierVersion)
+const empreinte = require('crypto').createHash('sha1');
+empreinte.update(full);
+for (const f of ['vendor/three.min.js', 'vendor/fournil-hd.min.js', 'vendor/confetti.min.js', 'fournil/sw.js']) { try { empreinte.update(fs.readFileSync(path.join(__dirname, f))); } catch (e) { /* absent : rien */ } }
+const version = empreinte.digest('hex').slice(0, 12);
+const page = full.replace('<script>window.FOURNIL_ACCUEIL', `<script>window.FOURNIL_VERSION = '${version}';</script>\n<script>window.FOURNIL_ACCUEIL`);
 fs.mkdirSync(path.join(__dirname, 'fournil'), { recursive: true });
-fs.writeFileSync(path.join(__dirname, 'fournil', 'index.html'), full);
+fs.writeFileSync(path.join(__dirname, 'fournil', 'index.html'), page);
+fs.writeFileSync(path.join(__dirname, 'fournil', 'version.json'), JSON.stringify({ v: version }) + '\n');
 fs.mkdirSync(path.join(__dirname, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(__dirname, 'dist', 'artifact.html'), artifact);
-console.log(`fournil/index.html ${(full.length / 1024).toFixed(0)} Ko · dist/artifact.html ${(artifact.length / 1024).toFixed(0)} Ko · ${js.split('\n').length} lignes de JS`);
+console.log(`fournil/index.html ${(page.length / 1024).toFixed(0)} Ko · version ${version} · dist/artifact.html ${(artifact.length / 1024).toFixed(0)} Ko · ${js.split('\n').length} lignes de JS`);
 
 // ─── Opération Poncin (poncin/index.html) : FPS sur la carte de Poncin ; sources dans src-poncin/, `src/modeles.js` partagé avec Le Fournil ───
 // Three.js et supabase-js sont des fichiers à part (vendor/), mis en cache par le service worker du jeu ; poncin/config.js (adresse et clé publique Supabase) s'édite à la main.
