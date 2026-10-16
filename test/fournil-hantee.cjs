@@ -271,7 +271,7 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
     await clic2('#feuille [data-a="pq-ok"]'); await attendre(async () => /Palier 14/.test(await feuille2()), 3000);
     await clic2('#feuille [data-a="pq-ok"]'); await sleep(700);
     const ap = await ev2(() => { const F = window.__fournil; return { etoiles: F.st.etoiles, reserve: F.st.boosts.reserve.length, paliers: F.st[F.evHantee.cle].paliers.join(), feuille: !document.querySelector('#feuille').hidden }; });
-    check(ap.paliers === '1,2,3,4,5,6,7,8,9,10,11,12,13,14' && ap.etoiles === av.etoiles + 1 && ap.reserve === av.reserve + 1 && !ap.feuille, `donnés une fois : +1 étoile, +1 boost (${JSON.stringify({ etoiles: ap.etoiles, reserve: ap.reserve })})`);
+    check(ap.paliers === '1,2,3,4,5,6,7,8,9,10,11,12,13,14' && ap.etoiles === av.etoiles + 4 && ap.reserve === av.reserve + 1 && !ap.feuille, `donnés une fois : +4 étoiles, +1 boost (${JSON.stringify({ etoiles: ap.etoiles, reserve: ap.reserve })})`);
     await ev2(() => window.__fournil.annoncerEvenements(true)); await sleep(600);
     check((await feuille2()) === '' && (await ev2(() => window.__fournil.st.etoiles)) === ap.etoiles, 'une seconde annonce ne redonne rien');
     await ev2(() => window.__fournil.hantee()); await sleep(1200);

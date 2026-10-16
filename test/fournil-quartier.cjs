@@ -326,13 +326,13 @@ async function gerer(route) {
     await charger2();
     check(await attendre(async () => /Palier 13/.test(await feuille2()), 8000), 'dans la boutique, sans ouvrir la Planque : la feuille « Palier 13 » arrive toute seule');
     let f2 = await feuille2();
-    check(/Après le boss, ça continue/.test(f2) && /boost ×2/.test(f2), `le palier 13 : ${f2.split('\n').slice(0, 2).join(' · ')}`);
+    check(/Après le boss, ça continue/.test(f2) && /boost ×5/.test(f2) && /4 h de ses gains/.test(f2), `le palier 13 (2 étoiles, un ×5, 4 h de gains) : ${f2.split('\n').slice(0, 2).join(' · ')}`);
     await shot2('b1-palier-13-boutique');
     await clic2('#feuille [data-a="pq-ok"]'); await attendre(async () => /Palier 14/.test(await feuille2()), 3000);
-    check(/Palier 14/.test(await feuille2()) && /étoile/.test(await feuille2()), 'puis le palier 14 : une étoile');
+    check(/Palier 14/.test(await feuille2()) && /2 étoiles/.test(await feuille2()) && /6 h de ses gains/.test(await feuille2()), 'puis le palier 14 : deux étoiles et 6 h de gains');
     await clic2('#feuille [data-a="pq-ok"]'); await sleep(700);
     let ap = await ev2(() => ({ etoiles: window.__fournil.st.etoiles, reserve: window.__fournil.st.boosts.reserve.length, paliers: window.__fournil.st.quartier.paliers.slice(), feuille: !document.querySelector('#feuille').hidden }));
-    check(ap.paliers.join() === '1,2,3,4,5,6,7,8,9,10,11,12,13,14' && ap.etoiles === av.etoiles + 1 && ap.reserve === av.reserve + 1 && !ap.feuille, `donnés une fois : +1 étoile, +1 boost en réserve (${JSON.stringify({ etoiles: ap.etoiles, reserve: ap.reserve })})`);
+    check(ap.paliers.join() === '1,2,3,4,5,6,7,8,9,10,11,12,13,14' && ap.etoiles === av.etoiles + 4 && ap.reserve === av.reserve + 1 && !ap.feuille, `donnés une fois : +4 étoiles, +1 boost en réserve (${JSON.stringify({ etoiles: ap.etoiles, reserve: ap.reserve })})`);
     await ev2(() => window.__fournil.annoncerEvenements(true)); await sleep(600);
     check((await feuille2()) === '' && (await ev2(() => window.__fournil.st.etoiles)) === ap.etoiles, 'une seconde annonce ne redonne rien');
     // la Planque : la liste « Après le boss »
@@ -381,7 +381,7 @@ async function gerer(route) {
     await charger2();
     check(await attendre(() => pg.evaluate(() => document.querySelector('#planque').dataset.ecran === 'bilan'), 6000), 'après la fin : le bilan');
     const bil = await ev2(() => document.querySelector('#pq-corps').innerText);
-    check(/20\/20 paliers/.test(bil) && /Casquette néon/.test(bil) && /13 étoiles/.test(bil), `le bilan compte jusqu’à 20 : ${bil.split('\n').filter((l) => /paliers|reste/.test(l)).join(' / ')}`);
+    check(/20\/20 paliers/.test(bil) && /Casquette néon/.test(bil) && /40 étoiles/.test(bil) && /h de gains versées/.test(bil), `le bilan compte jusqu’à 20 : ${bil.split('\n').filter((l) => /paliers|reste/.test(l)).join(' / ')}`);
     await shot2('b7-bilan-20');
     await ctx2.close(); }
 

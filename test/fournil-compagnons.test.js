@@ -109,5 +109,25 @@ check(G.modeleCompagnon(h, true) === 'dragon', 'le mini-dragon aussi reste lui-m
 const sv = JSON.parse(JSON.stringify(h)); G.compagnons(sv);
 check(sv.compagnon === 'dragon' && sv.compagnons.join() === 'dragon' && G.compagnonActif(sv) === 'dragon', 'la sauvegarde (JSON) garde l’achat et le choix');
 
+console.log('── les bonus : seulement le compagnon montré ──');
+{
+  check(C.every((c) => c.bonus && G.texteBonus(c.bonus).length === 1), `chaque compagnon a un bonus : ${C.map((c) => `${c.nom} (${G.texteBonus(c.bonus).join('')})`).join(', ')}`);
+  check(C.every((c) => (!c.bonus.gains || c.bonus.gains.pct <= 5) && (c.bonus.vitesse || 0) <= 7 && (c.bonus.absence || 0) <= 1.5 && (c.bonus.pourboire || 0) <= 10), 'tous petits : gains ≤ 5 %, cuisson ≤ 7 %, absence ≤ 1,5 h, pourboires ≤ 10 %');
+  const base = () => { const b = G.newState(T0); for (let i = 0; i < 4; i++) { b.stations[i].niv = 50; b.stations[i].staff = true; } return b; };
+  const sans = base(); // pas encore de compagnon : aucun bonus
+  check(JSON.stringify(G.bonusCompagnon(sans)) === '{}' && G.compagnonGains(sans) === 1, 'pas encore adopté : aucun bonus');
+  const avec = (id) => { const b = base(); b.coins = 1e12; b.lifetimeRun = 0; if (G.compagnon(id).prix != null) G.acheterCompagnon(b, id); else if (id === 'chien-quartier') b.quartier = { paliers: [11], decos: ['chien'] }; else if (id === 'chat-noir') b.chatNoir = true; G.choisirCompagnon(b, id); return b; };
+  const r0 = G.rythme(sans), h0 = G.heuresAbsence(sans), p0 = G.pourboire(sans);
+  const cq = avec('chien-quartier'), dr = avec('dragon'), ch = avec('chien'), ca = avec('canard');
+  check(Math.abs(G.rythme(cq) / r0 - 1.05) < 1e-9, `le chien du quartier : tous les gains +5 % (${G.fmtEur(r0)}/s → ${G.fmtEur(G.rythme(cq))}/s)`);
+  check(Math.abs(G.rythme(dr) / r0 - 1 / 0.93) < 1e-9, `le mini-dragon : cuisson 7 % plus rapide (rythme ×${(G.rythme(dr) / r0).toFixed(3)})`);
+  check(G.heuresAbsence(ch) === h0 + 0.5 && G.rythme(ch) === r0, `le chien : +0,5 h d’absence (${h0} h → ${G.heuresAbsence(ch)} h), le rythme ne bouge pas`);
+  check(G.pourboire(ca) > p0 * 1.05 && G.pourboire(ca) <= p0 * 1.11, `le canard : pourboires +10 % (${G.fmtEur(p0)} → ${G.fmtEur(G.pourboire(ca))})`);
+  G.choisirCompagnon(dr, 'chat-roux');
+  check(G.rythme(dr) === r0 && G.pourboire(dr) > p0 && G.pourboire(dr) <= p0 * 1.06 && G.bonusCompagnon(dr).pourboire === 5, 'le mini-dragon gardé mais le chat roux montré : seul le bonus du chat (pourboires +5 %) compte');
+  const lit = JSON.parse(JSON.stringify(cq)); G.compagnons(lit);
+  check(G.rythme(lit) === G.rythme(cq), 'la sauvegarde (JSON) garde le bonus');
+}
+
 console.log(fails ? `${fails} échec(s) sur ${n}` : `Tout passe (${n} vérifications).`);
 process.exit(fails ? 1 : 0);

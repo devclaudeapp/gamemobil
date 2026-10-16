@@ -164,30 +164,34 @@
   // hantée (st.chatNoir), le chien du quartier au palier 11 du Quartier (st.quartier). Les payants coûtent des minutes des gains de la boutique, comme les primes : max(plancher, rythme × 60 × minutes),
   // arrondi. Le plancher (COMPAGNON_PLANCHER € par minute de prix) tient le tout début, quand le rythme ne vaut que quelques euros par
   // seconde : la poule y coûte 20 000 €, à peu près l'embauche d'Inès (22 500 €), le mini-dragon 480 000 € ; passé ~17 €/s de rythme
-  // (la première heure), seul compte le temps de gains. Aucun point de boulanger : un compagnon ne fait que de la compagnie.
+  // (la première heure), seul compte le temps de gains. Aucun point de boulanger : un compagnon fait de la compagnie, et donne son petit bonus (bonus, plus bas).
   // Pour scene.js / persos.js : modeleCompagnon(st, halloween) (pendant la Maison hantée, un chat est noir ; les autres restent eux-mêmes).
   // cri : le son de la caresse (src/sons.js) ; null : le ronron.
+  // bonus : un petit avantage, propre à chaque animal, seulement pour celui qu'on montre (le compagnon actif, une fois adopté), à vie et sans
+  // point de boulanger : { gains: { pct } } tous les gains, { vitesse } % de cuisson plus rapide, { absence } heures d'absence en plus,
+  // { pourboire } % de pourboires du client mystère. Les mêmes formes que la garde-robe (texteBonus) ; de 2 à 7 %, ou une demi-heure à 1 h 30.
   const COMPAGNON_PLANCHER = 1000;
   // le chien du quartier : gagné au palier 11 du Quartier (src/quartier.js : la déco « chien », ou le palier marqué). Lu sur st.quartier, qui
   // reste dans la sauvegarde après l'événement : qui a fini le Quartier avant cette version l'a aussi, sans rien refaire.
   const chienDuQuartier = (st) => { const q = st && st.quartier; return !!q && typeof q === 'object' && ((Array.isArray(q.decos) && q.decos.includes('chien')) || (Array.isArray(q.paliers) && q.paliers.includes(11))); };
   const COMPAGNONS = [
-    { id: 'chat-roux', nom: 'Chat roux', espece: 'chat', prix: null, condition: null, nomDefaut: 'Brioche', cri: null, phrase: 'Le chat de toujours : il dort sur le comptoir et ronronne pour un rien.' },
-    { id: 'chien', nom: 'Chien', espece: 'chien', prix: null, condition: null, nomDefaut: 'Biscotte', cri: 'wouf', phrase: 'Un petit corniaud beige. Il remue tout l’arrière-train quand on entre.' },
-    { id: 'lapin', nom: 'Lapin', espece: 'lapin', prix: null, condition: null, nomDefaut: 'Pompon', cri: 'couic', phrase: 'Il sautille entre les tables et grignote les miettes de pain d’épices.' },
-    { id: 'chat-noir', nom: 'Chat noir', espece: 'chat', prix: null, condition: (st) => !!st.chatNoir, gagne: 'Gagné à la Maison hantée', verrou: 'Pendant Halloween', nomDefaut: 'Réglisse', cri: null, phrase: 'Robe noire, yeux jaunes : le souvenir de la Maison hantée.' },
-    { id: 'chien-quartier', nom: 'Chien du quartier', espece: 'chien', prix: null, condition: chienDuQuartier, gagne: 'Gagné au Quartier', verrou: 'Au palier 11 du Quartier', nomDefaut: 'Caïd', cri: 'woufgrave', phrase: 'Bandana, chaîne en or et regard de videur : il garde la vitrine, et il n’a jamais rendu une baballe.' },
-    { id: 'poule', nom: 'Poule', espece: 'poule', prix: 20, condition: null, nomDefaut: 'Cocotte', cri: 'cotcot', phrase: 'Elle picore les miettes et surveille le four d’un œil sévère.' },
-    { id: 'canard', nom: 'Canard', espece: 'canard', prix: 30, condition: null, nomDefaut: 'Coincoin', cri: 'coincoin', phrase: 'Il cancane à chaque client. On dit qu’il préfère la brioche.' },
-    { id: 'herisson', nom: 'Hérisson', espece: 'herisson', prix: 45, condition: null, nomDefaut: 'Châtaigne', cri: null, phrase: 'Tout rond, tout piquant : il se roule en boule sous les tables.' },
-    { id: 'pingouin', nom: 'Pingouin', espece: 'pingouin', prix: 60, condition: null, nomDefaut: 'Smoking', cri: 'couac', phrase: 'Toujours en tenue de soirée. Il adore la chambre froide.' },
-    { id: 'raton', nom: 'Raton laveur', espece: 'raton', prix: 90, condition: null, nomDefaut: 'Filou', cri: null, phrase: 'Masque de bandit, mains propres : il lave chaque croissant avant de le chiper.' },
-    { id: 'escargot', nom: 'Escargot géant', espece: 'escargot', prix: 120, condition: null, nomDefaut: 'Turbo', cri: null, phrase: 'Gros comme une miche, lent comme un dimanche. Il glisse.' },
-    { id: 'teckel', nom: 'Teckel-baguette', espece: 'teckel', prix: 180, condition: null, nomDefaut: 'Tradition', cri: 'wouf', phrase: 'Son corps est une baguette dorée. Croustillant dehors, fidèle dedans.' },
-    { id: 'croissant', nom: 'Croissant vivant', espece: 'croissant', prix: 300, condition: null, nomDefaut: 'Feuilleté', cri: null, phrase: 'Pur beurre, sur pattes. Il rebondit partout et refuse qu’on le trempe.' },
-    { id: 'dragon', nom: 'Mini-dragon', espece: 'dragon', prix: 480, condition: null, nomDefaut: 'Fournaise', cri: null, phrase: 'Il allume le four d’un hoquet et crache un nuage de farine quand on le caresse.' },
+    { id: 'chat-roux', nom: 'Chat roux', espece: 'chat', prix: null, condition: null, nomDefaut: 'Brioche', cri: null, bonus: { pourboire: 5 }, phrase: 'Le chat de toujours : il dort sur le comptoir et ronronne pour un rien.' },
+    { id: 'chien', nom: 'Chien', espece: 'chien', prix: null, condition: null, nomDefaut: 'Biscotte', cri: 'wouf', bonus: { absence: 0.5 }, phrase: 'Un petit corniaud beige. Il remue tout l’arrière-train quand on entre.' },
+    { id: 'lapin', nom: 'Lapin', espece: 'lapin', prix: null, condition: null, nomDefaut: 'Pompon', cri: 'couic', bonus: { vitesse: 2 }, phrase: 'Il sautille entre les tables et grignote les miettes de pain d’épices.' },
+    { id: 'chat-noir', nom: 'Chat noir', espece: 'chat', prix: null, condition: (st) => !!st.chatNoir, gagne: 'Gagné à la Maison hantée', verrou: 'Pendant Halloween', nomDefaut: 'Réglisse', cri: null, bonus: { gains: { pct: 2 } }, phrase: 'Robe noire, yeux jaunes : le souvenir de la Maison hantée.' },
+    { id: 'chien-quartier', nom: 'Chien du quartier', espece: 'chien', prix: null, condition: chienDuQuartier, gagne: 'Gagné au Quartier', verrou: 'Au palier 11 du Quartier', nomDefaut: 'Caïd', cri: 'woufgrave', bonus: { gains: { pct: 5 } }, phrase: 'Bandana, chaîne en or et regard de videur : il garde la vitrine, et il n’a jamais rendu une baballe.' },
+    { id: 'poule', nom: 'Poule', espece: 'poule', prix: 20, condition: null, nomDefaut: 'Cocotte', cri: 'cotcot', bonus: { gains: { pct: 2 } }, phrase: 'Elle picore les miettes et surveille le four d’un œil sévère.' },
+    { id: 'canard', nom: 'Canard', espece: 'canard', prix: 30, condition: null, nomDefaut: 'Coincoin', cri: 'coincoin', bonus: { pourboire: 10 }, phrase: 'Il cancane à chaque client. On dit qu’il préfère la brioche.' },
+    { id: 'herisson', nom: 'Hérisson', espece: 'herisson', prix: 45, condition: null, nomDefaut: 'Châtaigne', cri: null, bonus: { absence: 1 }, phrase: 'Tout rond, tout piquant : il se roule en boule sous les tables.' },
+    { id: 'pingouin', nom: 'Pingouin', espece: 'pingouin', prix: 60, condition: null, nomDefaut: 'Smoking', cri: 'couac', bonus: { vitesse: 3 }, phrase: 'Toujours en tenue de soirée. Il adore la chambre froide.' },
+    { id: 'raton', nom: 'Raton laveur', espece: 'raton', prix: 90, condition: null, nomDefaut: 'Filou', cri: null, bonus: { gains: { pct: 3 } }, phrase: 'Masque de bandit, mains propres : il lave chaque croissant avant de le chiper.' },
+    { id: 'escargot', nom: 'Escargot géant', espece: 'escargot', prix: 120, condition: null, nomDefaut: 'Turbo', cri: null, bonus: { absence: 1.5 }, phrase: 'Gros comme une miche, lent comme un dimanche. Il glisse.' },
+    { id: 'teckel', nom: 'Teckel-baguette', espece: 'teckel', prix: 180, condition: null, nomDefaut: 'Tradition', cri: 'wouf', bonus: { gains: { pct: 4 } }, phrase: 'Son corps est une baguette dorée. Croustillant dehors, fidèle dedans.' },
+    { id: 'croissant', nom: 'Croissant vivant', espece: 'croissant', prix: 300, condition: null, nomDefaut: 'Feuilleté', cri: null, bonus: { vitesse: 5 }, phrase: 'Pur beurre, sur pattes. Il rebondit partout et refuse qu’on le trempe.' },
+    { id: 'dragon', nom: 'Mini-dragon', espece: 'dragon', prix: 480, condition: null, nomDefaut: 'Fournaise', cri: null, bonus: { vitesse: 7 }, phrase: 'Il allume le four d’un hoquet et crache un nuage de farine quand on le caresse.' },
   ];
-  const compagnon = (id) => (id && COMPAGNONS.find((c) => c.id === id)) || null;
+  const COMPAGNON_PAR_ID = new Map(COMPAGNONS.map((c) => [c.id, c]));
+  const compagnon = (id) => (id && COMPAGNON_PAR_ID.get(id)) || null; // (lu à chaque fournée, par bonusCompagnon : une table, sans rien allouer)
   const estChat = (id) => { const c = compagnon(id); return !!c && c.espece === 'chat'; };
   const prixCompagnon = (st, id) => { const c = compagnon(id); return c && c.prix != null ? arrondi(Math.max(COMPAGNON_PLANCHER * c.prix, rythme(st) * 60 * c.prix)) : null; }; // null : il ne s'achète pas
   function aCompagnon(st, id) { // à soi : un gratuit, le chat noir gagné, ou un payant acheté
@@ -199,6 +203,9 @@
     if (st.compagnon && aCompagnon(st, st.compagnon)) return st.compagnon;
     return st.chatNoir && st.chatPelage === 'noir' ? 'chat-noir' : 'chat-roux';
   }
+  const BONUS_VIDE = Object.freeze({});
+  const bonusCompagnon = (st) => { if (!st || !st.chat) return BONUS_VIDE; const c = compagnon(compagnonActif(st)); return (c && c.bonus) || BONUS_VIDE; }; // le compagnon actif ; pas encore adopté : rien
+  const compagnonGains = (st) => { const x = bonusCompagnon(st); return x.gains ? 1 + x.gains.pct / 100 : 1; };
   const modeleCompagnon = (st, halloween) => { const id = compagnonActif(st); return halloween && estChat(id) ? 'chat-noir' : id; };
   function compagnons(st) { // les compagnons remis d'aplomb (une vieille sauvegarde, un id disparu, un doublon) ; rend la liste des achetés
     const vus = new Set(); st.compagnons = (Array.isArray(st.compagnons) ? st.compagnons : []).filter((id) => { const c = compagnon(id); if (!c || c.prix == null || vus.has(id)) return false; vus.add(id); return true; });
@@ -411,11 +418,13 @@
     GR_CACHE.set(g, { v: g.v, bonus: b }); return b;
   }
   const garderobeMult = (st, i) => { const b = bonusGardeRobe(st); return b.gainsTous * (b.gains[PRODUITS[i].id] || 1); };
+  const accessoiresMult = (st, i) => garderobeMult(st, i) * compagnonGains(st); // la garde-robe et le compagnon
   function texteBonus(x) { // pour l'interface : « Tous les gains +3 % », « Pains au chocolat +8 % », « Cuisson 2 % plus rapide », « +0,5 h d’absence »
     const t = [], v = (n) => String(+n.toFixed(2)).replace('.', ',');
     if (x && x.gains) { const p = x.gains.produit ? PRODUITS.find((q) => q.id === x.gains.produit) : null; t.push(`${p ? p.pl[0].toUpperCase() + p.pl.slice(1) : 'Tous les gains'} +${v(x.gains.pct)} %`); }
     if (x && x.vitesse) t.push(`Cuisson ${v(x.vitesse)} % plus rapide`);
     if (x && x.absence) t.push(`+${v(x.absence)} h d’absence`);
+    if (x && x.pourboire) t.push(`Pourboires +${v(x.pourboire)} %`);
     return t;
   }
   function tenueBoulanger(st) { // ce que porte le boulanger, pour persos.js et les icônes : { tete, haut, pieds, accessoire: { forme, metal } | null, cle }
@@ -426,9 +435,9 @@
   const toqueMetal = (st) => { const v = vetement(garderobe(st).equipe.tete); return v && METAUX_PODIUM[v.collection] ? v.collection : null; }; // la toque du podium portée, vue des autres (null : pas une toque de podium)
   const garderobeCle = (st) => { const g = garderobe(st); return `${g.v}|${st.etoiles}|${Object.keys(g.objets).length}`; }; // pour redessiner la page quand elle change
   // effets des talents, du mobilier et de la garde-robe
-  const tempsMult = (st) => (1 - 0.05 * talent(st, 'mains')) * (1 - 0.03 * mobilierCran(st, 'four')) * bonusGardeRobe(st).vitesse;
+  const tempsMult = (st) => (1 - 0.05 * talent(st, 'mains')) * (1 - 0.03 * mobilierCran(st, 'four')) * bonusGardeRobe(st).vitesse * (1 - (bonusCompagnon(st).vitesse || 0) / 100);
   const temps = (st, i) => PRODUITS[i].temps * tempsMult(st) * apprentiTempsMult(st, i);
-  const heuresAbsence = (st) => ABSENCE_MAX_H + talent(st, 'levetot') + mobilierCran(st, 'froid') + bonusGardeRobe(st).absenceH;
+  const heuresAbsence = (st) => ABSENCE_MAX_H + talent(st, 'levetot') + mobilierCran(st, 'froid') + bonusGardeRobe(st).absenceH + (bonusCompagnon(st).absence || 0);
   const affluenceMult = (st) => 1 + 0.5 * talent(st, 'affluence') + 0.25 * mobilierCran(st, 'vitrine');
   const prixStaff = (st, i) => PRODUITS[i].staff * (1 - 0.1 * talent(st, 'zele'));
   const prixBonus = (st, a) => a.cout * (1 - 0.08 * talent(st, 'negoce'));
@@ -489,7 +498,7 @@
     if (jourDeMarche(st.now)) m *= MARCHE_MULT;
     return m;
   }
-  function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st) * mobilierMult(st) * apprentiRevMult(st, i) * garderobeMult(st, i); }
+  function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st) * mobilierMult(st) * apprentiRevMult(st, i) * accessoiresMult(st, i); }
   function revenu(st, i) { return revenuBase(st, i) * boostMult(st, i); } // par fournée, maintenant
   // niv 0 : débloquer la recette (un cap, cher) ; ensuite chaque niveau coûte quelques fournées de plus que le précédent
   const coutNiveau = (i, niv) => (niv === 0 ? PRODUITS[i].debloquer : PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv));
@@ -715,7 +724,7 @@
     st.ev = null;
     return { ok: true, prime: ev.prime };
   }
-  const pourboire = (st) => arrondi(Math.max(20, rythme(st) * 120) * (1 + 0.5 * talent(st, 'pourboire')) * (1 + 0.3 * mobilierCran(st, 'caisse')));
+  const pourboire = (st) => arrondi(Math.max(20, rythme(st) * 120) * (1 + 0.5 * talent(st, 'pourboire')) * (1 + 0.3 * mobilierCran(st, 'caisse')) * (1 + (bonusCompagnon(st).pourboire || 0) / 100));
   function encaisserPourboire(st) { const tip = pourboire(st); gagner(st, tip, true); gagnerXp(st, 3); inc(st, 'pourboires'); marquerEvenement(st); st.stats.meilleurPourboire = Math.max(st.stats.meilleurPourboire || 0, tip); noterSemaine(st, 'pourboires'); note(st, `Pourboire du client mystère : ${fmtEur(tip)}`); return tip; }
   // ─── les habitués : trois clients fidèles qui passent à heure fixe, une fois par jour ; cinq jours de suite, un cadeau ───
   const HABITUES = [
@@ -1161,7 +1170,7 @@
 
   return { APPRENTIS, APPRENTI_NIVEAUX, APPRENTI_VITESSE, APPRENTI_ABSENCE, xpApprenti, gradeApprenti, progresApprenti, creditApprenti, apprentiTempsMult, apprentiRevMult, effetTalentApprenti,
     CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, PELAGES, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
-    COMPAGNONS, COMPAGNON_PLANCHER, compagnon, estChat, prixCompagnon, aCompagnon, compagnonActif, modeleCompagnon, compagnons, choisirCompagnon, acheterCompagnon,
+    COMPAGNONS, COMPAGNON_PLANCHER, compagnon, estChat, prixCompagnon, aCompagnon, compagnonActif, bonusCompagnon, compagnonGains, modeleCompagnon, compagnons, choisirCompagnon, acheterCompagnon,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
     PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
