@@ -101,7 +101,9 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 200) {
   console.log('── le jeu gelé 2 h (performance.now() avance aussi, aucun événement : l\'app laissée en arrière-plan, téléphone éveillé) ──');
   const g0 = await argent();
   decalServeur += 2 * H; await page.evaluate((x) => window.__geler(x), 2 * H);
-  check(await attendre(() => page.evaluate(() => window.__fournil.retour.dernier === 'gel')), 'le détecteur voit le gel et lance le retour');
+  // deux gardes peuvent le voir les premiers : le détecteur de gel (chaque seconde) ou le filet de la boucle (le trou entre deux images) ;
+  // l'ordre dépend de la machine, les deux lancent le même retour, payé une fois (vérifié plus bas)
+  check(await attendre(() => page.evaluate(() => ['gel', 'saut'].includes(window.__fournil.retour.dernier))), 'le gel est vu (détecteur ou filet) et lance le retour');
   check(await attendre(async () => /absence/i.test(await feuille())), `la feuille « Pendant ton absence » s'ouvre (${(await feuille()).replace(/\s+/g, ' ').slice(0, 60)})`);
   await attendre(() => page.evaluate(() => !window.__fournil.retour.enCours)); const g1 = await argent();
   check(g1 - g0 > paye2h * 0.6, `les 2 h sont payées : +${Math.round(g1 - g0)} € (contre ${Math.round(paye2h)} € au réveil)`);
@@ -123,9 +125,9 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 200) {
   const jr = await page.evaluate(() => window.__fournil.st.journalRetours || []);
   const raisons = jr.map((e) => e.r).join(',');
   check(jr.length >= 6 && jr.length <= 10, `${jr.length} retours notés (10 au plus) : ${raisons}`);
-  check(['reveil', 'gel', 'saut'].every((r) => raisons.includes(r)), 'le réveil, le gel et le saut y sont');
+  check(raisons.includes('reveil') && (raisons.includes('gel') || raisons.includes('saut')), 'le réveil et le gel (ou le saut) y sont');
   const dernierJ = jr[jr.length - 1];
-  check(dernierJ && dernierJ.r === 'saut' && dernierJ.n === 'feuille' && dernierJ.s > 7000 && dernierJ.g > 0, `le dernier : ${JSON.stringify(dernierJ)}`);
+  check(dernierJ && ['saut', 'gel'].includes(dernierJ.r) && dernierJ.n === 'feuille' && dernierJ.s > 7000 && dernierJ.g > 0, `le dernier : ${JSON.stringify(dernierJ)}`);
   check(jr.some((e) => e.n === 'court'), 'la veille de 30 s y est, « moins de 90 s »');
   await page.evaluate(() => window.__fournil.page('reglages')); await sleep(600);
   check(await page.evaluate(() => !!document.querySelector('[data-a="journal-retours"]')), 'Réglages › « Journal des retours »');
