@@ -1066,7 +1066,8 @@ function trajectoirePoints(profil, jours, t0, cadence) {
 
   // ─── 23. le téléphone et le serveur sur le même contrat : le VRAI moteur de src/classement.js, branché sur ce Postgres ───
   titre('le contrat : src/classement.js et src/horloge.js face au SQL');
-  {
+  { // les cadeaux (supabase/fournil-cadeaux.sql, un fichier à part) font partie du contrat : collés ici, éprouvés plus bas
+    await db.exec('set role proprio'); try { await db.exec(fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-cadeaux.sql'), 'utf8')); } finally { await db.exec('reset role'); }
     const CL = require('../src/classement.js');
     // les fonctions que le téléphone appelle, et avec quels paramètres, lues dans ses sources
     const appels = new Map();
@@ -1083,8 +1084,8 @@ function trajectoirePoints(profil, jours, t0, cadence) {
                               where s.nspname = 'public' and p.proname like 'fournil\\_%' and has_function_privilege('anon', p.oid, 'execute')`);
     const parNom = new Map(procs.map((p) => [p.nom, p]));
     const noms = [...new Set([...appels.values()].map((a) => a.nom))].sort();
-    check(JSON.stringify(noms) === JSON.stringify(['fournil_classement', 'fournil_heure', 'fournil_publier', 'fournil_recompenses', 'fournil_retirer', 'fournil_vu']) && JSON.stringify(procs.map((p) => p.nom).sort()) === JSON.stringify(noms),
-      `le téléphone appelle exactement les six fonctions ouvertes à anon : ${noms.join(', ')}`);
+    check(JSON.stringify(noms) === JSON.stringify(['fournil_cadeau_recu', 'fournil_classement', 'fournil_heure', 'fournil_mes_cadeaux', 'fournil_publier', 'fournil_recompenses', 'fournil_retirer', 'fournil_vu']) && JSON.stringify(procs.map((p) => p.nom).sort()) === JSON.stringify(noms),
+      `le téléphone appelle exactement les huit fonctions ouvertes à anon (six du classement, deux des cadeaux) : ${noms.join(', ')}`);
     const malAppeles = [...appels.values()].filter((a) => { const p = parNom.get(a.nom); if (!p) return true; const obligatoires = p.noms.slice(0, p.n - p.defauts); return a.cles.some((k) => !p.noms.includes(k)) || obligatoires.some((k) => !a.cles.includes(k)); });
     check(appels.size >= 5 && malAppeles.length === 0, `chaque appel du téléphone donne exactement les paramètres de la fonction SQL (${[...appels.keys()].join(' ; ')})${malAppeles.length ? ' — en défaut : ' + malAppeles.map((a) => a.nom).join(', ') : ''}`);
 
@@ -1519,6 +1520,40 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     c = await classement('total', B1.id);
     check(r.ok === true && c.moi.en_ligne === true && c.en_ligne_n === 1, 'authenticated peut battre aussi ; Basile revient en ligne');
     check(await refus('anon', 'select vu from public.fournil_joueurs') !== 'accepté' && await refus('anon', `update public.fournil_joueurs set vu = now()`) !== 'accepté', 'vu ne se lit ni ne s’écrit directement');
+  }
+
+  // ─── les cadeaux (supabase/fournil-cadeaux.sql), collés par-dessus, deux fois ───
+  titre('les cadeaux');
+  {
+    const CAD = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-cadeaux.sql'), 'utf8');
+    const collerCad = async () => { await db.exec('set role proprio'); try { await db.exec(CAD); } finally { await db.exec('reset role'); } };
+    try { await collerCad(); await collerCad(); check(true, 'fournil-cadeaux.sql se colle, et se recolle sans casse'); } catch (err) { check(false, 'fournil-cadeaux.sql se colle : ' + err.message); }
+    await avancer(3600);
+    const G1 = joueur(), G2 = joueur();
+    const r1 = await publierP(G1, 'Gâté', 1e6, 10), r2 = await publierP(G2, 'Voisin', 1e6, 10);
+    check(r1.ok === true && r2.ok === true, 'deux joueurs inscrits');
+    // le SQL Editor (le propriétaire) dépose un cadeau, comme le joueur le fera
+    await comme('proprio', `insert into public.fournil_cadeaux (joueur, montant, motif) select id, 3e12, 'Pour l''absence de ce matin' from public.fournil_joueurs where pseudo ilike 'gâté'`);
+    const mes = async (j, role = 'anon') => (await comme(role, 'select public.fournil_mes_cadeaux(p_id => $1, p_jeton => $2) as r', [j.id, j.jeton]))[0].r;
+    const recu = async (j, n, role = 'anon') => (await comme(role, 'select public.fournil_cadeau_recu(p_id => $1, p_jeton => $2, p_n => $3) as r', [j.id, j.jeton, n]))[0].r;
+    let m = await mes(G1);
+    check(m.ok === true && m.cadeaux.length === 1 && m.cadeaux[0].montant === 3e12 && m.cadeaux[0].motif === 'Pour l’absence de ce matin'.replace('’', "'") && Object.keys(m.cadeaux[0]).sort().join() === 'montant,motif,n', `fournil_mes_cadeaux : son cadeau de 3e12 (${JSON.stringify(m.cadeaux)})`);
+    const n = m.cadeaux[0].n;
+    check((await mes(G2)).cadeaux.length === 0, 'l’autre joueur ne le voit pas');
+    check((await mes({ id: G1.id, jeton: G2.jeton })).ok === false && (await mes({ id: G1.id, jeton: 'court' })).erreur === 'jeton' && (await mes(joueur())).erreur === 'inconnu', 'mauvais jeton, jeton mal formé, identifiant inconnu : rien');
+    check((await mes(G1, 'authenticated')).cadeaux.length === 1, 'authenticated aussi');
+    let rr = await recu(G2, n);
+    check(rr.ok === true && (await mes(G1)).cadeaux.length === 1, 'l’autre joueur ne peut pas le marquer reçu');
+    rr = await recu({ id: G1.id, jeton: G2.jeton }, n);
+    check(rr.ok === false && rr.erreur === 'jeton' && (await mes(G1)).cadeaux.length === 1, 'avec le jeton d’un autre : refusé');
+    rr = await recu(G1, n);
+    check(rr.ok === true && (await mes(G1)).cadeaux.length === 0 && (await recu(G1, n)).ok === true, 'fournil_cadeau_recu : il quitte la boîte (et le redire ne casse rien)');
+    check(await refus('anon', 'select * from public.fournil_cadeaux') !== 'accepté' && await refus('anon', `insert into public.fournil_cadeaux (joueur, montant) values ('${G2.id}', 1e15)`) !== 'accepté' && await refus('anon', `update public.fournil_cadeaux set recu = null`) !== 'accepté' && await refus('authenticated', 'select * from public.fournil_cadeaux') !== 'accepté', 'la table ne se lit ni ne s’écrit depuis le jeu');
+    check(await refus('anon', `select nextval('public.fournil_cadeaux_n_seq')`) !== 'accepté' && await refus('anon', 'select public.fournil_cadeau_qui($1, $2)', [G1.id, G1.jeton]) !== 'accepté', 'la séquence et la vérification interne sont fermées');
+    check(await refus('proprio', `insert into public.fournil_cadeaux (joueur, montant) values ('${G2.id}', -5)`) !== 'accepté', 'un montant négatif est refusé');
+    await comme('proprio', `insert into public.fournil_cadeaux (joueur, montant) values ('${G2.id}', 5)`);
+    await retirer(G2);
+    check((await sup('select count(*)::int as c from public.fournil_cadeaux where joueur = $1', [G2.id]))[0].c === 0, 'quitter le classement efface ses cadeaux');
   }
 
   // ─── le bilan ───

@@ -82,6 +82,9 @@ const RPC = {
     return { ok: true, erreur: null, podiums: j && faux.palmares.has(c.p_id) ? [{ semaine: sem, rang: faux.palmares.get(c.p_id) }] : [], derniere: podium.length ? { semaine: sem, podium } : null };
   },
   fournil_heure: () => ({ ms: Date.now() }),
+  // les cadeaux (supabase/fournil-cadeaux.sql) ; faux.perdreRecu : l'accusé de réception se perd (le cadeau revient à la lecture suivante)
+  fournil_mes_cadeaux: (c) => { const j = faux.joueurs.get(c.p_id); if (!j || j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: j ? 'jeton' : 'inconnu', cadeaux: [] }; return { ok: true, erreur: null, cadeaux: (faux.cadeaux || []).filter((x) => x.joueur === c.p_id && !x.recu).map(({ n, montant, motif }) => ({ n, montant, motif })) }; },
+  fournil_cadeau_recu: (c) => { const j = faux.joueurs.get(c.p_id); if (!j || j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: 'jeton' }; if (!faux.perdreRecu) for (const x of faux.cadeaux || []) if (x.n === c.p_n && x.joueur === c.p_id) x.recu = true; return { ok: true, erreur: null }; },
 };
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'apikey, authorization, content-type, x-client-info', 'access-control-allow-methods': 'POST, OPTIONS' };
 async function gerer(route) {
@@ -377,6 +380,26 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
   const etroit = await p3.evaluate(() => { const f = document.querySelector('#feuille'), m = document.querySelector('#feuille .cl-ligne.moi'), r = m.getBoundingClientRect(); return { large: f.scrollWidth <= f.clientWidth + 1 && document.documentElement.scrollWidth <= innerWidth + 1, dedans: r.right <= innerWidth && r.left >= 0, val: m.querySelector('.cl-val').getBoundingClientRect().right <= r.right + 1, txt: m.innerText.replace(/\s+/g, ' ') }; });
   check(etroit.large && etroit.dedans && etroit.val && /^1er/.test(etroit.txt), 'à 320 px : rien ne déborde, un pseudo de 16 lettres, 150 points et une fortune de 123 Bd € tiennent sur leur ligne (« ' + etroit.txt + ' »)');
   await p3.screenshot({ path: out + '/13-320px.png' });
+  // ─── un cadeau déposé sur le serveur (3 Bn €) : reçu une seule fois, même si l'accusé de réception se perd ───
+  {
+    await p3.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); }); await sleep(300);
+    const idE = [...faux.joueurs.entries()].find(([, j]) => j.pseudo === 'Éloïse Marguerit')[0];
+    faux.cadeaux = [{ n: 7, joueur: idE, montant: 3e12, motif: 'Pour l’absence de ce matin', recu: false }, { n: 8, joueur: 'quelqu-un-d-autre', montant: 1e15, motif: 'pas pour toi', recu: false }];
+    faux.perdreRecu = true;
+    const k0 = await p3.evaluate(() => window.__fournil.st.coins);
+    await p3.evaluate(() => window.__fournil.cadeaux());
+    check(await attendre(() => p3.evaluate(() => /Un cadeau/.test(document.querySelector('#feuille-contenu').innerText) && !document.querySelector('#feuille').hidden), 5000), `la feuille « Un cadeau ! » (${(await p3.evaluate(() => document.querySelector('#feuille-contenu').innerText)).replace(/\s+/g, ' ').slice(0, 80)})`);
+    const k1 = await p3.evaluate(() => window.__fournil.st.coins);
+    check(Math.abs(k1 - k0 - 3e12) < 1e6, `+3 Bn € dans la boutique (${k1 - k0}), pas le cadeau d’un autre`);
+    await p3.screenshot({ path: out + '/14-cadeau.png' });
+    await p3.evaluate(() => document.querySelector('#feuille [data-a="close"]').click()); await sleep(300);
+    await p3.evaluate(() => window.__fournil.cadeaux()); await sleep(1200);
+    check(Math.abs((await p3.evaluate(() => window.__fournil.st.coins)) - k1) < 1e6 && await p3.evaluate(() => document.querySelector('#feuille').hidden), 'l’accusé perdu, le cadeau revient du serveur : pas ajouté deux fois, pas de seconde feuille');
+    faux.perdreRecu = false;
+    await p3.evaluate(() => window.__fournil.cadeaux()); await sleep(1200);
+    check(faux.cadeaux[0].recu === true && !faux.cadeaux[1].recu && faux.appels.some((x) => x.nom === 'fournil_cadeau_recu' && x.corps.p_n === 7), 'l’accusé de réception arrive : le cadeau quitte la boîte');
+    check(await p3.evaluate(() => JSON.stringify(window.__fournil.st.cadeauxRecus)) === '[7]', 'gardé dans la boutique : st.cadeauxRecus = [7]');
+  }
   await c2.close();
 
   // ─── la liste ouverte se relit toute seule (toutes les 30 s ; ici 1,2 s), et plus rien une fois la feuille fermée ───

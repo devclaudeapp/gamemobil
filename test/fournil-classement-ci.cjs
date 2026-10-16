@@ -251,6 +251,12 @@ function arreter(message, conclusion) {
     check(t.moi.en_ligne === true && Number.isInteger(t.en_ligne_n) && t.en_ligne_n >= 1, `A vient d'envoyer : en ligne (${t.en_ligne_n} en ligne en tout)`);
     { const v = await rpc('fournil_vu', { p_id: A.id, p_jeton: A.jeton }), w = await rpc('fournil_vu', { p_id: A.id, p_jeton: B.jeton });
       check(v.statut === 200 && v.data && v.data.ok === true && w.statut === 200 && w.data && w.data.ok === false && w.data.erreur === 'jeton', `fournil_vu : A bat avec son jeton (${v.texte}), le jeton de B est refusé (${w.texte})`); }
+    // les cadeaux (supabase/fournil-cadeaux.sql, collé à part) : une boîte vide pour un joueur de test, fermée aux autres
+    { const c = await rpc('fournil_mes_cadeaux', { p_id: A.id, p_jeton: A.jeton }), d = await rpc('fournil_mes_cadeaux', { p_id: A.id, p_jeton: B.jeton }), e = await rpc('fournil_cadeau_recu', { p_id: A.id, p_jeton: B.jeton, p_n: 1 });
+      if (c.statut === 404) check(false, 'fournil_mes_cadeaux manque : coller supabase/fournil-cadeaux.sql dans le SQL Editor');
+      else check(c.statut === 200 && c.data && c.data.ok === true && Array.isArray(c.data.cadeaux) && c.data.cadeaux.length === 0 && d.data && d.data.ok === false && d.data.erreur === 'jeton' && e.data && e.data.ok === false, `les cadeaux : la boîte de A est vide (${c.texte}), le jeton de B est refusé (${d.texte} ; ${e.texte})`);
+      const t = await appel('GET', '/rest/v1/fournil_cadeaux?select=*&limit=1'), u = await appel('POST', '/rest/v1/fournil_cadeaux', { joueur: A.id, montant: 1e15 });
+      check((t.statut >= 400 || t.texte === '[]') && u.statut >= 400, `la table fournil_cadeaux ne se lit ni ne s'écrit directement (lecture ${t.statut}, écriture ${u.statut})`); }
     check(tl.filter((x) => x.moi).length <= 1 && (tl.find((x) => x.moi) || { pseudo: A.pseudo }).pseudo === A.pseudo, 'une seule ligne marquée « moi », celle de A');
     r = await rpc('fournil_classement', { p_periode: 'semaine', p_id: B.id });
     const s = r.data || {};

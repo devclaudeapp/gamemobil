@@ -803,6 +803,27 @@ const UI = (() => {
       <button type="button" class="btn large menthe" data-a="close"><b>Fermer</b></button>`);
     on('[data-a="close"]', closeSheet);
   }
+  // les cadeaux déposés sur le serveur (supabase/fournil-cadeaux.sql) : ajoutés une seule fois (st.cadeauxRecus garde les numéros déjà
+  // reçus, même si l'accusé de réception se perd), puis la feuille « Un cadeau ! » ; relus au lancement, au retour et toutes les 10 min
+  let cadeauxVol = false;
+  function verifierCadeaux() {
+    if (!classement || !classement.cadeaux || cadeauxVol || !st || fige) return;
+    cadeauxVol = true;
+    classement.cadeaux().then((r) => {
+      const recus = Array.isArray(st.cadeauxRecus) ? st.cadeauxRecus : (st.cadeauxRecus = []), nouveaux = [];
+      for (const c of r.cadeaux || []) {
+        if (!recus.includes(c.n)) { G.gagner(st, c.montant, true); recus.push(c.n); nouveaux.push(c); }
+        classement.cadeauRecu(c.n);
+      }
+      while (recus.length > 50) recus.shift();
+      if (!nouveaux.length) return;
+      save(); renderCards(true); hud();
+      const total = nouveaux.reduce((a, c) => a + c.montant, 0), motifs = nouveaux.map((c) => c.motif).filter(Boolean);
+      const montrer = () => { son.deblocage(); buzz([20, 40, 20]); confettis(1.4); openSheet(`<h2>Un cadeau !</h2><p class="sous">${motifs.length ? esc(motifs.join(' · ')) : 'Pour ta boutique'}</p><div class="grand-nombre">+${G.fmtEur(total)}</div>
+        <button type="button" class="btn large menthe" data-a="close"><b>Merci !</b></button>`); on('[data-a="close"]', closeSheet); };
+      if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); }
+    }).catch(() => { /* rien */ }).then(() => { cadeauxVol = false; });
+  }
   function sheetRetour(abs) {
     const detail = abs.detail.slice().sort((a, b) => b.m - a.m).map((d) => `<li><span>${esc(d.nom || G.PRODUITS[d.i].nom)} × ${G.fmt(d.n)}</span><b>${G.fmtEur(d.m)}</b></li>`).join('');
     const grades = (abs.grades || []).map((g) => `${G.APPRENTIS[g.i].prenom} passe au grade ${g.niv}`).join(' · ');
@@ -1092,13 +1113,16 @@ const UI = (() => {
   }
 
   // ─── boucle ───
+  let derniereImage = 0;
   function frame(now) {
     verifierReveil(); // chaque image : la page vient-elle de dormir ?
-    if (retourEnCours) { lastFrame = now; requestAnimationFrame(frame); return; } // l'absence n'est pas encore comptée : rien ne bouge
+    if (retourEnCours) { lastFrame = now; derniereImage = now; requestAnimationFrame(frame); return; } // l'absence n'est pas encore comptée : rien ne bouge
     const dt = Math.min(0.25, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
-    // le filet : le temps du jeu a sauté sans retour (une page gelée qu'aucun détecteur n'a vue) ; on ne tique pas par-dessus (le saut
-    // serait perdu, puis lastSeen recollé à maintenant) : l'absence est comptée par le retour, depuis le dernier lastSeen sauvé
-    if (absencePrete && HORLOGE.maintenant() - st.now > 5000 + dt * 1000 && reprendre('saut')) { requestAnimationFrame(frame); return; }
+    // le filet : plus de 5 s entre deux images sans qu'aucun retour soit parti (une page gelée que le détecteur a manquée, vue « cachée » au
+    // dégel) ; on ne tique pas par-dessus (le temps serait perdu, puis lastSeen recollé à maintenant) : le retour compte l'absence depuis le
+    // dernier lastSeen sauvé. Les sauts de l'heure sûre ne passent pas par ici (pas de trou entre les images) : payerSaut les plafonne.
+    const trou = derniereImage ? now - derniereImage : 0; derniereImage = now;
+    if (absencePrete && trou > 5000 && reprendre('saut')) { requestAnimationFrame(frame); return; }
     const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert); // pendant l'Atelier ou la Planque : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran de jeu
     if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); }
     const out = G.tick(st, dt, HORLOGE.maintenant(), atelier ? () => 0.999 : undefined);
@@ -1143,7 +1167,7 @@ const UI = (() => {
     reveilW = Date.now(); reveilP = performance.now(); // le détecteur repart d'ici : pas de second retour pour le même sommeil
     if (!st || !absencePrete || fige || retourEnCours) return false; retourEnCours = true; dernierRetour = raison;
     // en ligne, seule une heure sûre fraîche fait avancer le jeu (HORLOGE.retour) : si elle manque, on la redemande toutes les 5 s
-    HORLOGE.retour().catch(() => null).then((info) => { if (!(info && info.frais) && navigator.onLine !== false) relancerHeure(); retourEnCours = false; reveilW = Date.now(); reveilP = performance.now(); const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t); absencePayee = abs.secs * 1000; if (EVS && EVS.ouvert) EVS.ouvert.retour(); const montre = abs.total > 0 && abs.secs > 90; if (montre) { sheetRetour(abs); renderCards(true); } noterRetour(raison, abs, sortie, montre, !!(info && info.frais)); lastFrame = performance.now(); save(); });
+    HORLOGE.retour().catch(() => null).then((info) => { if (!(info && info.frais) && navigator.onLine !== false) relancerHeure(); retourEnCours = false; reveilW = Date.now(); reveilP = performance.now(); const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t); absencePayee = abs.secs * 1000; if (EVS && EVS.ouvert) EVS.ouvert.retour(); const montre = abs.total > 0 && abs.secs > 90; if (montre) { sheetRetour(abs); renderCards(true); } noterRetour(raison, abs, sortie, montre, !!(info && info.frais)); lastFrame = performance.now(); save(); if (abs.secs > 60) verifierCadeaux(); });
     return true;
   }
   // l'heure sûre n'est pas venue au réveil (réseau pas encore revenu) : nouvel essai toutes les 5 s pendant une minute ; quand elle arrive,
@@ -1271,7 +1295,7 @@ const UI = (() => {
     // le classement : après les gains hors ligne, un premier envoi (si on l'a rejoint), puis toutes les 5 min et au passage en arrière-plan
     // ce qui part : ses points de boulanger de la semaine (et leur lundi, heure de Paris sur l'horloge de confiance), et sa fortune pour information
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant() }) : null; } catch (e) { classement = null; }
-    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); }); majRecompenses(); classement.demarrer(); setInterval(majRecompenses, 60e3);
+    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); }); majRecompenses(); classement.demarrer(); setTimeout(verifierCadeaux, 3000); setInterval(() => { if (document.visibilityState === 'visible') verifierCadeaux(); }, 10 * 60e3); setInterval(majRecompenses, 60e3);
     // la liste ouverte se relit toute seule toutes les 30 s (qui vient d'arriver « en ligne », les points qui bougent) : seulement
     // sur l'onglet de la liste, page visible, sans doubler une lecture en vol ; la feuille fermée, plus rien
     setInterval(() => { if (vueCl === 'liste' && !feuille.hidden && document.visibilityState === 'visible' && !classement.enChargement(ongletCl)) classement.charger(ongletCl); }, (window.__relireClassement | 0) || 30e3); } // la tenue et la coupe changent aussi au lundi
@@ -1280,7 +1304,7 @@ const UI = (() => {
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, get retour() { return { enCours: retourEnCours, dernier: dernierRetour }; }, journalRetours: sheetJournalRetours, G, SCENE, save, son, confettis, audio, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
+    window.__fournil = { get st() { return st; }, get retour() { return { enCours: retourEnCours, dernier: dernierRetour }; }, journalRetours: sheetJournalRetours, cadeaux: verifierCadeaux, G, SCENE, save, son, confettis, audio, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden, hantee: !$('#b-hantee').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
       quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT,

@@ -108,10 +108,12 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 200) {
   await fermerFeuille(); await sleep(2500);
   check((await argent()) - g1 < paye2h * 0.2, 'une seule fois');
 
-  console.log('── le filet : le temps du jeu a sauté sans qu\'aucun détecteur le voie ──');
+  console.log('── le filet : un gel que le détecteur a manqué (la page se disait « cachée » au dégel) ──');
   const f0 = await argent();
-  await page.evaluate((h) => { const st = window.__fournil.st; st.now -= 2 * h; st.lastSeen -= 2 * h; }, H);
-  check(await attendre(() => page.evaluate(() => window.__fournil.retour.dernier === 'saut')), 'la boucle ne tique pas par-dessus le saut : elle lance le retour');
+  await page.evaluate((h) => { Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => 'hidden' }); window.__geler(2 * h); }, H);
+  decalServeur += 2 * H;
+  check(await attendre(() => page.evaluate(() => window.__fournil.retour.dernier === 'saut')), 'la boucle ne tique pas par-dessus le trou : elle lance le retour');
+  await page.evaluate(() => { delete document.visibilityState; });
   check(await attendre(async () => /absence/i.test(await feuille())), 'la feuille « Pendant ton absence » s\'ouvre');
   await attendre(() => page.evaluate(() => !window.__fournil.retour.enCours)); const f1 = await argent();
   check(f1 - f0 > paye2h * 0.6, `les 2 h sont payées : +${Math.round(f1 - f0)} €`);
