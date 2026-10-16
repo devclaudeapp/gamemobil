@@ -266,9 +266,11 @@ const SCENE = (() => {
   const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
   const ALIAS_HT = { citrouille: 'citrouilles', lanternes: 'citrouilles', toile: 'toiles', araignees: 'toiles', chaudrons: 'chaudron', fantomes: 'fantome' };
   function decosHantee(liste) { const l = (Array.isArray(liste) ? liste : []).map((k) => ALIAS_HT[k] || k); for (const k of Object.keys(HDECO)) HDECO[k] = l.includes(k); }
-  // le chat : roux tigré, ou noir aux yeux jaunes (pendant la Maison hantée, puis au choix) ; changé, il est rebâti à l'image suivante
-  let pelage = 'roux';
-  function pelageChat(p) { const n = p === 'noir' ? 'noir' : 'roux'; if (n === pelage) return; pelage = n; if (chatG) { scene.remove(chatG); (PERSOS.libererChat || M.dispose)(chatG); chatG = null; } }
+  // le compagnon de la boutique (GAME.COMPAGNONS : le chat roux, le chat noir, le chien… le mini-dragon ; ui.js dit lequel, noir d'office pour
+  // un chat pendant la Maison hantée) ; changé, l'ancien est libéré (son tampon d'instances) et le nouveau bâti à l'image suivante
+  let modeleComp = 'chat-roux';
+  function compagnon(id) { const n = typeof id === 'string' && id ? id : 'chat-roux'; if (n === modeleComp) return; modeleComp = n; if (chatG) { scene.remove(chatG); (PERSOS.libererChat || M.dispose)(chatG); chatG = null; } }
+  function pelageChat(p) { compagnon(p === 'noir' ? 'chat-noir' : 'chat-roux'); } // l'ancien réglage : un des deux chats
   function recompenses(o) {
     o = o || {};
     REC.tenue = METAUX.includes(o.tenue) ? o.tenue : null; REC.coupe = METAUX.includes(o.coupe) ? o.coupe : null;
@@ -440,12 +442,12 @@ const SCENE = (() => {
     if (boulangerG) { oAnim.hop = E.hop; oAnim.rush = E.rush; oAnim.blink = E.blink; oAnim.t = E.t; oAnim.rang = E.rang; PERSOS.animerBoulanger(boulangerG, oAnim); }
     poserChat(E, dt);
   }
-  // le chat : sur le comptoir quand il dort, au sol quand il se promène, en arc pendant un saut
+  // le compagnon : sur le comptoir quand il dort, au sol quand il se promène, en arc pendant un saut
   let chatG = null, chatHaut = null, chatPied = null, chatHautCle = null; const oChat = { etat: 'dort', phase: 0, t: 0 }, ETAT_CHAT = { dort: 'dort', assis: 'assis', marche: 'marche', descend: 'saut', monte: 'saut' }, _pc = { x: 0, y: 0, z: 0 };
   function poserChat(E, dt) {
     const c = V.chat;
     if (!c || !PERSOS.chat) { if (chatG) { scene.remove(chatG); (PERSOS.libererChat || M.dispose)(chatG); chatG = null; } return; } // libererChat : le tampon d'instances des pattes
-    if (!chatG) { chatG = PERSOS.chat(pelage === 'noir' && PERSOS.CHAT_NOIR ? Object.assign({}, PERSOS.CHAT_NOIR) : {}); chatG.userData.yaw = Math.PI / 2; chatG.userData.pelage = pelage; habiller(chatG); scene.add(chatG); }
+    if (!chatG) { chatG = PERSOS.compagnon ? PERSOS.compagnon(modeleComp) : PERSOS.chat(modeleComp === 'chat-noir' && PERSOS.CHAT_NOIR ? Object.assign({}, PERSOS.CHAT_NOIR) : {}); chatG.userData.yaw = Math.PI / 2; chatG.userData.modele = modeleComp; habiller(chatG); scene.add(chatG); }
     if (chatHautCle !== cles.comptoir) { chatHautCle = cles.comptoir; chatHaut = MEUBLES.surDessus(contexte(E), LAY.chat); chatPied = V.piedComptoir(); } // recalculés quand le comptoir change
     const haut = chatHaut, pied = chatPied, zp = wz(pied.y);
     if (c.etat === 'descend' || c.etat === 'monte') { const u = c.etat === 'descend' ? c.saut : 1 - c.saut, e = u * u * (3 - 2 * u); _pc.x = haut.x + (pied.x - haut.x) * e; _pc.z = haut.z + (zp - haut.z) * e; _pc.y = haut.y * (1 - e) + Math.sin(Math.PI * u) * 14; }
@@ -453,7 +455,7 @@ const SCENE = (() => {
     else { _pc.x = c.x; _pc.y = 0; _pc.z = wz(c.y); }
     chatG.position.set(_pc.x, _pc.y, _pc.z); chatG.scale.setScalar(V.K * 0.95);
     tourner(chatG, c.etat === 'dort' ? 1 : c.dir, dt);
-    oChat.etat = ETAT_CHAT[c.etat] || 'assis'; oChat.phase = c.phase; oChat.t = E.t; PERSOS.animerChat(chatG, oChat);
+    oChat.etat = ETAT_CHAT[c.etat] || 'assis'; oChat.phase = c.phase; oChat.t = E.t; (PERSOS.animerCompagnon || PERSOS.animerChat)(chatG, oChat);
   }
   function zoneChat() { // un rectangle autour du chat (il bouge : rien en cache)
     if (!chatG) return null; const K = V.K, sx = chatG.position.x, sy = projeterY(chatG.position.y, chatG.position.z);
@@ -463,6 +465,7 @@ const SCENE = (() => {
   }
   function hitChat(x, y) { return dans(zoneChat(), x, y); }
   function ronron() { V.ronron(); }
+  function souffle(n) { V.souffle(n); } // le nuage de farine du mini-dragon caressé
   function tourner(g, dir, dt) { const cible = YAW[dir] || 0; g.userData.yaw += angleCourt(cible - g.userData.yaw) * Math.min(1, dt * 12); g.rotation.y = g.userData.yaw; }
   function poser(g, c, E, dt) {
     const s = V.K * c.taille, assis = c.etat === 'assis', marche = c.etat === 'entre' || c.etat === 'sort' || c.etat === 'vaTable' || (c.etat === 'attend' && !!c.glisse);
@@ -630,12 +633,13 @@ const SCENE = (() => {
     }
   }
 
-  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitArriere, zoneArriere, hitChat, hitTrophees, recompenses, decosQuartier, decosHantee, pelageChat, ronron, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
+  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitArriere, zoneArriere, hitChat, hitTrophees, recompenses, decosQuartier, decosHantee, pelageChat, compagnon, ronron, souffle, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
     vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
     get decosHanteeVues() { return Object.keys(HDECO).filter((k) => HDECO[k] && groupes['ht-' + k]); }, // les décos de la Maison hantée posées (pour les tests)
-    get chatVu() { return chatG ? chatG.userData.pelage : null; }, // le pelage du chat dans la boutique (pour les tests)
+    get chatVu() { const m = chatG ? chatG.userData.modele : null; return m === 'chat-noir' ? 'noir' : m === 'chat-roux' ? 'roux' : m; }, // le pelage du chat dans la boutique, ou l'id d'un autre compagnon (pour les tests)
+    get compagnonVu() { if (!chatG) return null; let appels = 0; chatG.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) appels++; }); return { id: chatG.userData.modele, appels, x: chatG.position.x, y: chatG.position.y, z: chatG.position.z }; }, // le compagnon bâti dans la boutique et ses appels de dessin (pour les tests)
     precharger(lot) { if (typeof HDM === 'undefined' || !webgl || !HDM.permis(renderer)) return false; HDM.charger(lot); return true; }, // en arrière-plan, si le palier le permet
     alleger() { if (RICHE.post) { RICHE.post.liberer(); RICHE.post = null; } }, // un écran plein (la Planque) couvre la boutique : la passe d'effets rend sa mémoire, recréée au retour
     get decorHD() { return hdDecor ? hdDecor.children.length : 0; }, // les décors HD posés (pour les tests)

@@ -687,6 +687,28 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .gr-minis i svg { width: 20px; height: 20px; }
 .gr-minis i.manque svg { opacity: .3; filter: grayscale(1); }
 .gr-tout { min-width: 88px; min-height: 44px; }
+/* ─── les compagnons (feuille « Les compagnons », ui.js) : l'animal choisi en tête, puis la grille de deux colonnes ─── */
+.cp-tete { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 10px 12px; border-radius: 20px; background: var(--carte); box-shadow: 0 4px 12px var(--ombre); }
+.cp-tete > div { min-width: 0; flex: 1 1 auto; }
+.cp-tete b { display: block; font: 700 15px/1.2 var(--titre); }
+.cp-tete small { display: block; margin-top: 3px; font-size: 12px; line-height: 1.3; color: var(--texte-2); }
+.cp-tete .btn { flex: 0 0 auto; min-width: 92px; }
+.cp-ico { display: grid; place-items: center; flex: 0 0 auto; width: 60px; height: 60px; border-radius: 18px; background: var(--creme); }
+.cp-ico svg { width: 50px; height: 50px; }
+.cp-grille { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cp-carte { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 8px; border-radius: 18px; background: var(--carte); box-shadow: 0 4px 12px var(--ombre); text-align: center; min-width: 0; }
+.cp-carte > b { font: 700 15px/1.15 var(--titre); }
+.cp-carte .cp-phrase { flex: 1 1 auto; font: 700 11.5px/1.3 var(--texte-font); color: var(--texte-2); }
+.cp-carte .cp-statut { font: 800 12px/1.2 var(--texte-font); color: var(--beurre-sombre); }
+.cp-carte .cp-statut.a-toi { color: var(--menthe-sombre); }
+.cp-carte .btn { width: 100%; margin-top: 4px; }
+.cp-carte .btn b { font-size: 14px; }
+.cp-carte.choisi { background: #FFF3C4; box-shadow: inset 0 0 0 2.5px var(--beurre-sombre), 0 4px 12px var(--ombre); }
+.cp-carte.choisi .cp-ico { background: #fff; }
+.cp-carte.verrou .cp-ico svg { opacity: .55; filter: grayscale(.6); }
+.cp-ok, .cp-verrou { display: grid; place-items: center; width: 100%; min-height: 44px; margin-top: 4px; font: 700 14px/1.1 var(--titre); color: var(--beurre-sombre); }
+.cp-verrou { color: var(--texte-2); font-size: 13px; border-radius: var(--r-int); background: var(--creme); }
+@media (max-width: 359px) { .cp-carte .cp-phrase { font-size: 11px; } .cp-ico { width: 52px; height: 52px; } .cp-ico svg { width: 44px; height: 44px; } }
 @media (max-width: 379px) { .gr-cases { gap: 4px; } .gr-case { padding-inline: 1px; } .gr-case b { font-size: 10.5px; letter-spacing: -.02em; } .gr-ameliorer { min-width: 84px; } } /* « Chaussures » entier, jamais coupé au milieu */
 
 /* ─── l'événement « Le Quartier » : l'icône du coin, la pastille des boosts, la Planque en plein écran (sombre, néons), ses feuilles ─── */
@@ -1484,23 +1506,88 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   // ─── le chat de la boutique : il miaule à la porte quand les éclairs sont au menu ; adopté, on le caresse et il porte chance ───
   const CHAT = { chance: 0.2, attente: 60e3, defaut: 'Brioche', apparition: 45, rappel: 30 };
   // le pelage du chat : roux depuis toujours ; noir d'office pendant la Maison hantée (src/hantee.js : l'appelant dit si elle est ouverte),
-  // et, une fois le chat noir gagné (un palier de l'événement : donnerChatNoir), au choix ensuite dans la garde-robe ou les Réglages.
-  // st.chatNoir : gagné (à vie) ; st.chatPelage : le choix ('roux' par défaut). Pour scene.js / persos.js : pelageChat(st, halloween).
+  // et, une fois le chat noir gagné (un palier de l'événement : donnerChatNoir), un compagnon au choix (voir COMPAGNONS plus bas).
+  // st.chatNoir : gagné (à vie) ; st.chatPelage : l'ancien choix ('roux' par défaut), tenu à jour pour les cartes qui le lisent encore.
   const PELAGES = ['roux', 'noir'];
-  function donnerChatNoir(st) { const nouveau = !st.chatNoir; st.chatNoir = true; if (nouveau) note(st, 'Le chat noir : un nouveau pelage pour le chat de la boutique'); return { nouveau }; }
-  function choisirPelage(st, p) { if (!PELAGES.includes(p) || (p === 'noir' && !st.chatNoir)) return false; st.chatPelage = p; return true; }
+  function donnerChatNoir(st) { const nouveau = !st.chatNoir; st.chatNoir = true; if (nouveau) note(st, 'Le chat noir : un nouveau compagnon pour la boutique'); return { nouveau }; }
+  function choisirPelage(st, p) { if (!PELAGES.includes(p) || (p === 'noir' && !st.chatNoir)) return false; st.chatPelage = p; st.compagnon = p === 'noir' ? 'chat-noir' : 'chat-roux'; return true; } // l'ancien choix du pelage : un des deux chats
   const pelagesChat = (st) => (st.chatNoir ? PELAGES.slice() : ['roux']); // les pelages au choix
-  function pelageChat(st, halloween) { if (halloween) return 'noir'; return st.chatNoir && st.chatPelage === 'noir' ? 'noir' : 'roux'; }
-  const nomChat = (nom) => String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16) || CHAT.defaut;
+  function pelageChat(st, halloween) { return modeleCompagnon(st, halloween) === 'chat-noir' ? 'noir' : 'roux'; } // le pelage du chat montré (un autre animal : 'roux', sans objet)
+  const nomChat = (nom, defaut) => String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16) || defaut || CHAT.defaut;
   const chatPossible = (st) => !st.chat && !!st.stations[4] && st.stations[4].niv > 0 && st.chatRefuse !== dayKey(st.now);
-  function adopterChat(st, nom) { if (st.chat) return { ok: false }; st.chat = { nom: nomChat(nom), caresses: 0, dernier: 0, adopte: st.now }; gagnerXp(st, 10); note(st, `${st.chat.nom} a adopté la boutique`); return { ok: true, chat: st.chat }; }
+  function adopterChat(st, nom, id) { // le compagnon arrive : le chat à la porte, ou l'animal choisi avant lui (id) ; st.chat garde nom, caresses et chance, quel que soit l'animal
+    if (st.chat) return { ok: false };
+    const c = compagnon(id) || compagnon(compagnonActif(st));
+    st.chat = { nom: nomChat(nom, c.nomDefaut), caresses: 0, dernier: 0, adopte: st.now }; st.compagnon = c.id; gagnerXp(st, 10); note(st, `${st.chat.nom} a adopté la boutique`);
+    return { ok: true, chat: st.chat, compagnon: c };
+  }
   function refuserChat(st) { st.chatRefuse = dayKey(st.now); st.chatAttente = CHAT.apparition; }
-  function renommerChat(st, nom) { if (!st.chat) return null; st.chat.nom = nomChat(nom); return st.chat.nom; }
+  function renommerChat(st, nom) { if (!st.chat) return null; st.chat.nom = nomChat(nom, compagnon(compagnonActif(st)).nomDefaut); return st.chat.nom; }
   function caresser(st) { // une caresse ; au plus une fois par minute, il porte chance : le client mystère arrive 20 % plus tôt
     if (!st.chat) return { ok: false };
     st.chat.caresses++; let chance = false;
     if (st.now - (st.chat.dernier || 0) >= CHAT.attente) { st.chat.dernier = st.now; st.mystereTimer *= 1 - CHAT.chance; gagnerXp(st, 1); chance = true; }
     return { ok: true, chance, caresses: st.chat.caresses };
+  }
+  // ─── les compagnons : l'animal de la boutique, au choix (le chat roux de toujours, un chien, un lapin… jusqu'au mini-dragon) ───
+  // st.chat reste LE compagnon (nom, caresses, chance du client mystère, trophée Ronron), quel que soit l'animal. st.compagnon : l'id de
+  // l'animal montré (null avant le premier compagnon ; une vieille sauvegarde : le chat roux, ou noir s'il l'avait choisi) ; st.compagnons :
+  // les ids ACHETÉS, à vie (une nouvelle boutique n'y touche pas). Les gratuits sont à tout le monde ; le chat noir se gagne à la Maison
+  // hantée (st.chatNoir). Les payants coûtent des minutes des gains de la boutique, comme les primes : max(plancher, rythme × 60 × minutes),
+  // arrondi. Le plancher (COMPAGNON_PLANCHER € par minute de prix) tient le tout début, quand le rythme ne vaut que quelques euros par
+  // seconde : la poule y coûte 20 000 €, à peu près l'embauche d'Inès (22 500 €), le mini-dragon 480 000 € ; passé ~17 €/s de rythme
+  // (la première heure), seul compte le temps de gains. Aucun point de boulanger : un compagnon ne fait que de la compagnie.
+  // Pour scene.js / persos.js : modeleCompagnon(st, halloween) (pendant la Maison hantée, un chat est noir ; les autres restent eux-mêmes).
+  // cri : le son de la caresse (src/sons.js) ; null : le ronron.
+  const COMPAGNON_PLANCHER = 1000;
+  const COMPAGNONS = [
+    { id: 'chat-roux', nom: 'Chat roux', espece: 'chat', prix: null, condition: null, nomDefaut: 'Brioche', cri: null, phrase: 'Le chat de toujours : il dort sur le comptoir et ronronne pour un rien.' },
+    { id: 'chien', nom: 'Chien', espece: 'chien', prix: null, condition: null, nomDefaut: 'Biscotte', cri: 'wouf', phrase: 'Un petit corniaud beige. Il remue tout l’arrière-train quand on entre.' },
+    { id: 'lapin', nom: 'Lapin', espece: 'lapin', prix: null, condition: null, nomDefaut: 'Pompon', cri: 'couic', phrase: 'Il sautille entre les tables et grignote les miettes de pain d’épices.' },
+    { id: 'chat-noir', nom: 'Chat noir', espece: 'chat', prix: null, condition: (st) => !!st.chatNoir, gagne: 'Gagné à la Maison hantée', nomDefaut: 'Réglisse', cri: null, phrase: 'Robe noire, yeux jaunes : le souvenir de la Maison hantée.' },
+    { id: 'poule', nom: 'Poule', espece: 'poule', prix: 20, condition: null, nomDefaut: 'Cocotte', cri: 'cotcot', phrase: 'Elle picore les miettes et surveille le four d’un œil sévère.' },
+    { id: 'canard', nom: 'Canard', espece: 'canard', prix: 30, condition: null, nomDefaut: 'Coincoin', cri: 'coincoin', phrase: 'Il cancane à chaque client. On dit qu’il préfère la brioche.' },
+    { id: 'herisson', nom: 'Hérisson', espece: 'herisson', prix: 45, condition: null, nomDefaut: 'Châtaigne', cri: null, phrase: 'Tout rond, tout piquant : il se roule en boule sous les tables.' },
+    { id: 'pingouin', nom: 'Pingouin', espece: 'pingouin', prix: 60, condition: null, nomDefaut: 'Smoking', cri: 'couac', phrase: 'Toujours en tenue de soirée. Il adore la chambre froide.' },
+    { id: 'raton', nom: 'Raton laveur', espece: 'raton', prix: 90, condition: null, nomDefaut: 'Filou', cri: null, phrase: 'Masque de bandit, mains propres : il lave chaque croissant avant de le chiper.' },
+    { id: 'escargot', nom: 'Escargot géant', espece: 'escargot', prix: 120, condition: null, nomDefaut: 'Turbo', cri: null, phrase: 'Gros comme une miche, lent comme un dimanche. Il glisse.' },
+    { id: 'teckel', nom: 'Teckel-baguette', espece: 'teckel', prix: 180, condition: null, nomDefaut: 'Tradition', cri: 'wouf', phrase: 'Son corps est une baguette dorée. Croustillant dehors, fidèle dedans.' },
+    { id: 'croissant', nom: 'Croissant vivant', espece: 'croissant', prix: 300, condition: null, nomDefaut: 'Feuilleté', cri: null, phrase: 'Pur beurre, sur pattes. Il rebondit partout et refuse qu’on le trempe.' },
+    { id: 'dragon', nom: 'Mini-dragon', espece: 'dragon', prix: 480, condition: null, nomDefaut: 'Fournaise', cri: null, phrase: 'Il allume le four d’un hoquet et crache un nuage de farine quand on le caresse.' },
+  ];
+  const compagnon = (id) => (id && COMPAGNONS.find((c) => c.id === id)) || null;
+  const estChat = (id) => { const c = compagnon(id); return !!c && c.espece === 'chat'; };
+  const prixCompagnon = (st, id) => { const c = compagnon(id); return c && c.prix != null ? arrondi(Math.max(COMPAGNON_PLANCHER * c.prix, rythme(st) * 60 * c.prix)) : null; }; // null : il ne s'achète pas
+  function aCompagnon(st, id) { // à soi : un gratuit, le chat noir gagné, ou un payant acheté
+    const c = compagnon(id); if (!c) return false;
+    if (c.prix == null) return !c.condition || c.condition(st);
+    return Array.isArray(st.compagnons) && st.compagnons.includes(id);
+  }
+  function compagnonActif(st) { // l'id de l'animal choisi ; une vieille sauvegarde : le chat, noir s'il l'avait choisi
+    if (st.compagnon && aCompagnon(st, st.compagnon)) return st.compagnon;
+    return st.chatNoir && st.chatPelage === 'noir' ? 'chat-noir' : 'chat-roux';
+  }
+  const modeleCompagnon = (st, halloween) => { const id = compagnonActif(st); return halloween && estChat(id) ? 'chat-noir' : id; };
+  function compagnons(st) { // les compagnons remis d'aplomb (une vieille sauvegarde, un id disparu, un doublon) ; rend la liste des achetés
+    const vus = new Set(); st.compagnons = (Array.isArray(st.compagnons) ? st.compagnons : []).filter((id) => { const c = compagnon(id); if (!c || c.prix == null || vus.has(id)) return false; vus.add(id); return true; });
+    if (st.compagnon != null && !aCompagnon(st, st.compagnon)) st.compagnon = null;
+    if (st.compagnon == null && st.chat) st.compagnon = compagnonActif(st); // un chat déjà adopté devient le compagnon « chat-roux » (ou « chat-noir »)
+    return st.compagnons;
+  }
+  function choisirCompagnon(st, id) { // montrer cet animal ; choisi avant que le chat n'arrive : il est adopté tout de suite
+    const c = compagnon(id); if (!c || !aCompagnon(st, id)) return { ok: false };
+    compagnons(st); const adopte = !st.chat;
+    if (adopte) adopterChat(st, '', id); else st.compagnon = id;
+    if (c.espece === 'chat') st.chatPelage = id === 'chat-noir' ? 'noir' : 'roux'; // l'ancien champ suit
+    return { ok: true, compagnon: c, adopte };
+  }
+  function acheterCompagnon(st, id) { // payé une fois, à soi pour toujours, et choisi tout de suite
+    const c = compagnon(id); if (!c) return { ok: false, raison: 'inconnu' };
+    if (aCompagnon(st, id)) return { ok: false, raison: 'possede' };
+    const prix = prixCompagnon(st, id); if (prix == null) return { ok: false, raison: 'gratuit' }; // le chat noir pas encore gagné
+    if (st.coins < prix) return { ok: false, raison: 'argent', prix };
+    st.coins -= prix; compagnons(st).push(id); inc(st, 'compagnons'); gagnerXp(st, 5); note(st, `${c.nom} : un nouveau compagnon pour la boutique`);
+    return { ok: true, prix, compagnon: c, adopte: choisirCompagnon(st, id).adopte };
   }
 
   // ─── les recettes de saison : une station à part, cuite à la main, le temps de sa saison ; cent fournées pour la maîtriser ───
@@ -1724,7 +1811,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       stats: { taps: 0, ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false, meubles: 0 },
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null, tiroir: 'mi',
-      apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, chatNoir: false, chatPelage: 'roux', saison: null, saisonAnnoncee: '', collection: {},
+      apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, chatNoir: false, chatPelage: 'roux', compagnons: [], compagnon: null, saison: null, saisonAnnoncee: '', collection: {},
       // st.quartier (src/quartier.js) et st.hantee (src/hantee.js) : l'état des événements, créés à la première visite par leurs règles
       atelier: atelierNeuf(), points: pointsNeufs(semaineKey(nowMs), dayKey(nowMs)), garderobe: garderobeNeuve(), boosts: boostsNeufs(),
     };
@@ -2054,7 +2141,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     { id: 'decorateur', nom: 'Décorateur', desc: 'Améliorer 40 meubles en tout', xp: 50, cond: (st) => (st.stats.meubles || 0) >= 40 },
     { id: 'grade', nom: 'Chef de partie', desc: 'Un apprenti au grade 3', xp: 30, cond: (st) => PRODUITS.some((p, i) => gradeApprenti(st, i) >= 3) },
     { id: 'brigade', nom: 'Brigade étoilée', desc: 'Quatre apprentis au grade 5', xp: 100, cond: (st) => PRODUITS.filter((p, i) => gradeApprenti(st, i) >= 5).length >= 4 },
-    { id: 'ronron', nom: 'Ronron', desc: 'Caresser le chat 100 fois', xp: 30, cond: (st) => !!st.chat && st.chat.caresses >= 100 },
+    { id: 'ronron', nom: 'Ronron', desc: 'Caresser le compagnon 100 fois', xp: 30, cond: (st) => !!st.chat && st.chat.caresses >= 100 },
     { id: 'saison1', nom: 'Recette de saison', desc: 'Maîtriser une recette de saison', xp: 30, cond: (st) => Object.values(st.collection || {}).some((c) => c.maitrisee) },
     { id: 'saisons4', nom: 'Quatre saisons', desc: 'Maîtriser quatre recettes de saison', xp: 80, cond: (st) => Object.values(st.collection || {}).filter((c) => c.maitrisee).length >= 4 },
   ];
@@ -2344,7 +2431,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     if (gain <= 0) return { ok: false };
     st.etoiles += gain; st.boutiques++; st.nomBoutique = ''; st.specialite = null; gagnerXp(st, 80 + Math.min(120, 2 * gain)); noterSemaine(st, 'boutique');
     st.coins = 0; st.lifetimeRun = 0; st.ameliorations = {}; st.mobilier = {}; st.stations = stationsNeuves(1 + talent(st, 'memoire')); st.ev = null; st.boost = null;
-    if (st.saison) st.saison = { id: st.saison.id, annee: st.saison.annee, niv: 0, prog: 0, actif: false }; // les grades des apprentis, le chat et la collection restent
+    if (st.saison) st.saison = { id: st.saison.id, annee: st.saison.annee, niv: 0, prog: 0, actif: false }; // les grades des apprentis, le compagnon (et ceux achetés) et la collection restent
     st.lastSeen = nowMs;
     // les objectifs du jour pas encore réclamés sont retirés à la taille de la nouvelle boutique (les réussis restent acquis)
     if (st.jour) { const neufs = tirerObjectifs(st, st.jour.date); st.jour.objectifs = st.jour.objectifs.map((o, k) => (o.reclame ? o : neufs[k])); }
@@ -2435,6 +2522,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
 
   return { APPRENTIS, APPRENTI_NIVEAUX, APPRENTI_VITESSE, APPRENTI_ABSENCE, xpApprenti, gradeApprenti, progresApprenti, creditApprenti, apprentiTempsMult, apprentiRevMult, effetTalentApprenti,
     CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, PELAGES, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
+    COMPAGNONS, COMPAGNON_PLANCHER, compagnon, estChat, prixCompagnon, aCompagnon, compagnonActif, modeleCompagnon, compagnons, choisirCompagnon, acheterCompagnon,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
     PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
@@ -4015,6 +4103,7 @@ const ICONS = (() => {
     saison: U(`<path d="M19.5 4.5C10.5 4.5 5 9 5 15c0 2.2.7 3.6.7 3.6s1.4.6 3.4.6c6 0 10.4-5.5 10.4-14.7z" fill="${A.peche}"/><path d="M4 20.5c3-4.5 6.5-8 11-11"/>`),
     habitues: U(`<circle cx="9" cy="8.5" r="3.3" fill="${A.peche}"/><path d="M3.5 19.5c.4-3.6 2.6-5.8 5.5-5.8s5.1 2.2 5.5 5.8z" fill="${A.peche}"/><circle cx="16.5" cy="9" r="2.8"/><path d="M15.5 13.8c2.8-.4 4.9 1.6 5.2 5"/>`),
     chat: U(`<path d="M5 9.5L5.6 3.8l4.1 3.3a8 8 0 014.6 0l4.1-3.3.6 5.7c.9 1.3 1.4 2.8 1.4 4.3 0 4-3.8 6.7-8.4 6.7S3.6 17.8 3.6 13.8c0-1.5.5-3 1.4-4.3z" fill="${A.peche}"/><path d="M9 13v.5M15 13v.5M10.8 16.3c.7.5 1.7.5 2.4 0"/>`),
+    patte: U(`<path d="M12 12.6c-3 0-5.6 2.8-5.6 5.2 0 1.6 1.3 2.4 2.7 2.4 1.1 0 1.9-.6 2.9-.6s1.8.6 2.9.6c1.4 0 2.7-.8 2.7-2.4 0-2.4-2.6-5.2-5.6-5.2z" fill="${A.peche}"/><ellipse cx="6.2" cy="10.6" rx="1.7" ry="2.1"/><ellipse cx="9.8" cy="6.6" rx="1.7" ry="2.2"/><ellipse cx="14.2" cy="6.6" rx="1.7" ry="2.2"/><ellipse cx="17.8" cy="10.6" rx="1.7" ry="2.1"/>`), // le compagnon de la boutique : une empreinte
     salle: U(`<rect x="3.5" y="3.5" width="7" height="7" rx="2" fill="${A.menthe}"/><rect x="13.5" y="3.5" width="7" height="7" rx="2"/><rect x="3.5" y="13.5" width="7" height="7" rx="2"/><rect x="13.5" y="13.5" width="7" height="7" rx="2" fill="${A.menthe}"/>`),
     eclair: U(`<path d="M13.5 3L5.5 13.5h5.5L9.5 21l8-10.5h-5.5z" fill="${A.beurre}"/>`),
     // la garde-robe : un cintre ; ses quatre emplacements : couvre-chef (toque), haut (tablier), chaussures, accessoire (foulard)
@@ -4125,7 +4214,24 @@ const ICONS = (() => {
   };
   // le chat noir (la récompense de la Maison hantée), au même trait que le chat roux
   const CHAT_NOIR = S(`<path d="M10 20l3-12 8 7M38 20l-3-12-8 7" fill="#3A3442" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="24" cy="27" rx="15" ry="13" fill="#3A3442" stroke="${L}" stroke-width="2"/><ellipse cx="18" cy="25" rx="3.2" ry="3.6" fill="#FFD84A"/><ellipse cx="30" cy="25" rx="3.2" ry="3.6" fill="#FFD84A"/><ellipse cx="18" cy="25.5" rx="1.2" ry="2.4" fill="${L}"/><ellipse cx="30" cy="25.5" rx="1.2" ry="2.4" fill="${L}"/><path d="M22 31l2 1.6 2-1.6" stroke="#FF9FB2" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M8 29l-5-1M8 32l-5 1M40 29l5-1M40 32l5 1" stroke="#9E95B8" stroke-width="1.4" stroke-linecap="round"/><path d="M17 41c3 2 11 2 14 0" stroke="#FF8A3D" stroke-width="3" stroke-linecap="round"/>`);
-  return { PRODUITS, SAISON, CHAT, CHAT_NOIR, QUARTIER, HANTEE, ACTIVITES, apprenti, boulanger, vetement, TENUES, toque, coupe, METAL, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES, INGREDIENTS, ATELIER };
+  // les compagnons de la boutique (GAME.COMPAGNONS) : un portrait chacun, au même trait que le chat ; ICONS.compagnon(id)
+  const yx = (x, y, r) => `<circle cx="${x}" cy="${y}" r="${r || 1.9}" fill="${L}"/>`; // un œil
+  const COMPAGNONS = {
+    'chat-roux': CHAT, 'chat-noir': CHAT_NOIR,
+    chien: S(`<path d="M12 13c-5 1-7 9-5 14 1.5 3 5 2 6-1z" fill="#C99B66" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M36 13c5 1 7 9 5 14-1.5 3-5 2-6-1z" fill="#C99B66" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="24" cy="26" rx="13" ry="13" fill="#E6C79C" stroke="${L}" stroke-width="2"/><circle cx="30" cy="22.5" r="4.6" fill="#C99B66"/><ellipse cx="24" cy="32" rx="7.5" ry="5.5" fill="#FFF1DC"/>${yx(18.5, 23)}${yx(30, 23)}<ellipse cx="24" cy="29.3" rx="3" ry="2.2" fill="${L}"/><path d="M20.5 33.5c1.2 1.5 5.8 1.5 7 0" stroke="${L}" stroke-width="1.6" fill="none" stroke-linecap="round"/><path d="M23 35h2.4v2.6a1.2 1.2 0 01-2.4 0z" fill="#FF9FB2"/>`),
+    lapin: S(`<ellipse cx="18" cy="12" rx="4" ry="10" fill="#D9CFC4" stroke="${L}" stroke-width="2"/><ellipse cx="30" cy="12" rx="4" ry="10" fill="#D9CFC4" stroke="${L}" stroke-width="2"/><ellipse cx="18" cy="13" rx="1.8" ry="6.5" fill="#FFC1B4"/><ellipse cx="30" cy="13" rx="1.8" ry="6.5" fill="#FFC1B4"/><ellipse cx="24" cy="30" rx="13" ry="12" fill="#D9CFC4" stroke="${L}" stroke-width="2"/><ellipse cx="21.5" cy="34" rx="3.2" ry="2.6" fill="#FFF8EF"/><ellipse cx="26.5" cy="34" rx="3.2" ry="2.6" fill="#FFF8EF"/>${yx(18.5, 28)}${yx(29.5, 28)}<path d="M22.6 31h2.8l-1.4 1.6z" fill="#F28B9B" stroke="${L}" stroke-width="1" stroke-linejoin="round"/><rect x="22.6" y="35.6" width="2.8" height="3" rx=".6" fill="#fff" stroke="${L}" stroke-width="1"/>`),
+    poule: S(`<circle cx="20" cy="9.5" r="3.4" fill="#E1496C"/><circle cx="25" cy="8" r="3.8" fill="#E1496C"/><circle cx="29.6" cy="10" r="3.2" fill="#E1496C"/><circle cx="24" cy="26" r="14" fill="#D9783F" stroke="${L}" stroke-width="2"/><ellipse cx="24" cy="32" rx="9" ry="7" fill="#F2B27A"/>${yx(18.5, 22.5)}${yx(29.5, 22.5)}<path d="M20.5 27l3.5 5.5 3.5-5.5z" fill="#FFC84A" stroke="${L}" stroke-width="1.6" stroke-linejoin="round"/><ellipse cx="24" cy="35" rx="2" ry="3" fill="#E1496C"/>`),
+    canard: S(`<circle cx="24" cy="24" r="14" fill="#fff" stroke="${L}" stroke-width="2"/><path d="M18 16c2-3 5-4 7-3" stroke="#DCE4EE" stroke-width="3" stroke-linecap="round" fill="none"/>${yx(18, 21.5)}${yx(30, 21.5)}<ellipse cx="24" cy="30" rx="8.5" ry="4.2" fill="#FF9F2E" stroke="${L}" stroke-width="2"/><path d="M17 30h14" stroke="${L}" stroke-width="1.4" stroke-linecap="round"/><circle cx="14.5" cy="27" r="2" fill="#FFB3B3"/><circle cx="33.5" cy="27" r="2" fill="#FFB3B3"/>`),
+    herisson: S(`<path d="M6 30l1-7-3-4 6-1 0-6 6 2 3-6 4 5 4-5 3 6 6-2 0 6 6 1-3 4 1 7z" fill="#7A5640" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="24" cy="31" rx="13" ry="10" fill="#EBCFA8" stroke="${L}" stroke-width="2"/>${yx(19, 28.5, 1.7)}${yx(29, 28.5, 1.7)}<circle cx="24" cy="34" r="2.4" fill="${L}"/><circle cx="15.5" cy="32.5" r="1.8" fill="#FFB3B3"/><circle cx="32.5" cy="32.5" r="1.8" fill="#FFB3B3"/>`),
+    pingouin: S(`<ellipse cx="24" cy="25" rx="15" ry="16" fill="#2F3542" stroke="${L}" stroke-width="2"/><path d="M24 17c-2-3-9-3-10 3-1 7 4 14 10 15 6-1 11-8 10-15-1-6-8-6-10-3z" fill="#fff"/>${yx(19.5, 23)}${yx(28.5, 23)}<path d="M21 28h6l-3 4z" fill="#FFB238" stroke="${L}" stroke-width="1.6" stroke-linejoin="round"/><circle cx="16.5" cy="28.5" r="1.8" fill="#FFB3B3"/><circle cx="31.5" cy="28.5" r="1.8" fill="#FFB3B3"/>`),
+    raton: S(`<path d="M11 18l1-10 8 6M37 18l-1-10-8 6" fill="#9A948E" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="24" cy="27" rx="15" ry="13" fill="#9A948E" stroke="${L}" stroke-width="2"/><path d="M9.5 24c4-4 9-4 14.5 0 5.5-4 10.5-4 14.5 0-3 5-9 5-14.5 2-5.5 3-11.5 3-14.5-2z" fill="#2E2A28"/><path d="M13 19.5c3-1.5 6-1.5 8 0M27 19.5c2-1.5 5-1.5 8 0" stroke="#EFE8DE" stroke-width="2" stroke-linecap="round" fill="none"/><circle cx="18" cy="25" r="2.4" fill="#fff"/><circle cx="30" cy="25" r="2.4" fill="#fff"/>${yx(18, 25.3, 1.3)}${yx(30, 25.3, 1.3)}<ellipse cx="24" cy="33" rx="6" ry="4.5" fill="#EFE8DE"/><ellipse cx="24" cy="31.5" rx="2.4" ry="1.7" fill="${L}"/>`),
+    escargot: S(`<path d="M4 39h30c4 0 7-2 8-6l-3-1c-1 2-3 3-5 3H8c-2 0-4 1-4 4z" fill="#C6DDB0" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M36 32l-1-12M40 33l3-11" stroke="${L}" stroke-width="2" stroke-linecap="round"/><circle cx="35" cy="18.5" r="2.6" fill="#fff" stroke="${L}" stroke-width="1.6"/><circle cx="43.4" cy="20.5" r="2.6" fill="#fff" stroke="${L}" stroke-width="1.6"/>${yx(35.6, 18.6, 1.1)}${yx(44, 20.6, 1.1)}<circle cx="20" cy="24" r="12" fill="#E8A54A" stroke="${L}" stroke-width="2"/><path d="M20 24c0-2 3-2 3 0 0 3.5-6 3.5-6 0 0-5 9-5 9 0 0 6.5-12 6.5-12 0" stroke="#B9732A" stroke-width="2" stroke-linecap="round" fill="none"/>`),
+    teckel: S(`<path d="M7 33L31 15" stroke="${L}" stroke-width="13" stroke-linecap="round"/><path d="M7 33L31 15" stroke="#D99A45" stroke-width="9" stroke-linecap="round"/><path d="M12 26l3 3M17 22l3 3M22 18.5l3 3" stroke="#F6D9A0" stroke-width="2.2" stroke-linecap="round"/><path d="M9 35l-1 6M14 32l-1 6" stroke="#8B5A3C" stroke-width="2.6" stroke-linecap="round"/><path d="M4 31c-2-1-3-3-2-5" stroke="#8B5A3C" stroke-width="2.2" stroke-linecap="round" fill="none"/><circle cx="35" cy="14" r="8" fill="#8B5A3C" stroke="${L}" stroke-width="2"/><path d="M29.5 10c-3 2-3 8-1 10 1.5 1 3-1 3-3z" fill="#5E3A24" stroke="${L}" stroke-width="1.6" stroke-linejoin="round"/><ellipse cx="41.5" cy="17" rx="4.5" ry="3" fill="#8B5A3C" stroke="${L}" stroke-width="2"/><circle cx="45" cy="16.4" r="1.5" fill="${L}"/><circle cx="36" cy="11.6" r="1.7" fill="#fff"/>${yx(36.4, 11.8, 1)}`),
+    croissant: S(`<path d="M17 36l-1.5 6M31 36l1.5 6" stroke="${L}" stroke-width="2.2" stroke-linecap="round"/><ellipse cx="15" cy="42.5" rx="3" ry="1.8" fill="#fff" stroke="${L}" stroke-width="1.4"/><ellipse cx="33" cy="42.5" rx="3" ry="1.8" fill="#fff" stroke="${L}" stroke-width="1.4"/><path d="M5 28c-2-9 6-16 13-14 2-3 10-3 12 0 7-2 15 5 13 14-1 4-5 6-8 4-1 4-6 7-11 7s-10-3-11-7c-3 2-7 0-8-4z" fill="#E8A54A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M13 20c1 4 1 9-1 13M35 20c-1 4-1 9 1 13" stroke="#C9792B" stroke-width="2" stroke-linecap="round" fill="none"/><circle cx="20" cy="26" r="3" fill="#fff"/><circle cx="28" cy="26" r="3" fill="#fff"/>${yx(20.4, 26.4, 1.5)}${yx(28.4, 26.4, 1.5)}<path d="M21.5 31.5c1.4 1.4 3.6 1.4 5 0" stroke="${L}" stroke-width="1.6" stroke-linecap="round" fill="none"/>`),
+    dragon: S(`<path d="M8 22c-5-2-7-8-5-12 4 2 8 3 10 7z" fill="#9A84F0" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M40 22c5-2 7-8 5-12-4 2-8 3-10 7z" fill="#9A84F0" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M15 15l-2-8 6 5M33 15l2-8-6 5" fill="#FFF3C4" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="24" cy="26" rx="14" ry="13" fill="#5FD3A4" stroke="${L}" stroke-width="2"/><ellipse cx="24" cy="33" rx="8" ry="5.5" fill="#86E0BC"/>${yx(18.5, 23)}${yx(29.5, 23)}<circle cx="21.5" cy="32" r="1" fill="#3FB889"/><circle cx="26.5" cy="32" r="1" fill="#3FB889"/><circle cx="38" cy="38" r="3.4" fill="#fff" stroke="#E8DCCB" stroke-width="1.2"/><circle cx="42.5" cy="35.5" r="2.4" fill="#fff" stroke="#E8DCCB" stroke-width="1.2"/><circle cx="43" cy="41" r="2" fill="#fff" stroke="#E8DCCB" stroke-width="1.2"/>`),
+  };
+  const compagnon = (id) => COMPAGNONS[id] || CHAT;
+  return { PRODUITS, SAISON, CHAT, CHAT_NOIR, COMPAGNONS, compagnon, QUARTIER, HANTEE, ACTIVITES, apprenti, boulanger, vetement, TENUES, toque, coupe, METAL, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES, INGREDIENTS, ATELIER };
 })();
 
 /* ── vie.js ── */
@@ -4343,6 +4449,10 @@ const VIE = (() => {
   }
   function chasseChat() { if (chat && !chat.haut && chat.etat !== 'monte' && chat.etat !== 'descend' && LAY) { versChat({ x: LAY.mystere.x + 16 * K, y: LAY.mystere.y + 6 * K }, true); chat.tours = Math.min(chat.tours, 2); } }
   function ronron() { if (!chat) return; const x = chat.x, y = (chat.haut ? LAY.chat.y : chat.y) - 26 * K; for (let k = 0; k < 3; k++) chat.coeurs.push({ x: x + (k - 1) * 9, y: y - k * 4, life: 1 + k * 0.15 }); }
+  function souffle(n) { // le mini-dragon caressé crache un petit nuage de farine devant lui (des vapeurs blanches qui montent et s'étalent)
+    if (!chat || !LAY) return; const d = chat.dir === 1 ? 1 : chat.dir === -1 ? -1 : 0, x = chat.x + d * 18 * K, y = (chat.haut ? LAY.chat.y : chat.y) - (d ? 12 : 4) * K;
+    for (let k = 0; k < (n || 7); k++) vapeurs.push({ x: x + (Math.random() - 0.5) * 16 * K, y: y + (Math.random() - 0.5) * 8 * K, r: (3 + Math.random() * 4) * K, life: 0.9 + Math.random() * 0.5 });
+  }
 
   let etat = null; // l'instantané de la dernière frame, pour la vue
   function frame(dt, st, now) {
@@ -4387,7 +4497,7 @@ const VIE = (() => {
     return etat;
   }
 
-  const API = { hautBloc, resize, frame, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, piedComptoir, surServi: null,
+  const API = { hautBloc, resize, frame, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
     DECORS, PASTEL, PEAUX6, HAUTS6, CHEVEUX, TAU,
     get LAY() { return LAY; }, get K() { return K; }, get W() { return W; }, get H() { return H; }, get t() { return t; }, get rush() { return rush; }, get Q() { return Q; }, get tags() { return tags; }, get force() { return force; }, get etat() { return etat; },
     get clients() { return clients; }, get apprentis() { return apprentis; }, get textes() { return textes; }, get vapeurs() { return vapeurs; }, get confetti() { return confetti; }, get flocons() { return flocons; }, get passants() { return passants; }, get chat() { return chat; }, get crans() { return crans; }, get abordables() { return abordables; }, get prixDe() { return prixDe; },
@@ -5549,8 +5659,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     // le seul InstancedMesh du jeu : son matériau et son matériau d'ombre lui sont PROPRES (partagés par tous les chats). Avec MAT.vertex
     // ou le matériau de profondeur commun de WebGLShadowMap, Three r158 recompilerait la clé du programme à chaque bascule
     // instancié / non instancié (WebGLRenderer.setProgram : isInstancedMesh && !instancing → needsProgramChange), donc à chaque image.
-    matPattes = matPattes || M.partager(new THREE.MeshLambertMaterial({ vertexColors: true }));
-    profPattes = profPattes || M.partager(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }));
+    materiauxPattes();
     const im = P.pattesMaille = new THREE.InstancedMesh(geoPatteChat(robe, creme), matPattes, 4);
     im.customDepthMaterial = profPattes; im.castShadow = true; im.frustumCulled = false; racine.add(im); // toujours dessiné : 4 instances, le chat est à l'écran
     // des bornes FIGÉES (l'union de toutes les poses, calculée une fois sur ce premier chat puis copiée) : animerChat ne les recalcule
@@ -5608,6 +5717,261 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     const im = P.pattesMaille;
     for (let k = 0; k < 4; k++) { const p = pa[k]; if (p.visible) { p.updateMatrix(); im.setMatrixAt(k, p.matrix); } else im.setMatrixAt(k, ZERO); } // une patte cachée : écrasée en un point
     im.instanceMatrix.needsUpdate = true; // les bornes restent figées (l'union de toutes les poses, posée par chat()) : rien à recalculer
+  }
+  // ─── les compagnons (GAME.COMPAGNONS) : chaque animal de la boutique, même grammaire que le chat ───
+  // compagnon(id) : le chat roux ou noir (chat()), sinon un modèle de la table ESPECES, bâti sur la même hiérarchie : g (lacet et position
+  // par la scène, pieds à y = 0, museau vers +Z) > racine (hauteur, inclinaison) > corps, tete (deux géométries en cache, yeux ouverts /
+  // fermés), queue[0] > queue[1] (un Object3D vide quand l'animal n'en a pas : aucun appel de dessin), pattes[4] (pivots ; 2 pour les
+  // bipèdes, aucune pour l'escargot) recopiées dans UN InstancedMesh (pattesMaille, ses bornes figées par espèce), et ailes (le mini-dragon,
+  // un seul maillage qui bat par son échelle). Appels de dessin : 5 au plus, comme le chat (corps, tête, queue, pattes, et le second
+  // segment de queue OU les ailes). Toutes les géométries sont en cache (MODELES.GEOS) : changer d'animal n'en crée ni n'en perd aucune ;
+  // seul le tampon d'instances est propre à chaque modèle (libererChat le rend). animerCompagnon(g, { etat, phase, t }) : les états de
+  // animerChat ('dort', 'assis', 'marche', 'saut', le reste : debout), chacun avec sa touche : la poule picore, le pingouin se dandine (et
+  // dort debout), l'escargot glisse sans pattes, le mini-dragon bat des ailes, le croissant rebondit, le lapin sautille, le chien et le
+  // teckel remuent la queue, le raton laveur se frotte les mains. Sans allocation, comme animerChat : poses en tables calculées une fois par
+  // espèce (fromArray), mouvement écrit dans les champs (position.y, scale.y, rotation._x… puis tourner()).
+  const BLANC_C = '#FFFFFF';
+  function yeux(p, x, y, z, r, fermes, o) { // deux yeux : billes sombres (o.pastille : une pastille claire derrière), ou deux arcs fermés
+    o = o || {};
+    for (const sx of [-1, 1]) {
+      if (fermes) { p.push(M.part(M.tore(r * 1.05, r * 0.33, Math.PI, 4, 8), o.arc || L, { x: sx * x, y: y - r * 0.3, z: z + r * 0.2 })); continue; }
+      if (o.pastille) p.push(M.part(M.sphere(r * 1.45, 8), o.pastille, { x: sx * x, y, z: z - r * 0.35, sz: 0.55 }));
+      p.push(M.part(M.sphere(r, 8), o.col || L, { x: sx * x, y, z }));
+    }
+  }
+  const joues = (p, x, y, z, r) => { for (const sx of [-1, 1]) p.push(M.part(M.sphere(r || 0.95, 8), JOUE, { x: sx * x, y, z, sy: 0.7, sz: 0.5 })); };
+  const pattePendue = (r, lp, col, pied, o) => [M.part(pendu(r, lp - (o && o.court != null ? o.court : 2), 0.2), col), M.part(M.sphere((o && o.rp) || r * 1.1, 8), pied, { y: (o && o.py != null ? o.py : 1.15) - lp, z: (o && o.pz) || 0.45, sx: (o && o.sx) || 1, sy: (o && o.sy) || 0.6, sz: (o && o.sz) || 1.2 })];
+  const E3 = (y, z) => [0, y, z];
+  // une espèce : lp (longueur des pattes, de la hanche au sol), py (hauteur des hanches sous la racine), hanches ([x, z] ; 4, 2 ou 0),
+  // tp (la tête : [y, z]), queue [y, z, inclinaison] (null : sans queue), lq1 (longueur du premier segment), q2r (l'inclinaison du second),
+  // R / D (rayon et demi-longueur du corps : l'assise), demiH (la demi-hauteur du corps : couché, il touche le sol), assis
+  // ('assis' : l'arrière-train au sol, incliné de a ; 'couche' : en sphinx ; 'debout'), dort ('couche' | 'debout' | 'boule' | 'rentre'),
+  // et les pièces : corps(), tete(fermes), q1(), q2(), patte(), ailes().
+  const ESPECES = {
+    chien: {
+      lp: 8, py: -3, hanches: [[-2.8, 7], [2.8, 7], [-2.8, -7], [2.8, -7]], tp: [4.8, 12.4], queue: [2.8, -11.2, -0.5], lq1: 5.5, q2r: 0.5, R: 5.2, D: 11.7, demiH: 4.4, assis: 'assis', a: -0.45, dort: 'couche',
+      corps: () => { const robe = '#E6C79C', creme = '#FFF1DC'; return [M.part(M.capsule(5.2, 13, 12), robe, { rx: HP }), M.part(arcCyl(5.32, 13, 1.9, 0), creme, { rx: HP }), M.part(patchS(5.4, 2.0, 1.35, 1.45), creme, { z: 6.5 }), M.part(M.sphere(3.2, 10), '#C99B66', { x: 1.6, y: 4.1, z: -3, sy: 0.4, sx: 1.1 })]; }, // une tache sur le dos : un corniaud
+      tete: (f) => { const robe = '#E6C79C', tache = '#C99B66', p = [M.part(M.sphere(4.8, 14), robe, { sx: 1.08, sy: 0.96 }), M.part(M.sphere(2.4, 10), '#FFF1DC', { y: -1.4, z: 3.9, sx: 1.25, sy: 0.85, sz: 1.05 }), M.part(M.sphere(0.95, 8), L, { y: -0.6, z: 6.1, sx: 1.3, sy: 0.85, sz: 0.8 }), M.part(M.sphere(1.6, 8), tache, { x: 2.1, y: 1.1, z: 3.75, sz: 0.45 })];
+        for (const sx of [-1, 1]) p.push(M.part(M.sphere(2.1, 8), tache, { x: sx * 4.3, y: 0.4, z: -0.3, sx: 0.45, sy: 1.3, sz: 0.9, rz: sx * 0.25 })); // les oreilles tombantes
+        yeux(p, 2, 1.1, 4.35, 0.85, f); joues(p, 3.4, -1, 3.5); return p; },
+      q1: () => [M.part(M.capsule(1.15, 5.5, 8), '#E6C79C', { y: 2.75 })], q2: () => [M.part(M.capsule(1.05, 4.2, 8), '#E6C79C', { y: 2.1 }), M.part(calotte(1.12, 1.05, 10), '#FFF1DC', { y: 4.2 })],
+      patte: () => pattePendue(1.75, 8, '#E6C79C', '#FFF1DC'),
+    },
+    lapin: {
+      lp: 6.5, py: -3.2, hanches: [[-2.6, 4.4], [2.6, 4.4], [-3, -4.4], [3, -4.4]], tp: [4.8, 8.6], queue: [1.2, -8.2, 0], lq1: 0, q2r: null, R: 5.4, D: 7.2, demiH: 4.8, assis: 'assis', a: -0.55, dort: 'couche',
+      corps: () => { const robe = '#D9CFC4'; return [M.part(M.sphere(6, 14), robe, { sx: 0.95, sy: 0.9, sz: 1.25 }), M.part(M.sphere(4.4, 12), '#FFF8EF', { y: -1.4, z: 2.6, sx: 0.95, sz: 1.1 }), M.part(M.sphere(3.4, 10), robe, { x: -3.2, y: -0.8, z: -3.4, sz: 1.25 }), M.part(M.sphere(3.4, 10), robe, { x: 3.2, y: -0.8, z: -3.4, sz: 1.25 })]; },
+      tete: (f) => { const robe = '#D9CFC4', p = [M.part(M.sphere(4.3, 14), robe, { sx: 1.05 }), M.part(M.sphere(1.35, 8), '#FFF8EF', { x: -0.9, y: -1.4, z: 3.5 }), M.part(M.sphere(1.35, 8), '#FFF8EF', { x: 0.9, y: -1.4, z: 3.5 }), M.part(M.sphere(0.65, 8), '#F28B9B', { y: -0.5, z: 4.3 })];
+        for (const sx of [-1, 1]) p.push(M.part(M.capsule(1.3, 6.4, 8), robe, { x: sx * 1.6, y: 6.6, z: -0.9, rx: -0.2, rz: -sx * 0.14, sz: 0.55 }), M.part(M.capsule(0.75, 5.2, 6), '#FFC1B4', { x: sx * 1.6, y: 6.7, z: -0.45, rx: -0.2, rz: -sx * 0.14, sz: 0.35 })); // les grandes oreilles, le creux rose devant
+        yeux(p, 1.95, 1, 3.6, 0.82, f); joues(p, 3, -0.9, 3); return p; },
+      q1: () => [M.part(M.sphere(2.2, 10), '#FFF8EF')], q2: null, // le pompon
+      patte: () => pattePendue(1.5, 6.5, '#D9CFC4', '#FFF8EF', { rp: 1.7, pz: 0.9, sz: 1.6 }),
+    },
+    poule: {
+      lp: 6, py: -4.2, hanches: [[-2, 0.4], [2, 0.4]], tp: [7.6, 6.3], queue: [2, -6.2, -0.35], lq1: 0, q2r: null, demiH: 5.7, assis: 'debout', dort: 'couche',
+      corps: () => { const robe = '#D9783F', aile = '#B85A2A'; return [M.part(M.sphere(6, 14), robe, { sx: 0.9, sy: 0.95, sz: 1.15 }), M.part(M.sphere(4.6, 12), '#F2B27A', { y: -1.6, z: 2.6, sz: 0.9 }), M.part(M.sphere(3.4, 10), aile, { x: -4.6, y: 0.4, z: -0.6, sx: 0.38, sy: 0.8, sz: 1.25, rx: -0.2 }), M.part(M.sphere(3.4, 10), aile, { x: 4.6, y: 0.4, z: -0.6, sx: 0.38, sy: 0.8, sz: 1.25, rx: -0.2 }), M.part(M.capsule(2.4, 3, 8), robe, { y: 4, z: 4.2, rx: 0.35 })]; },
+      tete: (f) => { const crete = '#E1496C', p = [M.part(M.sphere(3.2, 12), '#D9783F'), M.part(M.cone(1.05, 2.4, 6), '#FFC84A', { y: -0.4, z: 2.7, rx: HP }), M.part(M.sphere(0.8, 8), crete, { y: -2.1, z: 2.4, sx: 0.6, sy: 1.4 })];
+        for (const [z, r] of [[-0.9, 0.85], [0.2, 1.05], [1.2, 0.85]]) p.push(M.part(M.sphere(r, 8), crete, { y: 3.1, z, sx: 0.5 })); // la crête
+        yeux(p, 1.45, 0.7, 2.65, 0.7, f); return p; },
+      q1: () => [-0.45, 0, 0.45].map((rz) => M.part(M.capsule(0.95, 4.2, 6), '#B85A2A', { y: 2.4, rz, sz: 0.55 })), q2: null, // les plumes de la queue, en éventail
+      patte: () => [M.part(pendu(0.55, 4.8, 0.2), '#F2A93B'), M.part(M.sphere(1.3, 8), '#F2A93B', { y: 0.25 - 6, z: 0.6, sy: 0.3, sz: 1.4 })],
+    },
+    canard: {
+      lp: 5, py: -3.8, hanches: [[-2.2, 0.5], [2.2, 0.5]], tp: [8.6, 7], queue: [1.6, -7.6, -0.9], lq1: 0, q2r: null, demiH: 4.9, assis: 'debout', dort: 'couche',
+      corps: () => { const aile = '#DCE4EE'; return [M.part(M.sphere(6, 14), BLANC_C, { sx: 0.92, sy: 0.82, sz: 1.3 }), M.part(M.sphere(3.6, 10), aile, { x: -4.7, y: 0.6, z: -1, sx: 0.35, sy: 0.7, sz: 1.35 }), M.part(M.sphere(3.6, 10), aile, { x: 4.7, y: 0.6, z: -1, sx: 0.35, sy: 0.7, sz: 1.35 }), M.part(M.capsule(2.3, 4, 8), BLANC_C, { y: 4.2, z: 5.2, rx: 0.15 })]; },
+      tete: (f) => { const p = [M.part(M.sphere(3.4, 12), BLANC_C), M.part(M.boite(3.2, 1.2, 3.8, 0.5), '#FF9F2E', { y: -1.9, z: 3.5 })]; yeux(p, 1.5, 0.9, 2.8, 0.7, f); joues(p, 2.4, -0.6, 2.2, 0.7); return p; },
+      q1: () => [M.part(M.cone(1.8, 3, 6), BLANC_C, { sz: 0.5 })], q2: null,
+      patte: () => [M.part(pendu(0.55, 4, 0.2), '#FF9F2E'), M.part(M.sphere(1.6, 8), '#FF9F2E', { y: 0.15 - 5, z: 0.9, sx: 1.1, sy: 0.25, sz: 1.4 })], // la palme
+    },
+    herisson: {
+      lp: 3.5, py: -3, hanches: [[-3.2, 3.6], [3.2, 3.6], [-3.2, -3.6], [3.2, -3.6]], tp: [0.6, 7.4], queue: null, lq1: 0, q2r: null, demiH: 4.8, assis: 'couche', dort: 'boule',
+      corps: () => {
+        const p = [M.part(M.sphere(6.2, 14), '#7A5640', { sy: 0.78, sz: 1.15 }), M.part(M.sphere(4.6, 12), '#EBCFA8', { y: -1.3, z: 3.4, sy: 0.7 })];
+        const haut = new THREE.Vector3(0, 1, 0), d = new THREE.Vector3(), q = new THREE.Quaternion(), pos = new THREE.Vector3(), un = new THREE.Vector3(1, 1, 1);
+        for (const [th, n] of [[0.2, 4], [0.55, 9], [0.9, 12], [1.25, 14]]) for (let k = 0; k < n; k++) { // les piquants, peignés vers l'arrière, sauf sur le museau
+          const az = (k + (n % 2 ? 0.5 : 0.25)) * TAU / n; d.set(Math.sin(th) * Math.sin(az), Math.cos(th), Math.sin(th) * Math.cos(az));
+          if (d.z > 0.55 && d.y < 0.75) continue;
+          pos.set(d.x * 6.2 * 0.9, d.y * 6.2 * 0.78 * 0.9, d.z * 6.2 * 1.15 * 0.9); d.z -= 0.55; d.normalize(); q.setFromUnitVectors(haut, d);
+          p.push({ geo: M.cone(0.85, 2.7, 5), col: k % 3 ? '#5A3E2E' : '#E7D2B4', m: new THREE.Matrix4().compose(pos, q, un) });
+        }
+        return p;
+      },
+      tete: (f) => { const peau = '#EBCFA8', p = [M.part(M.sphere(2.9, 12), peau), M.part(M.cone(1.3, 2.8, 8), peau, { y: -0.5, z: 1.8, rx: HP }), M.part(M.sphere(0.7, 8), L, { y: -0.5, z: 4.6 }), M.part(M.sphere(0.9, 8), '#C9A27E', { x: -1.9, y: 2.2, z: -0.5, sz: 0.5 }), M.part(M.sphere(0.9, 8), '#C9A27E', { x: 1.9, y: 2.2, z: -0.5, sz: 0.5 })]; yeux(p, 1.2, 0.6, 2.3, 0.6, f); joues(p, 1.9, -0.6, 2, 0.6); return p; },
+      q1: null, q2: null,
+      patte: () => pattePendue(1.1, 3.5, '#C9A27E', '#C9A27E', { court: 1.2, rp: 1.2, py: 0.6, sz: 1.2 }),
+    },
+    pingouin: {
+      lp: 2.6, py: -7.2, hanches: [[-2.2, 0.8], [2.2, 0.8]], tp: [9.6, 0.4], queue: [-6.4, -3.8, -2.2], lq1: 0, q2r: null, demiH: 7.6, assis: 'debout', dort: 'debout',
+      corps: () => { const noir = '#2F3542'; return [M.part(M.capsule(4.8, 5.5, 12), noir, { sz: 0.9 }), M.part(M.sphere(4.3, 12), BLANC_C, { y: -1.2, z: 1.6, sy: 1.55, sz: 0.7 }), M.part(M.capsule(1.1, 5.5, 6), noir, { x: -4.7, y: 0.5, rz: -0.35, sz: 0.45 }), M.part(M.capsule(1.1, 5.5, 6), noir, { x: 4.7, y: 0.5, rz: 0.35, sz: 0.45 })]; },
+      tete: (f) => { const p = [M.part(M.sphere(4, 12), '#2F3542'), M.part(M.sphere(1.9, 8), BLANC_C, { x: -1.2, y: 0.3, z: 2.75, sz: 0.5 }), M.part(M.sphere(1.9, 8), BLANC_C, { x: 1.2, y: 0.3, z: 2.75, sz: 0.5 }), M.part(M.cone(0.9, 2.2, 6), '#FFB238', { y: -0.6, z: 3.4, rx: HP })]; yeux(p, 1.25, 0.6, 3.65, 0.6, f); joues(p, 2.2, -0.7, 2.9, 0.6); return p; },
+      q1: () => [M.part(M.cone(1.3, 2.2, 6), '#2F3542', { sz: 0.5 })], q2: null,
+      patte: () => [M.part(pendu(0.7, 1.4, 0.2), '#FFB238'), M.part(M.sphere(1.7, 8), '#FFB238', { y: 0.2 - 2.6, z: 1.1, sy: 0.3, sz: 1.5 })], // les grands pieds
+    },
+    raton: {
+      lp: 7.5, py: -3, hanches: [[-3, 7], [3, 7], [-3, -7], [3, -7]], tp: [4.8, 12.4], queue: [2.4, -11, -0.7], lq1: 5.5, q2r: 0.45, R: 5.6, D: 11.8, demiH: 4.8, assis: 'assis', a: -0.45, dort: 'couche',
+      corps: () => [M.part(M.capsule(5.6, 12.5, 12), '#9A948E', { rx: HP }), M.part(arcCyl(5.72, 12.5, 1.9, 0), '#EFE8DE', { rx: HP }), M.part(patchS(5.8, 2.0, 1.35, 1.45), '#EFE8DE', { z: 6.2 })],
+      tete: (f) => { const gris = '#9A948E', masque = '#2E2A28', creme = '#EFE8DE', p = [M.part(M.sphere(5, 14), gris, { sx: 1.1, sy: 0.95 }), M.part(M.sphere(2.2, 10), creme, { y: -1.5, z: 4, sx: 1.2, sz: 1.2 }), M.part(M.sphere(0.8, 8), L, { y: -1.1, z: 6.5, sx: 1.2 })];
+        for (const sx of [-1, 1]) {
+          p.push(M.part(M.sphere(2.1, 8), masque, { x: sx * 2.1, y: 0.9, z: 3.45, sx: 1.25, sy: 0.75, sz: 0.55 }), M.part(M.sphere(1.1, 8), creme, { x: sx * 2, y: 2.5, z: 3.5, sx: 1.3, sy: 0.4, sz: 0.5 })); // le masque de bandit, les sourcils clairs
+          const mo = M.matrice({ x: sx * 3, y: 3.4, z: -0.6, rz: -sx * 0.35 }); p.push({ geo: M.cone(1.9, 3.2, 8), col: gris, m: mo.clone().multiply(M.matrice({ sz: 0.6 })) }, { geo: M.cone(1.1, 2.2, 8), col: creme, m: mo.clone().multiply(M.matrice({ y: 0.3, z: 0.75, sz: 0.3 })) });
+        }
+        yeux(p, 2.1, 0.95, 4.3, 0.75, f, { pastille: creme, arc: creme }); return p; },
+      q1: () => [M.part(M.capsule(1.9, 5.5, 8), '#9A948E', { y: 2.75 }), M.part(bande(2.05, 1.2), '#4E4844', { y: 2.2 }), M.part(bande(2.05, 1.2), '#4E4844', { y: 4.8 })],
+      q2: () => [M.part(M.capsule(1.75, 4.8, 8), '#9A948E', { y: 2.4 }), M.part(bande(1.9, 1.1), '#4E4844', { y: 1.8 }), M.part(bande(1.9, 1.1), '#4E4844', { y: 4.1 }), M.part(calotte(1.8, 1.05, 10), '#4E4844', { y: 4.8 })], // la queue annelée
+      patte: () => pattePendue(1.8, 7.5, '#5F5955', '#2E2A28'),
+    },
+    escargot: {
+      lp: 0, py: -1.9, hanches: [], tp: [1.6, 12.4], queue: null, lq1: 0, q2r: null, demiH: 1.9, assis: 'debout', dort: 'rentre',
+      corps: () => { const corps = '#C6DDB0', coq = '#E8A54A', spi = '#B9732A'; const p = [M.part(M.capsule(3.4, 18, 10), corps, { rx: HP, sz: 0.55 }), M.part(M.capsule(2.6, 3.6, 8), corps, { y: 1.4, z: 10.4, rx: 0.6 }), M.part(M.sphere(7.2, 16), coq, { y: 6.6, z: -2.5, sx: 0.72 })];
+        for (const sx of [-1, 1]) p.push(M.part(M.tore(4.4, 0.55, TAU, 6, 20), spi, { x: sx * 5.1, y: 6.6, z: -2.5, ry: HP }), M.part(M.tore(2.4, 0.5, TAU, 6, 16), spi, { x: sx * 5.0, y: 6.6, z: -2.5, ry: HP, sx: 1.3 }), M.part(M.sphere(0.9, 8), spi, { x: sx * 5.1, y: 6.6, z: -2.5 })); // la spirale de la coquille, des deux côtés
+        return p; },
+      tete: (f) => { const corps = '#C6DDB0', p = [M.part(M.sphere(2.9, 12), corps), M.part(M.tore(1, 0.22, Math.PI, 4, 8), L, { y: -0.9, z: 2.6, rz: Math.PI })];
+        for (const sx of [-1, 1]) {
+          p.push(M.part(M.capsule(0.45, 4, 6), corps, { x: sx * 1.2, y: 3.2, z: 0.3, rz: -sx * 0.25, rx: -0.15 }), M.part(M.sphere(0.95, 8), f ? corps : BLANC_C, { x: sx * 1.75, y: 5.4, z: 0.55 })); // les yeux au bout des cornes
+          p.push(f ? M.part(M.tore(0.5, 0.16, Math.PI, 4, 8), L, { x: sx * 1.75, y: 5.3, z: 1.45 }) : M.part(M.sphere(0.5, 8), L, { x: sx * 1.8, y: 5.5, z: 1.35 }));
+        }
+        joues(p, 1.9, -0.4, 2.1, 0.6); return p; },
+      q1: null, q2: null, patte: null,
+    },
+    teckel: {
+      lp: 4.6, py: -2.4, hanches: [[-2.4, 9.5], [2.4, 9.5], [-2.4, -9.5], [2.4, -9.5]], tp: [4.4, 16.4], queue: [2, -14.6, -0.6], lq1: 5, q2r: 0.4, demiH: 3.6, assis: 'couche', dort: 'couche',
+      corps: () => { const p = [M.part(M.capsule(3.8, 22, 12), '#D99A45', { rx: HP }), M.part(arcCyl(3.9, 22, 2.6, Math.PI), '#C47F2E', { rx: HP })]; // la baguette : la croûte, le dessus plus doré
+        for (const z of [-7.5, -2.5, 2.5, 7.5]) p.push(M.part(M.capsule(0.75, 3.4, 6), '#F6D9A0', { y: 3.75, z, rx: HP, rz: 0.55, sz: 0.5 })); // les grignes
+        return p; },
+      tete: (f) => { const brun = '#8B5A3C', p = [M.part(M.sphere(4.2, 14), brun, { sx: 1.05 }), M.part(M.capsule(1.9, 3.2, 8), brun, { y: -1.1, z: 4.2, rx: HP }), M.part(M.sphere(0.9, 8), L, { y: -0.8, z: 7.4, sx: 1.2 })];
+        for (const sx of [-1, 1]) p.push(M.part(M.sphere(2.1, 8), '#5E3A24', { x: sx * 3.9, y: -0.4, z: -0.3, sx: 0.4, sy: 1.45, sz: 0.9, rz: sx * 0.15 }), M.part(M.sphere(0.55, 8), '#C8935F', { x: sx * 1.8, y: 2.3, z: 3.45, sz: 0.4 })); // les oreilles, les points feu
+        yeux(p, 1.8, 1.2, 3.6, 0.78, f); joues(p, 2.8, -1, 3.1, 0.8); return p; },
+      q1: () => [M.part(M.capsule(0.8, 5, 8), '#8B5A3C', { y: 2.5 })], q2: () => [M.part(M.capsule(0.7, 4, 8), '#8B5A3C', { y: 2 }), M.part(calotte(0.75, 1.05, 8), '#5E3A24', { y: 4 })],
+      patte: () => pattePendue(1.3, 4.6, '#8B5A3C', '#8B5A3C', { court: 1.6, rp: 1.5, py: 1, sz: 1.3 }),
+    },
+    croissant: {
+      lp: 5.5, py: -2.2, hanches: [[-2.6, 3], [2.6, 3], [-4.2, -1.5], [4.2, -1.5]], tp: [1.2, 7.5], queue: null, lq1: 0, q2r: null, demiH: 3.3, assis: 'debout', dort: 'couche',
+      corps: () => { const p = []; // un croissant posé à plat, le ventre devant (le visage), les cornes recourbées vers l'arrière
+        for (const [a, r, col] of [[0, 4.2, '#E8A54A'], [-0.6, 3.6, '#D88E36'], [0.6, 3.6, '#D88E36'], [-1.15, 2.9, '#E8A54A'], [1.15, 2.9, '#E8A54A'], [-1.65, 1.9, '#C9792B'], [1.65, 1.9, '#C9792B']]) p.push(M.part(M.sphere(r, 10), col, { x: Math.sin(a) * 6, z: Math.cos(a) * 6 - 2.5, ry: a, sx: 0.8, sy: 0.78 }));
+        p.push(M.part(M.sphere(2, 8), '#F7D08A', { y: 2.4, z: 3.6, sy: 0.3, sx: 1.2 })); return p; },
+      tete: (f) => { const p = []; for (const sx of [-1, 1]) { if (!f) p.push(M.part(M.sphere(1.25, 8), BLANC_C, { x: sx * 1.4, y: 0.8, sz: 0.6 })); } yeux(p, 1.4, 0.8, 0.55, 0.62, f); p.push(M.part(M.tore(0.9, 0.22, Math.PI, 4, 8), L, { y: -1, z: 0.3, rz: Math.PI })); joues(p, 2.6, -0.4, 0, 0.75); return p; },
+      q1: null, q2: null,
+      patte: () => [M.part(pendu(0.55, 4.2, 0.2), L), M.part(M.sphere(1.15, 8), BLANC_C, { y: 0.45 - 5.5, z: 0.5, sy: 0.7, sz: 1.5 })], // des jambes fines et de petites baskets
+    },
+    dragon: {
+      lp: 7, py: -3, hanches: [[-2.8, 6.2], [2.8, 6.2], [-2.8, -6.2], [2.8, -6.2]], tp: [5.4, 11.8], queue: [2.2, -10, -0.95], lq1: 0, q2r: null, R: 5, D: 10.5, demiH: 4.3, assis: 'assis', a: -0.4, dort: 'couche',
+      corps: () => { const p = [M.part(M.capsule(5, 11, 12), '#5FD3A4', { rx: HP }), M.part(arcCyl(5.1, 11, 1.9, 0), '#FFF3C4', { rx: HP })]; for (const z of [-5, -2, 1, 4]) p.push(M.part(M.cone(1, 2.4, 5), '#FFC84A', { y: 4.6, z, rx: -0.3, sx: 0.5 })); return p; }, // les crêtes du dos
+      tete: (f) => { const vert = '#5FD3A4', p = [M.part(M.sphere(4.6, 14), vert, { sx: 1.05, sy: 0.95 }), M.part(M.sphere(2.6, 10), vert, { y: -1.1, z: 3.8, sx: 1.15, sy: 0.8, sz: 1.1 }), M.part(M.sphere(0.4, 6), '#3FB889', { x: -0.8, y: -0.5, z: 6.4 }), M.part(M.sphere(0.4, 6), '#3FB889', { x: 0.8, y: -0.5, z: 6.4 })];
+        for (const sx of [-1, 1]) p.push(M.part(M.cone(0.9, 3, 6), '#FFF3C4', { x: sx * 2, y: 3.4, z: -1, rx: -0.5, rz: -sx * 0.25 }), M.part(M.cone(1.4, 2.6, 6), '#9A84F0', { x: sx * 4.1, y: 1, z: -0.8, rz: -sx * 1.2, sz: 0.4 })); // les cornes, les collerettes
+        yeux(p, 2, 1.1, 3.95, 0.88, f); joues(p, 3.2, -1, 3.3); return p; },
+      q1: () => [M.part(M.cylindre(0.7, 1.9, 8, 8), '#5FD3A4'), M.part(M.cone(1.6, 2.4, 4), '#FFC84A', { y: 7.6, sz: 0.4 })], q2: null, // la queue effilée, sa pointe en flèche
+      patte: () => pattePendue(1.7, 7, '#5FD3A4', '#FFF3C4'),
+      ailes: () => { const p = []; for (const sx of [-1, 1]) { const rz = -sx * (HP - 0.6); p.push(M.part(M.cone(3.2, 9, 3), '#9A84F0', { x: sx * 1.2, rz, sz: 0.18 }), M.part(M.capsule(0.45, 8.4, 5), '#C7B8FF', { x: sx * (1.2 + Math.sin(-rz) * 4.6), y: Math.cos(rz) * 4.6, z: 0.5, rz })); } return p; },
+    },
+  };
+  const geoEspece = (id, k, f) => memo(`comp|${id}|${k}`, () => M.assembler(f()));
+  const BORNES_ESP = {}; // les bornes figées du tampon des pattes, par espèce
+  const tourneX = (y, z, a) => [y * Math.cos(a) - z * Math.sin(a), y * Math.sin(a) + z * Math.cos(a)]; // (y, z) tourné autour de X
+  function posesEspece(E) { // les poses constantes d'une espèce, calculées une fois : racine, corps, tête, queue, pattes
+    const Y = E.lp - E.py, T = E.tp, Q = E.queue || [0, 0, 0], n = E.hanches.length, hanche = (k) => (k < n ? [E.hanches[k][0], E.py, E.hanches[k][1]] : [0, E.py, 0]);
+    const base = () => ({ r: [0, Y, 0], rr: [0, 0, 0], c: [0, 0, 0], cs: [1, 1, 1], h: [0, T[0], T[1]], hr: [0, 0, 0], hs: 1, q: [0, Q[0], Q[1]], qr: [Q[2], 0, 0], q2r: [E.q2r || 0, 0, 0], pp: [0, 1, 2, 3].map(hanche), pr: [0, 1, 2, 3].map(() => [0, 0, 0]), ps: [0, 1, 2, 3].map(() => [1, 1, 1]), pv: n > 0 });
+    const marche = base(), saut = base(), dort = base(), assis = base();
+    // en l'air : nez en bas, pattes repliées, la queue haute
+    saut.rr = [0.42, 0, 0]; saut.hr = [-0.3, 0, 0]; saut.qr = [Q[2] - 0.5, 0, 0]; saut.pr = [0, 1, 2, 3].map((k) => [(n === 2 ? k === 0 : k < 2) ? 1 : -1, 0, 0]); saut.ps = [0, 1, 2, 3].map(() => [1, 0.8, 1]);
+    const couche = (p, tete) => { // le ventre au sol, les pattes rentrées, la tête basse (tete : levée, en sphinx)
+      const dy = Y - E.demiH; p.r = [0, E.demiH, 0]; p.pv = false; p.h = [0, T[0] - dy - (tete ? 0 : 1.5), T[1] - (tete ? 0 : 1)]; p.hr = tete ? [-0.15, 0, 0] : [0.35, 0.35, -0.25]; p.q = [0, Q[1] ? Q[0] - dy : 0, Q[1]]; p.qr = [-HP, 0, tete ? 0.3 : 1.4]; p.q2r = [0, 0, tete ? 0.2 : 0.9];
+    };
+    // dort : couché en boule (la queue enroulée), debout les yeux fermés (le pingouin), en boule (le hérisson), rentré dans sa coquille (l'escargot)
+    if (E.dort === 'debout') { dort.hr = [0.45, 0, 0]; dort.h = [0, T[0] - 0.8, T[1]]; }
+    else if (E.dort === 'rentre') { dort.h = [0, T[0] - 0.6, T[1] - 4.5]; dort.hs = 0.65; }
+    else { couche(dort, false); dort.cs = [1.08, 0.85, 1]; if (E.dort === 'boule') { dort.cs = [1.05, 1, 0.86]; dort.h = [0, E.demiH - 1, T[1] - 2.6]; dort.hr = [0.6, 0, 0]; } }
+    if (E.assis === 'couche') { couche(assis, true); if (n > 0) { assis.pv = true; for (let k = 0; k < 4; k++) { const avant = k < 2; assis.pp[k] = [hanche(k)[0] * (avant ? 1 : 1.25), E.demiH * 0.45, hanche(k)[2]]; assis.pr[k] = [avant ? -1.35 : -1.45, 0, 0]; assis.ps[k] = avant ? [1, 0.8, 1] : [1.2, 0.6, 1]; } } }
+    else if (E.assis === 'assis') { // l'arrière-train au sol : le corps raccourci et incliné de a (nez en l'air), pattes avant droites, cuisses repliées devant, la queue au sol
+      const a = E.a, D = E.D * 0.85, ys = E.R * Math.cos(a) - D * Math.sin(a) + 0.3, av = tourneX(E.py, E.hanches[0][1], a), ar = tourneX(E.py, E.hanches[2][1], a);
+      const hAv = ys + av[0], hAr = ys + ar[0], lAr = E.lp * 0.85, th = Math.acos(Math.max(0, Math.min(1, hAr / lAr))), tq = tourneX(Q[0], Q[1], a), th0 = tourneX(T[0], T[1] * 0.92, a);
+      assis.r = [0, ys, 0]; assis.rr = [a, 0, 0]; assis.cs = [1, 1, 0.85]; assis.h = [0, T[0], T[1] * 0.92]; assis.hr = [-a - 0.1, 0, 0]; assis.qr = [-2 - a, 0, 0]; assis.q2r = [0.5, 0, 0];
+      for (let k = 0; k < 4; k++) { const avant = k < 2; assis.pr[k] = avant ? [-a, 0, 0] : [-a - th, 0, 0]; assis.ps[k] = avant ? [1, hAv / E.lp, 1] : [1.3, 0.85, 1]; }
+      E.assisHaut = [ys + th0[0], tq[0] + ys]; // (hauteur de la tête, de la queue : pour les tests)
+    }
+    return { marche, saut, dort, assis };
+  }
+  function materiauxPattes() { // partagés par tous les chats et les compagnons (voir chat())
+    matPattes = matPattes || M.partager(new THREE.MeshLambertMaterial({ vertexColors: true }));
+    profPattes = profPattes || M.partager(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }));
+  }
+  function compagnon(id) {
+    const E = ESPECES[id];
+    if (!E) { const c = chat(id === 'chat-noir' ? Object.assign({}, CHAT_NOIR) : {}); c.userData.espece = id === 'chat-noir' ? 'chat-noir' : 'chat-roux'; return c; } // les deux chats (un id inconnu : le roux)
+    if (!E.poses) { E.id = id; E.poses = posesEspece(E); E.q2p = [0, E.lq1, 0]; }
+    const g = new THREE.Group(), racine = new THREE.Group(), P = { racine, queue: [], pattes: [], esp: E };
+    g.add(racine); g.userData.parts = P; g.userData.espece = id;
+    P.corps = M.mesh(geoEspece(id, 'corps', E.corps), M.MAT.vertex); racine.add(P.corps);
+    const geos = [geoEspece(id, 'tete0', () => E.tete(false)), geoEspece(id, 'tete1', () => E.tete(true))];
+    P.tete = M.mesh(geos[0], M.MAT.vertex); P.tete.userData.geos = geos; racine.add(P.tete);
+    const q1 = E.q1 ? M.mesh(geoEspece(id, 'q1', E.q1), M.MAT.vertex) : new THREE.Object3D(), q2 = E.q2 ? M.mesh(geoEspece(id, 'q2', E.q2), M.MAT.vertex) : new THREE.Object3D(); // sans queue : des pivots vides
+    q1.add(q2); racine.add(q1); P.queue.push(q1, q2);
+    for (let k = 0; k < 4; k++) { const p = new THREE.Object3D(); P.pattes.push(p); racine.add(p); }
+    if (E.ailes) { P.ailes = M.mesh(geoEspece(id, 'ailes', E.ailes), M.MAT.vertex); P.ailes.position.set(0, 4, 1.5); racine.add(P.ailes); }
+    if (E.patte) {
+      materiauxPattes();
+      const im = P.pattesMaille = new THREE.InstancedMesh(geoEspece(id, 'patte', E.patte), matPattes, 4);
+      im.customDepthMaterial = profPattes; im.castShadow = true; im.frustumCulled = false; racine.add(im);
+      if (!BORNES_ESP[id]) { // l'union de toutes les poses, une fois par espèce (comme le chat)
+        const b = new THREE.Box3(), o2 = { etat: 'dort', phase: 0, t: 0 };
+        for (const e of ['dort', 'assis', 'saut', 'debout', 'marche']) for (let k = 0; k < (e === 'marche' || e === 'assis' ? 16 : 1); k++) { o2.etat = e; o2.phase = k * TAU / 16; o2.t = k * 0.4; animerCompagnon(g, o2); im.computeBoundingBox(); b.union(im.boundingBox); }
+        BORNES_ESP[id] = { boite: b, sphere: b.getBoundingSphere(new THREE.Sphere()) };
+      }
+      im.boundingBox = BORNES_ESP[id].boite.clone(); im.boundingSphere = BORNES_ESP[id].sphere.clone();
+      g.addEventListener('removed', () => im.dispose());
+    }
+    animerCompagnon(g, { etat: 'assis', phase: 0, t: 0 });
+    return g;
+  }
+  // animerCompagnon(g, { etat, phase, t }) : un chat passe à animerChat ; les autres prennent les poses de leur espèce, puis le mouvement
+  // et leur touche. Aucune allocation : mêmes règles que animerChat (tables constantes, champs d'Euler suivis de tourner()).
+  function animerCompagnon(g, o) {
+    const P = g.userData.parts; if (!P.esp) { animerChat(g, o); return; }
+    const E = P.esp, id = E.id, r = P.racine, c = P.corps, h = P.tete, q1 = P.queue[0], q2 = P.queue[1], pa = P.pattes, ai = P.ailes, t = o.t || 0, e = o.etat, n = E.hanches.length;
+    const A = e === 'dort' ? E.poses.dort : e === 'assis' ? E.poses.assis : e === 'saut' ? E.poses.saut : E.poses.marche;
+    r.position.fromArray(A.r); r.rotation.fromArray(A.rr); c.position.fromArray(A.c); c.scale.fromArray(A.cs);
+    h.position.fromArray(A.h); h.rotation.fromArray(A.hr); h.scale.x = h.scale.y = h.scale.z = A.hs;
+    q1.position.fromArray(A.q); q1.rotation.fromArray(A.qr); q2.position.fromArray(E.q2p); q2.rotation.fromArray(A.q2r);
+    for (let k = 0; k < 4; k++) { const p = pa[k]; p.position.fromArray(A.pp[k]); p.rotation.fromArray(A.pr[k]); p.scale.fromArray(A.ps[k]); p.visible = A.pv && k < n; }
+    const geo = h.userData.geos[e === 'dort' ? 1 : 0]; if (h.geometry !== geo) h.geometry = geo;
+    if (ai) ai.scale.set(1, 1, 1);
+    const chien = id === 'chien' || id === 'teckel';
+    if (e === 'dort') { // la respiration lente ; les ailes repliées, la queue qui frémit
+      const b = Math.sin(t * 1.5) * 0.03; c.scale.y *= 1 + b; h.position.y += b * 3;
+      if (ai) { ai.scale.y = 0.2; ai.scale.x = 0.75; }
+      q2.rotation._z = A.q2r[2] + Math.sin(t * 0.9) * 0.08; tourner(q2);
+    } else if (e === 'assis') { // assis, couché en sphinx ou debout sur place : le regard fait le tour de la salle, la queue balaie ; puis la touche de chacun
+      h.rotation._y = Math.sin(t * 0.7) * 0.15; tourner(h);
+      q1.rotation._z = A.qr[2] + Math.sin(t * (chien ? 11 : 1.4)) * (chien ? 0.45 : 0.25); tourner(q1); q2.rotation._z = A.q2r[2] + Math.sin(t * 1.4 - 0.8) * 0.3; tourner(q2);
+      if (id === 'poule') { // elle picore : la tête plonge d'un coup, le corps suit un peu
+        let k = Math.max(0, Math.sin(t * 2.3)); k *= k; k *= k;
+        h.position.y -= 5.5 * k; h.position.z += 1.8 * k; h.rotation._x = 1.1 * k; tourner(h); r.rotation._x = 0.3 * k; tourner(r);
+      } else if (id === 'canard') { q1.rotation._z = Math.sin(t * 14) * 0.35 * Math.max(0, Math.sin(t * 0.8)); tourner(q1); } // la queue frétille
+      else if (id === 'pingouin') { r.rotation._z = Math.sin(t * 2.2) * 0.1; tourner(r); } // il se dandine sur place
+      else if (id === 'croissant') { const u = Math.abs(Math.sin(t * 3.2)); r.position.y += u * 2.2; c.scale.y = 0.92 + 0.08 * u; c.scale.x = 1.05 - 0.05 * u; } // il rebondit sur place, écrasé en touchant le sol
+      else if (id === 'escargot') { h.rotation._z = Math.sin(t * 1.7) * 0.1; tourner(h); c.scale.z = 1 + Math.sin(t * 0.9) * 0.02; } // les cornes oscillent
+      else if (id === 'raton') { for (let k = 0; k < 2; k++) { const p = pa[k]; p.rotation._x = A.pr[k][0] - 1 + Math.sin(t * 7 + k * Math.PI) * 0.3; tourner(p); p.scale.y = 0.7; } } // il se frotte les mains
+      else if (id === 'lapin') { h.rotation._z = Math.sin(t * 9) * 0.07 * Math.max(0, Math.sin(t * 0.6)); tourner(h); } // les oreilles frémissent
+      else if (id === 'herisson') { h.rotation._x = -0.15 + Math.sin(t * 6) * 0.06; tourner(h); } // il renifle
+      else if (id === 'dragon' && ai) { const k = Math.sin(t * 0.8); ai.scale.y = k > 0.6 ? 0.3 + 0.35 * (1 + Math.cos(t * 14)) : 1; } // de temps en temps, un battement d'ailes
+    } else if (e === 'saut') { // en l'air : la queue pour l'équilibre, les ailes battent
+      q1.rotation._z = Math.sin(t * 5) * 0.1; tourner(q1);
+      if (ai) ai.scale.y = 0.3 + 0.35 * (1 + Math.cos(t * 16));
+    } else { // marche (ou debout) : diagonales opposées (deux pattes : alternées), le dos qui descend quand les pattes s'écartent
+      const ph = e === 'marche' ? o.phase || 0 : 0, marche = e === 'marche', s = marche ? Math.sin(id === 'herisson' ? ph * 1.6 : ph) * (id === 'pingouin' ? 0.3 : 0.6) : 0;
+      r.position.y = A.r[1] - E.lp * (1 - Math.cos(s)); h.rotation._x = Math.sin(ph * 2) * 0.05; tourner(h);
+      if (id === 'lapin') { // il sautille : les pattes vont par paires, le corps décolle
+        const v = marche ? Math.sin(ph) * 0.55 : 0; r.position.y = A.r[1] + (marche ? Math.abs(Math.sin(ph * 0.5)) * 4.5 : 0);
+        for (let k = 0; k < 4; k++) { pa[k].rotation._x = k < 2 ? -v : v; tourner(pa[k]); }
+      } else for (let k = 0; k < n; k++) { pa[k].rotation._x = n === 2 ? (k === 0 ? s : -s) : (k === 0 || k === 3 ? s : -s); tourner(pa[k]); }
+      q1.rotation._z = Math.sin(t * (chien ? 9 : 2.6)) * (chien ? 0.4 : 0.22); tourner(q1); q2.rotation._z = Math.sin(t * 2.6 - 0.9) * 0.3; tourner(q2);
+      if (id === 'poule') h.position.z += Math.sin(ph * 2) * 1.2; // la tête qui avance à chaque pas
+      else if (id === 'canard' || id === 'pingouin') { r.rotation._z = Math.sin(ph) * (id === 'canard' ? 0.12 : 0.2); tourner(r); } // il se dandine
+      else if (id === 'escargot') { const u = Math.sin(ph * 0.5); c.scale.z = 1 + 0.06 * u; h.position.z += 0.8 * u; h.rotation._z = Math.sin(t * 1.7) * 0.08; tourner(h); } // il glisse : le pied s'étire et se ramasse
+      else if (id === 'croissant') { r.position.y += Math.abs(Math.sin(ph)) * 3.2; c.scale.y = 1 - 0.07 * Math.cos(ph * 2); } // il rebondit à chaque pas
+      if (ai) { ai.scale.y = marche ? 0.3 + 0.35 * (1 + Math.cos(t * 13)) : 1; ai.scale.x = marche ? 1 + 0.1 * Math.sin(t * 13) : 1; } // en marchant, il bat des ailes
+    }
+    const im = P.pattesMaille; if (!im) return;
+    for (let k = 0; k < 4; k++) { const p = pa[k]; if (p.visible) { p.updateMatrix(); im.setMatrixAt(k, p.matrix); } else im.setMatrixAt(k, ZERO); }
+    im.instanceMatrix.needsUpdate = true;
   }
   // ─── les huit pâtisseries : une liste de parts colorées par produit (posée sur y = 0, centrée, ~16 d'envergure), fusionnée seule
   // (geoPatisserie, en cache) ou avec le plateau d'un apprenti (geoPlateau, en cache) — jamais passée telle quelle à M.assembler
@@ -5724,6 +6088,13 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       g.userData.anime = (E) => { for (let k = 0; k < chats.length; k++) { oc[k].t = E.t; oc[k].phase = E.t * 8; animerChat(chats[k], oc[k]); } };
       g.position.set(195, 0, 350); if (zoom) g.scale.setScalar(zoom); return g;
     }
+    const mcp = /^compagnons?(?::([a-z-]+?))?(?:-(dort|assis|marche|saut))?(?:-(face|profil))?$/.exec(nom); // 'compagnons-marche', 'compagnons-assis-face', 'compagnon:dragon-marche'…
+    if (mcp) { // les treize compagnons en grille (les deux chats, puis la table ESPECES), ou un seul, dans un état, de trois quarts, de face ou de profil, animés
+      const ids = mcp[1] ? [mcp[1]] : ['chat-roux', 'chat-noir'].concat(Object.keys(ESPECES)), cs = [], oc = [];
+      ids.forEach((id, k) => { const c = compagnon(id); c.rotation.y = mcp[3] === 'face' ? 0 : mcp[3] === 'profil' ? HP : 0.6; if (ids.length > 1) c.position.set(((k % 4) - 1.5) * 62, 0, Math.floor(k / 4) * 50 - 75); g.add(c); cs.push(c); oc.push({ etat: mcp[2] || 'assis', phase: 0, t: 0 }); });
+      g.userData.anime = (E) => { for (let k = 0; k < cs.length; k++) { oc[k].t = E.t; oc[k].phase = E.t * 8; animerCompagnon(cs[k], oc[k]); } };
+      g.position.set(195, 0, 350); if (zoom) g.scale.setScalar(zoom); return g;
+    }
     if (nom.startsWith('saison-')) { const m = patisserieSaison(nom.slice(7)); m.rotation.y = 0.35; g.add(m); g.position.set(195, 0, 380); g.scale.setScalar(zoom || 6); return g; } // une seule, de trois quarts, grossie
     if (nom === 'saisons') { for (let i = 0; i < SAISONS.length; i++) { const m = patisserieSaison(SAISONS[i]); m.position.set(70 + 50 * i, 0, 400); m.scale.setScalar(2); g.add(m); } return g; }
     if (nom === 'grades') { // les cinq grades côte à côte, sans plateau (la bande, l'étoile, la toque et le liseré se voient)
@@ -5763,7 +6134,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   }
   // le chat noir d'Halloween (pendant la Maison hantée, puis au choix) : robe noire bleutée, rayures à peine plus sombres, poitrail gris, yeux jaunes
   const CHAT_NOIR = { couleur: '#2B2733', rayures: '#1F1C26', ventre: '#4A4458', yeux: '#FFD84A' };
-  return { HAUTEUR, TAILLE_PATISSERIE, SAISONS, TENUES, METAUX_PODIUM, FORMES_HT, CHAT_NOIR, partsChaussure, partsChapeau, partsCape, partsCapuche, creer, animer, lacet, boulanger, animerBoulanger, chat, animerChat, libererChat, patisserie, geoPatisserie, partsPatisserie, patisserieSaison, geoPatisserieSaison, demo };
+  return { HAUTEUR, TAILLE_PATISSERIE, SAISONS, TENUES, METAUX_PODIUM, FORMES_HT, CHAT_NOIR, ESPECES, partsChaussure, partsChapeau, partsCape, partsCapuche, creer, animer, lacet, boulanger, animerBoulanger, chat, animerChat, libererChat, compagnon, animerCompagnon, patisserie, geoPatisserie, partsPatisserie, patisserieSaison, geoPatisserieSaison, demo };
 })();
 if (typeof module !== 'undefined') module.exports = PERSOS;
 
@@ -6113,9 +6484,11 @@ const SCENE = (() => {
   const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
   const ALIAS_HT = { citrouille: 'citrouilles', lanternes: 'citrouilles', toile: 'toiles', araignees: 'toiles', chaudrons: 'chaudron', fantomes: 'fantome' };
   function decosHantee(liste) { const l = (Array.isArray(liste) ? liste : []).map((k) => ALIAS_HT[k] || k); for (const k of Object.keys(HDECO)) HDECO[k] = l.includes(k); }
-  // le chat : roux tigré, ou noir aux yeux jaunes (pendant la Maison hantée, puis au choix) ; changé, il est rebâti à l'image suivante
-  let pelage = 'roux';
-  function pelageChat(p) { const n = p === 'noir' ? 'noir' : 'roux'; if (n === pelage) return; pelage = n; if (chatG) { scene.remove(chatG); (PERSOS.libererChat || M.dispose)(chatG); chatG = null; } }
+  // le compagnon de la boutique (GAME.COMPAGNONS : le chat roux, le chat noir, le chien… le mini-dragon ; ui.js dit lequel, noir d'office pour
+  // un chat pendant la Maison hantée) ; changé, l'ancien est libéré (son tampon d'instances) et le nouveau bâti à l'image suivante
+  let modeleComp = 'chat-roux';
+  function compagnon(id) { const n = typeof id === 'string' && id ? id : 'chat-roux'; if (n === modeleComp) return; modeleComp = n; if (chatG) { scene.remove(chatG); (PERSOS.libererChat || M.dispose)(chatG); chatG = null; } }
+  function pelageChat(p) { compagnon(p === 'noir' ? 'chat-noir' : 'chat-roux'); } // l'ancien réglage : un des deux chats
   function recompenses(o) {
     o = o || {};
     REC.tenue = METAUX.includes(o.tenue) ? o.tenue : null; REC.coupe = METAUX.includes(o.coupe) ? o.coupe : null;
@@ -6287,12 +6660,12 @@ const SCENE = (() => {
     if (boulangerG) { oAnim.hop = E.hop; oAnim.rush = E.rush; oAnim.blink = E.blink; oAnim.t = E.t; oAnim.rang = E.rang; PERSOS.animerBoulanger(boulangerG, oAnim); }
     poserChat(E, dt);
   }
-  // le chat : sur le comptoir quand il dort, au sol quand il se promène, en arc pendant un saut
+  // le compagnon : sur le comptoir quand il dort, au sol quand il se promène, en arc pendant un saut
   let chatG = null, chatHaut = null, chatPied = null, chatHautCle = null; const oChat = { etat: 'dort', phase: 0, t: 0 }, ETAT_CHAT = { dort: 'dort', assis: 'assis', marche: 'marche', descend: 'saut', monte: 'saut' }, _pc = { x: 0, y: 0, z: 0 };
   function poserChat(E, dt) {
     const c = V.chat;
     if (!c || !PERSOS.chat) { if (chatG) { scene.remove(chatG); (PERSOS.libererChat || M.dispose)(chatG); chatG = null; } return; } // libererChat : le tampon d'instances des pattes
-    if (!chatG) { chatG = PERSOS.chat(pelage === 'noir' && PERSOS.CHAT_NOIR ? Object.assign({}, PERSOS.CHAT_NOIR) : {}); chatG.userData.yaw = Math.PI / 2; chatG.userData.pelage = pelage; habiller(chatG); scene.add(chatG); }
+    if (!chatG) { chatG = PERSOS.compagnon ? PERSOS.compagnon(modeleComp) : PERSOS.chat(modeleComp === 'chat-noir' && PERSOS.CHAT_NOIR ? Object.assign({}, PERSOS.CHAT_NOIR) : {}); chatG.userData.yaw = Math.PI / 2; chatG.userData.modele = modeleComp; habiller(chatG); scene.add(chatG); }
     if (chatHautCle !== cles.comptoir) { chatHautCle = cles.comptoir; chatHaut = MEUBLES.surDessus(contexte(E), LAY.chat); chatPied = V.piedComptoir(); } // recalculés quand le comptoir change
     const haut = chatHaut, pied = chatPied, zp = wz(pied.y);
     if (c.etat === 'descend' || c.etat === 'monte') { const u = c.etat === 'descend' ? c.saut : 1 - c.saut, e = u * u * (3 - 2 * u); _pc.x = haut.x + (pied.x - haut.x) * e; _pc.z = haut.z + (zp - haut.z) * e; _pc.y = haut.y * (1 - e) + Math.sin(Math.PI * u) * 14; }
@@ -6300,7 +6673,7 @@ const SCENE = (() => {
     else { _pc.x = c.x; _pc.y = 0; _pc.z = wz(c.y); }
     chatG.position.set(_pc.x, _pc.y, _pc.z); chatG.scale.setScalar(V.K * 0.95);
     tourner(chatG, c.etat === 'dort' ? 1 : c.dir, dt);
-    oChat.etat = ETAT_CHAT[c.etat] || 'assis'; oChat.phase = c.phase; oChat.t = E.t; PERSOS.animerChat(chatG, oChat);
+    oChat.etat = ETAT_CHAT[c.etat] || 'assis'; oChat.phase = c.phase; oChat.t = E.t; (PERSOS.animerCompagnon || PERSOS.animerChat)(chatG, oChat);
   }
   function zoneChat() { // un rectangle autour du chat (il bouge : rien en cache)
     if (!chatG) return null; const K = V.K, sx = chatG.position.x, sy = projeterY(chatG.position.y, chatG.position.z);
@@ -6310,6 +6683,7 @@ const SCENE = (() => {
   }
   function hitChat(x, y) { return dans(zoneChat(), x, y); }
   function ronron() { V.ronron(); }
+  function souffle(n) { V.souffle(n); } // le nuage de farine du mini-dragon caressé
   function tourner(g, dir, dt) { const cible = YAW[dir] || 0; g.userData.yaw += angleCourt(cible - g.userData.yaw) * Math.min(1, dt * 12); g.rotation.y = g.userData.yaw; }
   function poser(g, c, E, dt) {
     const s = V.K * c.taille, assis = c.etat === 'assis', marche = c.etat === 'entre' || c.etat === 'sort' || c.etat === 'vaTable' || (c.etat === 'attend' && !!c.glisse);
@@ -6477,12 +6851,13 @@ const SCENE = (() => {
     }
   }
 
-  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitArriere, zoneArriere, hitChat, hitTrophees, recompenses, decosQuartier, decosHantee, pelageChat, ronron, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
+  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitArriere, zoneArriere, hitChat, hitTrophees, recompenses, decosQuartier, decosHantee, pelageChat, compagnon, ronron, souffle, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
     vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
     get decosHanteeVues() { return Object.keys(HDECO).filter((k) => HDECO[k] && groupes['ht-' + k]); }, // les décos de la Maison hantée posées (pour les tests)
-    get chatVu() { return chatG ? chatG.userData.pelage : null; }, // le pelage du chat dans la boutique (pour les tests)
+    get chatVu() { const m = chatG ? chatG.userData.modele : null; return m === 'chat-noir' ? 'noir' : m === 'chat-roux' ? 'roux' : m; }, // le pelage du chat dans la boutique, ou l'id d'un autre compagnon (pour les tests)
+    get compagnonVu() { if (!chatG) return null; let appels = 0; chatG.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) appels++; }); return { id: chatG.userData.modele, appels, x: chatG.position.x, y: chatG.position.y, z: chatG.position.z }; }, // le compagnon bâti dans la boutique et ses appels de dessin (pour les tests)
     precharger(lot) { if (typeof HDM === 'undefined' || !webgl || !HDM.permis(renderer)) return false; HDM.charger(lot); return true; }, // en arrière-plan, si le palier le permet
     alleger() { if (RICHE.post) { RICHE.post.liberer(); RICHE.post = null; } }, // un écran plein (la Planque) couvre la boutique : la passe d'effets rend sa mémoire, recréée au retour
     get decorHD() { return hdDecor ? hdDecor.children.length : 0; }, // les décors HD posés (pour les tests)
@@ -7237,12 +7612,13 @@ const GARDEROBE_UI = (() => {
       <button type="button" class="btn large clair" data-gr-ouvrir="tete"><b>Ouvrir la garde-robe</b></button></div>`;
   }
   // ─── la feuille : la pièce choisie en segments, ce qu'on possède, porter, améliorer, puis les ensembles ───
-  // le chat de la boutique : roux ou noir, au choix pour qui a joué à la Maison hantée (pendant l'événement, il est noir d'office)
-  let ctxChat = null;
-  function blocChat(st, c) {
-    if (!c || !st.chat || !c.dispo()) return '';
-    const noir = c.noir(), force = c.force(), choix = (p, ico, nom, sous) => `<button type="button" class="gr-piece gr-chat ${(p === 'noir') === noir ? 'porte' : ''}" data-gr-chat="${p}" aria-pressed="${(p === 'noir') === noir}" ${force ? 'disabled' : ''}><span class="gr-ico">${ico}</span><span class="gr-txt"><b>${nom}</b><small>${sous}</small></span>${(p === 'noir') === noir ? '<span class="gr-ok">Choisi ✓</span>' : ''}</button>`;
-    return `<h3 class="titre-section">Le chat de la boutique</h3><div class="gr-liste">${choix('roux', ICONS.CHAT, `${esc(st.chat.nom)}, roux tigré`, 'Comme au premier jour')}${choix('noir', ICONS.CHAT_NOIR || ICONS.CHAT, `${esc(st.chat.nom)}, chat noir`, 'Le souvenir de la Maison hantée')}</div>${force ? '<p class="note centre">Pendant la Maison hantée, le chat est noir. Le choix revient après.</p>' : ''}`;
+  // le compagnon de la boutique (GAME.COMPAGNONS) : l'animal montré, et la feuille « Les compagnons » pour en changer (le chat noir gagné à la
+  // Maison hantée s'y choisit, comme les autres ; pendant l'événement, un chat est noir d'office). ctx.compagnon vient de ui.js.
+  let ctxComp = null;
+  function blocCompagnon(st, c) {
+    if (!c || !st.chat) return '';
+    const id = c.id(), comp = G.compagnon(id);
+    return `<h3 class="titre-section">Le compagnon de la boutique</h3><div class="gr-liste"><button type="button" class="gr-piece gr-chat" data-gr-compagnons><span class="gr-ico">${ICONS.compagnon(id)}</span><span class="gr-txt"><b>${esc(c.nom())}, ${esc(comp ? comp.nom.toLowerCase() : 'chat roux')}</b><small>Changer de compagnon : du chat roux au mini-dragon</small></span><span class="gr-ok">›</span></button></div>${c.force() ? '<p class="note centre">Pendant la Maison hantée, un chat de la boutique est noir. Le choix revient après.</p>' : ''}`;
   }
   function html(st) {
     const g = G.garderobe(st), p = pieceOuverte, porte = g.equipe[p], bonus = resumeBonus(st), ens = G.ensembleComplet(st);
@@ -7263,11 +7639,11 @@ const GARDEROBE_UI = (() => {
     return `<div class="cl gr" data-cl="garderobe"><div class="cl-tete"><span class="pic">${ICONS.UI.garderobe}</span><div><h2>Garde-robe</h2><p class="sous">Choisis ce que porte ton boulanger, pièce par pièce. Les étoiles améliorent chaque pièce (niveaux 1 à 5).</p></div></div>
       <div class="gr-tete"><span class="gr-portrait" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), G.tenueBoulanger(st))}</span><div><b>${bonus.length ? bonus.join(' · ') : 'Aucun bonus porté'}</b><small>${ens ? `${esc(GR.ensembles[ens].nom)} au complet.` : 'Les quatre pièces d’une même collection : un bonus d’ensemble en plus.'}</small><small class="gr-solde">${G.fmt(st.etoiles)} étoile${st.etoiles > 1 ? 's' : ''} à dépenser · une étoile dépensée ne compte plus dans les +5 % par étoile</small></div></div>
       ${seg}<div class="gr-liste" role="list" aria-label="${esc(NOM_PIECE[p])}">${rien}${cartes}</div>${indice}
-      <h3 class="titre-section">Les ensembles</h3><div class="gr-ensembles">${ensembles}</div>${blocChat(st, ctxChat)}
+      <h3 class="titre-section">Les ensembles</h3><div class="gr-ensembles">${ensembles}</div>${blocCompagnon(st, ctxComp)}
       <button type="button" class="btn large sombre" data-a="gr-fermer" style="margin-top:14px"><b>Retour</b></button></div>`;
   }
   function ouvrir(ctx, piece) {
-    if (GR.pieces.includes(piece)) pieceOuverte = piece; ctxChat = ctx.chat || null;
+    if (GR.pieces.includes(piece)) pieceOuverte = piece; ctxComp = ctx.compagnon || null;
     ctx.openSheet(html(ctx.st)); lier(ctx);
   }
   function redessiner(ctx, cible) { // la feuille se redessine sur place, sans remonter, le bouton touché garde le focus
@@ -7289,7 +7665,7 @@ const GARDEROBE_UI = (() => {
     });
     ctx.on('[data-gr-ensemble]', (b) => { const n = G.equiperCollection(st, b.dataset.grEnsemble); if (!n) { ctx.son.non(); return; } ctx.son.deblocage(); ctx.buzz([10, 30, 10]); ctx.toast(`${GR.ensembles[b.dataset.grEnsemble].nom} : les quatre pièces portées.`); ctx.save(); ctx.apres(); redessiner(ctx); });
     ctx.on('[data-a="gr-fermer"]', () => { ctx.son.tap(); ctx.closeSheet(); });
-    ctx.on('[data-gr-chat]', (b) => { if (!ctx.chat || ctx.chat.force()) return; ctx.chat.choisir(b.dataset.grChat); ctx.son.tap(); ctx.buzz(8); ctx.save(); redessiner(ctx, `[data-gr-chat="${b.dataset.grChat}"]`); });
+    ctx.on('[data-gr-compagnons]', () => { if (!ctx.compagnon) return; ctx.son.tap(); ctx.compagnon.ouvrir(() => ouvrir(ctx, pieceOuverte)); }); // « Retour » revient ici
   }
   function bind(sec, ctx) { sec.querySelectorAll('[data-gr-ouvrir]').forEach((b) => b.addEventListener('click', () => { ctx.son.tap(); ouvrir(ctx, b.dataset.grOuvrir); })); }
   return { carte, html, ouvrir, bind, resumeBonus, NOM_PIECE, COLLECTION, get piece() { return pieceOuverte; } };
@@ -9984,6 +10360,12 @@ const SONS = (() => {
   const ZZ = {
     alerte: [1, 0, 880, 0.01, 0.08, 0.1, 1, 1, 0, 0, 300, 0.06],
     sirene: [1, 0, 620, 0.05, 0.9, 0.25, 0, 1, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0.9],
+    // les cris des compagnons quand on les caresse (GAME.COMPAGNONS, champ cri) : de petits bruitages de synthèse, sans fichier
+    wouf: [1, 0.05, 210, 0.01, 0.05, 0.12, 2, 1.6, -9, 0, 0, 0, 0, 0.5, 0, 0, 0, 0.8, 0.04], // un aboiement grave, en dents de scie qui retombent
+    cotcot: [1, 0.05, 560, 0.005, 0.03, 0.06, 2, 1, -24, 0, 0, 0, 0.13, 0.35], // deux gloussements secs
+    coincoin: [1, 0.05, 340, 0.01, 0.07, 0.09, 3, 2, -3, 0, 0, 0, 0.17, 0.25, 28], // un cancan nasillard, deux fois
+    couic: [1, 0.05, 1250, 0.005, 0.03, 0.05, 0, 1, 45], // un petit couinement qui monte
+    couac: [1, 0.05, 280, 0.02, 0.09, 0.12, 2, 1.4, 6, 0, 0, 0, 0, 0.2, 12], // le pingouin klaxonne
   };
   const buffers = {}, cacheZz = {}; let ctx = null, demande = false;
   function brancher(actx) { // appelé par ui.js quand l'audio est créé ou repris
@@ -10058,6 +10440,7 @@ const UI = (() => {
       const fresh = G.newState(HORLOGE.maintenant());
       for (const k in fresh) if (!(k in s)) s[k] = fresh[k];
       while (s.stations.length < G.PRODUITS.length) s.stations.push({ niv: 0, staff: false, prog: 0, actif: false });
+      G.compagnons(s); // une vieille sauvegarde : son chat adopté devient le compagnon « chat-roux » (ou « chat-noir »)
       return s;
     } catch (e) { return null; }
   }
@@ -10226,15 +10609,20 @@ const UI = (() => {
     on('[data-a="adopter"]', ok); on('[data-a="plus-tard"]', () => { if (!pret()) return; G.refuserChat(st); save(); closeSheet(); toast('Le chat repassera demain.'); });
     champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
   }
-  function sheetNomChat() {
+  function sheetNomChat(retour) { // retour : la feuille d'où l'on vient (« Les compagnons »)
     if (!st.chat) return;
-    openSheet(`<div class="chat-tete">${chatNoir() ? ICONS.CHAT_NOIR : ICONS.CHAT}</div><h2>Le nom du chat</h2><input class="champ" type="text" maxlength="16" value="${esc(st.chat.nom)}" aria-label="Nom du chat" autocomplete="off" autocorrect="off">
+    const id = modeleVu(), fin = () => { if (retour) retour(); else closeSheet(); };
+    openSheet(`<div class="chat-tete">${ICONS.compagnon(id)}</div><h2>Le nom du compagnon</h2><input class="champ" type="text" maxlength="16" value="${esc(st.chat.nom)}" aria-label="Nom du compagnon" autocomplete="off" autocorrect="off">
       <button type="button" class="btn large beurre" data-a="ok" style="margin-top:12px"><b>Garder ce nom</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Annuler</b></button>`);
-    const champ = fc.querySelector('.champ'), ok = () => { G.renommerChat(st, champ.value); save(); closeSheet(); renderPage(true); toast(`${st.chat.nom} ronronne.`); };
-    on('[data-a="ok"]', ok); on('[data-a="non"]', closeSheet); champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
+    const champ = fc.querySelector('.champ'), ok = () => { G.renommerChat(st, champ.value); save(); fin(); renderPage(true); toast(G.estChat(id) ? `${st.chat.nom} ronronne.` : `${st.chat.nom} adore son nom.`); };
+    on('[data-a="ok"]', ok); on('[data-a="non"]', fin); champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
     setTimeout(() => { champ.focus(); champ.select(); }, 50);
   }
-  function caresserChat() { const r = G.caresser(st); if (!r.ok) return; son.ronron(); buzz(6); if (SCENE.ronron) SCENE.ronron(); if (r.chance) toast(`Rrrr… ${st.chat.nom} porte chance : le client mystère passera plus tôt.`); }
+  function caresserChat() { // une caresse au compagnon : son cri (ou le ronron), des cœurs, un nuage de farine pour le mini-dragon ; une fois par minute, la chance
+    const r = G.caresser(st); if (!r.ok) return;
+    const id = modeleVu(), cri = criCompagnon(id); buzz(6); if (SCENE.ronron) SCENE.ronron(); if (id === 'dragon' && SCENE.souffle) SCENE.souffle(reduceMotion ? 3 : 7);
+    if (r.chance) toast(`${cri} ${st.chat.nom} porte chance : le client mystère passera plus tôt.`);
+  }
 
   // ─── en-tête, enseigne, cloche et badges des onglets ───
   const trophesGagnes = () => G.TROPHEES.filter((t) => (st.trophees || {})[t.id]).length;
@@ -10412,7 +10800,7 @@ const UI = (() => {
   // Boulanger : niveau, savoir-faire, talents permanents, la garde-robe (src/garderobe.js)
   const GRU = typeof GARDEROBE_UI !== 'undefined' ? GARDEROBE_UI : null;
   const ctxGarderobe = () => ({ st, openSheet, closeSheet, on, feuille, save, toast, son, buzz, apres: () => { renderCards(true); hud(); lastPage = ''; renderPage(true); },
-    chat: { dispo: chatNoirDispo, noir: chatNoir, force: chatNoirForce, choisir: choisirPelage } }); // apres : la boutique (le boulanger en 3D suit sa tenue à la frame suivante) et la page se redessinent
+    compagnon: { id: modeleVu, nom: () => (st.chat ? st.chat.nom : ''), force: () => chatNoirForce() && G.estChat(G.compagnonActif(st)), ouvrir: (retour) => sheetCompagnons(retour) } }); // apres : la boutique (le boulanger en 3D suit sa tenue à la frame suivante) et la page se redessinent
   // les statistiques et records du boulanger (onglet Boulanger) : valeurs relues à chaque image, la page n'est pas redessinée pour une vente
   function valeursStats() {
     const S = st.stats, at = G.atelierDuJour(st).records, v = {
@@ -10507,7 +10895,7 @@ const UI = (() => {
   };
   // Réglages : rangés par groupe ; ce qui sert peu vit ici (repeindre, masquer l'événement, quitter le classement, sauvegarde, partage)
   const pageReglages = {
-    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}`,
+    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}`,
     html: () => {
       const q = G.QUARTIERS[G.quartier(st)], cr = classement ? classement.resume() : null;
       const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
@@ -10519,8 +10907,8 @@ const UI = (() => {
         ${groupe('La boutique', ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)
           + ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés, leurs crans et leurs prix : touche-les pour les améliorer', chev)
           + (st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, ''))
-          + (st.chat ? ligne('chat', ICONS.UI.chat, `Renommer ${esc(st.chat.nom)}`, 'Le chat de la boutique', chev) : '')
-          + (st.chat && chatNoirDispo() && !chatNoirForce() ? ligne('chat-noir', ICONS.UI.chatNoir, `${esc(st.chat.nom)} en chat noir`, 'Le souvenir de la Maison hantée : robe noire et yeux jaunes', sw(chatNoir())) : ''))}
+          + ligne('compagnons', ICONS.UI.patte, 'Le compagnon', st.chat ? `${esc(st.chat.nom)}, ${esc(G.compagnon(modeleVu()).nom.toLowerCase())} · treize animaux au choix, du chat au mini-dragon` : 'Choisis l’animal de la boutique : du chat roux au mini-dragon', chev)
+          + (st.chat ? ligne('chat', ICONS.UI.chat, `Renommer ${esc(st.chat.nom)}`, 'Le compagnon de la boutique', chev) : ''))}
         ${cr && cr.rejoint ? groupe('Classement', ligne('cl-quitter', ICONS.UI.quitter, 'Quitter le classement', `Ton pseudo « ${esc(cr.pseudo)} » et tes points disparaissent du classement`, chev)) : ''}
         ${blocNotifs(ligne, sw)}
         ${QT && QT.fenetre(st.now).ouvert ? groupe('Événement', ligne('quartier', ICONS.UI.quartier, 'Masquer l’événement', 'Le Quartier, une parodie réservée aux adultes : l’icône et la Planque disparaissent', sw(!!(st.quartier && st.quartier.masque))) + (typeof HDM !== 'undefined' && HDM.actif ? ligne('hd', ICONS.UI.quartier, 'Planque en HD', HDM.raison === 'écran noir' ? 'Coupée : l’écran restait noir sur ce téléphone. Touche pour réessayer' : 'Meubles, rue de nuit et équipe animée (à couper si l’écran reste noir)', sw(!HDM.coupe())) : '')) : ''}
@@ -10538,13 +10926,13 @@ const UI = (() => {
       onIn(sec, '[data-a="vibre"]', () => { st.vibre = !st.vibre; save(); renderPage(true); buzz(8); });
       onIn(sec, '[data-a="nom"]', () => sheetNom(false));
       onIn(sec, '[data-a="repeindre"]', () => { son.tap(); repeindre(); });
-      onIn(sec, '[data-a="chat"]', sheetNomChat);
+      onIn(sec, '[data-a="chat"]', () => sheetNomChat());
+      onIn(sec, '[data-a="compagnons"]', () => { son.tap(); sheetCompagnons(); });
       onIn(sec, '[data-a="specialite"]', sheetSpecialite);
       onIn(sec, '[data-a="sauvegarde"]', sheetSauvegarde);
       onIn(sec, '[data-a="hd"]', () => { if (typeof HDM === 'undefined') return; if (HDM.coupe()) HDM.remettre(); else HDM.couper('joueur'); son.tap(); renderPage(true); });
       onIn(sec, '[data-a="quartier"]', () => { if (!EVT) return; EVT.masquer(!(st.quartier && st.quartier.masque)); son.tap(); majCoin(); renderPage(true); });
       onIn(sec, '[data-a="hantee"]', () => { if (!HTE) return; HTE.masquer(!(st[HTE.cle] && st[HTE.cle].masque)); son.tap(); majCoin(); majChat(); renderPage(true); });
-      onIn(sec, '[data-a="chat-noir"]', () => { choisirPelage(chatNoir() ? 'roux' : 'noir'); son.tap(); renderPage(true); });
       onIn(sec, '[data-a="partager"]', partager);
       onIn(sec, '[data-a="journal-retours"]', () => { son.tap(); sheetJournalRetours(); });
       onIn(sec, '[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(); });
@@ -10872,14 +11260,58 @@ const UI = (() => {
     const bonbons = () => { const h = st && st[HTE.cle]; const t = HORLOGE.maintenant(); const ok = HT.envoiBillets ? HT.envoiBillets(t) : t >= HT.DEBUT && t < HT.FIN + 3600e3; return h && ok && h.total > 0 ? h.total : null; };
     return { [HTE.cle]: bonbons, evenement: () => { const v = bonbons(); return v == null ? null : { id: HTE.cle, score: v, valeur: v }; } }; // classement v5 : evenement() → { id, score }
   }
-  // ─── le chat noir : à la place du roux pendant la Maison hantée (pas masquée), puis au choix (Réglages, garde-robe) pour qui y a joué ───
-  // Les règles (GAME.chatNoirDispo, GAME.choisirPelage, st.chat.pelage) sont dans src/game.js (groupe H1) ; sans elles, le même choix ici.
-  let tChat = 0, dernierPelage = '';
+  // ─── le compagnon de la boutique : le chat roux de toujours, un chien, un lapin… jusqu'au mini-dragon (GAME.COMPAGNONS, src/game.js) ───
+  // Un chat est noir d'office pendant la Maison hantée (pas masquée) ; le chat noir gagné y reste au choix, comme tous les autres, dans la
+  // feuille « Les compagnons » (Réglages › La boutique, ou la garde-robe). majChat dit à la scène quel modèle bâtir quand il change.
+  let tChat = 0, dernierModele = '';
   const chatNoirForce = () => !!(HTE && HTE.visible());
-  function chatNoirDispo() { if (!st || !st.chat) return false; if (typeof G.pelagesChat === 'function') return G.pelagesChat(st).includes('noir'); const h = HTE && st[HTE.cle]; return !!(h && h.total > 0); } // gagné à un palier (GAME.donnerChatNoir)
-  function chatNoir() { if (!st || !st.chat) return false; if (typeof G.pelageChat === 'function') return G.pelageChat(st, chatNoirForce()) === 'noir'; return chatNoirForce() || (st.chat.pelage === 'noir' && chatNoirDispo()); }
-  function choisirPelage(p) { if (!st || !st.chat) return false; if (typeof G.choisirPelage === 'function') G.choisirPelage(st, p); else st.chat.pelage = p === 'noir' ? 'noir' : 'roux'; save(); majChat(); return chatNoir(); }
-  function majChat() { const p = chatNoir() ? 'noir' : 'roux'; if (p !== dernierPelage) { dernierPelage = p; if (SCENE.pelageChat) SCENE.pelageChat(p); } }
+  function chatNoirDispo() { return !!(st && st.chat && G.aCompagnon(st, 'chat-noir')); } // gagné à un palier (GAME.donnerChatNoir)
+  const modeleVu = () => (st && st.chat ? G.modeleCompagnon(st, chatNoirForce()) : 'chat-roux'); // l'animal montré dans la boutique
+  function chatNoir() { return !!(st && st.chat) && modeleVu() === 'chat-noir'; }
+  function choisirPelage(p) { if (!st || !st.chat) return false; G.choisirPelage(st, p); save(); majChat(); return chatNoir(); } // l'ancien choix (tests, garde-robe d'avant)
+  function majChat() { const id = modeleVu(); if (id !== dernierModele) { dernierModele = id; if (SCENE.compagnon) SCENE.compagnon(id); else if (SCENE.pelageChat) SCENE.pelageChat(id === 'chat-noir' ? 'noir' : 'roux'); } }
+  const CRIS = { wouf: 'Wouf !', cotcot: 'Cot cot !', coincoin: 'Coin coin !', couic: 'Couic !', couac: 'Couac !' };
+  function criCompagnon(id) { // la caresse : le cri d'un animal simple (src/sons.js, sinon un bip à sa hauteur), le ronron pour les autres
+    const c = G.compagnon(id), n = c && c.cri;
+    if (!n) { son.ronron(); return id === 'dragon' ? 'Pfffouh…' : 'Rrrr…'; }
+    if (!zf(n, { vol: 0.3 })) { const f = { wouf: 220, cotcot: 560, coincoin: 340, couic: 1250, couac: 280 }[n] || 440; beep(f, 0.09, n === 'couic' ? 'sine' : 'square', 0.035); beep(f * 0.9, 0.09, n === 'couic' ? 'sine' : 'square', 0.03, 0.13); }
+    return CRIS[n] || 'Rrrr…';
+  }
+  // la feuille « Les compagnons » : la grille des animaux, leur phrase, et Choisir / Acheter (tout de suite) ; retour : la feuille d'où l'on vient
+  function sheetCompagnons(retour) {
+    const html = () => {
+      const actif = st.chat ? G.compagnonActif(st) : null, vu = modeleVu(), force = chatNoirForce() && actif && G.estChat(actif);
+      const cartes = G.COMPAGNONS.map((c) => {
+        const a = G.aCompagnon(st, c.id), choisi = actif === c.id, prix = G.prixCompagnon(st, c.id), assez = prix != null && st.coins >= prix;
+        const statut = c.prix == null ? (c.condition ? c.gagne : 'Gratuit') : a ? 'À toi' : G.fmtEur(prix);
+        const bouton = choisi ? '<span class="cp-ok">Avec toi ✓</span>'
+          : a ? `<button type="button" class="btn menthe" data-cp-choisir="${c.id}"><b>Choisir</b></button>`
+          : prix == null ? '<span class="cp-verrou">Pendant Halloween</span>'
+          : `<button type="button" class="btn ${assez ? 'beurre' : 'non'}" data-cp-acheter="${c.id}" aria-label="${assez ? 'Acheter' : 'Pas assez pour'} ${esc(c.nom)} : ${G.fmtEur(prix)}"><small>${assez ? 'Acheter' : 'Pas assez'}</small><b>${G.fmtEur(prix)}</b></button>`;
+        return `<div class="cp-carte ${choisi ? 'choisi' : ''} ${a ? '' : 'verrou'}" data-cp="${c.id}"><span class="cp-ico">${ICONS.compagnon(choisi ? vu : c.id)}</span><b>${esc(c.nom)}</b><small class="cp-phrase">${esc(c.phrase)}</small><small class="cp-statut ${a ? 'a-toi' : ''}">${statut}</small>${bouton}</div>`;
+      }).join('');
+      const tete = st.chat ? `<b>${esc(st.chat.nom)}, ${esc(G.compagnon(vu).nom.toLowerCase())}</b><small>${G.fmt(st.chat.caresses)} caresse${st.chat.caresses > 1 ? 's' : ''} · une caresse par minute porte chance au client mystère</small>` : '<b>Pas encore de compagnon</b><small>Le chat arrive avec les éclairs au café. Tu peux aussi en choisir un tout de suite.</small>';
+      return `<div class="cl cp" data-cl="compagnons"><div class="cl-tete"><span class="pic">${ICONS.UI.patte}</span><div><h2>Les compagnons</h2><p class="sous">L’animal de la boutique dort sur le comptoir, se promène dans la salle et porte chance quand on le caresse. Acheté, il est à toi pour toujours, même dans une nouvelle boutique.</p></div></div>
+        <div class="cp-tete"><span class="cp-ico">${ICONS.compagnon(vu)}</span><div>${tete}</div>${st.chat ? '<button type="button" class="btn clair" data-a="cp-nom"><b>Renommer</b></button>' : ''}</div>
+        ${force ? '<p class="note centre">Pendant la Maison hantée, un chat de la boutique est noir. Le choix revient après.</p>' : ''}
+        <div class="cp-grille" role="list">${cartes}</div>
+        <p class="note centre">Les prix suivent les gains de ta boutique : quelques minutes pour la poule, une belle journée de travail pour le mini-dragon.</p>
+        <button type="button" class="btn large sombre" data-a="cp-fermer" style="margin-top:14px"><b>Retour</b></button></div>`;
+    };
+    const dessiner = (cible) => { const y = feuille.scrollTop; openSheet(html()); feuille.scrollTop = y; lier(); if (cible) { const b = fc.querySelector(cible); if (b) b.focus(); } };
+    const apres = (r, c) => { save(); majChat(); renderPage(true); if (r.adopte) toast(`${st.chat.nom} a adopté la boutique ! Caresse-le : il porte chance.`); dessiner(`[data-cp="${c.id}"] .cp-ok`); };
+    function lier() {
+      on('[data-cp-choisir]', (b) => { const r = G.choisirCompagnon(st, b.dataset.cpChoisir); if (!r.ok) { son.non(); return; } son.tap(); buzz(8); apres(r, r.compagnon); if (!r.adopte) toast(`${r.compagnon.nom} : ${st.chat.nom} t’attend dans la boutique.`); });
+      on('[data-cp-acheter]', (b) => {
+        const id = b.dataset.cpAcheter, r = G.acheterCompagnon(st, id);
+        if (!r.ok) { son.non(); if (r.raison === 'argent') toast(`Il manque ${G.fmtEur(r.prix - st.coins)} pour ${G.compagnon(id).nom.toLowerCase()}.`); return; }
+        reussite(`${r.compagnon.nom} rejoint la boutique, pour toujours !`); apres(r, r.compagnon);
+      });
+      on('[data-a="cp-nom"]', () => { son.tap(); sheetNomChat(() => sheetCompagnons(retour)); });
+      on('[data-a="cp-fermer"]', () => { son.tap(); if (retour) retour(); else closeSheet(); });
+    }
+    openSheet(html()); lier();
+  }
   const PERIODES = [['semaine', 'Cette semaine'], ['total', 'Tous les temps']];
   // l'onglet Événement : pendant le Quartier et deux semaines après (le podium final) ; l'onglet Halloween : pareil pour la Maison hantée,
   // si le moteur du classement (src/classement.js, v5) connaît la période 'hantee'
@@ -11166,7 +11598,8 @@ const UI = (() => {
     v.scene = !!v.b && !!(SCENE.stats && SCENE.stats.webgl);
     if (v.scene) { // sa boutique à lui, à la place de la sienne : ses coupes, son badge, ses décos, son chat ; le tiroir replié, la scène entière
       amenager(false); tiroir.aller('ferme', false);
-      SCENE.recompenses({ tenue: null, coupe: null, coupes: v.b.coupes, equipe: v.b.badge }); SCENE.decosQuartier(v.b.decosQuartier); SCENE.decosHantee(v.b.decosHantee); if (SCENE.pelageChat) SCENE.pelageChat(v.b.pelage);
+      SCENE.recompenses({ tenue: null, coupe: null, coupes: v.b.coupes, equipe: v.b.badge }); SCENE.decosQuartier(v.b.decosQuartier); SCENE.decosHantee(v.b.decosHantee); const idv = v.b.compagnon || (v.b.st && v.b.st.compagnon); // son compagnon (l'id, si la photo le porte), sinon son chat, roux ou noir
+      if (SCENE.compagnon) SCENE.compagnon(G.compagnon(idv) ? idv : G.modeleCompagnon(v.b.st, false)); else if (SCENE.pelageChat) SCENE.pelageChat(v.b.pelage);
     }
     peindreVisite();
   }
@@ -11175,7 +11608,7 @@ const UI = (() => {
     $('#visite').hidden = true; document.body.classList.remove('visite'); $('#vi-vue').innerHTML = ''; $('#vi-bas').innerHTML = '';
     if (v.scene) { // tout ce que la scène montrait de lui revient à soi
       derniereRecScene = ''; majRecompenses(); SCENE.decosQuartier(st.quartier ? st.quartier.decos : []); SCENE.decosHantee(HTE && st[HTE.cle] ? st[HTE.cle].decos : []);
-      dernierPelage = ''; majChat(); tiroir.aller(v.tiroir, false);
+      dernierModele = ''; majChat(); tiroir.aller(v.tiroir, false);
     }
     lastFrame = performance.now();
     if (v.depuisCl && versCl !== false && classement) sheetClassement();
@@ -11189,7 +11622,7 @@ const UI = (() => {
     if (!v.b) return carte(ICONS.UI.boutique, 'Pas encore ouverte aux visites', `La boutique de ${esc(v.pseudo)} apparaîtra après sa prochaine partie. Tu peux déjà lui laisser un pourboire.`);
     const s = v.b.st, postes = s.stations.filter((x) => x.niv > 0).length, apprentis = s.stations.filter((x) => x.staff).length, crans = G.MOBILIER.reduce((n, m) => n + G.mobilierCran(s, m.id), 0), max = G.MOBILIER.reduce((n, m) => n + m.max, 0);
     const li = [`Niveau ${G.niveau(s)} · ${esc(G.titre(s))}`, `${postes} recette${postes > 1 ? 's' : ''} au four · ${apprentis} apprenti${apprentis > 1 ? 's' : ''}`, `Mobilier : ${crans} cran${crans > 1 ? 's' : ''} sur ${max}`];
-    if (s.chat) li.push(`Le chat : ${esc(s.chat.nom)}`); if (v.b.coupes.length) li.push(`${v.b.coupes.length} coupe${v.b.coupes.length > 1 ? 's' : ''} en vitrine`); if (v.b.badge) li.push('Le badge « Esprit d’équipe »');
+    if (s.chat) li.push(`Le compagnon : ${esc(s.chat.nom)}`); if (v.b.coupes.length) li.push(`${v.b.coupes.length} coupe${v.b.coupes.length > 1 ? 's' : ''} en vitrine`); if (v.b.badge) li.push('Le badge « Esprit d’équipe »');
     return carte(ICONS.UI.boutique, esc(v.b.nom), esc(nomQuartier(ph.q)), `<ul>${li.map((x) => `<li>${x}</li>`).join('')}</ul>`);
   }
   function basVisite(v) { // le pourboire (avec ses restants du jour) et le retour
@@ -11560,7 +11993,7 @@ const UI = (() => {
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden, hantee: !$('#b-hantee').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
       quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT,
-      hantee: () => (HTE ? HTE.ouvrir() : false), fermerHantee: () => { if (HTE) HTE.fermer(); }, evHantee: HTE, HT, annoncerEvenements: (f) => (EVS ? EVS.annoncer(f !== false) : false), chatNoir, choisirPelage, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin,
+      hantee: () => (HTE ? HTE.ouvrir() : false), fermerHantee: () => { if (HTE) HTE.fermer(); }, evHantee: HTE, HT, annoncerEvenements: (f) => (EVS ? EVS.annoncer(f !== false) : false), chatNoir, choisirPelage, compagnons: (retour) => sheetCompagnons(retour), choisirCompagnon: (id) => { const r = G.choisirCompagnon(st, id); if (r.ok) { save(); majChat(); } return r; }, modeleVu, majChat, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin,
       visiter: (p) => visiter(p, true), finVisite, visite: () => (visite ? { pseudo: visite.pseudo, scene: visite.scene, charge: visite.charge, etat: visite.etat, nom: visite.b ? visite.b.nom : null } : null), tenterCopains, // classement v6 (pour les tests)
       arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false), fermerArriere: () => { if (AR) AR.fermer(); }, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }

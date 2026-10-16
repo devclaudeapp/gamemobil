@@ -134,23 +134,88 @@
   // ─── le chat de la boutique : il miaule à la porte quand les éclairs sont au menu ; adopté, on le caresse et il porte chance ───
   const CHAT = { chance: 0.2, attente: 60e3, defaut: 'Brioche', apparition: 45, rappel: 30 };
   // le pelage du chat : roux depuis toujours ; noir d'office pendant la Maison hantée (src/hantee.js : l'appelant dit si elle est ouverte),
-  // et, une fois le chat noir gagné (un palier de l'événement : donnerChatNoir), au choix ensuite dans la garde-robe ou les Réglages.
-  // st.chatNoir : gagné (à vie) ; st.chatPelage : le choix ('roux' par défaut). Pour scene.js / persos.js : pelageChat(st, halloween).
+  // et, une fois le chat noir gagné (un palier de l'événement : donnerChatNoir), un compagnon au choix (voir COMPAGNONS plus bas).
+  // st.chatNoir : gagné (à vie) ; st.chatPelage : l'ancien choix ('roux' par défaut), tenu à jour pour les cartes qui le lisent encore.
   const PELAGES = ['roux', 'noir'];
-  function donnerChatNoir(st) { const nouveau = !st.chatNoir; st.chatNoir = true; if (nouveau) note(st, 'Le chat noir : un nouveau pelage pour le chat de la boutique'); return { nouveau }; }
-  function choisirPelage(st, p) { if (!PELAGES.includes(p) || (p === 'noir' && !st.chatNoir)) return false; st.chatPelage = p; return true; }
+  function donnerChatNoir(st) { const nouveau = !st.chatNoir; st.chatNoir = true; if (nouveau) note(st, 'Le chat noir : un nouveau compagnon pour la boutique'); return { nouveau }; }
+  function choisirPelage(st, p) { if (!PELAGES.includes(p) || (p === 'noir' && !st.chatNoir)) return false; st.chatPelage = p; st.compagnon = p === 'noir' ? 'chat-noir' : 'chat-roux'; return true; } // l'ancien choix du pelage : un des deux chats
   const pelagesChat = (st) => (st.chatNoir ? PELAGES.slice() : ['roux']); // les pelages au choix
-  function pelageChat(st, halloween) { if (halloween) return 'noir'; return st.chatNoir && st.chatPelage === 'noir' ? 'noir' : 'roux'; }
-  const nomChat = (nom) => String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16) || CHAT.defaut;
+  function pelageChat(st, halloween) { return modeleCompagnon(st, halloween) === 'chat-noir' ? 'noir' : 'roux'; } // le pelage du chat montré (un autre animal : 'roux', sans objet)
+  const nomChat = (nom, defaut) => String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 16) || defaut || CHAT.defaut;
   const chatPossible = (st) => !st.chat && !!st.stations[4] && st.stations[4].niv > 0 && st.chatRefuse !== dayKey(st.now);
-  function adopterChat(st, nom) { if (st.chat) return { ok: false }; st.chat = { nom: nomChat(nom), caresses: 0, dernier: 0, adopte: st.now }; gagnerXp(st, 10); note(st, `${st.chat.nom} a adopté la boutique`); return { ok: true, chat: st.chat }; }
+  function adopterChat(st, nom, id) { // le compagnon arrive : le chat à la porte, ou l'animal choisi avant lui (id) ; st.chat garde nom, caresses et chance, quel que soit l'animal
+    if (st.chat) return { ok: false };
+    const c = compagnon(id) || compagnon(compagnonActif(st));
+    st.chat = { nom: nomChat(nom, c.nomDefaut), caresses: 0, dernier: 0, adopte: st.now }; st.compagnon = c.id; gagnerXp(st, 10); note(st, `${st.chat.nom} a adopté la boutique`);
+    return { ok: true, chat: st.chat, compagnon: c };
+  }
   function refuserChat(st) { st.chatRefuse = dayKey(st.now); st.chatAttente = CHAT.apparition; }
-  function renommerChat(st, nom) { if (!st.chat) return null; st.chat.nom = nomChat(nom); return st.chat.nom; }
+  function renommerChat(st, nom) { if (!st.chat) return null; st.chat.nom = nomChat(nom, compagnon(compagnonActif(st)).nomDefaut); return st.chat.nom; }
   function caresser(st) { // une caresse ; au plus une fois par minute, il porte chance : le client mystère arrive 20 % plus tôt
     if (!st.chat) return { ok: false };
     st.chat.caresses++; let chance = false;
     if (st.now - (st.chat.dernier || 0) >= CHAT.attente) { st.chat.dernier = st.now; st.mystereTimer *= 1 - CHAT.chance; gagnerXp(st, 1); chance = true; }
     return { ok: true, chance, caresses: st.chat.caresses };
+  }
+  // ─── les compagnons : l'animal de la boutique, au choix (le chat roux de toujours, un chien, un lapin… jusqu'au mini-dragon) ───
+  // st.chat reste LE compagnon (nom, caresses, chance du client mystère, trophée Ronron), quel que soit l'animal. st.compagnon : l'id de
+  // l'animal montré (null avant le premier compagnon ; une vieille sauvegarde : le chat roux, ou noir s'il l'avait choisi) ; st.compagnons :
+  // les ids ACHETÉS, à vie (une nouvelle boutique n'y touche pas). Les gratuits sont à tout le monde ; le chat noir se gagne à la Maison
+  // hantée (st.chatNoir). Les payants coûtent des minutes des gains de la boutique, comme les primes : max(plancher, rythme × 60 × minutes),
+  // arrondi. Le plancher (COMPAGNON_PLANCHER € par minute de prix) tient le tout début, quand le rythme ne vaut que quelques euros par
+  // seconde : la poule y coûte 20 000 €, à peu près l'embauche d'Inès (22 500 €), le mini-dragon 480 000 € ; passé ~17 €/s de rythme
+  // (la première heure), seul compte le temps de gains. Aucun point de boulanger : un compagnon ne fait que de la compagnie.
+  // Pour scene.js / persos.js : modeleCompagnon(st, halloween) (pendant la Maison hantée, un chat est noir ; les autres restent eux-mêmes).
+  // cri : le son de la caresse (src/sons.js) ; null : le ronron.
+  const COMPAGNON_PLANCHER = 1000;
+  const COMPAGNONS = [
+    { id: 'chat-roux', nom: 'Chat roux', espece: 'chat', prix: null, condition: null, nomDefaut: 'Brioche', cri: null, phrase: 'Le chat de toujours : il dort sur le comptoir et ronronne pour un rien.' },
+    { id: 'chien', nom: 'Chien', espece: 'chien', prix: null, condition: null, nomDefaut: 'Biscotte', cri: 'wouf', phrase: 'Un petit corniaud beige. Il remue tout l’arrière-train quand on entre.' },
+    { id: 'lapin', nom: 'Lapin', espece: 'lapin', prix: null, condition: null, nomDefaut: 'Pompon', cri: 'couic', phrase: 'Il sautille entre les tables et grignote les miettes de pain d’épices.' },
+    { id: 'chat-noir', nom: 'Chat noir', espece: 'chat', prix: null, condition: (st) => !!st.chatNoir, gagne: 'Gagné à la Maison hantée', nomDefaut: 'Réglisse', cri: null, phrase: 'Robe noire, yeux jaunes : le souvenir de la Maison hantée.' },
+    { id: 'poule', nom: 'Poule', espece: 'poule', prix: 20, condition: null, nomDefaut: 'Cocotte', cri: 'cotcot', phrase: 'Elle picore les miettes et surveille le four d’un œil sévère.' },
+    { id: 'canard', nom: 'Canard', espece: 'canard', prix: 30, condition: null, nomDefaut: 'Coincoin', cri: 'coincoin', phrase: 'Il cancane à chaque client. On dit qu’il préfère la brioche.' },
+    { id: 'herisson', nom: 'Hérisson', espece: 'herisson', prix: 45, condition: null, nomDefaut: 'Châtaigne', cri: null, phrase: 'Tout rond, tout piquant : il se roule en boule sous les tables.' },
+    { id: 'pingouin', nom: 'Pingouin', espece: 'pingouin', prix: 60, condition: null, nomDefaut: 'Smoking', cri: 'couac', phrase: 'Toujours en tenue de soirée. Il adore la chambre froide.' },
+    { id: 'raton', nom: 'Raton laveur', espece: 'raton', prix: 90, condition: null, nomDefaut: 'Filou', cri: null, phrase: 'Masque de bandit, mains propres : il lave chaque croissant avant de le chiper.' },
+    { id: 'escargot', nom: 'Escargot géant', espece: 'escargot', prix: 120, condition: null, nomDefaut: 'Turbo', cri: null, phrase: 'Gros comme une miche, lent comme un dimanche. Il glisse.' },
+    { id: 'teckel', nom: 'Teckel-baguette', espece: 'teckel', prix: 180, condition: null, nomDefaut: 'Tradition', cri: 'wouf', phrase: 'Son corps est une baguette dorée. Croustillant dehors, fidèle dedans.' },
+    { id: 'croissant', nom: 'Croissant vivant', espece: 'croissant', prix: 300, condition: null, nomDefaut: 'Feuilleté', cri: null, phrase: 'Pur beurre, sur pattes. Il rebondit partout et refuse qu’on le trempe.' },
+    { id: 'dragon', nom: 'Mini-dragon', espece: 'dragon', prix: 480, condition: null, nomDefaut: 'Fournaise', cri: null, phrase: 'Il allume le four d’un hoquet et crache un nuage de farine quand on le caresse.' },
+  ];
+  const compagnon = (id) => (id && COMPAGNONS.find((c) => c.id === id)) || null;
+  const estChat = (id) => { const c = compagnon(id); return !!c && c.espece === 'chat'; };
+  const prixCompagnon = (st, id) => { const c = compagnon(id); return c && c.prix != null ? arrondi(Math.max(COMPAGNON_PLANCHER * c.prix, rythme(st) * 60 * c.prix)) : null; }; // null : il ne s'achète pas
+  function aCompagnon(st, id) { // à soi : un gratuit, le chat noir gagné, ou un payant acheté
+    const c = compagnon(id); if (!c) return false;
+    if (c.prix == null) return !c.condition || c.condition(st);
+    return Array.isArray(st.compagnons) && st.compagnons.includes(id);
+  }
+  function compagnonActif(st) { // l'id de l'animal choisi ; une vieille sauvegarde : le chat, noir s'il l'avait choisi
+    if (st.compagnon && aCompagnon(st, st.compagnon)) return st.compagnon;
+    return st.chatNoir && st.chatPelage === 'noir' ? 'chat-noir' : 'chat-roux';
+  }
+  const modeleCompagnon = (st, halloween) => { const id = compagnonActif(st); return halloween && estChat(id) ? 'chat-noir' : id; };
+  function compagnons(st) { // les compagnons remis d'aplomb (une vieille sauvegarde, un id disparu, un doublon) ; rend la liste des achetés
+    const vus = new Set(); st.compagnons = (Array.isArray(st.compagnons) ? st.compagnons : []).filter((id) => { const c = compagnon(id); if (!c || c.prix == null || vus.has(id)) return false; vus.add(id); return true; });
+    if (st.compagnon != null && !aCompagnon(st, st.compagnon)) st.compagnon = null;
+    if (st.compagnon == null && st.chat) st.compagnon = compagnonActif(st); // un chat déjà adopté devient le compagnon « chat-roux » (ou « chat-noir »)
+    return st.compagnons;
+  }
+  function choisirCompagnon(st, id) { // montrer cet animal ; choisi avant que le chat n'arrive : il est adopté tout de suite
+    const c = compagnon(id); if (!c || !aCompagnon(st, id)) return { ok: false };
+    compagnons(st); const adopte = !st.chat;
+    if (adopte) adopterChat(st, '', id); else st.compagnon = id;
+    if (c.espece === 'chat') st.chatPelage = id === 'chat-noir' ? 'noir' : 'roux'; // l'ancien champ suit
+    return { ok: true, compagnon: c, adopte };
+  }
+  function acheterCompagnon(st, id) { // payé une fois, à soi pour toujours, et choisi tout de suite
+    const c = compagnon(id); if (!c) return { ok: false, raison: 'inconnu' };
+    if (aCompagnon(st, id)) return { ok: false, raison: 'possede' };
+    const prix = prixCompagnon(st, id); if (prix == null) return { ok: false, raison: 'gratuit' }; // le chat noir pas encore gagné
+    if (st.coins < prix) return { ok: false, raison: 'argent', prix };
+    st.coins -= prix; compagnons(st).push(id); inc(st, 'compagnons'); gagnerXp(st, 5); note(st, `${c.nom} : un nouveau compagnon pour la boutique`);
+    return { ok: true, prix, compagnon: c, adopte: choisirCompagnon(st, id).adopte };
   }
 
   // ─── les recettes de saison : une station à part, cuite à la main, le temps de sa saison ; cent fournées pour la maîtriser ───
@@ -374,7 +439,7 @@
       stats: { taps: 0, ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false, meubles: 0 },
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null, tiroir: 'mi',
-      apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, chatNoir: false, chatPelage: 'roux', saison: null, saisonAnnoncee: '', collection: {},
+      apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, chatNoir: false, chatPelage: 'roux', compagnons: [], compagnon: null, saison: null, saisonAnnoncee: '', collection: {},
       // st.quartier (src/quartier.js) et st.hantee (src/hantee.js) : l'état des événements, créés à la première visite par leurs règles
       atelier: atelierNeuf(), points: pointsNeufs(semaineKey(nowMs), dayKey(nowMs)), garderobe: garderobeNeuve(), boosts: boostsNeufs(),
     };
@@ -704,7 +769,7 @@
     { id: 'decorateur', nom: 'Décorateur', desc: 'Améliorer 40 meubles en tout', xp: 50, cond: (st) => (st.stats.meubles || 0) >= 40 },
     { id: 'grade', nom: 'Chef de partie', desc: 'Un apprenti au grade 3', xp: 30, cond: (st) => PRODUITS.some((p, i) => gradeApprenti(st, i) >= 3) },
     { id: 'brigade', nom: 'Brigade étoilée', desc: 'Quatre apprentis au grade 5', xp: 100, cond: (st) => PRODUITS.filter((p, i) => gradeApprenti(st, i) >= 5).length >= 4 },
-    { id: 'ronron', nom: 'Ronron', desc: 'Caresser le chat 100 fois', xp: 30, cond: (st) => !!st.chat && st.chat.caresses >= 100 },
+    { id: 'ronron', nom: 'Ronron', desc: 'Caresser le compagnon 100 fois', xp: 30, cond: (st) => !!st.chat && st.chat.caresses >= 100 },
     { id: 'saison1', nom: 'Recette de saison', desc: 'Maîtriser une recette de saison', xp: 30, cond: (st) => Object.values(st.collection || {}).some((c) => c.maitrisee) },
     { id: 'saisons4', nom: 'Quatre saisons', desc: 'Maîtriser quatre recettes de saison', xp: 80, cond: (st) => Object.values(st.collection || {}).filter((c) => c.maitrisee).length >= 4 },
   ];
@@ -994,7 +1059,7 @@
     if (gain <= 0) return { ok: false };
     st.etoiles += gain; st.boutiques++; st.nomBoutique = ''; st.specialite = null; gagnerXp(st, 80 + Math.min(120, 2 * gain)); noterSemaine(st, 'boutique');
     st.coins = 0; st.lifetimeRun = 0; st.ameliorations = {}; st.mobilier = {}; st.stations = stationsNeuves(1 + talent(st, 'memoire')); st.ev = null; st.boost = null;
-    if (st.saison) st.saison = { id: st.saison.id, annee: st.saison.annee, niv: 0, prog: 0, actif: false }; // les grades des apprentis, le chat et la collection restent
+    if (st.saison) st.saison = { id: st.saison.id, annee: st.saison.annee, niv: 0, prog: 0, actif: false }; // les grades des apprentis, le compagnon (et ceux achetés) et la collection restent
     st.lastSeen = nowMs;
     // les objectifs du jour pas encore réclamés sont retirés à la taille de la nouvelle boutique (les réussis restent acquis)
     if (st.jour) { const neufs = tirerObjectifs(st, st.jour.date); st.jour.objectifs = st.jour.objectifs.map((o, k) => (o.reclame ? o : neufs[k])); }
@@ -1085,6 +1150,7 @@
 
   return { APPRENTIS, APPRENTI_NIVEAUX, APPRENTI_VITESSE, APPRENTI_ABSENCE, xpApprenti, gradeApprenti, progresApprenti, creditApprenti, apprentiTempsMult, apprentiRevMult, effetTalentApprenti,
     CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, PELAGES, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
+    COMPAGNONS, COMPAGNON_PLANCHER, compagnon, estChat, prixCompagnon, aCompagnon, compagnonActif, modeleCompagnon, compagnons, choisirCompagnon, acheterCompagnon,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
     PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,

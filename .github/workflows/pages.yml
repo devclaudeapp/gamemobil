@@ -16,7 +16,8 @@ jobs:
   # réseau qui revient), les récompenses du podium, le classement en points de boulanger (Supabase simulé : rien ne part vers le
   # vrai projet ; l'icône ronde en haut à droite), l'Atelier (ses trois mini-jeux joués au doigt, records, gains et plafond du jour)
   # et l'arrière-salle (le BlackJack caché : la porte touchée cinq fois, les mises, le tapis, aucune incidence sur la fortune) ;
-  # les copains et les notifications (visite d'une boutique, pourboires, objectif commun ; abonnement Web Push simulé, service worker).
+  # les copains et les notifications (visite d'une boutique, pourboires, objectif commun ; abonnement Web Push simulé, service worker) ;
+  # les compagnons (la feuille, l'achat avec l'argent du jeu, le modèle 3D, la caresse, sans fuite ni allocation).
   # Rouge ici = pas de mise en ligne.
   fournil:
     name: Le Fournil (Playwright)
@@ -31,7 +32,7 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
-      - name: La triche au changement d'heure, les récompenses, le classement, l'Atelier, la garde-robe
+      - name: La triche au changement d'heure, les récompenses, le classement, l'Atelier, la garde-robe, les compagnons
         run: |
           node build.js
           node test/fournil-points.test.js
@@ -45,6 +46,8 @@ jobs:
           node test/fournil-garderobe.cjs
           node test/fournil-absence.test.js
           node test/fournil-reveil.cjs
+          node test/fournil-compagnons.test.js
+          node test/fournil-compagnons.cjs
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
@@ -55,6 +58,7 @@ jobs:
           PORT_QUARTIER: '8865'
           PORT_BLACKJACK: '8866'
           PORT_NOTIFS: '8867'
+          PORT_COMPAGNONS: '8868'
   # Deux tâches en parallèle : une seule dépassait les 20 minutes.
   fournil2:
     name: Le Fournil, événements et scène (Playwright)
@@ -101,7 +105,7 @@ jobs:
       - uses: actions/configure-pages@v5
         with:
           enablement: true
-      - run: node build.js && node test/econ.test.js && node test/longevite.js --test && node test/poncin.test.js && node test/fournil-classement.test.js && node test/fournil-horloge.test.js && node test/fournil-atelier.test.js && node test/fournil-points.test.js && node test/fournil-quartier.test.js && node test/fournil-hantee.test.js && node test/fournil-absence.test.js && node test/fournil-blackjack.test.js
+      - run: node build.js && node test/econ.test.js && node test/longevite.js --test && node test/poncin.test.js && node test/fournil-classement.test.js && node test/fournil-horloge.test.js && node test/fournil-atelier.test.js && node test/fournil-points.test.js && node test/fournil-quartier.test.js && node test/fournil-hantee.test.js && node test/fournil-absence.test.js && node test/fournil-blackjack.test.js && node test/fournil-compagnons.test.js
         env:
           TZ: Europe/Paris
       - uses: actions/upload-pages-artifact@v3

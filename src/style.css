@@ -682,6 +682,28 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .gr-minis i svg { width: 20px; height: 20px; }
 .gr-minis i.manque svg { opacity: .3; filter: grayscale(1); }
 .gr-tout { min-width: 88px; min-height: 44px; }
+/* ─── les compagnons (feuille « Les compagnons », ui.js) : l'animal choisi en tête, puis la grille de deux colonnes ─── */
+.cp-tete { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; padding: 10px 12px; border-radius: 20px; background: var(--carte); box-shadow: 0 4px 12px var(--ombre); }
+.cp-tete > div { min-width: 0; flex: 1 1 auto; }
+.cp-tete b { display: block; font: 700 15px/1.2 var(--titre); }
+.cp-tete small { display: block; margin-top: 3px; font-size: 12px; line-height: 1.3; color: var(--texte-2); }
+.cp-tete .btn { flex: 0 0 auto; min-width: 92px; }
+.cp-ico { display: grid; place-items: center; flex: 0 0 auto; width: 60px; height: 60px; border-radius: 18px; background: var(--creme); }
+.cp-ico svg { width: 50px; height: 50px; }
+.cp-grille { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.cp-carte { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 10px 8px; border-radius: 18px; background: var(--carte); box-shadow: 0 4px 12px var(--ombre); text-align: center; min-width: 0; }
+.cp-carte > b { font: 700 15px/1.15 var(--titre); }
+.cp-carte .cp-phrase { flex: 1 1 auto; font: 700 11.5px/1.3 var(--texte-font); color: var(--texte-2); }
+.cp-carte .cp-statut { font: 800 12px/1.2 var(--texte-font); color: var(--beurre-sombre); }
+.cp-carte .cp-statut.a-toi { color: var(--menthe-sombre); }
+.cp-carte .btn { width: 100%; margin-top: 4px; }
+.cp-carte .btn b { font-size: 14px; }
+.cp-carte.choisi { background: #FFF3C4; box-shadow: inset 0 0 0 2.5px var(--beurre-sombre), 0 4px 12px var(--ombre); }
+.cp-carte.choisi .cp-ico { background: #fff; }
+.cp-carte.verrou .cp-ico svg { opacity: .55; filter: grayscale(.6); }
+.cp-ok, .cp-verrou { display: grid; place-items: center; width: 100%; min-height: 44px; margin-top: 4px; font: 700 14px/1.1 var(--titre); color: var(--beurre-sombre); }
+.cp-verrou { color: var(--texte-2); font-size: 13px; border-radius: var(--r-int); background: var(--creme); }
+@media (max-width: 359px) { .cp-carte .cp-phrase { font-size: 11px; } .cp-ico { width: 52px; height: 52px; } .cp-ico svg { width: 44px; height: 44px; } }
 @media (max-width: 379px) { .gr-cases { gap: 4px; } .gr-case { padding-inline: 1px; } .gr-case b { font-size: 10.5px; letter-spacing: -.02em; } .gr-ameliorer { min-width: 84px; } } /* « Chaussures » entier, jamais coupé au milieu */
 
 /* ─── l'événement « Le Quartier » : l'icône du coin, la pastille des boosts, la Planque en plein écran (sombre, néons), ses feuilles ─── */

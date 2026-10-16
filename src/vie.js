@@ -212,6 +212,10 @@ const VIE = (() => {
   }
   function chasseChat() { if (chat && !chat.haut && chat.etat !== 'monte' && chat.etat !== 'descend' && LAY) { versChat({ x: LAY.mystere.x + 16 * K, y: LAY.mystere.y + 6 * K }, true); chat.tours = Math.min(chat.tours, 2); } }
   function ronron() { if (!chat) return; const x = chat.x, y = (chat.haut ? LAY.chat.y : chat.y) - 26 * K; for (let k = 0; k < 3; k++) chat.coeurs.push({ x: x + (k - 1) * 9, y: y - k * 4, life: 1 + k * 0.15 }); }
+  function souffle(n) { // le mini-dragon caressé crache un petit nuage de farine devant lui (des vapeurs blanches qui montent et s'étalent)
+    if (!chat || !LAY) return; const d = chat.dir === 1 ? 1 : chat.dir === -1 ? -1 : 0, x = chat.x + d * 18 * K, y = (chat.haut ? LAY.chat.y : chat.y) - (d ? 12 : 4) * K;
+    for (let k = 0; k < (n || 7); k++) vapeurs.push({ x: x + (Math.random() - 0.5) * 16 * K, y: y + (Math.random() - 0.5) * 8 * K, r: (3 + Math.random() * 4) * K, life: 0.9 + Math.random() * 0.5 });
+  }
 
   let etat = null; // l'instantané de la dernière frame, pour la vue
   function frame(dt, st, now) {
@@ -256,7 +260,7 @@ const VIE = (() => {
     return etat;
   }
 
-  const API = { hautBloc, resize, frame, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, piedComptoir, surServi: null,
+  const API = { hautBloc, resize, frame, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
     DECORS, PASTEL, PEAUX6, HAUTS6, CHEVEUX, TAU,
     get LAY() { return LAY; }, get K() { return K; }, get W() { return W; }, get H() { return H; }, get t() { return t; }, get rush() { return rush; }, get Q() { return Q; }, get tags() { return tags; }, get force() { return force; }, get etat() { return etat; },
     get clients() { return clients; }, get apprentis() { return apprentis; }, get textes() { return textes; }, get vapeurs() { return vapeurs; }, get confetti() { return confetti; }, get flocons() { return flocons; }, get passants() { return passants; }, get chat() { return chat; }, get crans() { return crans; }, get abordables() { return abordables; }, get prixDe() { return prixDe; },

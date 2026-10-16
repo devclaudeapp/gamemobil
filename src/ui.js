@@ -43,6 +43,7 @@ const UI = (() => {
       const fresh = G.newState(HORLOGE.maintenant());
       for (const k in fresh) if (!(k in s)) s[k] = fresh[k];
       while (s.stations.length < G.PRODUITS.length) s.stations.push({ niv: 0, staff: false, prog: 0, actif: false });
+      G.compagnons(s); // une vieille sauvegarde : son chat adopté devient le compagnon « chat-roux » (ou « chat-noir »)
       return s;
     } catch (e) { return null; }
   }
@@ -211,15 +212,20 @@ const UI = (() => {
     on('[data-a="adopter"]', ok); on('[data-a="plus-tard"]', () => { if (!pret()) return; G.refuserChat(st); save(); closeSheet(); toast('Le chat repassera demain.'); });
     champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
   }
-  function sheetNomChat() {
+  function sheetNomChat(retour) { // retour : la feuille d'où l'on vient (« Les compagnons »)
     if (!st.chat) return;
-    openSheet(`<div class="chat-tete">${chatNoir() ? ICONS.CHAT_NOIR : ICONS.CHAT}</div><h2>Le nom du chat</h2><input class="champ" type="text" maxlength="16" value="${esc(st.chat.nom)}" aria-label="Nom du chat" autocomplete="off" autocorrect="off">
+    const id = modeleVu(), fin = () => { if (retour) retour(); else closeSheet(); };
+    openSheet(`<div class="chat-tete">${ICONS.compagnon(id)}</div><h2>Le nom du compagnon</h2><input class="champ" type="text" maxlength="16" value="${esc(st.chat.nom)}" aria-label="Nom du compagnon" autocomplete="off" autocorrect="off">
       <button type="button" class="btn large beurre" data-a="ok" style="margin-top:12px"><b>Garder ce nom</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Annuler</b></button>`);
-    const champ = fc.querySelector('.champ'), ok = () => { G.renommerChat(st, champ.value); save(); closeSheet(); renderPage(true); toast(`${st.chat.nom} ronronne.`); };
-    on('[data-a="ok"]', ok); on('[data-a="non"]', closeSheet); champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
+    const champ = fc.querySelector('.champ'), ok = () => { G.renommerChat(st, champ.value); save(); fin(); renderPage(true); toast(G.estChat(id) ? `${st.chat.nom} ronronne.` : `${st.chat.nom} adore son nom.`); };
+    on('[data-a="ok"]', ok); on('[data-a="non"]', fin); champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') ok(); });
     setTimeout(() => { champ.focus(); champ.select(); }, 50);
   }
-  function caresserChat() { const r = G.caresser(st); if (!r.ok) return; son.ronron(); buzz(6); if (SCENE.ronron) SCENE.ronron(); if (r.chance) toast(`Rrrr… ${st.chat.nom} porte chance : le client mystère passera plus tôt.`); }
+  function caresserChat() { // une caresse au compagnon : son cri (ou le ronron), des cœurs, un nuage de farine pour le mini-dragon ; une fois par minute, la chance
+    const r = G.caresser(st); if (!r.ok) return;
+    const id = modeleVu(), cri = criCompagnon(id); buzz(6); if (SCENE.ronron) SCENE.ronron(); if (id === 'dragon' && SCENE.souffle) SCENE.souffle(reduceMotion ? 3 : 7);
+    if (r.chance) toast(`${cri} ${st.chat.nom} porte chance : le client mystère passera plus tôt.`);
+  }
 
   // ─── en-tête, enseigne, cloche et badges des onglets ───
   const trophesGagnes = () => G.TROPHEES.filter((t) => (st.trophees || {})[t.id]).length;
@@ -397,7 +403,7 @@ const UI = (() => {
   // Boulanger : niveau, savoir-faire, talents permanents, la garde-robe (src/garderobe.js)
   const GRU = typeof GARDEROBE_UI !== 'undefined' ? GARDEROBE_UI : null;
   const ctxGarderobe = () => ({ st, openSheet, closeSheet, on, feuille, save, toast, son, buzz, apres: () => { renderCards(true); hud(); lastPage = ''; renderPage(true); },
-    chat: { dispo: chatNoirDispo, noir: chatNoir, force: chatNoirForce, choisir: choisirPelage } }); // apres : la boutique (le boulanger en 3D suit sa tenue à la frame suivante) et la page se redessinent
+    compagnon: { id: modeleVu, nom: () => (st.chat ? st.chat.nom : ''), force: () => chatNoirForce() && G.estChat(G.compagnonActif(st)), ouvrir: (retour) => sheetCompagnons(retour) } }); // apres : la boutique (le boulanger en 3D suit sa tenue à la frame suivante) et la page se redessinent
   // les statistiques et records du boulanger (onglet Boulanger) : valeurs relues à chaque image, la page n'est pas redessinée pour une vente
   function valeursStats() {
     const S = st.stats, at = G.atelierDuJour(st).records, v = {
@@ -492,7 +498,7 @@ const UI = (() => {
   };
   // Réglages : rangés par groupe ; ce qui sert peu vit ici (repeindre, masquer l'événement, quitter le classement, sauvegarde, partage)
   const pageReglages = {
-    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}`,
+    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}`,
     html: () => {
       const q = G.QUARTIERS[G.quartier(st)], cr = classement ? classement.resume() : null;
       const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
@@ -504,8 +510,8 @@ const UI = (() => {
         ${groupe('La boutique', ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)
           + ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés, leurs crans et leurs prix : touche-les pour les améliorer', chev)
           + (st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, ''))
-          + (st.chat ? ligne('chat', ICONS.UI.chat, `Renommer ${esc(st.chat.nom)}`, 'Le chat de la boutique', chev) : '')
-          + (st.chat && chatNoirDispo() && !chatNoirForce() ? ligne('chat-noir', ICONS.UI.chatNoir, `${esc(st.chat.nom)} en chat noir`, 'Le souvenir de la Maison hantée : robe noire et yeux jaunes', sw(chatNoir())) : ''))}
+          + ligne('compagnons', ICONS.UI.patte, 'Le compagnon', st.chat ? `${esc(st.chat.nom)}, ${esc(G.compagnon(modeleVu()).nom.toLowerCase())} · treize animaux au choix, du chat au mini-dragon` : 'Choisis l’animal de la boutique : du chat roux au mini-dragon', chev)
+          + (st.chat ? ligne('chat', ICONS.UI.chat, `Renommer ${esc(st.chat.nom)}`, 'Le compagnon de la boutique', chev) : ''))}
         ${cr && cr.rejoint ? groupe('Classement', ligne('cl-quitter', ICONS.UI.quitter, 'Quitter le classement', `Ton pseudo « ${esc(cr.pseudo)} » et tes points disparaissent du classement`, chev)) : ''}
         ${blocNotifs(ligne, sw)}
         ${QT && QT.fenetre(st.now).ouvert ? groupe('Événement', ligne('quartier', ICONS.UI.quartier, 'Masquer l’événement', 'Le Quartier, une parodie réservée aux adultes : l’icône et la Planque disparaissent', sw(!!(st.quartier && st.quartier.masque))) + (typeof HDM !== 'undefined' && HDM.actif ? ligne('hd', ICONS.UI.quartier, 'Planque en HD', HDM.raison === 'écran noir' ? 'Coupée : l’écran restait noir sur ce téléphone. Touche pour réessayer' : 'Meubles, rue de nuit et équipe animée (à couper si l’écran reste noir)', sw(!HDM.coupe())) : '')) : ''}
@@ -523,13 +529,13 @@ const UI = (() => {
       onIn(sec, '[data-a="vibre"]', () => { st.vibre = !st.vibre; save(); renderPage(true); buzz(8); });
       onIn(sec, '[data-a="nom"]', () => sheetNom(false));
       onIn(sec, '[data-a="repeindre"]', () => { son.tap(); repeindre(); });
-      onIn(sec, '[data-a="chat"]', sheetNomChat);
+      onIn(sec, '[data-a="chat"]', () => sheetNomChat());
+      onIn(sec, '[data-a="compagnons"]', () => { son.tap(); sheetCompagnons(); });
       onIn(sec, '[data-a="specialite"]', sheetSpecialite);
       onIn(sec, '[data-a="sauvegarde"]', sheetSauvegarde);
       onIn(sec, '[data-a="hd"]', () => { if (typeof HDM === 'undefined') return; if (HDM.coupe()) HDM.remettre(); else HDM.couper('joueur'); son.tap(); renderPage(true); });
       onIn(sec, '[data-a="quartier"]', () => { if (!EVT) return; EVT.masquer(!(st.quartier && st.quartier.masque)); son.tap(); majCoin(); renderPage(true); });
       onIn(sec, '[data-a="hantee"]', () => { if (!HTE) return; HTE.masquer(!(st[HTE.cle] && st[HTE.cle].masque)); son.tap(); majCoin(); majChat(); renderPage(true); });
-      onIn(sec, '[data-a="chat-noir"]', () => { choisirPelage(chatNoir() ? 'roux' : 'noir'); son.tap(); renderPage(true); });
       onIn(sec, '[data-a="partager"]', partager);
       onIn(sec, '[data-a="journal-retours"]', () => { son.tap(); sheetJournalRetours(); });
       onIn(sec, '[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(); });
@@ -857,14 +863,58 @@ const UI = (() => {
     const bonbons = () => { const h = st && st[HTE.cle]; const t = HORLOGE.maintenant(); const ok = HT.envoiBillets ? HT.envoiBillets(t) : t >= HT.DEBUT && t < HT.FIN + 3600e3; return h && ok && h.total > 0 ? h.total : null; };
     return { [HTE.cle]: bonbons, evenement: () => { const v = bonbons(); return v == null ? null : { id: HTE.cle, score: v, valeur: v }; } }; // classement v5 : evenement() → { id, score }
   }
-  // ─── le chat noir : à la place du roux pendant la Maison hantée (pas masquée), puis au choix (Réglages, garde-robe) pour qui y a joué ───
-  // Les règles (GAME.chatNoirDispo, GAME.choisirPelage, st.chat.pelage) sont dans src/game.js (groupe H1) ; sans elles, le même choix ici.
-  let tChat = 0, dernierPelage = '';
+  // ─── le compagnon de la boutique : le chat roux de toujours, un chien, un lapin… jusqu'au mini-dragon (GAME.COMPAGNONS, src/game.js) ───
+  // Un chat est noir d'office pendant la Maison hantée (pas masquée) ; le chat noir gagné y reste au choix, comme tous les autres, dans la
+  // feuille « Les compagnons » (Réglages › La boutique, ou la garde-robe). majChat dit à la scène quel modèle bâtir quand il change.
+  let tChat = 0, dernierModele = '';
   const chatNoirForce = () => !!(HTE && HTE.visible());
-  function chatNoirDispo() { if (!st || !st.chat) return false; if (typeof G.pelagesChat === 'function') return G.pelagesChat(st).includes('noir'); const h = HTE && st[HTE.cle]; return !!(h && h.total > 0); } // gagné à un palier (GAME.donnerChatNoir)
-  function chatNoir() { if (!st || !st.chat) return false; if (typeof G.pelageChat === 'function') return G.pelageChat(st, chatNoirForce()) === 'noir'; return chatNoirForce() || (st.chat.pelage === 'noir' && chatNoirDispo()); }
-  function choisirPelage(p) { if (!st || !st.chat) return false; if (typeof G.choisirPelage === 'function') G.choisirPelage(st, p); else st.chat.pelage = p === 'noir' ? 'noir' : 'roux'; save(); majChat(); return chatNoir(); }
-  function majChat() { const p = chatNoir() ? 'noir' : 'roux'; if (p !== dernierPelage) { dernierPelage = p; if (SCENE.pelageChat) SCENE.pelageChat(p); } }
+  function chatNoirDispo() { return !!(st && st.chat && G.aCompagnon(st, 'chat-noir')); } // gagné à un palier (GAME.donnerChatNoir)
+  const modeleVu = () => (st && st.chat ? G.modeleCompagnon(st, chatNoirForce()) : 'chat-roux'); // l'animal montré dans la boutique
+  function chatNoir() { return !!(st && st.chat) && modeleVu() === 'chat-noir'; }
+  function choisirPelage(p) { if (!st || !st.chat) return false; G.choisirPelage(st, p); save(); majChat(); return chatNoir(); } // l'ancien choix (tests, garde-robe d'avant)
+  function majChat() { const id = modeleVu(); if (id !== dernierModele) { dernierModele = id; if (SCENE.compagnon) SCENE.compagnon(id); else if (SCENE.pelageChat) SCENE.pelageChat(id === 'chat-noir' ? 'noir' : 'roux'); } }
+  const CRIS = { wouf: 'Wouf !', cotcot: 'Cot cot !', coincoin: 'Coin coin !', couic: 'Couic !', couac: 'Couac !' };
+  function criCompagnon(id) { // la caresse : le cri d'un animal simple (src/sons.js, sinon un bip à sa hauteur), le ronron pour les autres
+    const c = G.compagnon(id), n = c && c.cri;
+    if (!n) { son.ronron(); return id === 'dragon' ? 'Pfffouh…' : 'Rrrr…'; }
+    if (!zf(n, { vol: 0.3 })) { const f = { wouf: 220, cotcot: 560, coincoin: 340, couic: 1250, couac: 280 }[n] || 440; beep(f, 0.09, n === 'couic' ? 'sine' : 'square', 0.035); beep(f * 0.9, 0.09, n === 'couic' ? 'sine' : 'square', 0.03, 0.13); }
+    return CRIS[n] || 'Rrrr…';
+  }
+  // la feuille « Les compagnons » : la grille des animaux, leur phrase, et Choisir / Acheter (tout de suite) ; retour : la feuille d'où l'on vient
+  function sheetCompagnons(retour) {
+    const html = () => {
+      const actif = st.chat ? G.compagnonActif(st) : null, vu = modeleVu(), force = chatNoirForce() && actif && G.estChat(actif);
+      const cartes = G.COMPAGNONS.map((c) => {
+        const a = G.aCompagnon(st, c.id), choisi = actif === c.id, prix = G.prixCompagnon(st, c.id), assez = prix != null && st.coins >= prix;
+        const statut = c.prix == null ? (c.condition ? c.gagne : 'Gratuit') : a ? 'À toi' : G.fmtEur(prix);
+        const bouton = choisi ? '<span class="cp-ok">Avec toi ✓</span>'
+          : a ? `<button type="button" class="btn menthe" data-cp-choisir="${c.id}"><b>Choisir</b></button>`
+          : prix == null ? '<span class="cp-verrou">Pendant Halloween</span>'
+          : `<button type="button" class="btn ${assez ? 'beurre' : 'non'}" data-cp-acheter="${c.id}" aria-label="${assez ? 'Acheter' : 'Pas assez pour'} ${esc(c.nom)} : ${G.fmtEur(prix)}"><small>${assez ? 'Acheter' : 'Pas assez'}</small><b>${G.fmtEur(prix)}</b></button>`;
+        return `<div class="cp-carte ${choisi ? 'choisi' : ''} ${a ? '' : 'verrou'}" data-cp="${c.id}"><span class="cp-ico">${ICONS.compagnon(choisi ? vu : c.id)}</span><b>${esc(c.nom)}</b><small class="cp-phrase">${esc(c.phrase)}</small><small class="cp-statut ${a ? 'a-toi' : ''}">${statut}</small>${bouton}</div>`;
+      }).join('');
+      const tete = st.chat ? `<b>${esc(st.chat.nom)}, ${esc(G.compagnon(vu).nom.toLowerCase())}</b><small>${G.fmt(st.chat.caresses)} caresse${st.chat.caresses > 1 ? 's' : ''} · une caresse par minute porte chance au client mystère</small>` : '<b>Pas encore de compagnon</b><small>Le chat arrive avec les éclairs au café. Tu peux aussi en choisir un tout de suite.</small>';
+      return `<div class="cl cp" data-cl="compagnons"><div class="cl-tete"><span class="pic">${ICONS.UI.patte}</span><div><h2>Les compagnons</h2><p class="sous">L’animal de la boutique dort sur le comptoir, se promène dans la salle et porte chance quand on le caresse. Acheté, il est à toi pour toujours, même dans une nouvelle boutique.</p></div></div>
+        <div class="cp-tete"><span class="cp-ico">${ICONS.compagnon(vu)}</span><div>${tete}</div>${st.chat ? '<button type="button" class="btn clair" data-a="cp-nom"><b>Renommer</b></button>' : ''}</div>
+        ${force ? '<p class="note centre">Pendant la Maison hantée, un chat de la boutique est noir. Le choix revient après.</p>' : ''}
+        <div class="cp-grille" role="list">${cartes}</div>
+        <p class="note centre">Les prix suivent les gains de ta boutique : quelques minutes pour la poule, une belle journée de travail pour le mini-dragon.</p>
+        <button type="button" class="btn large sombre" data-a="cp-fermer" style="margin-top:14px"><b>Retour</b></button></div>`;
+    };
+    const dessiner = (cible) => { const y = feuille.scrollTop; openSheet(html()); feuille.scrollTop = y; lier(); if (cible) { const b = fc.querySelector(cible); if (b) b.focus(); } };
+    const apres = (r, c) => { save(); majChat(); renderPage(true); if (r.adopte) toast(`${st.chat.nom} a adopté la boutique ! Caresse-le : il porte chance.`); dessiner(`[data-cp="${c.id}"] .cp-ok`); };
+    function lier() {
+      on('[data-cp-choisir]', (b) => { const r = G.choisirCompagnon(st, b.dataset.cpChoisir); if (!r.ok) { son.non(); return; } son.tap(); buzz(8); apres(r, r.compagnon); if (!r.adopte) toast(`${r.compagnon.nom} : ${st.chat.nom} t’attend dans la boutique.`); });
+      on('[data-cp-acheter]', (b) => {
+        const id = b.dataset.cpAcheter, r = G.acheterCompagnon(st, id);
+        if (!r.ok) { son.non(); if (r.raison === 'argent') toast(`Il manque ${G.fmtEur(r.prix - st.coins)} pour ${G.compagnon(id).nom.toLowerCase()}.`); return; }
+        reussite(`${r.compagnon.nom} rejoint la boutique, pour toujours !`); apres(r, r.compagnon);
+      });
+      on('[data-a="cp-nom"]', () => { son.tap(); sheetNomChat(() => sheetCompagnons(retour)); });
+      on('[data-a="cp-fermer"]', () => { son.tap(); if (retour) retour(); else closeSheet(); });
+    }
+    openSheet(html()); lier();
+  }
   const PERIODES = [['semaine', 'Cette semaine'], ['total', 'Tous les temps']];
   // l'onglet Événement : pendant le Quartier et deux semaines après (le podium final) ; l'onglet Halloween : pareil pour la Maison hantée,
   // si le moteur du classement (src/classement.js, v5) connaît la période 'hantee'
@@ -1151,7 +1201,8 @@ const UI = (() => {
     v.scene = !!v.b && !!(SCENE.stats && SCENE.stats.webgl);
     if (v.scene) { // sa boutique à lui, à la place de la sienne : ses coupes, son badge, ses décos, son chat ; le tiroir replié, la scène entière
       amenager(false); tiroir.aller('ferme', false);
-      SCENE.recompenses({ tenue: null, coupe: null, coupes: v.b.coupes, equipe: v.b.badge }); SCENE.decosQuartier(v.b.decosQuartier); SCENE.decosHantee(v.b.decosHantee); if (SCENE.pelageChat) SCENE.pelageChat(v.b.pelage);
+      SCENE.recompenses({ tenue: null, coupe: null, coupes: v.b.coupes, equipe: v.b.badge }); SCENE.decosQuartier(v.b.decosQuartier); SCENE.decosHantee(v.b.decosHantee); const idv = v.b.compagnon || (v.b.st && v.b.st.compagnon); // son compagnon (l'id, si la photo le porte), sinon son chat, roux ou noir
+      if (SCENE.compagnon) SCENE.compagnon(G.compagnon(idv) ? idv : G.modeleCompagnon(v.b.st, false)); else if (SCENE.pelageChat) SCENE.pelageChat(v.b.pelage);
     }
     peindreVisite();
   }
@@ -1160,7 +1211,7 @@ const UI = (() => {
     $('#visite').hidden = true; document.body.classList.remove('visite'); $('#vi-vue').innerHTML = ''; $('#vi-bas').innerHTML = '';
     if (v.scene) { // tout ce que la scène montrait de lui revient à soi
       derniereRecScene = ''; majRecompenses(); SCENE.decosQuartier(st.quartier ? st.quartier.decos : []); SCENE.decosHantee(HTE && st[HTE.cle] ? st[HTE.cle].decos : []);
-      dernierPelage = ''; majChat(); tiroir.aller(v.tiroir, false);
+      dernierModele = ''; majChat(); tiroir.aller(v.tiroir, false);
     }
     lastFrame = performance.now();
     if (v.depuisCl && versCl !== false && classement) sheetClassement();
@@ -1174,7 +1225,7 @@ const UI = (() => {
     if (!v.b) return carte(ICONS.UI.boutique, 'Pas encore ouverte aux visites', `La boutique de ${esc(v.pseudo)} apparaîtra après sa prochaine partie. Tu peux déjà lui laisser un pourboire.`);
     const s = v.b.st, postes = s.stations.filter((x) => x.niv > 0).length, apprentis = s.stations.filter((x) => x.staff).length, crans = G.MOBILIER.reduce((n, m) => n + G.mobilierCran(s, m.id), 0), max = G.MOBILIER.reduce((n, m) => n + m.max, 0);
     const li = [`Niveau ${G.niveau(s)} · ${esc(G.titre(s))}`, `${postes} recette${postes > 1 ? 's' : ''} au four · ${apprentis} apprenti${apprentis > 1 ? 's' : ''}`, `Mobilier : ${crans} cran${crans > 1 ? 's' : ''} sur ${max}`];
-    if (s.chat) li.push(`Le chat : ${esc(s.chat.nom)}`); if (v.b.coupes.length) li.push(`${v.b.coupes.length} coupe${v.b.coupes.length > 1 ? 's' : ''} en vitrine`); if (v.b.badge) li.push('Le badge « Esprit d’équipe »');
+    if (s.chat) li.push(`Le compagnon : ${esc(s.chat.nom)}`); if (v.b.coupes.length) li.push(`${v.b.coupes.length} coupe${v.b.coupes.length > 1 ? 's' : ''} en vitrine`); if (v.b.badge) li.push('Le badge « Esprit d’équipe »');
     return carte(ICONS.UI.boutique, esc(v.b.nom), esc(nomQuartier(ph.q)), `<ul>${li.map((x) => `<li>${x}</li>`).join('')}</ul>`);
   }
   function basVisite(v) { // le pourboire (avec ses restants du jour) et le retour
@@ -1545,7 +1596,7 @@ const UI = (() => {
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden, hantee: !$('#b-hantee').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
       quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT,
-      hantee: () => (HTE ? HTE.ouvrir() : false), fermerHantee: () => { if (HTE) HTE.fermer(); }, evHantee: HTE, HT, annoncerEvenements: (f) => (EVS ? EVS.annoncer(f !== false) : false), chatNoir, choisirPelage, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin,
+      hantee: () => (HTE ? HTE.ouvrir() : false), fermerHantee: () => { if (HTE) HTE.fermer(); }, evHantee: HTE, HT, annoncerEvenements: (f) => (EVS ? EVS.annoncer(f !== false) : false), chatNoir, choisirPelage, compagnons: (retour) => sheetCompagnons(retour), choisirCompagnon: (id) => { const r = G.choisirCompagnon(st, id); if (r.ok) { save(); majChat(); } return r; }, modeleVu, majChat, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin,
       visiter: (p) => visiter(p, true), finVisite, visite: () => (visite ? { pseudo: visite.pseudo, scene: visite.scene, charge: visite.charge, etat: visite.etat, nom: visite.b ? visite.b.nom : null } : null), tenterCopains, // classement v6 (pour les tests)
       arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false), fermerArriere: () => { if (AR) AR.fermer(); }, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }
