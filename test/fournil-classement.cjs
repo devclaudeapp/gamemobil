@@ -98,7 +98,7 @@ const RPC = {
     const a = [...faux.joueurs.values()].find((x) => x.pseudo.toLowerCase() === String(c.p_pour || '').toLowerCase()), miens = faux.dons.filter((d) => d.de === c.p_id), restants = 3 - miens.length;
     if (!a) return { ok: false, erreur: 'inconnu', restants }; if (a === j) return { ok: false, erreur: 'soi', restants };
     if (miens.some((d) => d.a === a.pseudo)) return { ok: false, erreur: 'deja', restants }; if (restants <= 0) return { ok: false, erreur: 'quota', restants: 0 };
-    faux.dons.push({ de: c.p_id, a: a.pseudo }); j.points += 1; j.ptsTotal += 1; return { ok: true, erreur: null, restants: restants - 1, points_semaine: j.points };
+    faux.dons.push({ de: c.p_id, a: a.pseudo }); return { ok: true, erreur: null, restants: restants - 1, points_semaine: j.points, etoile: 1 }; // version 6.1 : une étoile, aucun point
   },
   fournil_objectif: () => ({ semaine: lundi(), but: faux.objectif.but, total: faux.objectif.total, joueurs: faux.objectif.joueurs, reussi: faux.objectif.total >= faux.objectif.but, pourcent: Math.min(100, Math.floor(faux.objectif.total / faux.objectif.but * 100)) }),
   fournil_heure: () => ({ ms: Date.now() }),
@@ -488,13 +488,16 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     for (const [x, y] of [[195, 300], [60, 250], [300, 420], [195, 200]]) { await p6.touchscreen.tap(x, y); await sleep(120); }
     const apres = await p6.evaluate(() => ({ feuille: document.querySelector('#feuille').hidden, page: document.querySelector('#onglets .actif').dataset.page, v: !!window.__fournil.visite() }));
     check(apres.feuille && apres.page === 'boutique' && apres.v, 'des touches sur la scène : aucune fiche, aucune page ne s’ouvre (lecture seule)');
+    const etoiles0 = await p6.evaluate(() => window.__fournil.st.etoiles);
+    check(/\+1 étoile pour toi/.test(vis.pb), 'le bouton promet une étoile (plus de point de classement)');
     await p6.tap('[data-vi="pourboire"]');
     check(await attendre(() => p6.evaluate(() => /Pourboire laissé/.test((document.querySelector('[data-vi="pourboire"]') || {}).innerText || ''))), 'le pourboire part');
     await sleep(500);
     const pb = await p6.evaluate(() => ({ b: document.querySelector('[data-vi="pourboire"]').innerText.replace(/\s+/g, ' '), dis: document.querySelector('[data-vi="pourboire"]').getAttribute('aria-disabled'), toast: (document.querySelector('.toast') || {}).textContent || '' }));
     const don = faux.appels.filter((a) => a.nom === 'fournil_pourboire').pop();
     check(don && don.corps.p_id === moiId && don.corps.p_pour === 'Mamie Jo' && /^[0-9a-f]{64}$/.test(don.corps.p_jeton) && faux.dons.length === 1, 'fournil_pourboire(p_id, p_jeton, p_pour « Mamie Jo »)');
-    check(/Pourboire laissé ✓/.test(pb.b) && /encore 2 aujourd’hui/.test(pb.b) && pb.dis === 'true' && /Pourboire laissé à Mamie Jo/.test(pb.toast), `après : « ${pb.b} », « ${pb.toast} »`);
+    check(/Pourboire laissé ✓/.test(pb.b) && /encore 2 aujourd’hui/.test(pb.b) && pb.dis === 'true' && /Pourboire laissé à Mamie Jo/.test(pb.toast) && /\+1 étoile/.test(pb.toast), `après : « ${pb.b} », « ${pb.toast} »`);
+    check((await p6.evaluate(() => window.__fournil.st.etoiles)) === etoiles0 + 1, `une étoile de plus dans sa boutique (${etoiles0} → ${etoiles0 + 1})`);
     await capture(p6, '3-pourboire-donne');
     await p6.tap('#vi-bas [data-vi="retour"]'); await sleep(600);
     const ret = await p6.evaluate(() => ({ v: window.__fournil.visite(), cl: !!document.querySelector('#feuille-contenu .cl-liste, #feuille-contenu .cl-squelette'), corps: document.body.classList.contains('visite'), st: (() => { const s = window.__fournil.st; return JSON.stringify({ m: s.mobilier, n: s.stations.map((x) => x.niv), nom: s.nomBoutique, g: s.garderobe.equipe, c: s.chat }); })(), rec: JSON.stringify(window.__fournil.SCENE.recompensesVues) }));

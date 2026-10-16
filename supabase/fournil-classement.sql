@@ -13,9 +13,8 @@
 --      tenue, chat…) ; 2 Ko compacts côté téléphone ; le serveur mesure le texte jsonb, qui ajoute des espaces, et tolère 3 Ko ;
 --      plus gros, pas un objet, ou moins de 10 min après la précédente : ignorée, sans refuser l'envoi ; la réponse dit photo_maj.
 --      fournil_boutique(p_pseudo) la rend à tous (on visite la boutique d'un copain depuis le classement) ;
---    · le POURBOIRE (fournil_pourboire) : un par jour et par copain, 3 par jour en tout (jour de Paris). Le donneur gagne 1 point
---      de la semaine, compté à part (colonne points_bonus : l'envoi suivant du téléphone, qui ne connaît pas ce point, ne l'absorbe
---      pas). Le receveur le trouve dans fournil_recompenses (pourboires, rendus UNE fois : la lecture les marque vus ;
+--    · le POURBOIRE (fournil_pourboire) : un par jour et par copain, 3 par jour en tout (jour de Paris). Le donneur gagne une
+--      étoile dans son jeu (version 6.1 ; en 6.0, un point de la semaine, compté à part dans points_bonus, qui reste pour l'historique). Le receveur le trouve dans fournil_recompenses (pourboires, rendus UNE fois : la lecture les marque vus ;
 --      fournil_vu_pourboires peut aussi les accuser), et une notification part s'il l'a demandé ;
 --    · l'OBJECTIF COMMUN de la semaine (fournil_objectif) : la somme des points de la semaine de tous les joueurs, contre un but de
 --      150 × les joueurs actifs de la semaine précédente, de 300 à 6 000 (fixé une fois pour la semaine). Figé avec le palmarès, à
@@ -1787,18 +1786,11 @@ begin
   if v_k = 0 then
     return json_build_object('ok', false, 'erreur', 'deja', 'restants', greatest(3 - v_n, 0), 'points_semaine', null);
   end if;
-  -- son point de la semaine (une nouvelle semaine : ses compteurs de la semaine repartent de zéro, comme dans fournil_publier ; ceux
-  -- de la semaine finie sont déjà figés par fournil_figer)
-  update public.fournil_joueurs
-     set gain = case when semaine <> v_lundi then 0 else gain end,
-         points = case when semaine <> v_lundi then 0 else points end + 1,
-         points_bonus = case when semaine <> v_lundi then 0 else points_bonus end + 1,
-         points_total = points_total + 1,
-         semaine = v_lundi
-   where id = p_id
-  returning pseudo, points into v_pseudo, v_points;
+  -- version 6.1 : plus de point de classement pour le donneur (il gagne une étoile dans son jeu : « etoile » dans la réponse) ;
+  -- points_semaine rend ses points de la semaine, inchangés
+  select pseudo, case when semaine = v_lundi then points else 0 end into v_pseudo, v_points from public.fournil_joueurs where id = p_id;
   perform public.fournil_notif_mettre(v_a, 'pourboire', v_pseudo || ' t''a laissé un pourboire 🥐', v_maintenant);
-  return json_build_object('ok', true, 'erreur', null, 'restants', greatest(3 - v_n - 1, 0), 'points_semaine', v_points);
+  return json_build_object('ok', true, 'erreur', null, 'restants', greatest(3 - v_n - 1, 0), 'points_semaine', v_points, 'etoile', 1);
 end
 $$;
 

@@ -11214,7 +11214,7 @@ const UI = (() => {
       if (!r.rejoint) pb = `<p class="vi-note">Rejoins le classement pour laisser un pourboire à ${esc(v.pseudo)}.</p>`;
       else if (deja) pb = `<button type="button" class="btn large menthe" data-vi="pourboire" aria-disabled="true"><b>Pourboire laissé ✓</b><small>${dn.restants ? `${reste} pour d’autres copains` : 'tes 3 pourboires du jour sont donnés'}</small></button>`;
       else if (!dn.restants) pb = `<button type="button" class="btn large non" data-vi="pourboire" aria-disabled="true"><b>Plus de pourboire aujourd’hui</b><small>3 par jour : reviens demain</small></button>`;
-      else pb = `<button type="button" class="btn large beurre" data-vi="pourboire"${v.envoi ? ' aria-busy="true"' : ''}><b>${v.envoi ? 'Un instant…' : 'Laisser un pourboire'}</b><small>${reste} · +1 point pour toi</small></button>`;
+      else pb = `<button type="button" class="btn large beurre" data-vi="pourboire"${v.envoi ? ' aria-busy="true"' : ''}><b>${v.envoi ? 'Un instant…' : 'Laisser un pourboire'}</b><small>${reste} · +1 étoile pour toi</small></button>`;
     }
     return `${pb}<button type="button" class="btn large sombre" data-vi="retour"><b>Retour</b></button>`;
   }
@@ -11240,7 +11240,7 @@ const UI = (() => {
     v.envoi = true; peindreVisite();
     const r = await classement.pourboire(v.pseudo); v.envoi = false;
     if (visite !== v) return;
-    if (r.etat === 'ok') { son.deblocage(); buzz([10, 30, 10]); confettis(0.5); if (v.scene && SCENE.texte) SCENE.texte('Merci !'); toast(`Pourboire laissé à ${v.pseudo} ! +1 point de boulanger pour toi.`); }
+    if (r.etat === 'ok') { st.etoiles++; save(); hud(); son.deblocage(); buzz([10, 30, 10]); confettis(0.5); if (v.scene && SCENE.texte) SCENE.texte('Merci !'); toast(`Pourboire laissé à ${v.pseudo} ! +1 étoile pour toi (+${Math.round(G.ETOILE_BONUS * 100)} % de gains, pour toujours).`); } // un pourboire donné : une étoile (plus de point de classement depuis le SQL 6.1)
     else {
       son.non();
       toast(r.etat === 'refus' ? ({ deja: `Tu as déjà laissé un pourboire à ${v.pseudo} aujourd’hui.`, quota: 'Tes 3 pourboires du jour sont donnés : reviens demain.', soi: 'C’est ta propre boutique !', inconnu: 'Cette boutique a fermé ses portes.', jeton: 'Ton inscription au classement a changé : rouvre le classement.' }[r.erreur] || 'Le pourboire n’est pas passé. Réessaie dans un moment.')

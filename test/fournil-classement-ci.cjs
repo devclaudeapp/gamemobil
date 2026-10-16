@@ -314,7 +314,7 @@ function arreter(message, conclusion) {
     check(r.data && r.data.ok === true && r.data.compte === 0 && semaineOk, `puis 1 600 € (code rechargé) : rien de plus, toujours 600 € (« moi » = ${JSON.stringify(s5.moi)})`);
 
     // ─── version 6 : les copains et les notifications (A et B, de vrais joueurs de test) ───
-    let bonusA = 0; // les points que A gagne en laissant un pourboire (comptés en plus de ceux de son téléphone)
+    const bonusA = 0; // version 6.1 : un pourboire ne donne plus de point de classement (une étoile dans le jeu)
     if (V6) {
       log('\n── les copains et les notifications (version 6) ──');
       await attendre(10500);
@@ -327,8 +327,7 @@ function arreter(message, conclusion) {
       r = await rpc('fournil_boutique', { p_pseudo: B.pseudo, p_id: A.id, p_jeton: A.jeton });
       check(r.data && r.data.ok === true && r.data.photo === null && r.data.restants === 3 && r.data.deja === false, `la boutique de B vue par A : pas de photo, 3 pourboires possibles (${r.texte})`);
       r = await rpc('fournil_pourboire', { p_id: A.id, p_jeton: A.jeton, p_pour: B.pseudo });
-      check(r.data && r.data.ok === true && r.data.restants === 2 && r.data.points_semaine === 21, `A laisse un pourboire à B : 2 restants, 21 points pour A (${r.texte})`);
-      if (r.data && r.data.ok) bonusA = 1;
+      check(r.data && r.data.ok === true && r.data.restants === 2 && r.data.etoile === 1 && r.data.points_semaine === 20, `A laisse un pourboire à B : 2 restants, une étoile dans son jeu, ses 20 points inchangés (version 6.1 : ${r.texte})`);
       r = await rpc('fournil_pourboire', { p_id: A.id, p_jeton: A.jeton, p_pour: B.pseudo });
       check(r.data && r.data.ok === false && r.data.erreur === 'deja', `un second le même jour : « deja » (${r.texte})`);
       r = await rpc('fournil_pourboire', { p_id: A.id, p_jeton: A.jeton, p_pour: A.pseudo });

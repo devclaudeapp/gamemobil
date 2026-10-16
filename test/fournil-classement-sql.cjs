@@ -1593,7 +1593,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     check(rec.ok && rec.podiums.length >= 1 && rec.quartier === 1 && JSON.stringify(rec.pourboires) === '[]' && rec.objectif === null, `Ali garde ses podiums et sa 1re place au Quartier ; pas de pourboire ni d’objectif (${JSON.stringify(rec.podiums)})`);
     await c5('select public.fournil_pourboire(p_id => $1, p_jeton => $2, p_pour => $3) as r', [Ali.id, Ali.jeton, 'Béa']);
     try { await coller5(SQL); check(true, 'et la version 6 se recolle par-dessus elle-même'); } catch (err) { check(false, 'la version 6 se recolle : ' + err.message); }
-    check((await s5('select count(*)::int as n from public.fournil_photos'))[0].n === 1 && (await s5('select count(*)::int as n from public.fournil_pourboires'))[0].n === 1 && (await s5(`select count(*)::int as n from public.fournil_joueurs where points_bonus = 1`))[0].n === 1, 'la photo, le pourboire et son point restent après un nouveau collage');
+    check((await s5('select count(*)::int as n from public.fournil_photos'))[0].n === 1 && (await s5('select count(*)::int as n from public.fournil_pourboires'))[0].n === 1 && (await s5(`select count(*)::int as n from public.fournil_joueurs where points_bonus <> 0`))[0].n === 0, 'la photo et le pourboire restent après un nouveau collage (et le pourboire n’a compté aucun point)');
     await db5.close();
   }
 
@@ -1659,10 +1659,10 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     const ptsA = async () => (await classement('semaine', Al.id)).moi.points;
     const p0 = await ptsA();
     r = await pourboire(Al, 'bruno');
-    check(r.ok === true && r.erreur === null && r.restants === 2 && r.points_semaine === p0 + 1 && await ptsA() === p0 + 1, `Aline laisse un pourboire à Bruno : accepté, 2 restants, +1 point pour elle (${p0} → ${r.points_semaine})`);
+    check(r.ok === true && r.erreur === null && r.restants === 2 && r.etoile === 1 && r.points_semaine === p0 && await ptsA() === p0, `Aline laisse un pourboire à Bruno : accepté, 2 restants, une étoile dans son jeu et aucun point de classement (${p0} → ${r.points_semaine})`);
     check((await sup('select count(*)::int as n from public.fournil_pourboires p join public.fournil_joueurs a on a.id = p.a where a.pseudo = $1 and p.jour = $2', ['Bruno', '2027-08-04']))[0].n === 1, 'une ligne dans fournil_pourboires, au jour de Paris');
     r = await pourboire(Al, 'Bruno');
-    check(r.ok === false && r.erreur === 'deja' && r.restants === 2 && await ptsA() === p0 + 1, 'un second pourboire à Bruno le même jour : « deja », rien de plus');
+    check(r.ok === false && r.erreur === 'deja' && r.restants === 2 && !r.etoile && await ptsA() === p0, 'un second pourboire à Bruno le même jour : « deja », rien de plus (pas d’étoile)');
     check((await boutique('Bruno', Al)).deja === true && (await boutique('Bruno', Al)).restants === 2, 'la boutique de Bruno le dit (deja, 2 restants)');
     r = await pourboire(Al, 'Aline');
     check(r.ok === false && r.erreur === 'soi', 'à soi-même : « soi »');
@@ -1675,11 +1675,11 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     r = await pourboire({ id: Al.id, jeton: 'court' }, 'Chloé');
     check(r.erreur === 'jeton', 'un jeton mal formé : « jeton »');
     r = await pourboire(Al, 'Chloé'); const r2 = await pourboire(Al, 'Dédé'), r3 = await pourboire(Al, 'Élise');
-    check(r.ok && r.restants === 1 && r2.ok && r2.restants === 0 && r3.ok === false && r3.erreur === 'quota' && r3.restants === 0 && await ptsA() === p0 + 3, 'trois pourboires dans la journée, puis « quota » : Aline a gagné 3 points, pas plus');
-    // ses points de pourboire ne sont pas absorbés par l'envoi suivant de son téléphone
+    check(r.ok && r.restants === 1 && r2.ok && r2.restants === 0 && r3.ok === false && r3.erreur === 'quota' && r3.restants === 0 && !r3.etoile && await ptsA() === p0, 'trois pourboires dans la journée (trois étoiles), puis « quota » ; aucun point de classement');
+    // l'envoi suivant de son téléphone compte ses points comme avant
     await avancer(11);
     r = await publier6(Al, 'Aline', 50);
-    check(r.ok && r.points_comptes === 10 && r.points_semaine === 53 && await ptsA() === 53, `puis son téléphone envoie 50 points (il en avait 40) : 10 comptés, 53 en tout (les 3 des pourboires restent) (${r.points_comptes} comptés, ${r.points_semaine})`);
+    check(r.ok && r.points_comptes === 10 && r.points_semaine === 50 && await ptsA() === 50, `puis son téléphone envoie 50 points (il en avait 40) : 10 comptés, 50 en tout (${r.points_comptes} comptés, ${r.points_semaine})`);
     // minuit à Paris : un nouveau jour
     await heure('2027-08-04T22:00:01Z');
     r = await pourboire(Al, 'Bruno');
@@ -1695,16 +1695,16 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     r = await appelle('fournil_vu_pourboires', { p_id: Ch.id, p_jeton: Ch.jeton, p_jusqua: new Date(horloge).toISOString() });
     check(r.ok === true && (await recompenses(Ch)).pourboires.length === 0, 'Chloé accuse elle-même ses pourboires (fournil_vu_pourboires) : sa lecture suivante est vide');
     check((await appelle('fournil_vu_pourboires', { p_id: Ch.id, p_jeton: Br.jeton })).erreur === 'jeton', 'fournil_vu_pourboires vérifie le jeton');
-    // une nouvelle semaine : les points de pourboire repartent de zéro avec la semaine
+    // une nouvelle semaine : un pourboire ne compte toujours aucun point
     await heure('2027-08-09T08:00:00Z'); // lundi
     r = await pourboire(Al, 'Chloé');
-    const la = (await sup('select points, points_bonus, points_total, semaine::text as s from public.fournil_joueurs where id = $1', [Al.id]))[0];
-    check(r.ok && r.points_semaine === 1 && la.points === 1 && la.points_bonus === 1 && la.s === '2027-08-09' && la.points_total === 55, `lundi : un pourboire ouvre sa semaine (1 point, ${la.points_total} depuis l’arrivée)`);
+    const la = (await sup('select points, points_bonus from public.fournil_joueurs where id = $1', [Al.id]))[0];
+    check(r.ok && r.etoile === 1 && r.points_semaine === 0 && la.points_bonus === 0, `lundi : un pourboire, une étoile, 0 point de la semaine (points_bonus ${la.points_bonus})`);
     const pal = await palmares('2027-08-02');
-    check(pal.length && pal[0].pseudo === 'Aline' && pal[0].points === 54, `le palmarès de la semaine finie compte ses points de pourboire (${podiumTexte(pal)} ; ${pal[0] && pal[0].points} points)`);
+    check(pal.length && pal[0].pseudo === 'Aline' && pal[0].points === 50, `le palmarès de la semaine finie : ses seuls points de jeu (${podiumTexte(pal)} ; ${pal[0] && pal[0].points} points)`);
     await avancer(11);
     r = await publier6(Al, 'Aline', 7);
-    check(r.ok && r.points_comptes === 7 && r.points_semaine === 8, 'puis son téléphone envoie ses 7 premiers points de la semaine : 8 en tout');
+    check(r.ok && r.points_comptes === 7 && r.points_semaine === 7, 'puis son téléphone envoie ses 7 premiers points de la semaine : 7 en tout');
     // le ménage : les pourboires de plus de 30 jours ; et ceux d'un joueur qui part
     await heure('2027-09-06T09:00:00Z');
     await dues();
