@@ -89,9 +89,9 @@ const TOUS = ['chat-roux', 'chien', 'lapin', 'chat-noir', 'chien-quartier'].conc
   check(await ev((ids) => ids.every((id) => window.__fournil.G.aCompagnon(window.__fournil.st, id)), TOUS), 'les quatorze à soi (le chat noir et le chien du quartier gagnés, les payants achetés)');
   await ev(() => window.__fournil.scene({ chat: 'assis' }));
   const tour = async () => { const res = []; for (const id of TOUS) { await ev((i) => window.__fournil.choisirCompagnon(i), id); await sleep(260); res.push(await vu()); } return res; };
-  const vus1 = await tour(), st1 = await ev(() => window.__fournil.stats()), cache1 = await ev(() => MODELES.GEOS.size);
+  const vus1 = await tour(), st1 = await ev(() => window.__fournil.stats()), cache1 = await ev(() => [...MODELES.GEOS.keys()].filter((k) => /^persos\|(comp\||chat-)/.test(k)).length); // seulement les géométries des animaux (les clients qui passent en ajoutent d'autres)
   check(vus1.every((v, k) => v && v.id === TOUS[k] && v.appels <= 5), `chacun bâti à son tour, 5 appels de dessin au plus (${vus1.map((v) => `${v.id} ${v.appels}`).join(', ')})`);
-  const vus2 = await tour(); await tour(); const st2 = await ev(() => window.__fournil.stats()), cache2 = await ev(() => MODELES.GEOS.size);
+  const vus2 = await tour(); await tour(); const st2 = await ev(() => window.__fournil.stats()), cache2 = await ev(() => [...MODELES.GEOS.keys()].filter((k) => /^persos\|(comp\||chat-)/.test(k)).length);
   check(vus2.every((v, k) => v && v.id === TOUS[k]) && cache2 === cache1, `deux tours de plus : aucune géométrie nouvelle en cache (${cache1} → ${cache2}), tout est repris`);
   check(st2.geometries <= st1.geometries + 2 && st2.textures === st1.textures, `et les géométries (${st1.geometries} → ${st2.geometries}, les clients vont et viennent) et textures (${st1.textures} → ${st2.textures}) du rendu ne grandissent pas`);
   check(st2.calls <= 160, `le budget d’appels de dessin de la boutique tient (${st2.calls})`);
