@@ -1276,6 +1276,13 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
 .maj:disabled { opacity: .85; }
 @keyframes maj-entree { from { transform: translate(-50%, -24px); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .maj { animation: none; } }
+/* la jauge de la prochaine étoile (feuille Étoiles, src/ui.js jaugeEtoile) */
+.et-jauge { margin: 6px 0 14px; padding: 12px 14px; border-radius: var(--r-int); background: var(--or-clair); display: grid; gap: 7px; }
+.et-jauge-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font: 800 var(--t-corps)/1.25 var(--texte-font); color: var(--texte); }
+.et-jauge-barre { height: 12px; border-radius: 6px; background: rgba(74, 51, 40, .1); overflow: hidden; }
+.et-jauge-barre i { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--beurre), var(--beurre-sombre)); transition: width .6s ease-out; }
+.et-jauge small { font: 700 var(--t-petit)/1.3 var(--texte-font); color: var(--texte-2); }
+@media (prefers-reduced-motion: reduce) { .et-jauge-barre i { transition: none; } }
 </style>
 </head>
 <body>
@@ -1406,7 +1413,7 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '8381819a155e';</script>
+<script>window.FOURNIL_VERSION = '2ea27b1765bf';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -1942,6 +1949,13 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
   function rythme(st) { const t = tauxBase(st); if (t > 0) return t; let best = 0; st.stations.forEach((s, i) => { if (s.niv > 0) best = Math.max(best, revenuBase(st, i) / Math.max(1, temps(st, i)) * 0.5); }); return Math.max(0.5, best); }
   function etoilesPour(lifetimeRun, etoiles) { return Math.floor(Math.sqrt(Math.max(0, lifetimeRun) / (ETOILE_BASE * (1 + (etoiles || 0) / ETOILE_FREIN)))); }
   const etoilesGagnables = (st) => Math.max(0, etoilesPour(st.lifetimeRun, st.etoiles));
+  // la jauge de la prochaine étoile : etoilesPour(L) = n tant que n² × K ≤ L < (n + 1)² × K (K : le prix de base, freiné par les étoiles possédées)
+  // → { n (à récolter), de, a (les gains de la boutique pour n et n + 1 étoiles), part (0 à 1), reste (€ encore à gagner) }
+  function prochaineEtoile(st) {
+    const K = ETOILE_BASE * (1 + (st.etoiles || 0) / ETOILE_FREIN), L = Math.max(0, st.lifetimeRun || 0), n = etoilesGagnables(st);
+    const de = n * n * K, a = (n + 1) * (n + 1) * K;
+    return { n, de, a, part: Math.max(0, Math.min(1, (L - de) / (a - de))), reste: Math.max(0, a - L) };
+  }
 
   // ─── objectifs du jour : trois par jour, tirés de la date, calibrés sur ta boutique ───
   const TYPES_OBJ = {
@@ -2597,7 +2611,7 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
     PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, expoPalier, fmtMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
-    talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables,
+    talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables, prochaineEtoile,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, boostsNeufs, donnerBoostReserve, PRIME_HEURE_PLANCHER, primeHeures, donnerPrimeHeures, lancerBoostReserve,
     gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono,
     ATELIER, JEUX_ATELIER, jeuAtelier, atelierDuJour, qualiteAtelier, primePleineAtelier, primeAtelier, restantesAtelier, finirAtelier,
@@ -11431,15 +11445,26 @@ const UI = (() => {
     try { await navigator.clipboard.writeText(`${texte}\n${url}`); toast('Texte copié : colle-le où tu veux.'); } catch (e) { toast(texte); }
   }
   // les étoiles : la nouvelle boutique, et rien d'autre (le reste vit dans les onglets)
+  // la jauge de la prochaine étoile : la part déjà gagnée entre la dernière étoile récoltable et la suivante, ce qu'il reste, et en combien de temps au rythme actuel
+  function jaugeEtoile() {
+    const j = G.prochaineEtoile(st), r = G.rythme(st), pct = Math.floor(j.part * 100);
+    const duree = r > 0 ? ` · ≈ ${G.fmtDuree(j.reste / r)} de gains` : '';
+    return `<div class="et-jauge" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Prochaine étoile : ${pct} %">
+        <div class="et-jauge-tete"><span>Prochaine étoile : <b>+${j.n + 1} ★</b></span><b>${pct} %</b></div>
+        <div class="et-jauge-barre"><i style="width:${(j.part * 100).toFixed(1)}%"></i></div>
+        <small>Encore ${G.fmtEur(j.reste)} à gagner dans cette boutique${duree}</small></div>`;
+  }
   function sheetEtoiles() {
     const gain = G.etoilesGagnables(st), bonus = Math.round(st.etoiles * G.ETOILE_BONUS * 100), q = G.QUARTIERS[G.quartier(st)];
     openSheet(`<h2>Étoiles</h2><p class="sous"><b>${esc(G.nomBoutique(st))}</b> · boutique n°${st.boutiques}, ${esc(q.nom)} · ${st.etoiles} étoile${st.etoiles > 1 ? 's' : ''} · +${bonus} % sur tous les gains</p>
       <div class="encadre doux">Ouvrir une <b>nouvelle boutique</b> remet les produits et les euros à zéro, mais tu gardes tes étoiles pour toujours. Chaque étoile : <b>+${Math.round(G.ETOILE_BONUS * 100)} %</b> de gains. Plus tu as gagné dans cette boutique, plus tu en récoltes. Les objectifs du jour en donnent une aussi.</div>
       <div class="grand-nombre">+${gain} ★</div><p class="sous">à récolter maintenant (${G.fmtEur(st.lifetimeRun)} gagnés dans cette boutique)</p>
+      ${jaugeEtoile()}
       <button type="button" class="btn large ${gain > 0 ? 'beurre' : 'non'}" data-a="prestige"><small>${gain > 0 ? 'Repartir avec' : 'Pas encore'}</small><b>${gain > 0 ? `+${gain} étoile${gain > 1 ? 's' : ''}` : 'Vends encore un peu'}</b></button>
       <h3 class="titre-section">Ta boutique</h3>
       <div class="stat"><span>Fournées vendues</span><b>${G.fmt(st.stats.ventes)}</b></div><div class="stat"><span>Clients servis</span><b>${G.fmt(st.stats.clients)}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(st.lifetime)}</b></div>
       ${btnRetour()}`);
+    const t = setInterval(() => { const j = $('#feuille-contenu .et-jauge'); if (!j || $('#feuille').hidden) { clearInterval(t); return; } j.outerHTML = jaugeEtoile(); }, 1000); // la jauge avance à l'écran
     on('[data-a="close"]', closeSheet);
     on('[data-a="prestige"]', () => {
       if (G.etoilesGagnables(st) <= 0) { son.non(); return; }

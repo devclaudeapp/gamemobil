@@ -286,6 +286,14 @@ console.log('── les paliers intercalés : les doublements d’origine intact
   const s2 = G.newState(Date.UTC(2026, 9, 7, 8, 0)); s2.stations[1].niv = 120; s2.coins = 1e30; s2.mode = 10; const r = G.acheter(s2, 1);
   check(r.ok && s2.stations[1].niv === 130 && r.xp === 2, `passer le palier 125 (un quart de doublement) : ${r.xp} points d’expérience (8 pour un doublement entier)`);
 }
+console.log('── la jauge de la prochaine étoile ──');
+{
+  const s3 = G.newState(Date.UTC(2026, 9, 7, 8, 0)); s3.etoiles = 133; s3.lifetimeRun = 524e12; const j = G.prochaineEtoile(s3);
+  check(j.n === 45 && G.etoilesPour(j.a, 133) === 46 && G.etoilesPour(j.a * 0.999999, 133) === 45 && G.etoilesPour(j.de, 133) === 45, `133 étoiles, 524 Bn € gagnés : +45 à récolter, la 46e à ${G.fmtEur(j.a)}`);
+  check(Math.abs(j.part - (524e12 - j.de) / (j.a - j.de)) < 1e-12 && j.part > 0.5 && j.part < 0.55 && Math.abs(j.reste - (j.a - 524e12)) < 1, `déjà ${Math.floor(j.part * 100)} % de la suivante, encore ${G.fmtEur(j.reste)}`);
+  const s4 = G.newState(Date.UTC(2026, 9, 7, 8, 0)); const j0 = G.prochaineEtoile(s4);
+  check(j0.n === 0 && j0.part === 0 && j0.reste === G.ETOILE_BASE, `une boutique neuve : 0 %, la première étoile à ${G.fmtEur(G.ETOILE_BASE)}`);
+}
 console.log('── formats ──');
 for (const [n, s] of [[0, '0'], [7.5, '7,5'], [999, '999'], [1234, '1,2 k'], [12345, '12,3 k'], [123456, '123 k'], [2.1e9, '2,1 Md'], [5e15, '5 Bd']]) check(G.fmt(n) === s, `${n} → ${G.fmt(n)}`);
 console.log(fails ? `\n${fails} échec(s)` : '\nTout passe.');

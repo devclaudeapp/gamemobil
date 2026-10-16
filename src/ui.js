@@ -785,15 +785,26 @@ const UI = (() => {
     try { await navigator.clipboard.writeText(`${texte}\n${url}`); toast('Texte copié : colle-le où tu veux.'); } catch (e) { toast(texte); }
   }
   // les étoiles : la nouvelle boutique, et rien d'autre (le reste vit dans les onglets)
+  // la jauge de la prochaine étoile : la part déjà gagnée entre la dernière étoile récoltable et la suivante, ce qu'il reste, et en combien de temps au rythme actuel
+  function jaugeEtoile() {
+    const j = G.prochaineEtoile(st), r = G.rythme(st), pct = Math.floor(j.part * 100);
+    const duree = r > 0 ? ` · ≈ ${G.fmtDuree(j.reste / r)} de gains` : '';
+    return `<div class="et-jauge" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}" aria-label="Prochaine étoile : ${pct} %">
+        <div class="et-jauge-tete"><span>Prochaine étoile : <b>+${j.n + 1} ★</b></span><b>${pct} %</b></div>
+        <div class="et-jauge-barre"><i style="width:${(j.part * 100).toFixed(1)}%"></i></div>
+        <small>Encore ${G.fmtEur(j.reste)} à gagner dans cette boutique${duree}</small></div>`;
+  }
   function sheetEtoiles() {
     const gain = G.etoilesGagnables(st), bonus = Math.round(st.etoiles * G.ETOILE_BONUS * 100), q = G.QUARTIERS[G.quartier(st)];
     openSheet(`<h2>Étoiles</h2><p class="sous"><b>${esc(G.nomBoutique(st))}</b> · boutique n°${st.boutiques}, ${esc(q.nom)} · ${st.etoiles} étoile${st.etoiles > 1 ? 's' : ''} · +${bonus} % sur tous les gains</p>
       <div class="encadre doux">Ouvrir une <b>nouvelle boutique</b> remet les produits et les euros à zéro, mais tu gardes tes étoiles pour toujours. Chaque étoile : <b>+${Math.round(G.ETOILE_BONUS * 100)} %</b> de gains. Plus tu as gagné dans cette boutique, plus tu en récoltes. Les objectifs du jour en donnent une aussi.</div>
       <div class="grand-nombre">+${gain} ★</div><p class="sous">à récolter maintenant (${G.fmtEur(st.lifetimeRun)} gagnés dans cette boutique)</p>
+      ${jaugeEtoile()}
       <button type="button" class="btn large ${gain > 0 ? 'beurre' : 'non'}" data-a="prestige"><small>${gain > 0 ? 'Repartir avec' : 'Pas encore'}</small><b>${gain > 0 ? `+${gain} étoile${gain > 1 ? 's' : ''}` : 'Vends encore un peu'}</b></button>
       <h3 class="titre-section">Ta boutique</h3>
       <div class="stat"><span>Fournées vendues</span><b>${G.fmt(st.stats.ventes)}</b></div><div class="stat"><span>Clients servis</span><b>${G.fmt(st.stats.clients)}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(st.lifetime)}</b></div>
       ${btnRetour()}`);
+    const t = setInterval(() => { const j = $('#feuille-contenu .et-jauge'); if (!j || $('#feuille').hidden) { clearInterval(t); return; } j.outerHTML = jaugeEtoile(); }, 1000); // la jauge avance à l'écran
     on('[data-a="close"]', closeSheet);
     on('[data-a="prestige"]', () => {
       if (G.etoilesGagnables(st) <= 0) { son.non(); return; }
