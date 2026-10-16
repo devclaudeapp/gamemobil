@@ -4,4 +4,4 @@
 // bearer : envoyer aussi « Authorization: Bearer <clé publique> » (comme supabase-js) ; false pour n'envoyer que l'en-tête apikey.
 window.FOURNIL_CONFIG = { supabaseUrl: 'https://jklbitrlkfrktmnarejc.supabase.co', supabaseKey: 'sb_publishable_T4XlWAUqurOWo8T9GNkuaA_TPPf4ss3', bearer: true,
   // vapid : la clé PUBLIQUE des notifications (Web Push). La clé privée n'est que dans les secrets de la fonction notifier (Supabase).
-  vapid: 'BLwCVXgs_Cq1SrQeCkMHuH-5PE6i3qicFNWzUkYl8jq0ByQhlTQnwc8kerFc-tO5CNHU5xRN3MNmWwZAEGnm1W0' };
+  vapid: 'BLUFcxdTHToV2umXl_-89TUi5k2RDKDznntvz0tnzVTRf9R-M7OnhKjUKMj1SiiCF-UiRQL_2HcWlD4CsgJQOI8' };
