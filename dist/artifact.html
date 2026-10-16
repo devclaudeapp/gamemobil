@@ -2636,6 +2636,11 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
        un téléphone endormi page ouverte) : le jeu le paie comme une absence (surSaut, dans src/ui.js), mais une absence pour une même
        absence : avec ce qui a déjà été payé au lancement ou au retour, jamais plus que la durée d'une absence normale (sautAPayer).
        Un tricheur qui a pris de l'avance hors ligne a un saut nul ou négatif : il ne touche rien.
+   (e) La seule exception à (b) : une heure sûre fraîche montre le jeu en avance de plus de 5 min, et cette avance ne vient pas de l'heure
+       du téléphone (telMax : le plus loin où l'heure du téléphone a mené le jeu, gardé dans la sauvegarde ; un téléphone avancé exprès
+       hors ligne le pousse, et alors rien ne revient avant que le vrai temps rattrape). Elle vient donc d'un compteur monotone qui a
+       couru plus vite que le vrai temps (iPhone) : le jeu revient à l'heure sûre, et surRecul(ms) prévient l'interface, qui recule
+       d'autant lastSeen et les fins en cours (les absences recomptent tout de suite).
    Une partie pure (creer, estimer, lireEnTeteDate), testée dans Node, et une partie navigateur (navigateur), branchée ici sur window.HORLOGE. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -2656,6 +2661,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     reessai: 5 * 60e3, // une lecture ratée : la suivante (hors lancement et retour) 5 min plus tard
     absenceH: 8, // à défaut de mieux : ABSENCE_MAX_H de game.js
     saut: 90e3, // un saut d'heure sûre de plus de 90 s en cours de partie est payé comme une absence (comme le retour dans le jeu)
+    recul: 5 * 60e3, // (e) le jeu en avance de plus de 5 min sur une heure sûre fraîche, sans que le téléphone l'y ait mené : il revient à l'heure
   };
   const fini = (x) => typeof x === 'number' && Number.isFinite(x);
   const date = (x) => fini(x) && x > 0; // une date en millisecondes
@@ -2688,7 +2694,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     let sure = null; // { ms, perf } : une borne basse du vrai temps à l'instant perf (le vrai temps ne fait qu'avancer depuis)
     let synchro = null; // { ms, perf, source } : la dernière heure sûre lue pendant cette session
     let ref = null; // { ms, perf } : le temps du jeu = ref.ms + (perf() − ref.perf) ; posé au démarrage, déplacé seulement vers l'avant
-    let plancher = -Infinity, dernier = -Infinity, recalages = 0;
+    let plancher = -Infinity, dernier = -Infinity, recalages = 0, telMax = -Infinity, reculs = 0;
+    const surReculs = [];
     const perf = () => { const p = E.perf(); return fini(p) ? p : 0; };
     const avance = () => { let a = NaN; try { a = +E.avanceMax(); } catch (e) { a = NaN; } return fini(a) && a >= 0 ? a : REGLES.absenceH * 3600e3; };
     const sureMs = () => (sure ? sure.ms + Math.max(0, perf() - sure.perf) : null);
@@ -2699,15 +2706,20 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       const s = sureMs();
       let t = NaN; try { t = +E.tel(); } catch (e) { t = NaN; }
       if (s == null) return date(t) ? t : null; // jamais d'heure sûre (artefact Claude) : on ne peut que croire le téléphone
-      return Math.max(s, Math.min(date(t) ? t : s, s + avance()));
+      const c = Math.max(s, Math.min(date(t) ? t : s, s + avance()));
+      if (c > s) telMax = Math.max(telMax, c); // le téléphone a mené le jeu au-delà de l'heure sûre : (e) ne reviendra pas en deçà
+      return c;
     }
     // (re)pose le temps du jeu : jamais en arrière, ni sous le plancher
     function recaler(frais) {
       const avant = jeu(), c = candidat(frais);
-      let t = Math.max(fini(c) ? c : -Infinity, fini(avant) ? avant : -Infinity, plancher);
+      let t = Math.max(fini(c) ? c : -Infinity, fini(avant) ? avant : -Infinity, plancher), recul = 0;
       if (!fini(t)) { const tel = +E.tel(); t = date(tel) ? tel : 0; }
+      // (e) en avance sur l'heure sûre fraîche, et pas à cause du téléphone : retour à l'heure
+      if (frais && synchro && fini(c) && t - c > REGLES.recul && !(telMax > c + REGLES.recul)) { recul = t - c; t = c; plancher = Math.min(plancher, c); dernier = Math.min(dernier, Math.floor(c)); reculs++; }
       ref = { ms: t, perf: perf() }; recalages++;
-      return { avant, apres: t, saut: fini(avant) ? t - avant : 0, source: frais && synchro ? synchro.source : 'telephone' };
+      if (recul) for (const f of surReculs) { try { f(recul); } catch (e) { /* un rappel qui casse n'arrête pas l'horloge */ } }
+      return { avant, apres: t, saut: fini(avant) ? t - avant : 0, recul, source: frais && synchro ? synchro.source : 'telephone' };
     }
     function maintenant() {
       if (!ref) { // pas encore démarré : une valeur provisoire, sans rien figer (le démarrage attend l'heure sûre)
@@ -2730,6 +2742,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       if (!etat || typeof etat !== 'object') return;
       if (date(etat.sure) && !synchro) { const s = sureMs(); if (s == null || etat.sure > s) sure = { ms: etat.sure, perf: perf() }; }
       if (date(etat.jeu)) pousser(etat.jeu);
+      if (date(etat.tel)) telMax = Math.max(telMax, etat.tel);
     }
     function pousser(ms) { // le temps du jeu ne descend jamais sous ms (le dernier « maintenant » sauvé)
       if (!date(ms)) return;
@@ -2737,12 +2750,13 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       if (ref && jeu() < ms) ref = { ms, perf: perf() };
     }
     function demarrer() { return recaler(!!synchro); } // au lancement, après l'attente de l'heure sûre
-    function etat() { const s = sureMs(); return { sure: s == null ? null : Math.round(s), jeu: maintenant() }; }
+    function etat() { const s = sureMs(); return { sure: s == null ? null : Math.round(s), jeu: maintenant(), ...(fini(telMax) ? { tel: Math.round(telMax) } : {}) }; }
     function info() {
       let tel = NaN; try { tel = +E.tel(); } catch (e) { tel = NaN; }
-      return { demarre: !!ref, source: synchro ? synchro.source : 'telephone', sure: sureMs(), jeu: ref ? jeu() : null, avance: ref && date(tel) ? jeu() - tel : null, recalages };
+      return { demarre: !!ref, source: synchro ? synchro.source : 'telephone', sure: sureMs(), jeu: ref ? jeu() : null, avance: ref && date(tel) ? jeu() - tel : null, tel: date(tel) ? tel : null, telMax: fini(telMax) ? telMax : null, recalages, reculs };
     }
-    return { maintenant, noterHeureSure, charger, pousser, demarrer, recaler, etat, info, get synchro() { return synchro; } };
+    const surRecul = (f) => { if (typeof f === 'function') surReculs.push(f); };
+    return { maintenant, noterHeureSure, charger, pousser, demarrer, recaler, etat, info, surRecul, get synchro() { return synchro; } };
   }
 
   // ─── dans le navigateur ───
@@ -2822,12 +2836,13 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       maintenant: m.maintenant, pret, retour, synchroniser, sauver, info: m.info, etat: m.etat, charger: m.charger, pousser: m.pousser,
       regler(r) { if (r && typeof r.avanceMax === 'function') avanceMax = r.avanceMax; },
       surSaut(f) { if (typeof f === 'function') surSauts.push(f); }, // f({ avant, apres, saut }) : appelé tout de suite, avant la frame suivante
+      surRecul: m.surRecul, // f(ms) : le jeu vient de revenir de ms en arrière, à l'heure sûre (e)
     };
   }
   // sans fenêtre (ou si navigateur() échoue) : l'heure du téléphone, toujours croissante
   function secours() {
     const m = creer({ tel: () => Date.now(), perf: () => Date.now() }); m.demarrer();
-    return { maintenant: m.maintenant, pret: async () => m.info(), retour: async () => m.info(), synchroniser: async () => false, sauver: m.etat, info: m.info, etat: m.etat, charger: m.charger, pousser: m.pousser, regler() {}, surSaut() {} };
+    return { maintenant: m.maintenant, pret: async () => m.info(), retour: async () => m.info(), synchroniser: async () => false, sauver: m.etat, info: m.info, etat: m.etat, charger: m.charger, pousser: m.pousser, regler() {}, surSaut() {}, surRecul() {} };
   }
 
   return { CLE, REGLES, lireEnTeteDate, estimer, sautAPayer, creer, navigateur, secours };
@@ -10029,6 +10044,7 @@ const UI = (() => {
   function save() {
     if (fige) return;
     if (!retourEnCours) st.lastSeen = HORLOGE.maintenant(); // pendant un retour, l'absence n'est pas encore comptée : elle part toujours de l'ancien lastSeen
+    if (!retourEnCours) st.vuTel = Date.now(); // l'heure du téléphone à cette sauvegarde : seulement pour (e), le retour à l'heure de l'horloge
     lastSave = performance.now();
     st.horloge = HORLOGE.sauver(); // l'heure sûre et le dernier « maintenant » du jeu : dans la sauvegarde et dans leur clé à part
     let raw; try { raw = JSON.stringify(st); } catch (e) { return; }
@@ -10797,14 +10813,19 @@ const UI = (() => {
     });
   }
   // Réglages › Journal des retours : quand le jeu a compté une absence, pourquoi, et si la feuille s'est ouverte (sinon, pourquoi pas)
-  const RAISON_RETOUR = { lancement: 'Ouverture du jeu', visible: 'Retour dans le jeu', cache: 'Retour dans le jeu', reveil: 'Réveil du téléphone', gel: 'Le jeu reprend après une pause', saut: 'L’heure a sauté', heure: 'L’heure sûre est arrivée' };
+  const RAISON_RETOUR = { lancement: 'Ouverture du jeu', visible: 'Retour dans le jeu', cache: 'Retour dans le jeu', reveil: 'Réveil du téléphone', gel: 'Le jeu reprend après une pause', saut: 'L’heure a sauté', heure: 'L’heure sûre est arrivée', recul: 'Horloge du jeu remise à l’heure', derive: 'Le compteur du téléphone a sauté' };
   const NOTE_RETOUR = { feuille: 'feuille « Pendant ton absence » ouverte', court: 'pas de feuille : moins de 90 s', apprentis: 'pas de feuille : aucun apprenti', rien: 'pas de feuille : rien de vendu' };
+  const ecartTxt = (s) => `${s > 0 ? '+' : '−'}${G.fmtDuree(Math.abs(s))}`;
   function sheetJournalRetours() {
     const j = (Array.isArray(st.journalRetours) ? st.journalRetours : []).slice().reverse();
     const quand = (t) => { try { return new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
-    const lignes = j.map((e) => `<li><span><b>${esc(quand(e.t))} · ${esc(RAISON_RETOUR[e.r] || e.r)}</b><small>parti ${esc(G.fmtDuree(e.o || 0))}${e.o > e.s + 60 ? ` (payé ${esc(G.fmtDuree(e.s))})` : ''} · ${esc(NOTE_RETOUR[e.n] || e.n)}${e.h === 0 ? ' · sans heure sûre' : ''}</small></span><b>+${G.fmtEur(e.g || 0)}</b></li>`).join('');
+    const horl = (e) => `${e.a ? ` · jeu ${ecartTxt(e.a)} sur l’heure sûre` : ''}${e.p ? ` · téléphone ${ecartTxt(e.p)}` : ''}`;
+    const lignes = j.map((e) => (e.r === 'recul' || e.r === 'derive'
+      ? `<li><span><b>${esc(quand(e.t))} · ${esc(RAISON_RETOUR[e.r])}</b><small>${e.r === 'recul' ? `−${esc(G.fmtDuree(e.o || 0))}${e.s ? ` (absence rendue : ${esc(G.fmtDuree(e.s))})` : ''} : tes absences comptent de nouveau` : `+${esc(G.fmtDuree(e.o || 0))} d’un coup`}${esc(horl(e))}</small></span><b></b></li>`
+      : `<li><span><b>${esc(quand(e.t))} · ${esc(RAISON_RETOUR[e.r] || e.r)}</b><small>parti ${esc(G.fmtDuree(e.o || 0))}${e.o > e.s + 60 ? ` (payé ${esc(G.fmtDuree(e.s))})` : ''} · ${esc(NOTE_RETOUR[e.n] || e.n)}${e.h === 0 ? ' · sans heure sûre' : ''}${esc(horl(e))}</small></span><b>+${G.fmtEur(e.g || 0)}</b></li>`)).join('');
+    const hv = horlogeVue(), etatH = hv.a ? `<p class="sous">Horloge du jeu : ${esc(ecartTxt(hv.a))} sur l’heure sûre${hv.p ? `, téléphone ${esc(ecartTxt(hv.p))}` : ''}.</p>` : '';
     openSheet(`<h2>Journal des retours</h2><p class="sous">Chaque fois que le jeu compte ton absence : l’heure, ce qui l’a lancé, le temps payé et la feuille « Pendant ton absence ».</p>
-      ${lignes ? `<ul class="detail journal-retours">${lignes}</ul>` : '<p class="sous">Rien encore : le prochain retour s’inscrira ici.</p>'}
+      ${etatH}${lignes ? `<ul class="detail journal-retours">${lignes}</ul>` : '<p class="sous">Rien encore : le prochain retour s’inscrira ici.</p>'}
       <button type="button" class="btn large menthe" data-a="close"><b>Fermer</b></button>`);
     on('[data-a="close"]', closeSheet);
   }
@@ -11378,16 +11399,46 @@ const UI = (() => {
   // l'appareil éveillé ; performance.now() avance alors avec l'heure, et visibilitychange ne vient pas toujours au retour).
   function verifierReveil() {
     const w = Date.now(), p = performance.now(), ecart = (w - reveilW) - (p - reveilP), gel = p - reveilP; reveilW = w; reveilP = p;
+    if (ecart < -60e3 && st) noterJournal({ t: HORLOGE.maintenant(), r: 'derive', o: Math.round(-ecart / 1000), s: 0, g: 0, n: 'derive', ...horlogeVue() }); // le compteur du téléphone a couru plus vite que l'heure : le mouchard le note
     if (document.visibilityState === 'hidden') return;
     if (ecart > 5000) reprendre('reveil'); else if (gel > 5000) reprendre('gel');
   }
-  // le journal des retours (Réglages › Journal des retours) : les 10 derniers, pour comprendre une feuille « Pendant ton absence » qui manque
-  function noterRetour(raison, abs, sortie, montre, frais) {
+  // le journal des retours (Réglages › Journal des retours) : les 10 derniers, pour comprendre une feuille « Pendant ton absence » qui manque.
+  // Le mouchard de l'horloge : a = l'avance du jeu sur l'heure sûre, p = celle du téléphone (en s), notées quand elles dépassent une minute
+  function horlogeVue() {
+    const i = HORLOGE.info ? HORLOGE.info() : null, o = {}; if (!i || !(i.sure > 0)) return o;
+    const a = Math.round(((i.jeu != null ? i.jeu : HORLOGE.maintenant()) - i.sure) / 1000), p = i.tel > 0 ? Math.round((i.tel - i.sure) / 1000) : 0;
+    if (Math.abs(a) > 60) o.a = a; if (Math.abs(p) > 60) o.p = p; return o;
+  }
+  function noterJournal(e) {
     if (!st) return;
     const j = Array.isArray(st.journalRetours) ? st.journalRetours : (st.journalRetours = []);
+    j.push(e); while (j.length > 10) j.shift();
+  }
+  function noterRetour(raison, abs, sortie, montre, frais) {
+    if (!st) return;
     const note = montre ? 'feuille' : abs.secs <= 90 ? 'court' : !st.stations.some((s) => s.niv > 0 && s.staff) ? 'apprentis' : 'rien';
-    j.push({ t: st.now, r: raison, o: Math.max(0, Math.round(sortie / 1000)), s: Math.round(abs.secs), g: abs.total, n: note, h: frais == null ? null : frais ? 1 : 0 });
-    while (j.length > 10) j.shift();
+    noterJournal({ t: st.now, r: raison, o: Math.max(0, Math.round(sortie / 1000)), s: Math.round(abs.secs), g: abs.total, n: note, h: frais == null ? null : frais ? 1 : 0, ...horlogeVue() });
+  }
+  // (e) l'heure sûre a ramené le jeu de ms en arrière. Le départ de l'absence (lastSeen) revient à la vraie heure de la dernière sauvegarde :
+  // une avance prise avant cette sauvegarde est rendue, une avance prise après (le compteur qui saute en pleine partie) ne crée pas de
+  // fausse absence. Ce qui a commencé « dans le futur » (un coup de feu, une
+  // opération lancés pendant l'avance) revient à maintenant, en gardant sa durée ; les absences recomptent aussitôt
+  function reculer(ms) {
+    if (!st || !(ms > 0)) return;
+    const t = HORLOGE.maintenant(), avant = st.lastSeen;
+    // la vraie heure de la dernière sauvegarde : l'heure du téléphone d'alors (st.vuTel), sinon l'heure sûre qu'elle gardait (st.horloge.sure,
+    // les sauvegardes d'avant cette version) ; jamais après lastSeen ni après maintenant (le recul n'est possible que si le téléphone n'a pas
+    // mené le jeu en avance : src/horloge.js (e))
+    const est = Number.isFinite(st.vuTel) ? st.vuTel : st.horloge && Number.isFinite(st.horloge.sure) ? st.horloge.sure : avant - ms;
+    const base = Number.isFinite(avant) ? Math.min(t, avant, est) : t;
+    const rendu = Number.isFinite(avant) ? Math.max(0, avant - base) : 0;
+    const dec = (o) => { if (!o || typeof o !== 'object') return; if (Number.isFinite(o.debut) && o.debut > t) { const d = o.debut - t; o.debut -= d; if (Number.isFinite(o.fin)) o.fin -= d; } };
+    const etat = (o, r) => { if (!o || typeof o !== 'object') return; if (Number.isFinite(o.lastSeen)) o.lastSeen = Math.min(o.lastSeen - r, t); if (Number.isFinite(o.now)) o.now = Math.min(o.now, t); dec(o.ev); dec(o.operation); };
+    if (Number.isFinite(avant)) st.lastSeen = base;
+    if (Number.isFinite(st.now)) st.now = Math.min(st.now, t); dec(st.ev);
+    for (const k of ['quartier', HTE && HTE.cle]) if (k && st[k]) etat(st[k], rendu);
+    noterJournal({ t, r: 'recul', o: Math.round(ms / 1000), s: Math.round(rendu / 1000), g: 0, n: 'recul', ...horlogeVue() });
   }
   // une heure sûre arrivée en cours de partie (le réseau revient après des jours hors ligne, une lecture arrivée après les 2,5 s d'attente,
   // un téléphone endormi page ouverte) a fait sauter le jeu vers l'avant : ce vrai temps passé est payé comme une absence, une seule
@@ -11412,6 +11463,7 @@ const UI = (() => {
     // l'horloge de confiance : la plus longue absence de cette boutique, le plancher de la sauvegarde, puis l'heure sûre (2,5 s au plus)
     HORLOGE.regler({ avanceMax: () => (st ? G.heuresAbsence(st) : G.ABSENCE_MAX_H) * 3600e3 });
     if (st) { HORLOGE.charger(st.horloge); HORLOGE.pousser(st.lastSeen); }
+    HORLOGE.surRecul(reculer); // (e) de src/horloge.js : le jeu était en avance sans que le téléphone l'y ait mené ; il revient à l'heure
     await HORLOGE.pret();
     const fresh = !st;
     if (fresh) st = G.newState(HORLOGE.maintenant());

@@ -63,7 +63,7 @@ console.log('── en ligne : l’heure du téléphone ne compte pas ──');
 console.log('── le temps du jeu ne recule jamais ──');
 {
   const debut = new Date(2026, 9, 9, 10, 0).getTime(), w = monde(debut);
-  const h = w.horloge(); h.pousser(debut + 5 * HEURE); // une sauvegarde faite avec un téléphone en avance (avant cette version)
+  const h = w.horloge(); h.charger({ jeu: debut + 5 * HEURE, tel: debut + 5 * HEURE }); // une sauvegarde faite avec un téléphone en avance (telMax : le téléphone l'y a mené)
   h.noterHeureSure(w.vrai, w.perf, 'page'); h.demarrer();
   const a = h.maintenant();
   check(a === debut + 5 * HEURE, 'le plancher de la sauvegarde l’emporte sur une heure sûre plus ancienne');
@@ -73,6 +73,45 @@ console.log('── le temps du jeu ne recule jamais ──');
   check(h.maintenant() >= a + 60e3, 'une heure sûre plus tôt ne le fait pas reculer');
   let mono = true, prec = h.maintenant(); for (let k = 0; k < 200; k++) { w.passer(k % 7 === 0 ? 0 : 37); w.decal = (k % 3 - 1) * JOUR; if (k % 50 === 0) h.recaler(false); const t = h.maintenant(); if (t < prec) mono = false; prec = t; }
   check(mono, '200 lectures, téléphone qui saute dans tous les sens, recalages : jamais un pas en arrière');
+}
+
+console.log('── (e) le jeu en avance sans que le téléphone l’y ait mené : il revient à l’heure ──');
+{
+  const debut = new Date(2026, 9, 16, 6, 0).getTime();
+  { // une vieille sauvegarde en avance de 2 h 46 (le cas d'Adolf : avant cette version, aucune trace du téléphone)
+    const w = monde(debut), h = w.horloge(), reculs = []; h.surRecul((ms) => reculs.push(ms));
+    h.pousser(debut + 2 * HEURE + 46 * 60e3); h.noterHeureSure(w.vrai, w.perf, 'page'); const r = h.demarrer();
+    check(proche(h.maintenant(), w.vrai) && reculs.length === 1 && proche(reculs[0], 2 * HEURE + 46 * 60e3) && proche(r.recul, reculs[0]), `sauvegarde 2 h 46 en avance, heure sûre lue : le jeu revient à l’heure, surRecul(${Math.round(reculs[0] / 60e3)} min)`);
+    w.passer(60e3); const a = h.maintenant(); w.passer(1000);
+    check(proche(a, w.vrai - 1000) && h.maintenant() > a, 'puis il avance normalement, sans reculer encore');
+  }
+  { // le compteur monotone a couru 3 h de plus que le vrai temps (iPhone), puis une heure sûre arrive en cours de partie
+    const w = monde(debut), h = w.horloge(), reculs = []; h.surRecul((ms) => reculs.push(ms));
+    h.noterHeureSure(w.vrai, w.perf, 'page'); h.demarrer(); w.passer(10 * 60e3); w.perf += 3 * HEURE;
+    check(proche(h.maintenant(), w.vrai + 3 * HEURE), 'le compteur saute de 3 h : le jeu est 3 h en avance');
+    const r = h.noterHeureSure(w.vrai, w.perf, 'page');
+    check(proche(h.maintenant(), w.vrai) && reculs.length === 1 && proche(reculs[0], 3 * HEURE) && r.saut < 0, 'l’heure sûre suivante le ramène à l’heure (surRecul 3 h, aucun saut à payer)');
+    check(h.info().reculs === 1, 'info().reculs compte les retours à l’heure');
+  }
+  { // moins de 5 min d'avance : rien ne bouge (les petites imprécisions de l'heure sûre)
+    const w = monde(debut), h = w.horloge(), reculs = []; h.surRecul((ms) => reculs.push(ms));
+    h.pousser(debut + 4 * 60e3); h.noterHeureSure(w.vrai, w.perf, 'page'); h.demarrer();
+    check(h.maintenant() === debut + 4 * 60e3 && reculs.length === 0, '4 min d’avance : le jeu ne recule pas');
+  }
+  { // le téléphone avancé de 6 h hors ligne mène le jeu : en ligne ensuite, il ne revient pas (pas de double absence)
+    const w = monde(debut), reculs = [];
+    let st = boutique(debut);
+    const s1 = lancer(w, st, null, true); w.passer(60e3); let sauve = fermer(s1.h, st);
+    w.passer(60e3); w.decal = 6 * HEURE;
+    const s2 = lancer(w, st, sauve, false); const paye = s2.abs.secs;
+    check(paye > 5.9 * 3600, `hors ligne, téléphone +6 h : ${Math.round(paye / 360) / 10} h payées (la règle (c))`);
+    w.passer(60e3); sauve = fermer(s2.h, st);
+    check(sauve.tel > w.vrai + 5 * HEURE, 'la sauvegarde garde jusqu’où le téléphone a mené le jeu (tel)');
+    w.decal = 0; w.passer(60 * 60e3);
+    const h3 = w.horloge(G.heuresAbsence(st) * HEURE); h3.surRecul((ms) => reculs.push(ms)); h3.charger(sauve); h3.pousser(st.lastSeen); h3.noterHeureSure(w.vrai, w.perf, 'page'); h3.demarrer();
+    const abs3 = G.absence(st, h3.maintenant());
+    check(reculs.length === 0 && abs3.secs === 0 && h3.maintenant() > w.vrai + 4 * HEURE, 'en ligne, téléphone remis à l’heure 1 h plus tard : pas de retour à l’heure, rien de payé (l’avance prise au téléphone reste à rattraper)');
+  }
 }
 
 console.log('── hors ligne : au plus une absence normale, une seule fois ──');

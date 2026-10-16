@@ -29,6 +29,7 @@ const UI = (() => {
   function save() {
     if (fige) return;
     if (!retourEnCours) st.lastSeen = HORLOGE.maintenant(); // pendant un retour, l'absence n'est pas encore comptée : elle part toujours de l'ancien lastSeen
+    if (!retourEnCours) st.vuTel = Date.now(); // l'heure du téléphone à cette sauvegarde : seulement pour (e), le retour à l'heure de l'horloge
     lastSave = performance.now();
     st.horloge = HORLOGE.sauver(); // l'heure sûre et le dernier « maintenant » du jeu : dans la sauvegarde et dans leur clé à part
     let raw; try { raw = JSON.stringify(st); } catch (e) { return; }
@@ -797,14 +798,19 @@ const UI = (() => {
     });
   }
   // Réglages › Journal des retours : quand le jeu a compté une absence, pourquoi, et si la feuille s'est ouverte (sinon, pourquoi pas)
-  const RAISON_RETOUR = { lancement: 'Ouverture du jeu', visible: 'Retour dans le jeu', cache: 'Retour dans le jeu', reveil: 'Réveil du téléphone', gel: 'Le jeu reprend après une pause', saut: 'L’heure a sauté', heure: 'L’heure sûre est arrivée' };
+  const RAISON_RETOUR = { lancement: 'Ouverture du jeu', visible: 'Retour dans le jeu', cache: 'Retour dans le jeu', reveil: 'Réveil du téléphone', gel: 'Le jeu reprend après une pause', saut: 'L’heure a sauté', heure: 'L’heure sûre est arrivée', recul: 'Horloge du jeu remise à l’heure', derive: 'Le compteur du téléphone a sauté' };
   const NOTE_RETOUR = { feuille: 'feuille « Pendant ton absence » ouverte', court: 'pas de feuille : moins de 90 s', apprentis: 'pas de feuille : aucun apprenti', rien: 'pas de feuille : rien de vendu' };
+  const ecartTxt = (s) => `${s > 0 ? '+' : '−'}${G.fmtDuree(Math.abs(s))}`;
   function sheetJournalRetours() {
     const j = (Array.isArray(st.journalRetours) ? st.journalRetours : []).slice().reverse();
     const quand = (t) => { try { return new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
-    const lignes = j.map((e) => `<li><span><b>${esc(quand(e.t))} · ${esc(RAISON_RETOUR[e.r] || e.r)}</b><small>parti ${esc(G.fmtDuree(e.o || 0))}${e.o > e.s + 60 ? ` (payé ${esc(G.fmtDuree(e.s))})` : ''} · ${esc(NOTE_RETOUR[e.n] || e.n)}${e.h === 0 ? ' · sans heure sûre' : ''}</small></span><b>+${G.fmtEur(e.g || 0)}</b></li>`).join('');
+    const horl = (e) => `${e.a ? ` · jeu ${ecartTxt(e.a)} sur l’heure sûre` : ''}${e.p ? ` · téléphone ${ecartTxt(e.p)}` : ''}`;
+    const lignes = j.map((e) => (e.r === 'recul' || e.r === 'derive'
+      ? `<li><span><b>${esc(quand(e.t))} · ${esc(RAISON_RETOUR[e.r])}</b><small>${e.r === 'recul' ? `−${esc(G.fmtDuree(e.o || 0))}${e.s ? ` (absence rendue : ${esc(G.fmtDuree(e.s))})` : ''} : tes absences comptent de nouveau` : `+${esc(G.fmtDuree(e.o || 0))} d’un coup`}${esc(horl(e))}</small></span><b></b></li>`
+      : `<li><span><b>${esc(quand(e.t))} · ${esc(RAISON_RETOUR[e.r] || e.r)}</b><small>parti ${esc(G.fmtDuree(e.o || 0))}${e.o > e.s + 60 ? ` (payé ${esc(G.fmtDuree(e.s))})` : ''} · ${esc(NOTE_RETOUR[e.n] || e.n)}${e.h === 0 ? ' · sans heure sûre' : ''}${esc(horl(e))}</small></span><b>+${G.fmtEur(e.g || 0)}</b></li>`)).join('');
+    const hv = horlogeVue(), etatH = hv.a ? `<p class="sous">Horloge du jeu : ${esc(ecartTxt(hv.a))} sur l’heure sûre${hv.p ? `, téléphone ${esc(ecartTxt(hv.p))}` : ''}.</p>` : '';
     openSheet(`<h2>Journal des retours</h2><p class="sous">Chaque fois que le jeu compte ton absence : l’heure, ce qui l’a lancé, le temps payé et la feuille « Pendant ton absence ».</p>
-      ${lignes ? `<ul class="detail journal-retours">${lignes}</ul>` : '<p class="sous">Rien encore : le prochain retour s’inscrira ici.</p>'}
+      ${etatH}${lignes ? `<ul class="detail journal-retours">${lignes}</ul>` : '<p class="sous">Rien encore : le prochain retour s’inscrira ici.</p>'}
       <button type="button" class="btn large menthe" data-a="close"><b>Fermer</b></button>`);
     on('[data-a="close"]', closeSheet);
   }
@@ -1378,16 +1384,46 @@ const UI = (() => {
   // l'appareil éveillé ; performance.now() avance alors avec l'heure, et visibilitychange ne vient pas toujours au retour).
   function verifierReveil() {
     const w = Date.now(), p = performance.now(), ecart = (w - reveilW) - (p - reveilP), gel = p - reveilP; reveilW = w; reveilP = p;
+    if (ecart < -60e3 && st) noterJournal({ t: HORLOGE.maintenant(), r: 'derive', o: Math.round(-ecart / 1000), s: 0, g: 0, n: 'derive', ...horlogeVue() }); // le compteur du téléphone a couru plus vite que l'heure : le mouchard le note
     if (document.visibilityState === 'hidden') return;
     if (ecart > 5000) reprendre('reveil'); else if (gel > 5000) reprendre('gel');
   }
-  // le journal des retours (Réglages › Journal des retours) : les 10 derniers, pour comprendre une feuille « Pendant ton absence » qui manque
-  function noterRetour(raison, abs, sortie, montre, frais) {
+  // le journal des retours (Réglages › Journal des retours) : les 10 derniers, pour comprendre une feuille « Pendant ton absence » qui manque.
+  // Le mouchard de l'horloge : a = l'avance du jeu sur l'heure sûre, p = celle du téléphone (en s), notées quand elles dépassent une minute
+  function horlogeVue() {
+    const i = HORLOGE.info ? HORLOGE.info() : null, o = {}; if (!i || !(i.sure > 0)) return o;
+    const a = Math.round(((i.jeu != null ? i.jeu : HORLOGE.maintenant()) - i.sure) / 1000), p = i.tel > 0 ? Math.round((i.tel - i.sure) / 1000) : 0;
+    if (Math.abs(a) > 60) o.a = a; if (Math.abs(p) > 60) o.p = p; return o;
+  }
+  function noterJournal(e) {
     if (!st) return;
     const j = Array.isArray(st.journalRetours) ? st.journalRetours : (st.journalRetours = []);
+    j.push(e); while (j.length > 10) j.shift();
+  }
+  function noterRetour(raison, abs, sortie, montre, frais) {
+    if (!st) return;
     const note = montre ? 'feuille' : abs.secs <= 90 ? 'court' : !st.stations.some((s) => s.niv > 0 && s.staff) ? 'apprentis' : 'rien';
-    j.push({ t: st.now, r: raison, o: Math.max(0, Math.round(sortie / 1000)), s: Math.round(abs.secs), g: abs.total, n: note, h: frais == null ? null : frais ? 1 : 0 });
-    while (j.length > 10) j.shift();
+    noterJournal({ t: st.now, r: raison, o: Math.max(0, Math.round(sortie / 1000)), s: Math.round(abs.secs), g: abs.total, n: note, h: frais == null ? null : frais ? 1 : 0, ...horlogeVue() });
+  }
+  // (e) l'heure sûre a ramené le jeu de ms en arrière. Le départ de l'absence (lastSeen) revient à la vraie heure de la dernière sauvegarde :
+  // une avance prise avant cette sauvegarde est rendue, une avance prise après (le compteur qui saute en pleine partie) ne crée pas de
+  // fausse absence. Ce qui a commencé « dans le futur » (un coup de feu, une
+  // opération lancés pendant l'avance) revient à maintenant, en gardant sa durée ; les absences recomptent aussitôt
+  function reculer(ms) {
+    if (!st || !(ms > 0)) return;
+    const t = HORLOGE.maintenant(), avant = st.lastSeen;
+    // la vraie heure de la dernière sauvegarde : l'heure du téléphone d'alors (st.vuTel), sinon l'heure sûre qu'elle gardait (st.horloge.sure,
+    // les sauvegardes d'avant cette version) ; jamais après lastSeen ni après maintenant (le recul n'est possible que si le téléphone n'a pas
+    // mené le jeu en avance : src/horloge.js (e))
+    const est = Number.isFinite(st.vuTel) ? st.vuTel : st.horloge && Number.isFinite(st.horloge.sure) ? st.horloge.sure : avant - ms;
+    const base = Number.isFinite(avant) ? Math.min(t, avant, est) : t;
+    const rendu = Number.isFinite(avant) ? Math.max(0, avant - base) : 0;
+    const dec = (o) => { if (!o || typeof o !== 'object') return; if (Number.isFinite(o.debut) && o.debut > t) { const d = o.debut - t; o.debut -= d; if (Number.isFinite(o.fin)) o.fin -= d; } };
+    const etat = (o, r) => { if (!o || typeof o !== 'object') return; if (Number.isFinite(o.lastSeen)) o.lastSeen = Math.min(o.lastSeen - r, t); if (Number.isFinite(o.now)) o.now = Math.min(o.now, t); dec(o.ev); dec(o.operation); };
+    if (Number.isFinite(avant)) st.lastSeen = base;
+    if (Number.isFinite(st.now)) st.now = Math.min(st.now, t); dec(st.ev);
+    for (const k of ['quartier', HTE && HTE.cle]) if (k && st[k]) etat(st[k], rendu);
+    noterJournal({ t, r: 'recul', o: Math.round(ms / 1000), s: Math.round(rendu / 1000), g: 0, n: 'recul', ...horlogeVue() });
   }
   // une heure sûre arrivée en cours de partie (le réseau revient après des jours hors ligne, une lecture arrivée après les 2,5 s d'attente,
   // un téléphone endormi page ouverte) a fait sauter le jeu vers l'avant : ce vrai temps passé est payé comme une absence, une seule
@@ -1412,6 +1448,7 @@ const UI = (() => {
     // l'horloge de confiance : la plus longue absence de cette boutique, le plancher de la sauvegarde, puis l'heure sûre (2,5 s au plus)
     HORLOGE.regler({ avanceMax: () => (st ? G.heuresAbsence(st) : G.ABSENCE_MAX_H) * 3600e3 });
     if (st) { HORLOGE.charger(st.horloge); HORLOGE.pousser(st.lastSeen); }
+    HORLOGE.surRecul(reculer); // (e) de src/horloge.js : le jeu était en avance sans que le téléphone l'y ait mené ; il revient à l'heure
     await HORLOGE.pret();
     const fresh = !st;
     if (fresh) st = G.newState(HORLOGE.maintenant());

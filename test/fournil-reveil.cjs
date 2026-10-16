@@ -25,7 +25,7 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 200) {
   // l'heure du téléphone : décalée, et avançable d'un coup (le sommeil) sans que performance.now() bouge
   await ctx.addInitScript((d0) => { let d = d0; const D = Date; class F extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + d); } static now() { return D.now() + d; } } window.Date = F; window.__avancerTel = (ms) => { d += ms; };
     // le gel (iPhone, app laissée en arrière-plan sans verrouiller) : performance.now() avance aussi, avec les images
-    let dp = 0; const pn = performance.now.bind(performance), raf = window.requestAnimationFrame.bind(window); performance.now = () => pn() + dp; window.requestAnimationFrame = (cb) => raf((t) => cb(t + dp)); window.__geler = (ms) => { d += ms; dp += ms; }; window.__sansQuartier = false; }, decalServeur);
+    let dp = 0; const pn = performance.now.bind(performance), raf = window.requestAnimationFrame.bind(window); performance.now = () => pn() + dp; window.requestAnimationFrame = (cb) => raf((t) => cb(t + dp)); window.__geler = (ms) => { d += ms; dp += ms; }; window.__deriver = (ms) => { dp += ms; }; window.__sansQuartier = false; }, decalServeur);
   await ctx.route(/supabase\.co/, (r) => r.abort());
   const page = await ctx.newPage(), erreurs = [];
   page.on('pageerror', (e) => erreurs.push(e.message));
@@ -135,6 +135,53 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 200) {
   await page.screenshot({ path: path.join(process.env.CAPTURES_REVEIL || require('os').tmpdir(), 'journal-retours.png') });
   await fermerFeuille();
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
+
+  console.log('── le compteur du téléphone saute de 3 h en pleine partie (l’heure, elle, n’a pas bougé) ──');
+  {
+    await fermerFeuille(); await sleep(6000); // une sauvegarde juste avant
+    const d0 = await argent();
+    await page.evaluate((x) => window.__deriver(x), 3 * H);
+    check(await attendre(() => page.evaluate(() => (window.__fournil.st.journalRetours || []).some((e) => e.r === 'recul'))), 'l’heure sûre ramène le jeu à l’heure (« Horloge du jeu remise à l’heure »)');
+    await attendre(() => page.evaluate(() => !window.__fournil.retour.enCours)); await sleep(1500);
+    const jr = await page.evaluate(() => window.__fournil.st.journalRetours);
+    const r = jr.filter((e) => e.r === 'recul').pop(), dv = jr.filter((e) => e.r === 'derive').pop();
+    check(!!dv && dv.o > 3 * 3600 - 60, `le mouchard a vu le compteur sauter (+${dv && Math.round(dv.o / 60)} min)`);
+    check(r && Math.abs(r.o - 3 * 3600) < 120 && r.s < 60, `recul de ${r && Math.round(r.o / 60)} min, absence rendue ${r && r.s} s (la sauvegarde était à l’heure : rien d’inventé)`);
+    const ecartJeu = (await page.evaluate(() => window.__fournil.st.now)) - (Date.now() + decalServeur);
+    check(Math.abs(ecartJeu) < 60e3, `le jeu est à l’heure (écart ${Math.round(ecartJeu / 1000)} s)`);
+    const d1 = await argent();
+    check(d1 - d0 < paye2h * 0.05 && !/Pendant ton absence/.test(await feuille()), `pas de fausse absence (+${Math.round(d1 - d0)} €)`);
+    const a0 = await argent(); await sommeil(1 * H);
+    await attendre(async () => /absence/i.test(await feuille())); await attendre(() => page.evaluate(() => !window.__fournil.retour.enCours)); await sleep(1000);
+    const a1 = await argent();
+    check(a1 - a0 > paye2h * 0.35, `puis 1 h de vraie absence est payée normalement (+${Math.round(a1 - a0)} €)`);
+    await fermerFeuille();
+  }
+
+  console.log('── une vieille sauvegarde 2 h 46 en avance (le cas d’Adolf) : le jeu revient à l’heure et paie la vraie absence ──');
+  {
+    await sleep(6000);
+    const save = await page.evaluate((srv) => { const s = JSON.parse(localStorage.getItem('fournil.v2')); const avance = (2 * 60 + 46) * 60e3, parti = 3600e3; s.lastSeen = srv - parti + avance; s.horloge = { sure: srv - parti, jeu: s.lastSeen }; delete s.vuTel; s.journalRetours = []; return JSON.stringify(s); }, Date.now() + decalServeur);
+    const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+    await ctx2.addInitScript(([raw, d0]) => { const D = Date; class F extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + d0); } static now() { return D.now() + d0; } } window.Date = F; window.__sansQuartier = false; if (!sessionStorage.getItem('graine')) { sessionStorage.setItem('graine', '1'); localStorage.setItem('fournil.v2', raw); localStorage.setItem('fournil.horloge', JSON.stringify(JSON.parse(raw).horloge)); } }, [save, decalServeur]);
+    await ctx2.route(/supabase\.co/, (r) => r.abort());
+    const p2 = await ctx2.newPage(); p2.on('pageerror', (e) => erreurs.push(e.message));
+    await p2.goto(`http://localhost:${PORT}/fournil/?qualite=eco`); await p2.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 }); await sleep(2000);
+    const txt = await p2.evaluate(() => (document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText.replace(/\s+/g, ' ')));
+    const jr2 = await p2.evaluate(() => window.__fournil.st.journalRetours || []);
+    const rc = jr2.find((e) => e.r === 'recul'), lc = jr2.find((e) => e.r === 'lancement');
+    check(rc && Math.abs(rc.o - 106 * 60) < 120 && Math.abs(rc.s - 166 * 60) < 120, `au lancement : horloge remise à l’heure (−${rc && Math.round(rc.o / 60)} min : 2 h 46 d’avance moins l’heure passée), ${rc && Math.round(rc.s / 60)} min d’absence rendues`);
+    check(lc && Math.abs(lc.o - 3600) < 120 && lc.n === 'feuille' && /Pendant ton absence/.test(txt), `la vraie heure d’absence est payée, avec la feuille (${lc && Math.round(lc.o / 60)} min ; ${txt.slice(0, 40)})`);
+    const ecart2 = (await p2.evaluate(() => window.__fournil.st.now)) - (Date.now() + decalServeur);
+    check(Math.abs(ecart2) < 60e3, `le jeu est à l’heure (écart ${Math.round(ecart2 / 1000)} s)`);
+    await p2.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); }); await sleep(300);
+    await p2.evaluate(() => window.__fournil.journalRetours()); await sleep(500);
+    const tj = await p2.evaluate(() => document.querySelector('#feuille-contenu').innerText.replace(/\s+/g, ' '));
+    check(/remise à l’heure/.test(tj), `le journal le montre (${tj.slice(0, 160)})`);
+    await p2.screenshot({ path: path.join(process.env.CAPTURES_REVEIL || require('os').tmpdir(), 'journal-recul.png') });
+    await ctx2.close();
+  }
+  check(erreurs.length === 0, `toujours aucune erreur (${erreurs.slice(0, 3).join(' | ')})`);
 
   await browser.close(); server.close();
   console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nTout passe (réveil).'); process.exit(fails ? 1 : 0);

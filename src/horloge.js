@@ -13,6 +13,11 @@
        un téléphone endormi page ouverte) : le jeu le paie comme une absence (surSaut, dans src/ui.js), mais une absence pour une même
        absence : avec ce qui a déjà été payé au lancement ou au retour, jamais plus que la durée d'une absence normale (sautAPayer).
        Un tricheur qui a pris de l'avance hors ligne a un saut nul ou négatif : il ne touche rien.
+   (e) La seule exception à (b) : une heure sûre fraîche montre le jeu en avance de plus de 5 min, et cette avance ne vient pas de l'heure
+       du téléphone (telMax : le plus loin où l'heure du téléphone a mené le jeu, gardé dans la sauvegarde ; un téléphone avancé exprès
+       hors ligne le pousse, et alors rien ne revient avant que le vrai temps rattrape). Elle vient donc d'un compteur monotone qui a
+       couru plus vite que le vrai temps (iPhone) : le jeu revient à l'heure sûre, et surRecul(ms) prévient l'interface, qui recule
+       d'autant lastSeen et les fins en cours (les absences recomptent tout de suite).
    Une partie pure (creer, estimer, lireEnTeteDate), testée dans Node, et une partie navigateur (navigateur), branchée ici sur window.HORLOGE. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
@@ -33,6 +38,7 @@
     reessai: 5 * 60e3, // une lecture ratée : la suivante (hors lancement et retour) 5 min plus tard
     absenceH: 8, // à défaut de mieux : ABSENCE_MAX_H de game.js
     saut: 90e3, // un saut d'heure sûre de plus de 90 s en cours de partie est payé comme une absence (comme le retour dans le jeu)
+    recul: 5 * 60e3, // (e) le jeu en avance de plus de 5 min sur une heure sûre fraîche, sans que le téléphone l'y ait mené : il revient à l'heure
   };
   const fini = (x) => typeof x === 'number' && Number.isFinite(x);
   const date = (x) => fini(x) && x > 0; // une date en millisecondes
@@ -65,7 +71,8 @@
     let sure = null; // { ms, perf } : une borne basse du vrai temps à l'instant perf (le vrai temps ne fait qu'avancer depuis)
     let synchro = null; // { ms, perf, source } : la dernière heure sûre lue pendant cette session
     let ref = null; // { ms, perf } : le temps du jeu = ref.ms + (perf() − ref.perf) ; posé au démarrage, déplacé seulement vers l'avant
-    let plancher = -Infinity, dernier = -Infinity, recalages = 0;
+    let plancher = -Infinity, dernier = -Infinity, recalages = 0, telMax = -Infinity, reculs = 0;
+    const surReculs = [];
     const perf = () => { const p = E.perf(); return fini(p) ? p : 0; };
     const avance = () => { let a = NaN; try { a = +E.avanceMax(); } catch (e) { a = NaN; } return fini(a) && a >= 0 ? a : REGLES.absenceH * 3600e3; };
     const sureMs = () => (sure ? sure.ms + Math.max(0, perf() - sure.perf) : null);
@@ -76,15 +83,20 @@
       const s = sureMs();
       let t = NaN; try { t = +E.tel(); } catch (e) { t = NaN; }
       if (s == null) return date(t) ? t : null; // jamais d'heure sûre (artefact Claude) : on ne peut que croire le téléphone
-      return Math.max(s, Math.min(date(t) ? t : s, s + avance()));
+      const c = Math.max(s, Math.min(date(t) ? t : s, s + avance()));
+      if (c > s) telMax = Math.max(telMax, c); // le téléphone a mené le jeu au-delà de l'heure sûre : (e) ne reviendra pas en deçà
+      return c;
     }
     // (re)pose le temps du jeu : jamais en arrière, ni sous le plancher
     function recaler(frais) {
       const avant = jeu(), c = candidat(frais);
-      let t = Math.max(fini(c) ? c : -Infinity, fini(avant) ? avant : -Infinity, plancher);
+      let t = Math.max(fini(c) ? c : -Infinity, fini(avant) ? avant : -Infinity, plancher), recul = 0;
       if (!fini(t)) { const tel = +E.tel(); t = date(tel) ? tel : 0; }
+      // (e) en avance sur l'heure sûre fraîche, et pas à cause du téléphone : retour à l'heure
+      if (frais && synchro && fini(c) && t - c > REGLES.recul && !(telMax > c + REGLES.recul)) { recul = t - c; t = c; plancher = Math.min(plancher, c); dernier = Math.min(dernier, Math.floor(c)); reculs++; }
       ref = { ms: t, perf: perf() }; recalages++;
-      return { avant, apres: t, saut: fini(avant) ? t - avant : 0, source: frais && synchro ? synchro.source : 'telephone' };
+      if (recul) for (const f of surReculs) { try { f(recul); } catch (e) { /* un rappel qui casse n'arrête pas l'horloge */ } }
+      return { avant, apres: t, saut: fini(avant) ? t - avant : 0, recul, source: frais && synchro ? synchro.source : 'telephone' };
     }
     function maintenant() {
       if (!ref) { // pas encore démarré : une valeur provisoire, sans rien figer (le démarrage attend l'heure sûre)
@@ -107,6 +119,7 @@
       if (!etat || typeof etat !== 'object') return;
       if (date(etat.sure) && !synchro) { const s = sureMs(); if (s == null || etat.sure > s) sure = { ms: etat.sure, perf: perf() }; }
       if (date(etat.jeu)) pousser(etat.jeu);
+      if (date(etat.tel)) telMax = Math.max(telMax, etat.tel);
     }
     function pousser(ms) { // le temps du jeu ne descend jamais sous ms (le dernier « maintenant » sauvé)
       if (!date(ms)) return;
@@ -114,12 +127,13 @@
       if (ref && jeu() < ms) ref = { ms, perf: perf() };
     }
     function demarrer() { return recaler(!!synchro); } // au lancement, après l'attente de l'heure sûre
-    function etat() { const s = sureMs(); return { sure: s == null ? null : Math.round(s), jeu: maintenant() }; }
+    function etat() { const s = sureMs(); return { sure: s == null ? null : Math.round(s), jeu: maintenant(), ...(fini(telMax) ? { tel: Math.round(telMax) } : {}) }; }
     function info() {
       let tel = NaN; try { tel = +E.tel(); } catch (e) { tel = NaN; }
-      return { demarre: !!ref, source: synchro ? synchro.source : 'telephone', sure: sureMs(), jeu: ref ? jeu() : null, avance: ref && date(tel) ? jeu() - tel : null, recalages };
+      return { demarre: !!ref, source: synchro ? synchro.source : 'telephone', sure: sureMs(), jeu: ref ? jeu() : null, avance: ref && date(tel) ? jeu() - tel : null, tel: date(tel) ? tel : null, telMax: fini(telMax) ? telMax : null, recalages, reculs };
     }
-    return { maintenant, noterHeureSure, charger, pousser, demarrer, recaler, etat, info, get synchro() { return synchro; } };
+    const surRecul = (f) => { if (typeof f === 'function') surReculs.push(f); };
+    return { maintenant, noterHeureSure, charger, pousser, demarrer, recaler, etat, info, surRecul, get synchro() { return synchro; } };
   }
 
   // ─── dans le navigateur ───
@@ -199,12 +213,13 @@
       maintenant: m.maintenant, pret, retour, synchroniser, sauver, info: m.info, etat: m.etat, charger: m.charger, pousser: m.pousser,
       regler(r) { if (r && typeof r.avanceMax === 'function') avanceMax = r.avanceMax; },
       surSaut(f) { if (typeof f === 'function') surSauts.push(f); }, // f({ avant, apres, saut }) : appelé tout de suite, avant la frame suivante
+      surRecul: m.surRecul, // f(ms) : le jeu vient de revenir de ms en arrière, à l'heure sûre (e)
     };
   }
   // sans fenêtre (ou si navigateur() échoue) : l'heure du téléphone, toujours croissante
   function secours() {
     const m = creer({ tel: () => Date.now(), perf: () => Date.now() }); m.demarrer();
-    return { maintenant: m.maintenant, pret: async () => m.info(), retour: async () => m.info(), synchroniser: async () => false, sauver: m.etat, info: m.info, etat: m.etat, charger: m.charger, pousser: m.pousser, regler() {}, surSaut() {} };
+    return { maintenant: m.maintenant, pret: async () => m.info(), retour: async () => m.info(), synchroniser: async () => false, sauver: m.etat, info: m.info, etat: m.etat, charger: m.charger, pousser: m.pousser, regler() {}, surSaut() {}, surRecul() {} };
   }
 
   return { CLE, REGLES, lireEnTeteDate, estimer, sautAPayer, creer, navigateur, secours };
