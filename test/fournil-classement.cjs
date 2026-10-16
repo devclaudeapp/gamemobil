@@ -497,6 +497,13 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     check(vis.rec.equipe && vis.rec.coupes === 2 && vis.rec.coupe === null && vis.tiroir === 'ferme', 'la scène montre SA boutique : ses deux coupes en vitrine, son badge « Esprit d’équipe » au mur, le tiroir replié');
     check(/Laisser un pourboire/.test(vis.pb) && /encore 3 aujourd’hui/.test(vis.pb), `le bouton « ${vis.pb.replace(/\s+/g, ' ')} » montre les restants du jour`);
     await capture(p6, '2-boutique-copain');
+    // « Ses recettes » : ses recettes ouvertes, leur niveau, leurs apprentis
+    await p6.tap('[data-vi="recettes"]'); await sleep(200);
+    const rec = await p6.evaluate(() => [...document.querySelectorAll('#vi-bas .vi-recettes li')].map((li) => li.innerText.replace(/\s+/g, ' ')));
+    check(rec.length >= 2 && rec.every((x) => /niv\. \d/.test(x)) && rec.some((x) => /apprenti · grade \d/.test(x)), `« Ses recettes » : ${rec.length} recettes, niveaux et apprentis (${rec.slice(0, 3).join(' | ')})`);
+    await capture(p6, '2b-boutique-recettes');
+    await p6.tap('[data-vi="recettes"]'); await sleep(150);
+    check(await p6.evaluate(() => !document.querySelector('#vi-bas .vi-recettes')), 'retouché : la liste se replie');
     // lecture seule : toucher la scène n'agit sur rien (meuble, boulanger, chat)
     const nAppels = faux.appels.length;
     for (const [x, y] of [[195, 300], [60, 250], [300, 420], [195, 200]]) { await p6.touchscreen.tap(x, y); await sleep(120); }
@@ -618,6 +625,11 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     check(/Palier 5\/12/.test(pv.bas) && /de billets gagnés/.test(pv.bas) && /Équipe : 3 apprentis/.test(pv.bas) && /2 décos gagnées/.test(pv.bas) && /Retour/.test(pv.bas) && !pv.pb, `le résumé : « ${pv.bas} » ; pas de pourboire`);
     check(!pv.ouvert && !pv.planque && !pv.scenePropre && pv.propre === le.propre, 'sa propre Planque est refermée (sa scène libérée), son état n’a pas bougé');
     await capture(p7, 'planque-copain');
+    await p7.tap('[data-vi="recettes"]'); await sleep(200);
+    const recq = await p7.evaluate(() => [...document.querySelectorAll('#vi-bas .vi-recettes li')].map((li) => li.innerText.replace(/\s+/g, ' ')));
+    check(recq.length >= 1 && recq.every((x) => /niv\. \d/.test(x)), `sa Planque : « Ses recettes » (${recq.join(' | ')})`);
+    await capture(p7, 'planque-recettes');
+    await p7.tap('[data-vi="recettes"]'); await sleep(150);
     const im0 = (await p7.evaluate(() => window.__fournil.visite().images)); await sleep(500);
     check((await p7.evaluate(() => window.__fournil.visite().images)) > im0, 'la scène continue de tourner');
     await p7.evaluate(() => { window.__cvVisite = document.querySelector('#vi-vue canvas'); });
@@ -639,7 +651,7 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     await p7.tap('#feuille [data-visite="Mamie Jo"]');
     await attendre(() => p7.evaluate(() => { const v = window.__fournil.visite(); return v && !v.charge; })); await sleep(300);
     const s3d = await p7.evaluate(() => ({ v: window.__fournil.visite(), txt: document.querySelector('#vi-vue').innerText.replace(/\s+/g, ' '), cv: document.querySelectorAll('#vi-vue canvas').length, bas: document.querySelector('#vi-bas').innerText.replace(/\s+/g, ' ') }));
-    check(!s3d.v.ev3 && s3d.cv === 0 && /La Planque de Mamie Jo/.test(s3d.txt) && /Palier 5\/12/.test(s3d.txt) && /Équipe : 3 apprentis/.test(s3d.txt) && s3d.bas === 'Retour', `sans WebGL : le résumé seul (« ${s3d.txt.slice(0, 90)}… »)`);
+    check(!s3d.v.ev3 && s3d.cv === 0 && /La Planque de Mamie Jo/.test(s3d.txt) && /Palier 5\/12/.test(s3d.txt) && /Équipe : 3 apprentis/.test(s3d.txt) && /Retour$/.test(s3d.bas) && !/pourboire/i.test(s3d.bas), `sans WebGL : le résumé seul (« ${s3d.txt.slice(0, 90)}… »)`);
     await capture(p7, 'planque-sans-3d');
     await p7.tap('#vi-bas [data-vi="retour"]'); await sleep(300);
     await p7.evaluate(() => { Object.defineProperty(window.__fournil.SCENE, 'stats', window.__statsD); });

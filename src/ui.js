@@ -1245,6 +1245,19 @@ const UI = (() => {
     if (s.chat) li.push(`Le chat : ${esc(s.chat.nom)}`); if (v.b.coupes.length) li.push(`${v.b.coupes.length} coupe${v.b.coupes.length > 1 ? 's' : ''} en vitrine`); if (v.b.badge) li.push('Le badge « Esprit d’équipe »');
     return carte(ICONS.UI.boutique, esc(v.b.nom), esc(nomQuartier(ph.q)), `<ul>${li.map((x) => `<li>${x}</li>`).join('')}</ul>`);
   }
+  // « Ses recettes » : ses recettes ouvertes, leur niveau et leur apprenti (la boutique), ou les produits de sa Planque (l'événement) ;
+  // un bouton sous la visite, qui déplie la liste au-dessus des boutons
+  function recettesVisite(v) {
+    const lignes = [];
+    if (v.E && v.qe) v.qe.postes.forEach((s, i) => { const p = v.E.R.PRODUITS[i]; if (p && s.niv > 0) lignes.push({ ico: v.E.F.ico.produit(p, i), nom: p.nom, niv: s.niv, staff: s.staff ? 'apprenti' : '' }); });
+    else if (v.b) v.b.st.stations.forEach((s, i) => { const p = G.PRODUITS[i]; if (p && s.niv > 0) lignes.push({ ico: ICONS.PRODUITS[p.id], nom: p.nom, niv: s.niv, staff: s.staff ? `apprenti · grade ${G.gradeApprenti(v.b.st, i)}` : '' }); });
+    return lignes;
+  }
+  function boutonRecettes(v) {
+    const l = recettesVisite(v); if (!l.length) return '';
+    const liste = v.recettes ? `<ul class="vi-recettes">${l.map((r) => `<li><i class="ico">${r.ico}</i><span><b>${esc(r.nom)}</b>${r.staff ? `<small>${esc(r.staff)}</small>` : ''}</span><em>niv. ${G.fmt(r.niv)}</em></li>`).join('')}</ul>` : '';
+    return `${liste}<button type="button" class="btn large clair" data-vi="recettes" aria-expanded="${v.recettes ? 'true' : 'false'}"><b>${v.recettes ? 'Masquer ses recettes' : `Ses recettes (${l.length})`}</b></button>`;
+  }
   function basVisite(v) { // le pourboire (avec ses restants du jour) et le retour
     let pb = '';
     if (!v.charge && v.etat === 'ok' && classement.copains()) {
@@ -1254,7 +1267,7 @@ const UI = (() => {
       else if (!dn.restants) pb = `<button type="button" class="btn large non" data-vi="pourboire" aria-disabled="true"><b>Plus de pourboire aujourd’hui</b><small>3 par jour : reviens demain</small></button>`;
       else pb = `<button type="button" class="btn large beurre" data-vi="pourboire"${v.envoi ? ' aria-busy="true"' : ''}><b>${v.envoi ? 'Un instant…' : 'Laisser un pourboire'}</b><small>${reste} · +1 étoile pour toi</small></button>`;
     }
-    return `${pb}<button type="button" class="btn large sombre" data-vi="retour"><b>Retour</b></button>`;
+    return `${!v.charge && v.etat === 'ok' ? boutonRecettes(v) : ''}${pb}<button type="button" class="btn large sombre" data-vi="retour"><b>Retour</b></button>`;
   }
   // ─── la Planque (ou le Manoir) d'un copain : la vraie scène de l'événement, sur un canvas à part, en lecture seule ───
   function batirEv3(v) { // le canvas est posé une fois ; peindreVisite n'y touche plus (seuls le titre et le bas changent)
@@ -1288,7 +1301,7 @@ const UI = (() => {
       $('#vi-sous').textContent = v.charge ? 'On frappe à la porte…' : d ? `${d.enLigne ? 'En ligne · ' : ''}${v.E.F.nom}` : '';
       $('#vi-ligne').hidden = !(d && d.enLigne);
       if (!v.ev3) { vue.classList.remove('vi-ev'); vue.classList.add('carte'); vue.innerHTML = carteEv(v); }
-      $('#vi-bas').innerHTML = `${v.ev3 ? `<p class="vi-resume">${resumeEv(v).map((x, k) => (k ? esc(x) : `<b>${esc(x)}</b>`)).join(' · ')}</p>` : ''}<button type="button" class="btn large sombre" data-vi="retour"><b>Retour</b></button>`;
+      $('#vi-bas').innerHTML = `${v.ev3 ? `<p class="vi-resume">${resumeEv(v).map((x, k) => (k ? esc(x) : `<b>${esc(x)}</b>`)).join(' · ')}</p>` : ''}${v.qe ? boutonRecettes(v) : ''}<button type="button" class="btn large sombre" data-vi="retour"><b>Retour</b></button>`;
       document.querySelectorAll('#visite [data-vi]').forEach((b) => { b.onclick = () => clicVisite(b); });
       return;
     }
@@ -1304,6 +1317,7 @@ const UI = (() => {
     const v = visite; if (!v) return; audio();
     const a = b.dataset.vi;
     if (a === 'retour') { son.tap(); finVisite(); return; }
+    if (a === 'recettes') { son.tap(); v.recettes = !v.recettes; peindreVisite(); return; }
     if (a === 'reessayer') { son.tap(); const p = v.pseudo, cl = v.depuisCl, ev = v.E ? v.E.cle : null; libererEv3(v); visite = null; visiter(p, cl, ev); return; }
     if (a !== 'pourboire') return;
     if (b.getAttribute('aria-disabled') === 'true') { son.non(); return; }
