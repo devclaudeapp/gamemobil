@@ -123,7 +123,8 @@ check(HT.PALIERS.length === 20 && HT.PALIERS_BOSS === 12 && HT.PALIERS.every((p,
 check(DOUZE.filter((p) => p.vetement).map((p) => `${p.n}:${p.vetement}`).join() === '3:hantee-chapeau,6:hantee-cape,9:hantee-bottes,12:hantee-lanterne' && HT.VETEMENTS.join() === 'hantee-chapeau,hantee-cape,hantee-bottes,hantee-lanterne', 'la tenue d’Halloween aux paliers 3, 6, 9 et 12 (chapeau pointu, cape, bottes, citrouille-lanterne)');
 check(HT.PALIERS.filter((p) => p.deco).map((p) => `${p.n}:${p.deco}`).join() === '2:citrouilles,5:toiles,8:chaudron' && HT.DECOS.join() === 'citrouilles,toiles,chaudron', 'les trois décos : citrouilles, toiles d’araignée, chaudron');
 check(HT.PALIERS.filter((p) => p.chat).map((p) => `${p.n}:${p.chat}`).join() === '4:noir', 'le chat noir au palier 4');
-check(DOUZE.reduce((s, p) => s + (p.etoiles || 0), 0) === 8 && DOUZE.filter((p) => p.boost).length === 5, '8 étoiles et 5 boosts dans les douze, comme au Quartier');
+check(DOUZE.reduce((s, p) => s + (p.etoiles || 0), 0) === 10 && DOUZE.filter((p) => p.boost).length === 5 && DOUZE.reduce((s, p) => s + (p.prime || 0), 0) === 16, '10 étoiles (8 avant), 5 boosts et 16 h de primes dans les douze, comme au Quartier');
+check(HT.PALIERS.map((p) => p.total).join() === [4e8, 1e10, 1.5e11, 6e11, 2e12, 5e12, 1e13, 1.5e13, 4e13, 1.2e14, 2.5e14, 4e14, 1.2e15, 2.5e15, 4.5e15, 7e15, 1e16, 1.3e16, 2.5e16, 6e16].join(), 'les seuils des vingt paliers n’ont pas bougé (version 2 des récompenses)');
 check(HT.PALIERS.every((p) => HT.phrasePalier(p).length > 3) && /chat noir/.test(HT.phrasePalier(HT.PALIERS[3])), 'chaque palier se décrit en une ligne');
 check(HT.VETEMENTS.concat(HT.VETEMENTS_OR).every((id) => G.vetement(id) && G.vetement(id).collection === (id.startsWith('hantee-or') ? 'hantee-or' : 'hantee')) && HT.VETEMENTS.every((id) => F.vetements[id] && F.vetements[id].forme === G.vetement(id).forme), 'chaque pièce existe dans la garde-robe de src/game.js (collections hantee et hantee-or), de la forme que dit la fiche');
 q = HT.etat({}, now0);
@@ -133,29 +134,38 @@ check(HT.paliersDus(q).map((p) => p.n).join() === '1,2,3,4' && HT.reputationMult
 let p = HT.marquerPalier(q, 4);
 check(p && p.n === 4 && q.chat === true && q.etoiles === 1 && HT.marquerPalier(q, 4) === null, 'le palier 4 réclamé : le chat noir noté, une étoile ; une seule fois');
 HT.gagner(q, 1e15); HT.PALIERS.forEach((x) => HT.marquerPalier(q, x.n));
-check(q.paliers.length === 12 && HT.ensembleComplet(q) && q.decos.length === 3 && q.etoiles === 8 && q.boosts === 5 && HT.tick(q, 1, now0 + 1000, () => 0.5).paliers.length === 0, 'tout en haut : 12 paliers, la tenue complète, 3 décos, 8 étoiles, 5 boosts ; le pas de jeu ne redonne rien');
+check(q.paliers.length === 12 && HT.ensembleComplet(q) && q.decos.length === 3 && q.etoiles === 10 && q.boosts === 5 && q.heures === 16 && HT.tick(q, 1, now0 + 1000, () => 0.5).paliers.length === 0, 'tout en haut : 12 paliers, la tenue complète, 3 décos, 10 étoiles, 5 boosts, 16 h de primes ; le pas de jeu ne redonne rien');
 
 console.log('── après le maître : les paliers 13 à 20, les Sortilèges en plus ──');
 check(HT.PALIERS[12].total > HT.PALIERS[11].total && BONUS.every((p) => p.titre && (p.etoiles || p.boost) && !p.deco && !p.chat) && new Set(HT.PALIERS.map((p) => p.titre)).size === 20, `huit paliers bonus (de ${HT.fmt(BONUS[0].total)} à ${HT.fmt(BONUS[7].total)}), chacun son titre, des étoiles ou un boost`);
 check(BONUS.every((p) => !p.vetement || p.n === 20) && HT.PALIERS[19].vetement === HT.TROPHEE && HT.TROPHEE === 'hantee-lueur-chapeau' && !HT.VETEMENTS.includes(HT.TROPHEE) && !HT.VETEMENTS_OR.includes(HT.TROPHEE) && G.vetement(HT.TROPHEE).collection === 'hantee-lueur' && F.vetements[HT.TROPHEE].forme === G.vetement(HT.TROPHEE).forme, 'au 20e, le trophée : le chapeau phosphorescent (collection à part ; la tenue en or reste au podium)');
-check(BONUS.reduce((s, p) => s + (p.etoiles || 0), 0) === 5 && BONUS.filter((p) => p.boost).length === 5 && /phosphorescent/.test(HT.phrasePalier(HT.PALIERS[19])), '5 étoiles et 5 boosts de plus, comme au Quartier ; le 20e se décrit');
+{ const b = BONUS.filter((p) => p.boost);
+  check(BONUS.reduce((s, p) => s + (p.etoiles || 0), 0) === 29 && b.length === 5 && BONUS.reduce((s, p) => s + (p.prime || 0), 0) === 54 && b.every((p) => [5, 10].includes(p.boost.mult) && p.boost.secs >= 1800 && p.boost.secs <= 3600) && BONUS.every((p) => p.etoiles >= 2) && /phosphorescent/.test(HT.phrasePalier(HT.PALIERS[19])) && /24 h de gains/.test(HT.phrasePalier(HT.PALIERS[19])), `29 étoiles (5 avant), 5 boosts ×5 ou ×10 (${b.map((p) => `×${p.boost.mult} ${HT.fmtDuree(p.boost.secs)}`).join(', ')}), 54 h de primes, comme au Quartier ; le 20e se décrit : « ${HT.phrasePalier(HT.PALIERS[19])} »`);
+  check(HT.PALIERS.every((p) => JSON.stringify([p.etoiles, p.boost, p.prime]) === JSON.stringify([Q.PALIERS[p.n - 1].etoiles, Q.PALIERS[p.n - 1].boost, Q.PALIERS[p.n - 1].prime]) || [4, 11].includes(p.n)), 'les mêmes principes qu’au Quartier, palier par palier (sauf les 4e et 11e, qui gardent leur étoile du chat noir et du bal)'); }
 q = HT.etat({}, now0); HT.gagner(q, 1e17); HT.paliersDus(q).forEach((x) => HT.marquerPalier(q, x.n));
-check(q.paliers.length === 20 && q.etoiles === 13 && q.boosts === 10 && q.vetements.includes(HT.TROPHEE) && HT.reputationMult(q) === Math.pow(HT.REPUTATION, 12) && HT.marquerPalier(q, 20) === null, 'tout en haut : vingt paliers, 13 étoiles, 10 boosts, le chapeau phosphorescent ; la réputation reste ×1,5¹² ; une seule fois');
+check(q.paliers.length === 20 && q.etoiles === 39 && q.boosts === 10 && q.heures === 70 && q.vetements.includes(HT.TROPHEE) && HT.reputationMult(q) === Math.pow(HT.REPUTATION, 12) && HT.marquerPalier(q, 20) === null, 'tout en haut : vingt paliers, 39 étoiles (13 avant), 10 boosts, 70 h de primes, le chapeau phosphorescent ; la réputation reste ×1,5¹² ; une seule fois');
 const COMB = HT.AMELIORATIONS.filter((a) => a.apres);
 check(COMB.length === 4 && COMB.every((a) => a.apres === 12 && a.effet && a.mult === 1 && a.cout >= 5e14), `quatre Sortilèges de plus après le palier 12, chers (${COMB.map((a) => `${a.nom} ${HT.fmt(a.cout)}`).join(', ')})`);
 q = HT.etat({}, now0); HT.gagner(q, 3e14); q.billets = 1e17;
 check(!HT.amelioration(q, COMB[0].id).ok && HT.amelioration(q, COMB[0].id).verrou, 'avant le maître : verrouillés');
 HT.gagner(q, 1e14); q.billets = 1e17; const rb = HT.revenuBase(q, 0);
+const eC = q.etoiles, hC = q.heures;
 check(COMB.every((a) => HT.amelioration(q, a.id).ok) && HT.revenuBase(q, 0) === rb, 'après : achetés, sans multiplier aucune vente');
+check(COMB.map((a) => `${a.prime}:${a.etoiles}`).join() === '6:1,10:2,16:2,24:3' && q.etoiles - eC === 8 && q.heures - hC === 56 && HT.phraseCombine(COMB[1]) === '+ 10 h de gains à la boulangerie, +2 ★', `et chacun paie la boulangerie (6, 10, 16 et 24 h ; 1, 2, 2 et 3 ★) : « ${HT.phraseCombine(COMB[1])} »`);
 ev = HT.lancerEvenement(q, () => 0.5, 'descente'); const evS = HT.lancerEvenement(q, () => 0.5, 'soiree'), evB = HT.lancerEvenement(q, () => 0.5, 'scooter');
 check(ev.n === 8 && ev.enjeu === Math.floor(q.billets * 0.05) && evS.fin - evS.debut === 180e3 && evB.fin - evB.debut === 20e3 && HT.heuresAbsence(q) === 12 && HT.partAbsence(q) === 0.2, 'leurs effets : chauves-souris en 8 touches (5 % emportés), pleine lune de 3 min, balai qui attend 20 s, absence de 12 h à 20 %');
 { // la reprise d'une sauvegarde d'avant la mise à jour : 12 paliers marqués, 3 000 Bn gagnés (au-delà des 13e et 14e)
   const b = G.newState(now0), qv = HT.etat(b, now0); HT.gagner(qv, 3e15); for (let k = 1; k <= 12; k++) HT.marquerPalier(qv, k);
   const json = JSON.parse(JSON.stringify(b)), q2 = HT.etat(json, now0), e0 = json.etoiles;
   check(HT.paliersDus(q2).map((p) => p.n).join() === '13,14', 'relue après la mise à jour : les paliers 13 et 14, déjà dépassés, sont dus');
-  for (const p of HT.paliersDus(q2)) { if (HT.marquerPalier(q2, p.n) && p.etoiles) json.etoiles += p.etoiles; }
+  const c0 = json.coins; for (const p of HT.paliersDus(q2)) { if (!HT.marquerPalier(q2, p.n)) continue; if (p.etoiles) json.etoiles += p.etoiles; if (p.prime) G.donnerPrimeHeures(json, p.prime); }
   for (const p of HT.PALIERS) HT.marquerPalier(q2, p.n);
-  check(q2.paliers.length === 14 && json.etoiles === e0 + 1 && q2.etoiles === 9 && HT.paliersDus(q2).length === 0, 'donnés une fois chacun, pas de double récompense'); }
+  check(q2.paliers.length === 14 && json.etoiles === e0 + 4 && json.coins - c0 === G.primeHeures(json, 4) + G.primeHeures(json, 6) && q2.etoiles === 14 && HT.paliersDus(q2).length === 0, 'donnés une fois chacun (4 étoiles, 10 h de gains), pas de double récompense'); }
+{ // la revue : une sauvegarde d'avant cette version (12 paliers, un Sortilège) reçoit la différence, une fois
+  const b = G.newState(now0), qv = HT.etat(b, now0); HT.gagner(qv, 2e15); qv.paliers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]; qv.ameliorations.epouvantail = true; delete qv.recompensesV2; delete qv.heures;
+  const json = JSON.parse(JSON.stringify(b)), q3 = HT.etat(json, now0), lot = HT.revueRecompenses(q3);
+  check(lot && lot.etoiles === 1 + 1 + 2 + 1 && lot.heures === 1 + 2 + 3 + 4 + 6 + 4 + 6 && lot.boosts.map((x) => `${x.mult}:${x.secs}`).join() === '5:1800,5:1800' && lot.combines === 1, `la différence : +${lot && lot.etoiles} ★, +${lot && lot.heures} h, ${lot && lot.boosts.length} boosts (le 12e passé à 1 h, le 13e à ×5)`);
+  check(q3.recompensesV2 === true && HT.revueRecompenses(q3) === null && HT.revueRecompenses(HT.etat(JSON.parse(JSON.stringify(json)), now0)) === null, 'une fois : le drapeau posé, gardé dans la sauvegarde'); }
 
 console.log('── le rythme simulé (sept jours de Paris) ──');
 const S = {}; for (const prof of ['assidu', 'quotidien', 'occasionnel', 'marathon']) S[prof] = HT.simuler(prof);
@@ -195,6 +205,9 @@ if (mEvt) {
   check(minM >= Math.log10(2), `le marathon 24 h/24 (quatre graines, minute par minute, Sortilèges en plus achetés ou offerts dès le 12e) reste sous l’enveloppe avec au moins ×2 de marge (×${Math.pow(10, minM).toFixed(2)} au plus juste) — le SQL ne change pas`);
   check(maxM <= Math.log10(20), `mais pas plus de ×20 après les six premières heures (×${Math.pow(10, maxM).toFixed(1)} au plus large) : un tricheur ne s’envole pas`);
   check(S.assidu.trace.every((x) => x.total === 0 || borne(x.t) - Math.log10(x.total) >= 1), 'un assidu honnête est toujours au moins dix fois sous l’enveloppe');
+  // la version 2 des récompenses ne touche à rien de ce que rapporte le Manoir : le marathon gagne EXACTEMENT les mêmes bonbons qu'avant
+  // (les totaux de la simulation d'avant, graine 7) ; donc les mêmes marges (×2.05 au plus juste, minute par minute)
+  check(S.marathon.total === 80752435989931200 && HT.simuler('marathon', 7, { offertes: true }).total === 87614312516511840, `l’enveloppe inchangée : le marathon gagne au bonbon près ce qu’il gagnait avant la version 2 des récompenses (${HT.fmt(S.marathon.total)}, ${HT.fmt(87614312516511840)} Sortilèges offerts)`);
 }
 
 console.log('── la longévité : sept jours de marathon, une sauvegarde relue en route, la boulangerie récompensée ──');
@@ -213,7 +226,7 @@ console.log('── la longévité : sept jours de marathon, une sauvegarde relu
 { // les récompenses des douze paliers distribuées dans la boulangerie (ce que fera l'écran) : étoiles, boosts, tenue, chat noir
   const b = G.newState(now0), qq = HT.etat(b, now0); HT.gagner(qq, 1e15); const e0 = b.etoiles;
   for (const pp of HT.paliersDus(qq)) { HT.marquerPalier(qq, pp.n); if (pp.etoiles) b.etoiles += pp.etoiles; if (pp.boost) G.donnerBoostReserve(b, pp.boost.mult, pp.boost.secs); if (pp.vetement) G.donnerVetement(b, pp.vetement); if (pp.chat) G.donnerChatNoir(b); }
-  check(b.etoiles - e0 === 8 && b.boosts.reserve.length === 5 && HT.VETEMENTS.every((id) => G.possede(b, id)) && b.chatNoir === true, 'dans la boulangerie : 8 étoiles, 5 boosts en réserve, la tenue d’Halloween dans la garde-robe, le chat noir gagné');
+  check(b.etoiles - e0 === 10 && b.boosts.reserve.length === 5 && HT.VETEMENTS.every((id) => G.possede(b, id)) && b.chatNoir === true, 'dans la boulangerie : 10 étoiles, 5 boosts en réserve, la tenue d’Halloween dans la garde-robe, le chat noir gagné');
   check(G.equiperCollection(b, 'hantee') === 4 && G.ensembleComplet(b) === 'hantee' && G.tenueBoulanger(b).tete.forme === 'chapeau' && G.tenueBoulanger(b).tete.metal === 'hantee', 'la tenue d’Halloween se porte : ensemble complet, chapeau pointu vu par la 3D');
   check(G.donnerCollection(b, 'hantee-or').length === 4 && G.equiperCollection(b, 'hantee-or') === 4 && G.ensembleComplet(b) === 'hantee-or', 'le podium final : la même en or (donnerCollection « hantee-or »)');
   const json = JSON.parse(JSON.stringify(b)); check(json.hantee && json.hantee.paliers.length === 12 && G.garderobe(json).objets['hantee-lanterne'] && json.chatNoir, 'la sauvegarde garde st.hantee, la garde-robe et le chat noir'); }

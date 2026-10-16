@@ -319,5 +319,43 @@
     return Object.assign({ api, reparer, sim, politique }, api);
   }
 
-  return { equiper, MOTEURS, DEFAUTS, MODELES, STATS, GUET, COMPTE, TOURNEE, alea, hacher };
+  // ═══ les récompenses pour la boulangerie, communes à tous les événements (version 2, le 16 octobre 2026) ═══
+  // Un palier ou une combine « après le boss » peut donner, en plus de ses étoiles, boosts, décos et vêtements, une PRIME : p.prime (ou
+  // a.prime) heures du rythme de la boulangerie, versées à la remise (GAME.donnerPrimeHeures : rythme × 3600 × heures, hors objectifs) ;
+  // une combine peut aussi donner des étoiles (a.etoiles). Rien de tout ça ne touche aux billets ni aux bonbons de l'événement : l'enveloppe
+  // du serveur ne bouge pas. La REVUE : une sauvegarde qui avait déjà franchi des paliers ou acheté des combines avant cette version reçoit
+  // UNE FOIS la différence entre les nouvelles récompenses et les anciennes (anciens : { n: { etoiles, boost, prime } }, les valeurs d'avant),
+  // marquée par q.recompensesV2 (posé d'office sur un état neuf : rien à rattraper). revue(q, …) → null (déjà faite) ou le lot :
+  // { etoiles, heures, boosts: [{ mult, secs }], paliers (déjà franchis), combines (déjà achetées) } (etoiles, heures et boosts vides : rien à dire), que l'écran verse dans la boulangerie.
+  const lotPalier = (p) => ({ etoiles: (p && p.etoiles) || 0, heures: (p && p.prime) || 0, boost: (p && p.boost) || null });
+  const lotCombine = (a) => ({ etoiles: (a && a.etoiles) || 0, heures: (a && a.prime) || 0 });
+  function phraseLot(l) { // « + 16 h de gains à la boulangerie, +2 ★ » ('' : rien)
+    const t = [];
+    if (l && l.heures > 0) t.push(`+ ${l.heures} h de gains à la boulangerie`);
+    if (l && l.etoiles > 0) t.push(`+${l.etoiles} ★`);
+    return t.join(', ');
+  }
+  function diffBoost(ancien, neuf) { // ce qu'un boost amélioré ajoute : le nouveau s'il est plus fort, le temps en plus s'il dure plus longtemps
+    if (!neuf) return null;
+    if (!ancien || neuf.mult > ancien.mult) return { mult: neuf.mult, secs: neuf.secs };
+    if (neuf.mult === ancien.mult && neuf.secs > ancien.secs) return { mult: neuf.mult, secs: neuf.secs - ancien.secs };
+    return null;
+  }
+  function revue(q, PALIERS, AMELIORATIONS, anciens) {
+    if (!q || typeof q !== 'object' || q.recompensesV2) return null;
+    q.recompensesV2 = true;
+    const lot = { etoiles: 0, heures: 0, boosts: [], paliers: 0, combines: 0 };
+    for (const n of Array.isArray(q.paliers) ? q.paliers : []) {
+      const p = PALIERS.find((x) => x.n === n), a = (anciens && anciens[n]) || {}; if (!p) continue;
+      const de = Math.max(0, (p.etoiles || 0) - (a.etoiles || 0)), dh = Math.max(0, (p.prime || 0) - (a.prime || 0)), b = diffBoost(a.boost, p.boost);
+      lot.etoiles += de; lot.heures += dh; if (b) lot.boosts.push(b); lot.paliers++; // paliers : ceux déjà franchis (pour la phrase)
+    }
+    const am = q.ameliorations && typeof q.ameliorations === 'object' ? q.ameliorations : {};
+    for (const a of AMELIORATIONS) if (a.apres && am[a.id] && (a.prime || a.etoiles)) { lot.etoiles += a.etoiles || 0; lot.heures += a.prime || 0; lot.combines++; }
+    q.etoiles = (q.etoiles || 0) + lot.etoiles; q.heures = (q.heures || 0) + lot.heures; q.boosts = (q.boosts || 0) + lot.boosts.length; // les compteurs du bilan
+    return lot;
+  }
+  const RECOMPENSES = { lotPalier, lotCombine, phraseLot, diffBoost, revue };
+
+  return { equiper, MOTEURS, DEFAUTS, MODELES, STATS, GUET, COMPTE, TOURNEE, alea, hacher, RECOMPENSES };
 });

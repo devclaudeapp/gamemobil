@@ -441,6 +441,22 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       q1: () => [M.part(M.capsule(1.15, 5.5, 8), '#E6C79C', { y: 2.75 })], q2: () => [M.part(M.capsule(1.05, 4.2, 8), '#E6C79C', { y: 2.1 }), M.part(calotte(1.12, 1.05, 10), '#FFF1DC', { y: 4.2 })],
       patte: () => pattePendue(1.75, 8, '#E6C79C', '#FFF1DC'),
     },
+    // le chien du quartier (gagné au palier 11 du Quartier) : le même bâtard roux et blanc que la déco couchée dans la boutique (meubles.js,
+    // chien), en plus costaud (corps, tête et pattes plus épais), la selle brun foncé sur le dos, un bandana rouge noué sur la nuque (sa pointe
+    // posée sur les épaules : on la voit de dessus), une grosse chaîne en or et sa médaille, et deux sourcils froncés de videur
+    'chien-quartier': {
+      lp: 8.6, py: -3.4, hanches: [[-3.4, 7.6], [3.4, 7.6], [-3.4, -7.6], [3.4, -7.6]], tp: [5.6, 13.6], queue: [3.2, -12.4, -0.5], lq1: 4.8, q2r: 0.5, R: 6.1, D: 12.8, demiH: 5.2, assis: 'assis', a: -0.45, dort: 'couche',
+      corps: () => { const robe = '#C8864F', creme = '#FFF3E2', rouge = '#E1496C';
+        return [M.part(M.capsule(6.1, 13.4, 12), robe, { rx: HP }), M.part(arcCyl(6.22, 13.4, 1.9, 0), creme, { rx: HP }), M.part(patchS(6.3, 2.0, 1.35, 1.45), creme, { z: 6.9 }),
+          M.part(M.sphere(3.8, 10), '#8B5A3C', { x: -0.6, y: 4.9, z: -3.2, sy: 0.4, sx: 1.25, sz: 1.3 }), // la selle sur le dos
+          M.part(M.tore(5.65, 0.95, TAU, 6, 18), rouge, { y: 1.4, z: 9.2, rx: -0.45 }), M.part(M.cone(3.4, 6.2, 3), rouge, { y: 6.5, z: 8.8, rx: -HP, sz: 0.3 }), // le bandana noué sur la nuque, sa pointe sur les épaules
+          M.part(M.tore(5.8, 0.55, TAU, 6, 20), OR, { y: 1.1, z: 10.3, rx: -0.45 }), M.part(M.cylindre(1.3, 1.3, 0.5, 10), OR, { y: -2.6, z: 13, rx: HP - 0.45 })]; }, // la chaîne en or et sa médaille
+      tete: (f) => { const robe = '#C8864F', p = [M.part(M.sphere(5.3, 14), robe, { sx: 1.12, sy: 0.95 }), M.part(M.sphere(2.8, 10), '#FFF3E2', { y: -1.6, z: 4.2, sx: 1.3, sy: 0.85, sz: 1.05 }), M.part(M.sphere(1.1, 8), L, { y: -0.6, z: 6.7, sx: 1.3, sy: 0.85, sz: 0.8 })];
+        for (const sx of [-1, 1]) p.push(M.part(M.sphere(2.3, 8), '#8B5A3C', { x: sx * 4.8, y: 0.6, z: -0.3, sx: 0.45, sy: 1.25, sz: 0.9, rz: sx * 0.25 }), M.part(M.boite(2.4, 0.6, 0.7, 0.2), L, { x: sx * 2.3, y: 2.7, z: 4.75, rz: -sx * 0.4 })); // les oreilles tombantes, les sourcils froncés
+        yeux(p, 2.2, 1.3, 4.8, 0.9, f); return p; },
+      q1: () => [M.part(M.capsule(1.35, 4.8, 8), '#C8864F', { y: 2.4 })], q2: () => [M.part(M.capsule(1.25, 3.4, 8), '#C8864F', { y: 1.7 }), M.part(calotte(1.32, 1.05, 10), '#FFF3E2', { y: 3.4 })],
+      patte: () => pattePendue(2.1, 8.6, '#C8864F', '#FFF3E2'),
+    },
     lapin: {
       lp: 6.5, py: -3.2, hanches: [[-2.6, 4.4], [2.6, 4.4], [-3, -4.4], [3, -4.4]], tp: [4.8, 8.6], queue: [1.2, -8.2, 0], lq1: 0, q2r: null, R: 5.4, D: 7.2, demiH: 4.8, assis: 'assis', a: -0.55, dort: 'couche',
       corps: () => { const robe = '#D9CFC4'; return [M.part(M.sphere(6, 14), robe, { sx: 0.95, sy: 0.9, sz: 1.25 }), M.part(M.sphere(4.4, 12), '#FFF8EF', { y: -1.4, z: 2.6, sx: 0.95, sz: 1.1 }), M.part(M.sphere(3.4, 10), robe, { x: -3.2, y: -0.8, z: -3.4, sz: 1.25 }), M.part(M.sphere(3.4, 10), robe, { x: 3.2, y: -0.8, z: -3.4, sz: 1.25 })]; },
@@ -617,7 +633,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     for (let k = 0; k < 4; k++) { const p = pa[k]; p.position.fromArray(A.pp[k]); p.rotation.fromArray(A.pr[k]); p.scale.fromArray(A.ps[k]); p.visible = A.pv && k < n; }
     const geo = h.userData.geos[e === 'dort' ? 1 : 0]; if (h.geometry !== geo) h.geometry = geo;
     if (ai) ai.scale.set(1, 1, 1);
-    const chien = id === 'chien' || id === 'teckel';
+    const chien = id === 'chien' || id === 'teckel' || id === 'chien-quartier';
     if (e === 'dort') { // la respiration lente ; les ailes repliées, la queue qui frémit
       const b = Math.sin(t * 1.5) * 0.03; c.scale.y *= 1 + b; h.position.y += b * 3;
       if (ai) { ai.scale.y = 0.2; ai.scale.x = 0.75; }

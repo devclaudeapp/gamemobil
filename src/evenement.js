@@ -78,12 +78,41 @@ const EVENEMENTS = (() => {
       const qq = q();
       if (typeof G.donnerVetement === 'function') for (const v of qq.vetements) { try { G.donnerVetement(s, v); } catch (e) { /* un id que la garde-robe ne connaît pas encore */ } }
       F.decos(qq.decos); if (F.synchro) F.synchro(s, qq);
+      // la revue des récompenses (version 2) : une sauvegarde qui avait déjà franchi des paliers ou acheté des combines « après le boss »
+      // reçoit la différence UNE FOIS (q.recompensesV2, posé par les règles), versée tout de suite ; la feuille qui le dit attend annoncer()
+      if (Q.revueRecompenses) { const lot = Q.revueRecompenses(qq); if (lot) { if (lot.etoiles || lot.heures || lot.boosts.length) revueEnAttente = { lot, v: verser(s, lot) }; d.save(); } }
+    }
+    // un lot pour la boulangerie : { etoiles, heures (la prime : heures de son rythme), boosts: [{ mult, secs }] } → ce qui a été versé
+    function verser(s, lot) {
+      const v = { etoiles: 0, euros: 0, boosts: 0 };
+      if (lot.etoiles > 0) { s.etoiles += lot.etoiles; v.etoiles = lot.etoiles; }
+      if (lot.heures > 0 && typeof G.donnerPrimeHeures === 'function') v.euros = G.donnerPrimeHeures(s, lot.heures);
+      for (const b of lot.boosts || []) if (G.donnerBoostReserve(s, b.mult, b.secs)) v.boosts++;
+      return v;
+    }
+    const phraseVerse = (v, h) => [v.etoiles ? `+${v.etoiles} ★` : '', v.euros ? `+${G.fmtEur(v.euros)} (${h} h de gains)` : '', v.boosts ? `${v.boosts} boost${v.boosts > 1 ? 's' : ''} en réserve` : ''].filter(Boolean).join(', ');
+    let revueEnAttente = null;
+    function montrerRevue() { // « Les récompenses ont été revues » : une fois, quand la feuille est libre
+      const { lot, v } = revueEnAttente; revueEnAttente = null; sheetOuverte = true;
+      d.son.deblocage(); d.buzz([10, 30, 10]); if (d.fete) d.fete(); if (d.apres) d.apres();
+      const l = [];
+      if (v.etoiles) l.push(`${v.etoiles} étoile${v.etoiles > 1 ? 's' : ''} de plus (+${Math.round(v.etoiles * G.ETOILE_BONUS * 100)} % de gains, pour toujours)`);
+      if (v.euros) l.push(`${G.fmtEur(v.euros)} pour la boulangerie : ${lot.heures} h de ses gains, d’un coup`);
+      if (v.boosts) l.push(`${lot.boosts.map((b) => `un boost ×${b.mult} de ${G.fmtDuree(b.secs)}`).join(', ')} en réserve dans la boutique`);
+      const quoi = [lot.paliers ? `${lot.paliers} palier${lot.paliers > 1 ? 's' : ''}` : '', lot.combines ? `${lot.combines} ${F.t.combineMot}${lot.combines > 1 ? 's' : ''}` : ''].filter(Boolean).join(' et ');
+      d.openSheet(`<div class="pq-sheet ${F.classe}" data-revue="${esc(F.cle)}"><div class="pq-palier-tete"><span class="pq-pic">${F.ico.palier}</span><div><h2>Les récompenses ont été revues</h2><p class="sous">${esc(`${F.nom} : ${phraseVerse(v, lot.heures)}.`)}</p></div></div>
+        <ul class="pq-dons">${l.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
+        <p class="encadre">${esc(F.t.revue(quoi))}</p>
+        <button type="button" class="btn large beurre" data-a="pq-ok" style="margin-top:14px"><b>${esc(F.t.palierOk)}</b></button></div>`);
+      d.on('[data-a="pq-ok"]', () => { d.son.tap(); d.closeSheet(); });
+      const surFermeture = setInterval(() => { if ($('#feuille').hidden) { sheetOuverte = false; clearInterval(surFermeture); montrerSheetsEnAttente(); } }, 300);
     }
     function donnerPalier(p) {
       const s = st(), qq = q(), fait = Q.marquerPalier(qq, p.n); if (!fait) return null;
       const dons = [];
       if (p.etoiles) { s.etoiles += p.etoiles; dons.push(`${p.etoiles} étoile${p.etoiles > 1 ? 's' : ''} (+${Math.round(p.etoiles * G.ETOILE_BONUS * 100)} % de gains, pour toujours)`); }
       if (p.boost) { G.donnerBoostReserve(s, p.boost.mult, p.boost.secs); dons.push(`un boost ×${p.boost.mult} de ${G.fmtDuree(p.boost.secs)}, en réserve dans la boutique`); }
+      if (p.prime && typeof G.donnerPrimeHeures === 'function') { const x = G.donnerPrimeHeures(s, p.prime); dons.push(`${G.fmtEur(x)} pour la boulangerie : ${p.prime} h de ses gains, d’un coup`); }
       if (p.deco) { F.decos(qq.decos); dons.push(F.t.decoDon[p.deco] || F.t.decoDefaut(p.deco)); }
       if (p.vetement) { let r = null; if (typeof G.donnerVetement === 'function') { try { r = G.donnerVetement(s, p.vetement); } catch (e) { r = null; } } const v = typeof G.vetement === 'function' ? G.vetement(p.vetement) : null; dons.push(`${v ? v.nom : F.t.vetementNom(p.vetement)} pour la garde-robe du boulanger${Q.ensembleComplet(qq) ? F.t.tenueComplete : ''}${r && r.nouveau === false ? ' (déjà là)' : ''}`); }
       if (F.apresPalier) F.apresPalier(s, p, dons);
@@ -107,6 +136,7 @@ const EVENEMENTS = (() => {
     // ─── ouvrir : l'annonce, la porte 18+ (le Quartier), l'écran, le bilan ───
     function annoncer() { // le premier jour (ou au premier lancement pendant l'événement) : une fois ; après la fin : le bilan, une fois
       if (!Q || !d) return false; const s = st(); if (!s || coupe()) return false;
+      if (revueEnAttente && !ouvert() && !sheetOuverte && $('#feuille').hidden) { montrerRevue(); return true; } // les récompenses revues (une vieille sauvegarde) : avant tout le reste, même après la fin
       const f = fen(), qq = s[F.cle];
       if (f.fini) { if (qq && qq.total > 0 && !qq.bilan && !qq.masque && !ouvert()) { ouvrir(); return true; } return false; } // masqué : pas de bilan qui surgit
       // des paliers dus hors de la Planque (une mise à jour qui en ajoute : les paliers bonus d'une sauvegarde déjà au-delà du 12e) : donnés une fois, annoncés dans la boutique
@@ -305,13 +335,16 @@ const EVENEMENTS = (() => {
     // ─── les feuilles : les améliorations, les paliers ───
     function sheetAmeliorations() {
       const qq = q();
-      const ligne = (a) => { const fait = qq.ameliorations[a.id], ok = qq.billets >= a.cout; return `<div class="am ${fait ? 'fait' : ''}${a.apres ? ' bonus' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p></div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${prix(a.cout)}</b></button>`}</div>`; };
+      const paie = (a) => (a.apres && Q.phraseCombine ? Q.phraseCombine(a) : ''); // après le boss : ce qu'elle paie à la boulangerie (« + 16 h de gains à la boulangerie, +2 ★ »)
+      const ligne = (a) => { const fait = qq.ameliorations[a.id], ok = qq.billets >= a.cout, p = paie(a); return `<div class="am ${fait ? 'fait' : ''}${a.apres ? ' bonus' : ''}"><div><h3>${esc(a.nom)}</h3><p>${esc(a.desc)}</p>${p ? `<p class="am-paie">${esc(p)}${a.prime && G.primeHeures ? ` <small>(≈ ${G.fmtEur(G.primeHeures(st(), a.prime))})</small>` : ''}</p>` : ''}</div>${fait ? '<span class="ok">Acheté ✓</span>' : `<button type="button" class="btn ${ok ? 'lavande' : 'non'}" data-id="${a.id}"><small>Acheter</small><b>${prix(a.cout)}</b></button>`}</div>`; };
       const bonus = Q.AMELIORATIONS.filter((a) => a.apres), ouvertes = bonus.filter((a) => ouverte(qq, a));
       const liste = Q.AMELIORATIONS.filter((a) => !a.apres).map(ligne).join('')
         + (ouvertes.length ? `<h3 class="pq-inter">${esc(F.t.apresBoss)}</h3><p class="pq-inter-sous">${esc(F.t.amBonus)}</p>${ouvertes.map(ligne).join('')}` : '')
         + (bonus.length > ouvertes.length ? `<p class="note pq-am-bientot">${esc(F.t.amBientot(bonus.length - ouvertes.length, boss()))}</p>` : '');
       d.openSheet(`<div class="pq-sheet ${F.classe}"><h2>${esc(F.t.amTitre)}</h2><p class="sous">${esc(F.t.amSous)}</p><div class="liste-am">${liste}</div><button type="button" class="btn large sombre" data-a="pq-retour" style="margin-top:14px"><b>Retour</b></button></div>`);
-      d.on('[data-id]', (b) => { const r = Q.amelioration(q(), b.dataset.id); if (!r.ok) { d.son.non(); d.toast(`Il manque ${fmt(r.prix - q().billets)}`); return; } d.son.deblocage(); d.buzz([10, 30, 10]); d.toast(`${r.a.nom} : ${r.a.desc}`); renderCartes(true); lastHud = ''; hud(); d.save(); sheetAmeliorations(); });
+      d.on('[data-id]', (b) => { const r = Q.amelioration(q(), b.dataset.id); if (!r.ok) { d.son.non(); d.toast(`Il manque ${fmt(r.prix - q().billets)}`); return; } d.son.deblocage(); d.buzz([10, 30, 10]);
+        let plus = ''; if (r.a.apres && (r.a.prime || r.a.etoiles)) { const lot = Q.lotCombine ? Q.lotCombine(r.a) : { etoiles: r.a.etoiles || 0, heures: r.a.prime || 0 }, v = verser(st(), lot); plus = ` · la boulangerie reçoit ${phraseVerse(v, lot.heures)}`; if (d.confettis) d.confettis(0.6); d.apres(); } // après le boss : elle paie aussi la boulangerie
+        d.toast(`${r.a.nom} : ${r.a.desc}${plus}`); renderCartes(true); lastHud = ''; hud(); d.save(); sheetAmeliorations(); });
       d.on('[data-a="pq-retour"]', () => d.closeSheet());
     }
     function sheetPaliers() {
@@ -340,6 +373,7 @@ const EVENEMENTS = (() => {
       const dons = [];
       if (qq.etoiles) dons.push(`${qq.etoiles} étoile${qq.etoiles > 1 ? 's' : ''}`);
       if (qq.boosts) dons.push(`${qq.boosts} boost${qq.boosts > 1 ? 's' : ''} en réserve`);
+      if (qq.heures) dons.push(`${qq.heures} h de gains versées à la boulangerie`);
       if (qq.decos.length) dons.push(F.t.bilanDecos(qq.decos.length));
       const tenue = qq.vetements.filter((v) => !Q.VETEMENTS || Q.VETEMENTS.includes(v)), trophees = qq.vetements.filter((v) => Q.VETEMENTS && !Q.VETEMENTS.includes(v));
       if (tenue.length) dons.push(`${tenue.length} pièce${tenue.length > 1 ? 's' : ''} ${F.t.bilanTenue}${Q.ensembleComplet(qq) ? ' (complète)' : ''}`);
@@ -1192,6 +1226,8 @@ const EVENEMENTS = (() => {
     },
     stats: [['Ventes', 'ventes'], ['Descentes déjouées', 'descentes'], ['Gros clients', 'grosClients'], ['Scooters', 'scooters']],
     scene: scenePlanque,
+    // le palier 11 : le chien du quartier, couché dans la boutique, est aussi un compagnon (GAME.COMPAGNONS, « chien-quartier »)
+    apresPalier: (s, p, dons) => { if (p.deco === 'chien' && typeof G.compagnon === 'function' && G.compagnon('chien-quartier')) dons.push('le chien du quartier comme compagnon : choisis-le dans « Les compagnons » (Réglages › Le compagnon)'); },
     t: {
       lieu: 'La Planque', premier: 'Touche l’herbe pour vendre ton premier sachet !', ferme: 'La Planque ferme ses portes !', reste: 'Ferme dans',
       absence: (duree, m) => `Pendant ton absence (${duree}) : +${m} de billets, au ralenti sans le boss.`,
@@ -1201,16 +1237,17 @@ const EVENEMENTS = (() => {
       vetementNom: (v) => v, tenueComplete: ' : la tenue du quartier est complète !',
       palierSous: (m) => `${m} de billets gagnés dans la Planque. Pour la boulangerie :`, palierFinal: 'Le boss du quartier, c’est toi. Tout ça reste à vie, même après la fermeture de la Planque.', palierOk: 'Trop bien',
       amTitre: 'Les combines', amSous: 'Des améliorations qui multiplient les ventes de la Planque, jusqu’à la fin de l’événement.',
-      apresBoss: 'Après le boss', apresBossSous: 'Huit paliers bonus pour ceux qui ont déjà tout : des étoiles, des boosts, et au 20e la casquette néon.',
-      amBonus: 'Pour souffler une fois boss : elles ne multiplient pas les ventes, elles rendent la vie plus douce.', amBientot: (n, k) => `${n} combine${n > 1 ? 's' : ''} de plus après le palier ${k}.`,
-      palierBonus: 'Après le boss, ça continue : huit paliers bonus et quatre combines de plus t’attendent.', palierBonusFinal: 'Une légende en néon. Le quartier n’a plus rien à t’apprendre : la casquette néon est dans ta garde-robe, à vie.',
+      apresBoss: 'Après le boss', apresBossSous: 'Huit paliers bonus pour ceux qui ont déjà tout : des étoiles par poignées, des boosts ×5 et ×10, des heures de gains pour la boulangerie, et au 20e la casquette néon.',
+      amBonus: 'Pour souffler une fois boss : elles ne multiplient pas les ventes, elles rendent la vie plus douce, et chacune paie la boulangerie (des heures de gains, des étoiles).', amBientot: (n, k) => `${n} combine${n > 1 ? 's' : ''} de plus après le palier ${k}.`,
+      palierBonus: 'Après le boss, ça continue : huit paliers bonus (jusqu’à 8 étoiles d’un coup, des boosts ×10, des heures de gains) et quatre combines qui paient la boulangerie t’attendent.', combineMot: 'combine',
+      revue: (quoi) => `Tu avais déjà ${quoi || 'avancé'} au Quartier : voici, une fois, la différence avec les nouvelles récompenses. Les prochains paliers et les combines d’après le boss donnent déjà les nouvelles.`, palierBonusFinal: 'Une légende en néon. Le quartier n’a plus rien à t’apprendre : la casquette néon est dans ta garde-robe, à vie.',
       paliersSous: (m, nb, n) => `${m} de billets gagnés · ${nb}/${n}. Les mêmes seuils pour tout le monde ; chaque palier donne quelque chose pour la boulangerie, à vie.`,
-      paliersNote: 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue du quartier se porte depuis la garde-robe du boulanger.',
+      paliersNote: 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). Les heures de gains tombent tout de suite dans la caisse de la boulangerie. La tenue du quartier se porte depuis la garde-robe du boulanger, et le chien du quartier se choisit comme compagnon.',
       bilanTitre: 'La Planque a fermé', bilanH2: 'Bilan du quartier', bilanSous: 'de billets gagnés en deux semaines', bilanDecos: (n) => `${n} déco${n > 1 ? 's' : ''} du quartier dans la boutique`, bilanTenue: 'de la tenue du quartier', bilanOr: 'la tenue du quartier en or',
       bilanVide: 'La Planque a fermé sans rien laisser derrière elle. À la prochaine !',
       annonce: () => `<div class="pq-sheet pq-annonce"><div class="pq-annonce-scene"><span class="pq-pic grand">${ICONS.QUARTIER.porte}</span></div>
         <h2>Le Quartier ouvre ses portes</h2>
-        <p class="sous">Deux semaines, jusqu’au mardi 27 octobre à midi : une boutique à part, « la Planque », où tout le monde part de zéro. Ses billets rapportent des récompenses pour ta boulangerie : étoiles, boosts, décos du quartier, et une tenue à vie.</p>
+        <p class="sous">Deux semaines, jusqu’au mardi 27 octobre à midi : une boutique à part, « la Planque », où tout le monde part de zéro. Ses billets rapportent des récompenses pour ta boulangerie : étoiles, boosts, heures de gains, décos du quartier, un chien et une tenue à vie.</p>
         <p class="encadre">C’est une parodie pour adultes, façon dessin animé. Réservée aux 18 ans et plus ; on peut la masquer dans les Réglages.</p>
         <button type="button" class="btn large sombre" data-a="pq-entrer" style="margin-top:12px"><small>18 ans et +</small><b>Voir le Quartier</b></button>
         <button type="button" class="btn large clair" data-a="pq-tard" style="margin-top:8px"><b>Plus tard</b></button></div>`,
@@ -1260,9 +1297,10 @@ const EVENEMENTS = (() => {
         vetementNom: (v) => v, tenueComplete: ' : la tenue d’Halloween est complète !',
         palierSous: (m) => `${m} gagnés au manoir. Pour la boulangerie :`, palierFinal: txt('palier12', txt('palierFinal', 'La reine de la nuit, c’est toi. Tout ça reste à vie, même après la fermeture du manoir.')), palierOk: 'Trop chouette',
         amTitre: typeof T.ameliorations === 'string' ? `Les ${T.ameliorations.toLowerCase()}` : txt('amTitre', 'Les sortilèges'), amSous: txt('amSous', 'Des sorts qui multiplient les ventes du manoir, jusqu’à la fin de l’événement.'),
-        apresBoss: txt('apresBoss', 'Après le maître du Manoir'), apresBossSous: txt('apresBossSous', 'Huit paliers bonus pour ceux qui ont déjà tout : des étoiles, des boosts, et au 20e le chapeau phosphorescent.'),
-        amBonus: txt('amBonus', 'Des sorts de confort : ils ne multiplient pas les ventes, ils rendent la nuit plus douce.'), amBientot: (n, k) => `${n} sortilège${n > 1 ? 's' : ''} de plus après le palier ${k}.`,
-        palierBonus: txt('palierBonus', 'Et ce n’est pas fini : huit paliers bonus et quatre sortilèges de plus t’attendent au Manoir.'), palierBonusFinal: txt('palierBonusFinal', 'Une légende qui brille dans le noir : le chapeau phosphorescent est dans ta garde-robe, à vie.'),
+        apresBoss: txt('apresBoss', 'Après le maître du Manoir'), apresBossSous: txt('apresBossSous', 'Huit paliers bonus pour ceux qui ont déjà tout : des étoiles par poignées, des boosts ×5 et ×10, des heures de gains pour la boulangerie, et au 20e le chapeau phosphorescent.'),
+        amBonus: txt('amBonus', 'Des sorts de confort : ils ne multiplient pas les ventes, ils rendent la nuit plus douce, et chacun paie la boulangerie (des heures de gains, des étoiles).'), amBientot: (n, k) => `${n} sortilège${n > 1 ? 's' : ''} de plus après le palier ${k}.`,
+        palierBonus: txt('palierBonus', 'Et ce n’est pas fini : huit paliers bonus (jusqu’à 8 étoiles d’un coup, des boosts ×10, des heures de gains) et quatre sortilèges qui paient la boulangerie t’attendent au Manoir.'), combineMot: 'sortilège',
+        revue: (quoi) => `Tu avais déjà ${quoi || 'avancé'} au Manoir : voici, une fois, la différence avec les nouvelles récompenses. Les prochains paliers et les sortilèges d’après le maître donnent déjà les nouvelles.`, palierBonusFinal: txt('palierBonusFinal', 'Une légende qui brille dans le noir : le chapeau phosphorescent est dans ta garde-robe, à vie.'),
         paliersSous: (m, nb, n) => `${m} gagnés · ${nb}/${n}. Les mêmes seuils pour tout le monde ; chaque palier donne quelque chose pour la boulangerie, à vie.`,
         paliersNote: txt('paliersNote', 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue d’Halloween se porte depuis la garde-robe du boulanger.'),
         bilanTitre: `${lieu} a fermé`, bilanH2: txt('bilanTitre', 'Bilan de la nuit'), bilanSous: txt('bilanSous', `${nomDevise} gagnés en une semaine`), bilanDecos: (n) => `${n} déco${n > 1 ? 's' : ''} d’Halloween dans la boutique`, bilanTenue: 'de la tenue d’Halloween', bilanOr: 'la tenue d’Halloween en or',

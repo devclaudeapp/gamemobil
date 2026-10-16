@@ -97,11 +97,12 @@
     { id: 'graines', nom: 'Graines de citrouille magiques', cout: 6e10, cible: ['citrouille'], mult: 3, desc: 'Citrouilles ×3' },
     { id: 'bal', nom: 'Le grand bal des monstres', cout: 1e12, cible: null, mult: 3, desc: 'Tout ×3' },
     // après le maître du Manoir (palier 12 franchi) : quatre Sortilèges chers qui ne multiplient pas les ventes (l'enveloppe du serveur,
-    // fournil_evts() de la v5 : le marathon simulé doit rester ×2 dessous) ; ils adoucissent les coups de pouce et l'absence (effet)
-    { id: 'epouvantail', nom: 'Épouvantail à chauves-souris', cout: 8e14, apres: 12, cible: [], mult: 1, effet: { descenteN: 8, descentePart: 0.05 }, desc: 'Chauves-souris : 8 touches suffisent, elles n’emportent plus que 5 %' },
-    { id: 'couette', nom: 'Couette des fantômes', cout: 1.5e15, apres: 12, cible: [], mult: 1, effet: { absenceH: 12, absencePart: 0.2 }, desc: 'Absence : les monstres travaillent 12 h, à 20 % du rythme' },
-    { id: 'nuages', nom: 'Nuages chassés d’un coup de baguette', cout: 3e15, apres: 12, cible: [], mult: 1, effet: { soireeDuree: 180 }, desc: 'Pleine lune : 3 min au lieu de 2' },
-    { id: 'turbo', nom: 'Balai à turbo', cout: 6e15, apres: 12, cible: [], mult: 1, effet: { scooterDuree: 20, scooterPrime: 3 }, desc: 'Le balai attend 20 s, son sac ×3' },
+    // fournil_evts() de la v5 : le marathon simulé doit rester ×2 dessous) ; ils adoucissent les coups de pouce et l'absence (effet) ; et,
+    // depuis la version 2 des récompenses, chacun PAIE la boulangerie à l'achat : prime (heures de son rythme) et étoiles (ACT.RECOMPENSES)
+    { id: 'epouvantail', nom: 'Épouvantail à chauves-souris', cout: 8e14, apres: 12, cible: [], mult: 1, effet: { descenteN: 8, descentePart: 0.05 }, prime: 6, etoiles: 1, desc: 'Chauves-souris : 8 touches suffisent, elles n’emportent plus que 5 %' },
+    { id: 'couette', nom: 'Couette des fantômes', cout: 1.5e15, apres: 12, cible: [], mult: 1, effet: { absenceH: 12, absencePart: 0.2 }, prime: 10, etoiles: 2, desc: 'Absence : les monstres travaillent 12 h, à 20 % du rythme' },
+    { id: 'nuages', nom: 'Nuages chassés d’un coup de baguette', cout: 3e15, apres: 12, cible: [], mult: 1, effet: { soireeDuree: 180 }, prime: 16, etoiles: 2, desc: 'Pleine lune : 3 min au lieu de 2' },
+    { id: 'turbo', nom: 'Balai à turbo', cout: 6e15, apres: 12, cible: [], mult: 1, effet: { scooterDuree: 20, scooterPrime: 3 }, prime: 24, etoiles: 3, desc: 'Le balai attend 20 s, son sac ×3' },
   ];
   const effet = (q, cle, defaut) => { for (const a of AMELIORATIONS) if (a.effet && a.effet[cle] != null && q.ameliorations && q.ameliorations[a.id]) return a.effet[cle]; return defaut; }; // un Sortilège « après le maître » acheté change ce réglage
   const ABSENCE_MAX_H = 8;   // les monstres travaillent 8 h au plus pendant une absence, comme à la boulangerie…
@@ -120,30 +121,37 @@
   // dernier jour (le 6e ou le 7e jour de Paris) ; un quotidien (36 min) va jusqu'au 8e-9e ; un occasionnel (17 min) passe le 5e.
   // Après le maître (bonus: true), les paliers 13 à 20 : un très actif (8 h par jour, le 12e au 2e jour) en franchit un par jour ou
   // presque ; le marathon (24 h/24) n'atteint le 20e que le 6e ou le 7e jour. Ils ne font plus la réputation (REPUTATION ne compte que
-  // les douze premiers : l'enveloppe du serveur ne bouge pas) ; étoiles, boosts, un titre, et au 20e le chapeau phosphorescent (un
-  // trophée de la garde-robe, distinct de la tenue en or du podium final).
+  // les douze premiers : l'enveloppe du serveur ne bouge pas) ; étoiles, boosts, primes, un titre, et au 20e le chapeau phosphorescent (un
+  // trophée de la garde-robe, distinct de la tenue en or du podium final). Version 2 des récompenses (16 octobre), les mêmes principes
+  // qu'au Quartier (src/quartier.js) : les seuils ne bougent pas ; prime : des heures du rythme de la boulangerie ; les douze premiers un
+  // peu plus généreux (10 étoiles, 16 h de primes), les huit bonus bien plus (29 étoiles, des ×5 et des ×10, 54 h de primes).
   const PALIERS = [
     { n: 1, total: 4e8, etoiles: 1, boost: { mult: 2, secs: 1800 }, titre: 'Premiers bonbons' },
-    { n: 2, total: 1e10, deco: 'citrouilles', titre: 'Les citrouilles du perron' },
+    { n: 2, total: 1e10, deco: 'citrouilles', prime: 1, titre: 'Les citrouilles du perron' },
     { n: 3, total: 1.5e11, vetement: 'hantee-chapeau', titre: 'Le chapeau pointu' },
     { n: 4, total: 6e11, chat: 'noir', etoiles: 1, titre: 'Le chat noir' },
-    { n: 5, total: 2e12, deco: 'toiles', titre: 'Les toiles d’araignée' },
+    { n: 5, total: 2e12, deco: 'toiles', prime: 2, titre: 'Les toiles d’araignée' },
     { n: 6, total: 5e12, vetement: 'hantee-cape', titre: 'La cape de minuit' },
-    { n: 7, total: 1e13, boost: { mult: 5, secs: 900 }, titre: 'La nuit des farces' },
-    { n: 8, total: 1.5e13, deco: 'chaudron', titre: 'Le chaudron qui bouillonne' },
+    { n: 7, total: 1e13, etoiles: 1, boost: { mult: 5, secs: 900 }, titre: 'La nuit des farces' },
+    { n: 8, total: 1.5e13, deco: 'chaudron', prime: 3, titre: 'Le chaudron qui bouillonne' },
     { n: 9, total: 4e13, vetement: 'hantee-bottes', titre: 'Les bottes qui claquent' },
     { n: 10, total: 1.2e14, etoiles: 2, boost: { mult: 2, secs: 3600 }, titre: 'Le Manoir affiche complet' },
-    { n: 11, total: 2.5e14, etoiles: 1, boost: { mult: 2, secs: 1800 }, titre: 'Le bal des citrouilles' },
-    { n: 12, total: 4e14, vetement: 'hantee-lanterne', etoiles: 3, boost: { mult: 5, secs: 1800 }, titre: 'Le maître du Manoir' },
-    { n: 13, total: 1.2e15, bonus: true, boost: { mult: 2, secs: 1800 }, titre: 'Hubert fait des heures sup’' },
-    { n: 14, total: 2.5e15, bonus: true, etoiles: 1, titre: 'Les citrouilles t’applaudissent' },
-    { n: 15, total: 4.5e15, bonus: true, boost: { mult: 2, secs: 3600 }, titre: 'Le comte Vladimir veut un autographe' },
-    { n: 16, total: 7e15, bonus: true, etoiles: 1, titre: 'Ramsès se déroule de joie' },
-    { n: 17, total: 1e16, bonus: true, boost: { mult: 5, secs: 900 }, titre: 'Osvaldo en rit jusqu’aux os' },
-    { n: 18, total: 1.3e16, bonus: true, etoiles: 1, titre: 'Berthe chante juste (une fois)' },
-    { n: 19, total: 2.5e16, bonus: true, boost: { mult: 2, secs: 3600 }, titre: 'La lune se lève rien que pour toi' },
-    { n: 20, total: 6e16, bonus: true, vetement: 'hantee-lueur-chapeau', etoiles: 2, boost: { mult: 5, secs: 1800 }, titre: 'La légende phosphorescente' },
+    { n: 11, total: 2.5e14, etoiles: 1, boost: { mult: 2, secs: 1800 }, prime: 4, titre: 'Le bal des citrouilles' },
+    { n: 12, total: 4e14, vetement: 'hantee-lanterne', etoiles: 4, boost: { mult: 5, secs: 3600 }, prime: 6, titre: 'Le maître du Manoir' },
+    { n: 13, total: 1.2e15, bonus: true, etoiles: 2, boost: { mult: 5, secs: 1800 }, prime: 4, titre: 'Hubert fait des heures sup’' },
+    { n: 14, total: 2.5e15, bonus: true, etoiles: 2, prime: 6, titre: 'Les citrouilles t’applaudissent' },
+    { n: 15, total: 4.5e15, bonus: true, etoiles: 3, boost: { mult: 5, secs: 2700 }, titre: 'Le comte Vladimir veut un autographe' },
+    { n: 16, total: 7e15, bonus: true, etoiles: 3, prime: 8, titre: 'Ramsès se déroule de joie' },
+    { n: 17, total: 1e16, bonus: true, etoiles: 3, boost: { mult: 10, secs: 1800 }, titre: 'Osvaldo en rit jusqu’aux os' },
+    { n: 18, total: 1.3e16, bonus: true, etoiles: 4, prime: 12, titre: 'Berthe chante juste (une fois)' },
+    { n: 19, total: 2.5e16, bonus: true, etoiles: 4, boost: { mult: 10, secs: 2700 }, titre: 'La lune se lève rien que pour toi' },
+    { n: 20, total: 6e16, bonus: true, vetement: 'hantee-lueur-chapeau', etoiles: 8, boost: { mult: 10, secs: 3600 }, prime: 24, titre: 'La légende phosphorescente' },
   ];
+  const ANCIENS = { // les récompenses d'avant la version 2 (étoiles, boost ; aucune prime) : la revue donne la différence (ACT.RECOMPENSES.revue)
+    1: { etoiles: 1, boost: { mult: 2, secs: 1800 } }, 4: { etoiles: 1 }, 7: { boost: { mult: 5, secs: 900 } }, 10: { etoiles: 2, boost: { mult: 2, secs: 3600 } }, 11: { etoiles: 1, boost: { mult: 2, secs: 1800 } },
+    12: { etoiles: 3, boost: { mult: 5, secs: 1800 } }, 13: { boost: { mult: 2, secs: 1800 } }, 14: { etoiles: 1 }, 15: { boost: { mult: 2, secs: 3600 } }, 16: { etoiles: 1 },
+    17: { boost: { mult: 5, secs: 900 } }, 18: { etoiles: 1 }, 19: { boost: { mult: 2, secs: 3600 } }, 20: { etoiles: 2, boost: { mult: 5, secs: 1800 } },
+  };
   const PALIERS_BOSS = 12; // le dernier palier « normal » ; après lui, les paliers bonus
   const TROPHEE = 'hantee-lueur-chapeau'; // le chapeau phosphorescent du palier 20 (garde-robe : collection « hantee-lueur »)
   const VETEMENTS = ['hantee-chapeau', 'hantee-cape', 'hantee-bottes', 'hantee-lanterne'];
@@ -154,7 +162,7 @@
   function postesNeufs() { return PRODUITS.map((p, i) => ({ niv: i === 0 ? 1 : 0, staff: false, prog: 0, actif: false })); }
   function neuf(now) {
     return { v: 1, majeur: true, masque: false, annonce: false, bilan: false, billets: 0, total: 0, postes: postesNeufs(), ameliorations: {}, mode: 1,
-      ev: null, evTimer: 150, dernierEv: '', boost: null, lastSeen: now, now, ouvertLe: 0, paliers: [], vetements: [], decos: [], chat: false, etoiles: 0, boosts: 0,
+      ev: null, evTimer: 150, dernierEv: '', boost: null, lastSeen: now, now, ouvertLe: 0, paliers: [], vetements: [], decos: [], recompensesV2: true, heures: 0, chat: false, etoiles: 0, boosts: 0,
       stats: { ventes: 0, taps: 0, descentes: 0, descentesRatees: 0, grosClients: 0, scooters: 0, soirees: 0, embauches: 0, saisi: 0 }, carnet: [], mini: null, contrats: null, operation: null };
   }
   // q.billets / q.total : les bonbons en poche / gagnés en tout (les mêmes noms qu'au Quartier, pour le moteur d'écran) ; bonbons(q) les lit
@@ -220,6 +228,7 @@
     if (a && !combineOuverte(q, a)) return { ok: false, prix, verrou: true };
     if (!a || q.ameliorations[id] || q.billets < prix) return { ok: false, prix };
     q.billets -= prix; q.ameliorations[id] = true; note(q, `${a.nom} : ${a.desc}`);
+    if (a.etoiles) q.etoiles = (q.etoiles || 0) + a.etoiles; if (a.prime) q.heures = (q.heures || 0) + a.prime; // après le boss : elle paie aussi la boulangerie (l'écran verse la prime et les étoiles)
     return { ok: true, a, prix };
   }
 
@@ -282,7 +291,7 @@
     if (p.vetement && !q.vetements.includes(p.vetement)) q.vetements.push(p.vetement);
     if (p.deco && !q.decos.includes(p.deco)) q.decos.push(p.deco);
     if (p.chat) q.chat = true;
-    if (p.etoiles) q.etoiles += p.etoiles; if (p.boost) q.boosts++;
+    if (p.etoiles) q.etoiles += p.etoiles; if (p.boost) q.boosts++; if (p.prime) q.heures = (q.heures || 0) + p.prime; // la prime : des heures du rythme de la boulangerie, versées par l'écran
     note(q, `Palier ${n} : ${p.titre}`);
     return p;
   }
@@ -293,6 +302,7 @@
     const l = [];
     if (p.etoiles) l.push(`${p.etoiles} étoile${p.etoiles > 1 ? 's' : ''}`);
     if (p.boost) l.push(`boost ×${p.boost.mult} ${fmtDuree(p.boost.secs)}`);
+    if (p.prime) l.push(`${p.prime} h de gains`);
     if (p.chat) l.push('le chat noir');
     if (p.deco) l.push(NOMS_DECOS[p.deco]);
     if (p.vetement) l.push(NOMS_VETEMENTS[p.vetement]);
@@ -457,7 +467,7 @@
       absence: (dur, montant) => `Pendant ton absence (${dur}) : +${montant}, les monstres ont travaillé au ralenti.`,
       bilanTitre: 'Bilan de la Maison hantée', bilan: 'Le Manoir a fermé ses volets. Tout ce que tu as gagné reste à vie.',
       palier12: 'Le maître du Manoir, c’est toi. Tout ça reste à vie, même après Halloween.',
-      paliersNote: 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). La tenue d’Halloween se porte depuis la garde-robe du boulanger, et le chat noir se choisit dans la garde-robe ou les Réglages.',
+      paliersNote: 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). Les heures de gains tombent tout de suite dans la caisse de la boulangerie. La tenue d’Halloween se porte depuis la garde-robe du boulanger, et le chat noir se choisit dans la garde-robe ou les Réglages.',
       ferme: 'Le Manoir est fermé.', classementInfo: 'Les bonbons gagnés au Manoir · podium final le 2 nov. à 20 h', classementFini: 'La Maison hantée est finie : le podium final est figé',
       vide: 'Personne encore au Manoir', videSous: 'Les bonbons du Manoir arrivent avec le prochain envoi.', podium: (rang) => `${rang === 1 ? '1er' : rang + 'e'} du Manoir`,
       podiumFinal: 'Podium final de la Maison hantée : la tenue d’Halloween en or est dans ta garde-robe !',
@@ -485,7 +495,12 @@
   };
   const A = ACT.equiper({ id: 'hantee', rythme, gagner, note, dayKey, fmt: fmtDevise, arrondi, fenetre, PRODUITS }, FICHE.activites); // les activités (src/activites.js)
 
-  return { FICHE, ...A.api, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, JOURS, GRACE, fenetreSure, envoiBonbons, envoiBillets: envoiBonbons, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
+  // ─── les récompenses version 2 (src/activites.js, RECOMPENSES) : ce qu'une combine paie à la boulangerie ; la revue d'une vieille sauvegarde ───
+  const R2 = ACT.RECOMPENSES;
+  const phraseCombine = (a) => R2.phraseLot(R2.lotCombine(a)); // « + 16 h de gains à la boulangerie, +2 ★ » ('' : une combine d'avant le boss)
+  const revueRecompenses = (q) => R2.revue(q, PALIERS, AMELIORATIONS, ANCIENS); // une fois (q.recompensesV2) : la différence avec les anciennes
+
+  return { FICHE, ...A.api, ANCIENS, phraseCombine, revueRecompenses, lotCombine: R2.lotCombine, phraseLot: R2.phraseLot, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, JOURS, GRACE, fenetreSure, envoiBonbons, envoiBillets: envoiBonbons, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
     PAUSE_EV, pauseCoup, neuf, etat, bonbons, palierMult, prochainPalier, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
     gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, chasser: planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
     PROFILS, simuler, decider, fmt, fmtEur, fmtDevise, fmtDuree, fmtChrono, fmtReste };

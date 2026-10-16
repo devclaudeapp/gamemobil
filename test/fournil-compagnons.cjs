@@ -17,7 +17,7 @@ const server = http.createServer((req, res) => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
 const PAYANTS = ['poule', 'canard', 'herisson', 'pingouin', 'raton', 'escargot', 'teckel', 'croissant', 'dragon'];
-const TOUS = ['chat-roux', 'chien', 'lapin', 'chat-noir'].concat(PAYANTS);
+const TOUS = ['chat-roux', 'chien', 'lapin', 'chat-noir', 'chien-quartier'].concat(PAYANTS);
 (async () => {
   const browser = await chromium.launch();
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
@@ -43,9 +43,9 @@ const TOUS = ['chat-roux', 'chien', 'lapin', 'chat-noir'].concat(PAYANTS);
   await clic('[data-a="compagnons"]'); await sleep(300);
   let f = await feuille();
   const cartes = await ev(() => [...document.querySelectorAll('#feuille-contenu [data-cp]')].map((c) => ({ id: c.dataset.cp, txt: c.innerText, svg: !!c.querySelector('.cp-ico svg'), acheter: !!c.querySelector('[data-cp-acheter]'), choisir: !!c.querySelector('[data-cp-choisir]'), non: !!c.querySelector('[data-cp-acheter].non') })));
-  check(/Les compagnons/.test(f) && cartes.length === 13 && cartes.every((c) => c.svg), `la grille : ${cartes.length} compagnons, chacun sa vignette, son nom et sa phrase`);
+  check(/Les compagnons/.test(f) && cartes.length === 14 && cartes.every((c) => c.svg), `la grille : ${cartes.length} compagnons, chacun sa vignette, son nom et sa phrase`);
   const carte = (id) => cartes.find((c) => c.id === id) || { txt: '' };
-  check(['chat-roux', 'chien', 'lapin'].every((id) => /Gratuit/.test(carte(id).txt) && carte(id).choisir) && /Gagné à la Maison hantée/.test(carte('chat-noir').txt) && !carte('chat-noir').choisir, '« Gratuit » (Choisir) pour le chat roux, le chien et le lapin ; « Gagné à la Maison hantée » pour le chat noir, pas encore à soi');
+  check(['chat-roux', 'chien', 'lapin'].every((id) => /Gratuit/.test(carte(id).txt) && carte(id).choisir) && /Gagné à la Maison hantée/.test(carte('chat-noir').txt) && !carte('chat-noir').choisir && /Gagné au Quartier/.test(carte('chien-quartier').txt) && /Au palier 11 du Quartier/.test(carte('chien-quartier').txt) && !carte('chien-quartier').choisir, '« Gratuit » (Choisir) pour le chat roux, le chien et le lapin ; « Gagné à la Maison hantée » pour le chat noir, « Gagné au Quartier » (au palier 11) pour le chien du quartier, pas encore à soi');
   check(PAYANTS.every((id) => carte(id).acheter && carte(id).non && /Pas assez/.test(carte(id).txt) && /€/.test(carte(id).txt)), 'les payants : « Pas assez », grisés, avec leur prix');
   await shot('01-feuille');
   await ev(() => { document.querySelector('#feuille').scrollTop = 99999; }); await sleep(300); await shot('02-feuille-bas');
@@ -85,7 +85,8 @@ const TOUS = ['chat-roux', 'chien', 'lapin', 'chat-noir'].concat(PAYANTS);
 
   console.log('── changer encore, sans fuite ──');
   await ev((ids) => { const f = window.__fournil, st = f.st; f.G.donnerChatNoir(st); for (const id of ids) { st.coins += f.G.prixCompagnon(st, id) || 0; f.G.acheterCompagnon(st, id); } f.save(); }, PAYANTS);
-  check(await ev((ids) => ids.every((id) => window.__fournil.G.aCompagnon(window.__fournil.st, id)), TOUS), 'les treize à soi (le chat noir gagné, les payants achetés)');
+  await ev(() => { const F = window.__fournil, q = F.Q.etat(F.st, HORLOGE.maintenant()); F.Q.gagner(q, F.Q.PALIERS[10].total); for (const p of F.Q.paliersDus(q)) F.Q.marquerPalier(q, p.n); F.save(); }); // le palier 11 du Quartier : le chien du quartier
+  check(await ev((ids) => ids.every((id) => window.__fournil.G.aCompagnon(window.__fournil.st, id)), TOUS), 'les quatorze à soi (le chat noir et le chien du quartier gagnés, les payants achetés)');
   await ev(() => window.__fournil.scene({ chat: 'assis' }));
   const tour = async () => { const res = []; for (const id of TOUS) { await ev((i) => window.__fournil.choisirCompagnon(i), id); await sleep(260); res.push(await vu()); } return res; };
   const vus1 = await tour(), st1 = await ev(() => window.__fournil.stats()), cache1 = await ev(() => MODELES.GEOS.size);
@@ -96,15 +97,35 @@ const TOUS = ['chat-roux', 'chien', 'lapin', 'chat-noir'].concat(PAYANTS);
   check(st2.calls <= 160, `le budget d’appels de dessin de la boutique tient (${st2.calls})`);
   { // l'animation n'alloue rien : le profileur d'allocations de Chromium, objets ramassés compris, sur 13 animaux × 5 états
     const cdp = await ctx.newCDPSession(page);
-    await ev(() => { window.__comps = ['chat-roux', 'chien', 'lapin', 'chat-noir', 'poule', 'canard', 'herisson', 'pingouin', 'raton', 'escargot', 'teckel', 'croissant', 'dragon'].map((id) => PERSOS.compagnon(id)); window.__oc = { etat: 'assis', phase: 0, t: 0 }; window.__etats = ['dort', 'assis', 'marche', 'saut', 'debout']; window.__boucleAnimer = (n) => { const o = window.__oc, cs = window.__comps, es = window.__etats; for (let k = 0; k < n; k++) { const g = cs[k % 13]; o.etat = es[k % 5]; o.phase = k * 0.37; o.t = k * 0.016; PERSOS.animerCompagnon(g, o); } }; window.__boucleAnimer(26000); });
+    await ev(() => { window.__comps = ['chat-roux', 'chien', 'lapin', 'chat-noir', 'chien-quartier', 'poule', 'canard', 'herisson', 'pingouin', 'raton', 'escargot', 'teckel', 'croissant', 'dragon'].map((id) => PERSOS.compagnon(id)); window.__oc = { etat: 'assis', phase: 0, t: 0 }; window.__etats = ['dort', 'assis', 'marche', 'saut', 'debout']; window.__boucleAnimer = (n) => { const o = window.__oc, cs = window.__comps, es = window.__etats; for (let k = 0; k < n; k++) { const g = cs[k % cs.length]; o.etat = es[k % 5]; o.phase = k * 0.37; o.t = k * 0.016; PERSOS.animerCompagnon(g, o); } }; window.__boucleAnimer(26000); });
     await cdp.send('HeapProfiler.enable');
     await cdp.send('HeapProfiler.startSampling', { samplingInterval: 64, includeObjectsCollectedByMajorGC: true, includeObjectsCollectedByMinorGC: true });
     await ev(() => window.__boucleAnimer(65000));
     const { profile } = await cdp.send('HeapProfiler.stopSampling');
     let octets = 0; const parcourir = (nd, dedans) => { const d = dedans || /^(animerCompagnon|animerChat|tourner)$/.test(nd.callFrame.functionName); if (d) octets += nd.selfSize; for (const c of nd.children || []) parcourir(c, d); }; parcourir(profile.head, false);
-    check(octets < 4096, `l’animation des compagnons n’alloue rien : ${octets} octets échantillonnés sur 65 000 appels (13 animaux × 5 états)`);
+    check(octets < 4096, `l’animation des compagnons n’alloue rien : ${octets} octets échantillonnés sur 65 000 appels (14 animaux × 5 états)`);
     await ev(() => { for (const g of window.__comps) PERSOS.libererChat(g); window.__comps = null; });
   }
+
+  console.log('── le chien du quartier : choisi, visible, sans doublon avec la déco ──');
+  await ev(() => { const F = window.__fournil; F.SCENE.decosQuartier(F.st.quartier.decos); F.choisirCompagnon('chien'); F.page('boutique'); F.tiroir('ferme'); F.scene({ chat: 'assis' }); }); await sleep(900);
+  check(await ev(() => window.__fournil.SCENE.decosVues.includes('chien') && window.__fournil.SCENE.compagnonVu.id === 'chien'), 'un autre compagnon (le chien beige) : le chien du quartier est couché dans son coin (la déco du palier 11)');
+  await ev(() => window.__fournil.compagnons()); await sleep(400);
+  check(await ev(() => !!document.querySelector('#feuille-contenu [data-cp-choisir="chien-quartier"]') && /Gagné au Quartier/.test(document.querySelector('#feuille-contenu [data-cp="chien-quartier"]').innerText)), 'gagné : la carte du chien du quartier propose « Choisir »');
+  await ev(() => { const c = document.querySelector('#feuille-contenu [data-cp="chien-quartier"]'); c.scrollIntoView({ block: 'center' }); }); await sleep(300); await shot('07-feuille-chien-quartier');
+  await clic('#feuille-contenu [data-cp-choisir="chien-quartier"]'); await sleep(400);
+  check(await ev(() => window.__fournil.st.compagnon === 'chien-quartier' && /Avec toi/.test(document.querySelector('#feuille-contenu [data-cp="chien-quartier"]').innerText)), 'choisi : « Avec toi ✓ »');
+  await clic('#feuille-contenu [data-a="cp-fermer"]');
+  await ev(() => { const f = window.__fournil; f.page('boutique'); f.tiroir('ferme'); f.scene({ chat: 'assis' }); }); await sleep(1100);
+  check(await attendre(async () => { const v = await vu(); return v && v.id === 'chien-quartier' && v.appels <= 5; }), 'il apparaît en 3D dans la boutique (5 appels de dessin au plus)');
+  check(await ev(() => !window.__fournil.SCENE.decosVues.includes('chien')), 'et la déco du chien couché disparaît : c’est le même chien, levé pour te suivre (pas deux chiens)');
+  await shot('08-boutique-chien-quartier');
+  { const zc = await zone(); if (zc) await page.screenshot({ path: path.join(out, '09-zoom-chien-quartier.png'), clip: { x: Math.max(0, zc.x - 70), y: Math.max(0, zc.y - 55), width: 140, height: 100 } }); }
+  await ev(() => window.__fournil.scene({ chat: 'marche' })); await sleep(700); { const zc = await zone(); if (zc) await page.screenshot({ path: path.join(out, '10-zoom-chien-quartier-marche.png'), clip: { x: Math.max(0, zc.x - 70), y: Math.max(0, zc.y - 55), width: 140, height: 100 } }); }
+  await ev(() => { window.__fournil.st.chat.dernier = 0; window.__cris = []; window.__fournil.scene({ chat: 'assis' }); }); await sleep(500); z = await zone(); await page.touchscreen.tap(z.x, z.y); await sleep(300);
+  check(await ev(() => window.__cris.includes('woufgrave') && !window.__cris.includes('wouf')), 'caressé : un « WOUF » plus grave que celui du chien beige (woufgrave)');
+  await ev(() => window.__fournil.choisirCompagnon('chien')); await sleep(700);
+  check(await ev(() => window.__fournil.SCENE.decosVues.includes('chien')), 'un autre compagnon choisi : il retourne se coucher dans son coin');
 
   console.log('── la garde-robe y mène ──');
   await ev(() => window.__fournil.choisirCompagnon('pingouin')); await sleep(300);

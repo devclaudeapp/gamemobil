@@ -69,6 +69,32 @@ v = vieille({ chat: null, chatNoir: false });
 check(v.compagnon === null && G.compagnonActif(v) === 'chat-roux' && G.chatPossible(Object.assign(v, { stations: v.stations.map((s, i) => (i === 4 ? Object.assign({}, s, { niv: 1 }) : s)) })), 'pas encore de chat : rien de choisi, le chat viendra avec les éclairs');
 { const s = G.newState(T0); s.chat = { nom: 'Réglisse' }; s.chatNoir = true; s.chatPelage = 'noir'; check(G.modeleCompagnon(s, false) === 'chat-noir', 'une boutique rebâtie sans st.compagnon (la photo du classement) : son chat noir'); }
 
+console.log('── le chien du quartier : gagné au palier 11 du Quartier ──');
+{
+  const Q = require('../src/quartier.js'), c = G.compagnon('chien-quartier');
+  check(c && c.prix === null && typeof c.condition === 'function' && c.espece === 'chien' && /Quartier/.test(c.gagne) && /palier 11/.test(c.verrou) && c.cri === 'woufgrave' && c.phrase.length > 30, `au catalogue : « ${c && c.nom} », ${c && c.gagne}, « ${c && c.phrase} » (cri ${c && c.cri})`);
+  check(!G.estChat('chien-quartier') && G.prixCompagnon(G.newState(T0), 'chien-quartier') === null && G.acheterCompagnon(G.newState(T0), 'chien-quartier').raison === 'gratuit', 'pas un chat, et il ne s’achète pas : il se gagne');
+  const s = G.newState(T0);
+  check(!G.aCompagnon(s, 'chien-quartier') && !G.choisirCompagnon(s, 'chien-quartier').ok && s.chat === null, 'une boutique neuve : verrouillé, on ne peut pas le choisir');
+  const q = Q.etat(s, T0); Q.gagner(q, Q.PALIERS[9].total); for (const p of Q.paliersDus(q)) Q.marquerPalier(q, p.n);
+  check(q.paliers.length === 10 && !G.aCompagnon(s, 'chien-quartier'), 'au palier 10 du Quartier : toujours verrouillé');
+  Q.gagner(q, Q.PALIERS[10].total - q.total); check(!G.aCompagnon(s, 'chien-quartier'), 'le seuil du 11e atteint mais le palier pas encore remis : pas encore');
+  Q.marquerPalier(q, 11);
+  check(q.decos.includes('chien') && G.aCompagnon(s, 'chien-quartier'), 'le palier 11 remis (la déco « chien ») : le chien du quartier est à soi');
+  const r = G.choisirCompagnon(s, 'chien-quartier');
+  check(r.ok && r.adopte && s.chat.nom === 'Caïd' && G.compagnonActif(s) === 'chien-quartier' && G.modeleCompagnon(s, true) === 'chien-quartier', 'choisi : adopté sous le nom « Caïd », lui-même pendant la Maison hantée');
+  const sv = JSON.parse(JSON.stringify(s)); G.compagnons(sv);
+  check(G.compagnonActif(sv) === 'chien-quartier', 'la sauvegarde (JSON) le garde');
+  sv.lifetimeRun = 1e15; check(G.nouvelleBoutique(sv, T0).ok && G.compagnonActif(sv) === 'chien-quartier', 'une nouvelle boutique : il reste (st.quartier aussi)');
+  // une sauvegarde d'avant cette version : le Quartier fini, la déco « chien » reçue, rien d'autre de neuf
+  const vieille = { quartier: { postes: [{ niv: 1 }], total: 6e14, paliers: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], decos: ['graffiti', 'neon', 'scooter', 'chien'], ameliorations: {} } };
+  const v2 = Object.assign(JSON.parse(JSON.stringify(G.newState(T0))), JSON.parse(JSON.stringify(vieille))); delete v2.compagnons; delete v2.compagnon; G.compagnons(v2);
+  check(G.aCompagnon(v2, 'chien-quartier') && G.choisirCompagnon(v2, 'chien-quartier').ok, 'une vieille sauvegarde qui a fini le Quartier (la déco « chien ») : choisissable tout de suite');
+  check(G.aCompagnon({ quartier: { paliers: [11], decos: [] } }, 'chien-quartier') && !G.aCompagnon({ quartier: { paliers: [12], decos: ['neon'] } }, 'chien-quartier') && !G.aCompagnon({ quartier: null }, 'chien-quartier') && !G.aCompagnon({ quartier: { decos: 'chien' } }, 'chien-quartier'), 'le palier 11 marqué suffit aussi ; une sauvegarde abîmée ne le donne pas');
+  const sansQ = Object.assign(JSON.parse(JSON.stringify(v2)), { quartier: undefined }); G.compagnons(sansQ);
+  check(G.compagnonActif(sansQ) === 'chat-roux' && sansQ.chat && sansQ.chat.nom === 'Caïd', 'sans st.quartier (une sauvegarde abîmée) : le choix est oublié, retour au chat roux (le nom reste)');
+}
+
 console.log('── la nouvelle boutique ──');
 st.lifetimeRun = 1e15; st.compagnons.push('dragon'); G.compagnons(st); G.choisirCompagnon(st, 'dragon'); const avant = JSON.stringify([st.compagnons, st.compagnon, st.chat]);
 check(G.nouvelleBoutique(st, st.now).ok && JSON.stringify([st.compagnons, st.compagnon, st.chat]) === avant && st.coins === 0 && G.compagnonActif(st) === 'dragon', 'une nouvelle boutique : les compagnons achetés, l’animal choisi et son nom restent (pour toujours)');
