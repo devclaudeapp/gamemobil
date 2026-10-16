@@ -343,8 +343,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     // le seul InstancedMesh du jeu : son matériau et son matériau d'ombre lui sont PROPRES (partagés par tous les chats). Avec MAT.vertex
     // ou le matériau de profondeur commun de WebGLShadowMap, Three r158 recompilerait la clé du programme à chaque bascule
     // instancié / non instancié (WebGLRenderer.setProgram : isInstancedMesh && !instancing → needsProgramChange), donc à chaque image.
-    matPattes = matPattes || M.partager(new THREE.MeshLambertMaterial({ vertexColors: true }));
-    profPattes = profPattes || M.partager(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }));
+    materiauxPattes();
     const im = P.pattesMaille = new THREE.InstancedMesh(geoPatteChat(robe, creme), matPattes, 4);
     im.customDepthMaterial = profPattes; im.castShadow = true; im.frustumCulled = false; racine.add(im); // toujours dessiné : 4 instances, le chat est à l'écran
     // des bornes FIGÉES (l'union de toutes les poses, calculée une fois sur ce premier chat puis copiée) : animerChat ne les recalcule
@@ -402,6 +401,261 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     const im = P.pattesMaille;
     for (let k = 0; k < 4; k++) { const p = pa[k]; if (p.visible) { p.updateMatrix(); im.setMatrixAt(k, p.matrix); } else im.setMatrixAt(k, ZERO); } // une patte cachée : écrasée en un point
     im.instanceMatrix.needsUpdate = true; // les bornes restent figées (l'union de toutes les poses, posée par chat()) : rien à recalculer
+  }
+  // ─── les compagnons (GAME.COMPAGNONS) : chaque animal de la boutique, même grammaire que le chat ───
+  // compagnon(id) : le chat roux ou noir (chat()), sinon un modèle de la table ESPECES, bâti sur la même hiérarchie : g (lacet et position
+  // par la scène, pieds à y = 0, museau vers +Z) > racine (hauteur, inclinaison) > corps, tete (deux géométries en cache, yeux ouverts /
+  // fermés), queue[0] > queue[1] (un Object3D vide quand l'animal n'en a pas : aucun appel de dessin), pattes[4] (pivots ; 2 pour les
+  // bipèdes, aucune pour l'escargot) recopiées dans UN InstancedMesh (pattesMaille, ses bornes figées par espèce), et ailes (le mini-dragon,
+  // un seul maillage qui bat par son échelle). Appels de dessin : 5 au plus, comme le chat (corps, tête, queue, pattes, et le second
+  // segment de queue OU les ailes). Toutes les géométries sont en cache (MODELES.GEOS) : changer d'animal n'en crée ni n'en perd aucune ;
+  // seul le tampon d'instances est propre à chaque modèle (libererChat le rend). animerCompagnon(g, { etat, phase, t }) : les états de
+  // animerChat ('dort', 'assis', 'marche', 'saut', le reste : debout), chacun avec sa touche : la poule picore, le pingouin se dandine (et
+  // dort debout), l'escargot glisse sans pattes, le mini-dragon bat des ailes, le croissant rebondit, le lapin sautille, le chien et le
+  // teckel remuent la queue, le raton laveur se frotte les mains. Sans allocation, comme animerChat : poses en tables calculées une fois par
+  // espèce (fromArray), mouvement écrit dans les champs (position.y, scale.y, rotation._x… puis tourner()).
+  const BLANC_C = '#FFFFFF';
+  function yeux(p, x, y, z, r, fermes, o) { // deux yeux : billes sombres (o.pastille : une pastille claire derrière), ou deux arcs fermés
+    o = o || {};
+    for (const sx of [-1, 1]) {
+      if (fermes) { p.push(M.part(M.tore(r * 1.05, r * 0.33, Math.PI, 4, 8), o.arc || L, { x: sx * x, y: y - r * 0.3, z: z + r * 0.2 })); continue; }
+      if (o.pastille) p.push(M.part(M.sphere(r * 1.45, 8), o.pastille, { x: sx * x, y, z: z - r * 0.35, sz: 0.55 }));
+      p.push(M.part(M.sphere(r, 8), o.col || L, { x: sx * x, y, z }));
+    }
+  }
+  const joues = (p, x, y, z, r) => { for (const sx of [-1, 1]) p.push(M.part(M.sphere(r || 0.95, 8), JOUE, { x: sx * x, y, z, sy: 0.7, sz: 0.5 })); };
+  const pattePendue = (r, lp, col, pied, o) => [M.part(pendu(r, lp - (o && o.court != null ? o.court : 2), 0.2), col), M.part(M.sphere((o && o.rp) || r * 1.1, 8), pied, { y: (o && o.py != null ? o.py : 1.15) - lp, z: (o && o.pz) || 0.45, sx: (o && o.sx) || 1, sy: (o && o.sy) || 0.6, sz: (o && o.sz) || 1.2 })];
+  const E3 = (y, z) => [0, y, z];
+  // une espèce : lp (longueur des pattes, de la hanche au sol), py (hauteur des hanches sous la racine), hanches ([x, z] ; 4, 2 ou 0),
+  // tp (la tête : [y, z]), queue [y, z, inclinaison] (null : sans queue), lq1 (longueur du premier segment), q2r (l'inclinaison du second),
+  // R / D (rayon et demi-longueur du corps : l'assise), demiH (la demi-hauteur du corps : couché, il touche le sol), assis
+  // ('assis' : l'arrière-train au sol, incliné de a ; 'couche' : en sphinx ; 'debout'), dort ('couche' | 'debout' | 'boule' | 'rentre'),
+  // et les pièces : corps(), tete(fermes), q1(), q2(), patte(), ailes().
+  const ESPECES = {
+    chien: {
+      lp: 8, py: -3, hanches: [[-2.8, 7], [2.8, 7], [-2.8, -7], [2.8, -7]], tp: [4.8, 12.4], queue: [2.8, -11.2, -0.5], lq1: 5.5, q2r: 0.5, R: 5.2, D: 11.7, demiH: 4.4, assis: 'assis', a: -0.45, dort: 'couche',
+      corps: () => { const robe = '#E6C79C', creme = '#FFF1DC'; return [M.part(M.capsule(5.2, 13, 12), robe, { rx: HP }), M.part(arcCyl(5.32, 13, 1.9, 0), creme, { rx: HP }), M.part(patchS(5.4, 2.0, 1.35, 1.45), creme, { z: 6.5 }), M.part(M.sphere(3.2, 10), '#C99B66', { x: 1.6, y: 4.1, z: -3, sy: 0.4, sx: 1.1 })]; }, // une tache sur le dos : un corniaud
+      tete: (f) => { const robe = '#E6C79C', tache = '#C99B66', p = [M.part(M.sphere(4.8, 14), robe, { sx: 1.08, sy: 0.96 }), M.part(M.sphere(2.4, 10), '#FFF1DC', { y: -1.4, z: 3.9, sx: 1.25, sy: 0.85, sz: 1.05 }), M.part(M.sphere(0.95, 8), L, { y: -0.6, z: 6.1, sx: 1.3, sy: 0.85, sz: 0.8 }), M.part(M.sphere(1.6, 8), tache, { x: 2.1, y: 1.1, z: 3.75, sz: 0.45 })];
+        for (const sx of [-1, 1]) p.push(M.part(M.sphere(2.1, 8), tache, { x: sx * 4.3, y: 0.4, z: -0.3, sx: 0.45, sy: 1.3, sz: 0.9, rz: sx * 0.25 })); // les oreilles tombantes
+        yeux(p, 2, 1.1, 4.35, 0.85, f); joues(p, 3.4, -1, 3.5); return p; },
+      q1: () => [M.part(M.capsule(1.15, 5.5, 8), '#E6C79C', { y: 2.75 })], q2: () => [M.part(M.capsule(1.05, 4.2, 8), '#E6C79C', { y: 2.1 }), M.part(calotte(1.12, 1.05, 10), '#FFF1DC', { y: 4.2 })],
+      patte: () => pattePendue(1.75, 8, '#E6C79C', '#FFF1DC'),
+    },
+    lapin: {
+      lp: 6.5, py: -3.2, hanches: [[-2.6, 4.4], [2.6, 4.4], [-3, -4.4], [3, -4.4]], tp: [4.8, 8.6], queue: [1.2, -8.2, 0], lq1: 0, q2r: null, R: 5.4, D: 7.2, demiH: 4.8, assis: 'assis', a: -0.55, dort: 'couche',
+      corps: () => { const robe = '#D9CFC4'; return [M.part(M.sphere(6, 14), robe, { sx: 0.95, sy: 0.9, sz: 1.25 }), M.part(M.sphere(4.4, 12), '#FFF8EF', { y: -1.4, z: 2.6, sx: 0.95, sz: 1.1 }), M.part(M.sphere(3.4, 10), robe, { x: -3.2, y: -0.8, z: -3.4, sz: 1.25 }), M.part(M.sphere(3.4, 10), robe, { x: 3.2, y: -0.8, z: -3.4, sz: 1.25 })]; },
+      tete: (f) => { const robe = '#D9CFC4', p = [M.part(M.sphere(4.3, 14), robe, { sx: 1.05 }), M.part(M.sphere(1.35, 8), '#FFF8EF', { x: -0.9, y: -1.4, z: 3.5 }), M.part(M.sphere(1.35, 8), '#FFF8EF', { x: 0.9, y: -1.4, z: 3.5 }), M.part(M.sphere(0.65, 8), '#F28B9B', { y: -0.5, z: 4.3 })];
+        for (const sx of [-1, 1]) p.push(M.part(M.capsule(1.3, 6.4, 8), robe, { x: sx * 1.6, y: 6.6, z: -0.9, rx: -0.2, rz: -sx * 0.14, sz: 0.55 }), M.part(M.capsule(0.75, 5.2, 6), '#FFC1B4', { x: sx * 1.6, y: 6.7, z: -0.45, rx: -0.2, rz: -sx * 0.14, sz: 0.35 })); // les grandes oreilles, le creux rose devant
+        yeux(p, 1.95, 1, 3.6, 0.82, f); joues(p, 3, -0.9, 3); return p; },
+      q1: () => [M.part(M.sphere(2.2, 10), '#FFF8EF')], q2: null, // le pompon
+      patte: () => pattePendue(1.5, 6.5, '#D9CFC4', '#FFF8EF', { rp: 1.7, pz: 0.9, sz: 1.6 }),
+    },
+    poule: {
+      lp: 6, py: -4.2, hanches: [[-2, 0.4], [2, 0.4]], tp: [7.6, 6.3], queue: [2, -6.2, -0.35], lq1: 0, q2r: null, demiH: 5.7, assis: 'debout', dort: 'couche',
+      corps: () => { const robe = '#D9783F', aile = '#B85A2A'; return [M.part(M.sphere(6, 14), robe, { sx: 0.9, sy: 0.95, sz: 1.15 }), M.part(M.sphere(4.6, 12), '#F2B27A', { y: -1.6, z: 2.6, sz: 0.9 }), M.part(M.sphere(3.4, 10), aile, { x: -4.6, y: 0.4, z: -0.6, sx: 0.38, sy: 0.8, sz: 1.25, rx: -0.2 }), M.part(M.sphere(3.4, 10), aile, { x: 4.6, y: 0.4, z: -0.6, sx: 0.38, sy: 0.8, sz: 1.25, rx: -0.2 }), M.part(M.capsule(2.4, 3, 8), robe, { y: 4, z: 4.2, rx: 0.35 })]; },
+      tete: (f) => { const crete = '#E1496C', p = [M.part(M.sphere(3.2, 12), '#D9783F'), M.part(M.cone(1.05, 2.4, 6), '#FFC84A', { y: -0.4, z: 2.7, rx: HP }), M.part(M.sphere(0.8, 8), crete, { y: -2.1, z: 2.4, sx: 0.6, sy: 1.4 })];
+        for (const [z, r] of [[-0.9, 0.85], [0.2, 1.05], [1.2, 0.85]]) p.push(M.part(M.sphere(r, 8), crete, { y: 3.1, z, sx: 0.5 })); // la crête
+        yeux(p, 1.45, 0.7, 2.65, 0.7, f); return p; },
+      q1: () => [-0.45, 0, 0.45].map((rz) => M.part(M.capsule(0.95, 4.2, 6), '#B85A2A', { y: 2.4, rz, sz: 0.55 })), q2: null, // les plumes de la queue, en éventail
+      patte: () => [M.part(pendu(0.55, 4.8, 0.2), '#F2A93B'), M.part(M.sphere(1.3, 8), '#F2A93B', { y: 0.25 - 6, z: 0.6, sy: 0.3, sz: 1.4 })],
+    },
+    canard: {
+      lp: 5, py: -3.8, hanches: [[-2.2, 0.5], [2.2, 0.5]], tp: [8.6, 7], queue: [1.6, -7.6, -0.9], lq1: 0, q2r: null, demiH: 4.9, assis: 'debout', dort: 'couche',
+      corps: () => { const aile = '#DCE4EE'; return [M.part(M.sphere(6, 14), BLANC_C, { sx: 0.92, sy: 0.82, sz: 1.3 }), M.part(M.sphere(3.6, 10), aile, { x: -4.7, y: 0.6, z: -1, sx: 0.35, sy: 0.7, sz: 1.35 }), M.part(M.sphere(3.6, 10), aile, { x: 4.7, y: 0.6, z: -1, sx: 0.35, sy: 0.7, sz: 1.35 }), M.part(M.capsule(2.3, 4, 8), BLANC_C, { y: 4.2, z: 5.2, rx: 0.15 })]; },
+      tete: (f) => { const p = [M.part(M.sphere(3.4, 12), BLANC_C), M.part(M.boite(3.2, 1.2, 3.8, 0.5), '#FF9F2E', { y: -1.9, z: 3.5 })]; yeux(p, 1.5, 0.9, 2.8, 0.7, f); joues(p, 2.4, -0.6, 2.2, 0.7); return p; },
+      q1: () => [M.part(M.cone(1.8, 3, 6), BLANC_C, { sz: 0.5 })], q2: null,
+      patte: () => [M.part(pendu(0.55, 4, 0.2), '#FF9F2E'), M.part(M.sphere(1.6, 8), '#FF9F2E', { y: 0.15 - 5, z: 0.9, sx: 1.1, sy: 0.25, sz: 1.4 })], // la palme
+    },
+    herisson: {
+      lp: 3.5, py: -3, hanches: [[-3.2, 3.6], [3.2, 3.6], [-3.2, -3.6], [3.2, -3.6]], tp: [0.6, 7.4], queue: null, lq1: 0, q2r: null, demiH: 4.8, assis: 'couche', dort: 'boule',
+      corps: () => {
+        const p = [M.part(M.sphere(6.2, 14), '#7A5640', { sy: 0.78, sz: 1.15 }), M.part(M.sphere(4.6, 12), '#EBCFA8', { y: -1.3, z: 3.4, sy: 0.7 })];
+        const haut = new THREE.Vector3(0, 1, 0), d = new THREE.Vector3(), q = new THREE.Quaternion(), pos = new THREE.Vector3(), un = new THREE.Vector3(1, 1, 1);
+        for (const [th, n] of [[0.2, 4], [0.55, 9], [0.9, 12], [1.25, 14]]) for (let k = 0; k < n; k++) { // les piquants, peignés vers l'arrière, sauf sur le museau
+          const az = (k + (n % 2 ? 0.5 : 0.25)) * TAU / n; d.set(Math.sin(th) * Math.sin(az), Math.cos(th), Math.sin(th) * Math.cos(az));
+          if (d.z > 0.55 && d.y < 0.75) continue;
+          pos.set(d.x * 6.2 * 0.9, d.y * 6.2 * 0.78 * 0.9, d.z * 6.2 * 1.15 * 0.9); d.z -= 0.55; d.normalize(); q.setFromUnitVectors(haut, d);
+          p.push({ geo: M.cone(0.85, 2.7, 5), col: k % 3 ? '#5A3E2E' : '#E7D2B4', m: new THREE.Matrix4().compose(pos, q, un) });
+        }
+        return p;
+      },
+      tete: (f) => { const peau = '#EBCFA8', p = [M.part(M.sphere(2.9, 12), peau), M.part(M.cone(1.3, 2.8, 8), peau, { y: -0.5, z: 1.8, rx: HP }), M.part(M.sphere(0.7, 8), L, { y: -0.5, z: 4.6 }), M.part(M.sphere(0.9, 8), '#C9A27E', { x: -1.9, y: 2.2, z: -0.5, sz: 0.5 }), M.part(M.sphere(0.9, 8), '#C9A27E', { x: 1.9, y: 2.2, z: -0.5, sz: 0.5 })]; yeux(p, 1.2, 0.6, 2.3, 0.6, f); joues(p, 1.9, -0.6, 2, 0.6); return p; },
+      q1: null, q2: null,
+      patte: () => pattePendue(1.1, 3.5, '#C9A27E', '#C9A27E', { court: 1.2, rp: 1.2, py: 0.6, sz: 1.2 }),
+    },
+    pingouin: {
+      lp: 2.6, py: -7.2, hanches: [[-2.2, 0.8], [2.2, 0.8]], tp: [9.6, 0.4], queue: [-6.4, -3.8, -2.2], lq1: 0, q2r: null, demiH: 7.6, assis: 'debout', dort: 'debout',
+      corps: () => { const noir = '#2F3542'; return [M.part(M.capsule(4.8, 5.5, 12), noir, { sz: 0.9 }), M.part(M.sphere(4.3, 12), BLANC_C, { y: -1.2, z: 1.6, sy: 1.55, sz: 0.7 }), M.part(M.capsule(1.1, 5.5, 6), noir, { x: -4.7, y: 0.5, rz: -0.35, sz: 0.45 }), M.part(M.capsule(1.1, 5.5, 6), noir, { x: 4.7, y: 0.5, rz: 0.35, sz: 0.45 })]; },
+      tete: (f) => { const p = [M.part(M.sphere(4, 12), '#2F3542'), M.part(M.sphere(1.9, 8), BLANC_C, { x: -1.2, y: 0.3, z: 2.75, sz: 0.5 }), M.part(M.sphere(1.9, 8), BLANC_C, { x: 1.2, y: 0.3, z: 2.75, sz: 0.5 }), M.part(M.cone(0.9, 2.2, 6), '#FFB238', { y: -0.6, z: 3.4, rx: HP })]; yeux(p, 1.25, 0.6, 3.65, 0.6, f); joues(p, 2.2, -0.7, 2.9, 0.6); return p; },
+      q1: () => [M.part(M.cone(1.3, 2.2, 6), '#2F3542', { sz: 0.5 })], q2: null,
+      patte: () => [M.part(pendu(0.7, 1.4, 0.2), '#FFB238'), M.part(M.sphere(1.7, 8), '#FFB238', { y: 0.2 - 2.6, z: 1.1, sy: 0.3, sz: 1.5 })], // les grands pieds
+    },
+    raton: {
+      lp: 7.5, py: -3, hanches: [[-3, 7], [3, 7], [-3, -7], [3, -7]], tp: [4.8, 12.4], queue: [2.4, -11, -0.7], lq1: 5.5, q2r: 0.45, R: 5.6, D: 11.8, demiH: 4.8, assis: 'assis', a: -0.45, dort: 'couche',
+      corps: () => [M.part(M.capsule(5.6, 12.5, 12), '#9A948E', { rx: HP }), M.part(arcCyl(5.72, 12.5, 1.9, 0), '#EFE8DE', { rx: HP }), M.part(patchS(5.8, 2.0, 1.35, 1.45), '#EFE8DE', { z: 6.2 })],
+      tete: (f) => { const gris = '#9A948E', masque = '#2E2A28', creme = '#EFE8DE', p = [M.part(M.sphere(5, 14), gris, { sx: 1.1, sy: 0.95 }), M.part(M.sphere(2.2, 10), creme, { y: -1.5, z: 4, sx: 1.2, sz: 1.2 }), M.part(M.sphere(0.8, 8), L, { y: -1.1, z: 6.5, sx: 1.2 })];
+        for (const sx of [-1, 1]) {
+          p.push(M.part(M.sphere(2.1, 8), masque, { x: sx * 2.1, y: 0.9, z: 3.45, sx: 1.25, sy: 0.75, sz: 0.55 }), M.part(M.sphere(1.1, 8), creme, { x: sx * 2, y: 2.5, z: 3.5, sx: 1.3, sy: 0.4, sz: 0.5 })); // le masque de bandit, les sourcils clairs
+          const mo = M.matrice({ x: sx * 3, y: 3.4, z: -0.6, rz: -sx * 0.35 }); p.push({ geo: M.cone(1.9, 3.2, 8), col: gris, m: mo.clone().multiply(M.matrice({ sz: 0.6 })) }, { geo: M.cone(1.1, 2.2, 8), col: creme, m: mo.clone().multiply(M.matrice({ y: 0.3, z: 0.75, sz: 0.3 })) });
+        }
+        yeux(p, 2.1, 0.95, 4.3, 0.75, f, { pastille: creme, arc: creme }); return p; },
+      q1: () => [M.part(M.capsule(1.9, 5.5, 8), '#9A948E', { y: 2.75 }), M.part(bande(2.05, 1.2), '#4E4844', { y: 2.2 }), M.part(bande(2.05, 1.2), '#4E4844', { y: 4.8 })],
+      q2: () => [M.part(M.capsule(1.75, 4.8, 8), '#9A948E', { y: 2.4 }), M.part(bande(1.9, 1.1), '#4E4844', { y: 1.8 }), M.part(bande(1.9, 1.1), '#4E4844', { y: 4.1 }), M.part(calotte(1.8, 1.05, 10), '#4E4844', { y: 4.8 })], // la queue annelée
+      patte: () => pattePendue(1.8, 7.5, '#5F5955', '#2E2A28'),
+    },
+    escargot: {
+      lp: 0, py: -1.9, hanches: [], tp: [1.6, 12.4], queue: null, lq1: 0, q2r: null, demiH: 1.9, assis: 'debout', dort: 'rentre',
+      corps: () => { const corps = '#C6DDB0', coq = '#E8A54A', spi = '#B9732A'; const p = [M.part(M.capsule(3.4, 18, 10), corps, { rx: HP, sz: 0.55 }), M.part(M.capsule(2.6, 3.6, 8), corps, { y: 1.4, z: 10.4, rx: 0.6 }), M.part(M.sphere(7.2, 16), coq, { y: 6.6, z: -2.5, sx: 0.72 })];
+        for (const sx of [-1, 1]) p.push(M.part(M.tore(4.4, 0.55, TAU, 6, 20), spi, { x: sx * 5.1, y: 6.6, z: -2.5, ry: HP }), M.part(M.tore(2.4, 0.5, TAU, 6, 16), spi, { x: sx * 5.0, y: 6.6, z: -2.5, ry: HP, sx: 1.3 }), M.part(M.sphere(0.9, 8), spi, { x: sx * 5.1, y: 6.6, z: -2.5 })); // la spirale de la coquille, des deux côtés
+        return p; },
+      tete: (f) => { const corps = '#C6DDB0', p = [M.part(M.sphere(2.9, 12), corps), M.part(M.tore(1, 0.22, Math.PI, 4, 8), L, { y: -0.9, z: 2.6, rz: Math.PI })];
+        for (const sx of [-1, 1]) {
+          p.push(M.part(M.capsule(0.45, 4, 6), corps, { x: sx * 1.2, y: 3.2, z: 0.3, rz: -sx * 0.25, rx: -0.15 }), M.part(M.sphere(0.95, 8), f ? corps : BLANC_C, { x: sx * 1.75, y: 5.4, z: 0.55 })); // les yeux au bout des cornes
+          p.push(f ? M.part(M.tore(0.5, 0.16, Math.PI, 4, 8), L, { x: sx * 1.75, y: 5.3, z: 1.45 }) : M.part(M.sphere(0.5, 8), L, { x: sx * 1.8, y: 5.5, z: 1.35 }));
+        }
+        joues(p, 1.9, -0.4, 2.1, 0.6); return p; },
+      q1: null, q2: null, patte: null,
+    },
+    teckel: {
+      lp: 4.6, py: -2.4, hanches: [[-2.4, 9.5], [2.4, 9.5], [-2.4, -9.5], [2.4, -9.5]], tp: [4.4, 16.4], queue: [2, -14.6, -0.6], lq1: 5, q2r: 0.4, demiH: 3.6, assis: 'couche', dort: 'couche',
+      corps: () => { const p = [M.part(M.capsule(3.8, 22, 12), '#D99A45', { rx: HP }), M.part(arcCyl(3.9, 22, 2.6, Math.PI), '#C47F2E', { rx: HP })]; // la baguette : la croûte, le dessus plus doré
+        for (const z of [-7.5, -2.5, 2.5, 7.5]) p.push(M.part(M.capsule(0.75, 3.4, 6), '#F6D9A0', { y: 3.75, z, rx: HP, rz: 0.55, sz: 0.5 })); // les grignes
+        return p; },
+      tete: (f) => { const brun = '#8B5A3C', p = [M.part(M.sphere(4.2, 14), brun, { sx: 1.05 }), M.part(M.capsule(1.9, 3.2, 8), brun, { y: -1.1, z: 4.2, rx: HP }), M.part(M.sphere(0.9, 8), L, { y: -0.8, z: 7.4, sx: 1.2 })];
+        for (const sx of [-1, 1]) p.push(M.part(M.sphere(2.1, 8), '#5E3A24', { x: sx * 3.9, y: -0.4, z: -0.3, sx: 0.4, sy: 1.45, sz: 0.9, rz: sx * 0.15 }), M.part(M.sphere(0.55, 8), '#C8935F', { x: sx * 1.8, y: 2.3, z: 3.45, sz: 0.4 })); // les oreilles, les points feu
+        yeux(p, 1.8, 1.2, 3.6, 0.78, f); joues(p, 2.8, -1, 3.1, 0.8); return p; },
+      q1: () => [M.part(M.capsule(0.8, 5, 8), '#8B5A3C', { y: 2.5 })], q2: () => [M.part(M.capsule(0.7, 4, 8), '#8B5A3C', { y: 2 }), M.part(calotte(0.75, 1.05, 8), '#5E3A24', { y: 4 })],
+      patte: () => pattePendue(1.3, 4.6, '#8B5A3C', '#8B5A3C', { court: 1.6, rp: 1.5, py: 1, sz: 1.3 }),
+    },
+    croissant: {
+      lp: 5.5, py: -2.2, hanches: [[-2.6, 3], [2.6, 3], [-4.2, -1.5], [4.2, -1.5]], tp: [1.2, 7.5], queue: null, lq1: 0, q2r: null, demiH: 3.3, assis: 'debout', dort: 'couche',
+      corps: () => { const p = []; // un croissant posé à plat, le ventre devant (le visage), les cornes recourbées vers l'arrière
+        for (const [a, r, col] of [[0, 4.2, '#E8A54A'], [-0.6, 3.6, '#D88E36'], [0.6, 3.6, '#D88E36'], [-1.15, 2.9, '#E8A54A'], [1.15, 2.9, '#E8A54A'], [-1.65, 1.9, '#C9792B'], [1.65, 1.9, '#C9792B']]) p.push(M.part(M.sphere(r, 10), col, { x: Math.sin(a) * 6, z: Math.cos(a) * 6 - 2.5, ry: a, sx: 0.8, sy: 0.78 }));
+        p.push(M.part(M.sphere(2, 8), '#F7D08A', { y: 2.4, z: 3.6, sy: 0.3, sx: 1.2 })); return p; },
+      tete: (f) => { const p = []; for (const sx of [-1, 1]) { if (!f) p.push(M.part(M.sphere(1.25, 8), BLANC_C, { x: sx * 1.4, y: 0.8, sz: 0.6 })); } yeux(p, 1.4, 0.8, 0.55, 0.62, f); p.push(M.part(M.tore(0.9, 0.22, Math.PI, 4, 8), L, { y: -1, z: 0.3, rz: Math.PI })); joues(p, 2.6, -0.4, 0, 0.75); return p; },
+      q1: null, q2: null,
+      patte: () => [M.part(pendu(0.55, 4.2, 0.2), L), M.part(M.sphere(1.15, 8), BLANC_C, { y: 0.45 - 5.5, z: 0.5, sy: 0.7, sz: 1.5 })], // des jambes fines et de petites baskets
+    },
+    dragon: {
+      lp: 7, py: -3, hanches: [[-2.8, 6.2], [2.8, 6.2], [-2.8, -6.2], [2.8, -6.2]], tp: [5.4, 11.8], queue: [2.2, -10, -0.95], lq1: 0, q2r: null, R: 5, D: 10.5, demiH: 4.3, assis: 'assis', a: -0.4, dort: 'couche',
+      corps: () => { const p = [M.part(M.capsule(5, 11, 12), '#5FD3A4', { rx: HP }), M.part(arcCyl(5.1, 11, 1.9, 0), '#FFF3C4', { rx: HP })]; for (const z of [-5, -2, 1, 4]) p.push(M.part(M.cone(1, 2.4, 5), '#FFC84A', { y: 4.6, z, rx: -0.3, sx: 0.5 })); return p; }, // les crêtes du dos
+      tete: (f) => { const vert = '#5FD3A4', p = [M.part(M.sphere(4.6, 14), vert, { sx: 1.05, sy: 0.95 }), M.part(M.sphere(2.6, 10), vert, { y: -1.1, z: 3.8, sx: 1.15, sy: 0.8, sz: 1.1 }), M.part(M.sphere(0.4, 6), '#3FB889', { x: -0.8, y: -0.5, z: 6.4 }), M.part(M.sphere(0.4, 6), '#3FB889', { x: 0.8, y: -0.5, z: 6.4 })];
+        for (const sx of [-1, 1]) p.push(M.part(M.cone(0.9, 3, 6), '#FFF3C4', { x: sx * 2, y: 3.4, z: -1, rx: -0.5, rz: -sx * 0.25 }), M.part(M.cone(1.4, 2.6, 6), '#9A84F0', { x: sx * 4.1, y: 1, z: -0.8, rz: -sx * 1.2, sz: 0.4 })); // les cornes, les collerettes
+        yeux(p, 2, 1.1, 3.95, 0.88, f); joues(p, 3.2, -1, 3.3); return p; },
+      q1: () => [M.part(M.cylindre(0.7, 1.9, 8, 8), '#5FD3A4'), M.part(M.cone(1.6, 2.4, 4), '#FFC84A', { y: 7.6, sz: 0.4 })], q2: null, // la queue effilée, sa pointe en flèche
+      patte: () => pattePendue(1.7, 7, '#5FD3A4', '#FFF3C4'),
+      ailes: () => { const p = []; for (const sx of [-1, 1]) { const rz = -sx * (HP - 0.6); p.push(M.part(M.cone(3.2, 9, 3), '#9A84F0', { x: sx * 1.2, rz, sz: 0.18 }), M.part(M.capsule(0.45, 8.4, 5), '#C7B8FF', { x: sx * (1.2 + Math.sin(-rz) * 4.6), y: Math.cos(rz) * 4.6, z: 0.5, rz })); } return p; },
+    },
+  };
+  const geoEspece = (id, k, f) => memo(`comp|${id}|${k}`, () => M.assembler(f()));
+  const BORNES_ESP = {}; // les bornes figées du tampon des pattes, par espèce
+  const tourneX = (y, z, a) => [y * Math.cos(a) - z * Math.sin(a), y * Math.sin(a) + z * Math.cos(a)]; // (y, z) tourné autour de X
+  function posesEspece(E) { // les poses constantes d'une espèce, calculées une fois : racine, corps, tête, queue, pattes
+    const Y = E.lp - E.py, T = E.tp, Q = E.queue || [0, 0, 0], n = E.hanches.length, hanche = (k) => (k < n ? [E.hanches[k][0], E.py, E.hanches[k][1]] : [0, E.py, 0]);
+    const base = () => ({ r: [0, Y, 0], rr: [0, 0, 0], c: [0, 0, 0], cs: [1, 1, 1], h: [0, T[0], T[1]], hr: [0, 0, 0], hs: 1, q: [0, Q[0], Q[1]], qr: [Q[2], 0, 0], q2r: [E.q2r || 0, 0, 0], pp: [0, 1, 2, 3].map(hanche), pr: [0, 1, 2, 3].map(() => [0, 0, 0]), ps: [0, 1, 2, 3].map(() => [1, 1, 1]), pv: n > 0 });
+    const marche = base(), saut = base(), dort = base(), assis = base();
+    // en l'air : nez en bas, pattes repliées, la queue haute
+    saut.rr = [0.42, 0, 0]; saut.hr = [-0.3, 0, 0]; saut.qr = [Q[2] - 0.5, 0, 0]; saut.pr = [0, 1, 2, 3].map((k) => [(n === 2 ? k === 0 : k < 2) ? 1 : -1, 0, 0]); saut.ps = [0, 1, 2, 3].map(() => [1, 0.8, 1]);
+    const couche = (p, tete) => { // le ventre au sol, les pattes rentrées, la tête basse (tete : levée, en sphinx)
+      const dy = Y - E.demiH; p.r = [0, E.demiH, 0]; p.pv = false; p.h = [0, T[0] - dy - (tete ? 0 : 1.5), T[1] - (tete ? 0 : 1)]; p.hr = tete ? [-0.15, 0, 0] : [0.35, 0.35, -0.25]; p.q = [0, Q[1] ? Q[0] - dy : 0, Q[1]]; p.qr = [-HP, 0, tete ? 0.3 : 1.4]; p.q2r = [0, 0, tete ? 0.2 : 0.9];
+    };
+    // dort : couché en boule (la queue enroulée), debout les yeux fermés (le pingouin), en boule (le hérisson), rentré dans sa coquille (l'escargot)
+    if (E.dort === 'debout') { dort.hr = [0.45, 0, 0]; dort.h = [0, T[0] - 0.8, T[1]]; }
+    else if (E.dort === 'rentre') { dort.h = [0, T[0] - 0.6, T[1] - 4.5]; dort.hs = 0.65; }
+    else { couche(dort, false); dort.cs = [1.08, 0.85, 1]; if (E.dort === 'boule') { dort.cs = [1.05, 1, 0.86]; dort.h = [0, E.demiH - 1, T[1] - 2.6]; dort.hr = [0.6, 0, 0]; } }
+    if (E.assis === 'couche') { couche(assis, true); if (n > 0) { assis.pv = true; for (let k = 0; k < 4; k++) { const avant = k < 2; assis.pp[k] = [hanche(k)[0] * (avant ? 1 : 1.25), E.demiH * 0.45, hanche(k)[2]]; assis.pr[k] = [avant ? -1.35 : -1.45, 0, 0]; assis.ps[k] = avant ? [1, 0.8, 1] : [1.2, 0.6, 1]; } } }
+    else if (E.assis === 'assis') { // l'arrière-train au sol : le corps raccourci et incliné de a (nez en l'air), pattes avant droites, cuisses repliées devant, la queue au sol
+      const a = E.a, D = E.D * 0.85, ys = E.R * Math.cos(a) - D * Math.sin(a) + 0.3, av = tourneX(E.py, E.hanches[0][1], a), ar = tourneX(E.py, E.hanches[2][1], a);
+      const hAv = ys + av[0], hAr = ys + ar[0], lAr = E.lp * 0.85, th = Math.acos(Math.max(0, Math.min(1, hAr / lAr))), tq = tourneX(Q[0], Q[1], a), th0 = tourneX(T[0], T[1] * 0.92, a);
+      assis.r = [0, ys, 0]; assis.rr = [a, 0, 0]; assis.cs = [1, 1, 0.85]; assis.h = [0, T[0], T[1] * 0.92]; assis.hr = [-a - 0.1, 0, 0]; assis.qr = [-2 - a, 0, 0]; assis.q2r = [0.5, 0, 0];
+      for (let k = 0; k < 4; k++) { const avant = k < 2; assis.pr[k] = avant ? [-a, 0, 0] : [-a - th, 0, 0]; assis.ps[k] = avant ? [1, hAv / E.lp, 1] : [1.3, 0.85, 1]; }
+      E.assisHaut = [ys + th0[0], tq[0] + ys]; // (hauteur de la tête, de la queue : pour les tests)
+    }
+    return { marche, saut, dort, assis };
+  }
+  function materiauxPattes() { // partagés par tous les chats et les compagnons (voir chat())
+    matPattes = matPattes || M.partager(new THREE.MeshLambertMaterial({ vertexColors: true }));
+    profPattes = profPattes || M.partager(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }));
+  }
+  function compagnon(id) {
+    const E = ESPECES[id];
+    if (!E) { const c = chat(id === 'chat-noir' ? Object.assign({}, CHAT_NOIR) : {}); c.userData.espece = id === 'chat-noir' ? 'chat-noir' : 'chat-roux'; return c; } // les deux chats (un id inconnu : le roux)
+    if (!E.poses) { E.id = id; E.poses = posesEspece(E); E.q2p = [0, E.lq1, 0]; }
+    const g = new THREE.Group(), racine = new THREE.Group(), P = { racine, queue: [], pattes: [], esp: E };
+    g.add(racine); g.userData.parts = P; g.userData.espece = id;
+    P.corps = M.mesh(geoEspece(id, 'corps', E.corps), M.MAT.vertex); racine.add(P.corps);
+    const geos = [geoEspece(id, 'tete0', () => E.tete(false)), geoEspece(id, 'tete1', () => E.tete(true))];
+    P.tete = M.mesh(geos[0], M.MAT.vertex); P.tete.userData.geos = geos; racine.add(P.tete);
+    const q1 = E.q1 ? M.mesh(geoEspece(id, 'q1', E.q1), M.MAT.vertex) : new THREE.Object3D(), q2 = E.q2 ? M.mesh(geoEspece(id, 'q2', E.q2), M.MAT.vertex) : new THREE.Object3D(); // sans queue : des pivots vides
+    q1.add(q2); racine.add(q1); P.queue.push(q1, q2);
+    for (let k = 0; k < 4; k++) { const p = new THREE.Object3D(); P.pattes.push(p); racine.add(p); }
+    if (E.ailes) { P.ailes = M.mesh(geoEspece(id, 'ailes', E.ailes), M.MAT.vertex); P.ailes.position.set(0, 4, 1.5); racine.add(P.ailes); }
+    if (E.patte) {
+      materiauxPattes();
+      const im = P.pattesMaille = new THREE.InstancedMesh(geoEspece(id, 'patte', E.patte), matPattes, 4);
+      im.customDepthMaterial = profPattes; im.castShadow = true; im.frustumCulled = false; racine.add(im);
+      if (!BORNES_ESP[id]) { // l'union de toutes les poses, une fois par espèce (comme le chat)
+        const b = new THREE.Box3(), o2 = { etat: 'dort', phase: 0, t: 0 };
+        for (const e of ['dort', 'assis', 'saut', 'debout', 'marche']) for (let k = 0; k < (e === 'marche' || e === 'assis' ? 16 : 1); k++) { o2.etat = e; o2.phase = k * TAU / 16; o2.t = k * 0.4; animerCompagnon(g, o2); im.computeBoundingBox(); b.union(im.boundingBox); }
+        BORNES_ESP[id] = { boite: b, sphere: b.getBoundingSphere(new THREE.Sphere()) };
+      }
+      im.boundingBox = BORNES_ESP[id].boite.clone(); im.boundingSphere = BORNES_ESP[id].sphere.clone();
+      g.addEventListener('removed', () => im.dispose());
+    }
+    animerCompagnon(g, { etat: 'assis', phase: 0, t: 0 });
+    return g;
+  }
+  // animerCompagnon(g, { etat, phase, t }) : un chat passe à animerChat ; les autres prennent les poses de leur espèce, puis le mouvement
+  // et leur touche. Aucune allocation : mêmes règles que animerChat (tables constantes, champs d'Euler suivis de tourner()).
+  function animerCompagnon(g, o) {
+    const P = g.userData.parts; if (!P.esp) { animerChat(g, o); return; }
+    const E = P.esp, id = E.id, r = P.racine, c = P.corps, h = P.tete, q1 = P.queue[0], q2 = P.queue[1], pa = P.pattes, ai = P.ailes, t = o.t || 0, e = o.etat, n = E.hanches.length;
+    const A = e === 'dort' ? E.poses.dort : e === 'assis' ? E.poses.assis : e === 'saut' ? E.poses.saut : E.poses.marche;
+    r.position.fromArray(A.r); r.rotation.fromArray(A.rr); c.position.fromArray(A.c); c.scale.fromArray(A.cs);
+    h.position.fromArray(A.h); h.rotation.fromArray(A.hr); h.scale.x = h.scale.y = h.scale.z = A.hs;
+    q1.position.fromArray(A.q); q1.rotation.fromArray(A.qr); q2.position.fromArray(E.q2p); q2.rotation.fromArray(A.q2r);
+    for (let k = 0; k < 4; k++) { const p = pa[k]; p.position.fromArray(A.pp[k]); p.rotation.fromArray(A.pr[k]); p.scale.fromArray(A.ps[k]); p.visible = A.pv && k < n; }
+    const geo = h.userData.geos[e === 'dort' ? 1 : 0]; if (h.geometry !== geo) h.geometry = geo;
+    if (ai) ai.scale.set(1, 1, 1);
+    const chien = id === 'chien' || id === 'teckel';
+    if (e === 'dort') { // la respiration lente ; les ailes repliées, la queue qui frémit
+      const b = Math.sin(t * 1.5) * 0.03; c.scale.y *= 1 + b; h.position.y += b * 3;
+      if (ai) { ai.scale.y = 0.2; ai.scale.x = 0.75; }
+      q2.rotation._z = A.q2r[2] + Math.sin(t * 0.9) * 0.08; tourner(q2);
+    } else if (e === 'assis') { // assis, couché en sphinx ou debout sur place : le regard fait le tour de la salle, la queue balaie ; puis la touche de chacun
+      h.rotation._y = Math.sin(t * 0.7) * 0.15; tourner(h);
+      q1.rotation._z = A.qr[2] + Math.sin(t * (chien ? 11 : 1.4)) * (chien ? 0.45 : 0.25); tourner(q1); q2.rotation._z = A.q2r[2] + Math.sin(t * 1.4 - 0.8) * 0.3; tourner(q2);
+      if (id === 'poule') { // elle picore : la tête plonge d'un coup, le corps suit un peu
+        let k = Math.max(0, Math.sin(t * 2.3)); k *= k; k *= k;
+        h.position.y -= 5.5 * k; h.position.z += 1.8 * k; h.rotation._x = 1.1 * k; tourner(h); r.rotation._x = 0.3 * k; tourner(r);
+      } else if (id === 'canard') { q1.rotation._z = Math.sin(t * 14) * 0.35 * Math.max(0, Math.sin(t * 0.8)); tourner(q1); } // la queue frétille
+      else if (id === 'pingouin') { r.rotation._z = Math.sin(t * 2.2) * 0.1; tourner(r); } // il se dandine sur place
+      else if (id === 'croissant') { const u = Math.abs(Math.sin(t * 3.2)); r.position.y += u * 2.2; c.scale.y = 0.92 + 0.08 * u; c.scale.x = 1.05 - 0.05 * u; } // il rebondit sur place, écrasé en touchant le sol
+      else if (id === 'escargot') { h.rotation._z = Math.sin(t * 1.7) * 0.1; tourner(h); c.scale.z = 1 + Math.sin(t * 0.9) * 0.02; } // les cornes oscillent
+      else if (id === 'raton') { for (let k = 0; k < 2; k++) { const p = pa[k]; p.rotation._x = A.pr[k][0] - 1 + Math.sin(t * 7 + k * Math.PI) * 0.3; tourner(p); p.scale.y = 0.7; } } // il se frotte les mains
+      else if (id === 'lapin') { h.rotation._z = Math.sin(t * 9) * 0.07 * Math.max(0, Math.sin(t * 0.6)); tourner(h); } // les oreilles frémissent
+      else if (id === 'herisson') { h.rotation._x = -0.15 + Math.sin(t * 6) * 0.06; tourner(h); } // il renifle
+      else if (id === 'dragon' && ai) { const k = Math.sin(t * 0.8); ai.scale.y = k > 0.6 ? 0.3 + 0.35 * (1 + Math.cos(t * 14)) : 1; } // de temps en temps, un battement d'ailes
+    } else if (e === 'saut') { // en l'air : la queue pour l'équilibre, les ailes battent
+      q1.rotation._z = Math.sin(t * 5) * 0.1; tourner(q1);
+      if (ai) ai.scale.y = 0.3 + 0.35 * (1 + Math.cos(t * 16));
+    } else { // marche (ou debout) : diagonales opposées (deux pattes : alternées), le dos qui descend quand les pattes s'écartent
+      const ph = e === 'marche' ? o.phase || 0 : 0, marche = e === 'marche', s = marche ? Math.sin(id === 'herisson' ? ph * 1.6 : ph) * (id === 'pingouin' ? 0.3 : 0.6) : 0;
+      r.position.y = A.r[1] - E.lp * (1 - Math.cos(s)); h.rotation._x = Math.sin(ph * 2) * 0.05; tourner(h);
+      if (id === 'lapin') { // il sautille : les pattes vont par paires, le corps décolle
+        const v = marche ? Math.sin(ph) * 0.55 : 0; r.position.y = A.r[1] + (marche ? Math.abs(Math.sin(ph * 0.5)) * 4.5 : 0);
+        for (let k = 0; k < 4; k++) { pa[k].rotation._x = k < 2 ? -v : v; tourner(pa[k]); }
+      } else for (let k = 0; k < n; k++) { pa[k].rotation._x = n === 2 ? (k === 0 ? s : -s) : (k === 0 || k === 3 ? s : -s); tourner(pa[k]); }
+      q1.rotation._z = Math.sin(t * (chien ? 9 : 2.6)) * (chien ? 0.4 : 0.22); tourner(q1); q2.rotation._z = Math.sin(t * 2.6 - 0.9) * 0.3; tourner(q2);
+      if (id === 'poule') h.position.z += Math.sin(ph * 2) * 1.2; // la tête qui avance à chaque pas
+      else if (id === 'canard' || id === 'pingouin') { r.rotation._z = Math.sin(ph) * (id === 'canard' ? 0.12 : 0.2); tourner(r); } // il se dandine
+      else if (id === 'escargot') { const u = Math.sin(ph * 0.5); c.scale.z = 1 + 0.06 * u; h.position.z += 0.8 * u; h.rotation._z = Math.sin(t * 1.7) * 0.08; tourner(h); } // il glisse : le pied s'étire et se ramasse
+      else if (id === 'croissant') { r.position.y += Math.abs(Math.sin(ph)) * 3.2; c.scale.y = 1 - 0.07 * Math.cos(ph * 2); } // il rebondit à chaque pas
+      if (ai) { ai.scale.y = marche ? 0.3 + 0.35 * (1 + Math.cos(t * 13)) : 1; ai.scale.x = marche ? 1 + 0.1 * Math.sin(t * 13) : 1; } // en marchant, il bat des ailes
+    }
+    const im = P.pattesMaille; if (!im) return;
+    for (let k = 0; k < 4; k++) { const p = pa[k]; if (p.visible) { p.updateMatrix(); im.setMatrixAt(k, p.matrix); } else im.setMatrixAt(k, ZERO); }
+    im.instanceMatrix.needsUpdate = true;
   }
   // ─── les huit pâtisseries : une liste de parts colorées par produit (posée sur y = 0, centrée, ~16 d'envergure), fusionnée seule
   // (geoPatisserie, en cache) ou avec le plateau d'un apprenti (geoPlateau, en cache) — jamais passée telle quelle à M.assembler
@@ -518,6 +772,13 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       g.userData.anime = (E) => { for (let k = 0; k < chats.length; k++) { oc[k].t = E.t; oc[k].phase = E.t * 8; animerChat(chats[k], oc[k]); } };
       g.position.set(195, 0, 350); if (zoom) g.scale.setScalar(zoom); return g;
     }
+    const mcp = /^compagnons?(?::([a-z-]+?))?(?:-(dort|assis|marche|saut))?(?:-(face|profil))?$/.exec(nom); // 'compagnons-marche', 'compagnons-assis-face', 'compagnon:dragon-marche'…
+    if (mcp) { // les treize compagnons en grille (les deux chats, puis la table ESPECES), ou un seul, dans un état, de trois quarts, de face ou de profil, animés
+      const ids = mcp[1] ? [mcp[1]] : ['chat-roux', 'chat-noir'].concat(Object.keys(ESPECES)), cs = [], oc = [];
+      ids.forEach((id, k) => { const c = compagnon(id); c.rotation.y = mcp[3] === 'face' ? 0 : mcp[3] === 'profil' ? HP : 0.6; if (ids.length > 1) c.position.set(((k % 4) - 1.5) * 62, 0, Math.floor(k / 4) * 50 - 75); g.add(c); cs.push(c); oc.push({ etat: mcp[2] || 'assis', phase: 0, t: 0 }); });
+      g.userData.anime = (E) => { for (let k = 0; k < cs.length; k++) { oc[k].t = E.t; oc[k].phase = E.t * 8; animerCompagnon(cs[k], oc[k]); } };
+      g.position.set(195, 0, 350); if (zoom) g.scale.setScalar(zoom); return g;
+    }
     if (nom.startsWith('saison-')) { const m = patisserieSaison(nom.slice(7)); m.rotation.y = 0.35; g.add(m); g.position.set(195, 0, 380); g.scale.setScalar(zoom || 6); return g; } // une seule, de trois quarts, grossie
     if (nom === 'saisons') { for (let i = 0; i < SAISONS.length; i++) { const m = patisserieSaison(SAISONS[i]); m.position.set(70 + 50 * i, 0, 400); m.scale.setScalar(2); g.add(m); } return g; }
     if (nom === 'grades') { // les cinq grades côte à côte, sans plateau (la bande, l'étoile, la toque et le liseré se voient)
@@ -557,6 +818,6 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   }
   // le chat noir d'Halloween (pendant la Maison hantée, puis au choix) : robe noire bleutée, rayures à peine plus sombres, poitrail gris, yeux jaunes
   const CHAT_NOIR = { couleur: '#2B2733', rayures: '#1F1C26', ventre: '#4A4458', yeux: '#FFD84A' };
-  return { HAUTEUR, TAILLE_PATISSERIE, SAISONS, TENUES, METAUX_PODIUM, FORMES_HT, CHAT_NOIR, partsChaussure, partsChapeau, partsCape, partsCapuche, creer, animer, lacet, boulanger, animerBoulanger, chat, animerChat, libererChat, patisserie, geoPatisserie, partsPatisserie, patisserieSaison, geoPatisserieSaison, demo };
+  return { HAUTEUR, TAILLE_PATISSERIE, SAISONS, TENUES, METAUX_PODIUM, FORMES_HT, CHAT_NOIR, ESPECES, partsChaussure, partsChapeau, partsCape, partsCapuche, creer, animer, lacet, boulanger, animerBoulanger, chat, animerChat, libererChat, compagnon, animerCompagnon, patisserie, geoPatisserie, partsPatisserie, patisserieSaison, geoPatisserieSaison, demo };
 })();
 if (typeof module !== 'undefined') module.exports = PERSOS;

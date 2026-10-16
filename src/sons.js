@@ -7,6 +7,12 @@ const SONS = (() => {
   const ZZ = {
     alerte: [1, 0, 880, 0.01, 0.08, 0.1, 1, 1, 0, 0, 300, 0.06],
     sirene: [1, 0, 620, 0.05, 0.9, 0.25, 0, 1, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0.9],
+    // les cris des compagnons quand on les caresse (GAME.COMPAGNONS, champ cri) : de petits bruitages de synthèse, sans fichier
+    wouf: [1, 0.05, 210, 0.01, 0.05, 0.12, 2, 1.6, -9, 0, 0, 0, 0, 0.5, 0, 0, 0, 0.8, 0.04], // un aboiement grave, en dents de scie qui retombent
+    cotcot: [1, 0.05, 560, 0.005, 0.03, 0.06, 2, 1, -24, 0, 0, 0, 0.13, 0.35], // deux gloussements secs
+    coincoin: [1, 0.05, 340, 0.01, 0.07, 0.09, 3, 2, -3, 0, 0, 0, 0.17, 0.25, 28], // un cancan nasillard, deux fois
+    couic: [1, 0.05, 1250, 0.005, 0.03, 0.05, 0, 1, 45], // un petit couinement qui monte
+    couac: [1, 0.05, 280, 0.02, 0.09, 0.12, 2, 1.4, 6, 0, 0, 0, 0, 0.2, 12], // le pingouin klaxonne
   };
   const buffers = {}, cacheZz = {}; let ctx = null, demande = false;
   function brancher(actx) { // appelé par ui.js quand l'audio est créé ou repris
