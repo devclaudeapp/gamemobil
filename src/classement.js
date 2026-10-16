@@ -935,7 +935,7 @@
       return r.data && r.data.ok === true ? { etat: 'ok' } : { etat: 'refus', erreur: r.data && typeof r.data.erreur === 'string' ? r.data.erreur : 'inconnue' };
     }
 
-    // les cadeaux (supabase/fournil-cadeaux.sql) : des euros déposés pour ce joueur, reçus une fois. cadeaux() → { etat, cadeaux: [{ n, montant, motif }] } ;
+    // les cadeaux (supabase/fournil-cadeaux.sql) : des euros déposés pour ce joueur, reçus une fois. cadeaux() → { etat, cadeaux: [{ n, montant, etoiles, motif }] } ;
     // cadeauRecu(n) les retire de la boîte. Un serveur sans la boîte (pas encore collée) : plus aucune lecture jusqu'au prochain lancement.
     let cadeauxAbsents = false;
     function cadeaux() {
@@ -945,7 +945,8 @@
       return rpc('fournil_mes_cadeaux', { p_id: etat.id, p_jeton: etat.jeton }).then((r) => {
         if (r.etat === 'pas-ouvert') cadeauxAbsents = true;
         const liste = r.etat === 'ok' && r.data && r.data.ok === true && Array.isArray(r.data.cadeaux) ? r.data.cadeaux : [];
-        return { etat: r.etat, cadeaux: liste.map((c) => ({ n: Math.floor(+c.n), montant: +c.montant, motif: typeof c.motif === 'string' ? c.motif.slice(0, 120) : '' })).filter((c) => c.n > 0 && Number.isFinite(c.montant) && c.montant > 0 && c.montant <= 1e30) };
+        return { etat: r.etat, cadeaux: liste.map((c) => ({ n: Math.floor(+c.n), montant: Number.isFinite(+c.montant) ? +c.montant : 0, etoiles: Math.max(0, Math.min(1000, Math.floor(+c.etoiles) || 0)), motif: typeof c.motif === 'string' ? c.motif.slice(0, 120) : '' }))
+          .filter((c) => c.n > 0 && c.montant >= 0 && c.montant <= 1e30 && (c.montant > 0 || c.etoiles > 0)) }; // des euros, des étoiles, ou les deux
       }).catch(() => ({ etat: 'erreur', cadeaux: [] }));
     }
     function cadeauRecu(n) {

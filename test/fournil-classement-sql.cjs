@@ -1927,7 +1927,13 @@ function trajectoirePoints(profil, jours, t0, cadence) {
   {
     const CAD = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-cadeaux.sql'), 'utf8');
     const collerCad = async () => { await db.exec('set role proprio'); try { await db.exec(CAD); } finally { await db.exec('reset role'); } };
-    try { await collerCad(); await collerCad(); check(true, 'fournil-cadeaux.sql se colle, et se recolle sans casse'); } catch (err) { check(false, 'fournil-cadeaux.sql se colle : ' + err.message); }
+    const V1 = require('child_process').execSync('git show 7897503:supabase/fournil-cadeaux.sql', { cwd: path.join(__dirname, '..') }).toString(); // la version 1, collée sur Supabase le 16 oct.
+    try { await db.exec('drop table if exists public.fournil_cadeaux cascade'); await db.exec('set role proprio'); await db.exec(V1); await db.exec('reset role'); } catch (err) { await db.exec('reset role'); check(false, 'la version 1 se colle : ' + err.message); }
+    const Gv1 = joueur(); await avancer(3600); await publierP(Gv1, 'Ancien', 1e6, 10);
+    await comme('proprio', `insert into public.fournil_cadeaux (joueur, montant, motif) values ('${Gv1.id}', 3e12, 'v1')`);
+    try { await collerCad(); await collerCad(); check(true, 'fournil-cadeaux.sql (version 2) se colle par-dessus la version 1, et se recolle sans casse'); } catch (err) { check(false, 'fournil-cadeaux.sql se colle : ' + err.message); }
+    const v1 = await comme('anon', 'select public.fournil_mes_cadeaux(p_id => $1, p_jeton => $2) as r', [Gv1.id, Gv1.jeton]);
+    check(v1[0].r.cadeaux.length === 1 && v1[0].r.cadeaux[0].montant === 3e12 && v1[0].r.cadeaux[0].etoiles === 0, 'le cadeau en attente de la version 1 est toujours là (0 étoile)');
     await avancer(3600);
     const G1 = joueur(), G2 = joueur();
     const r1 = await publierP(G1, 'Gâté', 1e6, 10), r2 = await publierP(G2, 'Voisin', 1e6, 10);
@@ -1937,7 +1943,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     const mes = async (j, role = 'anon') => (await comme(role, 'select public.fournil_mes_cadeaux(p_id => $1, p_jeton => $2) as r', [j.id, j.jeton]))[0].r;
     const recu = async (j, n, role = 'anon') => (await comme(role, 'select public.fournil_cadeau_recu(p_id => $1, p_jeton => $2, p_n => $3) as r', [j.id, j.jeton, n]))[0].r;
     let m = await mes(G1);
-    check(m.ok === true && m.cadeaux.length === 1 && m.cadeaux[0].montant === 3e12 && m.cadeaux[0].motif === 'Pour l’absence de ce matin'.replace('’', "'") && Object.keys(m.cadeaux[0]).sort().join() === 'montant,motif,n', `fournil_mes_cadeaux : son cadeau de 3e12 (${JSON.stringify(m.cadeaux)})`);
+    check(m.ok === true && m.cadeaux.length === 1 && m.cadeaux[0].montant === 3e12 && m.cadeaux[0].motif === 'Pour l’absence de ce matin'.replace('’', "'") && Object.keys(m.cadeaux[0]).sort().join() === 'etoiles,montant,motif,n' && m.cadeaux[0].etoiles === 0, `fournil_mes_cadeaux : son cadeau de 3e12 (${JSON.stringify(m.cadeaux)})`);
     const n = m.cadeaux[0].n;
     check((await mes(G2)).cadeaux.length === 0, 'l’autre joueur ne le voit pas');
     check((await mes({ id: G1.id, jeton: G2.jeton })).ok === false && (await mes({ id: G1.id, jeton: 'court' })).erreur === 'jeton' && (await mes(joueur())).erreur === 'inconnu', 'mauvais jeton, jeton mal formé, identifiant inconnu : rien');
@@ -1951,6 +1957,12 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     check(await refus('anon', 'select * from public.fournil_cadeaux') !== 'accepté' && await refus('anon', `insert into public.fournil_cadeaux (joueur, montant) values ('${G2.id}', 1e15)`) !== 'accepté' && await refus('anon', `update public.fournil_cadeaux set recu = null`) !== 'accepté' && await refus('authenticated', 'select * from public.fournil_cadeaux') !== 'accepté', 'la table ne se lit ni ne s’écrit depuis le jeu');
     check(await refus('anon', `select nextval('public.fournil_cadeaux_n_seq')`) !== 'accepté' && await refus('anon', 'select public.fournil_cadeau_qui($1, $2)', [G1.id, G1.jeton]) !== 'accepté', 'la séquence et la vérification interne sont fermées');
     check(await refus('proprio', `insert into public.fournil_cadeaux (joueur, montant) values ('${G2.id}', -5)`) !== 'accepté', 'un montant négatif est refusé');
+    // version 2 : des étoiles, seules ou avec des euros
+    check(await refus('proprio', `insert into public.fournil_cadeaux (joueur, montant, etoiles) values ('${G2.id}', 0, 0)`) !== 'accepté' && await refus('proprio', `insert into public.fournil_cadeaux (joueur, montant, etoiles) values ('${G2.id}', 0, 5000)`) !== 'accepté', 'ni euros ni étoiles, ou 5 000 étoiles : refusé');
+    await comme('proprio', `insert into public.fournil_cadeaux (joueur, montant, etoiles, motif) select id, 0, 80, 'Pour le retard' from public.fournil_joueurs where pseudo = 'Gâté'`);
+    m = await mes(G1);
+    check(m.ok && m.cadeaux.length === 1 && m.cadeaux[0].etoiles === 80 && m.cadeaux[0].montant === 0, `un cadeau de 80 étoiles seules (${JSON.stringify(m.cadeaux)})`);
+    check((await recu(G1, m.cadeaux[0].n)).ok && (await mes(G1)).cadeaux.length === 0, 'reçu, il quitte la boîte');
     await comme('proprio', `insert into public.fournil_cadeaux (joueur, montant) values ('${G2.id}', 5)`);
     await retirer(G2);
     check((await sup('select count(*)::int as c from public.fournil_cadeaux where joueur = $1', [G2.id]))[0].c === 0, 'quitter le classement efface ses cadeaux');

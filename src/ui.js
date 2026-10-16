@@ -823,14 +823,15 @@ const UI = (() => {
     classement.cadeaux().then((r) => {
       const recus = Array.isArray(st.cadeauxRecus) ? st.cadeauxRecus : (st.cadeauxRecus = []), nouveaux = [];
       for (const c of r.cadeaux || []) {
-        if (!recus.includes(c.n)) { G.gagner(st, c.montant, true); recus.push(c.n); nouveaux.push(c); }
+        if (!recus.includes(c.n)) { if (c.montant > 0) G.gagner(st, c.montant, true); if (c.etoiles > 0) st.etoiles += c.etoiles; recus.push(c.n); nouveaux.push(c); }
         classement.cadeauRecu(c.n);
       }
       while (recus.length > 50) recus.shift();
       if (!nouveaux.length) return;
       save(); renderCards(true); hud();
-      const total = nouveaux.reduce((a, c) => a + c.montant, 0), motifs = nouveaux.map((c) => c.motif).filter(Boolean);
-      const montrer = () => { son.deblocage(); buzz([20, 40, 20]); confettis(1.4); openSheet(`<h2>Un cadeau !</h2><p class="sous">${motifs.length ? esc(motifs.join(' · ')) : 'Pour ta boutique'}</p><div class="grand-nombre">+${G.fmtEur(total)}</div>
+      const total = nouveaux.reduce((a, c) => a + c.montant, 0), etoiles = nouveaux.reduce((a, c) => a + c.etoiles, 0), motifs = [...new Set(nouveaux.map((c) => c.motif).filter(Boolean))];
+      const quoi = [total > 0 ? `+${G.fmtEur(total)}` : '', etoiles > 0 ? `+${G.fmt(etoiles)} étoile${etoiles > 1 ? 's' : ''}` : ''].filter(Boolean);
+      const montrer = () => { son.deblocage(); buzz([20, 40, 20]); confettis(1.4); openSheet(`<h2>Un cadeau !</h2><p class="sous">${motifs.length ? esc(motifs.join(' · ')) : 'Pour ta boutique'}</p>${quoi.map((x) => `<div class="grand-nombre">${esc(x)}</div>`).join('')}${etoiles > 0 ? `<p class="sous">+${Math.round(etoiles * G.ETOILE_BONUS * 100)} % de gains, pour toujours</p>` : ''}
         <button type="button" class="btn large menthe" data-a="close"><b>Merci !</b></button>`); on('[data-a="close"]', closeSheet); };
       if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); }
     }).catch(() => { /* rien */ }).then(() => { cadeauxVol = false; });

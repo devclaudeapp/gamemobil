@@ -110,7 +110,7 @@ const RPC = {
   fournil_objectif: () => ({ semaine: lundi(), but: faux.objectif.but, total: faux.objectif.total, joueurs: faux.objectif.joueurs, reussi: faux.objectif.total >= faux.objectif.but, pourcent: Math.min(100, Math.floor(faux.objectif.total / faux.objectif.but * 100)) }),
   fournil_heure: () => ({ ms: Date.now() + decalHeure }),
   // les cadeaux (supabase/fournil-cadeaux.sql) ; faux.perdreRecu : l'accusé de réception se perd (le cadeau revient à la lecture suivante)
-  fournil_mes_cadeaux: (c) => { const j = faux.joueurs.get(c.p_id); if (!j || j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: j ? 'jeton' : 'inconnu', cadeaux: [] }; return { ok: true, erreur: null, cadeaux: (faux.cadeaux || []).filter((x) => x.joueur === c.p_id && !x.recu).map(({ n, montant, motif }) => ({ n, montant, motif })) }; },
+  fournil_mes_cadeaux: (c) => { const j = faux.joueurs.get(c.p_id); if (!j || j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: j ? 'jeton' : 'inconnu', cadeaux: [] }; return { ok: true, erreur: null, cadeaux: (faux.cadeaux || []).filter((x) => x.joueur === c.p_id && !x.recu).map(({ n, montant, etoiles, motif }) => ({ n, montant, etoiles: etoiles || 0, motif })) }; },
   fournil_cadeau_recu: (c) => { const j = faux.joueurs.get(c.p_id); if (!j || j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: 'jeton' }; if (!faux.perdreRecu) for (const x of faux.cadeaux || []) if (x.n === c.p_n && x.joueur === c.p_id) x.recu = true; return { ok: true, erreur: null }; },
 };
 const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'apikey, authorization, content-type, x-client-info', 'access-control-allow-methods': 'POST, OPTIONS' };
@@ -427,6 +427,15 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     await p3.evaluate(() => window.__fournil.cadeaux()); await sleep(1200);
     check(faux.cadeaux[0].recu === true && !faux.cadeaux[1].recu && faux.appels.some((x) => x.nom === 'fournil_cadeau_recu' && x.corps.p_n === 7), 'l’accusé de réception arrive : le cadeau quitte la boîte');
     check(await p3.evaluate(() => JSON.stringify(window.__fournil.st.cadeauxRecus)) === '[7]', 'gardé dans la boutique : st.cadeauxRecus = [7]');
+    // des étoiles : seules (montant 0) et avec des euros, deux cadeaux d'un coup, une seule feuille
+    const e0 = await p3.evaluate(() => ({ et: window.__fournil.st.etoiles, k: window.__fournil.st.coins }));
+    faux.cadeaux.push({ n: 9, joueur: idE, montant: 0, etoiles: 80, motif: 'Pour le retard', recu: false }, { n: 10, joueur: idE, montant: 5e14, etoiles: 0, motif: 'Pour le retard', recu: false });
+    await p3.evaluate(() => window.__fournil.cadeaux());
+    check(await attendre(() => p3.evaluate(() => /Un cadeau/.test(document.querySelector('#feuille-contenu').innerText) && !document.querySelector('#feuille').hidden), 5000), 'la feuille « Un cadeau ! »');
+    const e1 = await p3.evaluate(() => ({ et: window.__fournil.st.etoiles, k: window.__fournil.st.coins, txt: document.querySelector('#feuille-contenu').innerText.replace(/\s+/g, ' ') }));
+    check(e1.et === e0.et + 80 && Math.abs(e1.k - e0.k - 5e14) < 1e9 && /\+80 étoiles/.test(e1.txt) && /Pour le retard/.test(e1.txt) && (e1.txt.match(/Pour le retard/g) || []).length === 1, `+80 étoiles et +500 Bn € (${e1.txt.slice(0, 120)})`);
+    await p3.screenshot({ path: out + '/15-cadeau-etoiles.png' });
+    await p3.evaluate(() => document.querySelector('#feuille [data-a="close"]').click()); await sleep(300);
   }
   await c2.close();
 

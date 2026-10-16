@@ -1,7 +1,7 @@
 -- Le Fournil : les cadeaux (des euros offerts à un joueur, déposés à la main dans le SQL Editor, reçus par son jeu à l'ouverture).
 -- À coller une fois dans Supabase (SQL Editor → New query → coller → Run), par-dessus le classement (fournil-classement.sql) ;
 -- il se recolle sans casse. Le téléphone n'appelle que deux fonctions, vérifiées par le jeton du joueur :
---   fournil_mes_cadeaux(p_id, p_jeton)          → { ok, cadeaux: [{ n, montant, motif }] } : ses cadeaux pas encore reçus
+--   fournil_mes_cadeaux(p_id, p_jeton)          → { ok, cadeaux: [{ n, montant, etoiles, motif }] } : ses cadeaux pas encore reçus
 --   fournil_cadeau_recu(p_id, p_jeton, p_n)     → { ok } : ce cadeau est arrivé dans sa boutique (il ne revient plus)
 -- La table est fermée : personne ne la lit ni ne l'écrit depuis le jeu ; seul le SQL Editor (le propriétaire) y dépose un cadeau :
 --   insert into public.fournil_cadeaux (joueur, montant, motif)
@@ -12,11 +12,18 @@
 create table if not exists public.fournil_cadeaux (
   n bigserial primary key,
   joueur uuid not null references public.fournil_joueurs (id) on delete cascade,
-  montant double precision not null check (montant > 0 and montant <= 1e30),
+  montant double precision not null,
   motif text not null default '' check (char_length(motif) <= 120),
   cree timestamptz not null default now(),
   recu timestamptz
 );
+-- version 2 : des étoiles aussi. Un cadeau d'étoiles seules a un montant de 0 : un téléphone d'avant (qui ne lit que les montants
+-- positifs) le laisse dans la boîte, sans le marquer reçu, jusqu'à sa mise à jour
+alter table public.fournil_cadeaux add column if not exists etoiles integer not null default 0;
+alter table public.fournil_cadeaux drop constraint if exists fournil_cadeaux_montant_check;
+alter table public.fournil_cadeaux drop constraint if exists fournil_cadeaux_quoi;
+alter table public.fournil_cadeaux add constraint fournil_cadeaux_quoi
+  check (montant >= 0 and montant <= 1e30 and etoiles between 0 and 1000 and (montant > 0 or etoiles > 0));
 create index if not exists fournil_cadeaux_joueur on public.fournil_cadeaux (joueur) where recu is null;
 alter table public.fournil_cadeaux enable row level security;
 revoke all on table public.fournil_cadeaux from public, anon, authenticated;
@@ -61,8 +68,8 @@ begin
     return json_build_object('ok', false, 'erreur', v_err, 'cadeaux', '[]'::json);
   end if;
   return json_build_object('ok', true, 'erreur', null, 'cadeaux', coalesce((
-    select json_agg(json_build_object('n', c.n, 'montant', c.montant, 'motif', c.motif) order by c.n)
-    from (select n, montant, motif from public.fournil_cadeaux where joueur = p_id and recu is null order by n limit 20) c
+    select json_agg(json_build_object('n', c.n, 'montant', c.montant, 'etoiles', c.etoiles, 'motif', c.motif) order by c.n)
+    from (select n, montant, etoiles, motif from public.fournil_cadeaux where joueur = p_id and recu is null order by n limit 20) c
   ), '[]'::json));
 end
 $$;
