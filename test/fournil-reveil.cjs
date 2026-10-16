@@ -23,7 +23,9 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 200) {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
   // l'heure du téléphone : décalée, et avançable d'un coup (le sommeil) sans que performance.now() bouge
-  await ctx.addInitScript((d0) => { let d = d0; const D = Date; class F extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + d); } static now() { return D.now() + d; } } window.Date = F; window.__avancerTel = (ms) => { d += ms; }; window.__sansQuartier = false; }, decalServeur);
+  await ctx.addInitScript((d0) => { let d = d0; const D = Date; class F extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + d); } static now() { return D.now() + d; } } window.Date = F; window.__avancerTel = (ms) => { d += ms; };
+    // le gel (iPhone, app laissée en arrière-plan sans verrouiller) : performance.now() avance aussi, avec les images
+    let dp = 0; const pn = performance.now.bind(performance), raf = window.requestAnimationFrame.bind(window); performance.now = () => pn() + dp; window.requestAnimationFrame = (cb) => raf((t) => cb(t + dp)); window.__geler = (ms) => { d += ms; dp += ms; }; window.__sansQuartier = false; }, decalServeur);
   await ctx.route(/supabase\.co/, (r) => r.abort());
   const page = await ctx.newPage(), erreurs = [];
   page.on('pageerror', (e) => erreurs.push(e.message));
@@ -94,6 +96,42 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 200) {
   await attendre(() => page.evaluate(() => window.__fournil.retour.dernier === 'reveil' && !window.__fournil.retour.enCours)); await sleep(1500);
   const b1 = await page.evaluate(() => window.__fournil.st.quartier.billets);
   check(b1 > b0, `l'apprenti de la Planque a travaillé pendant le sommeil : +${Math.round(b1 - b0)} billets`);
+  await page.evaluate(() => { const b = document.querySelector('#pq-fermer, [data-pq="fermer"], #pq [data-a="fermer"]'); if (b) b.click(); }); await sleep(800); await fermerFeuille();
+
+  console.log('── le jeu gelé 2 h (performance.now() avance aussi, aucun événement : l\'app laissée en arrière-plan, téléphone éveillé) ──');
+  const g0 = await argent();
+  decalServeur += 2 * H; await page.evaluate((x) => window.__geler(x), 2 * H);
+  check(await attendre(() => page.evaluate(() => window.__fournil.retour.dernier === 'gel')), 'le détecteur voit le gel et lance le retour');
+  check(await attendre(async () => /absence/i.test(await feuille())), `la feuille « Pendant ton absence » s'ouvre (${(await feuille()).replace(/\s+/g, ' ').slice(0, 60)})`);
+  await attendre(() => page.evaluate(() => !window.__fournil.retour.enCours)); const g1 = await argent();
+  check(g1 - g0 > paye2h * 0.6, `les 2 h sont payées : +${Math.round(g1 - g0)} € (contre ${Math.round(paye2h)} € au réveil)`);
+  await fermerFeuille(); await sleep(2500);
+  check((await argent()) - g1 < paye2h * 0.2, 'une seule fois');
+
+  console.log('── le filet : le temps du jeu a sauté sans qu\'aucun détecteur le voie ──');
+  const f0 = await argent();
+  await page.evaluate((h) => { const st = window.__fournil.st; st.now -= 2 * h; st.lastSeen -= 2 * h; }, H);
+  check(await attendre(() => page.evaluate(() => window.__fournil.retour.dernier === 'saut')), 'la boucle ne tique pas par-dessus le saut : elle lance le retour');
+  check(await attendre(async () => /absence/i.test(await feuille())), 'la feuille « Pendant ton absence » s\'ouvre');
+  await attendre(() => page.evaluate(() => !window.__fournil.retour.enCours)); const f1 = await argent();
+  check(f1 - f0 > paye2h * 0.6, `les 2 h sont payées : +${Math.round(f1 - f0)} €`);
+  await fermerFeuille();
+
+  console.log('── le journal des retours ──');
+  const jr = await page.evaluate(() => window.__fournil.st.journalRetours || []);
+  const raisons = jr.map((e) => e.r).join(',');
+  check(jr.length >= 6 && jr.length <= 10, `${jr.length} retours notés (10 au plus) : ${raisons}`);
+  check(['reveil', 'gel', 'saut'].every((r) => raisons.includes(r)), 'le réveil, le gel et le saut y sont');
+  const dernierJ = jr[jr.length - 1];
+  check(dernierJ && dernierJ.r === 'saut' && dernierJ.n === 'feuille' && dernierJ.s > 7000 && dernierJ.g > 0, `le dernier : ${JSON.stringify(dernierJ)}`);
+  check(jr.some((e) => e.n === 'court'), 'la veille de 30 s y est, « moins de 90 s »');
+  await page.evaluate(() => window.__fournil.page('reglages')); await sleep(600);
+  check(await page.evaluate(() => !!document.querySelector('[data-a="journal-retours"]')), 'Réglages › « Journal des retours »');
+  await page.evaluate(() => document.querySelector('[data-a="journal-retours"]').click()); await sleep(600);
+  const txtJ = (await feuille()).replace(/\s+/g, ' ');
+  check(/Journal des retours/.test(txtJ) && /Le jeu reprend après une pause/.test(txtJ) && /moins de 90 s/.test(txtJ), `la feuille du journal (${txtJ.slice(0, 120)})`);
+  await page.screenshot({ path: path.join(process.env.CAPTURES_REVEIL || require('os').tmpdir(), 'journal-retours.png') });
+  await fermerFeuille();
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
 
   await browser.close(); server.close();

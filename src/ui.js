@@ -511,6 +511,7 @@ const UI = (() => {
         ${groupe('Sauvegarde et partage', ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)
           + ligne('partager', ICONS.UI.partager, 'Partager ma boutique', 'Une image de la boutique et ton score', chev)
           + (window.FOURNIL_ACCUEIL ? ligne('accueil', ICONS.UI.salle, 'Salle de jeux', 'Revenir à l’écran d’accueil et aux autres jeux', chev) : ''))}
+        ${groupe('Aide', ligne('journal-retours', ICONS.UI.journal, 'Journal des retours', 'Les 10 derniers retours dans le jeu et ce que tes apprentis ont vendu', chev))}
         <div class="card reglages danger">${ligne('reset', ICONS.UI.recommencer, 'Recommencer de zéro', 'Efface tout, étoiles comprises', chev)}</div>
         <p class="note centre">Le Fournil · boutique n°${st.boutiques} · ${esc(q.nom)}<br>Ta boutique est enregistrée toutes les 5 secondes et à chaque achat.</p>
       </div>`;
@@ -528,6 +529,7 @@ const UI = (() => {
       onIn(sec, '[data-a="hantee"]', () => { if (!HTE) return; HTE.masquer(!(st[HTE.cle] && st[HTE.cle].masque)); son.tap(); majCoin(); majChat(); renderPage(true); });
       onIn(sec, '[data-a="chat-noir"]', () => { choisirPelage(chatNoir() ? 'roux' : 'noir'); son.tap(); renderPage(true); });
       onIn(sec, '[data-a="partager"]', partager);
+      onIn(sec, '[data-a="journal-retours"]', () => { son.tap(); sheetJournalRetours(); });
       onIn(sec, '[data-a="cl-quitter"]', () => { son.tap(); sheetQuitter(); });
       onIn(sec, '[data-a="accueil"]', () => { save(); location.href = window.FOURNIL_ACCUEIL + '?app=accueil'; }); // ?app=accueil : l'accueil ne renvoie pas vers le jeu
       onIn(sec, '[data-a="reset"]', () => {
@@ -788,6 +790,18 @@ const UI = (() => {
       on('[data-a="non"]', sheetEtoiles);
       on('[data-a="oui"]', () => { const r = G.nouvelleBoutique(st, HORLOGE.maintenant()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); confettis(1.6); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★`); st.tuto = Math.max(st.tuto, INDICES.length); amenager(false); renderCards(true); hud(); save(); showPage('boutique'); sheetNom(true); } });
     });
+  }
+  // Réglages › Journal des retours : quand le jeu a compté une absence, pourquoi, et si la feuille s'est ouverte (sinon, pourquoi pas)
+  const RAISON_RETOUR = { lancement: 'Ouverture du jeu', visible: 'Retour dans le jeu', cache: 'Retour dans le jeu', reveil: 'Réveil du téléphone', gel: 'Le jeu reprend après une pause', saut: 'L’heure a sauté', heure: 'L’heure sûre est arrivée' };
+  const NOTE_RETOUR = { feuille: 'feuille « Pendant ton absence » ouverte', court: 'pas de feuille : moins de 90 s', apprentis: 'pas de feuille : aucun apprenti', rien: 'pas de feuille : rien de vendu' };
+  function sheetJournalRetours() {
+    const j = (Array.isArray(st.journalRetours) ? st.journalRetours : []).slice().reverse();
+    const quand = (t) => { try { return new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
+    const lignes = j.map((e) => `<li><span><b>${esc(quand(e.t))} · ${esc(RAISON_RETOUR[e.r] || e.r)}</b><small>parti ${esc(G.fmtDuree(e.o || 0))}${e.o > e.s + 60 ? ` (payé ${esc(G.fmtDuree(e.s))})` : ''} · ${esc(NOTE_RETOUR[e.n] || e.n)}${e.h === 0 ? ' · sans heure sûre' : ''}</small></span><b>+${G.fmtEur(e.g || 0)}</b></li>`).join('');
+    openSheet(`<h2>Journal des retours</h2><p class="sous">Chaque fois que le jeu compte ton absence : l’heure, ce qui l’a lancé, le temps payé et la feuille « Pendant ton absence ».</p>
+      ${lignes ? `<ul class="detail journal-retours">${lignes}</ul>` : '<p class="sous">Rien encore : le prochain retour s’inscrira ici.</p>'}
+      <button type="button" class="btn large menthe" data-a="close"><b>Fermer</b></button>`);
+    on('[data-a="close"]', closeSheet);
   }
   function sheetRetour(abs) {
     const detail = abs.detail.slice().sort((a, b) => b.m - a.m).map((d) => `<li><span>${esc(d.nom || G.PRODUITS[d.i].nom)} × ${G.fmt(d.n)}</span><b>${G.fmtEur(d.m)}</b></li>`).join('');
@@ -1082,6 +1096,9 @@ const UI = (() => {
     verifierReveil(); // chaque image : la page vient-elle de dormir ?
     if (retourEnCours) { lastFrame = now; requestAnimationFrame(frame); return; } // l'absence n'est pas encore comptée : rien ne bouge
     const dt = Math.min(0.25, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
+    // le filet : le temps du jeu a sauté sans retour (une page gelée qu'aucun détecteur n'a vue) ; on ne tique pas par-dessus (le saut
+    // serait perdu, puis lastSeen recollé à maintenant) : l'absence est comptée par le retour, depuis le dernier lastSeen sauvé
+    if (absencePrete && HORLOGE.maintenant() - st.now > 5000 + dt * 1000 && reprendre('saut')) { requestAnimationFrame(frame); return; }
     const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert); // pendant l'Atelier ou la Planque : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran de jeu
     if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); }
     const out = G.tick(st, dt, HORLOGE.maintenant(), atelier ? () => 0.999 : undefined);
@@ -1126,7 +1143,7 @@ const UI = (() => {
     reveilW = Date.now(); reveilP = performance.now(); // le détecteur repart d'ici : pas de second retour pour le même sommeil
     if (!st || !absencePrete || fige || retourEnCours) return false; retourEnCours = true; dernierRetour = raison;
     // en ligne, seule une heure sûre fraîche fait avancer le jeu (HORLOGE.retour) : si elle manque, on la redemande toutes les 5 s
-    HORLOGE.retour().catch(() => null).then((info) => { if (!(info && info.frais) && navigator.onLine !== false) relancerHeure(); retourEnCours = false; reveilW = Date.now(); reveilP = performance.now(); const abs = G.absence(st, HORLOGE.maintenant()); absencePayee = abs.secs * 1000; if (EVS && EVS.ouvert) EVS.ouvert.retour(); if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); } lastFrame = performance.now(); save(); });
+    HORLOGE.retour().catch(() => null).then((info) => { if (!(info && info.frais) && navigator.onLine !== false) relancerHeure(); retourEnCours = false; reveilW = Date.now(); reveilP = performance.now(); const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t); absencePayee = abs.secs * 1000; if (EVS && EVS.ouvert) EVS.ouvert.retour(); const montre = abs.total > 0 && abs.secs > 90; if (montre) { sheetRetour(abs); renderCards(true); } noterRetour(raison, abs, sortie, montre, !!(info && info.frais)); lastFrame = performance.now(); save(); });
     return true;
   }
   // l'heure sûre n'est pas venue au réveil (réseau pas encore revenu) : nouvel essai toutes les 5 s pendant une minute ; quand elle arrive,
@@ -1135,9 +1152,21 @@ const UI = (() => {
   function relancerHeure() { relances = 12; clearTimeout(tRelance); const essai = () => { if (relances-- <= 0) return; HORLOGE.synchroniser().then((ok) => { if (!ok) tRelance = setTimeout(essai, 5000); else relances = 0; }); }; tRelance = setTimeout(essai, 5000); }
   // la page a dormi : l'heure du téléphone a avancé de plus de 5 s de plus que performance.now(). Le détecteur ne fait que lancer le retour :
   // c'est l'heure sûre (HORLOGE.retour) qui fixe le temps payé, donc avancer l'heure du téléphone ne rapporte rien de plus qu'avant.
+  // La page a été gelée : le détecteur passe chaque seconde et à chaque image, donc plus de 5 s de performance.now() entre deux passages,
+  // page visible, veulent dire que le JavaScript ne tournait plus (iPhone : une app installée laissée en arrière-plan sans verrouiller,
+  // l'appareil éveillé ; performance.now() avance alors avec l'heure, et visibilitychange ne vient pas toujours au retour).
   function verifierReveil() {
-    const w = Date.now(), p = performance.now(), ecart = (w - reveilW) - (p - reveilP); reveilW = w; reveilP = p;
-    if (ecart > 5000 && !(document.visibilityState === 'hidden')) reprendre('reveil');
+    const w = Date.now(), p = performance.now(), ecart = (w - reveilW) - (p - reveilP), gel = p - reveilP; reveilW = w; reveilP = p;
+    if (document.visibilityState === 'hidden') return;
+    if (ecart > 5000) reprendre('reveil'); else if (gel > 5000) reprendre('gel');
+  }
+  // le journal des retours (Réglages › Journal des retours) : les 10 derniers, pour comprendre une feuille « Pendant ton absence » qui manque
+  function noterRetour(raison, abs, sortie, montre, frais) {
+    if (!st) return;
+    const j = Array.isArray(st.journalRetours) ? st.journalRetours : (st.journalRetours = []);
+    const note = montre ? 'feuille' : abs.secs <= 90 ? 'court' : !st.stations.some((s) => s.niv > 0 && s.staff) ? 'apprentis' : 'rien';
+    j.push({ t: st.now, r: raison, o: Math.max(0, Math.round(sortie / 1000)), s: Math.round(abs.secs), g: abs.total, n: note, h: frais == null ? null : frais ? 1 : 0 });
+    while (j.length > 10) j.shift();
   }
   // une heure sûre arrivée en cours de partie (le réseau revient après des jours hors ligne, une lecture arrivée après les 2,5 s d'attente,
   // un téléphone endormi page ouverte) a fait sauter le jeu vers l'avant : ce vrai temps passé est payé comme une absence, une seule
@@ -1150,7 +1179,9 @@ const UI = (() => {
     st.lastSeen = now - paye;
     const abs = G.absence(st, now);
     absencePayee += abs.secs * 1000;
-    if (abs.total > 0 && abs.secs > 90) { sheetRetour(abs); renderCards(true); }
+    const montre = abs.total > 0 && abs.secs > 90;
+    if (montre) { sheetRetour(abs); renderCards(true); }
+    noterRetour('heure', abs, paye, montre, true);
     save();
   }
 
@@ -1229,7 +1260,7 @@ const UI = (() => {
     window.addEventListener('blur', save);
     window.addEventListener('resize', layout);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeSheet(); });
-    if (!fresh) { const abs = G.absence(st, HORLOGE.maintenant()); absencePayee = abs.secs * 1000; if (abs.total > 0 && abs.secs > 90) sheetRetour(abs); }
+    if (!fresh) { const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t); absencePayee = abs.secs * 1000; const montre = abs.total > 0 && abs.secs > 90; if (montre) sheetRetour(abs); noterRetour('lancement', abs, sortie, montre, HORLOGE.info().source !== 'telephone'); }
     absencePrete = true;
     HORLOGE.surSaut(payerSaut);
     if (EVS) { setTimeout(() => { if ($('#feuille').hidden) EVS.annoncer(true); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVS.annoncer(true); } }, 1500); } }, 800); } // l'annonce d'un événement (ou son bilan) attend que la feuille du retour soit refermée ; le bilan du Quartier passe avant l'annonce de la Maison hantée
@@ -1249,7 +1280,7 @@ const UI = (() => {
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, get retour() { return { enCours: retourEnCours, dernier: dernierRetour }; }, G, SCENE, save, son, confettis, audio, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
+    window.__fournil = { get st() { return st; }, get retour() { return { enCours: retourEnCours, dernier: dernierRetour }; }, journalRetours: sheetJournalRetours, G, SCENE, save, son, confettis, audio, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden, hantee: !$('#b-hantee').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
       quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT,
