@@ -1094,6 +1094,9 @@ function trajectoirePoints(profil, jours, t0, cadence) {
         const cles = [...m[2].matchAll(/(p_\w+)\s*:/g)].map((x) => x[1]);
         appels.set(m[1] + '(' + cles.join(',') + ')', { nom: m[1], cles });
       }
+      // les appels dont les paramètres sont construits ailleurs (rpc('fournil_publier', c, o), Object.assign(moi(), …)) : le nom seul ;
+      // leurs paramètres sont éprouvés plus bas, par le vrai moteur branché sur ce Postgres
+      for (const m of src.matchAll(/(?:rpc|appeler)\((?:config(?:\(\))?, )?'(fournil_\w+)', (?!\{)/g)) if (![...appels.values()].some((a) => a.nom === m[1])) appels.set(m[1] + '(…)', { nom: m[1], cles: null });
     }
     const procs = await sup(`select p.proname as nom, coalesce(p.proargnames, '{}') as noms, p.pronargs as n, p.pronargdefaults as defauts,
                                     array(select format_type(t, null) from unnest(p.proargtypes) t) as types
@@ -1105,7 +1108,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     //  de la fonction d'envoi)
     check(JEU5.every((n) => noms.includes(n)) && noms.every((n) => parNom.has(n)) && JSON.stringify(procs.map((p) => p.nom).sort()) === JSON.stringify(JEU.slice().sort()) && !noms.some((n) => SERVICE.includes(n)),
       `le téléphone n’appelle que des fonctions ouvertes à anon (${noms.join(', ')}) ; anon peut appeler exactement les fonctions du jeu (${JEU.length})`);
-    const malAppeles = [...appels.values()].filter((a) => { const p = parNom.get(a.nom); if (!p) return true; const obligatoires = p.noms.slice(0, p.n - p.defauts); return a.cles.some((k) => !p.noms.includes(k)) || obligatoires.some((k) => !a.cles.includes(k)); });
+    const malAppeles = [...appels.values()].filter((a) => { const p = parNom.get(a.nom); if (!p) return true; if (!a.cles) return false; const obligatoires = p.noms.slice(0, p.n - p.defauts); return a.cles.some((k) => !p.noms.includes(k)) || obligatoires.some((k) => !a.cles.includes(k)); });
     check(appels.size >= 5 && malAppeles.length === 0, `chaque appel du téléphone donne exactement les paramètres de la fonction SQL (${[...appels.keys()].join(' ; ')})${malAppeles.length ? ' — en défaut : ' + malAppeles.map((a) => a.nom).join(', ') : ''}`);
 
     // un PostgREST minimal : POST /rest/v1/rpc/<fonction>, paramètres nommés et typés, joué en tant qu'anon
