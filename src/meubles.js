@@ -78,7 +78,9 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     pr.push(P(bo(2, fh, 3, 0.6), cadreCol, { x: fcx, y: fy0, z: 0.5 }), P(bo(f.w, 2, 3, 0.6), cadreCol, { x: fcx, y: fcy - 1, z: 0.5 })); // les croisillons
     pr.push(P(bo(f.w + 12, 3, 8, 1), Q.bois, { x: fcx, y: fy0 - 5, z: 3 })); // l'appui
     pr.push(P(bo(4, py1 + 2, 5, 1), cadreCol, { x: p.x - 1, z: 2.5 }), P(bo(4, py1 + 2, 5, 1), cadreCol, { x: p.x + p.w + 1, z: 2.5 }), P(bo(p.w + 6, 4, 5, 1), cadreCol, { x: p.x + p.w / 2, y: py1 - 1, z: 2.5 }));
+    const dv = LAY.devanture; if (dv) pr.push(...devanture(c, dv, cadreCol));
     g.add(M.maille(pr, { recoit: true }));
+    if (dv) g.add(trottoir(c, dv.y));
     g.add(M.mesh(M.plan(f.w, fh), M.MAT.verre, { x: fcx, y: fcy, z: -3 }, { ombre: false })); // la vitre
     g.add(porte(c, p, py1));
     // le plan extérieur (la scène y pose la vue du quartier) et les deux taches de lumière au sol
@@ -87,6 +89,33 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     const m1 = M.mesh(M.plan(f.w - 12, t1), M.MAT.tache, { x: fcx, y: 0.4, z: t1 / 2, rx: -Math.PI / 2 }, { ombre: false }), m2 = M.mesh(M.plan(p.w - 8, t2), M.MAT.tache, { x: p.x + p.w / 2, y: 0.4, z: t2 / 2, rx: -Math.PI / 2 }, { ombre: false });
     g.add(m1, m2); g.userData.taches = [m1, m2];
     return g;
+  }
+  // ─── la devanture, en bas de la salle : une allège de bois basse (on voit par-dessus), coupée par la porte au bout de l'allée,
+  //     deux montants et le seuil ; ses pièces entrent dans le maillage de la salle (pas d'appel de dessin en plus) ───
+  function devanture(c, dv, cadreCol) {
+    const { W, Q, K } = c, z = c.wz(dv.y) + 2, hA = 9, ep = 5, pr = [], x0 = dv.porte.x0, x1 = dv.porte.x1;
+    for (const [a, b] of [[-2, x0], [x1, W + 2]]) {
+      pr.push(P(bo(b - a, hA, ep, 1.2), Q.bois, { x: (a + b) / 2, z }), P(bo(b - a, 2, ep + 3, 0.8), Q.comptoir2, { x: (a + b) / 2, y: hA, z }));
+      for (let x = a + 26 * K; x < b - 12 * K; x += 52 * K) pr.push(P(bo(3, 15, 3, 0.8), cadreCol, { x, y: hA, z: z - 0.5 })); // les petits montants des vitres basses
+    }
+    for (const x of [x0, x1]) pr.push(P(bo(5, 32, 7, 1.2), cadreCol, { x, z })); // le chambranle de la porte
+    pr.push(P(bo(x1 - x0 - 4, 0.8, 9, 0.3), M.eclaircir(Q.bois, 0.3), { x: (x0 + x1) / 2, z })); // le seuil
+    return pr;
+  }
+  // le trottoir et la rue : un plan peint (les pavés, la bordure, la chaussée) de la devanture au bas de l'écran ; un par salle (libéré avec elle)
+  function trottoir(c, y0) {
+    const { W, H, Q, LAY } = c, z0 = c.wz(y0) + 2, D = c.wd(H + 40 - y0), tr = LAY.trottoir, kb = (tr.bord - y0) / (H + 40 - y0); // kb : la part du trottoir, le reste est la chaussée
+    const pav = { village: ['#E3D3BE', '#D6C3AA'], paris: ['#C9CED6', '#B7BDC7'], mer: ['#F1E8D6', '#E4D8C0'], montagne: ['#C9BCA9', '#B8AA95'], ville: ['#8F8C99', '#7F7C89'] }[Q.id] || ['#E3D3BE', '#D6C3AA'];
+    const route = Q.id === 'ville' ? '#3B3944' : Q.id === 'montagne' ? '#7A7E86' : '#6E6C78';
+    const tx = M.texture((x, w, h) => {
+      const hb = h * kb; x.fillStyle = pav[1]; x.fillRect(0, 0, w, hb);
+      const pw = 18, ph = 10; for (let r = 0; r * ph < hb; r++) for (let k = -1; k * pw < w; k++) { x.fillStyle = (r * 7 + k * 3) % 5 ? pav[0] : M.eclaircir(pav[0], 0.18); x.beginPath(); x.roundRect(k * pw + (r % 2) * pw / 2 + 1, r * ph + 1, pw - 2, ph - 2, 2.5); x.fill(); }
+      x.fillStyle = '#F4F1EA'; x.fillRect(0, hb - 3, w, 6); x.fillStyle = 'rgba(0,0,0,.12)'; x.fillRect(0, hb + 3, w, 2); // la bordure
+      x.fillStyle = route; x.fillRect(0, hb + 5, w, h - hb - 5);
+      x.fillStyle = 'rgba(255,255,255,.75)'; for (let k = 0; k < w; k += 46) x.fillRect(k + 8, hb + 5 + (h - hb - 5) * 0.55, 26, 3); // les pointillés de la chaussée
+    }, 256, Math.max(64, Math.min(512, Math.round(256 * D / W))));
+    const m = M.mesh(M.plan(W + 4, D), propre({ map: tx }), { x: W / 2, y: 0.3, z: z0 + D / 2, rx: -Math.PI / 2 }, { ombre: false, recoit: true });
+    m.userData.nom = 'trottoir'; return m;
   }
   // la petite porte de l'arrière-boutique : un vantail de bois cintré dans son chambranle, deux pentures, le bouton laiton, une plaque
   // et un filet de lumière chaude qui passe dessous (on y joue aux cartes…). Ses pièces se fusionnent avec la plinthe et les cadres de la
@@ -227,37 +256,135 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     g.userData.anime = (E) => { ecran.material.color.copy(E.caisseFlash > 0.3 ? C_FLASH : C_BLANC); };
     return g;
   }
-  // ─── les tables rondes du salon de thé, deux chaises chacune, un couvert caché que la scène montre quand on s'assoit ───
+  // ─── la salle (lot A des meubles) : les tables, le bar, le coin salon, la terrasse ; chaque meuble est UN maillage fusionné ───
+  // En qualité haute et moyenne (c.hd : le lot HD « boutique » est là), les pièces viennent des meubles KayKit cuits (fournil/hd/meubles2/,
+  // HDM.part : couleurs de sommets, pas de texture) ; sinon (éco, artefact, HD coupée), les pièces faites main (et celles de Kenney quand
+  // elles sont chargées). Les couverts ne sont pas ici : un seul maillage instancié pour toutes les places (SCENE, MEUBLES.couverts).
+  const hdp = (c, nom, o, col) => (c.hd && typeof HDM !== 'undefined' && HDM.part ? HDM.part('meubles2/' + nom, o, col) : null); // une pièce KayKit, ou null
+  const HAUT = { table: 29, bar: 25, banquette: 11, terrasse: 29 }; // la hauteur des plateaux où l'on pose les couverts, par coin
+  function pointilles(pr, r, c) { // l'emplacement d'un meuble pas encore acheté : un rectangle de tirets au sol (r : rectangle du plan, en pixels)
+    const z0 = c.wz(r.y), z1 = c.wz(r.y + r.h), n = Math.max(2, Math.round(r.w / 14)), m = Math.max(2, Math.round((z1 - z0) / 14));
+    for (let i = 0; i < n; i++) for (const z of [z0, z1]) pr.push(P(M.boiteSimple(r2(r.w / n * 0.55), 0.4, 1.4), '#FFFFFF', { x: r.x + (i + 0.5) * r.w / n, y: 0.3, z }));
+    for (let i = 0; i < m; i++) for (const x of [r.x, r.x + r.w]) pr.push(P(M.boiteSimple(1.4, 0.4, r2((z1 - z0) / m * 0.55)), '#FFFFFF', { x, y: 0.3, z: z0 + (i + 0.5) * (z1 - z0) / m }));
+  }
+  function maillePointillee(pr, g) { const m = M.maille(pr, { ombre: false }); m.material = M.MAT.pointille; g.add(m); return g; }
+  function tableRonde(pr, x, z, R, Ht, Q, c, nappe) { // une table ronde : KayKit, Kenney ou faite main ; son plateau aux couleurs du quartier
+    const k = hdp(c, 'table_round_A_small', { w: 2 * R, d: 2 * R, h: Ht - 1, x, z, teinte: Q.comptoir }); if (k) { pr.push(k); if (nappe) pr.push(P(M.cylindre(R * 0.8, R * 0.8, 0.8, 20), Q.accent, { x, y: Ht - 1, z })); return; }
+    if (KN()) { pr.push(kp('tableRound', { w: 2 * R, d: 2 * R, h: Ht, x, z }, { wood: Q.comptoir }), P(M.cylindre(R - 1.2, R - 1.2, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht - 0.4, z })); return; }
+    pr.push(P(M.cylindre(6.5 * c.K, 7.5 * c.K, 2, 14), Q.bois, { x, z }), P(M.cylindre(2.4, 2.4, Ht - 5, 8), Q.bois, { x, y: 2, z }));
+    pr.push(P(M.cylindre(R, R - 1.5, 3, 22), Q.comptoir, { x, y: Ht - 3, z }), P(M.cylindre(R - 0.3, R - 0.3, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht, z }));
+  }
+  // ─── les tables du salon de thé : deux rangées de trois sous la file, deux chaises chacune ───
   function tables(k, c) {
-    const { LAY, K, Q } = c, g = grp('tables'), couverts = []; g.userData.zone = 'tables'; g.userData.couverts = couverts;
+    const { LAY, K, Q } = c, g = grp('tables'); g.userData.zone = 'tables';
     if (k === 0) { const tb = LAY.tables[0]; g.add(M.mesh(M.anneau(14 * K, 16 * K, 32), M.MAT.pointille, { x: tb.x, y: 0.4, z: c.wz(tb.y - 8 * K) }, { ombre: false })); return g; }
-    const R = 16 * K, Ht = 28, pr = [], nappe = k >= 4, bougies = [];
-    const kn = KN();
-    for (let i = 0; i < k; i++) {
+    const R = 16 * K, Ht = HAUT.table - 1, pr = [], fl = [], nappe = k >= 4;
+    for (let i = 0; i < Math.min(k, LAY.tables.length); i++) {
       const tb = LAY.tables[i], x = tb.x, z = c.wz(tb.y);
-      if (kn) pr.push(kp('tableRound', { w: 2 * R, d: 2 * R, h: Ht, x, z }, { wood: Q.comptoir }), P(M.cylindre(R - 1.2, R - 1.2, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht - 0.4, z })); // la table ronde du Furniture Kit, son plateau aux couleurs du quartier
-      else {
-        pr.push(P(M.cylindre(6.5 * K, 7.5 * K, 2, 14), Q.bois, { x, z }), P(M.cylindre(2.4, 2.4, Ht - 5, 8), Q.bois, { x, y: 2, z }));
-        pr.push(P(M.cylindre(R, R - 1.5, 3, 22), Q.comptoir, { x, y: Ht - 3, z }), P(M.cylindre(R - 0.3, R - 0.3, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht, z }));
-      }
+      tableRonde(pr, x, z, R, Ht, Q, c, nappe);
       if (nappe) pr.push(P(M.cylindre(R * 0.62, R * 0.62, 0.6, 18), '#FFFFFF', { x, y: Ht + 1, z }));
-      for (const s of tb.sieges) chaise(pr, s.x, c.wz(s.y), s.dir, K, Q, k >= 3);
+      for (const s of tb.sieges) chaise(pr, s.x, c.wz(s.y), s.dir, K, Q, k >= 3, c);
       if (k >= 4 || c.crans.deco >= 3) pr.push(P(bo(4, 6, 4, 1.5), '#9BD0FF', { x, y: Ht + 1, z }), P(M.sphere(2.6, 8), ['#FF6B8B', '#FFC84A', '#B8A6FF'][i % 3], { x, y: Ht + 9, z }));
-      if (c.crans.deco >= 4) { pr.push(P(M.cylindre(1.6, 1.8, 6, 8), '#FFFDF5', { x: x + 7 * K, y: Ht + 1, z: z - 2 })); const fl = M.mesh(M.sphere(1.5, 8), lumineux('#FFC84A', 0.3), { x: x + 7 * K, y: Ht + 8.5, z: z - 2, sy: 1.5 }, { ombre: false }); g.add(fl); bougies.push(fl); } // les bougies du salon
-      const cv = M.maille(kn ? [P(M.cylindre(5 * K, 5 * K, 0.8, 14), '#FFFFFF', { x: -5 * K }), kp('croissant', { w: 7.5 * K, x: -5 * K, y: 0.8, ry: 0.4 }), kp('cup-saucer', { w: 7 * K, x: 4.5 * K, z: -3 }), kp('cup-coffee', { w: 4.6 * K, x: 4.5 * K, y: 0.7, z: -3, ry: -0.6 })] // le couvert : croissant, tasse et soucoupe du Food Kit
-        : [P(M.cylindre(5 * K, 5 * K, 0.8, 14), '#FFFFFF', { x: -5 * K }), P(M.sphere(1.8 * K, 8), '#E8B46A', { x: -5 * K, y: 1.8 }), P(M.cylindre(2.4 * K, 2 * K, 4.5, 10), '#FFFFFF', { x: 4 * K, z: -3 }), P(M.tore(2.2, 0.6, TAU, 6, 10), '#FFFFFF', { x: 6.6 * K, y: 2.6, z: -3 })]);
-      cv.position.set(x, Ht + 1, z); cv.visible = false; couverts.push(cv); g.add(cv);
+      if (c.crans.deco >= 4) { pr.push(P(M.cylindre(1.6, 1.8, 6, 8), '#FFFDF5', { x: x + 7 * K, y: Ht + 1, z: z - 2 })); fl.push(P(M.sphere(1.5, 8), '#FFC84A', { x: x + 7 * K, y: Ht + 8.5, z: z - 2, sy: 1.5 })); } // les bougies du salon
     }
     g.add(M.maille(pr, { recoit: true }));
-    if (bougies.length) g.userData.anime = (E) => { for (let i = 0; i < bougies.length; i++) bougies[i].material.emissiveIntensity = 0.3 + E.lampes * (0.8 + 0.2 * Math.sin(E.t * 9 + i * 2.1)); };
+    if (fl.length) { const flammes = M.maille(fl, { ombre: false }); flammes.material = propre({ vertexColors: true, emissive: '#FFC84A', emissiveIntensity: 0.3 }); g.add(flammes); g.userData.anime = (E) => { flammes.material.emissiveIntensity = 0.3 + E.lampes * (0.8 + 0.2 * Math.sin(E.t * 9)); }; } // toutes les flammes : un seul maillage
     return g;
   }
-  function chaise(pr, x, z, dir, K, Q, coussin) { // assise à 16, dossier côté extérieur (dir = +1 : la chaise regarde vers +X), quatre pieds
-    const a = 13 * K;
-    if (KN()) { pr.push(kp(coussin ? 'chairCushion' : 'chairRounded', { w: a, d: a, h: 32, x, z, ry: dir > 0 ? Math.PI / 2 : -Math.PI / 2 }, { wood: Q.bois, carpet: Q.accent })); return; } // la chaise du Furniture Kit (coussin au salon de thé)
+  function chaise(pr, x, z, dir, K, Q, coussin, c) { // assise à 16, dossier côté extérieur (dir = +1 : la chaise regarde vers +X), quatre pieds
+    const a = 13 * K, ry = dir > 0 ? HP : -HP;
+    const kk = c && hdp(c, 'chair_A_wood', { w: 15 * K, d: 16 * K, h: 32, x, z, ry }); if (kk) { pr.push(kk); if (coussin) pr.push(P(bo(11 * K, 1.6, 11 * K, 0.8), Q.accent, { x, y: 16, z })); return; } // la chaise de bois KayKit (coussin au salon de thé)
+    if (KN()) { pr.push(kp(coussin ? 'chairCushion' : 'chairRounded', { w: a, d: a, h: 32, x, z, ry }, { wood: Q.bois, carpet: Q.accent })); return; } // la chaise du Furniture Kit (coussin au salon de thé)
     pr.push(P(bo(a, 3, a, 1.2), Q.comptoir2, { x, y: 13, z }));
     for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(bo(1.8, 13, 1.8, 0.5), Q.bois, { x: x + sx * (a / 2 - 1.2), z: z + sz * (a / 2 - 1.2) }));
     pr.push(P(bo(3, 16, a, 1.2), Q.bois, { x: x - dir * (a / 2 - 1.5), y: 16, z }));
+  }
+  // ─── le bar : un comptoir de bois contre la devanture (le même bois que le grand comptoir), ses tabourets face à la rue ───
+  // crans : 1 → le comptoir et deux tabourets ; 2 → trois tabourets et l'ardoise des cafés ; 3 → quatre tabourets et la machine à café
+  function bar(k, c) {
+    const { LAY, K, Q } = c, b = LAY.bar, g = grp('bar'); g.userData.zone = 'bar'; const pr = [];
+    if (k === 0) { pointilles(pr, LAY.emplacements.bar, c); return maillePointillee(pr, g); }
+    const n = Math.min(4, k + 1), Hb = HAUT.bar - 1, w = b.x1 - b.x0, xc = (b.x0 + b.x1) / 2, zc = c.wz(b.y - 2 * K), d = 15 * K;
+    // le comptoir : le corps, le dessus clair qui déborde côté clients, la barre de pieds dorée (côté tabourets)
+    pr.push(P(bo(w, Hb - 3, d - 4, 2), Q.comptoir, { x: xc, z: zc + 1 }), P(bo(w + 4, 3, d + 2, 1.2), Q.comptoir2, { x: xc, y: Hb - 3, z: zc - 0.5 }));
+    for (let i = 1; i < 4; i++) pr.push(P(bo(1, Hb - 8, 0.6, 0.3), M.assombrir(Q.comptoir, 0.15), { x: b.x0 + i * w / 4, y: 3, z: zc + d / 2 - 1.6 })); // les panneaux de la face
+    pr.push(P(M.cylindre(0.9, 0.9, w - 6, 8), '#E0B252', { x: xc, y: 5, z: zc - d / 2 - 1.5, rz: HP }));
+    for (const s of LAY.sieges) if (s.zone === 'bar' && s.rang < n) { // les tabourets
+      const x = s.x, z = c.wz(s.y);
+      const kk = hdp(c, 'chair_stool_wood', { w: 13 * K, d: 13 * K, h: 16, x, z }); if (kk) { pr.push(kk); continue; }
+      pr.push(P(M.cylindre(6 * K, 5.5 * K, 3, 14), Q.accent, { x, y: 13, z }), P(M.cylindre(1.3, 1.6, 13, 8), '#8C8C99', { x, z }), P(M.cylindre(4.5 * K, 5 * K, 1.2, 12), '#8C8C99', { x, z }), P(M.tore(3.6 * K, 0.5, TAU, 5, 12), '#8C8C99', { x, y: 6, z, rx: HP }));
+    }
+    if (k >= 2) { const mk = hdp(c, 'menu', { h: 9, x: b.x0 + 8, y: Hb, z: zc }); pr.push(mk || P(bo(7, 9, 1.5, 0.6), '#2F3A36', { x: b.x0 + 8, y: Hb, z: zc, rx: -0.2 })); } // l'ardoise des cafés, posée sur le comptoir
+    if (k >= 3) { const mx = b.x1 - 10; pr.push(P(bo(13, 13, 10, 2), '#B9C6D2', { x: mx, y: Hb, z: zc + 1 }), P(bo(11, 3, 9, 1), '#4A4A55', { x: mx, y: Hb + 13, z: zc + 1 }), P(M.cylindre(1.4, 1.4, 4, 8), '#4A4A55', { x: mx - 2.5, y: Hb + 4, z: zc - 4.5 }), P(M.cylindre(2, 1.6, 3.5, 10), '#FFFFFF', { x: mx - 2.5, y: Hb, z: zc - 5.5 })); } // la machine à café et sa tasse
+    g.add(M.maille(pr, { recoit: true })); return g;
+  }
+  // ─── le coin salon : la banquette face à la salle ; puis la table basse et le tapis ; puis la lampe et le fauteuil ───
+  function banquette(k, c) {
+    const { LAY, K, Q } = c, bq = LAY.banquette, g = grp('banquette'); g.userData.zone = 'banquette'; const pr = [];
+    if (k === 0) { pointilles(pr, LAY.emplacements.banquette, c); return maillePointillee(pr, g); }
+    const zc = c.wz(bq.y) - 3, coussin = M.eclaircir(Q.accent, 0.15);
+    const kb = hdp(c, 'couch_pillows', { w: 54 * K, d: 24 * K, h: 34, x: bq.x, z: zc, teinte: Q.accent });
+    if (kb) pr.push(kb);
+    else { // la banquette faite main : le socle, le dossier, les accoudoirs, deux coussins d'assise et deux coussins de dos
+      const w = 54 * K, d = 24 * K, x = bq.x;
+      pr.push(P(bo(w, 10, d, 2.5), Q.bois, { x, z: zc }), P(bo(w, 22, 6, 2.5), Q.accent, { x, y: 8, z: zc - d / 2 + 3 }));
+      for (const sx of [-1, 1]) pr.push(P(bo(6, 18, d, 2.5), Q.accent, { x: x + sx * (w / 2 - 3), y: 4, z: zc }));
+      for (const sx of [-1, 1]) pr.push(P(bo(w / 2 - 7, 6, d - 7, 2.5), coussin, { x: x + sx * (w / 4 - 1.5), y: 10, z: zc + 2.5 }), P(bo(w / 2 - 10, 12, 4, 2), '#FFF3E2', { x: x + sx * (w / 4 - 1.5), y: 16, z: zc - d / 2 + 7.5, rx: -0.15 }));
+    }
+    if (k >= 2) { // le tapis et la table basse
+      const t = bq.tapis, tt = bq.table, xt = tt.x, zt = c.wz(tt.y);
+      const kr = hdp(c, 'rug_rectangle_stripes_A', { w: t.w, d: c.wd(t.h), h: 0.8, x: t.x, z: c.wz(t.y), teinte: M.eclaircir(Q.accent, 0.35) });
+      pr.push(kr || P(bo(t.w, 0.8, c.wd(t.h), 0.4), M.eclaircir(Q.accent, 0.45), { x: t.x, z: c.wz(t.y) }));
+      if (!kr) pr.push(P(bo(t.w - 8, 0.6, c.wd(t.h) - 8, 0.2), '#FFFFFF', { x: t.x, y: 0.5, z: c.wz(t.y) }), P(bo(t.w - 12, 0.7, c.wd(t.h) - 12, 0.2), M.eclaircir(Q.accent, 0.45), { x: t.x, y: 0.6, z: c.wz(t.y) }));
+      const kt = hdp(c, 'table_low', { w: 28 * K, d: 16 * K, h: HAUT.banquette - 1, x: xt, z: zt });
+      if (kt) pr.push(kt); else { pr.push(P(bo(28 * K, 2.5, 16 * K, 1), Q.comptoir2, { x: xt, y: HAUT.banquette - 3.5, z: zt })); for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(bo(2, HAUT.banquette - 3, 2, 0.5), Q.bois, { x: xt + sx * 12 * K, z: zt + sz * 6 * K })); }
+    }
+    if (k >= 3) { // la lampe sur pied (l'abat-jour s'allume le soir : la lumière du salon) et le fauteuil, tourné vers la table basse
+      const l = bq.lampe, zl = c.wz(l.y), kl = hdp(c, 'lamp_standing', { w: 14 * K, d: 14 * K, h: 58, x: l.x, z: zl });
+      if (kl) pr.push(kl); else pr.push(P(M.cylindre(5, 6, 1.5, 12), '#4A4A55', { x: l.x, z: zl }), P(M.cylindre(0.9, 0.9, 46, 6), '#4A4A55', { x: l.x, z: zl }), P(M.cylindre(5, 8, 11, 12), '#FFF3C4', { x: l.x, y: 45, z: zl }));
+      const f = LAY.sieges.find((s) => s.id === 'fauteuil'), zf = c.wz(f.y), kf = hdp(c, 'armchair_pillows', { w: 26 * K, d: 24 * K, h: 34, x: f.x, z: zf, ry: HP, teinte: Q.accent });
+      if (kf) pr.push(kf);
+      else { const x = f.x, d = 24 * K; pr.push(P(bo(d, 10, 24 * K, 2.5), Q.bois, { x, z: zf }), P(bo(6, 22, 24 * K, 2.5), Q.accent, { x: x - d / 2 + 3, y: 8, z: zf }), P(bo(d - 7, 6, 24 * K - 10, 2.5), coussin, { x: x + 2.5, y: 10, z: zf })); for (const sz of [-1, 1]) pr.push(P(bo(d, 18, 5, 2.5), Q.accent, { x, y: 4, z: zf + sz * (12 * K - 2.5) })); }
+    }
+    g.add(M.maille(pr, { recoit: true })); return g;
+  }
+  // ─── la terrasse, sur le trottoir devant la devanture : une table bistrot de deux places par cran ; deux jardinières dès le cran 2,
+  //     une guirlande de guinguette au cran 3 (ses ampoules s'allument le soir) ───
+  function terrasse(k, c) {
+    const { LAY, K, Q, W } = c, g = grp('terrasse'); g.userData.zone = 'terrasse'; const pr = [];
+    if (k === 0) { const t = LAY.terrasse[0]; pointilles(pr, { x: t.x - 34 * K, y: t.y - 20 * K, w: 68 * K, h: 34 * K }, c); return maillePointillee(pr, g); } // la place de la première table
+    const R = 12 * K, Ht = HAUT.terrasse - 1, metal = '#4A4A55';
+    for (let i = 0; i < Math.min(k, LAY.terrasse.length); i++) {
+      const tb = LAY.terrasse[i], x = tb.x, z = c.wz(tb.y);
+      const kt = hdp(c, 'table_round_A_small', { w: 2 * R, d: 2 * R, h: Ht, x, z, teinte: '#F4EFE6' });
+      if (kt) pr.push(kt); else pr.push(P(M.cylindre(5 * K, 6 * K, 1.5, 12), metal, { x, z }), P(M.cylindre(1.4, 1.4, Ht - 2, 8), metal, { x, z }), P(M.cylindre(R, R, 2, 20), '#F4EFE6', { x, y: Ht - 2, z }), P(M.tore(R, 0.7, TAU, 5, 20), metal, { x, y: Ht - 1, z, rx: HP }));
+      for (const s of tb.sieges) { // les chaises bistrot : KayKit (le modèle du Restaurant), ou métal et cannage
+        const xs = s.x, zs = c.wz(s.y), ry = s.dir > 0 ? HP : -HP, kc = hdp(c, 'chair_A', { w: 15 * K, d: 16 * K, h: 32, x: xs, z: zs, ry, teinte: '#D9B07A' });
+        if (kc) { pr.push(kc); continue; }
+        const a = 12 * K; pr.push(P(M.cylindre(a / 2, a / 2, 2.5, 14), '#E8C99A', { x: xs, y: 13.5, z: zs }));
+        for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(M.cylindre(0.7, 0.7, 14, 5), metal, { x: xs + sx * a * 0.32, z: zs + sz * a * 0.32 }));
+        pr.push(P(M.tore(a * 0.45, 0.8, Math.PI, 5, 12), metal, { x: xs - s.dir * a * 0.3, y: 24, z: zs, ry: -ry + HP, rz: 0 }), P(M.cylindre(0.7, 0.7, 10, 5), metal, { x: xs - s.dir * a * 0.42, y: 15, z: zs - a * 0.36 }), P(M.cylindre(0.7, 0.7, 10, 5), metal, { x: xs - s.dir * a * 0.42, y: 15, z: zs + a * 0.36 }));
+      }
+    }
+    if (k >= 2) for (const x of [W * 0.03, W * 0.97]) { const z = c.wz(LAY.devanture.y + 6 * K); pr.push(P(bo(9 * K, 9, 12 * K, 1.5), Q.bois, { x, z })); for (const [ox, oz, r] of [[-2, -2, 4.5], [2, 1, 5], [0, 3, 4]]) pr.push(P(M.sphere(r, 8), '#5FD3A4', { x: x + ox, y: 11 + r * 0.3, z: z + oz })); pr.push(P(M.sphere(1.6, 6), '#FF6B8B', { x: x - 1, y: 17, z: z + 2 }), P(M.sphere(1.6, 6), '#FFC84A', { x: x + 2.5, y: 15.5, z: z - 1 })); } // les jardinières, aux deux bouts
+    if (k >= 3) { // la guirlande de guinguette : deux mâts aux bouts du trottoir, un fil qui pend, des ampoules (un maillage lumineux)
+      const z = c.wz(LAY.trottoir.bord - 2 * K), x0 = W * 0.02, x1 = W * 0.98, hm = 46, amp = [], fil = pr; // le fil et les mâts entrent dans le maillage de la terrasse
+      for (const x of [x0, x1]) fil.push(P(M.cylindre(1, 1.2, hm, 6), metal, { x, z }));
+      const n = 11; for (let i = 0; i <= n; i++) { const u = i / n, x = x0 + (x1 - x0) * u, y = hm - 9 * Math.sin(Math.PI * u); if (i < n) { const u2 = (i + 1) / n, xb = x0 + (x1 - x0) * u2, yb = hm - 9 * Math.sin(Math.PI * u2), l = Math.hypot(xb - x, yb - y); fil.push(P(M.cylindre(0.35, 0.35, l, 4), L, { x, y, z, rz: -Math.atan2(xb - x, yb - y) })); } if (i > 0 && i < n) amp.push(P(M.sphere(1.8, 6), ['#FFE27A', '#FF9FB2', '#9BD0FF'][i % 3], { x, y: y - 2.5, z })); }
+      const am = M.maille(amp, { ombre: false }); am.material = propre({ vertexColors: true, emissive: '#FFE6A0', emissiveIntensity: 0.1 }); g.add(am);
+      g.userData.anime = (E) => { am.material.emissiveIntensity = 0.1 + 0.9 * E.lampes; };
+    }
+    g.add(M.maille(pr, { recoit: true }));
+    return g;
+  }
+  // ─── les couverts : un croissant sur sa soucoupe et une tasse ; UN maillage instancié pour toutes les places (la scène pose les instances) ───
+  function couverts(n, c) {
+    const K = c.K, pr = KN() ? [P(M.cylindre(5, 5, 0.8, 14), '#FFFFFF', { x: -5 }), kp('croissant', { w: 7.5, x: -5, y: 0.8, ry: 0.4 }), kp('cup-saucer', { w: 7, x: 4.5, z: -3 }), kp('cup-coffee', { w: 4.6, x: 4.5, y: 0.7, z: -3, ry: -0.6 })]
+      : [P(M.cylindre(5, 5, 0.8, 14), '#FFFFFF', { x: -5 }), P(M.sphere(1.8, 8), '#E8B46A', { x: -5, y: 1.8 }), P(M.cylindre(2.4, 2, 4.5, 10), '#FFFFFF', { x: 4, z: -3 }), P(M.tore(2.2, 0.6, TAU, 6, 10), '#FFFFFF', { x: 6.6, y: 2.6, z: -3 })];
+    const geo = M.assembler(pr); geo.scale(K, 1, K);
+    const im = new THREE.InstancedMesh(geo, M.MAT.vertex, Math.max(1, n)); im.castShadow = false; im.receiveShadow = false; im.frustumCulled = false; im.count = Math.max(1, n);
+    const zero = new THREE.Matrix4().makeScale(0, 0, 0); for (let i = 0; i < im.count; i++) im.setMatrixAt(i, zero); im.instanceMatrix.needsUpdate = true;
+    const g = grp('couverts'); g.add(im); g.userData.im = im; return g;
   }
   // ─── la décoration : la plante, le second cadre et les appliques, la guirlande, puis le tapis, la frise et les bougies du salon ───
   function deco(k, c) {
@@ -494,7 +621,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   }
   // le chien du quartier : un bâtard couché au bord du salon, roux et blanc, la queue qui bat (un maillage fusionné + la queue)
   function chien(c) {
-    const { LAY, W, K } = c, x = W * 0.62, y = LAY.T * 0.92 + LAY.spread * 0.6, g = grp('chien', x, 0, c.wz(y)), poil = '#C8864F', clair = '#FFF3E2', pr = [];
+    const { LAY, W, K } = c, x = LAY.chien ? LAY.chien.x : W * 0.62, y = LAY.chien ? LAY.chien.y : LAY.T * 0.92 + LAY.spread * 0.6, g = grp('chien', x, 0, c.wz(y)), poil = '#C8864F', clair = '#FFF3E2', pr = [];
     g.scale.setScalar(K);
     pr.push(P(M.capsule(6, 14, 10), poil, { y: 6, rz: Math.PI / 2 }), P(M.sphere(4.8, 10), clair, { x: -2, y: 5, z: 2.2, sx: 1.4, sy: 0.9 })); // le corps et la bavette
     pr.push(P(M.sphere(6.2, 12), poil, { x: 12, y: 8 }), P(M.capsule(2.6, 4, 8), poil, { x: 16.5, y: 6.5, z: 1, rz: -Math.PI / 2 }), P(M.sphere(1.6, 6), L, { x: 20.5, y: 7, z: 1.2 })); // la tête, le museau, la truffe
@@ -561,7 +688,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   }
   function tout(c) { // la salle et tout le mobilier aux crans de ctx.crans, plus les petits objets ; ctx.demo ajoute des pâtisseries factices
     const k = c.crans, LAY = c.LAY, out = [salle(c), froid(k.froid, c), four(k.four, c)], cp = comptoir(k.vitrine, c); c.dessusY = cp.userData.dessusY;
-    out.push(cp, caisse(k.caisse, c), tables(k.tables, c), deco(k.deco, c), plan(c), presentoir(4, c), ardoise(c), etagere(8, true, c), cadre(LAY.cadre.x, LAY.cadre.y, c), horloge(c), diplome(c), fleurs(c), chat(c), paillasson(k.deco >= 1, c), lampe(c), plante(LAY.plante.x, LAY.plante.y, c));
+    out.push(cp, caisse(k.caisse, c), tables(k.tables, c), bar(k.bar || 0, c), banquette(k.banquette || 0, c), terrasse(k.terrasse || 0, c), deco(k.deco, c), plan(c), presentoir(4, c), ardoise(c), etagere(8, true, c), cadre(LAY.cadre.x, LAY.cadre.y, c), horloge(c), diplome(c), fleurs(c), chat(c), paillasson(k.deco >= 1, c), lampe(c), plante(LAY.plante.x, LAY.plante.y, c));
     if (c.tags.includes('noel')) { out.push(sapin(c, !!(c.coupes && c.coupes.length))); if (k.deco < 3) out.push(guirlande(true, c)); } if (c.tags.includes('fete')) out.push(fanions(c)); if (c.tags.includes('coeurs')) out.push(coeurs(c));
     for (const tg of ['halloween', 'galette', 'paques', 'ete']) if (c.tags.includes(tg)) { out.push(propSaison(tg, c)); break; }
     if (c.demo) out.push(vitrineDemo(k.vitrine, c)[1]);
@@ -569,6 +696,6 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     if (c.coupe) out.push(coupe(c.coupe, c));
     return out;
   }
-  return { textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome };
+  return { textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome };
 })();
 if (typeof module !== 'undefined') module.exports = MEUBLES;

@@ -9,7 +9,8 @@ const VIE = (() => {
   const TAU = Math.PI * 2;
   const clients = [], apprentis = [], textes = [], vapeurs = [], flocons = [], passants = [];
   let confetti = [], hop = 0, blink = 0, nextSpawn = 2, nextPassant = 5, t = 0, rush = false, rang = 0, pts = 0, affl = 0, Q = null, tags = [], force = {}, caisseFlash = 0, idSuivant = 1;
-  const crans = { tables: 0, four: 0, vitrine: 0, caisse: 0, froid: 0, deco: 0 }, abordables = {}, prixDe = {}; let panneI = -1;
+  const crans = { tables: 0, four: 0, vitrine: 0, caisse: 0, froid: 0, deco: 0, bar: 0, banquette: 0, terrasse: 0 }, abordables = {}, prixDe = {}; let panneI = -1;
+  let places = { tables: 0, bar: 0, banquette: 0, terrasse: 0 }, dehors = 0; // les places assises actives (GAME.places) ; dehors : l'envie de terrasse (0 la nuit, 1 les beaux jours)
   const PASTEL = ['#FF9FB2', '#8FE3C2', '#C7B8FF', '#FFD98A', '#9BD0FF', '#FFB48A', '#B5E88A'];
   const PEAUX = ['#FFD7B5', '#F1B990', '#C68B59', '#8D5A3C', '#FFE3C9'];
   const CHEVEUX = ['#4A3328', '#2B2118', '#B8762E', '#E7C27A', '#8C8C8C', '#D9534F'];
@@ -27,15 +28,51 @@ const VIE = (() => {
   // le bloc haut : mur, fournil, comptoir, file — le dessin de référence (390×228) à l'échelle ; le reste de la hauteur, c'est du sol en plus
   function hautBloc(w, h) { const kb = Math.min(1.1, Math.max(0.8, w / 390)); return 228 * kb * (1 + Math.min(GRANDIT, Math.max(0, h - 228 * kb) / 6000)); }
   function resize(width, height, mi) { W = width; H = height; if (mi) miH = mi; calculer(); }
-  // ─── le plan de la boutique : les x en fractions de la largeur, les y en fractions du bloc haut T ; le salon descend dans le sol disponible ───
+  // ─── le plan de la boutique : les x en fractions de la largeur, les y en fractions du bloc haut T, puis la salle qui descend dans le sol ───
+  // La salle (lot A des meubles), de haut en bas sous la file d'attente :
+  //   · deux rangées de trois tables (2 places chacune), à gauche de l'allée ; à droite de l'allée, le coin salon (banquette face à la salle,
+  //     table basse, tapis, lampe, fauteuil) ;
+  //   · le bar contre la devanture, tabourets face à la rue ; la devanture, sa porte au bout de l'allée ;
+  //   · dehors, le trottoir et sa terrasse (trois tables bistrot), puis la chaussée jusqu'au bas de l'écran.
+  // Les écarts ont un minimum (360 × 640 : tout tient au-dessus du tiroir fermé) et grandissent jusqu'à un plafond quand l'écran est haut.
+  // Les places assises sont dans LAY.sieges ({ id, x, y, dir, zone, meuble, rang, voie }) ; voie : le chemin depuis l'allée (sans le siège).
+  // LAY.emplacements : les rectangles nommés des meubles du plan (zones de touche, et la grille du futur « tout déplaçable », lot B).
+  const ECARTS = [['a0', 40, 12], ['gR', 70, 18], ['gBar', 60, 24], ['gDev', 10, 0], ['gTer', 44, 22], ['gBord', 34, 12], ['gBas', 8, 0]]; // [nom, minimum, en plus au plus] (×K)
   function calculer() {
     const T = hautBloc(W, H); K = T / 228;
-    const sp = Math.max(0, Math.min(240 * K, H - T - 60)); // le salon s'étale dans le sol en plus (visible tiroir fermé)
-    const sp1 = Math.max(0, Math.min(sp * 0.35, (miH || H) - 30 - (0.50 * T + 14 * K))); // la première rangée reste au-dessus du tiroir à mi-hauteur
-    const murH = T * 0.33, y1 = T * 0.50 + sp1, y2 = Math.min(T * 0.78 + sp, y1 + 110 * K); // deux rangées, mais pas trop loin l'une de l'autre
-    const anciennes = LAY && LAY.tables;
-    const tables = [[0.80, y1], [0.93, y1], [0.80, y2], [0.93, y2]].map(([u, v]) => ({ x: W * u, y: v, sieges: [{ x: W * u - 19 * K, y: v + 4, dir: 1, occ: null }, { x: W * u + 19 * K, y: v + 4, dir: -1, occ: null }] }));
-    if (anciennes) tables.forEach((tb, k) => tb.sieges.forEach((sg, j) => { const o = anciennes[k].sieges[j]; sg.occ = o.occ; if (o.occ) { o.occ.siege = sg; if (o.occ.etat === 'assis') { o.occ.x = sg.x; o.occ.y = sg.y; } } })); // un recalcul ne vide pas les chaises
+    const sp = Math.max(0, Math.min(240 * K, H - T - 60)); // le sol en plus sous le bloc haut (le présentoir ne vient que s'il y en a assez)
+    const murH = T * 0.33, allee = W * 0.70;
+    // les écarts verticaux de la salle : du bas de la file (Y0) au bas utile (juste au-dessus du tiroir fermé, qui dépasse de 37 px)
+    const Y0 = T * 0.86, dispo = Math.max(0, H - 40 - Y0), mini = ECARTS.reduce((s, e) => s + e[1], 0) * K, plus = ECARTS.reduce((s, e) => s + e[2], 0) * K;
+    const f = Math.min(1, dispo / mini), u = dispo > mini ? Math.min(1, (dispo - mini) / plus) : 0, E = {};
+    for (const [n, a, b] of ECARTS) E[n] = (a * f + b * u) * K;
+    const yA = Y0 + E.a0, yB = yA + E.gR, barY = yB + E.gBar, dev = barY + E.gDev, terY = dev + E.gTer, bord = terY + E.gBord, rue = terY + E.gTer * 0.45; // rue : le passage du trottoir, devant les tables
+    const anciens = LAY && LAY.sieges ? new Map(LAY.sieges.map((s) => [s.id, s])) : null;
+    const sieges = [], tables = [];
+    const S = (id, x, y, dir, zone, meuble, rang, voie, o) => { const s = Object.assign({ id, x, y, dir, zone, meuble, rang, voie, occ: null, actif: false }, o || {}); sieges.push(s); return s; };
+    // les tables : la n° 1 près de l'allée, puis vers la gauche, rangée du haut d'abord ; la voie passe devant la rangée (jamais entre les chaises)
+    [[0.56, yA], [0.34, yA], [0.12, yA], [0.56, yB], [0.34, yB], [0.12, yB]].forEach(([fx, y], i) => {
+      const x = W * fx, ya = y + 20 * K, voie = (sx) => [{ x: allee, y: ya }, { x: sx, y: ya }], tb = { x, y, sieges: [] };
+      tb.sieges.push(S(`table${i + 1}.g`, x - 19 * K, y + 4, 1, 'table', 'tables', i, voie(x - 19 * K), { table: tb }), S(`table${i + 1}.d`, x + 19 * K, y + 4, -1, 'table', 'tables', i, voie(x + 19 * K), { table: tb }));
+      tables.push(tb);
+    });
+    // le bar : le comptoir contre la devanture, quatre tabourets derrière, face à la rue (dir 0 : face à l'écran) ; on l'aborde par derrière
+    const bar = { x0: W * 0.08, x1: W * 0.56, y: barY, h: 12 * K };
+    [0.14, 0.26, 0.38, 0.50].forEach((fx, i) => { const x = W * fx, y = barY - 19 * K, ya = barY - 35 * K; S(`bar${i + 1}`, x, y, 0, 'bar', 'bar', i, [{ x: allee, y: ya }, { x, y: ya }], { table: { x, y: barY } }); });
+    // le coin salon : la banquette (deux places face à la salle), la table basse devant, le fauteuil à sa gauche tourné vers elle
+    const yC = yA, bq = { x: W - 30 * K, y: yC, table: { x: W - 38 * K, y: yC + 24 * K }, lampe: { x: W - 62 * K, y: yC - 16 * K }, tapis: { x: W - 38 * K, y: yC + 12 * K, w: 66 * K, h: 44 * K } };
+    S('banquette.g', W - 43 * K, yC, 0, 'banquette', 'banquette', 0, [{ x: allee, y: yC }], { table: bq.table });
+    S('banquette.d', W - 17 * K, yC, 0, 'banquette', 'banquette', 1, [{ x: allee, y: yC + 42 * K }, { x: W - 14 * K, y: yC + 42 * K }, { x: W - 14 * K, y: yC + 10 * K }], { table: bq.table });
+    S('fauteuil', W - 66 * K, yC + 24 * K, 1, 'banquette', 'banquette', 2, [{ x: allee, y: yC + 24 * K }], { table: bq.table });
+    // la terrasse : trois tables bistrot sur le trottoir ; on sort par la porte de la devanture et on repart par la rue, sur le côté
+    const terrasse = [];
+    [0.40, 0.88, 0.16].forEach((fx, i) => {
+      const x = W * fx, tb = { x, y: terY, sieges: [] }, voie = (sx) => [{ x: allee, y: dev + 4 * K }, { x: allee, y: rue }, { x: sx, y: rue }];
+      tb.sieges.push(S(`terrasse${i + 1}.g`, x - 19 * K, terY + 4, 1, 'terrasse', 'terrasse', 2 * i, voie(x - 19 * K), { table: tb }), S(`terrasse${i + 1}.d`, x + 19 * K, terY + 4, -1, 'terrasse', 'terrasse', 2 * i + 1, voie(x + 19 * K), { table: tb }));
+      terrasse.push(tb);
+    });
+    if (anciens) for (const s of sieges) { const o = anciens.get(s.id); if (o && o.occ) { s.occ = o.occ; s.actif = o.actif; o.occ.siege = s; if (o.occ.etat === 'assis') { o.occ.x = s.x; o.occ.y = s.y; } } } // un recalcul ne vide pas les chaises
+    const R = (x, y, w, h) => ({ x, y, w, h });
     LAY = {
       T, murH, spread: sp, W, H, K,
       fenetre: { x: W * 0.04, y: T * 0.05, w: W * 0.24, h: T * 0.21 },
@@ -45,20 +82,31 @@ const VIE = (() => {
       arriere: { x: W * 0.292, y: T * 0.20, w: W * 0.054, h: murH - T * 0.20 }, // la petite porte de l'arrière-boutique, entre la fenêtre et le tableau (src/arriere.js)
       porte: { x: W * 0.86, y: T * 0.04, w: W * 0.11, h: murH - T * 0.04 },
       entree: { x: W * 0.915, y: murH }, paillasson: { x: W * 0.915, y: murH + 9 },
-      deco: { x: W * 0.80, y: T * 0.36 }, plante: { x: W * 0.06, y: T * 0.60 + sp * 0.3 }, sapin: { x: W * 0.655, y: T * 0.42 },
+      deco: { x: W * 0.80, y: T * 0.36 }, plante: { x: W * 0.045, y: barY - 8 * K }, sapin: { x: W * 0.655, y: T * 0.42 },
       froid: { x: W * 0.005, y: T * 0.12, w: W * 0.085, h: T * 0.34 },
       four: { x: W * 0.11, y: T * 0.30, w: W * 0.18, h: T * 0.24 },
-      plan: { x: W * 0.03, y: T * 0.80 + sp * 0.5, w: W * 0.19, h: T * 0.08 },
-      presentoir: { x: W * 0.14, y: T * 0.80 + sp * 0.95, w: W * 0.16, h: T * 0.07 },
+      plan: { x: W * 0.01, y: T * 0.71, w: W * 0.14, h: T * 0.08 }, // le plan de travail, sous la chambre froide, à gauche des apprentis
+      presentoir: { x: W * 0.79, y: barY - T * 0.07, w: W * 0.17, h: T * 0.07 }, // les baguettes debout, contre la devanture, à droite de la porte
       comptoir: { x: W * 0.31, y: T * 0.50, w: W * 0.32, hTop: T * 0.06, hFace: T * 0.14 },
       caisse: { x: W * 0.61, y: T * 0.50 }, fleurs: { x: W * 0.34, y: T * 0.515 }, chat: { x: W * 0.40, y: T * 0.51 }, saison: { x: W * 0.55, y: T * 0.515 },
       boulanger: { x: W * 0.45, y: T * 0.53 },
       lanes: [0.57, 0.64, 0.71].map((f) => T * f), fourSlots: [0.16, 0.20, 0.24].map((f) => W * f), comptoirSlots: [0.255, 0.27, 0.285].map((f) => W * f),
       file: [0.61, 0.55, 0.49, 0.43].map((f) => ({ x: W * f, y: T * 0.76 })), debord: [{ x: W * 0.70, y: T * 0.66 }, { x: W * 0.70, y: T * 0.58 }],
-      mystere: { x: W * 0.35, y: T * 0.78 }, allee: W * 0.70, alleeHaut: T * 0.40,
-      tables, textes: { x: W * 0.50, y: T * 0.60 }, ardoise: { x: W * 0.28, y: T * 0.97 + sp * 0.5 },
-      tapis: { x: W * 0.80 - 32 * K, y: y1 - 24 * K, w: W - (W * 0.80 - 32 * K) - 4, h: y2 - y1 + 36 * K },
-      utile: y2 + 40 * K,
+      mystere: { x: W * 0.35, y: T * 0.78 }, allee, alleeHaut: T * 0.40,
+      textes: { x: W * 0.50, y: T * 0.60 }, ardoise: { x: W * 0.57, y: dev + 15 * K }, // l'ardoise du jour, dehors, à gauche de la porte
+      chien: { x: W * 0.80, y: barY - 34 * K }, // le chien du quartier, couché entre le coin salon et le présentoir
+      // la salle : les sièges, les tables, le bar, le coin salon, la devanture et le trottoir
+      sieges, tables, terrasse, bar, banquette: bq, rangees: [yA, yB], devanture: { y: dev, porte: { x0: W * 0.64, x1: W * 0.76 } }, trottoir: { y: dev, rue, bord },
+      tapis: { x: W * 0.02, y: yA - 26 * K, w: W * 0.56 + 44 * K - W * 0.02, h: yB - yA + 50 * K }, // le tapis rose (déco 4) : sous les tables
+      emplacements: {
+        tables: R(W * 0.12 - 34 * K, yA - 24 * K, W * 0.44 + 68 * K, yB - yA + 40 * K),
+        bar: R(bar.x0 - 4, barY - 36 * K, bar.x1 - bar.x0 + 8, 36 * K + bar.h),
+        banquette: R(W - 82 * K, yC - 34 * K, 80 * K, 72 * K),
+        terrasse: R(W * 0.04, dev + 4, W * 0.92, bord - dev - 4),
+        chat: R(W - 52 * K, yC + 54 * K, 24 * K, 16 * K), // le coin du chat : aucun meuble, aucun passage
+      },
+      grille: { x0: 0, y0: Y0, pas: 24 * K, cols: Math.floor(W / (24 * K)), rangs: Math.floor((bord - Y0) / (24 * K)) }, // la grille simple du lot B (rien ne s'y aligne encore)
+      utile: Math.min(H, bord + 24 * K),
     };
   }
   const hauteurUtile = () => (LAY ? Math.min(H, LAY.utile) : H);
@@ -103,6 +151,11 @@ const VIE = (() => {
   function mystere() { if (!LAY || clients.some((c) => c.or)) return false; spawn(true); return true; }
   // un habitué : silhouette fixe, étiquette avec son prénom, il reste un peu plus longtemps et s'installe volontiers
   function habitue(hb) { if (!LAY || !hb || clients.some((c) => c.hab === hb.id)) return false; const c = spawn(); c.hab = hb.id; c.nom = hb.nom; c.haut = hb.haut; c.cheveux = hb.cheveux; c.peau = hb.peau; c.coiffure = hb.coiffure; c.lunettes = hb.id === 'dupuis'; c.taille = 1.05; c.wait = 3; c.mariniere = false; return true; }
+  // pour les captures et les tests : un client déjà installé à une place libre d'un coin ('table', 'bar', 'banquette', 'terrasse'), pour longtemps
+  function installer(zone, duree) {
+    if (!LAY) return false; const s = LAY.sieges.find((x) => x.actif && !x.occ && (!zone || x.zone === zone)); if (!s) return false;
+    const c = spawn(); c.slot = -2; c.siege = s; s.occ = c; c.x = s.x; c.y = s.y; c.alpha = 1; c.etat = 'assis'; c.dir = s.dir; c.sac = true; c.mange = duree || 60; return true;
+  }
   const mystereEnAttente = () => clients.find((c) => c.or && !c.pris && c.etat === 'attend') || null;
   function toucherMystere(c) { c.pris = true; c.wait = 0.2; }
   function hitBoulanger(x, y) { if (!LAY) return false; const b = LAY.boulanger; return Math.abs(x - b.x) < 26 * K && y > b.y - 64 * K && y < b.y + 4; }
@@ -116,20 +169,33 @@ const VIE = (() => {
   // les zones de touche des meubles (en pixels) telles que le plan les définit ; la vue 3D remplace celles des meubles par leurs boîtes projetées
   function zones() {
     if (!LAY) return {};
-    const b = LAY.boulanger, f = LAY.four, fr = LAY.froid, c = LAY.comptoir, k = crans.tables, T = LAY.tables, cz = LAY.caisse, dz = LAY.deco, m = LAY.mystere;
-    const tx = T[0].x - 24 * K, ty = T[0].y - 16 * K;
+    const b = LAY.boulanger, f = LAY.four, fr = LAY.froid, c = LAY.comptoir, k = crans.tables, T = LAY.tables, cz = LAY.caisse, dz = LAY.deco, m = LAY.mystere, em = LAY.emplacements;
+    const actives = T.slice(0, Math.max(1, k)), tx = Math.min(...actives.map((t) => t.x)) - 30 * K, ty = Math.min(...actives.map((t) => t.y)) - 22 * K;
     return {
       boulanger: { x: b.x - 26 * K, y: b.y - 64 * K, w: 52 * K, h: 68 * K },
       four: { x: f.x, y: f.y, w: f.w, h: f.h }, froid: { x: 0, y: fr.y, w: Math.max(44, fr.x + fr.w), h: fr.h },
       vitrine: { x: c.x, y: c.y + c.hTop, w: c.w * 0.75, h: c.hFace + 4 },
       caisse: { x: cz.x - 22, y: cz.y - 22, w: 44, h: 44 }, deco: { x: dz.x - 22, y: dz.y - 22, w: 44, h: 44 },
-      tables: { x: tx, y: ty, w: (k >= 2 ? W - tx : 48 * K), h: (k >= 3 ? T[2].y + 14 * K - ty : 44 * K) },
+      tables: { x: tx, y: ty, w: Math.max(...actives.map((t) => t.x)) + 30 * K - tx, h: Math.max(...actives.map((t) => t.y)) + 14 * K - ty },
+      bar: { ...em.bar }, banquette: { ...em.banquette }, terrasse: { ...em.terrasse },
       mystere: { x: m.x - 22, y: m.y - 50, w: 44, h: 58 }, entree: { x: LAY.entree.x, y: LAY.entree.y, w: 0, h: 0 },
     };
   }
 
   // ─── la vie de la boutique ───
-  function siegeLibre() { for (let k = 0; k < crans.tables; k++) for (const s of LAY.tables[k].sieges) if (!s.occ) return s; return null; }
+  // les sièges actifs : ceux des meubles achetés (GAME.places : n tables, n tabourets, n places du coin salon, n places dehors)
+  function activer() { for (const s of LAY.sieges) s.actif = s.rang < (places[s.meuble] || 0); }
+  const ENVIE = { table: 1, bar: 0.8, banquette: 0.3, terrasse: 1.2 }; // le poids de chaque coin (par place libre) quand on choisit où s'asseoir
+  function siegeLibre(c) { // où s'asseoir : l'habitué file sur la banquette ; les autres tirent un coin au sort, la terrasse selon le temps
+    const libres = LAY.sieges.filter((s) => s.actif && !s.occ); if (!libres.length) return null;
+    if (force.zone) return libres.find((s) => s.zone === force.zone) || null; // les tests et les captures : un coin imposé
+    if (c && c.hab) { const b = libres.find((s) => s.zone === 'banquette'); if (b) return b; }
+    let tot = 0; const poids = libres.map((s) => { const p = ENVIE[s.zone] * (s.zone === 'terrasse' ? dehors : 1); tot += p; return p; });
+    if (tot <= 0) return null;
+    let r = Math.random() * tot; for (let i = 0; i < libres.length; i++) { r -= poids[i]; if (r <= 0 && poids[i] > 0) return libres[i]; }
+    return libres.find((s, i) => poids[i] > 0) || null;
+  }
+  const DUREE = { table: 1, bar: 0.45, banquette: 1.7, terrasse: 1.25 }; // au bar on boit et on repart ; sur la banquette on s'attarde
   function avancer(c, dt) { // suit son chemin ; rend true à l'arrivée
     const p = c.chemin[c.wp]; if (!p) return true;
     const dx = p.x - c.x, dy = p.y - c.y, d = Math.hypot(dx, dy), pas = c.v * dt * (rush ? 1.3 : 1);
@@ -137,16 +203,21 @@ const VIE = (() => {
     if (d <= pas) { c.x = p.x; c.y = p.y; c.wp++; return c.wp >= c.chemin.length; }
     c.x += dx / d * pas; c.y += dy / d * pas; return false;
   }
+  function leve(c) { // il se lève et repart : par sa voie, l'allée et la porte du fond ; depuis la terrasse, par la rue (le côté le plus proche)
+    const s = c.siege, assis = c.etat === 'assis'; s.occ = null; c.siege = null; c.wp = 0; c.etat = 'sort'; c.v = 100 * K;
+    if (!assis) { c.chemin = cheminSortie(c); return; } // en route vers un siège qui a disparu (nouvelle boutique) : demi-tour par l'allée
+    if (s.zone === 'terrasse') { const rue = LAY.trottoir.rue; c.chemin = [{ x: s.x, y: rue }, { x: s.x < W * 0.6 ? -30 * K : W + 30 * K, y: rue }]; return; }
+    c.chemin = [...s.voie.slice().reverse(), { x: LAY.allee, y: LAY.alleeHaut }, { x: LAY.entree.x, y: LAY.alleeHaut }, { x: LAY.entree.x, y: LAY.entree.y }];
+  }
   function servi(st, c) { // au comptoir : le client est compté, l'habitué noté — exactement comme avant
     c.sac = !c.or || c.pris;
     st.stats.clients++; G.noter(st, 'clients', 1);
     if (c.hab) { const r = G.servirHabitue(st, c.hab); if (r.ok && API.surServi) API.surServi(r); }
     const slotLibre = c.slot; c.slot = -2;
     if (slotLibre >= 0) for (const o of clients) if (o.slot > slotLibre && o.slot < 6 && (o.etat === 'entre' || o.etat === 'attend')) { o.slot--; o.spot = spotDe(o.slot); if (o.etat === 'attend') { o.glisse = true; } else { o.chemin[o.chemin.length - 1] = { x: o.spot.x, y: o.spot.y }; o.chemin[o.chemin.length - 2] = { x: LAY.allee, y: o.spot.y }; } }
-    const siege = !c.or ? siegeLibre() : null;
-    if (siege && (force.assis || c.hab || Math.random() < 0.45 + 0.1 * crans.tables)) {
-      c.siege = siege; siege.occ = c; c.chemin = [{ x: LAY.allee, y: c.y }, { x: LAY.allee, y: siege.y + 8 }, { x: siege.x, y: siege.y }]; c.wp = 0; c.etat = 'vaTable';
-    } else { c.chemin = cheminSortie(c); c.wp = 0; c.etat = 'sort'; c.v = 100 * K; }
+    const envie = Math.min(0.9, 0.45 + 0.1 * Math.min(4, places.tables) + 0.03 * (places.bar + places.banquette + places.terrasse)), siege = !c.or && (force.assis || c.hab || Math.random() < envie) ? siegeLibre(c) : null;
+    if (siege) { c.siege = siege; siege.occ = c; c.chemin = [{ x: LAY.allee, y: c.y }, ...siege.voie, { x: siege.x, y: siege.y }]; c.wp = 0; c.etat = 'vaTable'; }
+    else { c.chemin = cheminSortie(c); c.wp = 0; c.etat = 'sort'; c.v = 100 * K; }
   }
   function majClients(st, dt) {
     for (const c of clients) {
@@ -157,12 +228,8 @@ const VIE = (() => {
         if (c.glisse) { const dx = c.spot.x - c.x; if (Math.abs(dx) < 1) { c.x = c.spot.x; c.glisse = false; } else c.x += Math.sign(dx) * Math.min(Math.abs(dx), 60 * dt); }
         c.wait -= dt; if (c.wait <= 0) servi(st, c);
       }
-      else if (c.etat === 'vaTable') { if (avancer(c, dt)) { c.etat = 'assis'; c.dir = c.siege.dir; c.mange = (4 + Math.random() * 4) * (rush ? 0.6 : 1); } }
-      else if (c.etat === 'assis') {
-        c.mange -= dt;
-        const tableDisparue = LAY.tables.findIndex((tb) => tb.sieges.includes(c.siege)) >= crans.tables;
-        if (c.mange <= 0 || tableDisparue) { c.siege.occ = null; c.chemin = [{ x: LAY.allee, y: c.siege.y + 8 }, { x: LAY.allee, y: LAY.alleeHaut }, { x: LAY.entree.x, y: LAY.alleeHaut }, { x: LAY.entree.x, y: LAY.entree.y }]; c.wp = 0; c.siege = null; c.etat = 'sort'; c.v = 100 * K; }
-      }
+      else if (c.etat === 'vaTable') { if (!c.siege.actif) leve(c); else if (avancer(c, dt)) { c.etat = 'assis'; c.dir = c.siege.dir; c.mange = (4 + Math.random() * 4) * (rush ? 0.6 : 1) * DUREE[c.siege.zone] * (c.hab ? 1.3 : 1); } }
+      else if (c.etat === 'assis') { c.mange -= dt; if (c.mange <= 0 || !c.siege.actif) leve(c); } // repu, ou son meuble a disparu (nouvelle boutique)
       else if (c.etat === 'sort') { if (c.wp >= c.chemin.length - 1) c.alpha = Math.max(0, c.alpha - dt * 3); if (avancer(c, dt)) c.etat = 'parti'; }
     }
     for (let i = clients.length - 1; i >= 0; i--) if (clients[i].etat === 'parti') clients.splice(i, 1);
@@ -189,7 +256,8 @@ const VIE = (() => {
   let chat = null;
   const piedComptoir = () => ({ x: LAY.chat.x, y: LAY.comptoir.y + LAY.comptoir.hTop + LAY.comptoir.hFace + 12 * K });
   // des coins libres : loin de la file et de l'allée (plus de 30K de l'axe des clients), au-dessus du tiroir à mi-hauteur
-  const spotsChat = () => [{ x: LAY.plante.x + 24 * K, y: LAY.plante.y + 8 * K }, { x: LAY.ardoise.x + 44 * K, y: Math.min(LAY.ardoise.y - 4 * K, (miH || H) - 24 * K) }, { x: LAY.allee - 34 * K, y: LAY.tables[0].y + 12 * K }, { x: W * 0.47, y: LAY.T * 0.92 }];
+  // le coin du chat (LAY.emplacements.chat, près du coin salon), le bout du bar, le pied du plan de travail, et le milieu entre la file et les tables
+  const spotsChat = () => { const e = LAY.emplacements.chat, p = LAY.plan; return [{ x: e.x + e.w / 2, y: e.y + e.h / 2 }, { x: W * 0.62, y: LAY.bar.y - 4 * K }, { x: p.x + p.w + 10 * K, y: Math.min(p.y + p.h + 6 * K, (miH || H) - 24 * K) }, { x: W * 0.45, y: LAY.T * 0.88 }]; };
   function versChat(cible, vite) { const c = chat; c.cible = cible; c.etat = 'marche'; c.vite = !!vite; }
   function majChat(st, dt) {
     if (!st.chat) { chat = null; return; }
@@ -226,7 +294,13 @@ const VIE = (() => {
     const taux = G.tauxParSeconde(st);
     rang = G.rangTitre(st); pts = G.ptsTalents(st); affl = G.talent(st, 'affluence');
     Q = DECORS[G.QUARTIERS[G.quartier(st)].id] || DECORS.village; tags = force.saison || G.saison(now);
+    for (const id of ['bar', 'banquette', 'terrasse']) crans[id] = G.mobilierCran(st, id); // (avant que GAME.MOBILIER les connaisse : cran 0)
     for (const m of G.MOBILIER) { crans[m.id] = G.mobilierCran(st, m.id); prixDe[m.id] = G.prixMeuble(st, m.id); abordables[m.id] = crans[m.id] < m.max && st.coins >= prixDe[m.id]; }
+    places = G.places ? G.places(st) : { tables: crans.tables, bar: crans.bar ? crans.bar + 1 : 0, banquette: crans.banquette >= 3 ? 3 : crans.banquette ? 2 : 0, terrasse: 2 * crans.terrasse };
+    activer();
+    // la terrasse : personne dehors la nuit ni sous la neige ; les beaux jours (belle saison, jours de marché : GAME.terrassePleine), elle se remplit
+    { const beau = G.terrassePleine ? G.terrassePleine(st) : (() => { const m = d.getUTCMonth() + 1, j = d.getUTCDay(); return (m >= 4 && m <= 9) || j === 0 || j === 6; })();
+      dehors = hour < 8 || hour >= 21 || tags.includes('neige') ? 0 : beau || force.zone === 'terrasse' ? 1 : 0.15; }
     panneI = st.ev && st.ev.type === 'panne' && st.ev.fin > st.now ? st.ev.i : -1;
     nextSpawn -= dt;
     if (nextSpawn <= 0) {
@@ -260,11 +334,11 @@ const VIE = (() => {
     return etat;
   }
 
-  const API = { hautBloc, resize, frame, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
+  const API = { hautBloc, resize, frame, installer, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
     DECORS, PASTEL, PEAUX6, HAUTS6, CHEVEUX, TAU,
     get LAY() { return LAY; }, get K() { return K; }, get W() { return W; }, get H() { return H; }, get t() { return t; }, get rush() { return rush; }, get Q() { return Q; }, get tags() { return tags; }, get force() { return force; }, get etat() { return etat; },
-    get clients() { return clients; }, get apprentis() { return apprentis; }, get textes() { return textes; }, get vapeurs() { return vapeurs; }, get confetti() { return confetti; }, get flocons() { return flocons; }, get passants() { return passants; }, get chat() { return chat; }, get crans() { return crans; }, get abordables() { return abordables; }, get prixDe() { return prixDe; },
-    get nClients() { return clients.length; }, get nApprentis() { return apprentis.length; }, get assis() { let n = 0; for (const c of clients) if (c.etat === 'assis') n++; return n; }, get mystereVisible() { return !!mystereEnAttente(); } };
+    get clients() { return clients; }, get apprentis() { return apprentis; }, get textes() { return textes; }, get vapeurs() { return vapeurs; }, get confetti() { return confetti; }, get flocons() { return flocons; }, get passants() { return passants; }, get chat() { return chat; }, get crans() { return crans; }, get places() { return places; }, get abordables() { return abordables; }, get prixDe() { return prixDe; },
+    get nClients() { return clients.length; }, get nApprentis() { return apprentis.length; }, get assis() { let n = 0; for (const c of clients) if (c.etat === 'assis') n++; return n; }, assisEn: (zone) => clients.filter((c) => c.etat === 'assis' && c.siege && c.siege.zone === zone).length, get mystereVisible() { return !!mystereEnAttente(); } };
   return API;
 })();
 if (typeof module !== 'undefined') module.exports = VIE;

@@ -12,7 +12,8 @@ const HDM = (() => {
   // l'équipe de la Planque : six Mini Characters de Kenney (fournil/hd/mini/, environ 105 Ko chacun ; clips idle, walk, sit, emote-yes, holding-both, interact-right)
   const MINI = ['male-b', 'female-a', 'male-d', 'female-c', 'male-f', 'female-e'].map((n) => 'character-' + n);
   const LOTS = {
-    boutique: { meubles: ['cactus_medium_A', 'cactus_small_A', 'lamp_standing'], halloween: ['pumpkin_orange', 'pumpkin_orange_jackolantern', 'pumpkin_yellow_small'], resto: ['jar_A_large', 'jar_B_medium'] },
+    // la boutique : ses meubles KayKit cuits (fournil/hd/meubles2/ : couleurs de sommets, sans texture, quelques Ko chacun ; lus par part())
+    boutique: { meubles2: ['table_round_A_small', 'chair_A_wood', 'chair_A', 'chair_stool_wood', 'couch_pillows', 'armchair_pillows', 'table_low', 'rug_rectangle_stripes_A', 'lamp_standing', 'menu'], meubles: ['cactus_medium_A', 'cactus_small_A'], halloween: ['pumpkin_orange', 'pumpkin_orange_jackolantern', 'pumpkin_yellow_small'], resto: ['jar_A_large', 'jar_B_medium'] },
     // la Maison hantée (fournil/hd/hantee/ : KayKit Halloween Bits et Furniture Bits, CC0) : le salon du manoir, le jardin par la fenêtre, l'équipe costumée
     hantee: { hantee: ['armchair', 'book_set', 'candle_melted', 'candle_thin', 'candle_triple', 'crypt', 'fence', 'fence_gate', 'gravestone', 'lantern_hanging', 'lantern_standing', 'pictureframe_large_A', 'post_lantern', 'pumpkin_orange_small', 'pumpkin_yellow_jackolantern', 'rug_rectangle_stripes_A', 'shelf_B_large_decorated', 'table_medium', 'tree_dead_medium', 'tree_pine_orange_medium'], halloween: ['pumpkin_orange', 'pumpkin_orange_jackolantern'], mini: MINI },
     planque: { meubles: ['rug_oval_A', 'cactus_medium_A', 'cactus_small_A', 'pictureframe_medium', 'lamp_standing', 'couch_pillows', 'armchair_pillows', 'table_low'], ville: ['building_D', 'building_F', 'streetlight', 'car_sedan', 'firehydrant', 'trash_A', 'dumpster'], mini: MINI },
@@ -23,7 +24,7 @@ const HDM = (() => {
     if (etat[lot]) return etat[lot].promesse; const e = etat[lot] = { pret: false };
     const t = []; for (const [dossier, noms] of Object.entries(LOTS[lot] || {})) for (const n of noms) {
       if (dossier === 'mini') { if (!PER[n]) t.push(lire(`mini/${n}.glb`).then((g) => { PER[n] = g; }, () => console.warn('HD : personnage manquant', n))); }
-      else if (!MOD[n]) t.push(lire(`${dossier}/${n}.glb`).then((g) => { MOD[n] = g.scene; }, () => console.warn('HD : modèle manquant', n))); // un décor manquant est simplement omis
+      else { const cle = dossier === 'meubles2' ? `meubles2/${n}` : n; if (!MOD[cle]) t.push(lire(`${dossier}/${n}.glb`).then((g) => { MOD[cle] = g.scene; }, () => console.warn('HD : modèle manquant', n))); } // un décor manquant est simplement omis ; les meubles cuits gardent leur dossier dans leur nom
     }
     e.promesse = Promise.all(t).then(() => { if (LOTS[lot].mini && !LOTS[lot].mini.some((v) => PER[v])) throw new Error('personnages HD manquants'); e.pret = true; API.version++; return true; }).catch((err) => { e.erreur = String(err && err.message || err); console.warn('HD : modèles non chargés, rendu habituel', e.erreur); return false; });
     return e.promesse;
@@ -43,6 +44,45 @@ const HDM = (() => {
     m.traverse((x) => { if (x.isMesh) { x.castShadow = o.ombre !== false; x.receiveShadow = true; } });
     const b = new THREE.Box3().setFromObject(m); m.position.set(-(b.min.x + b.max.x) / 2, -b.min.y, -(b.min.z + b.max.z) / 2); g.add(m);
     g.userData.taille = { x: b.max.x - b.min.x, y: b.max.y - b.min.y, z: b.max.z - b.min.z }; return g;
+  }
+
+  // ─── un meuble cuit (fournil/hd/meubles2/) : ses maillages mis bout à bout en une géométrie à couleurs de sommets (linéaires), posée
+  //     (bas sur y = 0) et centrée en X/Z, en cache ; part() en fait une pièce pour MODELES.assembler, comme KENNEY.part (même syntaxe) ───
+  const CUITS = new Map();
+  function cuit(nom) {
+    if (CUITS.has(nom)) return CUITS.get(nom); const src = MOD[nom]; if (!src) return null;
+    src.updateMatrixWorld(true); const P = [], N = [], C = [], v = new THREE.Vector3(), m3 = new THREE.Matrix3();
+    src.traverse((o) => {
+      if (!o.isMesh) return; const g = o.geometry, p = g.attributes.position, n = g.attributes.normal, col = g.attributes.color, idx = g.index, nb = idx ? idx.count : p.count, mc = o.material && o.material.color;
+      m3.getNormalMatrix(o.matrixWorld);
+      for (let k = 0; k < nb; k++) {
+        const i = idx ? idx.getX(k) : k; v.fromBufferAttribute(p, i).applyMatrix4(o.matrixWorld); P.push(v.x, v.y, v.z);
+        if (n) { v.fromBufferAttribute(n, i).applyMatrix3(m3).normalize(); N.push(v.x, v.y, v.z); }
+        C.push((col ? col.getX(i) : 1) * (mc ? mc.r : 1), (col ? col.getY(i) : 1) * (mc ? mc.g : 1), (col ? col.getZ(i) : 1) * (mc ? mc.b : 1));
+      }
+    });
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); geo.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
+    if (N.length === P.length) geo.setAttribute('normal', new THREE.Float32BufferAttribute(N, 3)); else geo.computeVertexNormals();
+    geo.computeBoundingBox(); const bb = geo.boundingBox; geo.translate(-(bb.min.x + bb.max.x) / 2, -bb.min.y, -(bb.min.z + bb.max.z) / 2); geo.computeBoundingBox();
+    geo.userData.cache = true; const d = geo.boundingBox.getSize(new THREE.Vector3()), r = { geo, w: d.x, h: d.y, d: d.z }; CUITS.set(nom, r); return r;
+  }
+  // les couleurs du quartier : teinte = '#hex' repeint les tons chauds du modèle (les bois orangés, les tissus jaunes : r nettement au-dessus
+  // de b) dans cette couleur, en gardant leurs dégradés (la plus claire devient la teinte, les autres en proportion) ; les gris et les bleus restent
+  const _ct = new THREE.Color(), lum = (a, i) => 0.2126 * a[i] + 0.7152 * a[i + 1] + 0.0722 * a[i + 2], chaud = (a, i) => a[i] > 0.08 && a[i] > 1.6 * a[i + 2] && a[i] - a[i + 2] > 0.06;
+  function teint(nom, teinte) {
+    const md = cuit(nom); if (!md || !teinte) return md; const k = nom + '|' + teinte; if (CUITS.has(k)) return CUITS.get(k);
+    const g = md.geo.clone(), a = g.attributes.color.array; let lmax = 0; g.userData.cache = true;
+    for (let i = 0; i < a.length; i += 3) if (chaud(a, i)) lmax = Math.max(lmax, lum(a, i));
+    _ct.set(teinte); for (let i = 0; i < a.length; i += 3) if (chaud(a, i)) { const f = 0.35 + 0.65 * lum(a, i) / lmax; a[i] = _ct.r * f; a[i + 1] = _ct.g * f; a[i + 2] = _ct.b * f; }
+    const r = { geo: g, w: md.w, h: md.h, d: md.d }; CUITS.set(k, r); return r;
+  }
+  // o = { w, h, d } (cotes visées, avant la rotation ; une seule cote → échelle uniforme) ou s, plus x, y, z, rx, ry, rz, teinte ; col teinte le tout
+  function part(nom, o, col) {
+    o = o || {}; const md = teint(nom, o.teinte); if (!md || typeof MODELES === 'undefined' || !MODELES) return null;
+    let sx, sy, sz;
+    if (o.s != null) sx = sy = sz = o.s;
+    else { const kw = o.w != null ? o.w / md.w : null, kh = o.h != null ? o.h / md.h : null, kd = o.d != null ? o.d / md.d : null, u = kw || kh || kd || 1; sx = kw || u; sy = kh || (kw && kd ? (kw + kd) / 2 : u); sz = kd || u; }
+    const p = MODELES.part(md.geo, col || null, { x: o.x, y: o.y, z: o.z, rx: o.rx, ry: o.ry, rz: o.rz, sx, sy, sz }); p.vc = true; return p;
   }
 
   // ─── un Mini Character : clone riggé (gros chibi Kenney, 0,67 unité de haut, regard vers +z) et son mélangeur d'animations ;
@@ -70,6 +110,6 @@ const HDM = (() => {
     c.addPass(new X.EffectPass(camera, ...fx)); c.setSize(W, H);
     return { rendre: (dt) => c.render(dt), liberer: () => c.dispose(), n8 };
   }
-  return Object.assign(API, { pret, permis, charger, etat, coupe, couper, remettre, modele, mini, MINI, jouer, liberer, effets });
+  return Object.assign(API, { pret, permis, charger, etat, coupe, couper, remettre, modele, cuit, part, mini, MINI, jouer, liberer, effets });
 })();
 if (typeof module !== 'undefined') module.exports = HDM;

@@ -104,7 +104,9 @@ const SCENE = (() => {
       tache(bx.min.x + 1, Math.max(0, bx.min.z), bx.max.x - 1, bx.max.z + 2, 0.85, 10);
     }
     const dc = groupes.deco && groupes.deco.userData.zoneBoite; if (dc && !dc.isEmpty()) tache(dc.min.x + 2, dc.min.z + 2, dc.max.x - 2, dc.max.z, 0.6, 8);
-    if (V.crans.tables > 0) for (let i = 0; i < V.crans.tables; i++) { const tb = LAY.tables[i], r = 14 * V.K, z = wz(tb.y); tache(tb.x - r, z - r * 0.8, tb.x + r, z + r * 0.8, 0.55, 10); for (const s of tb.sieges) { const zs = wz(s.y); tache(s.x - 6 * V.K, zs - 6 * V.K, s.x + 6 * V.K, zs + 6 * V.K, 0.4, 6); } }
+    for (let i = 0; i < Math.min(V.crans.tables, LAY.tables.length); i++) { const tb = LAY.tables[i], r = 14 * V.K, z = wz(tb.y); tache(tb.x - r, z - r * 0.8, tb.x + r, z + r * 0.8, 0.55, 10); for (const s of tb.sieges) { const zs = wz(s.y); tache(s.x - 6 * V.K, zs - 6 * V.K, s.x + 6 * V.K, zs + 6 * V.K, 0.4, 6); } }
+    if (V.crans.bar > 0) { const b = LAY.bar; tache(b.x0, wz(b.y - 12 * V.K), b.x1, wz(b.y + 6 * V.K), 0.55, 8); }
+    if (V.crans.banquette > 0) { const q = LAY.banquette, K = V.K; tache(q.x - 27 * K, wz(q.y) - 14 * K, q.x + 27 * K, wz(q.y) + 10 * K, 0.5, 10); }
     // le mur : le pied (assombri sur 10 % de sa hauteur) et l'ombre portée des meubles adossés
     const y = mur.cv.getContext('2d'), mx = mur.cv.width / W, my = mur.cv.height / Hm; y.fillStyle = '#FFFFFF'; y.fillRect(0, 0, mur.cv.width, mur.cv.height);
     const g1 = y.createLinearGradient(0, mur.cv.height, 0, mur.cv.height - 30 * my); g1.addColorStop(0, 'rgba(70,50,40,.5)'); g1.addColorStop(1, 'rgba(70,50,40,0)'); y.fillStyle = g1; y.fillRect(0, mur.cv.height - 30 * my, mur.cv.width, 30 * my);
@@ -114,7 +116,7 @@ const SCENE = (() => {
     // sur les jumeaux du sol et du mur (le mur : sa face avant seulement, le matériau 0)
     salle.traverse((o) => {
       if (!o.isMesh) return;
-      if (o.geometry.type === 'PlaneGeometry' && o.material.isMeshStandardMaterial && o.material.map && o.rotation.x < 0) { o.material.aoMap = sol.tex; o.material.aoMapIntensity = 1; o.material.needsUpdate = true; }
+      if (o.geometry.type === 'PlaneGeometry' && o.material.isMeshStandardMaterial && o.material.map && o.rotation.x < 0 && o.userData.nom !== 'trottoir') { o.material.aoMap = sol.tex; o.material.aoMapIntensity = 1; o.material.needsUpdate = true; } // (le trottoir a sa propre peinture)
       if (Array.isArray(o.material) && o.material[0].isMeshStandardMaterial) { o.material[0].aoMap = mur.tex; o.material[0].aoMapIntensity = 1; o.material[0].needsUpdate = true; }
     });
   }
@@ -260,7 +262,8 @@ const SCENE = (() => {
     ], { ombre: false }));
     return g;
   }
-  const MEUBLES_IDS = ['froid', 'four', 'comptoir', 'caisse', 'tables', 'deco'];
+  const MEUBLES_IDS = ['froid', 'four', 'comptoir', 'caisse', 'tables', 'deco', 'bar', 'banquette', 'terrasse'];
+  const SALLE_IDS = ['tables', 'bar', 'banquette', 'terrasse']; // les meubles de la salle : KayKit en haute et moyenne (lot HD « boutique »), faits main en éco
   // les récompenses du podium du classement (src/classement.js) : la tenue du boulanger, la coupe du comptoir, les coupes de la vitrine
   const REC = { tenue: null, coupe: null, coupes: [], equipe: false }, METAUX = ['or', 'argent', 'bronze'];
   const QDECO = { graffiti: false, neon: false, scooter: false, chien: false }; // les décos du quartier posées dans la boutique
@@ -282,6 +285,7 @@ const SCENE = (() => {
   function contexte(E) {
     const c = ctxC || (ctxC = { wz, wy, wd, SY, CY });
     c.trophees = REC.coupes.length > 0; // la vitrine des trophées décroche le second cadre
+    c.hd = typeof HDM !== 'undefined' && HDM.pret('boutique') && HDM.permis(renderer); // les meubles de la salle en KayKit
     c.LAY = LAY; c.K = V.K; c.W = W; c.H = H; c.Q = E.Q; c.tags = E.tags; c.rush = E.rush; c.t = E.t; c.sk = E.sk; c.crans = E.crans; c.niv = E.niv; c.staffs = E.staffs; c.bonus = E.bonus; c.rang = E.rang;
     const cp = groupes.comptoir; c.dessusY = cp ? cp.userData.dessusY : wy(LAY.comptoir.hFace); c.dessusZ = cp ? cp.userData.dessusZ : wz(LAY.comptoir.y + LAY.comptoir.hTop + LAY.comptoir.hFace) - wd(LAY.comptoir.hTop) / 2;
     return c;
@@ -299,11 +303,13 @@ const SCENE = (() => {
     const rs = E.st.saison && E.st.saison.niv > 0 && PERSOS.patisserieSaison ? E.st.saison.id : '', ouverts = E.niv.map((n, i) => (n > 0 ? i : -1)).filter((i) => i >= 0);
     c.nVitrine = ouverts.length + (rs ? 1 : 0); // la recette de saison a sa place : étagères, étiquettes et places sur le même compte
     if (Qc !== E.Q) { Qc = E.Q; renderer.setClearColor(E.Q.sol); salle = MEUBLES.salle(c); remplacer('salle', salle); }
-    for (const id of MEUBLES_IDS) { // les six meubles (le comptoir porte la vitrine), reconstruits quand leur cran change
-      const cran = E.crans[id === 'comptoir' ? 'vitrine' : id], k = `${cran}|${base}${id === 'tables' ? '|' + E.crans.deco : ''}${id === 'deco' && E.tags.includes('noel') ? '|noel' : ''}${id === 'deco' && c.trophees ? '|trophees' : ''}${id === 'comptoir' ? '|' + c.nVitrine : ''}`;
+    for (const id of MEUBLES_IDS) { // les neuf meubles (le comptoir porte la vitrine), reconstruits quand leur cran change
+      const cran = E.crans[id === 'comptoir' ? 'vitrine' : id] || 0, k = `${cran}|${base}${id === 'tables' ? '|' + E.crans.deco : ''}${SALLE_IDS.includes(id) && c.hd ? '|hd' : ''}${id === 'deco' && E.tags.includes('noel') ? '|noel' : ''}${id === 'deco' && c.trophees ? '|trophees' : ''}${id === 'comptoir' ? '|' + c.nVitrine : ''}`;
       if (cles[id] !== k) { cles[id] = k; remplacer(id, MEUBLES[id](cran, c)); if (id === 'comptoir') { cles.produits = null; cles.caisse = null; const cp = groupes.comptoir; if (cp && cp.userData.dessusY != null) { c.dessusY = cp.userData.dessusY; c.dessusZ = cp.userData.dessusZ; } } }
     }
     for (const d of CONDS) { const k = d.cle(E), kk = k == null ? null : `${k}|${base}`; if (cles[d.id] !== kk) { cles[d.id] = kk; remplacer(d.id, kk == null ? null : d.faire(k, c)); } }
+    const kc = `${LAY.sieges.length}|${V.K}|${typeof KENNEY !== 'undefined' && KENNEY && KENNEY.pret ? 'k' : ''}`; // les couverts : un maillage instancié pour toutes les places
+    if (cles.couverts !== kc) { cles.couverts = kc; couvertsCle = ''; remplacer('couverts', MEUBLES.couverts(LAY.sieges.length, c)); }
     const kp = `${ouverts.join(',')}|${rs}|${E.crans.vitrine}|${base}`;
     if (cles.produits !== kp) { // les pâtisseries dans la vitrine
       cles.produits = kp; const g = new THREE.Group(), vit = groupes.comptoir && groupes.comptoir.userData.vitrine, liste = rs ? ouverts.concat([rs]) : ouverts, places = vit ? vit.places(liste.length) : [];
@@ -333,8 +339,8 @@ const SCENE = (() => {
     if (E.rush) { hemi.color.lerp(_c2.set('#FFF0E0'), 0.5); dir.intensity *= 1.1; }
     if (RICHE.actif) { RICHE.envK = RICHE.kEnv * hemi.intensity / 1.3 * (1 - 0.55 * mix(A.lampes, B.lampes)); hemi.intensity *= RICHE.kHemi; dir.intensity *= RICHE.kDir; if (RICHE.post) RICHE.post.mat.uniforms.chaud.value = RICHE.chaud * (1 - 0.6 * mix(A.lampes, B.lampes)); } // l'ambiance vient surtout de la pièce (PMREM) ; le ciel ne fait plus que teinter
     lampesNiv = mix(A.lampes, B.lampes);
-    const salon = E.crans.deco >= 4 && E.crans.tables > 0, tb = LAY.tables, allumees = [E.crans.deco >= 2, E.crans.deco >= 2, E.niv[2] > 0 || salon];
-    const pos = [[LAY.appliques[0].x, wy(LAY.murH - LAY.appliques[0].y), 18], [LAY.appliques[1].x, wy(LAY.murH - LAY.appliques[1].y), 18], salon ? [(tb[0].x + tb[1].x) / 2, 60, wz((tb[0].y + tb[2].y) / 2)] : [LAY.lampe.x, wy(LAY.murH - LAY.lampe.y) - 10, 20]];
+    const coin = (E.crans.banquette || 0) >= 3, salon = coin || (E.crans.deco >= 4 && E.crans.tables > 0), tb = LAY.tables, allumees = [E.crans.deco >= 2, E.crans.deco >= 2, E.niv[2] > 0 || salon];
+    const lp = LAY.banquette.lampe, pos = [[LAY.appliques[0].x, wy(LAY.murH - LAY.appliques[0].y), 18], [LAY.appliques[1].x, wy(LAY.murH - LAY.appliques[1].y), 18], coin ? [lp.x, 54, wz(lp.y)] : salon ? [tb[1].x, 60, wz((tb[0].y + tb[3].y) / 2)] : [LAY.lampe.x, wy(LAY.murH - LAY.lampe.y) - 10, 20]]; // le soir, la lampe du coin salon (ou le salon de thé)
     lampes.forEach((p, i) => { p.position.set(pos[i][0], pos[i][1], pos[i][2]); p.distance = W * 0.9; p.intensity = allumees[i] ? 150 * lampesNiv : 0; });
     const taches = salle && salle.userData.taches; if (taches) for (const m of taches) m.material.opacity = mix(A.tache, B.tache);
     const mm = salle && salle.userData.murMat; if (mm) { mm.emissive.copy(hemi.color); mm.emissiveIntensity = 0.42 * hemi.intensity / 1.3; const mj = RICHE.jumeaux.get(mm); if (mj) { mj.emissive.copy(hemi.color); mj.emissiveIntensity = RICHE.actif ? 0.42 * (hemi.intensity / RICHE.kHemi) / 1.3 * RICHE.lueurMur : mm.emissiveIntensity; } } // le mur suit la lumière (sa lueur compense les faces verticales, pas la nuit)
@@ -411,20 +417,18 @@ const SCENE = (() => {
   function rendreAuPool(g) { const k = g.userData.cle; if (!/^apprenti/.test(k)) { M.dispose(g); return; } const l = pool.get(k) || []; if (l.length < 1) { l.push(g); pool.set(k, l); } else M.dispose(g); } // les clients sont presque tous uniques : on les libère ; un apprenti par produit est gardé
   // ─── les décors HD (src/hd.js) : chargés après le premier rendu si le palier le permet ; la boutique garde ses personnages ───
   let hdDecor = null, hdCle = '', hdDemande = false;
-  // des plantes, un cadre au mur, une lampe sur pied dans le salon, des bocaux sur le plan de travail ; en octobre, des citrouilles
+  // des plantes, des bocaux sur le plan de travail ; en octobre, des citrouilles
   function decorHD(E) {
     if (!HDM.permis(renderer)) { if (hdDecor) { scene.remove(hdDecor); M.dispose(hdDecor); hdDecor = null; hdCle = ''; } return; } // repassé en éco : on retire
-    const tbs = LAY.tables, k = `${W}x${H}|${tbs[0].y | 0}|${E.tags.includes('halloween') ? 'h' : ''}|${Object.keys(cles).length}`;
+    const k = `${W}x${H}|${LAY.bar.y | 0}|${E.tags.includes('halloween') ? 'h' : ''}|${Object.keys(cles).length}`;
     if (k === hdCle) return; hdCle = k;
     if (hdDecor) { scene.remove(hdDecor); M.dispose(hdDecor); }
     const g = hdDecor = new THREE.Group(), S = W * 0.08, K = V.K, pose = (nom, x, y, z, o = {}) => { const m = HDM.modele(nom, S * (o.s || 1), o); if (m) { m.position.set(x, y, z); g.add(m); } return m; };
-    const x0 = Math.min(...tbs.map((t) => t.x)) - 30 * K, x1 = Math.max(...tbs.map((t) => t.x)) + 30 * K, z0 = wz(Math.min(...tbs.map((t) => t.y))), z1 = wz(Math.max(...tbs.map((t) => t.y)));
-    // (pas de tapis : le salon rose garde son sol, le halo les faisait briller)
-    pose('lamp_standing', W - 12 * K, 0, wz(tbs[0].y) - 26 * K, { s: 0.75 }); // la lampe sur pied, au coin du salon
+    // (les meubles de la salle, la lampe du coin salon comprise, sont des meubles KayKit fusionnés : MEUBLES.tables, bar, banquette, terrasse)
     pose('cactus_medium_A', LAY.entree.x - 34 * K, 0, wz(LAY.murH + 14 * K), { s: 0.6 }); // une plante près de la porte
     pose('cactus_small_A', LAY.comptoir.x + 8 * K, wy(LAY.comptoir.hFace + LAY.comptoir.hTop * 0.5), wz(LAY.comptoir.y + LAY.comptoir.hTop * 0.6), { s: 0.4 }); // un petit cactus sur le comptoir
     const pl = LAY.plan; pose('jar_A_large', pl.x + pl.w * 0.25, wy(pl.h * 0.55), wz(pl.y + pl.h * 0.6), { s: 0.25 }); pose('jar_B_medium', pl.x + pl.w * 0.45, wy(pl.h * 0.55), wz(pl.y + pl.h * 0.6), { s: 0.25 });
-    if (E.tags.includes('halloween')) { pose('pumpkin_orange_jackolantern', LAY.entree.x - 30 * K, 0, wz(LAY.murH + 22 * K), { s: 0.45 }); pose('pumpkin_orange', LAY.entree.x - 48 * K, 0, wz(LAY.murH + 30 * K), { s: 0.35 }); pose('pumpkin_yellow_small', LAY.plante.x + 22 * K, 0, wz(LAY.plante.y) + 18, { s: 0.6 }); }
+    if (E.tags.includes('halloween')) { pose('pumpkin_orange_jackolantern', LAY.entree.x - 30 * K, 0, wz(LAY.murH + 22 * K), { s: 0.45 }); pose('pumpkin_orange', LAY.entree.x - 48 * K, 0, wz(LAY.murH + 30 * K), { s: 0.35 }); pose('pumpkin_yellow_small', LAY.devanture.porte.x1 + 9 * K, 0, wz(LAY.devanture.y + 9 * K), { s: 0.6 }); /* dehors, à droite de la porte */ }
     habiller(g); scene.add(g);
   }
   function synchroniser(E, dt) {
@@ -491,6 +495,22 @@ const SCENE = (() => {
     PERSOS.animer(g, oAnim);
   }
 
+  // les couverts : posés devant chaque client assis (sur sa table, le bar ou la table basse), cachés tant que personne n'est assis ;
+  // les matrices ne sont réécrites que quand une place change
+  let couvertsCle = '', _m4 = null, ZERO4 = null;
+  function poserCouverts() {
+    const g = groupes.couverts, im = g && g.userData.im; if (!im) return;
+    if (!_m4) { _m4 = new THREE.Matrix4(); ZERO4 = new THREE.Matrix4().makeScale(0, 0, 0); }
+    let cle = ''; for (const s of LAY.sieges) cle += s.occ && s.occ.etat === 'assis' && s.occ.siege === s ? '1' : '0';
+    if (cle === couvertsCle) return; couvertsCle = cle;
+    im.visible = cle.includes('1'); // personne d'assis : pas même un appel de dessin
+    LAY.sieges.forEach((s, i) => {
+      if (i >= im.count) return; if (cle[i] !== '1') { im.setMatrixAt(i, ZERO4); return; }
+      const t = s.table || s, k = s.zone === 'bar' ? 0 : s.zone === 'banquette' ? 0.3 : 0.45, x = t.x + (s.x - t.x) * k, y = s.zone === 'bar' ? LAY.bar.y - 4 * V.K : t.y + (s.y - t.y) * k;
+      _m4.makeRotationY(s.dir === 1 ? Math.PI / 2 : s.dir === -1 ? -Math.PI / 2 : 0).setPosition(x, MEUBLES.HAUT[s.zone] || 29, wz(y)); im.setMatrixAt(i, _m4);
+    });
+    im.instanceMatrix.needsUpdate = true;
+  }
   // ─── la frame : simuler, reconstruire ce qui a changé, éclairer, poser, rendre, puis le calque 2D ───
   const EA = { t: 0, chaud: false, caisseFlash: 0, nuit: false, lampes: 0, rush: false, d: null, sk: null, tags: [] };
   function frame(dt, st, now) {
@@ -504,7 +524,7 @@ const SCENE = (() => {
       synchroniser(E, dt);
       EA.t = E.t; EA.chaud = E.chaud; EA.caisseFlash = E.caisseFlash; EA.nuit = E.sk.nuit; EA.lampes = lampesNiv; EA.rush = E.rush; EA.d = E.d; EA.sk = E.sk; EA.tags = E.tags;
       for (const o of animes) o.userData.anime(EA);
-      const tb = groupes.tables; if (tb && tb.userData.couverts) LAY.tables.forEach((table, i) => { const m = tb.userData.couverts[i]; if (m) m.visible = table.sieges.some((s) => !!s.occ); });
+      poserCouverts();
       if (perdu) { if (performance.now() - perdu > 3000) panneau(true); if (visH > 48) calque(E, Math.min(H, visH + 24)); return; } // contexte perdu : on attend sa restauration ; s'il ne revient pas, on le dit
       nFrame++;
       if (visH > 48) { mesurer(dt * 1000); if (!(PALIERS[QUAL.niveau].saute && (nFrame & 1))) rendre(E, false); }
@@ -547,12 +567,13 @@ const SCENE = (() => {
     const K = V.K, k = V.crans.tables;
     const boite = (g) => (g && g.userData.zoneBoite) || g; // la déco et le comptoir désignent leur partie touchable (la plante, la face vitrée)
     const four = rectDe(groupes.four, 2), fr = rectDe(groupes.froid, 2), vit = rectDe(boite(groupes.comptoir), 2), ca = rectDe(groupes.caisse, 6), tb = k > 0 ? rectDe(groupes.tables, 4) : null, bo = rectDe(boite(boulangerG), 4), de = V.crans.deco > 0 ? rectDe(boite(groupes.deco), 6) : null;
+    const salle = (id) => (V.crans[id] > 0 && groupes[id] ? auMoins(rectDe(groupes[id], 4), 44, 44) : null) || auMoins({ ...z[id] }, 44, 44); // acheté : sa boîte projetée ; sinon son emplacement
     zonesCache = {
       boulanger: (() => { const r = auMoins(bo, 52 * K, 68 * K) || z.boulanger; if (vit && r.y + r.h > vit.y) r.h = Math.max(8, vit.y - r.y); return r; })(), // il ne mord pas sur la vitrine
       four: four ? (four.y < z.four.y - 12 ? { x: four.x, y: z.four.y - 12, w: four.w, h: four.y + four.h - (z.four.y - 12) } : four) : z.four, froid: fr ? { x: 0, y: fr.y, w: Math.max(44, fr.x + fr.w), h: fr.h } : z.froid,
       vitrine: vit || z.vitrine,
       caisse: auMoins(ca, 44, 44) || z.caisse, deco: auMoins(de, 44, 44) || z.deco,
-      tables: tb ? { x: tb.x, y: tb.y, w: k >= 2 ? Math.max(tb.w, W - tb.x) : tb.w, h: tb.h } : z.tables,
+      tables: auMoins(tb || { ...z.tables }, 44, 44), bar: salle('bar'), banquette: salle('banquette'), terrasse: salle('terrasse'),
       mystere: z.mystere, entree: z.entree,
     };
     return avecChat(zonesCache);
@@ -574,7 +595,7 @@ const SCENE = (() => {
   // la petite porte de l'arrière-boutique (src/meubles.js, porteArriere) : son rectangle au mur (un point du mur tombe à son pixel), au moins 44 × 44
   function zoneArriere() { if (!webgl || !LAY || !LAY.arriere) return null; const a = LAY.arriere; return auMoins({ x: a.x - 4, y: a.y - 3, w: a.w + 8, h: LAY.murH - a.y + 6 }, 44, 44); }
   function hitArriere(x, y) { return dans(zoneArriere(), x, y); }
-  function hitMeuble(x, y) { const z = zones(); for (const id of ['caisse', 'deco', 'four', 'froid', 'vitrine', 'tables']) if (dans(z[id], x, y)) return id; return null; }
+  function hitMeuble(x, y) { const z = zones(); for (const id of ['caisse', 'deco', 'four', 'froid', 'vitrine', 'bar', 'banquette', 'terrasse', 'tables']) if (dans(z[id], x, y)) return id; return null; } // ui.js ouvre sheetMeuble(id)
 
   // ─── le calque 2D : textes, vapeurs, étiquettes, bulle de talent, étincelles du mystère, pastilles, Aménager, confettis ───
   function rr(x, y, w, h, r) { ctx2.beginPath(); ctx2.roundRect(x, y, w, h, r); }
@@ -589,7 +610,14 @@ const SCENE = (() => {
       if (cl.hab && cl.alpha > 0.5) { const s = s0 * cl.taille, ty = projeterY((cl.etat === 'assis' ? hp * 0.75 : hp) * s, wz(cl.y)) - 10; c.font = '700 10px Nunito, sans-serif'; c.textAlign = 'center'; const w = c.measureText(cl.nom).width + 12; c.fillStyle = '#fff'; rr(cl.x - w / 2, ty - 8, w, 15, 7); c.fill(); c.fillStyle = L; c.fillText(cl.nom, cl.x, ty + 3); }
     }
     if (E.pts > 0 && boulangerG && !E.st.visite) { const r = zones().boulanger, by = (r ? r.y + 4 : LAY.boulanger.y - 80 * s0) - 8 + Math.sin(E.t * 3) * 2, bx = LAY.boulanger.x; c.fillStyle = '#fff'; rr(bx + 8, by - 10, 24, 18, 8); c.fill(); c.beginPath(); c.moveTo(bx + 12, by + 7); c.lineTo(bx + 8, by + 13); c.lineTo(bx + 18, by + 8); c.fill(); c.fillStyle = '#9A84F0'; etincelle(bx + 20, by - 1, 6); }
-    if (V.crans.tables === 0) { const tb = LAY.tables[0]; c.fillStyle = 'rgba(74,51,40,.45)'; c.font = `700 ${Math.round(9 * s0)}px Nunito, sans-serif`; c.textAlign = 'center'; c.fillText('tables', tb.x, tb.y - 7 * s0); }
+    { // les emplacements des meubles de la salle pas encore achetés : leur nom, discret, au-dessus des pointillés
+      c.fillStyle = 'rgba(74,51,40,.45)'; c.font = `700 ${Math.round(9 * s0)}px Nunito, sans-serif`; c.textAlign = 'center';
+      const em = LAY.emplacements, tb = LAY.tables[0], t0 = LAY.terrasse[0];
+      if (V.crans.tables === 0) c.fillText('tables', tb.x, tb.y - 7 * s0);
+      if (!V.crans.bar) c.fillText('bar', (LAY.bar.x0 + LAY.bar.x1) / 2, em.bar.y + em.bar.h / 2 + 3 * s0);
+      if (!V.crans.banquette) c.fillText('coin salon', em.banquette.x + em.banquette.w / 2, em.banquette.y + em.banquette.h / 2 + 3 * s0);
+      if (!V.crans.terrasse) c.fillText('terrasse', t0.x, t0.y - 2 * s0);
+    }
     if (V.chat) for (const h of V.chat.coeurs) { c.globalAlpha = Math.max(0, Math.min(1, h.life)); c.fillStyle = '#FF6B8B'; coeur(h.x, h.y, 6); }
     c.globalAlpha = 1;
     for (const x of V.textes) { c.globalAlpha = Math.max(0, Math.min(1, x.life * 1.4)); c.font = `700 ${Math.round(15 * Math.min(1.3, 1 + x.txt.length / 40))}px Fredoka, Nunito, sans-serif`; c.fillStyle = x.col; c.strokeStyle = '#fff'; c.lineWidth = 4; c.textAlign = 'center'; c.strokeText(x.txt, x.x, x.y); c.fillText(x.txt, x.x, x.y); }
@@ -610,7 +638,7 @@ const SCENE = (() => {
       const k = crans[m.id], max = k >= m.max, ok = abordables[m.id];
       rr(r.x + 1.5, r.y + 1.5, r.w - 3, r.h - 3, 10); c.strokeStyle = 'rgba(255,255,255,.95)'; c.lineWidth = 5; c.stroke();
       c.setLineDash([6, 4]); c.lineDashOffset = -E.t * 20; c.strokeStyle = ok ? '#E0A61E' : '#C8864F'; c.lineWidth = 2.5; c.stroke(); c.setLineDash([]);
-      const court = { tables: 'Tables', four: 'Four', vitrine: 'Vitrine', caisse: 'Caisse', froid: 'Froid', deco: 'Déco' }[m.id] || m.nom;
+      const court = { tables: 'Tables', four: 'Four', vitrine: 'Vitrine', caisse: 'Caisse', froid: 'Froid', deco: 'Déco', bar: 'Bar', banquette: 'Salon', terrasse: 'Terrasse' }[m.id] || m.nom;
       const label = `${court} ${'●'.repeat(k)}${'○'.repeat(m.max - k)}`, lw = c.measureText(label).width + 12, lx = Math.max(2, Math.min(W - lw - 2, r.x)), ly = Math.max(9, r.y - 1);
       c.fillStyle = '#fff'; rr(lx, ly - 8, lw, 16, 8); c.fill(); c.fillStyle = L; c.fillText(label, lx + 6, ly);
       const prix = max ? 'Max ✓' : G.fmtEur(prixDe[m.id]), pw = c.measureText(prix).width + 12, px = Math.min(W - pw - 2, r.x + r.w - pw - 2), py = r.y + r.h - 1;
@@ -622,11 +650,11 @@ const SCENE = (() => {
   function pastilles(E) {
     const c = ctx2, z = zones(), by = Math.sin(E.t * 3) * 2, crans = V.crans, abordables = V.abordables;
     if (!amenager) for (const m of G.MOBILIER) {
-      const r = z[m.id], k = crans[m.id]; if (!r || (m.id === 'tables' && k === 0)) continue;
+      const r = z[m.id], k = crans[m.id]; if (!r || (SALLE_IDS.includes(m.id) && k === 0)) continue;
       const txt = `${k}/${m.max}`; c.font = '800 9px Nunito, sans-serif'; c.textAlign = 'left'; const pw = c.measureText(txt).width + 8, px = Math.max(1, r.x + 2), py = r.y + r.h - 7;
       c.fillStyle = 'rgba(74,51,40,.55)'; rr(px, py - 6.5, pw, 13, 6.5); c.fill(); c.fillStyle = '#fff'; c.fillText(txt, px + 4, py + 3.2);
     }
-    for (const id of ['tables', 'four', 'vitrine', 'caisse', 'froid', 'deco']) {
+    for (const id of ['tables', 'four', 'vitrine', 'caisse', 'froid', 'deco', 'bar', 'banquette', 'terrasse']) {
       if (!abordables[id] || !z[id]) continue;
       const r = z[id], x = Math.min(W - 10, r.x + r.w - 6), y = Math.max(10, r.y + 6 + by);
       c.fillStyle = 'rgba(0,0,0,.12)'; c.beginPath(); c.arc(x + 1, y + 2, 8.5, 0, TAU); c.fill();
@@ -636,7 +664,7 @@ const SCENE = (() => {
   }
 
   const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitArriere, zoneArriere, hitChat, hitTrophees, recompenses, decosQuartier, decosHantee, pelageChat, compagnon, ronron, souffle, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, qualite,
-    vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
+    installer: (zone, duree) => webgl && V.installer(zone, duree), vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
     get decosHanteeVues() { return Object.keys(HDECO).filter((k) => HDECO[k] && groupes['ht-' + k]); }, // les décos de la Maison hantée posées (pour les tests)
@@ -648,6 +676,10 @@ const SCENE = (() => {
     get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0, ...(groupes.equipe ? { equipe: true } : {}) }; }, // ce que la boutique montre (pour les tests ; equipe : la rosette « Esprit d'équipe », seulement quand elle est là)
     get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG), salle: n(salle) }; }, // le budget d'appels de dessin (pour les tests)
     get _riche() { return RICHE; }, // les réglages du rendu riche (pour les tests et les captures)
+    get appelsParGroupe() { const out = {}; const n = (g) => { let k = 0; g.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) k += Array.isArray(o.material) ? o.material.length : 1; }); return k; }; for (const [id, g] of Object.entries(groupes)) if (g) out[id] = n(g); if (hdDecor) out.hd = n(hdDecor); let a = 0; for (const g of acteurs.values()) a += n(g); out.acteurs = a; if (chatG) out.chat = n(chatG); return out; }, // le budget d'appels de dessin, meuble par meuble (pour les tests)
+    get couverts() { return (couvertsCle.match(/1/g) || []).length; }, // les couverts posés (un par client assis ; pour les tests)
+    get assisEn() { return { table: V.assisEn('table'), bar: V.assisEn('bar'), banquette: V.assisEn('banquette'), terrasse: V.assisEn('terrasse') }; }, // les clients assis par coin (pour les tests)
+    get meublesHD() { return SALLE_IDS.filter((id) => groupes[id] && /\|hd/.test(cles[id] || '')); }, // les meubles de la salle bâtis en KayKit (pour les tests)
     get amenager() { return amenager; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
     get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length, geometries: renderer ? renderer.info.memory.geometries : 0, textures: renderer ? renderer.info.memory.textures : 0, riche: RICHE.actif, effets: !!RICHE.post, kenney: typeof KENNEY !== 'undefined' && KENNEY ? { pret: KENNEY.pret, octets: KENNEY.octets, ms: KENNEY.ms, erreur: KENNEY.erreur } : null }; } };
   return API;
