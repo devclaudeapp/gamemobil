@@ -16,6 +16,16 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-10-17-f', date: '2026-10-17', titre: 'Une boutique réaménagée',
+      points: [
+        'La salle s’agrandit : jusqu’à 6 tables. Les deux dernières font encore grimper tous tes gains (×1,48 en tout).',
+        'Un bar et ses tabourets : des pourboires en plus, et des clients servis plus vite.',
+        'Un coin salon pour tes habitués : ils arrivent plus vite et leurs cadeaux grossissent.',
+        'Une terrasse devant la vitrine : plus de monde, surtout les jours de marché et d’avril à septembre.',
+        'Touche un meuble dans la boutique, ou ouvre Bonus › Mobilier, pour les installer. Ils repartent de zéro à chaque nouvelle boutique, comme les autres.',
+      ],
+    },
+    {
       id: '2026-10-17-d', date: '2026-10-17', titre: 'Des événements qui avancent plus vite',
       points: [
         'Dans la Planque (et bientôt au Manoir), des paliers de recette plus serrés : 75, 125, 150, 175… chacun donne un coup de pouce.',

@@ -151,9 +151,12 @@ const CIBLES = {
   // depuis les paliers intercalés (16 octobre : 75, 125, 150, 175, 250…), tout avance d'environ 15 % plus vite : la franchise de l'occasionnel
   // arrive vers le 22e jour (25 à 28 avant), le régulier vers le 18e-20e ; la première nouvelle boutique peut attendre le 5e jour (pour un plus gros gain), et l'écart le plus long entre
   // deux nouvelles boutiques passe de 10 à 11 jours au plus
-  occasionnel: { piece: [6, 21], premierPrestige: [3, 7], dureeMax: 11, etoilesJ30: [150, 1500], franchise: [20, 60], attente: 0.3, joursComplets: 0.6, niveauJ30: [6, 20], niveauFin: [10, 28] },
-  regulier: { dureeMax: 11, tarte: [1, 1], eclair: [1, 2], macaron: [1, 3], millefeuille: [2, 5], piece: [6, 12], premierPrestige: [2, 5], etoilesJ7: [12, 100], etoilesJ14: [60, 400], etoilesJ30: [300, 2000], franchise: [16, 45], attente: 0.35, joursComplets: 0.7, niveauJ30: [10, 24], niveauFin: [16, 34] },
-  assidu: { dureeMax: 12, piece: [4, 10], premierPrestige: [2, 4], etoilesJ30: [500, 3000], franchise: [15, 40], attente: 0.5, joursComplets: 0.7, niveauJ30: [12, 30], niveauFin: [18, 40] },
+  // les meubles du 17 octobre (tables 5 et 6 : tous les gains ×1,48 au lieu de ×1,32 en fin de boutique ; bar, coin salon, terrasse) : la franchise
+  // arrive 1 à 2 jours plus tôt (jusqu'au 14e jour pour l'assidu, 15e pour le régulier) et les étoiles du 30e jour montent de 10 à 30 % selon le départ :
+  // les bornes basses de la franchise perdent 2 jours, les hautes des étoiles au 30e jour gagnent 300 (mesuré sur les quatre départs)
+  occasionnel: { piece: [6, 21], premierPrestige: [3, 7], dureeMax: 11, etoilesJ30: [150, 1800], franchise: [18, 60], attente: 0.3, joursComplets: 0.6, niveauJ30: [6, 20], niveauFin: [10, 28] },
+  regulier: { dureeMax: 11, tarte: [1, 1], eclair: [1, 2], macaron: [1, 3], millefeuille: [2, 5], piece: [6, 12], premierPrestige: [2, 5], etoilesJ7: [12, 100], etoilesJ14: [60, 400], etoilesJ30: [300, 2300], franchise: [14, 45], attente: 0.35, joursComplets: 0.7, niveauJ30: [10, 24], niveauFin: [16, 34] },
+  assidu: { dureeMax: 12, piece: [4, 10], premierPrestige: [2, 4], etoilesJ30: [500, 3300], franchise: [13, 40], attente: 0.5, joursComplets: 0.7, niveauJ30: [12, 30], niveauFin: [18, 40] },
 };
 function tester(jours) {
   let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };

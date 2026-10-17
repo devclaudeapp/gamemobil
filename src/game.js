@@ -275,19 +275,39 @@
     return m;
   }
 
-  // ─── le mobilier : six meubles de la boutique, améliorables cran par cran ; tout repart de zéro à chaque boutique ───
+  // ─── le mobilier : neuf meubles de la boutique, améliorables cran par cran ; tout repart de zéro à chaque boutique ───
+  // Les prix suivent une même courbe (×40 ou ×50 par cran) ; chaque meuble a un bonus petit et lisible, lu par les fonctions des effets :
+  //   tables → mobilierMult (tous les gains) ; four → tempsMult ; vitrine, bar et terrasse → affluenceMult (les fournées à la main) ;
+  //   caisse et bar → pourboire (et la caisse, le client mystère) ; froid → heuresAbsence ; deco → primeMult ; banquette → les habitués.
+  // Une vieille sauvegarde sans bar, banquette ni terrasse (ni tables 5 et 6) les a au cran 0 (mobilierCran) : rien à migrer.
+  // phrase : la ligne de la fiche du meuble (ui.js, sheetMeuble). Les places assises de chaque cran : places(st), plus bas.
   const virg = (x) => String(+x.toFixed(2)).replace('.', ',');
+  const BANQUETTE = ['Une banquette', 'Banquette, table basse et tapis', 'Banquette, lampe et fauteuil'];
   const MOBILIER = [
-    { id: 'tables', nom: 'Tables et chaises', max: 4, cout: 6000, croiss: 40, desc: (k) => `Salon de thé : ${k} table${k > 1 ? 's' : ''}, tous les gains ×${virg(1 + 0.08 * k)}` },
-    { id: 'four', nom: 'Four', max: 4, cout: 20000, croiss: 40, desc: (k) => `Toutes les fournées cuisent ${3 * k} % plus vite` },
-    { id: 'vitrine', nom: 'Vitrine', max: 3, cout: 30000, croiss: 40, desc: (k) => `Les fournées à la main servent ${25 * k} % de clients en plus` },
-    { id: 'caisse', nom: 'Caisse enregistreuse', max: 3, cout: 120000, croiss: 50, desc: (k) => `Pourboires ×${virg(1 + 0.3 * k)}, client mystère ${8 * k} % plus fréquent` },
-    { id: 'froid', nom: 'Chambre froide', max: 3, cout: 600000, croiss: 50, desc: (k) => `Les apprentis travaillent ${k} h de plus pendant ton absence` },
-    { id: 'deco', nom: 'Décoration', max: 4, cout: 300000, croiss: 40, desc: (k) => `Primes des événements et des défis +${15 * k} %` },
+    { id: 'tables', nom: 'Tables et chaises', max: 6, cout: 6000, croiss: 40, phrase: 'On s’attarde autour d’un café et d’un croissant.', desc: (k) => `Salon de thé : ${k} table${k > 1 ? 's' : ''}, tous les gains ×${virg(1 + 0.08 * k)}` },
+    { id: 'four', nom: 'Four', max: 4, cout: 20000, croiss: 40, phrase: 'Le cœur de la boutique, chaud dès l’aube.', desc: (k) => `Toutes les fournées cuisent ${3 * k} % plus vite` },
+    { id: 'vitrine', nom: 'Vitrine', max: 3, cout: 30000, croiss: 40, phrase: 'Tout ce qui sort du four, bien en vue depuis la rue.', desc: (k) => `Les fournées à la main servent ${25 * k} % de clients en plus` },
+    { id: 'caisse', nom: 'Caisse enregistreuse', max: 3, cout: 120000, croiss: 50, phrase: 'Elle tinte à chaque pourboire.', desc: (k) => `Pourboires ×${virg(1 + 0.3 * k)}, client mystère ${8 * k} % plus fréquent` },
+    { id: 'froid', nom: 'Chambre froide', max: 3, cout: 600000, croiss: 50, phrase: 'La pâte y repose la nuit, pendant que les apprentis travaillent.', desc: (k) => `Les apprentis travaillent ${k} h de plus pendant ton absence` },
+    { id: 'deco', nom: 'Décoration', max: 4, cout: 300000, croiss: 40, phrase: 'Des cadres, des plantes, des fleurs : on a envie d’entrer.', desc: (k) => `Primes des événements et des défis +${15 * k} %` },
+    { id: 'bar', nom: 'Bar et tabourets', max: 3, cout: 60000, croiss: 40, phrase: 'Un café au comptoir, debout ou perché : on boit et on repart vite.', desc: (k) => `${k + 1} tabourets : pourboires +${10 * k} %, les fournées à la main servent ${5 * k} % de clients en plus` },
+    { id: 'banquette', nom: 'Coin salon', max: 3, cout: 1.5e6, croiss: 50, phrase: 'Le coin préféré des habitués, pour lire le journal au chaud.', desc: (k) => `${BANQUETTE[Math.min(k, 3) - 1]} : les habitués arrivent ${20 * k} % plus vite, leurs cadeaux +${30 * k} %` },
+    { id: 'terrasse', nom: 'Terrasse', max: 3, cout: 6e6, croiss: 50, phrase: 'Quelques tables dehors, devant la vitrine, pour les beaux jours.', desc: (k) => `${2 * k} places dehors : +${10 * k} % de clients à la main les jours de marché et à la belle saison, +${5 * k} % sinon` },
   ];
   const mobilierCran = (st, id) => (st.mobilier && st.mobilier[id]) || 0;
   const prixMeuble = (st, id) => { const m = MOBILIER.find((x) => x.id === id); return m.cout * Math.pow(m.croiss, mobilierCran(st, id)) * (1 - 0.08 * talent(st, 'negoce')); };
   const mobilierMult = (st) => 1 + 0.08 * mobilierCran(st, 'tables');
+  // la belle saison (d'avril à septembre, heure de Paris) : avec les jours de marché, la terrasse fait le plein
+  const belleSaison = (ms) => { const m = paris(ms).getUTCMonth() + 1; return m >= 4 && m <= 9; };
+  const terrassePleine = (st) => jourDeMarche(st.now) || belleSaison(st.now);
+  const terrasseAffluence = (st) => (terrassePleine(st) ? 0.1 : 0.05) * mobilierCran(st, 'terrasse');
+  const habituesVite = (st) => 1 + 0.2 * mobilierCran(st, 'banquette');   // les habitués arrivent plus vite dans leur créneau
+  const habituesCadeau = (st) => 1 + 0.3 * mobilierCran(st, 'banquette'); // et leurs cadeaux (tous les 5 jours de suite) grossissent
+  // les places assises, pour la scène (vie.js : les sièges actifs du plan) : { tables : 0 à 6 tables (2 places chacune), bar : 0, 2, 3 ou 4 tabourets,
+  // banquette : 0, 2 (la banquette, puis avec la table basse) ou 3 places (le fauteuil), terrasse : 0, 2, 4 ou 6 places }
+  const places = (st) => { const b = mobilierCran(st, 'banquette'); return { tables: mobilierCran(st, 'tables'), bar: mobilierCran(st, 'bar') ? mobilierCran(st, 'bar') + 1 : 0, banquette: b >= 3 ? 3 : b ? 2 : 0, terrasse: 2 * mobilierCran(st, 'terrasse') }; };
+  // st.amenagement : RÉSERVÉ au lot B (« tout déplaçable et organisable ») — la place de chaque meuble dans les emplacements nommés du plan.
+  // Absent (toujours, pour l'instant) : le plan par défaut. Rien ne l'écrit ni ne le lit encore ; ne pas s'en servir pour autre chose.
   function ameliorerMeuble(st, id) {
     const m = MOBILIER.find((x) => x.id === id); if (!m) return { ok: false };
     const cran = mobilierCran(st, id), prix = prixMeuble(st, id);
@@ -442,7 +462,7 @@
   const tempsMult = (st) => (1 - 0.05 * talent(st, 'mains')) * (1 - 0.03 * mobilierCran(st, 'four')) * bonusGardeRobe(st).vitesse * (1 - (bonusCompagnon(st).vitesse || 0) / 100);
   const temps = (st, i) => PRODUITS[i].temps * tempsMult(st) * apprentiTempsMult(st, i);
   const heuresAbsence = (st) => ABSENCE_MAX_H + talent(st, 'levetot') + mobilierCran(st, 'froid') + bonusGardeRobe(st).absenceH + (bonusCompagnon(st).absence || 0);
-  const affluenceMult = (st) => 1 + 0.5 * talent(st, 'affluence') + 0.25 * mobilierCran(st, 'vitrine');
+  const affluenceMult = (st) => 1 + 0.5 * talent(st, 'affluence') + 0.25 * mobilierCran(st, 'vitrine') + 0.05 * mobilierCran(st, 'bar') + terrasseAffluence(st);
   const prixStaff = (st, i) => PRODUITS[i].staff * (1 - 0.1 * talent(st, 'zele'));
   const prixBonus = (st, a) => a.cout * (1 - 0.08 * talent(st, 'negoce'));
   const primeMult = (st) => (1 + 0.25 * talent(st, 'charme')) * (1 + 0.15 * mobilierCran(st, 'deco'));
@@ -737,7 +757,7 @@
     st.ev = null;
     return { ok: true, prime: ev.prime };
   }
-  const pourboire = (st) => arrondi(Math.max(20, rythme(st) * 120) * (1 + 0.5 * talent(st, 'pourboire')) * (1 + 0.3 * mobilierCran(st, 'caisse')) * (1 + (bonusCompagnon(st).pourboire || 0) / 100));
+  const pourboire = (st) => arrondi(Math.max(20, rythme(st) * 120) * (1 + 0.5 * talent(st, 'pourboire')) * (1 + 0.3 * mobilierCran(st, 'caisse')) * (1 + 0.1 * mobilierCran(st, 'bar')) * (1 + (bonusCompagnon(st).pourboire || 0) / 100));
   function encaisserPourboire(st) { const tip = pourboire(st); gagner(st, tip, true); gagnerXp(st, 3); inc(st, 'pourboires'); marquerEvenement(st); st.stats.meilleurPourboire = Math.max(st.stats.meilleurPourboire || 0, tip); noterSemaine(st, 'pourboires'); note(st, `Pourboire du client mystère : ${fmtEur(tip)}`); return tip; }
   // ─── les habitués : trois clients fidèles qui passent à heure fixe, une fois par jour ; cinq jours de suite, un cadeau ───
   const HABITUES = [
@@ -756,7 +776,7 @@
     const key = dayKey(st.now); if (e.dernier === key) return { ok: false };
     e.jours = e.dernier === hier(st.now) ? e.jours + 1 : 1; e.dernier = key; gagnerXp(st, 8);
     let cadeau = 0;
-    if (e.jours % 5 === 0) { cadeau = arrondi(Math.max(50, rythme(st) * 600)); gagner(st, cadeau, true); note(st, `${hb.nom}, fidèle depuis ${e.jours} jours : cadeau de ${fmtEur(cadeau)}`); }
+    if (e.jours % 5 === 0) { cadeau = arrondi(Math.max(50, rythme(st) * 600) * habituesCadeau(st)); gagner(st, cadeau, true); note(st, `${hb.nom}, fidèle depuis ${e.jours} jours : cadeau de ${fmtEur(cadeau)}`); }
     return { ok: true, jours: e.jours, cadeau, hb };
   }
   // ─── la spécialité de la boutique : un produit ×2 le temps de cette boutique, choisi à l'ouverture ───
@@ -791,7 +811,7 @@
     { id: 'compagnon', nom: 'Compagnon', desc: 'Atteindre le titre de Compagnon', xp: 40, cond: (st) => niveau(st) >= 13 },
     { id: 'mof', nom: 'Meilleur Ouvrier de France', desc: 'Atteindre le titre suprême', xp: 150, cond: (st) => niveau(st) >= 26 },
     { id: 'fidele', nom: 'Habitué fidèle', desc: 'Servir un habitué 5 jours de suite', xp: 40, cond: (st) => Object.values(st.habitues || {}).some((e) => e.jours >= 5) },
-    { id: 'salon', nom: 'Salon de thé', desc: 'Tables et chaises au maximum', xp: 30, cond: (st) => mobilierCran(st, 'tables') >= 4 },
+    { id: 'salon', nom: 'Salon de thé', desc: 'Installer 4 tables et leurs chaises', xp: 30, cond: (st) => mobilierCran(st, 'tables') >= 4 }, // 4 : l'ancien maximum (les tables 5 et 6 sont un but de fin de boutique)
     { id: 'decorateur', nom: 'Décorateur', desc: 'Améliorer 40 meubles en tout', xp: 50, cond: (st) => (st.stats.meubles || 0) >= 40 },
     { id: 'grade', nom: 'Chef de partie', desc: 'Un apprenti au grade 3', xp: 30, cond: (st) => PRODUITS.some((p, i) => gradeApprenti(st, i) >= 3) },
     { id: 'brigade', nom: 'Brigade étoilée', desc: 'Quatre apprentis au grade 5', xp: 100, cond: (st) => PRODUITS.filter((p, i) => gradeApprenti(st, i) >= 5).length >= 4 },
@@ -1134,7 +1154,7 @@
     st.mystereTimer -= dt;
     if (st.mystereTimer <= 0) { st.mystereTimer = (150 + rnd() * 200) * (1 - 0.15 * talent(st, 'pourboire')) * (1 - 0.08 * mobilierCran(st, 'caisse')); out.mystere = true; }
     const hb = habitueAttendu(st, nowMs); // un habitué passe une fois par jour, pendant son créneau, après quelques secondes de jeu
-    if (hb && rnd() < dt / 25) { st.habitues[hb.id] = st.habitues[hb.id] || { jours: 0, dernier: '', vuLe: '' }; st.habitues[hb.id].vuLe = dayKey(nowMs); out.habitue = hb; }
+    if (hb && rnd() < dt / 25 * habituesVite(st)) { st.habitues[hb.id] = st.habitues[hb.id] || { jours: 0, dernier: '', vuLe: '' }; st.habitues[hb.id].vuLe = dayKey(nowMs); out.habitue = hb; }
     out.trophees = verifierTrophees(st);
     return out;
   }
@@ -1186,7 +1206,7 @@
     CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, PELAGES, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
     COMPAGNONS, COMPAGNON_PLANCHER, compagnon, estChat, prixCompagnon, aCompagnon, compagnonActif, bonusCompagnon, compagnonGains, modeleCompagnon, compagnons, choisirCompagnon, acheterCompagnon,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
-    PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
+    PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, places, belleSaison, terrassePleine, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, expoPalier, fmtMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables, prochaineEtoile,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, boostsNeufs, donnerBoostReserve, PRIME_HEURE_PLANCHER, primeHeures, donnerPrimeHeures, lancerBoostReserve,

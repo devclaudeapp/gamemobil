@@ -543,6 +543,15 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
       'une photo piégée : pas de balise, nombres bornés, ids inconnus écartés');
     const b2 = CL.boutiqueDepuisPhoto({ q: 99, p: [], m: { four: 999 }, t: ['n-existe-pas'] }, { G, maintenant: T });
     check(b2 && b2.st.stations[0].niv === 1 && G.mobilierCran(b2.st, 'four') === 4 && G.tenueBoulanger(b2.st).tete.forme === 'toque' && G.quartier(b2.st) < G.QUARTIERS.length, 'une photo pauvre : une boutique de départ, crans plafonnés au maximum, tenue de base'); }
+  { // les meubles du 17 octobre (tables 5 et 6, bar, coin salon, terrasse) : dans la photo ; la photo d'un copain d'avant cette version se charge (crans à 0)
+    const st = G.newState(T); st.nomBoutique = 'Ω'.repeat(30); st.stations.forEach((s) => { s.niv = 1e6; s.staff = true; }); for (const m of G.MOBILIER) st.mobilier[m.id] = m.max;
+    const p = CL.photo(st, { G, coupes: Array(12).fill('or'), badge: true }), o = CL.octetsJson(p), b = CL.boutiqueDepuisPhoto(p, { G, maintenant: T });
+    check(p && o <= 2048 && p.m.tables === 6 && p.m.bar === 3 && p.m.banquette === 3 && p.m.terrasse === 3 && Object.keys(p.m).length === 9 && p.k.length === 12
+      && b && G.mobilierCran(b.st, 'tables') === 6 && G.mobilierCran(b.st, 'terrasse') === 3 && G.places(b.st).bar === 4 && G.places(b.st).banquette === 3, `les neuf meubles au maximum dans la photo (${o} octets ≤ 2048, rien de retiré), rebâtis chez le visiteur`);
+    const avant = { v: 1, nom: 'Chez Lucas', q: 0, p: [[40, 1, 2]], m: { tables: 4, four: 4, vitrine: 3, caisse: 3, froid: 3, deco: 4 }, t: [null, null, null, null], c: null, g: 12 }, bv = CL.boutiqueDepuisPhoto(avant, { G, maintenant: T });
+    check(bv && G.mobilierCran(bv.st, 'tables') === 4 && G.mobilierCran(bv.st, 'deco') === 4 && ['bar', 'banquette', 'terrasse'].every((id) => G.mobilierCran(bv.st, id) === 0) && JSON.stringify(G.places(bv.st)) === '{"tables":4,"bar":0,"banquette":0,"terrasse":0}', 'la photo d’un copain d’avant cette version : ses six meubles, pas de bar, de coin salon ni de terrasse');
+    const plus = CL.nettoyerPhoto(Object.assign({}, avant, { m: Object.assign({ bar: 3, banquette: 3, terrasse: 3, piano: 2 }, avant.m) }));
+    check(plus && Object.keys(plus.m).length === 10 && plus.m.piano === 2 && G.mobilierCran(CL.boutiqueDepuisPhoto(plus, { G, maintenant: T }).st, 'piano') === 0, 'un meuble encore inconnu de ce téléphone (une version plus neuve) : gardé dans la photo, ignoré dans la boutique'); }
 
   console.log('── la photo : les statistiques (x) et l’événement en cours (e) ──');
   const Q = require('../src/quartier.js'), H = require('../src/hantee.js');

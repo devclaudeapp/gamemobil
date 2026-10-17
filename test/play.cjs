@@ -291,10 +291,10 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await scene();
   const tz = await zone('tables'); await page.touchscreen.tap(tz.x, tz.y); await sleep(400);
   const ficheTables = await page.evaluate(() => document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText);
-  check(/Tables et chaises/.test(ficheTables) && /Pas encore installé/.test(ficheTables) && /Cran suivant/.test(ficheTables), 'toucher les tables ouvre leur fiche : ' + ficheTables.split('\n').slice(0, 2).join(' / '));
+  check(/Tables et chaises/.test(ficheTables) && /Pas encore installé/.test(ficheTables) && /Cran suivant/.test(ficheTables) && /autour d’un café/.test(ficheTables), 'toucher les tables ouvre leur fiche (avec sa phrase) : ' + ficheTables.split('\n').slice(0, 2).join(' / '));
   await page.screenshot({ path: out + '/05s-fiche-tables.png' });
   await page.tap('[data-m="tables"]'); await sleep(400);
-  check(await page.evaluate(() => window.__fournil.st.mobilier.tables === 1 && /cran 1 sur 4/.test(document.querySelector('#feuille-contenu').innerText)), 'tables cran 1 achetées, la fiche se met à jour');
+  check(await page.evaluate(() => window.__fournil.st.mobilier.tables === 1 && /cran 1 sur 6/.test(document.querySelector('#feuille-contenu').innerText)), 'tables cran 1 achetées (sur 6), la fiche se met à jour');
   await page.tap('[data-a="close"]'); await sleep(200);
   for (const id of ['four', 'vitrine']) await page.evaluate((id) => window.__fournil.meuble(id), id);
   let assis = 0; for (let k = 0; k < 30 && !assis; k++) { await sleep(500); assis = await page.evaluate(() => window.__fournil.SCENE.assis); }
@@ -304,7 +304,20 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   // bonus et mobilier dans la même feuille
   await haut(); await page.tap('#b-ameliorations', { force: true }); await sleep(400);
   await page.tap('[data-tab="mobilier"]'); await sleep(300); await page.screenshot({ path: out + '/06b-mobilier.png' });
-  check(await page.evaluate(() => document.querySelectorAll('#feuille-contenu .am.meuble').length === 6 && /Tables et chaises/.test(document.querySelector('#feuille-contenu').innerText)), 'le volet Mobilier liste les six meubles');
+  check(await page.evaluate(() => document.querySelectorAll('#feuille-contenu .am.meuble').length === 9 && [...document.querySelectorAll('#feuille-contenu .am.meuble')].every((e) => e.querySelector('svg') && e.querySelector('h3 .crans')) && ['Tables et chaises', 'Bar et tabourets', 'Coin salon', 'Terrasse'].every((n) => document.querySelector('#feuille-contenu').innerText.includes(n))), 'le volet Mobilier liste les neuf meubles (bar, coin salon, terrasse), chacun avec son icône et ses crans');
+  await page.evaluate(() => document.querySelector('#feuille').scrollTo(0, 1e4)); await sleep(200); await page.screenshot({ path: out + '/06c-mobilier-bas.png' });
+  // les fiches des trois nouveaux meubles (la scène les ouvre en les touchant) : nom, phrase, bonus actuel et suivant, prix ; un tabouret acheté
+  for (const [id, nom, re] of [['bar', 'Bar et tabourets', /pourboires \+10 %/], ['banquette', 'Coin salon', /habitués arrivent 20 % plus vite/], ['terrasse', 'Terrasse', /2 places dehors/]]) {
+    await page.evaluate((id) => window.__fournil.ficheMeuble(id), id); await sleep(250);
+    const f = await page.evaluate(() => ({ t: document.querySelector('#feuille-contenu').innerText, phrase: !!document.querySelector('#feuille-contenu .meuble-phrase'), prix: (document.querySelector('#feuille-contenu [data-m]') || {}).innerText || '' }));
+    check(f.t.includes(nom) && f.phrase && /cran 0 sur 3/.test(f.t) && /Pas encore installé/.test(f.t) && re.test(f.t) && /€/.test(f.prix), `la fiche « ${nom} » : sa phrase, le cran suivant, le prix (${f.prix.replace(/\s+/g, ' ')})`);
+    if (id === 'bar') await page.screenshot({ path: out + '/06d-fiche-bar.png' });
+  }
+  await page.evaluate(() => { window.__fournil.give(1e5); window.__fournil.ficheMeuble('bar'); }); await sleep(250); await page.tap('[data-m="bar"]'); await sleep(400);
+  check(await page.evaluate(() => window.__fournil.st.mobilier.bar === 1 && /cran 1 sur 3/.test(document.querySelector('#feuille-contenu').innerText) && /Maintenant :.*2 tabourets/.test(document.querySelector('#feuille-contenu').innerText) && /Cran suivant :.*3 tabourets/.test(document.querySelector('#feuille-contenu').innerText)), 'le bar acheté depuis sa fiche : 2 tabourets maintenant, 3 au cran suivant');
+  await page.screenshot({ path: out + '/06e-fiche-bar-1.png' });
+  await page.evaluate(() => { window.__fournil.st.mobilier.bar = 0; window.__fournil.save(); }); await page.tap('#feuille [data-a="close"]'); await sleep(200);
+  await haut(); await page.tap('#b-ameliorations', { force: true }); await sleep(400);
   await page.tap('[data-tab="bonus"]'); await sleep(300); await page.screenshot({ path: out + '/06-ameliorations.png' });
   await page.tap('[data-id="farine"]'); await sleep(300);
   check(await page.evaluate(() => !!window.__fournil.st.ameliorations.farine), 'farine de tradition achetée');
