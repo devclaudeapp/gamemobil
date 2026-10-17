@@ -51,8 +51,12 @@
   // ─── les six produits de la Planque, dans l'ordre où on les débloque (les billets : en €, comme la boulangerie, mais un autre tiroir) ───
   // Après le boss, deux recettes de plus (apres : le palier qui les ouvre, comme les combines) : le très actif attendait jusqu'à une heure
   // par niveau vers le 10e jour (le prix grimpe en puissance, le gain en ligne droite) ; elles repartent du bas, leurs premiers niveaux
-  // tombent en quelques secondes, puis en quelques minutes. Leurs gains restent petits devant ceux de la Spécialité : l'enveloppe du
-  // serveur (fournil_quartier_table) ne bouge pas, le marathon simulé reste ×2 dessous (test/fournil-quartier.test.js).
+  // tombent en quelques secondes, puis en quelques minutes. v6.3 (17 octobre) : de vraies recettes. Leurs gains étaient gardés tout
+  // petits (rev 1 000 et 8 000 : un niveau de sirop se remboursait en ~20 h contre ~15 min pour la Spécialité, ~1 % des gains) ; ×12 pour
+  // le sirop, ×40 pour le cristal : pour le très actif, un niveau se rembourse en à peu près autant de temps qu'un niveau de Spécialité
+  // (×1,5 à ×2,6 pour le sirop, Gobelets achetés) et, montées, elles font ~30 % de ses gains au dernier jour (sirop ~16 %, cristal ~14 %).
+  // Les niveaux achetés restent : seul le gain par niveau change. L'enveloppe du serveur (fournil_quartier_table, SQL v6.3) a été élargie
+  // d'autant ; le marathon simulé reste ×2 dessous (test/fournil-quartier.test.js).
   const PRODUITS = [
     { id: 'herbe', nom: 'Herbe', pl: 'sachets d’herbe', cout: 4, debloquer: 0, rev: 1, temps: 1.5, croiss: 1.07, staff: 1500, staffNom: 'Guetteur Kévin', poste: 'Le banc du square', desc: 'Le classique. Ça sent jusqu’au troisième.' },
     { id: 'shit', nom: 'Shit', pl: 'barrettes', cout: 60, debloquer: 120, rev: 20, temps: 3, croiss: 1.15, staff: 22500, staffNom: 'Charbonneur Dylan', poste: 'Le hall du bâtiment B', desc: 'Emballé dans du papier alu, comme un sandwich.' },
@@ -60,8 +64,8 @@
     { id: 'ecsta', nom: 'Ecsta', pl: 'pochons de cachetons', cout: 8640, debloquer: 17280, rev: 1200, temps: 12, croiss: 1.13, staff: 750000, staffNom: 'Rabatteur Momo', poste: 'Le parking de la boîte', desc: 'Roses, avec un petit cœur dessus.' },
     { id: 'coke', nom: 'Coke', pl: 'pochettes', cout: 1e5, debloquer: 2e8, rev: 10000, temps: 24, croiss: 1.12, staff: 6e8, staffNom: 'Comptable Tonton Serge', poste: 'L’arrière-salle du PMU', desc: 'La clientèle a des mocassins.' },
     { id: 'specialite', nom: 'La Spécialité du quartier', pl: 'Spécialités', cout: 1.2e6, debloquer: 2e10, rev: 9e4, temps: 96, croiss: 1.11, staff: 6e10, staffNom: 'Livreur Rachid', poste: 'Le camion à kebabs', desc: 'Personne ne sait ce qu’il y a dedans. Tout le monde en redemande.' },
-    { id: 'sirop', nom: 'Sirop violet', pl: 'gobelets de sirop violet', apres: 13, cout: 1e12, debloquer: 2e13, rev: 1000, temps: 120, croiss: 1.02, staff: 5e13, staffNom: 'Pharmacien Gérard', poste: 'L’arrière-boutique de la pharmacie', desc: 'Ça se boit à la paille, et ça ralentit tout le square.' },
-    { id: 'cristal', nom: 'Cristal bleu', pl: 'sachets de cristal bleu', apres: 16, cout: 1e13, debloquer: 2e14, rev: 8000, temps: 240, croiss: 1.025, staff: 5e14, staffNom: 'Chimiste Monsieur Blanc', poste: 'Le camping-car du terrain vague', desc: 'Bleu comme à la télé. Le chimiste jure qu’il est prof de chimie.' },
+    { id: 'sirop', nom: 'Sirop violet', pl: 'gobelets de sirop violet', apres: 13, cout: 1e12, debloquer: 2e13, rev: 12000, temps: 120, croiss: 1.02, staff: 5e13, staffNom: 'Pharmacien Gérard', poste: 'L’arrière-boutique de la pharmacie', desc: 'Ça se boit à la paille, et ça ralentit tout le square.' },
+    { id: 'cristal', nom: 'Cristal bleu', pl: 'sachets de cristal bleu', apres: 16, cout: 1e13, debloquer: 2e14, rev: 320000, temps: 240, croiss: 1.025, staff: 5e14, staffNom: 'Chimiste Monsieur Blanc', poste: 'Le camping-car du terrain vague', desc: 'Bleu comme à la télé. Le chimiste jure qu’il est prof de chimie.' },
   ];
   // les paliers des postes : au palier franchi le plus haut, les gains sont multipliés par 2^exposant. Les anciens (25, 50, 100, 200…
   // 5000) gardent leur exposant entier (le même multiplicateur cumulé qu'avant : ×2 à chacun) ; v6.2, ceux qu'on a intercalés (75, 125,
@@ -86,7 +90,7 @@
     // fournil_quartier_table : le marathon simulé doit rester ×2 dessous) ; elles adoucissent les coups de pouce et l'absence (effet) ; et,
     // depuis la version 2 des récompenses, chacune PAIE la boulangerie à l'achat : prime (heures de son rythme) et étoiles (ACT.RECOMPENSES).
     // Le Grossiste (effet remise) : tous les niveaux de recettes à moitié prix (pas les déblocages) ; deux combines ×3 pour les recettes
-    // d'après le boss, ouvertes avec elles (13e et 16e) : les seules d'après le boss qui multiplient des ventes, réglées sur l'enveloppe.
+    // d'après le boss, ouvertes avec elles (13e et 16e) : les seules d'après le boss qui multiplient des ventes (l'enveloppe v6.3 les compte, offertes dès le 12e).
     { id: 'grossiste', nom: 'Le Grossiste', cout: 8e14, apres: 12, cible: [], mult: 1, effet: { remise: 0.5 }, prime: 4, etoiles: 1, desc: 'Tous les niveaux de recettes à moitié prix' },
     { id: 'guetteurs', nom: 'Guetteurs sur les toits', cout: 1e15, apres: 12, cible: [], mult: 1, effet: { descenteN: 8, descentePart: 0.05 }, prime: 6, etoiles: 1, desc: 'Descentes : 8 touches suffisent, la police n’embarque plus que 5 %' },
     { id: 'matelas', nom: 'Le matelas de Mémé Jacqueline', cout: 2e15, apres: 12, cible: [], mult: 1, effet: { absenceH: 12, absencePart: 0.2 }, prime: 10, etoiles: 2, desc: 'Absence : l’équipe bosse 12 h, à 20 % du rythme' },
@@ -112,7 +116,7 @@
   // quatre sessions) franchit le 12e le 11e jour ; un quotidien (36 min par jour) le 8e le 9e jour, le 9e le 11e, le 10e le dernier jour ;
   // un occasionnel (17 min) le 6e vers le 8e jour. C'est en jouant qu'on grimpe (PRESENCE) : les gains d'absence ne font que suivre.
   // Après le boss (bonus: true), les paliers 13 à 20 : pour ceux qui franchissent le 12e bien avant la fin. Un très actif (8 h par jour,
-  // le 12e au 3e jour) en franchit un tous les jour ou deux ; le marathon (24 h/24) n'atteint le 20e que vers le 13e jour. Ils ne font
+  // le 12e au 3e jour) en franchit un tous les jour ou deux ; le marathon (24 h/24) n'atteint le 20e que vers le 8e jour (le 10e avant la v6.3). Ils ne font
   // plus la réputation (REPUTATION ne compte que les douze premiers : l'enveloppe du serveur ne bouge pas) ; ils donnent des étoiles,
   // des boosts, une prime, un titre, et au 20e la casquette néon (un trophée de la garde-robe, distinct de la tenue en or du podium final).
   // Version 2 des récompenses (16 octobre) : les seuils (total) ne bougent pas ; tout ce qui s'ajoute va à la BOULANGERIE. prime : des
@@ -412,7 +416,7 @@
         }
         q.lastSeen = debut + minutes * 60e3; if (jeu) A.sim.fin(q, Math.min(q.lastSeen, FIN - 1), jeu, rndA); trace.push({ t: (q.lastSeen - t0) / JOUR, total: q.total });
       }
-      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length, remise: remise(q) });
+      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length, remise: remise(q), ameliorations: { ...q.ameliorations } });
     }
     return { q, total: q.total, parJour, paliersJour, trace };
   }

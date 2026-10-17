@@ -77,8 +77,11 @@
   // ─── les six friandises du Manoir, dans l'ordre où on les débloque ; leurs monstres (les « apprentis ») ───
   // Les chiffres sont ceux du Quartier, resserrés pour six jours et demi (croissance des prix plus douce, déblocages plus proches) :
   // réglés sur la simulation (test/fournil-hantee.test.js). Après le maître, deux recettes de plus (apres : le palier qui les ouvre, comme
-  // les Sortilèges), comme au Quartier : elles repartent du bas, leurs premiers niveaux tombent vite ; leurs gains restent petits devant
-  // ceux des citrouilles (l'enveloppe du serveur, fournil_evts : le marathon simulé reste ×2 dessous).
+  // les Sortilèges), comme au Quartier : elles repartent du bas, leurs premiers niveaux tombent vite. v6.3 (17 octobre) : de vraies
+  // recettes, comme au Quartier (rev 1 000 et 8 000 avant : des gains tout petits devant ceux des citrouilles) ; ×18 pour les gâteaux,
+  // ×87,5 pour les œufs : pour le très actif, un niveau se rembourse en à peu près autant de temps qu'un niveau de citrouilles (×1,7 à
+  // ×2,9) et, montées, elles font ~30 % de ses gains à la fin (gâteaux ~13 %, œufs ~16 %). Les niveaux achetés restent. L'enveloppe du
+  // serveur (fournil_evts, SQL v6.3) a été élargie d'autant : le marathon simulé reste ×2 dessous.
   const PRODUITS = [
     { id: 'acidule', nom: 'Bonbons acidulés', pl: 'sachets de bonbons acidulés', cout: 4, debloquer: 0, rev: 1, temps: 1.5, croiss: 1.07, staff: 1500, staffNom: 'Hubert le fantôme', staffDesc: 'Il passe à travers les murs pour livrer plus vite. Il dit « Bouh » aux clients, poliment.', poste: 'Le grenier qui grince', desc: 'Ça pique la langue et ça fait faire des grimaces.' },
     { id: 'pomme', nom: 'Pommes d’amour', pl: 'pommes d’amour', cout: 60, debloquer: 120, rev: 20, temps: 3, croiss: 1.14, staff: 22500, staffNom: 'Ramsès la momie', staffDesc: 'Emballe chaque pomme comme elle s’emballe elle-même : avec beaucoup de bandelettes.', poste: 'La crypte du sous-sol', desc: 'Rouges, brillantes, et elles collent aux dents.' },
@@ -86,8 +89,8 @@
     { id: 'toile', nom: 'Toiles d’araignée en sucre', pl: 'toiles d’araignée en sucre', cout: 8640, debloquer: 17280, rev: 1200, temps: 12, croiss: 1.12, staff: 750000, staffNom: 'Comte Vladimir', staffDesc: 'Un vampire très chic qui ne mord que dans la barbe à papa. Il travaille de nuit, forcément.', poste: 'La tour de l’horloge', desc: 'Filées par une araignée très gourmande. Elle a dit oui.' },
     { id: 'potion', nom: 'Potions fumantes', pl: 'potions fumantes', cout: 1e5, debloquer: 2e8, rev: 10000, temps: 24, croiss: 1.11, staff: 4e8, staffNom: 'Berthe la sorcière', staffDesc: 'Touille le chaudron en chantant faux. Les potions adorent ça.', poste: 'Le chaudron du salon', desc: 'Goût fraise-citrouille. La fumée verte est offerte.' },
     { id: 'citrouille', nom: 'Citrouilles sculptées', pl: 'citrouilles sculptées', cout: 1.2e6, debloquer: 1e10, rev: 9e4, temps: 96, croiss: 1.1, staff: 3e10, staffNom: 'Jack la Lanterne', staffDesc: 'Une citrouille qui sculpte des citrouilles. Elle a toujours le sourire, il est gravé.', poste: 'Le potager au clair de lune', desc: 'Chacune a sa grimace. Aucune ne se ressemble.' },
-    { id: 'cimetiere', nom: 'Gâteaux du cimetière', pl: 'gâteaux du cimetière', apres: 13, cout: 1e12, debloquer: 2e13, rev: 1000, temps: 120, croiss: 1.02, staff: 5e13, staffNom: 'Gaston le loup-garou', staffDesc: 'Il ne se transforme qu’à l’heure du goûter. Il remue la pâte avec la queue, très proprement.', poste: 'Le petit cimetière du jardin', desc: 'Des vers en gélatine sortent de la terre en chocolat.' },
-    { id: 'dragon', nom: 'Œufs de dragon en chocolat', pl: 'œufs de dragon en chocolat', apres: 16, cout: 1e13, debloquer: 2e14, rev: 8000, temps: 240, croiss: 1.025, staff: 5e14, staffNom: 'Bérénice la dragonne', staffDesc: 'Une toute petite dragonne qui couve les œufs pour les garder tièdes. Elle éternue des étincelles.', poste: 'Le donjon de la tour nord', desc: 'Ils sont tièdes et ils bougent un peu. C’est normal.' },
+    { id: 'cimetiere', nom: 'Gâteaux du cimetière', pl: 'gâteaux du cimetière', apres: 13, cout: 1e12, debloquer: 2e13, rev: 18000, temps: 120, croiss: 1.02, staff: 5e13, staffNom: 'Gaston le loup-garou', staffDesc: 'Il ne se transforme qu’à l’heure du goûter. Il remue la pâte avec la queue, très proprement.', poste: 'Le petit cimetière du jardin', desc: 'Des vers en gélatine sortent de la terre en chocolat.' },
+    { id: 'dragon', nom: 'Œufs de dragon en chocolat', pl: 'œufs de dragon en chocolat', apres: 16, cout: 1e13, debloquer: 2e14, rev: 700000, temps: 240, croiss: 1.025, staff: 5e14, staffNom: 'Bérénice la dragonne', staffDesc: 'Une toute petite dragonne qui couve les œufs pour les garder tièdes. Elle éternue des étincelles.', poste: 'Le donjon de la tour nord', desc: 'Ils sont tièdes et ils bougent un peu. C’est normal.' },
   ];
   // les paliers des postes : au palier franchi le plus haut, les gains sont multipliés par 2^exposant. Les anciens (25, 50, 100, 200…
   // 5000) gardent leur exposant entier (le même multiplicateur cumulé qu'avant : ×2 à chacun) ; v6.2, ceux qu'on a intercalés (75, 125,
@@ -137,7 +140,7 @@
   // Réglés sur la simulation (test/fournil-hantee.test.js) : un assidu (80 min par jour, en quatre sessions) franchit le 12e le
   // dernier jour (le 6e ou le 7e jour de Paris) ; un quotidien (36 min) va jusqu'au 8e-9e ; un occasionnel (17 min) passe le 5e.
   // Après le maître (bonus: true), les paliers 13 à 20 : un très actif (8 h par jour, le 12e au 2e jour) en franchit un par jour ou
-  // presque ; le marathon (24 h/24) n'atteint le 20e que le 6e ou le 7e jour. Ils ne font plus la réputation (REPUTATION ne compte que
+  // presque ; le marathon (24 h/24) n'atteint le 20e que le 5e jour (le 6e avant la v6.3). Ils ne font plus la réputation (REPUTATION ne compte que
   // les douze premiers : l'enveloppe du serveur ne bouge pas) ; étoiles, boosts, primes, un titre, et au 20e le chapeau phosphorescent (un
   // trophée de la garde-robe, distinct de la tenue en or du podium final). Version 2 des récompenses (16 octobre), les mêmes principes
   // qu'au Quartier (src/quartier.js) : les seuils ne bougent pas ; prime : des heures du rythme de la boulangerie ; les douze premiers un
@@ -443,7 +446,7 @@
         }
         q.lastSeen = Math.min(debut + minutes * 60e3, FIN); if (jeu) A.sim.fin(q, Math.min(q.lastSeen, FIN - 1), jeu, rndA); trace.push({ t: (q.lastSeen - t0) / JOUR, total: q.total });
       }
-      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length, remise: remise(q) });
+      parJour.push({ j: j + 1, total: q.total, billets: q.billets, taux: tauxParSeconde(q), niv: q.postes.map((s) => s.niv), staff: q.postes.filter((s) => s.staff).length, remise: remise(q), ameliorations: { ...q.ameliorations } });
     }
     return { q, total: q.total, parJour, paliersJour, trace };
   }

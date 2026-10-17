@@ -160,12 +160,22 @@ ev = HT.lancerEvenement(q, () => 0.5, 'descente'); const evS = HT.lancerEvenemen
 check(ev.n === 8 && ev.enjeu === Math.floor(q.billets * 0.05) && evS.fin - evS.debut === 150e3 && evB.fin - evB.debut === 20e3 && HT.heuresAbsence(q) === 12 && HT.partAbsence(q) === 0.2, 'leurs effets : chauves-souris en 8 touches (5 % emportés), pleine lune de 2 min 30 (3 min avant les recettes d’après le maître : la place du Marché dans l’enveloppe), balai qui attend 20 s, absence de 12 h à 20 %');
 { // les deux recettes d'après le maître : fermées avant leur palier, ouvertes dès qu'il est franchi ; une vieille sauvegarde à six postes
   const [GC, OD] = [6, 7].map((i) => HT.PRODUITS[i]), qr = HT.etat({}, now0); for (let i = 1; i < 6; i++) qr.postes[i].niv = 50; HT.gagner(qr, 1e15); qr.billets = 1e17; qr.mode = 1;
-  check(GC.apres === 13 && OD.apres === 16 && GC.staffNom === 'Gaston le loup-garou' && OD.staffNom === 'Bérénice la dragonne' && GC.rev < HT.PRODUITS[5].rev / 10 && GC.croiss < 1.05, `« ${GC.nom} » (${GC.staffNom}, ${GC.poste}) au 13e, « ${OD.nom} » (${OD.staffNom}, ${OD.poste}) au 16e : elles repartent du bas, des gains petits (l’enveloppe)`);
+  check(GC.apres === 13 && OD.apres === 16 && GC.staffNom === 'Gaston le loup-garou' && OD.staffNom === 'Bérénice la dragonne' && GC.croiss < 1.05, `« ${GC.nom} » (${GC.staffNom}, ${GC.poste}) au 13e, « ${OD.nom} » (${OD.staffNom}, ${OD.poste}) au 16e : elles repartent du bas`);
+  // v6.3 (17 octobre) : de vraies recettes, comme au Quartier (avant, des gains tout petits devant ceux des citrouilles : rev 1 000 et
+  // 8 000). Seul le gain par niveau change : prix, déblocages et monstres restent ceux d'avant. Le remboursement comparé et leur part des
+  // gains se vérifient plus bas, sur le très actif simulé.
+  check(GC.rev === 18000 && OD.rev === 700000 && GC.cout === 1e12 && GC.croiss === 1.02 && GC.debloquer === 2e13 && GC.staff === 5e13 && OD.cout === 1e13 && OD.croiss === 1.025 && OD.debloquer === 2e14 && OD.staff === 5e14,
+    `de vraies recettes : les gâteaux ×18 (rev 1 000 → ${GC.rev}), les œufs ×87,5 (8 000 → ${OD.rev}) ; les mêmes prix qu’avant`);
   const r0 = HT.acheter(qr, 6); check(!r0.ok && r0.verrou && r0.apres === 13 && qr.postes[6].niv === 0, 'avant le 13e : les gâteaux du cimetière restent fermés (« Après le palier 13 »)');
   HT.gagner(qr, 3e14); check(HT.acheter(qr, 6).ok && qr.postes[6].niv === 1 && HT.acheter(qr, 7).verrou && HT.embaucher(qr, 6).ok, 'le 13e franchi : ils se débloquent, Gaston s’embauche ; les œufs de dragon attendent le 16e');
   const vieille = { hantee: JSON.parse(JSON.stringify(HT.etat({}, now0))) }; vieille.hantee.postes = vieille.hantee.postes.slice(0, 6); vieille.hantee.postes.forEach((x) => { x.niv = 60; x.staff = true; }); vieille.hantee.total = 8e15;
   const qv = HT.etat(vieille, now0); qv.billets = 1e15; qv.mode = 1;
   check(qv.postes.length === 8 && qv.postes.slice(0, 6).every((x) => x.niv === 60) && qv.stats.vendus.length === 8 && HT.acheter(qv, 6).ok && HT.acheter(qv, 7).ok, 'une sauvegarde à six postes déjà au-delà du 16e : deux postes de plus, et les deux recettes se débloquent tout de suite');
+  { // une sauvegarde d'avant la v6.3 avec des gâteaux et des œufs : relue telle quelle, mêmes niveaux, et chaque fournée rapporte plus
+    const avant = JSON.parse(JSON.stringify(vieille)); avant.hantee.postes[6] = { niv: 150, staff: true, prog: 0, actif: true }; avant.hantee.postes[7] = { niv: 60, staff: true, prog: 0, actif: true };
+    const qs = HT.etat(JSON.parse(JSON.stringify(avant)), now0), base = (i, rev) => rev * qs.postes[i].niv * HT.palierMult(qs.postes[i].niv) * HT.ameliorationMult(qs, i) * HT.reputationMult(qs);
+    check(qs.postes[6].niv === 150 && qs.postes[7].niv === 60 && Math.abs(HT.revenuBase(qs, 6) / base(6, 1000) - 18) < 1e-9 && Math.abs(HT.revenuBase(qs, 7) / base(7, 8000) - 87.5) < 1e-9 && HT.prixNiveaux(qs, 6, 1) === HT.coutNiveaux(6, 150, 1),
+      `relue après la v6.3 : gâteaux niveau 150 et œufs niveau 60 gardés ; une fournée de gâteaux ${HT.fmtEur(HT.revenuBase(qs, 6))} (${HT.fmtEur(base(6, 1000))} avant), d’œufs ${HT.fmtEur(HT.revenuBase(qs, 7))} (${HT.fmtEur(base(7, 8000))} avant) ; les prix n’ont pas bougé`); }
   // le Marché des sorcières : les niveaux à moitié prix
   const qg = HT.etat({}, now0); qg.postes.forEach((x, i) => { x.niv = i < 6 ? 150 : 0; }); HT.gagner(qg, 5e14); qg.billets = 1e17; qg.mode = 10; const p0 = HT.prixNiveaux(qg, 5, 10);
   check(HT.amelioration(qg, 'marche').ok && HT.remise(qg) === 0.5 && HT.prixNiveaux(qg, 5, 10) === p0 / 2 && HT.prixNiveaux(qg, 6, 1) === GC.debloquer, `le Marché des sorcières : dix niveaux de citrouilles à ${HT.fmtEur(p0 / 2)} au lieu de ${HT.fmtEur(p0)} ; un déblocage garde son prix`);
@@ -207,7 +217,9 @@ check(HT.simuler('assidu', 7, { graine: 7 }).total === S.assidu.total, 'la simul
   console.log(`  très actif : ${HT.fmtEur(S.tresactif.total)}, paliers ${JSON.stringify(T)}`);
   const jours = [12, 13, 14, 15, 16, 17, 18].map((k) => T[k] || Infinity), ecarts = jours.slice(1).map((j, k) => j - jours[k]);
   check(T[12] <= 2 && T[18] <= 7 && ecarts.every((e) => e >= 0 && e <= 2) && !T[20], `le très actif : le 12e le ${T[12]}e jour, puis un bonus par jour ou presque (13e le ${T[13]}e, 15e le ${T[15]}e, 16e le ${T[16]}e, 17e le ${T[17]}e, 18e le ${T[18]}e) ; le 20e reste aux marathoniens`);
-  check(jourDe('marathon', 20) >= 6 && jourDe('marathon', 20) <= 7, `le marathon n’atteint le 20e que le ${jourDe('marathon', 20)}e jour sur 7`);
+  // v6.3 (les gâteaux et les œufs en vraies recettes) : le très actif ne bouge presque pas (13e le 2e jour, 16e le 4e, comme avant ; il touche
+  // le 19e le 7e jour, qu'il n'atteignait pas ; le 20e jamais) ; le marathon atteint le 20e le 5e jour (6e avant). Borne : 6e-7e → 5e-7e.
+  check(jourDe('marathon', 20) >= 5 && jourDe('marathon', 20) <= 7, `le marathon n’atteint le 20e que le ${jourDe('marathon', 20)}e jour sur 7 (visé : 5e-7e ; le 6e avant la v6.3)`);
   // le temps d'un niveau (le moins cher : son prix, remise comprise, ÷ le taux du Manoir ouvert) : 30 min au 6e jour et 25 min au 7e avant
   const tNiv = (d) => Math.min(...d.niv.map((n, i) => (n > 0 ? HT.coutNiveau(i, n) * (d.remise || 1) / d.taux : Infinity))) / 60, t6 = tNiv(S.tresactif.parJour[5]), t7 = tNiv(S.tresactif.parJour[6]);
   check(t6 < 15 && t7 < 15, `le très actif attend moins pour un niveau : ${t6.toFixed(0)} min au 6e jour (30 avant), ${t7.toFixed(0)} min au 7e (25 avant)`);
@@ -216,6 +228,17 @@ check(HT.simuler('assidu', 7, { graine: 7 }).total === S.assidu.total, 'la simul
   const eT = ecartPaliers(S.tresactif, 5, 7, 480), eA = ecartPaliers(S.assidu, 2, 4, 80);
   check(eT <= 240 && eA <= 60, `un palier de poste toutes les ${eT.toFixed(0)} min de jeu pour le très actif (jours 5-7 ; 720 avant), ${eA.toFixed(0)} min pour l’assidu (jours 2-4 ; 120 avant)`);
   check(S.tresactif.q.postes[6].niv >= 100 && S.tresactif.q.postes[7].niv >= 50 && S.tresactif.q.ameliorations.marche, `il ouvre les deux recettes (gâteaux niveau ${S.tresactif.q.postes[6].niv}, œufs ${S.tresactif.q.postes[7].niv}) et le Marché des sorcières`);
+  // v6.3 : le remboursement d'un niveau (son prix, remise comprise, ÷ ce que la recette rapporte par seconde, maître présent) comparé à
+  // celui d'un niveau de citrouilles au même moment, en fin de journée du très actif (il achète la Pelle, gâteaux ×3, avant de monter les
+  // gâteaux ; le Nid, œufs ×3, jamais) ; avant : ×40 à ×58 pour les gâteaux, ×200 à ×340 pour les œufs, 1 % puis 0,2 % des gains à la fin.
+  const PJ = S.tresactif.parJour, remb = (d, i) => { const pq = { postes: d.niv.map((niv) => ({ niv })), ameliorations: d.ameliorations, total: d.total }; return HT.coutNiveau(i, d.niv[i]) * d.remise / (HT.revenuBase(pq, i) * HT.PRESENCE / HT.PRODUITS[i].temps); };
+  const fois = (j, i) => remb(PJ[j - 1], i) / remb(PJ[j - 1], 5), x = (v) => '×' + v.toFixed(1).replace('.', ',');
+  const jA = PJ.findIndex((d) => d.niv[6] >= 50 && d.niv[7] >= 50) + 1, jF = PJ.length, gc = [jA, jF].map((j) => fois(j, 6)), od = [jA, jF].map((j) => fois(j, 7));
+  check(jA >= 3 && jF - jA >= 2 && [...gc, ...od].every((v) => v >= 0.5 && v <= 3) && gc[1] <= 2.2 && od[1] <= 2.2,
+    `un niveau de gâteaux, d’œufs se rembourse à peu près comme un niveau de citrouilles : ${x(gc[0])} et ${x(od[0])} le ${jA}e jour, ${x(gc[1])} et ${x(od[1])} le dernier (visé ±×2 ; ×40 à ×58 et ×200 à ×340 avant)`);
+  const qf = S.tresactif.q, taux = qf.postes.map((s, i) => (s.niv > 0 ? HT.revenuBase(qf, i) / HT.temps(qf, i) : 0)), tot = taux.reduce((a, b) => a + b, 0), part = taux.map((t) => t / tot);
+  check(part[6] >= 0.1 && part[6] <= 0.2 && part[6] + part[7] >= 0.2 && part[6] + part[7] <= 0.32,
+    `montées, elles font ${((part[6] + part[7]) * 100).toFixed(0)} % de ses gains à la fin (gâteaux ${(part[6] * 100).toFixed(1).replace('.', ',')} %, œufs ${(part[7] * 100).toFixed(1).replace('.', ',')} %, citrouilles ${(part[5] * 100).toFixed(0)} % ; visé ~20-30 % ; 1,2 % avant)`);
   check(jourDe('assidu', 13) >= 6 && !S.quotidien.paliersJour[13], `le quotidien ne voit pas les paliers bonus ; l’assidu touche le 13e en toute fin (${jourDe('assidu', 13) === Infinity ? 'jamais' : jourDe('assidu', 13) + 'e jour'} ; jamais avant les paliers intercalés)`); }
 
 console.log('── l’enveloppe du serveur (fournil_evts, version 5 du SQL) ──');
@@ -231,7 +254,7 @@ if (mEvt) {
   let minM = Infinity, maxM = -Infinity;
   for (const g of [7, 1, 2, 3]) for (const offertes of [false, true]) { const s = g === 7 && !offertes ? S.marathon : HT.simuler('marathon', 7, { graine: g, offertes }); // offertes : le pire cas, tous les Sortilèges d'après le maître dès le 12e
     for (const x of s.trace) if (x.total > 0) { const m = borne(x.t) - Math.log10(x.total); minM = Math.min(minM, m); if (x.t > 0.25) maxM = Math.max(maxM, m); } }
-  check(minM >= Math.log10(2), `le marathon 24 h/24 (quatre graines, minute par minute, Sortilèges en plus achetés ou offerts dès le 12e) reste sous l’enveloppe avec au moins ×2 de marge (×${Math.pow(10, minM).toFixed(2)} au plus juste) — la table v6.2 de fournil_evts()`);
+  check(minM >= Math.log10(2), `le marathon 24 h/24 (quatre graines, minute par minute, Sortilèges en plus achetés ou offerts dès le 12e) reste sous l’enveloppe avec au moins ×2 de marge (×${Math.pow(10, minM).toFixed(2)} au plus juste) — la table v6.3 de fournil_evts()`);
   check(maxM <= Math.log10(20), `mais pas plus de ×20 après les six premières heures (×${Math.pow(10, maxM).toFixed(1)} au plus large) : un tricheur ne s’envole pas`);
   check(S.assidu.trace.every((x) => x.total === 0 || borne(x.t) - Math.log10(x.total) >= 1), 'un assidu honnête est toujours au moins dix fois sous l’enveloppe');
   // avec les recettes d'après le maître et le Marché des sorcières (16 octobre) : les recettes prennent leur part des bonbons (le marathon
@@ -240,8 +263,11 @@ if (mEvt) {
   // v6.2 : les paliers intercalés montent les totaux (88 Bd, 97,8 Bd Sortilèges offerts) ; la table de fournil_evts() a été élargie d'autant (au
   // plus juste : le marathon le plus haut des huit simulations × 2,2 à chaque pas de 6 h, arrondi au 0,05 du log10 supérieur, relevé là où
   // l'interpolation entre deux pas passait sous ×2 ; jamais plus bas qu'avant)
+  // v6.3 (les gâteaux ×18, les œufs ×87,5) : 148 Bd, 284 Bd Sortilèges offerts (les deux ×3 dès le 12e) ; la table de fournil_evts() élargie
+  // de même (supabase/fournil-classement.sql et sa mise à jour fournil-classement-v63.sql) : du pas 4 (24 h) au dernier, +0,05 à +0,45 en
+  // log10 ({…,16.1,16.3,…,17.35} → {…,16.1,16.35,…,17.8}) ; ×2,14 au plus juste, ×8,4 au plus large après six heures.
   const off = HT.simuler('marathon', 7, { offertes: true }).total;
-  check(Math.abs(S.marathon.total / 8.8e16 - 1) < 0.01 && Math.abs(off / 9.78e16 - 1) < 0.01, `le marathon : ${HT.fmt(S.marathon.total)} (${HT.fmt(off)} Sortilèges offerts ; 76,5 Bd et 88,6 Bd sans les paliers intercalés les recettes d’après le maître)`);
+  check(Math.abs(S.marathon.total / 1.4845e17 - 1) < 0.01 && Math.abs(off / 2.8372e17 - 1) < 0.01, `le marathon : ${HT.fmt(S.marathon.total)} (${HT.fmt(off)} Sortilèges offerts ; 88 Bd et 97,8 Bd avant la v6.3, 76,5 Bd et 88,6 Bd sans les paliers intercalés ni les recettes d’après le maître)`);
 }
 
 console.log('── la longévité : sept jours de marathon, une sauvegarde relue en route, la boulangerie récompensée ──');
