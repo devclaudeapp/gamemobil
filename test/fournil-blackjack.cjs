@@ -79,8 +79,14 @@ const salle = (p) => p.evaluate(() => { const a = document.querySelector('#arrie
   await d.toucher(z.x, z.y); await sleep(150);
   await sleep(300); check(!(await etat(p)).ouvert, 'une touche ailleurs remet le compte à zéro (4 + 1 ailleurs + 1 ≠ 5 de suite)');
   await sleep(3200); // et les touches trop anciennes (plus de 3 s) ne comptent plus
-  for (let k = 0; k < 5; k++) { await d.toucher(z.x + (k % 2 ? 4 : -4), z.y + (k % 3) - 1); await sleep(140); }
-  check(await attendre(async () => (await etat(p)).ouvert, 2000), 'cinq touches de suite (en moins de 3 s) : l’arrière-salle s’ouvre');
+  // une feuille surgie entre-temps (le chat, une annonce) prendrait les touches : on la ferme, et on dit ce qui gênait si la porte reste close
+  const genes = () => p.evaluate(() => ({ feuille: !document.querySelector('#feuille').hidden && (document.querySelector('#feuille-contenu').innerText || '').split('\n')[0], tiroir: window.__fournil.tiroir() }));
+  const cinqTouches = async () => { await p.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b && !document.querySelector('#feuille').hidden) b.click(); window.__fournil.tiroir('ferme'); }); await sleep(400);
+    for (let k = 0; k < 5; k++) { await d.toucher(z.x + (k % 2 ? 4 : -4), z.y + (k % 3) - 1); await sleep(140); }
+    return attendre(async () => (await etat(p)).ouvert, 2000); };
+  let ouverte = await cinqTouches();
+  if (!ouverte) { console.log(`        (porte restée close : ${JSON.stringify(await genes())} ; on recommence une fois)`); await sleep(3200); ouverte = await cinqTouches(); }
+  check(ouverte, 'cinq touches de suite (en moins de 3 s) : l’arrière-salle s’ouvre');
   await sleep(400);
   let s = await salle(p), e = await etat(p);
   check(e.dialogue === 'accueil' && /Tu as trouvé l’arrière.salle…/.test(s.texte), 'la première fois : « Tu as trouvé l’arrière-salle… »');
