@@ -69,7 +69,7 @@ const salle = (p) => p.evaluate(() => { const a = document.querySelector('#arrie
   check(z && z.w >= 44 && z.h >= 44, `la porte du fond a une zone de touche de 44 × 44 au moins (${z && Math.round(z.w)} × ${z && Math.round(z.h)})`);
   check(z && z.sousEnseigne && !z.sousCoin, 'elle se touche : ni sous l’enseigne, ni sous les icônes du coin');
   const mailles = await p.evaluate(() => window.__fournil.SCENE.maillagesRecompenses.salle);
-  check(mailles === 10, `la porte est fusionnée avec la plinthe et les cadres : la salle garde ses 10 maillages, pas d’appel de dessin en plus (${mailles})`);
+  check(mailles === 11, `la porte est fusionnée avec la plinthe et les cadres : la salle garde ses 11 maillages (10 + le trottoir de la devanture, 17 octobre), pas d’appel de dessin en plus (${mailles})`);
   await p.screenshot({ path: out + '/01-porte.png' });
   await p.screenshot({ path: out + '/01b-porte-zoom.png', clip: { x: 0, y: 50, width: 390, height: 150 } });
   // quatre touches : rien ; une touche ailleurs remet le compte à zéro
