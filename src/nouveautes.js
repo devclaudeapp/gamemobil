@@ -16,6 +16,16 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-10-18-a', date: '2026-10-18', titre: 'Ta boutique monte en gamme, et tu aménages ta salle',
+      points: [
+        'Ta boutique monte en gamme : toutes les cinq boutiques, ton décor devient plus beau, de la Belle boutique (n°6) jusqu’au Palais du goût (n°26). Parquet, marbre, colonnes dorées, tapis rouge, et même une statue !',
+        'Ton quartier garde ses couleurs. Les feuilles Étoiles et Parcours montrent ton standing et le prochain palier.',
+        'Aménage ta salle : dans Réglages, touche « Repeindre la boutique », puis « Déplacer ». Fais glisser du doigt tes tables, le bar, le coin salon et les tables de la terrasse.',
+        'En vert, la place est libre. En rouge, le jeu te dit pourquoi : la file d’attente, l’allée, une autre table…',
+        'Tes places sont gardées d’une boutique à l’autre, et tes copains voient ta salle quand ils te rendent visite. « Plan d’origine » remet tout comme avant.',
+      ],
+    },
+    {
       id: '2026-10-17-h', date: '2026-10-17', titre: 'Le Sirop violet et le Cristal bleu rapportent enfin',
       points: [
         'Dans la Planque, le Sirop violet rapporte 12 fois plus par niveau, le Cristal bleu 40 fois plus : un niveau s’y rembourse presque aussi vite qu’un niveau de Spécialité.',

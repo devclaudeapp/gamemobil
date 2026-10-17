@@ -6,6 +6,8 @@
 //    entière < 400 Ko) ; le budget d'appels de dessin au pire palier, tout le mobilier au max (éco ≤ 72, haute ≤ 80) ; l'annonce « Ta boutique
 //    monte en gamme » au passage de la n°5 à la n°6 (et pas de la n°6 à la n°7) ; la ligne « Standing » des feuilles Étoiles et Parcours ;
 //    la visite d'un copain au palier 3 ; une vieille photo (sans l) → palier 0 ; aucune erreur dans la page.
+// 3) Avec « tout déplaçable » (lot 4) : un aménagement libre au palier 5, village et capitale, haute et éco (valide, rien sur les colonnes ni
+//    les cordons du trottoir, voies depuis l’allée, zones de touche ≥ 44 px, budgets tenus) ; le mode Déplacer pendant un glisser au doigt.
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-standing.cjs
 'use strict';
 const http = require('http'), fs = require('fs'), path = require('path');
@@ -169,6 +171,55 @@ const QS = [['village', 0], ['capitale', G.QUARTIERS.findIndex((q) => q.id === '
     const ok2 = await visite(null);
     check(ok2 && await attendre(() => ev(() => { const v = window.__fournil.SCENE.standingVu; return v.palier === 0 && v.decor === 'mer'; }), 30000), 'une vieille photo (sans l) : la boutique du copain au palier 0');
     await ev(() => window.__fournil.finVisite(false)); await sleep(300);
+    check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
+    await ctx.close();
+  }
+  console.log('── le standing et « tout déplaçable » ensemble : un aménagement libre au palier 5 ──');
+  for (const qual of ['haute', 'eco']) {
+    const { ctx, page, erreurs, ev } = await ouvrir(qual), cdp = await ctx.newCDPSession(page), max = qual === 'haute' ? 80 : 72;
+    const touche = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y]) => ({ x, y, id: 1, radiusX: 6, radiusY: 6, force: 1 })) });
+    await ev(() => { const f = window.__fournil; for (const m of f.G.MOBILIER) for (let k = 0; k < m.max; k++) f.meuble(m.id); for (const s of f.st.stations) { s.niv = Math.max(1, s.niv); s.staff = true; } f.tiroir('ferme'); });
+    if (qual === 'haute') await attendre(() => ev(() => window.__fournil.SCENE.meublesHD.length === 4), 60000);
+    for (const [qn, qi] of QS) {
+      await poser(ev, qi, 5);
+      // un aménagement libre : des tables, le coin salon et une table de la terrasse déplacés, chacun sur une place valide loin de la sienne
+      const code = await ev(() => { const f = window.__fournil, st = f.st, g = VIE.LAY.grille; delete st.amenagement; VIE.frame(0.016, st, Date.now());
+        for (const id of ['table1', 'table5', 'salon', 'table3', 'terrasse1', 'terrasse3', 'table6']) {
+          const m = VIE.LAY.mobiles.find((o) => o.id === id), ok = [];
+          for (let r = 0; r < g.rangs; r++) for (let c = 0; c < g.cols; c++) { const x = (c + 0.5) * g.pas, y = g.y0 + (r + 0.5) * g.pas, p = VIE.proposer(st, id, x, y); if (p && p.ok) ok.push({ p, d: Math.hypot(p.x - m.x, p.y - m.y) }); }
+          const loin = ok.filter((o) => o.d > 1.5 * g.pas).sort((a, b) => a.d - b.d); const pr = loin[Math.floor(loin.length / 2)]; if (pr) { st.amenagement = f.G.nettoyerAmenagement(pr.p.a); VIE.frame(0.016, st, Date.now()); }
+        }
+        f.save(); return f.G.codeAmenagement(st.amenagement); });
+      const pret = await attendre(() => ev((code) => { const v = window.__fournil.SCENE.standingVu; return VIE.LAY.sig === code && v.palier === 5 && v.mailles > 0; }, code), 60000);
+      await sleep(qual === 'haute' ? 2000 : 1000);
+      const r = await ev(() => { const L = VIE.LAY, st = window.__fournil.st, z = window.__fournil.SCENE.zones(), a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v;
+        const inter = (p, q) => p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;
+        const surStanding = L.mobiles.filter((m) => (L.standingSol || []).some((x) => inter(m.r, x.r))).map((m) => m.id);
+        const petites = ['tables', 'bar', 'banquette', 'terrasse'].filter((id) => z[id] && (z[id].w < 44 || z[id].h < 44));
+        const sous = L.mobiles.filter((m) => VIE.mobileAchete(m)).every((m) => { const o = VIE.mobileSous(m.r.x + m.r.w / 2, m.r.y + m.r.h - 2, true); return o && (o.id === m.id || inter(o.r, m.r)); });
+        const assis = L.sieges.filter((s) => s.zone !== 'terrasse').every((s) => Array.isArray(s.voie) && s.voie.length && Math.abs(s.voie[0].x - L.allee) < 0.01);
+        return { valide: VIE.valider(st).ok, surStanding, petites, sous, assis, decor, standing: a.standing || 0, hd: window.__fournil.SCENE.standingVu.hd, honneur: L.T * 0.62 < L.grille.y0 };
+      });
+      check(pret && code && r.valide && !r.surStanding.length && !r.petites.length && r.sous && r.assis && r.honneur && r.decor <= max && (qual !== 'haute' || r.hd),
+        `${qn}, palier 5, ${qual}, aménagement libre « ${code} » : appliqué et valide, aucun meuble sur les colonnes ou les cordons ${r.surStanding.join(' ')}, places d’honneur au-dessus de la salle, voies depuis l’allée, zones de touche ≥ 44 px ${r.petites.join(' ')}, chaque meuble se reprend au doigt ; ${r.decor} appels pour le décor (≤ ${max}), dont ${r.standing} pour le standing${qual === 'haute' ? (r.hd ? ', modèles cuits' : ', SANS les modèles cuits') : ''}`);
+      await page.screenshot({ path: path.join(out, `${qn}-5-amenage-${qual}.png`) });
+    }
+    if (qual === 'haute') { // le mode Déplacer au palier 5, pendant un glisser au doigt
+      await ev(() => { const f = window.__fournil; f.amenager(true); document.querySelector('#b-deplacer').click(); }); await sleep(600);
+      const de = await ev(() => { // la table 2, prise par le bas de son emprise, emmenée vers la place libre la plus proche (à plus d'une case)
+        const m = VIE.LAY.mobiles.find((o) => o.id === 'table2'), g = VIE.LAY.grille, b = document.querySelector('#scene').getBoundingClientRect(), st = window.__fournil.st; let mieux = null;
+        for (let r = 0; r < g.rangs; r++) for (let c = 0; c < g.cols; c++) { const x = (c + 0.5) * g.pas, y = g.y0 + (r + 0.5) * g.pas, p = VIE.proposer(st, 'table2', x, y), d = Math.hypot(x - m.x, y - m.y); if (p && p.ok && d > 1.2 * g.pas && (!mieux || d < mieux.d)) mieux = { x: p.x, y: p.y, d }; }
+        const py = m.r.y + m.r.h - 6; return { x: b.left + m.x, y: b.top + py, dx: mieux ? mieux.x - m.x : -g.pas, dy: mieux ? mieux.y - m.y : 0 }; });
+      await touche('touchStart', [[de.x, de.y]]); await sleep(80);
+      for (let k = 1; k <= 10; k++) { await touche('touchMove', [[de.x + de.dx * k / 10, de.y + de.dy * k / 10]]); await sleep(30); }
+      await sleep(500); const pendant = await ev(() => ({ deplacer: window.__fournil.SCENE.deplacer, glisse: window.__fournil.SCENE.glisse }));
+      await page.screenshot({ path: path.join(out, 'deplacer-palier-5.png') });
+      await touche('touchEnd', []); await sleep(400);
+      const posee = await ev(() => window.__fournil.st.amenagement && window.__fournil.st.amenagement.tables[1]);
+      check(pendant.deplacer && pendant.glisse && pendant.glisse.id === 'table2' && pendant.glisse.ok && posee, `le mode Déplacer au palier 5 : la table 2 suit le doigt, verte sur une place libre, et s’y pose (${pendant.glisse ? (pendant.glisse.ok ? 'verte' : 'rouge : ' + pendant.glisse.raison) : 'rien'} ; case ${JSON.stringify(posee)})`);
+      await ev(() => window.__fournil.amenager(false)); await sleep(300);
+    }
+    await ev(() => { delete window.__fournil.st.amenagement; window.__fournil.save(); });
     check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
     await ctx.close();
   }

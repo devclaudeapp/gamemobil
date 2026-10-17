@@ -31,6 +31,7 @@ function obstacles(L) { // l'emprise au sol de chaque meuble (en pixels du plan 
   const dv = L.devanture; o.push({ nom: 'devanture', dedans: (px, py) => Math.abs(py - dv.y) < 4 && (px < dv.porte.x0 + 3 || px > dv.porte.x1 - 3) });
   const p = L.presentoir; o.push({ nom: 'présentoir', dedans: (px, py) => px > p.x && px < p.x + p.w && py > p.y && py < p.y + p.h });
   disque('plante', L.plante.x, L.plante.y, 9);
+  for (const x of L.standingSol || []) o.push({ nom: x.nom, dedans: (px, py) => px > x.r.x && px < x.r.x + x.r.w && py > x.r.y && py < x.r.y + x.r.h }); // le standing : les colonnes et les cordons du trottoir
   return o;
 }
 function traverse(L, chemin, permis) { // le premier meuble qu'un chemin (liste de points) traverse, en dehors de ceux permis (sa place, sa table)
@@ -59,6 +60,71 @@ for (const [w, h, mi, nom] of [[390, 716, 356, 'iPhone 390 × 844'], [360, 514, 
   const bas = Math.max(...Object.values(L.emplacements).map((r) => r.y + r.h), L.trottoir.bord);
   check(bas <= h - 37, `tout le plan (jusqu'au bord du trottoir, ${bas | 0} px) tient au-dessus du tiroir fermé (${h - 37} px)`);
   check(L.rangees[0] + 4 < L.trottoir.y && L.bar.y < L.devanture.y && L.devanture.y < L.terrasse[0].y && L.terrasse[0].y < L.trottoir.bord, 'de haut en bas : les tables, le bar, la devanture, la terrasse, le bord du trottoir');
+}
+
+// ─── 1 bis) « tout déplaçable » (st.amenagement) : le plan d'origine inchangé ; 30 aménagements tirés au hasard (un meuble à la fois, comme
+//     au doigt), chacun validé par VIE.proposer puis appliqué par la frame, gardent TOUS les invariants ci-dessus ; les places interdites
+//     sont refusées avec leur raison ; un aménagement qui ne tient pas sur l'écran (la photo d'un autre téléphone) vaut le plan d'origine ───
+const MAINTENANT = Date.UTC(2026, 9, 17, 9);
+const IDS_MOBILES = ['table1', 'table2', 'table3', 'table4', 'table5', 'table6', 'bar', 'salon', 'terrasse1', 'terrasse2', 'terrasse3'];
+function invariants(L, w, h, ids0) { // les mêmes vérifications que le plan d'origine ; rend la liste des fautes
+  const ko = [], parZone = {}; for (const s of L.sieges) parZone[s.zone] = (parZone[s.zone] || 0) + 1;
+  if (!(parZone.table === 12 && parZone.bar === 4 && parZone.banquette === 3 && parZone.terrasse === 6)) ko.push('places ' + JSON.stringify(parZone));
+  if (L.sieges.map((s) => s.id).join() !== ids0) ko.push('ids des sièges changés');
+  for (const s of L.sieges) {
+    const permis = [s.id, s.zone === 'bar' ? 'bar' : '', s.table && s.zone === 'table' ? `table ${L.tables.indexOf(s.table) + 1}` : '', s.zone === 'terrasse' ? `terrasse ${L.terrasse.indexOf(s.table) + 1}` : '', s.zone === 'banquette' ? (s.id === 'fauteuil' ? 'fauteuil' : 'banquette') : ''].filter(Boolean);
+    const aller = [{ x: L.allee, y: L.T * 0.76 }, ...s.voie, { x: s.x, y: s.y }];
+    const retour = s.zone === 'terrasse' ? [{ x: s.x, y: s.y }, { x: s.x, y: L.trottoir.rue }, { x: s.x < w * 0.6 ? -20 : w + 20, y: L.trottoir.rue }] : [{ x: s.x, y: s.y }, ...s.voie.slice().reverse(), { x: L.allee, y: L.alleeHaut }];
+    const t1 = traverse(L, aller, permis), t2 = traverse(L, retour, permis); if (t1 || t2) ko.push(`${s.id} : ${t1 ? 'aller → ' + t1 : ''} ${t2 ? 'retour → ' + t2 : ''}`);
+    if (Math.abs(s.voie[0].x - L.allee) > 0.01) ko.push(`${s.id} : sa voie ne part pas de l’allée`);
+  }
+  const bas = Math.max(...Object.values(L.emplacements).map((r) => r.y + r.h), L.trottoir.bord); if (bas > h - 37) ko.push(`bas du plan ${bas | 0} > ${h - 37}`);
+  if (!(L.rangees[0] + 4 < L.trottoir.y && L.bar.y < L.devanture.y && L.devanture.y < L.terrasse[0].y && L.terrasse[0].y < L.trottoir.bord)) ko.push('ordre vertical');
+  if (L.terrasse.some((t) => Math.abs(t.y - L.terrasse[0].y) > 1e-9)) ko.push('une table de la terrasse a quitté sa rangée');
+  for (const m of L.mobiles) for (const x of L.standingSol || []) if (m.r.x < x.r.x + x.r.w && x.r.x < m.r.x + m.r.w && m.r.y < x.r.y + x.r.h && x.r.y < m.r.y + m.r.h) ko.push(`${m.id} sur ${x.nom} (standing)`);
+  return ko;
+}
+for (const [w, h, mi, nom] of [[390, 716, 356, 'iPhone 390 × 844'], [360, 514, 229, 'iPhone 360 × 640']]) {
+  console.log(`── tout déplaçable, ${nom} ──`);
+  VIE.resize(w, h, mi); const st = GAME.newState(MAINTENANT); VIE.frame(0.016, st, MAINTENANT);
+  const L0 = VIE.LAY, ids0 = L0.sieges.map((s) => s.id).join(), photo0 = JSON.stringify(L0.sieges.map((s) => [s.id, s.x, s.y, s.voie])) + JSON.stringify([L0.tapis, L0.emplacements, L0.bar, L0.banquette]);
+  const T0 = L0.tables, yA = L0.rangees[0], yB = L0.rangees[1], K = L0.K;
+  check(L0.sig === '' && VIE.valider(st, null).ok && [0.56, 0.34, 0.12, 0.56, 0.34, 0.12].every((f, i) => T0[i].x === w * f && T0[i].y === (i < 3 ? yA : yB)) && L0.bar.x0 === w * 0.08 && L0.bar.x1 === w * 0.56 && L0.banquette.x === w - 30 * K && L0.banquette.y === yA && [0.40, 0.88, 0.16].every((f, i) => L0.terrasse[i].x === w * f)
+    && L0.sieges.find((s) => s.id === 'table1.g').voie[1].y === yA + 20 * K && L0.sieges.find((s) => s.id === 'banquette.d').voie[1].x === w - 14 * K, 'sans aménagement : le plan d’origine exact (tables, bar, salon, terrasse, voies dessinées à la main), et il est valide');
+  let seed = w * 7919 + 13; const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648);
+  const vus = new Set(), fautes = []; let essais = 0, refus = 0;
+  while (vus.size < 30 && essais < 4000) {
+    essais++; const id = IDS_MOBILES[Math.floor(rnd() * IDS_MOBILES.length)], m = VIE.LAY.mobiles.find((o) => o.id === id), g = VIE.LAY.grille;
+    const p = VIE.proposer(st, id, m.x + (rnd() - 0.5) * 9 * g.pas, m.y + (rnd() - 0.5) * 7 * g.pas); if (!p.ok) { refus++; if (!p.raison) fautes.push('refus sans raison'); continue; }
+    st.amenagement = GAME.nettoyerAmenagement(p.a); VIE.frame(0.016, st, MAINTENANT); const L = VIE.LAY;
+    if (L.sig !== GAME.codeAmenagement(st.amenagement)) { fautes.push(`proposé valide mais pas appliqué : ${GAME.codeAmenagement(st.amenagement)}`); continue; }
+    vus.add(L.sig); for (const f of invariants(L, w, h, ids0)) fautes.push(`${L.sig} ${f}`);
+  }
+  check(vus.size === 30 && fautes.length === 0, `30 aménagements tirés au doigt (${essais} essais, ${refus} refusés avec leur raison), tous appliqués : 25 places aux ids stables, aucun chemin ne traverse un meuble, voies depuis l’allée, tout au-dessus du tiroir fermé, l’ordre vertical ${fautes.slice(0, 3).join(' | ')}`);
+  const dernier = JSON.parse(JSON.stringify(st.amenagement)), K1 = VIE.LAY.K, g = VIE.LAY.grille, Y0 = g.y0;
+  // des places interdites, chacune avec sa raison
+  const tb = VIE.LAY.mobiles.find((o) => o.id === 'table1'), tb2 = VIE.LAY.mobiles.find((o) => o.id === 'table2');
+  const refusAvec = [
+    ['table1', VIE.LAY.allee, tb.y, /allée/, 'sur l’allée'],
+    ['table1', tb2.x, tb2.y, /touche la table 2/, 'sur la table 2'],
+    ['table1', w * 0.5, Y0 - g.pas, /file d’attente/, 'dans la file'],
+    ['table1', w * 0.1, Y0 - 2 * g.pas, /passage des apprentis/, 'chez les apprentis'],
+    ['table1', w * 0.84, Y0 - 2 * g.pas, /porte du fond/, 'devant la porte du fond'],
+    ['table1', (VIE.LAY.devanture.porte.x0 + VIE.LAY.devanture.porte.x1) / 2, VIE.LAY.devanture.y - g.pas / 3, /porte de la devanture|allée/, 'contre la porte de la devanture (au bout de l’allée)'],
+    ['terrasse1', VIE.LAY.allee, 0, /porte de la devanture/, 'la terrasse devant la porte'],
+    ['salon', 0, VIE.LAY.mobiles.find((o) => o.id === 'salon').y, /sort de la salle|touche|plante/, 'le salon contre le mur de gauche'],
+  ].map(([id, x, y, re, quoi]) => { const p = VIE.proposer(st, id, x, y); return { ok: !!p && !p.ok && re.test(p.raison), quoi, raison: p && p.raison }; });
+  check(refusAvec.every((r) => r.ok), `refusées, avec la raison : ${refusAvec.map((r) => `${r.quoi} « ${r.raison} »`).join(' ; ')}`);
+  { // le standing (paliers 3-4) : les colonnes et les cordons du trottoir ont leur place gardée ; une table de terrasse promenée sur toute la rangée ne les touche jamais
+    const balayage = []; for (let c = 0; c < g.cols; c++) { const p = VIE.proposer(st, 'terrasse1', (c + 0.5) * g.pas, 0); balayage.push(p.ok ? 'ok' : p.raison); }
+    check(VIE.LAY.standingSol && VIE.LAY.standingSol.length === 4 && balayage.some((r) => r === 'ok') && balayage.every((r) => r === 'ok' || !/colonnes|cordons/.test(r)), `le standing sur le trottoir (colonnes, cordons) : sa place gardée, la terrasse déjà tenue à l’écart par la porte (${balayage.filter((r) => r === 'ok').length}/${g.cols} colonnes libres)`); }
+  check(VIE.valider(st, { v: 1, tables: [[1, 2], [1, 2], null, null, null, null], bar: null, salon: null, terrasse: [null, null, null] }).raison === 'Ça touche la table 2.' && !VIE.valider(st, { v: 1, tables: 'x' }).ok && VIE.valider(st, null).ok, 'valider : deux tables sur la même case refusées ; un plan abîmé refusé ; l’origine acceptée');
+  // un aménagement qui ne tient pas sur cet écran : le plan d'origine (la photo d'un copain sur un autre téléphone)
+  st.amenagement = { v: 1, tables: [[g.cols - 1, 3], null, null, null, null, null], bar: null, salon: null, terrasse: [null, null, null] }; VIE.frame(0.016, st, MAINTENANT);
+  check(VIE.LAY.sig === '' && VIE.amenagementDemande !== '', 'un aménagement impossible ici (une table sur le coin salon) : la scène garde le plan d’origine');
+  st.amenagement = dernier; VIE.frame(0.016, st, MAINTENANT); check(VIE.LAY.sig === GAME.codeAmenagement(dernier), 'le dernier aménagement revient');
+  delete st.amenagement; VIE.frame(0.016, st, MAINTENANT); const L2 = VIE.LAY;
+  check(L2.sig === '' && JSON.stringify(L2.sieges.map((s) => [s.id, s.x, s.y, s.voie])) + JSON.stringify([L2.tapis, L2.emplacements, L2.bar, L2.banquette]) === photo0, 'aménagement effacé (« Plan d’origine ») : le plan revient à l’identique, voies comprises');
 }
 
 if (process.argv.includes('--plan')) { console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nLe plan passe.'); process.exit(fails ? 1 : 0); } // le plan seul (rapide)

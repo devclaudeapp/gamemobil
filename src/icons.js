@@ -183,6 +183,8 @@ const ICONS = (() => {
     envoyer: U(`<path d="M3.8 11.2L20 4l-6.6 16.2-2.6-6.9z" fill="${A.beurre}"/><path d="M10.8 13.3L20 4"/>`),
     // les idées, les bugs et les votes (src/retours.js) : une ampoule, le verre en accent beurre, le culot rayé et le filament
     ampoule: U(`<path d="M12 3a6 6 0 00-3.6 10.8c.7.5 1.1 1.3 1.1 2.2v.5h5V16c0-.9.4-1.7 1.1-2.2A6 6 0 0012 3z" fill="${A.beurre}"/><path d="M9.6 19h4.8M10.6 21h2.8"/><path d="M10.2 10.4l1.8 1.8 1.8-1.8M12 12.2v4.3"/>`),
+    // « Déplacer » (le mode Aménager) : une table ronde vue de dessus et les quatre flèches du glisser
+    deplacer: U(`<circle cx="12" cy="12" r="3.6" fill="${A.menthe}"/><path d="M12 2.8v4.4M12 16.8v4.4M2.8 12h4.4M16.8 12h4.4"/><path d="M9.8 4.8L12 2.8l2.2 2M9.8 19.2l2.2 2 2.2-2M4.8 9.8L2.8 12l2 2.2M19.2 9.8l2 2.2-2 2.2"/>`),
   };
   UI.classement = UI.podium;
   // le podium du classement : une petite toque à la couleur du métal (à côté d'un pseudo) et une coupe (l'annonce, la collection)

@@ -741,7 +741,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   function coinsStanding(c) { // les deux places d'honneur, au pied du fournil : à droite sous la plante de la déco, à gauche sous la chambre froide
     const { LAY, W } = c; return { d: { x: W * 0.80, y: LAY.T * 0.62 }, g: { x: W * 0.045, y: LAY.T * 0.60 } };
   }
-  function standing(c) {
+  function standing(c) { // (src/vie.js plan : standingSol garde la place des colonnes et des cordons sur le trottoir ; mêmes mesures, à changer ensemble)
     const { LAY, W, K, Q } = c, s = Q.standing || 0, ob = (id) => !!(Q.objets && Q.objets.includes(id)), g = grp('standing'), pr = [], lu = [];
     if (!s) return g;
     const or = Q.or || '#C9A35A', orF = M.assombrir(or, 0.25), dv = LAY.devanture, zd = c.wz(dv.y) + 2, x0 = dv.porte.x0, x1 = dv.porte.x1, coin = coinsStanding(c), Hm = c.wy(LAY.murH);

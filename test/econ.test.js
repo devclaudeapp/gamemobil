@@ -196,7 +196,12 @@ console.log('── les nouveaux meubles : tables 5 et 6, bar, coin salon, terra
   vieille.coins = 1e7; check(G.ameliorerMeuble(vieille, 'bar').ok && vieille.mobilier.bar === 1 && vieille.mobilier.tables === 4, 'elle achète son premier tabouret sans rien perdre');
   // le trophée « Salon de thé » : 4 tables (l'ancien maximum), et la nouvelle boutique remet tout à zéro
   const s2 = G.newState(mer); s2.mobilier = { tables: 4 }; check(G.verifierTrophees(s2).some((t) => t.id === 'salon'), 'trophée Salon de thé dès 4 tables (l’ancien maximum)');
-  s2.mobilier = { tables: 6, bar: 3, banquette: 3, terrasse: 3 }; s2.lifetimeRun = 1e12; G.nouvelleBoutique(s2, mer); check(Object.keys(s2.mobilier).length === 0 && G.places(s2).terrasse === 0 && !('amenagement' in s2), 'nouvelle boutique : les nouveaux meubles repartent de zéro (st.amenagement réservé, absent)');
+  check(!('amenagement' in G.newState(mer)), 'une boutique neuve : pas de st.amenagement (le plan d’origine)');
+  const am = { v: 1, tables: [[3, 2], null, null, null, null, null], bar: null, salon: [9, 1], terrasse: [null, null, 12] }; s2.amenagement = JSON.parse(JSON.stringify(am));
+  s2.mobilier = { tables: 6, bar: 3, banquette: 3, terrasse: 3 }; s2.lifetimeRun = 1e12; G.nouvelleBoutique(s2, mer); check(Object.keys(s2.mobilier).length === 0 && G.places(s2).terrasse === 0 && JSON.stringify(s2.amenagement) === JSON.stringify(am), 'nouvelle boutique : les nouveaux meubles repartent de zéro, leurs places (st.amenagement) restent');
+  check(G.nettoyerAmenagement(am) && G.codeAmenagement(am) === '32------------91--c' && JSON.stringify(G.amenagementDepuisCode(G.codeAmenagement(am))) === JSON.stringify(am), `l’aménagement en 19 caractères (${G.codeAmenagement(am)}), relu à l’identique`);
+  check([null, 42, [], { v: 2, tables: [], bar: null, salon: null, terrasse: [] }, { v: 1, tables: [[1, 1]], bar: null, salon: null, terrasse: [null, null, null] }, { ...am, bar: [1] }, { ...am, salon: [1, 36] }, { ...am, salon: [-1, 2] }, { ...am, terrasse: [1.5, null, null] }, { v: 1, tables: [null, null, null, null, null, null], bar: null, salon: null, terrasse: [null, null, null] }].every((x) => G.nettoyerAmenagement(x) === null && G.codeAmenagement(x) === ''),
+    'un aménagement abîmé (forme, cases hors 0-35, demi-case, tout à l’origine) : null, le plan d’origine');
 }
 console.log('── quartiers, nom, saisons ──');
 {

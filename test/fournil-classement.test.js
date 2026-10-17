@@ -578,17 +578,26 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     check(!('e' in CL.photo(st, { G })) && !('e' in CL.photo(st, { G, ev: { id: 'n-importe', q } })), 'sans événement en cours (ou d’un id inconnu) : pas de champ e');
     // le pire cas : 16 postes, toutes les décos, 12 coupes, un nom long, des compteurs énormes, un événement à 16 postes et 8 décos
     const pire = G.newState(T); pire.nomBoutique = 'Ω'.repeat(400); while (pire.stations.length < 16) pire.stations.push({ niv: 0, staff: false, prog: 0, actif: false });
-    pire.stations.forEach((x) => { x.niv = 1e9; x.staff = true; }); for (const m of G.MOBILIER) pire.mobilier[m.id] = m.max; pire.chat = { nom: 'Ω'.repeat(40) }; pire.saison = { id: G.RECETTES_SAISON[0].id, niv: 3 };
+    pire.stations.forEach((x) => { x.niv = 1e9; x.staff = true; }); for (const m of G.MOBILIER) pire.mobilier[m.id] = m.max; pire.amenagement = { v: 1, tables: Array.from({ length: 6 }, (_, i) => [35 - i, 35]), bar: [35, 35], salon: [35, 35], terrasse: [35, 35, 35] }; pire.chat = { nom: 'Ω'.repeat(40) }; pire.saison = { id: G.RECETTES_SAISON[0].id, niv: 3 };
     pire.etoiles = 1e12; pire.boutiques = 1e9; pire.stats.ventes = 1e20; pire.stats.serieMax = 1e9; pire.lifetime = 1.23456789e300; for (const t of G.TROPHEES) pire.trophees[t.id] = T; pire.xp = 1e15;
     const qp = Q.neuf(T); qp.postes = Array.from({ length: 30 }, () => ({ niv: 1e9, staff: true })); qp.decos = Q.DECOS.concat(H.DECOS, ['fantome', 'chauvesouris', 'lanternes']); qp.paliers = Array.from({ length: 40 }, (_, k) => k + 1); qp.total = 1e30;
     const tous = { G, coupes: Array(40).fill('bronze'), badge: true, dq: Q.DECOS.concat(['a', 'b', 'c', 'd', 'e']), dh: H.DECOS.concat(['fantome', 'chauvesouris', 'lanternes', 'x', 'y']), ev: { id: 'quartier', q: qp } };
     const pp = CL.photo(pire, tous), op = CL.octetsJson(pp);
     check(pp && op <= 2048 && pp.p.length === 16 && pp.k.length === 12 && pp.e && pp.e.p.length === 16 && pp.e.d.length === 8 && pp.x.f === 1e30 && pp.x.v === 1e15, `le pire cas (16 postes, toutes les décos, 12 coupes, un nom long, un événement à 16 postes) : ${op} octets ≤ 2048, rien de retiré`);
+    check(pp && pp.a === 'zzyzxzwzvzuzzzzzzzz' && G.codeAmenagement(G.amenagementDepuisCode(pp.a)) === pp.a, `a : l’aménagement le plus long (tout déplacé) tient en ${pp && pp.a ? pp.a.length : 0} caractères, relu tel quel`);
     console.log(`       (taille au pire cas : ${op} octets)`);
     // le standing (17 octobre) : le champ l (palier 0 à 5) est dans le pire cas ; relu borné ; une vieille photo sans l → palier 0
     { const sv = Object.assign({}, pp); delete sv.l; const bv = CL.boutiqueDepuisPhoto(sv, { G, maintenant: T }), b5 = CL.boutiqueDepuisPhoto(pp, { G, maintenant: T });
       check(pp.l === 5 && G.standing(b5.st) === 5 && CL.nettoyerPhoto(sv).l === 0 && G.standing(bv.st) === 0 && CL.nettoyerPhoto(Object.assign({}, pp, { l: 42 })).l === 5 && CL.nettoyerPhoto(Object.assign({}, pp, { l: 'x' })).l === 0,
         'le standing dans la photo (l = 5 au pire cas, compté dans les 2048 octets) ; une vieille photo sans l : palier 0 ; l borné entre 0 et 5'); }
+    { // le champ a : absent au plan d'origine ; relu borné (un code abîmé ou absurde : le plan d'origine) ; appliqué à la boutique du copain
+      const s0 = G.newState(T); check(!('a' in CL.photo(s0, { G })), 'a : absent tant que rien n’est déplacé');
+      s0.amenagement = { v: 1, tables: [[3, 2], null, null, null, null, null], bar: null, salon: null, terrasse: [null, 6, null] };
+      const pa = CL.photo(s0, { G }), na = CL.nettoyerPhoto(pa), ba = CL.boutiqueDepuisPhoto(pa, { G, maintenant: T });
+      check(pa.a === '32' + '-'.repeat(14) + '-6-' && na.a === pa.a && ba && ba.st.amenagement && ba.st.amenagement.tables[0][0] === 3 && ba.st.amenagement.terrasse[1] === 6, `a : '${pa.a}' (${pa.a.length} o), relu et appliqué à la boutique visitée`);
+      const abimes = ['32', '-'.repeat(19), 'ZZ--------------6--', '3----------------6-', '32---------------6-x', 42, { a: 1 }, '<script>alert(1)</>'].map((x) => CL.nettoyerPhoto(Object.assign({}, pa, { a: x })));
+      check(abimes.every((o) => o && !('a' in o)) && abimes.every((o) => !CL.boutiqueDepuisPhoto(o, { G, maintenant: T }).st.amenagement), 'a abîmé (trop court, tout à l’origine, majuscules, une case à moitié, trop long, pas une chaîne) : retiré, la boutique visitée garde le plan d’origine');
+    }
     // le repli, éprouvé en abaissant la limite : le nom et les coupes d'abord, puis e.d, puis e, puis rien
     const max0 = CL.PHOTO.max, taille = (o) => CL.octetsJson(o), s1 = taille(Object.assign({}, pp, { k: [], nom: pp.nom.slice(0, 12) })), e2 = Object.assign({}, pp.e); delete e2.d;
     const s2 = taille(Object.assign({}, pp, { k: [], nom: pp.nom.slice(0, 12), e: e2 })), sansE = Object.assign({}, pp, { k: [], nom: pp.nom.slice(0, 12) }); delete sansE.e; const s3 = taille(sansE);

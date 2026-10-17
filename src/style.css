@@ -1579,3 +1579,13 @@ body.amenage .vote-bandeau, body.visite .vote-bandeau, body[data-tiroir="ouvert"
 .sg-annonce .sg-nom { font: 700 26px/1.1 var(--titre); color: var(--texte); margin-bottom: 8px; }
 .sg-annonce .sg-pips i { width: 14px; height: 14px; }
 .sg-annonce .sous { margin: 8px 0 0; }
+/* ─── « Tout déplaçable » (le mode Aménager) : Déplacer / Améliorer et Plan d'origine, en haut à gauche ; l'enseigne s'efface ─── */
+#amenage-barre { position: absolute; top: 8px; left: 10px; z-index: 2; display: flex; gap: 6px; max-width: calc(100% - 130px); flex-wrap: wrap; }
+#amenage-barre[hidden] { display: none; }
+#amenage-barre button { display: inline-flex; align-items: center; gap: 5px; min-height: 40px; padding: 0 13px; border-radius: 999px; background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 14px/1 var(--titre); color: var(--texte); white-space: nowrap; }
+#amenage-barre button:active { transform: translateY(3px); box-shadow: none; }
+#amenage-barre button[aria-pressed="true"] { background: var(--menthe-clair); box-shadow: 0 3px 0 var(--menthe-sombre); }
+#amenage-barre .ico { width: 20px; height: 20px; display: inline-grid; }
+#amenage-barre .ico svg { width: 20px; height: 20px; }
+body.amenage #enseigne { opacity: 0; pointer-events: none; }
+body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }

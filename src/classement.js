@@ -344,6 +344,7 @@
         l: G.standing ? borne(G.standing(st), 0, 5) : 0, // le standing de la boutique (0 à 5) : le copain la voit montée en gamme
       };
       for (const m of G.MOBILIER) p.m[m.id] = borne(G.mobilierCran(st, m.id), 0, 20);
+      { const a = G.codeAmenagement ? G.codeAmenagement(st.amenagement) : ''; if (a) p.a = a; } // a : la place de ses meubles (19 caractères ; absent : le plan d'origine)
       const S = st.stats || {}, tr = st.trophees && typeof st.trophees === 'object' ? (Array.isArray(G.TROPHEES) ? G.TROPHEES.filter((t) => st.trophees[t.id]).length : Object.keys(st.trophees).length) : 0;
       p.x = { e: borne(st.etoiles, 0, 1e9), b: borne(st.boutiques, 1, 1e6), v: borne(S.ventes, 0, 1e15), tr: borne(tr, 0, 999), s: borne(S.serieMax, 0, 99999), f: fortune4(st.lifetime) };
       const q = o.ev && o.ev.q, e = q && Array.isArray(q.postes) ? evPhoto({ id: o.ev.id, p: q.postes.slice(0, 16).map((s) => [s && s.niv, s && s.staff]), d: q.decos, pa: Array.isArray(q.paliers) ? q.paliers.length : 0, t: q.total }) : null;
@@ -354,6 +355,8 @@
       return octetsJson(p) <= PHOTO.max ? p : null;
     } catch (e) { return null; }
   }
+  // le code d'aménagement d'une photo (GAME.codeAmenagement) : 19 caractères de base 36 ou « - » ; une case (c, r) entière ou absente ; pas tout à l'origine
+  const codeAOk = (a) => typeof a === 'string' && /^[0-9a-z-]{19}$/.test(a) && /[0-9a-z]/.test(a) && [0, 2, 4, 6, 8, 10, 12, 14].every((i) => (a[i] === '-') === (a[i + 1] === '-'));
   function nettoyerPhoto(p) {
     if (!p || typeof p !== 'object' || Array.isArray(p)) return null;
     try { if (octetsJson(p) > PHOTO.max * 2) return null; } catch (e) { return null; }
@@ -366,6 +369,7 @@
     const x = p.x; // ses statistiques (absentes d'une photo d'avant la fiche « Tous les temps »)
     if (x && typeof x === 'object' && !Array.isArray(x)) o.x = { e: borne(x.e, 0, 1e9), b: borne(x.b, 1, 1e6), v: borne(x.v, 0, 1e15), tr: borne(x.tr, 0, 999), s: borne(x.s, 0, 99999), f: fortune4(x.f) };
     const e = evPhoto(p.e); if (e) o.e = e; // l'événement en cours (absent, ou d'un id inconnu : pas de Planque à visiter)
+    if (codeAOk(p.a)) o.a = p.a; // son aménagement : un code bien formé (GAME.codeAmenagement), sinon le plan d'origine
     return o;
   }
   // la clé qui dit si la photo a changé (photoAEnvoyer) : sans les compteurs qui bougent à chaque fournée (x.v les ventes, x.f la fortune,
@@ -406,6 +410,7 @@
     });
     if (!st.stations.some((s) => s.niv > 0)) st.stations[0].niv = 1;
     for (const m of G.MOBILIER) st.mobilier[m.id] = Math.min(m.max, p.m[m.id] || 0);
+    { const a = p.a && G.amenagementDepuisCode ? G.amenagementDepuisCode(p.a) : null; if (a) st.amenagement = a; } // ses meubles à leur place (la scène revient au plan d'origine s'ils ne tiennent pas sur cet écran)
     const r = p.s && (G.RECETTES_SAISON || []).find((x) => x.id === p.s); if (r) st.saison = { id: r.id, annee: new Date(now).getUTCFullYear(), niv: 1, prog: 0, actif: false };
     const g = G.garderobeNeuve();
     PIECES.forEach((k, i) => { const id = p.t[i], v = id ? G.vetement(id) : null; if (v && v.piece === k) { g.objets[id] = { niv: 1, depuis: 0 }; g.equipe[k] = id; } else if (p.t.length > i && id === null) g.equipe[k] = null; });

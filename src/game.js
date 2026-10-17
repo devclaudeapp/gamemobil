@@ -508,8 +508,35 @@
   // les places assises, pour la scène (vie.js : les sièges actifs du plan) : { tables : 0 à 6 tables (2 places chacune), bar : 0, 2, 3 ou 4 tabourets,
   // banquette : 0, 2 (la banquette, puis avec la table basse) ou 3 places (le fauteuil), terrasse : 0, 2, 4 ou 6 places }
   const places = (st) => { const b = mobilierCran(st, 'banquette'); return { tables: mobilierCran(st, 'tables'), bar: mobilierCran(st, 'bar') ? mobilierCran(st, 'bar') + 1 : 0, banquette: b >= 3 ? 3 : b ? 2 : 0, terrasse: 2 * mobilierCran(st, 'terrasse') }; };
-  // st.amenagement : RÉSERVÉ au lot B (« tout déplaçable et organisable ») — la place de chaque meuble dans les emplacements nommés du plan.
-  // Absent (toujours, pour l'instant) : le plan par défaut. Rien ne l'écrit ni ne le lit encore ; ne pas s'en servir pour autre chose.
+  // st.amenagement : « tout déplaçable » — la place des meubles de la salle sur la grille du plan (VIE.LAY.grille, cases de 24 px à l'échelle) :
+  //   { v: 1, tables: [[c, r] | null ×6], bar: [c, r] | null, salon: [c, r] | null, terrasse: [c | null ×3] } ; null : la place d'origine.
+  // Absent tant que rien n'est déplacé (le plan d'origine) ; GARDÉ par nouvelleBoutique (st.mobilier repart de zéro, les places restent).
+  // La validité géométrique (chevauchements, passages, places atteignables) est dans src/vie.js (VIE.valider) ; ici, seulement la forme :
+  // un aménagement abîmé (sauvegarde trafiquée, photo d'un copain) vaut le plan d'origine (null).
+  const AMEN_MAX = 35; // une case tient en un chiffre de base 36 (le code compact de la photo)
+  const caseOk = (x) => Number.isInteger(x) && x >= 0 && x <= AMEN_MAX;
+  function nettoyerAmenagement(a) {
+    if (!a || typeof a !== 'object' || Array.isArray(a) || a.v !== 1) return null;
+    const paire = (p) => (p == null ? null : Array.isArray(p) && p.length === 2 && caseOk(p[0]) && caseOk(p[1]) ? [p[0], p[1]] : undefined);
+    const tables = Array.isArray(a.tables) && a.tables.length === 6 ? a.tables.map(paire) : null, bar = paire(a.bar), salon = paire(a.salon);
+    const terrasse = Array.isArray(a.terrasse) && a.terrasse.length === 3 ? a.terrasse.map((c) => (c == null ? null : caseOk(c) ? c : undefined)) : null;
+    if (!tables || !terrasse || tables.includes(undefined) || terrasse.includes(undefined) || bar === undefined || salon === undefined) return null;
+    if (!tables.some(Boolean) && !bar && !salon && !terrasse.some((c) => c != null)) return null; // rien de déplacé : le plan d'origine
+    return { v: 1, tables, bar, salon, terrasse };
+  }
+  // le code compact (photo du classement, clés de la scène) : 19 caractères, un par nombre en base 36, « - » pour une place d'origine ;
+  // dans l'ordre : les six tables (c, r), le bar (c, r), le coin salon (c, r), les trois tables de la terrasse (c). '' : le plan d'origine.
+  function codeAmenagement(a) {
+    const n = nettoyerAmenagement(a); if (!n) return '';
+    const ch = (x) => (x == null ? '-' : x.toString(36)), pr = (p) => (p ? ch(p[0]) + ch(p[1]) : '--');
+    return n.tables.map(pr).join('') + pr(n.bar) + pr(n.salon) + n.terrasse.map(ch).join('');
+  }
+  function amenagementDepuisCode(s) {
+    if (typeof s !== 'string' || !/^[0-9a-z-]{19}$/.test(s)) return null;
+    const v = [...s].map((x) => (x === '-' ? null : parseInt(x, 36))), pr = (i) => (v[i] == null && v[i + 1] == null ? null : v[i] == null || v[i + 1] == null ? undefined : [v[i], v[i + 1]]);
+    const a = { v: 1, tables: [0, 2, 4, 6, 8, 10].map(pr), bar: pr(12), salon: pr(14), terrasse: v.slice(16, 19) };
+    return a.tables.includes(undefined) || a.bar === undefined || a.salon === undefined ? null : nettoyerAmenagement(a);
+  }
   function ameliorerMeuble(st, id) {
     const m = MOBILIER.find((x) => x.id === id); if (!m) return { ok: false };
     const cran = mobilierCran(st, id), prix = prixMeuble(st, id);
@@ -1423,7 +1450,7 @@
     CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, PELAGES, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
     COMPAGNONS, COMPAGNON_PLANCHER, compagnon, estChat, prixCompagnon, aCompagnon, compagnonActif, bonusCompagnon, compagnonGains, modeleCompagnon, compagnons, choisirCompagnon, acheterCompagnon,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
-    PRODUITS, RECETTES_BASE, recetteGagnee, recettesBoutique, recettesConnues, prochaineRecetteBoutique, ameliorationOuverte, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, places, belleSaison, terrassePleine, QUARTIERS_BASE, quartierDe, PARCOURS_FIN, recompenseBoutique, texteRecompense, parcours, donnerRecompense, rattraperParcours, gainsParcours, titreParcours, DEFIS_PASSAGE, DEFI_DEBUT, defiDe, texteDefi, creerDefi, defiPassage, passageOk, ETOILES_CONSEIL, butParcours, parcoursListe, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, STANDINGS, STANDING_PAS, standing, standingDe, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
+    PRODUITS, RECETTES_BASE, recetteGagnee, recettesBoutique, recettesConnues, prochaineRecetteBoutique, ameliorationOuverte, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, places, nettoyerAmenagement, codeAmenagement, amenagementDepuisCode, belleSaison, terrassePleine, QUARTIERS_BASE, quartierDe, PARCOURS_FIN, recompenseBoutique, texteRecompense, parcours, donnerRecompense, rattraperParcours, gainsParcours, titreParcours, DEFIS_PASSAGE, DEFI_DEBUT, defiDe, texteDefi, creerDefi, defiPassage, passageOk, ETOILES_CONSEIL, butParcours, parcoursListe, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, STANDINGS, STANDING_PAS, standing, standingDe, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, expoPalier, fmtMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables, prochaineEtoile,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, boostsNeufs, donnerBoostReserve, PRIME_HEURE_PLANCHER, primeHeures, donnerPrimeHeures, lancerBoostReserve,
