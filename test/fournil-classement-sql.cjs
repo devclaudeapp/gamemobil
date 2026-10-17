@@ -17,7 +17,8 @@
 //     retrait, et l'accès direct aux tables, qui doit être refusé ;
 //   · le contrat : le VRAI moteur du téléphone (src/classement.js) branché sur ce Postgres par un petit PostgREST, et les appels
 //     de src/classement.js et src/horloge.js comparés aux signatures des fonctions SQL ;
-//   · le patch v6.2 (supabase/fournil-classement-v62.sql, la limite des événements élargie) collé deux fois par-dessus la v6 :
+//   · le patch v6.2 (supabase/fournil-classement-v62.sql, la limite des événements élargie) collé deux fois par-dessus la v6, puis
+//     le patch v6.3 (supabase/fournil-classement-v63.sql, le Sirop et le Cristal) collé deux fois par-dessus la v6 et la v6.2 :
 //     les nouveaux tableaux, des bornes jamais plus basses, un score entre l'ancienne et la nouvelle borne compté, rien d'autre ne bouge.
 //   · le chat (supabase/fournil-chat.sql, collé par-dessus la v6) : chaque erreur de l'envoi, 3 s et 60 par heure, le masquage au
 //     3e signalement, l'effacement, le bannissement, le ménage (images de 7 jours, au-delà des 2 000), la cascade du retrait, les droits.
@@ -1984,13 +1985,14 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     check((await sup('select count(*)::int as c from public.fournil_cadeaux where joueur = $1', [G2.id]))[0].c === 0, 'quitter le classement efface ses cadeaux');
   }
 
-  // ─── la version 6.2 (supabase/fournil-classement-v62.sql) : la limite des événements élargie, collée par-dessus la v6 ───
-  // Un Postgres neuf : la v6 telle qu'elle est sur Supabase (le fichier actuel, ses deux tableaux remis aux valeurs d'avant la 6.2),
-  // des joueurs, puis le patch, deux fois. Les tableaux changent, rien d'autre : ni les données, ni la liste des fonctions, ni leurs droits.
-  titre('la version 6.2 : la limite des événements, collée par-dessus la version 6');
+  // ─── les patchs de la limite des événements, collés par-dessus la v6 : la 6.2 (supabase/fournil-classement-v62.sql), puis la 6.3
+  // (supabase/fournil-classement-v63.sql, le Sirop et le Cristal en vraies recettes). Pour chacun, un Postgres neuf : la v6 telle
+  // qu'elle est sur Supabase (le fichier actuel, ses deux tableaux remis aux valeurs d'avant la 6.2), les patchs précédents, des
+  // joueurs, puis le patch, deux fois. Les tableaux changent, rien d'autre : ni les données, ni la liste des fonctions, ni leurs droits.
   {
     const Q = require('../src/quartier.js'), HT = require('../src/hantee.js');
     const P62 = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v62.sql'), 'utf8');
+    const P63 = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v63.sql'), 'utf8');
     // les deux tableaux de la v6 (et 6.1) collée sur Supabase, avant la 6.2
     const Q6 = [12.5, 14.4, 16.1, 16.5, 16.7, 16.85, 16.95, 17.05, 17.15, 17.2, 17.3, 17.35, 17.4, 17.45, 17.5];
     const H6 = [11.65, 13.8, 15.25, 15.8, 16.05, 16.2, 16.35, 16.45, 16.55, 16.65, 16.75, 16.8, 16.9, 16.95, 17, 17, 17.05, 17.1, 17.15, 17.15, 17.2, 17.2, 17.25, 17.25, 17.3, 17.3, 17.3];
@@ -2001,110 +2003,123 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       const tab = (m) => (m ? m[1].slice(1, -1).split(',').map(Number) : null);
       return { q: tab(q), h: tab(h), qBrut: q && q[1], hBrut: h && h[1] };
     };
-    const T62 = lireTables(P62), TF = lireTables(SQL);
+    const T62 = lireTables(P62), T63 = lireTables(P63), TF = lireTables(SQL);
     const memes = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, k) => x === b[k]);
-    check(T62.q && T62.q.length === 15 && T62.h && T62.h.length === 27, 'le patch v6.2 porte les deux tableaux : 15 valeurs pour le Quartier, 27 pour la Maison hantée');
-    check(T62.q && T62.h && T62.q.every((x, k) => x >= Q6[k]) && T62.h.every((x, k) => x >= H6[k]),
-      `chaque valeur de la v6.2 est ≥ à celle de la v6, au même pas (Quartier : jusqu’à +${T62.q ? Math.max(...T62.q.map((x, k) => x - Q6[k])).toFixed(2) : '?'} en log10 ; Maison hantée : jusqu’à +${T62.h ? Math.max(...T62.h.map((x, k) => x - H6[k])).toFixed(2) : '?'})`);
-    check(memes(TF.q, T62.q) && memes(TF.h, T62.h), 'supabase/fournil-classement.sql et le patch v6.2 portent les mêmes tableaux (recoller le fichier complet ne revient pas en arrière)');
-    check(!/\b(insert|update|delete|truncate|drop|alter|grant)\b/i.test(P62.replace(/--[^\n]*/g, '')) && (P62.match(/create or replace function/gi) || []).length === 2 && !/create\s+(table|index|schema|role|trigger|policy)/i.test(P62),
-      'le patch ne touche que deux fonctions : ni table, ni donnée, ni droit accordé, rien de supprimé');
     const SQL6 = TF.qBrut && TF.hBrut ? SQL.split(`'${TF.qBrut}'`).join(`'{${Q6.join(',')}}'`).split(`'${TF.hBrut}'`).join(`'{${H6.join(',')}}'`) : SQL;
-    const db62 = await PGlite.create();
-    const s62 = async (sql, p) => (await db62.query(sql, p)).rows;
-    const c62 = async (sql, p, role = 'anon') => { await db62.exec(`set role ${role}`); try { return (await db62.query(sql, p)).rows[0].r; } finally { await db62.exec('reset role'); } };
-    const refus62 = async (role, sql) => { try { await c62(sql, [], role); return false; } catch (err) { return true; } };
-    const coller62 = async (texte) => { await db62.exec('set role proprio'); try { return await db62.exec(texte); } finally { await db62.exec('reset role'); } };
-    await db62.exec(`
-      create role anon nologin noinherit; create role authenticated nologin noinherit; create role service_role nologin noinherit bypassrls;
-      create role proprio nologin createrole;
-      grant usage, create on schema public to proprio;
-      grant usage on schema public to anon, authenticated, service_role;
-      set role proprio;
-      alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
-      alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
-      alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
-      reset role;
-      create schema banc; create table banc.horloge (t timestamptz); insert into banc.horloge values (null);
-      grant usage on schema banc to proprio; grant select on banc.horloge to proprio;`);
-    let h62 = 0;
-    const horloge62 = async (ms) => { h62 = ms; await s62(`create or replace function public.fournil_maintenant() returns timestamptz language sql stable set search_path = '' as $$ select coalesce((select t from banc.horloge limit 1), now()) $$`); await s62('update banc.horloge set t = $1', [new Date(ms).toISOString()]); };
-    const pub = (j, pseudo, f, points, billets, evt, score) => c62('select public.fournil_publier(p_id => $1, p_jeton => $2, p_pseudo => $3, p_fortune => $4, p_points => $5, p_lundi => $6, p_quartier => $7, p_evt => $8, p_score => $9) as r', [j.id, j.jeton, pseudo, String(f), String(points), lundiDe(h62), billets == null ? null : String(billets), evt || null, score == null ? null : String(score)]);
-    const borneQ = async (ms) => (await s62('select public.fournil_quartier_borne($1::timestamptz) as b', [new Date(ms).toISOString()]))[0].b;
-    const borneH = async (ms) => (await s62(`select public.fournil_evt_borne('hantee', $1::timestamptz) as b`, [new Date(ms).toISOString()]))[0].b;
+    const JOUR = 86400e3, PAS_H = 6 * 3600e3;
     // la borne d'une table de log10 à pas fixe (le miroir de fournil_quartier_borne et de fournil_evt_borne)
     const borneJS = (tab, debut, pasMs, ms) => { if (ms < debut) return 0; const j = Math.min((ms - debut) / pasMs, tab.length - 1), k = Math.floor(j); return k >= tab.length - 1 ? Math.pow(10, tab[tab.length - 1]) : Math.pow(10, tab[k] + (tab[k + 1] - tab[k]) * (j - k)); };
-    const JOUR = 86400e3, PAS_H = 6 * 3600e3;
-    const NQ = T62.q || Q6, NH = T62.h || H6;
-    // le pas où la v6.2 laisse le plus de place de plus que la v6 (on se met en son milieu) : un score entre les deux bornes
-    const ecartMax = (vieux, neuf, de, a) => { let m = de; for (let k = de; k <= a; k++) if (neuf[k] + neuf[k + 1] - vieux[k] - vieux[k + 1] > neuf[m] + neuf[m + 1] - vieux[m] - vieux[m + 1]) m = k; return m + 0.5; };
-    const kQ = ecartMax(Q6, NQ, 6, 13), TQ = Q.DEBUT + kQ * JOUR; // après le premier lundi de l'événement : une semaine figée au palmarès
-    const kH = ecartMax(H6, NH, 1, 24), TH = HT.DEBUT + kH * PAS_H;
-    try { await coller62(SQL6); check(true, 'la version 6 telle que collée sur Supabase (tableaux d’avant la 6.2) s’installe'); } catch (err) { check(false, 'la version 6 s’installe : ' + err.message); }
-    // des joueurs : inscrits le 2e jour du Quartier (des points, des billets), puis une semaine figée, une photo, un pourboire
-    const [Ali, Bea, Cyr] = [joueur(), joueur(), joueur()], noms = ['Ali', 'Béa', 'Cyril'];
-    await horloge62(Q.DEBUT + JOUR);
-    for (const [k, j] of [Ali, Bea, Cyr].entries()) await pub(j, noms[k], 1e9, 10 * (k + 1), 1e8 * (k + 1));
-    await horloge62(TQ - 3600e3);
-    for (const [k, j] of [Ali, Bea, Cyr].entries()) await pub(j, noms[k], 1e9 + 1e6, 5 * (k + 1), 1e12 * (k + 1));
-    await horloge62(TQ - 1800e3);
-    await c62('select public.fournil_publier(p_id => $1, p_jeton => $2, p_pseudo => $3, p_fortune => $4, p_points => $5, p_lundi => $6, p_photo => $7::jsonb) as r', [Bea.id, Bea.jeton, noms[1], String(1e9 + 2e6), '10', lundiDe(h62), JSON.stringify({ nom: 'Chez Béa' })]);
-    await c62('select public.fournil_pourboire(p_id => $1, p_jeton => $2, p_pour => $3) as r', [Ali.id, Ali.jeton, 'Béa']);
-    // en v6 : un score entre l'ancienne et la nouvelle borne est plafonné à l'ancienne
-    await horloge62(TQ);
-    const vieuxQ = borneJS(Q6, Q.DEBUT, JOUR, TQ), neufQ = borneJS(NQ, Q.DEBUT, JOUR, TQ), X = Math.sqrt(vieuxQ * neufQ);
-    let r = await pub(Ali, noms[0], 1e9 + 3e6, 15, X);
-    check(r.ok === true && r.quartier_plafonne === true && proche(r.quartier, vieuxQ, 1e-9), `en v6, au jour ${kQ} du Quartier : Ali envoie ${e(X)} billets (entre l’ancienne borne ${e(vieuxQ)} et la nouvelle ${e(neufQ)}) : plafonné à l’ancienne (${e(r.quartier)})`);
-    const photo = async () => { const o = {}; for (const t of TABLES) o[t] = (await s62(`select coalesce(json_agg(x order by x::text), '[]')::text as j from public.${t} x`))[0].j; return JSON.stringify(o); };
-    const contrat = async () => JSON.stringify(await s62(`select p.proname as nom, pg_get_function_identity_arguments(p.oid) as args, pg_get_function_result(p.oid) as rend, l.lanname as langage, p.provolatile as vol, p.prosecdef as definer,
-        array_to_string(p.proconfig, ',') as conf, p.proacl::text as acl, pg_get_userbyid(p.proowner) as proprio, has_function_privilege('anon', p.oid, 'execute') as anon,
-        has_function_privilege('authenticated', p.oid, 'execute') as auth, has_function_privilege('service_role', p.oid, 'execute') as service
-      from pg_proc p join pg_language l on l.oid = p.prolang where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' order by 1, 2`));
-    const ouvertes = async () => (await s62(`select string_agg(p.proname, ',' order by p.proname) as l from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and has_function_privilege('anon', p.oid, 'execute')`))[0].l;
-    const fenetres = async () => JSON.stringify(await s62('select nom, debut, fin, pas from public.fournil_evts() order by nom'));
-    const corps = async () => JSON.stringify(await s62(`select proname, md5(prosrc) as m from pg_proc where pronamespace = 'public'::regnamespace and proname like 'fournil%' and proname not in ('fournil_quartier_table', 'fournil_evts') order by 1`));
-    const compte = async (t) => (await s62(`select count(*)::int as n from public.${t}`))[0].n;
-    const nPal = await compte('fournil_palmares'), nPho = await compte('fournil_photos'), nPb = await compte('fournil_pourboires'), nJ = await compte('fournil_joueurs');
-    check(nJ === 3 && nPal >= 1 && nPho === 1 && nPb === 1, `en v6 : trois joueurs avec des points et des billets, une semaine au palmarès (${nPal} lignes), une photo, un pourboire`);
-    const [dAvant, cAvant, aAvant, fAvant, bAvant] = [await photo(), await contrat(), await ouvertes(), await fenetres(), await corps()];
-    // le patch, deux fois
-    let res = null;
-    try { res = await coller62(P62); res = await coller62(P62); check(true, 'le patch v6.2 se colle par-dessus la v6, puis se recolle sans casse (rôle propriétaire, droits par défaut de Supabase)'); } catch (err) { check(false, 'le patch v6.2 se colle : ' + err.message); }
-    check(await photo() === dAvant, `rien ne bouge dans les données : les ${TABLES.length} tables sont identiques (joueurs, points, billets, palmarès, photos, pourboires…)`);
-    check(await contrat() === cAvant, 'le contrat des fonctions est inchangé : la même liste, les mêmes signatures et types rendus, langage, volatilité, search_path, propriétaire et droits (anon, authenticated, service_role)');
-    check(await ouvertes() === aAvant, `anon appelle toujours les mêmes fonctions, ni plus ni moins (${aAvant.split(',').length} : ${aAvant.replace(/fournil_/g, '')})`);
-    check(await corps() === bAvant && await fenetres() === fAvant, 'les autres fonctions gardent leur code, la Maison hantée sa fenêtre et son pas de 6 h');
-    check(await refus62('anon', 'select public.fournil_quartier_table() as r') && await refus62('anon', 'select count(*) as r from public.fournil_evts()') && await refus62('authenticated', 'select public.fournil_quartier_table() as r'), 'fournil_quartier_table et fournil_evts restent fermées à anon et authenticated');
-    // les tableaux et les bornes
-    const tq = (await s62('select public.fournil_quartier_table() as t'))[0].t, th = (await s62(`select tableau as t from public.fournil_evts() where nom = 'hantee'`))[0].t;
-    check(memes(tq, NQ) && memes(th, NH), `les tableaux installés sont ceux de la v6.2 (Quartier : ${tq.join(' ')} ; Maison hantée : ${th.join(' ')})`);
-    { let ok = true, eg = true; const d = [];
-      for (let k = 0; k <= 14; k++) { const ms = Q.DEBUT + k * JOUR, b = await borneQ(ms), bm = await borneQ(ms + JOUR / 2); if (!(b >= Math.pow(10, Q6[k]) * (1 - 1e-12) && bm >= borneJS(Q6, Q.DEBUT, JOUR, ms + JOUR / 2) * (1 - 1e-12))) { ok = false; d.push(k); } if (!proche(b, Math.pow(10, NQ[k]), 1e-9)) eg = false; }
-      check(ok && eg && (await borneQ(Q.DEBUT - 1)) === 0 && proche(await borneQ(Q.DEBUT + 20 * JOUR), Math.pow(10, NQ[14]), 1e-9), `la borne du Quartier, jours 0 à 14 (et au milieu de chaque jour) : ≥ à l’ancienne, = 10^(la v6.2) ; 0 avant l’ouverture, constante après${d.length ? ' — en dessous aux jours ' + d.join(', ') : ''}`); }
-    { let ok = true, eg = true; const d = [];
-      for (let k = 0; k <= 26; k++) { const ms = HT.DEBUT + k * PAS_H, b = await borneH(ms); if (!(b >= Math.pow(10, H6[k]) * (1 - 1e-12))) { ok = false; d.push(k); } if (!proche(b, Math.pow(10, NH[k]), 1e-9)) eg = false; }
-      check(ok && eg && (await borneH(HT.DEBUT - 1)) === 0, `la borne de la Maison hantée, à chacun des 27 pas de 6 h : ≥ à l’ancienne, = 10^(la v6.2) ; 0 avant l’ouverture${d.length ? ' — en dessous aux pas ' + d.join(', ') : ''}`); }
-    // la requête de contrôle, au bas du patch
-    { const ctl = res && res[res.length - 1], l = ctl && ctl.rows && ctl.rows[0];
-      check(!!l && ctl.rows.length === 1 && Object.keys(l).join() === 'quartier,hantee,borne_quartier,borne_quartier_log10' && memes(l.quartier, NQ) && memes(l.hantee, NH) && proche(l.borne_quartier, (await s62('select public.fournil_quartier_borne(now()) as b'))[0].b, 1e-3) && (l.borne_quartier === 0 || Math.abs(Number(l.borne_quartier_log10) - Math.log10(l.borne_quartier)) <= 0.005), // (now() : l'heure vraie, quelques millisecondes plus tard)
-        `la requête de contrôle rend une ligne : les deux tableaux et la borne du Quartier maintenant (${l ? `${e(l.borne_quartier)}, log10 ${l.borne_quartier_log10}` : '?'})`); }
-    // la publication : au-dessus de l'ancienne borne, sous la nouvelle, c'est compté
-    await horloge62(TQ + 60e3);
-    const vieuxQ2 = borneJS(Q6, Q.DEBUT, JOUR, h62), neufQ2 = borneJS(NQ, Q.DEBUT, JOUR, h62);
-    r = await pub(Ali, noms[0], 1e9 + 4e6, 15, X);
-    check(X > vieuxQ2 * (1 + 1e-9) && X < neufQ2 && r.ok === true && r.quartier_plafonne === false && r.quartier === X && r.rang_quartier === 1,
-      `en v6.2, une minute plus tard : les mêmes ${e(X)} billets (au-dessus de l’ancienne borne ${e(vieuxQ2)}, sous la nouvelle ${e(neufQ2)}) sont comptés, sans plafond ; Ali 1er (${JSON.stringify({ q: r.quartier, plaf: r.quartier_plafonne, rang: r.rang_quartier })})`);
-    r = await pub(Bea, noms[1], 1e9 + 4e6, 10, 1e24);
-    check(r.ok === true && r.quartier_plafonne === true && proche(r.quartier, await borneQ(h62), 1e-9) && proche(r.quartier, neufQ2, 1e-9), `1e24 billets (console) : plafonnés à la nouvelle borne (${e(r.quartier)}), pas au-delà`);
-    // la Maison hantée : de même, un score entre les deux bornes est compté
-    await horloge62(TH);
-    const vieuxH = borneJS(H6, HT.DEBUT, PAS_H, TH), neufH = borneJS(NH, HT.DEBUT, PAS_H, TH), Y = Math.sqrt(vieuxH * neufH);
-    r = await pub(Cyr, noms[2], 1e9 + 5e6, 5, null, 'hantee', Y);
-    check(Y > vieuxH * (1 + 1e-9) && Y < neufH && r.ok === true && r.evt === 'hantee' && r.evt_plafonne === false && r.evt_score === Y,
-      `Maison hantée, au pas ${kH} : ${e(Y)} bonbons (au-dessus de l’ancienne borne ${e(vieuxH)}, sous la nouvelle ${e(neufH)}) sont comptés, sans plafond (${JSON.stringify({ s: r.evt_score, plaf: r.evt_plafonne })})`);
-    r = await pub(Ali, noms[0], 1e9 + 6e6, 5, null, 'hantee', 1e24);
-    check(r.ok === true && r.evt_plafonne === true && proche(r.evt_score, neufH, 1e-6), `1e24 bonbons : plafonnés à la nouvelle borne (${e(r.evt_score)})`);
-    await db62.close();
+
+    // un patch : v (« 6.2 »), son texte, ses tableaux, ceux d'avant (vieux, nommés vNom), les patchs déjà collés avant lui
+    const patchLimite = async ({ v, texte, T, vieux, vNom, avant }) => {
+      titre(`la version ${v} : la limite des événements, collée par-dessus la ${vNom}`);
+      check(T.q && T.q.length === 15 && T.h && T.h.length === 27, `le patch v${v} porte les deux tableaux : 15 valeurs pour le Quartier, 27 pour la Maison hantée`);
+      check(T.q && T.h && T.q.every((x, k) => x >= vieux.q[k] && (k === 0 || x >= T.q[k - 1])) && T.h.every((x, k) => x >= vieux.h[k] && (k === 0 || x >= T.h[k - 1])),
+        `chaque valeur de la v${v} est ≥ à celle de la ${vNom}, au même pas, et les tableaux sont croissants (Quartier : jusqu’à +${T.q ? Math.max(...T.q.map((x, k) => x - vieux.q[k])).toFixed(2) : '?'} en log10 ; Maison hantée : jusqu’à +${T.h ? Math.max(...T.h.map((x, k) => x - vieux.h[k])).toFixed(2) : '?'})`);
+      check(!/\b(insert|update|delete|truncate|drop|alter|grant)\b/i.test(texte.replace(/--[^\n]*/g, '')) && (texte.match(/create or replace function/gi) || []).length === 2 && !/create\s+(table|index|schema|role|trigger|policy)/i.test(texte),
+        'le patch ne touche que deux fonctions : ni table, ni donnée, ni droit accordé, rien de supprimé');
+      const db62 = await PGlite.create();
+      const s62 = async (sql, p) => (await db62.query(sql, p)).rows;
+      const c62 = async (sql, p, role = 'anon') => { await db62.exec(`set role ${role}`); try { return (await db62.query(sql, p)).rows[0].r; } finally { await db62.exec('reset role'); } };
+      const refus62 = async (role, sql) => { try { await c62(sql, [], role); return false; } catch (err) { return true; } };
+      const coller62 = async (t) => { await db62.exec('set role proprio'); try { return await db62.exec(t); } finally { await db62.exec('reset role'); } };
+      await db62.exec(`
+        create role anon nologin noinherit; create role authenticated nologin noinherit; create role service_role nologin noinherit bypassrls;
+        create role proprio nologin createrole;
+        grant usage, create on schema public to proprio;
+        grant usage on schema public to anon, authenticated, service_role;
+        set role proprio;
+        alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+        alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+        alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+        reset role;
+        create schema banc; create table banc.horloge (t timestamptz); insert into banc.horloge values (null);
+        grant usage on schema banc to proprio; grant select on banc.horloge to proprio;`);
+      let h62 = 0;
+      const horloge62 = async (ms) => { h62 = ms; await s62(`create or replace function public.fournil_maintenant() returns timestamptz language sql stable set search_path = '' as $$ select coalesce((select t from banc.horloge limit 1), now()) $$`); await s62('update banc.horloge set t = $1', [new Date(ms).toISOString()]); };
+      const pub = (j, pseudo, f, points, billets, evt, score) => c62('select public.fournil_publier(p_id => $1, p_jeton => $2, p_pseudo => $3, p_fortune => $4, p_points => $5, p_lundi => $6, p_quartier => $7, p_evt => $8, p_score => $9) as r', [j.id, j.jeton, pseudo, String(f), String(points), lundiDe(h62), billets == null ? null : String(billets), evt || null, score == null ? null : String(score)]);
+      const borneQ = async (ms) => (await s62('select public.fournil_quartier_borne($1::timestamptz) as b', [new Date(ms).toISOString()]))[0].b;
+      const borneH = async (ms) => (await s62(`select public.fournil_evt_borne('hantee', $1::timestamptz) as b`, [new Date(ms).toISOString()]))[0].b;
+      const NQ = T.q || vieux.q, NH = T.h || vieux.h;
+      // le pas où le patch laisse le plus de place de plus qu'avant (on se met en son milieu) : un score entre les deux bornes
+      const ecart = (vx, nf, k) => nf[k] + nf[k + 1] - vx[k] - vx[k + 1];
+      const ecartMax = (vx, nf, de, a) => { let m = de; for (let k = de; k <= a; k++) if (ecart(vx, nf, k) > ecart(vx, nf, m)) m = k; return m; };
+      const mQ = ecartMax(vieux.q, NQ, 6, 13), kQ = mQ + 0.5, TQ = Q.DEBUT + kQ * JOUR; // après le premier lundi de l'événement : une semaine figée au palmarès
+      const mH = ecartMax(vieux.h, NH, 1, 24), kH = mH + 0.5, TH = HT.DEBUT + kH * PAS_H;
+      const plusQ = ecart(vieux.q, NQ, mQ) > 1e-9, plusH = ecart(vieux.h, NH, mH) > 1e-9; // la nouvelle borne dépasse-t-elle l'ancienne quelque part ?
+      try { await coller62(SQL6); check(true, 'la version 6 telle que collée sur Supabase (tableaux d’avant la 6.2) s’installe'); } catch (err) { check(false, 'la version 6 s’installe : ' + err.message); }
+      for (const [nom, t] of avant) { try { await coller62(t); check(true, `puis le patch v${nom}, comme sur Supabase`); } catch (err) { check(false, `le patch v${nom} se colle : ` + err.message); } }
+      // des joueurs : inscrits le 2e jour du Quartier (des points, des billets), puis une semaine figée, une photo, un pourboire
+      const [Ali, Bea, Cyr] = [joueur(), joueur(), joueur()], noms = ['Ali', 'Béa', 'Cyril'];
+      await horloge62(Q.DEBUT + JOUR);
+      for (const [k, j] of [Ali, Bea, Cyr].entries()) await pub(j, noms[k], 1e9, 10 * (k + 1), 1e8 * (k + 1));
+      await horloge62(TQ - 3600e3);
+      for (const [k, j] of [Ali, Bea, Cyr].entries()) await pub(j, noms[k], 1e9 + 1e6, 5 * (k + 1), 1e12 * (k + 1));
+      await horloge62(TQ - 1800e3);
+      await c62('select public.fournil_publier(p_id => $1, p_jeton => $2, p_pseudo => $3, p_fortune => $4, p_points => $5, p_lundi => $6, p_photo => $7::jsonb) as r', [Bea.id, Bea.jeton, noms[1], String(1e9 + 2e6), '10', lundiDe(h62), JSON.stringify({ nom: 'Chez Béa' })]);
+      await c62('select public.fournil_pourboire(p_id => $1, p_jeton => $2, p_pour => $3) as r', [Ali.id, Ali.jeton, 'Béa']);
+      // avant le patch : un score entre l'ancienne et la nouvelle borne est plafonné à l'ancienne
+      await horloge62(TQ);
+      const vieuxQ = borneJS(vieux.q, Q.DEBUT, JOUR, TQ), neufQ = borneJS(NQ, Q.DEBUT, JOUR, TQ), X = plusQ ? Math.sqrt(vieuxQ * neufQ) : vieuxQ / 2;
+      let r = await pub(Ali, noms[0], 1e9 + 3e6, 15, X);
+      if (plusQ) check(r.ok === true && r.quartier_plafonne === true && proche(r.quartier, vieuxQ, 1e-9), `en ${vNom}, au jour ${kQ} du Quartier : Ali envoie ${e(X)} billets (entre l’ancienne borne ${e(vieuxQ)} et la nouvelle ${e(neufQ)}) : plafonné à l’ancienne (${e(r.quartier)})`);
+      else check(r.ok === true && proche(r.quartier, X, 1e-9), `en ${vNom}, au jour ${kQ} du Quartier : la v${v} ne change pas la borne des jours 6 à 14 (${e(vieuxQ)}) : Ali envoie ${e(X)} billets, comptés`);
+      const photo = async () => { const o = {}; for (const t of TABLES) o[t] = (await s62(`select coalesce(json_agg(x order by x::text), '[]')::text as j from public.${t} x`))[0].j; return JSON.stringify(o); };
+      const contrat = async () => JSON.stringify(await s62(`select p.proname as nom, pg_get_function_identity_arguments(p.oid) as args, pg_get_function_result(p.oid) as rend, l.lanname as langage, p.provolatile as vol, p.prosecdef as definer,
+          array_to_string(p.proconfig, ',') as conf, p.proacl::text as acl, pg_get_userbyid(p.proowner) as proprio, has_function_privilege('anon', p.oid, 'execute') as anon,
+          has_function_privilege('authenticated', p.oid, 'execute') as auth, has_function_privilege('service_role', p.oid, 'execute') as service
+        from pg_proc p join pg_language l on l.oid = p.prolang where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' order by 1, 2`));
+      const ouvertes = async () => (await s62(`select string_agg(p.proname, ',' order by p.proname) as l from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and has_function_privilege('anon', p.oid, 'execute')`))[0].l;
+      const fenetres = async () => JSON.stringify(await s62('select nom, debut, fin, pas from public.fournil_evts() order by nom'));
+      const corps = async () => JSON.stringify(await s62(`select proname, md5(prosrc) as m from pg_proc where pronamespace = 'public'::regnamespace and proname like 'fournil%' and proname not in ('fournil_quartier_table', 'fournil_evts') order by 1`));
+      const compte = async (t) => (await s62(`select count(*)::int as n from public.${t}`))[0].n;
+      const nPal = await compte('fournil_palmares'), nPho = await compte('fournil_photos'), nPb = await compte('fournil_pourboires'), nJ = await compte('fournil_joueurs');
+      check(nJ === 3 && nPal >= 1 && nPho === 1 && nPb === 1, `en ${vNom} : trois joueurs avec des points et des billets, une semaine au palmarès (${nPal} lignes), une photo, un pourboire`);
+      const [dAvant, cAvant, aAvant, fAvant, bAvant] = [await photo(), await contrat(), await ouvertes(), await fenetres(), await corps()];
+      // le patch, deux fois
+      let res = null;
+      try { res = await coller62(texte); res = await coller62(texte); check(true, `le patch v${v} se colle par-dessus la ${vNom}, puis se recolle sans casse (rôle propriétaire, droits par défaut de Supabase)`); } catch (err) { check(false, `le patch v${v} se colle : ` + err.message); }
+      check(await photo() === dAvant, `rien ne bouge dans les données : les ${TABLES.length} tables sont identiques (joueurs, points, billets, palmarès, photos, pourboires…)`);
+      check(await contrat() === cAvant, 'le contrat des fonctions est inchangé : la même liste, les mêmes signatures et types rendus, langage, volatilité, search_path, propriétaire et droits (anon, authenticated, service_role)');
+      check(await ouvertes() === aAvant, `anon appelle toujours les mêmes fonctions, ni plus ni moins (${aAvant.split(',').length} : ${aAvant.replace(/fournil_/g, '')})`);
+      check(await corps() === bAvant && await fenetres() === fAvant, 'les autres fonctions gardent leur code, la Maison hantée sa fenêtre et son pas de 6 h');
+      check(await refus62('anon', 'select public.fournil_quartier_table() as r') && await refus62('anon', 'select count(*) as r from public.fournil_evts()') && await refus62('authenticated', 'select public.fournil_quartier_table() as r'), 'fournil_quartier_table et fournil_evts restent fermées à anon et authenticated');
+      // les tableaux et les bornes
+      const tq = (await s62('select public.fournil_quartier_table() as t'))[0].t, th = (await s62(`select tableau as t from public.fournil_evts() where nom = 'hantee'`))[0].t;
+      check(memes(tq, NQ) && memes(th, NH), `les tableaux installés sont ceux de la v${v} (Quartier : ${tq.join(' ')} ; Maison hantée : ${th.join(' ')})`);
+      { let ok = true, eg = true; const d = [];
+        for (let k = 0; k <= 14; k++) { const ms = Q.DEBUT + k * JOUR, b = await borneQ(ms), bm = await borneQ(ms + JOUR / 2); if (!(b >= Math.pow(10, vieux.q[k]) * (1 - 1e-12) && bm >= borneJS(vieux.q, Q.DEBUT, JOUR, ms + JOUR / 2) * (1 - 1e-12))) { ok = false; d.push(k); } if (!proche(b, Math.pow(10, NQ[k]), 1e-9) || !proche(bm, borneJS(NQ, Q.DEBUT, JOUR, ms + JOUR / 2), 1e-9)) eg = false; }
+        check(ok && eg && (await borneQ(Q.DEBUT - 1)) === 0 && proche(await borneQ(Q.DEBUT + 20 * JOUR), Math.pow(10, NQ[14]), 1e-9), `la borne du Quartier, jours 0 à 14 (et au milieu de chaque jour) : ≥ à celle de la ${vNom}, = 10^(la v${v}) ; 0 avant l’ouverture, constante après${d.length ? ' — en dessous aux jours ' + d.join(', ') : ''}`); }
+      { let ok = true, eg = true; const d = [];
+        for (let k = 0; k <= 26; k++) { const ms = HT.DEBUT + k * PAS_H, b = await borneH(ms), bm = k < 26 ? await borneH(ms + PAS_H / 2) : b; if (!(b >= Math.pow(10, vieux.h[k]) * (1 - 1e-12) && (k === 26 || bm >= borneJS(vieux.h, HT.DEBUT, PAS_H, ms + PAS_H / 2) * (1 - 1e-12)))) { ok = false; d.push(k); } if (!proche(b, Math.pow(10, NH[k]), 1e-9) || (k < 26 && !proche(bm, borneJS(NH, HT.DEBUT, PAS_H, ms + PAS_H / 2), 1e-9))) eg = false; }
+        check(ok && eg && (await borneH(HT.DEBUT - 1)) === 0, `la borne de la Maison hantée, à chacun des 27 pas de 6 h (et au milieu de chaque pas) : ≥ à celle de la ${vNom}, = 10^(la v${v}) ; 0 avant l’ouverture${d.length ? ' — en dessous aux pas ' + d.join(', ') : ''}`); }
+      // la requête de contrôle, au bas du patch
+      { const ctl = res && res[res.length - 1], l = ctl && ctl.rows && ctl.rows[0];
+        check(!!l && ctl.rows.length === 1 && Object.keys(l).join() === 'quartier,hantee,borne_quartier,borne_quartier_log10' && memes(l.quartier, NQ) && memes(l.hantee, NH) && proche(l.borne_quartier, (await s62('select public.fournil_quartier_borne(now()) as b'))[0].b, 1e-3) && (l.borne_quartier === 0 || Math.abs(Number(l.borne_quartier_log10) - Math.log10(l.borne_quartier)) <= 0.005), // (now() : l'heure vraie, quelques millisecondes plus tard)
+          `la requête de contrôle rend une ligne : les deux tableaux et la borne du Quartier maintenant (${l ? `${e(l.borne_quartier)}, log10 ${l.borne_quartier_log10}` : '?'})`); }
+      // la publication : au-dessus de l'ancienne borne, sous la nouvelle, c'est compté
+      await horloge62(TQ + 60e3);
+      const vieuxQ2 = borneJS(vieux.q, Q.DEBUT, JOUR, h62), neufQ2 = borneJS(NQ, Q.DEBUT, JOUR, h62);
+      r = await pub(Ali, noms[0], 1e9 + 4e6, 15, X);
+      if (plusQ) check(X > vieuxQ2 * (1 + 1e-9) && X < neufQ2 && r.ok === true && r.quartier_plafonne === false && r.quartier === X && r.rang_quartier === 1,
+        `en v${v}, une minute plus tard : les mêmes ${e(X)} billets (au-dessus de l’ancienne borne ${e(vieuxQ2)}, sous la nouvelle ${e(neufQ2)}) sont comptés, sans plafond ; Ali 1er (${JSON.stringify({ q: r.quartier, plaf: r.quartier_plafonne, rang: r.rang_quartier })})`);
+      r = await pub(Bea, noms[1], 1e9 + 4e6, 10, 1e24);
+      check(r.ok === true && r.quartier_plafonne === true && proche(r.quartier, await borneQ(h62), 1e-9) && proche(r.quartier, neufQ2, 1e-9), `1e24 billets (console) : plafonnés à la nouvelle borne (${e(r.quartier)}), pas au-delà`);
+      // la Maison hantée : de même, un score entre les deux bornes est compté
+      await horloge62(TH);
+      const vieuxH = borneJS(vieux.h, HT.DEBUT, PAS_H, TH), neufH = borneJS(NH, HT.DEBUT, PAS_H, TH), Y = plusH ? Math.sqrt(vieuxH * neufH) : vieuxH / 2;
+      r = await pub(Cyr, noms[2], 1e9 + 5e6, 5, null, 'hantee', Y);
+      if (plusH) check(Y > vieuxH * (1 + 1e-9) && Y < neufH && r.ok === true && r.evt === 'hantee' && r.evt_plafonne === false && r.evt_score === Y,
+        `Maison hantée, au pas ${kH} : ${e(Y)} bonbons (au-dessus de l’ancienne borne ${e(vieuxH)}, sous la nouvelle ${e(neufH)}) sont comptés, sans plafond (${JSON.stringify({ s: r.evt_score, plaf: r.evt_plafonne })})`);
+      else check(r.ok === true && r.evt_plafonne === false && r.evt_score === Y, `Maison hantée : la v${v} ne change pas la borne des pas 1 à 25 (${e(vieuxH)}) : ${e(Y)} bonbons comptés`);
+      r = await pub(Ali, noms[0], 1e9 + 6e6, 5, null, 'hantee', 1e24);
+      check(r.ok === true && r.evt_plafonne === true && proche(r.evt_score, neufH, 1e-6), `1e24 bonbons : plafonnés à la nouvelle borne (${e(r.evt_score)})`);
+      await db62.close();
+    };
+
+    await patchLimite({ v: '6.2', texte: P62, T: T62, vieux: { q: Q6, h: H6 }, vNom: 'v6', avant: [] });
+    await patchLimite({ v: '6.3', texte: P63, T: T63, vieux: { q: T62.q || Q6, h: T62.h || H6 }, vNom: 'v6.2', avant: [['6.2', P62]] });
+    check(memes(TF.q, T63.q) && memes(TF.h, T63.h), 'supabase/fournil-classement.sql et le patch v6.3 portent les mêmes tableaux (recoller le fichier complet ne revient pas en arrière)');
   }
 
   // ─── le chat (supabase/fournil-chat.sql), collé par-dessus la v6, deux fois ───
