@@ -4,4 +4,5 @@
 // bearer : envoyer aussi « Authorization: Bearer <clé publique> » (comme supabase-js) ; false pour n'envoyer que l'en-tête apikey.
 window.FOURNIL_CONFIG = { supabaseUrl: 'https://jklbitrlkfrktmnarejc.supabase.co', supabaseKey: 'sb_publishable_T4XlWAUqurOWo8T9GNkuaA_TPPf4ss3', bearer: true,
   // vapid : la clé PUBLIQUE des notifications (Web Push). La clé privée n'est que dans les secrets de la fonction notifier (Supabase).
-  vapid: 'BLUFcxdTHToV2umXl_-89TUi5k2RDKDznntvz0tnzVTRf9R-M7OnhKjUKMj1SiiCF-UiRQL_2HcWlD4CsgJQOI8' };
+  vapid: 'BLUFcxdTHToV2umXl_-89TUi5k2RDKDznntvz0tnzVTRf9R-M7OnhKjUKMj1SiiCF-UiRQL_2HcWlD4CsgJQOI8',
+  giphy: 'xgH0Kcb5ydBLT8eYRoLUCx6CVLYEWPB8' }; // giphy : la clé de l'API GIPHY (les GIF du chat), faite pour être dans une appli (pas une clé secrète)
