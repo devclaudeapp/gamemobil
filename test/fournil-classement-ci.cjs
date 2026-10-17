@@ -16,6 +16,9 @@
 //     plafonnés par le barème, un ancien téléphone sans points encore accepté,
 //     fortune qui baisse puis remonte (« Cette semaine » ne se gonfle pas), récompenses (les siennes, celles d'un
 //     inconnu, le jeton d'un autre), un saut de fortune absurde accepté mais PLAFONNÉ, une arrivée bricolée à 7e23 € (échelle plafonnée à 1e20 €), retrait ;
+//     la LIMITE DES ÉVÉNEMENTS (version 6.2) : aucune fonction publique ne la rend, on la lit dans le plafond de 1e24 billets (et
+//     1e24 bonbons pendant la Maison hantée), à l'heure du serveur (fournil_heure juste avant et juste après) : elle doit être celle
+//     de supabase/fournil-classement-v62.sql ; encore celle de la v6, le test le dit (« colle la v6.2 ») et échoue ;
 //  6. la limite d'inscriptions par source (10 par heure) : quelques joueurs de test de plus, jusqu'au premier « trop_vite ».
 //     S'il ne vient jamais, Supabase ne transmet pas l'en-tête cf-connecting-ip : seuls les plafonds communs protègent
 //     (le test le signale sans échouer). Ce test inscrit au plus 13 joueurs par lancement depuis la même adresse ; la limite
@@ -52,6 +55,39 @@ function lundiParis(ms = Date.now()) {
   const p = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: 'Europe/Paris', year: 'numeric', month: 'numeric', day: 'numeric', weekday: 'short' }).formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
   const decalage = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 }[p.weekday];
   return new Date(Date.UTC(+p.year, +p.month - 1, +p.day - decalage)).toISOString().slice(0, 10);
+}
+
+// ─── la limite des événements : celle de la version 6.2 (lue dans supabase/fournil-classement-v62.sql) et celle d'avant ───
+// une table de log10 à pas fixe depuis l'ouverture, interpolée (le miroir de fournil_quartier_borne et de fournil_evt_borne)
+const LIMITES = (() => {
+  let texte = ''; try { texte = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v62.sql'), 'utf8'); } catch (e) { /* rien : vérifié plus bas */ }
+  const lire = (re) => { const m = re.exec(texte); return m ? m[1].slice(1, -1).split(',').map(Number) : null; };
+  return {
+    quartier: { debut: Date.parse('2026-10-13T12:00:00+02:00'), fin: Date.parse('2026-10-27T12:00:00+01:00'), pas: 86400e3,
+      v62: lire(/function public\.fournil_quartier_table\(\)[^;]*?'(\{[-\d.,]+\})'::double precision\[\]/),
+      v6: [12.5, 14.4, 16.1, 16.5, 16.7, 16.85, 16.95, 17.05, 17.15, 17.2, 17.3, 17.35, 17.4, 17.45, 17.5] },
+    hantee: { debut: Date.parse('2026-10-27T12:00:00+01:00'), fin: Date.parse('2026-11-02T20:00:00+01:00'), pas: 6 * 3600e3,
+      v62: lire(/function public\.fournil_evts\(\)[\s\S]*?'hantee'::text[^;]*?'(\{[-\d.,]+\})'::double precision\[\]/),
+      v6: [11.65, 13.8, 15.25, 15.8, 16.05, 16.2, 16.35, 16.45, 16.55, 16.65, 16.75, 16.8, 16.9, 16.95, 17, 17, 17.05, 17.1, 17.15, 17.15, 17.2, 17.2, 17.25, 17.25, 17.3, 17.3, 17.3] },
+  };
+})();
+function limite(ev, tab, ms) {
+  if (!tab || ms < ev.debut) return 0;
+  const j = Math.min((Math.min(ms, ev.fin) - ev.debut) / ev.pas, tab.length - 1), k = Math.floor(j);
+  return k >= tab.length - 1 ? Math.pow(10, tab[tab.length - 1]) : Math.pow(10, tab[k] + (tab[k + 1] - tab[k]) * (j - k));
+}
+// le score plafonné rendu par fournil_publier (1e24 envoyé) est-il la limite de la v6.2, entre deux heures du serveur (ms) ?
+let limiteConclusion = '';
+function verifierLimite(nom, titre, valeur, msAvant, msApres) {
+  const ev = LIMITES[nom], dans = (x, lo, hi) => x >= lo * (1 - 1e-9) && x <= hi * (1 + 1e-9);
+  const n = [limite(ev, ev.v62, msAvant), limite(ev, ev.v62, msApres)], v = [limite(ev, ev.v6, msAvant), limite(ev, ev.v6, msApres)];
+  const e2 = (x) => Number(x).toExponential(3), plage = (p) => (p[0] === p[1] ? e2(p[0]) : `${e2(p[0])} à ${e2(p[1])}`);
+  if (!ev.v62 || ev.v62.length !== (nom === 'quartier' ? 15 : 27)) return check(false, `${titre} : le tableau de la v6.2 est illisible dans supabase/fournil-classement-v62.sql`);
+  const v62 = dans(valeur, n[0], n[1]), v6 = dans(valeur, v[0], v[1]);
+  if (v62 && !v6) return check(true, `${titre} : la limite du moment est celle de la v6.2 (${e2(valeur)} ; la v6 aurait dit ${plage(v)})`);
+  if (v62 && v6) { log(`  ${titre} : la v6 et la v6.2 donnent ici la même limite (${e2(valeur)}) : rien à distinguer à cette heure-ci`); return true; }
+  if (v6) { limiteConclusion = '**Limite des événements** : c’est encore celle de la v6 : colle `supabase/fournil-classement-v62.sql` dans le SQL Editor (il ne touche à aucune donnée).'; return check(false, `${titre} : c'est encore la limite de la v6 (${e2(valeur)}, la v6.2 dirait ${plage(n)}) : colle supabase/fournil-classement-v62.sql dans le SQL Editor de Supabase, puis relance ce test`); }
+  return check(false, `${titre} : une limite inattendue, ${e2(valeur)} (v6.2 : ${plage(n)} ; v6 : ${plage(v)})`);
 }
 
 // ─── les appels ───
@@ -295,12 +331,28 @@ function arreter(message, conclusion) {
     log('  (10,5 s : les billets du quartier)');
     await attendre(10500);
     const dansFenetre = Date.now() >= Date.parse('2026-10-13T12:00:00+02:00') && Date.now() < Date.parse('2026-10-27T12:00:00+01:00');
+    const hqAvant = await rpc('fournil_heure', {}); // l'heure du serveur juste avant et juste après : la limite du moment est entre les deux
     r = await rpc('fournil_publier', { p_id: A.id, p_jeton: A.jeton, p_pseudo: A.pseudo, p_fortune: 1600, p_points: 20, p_lundi: lundi, p_quartier: 1e24 });
-    const qa = r.data || {};
+    const qa = r.data || {}, hqApres = await rpc('fournil_heure', {});
     check(qa.ok === true && (dansFenetre ? qa.quartier_plafonne === true && qa.quartier > 0 && qa.quartier < 1e18 && qa.rang_quartier >= 1 : qa.quartier === 0 && qa.rang_quartier === null),
       dansFenetre ? `pendant l'événement : 1e24 billets (console) acceptés mais plafonnés à l'enveloppe du moment (${Number(qa.quartier).toExponential(2)}), A ${qa.rang_quartier}e du quartier` : `hors de l'événement : des billets envoyés sont ignorés (quartier = ${qa.quartier})`);
     r = await rpc('fournil_classement', { p_periode: 'quartier', p_id: A.id, p_limite: 100 });
     check(r.statut === 200 && r.data && (dansFenetre ? r.data.moi && r.data.moi.points === null && r.data.moi.valeur === qa.quartier : r.data.moi === null), `le classement « quartier » ${dansFenetre ? 'y montre A en billets (points : null)' : 'ne montre pas A (0 billet)'}`);
+    // la limite des événements (version 6.2) : lue dans ce plafond, à l'heure du serveur
+    const msQ = [hqAvant.data && hqAvant.data.ms, hqApres.data && hqApres.data.ms];
+    if (qa.quartier_plafonne === true && msQ.every(Number.isInteger)) verifierLimite('quartier', 'la limite du Quartier', qa.quartier, msQ[0], msQ[1]);
+    else log(`  la limite du Quartier (v6.2) : rien à lire${dansFenetre ? ' (pas de plafond, ou fournil_heure muette)' : ' hors de l’événement (du 13 au 27 octobre, une heure de grâce)'}`);
+    // la Maison hantée (du 27 octobre à midi au 2 novembre à 20 h, heure de Paris) : 1e24 bonbons, de même
+    const H = LIMITES.hantee;
+    if (Date.now() >= H.debut && Date.now() < H.fin + 3600e3) {
+      log('  (10,5 s : les bonbons de la Maison hantée)');
+      await attendre(10500);
+      const hhAvant = await rpc('fournil_heure', {});
+      r = await rpc('fournil_publier', { p_id: A.id, p_jeton: A.jeton, p_pseudo: A.pseudo, p_fortune: 1600, p_points: 20, p_lundi: lundi, p_evt: 'hantee', p_score: 1e24 });
+      const ha = r.data || {}, hhApres = await rpc('fournil_heure', {}), msH = [hhAvant.data && hhAvant.data.ms, hhApres.data && hhApres.data.ms];
+      check(ha.ok === true && ha.evt === 'hantee' && ha.evt_plafonne === true && ha.evt_score > 0 && ha.evt_score < 1e18, `pendant la Maison hantée : 1e24 bonbons (console) acceptés mais plafonnés (${Number(ha.evt_score).toExponential(2)}), A ${ha.rang_evt}e`);
+      if (ha.evt_plafonne === true && msH.every(Number.isInteger)) verifierLimite('hantee', 'la limite de la Maison hantée', ha.evt_score, msH[0], msH[1]);
+    } else log('  la limite de la Maison hantée (v6.2) : rien à lire hors de l’événement (du 27 octobre à midi au 2 novembre à 20 h)');
     // une partie effacée (0) puis le code rechargé (1 500) : rien ne compte deux fois, rien ne se retire
     log('  (2 × 10,5 s : A efface sa partie, puis recharge son code)');
     await attendre(10500);
@@ -444,6 +496,6 @@ function arreter(message, conclusion) {
   }
 
   log(fails ? `\n${fails} échec(s), ${oks} ok` : `\ntout est bon (${oks} vérifications)`);
-  ecrireResume(conclusion + (sourceConclusion ? '\n\n' + sourceConclusion : '') + (versionConclusion ? '\n\n' + versionConclusion : ''));
+  ecrireResume(conclusion + (sourceConclusion ? '\n\n' + sourceConclusion : '') + (versionConclusion ? '\n\n' + versionConclusion : '') + (limiteConclusion ? '\n\n' + limiteConclusion : ''));
   process.exit(fails ? 1 : 0);
 })().catch(async (e) => { console.error('  FAIL le test plante :', e && e.stack || e); try { await menage(); } catch (x) { /* rien */ } process.exit(1); });
