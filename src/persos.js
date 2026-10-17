@@ -673,7 +673,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     for (let k = 0; k < 4; k++) { const p = pa[k]; if (p.visible) { p.updateMatrix(); im.setMatrixAt(k, p.matrix); } else im.setMatrixAt(k, ZERO); }
     im.instanceMatrix.needsUpdate = true;
   }
-  // ─── les huit pâtisseries : une liste de parts colorées par produit (posée sur y = 0, centrée, ~16 d'envergure), fusionnée seule
+  // ─── les seize pâtisseries (les huit de toujours, puis les recettes de boutique, 8 à 15) : une liste de parts colorées par produit (posée sur y = 0, centrée, ~16 d'envergure), fusionnée seule
   // (geoPatisserie, en cache) ou avec le plateau d'un apprenti (geoPlateau, en cache) — jamais passée telle quelle à M.assembler
   // depuis un autre maillage, les couleurs par sommet s'y perdraient ───
   function partsPatisserie(i) {
@@ -687,6 +687,64 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       case 4: p.push(M.part(M.capsule(3, 10, 10), '#F1C27A', { y: 3, rz: HP }), M.part(M.capsule(2.7, 9.6, 10), '#8B5A3C', { y: 5, rz: HP, sx: 0.5 })); break; // éclair : 16 de long, 6 de large
       case 5: for (const [x, z, c1, c2] of [[-3.8, 2.2, '#C9A3F5', '#E7D4FF'], [3.9, -2.4, '#F79AB5', '#FFE1EA']]) p.push(M.part(M.cylindre(4, 4.6, 2, 12), c1, { x, z }), M.part(M.cylindre(4, 4, 1.4, 12), c2, { x, y: 2, z }), M.part(M.cylindre(4.6, 4, 2, 12), c1, { x, y: 3.4, z })); break;
       case 6: [0, 3.9, 7.8].forEach((y, k) => p.push(M.part(M.boite(13, 1.7, 8.5, 0.5), k === 2 ? BLANC : '#F1C27A', { y }))); for (const y of [1.6, 5.5]) p.push(M.part(M.boiteSimple(12.4, 2.4, 7.9), '#FFF3C4', { y })); break;
+      case 8: { // Paris-Brest : une couronne de choux fendue, le praliné en vagues, les amandes effilées et le sucre glace
+        p.push(M.part(M.tore(5.4, 2.1, TAU, 8, 18), '#D9A05B', { y: 2.1, rx: HP }));
+        for (let k = 0; k < 14; k++) { const a = k * TAU / 14; p.push(M.part(galet(1.75, 8), k % 2 ? '#E2B98A' : '#D8A97A', { x: Math.cos(a) * 5.4, y: 4, z: Math.sin(a) * 5.4, sy: 0.7 })); } // le praliné qui dépasse
+        for (let k = 0; k < 12; k++) { const a = (k + 0.5) * TAU / 12; p.push(M.part(M.sphere(1.9, 8), k % 2 ? '#D49A52' : '#DCA45C', { x: Math.cos(a) * 5.4, y: 5.4, z: Math.sin(a) * 5.4, sy: 0.75 })); }
+        for (const [a, e] of [[0.3, 0.4], [1.2, -0.5], [2, 0.6], [2.9, -0.2], [3.8, 0.5], [4.6, -0.4], [5.5, 0.3]]) p.push(M.part(galet(0.8, 6), '#F3E2C0', { x: Math.cos(a) * (5.4 + e), y: 6.8, z: Math.sin(a) * (5.4 + e), ry: a, sx: 1.4, sy: 0.25 }));
+        for (const a of [0.8, 2.4, 3.3, 5]) p.push(M.part(perle(0.45, 5), BLANC, { x: Math.cos(a) * 5.6, y: 6.9, z: Math.sin(a) * 5.6 }));
+        break;
+      }
+      case 9: { // kouign-amann : un rond feuilleté, quatre coins repliés, le caramel qui brille et coule sur le bord
+        p.push(M.part(M.cylindre(7, 7.3, 2.8, 16), '#C9802F'), M.part(M.tore(7, 0.7, TAU, 6, 16), '#A95F1E', { y: 0.6, rx: HP }));
+        for (let k = 0; k < 4; k++) { const a = k * TAU / 4 + 0.4; p.push(M.part(M.sphere(3.6, 10), k % 2 ? '#D99440' : '#E0A04A', { x: Math.cos(a) * 3.3, y: 3, z: Math.sin(a) * 3.3, ry: -a, sx: 1.25, sy: 0.55, sz: 0.85 })); }
+        p.push(M.part(galet(2.2, 10), '#9E561A', { y: 3.9, sy: 0.4 }));
+        for (const [x, z] of [[2.4, 4.8], [-4.6, 2.6], [-1.6, -5], [5, -1.8]]) p.push(M.part(galet(0.9, 6), '#B8702A', { x, y: 2.9, z, sy: 0.35 })); // les gouttes de caramel
+        break;
+      }
+      case 10: { // tarte aux myrtilles : la pâte dorée, la garniture violette, les myrtilles en tas et un brin de sucre glace
+        p.push(M.part(M.cylindre(7.4, 6.6, 3, 14), '#E9A95C'), M.part(M.tore(6.6, 1.1, TAU, 6, 14), '#E39A4C', { y: 3, rx: HP }), M.part(M.cylindre(6.2, 6.2, 0.8, 14), '#5B4A9E', { y: 2.5 }));
+        for (let r = 0; r < 3; r++) { const n = [1, 6, 11][r], rr = [0, 2.3, 4.5][r]; for (let k = 0; k < n; k++) { const a = k * TAU / n + r; p.push(M.part(perle(1.05, 6), (k + r) % 3 ? '#3E3283' : '#4A3E96', { x: Math.cos(a) * rr, y: 3.4 + (r === 0 ? 0.6 : 0), z: Math.sin(a) * rr })); } }
+        for (const [x, z] of [[1.4, 1.2], [-2.8, -1.6], [3.4, -2.6]]) p.push(M.part(perle(0.35, 5), '#C7D2FF', { x, y: 4.3, z }));
+        break;
+      }
+      case 11: { // opéra : biscuit, crème au café, ganache en couches, le glaçage noir et le mot doré, une feuille d'or
+        const L5 = [[1.3, '#9A6A44'], [1, '#C89F7A'], [1.1, '#8E5E3A'], [1, '#5A3422'], [1.1, '#9A6A44'], [1, '#C89F7A']]; let y = 0;
+        for (const [h, c] of L5) { p.push(M.part(M.boiteSimple(13.5, h, 8.5), c, { y })); y += h; }
+        p.push(M.part(M.boite(13.7, 1, 8.7, 0.3), '#2E1B12', { y }));
+        p.push(M.part(baton(0.18, 5.5, 4), OR, { x: -1, y: y + 1.05, z: 0.6, rz: HP }), M.part(baton(0.18, 3, 4), OR, { x: 0.4, y: y + 1.05, z: -0.6, rz: HP }), M.part(M.boiteSimple(1.8, 0.15, 1.4), '#FFD15C', { x: 4.3, y: y + 1.05, z: 1.8, ry: 0.5 }));
+        break;
+      }
+      case 12: { // deux canelés : cannelés de cuivre foncé, la croûte caramélisée, le dessus plat et clair
+        for (const [x, z, k] of [[-3.6, 0.8, 1], [3.9, -0.6, 0.85]]) {
+          const c = [M.part(M.cylindre(3.9, 4.3, 7, 12), '#8B4A1E'), M.part(M.cylindre(3.95, 3.95, 0.7, 12), '#5E2C10', { y: 6.9 }), M.part(M.disque(2.6, 12), '#B5682E', { y: 7.62 })];
+          for (let j = 0; j < 10; j++) { const a = j * TAU / 10; c.push(M.part(baton(0.5, 6.4, 5), '#6E3612', { x: Math.cos(a) * 4.1, y: 3.5, z: Math.sin(a) * 4.1 })); } // les cannelures
+          p.push(...deplacer(c, { x, z, s: k }));
+        }
+        break;
+      }
+      case 13: { // saint-honoré : le disque feuilleté, la couronne de choux caramélisés, la chiboust et la chantilly à la douille
+        p.push(M.part(M.cylindre(7.6, 7.6, 1.6, 16), '#E8B46A'), M.part(M.cylindre(5.4, 5.4, 2, 16), '#FFF3C4', { y: 1.6 }));
+        for (let k = 0; k < 9; k++) { const a = k * TAU / 9, x = Math.cos(a) * 5.8, z = Math.sin(a) * 5.8; p.push(M.part(M.sphere(2, 8), '#D9A050', { x, y: 3.4, z }), M.part(galet(1.6, 8), '#A0601E', { x, y: 4.9, z, sy: 0.35 })); }
+        for (const [r, y] of [[3.3, 4.2], [2.6, 5.6], [1.8, 6.9], [1, 8]]) p.push(M.part(M.tore(r, 0.9, TAU, 6, 12), BLANC, { y, rx: HP }));
+        p.push(M.part(M.cone(0.9, 1.6, 8), BLANC, { y: 9.2 }), M.part(perle(0.8, 8), ROUGE, { y: 10.3 }));
+        break;
+      }
+      case 14: { // fraisier : génoise, crème mousseline, les fraises coupées en deux tout autour, la pâte d'amande rose et trois fraises dessus
+        p.push(M.part(M.cylindre(7, 7, 1.4, 18), '#F1D08A'), M.part(M.cylindre(6.8, 6.8, 4.2, 18), '#FFF3D6', { y: 1.4 }), M.part(M.cylindre(7, 7, 1.1, 18), '#F1D08A', { y: 5.6 }), M.part(M.cylindre(7.05, 7.05, 0.6, 18), '#FF9FB2', { y: 6.7 }));
+        for (let k = 0; k < 14; k++) { const a = k * TAU / 14; p.push(M.part(M.sphere(1.55, 8), '#E8384F', { x: Math.cos(a) * 6.75, y: 3.5, z: Math.sin(a) * 6.75, ry: -a, sx: 0.45, sy: 1.15 })); }
+        for (const [x, z] of [[0, 0], [2.3, 1.3], [-2, 1.6]]) p.push(M.part(M.sphere(1.5, 8), '#E1394A', { x, y: 8.5, z, sy: 1.2 }), M.part(M.cone(1, 0.8, 5), '#5DA84A', { x, y: 10.2, z, rx: Math.PI }));
+        break;
+      }
+      case 15: { // croquembouche : la nougatine, la tour de choux dorés au caramel, les fils de sucre, les dragées et une fleur au sommet
+        p.push(M.part(M.cylindre(7.6, 7.9, 1.4, 16), '#B8702A'), M.part(M.tore(7.6, 0.5, TAU, 5, 16), '#D9963E', { y: 1.4, rx: HP }));
+        for (let r = 0; r < 6; r++) { const rr = 5.4 - r * 0.95, n = Math.max(1, Math.round(TAU * rr / 2.7)); for (let k = 0; k < n; k++) { const a = k * TAU / n + r * 0.5; p.push(M.part(M.sphere(1.55, 7), (k + r) % 2 ? '#D9A050' : '#E3AE5C', { x: Math.cos(a) * rr, y: 2.8 + r * 2, z: Math.sin(a) * rr })); } }
+        p.push(M.part(M.sphere(1.5, 8), '#E3AE5C', { y: 14.6 }));
+        for (const [r, y, t] of [[5, 4.2, 0.25], [3.6, 8, -0.3], [2.2, 11.6, 0.2]]) p.push(M.part(M.tore(r, 0.16, TAU, 4, 16), '#F6CF6A', { y, rx: HP + t }));
+        for (const [a, y, rr] of [[0.4, 3.9, 4.9], [2.2, 5.9, 4], [3.9, 7.8, 3.1], [5.3, 9.6, 2.2]]) p.push(M.part(perle(0.6, 6), BLANC, { x: Math.cos(a) * rr, y, z: Math.sin(a) * rr }));
+        p.push(M.part(perle(0.9, 6), '#FF9FB2', { y: 16.2 }));
+        break;
+      }
       default: p.push(M.part(M.cylindre(7.8, 8.2, 1.6, 14), '#F7C96B')); for (let k = 0; k < 6; k++) p.push(M.part(M.sphere(2.3, 8), k % 2 ? '#C7B8FF' : '#FFE1EA', { x: Math.cos(k * TAU / 6) * 5.2, y: 3.7, z: Math.sin(k * TAU / 6) * 5.2 })); for (let k = 0; k < 3; k++) p.push(M.part(M.sphere(2.1, 8), k % 2 ? '#FFE1EA' : '#C7B8FF', { x: Math.cos(k * TAU / 3 + 0.5) * 2.6, y: 7.2, z: Math.sin(k * TAU / 3 + 0.5) * 2.6 })); p.push(M.part(M.sphere(2, 8), '#FFE1EA', { y: 10.4 }), M.part(M.sphere(1, 6), '#E85A4F', { y: 12.6 }));
     }
     return p;
@@ -817,6 +875,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       case 'dos': p = client(0, {}); dir = 2; break;
       case 'profil': p = client(0, { lunettes: true }); dir = -1; break;
       case 'patisseries': for (let i = 0; i < 8; i++) { const m = patisserie(i); m.position.set(60 + 40 * i, 0, 400); m.scale.setScalar(2); g.add(m); } return g;
+      case 'patisseries-boutique': for (let i = 8; i < 16; i++) { const m = patisserie(i); m.rotation.y = 0.35; m.position.set(60 + 90 * ((i - 8) % 4), 0, 330 + 100 * Math.floor((i - 8) / 4)); m.scale.setScalar(4.2); g.add(m); } return g; // les huit recettes de boutique, en gros plan
       case 'tous': { // sept clients et le patron ; les options d'animation sont pré-construites (aucune allocation dans anime)
         const cl = [client(-150, { coiffure: 0, haut: '#8FE3C2' }), client(-100, { coiffure: 1, lunettes: true, haut: '#C7B8FF' }), client(-50, { coiffure: 2, haut: '#FFD98A', peau: '#C68B59' }), client(0, { coiffure: 3, haut: '#9BD0FF', peau: '#8D5A3C' }), client(50, { haut: OR, cheveux: '#E0A61E', coiffure: 0, or: true }), client(100, { haut: '#5FD3A4', coiffure: 0, toque: true, tablier: true, plateau: true, produit: 3 }), client(150, { haut: '#FFB48A', coiffure: 1, sac: true })];
         const os = cl.map((c, k) => ({ dir: 0, marche: k === 6, phase: 0, sac: k === 6, or: k === 4, attend: true, plateau: k === 5, produit: 3, t: 0, blink: 0, expression: ['sourire', 'neutre', 'surpris'][k % 3] })), ob = { hop: 0, rush: true, t: 0, blink: 0, rang: 5 };

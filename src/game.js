@@ -15,7 +15,38 @@
     { id: 'macaron', pl: 'macarons', nom: 'Macarons', cout: 1.2e6, debloquer: 2e10, rev: 90000, temps: 96, croiss: 1.11, staff: 6e10, staffNom: 'Cheffe Agathe', desc: 'Six parfums, zéro regret.' },
     { id: 'millefeuille', pl: 'mille-feuilles', nom: 'Mille-feuille', cout: 1.5e7, debloquer: 6e11, rev: 8e5, temps: 384, croiss: 1.1, staff: 3e12, staffNom: 'Chef Augustin', desc: 'Mille, on a compté.' },
     { id: 'piece', pl: 'pièces montées', nom: 'Pièce montée', cout: 1.8e8, debloquer: 4e13, rev: 7e6, temps: 1536, croiss: 1.09, staff: 1.2e14, staffNom: 'Maître Paulin', desc: 'Pour les grands jours.' },
+    // les recettes de boutique (depuis le 19 octobre) : une de plus à chaque nouvelle boutique, de la n°2 à la n°9 (boutique : son numéro).
+    // Les quatre premières viennent du quartier où elle s'ouvre (quartier : l'id de QUARTIERS). Gagnée, une recette l'est pour toujours
+    // (recetteGagnee) ; chaque boutique la redébloque à son prix, comme les huit autres. La n°10 n'en apporte pas : elle ouvre le
+    // quartier de la gare (le parcours du boulanger, plus bas), avec le trophée « Dix boutiques » ; reste le trophée de la carte complète.
+    // La courbe continue celle des huit (réglée sur test/longevite.js) : la fournée ×1,5 et la cuisson ×1,18 d'une recette à l'autre (×1,27 à la
+    // seconde), le niveau au même prix par euro de fournée que la pièce montée (cout ≈ 26 × rev, il se rembourse en moins de 30 fournées),
+    // croiss au plancher de 1,09, le déblocage ×2,5 (le Paris-Brest à 50 000 Md€, un peu plus que la pièce montée ; à peu près ce que gagne la
+    // boutique qui l'apporte), l'apprenti à trois fois le déblocage. Plus raide, la fin de partie s'emballait (des millions d'étoiles au 30e jour).
+    { id: 'parisbrest', pl: 'paris-brest', nom: 'Paris-Brest', boutique: 2, quartier: 'paris', cout: 2.7e8, debloquer: 5e13, rev: 1e7, temps: 1800, croiss: 1.09, staff: 1.5e14, staffNom: 'Pâtissière Margaux', desc: 'Une roue de choux, du praliné, et la course.' },
+    { id: 'kouign', pl: 'kouign-amanns', nom: 'Kouign-amann', boutique: 3, quartier: 'mer', cout: 4e8, debloquer: 1.2e14, rev: 1.6e7, temps: 2160, croiss: 1.09, staff: 3.8e14, staffNom: 'Mitron Yann', desc: 'Du beurre, du sucre, et encore du beurre.' },
+    { id: 'myrtilles', pl: 'tartes aux myrtilles', nom: 'Tarte aux myrtilles', court: 'Myrtilles', boutique: 4, quartier: 'montagne', cout: 6.1e8, debloquer: 3.1e14, rev: 2.4e7, temps: 2520, croiss: 1.09, staff: 9.4e14, staffNom: 'Pâtissière Léonie', desc: 'Cueillies au-dessus du chalet.' },
+    { id: 'opera', pl: 'opéras', nom: 'Opéra', boutique: 5, quartier: 'ville', cout: 9.1e8, debloquer: 7.8e14, rev: 3.5e7, temps: 3000, croiss: 1.09, staff: 2.3e15, staffNom: 'Chef Victor', desc: 'Café, chocolat, et son nom écrit en or.' },
+    { id: 'canele', pl: 'canelés', nom: 'Canelé', boutique: 6, cout: 1.4e9, debloquer: 2e15, rev: 5.3e7, temps: 3540, croiss: 1.09, staff: 5.9e15, staffNom: 'Pâtissière Aliénor', desc: 'Croûte caramélisée, cœur fondant.' },
+    { id: 'sainthonore', pl: 'saint-honorés', nom: 'Saint-Honoré', boutique: 7, cout: 2.1e9, debloquer: 4.9e15, rev: 8e7, temps: 4140, croiss: 1.09, staff: 1.5e16, staffNom: 'Chef Honoré', desc: 'Le gâteau du patron des boulangers.' },
+    { id: 'fraisier', pl: 'fraisiers', nom: 'Fraisier', boutique: 8, cout: 3.1e9, debloquer: 1.2e16, rev: 1.2e8, temps: 4920, croiss: 1.09, staff: 3.7e16, staffNom: 'Cheffe Capucine', desc: 'Des fraises, de la crème, du soleil.' },
+    { id: 'croquembouche', pl: 'croquembouches', nom: 'Croquembouche', boutique: 9, cout: 4.6e9, debloquer: 3.1e16, rev: 1.8e8, temps: 5760, croiss: 1.09, staff: 9.2e16, staffNom: 'Grand chef Antonin', desc: 'Cent choux, un fil de caramel, et ça croque.' },
   ];
+  const RECETTES_BASE = 8; // les huit recettes de toujours, à tout le monde dès la première boutique
+  // une recette de boutique est gagnée dès que la boutique de son numéro est ouverte (st.boutiques ne redescend jamais) ; st.recettesBoutique
+  // garde leurs ids (recettesBoutique, à l'ouverture d'une boutique et au chargement) : une vieille sauvegarde déjà à la boutique n°5 a les quatre
+  // premières tout de suite. Une recette pas encore gagnée ne se débloque pas, et ses bonus ne s'achètent pas.
+  const recetteGagnee = (st, i) => { const p = PRODUITS[i]; return !!p && (!p.boutique || (st.boutiques || 1) >= p.boutique || (Array.isArray(st.recettesBoutique) && st.recettesBoutique.includes(p.id))); };
+  function recettesBoutique(st) { // les ids gagnés, remis d'aplomb (une vieille sauvegarde, un id disparu) ; rend la liste
+    const vus = new Set((Array.isArray(st.recettesBoutique) ? st.recettesBoutique : []).filter((id) => PRODUITS.some((p) => p.boutique && p.id === id)));
+    for (const p of PRODUITS) if (p.boutique && (st.boutiques || 1) >= p.boutique) vus.add(p.id);
+    st.recettesBoutique = PRODUITS.filter((p) => vus.has(p.id)).map((p) => p.id);
+    return st.recettesBoutique;
+  }
+  const recettesConnues = (st) => { let n = 0; for (let i = 0; i < PRODUITS.length; i++) if (recetteGagnee(st, i)) n = i + 1; else break; return n; }; // les recettes à la carte (gagnées dans l'ordre : les huit, puis celles des boutiques)
+  const prochaineRecetteBoutique = (st) => { const i = PRODUITS.findIndex((p, k) => !recetteGagnee(st, k)); return i < 0 ? null : { i, p: PRODUITS[i], boutique: PRODUITS[i].boutique }; }; // le but : la recette de la prochaine boutique, null quand tout est gagné
+  const INDEX_PRODUIT = new Map(PRODUITS.map((p, i) => [p.id, i]));
+  const ameliorationOuverte = (st, a) => a.cible === null || a.cible.every((id) => recetteGagnee(st, INDEX_PRODUIT.get(id))); // le bonus d'une recette pas encore gagnée reste caché
   // les paliers de recette : à chacun, les gains de la recette sont multipliés par 2^exposant (l'exposant du plus haut palier atteint).
   // Les paliers d'origine (25, 50, 100, 200…, 5000) gardent leur doublement : 2, 4, 8, 16… ; depuis le 16 octobre, des paliers intercalés
   // (75, 125, 150, 175, 250, 350…) donnent une part du doublement suivant, pour qu'un joueur régulier ne reste pas 100 niveaux sans rien
@@ -35,7 +66,16 @@
     { id: 'fidelite', nom: 'Carte de fidélité', cout: 6e12, cible: null, mult: 3, desc: 'Tout ×3' },
     { id: 'feuilletage', nom: 'Pâte feuilletée maison', cout: 3e13, cible: ['millefeuille'], mult: 3, desc: 'Mille-feuilles ×3' },
     { id: 'robot', nom: 'Robot pâtissier', cout: 3e14, cible: ['piece'], mult: 3, desc: 'Pièces montées ×3' },
+    // un ×3 par recette de boutique, à trente fois son prix de déblocage (le robot pâtissier : 7,5 fois ; les mille-feuilles : 50 fois), rangé par prix
+    { id: 'praline', nom: 'Praliné noisette', cout: 1.5e15, cible: ['parisbrest'], mult: 3, desc: 'Paris-Brest ×3' },
     { id: 'franchise', nom: 'Réseau de franchises', cout: 2e15, cible: null, mult: 5, desc: 'Tout ×5' },
+    { id: 'demisel', nom: 'Beurre demi-sel', cout: 3.8e15, cible: ['kouign'], mult: 3, desc: 'Kouign-amanns ×3' },
+    { id: 'cueillette', nom: 'Myrtilles sauvages', cout: 9.4e15, cible: ['myrtilles'], mult: 3, desc: 'Tartes aux myrtilles ×3' },
+    { id: 'grandcru', nom: 'Chocolat grand cru', cout: 2.3e16, cible: ['opera'], mult: 3, desc: 'Opéras ×3' },
+    { id: 'cuivre', nom: 'Moules en cuivre', cout: 5.9e16, cible: ['canele'], mult: 3, desc: 'Canelés ×3' },
+    { id: 'caramel', nom: 'Caramel blond', cout: 1.5e17, cible: ['sainthonore'], mult: 3, desc: 'Saint-Honorés ×3' },
+    { id: 'plougastel', nom: 'Fraises de Plougastel', cout: 3.7e17, cible: ['fraisier'], mult: 3, desc: 'Fraisiers ×3' },
+    { id: 'nougatine', nom: 'Nougatine dorée', cout: 9.2e17, cible: ['croquembouche'], mult: 3, desc: 'Croquembouches ×3' },
   ];
   const ETOILE_BONUS = 0.05;     // +5 % par étoile, pour toujours
   const ETOILE_BASE = 4e10;      // la première étoile demande ~40 Md € gagnés dans la boutique (le mobilier accélère chaque boutique)
@@ -61,11 +101,155 @@
     { id: 'mer', nom: 'le bord de mer', enseigne: 'Le Fournil de la Plage' },
     { id: 'montagne', nom: 'le chalet de montagne', enseigne: 'Le Fournil du Chalet' },
     { id: 'ville', nom: 'la grande ville', enseigne: 'Le Grand Fournil' },
+    // les quartiers du parcours (depuis le 19 octobre) : gagnés aux boutiques n°10, 15, 20, 25 et 30 (boutique). Leur décor tient tout entier
+    // dans theme (src/vie.js le lit comme ses DECORS) : murs, sol, comptoir, accent, la vue par la fenêtre (une des cinq vues de
+    // src/scene.js) et objets, de petits décors qui existent déjà (src/scene.js, CONDS) posés d'office. Un prochain lot fera des intérieurs
+    // complets en se branchant sur ces mêmes données.
+    { id: 'gare', nom: 'la gare', enseigne: 'Le Fournil de la Gare', boutique: 10,
+      theme: { mur: '#F4EBDD', mur2: '#DCCDB6', murStyle: 'moulures', sol: '#E7DED0', sol2: '#5C5148', solStyle: 'damier', comptoir: '#3F6B57', comptoir2: '#B9D3C2', bois: '#6B4A35', accent: '#C0392B', hauts: ['#3F6B57', '#C0392B', '#2B3A55', '#E8D8B0', '#8A6A4A', '#F5F5F5'], vue: 'ville', objets: ['ardoise', 'lampe'] } },
+    { id: 'ile', nom: 'l’île', enseigne: 'Le Fournil de l’Île', boutique: 15,
+      theme: { mur: '#F2FBF8', mur2: '#CDEFE6', murStyle: 'bande', sol: '#F1E3C4', sol2: 'rgba(255,255,255,.45)', solStyle: 'planches', comptoir: '#2BB3A6', comptoir2: '#A8E6DC', bois: '#E8C99A', accent: '#2BB3A6', hauts: ['#2BB3A6', '#FFFFFF', '#FFB347', '#FF8A80', '#8FD3F4', '#F2C94C'], vue: 'mer', objets: ['guirlande'] } },
+    { id: 'chateau', nom: 'le château', enseigne: 'Le Fournil du Château', boutique: 20,
+      theme: { mur: '#EDE6DA', mur2: '#D6CBB8', murStyle: 'moulures', sol: '#D9CFBF', sol2: '#7A6A55', solStyle: 'damier', comptoir: '#6E2A3A', comptoir2: '#D9B77A', bois: '#C9A96A', accent: '#6B4AA0', hauts: ['#6B4AA0', '#6E2A3A', '#D9B77A', '#F5F5F5', '#2F4F6B', '#9BB88A'], vue: 'campagne', objets: ['lampe', 'fanions'] } },
+    { id: 'cimes', nom: 'la station de ski', enseigne: 'Le Fournil des Cimes', boutique: 25,
+      theme: { mur: '#F4F7FB', mur2: '#C9D6E6', murStyle: 'rondins', sol: '#C49A6C', sol2: 'rgba(0,0,0,.08)', solStyle: 'planches', comptoir: '#34557A', comptoir2: '#9CB8D6', bois: '#5A3A22', accent: '#E63946', hauts: ['#E63946', '#34557A', '#F5F5F5', '#FFC84A', '#2F6B4F', '#9CB8D6'], vue: 'montagne', objets: ['sapin'] } },
+    { id: 'capitale', nom: 'la capitale', enseigne: 'Le Grand Fournil de la Capitale', boutique: 30,
+      theme: { mur: '#F7F3EC', mur2: '#E2D6C2', murStyle: 'marbre', sol: '#26324A', sol2: 'rgba(255,255,255,.08)', solStyle: 'marbre', comptoir: '#1C2541', comptoir2: '#E0B85A', bois: '#E0B85A', accent: '#FFC84A', hauts: ['#1C2541', '#FFC84A', '#E1496C', '#F5F5F5', '#7B61FF', '#3EC9A7'], vue: 'paris', objets: ['fanions', 'guirlande'] } },
   ];
+  const QUARTIERS_BASE = 5; // les cinq de toujours
   const inc = (st, k, n) => { st.stats[k] = (st.stats[k] || 0) + (n == null ? 1 : n); };
-  const quartier = (st) => (Math.max(1, st.boutiques || 1) - 1) % QUARTIERS.length;
+  // le quartier de la boutique n : celui qu'elle gagne (n°10, 15…), sinon le tour des quartiers déjà gagnés. Jusqu'à la n°9, comme avant
+  // ((n − 1) % 5) ; ensuite le tour s'allonge d'un quartier à chaque nouveau. st.quartierFixe : celui de la boutique en cours, posé à son
+  // ouverture (une boutique ouverte avant cette version garde son décor : quartierParcours le fixe à l'ancien calcul au chargement)
+  function quartierDe(n) {
+    n = Math.max(1, Math.floor(n) || 1);
+    const neuf = QUARTIERS.findIndex((q) => q.boutique === n); if (neuf >= 0) return neuf;
+    return (n - 1) % QUARTIERS.filter((q) => !q.boutique || q.boutique <= n).length;
+  }
+  const quartier = (st) => { const q = st.quartierFixe; return Number.isInteger(q) && q >= 0 && q < QUARTIERS.length ? q : quartierDe(st.boutiques || 1); };
   const nomBoutique = (st) => st.nomBoutique || QUARTIERS[quartier(st)].enseigne;
   function renommer(st, nom) { const n = String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24); st.nomBoutique = n; return nomBoutique(st); }
+
+  // ─── le parcours du boulanger : une récompense à chaque boutique jusqu'à la n°30, et, dès la n°6, un défi de passage pour ouvrir la suivante ───
+  // Les récompenses (recompenseBoutique) : n°2 à 9, une recette (PRODUITS, boutique) ; n°10, 15, 20, 25 et 30, un quartier (QUARTIERS,
+  // boutique) ; entre deux, tour à tour une pièce de la tenue du parcours (garde-robe), un bonus de gains à vie, des étoiles, un boost en
+  // réserve, un titre. Rien de déséquilibrant : +10 % de gains en tout (2 + 3 + 5), 350 étoiles quand on en a déjà des milliers, trois boosts.
+  // st.parcours = { recus: [n…] (les boutiques dont la récompense est donnée), gains: % à vie, titre } ; rattraperParcours donne une fois
+  // ce qui manque (une sauvegarde d'avant cette version, déjà à la boutique n°12, reçoit tout ce qui va de la n°2 à la n°12).
+  const PARCOURS_FIN = 30;
+  const RECOMPENSES_PARCOURS = {
+    11: { type: 'tenue', id: 'parcours-toque' }, 12: { type: 'gains', pct: 2 }, 13: { type: 'etoiles', n: 50 }, 14: { type: 'boost', mult: 2, secs: 3600 },
+    16: { type: 'titre', titre: 'Boulanger de quartier' }, 17: { type: 'tenue', id: 'parcours-tablier' }, 18: { type: 'gains', pct: 3 }, 19: { type: 'etoiles', n: 100 },
+    21: { type: 'boost', mult: 5, secs: 1800 }, 22: { type: 'titre', titre: 'Fournisseur officiel' }, 23: { type: 'tenue', id: 'parcours-chaussures' }, 24: { type: 'gains', pct: 5 },
+    26: { type: 'etoiles', n: 200 }, 27: { type: 'boost', mult: 5, secs: 3600 }, 28: { type: 'titre', titre: 'Grand maître du fournil' }, 29: { type: 'tenue', id: 'parcours-foulard' },
+  };
+  function recompenseBoutique(n) { // ce que la boutique n apporte ; null pour la première (et au-delà de la n°30)
+    if (!(n >= 2 && n <= PARCOURS_FIN)) return null;
+    const i = PRODUITS.findIndex((p) => p.boutique === n); if (i >= 0) return { type: 'recette', i, p: PRODUITS[i] };
+    const q = QUARTIERS.findIndex((x) => x.boutique === n); if (q >= 0) return Object.assign({ type: 'quartier', q, quartier: QUARTIERS[q] }, n === PARCOURS_FIN ? { titre: 'Légende du Fournil' } : {});
+    return RECOMPENSES_PARCOURS[n] ? Object.assign({}, RECOMPENSES_PARCOURS[n]) : null;
+  }
+  function texteRecompense(r) { // pour l'interface : « Recette : Paris-Brest », « Quartier : la gare »…
+    if (!r) return '';
+    if (r.type === 'recette') return `Recette : ${r.p.nom}`;
+    if (r.type === 'quartier') return `Quartier : ${r.quartier.nom}${r.titre ? `, et le titre « ${r.titre} »` : ''}`;
+    if (r.type === 'tenue') { const v = vetement(r.id); return `Tenue : ${v ? v.nom : r.id}`; }
+    if (r.type === 'gains') return `Tous les gains +${r.pct} % à vie`;
+    if (r.type === 'etoiles') return `+${r.n} étoiles`;
+    if (r.type === 'boost') return `Un boost ×${r.mult} de ${fmtDuree(r.secs)} en réserve`;
+    if (r.type === 'titre') return `Le titre « ${r.titre} »`;
+    return '';
+  }
+  function parcours(st) { // l'état du parcours, remis d'aplomb ; pose le quartier d'une boutique ouverte avant cette version (l'ancien calcul)
+    let p = st.parcours;
+    if (!p || typeof p !== 'object' || Array.isArray(p)) p = st.parcours = { recus: [], gains: 0, titre: '' };
+    p.recus = (Array.isArray(p.recus) ? p.recus : []).filter((n, k, a) => Number.isInteger(n) && n >= 2 && n <= PARCOURS_FIN && a.indexOf(n) === k);
+    if (!(Number(p.gains) >= 0)) p.gains = 0; if (typeof p.titre !== 'string') p.titre = '';
+    if (st.quartierFixe == null) st.quartierFixe = (Math.max(1, st.boutiques || 1) - 1) % QUARTIERS_BASE;
+    if (st.defi === undefined) st.defi = null; // la boutique en cours n'a pas de défi de passage si elle a été ouverte avant cette version
+    recettesBoutique(st);
+    return p;
+  }
+  function donnerRecompense(st, n) { // la récompense de la boutique n, une seule fois ; rend { n, r, texte } ou null
+    const p = parcours(st); if (p.recus.includes(n)) return null;
+    const r = recompenseBoutique(n); p.recus.push(n); if (!r) return null;
+    if (r.type === 'tenue') donnerVetement(st, r.id);
+    else if (r.type === 'gains') p.gains += r.pct;
+    else if (r.type === 'etoiles') st.etoiles += r.n;
+    else if (r.type === 'boost') donnerBoostReserve(st, r.mult, r.secs);
+    else if (r.type === 'titre') p.titre = r.titre;
+    if (r.titre && r.type === 'quartier') p.titre = r.titre;
+    return { n, r, texte: texteRecompense(r) };
+  }
+  function rattraperParcours(st) { // les récompenses des boutiques déjà ouvertes, pas encore données ; rend leur liste (vide d'habitude)
+    parcours(st); const out = [];
+    for (let n = 2; n <= Math.min(PARCOURS_FIN, st.boutiques || 1); n++) { const x = donnerRecompense(st, n); if (x) out.push(x); }
+    return out;
+  }
+  const gainsParcours = (st) => 1 + ((st.parcours && st.parcours.gains) || 0) / 100; // les bonus de gains à vie
+  const titreParcours = (st) => (st.parcours && st.parcours.titre) || '';
+  // les défis de passage, de la boutique n°6 à la n°29 (au-delà, celui de la n°29) : connus à l'avance, ils durcissent au fil des boutiques.
+  // Chacun est réglé sur test/longevite.js pour un joueur régulier (36 min par jour) : une à trois journées de jeu en plus au plus.
+  //   palier : une recette au niveau niv ; meubles : n meubles au cran maximum ; recette : la recette i débloquée dans cette boutique ;
+  //   commandes : n commandes spéciales livrées dans cette boutique ; etoiles : récolter d'un coup pct % des étoiles qu'on a en ouvrant ;
+  //   grades : n apprentis au grade g (ou plus) ; evenements : n événements réussis dans cette boutique (commandes, critiques, pétrissages,
+  //   pannes réparées, pourboires du client mystère : une quinzaine par jour pour le régulier, moins soumis au hasard que les seules commandes).
+  const DEFIS_PASSAGE = {
+    6: { type: 'palier', niv: 375 }, 7: { type: 'meubles', n: 5 }, 8: { type: 'evenements', n: 12 }, 9: { type: 'recette', i: 9 },
+    10: { type: 'etoiles', pct: 25 }, 11: { type: 'palier', niv: 450 }, 12: { type: 'grades', n: 6, g: 3 }, 13: { type: 'evenements', n: 20 },
+    14: { type: 'recette', i: 11 }, 15: { type: 'etoiles', pct: 25 }, 16: { type: 'palier', niv: 500 }, 17: { type: 'grades', n: 5, g: 4 },
+    18: { type: 'evenements', n: 25 }, 19: { type: 'recette', i: 13 }, 20: { type: 'etoiles', pct: 25 }, 21: { type: 'palier', niv: 550 },
+    22: { type: 'evenements', n: 30 }, 23: { type: 'grades', n: 10, g: 4 }, 24: { type: 'recette', i: 14 }, 25: { type: 'etoiles', pct: 25 },
+    26: { type: 'palier', niv: 600 }, 27: { type: 'evenements', n: 35 }, 28: { type: 'recette', i: 15 }, 29: { type: 'etoiles', pct: 30 },
+  };
+  const DEFI_DEBUT = 6;
+  const evenementsReussis = (st) => { const x = st.stats || {}; return (x.commandes || 0) + (x.critiques || 0) + (x.petrissages || 0) + (x.pannes || 0) + (x.pourboires || 0); };
+  const defiDe = (n) => (n >= DEFI_DEBUT ? DEFIS_PASSAGE[Math.min(n, 29)] || null : null);
+  function texteDefi(d, cible) { // « Une recette au niveau 300 »…
+    if (!d) return '';
+    if (d.type === 'palier') return `Une recette au niveau ${d.niv}`;
+    if (d.type === 'meubles') return `${d.n} meubles au cran maximum`;
+    if (d.type === 'recette') return `Débloque ${PRODUITS[d.i] ? PRODUITS[d.i].nom : 'la recette'} dans cette boutique`;
+    if (d.type === 'commandes') return `Livre ${d.n} commandes spéciales dans cette boutique`;
+    if (d.type === 'etoiles') return cible ? `Récolte +${fmt(cible)} étoiles d’un coup` : `Récolte d’un coup ${d.pct} % de tes étoiles`;
+    if (d.type === 'grades') return `${d.n} apprentis au grade ${d.g}`;
+    if (d.type === 'evenements') return `Réussis ${d.n} événements dans cette boutique`;
+    return '';
+  }
+  function creerDefi(st, n) { // le défi de la boutique n, posé à son ouverture (les compteurs partent de là)
+    const d = defiDe(n); if (!d) return null;
+    const o = Object.assign({ n }, d);
+    if (d.type === 'commandes') o.base = (st.stats && st.stats.commandes) || 0;
+    if (d.type === 'evenements') o.base = evenementsReussis(st);
+    if (d.type === 'etoiles') o.cible = Math.max(5, Math.ceil(st.etoiles * d.pct / 100));
+    return o;
+  }
+  function defiPassage(st) { // le défi de la boutique en cours : { d, txt, progres, cible, part, fait } ; null s'il n'y en a pas
+    const d = st.defi; if (!d || typeof d !== 'object' || !d.type) return null;
+    let progres = 0, cible = 1;
+    if (d.type === 'palier') { cible = d.niv; for (const s of st.stations) progres = Math.max(progres, s.niv); }
+    else if (d.type === 'meubles') { cible = d.n; progres = MOBILIER.filter((m) => mobilierCran(st, m.id) >= m.max).length; }
+    else if (d.type === 'recette') { progres = st.stations[d.i] && st.stations[d.i].niv > 0 ? 1 : 0; }
+    else if (d.type === 'commandes') { cible = d.n; progres = Math.max(0, ((st.stats && st.stats.commandes) || 0) - (d.base || 0)); }
+    else if (d.type === 'etoiles') { cible = d.cible || 1; progres = etoilesGagnables(st); }
+    else if (d.type === 'evenements') { cible = d.n; progres = Math.max(0, evenementsReussis(st) - (d.base || 0)); }
+    else if (d.type === 'grades') { cible = d.n; progres = PRODUITS.filter((p, i) => gradeApprenti(st, i) >= d.g).length; }
+    progres = Math.min(progres, cible);
+    return { d, txt: texteDefi(d, d.cible), progres, cible, part: cible > 0 ? progres / cible : 1, fait: progres >= cible };
+  }
+  const passageOk = (st) => { const x = defiPassage(st); return !x || x.fait; };
+  // le but affiché : la boutique suivante, sa récompense, son défi, et la progression (la moitié pour les étoiles, la moitié pour le défi)
+  const ETOILES_CONSEIL = 0.25; // repartir vaut le coup quand on récolte au moins un quart de ses étoiles (le joueur simulé fait pareil)
+  function butParcours(st) {
+    const n = (st.boutiques || 1) + 1, defi = defiPassage(st), gain = etoilesGagnables(st), conseil = Math.max(1, Math.ceil(st.etoiles * ETOILES_CONSEIL));
+    const pe = Math.min(1, gain / conseil), part = defi ? (pe + defi.part) / 2 : pe;
+    return { n, fini: n > PARCOURS_FIN, recompense: recompenseBoutique(n), quartier: QUARTIERS[quartierDe(n)], defi, defiSuivant: defiDe(n), gain, conseil, partEtoiles: pe, part, pret: gain > 0 && (!defi || defi.fait) };
+  }
+  function parcoursListe(st) { // les trente boutiques : numéro, quartier, récompense, défi, et où on en est (passee, actuelle, avenir)
+    const b = st.boutiques || 1, out = [];
+    for (let n = 1; n <= PARCOURS_FIN; n++) { const r = recompenseBoutique(n), d = defiDe(n); out.push({ n, etat: n < b ? 'passee' : n === b ? 'actuelle' : 'avenir', quartier: QUARTIERS[n === b ? quartier(st) : quartierDe(n)], recompense: r, texte: texteRecompense(r), defi: d, defiTxt: n === b && st.defi ? texteDefi(st.defi, st.defi.cible) : texteDefi(d) }); }
+    return out;
+  }
   function saison(ms) {
     const d = paris(ms), m = d.getUTCMonth() + 1, j = d.getUTCDate(), tags = [];
     if (m === 12 || m <= 2) tags.push('neige');
@@ -117,6 +301,10 @@
     { prenom: 'Sami', talent: 'Deux barres, toujours', rev: 1.1 }, { prenom: 'Rose', talent: 'La pâte de mamie', temps: 0.92 },
     { prenom: 'Malik', talent: 'Glaçage parfait', rev: 1.1 }, { prenom: 'Agathe', talent: 'Coques régulières', temps: 0.92 },
     { prenom: 'Augustin', talent: 'Mille couches', rev: 1.1 }, { prenom: 'Paulin', talent: 'Main sûre', temps: 0.92 },
+    { prenom: 'Margaux', talent: 'Praliné maison', rev: 1.1 }, { prenom: 'Yann', talent: 'Feuilletage breton', temps: 0.92 }, // les apprentis des recettes de boutique
+    { prenom: 'Léonie', talent: 'Cueillette à l’aube', rev: 1.1 }, { prenom: 'Victor', talent: 'Glaçage miroir', temps: 0.92 },
+    { prenom: 'Aliénor', talent: 'Cire d’abeille', rev: 1.1 }, { prenom: 'Honoré', talent: 'Choux caramélisés', temps: 0.92 },
+    { prenom: 'Capucine', talent: 'Mousseline légère', rev: 1.1 }, { prenom: 'Antonin', talent: 'Fil de sucre', temps: 0.92 },
   ];
   const effetTalentApprenti = (i) => { const a = APPRENTIS[i], pl = PRODUITS[i].pl; return a.rev ? `${pl[0].toUpperCase() + pl.slice(1)} ×${virgule(a.rev)}` : `${pl[0].toUpperCase() + pl.slice(1)} : cuisson ${Math.round((1 - a.temps) * 100)} % plus rapide`; };
   const virgule = (x) => String(+x.toFixed(2)).replace('.', ',');
@@ -338,6 +526,11 @@
     ajouter(vet('quartier-or-chaine', 'Chaîne en or', 'accessoire', 'quartier-or', 'chaine', { absence: 0.5 }, 'legendaire', 'La vraie, pas la plaquée.'));
     // le trophée du palier bonus 20 du Quartier (après le boss) : une seule pièce, sans ensemble, distincte de la tenue en or du podium
     ajouter(vet('quartier-neon-casquette', 'Casquette néon', 'tete', 'quartier-neon', 'casquette', { vitesse: 1 }, 'epique', 'Le palier 20 du quartier. Elle clignote un peu.'));
+    // le parcours du boulanger : une pièce aux boutiques n°11, 17, 23 et 29 (recompenseBoutique), bleu nuit et cuivre ; l'ensemble est modeste
+    ajouter(vet('parcours-toque', 'Toque du parcours', 'tete', 'parcours', 'toque', { gains: { produit: null, pct: 2 } }, 'epique', 'Brodée du numéro de chaque boutique.'));
+    ajouter(vet('parcours-tablier', 'Tablier du parcours', 'haut', 'parcours', 'tablier', { gains: { produit: null, pct: 2 } }, 'epique', 'Une poche par quartier.'));
+    ajouter(vet('parcours-chaussures', 'Chaussures du parcours', 'pieds', 'parcours', 'chaussures', { vitesse: 1.5 }, 'epique', 'Elles ont fait vingt-trois boutiques.'));
+    ajouter(vet('parcours-foulard', 'Foulard du parcours', 'accessoire', 'parcours', 'foulard', { absence: 0.5 }, 'epique', 'Noué à la boutique n°29.'));
     // l'événement « La Maison hantée » (src/hantee.js) : la tenue d'Halloween aux paliers 3, 6, 9 et 12, la même en or pour le podium final
     ajouter(vet('hantee-chapeau', 'Chapeau pointu', 'tete', 'hantee', 'chapeau', { gains: { produit: 'tarte', pct: 8 } }, 'rare', 'Pointu, étoilé, et il tient même dans le vent du four.'));
     ajouter(vet('hantee-cape', 'Cape de minuit', 'haut', 'hantee', 'cape', { gains: { produit: null, pct: 2.5 } }, 'rare', 'Doublée de violet. Elle fait « whoosh » quand on se retourne.'));
@@ -357,6 +550,7 @@
       'quartier-or': { nom: 'Tenue du quartier en or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
       hantee: { nom: 'Tenue d’Halloween', bonus: { gains: { produit: null, pct: 6 }, vitesse: 2, absence: 1 } },
       'hantee-or': { nom: 'Tenue d’Halloween en or', bonus: { gains: { produit: null, pct: 8 }, vitesse: 3, absence: 1 } },
+      parcours: { nom: 'Tenue du parcours', bonus: { gains: { produit: null, pct: 5 }, vitesse: 2, absence: 1 } },
     };
     return { pieces: GR_PIECES, objets, ensembles, niveaux: GR_NIVEAUX, couts: GR_COUTS, nivMax: GR_NIV_MAX, base: GR_BASE };
   })();
@@ -451,7 +645,7 @@
   function stationsNeuves(ouvertes) { const n = Math.max(1, ouvertes || 1); return PRODUITS.map((p, i) => ({ niv: i < n ? 1 : 0, staff: false, prog: 0, actif: false })); }
   function newState(nowMs) {
     return {
-      v: 2, coins: 0, lifetime: 0, lifetimeRun: 0, etoiles: 0, boutiques: 1, xp: 0, talents: {}, nomBoutique: '',
+      v: 2, coins: 0, lifetime: 0, lifetimeRun: 0, etoiles: 0, boutiques: 1, recettesBoutique: [], defi: null, xp: 0, talents: {}, nomBoutique: '',
       stations: stationsNeuves(), ameliorations: {}, mobilier: {}, tuto: 0, lastSeen: nowMs, created: nowMs, son: true, vibre: true, mode: 1, now: nowMs,
       stats: { taps: 0, ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false, meubles: 0 },
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
@@ -504,7 +698,7 @@
     if (jourDeMarche(st.now)) m *= MARCHE_MULT;
     return m;
   }
-  function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st) * mobilierMult(st) * apprentiRevMult(st, i) * accessoiresMult(st, i); }
+  function revenuBase(st, i) { const s = st.stations[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(st, i) * etoileMult(st) * mobilierMult(st) * apprentiRevMult(st, i) * accessoiresMult(st, i) * gainsParcours(st); }
   function revenu(st, i) { return revenuBase(st, i) * boostMult(st, i); } // par fournée, maintenant
   // niv 0 : débloquer la recette (un cap, cher) ; ensuite chaque niveau coûte quelques fournées de plus que le précédent
   const coutNiveau = (i, niv) => (niv === 0 ? PRODUITS[i].debloquer : PRODUITS[i].cout * Math.pow(PRODUITS[i].croiss, niv));
@@ -553,9 +747,9 @@
     },
     // embaucher : seulement si un apprenti est à portée (moins d'une heure du rythme de la boutique), comme les bonus et le mobilier
     embaucher: (st, r) => (st.stations.some((s, i) => s.niv > 0 && !s.staff && prixStaff(st, i) < st.coins + r * 3600) ? { cible: 1, txt: () => 'Embauche un apprenti' } : null),
-    bonus: (st, r) => (AMELIORATIONS.some((a) => !st.ameliorations[a.id] && a.cout < st.coins + r * 3600) ? { cible: 1, txt: () => 'Achète un bonus' } : null),
+    bonus: (st, r) => (AMELIORATIONS.some((a) => !st.ameliorations[a.id] && ameliorationOuverte(st, a) && a.cout < st.coins + r * 3600) ? { cible: 1, txt: () => 'Achète un bonus' } : null),
     meuble: (st, r) => (MOBILIER.some((m) => mobilierCran(st, m.id) < m.max && prixMeuble(st, m.id) < st.coins + r * 3600) ? { cible: 1, txt: () => 'Améliore un meuble de la boutique' } : null),
-    recette: (st, r) => { const i = st.stations.findIndex((s) => s.niv === 0); return i > 0 && PRODUITS[i].debloquer < st.coins + r * 3600 ? { cible: 1, txt: () => `Débloque : ${PRODUITS[i].nom}` } : null; },
+    recette: (st, r) => { const i = st.stations.findIndex((s) => s.niv === 0); return i > 0 && recetteGagnee(st, i) && PRODUITS[i].debloquer < st.coins + r * 3600 ? { cible: 1, txt: () => `Débloque : ${PRODUITS[i].nom}` } : null; }, // une recette de boutique pas encore gagnée : pas d'objectif
   };
   function niveauxAbordables(st, budget, max) { // combien de niveaux paie ce budget, en prenant toujours le moins cher
     const niv = st.stations.map((s) => s.niv); let n = 0, reste = budget;
@@ -575,8 +769,8 @@
   }
   function possible(st, o) {
     if (o.type === 'mains' || o.type === 'embaucher') return st.stations.some((s) => s.niv > 0 && !s.staff);
-    if (o.type === 'recette') return st.stations.some((s) => s.niv === 0);
-    if (o.type === 'bonus') return AMELIORATIONS.some((a) => !st.ameliorations[a.id]);
+    if (o.type === 'recette') return st.stations.some((s, i) => s.niv === 0 && recetteGagnee(st, i));
+    if (o.type === 'bonus') return AMELIORATIONS.some((a) => !st.ameliorations[a.id] && ameliorationOuverte(st, a));
     if (o.type === 'meuble') return MOBILIER.some((m) => mobilierCran(st, m.id) < m.max);
     if (o.type === 'vendre') return st.stations[o.i] && st.stations[o.i].niv > 0;
     return true;
@@ -596,7 +790,7 @@
       }
     });
   }
-  const painDuJour = (st, key) => hashStr(key + ':pain:' + st.created) % PRODUITS.length; // un produit ×2 toute la journée
+  const painDuJour = (st, key) => hashStr(key + ':pain:' + st.created) % recettesConnues(st); // un produit ×1,5 toute la journée, parmi les recettes à la carte (les huit, puis celles des boutiques : une partie qui n'en a pas gagné tire comme avant)
   function objectifsDuJour(st, nowMs) {
     const key = dayKey(nowMs);
     if (!st.jour || st.jour.date !== key) st.jour = { date: key, objectifs: tirerObjectifs(st, key), etoileDonnee: false, pain: painDuJour(st, key) };
@@ -760,7 +954,7 @@
     return { ok: true, jours: e.jours, cadeau, hb };
   }
   // ─── la spécialité de la boutique : un produit ×2 le temps de cette boutique, choisi à l'ouverture ───
-  function choisirSpecialite(st, i) { if (st.specialite != null || i < 0 || i >= PRODUITS.length) return { ok: false }; st.specialite = i; note(st, `Spécialité de la boutique : ${PRODUITS[i].nom}`); return { ok: true }; }
+  function choisirSpecialite(st, i) { if (st.specialite != null || i < 0 || i >= PRODUITS.length || !recetteGagnee(st, i)) return { ok: false }; st.specialite = i; note(st, `Spécialité de la boutique : ${PRODUITS[i].nom}`); return { ok: true }; }
   // ─── les trophées : des succès permanents, chacun offre du savoir-faire ───
   const TROPHEES = [
     { id: 'premiere', nom: 'Première fournée', desc: 'Vendre une fournée', xp: 10, cond: (st) => st.stats.ventes >= 1 },
@@ -787,6 +981,8 @@
     { id: 'semaine', nom: 'Semaine parfaite', desc: 'Les trois objectifs du jour 7 jours d’affilée', xp: 60, cond: (st) => (st.stats.serieMax || 0) >= 7 },
     { id: 'defi', nom: 'Défi relevé', desc: 'Réussir un défi de la semaine', xp: 30, cond: (st) => (st.stats.semaines || 0) >= 1 },
     { id: 'piece', nom: 'Pièce montée', desc: 'Débloquer la pièce montée', xp: 40, cond: (st) => (st.stats.recetteMax || 0) >= 7 },
+    { id: 'recette-boutique', nom: 'Recette de boutique', desc: 'Débloquer le Paris-Brest', xp: 50, cond: (st) => (st.stats.recetteMax || 0) >= RECETTES_BASE },
+    { id: 'carte', nom: 'La carte complète', desc: 'Débloquer les seize recettes', xp: 150, cond: (st) => (st.stats.recetteMax || 0) >= PRODUITS.length - 1 },
     { id: 'franchise', nom: 'Franchisé', desc: 'Acheter le Réseau de franchises', xp: 60, cond: (st) => !!st.stats.franchise },
     { id: 'compagnon', nom: 'Compagnon', desc: 'Atteindre le titre de Compagnon', xp: 40, cond: (st) => niveau(st) >= 13 },
     { id: 'mof', nom: 'Meilleur Ouvrier de France', desc: 'Atteindre le titre suprême', xp: 150, cond: (st) => niveau(st) >= 26 },
@@ -1058,6 +1254,7 @@
   function gagner(st, montant, horsObjectif) { st.coins += montant; st.lifetime += montant; st.lifetimeRun += montant; if (!horsObjectif) noter(st, 'gagner', montant); }
   function acheter(st, i) {
     const s = st.stations[i], n = quantite(st, i), prix = prixNiveaux(st, i, n);
+    if (s.niv === 0 && !recetteGagnee(st, i)) return { ok: false, prix, verrou: true, boutique: PRODUITS[i].boutique }; // une recette de boutique pas encore gagnée
     if (st.coins < prix) return { ok: false, prix };
     const r0 = rythme(st), paliers = s.niv === 0 ? 0 : expoPalier(s.niv + n) - expoPalier(s.niv); // en doublements : un palier intercalé en compte une part
     st.coins -= prix;
@@ -1083,7 +1280,7 @@
   }
   function amelioration(st, id) {
     const a = AMELIORATIONS.find((x) => x.id === id), prix = a ? prixBonus(st, a) : 0;
-    if (!a || st.ameliorations[id] || st.coins < prix) return { ok: false, prix };
+    if (!a || st.ameliorations[id] || !ameliorationOuverte(st, a) || st.coins < prix) return { ok: false, prix };
     const points = marquerAmelioration(st, prix, rythme(st), 0);
     st.coins -= prix; st.ameliorations[id] = true; noter(st, 'bonus', 1); gagnerXp(st, 6); if (id === 'franchise') st.stats.franchise = true;
     return { ok: true, a, prix, points };
@@ -1091,13 +1288,19 @@
   function nouvelleBoutique(st, nowMs) {
     const gain = etoilesGagnables(st);
     if (gain <= 0) return { ok: false };
+    const defi = defiPassage(st); if (defi && !defi.fait) return { ok: false, defi }; // le défi de passage d'abord
+    parcours(st); const avant = recettesConnues(st);
     st.etoiles += gain; st.boutiques++; st.nomBoutique = ''; st.specialite = null; gagnerXp(st, 80 + Math.min(120, 2 * gain)); noterSemaine(st, 'boutique');
+    st.quartierFixe = quartierDe(st.boutiques); st.defi = creerDefi(st, st.boutiques); // le défi de la nouvelle boutique (dès la n°6), posé maintenant
+    recettesBoutique(st); const recette = recettesConnues(st) > avant ? PRODUITS[recettesConnues(st) - 1] : null; // la recette que cette boutique apporte (à vie), sinon null
+    const recompenses = rattraperParcours(st); // la récompense de cette boutique (et celles qui manqueraient)
+    for (const x of recompenses) note(st, `Boutique n°${x.n} : ${x.texte}`);
     st.coins = 0; st.lifetimeRun = 0; st.ameliorations = {}; st.mobilier = {}; st.stations = stationsNeuves(1 + talent(st, 'memoire')); st.ev = null; st.boost = null;
     if (st.saison) st.saison = { id: st.saison.id, annee: st.saison.annee, niv: 0, prog: 0, actif: false }; // les grades des apprentis, le compagnon (et ceux achetés) et la collection restent
     st.lastSeen = nowMs;
     // les objectifs du jour pas encore réclamés sont retirés à la taille de la nouvelle boutique (les réussis restent acquis)
     if (st.jour) { const neufs = tirerObjectifs(st, st.jour.date); st.jour.objectifs = st.jour.objectifs.map((o, k) => (o.reclame ? o : neufs[k])); }
-    return { ok: true, gain };
+    return { ok: true, gain, recette, recompenses };
   }
 
   // ─── un pas de jeu ; rend {ventes, nouvelEv, finEv, mystere} ───
@@ -1186,7 +1389,7 @@
     CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, PELAGES, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
     COMPAGNONS, COMPAGNON_PLANCHER, compagnon, estChat, prixCompagnon, aCompagnon, compagnonActif, bonusCompagnon, compagnonGains, modeleCompagnon, compagnons, choisirCompagnon, acheterCompagnon,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
-    PRODUITS, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
+    PRODUITS, RECETTES_BASE, recetteGagnee, recettesBoutique, recettesConnues, prochaineRecetteBoutique, ameliorationOuverte, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, QUARTIERS_BASE, quartierDe, PARCOURS_FIN, recompenseBoutique, texteRecompense, parcours, donnerRecompense, rattraperParcours, gainsParcours, titreParcours, DEFIS_PASSAGE, DEFI_DEBUT, defiDe, texteDefi, creerDefi, defiPassage, passageOk, ETOILES_CONSEIL, butParcours, parcoursListe, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, expoPalier, fmtMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables, prochaineEtoile,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, boostsNeufs, donnerBoostReserve, PRIME_HEURE_PLANCHER, primeHeures, donnerPrimeHeures, lancerBoostReserve,

@@ -219,26 +219,27 @@ const SCENE = (() => {
     groupes[id] = g || null; if (g) { habiller(g); scene.add(g); } zonesCache = null; RICHE.aoSale = true; recenserAnimes();
   }
   function recenserAnimes() { animes.length = 0; scene.traverse((o) => { if (o.userData && typeof o.userData.anime === 'function') animes.push(o); }); }
+  const objet = (E, id) => !!(E.Q.objets && E.Q.objets.includes(id)); // les petits objets d'un quartier du parcours (GAME.QUARTIERS, theme.objets) : posés d'office
   const CONDS = [ // les petits décors : une clé par frame, reconstruits quand elle change (null : absent)
     { id: 'etagere', cle: (E) => `${Math.min(10, Math.floor(E.niv[0] / 10))}|${E.niv[6] > 0 ? 1 : 0}`, faire: (k, c) => { const [n, b] = k.split('|'); return MEUBLES.etagere(+n, b === '1', c); } },
     { id: 'cadre', cle: (E) => (E.niv[3] > 0 ? '1' : null), faire: (k, c) => MEUBLES.cadre(LAY.cadre.x, LAY.cadre.y, c) },
     { id: 'horloge', cle: () => '1', faire: (k, c) => MEUBLES.horloge(c) },
     { id: 'diplome', cle: (E) => (E.rang >= 2 ? '1' : null), faire: (k, c) => MEUBLES.diplome(c) },
-    { id: 'plante', cle: (E) => (E.niv[1] > 0 ? '1' : null), faire: (k, c) => MEUBLES.plante(LAY.plante.x, LAY.plante.y, c) },
-    { id: 'sapin', cle: (E) => (E.tags.includes('noel') ? (REC.coupes.length ? 'd' : '1') : null), faire: (k, c) => MEUBLES.sapin(c, k === 'd') }, // la vitrine des trophées prend sa place : il se pousse à droite
+    { id: 'plante', cle: (E) => (E.niv[1] > 0 || objet(E, 'plante') ? '1' : null), faire: (k, c) => MEUBLES.plante(LAY.plante.x, LAY.plante.y, c) },
+    { id: 'sapin', cle: (E) => (E.tags.includes('noel') || objet(E, 'sapin') ? (REC.coupes.length ? 'd' : '1') : null), faire: (k, c) => MEUBLES.sapin(c, k === 'd') }, // la vitrine des trophées prend sa place : il se pousse à droite
     { id: 'trophees', cle: () => (REC.coupes.length && MEUBLES.trophees ? REC.coupes.join(',') : null), faire: (k, c) => MEUBLES.trophees(k.split(','), c) }, // toutes les coupes gagnées
     { id: 'coupe', cle: () => (REC.coupe && MEUBLES.coupe ? REC.coupe : null), faire: (k, c) => MEUBLES.coupe(k, c) }, // la coupe du dernier podium, sur le comptoir la semaine qui suit
     { id: 'plan', cle: () => '1', faire: (k, c) => MEUBLES.plan(c) },
     { id: 'presentoir', cle: (E) => (LAY.spread > 120 && E.niv[0] >= 20 ? String(Math.min(6, 2 + Math.floor(E.niv[0] / 25))) : null), faire: (k, c) => MEUBLES.presentoir(+k, c) },
-    { id: 'ardoise', cle: (E) => (E.staffs >= 2 ? '1' : null), faire: (k, c) => MEUBLES.ardoise(c) },
-    { id: 'fleurs', cle: (E) => (E.bonus >= 3 ? '1' : null), faire: (k, c) => MEUBLES.fleurs(c) },
+    { id: 'ardoise', cle: (E) => (E.staffs >= 2 || objet(E, 'ardoise') ? '1' : null), faire: (k, c) => MEUBLES.ardoise(c) },
+    { id: 'fleurs', cle: (E) => (E.bonus >= 3 || objet(E, 'fleurs') ? '1' : null), faire: (k, c) => MEUBLES.fleurs(c) },
     { id: 'paillasson', cle: (E) => (E.crans.deco >= 1 ? 'c' : 'n'), faire: (k, c) => MEUBLES.paillasson(k === 'c', c) },
-    { id: 'guirlande', cle: (E) => (E.crans.deco < 3 && (E.niv[5] > 0 || E.rush || E.tags.includes('noel')) ? (E.tags.includes('noel') ? 'noel' : 'g') : null), faire: (k, c) => MEUBLES.guirlande(k === 'noel', c) },
-    { id: 'fanions', cle: (E) => (E.tags.includes('fete') ? '1' : null), faire: (k, c) => MEUBLES.fanions(c) },
+    { id: 'guirlande', cle: (E) => ((E.crans.deco < 3 && (E.niv[5] > 0 || E.rush || E.tags.includes('noel'))) || objet(E, 'guirlande') ? (E.tags.includes('noel') ? 'noel' : 'g') : null), faire: (k, c) => MEUBLES.guirlande(k === 'noel', c) },
+    { id: 'fanions', cle: (E) => (E.tags.includes('fete') || objet(E, 'fanions') ? '1' : null), faire: (k, c) => MEUBLES.fanions(c) },
     { id: 'coeurs', cle: (E) => (E.tags.includes('coeurs') ? '1' : null), faire: (k, c) => MEUBLES.coeurs(c) },
     { id: 'saison', cle: (E) => { const r = E.st.saison; if (r && r.niv > 0 && PERSOS.patisserieSaison) return 'recette:' + r.id; return E.tags.includes('halloween') ? 'halloween' : E.tags.includes('galette') ? 'galette' : E.tags.includes('paques') ? 'paques' : E.tags.includes('ete') && !E.tags.includes('fete') ? 'ete' : null; },
       faire: (k, c) => { if (!k.startsWith('recette:')) return MEUBLES.propSaison(k, c); const o = MEUBLES.surDessus(c, LAY.saison), g = new THREE.Group(), m = PERSOS.patisserieSaison(k.slice(8)).clone(); m.scale.setScalar(1.15); g.add(m); g.position.set(o.x, o.y, o.z); return g; } }, // la recette de saison préparée, posée sur le comptoir
-    { id: 'lampe', cle: (E) => (E.niv[2] > 0 ? '1' : null), faire: (k, c) => MEUBLES.lampe(c) },
+    { id: 'lampe', cle: (E) => (E.niv[2] > 0 || objet(E, 'lampe') ? '1' : null), faire: (k, c) => MEUBLES.lampe(c) },
     // les décos de l'événement « Le Quartier » (src/quartier.js, gagnées aux paliers, à vie) : le tag sur la porte, l'enseigne néon, le chien ; le scooter est peint dehors (peindreExterieur)
     { id: 'graffiti', cle: () => (QDECO.graffiti && MEUBLES.graffiti ? '1' : null), faire: (k, c) => MEUBLES.graffiti(c) },
     { id: 'neon', cle: () => (QDECO.neon && MEUBLES.neon ? '1' : null), faire: (k, c) => MEUBLES.neon(c) },
@@ -287,6 +288,7 @@ const SCENE = (() => {
     return c;
   }
   // les pâtisseries de la vitrine prises dans le Food Kit quand il est là (baguette, croissant, tarte aux pommes) ; les autres restent celles de PERSOS
+  const VITRINE_MAX = 8; // la vitrine montre huit recettes au plus (depuis les recettes de boutique, il y en a seize) : les plus avancées
   const PAT_K = { 0: ['loaf-baguette', 0.5], 1: ['croissant', 0.4], 3: ['pie', 0] }, patK = new Map();
   function patisserieK(i) {
     const d = PAT_K[i]; if (!d || typeof KENNEY === 'undefined' || !KENNEY || !KENNEY.pret) return null;
@@ -296,7 +298,7 @@ const SCENE = (() => {
   }
   function construire(E) {
     const c = contexte(E), base = `${E.Q.id}|${W}x${H}`;
-    const rs = E.st.saison && E.st.saison.niv > 0 && PERSOS.patisserieSaison ? E.st.saison.id : '', ouverts = E.niv.map((n, i) => (n > 0 ? i : -1)).filter((i) => i >= 0);
+    const rs = E.st.saison && E.st.saison.niv > 0 && PERSOS.patisserieSaison ? E.st.saison.id : '', ouverts = E.niv.map((n, i) => (n > 0 ? i : -1)).filter((i) => i >= 0).slice(-VITRINE_MAX); // les plus avancées, si elles ne tiennent pas toutes
     c.nVitrine = ouverts.length + (rs ? 1 : 0); // la recette de saison a sa place : étagères, étiquettes et places sur le même compte
     if (Qc !== E.Q) { Qc = E.Q; renderer.setClearColor(E.Q.sol); salle = MEUBLES.salle(c); remplacer('salle', salle); }
     for (const id of MEUBLES_IDS) { // les six meubles (le comptoir porte la vitrine), reconstruits quand leur cran change

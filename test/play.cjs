@@ -31,7 +31,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   check(accueil.titre === 'Salle de jeux' && accueil.jeux === 2 && accueil.bientot === 1 && /Le Fournil/.test(accueil.carte) && /Nouvelle partie/.test(accueil.carte) && /Jouer/.test(accueil.carte) && /Opération Poncin/.test(accueil.poncin) && accueil.large, 'l’écran d’accueil : Le Fournil (nouvelle partie), Opération Poncin et une place pour le prochain jeu');
   await page.screenshot({ path: out + '/00-accueil.png' });
   await page.tap('[data-jeu="fournil"]'); await page.waitForURL(/\/fournil\/$/); await sleep(1200);
-  check(await page.evaluate(() => !!window.__fournil && document.querySelectorAll('.carte[data-i]').length === 8), 'toucher sa carte ouvre Le Fournil (/fournil/)');
+  check(await page.evaluate(() => !!window.__fournil && document.querySelectorAll('.carte[data-i]').length === 16 && [...document.querySelectorAll('.carte[data-i]')].filter((c) => !c.hidden).length === 9), 'toucher sa carte ouvre Le Fournil (/fournil/) : les huit recettes et, verrouillée, celle de la boutique n°2');
   await page.screenshot({ path: out + '/01-debut.png' });
   const trois = await page.evaluate(() => { const s = window.__fournil.stats(), u = document.querySelector('#scene-ui'), ui = u.getBoundingClientRect(), sc = document.querySelector('#scene').getBoundingClientRect(), d = Math.min(2, devicePixelRatio || 1); return { ...s, calque: Math.abs(ui.width - sc.width) < 1 && Math.abs(ui.height - sc.height) < 1 && Math.abs(u.width - Math.round(u.clientWidth * d)) <= 1 && Math.abs(u.height - Math.round(u.clientHeight * d)) <= 1 && getComputedStyle(u).display !== 'none' }; }); // le tampon du calque suit sa taille à l'écran
   check(trois.webgl && trois.calls > 0 && trois.calque, `la boutique est rendue en 3D (WebGL, ${trois.calls} appels de dessin, qualité ${trois.qualite}) sous un calque 2D de même taille`);
@@ -323,7 +323,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const nomSheet = await page.evaluate(() => ({ txt: document.querySelector('#feuille-contenu').innerText, val: (document.querySelector('.champ') || {}).value }));
   check(/Boutique n°2/.test(nomSheet.txt) && nomSheet.val === 'Le Fournil de la Rue', 'nouvelle boutique : on choisit son nom (' + nomSheet.val + ')');
   await page.screenshot({ path: out + '/08b-nom.png' });
-  check(await page.evaluate(() => document.querySelectorAll('.spe-grille [data-s]').length === 8), 'on choisit aussi la spécialité de la boutique');
+  check(await page.evaluate(() => document.querySelectorAll('.spe-grille [data-s]').length === 9), 'on choisit aussi la spécialité de la boutique (les huit recettes et le Paris-Brest, gagné avec la boutique n°2)');
   await page.fill('.champ', 'Chez Mamie'); await page.tap('[data-s="1"]', { force: true }); await page.tap('[data-a="ok"]'); await sleep(400);
   check(await page.evaluate(() => window.__fournil.st.nomBoutique === 'Chez Mamie' && window.__fournil.G.quartier(window.__fournil.st) === 1 && window.__fournil.st.specialite === 1), 'boutique nommée « Chez Mamie », dans le quartier parisien, spécialité croissants');
   check(await page.evaluate(() => document.querySelector('#enseigne span').textContent === 'Chez Mamie'), 'le nom s’affiche sur l’enseigne au-dessus de la scène');
@@ -331,7 +331,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   check(await page.evaluate(() => !document.querySelector('#feuille').hidden && (document.querySelector('.champ') || {}).value === 'Chez Mamie'), 'toucher l’enseigne ouvre le renommage');
   await page.tap('[data-a="non"]'); await sleep(200);
   const s2 = await W(); console.log('boutique 2', s2);
-  check(s2.niv === '1,0,0,0,0,0,0,0' && await page.evaluate(() => window.__fournil.st.etoiles > 0 && Object.keys(window.__fournil.st.mobilier).length === 0 && window.__fournil.SCENE.apprentis === 0), 'nouvelle boutique : produits et mobilier remis à zéro, étoiles gardées, apprentis repartis');
+  check(s2.niv === '1' + ',0'.repeat(15) && await page.evaluate(() => window.__fournil.st.etoiles > 0 && Object.keys(window.__fournil.st.mobilier).length === 0 && window.__fournil.SCENE.apprentis === 0), 'nouvelle boutique : produits et mobilier remis à zéro, étoiles gardées, apprentis repartis');
   await page.screenshot({ path: out + '/09-boutique2.png' });
   // rechargement : la sauvegarde tient
   await page.reload(); await sleep(800);
@@ -394,7 +394,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const sans = await p3.evaluate(() => ({ webgl: window.__fournil.stats().webgl, panneau: !document.querySelector('#sans-3d').hidden, cartes: document.querySelectorAll('.carte[data-i]').length, coins: window.__fournil.st.coins }));
   await p3.tap('.carte[data-i="0"] .barre'); await sleep(1300);
   const vendu = await p3.evaluate(() => window.__fournil.st.stats.ventes);
-  check(!sans.webgl && sans.panneau && sans.cartes === 8 && vendu >= 1 && !err3.length, `sans WebGL : panneau affiché, pas d’erreur, une fournée vendue quand même (${vendu})`);
+  check(!sans.webgl && sans.panneau && sans.cartes === 16 && vendu >= 1 && !err3.length, `sans WebGL : panneau affiché, pas d’erreur, une fournée vendue quand même (${vendu})`);
   await b3.close();
   // sans Three.js (le fichier n'arrive pas) : le jeu démarre quand même, sans 3D
   const p4 = await (await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR' })).newPage();
@@ -402,7 +402,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await p4.route('**/vendor/three.min.js', (r) => r.abort());
   await p4.goto('http://localhost:8781/fournil/'); await sleep(1500);
   const sansThree = await p4.evaluate(() => ({ ok: !!window.__fournil, webgl: window.__fournil && window.__fournil.stats().webgl, panneau: !document.querySelector('#sans-3d').hidden, cartes: document.querySelectorAll('.carte[data-i]').length }));
-  check(sansThree.ok && !sansThree.webgl && sansThree.panneau && sansThree.cartes === 8 && !err4.length, `sans Three.js : le jeu démarre, panneau affiché, huit cartes${err4.length ? ' — ' + err4[0] : ''}`);
+  check(sansThree.ok && !sansThree.webgl && sansThree.panneau && sansThree.cartes === 16 && !err4.length, `sans Three.js : le jeu démarre, panneau affiché, seize cartes (dont les recettes de boutique)${err4.length ? ' — ' + err4[0] : ''}`);
   // l'écran d'accueil installé, et les vieilles icônes : redirections sans boucle, note iPhone, nom par défaut, 320 px, IndexedDB jamais créée
   {
     const iphone = { viewport: { width: 320, height: 640 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR' };
@@ -462,7 +462,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
     const pret = await p7.evaluate(async () => { for (let k = 0; k < 50; k++) { const g = await navigator.serviceWorker.getRegistration('fournil/'); if (g && g.active) return true; await new Promise((r) => setTimeout(r, 200)); } return false; });
     await c7.setOffline(true);
     await p7.goto('http://localhost:8781/fournil/').catch(() => {}); await sleep(1500);
-    const horsLigne = await p7.evaluate(() => !!window.__fournil && document.querySelectorAll('.carte[data-i]').length === 8).catch(() => false);
+    const horsLigne = await p7.evaluate(() => !!window.__fournil && document.querySelectorAll('.carte[data-i]').length === 16).catch(() => false);
     check(pret && horsLigne, 'hors ligne, Le Fournil s’ouvre depuis l’accueil sans avoir jamais été ouvert');
     await c7.setOffline(false); await c7.close();
   }

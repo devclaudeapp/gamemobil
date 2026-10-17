@@ -302,7 +302,8 @@
   // La PHOTO de sa boutique : un petit JSON (2 Ko au plus, sérialisé) envoyé avec fournil_publier (p_photo), au plus une fois toutes les
   // 10 min, et rendu aux autres par fournil_boutique(pseudo) pour la visite (une scène en lecture seule). Ce qu'elle porte :
   //   { v: 1, nom: le nom donné à la boutique ('' : celui du quartier), q: le quartier (0-4), s: la recette de saison préparée (id) | null,
-  //     p: [[niveau, apprenti 0/1, grade 1-5], …] (les postes, dans l'ordre de GAME.PRODUITS), m: { tables, four, vitrine, caisse, froid, deco } (crans),
+  //     p: [[niveau, apprenti 0/1, grade 1-5], …] (les postes, dans l'ordre de GAME.PRODUITS : seize depuis les recettes de boutique ; une photo
+  //       d'avant n'en a que huit, les autres restent à 0), m: { tables, four, vitrine, caisse, froid, deco } (crans),
   //     t: [tête, haut, pieds, accessoire] (la tenue portée, ids de la garde-robe), c: { n: nom, p: 'roux' | 'noir' } | null (le chat),
   //     dq / dh: les décos gagnées au Quartier et à la Maison hantée, g: le niveau du boulanger (son grade), k: les coupes de la vitrine (métaux),
   //     o: 1 si le badge « Esprit d'équipe » (objectif commun réussi) est gagné,
@@ -396,7 +397,7 @@
   function boutiqueDepuisPhoto(ph, o) {
     o = o || {}; const G = leJeu(o.G), p = nettoyerPhoto(ph); if (!G || !p) return null;
     const now = Number.isFinite(o.maintenant) ? o.maintenant : Date.now(), st = G.newState(now);
-    st.visite = true; st.nomBoutique = p.nom; st.boutiques = (p.q % G.QUARTIERS.length) + 1;
+    st.visite = true; st.nomBoutique = p.nom; st.boutiques = (p.q % G.QUARTIERS.length) + 1; st.quartierFixe = p.q % G.QUARTIERS.length; // son quartier, même un des cinq du parcours (n°10, 15…)
     st.stations.forEach((s, i) => {
       const x = p.p[i]; s.niv = x ? x[0] : i === 0 ? 1 : 0; s.staff = !!(x && x[1] && s.niv > 0); s.prog = 0; s.actif = false;
       if (x && x[2] > 1 && G.APPRENTI_NIVEAUX) st.apprentis[G.PRODUITS[i].id] = { xp: G.APPRENTI_NIVEAUX[x[2] - 1] };

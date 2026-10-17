@@ -529,7 +529,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     G.donnerVetement(st, 'or-toque'); G.equiper(st, 'tete', 'or-toque'); st.quartier = { decos: ['graffiti', 'neon'] }; st.hantee = { decos: ['citrouilles', '<script>'] };
     st.saison = { id: G.RECETTES_SAISON[0].id, annee: 2026, niv: 3, prog: 0, actif: false };
     const p = CL.photo(st, { G, coupes: ['or', 'argent', 'bronze', 'platine'], badge: true }), o = CL.octetsJson(p);
-    check(p && o <= 2048 && p.nom === 'Chez Lucas' && p.q === 1 && p.p.length === 8 && p.p[1][2] === 3 && p.p[0][1] === 1 && p.m.four === 4 && p.t[0] === 'or-toque' && egal(p.c, { n: 'Réglisse', p: 'noir', a: 'chat-noir' }) && egal(p.dq, ['graffiti', 'neon']) && egal(p.dh, ['citrouilles']) && p.g === 30 && egal(p.k, ['or', 'argent', 'bronze']) && p.o === 1 && p.s === G.RECETTES_SAISON[0].id,
+    check(p && o <= 2048 && p.nom === 'Chez Lucas' && p.q === 1 && p.p.length === G.PRODUITS.length && p.p[1][2] === 3 && p.p[0][1] === 1 && p.m.four === 4 && p.t[0] === 'or-toque' && egal(p.c, { n: 'Réglisse', p: 'noir', a: 'chat-noir' }) && egal(p.dq, ['graffiti', 'neon']) && egal(p.dh, ['citrouilles']) && p.g === 30 && egal(p.k, ['or', 'argent', 'bronze']) && p.o === 1 && p.s === G.RECETTES_SAISON[0].id,
       `la photo : nom, quartier, postes (niveau, apprenti, grade), crans, tenue, chat noir, décos, niveau, coupes, badge (${o} octets ≤ 2048)`);
     const b = CL.boutiqueDepuisPhoto(p, { G, maintenant: T });
     check(b && b.st.visite === true && b.nom === 'Chez Lucas' && b.quartier === G.QUARTIERS[1].nom && G.mobilierCran(b.st, 'four') === 4 && b.st.stations[3].niv === 253 && b.st.stations[3].staff && G.gradeApprenti(b.st, 1) === 3 && G.niveau(b.st) === 30 && G.toqueMetal(b.st) === 'or' && b.st.chat.nom === 'Réglisse' && G.pelageChat(b.st, false) === 'noir' && b.st.saison.niv === 1 && b.badge && b.coupes.length === 3 && b.st.coins === 0,
@@ -542,7 +542,15 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     check(sale && !/[<>]/.test(sale.nom) && egal(sale.p, [[0, 1, 5], [0, 0, 1]]) && sale.m.four === 20 && !('Mauvais id' in sale.m) && egal(sale.t, ['or-toque', null, null]) && !/[<>]/.test(sale.c.n) && sale.c.p === 'roux' && egal(sale.dq, ['graffiti']) && egal(sale.k, ['or']) && sale.g === 1,
       'une photo piégée : pas de balise, nombres bornés, ids inconnus écartés');
     const b2 = CL.boutiqueDepuisPhoto({ q: 99, p: [], m: { four: 999 }, t: ['n-existe-pas'] }, { G, maintenant: T });
-    check(b2 && b2.st.stations[0].niv === 1 && G.mobilierCran(b2.st, 'four') === 4 && G.tenueBoulanger(b2.st).tete.forme === 'toque' && G.quartier(b2.st) < G.QUARTIERS.length, 'une photo pauvre : une boutique de départ, crans plafonnés au maximum, tenue de base'); }
+    check(b2 && b2.st.stations[0].niv === 1 && G.mobilierCran(b2.st, 'four') === 4 && G.tenueBoulanger(b2.st).tete.forme === 'toque' && G.quartier(b2.st) < G.QUARTIERS.length, 'une photo pauvre : une boutique de départ, crans plafonnés au maximum, tenue de base');
+    // les recettes de boutique (19 octobre) : les seize postes passent, au pire sous 2 Ko ; une photo d'avant (huit postes) se rebâtit, les autres à 0 ;
+    // un quartier du parcours (la gare, n°10) se retrouve chez le copain
+    const s16 = G.newState(T); s16.boutiques = 10; s16.quartierFixe = G.quartierDe(10); s16.nomBoutique = 'Ω'.repeat(30); s16.stations.forEach((x, i) => { x.niv = 999999 - i; x.staff = true; }); for (const pr of G.PRODUITS) s16.apprentis[pr.id] = { xp: G.APPRENTI_NIVEAUX[4] };
+    const p16 = CL.photo(s16, { G, coupes: Array(12).fill('or'), badge: true }), b16 = CL.boutiqueDepuisPhoto(p16, { G, maintenant: T });
+    check(p16 && CL.octetsJson(p16) <= 2048 && p16.p.length === 16 && p16.p[15][0] === 999984 && p16.p[15][2] === 5 && b16.st.stations[15].niv === 999984 && G.gradeApprenti(b16.st, 15) === 5 && b16.quartier === 'la gare',
+      `seize recettes : les niveaux des recettes de boutique passent, grade compris (${p16 && CL.octetsJson(p16)} octets au pire), le quartier de la gare aussi`);
+    const avant8 = Object.assign({}, p, { p: p.p.slice(0, 8) }), b8 = CL.boutiqueDepuisPhoto(avant8, { G, maintenant: T });
+    check(b8 && b8.st.stations.length === G.PRODUITS.length && b8.st.stations[7].niv === 257 && b8.st.stations.slice(8).every((x) => x.niv === 0 && !x.staff), 'une photo d’avant (huit postes) : rebâtie, les recettes de boutique à 0'); }
 
   console.log('── la photo : les statistiques (x) et l’événement en cours (e) ──');
   const Q = require('../src/quartier.js'), H = require('../src/hantee.js');
