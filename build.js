@@ -8,7 +8,7 @@
 const fs = require('fs'), path = require('path');
 const read = (f) => fs.readFileSync(path.join(__dirname, 'src', f), 'utf8');
 const css = read('style.css'), body = read('page.html');
-const js = ['game.js', 'blackjack.js', 'horloge.js', 'classement.js', 'icons.js', 'vie.js', 'modeles.js', 'kenney.js', 'meubles.js', 'persos.js', 'hd.js', 'scene.js', 'atelier.js', 'arriere.js', 'garderobe.js', 'activites.js', 'quartier.js', 'hantee.js', 'evenement.js', 'zzfx.js', 'sons.js', 'ui.js'].map((f) => `/* ── ${f} ── */\n${read(f)}`).join('\n');
+const js = ['game.js', 'blackjack.js', 'horloge.js', 'classement.js', 'icons.js', 'vie.js', 'modeles.js', 'kenney.js', 'meubles.js', 'persos.js', 'hd.js', 'scene.js', 'atelier.js', 'arriere.js', 'garderobe.js', 'activites.js', 'quartier.js', 'hantee.js', 'evenement.js', 'zzfx.js', 'sons.js', 'chat.js', 'ui.js'].map((f) => `/* ── ${f} ── */\n${read(f)}`).join('\n');
 const three = fs.readFileSync(path.join(__dirname, 'vendor', 'three.min.js'), 'utf8'); // Three.js r158 (UMD), vendu dans le dépôt
 const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

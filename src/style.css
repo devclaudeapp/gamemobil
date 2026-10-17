@@ -1260,3 +1260,86 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
 .et-jauge-barre i { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--beurre), var(--beurre-sombre)); transition: width .6s ease-out; }
 .et-jauge small { font: 700 var(--t-petit)/1.3 var(--texte-font); color: var(--texte-2); }
 @media (prefers-reduced-motion: reduce) { .et-jauge-barre i { transition: none; } }
+
+/* ─── le chat des boulangers (src/chat.js) : le bouton rond du coin (un liseré ciel, la pastille des non-lus en fraise), la feuille plein écran ─── */
+.rond.tchat { box-shadow: 0 3px 0 #7FB8E6, 0 4px 10px rgba(74, 51, 40, .12); }
+.rang-pastille.tc-nonlus { background: var(--fraise); color: #fff; }
+#tchat { position: fixed; left: 0; right: 0; top: 0; height: 100%; z-index: 10; display: flex; flex-direction: column; background: var(--creme);
+  padding: env(safe-area-inset-top, 0px) 0 0; animation: atEntre .22s ease-out; overflow: hidden; }
+#tchat .tc-haut { background: var(--creme); box-shadow: 0 2px 10px rgba(74, 51, 40, .08); padding-bottom: 8px; position: relative; z-index: 1; }
+.tc-fil { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; display: flex; flex-direction: column; gap: 4px; padding: 12px 12px 16px; }
+.tc-fil > :first-child { margin-top: auto; } /* peu de messages : ils se tiennent en bas, près de la barre */
+.tc-jour { align-self: center; margin: 10px 0 4px; padding: 3px 10px; border-radius: 999px; background: rgba(74, 51, 40, .07); font: 800 11px/1.3 var(--texte-font); color: var(--texte-2); }
+.tc-reseau { align-self: center; margin: 0 0 6px; padding: 5px 12px; border-radius: 999px; background: var(--or-clair); font: 800 12px/1.3 var(--texte-font); color: var(--texte); }
+.tc-msg { display: flex; flex-direction: column; max-width: 80%; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.tc-msg.autre { align-self: flex-start; align-items: flex-start; }
+.tc-msg.moi { align-self: flex-end; align-items: flex-end; }
+.tc-msg.autre:not(.suite) { margin-top: 6px; }
+.tc-pseudo { margin: 0 0 2px 12px; font: 800 12px/1.2 var(--texte-font); color: var(--lavande-sombre); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-bulle { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 64px; max-width: 100%; padding: 8px 12px 6px; border-radius: 18px; background: var(--carte); box-shadow: 0 2px 6px rgba(74, 51, 40, .08); }
+.tc-msg.autre .tc-bulle { border-bottom-left-radius: 6px; }
+.tc-msg.moi .tc-bulle { background: var(--fraise); color: #fff; border-bottom-right-radius: 6px; box-shadow: 0 2px 0 var(--fraise-sombre); }
+.tc-txt { margin: 0; font: 700 15px/1.35 var(--texte-font); white-space: pre-wrap; overflow-wrap: anywhere; }
+.tc-bulle time { align-self: flex-end; font: 700 10.5px/1 var(--texte-font); color: var(--gris-texte); font-variant-numeric: tabular-nums; }
+.tc-msg.moi .tc-bulle time { color: rgba(255, 255, 255, .8); }
+.tc-msg:active .tc-bulle { filter: brightness(.97); }
+/* les photos et les GIF : une case de taille fixe (le défilement ne saute pas quand elles arrivent), l'image recadrée dedans */
+.tc-photo, .tc-gifm { display: block; width: 200px; max-width: 100%; height: 150px; margin: -2px -6px 0; border-radius: 13px; overflow: hidden; background: var(--gris) linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .55) 50%, transparent 70%) 0 0 / 200% 100%; animation: brille 1.4s linear infinite; }
+.tc-photo img, .tc-gifm img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tc-photo:not(.chargee) img { visibility: hidden; }
+.tc-photo.chargee, .tc-gifm { animation: none; }
+.tc-photo.effacee { height: 44px; animation: none; background: rgba(74, 51, 40, .06); display: grid; place-items: center; }
+.tc-photo.effacee::after { content: 'Photo effacée'; font: 800 12px/1 var(--texte-font); color: var(--texte-2); }
+.tc-photo.effacee img { display: none; }
+.tc-msg.moi .tc-photo.effacee { background: rgba(255, 255, 255, .2); } .tc-msg.moi .tc-photo.effacee::after { color: #fff; }
+@media (prefers-reduced-motion: reduce) { .tc-photo, .tc-gifm { animation: none; } }
+.tc-vide { align-self: center; display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 300px; margin: auto; padding: 22px 18px; border-radius: var(--r-carte); background: var(--carte); box-shadow: var(--ombre-carte); text-align: center; }
+.tc-vide b { font: 700 19px/1.2 var(--titre); }
+.tc-vide span { font-size: 14px; color: var(--texte-2); }
+.tc-vide .tc-pic { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; background: var(--ciel-clair); }
+.tc-vide .tc-pic svg { width: 38px; height: 38px; }
+.tc-nouveaux { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 86px); transform: translateX(-50%); z-index: 2; min-height: 36px; padding: 0 14px; border-radius: 999px; background: var(--texte); color: #fff; font: 800 13px/1 var(--texte-font); box-shadow: 0 4px 12px rgba(74, 51, 40, .25); }
+/* la barre de saisie */
+.tc-bas { flex: 0 0 auto; display: grid; gap: 8px; padding: 8px 10px calc(env(safe-area-inset-bottom, 0px) + 10px); background: var(--creme); box-shadow: 0 -2px 12px rgba(74, 51, 40, .10); border-radius: 22px 22px 0 0; position: relative; z-index: 1; }
+.tc-saisie { display: flex; align-items: center; gap: 6px; }
+.tc-outil { flex: 0 0 auto; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--carte); box-shadow: 0 3px 0 var(--gris-sombre); }
+.tc-outil .ico svg { width: 24px; height: 24px; }
+.tc-outil:active, .tc-envoyer:active { transform: translateY(3px); box-shadow: none; }
+.tc-outil.tc-gif { font: 700 13px/1 var(--titre); color: var(--texte); letter-spacing: .02em; }
+.tc-outil.tc-gif.bientot { color: var(--gris-texte); }
+.tc-champ { position: relative; flex: 1 1 auto; min-width: 0; }
+.tc-champ input { width: 100%; height: 44px; padding: 0 14px; border: 2px solid var(--ligne); border-radius: 22px; background: var(--carte); font: 700 16px/1 var(--texte-font); color: var(--texte); outline: none; } /* 16 px : l'iPhone ne zoome pas au toucher */
+.tc-champ input:focus { border-color: var(--lavande); }
+.tc-compte { position: absolute; right: 12px; top: -9px; padding: 1px 6px; border-radius: 999px; background: var(--creme); font: 800 10.5px/1.3 var(--texte-font); color: var(--texte-2); }
+.tc-compte.trop { color: var(--fraise-sombre); }
+.tc-envoyer { flex: 0 0 auto; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: var(--fraise); box-shadow: 0 3px 0 var(--fraise-sombre); }
+.tc-envoyer .ico svg { width: 24px; height: 24px; stroke: #fff; }
+#tchat.envoi .tc-envoyer { opacity: .5; pointer-events: none; }
+.tc-note { margin: 0; padding: 7px 12px; border-radius: 14px; background: var(--rose-clair); font: 800 13px/1.3 var(--texte-font); color: var(--fraise-sombre); text-align: center; }
+.tc-piece { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 8px; border-radius: 16px; background: var(--carte); box-shadow: var(--ombre-carte); }
+.tc-apercu { flex: 0 0 auto; width: 48px; height: 48px; border-radius: 10px; overflow: hidden; background: var(--gris); }
+.tc-apercu img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tc-piece-txt { flex: 1 1 auto; min-width: 0; font: 800 13px/1.3 var(--texte-font); color: var(--texte-2); }
+.tc-retirer { flex: 0 0 auto; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; }
+.tc-retirer .ico svg { width: 20px; height: 20px; }
+#tc-rejoindre { min-height: 60px; }
+#tc-rejoindre b { font-size: 17px; white-space: normal; }
+#tc-rejoindre small { color: var(--texte); opacity: .75; }
+/* les GIF : une grille de trois colonnes qui monte du bas, la recherche en tête, « Propulsé par GIPHY » au pied */
+.tc-gifs { position: absolute; left: 0; right: 0; bottom: 0; height: min(68%, 560px); z-index: 3; display: flex; flex-direction: column; gap: 8px; padding: 10px 10px calc(env(safe-area-inset-bottom, 0px) + 8px); background: var(--creme); border-radius: 24px 24px 0 0; box-shadow: 0 -8px 24px rgba(74, 51, 40, .18); animation: monte .22s cubic-bezier(.2, .8, .2, 1); }
+.tc-gif-haut { display: flex; align-items: center; gap: 8px; }
+.tc-gif-haut input { flex: 1 1 auto; min-width: 0; height: 44px; padding: 0 14px; border: 2px solid var(--ligne); border-radius: 22px; background: var(--carte); font: 700 16px/1 var(--texte-font); color: var(--texte); outline: none; }
+.tc-gif-haut input:focus { border-color: var(--lavande); }
+.tc-gif-grille { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 104px; gap: 6px; align-content: start; }
+.tc-gif-choix { border-radius: 12px; overflow: hidden; background: var(--gris); }
+.tc-gif-choix img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tc-gif-choix:active { transform: scale(.96); }
+.tc-gif-etat { grid-column: 1 / -1; margin: 24px 0; text-align: center; font-size: 14px; color: var(--texte-2); }
+.tc-giphy { align-self: center; font: 800 11px/1 var(--texte-font); color: var(--gris-texte); letter-spacing: .04em; text-transform: uppercase; }
+/* l'appui long : le menu (Signaler, Effacer, Annuler) ; l'image agrandie */
+.tc-menu { position: absolute; inset: 0; z-index: 4; display: flex; align-items: flex-end; background: rgba(74, 51, 40, .35); animation: atEntre .15s ease-out; }
+.tc-menu-boite { width: 100%; display: grid; gap: 10px; padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 16px); background: var(--creme); border-radius: 24px 24px 0 0; }
+.tc-menu-boite small { font: 800 12px/1.2 var(--texte-font); color: var(--texte-2); }
+.tc-menu-boite p { margin: 0 0 4px; font-size: 15px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.tc-zoom { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: 16px; background: rgba(28, 20, 16, .92); animation: atEntre .15s ease-out; }
+.tc-zoom img { max-width: 100%; max-height: 100%; border-radius: 12px; object-fit: contain; }

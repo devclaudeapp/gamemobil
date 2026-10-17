@@ -29,6 +29,7 @@
     boostPourboire: [2, 600], // un pourboire reçu : un boost ×2 de 10 min dans la réserve
     boostObjectif: [5, 900], // l'objectif commun réussi (et qu'on y a contribué) : un boost ×5 de 15 min, et le badge « Esprit d'équipe »
     objectif: 60e3, // l'objectif commun relu une fois par minute au plus
+    chatLimite: 50, // le chat général : les 50 derniers messages au plus par lecture
   };
 
   // ─── le lundi de la semaine, heure de Paris (règle européenne : l'heure d'été va du dernier dimanche de mars au dernier dimanche d'octobre, à 1 h UTC) ───
@@ -433,6 +434,31 @@
     return (Array.isArray(l) ? l.slice(0, 50) : []).filter((x) => x && typeof x === 'object' && quandOk(x.quand) && String(x.de == null ? '' : x.de).trim())
       .map((x) => ({ de: String(x.de).slice(0, 40), quand: new Date(x.quand).toISOString() })).sort((a, b) => (a.quand < b.quand ? -1 : a.quand > b.quand ? 1 : 0));
   }
+  // ─── le chat général (supabase/fournil-chat.sql) : ce que rend le serveur, nettoyé avant d'arriver à l'interface ───
+  // Une image n'est gardée que si c'est une data URL d'image (webp, jpeg, png, gif) ; un GIF, que si c'est un identifiant GIPHY (lettres et chiffres).
+  const CHAT_TEXTE = 300, CHAT_IMAGE = 480000; // les plafonds du serveur : 300 caractères, une data URL de 480 000 caractères
+  const CHAT_IMG_OK = /^data:image\/(webp|jpeg|png|gif);base64,[A-Za-z0-9+/]+=*$/, CHAT_GIF_OK = /^[A-Za-z0-9]{5,40}$/;
+  const chatImageOk = (s) => typeof s === 'string' && s.length <= CHAT_IMAGE && CHAT_IMG_OK.test(s);
+  const chatGifOk = (s) => typeof s === 'string' && CHAT_GIF_OK.test(s);
+  const chatN = (v) => { const n = typeof v === 'string' && /^\d{1,15}$/.test(v) ? +v : v; return Number.isSafeInteger(n) && n > 0 ? n : null; }; // un bigint peut arriver en texte
+  function chatQuand(v) { // l'heure d'un message : des millisecondes (le contrat), ou une date ISO
+    const n = typeof v === 'number' ? v : typeof v === 'string' && /^\d{10,15}$/.test(v) ? +v : typeof v === 'string' ? Date.parse(v) : NaN;
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+  }
+  function nettoyerChat(d) { // { messages: [{ n, pseudo, texte, gif, image, cree, moi }] triés par n, dernier } ; null : réponse illisible
+    if (!d || typeof d !== 'object' || Array.isArray(d) || d.ok === false || !Array.isArray(d.messages)) return null;
+    const vus = new Set(), messages = [];
+    for (const m of d.messages.slice(0, 200)) {
+      if (!m || typeof m !== 'object') continue;
+      const n = chatN(m.n); if (!n || vus.has(n)) continue;
+      const texte = typeof m.texte === 'string' ? Array.from(m.texte).slice(0, CHAT_TEXTE).join('') : '', gif = chatGifOk(m.gif) ? m.gif : null, image = m.image === true;
+      if (!texte.trim() && !gif && !image) continue; // un message vide (son image effacée après 7 jours, sans texte) : rien à montrer
+      vus.add(n); messages.push({ n, pseudo: String(m.pseudo == null ? '' : m.pseudo).slice(0, 40), texte, gif, image, cree: chatQuand(m.cree), moi: m.moi === true });
+    }
+    messages.sort((a, b) => a.n - b.n);
+    const dernier = Math.max(chatN(d.dernier) || 0, messages.length ? messages[messages.length - 1].n : 0);
+    return { messages, dernier };
+  }
   // le jour de Paris ('AAAA-MM-JJ') : les quotas de pourboires (3 donnés, 3 boosts reçus) repartent chaque jour, comme au serveur
   function jourParis(ms) { const t = Number.isFinite(ms) ? ms : Date.now(); return new Date(t + decalageParis(t)).toISOString().slice(0, 10); }
   // les préférences des notifications : les quatre cas (a) boutique pleine, (b) ouverture et fin d'un événement, (c) pourboire, (d) objectif commun
@@ -532,7 +558,7 @@
     const points = () => { try { const p = E.points(); return ptsOk(p) ? { points: p.points, lundi: p.lundi } : null; } catch (e) { return null; } };
     const quartier = () => { try { const v = E.quartier(); return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : null; } catch (e) { return null; } }; // ses billets : seulement s'il y en a
     const evenement = () => { try { const v = E.evenement(); return v && typeof v === 'object' && evtOk(v.id) && typeof v.score === 'number' && Number.isFinite(v.score) && v.score > 0 ? { id: v.id, score: Math.floor(v.score) } : null; } catch (e) { return null; } }; // son score d'événement : seulement s'il y en a
-    const rpc = (nom, corps, o) => appeler(config(), nom, corps, { fetch: E.fetch, enLigne: E.enLigne, delaiMax: E.delaiMax, keepalive: o && o.keepalive });
+    const rpc = (nom, corps, o) => appeler(config(), nom, corps, { fetch: E.fetch, enLigne: E.enLigne, delaiMax: (o && o.delaiMax) || E.delaiMax, keepalive: o && o.keepalive }); // delaiMax : plus long pour une image du chat
 
     // une autre fenêtre (l'appli installée et l'onglet du navigateur partagent le même stockage) a pu écrire :
     // on reprend son identité si elle a changé (pseudo, rejoint, quitté), sinon l'horaire du dernier essai le plus récent (15 s pour toutes les fenêtres)
@@ -935,6 +961,61 @@
       return r.data && r.data.ok === true ? { etat: 'ok' } : { etat: 'refus', erreur: r.data && typeof r.data.erreur === 'string' ? r.data.erreur : 'inconnue' };
     }
 
+    // ─── le chat général (supabase/fournil-chat.sql, un script à part, collé par-dessus la v6) : tout le monde lit, seuls les joueurs du
+    // classement écrivent (pseudo et jeton, comme les autres fonctions). Le script pas encore collé : { etat: 'pas-ouvert' } (l'interface dit
+    // « bientôt ») ; sans toucher aux copains (sansCopains) : le chat a son propre script. Les refus du serveur : { etat: 'refus', erreur }.
+    const chatPasOuvert = (r) => (r && r.etat === 'pas-ouvert' ? { etat: 'pas-ouvert' } : null);
+    const chatRefus = (d) => ({ etat: 'refus', erreur: d && typeof d.erreur === 'string' ? d.erreur : 'inconnue' });
+    const chatMoi = () => { resynchroniser(); return etat.rejoint && etat.id && etat.jeton ? moi() : null; };
+    // les messages après le n° apres (0 : les 50 derniers) : { etat: 'ok', messages, dernier } ; avec un pseudo, p_id et p_jeton partent aussi :
+    // le serveur marque alors ses propres messages (moi), sinon moi vaut false
+    async function chatLire(apres) {
+      if (!config()) return { etat: 'absent' };
+      const a = chatN(apres) || 0, m = chatMoi();
+      const r = await rpc('fournil_chat_lire', Object.assign({ p_apres: a, p_limite: REGLES.chatLimite }, m || {})), x = chatPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      const d = nettoyerChat(r.data); return d ? { etat: 'ok', messages: d.messages, dernier: d.dernier } : { etat: 'erreur', detail: 'reponse' };
+    }
+    // l'image d'un message : { etat: 'ok', data } (data null : effacée après 7 jours, ou masquée)
+    async function chatImage(n) {
+      if (!config()) return { etat: 'absent' };
+      const k = chatN(n); if (!k) return { etat: 'invalide' };
+      const r = await rpc('fournil_chat_image', { p_n: k }), x = chatPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      return { etat: 'ok', data: r.data && chatImageOk(r.data.data) ? r.data.data : null };
+    }
+    // écrire : un texte (300 caractères au plus), un GIF (son identifiant GIPHY), une image (data URL) ; au moins l'un des trois. { etat: 'ok', n }
+    async function chatEnvoyer(o) {
+      if (!config()) return { etat: 'absent' };
+      const m = chatMoi(); if (!m) return { etat: 'pas-rejoint' };
+      const texte = String((o && o.texte) || '').trim(), gif = o && o.gif ? String(o.gif) : '', image = o && o.image ? String(o.image) : '';
+      if (Array.from(texte).length > CHAT_TEXTE) return chatRefus({ erreur: 'long' });
+      if (gif && !chatGifOk(gif)) return chatRefus({ erreur: 'gif' });
+      if (image && !chatImageOk(image)) return chatRefus({ erreur: 'image' });
+      if (!texte && !gif && !image) return chatRefus({ erreur: 'vide' });
+      const r = await rpc('fournil_chat_envoyer', Object.assign(m, { p_texte: texte || null, p_gif: gif || null, p_image: image || null }), { delaiMax: image ? 20e3 : 0 }), x = chatPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      return r.data && r.data.ok === true && chatN(r.data.n) ? { etat: 'ok', n: chatN(r.data.n) } : chatRefus(r.data);
+    }
+    // signaler le message d'un autre : { etat: 'ok', masque } (masque : c'était le 3e signalement, le message disparaît pour tous)
+    async function chatSignaler(n) {
+      if (!config()) return { etat: 'absent' };
+      const m = chatMoi(); if (!m) return { etat: 'pas-rejoint' };
+      const k = chatN(n); if (!k) return { etat: 'invalide' };
+      const r = await rpc('fournil_chat_signaler', Object.assign(m, { p_n: k })), x = chatPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      return r.data && r.data.ok === true ? { etat: 'ok', masque: r.data.masque === true } : chatRefus(r.data);
+    }
+    // effacer son propre message (et son image)
+    async function chatEffacer(n) {
+      if (!config()) return { etat: 'absent' };
+      const m = chatMoi(); if (!m) return { etat: 'pas-rejoint' };
+      const k = chatN(n); if (!k) return { etat: 'invalide' };
+      const r = await rpc('fournil_chat_effacer', Object.assign(m, { p_n: k })), x = chatPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      return r.data && r.data.ok === true ? { etat: 'ok' } : chatRefus(r.data);
+    }
+
     // les cadeaux (supabase/fournil-cadeaux.sql) : des euros déposés pour ce joueur, reçus une fois. cadeaux() → { etat, cadeaux: [{ n, montant, etoiles, motif }] } ;
     // cadeauRecu(n) les retire de la boîte. Un serveur sans la boîte (pas encore collée) : plus aucune lecture jusqu'au prochain lancement.
     let cadeauxAbsents = false;
@@ -988,6 +1069,7 @@
       chargerRecompenses, recompenses, choisirTenue, annonceFaite, lundi, battre, cadeaux, cadeauRecu,
       copains: () => !!config() && !ancien(), boutique, dons, pourboire, objectif, objectifVu: () => objCache, pourboiresRecus, accueillirPourboires, objectifFait,
       notifsPossibles, notifs, abonner, desabonner, planifier, essai,
+      chatLire, chatImage, chatEnvoyer, chatSignaler, chatEffacer,
       relire: () => { etat = lireEtat(E.stockage); prevenir(); return etat; },
       resynchroniser, tick,
     };
@@ -1062,5 +1144,6 @@
   return { CLE, REGLES, PERIODES, EVTS, ongletsEvenements, nettoyerEvenements, PSEUDO_MIN, PSEUDO_MAX, lundiParis, decalageParis, dateCourte, normaliserPseudo, verifierPseudo, messagePseudo, rangTexte, rangPhrase, boulangers,
     etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur,
     METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce,
-    PHOTO, EV_PHOTO, photo, nettoyerPhoto, clePhoto, boutiqueDepuisPhoto, evenementDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson };
+    PHOTO, EV_PHOTO, photo, nettoyerPhoto, clePhoto, boutiqueDepuisPhoto, evenementDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson,
+    CHAT_TEXTE, CHAT_IMAGE, chatImageOk, chatGifOk, nettoyerChat };
 });

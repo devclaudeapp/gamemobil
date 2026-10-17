@@ -461,6 +461,7 @@ const UI = (() => {
   const ilYA = (ms) => { const s = Math.max(0, (HORLOGE.maintenant() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
   // l'arrière-salle (src/arriere.js) : une fois la petite porte du fond trouvée, une carte discrète, tout en bas du Journal, y ramène
   const AR = typeof ARRIERE !== 'undefined' ? ARRIERE : null;
+  const TC = typeof TCHAT !== 'undefined' ? TCHAT : null; // le chat des boulangers (src/chat.js)
   const arriereTrouvee = () => !!(AR && st.arriere && st.arriere.trouvee);
   const cleArriere = () => (arriereTrouvee() ? (st.arriere.main && !st.arriere.main.fin ? 'ar-main' : 'ar') : '');
   const carteArriere = () => (arriereTrouvee() ? `<button type="button" class="card arriere-carte" data-arriere="1"><span class="pic">${ICONS.UI.arriere}</span><span class="t"><b>L’arrière-salle</b><small>${st.arriere.main && !st.arriere.main.fin ? 'Une main t’attend sur le tapis vert.' : 'La petite porte du fond est restée entrouverte.'}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>` : '');
@@ -1528,7 +1529,7 @@ const UI = (() => {
     // dernier lastSeen sauvé. Les sauts de l'heure sûre ne passent pas par ici (pas de trou entre les images) : payerSaut les plafonne.
     const trou = derniereImage ? now - derniereImage : 0; derniereImage = now;
     if (absencePrete && trou > 5000 && reprendre('saut')) { requestAnimationFrame(frame); return; }
-    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite; // pendant l'Atelier, la Planque ou une visite : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
+    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert); // pendant l'Atelier, la Planque ou une visite : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
     if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); }
     const out = G.tick(st, dt, HORLOGE.maintenant(), atelier ? () => 0.999 : undefined);
     if (out.ventes.length) {
@@ -1742,7 +1743,9 @@ const UI = (() => {
     const photo = () => { if (!st || !CLM.photo) return null; const r = recVue(); return CLM.photo(st, { G, coupes: r ? r.coupes : [], badge: !!(r && r.badge), dh: HTE && st[HTE.cle] ? st[HTE.cle].decos : [], ev: evPhoto() }); };
     const pleineA = () => (st ? HORLOGE.maintenant() + G.heuresAbsence(st) * 3600e3 : null);
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant(), photo, pleineA }) : null; } catch (e) { classement = null; }
-    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); if (pageActive === 'reglages') renderPage(); if (visite) peindreVisite(); tenterCopains(); }); majRecompenses(); classement.demarrer(); setTimeout(verifierCadeaux, 3000); setInterval(() => { if (document.visibilityState === 'visible') verifierCadeaux(); }, 10 * 60e3); setInterval(majRecompenses, 60e3);
+    // le chat des boulangers : son bouton rond sous les icônes des événements (seulement avec la configuration), la pastille des non-lus, sa feuille plein écran
+    if (TC) TC.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); }, rejoindre: () => sheetClassement() });
+    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); if (TC) TC.majBouton(); if (pageActive === 'reglages') renderPage(); if (visite) peindreVisite(); tenterCopains(); }); majRecompenses(); classement.demarrer(); setTimeout(verifierCadeaux, 3000); setInterval(() => { if (document.visibilityState === 'visible') verifierCadeaux(); }, 10 * 60e3); setInterval(majRecompenses, 60e3);
     // la liste ouverte se relit toute seule toutes les 30 s (qui vient d'arriver « en ligne », les points qui bougent) : seulement
     // sur l'onglet de la liste, page visible, sans doubler une lecture en vol ; la feuille fermée, plus rien
     setInterval(() => { if (vueCl === 'liste' && !feuille.hidden && document.visibilityState === 'visible' && !classement.enChargement(ongletCl)) classement.charger(ongletCl); }, (window.__relireClassement | 0) || 30e3); } // la tenue et la coupe changent aussi au lundi
@@ -1758,6 +1761,7 @@ const UI = (() => {
       hantee: () => (HTE ? HTE.ouvrir() : false), fermerHantee: () => { if (HTE) HTE.fermer(); }, evHantee: HTE, HT, annoncerEvenements: (f) => (EVS ? EVS.annoncer(f !== false) : false), chatNoir, choisirPelage, compagnons: (retour) => sheetCompagnons(retour), choisirCompagnon: (id) => { const r = G.choisirCompagnon(st, id); if (r.ok) { save(); majChat(); } return r; }, modeleVu, majChat, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin,
       visiter: (p, ev) => visiter(p, true, ev), finVisite, visite: () => (visite ? { pseudo: visite.pseudo, scene: visite.scene, charge: visite.charge, etat: visite.etat, nom: visite.b ? visite.b.nom : null, ev: visite.E ? visite.E.cle : null, ev3: !!visite.ev3, images: visite.images, calls: visite.ev3 ? visite.ev3.calls : 0, q: visite.qe ? { postes: visite.qe.postes.map((x) => [x.niv, x.staff]), paliers: visite.qe.paliers.length, total: visite.qe.total, decos: visite.qe.decos.slice() } : null } : null), // classement v6 (pour les tests)
       fiche: () => (fiche ? { pseudo: fiche.pseudo, charge: fiche.charge, etat: fiche.etat, photo: !!(fiche.data && fiche.data.photo), stats: !!(fiche.b && fiche.b.stats) } : null), ficheCopain, tenterCopains,
+      tchat: TC,
       arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false), fermerArriere: () => { if (AR) AR.fermer(); }, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }
   document.addEventListener('DOMContentLoaded', boot);

@@ -1,6 +1,7 @@
 // Service worker du Fournil (portée : /fournil/) : le jeu reste jouable hors ligne. L'écran d'accueil l'enregistre aussi, pour qu'il marche sans réseau même jamais ouvert.
 // Son cache porte le préfixe « fournil-jeu- » ; il ne touche jamais aux caches des autres pages du dépôt (l'écran d'accueil a le sien).
-// Le classement en ligne : config.js (adresse et clé publique) passe par le réseau d'abord ; les appels à Supabase ne sont jamais interceptés ni mis en cache.
+// Le classement en ligne : config.js (adresse et clé publique) passe par le réseau d'abord ; les appels à Supabase ne sont jamais interceptés ni mis en cache,
+// pas plus que les GIF du chat (GIPHY : externes, ils ne passeraient déjà pas par le cache, qui ne prend que ce site et les polices ; on le dit quand même).
 // L'horloge de confiance (src/horloge.js) lit l'heure du serveur dans l'en-tête Date d'une requête « ?heure=… » : elle va toujours au réseau, jamais au cache.
 const CACHE = 'fournil-jeu-v4';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './config.js', '../vendor/three.min.js', '../icons/icon.svg', '../icons/icon-180.png', '../icons/icon-192.png', '../icons/icon-512.png', '../icons/icon-maskable-512.png'];
@@ -12,6 +13,7 @@ self.addEventListener('fetch', (e) => {
   const req = e.request;
   const url = new URL(req.url);
   if (/(^|\.)supabase\.(co|in)$/.test(url.hostname)) return; // le classement : toujours le réseau, jamais de copie
+  if (/(^|\.)giphy\.com$/.test(url.hostname)) return; // les GIF du chat (api.giphy.com, media.giphy.com) : toujours le réseau, jamais de copie
   if (url.origin === self.location.origin && url.searchParams.has('heure')) return; // l'heure du serveur : toujours le réseau (une copie donnerait une vieille heure)
   if (url.origin === self.location.origin && url.pathname === new URL('./version.json', self.location).pathname) return; // la version en ligne : toujours le réseau (src/ui.js, verifierVersion)
   if (req.method !== 'GET') return;
