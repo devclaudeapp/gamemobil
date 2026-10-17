@@ -6,6 +6,8 @@
 //    entière < 400 Ko) ; le budget d'appels de dessin au pire palier, tout le mobilier au max (éco ≤ 72, haute ≤ 80) ; l'annonce « Ta boutique
 //    monte en gamme » au passage de la n°5 à la n°6 (et pas de la n°6 à la n°7) ; la ligne « Standing » des feuilles Étoiles et Parcours ;
 //    la visite d'un copain au palier 3 ; une vieille photo (sans l) → palier 0 ; aucune erreur dans la page.
+// 2 bis) Le soir et à Noël (budgets) ; le cache des textures de salle borné ; en 390 × 844 et 360 × 640, les pièces du standing (colonnes,
+//    poteaux, statue, trophée) et les décors HD ne s’interpénètrent pas, rien dans le vide, hors de l’écran ni sur la chambre froide.
 // 3) Avec « tout déplaçable » (lot 4) : un aménagement libre au palier 5, village et capitale, haute et éco (valide, rien sur les colonnes ni
 //    les cordons du trottoir, voies depuis l’allée, zones de touche ≥ 44 px, budgets tenus) ; le mode Déplacer pendant un glisser au doigt.
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-standing.cjs
@@ -69,8 +71,8 @@ const attendre = async (f, ms) => { const t0 = Date.now(); while (Date.now() - t
 const QS = [['village', 0], ['capitale', G.QUARTIERS.findIndex((q) => q.id === 'capitale')]];
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-  async function ouvrir(q) {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+  async function ouvrir(q, taille) {
+    const ctx = await browser.newContext({ viewport: taille || { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
     await ctx.addInitScript(() => { window.__sansEvenements = true; window.__sansQuartier = true; Object.defineProperty(window, 'confetti', { configurable: true, get: () => () => null, set: () => {} }); }); // des confettis comptés mais pas dessinés (des captures nettes)
     await ctx.route(/supabase\.co|googleapis|gstatic/, (r) => r.abort());
     const page = await ctx.newPage(), erreurs = [];
@@ -108,10 +110,28 @@ const QS = [['village', 0], ['capitale', G.QUARTIERS.findIndex((q) => q.id === '
       check(luxe.length >= 4 && poidsL <= 150 * 1024 && dossier <= 150 * 1024, `les modèles cuits du standing : ${luxe.length} demandés, ${Math.round(poidsL / 1024)} Ko (dossier fournil/hd/luxe : ${Math.round(dossier / 1024)} Ko ≤ 150 Ko)`);
       check(poidsB < 400e3, `la boutique en haute, standing compris : ${Math.round(poidsB / 1024)} Ko de modèles (< 400 Ko)`);
     } else check(demandes.length === 0, `en éco, aucun modèle HD demandé (${demandes.length})`);
-    for (const [h, nom] of [[21.5, 'soir']]) { // le soir : les lanternes, les bougies des lustres s'allument
-      await ev((h) => window.__fournil.scene({ heure: h }), h); await poser(ev, QS[1][1], 5); await sleep(2500);
-      await page.screenshot({ path: path.join(out, `capitale-5-${qual}-${nom}.png`) }); await ev(() => window.__fournil.scene({ heure: 11 }));
-    }
+    // les textures du sol et du mur : un décor par quartier ET par palier (12 vus ici) ; le cache n'en garde que les 3 derniers (sol + mur)
+    const enCache = await ev(() => MEUBLES.sallesEnCache);
+    check(enCache <= 6, `après 12 décors, le cache des salles garde ${enCache} textures de sol et de mur (≤ 6 : les 3 derniers décors vus)`);
+    // le soir (21 h 30) : les lanternes s'allument, la lueur DANS le maillage du standing (pas d'appel de dessin en plus) ; le budget tient
+    { await ev(() => window.__fournil.scene({ heure: 21.5 })); let pireS = { decor: 0 };
+      for (let s = 0; s <= 5; s++) {
+        await poser(ev, QS[1][1], s);
+        await attendre(() => ev(([s, hd]) => { const v = window.__fournil.SCENE.standingVu; return v.palier === s && (!s || v.mailles > 0) && (!hd || !s || v.hd); }, [s, qual === 'haute']), 60000);
+        await sleep(qual === 'haute' ? 1800 : 900); const a = await decorAppels(ev); if (a.decor > pireS.decor) pireS = Object.assign({ s }, a);
+        if (s === 5) await page.screenshot({ path: path.join(out, `capitale-5-${qual}-soir.png`) });
+      }
+      check(pireS.decor <= max && pireS.standing <= 1, `${qual}, le soir, capitale, paliers 0 à 5 : au pire (palier ${pireS.s}) ${pireS.decor} appels pour le décor (≤ ${max}), dont ${pireS.standing} pour le standing, lueur des lanternes comprise (≤ 1)`); }
+    // Noël (le sapin et la guirlande : 6 appels) : un budget de saison, documenté. Sur master, mesuré comme ici, éco 76 et haute 80 :
+    // éco dépassait déjà 72 ; le standing y ajoute son maillage et, au palier 1+, les fleurs (qu'un joueur à trois améliorations a déjà) : +2 au plus.
+    { const maxNoel = qual === 'haute' ? 82 : 78; let pireN = { decor: 0 };
+      for (const h of qual === 'haute' ? [11, 21.5] : [11]) for (const s of [0, 3, 5]) {
+        await ev((h) => window.__fournil.scene({ heure: h, saison: ['noel'] }), h); await poser(ev, QS[1][1], s);
+        await attendre(() => ev(([s, hd]) => { const v = window.__fournil.SCENE.standingVu; return v.palier === s && (!s || v.mailles > 0) && (!hd || !s || v.hd); }, [s, qual === 'haute']), 60000);
+        await sleep(qual === 'haute' ? 1800 : 900); const a = await decorAppels(ev); if (a.decor > pireN.decor) pireN = Object.assign({ s, h }, a);
+      }
+      check(pireN.decor <= maxNoel, `${qual}, à Noël, capitale : au pire (palier ${pireN.s}, ${pireN.h} h) ${pireN.decor} appels pour le décor (budget de saison ≤ ${maxNoel})`);
+      await ev(() => window.__fournil.scene({ heure: 11 })); }
     check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
     await ctx.close();
   }
@@ -174,6 +194,29 @@ const QS = [['village', 0], ['capitale', G.QUARTIERS.findIndex((q) => q.id === '
     check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
     await ctx.close();
   }
+  console.log('── les pièces du standing en place : rien ne s’interpénètre, rien dans le vide, rien hors de l’écran ni sur une zone de touche ──');
+  for (const taille of [{ width: 390, height: 844 }, { width: 360, height: 640 }]) {
+    const { ctx, page, erreurs, ev } = await ouvrir('haute', taille), nomT = `${taille.width} × ${taille.height}`;
+    await ev(() => { const f = window.__fournil; for (const m of f.G.MOBILIER) for (let k = 0; k < m.max; k++) f.meuble(m.id); f.scene({ heure: 11, saison: ['halloween'] }); f.tiroir('ferme'); });
+    await poser(ev, QS[1][1], 5);
+    const pret = await attendre(() => ev(() => { const S = window.__fournil.SCENE, v = S.standingVu; return v.palier === 5 && v.hd && S.decorHDBoites.some((b) => b.nom === 'pumpkin_yellow_small'); }), 90000);
+    await sleep(1500);
+    const r = await ev(() => {
+      const S = window.__fournil.SCENE, E = S.standingVu.emprises, hd = S.decorHDBoites, W = VIE.W, froid = S.zones().froid;
+      const sol = (a, b) => a.x0 < b.x1 && b.x0 < a.x1 && a.z0 < b.z1 && b.z0 < a.z1 && a.y0 < b.y1 && b.y0 < a.y1; // deux boîtes monde qui se recouvrent
+      const ko = [];
+      for (let i = 0; i < E.length; i++) for (let j = i + 1; j < E.length; j++) { const a = E[i], b = E[j]; if (sol(a, b)) ko.push(`${a.nom} × ${b.nom}`); }
+      for (const b of hd) for (const e of E) if (sol(b, e)) ko.push(`${b.nom} (HD) × ${e.nom}`);
+      const vide = E.filter((e) => e.pied && e.appui && e.appui < e.pied).map((e) => `${e.nom} : pied ${e.pied.toFixed(1)} sur ${e.appui}`);
+      const hors = E.filter((e) => e.x0 < 0 || e.x1 > W).map((e) => `${e.nom} ${e.x0.toFixed(1)}..${e.x1.toFixed(1)}`);
+      const tr = E.find((e) => e.nom === 'trophee'), surFroid = tr && tr.x0 < froid.x + froid.w && tr.haut < froid.y + froid.h;
+      return { ko, vide, hors, surFroid, tr: tr && { x0: tr.x0, haut: tr.haut }, froidBas: froid.y + froid.h, citrouille: hd.find((b) => b.nom === 'pumpkin_yellow_small') };
+    });
+    check(pret && !r.ko.length && !r.vide.length && !r.hors.length && !r.surFroid, `${nomT}, palier 5, haute, Halloween : les colonnes, les poteaux des cordons, la statue, le trophée et les décors HD (la citrouille de la porte) ne s’interpénètrent pas ${r.ko.join(' | ')} ; rien n’est posé dans le vide ${r.vide.join(' | ')} ; rien ne sort de l’écran ${r.hors.join(' | ')} ; le trophée sous la chambre froide (haut ${r.tr ? r.tr.haut.toFixed(1) : '?'} ≥ ${r.froidBas.toFixed(1)}, sa pastille dégagée)`);
+    await page.screenshot({ path: path.join(out, `capitale-5-haute-${taille.width}.png`) });
+    check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
+    await ctx.close();
+  }
   console.log('── le standing et « tout déplaçable » ensemble : un aménagement libre au palier 5 ──');
   for (const qual of ['haute', 'eco']) {
     const { ctx, page, erreurs, ev } = await ouvrir(qual), cdp = await ctx.newCDPSession(page), max = qual === 'haute' ? 80 : 72;
@@ -182,14 +225,16 @@ const QS = [['village', 0], ['capitale', G.QUARTIERS.findIndex((q) => q.id === '
     if (qual === 'haute') await attendre(() => ev(() => window.__fournil.SCENE.meublesHD.length === 4), 60000);
     for (const [qn, qi] of QS) {
       await poser(ev, qi, 5);
-      // un aménagement libre : des tables, le coin salon et une table de la terrasse déplacés, chacun sur une place valide loin de la sienne
-      const code = await ev(() => { const f = window.__fournil, st = f.st, g = VIE.LAY.grille; delete st.amenagement; VIE.frame(0.016, st, Date.now());
-        for (const id of ['table1', 'table5', 'salon', 'table3', 'terrasse1', 'terrasse3', 'table6']) {
-          const m = VIE.LAY.mobiles.find((o) => o.id === id), ok = [];
-          for (let r = 0; r < g.rangs; r++) for (let c = 0; c < g.cols; c++) { const x = (c + 0.5) * g.pas, y = g.y0 + (r + 0.5) * g.pas, p = VIE.proposer(st, id, x, y); if (p && p.ok) ok.push({ p, d: Math.hypot(p.x - m.x, p.y - m.y) }); }
-          const loin = ok.filter((o) => o.d > 1.5 * g.pas).sort((a, b) => a.d - b.d); const pr = loin[Math.floor(loin.length / 2)]; if (pr) { st.amenagement = f.G.nettoyerAmenagement(pr.p.a); VIE.frame(0.016, st, Date.now()); }
+      // un aménagement libre : des tables, le coin salon et deux tables de la terrasse déplacés, chacun sur une place valide loin de la sienne
+      // (la terrasse, en x seulement, n'a que quelques colonnes libres entre la porte et ses voisines : elle bouge d'une colonne au moins)
+      const { code, rates } = await ev(() => { const f = window.__fournil, st = f.st, g = VIE.LAY.grille, rates = []; delete st.amenagement; VIE.frame(0.016, st, Date.now());
+        for (const id of ['terrasse1', 'terrasse3', 'table1', 'table5', 'salon', 'table3', 'table6']) {
+          const m = VIE.LAY.mobiles.find((o) => o.id === id), ok = [], ter = /^terrasse/.test(id);
+          for (let r = 0; r < (ter ? 1 : g.rangs); r++) for (let c = 0; c < g.cols; c++) { const x = (c + 0.5) * g.pas, y = ter ? m.y : g.y0 + (r + 0.5) * g.pas, p = VIE.proposer(st, id, x, y); if (p && p.ok) ok.push({ p, d: Math.hypot(p.x - m.x, p.y - m.y) }); }
+          const loin = ok.filter((o) => o.d > (ter ? 0.4 : 1.5) * g.pas).sort((a, b) => a.d - b.d); const pr = ter ? loin[loin.length - 1] : loin[Math.floor(loin.length / 2)];
+          if (pr) { st.amenagement = f.G.nettoyerAmenagement(pr.p.a); VIE.frame(0.016, st, Date.now()); } else rates.push(id);
         }
-        f.save(); return f.G.codeAmenagement(st.amenagement); });
+        f.save(); return { code: f.G.codeAmenagement(st.amenagement), rates }; });
       const pret = await attendre(() => ev((code) => { const v = window.__fournil.SCENE.standingVu; return VIE.LAY.sig === code && v.palier === 5 && v.mailles > 0; }, code), 60000);
       await sleep(qual === 'haute' ? 2000 : 1000);
       const r = await ev(() => { const L = VIE.LAY, st = window.__fournil.st, z = window.__fournil.SCENE.zones(), a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v;
@@ -198,10 +243,15 @@ const QS = [['village', 0], ['capitale', G.QUARTIERS.findIndex((q) => q.id === '
         const petites = ['tables', 'bar', 'banquette', 'terrasse'].filter((id) => z[id] && (z[id].w < 44 || z[id].h < 44));
         const sous = L.mobiles.filter((m) => VIE.mobileAchete(m)).every((m) => { const o = VIE.mobileSous(m.r.x + m.r.w / 2, m.r.y + m.r.h - 2, true); return o && (o.id === m.id || inter(o.r, m.r)); });
         const assis = L.sieges.filter((s) => s.zone !== 'terrasse').every((s) => Array.isArray(s.voie) && s.voie.length && Math.abs(s.voie[0].x - L.allee) < 0.01);
-        return { valide: VIE.valider(st).ok, surStanding, petites, sous, assis, decor, standing: a.standing || 0, hd: window.__fournil.SCENE.standingVu.hd, honneur: L.T * 0.62 < L.grille.y0 };
+        // le trottoir du standing : une table de la terrasse amenée sur chaque colonne, chaque cordon est refusée (le standing, ou la porte, qui passe avant)
+        const refusTrottoir = (L.standingSol || []).map((x) => VIE.proposer(st, 'terrasse1', x.r.x + x.r.w / 2, L.terrasse[0].y)).every((p) => p && !p.ok && /colonnes|cordons|porte/.test(p.raison));
+        // les places d'honneur (statue, trophée) : au pied du fournil, au-dessus de la salle (leur bas à l'écran sous Y0) ; aucun meuble de la salle n'y monte
+        const hon = window.__fournil.SCENE.standingVu.emprises.filter((e) => e.nom === 'statue' || e.nom === 'trophee'), g = L.grille;
+        const honneur = hon.length === 2 && hon.every((e) => e.bas <= g.y0) && L.mobiles.every((m) => !m.dedans || m.r.y >= g.y0) && !VIE.proposer(st, 'table1', L.W / 2, g.y0 - g.pas).ok;
+        return { valide: VIE.valider(st).ok, surStanding, refusTrottoir, petites, sous, assis, decor, standing: a.standing || 0, hd: window.__fournil.SCENE.standingVu.hd, honneur };
       });
-      check(pret && code && r.valide && !r.surStanding.length && !r.petites.length && r.sous && r.assis && r.honneur && r.decor <= max && (qual !== 'haute' || r.hd),
-        `${qn}, palier 5, ${qual}, aménagement libre « ${code} » : appliqué et valide, aucun meuble sur les colonnes ou les cordons ${r.surStanding.join(' ')}, places d’honneur au-dessus de la salle, voies depuis l’allée, zones de touche ≥ 44 px ${r.petites.join(' ')}, chaque meuble se reprend au doigt ; ${r.decor} appels pour le décor (≤ ${max}), dont ${r.standing} pour le standing${qual === 'haute' ? (r.hd ? ', modèles cuits' : ', SANS les modèles cuits') : ''}`);
+      check(pret && code && !rates.length && code.slice(16) !== '---' && r.valide && !r.surStanding.length && r.refusTrottoir && !r.petites.length && r.sous && r.assis && r.honneur && r.decor <= max && (qual !== 'haute' || r.hd),
+        `${qn}, palier 5, ${qual}, aménagement libre « ${code} » (tables, salon et deux tables de la terrasse déplacés${rates.length ? ' ; SANS PLACE : ' + rates.join(' ') : ''}) : appliqué et valide, aucun meuble sur les colonnes ou les cordons ${r.surStanding.join(' ')}, la terrasse refusée sur chacun, la statue et le trophée au-dessus de la salle (aucune table n’y monte), voies depuis l’allée, zones de touche ≥ 44 px ${r.petites.join(' ')}, chaque meuble se reprend au doigt ; ${r.decor} appels pour le décor (≤ ${max}), dont ${r.standing} pour le standing${qual === 'haute' ? (r.hd ? ', modèles cuits' : ', SANS les modèles cuits') : ''}`);
       await page.screenshot({ path: path.join(out, `${qn}-5-amenage-${qual}.png`) });
     }
     if (qual === 'haute') { // le mode Déplacer au palier 5, pendant un glisser au doigt

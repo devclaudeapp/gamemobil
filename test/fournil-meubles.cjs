@@ -4,6 +4,9 @@
 // 2) Dans Chromium : bar, coin salon et terrasse achetés, un client vient s'asseoir à chacun (au bar, sur la banquette, en terrasse) ;
 //    les couverts restent cachés tant que personne n'est assis ; les zones de touche ouvrent la fiche de chaque meuble ; le budget
 //    d'appels de dessin du décor tient, en éco et en haute (meubles KayKit, fournil/hd/meubles2/) ; aucune erreur dans la page.
+// 1 ter) Les constats de la relecture du lot 4 : le doigt au centre d'un meuble le prend (pas celui de dessous), le coin du chat loin de l'allée,
+//    le chat et le client en route recasés quand un meuble bouge, un plan qui ne tient pas sur l'écran (Déplacer part du plan affiché),
+//    un écran large (grille bornée au code compact), les colonnes et les cordons du trottoir sans recouvrement.
 // Captures 390×844 dans test/shots/meubles/.
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-meubles.cjs   (--plan : la partie 1 seule)
 'use strict';
@@ -126,6 +129,76 @@ for (const [w, h, mi, nom] of [[390, 716, 356, 'iPhone 390 × 844'], [360, 514, 
   delete st.amenagement; VIE.frame(0.016, st, MAINTENANT); const L2 = VIE.LAY;
   check(L2.sig === '' && JSON.stringify(L2.sieges.map((s) => [s.id, s.x, s.y, s.voie])) + JSON.stringify([L2.tapis, L2.emplacements, L2.bar, L2.banquette]) === photo0, 'aménagement effacé (« Plan d’origine ») : le plan revient à l’identique, voies comprises');
 }
+
+// ─── 1 ter) les constats de la relecture du lot 4 : chacun a son test ───
+const interR = (p, q) => p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;
+const nouveau = () => { const st = GAME.newState(MAINTENANT); st.coins = 1e18; for (const id of ['tables', 'bar', 'banquette', 'terrasse']) for (let k = 0; k < 6; k++) GAME.ameliorerMeuble(st, id); return st; };
+function plansAuHasard(st, n, graine) { // n aménagements acceptés, tirés au doigt comme en 1 bis ; rend leurs codes (VIE.LAY suit le dernier)
+  let seed = graine; const rnd = () => ((seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648), codes = [];
+  for (let e = 0; codes.length < n && e < 3000; e++) {
+    const id = IDS_MOBILES[Math.floor(rnd() * IDS_MOBILES.length)], m = VIE.LAY.mobiles.find((o) => o.id === id), g = VIE.LAY.grille;
+    const p = VIE.proposer(st, id, m.x + (rnd() - 0.5) * 9 * g.pas, m.y + (rnd() - 0.5) * 7 * g.pas); if (!p.ok) continue;
+    st.amenagement = GAME.nettoyerAmenagement(p.a); VIE.frame(0.016, st, MAINTENANT); codes.push(VIE.LAY.sig);
+  }
+  return codes;
+}
+const casesVertes = (st, id) => { const g = VIE.LAY.grille; let n = 0; for (let r = 0; r < g.rangs; r++) for (let c = 0; c < g.cols; c++) { const p = VIE.proposer(st, id, (c + 0.5) * g.pas, g.y0 + (r + 0.5) * g.pas); if (p && p.ok) n++; } return n; };
+const casesTerrasse = (st, id) => { const g = VIE.LAY.grille; let n = 0; for (let c = 0; c < g.cols; c++) { const p = VIE.proposer(st, id, (c + 0.5) * g.pas, 0); if (p && p.ok) n++; } return n; };
+const vertes = (st, id) => (/^terrasse/.test(id) ? casesTerrasse(st, id) : casesVertes(st, id));
+for (const [w, h, mi, nom] of [[390, 716, 356, 'iPhone 390 × 844'], [360, 514, 229, 'iPhone 360 × 640']]) {
+  console.log(`── les constats du lot 4, ${nom} ──`);
+  VIE.resize(w, h, mi); let st = nouveau(); VIE.frame(0.016, st, MAINTENANT);
+  { const S = VIE.LAY.standingSol, ko = []; for (let i = 0; i < S.length; i++) for (let j = i + 1; j < S.length; j++) if (interR(S[i].r, S[j].r)) ko.push(`${S[i].nom} × ${S[j].nom}`);
+    check(S.length === 4 && !ko.length, `le standing du trottoir : les colonnes et les poteaux des cordons ne se recouvrent pas ${ko.join(' | ')}`); }
+  // la prise au doigt : le centre de chaque meuble prend CE meuble, même avec un autre posé juste dessous
+  { const ko = [], codes = plansAuHasard(st, 40, w * 31 + 7);
+    st.amenagement = GAME.amenagementDepuisCode('----------43-------'); VIE.frame(0.016, st, MAINTENANT); if (VIE.LAY.sig) codes.push(VIE.LAY.sig);
+    for (const code of codes) { st.amenagement = GAME.amenagementDepuisCode(code); VIE.frame(0.016, st, MAINTENANT);
+      for (const m of VIE.LAY.mobiles) for (const [x, y] of [[m.r.x + m.r.w / 2, m.r.y + m.r.h / 2], [m.x, m.y]]) { const o = VIE.mobileSous(x, y, false); if (!o || o.id !== m.id) ko.push(`${code} : centre de ${m.id} → ${o ? o.id : 'rien'}`); } }
+    check(codes.length >= 30 && !ko.length, `${codes.length} aménagements : le doigt au centre d’un meuble prend toujours ce meuble ${ko.slice(0, 3).join(' | ')}`); }
+  // le coin du chat et ses spots d'un plan aménagé : loin de l'allée (plus de 30·K de l'axe), hors du couloir des clients
+  { const ko = [], codes = plansAuHasard(st, 40, w * 17 + 3);
+    for (const code of codes) { st.amenagement = GAME.amenagementDepuisCode(code); VIE.frame(0.016, st, MAINTENANT); const L = VIE.LAY, K = L.K, ch = L.emplacements.chat;
+      if (interR(ch, { x: L.allee - 12 * K, y: L.grille.y0, w: 24 * K, h: L.devanture.y - L.grille.y0 })) ko.push(`${code} : le coin du chat dans l’allée`);
+      for (const k of [0, 1]) if (Math.abs(L.chatSpots[k].x - L.allee) < 30 * K - 1e-6) ko.push(`${code} : spot ${k} à ${Math.abs(L.chatSpots[k].x - L.allee) | 0} px de l’allée`); }
+    check(codes.length >= 30 && !ko.length, `${codes.length} aménagements : le coin du chat et ses spots loin de l’allée ${ko.slice(0, 3).join(' | ')}`); }
+  delete st.amenagement; VIE.frame(0.016, st, MAINTENANT);
+  // le chat assis là où l'on pose une table : il se lève et va à un coin libre
+  { st.chat = { nom: 'Mimi', caresses: 0, dernier: 0, adopte: MAINTENANT }; VIE.frame(0.016, st, MAINTENANT); const c = VIE.chat, L = VIE.LAY, sp = L.chatSpots[0];
+    Object.assign(c, { haut: false, etat: 'assis', x: sp.x, y: sp.y, t: 30, saut: 0, cible: null });
+    const g = L.grille; let pose = null; for (let r = 0; r < g.rangs && !pose; r++) for (let k = 0; k < g.cols && !pose; k++) { const p = VIE.proposer(st, 'table1', (k + 0.5) * g.pas, g.y0 + (r + 0.5) * g.pas); if (p.ok && interR(p.rect, { x: sp.x - 1, y: sp.y - 1, w: 2, h: 2 })) pose = p; }
+    if (pose) { st.amenagement = GAME.nettoyerAmenagement(pose.a); VIE.frame(0.016, st, MAINTENANT); for (let i = 0; i < 60; i++) VIE.frame(1 / 30, st, MAINTENANT); }
+    const pt = (x, y) => ({ x: x - 0.5, y: y - 0.5, w: 1, h: 1 }), horsTable = pose && !interR(pose.rect, pt(c.x, c.y)), cible = c.cible || { x: c.x, y: c.y };
+    const cibleLibre = !VIE.LAY.mobiles.some((m) => m.dedans && interR(m.r, pt(cible.x, cible.y)));
+    check(!!pose && horsTable && cibleLibre, `le chat assis à son coin, une table posée dessus : en 2 s il est sorti de la table, vers un coin libre (${pose ? `${c.etat} en ${c.x | 0}, ${c.y | 0} → ${cible.x | 0}, ${cible.y | 0}` : 'aucune place de table sur le chat'})`);
+    delete st.chat; delete st.amenagement; VIE.frame(0.016, st, MAINTENANT); }
+  // le client en route vers une table qu'on déplace : il fait demi-tour, à pied, et s'efface en sortant (pas d'un coup au milieu de la salle)
+  { VIE.forcer({}); const n0 = VIE.clients.length; VIE.installer('table', 60); const c = VIE.clients[VIE.clients.length - 1], s = c.siege, L = VIE.LAY;
+    c.etat = 'vaTable'; c.chemin = [{ x: L.allee, y: L.T * 0.76 }, ...s.voie, { x: s.x, y: s.y }]; c.wp = 1; c.x = L.allee; c.y = L.T * 0.76 + 2;
+    const ti = +/^table(\d)/.exec(s.id)[1], m = L.mobiles.find((o) => o.id === 'table' + ti), g = L.grille; let pose = null;
+    for (let r = 0; r < g.rangs && !pose; r++) for (let k = 0; k < g.cols && !pose; k++) { const p = VIE.proposer(st, 'table' + ti, (k + 0.5) * g.pas, g.y0 + (r + 0.5) * g.pas); if (p.ok && Math.hypot(p.x - m.x, p.y - m.y) > 2 * g.pas) pose = p; }
+    st.amenagement = GAME.nettoyerAmenagement(pose.a); VIE.frame(0.016, st, MAINTENANT);
+    const apres = { etat: c.etat, n: c.chemin.length, la: VIE.clients.includes(c) }; VIE.frame(0.05, st, MAINTENANT); const encore = VIE.clients.includes(c);
+    let t = 0, amin = 1; while (VIE.clients.includes(c) && t < 20) { VIE.frame(0.05, st, MAINTENANT); t += 0.05; amin = Math.min(amin, c.alpha); }
+    check(n0 >= 0 && apres.etat === 'sort' && apres.n >= 3 && apres.la && encore && t > 0.5 && amin < 0.5, `un client en route vers la table ${ti}, déplacée : il repart à pied (${apres.n} étapes, ${t.toFixed(1)} s) et s’efface en sortant (alpha ${amin.toFixed(2)})`);
+    delete st.amenagement; VIE.frame(0.016, st, MAINTENANT); }
+  // un aménagement qui ne tient pas sur cet écran : le mode Déplacer part du plan affiché (le plan d'origine), chaque meuble a des cases vertes
+  for (const [quoi, a] of [['fait sur un écran de 1280 px (la table 1 en colonne 35)', { v: 1, tables: [[35, 1], null, null, null, null, null], bar: null, salon: null, terrasse: [null, null, null] }], ['la table 4 en (1, 4)', GAME.amenagementDepuisCode('------14-----------')]]) {
+    st.amenagement = a; VIE.frame(0.016, st, MAINTENANT);
+    if (VIE.LAY.sig !== '') { check(true, `(${quoi} tient sur cet écran : rien à vérifier)`); continue; }
+    const v = VIE.valider(st), n = Object.fromEntries(IDS_MOBILES.map((id) => [id, vertes(st, id)]));
+    check(!v.ok && VIE.amenagementDemande !== '' && IDS_MOBILES.every((id) => n[id] > 0), `un aménagement ${quoi} qui ne tient pas ici (« ${v.raison} ») : la scène au plan d’origine, et le mode Déplacer en part — des cases vertes pour chaque meuble ${JSON.stringify(n)}`);
+  }
+  delete st.amenagement; VIE.frame(0.016, st, MAINTENANT);
+}
+{ // un grand écran (1280 × 800, la scène 1280 × 668) : la grille s'arrête où le code compact s'arrête (colonne 35) ; jamais de case verte au-delà
+  console.log('── les constats du lot 4, écran large 1280 × 800 ──');
+  VIE.resize(1280, 668, 300); const st = nouveau(); VIE.frame(0.016, st, MAINTENANT); const g = VIE.LAY.grille, ko = [];
+  for (const id of ['salon', 'table1', 'terrasse2']) for (let r = 0; r < g.rangs; r++) for (let c = 0; c < Math.ceil(1280 / g.pas); c++) { const p = VIE.proposer(st, id, (c + 0.5) * g.pas, /^terrasse/.test(id) ? 0 : g.y0 + (r + 0.5) * g.pas); if (p && p.ok && !GAME.nettoyerAmenagement(p.a)) ko.push(`${id} (${c}, ${r})`); if (/^terrasse/.test(id)) break; }
+  const loin = VIE.valider(st, { v: 1, tables: [[40, 2], null, null, null, null, null], bar: null, salon: null, terrasse: [null, null, null] });
+  check(g.cols <= GAME.AMEN_MAX + 1 && g.rangs <= GAME.AMEN_MAX + 1 && !ko.length && !loin.ok, `la grille : ${g.cols} colonnes (≤ ${GAME.AMEN_MAX + 1}) ; aucune case verte que le plan ne sait pas écrire ${ko.slice(0, 3).join(' ')} ; une case au-delà de 35 refusée (« ${loin.raison} »)`);
+}
+VIE.resize(390, 716, 356);
 
 if (process.argv.includes('--plan')) { console.log(fails ? `\n${fails} ÉCHEC(S)` : '\nLe plan passe.'); process.exit(fails ? 1 : 0); } // le plan seul (rapide)
 

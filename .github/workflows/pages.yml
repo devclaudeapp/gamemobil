@@ -84,8 +84,6 @@ jobs:
           node test/fournil-sons.cjs
           node test/fournil-persos.cjs
           node test/fournil-meubles.cjs
-          node test/fournil-standing.cjs
-          node test/fournil-amenage.cjs
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
@@ -96,8 +94,6 @@ jobs:
           PORT_QUARTIER: '8865'
           PORT_BLACKJACK: '8866'
           PORT_MEUBLES: '8870'
-          PORT_STANDING: '8874'
-          PORT_AMENAGE: '8875'
   # Une troisième tâche en parallèle (la première dépassait les 20 minutes) : les notifications, le réveil, les compagnons, la mise à jour, le chat, les nouveautés,
   # les recettes de boutique et le parcours du boulanger.
   fournil3:
@@ -136,8 +132,33 @@ jobs:
           PORT_CHAT: '8870'
           PORT_NOUVEAUTES: '8871'
           PORT_RETOURS: '8872'
+  # Une quatrième tâche en parallèle (fournil2 prend déjà plus de 17 minutes sur 20) : le standing des boutiques (12 décors, en haute et
+  # en éco, le soir, Noël, un téléphone 360 × 640) et « tout déplaçable » (au doigt).
+  fournil4:
+    name: Le Fournil, standing des boutiques et aménagement (Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Playwright et Chromium (hors du dépôt)
+        run: |
+          npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Le standing des boutiques et l'aménagement libre
+        run: |
+          node build.js
+          node test/fournil-standing.cjs
+          node test/fournil-amenage.cjs
+        env:
+          TZ: Europe/Paris
+          NODE_PATH: ${{ runner.temp }}/pw/node_modules
+          PORT_STANDING: '8874'
+          PORT_AMENAGE: '8875'
   deploy:
-    needs: [fournil, fournil2, fournil3]
+    needs: [fournil, fournil2, fournil3, fournil4]
     runs-on: ubuntu-latest
     environment:
       name: github-pages

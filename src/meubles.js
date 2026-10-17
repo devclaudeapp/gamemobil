@@ -27,8 +27,18 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   const coeur = (s) => forme('coeur' + s, () => { const f = new THREE.Shape(); f.moveTo(0, -s * 0.9); f.bezierCurveTo(-s * 1.3, -s * 0.1, -s * 0.6, s * 0.9, 0, s * 0.3); f.bezierCurveTo(s * 0.6, s * 0.9, s * 1.3, -s * 0.1, 0, -s * 0.9); return f; });
   const arche = (w, h) => forme('arche' + r2(w) + '|' + r2(h), () => { const s = new THREE.Shape(), r = w / 2; s.moveTo(-r, 0); s.lineTo(r, 0); s.lineTo(r, h - r); s.absarc(0, h - r, r, 0, Math.PI, false); s.lineTo(-r, 0); return s; });
   // ─── les textures du sol et du mur : les motifs 2D, discrets et pastel, mis en cache par quartier ───
+  // Un décor (Q.id) par quartier ET par palier du standing (« paris-s3 ») : jusqu'à 60. Le cache ne garde que les SALLES_MAX derniers vus
+  // (la boutique, celle d'avant pendant une transition, une visite ou l'atelier) ; les autres rendent leurs textures et leurs matériaux.
+  const SALLES = [], SALLES_MAX = 3;
+  function retenirSalle(id) {
+    const i = SALLES.indexOf(id); if (i === 0) return; if (i > 0) SALLES.splice(i, 1); SALLES.unshift(id);
+    while (SALLES.length > SALLES_MAX) {
+      const v = SALLES.pop();
+      for (const k of ['sol' + v, 'mur' + v]) { const tx = TEX.get(k); if (tx) { tx.dispose(); TEX.delete(k); } const m = MATS.get(k); if (m) { M.oublier(m); MATS.delete(k); } }
+    }
+  }
   function textureSol(Q) {
-    let tx = TEX.get('sol' + Q.id); if (tx) return tx;
+    retenirSalle(Q.id); let tx = TEX.get('sol' + Q.id); if (tx) return tx;
     tx = M.texture((c, w, h) => { // une tuile de 256 unités de côté
       c.fillStyle = Q.sol; c.fillRect(0, 0, w, h);
       if (Q.solStyle === 'planches') { const hb = 16; for (let r = 0; r * hb < h; r++) { const y = r * hb; c.fillStyle = r % 2 ? Q.sol2 : 'rgba(0,0,0,.035)'; c.fillRect(0, y, w, hb - 1); c.fillStyle = 'rgba(74,51,40,.10)'; for (let x = (r * 53) % 128; x < w; x += 128) c.fillRect(x, y, 1.5, hb - 1); } }
@@ -81,7 +91,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     if (Q.corniche) { c.fillStyle = M.assombrir(Q.mur2, 0.05); c.fillRect(0, 0, 390, haut - 2); c.fillStyle = Q.or; c.fillRect(0, haut - 2.4, 390, 1.6); c.fillStyle = 'rgba(255,255,255,.35)'; for (let x = 3; x < 390; x += 7) c.fillRect(x, 2, 3, haut - 6); }
   }
   function textureMur(Q) {
-    let tx = TEX.get('mur' + Q.id); if (tx) return tx;
+    retenirSalle(Q.id); let tx = TEX.get('mur' + Q.id); if (tx) return tx;
     tx = M.texture((c, w, h) => { // dessiné dans le repère du mur de référence : 390 × 81 px d'écran
       c.scale(w / 390, h / 81);
       const g = c.createLinearGradient(0, 0, 0, 81); g.addColorStop(0, Q.mur); g.addColorStop(1, Q.mur2); c.fillStyle = g; c.fillRect(0, 0, 390, 81);
@@ -734,25 +744,54 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   }
   // ─── le standing de la boutique (Q.standing 1 à 5, Q.objets : src/vie.js decor) : ce qui s'ajoute au décor, hors des chemins et des
   //     zones de touche — contre le mur du fond, en haut, aux deux coins du fournil, à la porte de la devanture et sur le trottoir.
-  //     Tout est fusionné en un maillage (1 appel de dessin) ; le soir, en haute, la lueur des lanternes en ajoute un (caché le jour).
+  //     Tout est fusionné en un maillage (1 appel de dessin, le soir compris : la lueur des lanternes est dans le même, lueurVerre).
   //     En qualité haute (c.hdLuxe : lots HD « luxe1/3/5 » chargés), les lanternes, les colonnes, la statue et le trophée sont des
   //     modèles cuits (fournil/hd/luxe/ : KayKit Halloween et Furniture Bits, Kenney Starter Kit, CC0) ; sinon tout est fait main.
   const hdl = (c, nom, o, col) => (c.hdLuxe && typeof HDM !== 'undefined' && HDM.part ? HDM.part('luxe/' + nom, o, col) : null);
+  // le verre des lanternes : une couleur à lui, que lueurVerre reconnaît dans le maillage fusionné (attribut « lueur » : 1 sur ses sommets)
+  const VERRE_LANTERNE = '#EADBB0';
+  function lueurVerre(mesh) { // sa lumière (uniform rendu) s'ajoute au verre seul, le reste ne change pas
+    const geo = mesh.geometry, col = geo.attributes.color.array, n = col.length / 3, l = new Float32Array(n), v = new THREE.Color(VERRE_LANTERNE);
+    for (let i = 0; i < n; i++) l[i] = Math.abs(col[i * 3] - v.r) < 1e-6 && Math.abs(col[i * 3 + 1] - v.g) < 1e-6 && Math.abs(col[i * 3 + 2] - v.b) < 1e-6 ? 1 : 0;
+    geo.setAttribute('lueur', new THREE.BufferAttribute(l, 1));
+    const u = { value: 0 }, teinte = { value: new THREE.Color('#FFD98A') };
+    const greffer = (mat) => { // sur le matériau du moment : le Lambert propre, ou son jumeau MeshStandard (src/scene.js habiller, palier riche)
+      if (mat.userData.lueur === u) return; mat.userData.lueur = u;
+      mat.onBeforeCompile = (sh) => {
+        sh.uniforms.uLueur = u; sh.uniforms.uLueurTeinte = teinte;
+        sh.vertexShader = 'attribute float lueur;\nvarying float vLueur;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvLueur = lueur;');
+        sh.fragmentShader = 'uniform float uLueur;\nuniform vec3 uLueurTeinte;\nvarying float vLueur;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += uLueurTeinte * (uLueur * vLueur);');
+      };
+      mat.customProgramCacheKey = () => 'lueur-verre|' + mat.type; mat.needsUpdate = true;
+    };
+    mesh.material = propre({ vertexColors: true }); greffer(mesh.material);
+    return (k) => { greffer(mesh.material); u.value = k; };
+  }
   function coinsStanding(c) { // les deux places d'honneur, au pied du fournil : à droite sous la plante de la déco, à gauche sous la chambre froide
-    const { LAY, W } = c; return { d: { x: W * 0.80, y: LAY.T * 0.62 }, g: { x: W * 0.045, y: LAY.T * 0.60 } };
+    const { LAY, W } = c; return { d: { x: W * 0.80, y: LAY.T * 0.62 }, g: { x: Math.max(W * 0.045, 18), y: LAY.T * 0.60 } }; // (à gauche, jamais coupé par le bord de l'écran)
   }
   function standing(c) { // (src/vie.js plan : standingSol garde la place des colonnes et des cordons sur le trottoir ; mêmes mesures, à changer ensemble)
     const { LAY, W, K, Q } = c, s = Q.standing || 0, ob = (id) => !!(Q.objets && Q.objets.includes(id)), g = grp('standing'), pr = [], lu = [];
     if (!s) return g;
     const or = Q.or || '#C9A35A', orF = M.assombrir(or, 0.25), dv = LAY.devanture, zd = c.wz(dv.y) + 2, x0 = dv.porte.x0, x1 = dv.porte.x1, coin = coinsStanding(c), Hm = c.wy(LAY.murH);
     const marbre = M.melange('#F4F0EA', Q.mur, 0.25);
-    const socle = (x, z, h) => { pr.push(P(bo(15, 2.5, 15, 0.8), M.assombrir(marbre, 0.08), { x, z }), P(M.cylindre(5.2, 5.6, h - 5, 12), marbre, { x, y: 2.5, z }), P(bo(13, 2.5, 13, 0.8), M.assombrir(marbre, 0.08), { x, y: h - 2.5, z }), P(bo(13.4, 0.7, 13.4, 0.2), or, { x, y: h - 3, z })); return h; };
+    // g.userData.emprises : les boîtes monde des pièces qui tiennent de la place (colonnes, poteaux, statue, trophée et ce qui les porte) —
+    // pour les tests : rien ne s'interpénètre, rien n'est posé dans le vide (appui ≥ pied), rien ne sort de l'écran ni ne couvre une zone de touche
+    const emp = g.userData.emprises = [], note = (nom, x, z, w, d, y0, y1, o) => emp.push(Object.assign({ nom, x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2, y0, y1 }, o || {}));
+    const dimsHD = (nom, h) => { const md = typeof HDM !== 'undefined' && HDM.cuit ? HDM.cuit('luxe/' + nom) : null; return md ? { w: md.w * h / md.h, d: md.d * h / md.h } : null; }; // (part() : échelle uniforme sur la hauteur)
+    // le socle de marbre : sa plaque du dessus fait l de côté (13 : les cotes d'origine), la base l + 2
+    const socle = (x, z, h, l = 13) => { pr.push(P(bo(l + 2, 2.5, l + 2, 0.8), M.assombrir(marbre, 0.08), { x, z }), P(M.cylindre(l * 0.4, l * 0.43, h - 5, 12), marbre, { x, y: 2.5, z }), P(bo(l, 2.5, l, 0.8), M.assombrir(marbre, 0.08), { x, y: h - 2.5, z }), P(bo(l + 0.4, 0.7, l + 0.4, 0.2), or, { x, y: h - 3, z })); note('socle', x, z, l + 2, l + 2, 0, h); return h; };
     // les plantes hautes en pot (1-4), aux deux places d'honneur ; au palier 5, la statue et le trophée les remplacent
     for (const [cote, p] of [['d', coin.d], ['g', coin.g]]) {
       const x = p.x, z = c.wz(p.y);
       if (cote === 'g' && c.chaudron) continue; // le chaudron de la Maison hantée occupe ce coin
-      if (ob('statue') && cote === 'd') { const h = socle(x, z, 14); const st = hdl(c, 'statue', { h: 48, x, y: h, z }); if (st) pr.push(st); else { pr.push(P(bo(11, 4, 9, 1), marbre, { x, y: h, z }), P(M.cone(7, 24, 10), marbre, { x, y: h + 4, z }), P(M.sphere(6, 10), marbre, { x, y: h + 33, z, sy: 1.1 }), P(M.tore(5.4, 1.1, Math.PI * 1.3, 5, 10), or, { x, y: h + 36, z: z + 0.5, rx: -0.4, rz: Math.PI * 1.15 })); } continue; } // le buste couronné de lauriers
-      if (ob('trophee') && cote === 'g') { const h = socle(x, z, 16); const tr = hdl(c, 'trophy', { h: 30, x, y: h, z }); if (tr) pr.push(tr); else pr.push(...partsCoupe('or', 1.7, x, h, z)); continue; }
+      // la statue cuite a son propre plinthe (25 de côté, 11 de haut) : posée au sol, sans socle de marbre sous elle (il était plus étroit : porte-à-faux)
+      if (ob('statue') && cote === 'd') { const st = hdl(c, 'statue', { h: 48, x, y: 0, z }); if (st) { const dm = dimsHD('statue', 48); pr.push(st); if (dm) note('statue', x, z, dm.w, dm.d, 0, 48, { pied: dm.w, appui: 0 }); continue; } const h = socle(x, z, 14); note('statue', x, z, 11, 9, h, h + 39, { pied: 11, appui: 13 }); { pr.push(P(bo(11, 4, 9, 1), marbre, { x, y: h, z }), P(M.cone(7, 24, 10), marbre, { x, y: h + 4, z }), P(M.sphere(6, 10), marbre, { x, y: h + 33, z, sy: 1.1 }), P(M.tore(5.4, 1.1, Math.PI * 1.3, 5, 10), or, { x, y: h + 36, z: z + 0.5, rx: -0.4, rz: Math.PI * 1.15 })); } continue; } // le buste couronné de lauriers
+      // le trophée : plus petit (le cuit fait 1,19 fois sa hauteur de large, anses comprises ; son pied octogonal 0,72 fois), un peu plus bas
+      // que la place d'honneur pour ne pas couvrir la chambre froide (sa pastille), sur un socle aussi large que son pied
+      if (ob('trophee') && cote === 'g') { const zt = c.wz(p.y + 12), tr = hdl(c, 'trophy', { h: 24, x, y: 10, z: zt }), dm = tr && dimsHD('trophy', 24), pied = dm ? 0.72 * 24 : 9 * 1.4;
+        const h = socle(x, zt, 10, Math.max(13, Math.ceil(pied) + 1)); if (tr) pr.push(tr); else pr.push(...partsCoupe('or', 1.4, x, h, zt));
+        note('trophee', x, zt, dm ? dm.w : 22.5, dm ? dm.d : 11, h, h + (tr ? 24 : 25), { pied, appui: Math.max(13, Math.ceil(pied) + 1) }); continue; }
       if (!ob('plantesHautes')) continue;
       const kk = KN() ? kp('pottedPlant', { h: 52, x, z }, { wood: s >= 3 ? or : Q.comptoir, woodDark: M.assombrir(Q.bois, 0.3), plant: '#3FB889' }) : null;
       if (kk) { pr.push(kk); continue; }
@@ -766,8 +805,10 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       for (const [m, coul, ep] of [[0, M.assombrir(col, 0.12), 0.5], [2.5, or, 0.6], [4, col, 0.7], [10, M.eclaircir(col, 0.3), 0.8], [12.5, col, 0.9]]) pr.push(P(M.cylindre(tw / 2 - m, tw / 2 - m, ep, 28), coul, { x: tx, z: tz, sz: (td - m * 2 * (td / tw)) / (tw - m * 2) }));
     }
     // les colonnes du portique (3+), de part et d'autre de la porte de la devanture, hors du store (qui les cacherait), contre la façade
+    // (mêmes mesures, à changer ensemble : src/vie.js standingSol, et la citrouille d'Halloween de src/scene.js decorHD, posée à droite de x1 + 14)
     const xc0 = x0 - 9, xc1 = x1 + 9;
     if (ob('colonnes')) for (const x of [xc0, xc1]) {
+      note('colonne', x, zd + 2, 10, 10, 0, 42);
       const kc = hdl(c, 'column', { h: 42, w: 10, d: 10, x, z: zd + 2 });
       if (kc) pr.push(kc, P(bo(11, 0.8, 11, 0.2), or, { x, y: 35.5, z: zd + 2 }));
       else { pr.push(P(bo(10, 3, 10, 0.8), marbre, { x, z: zd + 2 }), P(M.cylindre(3.6, 4, 34, 12), marbre, { x, y: 3, z: zd + 2 }), P(bo(10, 3.5, 10, 0.8), marbre, { x, y: 37, z: zd + 2 }), P(M.tore(3.8, 0.6, TAU, 5, 12), or, { x, y: 34, z: zd + 2, rx: HP }), P(M.tore(4.1, 0.6, TAU, 5, 12), or, { x, y: 4, z: zd + 2, rx: HP })); }
@@ -778,7 +819,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       pr.push(P(bo(1.6, 1.6, 4, 0.4), '#3B3440', { x, y: yl + 9, z: zl - 2.5 }));
       const kl = hdl(c, 'lantern_hanging', { h: 13, x, y: yl - 1, z: zl });
       if (kl) pr.push(kl); else pr.push(P(bo(6, 1.5, 6, 0.5), '#3B3440', { x, y: yl, z: zl }), P(M.cone(4.2, 3.5, 4), '#3B3440', { x, y: yl + 8, z: zl, ry: Math.PI / 4 }), P(M.sphere(1, 6), or, { x, y: yl + 12, z: zl }));
-      pr.push(P(bo(3.8, 6.3, 3.8, 0.8), '#EADBB0', { x, y: yl + 1.5, z: zl })); lu.push(P(bo(4, 6.5, 4, 0.8), '#FFE6A0', { x, y: yl + 1.5, z: zl })); // le verre (le jour), sa lueur (le soir)
+      pr.push(P(bo(3.8, 6.3, 3.8, 0.8), VERRE_LANTERNE, { x, y: yl + 1.5, z: zl })); lu.push(1); // le verre ; le soir, il s'allume (voir plus bas)
     }
     // le store rayé (2+) : au-dessus de la porte de la devanture, aux couleurs du quartier, un lambrequin festonné
     if (ob('marquise')) {
@@ -790,14 +831,16 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     if (ob('tapisRouge')) {
       const z1 = c.wz(LAY.trottoir.rue) - 4, lt = z1 - zd - 2, xc = (x0 + x1) / 2, wt = x1 - x0 - 6;
       pr.push(P(bo(wt, 0.7, lt, 0.3), '#B3243A', { x: xc, y: 0.4, z: zd + 2 + lt / 2 }), P(bo(1.2, 0.8, lt, 0.2), or, { x: xc - wt / 2 + 1.5, y: 0.45, z: zd + 2 + lt / 2 }), P(bo(1.2, 0.8, lt, 0.2), or, { x: xc + wt / 2 - 1.5, y: 0.45, z: zd + 2 + lt / 2 }));
-      const zb = [zd + 8, zd + 8 + Math.min(26, lt * 0.55)];
+      const zb = [zd + 10.5, zd + 8 + Math.min(26, lt * 0.55)]; // le poteau avant dégage le socle des colonnes (zd + 7) : sa base (r 3) part de zd + 7,5
       for (const x of [x0 - 3, x1 + 3]) {
-        for (const z of zb) pr.push(P(M.cylindre(2.6, 3, 1.2, 10), or, { x, z }), P(M.cylindre(0.7, 0.7, 13, 6), or, { x, y: 1, z }), P(M.sphere(1.5, 8), or, { x, y: 14.5, z }));
+        for (const z of zb) note('poteau', x, z, 6, 6, 0, 16), pr.push(P(M.cylindre(2.6, 3, 1.2, 10), or, { x, z }), P(M.cylindre(0.7, 0.7, 13, 6), or, { x, y: 1, z }), P(M.sphere(1.5, 8), or, { x, y: 14.5, z }));
         const l = zb[1] - zb[0]; pr.push(P(M.tore(l / 2, 0.75, Math.PI, 5, 12), '#8E1B2E', { x, y: 12.8, z: (zb[0] + zb[1]) / 2, ry: HP, rz: Math.PI, sy: 0.35 }));
       }
     }
-    g.add(M.maille(pr.filter(Boolean)));
-    if (lu.length && c.hdLuxe) { const m = M.maille(lu, { ombre: false }); m.material = propre({ vertexColors: true, emissive: '#FFD98A', emissiveIntensity: 0.35 }); m.visible = false; g.add(m); g.userData.anime = (E) => { m.visible = E.lampes > 0.02; m.material.emissiveIntensity = 0.35 + 0.65 * E.lampes; }; } // la lueur : avec les modèles cuits (haute), allumée le soir seulement (le jour et en éco, pas d'appel de dessin en plus)
+    const mm = M.maille(pr.filter(Boolean)); g.add(mm);
+    if (lu.length && c.hdLuxe) { // la lueur des lanternes : avec les modèles cuits (haute), le soir ; dans le MÊME maillage (pas d'appel de dessin en plus)
+      const allumer = lueurVerre(mm); g.userData.anime = (E) => allumer(E.lampes > 0.02 ? 0.35 + 0.65 * E.lampes : 0);
+    }
     return g;
   }
   // ─── la composition d'ensemble (pour l'atelier et la scène) ───
@@ -817,6 +860,6 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     if (c.Q && c.Q.standing) out.push(standing(c));
     return out;
   }
-  return { textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome, standing, coinsStanding };
+  return { get sallesEnCache() { return [...TEX.keys()].filter((k) => /^(sol|mur)/.test(k)).length; }, textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome, standing, coinsStanding };
 })();
 if (typeof module !== 'undefined') module.exports = MEUBLES;

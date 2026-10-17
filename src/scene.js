@@ -256,7 +256,7 @@ const SCENE = (() => {
     ...['citrouilles', 'toiles', 'chaudron', 'fantome'].map((id) => ({ id: 'ht-' + id, cle: () => (HDECO[id] && MEUBLES[id] ? '1' : null), faire: (k, c) => MEUBLES[id](c) })),
     // le badge « Esprit d'équipe » (l'objectif commun de la semaine réussi, classement v6) : une rosette accrochée au mur, à vie ; absent pour qui ne l'a pas
     { id: 'equipe', cle: () => (REC.equipe ? '1' : null), faire: (k, c) => rosetteEquipe(c) },
-    // le standing de la boutique (GAME.standing, palier 1 à 5) : ses objets (Q.objets) en un maillage (la lueur du soir en plus) ; en haute, ses modèles cuits (lots luxe*)
+    // le standing de la boutique (GAME.standing, palier 1 à 5) : ses objets (Q.objets) en un maillage (la lueur du soir comprise) ; en haute, ses modèles cuits (lots luxe*)
     { id: 'standing', cle: (E) => (E.Q.standing && MEUBLES.standing ? `${E.Q.standing}|${luxePret(E.Q.standing) ? 'hd' : ''}|${HDECO.chaudron ? 'c' : ''}|${typeof KENNEY !== 'undefined' && KENNEY && KENNEY.pret ? 'k' : ''}` : null), faire: (k, c) => MEUBLES.standing(c) },
   ];
   // les lots HD du standing nécessaires à un palier (src/hd.js : luxe1, luxe3, luxe5), et s'ils sont tous là (et la HD permise)
@@ -435,12 +435,12 @@ const SCENE = (() => {
     const k = `${W}x${H}|${LAY.bar.y | 0}|${LAY.sig}|${E.tags.includes('halloween') ? 'h' : ''}|${Object.keys(cles).length}|s${E.Q.standing || 0}`; // l'aménagement et le palier du standing : la scène change, on repose
     if (k === hdCle) return; hdCle = k;
     if (hdDecor) { scene.remove(hdDecor); M.dispose(hdDecor); }
-    const g = hdDecor = new THREE.Group(), S = W * 0.08, K = V.K, pose = (nom, x, y, z, o = {}) => { const m = HDM.modele(nom, S * (o.s || 1), o); if (m) { m.position.set(x, y, z); g.add(m); } return m; };
+    const g = hdDecor = new THREE.Group(), S = W * 0.08, K = V.K, pose = (nom, x, y, z, o = {}) => { const m = HDM.modele(nom, S * (o.s || 1), o); if (m) { m.position.set(x, y, z); m.userData.nomHD = nom; g.add(m); } return m; };
     // (les meubles de la salle, la lampe du coin salon comprise, sont des meubles KayKit fusionnés : MEUBLES.tables, bar, banquette, terrasse)
     pose('cactus_medium_A', LAY.entree.x - 34 * K, 0, wz(LAY.murH + 14 * K), { s: 0.6 }); // une plante près de la porte
     pose('cactus_small_A', LAY.comptoir.x + 8 * K, wy(LAY.comptoir.hFace + LAY.comptoir.hTop * 0.5), wz(LAY.comptoir.y + LAY.comptoir.hTop * 0.6), { s: 0.4 }); // un petit cactus sur le comptoir
     const pl = LAY.plan; pose('jar_A_large', pl.x + pl.w * 0.25, wy(pl.h * 0.55), wz(pl.y + pl.h * 0.6), { s: 0.25 }); pose('jar_B_medium', pl.x + pl.w * 0.45, wy(pl.h * 0.55), wz(pl.y + pl.h * 0.6), { s: 0.25 });
-    if (E.tags.includes('halloween')) { pose('pumpkin_orange_jackolantern', LAY.entree.x - 30 * K, 0, wz(LAY.murH + 22 * K), { s: 0.45 }); pose('pumpkin_orange', LAY.entree.x - 48 * K, 0, wz(LAY.murH + 30 * K), { s: 0.35 }); pose('pumpkin_yellow_small', LAY.devanture.porte.x1 + 9 * K, 0, wz(LAY.devanture.y + 9 * K), { s: 0.6 }); /* dehors, à droite de la porte */ }
+    if (E.tags.includes('halloween')) { pose('pumpkin_orange_jackolantern', LAY.entree.x - 30 * K, 0, wz(LAY.murH + 22 * K), { s: 0.45 }); pose('pumpkin_orange', LAY.entree.x - 48 * K, 0, wz(LAY.murH + 30 * K), { s: 0.35 }); pose('pumpkin_yellow_small', LAY.devanture.porte.x1 + 22, 0, wz(LAY.devanture.y + 9 * K), { s: 0.6 }); /* dehors, à droite de la porte, au-delà de la colonne droite du portique (x1 + 9 ± 5 : src/meubles.js standing, mêmes mesures) et de son cordon (x1 + 3) */ }
     habiller(g); scene.add(g);
   }
   function synchroniser(E, dt) {
@@ -721,13 +721,14 @@ const SCENE = (() => {
     precharger(lot) { if (typeof HDM === 'undefined' || !webgl || !HDM.permis(renderer)) return false; HDM.charger(lot); return true; }, // en arrière-plan, si le palier le permet
     alleger() { if (RICHE.post) { RICHE.post.liberer(); RICHE.post = null; } }, // un écran plein (la Planque) couvre la boutique : la passe d'effets rend sa mémoire, recréée au retour
     get decorHD() { return hdDecor ? hdDecor.children.length : 0; }, // les décors HD posés (pour les tests)
+    get decorHDBoites() { if (!hdDecor) return []; const b = new THREE.Box3(); return hdDecor.children.map((m) => { b.setFromObject(m); return { nom: m.userData.nomHD || '', x0: b.min.x, x1: b.max.x, y0: b.min.y, y1: b.max.y, z0: b.min.z, z1: b.max.z }; }); }, // leurs boîtes monde (pour les tests)
     get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0, ...(groupes.equipe ? { equipe: true } : {}) }; }, // ce que la boutique montre (pour les tests ; equipe : la rosette « Esprit d'équipe », seulement quand elle est là)
     get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG), salle: n(salle) }; }, // le budget d'appels de dessin (pour les tests)
     get _riche() { return RICHE; }, // les réglages du rendu riche (pour les tests et les captures)
     get appelsParGroupe() { const out = {}; const n = (g) => { let k = 0; g.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) k += Array.isArray(o.material) ? o.material.length : 1; }); return k; }; for (const [id, g] of Object.entries(groupes)) if (g) out[id] = n(g); if (hdDecor) out.hd = n(hdDecor); let a = 0; for (const g of acteurs.values()) a += n(g); out.acteurs = a; if (chatG) out.chat = n(chatG); return out; }, // le budget d'appels de dessin, meuble par meuble (pour les tests)
     get couverts() { return (couvertsCle.match(/1/g) || []).length; }, // les couverts posés (un par client assis ; pour les tests)
     get assisEn() { return { table: V.assisEn('table'), bar: V.assisEn('bar'), banquette: V.assisEn('banquette'), terrasse: V.assisEn('terrasse') }; }, // les clients assis par coin (pour les tests)
-    get standingVu() { const g = groupes.standing, E = dernier; let n = 0; if (g) g.traverse((o) => { if (o.isMesh) n++; }); return { palier: E && E.Q ? E.Q.standing || 0 : 0, decor: E && E.Q ? E.Q.id : '', hd: /\|hd\|/.test(cles.standing || ''), mailles: n }; }, // le standing posé (pour les tests)
+    get standingVu() { const g = groupes.standing, E = dernier; let n = 0; if (g) g.traverse((o) => { if (o.isMesh) n++; }); const emprises = ((g && g.userData.emprises) || []).map((e) => Object.assign({}, e, { haut: projeterY(e.y1, e.z0), bas: projeterY(e.y0, e.z1) })); return { palier: E && E.Q ? E.Q.standing || 0 : 0, decor: E && E.Q ? E.Q.id : '', hd: /\|hd\|/.test(cles.standing || ''), mailles: n, emprises }; }, // le standing posé ; ses emprises (monde, et haut/bas à l'écran) (pour les tests)
     get meublesHD() { return SALLE_IDS.filter((id) => groupes[id] && /\|hd/.test(cles[id] || '')); }, // les meubles de la salle bâtis en KayKit (pour les tests)
     get amenager() { return amenager; }, get deplacer() { return deplacer; }, get glisse() { return glisse; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
     get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length, geometries: renderer ? renderer.info.memory.geometries : 0, textures: renderer ? renderer.info.memory.textures : 0, riche: RICHE.actif, effets: !!RICHE.post, kenney: typeof KENNEY !== 'undefined' && KENNEY ? { pret: KENNEY.pret, octets: KENNEY.octets, ms: KENNEY.ms, erreur: KENNEY.erreur } : null }; } };

@@ -358,7 +358,8 @@ const UI = (() => {
     const v = !!on && SCENE.amenager; if (glisse) finGlisse(true); SCENE.setDeplacer(v); document.body.classList.toggle('deplace', v);
     const b = $('#b-deplacer'); if (b) { b.setAttribute('aria-pressed', String(v)); b.querySelector('b').textContent = v ? 'Améliorer' : 'Déplacer'; b.querySelector('.ico').innerHTML = ICONS.UI[v ? 'amenager' : 'deplacer'] || ''; } // actif, le bouton ramène aux améliorations
     $('#b-origine').hidden = !v || !st.amenagement;
-    if (v && !astuceDeplacer) { astuceDeplacer = true; toast('Glisse un meuble du doigt : il s’aimante à la grille.'); } // une fois par visite (le message couvre les boutons)
+    if (v && VIE.amenagementDemande && !VIE.amenagementApplique) toast('Ton plan ne tient pas sur cet écran : la boutique est au plan d’origine. Le premier meuble posé part de là.'); // (VIE.proposer part du plan affiché)
+    else if (v && !astuceDeplacer) { astuceDeplacer = true; toast('Glisse un meuble du doigt : il s’aimante à la grille.'); } // une fois par visite (le message couvre les boutons)
   }
   // (les réponses au geste passent tout de suite, sans attendre la file des messages : montrerToast)
   function debutGlisse(e, sx, sy) {
@@ -379,7 +380,9 @@ const UI = (() => {
     const g = glisse; glisse = null; SCENE.glisser(null); if (!g || !g.p || annule || !g.bouge) return;
     const nom = (VIE.LAY.mobiles.find((m) => m.id === g.id) || {}).nom || 'le meuble';
     if (!g.p.ok) { son.non(); buzz([20, 40, 20]); montrerToast(`${g.p.raison} ${nom.charAt(0).toUpperCase() + nom.slice(1)} reste à sa place.`); return; }
-    const a = G.nettoyerAmenagement(g.p.a); if (G.codeAmenagement(a) === G.codeAmenagement(st.amenagement)) return;
+    const a = G.nettoyerAmenagement(g.p.a), pa = g.p.a, bouge = pa.tables.some(Boolean) || !!pa.bar || !!pa.salon || pa.terrasse.some((c) => c != null);
+    if (!a && bouge) { son.non(); buzz([20, 40, 20]); montrerToast(`${nom.charAt(0).toUpperCase() + nom.slice(1)} ne peut pas aller si loin : il reste à sa place.`); return; } // une place que le plan ne sait pas écrire : on n'efface jamais l'aménagement pour autant
+    if (G.codeAmenagement(a) === G.codeAmenagement(st.amenagement)) return;
     if (a) st.amenagement = a; else delete st.amenagement;
     son.achat(); buzz(10); save(); $('#b-origine').hidden = !st.amenagement;
   }

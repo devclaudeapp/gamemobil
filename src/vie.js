@@ -77,7 +77,7 @@ const VIE = (() => {
   // Chaque meuble déplaçable a son emprise au sol (LAY.mobiles : le meuble, ses chaises et leur dégagement) ; valider() refuse, avec la raison,
   // une place qui chevauche, sort de la salle, coupe la file, l'allée, le passage des apprentis ou la porte, ou laisse une place inatteignable.
   let amenDemande = null, codeDemande = '', amenRef; // l'aménagement lu dans st (nettoyé), son code, l'objet d'où il vient
-  const MARGE = 3, PAS_FIN = 6; // (×K) le dégagement d'un passant autour des emprises ; le pas de la grille des voies
+  const MARGE = 3, PAS_FIN = 6, LOIN_ALLEE = 30; // (×K) le dégagement d'un passant autour des emprises ; le pas de la grille des voies ; la distance du chat à l'axe des clients
   function calculer(bouge) {
     const anciens = LAY && LAY.sieges ? new Map(LAY.sieges.map((s) => [s.id, s])) : null;
     let L = plan(amenDemande, false);
@@ -88,7 +88,15 @@ const VIE = (() => {
       const c = o.occ; s.occ = c; s.actif = o.actif; c.siege = s;
       const deplace = bouge && (Math.abs(o.x - s.x) > 0.5 || Math.abs(o.y - s.y) > 0.5);
       if (c.etat === 'assis') { c.x = s.x; c.y = s.y; if (deplace) leve(c); } // il suit sa chaise, se lève et repart par sa nouvelle voie
-      else if (deplace && c.etat === 'vaTable') { s.occ = null; c.siege = null; c.etat = 'sort'; c.chemin = [{ x: c.x, y: c.y }]; c.wp = 0; } // en chemin : il renonce (et s'efface)
+      else if (deplace && c.etat === 'vaTable') { // en chemin : il renonce et fait demi-tour par où il est venu, puis l'allée et la porte du fond
+        const e = LAY.entree; s.occ = null; c.siege = null; c.etat = 'sort'; c.v = 100 * K;
+        c.chemin = [...(c.chemin || []).slice(0, c.wp).reverse(), { x: LAY.allee, y: LAY.alleeHaut }, { x: e.x, y: LAY.alleeHaut }, { x: e.x, y: e.y }]; c.wp = 0;
+      }
+    }
+    if (bouge && chat && !chat.haut && chat.etat !== 'monte' && chat.etat !== 'descend') { // le chat, assis ou en route là où un meuble vient d'être posé, va au coin libre le plus proche
+      const sp = spotsChat().filter(Boolean), surMeuble = (x, y) => LAY.mobiles.some((m) => m.dedans && dansR(m.r, x, y, 0));
+      const cibleMorte = chat.etat === 'marche' && chat.cible && !chat.cible.retour && !sp.some((q) => Math.hypot(q.x - chat.cible.x, q.y - chat.cible.y) < 1);
+      if (sp.length && (surMeuble(chat.x, chat.y) || cibleMorte)) versChat(sp.reduce((b, q) => (Math.hypot(q.x - chat.x, q.y - chat.y) < Math.hypot(b.x - chat.x, b.y - chat.y) ? q : b)));
     }
   }
   function plan(a, verifier, focus) { // focus : le meuble qu'on déplace (la raison parle de lui)
@@ -100,7 +108,8 @@ const VIE = (() => {
     const f = Math.min(1, dispo / mini), u = dispo > mini ? Math.min(1, (dispo - mini) / plus) : 0, E = {};
     for (const [n, a0, b] of ECARTS) E[n] = (a0 * f + b * u) * K;
     const yA = Y0 + E.a0, yB = yA + E.gR, barY = yB + E.gBar, dev = barY + E.gDev, terY = dev + E.gTer, bord = terY + E.gBord, rue = terY + E.gTer * 0.45; // rue : le passage du trottoir, devant les tables
-    const pas = 24 * K, grille = { x0: 0, y0: Y0, pas, cols: Math.floor(W / pas), rangs: Math.floor((bord - Y0) / pas) }; // la grille du « tout déplaçable »
+    const pas = 24 * K, nMax = (G.AMEN_MAX == null ? 35 : G.AMEN_MAX) + 1; // une case doit tenir dans le code compact (GAME.AMEN_MAX : un chiffre de base 36)
+    const grille = { x0: 0, y0: Y0, pas, cols: Math.min(nMax, Math.floor(W / pas)), rangs: Math.min(nMax, Math.floor((bord - Y0) / pas)) }; // la grille du « tout déplaçable » (un grand écran n'en montre que les 36 premières colonnes)
     const gx = (c) => (c + 0.5) * pas, gy = (r) => Y0 + (r + 0.5) * pas; // le centre d'une case
     const sieges = [], tables = [];
     const S = (id, x, y, dir, zone, meuble, rang, voie, o) => { const s = Object.assign({ id, x, y, dir, zone, meuble, rang, voie, occ: null, actif: false }, o || {}); sieges.push(s); return s; };
@@ -151,7 +160,7 @@ const VIE = (() => {
     // fournil, au-dessus de la salle : aucun meuble déplaçable n'y monte (r.y < Y0 est refusé).
     const SYp = Math.sin(52 * Math.PI / 180), vide0 = Math.min(26, ((rue - dev) / SYp - 8) * 0.55), standingSol = [
       { nom: 'les colonnes de l’entrée', r: R(porte.x0 - 14, dev - SYp, 10, 10 * SYp) }, { nom: 'les colonnes de l’entrée', r: R(porte.x1 + 4, dev - SYp, 10, 10 * SYp) },
-      { nom: 'les cordons dorés', r: R(porte.x0 - 6, dev + 7 * SYp, 6, (vide0 + 6) * SYp) }, { nom: 'les cordons dorés', r: R(porte.x1, dev + 7 * SYp, 6, (vide0 + 6) * SYp) }];
+      { nom: 'les cordons dorés', r: R(porte.x0 - 6, dev + 9.5 * SYp, 6, (vide0 + 3.5) * SYp) }, { nom: 'les cordons dorés', r: R(porte.x1, dev + 9.5 * SYp, 6, (vide0 + 3.5) * SYp) }]; // (le poteau avant en zd + 10,5 : il dégage le socle des colonnes)
     const sig = a ? (G.codeAmenagement ? G.codeAmenagement(a) : JSON.stringify(a)) : '';
     // les voies d'un plan aménagé (et la vérification : chevauchements, passages, places atteignables)
     const marche = sig || verifier ? grilleVoies({ W, K, Y0, dev, allee, mobiles, fixes }) : null;
@@ -162,10 +171,17 @@ const VIE = (() => {
     let chat = R(sx(-22), yC + 54 * K, 24 * K, 16 * K);
     const spots = [{ x: chat.x + chat.w / 2, y: chat.y + chat.h / 2 }, { x: sig ? bar.x1 + W * 0.06 : W * 0.62, y: bar.y - 4 * K }, null, { x: W * 0.45, y: T * 0.88 }];
     if (sig && marche) {
-      const libreR = (r) => r.y >= Y0 && r.y + r.h <= dev - 4 && r.x >= 2 && r.x + r.w <= W - 2 && !mobiles.some((m) => m.dedans && inter(m.r, r)) && !fixes.some((o) => inter(o.r, r));
-      if (!libreR(chat)) chat = [R(sal.r.x - 26 * K, yC + 10 * K, 24 * K, 16 * K), R(sal.r.x + sal.r.w + 2 * K, yC + 10 * K, 24 * K, 16 * K), R(sx(-22), sal.r.y - 18 * K, 24 * K, 16 * K)].find(libreR) || chat;
+      // libre : dans la salle, hors des meubles, loin de l'allée (plus de LOIN_ALLEE·K de l'axe des clients) et du seuil de la devanture
+      const loinAllee = (r) => r.x + r.w <= allee - LOIN_ALLEE * K || r.x >= allee + LOIN_ALLEE * K, seuilP = R(porte.x0, dev - 22 * K, porte.x1 - porte.x0, 22 * K);
+      const libreR = (r) => r.y >= Y0 && r.y + r.h <= dev - 4 && r.x >= 2 && r.x + r.w <= W - 2 && !mobiles.some((m) => m.dedans && inter(m.r, r)) && !fixes.some((o) => inter(o.r, r)) && loinAllee(r) && !inter(r, seuilP);
+      if (!libreR(chat)) { // à côté du coin salon, sinon la case libre de la grille la plus proche de lui
+        const cases = []; for (let r = 0; r < grille.rangs; r++) for (let c = 0; c < grille.cols; c++) cases.push(R(gx(c) - 12 * K, gy(r) - 8 * K, 24 * K, 16 * K));
+        const d2 = (r) => (r.x + r.w / 2 - sal.x) ** 2 + (r.y + r.h / 2 - yC) ** 2;
+        chat = [R(sal.r.x - 26 * K, yC + 10 * K, 24 * K, 16 * K), R(sal.r.x + sal.r.w + 2 * K, yC + 10 * K, 24 * K, 16 * K), R(sx(-22), sal.r.y - 18 * K, 24 * K, 16 * K)].find(libreR) || cases.filter(libreR).sort((a, b) => d2(a) - d2(b))[0] || chat;
+      }
       spots[0] = { x: chat.x + chat.w / 2, y: chat.y + chat.h / 2 };
-      for (const k of [0, 1, 3]) spots[k] = marche.prochePlace(spots[k]);
+      const horsAllee = (x) => Math.abs(x - allee) >= LOIN_ALLEE * K; // les spots 0 et 1 : loin de l'allée, comme à l'origine
+      for (const k of [0, 1, 3]) spots[k] = marche.prochePlace(spots[k], k < 2 ? horsAllee : null);
     }
     let tapis = { x: W * 0.02, y: yA - 26 * K, w: W * 0.56 + 44 * K - W * 0.02, h: yB - yA + 50 * K }; // le tapis rose (déco 4) : sous les tables
     if (sig) { // sous les premières tables, tant qu'il ne passe pas sous le bar ni le coin salon
@@ -244,9 +260,9 @@ const VIE = (() => {
       out[0] = { x: allee, y: out[0].y }; return out;
     }
     const atteint = (p) => !bloque(p.x, p.y) && cases(p).length > 0;
-    function prochePlace(p) { // la case libre atteinte la plus proche d'un point (les spots du chat)
-      if (atteint(p)) return p; let best = null, d = 1e9;
-      for (let q = 0; q < nc * nr; q++) if (par[q] !== -2) { const i = q % nc, x = X(i), y = Yr((q - i) / nc), e = Math.hypot(x - p.x, y - p.y); if (e < d) { d = e; best = { x, y }; } }
+    function prochePlace(p, ok) { // la case libre atteinte la plus proche d'un point (les spots du chat) ; ok(x, y) : un filtre en plus
+      if (atteint(p) && (!ok || ok(p.x, p.y))) return p; let best = null, d = 1e9;
+      for (let q = 0; q < nc * nr; q++) if (par[q] !== -2) { const i = q % nc, x = X(i), y = Yr((q - i) / nc), e = Math.hypot(x - p.x, y - p.y); if (e < d && (!ok || ok(x, y))) { d = e; best = { x, y }; } }
       return best || p;
     }
     return { chemin, atteint, prochePlace, vue, bloque };
@@ -396,7 +412,7 @@ const VIE = (() => {
   function majClients(st, dt) {
     for (const c of clients) {
       c.phase += dt * 9;
-      if (c.alpha < 1) c.alpha = Math.min(1, c.alpha + dt * 3);
+      if (c.alpha < 1 && c.etat !== 'sort') c.alpha = Math.min(1, c.alpha + dt * 3); // (le fondu d'entrée ; à la sortie, il s'efface sur le dernier bout de chemin)
       if (c.etat === 'entre') { if (avancer(c, dt)) { c.etat = 'attend'; c.dir = 0; if (c.or) chasseChat(); } } // le chat court voir le client mystère pendant qu'il attend
       else if (c.etat === 'attend') {
         if (c.glisse) { const dx = c.spot.x - c.x; if (Math.abs(dx) < 1) { c.x = c.spot.x; c.glisse = false; } else c.x += Math.sign(dx) * Math.min(Math.abs(dx), 60 * dt); }
@@ -520,6 +536,8 @@ const VIE = (() => {
     if (a != null && (typeof a !== 'object' || a.v !== 1 || !Array.isArray(a.tables) || a.tables.length !== 6 || !Array.isArray(a.terrasse) || a.terrasse.length !== 3)) return { ok: false, raison: 'Ce plan est abîmé.', id: null };
     const ent = (p) => p == null || (Array.isArray(p) && p.length === 2 && p.every(Number.isInteger));
     if (a && (!a.tables.every(ent) || !ent(a.bar) || !ent(a.salon) || !a.terrasse.every((c) => c == null || Number.isInteger(c)))) return { ok: false, raison: 'Ce plan est abîmé.', id: null };
+    const loin = (p) => p != null && [].concat(p).some((v) => v > G.AMEN_MAX); // une case que le code compact ne sait pas écrire
+    if (a && (a.tables.some(loin) || loin(a.bar) || loin(a.salon) || a.terrasse.some(loin))) return { ok: false, raison: 'Trop loin pour le plan.', id: null };
     const v = plan(a, true).verdict; return v.ok ? { ok: true, raison: '', id: null } : { ok: false, raison: v.raison, id: v.id };
   }
   // la case de la grille où tombe le centre (x, y) d'un meuble déplaçable (la terrasse : sa colonne seulement)
@@ -527,8 +545,11 @@ const VIE = (() => {
   // proposer(st, id, x, y) : le meuble id posé là (aimanté à la grille) : { a (le nouvel aménagement), ok, raison, rect (son emprise), x, y (son centre aimanté) }
   let dernierePro = { cle: '', p: null }; // le doigt reste dans la même case : la même réponse, sans refaire les voies
   function proposer(st, id, x, y) {
-    if (!LAY) calculer(); const g = LAY.grille, a = copie(st && st.amenagement), cs = caseDe(id, x, y);
-    cs[0] = Math.max(0, Math.min(g.cols - 1, cs[0])); if (cs.length > 1) cs[1] = Math.max(-3, Math.min(g.rangs, cs[1])); // on peut pousser jusqu'à la file : la raison le dira
+    if (!LAY) calculer();
+    // on part du plan AFFICHÉ : un aménagement sauvé qui ne tient pas sur cet écran (calculer l'a remplacé par le plan d'origine) ne compte pas
+    const sauve = st && st.amenagement, horsEcran = !!sauve && sauve === amenRef && codeDemande !== '' && LAY.sig === '';
+    const g = LAY.grille, a = copie(horsEcran ? null : sauve), cs = caseDe(id, x, y);
+    cs[0] = Math.max(0, Math.min(g.cols - 1, cs[0])); if (cs.length > 1) cs[1] = Math.max(-3, Math.min(g.rangs, G.AMEN_MAX, cs[1])); // on peut pousser jusqu'à la file : la raison le dira
     const cle = `${W}x${H}|${G.codeAmenagement(a)}|${id}|${cs}`; if (cle === dernierePro.cle) return dernierePro.p;
     const m = /^table(\d)$/.exec(id), t = /^terrasse(\d)$/.exec(id);
     if (m) a.tables[+m[1] - 1] = cs; else if (t) a.terrasse[+t[1] - 1] = cs[0]; else if (id === 'bar') a.bar = cs; else if (id === 'salon') a.salon = cs; else return null;
@@ -538,12 +559,11 @@ const VIE = (() => {
   // le meuble déplaçable sous le doigt (son emprise et la hauteur du meuble au-dessus, au moins 44 × 44) ; achetes : seulement les meubles achetés
   function mobileSous(x, y, achetes) {
     if (!LAY) return null;
-    for (const m of LAY.mobiles.slice().reverse()) { // la terrasse et le salon avant les tables qu'ils recouvrent
-      if (achetes && !mobileAchete(m)) continue;
-      const r = m.r, h = 22 * K, w = Math.max(44, r.w), hh = Math.max(44, r.h + h);
-      if (x >= r.x + r.w / 2 - w / 2 && x <= r.x + r.w / 2 + w / 2 && y >= r.y + r.h - hh && y <= r.y + r.h) return m;
-    }
-    return null;
+    const ms = LAY.mobiles.slice().reverse().filter((m) => !achetes || mobileAchete(m)); // la terrasse et le salon avant les tables qu'ils recouvrent
+    const sous = (m, haut) => { const r = m.r, w = Math.max(44, r.w), hh = haut ? Math.max(44, r.h + 22 * K) : r.h; return x >= r.x + r.w / 2 - w / 2 && x <= r.x + r.w / 2 + w / 2 && y >= r.y + r.h - hh && y <= r.y + r.h; };
+    // d'abord l'emprise même d'un meuble (les emprises ne se recouvrent pas) : la hauteur d'un autre meuble posé juste dessous ne la vole pas ;
+    // sinon la hauteur du meuble au-dessus de son emprise (22·K : le parasol, le dossier), au moins 44 × 44
+    return ms.find((m) => sous(m, false)) || ms.find((m) => sous(m, true)) || null;
   }
   // un meuble acheté : les tables 1..n, le bar et le coin salon dès le cran 1, les tables de la terrasse 1..n
   function mobileAchete(m) { const k = crans[m.type] || 0; return m.type === 'tables' || m.type === 'terrasse' ? m.i < k : k > 0; }

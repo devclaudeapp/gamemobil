@@ -1795,7 +1795,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '2c56a7f1bcd6';</script>
+<script>window.FOURNIL_VERSION = 'dd8df19e5acb';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -3255,7 +3255,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, PELAGES, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
     COMPAGNONS, COMPAGNON_PLANCHER, compagnon, estChat, prixCompagnon, aCompagnon, compagnonActif, bonusCompagnon, compagnonGains, modeleCompagnon, compagnons, choisirCompagnon, acheterCompagnon,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
-    PRODUITS, RECETTES_BASE, recetteGagnee, recettesBoutique, recettesConnues, prochaineRecetteBoutique, ameliorationOuverte, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, places, nettoyerAmenagement, codeAmenagement, amenagementDepuisCode, belleSaison, terrassePleine, QUARTIERS_BASE, quartierDe, PARCOURS_FIN, recompenseBoutique, texteRecompense, parcours, donnerRecompense, rattraperParcours, gainsParcours, titreParcours, DEFIS_PASSAGE, DEFI_DEBUT, defiDe, texteDefi, creerDefi, defiPassage, passageOk, ETOILES_CONSEIL, butParcours, parcoursListe, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, STANDINGS, STANDING_PAS, standing, standingDe, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
+    PRODUITS, RECETTES_BASE, recetteGagnee, recettesBoutique, recettesConnues, prochaineRecetteBoutique, ameliorationOuverte, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, places, AMEN_MAX, nettoyerAmenagement, codeAmenagement, amenagementDepuisCode, belleSaison, terrassePleine, QUARTIERS_BASE, quartierDe, PARCOURS_FIN, recompenseBoutique, texteRecompense, parcours, donnerRecompense, rattraperParcours, gainsParcours, titreParcours, DEFIS_PASSAGE, DEFI_DEBUT, defiDe, texteDefi, creerDefi, defiPassage, passageOk, ETOILES_CONSEIL, butParcours, parcoursListe, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, STANDINGS, STANDING_PAS, standing, standingDe, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, expoPalier, fmtMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables, prochaineEtoile,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, boostsNeufs, donnerBoostReserve, PRIME_HEURE_PLANCHER, primeHeures, donnerPrimeHeures, lancerBoostReserve,
@@ -5334,7 +5334,7 @@ const VIE = (() => {
   // Chaque meuble déplaçable a son emprise au sol (LAY.mobiles : le meuble, ses chaises et leur dégagement) ; valider() refuse, avec la raison,
   // une place qui chevauche, sort de la salle, coupe la file, l'allée, le passage des apprentis ou la porte, ou laisse une place inatteignable.
   let amenDemande = null, codeDemande = '', amenRef; // l'aménagement lu dans st (nettoyé), son code, l'objet d'où il vient
-  const MARGE = 3, PAS_FIN = 6; // (×K) le dégagement d'un passant autour des emprises ; le pas de la grille des voies
+  const MARGE = 3, PAS_FIN = 6, LOIN_ALLEE = 30; // (×K) le dégagement d'un passant autour des emprises ; le pas de la grille des voies ; la distance du chat à l'axe des clients
   function calculer(bouge) {
     const anciens = LAY && LAY.sieges ? new Map(LAY.sieges.map((s) => [s.id, s])) : null;
     let L = plan(amenDemande, false);
@@ -5345,7 +5345,15 @@ const VIE = (() => {
       const c = o.occ; s.occ = c; s.actif = o.actif; c.siege = s;
       const deplace = bouge && (Math.abs(o.x - s.x) > 0.5 || Math.abs(o.y - s.y) > 0.5);
       if (c.etat === 'assis') { c.x = s.x; c.y = s.y; if (deplace) leve(c); } // il suit sa chaise, se lève et repart par sa nouvelle voie
-      else if (deplace && c.etat === 'vaTable') { s.occ = null; c.siege = null; c.etat = 'sort'; c.chemin = [{ x: c.x, y: c.y }]; c.wp = 0; } // en chemin : il renonce (et s'efface)
+      else if (deplace && c.etat === 'vaTable') { // en chemin : il renonce et fait demi-tour par où il est venu, puis l'allée et la porte du fond
+        const e = LAY.entree; s.occ = null; c.siege = null; c.etat = 'sort'; c.v = 100 * K;
+        c.chemin = [...(c.chemin || []).slice(0, c.wp).reverse(), { x: LAY.allee, y: LAY.alleeHaut }, { x: e.x, y: LAY.alleeHaut }, { x: e.x, y: e.y }]; c.wp = 0;
+      }
+    }
+    if (bouge && chat && !chat.haut && chat.etat !== 'monte' && chat.etat !== 'descend') { // le chat, assis ou en route là où un meuble vient d'être posé, va au coin libre le plus proche
+      const sp = spotsChat().filter(Boolean), surMeuble = (x, y) => LAY.mobiles.some((m) => m.dedans && dansR(m.r, x, y, 0));
+      const cibleMorte = chat.etat === 'marche' && chat.cible && !chat.cible.retour && !sp.some((q) => Math.hypot(q.x - chat.cible.x, q.y - chat.cible.y) < 1);
+      if (sp.length && (surMeuble(chat.x, chat.y) || cibleMorte)) versChat(sp.reduce((b, q) => (Math.hypot(q.x - chat.x, q.y - chat.y) < Math.hypot(b.x - chat.x, b.y - chat.y) ? q : b)));
     }
   }
   function plan(a, verifier, focus) { // focus : le meuble qu'on déplace (la raison parle de lui)
@@ -5357,7 +5365,8 @@ const VIE = (() => {
     const f = Math.min(1, dispo / mini), u = dispo > mini ? Math.min(1, (dispo - mini) / plus) : 0, E = {};
     for (const [n, a0, b] of ECARTS) E[n] = (a0 * f + b * u) * K;
     const yA = Y0 + E.a0, yB = yA + E.gR, barY = yB + E.gBar, dev = barY + E.gDev, terY = dev + E.gTer, bord = terY + E.gBord, rue = terY + E.gTer * 0.45; // rue : le passage du trottoir, devant les tables
-    const pas = 24 * K, grille = { x0: 0, y0: Y0, pas, cols: Math.floor(W / pas), rangs: Math.floor((bord - Y0) / pas) }; // la grille du « tout déplaçable »
+    const pas = 24 * K, nMax = (G.AMEN_MAX == null ? 35 : G.AMEN_MAX) + 1; // une case doit tenir dans le code compact (GAME.AMEN_MAX : un chiffre de base 36)
+    const grille = { x0: 0, y0: Y0, pas, cols: Math.min(nMax, Math.floor(W / pas)), rangs: Math.min(nMax, Math.floor((bord - Y0) / pas)) }; // la grille du « tout déplaçable » (un grand écran n'en montre que les 36 premières colonnes)
     const gx = (c) => (c + 0.5) * pas, gy = (r) => Y0 + (r + 0.5) * pas; // le centre d'une case
     const sieges = [], tables = [];
     const S = (id, x, y, dir, zone, meuble, rang, voie, o) => { const s = Object.assign({ id, x, y, dir, zone, meuble, rang, voie, occ: null, actif: false }, o || {}); sieges.push(s); return s; };
@@ -5408,7 +5417,7 @@ const VIE = (() => {
     // fournil, au-dessus de la salle : aucun meuble déplaçable n'y monte (r.y < Y0 est refusé).
     const SYp = Math.sin(52 * Math.PI / 180), vide0 = Math.min(26, ((rue - dev) / SYp - 8) * 0.55), standingSol = [
       { nom: 'les colonnes de l’entrée', r: R(porte.x0 - 14, dev - SYp, 10, 10 * SYp) }, { nom: 'les colonnes de l’entrée', r: R(porte.x1 + 4, dev - SYp, 10, 10 * SYp) },
-      { nom: 'les cordons dorés', r: R(porte.x0 - 6, dev + 7 * SYp, 6, (vide0 + 6) * SYp) }, { nom: 'les cordons dorés', r: R(porte.x1, dev + 7 * SYp, 6, (vide0 + 6) * SYp) }];
+      { nom: 'les cordons dorés', r: R(porte.x0 - 6, dev + 9.5 * SYp, 6, (vide0 + 3.5) * SYp) }, { nom: 'les cordons dorés', r: R(porte.x1, dev + 9.5 * SYp, 6, (vide0 + 3.5) * SYp) }]; // (le poteau avant en zd + 10,5 : il dégage le socle des colonnes)
     const sig = a ? (G.codeAmenagement ? G.codeAmenagement(a) : JSON.stringify(a)) : '';
     // les voies d'un plan aménagé (et la vérification : chevauchements, passages, places atteignables)
     const marche = sig || verifier ? grilleVoies({ W, K, Y0, dev, allee, mobiles, fixes }) : null;
@@ -5419,10 +5428,17 @@ const VIE = (() => {
     let chat = R(sx(-22), yC + 54 * K, 24 * K, 16 * K);
     const spots = [{ x: chat.x + chat.w / 2, y: chat.y + chat.h / 2 }, { x: sig ? bar.x1 + W * 0.06 : W * 0.62, y: bar.y - 4 * K }, null, { x: W * 0.45, y: T * 0.88 }];
     if (sig && marche) {
-      const libreR = (r) => r.y >= Y0 && r.y + r.h <= dev - 4 && r.x >= 2 && r.x + r.w <= W - 2 && !mobiles.some((m) => m.dedans && inter(m.r, r)) && !fixes.some((o) => inter(o.r, r));
-      if (!libreR(chat)) chat = [R(sal.r.x - 26 * K, yC + 10 * K, 24 * K, 16 * K), R(sal.r.x + sal.r.w + 2 * K, yC + 10 * K, 24 * K, 16 * K), R(sx(-22), sal.r.y - 18 * K, 24 * K, 16 * K)].find(libreR) || chat;
+      // libre : dans la salle, hors des meubles, loin de l'allée (plus de LOIN_ALLEE·K de l'axe des clients) et du seuil de la devanture
+      const loinAllee = (r) => r.x + r.w <= allee - LOIN_ALLEE * K || r.x >= allee + LOIN_ALLEE * K, seuilP = R(porte.x0, dev - 22 * K, porte.x1 - porte.x0, 22 * K);
+      const libreR = (r) => r.y >= Y0 && r.y + r.h <= dev - 4 && r.x >= 2 && r.x + r.w <= W - 2 && !mobiles.some((m) => m.dedans && inter(m.r, r)) && !fixes.some((o) => inter(o.r, r)) && loinAllee(r) && !inter(r, seuilP);
+      if (!libreR(chat)) { // à côté du coin salon, sinon la case libre de la grille la plus proche de lui
+        const cases = []; for (let r = 0; r < grille.rangs; r++) for (let c = 0; c < grille.cols; c++) cases.push(R(gx(c) - 12 * K, gy(r) - 8 * K, 24 * K, 16 * K));
+        const d2 = (r) => (r.x + r.w / 2 - sal.x) ** 2 + (r.y + r.h / 2 - yC) ** 2;
+        chat = [R(sal.r.x - 26 * K, yC + 10 * K, 24 * K, 16 * K), R(sal.r.x + sal.r.w + 2 * K, yC + 10 * K, 24 * K, 16 * K), R(sx(-22), sal.r.y - 18 * K, 24 * K, 16 * K)].find(libreR) || cases.filter(libreR).sort((a, b) => d2(a) - d2(b))[0] || chat;
+      }
       spots[0] = { x: chat.x + chat.w / 2, y: chat.y + chat.h / 2 };
-      for (const k of [0, 1, 3]) spots[k] = marche.prochePlace(spots[k]);
+      const horsAllee = (x) => Math.abs(x - allee) >= LOIN_ALLEE * K; // les spots 0 et 1 : loin de l'allée, comme à l'origine
+      for (const k of [0, 1, 3]) spots[k] = marche.prochePlace(spots[k], k < 2 ? horsAllee : null);
     }
     let tapis = { x: W * 0.02, y: yA - 26 * K, w: W * 0.56 + 44 * K - W * 0.02, h: yB - yA + 50 * K }; // le tapis rose (déco 4) : sous les tables
     if (sig) { // sous les premières tables, tant qu'il ne passe pas sous le bar ni le coin salon
@@ -5501,9 +5517,9 @@ const VIE = (() => {
       out[0] = { x: allee, y: out[0].y }; return out;
     }
     const atteint = (p) => !bloque(p.x, p.y) && cases(p).length > 0;
-    function prochePlace(p) { // la case libre atteinte la plus proche d'un point (les spots du chat)
-      if (atteint(p)) return p; let best = null, d = 1e9;
-      for (let q = 0; q < nc * nr; q++) if (par[q] !== -2) { const i = q % nc, x = X(i), y = Yr((q - i) / nc), e = Math.hypot(x - p.x, y - p.y); if (e < d) { d = e; best = { x, y }; } }
+    function prochePlace(p, ok) { // la case libre atteinte la plus proche d'un point (les spots du chat) ; ok(x, y) : un filtre en plus
+      if (atteint(p) && (!ok || ok(p.x, p.y))) return p; let best = null, d = 1e9;
+      for (let q = 0; q < nc * nr; q++) if (par[q] !== -2) { const i = q % nc, x = X(i), y = Yr((q - i) / nc), e = Math.hypot(x - p.x, y - p.y); if (e < d && (!ok || ok(x, y))) { d = e; best = { x, y }; } }
       return best || p;
     }
     return { chemin, atteint, prochePlace, vue, bloque };
@@ -5653,7 +5669,7 @@ const VIE = (() => {
   function majClients(st, dt) {
     for (const c of clients) {
       c.phase += dt * 9;
-      if (c.alpha < 1) c.alpha = Math.min(1, c.alpha + dt * 3);
+      if (c.alpha < 1 && c.etat !== 'sort') c.alpha = Math.min(1, c.alpha + dt * 3); // (le fondu d'entrée ; à la sortie, il s'efface sur le dernier bout de chemin)
       if (c.etat === 'entre') { if (avancer(c, dt)) { c.etat = 'attend'; c.dir = 0; if (c.or) chasseChat(); } } // le chat court voir le client mystère pendant qu'il attend
       else if (c.etat === 'attend') {
         if (c.glisse) { const dx = c.spot.x - c.x; if (Math.abs(dx) < 1) { c.x = c.spot.x; c.glisse = false; } else c.x += Math.sign(dx) * Math.min(Math.abs(dx), 60 * dt); }
@@ -5777,6 +5793,8 @@ const VIE = (() => {
     if (a != null && (typeof a !== 'object' || a.v !== 1 || !Array.isArray(a.tables) || a.tables.length !== 6 || !Array.isArray(a.terrasse) || a.terrasse.length !== 3)) return { ok: false, raison: 'Ce plan est abîmé.', id: null };
     const ent = (p) => p == null || (Array.isArray(p) && p.length === 2 && p.every(Number.isInteger));
     if (a && (!a.tables.every(ent) || !ent(a.bar) || !ent(a.salon) || !a.terrasse.every((c) => c == null || Number.isInteger(c)))) return { ok: false, raison: 'Ce plan est abîmé.', id: null };
+    const loin = (p) => p != null && [].concat(p).some((v) => v > G.AMEN_MAX); // une case que le code compact ne sait pas écrire
+    if (a && (a.tables.some(loin) || loin(a.bar) || loin(a.salon) || a.terrasse.some(loin))) return { ok: false, raison: 'Trop loin pour le plan.', id: null };
     const v = plan(a, true).verdict; return v.ok ? { ok: true, raison: '', id: null } : { ok: false, raison: v.raison, id: v.id };
   }
   // la case de la grille où tombe le centre (x, y) d'un meuble déplaçable (la terrasse : sa colonne seulement)
@@ -5784,8 +5802,11 @@ const VIE = (() => {
   // proposer(st, id, x, y) : le meuble id posé là (aimanté à la grille) : { a (le nouvel aménagement), ok, raison, rect (son emprise), x, y (son centre aimanté) }
   let dernierePro = { cle: '', p: null }; // le doigt reste dans la même case : la même réponse, sans refaire les voies
   function proposer(st, id, x, y) {
-    if (!LAY) calculer(); const g = LAY.grille, a = copie(st && st.amenagement), cs = caseDe(id, x, y);
-    cs[0] = Math.max(0, Math.min(g.cols - 1, cs[0])); if (cs.length > 1) cs[1] = Math.max(-3, Math.min(g.rangs, cs[1])); // on peut pousser jusqu'à la file : la raison le dira
+    if (!LAY) calculer();
+    // on part du plan AFFICHÉ : un aménagement sauvé qui ne tient pas sur cet écran (calculer l'a remplacé par le plan d'origine) ne compte pas
+    const sauve = st && st.amenagement, horsEcran = !!sauve && sauve === amenRef && codeDemande !== '' && LAY.sig === '';
+    const g = LAY.grille, a = copie(horsEcran ? null : sauve), cs = caseDe(id, x, y);
+    cs[0] = Math.max(0, Math.min(g.cols - 1, cs[0])); if (cs.length > 1) cs[1] = Math.max(-3, Math.min(g.rangs, G.AMEN_MAX, cs[1])); // on peut pousser jusqu'à la file : la raison le dira
     const cle = `${W}x${H}|${G.codeAmenagement(a)}|${id}|${cs}`; if (cle === dernierePro.cle) return dernierePro.p;
     const m = /^table(\d)$/.exec(id), t = /^terrasse(\d)$/.exec(id);
     if (m) a.tables[+m[1] - 1] = cs; else if (t) a.terrasse[+t[1] - 1] = cs[0]; else if (id === 'bar') a.bar = cs; else if (id === 'salon') a.salon = cs; else return null;
@@ -5795,12 +5816,11 @@ const VIE = (() => {
   // le meuble déplaçable sous le doigt (son emprise et la hauteur du meuble au-dessus, au moins 44 × 44) ; achetes : seulement les meubles achetés
   function mobileSous(x, y, achetes) {
     if (!LAY) return null;
-    for (const m of LAY.mobiles.slice().reverse()) { // la terrasse et le salon avant les tables qu'ils recouvrent
-      if (achetes && !mobileAchete(m)) continue;
-      const r = m.r, h = 22 * K, w = Math.max(44, r.w), hh = Math.max(44, r.h + h);
-      if (x >= r.x + r.w / 2 - w / 2 && x <= r.x + r.w / 2 + w / 2 && y >= r.y + r.h - hh && y <= r.y + r.h) return m;
-    }
-    return null;
+    const ms = LAY.mobiles.slice().reverse().filter((m) => !achetes || mobileAchete(m)); // la terrasse et le salon avant les tables qu'ils recouvrent
+    const sous = (m, haut) => { const r = m.r, w = Math.max(44, r.w), hh = haut ? Math.max(44, r.h + 22 * K) : r.h; return x >= r.x + r.w / 2 - w / 2 && x <= r.x + r.w / 2 + w / 2 && y >= r.y + r.h - hh && y <= r.y + r.h; };
+    // d'abord l'emprise même d'un meuble (les emprises ne se recouvrent pas) : la hauteur d'un autre meuble posé juste dessous ne la vole pas ;
+    // sinon la hauteur du meuble au-dessus de son emprise (22·K : le parasol, le dossier), au moins 44 × 44
+    return ms.find((m) => sous(m, false)) || ms.find((m) => sous(m, true)) || null;
   }
   // un meuble acheté : les tables 1..n, le bar et le coin salon dès le cran 1, les tables de la terrasse 1..n
   function mobileAchete(m) { const k = crans[m.type] || 0; return m.type === 'tables' || m.type === 'terrasse' ? m.i < k : k > 0; }
@@ -5917,7 +5937,8 @@ const MODELES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   }
   const partager = (m) => { PARTAGES.add(m); return m; }; // un matériau tenu en cache ailleurs : dispose ne le libère jamais
   const estPartage = (m) => PARTAGES.has(m);
-  return { TAU, partager, estPartage, boite, boiteSimple, sphere, capsule, cylindre, cone, tore, plan, anneau, disque, extrusion, mat, MAT, part, matrice, assembler, maille, mesh, texture, melange, eclaircir, assombrir, dispose, GEOS, MATS };
+  const oublier = (m) => { PARTAGES.delete(m); m.dispose(); }; // un matériau partagé dont le cache se sépare : rendu à la carte graphique
+  return { TAU, partager, estPartage, oublier, boite, boiteSimple, sphere, capsule, cylindre, cone, tore, plan, anneau, disque, extrusion, mat, MAT, part, matrice, assembler, maille, mesh, texture, melange, eclaircir, assombrir, dispose, GEOS, MATS };
 })();
 if (typeof module !== 'undefined') module.exports = MODELES;
 
@@ -6075,8 +6096,18 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   const coeur = (s) => forme('coeur' + s, () => { const f = new THREE.Shape(); f.moveTo(0, -s * 0.9); f.bezierCurveTo(-s * 1.3, -s * 0.1, -s * 0.6, s * 0.9, 0, s * 0.3); f.bezierCurveTo(s * 0.6, s * 0.9, s * 1.3, -s * 0.1, 0, -s * 0.9); return f; });
   const arche = (w, h) => forme('arche' + r2(w) + '|' + r2(h), () => { const s = new THREE.Shape(), r = w / 2; s.moveTo(-r, 0); s.lineTo(r, 0); s.lineTo(r, h - r); s.absarc(0, h - r, r, 0, Math.PI, false); s.lineTo(-r, 0); return s; });
   // ─── les textures du sol et du mur : les motifs 2D, discrets et pastel, mis en cache par quartier ───
+  // Un décor (Q.id) par quartier ET par palier du standing (« paris-s3 ») : jusqu'à 60. Le cache ne garde que les SALLES_MAX derniers vus
+  // (la boutique, celle d'avant pendant une transition, une visite ou l'atelier) ; les autres rendent leurs textures et leurs matériaux.
+  const SALLES = [], SALLES_MAX = 3;
+  function retenirSalle(id) {
+    const i = SALLES.indexOf(id); if (i === 0) return; if (i > 0) SALLES.splice(i, 1); SALLES.unshift(id);
+    while (SALLES.length > SALLES_MAX) {
+      const v = SALLES.pop();
+      for (const k of ['sol' + v, 'mur' + v]) { const tx = TEX.get(k); if (tx) { tx.dispose(); TEX.delete(k); } const m = MATS.get(k); if (m) { M.oublier(m); MATS.delete(k); } }
+    }
+  }
   function textureSol(Q) {
-    let tx = TEX.get('sol' + Q.id); if (tx) return tx;
+    retenirSalle(Q.id); let tx = TEX.get('sol' + Q.id); if (tx) return tx;
     tx = M.texture((c, w, h) => { // une tuile de 256 unités de côté
       c.fillStyle = Q.sol; c.fillRect(0, 0, w, h);
       if (Q.solStyle === 'planches') { const hb = 16; for (let r = 0; r * hb < h; r++) { const y = r * hb; c.fillStyle = r % 2 ? Q.sol2 : 'rgba(0,0,0,.035)'; c.fillRect(0, y, w, hb - 1); c.fillStyle = 'rgba(74,51,40,.10)'; for (let x = (r * 53) % 128; x < w; x += 128) c.fillRect(x, y, 1.5, hb - 1); } }
@@ -6129,7 +6160,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     if (Q.corniche) { c.fillStyle = M.assombrir(Q.mur2, 0.05); c.fillRect(0, 0, 390, haut - 2); c.fillStyle = Q.or; c.fillRect(0, haut - 2.4, 390, 1.6); c.fillStyle = 'rgba(255,255,255,.35)'; for (let x = 3; x < 390; x += 7) c.fillRect(x, 2, 3, haut - 6); }
   }
   function textureMur(Q) {
-    let tx = TEX.get('mur' + Q.id); if (tx) return tx;
+    retenirSalle(Q.id); let tx = TEX.get('mur' + Q.id); if (tx) return tx;
     tx = M.texture((c, w, h) => { // dessiné dans le repère du mur de référence : 390 × 81 px d'écran
       c.scale(w / 390, h / 81);
       const g = c.createLinearGradient(0, 0, 0, 81); g.addColorStop(0, Q.mur); g.addColorStop(1, Q.mur2); c.fillStyle = g; c.fillRect(0, 0, 390, 81);
@@ -6782,25 +6813,54 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   }
   // ─── le standing de la boutique (Q.standing 1 à 5, Q.objets : src/vie.js decor) : ce qui s'ajoute au décor, hors des chemins et des
   //     zones de touche — contre le mur du fond, en haut, aux deux coins du fournil, à la porte de la devanture et sur le trottoir.
-  //     Tout est fusionné en un maillage (1 appel de dessin) ; le soir, en haute, la lueur des lanternes en ajoute un (caché le jour).
+  //     Tout est fusionné en un maillage (1 appel de dessin, le soir compris : la lueur des lanternes est dans le même, lueurVerre).
   //     En qualité haute (c.hdLuxe : lots HD « luxe1/3/5 » chargés), les lanternes, les colonnes, la statue et le trophée sont des
   //     modèles cuits (fournil/hd/luxe/ : KayKit Halloween et Furniture Bits, Kenney Starter Kit, CC0) ; sinon tout est fait main.
   const hdl = (c, nom, o, col) => (c.hdLuxe && typeof HDM !== 'undefined' && HDM.part ? HDM.part('luxe/' + nom, o, col) : null);
+  // le verre des lanternes : une couleur à lui, que lueurVerre reconnaît dans le maillage fusionné (attribut « lueur » : 1 sur ses sommets)
+  const VERRE_LANTERNE = '#EADBB0';
+  function lueurVerre(mesh) { // sa lumière (uniform rendu) s'ajoute au verre seul, le reste ne change pas
+    const geo = mesh.geometry, col = geo.attributes.color.array, n = col.length / 3, l = new Float32Array(n), v = new THREE.Color(VERRE_LANTERNE);
+    for (let i = 0; i < n; i++) l[i] = Math.abs(col[i * 3] - v.r) < 1e-6 && Math.abs(col[i * 3 + 1] - v.g) < 1e-6 && Math.abs(col[i * 3 + 2] - v.b) < 1e-6 ? 1 : 0;
+    geo.setAttribute('lueur', new THREE.BufferAttribute(l, 1));
+    const u = { value: 0 }, teinte = { value: new THREE.Color('#FFD98A') };
+    const greffer = (mat) => { // sur le matériau du moment : le Lambert propre, ou son jumeau MeshStandard (src/scene.js habiller, palier riche)
+      if (mat.userData.lueur === u) return; mat.userData.lueur = u;
+      mat.onBeforeCompile = (sh) => {
+        sh.uniforms.uLueur = u; sh.uniforms.uLueurTeinte = teinte;
+        sh.vertexShader = 'attribute float lueur;\nvarying float vLueur;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n\tvLueur = lueur;');
+        sh.fragmentShader = 'uniform float uLueur;\nuniform vec3 uLueurTeinte;\nvarying float vLueur;\n' + sh.fragmentShader.replace('#include <emissivemap_fragment>', '#include <emissivemap_fragment>\n\ttotalEmissiveRadiance += uLueurTeinte * (uLueur * vLueur);');
+      };
+      mat.customProgramCacheKey = () => 'lueur-verre|' + mat.type; mat.needsUpdate = true;
+    };
+    mesh.material = propre({ vertexColors: true }); greffer(mesh.material);
+    return (k) => { greffer(mesh.material); u.value = k; };
+  }
   function coinsStanding(c) { // les deux places d'honneur, au pied du fournil : à droite sous la plante de la déco, à gauche sous la chambre froide
-    const { LAY, W } = c; return { d: { x: W * 0.80, y: LAY.T * 0.62 }, g: { x: W * 0.045, y: LAY.T * 0.60 } };
+    const { LAY, W } = c; return { d: { x: W * 0.80, y: LAY.T * 0.62 }, g: { x: Math.max(W * 0.045, 18), y: LAY.T * 0.60 } }; // (à gauche, jamais coupé par le bord de l'écran)
   }
   function standing(c) { // (src/vie.js plan : standingSol garde la place des colonnes et des cordons sur le trottoir ; mêmes mesures, à changer ensemble)
     const { LAY, W, K, Q } = c, s = Q.standing || 0, ob = (id) => !!(Q.objets && Q.objets.includes(id)), g = grp('standing'), pr = [], lu = [];
     if (!s) return g;
     const or = Q.or || '#C9A35A', orF = M.assombrir(or, 0.25), dv = LAY.devanture, zd = c.wz(dv.y) + 2, x0 = dv.porte.x0, x1 = dv.porte.x1, coin = coinsStanding(c), Hm = c.wy(LAY.murH);
     const marbre = M.melange('#F4F0EA', Q.mur, 0.25);
-    const socle = (x, z, h) => { pr.push(P(bo(15, 2.5, 15, 0.8), M.assombrir(marbre, 0.08), { x, z }), P(M.cylindre(5.2, 5.6, h - 5, 12), marbre, { x, y: 2.5, z }), P(bo(13, 2.5, 13, 0.8), M.assombrir(marbre, 0.08), { x, y: h - 2.5, z }), P(bo(13.4, 0.7, 13.4, 0.2), or, { x, y: h - 3, z })); return h; };
+    // g.userData.emprises : les boîtes monde des pièces qui tiennent de la place (colonnes, poteaux, statue, trophée et ce qui les porte) —
+    // pour les tests : rien ne s'interpénètre, rien n'est posé dans le vide (appui ≥ pied), rien ne sort de l'écran ni ne couvre une zone de touche
+    const emp = g.userData.emprises = [], note = (nom, x, z, w, d, y0, y1, o) => emp.push(Object.assign({ nom, x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2, y0, y1 }, o || {}));
+    const dimsHD = (nom, h) => { const md = typeof HDM !== 'undefined' && HDM.cuit ? HDM.cuit('luxe/' + nom) : null; return md ? { w: md.w * h / md.h, d: md.d * h / md.h } : null; }; // (part() : échelle uniforme sur la hauteur)
+    // le socle de marbre : sa plaque du dessus fait l de côté (13 : les cotes d'origine), la base l + 2
+    const socle = (x, z, h, l = 13) => { pr.push(P(bo(l + 2, 2.5, l + 2, 0.8), M.assombrir(marbre, 0.08), { x, z }), P(M.cylindre(l * 0.4, l * 0.43, h - 5, 12), marbre, { x, y: 2.5, z }), P(bo(l, 2.5, l, 0.8), M.assombrir(marbre, 0.08), { x, y: h - 2.5, z }), P(bo(l + 0.4, 0.7, l + 0.4, 0.2), or, { x, y: h - 3, z })); note('socle', x, z, l + 2, l + 2, 0, h); return h; };
     // les plantes hautes en pot (1-4), aux deux places d'honneur ; au palier 5, la statue et le trophée les remplacent
     for (const [cote, p] of [['d', coin.d], ['g', coin.g]]) {
       const x = p.x, z = c.wz(p.y);
       if (cote === 'g' && c.chaudron) continue; // le chaudron de la Maison hantée occupe ce coin
-      if (ob('statue') && cote === 'd') { const h = socle(x, z, 14); const st = hdl(c, 'statue', { h: 48, x, y: h, z }); if (st) pr.push(st); else { pr.push(P(bo(11, 4, 9, 1), marbre, { x, y: h, z }), P(M.cone(7, 24, 10), marbre, { x, y: h + 4, z }), P(M.sphere(6, 10), marbre, { x, y: h + 33, z, sy: 1.1 }), P(M.tore(5.4, 1.1, Math.PI * 1.3, 5, 10), or, { x, y: h + 36, z: z + 0.5, rx: -0.4, rz: Math.PI * 1.15 })); } continue; } // le buste couronné de lauriers
-      if (ob('trophee') && cote === 'g') { const h = socle(x, z, 16); const tr = hdl(c, 'trophy', { h: 30, x, y: h, z }); if (tr) pr.push(tr); else pr.push(...partsCoupe('or', 1.7, x, h, z)); continue; }
+      // la statue cuite a son propre plinthe (25 de côté, 11 de haut) : posée au sol, sans socle de marbre sous elle (il était plus étroit : porte-à-faux)
+      if (ob('statue') && cote === 'd') { const st = hdl(c, 'statue', { h: 48, x, y: 0, z }); if (st) { const dm = dimsHD('statue', 48); pr.push(st); if (dm) note('statue', x, z, dm.w, dm.d, 0, 48, { pied: dm.w, appui: 0 }); continue; } const h = socle(x, z, 14); note('statue', x, z, 11, 9, h, h + 39, { pied: 11, appui: 13 }); { pr.push(P(bo(11, 4, 9, 1), marbre, { x, y: h, z }), P(M.cone(7, 24, 10), marbre, { x, y: h + 4, z }), P(M.sphere(6, 10), marbre, { x, y: h + 33, z, sy: 1.1 }), P(M.tore(5.4, 1.1, Math.PI * 1.3, 5, 10), or, { x, y: h + 36, z: z + 0.5, rx: -0.4, rz: Math.PI * 1.15 })); } continue; } // le buste couronné de lauriers
+      // le trophée : plus petit (le cuit fait 1,19 fois sa hauteur de large, anses comprises ; son pied octogonal 0,72 fois), un peu plus bas
+      // que la place d'honneur pour ne pas couvrir la chambre froide (sa pastille), sur un socle aussi large que son pied
+      if (ob('trophee') && cote === 'g') { const zt = c.wz(p.y + 12), tr = hdl(c, 'trophy', { h: 24, x, y: 10, z: zt }), dm = tr && dimsHD('trophy', 24), pied = dm ? 0.72 * 24 : 9 * 1.4;
+        const h = socle(x, zt, 10, Math.max(13, Math.ceil(pied) + 1)); if (tr) pr.push(tr); else pr.push(...partsCoupe('or', 1.4, x, h, zt));
+        note('trophee', x, zt, dm ? dm.w : 22.5, dm ? dm.d : 11, h, h + (tr ? 24 : 25), { pied, appui: Math.max(13, Math.ceil(pied) + 1) }); continue; }
       if (!ob('plantesHautes')) continue;
       const kk = KN() ? kp('pottedPlant', { h: 52, x, z }, { wood: s >= 3 ? or : Q.comptoir, woodDark: M.assombrir(Q.bois, 0.3), plant: '#3FB889' }) : null;
       if (kk) { pr.push(kk); continue; }
@@ -6814,8 +6874,10 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       for (const [m, coul, ep] of [[0, M.assombrir(col, 0.12), 0.5], [2.5, or, 0.6], [4, col, 0.7], [10, M.eclaircir(col, 0.3), 0.8], [12.5, col, 0.9]]) pr.push(P(M.cylindre(tw / 2 - m, tw / 2 - m, ep, 28), coul, { x: tx, z: tz, sz: (td - m * 2 * (td / tw)) / (tw - m * 2) }));
     }
     // les colonnes du portique (3+), de part et d'autre de la porte de la devanture, hors du store (qui les cacherait), contre la façade
+    // (mêmes mesures, à changer ensemble : src/vie.js standingSol, et la citrouille d'Halloween de src/scene.js decorHD, posée à droite de x1 + 14)
     const xc0 = x0 - 9, xc1 = x1 + 9;
     if (ob('colonnes')) for (const x of [xc0, xc1]) {
+      note('colonne', x, zd + 2, 10, 10, 0, 42);
       const kc = hdl(c, 'column', { h: 42, w: 10, d: 10, x, z: zd + 2 });
       if (kc) pr.push(kc, P(bo(11, 0.8, 11, 0.2), or, { x, y: 35.5, z: zd + 2 }));
       else { pr.push(P(bo(10, 3, 10, 0.8), marbre, { x, z: zd + 2 }), P(M.cylindre(3.6, 4, 34, 12), marbre, { x, y: 3, z: zd + 2 }), P(bo(10, 3.5, 10, 0.8), marbre, { x, y: 37, z: zd + 2 }), P(M.tore(3.8, 0.6, TAU, 5, 12), or, { x, y: 34, z: zd + 2, rx: HP }), P(M.tore(4.1, 0.6, TAU, 5, 12), or, { x, y: 4, z: zd + 2, rx: HP })); }
@@ -6826,7 +6888,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       pr.push(P(bo(1.6, 1.6, 4, 0.4), '#3B3440', { x, y: yl + 9, z: zl - 2.5 }));
       const kl = hdl(c, 'lantern_hanging', { h: 13, x, y: yl - 1, z: zl });
       if (kl) pr.push(kl); else pr.push(P(bo(6, 1.5, 6, 0.5), '#3B3440', { x, y: yl, z: zl }), P(M.cone(4.2, 3.5, 4), '#3B3440', { x, y: yl + 8, z: zl, ry: Math.PI / 4 }), P(M.sphere(1, 6), or, { x, y: yl + 12, z: zl }));
-      pr.push(P(bo(3.8, 6.3, 3.8, 0.8), '#EADBB0', { x, y: yl + 1.5, z: zl })); lu.push(P(bo(4, 6.5, 4, 0.8), '#FFE6A0', { x, y: yl + 1.5, z: zl })); // le verre (le jour), sa lueur (le soir)
+      pr.push(P(bo(3.8, 6.3, 3.8, 0.8), VERRE_LANTERNE, { x, y: yl + 1.5, z: zl })); lu.push(1); // le verre ; le soir, il s'allume (voir plus bas)
     }
     // le store rayé (2+) : au-dessus de la porte de la devanture, aux couleurs du quartier, un lambrequin festonné
     if (ob('marquise')) {
@@ -6838,14 +6900,16 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     if (ob('tapisRouge')) {
       const z1 = c.wz(LAY.trottoir.rue) - 4, lt = z1 - zd - 2, xc = (x0 + x1) / 2, wt = x1 - x0 - 6;
       pr.push(P(bo(wt, 0.7, lt, 0.3), '#B3243A', { x: xc, y: 0.4, z: zd + 2 + lt / 2 }), P(bo(1.2, 0.8, lt, 0.2), or, { x: xc - wt / 2 + 1.5, y: 0.45, z: zd + 2 + lt / 2 }), P(bo(1.2, 0.8, lt, 0.2), or, { x: xc + wt / 2 - 1.5, y: 0.45, z: zd + 2 + lt / 2 }));
-      const zb = [zd + 8, zd + 8 + Math.min(26, lt * 0.55)];
+      const zb = [zd + 10.5, zd + 8 + Math.min(26, lt * 0.55)]; // le poteau avant dégage le socle des colonnes (zd + 7) : sa base (r 3) part de zd + 7,5
       for (const x of [x0 - 3, x1 + 3]) {
-        for (const z of zb) pr.push(P(M.cylindre(2.6, 3, 1.2, 10), or, { x, z }), P(M.cylindre(0.7, 0.7, 13, 6), or, { x, y: 1, z }), P(M.sphere(1.5, 8), or, { x, y: 14.5, z }));
+        for (const z of zb) note('poteau', x, z, 6, 6, 0, 16), pr.push(P(M.cylindre(2.6, 3, 1.2, 10), or, { x, z }), P(M.cylindre(0.7, 0.7, 13, 6), or, { x, y: 1, z }), P(M.sphere(1.5, 8), or, { x, y: 14.5, z }));
         const l = zb[1] - zb[0]; pr.push(P(M.tore(l / 2, 0.75, Math.PI, 5, 12), '#8E1B2E', { x, y: 12.8, z: (zb[0] + zb[1]) / 2, ry: HP, rz: Math.PI, sy: 0.35 }));
       }
     }
-    g.add(M.maille(pr.filter(Boolean)));
-    if (lu.length && c.hdLuxe) { const m = M.maille(lu, { ombre: false }); m.material = propre({ vertexColors: true, emissive: '#FFD98A', emissiveIntensity: 0.35 }); m.visible = false; g.add(m); g.userData.anime = (E) => { m.visible = E.lampes > 0.02; m.material.emissiveIntensity = 0.35 + 0.65 * E.lampes; }; } // la lueur : avec les modèles cuits (haute), allumée le soir seulement (le jour et en éco, pas d'appel de dessin en plus)
+    const mm = M.maille(pr.filter(Boolean)); g.add(mm);
+    if (lu.length && c.hdLuxe) { // la lueur des lanternes : avec les modèles cuits (haute), le soir ; dans le MÊME maillage (pas d'appel de dessin en plus)
+      const allumer = lueurVerre(mm); g.userData.anime = (E) => allumer(E.lampes > 0.02 ? 0.35 + 0.65 * E.lampes : 0);
+    }
     return g;
   }
   // ─── la composition d'ensemble (pour l'atelier et la scène) ───
@@ -6865,7 +6929,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     if (c.Q && c.Q.standing) out.push(standing(c));
     return out;
   }
-  return { textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome, standing, coinsStanding };
+  return { get sallesEnCache() { return [...TEX.keys()].filter((k) => /^(sol|mur)/.test(k)).length; }, textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome, standing, coinsStanding };
 })();
 if (typeof module !== 'undefined') module.exports = MEUBLES;
 
@@ -8147,7 +8211,7 @@ const SCENE = (() => {
     ...['citrouilles', 'toiles', 'chaudron', 'fantome'].map((id) => ({ id: 'ht-' + id, cle: () => (HDECO[id] && MEUBLES[id] ? '1' : null), faire: (k, c) => MEUBLES[id](c) })),
     // le badge « Esprit d'équipe » (l'objectif commun de la semaine réussi, classement v6) : une rosette accrochée au mur, à vie ; absent pour qui ne l'a pas
     { id: 'equipe', cle: () => (REC.equipe ? '1' : null), faire: (k, c) => rosetteEquipe(c) },
-    // le standing de la boutique (GAME.standing, palier 1 à 5) : ses objets (Q.objets) en un maillage (la lueur du soir en plus) ; en haute, ses modèles cuits (lots luxe*)
+    // le standing de la boutique (GAME.standing, palier 1 à 5) : ses objets (Q.objets) en un maillage (la lueur du soir comprise) ; en haute, ses modèles cuits (lots luxe*)
     { id: 'standing', cle: (E) => (E.Q.standing && MEUBLES.standing ? `${E.Q.standing}|${luxePret(E.Q.standing) ? 'hd' : ''}|${HDECO.chaudron ? 'c' : ''}|${typeof KENNEY !== 'undefined' && KENNEY && KENNEY.pret ? 'k' : ''}` : null), faire: (k, c) => MEUBLES.standing(c) },
   ];
   // les lots HD du standing nécessaires à un palier (src/hd.js : luxe1, luxe3, luxe5), et s'ils sont tous là (et la HD permise)
@@ -8326,12 +8390,12 @@ const SCENE = (() => {
     const k = `${W}x${H}|${LAY.bar.y | 0}|${LAY.sig}|${E.tags.includes('halloween') ? 'h' : ''}|${Object.keys(cles).length}|s${E.Q.standing || 0}`; // l'aménagement et le palier du standing : la scène change, on repose
     if (k === hdCle) return; hdCle = k;
     if (hdDecor) { scene.remove(hdDecor); M.dispose(hdDecor); }
-    const g = hdDecor = new THREE.Group(), S = W * 0.08, K = V.K, pose = (nom, x, y, z, o = {}) => { const m = HDM.modele(nom, S * (o.s || 1), o); if (m) { m.position.set(x, y, z); g.add(m); } return m; };
+    const g = hdDecor = new THREE.Group(), S = W * 0.08, K = V.K, pose = (nom, x, y, z, o = {}) => { const m = HDM.modele(nom, S * (o.s || 1), o); if (m) { m.position.set(x, y, z); m.userData.nomHD = nom; g.add(m); } return m; };
     // (les meubles de la salle, la lampe du coin salon comprise, sont des meubles KayKit fusionnés : MEUBLES.tables, bar, banquette, terrasse)
     pose('cactus_medium_A', LAY.entree.x - 34 * K, 0, wz(LAY.murH + 14 * K), { s: 0.6 }); // une plante près de la porte
     pose('cactus_small_A', LAY.comptoir.x + 8 * K, wy(LAY.comptoir.hFace + LAY.comptoir.hTop * 0.5), wz(LAY.comptoir.y + LAY.comptoir.hTop * 0.6), { s: 0.4 }); // un petit cactus sur le comptoir
     const pl = LAY.plan; pose('jar_A_large', pl.x + pl.w * 0.25, wy(pl.h * 0.55), wz(pl.y + pl.h * 0.6), { s: 0.25 }); pose('jar_B_medium', pl.x + pl.w * 0.45, wy(pl.h * 0.55), wz(pl.y + pl.h * 0.6), { s: 0.25 });
-    if (E.tags.includes('halloween')) { pose('pumpkin_orange_jackolantern', LAY.entree.x - 30 * K, 0, wz(LAY.murH + 22 * K), { s: 0.45 }); pose('pumpkin_orange', LAY.entree.x - 48 * K, 0, wz(LAY.murH + 30 * K), { s: 0.35 }); pose('pumpkin_yellow_small', LAY.devanture.porte.x1 + 9 * K, 0, wz(LAY.devanture.y + 9 * K), { s: 0.6 }); /* dehors, à droite de la porte */ }
+    if (E.tags.includes('halloween')) { pose('pumpkin_orange_jackolantern', LAY.entree.x - 30 * K, 0, wz(LAY.murH + 22 * K), { s: 0.45 }); pose('pumpkin_orange', LAY.entree.x - 48 * K, 0, wz(LAY.murH + 30 * K), { s: 0.35 }); pose('pumpkin_yellow_small', LAY.devanture.porte.x1 + 22, 0, wz(LAY.devanture.y + 9 * K), { s: 0.6 }); /* dehors, à droite de la porte, au-delà de la colonne droite du portique (x1 + 9 ± 5 : src/meubles.js standing, mêmes mesures) et de son cordon (x1 + 3) */ }
     habiller(g); scene.add(g);
   }
   function synchroniser(E, dt) {
@@ -8612,13 +8676,14 @@ const SCENE = (() => {
     precharger(lot) { if (typeof HDM === 'undefined' || !webgl || !HDM.permis(renderer)) return false; HDM.charger(lot); return true; }, // en arrière-plan, si le palier le permet
     alleger() { if (RICHE.post) { RICHE.post.liberer(); RICHE.post = null; } }, // un écran plein (la Planque) couvre la boutique : la passe d'effets rend sa mémoire, recréée au retour
     get decorHD() { return hdDecor ? hdDecor.children.length : 0; }, // les décors HD posés (pour les tests)
+    get decorHDBoites() { if (!hdDecor) return []; const b = new THREE.Box3(); return hdDecor.children.map((m) => { b.setFromObject(m); return { nom: m.userData.nomHD || '', x0: b.min.x, x1: b.max.x, y0: b.min.y, y1: b.max.y, z0: b.min.z, z1: b.max.z }; }); }, // leurs boîtes monde (pour les tests)
     get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0, ...(groupes.equipe ? { equipe: true } : {}) }; }, // ce que la boutique montre (pour les tests ; equipe : la rosette « Esprit d'équipe », seulement quand elle est là)
     get maillagesRecompenses() { const n = (g) => { let k = 0; if (g) g.traverse((o) => { if (o.isMesh) k++; }); return k; }; return { coupe: n(groupes.coupe), trophees: n(groupes.trophees), boulanger: n(boulangerG), salle: n(salle) }; }, // le budget d'appels de dessin (pour les tests)
     get _riche() { return RICHE; }, // les réglages du rendu riche (pour les tests et les captures)
     get appelsParGroupe() { const out = {}; const n = (g) => { let k = 0; g.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) k += Array.isArray(o.material) ? o.material.length : 1; }); return k; }; for (const [id, g] of Object.entries(groupes)) if (g) out[id] = n(g); if (hdDecor) out.hd = n(hdDecor); let a = 0; for (const g of acteurs.values()) a += n(g); out.acteurs = a; if (chatG) out.chat = n(chatG); return out; }, // le budget d'appels de dessin, meuble par meuble (pour les tests)
     get couverts() { return (couvertsCle.match(/1/g) || []).length; }, // les couverts posés (un par client assis ; pour les tests)
     get assisEn() { return { table: V.assisEn('table'), bar: V.assisEn('bar'), banquette: V.assisEn('banquette'), terrasse: V.assisEn('terrasse') }; }, // les clients assis par coin (pour les tests)
-    get standingVu() { const g = groupes.standing, E = dernier; let n = 0; if (g) g.traverse((o) => { if (o.isMesh) n++; }); return { palier: E && E.Q ? E.Q.standing || 0 : 0, decor: E && E.Q ? E.Q.id : '', hd: /\|hd\|/.test(cles.standing || ''), mailles: n }; }, // le standing posé (pour les tests)
+    get standingVu() { const g = groupes.standing, E = dernier; let n = 0; if (g) g.traverse((o) => { if (o.isMesh) n++; }); const emprises = ((g && g.userData.emprises) || []).map((e) => Object.assign({}, e, { haut: projeterY(e.y1, e.z0), bas: projeterY(e.y0, e.z1) })); return { palier: E && E.Q ? E.Q.standing || 0 : 0, decor: E && E.Q ? E.Q.id : '', hd: /\|hd\|/.test(cles.standing || ''), mailles: n, emprises }; }, // le standing posé ; ses emprises (monde, et haut/bas à l'écran) (pour les tests)
     get meublesHD() { return SALLE_IDS.filter((id) => groupes[id] && /\|hd/.test(cles[id] || '')); }, // les meubles de la salle bâtis en KayKit (pour les tests)
     get amenager() { return amenager; }, get deplacer() { return deplacer; }, get glisse() { return glisse; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
     get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length, geometries: renderer ? renderer.info.memory.geometries : 0, textures: renderer ? renderer.info.memory.textures : 0, riche: RICHE.actif, effets: !!RICHE.post, kenney: typeof KENNEY !== 'undefined' && KENNEY ? { pret: KENNEY.pret, octets: KENNEY.octets, ms: KENNEY.ms, erreur: KENNEY.erreur } : null }; } };
@@ -13335,7 +13400,7 @@ const RETOURS = (() => {
   'use strict';
   const NOUVEAUTES = [
     {
-      id: '2026-10-18-a', date: '2026-10-18', titre: 'Ta boutique monte en gamme, et tu aménages ta salle',
+      id: '2026-10-17-i', date: '2026-10-17', titre: 'Ta boutique monte en gamme, et tu aménages ta salle',
       points: [
         'Ta boutique monte en gamme : toutes les cinq boutiques, ton décor devient plus beau, de la Belle boutique (n°6) jusqu’au Palais du goût (n°26). Parquet, marbre, colonnes dorées, tapis rouge, et même une statue !',
         'Ton quartier garde ses couleurs. Les feuilles Étoiles et Parcours montrent ton standing et le prochain palier.',
@@ -13881,7 +13946,8 @@ const UI = (() => {
     const v = !!on && SCENE.amenager; if (glisse) finGlisse(true); SCENE.setDeplacer(v); document.body.classList.toggle('deplace', v);
     const b = $('#b-deplacer'); if (b) { b.setAttribute('aria-pressed', String(v)); b.querySelector('b').textContent = v ? 'Améliorer' : 'Déplacer'; b.querySelector('.ico').innerHTML = ICONS.UI[v ? 'amenager' : 'deplacer'] || ''; } // actif, le bouton ramène aux améliorations
     $('#b-origine').hidden = !v || !st.amenagement;
-    if (v && !astuceDeplacer) { astuceDeplacer = true; toast('Glisse un meuble du doigt : il s’aimante à la grille.'); } // une fois par visite (le message couvre les boutons)
+    if (v && VIE.amenagementDemande && !VIE.amenagementApplique) toast('Ton plan ne tient pas sur cet écran : la boutique est au plan d’origine. Le premier meuble posé part de là.'); // (VIE.proposer part du plan affiché)
+    else if (v && !astuceDeplacer) { astuceDeplacer = true; toast('Glisse un meuble du doigt : il s’aimante à la grille.'); } // une fois par visite (le message couvre les boutons)
   }
   // (les réponses au geste passent tout de suite, sans attendre la file des messages : montrerToast)
   function debutGlisse(e, sx, sy) {
@@ -13902,7 +13968,9 @@ const UI = (() => {
     const g = glisse; glisse = null; SCENE.glisser(null); if (!g || !g.p || annule || !g.bouge) return;
     const nom = (VIE.LAY.mobiles.find((m) => m.id === g.id) || {}).nom || 'le meuble';
     if (!g.p.ok) { son.non(); buzz([20, 40, 20]); montrerToast(`${g.p.raison} ${nom.charAt(0).toUpperCase() + nom.slice(1)} reste à sa place.`); return; }
-    const a = G.nettoyerAmenagement(g.p.a); if (G.codeAmenagement(a) === G.codeAmenagement(st.amenagement)) return;
+    const a = G.nettoyerAmenagement(g.p.a), pa = g.p.a, bouge = pa.tables.some(Boolean) || !!pa.bar || !!pa.salon || pa.terrasse.some((c) => c != null);
+    if (!a && bouge) { son.non(); buzz([20, 40, 20]); montrerToast(`${nom.charAt(0).toUpperCase() + nom.slice(1)} ne peut pas aller si loin : il reste à sa place.`); return; } // une place que le plan ne sait pas écrire : on n'efface jamais l'aménagement pour autant
+    if (G.codeAmenagement(a) === G.codeAmenagement(st.amenagement)) return;
     if (a) st.amenagement = a; else delete st.amenagement;
     son.achat(); buzz(10); save(); $('#b-origine').hidden = !st.amenagement;
   }

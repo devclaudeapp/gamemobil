@@ -100,6 +100,7 @@ const MODELES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   }
   const partager = (m) => { PARTAGES.add(m); return m; }; // un matériau tenu en cache ailleurs : dispose ne le libère jamais
   const estPartage = (m) => PARTAGES.has(m);
-  return { TAU, partager, estPartage, boite, boiteSimple, sphere, capsule, cylindre, cone, tore, plan, anneau, disque, extrusion, mat, MAT, part, matrice, assembler, maille, mesh, texture, melange, eclaircir, assombrir, dispose, GEOS, MATS };
+  const oublier = (m) => { PARTAGES.delete(m); m.dispose(); }; // un matériau partagé dont le cache se sépare : rendu à la carte graphique
+  return { TAU, partager, estPartage, oublier, boite, boiteSimple, sphere, capsule, cylindre, cone, tore, plan, anneau, disque, extrusion, mat, MAT, part, matrice, assembler, maille, mesh, texture, melange, eclaircir, assombrir, dispose, GEOS, MATS };
 })();
 if (typeof module !== 'undefined') module.exports = MODELES;

@@ -16,6 +16,8 @@ check(Array.isArray(L) && L.length >= 5, `${L.length} entrées`);
 check(new Set(L.map((n) => n.id)).size === L.length, 'des id uniques');
 check(L.every((n) => /^\d{4}-\d{2}-\d{2}-[a-z]$/.test(n.id) && /^\d{4}-\d{2}-\d{2}$/.test(n.date) && n.id.startsWith(n.date + '-') && !Number.isNaN(Date.parse(n.date + 'T12:00:00Z'))), 'chaque id : sa date (aaaa-mm-jj) et une lettre');
 check(L.every((n, k) => k === 0 || (n.id < L[k - 1].id && n.date <= L[k - 1].date)), 'triées de la plus récente à la plus ancienne (dates et id)');
+{ const auj = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Paris' }); // la date de la mise en ligne, jamais d'avance (un id du lendemain cacherait les nouveautés ajoutées le jour même)
+  check(L.every((n) => n.date <= auj), `aucune nouveauté datée après aujourd’hui (${auj}, heure de Paris) ${L.filter((n) => n.date > auj).map((n) => n.id).join(' ')}`); }
 check(L.every((n) => typeof n.titre === 'string' && n.titre.trim().length > 2 && n.titre.length <= 60), 'chaque entrée a un titre court');
 check(L.every((n) => Array.isArray(n.points) && n.points.length >= 1 && n.points.every((p) => typeof p === 'string' && p.trim().length > 10)), 'chaque entrée a ses points');
 const jargon = /\b(SQL|commit|Playwright|Supabase|WebGL|PGlite|API|CI)\b|\.js\b|\bv\d\b/;
