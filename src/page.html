@@ -22,7 +22,9 @@
       <button id="b-quartier" class="rond quartier" type="button" aria-label="L’événement : Le Quartier" hidden><i class="ico" data-ico="quartier"></i></button>
       <button id="b-hantee" class="rond hantee" type="button" aria-label="L’événement : La Maison hantée" hidden><i class="ico" data-ico="hantee"></i></button>
       <button id="b-tchat" class="rond tchat" type="button" aria-label="Le chat des boulangers" hidden><i class="ico" data-ico="bulle"></i><i class="rang-pastille tc-nonlus" aria-hidden="true" hidden></i></button>
+      <button id="b-idees" class="rond idees" type="button" aria-label="Idées et bugs" hidden><i class="ico" data-ico="ampoule"></i><i class="rang-pastille rt-pastille" aria-hidden="true" hidden></i></button>
     </div>
+    <button id="vote-bandeau" class="vote-bandeau" type="button" hidden><i class="vb-urne" aria-hidden="true">🗳</i> <span class="vb-txt"><span class="vb-q"></span> <small class="vb-reste"></small></span></button>
     <button id="b-fini" type="button" hidden>Terminé</button>
   </div>
   <div id="tiroir" data-pos="mi">
@@ -157,6 +159,20 @@
     </div>
   </div>
   <button type="button" id="tc-zoom" class="tc-zoom" data-tc="zoom" aria-label="Fermer l’image" hidden><img alt=""></button>
+</div>
+<div id="idees" role="dialog" aria-modal="true" aria-labelledby="rt-titre" hidden>
+  <div class="at-haut rt-haut">
+    <button type="button" class="at-fermer" data-rt="fermer" aria-label="Fermer les idées et bugs"><i class="ico" data-ico="fermer"></i></button>
+    <div class="at-titre"><b id="rt-titre">Idées &amp; bugs</b><small id="rt-sous">Aide-nous à faire grandir le Fournil</small></div>
+  </div>
+  <div class="segments rt-onglets" role="tablist" aria-label="Les rubriques">
+    <button type="button" role="tab" data-rt-onglet="ecrire" class="actif" aria-selected="true">Écrire</button>
+    <button type="button" role="tab" data-rt-onglet="votes" aria-selected="false">Votes<i class="rt-point" hidden></i></button>
+    <button type="button" role="tab" data-rt-onglet="admin" aria-selected="false" hidden>Admin<i class="rt-point" hidden></i></button>
+  </div>
+  <div id="rt-corps" class="rt-corps"></div>
+  <input id="rt-fichier" type="file" accept="image/*" hidden>
+  <button type="button" id="rt-zoom" class="tc-zoom" data-rt="zoom" aria-label="Fermer l’image" hidden><img alt=""></button>
 </div>
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>

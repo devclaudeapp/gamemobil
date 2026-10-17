@@ -1413,6 +1413,137 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
 .nv-points { margin: 0; padding: 0 14px 14px 32px; display: grid; gap: 6px; font-size: var(--t-corps); line-height: 1.4; color: var(--texte); }
 .nv-points li::marker { color: var(--lavande-sombre); }
 .nv.neuve { box-shadow: 0 0 0 2px var(--rose-clair), var(--ombre-carte); }
+/* ─── les idées, les bugs et les votes (src/retours.js) : le bouton rond du coin (un liseré beurre), le bandeau du vote sous l'enseigne,
+   la feuille plein écran (onglets Écrire / Votes / Admin) ─── */
+.rond.idees { box-shadow: 0 3px 0 var(--beurre-sombre), 0 4px 10px rgba(74, 51, 40, .12); }
+.rang-pastille.rt-pastille { background: var(--lavande-sombre); color: #fff; }
+.rang-pastille.rt-pastille.admin { background: var(--fraise); }
+/* un coin trop haut pour la place au-dessus du tiroir (un petit téléphone, l'événement de la boutique qui s'affiche) : ui.js (serrerCoin)
+   passe en deux colonnes ; la seconde, à gauche, se cale en bas, loin de l'enseigne */
+#coin.serre { display: grid; grid-template-columns: 44px 44px; grid-auto-rows: 44px; gap: 8px 14px; }
+.vote-bandeau { position: absolute; top: 50px; left: 50%; transform: translateX(-50%); z-index: 2; display: flex; align-items: center; gap: 6px; width: max-content; max-width: calc(100% - 128px); min-height: 34px; padding: 5px 14px 5px 10px;
+  border-radius: 17px; background: var(--lavande-clair); box-shadow: 0 3px 0 var(--lavande), 0 4px 10px rgba(74, 51, 40, .10); font: 800 12.5px/1.25 var(--texte-font); color: var(--texte); text-align: left; animation: vbEntre .25s ease-out; transition: opacity .2s; }
+@keyframes vbEntre { from { opacity: 0; transform: translateX(-50%) translateY(-6px); } to { opacity: 1; transform: translateX(-50%); } }
+.vote-bandeau:active { transform: translateX(-50%) translateY(3px); box-shadow: none; }
+.vb-urne { flex: 0 0 auto; font-style: normal; font-size: 16px; line-height: 1; }
+.vb-txt { min-width: 0; display: flex; flex-direction: column; gap: 1px; } /* la question (deux lignes au plus), puis le compte à rebours */
+.vb-q { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.vb-reste { font: 800 11.5px/1.2 var(--texte-font); color: var(--lavande-sombre); white-space: nowrap; }
+body.amenage .vote-bandeau, body.visite .vote-bandeau, body[data-tiroir="ouvert"] .vote-bandeau { opacity: 0; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) { .vote-bandeau { animation: none; } }
+#idees { position: fixed; left: 0; right: 0; top: 0; height: 100%; z-index: 10; display: flex; flex-direction: column; background: var(--creme);
+  padding: env(safe-area-inset-top, 0px) 0 0; animation: atEntre .22s ease-out; overflow: hidden; }
+#idees .rt-haut { background: var(--creme); padding-bottom: 4px; }
+.rt-onglets { flex: 0 0 auto; margin: 0 12px 4px; }
+.rt-onglets button { position: relative; }
+.rt-point { position: absolute; top: 8px; right: 12px; width: 9px; height: 9px; border-radius: 50%; background: var(--fraise); box-shadow: 0 0 0 2px #fff; }
+.rt-corps { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; display: flex; flex-direction: column; gap: 10px;
+  padding: 10px 14px calc(env(safe-area-inset-bottom, 0px) + 24px); box-shadow: inset 0 8px 10px -10px rgba(74, 51, 40, .25); -webkit-user-select: text; user-select: text; }
+.rt-corps > * { flex: 0 0 auto; width: 100%; max-width: 520px; margin-left: auto; margin-right: auto; }
+.rt-corps .sous { margin: 0; }
+.rt-vide { margin: 18px auto; }
+.rt-vide .tc-pic { font-size: 34px; background: var(--or-clair); }
+.rt-reseau { align-self: center; width: auto; }
+.rt-note { width: 100%; }
+/* « Écrire » : les grandes cartes, le formulaire, le merci */
+.rt-carte { display: flex; align-items: center; gap: 12px; min-height: 84px; padding: 12px 12px 12px 14px; border-radius: var(--r-carte); background: var(--carte); box-shadow: 0 4px 0 var(--gris-sombre), var(--ombre-carte); text-align: left; }
+.rt-carte:active { transform: translateY(3px); box-shadow: var(--ombre-carte); }
+.rt-carte.non { opacity: .55; }
+.rt-emoji { display: grid; place-items: center; flex: 0 0 auto; width: 56px; height: 56px; border-radius: 18px; background: var(--or-clair); font-size: 30px; line-height: 1; }
+.rt-carte.bug .rt-emoji { background: var(--rose-clair); }
+.rt-carte.vote .rt-emoji { background: var(--lavande-clair); }
+.rt-carte-t { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rt-carte-t b { font: 700 19px/1.15 var(--titre); }
+.rt-carte-t small { font-size: 13px; color: var(--texte-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rt-carte .chev svg { width: 20px; height: 20px; }
+.rt-retour { align-self: flex-start; width: auto !important; margin-left: 0 !important; display: inline-flex; align-items: center; gap: 2px; min-height: 40px; padding: 0 12px 0 4px; border-radius: 999px; font: 800 14px/1 var(--texte-font); color: var(--texte-2); }
+.rt-retour .ico svg { width: 18px; height: 18px; transform: rotate(180deg); }
+.rt-h3 { margin: 0; font: 700 var(--t-titre)/1.15 var(--titre); }
+.rt-champ { position: relative; display: block; }
+.rt-champ textarea, .rt-champ input { display: block; width: 100%; padding: 12px 14px; border: 2px solid var(--ligne); border-radius: 18px; background: var(--carte); font: 700 16px/1.4 var(--texte-font); color: var(--texte); outline: none; resize: vertical; -webkit-user-select: text; user-select: text; } /* 16 px : l'iPhone ne zoome pas au toucher */
+.rt-champ textarea { min-height: 140px; padding-bottom: 26px; }
+.rt-champ.petit input { height: 46px; padding: 0 14px; border-radius: 16px; font-size: 16px; }
+.rt-champ textarea:focus, .rt-champ input:focus { border-color: var(--lavande); }
+.rt-compte { position: absolute; right: 12px; bottom: 8px; font: 800 11px/1 var(--texte-font); color: var(--texte-2); }
+.rt-compte.discret { color: var(--gris-texte); }
+.rt-capture { display: flex; align-items: center; gap: 10px; }
+.rt-capture:has(.tc-apercu) { padding: 6px 6px 6px 8px; border-radius: 16px; background: var(--carte); box-shadow: var(--ombre-carte); }
+.rt-photo b { display: inline-flex; align-items: center; gap: 8px; font-size: 17px !important; }
+.rt-photo .ico svg { width: 22px; height: 22px; }
+.rt-infos summary { min-height: 52px; }
+.rt-dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; padding: 0 14px 14px; font-size: 13px; line-height: 1.35; }
+.rt-dl dt { color: var(--texte-2); font-weight: 800; }
+.rt-dl dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.rt-envoyer[disabled] { opacity: .6; pointer-events: none; }
+.rt-rejoindre { min-height: 60px; }
+.rt-rejoindre b { font-size: 17px !important; white-space: normal !important; }
+.rt-rejoindre small { color: var(--texte); opacity: .75; }
+.rt-merci { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 24px auto 8px; padding: 26px 20px; border-radius: var(--r-carte); background: var(--carte); box-shadow: var(--ombre-carte); text-align: center; animation: atEntre .25s ease-out; }
+.rt-merci-pic { display: grid; place-items: center; width: 76px; height: 76px; border-radius: 24px; background: var(--menthe-clair); font-size: 40px; }
+.rt-merci b { font: 700 28px/1.1 var(--titre); }
+.rt-merci span:last-child { font-size: 15px; color: var(--texte-2); }
+.rt-actions { display: grid; gap: 12px; }
+/* « Votes » : la carte d'un vote, ses gros boutons, ses barres */
+.rt-vote { display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: var(--r-carte); background: var(--carte); box-shadow: var(--ombre-carte); }
+.rt-vote.fini { opacity: .9; }
+.rt-reste { font: 800 12px/1.2 var(--texte-font); color: var(--lavande-sombre); }
+.rt-vote.fini .rt-reste { color: var(--texte-2); }
+.rt-q { font: 700 19px/1.2 var(--titre); overflow-wrap: anywhere; }
+.rt-options { display: grid; gap: 10px; }
+.rt-option { min-height: 56px; padding: 10px 16px; border-radius: 18px; background: var(--lavande-clair); box-shadow: 0 4px 0 var(--lavande); font: 700 17px/1.2 var(--titre); color: var(--texte); text-align: center; overflow-wrap: anywhere; }
+.rt-option:active { transform: translateY(4px); box-shadow: none; }
+.rt-option.choisi { background: var(--lavande); color: #fff; box-shadow: 0 4px 0 var(--lavande-sombre); }
+.rt-option[disabled] { opacity: .6; }
+.rt-barres { display: grid; gap: 8px; }
+.rt-barre { position: relative; display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 6px 12px; border-radius: 14px; background: var(--creme); overflow: hidden; }
+.rt-barre-fond { position: absolute; left: 0; top: 0; bottom: 0; background: var(--lavande-clair); border-radius: 14px 0 0 14px; transition: width .4s cubic-bezier(.2, .8, .2, 1); }
+.rt-barre.moi .rt-barre-fond { background: var(--lavande); opacity: .55; }
+.rt-barre.gagne .rt-barre-fond { background: var(--or-clair); }
+.rt-barre-txt { position: relative; flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.rt-barre-txt b { font: 700 15px/1.2 var(--titre); overflow-wrap: anywhere; }
+.rt-moi { font: 800 11px/1.2 var(--texte-font); color: var(--lavande-sombre); }
+.rt-barre-pc { position: relative; flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; }
+.rt-barre-pc b { font: 700 16px/1 var(--titre); font-variant-numeric: tabular-nums; }
+.rt-barre-pc small { font: 800 11px/1.3 var(--texte-font); color: var(--texte-2); }
+.rt-total { font: 800 12px/1 var(--texte-font); color: var(--texte-2); }
+.rt-changer, .rt-fermer-vote { min-height: 46px; }
+.rt-lien { align-self: center; min-height: 40px; padding: 0 12px; font: 800 14px/1 var(--texte-font); color: var(--lavande-sombre); }
+.rt-finis-titre { margin-top: 8px; }
+@media (prefers-reduced-motion: reduce) { .rt-barre-fond { transition: none; } .rt-merci { animation: none; } }
+/* « Admin » : une carte par retour, l'image, les infos, les états ; créer un vote */
+.rt-admin-vues, .rt-filtre, .rt-durees { margin: 0 auto !important; }
+.rt-filtre button, .rt-durees button { min-height: 40px; font-size: 14px; }
+.rt-ret { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px 14px; border-radius: var(--r-carte); background: var(--carte); box-shadow: var(--ombre-carte); border-left: 5px solid var(--beurre); }
+.rt-ret.bug { border-left-color: var(--fraise); }
+.rt-ret-tete { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rt-ret-tete b { font: 700 16px/1.2 var(--titre); }
+.rt-ret-tete small { font-size: 12px; color: var(--texte-2); }
+.rt-type { padding: 3px 8px; border-radius: 999px; background: var(--or-clair); font: 800 12px/1.2 var(--texte-font); }
+.rt-ret.bug .rt-type { background: var(--rose-clair); }
+.rt-etat { margin-left: auto; padding: 3px 8px; border-radius: 999px; background: var(--fraise); color: #fff; font: 800 11px/1.2 var(--texte-font); font-style: normal; }
+.rt-etat.vu { background: var(--ciel-clair); color: var(--texte); }
+.rt-etat.fait { background: var(--menthe); }
+.rt-etat.refuse { background: var(--gris); color: var(--texte-2); }
+.rt-txt { margin: 0; font: 700 15px/1.4 var(--texte-font); white-space: pre-wrap; overflow-wrap: anywhere; }
+.rt-img { position: relative; display: grid; place-items: center; width: 100%; height: 48px; border-radius: 14px; overflow: hidden; background: var(--ciel-clair); font: 800 14px/1 var(--texte-font); color: var(--texte); }
+.rt-img img { display: none; }
+.rt-img.chargee { height: 180px; background: var(--gris); }
+.rt-img.chargee img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.rt-img.chargee span { display: none; }
+.rt-img.charge span::after { content: ' …'; }
+.rt-img.effacee { background: rgba(74, 51, 40, .06); color: var(--texte-2); }
+.rt-infos-a summary { min-height: 36px; display: flex; align-items: center; font: 800 13px/1 var(--texte-font); color: var(--lavande-sombre); cursor: pointer; }
+.rt-infos-a .rt-dl { padding: 4px 0 2px; }
+.rt-etats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.rt-etat-b { min-height: 44px; border-radius: 14px; background: var(--creme); box-shadow: 0 3px 0 var(--gris-sombre); font: 700 15px/1 var(--titre); }
+.rt-etat-b:active { transform: translateY(3px); box-shadow: none; }
+.rt-etat-b.actif.vu { background: var(--ciel-clair); box-shadow: 0 3px 0 #7FB8E6; }
+.rt-etat-b.actif.fait { background: var(--menthe); color: #fff; box-shadow: 0 3px 0 var(--menthe-sombre); }
+.rt-etat-b.actif.refuse { background: var(--gris); box-shadow: 0 3px 0 var(--gris-sombre); }
+.rt-opts { display: grid; gap: 8px; }
+.rt-opt { display: flex; align-items: center; gap: 6px; }
+.rt-opt input { flex: 1 1 auto; min-width: 0; }
+.rt-etiquette { font: 800 12px/1 var(--texte-font); color: var(--texte-2); letter-spacing: .04em; text-transform: uppercase; }
 </style>
 </head>
 <body>
@@ -1440,7 +1571,9 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
       <button id="b-quartier" class="rond quartier" type="button" aria-label="L’événement : Le Quartier" hidden><i class="ico" data-ico="quartier"></i></button>
       <button id="b-hantee" class="rond hantee" type="button" aria-label="L’événement : La Maison hantée" hidden><i class="ico" data-ico="hantee"></i></button>
       <button id="b-tchat" class="rond tchat" type="button" aria-label="Le chat des boulangers" hidden><i class="ico" data-ico="bulle"></i><i class="rang-pastille tc-nonlus" aria-hidden="true" hidden></i></button>
+      <button id="b-idees" class="rond idees" type="button" aria-label="Idées et bugs" hidden><i class="ico" data-ico="ampoule"></i><i class="rang-pastille rt-pastille" aria-hidden="true" hidden></i></button>
     </div>
+    <button id="vote-bandeau" class="vote-bandeau" type="button" hidden><i class="vb-urne" aria-hidden="true">🗳</i> <span class="vb-txt"><span class="vb-q"></span> <small class="vb-reste"></small></span></button>
     <button id="b-fini" type="button" hidden>Terminé</button>
   </div>
   <div id="tiroir" data-pos="mi">
@@ -1576,10 +1709,24 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
   </div>
   <button type="button" id="tc-zoom" class="tc-zoom" data-tc="zoom" aria-label="Fermer l’image" hidden><img alt=""></button>
 </div>
+<div id="idees" role="dialog" aria-modal="true" aria-labelledby="rt-titre" hidden>
+  <div class="at-haut rt-haut">
+    <button type="button" class="at-fermer" data-rt="fermer" aria-label="Fermer les idées et bugs"><i class="ico" data-ico="fermer"></i></button>
+    <div class="at-titre"><b id="rt-titre">Idées &amp; bugs</b><small id="rt-sous">Aide-nous à faire grandir le Fournil</small></div>
+  </div>
+  <div class="segments rt-onglets" role="tablist" aria-label="Les rubriques">
+    <button type="button" role="tab" data-rt-onglet="ecrire" class="actif" aria-selected="true">Écrire</button>
+    <button type="button" role="tab" data-rt-onglet="votes" aria-selected="false">Votes<i class="rt-point" hidden></i></button>
+    <button type="button" role="tab" data-rt-onglet="admin" aria-selected="false" hidden>Admin<i class="rt-point" hidden></i></button>
+  </div>
+  <div id="rt-corps" class="rt-corps"></div>
+  <input id="rt-fichier" type="file" accept="image/*" hidden>
+  <button type="button" id="rt-zoom" class="tc-zoom" data-rt="zoom" aria-label="Fermer l’image" hidden><img alt=""></button>
+</div>
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'c03a10fb5101';</script>
+<script>window.FOURNIL_VERSION = '445fab10430a';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -3649,6 +3796,45 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
     const dernier = Math.max(chatN(d.dernier) || 0, messages.length ? messages[messages.length - 1].n : 0);
     return { messages, dernier };
   }
+  // ─── les idées, les bugs et les votes (supabase/fournil-retours.sql) : ce que rend le serveur, nettoyé avant d'arriver à l'interface ───
+  // Une capture n'est gardée que si c'est une data URL d'image (webp, jpeg, png) de 480 000 caractères au plus ; les infos d'un bug (version,
+  // appareil, extrait du journal) : un petit objet JSON de 2 Ko au plus ; un vote : 2 à 4 options, ses voix (des entiers), sa fin en ms.
+  const RET_TEXTE = 1000, RET_NOTE = 300, RET_INFOS = 2048, VOTE_QUESTION = 200, VOTE_OPTION = 60;
+  const RET_TYPES = ['idee', 'bug'], RET_ETATS = ['nouveau', 'vu', 'fait', 'refuse'];
+  const RET_IMG_OK = /^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/]+=*$/;
+  const retImageOk = (s) => typeof s === 'string' && s.length <= CHAT_IMAGE && RET_IMG_OK.test(s);
+  const coupe = (v, n) => (typeof v === 'string' ? Array.from(v).slice(0, n).join('') : '');
+  function retInfosOk(o) { // un objet simple (pas un tableau), de 2 Ko au plus en JSON (octets UTF-8, comme jsonb côté serveur)
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return false;
+    try { return octetsJson(o) <= RET_INFOS; } catch (e) { return false; }
+  }
+  function nettoyerVote(v) { // { n, question, options, fin, voix, total, moi } ; null : illisible
+    if (!v || typeof v !== 'object') return null;
+    const n = chatN(v.n), question = coupe(v.question, VOTE_QUESTION).trim();
+    const options = Array.isArray(v.options) ? v.options.slice(0, 4).map((o) => coupe(o == null ? '' : String(o), VOTE_OPTION)) : [];
+    if (!n || !question || options.length < 2) return null;
+    const voix = options.map((o, i) => { const x = Array.isArray(v.voix) ? Number(v.voix[i]) : 0; return Number.isSafeInteger(x) && x > 0 ? x : 0; });
+    const somme = voix.reduce((a, x) => a + x, 0), t = Number(v.total);
+    const moi = Number.isInteger(v.moi) && v.moi >= 0 && v.moi < options.length ? v.moi : null;
+    return { n, question, options, fin: chatQuand(v.fin), voix, total: Number.isSafeInteger(t) && t >= somme ? t : somme, moi };
+  }
+  function nettoyerVotes(d) { // { votes (en cours), finis } ; null : réponse illisible
+    if (!d || typeof d !== 'object' || Array.isArray(d) || d.ok === false || !Array.isArray(d.votes)) return null;
+    const liste = (l) => (Array.isArray(l) ? l.slice(0, 20) : []).map(nettoyerVote).filter(Boolean);
+    return { votes: liste(d.votes), finis: liste(d.finis).slice(0, 5) };
+  }
+  function nettoyerRetour(r) { // un retour, vu par l'admin : { n, pseudo, type, texte, aImage, infos, cree, etat, note }
+    if (!r || typeof r !== 'object') return null;
+    const n = chatN(r.n); if (!n) return null;
+    let infos = null;
+    if (r.infos && typeof r.infos === 'object' && !Array.isArray(r.infos)) { try { infos = JSON.parse(JSON.stringify(r.infos)); } catch (e) { infos = null; } }
+    return { n, pseudo: String(r.pseudo == null ? '' : r.pseudo).slice(0, 40), type: RET_TYPES.includes(r.type) ? r.type : 'idee', texte: coupe(r.texte, RET_TEXTE), aImage: r.a_image === true,
+      infos, cree: chatQuand(r.cree), etat: RET_ETATS.includes(r.etat) ? r.etat : 'nouveau', note: coupe(r.note, RET_NOTE) };
+  }
+  function nettoyerRetours(d) { // [retour…], du plus récent au plus ancien ; null : réponse illisible
+    if (!d || typeof d !== 'object' || Array.isArray(d) || d.ok === false || !Array.isArray(d.retours)) return null;
+    const vus = new Set(); return d.retours.slice(0, 100).map(nettoyerRetour).filter((r) => r && !vus.has(r.n) && vus.add(r.n)).sort((a, b) => b.n - a.n);
+  }
   // le jour de Paris ('AAAA-MM-JJ') : les quotas de pourboires (3 donnés, 3 boosts reçus) repartent chaque jour, comme au serveur
   function jourParis(ms) { const t = Number.isFinite(ms) ? ms : Date.now(); return new Date(t + decalageParis(t)).toISOString().slice(0, 10); }
   // les préférences des notifications : les quatre cas (a) boutique pleine, (b) ouverture et fin d'un événement, (c) pourboire, (d) objectif commun
@@ -4206,6 +4392,79 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
       return r.data && r.data.ok === true ? { etat: 'ok' } : chatRefus(r.data);
     }
 
+    // ─── les idées, les bugs et les votes (supabase/fournil-retours.sql, un script à part, collé par-dessus la v6 et le chat) : écrire, voter et
+    // les fonctions de l'admin demandent un pseudo (p_id, p_jeton, comme moi() ailleurs) ; lire les votes, non. Comme pour le chat, le script
+    // pas encore collé rend { etat: 'pas-ouvert' } (l'interface dit « bientôt ») sans toucher aux copains (pasInstalle les cacherait :
+    // ce script-ci vit à part). Les refus du serveur : { etat: 'refus', erreur } ('pas-admin' pour une fonction de l'admin).
+    const retMoi = chatMoi, retPasOuvert = chatPasOuvert, retRefus = chatRefus;
+    const okOuRefus = (r, f) => (r.data && r.data.ok === true ? Object.assign({ etat: 'ok' }, f ? f(r.data) : {}) : retRefus(r.data));
+    // envoyer une idée ou un bug : { type: 'idee' | 'bug', texte (1000 caractères au plus), image (data URL, facultative), infos (objet, ≤ 2 Ko) } → { etat: 'ok', n }
+    async function retourEnvoyer(o) {
+      if (!config()) return { etat: 'absent' };
+      const m = retMoi(); if (!m) return { etat: 'pas-rejoint' };
+      const type = o && o.type, texte = String((o && o.texte) || '').trim(), image = o && o.image ? String(o.image) : '', infos = o && o.infos != null ? o.infos : null;
+      if (!RET_TYPES.includes(type)) return retRefus({ erreur: 'type' });
+      if (!texte) return retRefus({ erreur: 'vide' });
+      if (Array.from(texte).length > RET_TEXTE) return retRefus({ erreur: 'long' });
+      if (image && !retImageOk(image)) return retRefus({ erreur: 'image' });
+      if (infos != null && !retInfosOk(infos)) return retRefus({ erreur: 'infos' });
+      const r = await rpc('fournil_retour_envoyer', Object.assign(m, { p_type: type, p_texte: texte, p_image: image || null, p_infos: infos }), { delaiMax: image ? 20e3 : 0 }), x = retPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      return r.data && r.data.ok === true && chatN(r.data.n) ? { etat: 'ok', n: chatN(r.data.n) } : retRefus(r.data);
+    }
+    // les votes en cours (et les 5 derniers finis) : { etat: 'ok', votes, finis } ; avec un pseudo, moi dit l'option choisie (null : pas encore voté)
+    async function votesOuverts() {
+      if (!config()) return { etat: 'absent' };
+      const m = retMoi();
+      const r = await rpc('fournil_votes_ouverts', m || {}), x = retPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      const d = nettoyerVotes(r.data); return d ? { etat: 'ok', votes: d.votes, finis: d.finis } : { etat: 'erreur', detail: 'reponse' };
+    }
+    // voter (ou changer son vote tant que le vote n'est pas fini) : { etat: 'ok', voix, total }
+    async function voter(n, option) {
+      if (!config()) return { etat: 'absent' };
+      const m = retMoi(); if (!m) return { etat: 'pas-rejoint' };
+      const k = chatN(n); if (!k || !Number.isInteger(option) || option < 0 || option > 3) return { etat: 'invalide' };
+      const r = await rpc('fournil_voter', Object.assign(m, { p_n: k, p_option: option })), x = retPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      const d = r.data || {}, compte = { voix: Array.isArray(d.voix) ? d.voix.slice(0, 4).map((v) => (Number.isSafeInteger(+v) && +v > 0 ? +v : 0)) : null, total: Number.isSafeInteger(+d.total) && +d.total >= 0 ? +d.total : null };
+      return d.ok === true ? Object.assign({ etat: 'ok' }, compte) : Object.assign(retRefus(d), compte); // les voix et le total : même en cas de refus ('fini', 'option')
+    }
+    // l'admin (le propriétaire, marqué dans fournil_admins) : adminMoi → { etat: 'ok', admin } ; sans pseudo, pas d'appel : admin false
+    async function adminMoi() {
+      if (!config()) return { etat: 'absent' };
+      const m = retMoi(); if (!m) return { etat: 'ok', admin: false };
+      const r = await rpc('fournil_admin_moi', m), x = retPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      return okOuRefus(r, (d) => ({ admin: d.admin === true }));
+    }
+    const adminAppel = async (nom, corps, f) => {
+      if (!config()) return { etat: 'absent' };
+      const m = retMoi(); if (!m) return { etat: 'pas-rejoint' };
+      const r = await rpc(nom, Object.assign(m, corps)), x = retPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      return okOuRefus(r, f);
+    };
+    // les retours (30 par page, du plus récent au plus ancien ; avant : le plus petit n déjà lu, pour la page suivante)
+    function adminRetours(filtre, avant) {
+      const a = chatN(avant);
+      return adminAppel('fournil_admin_retours', { p_filtre: filtre === 'tout' ? 'tout' : 'nouveau', p_avant: a || null }, (d) => ({ retours: nettoyerRetours(d) || [], nouveaux: Number.isSafeInteger(+d.nouveaux) && +d.nouveaux >= 0 && d.nouveaux !== null ? +d.nouveaux : null })); // nouveaux : le total au statut « nouveau » (la pastille)
+    }
+    function adminRetourImage(n) { const k = chatN(n); if (!k) return Promise.resolve({ etat: 'invalide' }); return adminAppel('fournil_admin_retour_image', { p_n: k }, (d) => ({ data: retImageOk(d.data) ? d.data : null })); }
+    function adminRetourEtat(n, etatR, note) {
+      const k = chatN(n); if (!k || !RET_ETATS.includes(etatR)) return Promise.resolve({ etat: 'invalide' });
+      // p_note : null garde la note du serveur, '' l'efface ; la note tapée part telle quelle (vidée : '')
+      return adminAppel('fournil_admin_retour_etat', { p_n: k, p_etat: etatR, p_note: note == null ? null : coupe(String(note).trim(), RET_NOTE) });
+    }
+    function adminVoteCreer(question, options, heures) {
+      const q = String(question == null ? '' : question).trim(), opts = (Array.isArray(options) ? options : []).map((o) => String(o == null ? '' : o).trim()).filter(Boolean);
+      if (!q || Array.from(q).length > VOTE_QUESTION) return Promise.resolve(retRefus({ erreur: 'question' }));
+      if (opts.length < 2 || opts.length > 4 || opts.some((o) => Array.from(o).length > VOTE_OPTION)) return Promise.resolve(retRefus({ erreur: 'options' }));
+      if (!Number.isInteger(heures) || heures < 1 || heures > 168) return Promise.resolve(retRefus({ erreur: 'duree' }));
+      return adminAppel('fournil_admin_vote_creer', { p_question: q, p_options: opts, p_heures: heures }, (d) => ({ n: chatN(d.n) }));
+    }
+    function adminVoteFermer(n) { const k = chatN(n); if (!k) return Promise.resolve({ etat: 'invalide' }); return adminAppel('fournil_admin_vote_fermer', { p_n: k }); }
+
     // les cadeaux (supabase/fournil-cadeaux.sql) : des euros déposés pour ce joueur, reçus une fois. cadeaux() → { etat, cadeaux: [{ n, montant, etoiles, motif }] } ;
     // cadeauRecu(n) les retire de la boîte. Un serveur sans la boîte (pas encore collée) : plus aucune lecture jusqu'au prochain lancement.
     let cadeauxAbsents = false;
@@ -4260,6 +4519,7 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
       copains: () => !!config() && !ancien(), boutique, dons, pourboire, objectif, objectifVu: () => objCache, pourboiresRecus, accueillirPourboires, objectifFait,
       notifsPossibles, notifs, abonner, desabonner, planifier, essai,
       chatLire, chatImage, chatEnvoyer, chatSignaler, chatEffacer,
+      retourEnvoyer, votesOuverts, voter, adminMoi, adminRetours, adminRetourImage, adminRetourEtat, adminVoteCreer, adminVoteFermer,
       relire: () => { etat = lireEtat(E.stockage); prevenir(); return etat; },
       resynchroniser, tick,
     };
@@ -4335,7 +4595,8 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
     etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur,
     METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce,
     PHOTO, EV_PHOTO, photo, nettoyerPhoto, clePhoto, boutiqueDepuisPhoto, evenementDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson,
-    CHAT_TEXTE, CHAT_IMAGE, chatImageOk, chatGifOk, nettoyerChat };
+    CHAT_TEXTE, CHAT_IMAGE, chatImageOk, chatGifOk, nettoyerChat,
+    RET_TEXTE, RET_NOTE, RET_INFOS, VOTE_QUESTION, VOTE_OPTION, retImageOk, retInfosOk, nettoyerVote, nettoyerVotes, nettoyerRetour, nettoyerRetours };
 });
 
 /* ── icons.js ── */
@@ -4511,6 +4772,8 @@ const ICONS = (() => {
     bulle: U(`<path d="M6.5 4h11A2.5 2.5 0 0120 6.5v8a2.5 2.5 0 01-2.5 2.5H11l-4.5 3.5V17A2.5 2.5 0 014 14.5v-8A2.5 2.5 0 016.5 4z" fill="${A.ciel}"/><path d="M8.5 10.5v.1M12 10.5v.1M15.5 10.5v.1"/>`),
     photo: U(`<path d="M3.5 8.5A1.5 1.5 0 015 7h2.6l1.6-2.5h5.6L16.4 7H19a1.5 1.5 0 011.5 1.5v9A1.5 1.5 0 0119 19H5a1.5 1.5 0 01-1.5-1.5z" fill="${A.peche}"/><circle cx="12" cy="13" r="3.3"/>`),
     envoyer: U(`<path d="M3.8 11.2L20 4l-6.6 16.2-2.6-6.9z" fill="${A.beurre}"/><path d="M10.8 13.3L20 4"/>`),
+    // les idées, les bugs et les votes (src/retours.js) : une ampoule, le verre en accent beurre, le culot rayé et le filament
+    ampoule: U(`<path d="M12 3a6 6 0 00-3.6 10.8c.7.5 1.1 1.3 1.1 2.2v.5h5V16c0-.9.4-1.7 1.1-2.2A6 6 0 0012 3z" fill="${A.beurre}"/><path d="M9.6 19h4.8M10.6 21h2.8"/><path d="M10.2 10.4l1.8 1.8 1.8-1.8M12 12.2v4.3"/>`),
   };
   UI.classement = UI.podium;
   // le podium du classement : une petite toque à la couleur du métal (à côté d'un pseudo) et une coupe (l'annonce, la collection)
@@ -10992,6 +11255,51 @@ const SONS = (() => {
 })();
 if (typeof module !== 'undefined') module.exports = SONS;
 
+/* ── photo.js ── */
+/* LE FOURNIL — les photos choisies par le joueur, allégées par le téléphone avant de partir : partagé par le chat (src/chat.js) et les
+   idées et bugs (src/retours.js, la capture d'un bug). Le plus grand côté ramené à 1280 px, du WebP (du JPEG sur un vieux Safari), la
+   qualité qui descend jusqu'à tenir sous le plafond, puis l'image plus petite s'il le faut. Un GIF de la galerie part tel quel (animé)
+   s'il est assez léger et si l'appelant l'accepte ; sinon il passe par la toile comme les autres (sa première image). Rien ne touche au DOM
+   de la page : une toile hors écran, vidée à la fin. */
+const PHOTOS = (() => {
+  'use strict';
+  const SORTIE_OK = /^data:image\/(webp|jpeg);base64,/, GIF_OK = /^data:image\/gif;base64,/;
+  const lireUrl = (f) => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result || '')); fr.onerror = () => rej(fr.error); fr.readAsDataURL(f); });
+  async function decoder(f) {
+    if (typeof createImageBitmap === 'function') { try { return await createImageBitmap(f); } catch (e) { /* l'image classique */ } }
+    const u = URL.createObjectURL(f);
+    try { return await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; }); } finally { setTimeout(() => URL.revokeObjectURL(u), 1000); }
+  }
+  // o : { max (la data URL entière, en caractères ; 350 000 par défaut), cote (le plus grand côté, 1280), gif (un GIF accepté tel quel) }
+  // → { ok: true, data, w, h, type, q } ou { ok: false, raison: 'gif' (un GIF trop lourd) | 'illisible' | 'lourd' }
+  async function preparer(f, o) {
+    o = o || {};
+    const max = o.max || 350e3, cote = o.cote || 1280;
+    if (!f) return { ok: false, raison: 'illisible' };
+    if (f.type === 'image/gif' && o.gif) {
+      if (f.size > max) return { ok: false, raison: 'gif' };
+      const u = await lireUrl(f).catch(() => '');
+      return u.length <= max && GIF_OK.test(u) ? { ok: true, data: u, type: 'image/gif' } : { ok: false, raison: u ? 'gif' : 'illisible' };
+    }
+    let src = null; try { src = await decoder(f); } catch (e) { src = null; }
+    const w0 = src ? src.naturalWidth || src.width : 0, h0 = src ? src.naturalHeight || src.height : 0;
+    if (!w0 || !h0) return { ok: false, raison: 'illisible' };
+    const cv = document.createElement('canvas'), ctx = cv.getContext('2d');
+    let k = Math.min(1, cote / Math.max(w0, h0)), webp = null, fini = null;
+    try {
+      for (let essai = 0; essai < 6 && !fini; essai++, k *= 0.75) { // trop lourde même à la plus basse qualité : plus petite
+        const w = Math.max(1, Math.round(w0 * k)), h = Math.max(1, Math.round(h0 * k));
+        cv.width = w; cv.height = h; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(src, 0, 0, w, h); // le fond blanc : la transparence d'un PNG ne vire pas au noir en JPEG
+        if (webp === null) webp = /^data:image\/webp/.test(cv.toDataURL('image/webp', 0.5)); // un vieux Safari ne sait pas faire de WebP : du JPEG
+        const type = webp ? 'image/webp' : 'image/jpeg';
+        for (const q of [0.82, 0.72, 0.62, 0.52, 0.42, 0.34]) { const u = cv.toDataURL(type, q); if (u.length <= max && SORTIE_OK.test(u)) { fini = { ok: true, data: u, w, h, type, q }; break; } }
+      }
+    } finally { try { if (src && src.close) src.close(); } catch (e) { /* rien */ } cv.width = cv.height = 0; }
+    return fini || { ok: false, raison: 'lourd' };
+  }
+  return { preparer };
+})();
+
 /* ── chat.js ── */
 /* LE FOURNIL — le chat général des boulangers : un bouton rond dans le coin (sous les icônes des événements), avec la pastille des
    messages non lus (st.chatVu : le dernier n° lu), et une feuille plein écran : les bulles (les siennes à droite), le pseudo, l'heure,
@@ -11262,37 +11570,9 @@ const TCHAT = (() => {
     dire(message(r), r.etat === 'refus' && r.erreur === 'banni');
   }
 
-  // ─── les photos : la compression par le téléphone (plus grand côté 1280 px, WebP sinon JPEG, la qualité qui descend jusqu'à 350 Ko) ───
-  const lireUrl = (f) => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result || '')); fr.onerror = () => rej(fr.error); fr.readAsDataURL(f); });
-  async function decoder(f) {
-    if (typeof createImageBitmap === 'function') { try { return await createImageBitmap(f); } catch (e) { /* l'image classique */ } }
-    const u = URL.createObjectURL(f);
-    try { return await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; }); } finally { setTimeout(() => URL.revokeObjectURL(u), 1000); }
-  }
-  // → { ok: true, data, w, h, type, q } ou { ok: false, raison: 'gif' (un GIF trop lourd) | 'illisible' | 'lourd' }
-  async function preparerImage(f) {
-    if (!f) return { ok: false, raison: 'illisible' };
-    if (f.type === 'image/gif') { // un GIF de la galerie part tel quel (animé), s'il n'est pas trop lourd
-      if (f.size > R.image) return { ok: false, raison: 'gif' };
-      const u = await lireUrl(f).catch(() => '');
-      return u.length <= R.image && /^data:image\/gif;base64,/.test(u) ? { ok: true, data: u, type: 'image/gif' } : { ok: false, raison: u ? 'gif' : 'illisible' };
-    }
-    let src = null; try { src = await decoder(f); } catch (e) { src = null; }
-    const w0 = src ? src.naturalWidth || src.width : 0, h0 = src ? src.naturalHeight || src.height : 0;
-    if (!w0 || !h0) return { ok: false, raison: 'illisible' };
-    const cv = document.createElement('canvas'), ctx = cv.getContext('2d');
-    let k = Math.min(1, R.cote / Math.max(w0, h0)), webp = null, fini = null;
-    try {
-      for (let essai = 0; essai < 6 && !fini; essai++, k *= 0.75) { // trop lourde même à la plus basse qualité : plus petite
-        const w = Math.max(1, Math.round(w0 * k)), h = Math.max(1, Math.round(h0 * k));
-        cv.width = w; cv.height = h; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(src, 0, 0, w, h); // le fond blanc : la transparence d'un PNG ne vire pas au noir en JPEG
-        if (webp === null) webp = /^data:image\/webp/.test(cv.toDataURL('image/webp', 0.5)); // un vieux Safari ne sait pas faire de WebP : du JPEG
-        const type = webp ? 'image/webp' : 'image/jpeg';
-        for (const q of [0.82, 0.72, 0.62, 0.52, 0.42, 0.34]) { const u = cv.toDataURL(type, q); if (u.length <= R.image && IMG_OK.test(u)) { fini = { ok: true, data: u, w, h, type, q }; break; } }
-      }
-    } finally { try { if (src && src.close) src.close(); } catch (e) { /* rien */ } cv.width = cv.height = 0; }
-    return fini || { ok: false, raison: 'lourd' };
-  }
+  // ─── les photos : la compression par le téléphone (src/photo.js, partagée avec les idées et bugs : plus grand côté 1280 px, WebP sinon
+  // JPEG, la qualité qui descend jusqu'à 350 Ko ; un GIF de la galerie part tel quel) ───
+  const preparerImage = (f) => PHOTOS.preparer(f, { max: R.image, cote: R.cote, gif: true });
   async function choisirFichier(f) {
     if (!f) return null;
     dire('Préparation de la photo…', true);
@@ -11423,6 +11703,533 @@ const TCHAT = (() => {
   };
 })();
 
+/* ── retours.js ── */
+/* LE FOURNIL — les idées, les bugs et les votes : un bouton rond dans le coin (une ampoule, sous la bulle du chat), avec sa pastille (pour un
+   joueur : les votes en cours pas encore votés ; pour l'admin : les retours « nouveau »), et une feuille plein écran à onglets :
+   - « Écrire » : deux grandes cartes, « 💡 Proposer une idée » et « 🐞 Signaler un bug », puis le texte (1000 caractères) et une capture
+     (allégée par le téléphone, src/photo.js, comme les photos du chat) ; un bug part avec ses infos, jointes toutes seules (la version du
+     jeu, l'appareil en bref, l'écran, le quartier, les 3 dernières entrées du journal des retours), montrées avant l'envoi ; puis le merci ;
+   - « Votes » : les votes en cours (2 à 4 gros boutons, puis les résultats en barres, « Changer mon vote », le compte à rebours) et, en
+     dessous, les derniers votes finis. Dans la boutique, un bandeau sous l'enseigne annonce le vote pas encore voté (caché une fois voté
+     et pendant une feuille) ; le toucher ouvre cet onglet ;
+   - « Admin » (seulement si fournil_admin_moi répond true) : les retours (Nouveaux / Tous, l'image agrandissable, les infos dépliables,
+     Vu / Fait / Refusé avec une note), « Créer un vote » (question, 2 à 4 options, durée) et les votes en cours, avec « Fermer ».
+   Écrire, voter et l'admin : seulement les joueurs du classement (pseudo et jeton). Le réseau passe par le moteur du classement
+   (src/classement.js : retourEnvoyer, votesOuverts, voter, adminMoi, adminRetours, adminRetourImage, adminRetourEtat, adminVoteCreer,
+   adminVoteFermer) ; serveur : supabase/fournil-retours.sql (pas encore collé : « bientôt », et plus aucune lecture d'ici la prochaine
+   ouverture de la feuille). Les lectures : les votes toutes les 5 min et au retour dans l'appli, une fois le classement rejoint (rien
+   ne part avant : sans pseudo, seule l'ouverture de la feuille lit les votes) ; pour l'admin, les retours nouveaux toutes
+   les 5 min ; jamais page cachée ni hors ligne. Sécurité : tout texte passe par esc() ; une image n'est montrée que si c'est une data URL
+   d'image, posée par la propriété src (jamais dans du HTML). */
+const RETOURS = (() => {
+  'use strict';
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const typo = (s) => String(s).replace(/ ([?!:;»])/g, '\u00a0$1').replace(/« /g, '«\u00a0'); // l'espace insécable de la typographie française : « ? » ne part pas seul à la ligne
+  const R = {
+    votes: 5 * 60e3, // les votes relus toutes les 5 min
+    admin: 5 * 60e3, // l'admin : les retours nouveaux relus toutes les 5 min
+    retour: 30e3, // au retour dans l'appli : une relecture, pas plus d'une toutes les 30 s
+    texte: 1000, // caractères par retour
+    note: 300, // la note de l'admin
+    image: 350e3, // une capture : 350 Ko au plus, en base64 (la data URL entière)
+    cote: 1280, // son plus grand côté
+    journal: 3, // les dernières entrées du journal des retours jointes à un bug
+  };
+  const IMG_OK = /^data:image\/(webp|jpeg|png);base64,/;
+  const DUREES = [[1, '1 h'], [6, '6 h'], [24, '1 j'], [72, '3 j'], [168, '7 j']];
+  const ETATS = { nouveau: 'Nouveau', vu: 'Vu', fait: 'Fait', refuse: 'Refusé' };
+  const MSG = { // les refus, dits clairement
+    'pas-rejoint': 'Rejoins le classement pour écrire',
+    'pas-ouvert': 'Les idées et les bugs arrivent bientôt.',
+    'trop-vite': 'Doucement ! Un envoi toutes les 30 secondes.', trop_vite: 'Doucement ! Un envoi toutes les 30 secondes.',
+    quota: 'Tu as déjà envoyé 5 retours aujourd’hui : merci ! Reviens demain.',
+    banni: 'Tu ne peux plus envoyer de retour.',
+    jeton: 'Ton pseudo n’est plus reconnu : rejoins le classement à nouveau.', inconnu: 'Ton pseudo n’est plus reconnu : rejoins le classement à nouveau.',
+    vide: 'Écris quelques mots avant d’envoyer.',
+    long: '1000 caractères au plus.',
+    image: 'Cette capture n’est pas acceptée (format ou taille).',
+    type: 'Choisis : une idée ou un bug.',
+    infos: 'Les infos du bug sont trop longues.',
+    'hors-ligne': 'Pas de réseau : rien n’est parti.',
+    lent: 'Le serveur ne répond pas : réessaie dans un moment.',
+    'pas-admin': 'Réservé au boulanger en chef.',
+    fini: 'Ce vote est terminé.', absent: 'Ce vote n’existe plus.', option: 'Ce choix n’existe pas.',
+    question: 'Écris la question (200 caractères au plus).', options: 'De 2 à 4 options, de 60 caractères au plus.', duree: 'Choisis une durée.',
+  };
+  const message = (r) => MSG[r.etat === 'refus' ? r.erreur : r.etat] || 'Ça n’est pas passé. Réessaie dans un moment.';
+
+  let d = null, el, corps, fichier, zoom, bandeau, bouton;
+  let onglet = 'ecrire', vue = 'accueil', adminVue = 'retours', filtre = 'nouveau';
+  let etat = '', votes = [], finis = [], lusA = 0, lecture = null; // etat : '' (rien lu), 'ok', 'pas-ouvert', ou un état du réseau
+  let admin = false, adminVu = '', retours = [], adminEtat = '', plusAnciens = false, nouveaux = 0, adminLecture = null;
+  let envoiEnCours = false, dernierType = 'idee', noteTxt = '', noteMinuteur = 0, confirmer = 0;
+  let minuteur = 0, minuteurAdmin = 0, horloge = 0;
+  const pas = { votes: R.votes, admin: R.admin };
+  const brouillon = { idee: { texte: '', image: null }, bug: { texte: '', image: null }, notes: {}, vote: { question: '', options: ['', ''], heures: 24 } };
+  const changer = new Set(), images = new Map(), voteEnVol = new Set();
+
+  const moteur = () => { try { return d && d.classement ? d.classement() : null; } catch (e) { return null; } };
+  const resume = () => { const m = moteur(); try { return m ? m.resume() : null; } catch (e) { return null; } };
+  const rejoint = () => { const r = resume(); return !!(r && r.rejoint); };
+  const ouvert = () => !!el && !el.hidden;
+  const st = () => (d && d.st ? d.st() : null);
+  const maintenant = () => Date.now(); // les fins des votes sont des heures du serveur (ms) : l'horloge du téléphone suffit pour un compte à rebours
+  const enLigne = () => !(navigator && navigator.onLine === false);
+  const visible = () => document.visibilityState !== 'hidden';
+  const son = (k) => { try { if (d && d.son && d.son[k]) d.son[k](); } catch (e) { /* rien */ } };
+
+  // ─── le compte à rebours : « encore 2 j 4 h », « encore 3 h 12 min », « encore 5 min » ───
+  function reste(ms) {
+    if (!(ms > 0)) return 'terminé';
+    const min = Math.ceil(ms / 60e3); if (min < 60) return `encore ${min} min`;
+    const h = Math.floor(min / 60), j = Math.floor(h / 24);
+    if (j >= 1) return `encore ${j} j${h % 24 ? ` ${h % 24} h` : ''}`;
+    return `encore ${h} h${min % 60 ? ` ${min % 60} min` : ''}`;
+  }
+  const enCours = () => votes.filter((v) => v.fin > maintenant());
+  const aVoter = () => enCours().filter((v) => v.moi == null);
+
+  // ─── les infos jointes à un bug : la version, l'appareil en bref, l'écran, le quartier, les 3 dernières entrées du journal des retours ───
+  function appareil() {
+    const ua = String((navigator && navigator.userAgent) || ''), x = (re) => { const m = re.exec(ua); return m ? m[1].replace(/_/g, '.') : ''; };
+    const sys = /iPhone/.test(ua) ? `iPhone · iOS ${x(/OS (\d+[_.]\d+)/)}` : /iPad/.test(ua) ? `iPad · iOS ${x(/OS (\d+[_.]\d+)/)}` : /Android/.test(ua) ? `Android ${x(/Android (\d+(?:\.\d+)?)/)}`
+      : /Mac OS X/.test(ua) ? 'Mac' : /Windows/.test(ua) ? 'Windows' : /Linux/.test(ua) ? 'Linux' : 'Autre';
+    const nav = /SamsungBrowser\/(\d+)/.test(ua) ? `Samsung ${x(/SamsungBrowser\/(\d+)/)}` : /(?:CriOS|Chrome)\/(\d+)/.test(ua) ? `Chrome ${x(/(?:CriOS|Chrome)\/(\d+)/)}`
+      : /(?:FxiOS|Firefox)\/(\d+)/.test(ua) ? `Firefox ${x(/(?:FxiOS|Firefox)\/(\d+)/)}` : /Version\/(\d+(?:\.\d+)?).*Safari/.test(ua) ? `Safari ${x(/Version\/(\d+(?:\.\d+)?)/)}` : 'navigateur';
+    let appli = false; try { appli = !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || navigator.standalone === true; } catch (e) { appli = false; }
+    return `${sys} · ${nav}${appli ? ' · appli installée' : ''}`.slice(0, 80);
+  }
+  function infos() {
+    const s = st(), j = s && Array.isArray(s.journalRetours) ? s.journalRetours : [];
+    const n = (v) => (Number.isFinite(v) ? Math.round(v) : null);
+    let quartier = ''; try { quartier = d && d.quartier ? String(d.quartier() || '') : ''; } catch (e) { quartier = ''; }
+    const dpr = Math.round((window.devicePixelRatio || 1) * 100) / 100;
+    let ecran = ''; try { ecran = `${screen.width}×${screen.height} · ${innerWidth}×${innerHeight} · ×${dpr}`; } catch (e) { ecran = `${innerWidth}×${innerHeight}`; }
+    return {
+      version: (typeof window.FOURNIL_VERSION === 'string' && window.FOURNIL_VERSION.slice(0, 20)) || 'inconnue',
+      appareil: appareil(), ecran, quartier: quartier.slice(0, 40),
+      journal: j.slice(-R.journal).map((e) => ({ t: n(e && e.t), r: String((e && e.r) || '').slice(0, 12), o: n(e && e.o), s: n(e && e.s), n: String((e && e.n) || '').slice(0, 12) })),
+    };
+  }
+  const quand = (t) => { try { return new Date(t).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }); } catch (e) { return ''; } };
+  const duree = (s) => (!Number.isFinite(s) ? '?' : s < 120 ? `${s} s` : s < 7200 ? `${Math.round(s / 60)} min` : `${Math.round(s / 3600)} h`);
+  function lignesInfos(o) { // les infos, lisibles : [libellé, valeur] (tout passera par esc)
+    if (!o || typeof o !== 'object') return [];
+    const NOMS = { version: 'Version', appareil: 'Appareil', ecran: 'Écran', quartier: 'Quartier', journal: 'Journal' }, l = [];
+    for (const [k, v] of Object.entries(o).slice(0, 12)) {
+      if (k === 'journal' && Array.isArray(v)) {
+        if (!v.length) l.push(['Journal', 'vide']);
+        v.slice(0, 5).forEach((e, i) => l.push([i ? '' : 'Journal', e && typeof e === 'object' ? `${e.t ? quand(e.t) : '?'} · ${e.r || '?'} · parti ${duree(e.o)}, payé ${duree(e.s)} · ${e.n || ''}` : String(e)]));
+      } else l.push([NOMS[k] || k, typeof v === 'string' ? v : JSON.stringify(v)]);
+    }
+    return l.map(([a, b]) => [a, String(b).slice(0, 300)]);
+  }
+  const infosHtml = (o) => `<dl class="rt-dl">${lignesInfos(o).map(([a, b]) => `<dt>${esc(a)}</dt><dd>${esc(b)}</dd>`).join('')}</dl>`;
+
+  // ─── les lectures : les votes (tout le monde), les retours nouveaux (l'admin) ───
+  function lireVotes() {
+    const m = moteur(); if (!m) return Promise.resolve({ etat: 'absent' });
+    if (lecture) return lecture;
+    const avant = etat;
+    lecture = m.votesOuverts().then((r) => {
+      if (r.etat === 'ok') { etat = 'ok'; votes = r.votes; finis = r.finis; lusA = maintenant(); for (const v of votes) if (v.moi == null) changer.delete(v.n); }
+      else if (r.etat === 'pas-ouvert') { etat = 'pas-ouvert'; votes = []; finis = []; }
+      else if (r.etat !== 'absent') etat = votes.length || finis.length ? 'ok' : r.etat; // le réseau qui flanche : la liste connue reste
+      return r;
+    }).catch(() => ({ etat: 'erreur' })).then((r) => { lecture = null;
+      if (ouvert() && (onglet === 'votes' || etat !== avant || (onglet === 'ecrire' && vue === 'accueil'))) peindre(); // un formulaire en cours n'est pas repeint (le clavier resterait ouvert)
+      majBouton(); majBandeau(); return r; });
+    return lecture;
+  }
+  function verifierAdmin(force) {
+    const m = moteur(), r = resume(), cle = r && r.rejoint ? `${r.pseudo}|${m && m.etat ? m.etat().id : ''}` : '';
+    if (!m || !cle) { admin = false; adminVu = ''; nouveaux = 0; majOnglets(); majBouton(); return Promise.resolve(false); }
+    if (cle === adminVu && !force) return Promise.resolve(admin);
+    adminVu = cle;
+    return m.adminMoi().then((x) => {
+      if (x.etat === 'ok') admin = x.admin === true; else if (x.etat === 'pas-ouvert' || x.etat === 'refus') admin = false; else adminVu = ''; // le réseau : on redemandera
+      majOnglets(); if (admin) { planifierAdmin(true); } else { nouveaux = 0; if (onglet === 'admin') { onglet = 'ecrire'; if (ouvert()) peindre(); } }
+      majBouton(); return admin;
+    }).catch(() => { adminVu = ''; return false; });
+  }
+  function lireRetours(plus) {
+    const m = moteur(); if (!m || !admin) return Promise.resolve({ etat: 'absent' });
+    if (adminLecture) return adminLecture;
+    const avant = plus && retours.length ? retours[retours.length - 1].n : null, f = filtre;
+    adminLecture = m.adminRetours(f, avant).then((r) => {
+      if (r.etat === 'ok') {
+        adminEtat = 'ok';
+        retours = avant ? retours.concat(r.retours.filter((x) => !retours.some((y) => y.n === x.n))) : r.retours;
+        plusAnciens = r.retours.length >= 30;
+        nouveaux = Number.isInteger(r.nouveaux) ? r.nouveaux : f === 'nouveau' ? retours.filter((x) => x.etat === 'nouveau').length : nouveaux; // le serveur dit le total
+      } else if (r.etat === 'refus' && r.erreur === 'pas-admin') { admin = false; majOnglets(); }
+      else adminEtat = r.etat;
+      return r;
+    }).catch(() => ({ etat: 'erreur' })).then((r) => { adminLecture = null; if (ouvert() && onglet === 'admin') peindre(); majBouton(); return r; });
+    return adminLecture;
+  }
+  // le compte des nouveaux pour la pastille de l'admin, sans toucher à la liste affichée (filtre « Tous » ouvert, par exemple)
+  function compterNouveaux() {
+    const m = moteur(); if (!m || !admin) return Promise.resolve();
+    // (la liste ouverte n'est pas remplacée : une carte qu'on vient de traiter, ou dont on tape la note, ne disparaît pas sous le doigt)
+    return m.adminRetours('nouveau', null).then((r) => { if (r.etat === 'ok') nouveaux = Number.isInteger(r.nouveaux) ? r.nouveaux : r.retours.filter((x) => x.etat === 'nouveau').length; majBouton(); }).catch(() => { /* rien */ });
+  }
+  // les minuteurs : rien page cachée (le retour au premier plan relance), rien hors ligne ; le script pas collé : plus rien avant l'ouverture de la feuille
+  function planifier(tout) {
+    clearTimeout(minuteur); minuteur = 0;
+    if (!moteur() || !visible() || etat === 'pas-ouvert') return;
+    minuteur = setTimeout(tour, tout ? 0 : pas.votes);
+  }
+  function tour() { // rien ne part avant d'avoir rejoint le classement (comme le chat) : sans pseudo, seule l'ouverture de la feuille lit les votes
+    minuteur = 0; if (!visible()) return;
+    if (!enLigne() || !(rejoint() || ouvert())) { planifier(); return; }
+    lireVotes().then(() => planifier());
+  }
+  function planifierAdmin(tout) {
+    clearTimeout(minuteurAdmin); minuteurAdmin = 0;
+    if (!admin || !visible() || etat === 'pas-ouvert') return;
+    minuteurAdmin = setTimeout(() => { minuteurAdmin = 0; if (!visible()) return; (enLigne() ? compterNouveaux() : Promise.resolve()).then(() => planifierAdmin()); }, tout ? 0 : pas.admin);
+  }
+  // le compte à rebours : toutes les 30 s, tant que le bandeau ou la feuille des votes le montrent ; un vote qui vient de finir : relu
+  function battre() {
+    clearInterval(horloge); horloge = 0;
+    if (!enCours().length || !visible()) return;
+    horloge = setInterval(() => {
+      if (votes.some((v) => v.fin <= maintenant() && !v.finVu)) { for (const v of votes) if (v.fin <= maintenant()) v.finVu = true; lireVotes(); }
+      majBandeau();
+      if (ouvert() && onglet === 'votes') corps.querySelectorAll('[data-fin]').forEach((x) => { x.textContent = reste(+x.dataset.fin - maintenant()); });
+    }, 30e3);
+  }
+
+  // ─── le bouton rond du coin, sa pastille, et le bandeau du vote dans la boutique ───
+  function majBouton() {
+    if (!bouton) return;
+    const m = moteur(); bouton.hidden = !m; if (!m) { majBandeau(); return; }
+    const n = admin ? nouveaux : rejoint() ? aVoter().length : 0, p = bouton.querySelector('.rt-pastille');
+    p.hidden = !n; p.textContent = n > 9 ? '9+' : n ? String(n) : '';
+    p.classList.toggle('admin', admin);
+    bouton.setAttribute('aria-label', !n ? 'Idées et bugs' : admin ? `Idées et bugs : ${n > 9 ? 'plus de 9' : n} nouveau${n > 1 ? 'x' : ''} retour${n > 1 ? 's' : ''}` : `Idées et bugs : ${n > 1 ? `${n} votes t’attendent` : 'un vote t’attend'}`);
+    const pv = el && el.querySelector('[data-rt-onglet="votes"] .rt-point'), pa = el && el.querySelector('[data-rt-onglet="admin"] .rt-point');
+    if (pv) pv.hidden = !aVoter().length; if (pa) pa.hidden = !nouveaux;
+    majBandeau(); battre();
+  }
+  function majBandeau() {
+    if (!bandeau) return;
+    const v = moteur() && etat === 'ok' && rejoint() ? aVoter()[0] : null; // sans pseudo, pas d'invitation à voter
+    const feuille = $('#feuille'), cache = !v || ouvert() || (feuille && !feuille.hidden) || ($('#tchat') && !$('#tchat').hidden);
+    bandeau.hidden = cache; if (cache) return;
+    bandeau.dataset.n = v.n;
+    const q = bandeau.querySelector('.vb-q'), r = bandeau.querySelector('.vb-reste'), t = `Vote : ${typo(v.question)}`, rr = `${reste(v.fin - maintenant())} · toucher pour voter`;
+    if (q.textContent !== t) q.textContent = t; if (r.textContent !== rr) r.textContent = rr;
+    bandeau.setAttribute('aria-label', `Vote : ${v.question}, ${reste(v.fin - maintenant())}. Toucher pour voter.`);
+  }
+  function majOnglets() {
+    if (!el) return;
+    const a = el.querySelector('[data-rt-onglet="admin"]'); if (a) a.hidden = !admin;
+    if (!admin && onglet === 'admin') onglet = 'ecrire';
+    el.querySelectorAll('[data-rt-onglet]').forEach((b) => { const on = b.dataset.rtOnglet === onglet; b.classList.toggle('actif', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); });
+  }
+
+  // ─── la feuille ───
+  function ouvrir(o) {
+    if (!moteur() || !el) return false;
+    if (d.ouvert) d.ouvert();
+    onglet = o === 'votes' || (o === 'admin' && admin) ? o : o === 'ecrire' ? 'ecrire' : onglet === 'admin' && !admin ? 'ecrire' : onglet;
+    if (onglet === 'ecrire' && vue === 'merci') vue = 'accueil';
+    noteTxt = ''; el.hidden = false; corps.scrollTop = 0;
+    if (etat === 'pas-ouvert') etat = ''; // le script a pu être collé depuis : on redemande
+    majOnglets(); peindre(); majBouton();
+    lireVotes().then(() => planifier());
+    verifierAdmin().then(() => { if (admin && onglet === 'admin') lireRetours(); });
+    return true;
+  }
+  function fermer() {
+    if (!el || el.hidden) return;
+    fermerZoom(); el.hidden = true;
+    try { if (document.activeElement && el.contains(document.activeElement)) document.activeElement.blur(); } catch (e) { /* rien */ }
+    majBouton(); if (d.ferme) d.ferme();
+  }
+  function choisirOnglet(o) {
+    if (o === 'admin' && !admin) return;
+    onglet = o; confirmer = 0; noteTxt = ''; majOnglets(); corps.scrollTop = 0; peindre();
+    if (o === 'votes') lireVotes();
+    if (o === 'admin') lireRetours();
+  }
+  function dire(txt) {
+    clearTimeout(noteMinuteur); noteTxt = txt || '';
+    const n = corps && corps.querySelector('.rt-note'); if (n) { n.textContent = noteTxt; n.hidden = !noteTxt; }
+    if (txt) noteMinuteur = setTimeout(() => { noteTxt = ''; const x = corps && corps.querySelector('.rt-note'); if (x) x.hidden = true; }, 7000);
+  }
+  const noteHtml = () => `<p class="tc-note rt-note" role="status"${noteTxt ? '' : ' hidden'}>${esc(noteTxt)}</p>`;
+  const vide = (pic, titre, txt, cls) => `<div class="tc-vide rt-vide${cls ? ' ' + cls : ''}"><span class="tc-pic">${pic}</span><b>${esc(titre)}</b><span>${esc(txt)}</span></div>`;
+  const bientot = () => vide(ICONS.UI.ampoule, 'Les idées et les bugs arrivent bientôt', 'Bientôt, tu pourras proposer tes idées, signaler un bug et voter pour la suite du Fournil. Reviens dans quelque temps !', 'bientot');
+  const btnRejoindre = (txt) => `<button type="button" class="btn large beurre rt-rejoindre" data-rt="rejoindre"><b>${esc(txt || 'Rejoins le classement pour écrire')}</b><small>Choisis ton pseudo : c’est lui qui signe tes messages</small></button>`;
+  function peindre() {
+    if (!ouvert()) return;
+    corps.dataset.onglet = onglet;
+    corps.innerHTML = onglet === 'votes' ? pageVotes() : onglet === 'admin' && admin ? pageAdmin() : pageEcrire();
+    hydrater();
+  }
+  function hydrater() { // les images : posées par la propriété src, jamais dans le HTML
+    corps.querySelectorAll('img[data-src-brouillon]').forEach((img) => { const b = brouillon[img.dataset.srcBrouillon]; if (b && b.image && IMG_OK.test(b.image)) img.src = b.image; });
+    corps.querySelectorAll('.rt-img[data-n]').forEach((btn) => { const data = images.get(+btn.dataset.n); if (data && IMG_OK.test(data)) { btn.querySelector('img').src = data; btn.classList.add('chargee'); } });
+  }
+
+  // ─── « Écrire » : les deux cartes, le formulaire (texte, capture, infos d'un bug), le merci ───
+  function pageEcrire() {
+    if (etat === 'pas-ouvert') return bientot();
+    const peut = rejoint();
+    if (vue === 'merci') {
+      return `<div class="rt-merci"><span class="rt-merci-pic" aria-hidden="true">${dernierType === 'bug' ? '🐞' : '💡'}</span><b>Merci !</b><span>${dernierType === 'bug' ? 'Ton signalement est bien arrivé. On regarde ça de près.' : 'Ton idée est bien arrivée. Le boulanger en chef lit tout !'}</span></div>
+        <div class="rt-actions"><button type="button" class="btn large menthe" data-rt="accueil"><b>Écrire autre chose</b></button><button type="button" class="btn large clair" data-rt="fermer"><b>Fermer</b></button></div>`;
+    }
+    if (vue === 'idee' || vue === 'bug') {
+      const b = brouillon[vue], bug = vue === 'bug', n = Array.from(b.texte).length;
+      return `<button type="button" class="rt-retour" data-rt="accueil"><i class="ico">${ICONS.UI.chevron}</i>Retour</button>
+        <h3 class="rt-h3">${bug ? '🐞 Signaler un bug' : '💡 Proposer une idée'}</h3>
+        <p class="sous">${bug ? 'Dis ce qui s’est passé, et ce que tu faisais juste avant. Une capture aide beaucoup.' : 'Une recette, un meuble, un mini-jeu, un événement… Raconte !'}</p>
+        <label class="rt-champ"><textarea id="rt-texte" data-champ="texte" maxlength="${R.texte}" rows="6" placeholder="${bug ? 'Par exemple : la Planque ne s’ouvre plus depuis ce matin…' : 'Par exemple : une vitrine de macarons, avec leurs couleurs…'}" aria-label="${bug ? 'Ton bug' : 'Ton idée'}">${esc(b.texte)}</textarea><small class="rt-compte${n > R.texte - 100 ? '' : ' discret'}">${n}/${R.texte}</small></label>
+        <div class="rt-capture">${b.image ? `<span class="tc-apercu"><img data-src-brouillon="${vue}" alt="Ta capture"></span><span class="tc-piece-txt">Capture prête · ${Math.max(1, Math.round(b.image.length / 1000))} Ko</span><button type="button" class="tc-retirer" data-rt="retirer" aria-label="Retirer la capture"><i class="ico">${ICONS.UI.fermer}</i></button>`
+          : `<button type="button" class="btn large clair rt-photo" data-rt="photo"><b><i class="ico">${ICONS.UI.photo}</i>${bug ? 'Ajouter une capture' : 'Ajouter une image'}</b></button>`}</div>
+        ${bug ? `<details class="nv rt-infos"><summary><span class="nv-tete"><b>Infos jointes au bug</b><small>Pour comprendre d’où vient le souci</small></span><i class="ico chev">${ICONS.UI.chevron}</i></summary>${infosHtml(infos())}</details>` : ''}
+        ${noteHtml()}
+        ${peut ? `<button type="button" class="btn large${bug ? '' : ' menthe'} rt-envoyer" data-rt="envoyer"${envoiEnCours ? ' disabled' : ''}><b>${envoiEnCours ? 'Envoi…' : 'Envoyer'}</b></button>` : btnRejoindre()}`;
+    }
+    const v = aVoter()[0];
+    return `<p class="sous">Une idée pour le Fournil ? Quelque chose qui cloche ? Écris-le : chaque message est lu.</p>
+      ${peut ? '' : `${btnRejoindre()}`}
+      <button type="button" class="rt-carte idee${peut ? '' : ' non'}" data-rt="idee"><span class="rt-emoji" aria-hidden="true">💡</span><span class="rt-carte-t"><b>Proposer une idée</b><small>Une recette, un meuble, un mini-jeu…</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>
+      <button type="button" class="rt-carte bug${peut ? '' : ' non'}" data-rt="bug"><span class="rt-emoji" aria-hidden="true">🐞</span><span class="rt-carte-t"><b>Signaler un bug</b><small>Quelque chose cloche ? Joins une capture.</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>
+      ${v ? `<button type="button" class="rt-carte vote" data-rt="aller-votes"><span class="rt-emoji" aria-hidden="true">🗳</span><span class="rt-carte-t"><b>Un vote t’attend</b><small>${esc(v.question)}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>` : ''}
+      ${noteHtml()}`;
+  }
+  async function envoyer() {
+    const m = moteur(); if (!m || envoiEnCours || (vue !== 'idee' && vue !== 'bug')) return;
+    const type = vue, b = brouillon[type], texte = b.texte.trim();
+    if (!texte) { son('non'); dire(MSG.vide); return; }
+    if (Array.from(texte).length > R.texte) { son('non'); dire(MSG.long); return; }
+    envoiEnCours = true; noteTxt = ''; peindre();
+    const r = await m.retourEnvoyer({ type, texte, image: b.image || null, infos: type === 'bug' ? infos() : null }).catch(() => ({ etat: 'erreur' }));
+    envoiEnCours = false;
+    if (r.etat === 'ok') {
+      brouillon[type] = { texte: '', image: null }; dernierType = type; vue = 'merci'; noteTxt = '';
+      son('tap'); if (d.buzz) d.buzz([10, 30, 10]); peindre(); return;
+    }
+    son('non');
+    if (r.etat === 'pas-ouvert') { etat = 'pas-ouvert'; vue = 'accueil'; peindre(); return; }
+    noteTxt = message(r); peindre(); dire(noteTxt);
+  }
+  async function choisirFichier(f) {
+    if (!f || (vue !== 'idee' && vue !== 'bug')) return null;
+    const pour = vue; dire('Préparation de la capture…');
+    const r = await PHOTOS.preparer(f, { max: R.image, cote: R.cote }).catch(() => ({ ok: false, raison: 'illisible' }));
+    if (!r.ok) { son('non'); dire(r.raison === 'lourd' ? 'Cette image est trop lourde, même réduite.' : 'Cette image ne s’ouvre pas.'); return r; }
+    brouillon[pour].image = r.data; noteTxt = ''; if (vue === pour) peindre();
+    return r;
+  }
+
+  // ─── « Votes » : les gros boutons, puis les résultats en barres ; les votes finis dessous ───
+  function barres(v, fini) {
+    const t = v.total || v.voix.reduce((a, x) => a + x, 0);
+    return `<div class="rt-barres">${v.options.map((o, i) => { const pc = t ? Math.round((v.voix[i] * 100) / t) : 0, moi = v.moi === i;
+      return `<div class="rt-barre${moi ? ' moi' : ''}${fini && t && v.voix[i] === Math.max(...v.voix) ? ' gagne' : ''}"><i class="rt-barre-fond" style="width:${pc}%"></i><span class="rt-barre-txt"><b>${esc(o)}</b>${moi ? '<small class="rt-moi">ton choix</small>' : ''}</span><span class="rt-barre-pc"><b>${pc} %</b><small>${v.voix[i]} voix</small></span></div>`; }).join('')}</div>
+      <small class="rt-total">${t} votant${t > 1 ? 's' : ''}</small>`;
+  }
+  function carteVote(v) {
+    const peut = rejoint(), choisir = peut && (v.moi == null || changer.has(v.n)), envol = voteEnVol.has(v.n);
+    return `<section class="rt-vote" data-n="${v.n}"><small class="rt-reste">⏳ <span data-fin="${v.fin}">${esc(reste(v.fin - maintenant()))}</span></small><b class="rt-q">${esc(typo(v.question))}</b>
+      ${choisir ? `<div class="rt-options">${v.options.map((o, i) => `<button type="button" class="rt-option${v.moi === i ? ' choisi' : ''}" data-rt="voter" data-n="${v.n}" data-o="${i}"${envol ? ' disabled' : ''}>${esc(o)}</button>`).join('')}</div>${changer.has(v.n) ? `<button type="button" class="rt-lien" data-rt="garder" data-n="${v.n}">Garder mon vote</button>` : ''}`
+        : `${barres(v, false)}${peut ? `<button type="button" class="btn clair rt-changer" data-rt="changer" data-n="${v.n}"><b>Changer mon vote</b></button>` : btnRejoindre('Rejoins le classement pour voter')}`}</section>`;
+  }
+  function pageVotes() {
+    if (etat === 'pas-ouvert') return bientot();
+    if (!etat) return '<div class="tc-vide rt-vide"><span>Chargement…</span></div>';
+    const l = enCours(), f = finis.concat(votes.filter((v) => v.fin <= maintenant() && !finis.some((x) => x.n === v.n)));
+    let h = etat !== 'ok' ? `<p class="tc-reseau rt-reseau">${etat === 'hors-ligne' ? 'Pas de réseau : les votes reprendront tout seuls.' : 'Le serveur ne répond pas : il réessaie tout seul.'}</p>` : '';
+    h += l.length ? l.map(carteVote).join('') : vide('🗳', 'Pas de vote en ce moment', 'Quand le boulanger en chef pose une question, tu votes ici : la suite du Fournil se décide ensemble.');
+    h += noteHtml();
+    if (f.length) h += `<h3 class="sous-titre rt-finis-titre">Votes terminés</h3>${f.slice(0, 5).map((v) => `<section class="rt-vote fini"><small class="rt-reste">Terminé${v.fin ? ` le ${esc(quand(v.fin))}` : ''}</small><b class="rt-q">${esc(typo(v.question))}</b>${barres(v, true)}</section>`).join('')}`;
+    return h;
+  }
+  async function voter(n, o) {
+    const m = moteur(), v = votes.find((x) => x.n === n); if (!m || !v || voteEnVol.has(n)) return;
+    if (!rejoint()) { dire('Rejoins le classement pour voter'); return; }
+    voteEnVol.add(n); peindre();
+    const r = await m.voter(n, o).catch(() => ({ etat: 'erreur' }));
+    voteEnVol.delete(n);
+    if (r.etat === 'ok') {
+      v.moi = o; if (Array.isArray(r.voix) && r.voix.length === v.options.length) v.voix = r.voix; if (Number.isInteger(r.total)) v.total = r.total;
+      changer.delete(n); son('tap'); if (d.buzz) d.buzz(8); peindre(); majBouton();
+      return;
+    }
+    if (r.etat === 'refus' && Array.isArray(r.voix) && r.voix.length === v.options.length) { v.voix = r.voix; if (Number.isInteger(r.total)) v.total = r.total; } // le serveur rend les voix même en refusant
+    son('non'); peindre(); dire(message(r));
+    if (r.etat === 'refus' && (r.erreur === 'fini' || r.erreur === 'absent')) lireVotes();
+    if (r.etat === 'pas-ouvert') { etat = 'pas-ouvert'; peindre(); majBouton(); }
+  }
+
+  // ─── « Admin » : les retours, créer un vote, les votes en cours ───
+  function carteRetour(x) {
+    const note = brouillon.notes[x.n] != null ? brouillon.notes[x.n] : x.note;
+    return `<section class="rt-ret ${x.type}" data-n="${x.n}">
+      <div class="rt-ret-tete"><span class="rt-type">${x.type === 'bug' ? '🐞 Bug' : '💡 Idée'}</span><b>${esc(x.pseudo || 'Boulanger')}</b><small>${x.cree ? esc(quand(x.cree)) : ''}</small><i class="rt-etat ${x.etat}">${esc(ETATS[x.etat])}</i></div>
+      <p class="rt-txt">${esc(x.texte)}</p>
+      ${x.aImage ? `<button type="button" class="rt-img" data-rt="image" data-n="${x.n}" aria-label="Voir la capture"><img alt="La capture de ${esc(x.pseudo || 'ce boulanger')}"><span>📷 Voir la capture</span></button>` : ''}
+      ${x.infos ? `<details class="rt-infos-a"><summary>Infos</summary>${infosHtml(x.infos)}</details>` : ''}
+      <label class="rt-champ petit"><input type="text" data-champ="note" data-n="${x.n}" maxlength="${R.note}" value="${esc(note)}" placeholder="Une note (facultative)" aria-label="La note"></label>
+      <div class="rt-etats" role="group" aria-label="L’état">${['vu', 'fait', 'refuse'].map((k) => `<button type="button" class="rt-etat-b ${k}${x.etat === k ? ' actif' : ''}" data-rt="etat" data-n="${x.n}" data-etat="${k}">${ETATS[k]}</button>`).join('')}</div>
+    </section>`;
+  }
+  function pageAdmin() {
+    let h = `<div class="segments rt-admin-vues" role="group" aria-label="L’admin"><button type="button" data-rt="admin-vue" data-v="retours" class="${adminVue === 'retours' ? 'actif' : ''}">Retours${nouveaux ? ` (${nouveaux > 29 ? '30+' : nouveaux})` : ''}</button><button type="button" data-rt="admin-vue" data-v="votes" class="${adminVue === 'votes' ? 'actif' : ''}">Votes</button></div>`;
+    if (adminVue === 'votes') {
+      const b = brouillon.vote;
+      h += `<h3 class="rt-h3">Créer un vote</h3>
+        <label class="rt-champ petit"><input type="text" data-champ="question" maxlength="200" value="${esc(b.question)}" placeholder="La question : quelle recette ensuite ?" aria-label="La question"></label>
+        <div class="rt-opts">${b.options.map((o, i) => `<label class="rt-champ petit rt-opt"><input type="text" data-champ="option" data-i="${i}" maxlength="60" value="${esc(o)}" placeholder="Option ${i + 1}" aria-label="Option ${i + 1}">${b.options.length > 2 ? `<button type="button" class="tc-retirer" data-rt="moins" data-i="${i}" aria-label="Retirer l’option ${i + 1}"><i class="ico">${ICONS.UI.fermer}</i></button>` : ''}</label>`).join('')}
+        ${b.options.length < 4 ? '<button type="button" class="rt-lien" data-rt="plus">+ Une option</button>' : ''}</div>
+        <small class="rt-etiquette">Durée</small>
+        <div class="segments rt-durees" role="group" aria-label="La durée">${DUREES.map(([hh, t]) => `<button type="button" data-rt="duree" data-h="${hh}" class="${b.heures === hh ? 'actif' : ''}">${t}</button>`).join('')}</div>
+        ${noteHtml()}
+        <button type="button" class="btn large lavande" data-rt="creer"><b>Créer le vote</b></button>
+        <h3 class="sous-titre">Votes en cours</h3>`;
+      const l = enCours();
+      h += l.length ? l.map((v) => `<section class="rt-vote admin" data-n="${v.n}"><small class="rt-reste">⏳ <span data-fin="${v.fin}">${esc(reste(v.fin - maintenant()))}</span></small><b class="rt-q">${esc(typo(v.question))}</b>${barres(v, false)}<button type="button" class="btn ${confirmer === v.n ? 'rouge' : 'clair'} rt-fermer-vote" data-rt="fermer-vote" data-n="${v.n}"><b>${confirmer === v.n ? 'Oui, fermer ce vote' : 'Fermer'}</b></button></section>`).join('')
+        : '<p class="sous">Aucun vote en cours.</p>';
+      return h;
+    }
+    h += `<div class="segments rt-filtre" role="group" aria-label="Le filtre"><button type="button" data-rt="filtre" data-f="nouveau" class="${filtre === 'nouveau' ? 'actif' : ''}">Nouveaux</button><button type="button" data-rt="filtre" data-f="tout" class="${filtre === 'tout' ? 'actif' : ''}">Tous</button></div>`;
+    h += noteHtml();
+    if (!adminEtat && !retours.length) return h + '<div class="tc-vide rt-vide"><span>Chargement…</span></div>';
+    if (!retours.length) return h + (adminEtat === 'ok' ? vide('✨', filtre === 'nouveau' ? 'Rien de nouveau' : 'Aucun retour', filtre === 'nouveau' ? 'Tous les retours ont été lus.' : 'Personne n’a encore écrit.') : `<p class="tc-reseau rt-reseau">${adminEtat === 'hors-ligne' ? 'Pas de réseau.' : 'Le serveur ne répond pas.'}</p>`);
+    h += retours.map(carteRetour).join('');
+    if (plusAnciens) h += '<button type="button" class="btn large clair" data-rt="plus-anciens"><b>Plus anciens</b></button>';
+    return h;
+  }
+  async function voirImage(btn) {
+    const n = +btn.dataset.n, m = moteur(); if (!m) return;
+    if (images.has(n)) { const data = images.get(n); if (data) zoomer(data); return; }
+    btn.classList.add('charge');
+    const r = await m.adminRetourImage(n).catch(() => ({ etat: 'erreur' }));
+    btn.classList.remove('charge');
+    if (r.etat === 'ok' && r.data && IMG_OK.test(r.data)) { images.set(n, r.data); while (images.size > 12) images.delete(images.keys().next().value); btn.querySelector('img').src = r.data; btn.classList.add('chargee'); return; }
+    if (r.etat === 'ok') { btn.classList.add('effacee'); btn.disabled = true; btn.querySelector('span').textContent = 'Capture effacée'; return; } // effacée après 30 jours
+    dire(message(r));
+  }
+  async function changerEtat(n, k) {
+    const m = moteur(), x = retours.find((y) => y.n === n); if (!m || !x) return;
+    const note = String(brouillon.notes[n] != null ? brouillon.notes[n] : x.note || '').trim();
+    const r = await m.adminRetourEtat(n, k, note).catch(() => ({ etat: 'erreur' }));
+    if (r.etat === 'ok') {
+      const avant = x.etat; x.etat = k; x.note = note; delete brouillon.notes[n];
+      if (avant === 'nouveau' && k !== 'nouveau') nouveaux = Math.max(0, nouveaux - 1);
+      son('tap'); peindre(); majBouton(); return;
+    }
+    son('non'); dire(r.etat === 'refus' && r.erreur === 'long' ? 'La note : 300 caractères au plus.' : r.etat === 'refus' && r.erreur === 'absent' ? 'Ce retour n’existe plus.' : r.etat === 'refus' && r.erreur === 'etat' ? 'Cet état n’existe pas.' : message(r));
+    if (r.etat === 'refus' && r.erreur === 'pas-admin') { admin = false; majOnglets(); peindre(); majBouton(); }
+  }
+  async function creerVote() {
+    const m = moteur(), b = brouillon.vote; if (!m) return;
+    const opts = b.options.map((o) => o.trim()).filter(Boolean);
+    if (!b.question.trim()) { son('non'); dire(MSG.question); return; }
+    if (opts.length < 2) { son('non'); dire(MSG.options); return; }
+    const r = await m.adminVoteCreer(b.question, opts, b.heures).catch(() => ({ etat: 'erreur' }));
+    if (r.etat === 'ok') { brouillon.vote = { question: '', options: ['', ''], heures: 24 }; son('tap'); noteTxt = ''; await lireVotes(); peindre(); dire('Le vote est ouvert : il s’affiche dans la boutique.'); return; }
+    son('non'); dire(message(r));
+  }
+  async function fermerVote(n) {
+    const m = moteur(); if (!m) return;
+    if (confirmer !== n) { confirmer = n; peindre(); return; }
+    confirmer = 0;
+    const r = await m.adminVoteFermer(n).catch(() => ({ etat: 'erreur' }));
+    if (r.etat === 'ok') { son('tap'); votes = votes.filter((v) => v.n !== n); await lireVotes(); peindre(); dire('Le vote est fermé.'); return; }
+    son('non'); peindre(); dire(message(r));
+  }
+
+  function zoomer(data) { if (!IMG_OK.test(data)) return; zoom.querySelector('img').src = data; zoom.hidden = false; }
+  function fermerZoom() { if (zoom && !zoom.hidden) { zoom.hidden = true; zoom.querySelector('img').removeAttribute('src'); } }
+
+  // ─── le branchement ───
+  // deps : { classement() (le moteur, null sans configuration), st(), save(), son, buzz, audio, ouvert() (la feuille du jeu se ferme),
+  //          ferme() (retour à la boutique), rejoindre() (la feuille du classement), quartier() (le nom du quartier de la boutique) }
+  function init(deps) {
+    d = deps; el = $('#idees'); bouton = $('#b-idees'); bandeau = $('#vote-bandeau'); if (!el) return;
+    corps = $('#rt-corps'); fichier = $('#rt-fichier'); zoom = $('#rt-zoom');
+    if (window.__retoursPas) Object.assign(pas, window.__retoursPas); // les tests : des lectures plus rapprochées
+    if (bouton) bouton.addEventListener('click', () => { if (d.audio) d.audio(); son('tap'); ouvrir(admin && nouveaux ? 'admin' : 'ecrire'); }); // l'ampoule : « Écrire » (l'admin : ses retours nouveaux)
+    if (bandeau) bandeau.addEventListener('click', () => { if (d.audio) d.audio(); son('tap'); ouvrir('votes'); });
+    el.addEventListener('click', (e) => {
+      const o = e.target.closest('[data-rt-onglet]'); if (o && el.contains(o)) { son('tap'); choisirOnglet(o.dataset.rtOnglet); return; }
+      const t = e.target.closest('[data-rt]'); if (!t || !el.contains(t)) return;
+      const a = t.dataset.rt, n = +t.dataset.n;
+      if (a === 'fermer') { son('tap'); fermer(); }
+      else if (a === 'zoom') fermerZoom();
+      else if (a === 'rejoindre') { fermer(); if (d.rejoindre) d.rejoindre(); }
+      else if (a === 'idee' || a === 'bug') { if (!rejoint()) { son('non'); dire(MSG['pas-rejoint']); return; } son('tap'); vue = a; noteTxt = ''; peindre(); corps.scrollTop = 0; }
+      else if (a === 'accueil') { son('tap'); vue = 'accueil'; noteTxt = ''; peindre(); }
+      else if (a === 'aller-votes') { son('tap'); choisirOnglet('votes'); }
+      else if (a === 'envoyer') envoyer();
+      else if (a === 'photo') { fichier.value = ''; fichier.click(); }
+      else if (a === 'retirer') { if (brouillon[vue]) brouillon[vue].image = null; peindre(); }
+      else if (a === 'voter') voter(n, +t.dataset.o);
+      else if (a === 'changer') { son('tap'); changer.add(n); peindre(); }
+      else if (a === 'garder') { changer.delete(n); peindre(); }
+      else if (a === 'admin-vue') { son('tap'); adminVue = t.dataset.v === 'votes' ? 'votes' : 'retours'; confirmer = 0; noteTxt = ''; peindre(); if (adminVue === 'retours') lireRetours(); else lireVotes(); }
+      else if (a === 'filtre') { const f = t.dataset.f === 'tout' ? 'tout' : 'nouveau'; if (f !== filtre) { filtre = f; retours = []; adminEtat = ''; peindre(); lireRetours(); } }
+      else if (a === 'plus-anciens') lireRetours(true);
+      else if (a === 'image') { if (t.classList.contains('chargee')) zoomer(images.get(n) || ''); else voirImage(t); }
+      else if (a === 'etat') changerEtat(n, t.dataset.etat);
+      else if (a === 'duree') { brouillon.vote.heures = +t.dataset.h; peindre(); }
+      else if (a === 'plus') { if (brouillon.vote.options.length < 4) brouillon.vote.options.push(''); peindre(); }
+      else if (a === 'moins') { if (brouillon.vote.options.length > 2) brouillon.vote.options.splice(+t.dataset.i, 1); peindre(); }
+      else if (a === 'creer') creerVote();
+      else if (a === 'fermer-vote') fermerVote(n);
+    });
+    // les champs : chaque frappe va dans le brouillon (une feuille repeinte retrouve ce qu'on avait écrit)
+    el.addEventListener('input', (e) => {
+      const t = e.target, c = t && t.dataset ? t.dataset.champ : ''; if (!c) return;
+      if (noteTxt) dire(''); // on corrige : l'ancien refus s'efface
+      if (c === 'texte' && brouillon[vue]) {
+        brouillon[vue].texte = t.value; const k = corps.querySelector('.rt-compte'), nb = Array.from(t.value).length;
+        if (k) { k.textContent = `${nb}/${R.texte}`; k.classList.toggle('discret', nb <= R.texte - 100); }
+      } else if (c === 'note') brouillon.notes[+t.dataset.n] = t.value;
+      else if (c === 'question') brouillon.vote.question = t.value;
+      else if (c === 'option') brouillon.vote.options[+t.dataset.i] = t.value;
+    });
+    fichier.addEventListener('change', () => { const f = fichier.files && fichier.files[0]; if (f) choisirFichier(f); });
+    document.addEventListener('keydown', (e) => { if (e.key !== 'Escape' || !ouvert()) return; if (!zoom.hidden) fermerZoom(); else fermer(); });
+    document.addEventListener('visibilitychange', () => {
+      if (!visible()) { clearTimeout(minuteur); clearTimeout(minuteurAdmin); clearInterval(horloge); minuteur = minuteurAdmin = horloge = 0; return; } // page cachée : plus aucune lecture
+      planifier(maintenant() - lusA > R.retour); planifierAdmin(); battre();
+    });
+    window.addEventListener('online', () => planifier(true));
+    // une feuille du jeu (ou le chat) qui s'ouvre ou se ferme : le bandeau se cache ou revient
+    try { const mo = new MutationObserver(() => majBandeau()); for (const s of ['#feuille', '#tchat']) { const x = $(s); if (x) mo.observe(x, { attributes: true, attributeFilter: ['hidden'] }); } } catch (e) { /* rien */ }
+    majOnglets(); majBouton();
+    if (moteur()) { clearTimeout(minuteur); minuteur = setTimeout(() => { tour(); verifierAdmin(); }, 4000); } // la première lecture (la pastille, le bandeau), 4 s après le lancement, si l'on a rejoint
+  }
+  // le classement a bougé (rejoint, quitté, un autre pseudo) : les votes se relisent (moi change), l'admin se redemande
+  let signature = '';
+  function surClassement() {
+    const r = resume(), s = r && r.rejoint ? `${r.pseudo}` : '';
+    majBouton();
+    if (s === signature) return; signature = s;
+    if (!d || !moteur()) return;
+    changer.clear(); if (etat !== 'pas-ouvert' && (s || ouvert())) { lusA = 0; lireVotes(); } verifierAdmin(true);
+    if (!s && !ouvert()) { votes = []; finis = []; etat = etat === 'pas-ouvert' ? etat : ''; majBouton(); } // quitté le classement : plus de bandeau ni de pastille
+    if (ouvert()) peindre();
+  }
+
+  return {
+    init, ouvrir, fermer, lireVotes, choisirFichier, majBouton, majBandeau, surClassement, infos, reste, R,
+    get ouvert() { return ouvert(); },
+    etat: () => ({ etat, onglet, vue, admin, nouveaux, votes: JSON.parse(JSON.stringify(votes)), finis: finis.length, aVoter: aVoter().length, retours: retours.length, filtre,
+      brouillon: { idee: { texte: brouillon.idee.texte, image: brouillon.idee.image ? brouillon.idee.image.length : 0 }, bug: { texte: brouillon.bug.texte, image: brouillon.bug.image ? brouillon.bug.image.length : 0, type: brouillon.bug.image ? (/^data:(image\/\w+)/.exec(brouillon.bug.image) || [])[1] : '' } },
+      minuteur: !!minuteur, minuteurAdmin: !!minuteurAdmin }),
+  };
+})();
+
 /* ── nouveautes.js ── */
 /* LE FOURNIL — les nouveautés : le récap des mises à jour, pour le joueur (la pastille cadeau en haut, à côté de la cloche, et sa feuille).
    À CHAQUE MISE À JOUR VISIBLE PAR LE JOUEUR, on ajoute une entrée EN TÊTE de NOUVEAUTES (la plus récente d'abord) :
@@ -11441,6 +12248,15 @@ const TCHAT = (() => {
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   const NOUVEAUTES = [
+    {
+      id: '2026-10-17-e', date: '2026-10-17', titre: 'Idées, bugs et votes',
+      points: [
+        'Une ampoule à droite, sous la bulle du chat : propose une idée ou signale un bug, avec une capture si tu veux.',
+        'Pour un bug, le jeu joint tout seul ce qui aide à comprendre : la version du jeu, ton téléphone, ton quartier.',
+        'Des votes pour choisir la suite du Fournil : un bandeau dans la boutique te prévient, et tu peux changer d’avis tant que le vote est ouvert.',
+        'Pour écrire et voter, il faut un pseudo au classement.',
+      ],
+    },
     {
       id: '2026-10-17-d', date: '2026-10-17', titre: 'Des événements qui avancent plus vite',
       points: [
@@ -12051,6 +12867,7 @@ const UI = (() => {
   // l'arrière-salle (src/arriere.js) : une fois la petite porte du fond trouvée, une carte discrète, tout en bas du Journal, y ramène
   const AR = typeof ARRIERE !== 'undefined' ? ARRIERE : null;
   const TC = typeof TCHAT !== 'undefined' ? TCHAT : null; // le chat des boulangers (src/chat.js)
+  const RT = typeof RETOURS !== 'undefined' ? RETOURS : null; // les idées, les bugs et les votes (src/retours.js)
   const arriereTrouvee = () => !!(AR && st.arriere && st.arriere.trouvee);
   const cleArriere = () => (arriereTrouvee() ? (st.arriere.main && !st.arriere.main.fin ? 'ar-main' : 'ar') : '');
   const carteArriere = () => (arriereTrouvee() ? `<button type="button" class="card arriere-carte" data-arriere="1"><span class="pic">${ICONS.UI.arriere}</span><span class="t"><b>L’arrière-salle</b><small>${st.arriere.main && !st.arriere.main.fin ? 'Une main t’attend sur le tapis vert.' : 'La petite porte du fond est restée entrouverte.'}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>` : '');
@@ -12586,6 +13403,25 @@ const UI = (() => {
     majCoinQuartier();
     b.setAttribute('aria-label', rang ? `Classement des boulangers : ${CLM.rangPhrase(rang, r.semaine.joueurs, 'semaine')}` : 'Classement des boulangers');
   }
+  // le coin trop haut pour la place au-dessus du tiroir (un petit téléphone, 360 × 640 ; l'événement de la boutique affiché au-dessus du
+  // tiroir) : deux colonnes. La première (à droite) garde l'ordre de haut en bas ; ce qui n'y tient pas passe dans la seconde, à gauche,
+  // calée en bas, loin de l'enseigne. Recalculé quand un bouton paraît ou disparaît, quand le tiroir bouge ou l'événement s'affiche, à chaque redimension.
+  let coinRaf = 0;
+  function serrerCoin() {
+    coinRaf = 0;
+    const coin = $('#coin'), t = $('#tiroir'), ev = $('#evenement'); if (!coin || !t) return;
+    const l = [...coin.children].filter((b) => !b.hidden), y = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tiroir-y')) || 0;
+    let place = y - coin.offsetTop - 8;
+    if (ev && !ev.hidden && t.dataset.pos !== 'ouvert') place -= ev.offsetHeight + 8;
+    const tient = Math.max(1, Math.floor((place + 8) / 52)), deux = y > 0 && l.length > tient; // 52 : un bouton (44) et l'écart (8)
+    coin.classList.toggle('serre', deux);
+    const n = Math.max(tient, Math.ceil(l.length / 2)), k = l.length - n;
+    l.forEach((b, i) => {
+      if (!deux) { b.style.gridColumn = ''; b.style.gridRow = ''; return; }
+      b.style.gridColumn = i < n ? '2' : '1'; b.style.gridRow = String(i < n ? i + 1 : n - k + (i - n) + 1);
+    });
+  }
+  const serrerCoinBientot = () => { if (!coinRaf) coinRaf = requestAnimationFrame(serrerCoin); };
   // l'Atelier, d'un geste depuis l'icône du coin : les trois mini-jeux, leurs records et ce qu'ils valent au classement cette semaine
   function sheetAtelier() {
     const d = G.detailPoints(st);
@@ -13349,7 +14185,16 @@ const UI = (() => {
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant(), photo, pleineA }) : null; } catch (e) { classement = null; }
     // le chat des boulangers : son bouton rond sous les icônes des événements (seulement avec la configuration), la pastille des non-lus, sa feuille plein écran
     if (TC) TC.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); }, rejoindre: () => sheetClassement() });
-    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); if (TC) TC.majBouton(); if (pageActive === 'reglages') renderPage(); if (visite) peindreVisite(); tenterCopains(); }); majRecompenses(); classement.demarrer(); setTimeout(verifierCadeaux, 3000); setInterval(() => { if (document.visibilityState === 'visible') verifierCadeaux(); }, 10 * 60e3); setInterval(majRecompenses, 60e3);
+    if (RT) RT.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), quartier: () => { const q = G.QUARTIERS[G.quartier(st)]; return q ? q.nom : ''; } });
+    try { // le coin se resserre au besoin (serrerCoin)
+      const mo = new MutationObserver(serrerCoinBientot);
+      mo.observe($('#coin'), { subtree: true, attributes: true, attributeFilter: ['hidden'] });
+      mo.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
+      mo.observe($('#tiroir'), { attributes: true, attributeFilter: ['data-pos'] });
+      mo.observe($('#evenement'), { attributes: true, attributeFilter: ['hidden'] });
+    } catch (e) { /* rien */ }
+    window.addEventListener('resize', serrerCoinBientot); serrerCoinBientot();
+    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); if (TC) TC.majBouton(); if (RT) RT.surClassement(); if (pageActive === 'reglages') renderPage(); if (visite) peindreVisite(); tenterCopains(); }); majRecompenses(); classement.demarrer(); setTimeout(verifierCadeaux, 3000); setInterval(() => { if (document.visibilityState === 'visible') verifierCadeaux(); }, 10 * 60e3); setInterval(majRecompenses, 60e3);
     // la liste ouverte se relit toute seule toutes les 30 s (qui vient d'arriver « en ligne », les points qui bougent) : seulement
     // sur l'onglet de la liste, page visible, sans doubler une lecture en vol ; la feuille fermée, plus rien
     setInterval(() => { if (vueCl === 'liste' && !feuille.hidden && document.visibilityState === 'visible' && !classement.enChargement(ongletCl)) classement.charger(ongletCl); }, (window.__relireClassement | 0) || 30e3); } // la tenue et la coupe changent aussi au lundi
@@ -13366,6 +14211,7 @@ const UI = (() => {
       visiter: (p, ev) => visiter(p, true, ev), finVisite, visite: () => (visite ? { pseudo: visite.pseudo, scene: visite.scene, charge: visite.charge, etat: visite.etat, nom: visite.b ? visite.b.nom : null, ev: visite.E ? visite.E.cle : null, ev3: !!visite.ev3, images: visite.images, calls: visite.ev3 ? visite.ev3.calls : 0, q: visite.qe ? { postes: visite.qe.postes.map((x) => [x.niv, x.staff]), paliers: visite.qe.paliers.length, total: visite.qe.total, decos: visite.qe.decos.slice() } : null } : null), // classement v6 (pour les tests)
       fiche: () => (fiche ? { pseudo: fiche.pseudo, charge: fiche.charge, etat: fiche.etat, photo: !!(fiche.data && fiche.data.photo), stats: !!(fiche.b && fiche.b.stats) } : null), ficheCopain, tenterCopains,
       tchat: TC,
+      retours: RT, serrerCoin,
       arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false), fermerArriere: () => { if (AR) AR.fermer(); }, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }
   document.addEventListener('DOMContentLoaded', boot);

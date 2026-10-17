@@ -170,6 +170,8 @@ const ICONS = (() => {
     bulle: U(`<path d="M6.5 4h11A2.5 2.5 0 0120 6.5v8a2.5 2.5 0 01-2.5 2.5H11l-4.5 3.5V17A2.5 2.5 0 014 14.5v-8A2.5 2.5 0 016.5 4z" fill="${A.ciel}"/><path d="M8.5 10.5v.1M12 10.5v.1M15.5 10.5v.1"/>`),
     photo: U(`<path d="M3.5 8.5A1.5 1.5 0 015 7h2.6l1.6-2.5h5.6L16.4 7H19a1.5 1.5 0 011.5 1.5v9A1.5 1.5 0 0119 19H5a1.5 1.5 0 01-1.5-1.5z" fill="${A.peche}"/><circle cx="12" cy="13" r="3.3"/>`),
     envoyer: U(`<path d="M3.8 11.2L20 4l-6.6 16.2-2.6-6.9z" fill="${A.beurre}"/><path d="M10.8 13.3L20 4"/>`),
+    // les idées, les bugs et les votes (src/retours.js) : une ampoule, le verre en accent beurre, le culot rayé et le filament
+    ampoule: U(`<path d="M12 3a6 6 0 00-3.6 10.8c.7.5 1.1 1.3 1.1 2.2v.5h5V16c0-.9.4-1.7 1.1-2.2A6 6 0 0012 3z" fill="${A.beurre}"/><path d="M9.6 19h4.8M10.6 21h2.8"/><path d="M10.2 10.4l1.8 1.8 1.8-1.8M12 12.2v4.3"/>`),
   };
   UI.classement = UI.podium;
   // le podium du classement : une petite toque à la couleur du métal (à côté d'un pseudo) et une coupe (l'annonce, la collection)

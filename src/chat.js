@@ -267,37 +267,9 @@ const TCHAT = (() => {
     dire(message(r), r.etat === 'refus' && r.erreur === 'banni');
   }
 
-  // ─── les photos : la compression par le téléphone (plus grand côté 1280 px, WebP sinon JPEG, la qualité qui descend jusqu'à 350 Ko) ───
-  const lireUrl = (f) => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result || '')); fr.onerror = () => rej(fr.error); fr.readAsDataURL(f); });
-  async function decoder(f) {
-    if (typeof createImageBitmap === 'function') { try { return await createImageBitmap(f); } catch (e) { /* l'image classique */ } }
-    const u = URL.createObjectURL(f);
-    try { return await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; }); } finally { setTimeout(() => URL.revokeObjectURL(u), 1000); }
-  }
-  // → { ok: true, data, w, h, type, q } ou { ok: false, raison: 'gif' (un GIF trop lourd) | 'illisible' | 'lourd' }
-  async function preparerImage(f) {
-    if (!f) return { ok: false, raison: 'illisible' };
-    if (f.type === 'image/gif') { // un GIF de la galerie part tel quel (animé), s'il n'est pas trop lourd
-      if (f.size > R.image) return { ok: false, raison: 'gif' };
-      const u = await lireUrl(f).catch(() => '');
-      return u.length <= R.image && /^data:image\/gif;base64,/.test(u) ? { ok: true, data: u, type: 'image/gif' } : { ok: false, raison: u ? 'gif' : 'illisible' };
-    }
-    let src = null; try { src = await decoder(f); } catch (e) { src = null; }
-    const w0 = src ? src.naturalWidth || src.width : 0, h0 = src ? src.naturalHeight || src.height : 0;
-    if (!w0 || !h0) return { ok: false, raison: 'illisible' };
-    const cv = document.createElement('canvas'), ctx = cv.getContext('2d');
-    let k = Math.min(1, R.cote / Math.max(w0, h0)), webp = null, fini = null;
-    try {
-      for (let essai = 0; essai < 6 && !fini; essai++, k *= 0.75) { // trop lourde même à la plus basse qualité : plus petite
-        const w = Math.max(1, Math.round(w0 * k)), h = Math.max(1, Math.round(h0 * k));
-        cv.width = w; cv.height = h; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(src, 0, 0, w, h); // le fond blanc : la transparence d'un PNG ne vire pas au noir en JPEG
-        if (webp === null) webp = /^data:image\/webp/.test(cv.toDataURL('image/webp', 0.5)); // un vieux Safari ne sait pas faire de WebP : du JPEG
-        const type = webp ? 'image/webp' : 'image/jpeg';
-        for (const q of [0.82, 0.72, 0.62, 0.52, 0.42, 0.34]) { const u = cv.toDataURL(type, q); if (u.length <= R.image && IMG_OK.test(u)) { fini = { ok: true, data: u, w, h, type, q }; break; } }
-      }
-    } finally { try { if (src && src.close) src.close(); } catch (e) { /* rien */ } cv.width = cv.height = 0; }
-    return fini || { ok: false, raison: 'lourd' };
-  }
+  // ─── les photos : la compression par le téléphone (src/photo.js, partagée avec les idées et bugs : plus grand côté 1280 px, WebP sinon
+  // JPEG, la qualité qui descend jusqu'à 350 Ko ; un GIF de la galerie part tel quel) ───
+  const preparerImage = (f) => PHOTOS.preparer(f, { max: R.image, cote: R.cote, gif: true });
   async function choisirFichier(f) {
     if (!f) return null;
     dire('Préparation de la photo…', true);

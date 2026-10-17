@@ -467,6 +467,7 @@ const UI = (() => {
   // l'arrière-salle (src/arriere.js) : une fois la petite porte du fond trouvée, une carte discrète, tout en bas du Journal, y ramène
   const AR = typeof ARRIERE !== 'undefined' ? ARRIERE : null;
   const TC = typeof TCHAT !== 'undefined' ? TCHAT : null; // le chat des boulangers (src/chat.js)
+  const RT = typeof RETOURS !== 'undefined' ? RETOURS : null; // les idées, les bugs et les votes (src/retours.js)
   const arriereTrouvee = () => !!(AR && st.arriere && st.arriere.trouvee);
   const cleArriere = () => (arriereTrouvee() ? (st.arriere.main && !st.arriere.main.fin ? 'ar-main' : 'ar') : '');
   const carteArriere = () => (arriereTrouvee() ? `<button type="button" class="card arriere-carte" data-arriere="1"><span class="pic">${ICONS.UI.arriere}</span><span class="t"><b>L’arrière-salle</b><small>${st.arriere.main && !st.arriere.main.fin ? 'Une main t’attend sur le tapis vert.' : 'La petite porte du fond est restée entrouverte.'}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>` : '');
@@ -1002,6 +1003,25 @@ const UI = (() => {
     majCoinQuartier();
     b.setAttribute('aria-label', rang ? `Classement des boulangers : ${CLM.rangPhrase(rang, r.semaine.joueurs, 'semaine')}` : 'Classement des boulangers');
   }
+  // le coin trop haut pour la place au-dessus du tiroir (un petit téléphone, 360 × 640 ; l'événement de la boutique affiché au-dessus du
+  // tiroir) : deux colonnes. La première (à droite) garde l'ordre de haut en bas ; ce qui n'y tient pas passe dans la seconde, à gauche,
+  // calée en bas, loin de l'enseigne. Recalculé quand un bouton paraît ou disparaît, quand le tiroir bouge ou l'événement s'affiche, à chaque redimension.
+  let coinRaf = 0;
+  function serrerCoin() {
+    coinRaf = 0;
+    const coin = $('#coin'), t = $('#tiroir'), ev = $('#evenement'); if (!coin || !t) return;
+    const l = [...coin.children].filter((b) => !b.hidden), y = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--tiroir-y')) || 0;
+    let place = y - coin.offsetTop - 8;
+    if (ev && !ev.hidden && t.dataset.pos !== 'ouvert') place -= ev.offsetHeight + 8;
+    const tient = Math.max(1, Math.floor((place + 8) / 52)), deux = y > 0 && l.length > tient; // 52 : un bouton (44) et l'écart (8)
+    coin.classList.toggle('serre', deux);
+    const n = Math.max(tient, Math.ceil(l.length / 2)), k = l.length - n;
+    l.forEach((b, i) => {
+      if (!deux) { b.style.gridColumn = ''; b.style.gridRow = ''; return; }
+      b.style.gridColumn = i < n ? '2' : '1'; b.style.gridRow = String(i < n ? i + 1 : n - k + (i - n) + 1);
+    });
+  }
+  const serrerCoinBientot = () => { if (!coinRaf) coinRaf = requestAnimationFrame(serrerCoin); };
   // l'Atelier, d'un geste depuis l'icône du coin : les trois mini-jeux, leurs records et ce qu'ils valent au classement cette semaine
   function sheetAtelier() {
     const d = G.detailPoints(st);
@@ -1765,7 +1785,16 @@ const UI = (() => {
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant(), photo, pleineA }) : null; } catch (e) { classement = null; }
     // le chat des boulangers : son bouton rond sous les icônes des événements (seulement avec la configuration), la pastille des non-lus, sa feuille plein écran
     if (TC) TC.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); }, rejoindre: () => sheetClassement() });
-    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); if (TC) TC.majBouton(); if (pageActive === 'reglages') renderPage(); if (visite) peindreVisite(); tenterCopains(); }); majRecompenses(); classement.demarrer(); setTimeout(verifierCadeaux, 3000); setInterval(() => { if (document.visibilityState === 'visible') verifierCadeaux(); }, 10 * 60e3); setInterval(majRecompenses, 60e3);
+    if (RT) RT.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), quartier: () => { const q = G.QUARTIERS[G.quartier(st)]; return q ? q.nom : ''; } });
+    try { // le coin se resserre au besoin (serrerCoin)
+      const mo = new MutationObserver(serrerCoinBientot);
+      mo.observe($('#coin'), { subtree: true, attributes: true, attributeFilter: ['hidden'] });
+      mo.observe(document.documentElement, { attributes: true, attributeFilter: ['style'] });
+      mo.observe($('#tiroir'), { attributes: true, attributeFilter: ['data-pos'] });
+      mo.observe($('#evenement'), { attributes: true, attributeFilter: ['hidden'] });
+    } catch (e) { /* rien */ }
+    window.addEventListener('resize', serrerCoinBientot); serrerCoinBientot();
+    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); if (TC) TC.majBouton(); if (RT) RT.surClassement(); if (pageActive === 'reglages') renderPage(); if (visite) peindreVisite(); tenterCopains(); }); majRecompenses(); classement.demarrer(); setTimeout(verifierCadeaux, 3000); setInterval(() => { if (document.visibilityState === 'visible') verifierCadeaux(); }, 10 * 60e3); setInterval(majRecompenses, 60e3);
     // la liste ouverte se relit toute seule toutes les 30 s (qui vient d'arriver « en ligne », les points qui bougent) : seulement
     // sur l'onglet de la liste, page visible, sans doubler une lecture en vol ; la feuille fermée, plus rien
     setInterval(() => { if (vueCl === 'liste' && !feuille.hidden && document.visibilityState === 'visible' && !classement.enChargement(ongletCl)) classement.charger(ongletCl); }, (window.__relireClassement | 0) || 30e3); } // la tenue et la coupe changent aussi au lundi
@@ -1782,6 +1811,7 @@ const UI = (() => {
       visiter: (p, ev) => visiter(p, true, ev), finVisite, visite: () => (visite ? { pseudo: visite.pseudo, scene: visite.scene, charge: visite.charge, etat: visite.etat, nom: visite.b ? visite.b.nom : null, ev: visite.E ? visite.E.cle : null, ev3: !!visite.ev3, images: visite.images, calls: visite.ev3 ? visite.ev3.calls : 0, q: visite.qe ? { postes: visite.qe.postes.map((x) => [x.niv, x.staff]), paliers: visite.qe.paliers.length, total: visite.qe.total, decos: visite.qe.decos.slice() } : null } : null), // classement v6 (pour les tests)
       fiche: () => (fiche ? { pseudo: fiche.pseudo, charge: fiche.charge, etat: fiche.etat, photo: !!(fiche.data && fiche.data.photo), stats: !!(fiche.b && fiche.b.stats) } : null), ficheCopain, tenterCopains,
       tchat: TC,
+      retours: RT, serrerCoin,
       arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false), fermerArriere: () => { if (AR) AR.fermer(); }, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }
   document.addEventListener('DOMContentLoaded', boot);
