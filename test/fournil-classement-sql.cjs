@@ -1935,7 +1935,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
   {
     const CAD = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-cadeaux.sql'), 'utf8');
     const collerCad = async () => { await db.exec('set role proprio'); try { await db.exec(CAD); } finally { await db.exec('reset role'); } };
-    const V1 = require('child_process').execSync('git show 7897503:supabase/fournil-cadeaux.sql', { cwd: path.join(__dirname, '..') }).toString(); // la version 1, collée sur Supabase le 16 oct.
+    const V1 = fs.readFileSync(path.join(__dirname, 'fournil-cadeaux-v1.sql'), 'utf8'); // la version 1, collée sur Supabase le 16 oct. (une copie : la CI n'a qu'un commit, pas l'historique)
     try { await db.exec('drop table if exists public.fournil_cadeaux cascade'); await db.exec('set role proprio'); await db.exec(V1); await db.exec('reset role'); } catch (err) { await db.exec('reset role'); check(false, 'la version 1 se colle : ' + err.message); }
     const Gv1 = joueur(); await avancer(3600); await publierP(Gv1, 'Ancien', 1e6, 10);
     await comme('proprio', `insert into public.fournil_cadeaux (joueur, montant, motif) values ('${Gv1.id}', 3e12, 'v1')`);
