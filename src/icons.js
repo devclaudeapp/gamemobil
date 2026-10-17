@@ -114,6 +114,8 @@ const ICONS = (() => {
     reglages: U(`${dents()}<circle cx="12" cy="12" r="6.2" fill="${A.lavande}"/><circle cx="12" cy="12" r="2.3"/>`),
     // l'en-tête, les pages, les feuilles
     cloche: U(`<path d="M6 16.5V11a6 6 0 0112 0v5.5l1.6 2.2H4.4z" fill="${A.beurre}"/><path d="M10 21h4"/><path d="M12 3v2"/>`),
+    // les nouveautés (la pastille à côté de la cloche) : un paquet cadeau, son ruban et son nœud
+    nouveautes: U(`<path d="M5 11.5h14V19a1 1 0 01-1 1H6a1 1 0 01-1-1z" fill="${A.lavande}"/><rect x="3.5" y="7.8" width="17" height="3.7" rx="1" fill="${A.lavande}"/><path d="M12 7.8V20"/><path d="M12 7.8C10.6 4.6 7.2 3.7 7.2 6c0 1.5 2.4 1.8 4.8 1.8zM12 7.8c1.4-3.2 4.8-4.1 4.8-1.8 0 1.5-2.4 1.8-4.8 1.8z"/>`),
     bonus: U(`<path d="M10.5 3.5l1.9 5.1 5.1 1.9-5.1 1.9-1.9 5.1-1.9-5.1-5.1-1.9 5.1-1.9z" fill="${A.lavande}"/><path d="M18 14.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>`),
     etoile: U(etoile(A.beurre)),
     sauvegarde: U(`<path d="M7 18.5a4.2 4.2 0 01-.7-8.4 6 6 0 0111.6-.6 4.5 4.5 0 01-.4 9z" fill="${A.ciel}"/><path d="M12 11v6M9.5 14.6L12 17l2.5-2.4"/>`),
@@ -164,6 +166,10 @@ const ICONS = (() => {
     equipe: U(`<path d="M9.2 13.8L7 21l3-1.4 2 2 .1-6.8M14.8 13.8L17 21l-3-1.4-2 2" fill="${A.lavande}"/><circle cx="12" cy="9.3" r="6.3" fill="${A.beurre}"/><path d="M12 6.2l.9 1.9 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z"/>`),
     pourboire: U(`<circle cx="9.5" cy="13.5" r="6" fill="${A.beurre}"/><circle cx="9.5" cy="13.5" r="3"/><path d="M16.8 9.6c-1.6-1.3-2.8-2.4-2.8-3.8 0-1 .8-1.8 1.8-1.8.6 0 1 .3 1.3.7.3-.4.7-.7 1.3-.7 1 0 1.8.8 1.8 1.8 0 1.4-1.2 2.5-2.8 3.8z" fill="${A.fraise}"/>`),
     oeil: U(`<path d="M2.8 12c2.2-4 5.4-6 9.2-6s7 2 9.2 6c-2.2 4-5.4 6-9.2 6s-7-2-9.2-6z" fill="${A.ciel}"/><circle cx="12" cy="12" r="2.8"/>`),
+    // le chat général : une bulle de discussion (l'accent ciel) et ses trois points ; l'appareil photo et l'avion en papier de sa barre de saisie
+    bulle: U(`<path d="M6.5 4h11A2.5 2.5 0 0120 6.5v8a2.5 2.5 0 01-2.5 2.5H11l-4.5 3.5V17A2.5 2.5 0 014 14.5v-8A2.5 2.5 0 016.5 4z" fill="${A.ciel}"/><path d="M8.5 10.5v.1M12 10.5v.1M15.5 10.5v.1"/>`),
+    photo: U(`<path d="M3.5 8.5A1.5 1.5 0 015 7h2.6l1.6-2.5h5.6L16.4 7H19a1.5 1.5 0 011.5 1.5v9A1.5 1.5 0 0119 19H5a1.5 1.5 0 01-1.5-1.5z" fill="${A.peche}"/><circle cx="12" cy="13" r="3.3"/>`),
+    envoyer: U(`<path d="M3.8 11.2L20 4l-6.6 16.2-2.6-6.9z" fill="${A.beurre}"/><path d="M10.8 13.3L20 4"/>`),
   };
   UI.classement = UI.podium;
   // le podium du classement : une petite toque à la couleur du métal (à côté d'un pseudo) et une coupe (l'annonce, la collection)

@@ -6,6 +6,7 @@
   </div>
   <div class="haut-btns">
     <button id="b-cloche" class="pastille cloche" type="button" aria-label="Le Journal"><i class="ico" data-ico="cloche"></i><i class="point" hidden></i></button>
+    <button id="b-nouveautes" class="pastille nouv" type="button" aria-label="Les nouveautés du Fournil"><i class="ico" data-ico="nouveautes"></i><i class="point" hidden></i></button>
     <button id="b-etoiles" class="pastille etoile" type="button" aria-label="Étoiles et nouvelle boutique"><i class="ico" data-ico="etoile"></i><span id="etoiles-n">0</span></button>
   </div>
 </header>
@@ -20,6 +21,7 @@
       <button id="b-atelier" class="rond" type="button" aria-label="L’Atelier : les mini-jeux"><i class="ico" data-ico="atelier"></i></button>
       <button id="b-quartier" class="rond quartier" type="button" aria-label="L’événement : Le Quartier" hidden><i class="ico" data-ico="quartier"></i></button>
       <button id="b-hantee" class="rond hantee" type="button" aria-label="L’événement : La Maison hantée" hidden><i class="ico" data-ico="hantee"></i></button>
+      <button id="b-tchat" class="rond tchat" type="button" aria-label="Le chat des boulangers" hidden><i class="ico" data-ico="bulle"></i><i class="rang-pastille tc-nonlus" aria-hidden="true" hidden></i></button>
     </div>
     <button id="b-fini" type="button" hidden>Terminé</button>
   </div>
@@ -121,6 +123,40 @@
   </div>
   <div id="vi-vue" class="vi-vue"></div>
   <div id="vi-bas" class="vi-bas"></div>
+</div>
+<div id="tchat" role="dialog" aria-modal="true" aria-labelledby="tc-titre" hidden>
+  <div class="at-haut tc-haut">
+    <button type="button" class="at-fermer" data-tc="fermer" aria-label="Fermer le chat"><i class="ico" data-ico="fermer"></i></button>
+    <div class="at-titre"><b id="tc-titre">Le chat des boulangers</b><small>Appui long sur un message : le signaler</small></div>
+  </div>
+  <div id="tc-fil" class="tc-fil" aria-label="Les messages"></div>
+  <button type="button" id="tc-nouveaux" class="tc-nouveaux" data-tc="bas" hidden>Nouveaux messages ↓</button>
+  <div id="tc-bas" class="tc-bas">
+    <p id="tc-note" class="tc-note" role="status" hidden></p>
+    <div id="tc-piece" class="tc-piece" hidden></div>
+    <div id="tc-saisie" class="tc-saisie">
+      <button type="button" class="tc-outil" data-tc="photo" aria-label="Ajouter une photo"><i class="ico" data-ico="photo"></i></button>
+      <button type="button" class="tc-outil tc-gif" data-tc="gif" aria-label="Choisir un GIF">GIF</button>
+      <label class="tc-champ"><input id="tc-texte" type="text" maxlength="300" enterkeyhint="send" autocomplete="off" placeholder="Écris aux boulangers…" aria-label="Ton message"><small id="tc-compte" class="tc-compte" hidden></small></label>
+      <button type="button" class="tc-envoyer" data-tc="envoyer" aria-label="Envoyer"><i class="ico" data-ico="envoyer"></i></button>
+    </div>
+    <button type="button" id="tc-rejoindre" class="btn large beurre" data-tc="rejoindre" hidden><b>Rejoins le classement pour écrire</b><small>Choisis ton pseudo : c’est lui qui signe tes messages</small></button>
+    <input id="tc-fichier" type="file" accept="image/*" hidden>
+  </div>
+  <div id="tc-gifs" class="tc-gifs" role="dialog" aria-label="Choisir un GIF" hidden>
+    <div class="tc-gif-haut"><input id="tc-gif-q" type="search" enterkeyhint="search" autocomplete="off" placeholder="Chercher un GIF…" aria-label="Chercher un GIF"><button type="button" class="at-fermer" data-tc="gifs-fermer" aria-label="Fermer les GIF"><i class="ico" data-ico="fermer"></i></button></div>
+    <div id="tc-gif-grille" class="tc-gif-grille"></div>
+    <small class="tc-giphy">Propulsé par GIPHY</small>
+  </div>
+  <div id="tc-menu" class="tc-menu" hidden>
+    <div class="tc-menu-boite" role="menu">
+      <small id="tc-menu-qui"></small><p id="tc-menu-txt"></p>
+      <button type="button" class="btn large" data-tc="signaler" role="menuitem"><b>Signaler ce message</b></button>
+      <button type="button" class="btn large" data-tc="effacer" role="menuitem"><b>Effacer mon message</b></button>
+      <button type="button" class="btn large sombre" data-tc="annuler" role="menuitem"><b>Annuler</b></button>
+    </div>
+  </div>
+  <button type="button" id="tc-zoom" class="tc-zoom" data-tc="zoom" aria-label="Fermer l’image" hidden><img alt=""></button>
 </div>
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>

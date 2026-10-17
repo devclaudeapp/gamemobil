@@ -47,14 +47,40 @@ svg { display: block; }
   box-shadow: 0 3px 0 var(--gris-sombre); font: 700 17px/1 var(--titre); color: var(--texte); }
 .pastille:active { transform: translateY(3px); box-shadow: none; }
 .pastille svg { width: 22px; height: 22px; }
-.pastille.cloche { padding: 0 10px; }
-.pastille.cloche .point { position: absolute; top: 6px; right: 8px; width: 11px; height: 11px; border-radius: 50%; background: var(--fraise); box-shadow: 0 0 0 2.5px #fff; }
+/* la cloche (le Journal) et le cadeau (les nouveautés) : ronds, un point fraise tant qu'il reste quelque chose à voir */
+.pastille.cloche, .pastille.nouv { padding: 0 10px; }
+.pastille.cloche .point, .pastille.nouv .point { position: absolute; top: 6px; right: 8px; width: 11px; height: 11px; border-radius: 50%; background: var(--fraise); box-shadow: 0 0 0 2.5px #fff; }
 .pastille.cloche.actif { background: #FFE9EE; box-shadow: 0 3px 0 #F3B6C4; animation: cloche 1.6s ease-in-out infinite; }
 @keyframes cloche { 0%, 70%, 100% { transform: rotate(0); } 75% { transform: rotate(-12deg); } 85% { transform: rotate(10deg); } 95% { transform: rotate(-5deg); } }
 .pastille.etoile { background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); }
 .pastille.etoile .ico svg path { fill: #fff; }
 .pastille.etoile.pret { animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+/* le rythme : « par seconde » en entier sur une tablette, « / s » sur un téléphone ; les étoiles à récolter, à côté du compte ou dessous */
+#taux .ps-c { display: none; }
+#etoiles-n small { font: inherit; }
+#etoiles-n small i { font-style: normal; }
+/* un téléphone (390, 360 px) : le solde, son rythme, la cloche, le cadeau et les étoiles tiennent sur une ligne. Les marges se serrent,
+   la pièce rapetisse, « par seconde » devient « / s » et les étoiles à récolter passent sous le compte, en petit, dans la pastille */
+@media (max-width: 419px) {
+  #haut { gap: 6px; padding-inline: 10px; }
+  .solde { gap: 6px; }
+  .solde .piece { width: 32px; height: 32px; }
+  .solde small { font-size: 12px; }
+  .solde small b { font-size: 12px; }
+  #taux .ps { display: none; }
+  #taux .ps-c { display: inline; }
+  .haut-btns { gap: 6px; }
+  .pastille.etoile { padding: 0 11px 0 9px; gap: 5px; }
+  #etoiles-n { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; }
+  #etoiles-n small { font: 700 11.5px/1 var(--titre); margin-top: 1px; color: #8A5A00; }
+  #etoiles-n small i { display: none; }
+}
+@media (max-width: 379px) { /* 360 px : le solde un peu plus petit, la pastille des étoiles plus serrée (« 9,9 Bd € » et « 1234 / +494 » tiennent) */
+  .solde b { font-size: 24px; }
+  .pastille.etoile { padding: 0 9px 0 8px; gap: 4px; font-size: 16px; }
+  .pastille.etoile svg { width: 20px; height: 20px; }
+}
 
 /* ─── le corps : la boutique remplit tout ; les pages glissent par-dessus dans un tiroir qu'on tire soi-même ─── */
 #corps { position: relative; flex: 1 1 auto; min-height: 0; overflow: clip; }
@@ -1272,6 +1298,103 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
 .et-jauge-barre i { display: block; height: 100%; border-radius: 6px; background: linear-gradient(90deg, var(--beurre), var(--beurre-sombre)); transition: width .6s ease-out; }
 .et-jauge small { font: 700 var(--t-petit)/1.3 var(--texte-font); color: var(--texte-2); }
 @media (prefers-reduced-motion: reduce) { .et-jauge-barre i { transition: none; } }
+
+/* ─── le chat des boulangers (src/chat.js) : le bouton rond du coin (un liseré ciel, la pastille des non-lus en fraise), la feuille plein écran ─── */
+.rond.tchat { box-shadow: 0 3px 0 #7FB8E6, 0 4px 10px rgba(74, 51, 40, .12); }
+.rang-pastille.tc-nonlus { background: var(--fraise); color: #fff; }
+#tchat { position: fixed; left: 0; right: 0; top: 0; height: 100%; z-index: 10; display: flex; flex-direction: column; background: var(--creme);
+  padding: env(safe-area-inset-top, 0px) 0 0; animation: atEntre .22s ease-out; overflow: hidden; }
+#tchat .tc-haut { background: var(--creme); box-shadow: 0 2px 10px rgba(74, 51, 40, .08); padding-bottom: 8px; position: relative; z-index: 1; }
+.tc-fil { flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y; display: flex; flex-direction: column; gap: 4px; padding: 12px 12px 16px; }
+.tc-fil > :first-child { margin-top: auto; } /* peu de messages : ils se tiennent en bas, près de la barre */
+.tc-jour { align-self: center; margin: 10px 0 4px; padding: 3px 10px; border-radius: 999px; background: rgba(74, 51, 40, .07); font: 800 11px/1.3 var(--texte-font); color: var(--texte-2); }
+.tc-reseau { align-self: center; margin: 0 0 6px; padding: 5px 12px; border-radius: 999px; background: var(--or-clair); font: 800 12px/1.3 var(--texte-font); color: var(--texte); }
+.tc-msg { display: flex; flex-direction: column; max-width: 80%; -webkit-touch-callout: none; user-select: none; -webkit-user-select: none; }
+.tc-msg.autre { align-self: flex-start; align-items: flex-start; }
+.tc-msg.moi { align-self: flex-end; align-items: flex-end; }
+.tc-msg.autre:not(.suite) { margin-top: 6px; }
+.tc-pseudo { margin: 0 0 2px 12px; font: 800 12px/1.2 var(--texte-font); color: var(--lavande-sombre); max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tc-bulle { position: relative; display: flex; flex-direction: column; gap: 6px; min-width: 64px; max-width: 100%; padding: 8px 12px 6px; border-radius: 18px; background: var(--carte); box-shadow: 0 2px 6px rgba(74, 51, 40, .08); }
+.tc-msg.autre .tc-bulle { border-bottom-left-radius: 6px; }
+.tc-msg.moi .tc-bulle { background: var(--fraise); color: #fff; border-bottom-right-radius: 6px; box-shadow: 0 2px 0 var(--fraise-sombre); }
+.tc-txt { margin: 0; font: 700 15px/1.35 var(--texte-font); white-space: pre-wrap; overflow-wrap: anywhere; }
+.tc-bulle time { align-self: flex-end; font: 700 10.5px/1 var(--texte-font); color: var(--gris-texte); font-variant-numeric: tabular-nums; }
+.tc-msg.moi .tc-bulle time { color: rgba(255, 255, 255, .8); }
+.tc-msg:active .tc-bulle { filter: brightness(.97); }
+/* les photos et les GIF : une case de taille fixe (le défilement ne saute pas quand elles arrivent), l'image recadrée dedans */
+.tc-photo, .tc-gifm { display: block; width: 200px; max-width: 100%; height: 150px; margin: -2px -6px 0; border-radius: 13px; overflow: hidden; background: var(--gris) linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, .55) 50%, transparent 70%) 0 0 / 200% 100%; animation: brille 1.4s linear infinite; }
+.tc-photo img, .tc-gifm img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tc-photo:not(.chargee) img { visibility: hidden; }
+.tc-photo.chargee, .tc-gifm { animation: none; }
+.tc-photo.effacee { height: 44px; animation: none; background: rgba(74, 51, 40, .06); display: grid; place-items: center; }
+.tc-photo.effacee::after { content: 'Photo effacée'; font: 800 12px/1 var(--texte-font); color: var(--texte-2); }
+.tc-photo.effacee img { display: none; }
+.tc-msg.moi .tc-photo.effacee { background: rgba(255, 255, 255, .2); } .tc-msg.moi .tc-photo.effacee::after { color: #fff; }
+@media (prefers-reduced-motion: reduce) { .tc-photo, .tc-gifm { animation: none; } }
+.tc-vide { align-self: center; display: flex; flex-direction: column; align-items: center; gap: 6px; max-width: 300px; margin: auto; padding: 22px 18px; border-radius: var(--r-carte); background: var(--carte); box-shadow: var(--ombre-carte); text-align: center; }
+.tc-vide b { font: 700 19px/1.2 var(--titre); }
+.tc-vide span { font-size: 14px; color: var(--texte-2); }
+.tc-vide .tc-pic { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 20px; background: var(--ciel-clair); }
+.tc-vide .tc-pic svg { width: 38px; height: 38px; }
+.tc-nouveaux { position: absolute; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 86px); transform: translateX(-50%); z-index: 2; min-height: 36px; padding: 0 14px; border-radius: 999px; background: var(--texte); color: #fff; font: 800 13px/1 var(--texte-font); box-shadow: 0 4px 12px rgba(74, 51, 40, .25); }
+/* la barre de saisie */
+.tc-bas { flex: 0 0 auto; display: grid; gap: 8px; padding: 8px 10px calc(env(safe-area-inset-bottom, 0px) + 10px); background: var(--creme); box-shadow: 0 -2px 12px rgba(74, 51, 40, .10); border-radius: 22px 22px 0 0; position: relative; z-index: 1; }
+.tc-saisie { display: flex; align-items: center; gap: 6px; }
+.tc-outil { flex: 0 0 auto; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 50%; background: var(--carte); box-shadow: 0 3px 0 var(--gris-sombre); }
+.tc-outil .ico svg { width: 24px; height: 24px; }
+.tc-outil:active, .tc-envoyer:active { transform: translateY(3px); box-shadow: none; }
+.tc-outil.tc-gif { font: 700 13px/1 var(--titre); color: var(--texte); letter-spacing: .02em; }
+.tc-outil.tc-gif.bientot { color: var(--gris-texte); }
+.tc-champ { position: relative; flex: 1 1 auto; min-width: 0; }
+.tc-champ input { width: 100%; height: 44px; padding: 0 14px; border: 2px solid var(--ligne); border-radius: 22px; background: var(--carte); font: 700 16px/1 var(--texte-font); color: var(--texte); outline: none; } /* 16 px : l'iPhone ne zoome pas au toucher */
+.tc-champ input:focus { border-color: var(--lavande); }
+.tc-compte { position: absolute; right: 12px; top: -9px; padding: 1px 6px; border-radius: 999px; background: var(--creme); font: 800 10.5px/1.3 var(--texte-font); color: var(--texte-2); }
+.tc-compte.trop { color: var(--fraise-sombre); }
+.tc-envoyer { flex: 0 0 auto; display: grid; place-items: center; width: 46px; height: 46px; border-radius: 50%; background: var(--fraise); box-shadow: 0 3px 0 var(--fraise-sombre); }
+.tc-envoyer .ico svg { width: 24px; height: 24px; stroke: #fff; }
+#tchat.envoi .tc-envoyer { opacity: .5; pointer-events: none; }
+.tc-note { margin: 0; padding: 7px 12px; border-radius: 14px; background: var(--rose-clair); font: 800 13px/1.3 var(--texte-font); color: var(--fraise-sombre); text-align: center; }
+.tc-piece { display: flex; align-items: center; gap: 10px; padding: 6px 6px 6px 8px; border-radius: 16px; background: var(--carte); box-shadow: var(--ombre-carte); }
+.tc-apercu { flex: 0 0 auto; width: 48px; height: 48px; border-radius: 10px; overflow: hidden; background: var(--gris); }
+.tc-apercu img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tc-piece-txt { flex: 1 1 auto; min-width: 0; font: 800 13px/1.3 var(--texte-font); color: var(--texte-2); }
+.tc-retirer { flex: 0 0 auto; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; }
+.tc-retirer .ico svg { width: 20px; height: 20px; }
+#tc-rejoindre { min-height: 60px; }
+#tc-rejoindre b { font-size: 17px; white-space: normal; }
+#tc-rejoindre small { color: var(--texte); opacity: .75; }
+/* les GIF : une grille de trois colonnes qui monte du bas, la recherche en tête, « Propulsé par GIPHY » au pied */
+.tc-gifs { position: absolute; left: 0; right: 0; bottom: 0; height: min(68%, 560px); z-index: 3; display: flex; flex-direction: column; gap: 8px; padding: 10px 10px calc(env(safe-area-inset-bottom, 0px) + 8px); background: var(--creme); border-radius: 24px 24px 0 0; box-shadow: 0 -8px 24px rgba(74, 51, 40, .18); animation: monte .22s cubic-bezier(.2, .8, .2, 1); }
+.tc-gif-haut { display: flex; align-items: center; gap: 8px; }
+.tc-gif-haut input { flex: 1 1 auto; min-width: 0; height: 44px; padding: 0 14px; border: 2px solid var(--ligne); border-radius: 22px; background: var(--carte); font: 700 16px/1 var(--texte-font); color: var(--texte); outline: none; }
+.tc-gif-haut input:focus { border-color: var(--lavande); }
+.tc-gif-grille { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 104px; gap: 6px; align-content: start; }
+.tc-gif-choix { border-radius: 12px; overflow: hidden; background: var(--gris); }
+.tc-gif-choix img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tc-gif-choix:active { transform: scale(.96); }
+.tc-gif-etat { grid-column: 1 / -1; margin: 24px 0; text-align: center; font-size: 14px; color: var(--texte-2); }
+.tc-giphy { align-self: center; font: 800 11px/1 var(--texte-font); color: var(--gris-texte); letter-spacing: .04em; text-transform: uppercase; }
+/* l'appui long : le menu (Signaler, Effacer, Annuler) ; l'image agrandie */
+.tc-menu { position: absolute; inset: 0; z-index: 4; display: flex; align-items: flex-end; background: rgba(74, 51, 40, .35); animation: atEntre .15s ease-out; }
+.tc-menu-boite { width: 100%; display: grid; gap: 10px; padding: 16px 16px calc(env(safe-area-inset-bottom, 0px) + 16px); background: var(--creme); border-radius: 24px 24px 0 0; }
+.tc-menu-boite small { font: 800 12px/1.2 var(--texte-font); color: var(--texte-2); }
+.tc-menu-boite p { margin: 0 0 4px; font-size: 15px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.tc-zoom { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: 16px; background: rgba(28, 20, 16, .92); animation: atEntre .15s ease-out; }
+.tc-zoom img { max-width: 100%; max-height: 100%; border-radius: 12px; object-fit: contain; }
+/* ─── les nouveautés (src/nouveautes.js) : une entrée par mise à jour, la plus récente dépliée en tête ─── */
+.nv-liste { display: grid; gap: 8px; margin-bottom: 4px; }
+.nv { border-radius: var(--r-carte); background: var(--carte); box-shadow: var(--ombre-carte); }
+.nv summary { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 12px 8px 14px; cursor: pointer; list-style: none; }
+.nv summary::-webkit-details-marker { display: none; }
+.nv-tete { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.nv-tete b { font: 700 var(--t-carte)/1.2 var(--titre); color: var(--texte); }
+.nv-tete small { font-size: var(--t-petit); color: var(--texte-2); }
+.nv-badge { flex: 0 0 auto; padding: 4px 8px; border-radius: 999px; background: var(--fraise); color: #fff; font: 800 11px/1 var(--texte-font); font-style: normal; letter-spacing: .02em; }
+.nv summary .chev svg { width: 18px; height: 18px; transform: rotate(90deg); transition: transform .2s; }
+.nv[open] summary .chev svg { transform: rotate(-90deg); }
+.nv-points { margin: 0; padding: 0 14px 14px 32px; display: grid; gap: 6px; font-size: var(--t-corps); line-height: 1.4; color: var(--texte); }
+.nv-points li::marker { color: var(--lavande-sombre); }
+.nv.neuve { box-shadow: 0 0 0 2px var(--rose-clair), var(--ombre-carte); }
 </style>
 <div id="probe" aria-hidden="true"></div>
 <header id="haut">
@@ -1281,6 +1404,7 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
   </div>
   <div class="haut-btns">
     <button id="b-cloche" class="pastille cloche" type="button" aria-label="Le Journal"><i class="ico" data-ico="cloche"></i><i class="point" hidden></i></button>
+    <button id="b-nouveautes" class="pastille nouv" type="button" aria-label="Les nouveautés du Fournil"><i class="ico" data-ico="nouveautes"></i><i class="point" hidden></i></button>
     <button id="b-etoiles" class="pastille etoile" type="button" aria-label="Étoiles et nouvelle boutique"><i class="ico" data-ico="etoile"></i><span id="etoiles-n">0</span></button>
   </div>
 </header>
@@ -1295,6 +1419,7 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
       <button id="b-atelier" class="rond" type="button" aria-label="L’Atelier : les mini-jeux"><i class="ico" data-ico="atelier"></i></button>
       <button id="b-quartier" class="rond quartier" type="button" aria-label="L’événement : Le Quartier" hidden><i class="ico" data-ico="quartier"></i></button>
       <button id="b-hantee" class="rond hantee" type="button" aria-label="L’événement : La Maison hantée" hidden><i class="ico" data-ico="hantee"></i></button>
+      <button id="b-tchat" class="rond tchat" type="button" aria-label="Le chat des boulangers" hidden><i class="ico" data-ico="bulle"></i><i class="rang-pastille tc-nonlus" aria-hidden="true" hidden></i></button>
     </div>
     <button id="b-fini" type="button" hidden>Terminé</button>
   </div>
@@ -1396,6 +1521,40 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
   </div>
   <div id="vi-vue" class="vi-vue"></div>
   <div id="vi-bas" class="vi-bas"></div>
+</div>
+<div id="tchat" role="dialog" aria-modal="true" aria-labelledby="tc-titre" hidden>
+  <div class="at-haut tc-haut">
+    <button type="button" class="at-fermer" data-tc="fermer" aria-label="Fermer le chat"><i class="ico" data-ico="fermer"></i></button>
+    <div class="at-titre"><b id="tc-titre">Le chat des boulangers</b><small>Appui long sur un message : le signaler</small></div>
+  </div>
+  <div id="tc-fil" class="tc-fil" aria-label="Les messages"></div>
+  <button type="button" id="tc-nouveaux" class="tc-nouveaux" data-tc="bas" hidden>Nouveaux messages ↓</button>
+  <div id="tc-bas" class="tc-bas">
+    <p id="tc-note" class="tc-note" role="status" hidden></p>
+    <div id="tc-piece" class="tc-piece" hidden></div>
+    <div id="tc-saisie" class="tc-saisie">
+      <button type="button" class="tc-outil" data-tc="photo" aria-label="Ajouter une photo"><i class="ico" data-ico="photo"></i></button>
+      <button type="button" class="tc-outil tc-gif" data-tc="gif" aria-label="Choisir un GIF">GIF</button>
+      <label class="tc-champ"><input id="tc-texte" type="text" maxlength="300" enterkeyhint="send" autocomplete="off" placeholder="Écris aux boulangers…" aria-label="Ton message"><small id="tc-compte" class="tc-compte" hidden></small></label>
+      <button type="button" class="tc-envoyer" data-tc="envoyer" aria-label="Envoyer"><i class="ico" data-ico="envoyer"></i></button>
+    </div>
+    <button type="button" id="tc-rejoindre" class="btn large beurre" data-tc="rejoindre" hidden><b>Rejoins le classement pour écrire</b><small>Choisis ton pseudo : c’est lui qui signe tes messages</small></button>
+    <input id="tc-fichier" type="file" accept="image/*" hidden>
+  </div>
+  <div id="tc-gifs" class="tc-gifs" role="dialog" aria-label="Choisir un GIF" hidden>
+    <div class="tc-gif-haut"><input id="tc-gif-q" type="search" enterkeyhint="search" autocomplete="off" placeholder="Chercher un GIF…" aria-label="Chercher un GIF"><button type="button" class="at-fermer" data-tc="gifs-fermer" aria-label="Fermer les GIF"><i class="ico" data-ico="fermer"></i></button></div>
+    <div id="tc-gif-grille" class="tc-gif-grille"></div>
+    <small class="tc-giphy">Propulsé par GIPHY</small>
+  </div>
+  <div id="tc-menu" class="tc-menu" hidden>
+    <div class="tc-menu-boite" role="menu">
+      <small id="tc-menu-qui"></small><p id="tc-menu-txt"></p>
+      <button type="button" class="btn large" data-tc="signaler" role="menuitem"><b>Signaler ce message</b></button>
+      <button type="button" class="btn large" data-tc="effacer" role="menuitem"><b>Effacer mon message</b></button>
+      <button type="button" class="btn large sombre" data-tc="annuler" role="menuitem"><b>Annuler</b></button>
+    </div>
+  </div>
+  <button type="button" id="tc-zoom" class="tc-zoom" data-tc="zoom" aria-label="Fermer l’image" hidden><img alt=""></button>
 </div>
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
@@ -3044,6 +3203,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     boostPourboire: [2, 600], // un pourboire reçu : un boost ×2 de 10 min dans la réserve
     boostObjectif: [5, 900], // l'objectif commun réussi (et qu'on y a contribué) : un boost ×5 de 15 min, et le badge « Esprit d'équipe »
     objectif: 60e3, // l'objectif commun relu une fois par minute au plus
+    chatLimite: 50, // le chat général : les 50 derniers messages au plus par lecture
   };
 
   // ─── le lundi de la semaine, heure de Paris (règle européenne : l'heure d'été va du dernier dimanche de mars au dernier dimanche d'octobre, à 1 h UTC) ───
@@ -3448,6 +3608,31 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     return (Array.isArray(l) ? l.slice(0, 50) : []).filter((x) => x && typeof x === 'object' && quandOk(x.quand) && String(x.de == null ? '' : x.de).trim())
       .map((x) => ({ de: String(x.de).slice(0, 40), quand: new Date(x.quand).toISOString() })).sort((a, b) => (a.quand < b.quand ? -1 : a.quand > b.quand ? 1 : 0));
   }
+  // ─── le chat général (supabase/fournil-chat.sql) : ce que rend le serveur, nettoyé avant d'arriver à l'interface ───
+  // Une image n'est gardée que si c'est une data URL d'image (webp, jpeg, png, gif) ; un GIF, que si c'est un identifiant GIPHY (lettres et chiffres).
+  const CHAT_TEXTE = 300, CHAT_IMAGE = 480000; // les plafonds du serveur : 300 caractères, une data URL de 480 000 caractères
+  const CHAT_IMG_OK = /^data:image\/(webp|jpeg|png|gif);base64,[A-Za-z0-9+/]+=*$/, CHAT_GIF_OK = /^[A-Za-z0-9]{5,40}$/;
+  const chatImageOk = (s) => typeof s === 'string' && s.length <= CHAT_IMAGE && CHAT_IMG_OK.test(s);
+  const chatGifOk = (s) => typeof s === 'string' && CHAT_GIF_OK.test(s);
+  const chatN = (v) => { const n = typeof v === 'string' && /^\d{1,15}$/.test(v) ? +v : v; return Number.isSafeInteger(n) && n > 0 ? n : null; }; // un bigint peut arriver en texte
+  function chatQuand(v) { // l'heure d'un message : des millisecondes (le contrat), ou une date ISO
+    const n = typeof v === 'number' ? v : typeof v === 'string' && /^\d{10,15}$/.test(v) ? +v : typeof v === 'string' ? Date.parse(v) : NaN;
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+  }
+  function nettoyerChat(d) { // { messages: [{ n, pseudo, texte, gif, image, cree, moi }] triés par n, dernier } ; null : réponse illisible
+    if (!d || typeof d !== 'object' || Array.isArray(d) || d.ok === false || !Array.isArray(d.messages)) return null;
+    const vus = new Set(), messages = [];
+    for (const m of d.messages.slice(0, 200)) {
+      if (!m || typeof m !== 'object') continue;
+      const n = chatN(m.n); if (!n || vus.has(n)) continue;
+      const texte = typeof m.texte === 'string' ? Array.from(m.texte).slice(0, CHAT_TEXTE).join('') : '', gif = chatGifOk(m.gif) ? m.gif : null, image = m.image === true;
+      if (!texte.trim() && !gif && !image) continue; // un message vide (son image effacée après 7 jours, sans texte) : rien à montrer
+      vus.add(n); messages.push({ n, pseudo: String(m.pseudo == null ? '' : m.pseudo).slice(0, 40), texte, gif, image, cree: chatQuand(m.cree), moi: m.moi === true });
+    }
+    messages.sort((a, b) => a.n - b.n);
+    const dernier = Math.max(chatN(d.dernier) || 0, messages.length ? messages[messages.length - 1].n : 0);
+    return { messages, dernier };
+  }
   // le jour de Paris ('AAAA-MM-JJ') : les quotas de pourboires (3 donnés, 3 boosts reçus) repartent chaque jour, comme au serveur
   function jourParis(ms) { const t = Number.isFinite(ms) ? ms : Date.now(); return new Date(t + decalageParis(t)).toISOString().slice(0, 10); }
   // les préférences des notifications : les quatre cas (a) boutique pleine, (b) ouverture et fin d'un événement, (c) pourboire, (d) objectif commun
@@ -3547,7 +3732,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     const points = () => { try { const p = E.points(); return ptsOk(p) ? { points: p.points, lundi: p.lundi } : null; } catch (e) { return null; } };
     const quartier = () => { try { const v = E.quartier(); return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : null; } catch (e) { return null; } }; // ses billets : seulement s'il y en a
     const evenement = () => { try { const v = E.evenement(); return v && typeof v === 'object' && evtOk(v.id) && typeof v.score === 'number' && Number.isFinite(v.score) && v.score > 0 ? { id: v.id, score: Math.floor(v.score) } : null; } catch (e) { return null; } }; // son score d'événement : seulement s'il y en a
-    const rpc = (nom, corps, o) => appeler(config(), nom, corps, { fetch: E.fetch, enLigne: E.enLigne, delaiMax: E.delaiMax, keepalive: o && o.keepalive });
+    const rpc = (nom, corps, o) => appeler(config(), nom, corps, { fetch: E.fetch, enLigne: E.enLigne, delaiMax: (o && o.delaiMax) || E.delaiMax, keepalive: o && o.keepalive }); // delaiMax : plus long pour une image du chat
 
     // une autre fenêtre (l'appli installée et l'onglet du navigateur partagent le même stockage) a pu écrire :
     // on reprend son identité si elle a changé (pseudo, rejoint, quitté), sinon l'horaire du dernier essai le plus récent (15 s pour toutes les fenêtres)
@@ -3950,6 +4135,61 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       return r.data && r.data.ok === true ? { etat: 'ok' } : { etat: 'refus', erreur: r.data && typeof r.data.erreur === 'string' ? r.data.erreur : 'inconnue' };
     }
 
+    // ─── le chat général (supabase/fournil-chat.sql, un script à part, collé par-dessus la v6) : tout le monde lit, seuls les joueurs du
+    // classement écrivent (pseudo et jeton, comme les autres fonctions). Le script pas encore collé : { etat: 'pas-ouvert' } (l'interface dit
+    // « bientôt ») ; sans toucher aux copains (sansCopains) : le chat a son propre script. Les refus du serveur : { etat: 'refus', erreur }.
+    const chatPasOuvert = (r) => (r && r.etat === 'pas-ouvert' ? { etat: 'pas-ouvert' } : null);
+    const chatRefus = (d) => ({ etat: 'refus', erreur: d && typeof d.erreur === 'string' ? d.erreur : 'inconnue' });
+    const chatMoi = () => { resynchroniser(); return etat.rejoint && etat.id && etat.jeton ? moi() : null; };
+    // les messages après le n° apres (0 : les 50 derniers) : { etat: 'ok', messages, dernier } ; avec un pseudo, p_id et p_jeton partent aussi :
+    // le serveur marque alors ses propres messages (moi), sinon moi vaut false
+    async function chatLire(apres) {
+      if (!config()) return { etat: 'absent' };
+      const a = chatN(apres) || 0, m = chatMoi();
+      const r = await rpc('fournil_chat_lire', Object.assign({ p_apres: a, p_limite: REGLES.chatLimite }, m || {})), x = chatPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      const d = nettoyerChat(r.data); return d ? { etat: 'ok', messages: d.messages, dernier: d.dernier } : { etat: 'erreur', detail: 'reponse' };
+    }
+    // l'image d'un message : { etat: 'ok', data } (data null : effacée après 7 jours, ou masquée)
+    async function chatImage(n) {
+      if (!config()) return { etat: 'absent' };
+      const k = chatN(n); if (!k) return { etat: 'invalide' };
+      const r = await rpc('fournil_chat_image', { p_n: k }), x = chatPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      return { etat: 'ok', data: r.data && chatImageOk(r.data.data) ? r.data.data : null };
+    }
+    // écrire : un texte (300 caractères au plus), un GIF (son identifiant GIPHY), une image (data URL) ; au moins l'un des trois. { etat: 'ok', n }
+    async function chatEnvoyer(o) {
+      if (!config()) return { etat: 'absent' };
+      const m = chatMoi(); if (!m) return { etat: 'pas-rejoint' };
+      const texte = String((o && o.texte) || '').trim(), gif = o && o.gif ? String(o.gif) : '', image = o && o.image ? String(o.image) : '';
+      if (Array.from(texte).length > CHAT_TEXTE) return chatRefus({ erreur: 'long' });
+      if (gif && !chatGifOk(gif)) return chatRefus({ erreur: 'gif' });
+      if (image && !chatImageOk(image)) return chatRefus({ erreur: 'image' });
+      if (!texte && !gif && !image) return chatRefus({ erreur: 'vide' });
+      const r = await rpc('fournil_chat_envoyer', Object.assign(m, { p_texte: texte || null, p_gif: gif || null, p_image: image || null }), { delaiMax: image ? 20e3 : 0 }), x = chatPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      return r.data && r.data.ok === true && chatN(r.data.n) ? { etat: 'ok', n: chatN(r.data.n) } : chatRefus(r.data);
+    }
+    // signaler le message d'un autre : { etat: 'ok', masque } (masque : c'était le 3e signalement, le message disparaît pour tous)
+    async function chatSignaler(n) {
+      if (!config()) return { etat: 'absent' };
+      const m = chatMoi(); if (!m) return { etat: 'pas-rejoint' };
+      const k = chatN(n); if (!k) return { etat: 'invalide' };
+      const r = await rpc('fournil_chat_signaler', Object.assign(m, { p_n: k })), x = chatPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      return r.data && r.data.ok === true ? { etat: 'ok', masque: r.data.masque === true } : chatRefus(r.data);
+    }
+    // effacer son propre message (et son image)
+    async function chatEffacer(n) {
+      if (!config()) return { etat: 'absent' };
+      const m = chatMoi(); if (!m) return { etat: 'pas-rejoint' };
+      const k = chatN(n); if (!k) return { etat: 'invalide' };
+      const r = await rpc('fournil_chat_effacer', Object.assign(m, { p_n: k })), x = chatPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      return r.data && r.data.ok === true ? { etat: 'ok' } : chatRefus(r.data);
+    }
+
     // les cadeaux (supabase/fournil-cadeaux.sql) : des euros déposés pour ce joueur, reçus une fois. cadeaux() → { etat, cadeaux: [{ n, montant, etoiles, motif }] } ;
     // cadeauRecu(n) les retire de la boîte. Un serveur sans la boîte (pas encore collée) : plus aucune lecture jusqu'au prochain lancement.
     let cadeauxAbsents = false;
@@ -4003,6 +4243,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
       chargerRecompenses, recompenses, choisirTenue, annonceFaite, lundi, battre, cadeaux, cadeauRecu,
       copains: () => !!config() && !ancien(), boutique, dons, pourboire, objectif, objectifVu: () => objCache, pourboiresRecus, accueillirPourboires, objectifFait,
       notifsPossibles, notifs, abonner, desabonner, planifier, essai,
+      chatLire, chatImage, chatEnvoyer, chatSignaler, chatEffacer,
       relire: () => { etat = lireEtat(E.stockage); prevenir(); return etat; },
       resynchroniser, tick,
     };
@@ -4077,7 +4318,8 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
   return { CLE, REGLES, PERIODES, EVTS, ongletsEvenements, nettoyerEvenements, PSEUDO_MIN, PSEUDO_MAX, lundiParis, decalageParis, dateCourte, normaliserPseudo, verifierPseudo, messagePseudo, rangTexte, rangPhrase, boulangers,
     etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur,
     METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce,
-    PHOTO, EV_PHOTO, photo, nettoyerPhoto, clePhoto, boutiqueDepuisPhoto, evenementDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson };
+    PHOTO, EV_PHOTO, photo, nettoyerPhoto, clePhoto, boutiqueDepuisPhoto, evenementDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson,
+    CHAT_TEXTE, CHAT_IMAGE, chatImageOk, chatGifOk, nettoyerChat };
 });
 
 /* ── icons.js ── */
@@ -4197,6 +4439,8 @@ const ICONS = (() => {
     reglages: U(`${dents()}<circle cx="12" cy="12" r="6.2" fill="${A.lavande}"/><circle cx="12" cy="12" r="2.3"/>`),
     // l'en-tête, les pages, les feuilles
     cloche: U(`<path d="M6 16.5V11a6 6 0 0112 0v5.5l1.6 2.2H4.4z" fill="${A.beurre}"/><path d="M10 21h4"/><path d="M12 3v2"/>`),
+    // les nouveautés (la pastille à côté de la cloche) : un paquet cadeau, son ruban et son nœud
+    nouveautes: U(`<path d="M5 11.5h14V19a1 1 0 01-1 1H6a1 1 0 01-1-1z" fill="${A.lavande}"/><rect x="3.5" y="7.8" width="17" height="3.7" rx="1" fill="${A.lavande}"/><path d="M12 7.8V20"/><path d="M12 7.8C10.6 4.6 7.2 3.7 7.2 6c0 1.5 2.4 1.8 4.8 1.8zM12 7.8c1.4-3.2 4.8-4.1 4.8-1.8 0 1.5-2.4 1.8-4.8 1.8z"/>`),
     bonus: U(`<path d="M10.5 3.5l1.9 5.1 5.1 1.9-5.1 1.9-1.9 5.1-1.9-5.1-5.1-1.9 5.1-1.9z" fill="${A.lavande}"/><path d="M18 14.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>`),
     etoile: U(etoile(A.beurre)),
     sauvegarde: U(`<path d="M7 18.5a4.2 4.2 0 01-.7-8.4 6 6 0 0111.6-.6 4.5 4.5 0 01-.4 9z" fill="${A.ciel}"/><path d="M12 11v6M9.5 14.6L12 17l2.5-2.4"/>`),
@@ -4247,6 +4491,10 @@ const ICONS = (() => {
     equipe: U(`<path d="M9.2 13.8L7 21l3-1.4 2 2 .1-6.8M14.8 13.8L17 21l-3-1.4-2 2" fill="${A.lavande}"/><circle cx="12" cy="9.3" r="6.3" fill="${A.beurre}"/><path d="M12 6.2l.9 1.9 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3z"/>`),
     pourboire: U(`<circle cx="9.5" cy="13.5" r="6" fill="${A.beurre}"/><circle cx="9.5" cy="13.5" r="3"/><path d="M16.8 9.6c-1.6-1.3-2.8-2.4-2.8-3.8 0-1 .8-1.8 1.8-1.8.6 0 1 .3 1.3.7.3-.4.7-.7 1.3-.7 1 0 1.8.8 1.8 1.8 0 1.4-1.2 2.5-2.8 3.8z" fill="${A.fraise}"/>`),
     oeil: U(`<path d="M2.8 12c2.2-4 5.4-6 9.2-6s7 2 9.2 6c-2.2 4-5.4 6-9.2 6s-7-2-9.2-6z" fill="${A.ciel}"/><circle cx="12" cy="12" r="2.8"/>`),
+    // le chat général : une bulle de discussion (l'accent ciel) et ses trois points ; l'appareil photo et l'avion en papier de sa barre de saisie
+    bulle: U(`<path d="M6.5 4h11A2.5 2.5 0 0120 6.5v8a2.5 2.5 0 01-2.5 2.5H11l-4.5 3.5V17A2.5 2.5 0 014 14.5v-8A2.5 2.5 0 016.5 4z" fill="${A.ciel}"/><path d="M8.5 10.5v.1M12 10.5v.1M15.5 10.5v.1"/>`),
+    photo: U(`<path d="M3.5 8.5A1.5 1.5 0 015 7h2.6l1.6-2.5h5.6L16.4 7H19a1.5 1.5 0 011.5 1.5v9A1.5 1.5 0 0119 19H5a1.5 1.5 0 01-1.5-1.5z" fill="${A.peche}"/><circle cx="12" cy="13" r="3.3"/>`),
+    envoyer: U(`<path d="M3.8 11.2L20 4l-6.6 16.2-2.6-6.9z" fill="${A.beurre}"/><path d="M10.8 13.3L20 4"/>`),
   };
   UI.classement = UI.podium;
   // le podium du classement : une petite toque à la couleur du métal (à côté d'un pseudo) et une coupe (l'annonce, la collection)
@@ -10728,6 +10976,595 @@ const SONS = (() => {
 })();
 if (typeof module !== 'undefined') module.exports = SONS;
 
+/* ── chat.js ── */
+/* LE FOURNIL — le chat général des boulangers : un bouton rond dans le coin (sous les icônes des événements), avec la pastille des
+   messages non lus (st.chatVu : le dernier n° lu), et une feuille plein écran : les bulles (les siennes à droite), le pseudo, l'heure,
+   les photos en miniature (chargées seulement quand elles arrivent à l'écran, gardées dans un petit cache ; un toucher les agrandit),
+   les GIF (GIPHY : on n'envoie que leur identifiant), la barre de saisie (texte de 300 caractères, 📷, GIF, Envoyer), et l'appui long sur
+   une bulle : « Signaler » (ou « Effacer » si c'est la sienne). Tout le monde lit ; seuls les joueurs du classement écrivent.
+   Le réseau passe par le moteur du classement (src/classement.js : chatLire, chatImage, chatEnvoyer, chatSignaler, chatEffacer) ;
+   serveur : supabase/fournil-chat.sql (pas encore collé : « bientôt »). Les lectures : toutes les 4 s feuille ouverte, toutes les 60 s
+   sinon (pour la pastille, et seulement si on a rejoint le classement : rien ne part avant), jamais page cachée ni hors ligne.
+   Sécurité : tout texte passe par esc() ; une image n'est montrée que si c'est une data URL d'image, posée par la propriété src (jamais
+   dans du HTML) ; un GIF n'est construit que depuis un identifiant de lettres et de chiffres. Le chat ne touche pas à la boucle 3D. */
+const TCHAT = (() => {
+  'use strict';
+  const $ = (s) => document.querySelector(s);
+  const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const R = {
+    ouvert: 4e3, ferme: 60e3, // une lecture toutes les 4 s feuille ouverte, toutes les 60 s sinon
+    complete: 8, // feuille ouverte, une lecture sur 8 (~30 s) relit les 50 derniers : les messages masqués ou effacés disparaissent
+    garder: 150, // les messages gardés en mémoire
+    texte: 300, // caractères par message
+    image: 350e3, // une photo : 350 Ko au plus, en base64 (la data URL entière)
+    cote: 1280, // son plus grand côté
+    cache: 24, // les images gardées en mémoire (les plus anciennes sortent)
+    appui: 500, // l'appui long (ms)
+    bas: 80, // « en bas » : à moins de 80 px du dernier message
+    ecart: 3e3, // le serveur ne prend qu'un message toutes les 3 s
+  };
+  const IMG_OK = /^data:image\/(webp|jpeg|png|gif);base64,/, GIF_OK = /^[A-Za-z0-9]{5,40}$/, CLE_GIPHY = /^[A-Za-z0-9]{16,64}$/;
+  // l'adresse d'un GIF : la version de 200 px de large (fixed_width) dans les bulles et la grille, l'originale agrandie
+  const gifUrl = (id, grand) => (GIF_OK.test(String(id)) ? `https://media.giphy.com/media/${id}/${grand ? 'giphy' : '200w'}.gif` : '');
+  const MOIS = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+  const MSG = { // les refus, dits clairement (sous la barre de saisie)
+    'pas-rejoint': 'Rejoins le classement pour écrire',
+    'pas-ouvert': 'Le chat ouvre bientôt.',
+    'trop-vite': 'Doucement ! Un message toutes les 3 secondes.', trop_vite: 'Doucement ! Un message toutes les 3 secondes.',
+    quota: 'Tu as écrit 60 messages en une heure : fais une pause, reviens un peu plus tard.',
+    banni: 'Tu ne peux plus écrire dans le chat.',
+    jeton: 'Ton pseudo n’est plus reconnu : rejoins le classement à nouveau.', inconnu: 'Ton pseudo n’est plus reconnu : rejoins le classement à nouveau.',
+    vide: 'Écris un message, ou ajoute une photo ou un GIF.',
+    long: '300 caractères au plus.',
+    image: 'Cette image n’est pas acceptée (format ou taille).',
+    gif: 'Ce GIF n’est pas accepté.',
+    'hors-ligne': 'Pas de réseau : ton message n’est pas parti.',
+    lent: 'Le chat ne répond pas : réessaie dans un moment.',
+  };
+  const message = (r) => MSG[r.etat === 'refus' ? r.erreur : r.etat] || 'Le message n’est pas parti. Réessaie dans un moment.';
+
+  let d = null, el, fil, champ, note, piecesEl, nouveaux, gifs, menu, zoom, fichier;
+  let messages = [], dernier = 0, etat = '', minuteur = 0, lecture = null, tours = 0, signature = '';
+  let piece = null, envoiEnCours = false, dernierEnvoi = 0, noteMinuteur = 0, cible = null, appui = null;
+  const pas = { ouvert: R.ouvert, ferme: R.ferme };
+  const images = new Map(), attente = [], enVol = new Set(); // le petit cache des images (n → data URL, ou null : effacée), la file des images à lire
+  let observe = null;
+
+  // ─── ses propres messages : ceux envoyés d'ici (gardés sur le téléphone), ou signés de son pseudo ───
+  const CLE = 'fournil.tchat';
+  const mesN = new Set((() => { try { const o = JSON.parse(localStorage.getItem(CLE) || 'null'); return o && Array.isArray(o.mes) ? o.mes.filter((n) => Number.isSafeInteger(n) && n > 0) : []; } catch (e) { return []; } })());
+  function noterMien(n) { mesN.add(n); try { localStorage.setItem(CLE, JSON.stringify({ mes: [...mesN].slice(-200) })); } catch (e) { /* rien */ } }
+  const moteur = () => { try { return d && d.classement ? d.classement() : null; } catch (e) { return null; } };
+  const resume = () => { const m = moteur(); try { return m ? m.resume() : null; } catch (e) { return null; } };
+  function mien(x) {
+    if (x.moi || mesN.has(x.n)) return true;
+    const r = resume(); return !!(r && r.rejoint && r.pseudo && x.pseudo && x.pseudo.toLowerCase() === r.pseudo.toLowerCase());
+  }
+  const ouvert = () => !!el && !el.hidden;
+  const st = () => (d && d.st ? d.st() : null);
+  const vuJusqua = () => { const s = st(); return s && Number.isSafeInteger(s.chatVu) ? s.chatVu : 0; };
+  const cleGiphy = () => { try { const c = window.FOURNIL_CONFIG, k = c && typeof c.giphy === 'string' ? c.giphy.trim() : ''; return CLE_GIPHY.test(k) ? k : ''; } catch (e) { return ''; } };
+  const enLigne = () => !(navigator && navigator.onLine === false);
+  const visible = () => document.visibilityState !== 'hidden';
+
+  // ─── les lectures : complète (les 50 derniers, la liste remplacée) ou à la suite (après le dernier n° connu) ───
+  function lire(complete) {
+    const m = moteur(); if (!m) return Promise.resolve({ etat: 'absent' });
+    if (lecture) return lecture;
+    const apres = complete || !messages.length ? 0 : dernier;
+    lecture = m.chatLire(apres).then((r) => {
+      if (r.etat === 'ok') {
+        etat = 'ok';
+        if (apres === 0) messages = r.messages.slice();
+        else { const par = new Map(messages.map((x) => [x.n, x])); for (const x of r.messages) par.set(x.n, x); messages = [...par.values()].sort((a, b) => a.n - b.n); }
+        if (messages.length > R.garder) messages = messages.slice(-R.garder);
+        dernier = Math.max(apres ? dernier : 0, r.dernier || 0);
+        // le tout premier contact (pas encore de st.chatVu) : seuls les trois derniers messages comptent comme non lus, pas tout l'historique
+        { const s = st(); if (s && !Number.isSafeInteger(s.chatVu) && messages.length) { const k = messages.length > 3 ? messages[messages.length - 4].n : 0; s.chatVu = k; if (d.save) d.save(); } }
+      } else if (r.etat === 'pas-ouvert') { etat = 'pas-ouvert'; messages = []; }
+      else if (r.etat !== 'absent') etat = r.etat; // 'hors-ligne', 'lent', 'erreur' : la liste connue reste affichée
+      return r;
+    }).catch(() => ({ etat: 'erreur' })).then((r) => { lecture = null; peindre(); majBouton(); return r; });
+    return lecture;
+  }
+  // le minuteur : relancé après chaque lecture ; rien page cachée (le retour au premier plan relance) ; la feuille fermée, seulement si on a
+  // rejoint le classement et que le chat existe (un serveur sans le chat : plus rien jusqu'à la prochaine ouverture de la feuille)
+  function planifier(tout) {
+    clearTimeout(minuteur); minuteur = 0;
+    if (!moteur() || !visible()) return;
+    minuteur = setTimeout(tour, tout ? 0 : ouvert() ? pas.ouvert : pas.ferme);
+  }
+  function tour() {
+    minuteur = 0;
+    if (!visible()) return;
+    const r = resume(), doit = etat !== 'pas-ouvert' && (ouvert() || (r && r.rejoint)); // pas encore de chat au serveur : seule l'ouverture de la feuille relit
+    if (!doit) { planifier(); return; }
+    if (!enLigne()) { if (etat !== 'hors-ligne' && ouvert()) { etat = 'hors-ligne'; peindre(); } planifier(); return; }
+    tours++;
+    lire(ouvert() && tours % R.complete === 0).then(() => planifier());
+  }
+
+  // ─── le bouton rond du coin et sa pastille ───
+  function nonLus() { const vu = vuJusqua(); return messages.filter((x) => x.n > vu && !mien(x)).length; }
+  function majBouton() {
+    const b = $('#b-tchat'); if (!b) return;
+    const m = moteur(); b.hidden = !m; if (!m) return;
+    const n = ouvert() ? 0 : nonLus(), p = b.querySelector('.tc-nonlus');
+    p.hidden = !n; p.textContent = n > 9 ? '9+' : n ? String(n) : '';
+    b.setAttribute('aria-label', n ? `Le chat des boulangers : ${n > 9 ? 'plus de 9' : n} message${n > 1 ? 's' : ''} non lu${n > 1 ? 's' : ''}` : 'Le chat des boulangers');
+  }
+  function marquerLu() {
+    if (!ouvert() || !presDuBas()) return;
+    const s = st(), haut = messages.length ? messages[messages.length - 1].n : 0;
+    if (s && haut > vuJusqua()) { s.chatVu = haut; if (d.save) d.save(); }
+    if (nouveaux) nouveaux.hidden = true;
+  }
+
+  // ─── la feuille ───
+  function ouvrir() {
+    if (!moteur() || !el) return false;
+    if (d.ouvert) d.ouvert();
+    el.hidden = false; signature = ''; ajuster();
+    peindre(); peindreBas(); allerEnBas();
+    lire(true).then(() => { allerEnBas(); marquerLu(); planifier(); });
+    majBouton();
+    return true;
+  }
+  function fermer() {
+    if (!el || el.hidden) return;
+    fermerGifs(); fermerMenu(); fermerZoom(); marquerLu();
+    el.hidden = true; el.style.top = ''; el.style.height = '';
+    try { if (document.activeElement && el.contains(document.activeElement)) document.activeElement.blur(); } catch (e) { /* rien */ }
+    planifier(); majBouton();
+    if (d.ferme) d.ferme();
+  }
+  // le clavier de l'iPhone : la feuille suit la partie visible de l'écran (visualViewport), la barre de saisie reste au-dessus du clavier
+  function ajuster() {
+    const vv = window.visualViewport; if (!ouvert() || !vv) return;
+    el.style.top = vv.offsetTop + 'px'; el.style.height = vv.height + 'px';
+    if (document.activeElement === champ) allerEnBas();
+  }
+  const presDuBas = () => !fil || fil.scrollHeight - fil.scrollTop - fil.clientHeight < R.bas;
+  function allerEnBas() { if (fil) fil.scrollTop = fil.scrollHeight; if (nouveaux) nouveaux.hidden = true; }
+
+  // ─── le fil des messages : reconstruit quand la liste change (les cases des images ont une taille fixe : le défilement ne saute pas) ───
+  const deux = (n) => String(n).padStart(2, '0');
+  const heure = (ms) => { const t = new Date(ms); return `${deux(t.getHours())}:${deux(t.getMinutes())}`; };
+  function jour(ms) {
+    const t = new Date(ms), a = new Date(), h = new Date(a.getFullYear(), a.getMonth(), a.getDate() - 1);
+    if (t.toDateString() === a.toDateString()) return 'Aujourd’hui';
+    if (t.toDateString() === h.toDateString()) return 'Hier';
+    return `${t.getDate() === 1 ? '1er' : t.getDate()} ${MOIS[t.getMonth()]}${t.getFullYear() !== a.getFullYear() ? ' ' + t.getFullYear() : ''}`;
+  }
+  function etatHtml() {
+    if (etat === 'pas-ouvert') return '<div class="tc-vide bientot"><span class="tc-pic">' + ICONS.UI.bulle + '</span><b>Le chat ouvre bientôt</b><span>Bientôt, tous les boulangers pourront se parler ici. Reviens dans quelque temps !</span></div>';
+    if (!messages.length && !etat) return '<div class="tc-vide"><span>Chargement…</span></div>';
+    if (!messages.length && etat === 'ok') return '<div class="tc-vide"><span class="tc-pic">' + ICONS.UI.bulle + '</span><b>Personne n’a encore écrit</b><span>Lance la conversation : dis bonjour aux autres boulangers !</span></div>';
+    if (!messages.length) return `<div class="tc-vide"><b>${etat === 'hors-ligne' ? 'Pas de réseau' : 'Le chat ne répond pas'}</b><span>Il reprendra tout seul.</span></div>`;
+    return '';
+  }
+  function peindre() {
+    if (!ouvert()) return;
+    $('#tc-bas').hidden = etat === 'pas-ouvert'; // pas encore de chat au serveur : pas de barre de saisie
+    const r = resume(), sig = `${etat}|${r ? r.pseudo + r.rejoint : ''}|${messages.map((x) => x.n).join(',')}`;
+    if (sig === signature) return;
+    const bas = presDuBas(), avant = signature ? +(signature.split('|').pop().split(',').pop() || 0) : 0;
+    signature = sig;
+    let h = etat !== 'ok' && etat !== 'pas-ouvert' && etat && messages.length ? `<p class="tc-reseau">${etat === 'hors-ligne' ? 'Pas de réseau : le chat reprendra tout seul.' : 'Le chat ne répond pas : il réessaie tout seul.'}</p>` : '';
+    h += etatHtml();
+    let jourAvant = '', auteurAvant = '';
+    for (const x of etat === 'pas-ouvert' ? [] : messages) {
+      const j = x.cree ? jour(x.cree) : '', moi = mien(x);
+      if (j && j !== jourAvant) { h += `<div class="tc-jour"><span>${esc(j)}</span></div>`; jourAvant = j; auteurAvant = ''; }
+      const suite = !moi && auteurAvant === x.pseudo.toLowerCase(); auteurAvant = moi ? '\u0000' : x.pseudo.toLowerCase();
+      h += `<div class="tc-msg ${moi ? 'moi' : 'autre'}${suite ? ' suite' : ''}" data-n="${x.n}">${moi || suite ? '' : `<small class="tc-pseudo">${esc(x.pseudo || 'Boulanger')}</small>`}<div class="tc-bulle">`;
+      if (x.image) h += `<button type="button" class="tc-photo" data-n="${x.n}" aria-label="Agrandir la photo"><img alt="Photo de ${esc(x.pseudo || 'un boulanger')}"></button>`;
+      if (x.gif && GIF_OK.test(x.gif)) h += `<button type="button" class="tc-gifm" data-gif="${esc(x.gif)}" aria-label="Agrandir le GIF"><img src="${esc(gifUrl(x.gif))}" alt="GIF" loading="lazy" referrerpolicy="no-referrer"></button>`;
+      if (x.texte) h += `<p class="tc-txt">${esc(x.texte)}</p>`;
+      h += `<time>${x.cree ? heure(x.cree) : ''}</time></div></div>`;
+    }
+    fil.innerHTML = h;
+    hydrater();
+    const fin = messages.length ? messages[messages.length - 1] : null;
+    if (bas) allerEnBas();
+    else if (fin && fin.n > avant && avant && !mien(fin) && nouveaux) nouveaux.hidden = false; // remonté dans le fil : « Nouveaux messages »
+    marquerLu();
+  }
+
+  // ─── les photos : lues une à une quand leur case arrive à l'écran (deux à la fois au plus), puis gardées dans le cache ───
+  function poser(btn, data) {
+    const img = btn.querySelector('img');
+    if (data && IMG_OK.test(data)) { btn.classList.remove('effacee'); if (img.src !== data) img.src = data; btn.classList.add('chargee'); }
+    else if (data === null) { btn.classList.add('effacee'); btn.setAttribute('aria-label', 'Photo effacée'); btn.disabled = true; } // effacée après 7 jours, ou masquée
+  }
+  function retenir(n, data) { images.delete(n); images.set(n, data); while (images.size > R.cache) images.delete(images.keys().next().value); }
+  function hydrater() {
+    if (observe) observe.disconnect();
+    fil.querySelectorAll('.tc-photo').forEach((b) => {
+      const n = +b.dataset.n;
+      if (images.has(n)) { poser(b, images.get(n)); retenir(n, images.get(n)); return; }
+      if (observe) observe.observe(b); else demander(n);
+    });
+  }
+  function demander(n) { if (images.has(n) || enVol.has(n) || attente.includes(n)) return; attente.push(n); suivante(); }
+  function suivante() {
+    const m = moteur(); if (!m) return;
+    while (enVol.size < 2 && attente.length) {
+      const n = attente.shift(); enVol.add(n);
+      m.chatImage(n).then((r) => {
+        if (r.etat === 'ok') { retenir(n, r.data); if (fil) fil.querySelectorAll(`.tc-photo[data-n="${n}"]`).forEach((b) => poser(b, r.data)); }
+      }).catch(() => { /* on réessaiera à la prochaine peinture */ }).then(() => { enVol.delete(n); suivante(); });
+    }
+  }
+
+  // ─── la barre de saisie : le texte, la pièce jointe (une photo ou un GIF), « Rejoins le classement pour écrire », « bientôt » ───
+  function peindreBas() {
+    const r = resume(), bas = $('#tc-bas'), saisie = $('#tc-saisie'), rejoindre = $('#tc-rejoindre');
+    bas.hidden = etat === 'pas-ouvert';
+    const peut = !!(r && r.rejoint);
+    saisie.hidden = !peut; rejoindre.hidden = peut;
+    const g = $('[data-tc="gif"]'); g.classList.toggle('bientot', !cleGiphy()); g.setAttribute('aria-label', cleGiphy() ? 'Choisir un GIF' : 'Les GIF : bientôt');
+    peindrePiece(); compter();
+  }
+  function peindrePiece() {
+    if (!piece) { piecesEl.hidden = true; piecesEl.innerHTML = ''; return; }
+    piecesEl.hidden = false;
+    piecesEl.innerHTML = `<span class="tc-apercu"><img alt=""></span><span class="tc-piece-txt">${piece.gif ? 'GIF prêt à partir' : `Photo prête · ${Math.max(1, Math.round(piece.image.length / 1000))} Ko`}</span><button type="button" class="tc-retirer" data-tc="retirer" aria-label="Retirer la pièce jointe"><i class="ico">${ICONS.UI.fermer}</i></button>`;
+    const img = piecesEl.querySelector('img'); // posée par la propriété src : la data URL ne passe jamais par le HTML
+    if (piece.gif) img.src = gifUrl(piece.gif); else if (IMG_OK.test(piece.image)) img.src = piece.image;
+  }
+  function compter() { const n = Array.from(champ.value).length, c = $('#tc-compte'); c.hidden = n < R.texte - 50; c.textContent = `${n}/${R.texte}`; c.classList.toggle('trop', n > R.texte); }
+  function dire(txt, garder) {
+    clearTimeout(noteMinuteur); note.textContent = txt || ''; note.hidden = !txt;
+    if (txt && !garder) noteMinuteur = setTimeout(() => { note.hidden = true; }, 6000);
+  }
+  async function envoyer() {
+    const m = moteur(); if (!m || envoiEnCours) return;
+    const texte = champ.value.trim();
+    if (!texte && !piece) { dire(MSG.vide); return; }
+    if (Array.from(texte).length > R.texte) { dire(MSG.long); if (d.son) d.son.non(); return; }
+    if (dernierEnvoi && Date.now() - dernierEnvoi < R.ecart) { dire(MSG['trop-vite']); if (d.son) d.son.non(); return; }
+    envoiEnCours = true; el.classList.add('envoi'); dire('');
+    const p = piece, r = await m.chatEnvoyer({ texte, gif: p && p.gif, image: p && p.image }).catch(() => ({ etat: 'erreur' }));
+    envoiEnCours = false; el.classList.remove('envoi');
+    if (r.etat === 'ok') {
+      dernierEnvoi = Date.now(); noterMien(r.n);
+      if (p && p.image) retenir(r.n, p.image);
+      const s = resume();
+      if (!messages.some((x) => x.n === r.n)) { messages.push({ n: r.n, pseudo: (s && s.pseudo) || '', texte, gif: (p && p.gif) || null, image: !!(p && p.image), cree: Date.now(), moi: true }); messages.sort((a, b) => a.n - b.n); }
+      if (champ.value.trim() === texte) champ.value = '';
+      if (piece === p) piece = null;
+      peindrePiece(); compter(); peindre(); allerEnBas(); marquerLu();
+      if (d.son) d.son.tap(); if (d.buzz) d.buzz(8);
+      lire(); // les messages des autres arrivés entre-temps (la lecture repart du dernier n° lu au serveur, le sien compris)
+      return;
+    }
+    if (d.son) d.son.non();
+    if (r.etat === 'pas-ouvert') { etat = 'pas-ouvert'; peindre(); peindreBas(); return; }
+    if (r.etat === 'pas-rejoint') peindreBas();
+    if (r.etat === 'refus' && (r.erreur === 'trop-vite' || r.erreur === 'trop_vite')) dernierEnvoi = Date.now();
+    dire(message(r), r.etat === 'refus' && r.erreur === 'banni');
+  }
+
+  // ─── les photos : la compression par le téléphone (plus grand côté 1280 px, WebP sinon JPEG, la qualité qui descend jusqu'à 350 Ko) ───
+  const lireUrl = (f) => new Promise((res, rej) => { const fr = new FileReader(); fr.onload = () => res(String(fr.result || '')); fr.onerror = () => rej(fr.error); fr.readAsDataURL(f); });
+  async function decoder(f) {
+    if (typeof createImageBitmap === 'function') { try { return await createImageBitmap(f); } catch (e) { /* l'image classique */ } }
+    const u = URL.createObjectURL(f);
+    try { return await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; }); } finally { setTimeout(() => URL.revokeObjectURL(u), 1000); }
+  }
+  // → { ok: true, data, w, h, type, q } ou { ok: false, raison: 'gif' (un GIF trop lourd) | 'illisible' | 'lourd' }
+  async function preparerImage(f) {
+    if (!f) return { ok: false, raison: 'illisible' };
+    if (f.type === 'image/gif') { // un GIF de la galerie part tel quel (animé), s'il n'est pas trop lourd
+      if (f.size > R.image) return { ok: false, raison: 'gif' };
+      const u = await lireUrl(f).catch(() => '');
+      return u.length <= R.image && /^data:image\/gif;base64,/.test(u) ? { ok: true, data: u, type: 'image/gif' } : { ok: false, raison: u ? 'gif' : 'illisible' };
+    }
+    let src = null; try { src = await decoder(f); } catch (e) { src = null; }
+    const w0 = src ? src.naturalWidth || src.width : 0, h0 = src ? src.naturalHeight || src.height : 0;
+    if (!w0 || !h0) return { ok: false, raison: 'illisible' };
+    const cv = document.createElement('canvas'), ctx = cv.getContext('2d');
+    let k = Math.min(1, R.cote / Math.max(w0, h0)), webp = null, fini = null;
+    try {
+      for (let essai = 0; essai < 6 && !fini; essai++, k *= 0.75) { // trop lourde même à la plus basse qualité : plus petite
+        const w = Math.max(1, Math.round(w0 * k)), h = Math.max(1, Math.round(h0 * k));
+        cv.width = w; cv.height = h; ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h); ctx.drawImage(src, 0, 0, w, h); // le fond blanc : la transparence d'un PNG ne vire pas au noir en JPEG
+        if (webp === null) webp = /^data:image\/webp/.test(cv.toDataURL('image/webp', 0.5)); // un vieux Safari ne sait pas faire de WebP : du JPEG
+        const type = webp ? 'image/webp' : 'image/jpeg';
+        for (const q of [0.82, 0.72, 0.62, 0.52, 0.42, 0.34]) { const u = cv.toDataURL(type, q); if (u.length <= R.image && IMG_OK.test(u)) { fini = { ok: true, data: u, w, h, type, q }; break; } }
+      }
+    } finally { try { if (src && src.close) src.close(); } catch (e) { /* rien */ } cv.width = cv.height = 0; }
+    return fini || { ok: false, raison: 'lourd' };
+  }
+  async function choisirFichier(f) {
+    if (!f) return null;
+    dire('Préparation de la photo…', true);
+    const r = await preparerImage(f).catch(() => ({ ok: false, raison: 'illisible' }));
+    if (!r.ok) { if (d.son) d.son.non(); dire(r.raison === 'gif' ? 'Ce GIF est trop lourd : 350 Ko au plus.' : r.raison === 'lourd' ? 'Cette photo est trop lourde, même réduite.' : 'Cette image ne s’ouvre pas.'); return r; }
+    dire(''); piece = { image: r.data }; peindrePiece();
+    return r;
+  }
+
+  // ─── les GIF : la recherche GIPHY (rating g, en français), les tendances quand la recherche est vide ; on n'envoie que l'identifiant ───
+  let gifVol = 0, gifMinuteur = 0;
+  function ouvrirGifs() {
+    if (!cleGiphy()) { if (d.son) d.son.non(); dire('Les GIF arrivent bientôt.'); return; }
+    fermerMenu(); gifs.hidden = false; $('#tc-gif-q').value = ''; chercher('');
+  }
+  function fermerGifs() { if (gifs) gifs.hidden = true; clearTimeout(gifMinuteur); gifVol++; }
+  async function chercher(q) {
+    const cle = cleGiphy(), grille = $('#tc-gif-grille'), k = ++gifVol; if (!cle) return;
+    q = String(q || '').trim().slice(0, 50);
+    grille.innerHTML = '<p class="tc-gif-etat">Chargement…</p>';
+    const url = q ? `https://api.giphy.com/v1/gifs/search?api_key=${encodeURIComponent(cle)}&q=${encodeURIComponent(q)}&rating=g&limit=24&lang=fr`
+      : `https://api.giphy.com/v1/gifs/trending?api_key=${encodeURIComponent(cle)}&rating=g&limit=24`;
+    let ids = null;
+    try {
+      const ctrl = typeof AbortController === 'function' ? new AbortController() : null, t = setTimeout(() => { if (ctrl) ctrl.abort(); }, 8000);
+      const res = await fetch(url, { credentials: 'omit', referrerPolicy: 'no-referrer', ...(ctrl ? { signal: ctrl.signal } : {}) }); clearTimeout(t);
+      const j = res.ok ? await res.json() : null;
+      ids = j && Array.isArray(j.data) ? j.data.map((g) => (g && typeof g.id === 'string' && GIF_OK.test(g.id) ? { id: g.id, titre: typeof g.title === 'string' ? g.title.slice(0, 80) : '' } : null)).filter(Boolean) : null;
+    } catch (e) { ids = null; }
+    if (k !== gifVol) return; // une recherche plus récente est partie
+    if (!ids) { grille.innerHTML = `<p class="tc-gif-etat">${enLigne() ? 'Les GIF ne répondent pas. Réessaie dans un moment.' : 'Pas de réseau.'}</p>`; return; }
+    if (!ids.length) { grille.innerHTML = '<p class="tc-gif-etat">Aucun GIF pour cette recherche.</p>'; return; }
+    grille.innerHTML = ids.map((g) => `<button type="button" class="tc-gif-choix" data-gif="${esc(g.id)}" aria-label="${esc(g.titre || 'GIF')}"><img src="${esc(gifUrl(g.id))}" alt="" loading="lazy" referrerpolicy="no-referrer"></button>`).join('');
+  }
+  function choisirGif(id) { if (!GIF_OK.test(String(id))) return; piece = { gif: id }; fermerGifs(); peindrePiece(); if (d.son) d.son.tap(); }
+
+  // ─── l'appui long sur une bulle : « Signaler », ou « Effacer » si c'est la sienne ───
+  function ouvrirMenu(n) {
+    const x = messages.find((y) => y.n === n); if (!x || !menu.hidden) return;
+    cible = x; const moi = mien(x);
+    $('#tc-menu-qui').textContent = moi ? 'Ton message' : `Message de ${x.pseudo || 'un boulanger'}`;
+    $('#tc-menu-txt').textContent = x.texte || (x.image ? 'Une photo' : x.gif ? 'Un GIF' : '');
+    $('[data-tc="signaler"]').hidden = moi; $('[data-tc="effacer"]').hidden = !moi;
+    menu.hidden = false; if (d.buzz) d.buzz(10);
+  }
+  function fermerMenu() { if (menu) menu.hidden = true; cible = null; }
+  async function agir(quoi) {
+    const x = cible, m = moteur(); fermerMenu(); if (!x || !m) return;
+    const r = await (quoi === 'effacer' ? m.chatEffacer(x.n) : m.chatSignaler(x.n)).catch(() => ({ etat: 'erreur' }));
+    const retirer = () => { messages = messages.filter((y) => y.n !== x.n); images.delete(x.n); peindre(); majBouton(); };
+    if (r.etat === 'ok') {
+      if (quoi === 'effacer') { retirer(); dire('Message effacé.'); }
+      else { if (r.masque) retirer(); dire(r.masque ? 'Merci : le message est signalé, il est masqué.' : 'Merci : le message est signalé.'); }
+      if (d.son) d.son.tap(); return;
+    }
+    if (d.son) d.son.non();
+    if (r.etat === 'pas-rejoint') { dire(quoi === 'effacer' ? MSG['pas-rejoint'] : 'Rejoins le classement pour signaler un message.'); return; }
+    if (r.etat === 'refus') {
+      if (r.erreur === 'absent') retirer(); // déjà effacé ou masqué au serveur : la bulle s'en va
+      dire({ deja: 'Tu as déjà signalé ce message.', soi: 'C’est ton message : tu peux l’effacer.', banni: 'Tu ne peux plus signaler de message.', absent: 'Ce message n’existe plus.', 'pas-a-toi': 'Ce message n’est pas le tien : tu peux le signaler.' }[r.erreur] || message(r)); return;
+    }
+    dire(r.etat === 'pas-ouvert' ? MSG['pas-ouvert'] : r.etat === 'hors-ligne' ? 'Pas de réseau : réessaie plus tard.' : 'Le chat ne répond pas : réessaie dans un moment.');
+  }
+  function zoomer(btn) {
+    const img = zoom.querySelector('img');
+    if (btn.classList.contains('tc-gifm')) img.src = gifUrl(btn.dataset.gif, true);
+    else { const data = images.get(+btn.dataset.n); if (!data || !IMG_OK.test(data)) return; img.src = data; }
+    zoom.hidden = false;
+  }
+  function fermerZoom() { if (zoom && !zoom.hidden) { zoom.hidden = true; zoom.querySelector('img').removeAttribute('src'); } }
+
+  // ─── le branchement ───
+  // deps : { classement() (le moteur, null sans configuration), st(), save(), son, buzz, audio, ouvert() (la feuille du jeu se ferme),
+  //          ferme() (retour à la boutique), rejoindre() (la feuille du classement) }
+  function init(deps) {
+    d = deps; el = $('#tchat'); if (!el) return;
+    fil = $('#tc-fil'); champ = $('#tc-texte'); note = $('#tc-note'); piecesEl = $('#tc-piece'); nouveaux = $('#tc-nouveaux'); gifs = $('#tc-gifs'); menu = $('#tc-menu'); zoom = $('#tc-zoom'); fichier = $('#tc-fichier');
+    if (window.__tchatPas) Object.assign(pas, window.__tchatPas); // les tests : des lectures plus rapprochées
+    const b = $('#b-tchat');
+    if (b) b.addEventListener('click', () => { if (d.audio) d.audio(); if (d.son) d.son.tap(); ouvrir(); });
+    try { observe = 'IntersectionObserver' in window ? new IntersectionObserver((l) => { for (const e of l) if (e.isIntersecting) { observe.unobserve(e.target); demander(+e.target.dataset.n); } }, { root: fil, rootMargin: '300px 0px' }) : null; } catch (e) { observe = null; }
+    el.addEventListener('click', (e) => {
+      const t = e.target.closest('[data-tc], .tc-photo, .tc-gifm, .tc-gif-choix'); if (!t || !el.contains(t)) return;
+      if (appui && appui.fait) { appui = null; return; } // l'appui long a ouvert le menu : pas de zoom en plus
+      const a = t.dataset.tc;
+      if (t.classList.contains('tc-gif-choix')) return choisirGif(t.dataset.gif);
+      if (t.classList.contains('tc-photo') || t.classList.contains('tc-gifm')) return zoomer(t);
+      if (a === 'fermer') { if (d.son) d.son.tap(); fermer(); }
+      else if (a === 'envoyer') envoyer();
+      else if (a === 'photo') { fermerGifs(); fichier.value = ''; fichier.click(); }
+      else if (a === 'gif') { if (gifs.hidden) ouvrirGifs(); else fermerGifs(); }
+      else if (a === 'gifs-fermer') fermerGifs();
+      else if (a === 'retirer') { piece = null; peindrePiece(); }
+      else if (a === 'bas') { allerEnBas(); marquerLu(); }
+      else if (a === 'signaler' || a === 'effacer') agir(a);
+      else if (a === 'annuler') fermerMenu();
+      else if (a === 'zoom') fermerZoom();
+      else if (a === 'rejoindre') { fermer(); if (d.rejoindre) d.rejoindre(); }
+    });
+    menu.addEventListener('click', (e) => { if (appui && appui.fait) return; if (e.target === menu) fermerMenu(); }); // le doigt qui se lève après l'appui long ne referme pas le menu
+    champ.addEventListener('input', compter);
+    champ.addEventListener('keydown', (e) => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); envoyer(); } });
+    champ.addEventListener('focus', () => setTimeout(ajuster, 300));
+    fichier.addEventListener('change', () => { const f = fichier.files && fichier.files[0]; if (f) choisirFichier(f); });
+    $('#tc-gif-q').addEventListener('input', (e) => { clearTimeout(gifMinuteur); const q = e.target.value; gifMinuteur = setTimeout(() => chercher(q), 400); });
+    fil.addEventListener('scroll', () => { if (presDuBas()) marquerLu(); }, { passive: true });
+    // l'appui long : 500 ms sans bouger ; le menu contextuel (clic droit, appui long d'Android) aussi
+    fil.addEventListener('pointerdown', (e) => {
+      const bu = e.target.closest('.tc-msg'); if (!bu) return;
+      appui = { n: +bu.dataset.n, x: e.clientX, y: e.clientY, fait: false, t: setTimeout(() => { if (appui) { appui.fait = true; ouvrirMenu(appui.n); } }, R.appui) };
+    });
+    const lacher = () => { if (appui && !appui.fait) { clearTimeout(appui.t); appui = null; } };
+    fil.addEventListener('pointermove', (e) => { if (appui && !appui.fait && Math.hypot(e.clientX - appui.x, e.clientY - appui.y) > 10) lacher(); });
+    for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) fil.addEventListener(ev, () => { lacher(); if (appui && appui.fait) setTimeout(() => { appui = null; }, 400); });
+    fil.addEventListener('contextmenu', (e) => { const bu = e.target.closest('.tc-msg'); if (!bu) return; e.preventDefault(); if (appui) clearTimeout(appui.t); ouvrirMenu(+bu.dataset.n); });
+    document.addEventListener('keydown', (e) => { if (e.key !== 'Escape' || !ouvert()) return; if (!zoom.hidden) fermerZoom(); else if (!menu.hidden) fermerMenu(); else if (!gifs.hidden) fermerGifs(); else fermer(); });
+    document.addEventListener('visibilitychange', () => { if (visible()) planifier(ouvert()); else { clearTimeout(minuteur); minuteur = 0; } }); // page cachée : plus aucune lecture
+    window.addEventListener('online', () => planifier(true));
+    if (window.visualViewport) { window.visualViewport.addEventListener('resize', ajuster); window.visualViewport.addEventListener('scroll', ajuster); }
+    majBouton();
+    if (moteur()) { clearTimeout(minuteur); minuteur = setTimeout(tour, 3000); } // la première lecture (pastille), 3 s après le lancement
+  }
+
+  return {
+    init, ouvrir, fermer, lire, preparerImage, choisirFichier, choisirGif, gifUrl, majBouton, R, IMG_OK, GIF_OK,
+    get ouvert() { return ouvert(); },
+    etat: () => ({ etat, dernier, messages: messages.map((x) => Object.assign({ mien: mien(x) }, x)), nonLus: nonLus(), vu: vuJusqua(), piece: piece ? (piece.gif ? { gif: piece.gif } : { image: piece.image.length, type: (/^data:(image\/\w+)/.exec(piece.image) || [])[1] }) : null, images: images.size, minuteur: !!minuteur }),
+  };
+})();
+
+/* ── nouveautes.js ── */
+/* LE FOURNIL — les nouveautés : le récap des mises à jour, pour le joueur (la pastille cadeau en haut, à côté de la cloche, et sa feuille).
+   À CHAQUE MISE À JOUR VISIBLE PAR LE JOUEUR, on ajoute une entrée EN TÊTE de NOUVEAUTES (la plus récente d'abord) :
+     { id: 'aaaa-mm-jj-x', date: 'aaaa-mm-jj', titre: '…', points: ['…', '…'] }
+   - id : la date (heure de Paris) et une lettre ; deux entrées le même jour : 'a' pour la première, 'b' pour la suivante, etc. Les id se
+     comparent comme des chaînes (src/ui.js : st.nouveautesVues garde l'id de la plus récente vue ; tout id plus grand est « Nouveau ») :
+     on n'en change jamais un déjà publié, et on n'en invente pas un plus ancien que le dernier.
+   - titre court, points en phrases simples, le ton du jeu, sans jargon (pas de SQL, de fichier ni de test : ce que le joueur voit et gagne).
+   - les commits « Test : … », « CI : … », « Merge … » et le travail invisible ne sont pas des nouveautés.
+   Une sauvegarde neuve voit tout comme vu, sauf la plus récente (vueNeuve). Le bandeau « Nouvelle version » recharge la page : la pastille
+   montre alors son point si une entrée est apparue. test/fournil-nouveautes.cjs vérifie la liste (id uniques, dates triées) et l'écran.
+   Aucune dépendance au DOM : tourne aussi dans Node. */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.NV = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+  const NOUVEAUTES = [
+    {
+      id: '2026-10-17-d', date: '2026-10-17', titre: 'Des événements qui avancent plus vite',
+      points: [
+        'Dans la Planque (et bientôt au Manoir), des paliers de recette plus serrés : 75, 125, 150, 175… chacun donne un coup de pouce.',
+        'Après le boss, deux nouvelles recettes : le Sirop violet au palier 13, le Cristal bleu au palier 16, avec leur apprenti et leur combine ×3.',
+        'Le Grossiste, une combine d’après le boss : tous les niveaux de recettes à moitié prix.',
+        'À la Maison hantée (dès le 27) : les Gâteaux du cimetière et les Œufs de dragon en chocolat, et le Marché des sorcières.',
+      ],
+    },
+    {
+      id: '2026-10-17-c', date: '2026-10-17', titre: 'Le chat des boulangers',
+      points: [
+        'Une bulle à droite, sous l’événement : le chat de tous les boulangers, avec une pastille quand il y a du nouveau.',
+        'Écris un message, envoie une photo ou une capture (elle est allégée toute seule), ou cherche un GIF.',
+        'Pour écrire, il faut un pseudo au classement ; tout le monde peut lire.',
+        'Un appui long sur un message : le signaler, ou effacer le tien. Les photos s’effacent après 7 jours.',
+      ],
+    },
+    {
+      id: '2026-10-17-b', date: '2026-10-17', titre: 'Les nouveautés',
+      points: [
+        'Le petit cadeau à côté de la cloche : tout ce qui a changé dans le Fournil, de la plus récente à la plus ancienne.',
+        'Un point rouge te prévient quand il y a du nouveau.',
+      ],
+    },
+    {
+      id: '2026-10-17-a', date: '2026-10-17', titre: 'La jauge de la prochaine étoile',
+      points: [
+        'Dans la feuille Étoiles, une jauge montre où tu en es vers ta prochaine étoile.',
+        'Elle dit ce qu’il reste à gagner dans la boutique, et en combien de temps à ton rythme actuel.',
+        'Laisse la feuille ouverte : la jauge avance sous tes yeux.',
+      ],
+    },
+    {
+      id: '2026-10-16-d', date: '2026-10-16', titre: 'Des recettes qui grimpent plus vite',
+      points: [
+        'De nouveaux paliers de recette : 75, 125, 150, 175, puis 250… Entre 100 et 200, un cran tous les 25 niveaux au lieu d’un seul.',
+        'Chaque palier fait grimper les ventes de la recette : ta boutique avance un peu plus vite qu’avant.',
+        'Quand une mise à jour sort, un bandeau « Nouvelle version du Fournil » te prévient : touche-le, ta partie est sauvée et le jeu repart à jour.',
+      ],
+    },
+    {
+      id: '2026-10-16-c', date: '2026-10-16', titre: 'Les compagnons',
+      points: [
+        'Choisis l’animal de ta boutique : chat roux, chien ou lapin offerts, puis la poule, le canard, le hérisson… jusqu’au mini-dragon.',
+        'Chaque compagnon donne un petit bonus tant qu’il est avec toi : des pourboires, des absences plus longues, des fournées plus rapides ou des gains en plus.',
+        'Le chien du quartier, gagné au palier 11 du Quartier, devient un compagnon lui aussi (+5 % de gains). Le chat noir de la Maison hantée suivra.',
+        'Tout se passe dans Réglages › Le compagnon, ou depuis la garde-robe.',
+      ],
+    },
+    {
+      id: '2026-10-16-b', date: '2026-10-16', titre: 'Des événements plus généreux',
+      points: [
+        'Les paliers des événements donnent plus d’étoiles et versent des heures de gains directement dans la caisse de ta boulangerie.',
+        'Les paliers 13 à 20, après le boss, sont bien plus riches : des étoiles en pagaille et de gros boosts.',
+        'Les combines achetées après le boss paient aussi ta boulangerie.',
+        'Déjà bien avancé ? La différence t’est donnée une fois, sans rien perdre.',
+      ],
+    },
+    {
+      id: '2026-10-16-a', date: '2026-10-16', titre: 'Encore plus de copains',
+      points: [
+        'En visite chez un copain, « Ses recettes » montre le niveau de chacune, ses apprentis et leur grade. Son compagnon est là aussi.',
+        'Dans le classement « Tous les temps », touche un copain pour voir sa fiche ; dans l’onglet de l’événement, visite sa Planque.',
+        'Un pourboire laissé à un copain te rapporte une étoile.',
+        'Les cadeaux peuvent maintenant contenir des étoiles.',
+        'Les notifications sont prêtes : active-les dans Réglages pour savoir quand ta boutique est pleine, quand un copain t’a laissé un pourboire ou quand un événement commence.',
+      ],
+    },
+    {
+      id: '2026-10-15-b', date: '2026-10-15', titre: 'Les copains',
+      points: [
+        'Touche un boulanger dans le classement pour visiter sa boutique en 3D.',
+        'Laisse-lui un pourboire (trois par jour) : il reçoit un boost ×2.',
+        'Chaque semaine, un objectif commun à remplir tous ensemble ; réussi, il offre un boost ×5 à chacun.',
+        'Le classement ouvert se met à jour tout seul, avec les boulangers en ligne.',
+      ],
+    },
+    {
+      id: '2026-10-15-a', date: '2026-10-15', titre: 'Les activités des événements',
+      points: [
+        'Dans un événement, trois boutons de plus : des mini-jeux, les contrats de la nuit et les opérations.',
+        'Les paliers bonus de 13 à 20 et quatre combines de plus attendent ceux qui ont battu le boss.',
+        'Partir quelques minutes sans le vouloir met l’événement en pause au lieu de tout perdre.',
+        'La Maison hantée ouvre ses portes le mardi 27 octobre à midi : tenue d’Halloween et chat noir à gagner.',
+      ],
+    },
+    {
+      id: '2026-10-14-a', date: '2026-10-14', titre: 'Des personnages plus vivants',
+      points: [
+        'Les clients tournent la tête, respirent, s’impatientent dans la file et sautent de joie quand on les sert.',
+        'Les apprentis pétrissent au four et saluent au comptoir ; le boulanger s’essuie le front et se frotte les mains.',
+        'Dans la Planque, l’équipe s’installe sur le canapé, travaille et fait la fête à chaque palier.',
+        'Tes gains comptent aussi quand le jeu reste ouvert en arrière-plan.',
+      ],
+    },
+    {
+      id: '2026-10-13-b', date: '2026-10-13', titre: 'De vrais sons et des confettis',
+      points: [
+        'De vrais bruitages pour les ventes, les achats et les surprises.',
+        'Des confettis aux grandes occasions : déblocages, montée de niveau, podium, nouvelle boutique.',
+        'La Planque passe en haute définition : meubles, néons et la rue de nuit par la fenêtre.',
+      ],
+    },
+    {
+      id: '2026-10-13-a', date: '2026-10-13', titre: 'Le Quartier et la garde-robe',
+      points: [
+        'L’événement « Le Quartier » est ouvert jusqu’au 27 octobre (18 ans et +) : une boutique à part, sa monnaie, douze paliers et un classement rien qu’à lui.',
+        'Ses récompenses vont à ta boulangerie : des étoiles, des boosts, des décos et une tenue.',
+        'La garde-robe du boulanger : tête, haut, chaussures et accessoire, chaque pièce avec son bonus, à améliorer avec des étoiles.',
+        'L’interface est mieux rangée, avec des icônes redessinées.',
+        'Il paraît qu’une petite porte, au fond de la boutique, cache quelque chose…',
+      ],
+    },
+    {
+      id: '2026-10-12-a', date: '2026-10-12', titre: 'L’Atelier et les points de boulanger',
+      points: [
+        'L’Atelier et ses trois mini-jeux : l’Enfournement en rythme, le Façonnage au doigt et la Mémoire du pâtissier.',
+        'Le classement compte en points de boulanger : petit ou grand, chacun a sa chance.',
+      ],
+    },
+  ];
+
+  const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  // « vendredi 16 octobre » ; l'année seulement si elle n'est pas celle d'aujourd'hui (annee : l'année en cours, facultative)
+  function dateFr(date, annee) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''));
+    if (!m) return '';
+    const a = +m[1], mo = +m[2], j = +m[3], jour = new Date(Date.UTC(a, mo - 1, j)).getUTCDay();
+    return `${JOURS[jour]} ${j === 1 ? '1er' : j} ${MOIS[mo - 1]}${annee && annee !== a ? ` ${a}` : ''}`;
+  }
+  const derniere = () => (NOUVEAUTES.length ? NOUVEAUTES[0].id : '');
+  const vueNeuve = () => (NOUVEAUTES.length > 1 ? NOUVEAUTES[1].id : ''); // une sauvegarde neuve : tout vu, sauf la plus récente
+  const nonVue = (n, vues) => typeof vues !== 'string' || n.id > vues; // les id se comparent comme des chaînes (aaaa-mm-jj-x)
+  const nonVues = (vues) => NOUVEAUTES.filter((n) => nonVue(n, vues));
+
+  return { NOUVEAUTES, dateFr, derniere, vueNeuve, nonVue, nonVues };
+});
+
 /* ── ui.js ── */
 /* LE FOURNIL — interface : barre d'onglets (Boutique, Défis, Boulanger, Journal, Réglages), cartes compactes, ticket des objectifs,
    bannière d'événement sur la scène, cloche, badges, feuilles, classement en ligne, sons, sauvegarde, boucle. */
@@ -10963,27 +11800,32 @@ const UI = (() => {
   // les nouvelles du Journal pas encore lues : celles du carnet arrivées après la dernière visite du Journal (les trophées y sont annoncés)
   const nonLues = () => { const vu = (st.vu && st.vu.journal) || 0; return (st.carnetEv || []).filter((e) => e.t > vu).length; };
   const marquerLu = () => { if (!st.vu) st.vu = {}; const c = st.carnetEv || []; st.vu.journal = Math.max(st.vu.journal || 0, c.length ? c[c.length - 1].t : 0, st.now || 0); };
+  // les nouveautés (src/nouveautes.js) : st.nouveautesVues garde l'id de la plus récente vue ; toute entrée plus récente allume le point du cadeau
+  const NVS = typeof NV !== 'undefined' ? NV : null;
+  const nouveautesNonVues = () => (NVS && st ? NVS.nonVues(st.nouveautesVues).length : 0);
   const primesAReclamer = () => { const j = G.objectifsDuJour(st, st.now), sm = st.semaine; return j.objectifs.filter((o) => o.fait && !o.reclame).length + (sm && sm.fait && !sm.reclame ? 1 : 0); };
   function badge(el, n, cls) { const b = el.querySelector('.badge'); if (!b) return; b.hidden = !n; b.textContent = n > 0 && cls !== 'point' ? n : ''; b.className = 'badge' + (cls ? ' ' + cls : ''); }
   function hud() {
     const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st), marche = G.jourDeMarche(st.now), boost = st.boost && st.boost.fin > st.now ? st.boost.mult : 0;
     const bonus = G.AMELIORATIONS.filter((a) => !st.ameliorations[a.id] && st.coins >= G.prixBonus(st, a)).length + G.MOBILIER.filter((m) => G.mobilierCran(st, m.id) < m.max && st.coins >= G.prixMeuble(st, m.id)).length, primes = primesAReclamer(), pts = G.ptsTalents(st);
     if (pageActive === 'journal' && tiroir.pos !== 'ferme' && nonLues()) marquerLu(); // une nouvelle arrivée pendant qu'on lit le Journal est lue aussitôt
-    const nouveaux = nonLues(), nom = G.nomBoutique(st), ev = st.ev ? st.ev.type : '';
+    const nouveaux = nonLues(), nom = G.nomBoutique(st), ev = st.ev ? st.ev.type : '', nv = nouveautesNonVues();
     // le marché du samedi et la bonne critique : pas de deuxième ligne sous le solde (elle repoussait la boutique à 360×640) ;
     // la ligne du rythme et les badges s'y relaient toutes les 4 s, à hauteur constante
     const br = st.boosts && st.boosts.actif && st.boosts.actif.fin > st.now ? st.boosts.actif.mult : 0; // un boost de la réserve (l'événement du quartier)
     const extras = [marche && 'Marché ×1,5', boost && `Bonne critique ×${boost}`, br && `Boost ×${br}`].filter(Boolean), tour = extras.length ? Math.floor(performance.now() / 4000) % (extras.length + 1) : 0;
-    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}|${br}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}|${tour}`;
+    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}|${br}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}|${tour}|${nv}`;
     if (key === lastHud) return; lastHud = key;
     $('#coins').textContent = G.fmtEur(st.coins);
-    $('#taux').innerHTML = `<span${tour ? ' style="display:none"' : ''}>${taux > 0 ? `<b>+${G.fmtEur(taux)}</b> par seconde` : 'Touche la baguette !'}</span>` + extras.map((t, k) => `<span class="marche" style="margin:0;padding:1px 7px;vertical-align:top${tour === k + 1 ? '' : ';display:none'}">${t}</span>`).join('');
-    $('#etoiles-n').textContent = gain > 0 ? `${st.etoiles} · +${gain}` : st.etoiles;
+    $('#taux').innerHTML = `<span${tour ? ' style="display:none"' : ''}>${taux > 0 ? `<b>+${G.fmtEur(taux)}</b><span class="ps"> par seconde</span><span class="ps-c"> / s</span>` : 'Touche la baguette !'}</span>` + extras.map((t, k) => `<span class="marche" style="margin:0;padding:1px 7px;vertical-align:top${tour === k + 1 ? '' : ';display:none'}">${t}</span>`).join('');
+    $('#etoiles-n').innerHTML = gain > 0 ? `${st.etoiles}<small><i> · </i>+${gain}</small>` : st.etoiles; // sur un téléphone, le « +gain » passe sous le compte (style.css)
     $('#b-etoiles').classList.toggle('pret', gain >= 3);
     $('#b-ameliorations').classList.toggle('pret', bonus > 0); badge($('#b-ameliorations'), bonus);
     $('#enseigne span').textContent = nom;
     $('#b-cloche').classList.toggle('actif', !!ev); $('#b-cloche .point').hidden = !ev && !nouveaux; // la cloche : l'événement en cours, sinon les nouvelles pas lues
     $('#b-cloche').setAttribute('aria-label', ev ? 'Événement en cours' : nouveaux ? `${nouveaux} nouvelle${nouveaux > 1 ? 's' : ''} dans le Journal` : 'Le Journal');
+    $('#b-nouveautes .point').hidden = !nv; // le cadeau : une mise à jour pas encore vue
+    $('#b-nouveautes').setAttribute('aria-label', nv ? `Nouveautés : ${nv} mise${nv > 1 ? 's' : ''} à jour à découvrir` : 'Les nouveautés du Fournil');
     badge($('#onglets [data-page="defis"]'), primes);
     badge($('#onglets [data-page="boulanger"]'), pts, 'lavande');
     badge($('#onglets [data-page="journal"]'), nouveaux, 'beurre');
@@ -11192,6 +12034,7 @@ const UI = (() => {
   const ilYA = (ms) => { const s = Math.max(0, (HORLOGE.maintenant() - ms) / 1000); return s < 60 ? 'à l’instant' : s < 3600 ? `il y a ${Math.round(s / 60)} min` : s < 86400 ? `il y a ${Math.round(s / 3600)} h` : `il y a ${Math.round(s / 86400)} j`; };
   // l'arrière-salle (src/arriere.js) : une fois la petite porte du fond trouvée, une carte discrète, tout en bas du Journal, y ramène
   const AR = typeof ARRIERE !== 'undefined' ? ARRIERE : null;
+  const TC = typeof TCHAT !== 'undefined' ? TCHAT : null; // le chat des boulangers (src/chat.js)
   const arriereTrouvee = () => !!(AR && st.arriere && st.arriere.trouvee);
   const cleArriere = () => (arriereTrouvee() ? (st.arriere.main && !st.arriere.main.fin ? 'ar-main' : 'ar') : '');
   const carteArriere = () => (arriereTrouvee() ? `<button type="button" class="card arriere-carte" data-arriere="1"><span class="pic">${ICONS.UI.arriere}</span><span class="t"><b>L’arrière-salle</b><small>${st.arriere.main && !st.arriere.main.fin ? 'Une main t’attend sur le tapis vert.' : 'La petite porte du fond est restée entrouverte.'}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>` : '');
@@ -11544,6 +12387,19 @@ const UI = (() => {
       on('[data-a="non"]', sheetEtoiles);
       on('[data-a="oui"]', () => { const r = G.nouvelleBoutique(st, HORLOGE.maintenant()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); confettis(1.6); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★`); st.tuto = Math.max(st.tuto, INDICES.length); amenager(false); renderCards(true); hud(); save(); showPage('boutique'); sheetNom(true); } });
     });
+  }
+  // la feuille « Nouveautés » : le récap des mises à jour (src/nouveautes.js), la plus récente dépliée en tête, « Nouveau » sur celles
+  // que le joueur n'avait pas vues ; l'ouvrir marque tout comme vu (le point du cadeau s'éteint)
+  function sheetNouveautes() {
+    if (!NVS) return;
+    const vues = st.nouveautesVues, an = new Date(HORLOGE.maintenant()).getFullYear();
+    const entree = (n, k) => { const neuve = NVS.nonVue(n, vues);
+      return `<details class="nv${neuve ? ' neuve' : ''}" data-nv="${esc(n.id)}"${k === 0 ? ' open' : ''}><summary><span class="nv-tete"><b>${esc(n.titre)}</b><small>${esc(NVS.dateFr(n.date, an))}</small></span>${neuve ? '<i class="nv-badge">Nouveau</i>' : ''}<i class="ico chev">${ICONS.UI.chevron}</i></summary>
+        <ul class="nv-points">${n.points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></details>`; };
+    openSheet(`<h2>Nouveautés</h2><p class="sous">Ce qui a changé dans le Fournil, de la plus récente à la plus ancienne.</p>
+      <div class="nv-liste">${NVS.NOUVEAUTES.map(entree).join('')}</div>${btnRetour()}`);
+    on('[data-a="close"]', closeSheet);
+    st.nouveautesVues = NVS.derniere(); save(); hud();
   }
   // Réglages › Journal des retours : quand le jeu a compté une absence, pourquoi, et si la feuille s'est ouverte (sinon, pourquoi pas)
   const RAISON_RETOUR = { lancement: 'Ouverture du jeu', visible: 'Retour dans le jeu', cache: 'Retour dans le jeu', reveil: 'Réveil du téléphone', gel: 'Le jeu reprend après une pause', saut: 'L’heure a sauté', heure: 'L’heure sûre est arrivée', recul: 'Horloge du jeu remise à l’heure', derive: 'Le compteur du téléphone a sauté' };
@@ -12259,7 +13115,7 @@ const UI = (() => {
     // dernier lastSeen sauvé. Les sauts de l'heure sûre ne passent pas par ici (pas de trou entre les images) : payerSaut les plafonne.
     const trou = derniereImage ? now - derniereImage : 0; derniereImage = now;
     if (absencePrete && trou > 5000 && reprendre('saut')) { requestAnimationFrame(frame); return; }
-    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite; // pendant l'Atelier, la Planque ou une visite : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
+    const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert); // pendant l'Atelier, la Planque ou une visite : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
     if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); }
     const out = G.tick(st, dt, HORLOGE.maintenant(), atelier ? () => 0.999 : undefined);
     if (out.ventes.length) {
@@ -12393,6 +13249,7 @@ const UI = (() => {
     st.now = HORLOGE.maintenant();
     if (!st.vu) st.vu = {};
     if (st.vu.journal == null) { const c = st.carnetEv || []; st.vu.journal = fresh ? 0 : c.length ? c[c.length - 1].t : 0; } // une ancienne sauvegarde : son carnet compte comme lu
+    if (NVS && typeof st.nouveautesVues !== 'string') st.nouveautesVues = NVS.vueNeuve(); // une sauvegarde neuve, ou d'avant les nouveautés : tout est vu, sauf la plus récente
     document.querySelectorAll('[data-ico]').forEach((el) => { el.innerHTML = ICONS.UI[el.dataset.ico] || ''; });
     if (!SCENE.init($('#scene'), $('#scene-ui'))) $('#sans-3d').hidden = false; // sans WebGL : la boutique vit quand même, sans image
     SCENE.surServi = (r) => { if (visite) return; if (r.cadeau) { reussite(`${r.hb.nom}, fidèle depuis ${r.jours} jours, t’offre ${G.fmtEur(r.cadeau)} !`); } else if (r.jours > 1) toast(`${r.hb.nom} : ${r.jours}e jour de suite !`); };
@@ -12429,6 +13286,7 @@ const UI = (() => {
     $('#objectifs').addEventListener('click', () => { audio(); showPage('defis'); });
     $('#enseigne').addEventListener('click', () => { audio(); sheetNom(false); });
     $('#b-cloche').addEventListener('click', () => { audio(); if (st.ev) { if (tiroir.pos === 'ouvert') tiroir.aller('mi'); if (!evEtendu) basculerEvenement(); } else { son.tap(); showPage('journal'); } }); // la cloche : l'événement en cours, sinon le fil des nouvelles
+    $('#b-nouveautes').addEventListener('click', () => { audio(); son.tap(); sheetNouveautes(); }); // le cadeau : les nouveautés
     $('#evenement').addEventListener('click', (e) => { if (e.target.closest('button')) return; audio(); basculerEvenement(); });
     document.querySelectorAll('#onglets button').forEach((b) => b.addEventListener('click', () => { audio(); if (b.dataset.page !== pageActive) { son.tap(); showPage(b.dataset.page); } else if (tiroir.pos === 'ferme') tiroir.aller('mi'); else $('#pages').scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }); }));
     $('#scene').addEventListener('pointerdown', (e) => {
@@ -12473,7 +13331,9 @@ const UI = (() => {
     const photo = () => { if (!st || !CLM.photo) return null; const r = recVue(); return CLM.photo(st, { G, coupes: r ? r.coupes : [], badge: !!(r && r.badge), dh: HTE && st[HTE.cle] ? st[HTE.cle].decos : [], ev: evPhoto() }); };
     const pleineA = () => (st ? HORLOGE.maintenant() + G.heuresAbsence(st) * 3600e3 : null);
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant(), photo, pleineA }) : null; } catch (e) { classement = null; }
-    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); if (pageActive === 'reglages') renderPage(); if (visite) peindreVisite(); tenterCopains(); }); majRecompenses(); classement.demarrer(); setTimeout(verifierCadeaux, 3000); setInterval(() => { if (document.visibilityState === 'visible') verifierCadeaux(); }, 10 * 60e3); setInterval(majRecompenses, 60e3);
+    // le chat des boulangers : son bouton rond sous les icônes des événements (seulement avec la configuration), la pastille des non-lus, sa feuille plein écran
+    if (TC) TC.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); }, rejoindre: () => sheetClassement() });
+    if (classement) { classement.ecouter(() => { rafraichirClassement(); majRecompenses(); majCoin(); if (TC) TC.majBouton(); if (pageActive === 'reglages') renderPage(); if (visite) peindreVisite(); tenterCopains(); }); majRecompenses(); classement.demarrer(); setTimeout(verifierCadeaux, 3000); setInterval(() => { if (document.visibilityState === 'visible') verifierCadeaux(); }, 10 * 60e3); setInterval(majRecompenses, 60e3);
     // la liste ouverte se relit toute seule toutes les 30 s (qui vient d'arriver « en ligne », les points qui bougent) : seulement
     // sur l'onglet de la liste, page visible, sans doubler une lecture en vol ; la feuille fermée, plus rien
     setInterval(() => { if (vueCl === 'liste' && !feuille.hidden && document.visibilityState === 'visible' && !classement.enChargement(ongletCl)) classement.charger(ongletCl); }, (window.__relireClassement | 0) || 30e3); } // la tenue et la coupe changent aussi au lundi
@@ -12482,13 +13342,14 @@ const UI = (() => {
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, get retour() { return { enCours: retourEnCours, dernier: dernierRetour }; }, journalRetours: sheetJournalRetours, cadeaux: verifierCadeaux, G, SCENE, save, son, confettis, audio, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
+    window.__fournil = { get st() { return st; }, get retour() { return { enCours: retourEnCours, dernier: dernierRetour }; }, journalRetours: sheetJournalRetours, nouveautes: sheetNouveautes, cadeaux: verifierCadeaux, G, SCENE, save, son, confettis, audio, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden, hantee: !$('#b-hantee').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
       quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT,
       hantee: () => (HTE ? HTE.ouvrir() : false), fermerHantee: () => { if (HTE) HTE.fermer(); }, evHantee: HTE, HT, annoncerEvenements: (f) => (EVS ? EVS.annoncer(f !== false) : false), chatNoir, choisirPelage, compagnons: (retour) => sheetCompagnons(retour), choisirCompagnon: (id) => { const r = G.choisirCompagnon(st, id); if (r.ok) { save(); majChat(); } return r; }, modeleVu, majChat, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin,
       visiter: (p, ev) => visiter(p, true, ev), finVisite, visite: () => (visite ? { pseudo: visite.pseudo, scene: visite.scene, charge: visite.charge, etat: visite.etat, nom: visite.b ? visite.b.nom : null, ev: visite.E ? visite.E.cle : null, ev3: !!visite.ev3, images: visite.images, calls: visite.ev3 ? visite.ev3.calls : 0, q: visite.qe ? { postes: visite.qe.postes.map((x) => [x.niv, x.staff]), paliers: visite.qe.paliers.length, total: visite.qe.total, decos: visite.qe.decos.slice() } : null } : null), // classement v6 (pour les tests)
       fiche: () => (fiche ? { pseudo: fiche.pseudo, charge: fiche.charge, etat: fiche.etat, photo: !!(fiche.data && fiche.data.photo), stats: !!(fiche.b && fiche.b.stats) } : null), ficheCopain, tenterCopains,
+      tchat: TC,
       arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false), fermerArriere: () => { if (AR) AR.fermer(); }, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }
   document.addEventListener('DOMContentLoaded', boot);

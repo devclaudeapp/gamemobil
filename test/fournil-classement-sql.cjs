@@ -19,6 +19,8 @@
 //     de src/classement.js et src/horloge.js comparés aux signatures des fonctions SQL ;
 //   · le patch v6.2 (supabase/fournil-classement-v62.sql, la limite des événements élargie) collé deux fois par-dessus la v6 :
 //     les nouveaux tableaux, des bornes jamais plus basses, un score entre l'ancienne et la nouvelle borne compté, rien d'autre ne bouge.
+//   · le chat (supabase/fournil-chat.sql, collé par-dessus la v6) : chaque erreur de l'envoi, 3 s et 60 par heure, le masquage au
+//     3e signalement, l'effacement, le bannissement, le ménage (images de 7 jours, au-delà des 2 000), la cascade du retrait, les droits.
 // Le temps est simulé : la fonction public.fournil_maintenant() est remplacée par une horloge de test.
 //
 // Lancement (PGlite n'est pas dans le dépôt) :
@@ -216,6 +218,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
   const JEU5 = ['fournil_classement', 'fournil_heure', 'fournil_publier', 'fournil_recompenses', 'fournil_retirer', 'fournil_vu'];
   const JEU = [...JEU5, 'fournil_abonner', 'fournil_boutique', 'fournil_desabonner', 'fournil_notif_essai', 'fournil_objectif', 'fournil_planifier', 'fournil_pourboire', 'fournil_vu_pourboires']; // version 6 : les copains et les notifications
   const SERVICE = ['fournil_notifs_dues', 'fournil_notifs_faites']; // la fonction d'envoi seulement (service_role)
+  const CHAT_JEU = ['fournil_chat_effacer', 'fournil_chat_envoyer', 'fournil_chat_image', 'fournil_chat_lire', 'fournil_chat_signaler']; // le chat (supabase/fournil-chat.sql)
   const INTERNES = ['fournil_borne', 'fournil_duree', 'fournil_empreinte', 'fournil_evt_borne', 'fournil_evt_figer', 'fournil_evts', 'fournil_figer', 'fournil_jeton_valable', 'fournil_jour', 'fournil_lundi', 'fournil_maintenant', 'fournil_paliers', 'fournil_points_plafond', 'fournil_pseudo_propre', 'fournil_quartier_borne', 'fournil_quartier_fenetre', 'fournil_quartier_figer', 'fournil_quartier_table', 'fournil_reponse', 'fournil_segment',
     'fournil_annoncer', 'fournil_endpoint_valable', 'fournil_evt_titre', 'fournil_iso', 'fournil_joueur_verifie', 'fournil_notif_mettre', 'fournil_notif_permise', 'fournil_objectif_but', 'fournil_objectif_figer'];
   const TABLES = ['fournil_joueurs', 'fournil_palmares', 'fournil_semaines', 'fournil_portes', 'fournil_quartier_podium', 'fournil_evenements', 'fournil_evt_scores', 'fournil_evt_podium',
@@ -1088,6 +1091,9 @@ function trajectoirePoints(profil, jours, t0, cadence) {
   titre('le contrat : src/classement.js et src/horloge.js face au SQL');
   { // les cadeaux (supabase/fournil-cadeaux.sql, un fichier à part) font partie du contrat : collés ici, éprouvés plus bas
     await db.exec('set role proprio'); try { await db.exec(fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-cadeaux.sql'), 'utf8')); } finally { await db.exec('reset role'); }
+    // le chat (supabase/fournil-chat.sql, un fichier à part) aussi : collé ici par-dessus la v6, éprouvé plus bas
+    await db.exec('set role proprio');
+    try { await db.exec(fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-chat.sql'), 'utf8')); check(true, 'fournil-chat.sql se colle par-dessus la v6 (et les cadeaux)'); } catch (err) { check(false, 'fournil-chat.sql se colle par-dessus la v6 : ' + err.message); } finally { await db.exec('reset role'); }
     const CL = require('../src/classement.js');
     // les fonctions que le téléphone appelle, et avec quels paramètres, lues dans ses sources
     const appels = new Map();
@@ -1109,8 +1115,8 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     const noms = [...new Set([...appels.values()].map((a) => a.nom))].sort();
     // (version 6 : le téléphone appelle au moins les six fonctions de la v5, et seulement des fonctions ouvertes à anon ; jamais celles
     //  de la fonction d'envoi)
-    check(JEU5.every((n) => noms.includes(n)) && noms.every((n) => parNom.has(n)) && JSON.stringify(procs.map((p) => p.nom).sort()) === JSON.stringify([...JEU, 'fournil_cadeau_recu', 'fournil_mes_cadeaux'].sort()) && !noms.some((n) => SERVICE.includes(n)),
-      `le téléphone n’appelle que des fonctions ouvertes à anon (${noms.join(', ')}) ; anon peut appeler exactement les fonctions du jeu (${JEU.length}, et les deux des cadeaux)`);
+    check(JEU5.every((n) => noms.includes(n)) && noms.every((n) => parNom.has(n)) && JSON.stringify(procs.map((p) => p.nom).sort()) === JSON.stringify([...JEU, 'fournil_cadeau_recu', 'fournil_mes_cadeaux', ...CHAT_JEU].sort()) && !noms.some((n) => SERVICE.includes(n)),
+      `le téléphone n’appelle que des fonctions ouvertes à anon (${noms.join(', ')}) ; anon peut appeler exactement les fonctions du jeu (${JEU.length}, les deux des cadeaux et les ${CHAT_JEU.length} du chat)`);
     const malAppeles = [...appels.values()].filter((a) => { const p = parNom.get(a.nom); if (!p) return true; if (!a.cles) return false; const obligatoires = p.noms.slice(0, p.n - p.defauts); return a.cles.some((k) => !p.noms.includes(k)) || obligatoires.some((k) => !a.cles.includes(k)); });
     check(appels.size >= 5 && malAppeles.length === 0, `chaque appel du téléphone donne exactement les paramètres de la fonction SQL (${[...appels.keys()].join(' ; ')})${malAppeles.length ? ' — en défaut : ' + malAppeles.map((a) => a.nom).join(', ') : ''}`);
 
@@ -2091,6 +2097,267 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     r = await pub(Ali, noms[0], 1e9 + 6e6, 5, null, 'hantee', 1e24);
     check(r.ok === true && r.evt_plafonne === true && proche(r.evt_score, neufH, 1e-6), `1e24 bonbons : plafonnés à la nouvelle borne (${e(r.evt_score)})`);
     await db62.close();
+  }
+
+  // ─── le chat (supabase/fournil-chat.sql), collé par-dessus la v6, deux fois ───
+  titre('le chat');
+  {
+    const CHAT = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-chat.sql'), 'utf8');
+    const collerChat = async () => { await db.exec('set role proprio'); try { await db.exec(CHAT); } finally { await db.exec('reset role'); } };
+    try { await collerChat(); await collerChat(); check(true, 'fournil-chat.sql se colle par-dessus la v6, et se recolle sans casse'); } catch (err) { check(false, 'fournil-chat.sql se colle : ' + err.message); }
+    const TABLES_CHAT = ['fournil_chat', 'fournil_chat_images', 'fournil_chat_signalements', 'fournil_chat_bannis'];
+    const nbChat = async (t = 'fournil_chat', ou = '', p) => (await sup(`select count(*)::int as c from public.${t} ${ou}`, p))[0].c;
+    // les appels, comme PostgREST les fait (paramètres nommés)
+    const lire = async (o = {}, role = 'anon') => {
+      const noms = [], vals = [];
+      for (const [k, v] of [['p_apres', o.apres], ['p_limite', o.limite], ['p_id', o.j && o.j.id], ['p_jeton', o.j && o.j.jeton]]) if (v !== undefined) { noms.push(k); vals.push(v); }
+      return garde((await comme(role, `select public.fournil_chat_lire(${noms.map((k, i) => `${k} => $${i + 1}`).join(', ')}) as r`, vals))[0].r);
+    };
+    const image = async (n, role = 'anon') => garde((await comme(role, 'select public.fournil_chat_image(p_n => $1) as r', [n]))[0].r);
+    const envoyer = async (j, texte, gif = null, img = null, role = 'anon') => garde((await comme(role, 'select public.fournil_chat_envoyer(p_id => $1, p_jeton => $2, p_texte => $3, p_gif => $4, p_image => $5) as r', [j.id, j.jeton, texte, gif, img]))[0].r);
+    const signaler = async (j, n) => garde((await comme('anon', 'select public.fournil_chat_signaler(p_id => $1, p_jeton => $2, p_n => $3) as r', [j.id, j.jeton, n]))[0].r);
+    const effacer = async (j, n) => garde((await comme('anon', 'select public.fournil_chat_effacer(p_id => $1, p_jeton => $2, p_n => $3) as r', [j.id, j.jeton, n]))[0].r);
+    // un joueur du classement : inscrit puis un deuxième envoi (une inscription jamais suivie d'un envoi part au ménage des 7 jours)
+    const inscrire = async (j, pseudo) => { await avancer(1); const a = await publierP(j, pseudo, 1e6, 10); await avancer(11); const b = await publierP(j, pseudo, 1e6 + 10, 10); return a.ok === true && b.ok === true; };
+    const IMG = 'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA'; // une image WebP d'un pixel
+
+    // la structure et les droits
+    const colsDe = async (t) => (await sup(`select column_name as c from information_schema.columns where table_schema = 'public' and table_name = $1 order by ordinal_position`, [t])).map((c) => c.c).join();
+    const cc = {}; for (const t of TABLES_CHAT) cc[t] = await colsDe(t);
+    check(cc.fournil_chat === 'n,joueur,pseudo,texte,gif,a_image,cree,masque,signal' && cc.fournil_chat_images === 'n,data,cree' && cc.fournil_chat_signalements === 'n,joueur' && cc.fournil_chat_bannis === 'joueur,pseudo,motif,cree',
+      `les tables du contrat : ${Object.entries(cc).map(([t, c]) => `${t.replace('fournil_', '')} (${c})`).join(', ')}`);
+    const fkc = await sup(`select conrelid::regclass::text as t, confrelid::regclass::text as vers, confdeltype as d from pg_constraint where contype = 'f' and conrelid::regclass::text like 'fournil_chat%' order by 1, 2`);
+    check(fkc.map((x) => `${x.t}>${x.vers}:${x.d}`).join() === 'fournil_chat>fournil_joueurs:c,fournil_chat_images>fournil_chat:c,fournil_chat_signalements>fournil_chat:c,fournil_chat_signalements>fournil_joueurs:c',
+      `clés étrangères « on delete cascade » : un message part avec son joueur, son image et ses signalements avec lui ; les bannis n’en ont pas (le bannissement survit au départ) (${fkc.map((x) => x.t.replace('fournil_', '') + '→' + x.vers.replace('fournil_', '')).join(', ')})`);
+    const droitsChat = async () => {
+      let tout = true;
+      for (const t of TABLES_CHAT) {
+        const rls = (await sup(`select relrowsecurity as r from pg_class where oid = $1::regclass`, ['public.' + t]))[0];
+        const pol = (await sup(`select count(*)::int as n from pg_policies where schemaname = 'public' and tablename = $1`, [t]))[0].n;
+        const droits = await sup(`select r.rolname as role, p.priv from (values ('anon'), ('authenticated'), ('public')) r(rolname), unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) p(priv) where has_table_privilege(r.rolname, $1, p.priv)`, ['public.' + t]);
+        tout = check(rls && rls.r === true && pol === 0 && droits.length === 0, `${t} : sécurité ligne par ligne sans aucune règle, aucun droit pour anon, authenticated ni PUBLIC${droits.length ? ' : ' + droits.map((d) => d.role + ' ' + d.priv).join(', ') : ''}`) && tout;
+      }
+      const seq = await sup(`select r.rolname as role from (values ('anon'), ('authenticated'), ('public')) r(rolname) where has_sequence_privilege(r.rolname, 'public.fournil_chat_n_seq', 'usage') or has_sequence_privilege(r.rolname, 'public.fournil_chat_n_seq', 'select') or has_sequence_privilege(r.rolname, 'public.fournil_chat_n_seq', 'update')`);
+      check(seq.length === 0, `la séquence des messages : aucun droit pour anon, authenticated ni PUBLIC${seq.length ? ' : ' + seq.map((x) => x.role).join(', ') : ''}`);
+      const fns = await sup(`select p.proname as nom, pg_get_function_identity_arguments(p.oid) as args, p.prosecdef as definer, array_to_string(p.proconfig, ',') as conf,
+          has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth,
+          p.proacl is null as acl_defaut, exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0) as pour_public, pg_get_userbyid(p.proowner) as proprio
+        from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil\\_chat%' order by 1`);
+      const sig = Object.fromEntries(fns.map((f) => [f.nom, f.args]));
+      check(fns.length === 7 && sig.fournil_chat_lire === 'p_apres bigint, p_limite integer, p_id uuid, p_jeton text' && sig.fournil_chat_image === 'p_n bigint'
+        && sig.fournil_chat_envoyer === 'p_id uuid, p_jeton text, p_texte text, p_gif text, p_image text' && sig.fournil_chat_signaler === 'p_id uuid, p_jeton text, p_n bigint'
+        && sig.fournil_chat_effacer === 'p_id uuid, p_jeton text, p_n bigint' && sig.fournil_chat_qui === 'p_id uuid, p_jeton text' && sig.fournil_chat_banni === 'p_id uuid',
+        `les fonctions du chat, une seule signature chacune (${fns.map((f) => `${f.nom.replace('fournil_', '')}(${f.args})`).join(' ; ')})`);
+      const ouvertes = fns.filter((f) => f.anon).map((f) => f.nom);
+      check(JSON.stringify(ouvertes) === JSON.stringify(CHAT_JEU) && fns.every((f) => f.anon === f.auth), `anon (et authenticated) n’appellent que les cinq du contrat (${ouvertes.map((n) => n.replace('fournil_', '')).join(', ')}) ; fournil_chat_qui et fournil_chat_banni sont fermées`);
+      check(fns.every((f) => f.definer && /search_path=(""|'')/.test(f.conf) && !f.acl_defaut && !f.pour_public && f.proprio === 'proprio'), 'chacune : SECURITY DEFINER, search_path fixé, droits explicites (rien pour PUBLIC), au propriétaire des tables');
+      return tout;
+    };
+    await droitsChat();
+
+    // des joueurs du classement, et un visiteur sans pseudo
+    await avancer(3600);
+    const [Ba, Le, S1, S2, S3, Pi] = [joueur(), joueur(), joueur(), joueur(), joueur(), joueur()];
+    let ins = true; for (const [j, p] of [[Ba, 'Bavard'], [Le, 'Lectrice'], [S1, 'Sig Un'], [S2, 'Sig Deux'], [S3, 'Sig Trois'], [Pi, 'Pipelette']]) ins = (await inscrire(j, p)) && ins;
+    check(ins, 'six joueurs inscrits au classement');
+    let l = await lire();
+    check(l.ok === true && Array.isArray(l.messages) && l.messages.length === 0 && l.dernier === 0, `fournil_chat_lire sans pseudo, chat vide : ${JSON.stringify(l)}`);
+
+    // envoyer : les erreurs
+    let r = await envoyer({ id: Ba.id, jeton: 'court' }, 'salut');
+    const r2 = await envoyer({ id: Ba.id, jeton: Le.jeton }, 'salut'), r3 = await envoyer({ id: null, jeton: Ba.jeton }, 'salut');
+    check(r.ok === false && r.erreur === 'jeton' && r.n === null && r2.erreur === 'jeton' && r3.erreur === 'jeton', 'jeton mal formé, jeton d’un autre, identifiant absent : « jeton »');
+    r = await envoyer(joueur(), 'salut');
+    check(r.ok === false && r.erreur === 'inconnu', 'un téléphone sans pseudo (pas inscrit au classement) : « inconnu »');
+    r = await envoyer(Ba, '   '); const rv2 = await envoyer(Ba, null, '', ''), rv3 = await envoyer(Ba, '\u0007\u202e \n\t');
+    check(r.erreur === 'vide' && rv2.erreur === 'vide' && rv3.erreur === 'vide', 'des espaces, rien du tout, des caractères de contrôle seuls : « vide »');
+    r = await envoyer(Ba, 'x'.repeat(301)); const rl2 = await envoyer(Ba, 'x'.repeat(100000));
+    check(r.erreur === 'long' && rl2.erreur === 'long', '301 caractères, 100 000 caractères : « long »');
+    let gifs = []; for (const g of ['abc', 'abc-defgh', '../../etc', 'a'.repeat(41), 'abcd e', '<img src=x>']) gifs.push((await envoyer(Ba, '', g)).erreur);
+    check(gifs.every((x) => x === 'gif'), `des GIF qui ne sont pas un identifiant GIPHY (trop court, tiret, chemin, 41 caractères, espace, balise) : « gif » (${gifs.join(', ')})`);
+    let imgs = []; for (const im of ['data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=', 'data:text/html;base64,PGI+', 'javascript:alert(1)', 'https://exemple.fr/a.png', 'data:image/png;base64,abc"onerror=x', 'data:image/jpeg;base64,' + 'A'.repeat(480001 - 23), 'DATA:IMAGE/PNG;BASE64,AAAA'])
+      imgs.push((await envoyer(Ba, 'regarde', null, im)).erreur);
+    check(imgs.every((x) => x === 'image'), `des images refusées (SVG, HTML, javascript:, une adresse, des guillemets, 480 001 caractères, en majuscules) : « image » (${imgs.join(', ')})`);
+    check(await nbChat() === 0, 'aucun de ces envois n’a rien écrit');
+
+    // envoyer : accepté
+    await avancer(5);
+    r = await envoyer(Ba, '  Bon\njour\u0007 à\u202e tous\t ! ');
+    const n1 = r.n, t1 = horloge;
+    check(r.ok === true && r.erreur === null && Number.isInteger(n1), `un texte accepté (n ${n1})`);
+    l = await lire();
+    check(l.messages.length === 1 && l.messages[0].texte === 'Bon jour à tous !' && l.messages[0].pseudo === 'Bavard' && l.messages[0].gif === null && l.messages[0].image === false && l.messages[0].cree === t1 && l.messages[0].moi === false && l.dernier === n1,
+      `relu par un visiteur : texte nettoyé (retour à la ligne et tabulation en espaces, contrôle et inversion du sens retirés, espaces répétés réduits, bords ôtés), pseudo copié, heure en ms (${JSON.stringify(l.messages[0])})`);
+    check(Object.keys(l.messages[0]).sort().join() === 'cree,gif,image,moi,n,pseudo,texte' && Object.keys(l).sort().join() === 'dernier,erreur,messages,ok', `les champs du contrat, ni plus ni moins (${Object.keys(l.messages[0]).join(', ')})`);
+    // les limites : 3 s
+    await avancer(1);
+    r = await envoyer(Ba, 'encore');
+    check(r.ok === false && r.erreur === 'trop-vite' && r.n === null, '1 s après : « trop-vite »');
+    await avancer(1.9);
+    check((await envoyer(Ba, 'encore')).erreur === 'trop-vite', '2,9 s après : « trop-vite »');
+    await avancer(0.1);
+    r = await envoyer(Ba, 'x'.repeat(300), 'xT9IgDEI1iZyb2wqo8');
+    const n2 = r.n;
+    check(r.ok === true && n2 > n1, '3 s après : accepté (300 caractères tout juste, et un GIF)');
+    await avancer(3);
+    r = await envoyer(Ba, '', null, IMG); const n3 = r.n;
+    check(r.ok === true, 'une image WebP seule, sans texte : acceptée');
+    await avancer(3);
+    const grande = 'data:image/jpeg;base64,' + 'A'.repeat(480000 - 23);
+    r = await envoyer(Le, `Robert'); delete from public.fournil_chat; --`, null, grande); const n4 = r.n;
+    check(r.ok === true && await nbChat() === 4, 'une image JPEG de 480 000 caractères tout juste, et une injection dans le texte : simple texte, rien d’effacé');
+    l = await lire({ j: Le });
+    check(l.messages.map((m) => m.n).join() === [n1, n2, n3, n4].join() && l.messages.map((m) => m.moi).join() === 'false,false,false,true' && l.messages[3].texte === `Robert'); delete from public.fournil_chat; --`
+      && l.messages[1].gif === 'xT9IgDEI1iZyb2wqo8' && l.messages[1].texte.length === 300 && l.messages[2].image === true && l.messages[2].texte === '' && l.dernier === n4,
+      'relu avec son jeton : dans l’ordre, « moi » sur son message seulement, le GIF, l’image, dernier = le plus récent');
+    l = await lire({ j: { id: Le.id, jeton: Ba.jeton } });
+    check(l.ok === true && l.messages.every((m) => m.moi === false), 'avec le jeton d’un autre : la lecture marche, mais « moi » est toujours faux');
+    check((await lire({ j: { id: Le.id, jeton: 'court' } })).messages.length === 4 && (await lire({}, 'authenticated')).messages.length === 4, 'jeton mal formé : lu quand même ; authenticated lit aussi');
+    let im = await image(n3);
+    check(im.ok === true && im.data === IMG && (await image(n4)).data === grande, 'fournil_chat_image : les images telles qu’envoyées');
+    check((await image(n1)).data === null && (await image(999999)).data === null && (await image(null)).data === null, 'un message sans image, un numéro inconnu, rien : data null');
+    // lire : p_apres, p_limite
+    l = await lire({ apres: n2 });
+    check(l.messages.map((m) => m.n).join() === [n3, n4].join() && l.dernier === n4, `p_apres = ${n2} : les deux suivants`);
+    l = await lire({ apres: 0, limite: 2 });
+    check(l.messages.map((m) => m.n).join() === [n3, n4].join(), 'p_limite = 2 : les deux plus récents, du plus ancien au plus récent');
+    l = await lire({ apres: n4 });
+    check(l.messages.length === 0 && l.dernier === n4, 'p_apres = le dernier : rien de neuf, dernier inchangé');
+    check((await lire({ apres: -5, limite: 0 })).messages.length === 1 && (await lire({ apres: null, limite: null })).messages.length === 4, 'p_apres négatif, p_limite nulle : ramenés aux bornes (1 message) ; null : les valeurs par défaut');
+
+    // le quota : 60 messages dans l'heure (Pipelette, toutes les 3 s)
+    await avancer(3600);
+    let acceptes = 0; const debut = horloge;
+    for (let k = 0; k < 60; k++) { if ((await envoyer(Pi, 'bla ' + k)).ok) acceptes++; await avancer(3); }
+    r = await envoyer(Pi, 'un de trop');
+    check(acceptes === 60 && r.ok === false && r.erreur === 'quota', `60 messages en 3 minutes acceptés, le 61e : « ${r.erreur} »`);
+    await heure(debut + 3600 * 1000 - 1000);
+    check((await envoyer(Pi, 'toujours trop')).erreur === 'quota', 'presque une heure après le premier : toujours « quota »');
+    await heure(debut + 3600 * 1000 + 1000);
+    check((await envoyer(Pi, 'ça repart')).ok === true, 'une heure après le premier (il sort de la fenêtre glissante) : accepté');
+
+    // signaler : au 3e joueur différent, masqué
+    await avancer(60);
+    r = await envoyer(Ba, 'un message pénible'); const nS = r.n;
+    await avancer(3);
+    r = await envoyer(Ba, 'avec une image', null, IMG); const nSi = r.n;
+    let s = await signaler(Ba, nS);
+    check(s.ok === false && s.erreur === 'soi', 'signaler son propre message : « soi »');
+    s = await signaler(S1, 999999);
+    check(s.ok === false && s.erreur === 'absent', 'signaler un message qui n’existe pas : « absent »');
+    s = await signaler({ id: S1.id, jeton: S2.jeton }, nS);
+    check(s.ok === false && s.erreur === 'jeton' && (await signaler(joueur(), nS)).erreur === 'inconnu', 'le jeton d’un autre : « jeton » ; sans pseudo : « inconnu »');
+    s = await signaler(S1, nS);
+    const s1b = await signaler(S1, nS), s1c = await signaler(S1, nS);
+    check(s.ok === true && s.masque === false && s1b.ok === true && s1b.masque === false && s1c.masque === false && (await sup('select signal from public.fournil_chat where n = $1', [nS]))[0].signal === 1,
+      'un joueur qui signale trois fois : un seul signalement, pas masqué');
+    s = await signaler(S2, nS);
+    check(s.ok === true && s.masque === false && (await lire()).messages.some((m) => m.n === nS), '2e joueur : toujours visible');
+    s = await signaler(S3, nS);
+    l = await lire();
+    check(s.ok === true && s.masque === true && !l.messages.some((m) => m.n === nS) && (await sup('select signal, masque from public.fournil_chat where n = $1', [nS]))[0].signal === 3,
+      '3e joueur différent : masqué, il disparaît de la lecture (3 signalements en base)');
+    s = await signaler(Le, nS);
+    check(s.ok === true && s.masque === true, 'le signaler encore après : ok, toujours masqué');
+    for (const j of [S1, S2, S3]) await signaler(j, nSi);
+    check((await image(nSi)).data === null && !(await lire()).messages.some((m) => m.n === nSi), 'l’image d’un message masqué ne se lit plus');
+    // le propriétaire le rétablit (la requête du commentaire), et le voit dans « les signalés »
+    const signales = await comme('proprio', `select c.n, c.pseudo, c.signal, c.masque, (select string_agg(j.pseudo, ', ' order by j.pseudo) from public.fournil_chat_signalements s join public.fournil_joueurs j on j.id = s.joueur where s.n = c.n) as par from public.fournil_chat c where c.signal > 0 order by c.n desc limit 50`);
+    check(signales.length === 2 && signales.some((x) => x.n === nS && x.par === 'Lectrice, Sig Deux, Sig Trois, Sig Un'), `« voir les signalés » (requête du propriétaire) : ${signales.map((x) => `${x.n} ${x.pseudo} ${x.signal} par ${x.par}`).join(' ; ')}`);
+    await comme('proprio', `delete from public.fournil_chat_signalements where n = ${nS}`); await comme('proprio', `update public.fournil_chat set masque = false, signal = 0 where n = ${nS}`);
+    check((await lire()).messages.some((m) => m.n === nS), '« rétablir un message masqué à tort » : il revient');
+    await comme('proprio', `delete from public.fournil_chat where n = ${nSi}`);
+    check(await nbChat('fournil_chat', 'where n = $1', [nSi]) === 0 && await nbChat('fournil_chat_images', 'where n = $1', [nSi]) === 0 && await nbChat('fournil_chat_signalements', 'where n = $1', [nSi]) === 0, '« supprimer un message » : son image et ses signalements partent avec');
+
+    // effacer le sien
+    const masqueDe = async (n) => (await sup('select masque from public.fournil_chat where n = $1', [n]))[0].masque;
+    r = await effacer(Le, n3);
+    check(r.ok === false && r.erreur === 'pas-a-toi' && await masqueDe(n3) === false && await nbChat('fournil_chat_images', 'where n = $1', [n3]) === 1, 'effacer le message d’un autre : « pas-a-toi », il reste');
+    check((await effacer({ id: Ba.id, jeton: Le.jeton }, n3)).erreur === 'jeton', 'avec le jeton d’un autre : « jeton »');
+    r = await effacer(Ba, n3);
+    check(r.ok === true && await masqueDe(n3) === true && !(await lire({ apres: n3 - 1, limite: 50 })).messages.some((m) => m.n === n3) && await nbChat('fournil_chat_images', 'where n = $1', [n3]) === 0 && (await image(n3)).data === null, 'l’auteur efface le sien : masqué, image effacée');
+    check((await effacer(Ba, n3)).ok === true && (await effacer(Ba, 999999)).ok === true, 'l’effacer encore, ou un message parti : ok');
+
+    // bannir (les requêtes du propriétaire)
+    await comme('proprio', `insert into public.fournil_chat_bannis (joueur, pseudo, motif) select id, pseudo, 'insultes' from public.fournil_joueurs where pseudo ilike 'bavard' on conflict (joueur) do update set motif = excluded.motif`);
+    await comme('proprio', `insert into public.fournil_chat_bannis (joueur, pseudo, motif) select id, pseudo, 'insultes' from public.fournil_joueurs where pseudo ilike 'bavard' on conflict (joueur) do update set motif = excluded.motif`);
+    await comme('proprio', `update public.fournil_chat set masque = true where joueur in (select joueur from public.fournil_chat_bannis)`);
+    await avancer(60);
+    r = await envoyer(Ba, 'je reviens');
+    check(r.ok === false && r.erreur === 'banni' && (await signaler(Ba, n4)).erreur === 'banni', 'banni : « banni » à l’envoi et au signalement');
+    check(!(await lire()).messages.some((m) => m.pseudo === 'Bavard') && await nbChat('fournil_chat', 'where joueur = $1 and not masque', [Ba.id]) === 0, 'ses messages sont masqués (la requête du propriétaire)');
+    await avancer(11); await retirer(Ba);
+    const Ba2 = joueur(); await inscrire(Ba2, 'BAVARD');
+    r = await envoyer(Ba2, 'nouveau moi');
+    check(r.ok === false && r.erreur === 'banni' && await nbChat('fournil_chat_bannis') === 1, 'il quitte le classement et revient sous le même pseudo (autre identifiant) : toujours « banni » (le bannissement survit au départ)');
+    await comme('proprio', `delete from public.fournil_chat_bannis where pseudo ilike 'Bavard'`);
+    check((await envoyer(Ba2, 'merci')).ok === true, 'le bannissement levé : il réécrit');
+
+    // le ménage : les images de plus de 7 jours (le texte reste), puis au-delà des 2 000 derniers
+    await avancer(60);
+    r = await envoyer(Le, 'ma boutique', null, IMG); const nV = r.n;
+    await sup(`update public.fournil_chat_images set cree = cree - interval '7 days' + interval '2 seconds' where n = $1`, [nV]);
+    check((await image(nV)).data === IMG, 'une image de 7 jours moins 2 s : encore là');
+    await sup(`update public.fournil_chat_images set cree = cree - interval '3 seconds' where n = $1`, [nV]);
+    l = await lire();
+    const mv = l.messages.find((m) => m.n === nV);
+    check(mv && mv.image === false && mv.texte === 'ma boutique' && (await image(nV)).data === null && await nbChat('fournil_chat_images', 'where n = $1', [nV]) === 1, 'à 7 jours et 1 s : plus d’image à la lecture, même avant le ménage ; le texte reste');
+    await avancer(3);
+    r = await envoyer(Le, 'ménage');
+    check(r.ok === true && await nbChat('fournil_chat_images', 'where n = $1', [nV]) === 0 && await nbChat('fournil_chat', 'where n = $1', [nV]) === 1 && await nbChat('fournil_chat_images', 'where n = $1', [n4]) === 1,
+      'l’envoi suivant fait le ménage : l’image vieille de 7 jours est effacée, son message reste ; l’image récente reste');
+    await sup(`insert into public.fournil_chat (joueur, pseudo, texte, cree) select $1, 'Lectrice', 'vieux ' || g, now() - interval '2 hours' from generate_series(1, 2100) g`, [Le.id]);
+    const avantM = await nbChat(), plusVieux = (await sup('select min(n)::int as n from public.fournil_chat'))[0].n;
+    l = await lire();
+    check(l.messages.length === 50 && l.messages[49].n === l.dernier && l.messages.every((m, i) => i === 0 || m.n > l.messages[i - 1].n), `${avantM} messages : la lecture en rend les 50 derniers, dans l’ordre`);
+    await avancer(3);
+    r = await envoyer(S1, 'le 2 000e');
+    const apresM = await nbChat(), garde2000 = (await sup('select min(n)::int as mn, max(n)::int as mx from public.fournil_chat'))[0];
+    check(r.ok === true && apresM === 2000 && garde2000.mx === r.n && garde2000.mn > plusVieux && await nbChat('fournil_chat', 'where n = $1', [n1]) === 0, `au-delà des 2 000 derniers, effacés à l’envoi (${avantM + 1} → ${apresM}, le plus récent gardé)`);
+    check(await nbChat('fournil_chat_images', 'where n not in (select n from public.fournil_chat)') === 0 && await nbChat('fournil_chat_signalements', 'where n not in (select n from public.fournil_chat)') === 0, 'aucune image ni aucun signalement orphelin');
+
+    // quitter le classement emporte ses messages, leurs images et ses signalements
+    await avancer(3);
+    r = await envoyer(S2, 'avant de partir', null, IMG); const nP = r.n;
+    await avancer(3); const nL = (await envoyer(Le, 'à signaler')).n;
+    await signaler(S2, nL);
+    check(await nbChat('fournil_chat', 'where joueur = $1', [S2.id]) > 0 && await nbChat('fournil_chat_signalements', 'where joueur = $1', [S2.id]) > 0, 'S2 a des messages, une image et un signalement');
+    await avancer(11);
+    const rt = await retirer(S2);
+    check(rt.ok === true && await nbChat('fournil_chat', 'where joueur = $1', [S2.id]) === 0 && await nbChat('fournil_chat_images', 'where n = $1', [nP]) === 0 && await nbChat('fournil_chat_signalements', 'where joueur = $1', [S2.id]) === 0,
+      'fournil_retirer : ses messages, son image et ses signalements partent avec lui');
+
+    // recoller la v6 puis le chat : rien ne se perd ; les règles et droits ajoutés à la main sont retirés
+    const photoChat = async () => JSON.stringify([await sup('select * from public.fournil_chat order by n'), await sup('select n, length(data) as l, cree from public.fournil_chat_images order by n'), await sup('select * from public.fournil_chat_signalements order by n, joueur'), await sup('select * from public.fournil_chat_bannis order by joueur')]);
+    await comme('proprio', `insert into public.fournil_chat_bannis (joueur, pseudo, motif) values ('${joueur().id}', 'Parti', 'test')`);
+    const avantC = await photoChat();
+    try { await coller(); check(true, 'la v6 se recolle par-dessus le chat'); } catch (err) { check(false, 'la v6 se recolle par-dessus le chat : ' + err.message); }
+    await installerHorloge();
+    check(await photoChat() === avantC && (await lire()).messages.length === 50, 'les messages, images, signalements et bannis sont intacts, le chat se lit toujours');
+    await sup('create policy tout_le_monde on public.fournil_chat for select using (true)');
+    await sup('grant select, insert on public.fournil_chat, public.fournil_chat_images to anon');
+    await sup('grant usage on sequence public.fournil_chat_n_seq to anon');
+    await sup('grant execute on function public.fournil_chat_qui(uuid, text) to anon');
+    try { await collerChat(); check(true, 'le chat se recolle encore, avec des messages dedans'); } catch (err) { check(false, 'le chat se recolle : ' + err.message); }
+    check(await photoChat() === avantC, 'rien ne se perd au recollage');
+    check(await droitsChat(), 'après recollage : les règles et les droits ajoutés à la main sont retirés');
+
+    // l'accès direct refusé
+    const essais = [];
+    for (const t of TABLES_CHAT) { const c = t === 'fournil_chat_bannis' ? 'joueur' : 'n'; essais.push([`select * from public.${t}`, `lire ${t}`], [`delete from public.${t}`, `effacer dans ${t}`], [`update public.${t} set ${c} = ${c}`, `modifier ${t}`]); }
+    essais.push([`insert into public.fournil_chat (joueur, pseudo, texte) values ('${Le.id}', 'Intrus', 'x')`, 'écrire un message sans passer par la fonction'],
+      [`insert into public.fournil_chat_bannis (joueur) values ('${Le.id}')`, 'bannir quelqu’un'], [`delete from public.fournil_chat_bannis`, 'lever les bannissements'],
+      [`select nextval('public.fournil_chat_n_seq')`, 'avancer la séquence'], [`select public.fournil_chat_qui('${Le.id}', '${Le.jeton}')`, 'appeler fournil_chat_qui'], [`select public.fournil_chat_banni('${Le.id}')`, 'appeler fournil_chat_banni'],
+      ['alter table public.fournil_chat disable row level security', 'désactiver la sécurité'], ['create policy tout on public.fournil_chat for select using (true)', 'ajouter une règle']);
+    for (const role of ['anon', 'authenticated']) {
+      const refuses = []; for (const [q, quoi] of essais) { const e2 = await refus(role, q); if (e2 !== '42501') refuses.push(`${quoi} (${e2})`); }
+      check(refuses.length === 0, `${role} ne peut ni lire, ni écrire, ni effacer dans les tables du chat, ni appeler ses fonctions internes (${essais.length} essais)${refuses.length ? ' — en défaut : ' + refuses.join(', ') : ''}`);
+    }
+    check((await envoyer(S3, 'connecté', null, null, 'authenticated')).ok === true, 'authenticated peut écrire aussi');
+
+    // rien ne fuit
+    const toutChat = JSON.stringify(reponses.slice(-400)), joueursChat = [Ba, Ba2, Le, S1, S2, S3, Pi];
+    check(!joueursChat.some((j) => toutChat.includes(j.id) || toutChat.includes(j.jeton) || toutChat.includes(sha(j.jeton))) && !/"(joueur|id|jeton)"\s*:/.test(toutChat), 'ni identifiant, ni jeton, ni empreinte dans les réponses du chat');
   }
 
   // ─── le bilan ───
