@@ -106,7 +106,11 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
   await p.tap('[data-a="rec-voir"]'); await sleep(400);
   check(await p.evaluate(() => document.querySelector('#feuille').hidden && window.__fournil.tiroir() === 'ferme'), '« Voir ma boutique » : la feuille se ferme, le tiroir se replie sur la boutique');
   await installer(p); await sleep(2200);
-  await p.locator('#scene-wrap').screenshot({ path: out + '/02-boutique-argent.png' });
+  { // une capture par coordonnées : la scène tourne sans cesse (clients, confettis), Playwright attendrait en vain qu'elle soit « stable »
+    const boite = () => p.evaluate(() => { const b = document.querySelector('#scene-wrap').getBoundingClientRect(); return { x: Math.max(0, b.left), y: Math.max(0, b.top), width: Math.min(innerWidth, b.width), height: Math.min(innerHeight, b.height) }; });
+    const b1 = await boite(); await sleep(500); const b2 = await boite();
+    check(JSON.stringify(b1) === JSON.stringify(b2), `la scène ne bouge pas dans la page (${JSON.stringify(b1)} puis ${JSON.stringify(b2)})`);
+    await p.screenshot({ path: out + '/02-boutique-argent.png', clip: b2 }); }
   const zone = await p.evaluate(() => { const b = document.querySelector('#scene').getBoundingClientRect(), z = window.__fournil.SCENE.zones().boulanger; return { x: b.left + z.x - 20, y: b.top + z.y - 10, width: z.w + 70, height: z.h + 50 }; });
   await p.screenshot({ path: out + '/03-comptoir-coupe.png', clip: zone });
   const mAvec = await p.evaluate(() => window.__fournil.SCENE.maillagesRecompenses);

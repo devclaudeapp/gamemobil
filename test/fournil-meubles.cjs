@@ -91,8 +91,14 @@ const server = http.createServer((req, res) => {
   for (const id of ['bar', 'banquette', 'terrasse']) { // toucher l'emplacement ouvre la fiche du meuble (ui.js, sheetMeuble)
     const p = await ev((id) => { const r = document.querySelector('#scene').getBoundingClientRect(), z = window.__fournil.SCENE.zones()[id]; return { x: r.left + z.x + z.w / 2, y: r.top + z.y + z.h / 2, hit: window.__fournil.SCENE.hitMeuble(z.x + z.w / 2, z.y + z.h / 2), nom: (window.__fournil.G.MOBILIER.find((m) => m.id === id) || {}).nom }; }, id);
     check(p.hit === id, `le doigt sur l’emplacement « ${id} » désigne ce meuble (hitMeuble : ${p.hit})`);
+    const lire = () => ev(() => (document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText));
     await page.touchscreen.tap(p.x, p.y); await sleep(500);
-    const fiche = await ev(() => (document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText));
+    let fiche = await lire();
+    if (!fiche) { // le premier toucher de la page peut tomber pendant que le tiroir finit de se replier : on dit ce qu'il y avait sous le doigt, et on recommence une fois
+      const sous = await ev(({ x, y }) => { const e = document.elementFromPoint(x, y); return e ? (e.id || e.className || e.tagName) + '' : '?'; }, p);
+      console.log(`        (pas de fiche au premier toucher ; sous le doigt : ${sous}, tiroir ${await ev(() => window.__fournil.tiroir())} ; on recommence)`);
+      await sleep(800); await page.touchscreen.tap(p.x, p.y); await sleep(600); fiche = await lire();
+    }
     check(!!p.nom && fiche.includes(p.nom), `et sa fiche s’ouvre : « ${fiche.split('\n')[0]} »`);
     await ev(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); window.__fournil.tiroir('ferme'); }); await sleep(300);
   }
@@ -105,7 +111,9 @@ const server = http.createServer((req, res) => {
     const ok = await attendre(() => ev((z) => window.__fournil.SCENE.assisEn[z] > 0, zone), 90000);
     check(ok, `un client servi vient s’asseoir ${nom} (par l’allée${zone === 'terrasse' ? ' et la porte de la devanture' : ''})`);
   }
-  check(await ev(() => window.__fournil.SCENE.couverts >= 3), `les couverts sont posés devant les clients assis (${await ev(() => window.__fournil.SCENE.couverts)})`);
+  { // un couvert devant chaque client assis : on compare au même instant (sur une machine lente, le client du bar a pu finir et repartir pendant qu'on attendait celui de la terrasse)
+    const c = await ev(() => ({ couverts: window.__fournil.SCENE.couverts, assis: window.__fournil.SCENE.assis }));
+    check(c.assis >= 1 && c.couverts >= c.assis, `les couverts sont posés devant les clients assis (${c.couverts} couverts, ${c.assis} assis)`); }
   await page.screenshot({ path: path.join(out, 'apres-clients-eco.png') });
   const ap = await ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return { decor, salle: a.tables + a.bar + a.banquette + a.terrasse + a.couverts }; });
   check(ap.decor <= 72 && ap.salle <= 7, `éco, tout au max : ${ap.decor} appels de dessin pour le décor (≤ 72), dont ${ap.salle} pour les tables, le bar, le salon, la terrasse et tous les couverts`);
