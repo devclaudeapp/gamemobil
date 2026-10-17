@@ -26,6 +26,15 @@
       ],
     },
     {
+      id: '2026-10-17-e', date: '2026-10-17', titre: 'Idées, bugs et votes',
+      points: [
+        'Une ampoule à droite, sous la bulle du chat : propose une idée ou signale un bug, avec une capture si tu veux.',
+        'Pour un bug, le jeu joint tout seul ce qui aide à comprendre : la version du jeu, ton téléphone, ton quartier.',
+        'Des votes pour choisir la suite du Fournil : un bandeau dans la boutique te prévient, et tu peux changer d’avis tant que le vote est ouvert.',
+        'Pour écrire et voter, il faut un pseudo au classement.',
+      ],
+    },
+    {
       id: '2026-10-17-d', date: '2026-10-17', titre: 'Des événements qui avancent plus vite',
       points: [
         'Dans la Planque (et bientôt au Manoir), des paliers de recette plus serrés : 75, 125, 150, 175… chacun donne un coup de pouce.',

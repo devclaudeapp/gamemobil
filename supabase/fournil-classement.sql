@@ -886,7 +886,9 @@ as $$
      and p_endpoint ~ '^https://(fcm\.googleapis\.com|android\.googleapis\.com|updates\.push\.services\.mozilla\.com|push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+(\.[a-z0-9-]+)*\.push\.apple\.com|[a-z0-9-]+(\.[a-z0-9-]+)*\.notify\.windows\.com)/[!-~]*$'
 $$;
 
--- ce joueur veut-il ce type de notification ? (au moins un appareil abonné, et le cas coché ; l'essai : un appareil suffit)
+-- ce joueur veut-il ce type de notification ? (au moins un appareil abonné, et le cas coché ; l'essai : un appareil suffit).
+-- Les deux types de fournil-retours.sql y sont aussi (recoller ce fichier après lui ne les perd pas) : 'vote' suit la case
+-- « événements » ; 'retour' (réservé aux admins) : un appareil suffit
 create or replace function public.fournil_notif_permise(p_joueur uuid, p_type text)
 returns boolean
 language sql
@@ -894,8 +896,9 @@ stable
 set search_path = ''
 as $$
   select exists (select 1 from public.fournil_abonnements a where a.joueur = p_joueur)
-     and (p_type = 'essai' or coalesce((select case p_type when 'pleine' then p.pleine when 'pourboire' then p.pourboires
-                                                           when 'evenement' then p.evenements when 'objectif' then p.objectif else false end
+     and (p_type in ('essai', 'retour') or coalesce((select case p_type when 'pleine' then p.pleine when 'pourboire' then p.pourboires
+                                                           when 'evenement' then p.evenements when 'vote' then p.evenements
+                                                           when 'objectif' then p.objectif else false end
                                           from public.fournil_notif_prefs p where p.id = p_joueur), false))
 $$;
 

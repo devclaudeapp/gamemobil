@@ -21,6 +21,9 @@
 //     les nouveaux tableaux, des bornes jamais plus basses, un score entre l'ancienne et la nouvelle borne compté, rien d'autre ne bouge.
 //   · le chat (supabase/fournil-chat.sql, collé par-dessus la v6) : chaque erreur de l'envoi, 3 s et 60 par heure, le masquage au
 //     3e signalement, l'effacement, le bannissement, le ménage (images de 7 jours, au-delà des 2 000), la cascade du retrait, les droits.
+//   · les idées, les bugs et les votes (supabase/fournil-retours.sql, collé par-dessus la v6, les cadeaux et le chat) : chaque erreur
+//     de l'envoi, 30 s et 5 par jour (heure de Paris), les votes (créer, voter, changer, fini, fermé), l'admin seul lit et crée,
+//     les notifications 'retour' et 'vote' dans la file, le ménage (captures de 30 jours, choix de 60 jours), la cascade, les droits.
 // Le temps est simulé : la fonction public.fournil_maintenant() est remplacée par une horloge de test.
 //
 // Lancement (PGlite n'est pas dans le dépôt) :
@@ -219,6 +222,8 @@ function trajectoirePoints(profil, jours, t0, cadence) {
   const JEU = [...JEU5, 'fournil_abonner', 'fournil_boutique', 'fournil_desabonner', 'fournil_notif_essai', 'fournil_objectif', 'fournil_planifier', 'fournil_pourboire', 'fournil_vu_pourboires']; // version 6 : les copains et les notifications
   const SERVICE = ['fournil_notifs_dues', 'fournil_notifs_faites']; // la fonction d'envoi seulement (service_role)
   const CHAT_JEU = ['fournil_chat_effacer', 'fournil_chat_envoyer', 'fournil_chat_image', 'fournil_chat_lire', 'fournil_chat_signaler']; // le chat (supabase/fournil-chat.sql)
+  const RETOURS_JEU = ['fournil_admin_moi', 'fournil_admin_retour_etat', 'fournil_admin_retour_image', 'fournil_admin_retours', 'fournil_admin_vote_creer', 'fournil_admin_vote_fermer',
+    'fournil_retour_envoyer', 'fournil_voter', 'fournil_votes_ouverts']; // les idées, les bugs et les votes (supabase/fournil-retours.sql)
   const INTERNES = ['fournil_borne', 'fournil_duree', 'fournil_empreinte', 'fournil_evt_borne', 'fournil_evt_figer', 'fournil_evts', 'fournil_figer', 'fournil_jeton_valable', 'fournil_jour', 'fournil_lundi', 'fournil_maintenant', 'fournil_paliers', 'fournil_points_plafond', 'fournil_pseudo_propre', 'fournil_quartier_borne', 'fournil_quartier_fenetre', 'fournil_quartier_figer', 'fournil_quartier_table', 'fournil_reponse', 'fournil_segment',
     'fournil_annoncer', 'fournil_endpoint_valable', 'fournil_evt_titre', 'fournil_iso', 'fournil_joueur_verifie', 'fournil_notif_mettre', 'fournil_notif_permise', 'fournil_objectif_but', 'fournil_objectif_figer'];
   const TABLES = ['fournil_joueurs', 'fournil_palmares', 'fournil_semaines', 'fournil_portes', 'fournil_quartier_podium', 'fournil_evenements', 'fournil_evt_scores', 'fournil_evt_podium',
@@ -1094,6 +1099,9 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     // le chat (supabase/fournil-chat.sql, un fichier à part) aussi : collé ici par-dessus la v6, éprouvé plus bas
     await db.exec('set role proprio');
     try { await db.exec(fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-chat.sql'), 'utf8')); check(true, 'fournil-chat.sql se colle par-dessus la v6 (et les cadeaux)'); } catch (err) { check(false, 'fournil-chat.sql se colle par-dessus la v6 : ' + err.message); } finally { await db.exec('reset role'); }
+    // les idées, les bugs et les votes (supabase/fournil-retours.sql) aussi : collés ici par-dessus le chat, éprouvés plus bas
+    await db.exec('set role proprio');
+    try { await db.exec(fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-retours.sql'), 'utf8')); check(true, 'fournil-retours.sql se colle par-dessus la v6 (les cadeaux et le chat)'); } catch (err) { check(false, 'fournil-retours.sql se colle par-dessus la v6 : ' + err.message); } finally { await db.exec('reset role'); }
     const CL = require('../src/classement.js');
     // les fonctions que le téléphone appelle, et avec quels paramètres, lues dans ses sources
     const appels = new Map();
@@ -1115,8 +1123,8 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     const noms = [...new Set([...appels.values()].map((a) => a.nom))].sort();
     // (version 6 : le téléphone appelle au moins les six fonctions de la v5, et seulement des fonctions ouvertes à anon ; jamais celles
     //  de la fonction d'envoi)
-    check(JEU5.every((n) => noms.includes(n)) && noms.every((n) => parNom.has(n)) && JSON.stringify(procs.map((p) => p.nom).sort()) === JSON.stringify([...JEU, 'fournil_cadeau_recu', 'fournil_mes_cadeaux', ...CHAT_JEU].sort()) && !noms.some((n) => SERVICE.includes(n)),
-      `le téléphone n’appelle que des fonctions ouvertes à anon (${noms.join(', ')}) ; anon peut appeler exactement les fonctions du jeu (${JEU.length}, les deux des cadeaux et les ${CHAT_JEU.length} du chat)`);
+    check(JEU5.every((n) => noms.includes(n)) && noms.every((n) => parNom.has(n)) && JSON.stringify(procs.map((p) => p.nom).sort()) === JSON.stringify([...JEU, 'fournil_cadeau_recu', 'fournil_mes_cadeaux', ...CHAT_JEU, ...RETOURS_JEU].sort()) && !noms.some((n) => SERVICE.includes(n)),
+      `le téléphone n’appelle que des fonctions ouvertes à anon (${noms.join(', ')}) ; anon peut appeler exactement les fonctions du jeu (${JEU.length}, les deux des cadeaux, les ${CHAT_JEU.length} du chat et les ${RETOURS_JEU.length} des retours)`);
     const malAppeles = [...appels.values()].filter((a) => { const p = parNom.get(a.nom); if (!p) return true; if (!a.cles) return false; const obligatoires = p.noms.slice(0, p.n - p.defauts); return a.cles.some((k) => !p.noms.includes(k)) || obligatoires.some((k) => !a.cles.includes(k)); });
     check(appels.size >= 5 && malAppeles.length === 0, `chaque appel du téléphone donne exactement les paramètres de la fonction SQL (${[...appels.keys()].join(' ; ')})${malAppeles.length ? ' — en défaut : ' + malAppeles.map((a) => a.nom).join(', ') : ''}`);
 
@@ -2358,6 +2366,359 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     // rien ne fuit
     const toutChat = JSON.stringify(reponses.slice(-400)), joueursChat = [Ba, Ba2, Le, S1, S2, S3, Pi];
     check(!joueursChat.some((j) => toutChat.includes(j.id) || toutChat.includes(j.jeton) || toutChat.includes(sha(j.jeton))) && !/"(joueur|id|jeton)"\s*:/.test(toutChat), 'ni identifiant, ni jeton, ni empreinte dans les réponses du chat');
+  }
+
+  titre('les idées et les bugs');
+  {
+    const RET = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-retours.sql'), 'utf8');
+    const collerRet = async () => { await db.exec('set role proprio'); try { return await db.exec(RET); } finally { await db.exec('reset role'); } };
+    let controle = null;
+    try { await collerRet(); const res = await collerRet(); controle = res[res.length - 1].rows[0]; check(true, 'fournil-retours.sql se colle par-dessus la v6, les cadeaux et le chat, et se recolle sans casse'); } catch (err) { check(false, 'fournil-retours.sql se colle : ' + err.message); }
+    check(controle && controle.etat === 'les retours sont prêts' && Number(controle.fonctions_ouvertes) === 9 && Number(controle.tables_fermees) === 4 && Number(controle.admins) === 0,
+      `la requête de contrôle, à la fin du script : ${controle && [controle.etat, controle.fonctions_ouvertes, controle.tables_fermees, controle.admins].join(' · ')} (attendu : les retours sont prêts · 9 · 4 · 0)`);
+    const TABLES_RET = ['fournil_admins', 'fournil_retours', 'fournil_votes', 'fournil_votes_choix'];
+    const nbRet = async (t, ou = '', p) => (await sup(`select count(*)::int as c from public.${t} ${ou}`, p))[0].c;
+    Object.assign(CAST, { p_infos: '::jsonb', p_options: '::jsonb' });
+    // les appels, comme PostgREST les fait (paramètres nommés)
+    const qui = (j) => ({ p_id: j.id, p_jeton: j.jeton });
+    const envoyer = (j, type, texte, image = null, infos = null, role = 'anon') => appelle('fournil_retour_envoyer', { ...qui(j), p_type: type, p_texte: texte, p_image: image, p_infos: infos }, role);
+    const ouverts = (j) => appelle('fournil_votes_ouverts', j ? qui(j) : {});
+    const voter = (j, n, option) => appelle('fournil_voter', { ...qui(j), p_n: n, p_option: option });
+    const adminMoi = (j) => appelle('fournil_admin_moi', qui(j));
+    const adminRetours = (j, filtre, avant) => appelle('fournil_admin_retours', { ...qui(j), p_filtre: filtre, ...(avant === undefined ? {} : { p_avant: avant }) });
+    const adminImage = (j, n) => appelle('fournil_admin_retour_image', { ...qui(j), p_n: n });
+    const adminEtat = (j, n, etat, note) => appelle('fournil_admin_retour_etat', { ...qui(j), p_n: n, p_etat: etat, ...(note === undefined ? {} : { p_note: note }) });
+    const creer = (j, question, options, heures) => appelle('fournil_admin_vote_creer', { ...qui(j), p_question: question, p_options: options, p_heures: heures });
+    const fermer = (j, n) => appelle('fournil_admin_vote_fermer', { ...qui(j), p_n: n });
+    const inscrire = async (j, pseudo) => { await avancer(1); const a = await publierP(j, pseudo, 1e6, 10); await avancer(11); const b = await publierP(j, pseudo, 1e6 + 10, 10); return a.ok === true && b.ok === true; };
+    const IMG = 'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEADsD+JaQAA3AAAAAA'; // une image WebP d'un pixel
+
+    // la structure et les droits
+    const colsDe = async (t) => (await sup(`select column_name as c from information_schema.columns where table_schema = 'public' and table_name = $1 order by ordinal_position`, [t])).map((c) => c.c).join();
+    const cr = {}; for (const t of TABLES_RET) cr[t] = await colsDe(t);
+    check(cr.fournil_admins === 'joueur,pseudo,cree' && cr.fournil_retours === 'n,joueur,pseudo,type,texte,image,infos,cree,etat,note,maj' && cr.fournil_votes === 'n,question,options,debut,fin,cree_par,ferme' && cr.fournil_votes_choix === 'n,joueur,option,quand',
+      `les tables du contrat : ${Object.entries(cr).map(([t, c]) => `${t.replace('fournil_', '')} (${c})`).join(', ')}`);
+    const fkr = await sup(`select conrelid::regclass::text as t, confrelid::regclass::text as vers, confdeltype as d from pg_constraint where contype = 'f' and conrelid::regclass::text in ('fournil_admins', 'fournil_retours', 'fournil_votes', 'fournil_votes_choix') order by 1, 2`);
+    check(fkr.map((x) => `${x.t}>${x.vers}:${x.d}`).join() === 'fournil_admins>fournil_joueurs:c,fournil_retours>fournil_joueurs:c,fournil_votes>fournil_joueurs:n,fournil_votes_choix>fournil_joueurs:c,fournil_votes_choix>fournil_votes:c',
+      `clés étrangères : la place d’admin, les retours et les choix partent avec leur joueur (cascade), un vote garde sa question quand son auteur part (set null), les choix partent avec leur vote (${fkr.map((x) => `${x.t.replace('fournil_', '')}→${x.vers.replace('fournil_', '')} ${x.d}`).join(', ')})`);
+    const droitsRet = async () => {
+      let tout = true;
+      for (const t of TABLES_RET) {
+        const rls = (await sup(`select relrowsecurity as r from pg_class where oid = $1::regclass`, ['public.' + t]))[0];
+        const pol = (await sup(`select count(*)::int as n from pg_policies where schemaname = 'public' and tablename = $1`, [t]))[0].n;
+        const droits = await sup(`select r.rolname as role, p.priv from (values ('anon'), ('authenticated'), ('public')) r(rolname), unnest(array['SELECT','INSERT','UPDATE','DELETE','TRUNCATE','REFERENCES','TRIGGER']) p(priv) where has_table_privilege(r.rolname, $1, p.priv)`, ['public.' + t]);
+        tout = check(rls && rls.r === true && pol === 0 && droits.length === 0, `${t} : sécurité ligne par ligne sans aucune règle, aucun droit pour anon, authenticated ni PUBLIC${droits.length ? ' : ' + droits.map((d) => d.role + ' ' + d.priv).join(', ') : ''}`) && tout;
+      }
+      for (const s of ['fournil_retours_n_seq', 'fournil_votes_n_seq']) {
+        const seq = await sup(`select r.rolname as role from (values ('anon'), ('authenticated'), ('public')) r(rolname) where has_sequence_privilege(r.rolname, $1, 'usage') or has_sequence_privilege(r.rolname, $1, 'select') or has_sequence_privilege(r.rolname, $1, 'update')`, ['public.' + s]);
+        tout = check(seq.length === 0, `la séquence ${s} : aucun droit pour anon, authenticated ni PUBLIC${seq.length ? ' : ' + seq.map((x) => x.role).join(', ') : ''}`) && tout;
+      }
+      const fns = await sup(`select p.proname as nom, pg_get_function_identity_arguments(p.oid) as args, p.prosecdef as definer, array_to_string(p.proconfig, ',') as conf,
+          has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth,
+          p.proacl is null as acl_defaut, exists (select 1 from aclexplode(p.proacl) a where a.grantee = 0) as pour_public, pg_get_userbyid(p.proowner) as proprio
+        from pg_proc p where p.pronamespace = 'public'::regnamespace and (p.proname ~ '^fournil_(retour|vote|admin)' or p.proname = 'fournil_notif_permise') order by 1`);
+      const sig = Object.fromEntries(fns.map((f) => [f.nom, f.args]));
+      tout = check(fns.length === 15 && sig.fournil_retour_envoyer === 'p_id uuid, p_jeton text, p_type text, p_texte text, p_image text, p_infos jsonb' && sig.fournil_votes_ouverts === 'p_id uuid, p_jeton text'
+        && sig.fournil_voter === 'p_id uuid, p_jeton text, p_n bigint, p_option integer' && sig.fournil_admin_moi === 'p_id uuid, p_jeton text'
+        && sig.fournil_admin_retours === 'p_id uuid, p_jeton text, p_filtre text, p_avant bigint' && sig.fournil_admin_retour_image === 'p_id uuid, p_jeton text, p_n bigint'
+        && sig.fournil_admin_retour_etat === 'p_id uuid, p_jeton text, p_n bigint, p_etat text, p_note text' && sig.fournil_admin_vote_creer === 'p_id uuid, p_jeton text, p_question text, p_options jsonb, p_heures integer'
+        && sig.fournil_admin_vote_fermer === 'p_id uuid, p_jeton text, p_n bigint' && sig.fournil_notif_permise === 'p_joueur uuid, p_type text',
+        `les fonctions des retours et des votes, une seule signature chacune (${fns.map((f) => `${f.nom.replace('fournil_', '')}(${f.args})`).join(' ; ')})`) && tout;
+      const ouvertes = fns.filter((f) => f.anon).map((f) => f.nom);
+      tout = check(JSON.stringify(ouvertes) === JSON.stringify(RETOURS_JEU) && fns.every((f) => f.anon === f.auth), `anon (et authenticated) n’appellent que les neuf du contrat (${ouvertes.map((n) => n.replace('fournil_', '')).join(', ')}) ; les fonctions internes sont fermées`) && tout;
+      tout = check(fns.every((f) => (f.definer || f.nom === 'fournil_retours_ligne' || f.nom === 'fournil_notif_permise') && /search_path=(""|'')/.test(f.conf) && !f.acl_defaut && !f.pour_public && f.proprio === 'proprio'), 'chacune : SECURITY DEFINER (sauf deux petites fonctions internes sans table à lire pour elles-mêmes), search_path fixé, droits explicites (rien pour PUBLIC), au propriétaire des tables') && tout;
+      return tout;
+    };
+    await droitsRet();
+    const typesFile = (await sup(`select pg_get_constraintdef(oid) as d from pg_constraint where conname = 'fournil_notifs_type_check'`))[0];
+    check(typesFile && /'retour'/.test(typesFile.d) && /'vote'/.test(typesFile.d) && /'pleine'/.test(typesFile.d) && /'essai'/.test(typesFile.d), `la file des notifications accepte les deux nouveaux types, et garde les anciens (${typesFile && typesFile.d})`);
+
+    // des joueurs du classement : l'admin (le propriétaire), des joueurs, des abonnés
+    await heure('2028-03-08T10:00:00Z'); // un mercredi, 11 h à Paris
+    const [Ad, Jo, Pa, Ab, Nb, Ci] = [joueur(), joueur(), joueur(), joueur(), joueur(), joueur()];
+    let ins = true; for (const [j, p] of [[Ad, 'lebigt69'], [Jo, 'Joueuse'], [Pa, 'Passant'], [Ab, 'Abonnée'], [Nb, 'Sans Événements'], [Ci, 'ci-banc01']]) ins = (await inscrire(j, p)) && ins;
+    check(ins, 'six joueurs inscrits au classement (dont le propriétaire, lebigt69, et un joueur de test « ci-… »)');
+    let r = await adminMoi(Ad);
+    check(r.ok === true && r.admin === false, `avant la ligne « me rendre admin » : fournil_admin_moi répond faux (${JSON.stringify(r)})`);
+    const ligneAdmin = /insert into public\.fournil_admins [^\n]*/.exec(RET);
+    check(ligneAdmin && /pseudo ilike 'lebigt69'/.test(ligneAdmin[0]), `la ligne « me rendre admin » du script vise le pseudo lebigt69 (${ligneAdmin && ligneAdmin[0]})`);
+    await comme('proprio', ligneAdmin[0]); await comme('proprio', ligneAdmin[0]);
+    r = await adminMoi(Ad);
+    check(r.ok === true && r.admin === true && await nbRet('fournil_admins') === 1, 'la ligne collée (deux fois : sans casse) : il est admin');
+    check((await adminMoi(Jo)).admin === false && (await adminMoi({ id: Ad.id, jeton: Jo.jeton })).erreur === 'jeton' && (await adminMoi(joueur())).erreur === 'inconnu' && (await adminMoi({ id: Ad.id, jeton: 'court' })).admin === false,
+      'un joueur ordinaire : faux ; le jeton d’un autre : « jeton » ; sans pseudo : « inconnu » (admin faux, toujours)');
+    for (const [j, nom] of [[Ad, 'ad'], [Ab, 'ab'], [Jo, 'jo']]) await abonner(j, SUB('ret-' + nom));
+    await abonner(Nb, SUB('ret-nb'), { evenements: false });
+
+    // envoyer : les erreurs
+    const nRet = () => nbRet('fournil_retours');
+    r = await envoyer({ id: Jo.id, jeton: 'court' }, 'idee', 'une idée');
+    const rj2 = await envoyer({ id: Jo.id, jeton: Pa.jeton }, 'idee', 'une idée'), rj3 = await envoyer({ id: null, jeton: Jo.jeton }, 'idee', 'une idée');
+    check(r.ok === false && r.erreur === 'jeton' && r.n === null && rj2.erreur === 'jeton' && rj3.erreur === 'jeton', 'jeton mal formé, jeton d’un autre, identifiant absent : « jeton »');
+    check((await envoyer(joueur(), 'idee', 'une idée')).erreur === 'inconnu', 'un téléphone sans pseudo : « inconnu »');
+    let vides = []; for (const t of ['   ', null, '', '\u0007‮ \n\t\r\n']) vides.push((await envoyer(Jo, 'bug', t, IMG)).erreur);
+    check(vides.every((x) => x === 'vide'), `des espaces, rien, une chaîne vide, des caractères de contrôle seuls (même avec une capture) : « vide » (${vides.join(', ')})`);
+    check((await envoyer(Jo, 'idee', 'x'.repeat(1001))).erreur === 'long' && (await envoyer(Jo, 'idee', 'x'.repeat(100000))).erreur === 'long', '1 001 caractères, 100 000 caractères : « long »');
+    let imgs = []; for (const im of ['data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=', 'data:image/gif;base64,R0lGODlhAQABAAAAACw=', 'data:text/html;base64,PGI+', 'javascript:alert(1)', 'https://exemple.fr/a.png', 'data:image/png;base64,abc"onerror=x', 'data:image/jpeg;base64,' + 'A'.repeat(480001 - 23), 'DATA:IMAGE/PNG;BASE64,AAAA'])
+      imgs.push((await envoyer(Jo, 'bug', 'regarde', im)).erreur);
+    check(imgs.every((x) => x === 'image'), `des captures refusées (SVG, GIF, HTML, javascript:, une adresse, des guillemets, 480 001 caractères, en majuscules) : « image » (${imgs.join(', ')})`);
+    let types = []; for (const t of ['autre', null, 'IDEE', 'idée', '']) types.push((await envoyer(Jo, t, 'une idée')).erreur);
+    check(types.every((x) => x === 'type'), `un type qui n’est ni « idee » ni « bug » : « type » (${types.join(', ')})`);
+    // banni du chat : refusé ; sans la table du chat (le chat pas installé), la vérification est sautée
+    await comme('proprio', `insert into public.fournil_chat_bannis (joueur, pseudo, motif) select id, pseudo, 'test' from public.fournil_joueurs where pseudo ilike 'passant'`);
+    check((await envoyer(Pa, 'idee', 'je reviens')).erreur === 'banni', 'banni du chat : « banni »');
+    await comme('proprio', `update public.fournil_chat_bannis set joueur = '${joueur().id}' where pseudo ilike 'passant'`);
+    check((await envoyer(Pa, 'idee', 'je reviens')).erreur === 'banni', 'banni par son pseudo seulement (il a quitté le classement et il est revenu) : « banni »');
+    check(await nRet() === 0, 'aucun de ces envois n’a rien écrit');
+    await sup('alter table public.fournil_chat_bannis rename to fournil_chat_bannis_cache');
+    r = await envoyer(Pa, 'idee', 'sans chat');
+    await sup('alter table public.fournil_chat_bannis_cache rename to fournil_chat_bannis');
+    check(r.ok === true && Number.isInteger(r.n), `sans la table des bannis (le chat pas collé) : la vérification est sautée, le retour passe (n ${r.n})`);
+    let f = await file(Ad.id);
+    check(f.length === 1 && f[0].type === 'retour' && f[0].texte === 'Nouvelle idée de Passant' && f[0].titre === 'Le Fournil' && f[0].envoyee === null, `l’admin abonné est prévenu : ${JSON.stringify(f.map((x) => [x.type, x.texte]))}`);
+    await comme('proprio', `delete from public.fournil_chat_bannis where pseudo ilike 'passant'`);
+
+    // envoyer : accepté
+    const INFOS = { version: '2028.03.1', appareil: 'iPhone Safari', ecran: '390x844', quartier: 'gare', journal: ['vente 12 €', 'four 3', 'ouvert'] };
+    r = await envoyer(Jo, 'idee', '  Bonjour\r\n\r\n\r\n\r\nla  suite‮\t!  \n ', null, INFOS);
+    const n1 = r.n, t1 = horloge;
+    check(r.ok === true && r.erreur === null && Number.isInteger(n1) && Object.keys(r).sort().join() === 'erreur,n,ok', `une idée acceptée (n ${n1}) : ${JSON.stringify(r)}`);
+    const l1 = (await sup('select pseudo, type, texte, image, infos, etat, note, cree from public.fournil_retours where n = $1', [n1]))[0];
+    check(l1.texte === 'Bonjour\n\nla suite !' && l1.pseudo === 'Joueuse' && l1.type === 'idee' && l1.image === null && canon(l1.infos) === canon(INFOS) && l1.etat === 'nouveau' && l1.note === '' && l1.cree.getTime() === t1,
+      `en base : le texte nettoyé (retours à la ligne gardés, au plus une ligne vide, tabulation en espace, inversion du sens retirée, espaces réduits, bords ôtés : ${JSON.stringify(l1.texte)}), les infos telles quelles, « nouveau »`);
+    f = await file(Ad.id);
+    check(f.length === 2 && f[1].type === 'retour' && f[1].texte === 'Nouvelle idée de Joueuse', `une idée : « ${f[1] && f[1].texte} »`);
+    check((await file(Ab.id)).length === 0 && (await file(Jo.id)).length === 0, 'les autres joueurs abonnés (et l’auteur) ne le sont pas : les retours sont privés');
+    // 30 s
+    await avancer(1);
+    check((await envoyer(Jo, 'bug', 'encore')).erreur === 'trop-vite', '1 s après : « trop-vite »');
+    await avancer(28.9);
+    check((await envoyer(Jo, 'bug', 'encore')).erreur === 'trop-vite', '29,9 s après : « trop-vite »');
+    await avancer(0.1);
+    const grande = 'data:image/jpeg;base64,' + 'A'.repeat(480000 - 23);
+    r = await envoyer(Jo, 'bug', 'x'.repeat(1000), grande, ['pas', 'un', 'objet']); const n2 = r.n;
+    check(r.ok === true && n2 > n1, '30 s après : accepté (un bug de 1 000 caractères tout juste, une capture JPEG de 480 000 caractères tout juste)');
+    check((await sup('select infos from public.fournil_retours where n = $1', [n2]))[0].infos === null, 'des infos qui ne sont pas un objet : ignorées, le retour part quand même');
+    f = await file(Ad.id);
+    check(f.length === 3 && f[2].type === 'retour' && f[2].texte === 'Bug signalé par Joueuse', `un bug : « ${f[2] && f[2].texte} »`);
+    // la file : la fonction d'envoi reçoit les notifications 'retour' (fournil_notif_permise les connaît)
+    const d = await dues();
+    const dRet = d.filter((x) => x.type === 'retour');
+    check(dRet.length === 3 && d.length === 3 && dRet.every((x) => x.subs.length === 1 && x.subs[0].endpoint === EP('ret-ad')), `fournil_notifs_dues rend les 3 notifications 'retour', avec l’appareil de l’admin seulement (${JSON.stringify(dRet.map((x) => x.texte))})`);
+    await faites(d.map((x) => x.notif_id), []);
+    await avancer(30);
+    r = await envoyer(Jo, 'idee', `Robert'); delete from public.fournil_retours; --`, IMG, { journal: 'z'.repeat(3000) }); const n3 = r.n;
+    check(r.ok === true && await nRet() === 4 && canon((await sup('select infos from public.fournil_retours where n = $1', [n3]))[0].infos) === '{"trop_long":true}',
+      'une capture WebP, une injection dans le texte (simple texte, rien d’effacé), des infos de plus de 2 Ko (remplacées par { trop_long: true })');
+    // le quota : 5 par jour, heure de Paris (minuit à Paris : 23 h UTC en hiver)
+    await avancer(30); r = await envoyer(Jo, 'idee', 'quatrième');
+    await avancer(30); const r5 = await envoyer(Jo, 'idee', 'cinquième');
+    await avancer(30); const r6 = await envoyer(Jo, 'idee', 'sixième');
+    check(r.ok === true && r5.ok === true && r6.ok === false && r6.erreur === 'quota', `5 retours dans la journée acceptés, le 6e : « ${r6.erreur} »`);
+    await heure('2028-03-08T22:59:50Z');
+    check((await envoyer(Jo, 'idee', 'à 23 h 59 à Paris')).erreur === 'quota', '23 h 59 à Paris (22 h 59 UTC) : toujours « quota »');
+    await heure('2028-03-08T23:00:05Z');
+    r = await envoyer(Jo, 'idee', 'minuit passé à Paris');
+    check(r.ok === true, 'minuit passé à Paris (mais pas encore à Greenwich) : la journée est neuve, accepté');
+    // ni l'admin pour lui-même, ni les joueurs de test du workflow ne réveillent l'admin
+    const avantF = (await file(Ad.id)).length;
+    r = await envoyer(Ad, 'idee', 'une idée de moi');
+    const rc = await envoyer(Ci, 'bug', 'essai automatique');
+    check(r.ok === true && rc.ok === true && avantF === 7 && (await file(Ad.id)).length === avantF, 'les retours de l’admin lui-même et d’un joueur de test « ci-… » : enregistrés, sans notification');
+
+    // un non-admin refusé partout
+    let refusAdmin = [];
+    for (const [nom, args] of [['fournil_admin_retours', { p_filtre: 'tout' }], ['fournil_admin_retour_image', { p_n: n3 }], ['fournil_admin_retour_etat', { p_n: n1, p_etat: 'fait', p_note: 'non' }],
+      ['fournil_admin_vote_creer', { p_question: 'Pirate ?', p_options: ['oui', 'non'], p_heures: 1 }], ['fournil_admin_vote_fermer', { p_n: 1 }]]) {
+      const a = await appelle(nom, { ...qui(Jo), ...args }), b = await appelle(nom, { p_id: Ad.id, p_jeton: Jo.jeton, ...args }), c = await appelle(nom, { ...qui(joueur()), ...args });
+      refusAdmin.push(`${nom.replace('fournil_admin_', '')} ${a.erreur}/${b.erreur}/${c.erreur}`);
+      check(a.ok === false && a.erreur === 'pas-admin' && b.erreur === 'jeton' && c.erreur === 'inconnu' && !('retours' in a && a.retours.length) && !(a.data), `${nom} : « pas-admin » pour un joueur ordinaire, « jeton » avec le jeton d’un autre, « inconnu » sans pseudo`);
+    }
+    check((await sup('select etat, note from public.fournil_retours where n = $1', [n1]))[0].etat === 'nouveau' && await nbRet('fournil_votes') === 0, 'rien n’a bougé : le retour est toujours « nouveau », aucun vote créé');
+
+    // l'admin lit les retours
+    let a = await adminRetours(Ad, 'nouveau');
+    check(a.ok === true && a.erreur === null && a.retours.length === 9 && a.nouveaux === 9 && a.retours.every((x, i) => i === 0 || x.n < a.retours[i - 1].n),
+      `fournil_admin_retours (nouveaux) : les 9 retours, du plus récent au plus ancien, nouveaux = ${a.nouveaux}`);
+    const x1 = a.retours.find((x) => x.n === n1), x2 = a.retours.find((x) => x.n === n2), x3 = a.retours.find((x) => x.n === n3);
+    check(x1 && Object.keys(x1).sort().join() === 'a_image,cree,etat,infos,n,note,pseudo,texte,type' && Object.keys(a).sort().join() === 'erreur,nouveaux,ok,retours', `les champs du contrat, ni plus ni moins (${x1 && Object.keys(x1).join(', ')} ; ${Object.keys(a).join(', ')})`);
+    check(x1.texte === 'Bonjour\n\nla suite !' && x1.pseudo === 'Joueuse' && x1.type === 'idee' && x1.a_image === false && canon(x1.infos) === canon(INFOS) && x1.cree === t1 && x1.etat === 'nouveau' && x1.note === ''
+      && x2.a_image === true && x2.type === 'bug' && x3.a_image === true && x3.texte === `Robert'); delete from public.fournil_retours; --`, 'chaque retour : texte, pseudo, type, capture ou non, infos, heure en ms, état, note');
+    check((await adminImage(Ad, n3)).data === IMG && (await adminImage(Ad, n2)).data === grande && (await adminImage(Ad, n1)).data === null && (await adminImage(Ad, 999999)).data === null && (await adminImage(Ad, null)).ok === true,
+      'fournil_admin_retour_image : les captures telles qu’envoyées ; sans capture, numéro inconnu, rien : data null');
+    // les états
+    check((await adminEtat(Ad, n1, 'fini')).erreur === 'etat' && (await adminEtat(Ad, n1, null)).erreur === 'etat' && (await adminEtat(Ad, 999999, 'vu')).erreur === 'absent' && (await adminEtat(Ad, n1, 'fait', 'n'.repeat(301))).erreur === 'long',
+      'un état inconnu ou absent : « etat » ; un retour qui n’existe pas : « absent » ; une note de 301 caractères : « long »');
+    r = await adminEtat(Ad, n1, 'fait', '  Dans la\nprochaine   version ');
+    a = await adminRetours(Ad, 'nouveau');
+    const t1b = await adminRetours(Ad, 'tout');
+    const y1 = t1b.retours.find((x) => x.n === n1);
+    check(r.ok === true && !a.retours.some((x) => x.n === n1) && a.nouveaux === 8 && y1 && y1.etat === 'fait' && y1.note === 'Dans la prochaine version' && t1b.retours.length === 9,
+      `« fait », avec une note (nettoyée : ${JSON.stringify(y1 && y1.note)}) : il quitte les nouveaux (8), « tout » le montre`);
+    await adminEtat(Ad, n1, 'vu');
+    check((await sup('select etat, note from public.fournil_retours where n = $1', [n1]))[0].note === 'Dans la prochaine version', 'un autre état sans note : la note reste');
+    await adminEtat(Ad, n1, 'refuse', '');
+    check(JSON.stringify(await sup('select etat, note from public.fournil_retours where n = $1', [n1])) === '[{"etat":"refuse","note":""}]', '« refuse » avec une note vide : la note est effacée');
+    // 30 par page
+    await sup(`insert into public.fournil_retours (joueur, pseudo, type, texte, cree) select $1, 'Passant', 'idee', 'idée ' || g, now() - interval '1 day' from generate_series(1, 35) g`, [Pa.id]);
+    const p1 = await adminRetours(Ad, 'tout');
+    const p2 = await adminRetours(Ad, 'tout', p1.retours[29].n);
+    const ns = [...p1.retours, ...p2.retours].map((x) => x.n);
+    check(p1.retours.length === 30 && p2.retours.length === 14 && new Set(ns).size === 44 && ns.every((n, i) => i === 0 || n < ns[i - 1]) && p1.nouveaux === 43,
+      `30 par page : la page suivante commence après le dernier numéro (p_avant), sans doublon (${p1.retours.length} + ${p2.retours.length}, nouveaux = ${p1.nouveaux})`);
+    check((await adminRetours(Ad, 'nouveau', ns[ns.length - 1])).retours.length === 0 && (await adminRetours(Ad, null)).retours.every((x) => x.etat === 'nouveau'), 'après le plus ancien : rien ; sans filtre : les nouveaux');
+
+    // les votes : créer (l'admin)
+    await avancer(60);
+    let vc = [];
+    for (const [q, o, h, quoi] of [['', ['a', 'b'], 1, 'question'], ['  \n ', ['a', 'b'], 1, 'question'], ['q'.repeat(201), ['a', 'b'], 1, 'question'], [null, ['a', 'b'], 1, 'question'],
+      ['Q ?', ['a'], 1, 'options'], ['Q ?', ['a', 'b', 'c', 'd', 'e'], 1, 'options'], ['Q ?', { a: 1 }, 1, 'options'], ['Q ?', ['a', 2], 1, 'options'], ['Q ?', ['a', ' '], 1, 'options'], ['Q ?', ['a', 'o'.repeat(61)], 1, 'options'], ['Q ?', ['Oui', ' oui '], 1, 'options'], ['Q ?', null, 1, 'options'],
+      ['Q ?', ['a', 'b'], 0, 'duree'], ['Q ?', ['a', 'b'], 169, 'duree'], ['Q ?', ['a', 'b'], null, 'duree']]) {
+      const x = await creer(Ad, q, o, h); vc.push(x.erreur); if (x.erreur !== quoi) check(false, `créer ${JSON.stringify([q, o, h])} : attendu « ${quoi} », reçu ${JSON.stringify(x)}`);
+    }
+    check(vc.join() === 'question,question,question,question,options,options,options,options,options,options,options,options,duree,duree,duree' && await nbRet('fournil_votes') === 0,
+      `les erreurs de la création : question vide, blanche, de 201 caractères, absente ; 1 option, 5 options, pas un tableau, une option qui n’est pas un texte, vide, de 61 caractères, deux fois la même ; 0 h, 169 h, sans durée`);
+    const tV1 = horloge;
+    r = await creer(Ad, '  Quel  prochain\névénement ? ', [' Noël ', 'Pâques', 'Carnaval'], 48); const v1 = r.n;
+    check(r.ok === true && Number.isInteger(v1) && Object.keys(r).sort().join() === 'erreur,n,ok', `un vote créé pour 48 h (n ${v1})`);
+    // les notifications 'vote' : les abonnés qui veulent les événements
+    const fv = async (j) => (await file(j.id)).filter((x) => x.type === 'vote').map((x) => x.texte);
+    check(JSON.stringify(await fv(Ab)) === '["Nouveau vote : Quel prochain événement ?"]' && (await fv(Ad)).length === 1 && (await fv(Jo)).length === 1 && (await fv(Nb)).length === 0 && (await fv(Pa)).length === 0,
+      `les abonnés qui veulent les événements sont prévenus (« ${(await fv(Ab))[0]} ») ; pas celui qui a décoché les événements, ni les joueurs sans appareil`);
+    const dv = (await dues()).filter((x) => x.type === 'vote');
+    check(dv.length === 3 && dv.every((x) => x.subs.length === 1), `fournil_notifs_dues rend les 3 notifications 'vote' (fournil_notif_permise les connaît)`);
+    await faites(dv.map((x) => x.notif_id), []);
+    // lire les votes
+    let o = await ouverts();
+    const vo = o.votes[0];
+    check(o.ok === true && o.votes.length === 1 && o.finis.length === 0 && Object.keys(o).sort().join() === 'erreur,finis,ok,votes' && Object.keys(vo).sort().join() === 'fin,moi,n,options,question,total,voix',
+      `fournil_votes_ouverts sans pseudo : un vote, aucun fini ; les champs du contrat (${Object.keys(vo).join(', ')})`);
+    check(vo.n === v1 && vo.question === 'Quel prochain événement ?' && JSON.stringify(vo.options) === '["Noël","Pâques","Carnaval"]' && vo.fin === tV1 + 48 * 3600e3 && JSON.stringify(vo.voix) === '[0,0,0]' && vo.total === 0 && vo.moi === null,
+      `la question et les options nettoyées, la fin en ms (48 h), aucune voix (${JSON.stringify(vo)})`);
+    // voter
+    check((await voter({ id: Jo.id, jeton: Pa.jeton }, v1, 0)).erreur === 'jeton' && (await voter(joueur(), v1, 0)).erreur === 'inconnu' && (await voter(Jo, 999999, 0)).erreur === 'absent',
+      'voter : le jeton d’un autre, « jeton » ; sans pseudo, « inconnu » ; un vote qui n’existe pas, « absent »');
+    let vos = []; for (const op of [3, -1, null, 99]) vos.push(await voter(Jo, v1, op));
+    check(vos.every((x) => x.ok === false && x.erreur === 'option' && JSON.stringify(x.voix) === '[0,0,0]' && x.total === 0), `une option hors du vote (3, -1, rien, 99) : « option », avec les voix (${vos.map((x) => x.erreur).join(', ')})`);
+    r = await voter(Jo, v1, 1);
+    check(r.ok === true && r.erreur === null && JSON.stringify(r.voix) === '[0,1,0]' && r.total === 1 && Object.keys(r).sort().join() === 'erreur,ok,total,voix', `Joueuse vote « Pâques » : ${JSON.stringify(r)}`);
+    check((await ouverts(Jo)).votes[0].moi === 1 && (await ouverts()).votes[0].moi === null && (await ouverts(Pa)).votes[0].moi === null && (await ouverts({ id: Jo.id, jeton: Pa.jeton })).votes[0].moi === null && (await ouverts({ id: Jo.id, jeton: 'court' })).ok === true,
+      'relu avec son jeton : moi = 1 ; sans pseudo, par un autre, avec un mauvais jeton : moi null (la lecture marche quand même)');
+    r = await voter(Jo, v1, 2);
+    check(r.ok === true && JSON.stringify(r.voix) === '[0,0,1]' && r.total === 1 && (await ouverts(Jo)).votes[0].moi === 2, 'elle change son vote (« Carnaval ») : toujours une seule voix');
+    await voter(Pa, v1, 2); r = await voter(Ad, v1, 0);
+    check(JSON.stringify(r.voix) === '[1,0,2]' && r.total === 3, `trois joueurs : ${JSON.stringify(r.voix)}`);
+    r = await appelle('fournil_voter', { ...qui(Ci), p_n: v1, p_option: 1 }, 'authenticated');
+    check(r.ok === true && r.total === 4, 'authenticated vote aussi');
+    // fini
+    await heure(tV1 + 48 * 3600e3 - 1000);
+    check((await voter(Jo, v1, 0)).ok === true, '1 s avant la fin : on vote encore (elle change d’avis)');
+    await heure(tV1 + 48 * 3600e3);
+    r = await voter(Jo, v1, 1);
+    o = await ouverts(Jo);
+    check(r.ok === false && r.erreur === 'fini' && JSON.stringify(r.voix) === '[2,1,1]' && o.votes.length === 0 && o.finis.length === 1 && o.finis[0].n === v1 && o.finis[0].moi === 0 && JSON.stringify(o.finis[0].voix) === '[2,1,1]',
+      `à la fin : « fini » (avec les voix ${JSON.stringify(r.voix)}), le vote passe dans « finis », son choix reste`);
+    // fermé par l'admin
+    await avancer(60);
+    const v2 = (await creer(Ad, 'Deuxième ?', ['oui', 'non'], 1)).n;
+    await voter(Jo, v2, 0);
+    check((await fermer(Ad, 999999)).erreur === 'absent', 'fermer un vote qui n’existe pas : « absent »');
+    r = await fermer(Ad, v2);
+    o = await ouverts();
+    check(r.ok === true && (await voter(Jo, v2, 1)).erreur === 'fini' && o.votes.length === 0 && o.finis.map((x) => x.n).join() === [v2, v1].join() && o.finis[0].fin === horloge,
+      'fermé par l’admin : « fini » aussitôt, il passe en tête des finis (fin = l’heure de la fermeture)');
+    check((await fermer(Ad, v2)).ok === true && (await fermer(Ad, v1)).ok === true && (await ouverts()).finis[1].fin === tV1 + 48 * 3600e3, 'le refermer, ou fermer un vote déjà fini : ok, sa fin ne bouge pas');
+    // les 5 derniers finis, depuis 7 jours
+    for (let k = 0; k < 6; k++) { await avancer(60); const n = (await creer(Ad, 'Vite ' + k, ['a', 'b'], 1)).n; await fermer(Ad, n); }
+    o = await ouverts();
+    check(o.finis.length === 5 && o.finis.every((x) => /^Vite /.test(x.question)) && o.finis[0].question === 'Vite 5', `les 5 derniers finis seulement, le plus récent d’abord (${o.finis.map((x) => x.question).join(', ')})`);
+    await sup(`delete from public.fournil_votes where question like 'Vite %'`);
+    await heure(tV1 + 48 * 3600e3 + 7 * 86400e3 - 1000);
+    check((await ouverts()).finis.some((x) => x.n === v1), '7 jours moins 1 s après sa fin : encore dans les finis');
+    await heure(tV1 + 48 * 3600e3 + 7 * 86400e3 + 1000);
+    check(!(await ouverts()).finis.some((x) => x.n === v1), '7 jours après sa fin : il n’est plus montré');
+    // plusieurs votes ouverts, le plus récent d'abord
+    const v3 = (await creer(Ad, 'Trois ?', ['a', 'b'], 24)).n, v4 = (await creer(Ad, 'Quatre ?', ['a', 'b', 'c', 'd'], 168)).n;
+    o = await ouverts();
+    check(o.votes.map((x) => x.n).join() === [v4, v3].join() && JSON.stringify(o.votes[0].voix) === '[0,0,0,0]', 'deux votes ouverts : le plus récent d’abord ; quatre options, quatre compteurs');
+
+    // le ménage : les captures de 30 jours, les choix des votes finis depuis 60 jours
+    await sup(`update public.fournil_retours set cree = $2::timestamptz - interval '30 days' + interval '2 seconds' where n = $1`, [n3, new Date(horloge).toISOString()]);
+    const aImg = async (n) => { let avant; const tout = []; for (;;) { const p = await adminRetours(Ad, 'tout', avant); tout.push(...p.retours); if (p.retours.length < 30) break; avant = p.retours[29].n; } return tout.find((x) => x.n === n); };
+    check((await aImg(n3)).a_image === true && (await adminImage(Ad, n3)).data === IMG, 'une capture de 30 jours moins 2 s : encore là');
+    await sup(`update public.fournil_retours set cree = cree - interval '3 seconds' where n = $1`, [n3]);
+    check((await aImg(n3)).a_image === false && (await adminImage(Ad, n3)).data === null && (await sup('select image is not null as i from public.fournil_retours where n = $1', [n3]))[0].i === true,
+      'à 30 jours et 1 s : plus de capture à la lecture, même avant le ménage');
+    await sup(`update public.fournil_votes set fin = $2::timestamptz - interval '60 days' - interval '1 second' where n = $1`, [v1, new Date(horloge).toISOString()]);
+    await sup(`update public.fournil_votes set fin = $2::timestamptz - interval '59 days' where n = $1`, [v2, new Date(horloge).toISOString()]);
+    check(await nbRet('fournil_votes_choix', 'where n = $1', [v1]) === 4 && await nbRet('fournil_votes_choix', 'where n = $1', [v2]) === 1, 'avant le ménage : les choix des deux votes finis sont là');
+    r = await voter(Jo, v3, 1);
+    check(r.ok === true && await nbRet('fournil_votes_choix', 'where n = $1', [v1]) === 0 && await nbRet('fournil_votes_choix', 'where n = $1', [v2]) === 1 && await nbRet('fournil_votes', 'where n = $1', [v1]) === 1,
+      'un vote fait le ménage : les choix du vote fini depuis plus de 60 jours sont effacés (la question reste) ; ceux du vote fini depuis 59 jours restent');
+    await avancer(31);
+    r = await envoyer(Pa, 'bug', 'ménage');
+    const m3 = (await sup('select image, texte from public.fournil_retours where n = $1', [n3]))[0];
+    check(r.ok === true && m3.image === null && m3.texte.startsWith('Robert') && (await sup('select image is not null as i from public.fournil_retours where n = $1', [n2]))[0].i === true,
+      'un retour fait le ménage : la capture de plus de 30 jours est effacée, son texte reste ; une capture de 9 jours reste');
+
+    // recoller la v6 puis les retours : rien ne se perd ; les règles et droits ajoutés à la main sont retirés
+    const photoRet = async () => JSON.stringify([await sup('select * from public.fournil_admins order by joueur'), await sup('select n, joueur, pseudo, type, texte, length(image) as l, infos, cree, etat, note, maj from public.fournil_retours order by n'), await sup('select * from public.fournil_votes order by n'), await sup('select * from public.fournil_votes_choix order by n, joueur')]);
+    const avantR = await photoRet();
+    try { await coller(); check(true, 'la v6 se recolle par-dessus les retours'); } catch (err) { check(false, 'la v6 se recolle par-dessus les retours : ' + err.message); }
+    await installerHorloge();
+    check(await photoRet() === avantR && (await adminMoi(Ad)).admin === true && (await ouverts()).votes.length === 2, 'les admins, retours, votes et choix sont intacts, tout se lit toujours');
+    const pm = (await sup(`select public.fournil_notif_permise($1, 'retour') as a, public.fournil_notif_permise($1, 'vote') as b, public.fournil_notif_permise($2, 'vote') as c, public.fournil_notif_permise($3, 'retour') as d`, [Ad.id, Nb.id, Pa.id]))[0];
+    check(pm.a === true && pm.b === true && pm.c === false && pm.d === false,
+      'la v6 recollée connaît aussi les types « retour » et « vote » (fournil_notif_permise, la même dans les deux fichiers) : les notifications ne se perdent pas');
+    await sup('create policy tout_le_monde on public.fournil_retours for select using (true)');
+    await sup('grant select, insert on public.fournil_retours, public.fournil_admins to anon');
+    await sup('grant usage on sequence public.fournil_votes_n_seq to anon');
+    await sup('grant execute on function public.fournil_admin_qui(uuid, text) to anon');
+    try { await collerRet(); check(true, 'les retours se recollent encore, avec des données dedans'); } catch (err) { check(false, 'les retours se recollent : ' + err.message); }
+    check(await photoRet() === avantR, 'rien ne se perd au recollage');
+    check(await droitsRet(), 'après recollage : les règles et les droits ajoutés à la main sont retirés');
+
+    // l'accès direct refusé
+    const essais = [];
+    for (const t of TABLES_RET) { const c = t === 'fournil_admins' ? 'joueur' : 'n'; essais.push([`select * from public.${t}`, `lire ${t}`], [`delete from public.${t}`, `effacer dans ${t}`], [`update public.${t} set ${c} = ${c}`, `modifier ${t}`]); }
+    essais.push([`insert into public.fournil_admins (joueur, pseudo) values ('${Jo.id}', 'Joueuse')`, 'se rendre admin'], [`insert into public.fournil_retours (joueur, pseudo, type, texte) values ('${Jo.id}', 'Intrus', 'idee', 'x')`, 'écrire un retour sans passer par la fonction'],
+      [`insert into public.fournil_votes_choix (n, joueur, option) values (${v3}, '${Jo.id}', 0)`, 'voter sans passer par la fonction'], [`update public.fournil_votes set ferme = true`, 'fermer les votes'],
+      [`select nextval('public.fournil_retours_n_seq')`, 'avancer la séquence des retours'], [`select nextval('public.fournil_votes_n_seq')`, 'avancer la séquence des votes'],
+      [`select public.fournil_retours_qui('${Jo.id}', '${Jo.jeton}')`, 'appeler fournil_retours_qui'], [`select public.fournil_admin_qui('${Ad.id}', '${Ad.jeton}')`, 'appeler fournil_admin_qui'],
+      [`select public.fournil_vote_json(${v3}, '${Jo.id}')`, 'appeler fournil_vote_json'], [`select public.fournil_retours_menage(now())`, 'appeler fournil_retours_menage'], [`select public.fournil_retours_ligne('x')`, 'appeler fournil_retours_ligne'],
+      [`select public.fournil_notif_permise('${Ad.id}', 'retour')`, 'appeler fournil_notif_permise'], ['alter table public.fournil_retours disable row level security', 'désactiver la sécurité'], ['create policy tout on public.fournil_admins for select using (true)', 'ajouter une règle']);
+    for (const role of ['anon', 'authenticated']) {
+      const refuses = []; for (const [q, quoi] of essais) { const e2 = await refus(role, q); if (e2 !== '42501') refuses.push(`${quoi} (${e2})`); }
+      check(refuses.length === 0, `${role} ne peut ni lire, ni écrire, ni effacer dans les tables des retours et des votes, ni se rendre admin, ni appeler leurs fonctions internes (${essais.length} essais)${refuses.length ? ' — en défaut : ' + refuses.join(', ') : ''}`);
+    }
+    await avancer(31);
+    check((await envoyer(Ab, 'idee', 'connectée', null, null, 'authenticated')).ok === true && (await appelle('fournil_admin_moi', qui(Ad), 'authenticated')).admin === true, 'authenticated peut écrire et lire aussi');
+
+    // quitter le classement : ses retours, ses choix, sa place d'admin partent avec lui ; ses votes créés restent
+    check(await nbRet('fournil_retours', 'where joueur = $1', [Jo.id]) > 0 && await nbRet('fournil_votes_choix', 'where joueur = $1', [Jo.id]) > 0, 'Joueuse a des retours et des choix');
+    await avancer(11);
+    r = await retirer(Jo);
+    check(r.ok === true && await nbRet('fournil_retours', 'where joueur = $1', [Jo.id]) === 0 && await nbRet('fournil_votes_choix', 'where joueur = $1', [Jo.id]) === 0 && JSON.stringify((await ouverts()).votes.find((x) => x.n === v3).voix) === '[0,0]',
+      'fournil_retirer : ses retours (et leurs captures) et ses choix partent avec elle, les voix sont recomptées');
+    await avancer(11);
+    r = await retirer(Ad);
+    check(r.ok === true && await nbRet('fournil_admins') === 0 && await nbRet('fournil_votes', 'where cree_par is not null') === 0 && (await ouverts()).votes.length === 2,
+      'l’admin quitte le classement : sa place d’admin part avec lui, ses votes restent (sans auteur)');
+    // la requête « retirer un admin » du script
+    await comme('proprio', `insert into public.fournil_admins (joueur, pseudo) select id, pseudo from public.fournil_joueurs where pseudo ilike 'Abonnée' on conflict do nothing`);
+    const ligneRetirer = /delete from public\.fournil_admins [^\n]*/.exec(RET);
+    await comme('proprio', ligneRetirer[0].replace(/Machin/g, 'abonnée'));
+    check(ligneRetirer && await nbRet('fournil_admins') === 0 && (await adminMoi(Ab)).admin === false, `« retirer un admin » (la requête du script) : ${ligneRetirer && ligneRetirer[0]}`);
+    // toutes les requêtes du propriétaire, en tête du script, se jouent sans erreur
+    const tete = RET.slice(RET.indexOf('-- Pour le propriétaire'), RET.indexOf('\nbegin;')).split('\n').map((x) => x.replace(/^--\s*(·[^:]*:\s*)?/, '')).join('\n');
+    const requetes = [...tete.matchAll(/\b(?:select|update|insert into|delete from) [^;]*;/g)].map((m) => m[0]);
+    let mauvaises = [];
+    for (const q of requetes) { try { await comme('proprio', q); } catch (err) { mauvaises.push(q.slice(0, 60) + ' : ' + err.message); } }
+    check(requetes.length === 8 && mauvaises.length === 0, `les ${requetes.length} requêtes du propriétaire, en tête du script, se jouent sans erreur${mauvaises.length ? ' — ' + mauvaises.join(' ; ') : ''}`);
+
+    // rien ne fuit
+    const toutRet = JSON.stringify(reponses.slice(-600)), joueursRet = [Ad, Jo, Pa, Ab, Nb, Ci];
+    check(!joueursRet.some((j) => toutRet.includes(j.id) || toutRet.includes(j.jeton) || toutRet.includes(sha(j.jeton))) && !/"(joueur|id|jeton|cree_par)"\s*:/.test(toutRet.replace(/"notif_id"/g, '')), 'ni identifiant, ni jeton, ni empreinte dans les réponses des retours et des votes');
   }
 
   // ─── le bilan ───

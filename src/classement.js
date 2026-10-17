@@ -459,6 +459,45 @@
     const dernier = Math.max(chatN(d.dernier) || 0, messages.length ? messages[messages.length - 1].n : 0);
     return { messages, dernier };
   }
+  // ─── les idées, les bugs et les votes (supabase/fournil-retours.sql) : ce que rend le serveur, nettoyé avant d'arriver à l'interface ───
+  // Une capture n'est gardée que si c'est une data URL d'image (webp, jpeg, png) de 480 000 caractères au plus ; les infos d'un bug (version,
+  // appareil, extrait du journal) : un petit objet JSON de 2 Ko au plus ; un vote : 2 à 4 options, ses voix (des entiers), sa fin en ms.
+  const RET_TEXTE = 1000, RET_NOTE = 300, RET_INFOS = 2048, VOTE_QUESTION = 200, VOTE_OPTION = 60;
+  const RET_TYPES = ['idee', 'bug'], RET_ETATS = ['nouveau', 'vu', 'fait', 'refuse'];
+  const RET_IMG_OK = /^data:image\/(webp|jpeg|png);base64,[A-Za-z0-9+/]+=*$/;
+  const retImageOk = (s) => typeof s === 'string' && s.length <= CHAT_IMAGE && RET_IMG_OK.test(s);
+  const coupe = (v, n) => (typeof v === 'string' ? Array.from(v).slice(0, n).join('') : '');
+  function retInfosOk(o) { // un objet simple (pas un tableau), de 2 Ko au plus en JSON (octets UTF-8, comme jsonb côté serveur)
+    if (!o || typeof o !== 'object' || Array.isArray(o)) return false;
+    try { return octetsJson(o) <= RET_INFOS; } catch (e) { return false; }
+  }
+  function nettoyerVote(v) { // { n, question, options, fin, voix, total, moi } ; null : illisible
+    if (!v || typeof v !== 'object') return null;
+    const n = chatN(v.n), question = coupe(v.question, VOTE_QUESTION).trim();
+    const options = Array.isArray(v.options) ? v.options.slice(0, 4).map((o) => coupe(o == null ? '' : String(o), VOTE_OPTION)) : [];
+    if (!n || !question || options.length < 2) return null;
+    const voix = options.map((o, i) => { const x = Array.isArray(v.voix) ? Number(v.voix[i]) : 0; return Number.isSafeInteger(x) && x > 0 ? x : 0; });
+    const somme = voix.reduce((a, x) => a + x, 0), t = Number(v.total);
+    const moi = Number.isInteger(v.moi) && v.moi >= 0 && v.moi < options.length ? v.moi : null;
+    return { n, question, options, fin: chatQuand(v.fin), voix, total: Number.isSafeInteger(t) && t >= somme ? t : somme, moi };
+  }
+  function nettoyerVotes(d) { // { votes (en cours), finis } ; null : réponse illisible
+    if (!d || typeof d !== 'object' || Array.isArray(d) || d.ok === false || !Array.isArray(d.votes)) return null;
+    const liste = (l) => (Array.isArray(l) ? l.slice(0, 20) : []).map(nettoyerVote).filter(Boolean);
+    return { votes: liste(d.votes), finis: liste(d.finis).slice(0, 5) };
+  }
+  function nettoyerRetour(r) { // un retour, vu par l'admin : { n, pseudo, type, texte, aImage, infos, cree, etat, note }
+    if (!r || typeof r !== 'object') return null;
+    const n = chatN(r.n); if (!n) return null;
+    let infos = null;
+    if (r.infos && typeof r.infos === 'object' && !Array.isArray(r.infos)) { try { infos = JSON.parse(JSON.stringify(r.infos)); } catch (e) { infos = null; } }
+    return { n, pseudo: String(r.pseudo == null ? '' : r.pseudo).slice(0, 40), type: RET_TYPES.includes(r.type) ? r.type : 'idee', texte: coupe(r.texte, RET_TEXTE), aImage: r.a_image === true,
+      infos, cree: chatQuand(r.cree), etat: RET_ETATS.includes(r.etat) ? r.etat : 'nouveau', note: coupe(r.note, RET_NOTE) };
+  }
+  function nettoyerRetours(d) { // [retour…], du plus récent au plus ancien ; null : réponse illisible
+    if (!d || typeof d !== 'object' || Array.isArray(d) || d.ok === false || !Array.isArray(d.retours)) return null;
+    const vus = new Set(); return d.retours.slice(0, 100).map(nettoyerRetour).filter((r) => r && !vus.has(r.n) && vus.add(r.n)).sort((a, b) => b.n - a.n);
+  }
   // le jour de Paris ('AAAA-MM-JJ') : les quotas de pourboires (3 donnés, 3 boosts reçus) repartent chaque jour, comme au serveur
   function jourParis(ms) { const t = Number.isFinite(ms) ? ms : Date.now(); return new Date(t + decalageParis(t)).toISOString().slice(0, 10); }
   // les préférences des notifications : les quatre cas (a) boutique pleine, (b) ouverture et fin d'un événement, (c) pourboire, (d) objectif commun
@@ -1016,6 +1055,79 @@
       return r.data && r.data.ok === true ? { etat: 'ok' } : chatRefus(r.data);
     }
 
+    // ─── les idées, les bugs et les votes (supabase/fournil-retours.sql, un script à part, collé par-dessus la v6 et le chat) : écrire, voter et
+    // les fonctions de l'admin demandent un pseudo (p_id, p_jeton, comme moi() ailleurs) ; lire les votes, non. Comme pour le chat, le script
+    // pas encore collé rend { etat: 'pas-ouvert' } (l'interface dit « bientôt ») sans toucher aux copains (pasInstalle les cacherait :
+    // ce script-ci vit à part). Les refus du serveur : { etat: 'refus', erreur } ('pas-admin' pour une fonction de l'admin).
+    const retMoi = chatMoi, retPasOuvert = chatPasOuvert, retRefus = chatRefus;
+    const okOuRefus = (r, f) => (r.data && r.data.ok === true ? Object.assign({ etat: 'ok' }, f ? f(r.data) : {}) : retRefus(r.data));
+    // envoyer une idée ou un bug : { type: 'idee' | 'bug', texte (1000 caractères au plus), image (data URL, facultative), infos (objet, ≤ 2 Ko) } → { etat: 'ok', n }
+    async function retourEnvoyer(o) {
+      if (!config()) return { etat: 'absent' };
+      const m = retMoi(); if (!m) return { etat: 'pas-rejoint' };
+      const type = o && o.type, texte = String((o && o.texte) || '').trim(), image = o && o.image ? String(o.image) : '', infos = o && o.infos != null ? o.infos : null;
+      if (!RET_TYPES.includes(type)) return retRefus({ erreur: 'type' });
+      if (!texte) return retRefus({ erreur: 'vide' });
+      if (Array.from(texte).length > RET_TEXTE) return retRefus({ erreur: 'long' });
+      if (image && !retImageOk(image)) return retRefus({ erreur: 'image' });
+      if (infos != null && !retInfosOk(infos)) return retRefus({ erreur: 'infos' });
+      const r = await rpc('fournil_retour_envoyer', Object.assign(m, { p_type: type, p_texte: texte, p_image: image || null, p_infos: infos }), { delaiMax: image ? 20e3 : 0 }), x = retPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      return r.data && r.data.ok === true && chatN(r.data.n) ? { etat: 'ok', n: chatN(r.data.n) } : retRefus(r.data);
+    }
+    // les votes en cours (et les 5 derniers finis) : { etat: 'ok', votes, finis } ; avec un pseudo, moi dit l'option choisie (null : pas encore voté)
+    async function votesOuverts() {
+      if (!config()) return { etat: 'absent' };
+      const m = retMoi();
+      const r = await rpc('fournil_votes_ouverts', m || {}), x = retPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      const d = nettoyerVotes(r.data); return d ? { etat: 'ok', votes: d.votes, finis: d.finis } : { etat: 'erreur', detail: 'reponse' };
+    }
+    // voter (ou changer son vote tant que le vote n'est pas fini) : { etat: 'ok', voix, total }
+    async function voter(n, option) {
+      if (!config()) return { etat: 'absent' };
+      const m = retMoi(); if (!m) return { etat: 'pas-rejoint' };
+      const k = chatN(n); if (!k || !Number.isInteger(option) || option < 0 || option > 3) return { etat: 'invalide' };
+      const r = await rpc('fournil_voter', Object.assign(m, { p_n: k, p_option: option })), x = retPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      const d = r.data || {}, compte = { voix: Array.isArray(d.voix) ? d.voix.slice(0, 4).map((v) => (Number.isSafeInteger(+v) && +v > 0 ? +v : 0)) : null, total: Number.isSafeInteger(+d.total) && +d.total >= 0 ? +d.total : null };
+      return d.ok === true ? Object.assign({ etat: 'ok' }, compte) : Object.assign(retRefus(d), compte); // les voix et le total : même en cas de refus ('fini', 'option')
+    }
+    // l'admin (le propriétaire, marqué dans fournil_admins) : adminMoi → { etat: 'ok', admin } ; sans pseudo, pas d'appel : admin false
+    async function adminMoi() {
+      if (!config()) return { etat: 'absent' };
+      const m = retMoi(); if (!m) return { etat: 'ok', admin: false };
+      const r = await rpc('fournil_admin_moi', m), x = retPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      return okOuRefus(r, (d) => ({ admin: d.admin === true }));
+    }
+    const adminAppel = async (nom, corps, f) => {
+      if (!config()) return { etat: 'absent' };
+      const m = retMoi(); if (!m) return { etat: 'pas-rejoint' };
+      const r = await rpc(nom, Object.assign(m, corps)), x = retPasOuvert(r); if (x) return x;
+      if (r.etat !== 'ok') return r;
+      return okOuRefus(r, f);
+    };
+    // les retours (30 par page, du plus récent au plus ancien ; avant : le plus petit n déjà lu, pour la page suivante)
+    function adminRetours(filtre, avant) {
+      const a = chatN(avant);
+      return adminAppel('fournil_admin_retours', { p_filtre: filtre === 'tout' ? 'tout' : 'nouveau', p_avant: a || null }, (d) => ({ retours: nettoyerRetours(d) || [], nouveaux: Number.isSafeInteger(+d.nouveaux) && +d.nouveaux >= 0 && d.nouveaux !== null ? +d.nouveaux : null })); // nouveaux : le total au statut « nouveau » (la pastille)
+    }
+    function adminRetourImage(n) { const k = chatN(n); if (!k) return Promise.resolve({ etat: 'invalide' }); return adminAppel('fournil_admin_retour_image', { p_n: k }, (d) => ({ data: retImageOk(d.data) ? d.data : null })); }
+    function adminRetourEtat(n, etatR, note) {
+      const k = chatN(n); if (!k || !RET_ETATS.includes(etatR)) return Promise.resolve({ etat: 'invalide' });
+      // p_note : null garde la note du serveur, '' l'efface ; la note tapée part telle quelle (vidée : '')
+      return adminAppel('fournil_admin_retour_etat', { p_n: k, p_etat: etatR, p_note: note == null ? null : coupe(String(note).trim(), RET_NOTE) });
+    }
+    function adminVoteCreer(question, options, heures) {
+      const q = String(question == null ? '' : question).trim(), opts = (Array.isArray(options) ? options : []).map((o) => String(o == null ? '' : o).trim()).filter(Boolean);
+      if (!q || Array.from(q).length > VOTE_QUESTION) return Promise.resolve(retRefus({ erreur: 'question' }));
+      if (opts.length < 2 || opts.length > 4 || opts.some((o) => Array.from(o).length > VOTE_OPTION)) return Promise.resolve(retRefus({ erreur: 'options' }));
+      if (!Number.isInteger(heures) || heures < 1 || heures > 168) return Promise.resolve(retRefus({ erreur: 'duree' }));
+      return adminAppel('fournil_admin_vote_creer', { p_question: q, p_options: opts, p_heures: heures }, (d) => ({ n: chatN(d.n) }));
+    }
+    function adminVoteFermer(n) { const k = chatN(n); if (!k) return Promise.resolve({ etat: 'invalide' }); return adminAppel('fournil_admin_vote_fermer', { p_n: k }); }
+
     // les cadeaux (supabase/fournil-cadeaux.sql) : des euros déposés pour ce joueur, reçus une fois. cadeaux() → { etat, cadeaux: [{ n, montant, etoiles, motif }] } ;
     // cadeauRecu(n) les retire de la boîte. Un serveur sans la boîte (pas encore collée) : plus aucune lecture jusqu'au prochain lancement.
     let cadeauxAbsents = false;
@@ -1070,6 +1182,7 @@
       copains: () => !!config() && !ancien(), boutique, dons, pourboire, objectif, objectifVu: () => objCache, pourboiresRecus, accueillirPourboires, objectifFait,
       notifsPossibles, notifs, abonner, desabonner, planifier, essai,
       chatLire, chatImage, chatEnvoyer, chatSignaler, chatEffacer,
+      retourEnvoyer, votesOuverts, voter, adminMoi, adminRetours, adminRetourImage, adminRetourEtat, adminVoteCreer, adminVoteFermer,
       relire: () => { etat = lireEtat(E.stockage); prevenir(); return etat; },
       resynchroniser, tick,
     };
@@ -1145,5 +1258,6 @@
     etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur,
     METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce,
     PHOTO, EV_PHOTO, photo, nettoyerPhoto, clePhoto, boutiqueDepuisPhoto, evenementDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson,
-    CHAT_TEXTE, CHAT_IMAGE, chatImageOk, chatGifOk, nettoyerChat };
+    CHAT_TEXTE, CHAT_IMAGE, chatImageOk, chatGifOk, nettoyerChat,
+    RET_TEXTE, RET_NOTE, RET_INFOS, VOTE_QUESTION, VOTE_OPTION, retImageOk, retInfosOk, nettoyerVote, nettoyerVotes, nettoyerRetour, nettoyerRetours };
 });

@@ -4,12 +4,14 @@
 #           gains plafonnés, palmarès, récompenses) ; des joueurs honnêtes de test/longevite.js y sont rejoués (heure de Paris,
 #           comme le test de longévité de pages.yml) ; puis supabase/poncin-butin.sql (Opération Poncin, le classement du butin)
 #           collé par-dessus, deux fois, et joué de même (test/poncin-butin-sql.cjs). Les cadeaux et le chat (supabase/fournil-cadeaux.sql,
-#           supabase/fournil-chat.sql) y sont collés aussi, par-dessus la v6, et joués de même.
+#           supabase/fournil-chat.sql) et les idées, bugs et votes (supabase/fournil-retours.sql) y sont collés aussi, par-dessus la v6, et joués de même.
 # « Supabase réel » : les fonctions installées sur le projet Supabase du jeu, appelées comme le fait le téléphone (clé PUBLIQUE de
 #           fournil/config.js) : la bonne version installée, l’heure du serveur, les tables fermées ; trois joueurs de test
 #           « test-ci-… » (gains comptés, plafond, arrivée bricolée, récompenses), puis quelques autres pour sonder la limite d'inscriptions par
 #           source (13 au plus), tous retirés à la fin ; avant lui, le chat (supabase/fournil-chat.sql) : un joueur « ci-… » envoie,
-#           relit et efface un message, puis il est retiré. Le conteneur de Claude n'a pas accès à Supabase : ce test tourne ici.
+#           relit et efface un message, puis il est retiré ; puis les retours (supabase/fournil-retours.sql) : un joueur « ci-… » lit
+#           les votes, envoie une idée, se voit refuser l'admin, puis il est retiré. Le conteneur de Claude n'a pas accès à Supabase :
+#           ce test tourne ici.
 # À la main (onglet Actions → Classement → Run workflow) ou à chaque push sur la branche classement-test. Aucun secret nécessaire.
 name: Classement
 on:
@@ -52,10 +54,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # le chat d'abord : il inscrit un joueur, et la sonde du classement épuise ensuite la limite d'inscriptions par source
+      # le chat et les retours d'abord : ils inscrivent un joueur chacun, et la sonde du classement épuise ensuite la limite d'inscriptions par source
       - name: Le chat du Fournil sur le projet Supabase du jeu (un joueur de test, retiré à la fin avec ses messages)
         if: always()
         run: node test/fournil-chat-ci.cjs
+      - name: Les idées, les bugs et les votes du Fournil sur le projet Supabase du jeu (un joueur de test, retiré à la fin avec son idée)
+        if: always()
+        run: node test/fournil-retours-ci.cjs
       - name: Le classement sur le projet Supabase du jeu (joueurs de test, tous retirés à la fin)
         if: always()
         run: node test/fournil-classement-ci.cjs

@@ -96,7 +96,7 @@ jobs:
           PORT_MEUBLES: '8870'
   # Une troisième tâche en parallèle (la première dépassait les 20 minutes) : les notifications, le réveil, les compagnons, la mise à jour, le chat, les nouveautés.
   fournil3:
-    name: Le Fournil, notifications, réveil, compagnons, mise à jour, chat, nouveautés (Playwright)
+    name: Le Fournil, notifications, réveil, compagnons, mise à jour, chat, nouveautés, idées et votes (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -108,7 +108,7 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
-      - name: Les notifications, le réveil, les compagnons, la mise à jour, le chat, les nouveautés
+      - name: Les notifications, le réveil, les compagnons, la mise à jour, le chat, les nouveautés, les idées et les votes
         run: |
           node build.js
           node test/fournil-notifs.cjs
@@ -118,6 +118,7 @@ jobs:
           node test/fournil-version.cjs
           node test/fournil-chat.cjs
           node test/fournil-nouveautes.cjs
+          node test/fournil-retours.cjs
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
@@ -126,6 +127,7 @@ jobs:
           PORT_VERSION: '8869'
           PORT_CHAT: '8870'
           PORT_NOUVEAUTES: '8871'
+          PORT_RETOURS: '8872'
   deploy:
     needs: [fournil, fournil2, fournil3]
     runs-on: ubuntu-latest
