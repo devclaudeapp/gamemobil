@@ -94,7 +94,8 @@ jobs:
           PORT_QUARTIER: '8865'
           PORT_BLACKJACK: '8866'
           PORT_MEUBLES: '8870'
-  # Une troisième tâche en parallèle (la première dépassait les 20 minutes) : les notifications, le réveil, les compagnons, la mise à jour, le chat, les nouveautés.
+  # Une troisième tâche en parallèle (la première dépassait les 20 minutes) : les notifications, le réveil, les compagnons, la mise à jour, le chat, les nouveautés,
+  # les recettes de boutique et le parcours du boulanger.
   fournil3:
     name: Le Fournil, notifications, réveil, compagnons, mise à jour, chat, nouveautés, idées et votes (Playwright)
     runs-on: ubuntu-latest
@@ -119,12 +120,15 @@ jobs:
           node test/fournil-chat.cjs
           node test/fournil-nouveautes.cjs
           node test/fournil-retours.cjs
+          node test/fournil-recettes-boutique.test.js
+          node test/fournil-recettes-boutique.cjs
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
           PORT_NOTIFS: '8867'
           PORT_COMPAGNONS: '8868'
           PORT_VERSION: '8869'
+          PORT_RECETTES: '8873'
           PORT_CHAT: '8870'
           PORT_NOUVEAUTES: '8871'
           PORT_RETOURS: '8872'
@@ -139,7 +143,7 @@ jobs:
       - uses: actions/configure-pages@v5
         with:
           enablement: true
-      - run: node build.js && node test/econ.test.js && node test/longevite.js --test && node test/poncin.test.js && node test/fournil-classement.test.js && node test/fournil-horloge.test.js && node test/fournil-atelier.test.js && node test/fournil-points.test.js && node test/fournil-quartier.test.js && node test/fournil-hantee.test.js && node test/fournil-absence.test.js && node test/fournil-blackjack.test.js && node test/fournil-compagnons.test.js
+      - run: node build.js && node test/econ.test.js && node test/longevite.js --test && node test/poncin.test.js && node test/fournil-classement.test.js && node test/fournil-horloge.test.js && node test/fournil-atelier.test.js && node test/fournil-points.test.js && node test/fournil-quartier.test.js && node test/fournil-hantee.test.js && node test/fournil-absence.test.js && node test/fournil-blackjack.test.js && node test/fournil-compagnons.test.js && node test/fournil-recettes-boutique.test.js
         env:
           TZ: Europe/Paris
       - uses: actions/upload-pages-artifact@v3

@@ -1521,3 +1521,47 @@ body.amenage .vote-bandeau, body.visite .vote-bandeau, body[data-tiroir="ouvert"
 .rt-opt { display: flex; align-items: center; gap: 6px; }
 .rt-opt input { flex: 1 1 auto; min-width: 0; }
 .rt-etiquette { font: 800 12px/1 var(--texte-font); color: var(--texte-2); letter-spacing: .04em; text-transform: uppercase; }
+
+/* ─── les recettes de boutique et le parcours du boulanger (19 octobre) ─── */
+/* la recette de la prochaine boutique : une carte verrouillée, la seule des recettes pas encore gagnées à se montrer */
+.carte.verrou.boutique { border-color: var(--lavande); background: var(--lavande-clair); }
+.carte.verrou.boutique .icone { position: relative; background: #fff; }
+.carte.verrou.boutique .icone svg { opacity: .55; filter: grayscale(.85); }
+.carte.verrou.boutique .cadenas { position: absolute; right: -6px; bottom: -6px; width: 24px; height: 24px; border-radius: 50%; background: #fff; display: grid; place-items: center; box-shadow: 0 2px 0 var(--gris-sombre); }
+.carte.verrou.boutique .cadenas svg { width: 16px; height: 16px; opacity: 1; filter: none; }
+.carte.verrou.boutique p.but { color: var(--texte); font: 700 15px/1.25 var(--titre); margin: 2px 0 2px; }
+.tag.boutique { background: var(--lavande-sombre); color: #fff; }
+/* la carte « Objectif : boutique n°X » en haut des Défis */
+.card.parcours { cursor: pointer; border: 2px solid var(--lavande); }
+.card.parcours.pret { border-color: var(--menthe); }
+.card.parcours .pic svg { width: 26px; height: 26px; }
+.card.parcours .mini { height: 9px; }
+.card.parcours .note { margin: 6px 0 0; }
+/* la feuille Étoiles : le but de la prochaine boutique */
+.et-but { display: flex; align-items: center; gap: 12px; width: 100%; margin: 4px 0 12px; padding: 10px 12px; border-radius: var(--r-int); background: var(--lavande-clair); border: 2px solid var(--lavande); text-align: left; color: var(--texte); font: inherit; cursor: pointer; }
+.et-but.fini { display: grid; gap: 2px; cursor: default; background: var(--or-clair); border-color: var(--beurre); }
+.et-but-ico { flex: 0 0 52px; width: 52px; height: 52px; border-radius: 14px; background: #fff; display: grid; place-items: center; }
+.et-but-ico svg { width: 42px; height: 42px; }
+.et-but-txt { display: grid; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.et-but-txt small, .et-but.fini small { font: 800 var(--t-petit)/1.2 var(--texte-font); color: var(--texte-2); }
+.et-but-txt b { font: 700 18px/1.15 var(--titre); }
+.et-defi { margin-top: 3px; font: 800 12px/1.3 var(--texte-font); color: var(--fraise-sombre); }
+.et-defi.fait { color: var(--menthe-sombre); }
+.et-but .chev svg { width: 20px; height: 20px; }
+/* la feuille du parcours : les trente boutiques */
+.pc-liste { list-style: none; margin: 10px 0 4px; padding: 0; display: grid; gap: 6px; }
+.pc-ligne { display: grid; grid-template-columns: 28px 40px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 14px; background: var(--carte); box-shadow: var(--ombre-carte); }
+.pc-ligne.passee { opacity: .7; }
+.pc-ligne.actuelle { outline: 3px solid var(--lavande); background: var(--lavande-clair); }
+.pc-n { font: 700 16px/1 var(--titre); color: var(--texte-2); text-align: center; }
+.pc-ico, .pc-recap .pc-ico { width: 40px; height: 40px; border-radius: 12px; background: var(--creme); display: grid; place-items: center; flex: 0 0 auto; }
+.pc-ico svg { width: 30px; height: 30px; }
+.pc-ligne.avenir .pc-ico svg { filter: grayscale(.5); opacity: .8; }
+.pc-txt { display: grid; gap: 1px; min-width: 0; }
+.pc-txt b { font: 700 14px/1.2 var(--titre); }
+.pc-txt small { font: 700 12px/1.25 var(--texte-font); color: var(--texte-2); }
+.pc-txt .pc-defi { color: var(--fraise-sombre); }
+.pc-ok svg { width: 20px; height: 20px; }
+.pc-recap li { justify-content: flex-start; align-items: center; }
+.pc-recap li > span:last-child { display: grid; gap: 1px; }
+.pc-recap li small { font-weight: 700; color: var(--texte-2); }

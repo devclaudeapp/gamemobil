@@ -16,6 +16,15 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-10-19-a', date: '2026-10-19', titre: 'De nouvelles recettes à chaque boutique',
+      points: [
+        'Chaque nouvelle boutique t’apporte une recette, de la n°2 à la n°9 : le Paris-Brest, le Kouign-amann, la Tarte aux myrtilles, l’Opéra, puis le Canelé, le Saint-Honoré, le Fraisier et le Croquembouche.',
+        'Une recette gagnée l’est pour toujours, avec son apprenti et son bonus ×3. Si tu as déjà plusieurs boutiques, les recettes sont déjà là.',
+        'Le parcours du boulanger, jusqu’à la boutique n°30 : cinq nouveaux quartiers (la gare, l’île, le château, la station de ski, la capitale), une tenue, des étoiles, des boosts et des titres.',
+        'Dès la boutique n°6, ouvrir la suivante demande aussi un défi de passage, annoncé à l’avance : une carte en haut de l’onglet Défis montre ton prochain objectif.',
+      ],
+    },
+    {
       id: '2026-10-17-f', date: '2026-10-17', titre: 'Une boutique réaménagée',
       points: [
         'La salle s’agrandit : jusqu’à 6 tables. Les deux dernières font encore grimper tous tes gains (×1,48 en tout).',

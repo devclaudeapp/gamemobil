@@ -27,7 +27,7 @@ function simuler(nomProfil, jours, opts = {}) {
   const st = opts.st || G.newState(T0); st.mode = 10; // opts.st : reprendre une partie déjà avancée (test/fournil-points.test.js)
   const M = { unlock: {}, staff: {}, bonus: {}, meubles: {}, achatsMeubles: 0, prestiges: [], parJour: [], attente: 0, actif: 0, achats: 0, objectifsFaits: 0, joursComplets: 0, tauxMax: 0 };
   let now = T0, lastAchat = 0;
-  M.saison = 0; M.saisonPassif = 0;
+  M.saison = 0; M.saisonPassif = 0; M.defisFaits = {};
   const pr = (p) => rnd() < p;
   const ORDRE_TALENTS = ['affluence', 'mains', 'memoire', 'levetot', 'zele', 'negoce', 'charme', 'pourboire', 'carnet'];
   function apprendre(st) { // le cran le plus bas d'abord, dans l'ordre d'utilité
@@ -40,10 +40,12 @@ function simuler(nomProfil, jours, opts = {}) {
   function decider(st) {
     let fait = false;
     apprendre(st);
+    const next = st.stations.findIndex((s, i) => s.niv === 0 && G.recetteGagnee(st, i)); // les recettes de boutique pas encore gagnées ne comptent pas
+    const debloquer = () => { if (next > 0 && st.stations[next].niv === 0 && st.coins >= PRODUITS[next].debloquer) { G.acheter(st, next); M.unlock[next] = M.unlock[next] || now; fait = true; } };
+    if (st.jour && st.jour.objectifs.some((o) => !o.fait && o.type === 'recette')) debloquer(); // l'objectif du jour d'abord, avant une embauche qui viderait la caisse
     for (let i = 0; i < PRODUITS.length; i++) { const s = st.stations[i]; if (s.niv > 0 && !s.staff && st.coins >= G.prixStaff(st, i)) { G.embaucher(st, i); M.staff[i] = M.staff[i] || now; fait = true; } }
-    const next = st.stations.findIndex((s) => s.niv === 0);
-    if (next > 0 && st.coins >= PRODUITS[next].debloquer) { G.acheter(st, next); M.unlock[next] = M.unlock[next] || now; fait = true; }
-    for (const a of AMELIORATIONS) if (!st.ameliorations[a.id] && st.coins >= G.prixBonus(st, a)) { G.amelioration(st, a.id); M.bonus[a.id] = M.bonus[a.id] || now; fait = true; }
+    debloquer();
+    for (const a of AMELIORATIONS) if (!st.ameliorations[a.id] && G.ameliorationOuverte(st, a) && st.coins >= G.prixBonus(st, a)) { G.amelioration(st, a.id); M.bonus[a.id] = M.bonus[a.id] || now; fait = true; }
     // le mobilier : le cran le moins cher, quand il ne coûte qu'une petite part de la cagnotte (ou qu'un défi du jour le demande) ; ne compte pas comme « quelque chose à attendre »
     { let mm = null, mp = Infinity;
       for (const m of G.MOBILIER) if (G.mobilierCran(st, m.id) < m.max) { const p = G.prixMeuble(st, m.id); if (p < mp) { mp = p; mm = m; } }
@@ -56,8 +58,11 @@ function simuler(nomProfil, jours, opts = {}) {
     let cible = Infinity;
     if (next > 0) cible = Math.min(cible, PRODUITS[next].debloquer);
     st.stations.forEach((s, i) => { if (s.niv > 0 && !s.staff) cible = Math.min(cible, G.prixStaff(st, i)); });
-    for (const a of AMELIORATIONS) if (!st.ameliorations[a.id]) cible = Math.min(cible, G.prixBonus(st, a));
-    const economise = cible < Infinity && cible > st.coins && cible <= st.coins + taux * 300;
+    for (const a of AMELIORATIONS) if (!st.ameliorations[a.id] && G.ameliorationOuverte(st, a)) cible = Math.min(cible, G.prixBonus(st, a));
+    // un objectif du jour qui demande une recette ou une embauche : on économise jusqu'à une heure de revenus (depuis les recettes de boutique,
+    // il reste souvent une recette à débloquer en fin de boutique, et l'objectif se tire dès qu'elle est à moins d'une heure)
+    const pourObjectif = st.jour && st.jour.objectifs.some((o) => !o.fait && (o.type === 'recette' || o.type === 'embaucher'));
+    const economise = cible < Infinity && cible > st.coins && cible <= st.coins + taux * (pourObjectif ? 3600 : 300);
     for (let k = 0; k < 3; k++) {
       let best = -1, bestR = 0, bestN = 1;
       for (let i = 0; i < PRODUITS.length; i++) {
@@ -85,7 +90,10 @@ function simuler(nomProfil, jours, opts = {}) {
       // (le gain d'étoiles n'a pas progressé de moitié depuis hier, ou la dernière session n'offrait plus rien à acheter)
       const gain = G.etoilesGagnables(st);
       const stagne = gain < 1.5 * (M.gainHier || 0) || M.attenteDerniere > 0.7;
-      if (opts.prestige !== false && gain >= 5 && gain >= 0.25 * st.etoiles && stagne) { if (opts.avantPrestige) opts.avantPrestige(st, now); const run = st.lifetimeRun; G.nouvelleBoutique(st, now); M.prestiges.push({ t: now, gain, etoiles: st.etoiles, run, duree: (now - (M.debutRun || T0)) / 864e5 }); M.debutRun = now; M.gainHier = 0; }
+      // le défi de passage (dès la boutique n°6) : tant qu'il n'est pas fait, on reste ; M.attenteDefi mesure le temps qu'il ajoute
+      const envie = opts.prestige !== false && gain >= 5 && gain >= 0.25 * st.etoiles && stagne;
+      if (envie && !G.passageOk(st)) { if (!M.envieDepuis) M.envieDepuis = now; }
+      else if (envie) { if (opts.avantPrestige) opts.avantPrestige(st, now); const run = st.lifetimeRun, d = st.defi; G.nouvelleBoutique(st, now); M.prestiges.push({ t: now, gain, etoiles: st.etoiles, run, duree: (now - (M.debutRun || T0)) / 864e5, defi: d ? d.type : null, attenteDefi: M.envieDepuis ? (now - M.envieDepuis) / 864e5 : 0 }); M.envieDepuis = 0; M.debutRun = now; M.gainHier = 0; }
       if (st.specialite == null) G.choisirSpecialite(st, Math.min(7, 1 + st.boutiques)); // la spécialité de la boutique : une recette de plus en plus avancée
       let enAttente = 0, attenteSession = 0;
       for (let s = 0; s < minutes * 60; s++) {
@@ -95,6 +103,7 @@ function simuler(nomProfil, jours, opts = {}) {
         if (st.saison && st.saison.niv > 0 && !st.saison.actif) G.lancerSaison(st); // une touche dès que la fournée de saison est sortie
         const out = G.tick(st, 1, now, rnd);
         if (opts.chaqueSeconde) opts.chaqueSeconde(st, now, s);
+        if (st.defi && st.defi.type !== 'etoiles' && M.defisFaits[st.boutiques] == null && G.passageOk(st)) M.defisFaits[st.boutiques] = (now - (M.debutRun || T0)) / 864e5; // le défi de passage fait, en jours depuis l'ouverture
         if (out.venteSaison) M.saison += out.venteSaison.montant;
         M.saisonPassif += G.tauxParSeconde(st);
         if (s % 4 === 0 && (G.tauxParSeconde(st) > 0 || st.stats.ventes > 0)) { st.stats.clients++; G.noter(st, 'clients', 1); } // la scène sert un client toutes les ~4 s
@@ -138,7 +147,7 @@ function rapport(nom, jours, R) {
 function resume(nom, R) {
   const { M } = R, d = (ms) => (ms ? jourDe(ms) : null), at = (j) => M.parJour[Math.min(j, M.parJour.length) - 1];
   return { profil: nom, saisonRatio: +(M.saison / Math.max(1, M.saisonPassif)).toFixed(2), tarte: d(M.unlock[3]), eclair: d(M.unlock[4]), macaron: d(M.unlock[5]), millefeuille: d(M.unlock[6]), piece: d(M.unlock[7]), premierPrestige: M.prestiges[0] ? { jour: jourDe(M.prestiges[0].t), gain: M.prestiges[0].gain } : null,
-    etoiles: { j7: at(7).etoiles, j14: at(14).etoiles, j30: at(30).etoiles, fin: at(M.parJour.length).etoiles }, niveau: { j7: at(7).niveau, j14: at(14).niveau, j30: at(30).niveau, fin: at(M.parJour.length).niveau }, franchise: d(M.bonus.franchise), bonusJ7: at(7).bonus, meubles: M.achatsMeubles, attente: +(M.attente / M.actif).toFixed(2), joursComplets: M.joursComplets, rates: M.rates || {}, jours: M.parJour.length, lifetimeFin: at(M.parJour.length).lifetime, prestiges: M.prestiges.length };
+    etoiles: { j7: at(7).etoiles, j14: at(14).etoiles, j30: at(30).etoiles, fin: at(M.parJour.length).etoiles }, niveau: { j7: at(7).niveau, j14: at(14).niveau, j30: at(30).niveau, fin: at(M.parJour.length).niveau }, franchise: d(M.bonus.franchise), bonusJ7: at(7).bonus, meubles: M.achatsMeubles, attente: +(M.attente / M.actif).toFixed(2), joursComplets: M.joursComplets, rates: M.rates || {}, defisFaits: M.defisFaits, attenteDefis: M.prestiges.map((p) => p.attenteDefi || 0), jours: M.parJour.length, lifetimeFin: at(M.parJour.length).lifetime, prestiges: M.prestiges.length };
 }
 // garde-fous du rythme : un joueur régulier (36 min par jour) découvre les 8 recettes en une dizaine de jours, repart
 // pour une nouvelle boutique au bout de 2 à 4 jours puis tous les 2 à 4 jours, achète le dernier bonus en 3 à 7 semaines,
@@ -154,9 +163,17 @@ const CIBLES = {
   // les meubles du 17 octobre (tables 5 et 6 : tous les gains ×1,48 au lieu de ×1,32 en fin de boutique ; bar, coin salon, terrasse) : la franchise
   // arrive 1 à 2 jours plus tôt (jusqu'au 14e jour pour l'assidu, 15e pour le régulier) et les étoiles du 30e jour montent de 10 à 30 % selon le départ :
   // les bornes basses de la franchise perdent 2 jours, les hautes des étoiles au 30e jour gagnent 300 (mesuré sur les quatre départs)
-  occasionnel: { piece: [6, 21], premierPrestige: [3, 7], dureeMax: 11, etoilesJ30: [150, 1800], franchise: [18, 60], attente: 0.3, joursComplets: 0.6, niveauJ30: [6, 20], niveauFin: [10, 28] },
-  regulier: { dureeMax: 11, tarte: [1, 1], eclair: [1, 2], macaron: [1, 3], millefeuille: [2, 5], piece: [6, 12], premierPrestige: [2, 5], etoilesJ7: [12, 100], etoilesJ14: [60, 400], etoilesJ30: [300, 2300], franchise: [14, 45], attente: 0.35, joursComplets: 0.7, niveauJ30: [10, 24], niveauFin: [16, 34] },
-  assidu: { dureeMax: 12, piece: [4, 10], premierPrestige: [2, 4], etoilesJ30: [500, 3300], franchise: [13, 40], attente: 0.5, joursComplets: 0.7, niveauJ30: [12, 30], niveauFin: [18, 40] },
+  // depuis les recettes de boutique et le parcours du boulanger (19 octobre) : huit recettes de plus à débloquer, un bonus ×3 chacune,
+  // +10 % de gains à vie au fil du parcours, et les défis de passage dès la boutique n°6. Mesuré aux quatre départs, avant → après :
+  //   étoiles au 30e jour : occasionnel 945–1 265 → 823–1 185 ; régulier 1 455–1 997 → 1 405–2 014 (le plafond passe de 2 000 à 2 500) ;
+  //   assidu 2 035–2 206 → 2 813–3 142 (de 3 000 à 4 000) ; au 60e jour, environ deux fois plus (régulier 4 353–4 969 → 8 851–10 491) ;
+  //   la boutique la plus longue : 9,4–12 jours → 5–7,4 (les nouvelles recettes donnent de quoi faire en fin de boutique, qui stagnait) ;
+  //   premier prestige et pièce montée inchangés ; la franchise de 0 à 6 jours plus tard (le joueur achète aussi les nouveaux bonus).
+  // les deux ensemble (meubles + recettes de boutique, mesuré aux quatre départs) : étoiles au 30e jour jusqu'à 2 568 (régulier) et 4 239 (assidu),
+  // soit 6 à 7 % au-dessus de chacun des deux lots seul : plafonds 2 800 et 4 500
+  occasionnel: { defiMax: 4, piece: [6, 21], premierPrestige: [3, 7], dureeMax: 11, etoilesJ30: [150, 1800], franchise: [18, 60], attente: 0.3, joursComplets: 0.6, niveauJ30: [6, 20], niveauFin: [10, 28] },
+  regulier: { defiMax: 3.5, dureeMax: 11, tarte: [1, 1], eclair: [1, 2], macaron: [1, 3], millefeuille: [2, 5], piece: [6, 12], premierPrestige: [2, 5], etoilesJ7: [12, 100], etoilesJ14: [60, 400], etoilesJ30: [300, 2800], franchise: [14, 45], attente: 0.35, joursComplets: 0.7, niveauJ30: [10, 24], niveauFin: [16, 34] },
+  assidu: { defiMax: 3.5, dureeMax: 12, piece: [4, 10], premierPrestige: [2, 4], etoilesJ30: [500, 4500], franchise: [13, 40], attente: 0.5, joursComplets: 0.7, niveauJ30: [12, 30], niveauFin: [18, 40] },
 };
 function tester(jours) {
   let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
@@ -175,6 +192,13 @@ function tester(jours) {
     check(entre(r.franchise, c.franchise), `dernier bonus (franchise) le jour ${r.franchise} (attendu ${c.franchise[0]}–${c.franchise[1]})`);
     check(r.attente <= c.attente, `attente sans rien à acheter : ${Math.round(r.attente * 100)} % du temps de jeu (max ${Math.round(c.attente * 100)} %)`);
     check(r.joursComplets >= c.joursComplets * jours, `jours aux trois objectifs : ${r.joursComplets}/${jours} (min ${Math.round(c.joursComplets * 100)} %)`);
+    // les défis de passage (dès la boutique n°6) : chacun fait en 3 jours et demi au plus après l'ouverture (régulier : de 0 à 3,2 jours
+    // mesurés), et le joueur n'attend jamais plus d'une journée et demie à cause d'eux une fois ses étoiles prêtes
+    // (les défis d'étoiles, « récolte d'un coup N % de tes étoiles », ne comptent que pour l'attente : leur durée est celle de la boutique,
+    //  déjà bornée par dureeMax ; avec les meubles du 17 octobre, l'assidu passe la boutique n°20 vers le 55e jour, en 6 à 9 jours, sans rien attendre)
+    const df = Object.values(r.defisFaits), att = Math.max(0, ...r.attenteDefis);
+    check(df.length >= 2 && df.every((j) => j <= c.defiMax), `défis de passage : ${df.length} faits, en ${Math.min(...df).toFixed(1)} à ${Math.max(...df).toFixed(1)} jours après l'ouverture, le plus long à la boutique n°${Object.keys(r.defisFaits).reduce((a, k) => (r.defisFaits[k] > (r.defisFaits[a] ?? -1) ? k : a), '')} (max ${c.defiMax})`);
+    check(att <= 1.5, `attente due au défi, étoiles prêtes : ${att.toFixed(1)} jour au plus (max 1,5)`);
     check(r.lifetimeFin < 1e24, `gagné en ${jours} jours : ${G.fmtEur(r.lifetimeFin)} (reste lisible)`);
     check(entre(r.niveau.j30, c.niveauJ30), `boulanger niveau ${r.niveau.j30} au jour 30 (attendu ${c.niveauJ30[0]}–${c.niveauJ30[1]})`);
     check(entre(r.niveau.fin, c.niveauFin), `boulanger niveau ${r.niveau.fin} au jour ${jours} (attendu ${c.niveauFin[0]}–${c.niveauFin[1]})`);
