@@ -84,6 +84,7 @@ jobs:
           node test/fournil-sons.cjs
           node test/fournil-persos.cjs
           node test/fournil-meubles.cjs
+          node test/fournil-amenage.cjs
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
@@ -94,6 +95,7 @@ jobs:
           PORT_QUARTIER: '8865'
           PORT_BLACKJACK: '8866'
           PORT_MEUBLES: '8870'
+          PORT_AMENAGE: '8875'
   # Une troisième tâche en parallèle (la première dépassait les 20 minutes) : les notifications, le réveil, les compagnons, la mise à jour, le chat, les nouveautés,
   # les recettes de boutique et le parcours du boulanger.
   fournil3:

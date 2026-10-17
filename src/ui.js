@@ -349,7 +349,45 @@ const UI = (() => {
   }
   // le mode Aménager : les meubles entourés, nommés, avec leurs crans et le prix du cran suivant
   // (le bouton « rouleau » de l'écran est parti : on repeint depuis Réglages, et « Terminé », en haut à droite, referme le mode)
-  function amenager(on) { const v = on == null ? !SCENE.amenager : !!on; SCENE.setAmenager(v); document.body.classList.toggle('amenage', v); $('#b-fini').hidden = !v; }
+  function amenager(on) { const v = on == null ? !SCENE.amenager : !!on; SCENE.setAmenager(v); document.body.classList.toggle('amenage', v); $('#b-fini').hidden = !v; $('#amenage-barre').hidden = !v; if (!v) deplacer(false); }
+  // « Déplacer » (dans Aménager) : prendre un meuble acheté de la salle, il suit le doigt aimanté à la grille (vert : il peut aller là ;
+  // rouge : la raison) ; le lâcher le pose, ou le remet à sa place. « Plan d'origine » (avec confirmation) remet tout comme au premier jour.
+  // La place des meubles (st.amenagement) reste d'une boutique à l'autre ; la géométrie est dans VIE (valider, proposer).
+  let glisse = null, astuceDeplacer = false;
+  function deplacer(on) {
+    const v = !!on && SCENE.amenager; if (glisse) finGlisse(true); SCENE.setDeplacer(v); document.body.classList.toggle('deplace', v);
+    const b = $('#b-deplacer'); if (b) { b.setAttribute('aria-pressed', String(v)); b.querySelector('b').textContent = v ? 'Améliorer' : 'Déplacer'; b.querySelector('.ico').innerHTML = ICONS.UI[v ? 'amenager' : 'deplacer'] || ''; } // actif, le bouton ramène aux améliorations
+    $('#b-origine').hidden = !v || !st.amenagement;
+    if (v && !astuceDeplacer) { astuceDeplacer = true; toast('Glisse un meuble du doigt : il s’aimante à la grille.'); } // une fois par visite (le message couvre les boutons)
+  }
+  // (les réponses au geste passent tout de suite, sans attendre la file des messages : montrerToast)
+  function debutGlisse(e, sx, sy) {
+    const m = VIE.mobileSous(sx, sy, false); if (!m) return;
+    if (!VIE.mobileAchete(m)) { son.non(); montrerToast('Ce meuble n’est pas encore acheté : sa place lui est gardée.'); return; }
+    glisse = { id: m.id, pid: e.pointerId, dx: m.x - sx, dy: m.y - sy, x0: sx, y0: sy, bouge: false, cle: '', p: null };
+    try { $('#scene').setPointerCapture(e.pointerId); } catch (err) { /* rien */ }
+    son.tap(); buzz(6); majGlisse(sx, sy);
+  }
+  function majGlisse(sx, sy) {
+    const g = glisse; if (!g) return; if (Math.hypot(sx - g.x0, sy - g.y0) > 6) g.bouge = true;
+    const p = VIE.proposer(st, g.id, sx + g.dx, sy + g.dy); if (!p) return;
+    const cle = JSON.stringify(p.a); if (cle === g.cle) return; // la même case : rien à refaire
+    const avant = g.p; g.cle = cle; g.p = p; SCENE.glisser({ id: g.id, rect: p.rect, ok: p.ok, raison: p.raison, x: p.x, y: p.y, autre: p.autre });
+    if (avant && avant.ok !== p.ok) buzz(p.ok ? 4 : [6, 30, 6]);
+  }
+  function finGlisse(annule) {
+    const g = glisse; glisse = null; SCENE.glisser(null); if (!g || !g.p || annule || !g.bouge) return;
+    const nom = (VIE.LAY.mobiles.find((m) => m.id === g.id) || {}).nom || 'le meuble';
+    if (!g.p.ok) { son.non(); buzz([20, 40, 20]); montrerToast(`${g.p.raison} ${nom.charAt(0).toUpperCase() + nom.slice(1)} reste à sa place.`); return; }
+    const a = G.nettoyerAmenagement(g.p.a); if (G.codeAmenagement(a) === G.codeAmenagement(st.amenagement)) return;
+    if (a) st.amenagement = a; else delete st.amenagement;
+    son.achat(); buzz(10); save(); $('#b-origine').hidden = !st.amenagement;
+  }
+  function planOrigine() {
+    if (!st.amenagement) return;
+    openSheet(`<h2>Revenir au plan d’origine ?</h2><p class="sous">Les tables, le bar, le coin salon et la terrasse retournent à leur place du premier jour. Tu pourras les déplacer encore.</p><button type="button" class="btn large" data-a="oui"><b>Oui, le plan d’origine</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Non, je garde mes places</b></button>`);
+    on('[data-a="non"]', closeSheet); on('[data-a="oui"]', () => { delete st.amenagement; save(); closeSheet(); son.deblocage(); toast('Le plan d’origine est revenu.'); $('#b-origine').hidden = true; });
+  }
   function repeindre() { closeSheet(); if (pageActive !== 'boutique') showPage('boutique'); tiroir.aller('ferme'); amenager(true); toast('Touche un meuble pour l’améliorer.'); }
   const PAGE_HEAD = (id, titre, droite) => `<div class="page-tete"><h2><span class="pic">${ICONS.UI[id]}</span>${titre}</h2>${droite || ''}</div>`;
   function renderPage(force) {
@@ -1771,6 +1809,12 @@ const UI = (() => {
     tiroir.aller(['ouvert', 'mi', 'ferme'].includes(st.tiroir) ? st.tiroir : 'mi', false);
     if (window.ResizeObserver) new ResizeObserver(layout).observe($('#corps'));
     $('#b-fini').addEventListener('click', () => { audio(); son.tap(); amenager(false); });
+    $('#b-deplacer').addEventListener('click', () => { audio(); son.tap(); deplacer(!SCENE.deplacer); });
+    $('#b-origine').addEventListener('click', () => { audio(); son.tap(); planOrigine(); });
+    { const sc = $('#scene'), pos = (e) => { const r = sc.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; }; // le meuble qui suit le doigt (mode Déplacer)
+      sc.addEventListener('pointermove', (e) => { if (glisse && e.pointerId === glisse.pid) majGlisse(...pos(e)); });
+      sc.addEventListener('pointerup', (e) => { if (glisse && e.pointerId === glisse.pid) { majGlisse(...pos(e)); finGlisse(false); } });
+      sc.addEventListener('pointercancel', (e) => { if (glisse && e.pointerId === glisse.pid) finGlisse(true); }); }
     $('#b-atelier').addEventListener('click', () => { audio(); son.tap(); sheetAtelier(); });
     $('#b-classement').addEventListener('click', () => { audio(); son.tap(); sheetClassement(); });
     $('#b-quartier').addEventListener('click', () => { audio(); son.tap(); if (EVT) EVT.ouvrir(); });
@@ -1806,6 +1850,7 @@ const UI = (() => {
       audio();
       const r = $('#scene').getBoundingClientRect();
       const sx = e.clientX - r.left, sy = e.clientY - r.top;
+      if (SCENE.deplacer) { if (!glisse) debutGlisse(e, sx, sy); return; } // le mode Déplacer : on prend un meuble, rien d'autre
       const porte = !SCENE.amenager && SCENE.hitArriere && SCENE.hitArriere(sx, sy); if (!porte) toquees = []; // la petite porte du fond : cinq touches de suite
       if (SCENE.hit(sx, sy)) { const tip = G.encaisserPourboire(st); son.pourboire(); buzz([10, 20, 10, 20, 10]); SCENE.texte(`+${G.fmtEur(tip)} de pourboire !`); toast(`Le client mystère laisse ${G.fmtEur(tip)} de pourboire !`); renderCards(true); hud(); save(); }
       else if (SCENE.hitChat && SCENE.hitChat(sx, sy)) caresserChat(); // le chat dort dans la zone du boulanger : il passe avant
