@@ -16,7 +16,7 @@
   'use strict';
   const NOUVEAUTES = [
     {
-      id: '2026-10-19-a', date: '2026-10-19', titre: 'De nouvelles recettes à chaque boutique',
+      id: '2026-10-17-g', date: '2026-10-17', titre: 'De nouvelles recettes à chaque boutique',
       points: [
         'Chaque nouvelle boutique t’apporte une recette, de la n°2 à la n°9 : le Paris-Brest, le Kouign-amann, la Tarte aux myrtilles, l’Opéra, puis le Canelé, le Saint-Honoré, le Fraisier et le Croquembouche.',
         'Une recette gagnée l’est pour toujours, avec son apprenti et son bonus ×3. Si tu as déjà plusieurs boutiques, les recettes sont déjà là.',
