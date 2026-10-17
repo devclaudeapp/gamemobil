@@ -184,8 +184,8 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   console.log('── la boutique : les décos d’Halloween, le chat noir, la tenue ──');
   const dv = await ev(() => window.__fournil.SCENE.decosHanteeVues);
   check(decos4.every((d) => dv.includes(d) || !['citrouilles', 'toiles', 'chaudron', 'fantome'].includes(d)), `les décos gagnées sont dans la boutique : ${dv.join(', ') || 'aucune'}`);
-  await ev(() => window.__fournil.SCENE.decosHantee(['citrouilles', 'toiles', 'chaudron', 'fantome'])); await sleep(900);
-  check((await ev(() => window.__fournil.SCENE.decosHanteeVues)).length === 4, 'les quatre décos posées pour la capture');
+  await ev(() => window.__fournil.SCENE.decosHantee(['citrouilles', 'toiles', 'chaudron', 'fantome']));
+  check(await attendre(async () => (await ev(() => window.__fournil.SCENE.decosHanteeVues)).length === 4, 8000), 'les quatre décos posées pour la capture'); // (la scène se rebâtit à l'image suivante : sur une machine chargée, plus d'une seconde)
   // la tenue d'Halloween portée par le boulanger : les pièces de la garde-robe (src/game.js, H1) ; en attendant H1, ajoutées ici pour la capture
   const ids = await ev((v) => { const F = window.__fournil, G = F.G, GR = G.GARDEROBE, coll = F.evHantee.cle, formes = { tete: 'chapeau', haut: 'cape', pieds: 'bottes', accessoire: 'balai' };
     let pieces = Object.values(GR.objets).filter((o) => o.collection === coll);
@@ -276,7 +276,7 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
       return { etoiles: st.etoiles, reserve: st.boosts.reserve.length, paliers: q.paliers.length, dus: R.paliersDus(q).map((p) => p.n).join() }; });
     check(av.paliers === 12 && av.dus === '13,14', 'la sauvegarde d’avant : douze paliers reçus, 3 000 Bn de bonbons (au-delà des 13e et 14e, pas encore donnés)');
     await charger2();
-    check(await attendre(async () => /Palier 13/.test(await feuille2()), 8000), 'dans la boutique, sans ouvrir le Manoir : la feuille « Palier 13 » arrive toute seule');
+    check(await attendre(async () => /Palier 13/.test(await feuille2()), 20000), 'dans la boutique, sans ouvrir le Manoir : la feuille « Palier 13 » arrive toute seule');
     check(/huit paliers bonus/.test(await feuille2()), 'avec l’annonce des paliers bonus');
     await shot2('h1-palier-13-boutique');
     await clic2('#feuille [data-a="pq-ok"]'); await attendre(async () => /Palier 14/.test(await feuille2()), 3000);

@@ -407,6 +407,10 @@ async function gerer(route) {
       await photoR(pg, 'quartier-planque-8-postes');
       await ev2(() => document.querySelector('#pq-cartes .carte[data-i="7"]').scrollIntoView({ block: 'end' })); await sleep(300);
       await photoR(pg, 'quartier-planque-8-postes-bas');
+      // v6.2 : les paliers intercalés aussi sur les six premières recettes (le shit au niveau 60 : le prochain, le 75e, ajoute ×1,41)
+      await ev2(() => { const q = window.__fournil.st.quartier; q.postes[1].niv = 60; }); await attendre(() => ev2(() => /Palier 75 ×1,41/.test(document.querySelector('#pq-cartes .carte[data-i="1"] .palier span').textContent)), 4000);
+      const c1 = await carte(1); check(/Palier 75 ×1,41/.test(c1.pal), `une ancienne recette a ses paliers intercalés : le shit, « ${c1.pal} »`);
+      await photoR(pg, 'quartier-ancienne-recette-palier-75');
       await ev2(() => document.querySelector('#pq-cartes').scrollTo(0, 0)); }
     await ev2(() => { const Qd = window.__fournil.Q, q = window.__fournil.st.quartier; q.evTimer = 9999; Qd.lancerEvenement(q, Math.random, 'descente'); }); await sleep(300);
     check(/0\/8/.test(await ev2(() => document.querySelector('#pq-ev').innerText)), 'une descente se planque maintenant en 8 touches');

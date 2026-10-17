@@ -72,7 +72,12 @@ check(r.ok && r.deblocage && q.postes[1].niv === 1, 'le shit se débloque une fo
 r = Q.embaucher(q, 1);
 check(r.ok && q.postes[1].staff && q.postes[1].actif && q.stats.embauches === 1, `Charbonneur Dylan embauché (${Q.fmt(r.prix)} €)`);
 check(!Q.embaucher(q, 1).ok && !Q.embaucher(q, 3).ok, 'pas deux fois, et pas sans poste ouvert');
-check(Q.palierMult(24) === 1 && Q.palierMult(25) === 2 && Q.palierMult(100) === 8 && Q.prochainPalier(26) === 50 && Q.PALIERS_POSTE.join() === '25,50,100,200,300,400,500,750,1000,1500,2000,3000,5000' && [0, 5].every((i) => Q.prochainPalier(76, i) === 100 && Q.palierMult(99, i) === 4), 'les paliers des six premiers postes doublent les gains à 25, 50, 100… (sans paliers intercalés)');
+{ // v6.2 : les paliers intercalés sur toutes les recettes ; aux anciens (25, 50, 100, 200… 5000), le même multiplicateur cumulé qu'avant (×2 chacun)
+  const anciens = [25, 50, 100, 200, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
+  check(Q.palierMult(24) === 1 && anciens.every((p, k) => Q.palierMult(p) === Math.pow(2, k + 1)) && Q.PALIERS_POSTE.length === 26 && anciens.every((p) => Q.PALIERS_POSTE.includes(p)) && Q.prochainPalier(26) === 50 && Q.prochainPalier(51) === 75 && Q.prochainPalier(101) === 125,
+    `les paliers des postes : aux anciens (${anciens.slice(0, 5).join(', ')}…) le même multiplicateur cumulé ; vingt-six en tout (${Q.PALIERS_POSTE.slice(0, 10).join(', ')}…)`);
+  check(Math.abs(Q.palierMult(75) - Math.pow(2, 2.5)) < 1e-9 && Math.abs(Q.palierMult(99) / Q.palierMult(74) - Math.SQRT2) < 1e-9 && Q.gainPalier(25) === 2 && Q.gainPalier(50) === 2 && Math.abs(Q.gainPalier(125) - Math.pow(2, 0.25)) < 1e-9 && [0, 5, 7].every((i) => Q.paliersPoste(i) === Q.PALIERS_POSTE),
+    'entre deux anciens, un petit pas (×1,41 au 75e, ×1,19 au 125e) : les mêmes pour les huit recettes'); }
 r = Q.amelioration(q, 'sachets');
 check(r.ok && q.ameliorations.sachets && Q.ameliorationMult(q, 0) === 3 && Q.ameliorationMult(q, 1) === 1, 'Sachets zippés : l’herbe ×3, pas le shit');
 check(!Q.amelioration(q, 'sachets').ok && !Q.amelioration(q, 'inconnu').ok, 'une amélioration ne s’achète qu’une fois');
@@ -222,7 +227,7 @@ console.log('── les combines d’après le boss paient la boulangerie ──
 console.log('── après le boss : deux recettes de plus (sirop violet au 13e, cristal bleu au 16e) ──');
 {
   const [SI, CR] = [6, 7].map((i) => Q.PRODUITS[i]);
-  check(SI.apres === 13 && CR.apres === 16 && SI.paliersFins && CR.paliersFins && SI.staffNom === 'Pharmacien Gérard' && CR.staffNom === 'Chimiste Monsieur Blanc', `« ${SI.nom} » (${SI.staffNom}, ${SI.poste}) au 13e, « ${CR.nom} » (${CR.staffNom}, ${CR.poste}) au 16e`);
+  check(SI.apres === 13 && CR.apres === 16 && SI.staffNom === 'Pharmacien Gérard' && CR.staffNom === 'Chimiste Monsieur Blanc', `« ${SI.nom} » (${SI.staffNom}, ${SI.poste}) au 13e, « ${CR.nom} » (${CR.staffNom}, ${CR.poste}) au 16e`);
   check(SI.croiss < 1.05 && CR.croiss < 1.05 && SI.cout <= 1e12 * 1.01 && SI.rev < Q.PRODUITS[5].rev / 10 && CR.rev < Q.PRODUITS[5].rev / 10, `elles repartent du bas : premier niveau à ${Q.fmt(Q.coutNiveau(6, 1))} €, des prix qui grimpent de ${Math.round((SI.croiss - 1) * 100)} et ${((CR.croiss - 1) * 100).toFixed(1).replace('.', ',')} % par niveau ; des gains petits devant ceux de la Spécialité (l’enveloppe)`);
   const qr = Q.etat({}, now0); for (let i = 1; i < 6; i++) qr.postes[i].niv = 50; Q.gagner(qr, 1.4e15); qr.billets = 1e17;
   let r7 = Q.acheter(qr, 6);
@@ -232,10 +237,10 @@ console.log('── après le boss : deux recettes de plus (sirop violet au 13e,
   check(Q.embaucher(qr, 6).ok && qr.postes[6].staff, `${SI.staffNom} embauché`);
   qr.mode = 10; const p10 = Q.prixNiveaux(qr, 6, 10); check(Q.acheter(qr, 6).ok && qr.postes[6].niv === 11 && p10 < 2e13, `dix niveaux de sirop pour ${Q.fmt(p10)} € : des niveaux rapides au début`);
   Q.gagner(qr, 9e15); check(Q.recetteOuverte(qr, 7) && Q.acheter(qr, 7).ok && qr.postes[7].niv === 1, 'le 16e franchi : le cristal bleu s’ouvre à son tour');
-  // les paliers intercalés des recettes d'après le boss : le même multiplicateur cumulé aux anciens paliers, un petit pas entre eux
+  // les paliers intercalés (v6.2 : sur toutes les recettes) : le même multiplicateur cumulé aux anciens paliers, un petit pas entre eux
   const pal = Q.paliersPoste(6);
   check(pal.slice(0, 9).join() === '25,50,75,100,125,150,175,200,250' && pal.length === 26 && Q.PALIERS_POSTE.every((p) => Q.palierMult(p, 6) === Q.palierMult(p)), `leurs paliers sont plus serrés (${pal.slice(0, 10).join(', ')}…) ; aux anciens, le même multiplicateur`);
-  check(Math.abs(Q.palierMult(75, 6) - Math.pow(2, 2.5)) < 1e-9 && Math.abs(Q.gainPalier(75, 6) - Math.SQRT2) < 1e-9 && Math.abs(Q.gainPalier(125, 6) - Math.pow(2, 0.25)) < 1e-9 && Q.gainPalier(100, 6) === Math.pow(2, 0.5) && Q.gainPalier(200, 0) === 2 && Q.prochainPalier(76, 6) === 100 && Q.prochainPalier(101, 6) === 125, 'au 75e ×1,41, au 125e ×1,19 ; le 100e n’ajoute plus que ×1,41 (le reste est venu au 75e) ; ×2 aux paliers des six premiers');
+  check(Math.abs(Q.gainPalier(75, 6) - Math.SQRT2) < 1e-9 && Math.abs(Q.gainPalier(100, 6) - Math.SQRT2) < 1e-9 && Math.abs(Q.gainPalier(200, 0) - Math.pow(2, 0.25)) < 1e-9 && Q.prochainPalier(76, 6) === 100, 'au 75e ×1,41, au 125e ×1,19 ; le 100e n’ajoute plus que ×1,41 (le reste est venu au 75e) ; de même pour les six premières');
   // une vieille sauvegarde (six postes), déjà au-delà des paliers 13 et 16 : les deux recettes sont débloquables tout de suite
   const vieille = { quartier: JSON.parse(JSON.stringify(Q.etat({}, now0))) }; vieille.quartier.postes = vieille.quartier.postes.slice(0, 6); vieille.quartier.postes.forEach((x) => { x.niv = 60; x.staff = true; }); vieille.quartier.total = 1e16; vieille.quartier.billets = 1e15; vieille.quartier.paliers = Q.PALIERS.slice(0, 16).map((p) => p.n);
   const qv = Q.etat(vieille, now0);
@@ -300,15 +305,18 @@ console.log('── le rythme simulé ──');
 const S = {}; for (const prof of ['assidu', 'quotidien', 'occasionnel', 'marathon']) S[prof] = Q.simuler(prof, 14);
 const jourDe = (prof, n) => S[prof].paliersJour[n] || Infinity; // Infinity : jamais atteint en 14 jours
 console.log('  ' + Object.keys(S).map((k) => `${k} : ${Q.fmt(S[k].total)} €, paliers ${JSON.stringify(S[k].paliersJour)}`).join('\n  '));
-check(jourDe('assidu', 12) >= 9 && jourDe('assidu', 12) <= 12, `l’assidu (80 min par jour) franchit le palier 12 le ${jourDe('assidu', 12)}e jour (visé : 10e-11e)`);
-check(jourDe('quotidien', 8) <= 14 && jourDe('quotidien', 9) <= 14 && jourDe('quotidien', 11) > 14, `le quotidien (36 min par jour) atteint les paliers 8 (${jourDe('quotidien', 8)}e jour) et 9 (${jourDe('quotidien', 9)}e), pas le 11e`);
+// v6.2 (les paliers intercalés des postes) : les gains montent entre deux anciens paliers, les paliers de l'événement arrivent jusqu'à un
+// jour plus tôt (l'assidu au 12e le 9e jour au lieu du 10e ; le quotidien atteint maintenant le 11e et le 12e en toute fin)
+check(jourDe('assidu', 12) >= 8 && jourDe('assidu', 12) <= 12, `l’assidu (80 min par jour) franchit le palier 12 le ${jourDe('assidu', 12)}e jour (visé : 9e-11e)`);
+check(jourDe('quotidien', 8) <= 14 && jourDe('quotidien', 9) <= 14 && jourDe('quotidien', 13) > 14, `le quotidien (36 min par jour) atteint les paliers 8 (${jourDe('quotidien', 8)}e jour) et 9 (${jourDe('quotidien', 9)}e), pas le 13e`);
 check(jourDe('occasionnel', 5) <= 14 && jourDe('occasionnel', 9) > 14, `l’occasionnel (17 min) passe le palier 5 (${jourDe('occasionnel', 5)}e jour), reste sous le 9e`);
 check(S.assidu.total > S.quotidien.total && S.quotidien.total > S.occasionnel.total && S.marathon.total > S.assidu.total, 'plus on joue, plus on gagne : marathon > assidu > quotidien > occasionnel');
 check(S.assidu.parJour.every((d, k) => k === 0 || d.total >= S.assidu.parJour[k - 1].total) && S.assidu.q.stats.descentes > 0 && S.assidu.q.stats.grosClients > 0, 'les totaux ne reculent jamais ; les coups de pouce ont joué');
 check(Q.simuler('assidu', 14, { graine: 7 }).total === S.assidu.total, 'la simulation est déterministe (graine)');
 { // les recettes d'après le boss, le Grossiste et les combines ×3 n'arrivent qu'après le 12e : les paliers 1 à 12 des joueurs constants ne bougent pas
   const AVANT = { assidu: [1, 1, 1, 2, 2, 3, 4, 5, 6, 7, 9, 10], quotidien: [1, 1, 2, 2, 4, 5, 6, 8, 10, 12], occasionnel: [2, 2, 3, 4, 6, 8, 10, 13] }; // les jours d'avant (16 octobre)
-  for (const [prof, jours] of Object.entries(AVANT)) check(jours.every((j, k) => S[prof].paliersJour[k + 1] === j), `${prof} : les paliers 1 à ${jours.length} aux mêmes jours qu’avant (${jours.join(', ')})`); }
+  // v6.2 : les paliers intercalés les avancent d'un jour au plus (les recettes d'après le boss et le Grossiste n'y sont pour rien : elles arrivent après le 12e)
+  for (const [prof, jours] of Object.entries(AVANT)) check(jours.every((j, k) => S[prof].paliersJour[k + 1] >= j - 1 && S[prof].paliersJour[k + 1] <= j), `${prof} : les paliers 1 à ${jours.length} au plus un jour plus tôt qu’avant (${jours.map((j, k) => `${j}→${S[prof].paliersJour[k + 1]}`).join(', ')})`); }
 { // après le boss : le très actif (8 h par jour, le 12e au 3e jour comme les plus mordus) et le marathon
   S.tresactif = Q.simuler('tresactif', 14); const T = S.tresactif.paliersJour, jours = [12, 13, 14, 15, 16, 17, 18, 19].map((n) => T[n] || Infinity);
   console.log(`  très actif : ${Q.fmt(S.tresactif.total)} €, paliers ${JSON.stringify(T)}`);
@@ -316,14 +324,18 @@ check(Q.simuler('assidu', 14, { graine: 7 }).total === S.assidu.total, 'la simul
   const ecarts = jours.slice(1).filter(Number.isFinite).map((j, k) => j - jours[k]);
   check(T[18] <= 12 && T[19] <= 14 && ecarts.length >= 6 && ecarts.every((e) => e >= 0 && e <= 2), `puis un palier bonus tous les jour ou deux : 13e le ${T[13]}e jour, 14e le ${T[14]}e, 15e le ${T[15]}e, 16e le ${T[16]}e, 17e le ${T[17]}e, 18e le ${T[18]}e, 19e le ${T[19]}e (écarts ${ecarts.join(', ')})`);
   check(!T[20] && S.tresactif.total < Q.PALIERS[19].total, 'le 20e reste au-dessus de lui : un trophée pour les marathoniens');
-  check(jourDe('marathon', 12) <= 2 && jourDe('marathon', 20) >= 12 && jourDe('marathon', 20) <= 14, `le marathon (24 h/24) : le 12e le ${jourDe('marathon', 12)}e jour, le 20e seulement le ${jourDe('marathon', 20)}e (visé : 12e-14e)`);
+  check(jourDe('marathon', 12) <= 2 && jourDe('marathon', 20) >= 9 && jourDe('marathon', 20) <= 14, `le marathon (24 h/24) : le 12e le ${jourDe('marathon', 12)}e jour, le 20e seulement le ${jourDe('marathon', 20)}e (visé : 9e-14e ; 13e avant les paliers intercalés)`);
   const off = Q.simuler('marathon', 14, { offertes: true });
-  check(off.paliersJour[20] >= 12 && off.paliersJour[20] <= 14, `même avec toutes les combines offertes dès le 12e : le 20e le ${off.paliersJour[20]}e jour`);
+  check(off.paliersJour[20] >= 9 && off.paliersJour[20] <= 14, `même avec toutes les combines offertes dès le 12e : le 20e le ${off.paliersJour[20]}e jour`);
   // le temps d'un niveau (le moins cher : son prix, remise comprise, ÷ le taux de la Planque ouverte) : 42 min au 7e jour et 66 min au 10e avant
   const tNiv = (d) => Math.min(...d.niv.map((n, i) => (n > 0 ? Q.coutNiveau(i, n) * (d.remise || 1) / d.taux : Infinity))) / 60, t7 = tNiv(S.tresactif.parJour[6]), t10 = tNiv(S.tresactif.parJour[9]);
-  check(t7 < 30 && t10 < 25, `le très actif attend moins pour un niveau : ${t7.toFixed(0)} min au 7e jour (42 avant), ${t10.toFixed(0)} min au 10e (66 avant)`);
+  check(t7 < 30 && t10 < 30, `le très actif attend moins pour un niveau : ${t7.toFixed(0)} min au 7e jour (42 avant), ${t10.toFixed(0)} min au 10e (66 avant)`);
+  // le temps entre deux paliers de poste (toutes recettes, minutes de jeu), du 5e au 7e jour : 720 min avant les paliers intercalés et les recettes d'après le boss
+  const ecartPaliers = (s, a, b, min) => { const nb = (niv, i) => Q.paliersPoste(i).filter((p) => niv >= p).length; let k = 0; for (let j = a; j <= b; j++) k += s.parJour[j - 1].niv.reduce((x, n, i) => x + nb(n, i) - nb(s.parJour[j - 2].niv[i] || 0, i), 0); return k ? min * (b - a + 1) / k : Infinity; };
+  const eT = ecartPaliers(S.tresactif, 5, 7, 480), eA = ecartPaliers(S.assidu, 2, 4, 80);
+  check(eT <= 240 && eA <= 40, `un palier de poste toutes les ${eT.toFixed(0)} min de jeu pour le très actif (jours 5-7 ; 720 avant), ${eA.toFixed(0)} min pour l’assidu (jours 2-4 ; 40 avant)`);
   check(S.tresactif.q.postes[6].niv >= 100 && S.tresactif.q.postes[7].niv >= 50 && S.tresactif.q.postes.every((x) => x.staff) && S.tresactif.q.ameliorations.grossiste, `il ouvre les deux recettes (sirop niveau ${S.tresactif.q.postes[6].niv}, cristal ${S.tresactif.q.postes[7].niv}), leurs apprentis, le Grossiste`);
-  check(jourDe('assidu', 13) >= 13 && !S.quotidien.paliersJour[13], `l’assidu effleure le 13e en toute fin (${jourDe('assidu', 13) === Infinity ? 'jamais' : jourDe('assidu', 13) + 'e jour'}) ; le quotidien, jamais`);
+  check(jourDe('assidu', 13) >= 10 && !S.quotidien.paliersJour[13], `l’assidu atteint le 13e vers la fin (13e jour avant les paliers intercalés) (${jourDe('assidu', 13) === Infinity ? 'jamais' : jourDe('assidu', 13) + 'e jour'}) ; le quotidien, jamais`);
   S.offertes = off; }
 // l'enveloppe du serveur : la table du SQL (log10 des billets par jour depuis le début) reste au-dessus du marathon 24 h/24, avec marge
 const SQL = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement.sql'), 'utf8');
@@ -338,13 +350,15 @@ if (table) {
   check(combines.length >= 2, `le marathon achète les combines d’après le boss (${combines.join(', ')})`);
   for (const g of [7, 1, 2]) { // le pire cas : toutes les combines offertes dès le 12e (sans les payer), trois hasards
     const o = g === 7 ? S.offertes : Q.simuler('marathon', 14, { graine: g, offertes: true }), m = o.parJour.map((d, k) => table[k + 1] - Math.log10(d.total));
-    check(m.every((x) => x >= Math.log10(2)), `combines offertes dès le 12e (graine ${g}) : toujours ×2 sous l’enveloppe (au plus juste ×${Math.pow(10, Math.min(...m)).toFixed(2)}) — le SQL ne change pas`); }
+    check(m.every((x) => x >= Math.log10(2)), `combines offertes dès le 12e (graine ${g}) : toujours ×2 sous l’enveloppe (au plus juste ×${Math.pow(10, Math.min(...m)).toFixed(2)}) — la table v6.2 de fournil_quartier_table()`); }
   // la version 2 des récompenses ne touche à rien de ce que rapporte la Planque : le marathon gagne EXACTEMENT les mêmes billets qu'avant
   // (les totaux de la simulation d'avant, graine 7) ; donc les mêmes marges : ×3.11 … ×2.36 jour par jour, ×2.13 au plus juste combines offertes
   // avec les recettes d'après le boss et le Grossiste (16 octobre) : les recettes repartent du bas et prennent leur part des billets (le
   // marathon simulé achète d'abord le niveau le moins cher), ce qui compense le Grossiste ; les marges remontent même un peu (×2,66 le
   // dernier jour, ×2,24 au plus juste combines offertes, contre ×2,36 et ×2,13 avant). Les totaux, au billet près, gardent la trace du réglage.
-  check(Math.abs(S.marathon.total / 1.19e17 - 1) < 0.01 && Math.abs(S.offertes.total / 1.41e17 - 1) < 0.01, `le marathon : ${Q.fmt(S.marathon.total)} € (${Q.fmt(S.offertes.total)} € combines offertes ; 134 Bd et 148 Bd avant les recettes d’après le boss)`);
+  // v6.2 : les paliers intercalés montent les totaux (176 Bd, 194 Bd combines offertes) ; la table du SQL a été élargie d'autant (au plus
+  // juste : le marathon le plus haut des six simulations × 2,2, arrondi au 0,05 du log10 supérieur ; jamais plus bas qu'avant)
+  check(Math.abs(S.marathon.total / 1.76e17 - 1) < 0.01 && Math.abs(S.offertes.total / 1.94e17 - 1) < 0.01, `le marathon : ${Q.fmt(S.marathon.total)} € (${Q.fmt(S.offertes.total)} € combines offertes ; 119 Bd et 141 Bd sans les paliers intercalés)`);
   console.log(`        marges du marathon, jour par jour : ×${S.marathon.parJour.map((d, k) => Math.pow(10, table[k + 1] - Math.log10(d.total)).toFixed(2)).join(' ×')}`);
 }
 

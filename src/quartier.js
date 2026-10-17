@@ -60,18 +60,17 @@
     { id: 'ecsta', nom: 'Ecsta', pl: 'pochons de cachetons', cout: 8640, debloquer: 17280, rev: 1200, temps: 12, croiss: 1.13, staff: 750000, staffNom: 'Rabatteur Momo', poste: 'Le parking de la boîte', desc: 'Roses, avec un petit cœur dessus.' },
     { id: 'coke', nom: 'Coke', pl: 'pochettes', cout: 1e5, debloquer: 2e8, rev: 10000, temps: 24, croiss: 1.12, staff: 6e8, staffNom: 'Comptable Tonton Serge', poste: 'L’arrière-salle du PMU', desc: 'La clientèle a des mocassins.' },
     { id: 'specialite', nom: 'La Spécialité du quartier', pl: 'Spécialités', cout: 1.2e6, debloquer: 2e10, rev: 9e4, temps: 96, croiss: 1.11, staff: 6e10, staffNom: 'Livreur Rachid', poste: 'Le camion à kebabs', desc: 'Personne ne sait ce qu’il y a dedans. Tout le monde en redemande.' },
-    { id: 'sirop', nom: 'Sirop violet', pl: 'gobelets de sirop violet', apres: 13, paliersFins: true, cout: 1e12, debloquer: 2e13, rev: 1000, temps: 120, croiss: 1.02, staff: 5e13, staffNom: 'Pharmacien Gérard', poste: 'L’arrière-boutique de la pharmacie', desc: 'Ça se boit à la paille, et ça ralentit tout le square.' },
-    { id: 'cristal', nom: 'Cristal bleu', pl: 'sachets de cristal bleu', apres: 16, paliersFins: true, cout: 1e13, debloquer: 2e14, rev: 8000, temps: 240, croiss: 1.025, staff: 5e14, staffNom: 'Chimiste Monsieur Blanc', poste: 'Le camping-car du terrain vague', desc: 'Bleu comme à la télé. Le chimiste jure qu’il est prof de chimie.' },
+    { id: 'sirop', nom: 'Sirop violet', pl: 'gobelets de sirop violet', apres: 13, cout: 1e12, debloquer: 2e13, rev: 1000, temps: 120, croiss: 1.02, staff: 5e13, staffNom: 'Pharmacien Gérard', poste: 'L’arrière-boutique de la pharmacie', desc: 'Ça se boit à la paille, et ça ralentit tout le square.' },
+    { id: 'cristal', nom: 'Cristal bleu', pl: 'sachets de cristal bleu', apres: 16, cout: 1e13, debloquer: 2e14, rev: 8000, temps: 240, croiss: 1.025, staff: 5e14, staffNom: 'Chimiste Monsieur Blanc', poste: 'Le camping-car du terrain vague', desc: 'Bleu comme à la télé. Le chimiste jure qu’il est prof de chimie.' },
   ];
-  // les paliers des postes : au palier franchi le plus haut, les gains sont multipliés par 2^exposant (comme la boulangerie : ×2 à 25,
-  // 50, 100, 200… 5000). Les recettes d'après le boss (paliersFins) ont en plus des paliers intercalés (75, 125, 150, 175, 250…), à
-  // exposant fractionnaire : un palier bien plus souvent, un petit ×1,19 ou ×1,41 à chaque fois, le même multiplicateur cumulé aux
-  // anciens. Les six premières gardent les anciens seuls : intercalés chez elles aussi, ils montaient leurs gains de 40 à 70 % entre deux
-  // anciens paliers, et le marathon simulé passait au-dessus de l'enveloppe du serveur (essai du 16 octobre, test/fournil-quartier.test.js).
+  // les paliers des postes : au palier franchi le plus haut, les gains sont multipliés par 2^exposant. Les anciens (25, 50, 100, 200…
+  // 5000) gardent leur exposant entier (le même multiplicateur cumulé qu'avant : ×2 à chacun) ; v6.2, ceux qu'on a intercalés (75, 125,
+  // 150, 175, 250…, les mêmes que la boulangerie) ont un exposant fractionnaire : un palier bien plus souvent pour le joueur constant, un
+  // petit ×1,41 ou ×1,19 à chaque fois, sur les huit recettes. Ils montent les gains entre deux anciens paliers : l'enveloppe du serveur
+  // a été élargie d'autant (supabase/fournil-classement.sql, « v6.2 : paliers intercalés » ; le marathon simulé reste ×2 dessous).
   const PALIERS_EXPOSANTS = [[25, 1], [50, 2], [75, 2.5], [100, 3], [125, 3.25], [150, 3.5], [175, 3.75], [200, 4], [250, 4.5], [300, 5], [350, 5.5], [400, 6], [450, 6.5],
     [500, 7], [625, 7.5], [750, 8], [875, 8.5], [1000, 9], [1250, 9.5], [1500, 10], [1750, 10.5], [2000, 11], [2500, 11.5], [3000, 12], [4000, 12.5], [5000, 13]];
-  const PALIERS_ANCIENS = PALIERS_EXPOSANTS.filter((x) => x[1] % 1 === 0);
-  const PALIERS_POSTE = PALIERS_ANCIENS.map((x) => x[0]); // les paliers des six premières recettes (paliersPoste(i) : ceux d'une recette)
+  const PALIERS_POSTE = PALIERS_EXPOSANTS.map((x) => x[0]);
   const AMELIORATIONS = [
     { id: 'sachets', nom: 'Sachets zippés', cout: 50000, cible: ['herbe'], mult: 3, desc: 'Herbe ×3' },
     { id: 'alu', nom: 'Papier alu premium', cout: 600000, cible: ['shit'], mult: 3, desc: 'Shit ×3' },
@@ -174,17 +173,16 @@
   const note = (q, txt) => { q.carnet.push({ t: q.now, txt }); if (q.carnet.length > 12) q.carnet.shift(); };
 
   // ─── calculs ───
-  const echelle = (i) => (i != null && PRODUITS[i] && PRODUITS[i].paliersFins ? PALIERS_EXPOSANTS : PALIERS_ANCIENS); // i absent : les anciens paliers
-  const paliersPoste = (i) => echelle(i).map((x) => x[0]);
-  const exposantPalier = (niv, i) => { let e = 0; for (const [p, x] of echelle(i)) if (niv >= p) e = x; return e; }; // l'exposant du plus haut palier franchi
-  const palierMult = (niv, i) => Math.pow(2, exposantPalier(niv, i));
-  const prochainPalier = (niv, i) => { const x = echelle(i).find((y) => y[0] > niv); return x ? x[0] : null; };
-  const gainPalier = (p, i) => palierMult(p, i) / palierMult(p - 1, i); // ce que ce palier ajoute (×2 aux anciens, ×1,41 ou ×1,19 aux intercalés) : pour l'écran
+  const paliersPoste = () => PALIERS_POSTE; // les mêmes pour toutes les recettes (i accepté, pour l'écran)
+  const exposantPalier = (niv) => { let e = 0; for (const [p, x] of PALIERS_EXPOSANTS) if (niv >= p) e = x; return e; }; // l'exposant du plus haut palier franchi
+  const palierMult = (niv) => Math.pow(2, exposantPalier(niv));
+  const prochainPalier = (niv) => PALIERS_POSTE.find((p) => p > niv) || null;
+  const gainPalier = (p) => palierMult(p) / palierMult(p - 1); // ce que ce palier ajoute (×2 aux anciens, ×1,41 ou ×1,19 aux intercalés) : pour l'écran
   function ameliorationMult(q, i) { let m = 1; for (const a of AMELIORATIONS) if (q.ameliorations[a.id] && (a.cible === null || a.cible.includes(PRODUITS[i].id))) m *= a.mult; return m; }
   function boostMult(q) { let m = PRESENCE; if (q.ev && q.ev.type === 'soiree' && q.ev.fin > q.now) m *= EVENEMENTS.soiree.mult; return m; } // en présence du boss
   const reputationMult = (q) => Math.pow(REPUTATION, paliersAtteints(q).filter((p) => !p.bonus).length); // les paliers bonus ne font plus la réputation
   const temps = (q, i) => PRODUITS[i].temps;
-  const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv, i) * ameliorationMult(q, i) * reputationMult(q); };
+  const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(q, i) * reputationMult(q); };
   const revenu = (q, i) => revenuBase(q, i) * boostMult(q);
   const revenuFournee = (q, i) => revenu(q, i) * (q.postes[i].staff ? 1 : 1.5); // à la main, on sert un client de plus
   // les prix catalogue (sans q) ; ce que paie le joueur passe par prixNiveaux / quantite, qui lisent la remise du Grossiste (q)
@@ -377,7 +375,7 @@
       let best = -1, bestR = 0, bestN = 1;
       for (let i = 0; i < PRODUITS.length; i++) {
         const s = q.postes[i]; if (s.niv === 0) continue; const n = Math.min(10, maxAchetables(q, i)); if (n < 1) continue;
-        const prix = prixNiveaux(q, i, n), gain = (PRODUITS[i].rev * (s.niv + n) * palierMult(s.niv + n, i) - PRODUITS[i].rev * s.niv * palierMult(s.niv, i)) * ameliorationMult(q, i) / PRODUITS[i].temps * (s.staff ? 1 : 0.3);
+        const prix = prixNiveaux(q, i, n), gain = (PRODUITS[i].rev * (s.niv + n) * palierMult(s.niv + n) - PRODUITS[i].rev * s.niv * palierMult(s.niv)) * ameliorationMult(q, i) / PRODUITS[i].temps * (s.staff ? 1 : 0.3);
         const r = gain / prix; if (r > bestR) { bestR = r; best = i; bestN = n; }
       }
       if (best < 0) break;

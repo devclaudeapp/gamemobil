@@ -718,7 +718,7 @@ language sql
 immutable
 set search_path = ''
 as $$
-  select '{12.5,14.4,16.1,16.5,16.7,16.85,16.95,17.05,17.15,17.2,17.3,17.35,17.4,17.45,17.5}'::double precision[]
+  select '{12.5,14.5,16.35,16.7,16.9,17.05,17.15,17.25,17.35,17.4,17.45,17.5,17.55,17.6,17.65}'::double precision[] -- v6.2 : paliers intercalés (avant : {12.5,14.4,16.1,16.5,16.7,16.85,16.95,17.05,17.15,17.2,17.3,17.35,17.4,17.45,17.5})
 $$;
 
 -- la plus haute valeur de billets acceptée à l'instant p_quand (0 avant l'ouverture)
@@ -791,7 +791,7 @@ immutable
 set search_path = ''
 as $$
   values ('hantee'::text, '2026-10-27 12:00:00 Europe/Paris'::timestamptz, '2026-11-02 20:00:00 Europe/Paris'::timestamptz, 6::double precision,
-          '{11.65,13.8,15.25,15.8,16.05,16.2,16.35,16.45,16.55,16.65,16.75,16.8,16.9,16.95,17,17,17.05,17.1,17.15,17.15,17.2,17.2,17.25,17.25,17.3,17.3,17.3}'::double precision[])
+          '{11.65,14.05,16.05,16.1,16.3,16.45,16.6,16.65,16.75,16.8,16.9,16.95,17,17,17.05,17.1,17.15,17.15,17.2,17.2,17.25,17.25,17.3,17.3,17.35,17.35,17.35}'::double precision[]) -- v6.2 : paliers intercalés (avant : {11.65,13.8,15.25,15.8,16.05,16.2,16.35,16.45,16.55,16.65,16.75,16.8,16.9,16.95,17,17,17.05,17.1,17.15,17.15,17.2,17.2,17.25,17.25,17.3,17.3,17.3})
 $$;
 
 -- la plus haute valeur de score acceptée pour l'événement p_evt à l'instant p_quand (0 avant l'ouverture, ou pour un événement inconnu)
