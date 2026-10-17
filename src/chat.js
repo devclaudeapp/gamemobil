@@ -80,6 +80,8 @@ const TCHAT = (() => {
         else { const par = new Map(messages.map((x) => [x.n, x])); for (const x of r.messages) par.set(x.n, x); messages = [...par.values()].sort((a, b) => a.n - b.n); }
         if (messages.length > R.garder) messages = messages.slice(-R.garder);
         dernier = Math.max(apres ? dernier : 0, r.dernier || 0);
+        // le tout premier contact (pas encore de st.chatVu) : seuls les trois derniers messages comptent comme non lus, pas tout l'historique
+        { const s = st(); if (s && !Number.isSafeInteger(s.chatVu) && messages.length) { const k = messages.length > 3 ? messages[messages.length - 4].n : 0; s.chatVu = k; if (d.save) d.save(); } }
       } else if (r.etat === 'pas-ouvert') { etat = 'pas-ouvert'; messages = []; }
       else if (r.etat !== 'absent') etat = r.etat; // 'hors-ligne', 'lent', 'erreur' : la liste connue reste affichée
       return r;

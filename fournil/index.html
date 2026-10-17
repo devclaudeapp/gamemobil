@@ -65,14 +65,40 @@ svg { display: block; }
   box-shadow: 0 3px 0 var(--gris-sombre); font: 700 17px/1 var(--titre); color: var(--texte); }
 .pastille:active { transform: translateY(3px); box-shadow: none; }
 .pastille svg { width: 22px; height: 22px; }
-.pastille.cloche { padding: 0 10px; }
-.pastille.cloche .point { position: absolute; top: 6px; right: 8px; width: 11px; height: 11px; border-radius: 50%; background: var(--fraise); box-shadow: 0 0 0 2.5px #fff; }
+/* la cloche (le Journal) et le cadeau (les nouveautés) : ronds, un point fraise tant qu'il reste quelque chose à voir */
+.pastille.cloche, .pastille.nouv { padding: 0 10px; }
+.pastille.cloche .point, .pastille.nouv .point { position: absolute; top: 6px; right: 8px; width: 11px; height: 11px; border-radius: 50%; background: var(--fraise); box-shadow: 0 0 0 2.5px #fff; }
 .pastille.cloche.actif { background: #FFE9EE; box-shadow: 0 3px 0 #F3B6C4; animation: cloche 1.6s ease-in-out infinite; }
 @keyframes cloche { 0%, 70%, 100% { transform: rotate(0); } 75% { transform: rotate(-12deg); } 85% { transform: rotate(10deg); } 95% { transform: rotate(-5deg); } }
 .pastille.etoile { background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); }
 .pastille.etoile .ico svg path { fill: #fff; }
 .pastille.etoile.pret { animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+/* le rythme : « par seconde » en entier sur une tablette, « / s » sur un téléphone ; les étoiles à récolter, à côté du compte ou dessous */
+#taux .ps-c { display: none; }
+#etoiles-n small { font: inherit; }
+#etoiles-n small i { font-style: normal; }
+/* un téléphone (390, 360 px) : le solde, son rythme, la cloche, le cadeau et les étoiles tiennent sur une ligne. Les marges se serrent,
+   la pièce rapetisse, « par seconde » devient « / s » et les étoiles à récolter passent sous le compte, en petit, dans la pastille */
+@media (max-width: 419px) {
+  #haut { gap: 6px; padding-inline: 10px; }
+  .solde { gap: 6px; }
+  .solde .piece { width: 32px; height: 32px; }
+  .solde small { font-size: 12px; }
+  .solde small b { font-size: 12px; }
+  #taux .ps { display: none; }
+  #taux .ps-c { display: inline; }
+  .haut-btns { gap: 6px; }
+  .pastille.etoile { padding: 0 11px 0 9px; gap: 5px; }
+  #etoiles-n { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; }
+  #etoiles-n small { font: 700 11.5px/1 var(--titre); margin-top: 1px; color: #8A5A00; }
+  #etoiles-n small i { display: none; }
+}
+@media (max-width: 379px) { /* 360 px : le solde un peu plus petit, la pastille des étoiles plus serrée (« 9,9 Bd € » et « 1234 / +494 » tiennent) */
+  .solde b { font-size: 24px; }
+  .pastille.etoile { padding: 0 9px 0 8px; gap: 4px; font-size: 16px; }
+  .pastille.etoile svg { width: 20px; height: 20px; }
+}
 
 /* ─── le corps : la boutique remplit tout ; les pages glissent par-dessus dans un tiroir qu'on tire soi-même ─── */
 #corps { position: relative; flex: 1 1 auto; min-height: 0; overflow: clip; }
@@ -1366,6 +1392,20 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
 .tc-menu-boite p { margin: 0 0 4px; font-size: 15px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .tc-zoom { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: 16px; background: rgba(28, 20, 16, .92); animation: atEntre .15s ease-out; }
 .tc-zoom img { max-width: 100%; max-height: 100%; border-radius: 12px; object-fit: contain; }
+/* ─── les nouveautés (src/nouveautes.js) : une entrée par mise à jour, la plus récente dépliée en tête ─── */
+.nv-liste { display: grid; gap: 8px; margin-bottom: 4px; }
+.nv { border-radius: var(--r-carte); background: var(--carte); box-shadow: var(--ombre-carte); }
+.nv summary { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 12px 8px 14px; cursor: pointer; list-style: none; }
+.nv summary::-webkit-details-marker { display: none; }
+.nv-tete { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.nv-tete b { font: 700 var(--t-carte)/1.2 var(--titre); color: var(--texte); }
+.nv-tete small { font-size: var(--t-petit); color: var(--texte-2); }
+.nv-badge { flex: 0 0 auto; padding: 4px 8px; border-radius: 999px; background: var(--fraise); color: #fff; font: 800 11px/1 var(--texte-font); font-style: normal; letter-spacing: .02em; }
+.nv summary .chev svg { width: 18px; height: 18px; transform: rotate(90deg); transition: transform .2s; }
+.nv[open] summary .chev svg { transform: rotate(-90deg); }
+.nv-points { margin: 0; padding: 0 14px 14px 32px; display: grid; gap: 6px; font-size: var(--t-corps); line-height: 1.4; color: var(--texte); }
+.nv-points li::marker { color: var(--lavande-sombre); }
+.nv.neuve { box-shadow: 0 0 0 2px var(--rose-clair), var(--ombre-carte); }
 </style>
 </head>
 <body>
@@ -1377,6 +1417,7 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
   </div>
   <div class="haut-btns">
     <button id="b-cloche" class="pastille cloche" type="button" aria-label="Le Journal"><i class="ico" data-ico="cloche"></i><i class="point" hidden></i></button>
+    <button id="b-nouveautes" class="pastille nouv" type="button" aria-label="Les nouveautés du Fournil"><i class="ico" data-ico="nouveautes"></i><i class="point" hidden></i></button>
     <button id="b-etoiles" class="pastille etoile" type="button" aria-label="Étoiles et nouvelle boutique"><i class="ico" data-ico="etoile"></i><span id="etoiles-n">0</span></button>
   </div>
 </header>
@@ -1531,7 +1572,7 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '0d60f8864f29';</script>
+<script>window.FOURNIL_VERSION = '64b99a852873';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -4407,6 +4448,8 @@ const ICONS = (() => {
     reglages: U(`${dents()}<circle cx="12" cy="12" r="6.2" fill="${A.lavande}"/><circle cx="12" cy="12" r="2.3"/>`),
     // l'en-tête, les pages, les feuilles
     cloche: U(`<path d="M6 16.5V11a6 6 0 0112 0v5.5l1.6 2.2H4.4z" fill="${A.beurre}"/><path d="M10 21h4"/><path d="M12 3v2"/>`),
+    // les nouveautés (la pastille à côté de la cloche) : un paquet cadeau, son ruban et son nœud
+    nouveautes: U(`<path d="M5 11.5h14V19a1 1 0 01-1 1H6a1 1 0 01-1-1z" fill="${A.lavande}"/><rect x="3.5" y="7.8" width="17" height="3.7" rx="1" fill="${A.lavande}"/><path d="M12 7.8V20"/><path d="M12 7.8C10.6 4.6 7.2 3.7 7.2 6c0 1.5 2.4 1.8 4.8 1.8zM12 7.8c1.4-3.2 4.8-4.1 4.8-1.8 0 1.5-2.4 1.8-4.8 1.8z"/>`),
     bonus: U(`<path d="M10.5 3.5l1.9 5.1 5.1 1.9-5.1 1.9-1.9 5.1-1.9-5.1-5.1-1.9 5.1-1.9z" fill="${A.lavande}"/><path d="M18 14.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>`),
     etoile: U(etoile(A.beurre)),
     sauvegarde: U(`<path d="M7 18.5a4.2 4.2 0 01-.7-8.4 6 6 0 0111.6-.6 4.5 4.5 0 01-.4 9z" fill="${A.ciel}"/><path d="M12 11v6M9.5 14.6L12 17l2.5-2.4"/>`),
@@ -10945,6 +10988,8 @@ const TCHAT = (() => {
         else { const par = new Map(messages.map((x) => [x.n, x])); for (const x of r.messages) par.set(x.n, x); messages = [...par.values()].sort((a, b) => a.n - b.n); }
         if (messages.length > R.garder) messages = messages.slice(-R.garder);
         dernier = Math.max(apres ? dernier : 0, r.dernier || 0);
+        // le tout premier contact (pas encore de st.chatVu) : seuls les trois derniers messages comptent comme non lus, pas tout l'historique
+        { const s = st(); if (s && !Number.isSafeInteger(s.chatVu) && messages.length) { const k = messages.length > 3 ? messages[messages.length - 4].n : 0; s.chatVu = k; if (d.save) d.save(); } }
       } else if (r.etat === 'pas-ouvert') { etat = 'pas-ouvert'; messages = []; }
       else if (r.etat !== 'absent') etat = r.etat; // 'hors-ligne', 'lent', 'erreur' : la liste connue reste affichée
       return r;
@@ -11291,6 +11336,155 @@ const TCHAT = (() => {
   };
 })();
 
+/* ── nouveautes.js ── */
+/* LE FOURNIL — les nouveautés : le récap des mises à jour, pour le joueur (la pastille cadeau en haut, à côté de la cloche, et sa feuille).
+   À CHAQUE MISE À JOUR VISIBLE PAR LE JOUEUR, on ajoute une entrée EN TÊTE de NOUVEAUTES (la plus récente d'abord) :
+     { id: 'aaaa-mm-jj-x', date: 'aaaa-mm-jj', titre: '…', points: ['…', '…'] }
+   - id : la date (heure de Paris) et une lettre ; deux entrées le même jour : 'a' pour la première, 'b' pour la suivante, etc. Les id se
+     comparent comme des chaînes (src/ui.js : st.nouveautesVues garde l'id de la plus récente vue ; tout id plus grand est « Nouveau ») :
+     on n'en change jamais un déjà publié, et on n'en invente pas un plus ancien que le dernier.
+   - titre court, points en phrases simples, le ton du jeu, sans jargon (pas de SQL, de fichier ni de test : ce que le joueur voit et gagne).
+   - les commits « Test : … », « CI : … », « Merge … » et le travail invisible ne sont pas des nouveautés.
+   Une sauvegarde neuve voit tout comme vu, sauf la plus récente (vueNeuve). Le bandeau « Nouvelle version » recharge la page : la pastille
+   montre alors son point si une entrée est apparue. test/fournil-nouveautes.cjs vérifie la liste (id uniques, dates triées) et l'écran.
+   Aucune dépendance au DOM : tourne aussi dans Node. */
+(function (root, factory) {
+  if (typeof module === 'object' && module.exports) module.exports = factory();
+  else root.NV = factory();
+})(typeof self !== 'undefined' ? self : this, function () {
+  'use strict';
+  const NOUVEAUTES = [
+    {
+      id: '2026-10-17-c', date: '2026-10-17', titre: 'Le chat des boulangers',
+      points: [
+        'Une bulle à droite, sous l’événement : le chat de tous les boulangers, avec une pastille quand il y a du nouveau.',
+        'Écris un message, envoie une photo ou une capture (elle est allégée toute seule), ou cherche un GIF.',
+        'Pour écrire, il faut un pseudo au classement ; tout le monde peut lire.',
+        'Un appui long sur un message : le signaler, ou effacer le tien. Les photos s’effacent après 7 jours.',
+      ],
+    },
+    {
+      id: '2026-10-17-b', date: '2026-10-17', titre: 'Les nouveautés',
+      points: [
+        'Le petit cadeau à côté de la cloche : tout ce qui a changé dans le Fournil, de la plus récente à la plus ancienne.',
+        'Un point rouge te prévient quand il y a du nouveau.',
+      ],
+    },
+    {
+      id: '2026-10-17-a', date: '2026-10-17', titre: 'La jauge de la prochaine étoile',
+      points: [
+        'Dans la feuille Étoiles, une jauge montre où tu en es vers ta prochaine étoile.',
+        'Elle dit ce qu’il reste à gagner dans la boutique, et en combien de temps à ton rythme actuel.',
+        'Laisse la feuille ouverte : la jauge avance sous tes yeux.',
+      ],
+    },
+    {
+      id: '2026-10-16-d', date: '2026-10-16', titre: 'Des recettes qui grimpent plus vite',
+      points: [
+        'De nouveaux paliers de recette : 75, 125, 150, 175, puis 250… Entre 100 et 200, un cran tous les 25 niveaux au lieu d’un seul.',
+        'Chaque palier fait grimper les ventes de la recette : ta boutique avance un peu plus vite qu’avant.',
+        'Quand une mise à jour sort, un bandeau « Nouvelle version du Fournil » te prévient : touche-le, ta partie est sauvée et le jeu repart à jour.',
+      ],
+    },
+    {
+      id: '2026-10-16-c', date: '2026-10-16', titre: 'Les compagnons',
+      points: [
+        'Choisis l’animal de ta boutique : chat roux, chien ou lapin offerts, puis la poule, le canard, le hérisson… jusqu’au mini-dragon.',
+        'Chaque compagnon donne un petit bonus tant qu’il est avec toi : des pourboires, des absences plus longues, des fournées plus rapides ou des gains en plus.',
+        'Le chien du quartier, gagné au palier 11 du Quartier, devient un compagnon lui aussi (+5 % de gains). Le chat noir de la Maison hantée suivra.',
+        'Tout se passe dans Réglages › Le compagnon, ou depuis la garde-robe.',
+      ],
+    },
+    {
+      id: '2026-10-16-b', date: '2026-10-16', titre: 'Des événements plus généreux',
+      points: [
+        'Les paliers des événements donnent plus d’étoiles et versent des heures de gains directement dans la caisse de ta boulangerie.',
+        'Les paliers 13 à 20, après le boss, sont bien plus riches : des étoiles en pagaille et de gros boosts.',
+        'Les combines achetées après le boss paient aussi ta boulangerie.',
+        'Déjà bien avancé ? La différence t’est donnée une fois, sans rien perdre.',
+      ],
+    },
+    {
+      id: '2026-10-16-a', date: '2026-10-16', titre: 'Encore plus de copains',
+      points: [
+        'En visite chez un copain, « Ses recettes » montre le niveau de chacune, ses apprentis et leur grade. Son compagnon est là aussi.',
+        'Dans le classement « Tous les temps », touche un copain pour voir sa fiche ; dans l’onglet de l’événement, visite sa Planque.',
+        'Un pourboire laissé à un copain te rapporte une étoile.',
+        'Les cadeaux peuvent maintenant contenir des étoiles.',
+        'Les notifications sont prêtes : active-les dans Réglages pour savoir quand ta boutique est pleine, quand un copain t’a laissé un pourboire ou quand un événement commence.',
+      ],
+    },
+    {
+      id: '2026-10-15-b', date: '2026-10-15', titre: 'Les copains',
+      points: [
+        'Touche un boulanger dans le classement pour visiter sa boutique en 3D.',
+        'Laisse-lui un pourboire (trois par jour) : il reçoit un boost ×2.',
+        'Chaque semaine, un objectif commun à remplir tous ensemble ; réussi, il offre un boost ×5 à chacun.',
+        'Le classement ouvert se met à jour tout seul, avec les boulangers en ligne.',
+      ],
+    },
+    {
+      id: '2026-10-15-a', date: '2026-10-15', titre: 'Les activités des événements',
+      points: [
+        'Dans un événement, trois boutons de plus : des mini-jeux, les contrats de la nuit et les opérations.',
+        'Les paliers bonus de 13 à 20 et quatre combines de plus attendent ceux qui ont battu le boss.',
+        'Partir quelques minutes sans le vouloir met l’événement en pause au lieu de tout perdre.',
+        'La Maison hantée ouvre ses portes le mardi 27 octobre à midi : tenue d’Halloween et chat noir à gagner.',
+      ],
+    },
+    {
+      id: '2026-10-14-a', date: '2026-10-14', titre: 'Des personnages plus vivants',
+      points: [
+        'Les clients tournent la tête, respirent, s’impatientent dans la file et sautent de joie quand on les sert.',
+        'Les apprentis pétrissent au four et saluent au comptoir ; le boulanger s’essuie le front et se frotte les mains.',
+        'Dans la Planque, l’équipe s’installe sur le canapé, travaille et fait la fête à chaque palier.',
+        'Tes gains comptent aussi quand le jeu reste ouvert en arrière-plan.',
+      ],
+    },
+    {
+      id: '2026-10-13-b', date: '2026-10-13', titre: 'De vrais sons et des confettis',
+      points: [
+        'De vrais bruitages pour les ventes, les achats et les surprises.',
+        'Des confettis aux grandes occasions : déblocages, montée de niveau, podium, nouvelle boutique.',
+        'La Planque passe en haute définition : meubles, néons et la rue de nuit par la fenêtre.',
+      ],
+    },
+    {
+      id: '2026-10-13-a', date: '2026-10-13', titre: 'Le Quartier et la garde-robe',
+      points: [
+        'L’événement « Le Quartier » est ouvert jusqu’au 27 octobre (18 ans et +) : une boutique à part, sa monnaie, douze paliers et un classement rien qu’à lui.',
+        'Ses récompenses vont à ta boulangerie : des étoiles, des boosts, des décos et une tenue.',
+        'La garde-robe du boulanger : tête, haut, chaussures et accessoire, chaque pièce avec son bonus, à améliorer avec des étoiles.',
+        'L’interface est mieux rangée, avec des icônes redessinées.',
+        'Il paraît qu’une petite porte, au fond de la boutique, cache quelque chose…',
+      ],
+    },
+    {
+      id: '2026-10-12-a', date: '2026-10-12', titre: 'L’Atelier et les points de boulanger',
+      points: [
+        'L’Atelier et ses trois mini-jeux : l’Enfournement en rythme, le Façonnage au doigt et la Mémoire du pâtissier.',
+        'Le classement compte en points de boulanger : petit ou grand, chacun a sa chance.',
+      ],
+    },
+  ];
+
+  const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  // « vendredi 16 octobre » ; l'année seulement si elle n'est pas celle d'aujourd'hui (annee : l'année en cours, facultative)
+  function dateFr(date, annee) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(date || ''));
+    if (!m) return '';
+    const a = +m[1], mo = +m[2], j = +m[3], jour = new Date(Date.UTC(a, mo - 1, j)).getUTCDay();
+    return `${JOURS[jour]} ${j === 1 ? '1er' : j} ${MOIS[mo - 1]}${annee && annee !== a ? ` ${a}` : ''}`;
+  }
+  const derniere = () => (NOUVEAUTES.length ? NOUVEAUTES[0].id : '');
+  const vueNeuve = () => (NOUVEAUTES.length > 1 ? NOUVEAUTES[1].id : ''); // une sauvegarde neuve : tout vu, sauf la plus récente
+  const nonVue = (n, vues) => typeof vues !== 'string' || n.id > vues; // les id se comparent comme des chaînes (aaaa-mm-jj-x)
+  const nonVues = (vues) => NOUVEAUTES.filter((n) => nonVue(n, vues));
+
+  return { NOUVEAUTES, dateFr, derniere, vueNeuve, nonVue, nonVues };
+});
+
 /* ── ui.js ── */
 /* LE FOURNIL — interface : barre d'onglets (Boutique, Défis, Boulanger, Journal, Réglages), cartes compactes, ticket des objectifs,
    bannière d'événement sur la scène, cloche, badges, feuilles, classement en ligne, sons, sauvegarde, boucle. */
@@ -11526,27 +11720,32 @@ const UI = (() => {
   // les nouvelles du Journal pas encore lues : celles du carnet arrivées après la dernière visite du Journal (les trophées y sont annoncés)
   const nonLues = () => { const vu = (st.vu && st.vu.journal) || 0; return (st.carnetEv || []).filter((e) => e.t > vu).length; };
   const marquerLu = () => { if (!st.vu) st.vu = {}; const c = st.carnetEv || []; st.vu.journal = Math.max(st.vu.journal || 0, c.length ? c[c.length - 1].t : 0, st.now || 0); };
+  // les nouveautés (src/nouveautes.js) : st.nouveautesVues garde l'id de la plus récente vue ; toute entrée plus récente allume le point du cadeau
+  const NVS = typeof NV !== 'undefined' ? NV : null;
+  const nouveautesNonVues = () => (NVS && st ? NVS.nonVues(st.nouveautesVues).length : 0);
   const primesAReclamer = () => { const j = G.objectifsDuJour(st, st.now), sm = st.semaine; return j.objectifs.filter((o) => o.fait && !o.reclame).length + (sm && sm.fait && !sm.reclame ? 1 : 0); };
   function badge(el, n, cls) { const b = el.querySelector('.badge'); if (!b) return; b.hidden = !n; b.textContent = n > 0 && cls !== 'point' ? n : ''; b.className = 'badge' + (cls ? ' ' + cls : ''); }
   function hud() {
     const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st), marche = G.jourDeMarche(st.now), boost = st.boost && st.boost.fin > st.now ? st.boost.mult : 0;
     const bonus = G.AMELIORATIONS.filter((a) => !st.ameliorations[a.id] && st.coins >= G.prixBonus(st, a)).length + G.MOBILIER.filter((m) => G.mobilierCran(st, m.id) < m.max && st.coins >= G.prixMeuble(st, m.id)).length, primes = primesAReclamer(), pts = G.ptsTalents(st);
     if (pageActive === 'journal' && tiroir.pos !== 'ferme' && nonLues()) marquerLu(); // une nouvelle arrivée pendant qu'on lit le Journal est lue aussitôt
-    const nouveaux = nonLues(), nom = G.nomBoutique(st), ev = st.ev ? st.ev.type : '';
+    const nouveaux = nonLues(), nom = G.nomBoutique(st), ev = st.ev ? st.ev.type : '', nv = nouveautesNonVues();
     // le marché du samedi et la bonne critique : pas de deuxième ligne sous le solde (elle repoussait la boutique à 360×640) ;
     // la ligne du rythme et les badges s'y relaient toutes les 4 s, à hauteur constante
     const br = st.boosts && st.boosts.actif && st.boosts.actif.fin > st.now ? st.boosts.actif.mult : 0; // un boost de la réserve (l'événement du quartier)
     const extras = [marche && 'Marché ×1,5', boost && `Bonne critique ×${boost}`, br && `Boost ×${br}`].filter(Boolean), tour = extras.length ? Math.floor(performance.now() / 4000) % (extras.length + 1) : 0;
-    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}|${br}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}|${tour}`;
+    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}|${br}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}|${tour}|${nv}`;
     if (key === lastHud) return; lastHud = key;
     $('#coins').textContent = G.fmtEur(st.coins);
-    $('#taux').innerHTML = `<span${tour ? ' style="display:none"' : ''}>${taux > 0 ? `<b>+${G.fmtEur(taux)}</b> par seconde` : 'Touche la baguette !'}</span>` + extras.map((t, k) => `<span class="marche" style="margin:0;padding:1px 7px;vertical-align:top${tour === k + 1 ? '' : ';display:none'}">${t}</span>`).join('');
-    $('#etoiles-n').textContent = gain > 0 ? `${st.etoiles} · +${gain}` : st.etoiles;
+    $('#taux').innerHTML = `<span${tour ? ' style="display:none"' : ''}>${taux > 0 ? `<b>+${G.fmtEur(taux)}</b><span class="ps"> par seconde</span><span class="ps-c"> / s</span>` : 'Touche la baguette !'}</span>` + extras.map((t, k) => `<span class="marche" style="margin:0;padding:1px 7px;vertical-align:top${tour === k + 1 ? '' : ';display:none'}">${t}</span>`).join('');
+    $('#etoiles-n').innerHTML = gain > 0 ? `${st.etoiles}<small><i> · </i>+${gain}</small>` : st.etoiles; // sur un téléphone, le « +gain » passe sous le compte (style.css)
     $('#b-etoiles').classList.toggle('pret', gain >= 3);
     $('#b-ameliorations').classList.toggle('pret', bonus > 0); badge($('#b-ameliorations'), bonus);
     $('#enseigne span').textContent = nom;
     $('#b-cloche').classList.toggle('actif', !!ev); $('#b-cloche .point').hidden = !ev && !nouveaux; // la cloche : l'événement en cours, sinon les nouvelles pas lues
     $('#b-cloche').setAttribute('aria-label', ev ? 'Événement en cours' : nouveaux ? `${nouveaux} nouvelle${nouveaux > 1 ? 's' : ''} dans le Journal` : 'Le Journal');
+    $('#b-nouveautes .point').hidden = !nv; // le cadeau : une mise à jour pas encore vue
+    $('#b-nouveautes').setAttribute('aria-label', nv ? `Nouveautés : ${nv} mise${nv > 1 ? 's' : ''} à jour à découvrir` : 'Les nouveautés du Fournil');
     badge($('#onglets [data-page="defis"]'), primes);
     badge($('#onglets [data-page="boulanger"]'), pts, 'lavande');
     badge($('#onglets [data-page="journal"]'), nouveaux, 'beurre');
@@ -12108,6 +12307,19 @@ const UI = (() => {
       on('[data-a="non"]', sheetEtoiles);
       on('[data-a="oui"]', () => { const r = G.nouvelleBoutique(st, HORLOGE.maintenant()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); confettis(1.6); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★`); st.tuto = Math.max(st.tuto, INDICES.length); amenager(false); renderCards(true); hud(); save(); showPage('boutique'); sheetNom(true); } });
     });
+  }
+  // la feuille « Nouveautés » : le récap des mises à jour (src/nouveautes.js), la plus récente dépliée en tête, « Nouveau » sur celles
+  // que le joueur n'avait pas vues ; l'ouvrir marque tout comme vu (le point du cadeau s'éteint)
+  function sheetNouveautes() {
+    if (!NVS) return;
+    const vues = st.nouveautesVues, an = new Date(HORLOGE.maintenant()).getFullYear();
+    const entree = (n, k) => { const neuve = NVS.nonVue(n, vues);
+      return `<details class="nv${neuve ? ' neuve' : ''}" data-nv="${esc(n.id)}"${k === 0 ? ' open' : ''}><summary><span class="nv-tete"><b>${esc(n.titre)}</b><small>${esc(NVS.dateFr(n.date, an))}</small></span>${neuve ? '<i class="nv-badge">Nouveau</i>' : ''}<i class="ico chev">${ICONS.UI.chevron}</i></summary>
+        <ul class="nv-points">${n.points.map((p) => `<li>${esc(p)}</li>`).join('')}</ul></details>`; };
+    openSheet(`<h2>Nouveautés</h2><p class="sous">Ce qui a changé dans le Fournil, de la plus récente à la plus ancienne.</p>
+      <div class="nv-liste">${NVS.NOUVEAUTES.map(entree).join('')}</div>${btnRetour()}`);
+    on('[data-a="close"]', closeSheet);
+    st.nouveautesVues = NVS.derniere(); save(); hud();
   }
   // Réglages › Journal des retours : quand le jeu a compté une absence, pourquoi, et si la feuille s'est ouverte (sinon, pourquoi pas)
   const RAISON_RETOUR = { lancement: 'Ouverture du jeu', visible: 'Retour dans le jeu', cache: 'Retour dans le jeu', reveil: 'Réveil du téléphone', gel: 'Le jeu reprend après une pause', saut: 'L’heure a sauté', heure: 'L’heure sûre est arrivée', recul: 'Horloge du jeu remise à l’heure', derive: 'Le compteur du téléphone a sauté' };
@@ -12957,6 +13169,7 @@ const UI = (() => {
     st.now = HORLOGE.maintenant();
     if (!st.vu) st.vu = {};
     if (st.vu.journal == null) { const c = st.carnetEv || []; st.vu.journal = fresh ? 0 : c.length ? c[c.length - 1].t : 0; } // une ancienne sauvegarde : son carnet compte comme lu
+    if (NVS && typeof st.nouveautesVues !== 'string') st.nouveautesVues = NVS.vueNeuve(); // une sauvegarde neuve, ou d'avant les nouveautés : tout est vu, sauf la plus récente
     document.querySelectorAll('[data-ico]').forEach((el) => { el.innerHTML = ICONS.UI[el.dataset.ico] || ''; });
     if (!SCENE.init($('#scene'), $('#scene-ui'))) $('#sans-3d').hidden = false; // sans WebGL : la boutique vit quand même, sans image
     SCENE.surServi = (r) => { if (visite) return; if (r.cadeau) { reussite(`${r.hb.nom}, fidèle depuis ${r.jours} jours, t’offre ${G.fmtEur(r.cadeau)} !`); } else if (r.jours > 1) toast(`${r.hb.nom} : ${r.jours}e jour de suite !`); };
@@ -12993,6 +13206,7 @@ const UI = (() => {
     $('#objectifs').addEventListener('click', () => { audio(); showPage('defis'); });
     $('#enseigne').addEventListener('click', () => { audio(); sheetNom(false); });
     $('#b-cloche').addEventListener('click', () => { audio(); if (st.ev) { if (tiroir.pos === 'ouvert') tiroir.aller('mi'); if (!evEtendu) basculerEvenement(); } else { son.tap(); showPage('journal'); } }); // la cloche : l'événement en cours, sinon le fil des nouvelles
+    $('#b-nouveautes').addEventListener('click', () => { audio(); son.tap(); sheetNouveautes(); }); // le cadeau : les nouveautés
     $('#evenement').addEventListener('click', (e) => { if (e.target.closest('button')) return; audio(); basculerEvenement(); });
     document.querySelectorAll('#onglets button').forEach((b) => b.addEventListener('click', () => { audio(); if (b.dataset.page !== pageActive) { son.tap(); showPage(b.dataset.page); } else if (tiroir.pos === 'ferme') tiroir.aller('mi'); else $('#pages').scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' }); }));
     $('#scene').addEventListener('pointerdown', (e) => {
@@ -13048,7 +13262,7 @@ const UI = (() => {
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, get retour() { return { enCours: retourEnCours, dernier: dernierRetour }; }, journalRetours: sheetJournalRetours, cadeaux: verifierCadeaux, G, SCENE, save, son, confettis, audio, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
+    window.__fournil = { get st() { return st; }, get retour() { return { enCours: retourEnCours, dernier: dernierRetour }; }, journalRetours: sheetJournalRetours, nouveautes: sheetNouveautes, cadeaux: verifierCadeaux, G, SCENE, save, son, confettis, audio, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
       chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden, hantee: !$('#b-hantee').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
       quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT,

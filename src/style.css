@@ -42,14 +42,40 @@ svg { display: block; }
   box-shadow: 0 3px 0 var(--gris-sombre); font: 700 17px/1 var(--titre); color: var(--texte); }
 .pastille:active { transform: translateY(3px); box-shadow: none; }
 .pastille svg { width: 22px; height: 22px; }
-.pastille.cloche { padding: 0 10px; }
-.pastille.cloche .point { position: absolute; top: 6px; right: 8px; width: 11px; height: 11px; border-radius: 50%; background: var(--fraise); box-shadow: 0 0 0 2.5px #fff; }
+/* la cloche (le Journal) et le cadeau (les nouveautés) : ronds, un point fraise tant qu'il reste quelque chose à voir */
+.pastille.cloche, .pastille.nouv { padding: 0 10px; }
+.pastille.cloche .point, .pastille.nouv .point { position: absolute; top: 6px; right: 8px; width: 11px; height: 11px; border-radius: 50%; background: var(--fraise); box-shadow: 0 0 0 2.5px #fff; }
 .pastille.cloche.actif { background: #FFE9EE; box-shadow: 0 3px 0 #F3B6C4; animation: cloche 1.6s ease-in-out infinite; }
 @keyframes cloche { 0%, 70%, 100% { transform: rotate(0); } 75% { transform: rotate(-12deg); } 85% { transform: rotate(10deg); } 95% { transform: rotate(-5deg); } }
 .pastille.etoile { background: var(--beurre); box-shadow: 0 3px 0 var(--beurre-sombre); }
 .pastille.etoile .ico svg path { fill: #fff; }
 .pastille.etoile.pret { animation: pulse 1.2s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+/* le rythme : « par seconde » en entier sur une tablette, « / s » sur un téléphone ; les étoiles à récolter, à côté du compte ou dessous */
+#taux .ps-c { display: none; }
+#etoiles-n small { font: inherit; }
+#etoiles-n small i { font-style: normal; }
+/* un téléphone (390, 360 px) : le solde, son rythme, la cloche, le cadeau et les étoiles tiennent sur une ligne. Les marges se serrent,
+   la pièce rapetisse, « par seconde » devient « / s » et les étoiles à récolter passent sous le compte, en petit, dans la pastille */
+@media (max-width: 419px) {
+  #haut { gap: 6px; padding-inline: 10px; }
+  .solde { gap: 6px; }
+  .solde .piece { width: 32px; height: 32px; }
+  .solde small { font-size: 12px; }
+  .solde small b { font-size: 12px; }
+  #taux .ps { display: none; }
+  #taux .ps-c { display: inline; }
+  .haut-btns { gap: 6px; }
+  .pastille.etoile { padding: 0 11px 0 9px; gap: 5px; }
+  #etoiles-n { display: inline-flex; flex-direction: column; align-items: center; line-height: 1; }
+  #etoiles-n small { font: 700 11.5px/1 var(--titre); margin-top: 1px; color: #8A5A00; }
+  #etoiles-n small i { display: none; }
+}
+@media (max-width: 379px) { /* 360 px : le solde un peu plus petit, la pastille des étoiles plus serrée (« 9,9 Bd € » et « 1234 / +494 » tiennent) */
+  .solde b { font-size: 24px; }
+  .pastille.etoile { padding: 0 9px 0 8px; gap: 4px; font-size: 16px; }
+  .pastille.etoile svg { width: 20px; height: 20px; }
+}
 
 /* ─── le corps : la boutique remplit tout ; les pages glissent par-dessus dans un tiroir qu'on tire soi-même ─── */
 #corps { position: relative; flex: 1 1 auto; min-height: 0; overflow: clip; }
@@ -1343,3 +1369,17 @@ body.visite #coin, body.visite #enseigne, body.visite #b-fini { visibility: hidd
 .tc-menu-boite p { margin: 0 0 4px; font-size: 15px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
 .tc-zoom { position: absolute; inset: 0; z-index: 5; display: grid; place-items: center; padding: 16px; background: rgba(28, 20, 16, .92); animation: atEntre .15s ease-out; }
 .tc-zoom img { max-width: 100%; max-height: 100%; border-radius: 12px; object-fit: contain; }
+/* ─── les nouveautés (src/nouveautes.js) : une entrée par mise à jour, la plus récente dépliée en tête ─── */
+.nv-liste { display: grid; gap: 8px; margin-bottom: 4px; }
+.nv { border-radius: var(--r-carte); background: var(--carte); box-shadow: var(--ombre-carte); }
+.nv summary { display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 12px 8px 14px; cursor: pointer; list-style: none; }
+.nv summary::-webkit-details-marker { display: none; }
+.nv-tete { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 1 auto; }
+.nv-tete b { font: 700 var(--t-carte)/1.2 var(--titre); color: var(--texte); }
+.nv-tete small { font-size: var(--t-petit); color: var(--texte-2); }
+.nv-badge { flex: 0 0 auto; padding: 4px 8px; border-radius: 999px; background: var(--fraise); color: #fff; font: 800 11px/1 var(--texte-font); font-style: normal; letter-spacing: .02em; }
+.nv summary .chev svg { width: 18px; height: 18px; transform: rotate(90deg); transition: transform .2s; }
+.nv[open] summary .chev svg { transform: rotate(-90deg); }
+.nv-points { margin: 0; padding: 0 14px 14px 32px; display: grid; gap: 6px; font-size: var(--t-corps); line-height: 1.4; color: var(--texte); }
+.nv-points li::marker { color: var(--lavande-sombre); }
+.nv.neuve { box-shadow: 0 0 0 2px var(--rose-clair), var(--ombre-carte); }
