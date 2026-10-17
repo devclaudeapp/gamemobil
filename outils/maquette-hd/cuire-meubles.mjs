@@ -3,6 +3,8 @@
 // soudé, quantifié et compressé en meshopt. Sans texture, un meuble pèse quelques Ko et entre tel quel dans les maillages fusionnés de
 // MEUBLES (MODELES.assembler, pièces à couleurs de sommets) : un appel de dessin par meuble, comme les meubles faits main.
 // Lancer (depuis un dossier qui a @gltf-transform, meshoptimizer et sharp) : node cuire-meubles.mjs <dossier gltf> <sortie> nom1 nom2 …
+// Un nom peut porter son chemin et son extension (Kenney livre des .glb : « Models/GLB format/statue.glb ») ; sans extension, c'est un .gltf.
+// Un nom suivi de « =nouveau » est écrit sous ce nouveau nom (statue.glb=statue_kenney).
 import { NodeIO } from '@gltf-transform/core';
 import { EXTMeshoptCompression, KHRMeshQuantization } from '@gltf-transform/extensions';
 import { meshopt, dedup, prune, weld, quantize } from '@gltf-transform/functions';
@@ -19,8 +21,9 @@ async function pixels(tex) { // l'atlas décodé (mis en cache : tous les meuble
   const { data, info } = await sharp(Buffer.from(tex.getImage())).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
   const p = { d: data, w: info.width, h: info.height }; images.set(k, p); return p;
 }
-for (const nom of noms) {
-  const doc = await io.read(path.join(dossier, nom + '.gltf'));
+for (const arg of noms) {
+  const [src, dest] = arg.split('='), nom = dest || path.basename(src).replace(/[.](gltf|glb)$/, '');
+  const doc = await io.read(path.join(dossier, /[.](gltf|glb)$/.test(src) ? src : src + '.gltf'));
   for (const mesh of doc.getRoot().listMeshes()) for (const prim of mesh.listPrimitives()) {
     const mat = prim.getMaterial(), uv = prim.getAttribute('TEXCOORD_0'), pos = prim.getAttribute('POSITION'), n = pos.getCount();
     const f = mat ? mat.getBaseColorFactor() : [1, 1, 1, 1], tex = mat && mat.getBaseColorTexture(), img = tex && uv ? await pixels(tex) : null;

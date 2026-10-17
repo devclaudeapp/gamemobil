@@ -16,6 +16,8 @@ const HDM = (() => {
     boutique: { meubles2: ['table_round_A_small', 'chair_A_wood', 'chair_A', 'chair_stool_wood', 'couch_pillows', 'armchair_pillows', 'table_low', 'rug_rectangle_stripes_A', 'lamp_standing', 'menu'], meubles: ['cactus_medium_A', 'cactus_small_A'], halloween: ['pumpkin_orange', 'pumpkin_orange_jackolantern', 'pumpkin_yellow_small'], resto: ['jar_A_large', 'jar_B_medium'] },
     // la Maison hantée (fournil/hd/hantee/ : KayKit Halloween Bits et Furniture Bits, CC0) : le salon du manoir, le jardin par la fenêtre, l'équipe costumée
     hantee: { hantee: ['armchair', 'book_set', 'candle_melted', 'candle_thin', 'candle_triple', 'crypt', 'fence', 'fence_gate', 'gravestone', 'lantern_hanging', 'lantern_standing', 'pictureframe_large_A', 'post_lantern', 'pumpkin_orange_small', 'pumpkin_yellow_jackolantern', 'rug_rectangle_stripes_A', 'shelf_B_large_decorated', 'table_medium', 'tree_dead_medium', 'tree_pine_orange_medium'], halloween: ['pumpkin_orange', 'pumpkin_orange_jackolantern'], mini: MINI },
+    // le standing (src/meubles.js, standing ; fournil/hd/luxe/ : cuits, quelques Ko) : chargés seulement quand la boutique atteint le palier
+    luxe1: { luxe: ['lantern_hanging'] }, luxe3: { luxe: ['column'] }, luxe5: { luxe: ['statue', 'trophy'] },
     planque: { meubles: ['rug_oval_A', 'cactus_medium_A', 'cactus_small_A', 'pictureframe_medium', 'lamp_standing', 'couch_pillows', 'armchair_pillows', 'table_low'], ville: ['building_D', 'building_F', 'streetlight', 'car_sedan', 'firehydrant', 'trash_A', 'dumpster'], mini: MINI },
   };
   const MOD = {}, PER = {}, etat = {};
@@ -24,7 +26,7 @@ const HDM = (() => {
     if (etat[lot]) return etat[lot].promesse; const e = etat[lot] = { pret: false };
     const t = []; for (const [dossier, noms] of Object.entries(LOTS[lot] || {})) for (const n of noms) {
       if (dossier === 'mini') { if (!PER[n]) t.push(lire(`mini/${n}.glb`).then((g) => { PER[n] = g; }, () => console.warn('HD : personnage manquant', n))); }
-      else { const cle = dossier === 'meubles2' ? `meubles2/${n}` : n; if (!MOD[cle]) t.push(lire(`${dossier}/${n}.glb`).then((g) => { MOD[cle] = g.scene; }, () => console.warn('HD : modèle manquant', n))); } // un décor manquant est simplement omis ; les meubles cuits gardent leur dossier dans leur nom
+      else { const cle = dossier === 'meubles2' || dossier === 'luxe' ? `${dossier}/${n}` : n; if (!MOD[cle]) t.push(lire(`${dossier}/${n}.glb`).then((g) => { MOD[cle] = g.scene; }, () => console.warn('HD : modèle manquant', n))); } // un décor manquant est simplement omis ; les meubles cuits gardent leur dossier dans leur nom
     }
     e.promesse = Promise.all(t).then(() => { if (LOTS[lot].mini && !LOTS[lot].mini.some((v) => PER[v])) throw new Error('personnages HD manquants'); e.pret = true; API.version++; return true; }).catch((err) => { e.erreur = String(err && err.message || err); console.warn('HD : modèles non chargés, rendu habituel', e.erreur); return false; });
     return e.promesse;

@@ -585,6 +585,10 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const pp = CL.photo(pire, tous), op = CL.octetsJson(pp);
     check(pp && op <= 2048 && pp.p.length === 16 && pp.k.length === 12 && pp.e && pp.e.p.length === 16 && pp.e.d.length === 8 && pp.x.f === 1e30 && pp.x.v === 1e15, `le pire cas (16 postes, toutes les décos, 12 coupes, un nom long, un événement à 16 postes) : ${op} octets ≤ 2048, rien de retiré`);
     console.log(`       (taille au pire cas : ${op} octets)`);
+    // le standing (17 octobre) : le champ l (palier 0 à 5) est dans le pire cas ; relu borné ; une vieille photo sans l → palier 0
+    { const sv = Object.assign({}, pp); delete sv.l; const bv = CL.boutiqueDepuisPhoto(sv, { G, maintenant: T }), b5 = CL.boutiqueDepuisPhoto(pp, { G, maintenant: T });
+      check(pp.l === 5 && G.standing(b5.st) === 5 && CL.nettoyerPhoto(sv).l === 0 && G.standing(bv.st) === 0 && CL.nettoyerPhoto(Object.assign({}, pp, { l: 42 })).l === 5 && CL.nettoyerPhoto(Object.assign({}, pp, { l: 'x' })).l === 0,
+        'le standing dans la photo (l = 5 au pire cas, compté dans les 2048 octets) ; une vieille photo sans l : palier 0 ; l borné entre 0 et 5'); }
     // le repli, éprouvé en abaissant la limite : le nom et les coupes d'abord, puis e.d, puis e, puis rien
     const max0 = CL.PHOTO.max, taille = (o) => CL.octetsJson(o), s1 = taille(Object.assign({}, pp, { k: [], nom: pp.nom.slice(0, 12) })), e2 = Object.assign({}, pp.e); delete e2.d;
     const s2 = taille(Object.assign({}, pp, { k: [], nom: pp.nom.slice(0, 12), e: e2 })), sansE = Object.assign({}, pp, { k: [], nom: pp.nom.slice(0, 12) }); delete sansE.e; const s3 = taille(sansE);

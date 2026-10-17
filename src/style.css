@@ -1565,3 +1565,17 @@ body.amenage .vote-bandeau, body.visite .vote-bandeau, body[data-tiroir="ouvert"
 .pc-recap li { justify-content: flex-start; align-items: center; }
 .pc-recap li > span:last-child { display: grid; gap: 1px; }
 .pc-recap li small { font-weight: 700; color: var(--texte-2); }
+/* le standing de la boutique (6 paliers) : la ligne des feuilles Étoiles et Parcours, l'annonce « Ta boutique monte en gamme » */
+.sg-ligne { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 6px 0 8px; padding: 10px 12px; border-radius: var(--r-int); background: var(--or-clair); border: 2px solid var(--beurre); }
+.sg-txt { display: grid; gap: 1px; min-width: 0; }
+.sg-txt small { font: 800 var(--t-petit)/1.2 var(--texte-font); color: var(--texte-2); }
+.sg-txt b { font: 700 18px/1.15 var(--titre); }
+.sg-pips { display: inline-flex; gap: 4px; flex: 0 0 auto; }
+.sg-pips i { width: 10px; height: 10px; border-radius: 50%; background: #fff; border: 2px solid var(--beurre); }
+.sg-pips i.on { background: var(--beurre); }
+.sg-annonce { text-align: center; padding: 14px 12px 10px; margin-bottom: 6px; border-radius: var(--r-int); background: linear-gradient(180deg, var(--or-clair), #fff); border: 2px solid var(--beurre); }
+.sg-annonce small { font: 800 var(--t-petit)/1.2 var(--texte-font); color: var(--texte-2); text-transform: uppercase; letter-spacing: .06em; }
+.sg-annonce h2 { margin: 4px 0 6px; }
+.sg-annonce .sg-nom { font: 700 26px/1.1 var(--titre); color: var(--texte); margin-bottom: 8px; }
+.sg-annonce .sg-pips i { width: 14px; height: 14px; }
+.sg-annonce .sous { margin: 8px 0 0; }

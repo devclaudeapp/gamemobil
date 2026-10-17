@@ -128,6 +128,20 @@
   }
   const quartier = (st) => { const q = st.quartierFixe; return Number.isInteger(q) && q >= 0 && q < QUARTIERS.length ? q : quartierDe(st.boutiques || 1); };
   const nomBoutique = (st) => st.nomBoutique || QUARTIERS[quartier(st)].enseigne;
+  // le standing de la boutique (17 octobre) : le décor monte en gamme tout seul toutes les cinq boutiques — n°1 à 5 au palier 0, n°6 à 10
+  // au palier 1… n°26 et au-delà au palier 5 (src/vie.js, decor(q, s) ; src/meubles.js, standing). Aucun effet sur les gains : c'est pour
+  // les yeux. st.standingFixe : le palier d'une boutique visitée (la photo d'un copain, src/classement.js), à la place du calcul.
+  const STANDINGS = [
+    { nom: 'Boutique de quartier', phrase: 'Une petite boutique simple et chaleureuse, où tout le monde se connaît.' },
+    { nom: 'Belle boutique', phrase: 'Des boiseries aux murs, des plantes vertes, des lanternes à la porte : on remarque ta vitrine.' },
+    { nom: 'Maison réputée', phrase: 'Un parquet en chevrons, des moulures et un store rayé à la porte : on vient de loin pour toi.' },
+    { nom: 'Grande maison', phrase: 'Des colonnes à l’entrée, des dorures, une vitrine qui brille : une adresse qui compte.' },
+    { nom: 'Maison de prestige', phrase: 'Du marbre au sol, aux murs et sur le comptoir, un tapis rouge devant la porte.' },
+    { nom: 'Palais du goût', phrase: 'Le marbre, l’or, la statue et le trophée : la plus belle boulangerie du pays.' },
+  ];
+  const STANDING_PAS = 5; // un palier toutes les cinq boutiques
+  const standingDe = (n) => Math.max(0, Math.min(STANDINGS.length - 1, Math.floor((Math.max(1, Math.floor(n) || 1) - 1) / STANDING_PAS)));
+  const standing = (st) => { const f = st && st.standingFixe; return Number.isInteger(f) && f >= 0 && f < STANDINGS.length ? f : standingDe(st && st.boutiques || 1); };
   function renommer(st, nom) { const n = String(nom || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24); st.nomBoutique = n; return nomBoutique(st); }
 
   // ─── le parcours du boulanger : une récompense à chaque boutique jusqu'à la n°30, et, dès la n°6, un défi de passage pour ouvrir la suivante ───
@@ -1409,7 +1423,7 @@
     CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, PELAGES, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
     COMPAGNONS, COMPAGNON_PLANCHER, compagnon, estChat, prixCompagnon, aCompagnon, compagnonActif, bonusCompagnon, compagnonGains, modeleCompagnon, compagnons, choisirCompagnon, acheterCompagnon,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
-    PRODUITS, RECETTES_BASE, recetteGagnee, recettesBoutique, recettesConnues, prochaineRecetteBoutique, ameliorationOuverte, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, places, belleSaison, terrassePleine, QUARTIERS_BASE, quartierDe, PARCOURS_FIN, recompenseBoutique, texteRecompense, parcours, donnerRecompense, rattraperParcours, gainsParcours, titreParcours, DEFIS_PASSAGE, DEFI_DEBUT, defiDe, texteDefi, creerDefi, defiPassage, passageOk, ETOILES_CONSEIL, butParcours, parcoursListe, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
+    PRODUITS, RECETTES_BASE, recetteGagnee, recettesBoutique, recettesConnues, prochaineRecetteBoutique, ameliorationOuverte, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, places, belleSaison, terrassePleine, QUARTIERS_BASE, quartierDe, PARCOURS_FIN, recompenseBoutique, texteRecompense, parcours, donnerRecompense, rattraperParcours, gainsParcours, titreParcours, DEFIS_PASSAGE, DEFI_DEBUT, defiDe, texteDefi, creerDefi, defiPassage, passageOk, ETOILES_CONSEIL, butParcours, parcoursListe, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, STANDINGS, STANDING_PAS, standing, standingDe, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
     palierMult, expoPalier, fmtMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables, prochaineEtoile,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, boostsNeufs, donnerBoostReserve, PRIME_HEURE_PLANCHER, primeHeures, donnerPrimeHeures, lancerBoostReserve,
