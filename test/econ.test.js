@@ -179,7 +179,7 @@ console.log('── les nouveaux meubles : tables 5 et 6, bar, coin salon, terra
   st.mobilier = { tables: 4 }; const g4 = G.revenuBase(st, 0); st.mobilier.tables = 6; check(Math.abs(G.revenuBase(st, 0) / g4 - 1.48 / 1.32) < 1e-9 && M('tables').desc(6) === 'Salon de thé : 6 tables, tous les gains ×1,48', 'tables au 6e cran : tous les gains ×1,48');
   // le bar : pourboires +10 %/cran, et +5 % de clients à la main par cran
   st.mobilier = {}; const p0 = G.pourboire(st), a0 = G.affluenceMult(st); st.mobilier.bar = 3;
-  check(Math.abs(G.pourboire(st) / p0 - 1.3) < 0.02 && Math.abs(G.affluenceMult(st) - a0 - 0.15) < 1e-9 && M('bar').desc(1) === '2 tabourets : pourboires +10 %, les fournées à la main servent 5 % de clients en plus', 'bar au maximum : pourboires +30 %, +15 % de clients à la main');
+  check(Math.abs(G.pourboire(st) / p0 - 1.3) < 0.02 && Math.abs(G.affluenceMult(st) - a0 - 0.15) < 1e-9 && M('bar').desc(1) === '2 tabourets : pourboires +10 %, clients à la main +5 %', 'bar au maximum : pourboires +30 %, +15 % de clients à la main');
   // la terrasse : +10 %/cran les jours de marché et à la belle saison (avril à septembre), +5 % sinon
   st.mobilier = { terrasse: 3 }; const aff = (t) => { st.now = t; return Math.round((G.affluenceMult(st) - 1) * 100); };
   check(aff(mer) === 15 && aff(sam) === 30 && aff(juin) === 30 && !G.terrassePleine(Object.assign({}, st, { now: mer })) && G.belleSaison(juin), 'terrasse au maximum : +15 % un mercredi d’octobre, +30 % le samedi et en juin');
@@ -189,7 +189,7 @@ console.log('── les nouveaux meubles : tables 5 et 6, bar, coin salon, terra
   const arrive = (k) => { const s = G.newState(h8); s.now = h8; s.mobilier = { banquette: k }; s.evTimer = 1e9; s.mystereTimer = 1e9; return !!G.tick(s, 1, h8, () => 0.05).habitue; };
   check(!arrive(0) && arrive(3), 'coin salon au maximum : un habitué qu’on aurait attendu encore arrive (chance par seconde ×1,6)');
   const cadeau = (k) => { const s = G.newState(h8); s.now = h8; s.mobilier = { banquette: k }; s.habitues = { dupuis: { jours: 4, dernier: G.dayKey(h8 - 864e5), vuLe: '' } }; return G.servirHabitue(s, 'dupuis').cadeau; };
-  check(cadeau(3) === G.arrondi(cadeau(0) * 1.9) && /arrivent 60 % plus vite, leurs cadeaux \+90 %/.test(M('banquette').desc(3)), `coin salon au maximum : le cadeau des 5 jours ×1,9 (${cadeau(0)} → ${cadeau(3)} €, arrondi)`);
+  check(cadeau(3) === G.arrondi(cadeau(0) * 1.9) && M('banquette').desc(3) === 'Banquette, lampe et fauteuil : habitués 60 % plus vite, cadeaux +90 %' && M('terrasse').desc(3) === '6 places dehors : clients à la main +30 % (+15 % en semaine d’octobre à mars)', `coin salon au maximum : le cadeau des 5 jours ×1,9 (${cadeau(0)} → ${cadeau(3)} €, arrondi)`);
   // une vieille sauvegarde (d'avant ces meubles) : ses crans gardés, les nouveaux à 0, rien ne casse
   const vieille = JSON.parse(JSON.stringify(Object.assign(G.newState(mer), { mobilier: { tables: 4, four: 4, vitrine: 3, caisse: 3, froid: 3, deco: 4 } })));
   check(G.mobilierCran(vieille, 'tables') === 4 && G.mobilierCran(vieille, 'bar') === 0 && G.mobilierCran(vieille, 'terrasse') === 0 && Math.abs(G.mobilierMult(vieille) - 1.32) < 1e-9 && Math.abs(G.affluenceMult(vieille) - 1.75) < 1e-9 && G.places(vieille).bar === 0 && G.prixMeuble(vieille, 'tables') === 6000 * Math.pow(40, 4), 'une vieille sauvegarde au maximum d’avant : ses crans et ses effets intacts, les nouveaux meubles au cran 0, les tables peuvent encore monter');

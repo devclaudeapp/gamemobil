@@ -290,9 +290,9 @@
     { id: 'caisse', nom: 'Caisse enregistreuse', max: 3, cout: 120000, croiss: 50, phrase: 'Elle tinte à chaque pourboire.', desc: (k) => `Pourboires ×${virg(1 + 0.3 * k)}, client mystère ${8 * k} % plus fréquent` },
     { id: 'froid', nom: 'Chambre froide', max: 3, cout: 600000, croiss: 50, phrase: 'La pâte y repose la nuit, pendant que les apprentis travaillent.', desc: (k) => `Les apprentis travaillent ${k} h de plus pendant ton absence` },
     { id: 'deco', nom: 'Décoration', max: 4, cout: 300000, croiss: 40, phrase: 'Des cadres, des plantes, des fleurs : on a envie d’entrer.', desc: (k) => `Primes des événements et des défis +${15 * k} %` },
-    { id: 'bar', nom: 'Bar et tabourets', max: 3, cout: 60000, croiss: 40, phrase: 'Un café au comptoir, debout ou perché : on boit et on repart vite.', desc: (k) => `${k + 1} tabourets : pourboires +${10 * k} %, les fournées à la main servent ${5 * k} % de clients en plus` },
-    { id: 'banquette', nom: 'Coin salon', max: 3, cout: 1.5e6, croiss: 50, phrase: 'Le coin préféré des habitués, pour lire le journal au chaud.', desc: (k) => `${BANQUETTE[Math.min(k, 3) - 1]} : les habitués arrivent ${20 * k} % plus vite, leurs cadeaux +${30 * k} %` },
-    { id: 'terrasse', nom: 'Terrasse', max: 3, cout: 6e6, croiss: 50, phrase: 'Quelques tables dehors, devant la vitrine, pour les beaux jours.', desc: (k) => `${2 * k} places dehors : +${10 * k} % de clients à la main les jours de marché et à la belle saison, +${5 * k} % sinon` },
+    { id: 'bar', nom: 'Bar et tabourets', max: 3, cout: 60000, croiss: 40, phrase: 'Un café au comptoir, debout ou perché : on boit et on repart vite.', desc: (k) => `${k + 1} tabourets : pourboires +${10 * k} %, clients à la main +${5 * k} %` },
+    { id: 'banquette', nom: 'Coin salon', max: 3, cout: 1.5e6, croiss: 50, phrase: 'Le coin préféré des habitués, pour lire le journal au chaud.', desc: (k) => `${BANQUETTE[Math.min(k, 3) - 1]} : habitués ${20 * k} % plus vite, cadeaux +${30 * k} %` },
+    { id: 'terrasse', nom: 'Terrasse', max: 3, cout: 6e6, croiss: 50, phrase: 'Quelques tables dehors, devant la vitrine, pour les beaux jours.', desc: (k) => `${2 * k} places dehors : clients à la main +${10 * k} % (+${5 * k} % en semaine d’octobre à mars)` },
   ];
   const mobilierCran = (st, id) => (st.mobilier && st.mobilier[id]) || 0;
   const prixMeuble = (st, id) => { const m = MOBILIER.find((x) => x.id === id); return m.cout * Math.pow(m.croiss, mobilierCran(st, id)) * (1 - 0.08 * talent(st, 'negoce')); };
