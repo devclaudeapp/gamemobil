@@ -114,6 +114,8 @@ const ICONS = (() => {
     reglages: U(`${dents()}<circle cx="12" cy="12" r="6.2" fill="${A.lavande}"/><circle cx="12" cy="12" r="2.3"/>`),
     // l'en-tête, les pages, les feuilles
     cloche: U(`<path d="M6 16.5V11a6 6 0 0112 0v5.5l1.6 2.2H4.4z" fill="${A.beurre}"/><path d="M10 21h4"/><path d="M12 3v2"/>`),
+    // les nouveautés (la pastille à côté de la cloche) : un paquet cadeau, son ruban et son nœud
+    nouveautes: U(`<path d="M5 11.5h14V19a1 1 0 01-1 1H6a1 1 0 01-1-1z" fill="${A.lavande}"/><rect x="3.5" y="7.8" width="17" height="3.7" rx="1" fill="${A.lavande}"/><path d="M12 7.8V20"/><path d="M12 7.8C10.6 4.6 7.2 3.7 7.2 6c0 1.5 2.4 1.8 4.8 1.8zM12 7.8c1.4-3.2 4.8-4.1 4.8-1.8 0 1.5-2.4 1.8-4.8 1.8z"/>`),
     bonus: U(`<path d="M10.5 3.5l1.9 5.1 5.1 1.9-5.1 1.9-1.9 5.1-1.9-5.1-5.1-1.9 5.1-1.9z" fill="${A.lavande}"/><path d="M18 14.5l.9 2.1 2.1.9-2.1.9-.9 2.1-.9-2.1-2.1-.9 2.1-.9z"/>`),
     etoile: U(etoile(A.beurre)),
     sauvegarde: U(`<path d="M7 18.5a4.2 4.2 0 01-.7-8.4 6 6 0 0111.6-.6 4.5 4.5 0 01-.4 9z" fill="${A.ciel}"/><path d="M12 11v6M9.5 14.6L12 17l2.5-2.4"/>`),
