@@ -252,7 +252,12 @@ const SCENE = (() => {
     ...['citrouilles', 'toiles', 'chaudron', 'fantome'].map((id) => ({ id: 'ht-' + id, cle: () => (HDECO[id] && MEUBLES[id] ? '1' : null), faire: (k, c) => MEUBLES[id](c) })),
     // le badge « Esprit d'équipe » (l'objectif commun de la semaine réussi, classement v6) : une rosette accrochée au mur, à vie ; absent pour qui ne l'a pas
     { id: 'equipe', cle: () => (REC.equipe ? '1' : null), faire: (k, c) => rosetteEquipe(c) },
+    // le standing de la boutique (GAME.standing, palier 1 à 5) : ses objets (Q.objets) en un maillage (la lueur du soir en plus) ; en haute, ses modèles cuits (lots luxe*)
+    { id: 'standing', cle: (E) => (E.Q.standing && MEUBLES.standing ? `${E.Q.standing}|${luxePret(E.Q.standing) ? 'hd' : ''}|${HDECO.chaudron ? 'c' : ''}|${typeof KENNEY !== 'undefined' && KENNEY && KENNEY.pret ? 'k' : ''}` : null), faire: (k, c) => MEUBLES.standing(c) },
   ];
+  // les lots HD du standing nécessaires à un palier (src/hd.js : luxe1, luxe3, luxe5), et s'ils sont tous là (et la HD permise)
+  const lotsLuxe = (s) => ['luxe1', 'luxe3', 'luxe5'].filter((l, i) => s >= [1, 3, 5][i]);
+  const luxePret = (s) => typeof HDM !== 'undefined' && HDM.permis(renderer) && lotsLuxe(s).every((l) => HDM.pret(l));
   function rosetteEquipe(c) { // une cocarde : disque doré, cœur crème, deux rubans menthe et lavande ; une seule maille
     const K = V.K, h = c.LAY.horloge, dp = c.LAY.diplome, g = new THREE.Group(), P = M.part, ys = h.y + 6 * K; // entre l'horloge et le diplôme, à côté de la tête du boulanger
     g.userData.nom = 'equipe'; g.position.set((h.x + dp.x) / 2 - 2 * K, c.wy(c.LAY.murH - ys), 1.5); g.scale.set(1, 1 / CY, 1); // étirée pour paraître ronde à l'écran (comme l'horloge)
@@ -287,6 +292,7 @@ const SCENE = (() => {
     const c = ctxC || (ctxC = { wz, wy, wd, SY, CY });
     c.trophees = REC.coupes.length > 0; // la vitrine des trophées décroche le second cadre
     c.hd = typeof HDM !== 'undefined' && HDM.pret('boutique') && HDM.permis(renderer); // les meubles de la salle en KayKit
+    c.hdLuxe = !!(E.Q.standing && luxePret(E.Q.standing)); c.chaudron = HDECO.chaudron; // le standing : ses modèles cuits ; le coin du chaudron
     c.LAY = LAY; c.K = V.K; c.W = W; c.H = H; c.Q = E.Q; c.tags = E.tags; c.rush = E.rush; c.t = E.t; c.sk = E.sk; c.crans = E.crans; c.niv = E.niv; c.staffs = E.staffs; c.bonus = E.bonus; c.rang = E.rang;
     const cp = groupes.comptoir; c.dessusY = cp ? cp.userData.dessusY : wy(LAY.comptoir.hFace); c.dessusZ = cp ? cp.userData.dessusZ : wz(LAY.comptoir.y + LAY.comptoir.hTop + LAY.comptoir.hFace) - wd(LAY.comptoir.hTop) / 2;
     return c;
@@ -422,7 +428,7 @@ const SCENE = (() => {
   // des plantes, des bocaux sur le plan de travail ; en octobre, des citrouilles
   function decorHD(E) {
     if (!HDM.permis(renderer)) { if (hdDecor) { scene.remove(hdDecor); M.dispose(hdDecor); hdDecor = null; hdCle = ''; } return; } // repassé en éco : on retire
-    const k = `${W}x${H}|${LAY.bar.y | 0}|${E.tags.includes('halloween') ? 'h' : ''}|${Object.keys(cles).length}`;
+    const k = `${W}x${H}|${LAY.bar.y | 0}|${E.tags.includes('halloween') ? 'h' : ''}|${Object.keys(cles).length}|s${E.Q.standing || 0}`; // le palier du standing : la scène change, on repose
     if (k === hdCle) return; hdCle = k;
     if (hdDecor) { scene.remove(hdDecor); M.dispose(hdDecor); }
     const g = hdDecor = new THREE.Group(), S = W * 0.08, K = V.K, pose = (nom, x, y, z, o = {}) => { const m = HDM.modele(nom, S * (o.s || 1), o); if (m) { m.position.set(x, y, z); g.add(m); } return m; };
@@ -521,7 +527,7 @@ const SCENE = (() => {
     if (!webgl) return;
     const t0 = performance.now();
     try {
-      construire(E); if (HDM.pret('boutique')) decorHD(E); else if (!hdDemande && nFrame > 30 && HDM.permis(renderer)) { hdDemande = true; HDM.charger('boutique'); }
+      construire(E); if (HDM.pret('boutique')) { decorHD(E); if (E.Q.standing && HDM.permis(renderer)) for (const l of lotsLuxe(E.Q.standing)) HDM.charger(l); } else if (!hdDemande && nFrame > 30 && HDM.permis(renderer)) { hdDemande = true; HDM.charger('boutique'); } // les lots du standing : après ceux de la boutique, seulement ceux du palier (charger ne recharge pas)
       eclairer(E); peindreExterieur(now, E); peindreAO();
       synchroniser(E, dt);
       EA.t = E.t; EA.chaud = E.chaud; EA.caisseFlash = E.caisseFlash; EA.nuit = E.sk.nuit; EA.lampes = lampesNiv; EA.rush = E.rush; EA.d = E.d; EA.sk = E.sk; EA.tags = E.tags;
@@ -681,6 +687,7 @@ const SCENE = (() => {
     get appelsParGroupe() { const out = {}; const n = (g) => { let k = 0; g.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) k += Array.isArray(o.material) ? o.material.length : 1; }); return k; }; for (const [id, g] of Object.entries(groupes)) if (g) out[id] = n(g); if (hdDecor) out.hd = n(hdDecor); let a = 0; for (const g of acteurs.values()) a += n(g); out.acteurs = a; if (chatG) out.chat = n(chatG); return out; }, // le budget d'appels de dessin, meuble par meuble (pour les tests)
     get couverts() { return (couvertsCle.match(/1/g) || []).length; }, // les couverts posés (un par client assis ; pour les tests)
     get assisEn() { return { table: V.assisEn('table'), bar: V.assisEn('bar'), banquette: V.assisEn('banquette'), terrasse: V.assisEn('terrasse') }; }, // les clients assis par coin (pour les tests)
+    get standingVu() { const g = groupes.standing, E = dernier; let n = 0; if (g) g.traverse((o) => { if (o.isMesh) n++; }); return { palier: E && E.Q ? E.Q.standing || 0 : 0, decor: E && E.Q ? E.Q.id : '', hd: /\|hd\|/.test(cles.standing || ''), mailles: n }; }, // le standing posé (pour les tests)
     get meublesHD() { return SALLE_IDS.filter((id) => groupes[id] && /\|hd/.test(cles[id] || '')); }, // les meubles de la salle bâtis en KayKit (pour les tests)
     get amenager() { return amenager; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
     get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length, geometries: renderer ? renderer.info.memory.geometries : 0, textures: renderer ? renderer.info.memory.textures : 0, riche: RICHE.actif, effets: !!RICHE.post, kenney: typeof KENNEY !== 'undefined' && KENNEY ? { pret: KENNEY.pret, octets: KENNEY.octets, ms: KENNEY.ms, erreur: KENNEY.erreur } : null }; } };

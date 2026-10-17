@@ -33,9 +33,52 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       c.fillStyle = Q.sol; c.fillRect(0, 0, w, h);
       if (Q.solStyle === 'planches') { const hb = 16; for (let r = 0; r * hb < h; r++) { const y = r * hb; c.fillStyle = r % 2 ? Q.sol2 : 'rgba(0,0,0,.035)'; c.fillRect(0, y, w, hb - 1); c.fillStyle = 'rgba(74,51,40,.10)'; for (let x = (r * 53) % 128; x < w; x += 128) c.fillRect(x, y, 1.5, hb - 1); } }
       else if (Q.solStyle === 'damier') { c.fillStyle = Q.sol2; c.globalAlpha = 0.9; const sw = w / 12, sh = h / 10; for (let r = 0; r < 10; r++) for (let k = 0; k < 12; k++) if ((r + k) % 2 === 0) c.fillRect(k * sw, r * sh, sw + 0.5, sh + 0.5); }
+      else if (Q.solStyle === 'chevrons') solChevrons(c, w, h, Q);
+      else if (Q.solStyle === 'marbre2') solMarbre(c, w, h, Q);
       else { c.strokeStyle = 'rgba(255,255,255,.07)'; c.lineWidth = 1.6; for (let k = 0; k < 4; k++) { const x0 = k * w / 4 + 30; c.beginPath(); c.moveTo(x0, 0); c.bezierCurveTo(x0 + 45, h * 0.35, x0 - 45, h * 0.65, x0, h); c.stroke(); } }
+      if (Q.standing >= 3 && Q.solStyle === 'marbre') { c.fillStyle = Q.or; c.globalAlpha = 0.55; for (let y = 0; y < h; y += 64) for (let x = 0; x < w; x += 64) { c.beginPath(); c.moveTo(x, y - 3.5); c.lineTo(x + 3.5, y); c.lineTo(x, y + 3.5); c.lineTo(x - 3.5, y); c.fill(); } c.globalAlpha = 1; } // le marbre d'origine (la ville, la capitale) : des cabochons dorés
     }, 256, 256, { repete: [1, 1] });
     tx.userData.partagee = true; TEX.set('sol' + Q.id, tx); return tx;
+  }
+  // ─── le standing (Q.standing, src/vie.js decor) : le parquet en chevrons (point de Hongrie), le marbre veiné aux joints d'or ───
+  const clair = (hex) => { const k = new THREE.Color(hex); return 0.2126 * k.r + 0.7152 * k.g + 0.0722 * k.b > 0.35; };
+  function solChevrons(c, w, h, Q) { // des lames en V, colonnes de 32 de large, rangs de 16 : la tuile de 256 se raccorde de tous les côtés
+    const cw = 32, hb = 16, k = 0.5, A = Q.sol, B = Q.solB || M.assombrir(Q.sol, 0.1), joint = clair(Q.sol) ? 'rgba(74,51,40,.16)' : 'rgba(255,255,255,.10)';
+    c.lineWidth = 1; c.strokeStyle = joint;
+    for (let x0 = 0; x0 < w; x0 += 2 * cw) for (let j = -3; j * hb < h + 2 * cw; j++) {
+      const y = j * hb;
+      for (const [pts, col] of [[[[x0, y + cw * k], [x0 + cw, y], [x0 + cw, y + hb], [x0, y + cw * k + hb]], j % 2 ? A : B], [[[x0 + cw, y], [x0 + 2 * cw, y + cw * k], [x0 + 2 * cw, y + cw * k + hb], [x0 + cw, y + hb]], j % 2 ? B : A]]) {
+        c.beginPath(); pts.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py))); c.closePath(); c.fillStyle = col; c.fill(); c.stroke();
+      }
+    }
+  }
+  function solMarbre(c, w, h, Q) { // des dalles de 64, deux tons à peine différents, veinées ; les joints (or au dernier palier) et leurs cabochons
+    const lum = clair(Q.sol), t = 64; let g = 7;
+    const hasard = () => { g = (g * 16807) % 2147483647; return g / 2147483647; }; // le même marbre à chaque fois
+    for (let y = 0; y < h; y += t) for (let x = 0; x < w; x += t) {
+      c.fillStyle = ((x + y) / t) % 2 ? Q.sol : M.melange(Q.sol, lum ? '#FFFFFF' : '#000000', 0.12); c.fillRect(x, y, t, t);
+      c.save(); c.beginPath(); c.rect(x, y, t, t); c.clip(); c.strokeStyle = lum ? 'rgba(120,100,90,.22)' : 'rgba(255,255,255,.16)';
+      for (let v = 0; v < 2; v++) { c.lineWidth = 0.8 + hasard() * 1.4; c.beginPath(); const x0 = x + hasard() * t, y0 = y; c.moveTo(x0, y0); c.bezierCurveTo(x0 + (hasard() - 0.5) * 60, y + t * 0.4, x0 + (hasard() - 0.5) * 60, y + t * 0.7, x + hasard() * t, y + t); c.stroke(); }
+      c.restore();
+    }
+    c.fillStyle = Q.solOr ? Q.or : lum ? 'rgba(74,51,40,.18)' : 'rgba(255,255,255,.14)';
+    for (let k = 0; k < w; k += t) { c.fillRect(k - 0.75, 0, 1.5, h); c.fillRect(0, k - 0.75, w, 1.5); }
+    c.fillStyle = Q.or; for (let y = 0; y <= h; y += t) for (let x = 0; x <= w; x += t) { c.beginPath(); c.moveTo(x, y - 5); c.lineTo(x + 5, y); c.lineTo(x, y + 5); c.lineTo(x - 5, y); c.fill(); }
+  }
+  // le mur monté en gamme : marbre plus marqué, moulures (filet laiton puis or), pilastres, lambris bas et sa cimaise, corniche dorée
+  function murStanding(c, Q) {
+    const s = Q.standing || 0, y0 = 81 * 0.62, filet = s >= 3 ? Q.or : M.assombrir(Q.mur2, 0.12);
+    if (s >= 4) { c.strokeStyle = 'rgba(120,100,90,.16)'; c.lineWidth = 1; for (let k = 0; k < 9; k++) { c.beginPath(); c.moveTo(k * 47 + 12, 0); c.bezierCurveTo(k * 47 - 18, 22, k * 47 + 40, 34, k * 47 + 6, y0); c.stroke(); } }
+    const haut = Q.corniche ? 9 : 6;
+    if (Q.panneaux) { c.strokeStyle = filet; c.lineWidth = 1.3; for (let x = 6; x + 40 < 390; x += 48) { c.strokeRect(x, haut + 2, 40, y0 - haut - 7); if (s >= 3) { c.lineWidth = 0.6; c.strokeRect(x + 3, haut + 5, 34, y0 - haut - 13); c.lineWidth = 1.3; } } }
+    if (Q.pilastres) for (let x = 0; x <= 390; x += 97.5) { c.fillStyle = M.eclaircir(Q.mur, 0.5); c.fillRect(x - 4, haut, 8, y0 - haut); c.fillStyle = M.assombrir(Q.mur2, 0.06); c.fillRect(x - 1.5, haut + 4, 0.8, y0 - haut - 8); c.fillRect(x + 0.7, haut + 4, 0.8, y0 - haut - 8); c.fillStyle = Q.or; c.fillRect(x - 5.5, haut, 11, 2.2); }
+    if (Q.lambris) {
+      const bois = M.melange(Q.mur2, Q.bois, 0.32 + 0.04 * s); c.fillStyle = bois; c.fillRect(0, y0, 390, 81 - y0);
+      c.strokeStyle = M.assombrir(bois, 0.14); c.lineWidth = 1; for (let x = 4; x + 22 < 392; x += 28) c.strokeRect(x, y0 + 4, 22, 81 - y0 - 9);
+      c.fillStyle = 'rgba(255,255,255,.18)'; for (let x = 4; x + 22 < 392; x += 28) c.fillRect(x + 1, y0 + 5, 20, 1);
+      c.fillStyle = M.assombrir(Q.bois, 0.1); c.fillRect(0, y0 - 1.5, 390, 3); c.fillStyle = s >= 2 ? Q.or : M.eclaircir(Q.bois, 0.25); c.fillRect(0, y0 - 2.4, 390, 0.9); // la cimaise et son filet
+    }
+    if (Q.corniche) { c.fillStyle = M.assombrir(Q.mur2, 0.05); c.fillRect(0, 0, 390, haut - 2); c.fillStyle = Q.or; c.fillRect(0, haut - 2.4, 390, 1.6); c.fillStyle = 'rgba(255,255,255,.35)'; for (let x = 3; x < 390; x += 7) c.fillRect(x, 2, 3, haut - 6); }
   }
   function textureMur(Q) {
     let tx = TEX.get('mur' + Q.id); if (tx) return tx;
@@ -44,9 +87,10 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       const g = c.createLinearGradient(0, 0, 0, 81); g.addColorStop(0, Q.mur); g.addColorStop(1, Q.mur2); c.fillStyle = g; c.fillRect(0, 0, 390, 81);
       if (Q.murStyle === 'lignes') { c.fillStyle = Q.mur2; for (let y = 7; y < 81; y += 14) c.fillRect(0, y, 390, 1.4); }
       if (Q.murStyle === 'rondins') for (let y = 0; y < 81; y += 13) { c.fillStyle = Q.mur2; c.fillRect(0, y, 390, 2); c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(0, y + 4, 390, 1); }
-      if (Q.murStyle === 'moulures') { c.strokeStyle = Q.mur2; c.lineWidth = 2; c.strokeRect(390 * 0.32, 14.8, 390 * 0.33, 81 - 29.6); c.lineWidth = 1; c.strokeRect(390 * 0.32 + 5, 19.8, 390 * 0.33 - 10, 81 - 39.6); }
+      if (Q.murStyle === 'moulures' && !Q.panneaux) { c.strokeStyle = Q.mur2; c.lineWidth = 2; c.strokeRect(390 * 0.32, 14.8, 390 * 0.33, 81 - 29.6); c.lineWidth = 1; c.strokeRect(390 * 0.32 + 5, 19.8, 390 * 0.33 - 10, 81 - 39.6); }
       if (Q.murStyle === 'bande') { c.fillStyle = Q.accent; c.fillRect(0, 81 - 12, 390, 4); c.fillStyle = 'rgba(58,134,200,.12)'; c.fillRect(0, 81 - 16, 390, 3); }
       if (Q.murStyle === 'marbre') { c.strokeStyle = 'rgba(120,100,90,.12)'; c.lineWidth = 1.5; for (let k = 0; k < 6; k++) { c.beginPath(); c.moveTo(k * 78 - 20, 0); c.quadraticCurveTo(k * 78 + 30, 40, k * 78 + 10, 81); c.stroke(); } }
+      if (Q.standing) murStanding(c, Q);
     }, 512, 256, { repete: [1, 1] });
     tx.userData.partagee = true; TEX.set('mur' + Q.id, tx); return tx;
   }
@@ -105,8 +149,9 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   // le trottoir et la rue : un plan peint (les pavés, la bordure, la chaussée) de la devanture au bas de l'écran ; un par salle (libéré avec elle)
   function trottoir(c, y0) {
     const { W, H, Q, LAY } = c, z0 = c.wz(y0) + 2, D = c.wd(H + 40 - y0), tr = LAY.trottoir, kb = (tr.bord - y0) / (H + 40 - y0); // kb : la part du trottoir, le reste est la chaussée
-    const pav = { village: ['#E3D3BE', '#D6C3AA'], paris: ['#C9CED6', '#B7BDC7'], mer: ['#F1E8D6', '#E4D8C0'], montagne: ['#C9BCA9', '#B8AA95'], ville: ['#8F8C99', '#7F7C89'] }[Q.id] || ['#E3D3BE', '#D6C3AA'];
-    const route = Q.id === 'ville' ? '#3B3944' : Q.id === 'montagne' ? '#7A7E86' : '#6E6C78';
+    const qid = Q.base || Q.id, p0 = M.melange('#DDD5C9', Q.accent, 0.14); // les quartiers du parcours : des pavés teintés de leur couleur
+    const pav = { village: ['#E3D3BE', '#D6C3AA'], paris: ['#C9CED6', '#B7BDC7'], mer: ['#F1E8D6', '#E4D8C0'], montagne: ['#C9BCA9', '#B8AA95'], ville: ['#8F8C99', '#7F7C89'] }[qid] || [p0, M.assombrir(p0, 0.07)];
+    const route = qid === 'ville' ? '#3B3944' : qid === 'montagne' || qid === 'cimes' ? '#7A7E86' : '#6E6C78';
     const tx = M.texture((x, w, h) => {
       const hb = h * kb; x.fillStyle = pav[1]; x.fillRect(0, 0, w, hb);
       const pw = 18, ph = 10; for (let r = 0; r * ph < hb; r++) for (let k = -1; k * pw < w; k++) { x.fillStyle = (r * 7 + k * 3) % 5 ? pav[0] : M.eclaircir(pav[0], 0.18); x.beginPath(); x.roundRect(k * pw + (r % 2) * pw / 2 + 1, r * ph + 1, pw - 2, ph - 2, 2.5); x.fill(); }
@@ -215,7 +260,13 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     // le corps : deux piliers, le socle, le fond de la vitrine, le dessus
     pr.push(P(bo(8, H - e, prof, 2), Q.comptoir, { x: -w / 2 + 4, z: zc }), P(bo(w - 8 - vw, H - e, prof, 2), Q.comptoir, { x: vx + vw / 2 + (w - 8 - vw) / 2, z: zc }), P(bo(vw + 2, yb, prof, 1.5), Q.comptoir, { x: vx, z: zc }));
     pr.push(P(bo(vw + 2, H - e - yb + 1, 3, 1), M.eclaircir(Q.comptoir, 0.35), { x: vx, y: yb - 0.5, z: zB + 1.5 }));
-    pr.push(P(bo(w + 4, e, prof + 2, 1.5), Q.comptoir2, { y: H - e, z: zc }), P(bo(w - 8, 0.8, 3, 0.3), M.eclaircir(Q.comptoir2, 0.4), { y: H, z: zc + 1 }));
+    const sg = Q.standing || 0, dessus = sg >= 4 ? M.melange(Q.comptoir2, '#FFFFFF', 0.55) : Q.comptoir2; // le standing : un dessus de marbre clair (4+)
+    pr.push(P(bo(w + 4, e, prof + 2, 1.5), dessus, { y: H - e, z: zc }), P(bo(w - 8, 0.8, 3, 0.3), M.eclaircir(dessus, 0.4), { y: H, z: zc + 1 }));
+    if (sg >= 1) pr.push(P(bo(w + 3, 0.9, 0.8, 0.3), Q.or, { y: H - e * 0.5 - 0.45, z: zF + 1.4 })); // le filet laiton (or dès 3) au bord du dessus
+    if (sg >= 2) { // la plinthe sombre, son filet, et deux pieds boule dorés aux coins
+      pr.push(P(bo(w - 1, 2.6, 1.2, 0.5), M.assombrir(Q.comptoir, 0.32), { y: 0, z: zF + 0.4 }), P(bo(w - 1, 0.7, 1.4, 0.2), Q.or, { y: 2.6, z: zF + 0.4 }));
+      for (const sx of [-1, 1]) pr.push(P(M.sphere(2.1, 8), Q.or, { x: sx * (w / 2 - 2.5), y: 1.6, z: zF + 0.8 }));
+    }
     if (Q.solStyle === 'planches' || Q.vue === 'montagne') for (const r of [0.33, 0.66]) pr.push(P(bo(w - 8 - vw - 4, 0.8, 0.6, 0.2), M.assombrir(Q.comptoir, 0.15), { x: vx + vw / 2 + (w - 8 - vw) / 2, y: (H - e) * r, z: zF + 0.3 }));
     // les étagères blanches et les étiquettes (une par place), le cadre de la vitrine (blanc, inox au cran 3)
     const etag = (y) => pr.push(P(bo(vw - 2, 1.5, prof - 4, 0.5), '#FFFFFF', { x: vx, y, z: zc + 0.5 }));
@@ -226,7 +277,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       return out;
     };
     if (k >= 2) for (const pl of places(n0)) pr.push(P(bo(6, 2.4, 0.8, 0.4), '#FFFFFF', { x: pl.x - g.position.x, y: pl.y + 0.3, z: -1.2 }));
-    const cc = k >= 3 ? '#DDE6EE' : '#FFFFFF', ep = k >= 3 ? 3 : 2.4;
+    const cc = (Q.standing || 0) >= 3 ? Q.or : k >= 3 ? '#DDE6EE' : '#FFFFFF', ep = k >= 3 ? 3 : 2.4; // la vitrine dorée de la Grande maison
     for (const [dx, dy, lw, lh] of [[0, vh, vw + ep, ep], [0, 0, vw + ep, ep], [vw / 2, vh / 2, ep, vh], [-vw / 2, vh / 2, ep, vh]]) pr.push(P(bo(lw, lh, 2, 0.7), cc, { x: vx + dx, y: yb + dy - lh / 2, z: -0.6 }));
     g.add(M.maille(pr, { recoit: true }));
     g.add(M.mesh(bo(vw, vh, 5.5, 1), M.MAT.verre, { x: vx, y: yb, z: -2.75 }, { ombre: false })); // la vitre bombée
@@ -518,22 +569,23 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     }
     g.add(M.maille(pr)); return g;
   }
+  const boisCadre = (c) => ((c.Q.standing || 0) >= 3 && c.Q.or ? c.Q.or : c.Q.bois); // les cadres, l'horloge et le diplôme dorés de la Grande maison (standing 3+)
   function cadre(x, y, c) { // un petit tableau : cadre bois, marge blanche, toile peinte (ciel, soleil, collines)
     const g = grp('cadre', x, murY(c, y + 12), 1.5), h = c.wy(24);
-    g.add(M.maille([P(bo(32, h, 3, 0.8), c.Q.bois), P(bo(28, h - c.wy(4), 1.5, 0.4), '#FFFFFF', { z: 1.6 })]));
+    g.add(M.maille([P(bo(32, h, 3, 0.8), boisCadre(c)), P(bo(28, h - c.wy(4), 1.5, 0.4), '#FFFFFF', { z: 1.6 })]));
     g.add(M.mesh(M.plan(26, h - c.wy(6)), matDe('toile', () => propre({ map: toile(), emissive: '#FFFFFF', emissiveMap: toile(), emissiveIntensity: 0.3 })), { z: 2.5 }, { ombre: false }));
     return g;
   }
   function horloge(c) { // cadran blanc cerclé de bois, deux aiguilles tournées par anime selon l'heure ; étirée pour paraître ronde à l'écran
     const h = c.LAY.horloge, g = grp('horloge', h.x, murY(c, h.y), 1); g.scale.y = 1 / c.CY;
-    g.add(M.maille([P(M.cylindre(10, 10, 1.5, 24), '#FFFFFF', { rx: Math.PI / 2 }), P(M.tore(10, 1.3, TAU, 8, 28), c.Q.bois, { z: 1.5 }), P(M.sphere(1.4, 8), '#E1496C', { z: 2.6 })]));
+    g.add(M.maille([P(M.cylindre(10, 10, 1.5, 24), '#FFFFFF', { rx: Math.PI / 2 }), P(M.tore(10, 1.3, TAU, 8, 28), boisCadre(c), { z: 1.5 }), P(M.sphere(1.4, 8), '#E1496C', { z: 2.6 })]));
     const ah = M.mesh(M.boiteSimple(1.6, 5, 0.8), M.mat(L), { z: 1.8 }, { ombre: false }), am = M.mesh(M.boiteSimple(1.3, 7.5, 0.8), M.mat(L), { z: 2.2 }, { ombre: false }); g.add(ah, am);
     g.userData.anime = (E) => { const d = E.d; if (!d) return; const mn = d.getUTCMinutes() / 60; ah.rotation.z = -((d.getUTCHours() % 12) + mn) / 12 * TAU; am.rotation.z = -mn * TAU; };
     return g;
   }
   function diplome(c) { // le diplôme du boulanger : cadre bois, parchemin, trois lignes grises, le sceau rouge
     const d = c.LAY.diplome, g = grp('diplome', d.x, murY(c, d.y + 13), 1.2), h = c.wy(26), pr = [];
-    pr.push(P(bo(22, h, 2.4, 0.8), c.Q.bois), P(bo(16, c.wy(20), 1.2, 0.4), '#FFFDF5', { z: 1.4 }));
+    pr.push(P(bo(22, h, 2.4, 0.8), boisCadre(c)), P(bo(16, c.wy(20), 1.2, 0.4), '#FFFDF5', { z: 1.4 }));
     for (let k = 0; k < 3; k++) pr.push(P(bo(10, 0.8, 0.5, 0.2), '#B5A49A', { y: c.wy(5 - k * 4), z: 2.1 }));
     pr.push(P(M.sphere(2.5, 8), '#E1496C', { x: 3, y: -c.wy(6), z: 2.2, sz: 0.5 }));
     g.add(M.maille(pr)); return g;
@@ -680,6 +732,74 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     g.userData.anime = (E) => { g.position.set(x0 + Math.sin(E.t * 0.4) * f.w * 0.6, y0 + Math.sin(E.t * 1.7) * 4 * K, z0); g.rotation.y = Math.cos(E.t * 0.4) * 0.5; corps.material.opacity = 0.78 + 0.1 * Math.sin(E.t * 2.2); };
     return g;
   }
+  // ─── le standing de la boutique (Q.standing 1 à 5, Q.objets : src/vie.js decor) : ce qui s'ajoute au décor, hors des chemins et des
+  //     zones de touche — contre le mur du fond, en haut, aux deux coins du fournil, à la porte de la devanture et sur le trottoir.
+  //     Tout est fusionné en un maillage (1 appel de dessin) ; le soir, en haute, la lueur des lanternes en ajoute un (caché le jour).
+  //     En qualité haute (c.hdLuxe : lots HD « luxe1/3/5 » chargés), les lanternes, les colonnes, la statue et le trophée sont des
+  //     modèles cuits (fournil/hd/luxe/ : KayKit Halloween et Furniture Bits, Kenney Starter Kit, CC0) ; sinon tout est fait main.
+  const hdl = (c, nom, o, col) => (c.hdLuxe && typeof HDM !== 'undefined' && HDM.part ? HDM.part('luxe/' + nom, o, col) : null);
+  function coinsStanding(c) { // les deux places d'honneur, au pied du fournil : à droite sous la plante de la déco, à gauche sous la chambre froide
+    const { LAY, W } = c; return { d: { x: W * 0.80, y: LAY.T * 0.62 }, g: { x: W * 0.045, y: LAY.T * 0.60 } };
+  }
+  function standing(c) {
+    const { LAY, W, K, Q } = c, s = Q.standing || 0, ob = (id) => !!(Q.objets && Q.objets.includes(id)), g = grp('standing'), pr = [], lu = [];
+    if (!s) return g;
+    const or = Q.or || '#C9A35A', orF = M.assombrir(or, 0.25), dv = LAY.devanture, zd = c.wz(dv.y) + 2, x0 = dv.porte.x0, x1 = dv.porte.x1, coin = coinsStanding(c), Hm = c.wy(LAY.murH);
+    const marbre = M.melange('#F4F0EA', Q.mur, 0.25);
+    const socle = (x, z, h) => { pr.push(P(bo(15, 2.5, 15, 0.8), M.assombrir(marbre, 0.08), { x, z }), P(M.cylindre(5.2, 5.6, h - 5, 12), marbre, { x, y: 2.5, z }), P(bo(13, 2.5, 13, 0.8), M.assombrir(marbre, 0.08), { x, y: h - 2.5, z }), P(bo(13.4, 0.7, 13.4, 0.2), or, { x, y: h - 3, z })); return h; };
+    // les plantes hautes en pot (1-4), aux deux places d'honneur ; au palier 5, la statue et le trophée les remplacent
+    for (const [cote, p] of [['d', coin.d], ['g', coin.g]]) {
+      const x = p.x, z = c.wz(p.y);
+      if (cote === 'g' && c.chaudron) continue; // le chaudron de la Maison hantée occupe ce coin
+      if (ob('statue') && cote === 'd') { const h = socle(x, z, 14); const st = hdl(c, 'statue', { h: 48, x, y: h, z }); if (st) pr.push(st); else { pr.push(P(bo(11, 4, 9, 1), marbre, { x, y: h, z }), P(M.cone(7, 24, 10), marbre, { x, y: h + 4, z }), P(M.sphere(6, 10), marbre, { x, y: h + 33, z, sy: 1.1 }), P(M.tore(5.4, 1.1, Math.PI * 1.3, 5, 10), or, { x, y: h + 36, z: z + 0.5, rx: -0.4, rz: Math.PI * 1.15 })); } continue; } // le buste couronné de lauriers
+      if (ob('trophee') && cote === 'g') { const h = socle(x, z, 16); const tr = hdl(c, 'trophy', { h: 30, x, y: h, z }); if (tr) pr.push(tr); else pr.push(...partsCoupe('or', 1.7, x, h, z)); continue; }
+      if (!ob('plantesHautes')) continue;
+      const kk = KN() ? kp('pottedPlant', { h: 52, x, z }, { wood: s >= 3 ? or : Q.comptoir, woodDark: M.assombrir(Q.bois, 0.3), plant: '#3FB889' }) : null;
+      if (kk) { pr.push(kk); continue; }
+      pr.push(P(M.cylindre(7, 5.5, 13, 12), s >= 3 ? or : Q.comptoir, { x, z }), P(M.cylindre(7.4, 7.4, 1.6, 12), M.eclaircir(s >= 3 ? or : Q.comptoir, 0.25), { x, y: 12, z }), P(M.cylindre(0.9, 1.1, 22, 6), '#7A5236', { x, y: 12, z }));
+      for (const [ox, oy, oz, r] of [[0, 38, 0, 8], [-6, 30, 2, 6.5], [6, 31, -1, 6.5], [-3, 45, 1, 5.5], [4, 42, 3, 5.5], [0, 25, 4, 5]]) pr.push(P(M.sphere(r, 9), oy > 40 ? '#5FD3A4' : '#3FB889', { x: x + ox, y: oy, z: z + oz }));
+    }
+    // le tapis d'entrée : un grand ovale sous la file d'attente, devant la vitrine (plat : on marche dessus)
+    if (ob('tapisEntree')) {
+      const tx = W * 0.52, tz = c.wz(LAY.T * 0.765), tw = W * 0.34, td = c.wd(LAY.T * 0.15), col = s >= 4 ? M.melange('#B3243A', Q.accent, 0.25) : M.eclaircir(Q.accent, 0.2);
+      // des anneaux empilés (chacun un peu plus haut) : la bordure, le filet laiton puis or, le champ, le médaillon clair
+      for (const [m, coul, ep] of [[0, M.assombrir(col, 0.12), 0.5], [2.5, or, 0.6], [4, col, 0.7], [10, M.eclaircir(col, 0.3), 0.8], [12.5, col, 0.9]]) pr.push(P(M.cylindre(tw / 2 - m, tw / 2 - m, ep, 28), coul, { x: tx, z: tz, sz: (td - m * 2 * (td / tw)) / (tw - m * 2) }));
+    }
+    // les colonnes du portique (3+), de part et d'autre de la porte de la devanture, hors du store (qui les cacherait), contre la façade
+    const xc0 = x0 - 9, xc1 = x1 + 9;
+    if (ob('colonnes')) for (const x of [xc0, xc1]) {
+      const kc = hdl(c, 'column', { h: 42, w: 10, d: 10, x, z: zd + 2 });
+      if (kc) pr.push(kc, P(bo(11, 0.8, 11, 0.2), or, { x, y: 35.5, z: zd + 2 }));
+      else { pr.push(P(bo(10, 3, 10, 0.8), marbre, { x, z: zd + 2 }), P(M.cylindre(3.6, 4, 34, 12), marbre, { x, y: 3, z: zd + 2 }), P(bo(10, 3.5, 10, 0.8), marbre, { x, y: 37, z: zd + 2 }), P(M.tore(3.8, 0.6, TAU, 5, 12), or, { x, y: 34, z: zd + 2, rx: HP }), P(M.tore(4.1, 0.6, TAU, 5, 12), or, { x, y: 4, z: zd + 2, rx: HP })); }
+    }
+    // les lanternes de la porte : de part et d'autre (1-2), puis sur les colonnes ; leur verre s'allume le soir
+    if (ob('lanternes')) for (const x of ob('colonnes') ? [xc0, xc1] : [x0 - 6, x1 + 6]) { // (à côté du store, pas dessous)
+      const zl = zd + (ob('colonnes') ? 9.5 : 4.5), yl = ob('colonnes') ? 25 : 21;
+      pr.push(P(bo(1.6, 1.6, 4, 0.4), '#3B3440', { x, y: yl + 9, z: zl - 2.5 }));
+      const kl = hdl(c, 'lantern_hanging', { h: 13, x, y: yl - 1, z: zl });
+      if (kl) pr.push(kl); else pr.push(P(bo(6, 1.5, 6, 0.5), '#3B3440', { x, y: yl, z: zl }), P(M.cone(4.2, 3.5, 4), '#3B3440', { x, y: yl + 8, z: zl, ry: Math.PI / 4 }), P(M.sphere(1, 6), or, { x, y: yl + 12, z: zl }));
+      pr.push(P(bo(3.8, 6.3, 3.8, 0.8), '#EADBB0', { x, y: yl + 1.5, z: zl })); lu.push(P(bo(4, 6.5, 4, 0.8), '#FFE6A0', { x, y: yl + 1.5, z: zl })); // le verre (le jour), sa lueur (le soir)
+    }
+    // le store rayé (2+) : au-dessus de la porte de la devanture, aux couleurs du quartier, un lambrequin festonné
+    if (ob('marquise')) {
+      const n = 8, l = x1 - x0 + 6, sw = l / n, a = 0.5, prof = 14, yT = 38;
+      for (let i = 0; i < n; i++) { const x = x0 - 3 + (i + 0.5) * sw; pr.push(P(M.boiteSimple(r2(sw + 0.2), 1, prof), i % 2 ? '#FFFFFF' : Q.accent, { x, y: yT - Math.sin(a) * prof / 2, z: zd + Math.cos(a) * prof / 2, rx: a })); pr.push(P(M.sphere(sw / 2, 8), i % 2 ? '#FFFFFF' : Q.accent, { x, y: yT - Math.sin(a) * prof - 0.5, z: zd + Math.cos(a) * prof, sy: 0.55, sz: 0.3 })); }
+      pr.push(P(M.cylindre(0.7, 0.7, r2(l), 6), or, { x: x1 + 3, y: yT, z: zd, rz: HP })); // la tringle dorée
+    }
+    // le tapis rouge et ses cordons (4+) : de la porte de la devanture jusqu'au milieu du trottoir (le passage vers la rue reste libre)
+    if (ob('tapisRouge')) {
+      const z1 = c.wz(LAY.trottoir.rue) - 4, lt = z1 - zd - 2, xc = (x0 + x1) / 2, wt = x1 - x0 - 6;
+      pr.push(P(bo(wt, 0.7, lt, 0.3), '#B3243A', { x: xc, y: 0.4, z: zd + 2 + lt / 2 }), P(bo(1.2, 0.8, lt, 0.2), or, { x: xc - wt / 2 + 1.5, y: 0.45, z: zd + 2 + lt / 2 }), P(bo(1.2, 0.8, lt, 0.2), or, { x: xc + wt / 2 - 1.5, y: 0.45, z: zd + 2 + lt / 2 }));
+      const zb = [zd + 8, zd + 8 + Math.min(26, lt * 0.55)];
+      for (const x of [x0 - 3, x1 + 3]) {
+        for (const z of zb) pr.push(P(M.cylindre(2.6, 3, 1.2, 10), or, { x, z }), P(M.cylindre(0.7, 0.7, 13, 6), or, { x, y: 1, z }), P(M.sphere(1.5, 8), or, { x, y: 14.5, z }));
+        const l = zb[1] - zb[0]; pr.push(P(M.tore(l / 2, 0.75, Math.PI, 5, 12), '#8E1B2E', { x, y: 12.8, z: (zb[0] + zb[1]) / 2, ry: HP, rz: Math.PI, sy: 0.35 }));
+      }
+    }
+    g.add(M.maille(pr.filter(Boolean)));
+    if (lu.length && c.hdLuxe) { const m = M.maille(lu, { ombre: false }); m.material = propre({ vertexColors: true, emissive: '#FFD98A', emissiveIntensity: 0.35 }); m.visible = false; g.add(m); g.userData.anime = (E) => { m.visible = E.lampes > 0.02; m.material.emissiveIntensity = 0.35 + 0.65 * E.lampes; }; } // la lueur : avec les modèles cuits (haute), allumée le soir seulement (le jour et en éco, pas d'appel de dessin en plus)
+    return g;
+  }
   // ─── la composition d'ensemble (pour l'atelier et la scène) ───
   function vitrineDemo(k, c) { // le comptoir et, à chaque place de la vitrine, une boule dorée de la taille d'une pâtisserie
     const cp = comptoir(k, c), n = c.niv ? c.niv.filter((v) => v > 0).length : 4, g = grp('pâtisseries');
@@ -694,8 +814,9 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     if (c.demo) out.push(vitrineDemo(k.vitrine, c)[1]);
     if (c.coupes && c.coupes.length) out.push(trophees(c.coupes, c)); // les récompenses du podium (avec c.trophees, le second cadre est décroché)
     if (c.coupe) out.push(coupe(c.coupe, c));
+    if (c.Q && c.Q.standing) out.push(standing(c));
     return out;
   }
-  return { textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome };
+  return { textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome, standing, coinsStanding };
 })();
 if (typeof module !== 'undefined') module.exports = MEUBLES;

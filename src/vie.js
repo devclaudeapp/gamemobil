@@ -26,7 +26,36 @@ const VIE = (() => {
   Q = DECORS.village;
   // les quartiers du parcours (la gare, l'île… : GAME.QUARTIERS) portent leur décor dans leurs données (theme) : lu tel quel, une fois
   const THEMES = new Map();
-  function decor(q) { if (!q) return DECORS.village; if (DECORS[q.id]) return DECORS[q.id]; if (!q.theme) return DECORS.village; let d = THEMES.get(q.id); if (!d) { d = Object.assign({ id: q.id }, q.theme); THEMES.set(q.id, d); } return d; }
+  function decorBase(q) { if (!q) return DECORS.village; if (DECORS[q.id]) return DECORS[q.id]; if (!q.theme) return DECORS.village; let d = THEMES.get(q.id); if (!d) { d = Object.assign({ id: q.id }, q.theme); THEMES.set(q.id, d); } return d; }
+  // le standing (GAME.standing : 0 à 5, un palier toutes les cinq boutiques) : le même quartier, ses couleurs gardées, monte en gamme.
+  // Palier 0 : le décor tel quel. Ensuite une variante (id distinct, « paris-s3 », mise en cache : la scène la reconstruit une fois) :
+  //   1 Belle boutique : lambris bas au mur, filet laiton au comptoir, plantes hautes, lanternes à la porte, tapis d'entrée, fleurs ;
+  //   2 Maison réputée : moulures tout le long, sol en chevrons (le marbre reste du marbre), store rayé à la porte ;
+  //   3 Grande maison : pilastres et corniche dorés, colonnes à l'entrée, vitrine et cadres dorés ;
+  //   4 Maison de prestige : marbre veiné au mur, au sol et sur le comptoir, tapis rouge et cordons devant la porte ;
+  //   5 Palais du goût : joints d'or au sol, la statue et le trophée.
+  // Les teintes s'approfondissent un peu à chaque palier (bois, comptoir) ; l'or passe du laiton (1-2) à l'or vif (3+).
+  // Les objets du standing s'ajoutent à objets (src/scene.js les pose ; MEUBLES.standing les construit).
+  const hexRgb = (h) => { const m = /^#([0-9a-f]{6})$/i.exec(String(h || '')); if (!m) return null; const n = parseInt(m[1], 16); return [n >> 16, (n >> 8) & 255, n & 255]; };
+  const rgbHex = (r) => '#' + r.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('').toUpperCase();
+  const melanger = (a, b, k) => { const x = hexRgb(a), y = hexRgb(b); return x && y ? rgbHex(x.map((v, i) => v + (y[i] - v) * k)) : a; };
+  const LUXE = new Map(), OBJETS_STANDING = [[], ['plante', 'fleurs', 'plantesHautes', 'lanternes', 'tapisEntree'], ['marquise'], ['colonnes'], ['tapisRouge'], ['statue', 'trophee']];
+  function decor(q, s) {
+    const b = decorBase(q); s = Math.max(0, Math.min(5, Math.floor(+s) || 0)); if (!s) return b;
+    const k = b.id + '-s' + s; let d = LUXE.get(k); if (d) return d;
+    const f = 0.035 * s, sombre = (c) => melanger(c, '#2A1A12', f), marbreBase = b.solStyle === 'marbre';
+    const objets = [...new Set([...(b.objets || []), ...OBJETS_STANDING.slice(1, s + 1).flat()])];
+    d = Object.assign({}, b, {
+      id: k, base: b.id, standing: s, objets,
+      comptoir: sombre(b.comptoir), bois: sombre(b.bois), mur2: melanger(b.mur2, b.bois, 0.06 * s),
+      or: s >= 3 ? '#E8B84A' : '#C9A35A', // le laiton, puis l'or
+      lambris: true, panneaux: s >= 2, pilastres: s >= 3, corniche: s >= 3, murStyle: s >= 4 ? 'marbre' : b.murStyle,
+      solStyle: s >= 4 ? 'marbre2' : s >= 2 && !marbreBase ? 'chevrons' : b.solStyle, solOr: s >= 5,
+      sol: s >= 4 && !marbreBase ? melanger(b.sol, '#FFFFFF', 0.25) : b.sol,
+      solB: s >= 2 && !marbreBase ? (hexRgb(b.sol2) ? melanger(b.sol, b.sol2, 0.22) : melanger(b.sol, '#6B4A35', 0.12)) : b.sol2,
+    });
+    LUXE.set(k, d); return d;
+  }
 
   // le bloc haut : mur, fournil, comptoir, file — le dessin de référence (390×228) à l'échelle ; le reste de la hauteur, c'est du sol en plus
   function hautBloc(w, h) { const kb = Math.min(1.1, Math.max(0.8, w / 390)); return 228 * kb * (1 + Math.min(GRANDIT, Math.max(0, h - 228 * kb) / 6000)); }
@@ -296,7 +325,7 @@ const VIE = (() => {
     const d = G.paris(now), hour = force.heure != null ? force.heure : d.getUTCHours() + d.getUTCMinutes() / 60; // l’heure de Paris (à lire en getUTC…), comme les heures de pointe et les habitués
     const taux = G.tauxParSeconde(st);
     rang = G.rangTitre(st); pts = G.ptsTalents(st); affl = G.talent(st, 'affluence');
-    Q = decor(G.QUARTIERS[G.quartier(st)]); tags = force.saison || G.saison(now);
+    Q = decor(G.QUARTIERS[G.quartier(st)], G.standing ? G.standing(st) : 0); tags = force.saison || G.saison(now);
     for (const id of ['bar', 'banquette', 'terrasse']) crans[id] = G.mobilierCran(st, id); // (avant que GAME.MOBILIER les connaisse : cran 0)
     for (const m of G.MOBILIER) { crans[m.id] = G.mobilierCran(st, m.id); prixDe[m.id] = G.prixMeuble(st, m.id); abordables[m.id] = crans[m.id] < m.max && st.coins >= prixDe[m.id]; }
     places = G.places ? G.places(st) : { tables: crans.tables, bar: crans.bar ? crans.bar + 1 : 0, banquette: crans.banquette >= 3 ? 3 : crans.banquette ? 2 : 0, terrasse: 2 * crans.terrasse };

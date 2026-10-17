@@ -341,6 +341,7 @@
         c: st.chat ? { n: texteCourt(st.chat.nom, 16), p: G.pelageChat(st, false) === 'noir' ? 'noir' : 'roux', ...(G.compagnonActif && ID_OK.test(String(G.compagnonActif(st))) ? { a: G.compagnonActif(st) } : {}) } : null, // a : l'animal choisi (les compagnons)
         dq: idsOk(o.dq || (st.quartier && st.quartier.decos), 8), dh: idsOk(hd, 8), g: borne(G.niveau(st), 1, 9999),
         k: (Array.isArray(o.coupes) ? o.coupes : []).filter((m) => METAUX.includes(m)).slice(-12), o: o.badge ? 1 : 0,
+        l: G.standing ? borne(G.standing(st), 0, 5) : 0, // le standing de la boutique (0 à 5) : le copain la voit montée en gamme
       };
       for (const m of G.MOBILIER) p.m[m.id] = borne(G.mobilierCran(st, m.id), 0, 20);
       const S = st.stats || {}, tr = st.trophees && typeof st.trophees === 'object' ? (Array.isArray(G.TROPHEES) ? G.TROPHEES.filter((t) => st.trophees[t.id]).length : Object.keys(st.trophees).length) : 0;
@@ -359,7 +360,7 @@
     const o = { v: borne(p.v, 1, 99), nom: texteCourt(p.nom == null ? '' : p.nom, 30), q: borne(p.q, 0, 99), s: typeof p.s === 'string' && ID_OK.test(p.s) ? p.s : null,
       p: (Array.isArray(p.p) ? p.p.slice(0, 16) : []).map((x) => (Array.isArray(x) ? [borne(x[0], 0, 1e6), x[1] ? 1 : 0, borne(x[2], 1, 5)] : [0, 0, 1])),
       m: {}, t: (Array.isArray(p.t) ? p.t.slice(0, 4) : []).map((x) => (typeof x === 'string' && ID_OK.test(x) ? x : null)), c: null,
-      dq: idsOk(p.dq, 8), dh: idsOk(p.dh, 8), g: borne(p.g, 1, 9999), k: (Array.isArray(p.k) ? p.k : []).filter((m) => METAUX.includes(m)).slice(-12), o: p.o ? 1 : 0 };
+      dq: idsOk(p.dq, 8), dh: idsOk(p.dh, 8), g: borne(p.g, 1, 9999), k: (Array.isArray(p.k) ? p.k : []).filter((m) => METAUX.includes(m)).slice(-12), o: p.o ? 1 : 0, l: borne(p.l, 0, 5) }; // l : absent d'une photo d'avant le standing → 0
     if (p.m && typeof p.m === 'object' && !Array.isArray(p.m)) for (const k of Object.keys(p.m).slice(0, 12)) if (ID_OK.test(k)) o.m[k] = borne(p.m[k], 0, 20);
     if (p.c && typeof p.c === 'object') { o.c = { n: texteCourt(p.c.n == null ? '' : p.c.n, 16), p: p.c.p === 'noir' ? 'noir' : 'roux' }; if (typeof p.c.a === 'string' && ID_OK.test(p.c.a)) o.c.a = p.c.a; }
     const x = p.x; // ses statistiques (absentes d'une photo d'avant la fiche « Tous les temps »)
@@ -398,6 +399,7 @@
     o = o || {}; const G = leJeu(o.G), p = nettoyerPhoto(ph); if (!G || !p) return null;
     const now = Number.isFinite(o.maintenant) ? o.maintenant : Date.now(), st = G.newState(now);
     st.visite = true; st.nomBoutique = p.nom; st.boutiques = (p.q % G.QUARTIERS.length) + 1; st.quartierFixe = p.q % G.QUARTIERS.length; // son quartier, même un des cinq du parcours (n°10, 15…)
+    st.standingFixe = p.l; // son standing (GAME.standing le lit à la place du calcul sur st.boutiques)
     st.stations.forEach((s, i) => {
       const x = p.p[i]; s.niv = x ? x[0] : i === 0 ? 1 : 0; s.staff = !!(x && x[1] && s.niv > 0); s.prog = 0; s.actif = false;
       if (x && x[2] > 1 && G.APPRENTI_NIVEAUX) st.apprentis[G.PRODUITS[i].id] = { xp: G.APPRENTI_NIVEAUX[x[2] - 1] };

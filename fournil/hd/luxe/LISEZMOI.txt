@@ -1,0 +1,6 @@
+Le standing des boutiques (src/meubles.js, standing ; src/hd.js, lots luxe1, luxe3, luxe5) : modèles CC0 cuits par
+outils/maquette-hd/cuire-meubles.mjs (couleurs de sommets, sans texture, meshopt), chargés en qualité haute seulement
+quand la boutique atteint leur palier ; en éco, les mêmes objets sont faits main (src/meubles.js).
+- lantern_hanging : KayKit Halloween Bits 1.0 (Kay Lousberg, CC0) — les lanternes de la porte de la devanture (palier 1+)
+- column : Kenney Mini Arena (Starter Kit Basic Scene, CC0) — les colonnes du portique (palier 3+)
+- statue, trophy : Kenney Mini Arena (Starter Kit Basic Scene, CC0) — le Palais du goût (palier 5)
