@@ -18,7 +18,8 @@
 //   · le contrat : le VRAI moteur du téléphone (src/classement.js) branché sur ce Postgres par un petit PostgREST, et les appels
 //     de src/classement.js et src/horloge.js comparés aux signatures des fonctions SQL ;
 //   · le patch v6.2 (supabase/fournil-classement-v62.sql, la limite des événements élargie) collé deux fois par-dessus la v6, puis
-//     le patch v6.3 (supabase/fournil-classement-v63.sql, le Sirop et le Cristal) collé deux fois par-dessus la v6 et la v6.2 :
+//     le patch v6.3 (supabase/fournil-classement-v63.sql, le Sirop et le Cristal) collé deux fois par-dessus la v6 et la v6.2, puis
+//     le patch v6.4 (supabase/fournil-classement-v64.sql, le Sirop ×4 et le Cristal ×2) collé deux fois par-dessus la v6, la v6.2 et la v6.3 :
 //     les nouveaux tableaux, des bornes jamais plus basses, un score entre l'ancienne et la nouvelle borne compté, rien d'autre ne bouge.
 //   · le chat (supabase/fournil-chat.sql, collé par-dessus la v6) : chaque erreur de l'envoi, 3 s et 60 par heure, le masquage au
 //     3e signalement, l'effacement, le bannissement, le ménage (images de 7 jours, au-delà des 2 000), la cascade du retrait, les droits.
@@ -1986,13 +1987,15 @@ function trajectoirePoints(profil, jours, t0, cadence) {
   }
 
   // ─── les patchs de la limite des événements, collés par-dessus la v6 : la 6.2 (supabase/fournil-classement-v62.sql), puis la 6.3
-  // (supabase/fournil-classement-v63.sql, le Sirop et le Cristal en vraies recettes). Pour chacun, un Postgres neuf : la v6 telle
+  // (supabase/fournil-classement-v63.sql, le Sirop et le Cristal en vraies recettes), puis la 6.4 (supabase/fournil-classement-v64.sql,
+  // le Sirop ×4 et le Cristal ×2). Pour chacun, un Postgres neuf : la v6 telle
   // qu'elle est sur Supabase (le fichier actuel, ses deux tableaux remis aux valeurs d'avant la 6.2), les patchs précédents, des
   // joueurs, puis le patch, deux fois. Les tableaux changent, rien d'autre : ni les données, ni la liste des fonctions, ni leurs droits.
   {
     const Q = require('../src/quartier.js'), HT = require('../src/hantee.js');
     const P62 = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v62.sql'), 'utf8');
     const P63 = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v63.sql'), 'utf8');
+    const P64 = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v64.sql'), 'utf8');
     // les deux tableaux de la v6 (et 6.1) collée sur Supabase, avant la 6.2
     const Q6 = [12.5, 14.4, 16.1, 16.5, 16.7, 16.85, 16.95, 17.05, 17.15, 17.2, 17.3, 17.35, 17.4, 17.45, 17.5];
     const H6 = [11.65, 13.8, 15.25, 15.8, 16.05, 16.2, 16.35, 16.45, 16.55, 16.65, 16.75, 16.8, 16.9, 16.95, 17, 17, 17.05, 17.1, 17.15, 17.15, 17.2, 17.2, 17.25, 17.25, 17.3, 17.3, 17.3];
@@ -2003,7 +2006,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       const tab = (m) => (m ? m[1].slice(1, -1).split(',').map(Number) : null);
       return { q: tab(q), h: tab(h), qBrut: q && q[1], hBrut: h && h[1] };
     };
-    const T62 = lireTables(P62), T63 = lireTables(P63), TF = lireTables(SQL);
+    const T62 = lireTables(P62), T63 = lireTables(P63), T64 = lireTables(P64), TF = lireTables(SQL);
     const memes = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, k) => x === b[k]);
     const SQL6 = TF.qBrut && TF.hBrut ? SQL.split(`'${TF.qBrut}'`).join(`'{${Q6.join(',')}}'`).split(`'${TF.hBrut}'`).join(`'{${H6.join(',')}}'`) : SQL;
     const JOUR = 86400e3, PAS_H = 6 * 3600e3;
@@ -2119,7 +2122,8 @@ function trajectoirePoints(profil, jours, t0, cadence) {
 
     await patchLimite({ v: '6.2', texte: P62, T: T62, vieux: { q: Q6, h: H6 }, vNom: 'v6', avant: [] });
     await patchLimite({ v: '6.3', texte: P63, T: T63, vieux: { q: T62.q || Q6, h: T62.h || H6 }, vNom: 'v6.2', avant: [['6.2', P62]] });
-    check(memes(TF.q, T63.q) && memes(TF.h, T63.h), 'supabase/fournil-classement.sql et le patch v6.3 portent les mêmes tableaux (recoller le fichier complet ne revient pas en arrière)');
+    await patchLimite({ v: '6.4', texte: P64, T: T64, vieux: { q: T63.q || T62.q || Q6, h: T63.h || T62.h || H6 }, vNom: 'v6.3', avant: [['6.2', P62], ['6.3', P63]] });
+    check(memes(TF.q, T64.q) && memes(TF.h, T64.h), 'supabase/fournil-classement.sql et le patch v6.4 portent les mêmes tableaux (recoller le fichier complet ne revient pas en arrière)');
   }
 
   // ─── le chat (supabase/fournil-chat.sql), collé par-dessus la v6, deux fois ───
