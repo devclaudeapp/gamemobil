@@ -16,7 +16,7 @@
   'use strict';
   const NOUVEAUTES = [
     {
-      id: '2026-10-17-i', date: '2026-10-17', titre: 'Ta boutique monte en gamme, et tu aménages ta salle',
+      id: '2026-10-18-a', date: '2026-10-18', titre: 'Ta boutique monte en gamme, et tu aménages ta salle',
       points: [
         'Ta boutique monte en gamme : toutes les cinq boutiques, ton décor devient plus beau, de la Belle boutique (n°6) jusqu’au Palais du goût (n°26). Parquet, marbre, colonnes dorées, tapis rouge, et même une statue !',
         'Ton quartier garde ses couleurs. Les feuilles Étoiles et Parcours montrent ton standing et le prochain palier.',
