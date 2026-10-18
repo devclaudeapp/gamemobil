@@ -113,8 +113,9 @@ function vieilleSauvegarde() {
   check(v8 === 16, `seize recettes ouvertes : la vitrine montre les huit plus avancées (${v8} ouvertes)`);
   check(spe.length === 15 && spe.includes('Myrtilles') && spe.includes('Fraisier') && !spe.includes('Croquembouche'), `la spécialité de la boutique n°8 : les quinze recettes à la carte (${spe.slice(8).join(', ')})`);
   await page.screenshot({ path: `${out}/8b-boutique-gare.png` });
-  const gare = await page.evaluate(() => ({ q: VIE.etat && VIE.etat.Q ? VIE.etat.Q.id : null, ardoise: !!VIE.etat && VIE.etat.Q.objets.includes('ardoise'), enseigne: document.querySelector('#enseigne') ? document.querySelector('#enseigne').textContent : '' }));
-  check(gare.q === 'gare' && gare.ardoise && /Gare/.test(gare.enseigne), `la boutique n°10 dans le quartier de la gare : son décor (données de GAME.QUARTIERS), son enseigne « ${gare.enseigne.trim()} »`);
+  const gare = await page.evaluate(() => ({ standing: window.__fournil.G.standing(window.__fournil.st), q: VIE.etat && VIE.etat.Q ? VIE.etat.Q.id : null, // depuis le standing (18 oct.) : la boutique n°10 est au palier 1, décor « gare-s1 »
+    ardoise: !!VIE.etat && VIE.etat.Q.objets.includes('ardoise'), enseigne: document.querySelector('#enseigne') ? document.querySelector('#enseigne').textContent : '' }));
+  check(/^gare(-s\d)?$/.test(gare.q || '') && gare.standing === 1 && gare.ardoise && /Gare/.test(gare.enseigne), `la boutique n°10 dans le quartier de la gare : son décor (données de GAME.QUARTIERS, palier 1 du standing : ${gare.q}), son enseigne « ${gare.enseigne.trim()} »`);
   { // le même gros plan, à la pleine qualité et quatre fois la finesse de l'écran (une page à part, la même boutique)
     const brut = await page.evaluate(() => { const st = JSON.parse(JSON.stringify(window.__fournil.st)); st.ev = null; st.boost = null; return JSON.stringify(st); });
     const ctx4 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 4, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
