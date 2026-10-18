@@ -57,6 +57,12 @@
   // (×1,5 à ×2,6 pour le sirop, Gobelets achetés) et, montées, elles font ~30 % de ses gains au dernier jour (sirop ~16 %, cristal ~14 %).
   // Les niveaux achetés restent : seul le gain par niveau change. L'enveloppe du serveur (fournil_quartier_table, SQL v6.3) a été élargie
   // d'autant ; le marathon simulé reste ×2 dessous (test/fournil-quartier.test.js).
+  // v6.4 (18 octobre) : encore ×4 pour le sirop (12 000 → 48 000), ×2 pour le cristal (320 000 → 640 000). Un joueur réel (jour 6,
+  // palier 13, Spécialité niveau 175, sirop niveau 135, sans les Gobelets) remboursait un niveau de sirop en ~450 h contre ~80 h pour la
+  // Spécialité (le prochain niveau ÷ ce qu'un niveau de plus rapporte par seconde, paliers compris) : ×5,6 ; maintenant ×1,4 sans les
+  // Gobelets, ×0,47 avec (la meilleure affaire du moment, c'est voulu). Le cristal sans le Camping-car : ×1 à ×1,4 pour le très actif
+  // (dès le lendemain du 16e). Montées, avec les Gobelets, les deux recettes font ~55-65 % des gains du très actif au dernier jour. Seul rev
+  // change ; l'enveloppe du serveur (fournil_quartier_table, SQL v6.4) a été élargie d'autant.
   const PRODUITS = [
     { id: 'herbe', nom: 'Herbe', pl: 'sachets d’herbe', cout: 4, debloquer: 0, rev: 1, temps: 1.5, croiss: 1.07, staff: 1500, staffNom: 'Guetteur Kévin', poste: 'Le banc du square', desc: 'Le classique. Ça sent jusqu’au troisième.' },
     { id: 'shit', nom: 'Shit', pl: 'barrettes', cout: 60, debloquer: 120, rev: 20, temps: 3, croiss: 1.15, staff: 22500, staffNom: 'Charbonneur Dylan', poste: 'Le hall du bâtiment B', desc: 'Emballé dans du papier alu, comme un sandwich.' },
@@ -64,8 +70,8 @@
     { id: 'ecsta', nom: 'Ecsta', pl: 'pochons de cachetons', cout: 8640, debloquer: 17280, rev: 1200, temps: 12, croiss: 1.13, staff: 750000, staffNom: 'Rabatteur Momo', poste: 'Le parking de la boîte', desc: 'Roses, avec un petit cœur dessus.' },
     { id: 'coke', nom: 'Coke', pl: 'pochettes', cout: 1e5, debloquer: 2e8, rev: 10000, temps: 24, croiss: 1.12, staff: 6e8, staffNom: 'Comptable Tonton Serge', poste: 'L’arrière-salle du PMU', desc: 'La clientèle a des mocassins.' },
     { id: 'specialite', nom: 'La Spécialité du quartier', pl: 'Spécialités', cout: 1.2e6, debloquer: 2e10, rev: 9e4, temps: 96, croiss: 1.11, staff: 6e10, staffNom: 'Livreur Rachid', poste: 'Le camion à kebabs', desc: 'Personne ne sait ce qu’il y a dedans. Tout le monde en redemande.' },
-    { id: 'sirop', nom: 'Sirop violet', pl: 'gobelets de sirop violet', apres: 13, cout: 1e12, debloquer: 2e13, rev: 12000, temps: 120, croiss: 1.02, staff: 5e13, staffNom: 'Pharmacien Gérard', poste: 'L’arrière-boutique de la pharmacie', desc: 'Ça se boit à la paille, et ça ralentit tout le square.' },
-    { id: 'cristal', nom: 'Cristal bleu', pl: 'sachets de cristal bleu', apres: 16, cout: 1e13, debloquer: 2e14, rev: 320000, temps: 240, croiss: 1.025, staff: 5e14, staffNom: 'Chimiste Monsieur Blanc', poste: 'Le camping-car du terrain vague', desc: 'Bleu comme à la télé. Le chimiste jure qu’il est prof de chimie.' },
+    { id: 'sirop', nom: 'Sirop violet', pl: 'gobelets de sirop violet', apres: 13, cout: 1e12, debloquer: 2e13, rev: 48000, temps: 120, croiss: 1.02, staff: 5e13, staffNom: 'Pharmacien Gérard', poste: 'L’arrière-boutique de la pharmacie', desc: 'Ça se boit à la paille, et ça ralentit tout le square.' },
+    { id: 'cristal', nom: 'Cristal bleu', pl: 'sachets de cristal bleu', apres: 16, cout: 1e13, debloquer: 2e14, rev: 640000, temps: 240, croiss: 1.025, staff: 5e14, staffNom: 'Chimiste Monsieur Blanc', poste: 'Le camping-car du terrain vague', desc: 'Bleu comme à la télé. Le chimiste jure qu’il est prof de chimie.' },
   ];
   // les paliers des postes : au palier franchi le plus haut, les gains sont multipliés par 2^exposant. Les anciens (25, 50, 100, 200…
   // 5000) gardent leur exposant entier (le même multiplicateur cumulé qu'avant : ×2 à chacun) ; v6.2, ceux qu'on a intercalés (75, 125,

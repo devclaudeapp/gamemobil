@@ -233,19 +233,36 @@ console.log('── après le boss : deux recettes de plus (sirop violet au 13e,
   // sous elle à niveau égal : un niveau de sirop se remboursait en ~20 h contre ~15 min). Seul le gain par niveau change : les prix, les
   // déblocages et les apprentis restent ceux d'avant (les niveaux déjà achetés gardent leur prix et leur rang). Le remboursement comparé
   // et leur part des gains se vérifient plus bas, sur le très actif simulé.
-  check(SI.rev === 12000 && CR.rev === 320000 && SI.cout === 1e12 && SI.croiss === 1.02 && SI.debloquer === 2e13 && SI.staff === 5e13 && CR.cout === 1e13 && CR.croiss === 1.025 && CR.debloquer === 2e14 && CR.staff === 5e14 && SI.temps === 120 && CR.temps === 240,
-    `de vraies recettes : le sirop ×12 (rev 1 000 → ${SI.rev}), le cristal ×40 (8 000 → ${CR.rev}) ; les mêmes prix qu’avant`);
-  { // une vieille sauvegarde (avant la v6.3) avec du sirop : elle se charge telle quelle, garde ses niveaux, et le sirop rapporte 12 fois plus
+  // v6.4 (18 octobre) : encore ×4 pour le sirop (12 000 → 48 000), ×2 pour le cristal (320 000 → 640 000) : le joueur réel du 18 octobre
+  // (plus bas) remboursait un niveau de sirop 5,6 fois plus lentement qu'un niveau de Spécialité, sans les Gobelets.
+  check(SI.rev === 48000 && CR.rev === 640000 && SI.cout === 1e12 && SI.croiss === 1.02 && SI.debloquer === 2e13 && SI.staff === 5e13 && CR.cout === 1e13 && CR.croiss === 1.025 && CR.debloquer === 2e14 && CR.staff === 5e14 && SI.temps === 120 && CR.temps === 240,
+    `v6.4 : le sirop ×48 (rev 1 000 → 12 000 en v6.3 → ${SI.rev}), le cristal ×80 (8 000 → 320 000 → ${CR.rev}) ; les mêmes prix qu’avant`);
+  { // une vieille sauvegarde (avant la v6.3) avec du sirop : elle se charge telle quelle, garde ses niveaux, et le sirop rapporte 48 fois plus
     // (le joueur du 17 octobre : jour 5, palier 13, Spécialité niveau 174, sirop niveau 121 à « +18 Md € par 2 min » pendant une soirée)
     const avant = { quartier: JSON.parse(JSON.stringify(Q.etat({}, now0))) }, aq = avant.quartier;
     aq.postes.forEach((x, i) => { x.niv = [520, 230, 220, 210, 200, 174, 121, 0][i]; x.staff = i < 7; x.actif = i < 7; }); aq.total = 1.6e15; aq.billets = 2e13; aq.paliers = Q.PALIERS.slice(0, 13).map((x) => x.n);
     for (const a of Q.AMELIORATIONS) if (!a.apres) aq.ameliorations[a.id] = true;
     const qs = Q.etat(JSON.parse(JSON.stringify(avant)), now0), parFournee = Q.revenu(qs, 6);
     const ancien = 1000 * 121 * Q.palierMult(121) * Q.ameliorationMult(qs, 6) * Q.reputationMult(qs) * Q.PRESENCE; // ce que rapportait la même fournée avant
-    check(qs.postes[6].niv === 121 && qs.postes[6].staff && qs.postes[5].niv === 174 && Math.abs(parFournee / ancien - 12) < 1e-9 && Q.prixNiveaux(qs, 6, 1) === Q.coutNiveaux(6, 121, 1),
-      `une vieille sauvegarde avec du sirop (niveau 121) se charge telle quelle : ${Q.fmt(parFournee)} € la fournée de 2 min (${Q.fmt(ancien)} € avant, ×12), le niveau suivant toujours à ${Q.fmt(Q.prixNiveaux(qs, 6, 1))} €`);
-    qs.billets = 0; Q.gagner(qs, 0); const t0 = Q.tauxParSeconde(qs); Q.PRODUITS[6].rev = 1000; const tAvant = Q.tauxParSeconde(qs); Q.PRODUITS[6].rev = 12000;
+    check(qs.postes[6].niv === 121 && qs.postes[6].staff && qs.postes[5].niv === 174 && Math.abs(parFournee / ancien - 48) < 1e-9 && Q.prixNiveaux(qs, 6, 1) === Q.coutNiveaux(6, 121, 1),
+      `une vieille sauvegarde avec du sirop (niveau 121) se charge telle quelle : ${Q.fmt(parFournee)} € la fournée de 2 min (${Q.fmt(ancien)} € avant la v6.3, ×48), le niveau suivant toujours à ${Q.fmt(Q.prixNiveaux(qs, 6, 1))} €`);
+    qs.billets = 0; Q.gagner(qs, 0); const t0 = Q.tauxParSeconde(qs), rev0 = SI.rev; Q.PRODUITS[6].rev = 1000; const tAvant = Q.tauxParSeconde(qs); Q.PRODUITS[6].rev = rev0;
     check(t0 > tAvant, `et la Planque entière gagne plus : ${Q.fmt(t0)} €/s au lieu de ${Q.fmt(tAvant)} €/s (+${((t0 / tAvant - 1) * 100).toFixed(1).replace('.', ',')} % : à 121 niveaux et sans les Gobelets, le sirop n’en est qu’au début de sa montée)`); }
+  { // v6.4 : le joueur réel du 18 octobre (jour 6, palier 13, Spécialité niveau 175 à « +5,9 Bn € » la fournée, prochain niveau 102 Bn ;
+    // sirop niveau 135 à « +144 Md € », prochain niveau 14,5 Bn ; ni le Grossiste ni les Gobelets). Sa sauvegarde v6.3 se relit telle quelle
+    // et le sirop rapporte 4 fois plus. Le remboursement MARGINAL : le prochain niveau ÷ ce qu'un niveau de plus rapporte par seconde
+    // (boss présent, paliers compris). Avant (v6.3) : ~450 h pour le sirop contre ~80 h pour la Spécialité (×5,6).
+    const v63 = { quartier: JSON.parse(JSON.stringify(Q.etat({}, now0))) }, aq = v63.quartier;
+    aq.postes.forEach((x, i) => { x.niv = [600, 300, 250, 225, 200, 175, 135, 0][i]; x.staff = i < 7; x.actif = i < 7; }); aq.total = Q.PALIERS[12].total * 1.01; aq.billets = 1e13; aq.paliers = Q.PALIERS.slice(0, 13).map((x) => x.n);
+    for (const a of Q.AMELIORATIONS) if (!a.apres) aq.ameliorations[a.id] = true;
+    const qj = Q.etat(JSON.parse(JSON.stringify(v63)), now0);
+    const marg = (q, i) => { const n = q.postes[i].niv, P = Q.PRODUITS[i]; return Q.prixNiveaux(q, i, 1) / ((P.rev * (n + 1) * Q.palierMult(n + 1) - P.rev * n * Q.palierMult(n)) * Q.ameliorationMult(q, i) * Q.reputationMult(q) * Q.PRESENCE / P.temps); };
+    const h = (sec) => `${Math.round(sec / 3600)} h`, rS = marg(qj, 5), r6 = marg(qj, 6), rev0 = SI.rev; Q.PRODUITS[6].rev = 12000; const r6v63 = marg(qj, 6); Q.PRODUITS[6].rev = rev0;
+    check(qj.postes[5].niv === 175 && qj.postes[6].niv === 135 && Math.abs(Q.revenu(qj, 5) / 5.9e12 - 1) < 0.01 && Math.abs(Q.prixNiveaux(qj, 5, 1) / 1.02e14 - 1) < 0.01 && Math.abs(Q.prixNiveaux(qj, 6, 1) / 1.45e13 - 1) < 0.01 && Math.abs(Q.revenu(qj, 6) / 5.76e11 - 1) < 0.01,
+      `le joueur du 18 octobre se relit tel quel : Spécialité ${Q.fmt(Q.revenu(qj, 5))} € la fournée (prochain niveau ${Q.fmt(Q.prixNiveaux(qj, 5, 1))} €), sirop ${Q.fmt(Q.revenu(qj, 6))} € (144 Md en v6.3, ×4 ; prochain niveau ${Q.fmt(Q.prixNiveaux(qj, 6, 1))} €)`);
+    check(r6v63 / rS > 4 && r6 / rS >= 1 / 1.5 && r6 / rS <= 1.5,
+      `sans les Gobelets, un niveau de sirop se rembourse en ${h(r6)} contre ${h(rS)} pour la Spécialité : ×${(r6 / rS).toFixed(2).replace('.', ',')} (visé ±×1,5 ; ${h(r6v63)}, ×${(r6v63 / rS).toFixed(1).replace('.', ',')} en v6.3)`);
+    qj.billets = 1e17; check(Q.amelioration(qj, 'gobelets').ok && marg(qj, 6) / marg(qj, 5) < 1, `avec les Gobelets (3 Bd), c’est la meilleure affaire du moment : ${h(marg(qj, 6))}, ×${(marg(qj, 6) / marg(qj, 5)).toFixed(2).replace('.', ',')} la Spécialité`); }
   const qr = Q.etat({}, now0); for (let i = 1; i < 6; i++) qr.postes[i].niv = 50; Q.gagner(qr, 1.4e15); qr.billets = 1e17;
   let r7 = Q.acheter(qr, 6);
   check(!r7.ok && r7.verrou && r7.apres === 13 && !Q.recetteOuverte(qr, 6) && qr.postes[6].niv === 0, 'avant le palier 13 : le sirop reste fermé, même avec de quoi payer (« Après le palier 13 »)');
@@ -344,9 +361,11 @@ check(Q.simuler('assidu', 14, { graine: 7 }).total === S.assidu.total, 'la simul
   // v6.3 (le sirop et le cristal en vraies recettes) : les paliers 13 à 20 avancent pour ceux qui les montent. Le très actif ne bouge pas
   // (13e le 3e jour, 16e le 5e, 19e le 8e, le 20e jamais : avant → après, les mêmes) ; le marathon atteint le 20e le 8e jour (10e avant),
   // le 6e avec toutes les combines offertes dès le 12e, les deux ×3 comprises (10e avant). Bornes : 9e-14e → 7e-14e, et 5e-14e offertes.
-  check(jourDe('marathon', 12) <= 2 && jourDe('marathon', 20) >= 7 && jourDe('marathon', 20) <= 14, `le marathon (24 h/24) : le 12e le ${jourDe('marathon', 12)}e jour, le 20e seulement le ${jourDe('marathon', 20)}e (visé : 7e-14e ; 10e avant la v6.3, 13e avant les paliers intercalés)`);
+  // v6.4 (le sirop ×4, le cristal ×2) : le très actif ne bouge toujours pas (13e le 3e jour, 16e le 5e, 19e le 8e, le 20e jamais) ; le
+  // marathon atteint le 20e le 6e jour (8e en v6.3), le 4e combines offertes (6e en v6.3). Bornes : 7e-14e → 5e-14e, et 5e-14e → 4e-14e.
+  check(jourDe('marathon', 12) <= 2 && jourDe('marathon', 20) >= 5 && jourDe('marathon', 20) <= 14, `le marathon (24 h/24) : le 12e le ${jourDe('marathon', 12)}e jour, le 20e seulement le ${jourDe('marathon', 20)}e (visé : 5e-14e ; 8e en v6.3, 10e avant, 13e avant les paliers intercalés)`);
   const off = Q.simuler('marathon', 14, { offertes: true });
-  check(off.paliersJour[20] >= 5 && off.paliersJour[20] <= 14, `même avec toutes les combines offertes dès le 12e : le 20e le ${off.paliersJour[20]}e jour (visé : 5e-14e ; 10e avant la v6.3)`);
+  check(off.paliersJour[20] >= 4 && off.paliersJour[20] <= 14, `même avec toutes les combines offertes dès le 12e : le 20e le ${off.paliersJour[20]}e jour (visé : 4e-14e ; 6e en v6.3, 10e avant)`);
   // le temps d'un niveau (le moins cher : son prix, remise comprise, ÷ le taux de la Planque ouverte) : 42 min au 7e jour et 66 min au 10e avant
   const tNiv = (d) => Math.min(...d.niv.map((n, i) => (n > 0 ? Q.coutNiveau(i, n) * (d.remise || 1) / d.taux : Infinity))) / 60, t7 = tNiv(S.tresactif.parJour[6]), t10 = tNiv(S.tresactif.parJour[9]);
   check(t7 < 30 && t10 < 30, `le très actif attend moins pour un niveau : ${t7.toFixed(0)} min au 7e jour (42 avant), ${t10.toFixed(0)} min au 10e (66 avant)`);
@@ -355,21 +374,31 @@ check(Q.simuler('assidu', 14, { graine: 7 }).total === S.assidu.total, 'la simul
   const eT = ecartPaliers(S.tresactif, 5, 7, 480), eA = ecartPaliers(S.assidu, 2, 4, 80);
   check(eT <= 240 && eA <= 40, `un palier de poste toutes les ${eT.toFixed(0)} min de jeu pour le très actif (jours 5-7 ; 720 avant), ${eA.toFixed(0)} min pour l’assidu (jours 2-4 ; 40 avant)`);
   check(S.tresactif.q.postes[6].niv >= 100 && S.tresactif.q.postes[7].niv >= 50 && S.tresactif.q.postes.every((x) => x.staff) && S.tresactif.q.ameliorations.grossiste, `il ouvre les deux recettes (sirop niveau ${S.tresactif.q.postes[6].niv}, cristal ${S.tresactif.q.postes[7].niv}), leurs apprentis, le Grossiste`);
-  // v6.3 : le sirop et le cristal, de vraies recettes. Le remboursement d'un niveau (son prix, remise comprise, ÷ ce que la recette
-  // rapporte par seconde, boss présent) comparé à celui d'un niveau de Spécialité au même moment (en fin de journée du très actif) ; avant :
-  // ×25 à ×40 pour le sirop (×100 sans les Gobelets), ×110 à ×160 pour le cristal (et 2 % puis 0,5 % des gains au dernier jour). Le très actif simulé achète les
-  // Gobelets (sirop ×3) le 5e jour, jamais le Camping-car (cristal ×3, 12 Bd) : celui-ci diviserait par trois le temps du cristal.
-  const PJ = S.tresactif.parJour, remb = (d, i) => { const pq = { postes: d.niv.map((niv) => ({ niv })), ameliorations: d.ameliorations, total: d.total }; return Q.coutNiveau(i, d.niv[i]) * d.remise / (Q.revenuBase(pq, i) * Q.PRESENCE / Q.PRODUITS[i].temps); };
-  const fois = (j, i) => remb(PJ[j - 1], i) / remb(PJ[j - 1], 5), x = (v) => '×' + v.toFixed(1).replace('.', ',');
-  const jG = PJ.findIndex((d) => d.ameliorations.gobelets) + 1, jC = PJ.findIndex((d) => d.niv[7] >= 50) + 1, jF = PJ.length;
-  const si = [jG, jG + 2, jF].map((j) => fois(j, 6)), cr = [jC, jC + 2, jF].map((j) => fois(j, 7));
-  check(jG >= 4 && si[0] >= 0.5 && si[0] <= 2 && si[1] >= 0.5 && si[1] <= 3 && si[2] >= 0.5 && si[2] <= 2,
-    `un niveau de sirop se rembourse à peu près comme un niveau de Spécialité : ${x(si[0])} le ${jG}e jour (Gobelets achetés), ${x(si[1])} deux jours après, ${x(si[2])} le dernier (visé ±×2 ; ×25 à ×40 avant)`);
-  check(jC >= 5 && cr.every((v) => v >= 0.5 && v <= 5) && cr[2] <= 2.5 && cr.every((v) => v / 3 <= 2),
-    `le cristal : ${x(cr[0])} le ${jC}e jour, ${x(cr[1])} deux jours après, ${x(cr[2])} le dernier, sans le Camping-car (avec : ${cr.map((v) => x(v / 3)).join(', ')} ; ×110 à ×160 avant)`);
+  // v6.4 : le remboursement MARGINAL d'un niveau (le prochain, remise comprise, ÷ ce qu'un niveau de plus rapporte par seconde, boss
+  // présent, paliers compris) comparé à celui d'un niveau de Spécialité au même moment, en fin de journée du très actif. Un jour où le
+  // prochain niveau de l'une des deux franchit un palier est laissé de côté (ce niveau-là se rembourse d'un coup, ×0,01). Le très actif
+  // simulé achète les Gobelets (sirop ×3) le 5e jour, jamais le Camping-car (cristal ×3, 12 Bd).
+  // Avec les Gobelets, le sirop est au moins aussi bon que la Spécialité (c'est voulu). Sans eux, pour LUI, ×2 à ×3,5 : il achète par
+  // dix niveaux, au palier suivant (×1,41 sur tout le sirop tous les 50 niveaux), si bien qu'un niveau isolé reste cher ; le ±×1,5 sans
+  // les Gobelets se vérifie sur le joueur réel (plus haut). Le cristal, sans le Camping-car : ±×1,5 dès le lendemain du 16e.
+  // v6.3 (remboursement marginal) : sirop ×1,3 à ×4,6 avec les Gobelets (×3,9 à ×13,9 sans), cristal ×1,9 à ×2,5.
+  const PJ = S.tresactif.parJour, SP = 5, x = (v) => '×' + v.toFixed(2).replace('.', ',');
+  const marg = (d, i, sans) => { const n = d.niv[i], P = Q.PRODUITS[i], am = { ...d.ameliorations }; if (sans) delete am[sans]; const pq = { postes: d.niv.map((niv) => ({ niv })), ameliorations: am, total: d.total };
+    return Q.coutNiveau(i, n) * d.remise / ((P.rev * (n + 1) * Q.palierMult(n + 1) - P.rev * n * Q.palierMult(n)) * Q.ameliorationMult(pq, i) * Q.reputationMult(pq) * Q.PRESENCE / P.temps); };
+  const net = (d, i) => Q.prochainPalier(d.niv[i]) !== d.niv[i] + 1 && Q.prochainPalier(d.niv[SP]) !== d.niv[SP] + 1;
+  const fois = (d, i, sans) => marg(d, i, sans) / marg(d, SP), bornes = (a) => `${x(Math.min(...a))} à ${x(Math.max(...a))}`;
+  const jG = PJ.findIndex((d) => d.ameliorations.gobelets) + 1, j16 = S.tresactif.paliersJour[16];
+  const dG = PJ.filter((d) => d.j >= jG && net(d, 6)), dC = PJ.filter((d) => d.j > j16 && net(d, 7));
+  const si = dG.map((d) => fois(d, 6)), siSans = dG.map((d) => fois(d, 6, 'gobelets')), cr = dC.map((d) => fois(d, 7));
+  check(jG >= 4 && dG.length >= 7 && si.every((v) => v <= 1.5) && siSans.every((v) => v <= 3.5),
+    `un niveau de sirop, Gobelets achetés (${jG}e jour), se rembourse au moins aussi vite qu’un niveau de Spécialité : ${bornes(si)} jusqu’au dernier jour (sans eux ${bornes(siSans)})`);
+  check(j16 >= 4 && dC.length >= 6 && cr.every((v) => v >= 1 / 1.5 && v <= 1.5),
+    `le cristal, sans le Camping-car : ${bornes(cr)} du ${j16 + 1}e jour au dernier (visé ±×1,5 ; ×1,9 à ×2,5 en v6.3)`);
+  // leur part des gains au dernier jour : 30 % en v6.3. Avec les Gobelets, le sirop absorbe l'essentiel des billets du très actif (ses
+  // prix ne montent que de 2 % par niveau) : le visé (~45 % au plus) ne tient pas en même temps que le ±×1,5 du joueur réel ; borne : 70 %.
   const qf = S.tresactif.q, taux = qf.postes.map((s, i) => (s.niv > 0 ? Q.revenuBase(qf, i) / Q.temps(qf, i) : 0)), tot = taux.reduce((a, b) => a + b, 0), part = taux.map((t) => t / tot);
-  check(part[6] >= 0.1 && part[6] <= 0.2 && part[6] + part[7] >= 0.2 && part[6] + part[7] <= 0.32,
-    `montées, elles font ${((part[6] + part[7]) * 100).toFixed(0)} % de ses gains au dernier jour (sirop ${(part[6] * 100).toFixed(1).replace('.', ',')} %, cristal ${(part[7] * 100).toFixed(1).replace('.', ',')} %, Spécialité ${(part[5] * 100).toFixed(0)} % ; visé ~20-30 %, le sirop ~10-15 % ; 2,5 % avant)`);
+  check(part[6] >= 0.3 && part[7] >= 0.1 && part[6] + part[7] <= 0.7,
+    `montées, elles font ${((part[6] + part[7]) * 100).toFixed(0)} % de ses gains au dernier jour (sirop ${(part[6] * 100).toFixed(1).replace('.', ',')} %, cristal ${(part[7] * 100).toFixed(1).replace('.', ',')} %, Spécialité ${(part[5] * 100).toFixed(0)} % ; 30 % en v6.3, 2,5 % avant)`);
   check(jourDe('assidu', 13) >= 10 && !S.quotidien.paliersJour[13], `l’assidu atteint le 13e vers la fin (13e jour avant les paliers intercalés) (${jourDe('assidu', 13) === Infinity ? 'jamais' : jourDe('assidu', 13) + 'e jour'}) ; le quotidien, jamais`);
   S.offertes = off; }
 // l'enveloppe du serveur : la table du SQL (log10 des billets par jour depuis le début) reste au-dessus du marathon 24 h/24, avec marge
@@ -385,7 +414,7 @@ if (table) {
   check(combines.length >= 2, `le marathon achète les combines d’après le boss (${combines.join(', ')})`);
   for (const g of [7, 1, 2]) { // le pire cas : toutes les combines offertes dès le 12e (sans les payer), trois hasards
     const o = g === 7 ? S.offertes : Q.simuler('marathon', 14, { graine: g, offertes: true }), m = o.parJour.map((d, k) => table[k + 1] - Math.log10(d.total));
-    check(m.every((x) => x >= Math.log10(2)), `combines offertes dès le 12e (graine ${g}) : toujours ×2 sous l’enveloppe (au plus juste ×${Math.pow(10, Math.min(...m)).toFixed(2)}) — la table v6.3 de fournil_quartier_table()`); }
+    check(m.every((x) => x >= Math.log10(2)), `combines offertes dès le 12e (graine ${g}) : toujours ×2 sous l’enveloppe (au plus juste ×${Math.pow(10, Math.min(...m)).toFixed(2)}) — la table v6.4 de fournil_quartier_table()`); }
   // la version 2 des récompenses ne touche à rien de ce que rapporte la Planque : le marathon gagne EXACTEMENT les mêmes billets qu'avant
   // (les totaux de la simulation d'avant, graine 7) ; donc les mêmes marges : ×3.11 … ×2.36 jour par jour, ×2.13 au plus juste combines offertes
   // avec les recettes d'après le boss et le Grossiste (16 octobre) : les recettes repartent du bas et prennent leur part des billets (le
@@ -396,7 +425,9 @@ if (table) {
   // v6.3 (le sirop ×12, le cristal ×40 : de vraies recettes) : 279 Bd, 458 Bd combines offertes (les deux ×3 dès le 12e) ; la table du SQL
   // élargie de même (supabase/fournil-classement.sql et sa mise à jour fournil-classement-v63.sql) : du 2e au 14e jour, +0,05 à +0,4 en
   // log10 ({12.5,14.5,16.35,…,17.65} → {12.5,14.5,16.4,…,18.05}) ; au plus juste ×2,20 combines offertes, au plus large ×4 sans.
-  check(Math.abs(S.marathon.total / 2.788e17 - 1) < 0.01 && Math.abs(S.offertes.total / 4.583e17 - 1) < 0.01, `le marathon : ${Q.fmt(S.marathon.total)} € (${Q.fmt(S.offertes.total)} € combines offertes ; 176 Bd et 194 Bd avant la v6.3, 119 Bd et 141 Bd sans les paliers intercalés)`);
+  // v6.4 (le sirop ×4, le cristal ×2) : 844 Bd, 1 154 Bd combines offertes ; la table élargie de même (fournil-classement.sql) : du 2e au
+  // 14e jour, +0,15 à +0,4 en log10 ({12.5,14.5,16.4,…,18.05} → {12.5,14.5,16.55,…,18.45}) ; au plus juste ×2,21, au plus large ×6,4.
+  check(Math.abs(S.marathon.total / 8.4376e17 - 1) < 0.01 && Math.abs(S.offertes.total / 1.1545e18 - 1) < 0.01, `le marathon : ${Q.fmt(S.marathon.total)} € (${Q.fmt(S.offertes.total)} € combines offertes ; 279 Bd et 458 Bd en v6.3, 176 Bd et 194 Bd avant, 119 Bd et 141 Bd sans les paliers intercalés)`);
   console.log(`        marges du marathon, jour par jour : ×${S.marathon.parJour.map((d, k) => Math.pow(10, table[k + 1] - Math.log10(d.total)).toFixed(2)).join(' ×')}`);
 }
 

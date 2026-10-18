@@ -28,9 +28,9 @@
     {
       id: '2026-10-17-h', date: '2026-10-17', titre: 'Le Sirop violet et le Cristal bleu rapportent enfin',
       points: [
-        'Dans la Planque, le Sirop violet rapporte 12 fois plus par niveau, le Cristal bleu 40 fois plus : un niveau s’y rembourse presque aussi vite qu’un niveau de Spécialité.',
+        'Dans la Planque, le Sirop violet rapporte ×48 par niveau (×4 de plus que le 17), le Cristal bleu ×80 (×2 de plus) : sans ses Gobelets, un niveau de Sirop se rembourse à peu près aussi vite qu’un niveau de Spécialité ; avec, c’est la meilleure affaire.',
         'Tes niveaux déjà achetés restent : ils rapportent plus tout de suite. Les prix ne changent pas.',
-        'À la Maison hantée (dès le 27) : les Gâteaux du cimetière et les Œufs de dragon en chocolat aussi.',
+        'À la Maison hantée (dès le 27) : les Gâteaux du cimetière ×72 par niveau, les Œufs de dragon en chocolat ×131.',
       ],
     },
     {
