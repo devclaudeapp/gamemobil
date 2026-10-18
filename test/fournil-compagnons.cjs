@@ -51,7 +51,9 @@ const TOUS = ['chat-roux', 'chien', 'lapin', 'chat-noir', 'chien-quartier'].conc
   await ev(() => { document.querySelector('#feuille').scrollTop = 99999; }); await sleep(300); await shot('02-feuille-bas');
   const coins0 = await ev(() => window.__fournil.st.coins);
   await clic('#feuille-contenu [data-cp-acheter="dragon"]'); await sleep(300);
-  check(await ev((c) => window.__fournil.st.coins === c && !window.__fournil.st.compagnons.length && window.__toasts.some((t) => /Il manque/.test(t)), coins0), 'pas assez d’argent : rien n’est acheté, un mot dit ce qui manque');
+  { // la boutique continue de vendre pendant le toucher (lent sur la CI) : la caisse ne doit simplement pas avoir payé le compagnon
+    const r = await ev((c) => ({ coins: window.__fournil.st.coins, c, n: window.__fournil.st.compagnons.length, mot: window.__toasts.some((t) => /Il manque/.test(t)) }), coins0);
+    check(r.coins >= r.c && !r.n && r.mot, `pas assez d’argent : rien n’est acheté, un mot dit ce qui manque (${JSON.stringify(r)})`); }
 
   console.log('── acheter un compagnon payant ──');
   const prix = await ev(() => window.__fournil.G.prixCompagnon(window.__fournil.st, 'dragon'));

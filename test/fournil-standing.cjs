@@ -235,7 +235,7 @@ const QS = [['village', 0], ['capitale', G.QUARTIERS.findIndex((q) => q.id === '
           if (pr) { st.amenagement = f.G.nettoyerAmenagement(pr.p.a); VIE.frame(0.016, st, Date.now()); } else rates.push(id);
         }
         f.save(); return { code: f.G.codeAmenagement(st.amenagement), rates }; });
-      const pret = await attendre(() => ev((code) => { const v = window.__fournil.SCENE.standingVu; return VIE.LAY.sig === code && v.palier === 5 && v.mailles > 0; }, code), 60000);
+      const pret = await attendre(() => ev(([code, hd]) => { const v = window.__fournil.SCENE.standingVu; return VIE.LAY.sig === code && v.palier === 5 && v.mailles > 0 && (!hd || v.hd); }, [code, qual === 'haute']), 90000); // en haute, les modèles cuits du palier aussi (la CI les charge lentement)
       await sleep(qual === 'haute' ? 2000 : 1000);
       const r = await ev(() => { const L = VIE.LAY, st = window.__fournil.st, z = window.__fournil.SCENE.zones(), a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v;
         const inter = (p, q) => p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;

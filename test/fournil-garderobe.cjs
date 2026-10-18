@@ -98,7 +98,11 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
   check((await vues(p)).tenue === null && m2 === 8 && await p.evaluate(() => window.__fournil.G.ensembleComplet(window.__fournil.st) === 'quartier'), `la tenue du quartier : pas de toque de podium, l’ensemble du quartier, toujours ${m2} maillages`);
   await sansClients(p); zone = await zoneBoulanger(p);
   await p.screenshot({ path: out + '/07-3d-tenue-quartier.png', clip: zone });
-  await p.locator('#scene-wrap').screenshot({ path: out + '/08-boutique-quartier.png' });
+  { // une capture par coordonnées (la scène vit sans cesse : Playwright attendrait en vain qu'elle soit « stable »), et un contrôle que la mise en page ne bouge pas
+    const boite = () => p.evaluate(() => { const b = document.querySelector('#scene-wrap').getBoundingClientRect(); return { x: Math.max(0, b.left), y: Math.max(0, b.top), width: Math.min(innerWidth, b.width), height: Math.min(innerHeight, b.height) }; });
+    const b1 = await boite(); await sleep(600); const b2 = await boite();
+    check(JSON.stringify(b1) === JSON.stringify(b2), `la scène ne bouge pas dans la page (${JSON.stringify(b1)} puis ${JSON.stringify(b2)})`);
+    await p.screenshot({ path: out + '/08-boutique-quartier.png', clip: b2 }); }
   await p.evaluate(() => { const f = window.__fournil; f.G.equiper(f.st, 'tete', 'bronze-toque'); f.G.equiper(f.st, 'accessoire', 'lunettes-rondes'); f.rafraichir(); }); await sleep(900);
   const m3 = await p.evaluate(() => window.__fournil.SCENE.maillagesRecompenses.boulanger);
   check((await vues(p)).tenue === 'bronze' && m3 === 8, `un mélange (toque de bronze, sweat du quartier, lunettes) : la toque vue des autres est de bronze, ${m3} maillages`);
