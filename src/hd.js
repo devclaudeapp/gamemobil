@@ -8,7 +8,8 @@ const HDM = (() => {
   const API = { actif, version: 0, pret: () => false, permis: () => false, charger: () => Promise.resolve(false), coupe: () => true, couper: () => {}, remettre: () => {} };
   if (!actif) return API;
   const X = FOURNIL_HD, L = new X.GLTFLoader(), BASE = 'hd/'; if (X.MeshoptDecoder) L.setMeshoptDecoder(X.MeshoptDecoder);
-  // trois lots chargés à la demande : la boutique (quelques décors, après le premier rendu), la Planque et la Maison hantée (à leur première ouverture)
+  // trois lots chargés à la demande : la boutique (quelques décors, après le premier rendu), la Planque et la Maison hantée (à leur première ouverture) ;
+  // et, en plus, les petits lots cuits du standing et de la boutique hantée
   // l'équipe de la Planque : six Mini Characters de Kenney (fournil/hd/mini/, environ 105 Ko chacun ; clips idle, walk, sit, emote-yes, holding-both, interact-right)
   const MINI = ['male-b', 'female-a', 'male-d', 'female-c', 'male-f', 'female-e'].map((n) => 'character-' + n);
   const LOTS = {
@@ -18,6 +19,8 @@ const HDM = (() => {
     hantee: { hantee: ['armchair', 'book_set', 'candle_melted', 'candle_thin', 'candle_triple', 'crypt', 'fence', 'fence_gate', 'gravestone', 'lantern_hanging', 'lantern_standing', 'pictureframe_large_A', 'post_lantern', 'pumpkin_orange_small', 'pumpkin_yellow_jackolantern', 'rug_rectangle_stripes_A', 'shelf_B_large_decorated', 'table_medium', 'tree_dead_medium', 'tree_pine_orange_medium'], halloween: ['pumpkin_orange', 'pumpkin_orange_jackolantern'], mini: MINI },
     // le standing (src/meubles.js, standing ; fournil/hd/luxe/ : cuits, quelques Ko) : chargés seulement quand la boutique atteint le palier
     luxe1: { luxe: ['lantern_hanging'] }, luxe3: { luxe: ['column'] }, luxe5: { luxe: ['statue', 'trophy'] },
+    // la boutique hantée (src/boutiquehantee.js, ?boutique=1 ; fournil/hd/hantee2/ : KayKit Halloween Bits cuits, quelques Ko) : ses bougies et ses lanternes
+    boutiqueHantee: { hantee2: ['candle_triple', 'candle', 'candle_melted', 'lantern_standing'] },
     planque: { meubles: ['rug_oval_A', 'cactus_medium_A', 'cactus_small_A', 'pictureframe_medium', 'lamp_standing', 'couch_pillows', 'armchair_pillows', 'table_low'], ville: ['building_D', 'building_F', 'streetlight', 'car_sedan', 'firehydrant', 'trash_A', 'dumpster'], mini: MINI },
   };
   const MOD = {}, PER = {}, etat = {};
@@ -26,7 +29,7 @@ const HDM = (() => {
     if (etat[lot]) return etat[lot].promesse; const e = etat[lot] = { pret: false };
     const t = []; for (const [dossier, noms] of Object.entries(LOTS[lot] || {})) for (const n of noms) {
       if (dossier === 'mini') { if (!PER[n]) t.push(lire(`mini/${n}.glb`).then((g) => { PER[n] = g; }, () => console.warn('HD : personnage manquant', n))); }
-      else { const cle = dossier === 'meubles2' || dossier === 'luxe' ? `${dossier}/${n}` : n; if (!MOD[cle]) t.push(lire(`${dossier}/${n}.glb`).then((g) => { MOD[cle] = g.scene; }, () => console.warn('HD : modèle manquant', n))); } // un décor manquant est simplement omis ; les meubles cuits gardent leur dossier dans leur nom
+      else { const cle = dossier === 'meubles2' || dossier === 'luxe' || dossier === 'hantee2' ? `${dossier}/${n}` : n; if (!MOD[cle]) t.push(lire(`${dossier}/${n}.glb`).then((g) => { MOD[cle] = g.scene; }, () => console.warn('HD : modèle manquant', n))); } // un décor manquant est simplement omis ; les meubles cuits gardent leur dossier dans leur nom
     }
     e.promesse = Promise.all(t).then(() => { if (LOTS[lot].mini && !LOTS[lot].mini.some((v) => PER[v])) throw new Error('personnages HD manquants'); e.pret = true; API.version++; return true; }).catch((err) => { e.erreur = String(err && err.message || err); console.warn('HD : modèles non chargés, rendu habituel', e.erreur); return false; });
     return e.promesse;

@@ -1295,6 +1295,10 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   // buste prend la robe claire, la cape doublée et son col sont fusionnés dans le buste, les manches dans les bras), bottes à bout relevé
   // (fusionnées aux jambes), balai miniature en bandoulière (dans le buste) ou lanterne-citrouille (dans le bras droit) : toujours 8 appels.
   // Les costumes de l'équipe du manoir en éco : o.bandes (les bandelettes de la momie), o.os (le pyjama squelette), fusionnés dans le buste.
+  // La boutique hantée (src/boutiquehantee.js) : o.deguisement (DEGUISEMENTS : sorcière, vampire, fantôme, momie pour les clients ; l'équipe
+  // du manoir pour les apprentis) complète les options ; o.drap (le drap du fantôme, en cloche, festonné) est fusionné dans le buste,
+  // o.bandesTete (la tête de la momie), o.oreilles ('loup' : les oreilles du loup-garou ; 'cornes' : celles de la dragonne) dans la tête :
+  // toujours 8 appels de dessin au plus.
   function construire(o) {
     const peau = o.peau || '#FFD7B5', chev = o.cheveux || L, large = o.tablier === 'large', phiT = large ? 1.9 : 1.3;
     const gd = o.garde || null, pieceG = (p) => (gd && gd[p] ? gd[p] : null), metalDe = (p) => { const x = pieceG(p); return x && x.metal && TENUES[x.metal] ? TENUES[x.metal] : null; };
@@ -1331,6 +1335,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     if (cape) corps.push(...partsCape(tnC)); // la cape : dans le dos, évasée, doublée ; le col dressé et l'agrafe (fusionnés dans le buste)
     if (o.bandes) for (const [y, r] of [[27, 0.25], [32, -0.2], [37.5, 0.18], [43, -0.15]]) corps.push(M.part(bande(11.3, 2), o.bandes, { y, rz: r })); // les bandelettes de la momie
     if (o.os) corps.push(M.part(M.capsule(0.9, 9, 6), '#F4F0E6', { y: 44, z: 10.6 }), ...[40, 36.5, 33].map((y, k) => M.part(M.capsule(0.85, 9 - k * 1.2, 6), '#F4F0E6', { y, z: 10.9 - k * 0.15, rz: HP })), M.part(M.sphere(2, 8), '#F4F0E6', { y: 28, z: 10.2, sx: 1.6, sz: 0.5 })); // le pyjama squelette : la colonne, trois côtes, le bassin
+    if (o.drap) { const d = o.drap === true ? '#F6F3FF' : o.drap; corps.push(M.part(M.cylindre(11.6, 15.8, 31, 16), d, { y: 19 })); for (let k = 0; k < 8; k++) { const a = (k + 0.5) / 8 * TAU; corps.push(M.part(M.sphere(3.4, 8), d, { x: Math.sin(a) * 14.6, y: 19.2, z: Math.cos(a) * 14.6, sy: 0.75 })); } } // le drap du fantôme : une cloche du cou aux genoux, le bas festonné
     if (acc && acc.forme === 'balai') corps.push(...partsBalai(tnA)); // le balai miniature, en bandoulière dans le dos
     if (o.col) corps.push(M.part(patchC(12, 5, 2.3), '#2B5BD7', { y: 45.5, ry: -1.45 }), M.part(patchC(12, 5, 0.6), BLANC, { y: 45.5 }), M.part(patchC(12, 5, 2.3), ROUGE, { y: 45.5, ry: 1.45 }), M.part(patchC(12, 5, 0.6), BLANC, { y: 45.5, ry: Math.PI }));
     const foulardCol = acc && acc.forme === 'foulard' ? (tnA ? tnA.tissu : ROUGE) : acc && acc.forme !== 'lunettes' ? null : o.foulard ? ROUGE : null; // l'accessoire remplace le foulard du titre (les lunettes le laissent)
@@ -1356,6 +1361,9 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       if (tnT) { const ye = hc >= 6 ? 12 + hc * 0.4 : 10, re = ye < 12 ? 9.2 : 8.8 - (ye - 12) / hc * 0.8; tete.push(M.part(etoile(2.6, 1.1, 0.9), tnT.fonce, { y: ye, z: re + 0.3, sy: 1.45 }), M.part(patchC(8.95, Math.max(1, hc - 1), 0.34), tnT.clair, { y: 12 + hc / 2, ry: -0.75 })); } // l'étoile au front de la toque (étirée en hauteur : la plongée de 52° l'écrase), le reflet sur sa gauche
     }
     if (o.or) tete.push(M.part(M.cylindre(11.8, 11.8, 1.6, 16), L, { y: 9.6 }), M.part(M.cylindre(7.4, 7.2, 15, 14), L, { y: 10 }), M.part(bande(7.7, 2.2), OR, { y: 13 }));
+    if (o.bandesTete) for (const [y, r] of [[5.6, 0.22], [-1.2, -0.18], [-6.6, 0.12]]) tete.push(M.part(bande(10.35, 2.2), o.bandesTete === true ? '#E8DCC0' : o.bandesTete, { y, rz: r })); // la tête de la momie (le visage passe par-dessus)
+    if (o.oreilles === 'loup') for (const sx of [-1, 1]) tete.push(M.part(M.cone(3.4, 7.5, 6), '#6E5E52', { x: sx * 6.6, y: 10, rz: -sx * 0.4 }), M.part(M.cone(1.8, 4.4, 6), '#FF9FB2', { x: sx * 6.5, y: 9.6, z: 1.4, rz: -sx * 0.4 })); // les oreilles pointues du loup-garou
+    else if (o.oreilles === 'cornes') for (const sx of [-1, 1]) tete.push(M.part(M.cone(1.9, 6.5, 6), '#FFE27A', { x: sx * 4.6, y: 10.6, z: -1.2, rz: -sx * 0.3, rx: -0.25 })); // les petites cornes dorées de la dragonne
     if (o.moustache) tete.push(M.part(M.capsule(1.3, 3.2, 6), '#8C5A3C', { x: -2.6, y: 2.4, z: 10.1, rz: 1.05 }), M.part(M.capsule(1.3, 3.2, 6), '#8C5A3C', { x: 2.6, y: 2.4, z: 10.1, rz: -1.05 }));
     P.cou = new THREE.Group(); P.cou.position.y = 52; ht.add(P.cou); // le cou : pivot de la tête et du visage (incliner, tourner, mâcher)
     P.tete = M.maille(tete); P.tete.position.y = 11; P.cou.add(P.tete);
@@ -1380,7 +1388,26 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     P.visage.castShadow = false;
     return g;
   }
-  const creer = (o) => construire(o || {});
+  // ─── les déguisements (la boutique hantée) : des options de construire, prêtes à fusionner ; les clients en tirent un au sort, les
+  //     apprentis portent celui de leur monstre (src/hantee.js, staffNom : Hubert le fantôme, Ramsès la momie… Bérénice la dragonne) ───
+  const H0 = { tete: null, haut: null, pieds: null, accessoire: null }, habit = (o) => Object.assign({}, H0, o);
+  const DEGUISEMENTS = {
+    sorciere: { garde: habit({ tete: { forme: 'chapeau', metal: 'sorciere-c' }, haut: { forme: 'cape', metal: 'sorciere-c' } }) },
+    vampire: { cheveux: '#1E1824', coiffure: 2, garde: habit({ haut: { forme: 'cape', metal: 'vampire-c' } }) },
+    fantome: { haut: '#F6F3FF', drap: true, garde: habit({ tete: { forme: 'capuche', metal: 'fantome' } }) },
+    momie: { haut: '#E8DCC0', cheveux: '#D9CBA8', coiffure: 0, bandes: '#CDBE9A', bandesTete: '#DCCFAE' },
+    // l'équipe du manoir (les mêmes que les chibis du Manoir en éco, src/evenement.js)
+    squelette: { haut: '#2E2A38', peau: '#F2EEE6', cheveux: '#2E2A38', coiffure: 0, os: true },
+    citrouille: { haut: '#6FBF5A', cheveux: '#5A7A2E', coiffure: 0, garde: habit({ tete: { forme: 'citrouille', metal: null } }) },
+    loupgarou: { haut: '#5A4A3E', peau: '#9C8A78', cheveux: '#6E5E52', coiffure: 3, bonnet: '#6E5E52', oreilles: 'loup' },
+    dragonne: { haut: '#4FAF6A', peau: '#9FE3A6', cheveux: '#3E8A55', coiffure: 0, oreilles: 'cornes' },
+  };
+  DEGUISEMENTS.fantome2 = Object.assign({}, DEGUISEMENTS.fantome, { peau: '#F4F1FF', cheveux: '#F4F1FF' }); // Hubert, le vrai fantôme : le visage pâle
+  DEGUISEMENTS.momie2 = Object.assign({}, DEGUISEMENTS.momie, { peau: '#E8DCC0' }); // Ramsès, la vraie momie
+  DEGUISEMENTS.vampire2 = Object.assign({}, DEGUISEMENTS.vampire, { haut: '#3A2440', peau: '#EDE6FF', garde: habit({ haut: { forme: 'cape', metal: 'vampire' } }) }); // le comte Vladimir
+  DEGUISEMENTS.sorciere2 = Object.assign({}, DEGUISEMENTS.sorciere, { peau: '#B9F0A6', cheveux: '#8E6BD8', coiffure: 1, garde: habit({ tete: { forme: 'chapeau', metal: 'sorciere' }, pieds: { forme: 'bottes', metal: 'sorciere' } }), haut: '#5FD3A4' }); // Berthe, la vraie sorcière
+  const deguiser = (o) => { const d = o && DEGUISEMENTS[o.deguisement]; return d ? Object.assign({}, o, d) : o || {}; };
+  const creer = (o) => construire(deguiser(o));
   // le patron : même grammaire, 1,25 fois plus grand ; toque, foulard, moustache, liseré et col selon le titre
   // tenue : 'or', 'argent' ou 'bronze' (la tenue du podium du classement), sinon la tenue blanche
   // tenue : 'or', 'argent' ou 'bronze' (toque et tablier du podium, l'ancienne forme), ou la garde-robe complète de GAME.tenueBoulanger(st)
@@ -1390,7 +1417,9 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     quartier: { tissu: '#2E2B3A', fonce: '#E1496C', clair: '#56516B', bijou: '#D3DCE6' }, 'quartier-or': { tissu: '#1E1B26', fonce: '#FFC84A', clair: '#4A4458', bijou: '#FFC84A' },
     // la Maison hantée : violet nuit et orange citrouille ; en or (le podium final) : noir et or ; et trois costumes de l'équipe du manoir
     hantee: { tissu: '#4B2F7A', fonce: '#FF8A3D', clair: '#8E6BD8', bijou: '#FFC84A' }, 'hantee-or': { tissu: '#1E1B26', fonce: '#FFC84A', clair: '#4A4458', bijou: '#FFC84A' },
-    fantome: { tissu: '#F6F3FF', fonce: '#D9D2FF', clair: '#FFFFFF', bijou: '#D9D2FF' }, vampire: { tissu: '#1E1824', fonce: '#C2243F', clair: '#3A2440', bijou: '#C2243F' }, sorciere: { tissu: '#2E2547', fonce: '#5FD3A4', clair: '#4B3D73', bijou: '#5FD3A4' } };
+    fantome: { tissu: '#F6F3FF', fonce: '#D9D2FF', clair: '#FFFFFF', bijou: '#D9D2FF' }, vampire: { tissu: '#1E1824', fonce: '#C2243F', clair: '#3A2440', bijou: '#C2243F' }, sorciere: { tissu: '#2E2547', fonce: '#5FD3A4', clair: '#4B3D73', bijou: '#5FD3A4' },
+    // les déguisements des clients de la boutique hantée : plus clairs, pour se lire dans une salle sombre
+    'sorciere-c': { tissu: '#6A4BB8', fonce: '#7CD992', clair: '#9A7FE0', bijou: '#FFC84A' }, 'vampire-c': { tissu: '#2E2238', fonce: '#E1496C', clair: '#B8314F', bijou: '#FFC84A' } };
   // les formes de la garde-robe d'Halloween (et leurs autres noms possibles dans GAME.GARDEROBE)
   const FORMES_HT = { chapeau: 'chapeau', 'chapeau-sorciere': 'chapeau', sorciere: 'chapeau', capuche: 'capuche', 'capuche-fantome': 'capuche', fantome: 'capuche', citrouille: 'citrouille' };
   // la tête de citrouille (le costume de la citrouille-lanterne) : cinq côtes orange autour de la tête, la tige, deux yeux et un sourire jaunes
@@ -2038,10 +2067,22 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
         }
         break;
       }
-      default: return partsPatisserie(7); // un id inconnu : la pièce montée
+      default: if (FRIANDISES[id]) return FRIANDISES[id](); return partsPatisserie(7); // un id inconnu : la pièce montée
     }
     return p;
   }
+  // ─── les friandises de la Maison hantée (src/hantee.js, PRODUITS : 'ht-acidule'… 'ht-dragon') : même contrat que les pâtisseries
+  //     (posées sur y = 0, ~16 d'envergure, un maillage en cache) ; la vitrine et les plateaux des monstres de la boutique hantée ───
+  const FRIANDISES = {
+    'ht-acidule': () => { const p = []; [[-4, 0, '#FF8A3D'], [4, 1.5, '#8E6BD8'], [0, -3.5, '#7CD992']].forEach(([x, z, c], k) => { p.push(M.part(M.sphere(2.6, 8), c, { x, y: 2.4, z }), M.part(M.cone(1.6, 2.4, 5), c, { x: x - 3, y: 2.4, z, rz: HP }), M.part(M.cone(1.6, 2.4, 5), c, { x: x + 3, y: 2.4, z, rz: -HP })); if (k === 0) p.push(M.part(bande(2.7, 0.8), '#FFE7C2', { x, y: 2.4, z, rz: HP })); }); return p; }, // trois bonbons dans leur papillote
+    'ht-pomme': () => [M.part(M.cylindre(6, 6.6, 1.2, 14), '#F4EEE0'), M.part(M.sphere(5, 12), '#D8283F', { y: 5.6, sy: 0.92 }), M.part(galet(2.2, 8), '#FF6B7A', { x: -1.8, y: 8, z: 2.4, sy: 0.4 }), M.part(M.cylindre(0.55, 0.55, 6.5, 6), '#C9A36A', { y: 8.5 }), M.part(M.sphere(0.9, 6), '#E8384F', { x: 3.2, y: 1.6, z: 2.6, sy: 0.5 })], // la pomme d'amour sur sa collerette, un bâton, une goutte
+    'ht-cookie': () => { const p = []; for (const [x, z, s] of [[-3.4, 1.2, 1], [3.6, -1, 0.85]]) { p.push(M.part(M.cylindre(5 * s, 5.2 * s, 1.8, 14), '#F4F1FF', { x, z, sz: 1.15 }), M.part(M.sphere(0.9 * s, 6), '#2B2533', { x: x - 1.6 * s, y: 1.8, z: z - 1, sy: 0.5 }), M.part(M.sphere(0.9 * s, 6), '#2B2533', { x: x + 1.6 * s, y: 1.8, z: z - 1, sy: 0.5 }), M.part(M.sphere(1.1 * s, 6), '#2B2533', { x, y: 1.8, z: z + 1.7, sy: 0.4 })); } return p; }, // deux cookies-fantômes glacés, leurs yeux et leur « bouh »
+    'ht-toile': () => { const p = [M.part(M.cylindre(7, 7, 0.8, 16), '#5C4688')]; for (let k = 0; k < 4; k++) p.push(M.part(M.capsule(0.35, 13, 4), '#F6F3FF', { y: 1.1, rz: HP, ry: k * Math.PI / 4 })); for (const r of [2.4, 4.4, 6.2]) p.push(M.part(M.tore(r, 0.32, TAU, 4, 16), '#F6F3FF', { y: 1.1, rx: HP })); p.push(M.part(M.sphere(1.4, 8), '#2B2533', { x: 2.2, y: 1.9, z: 1.4 }), M.part(M.sphere(1, 8), '#2B2533', { x: 2.2, y: 2.2, z: 2.8 })); return p; }, // la toile en sucre filé sur son disque, et sa petite araignée
+    'ht-potion': () => [M.part(M.sphere(4.6, 12), '#7CD992', { y: 4.4, sy: 0.95 }), M.part(M.cylindre(1.7, 2, 4.4, 10), '#7CD992', { y: 8 }), M.part(M.cylindre(1.6, 1.4, 2.4, 8), '#B07A2E', { y: 12 }), M.part(M.tore(2, 0.5, TAU, 5, 12), '#8E6BD8', { y: 9.4, rx: HP }), M.part(galet(1.6, 8), '#C6FF8F', { x: -1.6, y: 6.6, z: 3.3, sy: 0.5 })], // la potion fumante dans sa fiole ronde
+    'ht-citrouille': () => { const p = []; for (let k = 0; k < 5; k++) { const a = k / 5 * TAU; p.push(M.part(M.sphere(4.6, 10), k % 2 ? '#F28C28' : '#FF9A3D', { x: Math.cos(a) * 3.1, y: 4.8, z: Math.sin(a) * 2.3, sy: 1.05 })); } p.push(M.part(M.cylindre(0.9, 1.2, 3, 6), '#5A7A2E', { y: 9.6 }), M.part(M.cone(1.3, 1.7, 3), '#FFE27A', { x: -2.2, y: 6.2, z: 4.6, rx: HP }), M.part(M.cone(1.3, 1.7, 3), '#FFE27A', { x: 2.2, y: 6.2, z: 4.6, rx: HP }), M.part(M.boite(5.2, 1.1, 1, 0.4), '#FFE27A', { y: 3.2, z: 4.8 })); return p; }, // la citrouille sculptée et sa grimace
+    'ht-cimetiere': () => [M.part(M.boite(14, 5, 9, 1.4), '#5A3422'), M.part(M.boiteSimple(13.6, 0.8, 8.6), '#3A2014', { y: 5 }), M.part(M.boite(4.6, 6.4, 1.6, 0.8), '#B8B2C8', { x: -2.4, y: 5.6, z: -1.6 }), M.part(M.boiteSimple(2.4, 0.4, 0.3), '#6E6880', { x: -2.4, y: 9.6, z: -0.75 }), M.part(M.capsule(0.7, 3, 6), '#7CD992', { x: 3, y: 6.6, z: 1.4, rz: 0.5 }), M.part(M.capsule(0.7, 2.6, 6), '#FF9FB2', { x: 4.8, y: 6.2, z: -1.6, rz: -0.6 })], // le gâteau du cimetière : la terre en chocolat, une tombe en sucre, deux vers en gélatine
+    'ht-dragon': () => { const p = [M.part(M.cylindre(6.6, 6, 2.4, 14), '#8B5A3C'), M.part(M.tore(6.3, 1.1, TAU, 5, 14), '#A8743C', { y: 2.4, rx: HP })]; for (const [x, z, c] of [[-2.6, 0.6, '#4FAF6A'], [2.8, -0.4, '#8E6BD8']]) p.push(M.part(M.sphere(3.3, 12), c, { x, y: 6, z, sy: 1.35 }), M.part(galet(0.9, 6), '#FFE27A', { x: x - 1, y: 7.6, z: z + 2.8, sy: 0.4 }), M.part(galet(0.7, 6), '#FFE27A', { x: x + 1.4, y: 5.2, z: z + 2.9, sy: 0.4 })); return p; }, // deux œufs de dragon tachetés dans leur nid
+  };
   const geoPatisserieSaison = (id) => memo('saison|' + id, () => M.assembler(partsSaison(id)));
   function patisserieSaison(id) { const m = M.mesh(geoPatisserieSaison(id), M.MAT.vertex); m.userData.id = id; return m; }
   // ─── l'atelier : une situation posée au milieu du sol, animée par userData.anime ; zoom pour voir les détails ───
@@ -2104,7 +2145,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   }
   // le chat noir d'Halloween (pendant la Maison hantée, puis au choix) : robe noire bleutée, rayures à peine plus sombres, poitrail gris, yeux jaunes
   const CHAT_NOIR = { couleur: '#2B2733', rayures: '#1F1C26', ventre: '#4A4458', yeux: '#FFD84A' };
-  return { HAUTEUR, TAILLE_PATISSERIE, SAISONS, TENUES, METAUX_PODIUM, FORMES_HT, CHAT_NOIR, ESPECES, partsChaussure, partsChapeau, partsCape, partsCapuche, creer, animer, lacet, boulanger, animerBoulanger, chat, animerChat, libererChat, compagnon, animerCompagnon, patisserie, geoPatisserie, partsPatisserie, patisserieSaison, geoPatisserieSaison, demo };
+  return { HAUTEUR, TAILLE_PATISSERIE, SAISONS, TENUES, DEGUISEMENTS, FRIANDISES: Object.keys(FRIANDISES), deguiser, METAUX_PODIUM, FORMES_HT, CHAT_NOIR, ESPECES, partsChaussure, partsChapeau, partsCape, partsCapuche, creer, animer, lacet, boulanger, animerBoulanger, chat, animerChat, libererChat, compagnon, animerCompagnon, patisserie, geoPatisserie, partsPatisserie, patisserieSaison, geoPatisserieSaison, demo };
 })();
 if (typeof module !== 'undefined') module.exports = PERSOS;
 

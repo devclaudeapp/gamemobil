@@ -10,6 +10,7 @@ const VIE = (() => {
   const clients = [], apprentis = [], textes = [], vapeurs = [], flocons = [], passants = [];
   let confetti = [], hop = 0, blink = 0, nextSpawn = 2, nextPassant = 5, t = 0, rush = false, rang = 0, pts = 0, affl = 0, Q = null, tags = [], force = {}, caisseFlash = 0, idSuivant = 1;
   const crans = { tables: 0, four: 0, vitrine: 0, caisse: 0, froid: 0, deco: 0, bar: 0, banquette: 0, terrasse: 0 }, abordables = {}, prixDe = {}; let panneI = -1;
+  let vueEv = null; // la vue d'un événement (st.vueEv : la boutique hantée) : son décor, ses saisons, les déguisements de ses clients
   let places = { tables: 0, bar: 0, banquette: 0, terrasse: 0 }, dehors = 0; // les places assises actives (GAME.places) ; dehors : l'envie de terrasse (0 la nuit, 1 les beaux jours)
   const PASTEL = ['#FF9FB2', '#8FE3C2', '#C7B8FF', '#FFD98A', '#9BD0FF', '#FFB48A', '#B5E88A'];
   const PEAUX = ['#FFD7B5', '#F1B990', '#C68B59', '#8D5A3C', '#FFE3C9'];
@@ -22,6 +23,9 @@ const VIE = (() => {
     mer: { id: 'mer', mur: '#F4FBFF', mur2: '#D6EEF9', murStyle: 'bande', sol: '#EADFC9', sol2: 'rgba(255,255,255,.45)', solStyle: 'planches', comptoir: '#4F9FD1', comptoir2: '#A9D8F0', bois: '#DCE7EE', accent: '#3A86C8', hauts: ['#3A86C8', '#FFFFFF', '#F2C94C', '#FF8A80', '#8FD3F4', '#9BE8C2'], vue: 'mer' },
     montagne: { id: 'montagne', mur: '#EFDCC2', mur2: '#D8BE9A', murStyle: 'rondins', sol: '#B98A5E', sol2: 'rgba(0,0,0,.08)', solStyle: 'planches', comptoir: '#7A4E31', comptoir2: '#A86F48', bois: '#5A3A22', accent: '#A64B2A', hauts: ['#A64B2A', '#2F6B4F', '#E8D8B0', '#8C3B3B', '#4F6D8C', '#D98E4A'], vue: 'montagne' },
     ville: { id: 'ville', mur: '#F6F2EF', mur2: '#E4DCD6', murStyle: 'marbre', sol: '#3A3642', sol2: 'rgba(255,255,255,.08)', solStyle: 'marbre', comptoir: '#2E2A36', comptoir2: '#C9A96A', bois: '#C9A96A', accent: '#FF6B8B', hauts: ['#1F1F2B', '#FF6B8B', '#C9A96A', '#F5F5F5', '#7B61FF', '#3EC9A7'], vue: 'ville' },
+    // la Maison hantée (src/boutiquehantee.js : la boutique pendant l'événement, ?boutique=1) : papier peint violet nuit à rayures et ses
+    // petites chauves-souris, parquet sombre, bois de cercueil, accents citrouille ; les cadres sombres, le portrait de l'ancêtre ; dehors, le jardin hanté
+    hantee: { id: 'hantee', mur: '#56418A', mur2: '#34285A', murStyle: 'hantee', sol: '#4A3854', sol2: 'rgba(0,0,0,.14)', solStyle: 'planches', comptoir: '#4A2F45', comptoir2: '#8E6BD8', bois: '#3A2730', accent: '#E8782F', cadre: '#2A1E33', portrait: true, plante: '#8E6BD8', hauts: ['#FF8A3D', '#8E6BD8', '#7CD992', '#FFE7A3', '#E1496C', '#6CB8FF'], vue: 'hantee' },
   };
   Q = DECORS.village;
   // les quartiers du parcours (la gare, l'île… : GAME.QUARTIERS) portent leur décor dans leurs données (theme) : lu tel quel, une fois
@@ -334,6 +338,7 @@ const VIE = (() => {
       coiffure: or ? 0 : hiver && Math.random() < 0.5 ? 3 : Math.floor(Math.random() * 3), lunettes: !or && Math.random() < 0.2, bonnet: hauts[Math.floor(Math.random() * hauts.length)], sacCol: Math.random() < 0.5 ? '#F2D7B6' : '#E8C7A8',
       or: !!or, pris: false, siege: null, mange: 0 };
     c.mariniere = Q.vue === 'mer' && c.haut === '#FFFFFF';
+    if (modeVie !== '' && vueEv && vueEv.deguisements && !or) c.deg = vueEv.deguisements[Math.floor(Math.random() * vueEv.deguisements.length)]; // la boutique hantée : chacun vient déguisé
     clients.push(c);
     return c;
   }
@@ -483,7 +488,8 @@ const VIE = (() => {
     const d = G.paris(now), hour = force.heure != null ? force.heure : d.getUTCHours() + d.getUTCMinutes() / 60; // l’heure de Paris (à lire en getUTC…), comme les heures de pointe et les habitués
     const taux = G.tauxParSeconde(st);
     rang = G.rangTitre(st); pts = G.ptsTalents(st); affl = G.talent(st, 'affluence');
-    Q = decor(G.QUARTIERS[G.quartier(st)], G.standing ? G.standing(st) : 0); tags = force.saison || G.saison(now);
+    vueEv = st.vueEv || null; // la boutique hantée : le décor et les saisons de l'événement, pas ceux du quartier
+    Q = vueEv && DECORS[vueEv.decor] ? DECORS[vueEv.decor] : decor(G.QUARTIERS[G.quartier(st)], G.standing ? G.standing(st) : 0); tags = force.saison || (vueEv && vueEv.tags) || G.saison(now);
     if (st.amenagement !== amenRef) { amenRef = st.amenagement; const n = G.nettoyerAmenagement ? G.nettoyerAmenagement(st.amenagement) : null, c = n ? G.codeAmenagement(n) : ''; if (c !== codeDemande) { codeDemande = c; amenDemande = n; calculer(true); } } // un meuble déplacé (ou une autre boutique) : le plan suit
     for (const id of ['bar', 'banquette', 'terrasse']) crans[id] = G.mobilierCran(st, id); // (avant que GAME.MOBILIER les connaisse : cran 0)
     for (const m of G.MOBILIER) { crans[m.id] = G.mobilierCran(st, m.id); prixDe[m.id] = G.prixMeuble(st, m.id); abordables[m.id] = crans[m.id] < m.max && st.coins >= prixDe[m.id]; }
@@ -523,6 +529,30 @@ const VIE = (() => {
     const niv = st.stations.map((s) => s.niv), staffs = st.stations.filter((s) => s.staff).length, bonus = Object.keys(st.ameliorations).length;
     etat = { st, d, hour, sk: ciel(hour), taux, tags, Q, crans, abordables, prixDe, rang, pts, affl, rush, hop, caisseFlash, panneI, t, blink, niv, staffs, bonus, chaud: st.stations[0].actif || taux > 0, dt };
     return etat;
+  }
+
+  // ─── basculer(mode) : la boutique hantée (mode 'hantee') et la boutique ('') ne partagent pas leur salle. En entrant dans l'événement, la
+  //     vie de la boutique (clients, apprentis, chat, textes, vapeurs, flocons, passants, confettis, minuteries) est mise de côté telle
+  //     quelle ; l'événement part d'une salle vide ; en sortant, la sienne est jetée et celle de la boutique revient (chaque client
+  //     retrouve sa place par l'id du siège : un siège disparu entre-temps, il repart par l'allée) ───
+  let modeVie = '', garde = null;
+  function basculer(m) {
+    m = m || ''; if (m === modeVie) return false;
+    const vider = () => { for (const a of [clients, apprentis, textes, vapeurs, flocons, passants]) a.length = 0; confetti = []; chat = null; if (LAY) for (const s of LAY.sieges) s.occ = null; };
+    if (modeVie === '') garde = { clients: clients.slice(), apprentis: apprentis.slice(), textes: textes.slice(), vapeurs: vapeurs.slice(), flocons: flocons.slice(), passants: passants.slice(), confetti, chat, nextSpawn, nextPassant, hop, caisseFlash, Q, tags };
+    vider(); nextSpawn = 0.6; nextPassant = 3; modeVie = m;
+    if (m === '') vueEv = null; // de retour : plus de déguisements ni de décor de l'événement, même avant la prochaine frame (une vente peut tomber avant)
+    if (m === '' && garde) {
+      const g = garde; garde = null;
+      clients.push(...g.clients); apprentis.push(...g.apprentis); textes.push(...g.textes); vapeurs.push(...g.vapeurs); flocons.push(...g.flocons); passants.push(...g.passants);
+      confetti = g.confetti; chat = g.chat; nextSpawn = g.nextSpawn; nextPassant = g.nextPassant; hop = g.hop; caisseFlash = g.caisseFlash; Q = g.Q || DECORS.village; tags = g.tags || G.saison(Date.now()); // le décor de la boutique, tel qu'on l'a laissé
+      if (LAY) for (const c of clients) {
+        if (!c.siege) continue; const s = LAY.sieges.find((x) => x.id === c.siege.id);
+        if (s && !s.occ) { s.occ = c; c.siege = s; if (c.etat === 'assis') { c.x = s.x; c.y = s.y; } }
+        else { c.siege = null; c.etat = 'sort'; c.wp = 0; c.v = 100 * K; c.chemin = cheminSortie(c); }
+      }
+    }
+    return true;
   }
 
   // ─── « tout déplaçable » : ce que le mode Déplacer demande (src/ui.js, src/scene.js) ───
@@ -568,9 +598,9 @@ const VIE = (() => {
   // un meuble acheté : les tables 1..n, le bar et le coin salon dès le cran 1, les tables de la terrasse 1..n
   function mobileAchete(m) { const k = crans[m.type] || 0; return m.type === 'tables' || m.type === 'terrasse' ? m.i < k : k > 0; }
 
-  const API = { hautBloc, resize, frame, installer, valider, proposer, mobileSous, mobileAchete, caseDe, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
+  const API = { hautBloc, resize, frame, basculer, installer, valider, proposer, mobileSous, mobileAchete, caseDe, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
     DECORS, decor, PASTEL, PEAUX6, HAUTS6, CHEVEUX, TAU,
-    get LAY() { return LAY; }, get amenagementApplique() { return LAY ? LAY.sig : ''; }, get amenagementDemande() { return codeDemande; }, get K() { return K; }, get W() { return W; }, get H() { return H; }, get t() { return t; }, get rush() { return rush; }, get Q() { return Q; }, get tags() { return tags; }, get force() { return force; }, get etat() { return etat; },
+    get LAY() { return LAY; }, get amenagementApplique() { return LAY ? LAY.sig : ''; }, get amenagementDemande() { return codeDemande; }, get K() { return K; }, get W() { return W; }, get H() { return H; }, get t() { return t; }, get rush() { return rush; }, get Q() { return Q; }, get tags() { return tags; }, get force() { return force; }, get etat() { return etat; }, get mode() { return modeVie; }, get vueEv() { return vueEv; },
     get clients() { return clients; }, get apprentis() { return apprentis; }, get textes() { return textes; }, get vapeurs() { return vapeurs; }, get confetti() { return confetti; }, get flocons() { return flocons; }, get passants() { return passants; }, get chat() { return chat; }, get crans() { return crans; }, get places() { return places; }, get abordables() { return abordables; }, get prixDe() { return prixDe; },
     get nClients() { return clients.length; }, get nApprentis() { return apprentis.length; }, get assis() { let n = 0; for (const c of clients) if (c.etat === 'assis') n++; return n; }, assisEn: (zone) => clients.filter((c) => c.etat === 'assis' && c.siege && c.siege.zone === zone).length, get mystereVisible() { return !!mystereEnAttente(); } };
   return API;
