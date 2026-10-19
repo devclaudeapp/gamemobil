@@ -106,7 +106,11 @@ const EQUIPE = ['fantome2', 'momie2', 'squelette', 'vampire2', 'sorciere2', 'cit
     for (let k = 1; k <= 3; k++) {
       await ev(() => window.__fournil.hantee()); await attendre(() => ev(() => { const e = window.__fournil.SCENE.evenement; return !!e && e.apprentis.length >= 3 && e.apprentis.every((a) => a.bati); }), 20000); await sleep(1200);
       const e = await ev(() => window.__fournil.SCENE.evenement);
-      await ev(() => window.__fournil.fermerHantee()); await attendre(() => ev(() => VIE.Q.id !== 'hantee' && !window.__fournil.SCENE.appelsParGroupe.hantee), 20000); await sleep(900);
+      const tot = await ev(() => { const F = window.__fournil; F.fermerHantee(); const n = VIE.clients.length; // une vente et un habitué dans la même image, avant toute frame de la boutique (la boucle de ui.js vend avant de dessiner)
+        for (let j = 0; j < 4; j++) F.SCENE.vente(0, 10, '+10', true); VIE.habitue({ id: 'essai-retour', nom: 'Essai', haut: '#88AACC', cheveux: '#553322', peau: '#F1C7A5', coiffure: 1 });
+        return { mode: VIE.mode, vueEv: !!VIE.vueEv, theme: VIE.Q && VIE.Q.id, nouveaux: VIE.clients.slice(n).map((c) => c.deg || '') }; });
+      if (k === 1) check(tot.mode === '' && !tot.vueEv && tot.theme !== 'hantee' && tot.nouveaux.length > 0 && tot.nouveaux.every((d) => !d), `fermer puis vendre dans la même image : les clients entrent sans costume (${tot.nouveaux.length} : « ${tot.nouveaux.join('», «')} »), au thème ${tot.theme}`);
+      await attendre(() => ev(() => VIE.Q.id !== 'hantee' && !window.__fournil.SCENE.appelsParGroupe.hantee), 20000); await sleep(900);
       const m = await memoire(ev); mems.push(m); console.log(`        aller-retour ${k} : ${e.clients} clients déguisés bâtis, ${e.apprentis.length} monstres ; au retour ${m.g} géométries, ${m.t} textures`);
     }
     check(mems[2].t <= mems[0].t && mems[2].g <= mems[0].g + 6, `trois allers-retours : la mémoire est stable (géométries ${mems.map((m) => m.g).join(' → ')}, textures ${mems.map((m) => m.t).join(' → ')})`);

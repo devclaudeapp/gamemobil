@@ -272,6 +272,9 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
     const shot2 = async (nom) => { const f = path.join(out, nom + '.png'); await pg.screenshot({ path: f }); if (out2) fs.copyFileSync(f, path.join(out2, nom + '.png')); };
     const charger2 = async () => { await pg.goto(URL_JEU + '?qualite=eco'); await pg.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 }); await sleep(900); };
     await pg.goto('about:blank'); await charger2();
+    // d'abord l'annonce du jour sur ce premier chargement (le minuteur de 800 ms de ui.js) : posée après l'état ci-dessous, elle donnerait
+    // déjà les paliers 13 et 14 ici, avant le rechargement (une course entre ce minuteur et l'évaluation, selon la charge de la machine)
+    check(await attendre(() => ev2(() => { const F = window.__fournil, qq = F.st[F.evHantee.cle]; return !!(qq && qq.annonce) && !document.querySelector('#feuille').hidden; }), 20000), 'le premier chargement : l’annonce du jour d’abord');
     const av = await ev2(() => { const F = window.__fournil, R = F.HT, st = F.st, q = R.etat(st, HORLOGE.maintenant()); q.annonce = true; R.gagner(q, 3e15); q.billets = 1e14; for (let k = 1; k <= 12; k++) R.marquerPalier(q, k); q.lastSeen = HORLOGE.maintenant(); F.save();
       return { etoiles: st.etoiles, reserve: st.boosts.reserve.length, paliers: q.paliers.length, dus: R.paliersDus(q).map((p) => p.n).join() }; });
     check(av.paliers === 12 && av.dus === '13,14', 'la sauvegarde d’avant : douze paliers reçus, 3 000 Bn de bonbons (au-delà des 13e et 14e, pas encore donnés)');

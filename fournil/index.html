@@ -1795,7 +1795,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'eb0f734ee0c2';</script>
+<script>window.FOURNIL_VERSION = '65ef05fcfa16';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -5595,7 +5595,7 @@ const VIE = (() => {
       coiffure: or ? 0 : hiver && Math.random() < 0.5 ? 3 : Math.floor(Math.random() * 3), lunettes: !or && Math.random() < 0.2, bonnet: hauts[Math.floor(Math.random() * hauts.length)], sacCol: Math.random() < 0.5 ? '#F2D7B6' : '#E8C7A8',
       or: !!or, pris: false, siege: null, mange: 0 };
     c.mariniere = Q.vue === 'mer' && c.haut === '#FFFFFF';
-    if (vueEv && vueEv.deguisements && !or) c.deg = vueEv.deguisements[Math.floor(Math.random() * vueEv.deguisements.length)]; // la boutique hantée : chacun vient déguisé
+    if (modeVie !== '' && vueEv && vueEv.deguisements && !or) c.deg = vueEv.deguisements[Math.floor(Math.random() * vueEv.deguisements.length)]; // la boutique hantée : chacun vient déguisé
     clients.push(c);
     return c;
   }
@@ -5796,12 +5796,13 @@ const VIE = (() => {
   function basculer(m) {
     m = m || ''; if (m === modeVie) return false;
     const vider = () => { for (const a of [clients, apprentis, textes, vapeurs, flocons, passants]) a.length = 0; confetti = []; chat = null; if (LAY) for (const s of LAY.sieges) s.occ = null; };
-    if (modeVie === '') garde = { clients: clients.slice(), apprentis: apprentis.slice(), textes: textes.slice(), vapeurs: vapeurs.slice(), flocons: flocons.slice(), passants: passants.slice(), confetti, chat, nextSpawn, nextPassant, hop, caisseFlash };
+    if (modeVie === '') garde = { clients: clients.slice(), apprentis: apprentis.slice(), textes: textes.slice(), vapeurs: vapeurs.slice(), flocons: flocons.slice(), passants: passants.slice(), confetti, chat, nextSpawn, nextPassant, hop, caisseFlash, Q, tags };
     vider(); nextSpawn = 0.6; nextPassant = 3; modeVie = m;
+    if (m === '') vueEv = null; // de retour : plus de déguisements ni de décor de l'événement, même avant la prochaine frame (une vente peut tomber avant)
     if (m === '' && garde) {
       const g = garde; garde = null;
       clients.push(...g.clients); apprentis.push(...g.apprentis); textes.push(...g.textes); vapeurs.push(...g.vapeurs); flocons.push(...g.flocons); passants.push(...g.passants);
-      confetti = g.confetti; chat = g.chat; nextSpawn = g.nextSpawn; nextPassant = g.nextPassant; hop = g.hop; caisseFlash = g.caisseFlash;
+      confetti = g.confetti; chat = g.chat; nextSpawn = g.nextSpawn; nextPassant = g.nextPassant; hop = g.hop; caisseFlash = g.caisseFlash; Q = g.Q || DECORS.village; tags = g.tags || G.saison(Date.now()); // le décor de la boutique, tel qu'on l'a laissé
       if (LAY) for (const c of clients) {
         if (!c.siege) continue; const s = LAY.sieges.find((x) => x.id === c.siege.id);
         if (s && !s.occ) { s.occ = c; c.siege = s; if (c.etat === 'assis') { c.x = s.x; c.y = s.y; } }
