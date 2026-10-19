@@ -4,7 +4,10 @@
    avec p_quartier, son classement à part (periode 'quartier') et son podium final ; version 5 : + les événements génériques, dont « La Maison
    hantée » (src/hantee.js) : ses bonbons envoyés avec p_evt = 'hantee' et p_score, son classement à part (periode 'hantee', l'onglet
    « Halloween ») et son podium final (recompenses().evenements.hantee) ; + « en ligne » : un battement fournil_vu toutes les 2 min tant que la
-   page est visible, et chaque ligne du classement porte enLigne (booléen), la liste enLigneN ; un serveur encore en version 4, 3 ou 2 reste servi).
+   page est visible, et chaque ligne du classement porte enLigne (booléen), la liste enLigneN ; un serveur encore en version 4, 3 ou 2 reste servi ;
+   version 6.5 : les places de la semaine jusqu'au 15e (recompenses().places, RECOMPENSES_RANG : des étoiles et un boost par place, une fois par
+   semaine), et les pourboires reçus et la récompense de l'objectif commun accusés au serveur (fournil_vu_pourboires, fournil_vu_objectif)
+   seulement une fois rangés et sauvés : une réponse perdue les fait revenir, sans les payer deux fois).
    Une partie pure, testée dans Node (lundi de Paris, pseudo, rangs, décision d'envoi, état local), et une partie réseau : de simples POST
    vers les fonctions Supabase du classement (PostgREST, /rest/v1/rpc/…), avec la clé PUBLIQUE de fournil/config.js. Aucune erreur ne remonte
    jamais au jeu : chaque appel rend un état ('ok', 'hors-ligne', 'lent' (pas de réponse en 8 s), 'pas-ouvert', 'erreur', 'absent'). Sans configuration (l'artefact Claude), rien ne part. */
@@ -96,11 +99,21 @@
   const entier = (v) => (Number.isInteger(v) && v > 0 ? v : null);
   const etatNeuf = () => ({ id: null, jeton: null, pseudo: '', rejoint: false, dernierEnvoi: 0, valeur: null, points: null, lundiPoints: '', quartier: null, evt: null, essai: 0, dernier: null, recompenses: recompensesNeuves(),
     photoQuand: 0, photoCle: '', dons: donsNeufs(), recus: recusNeufs(), notifs: notifsNeuves() }); // version 6 : la photo envoyée, les pourboires donnés et reçus, les notifications
-  // les pourboires donnés aujourd'hui (jour de Paris) : à qui (pseudos en minuscules), et combien il en reste d'après le serveur (null : pas encore su)
-  const donsNeufs = () => ({ jour: '', a: [], restants: null });
+  // les pourboires donnés aujourd'hui (jour de Paris) : à qui (pseudos en minuscules), et combien il en reste d'après le serveur (null : pas encore su) ;
+  // etoiles : à qui l'étoile du donneur a déjà été versée aujourd'hui (une par copain et par jour : une réponse perdue, puis « deja », la verse quand même)
+  const donsNeufs = () => ({ jour: '', a: [], restants: null, etoiles: [] });
   // les pourboires reçus : ceux qui attendent la feuille « X t'a laissé un pourboire ! » (attente), le plus récent déjà accueilli (vu),
-  // et les boosts déjà donnés aujourd'hui (n, au plus REGLES.pourboiresJour)
-  const recusNeufs = () => ({ attente: [], vu: '', jour: '', n: 0 });
+  // et les boosts déjà donnés aujourd'hui (n, au plus REGLES.pourboiresJour) ; version 6.5 : cles, les pourboires déjà rangés (« pseudo|quand »,
+  // les 100 derniers), et seuil : rien d'aussi ancien n'est plus rangé (le vu d'une sauvegarde d'avant les cles, ou la plus récente des cles oubliées)
+  const recusNeufs = () => ({ attente: [], vu: '', jour: '', n: 0, cles: [], seuil: '' });
+  const RECUS_CLES = 100;
+  const clePourboire = (x) => `${x.de}|${x.quand}`, quandCle = (k) => k.slice(k.lastIndexOf('|') + 1);
+  function bornerCles(r) { // au-delà de RECUS_CLES, les plus anciennes sont oubliées : le seuil monte jusqu'à elles
+    if (r.cles.length <= RECUS_CLES) return r;
+    const triees = r.cles.slice().sort((a, b) => (quandCle(a) < quandCle(b) ? -1 : quandCle(a) > quandCle(b) ? 1 : 0)), oubliees = triees.slice(0, triees.length - RECUS_CLES);
+    const s = oubliees.reduce((m, k) => (quandCle(k) > m ? quandCle(k) : m), r.seuil);
+    return Object.assign(r, { cles: triees.slice(-RECUS_CLES), seuil: s });
+  }
   // les notifications : actif (abonné), ses quatre cas, l'adresse d'envoi (endpoint) et l'heure « boutique pleine » déjà annoncée au serveur
   const notifsNeuves = (prefs) => ({ actif: false, prefs: nettoyerPrefs(prefs), endpoint: '', pleineA: 0 });
   // les événements génériques que ce téléphone connaît (version 5 du serveur : p_evt) ; chacun est aussi une période du classement
@@ -114,7 +127,36 @@
   const METAUX = ['or', 'argent', 'bronze'], JOUR = /^\d{4}-\d{2}-\d{2}$/;
   const metal = (rang) => METAUX[rang - 1] || null; // 1 → 'or', 2 → 'argent', 3 → 'bronze'
   const NOMS_METAL = { or: 'd’or', argent: 'd’argent', bronze: 'de bronze' }; // « la tenue d’or », « la coupe de bronze »
-  const recompensesNeuves = () => ({ podiums: [], tenue: 'auto', vu: '', quartier: null, quartierPodium: null, evenements: {}, equipe: [], equipeAttente: '' }); // quartier : son rang au podium final de l'événement « Le Quartier » (1, 2, 3), quartierPodium : les trois premiers ; evenements : { hantee: { rang: 1 | 2 | 3 | null, podium: [{ rang, pseudo, valeur }] } } (version 5)
+  const recompensesNeuves = () => ({ podiums: [], tenue: 'auto', vu: '', quartier: null, quartierPodium: null, evenements: {}, equipe: [], equipeAttente: '', places: [], payees: [], depuis: '' }); // quartier : son rang au podium final de l'événement « Le Quartier » (1, 2, 3), quartierPodium : les trois premiers ; evenements : { hantee: { rang: 1 | 2 | 3 | null, podium: [{ rang, pseudo, valeur }] } } (version 5) ; places, payees, depuis : version 6.5 (ci-dessous)
+  // ─── version 6.5 : les places de la semaine, du 1er au 15e (points > 0, ex æquo au même rang) ───
+  // places : [{ semaine, rang: 1 à 15, joueurs: les classés de cette semaine-là | null }] (les podiums y sont aussi) ; payees : les semaines dont la
+  // récompense est versée ; depuis : la première semaine payable (la semaine passée, à la première lecture des récompenses par ce téléphone :
+  // les places d'avant restent dans l'historique, sans étoiles ni boost). Chaque place donne, une fois, des étoiles et un boost dans la réserve
+  // (GAME.donnerBoostReserve) ; les rangs 1 à 3 gardent en plus la tenue et la coupe (podiums, inchangés).
+  const RANG_MAX = 15;
+  const RECOMPENSES_RANG = [
+    { de: 1, a: 1, etoiles: 5, mult: 5, secs: 1800 }, // 1er : la tenue et la coupe d'or, 5 étoiles, un boost ×5 de 30 min
+    { de: 2, a: 2, etoiles: 4, mult: 5, secs: 1800 }, // 2e : la tenue et la coupe d'argent, 4 étoiles, un boost ×5 de 30 min
+    { de: 3, a: 3, etoiles: 3, mult: 5, secs: 1800 }, // 3e : la tenue et la coupe de bronze, 3 étoiles, un boost ×5 de 30 min
+    { de: 4, a: 6, etoiles: 3, mult: 3, secs: 1800 }, // 4e à 6e : 3 étoiles, un boost ×3 de 30 min
+    { de: 7, a: 10, etoiles: 2, mult: 2, secs: 1800 }, // 7e à 10e : 2 étoiles, un boost ×2 de 30 min
+    { de: 11, a: 15, etoiles: 1, mult: 2, secs: 900 }, // 11e à 15e : 1 étoile, un boost ×2 de 15 min
+  ];
+  function recompenseRang(rang) { // { rang, etoiles, mult, secs, tenue } ; null hors du 1er au 15e
+    const r = Number.isInteger(rang) ? RECOMPENSES_RANG.find((x) => rang >= x.de && rang <= x.a) : null;
+    return r ? { rang, etoiles: r.etoiles, mult: r.mult, secs: r.secs, tenue: rang <= 3 } : null;
+  }
+  const parSemaine = (a, b) => (a.semaine < b.semaine ? -1 : a.semaine > b.semaine ? 1 : 0);
+  function nettoyerPlaces(liste) { // une place par semaine (la meilleure ; à rang égal, celle qui sait combien de joueurs), triées, les 200 dernières
+    const par = new Map();
+    for (const p of Array.isArray(liste) ? liste.slice(0, 2000) : []) {
+      if (!p || typeof p !== 'object' || !JOUR.test(String(p.semaine || '')) || !(Number.isInteger(p.rang) && p.rang >= 1 && p.rang <= RANG_MAX)) continue;
+      const j = Number.isInteger(p.joueurs) && p.joueurs >= p.rang ? Math.min(p.joueurs, 1e6) : null, a = par.get(p.semaine);
+      if (!a || p.rang < a.rang || (p.rang === a.rang && j && !a.joueurs)) par.set(p.semaine, { semaine: p.semaine, rang: p.rang, joueurs: j });
+    }
+    return [...par.values()].sort(parSemaine).slice(-200);
+  }
+  const semainesOk = (l, n) => (Array.isArray(l) ? [...new Set(l.filter((x) => typeof x === 'string' && JOUR.test(x)))].sort().slice(-n) : []);
   function decalerSemaine(lundi, k) { // '2026-10-12', -1 → '2026-10-05'
     if (!JOUR.test(String(lundi || ''))) return '';
     const d = new Date(lundi + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + 7 * k); return d.toISOString().slice(0, 10);
@@ -138,6 +180,8 @@
     o.evenements = nettoyerEvenements(r.evenements);
     o.equipe = Array.isArray(r.equipe) ? [...new Set(r.equipe.filter((x) => typeof x === 'string' && JOUR.test(x)))].sort().slice(-200) : []; // les semaines d'objectif commun réussi (le badge « Esprit d'équipe », version 6)
     o.equipeAttente = typeof r.equipeAttente === 'string' && JOUR.test(r.equipeAttente) && !o.equipe.includes(r.equipeAttente) ? r.equipeAttente : ''; // sa récompense pas encore annoncée
+    o.places = nettoyerPlaces((Array.isArray(r.places) ? r.places : []).concat(o.podiums)); // version 6.5 (une sauvegarde d'avant : ses podiums)
+    o.payees = semainesOk(r.payees, 200); o.depuis = typeof r.depuis === 'string' && JOUR.test(r.depuis) ? r.depuis : '';
     return o;
   }
   // les podiums finaux des événements génériques : { id: { rang: 1 | 2 | 3 | null, podium: [...] } }, seulement les événements connus
@@ -181,6 +225,17 @@
     if (!a || !a.metal) return '';
     const n = NOMS_METAL[a.metal]; return `Bravo ! ${rangTexte(a.rang)} de la semaine : la tenue ${n} et la coupe ${n} sont à toi`;
   }
+  // version 6.5 : les places dont la récompense attend (depuis la première semaine payable, avant la semaine en cours, pas encore versées), de la plus
+  // ancienne à la plus récente, chacune avec sa récompense
+  function placesAPayer(rec, lundi) {
+    if (!rec || !rec.depuis || !Array.isArray(rec.places)) return [];
+    return rec.places.filter((p) => p.semaine >= rec.depuis && (!lundi || p.semaine < lundi) && !(rec.payees || []).includes(p.semaine) && recompenseRang(p.rang))
+      .map((p) => Object.assign({}, p, { recompense: recompenseRang(p.rang) }));
+  }
+  function phrasePlace(p) { // « Tu as fini 7e cette semaine sur 12 »
+    if (!p || !rangOk(p.rang)) return '';
+    return `Tu as fini ${rangTexte(p.rang)} cette semaine${rangOk(p.joueurs) ? ` sur ${Math.max(p.joueurs, p.rang)}` : ''}`;
+  }
   function nettoyerRang(r, avecLundi) {
     if (!r || typeof r !== 'object' || !entier(r.rang)) return null;
     const o = { rang: r.rang, joueurs: Math.max(r.rang, entier(r.joueurs) || r.rang) };
@@ -208,8 +263,18 @@
     }
     e.recompenses = nettoyerRecompenses(s.recompenses);
     e.photoQuand = fini(s.photoQuand); e.photoCle = typeof s.photoCle === 'string' ? s.photoCle.slice(0, 4096) : '';
-    if (s.dons && typeof s.dons === 'object' && JOUR.test(String(s.dons.jour || ''))) e.dons = { jour: s.dons.jour, a: (Array.isArray(s.dons.a) ? s.dons.a : []).filter((x) => typeof x === 'string').map((x) => x.slice(0, 40)).slice(0, 10), restants: Number.isInteger(s.dons.restants) && s.dons.restants >= 0 ? Math.min(REGLES.pourboiresJour, s.dons.restants) : null };
-    if (s.recus && typeof s.recus === 'object') e.recus = { attente: nettoyerPourboires(s.recus.attente).slice(-20), vu: quandOk(s.recus.vu) && s.recus.vu ? new Date(s.recus.vu).toISOString() : '', jour: JOUR.test(String(s.recus.jour || '')) ? s.recus.jour : '', n: borne(s.recus.n, 0, 99) };
+    if (s.dons && typeof s.dons === 'object' && JOUR.test(String(s.dons.jour || ''))) {
+      const noms = (l) => (Array.isArray(l) ? l : []).filter((x) => typeof x === 'string').map((x) => x.slice(0, 40)).slice(0, 10);
+      e.dons = { jour: s.dons.jour, a: noms(s.dons.a), restants: Number.isInteger(s.dons.restants) && s.dons.restants >= 0 ? Math.min(REGLES.pourboiresJour, s.dons.restants) : null,
+        etoiles: Array.isArray(s.dons.etoiles) ? noms(s.dons.etoiles) : noms(s.dons.a) }; // une sauvegarde d'avant la 6.5 : ses étoiles du jour ont été versées avec chaque don
+    }
+    if (s.recus && typeof s.recus === 'object') {
+      const iso = (q) => (quandOk(q) && q ? new Date(q).toISOString() : ''), vu = iso(s.recus.vu), avecCles = Array.isArray(s.recus.cles);
+      const cles = avecCles ? [...new Set(s.recus.cles.slice(0, 500).filter((k) => typeof k === 'string' && k.length <= 80 && k.includes('|') && quandOk(quandCle(k))))] : [];
+      e.recus = bornerCles({ attente: nettoyerPourboires(s.recus.attente).slice(-20), vu, jour: JOUR.test(String(s.recus.jour || '')) ? s.recus.jour : '', n: borne(s.recus.n, 0, 99),
+        cles, seuil: avecCles ? iso(s.recus.seuil) : vu }); // une sauvegarde d'avant les cles : rien d'aussi ancien que son dernier pourboire accueilli ne revient
+      for (const x of e.recus.attente) if (!e.recus.cles.includes(clePourboire(x))) e.recus.cles.push(clePourboire(x));
+    }
     if (s.notifs && typeof s.notifs === 'object') e.notifs = { actif: s.notifs.actif === true && !!e.id, prefs: nettoyerPrefs(s.notifs.prefs), endpoint: typeof s.notifs.endpoint === 'string' && /^https:\/\//.test(s.notifs.endpoint) ? s.notifs.endpoint.slice(0, 1000) : '', pleineA: fini(s.notifs.pleineA) };
     return e;
   }
@@ -281,9 +346,10 @@
   const toqueOk = (t) => (METAUX.includes(t) ? t : null);
   // la réponse de fournil_recompenses : ses podiums, et le podium de la semaine passée (pour tout le monde)
   function nettoyerRecompensesServeur(d) {
-    const o = { ok: false, podiums: [], derniere: null };
+    const o = { ok: false, podiums: [], places: [], derniere: null };
     if (!d || typeof d !== 'object') return o;
     o.ok = d.ok === true; o.podiums = nettoyerPodiums(d.podiums);
+    o.places = nettoyerPlaces((Array.isArray(d.places) ? d.places : []).concat(o.podiums)); // version 6.5 : ses places du 1er au 15e (sinon, ses podiums)
     o.quartier = [1, 2, 3].includes(d.quartier) ? d.quartier : null; // le podium final de l'événement « Le Quartier » (version 4)
     o.quartierPodium = Array.isArray(d.quartier_podium) ? nettoyerPodiumQuartier(d.quartier_podium) : null;
     o.evenements = nettoyerEvenements(d.evenements); // les podiums finaux des événements génériques (version 5 ; {} sinon)
@@ -617,11 +683,18 @@
       // les récompenses : l'union des podiums (rien ne se perd), la tenue choisie dans l'autre fenêtre (chaque choix est écrit aussitôt), le dernier annoncé
       const equipe = [...new Set(etat.recompenses.equipe.concat(f.recompenses.equipe))].sort();
       const rec = { podiums: nettoyerPodiums(etat.recompenses.podiums.concat(f.recompenses.podiums)), tenue: f.recompenses.tenue, vu: f.recompenses.vu > etat.recompenses.vu ? f.recompenses.vu : etat.recompenses.vu, quartier: f.recompenses.quartier || etat.recompenses.quartier, quartierPodium: f.recompenses.quartierPodium || etat.recompenses.quartierPodium, evenements: fusionnerEvenements(etat.recompenses.evenements, f.recompenses.evenements),
-        equipe, equipeAttente: [f.recompenses.equipeAttente, etat.recompenses.equipeAttente].find((x) => x && !equipe.includes(x)) || '' };
+        equipe, equipeAttente: [f.recompenses.equipeAttente, etat.recompenses.equipeAttente].find((x) => x && !equipe.includes(x)) || '',
+        places: nettoyerPlaces(etat.recompenses.places.concat(f.recompenses.places)), payees: semainesOk(etat.recompenses.payees.concat(f.recompenses.payees), 200), // version 6.5 : une récompense versée dans l'autre fenêtre ne l'est pas ici
+        depuis: [etat.recompenses.depuis, f.recompenses.depuis].filter(Boolean).sort()[0] || '' };
       if (f.id !== etat.id || f.jeton !== etat.jeton || f.rejoint !== etat.rejoint || f.pseudo !== etat.pseudo) { etat = f; etat.recompenses = rec; viderCache(); prevenir(); return true; }
       // version 6 : les pourboires accueillis dans l'autre fenêtre ne reviennent pas ici ; ses dons du jour et ses notifications (écrits aussitôt) font foi
-      if (f.recus.vu > etat.recus.vu || (f.recus.vu === etat.recus.vu && f.recus.attente.length < etat.recus.attente.length)) etat.recus = f.recus;
-      if (f.dons.jour > etat.dons.jour || (f.dons.jour === etat.dons.jour && f.dons.a.length > etat.dons.a.length)) etat.dons = f.dons;
+      // (version 6.5 : les pourboires rangés des deux fenêtres, et les étoiles du jour déjà versées, s'additionnent : rien n'est rangé ni versé deux fois)
+      { const cles = [...new Set(etat.recus.cles.concat(f.recus.cles))], seuil = f.recus.seuil > etat.recus.seuil ? f.recus.seuil : etat.recus.seuil;
+        if (f.recus.vu > etat.recus.vu || (f.recus.vu === etat.recus.vu && f.recus.attente.length < etat.recus.attente.length)) etat.recus = f.recus;
+        etat.recus = bornerCles(Object.assign({}, etat.recus, { cles, seuil })); }
+      { const et = f.dons.jour === etat.dons.jour ? [...new Set(etat.dons.etoiles.concat(f.dons.etoiles))] : null;
+        if (f.dons.jour > etat.dons.jour || (f.dons.jour === etat.dons.jour && f.dons.a.length > etat.dons.a.length)) etat.dons = f.dons;
+        if (et) etat.dons = Object.assign({}, etat.dons, { etoiles: et }); }
       etat.notifs = f.notifs; if (f.photoQuand > etat.photoQuand) { etat.photoQuand = f.photoQuand; etat.photoCle = f.photoCle; }
       const avantRec = JSON.stringify(etat.recompenses); etat.recompenses = rec; if (JSON.stringify(rec) !== avantRec) prevenir();
       etat.essai = Math.max(etat.essai, f.essai);
@@ -809,6 +882,19 @@
       chargerRecompenses({ ecart: 60e3 }); // les récompenses aussi (une fois par minute au plus)
       return lecture;
     }
+    // version 6.5 : accuser au serveur les pourboires reçus (jusqu'au plus récent rendu) et la récompense de l'objectif commun, une fois rangés
+    // et sauvés sur le téléphone. Sans réponse, rien n'est perdu : la lecture suivante les rend de nouveau, et on les accuse de nouveau.
+    // Un serveur qui ne connaît pas fournil_vu_objectif (version 6.4 ou plus ancienne, qui marque tout à la lecture) : plus d'appel jusqu'au prochain lancement.
+    let sansVuObjectif = false;
+    function accuser(d) {
+      const moiOk = etat.rejoint && etat.id && etat.jeton; if (!moiOk) return;
+      const jusqua = d.pourboires.reduce((m, x) => (x.quand > m ? x.quand : m), '');
+      if (jusqua) rpc('fournil_vu_pourboires', { p_id: etat.id, p_jeton: etat.jeton, p_jusqua: jusqua }).catch(() => { /* rien : ils reviendront */ });
+      const ob = d.objectif;
+      if (ob && !sansVuObjectif && (etat.recompenses.equipe.includes(ob.semaine) || etat.recompenses.equipeAttente === ob.semaine)) {
+        rpc('fournil_vu_objectif', { p_id: etat.id, p_jeton: etat.jeton, p_semaine: ob.semaine }).then((r) => { if (r && r.etat === 'pas-ouvert') sansVuObjectif = true; }).catch(() => { /* rien */ });
+      }
+    }
     // ses podiums et le podium de la semaine passée : au lancement, à l'ouverture de la feuille, puis toutes les 30 min au plus.
     // Les podiums reçus s'ajoutent à ceux du téléphone (jamais retirés : quitter le classement ou le ménage des 90 jours ne reprennent rien).
     function chargerRecompenses(o) {
@@ -825,18 +911,23 @@
         if (!d.ok) return { etat: 'refus', erreur: r.data && typeof r.data.erreur === 'string' ? r.data.erreur : 'inconnue' };
         resynchroniser();
         derniere = d.derniere; if (derniere) noterLundi(decalerSemaine(derniere.semaine, 1));
-        const avant = JSON.stringify([etat.recompenses.podiums, etat.recompenses.quartier, etat.recompenses.quartierPodium, etat.recompenses.evenements]);
+        const avant = JSON.stringify([etat.recompenses.podiums, etat.recompenses.quartier, etat.recompenses.quartierPodium, etat.recompenses.evenements, etat.recompenses.places, etat.recompenses.depuis]);
         etat.recompenses.podiums = nettoyerPodiums(etat.recompenses.podiums.concat(d.podiums));
+        etat.recompenses.places = nettoyerPlaces(etat.recompenses.places.concat(d.places)); // version 6.5 : ses places, gardées à vie comme ses podiums
+        if (!etat.recompenses.depuis) etat.recompenses.depuis = decalerSemaine(lundi(), -1); // la première lecture : les places d'avant la semaine passée ne sont que de l'historique
         if (d.quartier) etat.recompenses.quartier = d.quartier; // le podium final de l'événement, gardé à vie (jamais retiré)
         if (d.quartierPodium) etat.recompenses.quartierPodium = d.quartierPodium;
         etat.recompenses.evenements = fusionnerEvenements(etat.recompenses.evenements, d.evenements); // les podiums finaux des événements génériques, gardés à vie
         let neuf = false;
-        // version 6 : les pourboires reçus attendent leur feuille (gardés sur le téléphone : le serveur peut les marquer vus dès cette lecture)
-        const deja = new Set(etat.recus.attente.map((x) => x.de + '|' + x.quand)), recus = d.pourboires.filter((x) => x.quand > etat.recus.vu && !deja.has(x.de + '|' + x.quand));
-        if (recus.length) { etat.recus.attente = etat.recus.attente.concat(recus).slice(-20); neuf = true; }
+        // version 6 : les pourboires reçus attendent leur feuille, rangés sur le téléphone. Version 6.5 : le serveur les rend tant qu'ils ne sont pas
+        // accusés ; ceux déjà rangés (cles) ne le sont pas deux fois, ni rien d'aussi ancien que le seuil
+        const deja = new Set(etat.recus.cles), recus = d.pourboires.filter((x) => x.quand > etat.recus.seuil && !deja.has(clePourboire(x)));
+        if (recus.length) { etat.recus.attente = etat.recus.attente.concat(recus).slice(-20); etat.recus.cles = etat.recus.cles.concat(recus.map(clePourboire)); bornerCles(etat.recus); neuf = true; }
         // l'objectif commun réussi d'une semaine finie : sa récompense attend son annonce (une fois par semaine)
         const ob = d.objectif; if (ob && ob.reussi && ob.recompense && !etat.recompenses.equipe.includes(ob.semaine) && etat.recompenses.equipeAttente !== ob.semaine) { etat.recompenses.equipeAttente = ob.semaine; neuf = true; }
-        if (neuf || JSON.stringify([etat.recompenses.podiums, etat.recompenses.quartier, etat.recompenses.quartierPodium, etat.recompenses.evenements]) !== avant) sauver();
+        const sauve = neuf || JSON.stringify([etat.recompenses.podiums, etat.recompenses.quartier, etat.recompenses.quartierPodium, etat.recompenses.evenements, etat.recompenses.places, etat.recompenses.depuis]) !== avant ? sauver() : ecrit;
+        // version 6.5 : rangés ET sauvés, on les accuse au serveur (une réponse perdue : ils reviendront, déjà reconnus) ; un stockage qui n'écrit plus : on n'accuse rien
+        if (sauve) accuser(d);
         return { etat: 'ok', data: d };
       }).catch(() => { recQuand = 0; return { etat: 'erreur' }; }).then((r) => { recVol = null; prevenir(); return r; });
       return recVol;
@@ -859,7 +950,14 @@
     function recompenses() {
       const rec = etat.recompenses, l = lundi();
       return { podiums: rec.podiums.slice(), tenue: rec.tenue, vu: rec.vu, lundi: l, portee: tenuePortee(rec, l), coupe: coupeDuComptoir(rec, l), coupes: rec.podiums.map((p) => metal(p.rang)), gagnees: tenuesGagnees(rec), annonce: aAnnoncer(rec, l), derniere, quartier: rec.quartier, quartierPodium: rec.quartierPodium, evenements: JSON.parse(JSON.stringify(rec.evenements || {})),
-        equipe: rec.equipe.slice(), badge: rec.equipe.length > 0, objectifAnnonce: rec.equipeAttente || null }; // version 6 : le badge « Esprit d'équipe », la récompense de l'objectif à annoncer
+        equipe: rec.equipe.slice(), badge: rec.equipe.length > 0, objectifAnnonce: rec.equipeAttente || null, // version 6 : le badge « Esprit d'équipe », la récompense de l'objectif à annoncer
+        places: rec.places.map((p) => Object.assign({}, p, { recompense: recompenseRang(p.rang), payee: rec.payees.includes(p.semaine) })), aPayer: placesAPayer(rec, l) }; // version 6.5
+    }
+    // version 6.5 : la récompense d'une place versée (rend true la première fois seulement) : l'interface donne alors les étoiles et le boost
+    function placePayee(semaine) {
+      resynchroniser(); const r = etat.recompenses;
+      if (!placesAPayer(r, lundi()).some((p) => p.semaine === semaine)) return false;
+      r.payees = semainesOk(r.payees.concat([semaine]), 200); sauver(); prevenir(); return true;
     }
     // « en ligne » : un battement (fournil_vu) qui ne compte rien ; raison : 'periodique' (le minuteur : un toutes les 2 min), 'retour' (la page
     // revient au premier plan : tout de suite, pas plus d'un toutes les 10 s), 'lancement'. Jamais caché, hors ligne, sans configuration, ni sans
@@ -900,11 +998,14 @@
       const d = nettoyerBoutique(r.data); if (!d.ok) return { etat: 'refus', erreur: d.erreur };
       if (avecMoi && r.data && (Number.isInteger(r.data.restants) || typeof r.data.deja === 'boolean')) {
         majDons(); if (Number.isInteger(r.data.restants) && r.data.restants >= 0) etat.dons.restants = Math.min(REGLES.pourboiresJour, r.data.restants);
-        const k = p.toLowerCase(); if (r.data.deja === true && !etat.dons.a.includes(k)) etat.dons.a.push(k); sauver();
+        const k = p.toLowerCase(); if (r.data.deja === true && !etat.dons.a.includes(k)) etat.dons.a.push(k);
+        if (r.data.deja === true && noterEtoile(p)) d.etoile = true; // version 6.5 : un pourboire parti dont la réponse s'était perdue : son étoile est à verser
+        sauver();
       }
       return { etat: 'ok', data: d };
     }
-    function majDons() { const j = jourParis(E.maintenant()); if (etat.dons.jour !== j) etat.dons = { jour: j, a: [], restants: null }; }
+    function majDons() { const j = jourParis(E.maintenant()); if (etat.dons.jour !== j) etat.dons = { jour: j, a: [], restants: null, etoiles: [] }; }
+    function noterEtoile(p) { const k = normaliserPseudo(p).toLowerCase(); if (etat.dons.etoiles.includes(k)) return false; etat.dons.etoiles.push(k); return true; } // vrai : l'étoile est à verser
     // ses pourboires du jour : combien il en reste (3 par jour), et s'il en a déjà laissé un à ce copain aujourd'hui
     function dons() { resynchroniser(); majDons(); const d = etat.dons; return { restants: d.restants == null ? Math.max(0, REGLES.pourboiresJour - d.a.length) : d.restants, a: d.a.slice(), deja: (p) => d.a.includes(normaliserPseudo(p).toLowerCase()) }; }
     // laisser un pourboire à un copain (fournil_pourboire) : { etat: 'ok', restants } ou { etat: 'refus', erreur: 'deja' | 'quota' | 'soi' | 'inconnu' | 'jeton', restants }
@@ -918,9 +1019,12 @@
       if (Number.isInteger(d.restants) && d.restants >= 0) etat.dons.restants = Math.min(REGLES.pourboiresJour, d.restants);
       if ((d.ok === true || d.erreur === 'deja') && !etat.dons.a.includes(p.toLowerCase())) etat.dons.a.push(p.toLowerCase());
       if (d.erreur === 'quota') etat.dons.restants = 0;
+      // version 6.5 : l'étoile du donneur, une par copain et par jour, dès que le serveur dit que le pourboire est là (accepté, ou « deja » : la réponse
+      // du premier envoi s'était perdue) et qu'elle n'a pas encore été versée sur ce téléphone
+      const etoile = (d.ok === true || d.erreur === 'deja') && noterEtoile(p);
       sauver(); prevenir();
       const restants = dons().restants;
-      return d.ok === true ? { etat: 'ok', restants } : { etat: 'refus', erreur: typeof d.erreur === 'string' ? d.erreur : 'inconnue', restants };
+      return d.ok === true ? { etat: 'ok', restants, etoile } : { etat: 'refus', erreur: typeof d.erreur === 'string' ? d.erreur : 'inconnue', restants, etoile };
     }
     // l'objectif commun de la semaine (fournil_objectif, lisible par tous) : relu une fois par minute au plus ; objectifVu() : la dernière lecture
     function objectif(o) {
@@ -945,7 +1049,7 @@
       const j = jourParis(E.maintenant()); if (etat.recus.jour !== j) { etat.recus.jour = j; etat.recus.n = 0; }
       const boosts = Math.max(0, Math.min(l.length, REGLES.pourboiresJour - etat.recus.n)), jusqua = l.reduce((m, x) => (x.quand > m ? x.quand : m), etat.recus.vu);
       etat.recus.n += boosts; etat.recus.vu = jusqua; etat.recus.attente = []; sauver(); prevenir();
-      return { liste: l, boosts }; // (le serveur v6 les marque vus dès sa lecture : rien à accuser ; recus.vu les écarte s'ils revenaient)
+      return { liste: l, boosts }; // (le serveur les a déjà accusés en les rangeant : chargerRecompenses ; recus.cles les écarte s'ils revenaient)
     }
     // la récompense de l'objectif commun : annoncée une fois (rend true la première fois seulement), la semaine rejoint le badge
     function objectifFait(semaine) {
@@ -1186,7 +1290,7 @@
     return {
       disponible: () => !!config(), etat: () => etat, resume, version: () => version, cache: (p) => cache[periodeDe(p)], enChargement: (p) => charge[periodeDe(p)],
       envoyer, charger, ouvrir, choisirPseudo, quitter, demarrer, arreter, ecouter: (f) => { ecouteurs.push(f); },
-      chargerRecompenses, recompenses, choisirTenue, annonceFaite, lundi, battre, cadeaux, cadeauRecu,
+      chargerRecompenses, recompenses, choisirTenue, annonceFaite, placePayee, lundi, battre, cadeaux, cadeauRecu,
       copains: () => !!config() && !ancien(), boutique, dons, pourboire, objectif, objectifVu: () => objCache, pourboiresRecus, accueillirPourboires, objectifFait,
       notifsPossibles, notifs, abonner, desabonner, planifier, essai,
       chatLire, chatImage, chatEnvoyer, chatSignaler, chatEffacer,
@@ -1265,6 +1369,7 @@
   return { CLE, REGLES, PERIODES, EVTS, ongletsEvenements, nettoyerEvenements, PSEUDO_MIN, PSEUDO_MAX, lundiParis, decalageParis, dateCourte, normaliserPseudo, verifierPseudo, messagePseudo, rangTexte, rangPhrase, boulangers,
     etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur,
     METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce,
+    RANG_MAX, RECOMPENSES_RANG, recompenseRang, nettoyerPlaces, placesAPayer, phrasePlace,
     PHOTO, EV_PHOTO, photo, nettoyerPhoto, clePhoto, boutiqueDepuisPhoto, evenementDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson,
     CHAT_TEXTE, CHAT_IMAGE, chatImageOk, chatGifOk, nettoyerChat,
     RET_TEXTE, RET_NOTE, RET_INFOS, VOTE_QUESTION, VOTE_OPTION, retImageOk, retInfosOk, nettoyerVote, nettoyerVotes, nettoyerRetour, nettoyerRetours };

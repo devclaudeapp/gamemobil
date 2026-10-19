@@ -300,7 +300,21 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   check(CL.metal(1) === 'or' && CL.metal(2) === 'argent' && CL.metal(3) === 'bronze' && CL.metal(4) === null && CL.metal(null) === null, '1er : or, 2e : argent, 3e : bronze ; au-delà, rien');
   check(CL.decalerSemaine('2026-10-12', -1) === '2026-10-05' && CL.decalerSemaine('2027-01-04', -1) === '2026-12-28' && CL.decalerSemaine('2026-10-19', 1) === '2026-10-26' && CL.decalerSemaine('2027-03-22', 1) === '2027-03-29' && CL.decalerSemaine('n’importe', 1) === '', 'la semaine d’avant, d’après (passage de l’année et changements d’heure compris)');
   { const r = CL.nettoyerRecompenses({ podiums: [{ semaine: '2026-10-05', rang: 2 }, { semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 3 }, { semaine: 'hier', rang: 1 }, { semaine: '2026-09-21', rang: 4 }, null, { semaine: '2026-09-14', rang: '1' }], tenue: 'platine', vu: 12 });
-    check(egal(r, { podiums: [{ semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '', quartier: null, quartierPodium: null, evenements: {}, equipe: [], equipeAttente: '' }), 'récompenses nettoyées : une coupe par semaine (la meilleure), triées, rangs 1 à 3 seulement ; tenue inconnue → automatique'); }
+    check(egal(r, { podiums: [{ semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '', quartier: null, quartierPodium: null, evenements: {}, equipe: [], equipeAttente: '',
+      places: [{ semaine: '2026-09-28', rang: 1, joueurs: null }, { semaine: '2026-10-05', rang: 2, joueurs: null }], payees: [], depuis: '' }), 'récompenses nettoyées : une coupe par semaine (la meilleure), triées, rangs 1 à 3 seulement ; tenue inconnue → automatique ; une sauvegarde d’avant la 6.5 : ses podiums deviennent ses places, rien de payable (depuis vide)'); }
+  console.log('── les places de la semaine, du 1er au 15e (version 6.5) ──');
+  { const R = (n) => CL.recompenseRang(n), court = (x) => (x ? `${x.etoiles}★ ×${x.mult} ${x.secs}s${x.tenue ? ' tenue' : ''}` : '—');
+    check([1, 2, 3, 4, 6, 7, 10, 11, 15].map((n) => court(R(n))).join(' | ') === '5★ ×5 1800s tenue | 4★ ×5 1800s tenue | 3★ ×5 1800s tenue | 3★ ×3 1800s | 3★ ×3 1800s | 2★ ×2 1800s | 2★ ×2 1800s | 1★ ×2 900s | 1★ ×2 900s',
+      `RECOMPENSES_RANG : 1er/2e/3e 5/4/3 étoiles + ×5 30 min (et la tenue) ; 4e-6e 3 + ×3 30 min ; 7e-10e 2 + ×2 30 min ; 11e-15e 1 + ×2 15 min (${[1, 4, 7, 11].map((n) => court(R(n))).join(', ')})`);
+    check(R(16) === null && R(0) === null && R(null) === null && R(2.5) === null && CL.RANG_MAX === 15, 'au-delà du 15e, rang 0 ou absurde : rien');
+    check(CL.RECOMPENSES_RANG.every((x, k, l) => x.de <= x.a && (k === 0 ? x.de === 1 : x.de === l[k - 1].a + 1)) && CL.RECOMPENSES_RANG[CL.RECOMPENSES_RANG.length - 1].a === 15 && CL.RECOMPENSES_RANG.every((x, k, l) => k === 0 || (x.etoiles <= l[k - 1].etoiles && x.mult * x.secs <= l[k - 1].mult * l[k - 1].secs)),
+      'la table couvre 1 à 15 sans trou ni chevauchement, et ne récompense jamais mieux une place plus basse');
+    const p = CL.nettoyerPlaces([{ semaine: '2026-10-05', rang: 7, joueurs: 12 }, { semaine: '2026-10-05', rang: 9, joueurs: 12 }, { semaine: '2026-09-28', rang: 16, joueurs: 20 }, { semaine: '2026-09-21', rang: 15, joueurs: 3 }, { semaine: '2026-09-14', rang: 2 }, { semaine: '2026-09-14', rang: 2, joueurs: 8 }, { semaine: 'x', rang: 1 }, null]);
+    check(egal(p, [{ semaine: '2026-09-14', rang: 2, joueurs: 8 }, { semaine: '2026-09-21', rang: 15, joueurs: null }, { semaine: '2026-10-05', rang: 7, joueurs: 12 }]), `places nettoyées : une par semaine (la meilleure, celle qui sait combien de joueurs), rangs 1 à 15, joueurs ≥ rang (${JSON.stringify(p)})`);
+    check(CL.phrasePlace({ rang: 7, joueurs: 12 }) === 'Tu as fini 7e cette semaine sur 12' && CL.phrasePlace({ rang: 1, joueurs: null }) === 'Tu as fini 1er cette semaine', '« Tu as fini 7e cette semaine sur 12 »');
+    const rec = Object.assign(CL.recompensesNeuves(), { places: p.concat([{ semaine: '2026-10-12', rang: 3, joueurs: 12 }]), depuis: '2026-09-21', payees: ['2026-09-21'] });
+    check(egal(CL.placesAPayer(rec, '2026-10-12').map((x) => [x.semaine, x.recompense.etoiles]), [['2026-10-05', 2]]) && CL.placesAPayer(Object.assign({}, rec, { depuis: '' }), '2026-10-19').length === 0,
+      'à payer : depuis la première semaine payable, avant la semaine en cours, pas encore payée (sans « depuis » : rien)'); }
   check(CL.nettoyerRecompenses({ tenue: null }).tenue === null && CL.nettoyerRecompenses({ tenue: 'bronze' }).tenue === 'bronze' && egal(CL.nettoyerRecompenses('abîmé'), CL.recompensesNeuves()), 'tenue « aucune » (null) gardée ; réponse absurde : rien');
   { const rec = { podiums: [{ semaine: '2026-09-21', rang: 3 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '' }, L = '2026-10-12';
     check(CL.tenuePortee(rec, L) === 'argent' && CL.coupeDuComptoir(rec, L) === 'argent', 'automatique : la semaine qui suit le podium, la tenue et la coupe d’argent');
@@ -645,18 +659,21 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   const inscrit = () => { const s = memoire(); CL.ecrireEtat(s, Object.assign(CL.etatNeuf(), { id: ID6, jeton: JET6, pseudo: 'Léa', rejoint: true })); return s; };
   // un faux serveur v6 : toutes les fonctions du contrat, en mémoire ; v5 : true → les nouvelles fonctions et p_photo n'existent pas
   const serveur6 = (o) => {
-    const x = { v5: !!(o && o.v5), photos: 0, dons: [], pourboires: [], vus: null, abos: [], plan: [], essais: 0, objectif: { semaine: '2026-10-05', but: 600, total: 150, joueurs: 4, reussi: false, pourcent: 25 }, recompense: null };
-    x.gerer = (url, init, c) => {
+    const x = { v5: !!(o && o.v5), v64: !!(o && o.v64), photos: 0, dons: [], pourboires: [], vus: null, vuObj: null, abos: [], plan: [], essais: 0, objectif: { semaine: '2026-10-05', but: 600, total: 150, joueurs: 4, reussi: false, pourcent: 25 }, recompense: null, places: [], perdre: new Set() };
+    const g = (url, init, c) => {
       const nom = url.split('/rpc/')[1];
-      const NOUVELLES = ['fournil_boutique', 'fournil_pourboire', 'fournil_objectif', 'fournil_abonner', 'fournil_desabonner', 'fournil_planifier', 'fournil_notif_essai', 'fournil_vu_pourboires'];
+      const NOUVELLES = ['fournil_boutique', 'fournil_pourboire', 'fournil_objectif', 'fournil_abonner', 'fournil_desabonner', 'fournil_planifier', 'fournil_notif_essai', 'fournil_vu_pourboires', 'fournil_vu_objectif'];
       if (x.v5 && (NOUVELLES.includes(nom) || (nom === 'fournil_publier' && 'p_photo' in c))) return rep(404, { code: 'PGRST202' });
+      if (x.v64 && nom === 'fournil_vu_objectif') return rep(404, { code: 'PGRST202' }); // la v6.4 : pas de fournil_vu_objectif
+      if (nom === 'fournil_recompenses' && x.v64) { const o2 = { ok: true, podiums: [], derniere: null, pourboires: x.pourboires, objectif: x.recompense }; x.pourboires = []; x.recompense = null; return rep(200, o2); } // la v6.4 : la lecture marque tout
+      if (nom === 'fournil_recompenses') return rep(200, { ok: true, podiums: x.places.filter((p) => p.rang <= 3).map((p) => ({ semaine: p.semaine, rang: p.rang })), places: x.places, derniere: null, pourboires: x.pourboires.slice(), objectif: x.recompense });
+      if (nom === 'fournil_vu_objectif') { x.vuObj = c.p_semaine; if (x.recompense && x.recompense.semaine <= c.p_semaine) x.recompense = null; return rep(200, { ok: true, erreur: null }); }
       if (nom === 'fournil_publier') { if ('p_photo' in c) x.photos++; return rep(200, { ok: true, erreur: null, version: x.v5 ? 5 : 6, rang_semaine: 1, rang_total: 1, joueurs: 3, ...(x.v5 ? {} : { photo_maj: new Date(horloge).toISOString() }) }); }
       if (nom === 'fournil_classement') return rep(200, { version: x.v5 ? 5 : 6, semaine: '2026-10-05', joueurs: 2, lignes: [{ rang: 1, pseudo: 'Lucas', points: 40, valeur: 1, moi: false }], moi: null });
       if (nom === 'fournil_boutique') return c.p_pseudo === 'Lucas' ? rep(200, { ok: true, pseudo: 'Lucas', photo: { v: 1, nom: 'Chez Lucas', q: 2, p: [[40, 1, 2]], m: { four: 3 }, t: ['or-toque', null, null, null], c: null, g: 12 }, maj: '2026-10-09T10:00:00Z', en_ligne: true, ...(c.p_id ? { restants: 3 - x.dons.filter((d) => d.ok).length, deja: x.dons.some((d) => d.ok && d.p_pour === 'Lucas') } : {}) }) : rep(200, { ok: false, erreur: 'inconnu' });
-      if (nom === 'fournil_pourboire') { x.dons.push(c); const auj = x.dons.filter((d) => d.ok); if (c.p_pour === 'Léa') return rep(200, { ok: false, erreur: 'soi', restants: 3 - auj.length }); if (auj.some((d) => d.p_pour === c.p_pour)) return rep(200, { ok: false, erreur: 'deja', restants: 3 - auj.length }); if (auj.length >= 3) return rep(200, { ok: false, erreur: 'quota', restants: 0 }); c.ok = true; return rep(200, { ok: true, erreur: null, restants: 2 - auj.length, points_semaine: 4 }); }
+      if (nom === 'fournil_pourboire') { x.dons.push(c); const auj = x.dons.filter((d) => d.ok); if (c.p_pour === 'Léa') return rep(200, { ok: false, erreur: 'soi', restants: 3 - auj.length }); if (auj.some((d) => d.p_pour === c.p_pour)) return rep(200, { ok: false, erreur: 'deja', restants: 3 - auj.length }); if (auj.length >= 3) return rep(200, { ok: false, erreur: 'quota', restants: 0 }); c.ok = true; return rep(200, { ok: true, erreur: null, restants: 2 - auj.length, points_semaine: 4, etoile: 1 }); }
       if (nom === 'fournil_objectif') return rep(200, x.objectif);
-      if (nom === 'fournil_recompenses') return rep(200, { ok: true, podiums: [], derniere: null, pourboires: x.pourboires, objectif: x.recompense });
-      if (nom === 'fournil_vu_pourboires') { x.vus = c.p_jusqua; return rep(200, { ok: true }); }
+      if (nom === 'fournil_vu_pourboires') { x.vus = c.p_jusqua; x.pourboires = x.pourboires.filter((p) => p.quand > c.p_jusqua.replace('.000Z', 'Z') && new Date(p.quand) > new Date(c.p_jusqua)); return rep(200, { ok: true }); }
       if (nom === 'fournil_abonner') { x.abos.push(c); return rep(200, { ok: true, erreur: null, prefs: c.p_prefs, appareils: 1 }); }
       if (nom === 'fournil_desabonner') { x.desabo = c; return rep(200, { ok: true, erreur: null }); }
       if (nom === 'fournil_planifier') { x.plan.push(c.p_pleine_a); return rep(200, { ok: true, erreur: null, planifiee: !!c.p_pleine_a }); }
@@ -664,6 +681,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
       if (nom === 'fournil_vu' || nom === 'fournil_retirer') return rep(200, { ok: true });
       return rep(404, { code: 'PGRST202' });
     };
+    x.gerer = (url, init, c) => { const r = g(url, init, c), nom = url.split('/rpc/')[1]; if (x.perdre.has(nom)) { x.perdre.delete(nom); throw new TypeError('réponse perdue'); } return r; }; // le serveur a fait son travail, la réponse se perd
     return x;
   };
   const etat0 = G.newState(T);
@@ -722,25 +740,88 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     check(o.etat === 'ok' && egal(o.data, { semaine: '2026-10-05', but: 600, total: 150, joueurs: 4, reussi: false, pourcent: 25 }) && r.appels.length === 1 && m.objectifVu().data.total === 150, 'fournil_objectif() : « 150 / 600 croissants », relu une fois par minute au plus');
     horloge += 61e3; sv.objectif = { semaine: '2026-10-05', but: 600, total: 900, joueurs: 5 }; const o2 = await m.objectif();
     check(r.appels.length === 2 && o2.data.reussi && o2.data.pourcent === 100, 'au-delà du but : réussi, la jauge à 100 %'); }
-  { // les pourboires reçus : la feuille, 3 boosts par jour au plus, accusés au serveur ; l'objectif réussi : un boost ×5 et le badge, une fois
+  { // les pourboires reçus (version 6.5) : rangés, sauvés, PUIS accusés au serveur ; une réponse perdue les rend de nouveau, sans les payer deux fois
     horloge = T; const sv = serveur6(), r = faux(sv.gerer), s = inscrit(), m = moteur(r, { stockage: s });
+    const pause = () => new Promise((res) => setTimeout(res, 0)), vus = () => r.appels.filter((x) => /fournil_vu_pourboires/.test(x.url));
     sv.pourboires = [{ de: 'Lucas', quand: '2026-10-09T08:00:00Z' }, { de: 'Mamie Jo', quand: '2026-10-09T09:00:00Z' }];
-    await m.chargerRecompenses({ ecart: 0 });
-    check(egal(m.pourboiresRecus().map((x) => x.de), ['Lucas', 'Mamie Jo']), 'fournil_recompenses rend deux pourboires reçus : ils attendent leur feuille (gardés sur le téléphone)');
-    let a = m.accueillirPourboires(); await new Promise((res) => setTimeout(res, 0));
-    check(a.boosts === 2 && a.liste.length === 2 && m.pourboiresRecus().length === 0 && !r.appels.some((x) => /fournil_vu_pourboires/.test(x.url)), 'accueillis : deux boosts ×2 (le serveur les a marqués vus à la lecture : aucun accusé)');
-    horloge += 61e3; await m.chargerRecompenses({ ecart: 0 });
-    check(m.pourboiresRecus().length === 0, 'si le serveur les rendait encore : ils ne reviennent pas (déjà vus sur le téléphone)');
+    sv.perdre.add('fournil_recompenses'); // la première lecture : la réponse se perd en route
+    const e0 = await m.chargerRecompenses({ ecart: 0 });
+    check(e0.etat === 'hors-ligne' && m.pourboiresRecus().length === 0 && sv.pourboires.length === 2 && vus().length === 0, 'la réponse de fournil_recompenses se perd : rien de rangé, rien d’accusé, le serveur les garde');
+    horloge += 61e3; await m.chargerRecompenses({ ecart: 0 }); await pause();
+    check(egal(m.pourboiresRecus().map((x) => x.de), ['Lucas', 'Mamie Jo']), 'la lecture suivante les rend : ils attendent leur feuille (rangés sur le téléphone)');
+    check(egal(CL.lireEtat(s).recus.attente.map((x) => x.de), ['Lucas', 'Mamie Jo']) && vus().length === 1 && vus()[0].corps.p_jusqua === '2026-10-09T09:00:00.000Z' && vus()[0].corps.p_id === ID6 && vus()[0].corps.p_jeton === JET6 && sv.pourboires.length === 0,
+      'sauvés dans le stockage, PUIS accusés : fournil_vu_pourboires(p_id, p_jeton, p_jusqua = le plus récent reçu)');
+    sv.pourboires = [{ de: 'Lucas', quand: '2026-10-09T08:00:00Z' }, { de: 'Mamie Jo', quand: '2026-10-09T09:00:00Z' }]; // l'accusé s'était perdu : le serveur les rend encore
+    horloge += 61e3; await m.chargerRecompenses({ ecart: 0 }); await pause();
+    check(m.pourboiresRecus().length === 2 && vus().length === 2 && sv.pourboires.length === 0, 'rendus de nouveau (l’accusé s’était perdu) : reconnus, pas rangés deux fois ; accusés de nouveau');
+    let a = m.accueillirPourboires();
+    check(a.boosts === 2 && a.liste.length === 2 && m.pourboiresRecus().length === 0, 'accueillis : deux boosts ×2');
+    sv.pourboires = [{ de: 'Mamie Jo', quand: '2026-10-09T09:00:00Z' }]; horloge += 61e3; await m.chargerRecompenses({ ecart: 0 }); await pause();
+    check(m.pourboiresRecus().length === 0, 'si le serveur en rendait encore un déjà accueilli : il ne revient pas (sa clé est gardée)');
     sv.pourboires = [{ de: 'Tonton', quand: '2026-10-09T10:00:00Z' }, { de: 'Papy', quand: '2026-10-09T10:05:00Z' }]; horloge += 61e3; await m.chargerRecompenses({ ecart: 0 });
     a = m.accueillirPourboires(); check(a.liste.length === 2 && a.boosts === 1, 'deux de plus le même jour : un seul boost (3 par jour au plus sur le téléphone)');
+    // l'objectif commun : rangé, sauvé, accusé (fournil_vu_objectif) ; une réponse perdue la rend de nouveau, une seule annonce
     check(m.recompenses().objectifAnnonce === null && !m.recompenses().badge, 'pas encore d’objectif réussi');
-    sv.recompense = { semaine: '2026-09-28', reussi: true, recompense: true }; horloge += 61e3; await m.chargerRecompenses({ ecart: 0 });
-    check(m.recompenses().objectifAnnonce === '2026-09-28', 'l’objectif de la semaine du 28 sept. réussi : sa récompense attend son annonce');
+    sv.recompense = { semaine: '2026-09-28', reussi: true, recompense: true }; sv.perdre.add('fournil_vu_objectif'); horloge += 61e3; await m.chargerRecompenses({ ecart: 0 }); await pause();
+    check(m.recompenses().objectifAnnonce === '2026-09-28' && CL.lireEtat(s).recompenses.equipeAttente === '2026-09-28' && sv.vuObj === '2026-09-28', 'l’objectif réussi du 28 sept. : sa récompense attend son annonce (sauvée), puis l’accusé part (fournil_vu_objectif(p_semaine))… et se perd');
+    sv.recompense = { semaine: '2026-09-28', reussi: true, recompense: true }; sv.vuObj = null; horloge += 61e3; // (perdu avant d'arriver : le serveur la rend encore)
+    await m.chargerRecompenses({ ecart: 0 }); await pause();
+    check(m.recompenses().objectifAnnonce === '2026-09-28' && sv.recompense === null, 'relue : la même (pas deux annonces), accusée de nouveau, le serveur ne la rend plus');
     check(m.objectifFait('2026-09-28') === true && m.objectifFait('2026-09-28') === false && m.recompenses().badge && m.recompenses().objectifAnnonce === null, 'annoncée une fois : le badge « Esprit d’équipe » gagné, la récompense ne revient pas');
-    horloge += 61e3; await m.chargerRecompenses({ ecart: 0 }); check(m.recompenses().objectifAnnonce === null, 'relue ensuite : rien de neuf');
-    const relu = CL.lireEtat(s); check(relu.recompenses.equipe.includes('2026-09-28') && relu.recus.vu === '2026-10-09T10:05:00.000Z' && relu.recus.n === 3, 'le badge et les pourboires vus sont gardés dans le stockage');
+    sv.recompense = { semaine: '2026-09-28', reussi: true, recompense: true }; horloge += 61e3; await m.chargerRecompenses({ ecart: 0 }); await pause();
+    check(m.recompenses().objectifAnnonce === null && sv.recompense === null, 'rendue encore après l’annonce (un accusé perdu) : rien de neuf, accusée');
+    const relu = CL.lireEtat(s); check(relu.recompenses.equipe.includes('2026-09-28') && relu.recus.vu === '2026-10-09T10:05:00.000Z' && relu.recus.n === 3 && relu.recus.cles.length === 4, 'le badge, les pourboires vus et leurs clés sont gardés dans le stockage');
     const m3 = moteur(faux(sv.gerer), { stockage: s }); await m3.quitter(); const apres = CL.lireEtat(s);
     check(apres.recompenses.equipe.includes('2026-09-28') && !apres.rejoint, 'quitter le classement : le badge reste'); }
+  { // un stockage qui n'écrit plus : rien n'est accusé (ce qui n'est pas sauvé n'est pas perdu au serveur)
+    horloge = T; const sv = serveur6(), r = faux(sv.gerer), s = inscrit(), m = moteur(r, { stockage: s });
+    s.setItem = () => { throw new Error('plein'); };
+    sv.pourboires = [{ de: 'Lucas', quand: '2026-10-09T08:00:00Z' }]; sv.recompense = { semaine: '2026-09-28', reussi: true, recompense: true };
+    await m.chargerRecompenses({ ecart: 0 }); await new Promise((res) => setTimeout(res, 0));
+    check(m.pourboiresRecus().length === 1 && !r.appels.some((x) => /fournil_vu_/.test(x.url)) && sv.pourboires.length === 1 && sv.recompense, 'le stockage refuse d’écrire : ni fournil_vu_pourboires ni fournil_vu_objectif (le serveur les garde)'); }
+  { // un serveur encore en v6.4 (la lecture marque tout ; pas de fournil_vu_objectif) : rien ne casse, un seul essai d'accusé de l'objectif par lancement
+    horloge = T; const sv = serveur6({ v64: true }), r = faux(sv.gerer), m = moteur(r, { stockage: inscrit() });
+    sv.pourboires = [{ de: 'Lucas', quand: '2026-10-09T08:00:00Z' }]; sv.recompense = { semaine: '2026-09-28', reussi: true, recompense: true };
+    await m.chargerRecompenses({ ecart: 0 }); await new Promise((res) => setTimeout(res, 0));
+    horloge += 61e3; sv.recompense = { semaine: '2026-09-28', reussi: true, recompense: true }; await m.chargerRecompenses({ ecart: 0 }); await new Promise((res) => setTimeout(res, 0));
+    check(m.pourboiresRecus().length === 1 && m.recompenses().objectifAnnonce === '2026-09-28' && r.appels.filter((x) => /fournil_vu_objectif/.test(x.url)).length === 1, 'serveur v6.4 : les pourboires et l’objectif arrivent comme avant ; fournil_vu_objectif introuvable, plus essayée jusqu’au prochain lancement'); }
+  { // le pourboire donné (version 6.5) : l'étoile du donneur, même quand la réponse du premier envoi s'est perdue (une par copain et par jour)
+    horloge = T; const sv = serveur6(), r = faux(sv.gerer), s = inscrit(), m = moteur(r, { stockage: s });
+    let p = await m.pourboire('Lucas');
+    check(p.etat === 'ok' && p.etoile === true, 'un pourboire accepté : l’étoile est à verser');
+    sv.perdre.add('fournil_pourboire'); p = await m.pourboire('Mamie Jo');
+    check(p.etat === 'hors-ligne' && !m.dons().deja('Mamie Jo') && sv.dons.filter((d) => d.ok).length === 2, 'à Mamie Jo : le serveur l’a pris, mais la réponse s’est perdue (« hors ligne » sur le téléphone, pas d’étoile)');
+    p = await m.pourboire('Mamie Jo');
+    check(p.etat === 'refus' && p.erreur === 'deja' && p.etoile === true && m.dons().deja('Mamie Jo'), 'il réessaie : « deja »… et l’étoile est quand même à verser (elle ne l’avait pas été)');
+    p = await m.pourboire('Mamie Jo'); check(p.etat === 'refus' && p.erreur === 'deja' && p.etoile === false, 'encore « deja » : plus d’étoile (une par copain et par jour)');
+    p = await m.pourboire('Lucas'); check(p.erreur === 'deja' && p.etoile === false, 'à Lucas (déjà payé) : « deja », pas d’étoile');
+    sv.perdre.add('fournil_pourboire'); await m.pourboire('Tonton'); // perdu aussi ; cette fois il passe par la visite de sa boutique
+    sv.gererBoutique = true;
+    const avant = sv.gerer; sv.gerer = (url, init, c) => (url.endsWith('/fournil_boutique') ? rep(200, { ok: true, pseudo: c.p_pseudo, photo: null, maj: null, en_ligne: false, restants: 0, deja: sv.dons.some((d) => d.ok && d.p_pour === c.p_pseudo) }) : avant(url, init, c));
+    const r2 = faux(sv.gerer), m2 = moteur(r2, { stockage: s });
+    let v = await m2.boutique('Tonton'); check(v.etat === 'ok' && v.data.etoile === true && m2.dons().deja('Tonton'), 'la visite de Tonton apprend du serveur que le pourboire était passé : l’étoile est à verser');
+    v = await m2.boutique('Tonton'); check(v.etat === 'ok' && !v.data.etoile, 'revisité : plus d’étoile');
+    v = await m2.boutique('Lucas'); check(v.etat === 'ok' && !v.data.etoile, 'Lucas (déjà payé) : pas d’étoile');
+    check(egal(CL.lireEtat(s).dons.etoiles.sort(), ['lucas', 'mamie jo', 'tonton']), 'les étoiles versées du jour sont gardées dans le stockage');
+    const vieux = CL.nettoyerEtat({ id: ID6, jeton: JET6, pseudo: 'Léa', rejoint: true, dons: { jour: '2026-10-09', a: ['lucas'], restants: 2 } });
+    check(egal(vieux.dons.etoiles, ['lucas']), 'une sauvegarde d’avant la 6.5 : ses dons du jour comptent comme payés (aucune étoile en double)');
+    const vr = CL.nettoyerEtat({ recus: { attente: [], vu: '2026-10-09T09:00:00Z', jour: '2026-10-09', n: 2 } }).recus;
+    check(vr.seuil === '2026-10-09T09:00:00.000Z' && vr.cles.length === 0, 'et ses pourboires déjà accueillis : rien d’aussi ancien que le dernier ne revient (seuil)');
+    horloge += 864e5; sv.dons.length = 0; check(m.dons().restants === 3, 'le lendemain : tout repart'); p = await m.pourboire('Mamie Jo'); check(p.etat === 'ok' && p.etoile === true, 'le lendemain : une nouvelle étoile pour Mamie Jo'); }
+  { // les places de la semaine (version 6.5) : la première lecture fixe « depuis » à la semaine passée ; chaque place se paie une fois
+    horloge = T; const sv = serveur6(), r = faux(sv.gerer), s = inscrit(), m = moteur(r, { stockage: s });
+    sv.places = [{ semaine: '2026-09-14', rang: 2, joueurs: 11 }, { semaine: '2026-09-21', rang: 9, joueurs: 12 }, { semaine: '2026-09-28', rang: 7, joueurs: 12 }];
+    await m.chargerRecompenses({ ecart: 0 });
+    let rv = m.recompenses();
+    check(CL.lireEtat(s).recompenses.depuis === '2026-09-28' && rv.places.length === 3 && rv.podiums.length === 1 && egal(rv.aPayer.map((p) => [p.semaine, p.rang, p.joueurs, p.recompense.etoiles, p.recompense.mult, p.recompense.secs]), [['2026-09-28', 7, 12, 2, 2, 1800]]),
+      `première lecture : depuis = la semaine passée ; les trois places gardées, la 2e place du 14 sept. aussi en podium ; à payer : la 7e place du 28 sept. (${JSON.stringify(rv.aPayer.map((p) => p.semaine))})`);
+    check(m.placePayee('2026-09-28') === true && m.placePayee('2026-09-28') === false && m.placePayee('2026-09-21') === false && m.recompenses().aPayer.length === 0 && egal(CL.lireEtat(s).recompenses.payees, ['2026-09-28']), 'payée une fois (true, puis false) ; une semaine d’avant « depuis » ne se paie pas');
+    const m2 = moteur(faux(sv.gerer), { stockage: s }); check(m2.recompenses().aPayer.length === 0 && m2.placePayee('2026-09-28') === false, 'une autre fenêtre (le même stockage) ne la paie pas une seconde fois');
+    horloge = Date.UTC(2026, 9, 12, 7); sv.places.push({ semaine: '2026-10-05', rang: 1, joueurs: 12 }); await m.chargerRecompenses({ ecart: 0 });
+    rv = m.recompenses();
+    check(egal(rv.aPayer.map((p) => [p.semaine, p.rang, p.recompense.etoiles, p.recompense.mult, p.recompense.tenue]), [['2026-10-05', 1, 5, 5, true]]) && rv.annonce && rv.annonce.semaine === '2026-10-05' && rv.podiums.length === 2,
+      'le lundi suivant, 1er : à payer (5 étoiles, ×5, la tenue) et le podium à annoncer, comme avant');
+    check(CL.lireEtat(s).recompenses.depuis === '2026-09-28', '« depuis » ne bouge plus'); }
   { // les notifications
     horloge = T; const sv = serveur6(), r = faux(sv.gerer);
     const push = { possible: () => true, abonner: async (cle) => { push.cle = cle; return push.reponse || { sub: { endpoint: 'https://push.exemple/abc', keys: { p256dh: 'BP' + 'x'.repeat(85), auth: 'y'.repeat(22) } } }; }, desabonner: async () => ({ endpoint: 'https://push.exemple/abc' }) };

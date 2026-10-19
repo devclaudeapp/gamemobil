@@ -1248,6 +1248,7 @@ const UI = (() => {
     const f = fiche = { pseudo: String(pseudo), l: d ? d.lignes.find((x) => x.pseudo === pseudo) || null : null, joueurs: d ? d.joueurs : 0, charge: true, etat: '', data: null, b: null };
     peindreFiche(true);
     classement.boutique(f.pseudo).then((r) => {
+      if (r.etat === 'ok' && r.data && r.data.etoile) etoileRattrapee(f.pseudo); // (version 6.5 : un pourboire parti, dont la réponse s'était perdue)
       if (fiche !== f) return; // une autre fiche, ou le retour au classement
       f.charge = false; f.etat = r.etat; f.data = r.etat === 'ok' ? r.data : null;
       const ph = f.data && f.data.photo; f.b = ph ? CLM.boutiqueDepuisPhoto(ph, { G, maintenant: HORLOGE.maintenant() }) : null;
@@ -1306,6 +1307,7 @@ const UI = (() => {
     const k = `${r.portee}|${r.coupe}|${r.coupes.join(',')}|${r.badge ? 'e' : ''}`;
     if (k !== derniereRecScene) { derniereRecScene = k; SCENE.recompenses({ tenue: r.portee, coupe: r.coupe, coupes: r.coupes, equipe: !!r.badge }); if (pageActive === 'boulanger') renderPage(); }
     if (r.annonce && !annonceOuverte) tenterAnnonce();
+    else if (!r.annonce && r.aPayer && r.aPayer.length && !lundiOuvert) tenterLundi();
   }
   function tenterAnnonce() { // au premier lancement après un podium, une fois la feuille du retour (gains d'absence) refermée
     clearTimeout(annonceMinuteur); annonceMinuteur = 0;
@@ -1317,9 +1319,11 @@ const UI = (() => {
     const m = a.metal, n = DE_METAL[m], r = recVue(), recent = !!r && a.semaine === CLM.decalerSemaine(r.lundi, -1); // recent : le podium de la semaine passée (sinon, un plus ancien découvert maintenant)
     annonceOuverte = true;
     G.donnerCollection(st, m); if (recent) { G.equiperCollection(st, m); renderCards(true); hud(); } save(); // la tenue du podium de la semaine passée se porte d'office (on en change dans la garde-robe) ; un podium plus ancien la range seulement
+    const bonus = payerPlaces((r && r.aPayer ? r.aPayer : []).filter((p) => p.rang <= 3)); // version 6.5 : les étoiles et le boost des podiums, versés une fois, à l'annonce
     openSheet(`<div class="cl rec-annonce" data-cl="annonce"><div class="rec-scene ${m}" aria-hidden="true"><i class="rec-rayons"></i><span class="rec-coupe">${ICONS.coupe(m)}</span><span class="rec-boulanger">${ICONS.boulanger(1, m)}</span></div>
       <h2>Bravo ! ${rangDe(a.rang)} de la semaine</h2>
-      <p class="rec-phrase">La tenue ${n} et la coupe ${n} sont à toi.</p>
+      <p class="rec-phrase">La tenue ${n} et la coupe ${n} sont à toi.</p>${bonus.n ? `
+      <p class="rec-phrase rec-bonus">En prime : ${texteGain(bonus)} (le boost attend dans ta réserve).</p>` : ''}
       <p class="sous">Semaine du ${CLM.dateCourte(a.semaine)} : ${recent ? `ton boulanger porte la tenue ${n} cette semaine, la coupe trône sur le comptoir. Les quatre pièces restent à toi dans ta garde-robe.` : `la coupe est dans ta vitrine, les quatre pièces de la tenue dans ta garde-robe.`}${a.autres ? ` Et ${a.autres === 1 ? 'un autre podium t’attendait' : `${a.autres} autres podiums t’attendaient`} : ${a.autres === 1 ? 'sa tenue est' : 'leurs tenues sont'} dans ta garde-robe.` : ''}</p>
       <button type="button" class="btn large beurre" data-a="rec-voir"><b>Voir ma boutique</b></button>
       <button type="button" class="btn large clair" data-a="rec-collection" style="margin-top:8px"><b>Mes récompenses</b></button></div>`);
@@ -1332,13 +1336,59 @@ const UI = (() => {
     on('[data-a="rec-collection"]', () => { son.tap(); fin(); sheetRecompenses(); });
     const surFermeture = setInterval(() => { if (feuille.hidden || vueCl !== 'annonce') { fin(); clearInterval(surFermeture); } }, 500);
   }
+  // ─── version 6.5 : les récompenses de la semaine, du 1er au 15e (src/classement.js, RECOMPENSES_RANG) ───
+  // Chaque place donne, une fois par semaine, des étoiles (st.etoiles, comme les cadeaux et le parcours) et un boost dans la réserve
+  // (GAME.donnerBoostReserve, comme les paliers). Les podiums les reçoivent avec leur annonce ; les autres places, avec la feuille du lundi.
+  const boostTexte = (b) => `un boost ×${b.mult} de ${G.fmtDuree(b.secs)}`;
+  function texteGain(g) { // « +2 étoiles et un boost ×2 de 30 min » ; plusieurs semaines : « +3 étoiles et 2 boosts »
+    const e = `+${g.etoiles} étoile${g.etoiles > 1 ? 's' : ''}`;
+    return g.boosts.length === 1 ? `${e} et ${boostTexte(g.boosts[0])}` : `${e} et ${g.boosts.length} boosts (${g.boosts.map((b) => `×${b.mult} ${G.fmtDuree(b.secs)}`).join(', ')})`;
+  }
+  function payerPlaces(liste) { // verse les places pas encore payées (le moteur le note avant : jamais deux fois) ; rend { n, etoiles, boosts }
+    const g = { n: 0, etoiles: 0, boosts: [] };
+    for (const p of liste || []) {
+      const x = p.recompense; if (!x || !classement.placePayee(p.semaine)) continue;
+      st.etoiles += x.etoiles; G.donnerBoostReserve(st, x.mult, x.secs); g.n++; g.etoiles += x.etoiles; g.boosts.push({ mult: x.mult, secs: x.secs });
+    }
+    if (g.n) { save(); hud(); renderBoosts(); }
+    return g;
+  }
+  let lundiOuvert = false, lundiMinuteur = 0, lundiMontre = ''; // lundiMontre : la feuille montrée une fois par lancement (la récompense reste dans « Mes récompenses »)
+  function tenterLundi() { // à la première ouverture après la fin de la semaine, une fois les autres feuilles refermées
+    clearTimeout(lundiMinuteur); lundiMinuteur = 0;
+    const r = recVue(); if (!r || r.annonce || !r.aPayer || !r.aPayer.length || lundiOuvert || annonceOuverte) return;
+    const p = r.aPayer[r.aPayer.length - 1]; if (lundiMontre === p.semaine) return;
+    if (!feuille.hidden || document.hidden || visite || copainsOuvert || retourEnCours || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert)) { lundiMinuteur = setTimeout(tenterLundi, 1500); return; }
+    sheetLundi();
+  }
+  function sheetLundi() {
+    const r = recVue(), l = r && r.aPayer ? r.aPayer : []; if (!l.length) return;
+    const p = l[l.length - 1], x = p.recompense, autres = l.length - 1;
+    lundiOuvert = true; lundiMontre = p.semaine;
+    openSheet(`<div class="cl rec-annonce cp-annonce" data-cl="semaine-place"><div class="rec-scene equipe" aria-hidden="true"><i class="rec-rayons"></i><span class="rec-coupe">${p.rang <= 3 ? ICONS.coupe(CLM.metal(p.rang)) : ICONS.UI.podium}</span></div>
+      <h2>${esc(CLM.phrasePlace(p))}</h2>
+      <p class="rec-phrase">${x.etoiles > 1 ? `+${x.etoiles} étoiles` : '+1 étoile'} et ${boostTexte(x)}</p>
+      <p class="sous">Semaine du ${CLM.dateCourte(p.semaine)} : chaque lundi, les quinze premiers du classement sont récompensés. Les étoiles, c’est +${Math.round(G.ETOILE_BONUS * 100)} % de gains chacune, pour toujours ; le boost attend dans ta réserve, lance-le quand tu veux.${autres ? ` Et ${autres === 1 ? 'une autre semaine t’attendait aussi' : `${autres} autres semaines t’attendaient aussi`} : ${autres === 1 ? 'sa récompense est' : 'leurs récompenses sont'} dans le lot.` : ''}</p>
+      <button type="button" class="btn large beurre" data-a="pl-recuperer"><b>Récupérer</b></button></div>`);
+    vueCl = 'semaine-place';
+    let touche = true; try { touche = !navigator.userActivation || navigator.userActivation.hasBeenActive; } catch (e) { /* rien */ }
+    son.deblocage(); if (touche) buzz([20, 40, 20]); confettis(1);
+    const fin = () => { lundiOuvert = false; };
+    on('[data-a="pl-recuperer"]', () => {
+      const g = payerPlaces(recVue().aPayer); fin(); closeSheet();
+      if (g.n) { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); confettis(0.8); toast(`Récupéré : ${texteGain(g)} (le boost attend dans ta réserve) !`); }
+      setTimeout(tenterCopains, 400);
+    });
+    const surFermeture = setInterval(() => { if (feuille.hidden || vueCl !== 'semaine-place') { fin(); clearInterval(surFermeture); } }, 500);
+  }
   // l'entrée « Mes récompenses », en tête de la feuille du classement et dans l'onglet Boulanger (seulement après un premier podium)
-  const cleRecompenses = () => { const r = recVue(); return r ? `${r.podiums.length}|${G.toqueMetal(st)}` : ''; };
+  const cleRecompenses = () => { const r = recVue(); return r ? `${r.podiums.length}|${(r.places || []).length}|${(r.aPayer || []).length}|${G.toqueMetal(st)}` : ''; };
   function carteRecompenses() {
-    const r = recVue(); if (!r || !r.podiums.length) return '';
-    const n = r.podiums.length, dernieres = r.podiums.slice(-5).map((p) => `<i class="rec-mini">${ICONS.coupe(CLM.metal(p.rang))}</i>`).join('');
-    const tm = G.toqueMetal(st), porte = tm ? `toque ${DE_METAL[tm]}` : 'toque blanche';
-    return `<button type="button" class="rec-entree" data-a="cl-recompenses"><span class="rec-minis" aria-hidden="true">${dernieres}</span><span><b>Mes récompenses</b><small>${n} coupe${n > 1 ? 's' : ''} · ${porte}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>`;
+    const r = recVue(), places = r && r.places ? r.places : []; if (!r || (!r.podiums.length && !places.length)) return '';
+    const n = r.podiums.length, dernieres = n ? r.podiums.slice(-5).map((p) => `<i class="rec-mini">${ICONS.coupe(CLM.metal(p.rang))}</i>`).join('') : `<i class="rec-mini">${ICONS.UI.podium}</i>`;
+    const tm = G.toqueMetal(st), porte = tm ? `toque ${DE_METAL[tm]}` : 'toque blanche', np = places.length;
+    const quoi = (r.aPayer || []).length ? 'une récompense t’attend' : n ? `${n} coupe${n > 1 ? 's' : ''} · ${porte}` : `${np} place${np > 1 ? 's' : ''} au classement`;
+    return `<button type="button" class="rec-entree" data-a="cl-recompenses"><span class="rec-minis" aria-hidden="true">${dernieres}</span><span><b>Mes récompenses</b><small>${quoi}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>`;
   }
   // la collection : chaque coupe et sa tenue, avec sa semaine ; la tenue se choisit pièce par pièce dans la garde-robe (onglet Boulanger)
   function sheetRecompenses(depuisCl) { // depuisCl : ouverte depuis la feuille du classement, on y revient
@@ -1346,15 +1396,21 @@ const UI = (() => {
     const r = recVue(), tm = G.toqueMetal(st), tenue = tenueVue();
     for (const m of r.coupes) G.donnerCollection(st, m); // au cas où la garde-robe n'aurait pas encore reçu un podium
     const coupes = r.podiums.slice().reverse().map((p) => { const m = CLM.metal(p.rang); return `<li class="rec-carte ${m}"><span class="rec-icone">${ICONS.coupe(m)}</span><b>${rangDe(p.rang)}</b><small>Coupe et tenue ${DE_METAL[m]}</small><small>Semaine du ${CLM.dateCourte(p.semaine)}</small></li>`; }).join('');
-    const vide = !r.podiums.length ? '<div class="cl-etat"><span class="pic">' + ICONS.coupe('or') + '</span><b>Pas encore de coupe</b><span>Termine la semaine dans les trois premiers du classement : une tenue et une coupe t’attendent.</span></div>' : '';
+    const places = r.places || [], aPayer = r.aPayer || [];
+    const vide = !r.podiums.length && !places.length ? '<div class="cl-etat"><span class="pic">' + ICONS.coupe('or') + '</span><b>Pas encore de récompense</b><span>Termine la semaine dans les quinze premiers du classement : des étoiles et un boost t’attendent ; dans les trois premiers, une tenue et une coupe en plus.</span></div>' : '';
+    // version 6.5 : l'historique des places, la plus récente d'abord (sa récompense : versée, à récupérer, ou d'avant les récompenses des places)
+    const insec = (s) => String(s).replace(/ /g, '\u00A0'); // « 12 oct. », « 30 min » : sans coupure
+    const etatPlace = (p) => (p.payee ? 'Récupérée' : aPayer.some((x) => x.semaine === p.semaine) ? 'À récupérer' : p.rang <= 3 ? 'Tenue et coupe' : 'Avant les récompenses');
+    const lignesPlaces = places.slice().reverse().slice(0, 30).map((p) => `<li class="rec-carte${p.rang <= 3 ? ' ' + CLM.metal(p.rang) : ''}"><b>${rangDe(p.rang)}</b><small>${p.joueurs ? `sur ${p.joueurs}` : '&nbsp;'}</small><small>Semaine du ${insec(CLM.dateCourte(p.semaine))}</small>${p.recompense && (p.payee || aPayer.some((x) => x.semaine === p.semaine)) ? `<small>+${p.recompense.etoiles}\u00A0★ · ×${p.recompense.mult}\u00A0${insec(G.fmtDuree(p.recompense.secs))}</small>` : ''}<small><i>${etatPlace(p)}</i></small></li>`).join('');
     const pieces = tenue ? ['tete', 'haut', 'pieds', 'accessoire'].map((p) => { const v = G.vetement(G.garderobe(st).equipe[p]); return v ? esc(v.nom.toLowerCase()) : null; }).filter(Boolean).join(', ') : '';
-    openSheet(`<div class="cl" data-cl="recompenses"><div class="cl-tete"><span class="pic">${ICONS.coupe(r.coupes.length ? r.coupes[r.coupes.length - 1] : 'or')}</span><div><h2>Mes récompenses</h2><p class="sous">Les trois premiers de chaque semaine gagnent une tenue (toque, tablier, chaussures, foulard) et une coupe, à garder pour toujours.</p></div></div>
-      ${vide}${r.podiums.length ? `<h3 class="titre-section">La vitrine des trophées</h3><ul class="rec-coupes" aria-label="Mes coupes">${coupes}</ul>
+    openSheet(`<div class="cl" data-cl="recompenses"><div class="cl-tete"><span class="pic">${ICONS.coupe(r.coupes.length ? r.coupes[r.coupes.length - 1] : 'or')}</span><div><h2>Mes récompenses</h2><p class="sous">Chaque semaine, les quinze premiers gagnent des étoiles et un boost ; les trois premiers, en plus, une tenue (toque, tablier, chaussures, foulard) et une coupe, à garder pour toujours.</p></div></div>
+      ${vide}${aPayer.length ? `<button type="button" class="btn large beurre" data-a="rec-recuperer"><b>Récupérer ma récompense</b></button>` : ''}${places.length ? `<h3 class="titre-section">Mes places</h3><ul class="rec-coupes" aria-label="Mes places au classement de la semaine">${lignesPlaces}</ul>` : ''}${r.podiums.length ? `<h3 class="titre-section">La vitrine des trophées</h3><ul class="rec-coupes" aria-label="Mes coupes">${coupes}</ul>
       <h3 class="titre-section" id="rec-titre-tenue">La tenue du boulanger</h3>
       <div class="rec-apercu" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), tenue)}<span>${tm ? `Il porte la toque ${DE_METAL[tm]}` : 'Il porte la toque blanche'}${pieces ? ` : ${pieces}.` : '.'}</span></div>
       <button type="button" class="btn large clair" data-a="rec-garderobe" style="margin-top:8px"><b>Ouvrir la garde-robe</b></button>` : ''}
       ${depuisCl ? '<button type="button" class="btn large sombre" data-a="cl-retour" style="margin-top:14px"><b>Retour au classement</b></button>' : btnRetour()}</div>`);
     vueCl = 'recompenses';
+    on('[data-a="rec-recuperer"]', () => { const g = payerPlaces(recVue().aPayer); if (g.n) { son.deblocage(); buzz([10, 30, 10]); confettis(0.8); toast(`Récupéré : ${texteGain(g)} (le boost attend dans ta réserve) !`); } sheetRecompenses(depuisCl); });
     on('[data-a="rec-garderobe"]', () => { son.tap(); if (GRU) GRU.ouvrir(ctxGarderobe(), 'tete'); });
     on('[data-a="cl-retour"]', () => { son.tap(); sheetClassement(); });
     on('[data-a="close"]', closeSheet);
@@ -1450,6 +1506,7 @@ const UI = (() => {
     $('#visite').hidden = false; document.body.classList.add('visite');
     peindreVisite();
     const v = visite, r = await classement.boutique(v.pseudo);
+    if (r.etat === 'ok' && r.data && r.data.etoile) etoileRattrapee(v.pseudo); // (version 6.5 : un pourboire parti, dont la réponse s'était perdue)
     if (visite !== v) return; // refermée pendant la lecture
     v.charge = false; v.etat = r.etat; v.data = r.etat === 'ok' ? r.data : null;
     const ph = v.data && v.data.photo;
@@ -1571,7 +1628,8 @@ const UI = (() => {
     v.envoi = true; peindreVisite();
     const r = await classement.pourboire(v.pseudo); v.envoi = false;
     if (visite !== v) return;
-    if (r.etat === 'ok') { st.etoiles++; save(); hud(); son.deblocage(); buzz([10, 30, 10]); confettis(0.5); if (v.scene && SCENE.texte) SCENE.texte('Merci !'); toast(`Pourboire laissé à ${v.pseudo} ! +1 étoile pour toi (+${Math.round(G.ETOILE_BONUS * 100)} % de gains, pour toujours).`); } // un pourboire donné : une étoile (plus de point de classement depuis le SQL 6.1)
+    if (r.etat === 'ok') { if (r.etoile !== false) st.etoiles++; save(); hud(); son.deblocage(); buzz([10, 30, 10]); confettis(0.5); if (v.scene && SCENE.texte) SCENE.texte('Merci !'); toast(`Pourboire laissé à ${v.pseudo} !${r.etoile !== false ? ` +1 étoile pour toi (+${Math.round(G.ETOILE_BONUS * 100)} % de gains, pour toujours).` : ''}`); } // un pourboire donné : une étoile (plus de point de classement depuis le SQL 6.1)
+    else if (r.etat === 'refus' && r.erreur === 'deja' && r.etoile) { etoileRattrapee(v.pseudo); son.deblocage(); } // la réponse du premier envoi s'était perdue : il était bien passé, l'étoile aussi
     else {
       son.non();
       toast(r.etat === 'refus' ? ({ deja: `Tu as déjà laissé un pourboire à ${v.pseudo} aujourd’hui.`, quota: 'Tes 3 pourboires du jour sont donnés : reviens demain.', soi: 'C’est ta propre boutique !', inconnu: 'Cette boutique a fermé ses portes.', jeton: 'Ton inscription au classement a changé : rouvre le classement.' }[r.erreur] || 'Le pourboire n’est pas passé. Réessaie dans un moment.')
@@ -1579,6 +1637,9 @@ const UI = (() => {
     }
     peindreVisite();
   }
+  // un pourboire donné dont la réponse s'était perdue (le serveur dit « deja », pour un copain dont l'étoile n'a pas encore été versée sur ce téléphone :
+  // le moteur le sait, src/classement.js) : l'étoile du donneur, une fois par copain et par jour
+  function etoileRattrapee(pseudo) { st.etoiles++; save(); hud(); toast(`Ton pourboire à ${pseudo} était bien passé : +1 étoile pour toi (+${Math.round(G.ETOILE_BONUS * 100)} % de gains, pour toujours).`); }
   // l'objectif commun de la semaine : une carte en tête de la feuille du classement (la jauge, « À nous tous : X / Y croissants »)
   function carteObjectif() {
     const o = classement && classement.copains() ? classement.objectifVu() : null; if (!o || o.etat !== 'ok') return '';
@@ -1597,7 +1658,7 @@ const UI = (() => {
     if (!classement || copainsOuvert || !st) return;
     const recus = classement.pourboiresRecus(), r = recVue(), obj = r && r.objectifAnnonce;
     if (!recus.length && !obj) return;
-    if (!feuille.hidden || document.hidden || visite || annonceOuverte || retourEnCours || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert)) { copainsMinuteur = setTimeout(tenterCopains, 1500); return; }
+    if (!feuille.hidden || document.hidden || visite || annonceOuverte || lundiOuvert || retourEnCours || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert)) { copainsMinuteur = setTimeout(tenterCopains, 1500); return; }
     if (recus.length) sheetPourboireRecu(); else sheetObjectifReussi(obj);
   }
   function indexBoost(mult, secs) { const l = (st.boosts && st.boosts.reserve) || []; for (let k = l.length - 1; k >= 0; k--) if (l[k].mult === mult && l[k].secs === secs) return k; return -1; }
@@ -1638,7 +1699,7 @@ const UI = (() => {
   // ─── les notifications (Web Push, classement v6) : le bloc « Notifications » des Réglages ───
   // La clé publique se lit dans fournil/config.js (vapid) : absente, le bloc dit « bientôt ». Sur iPhone, il faut iOS 16.4 et le jeu ajouté
   // à l'écran d'accueil ; le bloc le dit, comme une permission refusée. Les notifications passent par sa ligne du classement : il faut l'avoir rejoint.
-  const CAS_NOTIFS = [['pleine', 'Ta boutique est pleine', 'Quand tes heures d’absence sont atteintes'], ['evenements', 'Les événements', 'L’ouverture et la fin'], ['pourboires', 'Les pourboires', 'Quand un copain t’en laisse un'], ['objectif', 'L’objectif commun', 'Quand il est réussi']];
+  const CAS_NOTIFS = [['pleine', 'Ta boutique est pleine', 'Quand tes heures d’absence sont atteintes'], ['evenements', 'Les événements', 'L’ouverture et la fin'], ['pourboires', 'Les pourboires', 'Quand un copain t’en laisse un'], ['objectif', 'L’objectif commun', 'Quand il est réussi, et ta place du lundi']];
   let notifEnCours = false;
   const permissionNotifs = () => { try { return window.Notification ? Notification.permission : 'absent'; } catch (e) { return 'absent'; } };
   function cleNotifs() { if (!classement) return ''; return `${classement.notifsPossibles()}|${JSON.stringify(classement.notifs())}|${permissionNotifs()}|${notifEnCours}`; }
