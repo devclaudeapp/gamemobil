@@ -48,6 +48,7 @@ const EVENEMENTS = (() => {
       d = deps; el = $(F.racine); if (!el || !Q) return false;
       cartesEl = id('cartes'); evEl = id('ev'); construireActivites();
       const ico = el.querySelector('.pq-ico'); if (ico) ico.innerHTML = F.ico.devise;
+      if (F.habiller) F.habiller(el); // le gabarit propre à l'événement (la Maison hantée : ses touches d'Halloween et les places des activités à venir)
       if (F.couleurs) for (const [k, v] of Object.entries(F.couleurs)) if (/^#[0-9a-f]{3,8}$/i.test(String(v))) el.style.setProperty('--evt-' + k, v);
       el.querySelector('[data-pq="fermer"]').addEventListener('click', () => { d.audio(); d.son.tap(); fermer(); });
       el.querySelector('[data-pq="classement"]').addEventListener('click', () => { d.audio(); d.son.tap(); if (d.classement) d.classement(); });
@@ -189,6 +190,7 @@ const EVENEMENTS = (() => {
       el.querySelectorAll('.pq-modes button').forEach((b) => b.classList.toggle('actif', String(qq.mode) === b.dataset.mode));
       construireCartes(); lastHud = ''; lastEv = ''; hud(); renderEv();
       if (!scene3) { essais3 = 0; creer3(false); }
+      if (F.sons && typeof SONS !== 'undefined') SONS.jeu(F.sons); // le jeu de sons de l'événement : son jingle, sa musique, ses bruitages (src/sons.js)
       if (abs.total > 0 && abs.secs > 90) d.toast(F.t.absence(G.fmtDuree(abs.secs), fmt(abs.total)));
       else if (qq.stats.taps === 0) d.toast(F.t.premier);
       lastAct = ''; ramasser(true); majActivites(true); // une opération finie pendant l'absence : ramassée à l'ouverture, avec sa feuille
@@ -199,6 +201,7 @@ const EVENEMENTS = (() => {
       if (miniOuvert()) fermerMini();
       if (ecran === F.ecran) { const qq = q(); qq.lastSeen = now(); d.save(); }
       if (ecran === 'bilan') { const qq = q(); qq.bilan = true; d.save(); }
+      if (F.sons && typeof SONS !== 'undefined') SONS.jeu(null); // la musique s'arrête avec l'écran
       liberer3();
       el.hidden = true; ecran = ''; el.dataset.ecran = ''; cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
       calmeJusqua = performance.now() + 20e3;
@@ -444,6 +447,7 @@ const EVENEMENTS = (() => {
     // ─── le bilan de fin : la boutique de l'événement a fermé, tout le reste reste ───
     function montrerBilan() {
       const qq = q(); ecran = 'bilan'; el.dataset.ecran = ecran;
+      if (F.sons && typeof SONS !== 'undefined') SONS.jeu(null);
       liberer3();
       cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
       // parti avant la fermeture, revenu après : les apprentis ont travaillé jusqu'à la fermeture (une fois, au ralenti, plafonné comme toute absence)
@@ -1354,6 +1358,20 @@ const EVENEMENTS = (() => {
   // la Maison hantée : HANTEE (src/hantee.js, groupe H1) et sa fiche ; ici, les valeurs par défaut de l'écran (textes, icônes, couleurs)
   const HR = typeof HANTEE !== 'undefined' ? HANTEE : typeof MAISON_HANTEE !== 'undefined' ? MAISON_HANTEE : null; // eslint-disable-line no-undef
   let st0 = () => null; // l'état du jeu, pour les textes de la fiche (posé par init)
+  // les gabarits des activités à venir de la Maison hantée (HTML seul, sans logique ; les classes dans src/style.css, .mh-*) :
+  // · eveil(part, texte) : l'intérieur de #ht-eveil, la jauge sous le ×6 (part : 1 réveillé → 0 endormi ; data-niveau sur #ht-eveil : 'bas' sous 0,35) ;
+  // · serie(n, record) : l'intérieur de #ht-serie, le compteur de la série d'apparitions attrapées (classe .chaude sur #ht-serie à partir de 5) ;
+  // · commande(o) : la carte « Commande de la nuit », à poser dans #ht-commande : o = { client, sorte, lignes: [{ ico, nom, n, fait }], prime (HTML),
+  //   reste (texte : « 2 min 10 »), part (0..1 du temps écoulé), prete } ; son bouton porte data-a="mh-commande".
+  const gabarits = {
+    eveil: (part, texte) => `<i class="mh-eveil-jauge"><b style="width:${Math.round(Math.max(0, Math.min(1, part)) * 100)}%"></b></i><span class="mh-eveil-txt">${esc(texte || 'Le boss s’endort…')}</span>`,
+    serie: (n, record) => `<span class="mh-serie-ico">${(typeof ICONS !== 'undefined' && ICONS.HANTEE && ICONS.HANTEE.attraper) || ''}</span><b>×${Math.max(0, n | 0)}</b><small>${record ? `record ×${record}` : 'série'}</small>`,
+    commande: (o) => `<article class="mh-commande${o.prete ? ' prete' : ''}"><span class="mh-commande-pic">${(typeof ICONS !== 'undefined' && ICONS.HANTEE && ICONS.HANTEE.taper) || ''}</span>
+      <div class="mh-commande-corps"><small class="mh-commande-tag">Commande de la nuit</small><b>${esc(o.client || 'Un client du Manoir')}</b>
+        <ul class="mh-commande-lignes">${(o.lignes || []).map((l) => `<li class="${l.fait >= l.n ? 'fait' : ''}"><i>${l.ico || ''}</i><span>${l.fait || 0}/${l.n}</span></li>`).join('')}</ul>
+        <i class="mh-commande-temps"><b style="width:${Math.round(Math.max(0, Math.min(1, 1 - (o.part || 0))) * 100)}%"></b></i></div>
+      <button type="button" class="btn ${o.prete ? 'menthe' : 'non'}" data-a="mh-commande"><small>${o.prete ? 'Servir' : esc(o.reste || 'En cours')}</small><b>${o.prime || ''}</b></button></article>`,
+  };
   function ficheHantee() {
     const HF = (HR && HR.FICHE) || {}, T = HF.textes || {}, dv = HF.devise || {}, nomDevise = dv.nom || 'bonbons', un = dv.un || 'bonbon';
     const nombre = (n) => (HR ? HR.fmt(n) : String(Math.floor(n)));
@@ -1382,6 +1400,21 @@ const EVENEMENTS = (() => {
       },
       stats: HE ? [['Ventes', 'ventes'], ['Chauves-souris chassées', 'descentes'], ['Cortèges servis', 'grosClients'], ['Sacs attrapés', 'scooters']] : [['Ventes', 'ventes'], ['Petits monstres servis', ['servis', 'monstres', 'sorts', 'descentes']], ['Commandes du bal', ['bals', 'commandes', 'grosClients']], ['Chauves-souris', ['chauvesSouris', 'chauves', 'scooters']]],
       scene: (cv, X) => (typeof BOUTIQUE_HANTEE !== 'undefined' && BOUTIQUE_HANTEE.actif(cv) ? BOUTIQUE_HANTEE.scene(cv, Object.assign({ st: st0 }, X)) : sceneManoir(cv, X)), // ?boutique=1 : la vraie boutique, hantée (src/boutiquehantee.js)
+      sons: 'hantee', // le jeu de sons de l'écran (src/sons.js, JEUX.hantee : fournil/sons/hantee/)
+      // l'habillage de l'écran : le style du Fournil (en-tête crème, scène pleine largeur, tiroir à poignée, cartes blanches) en orange citrouille
+      // et violet (src/style.css, #hantee et classes .mh-*) ; ici, ses touches d'Halloween (une toile dans l'en-tête, deux chauves-souris près de
+      // la poignée du tiroir) et les places, cachées, des activités à venir : la jauge « Le boss s'endort… » sous le ×6 (#ht-eveil), la série
+      // d'apparitions sur la scène (#ht-serie), la commande de la nuit en tête du tiroir (#ht-commande). Rien ne les remplit ici : F.gabarits
+      // donne leur HTML, il suffit de l'y poser
+      habiller: (el) => {
+        if (el.querySelector('.mh-deco')) return;
+        el.querySelector('.at-haut').insertAdjacentHTML('afterbegin', '<span class="mh-deco" aria-hidden="true"><i class="mh-toile"></i></span>');
+        const tiroir = el.querySelector('.pq-scene + *'); if (tiroir) tiroir.insertAdjacentHTML('afterbegin', '<span class="mh-vol" aria-hidden="true"><i class="mh-cs a"></i><i class="mh-cs b"></i></span>'); // le haut du tiroir, à gauche de la poignée
+        const solde = el.querySelector('.pq-solde'); if (solde) solde.insertAdjacentHTML('beforeend', `<div id="ht-eveil" class="mh-eveil" role="meter" aria-label="Le boss s’endort" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" hidden>${gabarits.eveil(1)}</div>`);
+        const sc = el.querySelector('.pq-scene'); if (sc) sc.insertAdjacentHTML('beforeend', `<div id="ht-serie" class="mh-serie" aria-live="polite" hidden>${gabarits.serie(0)}</div>`);
+        const ca = el.querySelector('#ht-cartes'); if (ca) ca.insertAdjacentHTML('beforebegin', '<div id="ht-commande" class="mh-commande-place" hidden></div>');
+      },
+      gabarits,
       bilanPlus: (qq) => (st0() && (st0().chatNoir || (!G.donnerChatNoir && qq.total > 0)) ? ['le chat noir de la boutique, au choix dans la garde-robe'] : []),
       // un palier qui donne le chat noir (p.chat === 'noir' : GAME.donnerChatNoir, src/game.js)
       apresPalier: (s, p, dons) => { if (p.chat === 'noir' && typeof G.donnerChatNoir === 'function') { G.donnerChatNoir(s); dons.push('le chat noir : le chat de la boutique peut porter une robe noire aux yeux jaunes, au choix, à vie'); } },
