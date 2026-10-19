@@ -1,0 +1,5 @@
+La boutique hantée (src/meubles.js, hantee ; src/hd.js, lot boutiqueHantee) : modèles CC0 cuits par
+outils/maquette-hd/cuire-meubles.mjs (couleurs de sommets, sans texture, meshopt), chargés en qualité haute seulement,
+à la première ouverture de la Maison hantée avec ?boutique=1 ; en éco, les mêmes objets sont faits main (src/meubles.js).
+- candle_triple, candle, candle_melted, lantern_standing : KayKit Halloween Bits 1.0 (Kay Lousberg, CC0) — le chandelier
+  du comptoir, les bougies des tables et du bar, la bougie fondue du plan de travail, les lanternes de la porte du fond

@@ -1304,7 +1304,7 @@ const EVENEMENTS = (() => {
         attraper: { cls: 'scooter', titre: 'Chauve-souris !', bouton: 'Attraper', detail: (ev, f) => `Attrape-la avant qu’elle s’envole : <b>${f(ev.prime)}</b>`, reussite: (m) => `La chauve-souris lâche ${m}`, debut: 'Une chauve-souris passe avec un sac de bonbons : attrape-la !', fin: 'La chauve-souris s’est envolée.' },
       },
       stats: HE ? [['Ventes', 'ventes'], ['Chauves-souris chassées', 'descentes'], ['Cortèges servis', 'grosClients'], ['Sacs attrapés', 'scooters']] : [['Ventes', 'ventes'], ['Petits monstres servis', ['servis', 'monstres', 'sorts', 'descentes']], ['Commandes du bal', ['bals', 'commandes', 'grosClients']], ['Chauves-souris', ['chauvesSouris', 'chauves', 'scooters']]],
-      scene: sceneManoir,
+      scene: (cv, X) => (typeof BOUTIQUE_HANTEE !== 'undefined' && BOUTIQUE_HANTEE.actif(cv) ? BOUTIQUE_HANTEE.scene(cv, Object.assign({ st: st0 }, X)) : sceneManoir(cv, X)), // ?boutique=1 : la vraie boutique, hantée (src/boutiquehantee.js)
       bilanPlus: (qq) => (st0() && (st0().chatNoir || (!G.donnerChatNoir && qq.total > 0)) ? ['le chat noir de la boutique, au choix dans la garde-robe'] : []),
       // un palier qui donne le chat noir (p.chat === 'noir' : GAME.donnerChatNoir, src/game.js)
       apresPalier: (s, p, dons) => { if (p.chat === 'noir' && typeof G.donnerChatNoir === 'function') { G.donnerChatNoir(s); dons.push('le chat noir : le chat de la boutique peut porter une robe noire aux yeux jaunes, au choix, à vie'); } },

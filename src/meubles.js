@@ -99,6 +99,12 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       if (Q.murStyle === 'rondins') for (let y = 0; y < 81; y += 13) { c.fillStyle = Q.mur2; c.fillRect(0, y, 390, 2); c.fillStyle = 'rgba(255,255,255,.25)'; c.fillRect(0, y + 4, 390, 1); }
       if (Q.murStyle === 'moulures' && !Q.panneaux) { c.strokeStyle = Q.mur2; c.lineWidth = 2; c.strokeRect(390 * 0.32, 14.8, 390 * 0.33, 81 - 29.6); c.lineWidth = 1; c.strokeRect(390 * 0.32 + 5, 19.8, 390 * 0.33 - 10, 81 - 39.6); }
       if (Q.murStyle === 'bande') { c.fillStyle = Q.accent; c.fillRect(0, 81 - 12, 390, 4); c.fillStyle = 'rgba(58,134,200,.12)'; c.fillRect(0, 81 - 16, 390, 3); }
+      if (Q.murStyle === 'hantee') { // le papier peint du manoir : de larges rayures, une petite chauve-souris entre deux, le lambris sombre et sa cimaise
+        for (let x = 0; x < 390; x += 26) { c.fillStyle = 'rgba(30,20,50,.28)'; c.fillRect(x + 13, 0, 13, 81); }
+        c.fillStyle = 'rgba(205,189,255,.22)'; for (let x = 6.5, k = 0; x < 390; x += 26, k++) { const y = k % 2 ? 18 : 34; c.beginPath(); c.ellipse(x, y, 1.6, 1.2, 0, 0, TAU); c.fill(); c.beginPath(); c.moveTo(x - 1, y); c.quadraticCurveTo(x - 3, y - 2.2, x - 5.2, y - 0.4); c.quadraticCurveTo(x - 3, y + 0.2, x - 1, y + 0.8); c.moveTo(x + 1, y); c.quadraticCurveTo(x + 3, y - 2.2, x + 5.2, y - 0.4); c.quadraticCurveTo(x + 3, y + 0.2, x + 1, y + 0.8); c.fill(); }
+        const y0 = 81 * 0.66; c.fillStyle = '#2A1E33'; c.fillRect(0, y0, 390, 81 - y0); c.fillStyle = '#3A2A48'; for (let x = 4; x < 390; x += 32) c.fillRect(x, y0 + 4, 26, 81 - y0 - 8);
+        c.fillStyle = '#5C4232'; c.fillRect(0, y0 - 1.6, 390, 2.6); c.fillStyle = 'rgba(255,138,61,.55)'; c.fillRect(0, y0 - 2.2, 390, 0.7);
+      }
       if (Q.murStyle === 'marbre') { c.strokeStyle = 'rgba(120,100,90,.12)'; c.lineWidth = 1.5; for (let k = 0; k < 6; k++) { c.beginPath(); c.moveTo(k * 78 - 20, 0); c.quadraticCurveTo(k * 78 + 30, 40, k * 78 + 10, 81); c.stroke(); } }
       if (Q.standing) murStanding(c, Q);
     }, 512, 256, { repete: [1, 1] });
@@ -123,7 +129,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       g.add(M.mesh(M.plan(W, dv), voile, { x: W / 2, y: 0.25, z: z0 + dv / 2, rx: -Math.PI / 2 }, { ombre: false }));
     }
     // la plinthe (de part et d'autre de la porte), l'appui et le cadre de la fenêtre, le cadre de la porte
-    const cadreCol = Q.vue === 'ville' ? '#2E2A36' : Q.vue === 'montagne' ? Q.bois : '#FFFFFF', hp = c.wy(4), pr = [];
+    const cadreCol = Q.cadre || (Q.vue === 'ville' ? '#2E2A36' : Q.vue === 'montagne' ? Q.bois : '#FFFFFF'), hp = c.wy(4), pr = []; // (Q.cadre : un décor qui choisit ses cadres, la Maison hantée)
     const ar = LAY.arriere, ag = ar ? ar.x - 3 : p.x, ad = ar ? ar.x + ar.w + 3 : p.x; // la plinthe s'interrompt aussi devant la petite porte du fond
     pr.push(P(bo(ag, hp, 3, 0.8), Q.bois, { x: ag / 2, z: 1.5 }), P(bo(W - p.x - p.w, hp, 3, 0.8), Q.bois, { x: (W + p.x + p.w) / 2, z: 1.5 }));
     if (ar) { pr.push(P(bo(p.x - ad, hp, 3, 0.8), Q.bois, { x: (ad + p.x) / 2, z: 1.5 })); pr.push(...porteArriere(c, ar)); }
@@ -453,7 +459,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     if (k === 0) { const m = M.mesh(M.disque(1, 6), M.MAT.tache, { x: LAY.deco.x, y: 0.2, z: c.wz(LAY.deco.y) }, { ombre: false }); m.visible = false; g.add(m); return g; }
     const pl = plante(LAY.deco.x, LAY.deco.y, c, true); g.add(pl); g.userData.zoneBoite = new THREE.Box3().setFromObject(pl, true); // la zone de touche : la plante seule (le reste s'accroche au mur ou au plafond)
     if (k >= 2) { if (!c.trophees) g.add(cadre(LAY.cadre2.x, LAY.cadre2.y, c)); for (const a of LAY.appliques) g.add(applique(a.x, a.y - 14, c, lampes)); } // les appliques, juste au-dessus des cadres
-    if (k >= 3) g.add(guirlande(c.tags && c.tags.includes('noel'), c));
+    if (k >= 3 && !c.ev) g.add(guirlande(c.tags && c.tags.includes('noel'), c)); // (la boutique hantée : ses toiles et ses chauves-souris à la place des fanions)
     if (k >= 4) {
       const t = LAY.tapis, d = c.wd(t.h), tp = grp('tapis', t.x + t.w / 2, 0, c.wz(t.y) + d / 2);
       tp.add(M.mesh(bo(t.w, 0.8, d, 0.4), M.mat(Q.accent, { transparent: true, opacity: 0.4 }), null, { ombre: false, recoit: true }));
@@ -498,12 +504,12 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     g.add(M.maille(pr)); return g;
   }
   // ─── les petits objets ───
-  function plante(x, y, c, touffe) { // une plante en pot : le pot couleur comptoir, quatre boules de feuillage
-    const g = grp('plante', x, 0, c.wz(y + 15) - 9), pr = [];
-    if (KN()) { pr.push(touffe ? kp('plantSmall2', { h: 50 }, { wood: c.Q.comptoir, plant: '#5FD3A4' }) : kp('pottedPlant', { h: 62 }, { wood: c.Q.comptoir, woodDark: '#6B4A3A', plant: '#4FC79A' })); g.add(M.maille(pr)); return g; } // Furniture Kit : la touffe ronde (déco) ou la plante à feuilles hautes
+  function plante(x, y, c, touffe) { // une plante en pot : le pot couleur comptoir, quatre boules de feuillage (Q.plante : sa couleur dans un décor qui la choisit, le violet de la Maison hantée)
+    const g = grp('plante', x, 0, c.wz(y + 15) - 9), pr = [], f1 = c.Q.plante || '#5FD3A4', f2 = c.Q.plante ? M.assombrir(c.Q.plante, 0.2) : '#3FB889';
+    if (KN()) { pr.push(touffe ? kp('plantSmall2', { h: 50 }, { wood: c.Q.comptoir, plant: f1 }) : kp('pottedPlant', { h: 62 }, { wood: c.Q.comptoir, woodDark: '#6B4A3A', plant: c.Q.plante || '#4FC79A' })); g.add(M.maille(pr)); return g; } // Furniture Kit : la touffe ronde (déco) ou la plante à feuilles hautes
     pr.push(P(M.cylindre(9, 7, 18, 12), c.Q.comptoir), P(M.cylindre(9.6, 9.6, 2.5, 12), M.eclaircir(c.Q.comptoir, 0.2), { y: 16.5 }), P(M.cylindre(7.5, 7.5, 1, 12), '#6B4A3A', { y: 18 }));
-    for (const [ox, oy, r] of [[0, 30, 9.5], [-8.5, 22, 7], [8.5, 22, 7], [0, 43, 7]]) pr.push(P(M.sphere(r, 10), '#5FD3A4', { x: ox, y: oy, z: 0 }));
-    pr.push(P(M.sphere(3.5, 8), '#3FB889', { x: -4.5, y: 36, z: 6 }), P(M.sphere(3, 8), '#3FB889', { x: 5, y: 27, z: 6.5 }));
+    for (const [ox, oy, r] of [[0, 30, 9.5], [-8.5, 22, 7], [8.5, 22, 7], [0, 43, 7]]) pr.push(P(M.sphere(r, 10), f1, { x: ox, y: oy, z: 0 }));
+    pr.push(P(M.sphere(3.5, 8), f2, { x: -4.5, y: 36, z: 6 }), P(M.sphere(3, 8), f2, { x: 5, y: 27, z: 6.5 }));
     g.add(M.maille(pr)); return g;
   }
   function fleurs(c) { // un petit vase et trois fleurs rose, beurre, lavande sur le comptoir
@@ -580,12 +586,21 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     g.add(M.maille(pr)); return g;
   }
   const boisCadre = (c) => ((c.Q.standing || 0) >= 3 && c.Q.or ? c.Q.or : c.Q.bois); // les cadres, l'horloge et le diplôme dorés de la Grande maison (standing 3+)
-  function cadre(x, y, c) { // un petit tableau : cadre bois, marge blanche, toile peinte (ciel, soleil, collines)
-    const g = grp('cadre', x, murY(c, y + 12), 1.5), h = c.wy(24);
-    g.add(M.maille([P(bo(32, h, 3, 0.8), boisCadre(c)), P(bo(28, h - c.wy(4), 1.5, 0.4), '#FFFFFF', { z: 1.6 })]));
-    g.add(M.mesh(M.plan(26, h - c.wy(6)), matDe('toile', () => propre({ map: toile(), emissive: '#FFFFFF', emissiveMap: toile(), emissiveIntensity: 0.3 })), { z: 2.5 }, { ombre: false }));
+  function cadre(x, y, c) { // un petit tableau : cadre bois, marge blanche, toile peinte (ciel, soleil, collines) ; un décor à portrait (la Maison hantée) : l'ancêtre fantôme
+    const g = grp('cadre', x, murY(c, y + 12), 1.5), h = c.wy(24), port = !!c.Q.portrait;
+    g.add(M.maille([P(bo(32, h, 3, 0.8), port ? '#B07A2E' : boisCadre(c)), P(bo(28, h - c.wy(4), 1.5, 0.4), port ? '#E0B65A' : '#FFFFFF', { z: 1.6 })]));
+    g.add(M.mesh(M.plan(26, h - c.wy(6)), port ? matDe('portrait', () => propre({ map: portrait(), emissive: '#FFFFFF', emissiveMap: portrait(), emissiveIntensity: 0.25 })) : matDe('toile', () => propre({ map: toile(), emissive: '#FFFFFF', emissiveMap: toile(), emissiveIntensity: 0.3 })), { z: 2.5 }, { ombre: false }));
     return g;
   }
+  // le portrait de l'ancêtre du manoir : un fantôme distingué en nœud papillon, sur fond de nuit (le même que celui du Manoir, src/evenement.js)
+  const portrait = () => { let tx = TEX.get('portrait'); if (tx) return tx; tx = M.texture((x, w, h) => {
+    x.scale(w / 80, h / 100); x.fillStyle = '#2A2050'; x.fillRect(0, 0, 80, 100); x.fillStyle = '#3B2A66'; x.beginPath(); x.ellipse(40, 50, 34, 44, 0, 0, TAU); x.fill();
+    x.fillStyle = '#F4F1FF'; x.beginPath(); x.moveTo(20, 92); x.lineTo(20, 46); x.arc(40, 46, 20, Math.PI, 0); x.lineTo(60, 92); for (let k = 0; k < 4; k++) x.quadraticCurveTo(55 - k * 10, 84, 50 - k * 10, 92); x.fill();
+    x.fillStyle = '#1E1824'; x.beginPath(); x.ellipse(33, 46, 3, 4.2, 0, 0, TAU); x.ellipse(47, 46, 3, 4.2, 0, 0, TAU); x.fill();
+    x.fillStyle = '#FF9FB2'; x.beginPath(); x.arc(28, 54, 2.6, 0, TAU); x.arc(52, 54, 2.6, 0, TAU); x.fill();
+    x.fillStyle = '#E1496C'; x.beginPath(); x.moveTo(40, 66); x.lineTo(31, 61); x.lineTo(31, 71); x.closePath(); x.moveTo(40, 66); x.lineTo(49, 61); x.lineTo(49, 71); x.closePath(); x.fill();
+    x.strokeStyle = '#1E1824'; x.lineWidth = 1.8; x.beginPath(); x.arc(40, 53, 4.2, 0.2, Math.PI - 0.2); x.stroke();
+  }, 80, 100); tx.userData.partagee = true; TEX.set('portrait', tx); return tx; };
   function horloge(c) { // cadran blanc cerclé de bois, deux aiguilles tournées par anime selon l'heure ; étirée pour paraître ronde à l'écran
     const h = c.LAY.horloge, g = grp('horloge', h.x, murY(c, h.y), 1); g.scale.y = 1 / c.CY;
     g.add(M.maille([P(M.cylindre(10, 10, 1.5, 24), '#FFFFFF', { rx: Math.PI / 2 }), P(M.tore(10, 1.3, TAU, 8, 28), boisCadre(c), { z: 1.5 }), P(M.sphere(1.4, 8), '#E1496C', { z: 2.6 })]));
@@ -712,9 +727,14 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     for (let k = 0; k <= 5; k++) { const a = k / 5 * Math.PI / 2; x.beginPath(); x.moveTo(0, 0); x.lineTo(Math.cos(a) * w, Math.sin(a) * h); x.stroke(); }
     x.lineWidth = 1.6; for (let r = w * 0.18; r < w; r += w * 0.17) { x.beginPath(); for (let k = 0; k <= 5; k++) { const a = k / 5 * Math.PI / 2, px = Math.cos(a) * r, py = Math.sin(a) * r; if (k === 0) x.moveTo(px, py); else { const am = (k - 0.5) / 5 * Math.PI / 2; x.quadraticCurveTo(Math.cos(am) * r * 0.86, Math.sin(am) * r * 0.86, px, py); } } x.stroke(); }
   }, 128, 128); tx.userData.partagee = true; TEX.set('toile-ht', tx); return tx; };
+  function plans(liste) { // des plans texturés ([w, h, { x, y, z, rx, ry, rz }]) fusionnés en une géométrie (pas en cache : rendue avec son groupe)
+    const P3 = [], N3 = [], U2 = [], I = []; let n = 0;
+    for (const [w, h, o] of liste) { const g = new THREE.PlaneGeometry(w, h).applyMatrix4(M.matrice(o)); P3.push(...g.attributes.position.array); N3.push(...g.attributes.normal.array); U2.push(...g.attributes.uv.array); for (const i of g.index.array) I.push(i + n); n += g.attributes.position.count; g.dispose(); }
+    const out = new THREE.BufferGeometry(); out.setAttribute('position', new THREE.Float32BufferAttribute(P3, 3)); out.setAttribute('normal', new THREE.Float32BufferAttribute(N3, 3)); out.setAttribute('uv', new THREE.Float32BufferAttribute(U2, 2)); out.setIndex(I); return out;
+  }
   function toiles(c) {
     const { LAY, W, K } = c, s = 34 * K, g = grp('toiles', 0, 0, 0.5), mat = matDe('toile-ht', () => new THREE.MeshBasicMaterial({ map: toileAraignee(), transparent: true, depthWrite: false })), yh = murY(c, 0);
-    g.add(M.mesh(M.plan(s, s), mat, { x: s / 2, y: yh - s / 2, rz: 0 }, { ombre: false }), M.mesh(M.plan(s, s), mat, { x: LAY.porte.x - s / 2 - 2, y: yh - s / 2, rz: -HP }, { ombre: false }));
+    g.add(M.mesh(plans([[s, s, { x: s / 2, y: yh - s / 2 }], [s, s, { x: LAY.porte.x - s / 2 - 2, y: yh - s / 2, rz: -HP }]]), mat, null, { ombre: false })); // les deux toiles : un seul maillage
     const fil = M.mesh(M.cylindre(0.25, 0.25, 1, 4), M.mat('#9C94B8'), { x: s * 0.62, y: yh, z: 1 }, { ombre: false }), ar = M.maille([P(M.sphere(2.6 * K, 8), '#2E2547'), P(M.sphere(1.8 * K, 8), '#2E2547', { y: -2.6 * K }), P(M.sphere(0.6 * K, 6), '#FFFFFF', { x: -0.8 * K, y: -2.8 * K, z: 1.6 * K }), P(M.sphere(0.6 * K, 6), '#FFFFFF', { x: 0.8 * K, y: -2.8 * K, z: 1.6 * K })], { ombre: false });
     g.add(fil, ar);
     g.userData.anime = (E) => { const l = s * (0.45 + 0.25 * Math.sin(E.t * 0.8)); fil.scale.y = l; fil.position.y = yh - l; ar.position.set(s * 0.62, yh - l - 2 * K, 1); };
@@ -741,6 +761,42 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     const x0 = f.x + f.w * 0.5, y0 = murY(c, f.y + f.h) - r * 0.5, z0 = c.wz(LAY.murH + 26 * K);
     g.userData.anime = (E) => { g.position.set(x0 + Math.sin(E.t * 0.4) * f.w * 0.6, y0 + Math.sin(E.t * 1.7) * 4 * K, z0); g.rotation.y = Math.cos(E.t * 0.4) * 0.5; corps.material.opacity = 0.78 + 0.1 * Math.sin(E.t * 2.2); };
     return g;
+  }
+  // ─── la boutique hantée (src/boutiquehantee.js, le thème « hantee » de src/vie.js) : les bougies (un chandelier sur le comptoir, une
+  //     bougie au milieu de chaque table, deux sur le bar, une sur le plan de travail), deux lanternes de part et d'autre de la porte du
+  //     fond, trois chauves-souris accrochées sous la corniche. Deux appels de dessin : le décor fusionné (modèles KayKit Halloween cuits
+  //     en qualité haute, c.hdHantee ; faits main sinon) et les flammes, qui vacillent et brillent plus fort le soir ───
+  const hdh = (c, nom, o, col) => (c.hdHantee && typeof HDM !== 'undefined' && HDM.part ? HDM.part('hantee2/' + nom, o, col) : null);
+  function hantee(c) {
+    const { LAY, W, K } = c, g = grp('hantee', 0, 0, 0), pr = [], fl = [], cire = '#F4EEE0', fer = '#2B2533';
+    const flamme = (x, y, z, r) => fl.push(P(M.sphere(r || 1.5, 6), '#FFD27A', { x, y, z, sy: 1.7 }));
+    const bougie = (x, y, z, h, r) => { pr.push(P(M.cylindre(r, r * 1.05, h, 8), cire, { x, y, z }), P(M.cylindre(0.25, 0.25, 1.6, 4), L, { x, y: y + h, z })); flamme(x, y + h + 2, z, r * 0.75); };
+    // le chandelier du comptoir, à gauche du chat (la place des fleurs, qui n'y sont pas)
+    const o = surDessus(c, LAY.fleurs), kc = hdh(c, 'candle_triple', { h: 15 * K, x: o.x, y: o.y, z: o.z });
+    if (kc) { pr.push(kc); for (const [dx, dy] of [[-3.1, 13.6], [0, 15.4], [3.1, 12.4]]) flamme(o.x + dx * K, o.y + dy * K, o.z, 1.1 * K); }
+    else { pr.push(P(M.cylindre(4 * K, 4.6 * K, 1.4, 12), fer, o), P(M.cylindre(0.8, 0.8, 7 * K, 6), fer, { x: o.x, y: o.y + 1.4, z: o.z }), P(bo(13 * K, 1.2, 1.6, 0.4), fer, { x: o.x, y: o.y + 7 * K, z: o.z })); for (const dx of [-5.6, 0, 5.6]) bougie(o.x + dx * K, o.y + 8 * K + (dx ? 0 : 1.6), o.z, dx ? 5 * K : 6 * K, 1.3); }
+    // une bougie au milieu de chaque table achetée, deux sur le bar, une sur le plan de travail
+    const surTable = (x, y, z) => { const k = hdh(c, 'candle', { h: 7 * K, x, y, z }); if (k) { pr.push(k); flamme(x, y + 7.6 * K, z, 1.1); } else { pr.push(P(M.cylindre(2.6, 2.9, 1, 10), fer, { x, y, z })); bougie(x, y + 1, z, 4.4 * K, 1.2); } };
+    for (let i = 0; i < Math.min(c.crans.tables || 0, LAY.tables.length); i++) { const t = LAY.tables[i]; surTable(t.x, HAUT.table, c.wz(t.y)); }
+    if ((c.crans.bar || 0) > 0) { const b = LAY.bar; for (const u of [0.2, 0.8]) surTable(b.x0 + (b.x1 - b.x0) * u, HAUT.bar + 1.5, c.wz(b.y - 4 * K)); }
+    const pl = LAY.plan, kp2 = hdh(c, 'candle_melted', { h: 9 * K, x: pl.x + pl.w * 0.78, y: c.wy(pl.h * 0.55), z: c.wz(pl.y + pl.h * 0.6) });
+    if (kp2) { pr.push(kp2); flamme(pl.x + pl.w * 0.78, c.wy(pl.h * 0.55) + 9.4 * K, c.wz(pl.y + pl.h * 0.6), 1.1); } else bougie(pl.x + pl.w * 0.78, c.wy(pl.h * 0.55), c.wz(pl.y + pl.h * 0.6), 5 * K, 1.4);
+    // les deux lanternes de la porte du fond, posées au sol de part et d'autre, dans la salle (jamais dans le passage : l'allée entre au milieu)
+    const p = LAY.porte, zl = c.wz(LAY.murH + 8 * K);
+    for (const x of [p.x - 9 * K, Math.min(W - 6 * K, p.x + p.w + 9 * K)]) {
+      const kl = hdh(c, 'lantern_standing', { h: 22 * K, x, z: zl });
+      if (kl) { pr.push(kl); flamme(x, 9.5 * K, zl, 2); continue; }
+      pr.push(P(bo(8 * K, 1.6, 8 * K, 0.6), fer, { x, z: zl }), P(bo(6.4 * K, 11 * K, 6.4 * K, 0.8), '#FFE7A3', { x, y: 1.6, z: zl }), P(M.cone(5 * K, 5 * K, 4), fer, { x, y: 1.6 + 11 * K, z: zl, ry: Math.PI / 4 }), P(M.tore(1.6 * K, 0.4, TAU, 4, 8), fer, { x, y: 1.6 + 17 * K, z: zl }));
+      for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(M.cylindre(0.5, 0.5, 11 * K, 4), fer, { x: x + sx * 3.2 * K, y: 1.6, z: zl + sz * 3.2 * K }));
+      flamme(x, 6 * K, zl, 2.2);
+    }
+    // trois chauves-souris endormies, la tête en bas, sous la corniche (entre la fenêtre, le tableau et l'étagère)
+    const yh = murY(c, 0) - 2;
+    for (const u of [0.31, 0.47, 0.68]) { const x = W * u; pr.push(P(M.sphere(2.4 * K, 8), fer, { x, y: yh - 4 * K, z: 2, sy: 1.25 }), P(M.cone(0.8 * K, 1.6 * K, 4), fer, { x: x - 1.2 * K, y: yh - 8.6 * K, z: 2.2, rx: Math.PI }), P(M.cone(0.8 * K, 1.6 * K, 4), fer, { x: x + 1.2 * K, y: yh - 8.6 * K, z: 2.2, rx: Math.PI }), P(bo(3.2 * K, 6 * K, 0.8, 0.3), '#3E3648', { x: x - 2.6 * K, y: yh - 7 * K, z: 1.8, rz: 0.25 }), P(bo(3.2 * K, 6 * K, 0.8, 0.3), '#3E3648', { x: x + 2.6 * K, y: yh - 7 * K, z: 1.8, rz: -0.25 }), P(M.sphere(0.5 * K, 5), '#FFD84A', { x: x - 0.9 * K, y: yh - 6.4 * K, z: 4.6 }), P(M.sphere(0.5 * K, 5), '#FFD84A', { x: x + 0.9 * K, y: yh - 6.4 * K, z: 4.6 })); }
+    g.add(M.maille(pr, { ombre: false }));
+    const flammes = M.maille(fl, { ombre: false }); flammes.material = propre({ vertexColors: true, emissive: '#FFB347', emissiveIntensity: 0.9 }); g.add(flammes);
+    g.userData.anime = (E) => { const m = flammes.material; m.emissiveIntensity = 0.75 + 0.35 * E.lampes + 0.12 * Math.sin(E.t * 11) + 0.06 * Math.sin(E.t * 23); flammes.scale.y = 1 + 0.02 * Math.sin(E.t * 13); };
+    g.userData.bougies = fl.length; return g;
   }
   // ─── le standing de la boutique (Q.standing 1 à 5, Q.objets : src/vie.js decor) : ce qui s'ajoute au décor, hors des chemins et des
   //     zones de touche — contre le mur du fond, en haut, aux deux coins du fournil, à la porte de la devanture et sur le trottoir.
@@ -860,6 +916,6 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     if (c.Q && c.Q.standing) out.push(standing(c));
     return out;
   }
-  return { get sallesEnCache() { return [...TEX.keys()].filter((k) => /^(sol|mur)/.test(k)).length; }, textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome, standing, coinsStanding };
+  return { get sallesEnCache() { return [...TEX.keys()].filter((k) => /^(sol|mur)/.test(k)).length; }, textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome, hantee, standing, coinsStanding };
 })();
 if (typeof module !== 'undefined') module.exports = MEUBLES;
