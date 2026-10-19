@@ -15,6 +15,10 @@
         hors de l'écran et pendant l'absence (son début et sa fin sont des « maintenant » de l'horloge de confiance, HORLOGE, donnés par
         l'appelant). Le gain est fixé au lancement (une part du rythme × la durée) ; un petit risque, tiré au lancement lui aussi (ni une
         relecture de la sauvegarde ni un retour en arrière ne le relancent), en saisit une partie ; on ramasse à l'ouverture suivante.
+     4. LA RECETTE DU JOUR (RECETTES_JOUR, recetteDuJour, preparerRecette, lancerRecette, sortirRecette) : un poste à part, cuit à la main,
+        sur le modèle de la recette de saison du Fournil (src/game.js, SAISON) ; sept recettes par événement, une servie chaque jour de
+        Paris (la même pour tous), un niveau commun à toutes, et la maîtrise en trois étapes (100, 250, 500 fournées) qui paie la
+        boulangerie (étoiles, puis un décor). Voir RECETTE_JOUR, plus bas.
    Tout est plafonné, à l'heure ou au jour, et proportionnel au rythme : le marathon simulé (24 h/24, toutes les activités jouées au mieux,
    test/fournil-quartier.test.js et test/fournil-hantee.test.js) reste au moins ×2 sous l'enveloppe du serveur, sans changer le SQL.
 
@@ -29,8 +33,12 @@
        decor: { motif, fond, sol, accent, accent2, clair, texte },          les couleurs des toiles ; motif : 'quartier', 'hantee' ou autre (formes neutres)
        contrats: { minutes: [facile, moyen, dur], boost: { mult, secs }, chanceBoost, modeles: [ids], textes: { id: (n, produit) => phrase } },
        operations: [{ id, nom, desc, min, part, risque }], saisie,           trois coups (5, 15, 60 min) ; part : du rythme ; risque : la chance d'une saisie
-       textes: { mini, contrats, operation, saisie(m), reussite(m), … }     les mots de l'écran (src/evenement.js en a d'autres par défaut)
-     } */
+       textes: { mini, contrats, operation, saisie(m), reussite(m), recette, … }  les mots de l'écran (src/evenement.js en a d'autres par défaut)
+       recettes: [{ id, nom, desc, temps, icone }] × 7,                    la recette du jour : temps de 20 à 90 s ; icone : la clé de son icône (ICONS.RECETTES_JOUR)
+       recetteDeco: 'id', recetteDecoTxt                                    le décor de la 500e fournée (q.decos ; l'écran le pose dans la boutique) et sa phrase
+     }
+   Les règles passent aussi, pour la recette du jour, boostMult (la présence et la soirée), remise (le Grossiste) et debut (l'ouverture :
+   les blocs de sept recettes en partent) ; sans elles : ×1, et des blocs alignés sur le 1er janvier 1970. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.ACTIVITES = factory();
@@ -158,7 +166,35 @@
     ],
     saisie: 0.5,
     textes: {},
+    // la recette du jour : sept recettes neutres (une fiche les habille) ; de 20 à 90 s
+    recettes: [
+      { id: 'chouquettes', nom: 'Chouquettes', desc: 'Des petits choux et du sucre en grains.', temps: 20, icone: '' },
+      { id: 'madeleines', nom: 'Madeleines', desc: 'Avec leur bosse, bien dorées.', temps: 30, icone: '' },
+      { id: 'cookies', nom: 'Cookies', desc: 'Moelleux au milieu, croustillants autour.', temps: 40, icone: '' },
+      { id: 'crepes', nom: 'Crêpes', desc: 'Fines, et sautées d’une main.', temps: 45, icone: '' },
+      { id: 'brioche', nom: 'Brioche tressée', desc: 'Trois brins de pâte et du beurre.', temps: 60, icone: '' },
+      { id: 'tarte', nom: 'Tarte aux pommes', desc: 'Les pommes en rosace.', temps: 75, icone: '' },
+      { id: 'epices', nom: 'Pain d’épices', desc: 'Du miel, de la cannelle, de la patience.', temps: 90, icone: '' },
+    ],
+    recetteDeco: null,
   };
+  // ═══ 4. La recette du jour : réglages communs (le modèle : SAISON de src/game.js : pas 0,1, ×1,5 par niveau, niveau 10 ; la part et le prix plus bas) ═══
+  // Chaque jour de Paris, une des sept recettes de la fiche est servie, la même pour tous : les sept dans un ordre tiré pour chaque bloc de
+  // sept jours depuis l'ouverture (R.debut ; la graine du bloc et de l'événement), jamais deux jours de suite la même. Le poste a UN niveau, commun à toutes (0 à 10),
+  // gardé quand la recette change : le 1er, la préparer ; les suivants, l'améliorer ; prix : rythme × coutSec × croiss^niv (× la remise du
+  // Grossiste). Une fournée se lance à la main seulement (pas d'apprenti), dure le temps de la recette, et rapporte rythme × temps × part ×
+  // (1 + pas × (niv − 1)) × boostMult, fixé au lancement (début et fin : des « maintenant » de confiance, comme une opération ; refusée si
+  // l'événement ferme avant la fin) ; elle sort même pendant l'absence (l'absence des règles et la carte de l'écran l'appellent), rien ne se
+  // relance seul. La maîtrise compte les fournées de toutes les recettes (q.recettes.fournees) : trois étapes, chacune donnée une fois
+  // (q.recettes.etapes) : des étoiles pour la boulangerie (comme une combine : q.etoiles pour le bilan, q.recettes.aVerser que l'écran
+  // verse et remet à zéro) et, à la dernière, le décor de la fiche (q.decos, comme un palier). Ces étoiles ne touchent pas aux billets.
+  // La part : 0,04, et non 1 comme la saison. Ici, la présence (boostMult) multiplie déjà les ventes par 6 : à la part 1, la recette jouée
+  // sans arrêt triplait les gains de la session (×5,9 en quatorze jours de marathon ; le très actif au 20e palier le 7e jour). À 0,04, elle
+  // ajoute ~8 % (0,04 × 1,9 × 6 = 0,46 rythme, contre ~6 pour les postes) : le 20e reste hors de portée du très actif (106 Bd pour 110 Bd
+  // au Quartier ; 95,9 Bd sans elle). Ce qu'elle paie surtout, c'est la maîtrise (les étoiles, le décor). Le prix suit la part (coutSec :
+  // 300 × 0,04 = 12 s du rythme) : un niveau se rembourse en autant de fournées qu'à la saison.
+  const RECETTE_JOUR = { part: 0.04, pas: 0.1, coutSec: 12, croiss: 1.5, nivMax: 10, tempsMin: 20, tempsMax: 90,
+    etapes: [{ n: 100, etoiles: 2 }, { n: 250, etoiles: 3 }, { n: 500, etoiles: 5, deco: true }] };
   // les modèles de contrats : une statistique de q.stats, trois exigences (facile, moyen, dur) ; « vente » vise un des trois premiers produits
   const MODELES = {
     descentes: { stat: 'descentes', n: [2, 3, 5], texte: (n) => `Réussis ${n} coup${n > 1 ? 's' : ''} de pouce à toucher` },
@@ -182,6 +218,8 @@
     const OPERATIONS = (f.operations || DEFAUTS.operations).map((o, k) => Object.assign({}, DEFAUTS.operations[k] || DEFAUTS.operations[0], o));
     const SAISIE = f.saisie != null ? f.saisie : DEFAUTS.saisie;
     const TEXTES = Object.assign({}, DEFAUTS.textes, f.textes || {});
+    const RECETTES_JOUR = (f.recettes || DEFAUTS.recettes).map((r) => Object.assign({}, r, { temps: borne(Number(r.temps) || 30, RECETTE_JOUR.tempsMin, RECETTE_JOUR.tempsMax) }));
+    const DECO_RECETTE = f.recetteDeco || DEFAUTS.recetteDeco, DECO_RECETTE_TXT = f.recetteDecoTxt || '';
     const jeuMini = (jid) => MINI.jeux.find((j) => j.id === jid) || null;
     const arrondi = R.arrondi || ((n) => Math.round(n));
     // le jour de l'ouverture (une demi-journée), les activités ne paient pas encore : c'est là que l'économie de l'événement grimpe le plus
@@ -200,8 +238,14 @@
       if (q.operation && (typeof q.operation !== 'object' || !Number.isFinite(q.operation.fin) || !OPERATIONS.some((o) => o.id === q.operation.id))) q.operation = null;
       if (q.operation === undefined) q.operation = null;
       const s = q.stats; if (s && typeof s === 'object') { for (const k of STATS) if (!(s[k] >= 0)) s[k] = 0; if (!Array.isArray(s.vendus)) s.vendus = []; while (s.vendus.length < R.PRODUITS.length) s.vendus.push(0); }
+      const rc = q.recettes && typeof q.recettes === 'object' ? q.recettes : (q.recettes = recettesNeuves()); // la recette du jour (une sauvegarde d'avant : niveau 0, rien au four)
+      rc.niv = Number.isFinite(rc.niv) ? borne(Math.floor(rc.niv), 0, RECETTE_JOUR.nivMax) : 0; if (!(rc.fournees >= 0)) rc.fournees = 0; if (!(rc.aVerser >= 0)) rc.aVerser = 0; if (!Number.isFinite(rc.sortie)) rc.sortie = 0;
+      if (!Array.isArray(rc.etapes)) rc.etapes = [];
+      if (rc.four && (typeof rc.four !== 'object' || !Number.isFinite(rc.four.fin) || !(rc.four.gain >= 0) || !recetteId(rc.four.id))) rc.four = null;
+      if (rc.four === undefined) rc.four = null;
       return q;
     }
+    const recettesNeuves = () => ({ niv: 0, fournees: 0, etapes: [], four: null, aVerser: 0, sortie: 0 });
 
     // ─── 1. les mini-jeux : les jetons (3 par heure), le plafond du jour de Paris, les records ───
     function miniDuJour(q, now) { // remet les jetons à l'heure (sur le « maintenant » de confiance) et le compteur du jour à minuit, heure de Paris
@@ -294,14 +338,81 @@
       return { op, o: e.o, gain: op.gain, saisi: op.saisi, net };
     }
 
+    // ─── 4. la recette du jour : un poste à part, cuit à la main ; la maîtrise en trois étapes ───
+    const recetteId = (rid) => RECETTES_JOUR.find((r) => r.id === rid) || null;
+    const numJour = (jour) => Math.floor(Date.parse(jour + 'T12:00:00Z') / 864e5); // « 2026-10-15 » → un numéro de jour
+    const cleJour = (n) => new Date(n * 864e5).toISOString().slice(0, 10);
+    function ordreBloc(b) { // les sept recettes dans l'ordre du bloc de sept jours b (un mélange tiré de la graine du bloc et de l'événement)
+      const g = hacher(`${b}|${id}|recettes`), o = RECETTES_JOUR.map((r, k) => k);
+      for (let k = o.length - 1; k > 0; k--) { const j = Math.floor(alea(g, k) * (k + 1)); const x = o[k]; o[k] = o[j]; o[j] = x; }
+      return o;
+    }
+    const jour0 = R.debut != null ? numJour(R.dayKey(R.debut)) : 0; // les blocs partent du jour de l'ouverture : sept jours, sept recettes
+    function rangDuJour(jour) { // jamais deux jours de suite la même : le premier jour d'un bloc évite le dernier du bloc d'avant
+      const n = numJour(jour) - jour0, N = RECETTES_JOUR.length, b = Math.floor(n / N), k = n - b * N, o = ordreBloc(b);
+      if (k <= 1 && N > 1 && o[0] === ordreBloc(b - 1)[N - 1]) { const x = o[0]; o[0] = o[1]; o[1] = x; }
+      return o[k];
+    }
+    const recetteDuJour = (x) => RECETTES_JOUR[rangDuJour(jourDe(x))]; // x : un « maintenant » ou un jour de Paris (« 2026-10-15 »)
+    const recetteDemain = (x) => RECETTES_JOUR[rangDuJour(cleJour(numJour(jourDe(x)) + 1))];
+    const remiseRecette = (q) => (R.remise ? R.remise(q) : 1);
+    const prixRecette = (q) => arrondi(R.rythme(q) * RECETTE_JOUR.coutSec * Math.pow(RECETTE_JOUR.croiss, q.recettes.niv)) * remiseRecette(q); // le prochain niveau (comme coutSaison)
+    const multRecette = (niv) => (niv > 0 ? 1 + RECETTE_JOUR.pas * (niv - 1) : 0);
+    const gainRecette = (q, r) => R.rythme(q) * r.temps * RECETTE_JOUR.part * multRecette(q.recettes.niv) * (R.boostMult ? R.boostMult(q) : 1); // une fournée lancée maintenant
+    const recetteFermee = (now) => !ouvertes(now) || (R.fenetre ? !R.fenetre(now).ouvert : false);
+    function preparerRecette(q, now) { // niveau 0 → 1 : préparer la cuisine ; ensuite améliorer, jusqu'au niveau 10 (les billets ou les bonbons de l'événement)
+      reparer(q); const rc = q.recettes;
+      if (rc.niv >= RECETTE_JOUR.nivMax) return { ok: false, max: true };
+      if (recetteFermee(now)) return { ok: false, ferme: true };
+      const prix = prixRecette(q); if (!(q.billets >= prix)) return { ok: false, prix };
+      q.billets -= prix; rc.niv++;
+      if (rc.niv === 1) R.note(q, `${TEXTES.recette || 'La recette du jour'} : la cuisine est prête`);
+      return { ok: true, prix, niv: rc.niv };
+    }
+    function lancerRecette(q, now) { // une fournée de la recette du jour, à la main ; une seule au four ; refusée si l'événement ferme avant qu'elle sorte
+      reparer(q); const rc = q.recettes;
+      if (rc.niv <= 0) return { ok: false, niv: true };
+      if (rc.four) return { ok: false, occupe: true };
+      if (recetteFermee(now)) return { ok: false, ferme: true };
+      const r = recetteDuJour(now), f = R.fenetre ? R.fenetre(now) : null;
+      if (f && f.reste < r.temps * 1000) return { ok: false, tard: true };
+      rc.four = { id: r.id, debut: now, fin: now + r.temps * 1000, gain: gainRecette(q, r) };
+      return { ok: true, four: rc.four, r };
+    }
+    function sortirRecette(q, now) { // la fournée est cuite (sur le « maintenant » de confiance) : son gain, une fournée de plus, les étapes atteintes (une fois chacune)
+      reparer(q); const rc = q.recettes, fo = rc.four; if (!fo || !(now >= fo.fin)) return null;
+      rc.four = null; rc.fournees++; rc.sortie = fo.fin; if (fo.gain > 0) R.gagner(q, fo.gain);
+      const etapes = [];
+      for (const e of RECETTE_JOUR.etapes) {
+        if (rc.fournees < e.n || rc.etapes.includes(e.n)) continue;
+        rc.etapes.push(e.n); q.etoiles = (q.etoiles || 0) + e.etoiles; rc.aVerser += e.etoiles;
+        const deco = e.deco && DECO_RECETTE ? DECO_RECETTE : null; if (deco && Array.isArray(q.decos) && !q.decos.includes(deco)) q.decos.push(deco);
+        R.note(q, `${TEXTES.recette || 'La recette du jour'} : ${e.n} fournées, +${e.etoiles} ★`); etapes.push({ n: e.n, etoiles: e.etoiles, deco });
+      }
+      return { r: recetteId(fo.id), gain: fo.gain, fournees: rc.fournees, etapes };
+    }
+    function verserRecette(q) { reparer(q); const n = q.recettes.aVerser; q.recettes.aVerser = 0; return n; } // les étoiles des étapes, à verser dans la boulangerie (l'écran)
+    function etatRecette(q, now) { // ce que la carte affiche : la recette du jour, demain, le niveau, le prix, le four, la maîtrise
+      reparer(q); const rc = q.recettes, r = recetteDuJour(now), fo = rc.four, fr = fo ? recetteId(fo.id) : null, max = rc.niv >= RECETTE_JOUR.nivMax;
+      const prochaine = RECETTE_JOUR.etapes.find((e) => !rc.etapes.includes(e.n)) || null;
+      return { r, demain: recetteDemain(now), niv: rc.niv, max, prix: max ? 0 : prixRecette(q), gain: rc.niv > 0 ? gainRecette(q, r) : 0, ouverte: !recetteFermee(now),
+        four: fo, fr, finie: !!fo && now >= fo.fin, reste: fo ? Math.max(0, fo.fin - now) : 0, part: fo ? borne((now - fo.debut) / Math.max(1, fo.fin - fo.debut), 0, 1) : 0,
+        fournees: rc.fournees, etapes: RECETTE_JOUR.etapes.map((e) => Object.assign({ faite: rc.etapes.includes(e.n) }, e)), prochaine, maitrise: RECETTE_JOUR.etapes[RECETTE_JOUR.etapes.length - 1].n };
+    }
+
     // ─── la simulation (src/quartier.js, src/hantee.js : simuler) : les activités jouées comme ce profil les jouerait ───
     // qualite : la part du score plein d'une partie ; mini : joue dès qu'un jeton est là ; op : l'opération lancée (la plus longue) ; on
-    // réclame les contrats dès qu'ils sont prêts. Le marathon et le très actif jouent tout au mieux (le pire cas de l'enveloppe).
+    // réclame les contrats dès qu'ils sont prêts ; recette : les secondes avant de relancer une fournée sortie (null : on n'y touche pas).
+    // Le marathon et le très actif jouent tout au mieux (le pire cas de l'enveloppe), la recette du jour comprise ; les autres profils ne la
+    // jouent que si on le demande (recette: true, avec leur délai : delai), pour garder les paliers réglés sans elle.
     const POLITIQUES = {
-      marathon: { qualite: 1, op: 'long' }, tresactif: { qualite: 1, op: 'long' },
-      assidu: { qualite: 0.8, op: 'long' }, quotidien: { qualite: 0.7, op: 'long' }, occasionnel: { qualite: 0.6, op: 'long' },
+      marathon: { qualite: 1, op: 'long', recette: 0, delai: 0 }, tresactif: { qualite: 1, op: 'long', recette: 0, delai: 0 },
+      assidu: { qualite: 0.8, op: 'long', recette: null, delai: 5 }, quotidien: { qualite: 0.7, op: 'long', recette: null, delai: 8 }, occasionnel: { qualite: 0.6, op: 'long', recette: null, delai: 10 },
     };
-    const politique = (profil) => POLITIQUES[profil] || POLITIQUES.assidu;
+    const politique = (profil, recette) => { // recette : true (la jouer, même pour un profil qui ne la joue pas d'office), false (jamais), sinon celle du profil
+      const p = POLITIQUES[profil] || POLITIQUES.assidu;
+      return recette === false ? Object.assign({}, p, { recette: null }) : recette === true && p.recette == null ? Object.assign({}, p, { recette: p.delai }) : p;
+    };
     const sim = {
       pas(q, now, pol, rnd, s) { // toutes les 20 s de jeu : ramasser, relancer, une partie si un jeton attend (une par minute au plus), les contrats prêts
         if (!pol) return; rnd = rnd || Math.random;
@@ -312,10 +423,17 @@
         for (const c of etatContrats(q, now)) if (c.pret) reclamerContrat(q, c.k, now);
       },
       fin(q, now, pol, rnd) { if (!pol) return; const e = etatOperation(q, now); if (e && e.finie) ramasserOperation(q, now); if (!q.operation && pol.op) lancerOperation(q, pol.op, now, rnd || Math.random); }, // en partant : une opération pour l'absence
+      recette(q, now, pol) { // chaque seconde de jeu : la fournée sortie, le niveau monté dès que les billets le paient, une fournée relancée (après pol.recette s)
+        if (!pol || pol.recette == null) return;
+        sortirRecette(q, now); const rc = q.recettes;
+        if (rc.niv < RECETTE_JOUR.nivMax && !recetteFermee(now) && q.billets >= prixRecette(q)) preparerRecette(q, now);
+        if (!rc.four && rc.niv > 0 && now - rc.sortie >= pol.recette * 1000) lancerRecette(q, now);
+      },
     };
 
     const api = { activitesOuvertes: ouvertes, MINI, MOTEURS, OPERATIONS, CONTRATS, SAISIE, TEXTES_ACTIVITES: TEXTES, jeuMini, miniDuJour, jetonsMini, qualiteMini, primePleineMini, primeMini, finirMini,
-      contratsDuJour, etatContrats, aReclamer, reclamerContrat, operation, gainOperation, lancerOperation, etatOperation, ramasserOperation };
+      contratsDuJour, etatContrats, aReclamer, reclamerContrat, operation, gainOperation, lancerOperation, etatOperation, ramasserOperation,
+      RECETTE_JOUR, RECETTES_JOUR, DECO_RECETTE, DECO_RECETTE_TXT, recetteDuJour, recetteDemain, prixRecette, gainRecette, preparerRecette, lancerRecette, sortirRecette, verserRecette, etatRecette };
     return Object.assign({ api, reparer, sim, politique }, api);
   }
 
@@ -357,5 +475,5 @@
   }
   const RECOMPENSES = { lotPalier, lotCombine, phraseLot, diffBoost, revue };
 
-  return { equiper, MOTEURS, DEFAUTS, MODELES, STATS, GUET, COMPTE, TOURNEE, alea, hacher, RECOMPENSES };
+  return { equiper, MOTEURS, DEFAUTS, MODELES, STATS, GUET, COMPTE, TOURNEE, RECETTE_JOUR, alea, hacher, RECOMPENSES };
 });

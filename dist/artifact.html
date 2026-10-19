@@ -1594,6 +1594,24 @@ body.amenage .vote-bandeau, body.visite .vote-bandeau, body[data-tiroir="ouvert"
 #amenage-barre .ico svg { width: 20px; height: 20px; }
 body.amenage #enseigne { opacity: 0; pointer-events: none; }
 body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
+/* la recette du jour des événements (src/evenement.js, renderRecette ; src/activites.js, RECETTE_JOUR) : une carte en tête de la liste, au
+   style de la carte de saison de la boulangerie (un liseré doré, citrouille au Manoir) ; la maîtrise : la jauge des paliers, repères à 100 et 250 */
+.carte.pq.rj-carte { box-shadow: 0 0 0 2px #FFC84A inset, 0 6px 16px rgba(0, 0, 0, .3); }
+.carte.pq.rj-carte .rj-tag { display: block; margin-top: -3px; font: 800 11px/1.15 var(--texte-font); color: #FFC84A; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.carte.pq.rj-carte .rj-desc { margin: 0; font-size: 13px; line-height: 1.3; color: #C7B8FF; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.carte.pq.rj-carte .rj-maitrise i { background: #5FD3A4; }
+.carte.pq.rj-carte .rj-repere { position: absolute; bottom: -2px; width: 3px; height: 8px; margin-left: -1.5px; border-radius: 2px; background: #FFF7EC; opacity: .5; }
+.carte.pq.rj-carte .rj-repere.fait { background: #FFC84A; opacity: 1; }
+.carte.pq.rj-carte .rj-demain { display: block; margin-top: -1px; font: 700 11px/1.25 var(--texte-font); color: #9E95B8; overflow-wrap: anywhere; }
+.carte.pq.rj-carte.ferme .icone svg { opacity: .55; }
+.carte.pq.rj-carte .btn[data-a="rj-niv"]:not(.non):not(.beurre) { background: #5FD3A4; color: #1E3B30; box-shadow: 0 4px 0 #2F8F62; }
+#hantee .carte.pq.rj-carte { box-shadow: 0 0 0 2px var(--ht-orange) inset, 0 6px 16px rgba(0, 0, 0, .35); }
+#hantee .carte.pq.rj-carte .rj-tag { color: var(--ht-orange); }
+#hantee .carte.pq.rj-carte .rj-desc { color: var(--ht-lavande); }
+#hantee .carte.pq.rj-carte .rj-maitrise i { background: var(--ht-vert); }
+#hantee .carte.pq.rj-carte .rj-repere.fait { background: var(--ht-orange); }
+#hantee .carte.pq.rj-carte .rj-demain { color: #A99CC9; }
+#hantee .carte.pq.rj-carte .btn[data-a="rj-niv"]:not(.non):not(.beurre) { background: var(--ht-orange); color: #2A1608; box-shadow: 0 4px 0 var(--ht-orange2); }
 </style>
 <div id="probe" aria-hidden="true"></div>
 <header id="haut">
@@ -5339,6 +5357,29 @@ const ICONS = (() => {
     // l'opération : un chronomètre
     operation: S(`<circle cx="24" cy="27" r="15" fill="#FFF7EC" stroke="${L}" stroke-width="2"/><path d="M24 27V17" stroke="${L}" stroke-width="2.6" stroke-linecap="round"/><path d="M24 27l7 4" stroke="#E1496C" stroke-width="2.6" stroke-linecap="round"/><rect x="20" y="5" width="8" height="5" rx="2" fill="#FFC84A" stroke="${L}" stroke-width="2"/><path d="M36 13l3-3" stroke="${L}" stroke-width="2.4" stroke-linecap="round"/><circle cx="24" cy="27" r="2" fill="${L}"/>`),
   };
+  // la recette du jour des événements (src/activites.js : RECETTES_JOUR, la clé « icone » de chaque recette) : sept pour la Planque, sept
+  // pour le Manoir, au même trait que les pâtisseries ; cuisine : la toque du poste (une recette sans icône), maitrise : la médaille des étapes
+  const RECETTES_JOUR = {
+    // la Planque : le thé à la menthe, les chouquettes des pigeons, les frites du camion, la crêpe du PMU, le kebab, le tacos, le space cake
+    'the-menthe': S(`<path d="M22 4c-2 3 2 5 0 8M28 5c-2 3 2 5 0 8" stroke="#C7B8FF" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M14 16h20l-2 22a4 4 0 01-4 4h-8a4 4 0 01-4-4z" fill="#DDF3FF" stroke="${L}" stroke-width="2" stroke-linejoin="round" opacity=".95"/><path d="M15.5 24h17l-1.3 14a3 3 0 01-3 3h-8.4a3 3 0 01-3-3z" fill="#C98A3A"/><path d="M27 18c4-5 10-4 11 0-3 3-8 3-11 0z" fill="#5FD3A4" stroke="#2F8F62" stroke-width="1.4" stroke-linejoin="round"/><path d="M14 16h20" stroke="#FFC84A" stroke-width="2.4" stroke-linecap="round"/>`),
+    'chouquettes-pigeons': S(`<circle cx="15" cy="32" r="8" fill="#E8B46A" stroke="${L}" stroke-width="2"/><circle cx="31" cy="33" r="8" fill="#E8B46A" stroke="${L}" stroke-width="2"/><circle cx="23" cy="22" r="8" fill="#F0C27E" stroke="${L}" stroke-width="2"/><g fill="#fff"><circle cx="20" cy="19" r="1.3"/><circle cx="25" cy="18" r="1.3"/><circle cx="23" cy="23" r="1.3"/><circle cx="12" cy="30" r="1.3"/><circle cx="17" cy="29" r="1.3"/><circle cx="29" cy="30" r="1.3"/><circle cx="34" cy="31" r="1.3"/></g><path d="M36 14c0-4 4-6 7-4l2 2-3 1c0 3-2 5-5 5z" fill="#9AA3B2" stroke="${L}" stroke-width="1.6" stroke-linejoin="round"/><circle cx="40" cy="12" r="1" fill="${L}"/>`),
+    'frites-camion': S(`<path d="M15 20l-3-12M20 19l-1-14M25 19l1-13M30 20l3-12M34 21l4-9" stroke="#F2B544" stroke-width="4" stroke-linecap="round"/><path d="M15 20l-3-12M20 19l-1-14M25 19l1-13M30 20l3-12M34 21l4-9" stroke="#FFD86B" stroke-width="2" stroke-linecap="round"/><path d="M10 18h28l-4 24H14z" fill="#E1496C" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M13 24h22" stroke="#fff" stroke-width="2" stroke-linecap="round"/><circle cx="24" cy="33" r="3.4" fill="#FFC84A"/>`),
+    'crepe-pmu': S(`<path d="M6 34L24 8l18 26c-6 4-30 4-36 0z" fill="#F0C27E" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M12 31c4-6 9-10 12-14 3 4 8 8 12 14-6 2-18 2-24 0z" fill="#6B4A3A"/><circle cx="17" cy="22" r="1.4" fill="#D9A056"/><circle cx="30" cy="20" r="1.4" fill="#D9A056"/><path d="M8 40h32" stroke="#5FD3A4" stroke-width="3" stroke-linecap="round"/>`),
+    'kebab-samourai': S(`<path d="M8 22c0-9 7-14 16-14s16 5 16 14L24 42z" fill="#F0C27E" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M12 21c3-6 7-8 12-8s9 2 12 8" fill="none" stroke="#5FD3A4" stroke-width="4" stroke-linecap="round"/><circle cx="18" cy="20" r="2.6" fill="#E1243F"/><circle cx="29" cy="19" r="2.6" fill="#E1243F"/><path d="M14 25c3 2 7 0 10 2s7 0 10-2" stroke="#FF8A3D" stroke-width="2.6" stroke-linecap="round" fill="none"/><path d="M17 29h14" stroke="#8B5A3C" stroke-width="3" stroke-linecap="round"/>`),
+    'tacos-geant': S(`<rect x="7" y="14" width="34" height="22" rx="6" fill="#F0C27E" stroke="${L}" stroke-width="2"/><path d="M7 25h34" stroke="${L}" stroke-width="1.6"/><path d="M12 19l4 3M20 18l4 3M28 18l4 3M15 29l4 3M24 29l4 3M33 29l3 2" stroke="#C98A3A" stroke-width="2" stroke-linecap="round"/><path d="M41 21c3 0 4 2 3 4M41 29c3 0 4 2 3 4" stroke="#5FD3A4" stroke-width="2.6" stroke-linecap="round" fill="none"/><path d="M7 21c-3 0-4 2-3 4" stroke="#FFC84A" stroke-width="2.6" stroke-linecap="round" fill="none"/>`),
+    'space-cake': S(`<path d="M8 24l16-8 16 8v12l-16 8-16-8z" fill="#6B4A3A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M8 24l16 8 16-8M24 32v12" stroke="${L}" stroke-width="2" stroke-linejoin="round" fill="none"/><path d="M8 24l16-8 16 8-16 8z" fill="#8B5A3C"/><path d="M24 26c-3-2-4-6-3-10 2 2 3 4 3 6 0-2 1-5 3-6 1 4 0 8-3 10z" fill="#5FD3A4" stroke="#2F8F62" stroke-width="1.2" stroke-linejoin="round"/><circle cx="16" cy="25" r="1.2" fill="#FFF3C4"/><circle cx="31" cy="24" r="1.2" fill="#FFF3C4"/>`),
+    // le Manoir : les meringues fantômes, la barbe à papa toile d'araignée, la soupe de citrouille, les cookies chauves-souris, les chapeaux de sorcière, les pommes d'amour, la potion chocolatée
+    'meringues-fantomes': S(`<path d="M12 40V24a12 12 0 0124 0v16l-4-3-4 3-4-3-4 3-4-3z" fill="#FFFDF5" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M24 12c0-4 3-6 5-6" stroke="#FFFDF5" stroke-width="4" stroke-linecap="round" fill="none"/><path d="M24 12c0-4 3-6 5-6" stroke="${L}" stroke-width="1.4" stroke-linecap="round" fill="none"/><ellipse cx="20" cy="24" rx="2" ry="2.6" fill="#6B4A3A"/><ellipse cx="28" cy="24" rx="2" ry="2.6" fill="#6B4A3A"/><ellipse cx="24" cy="30" rx="2" ry="1.6" fill="#6B4A3A"/><circle cx="16.5" cy="28" r="1.8" fill="#FF9FB2"/><circle cx="31.5" cy="28" r="1.8" fill="#FF9FB2"/>`),
+    'barbe-toile': S(`<path d="M24 30v16" stroke="#C8864F" stroke-width="3" stroke-linecap="round"/><path d="M24 31c-9 0-15-5-15-12 0-6 4-10 9-10 2-3 10-3 12 0 5 0 9 4 9 10 0 7-6 12-15 12z" fill="#FFB3D0" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M24 11v19M12 19h24M15 12l18 15M33 12L15 27" stroke="#fff" stroke-width="1.2" opacity=".9"/><circle cx="24" cy="20" r="5" fill="none" stroke="#fff" stroke-width="1.2"/><circle cx="35" cy="26" r="2.4" fill="#3E3456"/><path d="M33 25l-2-1M37 25l2-1M33 27l-2 1M37 27l2 1" stroke="#3E3456" stroke-width="1" stroke-linecap="round"/>`),
+    'soupe-citrouille': S(`<path d="M6 22h36c0 11-8 18-18 18S6 33 6 22z" fill="#8E5CF7" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="24" cy="22" rx="18" ry="4.5" fill="#FF8A3D" stroke="${L}" stroke-width="2"/><circle cx="19" cy="21" r="1.8" fill="#FFC84A"/><circle cx="28" cy="22" r="1.4" fill="#FFC84A"/><path d="M17 15c-2-3 2-5 0-8M24 14c-2-3 2-5 0-8M31 15c-2-3 2-5 0-8" stroke="#B9AED6" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M16 42h16" stroke="${L}" stroke-width="2.4" stroke-linecap="round"/>`),
+    'cookies-chauve-souris': S(`<circle cx="24" cy="25" r="16" fill="#E8B46A" stroke="${L}" stroke-width="2"/><path d="M24 22c-3-4-8-6-13-4 2 1 3 3 2 6 3-1 5 0 6 2 1-2 3-3 5-4zM24 22c3-4 8-6 13-4-2 1-3 3-2 6-3-1-5 0-6 2-1-2-3-3-5-4z" fill="#4A3328"/><circle cx="24" cy="23" r="3.4" fill="#4A3328"/><circle cx="22.8" cy="22.5" r=".9" fill="#FFE27A"/><circle cx="25.2" cy="22.5" r=".9" fill="#FFE27A"/><circle cx="15" cy="32" r="1.4" fill="#8B5A3C"/><circle cx="31" cy="34" r="1.4" fill="#8B5A3C"/>`),
+    'chapeaux-sorciere': S(`<ellipse cx="24" cy="37" rx="17" ry="5" fill="#8B5A3C" stroke="${L}" stroke-width="2"/><path d="M15 36c3-9 5-20 13-29l2 2c-2 9-1 18 3 27z" fill="#3E3456" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M16.5 32c5 1.4 11 1.4 16 0" stroke="#FF8A3D" stroke-width="3" stroke-linecap="round"/><path d="M28 18l1.3 2.6 2.9.4-2.1 2 .5 2.9-2.6-1.4-2.6 1.4.5-2.9-2.1-2 2.9-.4z" fill="#FFC84A"/>`),
+    'pommes-ver': S(`<path d="M24 4v14" stroke="#C8864F" stroke-width="3" stroke-linecap="round"/><path d="M24 16c-3-3-11-3-13 4-2 8 3 18 9 18 2 0 3-1 4-1s2 1 4 1c6 0 11-10 9-18-2-7-10-7-13-4z" fill="#E1243F" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M15 21c1-2 3-3 5-3" stroke="#fff" stroke-width="2.2" stroke-linecap="round" fill="none"/><path d="M31 30c3-3 7-2 8 1 1 4-3 5-5 3" stroke="#7CD992" stroke-width="4" stroke-linecap="round" fill="none"/><circle cx="31.5" cy="29" r="2.6" fill="#7CD992" stroke="${L}" stroke-width="1.2"/><circle cx="31" cy="28.5" r=".8" fill="${L}"/>`),
+    'potion-chocolat': S(`<path d="M10 20h28v12c0 6-6 10-14 10s-14-4-14-10z" fill="#2B2533" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="24" cy="20" rx="14" ry="4" fill="#7CD992" stroke="${L}" stroke-width="2"/><path d="M15 20c4 2 14 2 18 0" stroke="#6B4A3A" stroke-width="2.4" stroke-linecap="round" fill="none"/><circle cx="20" cy="15" r="2.4" fill="#C6FF8F" opacity=".9"/><circle cx="27" cy="11" r="1.8" fill="#C6FF8F" opacity=".8"/><circle cx="23" cy="6" r="1.4" fill="#C6FF8F" opacity=".7"/><path d="M8 42h32" stroke="#FF8A3D" stroke-width="2.6" stroke-linecap="round"/>`),
+    // le poste lui-même : une toque sur une cuillère en bois ; la médaille de la maîtrise
+    cuisine: S(`<path d="M14 24c-5 0-8-4-7-8 1-4 5-6 9-4 1-4 5-7 8-7s7 3 8 7c4-2 8 0 9 4 1 4-2 8-7 8z" fill="#fff" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M14 24v9a3 3 0 003 3h14a3 3 0 003-3v-9" fill="#fff" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M15 29h18" stroke="#FFC84A" stroke-width="2.4" stroke-linecap="round"/><path d="M38 30l6 14" stroke="#C8864F" stroke-width="3" stroke-linecap="round"/><ellipse cx="37" cy="28" rx="3" ry="4.5" transform="rotate(-24 37 28)" fill="#E8B46A" stroke="${L}" stroke-width="1.6"/>`),
+    maitrise: S(`<path d="M16 4l8 14 8-14" fill="none" stroke="#5FD3A4" stroke-width="5" stroke-linejoin="round"/><circle cx="24" cy="30" r="13" fill="#FFC84A" stroke="${L}" stroke-width="2"/><circle cx="24" cy="30" r="9" fill="none" stroke="#E0A61E" stroke-width="1.6"/><path d="M24 23.5l2 4.1 4.5.6-3.3 3.1.8 4.5-4-2.2-4 2.2.8-4.5-3.3-3.1 4.5-.6z" fill="#fff"/>`),
+  };
   // le chat noir (la récompense de la Maison hantée), au même trait que le chat roux
   const CHAT_NOIR = S(`<path d="M10 20l3-12 8 7M38 20l-3-12-8 7" fill="#3A3442" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="24" cy="27" rx="15" ry="13" fill="#3A3442" stroke="${L}" stroke-width="2"/><ellipse cx="18" cy="25" rx="3.2" ry="3.6" fill="#FFD84A"/><ellipse cx="30" cy="25" rx="3.2" ry="3.6" fill="#FFD84A"/><ellipse cx="18" cy="25.5" rx="1.2" ry="2.4" fill="${L}"/><ellipse cx="30" cy="25.5" rx="1.2" ry="2.4" fill="${L}"/><path d="M22 31l2 1.6 2-1.6" stroke="#FF9FB2" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M8 29l-5-1M8 32l-5 1M40 29l5-1M40 32l5 1" stroke="#9E95B8" stroke-width="1.4" stroke-linecap="round"/><path d="M17 41c3 2 11 2 14 0" stroke="#FF8A3D" stroke-width="3" stroke-linecap="round"/>`);
   // les compagnons de la boutique (GAME.COMPAGNONS) : un portrait chacun, au même trait que le chat ; ICONS.compagnon(id)
@@ -5360,7 +5401,7 @@ const ICONS = (() => {
     dragon: S(`<path d="M8 22c-5-2-7-8-5-12 4 2 8 3 10 7z" fill="#9A84F0" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M40 22c5-2 7-8 5-12-4 2-8 3-10 7z" fill="#9A84F0" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M15 15l-2-8 6 5M33 15l2-8-6 5" fill="#FFF3C4" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="24" cy="26" rx="14" ry="13" fill="#5FD3A4" stroke="${L}" stroke-width="2"/><ellipse cx="24" cy="33" rx="8" ry="5.5" fill="#86E0BC"/>${yx(18.5, 23)}${yx(29.5, 23)}<circle cx="21.5" cy="32" r="1" fill="#3FB889"/><circle cx="26.5" cy="32" r="1" fill="#3FB889"/><circle cx="38" cy="38" r="3.4" fill="#fff" stroke="#E8DCCB" stroke-width="1.2"/><circle cx="42.5" cy="35.5" r="2.4" fill="#fff" stroke="#E8DCCB" stroke-width="1.2"/><circle cx="43" cy="41" r="2" fill="#fff" stroke="#E8DCCB" stroke-width="1.2"/>`),
   };
   const compagnon = (id) => COMPAGNONS[id] || CHAT;
-  return { PRODUITS, SAISON, CHAT, CHAT_NOIR, COMPAGNONS, compagnon, QUARTIER, HANTEE, ACTIVITES, apprenti, boulanger, vetement, TENUES, toque, coupe, METAL, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES, INGREDIENTS, ATELIER };
+  return { PRODUITS, SAISON, CHAT, CHAT_NOIR, COMPAGNONS, compagnon, QUARTIER, HANTEE, ACTIVITES, RECETTES_JOUR, apprenti, boulanger, vetement, TENUES, toque, coupe, METAL, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES, INGREDIENTS, ATELIER };
 })();
 
 /* ── vie.js ── */
@@ -6920,6 +6961,22 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     g.userData.anime = (E) => { g.position.set(x0 + Math.sin(E.t * 0.4) * f.w * 0.6, y0 + Math.sin(E.t * 1.7) * 4 * K, z0); g.rotation.y = Math.cos(E.t * 0.4) * 0.5; corps.material.opacity = 0.78 + 0.1 * Math.sin(E.t * 2.2); };
     return g;
   }
+  // la toque de la recette du jour (src/activites.js : la 500e fournée d'un événement, q.decos) : une petite plaque accrochée à la porte de
+  // l'arrière-boutique (au-dessus, l'enseigne de la boutique la cacherait), sa toque devant ; 'or' (la Planque) : la toque dorée sur fond
+  // nuit ; 'citrouille' (le Manoir) : une citrouille qui porte la toque. bas : la seconde place, plus bas sur la porte (les deux gagnées).
+  // Dessinée en pixels d'écran, étirée de 1/CY (ronde à l'écran)
+  function toqueRecette(c, sorte, bas) {
+    const a = c.LAY.arriere, cit = sorte === 'citrouille', hpx = a ? c.LAY.murH - a.y : 60, x = a ? a.x + a.w / 2 : c.W * 0.32, ys = (a ? a.y : c.LAY.T * 0.2) + hpx * (bas ? 0.47 : 0.21);
+    const g = grp('toque-' + sorte, x, murY(c, ys), 4.2), pr = []; g.scale.y = 1 / c.CY;
+    pr.push(P(bo(19, 17, 2.2, 0.8), cit ? '#7B4FD0' : '#FFC84A'), P(bo(15.5, 13.5, 1.2, 0.4), cit ? '#2A2047' : '#2E2B3A', { z: 1.4 })); // le cadre, le fond
+    const yt = cit ? 2.6 : -1; // le bas de la toque (le tout un peu haut : vu de haut, ce qui avance du mur descend à l'écran)
+    if (cit) { pr.push(P(M.sphere(4.4, 12), '#FF8A3D', { y: -0.6, z: 2.6, sx: 1.25, sz: 0.5 }), P(bo(1.4, 1.6, 0.6, 0.2), '#3FB889', { y: 3.6, z: 2.8 })); for (const sx of [-1, 1]) pr.push(P(M.sphere(0.8, 6), '#FFE27A', { x: sx * 1.9, y: 0, z: 4.6 })); }
+    const blanc = cit ? '#FFFFFF' : '#FFE07A';
+    pr.push(P(M.cylindre(2.9, 2.9, 3.2, 12), blanc, { y: yt + 1.6, z: 2.6, sz: 0.5 })); // le bandeau de la toque
+    for (const dx of [-2.2, 0, 2.2]) pr.push(P(M.sphere(2.3, 10), blanc, { x: dx, y: yt + 4.6 + (dx ? 0 : 0.8), z: 2.6, sz: 0.5 })); // le bouffant
+    pr.push(P(bo(6.4, 0.9, 0.5, 0.2), cit ? '#FF8A3D' : '#5FD3A4', { y: yt + 1.4, z: 4.2 })); // le ruban
+    g.add(M.maille(pr, { ombre: false })); return g;
+  }
   // ─── le standing de la boutique (Q.standing 1 à 5, Q.objets : src/vie.js decor) : ce qui s'ajoute au décor, hors des chemins et des
   //     zones de touche — contre le mur du fond, en haut, aux deux coins du fournil, à la porte de la devanture et sur le trottoir.
   //     Tout est fusionné en un maillage (1 appel de dessin, le soir compris : la lueur des lanternes est dans le même, lueurVerre).
@@ -7038,7 +7095,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     if (c.Q && c.Q.standing) out.push(standing(c));
     return out;
   }
-  return { get sallesEnCache() { return [...TEX.keys()].filter((k) => /^(sol|mur)/.test(k)).length; }, textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome, standing, coinsStanding };
+  return { get sallesEnCache() { return [...TEX.keys()].filter((k) => /^(sol|mur)/.test(k)).length; }, textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome, toqueRecette, standing, coinsStanding };
 })();
 if (typeof module !== 'undefined') module.exports = MEUBLES;
 
@@ -8318,6 +8375,9 @@ const SCENE = (() => {
     { id: 'chien', cle: () => (QDECO.chien && MEUBLES.chien && modeleComp !== 'chien-quartier' ? '1' : null), faire: (k, c) => MEUBLES.chien(c) },
     // les décos de la Maison hantée (src/hantee.js, gagnées aux paliers, à vie) : citrouilles-lanternes, toiles d'araignée, chaudron, petit fantôme
     ...['citrouilles', 'toiles', 'chaudron', 'fantome'].map((id) => ({ id: 'ht-' + id, cle: () => (HDECO[id] && MEUBLES[id] ? '1' : null), faire: (k, c) => MEUBLES[id](c) })),
+    // la toque de la recette du jour (src/activites.js : la 500e fournée, à vie), accrochée à la porte de l'arrière-boutique : celle de la Planque, celle du Manoir plus bas si les deux sont là
+    { id: 'toque-or', cle: () => (QDECO['toque-or'] && MEUBLES.toqueRecette ? '1' : null), faire: (k, c) => MEUBLES.toqueRecette(c, 'or', false) },
+    { id: 'ht-toque-citrouille', cle: () => (HDECO['toque-citrouille'] && MEUBLES.toqueRecette ? (QDECO['toque-or'] ? 'deux' : 'seule') : null), faire: (k, c) => MEUBLES.toqueRecette(c, 'citrouille', k === 'deux') },
     // le badge « Esprit d'équipe » (l'objectif commun de la semaine réussi, classement v6) : une rosette accrochée au mur, à vie ; absent pour qui ne l'a pas
     { id: 'equipe', cle: () => (REC.equipe ? '1' : null), faire: (k, c) => rosetteEquipe(c) },
     // le standing de la boutique (GAME.standing, palier 1 à 5) : ses objets (Q.objets) en un maillage (la lueur du soir comprise) ; en haute, ses modèles cuits (lots luxe*)
@@ -8340,9 +8400,9 @@ const SCENE = (() => {
   const SALLE_IDS = ['tables', 'bar', 'banquette', 'terrasse']; // les meubles de la salle : KayKit en haute et moyenne (lot HD « boutique »), faits main en éco
   // les récompenses du podium du classement (src/classement.js) : la tenue du boulanger, la coupe du comptoir, les coupes de la vitrine
   const REC = { tenue: null, coupe: null, coupes: [], equipe: false }, METAUX = ['or', 'argent', 'bronze'];
-  const QDECO = { graffiti: false, neon: false, scooter: false, chien: false }; // les décos du quartier posées dans la boutique
+  const QDECO = { graffiti: false, neon: false, scooter: false, chien: false, 'toque-or': false }; // les décos du quartier posées dans la boutique (et la toque de la recette du jour)
   function decosQuartier(liste) { const l = Array.isArray(liste) ? liste : []; for (const k of Object.keys(QDECO)) QDECO[k] = l.includes(k); ext.der = -1; }
-  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
+  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false, 'toque-citrouille': false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
   const ALIAS_HT = { citrouille: 'citrouilles', lanternes: 'citrouilles', toile: 'toiles', araignees: 'toiles', chaudrons: 'chaudron', fantomes: 'fantome' };
   function decosHantee(liste) { const l = (Array.isArray(liste) ? liste : []).map((k) => ALIAS_HT[k] || k); for (const k of Object.keys(HDECO)) HDECO[k] = l.includes(k); }
   // le compagnon de la boutique (GAME.COMPAGNONS : le chat roux, le chat noir, le chien… le mini-dragon ; ui.js dit lequel, noir d'office pour
@@ -9620,6 +9680,10 @@ const GARDEROBE_UI = (() => {
         hors de l'écran et pendant l'absence (son début et sa fin sont des « maintenant » de l'horloge de confiance, HORLOGE, donnés par
         l'appelant). Le gain est fixé au lancement (une part du rythme × la durée) ; un petit risque, tiré au lancement lui aussi (ni une
         relecture de la sauvegarde ni un retour en arrière ne le relancent), en saisit une partie ; on ramasse à l'ouverture suivante.
+     4. LA RECETTE DU JOUR (RECETTES_JOUR, recetteDuJour, preparerRecette, lancerRecette, sortirRecette) : un poste à part, cuit à la main,
+        sur le modèle de la recette de saison du Fournil (src/game.js, SAISON) ; sept recettes par événement, une servie chaque jour de
+        Paris (la même pour tous), un niveau commun à toutes, et la maîtrise en trois étapes (100, 250, 500 fournées) qui paie la
+        boulangerie (étoiles, puis un décor). Voir RECETTE_JOUR, plus bas.
    Tout est plafonné, à l'heure ou au jour, et proportionnel au rythme : le marathon simulé (24 h/24, toutes les activités jouées au mieux,
    test/fournil-quartier.test.js et test/fournil-hantee.test.js) reste au moins ×2 sous l'enveloppe du serveur, sans changer le SQL.
 
@@ -9634,8 +9698,12 @@ const GARDEROBE_UI = (() => {
        decor: { motif, fond, sol, accent, accent2, clair, texte },          les couleurs des toiles ; motif : 'quartier', 'hantee' ou autre (formes neutres)
        contrats: { minutes: [facile, moyen, dur], boost: { mult, secs }, chanceBoost, modeles: [ids], textes: { id: (n, produit) => phrase } },
        operations: [{ id, nom, desc, min, part, risque }], saisie,           trois coups (5, 15, 60 min) ; part : du rythme ; risque : la chance d'une saisie
-       textes: { mini, contrats, operation, saisie(m), reussite(m), … }     les mots de l'écran (src/evenement.js en a d'autres par défaut)
-     } */
+       textes: { mini, contrats, operation, saisie(m), reussite(m), recette, … }  les mots de l'écran (src/evenement.js en a d'autres par défaut)
+       recettes: [{ id, nom, desc, temps, icone }] × 7,                    la recette du jour : temps de 20 à 90 s ; icone : la clé de son icône (ICONS.RECETTES_JOUR)
+       recetteDeco: 'id', recetteDecoTxt                                    le décor de la 500e fournée (q.decos ; l'écran le pose dans la boutique) et sa phrase
+     }
+   Les règles passent aussi, pour la recette du jour, boostMult (la présence et la soirée), remise (le Grossiste) et debut (l'ouverture :
+   les blocs de sept recettes en partent) ; sans elles : ×1, et des blocs alignés sur le 1er janvier 1970. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.ACTIVITES = factory();
@@ -9763,7 +9831,35 @@ const GARDEROBE_UI = (() => {
     ],
     saisie: 0.5,
     textes: {},
+    // la recette du jour : sept recettes neutres (une fiche les habille) ; de 20 à 90 s
+    recettes: [
+      { id: 'chouquettes', nom: 'Chouquettes', desc: 'Des petits choux et du sucre en grains.', temps: 20, icone: '' },
+      { id: 'madeleines', nom: 'Madeleines', desc: 'Avec leur bosse, bien dorées.', temps: 30, icone: '' },
+      { id: 'cookies', nom: 'Cookies', desc: 'Moelleux au milieu, croustillants autour.', temps: 40, icone: '' },
+      { id: 'crepes', nom: 'Crêpes', desc: 'Fines, et sautées d’une main.', temps: 45, icone: '' },
+      { id: 'brioche', nom: 'Brioche tressée', desc: 'Trois brins de pâte et du beurre.', temps: 60, icone: '' },
+      { id: 'tarte', nom: 'Tarte aux pommes', desc: 'Les pommes en rosace.', temps: 75, icone: '' },
+      { id: 'epices', nom: 'Pain d’épices', desc: 'Du miel, de la cannelle, de la patience.', temps: 90, icone: '' },
+    ],
+    recetteDeco: null,
   };
+  // ═══ 4. La recette du jour : réglages communs (le modèle : SAISON de src/game.js : pas 0,1, ×1,5 par niveau, niveau 10 ; la part et le prix plus bas) ═══
+  // Chaque jour de Paris, une des sept recettes de la fiche est servie, la même pour tous : les sept dans un ordre tiré pour chaque bloc de
+  // sept jours depuis l'ouverture (R.debut ; la graine du bloc et de l'événement), jamais deux jours de suite la même. Le poste a UN niveau, commun à toutes (0 à 10),
+  // gardé quand la recette change : le 1er, la préparer ; les suivants, l'améliorer ; prix : rythme × coutSec × croiss^niv (× la remise du
+  // Grossiste). Une fournée se lance à la main seulement (pas d'apprenti), dure le temps de la recette, et rapporte rythme × temps × part ×
+  // (1 + pas × (niv − 1)) × boostMult, fixé au lancement (début et fin : des « maintenant » de confiance, comme une opération ; refusée si
+  // l'événement ferme avant la fin) ; elle sort même pendant l'absence (l'absence des règles et la carte de l'écran l'appellent), rien ne se
+  // relance seul. La maîtrise compte les fournées de toutes les recettes (q.recettes.fournees) : trois étapes, chacune donnée une fois
+  // (q.recettes.etapes) : des étoiles pour la boulangerie (comme une combine : q.etoiles pour le bilan, q.recettes.aVerser que l'écran
+  // verse et remet à zéro) et, à la dernière, le décor de la fiche (q.decos, comme un palier). Ces étoiles ne touchent pas aux billets.
+  // La part : 0,04, et non 1 comme la saison. Ici, la présence (boostMult) multiplie déjà les ventes par 6 : à la part 1, la recette jouée
+  // sans arrêt triplait les gains de la session (×5,9 en quatorze jours de marathon ; le très actif au 20e palier le 7e jour). À 0,04, elle
+  // ajoute ~8 % (0,04 × 1,9 × 6 = 0,46 rythme, contre ~6 pour les postes) : le 20e reste hors de portée du très actif (106 Bd pour 110 Bd
+  // au Quartier ; 95,9 Bd sans elle). Ce qu'elle paie surtout, c'est la maîtrise (les étoiles, le décor). Le prix suit la part (coutSec :
+  // 300 × 0,04 = 12 s du rythme) : un niveau se rembourse en autant de fournées qu'à la saison.
+  const RECETTE_JOUR = { part: 0.04, pas: 0.1, coutSec: 12, croiss: 1.5, nivMax: 10, tempsMin: 20, tempsMax: 90,
+    etapes: [{ n: 100, etoiles: 2 }, { n: 250, etoiles: 3 }, { n: 500, etoiles: 5, deco: true }] };
   // les modèles de contrats : une statistique de q.stats, trois exigences (facile, moyen, dur) ; « vente » vise un des trois premiers produits
   const MODELES = {
     descentes: { stat: 'descentes', n: [2, 3, 5], texte: (n) => `Réussis ${n} coup${n > 1 ? 's' : ''} de pouce à toucher` },
@@ -9787,6 +9883,8 @@ const GARDEROBE_UI = (() => {
     const OPERATIONS = (f.operations || DEFAUTS.operations).map((o, k) => Object.assign({}, DEFAUTS.operations[k] || DEFAUTS.operations[0], o));
     const SAISIE = f.saisie != null ? f.saisie : DEFAUTS.saisie;
     const TEXTES = Object.assign({}, DEFAUTS.textes, f.textes || {});
+    const RECETTES_JOUR = (f.recettes || DEFAUTS.recettes).map((r) => Object.assign({}, r, { temps: borne(Number(r.temps) || 30, RECETTE_JOUR.tempsMin, RECETTE_JOUR.tempsMax) }));
+    const DECO_RECETTE = f.recetteDeco || DEFAUTS.recetteDeco, DECO_RECETTE_TXT = f.recetteDecoTxt || '';
     const jeuMini = (jid) => MINI.jeux.find((j) => j.id === jid) || null;
     const arrondi = R.arrondi || ((n) => Math.round(n));
     // le jour de l'ouverture (une demi-journée), les activités ne paient pas encore : c'est là que l'économie de l'événement grimpe le plus
@@ -9805,8 +9903,14 @@ const GARDEROBE_UI = (() => {
       if (q.operation && (typeof q.operation !== 'object' || !Number.isFinite(q.operation.fin) || !OPERATIONS.some((o) => o.id === q.operation.id))) q.operation = null;
       if (q.operation === undefined) q.operation = null;
       const s = q.stats; if (s && typeof s === 'object') { for (const k of STATS) if (!(s[k] >= 0)) s[k] = 0; if (!Array.isArray(s.vendus)) s.vendus = []; while (s.vendus.length < R.PRODUITS.length) s.vendus.push(0); }
+      const rc = q.recettes && typeof q.recettes === 'object' ? q.recettes : (q.recettes = recettesNeuves()); // la recette du jour (une sauvegarde d'avant : niveau 0, rien au four)
+      rc.niv = Number.isFinite(rc.niv) ? borne(Math.floor(rc.niv), 0, RECETTE_JOUR.nivMax) : 0; if (!(rc.fournees >= 0)) rc.fournees = 0; if (!(rc.aVerser >= 0)) rc.aVerser = 0; if (!Number.isFinite(rc.sortie)) rc.sortie = 0;
+      if (!Array.isArray(rc.etapes)) rc.etapes = [];
+      if (rc.four && (typeof rc.four !== 'object' || !Number.isFinite(rc.four.fin) || !(rc.four.gain >= 0) || !recetteId(rc.four.id))) rc.four = null;
+      if (rc.four === undefined) rc.four = null;
       return q;
     }
+    const recettesNeuves = () => ({ niv: 0, fournees: 0, etapes: [], four: null, aVerser: 0, sortie: 0 });
 
     // ─── 1. les mini-jeux : les jetons (3 par heure), le plafond du jour de Paris, les records ───
     function miniDuJour(q, now) { // remet les jetons à l'heure (sur le « maintenant » de confiance) et le compteur du jour à minuit, heure de Paris
@@ -9899,14 +10003,81 @@ const GARDEROBE_UI = (() => {
       return { op, o: e.o, gain: op.gain, saisi: op.saisi, net };
     }
 
+    // ─── 4. la recette du jour : un poste à part, cuit à la main ; la maîtrise en trois étapes ───
+    const recetteId = (rid) => RECETTES_JOUR.find((r) => r.id === rid) || null;
+    const numJour = (jour) => Math.floor(Date.parse(jour + 'T12:00:00Z') / 864e5); // « 2026-10-15 » → un numéro de jour
+    const cleJour = (n) => new Date(n * 864e5).toISOString().slice(0, 10);
+    function ordreBloc(b) { // les sept recettes dans l'ordre du bloc de sept jours b (un mélange tiré de la graine du bloc et de l'événement)
+      const g = hacher(`${b}|${id}|recettes`), o = RECETTES_JOUR.map((r, k) => k);
+      for (let k = o.length - 1; k > 0; k--) { const j = Math.floor(alea(g, k) * (k + 1)); const x = o[k]; o[k] = o[j]; o[j] = x; }
+      return o;
+    }
+    const jour0 = R.debut != null ? numJour(R.dayKey(R.debut)) : 0; // les blocs partent du jour de l'ouverture : sept jours, sept recettes
+    function rangDuJour(jour) { // jamais deux jours de suite la même : le premier jour d'un bloc évite le dernier du bloc d'avant
+      const n = numJour(jour) - jour0, N = RECETTES_JOUR.length, b = Math.floor(n / N), k = n - b * N, o = ordreBloc(b);
+      if (k <= 1 && N > 1 && o[0] === ordreBloc(b - 1)[N - 1]) { const x = o[0]; o[0] = o[1]; o[1] = x; }
+      return o[k];
+    }
+    const recetteDuJour = (x) => RECETTES_JOUR[rangDuJour(jourDe(x))]; // x : un « maintenant » ou un jour de Paris (« 2026-10-15 »)
+    const recetteDemain = (x) => RECETTES_JOUR[rangDuJour(cleJour(numJour(jourDe(x)) + 1))];
+    const remiseRecette = (q) => (R.remise ? R.remise(q) : 1);
+    const prixRecette = (q) => arrondi(R.rythme(q) * RECETTE_JOUR.coutSec * Math.pow(RECETTE_JOUR.croiss, q.recettes.niv)) * remiseRecette(q); // le prochain niveau (comme coutSaison)
+    const multRecette = (niv) => (niv > 0 ? 1 + RECETTE_JOUR.pas * (niv - 1) : 0);
+    const gainRecette = (q, r) => R.rythme(q) * r.temps * RECETTE_JOUR.part * multRecette(q.recettes.niv) * (R.boostMult ? R.boostMult(q) : 1); // une fournée lancée maintenant
+    const recetteFermee = (now) => !ouvertes(now) || (R.fenetre ? !R.fenetre(now).ouvert : false);
+    function preparerRecette(q, now) { // niveau 0 → 1 : préparer la cuisine ; ensuite améliorer, jusqu'au niveau 10 (les billets ou les bonbons de l'événement)
+      reparer(q); const rc = q.recettes;
+      if (rc.niv >= RECETTE_JOUR.nivMax) return { ok: false, max: true };
+      if (recetteFermee(now)) return { ok: false, ferme: true };
+      const prix = prixRecette(q); if (!(q.billets >= prix)) return { ok: false, prix };
+      q.billets -= prix; rc.niv++;
+      if (rc.niv === 1) R.note(q, `${TEXTES.recette || 'La recette du jour'} : la cuisine est prête`);
+      return { ok: true, prix, niv: rc.niv };
+    }
+    function lancerRecette(q, now) { // une fournée de la recette du jour, à la main ; une seule au four ; refusée si l'événement ferme avant qu'elle sorte
+      reparer(q); const rc = q.recettes;
+      if (rc.niv <= 0) return { ok: false, niv: true };
+      if (rc.four) return { ok: false, occupe: true };
+      if (recetteFermee(now)) return { ok: false, ferme: true };
+      const r = recetteDuJour(now), f = R.fenetre ? R.fenetre(now) : null;
+      if (f && f.reste < r.temps * 1000) return { ok: false, tard: true };
+      rc.four = { id: r.id, debut: now, fin: now + r.temps * 1000, gain: gainRecette(q, r) };
+      return { ok: true, four: rc.four, r };
+    }
+    function sortirRecette(q, now) { // la fournée est cuite (sur le « maintenant » de confiance) : son gain, une fournée de plus, les étapes atteintes (une fois chacune)
+      reparer(q); const rc = q.recettes, fo = rc.four; if (!fo || !(now >= fo.fin)) return null;
+      rc.four = null; rc.fournees++; rc.sortie = fo.fin; if (fo.gain > 0) R.gagner(q, fo.gain);
+      const etapes = [];
+      for (const e of RECETTE_JOUR.etapes) {
+        if (rc.fournees < e.n || rc.etapes.includes(e.n)) continue;
+        rc.etapes.push(e.n); q.etoiles = (q.etoiles || 0) + e.etoiles; rc.aVerser += e.etoiles;
+        const deco = e.deco && DECO_RECETTE ? DECO_RECETTE : null; if (deco && Array.isArray(q.decos) && !q.decos.includes(deco)) q.decos.push(deco);
+        R.note(q, `${TEXTES.recette || 'La recette du jour'} : ${e.n} fournées, +${e.etoiles} ★`); etapes.push({ n: e.n, etoiles: e.etoiles, deco });
+      }
+      return { r: recetteId(fo.id), gain: fo.gain, fournees: rc.fournees, etapes };
+    }
+    function verserRecette(q) { reparer(q); const n = q.recettes.aVerser; q.recettes.aVerser = 0; return n; } // les étoiles des étapes, à verser dans la boulangerie (l'écran)
+    function etatRecette(q, now) { // ce que la carte affiche : la recette du jour, demain, le niveau, le prix, le four, la maîtrise
+      reparer(q); const rc = q.recettes, r = recetteDuJour(now), fo = rc.four, fr = fo ? recetteId(fo.id) : null, max = rc.niv >= RECETTE_JOUR.nivMax;
+      const prochaine = RECETTE_JOUR.etapes.find((e) => !rc.etapes.includes(e.n)) || null;
+      return { r, demain: recetteDemain(now), niv: rc.niv, max, prix: max ? 0 : prixRecette(q), gain: rc.niv > 0 ? gainRecette(q, r) : 0, ouverte: !recetteFermee(now),
+        four: fo, fr, finie: !!fo && now >= fo.fin, reste: fo ? Math.max(0, fo.fin - now) : 0, part: fo ? borne((now - fo.debut) / Math.max(1, fo.fin - fo.debut), 0, 1) : 0,
+        fournees: rc.fournees, etapes: RECETTE_JOUR.etapes.map((e) => Object.assign({ faite: rc.etapes.includes(e.n) }, e)), prochaine, maitrise: RECETTE_JOUR.etapes[RECETTE_JOUR.etapes.length - 1].n };
+    }
+
     // ─── la simulation (src/quartier.js, src/hantee.js : simuler) : les activités jouées comme ce profil les jouerait ───
     // qualite : la part du score plein d'une partie ; mini : joue dès qu'un jeton est là ; op : l'opération lancée (la plus longue) ; on
-    // réclame les contrats dès qu'ils sont prêts. Le marathon et le très actif jouent tout au mieux (le pire cas de l'enveloppe).
+    // réclame les contrats dès qu'ils sont prêts ; recette : les secondes avant de relancer une fournée sortie (null : on n'y touche pas).
+    // Le marathon et le très actif jouent tout au mieux (le pire cas de l'enveloppe), la recette du jour comprise ; les autres profils ne la
+    // jouent que si on le demande (recette: true, avec leur délai : delai), pour garder les paliers réglés sans elle.
     const POLITIQUES = {
-      marathon: { qualite: 1, op: 'long' }, tresactif: { qualite: 1, op: 'long' },
-      assidu: { qualite: 0.8, op: 'long' }, quotidien: { qualite: 0.7, op: 'long' }, occasionnel: { qualite: 0.6, op: 'long' },
+      marathon: { qualite: 1, op: 'long', recette: 0, delai: 0 }, tresactif: { qualite: 1, op: 'long', recette: 0, delai: 0 },
+      assidu: { qualite: 0.8, op: 'long', recette: null, delai: 5 }, quotidien: { qualite: 0.7, op: 'long', recette: null, delai: 8 }, occasionnel: { qualite: 0.6, op: 'long', recette: null, delai: 10 },
     };
-    const politique = (profil) => POLITIQUES[profil] || POLITIQUES.assidu;
+    const politique = (profil, recette) => { // recette : true (la jouer, même pour un profil qui ne la joue pas d'office), false (jamais), sinon celle du profil
+      const p = POLITIQUES[profil] || POLITIQUES.assidu;
+      return recette === false ? Object.assign({}, p, { recette: null }) : recette === true && p.recette == null ? Object.assign({}, p, { recette: p.delai }) : p;
+    };
     const sim = {
       pas(q, now, pol, rnd, s) { // toutes les 20 s de jeu : ramasser, relancer, une partie si un jeton attend (une par minute au plus), les contrats prêts
         if (!pol) return; rnd = rnd || Math.random;
@@ -9917,10 +10088,17 @@ const GARDEROBE_UI = (() => {
         for (const c of etatContrats(q, now)) if (c.pret) reclamerContrat(q, c.k, now);
       },
       fin(q, now, pol, rnd) { if (!pol) return; const e = etatOperation(q, now); if (e && e.finie) ramasserOperation(q, now); if (!q.operation && pol.op) lancerOperation(q, pol.op, now, rnd || Math.random); }, // en partant : une opération pour l'absence
+      recette(q, now, pol) { // chaque seconde de jeu : la fournée sortie, le niveau monté dès que les billets le paient, une fournée relancée (après pol.recette s)
+        if (!pol || pol.recette == null) return;
+        sortirRecette(q, now); const rc = q.recettes;
+        if (rc.niv < RECETTE_JOUR.nivMax && !recetteFermee(now) && q.billets >= prixRecette(q)) preparerRecette(q, now);
+        if (!rc.four && rc.niv > 0 && now - rc.sortie >= pol.recette * 1000) lancerRecette(q, now);
+      },
     };
 
     const api = { activitesOuvertes: ouvertes, MINI, MOTEURS, OPERATIONS, CONTRATS, SAISIE, TEXTES_ACTIVITES: TEXTES, jeuMini, miniDuJour, jetonsMini, qualiteMini, primePleineMini, primeMini, finirMini,
-      contratsDuJour, etatContrats, aReclamer, reclamerContrat, operation, gainOperation, lancerOperation, etatOperation, ramasserOperation };
+      contratsDuJour, etatContrats, aReclamer, reclamerContrat, operation, gainOperation, lancerOperation, etatOperation, ramasserOperation,
+      RECETTE_JOUR, RECETTES_JOUR, DECO_RECETTE, DECO_RECETTE_TXT, recetteDuJour, recetteDemain, prixRecette, gainRecette, preparerRecette, lancerRecette, sortirRecette, verserRecette, etatRecette };
     return Object.assign({ api, reparer, sim, politique }, api);
   }
 
@@ -9962,7 +10140,7 @@ const GARDEROBE_UI = (() => {
   }
   const RECOMPENSES = { lotPalier, lotCombine, phraseLot, diffBoost, revue };
 
-  return { equiper, MOTEURS, DEFAUTS, MODELES, STATS, GUET, COMPTE, TOURNEE, alea, hacher, RECOMPENSES };
+  return { equiper, MOTEURS, DEFAUTS, MODELES, STATS, GUET, COMPTE, TOURNEE, RECETTE_JOUR, alea, hacher, RECOMPENSES };
 });
 
 /* ── quartier.js ── */
@@ -10325,6 +10503,8 @@ const GARDEROBE_UI = (() => {
       else s.prog += secs;
     });
     if (total > 0) gagner(q, total);
+    const rj = A.sortirRecette(q, nowMs); // la recette du jour : une fournée au four sort quand même (payée par sortirRecette ; rien ne se relance seul)
+    if (rj) { total += rj.gain; detail.push({ i: -1, nom: rj.r ? rj.r.nom : '', n: 1, m: rj.gain }); }
     q.boost = garde.boost;
     if (court) { q.ev = garde.ev; pauseCoup(q, ecart); } else { q.evTimer = Math.max(q.evTimer || 0, REPRISE); }
     q.lastSeen = nowMs;
@@ -10362,9 +10542,9 @@ const GARDEROBE_UI = (() => {
     }
     return fait;
   }
-  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour } } ; opts : { graine, debut, offertes, activites }
+  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour } } ; opts : { graine, debut, offertes, activites, recette } (recette : false, sans la recette du jour ; true, jouée même par un profil qui ne la joue pas d'office)
     opts = opts || {}; const prof = PROFILS[profil] || PROFILS.assidu, rnd = mulberry32(opts.graine || 7), st = {}, t0 = opts.debut || DEBUT;
-    const jeu = opts.activites === false ? null : A.politique(profil), rndA = mulberry32((opts.graine || 7) + 101); // les activités, jouées comme ce profil (leur propre hasard : les coups de pouce ne changent pas)
+    const jeu = opts.activites === false ? null : A.politique(profil, opts.recette), rndA = mulberry32((opts.graine || 7) + 101); // les activités, jouées comme ce profil (leur propre hasard : les coups de pouce ne changent pas)
     const q = etat(st, t0), parJour = [], paliersJour = {}, trace = []; q.lastSeen = t0;
     const H = 3600e3, nJ = jours || 14;
     const minuit0 = t0 - (paris(t0).getUTCHours() * 3600e3 + paris(t0).getUTCMinutes() * 60e3); // minuit, heure de Paris, du premier jour
@@ -10384,6 +10564,7 @@ const GARDEROBE_UI = (() => {
             else if (q.ev.type === 'scooter' && rnd() < 0.5) attraper(q);
           }
           for (const p of out.paliers) { marquerPalier(q, p.n); paliersJour[p.n] = j + 1; if (opts.offertes && p.n === PALIERS_BOSS) for (const a of AMELIORATIONS) if (a.apres) q.ameliorations[a.id] = true; } // offertes : le pire cas de l'enveloppe (toutes les combines dès le 12e, sans les payer)
+          if (jeu) A.sim.recette(q, now, jeu); // la recette du jour, chaque seconde (avant les achats : elle passe d'abord)
           if (s % 3 === 0) decider(q);
           if (jeu && s % 20 === 0) A.sim.pas(q, now, jeu, rndA);
           if (s % 60 === 0) trace.push({ t: (now - t0) / JOUR, total: q.total });
@@ -10435,10 +10616,21 @@ const GARDEROBE_UI = (() => {
         { id: 'moyen', nom: 'La livraison du bâtiment C', desc: 'Un quart d’heure dans les escaliers : l’ascenseur est en panne.' },
         { id: 'long', nom: 'Le gros coup du PMU', desc: 'Une heure dans l’arrière-salle : le meilleur gain, le plus de risque.' },
       ],
-      textes: { saisie: 'Contrôle de police', saisieTxt: (m) => `Contrôle de police : ${m} saisis.`, operation: 'Opération', enCours: 'L’équipe est sur le coup' },
+      textes: { saisie: 'Contrôle de police', saisieTxt: (m) => `Contrôle de police : ${m} saisis.`, operation: 'Opération', enCours: 'L’équipe est sur le coup', recette: 'La recette du jour', cuisine: 'La cuisine de la Planque' },
+      // la recette du jour (src/activites.js, RECETTE_JOUR) : la cuisine de la Planque, une recette par jour, de 20 à 90 s ; à la 500e fournée, la toque en or
+      recettes: [
+        { id: 'the-menthe', nom: 'Le thé à la menthe du hall', desc: 'Très sucré, versé de très haut, servi sur les marches du bâtiment B.', temps: 20, icone: 'the-menthe' },
+        { id: 'chouquettes-pigeons', nom: 'Les chouquettes des pigeons', desc: 'Les pigeons du square en ont goûté une. Ils ne sont jamais repartis.', temps: 25, icone: 'chouquettes-pigeons' },
+        { id: 'frites-camion', nom: 'Les frites du camion', desc: 'Double cuisson, une barquette qui tient chaud aux mains toute la nuit.', temps: 30, icone: 'frites-camion' },
+        { id: 'crepe-pmu', nom: 'La crêpe Nutella du PMU', desc: 'Tonton Serge la retourne sans quitter le tiercé des yeux.', temps: 40, icone: 'crepe-pmu' },
+        { id: 'kebab-samourai', nom: 'Le kebab sauce samouraï', desc: 'Salade, tomate, oignons, et la sauce qui fait pleurer les durs.', temps: 50, icone: 'kebab-samourai' },
+        { id: 'tacos-geant', nom: 'Le tacos trois viandes', desc: 'Plié en quatre, il pèse autant qu’un pack d’eau.', temps: 70, icone: 'tacos-geant' },
+        { id: 'space-cake', nom: 'Le space cake de Mémé', desc: 'La recette secrète de Mémé Jacqueline. Surtout, pas pour le chien.', temps: 90, icone: 'space-cake' },
+      ],
+      recetteDeco: 'toque-or', recetteDecoTxt: 'la toque en or du chef de la Planque, accrochée à la porte de l’arrière-boutique',
     },
   };
-  const A = ACT.equiper({ id: 'quartier', rythme, gagner, note, dayKey, fmt: fmtEur, arrondi, fenetre, PRODUITS }, FICHE.activites); // les activités (src/activites.js)
+  const A = ACT.equiper({ id: 'quartier', rythme, gagner, note, dayKey, fmt: fmtEur, arrondi, fenetre, PRODUITS, boostMult, remise, debut: DEBUT }, FICHE.activites); // les activités (src/activites.js)
 
   // ─── les récompenses version 2 (src/activites.js, RECOMPENSES) : ce qu'une combine paie à la boulangerie ; la revue d'une vieille sauvegarde ───
   const R2 = ACT.RECOMPENSES;
@@ -10839,6 +11031,8 @@ const GARDEROBE_UI = (() => {
       else s.prog += secs;
     });
     if (total > 0) gagner(q, total);
+    const rj = A.sortirRecette(q, nowMs); // la recette du jour : une fournée au four sort quand même (payée par sortirRecette ; rien ne se relance seul)
+    if (rj) { total += rj.gain; detail.push({ i: -1, nom: rj.r ? rj.r.nom : '', n: 1, m: rj.gain }); }
     q.boost = garde.boost;
     if (court) { q.ev = garde.ev; pauseCoup(q, ecart); } else { q.evTimer = Math.max(q.evTimer || 0, REPRISE); }
     q.lastSeen = nowMs;
@@ -10876,9 +11070,9 @@ const GARDEROBE_UI = (() => {
     }
     return fait;
   }
-  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour }, trace: [{ t (jours depuis l'ouverture), total }] } ; opts : { graine, debut, offertes }
+  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour }, trace: [{ t (jours depuis l'ouverture), total }] } ; opts : { graine, debut, offertes, activites, recette } (recette : false, sans la recette du jour ; true, jouée même par un profil qui ne la joue pas d'office)
     opts = opts || {}; const prof = PROFILS[profil] || PROFILS.assidu, rnd = mulberry32(opts.graine || 7), st = {}, t0 = opts.debut || DEBUT;
-    const jeu = opts.activites === false ? null : A.politique(profil), rndA = mulberry32((opts.graine || 7) + 101); // les activités, jouées comme ce profil (leur propre hasard : les coups de pouce ne changent pas)
+    const jeu = opts.activites === false ? null : A.politique(profil, opts.recette), rndA = mulberry32((opts.graine || 7) + 101); // les activités, jouées comme ce profil (leur propre hasard : les coups de pouce ne changent pas)
     const q = etat(st, t0), parJour = [], paliersJour = {}, trace = []; q.lastSeen = t0;
     const H = 3600e3, nJ = jours || JOURS;
     const minuit0 = t0 - (paris(t0).getUTCHours() * 3600e3 + paris(t0).getUTCMinutes() * 60e3); // minuit, heure de Paris, du premier jour
@@ -10898,6 +11092,7 @@ const GARDEROBE_UI = (() => {
             else if (q.ev.type === 'scooter' && rnd() < 0.5) attraper(q);
           }
           for (const p of out.paliers) { marquerPalier(q, p.n); paliersJour[p.n] = j + 1; if (opts.offertes && p.n === PALIERS_BOSS) for (const a of AMELIORATIONS) if (a.apres) q.ameliorations[a.id] = true; } // offertes : le pire cas de l'enveloppe (tous les Sortilèges dès le 12e, sans les payer)
+          if (jeu) A.sim.recette(q, now, jeu); // la recette du jour, chaque seconde (avant les achats : elle passe d'abord)
           if (s % 3 === 0) decider(q);
           if (jeu && s % 20 === 0) A.sim.pas(q, now, jeu, rndA);
           if (s % 60 === 0) trace.push({ t: (now - t0) / JOUR, total: q.total });
@@ -10976,10 +11171,22 @@ const GARDEROBE_UI = (() => {
         { id: 'moyen', nom: 'Le tour du village', desc: 'Un quart d’heure de sonnettes, sacs bien serrés.' },
         { id: 'long', nom: 'La grande tournée de la forêt', desc: 'Une heure au clair de lune : le plus gros sac, et des chauves-souris gourmandes.' },
       ],
-      textes: { saisie: 'Des chauves-souris gourmandes', saisieTxt: (m) => `Des chauves-souris gourmandes ont chipé ${m}.`, operation: 'Opération', enCours: 'Les monstres font du porte-à-porte' },
+      textes: { saisie: 'Des chauves-souris gourmandes', saisieTxt: (m) => `Des chauves-souris gourmandes ont chipé ${m}.`, operation: 'Opération', enCours: 'Les monstres font du porte-à-porte', recette: 'La recette du jour', cuisine: 'La cuisine du Manoir' },
+      // la recette du jour (src/activites.js, RECETTE_JOUR) : la cuisine du Manoir, une recette par jour ; courtes (20 à 50 s : l'événement
+      // dure sept jours, l'occasionnel atteint la première étape) ; à la 500e fournée, la toque-citrouille
+      recettes: [
+        { id: 'meringues-fantomes', nom: 'Les meringues fantômes', desc: 'Deux yeux en chocolat et un « bouh » tout doux.', temps: 20, icone: 'meringues-fantomes' },
+        { id: 'barbe-toile', nom: 'La barbe à papa toile d’araignée', desc: 'Une araignée très gentille la file, un tour après l’autre.', temps: 25, icone: 'barbe-toile' },
+        { id: 'soupe-citrouille', nom: 'La soupe de citrouille', desc: 'Orange, onctueuse, et elle fait des bulles toute seule.', temps: 30, icone: 'soupe-citrouille' },
+        { id: 'cookies-chauve-souris', nom: 'Les cookies chauves-souris', desc: 'Les ailes en chocolat, les yeux en sucre.', temps: 35, icone: 'cookies-chauve-souris' },
+        { id: 'chapeaux-sorciere', nom: 'Les chapeaux de sorcière', desc: 'Un biscuit, un cône en chocolat et une étoile en sucre.', temps: 40, icone: 'chapeaux-sorciere' },
+        { id: 'pommes-ver', nom: 'Les pommes d’amour du Manoir', desc: 'Rouges, brillantes, et un ver en gélatine qui fait coucou.', temps: 45, icone: 'pommes-ver' },
+        { id: 'potion-chocolat', nom: 'La potion chocolatée', desc: 'Un chocolat chaud à la pomme verte, qui fume dans le chaudron.', temps: 50, icone: 'potion-chocolat' },
+      ],
+      recetteDeco: 'toque-citrouille', recetteDecoTxt: 'la toque-citrouille du chef du Manoir, accrochée à la porte de l’arrière-boutique',
     },
   };
-  const A = ACT.equiper({ id: 'hantee', rythme, gagner, note, dayKey, fmt: fmtDevise, arrondi, fenetre, PRODUITS }, FICHE.activites); // les activités (src/activites.js)
+  const A = ACT.equiper({ id: 'hantee', rythme, gagner, note, dayKey, fmt: fmtDevise, arrondi, fenetre, PRODUITS, boostMult, remise, debut: DEBUT }, FICHE.activites); // les activités (src/activites.js)
 
   // ─── les récompenses version 2 (src/activites.js, RECOMPENSES) : ce qu'une combine paie à la boulangerie ; la revue d'une vieille sauvegarde ───
   const R2 = ACT.RECOMPENSES;
@@ -11072,6 +11279,7 @@ const EVENEMENTS = (() => {
       const s = st(); if (!s || !s[F.cle]) return;
       const qq = q();
       if (typeof G.donnerVetement === 'function') for (const v of qq.vetements) { try { G.donnerVetement(s, v); } catch (e) { /* un id que la garde-robe ne connaît pas encore */ } }
+      if (Q.verserRecette) { const n = Q.verserRecette(qq); if (n > 0) { s.etoiles += n; d.save(); } } // la recette du jour : des étoiles d'étape pas encore versées (une étape franchie dans l'absence de la fin)
       F.decos(qq.decos); if (F.synchro) F.synchro(s, qq);
       // la revue des récompenses (version 2) : une sauvegarde qui avait déjà franchi des paliers ou acheté des combines « après le boss »
       // reçoit la différence UNE FOIS (q.recompensesV2, posé par les règles), versée tout de suite ; la feuille qui le dit attend annoncer()
@@ -11255,12 +11463,12 @@ const EVENEMENTS = (() => {
     // la première vente d'un produit pas encore débloqué : le vrai gain au niveau 1, à la main (présence, réputation, améliorations comprises)
     const premiereVente = (qq, i) => Q.revenuFournee(Object.assign({}, qq, { postes: qq.postes.map((x, k) => (k === i ? Object.assign({}, x, { niv: 1, staff: false }) : x)) }), i);
     function construireCartes() {
-      cartesEl.innerHTML = ''; cartes = [];
+      cartesEl.innerHTML = ''; cartes = []; construireRecette();
       Q.PRODUITS.forEach((p, i) => { const c = document.createElement('article'); c.className = 'carte pq'; c.dataset.i = i; cartesEl.appendChild(c); cartes.push({ el: c, html: '' }); });
       renderCartes(true);
     }
     function renderCartes(force) {
-      const qq = q();
+      const qq = q(); renderRecette(force);
       Q.PRODUITS.forEach((p, i) => {
         const s = qq.postes[i], c = cartes[i]; if (!c) return;
         let html, cls;
@@ -11289,6 +11497,7 @@ const EVENEMENTS = (() => {
     }
     function onCarte(e) {
       const art = e.target.closest('.carte'); if (!art) return;
+      if (art.dataset.rj) { clicRecette(e); return; }
       const i = +art.dataset.i, btn = e.target.closest('button[data-a]'), qq = q();
       d.audio();
       if (btn) {
@@ -11307,6 +11516,71 @@ const EVENEMENTS = (() => {
         }
       }
       if (qq.postes[i].niv > 0 && !qq.postes[i].staff) { if (Q.lancer(qq, i)) { d.son.tap(); d.buzz(6); renderCartes(); } }
+    }
+
+    // ─── la recette du jour (src/activites.js, RECETTE_JOUR) : une carte à part, en tête de la liste, au style de la carte de saison de la
+    //     boulangerie : le nom du jour, le niveau (commun à toutes les recettes), préparer ou améliorer, « Touche ! » puis la jauge de cuisson,
+    //     la maîtrise (0 à 500 fournées, repères à 100 et 250), « Demain : … ». Une fournée cuite sort ici (ou pendant l'absence : les règles) ;
+    //     les étoiles des étapes (q.recettes.aVerser) sont versées dans la boulangerie dès que la carte se rend, le décor posé avec les autres ───
+    let carteRj = null;
+    const avecRecette = () => !!(Q && Q.etatRecette && Q.RECETTES_JOUR);
+    const icoRj = (r) => (typeof ICONS !== 'undefined' && ICONS.RECETTES_JOUR && ((r && ICONS.RECETTES_JOUR[r.icone]) || ICONS.RECETTES_JOUR.cuisine)) || '';
+    function construireRecette() {
+      carteRj = null; if (!avecRecette()) return;
+      const c = document.createElement('article'); c.className = 'carte pq rj-carte'; c.dataset.rj = '1'; cartesEl.appendChild(c); carteRj = { el: c, html: '' };
+    }
+    function renderRecette(force) {
+      const c = carteRj; if (!c) return; const qq = q(), t = now();
+      const sortie = Q.sortirRecette(qq, t); if (sortie) recetteSortie(sortie); // la fournée est cuite : elle sort (une fois)
+      if (qq.recettes.aVerser > 0) verserMaitrise(sortie ? sortie.etapes : null); // une étape franchie (ici, ou pendant l'absence)
+      const e = Q.etatRecette(qq, t), T = TA(), r = e.four ? e.fr : e.r, M = e.maitrise, ok = qq.billets >= e.prix && e.ouverte;
+      const reperes = e.etapes.filter((x) => x.n < M).map((x) => `<b class="rj-repere${x.faite ? ' fait' : ''}" style="left:${(x.n / M * 100).toFixed(1)}%"></b>`).join('');
+      const maitrise = `<div class="palier rj-maitrise"><span>Maîtrise <b>${Math.min(e.fournees, M)}</b>/${M}</span><span>${e.prochaine ? `+${e.prochaine.etoiles} ★` : 'maîtrisée'}</span><i style="width:${(Math.min(e.fournees, M) / M * 100).toFixed(1)}%"></i>${reperes}</div>`;
+      const cuisson = e.niv > 0 && e.ouverte ? `<div class="barre"><i></i><span class="rev">+${prix(e.four ? e.four.gain : e.gain)}</span>${e.four ? `<span class="tps">${G.fmtDuree(e.reste / 1000)}</span>` : '<span class="cuire">Touche !</span>'}</div>`
+        : `<p class="rj-desc">${esc(!e.ouverte ? 'La cuisine ouvre demain, à minuit.' : r.desc)}</p>`;
+      const bouton = e.max ? '<div class="staff-ok pq"><span>Niveau max</span></div>'
+        : `<button type="button" class="btn ${e.niv ? '' : 'beurre'} ${ok ? '' : 'non'}" data-a="rj-niv"><small>${e.niv ? 'Améliorer ×1' : 'Préparer'}</small><b>${prix(e.prix)}</b></button>`;
+      const html = `<div class="icone">${icoRj(r)}${e.niv ? `<span class="niv">${e.niv}</span>` : ''}</div>
+        <div class="corps"><h3><span class="nom">${esc(r.nom)}</span></h3><small class="rj-tag">${esc(T.recette || 'La recette du jour')}${e.four && e.fr !== e.r ? ' · d’hier' : ''}</small>
+          ${cuisson}${maitrise}<small class="rj-demain">Demain : ${esc(e.demain.nom)}</small></div>
+        <div class="boutons">${bouton}</div>`;
+      const cls = 'carte pq rj-carte' + (e.niv > 0 && e.ouverte ? ' manuel' : '') + (e.four ? ' actif' : '') + (e.ouverte ? '' : ' ferme');
+      if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); }
+      else if (c.el.className !== cls) c.el.className = cls;
+      if (c.bar) c.bar.style.width = ((e.four ? e.part : 0) * 100).toFixed(1) + '%';
+    }
+    function recetteSortie(o) { // une fournée sortie, l'écran ouvert : le son et le petit « + » de la scène
+      d.son.vente(o.gain); if (scene3) scene3.vente(o.gain); lastHud = ''; hud(); d.save();
+    }
+    function verserMaitrise(etapes) { // les étoiles des étapes de la maîtrise, dans la boulangerie (une fois : verserRecette remet à zéro), le décor posé
+      const s = st(), qq = q(), n = Q.verserRecette(qq); if (!(n > 0)) return;
+      s.etoiles += n; F.decos(qq.decos); G.gagnerXp(s, 10);
+      const deco = (etapes || []).find((x) => x.deco) || (!etapes && qq.recettes.etapes.includes(Q.RECETTE_JOUR.etapes[Q.RECETTE_JOUR.etapes.length - 1].n) && Q.DECO_RECETTE ? { deco: Q.DECO_RECETTE } : null);
+      const dons = [`${n} étoile${n > 1 ? 's' : ''} (+${Math.round(n * G.ETOILE_BONUS * 100)} % de gains, pour toujours)`];
+      if (deco) dons.push(F.t.decoDon[deco.deco] || Q.DECO_RECETTE_TXT || F.t.decoDefaut(deco.deco));
+      const quoi = etapes && etapes.length ? `${etapes[etapes.length - 1].n} fournées` : 'une étape de plus';
+      d.son.deblocage(); d.buzz([10, 30, 10, 30, 10]); if (d.confettis) d.confettis(0.8); d.save(); d.apres();
+      if (!$('#feuille').hidden || sheetOuverte || miniOuvert()) { d.toast(`${TA().recette || 'La recette du jour'} : ${quoi}, +${n} ★ pour la boulangerie`); return; }
+      sheetOuverte = true;
+      d.openSheet(`<div class="pq-sheet ${F.classe}" data-rj-maitrise="1"><div class="pq-palier-tete"><span class="pq-pic">${(typeof ICONS !== 'undefined' && ICONS.RECETTES_JOUR && ICONS.RECETTES_JOUR.maitrise) || F.ico.palier}</span><div><h2>Maîtrise : ${esc(quoi)}</h2><p class="sous">${esc(TA().recette || 'La recette du jour')}, toutes recettes confondues</p></div></div>
+        <ul class="pq-dons">${dons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+        <button type="button" class="btn large beurre" data-a="pq-ok" style="margin-top:14px"><b>${esc(F.t.palierOk)}</b></button></div>`);
+      d.on('[data-a="pq-ok"]', () => { d.son.tap(); d.closeSheet(); });
+      const surFermeture = setInterval(() => { if ($('#feuille').hidden) { sheetOuverte = false; clearInterval(surFermeture); montrerSheetsEnAttente(); } }, 300);
+    }
+    function clicRecette(e) { // le bouton : préparer ou améliorer ; la carte : lancer une fournée
+      const qq = q(), t = now(), btn = e.target.closest('button[data-a="rj-niv"]');
+      d.audio();
+      if (btn) {
+        const r = Q.preparerRecette(qq, t);
+        if (!r.ok) { d.son.non(); d.toast(r.ferme ? 'La cuisine ouvre demain.' : r.max ? 'Niveau maximum.' : `Il manque ${fmt(r.prix - qq.billets)}`); return; }
+        if (r.niv === 1) { d.son.deblocage(); d.buzz([10, 30, 10]); d.toast(`${Q.recetteDuJour(t).nom} : la cuisine est prête ! Touche la carte pour en cuire.`); } else { d.son.achat(); d.buzz(8); }
+        renderRecette(true); lastHud = ''; hud(); d.save(); return;
+      }
+      const r = Q.lancerRecette(qq, t);
+      if (r.ok) { d.son.tap(); d.buzz(6); renderRecette(true); d.save(); }
+      else if (r.tard) { d.son.non(); d.toast('Trop tard : l’événement ferme avant qu’elle sorte du four.'); }
+      else if (r.ferme) { d.son.non(); d.toast('La cuisine ouvre demain.'); }
     }
 
     // ─── les coups de pouce : une bannière sur la scène, comme les événements de la boulangerie ───

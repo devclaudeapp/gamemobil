@@ -1589,3 +1589,21 @@ body.amenage .vote-bandeau, body.visite .vote-bandeau, body[data-tiroir="ouvert"
 #amenage-barre .ico svg { width: 20px; height: 20px; }
 body.amenage #enseigne { opacity: 0; pointer-events: none; }
 body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
+/* la recette du jour des événements (src/evenement.js, renderRecette ; src/activites.js, RECETTE_JOUR) : une carte en tête de la liste, au
+   style de la carte de saison de la boulangerie (un liseré doré, citrouille au Manoir) ; la maîtrise : la jauge des paliers, repères à 100 et 250 */
+.carte.pq.rj-carte { box-shadow: 0 0 0 2px #FFC84A inset, 0 6px 16px rgba(0, 0, 0, .3); }
+.carte.pq.rj-carte .rj-tag { display: block; margin-top: -3px; font: 800 11px/1.15 var(--texte-font); color: #FFC84A; letter-spacing: .02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.carte.pq.rj-carte .rj-desc { margin: 0; font-size: 13px; line-height: 1.3; color: #C7B8FF; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.carte.pq.rj-carte .rj-maitrise i { background: #5FD3A4; }
+.carte.pq.rj-carte .rj-repere { position: absolute; bottom: -2px; width: 3px; height: 8px; margin-left: -1.5px; border-radius: 2px; background: #FFF7EC; opacity: .5; }
+.carte.pq.rj-carte .rj-repere.fait { background: #FFC84A; opacity: 1; }
+.carte.pq.rj-carte .rj-demain { display: block; margin-top: -1px; font: 700 11px/1.25 var(--texte-font); color: #9E95B8; overflow-wrap: anywhere; }
+.carte.pq.rj-carte.ferme .icone svg { opacity: .55; }
+.carte.pq.rj-carte .btn[data-a="rj-niv"]:not(.non):not(.beurre) { background: #5FD3A4; color: #1E3B30; box-shadow: 0 4px 0 #2F8F62; }
+#hantee .carte.pq.rj-carte { box-shadow: 0 0 0 2px var(--ht-orange) inset, 0 6px 16px rgba(0, 0, 0, .35); }
+#hantee .carte.pq.rj-carte .rj-tag { color: var(--ht-orange); }
+#hantee .carte.pq.rj-carte .rj-desc { color: var(--ht-lavande); }
+#hantee .carte.pq.rj-carte .rj-maitrise i { background: var(--ht-vert); }
+#hantee .carte.pq.rj-carte .rj-repere.fait { background: var(--ht-orange); }
+#hantee .carte.pq.rj-carte .rj-demain { color: #A99CC9; }
+#hantee .carte.pq.rj-carte .btn[data-a="rj-niv"]:not(.non):not(.beurre) { background: var(--ht-orange); color: #2A1608; box-shadow: 0 4px 0 var(--ht-orange2); }
