@@ -76,7 +76,9 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 200) {
   await page.evaluate(() => { window.__hdNoir = false; document.querySelector('[data-pq="fermer"]').click(); }); await sleep(300);
   await page.evaluate(() => window.__fournil.page('reglages')); await sleep(400);
   const ligneHd = await page.evaluate(() => { const b = document.querySelector('[data-a="hd"]'); return b ? b.innerText : ''; });
-  check(/Planque en HD/.test(ligneHd) && /écran restait noir/.test(ligneHd), `Réglages : « Planque en HD » dit pourquoi elle est coupée (${ligneHd.replace(/\s+/g, ' ').slice(0, 80)})`);
+  check(/Décors en HD/.test(ligneHd) && /écran restait noir/.test(ligneHd), `Réglages : « Décors en HD » dit pourquoi ils sont coupés (${ligneHd.replace(/\s+/g, ' ').slice(0, 80)})`);
+  const groupeHd = await page.evaluate(() => { const b = document.querySelector('[data-a="hd"]'), c = b && b.closest('.card'), h = c && c.previousElementSibling; return h ? h.textContent.trim() : ''; });
+  check(groupeHd === 'Le jeu', `rangé dans le groupe « Le jeu » des Réglages (il vaut pour la boutique aussi, et reste après les événements) : « ${groupeHd} »`);
   await page.evaluate(() => document.querySelector('[data-a="hd"]').click()); await sleep(300);
   check(await page.evaluate(() => !HDM.coupe() && localStorage.getItem('fournil.hd') === null), 'un toucher la remet (réessayer)');
   await page.evaluate(() => document.querySelector('[data-a="hd"]').click()); await sleep(300);

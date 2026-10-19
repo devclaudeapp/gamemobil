@@ -6,7 +6,8 @@
    jamais gagner(), ni la fortune (lifetime, lifetimeRun), ni les étoiles, ni les objectifs, ni les défis, ni les points de boulanger ;
    la fortune publiée au classement (st.lifetime) ne bouge pas d'un centime.
    LE HASARD : crypto.getRandomValues (sinon Math.random), jamais tiré de l'horloge ; le sabot et la main en cours vivent dans la sauvegarde
-   (st.arriere) : fermer l'application au milieu d'une main ne rend pas la mise, et recharger ne re-mélange rien. */
+   (st.arriere) : fermer l'application au milieu d'une main ne rend pas la mise, et recharger ne re-mélange rien. Une nouvelle boutique annule
+   la main en cours (GAME.annulerMainArriere) : la mise revient à la caisse d'avant, qui repart à zéro avec elle. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory();
   else root.BLACKJACK = factory();

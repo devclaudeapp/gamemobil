@@ -1063,7 +1063,7 @@
   }
   function donnerBoost(st, mult, secs) { st.boost = { mult, fin: st.now + secs * 1000 }; }
   // ─── la réserve de boosts : des ×2 et des ×5 gagnés aux paliers de l'événement « Le Quartier » (src/quartier.js), à lancer quand on veut ───
-  // dans la boulangerie, un seul à la fois ; il tourne sur l'horloge du jeu (une absence plus courte que lui en profite, une plus longue l'éteint)
+  // dans la boulangerie, un seul à la fois ; il tourne sur l'horloge du jeu (une absence plus courte que lui en profite, une plus longue en profite au prorata de son temps restant, puis l'éteint)
   const boostsNeufs = () => ({ reserve: [], actif: null });
   const boosts = (st) => { if (!st.boosts || typeof st.boosts !== 'object' || !Array.isArray(st.boosts.reserve)) st.boosts = boostsNeufs(); return st.boosts; };
   // ─── la prime en heures : les récompenses des événements (paliers, combines « après le boss », src/activites.js RECOMPENSES) versent N heures
@@ -1356,12 +1356,27 @@
     recettesBoutique(st); const recette = recettesConnues(st) > avant ? PRODUITS[recettesConnues(st) - 1] : null; // la recette que cette boutique apporte (à vie), sinon null
     const recompenses = rattraperParcours(st); // la récompense de cette boutique (et celles qui manqueraient)
     for (const x of recompenses) note(st, `Boutique n°${x.n} : ${x.texte}`);
+    // les objectifs du jour réussis mais pas réclamés : réclamés ici, une fois (le savoir-faire, l'étoile du 3e) ; leur prime tombe dans la caisse, qui repart à zéro
+    const reclames = []; if (st.jour) st.jour.objectifs.forEach((o, k) => { if (o.fait && !o.reclame) { const r = reclamer(st, k); if (r.ok) reclames.push({ k, prime: r.prime, etoile: r.etoile }); } });
+    const main = annulerMainArriere(st); // une main de BlackJack en cours : annulée, sa mise rendue à la caisse qui part avec la boutique (jamais dans la suivante)
     st.coins = 0; st.lifetimeRun = 0; st.ameliorations = {}; st.mobilier = {}; st.stations = stationsNeuves(1 + talent(st, 'memoire')); st.ev = null; st.boost = null;
     if (st.saison) st.saison = { id: st.saison.id, annee: st.saison.annee, niv: 0, prog: 0, actif: false }; // les grades des apprentis, le compagnon (et ceux achetés) et la collection restent
     st.lastSeen = nowMs;
-    // les objectifs du jour pas encore réclamés sont retirés à la taille de la nouvelle boutique (les réussis restent acquis)
+    // les objectifs du jour pas encore réussis sont retirés à la taille de la nouvelle boutique (les réussis, réclamés plus haut, restent acquis)
     if (st.jour) { const neufs = tirerObjectifs(st, st.jour.date); st.jour.objectifs = st.jour.objectifs.map((o, k) => (o.reclame ? o : neufs[k])); }
-    return { ok: true, gain, recette, recompenses };
+    return { ok: true, gain, recette, recompenses, reclames, main };
+  }
+  // la main de BlackJack laissée ouverte dans l'arrière-salle (src/blackjack.js, st.arriere) : à la nouvelle boutique, elle est annulée et sa
+  // mise (doublée comprise) rendue à la caisse d'avant, qui repart à zéro juste après : la mise est perdue comme le reste de la caisse, ni
+  // gagnée ni perdue aux statistiques. Finir la main dans la boutique neuve y ferait tomber l'argent de l'ancienne (sans aucun risque).
+  function annulerMainArriere(st) {
+    const a = st.arriere, h = a && a.main;
+    if (!h || typeof h !== 'object' || h.fin) return null;
+    const mise = Number.isFinite(h.mise) && h.mise > 0 ? h.mise : 0, annexes = Array.isArray(h.annexes) ? h.annexes : [];
+    st.coins += mise;
+    if (a.stats && Number.isFinite(a.stats.solde)) a.stats.solde += annexes.reduce((s, x) => s + (x.gain || 0) - (x.mise || 0), 0); // les annexes, réglées à la donne, restent comptées
+    a.main = null;
+    return { mise };
   }
 
   // ─── un pas de jeu ; rend {ventes, nouvelEv, finEv, mystere} ───
@@ -1409,8 +1424,12 @@
     const sortie = Math.max(0, nowMs - st.lastSeen), garder = sortie <= PAUSE_EV * 1000;
     const ev = garder ? st.ev : null, boost = garder ? st.boost : null;
     st.now = nowMs; st.ev = null; st.boost = null;
-    if (st.boosts && st.boosts.actif && st.boosts.actif.fin <= nowMs) st.boosts.actif = null; // un boost de la réserve fini pendant l'absence s'éteint (le reste de l'absence est sans lui)
     const secs = Math.min(heuresAbsence(st) * 3600, Math.max(0, (nowMs - st.lastSeen) / 1000));
+    // un boost de la réserve fini pendant l'absence s'éteint ; il paie au prorata du temps qu'il a tourné pendant l'absence (jamais plus que
+    // son temps réel, ni plus que l'absence payée) : les fournées des apprentis ×(1 + (mult − 1) × part), une fournée à la main l'a s'il tournait encore
+    let finBoost = null; const ba = st.boosts && st.boosts.actif;
+    if (ba && ba.fin <= nowMs) { st.boosts.actif = null; const dans = Math.min(secs, Math.max(0, (ba.fin - st.lastSeen) / 1000)); if (dans > 0 && ba.mult > 1) finBoost = { mult: ba.mult, secs: dans }; }
+    const partBoost = finBoost && secs > 0 ? 1 + (finBoost.mult - 1) * finBoost.secs / secs : 1;
     let total = 0; const detail = [], grades = [];
     st.stations.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
@@ -1418,17 +1437,17 @@
       if (s.staff) {
         const n = Math.floor((s.prog + secs) / T);
         s.prog = (s.prog + secs) % T;
-        if (n > 0) { const m = revenu(st, i) * n; total += m; detail.push({ i, n, m }); st.stats.ventes += n; const g = creditApprenti(st, i, n, APPRENTI_ABSENCE); if (g) grades.push(g); }
-      } else if (s.prog + secs >= T) { const m = revenuFournee(st, i); total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; st.stats.ventes++; }
+        if (n > 0) { const m = revenu(st, i) * n * partBoost; total += m; detail.push({ i, n, m }); st.stats.ventes += n; const g = creditApprenti(st, i, n, APPRENTI_ABSENCE); if (g) grades.push(g); }
+      } else if (s.prog + secs >= T) { const m = revenuFournee(st, i) * (finBoost && T - s.prog <= finBoost.secs ? finBoost.mult : 1); total += m; detail.push({ i, n: 1, m }); s.prog = 0; s.actif = false; st.stats.ventes++; }
       else s.prog += secs;
     });
     const ss = st.saison; // une fournée de saison lancée avant de partir se termine
-    if (ss && ss.actif && ss.prog + secs >= tempsSaison(st)) { const r = recetteSaison(st), m = cuireSaison(st, null, true); total += m; detail.push({ i: -1, nom: r.nom, n: 1, m }); } else if (ss && ss.actif) ss.prog += secs;
+    if (ss && ss.actif && ss.prog + secs >= tempsSaison(st)) { const r = recetteSaison(st), k = finBoost && tempsSaison(st) - ss.prog <= finBoost.secs ? finBoost.mult : 1, m = cuireSaison(st, null, true) * k; total += m; detail.push({ i: -1, nom: r.nom, n: 1, m }); } else if (ss && ss.actif) ss.prog += secs;
     if (total > 0) gagner(st, total, true);
     if (ev) { if (Number.isFinite(ev.debut)) ev.debut += sortie; if (Number.isFinite(ev.fin)) ev.fin += sortie; st.ev = ev; } // en pause : il reprend où on l'a laissé
     if (boost) { boost.fin += sortie; st.boost = boost; }
     st.lastSeen = nowMs;
-    return { secs, total, detail, grades, pause: !!(ev || boost) };
+    return { secs, total, detail, grades, pause: !!(ev || boost), finBoost };
   }
 
   // ─── format des nombres : 1 234 €, 12,5 k €, 3,4 M €, 2,1 Md € ───
@@ -1454,7 +1473,7 @@
     palierMult, expoPalier, fmtMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables, prochaineEtoile,
     objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, boostsNeufs, donnerBoostReserve, PRIME_HEURE_PLANCHER, primeHeures, donnerPrimeHeures, lancerBoostReserve,
-    gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono,
+    gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, annulerMainArriere, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono,
     ATELIER, JEUX_ATELIER, jeuAtelier, atelierDuJour, qualiteAtelier, primePleineAtelier, primeAtelier, restantesAtelier, finirAtelier,
     FOUR, fourNiveau, fourNouveau, fourAvancer, fourToucher, FACONNAGE, MODELES_FACONNAGE, reechantillonner, noterFaconnage, ajouterTrait, couvertureFaconnage,
     INGREDIENTS, MEMOIRE, memoireMontre, memoireRecette, memoireSaisir, memoireScore,

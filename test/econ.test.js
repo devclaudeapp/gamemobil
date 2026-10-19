@@ -86,6 +86,18 @@ console.log('── objectifs du jour ──');
   console.log('  lendemain (après 1 h de jeu) : ' + next.objectifs.map((o) => o.txt).join(' · '));
   check(next.objectifs[0].cible > j.objectifs[0].cible, 'les cibles suivent la boutique');
 }
+{ // une nouvelle boutique avec des objectifs du jour réussis mais pas réclamés : réclamés d'office (une fois), pas effacés
+  const st = G.newState(T0); st.now = T0; const j = G.objectifsDuJour(st, T0);
+  j.objectifs.forEach((o, k) => { if (k < 2) { o.progres = o.cible; o.fait = true; } }); G.reclamer(st, 0); // le 1er réclamé à la main, le 2e réussi seulement, le 3e en cours
+  const fait = j.objectifs[1], xp0 = st.xp, et0 = st.etoiles; st.lifetimeRun = 1e12;
+  const r = G.nouvelleBoutique(st, T0), rc = r.reclames || [];
+  check(r.ok && rc.length === 1 && rc[0].k === 1 && st.jour.objectifs[1] === fait && fait.reclame, `l’objectif réussi est réclamé avant de partir (il reste « réclamé », pas un neuf à refaire ; prime ${G.fmtEur(rc[0] ? rc[0].prime : 0)})`);
+  check(st.xp - xp0 >= 15 + 80 && st.etoiles === et0 + r.gain && st.coins === 0, 'son savoir-faire est versé ; sa prime part avec la caisse (0 € dans la boutique neuve)');
+  check(!st.jour.objectifs[2].fait && !st.jour.objectifs[2].reclame && !G.reclamer(st, 1).ok, 'l’objectif en cours est retiré à la taille de la boutique neuve ; rien ne se réclame deux fois');
+  const s3 = G.newState(T0); s3.now = T0; G.objectifsDuJour(s3, T0); s3.jour.objectifs.forEach((o) => { o.progres = o.cible; o.fait = true; }); s3.lifetimeRun = 1e12; const e3 = s3.etoiles, g3 = G.etoilesGagnables(s3);
+  const r3 = G.nouvelleBoutique(s3, T0);
+  check((r3.reclames || []).length === 3 && s3.jour.etoileDonnee && s3.etoiles === e3 + g3 + 1 && s3.jour.objectifs.every((o) => o.reclame), 'les trois réussis : réclamés, l’étoile du jour donnée une fois');
+}
 console.log('── événements ──');
 {
   const st = G.newState(T0); st.now = T0; st.stations[1].niv = 5; st.stations[1].staff = true; st.stations[1].actif = true;

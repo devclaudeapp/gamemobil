@@ -207,17 +207,24 @@ const EVENEMENTS = (() => {
     // au retour dans le jeu (téléphone verrouillé, autre appli) l'écran encore ouvert : les apprentis ont travaillé, au ralenti, comme à l'entrée
     function retour() {
       if (ecran !== F.ecran) return null;
-      const qq = q(), t = now(); if (Q.fenetre(t).fini) return null; // fini : la boucle ferme et montre le bilan
+      const qq = q(), t = now(); if (Q.fenetre(t).fini) { cloturer(); return null; } // fini pendant le sommeil : payé jusqu'à la fermeture, puis le bilan
       const abs = Q.absence(qq, t); renderEv();
       if (abs.total > 0 && abs.secs > 90) d.toast(F.t.absence(G.fmtDuree(abs.secs), fmt(abs.total)));
       if (!miniOuvert()) ramasser(true);
       return abs;
     }
+    // la fermeture de l'événement, l'écran ouvert (en jouant, ou au retour d'un sommeil) : la boucle a payé jusqu'à son dernier pas (qq.now) ;
+    // l'absence se paie de là jusqu'à la fermeture, une fois (montrerBilan, qq.absenceFin), jamais au-delà ; puis les activités s'arrêtent et le bilan
+    function cloturer() {
+      if (ecran !== F.ecran) return;
+      const qq = q(); if (qq.now > (qq.lastSeen || 0)) qq.lastSeen = Math.min(qq.now, Q.FIN); // ce qui suit qq.lastSeen n'a pas encore été payé
+      d.toast(F.t.ferme); montrerBilan();
+    }
     // ─── la boucle : appelée chaque image par ui.js tant que l'écran est ouvert ───
     function frame(dt, t) {
       if (ecran !== F.ecran) return;
       const qq = q(), f = Q.fenetre(t);
-      if (f.fini) { Q.tick(qq, dt, t); d.toast(F.t.ferme); qq.lastSeen = t; montrerBilan(); return; }
+      if (f.fini) { cloturer(); return; }
       if (miniOuvert()) { qq.evTimer = Math.max(qq.evTimer, 5); if (qq.ev && genre(qq.ev) !== 'mult' && Q.pauseCoup) Q.pauseCoup(qq, dt * 1000); } // une partie de mini-jeu : le coup de pouce à toucher attend, aucun ne surgit
       const out = Q.tick(qq, dt, t);
       if (avecAct() && performance.now() - tAct > 400) { tAct = performance.now(); if (qq.operation && qq.operation.fin <= t) ramasser(!miniOuvert()); majActivites(); }
@@ -250,6 +257,8 @@ const EVENEMENTS = (() => {
     const multTxt = (m) => (Math.abs(m - Math.round(m)) < 0.005 ? String(Math.round(m)) : m.toFixed(2).replace('.', ',')); // ×2, ×1,41, ×1,19
     const paliersDe = (i) => (Q.paliersPoste ? Q.paliersPoste(i) : Q.PALIERS_POSTE);
     const gainPal = (pal, i) => (Q.gainPalier ? Q.gainPalier(pal, i) : 2); // ce que ce palier ajoute (le vrai rapport : ×2 aux anciens paliers, ×1,41 ou ×1,19 aux intercalés)
+    // la première vente d'un produit pas encore débloqué : le vrai gain au niveau 1, à la main (présence, réputation, améliorations comprises)
+    const premiereVente = (qq, i) => Q.revenuFournee(Object.assign({}, qq, { postes: qq.postes.map((x, k) => (k === i ? Object.assign({}, x, { niv: 1, staff: false }) : x)) }), i);
     function construireCartes() {
       cartesEl.innerHTML = ''; cartes = [];
       Q.PRODUITS.forEach((p, i) => { const c = document.createElement('article'); c.className = 'carte pq'; c.dataset.i = i; cartesEl.appendChild(c); cartes.push({ el: c, html: '' }); });
@@ -263,7 +272,7 @@ const EVENEMENTS = (() => {
         if (s.niv === 0) {
           const ferme = Q.recetteOuverte && !Q.recetteOuverte(qq, i), prev = !ferme && (i === 0 || qq.postes[i - 1].niv > 0), ok = qq.billets >= p.debloquer;
           cls = 'carte pq verrou' + (prev ? '' : ' secret') + (ferme ? ' apres' : '');
-          const txt = ferme ? `${esc(p.desc)}` : `${esc(p.desc)} ${prev ? `Rapporte ${F.fmtPhrase(p.rev)} la vente.` : 'Débloque d’abord le produit précédent.'}`;
+          const txt = ferme ? `${esc(p.desc)}` : `${esc(p.desc)} ${prev ? `Rapporte ${F.fmtPhrase(premiereVente(qq, i))} la vente.` : 'Débloque d’abord le produit précédent.'}`;
           html = `<div class="icone">${F.ico.produit(p, i)}</div><div class="corps"><h3>${esc(p.nom)}</h3><p>${txt}</p>
             ${ferme ? `<span class="pq-apres">${esc(F.t.recetteApres(p.apres))}</span>` : prev ? `<button type="button" class="btn ${ok ? 'menthe' : 'non'}" data-a="debloquer"><small>Débloquer</small><b>${prix(p.debloquer)}</b></button>` : ''}</div>`;
         } else {
@@ -373,6 +382,7 @@ const EVENEMENTS = (() => {
       // parti avant la fermeture, revenu après : les apprentis ont travaillé jusqu'à la fermeture (une fois, au ralenti, plafonné comme toute absence)
       if (qq.lastSeen && qq.lastSeen < Q.FIN && !qq.absenceFin) { qq.absenceFin = true; Q.absence(qq, Q.FIN); d.save(); }
       if (avecAct() && qq.operation) Q.ramasserOperation(qq, Math.min(now(), Q.FIN)); // une opération en cours à la fermeture : finie avant elle (on ne lance rien qui la dépasse), comptée
+      if (miniOuvert()) fermerMini(); // une partie de mini-jeu en cours à la fermeture : arrêtée, elle ne paie rien après la fin
       rattraper(); fileSheets = []; // un palier dû pas encore donné (les paliers bonus d'une vieille sauvegarde) : compté dans le bilan, sans feuille
       entete(F.t.bilanTitre, 'L’événement est terminé'); const bp = el.querySelector('[data-pq="paliers"] b'); if (bp) bp.textContent = `${Q.paliersAtteints(qq).length}/${nbPaliers(qq)}`;
       const rec = d.recompenses ? d.recompenses() : null, rang = rec ? F.rangFinal(rec) : null, nb = Q.paliersAtteints(qq).length;

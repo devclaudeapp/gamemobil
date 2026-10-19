@@ -151,6 +151,20 @@ console.log('── aucune incidence sur la fortune, les étoiles, les objectifs
   for (let k = 0; k < 60000; k++) { B.distribuer(st, { main: 100 }); mise += 100; let h = B.enCours(st); while (h) { const vv = B.valeur(h.joueur), up = B.points(h.croupier[0]); if (vv.total >= 17 || (vv.total >= 13 && up >= 2 && up <= 6 && !vv.souple) || (vv.total === 12 && up >= 4 && up <= 6)) B.rester(st); else B.tirer(st); h = B.enCours(st); } net += B.etat(st).main.net; }
   const rtp = 1 + net / mise; check(rtp > 0.9 && rtp < 1.02, `taux de retour sur 60 000 mains, stratégie simple : ${(rtp * 100).toFixed(1)} % (la maison garde un petit avantage)`);
 }
+console.log('── une main en cours et une nouvelle boutique ──');
+{ // la main laissée ouverte (caisse misée, arrière-salle fermée) ne suit pas dans la boutique neuve : annulée, la mise part avec l'ancienne caisse
+  const st = boutique(1e9); st.lifetimeRun = 1e15; empiler(st, '10♠ 6♥ 10♦ R♣ 5♠');
+  B.distribuer(st, { main: 1e9 }); const h = B.enCours(st);
+  check(h && st.coins === 0, 'tapis : toute la caisse sur la table, la main en cours (16 contre un roi)');
+  const S0 = JSON.stringify(B.etat(st).stats), r = G.nouvelleBoutique(st, T0);
+  check(r.ok && r.main && r.main.mise === 1e9 && B.enCours(st) === null && B.etat(st).main === null, 'la nouvelle boutique annule la main (sa mise rendue à la caisse d’avant)');
+  check(st.coins === 0 && !B.rester(st).ok && !B.tirer(st).ok && !B.doubler(st).ok && st.coins === 0, 'la boutique neuve démarre à 0 € : finir la main n’y fait plus rien tomber');
+  const S1 = B.etat(st).stats; check(JSON.stringify(S1) === S0, 'ni gagnée ni perdue aux statistiques de l’arrière-salle');
+  check(B.distribuer(st, { main: 1 }).ok === false, 'et sans argent, pas de nouvelle main');
+  const s2 = boutique(1000); s2.lifetimeRun = 1e15; empiler(s2, '10♠ 6♥ 10♦ R♣'); B.distribuer(s2, { main: 100 }); B.rester(s2); const fin = JSON.stringify(B.etat(s2).main);
+  check(G.nouvelleBoutique(s2, T0).ok && JSON.stringify(B.etat(s2).main) === fin, 'une main déjà finie reste telle quelle (le résultat affiché)');
+  check(G.nouvelleBoutique({ ...G.newState(T0), lifetimeRun: 1e15 }, T0).ok, 'sans arrière-salle (jamais trouvée) : rien ne change');
+}
 { // la page : blackjack.js est assemblé dans le jeu, avant l'interface
   const build = require('fs').readFileSync(require('path').join(__dirname, '..', 'build.js'), 'utf8');
   check(/'blackjack\.js'/.test(build) && build.indexOf("'blackjack.js'") < build.indexOf("'ui.js'"), 'build.js charge src/blackjack.js avant ui.js');

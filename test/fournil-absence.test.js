@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Le Fournil : l'absence, partout, d'un seul coup d'œil (les règles pures ; l'heure sûre et le réveil sont dans test/fournil-reveil.cjs).
 // La boutique (G.absence) : payée au rythme des apprentis, plafonnée (heuresAbsence), jamais négative, rien de payé deux fois ; un boost
-// de la réserve encore en cours au retour compte, un boost fini pendant l'absence non. Les deux événements (Q : la Planque ; HT : la Maison
+// de la réserve encore en cours au retour compte, un boost fini pendant l'absence au prorata du temps qu'il y a tourné (jamais plus). Les deux événements (Q : la Planque ; HT : la Maison
 // hantée) : au ralenti (ABSENCE_PART), plafonnés à 8 h, et avec la combine d'absence « après le boss » à 12 h et 20 % ; une heure qui
 // recule ne paie rien ; deux retours de suite ne paient qu'une fois ; parti avant la fermeture : payé jusqu'à la fermeture seulement ; une
 // opération (src/activites.js) lancée en partant tourne pendant l'absence et se ramasse au retour, sans rien payer deux fois.
@@ -28,11 +28,14 @@ console.log('── la boutique');
   const recule = essai(-2 * H);
   check(recule.gain === 0 && recule.r.secs === 0, 'une heure qui recule : rien de payé');
   { const s = copie(base); G.absence(s, T0 + 2 * H); const c1 = s.coins; const r2 = G.absence(s, T0 + 2 * H); check(r2.total === 0 && s.coins === c1, 'deux retours au même instant : payé une fois'); }
-  // un boost de la réserve : encore en cours au retour → l'absence entière à son rythme ; fini pendant l'absence → sans lui
-  const boost = (finDans) => (s) => { s.boosts = s.boosts || { reserve: [], actif: null }; s.boosts.actif = { mult: 2, fin: T0 + finDans, secs: 3600 }; };
-  const enCours = essai(1 * H, boost(2 * H)), fini = essai(3 * H, boost(1 * H));
+  // un boost de la réserve : encore en cours au retour → l'absence entière à son rythme ; fini pendant l'absence → au prorata de son temps
+  const boost = (finDans, mult) => (s) => { s.boosts = s.boosts || { reserve: [], actif: null }; s.boosts.actif = { mult: mult || 2, fin: T0 + finDans, secs: 3600 }; };
+  const enCours = essai(1 * H, boost(2 * H)), fini = essai(3 * H, boost(1 * H)), sans3 = essai(3 * H).gain;
   check(enCours.gain > a1.gain * 1.5, `boost ×2 encore en cours au retour : ${G.fmt(enCours.gain)} € pour 1 h (sans : ${G.fmt(a1.gain)})`);
-  check(fini.s.boosts.actif === null && fini.gain < essai(3 * H).gain * 1.01, 'boost fini pendant l’absence : éteint, l’absence payée sans lui (jamais plus)');
+  check(fini.s.boosts.actif === null && proche(fini.gain, sans3 * (1 + 1 / 3), 0.01) && fini.r.finBoost && fini.r.finBoost.secs === 3600, `boost ×2 fini 1 h après le départ, 3 h d’absence : éteint, payé pour son heure (${G.fmt(fini.gain)} €, sans lui ${G.fmt(sans3)} €, ×${(fini.gain / sans3).toFixed(3)} ≈ ×4/3)`);
+  { const x10 = essai(3 * H, boost(30 * 60e3, 10)); check(proche(x10.gain, sans3 * (1 + 9 * 0.5 / 3), 0.01), `un ×10 fini 30 min après le départ : 30 min à ×10, le reste sans lui (×${(x10.gain / sans3).toFixed(2)} ≈ ×2,5)`); }
+  { const plaf = essai(30 * H, boost(20 * H)), sans30 = essai(30 * H).gain; check(proche(plaf.gain, sans30 * 2, 0.01), `fini après le plafond de l’absence : ×2 sur toute l’absence payée (${plaf.r.secs / 3600} h), jamais au-delà (×${(plaf.gain / sans30).toFixed(3)})`); }
+  { const avant = essai(3 * H, (s) => { boost(1 * H)(s); s.lastSeen = T0 + 2 * H; }); check(!avant.r.finBoost, 'un boost fini avant le départ : rien de plus'); }
   // une sortie sans le vouloir (autre appli, écran verrouillé) : l'événement en cours et le coup de feu attendent (PAUSE_EV), jamais payés pendant
   for (const type of ['rush', 'petrissage', 'commande', 'panne', 'anniversaire', 'critique', 'meunier']) {
     const s = copie(base); s.now = T0; G.lancerEvenement(s, () => 0.3, type); const ev = s.ev; if (!ev) { check(false, `événement ${type} lancé`); continue; }
