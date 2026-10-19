@@ -1813,7 +1813,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'e178c039e771';</script>
+<script>window.FOURNIL_VERSION = 'aca305d75b9d';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -9869,12 +9869,16 @@ const GARDEROBE_UI = (() => {
   // relance seul. La maîtrise compte les fournées de toutes les recettes (q.recettes.fournees) : trois étapes, chacune donnée une fois
   // (q.recettes.etapes) : des étoiles pour la boulangerie (comme une combine : q.etoiles pour le bilan, q.recettes.aVerser que l'écran
   // verse et remet à zéro) et, à la dernière, le décor de la fiche (q.decos, comme un palier). Ces étoiles ne touchent pas aux billets.
-  // La part : 0,04, et non 1 comme la saison. Ici, la présence (boostMult) multiplie déjà les ventes par 6 : à la part 1, la recette jouée
-  // sans arrêt triplait les gains de la session (×5,9 en quatorze jours de marathon ; le très actif au 20e palier le 7e jour). À 0,04, elle
-  // ajoute ~8 % (0,04 × 1,9 × 6 = 0,46 rythme, contre ~6 pour les postes) : le 20e reste hors de portée du très actif (106 Bd pour 110 Bd
-  // au Quartier ; 95,9 Bd sans elle). Ce qu'elle paie surtout, c'est la maîtrise (les étoiles, le décor). Le prix suit la part (coutSec :
-  // 300 × 0,04 = 12 s du rythme) : un niveau se rembourse en autant de fournées qu'à la saison.
-  const RECETTE_JOUR = { part: 0.04, pas: 0.1, coutSec: 12, croiss: 1.5, nivMax: 10, tempsMin: 20, tempsMax: 90,
+  // La part : 0,25, et non 1 comme la saison. Ici, la présence (boostMult) multiplie déjà les ventes par 6 : à la part 1, la recette jouée
+  // sans arrêt triplait les gains de la session (×5,9 en quatorze jours de marathon) ; à 0,04, elle n'ajoutait que ~7 %. Le réglage choisi
+  // (« Moyen ») : jouée sans arrêt pendant une session de la Planque ou du Manoir (deux heures, niveau fixe, sans achats, les trois autres
+  // activités jouées), elle ajoute +22 % aux gains de la session au niveau 1, +30 % au niveau 5, +41 % au niveau 10 (0,25 × 1,9 × 6 =
+  // 2,85 rythme par seconde, contre ~7 pour les postes et les activités ; +40 % encore au 12e jour). Comme ces gains se réinvestissent, ça
+  // se compose sur l'événement : au Quartier, le marathon ×1,96 en quatorze jours (1,65 Tn ; 844 Bd sans elle), le très actif ×1,94
+  // (186 Bd) : le 12e un jour plus tôt (le 2e), le 16e le 4e (5e), le 20e le 12e jour (jamais sans elle) ; au Manoir, ×2,0 et ×1,96 en sept
+  // jours, le 20e du très actif le 7e (jamais sans elle). Le prix suit la part (coutSec : 300 × 0,25 = 75 s du rythme) : un niveau se
+  // rembourse en autant de fournées qu'à la saison.
+  const RECETTE_JOUR = { part: 0.25, pas: 0.1, coutSec: 75, croiss: 1.5, nivMax: 10, tempsMin: 20, tempsMax: 90,
     etapes: [{ n: 100, etoiles: 2 }, { n: 250, etoiles: 3 }, { n: 500, etoiles: 5, deco: true }] };
   // les modèles de contrats : une statistique de q.stats, trois exigences (facile, moyen, dur) ; « vente » vise un des trois premiers produits
   const MODELES = {
