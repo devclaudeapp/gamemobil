@@ -353,7 +353,8 @@ const BOUTIQUE_HANTEE = (() => {
       };
       tuiles('floor_kitchen', 0, W, 0, zBande, -0.1 * U, 1.6, { sy: 0.2, t: 'hanter' }); // le damier en petits carreaux
       tuiles('floor_wood_large_dark', 0, W, zBande, zDev + 4, -0.05 * U, 2.6, { sy: 1 });
-      parts.push({ c: quad(-40, zDev + 4, W + 40, zBord, '#3A3150', 0), M: new T.Matrix4() }, { c: quad(-40, zBord, W + 40, zFin, '#211A33', -0.2), M: new T.Matrix4() });
+      parts.push({ c: quad(-40, zDev + 4, W + 40, zBord, '#463B63', 0), M: new T.Matrix4() }, { c: quad(-40, zBord, W + 40, zFin, '#211A33', -0.2), M: new T.Matrix4() });
+      for (let z = zDev + 0.6 * U, r = 0; z < zBord - 0.3 * U; z += 1.15 * 0.6 * U, r++) for (let x = -8 + (r % 2) * 0.55 * 0.6 * U; x < W + 10; x += 1.9 * 0.6 * U) pose('path_B', { x, y: 0.05, z, s: 0.6, ry: (x * 7 + r * 3) % 6.3 }); // le trottoir : des dalles de cimetière
       // ── le fournil : le four (son feu luit), le couvercle de cercueil debout contre le mur (la place du froid), le chaudron de Berthe
       const f = LAY.four, sf = f.w / (2 * U);
       pose('oven', { x: f.x + f.w / 2, z: 1.03 * sf * U + 2, s: sf, t: 'hanter', lueur: feu });
@@ -443,11 +444,13 @@ const BOUTIQUE_HANTEE = (() => {
       const toiles = new T.Mesh(gt, new T.MeshBasicMaterial({ map: tx.toile, transparent: true, depthWrite: false, side: T.DoubleSide, opacity: 0.7, fog: false })); toiles.renderOrder = 4; g.add(toiles);
       // le ciel de nuit derrière les ouvertures du mur
       const ciel = new T.Mesh(new T.PlaneGeometry(W + 80, Hm + 30), new T.MeshBasicMaterial({ map: tx.ciel, fog: false })); ciel.position.set(W / 2, (Hm + 30) / 2 - 10, -40); g.add(ciel);
-      // l'auvent d'ardoises au-dessus de l'arche (un porche de cimetière), penché vers la rue
+      // l'auvent d'ardoises au-dessus de l'arche (un porche de cimetière) : un petit toit à deux pans, le faîtage parallèle à la rue
       if (tx.ardoises) {
-        const aw = (porte.x1 - porte.x0) + 30 * K, ad = 16 * K, ha = 4.41 * sa * U + 2, geoA = new T.PlaneGeometry(aw, ad), uvA = geoA.attributes.uv; for (let i = 0; i < uvA.count; i++) uvA.setXY(i, uvA.getX(i) * aw / 40, uvA.getY(i) * 0.6);
-        const auvent = new T.Mesh(geoA, new T.MeshStandardMaterial({ map: tx.ardoises, normalMap: tx.normale || null, color: '#B9A3E6', roughness: 0.75, metalness: 0 }));
-        auvent.position.set(xa, ha, zDev + 2); auvent.rotation.x = -HP + 0.55; auvent.castShadow = true; auvent.receiveShadow = true; g.add(auvent);
+        const aw = (porte.x1 - porte.x0) + 26 * K, ad = 11 * K, rh = 9 * K, ha = 4.41 * sa * U - 2, z0 = zDev, x0 = xa - aw / 2, x1 = xa + aw / 2;
+        const P3 = [x0, ha + rh, z0, x1, ha + rh, z0, x1, ha, z0 + ad, x0, ha, z0 + ad, x0, ha + rh, z0, x1, ha + rh, z0, x1, ha, z0 - ad, x0, ha, z0 - ad], ru = aw / 34, rv = 0.5;
+        const geoA = new T.BufferGeometry(); geoA.setAttribute('position', new T.Float32BufferAttribute(P3, 3)); geoA.setAttribute('uv', new T.Float32BufferAttribute([0, rv, ru, rv, ru, 0, 0, 0, 0, rv, ru, rv, ru, 0, 0, 0], 2)); geoA.setIndex([0, 2, 1, 0, 3, 2, 4, 5, 6, 4, 6, 7]); geoA.computeVertexNormals();
+        const auvent = new T.Mesh(geoA, new T.MeshStandardMaterial({ map: tx.ardoises, normalMap: tx.normale || null, color: '#E6DAFF', emissive: '#3A2E66', emissiveIntensity: 0.6, roughness: 0.7, metalness: 0, side: T.DoubleSide }));
+        auvent.castShadow = true; auvent.receiveShadow = true; g.add(auvent);
       }
       // les places de l'équipe (x, z monde, cap ; vol : la hauteur d'un fantôme) : à leur poste, comme sur la planche
       const b = LAY.bar;
@@ -481,7 +484,7 @@ const BOUTIQUE_HANTEE = (() => {
   let style = null;
   function feuille() {
     if (style || typeof document === 'undefined') return; style = document.createElement('style'); style.id = 'ht-boutique-style';
-    style.textContent = `body.ht-boutique #tiroir, body.ht-boutique #scene-wrap > :not(canvas) { visibility: hidden; }
+    style.textContent = `body.ht-boutique #tiroir, body.ht-boutique #scene-wrap > :not(canvas), body.ht-boutique #indice { visibility: hidden; }
 #hantee.ht-boutique { background: transparent; }
 #hantee.ht-boutique > .at-haut { background: var(--ht-fond); }
 #hantee.ht-boutique > .pq-solde { background: var(--ht-fond); margin: 0; padding-bottom: 10px; border-radius: 0 0 20px 20px; box-shadow: 0 6px 14px rgba(21, 17, 31, .45); position: relative; z-index: 1; }

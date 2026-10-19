@@ -102,6 +102,7 @@ const EQUIPE = ['fantome2', 'momie2', 'squelette', 'vampire2', 'sorciere2', 'cit
     const attendu = qual === 'eco' ? '[2,3,4]' : '[0,1,2,3,4]';
     check(await attendre(() => ev((x) => { const e = window.__fournil.SCENE.evenement; return JSON.stringify(e.apprentis.map((a) => a.i).sort()) === x && e.apprentis.every((a) => a.bati); }, attendu), 15000), `un monstre embauché arrive à son poste (Comte Vladimir, le vampire) : ${attendu}`);
     await remplir(ev); await sleep(qual === 'haute' ? 4000 : 2500);
+    await attendre(async () => { await ev(() => VIE.vente(0, 10, '+10', true)); await sleep(400); return (await ev(() => BOUTIQUE_HANTEE.acteurs().filter((a) => a.etat === 'file').length)) >= 3; }, 20000); // pour la capture : du monde en file
     await shot(page, `${qual}-salle`);
 
     // ─── l'API des activités, appelée à la main ───
