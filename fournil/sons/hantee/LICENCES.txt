@@ -1,0 +1,38 @@
+Les sons de la Maison hantée (Le Fournil, Halloween 2026) — crédits et licences
+================================================================================
+
+Tous ces sons sont dans le domaine public : Creative Commons Zero (CC0 1.0),
+https://creativecommons.org/publicdomain/zero/1.0/ . Les créditer n'est pas obligatoire ; on le fait quand même, avec plaisir.
+Licences relues sur les pages des auteurs le 19 octobre 2026.
+
+Traitement (le même pour tous) : mono, 44,1 kHz, mp3 64 kbit/s (ffmpeg, libmp3lame). Les bruitages perdent leurs silences de tête et
+de queue (silenceremove), certains sont coupés (avec un fondu de 0,15 s), et leur crête est ramenée à -3 dBFS (-9 dBFS pour la porte
+qui grince). Les boucles (la musique, le chaudron) ne sont ni coupées ni fondues ; la musique passe par loudnorm en deux passes,
+linéaire (-20 LUFS), pour que son raccord reste parfait.
+
+Fichier          Moment du jeu                          Source                                                           Auteur
+--------------   ------------------------------------   --------------------------------------------------------------   ----------------
+musique.mp3      la musique de l'écran (boucle 38,4 s)  « Lanterns in the Hollowed Forest »                               Tsorthan Grove
+                                                        https://opengameart.org/content/lanterns-in-the-hollowed-forest
+sonnette.mp3     un client entre (coupé à 1,5 s)        « Doorbell ring » (doorbell-old-tring.ogg)                        qubodup
+                                                        https://opengameart.org/content/doorbell-ring
+grince.mp3       la porte grince, une fois sur trois    « Creaky Door Hinge Spooky » (coupé à 1,5 s, crête -9 dB)         w.forster.1
+                                                        https://opengameart.org/content/creaky-door-hinge-spooky
+cloche.mp3       un palier, une commande prête          « Bell dings/chimes » (bell_ding3.wav)                            PWL
+                                                        https://opengameart.org/content/bell-dingschimes
+sorciere.mp3     une cliente sorcière arrive            « Witch Cackle » (witch_cackle-1_0.ogg)                           AntumDeluge
+                                                        https://opengameart.org/content/witch-cackle
+fantome.mp3      un fantôme arrive                      « Ghost » (ghost.wav)                                             Ogrebane
+                                                        https://opengameart.org/content/ghost
+chaudron.mp3     le chaudron (boucle douce, 4,85 s)     « Bubble Sound Effects » (bubbles-loop1-amp.wav)                  BMacZero
+                                                        https://opengameart.org/content/bubble-sound-effects
+corbeau.mp3      un corbeau sur la devanture            « Crow caw » (crow_caw.wav)                                       zeroisnotnull
+                                                        https://opengameart.org/content/crow-caw
+chat.mp3         le chat noir (paliers)                 « Cat Purr & Meow » (cat_softmew.wav)                             Kerzoven
+                                                        https://opengameart.org/content/cat-purr-meow
+vente.mp3        une vente                              RPG Audio (handleCoins.ogg)                                       Kenney (kenney.nl)
+louche.mp3       un sortilège, une amélioration         RPG Audio (metalPot1.ogg)                                         Kenney (kenney.nl)
+plancher.mp3     une embauche, le plancher qui craque   RPG Audio (creak1.ogg)                                            Kenney (kenney.nl)
+                                                        https://kenney.nl/assets/rpg-audio
+jingle.mp3       l'ouverture de l'écran                 Music Jingles, « Pizzicato » n° 04 (fa dièse mineur)              Kenney (kenney.nl)
+                                                        https://kenney.nl/assets/music-jingles

@@ -876,44 +876,162 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 @media (max-width: 339px) { .pq-porte .btn.large b, .pq-sheet .btn.large b { font-size: 17px; } }
 @media (max-width: 339px) { .carte.pq .barre .tps { display: none; } } /* 320 px : « +24,8 M € » et la durée se chevauchaient dans la barre de la Planque */
 
-/* ─── la Maison hantée (src/evenement.js, EVENEMENTS.hantee) : le même écran que la Planque, en violet nuit et orange citrouille,
-   mignon-effrayant et lisible (contrastes AA sur les cartes). Les couleurs viennent de HANTEE.FICHE.couleurs si H1 en donne (--evt-*). ─── */
-#hantee { --ht-fond: var(--evt-fond, #1F1A2E); --ht-carte: var(--evt-carte, #2E2742); --ht-carte2: #3A3152; --ht-ombre: #15111F; --ht-orange: var(--evt-accent, #FF8A3D); --ht-orange2: #C9652B; --ht-lavande: var(--evt-clair, #CDBDFF); --ht-vert: var(--evt-vert, #8FE36B);
-  background: var(--ht-fond); background-image: radial-gradient(120% 60% at 50% -10%, #3B2A66 0%, rgba(59, 42, 102, 0) 60%), radial-gradient(3px 3px at 12% 8%, rgba(255, 244, 201, .6), transparent), radial-gradient(2px 2px at 78% 4%, rgba(255, 244, 201, .5), transparent), radial-gradient(2px 2px at 92% 12%, rgba(255, 244, 201, .45), transparent); }
-#hantee .at-fermer, #hantee .pq-paliers-btn, #hantee .pq-reste, #hantee .pq-barre .modes { background: var(--ht-carte); box-shadow: 0 3px 0 var(--ht-ombre); }
-#hantee .at-titre b { color: #FFF4E6; }
-#hantee .at-titre small, #hantee .pq-solde small { color: var(--ht-lavande); }
-#hantee .pq-solde small b { color: var(--ht-vert); }
-#hantee .pq-reste { color: var(--ht-orange); }
-#hantee .bb-mot { display: inline !important; margin-left: 5px; font: 700 13px/1 var(--titre) !important; color: var(--ht-orange) !important; }
-#hantee .pq-scene { background: #2A2140; box-shadow: 0 6px 18px rgba(0, 0, 0, .45), 0 0 0 2px rgba(255, 138, 61, .18); }
-#hantee .pq-barre .modes button { color: var(--ht-lavande); }
-#hantee .pq-barre .modes button.actif { background: var(--ht-orange); color: #2A1608; }
-#hantee .pq-am { background: #7B4FD0; box-shadow: 0 3px 0 #5232A0; }
-#hantee .pq-paliers-btn.pret { background: var(--ht-orange); color: #2A1608; box-shadow: 0 3px 0 var(--ht-orange2); }
-#hantee .carte.pq { background: var(--ht-carte); box-shadow: 0 6px 16px rgba(0, 0, 0, .35); }
-#hantee .carte.pq .icone { background: var(--ht-carte2); }
-#hantee .carte.pq .icone .niv { box-shadow: 0 0 0 2px var(--ht-carte); background: var(--ht-orange); color: #2A1608; }
-#hantee .carte.pq .palier, #hantee .carte.pq .palier span + span, #hantee .carte.pq .pq-poste, #hantee .carte.pq .barre .tps { color: var(--ht-lavande); }
-#hantee .carte.pq .palier::before, #hantee .carte.pq .barre { background: var(--ht-ombre); }
-#hantee .carte.pq .palier i { background: var(--ht-orange); }
-#hantee .carte.pq .barre .cuire { color: #FFB27A; }
-#hantee .carte.pq.manuel:not(.actif) .barre { outline-color: var(--ht-orange); }
-#hantee .carte.pq.verrou { background: #251F36; border-color: #4A3F66; }
-#hantee .carte.pq.verrou .icone { background: var(--ht-carte); }
-#hantee .carte.pq .pq-apres { background: var(--ht-ombre); color: var(--ht-orange); }
-#hantee .carte.pq.verrou p { color: var(--ht-lavande); }
-#hantee .carte.pq .btn.non { background: #4A3F66; color: #A99CC9; box-shadow: 0 4px 0 var(--ht-ombre); }
-#hantee .carte.pq .staff-ok.pq { background: var(--ht-ombre); color: var(--ht-lavande); }
-#hantee .btn.sombre { background: var(--ht-ombre); }
-/* les coups de pouce du manoir : orange citrouille (toc toc), nuit étoilée (le bal), clair de lune, violet (la chauve-souris) */
+/* ─── la Maison hantée (src/evenement.js, EVENEMENTS.hantee) : l'écran prend le style du FOURNIL (en-tête crème, pastilles blanches à
+   épaisseur, la scène en pleine largeur, le tiroir arrondi et sa poignée, les cartes blanches, Fredoka et Nunito), habillé pour Halloween :
+   orange citrouille, violet, crème, une toile et deux chauves-souris dans l'en-tête, une citrouille sur la poignée. Seulement #hantee :
+   la Planque (#planque, cartes .pq en néon sombre) ne change pas. Les couleurs de HANTEE.FICHE (--evt-*, la nuit du Manoir 2D) ne servent
+   plus ici. Les classes .mh-* : les touches d'Halloween et les places des activités à venir (gabarits dans src/evenement.js). ─── */
+#hantee { --mh-creme: #FFF5EA; --mh-creme2: #FFEAD6; --mh-texte: #3D2748; --mh-texte2: #775B8A; --mh-gris: #B39CBF; --mh-ombre: #E6D4E3;
+  --mh-orange: #FF8A1F; --mh-orange-sombre: #D9660A; --mh-orange-texte: #B04C06; --mh-violet: #8E5CF7; --mh-violet-sombre: #6A3DD1; --mh-violet-clair: #F1E9FF;
+  --mh-ombre-carte: 0 4px 14px rgba(61, 39, 72, .09);
+  /* les variables de l'écran (le tiroir de la boutique hantée, src/boutiquehantee.js, et les activités s'en servent) : en clair */
+  --ht-fond: var(--mh-creme); --ht-carte: #FFFFFF; --ht-carte2: var(--mh-creme2); --ht-ombre: var(--mh-ombre); --ht-orange: var(--mh-orange); --ht-orange2: var(--mh-orange-sombre); --ht-lavande: var(--mh-texte2); --ht-vert: var(--menthe-sombre);
+  background: var(--mh-creme); color: var(--mh-texte); }
+/* l'en-tête : comme celui de la boulangerie */
+#hantee .at-haut { position: relative; }
+#hantee .at-haut > :not(.mh-deco) { position: relative; z-index: 1; }
+#hantee .at-fermer { background: #fff; box-shadow: 0 3px 0 var(--mh-ombre), 0 4px 10px rgba(61, 39, 72, .08); }
+#hantee .at-fermer svg, #hantee .pq-cl-btn svg { stroke: var(--mh-texte); }
+#hantee .at-titre b { color: var(--mh-texte); }
+#hantee .at-titre small { color: var(--mh-texte2); }
+#hantee .pq-paliers-btn { background: #fff; color: var(--mh-texte); box-shadow: 0 3px 0 var(--mh-ombre); }
+#hantee .pq-paliers-btn.pret { background: var(--mh-orange); color: #3A1A05; box-shadow: 0 3px 0 var(--mh-orange-sombre); }
+#hantee .pq-solde b { color: var(--mh-texte); }
+#hantee .pq-solde small { color: var(--mh-texte2); }
+#hantee .pq-solde small b { color: var(--menthe-sombre); }
+#hantee .bb-mot { display: inline !important; margin-left: 5px; font: 700 14px/1 var(--titre) !important; color: var(--mh-orange-texte) !important; }
+#hantee .pq-reste { background: var(--mh-violet-clair); color: var(--mh-violet-sombre); box-shadow: none; }
+/* la toile dans le coin de l'en-tête ; les deux chauves-souris qui battent des ailes près de la poignée du tiroir */
+.mh-deco { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.mh-toile { position: absolute; top: 0; right: 0; width: 74px; height: 74px; opacity: .3; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='%236A3DD1' stroke-width='1.3' stroke-linecap='round'%3E%3Cpath d='M64 0H2M64 0L6 26M64 0L22 46M64 0L42 60M64 0v62'/%3E%3Cpath d='M51 0q1 6 3.4 8.6Q57 12 64 12.6M38 0q2.6 11 6.6 15.6Q50 23 64 25M24 0q4 17 10 23.6Q43 34 64 38.4M11 0q6 22 13.6 31.4Q37 46 64 51'/%3E%3C/svg%3E") top right / contain no-repeat; }
+.mh-vol { position: absolute; left: 0; right: 0; top: 0; height: 24px; overflow: hidden; pointer-events: none; }
+.mh-cs { position: absolute; width: 20px; height: 9px; background: var(--mh-violet-sombre); opacity: .55; clip-path: polygon(0 30%, 30% 0, 50% 45%, 70% 0, 100% 30%, 75% 100%, 50% 70%, 25% 100%); animation: mhAile .5s ease-in-out infinite alternate, htVol 6s ease-in-out infinite; }
+.mh-cs.a { top: 7px; left: calc(50% - 72px); }
+.mh-cs.b { top: 4px; left: calc(50% - 104px); width: 14px; height: 6px; opacity: .4; animation-delay: -.25s, -3s; }
+@keyframes mhAile { from { transform: scaleY(1); } to { transform: scaleY(.55); } }
+@media (prefers-reduced-motion: reduce) { .mh-cs { animation: none; } }
+/* la scène en pleine largeur, comme la boutique ; le tiroir passe par-dessus son bas (la boutique hantée, ?boutique=1, a déjà ce cadre) */
+#hantee:not(.ht-boutique) > .pq-scene { margin: 0 0 -22px; height: clamp(200px, 34vh, 300px); border-radius: 0; background: #2A2140; box-shadow: none; }
+#hantee:not(.ht-boutique) > .pq-scene > .pq-ev { bottom: 30px; }
+#hantee:not(.ht-boutique) > .pq-scene ~ * { background: var(--mh-creme); }
+#hantee > .pq-scene + * { position: relative; z-index: 1; border-radius: 24px 24px 0 0; padding-top: 24px; box-shadow: 0 -6px 16px rgba(61, 39, 72, .16); }
+body #hantee.ht-boutique > .pq-scene + * { padding-top: 24px; box-shadow: 0 -6px 16px rgba(61, 39, 72, .16); }
+body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .12); }
+/* la poignée du tiroir, et sa petite citrouille */
+#hantee > .pq-scene + *::before { content: ''; position: absolute; top: 9px; left: 50%; width: 56px; height: 5px; margin-left: -28px; border-radius: 3px; background: var(--mh-ombre); }
+#hantee > .pq-scene + *::after { content: ''; position: absolute; top: 2px; left: calc(50% + 34px); width: 18px; height: 18px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M12 7c-1.3-1-3-1.4-4.7-1.1C4.6 6.4 3 9 3 12.6s2.2 6.6 5.6 7c1.2.1 2.4-.2 3.4-.8 1 .6 2.2.9 3.4.8 3.4-.4 5.6-3.4 5.6-7s-1.6-6.2-4.3-6.7C15 5.6 13.3 6 12 7z' fill='%23FF8A1F' stroke='%233D2748' stroke-width='1.5'/%3E%3Cpath d='M9 7.5c-1 3-1 8 0 11.6M15 7.5c1 3 1 8 0 11.6' stroke='%23D9660A' stroke-width='1.2' fill='none'/%3E%3Cpath d='M12 7V4.4l2.2-1.2' stroke='%235B8C3A' stroke-width='1.7' stroke-linecap='round' fill='none'/%3E%3C/svg%3E") center / contain no-repeat; }
+/* la barre des activités et la barre ×1 ×10 ×100 Max · Sortilèges : les pastilles blanches de la boulangerie */
+#hantee .pq-act-btn { background: #fff; color: var(--mh-texte); box-shadow: 0 3px 0 var(--mh-ombre); }
+#hantee .pq-act-btn:active { box-shadow: 0 1px 0 var(--mh-ombre); }
+#hantee .pq-act-txt small { color: var(--mh-texte2); }
+#hantee .pq-act-btn.pret { box-shadow: 0 3px 0 var(--mh-ombre), inset 0 0 0 2px var(--menthe); }
+#hantee .pq-act-btn.pret small { color: var(--menthe-sombre); }
+#hantee .pq-act-btn.actif small { color: var(--mh-orange-texte); }
+#hantee .pq-pastille { background: var(--mh-orange); color: #3A1A05; box-shadow: 0 2px 0 var(--mh-orange-sombre); }
+#hantee .pq-barre .modes { background: #fff; box-shadow: 0 3px 0 var(--mh-ombre); }
+#hantee .pq-barre .modes button { color: var(--mh-texte2); }
+#hantee .pq-barre .modes button.actif { background: var(--mh-violet-sombre); color: #fff; }
+#hantee .pq-am { background: var(--mh-violet); color: #fff; box-shadow: 0 3px 0 var(--mh-violet-sombre); }
+/* les cartes des friandises : les cartes blanches de la boulangerie ; améliorer en citrouille, embaucher en violet */
+#hantee .carte.pq { background: #fff; color: var(--mh-texte); box-shadow: var(--mh-ombre-carte); }
+#hantee .carte.pq .icone { background: var(--mh-creme2); }
+#hantee .carte.pq .icone .niv { background: var(--mh-texte); color: #fff; box-shadow: 0 0 0 2px #fff; }
+#hantee .carte.pq .palier, #hantee .carte.pq .pq-poste, #hantee .carte.pq .barre .tps { color: var(--mh-texte2); }
+#hantee .carte.pq .palier span + span { color: var(--mh-gris); }
+#hantee .carte.pq .palier b, #hantee .carte.pq .barre .rev { color: var(--mh-texte); }
+#hantee .carte.pq .palier::before, #hantee .carte.pq .barre { background: #FFF0E2; }
+#hantee .carte.pq .palier i { background: var(--mh-orange); }
+#hantee .carte.pq .barre i { background: linear-gradient(90deg, #FFC27A, var(--mh-orange)); }
+#hantee .carte.pq .barre i.rapide { background: linear-gradient(90deg, #FFC27A, var(--mh-orange), #FFC27A); }
+#hantee .carte.pq .barre .cuire { color: var(--mh-orange-texte); }
+#hantee .carte.pq.manuel:not(.actif) .barre { outline-color: var(--mh-orange); }
+#hantee .carte.pq.manuel:not(.actif):active .barre { background: var(--mh-creme2); }
+#hantee .carte.pq.verrou { background: #FFFBF6; border-color: #E6D2E2; color: var(--mh-texte); box-shadow: none; }
+#hantee .carte.pq.verrou .icone { background: var(--mh-creme); }
+#hantee .carte.pq.verrou p { color: var(--mh-texte2); }
+#hantee .carte.pq.verrou.apres h3 { color: var(--mh-texte); }
+#hantee .carte.pq .pq-apres { background: var(--mh-violet-clair); color: var(--mh-violet-sombre); }
+#hantee .carte.pq .btn.non { background: #F3E9F0; color: #B49FB2; box-shadow: 0 4px 0 #E3D3DF; }
+#hantee .carte.pq .staff-ok.pq { background: var(--mh-violet-clair); color: var(--mh-violet-sombre); }
+#hantee .carte.pq .btn[data-a="ameliorer"]:not(.non) { background: var(--mh-orange); color: #3A1A05; box-shadow: 0 4px 0 var(--mh-orange-sombre); }
+#hantee .carte.pq .btn[data-a="ameliorer"]:not(.non) small { color: #5A2A08; }
+#hantee .btn.beurre:not(.non) { background: var(--mh-violet); color: #fff; box-shadow: 0 4px 0 var(--mh-violet-sombre); }
+#hantee .carte.pq.gouter { box-shadow: 0 0 0 3px var(--mh-violet), var(--mh-ombre-carte); }
+#hantee .btn.sombre { background: var(--mh-texte); box-shadow: 0 4px 0 #24152C; }
+#hantee .at-carte.pq-bilan { background: #fff; box-shadow: var(--mh-ombre-carte); }
+/* la carte de la recette du jour : liseré citrouille et une toile dans son coin */
+#hantee .carte.pq.rj-carte { position: relative; box-shadow: 0 0 0 2px var(--mh-orange) inset, var(--mh-ombre-carte); }
+#hantee .carte.pq.rj-carte::after { content: ''; position: absolute; top: 2px; right: 2px; width: 40px; height: 40px; border-top-right-radius: 18px; opacity: .22; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='%236A3DD1' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M64 0H8M64 0L10 30M64 0L30 54M64 0v56'/%3E%3Cpath d='M48 0q2 8 5 10.6Q57 14 64 15M30 0q4 16 9.6 22Q47 30 64 32.6M14 0q6 24 14 33Q41 46 64 50'/%3E%3C/svg%3E") top right / contain no-repeat; }
+#hantee .carte.pq.rj-carte .rj-tag { color: var(--mh-orange-texte); }
+#hantee .carte.pq.rj-carte .rj-desc { color: var(--mh-texte2); }
+#hantee .carte.pq.rj-carte .rj-maitrise i { background: var(--menthe); }
+#hantee .carte.pq.rj-carte .rj-repere { background: var(--mh-texte2); opacity: .35; }
+#hantee .carte.pq.rj-carte .rj-repere.fait { background: var(--mh-orange); opacity: 1; }
+#hantee .carte.pq.rj-carte .rj-demain { color: var(--mh-gris); }
+#hantee .carte.pq.rj-carte .btn[data-a="rj-niv"]:not(.non):not(.beurre) { background: var(--mh-orange); color: #3A1A05; box-shadow: 0 4px 0 var(--mh-orange-sombre); }
+/* les coups de pouce du manoir, sur la scène : orange citrouille (la nuée, toc toc), violet (le cortège, le balai), clair de lune */
 #hantee .ev.descente { background: linear-gradient(135deg, #E0701E, #FFB062); box-shadow: 0 8px 20px rgba(255, 138, 61, .4); }
-#hantee .ev.grosclient { background: linear-gradient(135deg, #3A2440, #7B4FD0); }
+#hantee .ev.grosclient { background: linear-gradient(135deg, #6A3DD1, #B48CFF); box-shadow: 0 8px 20px rgba(106, 61, 209, .35); }
 #hantee .ev.grosclient.prete { background: linear-gradient(135deg, #5FD3A4, #8FE3C2); }
-#hantee .ev.soiree { background: linear-gradient(135deg, #2E2A6E, #8E7BE0); box-shadow: 0 8px 20px rgba(142, 123, 224, .4); }
-#hantee .ev.scooter { background: linear-gradient(135deg, #4B2F7A, #B48CFF); box-shadow: 0 8px 20px rgba(123, 79, 208, .4); }
-#hantee .carte.pq .btn[data-a="ameliorer"]:not(.non) { background: var(--ht-orange); color: #2A1608; box-shadow: 0 4px 0 var(--ht-orange2); }
-#hantee .carte.pq .btn[data-a="ameliorer"]:not(.non) small { color: #4A2410; }
+#hantee .ev.soiree { background: linear-gradient(135deg, #3B2A66, #8E7BE0); box-shadow: 0 8px 20px rgba(142, 123, 224, .4); }
+#hantee .ev.scooter { background: linear-gradient(135deg, #8E5CF7, #FF8A1F); box-shadow: 0 8px 20px rgba(142, 92, 247, .35); }
+#hantee .ev .btn.tapote { color: var(--mh-texte); }
+/* les mini-jeux : l'écran crème de l'Atelier, l'aire de jeu garde sa nuit ; l'écran dessous, tout couvert, ne se peint plus (ses ombres
+   floues repeintes à chaque image coûtaient cher aux téléphones modestes) */
+#hantee .pq-mini { background: var(--mh-creme); }
+#hantee.en-mini > :not(.pq-mini) { visibility: hidden; }
+#hantee .pq-mini .at-titre b { color: var(--mh-texte); }
+#hantee .pq-mini .at-chrono { background: var(--mh-orange); color: #3A1A05; }
+#hantee .pq-mini .at-pill { background: #fff; color: var(--mh-texte); box-shadow: 0 3px 0 var(--mh-ombre); }
+#hantee .pq-mini .at-pill small { color: var(--mh-texte2); }
+#hantee .pq-mini .at-pill.chaud { background: var(--mh-orange); color: #3A1A05; box-shadow: 0 3px 0 var(--mh-orange-sombre); }
+#hantee .pq-mini .at-pill.chaud small { color: #5A2A08; }
+#hantee .pq-mini-consigne { color: var(--mh-orange-texte); }
+#hantee .pq-compte-btn { background: var(--mh-orange); color: #3A1A05; box-shadow: 0 4px 0 var(--mh-orange-sombre); }
+#hantee .pq-compte-btn.juste { background: var(--menthe); box-shadow: 0 4px 0 var(--menthe-sombre); }
+#hantee .pq-mini-carte .at-icone { background: var(--mh-creme2); }
+#hantee .at-carte.pq-mini-carte { background: #fff; }
+/* les activités à venir (les places, cachées tant que rien ne les remplit) : la jauge « Le boss s'endort… » sous le ×6 */
+#hantee .pq-solde { flex-wrap: wrap; row-gap: 3px; }
+#hantee .pq-solde > div:not(.mh-eveil) { flex: 1 1 0; }
+.mh-eveil, #hantee .pq-solde > .mh-eveil { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 0 100%; padding-left: 46px; } /* une ligne à elle, sous le ×6 */
+.mh-eveil[hidden] { display: none; }
+.mh-eveil-jauge { position: relative; flex: 0 1 132px; min-width: 70px; height: 8px; border-radius: 999px; background: var(--mh-violet-clair); box-shadow: inset 0 0 0 1px rgba(106, 61, 209, .15); overflow: hidden; }
+.mh-eveil-jauge b { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--mh-violet), var(--mh-orange)); transition: width .5s linear; }
+.mh-eveil-txt { min-width: 0; font: 800 11px/1.1 var(--texte-font); color: var(--mh-texte2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mh-eveil-txt::before { content: 'z'; display: inline-block; margin-right: 3px; font: 700 12px/1 var(--titre); color: var(--mh-violet); transform: rotate(-12deg); }
+.mh-eveil[data-niveau="bas"] .mh-eveil-txt { color: var(--mh-orange-texte); }
+.mh-eveil[data-niveau="bas"] .mh-eveil-jauge { animation: pulse 1.2s ease-in-out infinite; }
+/* le compteur de la série d'apparitions attrapées, en haut à gauche de la scène */
+.mh-serie { position: absolute; top: 10px; left: 10px; z-index: 2; display: inline-flex; align-items: center; gap: 4px; min-height: 36px; padding: 3px 12px 3px 4px; border-radius: 999px;
+  background: rgba(255, 255, 255, .94); color: var(--mh-texte); box-shadow: 0 3px 0 rgba(61, 39, 72, .2); pointer-events: none; }
+.mh-serie[hidden] { display: none; }
+#hantee.ht-boutique .mh-serie { top: 30px; } /* la boutique hantée : le haut de la scène passe sous l'en-tête */
+.mh-serie-ico { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; background: var(--mh-violet-clair); }
+.mh-serie-ico svg { width: 24px; height: 24px; }
+.mh-serie b { font: 700 18px/1 var(--titre); font-variant-numeric: tabular-nums; }
+.mh-serie small { font: 800 11px/1 var(--texte-font); color: var(--mh-texte2); }
+.mh-serie.chaude { background: var(--mh-orange); color: #3A1A05; box-shadow: 0 3px 0 var(--mh-orange-sombre); animation: pulse 1.2s ease-in-out infinite; }
+.mh-serie.chaude small { color: #5A2A08; }
+/* la carte « Commande de la nuit », en tête du tiroir (au-dessus de la liste des friandises) */
+.mh-commande-place { flex: 0 0 auto; padding: 2px 12px 8px; }
+.mh-commande-place[hidden] { display: none; }
+.mh-commande { display: grid; grid-template-columns: 48px minmax(0, 1fr) 104px; gap: 10px; align-items: center; padding: 10px; border-radius: var(--r-carte); background: #fff; color: var(--mh-texte); box-shadow: 0 0 0 2px var(--mh-violet) inset, var(--mh-ombre-carte); }
+.mh-commande.prete { box-shadow: 0 0 0 3px var(--menthe) inset, var(--mh-ombre-carte); }
+.mh-commande-pic { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: var(--mh-violet-clair); }
+.mh-commande-pic svg { width: 36px; height: 36px; }
+.mh-commande-corps { min-width: 0; display: grid; gap: 2px; }
+.mh-commande-tag { font: 800 11px/1.1 var(--texte-font); color: var(--mh-violet-sombre); letter-spacing: .02em; }
+.mh-commande-corps > b { font: 700 16px/1.15 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mh-commande-lignes { list-style: none; margin: 3px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.mh-commande-lignes li { display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 2px; border-radius: 999px; background: var(--mh-creme2); font: 800 12px/1 var(--texte-font); font-variant-numeric: tabular-nums; }
+.mh-commande-lignes li i { display: grid; place-items: center; width: 20px; height: 20px; }
+.mh-commande-lignes li i svg { width: 20px; height: 20px; }
+.mh-commande-lignes li.fait { background: var(--menthe-clair); color: var(--menthe-sombre); }
+.mh-commande-temps { display: block; height: 5px; margin-top: 5px; border-radius: 999px; background: var(--mh-creme2); overflow: hidden; }
+.mh-commande-temps b { display: block; height: 100%; border-radius: inherit; background: var(--mh-violet); transition: width .5s linear; }
+.mh-commande .btn { min-width: 0; }
 /* les prix en bonbons : le nombre et un petit bonbon emballé (pas d'emoji : une image SVG en fond, au trait du jeu) */
 .bb { display: inline-block; width: .95em; height: .95em; margin-left: .18em; vertical-align: -.12em; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Cpath d='M13 24L5 16l1 16z' fill='%23B48CFF' stroke='%234A3328' stroke-width='3' stroke-linejoin='round'/%3E%3Cpath d='M35 24l8-8-1 16z' fill='%23B48CFF' stroke='%234A3328' stroke-width='3' stroke-linejoin='round'/%3E%3Cellipse cx='24' cy='24' rx='12' ry='10' fill='%23FF8A3D' stroke='%234A3328' stroke-width='3'/%3E%3Cpath d='M17 19c4 2 4 8 0 10M24 15c4 3 4 15 0 18M31 19c-4 2-4 8 0 10' stroke='%23FFC84A' stroke-width='2.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E") center / contain no-repeat; }
 .pq-pic.grand .bb, .btn .bb { width: .9em; height: .9em; }
@@ -939,6 +1057,20 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 @media (prefers-reduced-motion: reduce) { .ht-cs { animation: none; } }
 .ht-annonce .encadre { text-align: left; font-size: 13px; }
 .btn.ht-btn { background: #FF8A3D; color: #2A1608; box-shadow: 0 4px 0 #C9652B; }
+.pq-sheet.ht, .pq-bilan.ht { position: relative; }
+.pq-sheet.ht::before, .pq-bilan.ht::before { content: ''; position: absolute; top: -6px; right: -4px; width: 64px; height: 64px; opacity: .18; pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='%236A3DD1' stroke-width='1.5' stroke-linecap='round'%3E%3Cpath d='M64 0H2M64 0L6 26M64 0L22 46M64 0L42 60M64 0v62'/%3E%3Cpath d='M51 0q1 6 3.4 8.6Q57 12 64 12.6M38 0q2.6 11 6.6 15.6Q50 23 64 25M24 0q4 17 10 23.6Q43 34 64 38.4M11 0q6 22 13.6 31.4Q37 46 64 51'/%3E%3C/svg%3E") top right / contain no-repeat; }
+.pq-sheet.ht .btn.beurre, .pq-bilan.ht .btn.beurre { background: #FF8A1F; color: #3A1A05; box-shadow: 0 4px 0 #D9660A; }
+.pq-sheet.ht .btn.sombre { background: #3D2748; box-shadow: 0 4px 0 #24152C; }
+.pq-sheet.ht .pq-dons li::marker { color: #FF8A1F; }
+.pq-sheet.ht .btn.lavande { background: #8E5CF7; box-shadow: 0 4px 0 #6A3DD1; }
+/* Réglages › Crédits (src/ui.js) : qui, quoi, et la licence en pastille */
+.detail.credits li { align-items: flex-start; padding: 6px 0; border-bottom: 1px solid var(--ligne); }
+.detail.credits li:last-child { border-bottom: 0; }
+.detail.credits li > span { display: grid; gap: 2px; min-width: 0; }
+.detail.credits li > span b { font: 700 14px/1.2 var(--titre); }
+.detail.credits li > span small { font: 700 12px/1.3 var(--texte-font); color: var(--texte-2); }
+.detail.credits li > b { flex: 0 0 auto; padding: 3px 8px; border-radius: 999px; background: var(--menthe-clair); color: var(--menthe-sombre); font: 800 11px/1.2 var(--texte-font); white-space: nowrap; }
 
 /* ─── l'arrière-salle (src/arriere.js) : le BlackJack caché. Lumière tamisée d'une lampe basse, tapis vert feutré cerclé de bois,
    cartes dessinées en SVG, jetons pastel à liseré pointillé ; mêmes rondeurs et boutons à épaisseur que le reste du Fournil ─── */
@@ -1186,22 +1318,6 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 .am.pq-op .pq-op-chiffres { font-weight: 800; color: var(--texte); }
 .pq-op-gain { text-align: center; margin: 6px 0 10px; }
 @media (max-width: 359px) { .pq-ctr { flex-wrap: wrap; } .pq-ctr .btn { width: 100%; } .pq-compte-btn { min-height: 56px; font-size: 24px; } }
-/* la Maison hantée : violet nuit et orange citrouille */
-#hantee .pq-act-btn { background: var(--ht-carte); box-shadow: 0 3px 0 var(--ht-ombre); }
-#hantee .pq-act-txt small { color: var(--ht-lavande); }
-#hantee .pq-act-btn.pret { box-shadow: 0 3px 0 var(--ht-ombre), inset 0 0 0 2px var(--ht-vert); }
-#hantee .pq-act-btn.actif small { color: var(--ht-orange); }
-#hantee .pq-pastille { background: var(--ht-orange); color: #2A1608; box-shadow: 0 2px 0 var(--ht-orange2); }
-#hantee .pq-mini { background: var(--ht-fond); }
-#hantee .pq-mini .at-chrono { background: var(--ht-orange); color: #2A1608; }
-#hantee .pq-mini .at-pill { background: var(--ht-carte); box-shadow: 0 3px 0 var(--ht-ombre); }
-#hantee .pq-mini .at-pill small { color: var(--ht-lavande); }
-#hantee .pq-mini .at-pill.chaud { background: var(--ht-orange); color: #2A1608; }
-#hantee .pq-mini .at-pill.chaud small { color: #5A2A08; }
-#hantee .pq-mini-consigne { color: #FFC07A; }
-#hantee .pq-compte-btn { background: var(--ht-orange); color: #2A1608; box-shadow: 0 4px 0 var(--ht-orange2); }
-#hantee .pq-compte-btn.juste { background: var(--ht-vert); box-shadow: 0 4px 0 #4FA866; }
-#hantee .pq-mini-carte .at-icone { background: #FFE6D2; }
 .pq-sheet.ht .pq-jeu-ico { background: #FFE6D2; }
 
 /* ─── les copains (classement v6) : les lignes qu'on touche, la visite d'une boutique, l'objectif commun, les feuilles des pourboires ─── */
@@ -1605,13 +1721,6 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 .carte.pq.rj-carte .rj-demain { display: block; margin-top: -1px; font: 700 11px/1.25 var(--texte-font); color: #9E95B8; overflow-wrap: anywhere; }
 .carte.pq.rj-carte.ferme .icone svg { opacity: .55; }
 .carte.pq.rj-carte .btn[data-a="rj-niv"]:not(.non):not(.beurre) { background: #5FD3A4; color: #1E3B30; box-shadow: 0 4px 0 #2F8F62; }
-#hantee .carte.pq.rj-carte { box-shadow: 0 0 0 2px var(--ht-orange) inset, 0 6px 16px rgba(0, 0, 0, .35); }
-#hantee .carte.pq.rj-carte .rj-tag { color: var(--ht-orange); }
-#hantee .carte.pq.rj-carte .rj-desc { color: var(--ht-lavande); }
-#hantee .carte.pq.rj-carte .rj-maitrise i { background: var(--ht-vert); }
-#hantee .carte.pq.rj-carte .rj-repere.fait { background: var(--ht-orange); }
-#hantee .carte.pq.rj-carte .rj-demain { color: #A99CC9; }
-#hantee .carte.pq.rj-carte .btn[data-a="rj-niv"]:not(.non):not(.beurre) { background: var(--ht-orange); color: #2A1608; box-shadow: 0 4px 0 var(--ht-orange2); }
 </style>
 <div id="probe" aria-hidden="true"></div>
 <header id="haut">
@@ -11547,6 +11656,7 @@ const EVENEMENTS = (() => {
       d = deps; el = $(F.racine); if (!el || !Q) return false;
       cartesEl = id('cartes'); evEl = id('ev'); construireActivites();
       const ico = el.querySelector('.pq-ico'); if (ico) ico.innerHTML = F.ico.devise;
+      if (F.habiller) F.habiller(el); // le gabarit propre à l'événement (la Maison hantée : ses touches d'Halloween et les places des activités à venir)
       if (F.couleurs) for (const [k, v] of Object.entries(F.couleurs)) if (/^#[0-9a-f]{3,8}$/i.test(String(v))) el.style.setProperty('--evt-' + k, v);
       el.querySelector('[data-pq="fermer"]').addEventListener('click', () => { d.audio(); d.son.tap(); fermer(); });
       el.querySelector('[data-pq="classement"]').addEventListener('click', () => { d.audio(); d.son.tap(); if (d.classement) d.classement(); });
@@ -11688,6 +11798,7 @@ const EVENEMENTS = (() => {
       el.querySelectorAll('.pq-modes button').forEach((b) => b.classList.toggle('actif', String(qq.mode) === b.dataset.mode));
       construireCartes(); lastHud = ''; lastEv = ''; hud(); renderEv();
       if (!scene3) { essais3 = 0; creer3(false); }
+      if (F.sons && typeof SONS !== 'undefined') SONS.jeu(F.sons); // le jeu de sons de l'événement : son jingle, sa musique, ses bruitages (src/sons.js)
       if (abs.total > 0 && abs.secs > 90) d.toast(F.t.absence(G.fmtDuree(abs.secs), fmt(abs.total)));
       else if (qq.stats.taps === 0) d.toast(F.t.premier);
       lastAct = ''; ramasser(true); majActivites(true); // une opération finie pendant l'absence : ramassée à l'ouverture, avec sa feuille
@@ -11698,6 +11809,7 @@ const EVENEMENTS = (() => {
       if (miniOuvert()) fermerMini();
       if (ecran === F.ecran) { const qq = q(); qq.lastSeen = now(); d.save(); }
       if (ecran === 'bilan') { const qq = q(); qq.bilan = true; d.save(); }
+      if (F.sons && typeof SONS !== 'undefined') SONS.jeu(null); // la musique s'arrête avec l'écran
       liberer3();
       el.hidden = true; ecran = ''; el.dataset.ecran = ''; cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
       calmeJusqua = performance.now() + 20e3;
@@ -11943,6 +12055,7 @@ const EVENEMENTS = (() => {
     // ─── le bilan de fin : la boutique de l'événement a fermé, tout le reste reste ───
     function montrerBilan() {
       const qq = q(); ecran = 'bilan'; el.dataset.ecran = ecran;
+      if (F.sons && typeof SONS !== 'undefined') SONS.jeu(null);
       liberer3();
       cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
       // parti avant la fermeture, revenu après : les apprentis ont travaillé jusqu'à la fermeture (une fois, au ralenti, plafonné comme toute absence)
@@ -12853,6 +12966,20 @@ const EVENEMENTS = (() => {
   // la Maison hantée : HANTEE (src/hantee.js, groupe H1) et sa fiche ; ici, les valeurs par défaut de l'écran (textes, icônes, couleurs)
   const HR = typeof HANTEE !== 'undefined' ? HANTEE : typeof MAISON_HANTEE !== 'undefined' ? MAISON_HANTEE : null; // eslint-disable-line no-undef
   let st0 = () => null; // l'état du jeu, pour les textes de la fiche (posé par init)
+  // les gabarits des activités à venir de la Maison hantée (HTML seul, sans logique ; les classes dans src/style.css, .mh-*) :
+  // · eveil(part, texte) : l'intérieur de #ht-eveil, la jauge sous le ×6 (part : 1 réveillé → 0 endormi ; data-niveau sur #ht-eveil : 'bas' sous 0,35) ;
+  // · serie(n, record) : l'intérieur de #ht-serie, le compteur de la série d'apparitions attrapées (classe .chaude sur #ht-serie à partir de 5) ;
+  // · commande(o) : la carte « Commande de la nuit », à poser dans #ht-commande : o = { client, sorte, lignes: [{ ico, nom, n, fait }], prime (HTML),
+  //   reste (texte : « 2 min 10 »), part (0..1 du temps écoulé), prete } ; son bouton porte data-a="mh-commande".
+  const gabarits = {
+    eveil: (part, texte) => `<i class="mh-eveil-jauge"><b style="width:${Math.round(Math.max(0, Math.min(1, part)) * 100)}%"></b></i><span class="mh-eveil-txt">${esc(texte || 'Le boss s’endort…')}</span>`,
+    serie: (n, record) => `<span class="mh-serie-ico">${(typeof ICONS !== 'undefined' && ICONS.HANTEE && ICONS.HANTEE.attraper) || ''}</span><b>×${Math.max(0, n | 0)}</b><small>${record ? `record ×${record}` : 'série'}</small>`,
+    commande: (o) => `<article class="mh-commande${o.prete ? ' prete' : ''}"><span class="mh-commande-pic">${(typeof ICONS !== 'undefined' && ICONS.HANTEE && ICONS.HANTEE.taper) || ''}</span>
+      <div class="mh-commande-corps"><small class="mh-commande-tag">Commande de la nuit</small><b>${esc(o.client || 'Un client du Manoir')}</b>
+        <ul class="mh-commande-lignes">${(o.lignes || []).map((l) => `<li class="${l.fait >= l.n ? 'fait' : ''}"><i>${l.ico || ''}</i><span>${l.fait || 0}/${l.n}</span></li>`).join('')}</ul>
+        <i class="mh-commande-temps"><b style="width:${Math.round(Math.max(0, Math.min(1, 1 - (o.part || 0))) * 100)}%"></b></i></div>
+      <button type="button" class="btn ${o.prete ? 'menthe' : 'non'}" data-a="mh-commande"><small>${o.prete ? 'Servir' : esc(o.reste || 'En cours')}</small><b>${o.prime || ''}</b></button></article>`,
+  };
   function ficheHantee() {
     const HF = (HR && HR.FICHE) || {}, T = HF.textes || {}, dv = HF.devise || {}, nomDevise = dv.nom || 'bonbons', un = dv.un || 'bonbon';
     const nombre = (n) => (HR ? HR.fmt(n) : String(Math.floor(n)));
@@ -12881,6 +13008,21 @@ const EVENEMENTS = (() => {
       },
       stats: HE ? [['Ventes', 'ventes'], ['Chauves-souris chassées', 'descentes'], ['Cortèges servis', 'grosClients'], ['Sacs attrapés', 'scooters']] : [['Ventes', 'ventes'], ['Petits monstres servis', ['servis', 'monstres', 'sorts', 'descentes']], ['Commandes du bal', ['bals', 'commandes', 'grosClients']], ['Chauves-souris', ['chauvesSouris', 'chauves', 'scooters']]],
       scene: (cv, X) => (typeof BOUTIQUE_HANTEE !== 'undefined' && BOUTIQUE_HANTEE.actif(cv) ? BOUTIQUE_HANTEE.scene(cv, Object.assign({ st: st0 }, X)) : sceneManoir(cv, X)), // ?boutique=1 : la vraie boutique, hantée (src/boutiquehantee.js)
+      sons: 'hantee', // le jeu de sons de l'écran (src/sons.js, JEUX.hantee : fournil/sons/hantee/)
+      // l'habillage de l'écran : le style du Fournil (en-tête crème, scène pleine largeur, tiroir à poignée, cartes blanches) en orange citrouille
+      // et violet (src/style.css, #hantee et classes .mh-*) ; ici, ses touches d'Halloween (une toile dans l'en-tête, deux chauves-souris près de
+      // la poignée du tiroir) et les places, cachées, des activités à venir : la jauge « Le boss s'endort… » sous le ×6 (#ht-eveil), la série
+      // d'apparitions sur la scène (#ht-serie), la commande de la nuit en tête du tiroir (#ht-commande). Rien ne les remplit ici : F.gabarits
+      // donne leur HTML, il suffit de l'y poser
+      habiller: (el) => {
+        if (el.querySelector('.mh-deco')) return;
+        el.querySelector('.at-haut').insertAdjacentHTML('afterbegin', '<span class="mh-deco" aria-hidden="true"><i class="mh-toile"></i></span>');
+        const tiroir = el.querySelector('.pq-scene + *'); if (tiroir) tiroir.insertAdjacentHTML('afterbegin', '<span class="mh-vol" aria-hidden="true"><i class="mh-cs a"></i><i class="mh-cs b"></i></span>'); // le haut du tiroir, à gauche de la poignée
+        const solde = el.querySelector('.pq-solde'); if (solde) solde.insertAdjacentHTML('beforeend', `<div id="ht-eveil" class="mh-eveil" role="meter" aria-label="Le boss s’endort" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" hidden>${gabarits.eveil(1)}</div>`);
+        const sc = el.querySelector('.pq-scene'); if (sc) sc.insertAdjacentHTML('beforeend', `<div id="ht-serie" class="mh-serie" aria-live="polite" hidden>${gabarits.serie(0)}</div>`);
+        const ca = el.querySelector('#ht-cartes'); if (ca) ca.insertAdjacentHTML('beforebegin', '<div id="ht-commande" class="mh-commande-place" hidden></div>');
+      },
+      gabarits,
       bilanPlus: (qq) => (st0() && (st0().chatNoir || (!G.donnerChatNoir && qq.total > 0)) ? ['le chat noir de la boutique, au choix dans la garde-robe'] : []),
       // un palier qui donne le chat noir (p.chat === 'noir' : GAME.donnerChatNoir, src/game.js)
       apresPalier: (s, p, dons) => { if (p.chat === 'noir' && typeof G.donnerChatNoir === 'function') { G.donnerChatNoir(s); dons.push('le chat noir : le chat de la boutique peut porter une robe noire aux yeux jaunes, au choix, à vie'); } },
@@ -13064,7 +13206,14 @@ if (typeof module !== 'undefined') module.exports = ZZFX;
 /* ── sons.js ── */
 /* LE FOURNIL — les sons : de vrais bruitages (kits de Kenney, MIT : fournil/sons/*.mp3, mono, quelques Ko chacun) joués sur l'AudioContext
    du jeu, et deux sons fabriqués par ZzFX (l'alerte d'un coup de pouce, la sirène de la descente). Les fichiers se chargent après le premier
-   geste (quand l'audio est débloqué) ; tant qu'un son n'est pas prêt, ou dans l'artefact (pas de fichiers à côté), ui.js garde ses bips. */
+   geste (quand l'audio est débloqué) ; tant qu'un son n'est pas prêt, ou dans l'artefact (pas de fichiers à côté), ui.js garde ses bips.
+   Les jeux de sons d'un événement (JEUX : la Maison hantée, fournil/sons/hantee/*.mp3, CC0, crédits dans LICENCES.txt) : SONS.jeu('hantee')
+   à l'entrée de l'écran de l'événement, SONS.jeu(null) à sa sortie. Le jeu se charge à la première ouverture (pas avant) ; tant qu'il est
+   actif, ses bruitages prennent la place de ceux de la boulangerie (remplace : la pièce devient la poignée de bonbons, la fanfare la cloche
+   et le chat noir…), le jingle ouvre l'écran, la musique tourne en boucle (Web Audio, boucle au sample près : loopStart/loopEnd sautent le
+   délai et le rembourrage du mp3), le chaudron bouillonne tout bas, un corbeau croasse de temps en temps, et chaque client qui entre fait
+   sonner la porte (elle grince une fois sur trois ; la sorcière ricane, le fantôme gémit). Les réglages se lisent en direct (brancher(ctx,
+   reglages)) : st.son coupe tout, st.musique (activée par défaut) coupe la musique ; ui.js appelle majMusique() quand l'un d'eux change. */
 const SONS = (() => {
   const FICHIERS = ['clic', 'piece', 'pose', 'pose2', 'fanfare', 'carte', 'pop', 'refus'];
   // ZzFX : volume, aléa, fréquence, attaque, tenue, relâche, forme, courbe, glissé, glissé², saut, temps du saut, répétition, bruit, modulation…
@@ -13079,30 +13228,128 @@ const SONS = (() => {
     couic: [1, 0.05, 1250, 0.005, 0.03, 0.05, 0, 1, 45], // un petit couinement qui monte
     couac: [1, 0.05, 280, 0.02, 0.09, 0.12, 2, 1.4, 6, 0, 0, 0, 0, 0.2, 12], // le pingouin klaxonne
   };
-  const buffers = {}, cacheZz = {}; let ctx = null, demande = false;
-  function brancher(actx) { // appelé par ui.js quand l'audio est créé ou repris
-    ctx = actx || ctx;
-    if (demande || !ctx || typeof fetch === 'undefined' || typeof window === 'undefined' || window.FOURNIL_ACCUEIL == null) return; // l'artefact n'a pas les fichiers
-    demande = true;
-    for (const n of FICHIERS) {
-      fetch(`sons/${n}.mp3`).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
-        .then((b) => new Promise((ok, ko) => ctx.decodeAudioData(b, ok, ko))) // la forme à rappels : les vieux Safari n'ont pas la promesse
-        .then((buf) => { buffers[n] = buf; }).catch(() => { /* ce son restera un bip */ });
-    }
+  // ─── les jeux de sons des événements ───
+  const JEUX = {
+    hantee: {
+      dossier: 'sons/hantee/',
+      fichiers: ['sonnette', 'grince', 'vente', 'cloche', 'sorciere', 'fantome', 'chaudron', 'louche', 'plancher', 'corbeau', 'chat', 'jingle', 'musique'],
+      // un son de la boulangerie → celui du jeu, et ses couches : [nom, { vol, delai, vitesse, sur : une fois sur n }]
+      remplace: { piece: [['vente', { vol: 0.42 }]], fanfare: [['cloche', { vol: 0.5 }], ['chat', { vol: 0.32, delai: 0.55, sur: 2 }]], pose: [['louche', { vol: 0.32 }]], pose2: [['plancher', { vol: 0.5 }], ['chat', { vol: 0.3, delai: 0.35, sur: 3 }]] },
+      boucles: { musique: 38.4, chaudron: 4.853 }, // la durée exacte de chaque boucle (s), mesurée sur la source (le mp3 est un peu plus long)
+      musique: { nom: 'musique', vol: 0.3 }, fond: { nom: 'chaudron', vol: 0.05 }, jingle: { nom: 'jingle', vol: 0.45 },
+      voix: { sorciere: ['sorciere', 0.38], sorciere2: ['sorciere', 0.38], fantome: ['fantome', 0.3], fantome2: ['fantome', 0.3] }, // la sorte d'un client → son cri en entrant
+      corbeau: { nom: 'corbeau', vol: 0.3, min: 28, max: 70 }, // de temps en temps, sur la devanture (s)
+    },
+  };
+  const DELAI_MP3 = 1105 / 44100; // le délai d'un mp3 LAME (576 + 529 échantillons à 44,1 kHz), quand le décodeur ne l'a pas retiré
+  const buffers = {}, cacheZz = {}, jeuxBuf = {}, jeuxDemandes = {}, derniers = []; // derniers : les vingt derniers sons joués (pour les tests)
+  const trace = (n) => { derniers.push(n); if (derniers.length > 20) derniers.shift(); return true; };
+  let ctx = null, demande = false, lire = () => null;
+  let actif = null, musique = null, fond = null, minuterie = null, vus = new Set(), dernSonnette = -1e9, dernVoix = -1e9, prochainCorbeau = 0, jingleJoue = false, ouvertA = 0;
+  const page = () => typeof window !== 'undefined' && window.FOURNIL_ACCUEIL != null && typeof fetch !== 'undefined'; // l'artefact n'a pas les fichiers
+  const regl = () => { const s = lire() || {}; return { son: s.son !== false, musique: s.son !== false && s.musique !== false }; };
+  function charger(url, ok) {
+    fetch(url).then((r) => (r.ok ? r.arrayBuffer() : Promise.reject(new Error(r.status))))
+      .then((b) => new Promise((o, ko) => ctx.decodeAudioData(b, o, ko))) // la forme à rappels : les vieux Safari n'ont pas la promesse
+      .then(ok).catch(() => { /* ce son restera un bip (ou le son de la boulangerie) */ });
+  }
+  function brancher(actx, reglages) { // appelé par ui.js quand l'audio est créé ou repris ; reglages : () => st (son, musique), lu en direct
+    if (actx && actx !== ctx && actx.addEventListener) actx.addEventListener('statechange', () => { if (actif) majMusique(); }); // l'audio repris (ou suspendu) : la musique suit
+    ctx = actx || ctx; if (typeof reglages === 'function') lire = reglages;
+    if (!ctx || !page()) return;
+    if (!demande) { demande = true; for (const n of FICHIERS) charger(`sons/${n}.mp3`, (buf) => { buffers[n] = buf; }); }
+    if (actif) { chargerJeu(actif); majMusique(); } // l'écran de l'événement était déjà ouvert avant le premier geste
+  }
+  function chargerJeu(nom) {
+    const J = JEUX[nom]; if (!J || jeuxDemandes[nom] || !ctx || !page()) return;
+    jeuxDemandes[nom] = true; const b = jeuxBuf[nom] = jeuxBuf[nom] || {};
+    for (const n of J.fichiers) charger(`${J.dossier}${n}.mp3`, (buf) => { b[n] = buf; if (actif === nom) quandPret(n); });
   }
   function lancer(buf, vol, vitesse, delai) {
     const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = buf; s.playbackRate.value = vitesse || 1; g.gain.value = vol;
     s.connect(g); g.connect(ctx.destination); s.start(ctx.currentTime + (delai || 0)); return true;
   }
   const pret = () => !!ctx && ctx.state === 'running';
-  function jouer(n, o = {}) { const b = buffers[n]; if (!b || !pret()) return false; return lancer(b, o.vol == null ? 0.5 : o.vol, o.vitesse, o.delai); }
+  function jouer(n, o = {}) {
+    if (actif && JEUX[actif].remplace[n] && jouerRemplace(JEUX[actif].remplace[n], o)) return true; // le jeu de l'événement passe d'abord
+    const b = buffers[n]; if (!b || !pret()) return false; trace(n); return lancer(b, o.vol == null ? 0.5 : o.vol, o.vitesse, o.delai);
+  }
+  function jouerRemplace(couches, o) {
+    const b = jeuxBuf[actif]; if (!b || !pret() || !b[couches[0][0]]) return false;
+    for (const [n, c] of couches) if (b[n] && (!c.sur || Math.random() * c.sur < 1) && trace(`${actif}/${n}`)) lancer(b[n], c.vol, n === couches[0][0] && o.vitesse ? Math.min(1.25, o.vitesse) : c.vitesse, (o.delai || 0) + (c.delai || 0));
+    return true;
+  }
   function zz(nom, o = {}) {
     if (!pret() || typeof ZZFX === 'undefined' || !ZZ[nom]) return false;
     let b = cacheZz[nom];
     if (!b) { const data = ZZFX.buildSamples(...ZZ[nom]); b = cacheZz[nom] = ctx.createBuffer(1, data.length, ZZFX.sampleRate); b.getChannelData(0).set(data); }
     return lancer(b, o.vol == null ? 0.25 : o.vol, o.vitesse, o.delai);
   }
-  return { brancher, jouer, zz, FICHIERS, get prets() { return Object.keys(buffers); } };
+  // un son du jeu actif, par son nom (ceux qui n'ont pas d'équivalent à la boulangerie : la porte, le corbeau, les cris…) ; « Sons » coupé : rien
+  function jeuSon(n, o = {}) { if (!actif || !regl().son || !pret()) return false; const b = jeuxBuf[actif] && jeuxBuf[actif][n]; if (!b) return false; trace(`${actif}/${n}`); return lancer(b, o.vol == null ? 0.4 : o.vol, o.vitesse, o.delai); }
+
+  // ─── les boucles : la musique et le bruit de fond ───
+  function boucle(n, vol, fondu) { // une source en boucle au sample près, qui monte doucement → { s, g, n, deb, fin } ou null
+    const J = JEUX[actif], b = jeuxBuf[actif] && jeuxBuf[actif][n]; if (!b || !pret()) return null;
+    const vraie = Math.min(J.boucles[n] || b.duration, b.duration), deb = b.duration - vraie > 0.01 ? Math.min(DELAI_MP3, b.duration - vraie) : 0; // le décodeur a gardé le délai du mp3 : on le saute
+    const s = ctx.createBufferSource(), g = ctx.createGain(); s.buffer = b; s.loop = true; s.loopStart = deb; s.loopEnd = deb + vraie;
+    const t = ctx.currentTime; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + (fondu || 1.2));
+    s.connect(g); g.connect(ctx.destination); s.start(t, deb); return { s, g, n, deb, fin: deb + vraie };
+  }
+  function couper(x, fondu) { if (!x) return null; try { const t = ctx.currentTime, f = fondu || 0.4; x.g.gain.cancelScheduledValues(t); x.g.gain.setValueAtTime(Math.max(0.0001, x.g.gain.value), t); x.g.gain.exponentialRampToValueAtTime(0.0001, t + f); x.s.stop(t + f + 0.05); } catch (e) { /* déjà arrêtée */ } return null; }
+  const visible = () => typeof document === 'undefined' || !document.hidden;
+  function majMusique() { // à chaque changement : l'écran de l'événement, les réglages, la page cachée ou revenue, un fichier qui arrive
+    const J = actif && JEUX[actif], r = regl(), on = !!J && visible() && pret();
+    if (on && r.musique && J.musique) { if (!musique) musique = boucle(J.musique.nom, J.musique.vol, jingleJoue ? 2.5 : 1.2); } else musique = couper(musique);
+    if (on && r.son && J.fond) { if (!fond) fond = boucle(J.fond.nom, J.fond.vol, 3); } else fond = couper(fond);
+  }
+  function quandPret(n) { // un fichier du jeu actif vient d'arriver
+    const J = JEUX[actif];
+    if (J.jingle && n === J.jingle.nom && !jingleJoue && performance.now() - ouvertA < 4000) jingleJoue = jeuSon(n, { vol: J.jingle.vol }); // la première ouverture : le jingle s'il arrive à temps
+    if ((J.musique && n === J.musique.nom) || (J.fond && n === J.fond.nom)) majMusique();
+  }
+  function jeu(nom) { // l'écran d'un événement s'ouvre (nom) ou se ferme (null)
+    nom = nom && JEUX[nom] ? nom : null; if (nom === actif) return;
+    musique = couper(musique); fond = couper(fond); if (minuterie) { clearInterval(minuterie); minuterie = null; }
+    actif = nom; vus = new Set(); jingleJoue = false; if (!nom) return;
+    ouvertA = performance.now(); prochainCorbeau = ouvertA + 9000 + Math.random() * 12000;
+    chargerJeu(nom);
+    const J = JEUX[nom];
+    if (J.jingle) jingleJoue = jeuSon(J.jingle.nom, { vol: J.jingle.vol }); // déjà chargé (une ouverture de plus) : tout de suite
+    majMusique();
+    minuterie = setInterval(veiller, 400);
+  }
+  // un client entre : la porte sonne (et grince une fois sur trois), puis son cri s'il en a un (la sorcière, le fantôme)
+  function entre(sorte) {
+    const J = actif && JEUX[actif]; if (!J || !regl().son) return false; const t = performance.now();
+    if (t - dernSonnette < 1500) return false; dernSonnette = t;
+    const ok = jeuSon('sonnette', { vol: 0.3 }); if (Math.random() < 1 / 3) jeuSon('grince', { vol: 0.55, delai: 0.12 });
+    const v = J.voix[sorte]; if (v && t - dernVoix > 7000) { dernVoix = t; jeuSon(v[0], { vol: v[1], delai: 0.6 }); }
+    return ok;
+  }
+  // toutes les 400 ms, l'écran ouvert : les clients qui viennent d'entrer (BOUTIQUE_HANTEE.acteurs() si la scène la donne, sinon la vie de la
+  // boutique hantée, VIE.clients), et le corbeau de la devanture
+  function veiller() {
+    if (!actif || !visible()) return;
+    const l = typeof BOUTIQUE_HANTEE !== 'undefined' && typeof BOUTIQUE_HANTEE.acteurs === 'function' ? BOUTIQUE_HANTEE.acteurs().filter((a) => a.role === 'client').map((a) => ({ id: a.id, etat: a.etat, sorte: a.sorte }))
+      : typeof VIE !== 'undefined' && VIE.mode ? VIE.clients.map((c) => ({ id: c.id, etat: c.etat, sorte: c.deg })) : [];
+    const premier = vus.size === 0;
+    for (const c of l) if (c.etat === 'entre' && !vus.has(c.id)) { vus.add(c.id); if (!premier) entre(c.sorte); } // (ceux qui entraient déjà à l'ouverture : sans bruit)
+    if (premier && !vus.size) vus.add(-1);
+    if (vus.size > 400) vus = new Set([-1, ...l.map((c) => c.id)]);
+    const J = JEUX[actif], t = performance.now();
+    if (J.corbeau && t > prochainCorbeau) { prochainCorbeau = t + (J.corbeau.min + Math.random() * (J.corbeau.max - J.corbeau.min)) * 1000; jeuSon(J.corbeau.nom, { vol: J.corbeau.vol, vitesse: 0.92 + Math.random() * 0.16 }); }
+  }
+  if (typeof document !== 'undefined' && document.addEventListener) document.addEventListener('visibilitychange', () => { if (actif) majMusique(); }); // la page cachée : la musique s'arrête
+
+  return { brancher, jouer, zz, jeu, jeuSon, entre, majMusique, FICHIERS, JEUX,
+    get prets() { return Object.keys(buffers); },
+    get jeuActif() { return actif; },
+    get derniers() { return derniers.slice(); },
+    pretsJeu: (nom) => Object.keys(jeuxBuf[nom] || {}),
+    // pour les tests : la musique et le bruit de fond en cours, et leur boucle (s)
+    get musique() { return musique ? { n: musique.n, debut: musique.deb, fin: musique.fin, duree: musique.s.buffer.duration } : null; },
+    get fond() { return fond ? { n: fond.n, debut: fond.deb, fin: fond.fin } : null; } };
 })();
 if (typeof module !== 'undefined') module.exports = SONS;
 
@@ -14363,7 +14610,7 @@ const UI = (() => {
 
   // ─── sons : de vrais bruitages (src/sons.js) dès qu'ils sont chargés, sinon des bips (Web Audio, sans fichier) ───
   let actx = null;
-  function audio() { if (actx) { if (actx.state === 'suspended') actx.resume().catch(() => {}); return; } const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; try { actx = new AC(); } catch (e) { actx = null; } if (actx && typeof SONS !== 'undefined') SONS.brancher(actx); }
+  function audio() { if (actx) { if (actx.state === 'suspended') actx.resume().catch(() => {}); return; } const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; try { actx = new AC(); } catch (e) { actx = null; } if (actx && typeof SONS !== 'undefined') SONS.brancher(actx, () => st); } // les sons lisent les réglages en direct (st.son, st.musique)
   function beep(freq, dur, type, vol, delay) {
     if (!actx || !st.son || actx.state !== 'running') return;
     const t0 = actx.currentTime + (delay || 0), o = actx.createOscillator(), g = actx.createGain();
@@ -14855,7 +15102,7 @@ const UI = (() => {
   };
   // Réglages : rangés par groupe ; ce qui sert peu vit ici (repeindre, masquer l'événement, quitter le classement, sauvegarde, partage)
   const pageReglages = {
-    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}`,
+    key: () => `${st.son}|${st.musique}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}`,
     html: () => {
       const q = G.QUARTIERS[G.quartier(st)], cr = classement ? classement.resume() : null;
       const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
@@ -14863,7 +15110,8 @@ const UI = (() => {
       const groupe = (titre, lignes) => `<h3 class="titre-section"><span>${titre}</span></h3><div class="card reglages">${lignes}</div>`;
       return `${PAGE_HEAD('reglages', 'Réglages')}
       <div class="bloc">
-        ${groupe('Le jeu', ligne('son', st.son ? ICONS.UI.son : ICONS.UI.sonOff, 'Sons', 'Petites notes à chaque vente et achat', sw(st.son)) + ligne('vibre', ICONS.UI.vibre, 'Vibrations', 'Un léger retour sous le doigt', sw(st.vibre))
+        ${groupe('Le jeu', ligne('son', st.son ? ICONS.UI.son : ICONS.UI.sonOff, 'Sons', 'Petites notes à chaque vente et achat', sw(st.son))
+          + ligne('musique', ICO_MUSIQUE(st.son && st.musique !== false), 'Musique', st.son ? 'La musique des événements, sur leur écran (la Maison hantée)' : 'Coupée avec les sons', sw(!!st.son && st.musique !== false)) + ligne('vibre', ICONS.UI.vibre, 'Vibrations', 'Un léger retour sous le doigt', sw(st.vibre))
           + (typeof HDM !== 'undefined' && HDM.actif ? ligne('hd', ICONS.UI.amenager, 'Décors en HD', HDM.raison === 'écran noir' ? 'Coupés : l’écran restait noir sur ce téléphone. Touche pour réessayer' : 'Boutique et événements : meubles, rue de nuit et équipe animée (à couper si l’écran reste noir)', sw(!HDM.coupe())) : ''))}
         ${groupe('La boutique', ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)
           + ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés, leurs crans et leurs prix : touche-les pour les améliorer', chev)
@@ -14877,13 +15125,16 @@ const UI = (() => {
         ${groupe('Sauvegarde et partage', ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)
           + ligne('partager', ICONS.UI.partager, 'Partager ma boutique', 'Une image de la boutique et ton score', chev)
           + (window.FOURNIL_ACCUEIL ? ligne('accueil', ICONS.UI.salle, 'Salle de jeux', 'Revenir à l’écran d’accueil et aux autres jeux', chev) : ''))}
-        ${groupe('Aide', ligne('journal-retours', ICONS.UI.journal, 'Journal des retours', 'Les 10 derniers retours dans le jeu et ce que tes apprentis ont vendu', chev))}
+        ${groupe('Aide', ligne('journal-retours', ICONS.UI.journal, 'Journal des retours', 'Les 10 derniers retours dans le jeu et ce que tes apprentis ont vendu', chev)
+          + ligne('credits', ICO_CREDITS, 'Crédits', 'Les modèles 3D, les sons et la musique du jeu, et leurs auteurs', chev))}
         <div class="card reglages danger">${ligne('reset', ICONS.UI.recommencer, 'Recommencer de zéro', 'Efface tout, étoiles comprises', chev)}</div>
         <p class="note centre">Le Fournil · boutique n°${st.boutiques} · ${esc(q.nom)}<br>Ta boutique est enregistrée toutes les 5 secondes et à chaque achat.</p>
       </div>`;
     },
     bind: (sec) => {
-      onIn(sec, '[data-a="son"]', () => { st.son = !st.son; save(); renderPage(true); if (st.son) son.tap(); });
+      onIn(sec, '[data-a="son"]', () => { st.son = !st.son; save(); renderPage(true); if (st.son) son.tap(); if (typeof SONS !== 'undefined') SONS.majMusique(); });
+      onIn(sec, '[data-a="musique"]', () => { if (!st.son) { son.non(); return; } st.musique = st.musique === false; save(); renderPage(true); son.tap(); if (typeof SONS !== 'undefined') SONS.majMusique(); }); // st.musique : absent = activée
+      onIn(sec, '[data-a="credits"]', () => { son.tap(); sheetCredits(); });
       onIn(sec, '[data-a="vibre"]', () => { st.vibre = !st.vibre; save(); renderPage(true); buzz(8); });
       onIn(sec, '[data-a="nom"]', () => sheetNom(false));
       onIn(sec, '[data-a="repeindre"]', () => { son.tap(); repeindre(); });
@@ -15248,6 +15499,26 @@ const UI = (() => {
       <div class="nv-liste">${NVS.NOUVEAUTES.map(entree).join('')}</div>${btnRetour()}`);
     on('[data-a="close"]', closeSheet);
     st.nouveautesVues = NVS.derniere(); save(); hud();
+  }
+  // Réglages › Musique et Crédits : deux icônes au trait du jeu (src/icons.js), et la feuille des crédits : qui a fait quoi, sous quelle licence
+  const ICO_MUSIQUE = (on) => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#4A3328" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17.5V6l10-2v11.5"/><ellipse cx="6.6" cy="17.6" rx="2.6" ry="2.1" fill="#C9BCFF"/><ellipse cx="16.6" cy="15.6" rx="2.6" ry="2.1" fill="#C9BCFF"/>${on ? '' : '<path d="M4 4l16 16"/>'}</svg>`;
+  const ICO_CREDITS = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#4A3328" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16l-4.8 2.4.9-5.4-3.9-3.8 5.4-.8z" fill="#FFD66B"/><path d="M5 21h14"/></svg>';
+  const CREDITS = [ // [titre, [[qui, quoi, licence]]] ; tout est libre : les licences CC0 n'obligent à rien, on crédite quand même
+    ['La boutique en 3D', [['Kay Lousberg (kaylousberg.com)', 'KayKit : Furniture, Restaurant, City Builder, Halloween et Dungeon Bits, Spooktober, Adventurers, Skeletons (Mystery Monthly Series 4)', 'CC0'],
+      ['Kenney (kenney.nl)', 'Furniture Kit, Food Kit, Mini Market et Mini Characters', 'CC0'], ['Three.js', 'le moteur 3D (r158)', 'MIT']]],
+    ['Les sons de la boutique', [['Kenney (kenney.nl)', 'les bruitages : clics, pièces, fanfare, cartes', 'MIT'], ['ZzFX (Frank Force)', 'les petits sons de synthèse', 'MIT']]],
+    ['La Maison hantée', [['Kay Lousberg', 'le décor, l’équipe et les clients-monstres (KayKit)', 'CC0'], ['Asset Quest', 'les fantômes', 'CC0'], ['Kenney', 'des bonbons, le jingle d’ouverture, la vente, la louche et le plancher', 'CC0'],
+      ['Poly Haven, ambientCG', 'des textures et la lumière de la nuit', 'CC0'],
+      ['Tsorthan Grove', 'la musique, « Lanterns in the Hollowed Forest »', 'CC0'],
+      ['qubodup, w.forster.1, PWL, AntumDeluge, Ogrebane, BMacZero, zeroisnotnull, Kerzoven', 'la sonnette, la porte qui grince, la cloche, la sorcière, le fantôme, le chaudron, le corbeau, le chat (OpenGameArt.org)', 'CC0']]],
+    ['Le reste', [['canvas-confetti (Kiril Vatev)', 'les confettis', 'ISC'], ['Fredoka et Nunito', 'les polices (Google Fonts)', 'OFL']]],
+  ];
+  function sheetCredits() {
+    openSheet(`<h2>Crédits</h2><p class="sous">Le Fournil est fait avec des modèles, des sons et une musique offerts par leurs auteurs. Merci à eux !</p>
+      ${CREDITS.map(([t, l]) => `<h3 class="titre-section"><span>${esc(t)}</span></h3><ul class="detail credits">${l.map(([qui, quoi, lic]) => `<li><span><b>${esc(qui)}</b><small>${esc(quoi)}</small></span><b>${esc(lic)}</b></li>`).join('')}</ul>`).join('')}
+      <p class="sous">Les licences complètes sont rangées avec les fichiers (fournil/hd/…, fournil/sons/…).</p>
+      <button type="button" class="btn large menthe" data-a="close"><b>Fermer</b></button>`);
+    on('[data-a="close"]', closeSheet);
   }
   // Réglages › Journal des retours : quand le jeu a compté une absence, pourquoi, et si la feuille s'est ouverte (sinon, pourquoi pas)
   const RAISON_RETOUR = { lancement: 'Ouverture du jeu', visible: 'Retour dans le jeu', cache: 'Retour dans le jeu', reveil: 'Réveil du téléphone', gel: 'Le jeu reprend après une pause', saut: 'L’heure a sauté', heure: 'L’heure sûre est arrivée', recul: 'Horloge du jeu remise à l’heure', derive: 'Le compteur du téléphone a sauté' };

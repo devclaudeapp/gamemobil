@@ -67,7 +67,7 @@ const UI = (() => {
 
   // ─── sons : de vrais bruitages (src/sons.js) dès qu'ils sont chargés, sinon des bips (Web Audio, sans fichier) ───
   let actx = null;
-  function audio() { if (actx) { if (actx.state === 'suspended') actx.resume().catch(() => {}); return; } const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; try { actx = new AC(); } catch (e) { actx = null; } if (actx && typeof SONS !== 'undefined') SONS.brancher(actx); }
+  function audio() { if (actx) { if (actx.state === 'suspended') actx.resume().catch(() => {}); return; } const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return; try { actx = new AC(); } catch (e) { actx = null; } if (actx && typeof SONS !== 'undefined') SONS.brancher(actx, () => st); } // les sons lisent les réglages en direct (st.son, st.musique)
   function beep(freq, dur, type, vol, delay) {
     if (!actx || !st.son || actx.state !== 'running') return;
     const t0 = actx.currentTime + (delay || 0), o = actx.createOscillator(), g = actx.createGain();
@@ -559,7 +559,7 @@ const UI = (() => {
   };
   // Réglages : rangés par groupe ; ce qui sert peu vit ici (repeindre, masquer l'événement, quitter le classement, sauvegarde, partage)
   const pageReglages = {
-    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}`,
+    key: () => `${st.son}|${st.musique}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}`,
     html: () => {
       const q = G.QUARTIERS[G.quartier(st)], cr = classement ? classement.resume() : null;
       const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
@@ -567,7 +567,8 @@ const UI = (() => {
       const groupe = (titre, lignes) => `<h3 class="titre-section"><span>${titre}</span></h3><div class="card reglages">${lignes}</div>`;
       return `${PAGE_HEAD('reglages', 'Réglages')}
       <div class="bloc">
-        ${groupe('Le jeu', ligne('son', st.son ? ICONS.UI.son : ICONS.UI.sonOff, 'Sons', 'Petites notes à chaque vente et achat', sw(st.son)) + ligne('vibre', ICONS.UI.vibre, 'Vibrations', 'Un léger retour sous le doigt', sw(st.vibre))
+        ${groupe('Le jeu', ligne('son', st.son ? ICONS.UI.son : ICONS.UI.sonOff, 'Sons', 'Petites notes à chaque vente et achat', sw(st.son))
+          + ligne('musique', ICO_MUSIQUE(st.son && st.musique !== false), 'Musique', st.son ? 'La musique des événements, sur leur écran (la Maison hantée)' : 'Coupée avec les sons', sw(!!st.son && st.musique !== false)) + ligne('vibre', ICONS.UI.vibre, 'Vibrations', 'Un léger retour sous le doigt', sw(st.vibre))
           + (typeof HDM !== 'undefined' && HDM.actif ? ligne('hd', ICONS.UI.amenager, 'Décors en HD', HDM.raison === 'écran noir' ? 'Coupés : l’écran restait noir sur ce téléphone. Touche pour réessayer' : 'Boutique et événements : meubles, rue de nuit et équipe animée (à couper si l’écran reste noir)', sw(!HDM.coupe())) : ''))}
         ${groupe('La boutique', ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)
           + ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés, leurs crans et leurs prix : touche-les pour les améliorer', chev)
@@ -581,13 +582,16 @@ const UI = (() => {
         ${groupe('Sauvegarde et partage', ligne('sauvegarde', ICONS.UI.sauvegarde, 'Sauvegarde et transfert', 'Copier un code, le charger sur un autre appareil', chev)
           + ligne('partager', ICONS.UI.partager, 'Partager ma boutique', 'Une image de la boutique et ton score', chev)
           + (window.FOURNIL_ACCUEIL ? ligne('accueil', ICONS.UI.salle, 'Salle de jeux', 'Revenir à l’écran d’accueil et aux autres jeux', chev) : ''))}
-        ${groupe('Aide', ligne('journal-retours', ICONS.UI.journal, 'Journal des retours', 'Les 10 derniers retours dans le jeu et ce que tes apprentis ont vendu', chev))}
+        ${groupe('Aide', ligne('journal-retours', ICONS.UI.journal, 'Journal des retours', 'Les 10 derniers retours dans le jeu et ce que tes apprentis ont vendu', chev)
+          + ligne('credits', ICO_CREDITS, 'Crédits', 'Les modèles 3D, les sons et la musique du jeu, et leurs auteurs', chev))}
         <div class="card reglages danger">${ligne('reset', ICONS.UI.recommencer, 'Recommencer de zéro', 'Efface tout, étoiles comprises', chev)}</div>
         <p class="note centre">Le Fournil · boutique n°${st.boutiques} · ${esc(q.nom)}<br>Ta boutique est enregistrée toutes les 5 secondes et à chaque achat.</p>
       </div>`;
     },
     bind: (sec) => {
-      onIn(sec, '[data-a="son"]', () => { st.son = !st.son; save(); renderPage(true); if (st.son) son.tap(); });
+      onIn(sec, '[data-a="son"]', () => { st.son = !st.son; save(); renderPage(true); if (st.son) son.tap(); if (typeof SONS !== 'undefined') SONS.majMusique(); });
+      onIn(sec, '[data-a="musique"]', () => { if (!st.son) { son.non(); return; } st.musique = st.musique === false; save(); renderPage(true); son.tap(); if (typeof SONS !== 'undefined') SONS.majMusique(); }); // st.musique : absent = activée
+      onIn(sec, '[data-a="credits"]', () => { son.tap(); sheetCredits(); });
       onIn(sec, '[data-a="vibre"]', () => { st.vibre = !st.vibre; save(); renderPage(true); buzz(8); });
       onIn(sec, '[data-a="nom"]', () => sheetNom(false));
       onIn(sec, '[data-a="repeindre"]', () => { son.tap(); repeindre(); });
@@ -952,6 +956,26 @@ const UI = (() => {
       <div class="nv-liste">${NVS.NOUVEAUTES.map(entree).join('')}</div>${btnRetour()}`);
     on('[data-a="close"]', closeSheet);
     st.nouveautesVues = NVS.derniere(); save(); hud();
+  }
+  // Réglages › Musique et Crédits : deux icônes au trait du jeu (src/icons.js), et la feuille des crédits : qui a fait quoi, sous quelle licence
+  const ICO_MUSIQUE = (on) => `<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#4A3328" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17.5V6l10-2v11.5"/><ellipse cx="6.6" cy="17.6" rx="2.6" ry="2.1" fill="#C9BCFF"/><ellipse cx="16.6" cy="15.6" rx="2.6" ry="2.1" fill="#C9BCFF"/>${on ? '' : '<path d="M4 4l16 16"/>'}</svg>`;
+  const ICO_CREDITS = '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="#4A3328" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3.5l2.4 4.9 5.4.8-3.9 3.8.9 5.4L12 16l-4.8 2.4.9-5.4-3.9-3.8 5.4-.8z" fill="#FFD66B"/><path d="M5 21h14"/></svg>';
+  const CREDITS = [ // [titre, [[qui, quoi, licence]]] ; tout est libre : les licences CC0 n'obligent à rien, on crédite quand même
+    ['La boutique en 3D', [['Kay Lousberg (kaylousberg.com)', 'KayKit : Furniture, Restaurant, City Builder, Halloween et Dungeon Bits, Spooktober, Adventurers, Skeletons (Mystery Monthly Series 4)', 'CC0'],
+      ['Kenney (kenney.nl)', 'Furniture Kit, Food Kit, Mini Market et Mini Characters', 'CC0'], ['Three.js', 'le moteur 3D (r158)', 'MIT']]],
+    ['Les sons de la boutique', [['Kenney (kenney.nl)', 'les bruitages : clics, pièces, fanfare, cartes', 'MIT'], ['ZzFX (Frank Force)', 'les petits sons de synthèse', 'MIT']]],
+    ['La Maison hantée', [['Kay Lousberg', 'le décor, l’équipe et les clients-monstres (KayKit)', 'CC0'], ['Asset Quest', 'les fantômes', 'CC0'], ['Kenney', 'des bonbons, le jingle d’ouverture, la vente, la louche et le plancher', 'CC0'],
+      ['Poly Haven, ambientCG', 'des textures et la lumière de la nuit', 'CC0'],
+      ['Tsorthan Grove', 'la musique, « Lanterns in the Hollowed Forest »', 'CC0'],
+      ['qubodup, w.forster.1, PWL, AntumDeluge, Ogrebane, BMacZero, zeroisnotnull, Kerzoven', 'la sonnette, la porte qui grince, la cloche, la sorcière, le fantôme, le chaudron, le corbeau, le chat (OpenGameArt.org)', 'CC0']]],
+    ['Le reste', [['canvas-confetti (Kiril Vatev)', 'les confettis', 'ISC'], ['Fredoka et Nunito', 'les polices (Google Fonts)', 'OFL']]],
+  ];
+  function sheetCredits() {
+    openSheet(`<h2>Crédits</h2><p class="sous">Le Fournil est fait avec des modèles, des sons et une musique offerts par leurs auteurs. Merci à eux !</p>
+      ${CREDITS.map(([t, l]) => `<h3 class="titre-section"><span>${esc(t)}</span></h3><ul class="detail credits">${l.map(([qui, quoi, lic]) => `<li><span><b>${esc(qui)}</b><small>${esc(quoi)}</small></span><b>${esc(lic)}</b></li>`).join('')}</ul>`).join('')}
+      <p class="sous">Les licences complètes sont rangées avec les fichiers (fournil/hd/…, fournil/sons/…).</p>
+      <button type="button" class="btn large menthe" data-a="close"><b>Fermer</b></button>`);
+    on('[data-a="close"]', closeSheet);
   }
   // Réglages › Journal des retours : quand le jeu a compté une absence, pourquoi, et si la feuille s'est ouverte (sinon, pourquoi pas)
   const RAISON_RETOUR = { lancement: 'Ouverture du jeu', visible: 'Retour dans le jeu', cache: 'Retour dans le jeu', reveil: 'Réveil du téléphone', gel: 'Le jeu reprend après une pause', saut: 'L’heure a sauté', heure: 'L’heure sûre est arrivée', recul: 'Horloge du jeu remise à l’heure', derive: 'Le compteur du téléphone a sauté' };
