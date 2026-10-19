@@ -357,6 +357,8 @@
       else s.prog += secs;
     });
     if (total > 0) gagner(q, total);
+    const rj = A.sortirRecette(q, nowMs); // la recette du jour : une fournée au four sort quand même (payée par sortirRecette ; rien ne se relance seul)
+    if (rj) { total += rj.gain; detail.push({ i: -1, nom: rj.r ? rj.r.nom : '', n: 1, m: rj.gain }); }
     q.boost = garde.boost;
     if (court) { q.ev = garde.ev; pauseCoup(q, ecart); } else { q.evTimer = Math.max(q.evTimer || 0, REPRISE); }
     q.lastSeen = nowMs;
@@ -394,9 +396,9 @@
     }
     return fait;
   }
-  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour } } ; opts : { graine, debut, offertes, activites }
+  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour } } ; opts : { graine, debut, offertes, activites, recette } (recette : false, sans la recette du jour ; true, jouée même par un profil qui ne la joue pas d'office)
     opts = opts || {}; const prof = PROFILS[profil] || PROFILS.assidu, rnd = mulberry32(opts.graine || 7), st = {}, t0 = opts.debut || DEBUT;
-    const jeu = opts.activites === false ? null : A.politique(profil), rndA = mulberry32((opts.graine || 7) + 101); // les activités, jouées comme ce profil (leur propre hasard : les coups de pouce ne changent pas)
+    const jeu = opts.activites === false ? null : A.politique(profil, opts.recette), rndA = mulberry32((opts.graine || 7) + 101); // les activités, jouées comme ce profil (leur propre hasard : les coups de pouce ne changent pas)
     const q = etat(st, t0), parJour = [], paliersJour = {}, trace = []; q.lastSeen = t0;
     const H = 3600e3, nJ = jours || 14;
     const minuit0 = t0 - (paris(t0).getUTCHours() * 3600e3 + paris(t0).getUTCMinutes() * 60e3); // minuit, heure de Paris, du premier jour
@@ -416,6 +418,7 @@
             else if (q.ev.type === 'scooter' && rnd() < 0.5) attraper(q);
           }
           for (const p of out.paliers) { marquerPalier(q, p.n); paliersJour[p.n] = j + 1; if (opts.offertes && p.n === PALIERS_BOSS) for (const a of AMELIORATIONS) if (a.apres) q.ameliorations[a.id] = true; } // offertes : le pire cas de l'enveloppe (toutes les combines dès le 12e, sans les payer)
+          if (jeu) A.sim.recette(q, now, jeu); // la recette du jour, chaque seconde (avant les achats : elle passe d'abord)
           if (s % 3 === 0) decider(q);
           if (jeu && s % 20 === 0) A.sim.pas(q, now, jeu, rndA);
           if (s % 60 === 0) trace.push({ t: (now - t0) / JOUR, total: q.total });
@@ -467,10 +470,21 @@
         { id: 'moyen', nom: 'La livraison du bâtiment C', desc: 'Un quart d’heure dans les escaliers : l’ascenseur est en panne.' },
         { id: 'long', nom: 'Le gros coup du PMU', desc: 'Une heure dans l’arrière-salle : le meilleur gain, le plus de risque.' },
       ],
-      textes: { saisie: 'Contrôle de police', saisieTxt: (m) => `Contrôle de police : ${m} saisis.`, operation: 'Opération', enCours: 'L’équipe est sur le coup' },
+      textes: { saisie: 'Contrôle de police', saisieTxt: (m) => `Contrôle de police : ${m} saisis.`, operation: 'Opération', enCours: 'L’équipe est sur le coup', recette: 'La recette du jour', cuisine: 'La cuisine de la Planque' },
+      // la recette du jour (src/activites.js, RECETTE_JOUR) : la cuisine de la Planque, une recette par jour, de 20 à 90 s ; à la 500e fournée, la toque en or
+      recettes: [
+        { id: 'the-menthe', nom: 'Le thé à la menthe du hall', desc: 'Très sucré, versé de très haut, servi sur les marches du bâtiment B.', temps: 20, icone: 'the-menthe' },
+        { id: 'chouquettes-pigeons', nom: 'Les chouquettes des pigeons', desc: 'Les pigeons du square en ont goûté une. Ils ne sont jamais repartis.', temps: 25, icone: 'chouquettes-pigeons' },
+        { id: 'frites-camion', nom: 'Les frites du camion', desc: 'Double cuisson, une barquette qui tient chaud aux mains toute la nuit.', temps: 30, icone: 'frites-camion' },
+        { id: 'crepe-pmu', nom: 'La crêpe Nutella du PMU', desc: 'Tonton Serge la retourne sans quitter le tiercé des yeux.', temps: 40, icone: 'crepe-pmu' },
+        { id: 'kebab-samourai', nom: 'Le kebab sauce samouraï', desc: 'Salade, tomate, oignons, et la sauce qui fait pleurer les durs.', temps: 50, icone: 'kebab-samourai' },
+        { id: 'tacos-geant', nom: 'Le tacos trois viandes', desc: 'Plié en quatre, il pèse autant qu’un pack d’eau.', temps: 70, icone: 'tacos-geant' },
+        { id: 'space-cake', nom: 'Le space cake de Mémé', desc: 'La recette secrète de Mémé Jacqueline. Surtout, pas pour le chien.', temps: 90, icone: 'space-cake' },
+      ],
+      recetteDeco: 'toque-or', recetteDecoTxt: 'la toque en or du chef de la Planque, accrochée au mur de la boutique',
     },
   };
-  const A = ACT.equiper({ id: 'quartier', rythme, gagner, note, dayKey, fmt: fmtEur, arrondi, fenetre, PRODUITS }, FICHE.activites); // les activités (src/activites.js)
+  const A = ACT.equiper({ id: 'quartier', rythme, gagner, note, dayKey, fmt: fmtEur, arrondi, fenetre, PRODUITS, boostMult, remise, debut: DEBUT }, FICHE.activites); // les activités (src/activites.js)
 
   // ─── les récompenses version 2 (src/activites.js, RECOMPENSES) : ce qu'une combine paie à la boulangerie ; la revue d'une vieille sauvegarde ───
   const R2 = ACT.RECOMPENSES;

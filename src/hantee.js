@@ -385,6 +385,8 @@
       else s.prog += secs;
     });
     if (total > 0) gagner(q, total);
+    const rj = A.sortirRecette(q, nowMs); // la recette du jour : une fournée au four sort quand même (payée par sortirRecette ; rien ne se relance seul)
+    if (rj) { total += rj.gain; detail.push({ i: -1, nom: rj.r ? rj.r.nom : '', n: 1, m: rj.gain }); }
     q.boost = garde.boost;
     if (court) { q.ev = garde.ev; pauseCoup(q, ecart); } else { q.evTimer = Math.max(q.evTimer || 0, REPRISE); }
     q.lastSeen = nowMs;
@@ -422,9 +424,9 @@
     }
     return fait;
   }
-  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour }, trace: [{ t (jours depuis l'ouverture), total }] } ; opts : { graine, debut, offertes }
+  function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour }, trace: [{ t (jours depuis l'ouverture), total }] } ; opts : { graine, debut, offertes, activites, recette } (recette : false, sans la recette du jour ; true, jouée même par un profil qui ne la joue pas d'office)
     opts = opts || {}; const prof = PROFILS[profil] || PROFILS.assidu, rnd = mulberry32(opts.graine || 7), st = {}, t0 = opts.debut || DEBUT;
-    const jeu = opts.activites === false ? null : A.politique(profil), rndA = mulberry32((opts.graine || 7) + 101); // les activités, jouées comme ce profil (leur propre hasard : les coups de pouce ne changent pas)
+    const jeu = opts.activites === false ? null : A.politique(profil, opts.recette), rndA = mulberry32((opts.graine || 7) + 101); // les activités, jouées comme ce profil (leur propre hasard : les coups de pouce ne changent pas)
     const q = etat(st, t0), parJour = [], paliersJour = {}, trace = []; q.lastSeen = t0;
     const H = 3600e3, nJ = jours || JOURS;
     const minuit0 = t0 - (paris(t0).getUTCHours() * 3600e3 + paris(t0).getUTCMinutes() * 60e3); // minuit, heure de Paris, du premier jour
@@ -444,6 +446,7 @@
             else if (q.ev.type === 'scooter' && rnd() < 0.5) attraper(q);
           }
           for (const p of out.paliers) { marquerPalier(q, p.n); paliersJour[p.n] = j + 1; if (opts.offertes && p.n === PALIERS_BOSS) for (const a of AMELIORATIONS) if (a.apres) q.ameliorations[a.id] = true; } // offertes : le pire cas de l'enveloppe (tous les Sortilèges dès le 12e, sans les payer)
+          if (jeu) A.sim.recette(q, now, jeu); // la recette du jour, chaque seconde (avant les achats : elle passe d'abord)
           if (s % 3 === 0) decider(q);
           if (jeu && s % 20 === 0) A.sim.pas(q, now, jeu, rndA);
           if (s % 60 === 0) trace.push({ t: (now - t0) / JOUR, total: q.total });
@@ -522,10 +525,22 @@
         { id: 'moyen', nom: 'Le tour du village', desc: 'Un quart d’heure de sonnettes, sacs bien serrés.' },
         { id: 'long', nom: 'La grande tournée de la forêt', desc: 'Une heure au clair de lune : le plus gros sac, et des chauves-souris gourmandes.' },
       ],
-      textes: { saisie: 'Des chauves-souris gourmandes', saisieTxt: (m) => `Des chauves-souris gourmandes ont chipé ${m}.`, operation: 'Opération', enCours: 'Les monstres font du porte-à-porte' },
+      textes: { saisie: 'Des chauves-souris gourmandes', saisieTxt: (m) => `Des chauves-souris gourmandes ont chipé ${m}.`, operation: 'Opération', enCours: 'Les monstres font du porte-à-porte', recette: 'La recette du jour', cuisine: 'La cuisine du Manoir' },
+      // la recette du jour (src/activites.js, RECETTE_JOUR) : la cuisine du Manoir, une recette par jour ; courtes (20 à 50 s : l'événement
+      // dure sept jours, l'occasionnel atteint la première étape) ; à la 500e fournée, la toque-citrouille
+      recettes: [
+        { id: 'meringues-fantomes', nom: 'Les meringues fantômes', desc: 'Deux yeux en chocolat et un « bouh » tout doux.', temps: 20, icone: 'meringues-fantomes' },
+        { id: 'barbe-toile', nom: 'La barbe à papa toile d’araignée', desc: 'Une araignée très gentille la file, un tour après l’autre.', temps: 25, icone: 'barbe-toile' },
+        { id: 'soupe-citrouille', nom: 'La soupe de citrouille', desc: 'Orange, onctueuse, et elle fait des bulles toute seule.', temps: 30, icone: 'soupe-citrouille' },
+        { id: 'cookies-chauve-souris', nom: 'Les cookies chauves-souris', desc: 'Les ailes en chocolat, les yeux en sucre.', temps: 35, icone: 'cookies-chauve-souris' },
+        { id: 'chapeaux-sorciere', nom: 'Les chapeaux de sorcière', desc: 'Un biscuit, un cône en chocolat et une étoile en sucre.', temps: 40, icone: 'chapeaux-sorciere' },
+        { id: 'pommes-ver', nom: 'Les pommes d’amour du Manoir', desc: 'Rouges, brillantes, et un ver en gélatine qui fait coucou.', temps: 45, icone: 'pommes-ver' },
+        { id: 'potion-chocolat', nom: 'La potion chocolatée', desc: 'Un chocolat chaud à la pomme verte, qui fume dans le chaudron.', temps: 50, icone: 'potion-chocolat' },
+      ],
+      recetteDeco: 'toque-citrouille', recetteDecoTxt: 'la toque-citrouille du chef du Manoir, accrochée au mur de la boutique',
     },
   };
-  const A = ACT.equiper({ id: 'hantee', rythme, gagner, note, dayKey, fmt: fmtDevise, arrondi, fenetre, PRODUITS }, FICHE.activites); // les activités (src/activites.js)
+  const A = ACT.equiper({ id: 'hantee', rythme, gagner, note, dayKey, fmt: fmtDevise, arrondi, fenetre, PRODUITS, boostMult, remise, debut: DEBUT }, FICHE.activites); // les activités (src/activites.js)
 
   // ─── les récompenses version 2 (src/activites.js, RECOMPENSES) : ce qu'une combine paie à la boulangerie ; la revue d'une vieille sauvegarde ───
   const R2 = ACT.RECOMPENSES;

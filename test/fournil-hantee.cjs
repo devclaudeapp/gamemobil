@@ -65,7 +65,7 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   const clic = (sel) => page.evaluate((s) => { const b = document.querySelector(s); if (!b) return false; b.click(); return true; }, sel);
   const ev = (fn, arg) => page.evaluate(fn, arg);
   const hst = () => ev(() => { const F = window.__fournil, h = F.st[F.evHantee.cle]; return h ? { masque: h.masque, annonce: h.annonce, bilan: h.bilan, billets: h.billets, total: h.total, postes: h.postes.map((p) => [p.niv, p.staff]), paliers: h.paliers.slice(), decos: h.decos.slice(), vetements: h.vetements.slice(), etoiles: h.etoiles, boosts: h.boosts, stats: h.stats, ev: h.ev && h.ev.type, lastSeen: h.lastSeen } : null; });
-  const manoir = () => ev(() => { const el = document.querySelector('#hantee'), s = window.__fournil.evHantee.scene; return { ouvert: !el.hidden, ecran: el.dataset.ecran, titre: document.querySelector('#ht-titre').textContent, sous: document.querySelector('#ht-sous').textContent, billets: document.querySelector('#ht-billets').textContent, taux: document.querySelector('#ht-taux').textContent, reste: document.querySelector('#ht-reste').textContent, paliers: el.querySelector('[data-pq="paliers"] b').textContent, cartes: [...document.querySelectorAll('#ht-cartes .carte')].map((c) => c.className), ev: document.querySelector('#ht-ev').hidden ? '' : document.querySelector('#ht-ev').innerText, corps: document.querySelector('#ht-corps').innerText, calls: s ? s.calls : -1, hd: s ? s.hd : null, planque: !document.querySelector('#planque').hidden }; });
+  const manoir = () => ev(() => { const el = document.querySelector('#hantee'), s = window.__fournil.evHantee.scene; return { ouvert: !el.hidden, ecran: el.dataset.ecran, titre: document.querySelector('#ht-titre').textContent, sous: document.querySelector('#ht-sous').textContent, billets: document.querySelector('#ht-billets').textContent, taux: document.querySelector('#ht-taux').textContent, reste: document.querySelector('#ht-reste').textContent, paliers: el.querySelector('[data-pq="paliers"] b').textContent, cartes: [...document.querySelectorAll('#ht-cartes .carte[data-i]')].map((c) => c.className), ev: document.querySelector('#ht-ev').hidden ? '' : document.querySelector('#ht-ev').innerText, corps: document.querySelector('#ht-corps').innerText, calls: s ? s.calls : -1, hd: s ? s.hd : null, planque: !document.querySelector('#planque').hidden }; });
 
   // une partie qui a joué au Quartier (son bilan n'est pas encore vu) et adopté le chat, chargée avant le lancement
   await page.goto(URL_JEU + '?qualite=haute'); await pret();
@@ -101,7 +101,7 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   check(await attendre(async () => { const x = await manoir(); return x.hd && x.hd.actif && x.hd.persos >= 1; }, 30000), 'les modèles HD arrivent : le salon KayKit, le jardin par la fenêtre, la patronne en Mini Character');
   const poids = demandes.filter((d) => /hd\/hantee\//.test(d)).reduce((a, d) => a + fs.statSync(path.join(root, d)).size, 0);
   check(poids > 0 && poids < 700e3, `les modèles du manoir pèsent ${Math.round(poids / 1024)} Ko (meshopt, < 700 Ko)`);
-  await page.evaluate(() => { const b = document.querySelector('#ht-cartes .carte .barre'); b.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+  await page.evaluate(() => { const b = document.querySelector('#ht-cartes .carte[data-i] .barre'); b.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
   await attendre(async () => (await hst()).stats.ventes >= 1, 10000); // (le rendu logiciel de la HD est lent : le temps du jeu avance moins vite)
   s = await hst(); m = await manoir();
   check(s.billets > 0 && s.stats.taps === 1 && s.stats.ventes === 1, `une touche : une vente à la main, ${m.billets}`);
@@ -341,7 +341,7 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   // les activités (src/activites.js) dans un troisième téléphone, le mercredi 28 octobre à 15 h (2e jour) : la barre, les trois mini-jeux au
   // doigt, un contrat, une opération (test/fournil-activites-ecran.cjs, le même parcours que la Planque)
   await require('./fournil-activites-ecran.cjs')({ browser, url: URL_JEU + '?qualite=eco', heure: (ms) => { decal = ms - Date.now(); }, quand: HT.DEBUT + 27 * HEURE, fauxTelephone, route: [/supabase\.co/, (r) => r.abort()],
-    check, errors, dirs: [out, out2].filter(Boolean), prefixe: '', racine: '#hantee', ev: 'evHantee', ouvrir: 'hantee', cle: 'hantee', nom: 'le Manoir' });
+    check, errors, dirs: [out, out2].filter(Boolean), prefixe: '', racine: '#hantee', ev: 'evHantee', ouvrir: 'hantee', cle: 'hantee', nom: 'le Manoir', rj: 'manoir' });
 
   check(errors.length === 0, errors.length ? `erreurs de page : ${errors.join(' | ')}` : 'aucune erreur de page');
   await browser.close(); server.close();

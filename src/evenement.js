@@ -77,6 +77,7 @@ const EVENEMENTS = (() => {
       const s = st(); if (!s || !s[F.cle]) return;
       const qq = q();
       if (typeof G.donnerVetement === 'function') for (const v of qq.vetements) { try { G.donnerVetement(s, v); } catch (e) { /* un id que la garde-robe ne connaît pas encore */ } }
+      if (Q.verserRecette) { const n = Q.verserRecette(qq); if (n > 0) { s.etoiles += n; d.save(); } } // la recette du jour : des étoiles d'étape pas encore versées (une étape franchie dans l'absence de la fin)
       F.decos(qq.decos); if (F.synchro) F.synchro(s, qq);
       // la revue des récompenses (version 2) : une sauvegarde qui avait déjà franchi des paliers ou acheté des combines « après le boss »
       // reçoit la différence UNE FOIS (q.recompensesV2, posé par les règles), versée tout de suite ; la feuille qui le dit attend annoncer()
@@ -251,12 +252,12 @@ const EVENEMENTS = (() => {
     const paliersDe = (i) => (Q.paliersPoste ? Q.paliersPoste(i) : Q.PALIERS_POSTE);
     const gainPal = (pal, i) => (Q.gainPalier ? Q.gainPalier(pal, i) : 2); // ce que ce palier ajoute (le vrai rapport : ×2 aux anciens paliers, ×1,41 ou ×1,19 aux intercalés)
     function construireCartes() {
-      cartesEl.innerHTML = ''; cartes = [];
+      cartesEl.innerHTML = ''; cartes = []; construireRecette();
       Q.PRODUITS.forEach((p, i) => { const c = document.createElement('article'); c.className = 'carte pq'; c.dataset.i = i; cartesEl.appendChild(c); cartes.push({ el: c, html: '' }); });
       renderCartes(true);
     }
     function renderCartes(force) {
-      const qq = q();
+      const qq = q(); renderRecette(force);
       Q.PRODUITS.forEach((p, i) => {
         const s = qq.postes[i], c = cartes[i]; if (!c) return;
         let html, cls;
@@ -285,6 +286,7 @@ const EVENEMENTS = (() => {
     }
     function onCarte(e) {
       const art = e.target.closest('.carte'); if (!art) return;
+      if (art.dataset.rj) { clicRecette(e); return; }
       const i = +art.dataset.i, btn = e.target.closest('button[data-a]'), qq = q();
       d.audio();
       if (btn) {
@@ -303,6 +305,71 @@ const EVENEMENTS = (() => {
         }
       }
       if (qq.postes[i].niv > 0 && !qq.postes[i].staff) { if (Q.lancer(qq, i)) { d.son.tap(); d.buzz(6); renderCartes(); } }
+    }
+
+    // ─── la recette du jour (src/activites.js, RECETTE_JOUR) : une carte à part, en tête de la liste, au style de la carte de saison de la
+    //     boulangerie : le nom du jour, le niveau (commun à toutes les recettes), préparer ou améliorer, « Touche ! » puis la jauge de cuisson,
+    //     la maîtrise (0 à 500 fournées, repères à 100 et 250), « Demain : … ». Une fournée cuite sort ici (ou pendant l'absence : les règles) ;
+    //     les étoiles des étapes (q.recettes.aVerser) sont versées dans la boulangerie dès que la carte se rend, le décor posé avec les autres ───
+    let carteRj = null;
+    const avecRecette = () => !!(Q && Q.etatRecette && Q.RECETTES_JOUR);
+    const icoRj = (r) => (typeof ICONS !== 'undefined' && ICONS.RECETTES_JOUR && ((r && ICONS.RECETTES_JOUR[r.icone]) || ICONS.RECETTES_JOUR.cuisine)) || '';
+    function construireRecette() {
+      carteRj = null; if (!avecRecette()) return;
+      const c = document.createElement('article'); c.className = 'carte pq rj-carte'; c.dataset.rj = '1'; cartesEl.appendChild(c); carteRj = { el: c, html: '' };
+    }
+    function renderRecette(force) {
+      const c = carteRj; if (!c) return; const qq = q(), t = now();
+      const sortie = Q.sortirRecette(qq, t); if (sortie) recetteSortie(sortie); // la fournée est cuite : elle sort (une fois)
+      if (qq.recettes.aVerser > 0) verserMaitrise(sortie ? sortie.etapes : null); // une étape franchie (ici, ou pendant l'absence)
+      const e = Q.etatRecette(qq, t), T = TA(), r = e.four ? e.fr : e.r, M = e.maitrise, ok = qq.billets >= e.prix && e.ouverte;
+      const reperes = e.etapes.filter((x) => x.n < M).map((x) => `<b class="rj-repere${x.faite ? ' fait' : ''}" style="left:${(x.n / M * 100).toFixed(1)}%"></b>`).join('');
+      const maitrise = `<div class="palier rj-maitrise"><span>Maîtrise <b>${Math.min(e.fournees, M)}</b>/${M}</span><span>${e.prochaine ? `+${e.prochaine.etoiles} ★` : 'maîtrisée'}</span><i style="width:${(Math.min(e.fournees, M) / M * 100).toFixed(1)}%"></i>${reperes}</div>`;
+      const cuisson = e.niv > 0 && e.ouverte ? `<div class="barre"><i></i><span class="rev">+${prix(e.four ? e.four.gain : e.gain)}</span>${e.four ? `<span class="tps">${G.fmtDuree(e.reste / 1000)}</span>` : '<span class="cuire">Touche !</span>'}</div>`
+        : `<p class="rj-desc">${esc(!e.ouverte ? 'La cuisine ouvre demain, à minuit.' : r.desc)}</p>`;
+      const bouton = e.max ? '<div class="staff-ok pq"><span>Niveau max</span></div>'
+        : `<button type="button" class="btn ${e.niv ? '' : 'beurre'} ${ok ? '' : 'non'}" data-a="rj-niv"><small>${e.niv ? 'Améliorer ×1' : 'Préparer'}</small><b>${prix(e.prix)}</b></button>`;
+      const html = `<div class="icone">${icoRj(r)}${e.niv ? `<span class="niv">${e.niv}</span>` : ''}</div>
+        <div class="corps"><h3><span class="nom">${esc(r.nom)}</span></h3><small class="rj-tag">${esc(T.recette || 'La recette du jour')}${e.four && e.fr !== e.r ? ' · d’hier' : ''}</small>
+          ${cuisson}${maitrise}<small class="rj-demain">Demain : ${esc(e.demain.nom)}</small></div>
+        <div class="boutons">${bouton}</div>`;
+      const cls = 'carte pq rj-carte' + (e.niv > 0 && e.ouverte ? ' manuel' : '') + (e.four ? ' actif' : '') + (e.ouverte ? '' : ' ferme');
+      if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); }
+      else if (c.el.className !== cls) c.el.className = cls;
+      if (c.bar) c.bar.style.width = ((e.four ? e.part : 0) * 100).toFixed(1) + '%';
+    }
+    function recetteSortie(o) { // une fournée sortie, l'écran ouvert : le son et le petit « + » de la scène
+      d.son.vente(o.gain); if (scene3) scene3.vente(o.gain); lastHud = ''; hud(); d.save();
+    }
+    function verserMaitrise(etapes) { // les étoiles des étapes de la maîtrise, dans la boulangerie (une fois : verserRecette remet à zéro), le décor posé
+      const s = st(), qq = q(), n = Q.verserRecette(qq); if (!(n > 0)) return;
+      s.etoiles += n; F.decos(qq.decos); G.gagnerXp(s, 10);
+      const deco = (etapes || []).find((x) => x.deco) || (!etapes && qq.recettes.etapes.includes(Q.RECETTE_JOUR.etapes[Q.RECETTE_JOUR.etapes.length - 1].n) && Q.DECO_RECETTE ? { deco: Q.DECO_RECETTE } : null);
+      const dons = [`${n} étoile${n > 1 ? 's' : ''} (+${Math.round(n * G.ETOILE_BONUS * 100)} % de gains, pour toujours)`];
+      if (deco) dons.push(F.t.decoDon[deco.deco] || Q.DECO_RECETTE_TXT || F.t.decoDefaut(deco.deco));
+      const quoi = etapes && etapes.length ? `${etapes[etapes.length - 1].n} fournées` : 'une étape de plus';
+      d.son.deblocage(); d.buzz([10, 30, 10, 30, 10]); if (d.confettis) d.confettis(0.8); d.save(); d.apres();
+      if (!$('#feuille').hidden || sheetOuverte || miniOuvert()) { d.toast(`${TA().recette || 'La recette du jour'} : ${quoi}, +${n} ★ pour la boulangerie`); return; }
+      sheetOuverte = true;
+      d.openSheet(`<div class="pq-sheet ${F.classe}" data-rj-maitrise="1"><div class="pq-palier-tete"><span class="pq-pic">${(typeof ICONS !== 'undefined' && ICONS.RECETTES_JOUR && ICONS.RECETTES_JOUR.maitrise) || F.ico.palier}</span><div><h2>Maîtrise : ${esc(quoi)}</h2><p class="sous">${esc(TA().recette || 'La recette du jour')}, toutes recettes confondues</p></div></div>
+        <ul class="pq-dons">${dons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+        <button type="button" class="btn large beurre" data-a="pq-ok" style="margin-top:14px"><b>${esc(F.t.palierOk)}</b></button></div>`);
+      d.on('[data-a="pq-ok"]', () => { d.son.tap(); d.closeSheet(); });
+      const surFermeture = setInterval(() => { if ($('#feuille').hidden) { sheetOuverte = false; clearInterval(surFermeture); montrerSheetsEnAttente(); } }, 300);
+    }
+    function clicRecette(e) { // le bouton : préparer ou améliorer ; la carte : lancer une fournée
+      const qq = q(), t = now(), btn = e.target.closest('button[data-a="rj-niv"]');
+      d.audio();
+      if (btn) {
+        const r = Q.preparerRecette(qq, t);
+        if (!r.ok) { d.son.non(); d.toast(r.ferme ? 'La cuisine ouvre demain.' : r.max ? 'Niveau maximum.' : `Il manque ${fmt(r.prix - qq.billets)}`); return; }
+        if (r.niv === 1) { d.son.deblocage(); d.buzz([10, 30, 10]); d.toast(`${Q.recetteDuJour(t).nom} : la cuisine est prête ! Touche la carte pour en cuire.`); } else { d.son.achat(); d.buzz(8); }
+        renderRecette(true); lastHud = ''; hud(); d.save(); return;
+      }
+      const r = Q.lancerRecette(qq, t);
+      if (r.ok) { d.son.tap(); d.buzz(6); renderRecette(true); d.save(); }
+      else if (r.tard) { d.son.non(); d.toast('Trop tard : l’événement ferme avant qu’elle sorte du four.'); }
+      else if (r.ferme) { d.son.non(); d.toast('La cuisine ouvre demain.'); }
     }
 
     // ─── les coups de pouce : une bannière sur la scène, comme les événements de la boulangerie ───

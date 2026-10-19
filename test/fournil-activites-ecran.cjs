@@ -1,7 +1,10 @@
 // Les activités d'un événement du Fournil sur la vraie page (src/evenement.js, src/activites.js), jouées AU DOIGT sur un téléphone en portrait
 // (390 × 844, des évènements tactiles bruts, comme test/fournil-atelier.cjs) : la barre des trois boutons (Mini-jeux, Contrats et sa pastille,
 // Opération et son chrono), une partie de chaque mini-jeu (le guet en rythme, le compte, la tournée tracée), un contrat réclamé une fois,
-// une opération lancée, puis ramassée à l'ouverture suivante avec sa feuille. Appelé par test/fournil-quartier.cjs et test/fournil-hantee.cjs.
+// une opération lancée, puis ramassée à l'ouverture suivante avec sa feuille ; la recette du jour : sa carte en tête de la liste (le nom du
+// jour, « Demain : … », la maîtrise 0/500 et ses repères), préparée, une fournée lancée au doigt, sortie, puis l'étape des 100 fournées et
+// ses étoiles dans la boulangerie. Appelé par test/fournil-quartier.cjs et test/fournil-hantee.cjs (o.rj : le nom des captures de la carte,
+// copiées aussi dans le dossier SHOTS_RJ s'il est donné).
 'use strict';
 const path = require('path'), fs = require('fs');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -123,5 +126,45 @@ module.exports = async function parcoursActivites(o) {
   await shot('a12-operation-ramassee');
   await toucherEl('#feuille [data-a="pq-op-ok"]'); await sleep(300);
   check((await feuille()) === '' && await ev((r2) => /lancer/.test(document.querySelector(`${r2} .pq-act-btn[data-act="operation"] small`).textContent), racine), 'la feuille se referme ; le bouton propose d’en lancer une autre');
+
+  console.log(`── ${o.nom} : la recette du jour, en tête de la liste ──`);
+  const rjDir = process.env.SHOTS_RJ ? (fs.mkdirSync(process.env.SHOTS_RJ, { recursive: true }), process.env.SHOTS_RJ) : null;
+  const shotRj = async (nom) => { await ev((r2) => { const c = document.querySelector(`${r2} .rj-carte`); if (c) c.scrollIntoView({ block: 'center' }); for (const t of document.querySelectorAll('.toast')) t.style.visibility = 'hidden'; }, racine); await sleep(250); await shot(nom); if (rjDir) fs.copyFileSync(path.join(o.dirs[0], `${o.prefixe}${nom}.png`), path.join(rjDir, `${o.rj || cle}-${nom}.png`)); await ev(() => { for (const t of document.querySelectorAll('.toast')) t.style.visibility = ''; }); };
+  const carteRj = () => ev((r2) => { const c = document.querySelector(`${r2} .rj-carte`); if (!c) return null; const b = c.getBoundingClientRect(), l = c.parentElement.firstElementChild === c, btn = c.querySelector('[data-a="rj-niv"]');
+    return { premier: l, txt: c.innerText.replace(/\s+/g, ' ').trim(), g: Math.round(b.left), d: Math.round(b.right), h: Math.round(b.height), cls: c.className, btn: btn ? btn.innerText.replace(/\s+/g, ' ').trim() : '', jauge: c.querySelector('.barre i') ? c.querySelector('.barre i').style.width : '', reperes: c.querySelectorAll('.rj-repere').length,
+      debord: [...c.querySelectorAll('h3, .rj-tag, .rj-demain, .palier span')].some((x) => x.scrollWidth > x.clientWidth + 1) }; }, racine);
+  const etatRj = () => ev(([e, c]) => { const F = window.__fournil, R = F[e].R, q = F.st[c], t = HORLOGE.maintenant(); return { r: R.recetteDuJour(t).nom, demain: R.recetteDemain(t).nom, rc: JSON.parse(JSON.stringify(q.recettes)), billets: q.billets, total: q.total, etoiles: F.st.etoiles, prix: R.prixRecette(q) }; }, [o.ev, cle]);
+  let e0 = await etatRj(), c1 = await carteRj();
+  check(c1 && c1.premier && c1.txt.includes(e0.r) && c1.txt.includes(`Demain : ${e0.demain}`) && /Maîtrise 0\/500/.test(c1.txt) && c1.reperes === 2 && /Préparer/.test(c1.btn), `la carte, en tête des cartes : « ${e0.r} », « Demain : ${e0.demain} », la maîtrise 0/500 (repères 100 et 250), « ${c1 && c1.btn} »`);
+  check(c1 && c1.g >= 0 && c1.d <= 390 && !c1.debord, `dans l’écran de 390 px, rien de coupé (${c1 && `${c1.g}–${c1.d} × ${c1.h}`})`);
+  await shotRj('r1-carte');
+  await toucherEl(`${racine} .rj-carte [data-a="rj-niv"]`); await sleep(400); let e1 = await etatRj(); c1 = await carteRj();
+  check(e1.rc.niv === 1 && Math.abs(e0.billets - e1.billets - e0.prix) <= Math.max(1, e0.prix * 1e-9) + (e1.total - e0.total) && /Améliorer/.test(c1.btn) && /Touche/.test(c1.txt) && /\b1\b/.test(c1.txt), `préparée au doigt : niveau 1, ${Math.round(e0.prix)} payés ; le bouton propose « ${c1.btn} », la carte dit « Touche ! »`);
+  await toucherEl(`${racine} .rj-carte .barre`); await sleep(1500); e1 = await etatRj(); c1 = await carteRj();
+  check(e1.rc.four && e1.rc.four.fin > e1.rc.four.debut && /actif/.test(c1.cls) && parseFloat(c1.jauge) > 0 && !/Touche/.test(c1.txt), `une fournée lancée au doigt : la jauge de cuisson avance (${c1.jauge}), +${Math.round(e1.rc.four.gain)} à la sortie`);
+  await shotRj('r2-cuisson');
+  const g1 = e1.rc.four.gain, t1 = e1.total; await ev(([c]) => { const q = window.__fournil.st[c]; q.recettes.four.fin = HORLOGE.maintenant() - 1; }, [cle]); // la fin de la cuisson (sans attendre 20 à 90 s)
+  await attendre(async () => (await etatRj()).rc.fournees === 1, 3000); let e2 = await etatRj(); c1 = await carteRj();
+  check(e2.rc.fournees === 1 && e2.rc.four === null && e2.total >= t1 + g1 * 0.999 && /Touche/.test(c1.txt) && /Maîtrise 1\/500/.test(c1.txt), `sortie : +${Math.round(g1)}, la maîtrise passe à 1/500, « Touche ! » de nouveau (rien ne se relance seul)`);
+  // l'étape des 100 fournées : sa feuille, ses étoiles dans la boulangerie
+  await ev(([c]) => { window.__fournil.st[c].recettes.fournees = 99; }, [cle]); const et0 = (await etatRj()).etoiles;
+  await toucherEl(`${racine} .rj-carte .barre`); await sleep(300); await ev(([c]) => { const q = window.__fournil.st[c]; if (q.recettes.four) q.recettes.four.fin = HORLOGE.maintenant() - 1; }, [cle]);
+  check(await attendre(async () => /Maîtrise : 100 fournées/.test(await feuille()), 4000), 'à la 100e fournée : la feuille de la maîtrise'); await sleep(450);
+  const e3 = await etatRj(), f3 = await feuille();
+  check(e3.rc.etapes.join() === '100' && e3.etoiles === et0 + 2 && e3.rc.aVerser === 0 && /2 étoiles/.test(f3), `+2 étoiles versées dans la boulangerie (${et0} → ${e3.etoiles}), une fois`);
+  if (rjDir) { const f = path.join(rjDir, `${o.rj || cle}-r3-maitrise.png`); await p.screenshot({ path: f }); }
+  await toucherEl('#feuille [data-a="pq-ok"]'); await sleep(400); c1 = await carteRj();
+  check((await feuille()) === '' && /Maîtrise 100\/500/.test(c1.txt) && /\+3 ★/.test(c1.txt) && !c1.debord, `la carte : « Maîtrise 100/500 », la prochaine étape « +3 ★ » (le repère de 100 allumé), rien de coupé`);
+  await shotRj('r4-maitrise-100');
+  // la 500e : ses étoiles, et la toque pour la boutique (q.decos), posée dans la boulangerie au retour
+  await ev(([c]) => { const r = window.__fournil.st[c].recettes; r.fournees = 499; r.etapes = [100, 250]; }, [cle]); const et5 = (await etatRj()).etoiles;
+  await toucherEl(`${racine} .rj-carte .barre`); await sleep(300); await ev(([c]) => { const q = window.__fournil.st[c]; if (q.recettes.four) q.recettes.four.fin = HORLOGE.maintenant() - 1; }, [cle]);
+  check(await attendre(async () => /Maîtrise : 500 fournées/.test(await feuille()), 4000), 'à la 500e fournée : la feuille de la maîtrise'); await sleep(450);
+  const e5 = await etatRj(), f5 = await feuille(), deco = await ev(([e]) => window.__fournil[e].R.DECO_RECETTE, [o.ev]);
+  check(e5.etoiles === et5 + 5 && /toque/.test(f5) && await ev(([c, dd]) => window.__fournil.st[c].decos.includes(dd), [cle, deco]), `+5 étoiles et « ${f5.split('\n').find((l) => /toque/.test(l)) || '?'} »`);
+  await toucherEl('#feuille [data-a="pq-ok"]'); await sleep(300); await toucherEl(`${racine} [data-pq="fermer"]`); await sleep(500);
+  const vues = cle === 'hantee' ? () => ev(() => window.__fournil.SCENE.decosHanteeVues) : () => ev(() => window.__fournil.SCENE.decosVues);
+  check(await attendre(async () => (await vues()).includes(deco), 8000), `dans la boulangerie, la toque est posée au-dessus de la petite porte (« ${deco} »)`);
+  await sleep(600); if (rjDir) await p.screenshot({ path: path.join(rjDir, `${o.rj || cle}-r5-toque-boutique.png`) });
   await ctx.close();
 };

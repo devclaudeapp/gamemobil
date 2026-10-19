@@ -254,6 +254,9 @@ const SCENE = (() => {
     { id: 'chien', cle: () => (QDECO.chien && MEUBLES.chien && modeleComp !== 'chien-quartier' ? '1' : null), faire: (k, c) => MEUBLES.chien(c) },
     // les décos de la Maison hantée (src/hantee.js, gagnées aux paliers, à vie) : citrouilles-lanternes, toiles d'araignée, chaudron, petit fantôme
     ...['citrouilles', 'toiles', 'chaudron', 'fantome'].map((id) => ({ id: 'ht-' + id, cle: () => (HDECO[id] && MEUBLES[id] ? '1' : null), faire: (k, c) => MEUBLES[id](c) })),
+    // la toque de la recette du jour (src/activites.js : la 500e fournée, à vie), accrochée à la porte de l'arrière-boutique : celle de la Planque, celle du Manoir plus bas si les deux sont là
+    { id: 'toque-or', cle: () => (QDECO['toque-or'] && MEUBLES.toqueRecette ? '1' : null), faire: (k, c) => MEUBLES.toqueRecette(c, 'or', false) },
+    { id: 'ht-toque-citrouille', cle: () => (HDECO['toque-citrouille'] && MEUBLES.toqueRecette ? (QDECO['toque-or'] ? 'deux' : 'seule') : null), faire: (k, c) => MEUBLES.toqueRecette(c, 'citrouille', k === 'deux') },
     // le badge « Esprit d'équipe » (l'objectif commun de la semaine réussi, classement v6) : une rosette accrochée au mur, à vie ; absent pour qui ne l'a pas
     { id: 'equipe', cle: () => (REC.equipe ? '1' : null), faire: (k, c) => rosetteEquipe(c) },
     // le standing de la boutique (GAME.standing, palier 1 à 5) : ses objets (Q.objets) en un maillage (la lueur du soir comprise) ; en haute, ses modèles cuits (lots luxe*)
@@ -276,9 +279,9 @@ const SCENE = (() => {
   const SALLE_IDS = ['tables', 'bar', 'banquette', 'terrasse']; // les meubles de la salle : KayKit en haute et moyenne (lot HD « boutique »), faits main en éco
   // les récompenses du podium du classement (src/classement.js) : la tenue du boulanger, la coupe du comptoir, les coupes de la vitrine
   const REC = { tenue: null, coupe: null, coupes: [], equipe: false }, METAUX = ['or', 'argent', 'bronze'];
-  const QDECO = { graffiti: false, neon: false, scooter: false, chien: false }; // les décos du quartier posées dans la boutique
+  const QDECO = { graffiti: false, neon: false, scooter: false, chien: false, 'toque-or': false }; // les décos du quartier posées dans la boutique (et la toque de la recette du jour)
   function decosQuartier(liste) { const l = Array.isArray(liste) ? liste : []; for (const k of Object.keys(QDECO)) QDECO[k] = l.includes(k); ext.der = -1; }
-  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
+  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false, 'toque-citrouille': false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
   const ALIAS_HT = { citrouille: 'citrouilles', lanternes: 'citrouilles', toile: 'toiles', araignees: 'toiles', chaudrons: 'chaudron', fantomes: 'fantome' };
   function decosHantee(liste) { const l = (Array.isArray(liste) ? liste : []).map((k) => ALIAS_HT[k] || k); for (const k of Object.keys(HDECO)) HDECO[k] = l.includes(k); }
   // le compagnon de la boutique (GAME.COMPAGNONS : le chat roux, le chat noir, le chien… le mini-dragon ; ui.js dit lequel, noir d'office pour

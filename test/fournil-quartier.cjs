@@ -113,7 +113,7 @@ async function gerer(route) {
   const clic = (sel) => page.evaluate((s) => { const b = document.querySelector(s); if (!b) return false; b.click(); return true; }, sel);
   const ev = (fn, arg) => page.evaluate(fn, arg);
   const qst = () => ev(() => { const q = window.__fournil.st.quartier; return q ? { majeur: q.majeur, masque: q.masque, annonce: q.annonce, bilan: q.bilan, billets: q.billets, total: q.total, postes: q.postes.map((p) => [p.niv, p.staff]), paliers: q.paliers.slice(), decos: q.decos.slice(), vetements: q.vetements.slice(), etoiles: q.etoiles, boosts: q.boosts, stats: q.stats, ev: q.ev && q.ev.type, lastSeen: q.lastSeen } : null; });
-  const planque = () => ev(() => { const el = document.querySelector('#planque'); return { ouvert: !el.hidden, ecran: el.dataset.ecran, titre: document.querySelector('#pq-titre').textContent, sous: document.querySelector('#pq-sous').textContent, billets: document.querySelector('#pq-billets').textContent, taux: document.querySelector('#pq-taux').textContent, reste: document.querySelector('#pq-reste').textContent, paliers: document.querySelector('[data-pq="paliers"] b').textContent, cartes: [...document.querySelectorAll('#pq-cartes .carte')].map((c) => c.className), ev: document.querySelector('#pq-ev').hidden ? '' : document.querySelector('#pq-ev').innerText, corps: document.querySelector('#pq-corps').innerText, calls: window.__fournil.evenement.scene ? window.__fournil.evenement.scene.calls : -1 }; });
+  const planque = () => ev(() => { const el = document.querySelector('#planque'); return { ouvert: !el.hidden, ecran: el.dataset.ecran, titre: document.querySelector('#pq-titre').textContent, sous: document.querySelector('#pq-sous').textContent, billets: document.querySelector('#pq-billets').textContent, taux: document.querySelector('#pq-taux').textContent, reste: document.querySelector('#pq-reste').textContent, paliers: document.querySelector('[data-pq="paliers"] b').textContent, cartes: [...document.querySelectorAll('#pq-cartes .carte[data-i]')].map((c) => c.className), ev: document.querySelector('#pq-ev').hidden ? '' : document.querySelector('#pq-ev').innerText, corps: document.querySelector('#pq-corps').innerText, calls: window.__fournil.evenement.scene ? window.__fournil.evenement.scene.calls : -1 }; });
 
   await charger();
 
@@ -144,7 +144,7 @@ async function gerer(route) {
 
   console.log('── jouer dans la Planque ──');
   check(/^0 €/.test(p.billets) && p.cartes[0].includes('manuel') && p.cartes[1].includes('verrou'), 'zéro billet, l’herbe à la main, le shit verrouillé');
-  await page.evaluate(() => { const b = document.querySelector('#pq-cartes .carte .barre'); b.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
+  await page.evaluate(() => { const b = document.querySelector('#pq-cartes .carte[data-i] .barre'); b.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
   await sleep(2600);
   s = await qst(); p = await planque();
   check(s.billets > 0 && s.stats.taps === 1 && s.stats.ventes === 1 && !/^0 €/.test(p.billets), `une touche sur l'herbe : un sachet vendu, ${p.billets} (×1,5 à la main × ${Q.PRESENCE} le boss)`);
@@ -398,7 +398,7 @@ async function gerer(route) {
       for (let k = 0; k < 4 && /Palier/.test(await feuille2()); k++) { await clic2('#feuille [data-a="pq-ok"]'); await sleep(450); }
       await clic2('#pq-cartes .carte[data-i="7"] [data-a="debloquer"]'); await sleep(300); await clic2('#pq-cartes .carte[data-i="7"] [data-a="embaucher"]'); await sleep(400);
       await ev2(() => { const q = window.__fournil.st.quartier; [235, 214, 207, 203, 199, 192, 160, 62].forEach((n, i) => { q.postes[i].niv = n; q.postes[i].staff = true; q.postes[i].actif = true; }); const s = EVENEMENTS.quartier.scene; if (s) s.equipe(q); }); await sleep(600); // l'équipe au complet : neuf personnages
-      const huit = await ev2(() => [...document.querySelectorAll('#pq-cartes .carte')].map((c) => c.className));
+      const huit = await ev2(() => [...document.querySelectorAll('#pq-cartes .carte[data-i]')].map((c) => c.className));
       check(huit.length === 8 && huit.every((x) => /auto/.test(x)) && (await carte(7)).staff === 'Chimiste Monsieur Blanc', 'le 16e franchi : le cristal bleu ouvert, Chimiste Monsieur Blanc embauché ; huit postes, huit apprentis');
       const c7b = await carte(7); check(/Palier 75 ×1,41/.test(c7b.pal), `les paliers intercalés du cristal : « ${c7b.pal} »`);
       await ev2(() => document.querySelector('#pq-cartes').scrollTo(0, 0)); await sleep(3500); // le toast de l'embauche s'en va
@@ -441,7 +441,7 @@ async function gerer(route) {
   // les activités (src/activites.js) dans un troisième téléphone, le vendredi 16 octobre (4e jour) : la barre, les trois mini-jeux au doigt,
   // un contrat, une opération (test/fournil-activites-ecran.cjs, le même parcours que la Maison hantée)
   await require('./fournil-activites-ecran.cjs')({ browser, url: URL_JEU, heure: (ms) => { decal = ms - Date.now(); }, quand: new Date('2026-10-16T10:00:00+02:00').getTime(), fauxTelephone, route: [SUPA + '/rest/v1/rpc/*', gerer],
-    check, errors, dirs: [out, out2].filter(Boolean), prefixe: '', racine: '#planque', ev: 'evenement', ouvrir: 'quartier', cle: 'quartier', nom: 'la Planque' });
+    check, errors, dirs: [out, out2].filter(Boolean), prefixe: '', racine: '#planque', ev: 'evenement', ouvrir: 'quartier', cle: 'quartier', nom: 'la Planque', rj: 'planque' });
 
   check(errors.length === 0, errors.length ? `erreurs de page : ${errors.join(' | ')}` : 'aucune erreur de page');
   await browser.close(); server.close();
