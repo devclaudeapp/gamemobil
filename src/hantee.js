@@ -37,7 +37,10 @@
    Les vêtements (src/game.js, GARDEROBE) : collection 'hantee' (paliers 3, 6, 9, 12) et 'hantee-or' (le podium final), formes pour
    persos.js : 'chapeau' (chapeau pointu de sorcière), 'cape', 'bottes', 'lanterne' (une petite citrouille-lanterne à la main).
    FICHE.activites : l'habillage d'Halloween des activités (src/activites.js, le moteur commun à tous les événements : les mini-jeux « Le
-   guet », « Le compte », « La tournée », les contrats de la nuit, les opérations) ; leur API est exportée telle quelle, comme au Quartier. */
+   guet », « Le compte », « La tournée », les contrats de la nuit, les opérations) ; leur API est exportée telle quelle, comme au Quartier.
+   Lot 6 (19 octobre), le Manoir « qui choque » : des choses à FAIRE dans la boutique hantée (voir « des choses à FAIRE », plus bas) : le ×6
+   de présence s'endort sans toucher (toucher, eveil, presence), les clients-monstres (servir), les fournées parfaites (parfait), les
+   apparitions (attraper(q, id)), les commandes de la nuit (livrerCommande) ; FICHE.manoir, leurs mots ; SORTES, les neuf clients. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./activites.js'));
   else root.HANTEE = factory(root.ACTIVITES);
@@ -186,8 +189,8 @@
   function postesNeufs() { return PRODUITS.map((p, i) => ({ niv: i === 0 ? 1 : 0, staff: false, prog: 0, actif: false })); }
   function neuf(now) {
     return { v: 1, majeur: true, masque: false, annonce: false, bilan: false, billets: 0, total: 0, postes: postesNeufs(), ameliorations: {}, mode: 1,
-      ev: null, evTimer: 150, dernierEv: '', boost: null, lastSeen: now, now, ouvertLe: 0, paliers: [], vetements: [], decos: [], recompensesV2: true, heures: 0, chat: false, etoiles: 0, boosts: 0,
-      stats: { ventes: 0, taps: 0, descentes: 0, descentesRatees: 0, grosClients: 0, scooters: 0, soirees: 0, embauches: 0, saisi: 0 }, carnet: [], mini: null, contrats: null, operation: null };
+      ev: null, evTimer: 150, dernierEv: '', boost: null, lastSeen: now, now, actif: now, ouvertLe: 0, paliers: [], vetements: [], decos: [], recompensesV2: true, heures: 0, chat: false, etoiles: 0, boosts: 0,
+      stats: Object.assign({ ventes: 0, taps: 0, descentes: 0, descentesRatees: 0, grosClients: 0, scooters: 0, soirees: 0, embauches: 0, saisi: 0 }, statsManoir()), carnet: [], mini: null, contrats: null, operation: null, manoir: manoirNeuf(now) };
   }
   // q.billets / q.total : les bonbons en poche / gagnés en tout (les mêmes noms qu'au Quartier, pour le moteur d'écran) ; bonbons(q) les lit
   function etat(st, now) { // l'état de l'événement, remis d'aplomb
@@ -201,6 +204,7 @@
     if (!(q.billets >= 0)) q.billets = 0; if (!(q.total >= 0)) q.total = 0;
     q.majeur = true; // pas de porte : tous âges
     A.reparer(q); // les activités : q.mini, q.contrats, q.operation, et leurs compteurs (une vieille sauvegarde n'en a pas)
+    reparerManoir(q, now); // lot 6 : q.actif (absent : actif maintenant), q.manoir (clients, apparitions, commande, plafonds) et ses compteurs
     return q;
   }
   const bonbons = (q) => (q ? q.billets : 0);
@@ -213,7 +217,8 @@
   const prochainPalier = (niv) => PALIERS_POSTE.find((p) => p > niv) || null;
   const gainPalier = (p) => palierMult(p) / palierMult(p - 1); // ce que ce palier ajoute (×2 aux anciens, ×1,41 ou ×1,19 aux intercalés) : pour l'écran
   function ameliorationMult(q, i) { let m = 1; for (const a of AMELIORATIONS) if (q.ameliorations[a.id] && (a.cible === null || a.cible.includes(PRODUITS[i].id))) m *= a.mult; return m; }
-  function boostMult(q) { let m = PRESENCE; if (q.ev && q.ev.type === 'soiree' && q.ev.fin > q.now) m *= EVENEMENTS.soiree.mult; return m; } // en ta présence
+  // en ta présence : le ×6 (×12 sous la pleine lune) tant que le Manoir est éveillé ; lot 6, il s'endort sans toucher (eveil, plus bas)
+  function boostMult(q) { let m = 1 + (PRESENCE - 1) * eveil(q); if (q.ev && q.ev.type === 'soiree' && q.ev.fin > q.now) m *= EVENEMENTS.soiree.mult; return m; }
   const reputationMult = (q) => Math.pow(REPUTATION, paliersAtteints(q).filter((p) => !p.bonus).length); // les paliers bonus ne font plus la réputation
   const temps = (q, i) => PRODUITS[i].temps;
   const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(q, i) * reputationMult(q); };
@@ -253,7 +258,10 @@
     q.billets -= prix; s.staff = true; s.actif = true; q.stats.embauches++; note(q, `${PRODUITS[i].staffNom} rejoint le Manoir`);
     return { ok: true, prix };
   }
-  function lancer(q, i) { const s = q.postes[i]; if (s.niv <= 0 || s.actif) return false; s.actif = true; s.prog = 0; q.stats.taps++; return true; }
+  function lancer(q, i) { // une fournée à la main ; lot 6 : son « parfait » se tire de l'instant du lancement (s.lance), un seul essai (s.essai)
+    const s = q.postes[i]; if (s.niv <= 0 || s.actif) return false;
+    s.actif = true; s.prog = 0; s.lance = Number.isFinite(q.now) ? q.now : 0; s.essai = false; s.parfait = false; q.stats.taps++; return true;
+  }
   const combineOuverte = (q, a) => !a.apres || q.total >= PALIERS[a.apres - 1].total; // les Sortilèges « après le maître » : une fois le palier franchi
   function amelioration(q, id) {
     const a = AMELIORATIONS.find((x) => x.id === id), prix = a ? a.cout : 0;
@@ -303,7 +311,8 @@
     ev.livree = true; gagner(q, ev.prime); q.stats.grosClients++; note(q, `Cortège servi : +${fmt(ev.prime)} bonbons`); q.ev = null;
     return { ok: true, prime: ev.prime };
   }
-  function attraper(q) { // le balai de la sorcière : on attrape le sac de bonbons avant qu'il reparte
+  function attraper(q, id) { // le balai de la sorcière : on attrape le sac de bonbons avant qu'il reparte ; lot 6 : avec un id, une apparition (attraperApparition)
+    if (id != null) return attraperApparition(q, id);
     const ev = q.ev; if (!ev || ev.type !== 'scooter' || ev.fin <= q.now) return { ok: false };
     gagner(q, ev.prime); q.stats.scooters++; note(q, `Le balai a lâché +${fmt(ev.prime)} bonbons`); q.ev = null;
     return { ok: true, prime: ev.prime };
@@ -312,6 +321,209 @@
     if (ev.type === 'descente') { const saisi = Math.min(q.billets, ev.enjeu || 0); q.billets -= saisi; q.stats.descentesRatees++; q.stats.saisi += saisi; note(q, `Les chauves-souris emportent ${fmt(saisi)} bonbons`); return { saisi }; }
     if (ev.type === 'soiree') q.stats.soirees++;
     return {};
+  }
+
+  // ═══ lot 6 (19 octobre) : le Manoir « qui choque » — des choses à FAIRE, pour qu'on n'y laisse plus le téléphone tourner seul ═══
+  // Cinq règles, toutes pures (le « maintenant » vient de l'appelant : tick, ou q.now, le dernier pas), plafonnées à l'heure ou au jour,
+  // proportionnelles au rythme de référence (rythme(q) : les monstres, sans la présence) comme les activités de src/activites.js ; aucune
+  // ne paie pendant l'absence ; le hasard se tire de q.manoir.graine (et de son compteur) : la même sauvegarde donne la même suite, et les
+  // coups de pouce (le hasard de tick) ne changent pas. Les apprentis et revenuFournee ne changent pas.
+  //   1. LE ×6 QUI S'ENDORT (EVEIL, toucher, eveil, presence) : l'écran pose q.actif (un « maintenant ») à chaque toucher utile
+  //      (toucher(q, now)) ; le plein ×6 (×12 sous la pleine lune) dure EVEIL.plein secondes après le dernier, puis descend en ligne droite
+  //      jusqu'à ×1 en EVEIL.sommeil secondes ; un seul toucher le remet au plein. eveil(q) : 0..1 (la jauge ; BOUTIQUE_HANTEE.ambiance).
+  //      Vieille sauvegarde (q.actif absent) : actif maintenant ; revenir (absence) réveille le Manoir.
+  //   2. LES CLIENTS-MONSTRES (CLIENTS, SORTES, servir) : une file de trois au plus ; un client toutes les 8 à 20 s (sa sorte parmi les
+  //      neuf, sa commande : une à trois friandises ouvertes, une à trois de chaque) ; il attend 40 s, puis repart sans rien (aucune
+  //      pénalité). servir(q, id, produit) sert une ligne de sa commande (le bon produit, sinon refusé : faux) ; la dernière servie, il
+  //      paie un pourboire : CLIENTS.minutes minutes du rythme par friandise, jusqu'à ×1,5 s'il est servi tout de suite (rien de plus après
+  //      40 s d'attente) ; plafonds : CLIENTS.parHeure et CLIENTS.parJour minutes.
+  //   3. LES FOURNÉES PARFAITES (PARFAIT, fenetreParfait, parfait) : une fournée lancée à la main (un poste sans son monstre, ou la recette
+  //      du jour : i = -1) d'au moins 6 s a une fenêtre « parfait » de 15 % de sa durée, placée entre 30 % et 90 % par le hasard de son
+  //      lancement (déterministe : l'instant du lancement et le poste) ; parfait(q, i, now) dedans : la fournée vaut ×2 (le double est payé
+  //      tout de suite) ; dehors : rien de perdu, mais un seul essai par fournée. Plafond : PARFAIT.parHeure fournées parfaites par heure.
+  //   4. LES APPARITIONS (APPARITIONS, TYPES_APPARITION, attraper(q, id)) : une toutes les 20 à 60 s ('fantome', 'citrouille',
+  //      'chauve-souris'), qui vit 6 à 10 s ; attrapée : APPARITIONS.minutes minutes du rythme, ×1,5 dès la troisième d'affilée (une qui
+  //      s'échappe casse la série) ; plafonds à l'heure et au jour. attraper(q) sans id reste le balai de la sorcière (le coup de pouce).
+  //   5. LES COMMANDES DE LA NUIT (COMMANDES, commandeManoir, livrerCommande) : une à la fois, tirée parmi les postes ouverts (« 240 bonbons
+  //      acidulés en 10 min » : ce que le poste fait dans ce temps, ×0,6 avec son monstre, ×0,3 à la main), comptée sur les ventes (comme
+  //      le cortège) ; livrée au bouton avant l'heure : la prime (COMMANDES.part minute du rythme par minute de commande) ; ratée : rien,
+  //      et la suivante une à trois minutes plus tard. Plafonds à l'heure et au jour.
+  // L'état : q.manoir = { graine, tirages, file, prochainClient, seqClient, apps, prochaineApp, seqApp, serie, commande, prochaineCommande,
+  // seqCommande, heure, jour, h, j (ce que chacune a payé cette heure et ce jour, en minutes du rythme ; les parfaites, en fournées),
+  // bilan: { clients | apparitions | parfaits | commandes: { n, gain, min } } } ; tick rend out.manoir = { arrives, partis, apparitions,
+  // perdues, commande, ratee } pour l'écran (BOUTIQUE_HANTEE.client, .fache, .apparition…).
+  const EVEIL = { plein: 60, sommeil: 180 }; // secondes : le plein après le dernier toucher, puis la descente jusqu'à ×1
+  const SORTES = ['squelette', 'squelette-sorcier', 'zombie', 'citrouille', 'fantome', 'momie', 'sorciere', 'vampire', 'loup']; // les mêmes que la scène (BOUTIQUE_HANTEE.SORTES)
+  const NOMS_SORTES = { squelette: 'Le squelette', 'squelette-sorcier': 'Le squelette sorcier', zombie: 'Le zombie', citrouille: 'La tête-citrouille', fantome: 'Le fantôme', momie: 'La momie', sorciere: 'La sorcière', vampire: 'Le vampire', loup: 'Le loup-garou' };
+  const CLIENTS = { file: 3, arrivee: [8, 20], patience: 40, lignes: 3, minutes: 0.025, vite: 0.5, parHeure: 40, parJour: 300 };
+  const PARFAIT = { tempsMin: 6, largeur: 0.15, de: [0.3, 0.75], parHeure: 40 };
+  const TYPES_APPARITION = ['fantome', 'citrouille', 'chauve-souris'];
+  const APPARITIONS = { intervalle: [20, 60], vie: [6, 10], minutes: 0.15, serie: 3, mult: 1.5, parHeure: 45, parJour: 300 };
+  const COMMANDES = { durees: [5, 10, 15], part: 0.2, pause: [60, 180], premiere: 90, staff: 0.6, main: 0.3, parHeure: 30, parJour: 200 };
+  const PLAFONDS = { clients: CLIENTS, apparitions: APPARITIONS, commandes: COMMANDES };
+  const ACTIVITES_MANOIR = ['clients', 'apparitions', 'parfaits', 'commandes'];
+  const STATS_MANOIR = ['clientsServis', 'clientsPartis', 'apparitions', 'apparitionsRatees', 'parfaits', 'parfaitsRates', 'commandes', 'commandesRatees'];
+  function statsManoir() { const o = {}; for (const k of STATS_MANOIR) o[k] = 0; return o; }
+  const compteursNeufs = () => ({ clients: 0, apparitions: 0, parfaits: 0, commandes: 0 });
+  const bilanNeuf = () => { const o = {}; for (const k of ACTIVITES_MANOIR) o[k] = { n: 0, gain: 0, min: 0 }; return o; };
+  function manoirNeuf(now) {
+    return { graine: ACT.hacher(`${Number.isFinite(now) ? now : 0}|hantee|manoir`), tirages: 0, file: [], prochainClient: 0, seqClient: 0, apps: [], prochaineApp: 0, seqApp: 0, serie: 0,
+      commande: null, prochaineCommande: 0, seqCommande: 0, heure: -1, jour: '', h: compteursNeufs(), j: compteursNeufs(), bilan: bilanNeuf() };
+  }
+  const fini = (x) => typeof x === 'number' && Number.isFinite(x);
+  const posteOk = (i) => Number.isInteger(i) && i >= 0 && i < PRODUITS.length;
+  function reparerManoir(q, now) { // une vieille sauvegarde (rien de tout ça), ou des champs abîmés : remis d'aplomb sans rien inventer
+    if (!fini(q.actif)) q.actif = fini(now) ? now : (fini(q.now) ? q.now : 0);
+    if (!q.stats || typeof q.stats !== 'object') q.stats = {}; for (const k of STATS_MANOIR) if (!(q.stats[k] >= 0)) q.stats[k] = 0;
+    const M = q.manoir && typeof q.manoir === 'object' ? q.manoir : (q.manoir = manoirNeuf(now));
+    if (!fini(M.graine)) M.graine = ACT.hacher(`${fini(now) ? now : 0}|hantee|manoir`); M.graine >>>= 0;
+    for (const k of ['tirages', 'prochainClient', 'seqClient', 'prochaineApp', 'seqApp', 'serie', 'prochaineCommande', 'seqCommande']) if (!fini(M[k]) || M[k] < 0) M[k] = 0;
+    if (!fini(M.heure)) M.heure = -1; if (typeof M.jour !== 'string') M.jour = '';
+    for (const k of ['h', 'j']) { if (!M[k] || typeof M[k] !== 'object') M[k] = compteursNeufs(); for (const a of ACTIVITES_MANOIR) if (!(M[k][a] >= 0)) M[k][a] = 0; }
+    if (!M.bilan || typeof M.bilan !== 'object') M.bilan = bilanNeuf(); for (const a of ACTIVITES_MANOIR) { const b = M.bilan[a] && typeof M.bilan[a] === 'object' ? M.bilan[a] : (M.bilan[a] = { n: 0, gain: 0, min: 0 }); for (const k of ['n', 'gain', 'min']) if (!(b[k] >= 0)) b[k] = 0; }
+    const ligneOk = (l) => l && typeof l === 'object' && posteOk(l.i) && l.n >= 1 && l.n <= 9;
+    M.file = (Array.isArray(M.file) ? M.file : []).filter((c) => c && typeof c === 'object' && fini(c.id) && SORTES.includes(c.sorte) && fini(c.arrive) && Array.isArray(c.commande) && c.commande.length >= 1 && c.commande.length <= CLIENTS.lignes && c.commande.every(ligneOk)).slice(0, CLIENTS.file);
+    for (const c of M.file) for (const l of c.commande) l.servi = !!l.servi;
+    M.apps = (Array.isArray(M.apps) ? M.apps : []).filter((a) => a && typeof a === 'object' && fini(a.id) && TYPES_APPARITION.includes(a.type) && fini(a.debut) && fini(a.fin)).slice(0, 3);
+    const c = M.commande; if (c !== null && !(c && typeof c === 'object' && posteOk(c.i) && c.n >= 1 && fini(c.fait) && fini(c.debut) && fini(c.fin) && COMMANDES.durees.includes(c.duree))) M.commande = null;
+    return M;
+  }
+  function hasard(M) { return ACT.alea(M.graine, M.tirages++); } // le hasard du Manoir : la graine de la partie et son compteur (sauvegardés)
+  const entre = (M, ab) => ab[0] + (ab[1] - ab[0]) * hasard(M);
+
+  // ─── 1. le ×6 qui s'endort ───
+  function eveil(q, now) { // 0..1 : 1 (le plein) jusqu'à EVEIL.plein s après le dernier toucher, puis en ligne droite jusqu'à 0 (×1)
+    const t = fini(now) ? now : q.now, a = q.actif; if (!fini(a) || !fini(t)) return 1;
+    const d = (t - a) / 1000; return d <= EVEIL.plein ? 1 : Math.max(0, 1 - (d - EVEIL.plein) / EVEIL.sommeil);
+  }
+  function toucher(q, now) { const t = fini(now) ? now : q.now; if (fini(t)) q.actif = t; return eveil(q, t); } // un toucher utile : le plein, tout de suite
+  function presence(q, now) { // pour la jauge et l'ambiance : { eveil (0..1), mult (le multiplicateur de présence, sans la lune), plein (ms avant que ça baisse), zero (ms avant ×1) }
+    const t = fini(now) ? now : q.now, e = eveil(q, t), d = fini(q.actif) && fini(t) ? t - q.actif : 0;
+    return { eveil: e, mult: 1 + (PRESENCE - 1) * e, plein: Math.max(0, EVEIL.plein * 1000 - d), zero: Math.max(0, (EVEIL.plein + EVEIL.sommeil) * 1000 - d), dort: e <= 0 };
+  }
+
+  // ─── les plafonds (minutes du rythme payées dans l'heure et le jour de Paris ; les fournées parfaites, en nombre) ───
+  function compteurs(M, now) { const h = Math.floor((fini(now) ? now : 0) / 3600e3), j = dayKey(fini(now) ? now : 0); if (M.heure !== h) { M.heure = h; M.h = compteursNeufs(); } if (M.jour !== j) { M.jour = j; M.j = compteursNeufs(); } return M; }
+  const manoirOuvert = (now) => fenetre(now).ouvert;
+  function payerMinutes(q, act, minutes) { // paie « minutes » du rythme, rognées aux plafonds de l'heure et du jour → { gain, min, plafond }
+    const M = compteurs(q.manoir, q.now), P = PLAFONDS[act];
+    const m = manoirOuvert(q.now) ? Math.max(0, Math.min(minutes, P.parHeure - M.h[act], P.parJour - M.j[act])) : 0, gain = m > 0 ? arrondi(Math.max(1, rythme(q) * m * 60)) : 0;
+    M.h[act] += m; M.j[act] += m; if (gain > 0) gagner(q, gain);
+    const b = M.bilan[act]; b.n++; b.gain += gain; b.min += m;
+    return { gain, min: m, plafond: m < minutes - 1e-9 };
+  }
+  function plafondsManoir(q, now) { // ce que l'écran peut afficher : pour chaque activité, payé / plafond, cette heure et ce jour
+    const M = compteurs(q.manoir, fini(now) ? now : q.now), o = {};
+    for (const a of ['clients', 'apparitions', 'commandes']) o[a] = { heure: M.h[a], parHeure: PLAFONDS[a].parHeure, jour: M.j[a], parJour: PLAFONDS[a].parJour, plein: M.h[a] >= PLAFONDS[a].parHeure - 1e-9 || M.j[a] >= PLAFONDS[a].parJour - 1e-9 };
+    o.parfaits = { heure: M.h.parfaits, parHeure: PARFAIT.parHeure, plein: M.h.parfaits >= PARFAIT.parHeure };
+    return o;
+  }
+
+  // ─── 2. les clients-monstres ───
+  function nouveauClient(q, now) {
+    const M = q.manoir, ouverts = q.postes.map((s, i) => i).filter((i) => q.postes[i].niv > 0); if (!ouverts.length) return null;
+    const sorte = SORTES[Math.floor(hasard(M) * SORTES.length)], nl = 1 + Math.floor(hasard(M) * Math.min(CLIENTS.lignes, ouverts.length)), commande = [];
+    for (let k = 0; k < nl; k++) {
+      const reste = ouverts.filter((i) => !commande.some((l) => l.i === i)), i = reste[Math.floor(hasard(M) * reste.length)], T = PRODUITS[i].temps;
+      commande.push({ i, n: 1 + Math.floor(hasard(M) * (T <= 6 ? 3 : T <= 24 ? 2 : 1)), servi: false }); // des quantités modestes : moins des friandises longues
+    }
+    const c = { id: ++M.seqClient, sorte, commande, arrive: now };
+    M.file.push(c); return c;
+  }
+  const clientsManoir = (q) => (q.manoir ? q.manoir.file : []);
+  function pourboire(q, c) { // ce que paierait ce client servi maintenant (minutes du rythme, avant les plafonds)
+    const attente = Math.max(0, (q.now - c.arrive) / 1000), unites = c.commande.reduce((s, l) => s + l.n, 0);
+    return CLIENTS.minutes * unites * (1 + CLIENTS.vite * Math.max(0, 1 - attente / CLIENTS.patience));
+  }
+  function servir(q, id, produit) { // une ligne de la commande du client id ; la dernière : il paie et repart content
+    const M = q.manoir, c = M && M.file.find((x) => x.id === id); if (!c) return { ok: false };
+    const i = typeof produit === 'string' ? PRODUITS.findIndex((p) => p.id === produit) : Number(produit);
+    const l = c.commande.find((x) => x.i === i && !x.servi); if (!l) return { ok: false, faux: true, client: c };
+    l.servi = true; toucher(q, q.now);
+    const reste = c.commande.filter((x) => !x.servi).length; if (reste > 0) return { ok: true, fini: false, reste, client: c };
+    const min = pourboire(q, c); M.file.splice(M.file.indexOf(c), 1); q.stats.clientsServis++;
+    const p = payerMinutes(q, 'clients', min);
+    return { ok: true, fini: true, prime: p.gain, plafond: p.plafond, client: c };
+  }
+
+  // ─── 3. les fournées parfaites ───
+  function fenetreParfait(q, i) { // → { debut, fin (parts de la durée), duree (s), essai, parfait } ou null (pas une fournée à la main d'au moins 6 s en cours)
+    const rec = i === -1 || i === 'recette', o = rec ? q.recettes && q.recettes.four : q.postes[i];
+    if (!o) return null;
+    let T, lance;
+    if (rec) { T = (o.fin - o.debut) / 1000; lance = o.debut; }
+    else { if (o.niv <= 0 || o.staff || !o.actif) return null; T = temps(q, i); lance = fini(o.lance) ? o.lance : 0; }
+    if (!(T >= PARFAIT.tempsMin)) return null;
+    const de = PARFAIT.de[0] + (PARFAIT.de[1] - PARFAIT.de[0]) * ACT.alea(ACT.hacher(`${lance}|${rec ? 'recette' : i}|parfait`), 0);
+    return { debut: de, fin: de + PARFAIT.largeur, duree: T, essai: !!o.essai, parfait: !!o.parfait };
+  }
+  function parfait(q, i, now) { // le toucher « parfait » sur la fournée i (-1 : la recette du jour) à l'instant now
+    const w = fenetreParfait(q, i); if (!w) return { ok: false };
+    const rec = i === -1 || i === 'recette', o = rec ? q.recettes.four : q.postes[i], t = fini(now) ? now : q.now;
+    if (o.essai) return { ok: false, deja: true };
+    const part = rec ? (t - o.debut) / (o.fin - o.debut) : (o.prog + Math.max(0, (t - q.now) / 1000)) / w.duree;
+    o.essai = true; toucher(q, t);
+    if (part < w.debut || part > w.fin) { q.stats.parfaitsRates++; return { ok: true, parfait: false, tot: part < w.debut, part }; }
+    o.parfait = true; q.stats.parfaits++;
+    const M = compteurs(q.manoir, t), b = M.bilan.parfaits; b.n++;
+    if (M.h.parfaits >= PARFAIT.parHeure || !manoirOuvert(t)) return { ok: true, parfait: true, prime: 0, plafond: true, part };
+    M.h.parfaits++; M.j.parfaits++;
+    const prime = rec ? o.gain : revenuFournee(q, i); // ×2 : la même fournée encore une fois, tout de suite (la recette : son gain fixé au lancement)
+    if (prime > 0) { gagner(q, prime); b.gain += prime; b.min += prime / Math.max(1e-9, rythme(q) * 60); }
+    return { ok: true, parfait: true, prime, part };
+  }
+
+  // ─── 4. les apparitions ───
+  function attraperApparition(q, id) {
+    const M = q.manoir, a = M && M.apps.find((x) => x.id === id); if (!a || !(a.fin > q.now)) return { ok: false };
+    M.apps.splice(M.apps.indexOf(a), 1); M.serie++; q.stats.apparitions++; toucher(q, q.now);
+    const mult = M.serie >= APPARITIONS.serie ? APPARITIONS.mult : 1, p = payerMinutes(q, 'apparitions', APPARITIONS.minutes * mult);
+    return { ok: true, prime: p.gain, plafond: p.plafond, serie: M.serie, mult, type: a.type, apparition: a };
+  }
+
+  // ─── 5. les commandes de la nuit ───
+  function lancerCommande(q, now) { // une commande tirée parmi les postes ouverts (null : aucun ne peut la faire) ; une seule à la fois
+    const M = q.manoir; if (M.commande) return null;
+    const duree = COMMANDES.durees[Math.floor(hasard(M) * COMMANDES.durees.length)];
+    const ok = q.postes.map((s, i) => i).filter((i) => q.postes[i].niv > 0 && PRODUITS[i].temps * 3 <= duree * 60); if (!ok.length) return null;
+    const i = ok[Math.floor(hasard(M) * ok.length)], s = q.postes[i], n = Math.max(1, arrondi(duree * 60 / PRODUITS[i].temps * (s.staff ? COMMANDES.staff : COMMANDES.main)));
+    M.commande = { id: ++M.seqCommande, i, n, fait: 0, duree, debut: now, fin: now + duree * 60e3, minutes: duree * COMMANDES.part };
+    return M.commande;
+  }
+  const commandeManoir = (q) => (q.manoir ? q.manoir.commande : null);
+  const primeCommande = (q) => { const c = commandeManoir(q); return c ? arrondi(Math.max(1, rythme(q) * c.minutes * 60)) : 0; }; // ce qu'elle paierait livrée maintenant (avant les plafonds)
+  function livrerCommande(q) { // au bouton : toutes les friandises faites, avant l'heure
+    const M = q.manoir, c = M && M.commande; if (!c || c.fait < c.n || !(q.now < c.fin)) return { ok: false };
+    M.commande = null; M.prochaineCommande = q.now + entre(M, COMMANDES.pause) * 1000; q.stats.commandes++; toucher(q, q.now);
+    const p = payerMinutes(q, 'commandes', c.minutes); note(q, `Commande de la nuit livrée : +${fmt(p.gain)} bonbons`);
+    return { ok: true, prime: p.gain, plafond: p.plafond, commande: c };
+  }
+
+  // ─── le pas du Manoir (dans tick) : départs, arrivées ; et l'oubli après une longue sortie ───
+  function pasManoir(q, now) {
+    const M = q.manoir, o = { arrives: [], partis: [], apparitions: [], perdues: [], commande: null, ratee: null };
+    if (!M) return o;
+    for (const c of M.file.slice()) if (now - c.arrive >= CLIENTS.patience * 1000) { M.file.splice(M.file.indexOf(c), 1); q.stats.clientsPartis++; o.partis.push(c.id); } // il a trop attendu : il part, c'est tout
+    for (const a of M.apps.slice()) if (now >= a.fin) { M.apps.splice(M.apps.indexOf(a), 1); M.serie = 0; q.stats.apparitionsRatees++; o.perdues.push(a.id); }
+    if (M.commande && now >= M.commande.fin) { o.ratee = M.commande; M.commande = null; q.stats.commandesRatees++; M.prochaineCommande = now + entre(M, COMMANDES.pause) * 1000; }
+    if (!manoirOuvert(now)) return o;
+    if (!(M.prochainClient > 0)) M.prochainClient = now + 2000; // le premier, deux secondes après l'ouverture
+    else if (now >= M.prochainClient) { if (M.file.length < CLIENTS.file) { const c = nouveauClient(q, now); if (c) o.arrives.push(c); } M.prochainClient = now + entre(M, CLIENTS.arrivee) * 1000; }
+    if (!(M.prochaineApp > 0)) M.prochaineApp = now + entre(M, APPARITIONS.intervalle) * 1000;
+    else if (now >= M.prochaineApp) {
+      const a = { id: ++M.seqApp, type: TYPES_APPARITION[Math.floor(hasard(M) * TYPES_APPARITION.length)], debut: now, fin: now + entre(M, APPARITIONS.vie) * 1000 };
+      M.apps.push(a); o.apparitions.push(a); M.prochaineApp = now + entre(M, APPARITIONS.intervalle) * 1000;
+    }
+    if (!M.commande) {
+      if (!(M.prochaineCommande > 0)) M.prochaineCommande = now + COMMANDES.premiere * 1000;
+      else if (now >= M.prochaineCommande) { o.commande = lancerCommande(q, now); if (!o.commande) M.prochaineCommande = now + 60e3; }
+    }
+    return o;
+  }
+  function oublierManoir(q, now, silence) { // une longue sortie (plus que PAUSE_EV) : la commande s'efface sans rien coûter ; à l'absence, la file et les apparitions aussi
+    const M = q.manoir; if (!M) return;
+    if (M.commande) { M.commande = null; M.prochaineCommande = now + COMMANDES.premiere * 1000; }
+    if (silence) { M.file = []; M.apps = []; M.serie = 0; M.prochainClient = 0; M.prochaineApp = 0; }
   }
 
   // ─── les paliers franchis : ce qu'il reste à donner (chaque palier une seule fois, dans l'ordre) ───
@@ -346,15 +558,16 @@
   // une sortie de 10 min au plus (l'appli quittée sans le vouloir, l'écran refermé un instant) : le coup de pouce en cours, et le boost de
   // l'événement s'il y en a un, sont EN PAUSE : leurs échéances avancent de la durée de la sortie, on les retrouve tels quels au retour
   const PAUSE_EV = 600e3; // la même que celle de la boutique (G.PAUSE_EV, 600 s, src/game.js), en millisecondes : ce fichier ne dépend pas de game.js
-  function pauseCoup(q, ms) { if (!(ms > 0)) return; for (const o of [q.ev, q.boost]) if (o && typeof o === 'object') for (const k of ['debut', 'fin']) if (Number.isFinite(o[k])) o[k] += ms; }
+  function pauseCoup(q, ms) { if (!(ms > 0)) return; for (const o of [q.ev, q.boost, q.manoir && q.manoir.commande]) if (o && typeof o === 'object') for (const k of ['debut', 'fin']) if (Number.isFinite(o[k])) o[k] += ms; } // (lot 6 : la commande de la nuit aussi)
   function tick(q, dt, nowMs, rnd) {
     rnd = rnd || Math.random;
     if (q.now && nowMs - q.now > TROU) { // un trou : une courte sortie (PAUSE_EV) met le coup de pouce en pause ; plus longue, il s'efface sans pénalité (pas de descente ratée sans toi), et rien ne surgit au retour
       const ecart = nowMs - q.now;
-      if (ecart <= PAUSE_EV) pauseCoup(q, ecart); else { q.ev = null; q.evTimer = Math.max(q.evTimer, REPRISE + rnd() * 60); }
+      if (ecart <= PAUSE_EV) pauseCoup(q, ecart); else { q.ev = null; q.evTimer = Math.max(q.evTimer, REPRISE + rnd() * 60); oublierManoir(q, nowMs); }
     }
     q.now = nowMs;
-    const out = { ventes: [], nouvelEv: null, finEv: null, paliers: [] };
+    const out = { ventes: [], nouvelEv: null, finEv: null, paliers: [], manoir: null };
+    const cmd = q.manoir && q.manoir.commande; // lot 6 : la commande de la nuit compte les ventes de sa friandise (comme le cortège)
     q.postes.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
       const T = temps(q, i); s.prog += dt; if (s.prog < T) return;
@@ -362,8 +575,10 @@
       if (!s.staff) { n = 1; s.prog = 0; s.actif = false; } else s.prog -= n * T;
       const m = revenuFournee(q, i) * n; gagner(q, m); q.stats.ventes += n; q.stats.vendus[i] += n;
       if (q.ev && q.ev.type === 'grosclient' && q.ev.i === i) q.ev.fait = Math.min(q.ev.n, q.ev.fait + n);
+      if (cmd && cmd.i === i) cmd.fait = Math.min(cmd.n, cmd.fait + n);
       out.ventes.push({ i, montant: m, n });
     });
+    out.manoir = pasManoir(q, nowMs); // lot 6 : les clients-monstres, les apparitions, la commande de la nuit (leurs arrivées et départs, pour l'écran)
     if (q.ev && q.ev.fin <= nowMs && !(q.ev.type === 'grosclient' && q.ev.fait >= q.ev.n)) { out.finEv = q.ev; out.fin = finEvenement(q, q.ev); q.ev = null; }
     if (!q.ev) { q.evTimer -= dt; if (q.evTimer <= 0) { q.evTimer = 120 + rnd() * 180; out.nouvelEv = lancerEvenement(q, rnd); } }
     out.paliers = paliersDus(q);
@@ -388,8 +603,8 @@
     const rj = A.sortirRecette(q, nowMs); // la recette du jour : une fournée au four sort quand même (payée par sortirRecette ; rien ne se relance seul)
     if (rj) { total += rj.gain; detail.push({ i: -1, nom: rj.r ? rj.r.nom : '', n: 1, m: rj.gain }); }
     q.boost = garde.boost;
-    if (court) { q.ev = garde.ev; pauseCoup(q, ecart); } else { q.evTimer = Math.max(q.evTimer || 0, REPRISE); }
-    q.lastSeen = nowMs;
+    if (court) { q.ev = garde.ev; pauseCoup(q, ecart); } else { q.evTimer = Math.max(q.evTimer || 0, REPRISE); oublierManoir(q, nowMs, true); }
+    q.lastSeen = nowMs; q.actif = nowMs; // lot 6 : revenir, c'est être là (le Manoir se réveille) ; l'absence ne paie aucune des activités du Manoir
     return { secs, total, detail };
   }
 
@@ -401,6 +616,38 @@
     marathon: { sessions: [[0, 714], [12, 714]] }, // 23 h 48 sur 24 (deux sessions, l'une à midi) : l'enveloppe du serveur
     tresactif: { sessions: [[7, 90], [11.5, 120], [16.5, 120], [20.5, 150]] }, // 8 h par jour : le 12e au 2e jour, comme les plus mordus (puis les paliers bonus)
   };
+  // lot 6 : comment chaque profil joue le Manoir. Le marathon et le très actif jouent tout au mieux (le pire cas de l'enveloppe) : toujours là
+  // (le ×6 ne s'endort jamais), chaque client servi (reaction : secondes avant la première ligne, puis une par seconde), chaque apparition
+  // attrapée, chaque fournée parfaite, chaque commande livrée. Les autres ont des trous (trous : chaque seconde, la chance de lever les yeux
+  // du téléphone, de « de » à « a » secondes : ni toucher, ni achat, ni fournée lancée ; le ×6 s'endort), et servent, attrapent, réussissent
+  // une part de ce qui passe. opts.manoir === false : comme avant le lot 6 (toujours là, aucune de ces activités jouée).
+  const JEU_MANOIR = {
+    marathon: { trous: null, sert: 1, attrape: 1, parfait: 1, reaction: 2 },
+    tresactif: { trous: null, sert: 1, attrape: 1, parfait: 1, reaction: 2 },
+    assidu: { trous: { chance: 1 / 300, de: 60, a: 300 }, sert: 0.8, attrape: 0.75, parfait: 0.6, reaction: 4 },
+    quotidien: { trous: { chance: 1 / 240, de: 60, a: 300 }, sert: 0.7, attrape: 0.65, parfait: 0.5, reaction: 5 },
+    occasionnel: { trous: { chance: 1 / 180, de: 60, a: 300 }, sert: 0.6, attrape: 0.55, parfait: 0.4, reaction: 6 },
+  };
+  function jouerManoir(q, now, pol, rnd, vu) { // une seconde de jeu : servir, attraper, réussir les fournées, livrer (vu : les décisions déjà tirées)
+    const M = q.manoir;
+    for (const c of M.file.slice()) {
+      let d = vu.get('c' + c.id); if (d === undefined) { d = rnd() < pol.sert ? c.arrive + pol.reaction * 1000 : -1; vu.set('c' + c.id, d); }
+      if (d >= 0 && now >= d) { const l = c.commande.find((x) => !x.servi); if (l) servir(q, c.id, l.i); }
+    }
+    for (const a of M.apps.slice()) {
+      let d = vu.get('a' + a.id); if (d === undefined) { d = rnd() < pol.attrape ? a.debut + (1 + 2 * rnd()) * 1000 : -1; vu.set('a' + a.id, d); }
+      if (d >= 0 && now >= d && now < a.fin) attraperApparition(q, a.id);
+    }
+    if (M.commande && M.commande.fait >= M.commande.n) livrerCommande(q);
+    const viser = (i, o, debut, T, cle) => { // toucher au milieu de la fenêtre, s'il tombe dans la seconde qui vient
+      const w = fenetreParfait(q, i); if (!w || o.essai) return;
+      let d = vu.get(cle); if (d === undefined) { d = rnd() < pol.parfait; vu.set(cle, d); } if (!d) return;
+      const t = debut + (w.debut + PARFAIT.largeur / 2) * T * 1000; if (t >= now && t < now + 1000) parfait(q, i, t);
+    };
+    q.postes.forEach((s, i) => { if (s.niv > 0 && !s.staff && s.actif && PRODUITS[i].temps >= PARFAIT.tempsMin) viser(i, s, now - s.prog * 1000, PRODUITS[i].temps, `p${i}|${s.lance}`); });
+    const fo = q.recettes && q.recettes.four; if (fo) viser(-1, fo, fo.debut, (fo.fin - fo.debut) / 1000, `r${fo.debut}`);
+    if (vu.size > 4000) vu.clear(); // (les décisions passées ne servent plus : celles en cours se retirent, au même hasard près)
+  }
   function mulberry32(a) { return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
   function decider(q) { // acheter : monstre, déblocage, sortilège, puis le meilleur rapport gain / prix
     let fait = false;
@@ -427,6 +674,7 @@
   function simuler(profil, jours, opts) { // rend { total, parJour: [{ j, total, billets, taux }], paliersJour: { n: jour }, trace: [{ t (jours depuis l'ouverture), total }] } ; opts : { graine, debut, offertes, activites, recette } (recette : false, sans la recette du jour ; true, jouée même par un profil qui ne la joue pas d'office)
     opts = opts || {}; const prof = PROFILS[profil] || PROFILS.assidu, rnd = mulberry32(opts.graine || 7), st = {}, t0 = opts.debut || DEBUT;
     const jeu = opts.activites === false ? null : A.politique(profil, opts.recette), rndA = mulberry32((opts.graine || 7) + 101); // les activités, jouées comme ce profil (leur propre hasard : les coups de pouce ne changent pas)
+    const pm = opts.manoir === false ? null : JEU_MANOIR[profil] || JEU_MANOIR.assidu, rndM = mulberry32((opts.graine || 7) + 303), rndT = mulberry32((opts.graine || 7) + 404), vu = new Map(); let reveil = 0; // lot 6 : le Manoir, joué comme ce profil (son propre hasard)
     const q = etat(st, t0), parJour = [], paliersJour = {}, trace = []; q.lastSeen = t0;
     const H = 3600e3, nJ = jours || JOURS;
     const minuit0 = t0 - (paris(t0).getUTCHours() * 3600e3 + paris(t0).getUTCMinutes() * 60e3); // minuit, heure de Paris, du premier jour
@@ -438,16 +686,20 @@
         absence(q, debut);
         for (let s = 0; s < minutes * 60; s++) {
           const now = debut + s * 1000; if (now >= FIN) break;
-          let lances = 0; q.postes.forEach((x, i) => { if (x.niv > 0 && !x.staff && !x.actif && lances < 2) { lancer(q, i); lances++; } });
+          let la = true; // lot 6 : le joueur est-il là (un trou : il a levé les yeux du téléphone) ?
+          if (pm && pm.trous) { if (now < reveil) la = false; else if (rndT() < pm.trous.chance) { reveil = now + (pm.trous.de + (pm.trous.a - pm.trous.de) * rndT()) * 1000; la = false; } } // (les trous ont leur hasard à eux)
+          if (la) toucher(q, now);
+          let lances = 0; if (la) q.postes.forEach((x, i) => { if (x.niv > 0 && !x.staff && !x.actif && lances < 2) { lancer(q, i); lances++; } });
           const out = tick(q, 1, now, rnd);
-          if (q.ev) {
+          if (q.ev && la) {
             if (q.ev.type === 'descente') { planquer(q); if (rnd() < 0.7) planquer(q); }
             else if (q.ev.type === 'grosclient' && q.ev.fait >= q.ev.n) livrer(q);
             else if (q.ev.type === 'scooter' && rnd() < 0.5) attraper(q);
           }
           for (const p of out.paliers) { marquerPalier(q, p.n); paliersJour[p.n] = j + 1; if (opts.offertes && p.n === PALIERS_BOSS) for (const a of AMELIORATIONS) if (a.apres) q.ameliorations[a.id] = true; } // offertes : le pire cas de l'enveloppe (tous les Sortilèges dès le 12e, sans les payer)
-          if (jeu) A.sim.recette(q, now, jeu); // la recette du jour, chaque seconde (avant les achats : elle passe d'abord)
-          if (s % 3 === 0) decider(q);
+          if (jeu) A.sim.recette(q, now, jeu); // la recette du jour, chaque seconde (avant les achats : elle passe d'abord ; comme les autres activités de src/activites.js, jouée selon sa politique, trous ou pas)
+          if (pm && la) jouerManoir(q, now, pm, rndM, vu);
+          if (la && s % 3 === 0) decider(q);
           if (jeu && s % 20 === 0) A.sim.pas(q, now, jeu, rndA);
           if (s % 60 === 0) trace.push({ t: (now - t0) / JOUR, total: q.total });
         }
@@ -507,6 +759,21 @@
       vide: 'Personne encore au Manoir', videSous: 'Les bonbons du Manoir arrivent avec le prochain envoi.', podium: (rang) => `${rang === 1 ? '1er' : rang + 'e'} du Manoir`,
       podiumFinal: 'Podium final de la Maison hantée : la tenue d’Halloween en or est dans ta garde-robe !',
     },
+    // lot 6 : les mots des activités du Manoir (le ×6 qui s'endort, les clients-monstres, les fournées parfaites, les apparitions, les
+    // commandes de la nuit) ; sortes : les neuf clients (les mêmes clés que la scène), apparitions : les trois qui traversent la boutique
+    manoir: {
+      sortes: NOMS_SORTES,
+      apparitions: { fantome: 'Un petit fantôme', citrouille: 'Une citrouille volante', 'chauve-souris': 'Une chauve-souris' },
+      textes: {
+        jauge: 'Le Manoir est réveillé', jaugeBasse: 'Le Manoir s’endort… touche-le !', jaugeNote: 'Tant que tu touches, tout se vend ×6. Sans toi, ça retombe peu à peu.',
+        clients: 'Les clients-monstres', servi: (m) => `Merci ! +${m}`, parti: 'Il en a eu assez d’attendre.', faux: 'Ce n’est pas sa commande !',
+        parfait: 'Fournée parfaite ! ×2', parfaitRate: 'Pas cette fois : la prochaine sera la bonne.', parfaitNote: 'Touche la fournée quand elle brille.',
+        apparition: 'Attrape-la !', serie: (n) => `Série de ${n} : ×1,5`, attrape: (m) => `Attrapée ! +${m}`,
+        commandeTitre: 'La commande de la nuit', commande: (c) => `${fmt(c.n)} ${PRODUITS[c.i] ? PRODUITS[c.i].pl : 'friandises'} en ${c.duree} min`, livrer: 'Livrer !',
+        commandeLivree: (m) => `Commande livrée : +${m}`, commandeRatee: 'Trop tard : la commande est partie chez les voisins.',
+        plafond: 'Pour le plaisir : le plein de l’heure est fait',
+      },
+    },
     // les activités (src/activites.js) : l'habillage d'Halloween ; les réglages des gains sont ceux du moteur commun (l'enveloppe du serveur)
     activites: {
       jeux: {
@@ -550,5 +817,8 @@
   return { FICHE, ...A.api, ANCIENS, phraseCombine, revueRecompenses, lotCombine: R2.lotCombine, phraseLot: R2.phraseLot, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, JOURS, GRACE, fenetreSure, envoiBonbons, envoiBillets: envoiBonbons, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
     PAUSE_EV, pauseCoup, neuf, etat, bonbons, palierMult, prochainPalier, gainPalier, exposantPalier, paliersPoste, PALIERS_EXPOSANTS, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, maxAchetables, recetteOuverte, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
     gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, chasser: planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
-    PROFILS, simuler, decider, fmt, fmtEur, fmtDevise, fmtDuree, fmtChrono, fmtReste };
+    PROFILS, simuler, decider, fmt, fmtEur, fmtDevise, fmtDuree, fmtChrono, fmtReste,
+    // lot 6 : le Manoir « qui choque » (voir plus haut, « des choses à FAIRE »)
+    EVEIL, SORTES, NOMS_SORTES, CLIENTS, PARFAIT, TYPES_APPARITION, APPARITIONS, COMMANDES, JEU_MANOIR, manoirNeuf, reparerManoir, eveil, toucher, presence, plafondsManoir,
+    clientsManoir, pourboire, servir, fenetreParfait, parfait, attraperApparition, lancerCommande, commandeManoir, primeCommande, livrerCommande, pasManoir };
 });

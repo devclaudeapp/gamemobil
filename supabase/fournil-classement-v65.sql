@@ -363,7 +363,7 @@ immutable
 set search_path = ''
 as $$
   values ('hantee'::text, '2026-10-27 12:00:00 Europe/Paris'::timestamptz, '2026-11-02 20:00:00 Europe/Paris'::timestamptz, 6::double precision,
-          '{11.65,14.2,16.05,16.25,16.6,16.85,17.05,17.2,17.3,17.4,17.5,17.55,17.65,17.7,17.75,17.8,17.85,17.9,17.95,18,18,18.05,18.1,18.15,18.15,18.2,18.2}'::double precision[])
+          '{11.65,14.75,16.4,16.45,16.85,17.05,17.2,17.3,17.45,17.5,17.6,17.65,17.75,17.8,17.85,17.9,17.95,18,18.05,18.05,18.1,18.15,18.2,18.2,18.25,18.25,18.3}'::double precision[])
 $$;
 
 -- les droits : comme en version 6, les fonctions internes (personne d'autre que le propriétaire ne les appelle) ; les fonctions du
