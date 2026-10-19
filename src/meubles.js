@@ -780,28 +780,24 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   }
   // ─── la boutique hantée (src/boutiquehantee.js, le thème « hantee » de src/vie.js) : les bougies (un chandelier sur le comptoir, une
   //     bougie au milieu de chaque table, deux sur le bar, une sur le plan de travail), deux lanternes de part et d'autre de la porte du
-  //     fond, trois chauves-souris accrochées sous la corniche. Deux appels de dessin : le décor fusionné (modèles KayKit Halloween cuits
-  //     en qualité haute, c.hdHantee ; faits main sinon) et les flammes, qui vacillent et brillent plus fort le soir ───
-  const hdh = (c, nom, o, col) => (c.hdHantee && typeof HDM !== 'undefined' && HDM.part ? HDM.part('hantee2/' + nom, o, col) : null);
+  //     fond, trois chauves-souris accrochées sous la corniche. Deux appels de dessin : le décor fusionné, fait main (la qualité éco ou sans HD :
+  //     en haute, la boutique hantée a son décor KayKit entier, src/boutiquehantee.js) et les flammes, qui vacillent et brillent plus fort le soir ───
   function hantee(c) {
     const { LAY, W, K } = c, g = grp('hantee', 0, 0, 0), pr = [], fl = [], cire = '#F4EEE0', fer = '#2B2533';
     const flamme = (x, y, z, r) => fl.push(P(M.sphere(r || 1.5, 6), '#FFD27A', { x, y, z, sy: 1.7 }));
     const bougie = (x, y, z, h, r) => { pr.push(P(M.cylindre(r, r * 1.05, h, 8), cire, { x, y, z }), P(M.cylindre(0.25, 0.25, 1.6, 4), L, { x, y: y + h, z })); flamme(x, y + h + 2, z, r * 0.75); };
     // le chandelier du comptoir, à gauche du chat (la place des fleurs, qui n'y sont pas)
-    const o = surDessus(c, LAY.fleurs), kc = hdh(c, 'candle_triple', { h: 15 * K, x: o.x, y: o.y, z: o.z });
-    if (kc) { pr.push(kc); for (const [dx, dy] of [[-3.1, 13.6], [0, 15.4], [3.1, 12.4]]) flamme(o.x + dx * K, o.y + dy * K, o.z, 1.1 * K); }
-    else { pr.push(P(M.cylindre(4 * K, 4.6 * K, 1.4, 12), fer, o), P(M.cylindre(0.8, 0.8, 7 * K, 6), fer, { x: o.x, y: o.y + 1.4, z: o.z }), P(bo(13 * K, 1.2, 1.6, 0.4), fer, { x: o.x, y: o.y + 7 * K, z: o.z })); for (const dx of [-5.6, 0, 5.6]) bougie(o.x + dx * K, o.y + 8 * K + (dx ? 0 : 1.6), o.z, dx ? 5 * K : 6 * K, 1.3); }
+    const o = surDessus(c, LAY.fleurs);
+    { pr.push(P(M.cylindre(4 * K, 4.6 * K, 1.4, 12), fer, o), P(M.cylindre(0.8, 0.8, 7 * K, 6), fer, { x: o.x, y: o.y + 1.4, z: o.z }), P(bo(13 * K, 1.2, 1.6, 0.4), fer, { x: o.x, y: o.y + 7 * K, z: o.z })); for (const dx of [-5.6, 0, 5.6]) bougie(o.x + dx * K, o.y + 8 * K + (dx ? 0 : 1.6), o.z, dx ? 5 * K : 6 * K, 1.3); }
     // une bougie au milieu de chaque table achetée, deux sur le bar, une sur le plan de travail
-    const surTable = (x, y, z) => { const k = hdh(c, 'candle', { h: 7 * K, x, y, z }); if (k) { pr.push(k); flamme(x, y + 7.6 * K, z, 1.1); } else { pr.push(P(M.cylindre(2.6, 2.9, 1, 10), fer, { x, y, z })); bougie(x, y + 1, z, 4.4 * K, 1.2); } };
+    const surTable = (x, y, z) => { pr.push(P(M.cylindre(2.6, 2.9, 1, 10), fer, { x, y, z })); bougie(x, y + 1, z, 4.4 * K, 1.2); };
     for (let i = 0; i < Math.min(c.crans.tables || 0, LAY.tables.length); i++) { const t = LAY.tables[i]; surTable(t.x, HAUT.table, c.wz(t.y)); }
     if ((c.crans.bar || 0) > 0) { const b = LAY.bar; for (const u of [0.2, 0.8]) surTable(b.x0 + (b.x1 - b.x0) * u, HAUT.bar + 1.5, c.wz(b.y - 4 * K)); }
-    const pl = LAY.plan, kp2 = hdh(c, 'candle_melted', { h: 9 * K, x: pl.x + pl.w * 0.78, y: c.wy(pl.h * 0.55), z: c.wz(pl.y + pl.h * 0.6) });
-    if (kp2) { pr.push(kp2); flamme(pl.x + pl.w * 0.78, c.wy(pl.h * 0.55) + 9.4 * K, c.wz(pl.y + pl.h * 0.6), 1.1); } else bougie(pl.x + pl.w * 0.78, c.wy(pl.h * 0.55), c.wz(pl.y + pl.h * 0.6), 5 * K, 1.4);
+    const pl = LAY.plan;
+    bougie(pl.x + pl.w * 0.78, c.wy(pl.h * 0.55), c.wz(pl.y + pl.h * 0.6), 5 * K, 1.4);
     // les deux lanternes de la porte du fond, posées au sol de part et d'autre, dans la salle (jamais dans le passage : l'allée entre au milieu)
     const p = LAY.porte, zl = c.wz(LAY.murH + 8 * K);
     for (const x of [p.x - 9 * K, Math.min(W - 6 * K, p.x + p.w + 9 * K)]) {
-      const kl = hdh(c, 'lantern_standing', { h: 22 * K, x, z: zl });
-      if (kl) { pr.push(kl); flamme(x, 9.5 * K, zl, 2); continue; }
       pr.push(P(bo(8 * K, 1.6, 8 * K, 0.6), fer, { x, z: zl }), P(bo(6.4 * K, 11 * K, 6.4 * K, 0.8), '#FFE7A3', { x, y: 1.6, z: zl }), P(M.cone(5 * K, 5 * K, 4), fer, { x, y: 1.6 + 11 * K, z: zl, ry: Math.PI / 4 }), P(M.tore(1.6 * K, 0.4, TAU, 4, 8), fer, { x, y: 1.6 + 17 * K, z: zl }));
       for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(M.cylindre(0.5, 0.5, 11 * K, 4), fer, { x: x + sx * 3.2 * K, y: 1.6, z: zl + sz * 3.2 * K }));
       flamme(x, 6 * K, zl, 2.2);

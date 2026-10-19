@@ -23,7 +23,7 @@ const VIE = (() => {
     mer: { id: 'mer', mur: '#F4FBFF', mur2: '#D6EEF9', murStyle: 'bande', sol: '#EADFC9', sol2: 'rgba(255,255,255,.45)', solStyle: 'planches', comptoir: '#4F9FD1', comptoir2: '#A9D8F0', bois: '#DCE7EE', accent: '#3A86C8', hauts: ['#3A86C8', '#FFFFFF', '#F2C94C', '#FF8A80', '#8FD3F4', '#9BE8C2'], vue: 'mer' },
     montagne: { id: 'montagne', mur: '#EFDCC2', mur2: '#D8BE9A', murStyle: 'rondins', sol: '#B98A5E', sol2: 'rgba(0,0,0,.08)', solStyle: 'planches', comptoir: '#7A4E31', comptoir2: '#A86F48', bois: '#5A3A22', accent: '#A64B2A', hauts: ['#A64B2A', '#2F6B4F', '#E8D8B0', '#8C3B3B', '#4F6D8C', '#D98E4A'], vue: 'montagne' },
     ville: { id: 'ville', mur: '#F6F2EF', mur2: '#E4DCD6', murStyle: 'marbre', sol: '#3A3642', sol2: 'rgba(255,255,255,.08)', solStyle: 'marbre', comptoir: '#2E2A36', comptoir2: '#C9A96A', bois: '#C9A96A', accent: '#FF6B8B', hauts: ['#1F1F2B', '#FF6B8B', '#C9A96A', '#F5F5F5', '#7B61FF', '#3EC9A7'], vue: 'ville' },
-    // la Maison hantée (src/boutiquehantee.js : la boutique pendant l'événement, ?boutique=1) : papier peint violet nuit à rayures et ses
+    // la Maison hantée (src/boutiquehantee.js : la boutique pendant l'événement, en qualité éco ou sans HD) : papier peint violet nuit à rayures et ses
     // petites chauves-souris, parquet sombre, bois de cercueil, accents citrouille ; les cadres sombres, le portrait de l'ancêtre ; dehors, le jardin hanté
     hantee: { id: 'hantee', mur: '#56418A', mur2: '#34285A', murStyle: 'hantee', sol: '#4A3854', sol2: 'rgba(0,0,0,.14)', solStyle: 'planches', comptoir: '#4A2F45', comptoir2: '#8E6BD8', bois: '#3A2730', accent: '#E8782F', cadre: '#2A1E33', portrait: true, plante: '#8E6BD8', hauts: ['#FF8A3D', '#8E6BD8', '#7CD992', '#FFE7A3', '#E1496C', '#6CB8FF'], vue: 'hantee' },
   };
@@ -408,12 +408,27 @@ const VIE = (() => {
     c.sac = !c.or || c.pris;
     st.stats.clients++; G.noter(st, 'clients', 1);
     if (c.hab) { const r = G.servirHabitue(st, c.hab); if (r.ok && API.surServi) API.surServi(r); }
-    const slotLibre = c.slot; c.slot = -2;
-    if (slotLibre >= 0) for (const o of clients) if (o.slot > slotLibre && o.slot < 6 && (o.etat === 'entre' || o.etat === 'attend')) { o.slot--; o.spot = spotDe(o.slot); if (o.etat === 'attend') { o.glisse = true; } else { o.chemin[o.chemin.length - 1] = { x: o.spot.x, y: o.spot.y }; o.chemin[o.chemin.length - 2] = { x: LAY.allee, y: o.spot.y }; } }
+    libererPlace(c);
     const envie = Math.min(0.9, 0.45 + 0.1 * Math.min(4, places.tables) + 0.03 * (places.bar + places.banquette + places.terrasse)), siege = !c.or && (force.assis || c.hab || Math.random() < envie) ? siegeLibre(c) : null;
     if (siege) { c.siege = siege; siege.occ = c; c.chemin = [{ x: LAY.allee, y: c.y }, ...siege.voie, { x: siege.x, y: siege.y }]; c.wp = 0; c.etat = 'vaTable'; }
-    else { c.chemin = cheminSortie(c); c.wp = 0; c.etat = 'sort'; c.v = 100 * K; }
+    else { c.chemin = cheminSortie(c); c.wp = 0; c.etat = 'sort'; c.v = 100 * K; if (modeVie !== '') { c.humeur = 'content'; c.joie = 1.2; } } // la boutique hantée : il fête son achat sur place (Cheer) avant de repartir
   }
+  function libererPlace(c) { // sa place dans la file se libère : ceux de derrière avancent d'un cran
+    const slotLibre = c.slot; c.slot = -2;
+    if (slotLibre >= 0) for (const o of clients) if (o.slot > slotLibre && o.slot < 6 && (o.etat === 'entre' || o.etat === 'attend')) { o.slot--; o.spot = spotDe(o.slot); if (o.etat === 'attend') { o.glisse = true; } else { o.chemin[o.chemin.length - 1] = { x: o.spot.x, y: o.spot.y }; o.chemin[o.chemin.length - 2] = { x: LAY.allee, y: o.spot.y }; } }
+  }
+  // la boutique hantée (src/boutiquehantee.js : servir, fache) : un client part tout de suite, content (il fête son achat, puis s'en va) ou
+  // fâché (il repart sans payer, à grands pas) ; assis, il se lève. Rend false s'il n'est pas (ou plus) là
+  function congedier(id, humeur) {
+    const c = clients.find((x) => x.id === id); if (!c || c.etat === 'sort' || c.etat === 'parti' || !LAY) return false;
+    const content = humeur !== 'fache';
+    if (c.etat === 'assis' || c.etat === 'vaTable') { leve(c); }
+    else { libererPlace(c); c.glisse = false; c.chemin = cheminSortie(c); c.wp = 0; c.etat = 'sort'; c.v = (content ? 100 : 150) * K; }
+    c.humeur = content ? 'content' : 'fache'; c.joie = content ? 1.2 : 0; c.pris = true;
+    return true;
+  }
+  // l'état d'un client pour l'écran de l'événement : 'entre' (il arrive), 'file' (il attend au comptoir), 'assis' (installé ou en route vers sa place), 'sort'
+  const etatClient = (c) => (c.etat === 'attend' ? 'file' : c.etat === 'assis' || c.etat === 'vaTable' ? 'assis' : c.etat === 'sort' || c.etat === 'parti' ? 'sort' : 'entre');
   function majClients(st, dt) {
     for (const c of clients) {
       c.phase += dt * 9;
@@ -425,7 +440,7 @@ const VIE = (() => {
       }
       else if (c.etat === 'vaTable') { if (!c.siege.actif) leve(c); else if (avancer(c, dt)) { c.etat = 'assis'; c.dir = c.siege.dir; c.mange = (4 + Math.random() * 4) * (rush ? 0.6 : 1) * DUREE[c.siege.zone] * (c.hab ? 1.3 : 1); } }
       else if (c.etat === 'assis') { c.mange -= dt; if (c.mange <= 0 || !c.siege.actif) leve(c); } // repu, ou son meuble a disparu (nouvelle boutique)
-      else if (c.etat === 'sort') { if (c.wp >= c.chemin.length - 1) c.alpha = Math.max(0, c.alpha - dt * 3); if (avancer(c, dt)) c.etat = 'parti'; }
+      else if (c.etat === 'sort') { if (c.joie > 0) { c.joie -= dt; c.dir = 0; continue; } if (c.wp >= c.chemin.length - 1) c.alpha = Math.max(0, c.alpha - dt * 3); if (avancer(c, dt)) c.etat = 'parti'; } // (content : il fête d'abord, face à la salle)
     }
     for (let i = clients.length - 1; i >= 0; i--) if (clients[i].etat === 'parti') clients.splice(i, 1);
   }
@@ -598,7 +613,7 @@ const VIE = (() => {
   // un meuble acheté : les tables 1..n, le bar et le coin salon dès le cran 1, les tables de la terrasse 1..n
   function mobileAchete(m) { const k = crans[m.type] || 0; return m.type === 'tables' || m.type === 'terrasse' ? m.i < k : k > 0; }
 
-  const API = { hautBloc, resize, frame, basculer, installer, valider, proposer, mobileSous, mobileAchete, caseDe, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
+  const API = { hautBloc, resize, frame, basculer, congedier, etatClient, installer, valider, proposer, mobileSous, mobileAchete, caseDe, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
     DECORS, decor, PASTEL, PEAUX6, HAUTS6, CHEVEUX, TAU,
     get LAY() { return LAY; }, get amenagementApplique() { return LAY ? LAY.sig : ''; }, get amenagementDemande() { return codeDemande; }, get K() { return K; }, get W() { return W; }, get H() { return H; }, get t() { return t; }, get rush() { return rush; }, get Q() { return Q; }, get tags() { return tags; }, get force() { return force; }, get etat() { return etat; }, get mode() { return modeVie; }, get vueEv() { return vueEv; },
     get clients() { return clients; }, get apprentis() { return apprentis; }, get textes() { return textes; }, get vapeurs() { return vapeurs; }, get confetti() { return confetti; }, get flocons() { return flocons; }, get passants() { return passants; }, get chat() { return chat; }, get crans() { return crans; }, get places() { return places; }, get abordables() { return abordables; }, get prixDe() { return prixDe; },

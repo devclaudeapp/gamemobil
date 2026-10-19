@@ -47,7 +47,7 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
 }
 
 (async () => {
-  const URL_JEU = `http://localhost:${PORT}/fournil/`;
+  const URL_JEU = `http://localhost:${PORT}/fournil/`; // (&boutique=0 : ce test suit le Manoir ; la boutique hantée, le défaut, a test/fournil-hantee-boutique.cjs)
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }); // WebGL2 : la HD
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
   await ctx.addInitScript(fauxTelephone, decal);
@@ -60,7 +60,7 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   await page.goto('about:blank');
   const shot = async (nom, sel) => { const f = path.join(out, nom + '.png'); if (sel) await page.locator(sel).screenshot({ path: f }); else await page.screenshot({ path: f }); if (out2) fs.copyFileSync(f, path.join(out2, nom + '.png')); };
   const pret = async () => { await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 }); await sleep(900); };
-  const charger = async (q) => { await page.goto(URL_JEU + (q || '?qualite=haute')); await pret(); };
+  const charger = async (q) => { await page.goto(URL_JEU + (q || '?qualite=haute') + '&boutique=0'); await pret(); };
   const feuille = () => page.evaluate(() => (document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText));
   const clic = (sel) => page.evaluate((s) => { const b = document.querySelector(s); if (!b) return false; b.click(); return true; }, sel);
   const ev = (fn, arg) => page.evaluate(fn, arg);
@@ -68,7 +68,7 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   const manoir = () => ev(() => { const el = document.querySelector('#hantee'), s = window.__fournil.evHantee.scene; return { ouvert: !el.hidden, ecran: el.dataset.ecran, titre: document.querySelector('#ht-titre').textContent, sous: document.querySelector('#ht-sous').textContent, billets: document.querySelector('#ht-billets').textContent, taux: document.querySelector('#ht-taux').textContent, reste: document.querySelector('#ht-reste').textContent, paliers: el.querySelector('[data-pq="paliers"] b').textContent, cartes: [...document.querySelectorAll('#ht-cartes .carte[data-i]')].map((c) => c.className), ev: document.querySelector('#ht-ev').hidden ? '' : document.querySelector('#ht-ev').innerText, corps: document.querySelector('#ht-corps').innerText, calls: s ? s.calls : -1, hd: s ? s.hd : null, planque: !document.querySelector('#planque').hidden }; });
 
   // une partie qui a joué au Quartier (son bilan n'est pas encore vu) et adopté le chat, chargée avant le lancement
-  await page.goto(URL_JEU + '?qualite=haute'); await pret();
+  await page.goto(URL_JEU + '?qualite=haute&boutique=0'); await pret();
   await ev(() => { const F = window.__fournil, st = F.st; F.G.adopterChat(st, 'Réglisse'); const q = F.Q.etat(st, HORLOGE.maintenant()); q.majeur = true; q.annonce = true; q.total = 3e11; q.billets = 1e9; delete st[F.evHantee.cle]; F.save(); }); // (ce premier lancement a pu annoncer la Maison hantée : on l'oublie)
   await sleep(300);
 
@@ -270,7 +270,7 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
     const ev2 = (fn, arg) => pg.evaluate(fn, arg), clic2 = (sel) => pg.evaluate((x) => { const b = document.querySelector(x); if (!b) return false; b.click(); return true; }, sel);
     const feuille2 = () => pg.evaluate(() => (document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText));
     const shot2 = async (nom) => { const f = path.join(out, nom + '.png'); await pg.screenshot({ path: f }); if (out2) fs.copyFileSync(f, path.join(out2, nom + '.png')); };
-    const charger2 = async () => { await pg.goto(URL_JEU + '?qualite=eco'); await pg.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 }); await sleep(900); };
+    const charger2 = async () => { await pg.goto(URL_JEU + '?qualite=eco&boutique=0'); await pg.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 }); await sleep(900); };
     await pg.goto('about:blank'); await charger2();
     // d'abord l'annonce du jour sur ce premier chargement (le minuteur de 800 ms de ui.js) : posée après l'état ci-dessous, elle donnerait
     // déjà les paliers 13 et 14 ici, avant le rechargement (une course entre ce minuteur et l'évaluation, selon la charge de la machine)

@@ -1,0 +1,11 @@
+La boutique hantée du Fournil (src/boutiquehantee.js), qualité haute : tout est en CC0.
+
+decor-hante.glb : 67 modèles (une scène par modèle), meshopt. KayKit de Kay Lousberg (kaylousberg.com) : Restaurant Bits, Furniture Bits,
+  Halloween Bits, Dungeon Remastered, Spooktober Seasonal Pack ; Asset Quest (assetquest.dev) : Ghost_1, Ghost_3, Broom ; Kenney (kenney.nl),
+  Food Kit : apple, cookie.
+Skeleton_Minion.glb, Skeleton_Mage.glb : KayKit Character Pack Skeletons. Rogue.glb, Rogue_Hooded.glb, Mage.glb, Knight.glb : KayKit
+  Adventurers. Werewolf_Wolf.glb et sa peau werewolf_B.png : KayKit Mystery Monthly Series 4 (« Werewolf »). Un personnage par fichier,
+  sans clips, armes retirées, meshopt.
+anims-hante.glb : les clips partagés (Idle, Walking_A, Walking_D_Skeletons, Sit_Chair_Down/Idle/StandUp, Cheer, Interact) du rig KayKit à 41 os.
+ardoises.jpg, ardoises-normale.jpg : ambientCG RoofingTiles002 (CC0, ambientcg.com), teinte pastel, normale réduite à 256 px.
+Les licences de chaque pack sont à côté (LICENCE-*.txt).

@@ -195,6 +195,10 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   DEGUISEMENTS.momie2 = Object.assign({}, DEGUISEMENTS.momie, { peau: '#E8DCC0' }); // Ramsès, la vraie momie
   DEGUISEMENTS.vampire2 = Object.assign({}, DEGUISEMENTS.vampire, { haut: '#3A2440', peau: '#EDE6FF', garde: habit({ haut: { forme: 'cape', metal: 'vampire' } }) }); // le comte Vladimir
   DEGUISEMENTS.sorciere2 = Object.assign({}, DEGUISEMENTS.sorciere, { peau: '#B9F0A6', cheveux: '#8E6BD8', coiffure: 1, garde: habit({ tete: { forme: 'chapeau', metal: 'sorciere' }, pieds: { forme: 'bottes', metal: 'sorciere' } }), haut: '#5FD3A4' }); // Berthe, la vraie sorcière
+  // les neuf sortes de clients-monstres de la boutique hantée (src/boutiquehantee.js, SORTES) en chibis, pour la qualité éco ou sans HD
+  DEGUISEMENTS['squelette-sorcier'] = Object.assign({}, DEGUISEMENTS.squelette, { haut: '#3B2A5C', garde: habit({ tete: { forme: 'chapeau', metal: 'sorciere-c' } }) }); // le squelette au chapeau pointu
+  DEGUISEMENTS.zombie = { haut: '#6E6488', peau: '#9CCB7A', cheveux: '#3B3346', coiffure: 1 }; // la peau verte, les habits violet-gris
+  DEGUISEMENTS.loup = DEGUISEMENTS.loupgarou;
   const deguiser = (o) => { const d = o && DEGUISEMENTS[o.deguisement]; return d ? Object.assign({}, o, d) : o || {}; };
   const creer = (o) => construire(deguiser(o));
   // le patron : même grammaire, 1,25 fois plus grand ; toque, foulard, moustache, liseré et col selon le titre

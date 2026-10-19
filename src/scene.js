@@ -7,7 +7,9 @@
    DECORS.hantee), ses clients déguisés, son équipe, ses bougies ; la vie de la boutique attend de côté (VIE.basculer), setEvenement(null)
    la rend telle quelle. vue = { id, compagnon, garde (la tenue du boulanger), equipe (le déguisement de l'apprenti de chaque station),
    friandises (ce que porte chaque station : vitrine et plateaux), cadre: { haut, bas } (la fenêtre de l'écran qui montre la scène, en px
-   du canvas : la scène y descend de haut, et ne se rend que jusqu'à bas) }. */
+   du canvas : la scène y descend de haut, et ne se rend que jusqu'à bas) }. En qualité haute, quand le lot HD « hantee3 » est là
+   (src/boutiquehantee.js, BOUTIQUE_HANTEE.HD), la boutique hantée change tout : son décor cuit d'un bloc, sa nuit (brouillard, ACES, huit
+   lumières au plus, halos), ses clients-monstres animés, son équipe à ses postes et sa patronne (modeHD) ; sinon le rendu procédural. */
 const SCENE = (() => {
   'use strict';
   const G = GAME, V = VIE, M = MODELES;
@@ -89,12 +91,12 @@ const SCENE = (() => {
   }
   function richesse(niveau) { // le palier change : on bascule les matériaux, l'environnement et la passe d'effets
     const r = estRiche(niveau); if (!renderer) return;
-    if (r !== RICHE.actif) { RICHE.actif = r; scene.environment = r ? envMap() : null; habiller(scene); RICHE.aoSale = true; }
+    if (r !== RICHE.actif) { RICHE.actif = r; scene.environment = r && !modeHD ? envMap() : null; habiller(scene); RICHE.aoSale = true; }
     if (niveau !== 'haute' && RICHE.post) { RICHE.post.liberer(); RICHE.post = null; }
   }
   // l'occlusion ambiante peinte : sol (vu de dessus : x → u, z → v) et mur (x, hauteur) ; repeinte quand un meuble change
   function peindreAO() {
-    if (!RICHE.actif || !salle || !LAY) return;
+    if (!RICHE.actif || !salle || !LAY || modeHD) return;
     if (!RICHE.aoSale) return; RICHE.aoSale = false; // repeinte seulement quand un groupe du décor a changé
     const D = wd(H - LAY.murH), Hm = wy(LAY.murH);
     const sol = RICHE.ao || (RICHE.ao = { cv: document.createElement('canvas') }), mur = RICHE.aoMur || (RICHE.aoMur = { cv: document.createElement('canvas') });
@@ -130,13 +132,18 @@ const SCENE = (() => {
     const rt = new THREE.WebGLRenderTarget(4, 4, { samples: renderer.capabilities.isWebGL2 ? 4 : 0, type: THREE.UnsignedByteType });
     rt.texture.colorSpace = THREE.SRGBColorSpace; rt.depthTexture = new THREE.DepthTexture(4, 4); rt.depthTexture.type = THREE.UnsignedIntType;
     const mat = new THREE.ShaderMaterial({
-      uniforms: { tCol: { value: rt.texture }, tProf: { value: rt.depthTexture }, px: { value: new THREE.Vector2() }, seuil: { value: 0.0015 }, contour: { value: 0.75 }, chaud: { value: 0.55 } },
+      uniforms: { tCol: { value: rt.texture }, tProf: { value: rt.depthTexture }, px: { value: new THREE.Vector2() }, seuil: { value: 0.0015 }, contour: { value: 0.75 }, chaud: { value: 0.55 }, expo: { value: 0 } },
       vertexShader: 'varying vec2 vUv; void main() { vUv = position.xy * 0.5 + 0.5; gl_Position = vec4(position.xy, 0.0, 1.0); }',
       fragmentShader: `
-        uniform sampler2D tCol; uniform sampler2D tProf; uniform vec2 px; uniform float seuil; uniform float contour; uniform float chaud; varying vec2 vUv;
+        uniform sampler2D tCol; uniform sampler2D tProf; uniform vec2 px; uniform float seuil; uniform float contour; uniform float chaud; uniform float expo; varying vec2 vUv;
         vec3 versSRGB(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, step(0.0031308, c)); }
+        vec3 aces(vec3 c) { // le tone mapping ACES filmique de three.js (la nuit de la boutique hantée : expo > 0)
+          c *= expo / 0.6; c = mat3(0.59719, 0.07600, 0.02840, 0.35458, 0.90834, 0.13383, 0.04823, 0.01566, 0.83777) * c;
+          c = (c * (c + 0.0245786) - 0.000090537) / (c * (0.983729 * c + 0.4329510) + 0.238081);
+          return clamp(mat3(1.60475, -0.10208, -0.00327, -0.53108, 1.10813, -0.07276, -0.07367, -0.00605, 1.07602) * c, 0.0, 1.0); }
         void main() {
-          vec3 c = versSRGB(texture2D(tCol, vUv).rgb);
+          vec3 lin = texture2D(tCol, vUv).rgb; if (expo > 0.0) lin = aces(lin);
+          vec3 c = versSRGB(lin);
           // le contour cartoon : un saut de profondeur (caméra orthographique : profondeur linéaire) avec ses quatre voisins
           float d = texture2D(tProf, vUv).r, e = 0.0;
           e = max(e, abs(d - texture2D(tProf, vUv + vec2(px.x, 0.0)).r)); e = max(e, abs(d - texture2D(tProf, vUv - vec2(px.x, 0.0)).r));
@@ -208,6 +215,7 @@ const SCENE = (() => {
     if (!!avant !== !!v) {
       V.basculer(v ? v.id || 'evenement' : ''); // la vie de la boutique de côté, ou de retour
       for (const g of acteurs.values()) { scene && scene.remove(g); rendreAuPool(g); } acteurs.clear(); // les personnages de l'autre salle : rendus
+      AMB = 1; feteT = 0;
       if (v) { compAvant = modeleComp; if (v.compagnon) poserCompagnon(v.compagnon); } else if (compAvant) { poserCompagnon(compAvant); compAvant = null; }
       for (const p of lampes) p.color.set(v ? '#FFB45A' : '#FFD98A'); // les bougies : une lumière plus orangée
       toutRebatir(); hdCle = ''; couvertsCle = '';
@@ -282,7 +290,7 @@ const SCENE = (() => {
     { id: 'toque-or', cle: () => (QDECO['toque-or'] && MEUBLES.toqueRecette ? '1' : null), faire: (k, c) => MEUBLES.toqueRecette(c, 'or', false) },
     { id: 'ht-toque-citrouille', cle: () => (HDECO['toque-citrouille'] && MEUBLES.toqueRecette ? (QDECO['toque-or'] ? 'deux' : 'seule') : null), faire: (k, c) => MEUBLES.toqueRecette(c, 'citrouille', k === 'deux') },
     // la boutique hantée (setEvenement) : ses bougies, ses lanternes, ses chauves-souris (MEUBLES.hantee ; modèles cuits en haute)
-    { id: 'hantee', cle: (E) => (EVV && MEUBLES.hantee ? `${E.crans.tables}|${E.crans.bar}|${E.crans.vitrine}|${LAY.sig}|${hanteePret() ? 'hd' : ''}` : null), faire: (k, c) => MEUBLES.hantee(c) },
+    { id: 'hantee', cle: (E) => (EVV && MEUBLES.hantee ? `${E.crans.tables}|${E.crans.bar}|${E.crans.vitrine}|${LAY.sig}` : null), faire: (k, c) => MEUBLES.hantee(c) },
     // le badge « Esprit d'équipe » (l'objectif commun de la semaine réussi, classement v6) : une rosette accrochée au mur, à vie ; absent pour qui ne l'a pas
     { id: 'equipe', cle: () => (REC.equipe ? '1' : null), faire: (k, c) => rosetteEquipe(c) },
     // le standing de la boutique (GAME.standing, palier 1 à 5) : ses objets (Q.objets) en un maillage (la lueur du soir comprise) ; en haute, ses modèles cuits (lots luxe*)
@@ -292,7 +300,6 @@ const SCENE = (() => {
   // trophées, les décos du quartier…) se retirent ; ceux de la Maison hantée sont tous là (les citrouilles, les toiles, le chaudron, le fantôme)
   const SANS_EV = new Set(['presentoir', 'cadre', 'ardoise', 'fleurs', 'guirlande', 'fanions', 'coeurs', 'sapin', 'trophees', 'coupe', 'diplome', 'graffiti', 'neon', 'chien', 'equipe', 'plante']);
   const htDeco = (id) => !!(EVV || HDECO[id]);
-  const hanteePret = () => typeof HDM !== 'undefined' && HDM.pret('boutiqueHantee') && HDM.permis(renderer);
   // les lots HD du standing nécessaires à un palier (src/hd.js : luxe1, luxe3, luxe5), et s'ils sont tous là (et la HD permise)
   const lotsLuxe = (s) => ['luxe1', 'luxe3', 'luxe5'].filter((l, i) => s >= [1, 3, 5][i]);
   const luxePret = (s) => typeof HDM !== 'undefined' && HDM.permis(renderer) && lotsLuxe(s).every((l) => HDM.pret(l));
@@ -331,9 +338,10 @@ const SCENE = (() => {
     const c = ctxC || (ctxC = { wz, wy, wd, SY, CY });
     c.trophees = REC.coupes.length > 0; // la vitrine des trophées décroche le second cadre
     c.hd = typeof HDM !== 'undefined' && HDM.pret('boutique') && HDM.permis(renderer); // les meubles de la salle en KayKit
-    c.hdLuxe = !!(E.Q.standing && luxePret(E.Q.standing)); c.chaudron = htDeco('chaudron'); c.hdHantee = !!EVV && hanteePret(); c.ev = !!EVV; // le standing : ses modèles cuits ; le coin du chaudron
+    c.hdLuxe = !!(E.Q.standing && luxePret(E.Q.standing)); c.chaudron = htDeco('chaudron'); c.ev = !!EVV; // le standing : ses modèles cuits ; le coin du chaudron
     c.LAY = LAY; c.K = V.K; c.W = W; c.H = H; c.Q = E.Q; c.tags = E.tags; c.rush = E.rush; c.t = E.t; c.sk = E.sk; c.crans = E.crans; c.niv = E.niv; c.staffs = E.staffs; c.bonus = E.bonus; c.rang = E.rang;
     const cp = groupes.comptoir; c.dessusY = cp ? cp.userData.dessusY : wy(LAY.comptoir.hFace); c.dessusZ = cp ? cp.userData.dessusZ : wz(LAY.comptoir.y + LAY.comptoir.hTop + LAY.comptoir.hFace) - wd(LAY.comptoir.hTop) / 2;
+    if (modeHD && D3) { c.dessusY = D3.dessusY; c.dessusZ = D3.dessusZ; } // la boutique hantée : le dessus de son comptoir KayKit (le chat y dort)
     return c;
   }
   // les pâtisseries de la vitrine prises dans le Food Kit quand il est là (baguette, croissant, tarte aux pommes) ; les autres restent celles de PERSOS
@@ -346,6 +354,8 @@ const SCENE = (() => {
     m = M.mesh(M.assembler([KENNEY.part(d[0], { s: k, ry: d[1] })]), M.MAT.vertex); m.geometry.userData.cache = true; m.userData.i = i; patK.set(i, m); return m;
   }
   function construire(E) {
+    const h3 = hd3(); if (h3 !== modeHD) basculerHD(h3);
+    if (modeHD) { construireHD(E); return; }
     const c = contexte(E), base = `${E.Q.id}|${W}x${H}`;
     const rs = !EVV && E.st.saison && E.st.saison.niv > 0 && PERSOS.patisserieSaison ? E.st.saison.id : '', ouverts = E.niv.map((n, i) => (n > 0 ? (EVV ? (EVV.friandises || [])[i] || null : i) : null)).filter((i) => i != null).slice(-VITRINE_MAX); // les plus avancées, si elles ne tiennent pas toutes (la boutique hantée : ses friandises, des ids de PERSOS)
     c.nVitrine = ouverts.length + (rs ? 1 : 0); // la recette de saison a sa place : étagères, étiquettes et places sur le même compte
@@ -371,6 +381,105 @@ const SCENE = (() => {
     if (cles.boulanger !== kb) { cles.boulanger = kb; boulangerG = PERSOS.boulanger(E.rang, garde); boulangerG.userData.yaw = 0; boulangerG.position.set(LAY.boulanger.x, 0, wz(LAY.boulanger.y)); boulangerG.scale.setScalar(0.9 * V.K); boulangerG.updateMatrixWorld(true); boulangerG.userData.zoneBoite = new THREE.Box3().setFromObject(boulangerG, true); remplacer('boulanger', boulangerG); } // la zone de touche : la pose de repos
   }
 
+  // ─── la boutique hantée en qualité haute (modeHD) : le décor cuit d'un bloc (BOUTIQUE_HANTEE.HD.decor), la nuit, les monstres animés ───
+  const BH = () => (typeof BOUTIQUE_HANTEE !== 'undefined' ? BOUTIQUE_HANTEE : null);
+  const hd3 = () => !!EVV && webgl && !!BH() && BH().HD.pret(renderer);
+  let modeHD = false, D3 = null, AMB = 1, feteT = 0; const lampesHD = [], poolM = new Map();
+  function basculerHD(on) { // tout le décor et tous les personnages changent de style ; la nuit (brouillard, ACES, pas d'ambiance PMREM) arrive ou repart
+    modeHD = on; D3 = null;
+    for (const id of Object.keys(groupes)) if (groupes[id]) remplacer(id, null);
+    for (const k of Object.keys(cles)) delete cles[k]; Qc = null; salle = null; boulangerG = null; chatHautCle = null; hdCle = ''; couvertsCle = '';
+    for (const g of acteurs.values()) { scene.remove(g); rendreAuPool(g); } acteurs.clear();
+    if (hdDecor) { scene.remove(hdDecor); M.dispose(hdDecor); hdDecor = null; }
+    if (on) {
+      scene.fog = new THREE.Fog('#2A2048', 1650, 2700); scene.environment = null; renderer.setClearColor('#120E22');
+      renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.35;
+      while (lampesHD.length < 5) { const l = new THREE.PointLight('#FFB060', 0, 150, 1); l.castShadow = false; lampesHD.push(l); }
+      for (const l of lampesHD) scene.add(l);
+    } else {
+      scene.fog = null; scene.environment = RICHE.actif ? envMap() : null; renderer.toneMapping = THREE.NoToneMapping; renderer.toneMappingExposure = 1;
+      for (const l of lampesHD) scene.remove(l);
+      for (const p of lampes) { p.color.set(EVV ? '#FFB45A' : '#FFD98A'); p.decay = 1; }
+      for (const l of poolM.values()) for (const a of l) BH().HD.liberer(a); poolM.clear();
+    }
+    recompiler();
+  }
+  function construireHD(E) { // le décor hanté, rebâti quand la taille, l'aménagement ou un cran de la salle change
+    const k = `${W}x${H}|${LAY.sig}|${['tables', 'bar', 'banquette', 'terrasse', 'vitrine'].map((id) => E.crans[id] || 0).join(',')}`;
+    if (cles.ht3 === k) return; cles.ht3 = k;
+    let d = null; try { d = BH().HD.decor(contexte(E)); } catch (e) { BH().HD.rater(e); } // raté : la frame suivante repasse en procédural
+    if (!d) return; D3 = d; remplacer('ht3', d.g); chatHautCle = null;
+    const toutes = lampes.concat(lampesHD);
+    toutes.forEach((l, i) => { const q = d.lumieres[i]; if (!q) { l.userData.k = 0; l.intensity = 0; return; } l.position.set(q.x, q.y, q.z); l.color.set(q.col); l.distance = q.d; l.decay = 1; l.userData.k = q.k; });
+  }
+  function eclairerHD(E) { // la nuit à la bougie : l'hémisphère violet, la lune bleutée ; les lumières vacillent ; tout baisse quand le ×6 s'endort (AMB)
+    const a = AMB, t = E.t;
+    hemi.color.set('#8A7CC8'); hemi.groundColor.set('#2A1F3A'); hemi.intensity = 0.3 + 0.7 * a;
+    dir.color.set('#9FB4FF'); dir.intensity = 0.3 + 0.7 * a; lampesNiv = 1;
+    lampes.concat(lampesHD).forEach((l, i) => { l.intensity = (l.userData.k || 0) * (0.2 + 0.8 * a) * (0.86 + 0.09 * Math.sin(t * 9 + i * 1.7) + 0.05 * Math.sin(t * 23 + i * 2.3)); });
+    const hx = BH().HD, hm = hx.haloMat(); hm.uniforms.uT.value = t; hm.uniforms.uK.value = 0.3 + 0.7 * a;
+    hx.mat('').userData.u.uLueur.value = hx.mat('bandes').userData.u.uLueur.value = (0.55 + 0.45 * a) * (0.94 + 0.06 * Math.sin(t * 11));
+    if (RICHE.post) { RICHE.post.mat.uniforms.chaud.value = 0.12; RICHE.post.mat.uniforms.expo.value = 1.35; }
+  }
+  // un monstre : pris dans le pool de sa sorte (gardé d'une visite à l'autre tant que la boutique hantée dure), ou neuf
+  function prendreMonstre(sorte) { const l = poolM.get(sorte); const a = l && l.length ? l.pop() : BH().HD.acteur(sorte); if (!a) return null; a.joue = ''; a.etatP = ''; a.g.visible = true; a.g.rotation.set(0, 0, 0); a.g.rotation.order = 'YXZ'; a.g.userData.cle = 'hd3|' + sorte; a.g.userData.yaw = 0; return a; }
+  function rendreMonstre(g) { const a = g.userData.hd3; if (!a) return; if (a.mixer) a.mixer.stopAllAction(); a.joue = ''; const l = poolM.get(a.sorte) || []; if (l.length < 3) { l.push(a); poolM.set(a.sorte, l); } else BH().HD.liberer(a); }
+  const ASSIS_Y = { table: 0, terrasse: 0, bar: 0, banquette: -0.05 }; // la hauteur d'assise (×U) : Sit_Chair_Idle est calé sur chair_A ; la banquette est plus basse
+  function animerMonstre(a, clip, dt, vitesse) {
+    if (a.fantome) return; const hx = BH().HD;
+    if (clip === 'Sit_Chair_Idle' && a.joue !== 'Sit_Chair_Idle' && a.joue !== 'Sit_Chair_Down') { hx.jouer(a, 'Sit_Chair_Down', 0.2, true); a.tAssis = 0.75; }
+    else if (a.joue === 'Sit_Chair_Down' && clip === 'Sit_Chair_Idle') { if ((a.tAssis -= dt) <= 0) hx.jouer(a, 'Sit_Chair_Idle', 0.25); }
+    else hx.jouer(a, clip, 0.25);
+    const ac = a.actions[a.joue]; if (ac) ac.timeScale = vitesse || 1;
+    a.mixer.update(dt);
+  }
+  function poserMonstre(a, x, y, z, ry, dt) { const g = a.g; g.position.set(x, y, z); if (ry != null) { g.userData.yaw += angleCourt(ry - g.userData.yaw) * Math.min(1, dt * 12); g.rotation.y = g.userData.yaw; } }
+  function synchroniserHD(E, dt) {
+    vus.clear(); const U = D3 ? D3.U : 29 * V.K, ech = 0.74 * U, t = E.t;
+    for (const c of V.clients) {
+      let g = acteurs.get(c.id);
+      if (!g) { const a = prendreMonstre(c.deg || BH().SORTES[c.id % 9]); if (!a) continue; g = a.g; g.userData.deg = a.sorte; g.userData.yaw = YAW[c.dir] || 0; scene.add(g); acteurs.set(c.id, g); }
+      vus.add(c.id); const a = g.userData.hd3, assis = c.etat === 'assis', marche = (c.etat === 'entre' || c.etat === 'sort' || c.etat === 'vaTable' || (c.etat === 'attend' && !!c.glisse)) && !(c.joie > 0);
+      g.visible = c.alpha > 0.05; g.scale.setScalar((a.fantome ? U : ech) * (0.75 + 0.25 * Math.min(1, c.alpha)));
+      const y = a.fantome ? (0.32 + 0.06 * Math.sin(t * 2.4 + c.id) + (assis ? 0.3 : 0) + (c.joie > 0 || feteT > 0 ? 0.08 * Math.abs(Math.sin(t * 9)) : 0)) * U : assis && c.siege ? (ASSIS_Y[c.siege.zone] || 0) * U : 0;
+      poserMonstre(a, c.x, y, wz(c.y) - (1 - c.alpha) * 30, YAW[c.dir] || 0, dt);
+      if (a.fantome) g.rotation.x = marche ? 0.2 : 0; // le drap penche dans le sens de la marche
+      animerMonstre(a, c.joie > 0 || feteT > 0 ? 'Cheer' : assis ? 'Sit_Chair_Idle' : marche ? a.marche : 'Idle', dt, marche ? (c.humeur === 'fache' ? 1.5 : 1.1) : 1);
+    }
+    // l'équipe : chaque poste embauché a son monstre, à son poste (Interact) ; la patronne derrière le comptoir
+    const st = E.st.stations || [];
+    st.forEach((s, i) => {
+      if (!s.staff || !(s.niv > 0) || !D3 || !D3.postes[i]) return; const id = 'a' + i; let g = acteurs.get(id);
+      if (!g) { const a = prendreMonstre(BH().HD.EQUIPE3[i]); if (!a) return; g = a.g; g.userData.yaw = D3.postes[i].ry; scene.add(g); acteurs.set(id, g); }
+      vus.add(id); const a = g.userData.hd3, p = D3.postes[i]; g.scale.setScalar(a.fantome ? U : ech);
+      poserMonstre(a, p.x, a.fantome ? (p.vol || 0.3 * U) + 0.05 * U * Math.sin(t * 2 + i) : 0, p.z, p.ry, dt);
+      animerMonstre(a, feteT > 0 ? 'Cheer' : 'Interact', dt, 0.8 + 0.05 * i);
+    });
+    if (LAY) {
+      let g = acteurs.get('patronne'); if (!g) { const a = prendreMonstre('patronne'); if (a) { g = a.g; scene.add(g); acteurs.set('patronne', g); } }
+      if (g) { vus.add('patronne'); const a = g.userData.hd3; g.scale.setScalar(ech); poserMonstre(a, LAY.boulanger.x, 0, wz(LAY.boulanger.y), 0, dt); animerMonstre(a, feteT > 0 || E.hop > 0.6 ? 'Cheer' : 'Interact', dt, 0.9); }
+    }
+    for (const [id, g] of acteurs) if (!vus.has(id)) { scene.remove(g); rendreAuPool(g); acteurs.delete(id); }
+    feteT = Math.max(0, feteT - dt);
+    poserChat(E, dt);
+  }
+  // les acteurs de la boutique hantée à l'écran (BOUTIQUE_HANTEE.acteurs) : le haut de la tête en pixels de la fenêtre, ce qui se voit dans la fenêtre
+  const _va = { x: 0, y: 0 };
+  function ecranDe(x, y, z, r) { _v.set(x, y, z).project(camera); _va.x = r.left + (_v.x + 1) / 2 * r.width; _va.y = r.top + (1 - _v.y) / 2 * r.height; return _va; }
+  function acteursEv() {
+    if (!EVV || !webgl || !LAY || !cv) return []; const r = cv.getBoundingClientRect(), out = [], k = r.height / H, haut = r.top + decalage() * k, bas = r.top + (EVV.cadre && EVV.cadre.bas ? EVV.cadre.bas : H) * k;
+    const mettre = (id, sorte, role, etat, g, hauteur, largeur) => {
+      if (!g || !g.visible) return; const p = g.position, tete = ecranDe(p.x, p.y + hauteur, p.z, r), tx = tete.x, ty = tete.y, pied = ecranDe(p.x, p.y, p.z, r).y;
+      if (pied < haut + 8 || ty > bas - 8) return; const o = { id, sorte, role, etat, x: Math.round(tx), y: Math.round(ty), l: Math.round(largeur * k), h: Math.round(pied - ty) };
+      if (g.userData.hd3) o.clip = g.userData.hd3.fantome ? 'flotte' : g.userData.hd3.joue; out.push(o); // (en haute : le clip joué, pour les tests)
+    };
+    const hm = (g) => { const a = g && g.userData.hd3; return a ? a.haut * g.scale.y : (PERSOS.HAUTEUR || 73) * (g ? g.scale.y : 1); };
+    for (const c of V.clients) { const g = acteurs.get(c.id); if (g) mettre('c' + c.id, c.deg || '', 'client', V.etatClient(c), g, hm(g) * (c.etat === 'assis' && !(g.userData.hd3 && g.userData.hd3.fantome) ? 0.78 : 1), 38 * V.K); }
+    for (const [id, g] of acteurs) if (typeof id === 'string' && id[0] === 'a') { const i = +id.slice(1); mettre(id, modeHD ? BH().HD.EQUIPE3[i] : (EVV.equipe || [])[i] || '', 'apprenti', 'poste', g, hm(g), 38 * V.K); }
+    const pa = modeHD ? acteurs.get('patronne') : boulangerG; if (pa) mettre('patronne', 'patronne', 'patronne', 'poste', pa, modeHD ? hm(pa) : 80 * V.K, 40 * V.K);
+    return out;
+  }
+
   // ─── la lumière : cinq phases du ciel, fondues autour de chaque borne ; les lampes la nuit ; le coup de feu réchauffe ───
   const PHASES = { // des teintes douces : le dessin d'origine ne posait qu'un voile de 8 à 22 %
     nuit: { hemi: ['#A3ADE0', '#3A3248', 0.9], dir: ['#B0BEFF', 0.55], lampes: 1, tache: 0.0 },
@@ -382,19 +491,21 @@ const SCENE = (() => {
   const BORNES = [[6, 'nuit', 'aube'], [8, 'aube', 'jour'], [18, 'jour', 'soir'], [20, 'soir', 'crepuscule'], [21, 'crepuscule', 'nuit']];
   let _c1, _c2, lampesNiv = 0;
   function eclairer(E) {
+    if (modeHD) { eclairerHD(E); return; }
     let a = E.sk.phase, b = a, k = 0;
     for (const [h, p, q] of BORNES) { const d = E.hour - h; if (Math.abs(d) < 0.25) { a = p; b = q; k = (d + 0.25) / 0.5; } }
     const A = PHASES[a], B = PHASES[b], mix = (u, v) => u + (v - u) * k;
     hemi.color.set(A.hemi[0]).lerp(_c1.set(B.hemi[0]), k); hemi.groundColor.set(A.hemi[1]).lerp(_c1.set(B.hemi[1]), k); hemi.intensity = mix(A.hemi[2], B.hemi[2]);
     dir.color.set(A.dir[0]).lerp(_c1.set(B.dir[0]), k); dir.intensity = mix(A.dir[1], B.dir[1]);
     if (E.rush) { hemi.color.lerp(_c2.set('#FFF0E0'), 0.5); dir.intensity *= 1.1; }
-    if (RICHE.actif) { RICHE.envK = RICHE.kEnv * hemi.intensity / 1.3 * (1 - 0.55 * mix(A.lampes, B.lampes)); hemi.intensity *= RICHE.kHemi; dir.intensity *= RICHE.kDir; if (RICHE.post) RICHE.post.mat.uniforms.chaud.value = RICHE.chaud * (1 - 0.6 * mix(A.lampes, B.lampes)); } // l'ambiance vient surtout de la pièce (PMREM) ; le ciel ne fait plus que teinter
+    if (RICHE.actif) { RICHE.envK = RICHE.kEnv * hemi.intensity / 1.3 * (1 - 0.55 * mix(A.lampes, B.lampes)); hemi.intensity *= RICHE.kHemi; dir.intensity *= RICHE.kDir; if (RICHE.post) { RICHE.post.mat.uniforms.chaud.value = RICHE.chaud * (1 - 0.6 * mix(A.lampes, B.lampes)); RICHE.post.mat.uniforms.expo.value = 0; } } // l'ambiance vient surtout de la pièce (PMREM) ; le ciel ne fait plus que teinter
     lampesNiv = mix(A.lampes, B.lampes);
     if (EVV) { // la boutique hantée : les bougies brûlent toute la journée, le soir elles éclairent la salle
       const nk = lampesNiv; hemi.intensity *= 1 - 0.3 * nk; dir.intensity *= 1 - 0.4 * nk; if (RICHE.actif) RICHE.envK *= 1 - 0.35 * nk; // la nuit tombe plus fort sur le manoir : les bougies prennent le relais
       lampesNiv = Math.max(0.45, lampesNiv); const fl = LAY.fleurs, tb = LAY.tables, k = Math.max(1, Math.min(E.crans.tables || 1, tb.length)), p = LAY.porte;
       const pos = [[fl.x, wy(LAY.comptoir.hFace) + 30, wz(fl.y) + 10], [tb[Math.floor((k - 1) / 2)].x, 60, wz(tb[0].y) + 6], [p.x + p.w / 2, 30, wz(LAY.murH + 10 * V.K)]];
-      lampes.forEach((pl, i) => { pl.position.set(pos[i][0], pos[i][1], pos[i][2]); pl.distance = W * 0.75; pl.intensity = (i === 2 ? 90 : 130) * lampesNiv; });
+      lampes.forEach((pl, i) => { pl.position.set(pos[i][0], pos[i][1], pos[i][2]); pl.distance = W * 0.75; pl.intensity = (i === 2 ? 90 : 130) * lampesNiv * (0.3 + 0.7 * AMB); });
+      if (AMB < 1) { hemi.intensity *= 0.55 + 0.45 * AMB; dir.intensity *= 0.6 + 0.4 * AMB; } // le ×6 qui s'endort : la lumière baisse
     } else {
       const coin = (E.crans.banquette || 0) >= 3, salon = coin || (E.crans.deco >= 4 && E.crans.tables > 0), tb = LAY.tables, allumees = [E.crans.deco >= 2, E.crans.deco >= 2, E.niv[2] > 0 || salon];
       const lp = LAY.banquette.lampe, pos = [[LAY.appliques[0].x, wy(LAY.murH - LAY.appliques[0].y), 18], [LAY.appliques[1].x, wy(LAY.murH - LAY.appliques[1].y), 18], coin ? [lp.x, 54, wz(lp.y)] : salon ? [tb[1].x, 60, wz((tb[0].y + tb[3].y) / 2)] : [LAY.lampe.x, wy(LAY.murH - LAY.lampe.y) - 10, 20]]; // le soir, la lampe du coin salon (ou le salon de thé)
@@ -481,12 +592,12 @@ const SCENE = (() => {
   const angleCourt = (a) => Math.atan2(Math.sin(a), Math.cos(a));
   const cleClient = (c) => `${c.haut}|${c.peau}|${c.cheveux}|${c.coiffure}|${c.bonnet}|${c.lunettes ? 1 : 0}|${c.or ? 1 : 0}|${c.mariniere ? 1 : 0}|${c.hab || ''}|${c.deg || ''}`;
   function prendre(cle, fabrique) { const l = pool.get(cle); if (l && l.length) return l.pop(); const g = fabrique(); g.userData.cle = cle; g.userData.yaw = 0; return g; }
-  function rendreAuPool(g) { const k = g.userData.cle; if (!/^apprenti/.test(k)) { M.dispose(g); return; } const l = pool.get(k) || []; if (l.length < 1) { l.push(g); pool.set(k, l); } else M.dispose(g); } // les clients sont presque tous uniques : on les libère ; un apprenti par produit est gardé
+  function rendreAuPool(g) { if (g.userData.hd3) { rendreMonstre(g); return; } const k = g.userData.cle; if (!/^apprenti/.test(k)) { M.dispose(g); return; } const l = pool.get(k) || []; if (l.length < 1) { l.push(g); pool.set(k, l); } else M.dispose(g); } // les clients sont presque tous uniques : on les libère ; un apprenti par produit est gardé
   // ─── les décors HD (src/hd.js) : chargés après le premier rendu si le palier le permet ; la boutique garde ses personnages ───
   let hdDecor = null, hdCle = '', hdDemande = false;
   // des plantes, des bocaux sur le plan de travail ; en octobre, des citrouilles
   function decorHD(E) {
-    if (!HDM.permis(renderer)) { if (hdDecor) { scene.remove(hdDecor); M.dispose(hdDecor); hdDecor = null; hdCle = ''; } return; } // repassé en éco : on retire
+    if (!HDM.permis(renderer) || modeHD) { if (hdDecor) { scene.remove(hdDecor); M.dispose(hdDecor); hdDecor = null; hdCle = ''; } return; } // repassé en éco : on retire
     const k = `${W}x${H}|${LAY.bar.y | 0}|${LAY.sig}|${E.tags.includes('halloween') ? 'h' : ''}|${Object.keys(cles).length}|s${E.Q.standing || 0}|${EVV ? 'ev' : ''}`; // l'aménagement et le palier du standing : la scène change, on repose
     if (k === hdCle) return; hdCle = k;
     if (hdDecor) { scene.remove(hdDecor); M.dispose(hdDecor); }
@@ -501,6 +612,7 @@ const SCENE = (() => {
     habiller(g); scene.add(g);
   }
   function synchroniser(E, dt) {
+    if (modeHD) { synchroniserHD(E, dt); return; }
     vus.clear();
     for (const c of V.clients) {
       let g = acteurs.get(c.id);
@@ -590,7 +702,7 @@ const SCENE = (() => {
     if (!webgl) return;
     const t0 = performance.now();
     try {
-      if (EVV && !hanteePret() && HDM.permis(renderer)) HDM.charger('boutiqueHantee'); // la boutique hantée : ses bougies cuites (charger ne recharge pas)
+      if (EVV && HDM.permis(renderer) && !HDM.pret('hantee3')) HDM.charger('hantee3'); // la boutique hantée : son lot HD (charger ne recharge pas ; préchargé d'habitude)
       construire(E); if (HDM.pret('boutique')) { decorHD(E); if (E.Q.standing && HDM.permis(renderer)) for (const l of lotsLuxe(E.Q.standing)) HDM.charger(l); } else if (!hdDemande && nFrame > 30 && HDM.permis(renderer)) { hdDemande = true; HDM.charger('boutique'); } // les lots du standing : après ceux de la boutique, seulement ceux du palier (charger ne recharge pas)
       eclairer(E); peindreExterieur(now, E); peindreAO();
       synchroniser(E, dt);
@@ -779,13 +891,22 @@ const SCENE = (() => {
     get decosHanteeVues() { return Object.keys(HDECO).filter((k) => HDECO[k] && groupes['ht-' + k]); }, // les décos de la Maison hantée posées (pour les tests)
     get chatVu() { const m = chatG ? chatG.userData.modele : null; return m === 'chat-noir' ? 'noir' : m === 'chat-roux' ? 'roux' : m; }, // le pelage du chat dans la boutique, ou l'id d'un autre compagnon (pour les tests)
     get compagnonVu() { if (!chatG) return null; let appels = 0; chatG.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) appels++; }); return { id: chatG.userData.modele, appels, x: chatG.position.x, y: chatG.position.y, z: chatG.position.z }; }, // le compagnon bâti dans la boutique et ses appels de dessin (pour les tests)
-    precharger(lot) { if (typeof HDM === 'undefined' || !webgl || !HDM.permis(renderer)) return false; HDM.charger(lot); return true; }, // en arrière-plan, si le palier le permet
+    precharger(lot) { // en arrière-plan, si le palier le permet ; la Maison hantée : le lot de la boutique hantée (le défaut), ses personnages préparés ensuite
+      if (typeof HDM === 'undefined' || !webgl || !HDM.permis(renderer)) return false;
+      if (lot === 'hantee' && BH() && BH().demande()) { HDM.charger('hantee3').then((ok) => { if (ok) setTimeout(() => BH().HD.preparer(), 400); }); return true; }
+      HDM.charger(lot); return true;
+    },
+    // la boutique hantée (src/boutiquehantee.js) : la scène, la caméra et la projection vers la fenêtre ; les acteurs à l'écran ; l'ambiance ; la fête
+    get trois() { return webgl && cv ? { scene, camera, ecran: (x, y, z) => { const p = ecranDe(x, y, z, cv.getBoundingClientRect()); return { x: p.x, y: p.y }; } } : null; },
+    acteursEv, ambiance(k) { AMB = Math.max(0, Math.min(1, +k || 0)); }, feteMonstres() { feteT = 1.8; }, get hd3() { return modeHD; },
     alleger() { if (RICHE.post) { RICHE.post.liberer(); RICHE.post = null; } }, // un écran plein (la Planque) couvre la boutique : la passe d'effets rend sa mémoire, recréée au retour
     get decorHD() { return hdDecor ? hdDecor.children.length : 0; }, // les décors HD posés (pour les tests)
     get evenement() { // la boutique hantée (pour les tests) : son thème, ses clients déguisés (bâtis), son équipe aux stations, ses décors
-      if (!EVV) return null; let deguises = 0, clients = 0; for (const [id, g] of acteurs) if (id[0] !== 'a') { clients++; if (g.userData.deg) deguises++; }
-      const E = dernier, ht = groupes.hantee;
-      return { id: EVV.id || '', theme: E && E.Q ? E.Q.id : '', mode: V.mode, clients, deguises, apprentis: V.apprentis.map((a) => ({ i: a.i, costume: (EVV.equipe || [])[a.i] || '', bati: acteurs.has('a' + a.i) })), bougies: ht ? ht.userData.bougies || 0 : 0, hd: /\|hd\|/.test((cles.hantee || '') + '|'), decos: ['citrouilles', 'toiles', 'chaudron', 'fantome'].filter((k) => groupes['ht-' + k]), compagnon: chatG ? chatG.userData.modele : null, tenue: boulangerG && boulangerG.userData.garde ? boulangerG.userData.garde.cle || '' : '', decalage: decalage(), visible: visible3() };
+      if (!EVV) return null; let deguises = 0, clients = 0; for (const [id, g] of acteurs) if (typeof id === 'number') { clients++; if (g.userData.deg) deguises++; }
+      const E = dernier, ht = groupes.hantee, hl = D3 && D3.g.children.find((o) => o.userData.nom === 'halos');
+      const apprentis = modeHD ? [...acteurs.keys()].filter((id) => typeof id === 'string' && id[0] === 'a').map((id) => +id.slice(1)).sort((a, b) => a - b).map((i) => ({ i, costume: BH().HD.EQUIPE3[i], bati: true })) // en haute : toute l'équipe embauchée, à ses postes
+        : V.apprentis.map((a) => ({ i: a.i, costume: (EVV.equipe || [])[a.i] || '', bati: acteurs.has('a' + a.i) }));
+      return { id: EVV.id || '', theme: E && E.Q ? E.Q.id : '', mode: V.mode, clients, deguises, apprentis, bougies: modeHD ? (hl ? hl.geometry.index.count / 6 : 0) : ht ? ht.userData.bougies || 0 : 0, hd: modeHD, patronne: modeHD ? acteurs.has('patronne') : !!boulangerG, lumieres: modeHD ? lampes.concat(lampesHD).filter((l) => l.parent && (l.userData.k || 0) > 0).length : 0, monstres: modeHD ? [...acteurs.values()].map((g) => g.userData.deg || (g.userData.hd3 && g.userData.hd3.sorte)) : [], decos: ['citrouilles', 'toiles', 'chaudron', 'fantome'].filter((k) => groupes['ht-' + k]), compagnon: chatG ? chatG.userData.modele : null, tenue: boulangerG && boulangerG.userData.garde ? boulangerG.userData.garde.cle || '' : '', decalage: decalage(), visible: visible3() };
     },
     get decorHDBoites() { if (!hdDecor) return []; const b = new THREE.Box3(); return hdDecor.children.map((m) => { b.setFromObject(m); return { nom: m.userData.nomHD || '', x0: b.min.x, x1: b.max.x, y0: b.min.y, y1: b.max.y, z0: b.min.z, z1: b.max.z }; }); }, // leurs boîtes monde (pour les tests)
     get recompensesVues() { return { tenue: boulangerG ? boulangerG.userData.tenue || null : null, coupe: groupes.coupe ? REC.coupe : null, coupes: groupes.trophees ? REC.coupes.length : 0, ...(groupes.equipe ? { equipe: true } : {}) }; }, // ce que la boutique montre (pour les tests ; equipe : la rosette « Esprit d'équipe », seulement quand elle est là)
