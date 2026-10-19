@@ -537,7 +537,7 @@
         { id: 'pommes-ver', nom: 'Les pommes d’amour du Manoir', desc: 'Rouges, brillantes, et un ver en gélatine qui fait coucou.', temps: 45, icone: 'pommes-ver' },
         { id: 'potion-chocolat', nom: 'La potion chocolatée', desc: 'Un chocolat chaud à la pomme verte, qui fume dans le chaudron.', temps: 50, icone: 'potion-chocolat' },
       ],
-      recetteDeco: 'toque-citrouille', recetteDecoTxt: 'la toque-citrouille du chef du Manoir, accrochée au mur de la boutique',
+      recetteDeco: 'toque-citrouille', recetteDecoTxt: 'la toque-citrouille du chef du Manoir, accrochée à la porte de l’arrière-boutique',
     },
   };
   const A = ACT.equiper({ id: 'hantee', rythme, gagner, note, dayKey, fmt: fmtDevise, arrondi, fenetre, PRODUITS, boostMult, remise, debut: DEBUT }, FICHE.activites); // les activités (src/activites.js)

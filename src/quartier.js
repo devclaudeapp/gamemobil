@@ -481,7 +481,7 @@
         { id: 'tacos-geant', nom: 'Le tacos trois viandes', desc: 'Plié en quatre, il pèse autant qu’un pack d’eau.', temps: 70, icone: 'tacos-geant' },
         { id: 'space-cake', nom: 'Le space cake de Mémé', desc: 'La recette secrète de Mémé Jacqueline. Surtout, pas pour le chien.', temps: 90, icone: 'space-cake' },
       ],
-      recetteDeco: 'toque-or', recetteDecoTxt: 'la toque en or du chef de la Planque, accrochée au mur de la boutique',
+      recetteDeco: 'toque-or', recetteDecoTxt: 'la toque en or du chef de la Planque, accrochée à la porte de l’arrière-boutique',
     },
   };
   const A = ACT.equiper({ id: 'quartier', rythme, gagner, note, dayKey, fmt: fmtEur, arrondi, fenetre, PRODUITS, boostMult, remise, debut: DEBUT }, FICHE.activites); // les activités (src/activites.js)

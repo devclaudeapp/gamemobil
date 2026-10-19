@@ -164,7 +164,7 @@ module.exports = async function parcoursActivites(o) {
   check(e5.etoiles === et5 + 5 && /toque/.test(f5) && await ev(([c, dd]) => window.__fournil.st[c].decos.includes(dd), [cle, deco]), `+5 étoiles et « ${f5.split('\n').find((l) => /toque/.test(l)) || '?'} »`);
   await toucherEl('#feuille [data-a="pq-ok"]'); await sleep(300); await toucherEl(`${racine} [data-pq="fermer"]`); await sleep(500);
   const vues = cle === 'hantee' ? () => ev(() => window.__fournil.SCENE.decosHanteeVues) : () => ev(() => window.__fournil.SCENE.decosVues);
-  check(await attendre(async () => (await vues()).includes(deco), 8000), `dans la boulangerie, la toque est posée au-dessus de la petite porte (« ${deco} »)`);
+  check(await attendre(async () => (await vues()).includes(deco), 8000), `dans la boulangerie, la toque est accrochée à la porte de l’arrière-boutique (« ${deco} »)`);
   await sleep(600); if (rjDir) await p.screenshot({ path: path.join(rjDir, `${o.rj || cle}-r5-toque-boutique.png`) });
   await ctx.close();
 };
