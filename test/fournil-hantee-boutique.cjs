@@ -67,7 +67,7 @@ const EQUIPE = ['fantome2', 'momie2', 'squelette', 'vampire2', 'sorciere2', 'cit
     const t0 = v.t; await sleep(1200); const t1 = (await vue(ev)).t;
     check(t1 > t0 + 0.1, `la vie de la boutique hantée avance (${t0.toFixed(1)} s → ${t1.toFixed(1)} s)`);
     check(v.canvasManoir === 'hidden' && v.tiroir === 'hidden', `le canvas du Manoir et le tiroir de la boutique sont masqués (${v.canvasManoir}, ${v.tiroir})`);
-    check(v.cartes === 8, `les cartes des friandises restent dans la liste de l’écran (${v.cartes})`);
+    check(v.cartes === 9, `les cartes des friandises (8) et la recette du jour restent dans la liste de l’écran (${v.cartes})`);
     check(v.ev.decos.length === 4 && v.ev.bougies >= 5 && v.ev.compagnon === 'chat-noir' && v.ev.tenue === 'hantee', `le décor : ${v.ev.decos.join(', ')}, ${v.ev.bougies} bougies, le chat noir, le boulanger en tenue d’Halloween`);
     check(v.clientsVie.length > 0 && v.clientsVie.every((d) => ['sorciere', 'vampire', 'fantome', 'momie'].includes(d)) && v.ev.deguises === v.ev.clients, `les clients sont déguisés (${v.clientsVie.join(', ')}) et bâtis déguisés (${v.ev.deguises}/${v.ev.clients})`);
     const ids = v.ev.apprentis.map((a) => a.i).sort();
