@@ -103,7 +103,7 @@ check(ev.type === 'grosclient' && ev.n >= 3 && ev.prime > 0 && !HT.livrer(q).ok,
 { const i = ev.i, s = q.postes[i]; for (let k = 0; k < 400 && q.ev && q.ev.fait < q.ev.n; k++) { if (!s.staff && !s.actif) HT.lancer(q, i); HT.tick(q, HT.PRODUITS[i].temps, q.now + 1000, () => 0.5); } }
 b0 = q.billets; r = HT.livrer(q);
 check(r.ok && q.billets === b0 + r.prime && q.stats.grosClients === 1, `servi : +${HT.fmt(r.prime)}`);
-ev = HT.lancerEvenement(q, () => 0.5, 'soiree');
+ev = HT.lancerEvenement(q, () => 0.5, 'soiree'); HT.toucher(q, q.now); // (lot 6 : le ×6 s'endort sans toucher ; ici, on vient de toucher)
 check(HT.boostMult(q) === HT.PRESENCE * 2 && F.evenements.soiree.nom === 'La pleine lune', 'la pleine lune : toutes les ventes ×2');
 ev = HT.lancerEvenement(q, () => 0.5, 'scooter'); b0 = q.billets; r = HT.attraper(q);
 check(r.ok && q.billets === b0 + r.prime && /balai/.test(q.carnet[q.carnet.length - 1].txt), `le balai de la sorcière : sac attrapé, +${r.prime}`);
@@ -200,7 +200,9 @@ console.log('── le rythme simulé (sept jours de Paris) ──');
 const S = {}; for (const prof of ['assidu', 'quotidien', 'occasionnel', 'marathon']) S[prof] = HT.simuler(prof);
 // la recette du jour (v6.5) : le marathon et le très actif la jouent au mieux, d'office ; le rythme des paliers se vérifie AVEC elle (S, le
 // jeu livré). S0 (sans elle) ne sert qu'à comparer : les totaux d'avant, et ce qu'elle ajoute.
-const S0 = { marathon: HT.simuler('marathon', 7, { recette: false }) };
+const S0 = { marathon: HT.simuler('marathon', 7, { recette: false, manoir: false }) };
+// lot 6 : SM, comme en v6.5 (la recette du jour, mais ni le ×6 qui s'endort ni les activités du Manoir : manoir: false) ; S, le jeu livré
+const SM = { marathon: HT.simuler('marathon', 7, { manoir: false }), tresactif: HT.simuler('tresactif', 7, { manoir: false }) };
 const jourDe = (prof, k) => S[prof].paliersJour[k] || Infinity;
 const haut = (s) => Math.max(0, ...Object.keys(s.paliersJour).map(Number));
 console.log('  ' + Object.keys(S).map((k) => `${k} : ${HT.fmtEur(S[k].total)}, paliers ${JSON.stringify(S[k].paliersJour)}`).join('\n  '));
@@ -223,8 +225,12 @@ check(HT.simuler('assidu', 7, { graine: 7 }).total === S.assidu.total, 'la simul
   for (const prof of ['assidu', 'occasionnel']) { const a = S[prof].paliersJour, r = HT.simuler(prof, 7, { recette: true }), b = r.paliersJour, ks = Object.keys(a).map(Number), plus = Object.keys(b).map(Number).filter((n) => !a[n]);
     check(ks.every((n) => b[n] >= a[n] - 1 && b[n] <= a[n]) && plus.length <= 1 && plus.every((n) => b[n] >= 7), `${prof}, la recette du jour jouée aussi (${r.q.recettes.fournees} fournées, niveau ${r.q.recettes.niv}, ×${(r.total / S[prof].total).toFixed(2).replace('.', ',')}) : ${ks.filter((n) => b[n] !== a[n]).map((n) => `${n}e ${a[n]}→${b[n]}`).join(', ') || 'les mêmes jours'}${plus.length ? `, et le ${plus[0]}e le ${b[plus[0]]}e jour` : ''}`); } }
 { // après le maître : le très actif (8 h par jour) et le marathon (la recette du jour au mieux)
-  S.tresactif = HT.simuler('tresactif'); S0.tresactif = HT.simuler('tresactif', 7, { recette: false }); const TA = S.tresactif, T = TA.paliersJour;
-  console.log(`  très actif : ${HT.fmtEur(TA.total)}, paliers ${JSON.stringify(T)}, ${TA.q.recettes.fournees} fournées de la recette du jour (sans elle : ${HT.fmtEur(S0.tresactif.total)}, paliers ${JSON.stringify(S0.tresactif.paliersJour)})`);
+  S.tresactif = HT.simuler('tresactif'); S0.tresactif = HT.simuler('tresactif', 7, { recette: false }); const T = S.tresactif.paliersJour;
+  // lot 6 : les réglages des prix (le temps d'un niveau, les paliers de poste, le remboursement des gâteaux et des œufs, leur part) se
+  // vérifient sur la trajectoire pour laquelle ils ont été faits (TA : v6.5, manoir: false) ; avec les activités du Manoir, le très actif
+  // va plus vite (un jour plus tôt aux 15e-19e) et se trouve plus loin sur la courbe des prix (voir « lot 6 : la simulation »)
+  const TA = SM.tresactif;
+  console.log(`  très actif : ${HT.fmtEur(S.tresactif.total)}, paliers ${JSON.stringify(T)}, ${S.tresactif.q.recettes.fournees} fournées de la recette du jour (sans elle : ${HT.fmtEur(S0.tresactif.total)}, paliers ${JSON.stringify(S0.tresactif.paliersJour)})`);
   const jours = [12, 13, 14, 15, 16, 17, 18].map((k) => T[k] || Infinity), ecarts = jours.slice(1).map((j, k) => j - jours[k]);
   check(T[12] <= 2 && T[18] <= 7 && ecarts.every((e) => e >= 0 && e <= 2) && !T[20], `le très actif : le 12e le ${T[12]}e jour, puis un bonus par jour ou presque (13e le ${T[13]}e, 15e le ${T[15]}e, 16e le ${T[16]}e, 17e le ${T[17]}e, 18e le ${T[18]}e) ; le 20e reste aux marathoniens`);
   // v6.3 (les gâteaux et les œufs en vraies recettes) : le très actif ne bouge presque pas (13e le 2e jour, 16e le 4e, comme avant ; il touche
@@ -278,7 +284,7 @@ if (mEvt) {
   let minM = Infinity, maxM = -Infinity;
   for (const g of [7, 1, 2, 3]) for (const offertes of [false, true]) { const s = g === 7 && !offertes ? S.marathon : HT.simuler('marathon', 7, { graine: g, offertes }); // offertes : le pire cas, tous les Sortilèges d'après le maître dès le 12e
     for (const x of s.trace) if (x.total > 0) { const m = borne(x.t) - Math.log10(x.total); minM = Math.min(minM, m); if (x.t > 0.25) maxM = Math.max(maxM, m); } }
-  check(minM >= Math.log10(2), `le marathon 24 h/24 (quatre graines, minute par minute, Sortilèges en plus achetés ou offerts dès le 12e, la recette du jour au mieux) reste sous l’enveloppe avec au moins ×2 de marge (×${Math.pow(10, minM).toFixed(2)} au plus juste) — la table v6.5 de fournil_evts()`);
+  check(minM >= Math.log10(2.2) - 1e-9, `le marathon 24 h/24 (quatre graines, minute par minute, Sortilèges en plus achetés ou offerts dès le 12e, la recette du jour et les activités du Manoir au mieux) reste sous l’enveloppe avec au moins ×2,2 de marge (×${Math.pow(10, minM).toFixed(2)} au plus juste) — la table du lot 6 de fournil_evts()`);
   check(maxM <= Math.log10(20), `mais pas plus de ×20 après les six premières heures (×${Math.pow(10, maxM).toFixed(1)} au plus large) : un tricheur ne s’envole pas`);
   check(S.assidu.trace.every((x) => x.total === 0 || borne(x.t) - Math.log10(x.total) >= 1), 'un assidu honnête est toujours au moins dix fois sous l’enveloppe');
   // avec les recettes d'après le maître et le Marché des sorcières (16 octobre) : les recettes prennent leur part des bonbons (le marathon
@@ -290,7 +296,7 @@ if (mEvt) {
   // v6.3 (les gâteaux ×18, les œufs ×87,5) : 148 Bd, 284 Bd Sortilèges offerts (les deux ×3 dès le 12e) ; la table de fournil_evts() élargie
   // de même (supabase/fournil-classement.sql et sa mise à jour fournil-classement-v63.sql) : du pas 4 (24 h) au dernier, +0,05 à +0,45 en
   // log10 ({…,16.1,16.3,…,17.35} → {…,16.1,16.35,…,17.8}) ; ×2,14 au plus juste, ×8,4 au plus large après six heures.
-  const off = HT.simuler('marathon', 7, { offertes: true, recette: false }).total;
+  const off = HT.simuler('marathon', 7, { offertes: true, recette: false, manoir: false }).total;
   // v6.4 (les gâteaux ×4, les œufs ×1,5) : 396 Bd, 619 Bd Sortilèges offerts ; la table de fournil_evts() élargie de même : du pas 3 (18 h)
   // au dernier, +0,1 à +0,35 en log10 ({…,16.1,16.35,…,17.8} → {…,16.2,16.55,…,18.15}) ; ×2,14 au plus juste, ×8,4 au plus large après six heures.
   // v6.5 (la recette du jour, src/activites.js) : sans elle, le marathon gagne EXACTEMENT les mêmes bonbons qu'en v6.4 ; jouée au mieux (à
@@ -299,8 +305,158 @@ if (mEvt) {
   // l'interpolation passait sous ×2,2 ; la 2e valeur au moins 14,2) : {11.65,14.05,16.05,16.2,…,18.15} → {11.65,14.2,16.05,16.25,…,18.2} ;
   // ×2,21 au plus juste, ×8,3 au plus large après six heures (la v6.4 tombait à ×2,02 avec la recette).
   check(Math.abs(S0.marathon.total / 3.9649e17 - 1) < 0.01 && Math.abs(off / 6.1894e17 - 1) < 0.01, `sans la recette du jour, le marathon : ${HT.fmt(S0.marathon.total)} (${HT.fmt(off)} Sortilèges offerts ; 148 Bd et 284 Bd en v6.3, 88 Bd et 97,8 Bd avant, 76,5 Bd et 88,6 Bd sans les paliers intercalés ni les recettes d’après le maître)`);
-  check(Math.abs(S.marathon.total / 4.5509e17 - 1) < 0.02, `avec elle, jouée au mieux : ${HT.fmt(S.marathon.total)} (×${(S.marathon.total / S0.marathon.total).toFixed(2).replace('.', ',')})`);
+  check(Math.abs(SM.marathon.total / 4.5509e17 - 1) < 0.02, `avec elle, jouée au mieux : ${HT.fmt(SM.marathon.total)} (×${(SM.marathon.total / S0.marathon.total).toFixed(2).replace('.', ',')})`);
+  // lot 6 (19 octobre) : le ×6 qui s'endort (le marathon touche toujours : rien ne change pour lui) et les activités du Manoir (clients,
+  // fournées parfaites, apparitions, commandes de la nuit), jouées au mieux : ×1,20 (545 Bd, 811 Bd Sortilèges offerts). La table de
+  // fournil_evts() élargie de même (scratchpad lot5/tables-lot6.js, la méthode de la v6.5 : à chaque pas de 6 h, max(v6.4, log10 du marathon
+  // le plus haut des huit simulations + log10 2,2), arrondi au 0,05 supérieur, relevé là où l'interpolation passait sous ×2,2 ; la 2e valeur
+  // au moins 14,2) : {11.65,14.2,16.05,16.25,…,18.2} → {11.65,14.75,16.4,16.45,…,18.3} ; ×2,21 au plus juste, ×11,8 au plus large après
+  // six heures (la table v6.5 tombait à ×0,94 : les activités paient dès le premier jour, quand l'économie grimpe le plus vite).
+  check(Math.abs(S.marathon.total / 5.45e17 - 1) < 0.03 && S.marathon.total > SM.marathon.total * 1.1, `avec les activités du Manoir, jouées au mieux : ${HT.fmt(S.marathon.total)} (×${(S.marathon.total / SM.marathon.total).toFixed(2).replace('.', ',')} ; v6.5 : ${HT.fmt(SM.marathon.total)})`);
 }
+
+console.log('── lot 6 : le ×6 qui s’endort sans toucher ──');
+const T6 = HT.DEBUT + 22 * 3600e3; // le lendemain de l'ouverture, 10 h
+const prep6 = (t, opts) => { const st = {}, q = HT.etat(st, t); HT.gagner(q, 1e7); for (let i = 1; i < 4; i++) HT.acheter(q, i); HT.embaucher(q, 0); HT.embaucher(q, 1); q.now = t; q.lastSeen = t; HT.toucher(q, t); if (opts && opts.vide) { q.manoir.prochainClient = t + 1e9; q.manoir.prochaineApp = t + 1e9; q.manoir.prochaineCommande = t + 1e9; } return { st, q }; };
+{ const { q } = prep6(T6), e = (s) => HT.eveil(q, T6 + s * 1000);
+  check(HT.EVEIL.plein === 60 && HT.EVEIL.sommeil === 180 && e(0) === 1 && e(60) === 1 && Math.abs(e(150) - 0.5) < 1e-12 && e(240) === 0 && e(3600) === 0, 'l’éveil : plein 60 s après le dernier toucher, puis en ligne droite jusqu’à 0 en 3 min (0,5 à 2 min 30)');
+  q.now = T6 + 30e3; const b30 = HT.boostMult(q); q.now = T6 + 150e3; const b150 = HT.boostMult(q); q.now = T6 + 300e3; const b300 = HT.boostMult(q);
+  check(b30 === HT.PRESENCE && Math.abs(b150 - 3.5) < 1e-12 && b300 === 1, `la présence : ×${b30} à 30 s, ×${String(b150).replace('.', ',')} à 2 min 30, ×${b300} au-delà de 4 min`);
+  const r0 = HT.revenu(q, 0); HT.toucher(q, q.now);
+  check(HT.boostMult(q) === HT.PRESENCE && HT.revenu(q, 0) === r0 * HT.PRESENCE && HT.revenuBase(q, 0) === r0, 'un seul toucher le remet au plein (le revenu de base, lui, ne bouge pas)');
+  HT.lancerEvenement(q, () => 0.5, 'soiree'); const lune = HT.boostMult(q), actif = q.actif; q.actif -= 300e3; const luneDort = HT.boostMult(q);
+  check(lune === HT.PRESENCE * 2 && luneDort === 2, 'sous la pleine lune : ×12 réveillé, ×2 endormi');
+  const p = HT.presence(q, q.now); q.actif = actif;
+  check(p.eveil === 0 && p.dort && p.mult === 1 && p.plein === 0 && p.zero === 0 && HT.presence(q, q.now).plein === 60e3 && HT.presence(q, q.now).zero === 240e3, 'presence() pour la jauge : éveil, multiplicateur, ce qui reste au plein et avant ×1');
+  const { q: qb } = prep6(T6, { vide: true }); HT.embaucher(qb, 2); const tb = HT.tauxBase(qb); let gEv = 0, gDort = 0;
+  for (let k = 1; k <= 60; k++) { const o = HT.tick(qb, 1, T6 + k * 1000, () => 0.5); gEv += o.ventes.reduce((s, v) => s + v.montant, 0); }
+  qb.actif = T6 - 3600e3; for (let k = 61; k <= 120; k++) { const o = HT.tick(qb, 1, T6 + k * 1000, () => 0.5); gDort += o.ventes.reduce((s, v) => s + v.montant, 0); }
+  check(Math.abs(gEv / (tb * 60 * HT.PRESENCE) - 1) < 0.1 && Math.abs(gDort / (tb * 60) - 1) < 0.1, `une minute réveillé : ${HT.fmt(gEv)} (×6 du rythme) ; une minute endormi : ${HT.fmt(gDort)} (×1)`); }
+{ const s = { hantee: JSON.parse(JSON.stringify(HT.neuf(T6 - 3600e3))) }; delete s.hantee.actif; delete s.hantee.manoir; for (const k of ['clientsServis', 'parfaits', 'commandes']) delete s.hantee.stats[k];
+  const q = HT.etat(s, T6);
+  check(q.actif === T6 && HT.eveil(q, T6) === 1 && q.manoir && Array.isArray(q.manoir.file) && q.stats.clientsServis === 0 && q.stats.parfaits === 0, 'une vieille sauvegarde (sans q.actif ni q.manoir) : actif maintenant, le Manoir remis à neuf, les compteurs à zéro');
+  const s2 = { hantee: Object.assign(HT.neuf(T6), { actif: 'x', manoir: { file: [{ id: 1, sorte: 'dragon', commande: [], arrive: 0 }, { id: 2, sorte: 'momie', commande: [{ i: 0, n: 2 }], arrive: T6 }], apps: 'x', commande: { i: 99 }, h: null, graine: 'z', bilan: { clients: { n: -1 } } } }) };
+  const q2 = HT.etat(s2, T6);
+  check(q2.actif === T6 && q2.manoir.file.length === 1 && q2.manoir.file[0].sorte === 'momie' && q2.manoir.file[0].commande[0].servi === false && Array.isArray(q2.manoir.apps) && q2.manoir.commande === null && q2.manoir.h.clients === 0 && Number.isFinite(q2.manoir.graine) && q2.manoir.bilan.clients.n === 0 && q2.manoir.bilan.parfaits.gain === 0, 'un Manoir abîmé (sorte inconnue, commande vide, champs faux) : remis d’aplomb, le client valable gardé');
+  const q3 = HT.etat({}, T6 - 9 * 3600e3); q3.lastSeen = q3.now; q3.actif = q3.now - 3600e3; HT.absence(q3, T6);
+  check(q3.actif === T6 && HT.eveil(q3, T6) === 1, 'revenir (l’absence) réveille le Manoir'); }
+
+console.log('── lot 6 : les clients-monstres ──');
+check(HT.SORTES.length === 9 && HT.SORTES.join() === 'squelette,squelette-sorcier,zombie,citrouille,fantome,momie,sorciere,vampire,loup' && HT.SORTES.every((k) => typeof HT.FICHE.manoir.sortes[k] === 'string'), `neuf sortes de clients, les clés de la scène (${HT.SORTES.join(', ')}), chacune son nom`);
+{ const { q } = prep6(T6); let arrives = [], partis = [], t = T6;
+  for (let k = 1; k <= 120; k++) { t = T6 + k * 1000; const o = HT.tick(q, 1, t, () => 0.5); arrives = arrives.concat(o.manoir.arrives); partis = partis.concat(o.manoir.partis); if (k === 3) check(o.manoir.arrives.length === 1 && arrives.length === 1, 'le premier client entre deux secondes après le premier pas de l’écran'); }
+  const ecarts = arrives.slice(1).map((c, k) => (c.arrive - arrives[k].arrive) / 1000), ouverts = q.postes.map((s, i) => i).filter((i) => q.postes[i].niv > 0);
+  check(q.manoir.file.length <= 3 && arrives.length >= 4 && arrives.every((c) => HT.SORTES.includes(c.sorte) && c.commande.length >= 1 && c.commande.length <= 3 && new Set(c.commande.map((l) => l.i)).size === c.commande.length && c.commande.every((l) => ouverts.includes(l.i) && l.n >= 1 && l.n <= 3)),
+    `en 2 min sans servir : ${arrives.length} clients (${arrives.map((c) => c.sorte).join(', ')}), jamais plus de trois dans la file ; chacun une à trois friandises ouvertes, une à trois de chaque`);
+  check(ecarts.every((e) => e >= 8 && e <= 40) && partis.length >= 1 && q.stats.clientsPartis === partis.length && q.billets >= 0, `ils arrivent toutes les 8 à 20 s (la file pleine retarde le suivant : ${ecarts.map((e) => e.toFixed(0)).join(', ')} s) ; après 40 s d’attente, ils repartent sans rien (${partis.length} partis, aucune pénalité)`);
+  const c = q.manoir.file[0], autre = q.postes.findIndex((s, i) => s.niv > 0 && !c.commande.some((l) => l.i === i)), b0 = q.billets;
+  const faux = HT.servir(q, c.id, autre);
+  check(!faux.ok && faux.faux && c.commande.every((l) => !l.servi) && q.billets === b0 && !HT.servir(q, 9999, 0).ok, 'servir la mauvaise friandise : refusé (rien de perdu) ; un client inconnu : refusé');
+  let r; for (const l of c.commande) r = HT.servir(q, c.id, HT.PRODUITS[l.i].id);
+  const att = (q.now - c.arrive) / 1000, u = c.commande.reduce((s, l) => s + l.n, 0), m = HT.CLIENTS.minutes * u * (1 + HT.CLIENTS.vite * Math.max(0, 1 - att / 40));
+  check(r.ok && r.fini && r.prime === HT.arrondi(Math.max(1, HT.rythme(q) * m * 60)) && q.billets === b0 + r.prime && !q.manoir.file.includes(c) && q.stats.clientsServis === 1, `servi ligne par ligne (par l’id du produit ou son rang) : ${u} friandise${u > 1 ? 's' : ''} après ${att.toFixed(0)} s d’attente, +${HT.fmt(r.prime)} (${(m * 60).toFixed(1).replace('.', ',')} s du rythme)`); }
+{ const { q } = prep6(T6); let t = T6; const vite = [], lent = [];
+  for (let k = 1; k <= 200 && (vite.length < 3 || lent.length < 3); k++) { t = T6 + k * 1000; HT.tick(q, 1, t, () => 0.5); HT.toucher(q, t);
+    for (const c of q.manoir.file.slice()) { const a = (t - c.arrive) / 1000, u = c.commande.reduce((s, l) => s + l.n, 0), tard = c.id % 2 === 0;
+      if (tard ? a >= 39 : a >= 0) { let r; for (const l of c.commande) r = HT.servir(q, c.id, l.i); (tard ? lent : vite).push(r.prime / u); } } }
+  check(Math.min(...vite) > Math.max(...lent) * 1.35, `servi tout de suite, un pourboire jusqu’à ×1,5 de celui d’un client servi à la dernière seconde (${HT.fmt(Math.min(...vite))} contre ${HT.fmt(Math.max(...lent))} par friandise)`); }
+{ const { q } = prep6(T6), M = q.manoir; let paye = 0, n = 0;
+  for (let k = 0; k < 400; k++) { M.file.push({ id: 1e6 + k, sorte: 'momie', commande: [{ i: 0, n: 3, servi: false }], arrive: q.now }); const r = HT.servir(q, 1e6 + k, 0); paye += r.prime; n++; if (r.plafond) break; }
+  const minH = M.h.clients;
+  check(Math.abs(minH - HT.CLIENTS.parHeure) < 1e-9 && n < 400 && HT.servir(q, (M.file.push({ id: 7e6, sorte: 'zombie', commande: [{ i: 0, n: 1, servi: false }], arrive: q.now }), 7e6), 0).prime === 0 && HT.plafondsManoir(q).clients.plein,
+    `le plafond de l’heure : ${HT.CLIENTS.parHeure} min du rythme (${n} clients servis d’affilée, +${HT.fmt(paye)}) ; au-delà, on sert pour le plaisir`);
+  let heures = 0; for (let h = 1; h <= 30 && M.j.clients < HT.CLIENTS.parJour - 1e-9; h++) { q.now = T6 + h * 3600e3; for (let k = 0; k < 400; k++) { M.file.push({ id: 2e6 + h * 1000 + k, sorte: 'loup', commande: [{ i: 0, n: 3, servi: false }], arrive: q.now }); if (HT.servir(q, 2e6 + h * 1000 + k, 0).plafond) break; } heures = h; }
+  check(Math.abs(M.j.clients - HT.CLIENTS.parJour) < 1e-9 && HT.dayKey(q.now) === HT.dayKey(T6), `et celui du jour de Paris : ${HT.CLIENTS.parJour} min (atteint en ${heures + 1} h de service sans relâche)`); }
+
+console.log('── lot 6 : les fournées parfaites ──');
+{ const { q } = prep6(T6, { vide: true }); const i = 2; // les cookies fantômes : 6 s, à la main
+  check(HT.fenetreParfait(q, i) === null && HT.fenetreParfait(q, 0) === null && HT.lancer(q, 0) === false, 'pas de fenêtre sans fournée en cours, ni sur un poste tenu par son monstre');
+  HT.lancer(q, i); const w = HT.fenetreParfait(q, i);
+  check(w && Math.abs(w.fin - w.debut - 0.15) < 1e-12 && w.debut >= 0.3 && w.fin <= 0.9 && w.duree === 6 && !w.essai, `une fournée de cookies (6 s) : la fenêtre « parfait » de ${(w.debut * 100).toFixed(0)} à ${(w.fin * 100).toFixed(0)} % (15 % de la durée)`);
+  check(JSON.stringify(HT.fenetreParfait(JSON.parse(JSON.stringify(q)), i)) === JSON.stringify(w), 'déterministe : la même fournée (relue de la sauvegarde) a la même fenêtre');
+  const places = new Set(); for (let k = 0; k < 20; k++) { const q2 = JSON.parse(JSON.stringify(q)); q2.postes[i].actif = false; q2.now = T6 + k * 7777; HT.lancer(q2, i); places.add(HT.fenetreParfait(q2, i).debut.toFixed(3)); }
+  check(places.size >= 15, `sa place se tire du lancement : ${places.size} places différentes sur 20 lancements`);
+  const b0 = q.billets, tot = HT.parfait(q, i, q.now + (w.debut * 6 - 0.3) * 1000);
+  check(tot.ok && !tot.parfait && tot.tot && q.billets === b0 && !HT.parfait(q, i, q.now + (w.debut + 0.07) * 6000).ok && HT.parfait(q, i, q.now).deja, 'trop tôt : rien de perdu, mais l’essai est passé (un seul par fournée)');
+  q.postes[i].actif = false; q.now += 1000; HT.lancer(q, i); const w2 = HT.fenetreParfait(q, i), rf = HT.revenuFournee(q, i), b1 = q.billets;
+  const ok = HT.parfait(q, i, q.now + (w2.debut + 0.07) * 6000);
+  check(ok.ok && ok.parfait && ok.prime === rf && q.billets === b1 + rf && q.stats.parfaits === 1, `dans la fenêtre : la fournée vaut ×2 (+${HT.fmt(ok.prime)} tout de suite, puis la vente habituelle)`);
+  q.postes[0].staff = false; q.postes[0].actif = false; HT.lancer(q, 0); check(HT.fenetreParfait(q, 0) === null, 'une fournée de moins de 6 s (les acidulés, 1,5 s) : pas de fenêtre');
+  for (let k = 0; k < 60; k++) { q.postes[i].actif = false; HT.lancer(q, i); const wk = HT.fenetreParfait(q, i); HT.parfait(q, i, q.now + (wk.debut + 0.07) * 6000); }
+  check(q.manoir.h.parfaits === HT.PARFAIT.parHeure && q.stats.parfaits === 61 && q.manoir.bilan.parfaits.n === 61, `au plus ${HT.PARFAIT.parHeure} fournées parfaites payées par heure (les suivantes : « parfait », sans le double)`); }
+{ const { q } = prep6(T6, { vide: true }); HT.gagner(q, 1e9); HT.preparerRecette(q, T6); const L = HT.lancerRecette(q, T6), fo = q.recettes.four, w = HT.fenetreParfait(q, -1), b0 = q.billets;
+  const r = HT.parfait(q, -1, fo.debut + (w.debut + 0.05) * (fo.fin - fo.debut));
+  check(L.ok && w && r.parfait && r.prime === fo.gain && q.billets === b0 + fo.gain && HT.fenetreParfait(q, 'recette').parfait, `la recette du jour (${L.r.temps} s) aussi : parfaite, +${HT.fmt(r.prime)} tout de suite (×2), la fournée sort ensuite comme d’habitude`); }
+
+console.log('── lot 6 : les apparitions ──');
+{ const { q } = prep6(T6); const nees = [], perdues = [];
+  for (let k = 1; k <= 1200; k++) { const o = HT.tick(q, 1, T6 + k * 1000, () => 0.5); nees.push(...o.manoir.apparitions); perdues.push(...o.manoir.perdues); }
+  const ecarts = nees.slice(1).map((a, k) => (a.debut - nees[k].debut) / 1000), vies = nees.map((a) => (a.fin - a.debut) / 1000);
+  check(nees.length >= 15 && nees.length <= 60 && ecarts.every((e) => e >= 20 && e <= 61) && vies.every((v) => v >= 6 && v <= 10) && new Set(nees.map((a) => a.type)).size === 3 && nees.every((a) => HT.TYPES_APPARITION.includes(a.type)),
+    `en 20 min : ${nees.length} apparitions (fantômes, citrouilles, chauves-souris), une toutes les 20 à 60 s, chacune 6 à 10 s`);
+  check(perdues.length >= nees.length - 1 && perdues.length === nees.length - q.manoir.apps.length && q.stats.apparitionsRatees === perdues.length && q.manoir.serie === 0, 'pas attrapées : elles s’en vont (rien de perdu)'); }
+{ const { q } = prep6(T6); const r = [], t0 = T6; let t = t0;
+  const suivante = () => { for (let k = 0; k < 120; k++) { t += 1000; const o = HT.tick(q, 1, t, () => 0.5); if (o.manoir.apparitions.length) return o.manoir.apparitions[0]; } return null; };
+  for (let k = 0; k < 4; k++) { const a = suivante(); r.push(HT.attraper(q, a.id)); }
+  const unite = HT.arrondi(Math.max(1, HT.rythme(q) * HT.APPARITIONS.minutes * 60));
+  check(r.every((x) => x.ok) && r[0].prime === unite && r[1].mult === 1 && r[2].mult === 1.5 && r[3].mult === 1.5 && r[3].serie === 4 && r[2].prime > r[1].prime * 1.4, `attrapées (attraper(q, id)) : +${HT.fmt(r[0].prime)} (${HT.APPARITIONS.minutes * 60} s du rythme), ×1,5 dès la troisième d’affilée (+${HT.fmt(r[2].prime)})`);
+  const a = suivante(); while (q.manoir.apps.length) { t += 1000; HT.tick(q, 1, t, () => 0.5); } const b = suivante(), rb = HT.attraper(q, b.id);
+  check(a && rb.ok && rb.serie === 1 && rb.mult === 1 && !HT.attraper(q, b.id).ok, 'une qui s’échappe casse la série ; on n’attrape pas deux fois la même');
+  HT.lancerEvenement(q, () => 0.5, 'scooter'); const bal = HT.attraper(q); check(bal.ok && bal.prime > 0 && q.stats.scooters === 1, 'attraper(q) sans id reste le balai de la sorcière (le coup de pouce)');
+  const M = q.manoir; for (let k = 0; k < 2000 && !(M.h.apparitions >= HT.APPARITIONS.parHeure - 1e-9); k++) { M.apps.push({ id: 5e6 + k, type: 'fantome', debut: q.now, fin: q.now + 5000 }); HT.attraper(q, 5e6 + k); }
+  check(Math.abs(M.h.apparitions - HT.APPARITIONS.parHeure) < 1e-9 && (M.apps.push({ id: 9e6, type: 'citrouille', debut: q.now, fin: q.now + 5000 }), HT.attraper(q, 9e6)).prime === 0, `plafonnées à ${HT.APPARITIONS.parHeure} min du rythme par heure (${HT.APPARITIONS.parJour} par jour)`); }
+
+console.log('── lot 6 : les commandes de la nuit ──');
+{ const { q } = prep6(T6); HT.embaucher(q, 2); let c = null, t = T6;
+  for (let k = 1; k <= 200 && !c; k++) { t = T6 + k * 1000; c = HT.tick(q, 1, t, () => 0.5).manoir.commande; }
+  const T = HT.PRODUITS[c.i].temps, s = q.postes[c.i];
+  check(c && (c.debut - T6) / 1000 === HT.COMMANDES.premiere + 1 && HT.COMMANDES.durees.includes(c.duree) && s.niv > 0 && T * 3 <= c.duree * 60 && c.n === Math.max(1, HT.arrondi(c.duree * 60 / T * (s.staff ? 0.6 : 0.3))) && HT.commandeManoir(q) === c,
+    `la première, une minute et demie après le premier pas de l’écran : « ${HT.FICHE.manoir.textes.commande(c)} » (ce que le poste fait en ${c.duree} min ×${s.staff ? '0,6' : '0,3'})`);
+  check(!HT.livrerCommande(q).ok && HT.lancerCommande(q, t) === null, 'pas livrable avant d’avoir tout ; une seule à la fois');
+  const b0 = q.billets; let o; for (let k = 0; k < c.duree * 60 && c.fait < c.n; k++) { t += 1000; if (!q.postes[c.i].staff && !q.postes[c.i].actif) HT.lancer(q, c.i); HT.toucher(q, t); o = HT.tick(q, 1, t, () => 0.5); }
+  const prime = HT.primeCommande(q), r = HT.livrerCommande(q);
+  check(c.fait >= c.n && r.ok && r.prime === prime && prime === HT.arrondi(HT.rythme(q) * c.duree * HT.COMMANDES.part * 60) && q.stats.commandes === 1 && HT.commandeManoir(q) === null, `faite et livrée avant l’heure : +${HT.fmt(r.prime)} (${String(HT.COMMANDES.part).replace('.', ',')} min du rythme par minute de commande)`);
+  let c2 = null; for (let k = 1; k <= 400 && !c2; k++) { t += 1000; c2 = HT.tick(q, 1, t, () => 0.5).manoir.commande; }
+  check(c2 && c2.id === c.id + 1, 'la suivante arrive une à trois minutes plus tard');
+  let ratee = null; for (let k = 1; k <= c2.duree * 60 + 2 && !ratee; k++) { t += 1000; ratee = HT.tick(q, 1, t, () => 0.5).manoir.ratee; if (ratee) break; }
+  const b1 = q.billets; c2.fait = c2.n;
+  check(ratee === c2 && q.stats.commandesRatees === 1 && !HT.livrerCommande(q).ok && q.billets === b1, 'pas livrée à l’heure : ratée, rien de payé, rien de perdu'); }
+{ const { q } = prep6(T6), M = q.manoir; let n = 0;
+  for (let k = 0; k < 50; k++) { M.commande = { id: 100 + k, i: 0, n: 1, fait: 1, duree: 15, debut: q.now, fin: q.now + 900e3, minutes: 15 * HT.COMMANDES.part }; if (HT.livrerCommande(q).plafond) break; n++; }
+  check(Math.abs(M.h.commandes - HT.COMMANDES.parHeure) < 1e-9 && n === Math.floor(HT.COMMANDES.parHeure / (15 * HT.COMMANDES.part)), `plafonnées à ${HT.COMMANDES.parHeure} min du rythme par heure (${HT.COMMANDES.parJour} par jour) : ${n} grandes commandes payées dans l’heure`); }
+
+console.log('── lot 6 : déterminisme, absence, sorties ──');
+{ const { st } = prep6(T6), a = HT.etat(JSON.parse(JSON.stringify(st)), T6), b = HT.etat(JSON.parse(JSON.stringify(st)), T6), la = [], lb = [];
+  for (let k = 1; k <= 600; k++) { const oa = HT.tick(a, 1, T6 + k * 1000, () => 0.1), ob = HT.tick(b, 1, T6 + k * 1000, () => 0.9); la.push(JSON.stringify(oa.manoir)); lb.push(JSON.stringify(ob.manoir)); }
+  check(la.join() === lb.join() && JSON.stringify(a.manoir) === JSON.stringify(b.manoir), 'la même sauvegarde donne les mêmes clients, apparitions et commandes, quel que soit le hasard des coups de pouce (q.manoir.graine)'); }
+{ const { q } = prep6(T6); for (let k = 1; k <= 300; k++) HT.tick(q, 1, T6 + k * 1000, () => 0.5);
+  const M = q.manoir; if (!M.commande) HT.lancerCommande(q, q.now); M.commande.fait = M.commande.n; const sans = JSON.parse(JSON.stringify(q)); sans.manoir = HT.manoirNeuf(q.now);
+  const tA = q.now + 3 * 3600e3, ra = HT.absence(q, tA), rb = HT.absence(sans, tA);
+  check(ra.total === rb.total && q.manoir.file.length === 0 && q.manoir.apps.length === 0 && q.manoir.commande === null && !HT.livrerCommande(q).ok, `3 h d’absence : payées comme sans les activités du Manoir (${HT.fmt(ra.total)}) ; la file, les apparitions et la commande s’effacent sans rien coûter`);
+  HT.toucher(q, tA); for (let k = 1; k <= 200; k++) HT.tick(q, 1, tA + k * 1000, () => 0.5); if (!M.commande) HT.lancerCommande(q, q.now); const c = q.manoir.commande, reste = c.fin - q.now;
+  q.lastSeen = q.now; HT.absence(q, q.now + 60e3);
+  check(q.manoir.commande === c && c.fin - q.now === reste, 'une sortie d’une minute : la commande en cours attend, le même temps restant (comme un coup de pouce)');
+  HT.tick(q, 1, q.now + 30 * 60e3, () => 0.5); check(q.manoir.commande === null || q.manoir.commande !== c, 'une sortie de 30 min sans fermer l’écran : effacée, sans rien coûter'); }
+{ const q = HT.etat({}, HT.FIN - 5000); HT.gagner(q, 1e6); q.now = HT.FIN + 1000; q.manoir.file.push({ id: 1, sorte: 'momie', commande: [{ i: 0, n: 1, servi: false }], arrive: HT.FIN - 2000 }); const r = HT.servir(q, 1, 0), o = HT.tick(q, 1, HT.FIN + 2000, () => 0.5);
+  check(r.ok && r.prime === 0 && o.manoir.arrives.length === 0 && o.manoir.apparitions.length === 0, 'après la fermeture : plus rien ne paie, plus personne n’entre'); }
+
+console.log('── lot 6 : la simulation (le marathon et le très actif jouent tout, les autres ont des trous) ──');
+{ const heures = (p) => { let h = 0; for (let j = 0; j < 7; j++) for (const [hh, mn] of HT.PROFILS[p].sessions) { const d = HT.DEBUT - 12 * 3600e3 + j * 864e5 + hh * 3600e3; if (d >= HT.DEBUT && d < HT.FIN) h += Math.min(mn * 60e3, HT.FIN - d) / 3600e3; } return h; };
+  const parH = (p, s) => { const o = {}; for (const [k, b] of Object.entries(s.q.manoir.bilan)) o[k] = { h: b.min / heures(p), part: b.gain / s.total }; return o; };
+  const txt = (o) => Object.entries(o).map(([k, x]) => `${k} ${x.h.toFixed(1).replace('.', ',')} min/h (${(x.part * 100).toFixed(1).replace('.', ',')} %)`).join(', ');
+  const A0 = { assidu: HT.simuler('assidu', 7, { manoir: false }), quotidien: HT.simuler('quotidien', 7, { manoir: false }) };
+  for (const p of ['marathon', 'tresactif', 'assidu', 'quotidien', 'occasionnel']) console.log(`  ${p} (${heures(p).toFixed(1).replace('.', ',')} h jouées) : ${txt(parH(p, S[p]))}`);
+  const M = S.marathon.q, st = M.stats, TAp = parH('tresactif', S.tresactif), tq = S.tresactif.q.stats;
+  check(Object.values(M.manoir.bilan).every((b) => b.n > 0 && b.gain > 0) && st.apparitionsRatees < st.apparitions * 0.01 && st.commandesRatees === 0 && st.clientsPartis < st.clientsServis * 0.01 && st.parfaitsRates === 0 && HT.eveil(M) === 1,
+    `le marathon joue tout au mieux : ${st.clientsServis} clients servis (${st.clientsPartis} partis : la fin d’une session), ${st.apparitions} apparitions (${st.apparitionsRatees} manquées), ${st.parfaits} fournées parfaites, ${st.commandes} commandes, et le Manoir toujours éveillé`);
+  check(TAp.clients.h >= 15 && TAp.clients.h <= HT.CLIENTS.parHeure && TAp.apparitions.h >= 10 && TAp.apparitions.h <= HT.APPARITIONS.parHeure && TAp.parfaits.h >= 5 && TAp.commandes.h >= 5 && TAp.commandes.h <= HT.COMMANDES.parHeure
+    && Object.values(TAp).every((x) => x.part >= 0.01 && x.part <= 0.1) && tq.clientsPartis === 0,
+    `le très actif, par heure jouée : ${txt(TAp)} (en minutes du rythme, et la part de ses bonbons)`);
+  const T0 = SM.tresactif.paliersJour, T1 = S.tresactif.paliersJour, r = S.tresactif.total / SM.tresactif.total;
+  check(r > 1.1 && r < 1.6 && [13, 16, 19].every((k) => (T1[k] || 99) <= (T0[k] || 99)) && !T1[20], `avec les activités, le très actif gagne ×${r.toFixed(2).replace('.', ',')} (${HT.fmt(SM.tresactif.total)} → ${HT.fmt(S.tresactif.total)}) : 13e le ${T0[13]}e → ${T1[13]}e jour, 16e le ${T0[16]}e → ${T1[16]}e, 19e le ${T0[19]}e → ${T1[19]}e ; le 20e reste aux marathoniens`);
+  const a = S.assidu.q.stats, ra = S.assidu.total / A0.assidu.total, rq = S.quotidien.total / A0.quotidien.total;
+  check(a.clientsPartis > 0 && a.apparitionsRatees > 0 && a.clientsServis > a.clientsPartis && ra > 0.85 && ra < 1.25 && rq > 0.85 && rq < 1.25,
+    `l’assidu et le quotidien ont des trous (le ×6 s’endort ; des clients partis, des apparitions manquées) : ce que leur rapportent les activités compense à peu près (×${ra.toFixed(2).replace('.', ',')} et ×${rq.toFixed(2).replace('.', ',')} de la v6.5)`); }
 
 console.log('── la longévité : sept jours de marathon, une sauvegarde relue en route, la boulangerie récompensée ──');
 { const s = S.marathon, qq = s.q;
@@ -334,7 +490,7 @@ console.log('── la longévité : sept jours de marathon, une sauvegarde relu
   check(G.nouvelleBoutique({ ...b, lifetimeRun: 1e30 }, now0).ok, 'une nouvelle boutique (étoiles) ne casse rien'); }
 
 console.log('── les activités du Manoir (src/activites.js) ──');
-{ const sans = HT.simuler('marathon', 7, { activites: false }), part = S0.marathon.total / sans.total;
+{ const sans = HT.simuler('marathon', 7, { activites: false, manoir: false }), part = S0.marathon.total / sans.total;
   check(part > 1 && part < 1.25, `au marathon, les trois premières activités jouées au mieux ajoutent ${((part - 1) * 100).toFixed(1)} % au total (l’enveloppe, plus haut, reste ×2 dessous)`);
   const A = HT.FICHE.activites, textes = JSON.stringify([HT.MINI.jeux.map((j) => [j.nom, j.desc, j.regles, j.consigne]), HT.OPERATIONS.map((o) => [o.nom, o.desc]), A.textes.saisie, A.textes.saisieTxt('3 bonbons'), A.textes.enCours,
     [0, 1, 2, 3, 4, 5, 6].map((k) => HT.contratsDuJour(HT.DEBUT + k * 864e5).map((c) => c.texte)), HT.RECETTES_JOUR.map((r) => [r.nom, r.desc]), A.textes.recette, A.textes.cuisine]);
