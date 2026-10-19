@@ -10,8 +10,8 @@
 // sauvegarde, rythme) avec la pause des coups de pouce pendant une courte sortie ; et, après le boss, les deux recettes de plus (sirop violet
 // au 13e, cristal bleu au 16e : déblocage, vieille sauvegarde à six postes, paliers intercalés), le Grossiste (les niveaux à moitié prix),
 // les combines ×3, le temps par niveau du très actif et l'enveloppe qui tient. La recette du jour (src/activites.js, la 4e activité) : le
-// marathon et le très actif la jouent au mieux ; le rythme des paliers se vérifie sans elle (le réglage de l'événement), l'enveloppe avec
-// elle (le pire cas). Lancer : TZ=Europe/Paris node test/fournil-quartier.test.js
+// marathon et le très actif la jouent au mieux, et le rythme des paliers comme l'enveloppe se vérifient avec elle (le jeu livré) ; l'assidu
+// et l'occasionnel qui la jouent aussi ; l'enveloppe minute par minute, sur l'heure du serveur. Lancer : TZ=Europe/Paris node test/fournil-quartier.test.js
 'use strict';
 const fs = require('fs'), path = require('path');
 const Q = require('../src/quartier.js'), G = require('../src/game.js');
@@ -339,9 +339,10 @@ console.log('── la reprise d’une sauvegarde déjà au boss (la mise à jou
 
 console.log('── le rythme simulé ──');
 const S = {}; for (const prof of ['assidu', 'quotidien', 'occasionnel', 'marathon']) S[prof] = Q.simuler(prof, 14);
-// la recette du jour (v6.5) : le marathon et le très actif la jouent au mieux (S, l'enveloppe) ; le rythme des paliers se règle sans elle (S0)
+// la recette du jour (v6.5) : le marathon et le très actif la jouent au mieux, d'office ; le rythme des paliers se vérifie AVEC elle (S, le
+// jeu livré). S0 (sans elle) ne sert qu'à comparer : les totaux d'avant, et ce qu'elle ajoute.
 const S0 = { marathon: Q.simuler('marathon', 14, { recette: false }) };
-const jourDe = (prof, n) => (S0[prof] || S[prof]).paliersJour[n] || Infinity; // Infinity : jamais atteint en 14 jours
+const jourDe = (prof, n) => S[prof].paliersJour[n] || Infinity; // Infinity : jamais atteint en 14 jours
 console.log('  ' + Object.keys(S).map((k) => `${k} : ${Q.fmt(S[k].total)} €, paliers ${JSON.stringify(S[k].paliersJour)}`).join('\n  '));
 // v6.2 (les paliers intercalés des postes) : les gains montent entre deux anciens paliers, les paliers de l'événement arrivent jusqu'à un
 // jour plus tôt (l'assidu au 12e le 9e jour au lieu du 10e ; le quotidien atteint maintenant le 11e et le 12e en toute fin)
@@ -355,9 +356,13 @@ check(Q.simuler('assidu', 14, { graine: 7 }).total === S.assidu.total, 'la simul
   const AVANT = { assidu: [1, 1, 1, 2, 2, 3, 4, 5, 6, 7, 9, 10], quotidien: [1, 1, 2, 2, 4, 5, 6, 8, 10, 12], occasionnel: [2, 2, 3, 4, 6, 8, 10, 13] }; // les jours d'avant (16 octobre)
   // v6.2 : les paliers intercalés les avancent d'un jour au plus (les recettes d'après le boss et le Grossiste n'y sont pour rien : elles arrivent après le 12e)
   for (const [prof, jours] of Object.entries(AVANT)) check(jours.every((j, k) => S[prof].paliersJour[k + 1] >= j - 1 && S[prof].paliersJour[k + 1] <= j), `${prof} : les paliers 1 à ${jours.length} au plus un jour plus tôt qu’avant (${jours.map((j, k) => `${j}→${S[prof].paliersJour[k + 1]}`).join(', ')})`); }
-{ // après le boss : le très actif (8 h par jour, le 12e au 3e jour comme les plus mordus) et le marathon (sans la recette du jour : S0)
-  S.tresactif = Q.simuler('tresactif', 14); S0.tresactif = Q.simuler('tresactif', 14, { recette: false }); const TA = S0.tresactif, T = TA.paliersJour, jours = [12, 13, 14, 15, 16, 17, 18, 19].map((n) => T[n] || Infinity);
-  console.log(`  très actif : ${Q.fmt(TA.total)} €, paliers ${JSON.stringify(T)} (sans la recette du jour ; avec : ${Q.fmt(S.tresactif.total)} €, paliers ${JSON.stringify(S.tresactif.paliersJour)})`);
+{ // qui joue aussi la recette du jour sans être un marathonien (recette: true : une fournée relancée 5 s après sa sortie pour l'assidu, 10 s
+  // pour l'occasionnel) : les paliers au plus un jour plus tôt, au plus un de plus, au tout dernier jour (l'occasionnel touche le 9e le 14e)
+  for (const prof of ['assidu', 'occasionnel']) { const a = S[prof].paliersJour, r = Q.simuler(prof, 14, { recette: true }), b = r.paliersJour, ks = Object.keys(a).map(Number), plus = Object.keys(b).map(Number).filter((n) => !a[n]);
+    check(ks.every((n) => b[n] >= a[n] - 1 && b[n] <= a[n]) && plus.length <= 1 && plus.every((n) => b[n] >= 13), `${prof}, la recette du jour jouée aussi (${r.q.recettes.fournees} fournées, niveau ${r.q.recettes.niv}, ×${(r.total / S[prof].total).toFixed(2).replace('.', ',')}) : ${ks.filter((n) => b[n] !== a[n]).map((n) => `${n}e ${a[n]}→${b[n]}`).join(', ') || 'les mêmes jours'}${plus.length ? `, et le ${plus[0]}e le ${b[plus[0]]}e jour` : ''}`); } }
+{ // après le boss : le très actif (8 h par jour, le 12e au 3e jour comme les plus mordus) et le marathon, la recette du jour jouée au mieux
+  S.tresactif = Q.simuler('tresactif', 14); S0.tresactif = Q.simuler('tresactif', 14, { recette: false }); const TA = S.tresactif, T = TA.paliersJour, jours = [12, 13, 14, 15, 16, 17, 18, 19].map((n) => T[n] || Infinity);
+  console.log(`  très actif : ${Q.fmt(TA.total)} €, paliers ${JSON.stringify(T)}, ${TA.q.recettes.fournees} fournées de la recette du jour (sans elle : ${Q.fmt(S0.tresactif.total)} €, paliers ${JSON.stringify(S0.tresactif.paliersJour)})`);
   check(T[12] === 3, `le très actif franchit le 12e le ${T[12]}e jour (comme le joueur du 15 octobre)`);
   const ecarts = jours.slice(1).filter(Number.isFinite).map((j, k) => j - jours[k]);
   check(T[18] <= 12 && T[19] <= 14 && ecarts.length >= 6 && ecarts.every((e) => e >= 0 && e <= 2), `puis un palier bonus tous les jour ou deux : 13e le ${T[13]}e jour, 14e le ${T[14]}e, 15e le ${T[15]}e, 16e le ${T[16]}e, 17e le ${T[17]}e, 18e le ${T[18]}e, 19e le ${T[19]}e (écarts ${ecarts.join(', ')})`);
@@ -368,7 +373,7 @@ check(Q.simuler('assidu', 14, { graine: 7 }).total === S.assidu.total, 'la simul
   // v6.4 (le sirop ×4, le cristal ×2) : le très actif ne bouge toujours pas (13e le 3e jour, 16e le 5e, 19e le 8e, le 20e jamais) ; le
   // marathon atteint le 20e le 6e jour (8e en v6.3), le 4e combines offertes (6e en v6.3). Bornes : 7e-14e → 5e-14e, et 5e-14e → 4e-14e.
   check(jourDe('marathon', 12) <= 2 && jourDe('marathon', 20) >= 5 && jourDe('marathon', 20) <= 14, `le marathon (24 h/24) : le 12e le ${jourDe('marathon', 12)}e jour, le 20e seulement le ${jourDe('marathon', 20)}e (visé : 5e-14e ; 8e en v6.3, 10e avant, 13e avant les paliers intercalés)`);
-  const off = Q.simuler('marathon', 14, { offertes: true, recette: false });
+  const off = Q.simuler('marathon', 14, { offertes: true });
   check(off.paliersJour[20] >= 4 && off.paliersJour[20] <= 14, `même avec toutes les combines offertes dès le 12e : le 20e le ${off.paliersJour[20]}e jour (visé : 4e-14e ; 6e en v6.3, 10e avant)`);
   // le temps d'un niveau (le moins cher : son prix, remise comprise, ÷ le taux de la Planque ouverte) : 42 min au 7e jour et 66 min au 10e avant
   const tNiv = (d) => Math.min(...d.niv.map((n, i) => (n > 0 ? Q.coutNiveau(i, n) * (d.remise || 1) / d.taux : Infinity))) / 60, t7 = tNiv(TA.parJour[6]), t10 = tNiv(TA.parJour[9]);
@@ -404,21 +409,27 @@ check(Q.simuler('assidu', 14, { graine: 7 }).total === S.assidu.total, 'la simul
   check(part[6] >= 0.3 && part[7] >= 0.1 && part[6] + part[7] <= 0.7,
     `montées, elles font ${((part[6] + part[7]) * 100).toFixed(0)} % de ses gains au dernier jour (sirop ${(part[6] * 100).toFixed(1).replace('.', ',')} %, cristal ${(part[7] * 100).toFixed(1).replace('.', ',')} %, Spécialité ${(part[5] * 100).toFixed(0)} % ; 30 % en v6.3, 2,5 % avant)`);
   check(jourDe('assidu', 13) >= 10 && !S.quotidien.paliersJour[13], `l’assidu atteint le 13e vers la fin (13e jour avant les paliers intercalés) (${jourDe('assidu', 13) === Infinity ? 'jamais' : jourDe('assidu', 13) + 'e jour'}) ; le quotidien, jamais`);
-  S0.offertes = off; }
+  S.offertes = off; }
 // l'enveloppe du serveur : la table du SQL (log10 des billets par jour depuis le début) reste au-dessus du marathon 24 h/24, avec marge
 const SQL = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement.sql'), 'utf8');
 const mTable = /fournil_quartier_table\(\)[\s\S]*?select '\{([-\d.,]+)\}'::double precision\[\]/.exec(SQL);
 const table = mTable ? mTable[1].split(',').map(Number) : null;
 check(table && table.length === 15, `le SQL porte la table de l’enveloppe du quartier, un log10 par jour de 0 à 14 (${table ? table.join(', ') : 'absente'})`);
 if (table) {
-  const marge = S.marathon.parJour.map((d, k) => table[k + 1] - Math.log10(d.total));
-  check(marge.every((m) => m >= Math.log10(2)) && table.every((v, k) => k === 0 || v >= table[k - 1]), `au-dessus du marathon d’au moins ×2 chaque jour (marges ×${marge.map((m) => Math.pow(10, m).toFixed(1)).join(', ×')}), et croissante`);
-  check(marge.every((m) => m <= 1.3), 'mais pas plus de ×20 : un tricheur ne s’envole pas');
+  // la formule du serveur (fournil_quartier_borne) : j, les jours depuis l'ouverture (le 13 à midi), et le log10 interpolé entre t[k] et
+  // t[k + 1] ; contrôlée minute par minute sur la trace des simulations (x.t : des jours depuis l'ouverture, le même axe), comme au Manoir
+  const borne = (t) => { const j = Math.min(t, 14), k = Math.floor(j); return k >= 14 ? table[14] : table[k] + (table[k + 1] - table[k]) * (j - k); };
+  check(table.every((v, k) => k === 0 || v >= table[k - 1]), 'une table croissante');
   const combines = Object.keys(S.marathon.q.ameliorations).filter((id) => COMB.some((a) => a.id === id));
   check(combines.length >= 2, `le marathon achète les combines d’après le boss (${combines.join(', ')})`);
-  for (const g of [7, 1, 2]) { // le pire cas : toutes les combines offertes dès le 12e (sans les payer), trois hasards
-    const o = Q.simuler('marathon', 14, { graine: g, offertes: true }), m = o.parJour.map((d, k) => table[k + 1] - Math.log10(d.total)); if (g === 7) S.offertes = o;
-    check(m.every((x) => x >= Math.log10(2)), `combines offertes dès le 12e (graine ${g}), la recette du jour au mieux : toujours ×2 sous l’enveloppe (au plus juste ×${Math.pow(10, Math.min(...m)).toFixed(2)}) — la table v6.5 de fournil_quartier_table()`); }
+  let minM = Infinity, maxM = -Infinity, tMin = 0, tMax = 0;
+  for (const g of [7, 1, 2]) for (const offertes of [false, true]) { // le pire cas : toutes les combines offertes dès le 12e (sans les payer), trois hasards
+    const o = g === 7 && !offertes ? S.marathon : g === 7 ? S.offertes : Q.simuler('marathon', 14, { graine: g, offertes });
+    let mn = Infinity; for (const x of o.trace) if (x.total > 0) { const m = borne(x.t) - Math.log10(x.total); if (m < mn) mn = m; if (m < minM) { minM = m; tMin = x.t; } if (x.t > 0.5 && m > maxM) { maxM = m; tMax = x.t; } }
+    check(mn >= Math.log10(2), `le marathon 24 h/24 (graine ${g}${offertes ? ', combines offertes dès le 12e' : ''}, la recette du jour au mieux), minute par minute : toujours ×2 sous l’enveloppe (au plus juste ×${Math.pow(10, mn).toFixed(2)})`); }
+  check(minM >= Math.log10(2.2) - 1e-9, `au plus juste ×${Math.pow(10, minM).toFixed(2)} (t = ${tMin.toFixed(2)} j) : la table v6.5 de fournil_quartier_table() garde ×2,2`);
+  check(maxM <= Math.log10(20), `mais pas plus de ×20 après la première demi-journée (×${Math.pow(10, maxM).toFixed(1)} au plus large, t = ${tMax.toFixed(2)} j) : un tricheur ne s’envole pas`);
+  check(S.assidu.trace.every((x) => x.total === 0 || borne(x.t) - Math.log10(x.total) >= 1), 'un assidu honnête est toujours au moins dix fois sous l’enveloppe');
   // la version 2 des récompenses ne touche à rien de ce que rapporte la Planque : le marathon gagne EXACTEMENT les mêmes billets qu'avant
   // (les totaux de la simulation d'avant, graine 7) ; donc les mêmes marges : ×3.11 … ×2.36 jour par jour, ×2.13 au plus juste combines offertes
   // avec les recettes d'après le boss et le Grossiste (16 octobre) : les recettes repartent du bas et prennent leur part des billets (le
@@ -432,13 +443,16 @@ if (table) {
   // v6.4 (le sirop ×4, le cristal ×2) : 844 Bd, 1 154 Bd combines offertes ; la table élargie de même (fournil-classement.sql) : du 2e au
   // 14e jour, +0,15 à +0,4 en log10 ({12.5,14.5,16.4,…,18.05} → {12.5,14.5,16.55,…,18.45}) ; au plus juste ×2,21, au plus large ×6,4.
   // v6.5 (la recette du jour, src/activites.js) : sans elle, le marathon gagne EXACTEMENT les mêmes billets qu'en v6.4 (844 Bd, 1 154 Bd
-  // combines offertes) ; jouée au mieux (une fournée relancée dès qu'elle sort, le niveau 10 vers le 2e jour), ×5,9 : 5 Tn, 5,5 Tn combines
-  // offertes. La table élargie de même (scratchpad lot5/tables.js : la valeur k = max(v6.4, log10 du marathon le plus haut des six
-  // simulations à la fin du k-ième jour + log10 2,2), arrondie au 0,05 supérieur ; le 1er jour ne bouge pas, la recette ouvre le lendemain) :
-  // {12.5,14.5,16.55,…,18.45} → {12.5,14.5,17.2,…,19.1} ; au plus juste ×2,23, au plus large ×4,1 (×2,21 et ×6,4 en v6.4).
+  // combines offertes) ; jouée au mieux (une fournée relancée dès qu'elle sort, à la part 0,04), ×1,13 : 950 Bd, 1,27 Tn combines offertes. La table
+  // est désormais tirée, et contrôlée, sur l'axe du serveur, minute par minute (avant : la valeur k contre le total à minuit de Paris, une
+  // demi-journée plus tôt que l'heure où le serveur lit t[k] ; le marathon passait en fait au-dessus de la borne pendant le 2e jour de Paris,
+  // ×0,06 vers t = 0,9 j, dès la v6.4). scratchpad lot5/tables.js : t[k] = max(v6.4, log10 du plus haut total des six simulations à t ≤ k j
+  // + log10 2,2), arrondi au 0,05 supérieur, croissante, relevée là où l'interpolation passait sous ×2,2 :
+  // {12.5,14.5,16.55,17.15,…,18.45} → {12.5,16.7,16.95,17.35,…,18.45} ; au plus juste ×2,21 (vers t = 0,35 j), au plus large ×15 (à t = 1 j, le coude du 2e jour ; ×4,1 ensuite) après la première demi-journée.
+  S0.offertes = Q.simuler('marathon', 14, { offertes: true, recette: false });
   check(Math.abs(S0.marathon.total / 8.4376e17 - 1) < 0.01 && Math.abs(S0.offertes.total / 1.1545e18 - 1) < 0.01, `sans la recette du jour, le marathon : ${Q.fmt(S0.marathon.total)} € (${Q.fmt(S0.offertes.total)} € combines offertes ; 279 Bd et 458 Bd en v6.3, 176 Bd et 194 Bd avant, 119 Bd et 141 Bd sans les paliers intercalés)`);
-  check(Math.abs(S.marathon.total / 4.98e18 - 1) < 0.05 && Math.abs(S.offertes.total / 5.47e18 - 1) < 0.05, `avec elle, jouée au mieux : ${Q.fmt(S.marathon.total)} € (${Q.fmt(S.offertes.total)} € combines offertes) : ×${(S.marathon.total / S0.marathon.total).toFixed(1).replace('.', ',')}`);
-  console.log(`        marges du marathon, jour par jour : ×${S.marathon.parJour.map((d, k) => Math.pow(10, table[k + 1] - Math.log10(d.total)).toFixed(2)).join(' ×')}`);
+  check(Math.abs(S.marathon.total / 9.5036e17 - 1) < 0.02 && Math.abs(S.offertes.total / 1.2656e18 - 1) < 0.02, `avec elle, jouée au mieux : ${Q.fmt(S.marathon.total)} € (${Q.fmt(S.offertes.total)} € combines offertes) : ×${(S.marathon.total / S0.marathon.total).toFixed(2).replace('.', ',')}`);
+  console.log(`        marges du marathon à minuit de Paris (t = k + 0,5 j) : ×${S.marathon.parJour.map((d, k) => Math.pow(10, borne(k + 0.5) - Math.log10(d.total)).toFixed(2)).join(' ×')}`);
 }
 
 console.log('── la réserve de boosts de la boulangerie (src/game.js) ──');

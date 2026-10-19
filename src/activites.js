@@ -178,7 +178,7 @@
     ],
     recetteDeco: null,
   };
-  // ═══ 4. La recette du jour : réglages communs (le modèle : SAISON de src/game.js : part 1, pas 0,1, 300 s, ×1,5 par niveau, niveau 10) ═══
+  // ═══ 4. La recette du jour : réglages communs (le modèle : SAISON de src/game.js : pas 0,1, ×1,5 par niveau, niveau 10 ; la part et le prix plus bas) ═══
   // Chaque jour de Paris, une des sept recettes de la fiche est servie, la même pour tous : les sept dans un ordre tiré pour chaque bloc de
   // sept jours depuis l'ouverture (R.debut ; la graine du bloc et de l'événement), jamais deux jours de suite la même. Le poste a UN niveau, commun à toutes (0 à 10),
   // gardé quand la recette change : le 1er, la préparer ; les suivants, l'améliorer ; prix : rythme × coutSec × croiss^niv (× la remise du
@@ -188,7 +188,12 @@
   // relance seul. La maîtrise compte les fournées de toutes les recettes (q.recettes.fournees) : trois étapes, chacune donnée une fois
   // (q.recettes.etapes) : des étoiles pour la boulangerie (comme une combine : q.etoiles pour le bilan, q.recettes.aVerser que l'écran
   // verse et remet à zéro) et, à la dernière, le décor de la fiche (q.decos, comme un palier). Ces étoiles ne touchent pas aux billets.
-  const RECETTE_JOUR = { part: 1, pas: 0.1, coutSec: 300, croiss: 1.5, nivMax: 10, tempsMin: 20, tempsMax: 90,
+  // La part : 0,04, et non 1 comme la saison. Ici, la présence (boostMult) multiplie déjà les ventes par 6 : à la part 1, la recette jouée
+  // sans arrêt triplait les gains de la session (×5,9 en quatorze jours de marathon ; le très actif au 20e palier le 7e jour). À 0,04, elle
+  // ajoute ~8 % (0,04 × 1,9 × 6 = 0,46 rythme, contre ~6 pour les postes) : le 20e reste hors de portée du très actif (106 Bd pour 110 Bd
+  // au Quartier ; 95,9 Bd sans elle). Ce qu'elle paie surtout, c'est la maîtrise (les étoiles, le décor). Le prix suit la part (coutSec :
+  // 300 × 0,04 = 12 s du rythme) : un niveau se rembourse en autant de fournées qu'à la saison.
+  const RECETTE_JOUR = { part: 0.04, pas: 0.1, coutSec: 12, croiss: 1.5, nivMax: 10, tempsMin: 20, tempsMax: 90,
     etapes: [{ n: 100, etoiles: 2 }, { n: 250, etoiles: 3 }, { n: 500, etoiles: 5, deco: true }] };
   // les modèles de contrats : une statistique de q.stats, trois exigences (facile, moyen, dur) ; « vente » vise un des trois premiers produits
   const MODELES = {

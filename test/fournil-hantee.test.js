@@ -10,7 +10,8 @@
 // la pause des coups de pouce pendant une courte sortie ; et, après le maître, les deux recettes de plus (gâteaux du cimetière au 13e, œufs
 // de dragon au 16e : déblocage, vieille sauvegarde à six postes), le Marché des sorcières (les niveaux à moitié prix), les Sortilèges ×3,
 // le temps par niveau du très actif et l'enveloppe qui tient. La recette du jour (src/activites.js, la 4e activité) : le marathon et le très
-// actif la jouent au mieux ; le rythme des paliers se vérifie sans elle (le réglage de l'événement), l'enveloppe avec elle (le pire cas).
+// actif la jouent au mieux, et le rythme des paliers comme l'enveloppe se vérifient avec elle (le jeu livré) ; l'assidu et l'occasionnel
+// qui la jouent aussi.
 // Lancer : TZ=Europe/Paris node test/fournil-hantee.test.js
 'use strict';
 const fs = require('fs'), path = require('path');
@@ -197,9 +198,10 @@ check(ev.n === 8 && ev.enjeu === Math.floor(q.billets * 0.05) && evS.fin - evS.d
 
 console.log('── le rythme simulé (sept jours de Paris) ──');
 const S = {}; for (const prof of ['assidu', 'quotidien', 'occasionnel', 'marathon']) S[prof] = HT.simuler(prof);
-// la recette du jour (v6.5) : le marathon et le très actif la jouent au mieux (S, l'enveloppe) ; le rythme des paliers se règle sans elle (S0)
+// la recette du jour (v6.5) : le marathon et le très actif la jouent au mieux, d'office ; le rythme des paliers se vérifie AVEC elle (S, le
+// jeu livré). S0 (sans elle) ne sert qu'à comparer : les totaux d'avant, et ce qu'elle ajoute.
 const S0 = { marathon: HT.simuler('marathon', 7, { recette: false }) };
-const jourDe = (prof, k) => (S0[prof] || S[prof]).paliersJour[k] || Infinity;
+const jourDe = (prof, k) => S[prof].paliersJour[k] || Infinity;
 const haut = (s) => Math.max(0, ...Object.keys(s.paliersJour).map(Number));
 console.log('  ' + Object.keys(S).map((k) => `${k} : ${HT.fmtEur(S[k].total)}, paliers ${JSON.stringify(S[k].paliersJour)}`).join('\n  '));
 // v6.2 (les paliers intercalés des postes) : les gains montent entre deux anciens paliers, les paliers arrivent jusqu'à un jour plus tôt
@@ -216,9 +218,13 @@ check(HT.simuler('assidu', 7, { graine: 7 }).total === S.assidu.total, 'la simul
   for (const [prof, jours] of Object.entries(AVANT)) check(jours.every((j, k) => S[prof].paliersJour[k + 1] >= j - 1 && S[prof].paliersJour[k + 1] <= j), `${prof} : les paliers 1 à ${jours.length} au plus un jour plus tôt qu’avant (${jours.map((j, k) => `${j}→${S[prof].paliersJour[k + 1]}`).join(', ')})`); }
 { const res = []; let ok = true; for (let g = 1; g <= 8; g++) { const s = HT.simuler('assidu', 7, { graine: g }), j = s.paliersJour[12] || Infinity; res.push(j); if (!(j >= 5 && j <= 7)) ok = false; }
   check(ok, `et quel que soit le hasard des coups de pouce (8 graines) : palier 12 les jours ${res.join(', ')}`); }
-{ // après le maître : le très actif (8 h par jour) et le marathon
-  S.tresactif = HT.simuler('tresactif'); S0.tresactif = HT.simuler('tresactif', 7, { recette: false }); const TA = S0.tresactif, T = TA.paliersJour;
-  console.log(`  très actif : ${HT.fmtEur(TA.total)}, paliers ${JSON.stringify(T)} (sans la recette du jour ; avec : ${HT.fmtEur(S.tresactif.total)}, paliers ${JSON.stringify(S.tresactif.paliersJour)})`);
+{ // qui joue aussi la recette du jour sans être un marathonien (recette: true : une fournée relancée 5 s après sa sortie pour l'assidu, 10 s
+  // pour l'occasionnel) : les paliers au plus un jour plus tôt, au plus un de plus, au tout dernier jour
+  for (const prof of ['assidu', 'occasionnel']) { const a = S[prof].paliersJour, r = HT.simuler(prof, 7, { recette: true }), b = r.paliersJour, ks = Object.keys(a).map(Number), plus = Object.keys(b).map(Number).filter((n) => !a[n]);
+    check(ks.every((n) => b[n] >= a[n] - 1 && b[n] <= a[n]) && plus.length <= 1 && plus.every((n) => b[n] >= 7), `${prof}, la recette du jour jouée aussi (${r.q.recettes.fournees} fournées, niveau ${r.q.recettes.niv}, ×${(r.total / S[prof].total).toFixed(2).replace('.', ',')}) : ${ks.filter((n) => b[n] !== a[n]).map((n) => `${n}e ${a[n]}→${b[n]}`).join(', ') || 'les mêmes jours'}${plus.length ? `, et le ${plus[0]}e le ${b[plus[0]]}e jour` : ''}`); } }
+{ // après le maître : le très actif (8 h par jour) et le marathon (la recette du jour au mieux)
+  S.tresactif = HT.simuler('tresactif'); S0.tresactif = HT.simuler('tresactif', 7, { recette: false }); const TA = S.tresactif, T = TA.paliersJour;
+  console.log(`  très actif : ${HT.fmtEur(TA.total)}, paliers ${JSON.stringify(T)}, ${TA.q.recettes.fournees} fournées de la recette du jour (sans elle : ${HT.fmtEur(S0.tresactif.total)}, paliers ${JSON.stringify(S0.tresactif.paliersJour)})`);
   const jours = [12, 13, 14, 15, 16, 17, 18].map((k) => T[k] || Infinity), ecarts = jours.slice(1).map((j, k) => j - jours[k]);
   check(T[12] <= 2 && T[18] <= 7 && ecarts.every((e) => e >= 0 && e <= 2) && !T[20], `le très actif : le 12e le ${T[12]}e jour, puis un bonus par jour ou presque (13e le ${T[13]}e, 15e le ${T[15]}e, 16e le ${T[16]}e, 17e le ${T[17]}e, 18e le ${T[18]}e) ; le 20e reste aux marathoniens`);
   // v6.3 (les gâteaux et les œufs en vraies recettes) : le très actif ne bouge presque pas (13e le 2e jour, 16e le 4e, comme avant ; il touche
@@ -287,13 +293,13 @@ if (mEvt) {
   const off = HT.simuler('marathon', 7, { offertes: true, recette: false }).total;
   // v6.4 (les gâteaux ×4, les œufs ×1,5) : 396 Bd, 619 Bd Sortilèges offerts ; la table de fournil_evts() élargie de même : du pas 3 (18 h)
   // au dernier, +0,1 à +0,35 en log10 ({…,16.1,16.35,…,17.8} → {…,16.2,16.55,…,18.15}) ; ×2,14 au plus juste, ×8,4 au plus large après six heures.
-  // v6.5 (la recette du jour, src/activites.js) : sans elle, le marathon gagne EXACTEMENT les mêmes bonbons qu'en v6.4 ; jouée au mieux,
-  // ×6,7 : 2,7 Tn, 3 Tn Sortilèges offerts. La table de fournil_evts() élargie de même (scratchpad lot5/tables.js : à chaque pas de 6 h,
-  // max(v6.4, log10 du marathon le plus haut des huit simulations + log10 2,2), arrondi au 0,05 supérieur, relevé là où l'interpolation
-  // passait sous ×2,2 ; la 2e valeur au moins 14,2) : {11.65,14.05,16.05,16.2,…,18.15} → {11.65,14.2,16.05,16.6,…,18.85} ; ×2,20 au plus
-  // juste, ×8,3 au plus large après six heures (×2,14 et ×8,4 en v6.4).
+  // v6.5 (la recette du jour, src/activites.js) : sans elle, le marathon gagne EXACTEMENT les mêmes bonbons qu'en v6.4 ; jouée au mieux (à
+  // la part 0,04), ×1,15 : 455 Bd, 680 Bd Sortilèges offerts. La table de fournil_evts() élargie de même (scratchpad lot5/tables.js : à
+  // chaque pas de 6 h, max(v6.4, log10 du marathon le plus haut des huit simulations + log10 2,2), arrondi au 0,05 supérieur, relevé là où
+  // l'interpolation passait sous ×2,2 ; la 2e valeur au moins 14,2) : {11.65,14.05,16.05,16.2,…,18.15} → {11.65,14.2,16.05,16.25,…,18.2} ;
+  // ×2,21 au plus juste, ×8,3 au plus large après six heures (la v6.4 tombait à ×2,02 avec la recette).
   check(Math.abs(S0.marathon.total / 3.9649e17 - 1) < 0.01 && Math.abs(off / 6.1894e17 - 1) < 0.01, `sans la recette du jour, le marathon : ${HT.fmt(S0.marathon.total)} (${HT.fmt(off)} Sortilèges offerts ; 148 Bd et 284 Bd en v6.3, 88 Bd et 97,8 Bd avant, 76,5 Bd et 88,6 Bd sans les paliers intercalés ni les recettes d’après le maître)`);
-  check(Math.abs(S.marathon.total / 2.65e18 - 1) < 0.05, `avec elle, jouée au mieux : ${HT.fmt(S.marathon.total)} (×${(S.marathon.total / S0.marathon.total).toFixed(1).replace('.', ',')})`);
+  check(Math.abs(S.marathon.total / 4.5509e17 - 1) < 0.02, `avec elle, jouée au mieux : ${HT.fmt(S.marathon.total)} (×${(S.marathon.total / S0.marathon.total).toFixed(2).replace('.', ',')})`);
 }
 
 console.log('── la longévité : sept jours de marathon, une sauvegarde relue en route, la boulangerie récompensée ──');

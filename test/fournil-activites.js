@@ -126,11 +126,11 @@ module.exports = function verifierActivites(M, check, o) {
     check(a === M.recetteDuJour(J2 + 3 * H) && a === M.recetteDuJour(M.dayKey(J2)) && M.recetteDemain(J2) === M.recetteDuJour(J2 + JOUR) && M.recetteDuJour(M.parisMs(...M.dayKey(J2).split('-').map(Number), 0) + 60e3) === a, `une recette par jour de Paris, la même de minuit à minuit (le ${M.dayKey(J2)} : « ${a.nom} », demain « ${M.recetteDemain(J2).nom} »)`);
     check(suite.every((x, k) => k === 0 || x !== suite[k - 1]) && new Set(suite.slice(0, 14)).size === 7, `jamais deux jours de suite la même, toutes servies en deux semaines (${suite.slice(0, 8).join(', ')}…)`);
     const { q: q1 } = prep(J1); check(!M.preparerRecette(q1, J1).ok && M.preparerRecette(q1, J1).ferme && !M.etatRecette(q1, J1).ouverte, 'le jour de l’ouverture : la cuisine ouvre le lendemain (comme les autres activités)');
-    // les prix et les niveaux : un niveau commun, de 0 à 10 ; le prix de la saison (rythme × 300 s × 1,5^niv, remise comprise)
+    // les prix et les niveaux : un niveau commun, de 0 à 10 ; le prix de la saison, à la part près (rythme × 12 s × 1,5^niv, remise comprise)
     const { q } = prep(J2), rythme = M.rythme(q), b0 = q.billets;
     check(M.etatRecette(q, J2).niv === 0 && !M.lancerRecette(q, J2).ok && M.lancerRecette(q, J2).niv, 'niveau 0 : rien à cuire avant de la préparer');
     const p0 = M.prixRecette(q); let r = M.preparerRecette(q, J2);
-    check(p0 === M.arrondi(rythme * RJ.coutSec) && r.ok && r.niv === 1 && q.billets === b0 - p0, `préparer (niveau 1) : ${M.fmt(p0)}, ${RJ.coutSec / 60} min du rythme`);
+    check(p0 === M.arrondi(rythme * RJ.coutSec) && r.ok && r.niv === 1 && q.billets === b0 - p0, `préparer (niveau 1) : ${M.fmt(p0)}, ${RJ.coutSec} s du rythme`);
     const p1 = M.prixRecette(q); check(p1 === M.arrondi(rythme * RJ.coutSec * RJ.croiss), `améliorer au niveau 2 : ${M.fmt(p1)} (×${String(RJ.croiss).replace(".", ",")})`);
     for (let k = 1; k < RJ.nivMax; k++) M.preparerRecette(q, J2);
     check(q.recettes.niv === RJ.nivMax && !M.preparerRecette(q, J2).ok && M.preparerRecette(q, J2).max && M.etatRecette(q, J2).max, `jusqu’au niveau ${RJ.nivMax}, pas plus`);
@@ -140,18 +140,18 @@ module.exports = function verifierActivites(M, check, o) {
     // une fournée : à la main, le gain fixé au lancement, sortie à la fin seulement
     const rj = M.recetteDuJour(J2), g = rythme * rj.temps * RJ.part * (1 + RJ.pas * (RJ.nivMax - 1)) * M.boostMult(q);
     r = M.lancerRecette(q, J2);
-    check(r.ok && q.recettes.four.gain === g && q.recettes.four.fin === J2 + rj.temps * 1000 && Math.abs(g / rj.temps / (M.rythme(q) * M.boostMult(q)) - 1.9) < 1e-9, `une fournée de « ${rj.nom} » au niveau 10 : +${M.fmt(g)} en ${rj.temps} s (1,9 × le rythme en présence)`);
+    check(r.ok && q.recettes.four.gain === g && q.recettes.four.fin === J2 + rj.temps * 1000 && Math.abs(g / rj.temps / (M.rythme(q) * M.boostMult(q)) - 1.9 * RJ.part) < 1e-9, `une fournée de « ${rj.nom} » au niveau 10 : +${M.fmt(g)} en ${rj.temps} s (1,9 × la part, ${String(RJ.part).replace('.', ',')}, × le rythme en présence)`);
     check(!M.lancerRecette(q, J2 + 1000).ok && M.lancerRecette(q, J2 + 1000).occupe && M.sortirRecette(q, J2 + rj.temps * 1000 - 1) === null && M.sortirRecette(q, J2 - H) === null, 'une seule au four ; pas avant la fin (ni avec une heure qui recule)');
     let t0 = q.total; r = M.sortirRecette(q, J2 + rj.temps * 1000);
     check(r && r.gain === g && q.total === t0 + g && q.recettes.fournees === 1 && q.recettes.four === null && M.sortirRecette(q, J2 + H) === null, `sortie : +${M.fmt(g)}, une fournée de plus, une seule fois`);
     { const qs = prep(J2).q; for (let k = 0; k < 3; k++) M.preparerRecette(qs, J2); M.lancerEvenement(qs, () => 0, 'soiree'); const rs = M.lancerRecette(qs, J2);
-      check(rs.ok && Math.abs(rs.four.gain / (M.rythme(qs) * rj.temps * 1.2 * M.PRESENCE) - M.EVENEMENTS.soiree.mult) < 1e-9, `lancée pendant la soirée : ×${M.EVENEMENTS.soiree.mult} (boostMult), au niveau 3 : ×1,2`); }
+      check(rs.ok && Math.abs(rs.four.gain / (M.rythme(qs) * rj.temps * RJ.part * 1.2 * M.PRESENCE) - M.EVENEMENTS.soiree.mult) < 1e-9, `lancée pendant la soirée : ×${M.EVENEMENTS.soiree.mult} (boostMult), au niveau 3 : ×1,2`); }
     // le niveau reste quand la recette change ; le lendemain, une autre recette
     const demain = J2 + JOUR, rd = M.recetteDuJour(demain), ed = M.etatRecette(q, demain);
     check(rd !== rj && ed.r === rd && ed.niv === RJ.nivMax && M.lancerRecette(q, demain).ok && q.recettes.four.id === rd.id, `le lendemain, « ${rd.nom} » : le niveau ${ed.niv} est gardé`);
     // l'absence : la fournée au four sort, rien ne se relance
     q.lastSeen = demain; t0 = q.total; const abs = M.absence(q, demain + 2 * H);
-    check(q.recettes.fournees === 2 && q.recettes.four === null && abs.detail.some((x) => x.i === -1 && x.nom === rd.nom) && q.total - t0 === abs.total, `pendant l’absence, la fournée sort (comptée dans l’absence : ${abs.detail.filter((x) => x.i === -1).map((x) => M.fmt(x.m)).join('')}), rien ne se relance`);
+    check(q.recettes.fournees === 2 && q.recettes.four === null && abs.detail.some((x) => x.i === -1 && x.nom === rd.nom) && Math.abs(q.total - t0 - abs.total) <= 1e-9 * q.total, `pendant l’absence, la fournée sort (comptée dans l’absence : ${abs.detail.filter((x) => x.i === -1).map((x) => M.fmt(x.m)).join('')}), rien ne se relance`);
     // juste avant la fermeture : refusée si elle sortirait après
     const fin = M.FIN - 10e3, qf = prep(fin).q; M.preparerRecette(qf, fin);
     check(!M.lancerRecette(qf, fin).ok && M.lancerRecette(qf, fin).tard && !M.lancerRecette(qf, M.FIN + 1).ok && !M.preparerRecette(qf, M.FIN + 1).ok, 'dix secondes avant la fermeture : refusée (elle sortirait après) ; fermé, plus rien');
