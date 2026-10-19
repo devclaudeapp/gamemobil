@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 // Le Fournil : le classement en ligne éprouvé POUR DE VRAI contre le projet Supabase du jeu (sur GitHub Actions :
 // le conteneur de Claude ne peut pas joindre Supabase). Node 22, fetch, la clé PUBLIQUE seulement.
+//  0 bis. version 6.5 (supabase/fournil-classement-v65.sql : les places de la semaine jusqu'au 15e, les pourboires et l'objectif accusés par
+//     le téléphone) : si elle est collée, fournil_recompenses rend places (rangs 1 à 15, un joueur de test n'en a pas encore), les
+//     pourboires reçus reviennent tant qu'ils ne sont pas accusés, fournil_vu_objectif répond ; sinon, le test le dit clairement
+//     (« v6.5 pas encore collée ») et joue le reste comme en v6 ;
 //  0. version 6 (les copains et les notifications) : si elle est installée, un scénario de plus (photo et boutique, pourboire, objectif
 //     commun, abonnement d'un faux appareil, planifier, essai, désabonnement ; les fonctions de la fonction d'envoi refusées à la clé
 //     publique) ; si c'est encore la version 5, le test le signale (« colle la v6 ») et joue le reste SANS échouer ;
@@ -16,9 +20,9 @@
 //     plafonnés par le barème, un ancien téléphone sans points encore accepté,
 //     fortune qui baisse puis remonte (« Cette semaine » ne se gonfle pas), récompenses (les siennes, celles d'un
 //     inconnu, le jeton d'un autre), un saut de fortune absurde accepté mais PLAFONNÉ, une arrivée bricolée à 7e23 € (échelle plafonnée à 1e20 €), retrait ;
-//     la LIMITE DES ÉVÉNEMENTS (version 6.4) : aucune fonction publique ne la rend, on la lit dans le plafond de 1e24 billets (et
+//     la LIMITE DES ÉVÉNEMENTS (version 6.5) : aucune fonction publique ne la rend, on la lit dans le plafond de 1e24 billets (et
 //     1e24 bonbons pendant la Maison hantée), à l'heure du serveur (fournil_heure juste avant et juste après) : elle doit être celle
-//     de supabase/fournil-classement-v64.sql ; encore celle de la v6.3 (ou de la v6.2, ou de la v6), le test le dit (« v6.4 pas
+//     de supabase/fournil-classement-v65.sql ; encore celle de la v6.4 (ou de la v6.3, de la v6.2, de la v6), le test le dit (« v6.5 pas
 //     encore collée ») et échoue ;
 //  6. la limite d'inscriptions par source (10 par heure) : quelques joueurs de test de plus, jusqu'au premier « trop_vite ».
 //     S'il ne vient jamais, Supabase ne transmet pas l'en-tête cf-connecting-ip : seuls les plafonds communs protègent
@@ -58,20 +62,21 @@ function lundiParis(ms = Date.now()) {
   return new Date(Date.UTC(+p.year, +p.month - 1, +p.day - decalage)).toISOString().slice(0, 10);
 }
 
-// ─── la limite des événements : celle de la version 6.4 (lue dans supabase/fournil-classement-v64.sql), et celles d'avant
-// (la 6.3 et la 6.2, lues dans supabase/fournil-classement-v63.sql et -v62.sql ; la 6) ───
+// ─── la limite des événements : celle de la version 6.5 (lue dans supabase/fournil-classement-v65.sql), et celles d'avant
+// (la 6.4, la 6.3 et la 6.2, lues dans supabase/fournil-classement-v64.sql, -v63.sql et -v62.sql ; la 6) ───
 // une table de log10 à pas fixe depuis l'ouverture, interpolée (le miroir de fournil_quartier_borne et de fournil_evt_borne)
+const VERSIONS = ['v65', 'v64', 'v63', 'v62', 'v6'], NOM_V = { v65: 'la v6.5', v64: 'la v6.4', v63: 'la v6.3', v62: 'la v6.2', v6: 'la v6' };
 const LIMITES = (() => {
   const texte = (f) => { try { return fs.readFileSync(path.join(__dirname, '..', 'supabase', f), 'utf8'); } catch (e) { return ''; /* rien : vérifié plus bas */ } };
-  const t64 = texte('fournil-classement-v64.sql'), t63 = texte('fournil-classement-v63.sql'), t62 = texte('fournil-classement-v62.sql');
+  const t65 = texte('fournil-classement-v65.sql'), t64 = texte('fournil-classement-v64.sql'), t63 = texte('fournil-classement-v63.sql'), t62 = texte('fournil-classement-v62.sql');
   const lire = (t, re) => { const m = re.exec(t); return m ? m[1].slice(1, -1).split(',').map(Number) : null; };
   const RQ = /function public\.fournil_quartier_table\(\)[^;]*?'(\{[-\d.,]+\})'::double precision\[\]/, RH = /function public\.fournil_evts\(\)[\s\S]*?'hantee'::text[^;]*?'(\{[-\d.,]+\})'::double precision\[\]/;
   return {
     quartier: { debut: Date.parse('2026-10-13T12:00:00+02:00'), fin: Date.parse('2026-10-27T12:00:00+01:00'), pas: 86400e3,
-      v64: lire(t64, RQ), v63: lire(t63, RQ), v62: lire(t62, RQ),
+      v65: lire(t65, RQ), v64: lire(t64, RQ), v63: lire(t63, RQ), v62: lire(t62, RQ),
       v6: [12.5, 14.4, 16.1, 16.5, 16.7, 16.85, 16.95, 17.05, 17.15, 17.2, 17.3, 17.35, 17.4, 17.45, 17.5] },
     hantee: { debut: Date.parse('2026-10-27T12:00:00+01:00'), fin: Date.parse('2026-11-02T20:00:00+01:00'), pas: 6 * 3600e3,
-      v64: lire(t64, RH), v63: lire(t63, RH), v62: lire(t62, RH),
+      v65: lire(t65, RH), v64: lire(t64, RH), v63: lire(t63, RH), v62: lire(t62, RH),
       v6: [11.65, 13.8, 15.25, 15.8, 16.05, 16.2, 16.35, 16.45, 16.55, 16.65, 16.75, 16.8, 16.9, 16.95, 17, 17, 17.05, 17.1, 17.15, 17.15, 17.2, 17.2, 17.25, 17.25, 17.3, 17.3, 17.3] },
   };
 })();
@@ -80,30 +85,30 @@ function limite(ev, tab, ms) {
   const j = Math.min((Math.min(ms, ev.fin) - ev.debut) / ev.pas, tab.length - 1), k = Math.floor(j);
   return k >= tab.length - 1 ? Math.pow(10, tab[tab.length - 1]) : Math.pow(10, tab[k] + (tab[k + 1] - tab[k]) * (j - k));
 }
-// le score plafonné rendu par fournil_publier (1e24 envoyé) est-il la limite de la v6.4, entre deux heures du serveur (ms) ?
-// Sinon, celle d'une version d'avant (6.3, 6.2 ou 6) : le test le dit (« v6.4 pas encore collée ») et échoue.
+// le score plafonné rendu par fournil_publier (1e24 envoyé) est-il la limite de la v6.5, entre deux heures du serveur (ms) ?
+// Sinon, celle d'une version d'avant (6.4, 6.3, 6.2 ou 6) : le test le dit (« v6.5 pas encore collée ») et échoue.
 let limiteConclusion = '';
 function verifierLimite(nom, titre, valeur, msAvant, msApres) {
   const ev = LIMITES[nom], dans = (x, p) => x >= p[0] * (1 - 1e-9) && x <= p[1] * (1 + 1e-9);
   const e2 = (x) => Number(x).toExponential(3), plage = (p) => (p[0] === p[1] ? e2(p[0]) : `${e2(p[0])} à ${e2(p[1])}`);
-  const taille = nom === 'quartier' ? 15 : 27, NOM = { v64: 'la v6.4', v63: 'la v6.3', v62: 'la v6.2', v6: 'la v6' };
-  for (const v of ['v64', 'v63', 'v62']) if (!ev[v] || ev[v].length !== taille) return check(false, `${titre} : le tableau de la v${v.slice(1, 2)}.${v.slice(2)} est illisible dans supabase/fournil-classement-${v}.sql`);
-  const P = {}; for (const v of ['v64', 'v63', 'v62', 'v6']) P[v] = [limite(ev, ev[v], msAvant), limite(ev, ev[v], msApres)];
+  const taille = nom === 'quartier' ? 15 : 27, [neuve, ...vieilles] = VERSIONS;
+  for (const v of VERSIONS.slice(0, -1)) if (!ev[v] || ev[v].length !== taille) return check(false, `${titre} : le tableau de ${NOM_V[v]} est illisible dans supabase/fournil-classement-${v}.sql`);
+  const P = {}; for (const v of VERSIONS) P[v] = [limite(ev, ev[v], msAvant), limite(ev, ev[v], msApres)];
   const est = (v) => dans(valeur, P[v]);
-  if (est('v64')) {
-    const aussi = ['v63', 'v62', 'v6'].filter(est).map((v) => NOM[v]);
+  if (est(neuve)) {
+    const aussi = vieilles.filter(est).map((v) => NOM_V[v]);
     if (aussi.length) {
-      if (!limiteConclusion) limiteConclusion = `**Limite des événements** : à cette heure, la v6.4 et ${aussi.join(' et ')} donnent la même limite : ce test ne peut pas dire si \`supabase/fournil-classement-v64.sql\` est collée (sa requête de contrôle, en bas du SQL Editor, le dit).`;
-      log(`  ${titre} : la v6.4 et ${aussi.join(' et ')} donnent ici la même limite (${e2(valeur)}) : rien à distinguer à cette heure-ci`); return true;
+      if (!limiteConclusion) limiteConclusion = `**Limite des événements** : à cette heure, la v6.5 et ${aussi.join(' et ')} donnent la même limite : ce test ne peut pas dire si \`supabase/fournil-classement-v65.sql\` est collée (sa requête de contrôle, en bas du SQL Editor, le dit).`;
+      log(`  ${titre} : la v6.5 et ${aussi.join(' et ')} donnent ici la même limite (${e2(valeur)}) : rien à distinguer à cette heure-ci`); return true;
     }
-    return check(true, `${titre} : la limite du moment est celle de la v6.4 (${e2(valeur)}, attendu ${plage(P.v64)} ; la v6.3 aurait dit ${plage(P.v63)})`);
+    return check(true, `${titre} : la limite du moment est celle de la v6.5 (${e2(valeur)}, attendu ${plage(P[neuve])} ; la v6.4 aurait dit ${plage(P.v64)})`);
   }
-  const ancienne = ['v63', 'v62', 'v6'].find(est);
+  const ancienne = vieilles.find(est);
   if (ancienne) {
-    limiteConclusion = `**Limite des événements** : v6.4 pas encore collée (c’est encore celle de ${NOM[ancienne]}) : colle \`supabase/fournil-classement-v64.sql\` dans le SQL Editor (il ne touche à aucune donnée).`;
-    return check(false, `${titre} : v6.4 pas encore collée, c'est encore la limite de ${NOM[ancienne]} (${e2(valeur)}, la v6.4 dirait ${plage(P.v64)}) : colle supabase/fournil-classement-v64.sql dans le SQL Editor de Supabase, puis relance ce test`);
+    limiteConclusion = `**Limite des événements** : v6.5 pas encore collée (c’est encore celle de ${NOM_V[ancienne]}) : colle \`supabase/fournil-classement-v65.sql\` dans le SQL Editor (il ne touche à aucune donnée).`;
+    return check(false, `${titre} : v6.5 pas encore collée, c'est encore la limite de ${NOM_V[ancienne]} (${e2(valeur)}, la v6.5 dirait ${plage(P[neuve])}) : colle supabase/fournil-classement-v65.sql dans le SQL Editor de Supabase, puis relance ce test`);
   }
-  return check(false, `${titre} : une limite inattendue, ${e2(valeur)} (v6.4 : ${plage(P.v64)} ; v6.3 : ${plage(P.v63)} ; v6.2 : ${plage(P.v62)} ; v6 : ${plage(P.v6)})`);
+  return check(false, `${titre} : une limite inattendue, ${e2(valeur)} (${VERSIONS.map((v) => `${NOM_V[v].replace('la ', '')} : ${plage(P[v])}`).join(' ; ')})`);
 }
 
 // ─── les appels ───
@@ -116,7 +121,7 @@ const ENTETES_JEU = BEARER ? 'apikey + Authorization' : 'apikey seul'; // ce que
 let entetes = ENTETES[ENTETES_JEU]; // ajusté après l'essai des en-têtes
 const durees = [];
 let sourceConclusion = ''; // ce que la sonde dit de la limite d'inscriptions par source
-let VERSION = 0, V6 = false, versionConclusion = ''; // la version du SQL installée (5 ou 6) ; V6 : les copains et les notifications
+let VERSION = 0, V6 = false, V65 = false, versionConclusion = ''; // la version du SQL installée (5 ou 6) ; V6 : les copains et les notifications ; V65 : les places et les accusés (6.5)
 async function appel(methode, chemin, corps, h = entetes) {
   const t0 = Date.now();
   try {
@@ -238,6 +243,15 @@ function arreter(message, conclusion) {
   if (c0.lignes && c0.lignes.length && !('podium' in c0.lignes[0])) arreter(`les lignes du classement n'ont pas de « podium » : ${ANCIENNE}`);
   check(r.statut === 200 && r.data && r.data.ok === true && Array.isArray(r.data.podiums) && r.data.podiums.length === 0 && 'derniere' in r.data && 'quartier' in r.data && 'quartier_podium' in r.data && r.data.evenements && typeof r.data.evenements === 'object',
     `fournil_recompenses est installée, avec le podium final du quartier et ceux des événements (un inconnu : aucun podium ; ${r.texte})`);
+  // version 6.5 : fournil_recompenses rend places ; fournil_vu_objectif existe
+  V65 = !!(r.data && Array.isArray(r.data.places));
+  if (V65) {
+    const vo = await rpc('fournil_vu_objectif', { p_id: crypto.randomUUID(), p_jeton: hasard(32), p_semaine: lundiParis() });
+    check(r.data.places.length === 0 && vo.statut === 200 && vo.data && vo.data.ok === false && vo.data.erreur === 'inconnu', `la version 6.5 est collée : fournil_recompenses rend places (un inconnu : aucune), fournil_vu_objectif répond (${vo.texte})`);
+  } else {
+    versionConclusion = (versionConclusion ? versionConclusion + '\n\n' : '') + '**v6.5 pas encore collée** : colle `supabase/fournil-classement-v65.sql` dans le SQL Editor (les places de la semaine jusqu’au 15e, les pourboires et l’objectif accusés par le téléphone). Le reste est vérifié comme en v6.';
+    log('  ATTENTION v6.5 pas encore collée (fournil_recompenses ne rend pas places) : colle supabase/fournil-classement-v65.sql ; les places du 4e au 15e ne sont pas encore figées, le reste est vérifié comme en v6');
+  }
 
   // ─── 3. l'heure du serveur ───
   log('\n── l’heure du serveur ──');
@@ -357,7 +371,7 @@ function arreter(message, conclusion) {
     // la limite des événements (version 6.4) : lue dans ce plafond, à l'heure du serveur
     const msQ = [hqAvant.data && hqAvant.data.ms, hqApres.data && hqApres.data.ms];
     if (qa.quartier_plafonne === true && msQ.every(Number.isInteger)) verifierLimite('quartier', 'la limite du Quartier', qa.quartier, msQ[0], msQ[1]);
-    else log(`  la limite du Quartier (v6.4) : rien à lire${dansFenetre ? ' (pas de plafond, ou fournil_heure muette)' : ' hors de l’événement (du 13 au 27 octobre, une heure de grâce)'}`);
+    else log(`  la limite du Quartier (v6.5) : rien à lire${dansFenetre ? ' (pas de plafond, ou fournil_heure muette)' : ' hors de l’événement (du 13 au 27 octobre, une heure de grâce)'}`);
     // la Maison hantée (du 27 octobre à midi au 2 novembre à 20 h, heure de Paris) : 1e24 bonbons, de même
     const H = LIMITES.hantee;
     if (Date.now() >= H.debut && Date.now() < H.fin + 3600e3) {
@@ -368,7 +382,7 @@ function arreter(message, conclusion) {
       const ha = r.data || {}, hhApres = await rpc('fournil_heure', {}), msH = [hhAvant.data && hhAvant.data.ms, hhApres.data && hhApres.data.ms];
       check(ha.ok === true && ha.evt === 'hantee' && ha.evt_plafonne === true && ha.evt_score > 0 && ha.evt_score < 1e18, `pendant la Maison hantée : 1e24 bonbons (console) acceptés mais plafonnés (${Number(ha.evt_score).toExponential(2)}), A ${ha.rang_evt}e`);
       if (ha.evt_plafonne === true && msH.every(Number.isInteger)) verifierLimite('hantee', 'la limite de la Maison hantée', ha.evt_score, msH[0], msH[1]);
-    } else log('  la limite de la Maison hantée (v6.4) : rien à lire hors de l’événement (du 27 octobre à midi au 2 novembre à 20 h)');
+    } else log('  la limite de la Maison hantée (v6.5) : rien à lire hors de l’événement (du 27 octobre à midi au 2 novembre à 20 h)');
     // une partie effacée (0) puis le code rechargé (1 500) : rien ne compte deux fois, rien ne se retire
     log('  (2 × 10,5 s : A efface sa partie, puis recharge son code)');
     await attendre(10500);
@@ -404,8 +418,20 @@ function arreter(message, conclusion) {
       check(r.data && r.data.erreur === 'jeton', `avec le jeton de B : « jeton » (${r.texte})`);
       r = await rpc('fournil_recompenses', { p_id: B.id, p_jeton: B.jeton });
       check(r.data && r.data.ok === true && Array.isArray(r.data.pourboires) && r.data.pourboires.some((x) => x.de === A.pseudo) && 'objectif' in r.data, `B trouve le pourboire de A dans ses récompenses (${JSON.stringify(r.data && r.data.pourboires)})`);
-      r = await rpc('fournil_recompenses', { p_id: B.id, p_jeton: B.jeton });
-      check(r.data && r.data.ok === true && !r.data.pourboires.some((x) => x.de === A.pseudo), 'une seconde lecture : plus rien (rendu une fois)');
+      if (V65) { // version 6.5 : rendu tant que son téléphone ne l'a pas accusé, puis plus rien
+        const recu = r.data.pourboires.find((x) => x.de === A.pseudo);
+        r = await rpc('fournil_recompenses', { p_id: B.id, p_jeton: B.jeton });
+        check(r.data && r.data.ok === true && r.data.pourboires.some((x) => x.de === A.pseudo), 'v6.5 : une seconde lecture le rend encore (la lecture ne marque plus rien : une réponse perdue n’est plus une perte)');
+        r = await rpc('fournil_vu_pourboires', { p_id: B.id, p_jeton: B.jeton, p_jusqua: recu.quand });
+        check(r.data && r.data.ok === true, `B l’accuse (fournil_vu_pourboires jusqu’à ${recu.quand}) (${r.texte})`);
+        r = await rpc('fournil_recompenses', { p_id: B.id, p_jeton: B.jeton });
+        check(r.data && r.data.ok === true && !r.data.pourboires.some((x) => x.de === A.pseudo) && Array.isArray(r.data.places), 'puis plus rien');
+        r = await rpc('fournil_vu_objectif', { p_id: B.id, p_jeton: A.jeton, p_semaine: lundi });
+        check(r.data && r.data.ok === false && r.data.erreur === 'jeton', `fournil_vu_objectif avec le jeton de A : « jeton » (${r.texte})`);
+      } else {
+        r = await rpc('fournil_recompenses', { p_id: B.id, p_jeton: B.jeton });
+        check(r.data && r.data.ok === true && !r.data.pourboires.some((x) => x.de === A.pseudo), 'une seconde lecture : plus rien (rendu une fois, v6)');
+      }
       const ep = 'https://fcm.googleapis.com/fcm/send/test-ci-' + hasard(16), cles = { p256dh: 'B' + hasard(43).slice(0, 86), auth: hasard(11).slice(0, 22) };
       r = await rpc('fournil_abonner', { p_id: A.id, p_jeton: A.jeton, p_sub: { endpoint: 'https://pirate.example.com/push', keys: cles }, p_prefs: null });
       check(r.data && r.data.ok === false && r.data.erreur === 'abonnement', `un abonnement chez un autre site qu'un service de notifications : refusé (${r.texte})`);
@@ -435,6 +461,7 @@ function arreter(message, conclusion) {
     r = await rpc('fournil_recompenses', { p_id: A.id, p_jeton: A.jeton });
     const rec = r.data || {}, der = rec.derniere;
     check(r.statut === 200 && rec.ok === true && rec.erreur === null && Array.isArray(rec.podiums) && rec.podiums.length === 0, `A (arrivé à l'instant) : aucun podium (${r.texte.slice(0, 160)})`);
+    if (V65) check(Array.isArray(rec.places) && rec.places.length === 0, 'v6.5 : A n’a encore aucune place (places : [] ; ses rangs 1 à 15 y viendront le lundi qui suit une semaine jouée)');
     check(der === null || (der && der.semaine === lundiPasse && Array.isArray(der.podium) && der.podium.length >= 1
       && der.podium.every((x) => [1, 2, 3].includes(x.rang) && typeof x.pseudo === 'string' && (x.points === null || x.points > 0) && Object.keys(x).sort().join() === 'points,pseudo,rang,valeur')),
       der ? `le podium de la semaine passée (${der.semaine}) : ${der.podium.map((x) => `${x.rang} ${x.pseudo}`).join(', ')}` : 'la semaine passée : personne sur le podium (derniere = null)');

@@ -21,6 +21,10 @@
 //     le patch v6.3 (supabase/fournil-classement-v63.sql, le Sirop et le Cristal) collé deux fois par-dessus la v6 et la v6.2, puis
 //     le patch v6.4 (supabase/fournil-classement-v64.sql, le Sirop ×4 et le Cristal ×2) collé deux fois par-dessus la v6, la v6.2 et la v6.3 :
 //     les nouveaux tableaux, des bornes jamais plus basses, un score entre l'ancienne et la nouvelle borne compté, rien d'autre ne bouge.
+//   · le patch v6.5 (supabase/fournil-classement-v65.sql) collé deux fois par-dessus la v6.4 telle que sur Supabase
+//     (test/fournil-classement-v64-complet.sql + le patch v6.4) : les places jusqu'au 15e (une vieille semaine figée à trois reste
+//     lisible), les pourboires et l'objectif rendus tant qu'ils ne sont pas accusés, la notification 'semaine', puis le fichier complet
+//     recollé : le même code ; et dans le fichier complet, seize joueurs, des ex æquo (au 2e et au 15e rang), la notification du lundi.
 //   · le chat (supabase/fournil-chat.sql, collé par-dessus la v6) : chaque erreur de l'envoi, 3 s et 60 par heure, le masquage au
 //     3e signalement, l'effacement, le bannissement, le ménage (images de 7 jours, au-delà des 2 000), la cascade du retrait, les droits.
 //   · les idées, les bugs et les votes (supabase/fournil-retours.sql, collé par-dessus la v6, les cadeaux et le chat) : chaque erreur
@@ -202,7 +206,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
   for (const [k, j] of V2J.entries()) await comme('anon', 'select public.fournil_publier(p_id => $1, p_jeton => $2, p_pseudo => $3, p_fortune => $4)', [j.id, j.jeton, ['Vieux Paul', 'Vieille Rose', 'Vieux Léon'][k], String(1e9 + 1e6 * (3 - k))]);
   await heure('2026-10-12T08:00:00Z'); // lundi : la semaine du 5 est figée par la version 2, à l'argent
   await comme('anon', 'select public.fournil_heure()');
-  const photoV2 = async () => JSON.stringify([await sup('select id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj from public.fournil_joueurs order by id'), await sup('select semaine, rang, id, pseudo, valeur from public.fournil_palmares order by semaine, id'), await sup('select * from public.fournil_semaines order by semaine')]);
+  const photoV2 = async () => JSON.stringify([await sup('select id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj from public.fournil_joueurs order by id'), await sup('select semaine, rang, id, pseudo, valeur from public.fournil_palmares order by semaine, id'), await sup('select semaine, figee from public.fournil_semaines order by semaine')]);
   const avantV3 = await photoV2(), palV2 = await sup(`select rang, pseudo, valeur from public.fournil_palmares where semaine = '2026-10-05' order by rang`);
   check(podiumTexte(palV2) === '1 Vieux Paul 3000000, 2 Vieille Rose 2000000, 3 Vieux Léon 1000000', `en version 2 : trois joueurs, un palmarès figé à l'argent (${podiumTexte(palV2)})`);
   // la version 3 par-dessus
@@ -221,7 +225,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
 
   // ─── 2. la structure et les droits ───
   const JEU5 = ['fournil_classement', 'fournil_heure', 'fournil_publier', 'fournil_recompenses', 'fournil_retirer', 'fournil_vu'];
-  const JEU = [...JEU5, 'fournil_abonner', 'fournil_boutique', 'fournil_desabonner', 'fournil_notif_essai', 'fournil_objectif', 'fournil_planifier', 'fournil_pourboire', 'fournil_vu_pourboires']; // version 6 : les copains et les notifications
+  const JEU = [...JEU5, 'fournil_abonner', 'fournil_boutique', 'fournil_desabonner', 'fournil_notif_essai', 'fournil_objectif', 'fournil_planifier', 'fournil_pourboire', 'fournil_vu_pourboires', 'fournil_vu_objectif']; // version 6 : les copains et les notifications (6.5 : fournil_vu_objectif)
   const SERVICE = ['fournil_notifs_dues', 'fournil_notifs_faites']; // la fonction d'envoi seulement (service_role)
   const CHAT_JEU = ['fournil_chat_effacer', 'fournil_chat_envoyer', 'fournil_chat_image', 'fournil_chat_lire', 'fournil_chat_signaler']; // le chat (supabase/fournil-chat.sql)
   const RETOURS_JEU = ['fournil_admin_moi', 'fournil_admin_retour_etat', 'fournil_admin_retour_image', 'fournil_admin_retours', 'fournil_admin_vote_creer', 'fournil_admin_vote_fermer',
@@ -237,7 +241,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     check(cols.length === 19 && cols.every((c) => attendu[c.c] === c.t && c.n === (c.c === 'points_jour' || c.c === 'quartier_maj' || c.c === 'vu' ? 'YES' : 'NO')), `fournil_joueurs a les 19 colonnes du contrat (points de la semaine, depuis l'arrivée, jour du dernier envoi de points, billets du quartier et leur dernier envoi, dernier signe de vie, points des pourboires donnés), toutes « not null » sauf points_jour, quartier_maj et vu, sans l'ancienne base de la semaine (${cols.map((c) => c.c).join(', ')})`);
     const colsDe = async (t) => (await sup(`select column_name as c from information_schema.columns where table_schema = 'public' and table_name = $1 order by ordinal_position`, [t])).map((c) => c.c).join();
     const colsP = await colsDe('fournil_palmares'), colsS = await colsDe('fournil_semaines'), colsPo = await colsDe('fournil_portes'), colsQ = await colsDe('fournil_quartier_podium'), colsE = await colsDe('fournil_evenements'), colsES = await colsDe('fournil_evt_scores'), colsEP = await colsDe('fournil_evt_podium');
-    check(colsP === 'semaine,rang,id,pseudo,valeur,points' && colsS === 'semaine,figee' && colsPo === 'empreinte,quand' && colsQ === 'id,rang,pseudo,valeur' && colsE === 'nom,figee' && colsES === 'evt,id,valeur,maj' && colsEP === 'evt,id,rang,pseudo,valeur', `le palmarès (${colsP}), les semaines figées (${colsS}), les portes : une empreinte et une heure seulement (${colsPo}), le podium du quartier (${colsQ}), les événements figés (${colsE}), les scores des événements (${colsES}) et leurs podiums (${colsEP})`);
+    check(colsP === 'semaine,rang,id,pseudo,valeur,points' && colsS === 'semaine,figee,joueurs' && colsPo === 'empreinte,quand' && colsQ === 'id,rang,pseudo,valeur' && colsE === 'nom,figee' && colsES === 'evt,id,valeur,maj' && colsEP === 'evt,id,rang,pseudo,valeur', `le palmarès (${colsP}), les semaines figées (${colsS}), les portes : une empreinte et une heure seulement (${colsPo}), le podium du quartier (${colsQ}), les événements figés (${colsE}), les scores des événements (${colsES}) et leurs podiums (${colsEP})`);
     { const c6 = {}; for (const t of ['fournil_photos', 'fournil_pourboires', 'fournil_objectif', 'fournil_objectif_gagnants', 'fournil_abonnements', 'fournil_notif_prefs', 'fournil_notifs', 'fournil_annonces']) c6[t] = await colsDe(t);
       check(c6.fournil_photos === 'id,photo,maj' && c6.fournil_pourboires === 'de,a,jour,quand,vu' && c6.fournil_objectif === 'semaine,but,total,joueurs,reussi,fige' && c6.fournil_objectif_gagnants === 'semaine,id,recu'
         && c6.fournil_abonnements === 'endpoint,joueur,p256dh,auth,cree' && c6.fournil_notif_prefs === 'id,pleine,evenements,pourboires,objectif,maj' && c6.fournil_notifs === 'id,joueur,type,titre,texte,url,due,envoyee,cree,prise' && c6.fournil_annonces === 'cle,quand',
@@ -267,7 +271,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     check(JSON.stringify(fns.map((f) => f.nom)) === JSON.stringify([...JEU, ...SERVICE, ...INTERNES].sort()), `les fonctions, ni plus ni moins, une seule signature chacune (${fns.map((f) => f.nom.replace('fournil_', '')).join(', ')})`);
     const sig = Object.fromEntries(fns.map((f) => [f.nom, f.args]));
     check(sig.fournil_publier === 'p_id uuid, p_jeton text, p_pseudo text, p_fortune double precision, p_points integer, p_lundi date, p_quartier double precision, p_evt text, p_score double precision, p_photo jsonb' && fns.filter((f) => f.nom === 'fournil_publier').length === 1 &&  sig.fournil_classement === 'p_periode text, p_id uuid, p_limite integer' && sig.fournil_retirer === 'p_id uuid, p_jeton text' && sig.fournil_recompenses === 'p_id uuid, p_jeton text' && sig.fournil_heure === '' && sig.fournil_vu === 'p_id uuid, p_jeton text'
-      && sig.fournil_boutique === 'p_pseudo text, p_id uuid, p_jeton text' && sig.fournil_pourboire === 'p_id uuid, p_jeton text, p_pour text' && sig.fournil_vu_pourboires === 'p_id uuid, p_jeton text, p_jusqua timestamp with time zone'
+      && sig.fournil_boutique === 'p_pseudo text, p_id uuid, p_jeton text' && sig.fournil_pourboire === 'p_id uuid, p_jeton text, p_pour text' && sig.fournil_vu_pourboires === 'p_id uuid, p_jeton text, p_jusqua timestamp with time zone' && sig.fournil_vu_objectif === 'p_id uuid, p_jeton text, p_semaine date'
       && sig.fournil_objectif === '' && sig.fournil_abonner === 'p_id uuid, p_jeton text, p_sub jsonb, p_prefs jsonb' && sig.fournil_desabonner === 'p_id uuid, p_jeton text, p_endpoint text'
       && sig.fournil_planifier === 'p_id uuid, p_jeton text, p_pleine_a timestamp with time zone' && sig.fournil_notif_essai === 'p_id uuid, p_jeton text'
       && sig.fournil_notifs_dues === 'p_limite integer' && sig.fournil_notifs_faites === 'p_ids bigint[], p_morts text[]', 'les signatures du contrat (noms et types des paramètres, version 6 comprise)');
@@ -757,13 +761,14 @@ function trajectoirePoints(profil, jours, t0, cadence) {
   r = garde(await heureServeur());
   check(r && r.ms === horloge && Object.keys(r).join() === 'ms', `la première requête de la semaine suivante, quelle qu’elle soit (ici fournil_heure : ${JSON.stringify(r)})…`);
   let pal = await palmares('2027-09-06');
-  check(podiumTexte(pal) === '1 Aurore 300, 2 Bastien 200, 2 Capucine 200' && pal.map((x) => x.points).join() === '30,20,20', `… fige le palmarès du 6 septembre : les trois premiers en points, ex æquo au même rang, avec leurs points et leurs euros ; Désiré (4e) et Églantine (0 point) n’y sont pas (${podiumTexte(pal)})`);
+  check(podiumTexte(pal) === '1 Aurore 300, 2 Bastien 200, 2 Capucine 200, 4 Désiré 100' && pal.map((x) => x.points).join() === '30,20,20,10', `… fige le palmarès du 6 septembre : les quinze premiers en points (version 6.5 ; ici quatre), ex æquo au même rang, avec leurs points et leurs euros ; Églantine (0 point) n’y est pas (${podiumTexte(pal)})`);
+  check((await sup(`select joueurs from public.fournil_semaines where semaine = '2027-09-06'`))[0].joueurs === 4 && (await sup(`select joueurs from public.fournil_semaines where semaine = '2027-08-30'`))[0].joueurs === 0, 'la semaine garde combien de joueurs y étaient classés (4 ; 0 pour la semaine vide)');
   check(JSON.stringify(await figees()) === JSON.stringify(['2027-08-30', '2027-09-06']), 'la semaine est marquée figée');
   await sup(`update public.fournil_joueurs set gain = 9999, points = 9999 where id = $1`, [De.id]);
   await classement('total'); await heureServeur(); await recompenses(Au);
   await sup(`update public.fournil_joueurs set gain = 100, points = 10 where id = $1`, [De.id]);
   r = await publier(De, 'Désiré', 1e9 + 100);
-  check(podiumTexte(await palmares('2027-09-06')) === '1 Aurore 300, 2 Bastien 200, 2 Capucine 200' && (await ligne(De.id)).gain === 0, 'figé une fois pour toutes : ni une ligne modifiée ensuite, ni d’autres requêtes, ni le premier envoi de la semaine (qui remet le gain à zéro) ne le changent');
+  check(podiumTexte(await palmares('2027-09-06')) === '1 Aurore 300, 2 Bastien 200, 2 Capucine 200, 4 Désiré 100' && (await ligne(De.id)).gain === 0, 'figé une fois pour toutes : ni une ligne modifiée ensuite, ni d’autres requêtes, ni le premier envoi de la semaine (qui remet le gain à zéro) ne le changent');
   r = garde(await classement('total', Au.id));
   const toques = Object.fromEntries(r.lignes.map((x) => [x.pseudo, x.podium]));
   check(JSON.stringify(toques) === JSON.stringify({ Aurore: 1, Bastien: 2, Capucine: 2, 'Désiré': null, 'Églantine': null }) && r.moi.podium === 1, `chaque ligne porte le podium de la semaine passée : ${JSON.stringify(toques)} ; « moi » aussi`);
@@ -773,7 +778,11 @@ function trajectoirePoints(profil, jours, t0, cadence) {
   r = garde(await recompenses(Au));
   check(r.ok === true && r.erreur === null && JSON.stringify(r.podiums) === JSON.stringify([{ semaine: '2027-09-06', rang: 1 }]) && r.derniere && r.derniere.semaine === '2027-09-06' && JSON.stringify(r.derniere.podium) === JSON.stringify([{ rang: 1, pseudo: 'Aurore', points: 30, valeur: 300 }, { rang: 2, pseudo: 'Bastien', points: 20, valeur: 200 }, { rang: 2, pseudo: 'Capucine', points: 20, valeur: 200 }]), `Aurore : ses podiums, et le podium de la semaine passée (${JSON.stringify(r)})`);
   r = garde(await recompenses(Eg));
-  check(r.ok === true && r.podiums.length === 0 && r.derniere && r.derniere.podium.length === 3, 'Églantine : aucun podium, mais le podium de la semaine passée');
+  check(r.ok === true && r.podiums.length === 0 && r.places.length === 0 && r.derniere && r.derniere.podium.length === 3, 'Églantine : aucun podium, aucune place, mais le podium de la semaine passée');
+  r = garde(await recompenses(De));
+  check(r.ok === true && r.podiums.length === 0 && JSON.stringify(r.places) === JSON.stringify([{ semaine: '2027-09-06', rang: 4, joueurs: 4 }]) && r.derniere.podium.length === 3 && !r.derniere.podium.some((x) => x.pseudo === 'Désiré'),
+    `Désiré, 4e : pas de podium (ni tenue ni coupe), mais sa place dans places (${JSON.stringify(r.places)}) ; le podium de la semaine passée reste aux trois premiers`);
+  check(JSON.stringify((await recompenses(Au)).places) === JSON.stringify([{ semaine: '2027-09-06', rang: 1, joueurs: 4 }]), 'Aurore : sa place de 1re est aussi dans places');
   r = garde(await recompenses({ id: Au.id, jeton: Ba.jeton }));
   check(r.ok === false && r.erreur === 'jeton' && r.podiums.length === 0 && r.derniere === null, 'le jeton d’un autre : « jeton », rien');
   r = garde(await recompenses({ id: Au.id, jeton: 'court' }));
@@ -1077,7 +1086,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
   titre('recoller le fichier');
   await sup(`insert into public.fournil_palmares (semaine, rang, id, pseudo, valeur) values ('2027-05-03', 1, $1, 'Quitterie', 400)`, [Q2.id]);
   await sup(`insert into public.fournil_semaines (semaine, figee) values ('2027-05-03', now()) on conflict do nothing`);
-  const photo = async () => JSON.stringify([await sup('select id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj, points, points_total, points_jour from public.fournil_joueurs order by id'), await sup('select * from public.fournil_palmares order by semaine, id'), await sup('select * from public.fournil_semaines order by semaine')]);
+  const photo = async () => JSON.stringify([await sup('select id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj, points, points_total, points_jour from public.fournil_joueurs order by id'), await sup('select * from public.fournil_palmares order by semaine, id'), await sup('select semaine, figee from public.fournil_semaines order by semaine')]);
   const avant = await photo();
   await sup('create policy tout_le_monde on public.fournil_joueurs for select using (true)');
   await sup('create policy tout_le_monde on public.fournil_palmares for select using (true)');
@@ -1277,7 +1286,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     await horloge3('2026-10-12T08:00:00Z'); // lundi : la semaine du 5 est figée aux points par la version 3
     await c3('select public.fournil_heure() as r');
     await v3(Ines, noms[0], 1e9 + 2e6, 10, '2026-10-12');
-    const photo = async () => JSON.stringify([await s3('select id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj, points, points_total, points_jour from public.fournil_joueurs order by id'), await s3('select semaine, rang, id, pseudo, valeur, points from public.fournil_palmares order by semaine, id'), await s3('select * from public.fournil_semaines order by semaine')]);
+    const photo = async () => JSON.stringify([await s3('select id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj, points, points_total, points_jour from public.fournil_joueurs order by id'), await s3('select semaine, rang, id, pseudo, valeur, points from public.fournil_palmares order by semaine, id'), await s3('select semaine, figee from public.fournil_semaines order by semaine')]);
     const avant = await photo(), palAvant = (await s3(`select rang, pseudo, points from public.fournil_palmares where semaine = '2026-10-05' order by rang`)).map((x) => `${x.rang} ${x.pseudo} ${x.points}`).join(', ');
     check(palAvant === '1 Inès 40, 2 Hugo 30, 3 Zoé 20', `en version 3 : trois joueurs, des points, un palmarès figé aux points (${palAvant})`);
     try { await coller3(SQL); check(true, `la version ${V} se colle telle quelle par-dessus la version 3`); } catch (err) { check(false, `la version ${V} se colle par-dessus la version 3 : ` + err.message); }
@@ -1424,7 +1433,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     await v4(Ali, noms[0], 1e9 + 2e6, 10, '2026-10-19', 3e8);
     await horloge4('2026-10-27T12:30:00Z'); // mardi 27, 13 h 30 à Paris : le Quartier est fini depuis 1 h 30 (grâce passée), la Maison hantée ouverte depuis 1 h 30
     await c4('select public.fournil_heure() as r'); // le podium final du Quartier est figé
-    const photo = async () => JSON.stringify([await s4('select id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj, points, points_total, points_jour, quartier, quartier_maj from public.fournil_joueurs order by id'), await s4('select semaine, rang, id, pseudo, valeur, points from public.fournil_palmares order by semaine, id'), await s4('select * from public.fournil_semaines order by semaine'), await s4('select * from public.fournil_quartier_podium order by id'), await s4('select * from public.fournil_evenements order by nom')]);
+    const photo = async () => JSON.stringify([await s4('select id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj, points, points_total, points_jour, quartier, quartier_maj from public.fournil_joueurs order by id'), await s4('select semaine, rang, id, pseudo, valeur, points from public.fournil_palmares order by semaine, id'), await s4('select semaine, figee from public.fournil_semaines order by semaine'), await s4('select * from public.fournil_quartier_podium order by id'), await s4('select * from public.fournil_evenements order by nom')]);
     const avant = await photo(), podQ = (await s4('select rang, pseudo, valeur from public.fournil_quartier_podium order by rang')).map((x) => `${x.rang} ${x.pseudo} ${x.valeur}`).join(', ');
     check(podQ === '1 Ali 300000000, 2 Béa 40000000, 3 Cyril 20000000', `en version 4 : des points, un palmarès, des billets, et le podium final du Quartier figé (${podQ})`);
     try { await coller4(SQL); check(true, `la version ${V} se colle telle quelle par-dessus la version 4`); } catch (err) { check(false, `la version ${V} se colle par-dessus la version 4 : ` + err.message); }
@@ -1593,7 +1602,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     for (const [k, j] of [Ali, Bea, Cyr].entries()) await v5(j, noms[k], 1e9 + 1e6, 20 + 10 * k, '2026-10-12', 2e7 * (3 - k), null, null);
     await horloge5('2026-10-28T10:00:00Z'); // la Maison hantée est ouverte, le Quartier fini et figé, deux semaines figées
     for (const [k, j] of [Ali, Bea, Cyr].entries()) await v5(j, noms[k], 1e9 + 2e6, 5 * (k + 1), '2026-10-26', null, 'hantee', 1e6 * (k + 1));
-    const photo = async () => JSON.stringify([await s5('select id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj, points, points_total, points_jour, quartier, quartier_maj, vu from public.fournil_joueurs order by id'), await s5('select * from public.fournil_palmares order by semaine, id'), await s5('select * from public.fournil_semaines order by semaine'), await s5('select * from public.fournil_quartier_podium order by id'), await s5('select * from public.fournil_evenements order by nom'), await s5('select * from public.fournil_evt_scores order by evt, id'), await s5('select * from public.fournil_evt_podium order by evt, id')]);
+    const photo = async () => JSON.stringify([await s5('select id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj, points, points_total, points_jour, quartier, quartier_maj, vu from public.fournil_joueurs order by id'), await s5('select * from public.fournil_palmares order by semaine, id'), await s5('select semaine, figee from public.fournil_semaines order by semaine'), await s5('select * from public.fournil_quartier_podium order by id'), await s5('select * from public.fournil_evenements order by nom'), await s5('select * from public.fournil_evt_scores order by evt, id'), await s5('select * from public.fournil_evt_podium order by evt, id')]);
     const avant = await photo(), nPal = (await s5('select count(*)::int as n from public.fournil_palmares'))[0].n, nQ = (await s5('select count(*)::int as n from public.fournil_quartier_podium'))[0].n;
     check(nPal >= 3 && nQ === 3 && (await s5('select count(*)::int as n from public.fournil_evt_scores'))[0].n === 3, `en version 5 : des joueurs, un palmarès (${nPal} lignes), le podium du Quartier, des bonbons`);
     try { await coller5(SQL); check(true, 'la version 6 se colle telle quelle par-dessus la version 5'); } catch (err) { check(false, 'la version 6 se colle par-dessus la version 5 : ' + err.message); }
@@ -1617,7 +1626,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
 
   // ─── 29. les copains (version 6) : la photo, la boutique, le pourboire ───
   titre('les copains (version 6) : photo, boutique, pourboire');
-  const CAST = { p_sub: '::jsonb', p_prefs: '::jsonb', p_photo: '::jsonb', p_pleine_a: '::timestamptz', p_jusqua: '::timestamptz', p_ids: '::bigint[]', p_morts: '::text[]', p_limite: '::int' };
+  const CAST = { p_sub: '::jsonb', p_prefs: '::jsonb', p_photo: '::jsonb', p_pleine_a: '::timestamptz', p_jusqua: '::timestamptz', p_semaine: '::date', p_ids: '::bigint[]', p_morts: '::text[]', p_limite: '::int' };
   const tableauPG = (a) => (a == null ? null : '{' + a.map((x) => (typeof x === 'number' ? String(x) : '"' + String(x).replace(/["\\]/g, '\\$&') + '"')).join(',') + '}');
   const appelle = async (fn, args = {}, role = 'anon') => {
     const cles = Object.keys(args);
@@ -1702,12 +1711,21 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     await heure('2027-08-04T22:00:01Z');
     r = await pourboire(Al, 'Bruno');
     check(r.ok && r.restants === 2, 'minuit passé à Paris : un nouveau jour, Aline peut de nouveau en laisser un à Bruno');
-    // le receveur les trouve dans ses récompenses, une fois
+    // le receveur les trouve dans ses récompenses, jusqu'à ce que son téléphone les accuse (version 6.5)
     r = await recompenses(Br);
     check(r.ok && r.pourboires.length === 2 && r.pourboires.every((x) => x.de === 'Aline' && typeof x.quand === 'string') && Date.parse(r.pourboires[0].quand) < Date.parse(r.pourboires[1].quand) && r.objectif === null,
       `Bruno lit ses récompenses : ses deux pourboires d’Aline, du plus ancien au plus récent (${JSON.stringify(r.pourboires)})`);
+    const lus = r.pourboires;
     r = await recompenses(Br);
-    check(r.ok && r.pourboires.length === 0, 'une seconde lecture : plus rien (la lecture les marque vus)');
+    check(r.ok && JSON.stringify(r.pourboires) === JSON.stringify(lus), 'version 6.5 : la lecture ne les marque plus ; la réponse s’est perdue ? une seconde lecture les rend de nouveau, les mêmes');
+    await avancer(30);
+    await pourboire(Ch, 'Bruno'); // un troisième, arrivé après la lecture du téléphone
+    r = await appelle('fournil_vu_pourboires', { p_id: Br.id, p_jeton: Br.jeton, p_jusqua: lus[1].quand });
+    check(r.ok === true, `son téléphone les a rangés et sauvés : il les accuse jusqu’au plus récent reçu (fournil_vu_pourboires, p_jusqua ${lus[1].quand})`);
+    r = await recompenses(Br);
+    check(r.ok && r.pourboires.length === 1 && r.pourboires[0].de === 'Chloé', `la lecture suivante ne rend plus que celui arrivé depuis, de Chloé (${JSON.stringify(r.pourboires)})`);
+    await appelle('fournil_vu_pourboires', { p_id: Br.id, p_jeton: Br.jeton, p_jusqua: r.pourboires[0].quand });
+    check((await recompenses(Br)).pourboires.length === 0 && (await appelle('fournil_vu_pourboires', { p_id: Br.id, p_jeton: Br.jeton, p_jusqua: r.pourboires[0].quand })).ok === true, 'accusé à son tour : plus rien ; accuser deux fois ne casse rien');
     r = await recompenses({ id: Ch.id, jeton: Br.jeton });
     check(r.ok === false && JSON.stringify(r.pourboires) === '[]' && r.objectif === null, 'le jeton d’un autre : rien');
     r = await appelle('fournil_vu_pourboires', { p_id: Ch.id, p_jeton: Ch.jeton, p_jusqua: new Date(horloge).toISOString() });
@@ -1756,13 +1774,22 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       `lundi : la semaine passée est figée réussie (${JSON.stringify(o.precedente)}) ; le nouveau but : 150 × 3 joueurs actifs = ${o.but}`);
     const g = await sup(`select j.pseudo from public.fournil_objectif_gagnants g join public.fournil_joueurs j on j.id = g.id order by 1`);
     check(g.map((x) => x.pseudo).join() === 'Marius,Nina', `les gagnants : ceux qui y ont mis 30 points ou plus (${g.map((x) => x.pseudo).join(', ')}) ; pas Olga (20), ni Paco (0)`);
-    const fm = await file(Ma.id), fo = await file(Ol.id), fn = await file(Ni.id);
-    check(fm.length === 1 && fm[0].type === 'objectif' && fm[0].texte === 'Objectif commun réussi ! Une récompense t’attend.'.replace('’', '\'') && fo.length === 0 && fn.length === 0,
-      `une notification « objectif » pour Marius (abonné) ; aucune pour Olga (pas gagnante) ni Nina (pas abonnée) (${fm.map((x) => x.texte).join(' | ')})`);
+    const typ = (l, t) => l.filter((x) => x.type === t), fm = await file(Ma.id), fo = await file(Ol.id), fn = await file(Ni.id);
+    check(typ(fm, 'objectif').length === 1 && typ(fm, 'objectif')[0].texte === 'Objectif commun réussi ! Une récompense t’attend.'.replace('’', '\'') && typ(fo, 'objectif').length === 0 && fn.length === 0,
+      `une notification « objectif » pour Marius (abonné) ; aucune pour Olga (pas gagnante) ni Nina (pas abonnée) (${typ(fm, 'objectif').map((x) => x.texte).join(' | ')})`);
+    check(typ(fm, 'semaine').length === 1 && typ(fm, 'semaine')[0].texte === 'Semaine finie : tu es 1er sur 3 ! Ta tenue, ta coupe et ta récompense t\'attendent.' && typ(fo, 'semaine').length === 1 && typ(fo, 'semaine')[0].texte === 'Semaine finie : tu es 3e sur 3 ! Ta tenue, ta coupe et ta récompense t\'attendent.'
+      && new Date(typ(fm, 'semaine')[0].due).toISOString() === '2027-09-20T07:00:00.000Z',
+      `version 6.5 : et sa place de la semaine (« ${typ(fm, 'semaine').map((x) => x.texte).join('')} »), à 9 h heure de Paris ; Olga, 3e, aussi ; Nina (pas abonnée) rien`);
     let r = await recompenses(Ma);
     check(r.ok && r.objectif && r.objectif.semaine === '2027-09-13' && r.objectif.reussi === true && r.objectif.recompense === true, `Marius lit ses récompenses : ${JSON.stringify(r.objectif)}`);
     r = await recompenses(Ma);
-    check(r.ok && r.objectif === null, 'une seule fois');
+    check(r.ok && r.objectif && r.objectif.semaine === '2027-09-13', 'version 6.5 : la lecture ne la marque plus (une réponse perdue la rend de nouveau)');
+    check((await appelle('fournil_vu_objectif', { p_id: Ma.id, p_jeton: Ni.jeton, p_semaine: '2027-09-13' })).erreur === 'jeton' && (await appelle('fournil_vu_objectif', { p_id: joueur().id, p_jeton: Ni.jeton, p_semaine: '2027-09-13' })).erreur === 'inconnu' && (await recompenses(Ma)).objectif !== null,
+      'fournil_vu_objectif vérifie le jeton (« jeton », « inconnu ») et ne marque rien alors');
+    r = await appelle('fournil_vu_objectif', { p_id: Ma.id, p_jeton: Ma.jeton, p_semaine: '2027-09-13' });
+    check(r.ok === true && (await recompenses(Ma)).objectif === null && (await recompenses(Ni)).objectif.semaine === '2027-09-13', 'son téléphone l’a rangée et sauvée, il l’accuse (fournil_vu_objectif) : plus rien pour lui ; Nina, elle, ne l’a pas encore accusée');
+    r = await appelle('fournil_vu_objectif', { p_id: Ni.id, p_jeton: Ni.jeton, p_semaine: '2027-09-13' }, 'authenticated');
+    check(r.ok === true && (await recompenses(Ni)).objectif === null, 'authenticated aussi');
     check((await recompenses(Ol)).objectif === null && (await recompenses(Pa)).objectif === null, 'Olga et Paco : rien');
     check((await sup(`select count(*)::int as n from public.fournil_objectif where semaine = '2027-09-13' and fige is not null`))[0].n === 1, 'la semaine est figée une fois (fournil_objectif)');
     // une semaine ratée
@@ -1776,6 +1803,62 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     const butDe = async (s) => (await sup('select public.fournil_objectif_but($1::date) as b', [s]))[0].b;
     check(await butDe('2030-01-14') === 6000 && await butDe('2030-02-11') === 300 && await butDe('2030-01-14') === 6000, 'le but : 6 000 au plus (100 joueurs actifs), 300 au moins (aucun), fixé une fois');
     check(await refus('anon', `select public.fournil_objectif_but('2030-03-04')`) === '42501' && await refus('anon', 'select * from public.fournil_objectif') === '42501', 'anon ne touche ni à la table ni aux fonctions internes de l’objectif');
+  }
+
+  // ─── 30 bis. les places de la semaine jusqu'au 15e (version 6.5) : seize joueurs, des ex æquo, la notification du lundi ───
+  titre('les places de la semaine jusqu’au 15e (version 6.5)');
+  {
+    await vider(); await entetes(null);
+    await heure('2027-11-03T10:00:00Z'); // un mercredi (heure d'hiver : Paris = UTC + 1), la semaine du lundi 1er novembre
+    const N = ['Abel', 'Berthe', 'Camille', 'Dorian', 'Edmée', 'Fanny', 'Gaston', 'Hélène', 'Igor', 'Jeanne', 'Kevin', 'Lucie', 'Maurice', 'Noémie', 'Octave', 'Pépin'];
+    const J = N.map(() => joueur()), ZERO = joueur();
+    const PTS1 = [200, 190, 190, 170, 160, 150, 140, 130, 120, 110, 100, 90, 80, 70, 60, 50]; // Berthe et Camille ex æquo 2es ; Pépin 16e
+    for (const [k, j] of J.entries()) await publier6(j, N[k], PTS1[k]);
+    await publier6(ZERO, 'Zéro', 0); // inscrit, 0 point : pas classé
+    await avancer(11); for (const [k, j] of J.entries()) await publier6(j, N[k], PTS1[k]); // un second envoi (une inscription jamais suivie part au bout de 7 jours)
+    await abonner(J[0], SUB('pl-a')); await abonner(J[3], SUB('pl-d')); await abonner(J[14], SUB('pl-o')); await abonner(J[15], SUB('pl-p'));
+    await abonner(J[5], SUB('pl-f'), { objectif: false }); // Fanny a décoché « objectif commun » : pas de notification de sa place
+    await heure('2027-11-08T05:30:00Z'); // lundi 6 h 30 à Paris
+    await heureServeur();
+    let pal = await palmares('2027-11-01');
+    check(pal.length === 15 && pal.slice(0, 5).map((x) => `${x.rang} ${x.pseudo} ${x.points}`).join(', ') === '1 Abel 200, 2 Berthe 190, 2 Camille 190, 4 Dorian 170, 5 Edmée 160' && pal[14].rang === 15 && pal[14].pseudo === 'Octave' && !pal.some((x) => x.pseudo === 'Pépin' || x.pseudo === 'Zéro'),
+      `seize joueurs classés : les quinze premiers figés (ex æquo au même rang : ${pal.map((x) => x.rang).join(',')}) ; Pépin (16e) et Zéro (0 point) n’y sont pas`);
+    check((await sup(`select joueurs from public.fournil_semaines where semaine = '2027-11-01'`))[0].joueurs === 16, 'la semaine garde ses 16 joueurs classés (« 4e sur 16 »)');
+    let r = await recompenses(J[3]);
+    check(r.ok && r.podiums.length === 0 && JSON.stringify(r.places) === JSON.stringify([{ semaine: '2027-11-01', rang: 4, joueurs: 16 }]) && JSON.stringify(r.derniere.podium.map((x) => x.rang)) === '[1,2,2]',
+      `Dorian, 4e : sa place (${JSON.stringify(r.places)}), pas de podium ; le podium de la semaine passée : les trois premiers seulement`);
+    r = await recompenses(J[2]);
+    check(JSON.stringify(r.podiums) === JSON.stringify([{ semaine: '2027-11-01', rang: 2 }]) && JSON.stringify(r.places) === JSON.stringify([{ semaine: '2027-11-01', rang: 2, joueurs: 16 }]), 'Camille, 2e ex æquo : son podium d’argent (la tenue et la coupe, comme avant) et sa place');
+    check((await recompenses(J[14])).places[0].rang === 15 && (await recompenses(J[15])).places.length === 0, 'Octave, 15e : sa place ; Pépin, 16e : aucune');
+    r = await classement('total', J[3].id);
+    const toq = Object.fromEntries(r.lignes.map((x) => [x.pseudo, x.podium]));
+    check(toq.Abel === 1 && toq.Berthe === 2 && toq.Camille === 2 && toq.Dorian === null && toq.Octave === null && r.moi.podium === null, 'la toque du classement : seulement les trois premiers (Dorian, 4e, n’en a pas)');
+    const q = async (j) => (await file(j.id)).filter((x) => x.type === 'semaine');
+    const [qa, qd, qo, qp, qf] = [await q(J[0]), await q(J[3]), await q(J[14]), await q(J[15]), await q(J[5])];
+    check(qa.length === 1 && qa[0].texte === 'Semaine finie : tu es 1er sur 16 ! Ta tenue, ta coupe et ta récompense t\'attendent.' && qd.length === 1 && qd[0].texte === 'Semaine finie : tu es 4e sur 16 ! Ta récompense t\'attend.' && qo.length === 1 && /tu es 15e sur 16/.test(qo[0].texte) && qp.length === 0 && qf.length === 0,
+      `la notification 'semaine' : Abel « ${qa.map((x) => x.texte)} », Dorian « ${qd.map((x) => x.texte)} », Octave (15e) ; ni Pépin (16e) ni Fanny (case décochée)`);
+    check(qd.length === 1 && new Date(qd[0].due).toISOString() === '2027-11-08T08:00:00.000Z' && qd[0].url === './' && qd[0].titre === 'Le Fournil', `à 9 h, heure de Paris (due ${qd.length && new Date(qd[0].due).toISOString()})`);
+    let d = await dues(); check(!d.some((x) => x.type === 'semaine'), 'à 6 h 30, la fonction d’envoi ne la prend pas encore');
+    await heure('2027-11-08T08:01:00Z'); d = await dues();
+    check(d.filter((x) => x.type === 'semaine').length === 3 && d.every((x) => x.subs.length >= 1), `à 9 h 01 : les trois notifications de la semaine partent (${d.filter((x) => x.type === 'semaine').length})`);
+    await faites(d.map((x) => x.notif_id), []);
+    // la semaine du 8 : Octave et Pépin ex æquo au 15e rang ; une seule notification par joueur et par semaine
+    await heure('2027-11-12T10:00:00Z'); // vendredi (le plafond du jour : 400 points)
+    const PTS2 = [300, 290, 280, 270, 260, 250, 240, 230, 220, 210, 200, 190, 180, 170, 40, 40];
+    for (const [k, j] of J.entries()) await publier6(j, N[k], PTS2[k]);
+    await heure('2027-11-15T09:30:00Z'); // lundi 10 h 30 à Paris : plus tard que 9 h, la notification part tout de suite
+    await recompenses(J[0]); await classement('semaine'); await heureServeur();
+    pal = await palmares('2027-11-08');
+    check(pal.length === 16 && pal.filter((x) => x.rang === 15).map((x) => x.pseudo).sort().join() === 'Octave,Pépin', `ex æquo au 15e rang : Octave et Pépin y sont tous les deux (${pal.length} lignes)`);
+    const qp2 = await q(J[15]);
+    check(qp2.length === 1 && /15e sur 16/.test(qp2[0].texte) && new Date(qp2[0].due).getTime() === horloge && (await q(J[0])).length === 2, `Pépin, 15e ex æquo : sa notification, tout de suite (10 h 30 passées) ; une seule par semaine, même après d’autres requêtes (${JSON.stringify(qp2)} ; Abel : ${(await q(J[0])).length})`);
+    check(JSON.stringify((await recompenses(J[15])).places) === JSON.stringify([{ semaine: '2027-11-08', rang: 15, joueurs: 16 }]) && (await recompenses(J[3])).places.length === 2, `ses places : celle du 8 ; Dorian en a deux (${JSON.stringify((await recompenses(J[15])).places)} ; ${JSON.stringify((await recompenses(J[3])).places)})`);
+    // une semaine rattrapée au réveil du projet (personne n'est venu pendant deux semaines) : figée, mais pas de notification
+    await avancer(60); for (const [k, j] of J.slice(0, 4).entries()) await publier6(j, N[k], 10 + k);
+    const avantN = (await file()).filter((x) => x.type === 'semaine').length;
+    await heure('2027-11-30T09:00:00Z');
+    await heureServeur();
+    check((await palmares('2027-11-15')).length === 4 && (await file()).filter((x) => x.type === 'semaine').length === avantN, 'une semaine rattrapée deux semaines plus tard est figée (ses 4 joueurs), sans notification de lundi périmée');
   }
 
   // ─── 31. les notifications (version 6) : abonnements, préférences, file, fonction d'envoi ───
@@ -2124,6 +2207,106 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     await patchLimite({ v: '6.3', texte: P63, T: T63, vieux: { q: T62.q || Q6, h: T62.h || H6 }, vNom: 'v6.2', avant: [['6.2', P62]] });
     await patchLimite({ v: '6.4', texte: P64, T: T64, vieux: { q: T63.q || T62.q || Q6, h: T63.h || T62.h || H6 }, vNom: 'v6.3', avant: [['6.2', P62], ['6.3', P63]] });
     check(memes(TF.q, T64.q) && memes(TF.h, T64.h), 'supabase/fournil-classement.sql et le patch v6.4 portent les mêmes tableaux (recoller le fichier complet ne revient pas en arrière)');
+
+    // ─── la version 6.5 (supabase/fournil-classement-v65.sql), collée deux fois par-dessus la v6.4 telle qu'elle est sur Supabase
+    // (test/fournil-classement-v64-complet.sql, le fichier complet d'avant la 6.5, puis le patch v6.4) : les places jusqu'au 15e, les
+    // récompenses accusées, la notification 'semaine' ; une vieille semaine figée à trois reste lisible ; puis le fichier complet recollé
+    // par-dessus installe le même code
+    {
+      const P65 = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v65.sql'), 'utf8');
+      const V64C = fs.readFileSync(path.join(__dirname, 'fournil-classement-v64-complet.sql'), 'utf8');
+      const T65 = lireTables(P65);
+      titre('la version 6.5 : les places jusqu’au 15e et les récompenses accusées, collée par-dessus la v6.4');
+      check(memes(T65.q, T64.q) && !!T65.h && T65.h.length === 27 && T64.h[1] === 14.05 && T65.h.every((x, k) => (k === 1 ? x === 14.2 : x === T64.h[k])),
+        `le patch v6.5 porte les tableaux de la 6.4, sauf la 2e valeur de la Maison hantée (14,05 → ${T65.h && T65.h[1]})`);
+      check(/TABLES À FIGER LE 22 OCT\. \(recette du jour, activités, vote\)/.test(P65) && /^begin;$/m.test(P65) && /^commit;$/m.test(P65) && /^-- ═+\n--  Le Fournil — le classement, version 6\.5/.test(P65),
+        'le patch : l’en-tête, begin/commit, et le repère « TABLES À FIGER LE 22 OCT. (recette du jour, activités, vote) »');
+      check(!/\b(insert|update|delete|truncate)\b/i.test(P65.replace(/--[^\n]*/g, '').replace(/create or replace function[\s\S]*?\n\$\$;/g, '')), 'hors du code des fonctions, le patch n’écrit aucune donnée (rien que des contraintes, une colonne, des fonctions et leurs droits)');
+      const d5 = await PGlite.create();
+      const s5 = async (sql, p) => (await d5.query(sql, p)).rows;
+      const c5 = async (sql, p, role = 'anon') => { await d5.exec(`set role ${role}`); try { return (await d5.query(sql, p)).rows[0].r; } finally { await d5.exec('reset role'); } };
+      const refus5 = async (role, sql) => { try { await c5(sql, [], role); return false; } catch (err) { return true; } };
+      const coller5 = async (t) => { await d5.exec('set role proprio'); try { return await d5.exec(t); } finally { await d5.exec('reset role'); } };
+      await d5.exec(`
+        create role anon nologin noinherit; create role authenticated nologin noinherit; create role service_role nologin noinherit bypassrls;
+        create role proprio nologin createrole;
+        grant usage, create on schema public to proprio;
+        grant usage on schema public to anon, authenticated, service_role;
+        set role proprio;
+        alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+        alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+        alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+        reset role;
+        create schema banc; create table banc.horloge (t timestamptz); insert into banc.horloge values (null);
+        grant usage on schema banc to proprio; grant select on banc.horloge to proprio;`);
+      let h5 = 0;
+      const horloge5 = async (ms) => { h5 = typeof ms === 'number' ? ms : Date.parse(ms); await s5(`create or replace function public.fournil_maintenant() returns timestamptz language sql stable set search_path = '' as $$ select coalesce((select t from banc.horloge limit 1), now()) $$`); await s5('update banc.horloge set t = $1', [new Date(h5).toISOString()]); };
+      const pub = (j, pseudo, points) => c5('select public.fournil_publier(p_id => $1, p_jeton => $2, p_pseudo => $3, p_fortune => $4, p_points => $5, p_lundi => $6) as r', [j.id, j.jeton, pseudo, '1000', String(points), lundiDe(h5)]);
+      const rec = (j, role = 'anon') => c5('select public.fournil_recompenses(p_id => $1, p_jeton => $2) as r', [j.id, j.jeton], role);
+      const ab = (j, k) => c5('select public.fournil_abonner(p_id => $1, p_jeton => $2, p_sub => $3::jsonb) as r', [j.id, j.jeton, JSON.stringify({ endpoint: `https://fcm.googleapis.com/fcm/send/v65-${k}`, keys: { p256dh: 'B' + 'Q'.repeat(86), auth: 'a'.repeat(22) } })]);
+      const pal5 = async (s) => (await s5(`select rang, pseudo from public.fournil_palmares where semaine = $1 order by rang, lower(pseudo)`, [s])).map((x) => `${x.rang} ${x.pseudo}`).join(', ');
+      const photo5 = async () => { const o = {}; for (const t of TABLES) o[t] = (await s5(`select coalesce(json_agg(x order by x::text), '[]')::text as j from (select ${t === 'fournil_semaines' ? 'semaine, figee' : '*'} from public.${t}) x`))[0].j; return JSON.stringify(o); };
+      const ouvertes5 = async () => (await s5(`select string_agg(p.proname, ',' order by p.proname) as l from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and has_function_privilege('anon', p.oid, 'execute')`))[0].l;
+      const corps5 = async () => JSON.stringify(await s5(`select p.proname, pg_get_function_identity_arguments(p.oid) as args, md5(p.prosrc) as m, p.provolatile as vol, p.prosecdef as definer, array_to_string(p.proconfig, ',') as conf,
+          has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth
+        from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and p.proname not in ('fournil_quartier_table', 'fournil_evts', 'fournil_maintenant') order by 1, 2`)); // (fournil_maintenant : l'horloge du banc d'essai)
+      try { await coller5(V64C); await coller5(P64); check(true, 'la v6.4 telle que sur Supabase s’installe (le fichier complet d’avant la 6.5, puis le patch v6.4)'); } catch (err) { check(false, 'la v6.4 s’installe : ' + err.message); }
+      // sous la v6.4 : cinq joueurs, une semaine figée à trois, un pourboire et un objectif réussi pas encore lus
+      await horloge5('2027-03-03T10:00:00Z'); // mercredi, la semaine du lundi 1er mars (heure d'hiver)
+      const [Ar, Bo, Ce, Do, Ed] = [joueur(), joueur(), joueur(), joueur(), joueur()], NO = ['Arthur', 'Bob', 'Cécile', 'Doris', 'Édith'];
+      for (const [k, j] of [Ar, Bo, Ce, Do, Ed].entries()) await pub(j, NO[k], 120 - 20 * k);
+      await ab(Do, 'do'); await ab(Ar, 'ar');
+      await c5('select public.fournil_pourboire(p_id => $1, p_jeton => $2, p_pour => $3) as r', [Ar.id, Ar.jeton, 'Bob']);
+      await horloge5('2027-03-03T10:00:11Z'); for (const [k, j] of [Ar, Bo, Ce, Do, Ed].entries()) await pub(j, NO[k], 120 - 20 * k); // un second envoi (une inscription jamais suivie part au bout de 7 jours)
+      await horloge5('2027-03-08T07:00:00Z'); // lundi
+      await c5('select public.fournil_heure() as r');
+      check(await pal5('2027-03-01') === '1 Arthur, 2 Bob, 3 Cécile', `en v6.4, la semaine du 1er mars est figée à trois (${await pal5('2027-03-01')}) ; Doris (4e) et Édith (5e) n’y sont pas`);
+      check((await rec(Ce)).objectif !== null && (await rec(Ce)).objectif === null, 'en v6.4, Cécile lit sa récompense de l’objectif : la lecture la marque reçue (l’ancien contrat)');
+      const [donnees, ouvAvant] = [await photo5(), await ouvertes5()];
+      let res = null;
+      try { res = await coller5(P65); res = await coller5(P65); check(true, 'le patch v6.5 se colle par-dessus la v6.4, puis se recolle sans casse (rôle propriétaire, droits par défaut de Supabase)'); } catch (err) { check(false, 'le patch v6.5 se colle : ' + err.message); }
+      check(await photo5() === donnees, `rien ne bouge dans les données : les ${TABLES.length} tables sont identiques (joueurs, palmarès, semaines figées, pourboires, objectifs, notifications…)`);
+      { const l = res && res[res.length - 1] && res[res.length - 1].rows[0];
+        check(!!l && memes(l.quartier, T65.q) && memes(l.hantee, T65.h) && /rang >= 1/.test(l.palmares_rangs) && /rang <= 15/.test(l.palmares_rangs) && /'semaine'/.test(l.notifs_types) && /'retour'/.test(l.notifs_types) && l.vu_objectif === true && Number.isFinite(l.borne_quartier),
+          `la requête de contrôle : les deux tableaux, la borne du Quartier, les rangs du palmarès (${l && l.palmares_rangs}), les types de la file avec 'semaine', fournil_vu_objectif installée`); }
+      check(await ouvertes5() === [...ouvAvant.split(','), 'fournil_vu_objectif'].sort().join(','), `anon appelle les mêmes fonctions qu’avant, plus fournil_vu_objectif (${(await ouvertes5()).split(',').length})`);
+      check(await refus5('anon', 'select public.fournil_figer(current_date) as r') && await refus5('anon', `select public.fournil_notif_permise(gen_random_uuid(), 'semaine') as r`) && await refus5('authenticated', 'select public.fournil_quartier_table() as r'),
+        'les fonctions internes remplacées restent fermées à anon et authenticated');
+      // une vieille semaine figée à trois reste lisible
+      let r = await rec(Ar);
+      check(r.ok && JSON.stringify(r.podiums) === JSON.stringify([{ semaine: '2027-03-01', rang: 1 }]) && JSON.stringify(r.places) === JSON.stringify([{ semaine: '2027-03-01', rang: 1, joueurs: null }]) && r.derniere.podium.length === 3,
+        `la semaine figée en v6.4 reste lisible : Arthur garde son podium, sa place (joueurs inconnu : null) et le podium de la semaine passée (${JSON.stringify(r.places)})`);
+      check((await rec(Do)).places.length === 0, 'Doris (4e de cette vieille semaine, pas gardée par la v6.4) : aucune place, rien d’inventé');
+      // ce que la v6.4 n'avait pas encore rendu : rendu tant que ce n'est pas accusé
+      r = await rec(Bo);
+      check(r.pourboires.length === 1 && r.pourboires[0].de === 'Arthur' && r.objectif && r.objectif.semaine === '2027-03-01', `Bob : le pourboire d’Arthur et l’objectif commun, pas encore lus avant le patch, sont là (${JSON.stringify([r.pourboires, r.objectif])})`);
+      const r2 = await rec(Bo);
+      check(JSON.stringify([r2.pourboires, r2.objectif]) === JSON.stringify([r.pourboires, r.objectif]), 'une réponse perdue : la lecture suivante les rend de nouveau');
+      await c5('select public.fournil_vu_pourboires(p_id => $1, p_jeton => $2, p_jusqua => $3::timestamptz) as r', [Bo.id, Bo.jeton, r.pourboires[0].quand]);
+      await c5('select public.fournil_vu_objectif(p_id => $1, p_jeton => $2, p_semaine => $3::date) as r', [Bo.id, Bo.jeton, r.objectif.semaine]);
+      r = await rec(Bo);
+      check(r.pourboires.length === 0 && r.objectif === null && (await rec(Ce)).objectif === null, 'accusés (fournil_vu_pourboires, fournil_vu_objectif) : plus rien ; Cécile, qui l’avait lue en v6.4, ne la revoit pas');
+      // la semaine suivante, sous la v6.5 : les cinq classés, le nombre de joueurs, la notification du lundi
+      await horloge5('2027-03-10T10:00:00Z');
+      for (const [k, j] of [Ar, Bo, Ce, Do, Ed].entries()) await pub(j, NO[k], 15 + 10 * k);
+      await horloge5('2027-03-15T06:00:00Z');
+      await c5('select public.fournil_heure() as r');
+      check(await pal5('2027-03-08') === '1 Édith, 2 Doris, 3 Cécile, 4 Bob, 5 Arthur' && (await s5(`select joueurs from public.fournil_semaines where semaine = '2027-03-08'`))[0].joueurs === 5 && await pal5('2027-03-01') === '1 Arthur, 2 Bob, 3 Cécile',
+        `en v6.5, la semaine du 8 mars : les cinq classés (${await pal5('2027-03-08')}), 5 joueurs ; celle du 1er mars garde ses trois (${await pal5('2027-03-01')})`);
+      r = await rec(Ar);
+      check(JSON.stringify(r.places) === JSON.stringify([{ semaine: '2027-03-01', rang: 1, joueurs: null }, { semaine: '2027-03-08', rang: 5, joueurs: 5 }]) && JSON.stringify(r.podiums) === JSON.stringify([{ semaine: '2027-03-01', rang: 1 }]),
+        `Arthur : ses deux places (1er de la vieille semaine, 5e sur 5 de la nouvelle) ; un seul podium (${JSON.stringify(r.places)})`);
+      const nt = await s5(`select j.pseudo, n.texte, n.due from public.fournil_notifs n join public.fournil_joueurs j on j.id = n.joueur where n.type = 'semaine' order by 1`);
+      check(nt.length === 2 && nt[0].pseudo === 'Arthur' && nt[0].texte === 'Semaine finie : tu es 5e sur 5 ! Ta récompense t\'attend.' && nt[1].pseudo === 'Doris' && /2e sur 5 ! Ta tenue, ta coupe/.test(nt[1].texte) && new Date(nt[0].due).toISOString() === '2027-03-15T08:00:00.000Z',
+        `la notification 'semaine' pour les deux abonnés, le lundi à 9 h (${nt.map((x) => `${x.pseudo} : « ${x.texte} »`).join(' ; ')})`);
+      // le fichier complet recollé par-dessus : le même code (sauf les deux tables, à l'agent des événements), les mêmes données
+      const [codeAvant, donnees2] = [await corps5(), await photo5()];
+      try { await coller5(SQL); check(true, 'puis le fichier complet (supabase/fournil-classement.sql) se colle par-dessus la v6.5'); } catch (err) { check(false, 'le fichier complet se colle par-dessus la v6.5 : ' + err.message); }
+      check(await corps5() === codeAvant, 'le fichier complet et le patch v6.5 installent le même code : chaque fonction (hors fournil_quartier_table et fournil_evts, à l’agent des événements), ses paramètres, sa volatilité, ses droits');
+      await horloge5(h5);
+      check(await photo5() === donnees2, 'et les données ne bougent pas');
+      await d5.close();
+    }
   }
 
   // ─── le chat (supabase/fournil-chat.sql), collé par-dessus la v6, deux fois ───
@@ -2450,7 +2633,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     };
     await droitsRet();
     const typesFile = (await sup(`select pg_get_constraintdef(oid) as d from pg_constraint where conname = 'fournil_notifs_type_check'`))[0];
-    check(typesFile && /'retour'/.test(typesFile.d) && /'vote'/.test(typesFile.d) && /'pleine'/.test(typesFile.d) && /'essai'/.test(typesFile.d), `la file des notifications accepte les deux nouveaux types, et garde les anciens (${typesFile && typesFile.d})`);
+    check(typesFile && /'retour'/.test(typesFile.d) && /'vote'/.test(typesFile.d) && /'pleine'/.test(typesFile.d) && /'essai'/.test(typesFile.d) && /'semaine'/.test(typesFile.d), `la file des notifications accepte les deux nouveaux types, et garde les anciens, 'semaine' (v6.5) compris (${typesFile && typesFile.d})`);
 
     // des joueurs du classement : l'admin (le propriétaire), des joueurs, des abonnés
     await heure('2028-03-08T10:00:00Z'); // un mercredi, 11 h à Paris

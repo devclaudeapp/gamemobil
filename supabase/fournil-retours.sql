@@ -126,15 +126,17 @@ revoke all on table public.fournil_admins, public.fournil_retours, public.fourni
   from public, anon, authenticated;
 revoke all on sequence public.fournil_retours_n_seq, public.fournil_votes_n_seq from public, anon, authenticated;
 
--- la file des notifications de la v6 : deux types de plus, 'retour' (pour l'admin) et 'vote'
+-- la file des notifications de la v6 : deux types de plus, 'retour' (pour l'admin) et 'vote' ; 'semaine' est celui de la v6.5 du
+-- classement (sa place du lundi) : gardé ici aussi, pour que recoller ce script après la 6.5 ne le perde pas
 alter table public.fournil_notifs drop constraint if exists fournil_notifs_type_check;
 alter table public.fournil_notifs add constraint fournil_notifs_type_check
-  check (type in ('pleine', 'pourboire', 'evenement', 'objectif', 'essai', 'retour', 'vote'));
+  check (type in ('pleine', 'pourboire', 'evenement', 'objectif', 'essai', 'retour', 'vote', 'semaine'));
 
 -- ─── 2. Les fonctions internes (le jeu ne peut pas les appeler) ───
 
 -- ce joueur veut-il ce type de notification ? (la même que dans fournil-classement.sql, qui connaît aussi ces deux types :
--- recoller l'un ou l'autre ne perd rien). 'vote' suit la case « événements » ; 'retour' (réservé aux admins) : un appareil suffit
+-- recoller l'un ou l'autre ne perd rien). 'vote' suit la case « événements » ; 'retour' (réservé aux admins) : un appareil suffit ;
+-- 'semaine' (v6.5 du classement) suit la case « objectif commun »
 create or replace function public.fournil_notif_permise(p_joueur uuid, p_type text)
 returns boolean
 language sql
@@ -144,7 +146,7 @@ as $$
   select exists (select 1 from public.fournil_abonnements a where a.joueur = p_joueur)
      and (p_type in ('essai', 'retour') or coalesce((select case p_type when 'pleine' then p.pleine when 'pourboire' then p.pourboires
                                                            when 'evenement' then p.evenements when 'vote' then p.evenements
-                                                           when 'objectif' then p.objectif else false end
+                                                           when 'objectif' then p.objectif when 'semaine' then p.objectif else false end
                                           from public.fournil_notif_prefs p where p.id = p_joueur), false))
 $$;
 

@@ -5,6 +5,8 @@
 // d'argent portées d'office, la vitrine des trophées avec ses trois coupes ; la toque à côté des pseudos ; « Mes récompenses » : la collection,
 // le choix de la tenue (or, aucune, automatique) ; toucher la vitrine ; la Salle de jeux ; quitter (tout reste) ; un podium plus ancien (rien
 // d'office) ; 360 × 640 ; l'artefact Claude sans classement.
+// Version 6.5 : l'annonce du podium donne aussi ses étoiles et son boost ; la feuille du lundi d'un 7e sur 12 (« Récupérer », les étoiles, le boost
+// dans la réserve, une seule fois), et « Mes places » dans « Mes récompenses ».
 // Lancer : NODE_PATH=/opt/node22/lib/node_modules node test/fournil-recompenses.cjs   (captures dans test/shots/recompenses/ ; PORT_RECOMPENSES pour changer de port)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
@@ -24,10 +26,10 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
 // ─── le faux Supabase, contrat v2 ───
 const sha = (t) => crypto.createHash('sha256').update(String(t), 'utf8').digest('hex');
 const lundi = () => CL.lundiParis(Date.now()), semaineAvant = (k) => CL.decalerSemaine(lundi(), -k);
-const faux = { joueurs: new Map(), palmares: [], appels: [] }; // palmares : [{ semaine, rang, id, pseudo, valeur }]
+const faux = { joueurs: new Map(), palmares: [], appels: [], places: [] }; // palmares : [{ semaine, rang, id, pseudo, valeur }] ; places (version 6.5) : [{ semaine, rang, joueurs, id }]
 const MOI = { id: crypto.randomUUID(), jeton: crypto.randomBytes(32).toString('hex'), pseudo: 'Paulo' };
 function semer() {
-  faux.joueurs.clear(); faux.palmares = []; faux.appels.length = 0;
+  faux.joueurs.clear(); faux.palmares = []; faux.places = []; faux.appels.length = 0;
   const noms = ['Mamie Jo', 'Tonton Brioche', 'Petit Levain', 'Chef Fougasse', 'Super Éclair'];
   noms.forEach((pseudo, i) => { const id = crypto.randomUUID(); faux.joueurs.set(id, { jeton: sha('x' + i), pseudo, sommet: 1e12, total: 9e9 / (i + 1), gain: 3e8 / (i + 1), semaine: lundi(), maj: 0 }); if (i === 0) faux.palmares.push({ semaine: semaineAvant(1), rang: 1, id, pseudo, valeur: 4e8 }); if (i === 1) faux.palmares.push({ semaine: semaineAvant(1), rang: 3, id, pseudo, valeur: 1e8 }); });
   faux.joueurs.set(MOI.id, { jeton: sha(MOI.jeton), pseudo: MOI.pseudo, sommet: 1e6, total: 2e9, gain: 1e8, semaine: lundi(), maj: 0 });
@@ -55,7 +57,8 @@ const RPC = {
   fournil_recompenses: (c) => {
     const j = faux.joueurs.get(c.p_id); if (j && j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: 'jeton', podiums: [], derniere: null };
     const podium = faux.palmares.filter((p) => p.semaine === semaineAvant(1)).sort((a, b) => a.rang - b.rang).map((p) => ({ rang: p.rang, pseudo: p.pseudo, valeur: p.valeur }));
-    return { ok: true, erreur: null, podiums: j ? faux.palmares.filter((p) => p.id === c.p_id).sort((a, b) => (a.semaine < b.semaine ? -1 : 1)).map((p) => ({ semaine: p.semaine, rang: p.rang })) : [], derniere: podium.length ? { semaine: semaineAvant(1), podium } : null };
+    return { ok: true, erreur: null, podiums: j ? faux.palmares.filter((p) => p.id === c.p_id).sort((a, b) => (a.semaine < b.semaine ? -1 : 1)).map((p) => ({ semaine: p.semaine, rang: p.rang })) : [], derniere: podium.length ? { semaine: semaineAvant(1), podium } : null,
+      ...(faux.places.length ? { places: faux.places.filter((p) => p.id === c.p_id).map(({ semaine, rang, joueurs }) => ({ semaine, rang, joueurs })) } : {}) }; // version 6.5
   },
   fournil_heure: () => ({ ms: Date.now() }),
 };
@@ -99,6 +102,9 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
   check(/ton boulanger porte la tenue d’argent cette semaine/.test(an.sous) && /Et 2 autres podiums t’attendaient/.test(an.sous), 'la suite : la tenue portée cette semaine, la coupe sur le comptoir, et les deux autres podiums retrouvés');
   check(/jaillit/.test(an.anim) && an.rayons === 'rayons' && /argent/.test(an.metal) && an.boutons.length === 2 && an.boutons.every(([, h]) => h >= 44), `un petit effet (la coupe jaillit, les rayons tournent, ${an.boutons.map(([t]) => t).join(' / ')})`);
   check((await local(p)).recompenses.vu === semaineAvant(1) && (await local(p)).recompenses.podiums.length === 3, 'l’annonce est notée (vu = la semaine passée), les trois podiums écrits sur le téléphone');
+  { const b = await p.evaluate(() => ({ bonus: (document.querySelector('#feuille-contenu .rec-bonus') || {}).textContent || '', e: window.__fournil.st.etoiles, res: window.__fournil.boosts().reserve.map((x) => `${x.mult}:${x.secs}`) })), l = await local(p);
+    check(b.bonus === 'En prime : +4 étoiles et un boost ×5 de 30 min (le boost attend dans ta réserve).' && b.e === 4 && b.res.filter((x) => x === '5:1800').length === 1 && JSON.stringify(l.recompenses.payees) === JSON.stringify([semaineAvant(1)]),
+      `version 6.5 : l’annonce donne aussi la récompense du 2e (« ${b.bonus} ») : 4 étoiles, un boost ×5 de 30 min dans la réserve, la semaine notée payée ; les podiums plus anciens (d’avant cette version) n’en donnent pas`); }
   await p.screenshot({ path: out + '/01-annonce.png' });
 
   // ─── 2. la boutique : tenue et coupe d'argent, la vitrine des trophées ───
@@ -141,7 +147,8 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
   await attendre(() => p.evaluate(() => !!document.querySelector('#feuille .cl-liste'))); await sleep(300);
   await p.tap('#feuille [data-a="cl-recompenses"]'); await sleep(400);
   check(await p.evaluate(() => /Retour au classement/.test((document.querySelector('#feuille [data-a="cl-retour"]') || {}).innerText || '')), 'ouverte depuis la feuille du classement, la collection y ramène : « Retour au classement »');
-  const col = await p.evaluate(() => ({ cartes: [...document.querySelectorAll('.rec-carte')].map((c) => c.innerText.replace(/\s+/g, ' ').trim()), apercu: (document.querySelector('.rec-apercu') || {}).innerText || '', btn: document.querySelector('[data-a="rec-garderobe"]') ? Math.round(document.querySelector('[data-a="rec-garderobe"]').getBoundingClientRect().height) : 0, large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1 }));
+  const col = await p.evaluate(() => ({ cartes: [...document.querySelectorAll('.rec-coupes[aria-label="Mes coupes"] .rec-carte')].map((c) => c.innerText.replace(/\s+/g, ' ').trim()), places: [...document.querySelectorAll('.rec-coupes[aria-label^="Mes places"] .rec-carte')].map((c) => c.innerText.replace(/\s+/g, ' ').trim()), apercu: (document.querySelector('.rec-apercu') || {}).innerText || '', btn: document.querySelector('[data-a="rec-garderobe"]') ? Math.round(document.querySelector('[data-a="rec-garderobe"]').getBoundingClientRect().height) : 0, large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1 }));
+  check(col.places.length === 3 && /^2e Semaine du .* \+4 ★ · ×5 30 min Récupérée$/.test(col.places[0]) && /^1er Semaine du [^+]* Tenue et coupe$/.test(col.places[1]), `version 6.5, « Mes places » : la plus récente d’abord (${col.places.join(' | ')})`);
   check(col.cartes.length === 3 && /^2e Coupe et tenue d’argent Semaine du/.test(col.cartes[0]) && /^1er Coupe et tenue d’or/.test(col.cartes[1]) && /^3e Coupe et tenue de bronze/.test(col.cartes[2]), 'la collection : chaque coupe et sa tenue, avec sa semaine (la plus récente d’abord) : ' + col.cartes.join(' | '));
   check(/Il porte la toque d’argent : toque d’argent, tablier d’argent, chaussures d’argent, foulard d’argent\./.test(col.apercu) && col.btn >= 44 && col.large, `« ${col.apercu} », et le bouton « Ouvrir la garde-robe »`);
   await p.screenshot({ path: out + '/05-collection.png' });
@@ -193,6 +200,44 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
   check(apres.rejoint === false && apres.id === null && apres.recompenses.podiums.length === 3 && (await vues(p)).coupes === 3 && !faux.palmares.some((x) => x.id === MOI.id), 'quitter le classement : le serveur oublie le palmarès, le téléphone garde les trois coupes et la vitrine');
   await ctx.close();
 
+  // ─── 8 bis. version 6.5 : 7e sur 12 la semaine passée, la feuille du lundi ───
+  semer(); faux.palmares = faux.palmares.filter((x) => x.id !== MOI.id); faux.places = [{ semaine: semaineAvant(1), rang: 7, joueurs: 12, id: MOI.id }];
+  ({ ctx, p } = await nouveau());
+  await preparer(p, etatInscrit());
+  await p.goto(BASE + '/fournil/');
+  check(await attendre(() => p.evaluate(() => !!document.querySelector('#feuille-contenu [data-cl="semaine-place"]')), 9000), 'au lancement, la feuille du lundi s’ouvre (7e sur 12 la semaine passée)');
+  await sleep(900);
+  const lu = await p.evaluate(() => { const f = document.querySelector('#feuille-contenu'); return { h2: f.querySelector('h2').textContent, phrase: f.querySelector('.rec-phrase').textContent, sous: f.querySelector('.sous').textContent, btn: [...f.querySelectorAll('button')].map((b) => [b.innerText.trim(), Math.round(b.getBoundingClientRect().height)]), confettis: window.__confettis || 0, e: window.__fournil.st.etoiles, res: window.__fournil.boosts().reserve.length, large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1 && document.documentElement.scrollWidth <= innerWidth + 1 }; });
+  check(lu.h2 === 'Tu as fini 7e cette semaine sur 12' && lu.phrase === '+2 étoiles et un boost ×2 de 30 min' && /quinze premiers/.test(lu.sous), `« ${lu.h2} » « ${lu.phrase} »`);
+  check(lu.btn.length === 1 && lu.btn[0][0] === 'Récupérer' && lu.btn[0][1] >= 44 && lu.confettis >= 1 && lu.e === 0 && lu.res === 0 && lu.large, `un seul bouton « Récupérer » (${lu.btn[0] && lu.btn[0][1]} px), des confettis ; rien de versé avant de toucher ; rien ne dépasse de l’écran`);
+  await p.screenshot({ path: out + '/11-lundi-7e.png' });
+  await p.tap('#feuille [data-a="pl-recuperer"]'); await sleep(700);
+  const ap = await p.evaluate(() => ({ f: document.querySelector('#feuille').hidden, e: window.__fournil.st.etoiles, res: window.__fournil.boosts().reserve.map((x) => `${x.mult}:${x.secs}`), toast: (document.querySelector('.toast') || {}).textContent || '', save: JSON.parse(localStorage.getItem('fournil.v2')).etoiles }));
+  check(ap.f && ap.e === 2 && ap.save === 2 && JSON.stringify(ap.res) === JSON.stringify(['2:1800']) && /^Récupéré : \+2 étoiles et un boost ×2 de 30 min \(le boost attend dans ta réserve\) !$/.test(ap.toast), `« Récupérer » : +2 étoiles (sauvées), un boost ×2 de 30 min dans la réserve (${ap.res.join(', ')}) ; « ${ap.toast} »`);
+  check(JSON.stringify((await local(p)).recompenses.payees) === JSON.stringify([semaineAvant(1)]), 'la semaine est notée payée sur le téléphone');
+  await p.evaluate(() => window.__fournil.tiroir('ferme')); await sleep(400);
+  await p.evaluate(() => window.__fournil.recompenses()); await sleep(500);
+  const mp = await p.evaluate(() => ({ places: [...document.querySelectorAll('.rec-coupes[aria-label^="Mes places"] .rec-carte')].map((c) => c.innerText.replace(/\s+/g, ' ').trim()), coupes: document.querySelectorAll('.rec-coupes[aria-label="Mes coupes"] .rec-carte').length, sous: document.querySelector('#feuille-contenu .cl-tete .sous').textContent, recup: !!document.querySelector('[data-a="rec-recuperer"]') }));
+  check(mp.places.length === 1 && /^7e sur 12 Semaine du .* \+2 ★ · ×2 30 min Récupérée$/.test(mp.places[0]) && mp.coupes === 0 && !mp.recup && /quinze premiers/.test(mp.sous), `« Mes récompenses » : l’historique des places (« ${mp.places[0]} »), aucune coupe`);
+  await p.screenshot({ path: out + '/12-mes-places.png' });
+  await p.evaluate(() => { document.querySelector('#feuille').hidden = true; document.querySelector('#voile').hidden = true; });
+  await p.reload(); await sleep(3000);
+  check(!(await p.evaluate(() => !!document.querySelector('#feuille-contenu [data-cl="semaine-place"]'))) && (await p.evaluate(() => window.__fournil.st.etoiles)) === 2 && (await p.evaluate(() => window.__fournil.boosts().reserve.length)) === 1, 'relancé : la feuille ne revient pas, rien n’est versé deux fois');
+  await ctx.close();
+  // une feuille refermée sans « Récupérer » : la récompense attend dans « Mes récompenses »
+  semer(); faux.palmares = faux.palmares.filter((x) => x.id !== MOI.id); faux.places = [{ semaine: semaineAvant(1), rang: 12, joueurs: 12, id: MOI.id }];
+  ({ ctx, p } = await nouveau());
+  await preparer(p, etatInscrit());
+  await p.goto(BASE + '/fournil/');
+  check(await attendre(() => p.evaluate(() => !!document.querySelector('#feuille-contenu [data-cl="semaine-place"]')), 9000) && /^Tu as fini 12e cette semaine sur 12$/.test(await p.evaluate(() => document.querySelector('#feuille-contenu h2').textContent)) && /^\+1 étoile et un boost ×2 de 15 min$/.test(await p.evaluate(() => document.querySelector('#feuille-contenu .rec-phrase').textContent)), '12e sur 12 : « +1 étoile et un boost ×2 de 15 min »');
+  await p.evaluate(() => document.querySelector('#feuille [data-a="close"], #voile') && window.__fournil.recompenses()); await sleep(500);
+  const at = await p.evaluate(() => ({ recup: !!document.querySelector('[data-a="rec-recuperer"]'), place: (document.querySelector('.rec-coupes[aria-label^="Mes places"] .rec-carte') || {}).innerText || '', e: window.__fournil.st.etoiles }));
+  check(at.recup && /À récupérer/.test(at.place) && at.e === 0, `refermée sans « Récupérer » : rien de versé, « Mes récompenses » propose « Récupérer ma récompense » (${at.place.replace(/\s+/g, ' ')})`);
+  await p.tap('[data-a="rec-recuperer"]'); await sleep(500);
+  check((await p.evaluate(() => window.__fournil.st.etoiles)) === 1 && (await p.evaluate(() => JSON.stringify(window.__fournil.boosts().reserve.map((x) => `${x.mult}:${x.secs}`)))) === '["2:900"]' && /Récupérée/.test(await p.evaluate(() => (document.querySelector('.rec-coupes[aria-label^="Mes places"] .rec-carte') || {}).innerText || '')) && !(await p.evaluate(() => !!document.querySelector('[data-a="rec-recuperer"]'))),
+    'touché : +1 étoile, un boost ×2 de 15 min, la place est « Récupérée »');
+  await ctx.close();
+
   // ─── 9. un podium plus ancien (il y a deux semaines) : annoncé, mais rien d'office ───
   semer(); faux.palmares = faux.palmares.filter((x) => x.id !== MOI.id); faux.palmares.push({ semaine: semaineAvant(2), rang: 1, id: MOI.id, pseudo: MOI.pseudo, valeur: 1e9 });
   ({ ctx, p } = await nouveau(360, 640));
@@ -206,7 +251,7 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
   await p.screenshot({ path: out + '/09-annonce-360.png' });
   check(JSON.stringify(await vues(p)) === JSON.stringify({ tenue: null, coupe: null, coupes: 1 }), 'la semaine d’après la suivante : tenue blanche, rien sur le comptoir, la coupe d’or dans la vitrine');
   await p.tap('[data-a="rec-collection"]'); await sleep(400);
-  const c360 = await p.evaluate(() => ({ large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1, cartes: document.querySelectorAll('.rec-carte').length, apercu: (document.querySelector('.rec-apercu') || {}).innerText || '', btn: !!document.querySelector('[data-a="rec-garderobe"]'), pieces: Object.keys(window.__fournil.G.garderobe(window.__fournil.st).objets).filter((id) => /^or-/.test(id)).length, equipe: window.__fournil.st.garderobe.equipe.tete }));
+  const c360 = await p.evaluate(() => ({ large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1, cartes: document.querySelectorAll('.rec-coupes[aria-label="Mes coupes"] .rec-carte').length, apercu: (document.querySelector('.rec-apercu') || {}).innerText || '', btn: !!document.querySelector('[data-a="rec-garderobe"]'), pieces: Object.keys(window.__fournil.G.garderobe(window.__fournil.st).objets).filter((id) => /^or-/.test(id)).length, equipe: window.__fournil.st.garderobe.equipe.tete }));
   check(c360.large && c360.cartes === 1 && /toque blanche/.test(c360.apercu) && c360.btn && c360.pieces === 4 && c360.equipe === 'toque-blanche', 'à 360 px, la collection : une coupe, la toque blanche portée, les quatre pièces d’or rangées dans la garde-robe (pas d’office), le bouton vers la garde-robe');
   await p.screenshot({ path: out + '/10-collection-360.png' });
   await ctx.close();

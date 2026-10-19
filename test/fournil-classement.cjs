@@ -93,8 +93,11 @@ const RPC = {
     const j = faux.joueurs.get(c.p_id); if (j && j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: 'jeton', podiums: [], derniere: null };
     const sem = avant(lundi()), podium = [...faux.palmares.entries()].filter(([id]) => faux.joueurs.has(id)).map(([id, rang]) => ({ rang, pseudo: faux.joueurs.get(id).pseudo, points: 400 - 50 * rang, valeur: 1e9 / rang })).sort((a, b) => a.rang - b.rang);
     return { ok: true, erreur: null, podiums: j && faux.palmares.has(c.p_id) ? [{ semaine: sem, rang: faux.palmares.get(c.p_id) }] : [], derniere: podium.length ? { semaine: sem, podium } : null,
-      ...(faux.v6 ? (() => { const o = { pourboires: faux.recus.get(c.p_id) || [], objectif: faux.objectifs.get(c.p_id) || null }; faux.recus.delete(c.p_id); faux.objectifs.delete(c.p_id); faux.lus.set(c.p_id, (faux.lus.get(c.p_id) || 0) + o.pourboires.length); return o; })() : {}) }; // v6 : rendus une seule fois (la lecture les marque vus)
+      ...(faux.v6 ? (() => { const o = { pourboires: (faux.recus.get(c.p_id) || []).slice(), objectif: faux.objectifs.get(c.p_id) || null }; faux.lus.set(c.p_id, (faux.lus.get(c.p_id) || 0) + o.pourboires.length); return o; })() : {}) }; // v6.5 : rendus tant qu'ils ne sont pas accusés
   },
+  // v6.5 : le téléphone accuse ce qu'il a rangé et sauvé
+  fournil_vu_pourboires: (c) => { const l = (faux.recus.get(c.p_id) || []).filter((x) => new Date(x.quand) > new Date(c.p_jusqua)); if (l.length) faux.recus.set(c.p_id, l); else faux.recus.delete(c.p_id); return { ok: true, erreur: null }; },
+  fournil_vu_objectif: (c) => { const o = faux.objectifs.get(c.p_id); if (o && o.semaine <= c.p_semaine) faux.objectifs.delete(c.p_id); return { ok: true, erreur: null }; },
   // ─── v6 : les copains (le vrai serveur : supabase/fournil-classement.sql, vérifié dans test/fournil-classement-sql.cjs) ───
   // fournil_boutique rend la photo telle qu'elle a été envoyée : ses statistiques (x) et l'événement en cours (e) passent sans que le SQL change
   fournil_boutique: (c) => { const e = [...faux.joueurs.entries()].find(([, a]) => a.pseudo.toLowerCase() === String(c.p_pseudo || '').toLowerCase()); if (!e) return { ok: false, erreur: 'inconnu' }; const miens = faux.dons.filter((d) => d.de === c.p_id);
@@ -122,9 +125,10 @@ async function gerer(route) {
   faux.appels.push({ nom, corps, apikey: h.apikey, auth: h.authorization, type: h['content-type'], t: Date.now(), mode: faux.mode });
   if (faux.mode === 'hors-ligne') return route.abort('internetdisconnected');
   if (faux.mode === 'pas-ouvert') return route.fulfill({ status: 404, headers: CORS, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST202', details: null, hint: null, message: `Could not find the function public.${nom} in the schema cache` }) });
-  if (!faux.v6 && /^fournil_(boutique|pourboire|objectif|abonner|desabonner|planifier|notif_essai)$/.test(nom)) return route.fulfill({ status: 404, headers: CORS, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST202' }) }); // un serveur v5 ou plus ancien
+  if (!faux.v6 && /^fournil_(boutique|pourboire|objectif|abonner|desabonner|planifier|notif_essai|vu_pourboires|vu_objectif)$/.test(nom)) return route.fulfill({ status: 404, headers: CORS, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST202' }) }); // un serveur v5 ou plus ancien
   if (!RPC[nom] || !corps) return route.fulfill({ status: 404, headers: CORS, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST202' }) });
   if (faux.v2 && nom === 'fournil_publier' && 'p_points' in corps) return route.fulfill({ status: 404, headers: CORS, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST202', message: 'Could not find the function public.fournil_publier(p_fortune, p_id, p_jeton, p_lundi, p_points, p_pseudo) in the schema cache' }) }); // un serveur encore en version 2
+  if (faux.perdre === nom) { faux.perdre = null; RPC[nom](corps); return route.abort('internetdisconnected'); } // le serveur a fait son travail, la réponse se perd en route
   return route.fulfill({ status: 200, headers: CORS, contentType: 'application/json', body: JSON.stringify(RPC[nom](corps)) });
 }
 const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
@@ -538,6 +542,18 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     await attendre(() => p6.evaluate(() => { const v = window.__fournil.visite(); return v && !v.charge; }));
     const sans = await p6.evaluate(() => ({ v: window.__fournil.visite(), txt: document.querySelector('#vi-vue').innerText, carte: document.querySelector('#vi-vue').classList.contains('carte'), pb: (document.querySelector('[data-vi="pourboire"]') || {}).innerText || '' }));
     check(!sans.v.scene && sans.carte && /Pas encore ouverte aux visites/.test(sans.txt) && /encore 2 aujourd’hui/.test(sans.pb), 'un copain sans photo : une carte texte, le pourboire reste possible');
+    // version 6.5 : le pourboire part, mais sa réponse se perd ; au second essai, « deja » : l'étoile est versée quand même, une seule fois
+    { const e0 = await p6.evaluate(() => window.__fournil.st.etoiles); faux.perdre = 'fournil_pourboire';
+      await p6.tap('[data-vi="pourboire"]'); await attendre(() => p6.evaluate(() => !window.__fournil.visite().envoi)); await sleep(300);
+      const e1 = await p6.evaluate(() => window.__fournil.st.etoiles);
+      check(faux.dons.length === 2 && e1 === e0, `le pourboire à Tonton Jo est arrivé au serveur, sa réponse s’est perdue : pas d’étoile pour l’instant (${e0} → ${e1})`);
+      await p6.tap('[data-vi="pourboire"]'); await attendre(() => p6.evaluate(() => /Pourboire laissé ✓/.test((document.querySelector('[data-vi="pourboire"]') || {}).innerText || '')));
+      await attendre(() => p6.evaluate(() => /était bien passé/.test((document.querySelector('.toast') || {}).textContent || '')), 9000); // (les toasts passent l'un après l'autre)
+      const apres2 = await p6.evaluate(() => ({ e: window.__fournil.st.etoiles, toast: [...document.querySelectorAll('.toast')].map((x) => x.textContent).join(' / '), dis: document.querySelector('[data-vi="pourboire"]').getAttribute('aria-disabled'), dons: JSON.stringify(window.__fournil.classement().etat().dons) }));
+      const der = faux.appels.filter((a) => a.nom === 'fournil_pourboire').pop();
+      check(apres2.e === e0 + 1 && /était bien passé : \+1 étoile/.test(apres2.toast) && apres2.dis === 'true' && faux.dons.length === 2 && der.corps.p_pour === 'Tonton Jo', `il réessaie : « deja » au serveur, l’étoile est versée quand même, une seule (« ${apres2.toast} » ; ${apres2.e - e0} étoile ; ${apres2.dons})`);
+      await p6.evaluate(() => document.querySelector('[data-vi="pourboire"]').click()); await sleep(400);
+      check((await p6.evaluate(() => window.__fournil.st.etoiles)) === e0 + 1, 'retouché : rien de plus'); }
     await p6.evaluate(() => window.__fournil.finVisite(false)); await sleep(300);
     // ─── l'onglet « Tous les temps » : la fiche de statistiques d'un copain, sans 3D ni pourboire ───
     await p6.evaluate(() => window.__fournil.feuilleClassement('total')); await attendre(() => p6.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste') && document.querySelector('#feuille [data-tab="total"]').getAttribute('aria-selected') === 'true')); await sleep(300);
@@ -578,7 +594,10 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     check(await attendre(() => p6.evaluate(() => !document.querySelector('#feuille').hidden && /laissé un pourboire/.test(document.querySelector('#feuille-contenu').innerText)), 8000), 'à l’ouverture, la feuille des pourboires reçus');
     await sleep(900);
     const recu = await p6.evaluate(() => ({ txt: document.querySelector('#feuille-contenu').innerText.replace(/\s+/g, ' '), res: window.__fournil.boosts().reserve.map((x) => `${x.mult}:${x.secs}`) }));
-    check(/Mamie Jo et Tonton Jo t’ont laissé un pourboire\s!/.test(recu.txt) && /2 boosts ×2 de 10 min t’attendent dans ta réserve/.test(recu.txt) && recu.res.filter((x) => x === '2:600').length === 2 && faux.lus.get(moiId) === 2 && !faux.appels.some((a) => a.nom === 'fournil_vu_pourboires'), `« ${recu.txt.slice(0, 110)}… » ; réserve ${recu.res.join(', ')} ; lus une seule fois au serveur`);
+    const vuP = faux.appels.filter((a) => a.nom === 'fournil_vu_pourboires'), vuO = faux.appels.filter((a) => a.nom === 'fournil_vu_objectif');
+    check(/Mamie Jo et Tonton Jo t’ont laissé un pourboire\s!/.test(recu.txt) && /2 boosts ×2 de 10 min t’attendent dans ta réserve/.test(recu.txt) && recu.res.filter((x) => x === '2:600').length === 2 && faux.lus.get(moiId) === 2, `« ${recu.txt.slice(0, 110)}… » ; réserve ${recu.res.join(', ')} ; lus une fois au serveur`);
+    check(vuP.length === 1 && vuP[0].corps.p_jusqua === q1 && vuP[0].corps.p_id === moiId && vuO.length === 1 && vuO[0].corps.p_semaine === semP && !faux.recus.has(moiId) && !faux.objectifs.has(moiId),
+      `version 6.5 : rangés et sauvés, puis accusés au serveur (fournil_vu_pourboires jusqu’à ${vuP[0] && vuP[0].corps.p_jusqua}, fournil_vu_objectif ${vuO[0] && vuO[0].corps.p_semaine})`);
     await capture(p6, '4-pourboire-recu');
     await p6.tap('[data-a="cp-plus-tard"]');
     check(await attendre(() => p6.evaluate(() => /Objectif commun réussi/.test(document.querySelector('#feuille-contenu').innerText)), 6000), 'puis la feuille de l’objectif commun réussi');
