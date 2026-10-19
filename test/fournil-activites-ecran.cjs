@@ -21,7 +21,12 @@ module.exports = async function parcoursActivites(o) {
   const touche = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y]) => ({ x, y, id: 1, radiusX: 6, radiusY: 6, force: 1 })) });
   const toucher = async (x, y) => { await touche('touchStart', [[x, y]]); await touche('touchEnd', []); };
   const centre = (sel) => p.evaluate((s) => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2, w: b.width, h: b.height, r: b.right, bas: b.bottom }; }, sel);
-  const toucherEl = async (sel) => { let c = null; for (let k = 0; k < 40 && !c; k++) { c = await centre(sel); if (!c) await sleep(50); } if (!c) { await p.screenshot({ path: path.join(o.dirs[0], `${o.prefixe}echec.png`) }); throw new Error('introuvable : ' + sel); } await toucher(c.x, c.y); return c; };
+  const toucherEl = async (sel) => { let c = null; for (let k = 0; k < 40 && !c; k++) { c = await centre(sel); if (!c) await sleep(50); } if (!c) { await p.screenshot({ path: path.join(o.dirs[0], `${o.prefixe}echec.png`) }); throw new Error('introuvable : ' + sel); }
+    // un bouton de la feuille : d'abord la fin de sa montée (l'animation « monte », 0,25 s, qui part de 40 px plus bas et prend du retard sur
+    // une machine chargée) ; touché à la place mesurée au début, le doigt tomberait sous le bouton une fois la feuille arrivée
+    if (await ev((s) => { const f = document.querySelector('#feuille'), e = document.querySelector(s); return !!(f && e && f.contains(e) && f.getAnimations().length); }, sel)) {
+      await attendre(() => ev(() => !document.querySelector('#feuille').getAnimations().length), 4000); c = (await centre(sel)) || c; }
+    await toucher(c.x, c.y); return c; };
   const glisser = async (pts) => { await touche('touchStart', [pts[0]]); for (let k = 1; k < pts.length; k++) { await touche('touchMove', [pts[k]]); if (k % 4 === 0) await sleep(1); } await touche('touchEnd', []); };
   const ev = (fn, arg) => p.evaluate(fn, arg);
   const shot = async (nom) => { const f = path.join(o.dirs[0], `${o.prefixe}${nom}.png`); await p.screenshot({ path: f }); for (const d of o.dirs.slice(1)) fs.copyFileSync(f, path.join(d, `${o.prefixe}${nom}.png`)); };

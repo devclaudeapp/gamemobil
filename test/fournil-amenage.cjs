@@ -42,6 +42,8 @@ function doigt(p, cdp) { // les touches et les glisser, comme sur un téléphone
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
   await ctx.addInitScript(() => { window.__sansEvenements = true; window.__sansQuartier = true; });
+  // les messages vus, dès leur apparition (un toast ne vit que 1,7 à 2,4 s : lu après coup sur une machine chargée, il serait déjà parti)
+  await ctx.addInitScript(() => { window.__toasts = []; new MutationObserver(() => { const t = document.querySelector('.toast'); if (t && t.textContent && window.__toasts[window.__toasts.length - 1] !== t.textContent) window.__toasts.push(t.textContent); }).observe(document, { childList: true, subtree: true, characterData: true }); });
   let photoCopain = null; // la photo que le faux serveur rend pour la visite
   await ctx.route(/supabase\.co|googleapis|gstatic/, (r) => r.abort());
   await ctx.route( // (enregistrée après : elle passe avant l'autre)
@@ -123,9 +125,11 @@ function doigt(p, cdp) { // les touches et les glisser, comme sur un téléphone
   if (butB.ok) await d.glisser(await ecran({ x: bar.x, y: bar.y }), await ecran(butB.ok));
   const tout = await ev(() => window.__fournil.st.amenagement);
   check(tout.salon && tout.terrasse[0] != null && tout.bar, `le coin salon (${tout.salon}), une table de la terrasse (${tout.terrasse[0]}, en x seulement) et le bar (${tout.bar}) déplacés`);
-  const ter3 = await mobile('terrasse3'), avant3 = JSON.stringify(tout);
-  const pris3 = await d.glisser(await ecran({ x: ter3.x, y: ter3.y }), await ecran({ x: ter3.x + 40, y: ter3.y }), { pas: 4, pendant: () => ev(() => ({ g: window.__fournil.SCENE.glisse, toast: (document.querySelector('.toast') || {}).textContent || '' })) });
+  const ter3 = await mobile('terrasse3'), avant3 = JSON.stringify(tout); await ev(() => { window.__toasts = []; });
+  const pris3 = await d.glisser(await ecran({ x: ter3.x, y: ter3.y }), await ecran({ x: ter3.x + 40, y: ter3.y }), { pas: 4, pendant: () => ev(() => ({ g: window.__fournil.SCENE.glisse })) });
   check(pris3.g === null, 'pendant le glisser, rien ne suit le doigt');
+  // le message du geste, relevé à son apparition (window.__toasts) : sous charge, le glisser peut durer plus que le toast
+  await attendre(() => ev(() => window.__toasts.some((t) => /pas encore achet/.test(t))), 3000); pris3.toast = await ev(() => window.__toasts.find((t) => /pas encore achet/.test(t)) || window.__toasts.join(' / '));
   const r3 = await ev((a) => JSON.stringify(window.__fournil.st.amenagement) === a, avant3);
   check(r3 && /pas encore achet/.test(pris3.toast), `la troisième table de la terrasse (pas achetée) ne se prend pas : « ${pris3.toast} »`);
   await ev(() => { window.__fournil.scene({ heure: 11, assis: true }); for (const z of ['bar', 'banquette', 'terrasse', 'table']) window.__fournil.SCENE.installer(z, 600); }); await sleep(1500);
