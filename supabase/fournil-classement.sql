@@ -19,7 +19,8 @@
 --    · les pourboires reçus et la récompense de l'objectif commun ne sont plus marqués à la lecture : fournil_recompenses les rend
 --      tant que le téléphone ne les a pas accusés (fournil_vu_pourboires, et la nouvelle fournil_vu_objectif), ce qu'il fait
 --      après les avoir rangés et sauvés. Une réponse perdue : ils reviennent à la lecture suivante, le téléphone reconnaît ceux qu'il
---      a déjà rangés (rien n'est payé deux fois) ;
+--      a déjà rangés (rien n'est payé deux fois). fournil_vu_pourboires compare l'heure à la milliseconde, comme le téléphone la
+--      voit (fournil_iso) : le dernier pourboire reçu est accusé lui aussi ;
 --    · un téléphone de la v6 est toujours servi : les mêmes champs, places en plus ; il ne lit que les rangs 1 à 3.
 --
 --  Version 6 (15 oct. 2026) : LES COPAINS et LES NOTIFICATIONS. Collée par-dessus la v5 : rien ne se perd (joueurs, points,
@@ -1849,8 +1850,9 @@ $$;
 
 -- ─── 9 ter c. fournil_vu_pourboires : accuser les pourboires reçus ───
 -- Marque vus tous ceux reçus jusqu'à p_jusqua (null : maintenant). Depuis la version 6.5, fournil_recompenses ne les marque plus : le
--- téléphone les accuse ainsi une fois rangés et sauvés (p_jusqua : le plus récent qu'il a reçu). Réponse : { ok, erreur: null | 'jeton'
--- | 'inconnu' }.
+-- téléphone les accuse ainsi une fois rangés et sauvés (p_jusqua : le plus récent qu'il a reçu). quand est comparé à la milliseconde :
+-- le téléphone ne voit que la milliseconde (fournil_iso), alors que now() en a six chiffres ; sans cela, le dernier reçu restait à
+-- lire. Réponse : { ok, erreur: null | 'jeton' | 'inconnu' }.
 create or replace function public.fournil_vu_pourboires(p_id uuid, p_jeton text, p_jusqua timestamptz default null)
 returns json
 language plpgsql
@@ -1866,7 +1868,7 @@ begin
     return json_build_object('ok', false, 'erreur', v_erreur);
   end if;
   update public.fournil_pourboires set vu = v_maintenant
-   where a = p_id and vu is null and quand <= least(coalesce(p_jusqua, v_maintenant), v_maintenant);
+   where a = p_id and vu is null and date_trunc('milliseconds', quand) <= least(coalesce(p_jusqua, v_maintenant), v_maintenant);
   return json_build_object('ok', true, 'erreur', null);
 end
 $$;

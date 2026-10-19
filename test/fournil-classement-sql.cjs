@@ -1709,6 +1709,9 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     check(r.ok && r.points_comptes === 10 && r.points_semaine === 50 && await ptsA() === 50, `puis son téléphone envoie 50 points (il en avait 40) : 10 comptés, 50 en tout (${r.points_comptes} comptés, ${r.points_semaine})`);
     // minuit à Paris : un nouveau jour
     await heure('2027-08-04T22:00:01Z');
+    // l'heure à la microseconde, comme now() sur Supabase (le téléphone, lui, ne la voit qu'à la milliseconde : fournil_iso)
+    const micro = (iso) => sup('update banc.horloge set t = $1', [iso]);
+    await micro('2027-08-04T22:00:01.123456Z');
     r = await pourboire(Al, 'Bruno');
     check(r.ok && r.restants === 2, 'minuit passé à Paris : un nouveau jour, Aline peut de nouveau en laisser un à Bruno');
     // le receveur les trouve dans ses récompenses, jusqu'à ce que son téléphone les accuse (version 6.5)
@@ -1718,12 +1721,13 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     const lus = r.pourboires;
     r = await recompenses(Br);
     check(r.ok && JSON.stringify(r.pourboires) === JSON.stringify(lus), 'version 6.5 : la lecture ne les marque plus ; la réponse s’est perdue ? une seconde lecture les rend de nouveau, les mêmes');
-    await avancer(30);
+    await avancer(30); await micro('2027-08-04T22:00:31.654321Z');
     await pourboire(Ch, 'Bruno'); // un troisième, arrivé après la lecture du téléphone
     r = await appelle('fournil_vu_pourboires', { p_id: Br.id, p_jeton: Br.jeton, p_jusqua: lus[1].quand });
     check(r.ok === true, `son téléphone les a rangés et sauvés : il les accuse jusqu’au plus récent reçu (fournil_vu_pourboires, p_jusqua ${lus[1].quand})`);
     r = await recompenses(Br);
-    check(r.ok && r.pourboires.length === 1 && r.pourboires[0].de === 'Chloé', `la lecture suivante ne rend plus que celui arrivé depuis, de Chloé (${JSON.stringify(r.pourboires)})`);
+    check(r.ok && r.pourboires.length === 1 && r.pourboires[0].de === 'Chloé', `la lecture suivante ne rend plus que celui arrivé depuis, de Chloé : le plus récent, reçu à 22:00:01.123456 et lu « ${lus[1].quand} », est accusé aussi (${JSON.stringify(r.pourboires)})`);
+    check((await sup(`select count(*)::int as n from public.fournil_pourboires p join public.fournil_joueurs a on a.id = p.a where a.pseudo = 'Bruno' and p.vu is null`))[0].n === 1, 'en base : seul celui de Chloé reste à accuser (l’heure comparée à la milliseconde, comme le téléphone la voit)');
     await appelle('fournil_vu_pourboires', { p_id: Br.id, p_jeton: Br.jeton, p_jusqua: r.pourboires[0].quand });
     check((await recompenses(Br)).pourboires.length === 0 && (await appelle('fournil_vu_pourboires', { p_id: Br.id, p_jeton: Br.jeton, p_jusqua: r.pourboires[0].quand })).ok === true, 'accusé à son tour : plus rien ; accuser deux fois ne casse rien');
     r = await recompenses({ id: Ch.id, jeton: Br.jeton });
@@ -2256,6 +2260,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       const [Ar, Bo, Ce, Do, Ed] = [joueur(), joueur(), joueur(), joueur(), joueur()], NO = ['Arthur', 'Bob', 'Cécile', 'Doris', 'Édith'];
       for (const [k, j] of [Ar, Bo, Ce, Do, Ed].entries()) await pub(j, NO[k], 120 - 20 * k);
       await ab(Do, 'do'); await ab(Ar, 'ar');
+      await s5('update banc.horloge set t = $1', ['2027-03-03T10:00:00.123456Z']); // à la microseconde, comme now() sur Supabase
       await c5('select public.fournil_pourboire(p_id => $1, p_jeton => $2, p_pour => $3) as r', [Ar.id, Ar.jeton, 'Bob']);
       await horloge5('2027-03-03T10:00:11Z'); for (const [k, j] of [Ar, Bo, Ce, Do, Ed].entries()) await pub(j, NO[k], 120 - 20 * k); // un second envoi (une inscription jamais suivie part au bout de 7 jours)
       await horloge5('2027-03-08T07:00:00Z'); // lundi
@@ -2267,8 +2272,8 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       try { res = await coller5(P65); res = await coller5(P65); check(true, 'le patch v6.5 se colle par-dessus la v6.4, puis se recolle sans casse (rôle propriétaire, droits par défaut de Supabase)'); } catch (err) { check(false, 'le patch v6.5 se colle : ' + err.message); }
       check(await photo5() === donnees, `rien ne bouge dans les données : les ${TABLES.length} tables sont identiques (joueurs, palmarès, semaines figées, pourboires, objectifs, notifications…)`);
       { const l = res && res[res.length - 1] && res[res.length - 1].rows[0];
-        check(!!l && memes(l.quartier, T65.q) && memes(l.hantee, T65.h) && /rang >= 1/.test(l.palmares_rangs) && /rang <= 15/.test(l.palmares_rangs) && /'semaine'/.test(l.notifs_types) && /'retour'/.test(l.notifs_types) && l.vu_objectif === true && Number.isFinite(l.borne_quartier),
-          `la requête de contrôle : les deux tableaux, la borne du Quartier, les rangs du palmarès (${l && l.palmares_rangs}), les types de la file avec 'semaine', fournil_vu_objectif installée`); }
+        check(!!l && memes(l.quartier, T65.q) && memes(l.hantee, T65.h) && /rang >= 1/.test(l.palmares_rangs) && /rang <= 15/.test(l.palmares_rangs) && /'semaine'/.test(l.notifs_types) && /'retour'/.test(l.notifs_types) && l.vu_objectif === true && l.vu_pourboires_ms === true && Number.isFinite(l.borne_quartier),
+          `la requête de contrôle : les deux tableaux, la borne du Quartier, les rangs du palmarès (${l && l.palmares_rangs}), les types de la file avec 'semaine', fournil_vu_objectif installée, fournil_vu_pourboires à la milliseconde`); }
       check(await ouvertes5() === [...ouvAvant.split(','), 'fournil_vu_objectif'].sort().join(','), `anon appelle les mêmes fonctions qu’avant, plus fournil_vu_objectif (${(await ouvertes5()).split(',').length})`);
       check(await refus5('anon', 'select public.fournil_figer(current_date) as r') && await refus5('anon', `select public.fournil_notif_permise(gen_random_uuid(), 'semaine') as r`) && await refus5('authenticated', 'select public.fournil_quartier_table() as r'),
         'les fonctions internes remplacées restent fermées à anon et authenticated');
@@ -2285,7 +2290,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       await c5('select public.fournil_vu_pourboires(p_id => $1, p_jeton => $2, p_jusqua => $3::timestamptz) as r', [Bo.id, Bo.jeton, r.pourboires[0].quand]);
       await c5('select public.fournil_vu_objectif(p_id => $1, p_jeton => $2, p_semaine => $3::date) as r', [Bo.id, Bo.jeton, r.objectif.semaine]);
       r = await rec(Bo);
-      check(r.pourboires.length === 0 && r.objectif === null && (await rec(Ce)).objectif === null, 'accusés (fournil_vu_pourboires, fournil_vu_objectif) : plus rien ; Cécile, qui l’avait lue en v6.4, ne la revoit pas');
+      check(r.pourboires.length === 0 && r.objectif === null && (await rec(Ce)).objectif === null, 'accusés (fournil_vu_pourboires, fournil_vu_objectif) : plus rien (le pourboire reçu à 10:00:00.123456, lu à la milliseconde, compris) ; Cécile, qui l’avait lue en v6.4, ne la revoit pas');
       // la semaine suivante, sous la v6.5 : les cinq classés, le nombre de joueurs, la notification du lundi
       await horloge5('2027-03-10T10:00:00Z');
       for (const [k, j] of [Ar, Bo, Ce, Do, Ed].entries()) await pub(j, NO[k], 15 + 10 * k);

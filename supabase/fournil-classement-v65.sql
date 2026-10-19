@@ -27,11 +27,12 @@
 --    · fournil_recompenses : podiums et derniere ne parlent toujours que des trois premiers ; places en plus ([{ semaine, rang,
 --      joueurs }], rangs 1 à 15) ; les pourboires et l'objectif ne sont plus marqués par la lecture ;
 --    · fournil_classement : la toque de la semaine passée, seulement pour les trois premiers (le reste du code est le même) ;
---    · fournil_vu_objectif (nouvelle) : accuser la récompense de l'objectif commun (fournil_vu_pourboires existe déjà, pour les
---      pourboires) ;
+--    · fournil_vu_objectif (nouvelle) : accuser la récompense de l'objectif commun ; fournil_vu_pourboires (qui existe déjà, pour les
+--      pourboires) compare l'heure à la milliseconde, comme le téléphone la voit (fournil_iso) : sans cela, le dernier pourboire
+--      reçu (now() a six chiffres après la seconde) n'était jamais accusé ;
 --    · fournil_quartier_table() et fournil_evts() : les tableaux de la 6.4, sauf la 2e valeur de la ligne 'hantee' (14,2) ;
 --    · les mêmes signatures, le même langage, la même volatilité, le même search_path que la version 6 ; les mêmes droits (les
---      fonctions internes : ni anon ni authenticated ; fournil_vu_objectif : anon et authenticated, comme fournil_vu_pourboires).
+--      fonctions internes : ni anon ni authenticated ; fournil_vu_objectif et fournil_vu_pourboires : anon et authenticated).
 --  Aucune donnée n'est touchée : joueurs, points, billets, bonbons, palmarès, podiums, pourboires et objectifs restent tels quels.
 --  Un téléphone de la v6 est toujours servi (les mêmes champs, places en plus ; il ne lit que les rangs 1 à 3, et ses pourboires
 --  revenus à chaque lecture sont reconnus : il ne les paie pas deux fois).
@@ -288,6 +289,31 @@ begin
 end
 $$;
 
+-- ─── 9 ter c. fournil_vu_pourboires : accuser les pourboires reçus ───
+-- Marque vus tous ceux reçus jusqu'à p_jusqua (null : maintenant). Depuis la version 6.5, fournil_recompenses ne les marque plus : le
+-- téléphone les accuse ainsi une fois rangés et sauvés (p_jusqua : le plus récent qu'il a reçu). quand est comparé à la milliseconde :
+-- le téléphone ne voit que la milliseconde (fournil_iso), alors que now() en a six chiffres ; sans cela, le dernier reçu restait à
+-- lire. Réponse : { ok, erreur: null | 'jeton' | 'inconnu' }.
+create or replace function public.fournil_vu_pourboires(p_id uuid, p_jeton text, p_jusqua timestamptz default null)
+returns json
+language plpgsql
+volatile
+security definer
+set search_path = ''
+as $$
+declare
+  v_maintenant timestamptz := public.fournil_maintenant();
+  v_erreur     text := public.fournil_joueur_verifie(p_id, p_jeton);
+begin
+  if v_erreur is not null then
+    return json_build_object('ok', false, 'erreur', v_erreur);
+  end if;
+  update public.fournil_pourboires set vu = v_maintenant
+   where a = p_id and vu is null and date_trunc('milliseconds', quand) <= least(coalesce(p_jusqua, v_maintenant), v_maintenant);
+  return json_build_object('ok', true, 'erreur', null);
+end
+$$;
+
 -- ─── 9 ter c bis. fournil_vu_objectif : accuser la récompense de l'objectif commun (version 6.5) ───
 -- Le téléphone l'appelle une fois la récompense rangée et sauvée : toutes ses semaines réussies jusqu'à p_semaine (le lundi rendu par
 -- fournil_recompenses) sont marquées reçues. Réponse : { ok, erreur: null | 'jeton' | 'inconnu' }.
@@ -347,9 +373,11 @@ revoke all on function public.fournil_quartier_table() from public, anon, authen
 revoke all on function public.fournil_evts() from public, anon, authenticated;
 revoke all on function public.fournil_classement(text, uuid, integer) from public;
 revoke all on function public.fournil_recompenses(uuid, text) from public;
+revoke all on function public.fournil_vu_pourboires(uuid, text, timestamptz) from public;
 revoke all on function public.fournil_vu_objectif(uuid, text, date) from public;
 grant execute on function public.fournil_classement(text, uuid, integer) to anon, authenticated;
 grant execute on function public.fournil_recompenses(uuid, text) to anon, authenticated;
+grant execute on function public.fournil_vu_pourboires(uuid, text, timestamptz) to anon, authenticated;
 grant execute on function public.fournil_vu_objectif(uuid, text, date) to anon, authenticated;
 
 commit;
@@ -358,11 +386,12 @@ commit;
 notify pgrst, 'reload schema';
 
 -- le contrôle : les deux tableaux, la plus haute valeur de billets acceptée en ce moment au Quartier (et son log10), puis ce que la
--- 6.5 installe (les rangs du palmarès, les types de la file, fournil_vu_objectif)
+-- 6.5 installe (les rangs du palmarès, les types de la file, fournil_vu_objectif, fournil_vu_pourboires à la milliseconde)
 select public.fournil_quartier_table() as quartier,
        (select x.tableau from public.fournil_evts() x where x.nom = 'hantee') as hantee,
        public.fournil_quartier_borne(now()) as borne_quartier,
        round(log(greatest(public.fournil_quartier_borne(now()), 1))::numeric, 2) as borne_quartier_log10,
        (select pg_get_constraintdef(c.oid) from pg_constraint c where c.conname = 'fournil_palmares_rang_check') as palmares_rangs,
        (select pg_get_constraintdef(c.oid) from pg_constraint c where c.conname = 'fournil_notifs_type_check') as notifs_types,
-       to_regprocedure('public.fournil_vu_objectif(uuid, text, date)') is not null as vu_objectif;
+       to_regprocedure('public.fournil_vu_objectif(uuid, text, date)') is not null as vu_objectif,
+       position('date_trunc' in pg_get_functiondef('public.fournil_vu_pourboires(uuid, text, timestamptz)'::regprocedure)) > 0 as vu_pourboires_ms;
