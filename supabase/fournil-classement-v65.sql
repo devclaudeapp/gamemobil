@@ -30,7 +30,7 @@
 --    · fournil_vu_objectif (nouvelle) : accuser la récompense de l'objectif commun ; fournil_vu_pourboires (qui existe déjà, pour les
 --      pourboires) compare l'heure à la milliseconde, comme le téléphone la voit (fournil_iso) : sans cela, le dernier pourboire
 --      reçu (now() a six chiffres après la seconde) n'était jamais accusé ;
---    · fournil_quartier_table() et fournil_evts() : les tableaux de la 6.4, sauf la 2e valeur de la ligne 'hantee' (14,2) ;
+--    · fournil_quartier_table() et fournil_evts() : les tableaux de la simulation de la recette du jour (2e valeur 'hantee' : 14,2) ;
 --    · les mêmes signatures, le même langage, la même volatilité, le même search_path que la version 6 ; les mêmes droits (les
 --      fonctions internes : ni anon ni authenticated ; fournil_vu_objectif et fournil_vu_pourboires : anon et authenticated).
 --  Aucune donnée n'est touchée : joueurs, points, billets, bonbons, palmarès, podiums, pourboires et objectifs restent tels quels.
@@ -337,19 +337,20 @@ end
 $$;
 
 -- ═══ TABLES À FIGER LE 22 OCT. (recette du jour, activités, vote) ═══
--- Les valeurs ci-dessous sont celles de la 6.4, sauf la 2e valeur de la ligne 'hantee' (14,05 → 14,2). Le 22 octobre, ces deux
--- tableaux seront remplacés par ceux de la simulation des nouveautés (recette du jour, activités, vote), avec la même marge.
+-- Les valeurs ci-dessous viennent de la simulation de la recette du jour (scratchpad tables.json), vérifiées minute par minute sur
+-- l'heure du serveur ; la 2e valeur de la ligne 'hantee' passe de 14,05 à 14,2. Elles seront recalculées avec les activités de la
+-- Maison hantée avant d'être collées, avec la même marge.
 
 -- l'enveloppe des billets du Quartier : le log10 de ce qu'un joueur qui ne lâche jamais sa Planque aurait gagné k jours après
 -- l'ouverture, k de 0 à 14, marge d'au moins ×2 (simulation de test/fournil-quartier.test.js, qui vérifie cette table)
--- (inchangée depuis la 6.4)
+-- (avant la 6.5 : {12.5,14.5,16.55,17.15,17.45,17.65,17.8,17.9,18,18.1,18.2,18.25,18.3,18.4,18.45})
 create or replace function public.fournil_quartier_table()
 returns double precision[]
 language sql
 immutable
 set search_path = ''
 as $$
-  select '{12.5,14.5,16.55,17.15,17.45,17.65,17.8,17.9,18,18.1,18.2,18.25,18.3,18.4,18.45}'::double precision[]
+  select '{12.5,16.7,16.95,17.35,17.55,17.75,17.9,18,18.1,18.2,18.25,18.35,18.4,18.45,18.45}'::double precision[]
 $$;
 
 -- les événements génériques : 'hantee', « La Maison hantée » (src/hantee.js, test/fournil-hantee.test.js) ; un pas de 6 heures
@@ -362,7 +363,7 @@ immutable
 set search_path = ''
 as $$
   values ('hantee'::text, '2026-10-27 12:00:00 Europe/Paris'::timestamptz, '2026-11-02 20:00:00 Europe/Paris'::timestamptz, 6::double precision,
-          '{11.65,14.2,16.05,16.2,16.55,16.8,17,17.15,17.25,17.35,17.45,17.55,17.6,17.65,17.7,17.75,17.8,17.85,17.9,17.95,18,18,18.05,18.1,18.1,18.15,18.15}'::double precision[])
+          '{11.65,14.2,16.05,16.25,16.6,16.85,17.05,17.2,17.3,17.4,17.5,17.55,17.65,17.7,17.75,17.8,17.85,17.9,17.95,18,18,18.05,18.1,18.15,18.15,18.2,18.2}'::double precision[])
 $$;
 
 -- les droits : comme en version 6, les fonctions internes (personne d'autre que le propriétaire ne les appelle) ; les fonctions du

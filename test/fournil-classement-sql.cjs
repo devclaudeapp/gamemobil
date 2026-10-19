@@ -2210,7 +2210,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     await patchLimite({ v: '6.2', texte: P62, T: T62, vieux: { q: Q6, h: H6 }, vNom: 'v6', avant: [] });
     await patchLimite({ v: '6.3', texte: P63, T: T63, vieux: { q: T62.q || Q6, h: T62.h || H6 }, vNom: 'v6.2', avant: [['6.2', P62]] });
     await patchLimite({ v: '6.4', texte: P64, T: T64, vieux: { q: T63.q || T62.q || Q6, h: T63.h || T62.h || H6 }, vNom: 'v6.3', avant: [['6.2', P62], ['6.3', P63]] });
-    check(memes(TF.q, T64.q) && memes(TF.h, T64.h), 'supabase/fournil-classement.sql et le patch v6.4 portent les mêmes tableaux (recoller le fichier complet ne revient pas en arrière)');
+    { const T65 = lireTables(fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v65.sql'), 'utf8')); check(memes(TF.q, T65.q) && memes(TF.h, T65.h), 'supabase/fournil-classement.sql et le patch v6.5 portent les mêmes tableaux (recoller le fichier complet ne revient pas en arrière)'); }
 
     // ─── la version 6.5 (supabase/fournil-classement-v65.sql), collée deux fois par-dessus la v6.4 telle qu'elle est sur Supabase
     // (test/fournil-classement-v64-complet.sql, le fichier complet d'avant la 6.5, puis le patch v6.4) : les places jusqu'au 15e, les
@@ -2221,8 +2221,9 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       const V64C = fs.readFileSync(path.join(__dirname, 'fournil-classement-v64-complet.sql'), 'utf8');
       const T65 = lireTables(P65);
       titre('la version 6.5 : les places jusqu’au 15e et les récompenses accusées, collée par-dessus la v6.4');
-      check(memes(T65.q, T64.q) && !!T65.h && T65.h.length === 27 && T64.h[1] === 14.05 && T65.h.every((x, k) => (k === 1 ? x === 14.2 : x === T64.h[k])),
-        `le patch v6.5 porte les tableaux de la 6.4, sauf la 2e valeur de la Maison hantée (14,05 → ${T65.h && T65.h[1]})`);
+      check(!!T65.q && T65.q.length === 15 && !!T65.h && T65.h.length === 27 && T64.h[1] === 14.05 && T65.h[1] >= 14.2
+        && T65.q.every((x, k) => x >= T64.q[k] && (k === 0 || x >= T65.q[k - 1])) && T65.h.every((x, k) => x >= T64.h[k] && (k === 0 || x >= T65.h[k - 1])),
+        `le patch v6.5 porte des tableaux croissants, jamais sous ceux de la 6.4 (personne n'est plafonné plus bas), 2e valeur de la Maison hantée ${T65.h && T65.h[1]} ≥ 14,2`);
       check(/TABLES À FIGER LE 22 OCT\. \(recette du jour, activités, vote\)/.test(P65) && /^begin;$/m.test(P65) && /^commit;$/m.test(P65) && /^-- ═+\n--  Le Fournil — le classement, version 6\.5/.test(P65),
         'le patch : l’en-tête, begin/commit, et le repère « TABLES À FIGER LE 22 OCT. (recette du jour, activités, vote) »');
       check(!/\b(insert|update|delete|truncate)\b/i.test(P65.replace(/--[^\n]*/g, '').replace(/create or replace function[\s\S]*?\n\$\$;/g, '')), 'hors du code des fonctions, le patch n’écrit aucune donnée (rien que des contraintes, une colonne, des fonctions et leurs droits)');
