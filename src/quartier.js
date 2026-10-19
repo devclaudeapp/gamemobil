@@ -470,7 +470,7 @@
         { id: 'moyen', nom: 'La livraison du bâtiment C', desc: 'Un quart d’heure dans les escaliers : l’ascenseur est en panne.' },
         { id: 'long', nom: 'Le gros coup du PMU', desc: 'Une heure dans l’arrière-salle : le meilleur gain, le plus de risque.' },
       ],
-      textes: { saisie: 'Contrôle de police', saisieTxt: (m) => `Contrôle de police : ${m} saisis.`, operation: 'Opération', enCours: 'L’équipe est sur le coup', recette: 'La recette du jour', cuisine: 'La cuisine de la Planque' },
+      textes: { saisie: 'Contrôle de police', saisieTxt: (m) => `Contrôle de police : ${m} saisis.`, operation: 'Opération', enCours: 'L’équipe est sur le coup', recette: 'Mise en pochon du jour', maitrise: 'Conditionnement', maitriseCarte: 'Pochons', toutes: 'tous pochons confondus', unite: 'pochons', cuisine: 'La cuisine de la Planque' },
       // la recette du jour (src/activites.js, RECETTE_JOUR) : la cuisine de la Planque, une recette par jour, de 20 à 90 s ; à la 500e fournée, la toque en or
       recettes: [
         { id: 'the-menthe', nom: 'Le thé à la menthe du hall', desc: 'Très sucré, versé de très haut, servi sur les marches du bâtiment B.', temps: 20, icone: 'the-menthe' },
