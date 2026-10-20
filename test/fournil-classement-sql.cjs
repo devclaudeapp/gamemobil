@@ -25,6 +25,9 @@
 //     (test/fournil-classement-v64-complet.sql + le patch v6.4) : les places jusqu'au 15e (une vieille semaine figée à trois reste
 //     lisible), les pourboires et l'objectif rendus tant qu'ils ne sont pas accusés, la notification 'semaine', puis le fichier complet
 //     recollé : le même code ; et dans le fichier complet, seize joueurs, des ex æquo (au 2e et au 15e rang), la notification du lundi.
+//   · le patch v6.6 (supabase/fournil-classement-v66.sql, la limite de la Maison hantée relevée pour ses activités ; fournil_evts() seule)
+//     collé deux fois par-dessus la v6.5 telle que sur Supabase : bornes jamais plus basses, les valeurs exactes, un score entre l'ancienne
+//     et la nouvelle borne compté, rien d'autre ne bouge ; le fichier complet porte le même tableau.
 //   · le chat (supabase/fournil-chat.sql, collé par-dessus la v6) : chaque erreur de l'envoi, 3 s et 60 par heure, le masquage au
 //     3e signalement, l'effacement, le bannissement, le ménage (images de 7 jours, au-delà des 2 000), la cascade du retrait, les droits.
 //   · les idées, les bugs et les votes (supabase/fournil-retours.sql, collé par-dessus la v6, les cadeaux et le chat) : chaque erreur
@@ -2100,14 +2103,18 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     // la borne d'une table de log10 à pas fixe (le miroir de fournil_quartier_borne et de fournil_evt_borne)
     const borneJS = (tab, debut, pasMs, ms) => { if (ms < debut) return 0; const j = Math.min((ms - debut) / pasMs, tab.length - 1), k = Math.floor(j); return k >= tab.length - 1 ? Math.pow(10, tab[tab.length - 1]) : Math.pow(10, tab[k] + (tab[k + 1] - tab[k]) * (j - k)); };
 
-    // un patch : v (« 6.2 »), son texte, ses tableaux, ceux d'avant (vieux, nommés vNom), les patchs déjà collés avant lui
-    const patchLimite = async ({ v, texte, T, vieux, vNom, avant }) => {
+    // un patch : v (« 6.2 »), son texte, ses tableaux, ceux d'avant (vieux, nommés vNom), les patchs déjà collés avant lui (sur la v6
+    // telle que collée sur Supabase, SQL6 ; ou, base, la suite de textes qui donne la version d'avant) ; seulFevts : le patch ne porte que
+    // fournil_evts() (la v6.6 : la Maison hantée seule ; le Quartier garde son tableau)
+    const patchLimite = async ({ v, texte, T, vieux, vNom, avant, base, seulFevts }) => {
       titre(`la version ${v} : la limite des événements, collée par-dessus la ${vNom}`);
-      check(T.q && T.q.length === 15 && T.h && T.h.length === 27, `le patch v${v} porte les deux tableaux : 15 valeurs pour le Quartier, 27 pour la Maison hantée`);
-      check(T.q && T.h && T.q.every((x, k) => x >= vieux.q[k] && (k === 0 || x >= T.q[k - 1])) && T.h.every((x, k) => x >= vieux.h[k] && (k === 0 || x >= T.h[k - 1])),
-        `chaque valeur de la v${v} est ≥ à celle de la ${vNom}, au même pas, et les tableaux sont croissants (Quartier : jusqu’à +${T.q ? Math.max(...T.q.map((x, k) => x - vieux.q[k])).toFixed(2) : '?'} en log10 ; Maison hantée : jusqu’à +${T.h ? Math.max(...T.h.map((x, k) => x - vieux.h[k])).toFixed(2) : '?'})`);
-      check(!/\b(insert|update|delete|truncate|drop|alter|grant)\b/i.test(texte.replace(/--[^\n]*/g, '')) && (texte.match(/create or replace function/gi) || []).length === 2 && !/create\s+(table|index|schema|role|trigger|policy)/i.test(texte),
-        'le patch ne touche que deux fonctions : ni table, ni donnée, ni droit accordé, rien de supprimé');
+      const nF = seulFevts ? 1 : 2, Tq = seulFevts ? vieux.q : T.q;
+      if (seulFevts) check(T.q === null && T.h && T.h.length === 27, `le patch v${v} ne porte que le tableau de la Maison hantée (27 valeurs) ; celui du Quartier ne change pas`);
+      else check(T.q && T.q.length === 15 && T.h && T.h.length === 27, `le patch v${v} porte les deux tableaux : 15 valeurs pour le Quartier, 27 pour la Maison hantée`);
+      check(Tq && T.h && Tq.every((x, k) => x >= vieux.q[k] && (k === 0 || x >= Tq[k - 1])) && T.h.every((x, k) => x >= vieux.h[k] && (k === 0 || x >= T.h[k - 1])),
+        `chaque valeur de la v${v} est ≥ à celle de la ${vNom}, au même pas, et les tableaux sont croissants (Quartier : jusqu’à +${Tq ? Math.max(...Tq.map((x, k) => x - vieux.q[k])).toFixed(2) : '?'} en log10 ; Maison hantée : jusqu’à +${T.h ? Math.max(...T.h.map((x, k) => x - vieux.h[k])).toFixed(2) : '?'})`);
+      check(!/\b(insert|update|delete|truncate|drop|alter|grant)\b/i.test(texte.replace(/--[^\n]*/g, '')) && (texte.match(/create or replace function/gi) || []).length === nF && !/create\s+(table|index|schema|role|trigger|policy)/i.test(texte),
+        `le patch ne touche que ${nF === 1 ? 'une fonction' : 'deux fonctions'} : ni table, ni donnée, ni droit accordé, rien de supprimé`);
       const db62 = await PGlite.create();
       const s62 = async (sql, p) => (await db62.query(sql, p)).rows;
       const c62 = async (sql, p, role = 'anon') => { await db62.exec(`set role ${role}`); try { return (await db62.query(sql, p)).rows[0].r; } finally { await db62.exec('reset role'); } };
@@ -2137,8 +2144,8 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       const mQ = ecartMax(vieux.q, NQ, 6, 13), kQ = mQ + 0.5, TQ = Q.DEBUT + kQ * JOUR; // après le premier lundi de l'événement : une semaine figée au palmarès
       const mH = ecartMax(vieux.h, NH, 1, 24), kH = mH + 0.5, TH = HT.DEBUT + kH * PAS_H;
       const plusQ = ecart(vieux.q, NQ, mQ) > 1e-9, plusH = ecart(vieux.h, NH, mH) > 1e-9; // la nouvelle borne dépasse-t-elle l'ancienne quelque part ?
-      try { await coller62(SQL6); check(true, 'la version 6 telle que collée sur Supabase (tableaux d’avant la 6.2) s’installe'); } catch (err) { check(false, 'la version 6 s’installe : ' + err.message); }
-      for (const [nom, t] of avant) { try { await coller62(t); check(true, `puis le patch v${nom}, comme sur Supabase`); } catch (err) { check(false, `le patch v${nom} se colle : ` + err.message); } }
+      if (!base) { try { await coller62(SQL6); check(true, 'la version 6 telle que collée sur Supabase (tableaux d’avant la 6.2) s’installe'); } catch (err) { check(false, 'la version 6 s’installe : ' + err.message); } }
+      for (const [nom, t] of base || avant) { try { await coller62(t); check(true, `puis le patch v${nom}, comme sur Supabase`); } catch (err) { check(false, `le patch v${nom} se colle : ` + err.message); } }
       // des joueurs : inscrits le 2e jour du Quartier (des points, des billets), puis une semaine figée, une photo, un pourboire
       const [Ali, Bea, Cyr] = [joueur(), joueur(), joueur()], noms = ['Ali', 'Béa', 'Cyril'];
       await horloge62(Q.DEBUT + JOUR);
@@ -2184,7 +2191,10 @@ function trajectoirePoints(profil, jours, t0, cadence) {
         for (let k = 0; k <= 26; k++) { const ms = HT.DEBUT + k * PAS_H, b = await borneH(ms), bm = k < 26 ? await borneH(ms + PAS_H / 2) : b; if (!(b >= Math.pow(10, vieux.h[k]) * (1 - 1e-12) && (k === 26 || bm >= borneJS(vieux.h, HT.DEBUT, PAS_H, ms + PAS_H / 2) * (1 - 1e-12)))) { ok = false; d.push(k); } if (!proche(b, Math.pow(10, NH[k]), 1e-9) || (k < 26 && !proche(bm, borneJS(NH, HT.DEBUT, PAS_H, ms + PAS_H / 2), 1e-9))) eg = false; }
         check(ok && eg && (await borneH(HT.DEBUT - 1)) === 0, `la borne de la Maison hantée, à chacun des 27 pas de 6 h (et au milieu de chaque pas) : ≥ à celle de la ${vNom}, = 10^(la v${v}) ; 0 avant l’ouverture${d.length ? ' — en dessous aux pas ' + d.join(', ') : ''}`); }
       // la requête de contrôle, au bas du patch
-      { const ctl = res && res[res.length - 1], l = ctl && ctl.rows && ctl.rows[0];
+      if (seulFevts) { const ctl = res && res[res.length - 1], l = ctl && ctl.rows && ctl.rows[0], bh = (await s62(`select public.fournil_evt_borne('hantee', now()) as b`))[0].b;
+        check(!!l && ctl.rows.length === 1 && Object.keys(l).join() === 'hantee,borne_hantee,borne_hantee_log10' && memes(l.hantee, NH) && proche(l.borne_hantee, bh, 1e-3) && (l.borne_hantee === 0 || Math.abs(Number(l.borne_hantee_log10) - Math.log10(l.borne_hantee)) <= 0.005),
+          `la requête de contrôle rend une ligne : le tableau de la Maison hantée et sa borne maintenant (${l ? `${e(l.borne_hantee)}, log10 ${l.borne_hantee_log10}` : '?'})`); }
+      else { const ctl = res && res[res.length - 1], l = ctl && ctl.rows && ctl.rows[0];
         check(!!l && ctl.rows.length === 1 && Object.keys(l).join() === 'quartier,hantee,borne_quartier,borne_quartier_log10' && memes(l.quartier, NQ) && memes(l.hantee, NH) && proche(l.borne_quartier, (await s62('select public.fournil_quartier_borne(now()) as b'))[0].b, 1e-3) && (l.borne_quartier === 0 || Math.abs(Number(l.borne_quartier_log10) - Math.log10(l.borne_quartier)) <= 0.005), // (now() : l'heure vraie, quelques millisecondes plus tard)
           `la requête de contrôle rend une ligne : les deux tableaux et la borne du Quartier maintenant (${l ? `${e(l.borne_quartier)}, log10 ${l.borne_quartier_log10}` : '?'})`); }
       // la publication : au-dessus de l'ancienne borne, sous la nouvelle, c'est compté
@@ -2210,7 +2220,8 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     await patchLimite({ v: '6.2', texte: P62, T: T62, vieux: { q: Q6, h: H6 }, vNom: 'v6', avant: [] });
     await patchLimite({ v: '6.3', texte: P63, T: T63, vieux: { q: T62.q || Q6, h: T62.h || H6 }, vNom: 'v6.2', avant: [['6.2', P62]] });
     await patchLimite({ v: '6.4', texte: P64, T: T64, vieux: { q: T63.q || T62.q || Q6, h: T63.h || T62.h || H6 }, vNom: 'v6.3', avant: [['6.2', P62], ['6.3', P63]] });
-    { const T65 = lireTables(fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v65.sql'), 'utf8')); check(memes(TF.q, T65.q) && memes(TF.h, T65.h), 'supabase/fournil-classement.sql et le patch v6.5 portent les mêmes tableaux (recoller le fichier complet ne revient pas en arrière)'); }
+    { const T65 = lireTables(fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v65.sql'), 'utf8')), T66 = lireTables(fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v66.sql'), 'utf8'));
+      check(memes(TF.q, T65.q) && memes(TF.h, T66.h), 'supabase/fournil-classement.sql porte le tableau du Quartier du patch v6.5 et celui de la Maison hantée du patch v6.6 (recoller le fichier complet ne revient pas en arrière)'); }
 
     // ─── la version 6.5 (supabase/fournil-classement-v65.sql), collée deux fois par-dessus la v6.4 telle qu'elle est sur Supabase
     // (test/fournil-classement-v64-complet.sql, le fichier complet d'avant la 6.5, puis le patch v6.4) : les places jusqu'au 15e, les
@@ -2312,6 +2323,21 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       await horloge5(h5);
       check(await photo5() === donnees2, 'et les données ne bougent pas');
       await d5.close();
+    }
+
+    // ─── la version 6.6 (supabase/fournil-classement-v66.sql), collée deux fois par-dessus la v6.5 telle qu'elle est sur Supabase (le
+    // fichier complet d'avant la 6.5, le patch v6.4, puis le patch v6.5) : la limite de la Maison hantée, relevée pour ses activités (le
+    // ×6 qui s'endort, les clients-monstres, les fournées parfaites, les apparitions, les commandes de la nuit) ; fournil_evts() seule
+    {
+      const P65 = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v65.sql'), 'utf8'), P66 = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v66.sql'), 'utf8');
+      const V64C = fs.readFileSync(path.join(__dirname, 'fournil-classement-v64-complet.sql'), 'utf8');
+      const T65 = lireTables(P65), T66 = lireTables(P66);
+      // la v6.5 en ligne (le 20 octobre : la recette du jour à la part 0,25) : la v6.6 ne descend sous aucune de ses valeurs
+      const H65 = [11.65, 14.2, 16.05, 16.35, 16.75, 17, 17.15, 17.35, 17.45, 17.55, 17.65, 17.75, 17.8, 17.85, 17.9, 18, 18.05, 18.1, 18.15, 18.15, 18.2, 18.25, 18.3, 18.3, 18.35, 18.4, 18.4];
+      check(memes(T65.h, H65) && /^-- ═+\n--  Le Fournil — le classement, version 6\.6/.test(P66) && /^begin;$/m.test(P66) && /^commit;$/m.test(P66) && /revoke all on function public\.fournil_evts\(\) from public, anon, authenticated;/.test(P66),
+        'le patch v6.6 : l’en-tête, begin/commit, fournil_evts() seule et ses droits (fonction interne) ; la v6.5 qu’il remplace est celle en ligne');
+      await patchLimite({ v: '6.6', texte: P66, T: T66, vieux: { q: T65.q, h: T65.h }, vNom: 'v6.5', seulFevts: true,
+        base: [['6.4 (le fichier complet d’avant la 6.5)', V64C], ['6.4', P64], ['6.5', P65]] });
     }
   }
 

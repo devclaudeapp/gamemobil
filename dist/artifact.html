@@ -11497,7 +11497,12 @@ const GARDEROBE_UI = (() => {
   //   3. LES FOURNÉES PARFAITES (PARFAIT, fenetreParfait, parfait) : une fournée lancée à la main (un poste sans son monstre, ou la recette
   //      du jour : i = -1) d'au moins 6 s a une fenêtre « parfait » de 15 % de sa durée, placée entre 30 % et 90 % par le hasard de son
   //      lancement (déterministe : l'instant du lancement et le poste) ; parfait(q, i, now) dedans : la fournée vaut ×2 (le double est payé
-  //      tout de suite) ; dehors : rien de perdu, mais un seul essai par fournée. Plafond : PARFAIT.parHeure fournées parfaites par heure.
+  //      tout de suite) ; dehors : rien de perdu, mais un seul essai par fournée. Plafonds : PARFAIT.parHeure fournées parfaites par heure,
+  //      et leur double rogné à PARFAIT.minutes minutes du rythme l'heure, PARFAIT.minutesJour le jour (une fournée de la recette du jour,
+  //      à la part 0,25, vaut plusieurs minutes : sans ce plafond, les parfaites pesaient 12 % des bonbons du très actif).
+  //   L'équilibre (20 octobre, la recette du jour à la part 0,25) : ensemble, les quatre activités ajoutent environ +27 % au très actif
+  //   (64 → 82 Bd), aucune plus de 40 % de ce qu'elles rapportent (clients 33 %, apparitions 26 %, parfaites 22 %, commandes 19 %), et son
+  //   20e reste au 7e et dernier jour (test/fournil-hantee.test.js).
   //   4. LES APPARITIONS (APPARITIONS, TYPES_APPARITION, attraper(q, id)) : une toutes les 20 à 60 s ('fantome', 'citrouille',
   //      'chauve-souris'), qui vit 6 à 10 s ; attrapée : APPARITIONS.minutes minutes du rythme, ×1,5 dès la troisième d'affilée (une qui
   //      s'échappe casse la série) ; plafonds à l'heure et au jour. attraper(q) sans id reste le balai de la sorcière (le coup de pouce).
@@ -11506,22 +11511,23 @@ const GARDEROBE_UI = (() => {
   //      le cortège) ; livrée au bouton avant l'heure : la prime (COMMANDES.part minute du rythme par minute de commande) ; ratée : rien,
   //      et la suivante une à trois minutes plus tard. Plafonds à l'heure et au jour.
   // L'état : q.manoir = { graine, tirages, file, prochainClient, seqClient, apps, prochaineApp, seqApp, serie, commande, prochaineCommande,
-  // seqCommande, heure, jour, h, j (ce que chacune a payé cette heure et ce jour, en minutes du rythme ; les parfaites, en fournées),
+  // seqCommande, heure, jour, h, j (ce que chacune a payé cette heure et ce jour, en minutes du rythme ; les parfaites, en fournées, et
+  // minParfaits, leurs minutes),
   // bilan: { clients | apparitions | parfaits | commandes: { n, gain, min } } } ; tick rend out.manoir = { arrives, partis, apparitions,
   // perdues, commande, ratee } pour l'écran (BOUTIQUE_HANTEE.client, .fache, .apparition…).
   const EVEIL = { plein: 60, sommeil: 180 }; // secondes : le plein après le dernier toucher, puis la descente jusqu'à ×1
   const SORTES = ['squelette', 'squelette-sorcier', 'zombie', 'citrouille', 'fantome', 'momie', 'sorciere', 'vampire', 'loup']; // les mêmes que la scène (BOUTIQUE_HANTEE.SORTES)
   const NOMS_SORTES = { squelette: 'Le squelette', 'squelette-sorcier': 'Le squelette sorcier', zombie: 'Le zombie', citrouille: 'La tête-citrouille', fantome: 'Le fantôme', momie: 'La momie', sorciere: 'La sorcière', vampire: 'Le vampire', loup: 'Le loup-garou' };
-  const CLIENTS = { file: 3, arrivee: [8, 20], patience: 40, lignes: 3, minutes: 0.025, vite: 0.5, parHeure: 40, parJour: 300 };
-  const PARFAIT = { tempsMin: 6, largeur: 0.15, de: [0.3, 0.75], parHeure: 40 };
+  const CLIENTS = { file: 3, arrivee: [8, 20], patience: 40, lignes: 3, minutes: 0.014, vite: 0.5, parHeure: 22, parJour: 170 };
+  const PARFAIT = { tempsMin: 6, largeur: 0.15, de: [0.3, 0.75], parHeure: 40, minutes: 11, minutesJour: 80 };
   const TYPES_APPARITION = ['fantome', 'citrouille', 'chauve-souris'];
-  const APPARITIONS = { intervalle: [20, 60], vie: [6, 10], minutes: 0.15, serie: 3, mult: 1.5, parHeure: 45, parJour: 300 };
-  const COMMANDES = { durees: [5, 10, 15], part: 0.2, pause: [60, 180], premiere: 90, staff: 0.6, main: 0.3, parHeure: 30, parJour: 200 };
+  const APPARITIONS = { intervalle: [20, 60], vie: [6, 10], minutes: 0.09, serie: 3, mult: 1.5, parHeure: 27, parJour: 180 };
+  const COMMANDES = { durees: [5, 10, 15], part: 0.12, pause: [60, 180], premiere: 90, staff: 0.6, main: 0.3, parHeure: 18, parJour: 120 };
   const PLAFONDS = { clients: CLIENTS, apparitions: APPARITIONS, commandes: COMMANDES };
   const ACTIVITES_MANOIR = ['clients', 'apparitions', 'parfaits', 'commandes'];
   const STATS_MANOIR = ['clientsServis', 'clientsPartis', 'apparitions', 'apparitionsRatees', 'parfaits', 'parfaitsRates', 'commandes', 'commandesRatees'];
   function statsManoir() { const o = {}; for (const k of STATS_MANOIR) o[k] = 0; return o; }
-  const compteursNeufs = () => ({ clients: 0, apparitions: 0, parfaits: 0, commandes: 0 });
+  const compteursNeufs = () => ({ clients: 0, apparitions: 0, parfaits: 0, commandes: 0, minParfaits: 0 }); // (parfaits : des fournées ; minParfaits : ce qu'elles ont payé, en minutes)
   const bilanNeuf = () => { const o = {}; for (const k of ACTIVITES_MANOIR) o[k] = { n: 0, gain: 0, min: 0 }; return o; };
   function manoirNeuf(now) {
     return { graine: ACT.hacher(`${Number.isFinite(now) ? now : 0}|hantee|manoir`), tirages: 0, file: [], prochainClient: 0, seqClient: 0, apps: [], prochaineApp: 0, seqApp: 0, serie: 0,
@@ -11536,7 +11542,7 @@ const GARDEROBE_UI = (() => {
     if (!fini(M.graine)) M.graine = ACT.hacher(`${fini(now) ? now : 0}|hantee|manoir`); M.graine >>>= 0;
     for (const k of ['tirages', 'prochainClient', 'seqClient', 'prochaineApp', 'seqApp', 'serie', 'prochaineCommande', 'seqCommande']) if (!fini(M[k]) || M[k] < 0) M[k] = 0;
     if (!fini(M.heure)) M.heure = -1; if (typeof M.jour !== 'string') M.jour = '';
-    for (const k of ['h', 'j']) { if (!M[k] || typeof M[k] !== 'object') M[k] = compteursNeufs(); for (const a of ACTIVITES_MANOIR) if (!(M[k][a] >= 0)) M[k][a] = 0; }
+    for (const k of ['h', 'j']) { if (!M[k] || typeof M[k] !== 'object') M[k] = compteursNeufs(); for (const a of Object.keys(compteursNeufs())) if (!(M[k][a] >= 0)) M[k][a] = 0; }
     if (!M.bilan || typeof M.bilan !== 'object') M.bilan = bilanNeuf(); for (const a of ACTIVITES_MANOIR) { const b = M.bilan[a] && typeof M.bilan[a] === 'object' ? M.bilan[a] : (M.bilan[a] = { n: 0, gain: 0, min: 0 }); for (const k of ['n', 'gain', 'min']) if (!(b[k] >= 0)) b[k] = 0; }
     const ligneOk = (l) => l && typeof l === 'object' && posteOk(l.i) && l.n >= 1 && l.n <= 9;
     M.file = (Array.isArray(M.file) ? M.file : []).filter((c) => c && typeof c === 'object' && fini(c.id) && SORTES.includes(c.sorte) && fini(c.arrive) && Array.isArray(c.commande) && c.commande.length >= 1 && c.commande.length <= CLIENTS.lignes && c.commande.every(ligneOk)).slice(0, CLIENTS.file);
@@ -11572,7 +11578,7 @@ const GARDEROBE_UI = (() => {
   function plafondsManoir(q, now) { // ce que l'écran peut afficher : pour chaque activité, payé / plafond, cette heure et ce jour
     const M = compteurs(q.manoir, fini(now) ? now : q.now), o = {};
     for (const a of ['clients', 'apparitions', 'commandes']) o[a] = { heure: M.h[a], parHeure: PLAFONDS[a].parHeure, jour: M.j[a], parJour: PLAFONDS[a].parJour, plein: M.h[a] >= PLAFONDS[a].parHeure - 1e-9 || M.j[a] >= PLAFONDS[a].parJour - 1e-9 };
-    o.parfaits = { heure: M.h.parfaits, parHeure: PARFAIT.parHeure, plein: M.h.parfaits >= PARFAIT.parHeure };
+    o.parfaits = { heure: M.h.parfaits, parHeure: PARFAIT.parHeure, minutes: M.h.minParfaits, parHeureMin: PARFAIT.minutes, jour: M.j.minParfaits, parJour: PARFAIT.minutesJour, plein: M.h.parfaits >= PARFAIT.parHeure || M.h.minParfaits >= PARFAIT.minutes - 1e-9 || M.j.minParfaits >= PARFAIT.minutesJour - 1e-9 };
     return o;
   }
 
@@ -11624,10 +11630,13 @@ const GARDEROBE_UI = (() => {
     o.parfait = true; q.stats.parfaits++;
     const M = compteurs(q.manoir, t), b = M.bilan.parfaits; b.n++;
     if (M.h.parfaits >= PARFAIT.parHeure || !manoirOuvert(t)) return { ok: true, parfait: true, prime: 0, plafond: true, part };
-    M.h.parfaits++; M.j.parfaits++;
-    const prime = rec ? o.gain : revenuFournee(q, i); // ×2 : la même fournée encore une fois, tout de suite (la recette : son gain fixé au lancement)
-    if (prime > 0) { gagner(q, prime); b.gain += prime; b.min += prime / Math.max(1e-9, rythme(q) * 60); }
-    return { ok: true, parfait: true, prime, part };
+    // ×2 : la même fournée encore une fois, tout de suite (la recette : son gain fixé au lancement), rognée au plafond en minutes du rythme
+    // (PARFAIT.minutes l'heure, PARFAIT.minutesJour le jour : une fournée de la recette du jour, à la part 0,25, vaut plusieurs minutes)
+    const brut = rec ? o.gain : revenuFournee(q, i), r60 = Math.max(1e-9, rythme(q) * 60);
+    const m = Math.max(0, Math.min(brut / r60, PARFAIT.minutes - M.h.minParfaits, PARFAIT.minutesJour - M.j.minParfaits)), prime = m > 0 ? Math.min(brut, arrondi(Math.max(1, r60 * m))) : 0;
+    M.h.parfaits++; M.j.parfaits++; M.h.minParfaits += m; M.j.minParfaits += m;
+    if (prime > 0) { gagner(q, prime); b.gain += prime; b.min += m; }
+    return { ok: true, parfait: true, prime, part, plafond: m < brut / r60 - 1e-9 };
   }
 
   // ─── 4. les apparitions ───

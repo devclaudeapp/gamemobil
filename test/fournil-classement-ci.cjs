@@ -22,7 +22,8 @@
 //     inconnu, le jeton d'un autre), un saut de fortune absurde accepté mais PLAFONNÉ, une arrivée bricolée à 7e23 € (échelle plafonnée à 1e20 €), retrait ;
 //     la LIMITE DES ÉVÉNEMENTS (version 6.5) : aucune fonction publique ne la rend, on la lit dans le plafond de 1e24 billets (et
 //     1e24 bonbons pendant la Maison hantée), à l'heure du serveur (fournil_heure juste avant et juste après) : elle doit être celle
-//     de supabase/fournil-classement-v65.sql ; encore celle de la v6.4 (ou de la v6.3, de la v6.2, de la v6), le test le dit (« v6.5 pas
+//     de supabase/fournil-classement-v65.sql (pour la Maison hantée, celle de la v6.6 : supabase/fournil-classement-v66.sql, au moins sa
+//     nouvelle valeur) ; encore celle d'une version d'avant, le test le dit (« v6.6 pas encore collée », « v6.5 pas
 //     encore collée ») et échoue ;
 //  6. la limite d'inscriptions par source (10 par heure) : quelques joueurs de test de plus, jusqu'au premier « trop_vite ».
 //     S'il ne vient jamais, Supabase ne transmet pas l'en-tête cf-connecting-ip : seuls les plafonds communs protègent
@@ -62,13 +63,14 @@ function lundiParis(ms = Date.now()) {
   return new Date(Date.UTC(+p.year, +p.month - 1, +p.day - decalage)).toISOString().slice(0, 10);
 }
 
-// ─── la limite des événements : celle de la version 6.5 (lue dans supabase/fournil-classement-v65.sql), et celles d'avant
-// (la 6.4, la 6.3 et la 6.2, lues dans supabase/fournil-classement-v64.sql, -v63.sql et -v62.sql ; la 6) ───
+// ─── la limite des événements : celle de la version 6.6 pour la Maison hantée (lue dans supabase/fournil-classement-v66.sql : les
+// activités du Manoir ; elle ne porte que fournil_evts()), celle de la 6.5 pour le Quartier (supabase/fournil-classement-v65.sql), et
+// celles d'avant (la 6.4, la 6.3 et la 6.2, lues dans supabase/fournil-classement-v64.sql, -v63.sql et -v62.sql ; la 6) ───
 // une table de log10 à pas fixe depuis l'ouverture, interpolée (le miroir de fournil_quartier_borne et de fournil_evt_borne)
-const VERSIONS = ['v65', 'v64', 'v63', 'v62', 'v6'], NOM_V = { v65: 'la v6.5', v64: 'la v6.4', v63: 'la v6.3', v62: 'la v6.2', v6: 'la v6' };
+const VERSIONS_EV = { quartier: ['v65', 'v64', 'v63', 'v62', 'v6'], hantee: ['v66', 'v65', 'v64', 'v63', 'v62', 'v6'] }, NOM_V = { v66: 'la v6.6', v65: 'la v6.5', v64: 'la v6.4', v63: 'la v6.3', v62: 'la v6.2', v6: 'la v6' };
 const LIMITES = (() => {
   const texte = (f) => { try { return fs.readFileSync(path.join(__dirname, '..', 'supabase', f), 'utf8'); } catch (e) { return ''; /* rien : vérifié plus bas */ } };
-  const t65 = texte('fournil-classement-v65.sql'), t64 = texte('fournil-classement-v64.sql'), t63 = texte('fournil-classement-v63.sql'), t62 = texte('fournil-classement-v62.sql');
+  const t66 = texte('fournil-classement-v66.sql'), t65 = texte('fournil-classement-v65.sql'), t64 = texte('fournil-classement-v64.sql'), t63 = texte('fournil-classement-v63.sql'), t62 = texte('fournil-classement-v62.sql');
   const lire = (t, re) => { const m = re.exec(t); return m ? m[1].slice(1, -1).split(',').map(Number) : null; };
   const RQ = /function public\.fournil_quartier_table\(\)[^;]*?'(\{[-\d.,]+\})'::double precision\[\]/, RH = /function public\.fournil_evts\(\)[\s\S]*?'hantee'::text[^;]*?'(\{[-\d.,]+\})'::double precision\[\]/;
   return {
@@ -76,7 +78,7 @@ const LIMITES = (() => {
       v65: lire(t65, RQ), v64: lire(t64, RQ), v63: lire(t63, RQ), v62: lire(t62, RQ),
       v6: [12.5, 14.4, 16.1, 16.5, 16.7, 16.85, 16.95, 17.05, 17.15, 17.2, 17.3, 17.35, 17.4, 17.45, 17.5] },
     hantee: { debut: Date.parse('2026-10-27T12:00:00+01:00'), fin: Date.parse('2026-11-02T20:00:00+01:00'), pas: 6 * 3600e3,
-      v65: lire(t65, RH), v64: lire(t64, RH), v63: lire(t63, RH), v62: lire(t62, RH),
+      v66: lire(t66, RH), v65: lire(t65, RH), v64: lire(t64, RH), v63: lire(t63, RH), v62: lire(t62, RH),
       v6: [11.65, 13.8, 15.25, 15.8, 16.05, 16.2, 16.35, 16.45, 16.55, 16.65, 16.75, 16.8, 16.9, 16.95, 17, 17, 17.05, 17.1, 17.15, 17.15, 17.2, 17.2, 17.25, 17.25, 17.3, 17.3, 17.3] },
   };
 })();
@@ -85,28 +87,29 @@ function limite(ev, tab, ms) {
   const j = Math.min((Math.min(ms, ev.fin) - ev.debut) / ev.pas, tab.length - 1), k = Math.floor(j);
   return k >= tab.length - 1 ? Math.pow(10, tab[tab.length - 1]) : Math.pow(10, tab[k] + (tab[k + 1] - tab[k]) * (j - k));
 }
-// le score plafonné rendu par fournil_publier (1e24 envoyé) est-il la limite de la v6.5, entre deux heures du serveur (ms) ?
-// Sinon, celle d'une version d'avant (6.4, 6.3, 6.2 ou 6) : le test le dit (« v6.5 pas encore collée ») et échoue.
+// le score plafonné rendu par fournil_publier (1e24 envoyé) est-il la limite de la dernière version (la v6.6 pour la Maison hantée,
+// la v6.5 pour le Quartier), entre deux heures du serveur (ms) ? Sinon, celle d'une version d'avant : le test le dit (« v6.6 pas encore
+// collée ») et échoue.
 let limiteConclusion = '';
 function verifierLimite(nom, titre, valeur, msAvant, msApres) {
   const ev = LIMITES[nom], dans = (x, p) => x >= p[0] * (1 - 1e-9) && x <= p[1] * (1 + 1e-9);
   const e2 = (x) => Number(x).toExponential(3), plage = (p) => (p[0] === p[1] ? e2(p[0]) : `${e2(p[0])} à ${e2(p[1])}`);
-  const taille = nom === 'quartier' ? 15 : 27, [neuve, ...vieilles] = VERSIONS;
+  const VERSIONS = VERSIONS_EV[nom], taille = nom === 'quartier' ? 15 : 27, [neuve, ...vieilles] = VERSIONS, vn = NOM_V[neuve].replace('la ', ''), fichier = `supabase/fournil-classement-${neuve}.sql`;
   for (const v of VERSIONS.slice(0, -1)) if (!ev[v] || ev[v].length !== taille) return check(false, `${titre} : le tableau de ${NOM_V[v]} est illisible dans supabase/fournil-classement-${v}.sql`);
   const P = {}; for (const v of VERSIONS) P[v] = [limite(ev, ev[v], msAvant), limite(ev, ev[v], msApres)];
   const est = (v) => dans(valeur, P[v]);
-  if (est(neuve)) {
+  if (est(neuve)) { // (la borne du moment est au moins la nouvelle valeur : P[neuve][0], à l'heure du serveur juste avant)
     const aussi = vieilles.filter(est).map((v) => NOM_V[v]);
     if (aussi.length) {
-      if (!limiteConclusion) limiteConclusion = `**Limite des événements** : à cette heure, la v6.5 et ${aussi.join(' et ')} donnent la même limite : ce test ne peut pas dire si \`supabase/fournil-classement-v65.sql\` est collée (sa requête de contrôle, en bas du SQL Editor, le dit).`;
-      log(`  ${titre} : la v6.5 et ${aussi.join(' et ')} donnent ici la même limite (${e2(valeur)}) : rien à distinguer à cette heure-ci`); return true;
+      if (!limiteConclusion) limiteConclusion = `**Limite des événements** : à cette heure, ${NOM_V[neuve]} et ${aussi.join(' et ')} donnent la même limite : ce test ne peut pas dire si \`${fichier}\` est collée (sa requête de contrôle, en bas du SQL Editor, le dit).`;
+      log(`  ${titre} : ${NOM_V[neuve]} et ${aussi.join(' et ')} donnent ici la même limite (${e2(valeur)}) : rien à distinguer à cette heure-ci`); return true;
     }
-    return check(true, `${titre} : la limite du moment est celle de la v6.5 (${e2(valeur)}, attendu ${plage(P[neuve])} ; la v6.4 aurait dit ${plage(P.v64)})`);
+    return check(valeur >= P[neuve][0] * (1 - 1e-9), `${titre} : la limite du moment est celle de ${NOM_V[neuve]} (${e2(valeur)}, attendu ${plage(P[neuve])} ; ${NOM_V[vieilles[0]]} aurait dit ${plage(P[vieilles[0]])})`);
   }
   const ancienne = vieilles.find(est);
   if (ancienne) {
-    limiteConclusion = `**Limite des événements** : v6.5 pas encore collée (c’est encore celle de ${NOM_V[ancienne]}) : colle \`supabase/fournil-classement-v65.sql\` dans le SQL Editor (il ne touche à aucune donnée).`;
-    return check(false, `${titre} : v6.5 pas encore collée, c'est encore la limite de ${NOM_V[ancienne]} (${e2(valeur)}, la v6.5 dirait ${plage(P[neuve])}) : colle supabase/fournil-classement-v65.sql dans le SQL Editor de Supabase, puis relance ce test`);
+    limiteConclusion = `**Limite des événements** : ${vn} pas encore collée (${titre.replace(/^la /, 'pour la ')}, c’est encore celle de ${NOM_V[ancienne]}) : colle \`${fichier}\` dans le SQL Editor (il ne touche à aucune donnée).`;
+    return check(false, `${titre} : ${vn} pas encore collée, c'est encore la limite de ${NOM_V[ancienne]} (${e2(valeur)}, ${NOM_V[neuve]} dirait ${plage(P[neuve])}) : colle ${fichier} dans le SQL Editor de Supabase, puis relance ce test`);
   }
   return check(false, `${titre} : une limite inattendue, ${e2(valeur)} (${VERSIONS.map((v) => `${NOM_V[v].replace('la ', '')} : ${plage(P[v])}`).join(' ; ')})`);
 }
@@ -382,7 +385,7 @@ function arreter(message, conclusion) {
       const ha = r.data || {}, hhApres = await rpc('fournil_heure', {}), msH = [hhAvant.data && hhAvant.data.ms, hhApres.data && hhApres.data.ms];
       check(ha.ok === true && ha.evt === 'hantee' && ha.evt_plafonne === true && ha.evt_score > 0 && ha.evt_score < 1e18, `pendant la Maison hantée : 1e24 bonbons (console) acceptés mais plafonnés (${Number(ha.evt_score).toExponential(2)}), A ${ha.rang_evt}e`);
       if (ha.evt_plafonne === true && msH.every(Number.isInteger)) verifierLimite('hantee', 'la limite de la Maison hantée', ha.evt_score, msH[0], msH[1]);
-    } else log('  la limite de la Maison hantée (v6.5) : rien à lire hors de l’événement (du 27 octobre à midi au 2 novembre à 20 h)');
+    } else log(`  la limite de la Maison hantée (v6.6) : rien à lire hors de l’événement (du 27 octobre à midi au 2 novembre à 20 h)${Date.now() < H.debut ? ' ; supabase/fournil-classement-v66.sql (les activités du Manoir) doit être collée AVANT l’ouverture : sa requête de contrôle montre le tableau installé' : ''}`);
     // une partie effacée (0) puis le code rechargé (1 500) : rien ne compte deux fois, rien ne se retire
     log('  (2 × 10,5 s : A efface sa partie, puis recharge son code)');
     await attendre(10500);

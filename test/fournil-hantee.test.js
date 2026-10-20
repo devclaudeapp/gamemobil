@@ -221,9 +221,11 @@ check(HT.simuler('assidu', 7, { graine: 7 }).total === S.assidu.total, 'la simul
 { const res = []; let ok = true; for (let g = 1; g <= 8; g++) { const s = HT.simuler('assidu', 7, { graine: g }), j = s.paliersJour[12] || Infinity; res.push(j); if (!(j >= 5 && j <= 7)) ok = false; }
   check(ok, `et quel que soit le hasard des coups de pouce (8 graines) : palier 12 les jours ${res.join(', ')}`); }
 { // qui joue aussi la recette du jour sans être un marathonien (recette: true : une fournée relancée 5 s après sa sortie pour l'assidu, 10 s
-  // pour l'occasionnel) : les paliers au plus un jour plus tôt, au plus un de plus, au tout dernier jour
+  // pour l'occasionnel) : les paliers au plus un jour plus tôt, au plus un de plus, au tout dernier jour. Lot 6 + la part 0,25 (20 octobre) :
+  // l'assidu qui la joue gagne ×1,7 à ×1,8 et touche le 14e
+  // le 6e jour (le 7e à la part 0,04) : un de plus, l'avant-dernier jour au plus tôt
   for (const prof of ['assidu', 'occasionnel']) { const a = S[prof].paliersJour, r = HT.simuler(prof, 7, { recette: true }), b = r.paliersJour, ks = Object.keys(a).map(Number), plus = Object.keys(b).map(Number).filter((n) => !a[n]);
-    check(ks.every((n) => b[n] >= a[n] - 1 && b[n] <= a[n]) && plus.length <= 1 && plus.every((n) => b[n] >= 7), `${prof}, la recette du jour jouée aussi (${r.q.recettes.fournees} fournées, niveau ${r.q.recettes.niv}, ×${(r.total / S[prof].total).toFixed(2).replace('.', ',')}) : ${ks.filter((n) => b[n] !== a[n]).map((n) => `${n}e ${a[n]}→${b[n]}`).join(', ') || 'les mêmes jours'}${plus.length ? `, et le ${plus[0]}e le ${b[plus[0]]}e jour` : ''}`); } }
+    check(ks.every((n) => b[n] >= a[n] - 1 && b[n] <= a[n]) && plus.length <= 1 && plus.every((n) => b[n] >= 6), `${prof}, la recette du jour jouée aussi (${r.q.recettes.fournees} fournées, niveau ${r.q.recettes.niv}, ×${(r.total / S[prof].total).toFixed(2).replace('.', ',')}) : ${ks.filter((n) => b[n] !== a[n]).map((n) => `${n}e ${a[n]}→${b[n]}`).join(', ') || 'les mêmes jours'}${plus.length ? `, et le ${plus[0]}e le ${b[plus[0]]}e jour` : ''}`); } }
 { // après le maître : le très actif (8 h par jour) et le marathon (la recette du jour au mieux)
   S.tresactif = HT.simuler('tresactif'); S0.tresactif = HT.simuler('tresactif', 7, { recette: false }); const T = S.tresactif.paliersJour;
   // lot 6 : les réglages des prix (le temps d'un niveau, les paliers de poste, le remboursement des gâteaux et des œufs, leur part) se
@@ -324,14 +326,20 @@ if (mEvt) {
   // (jamais sous la v6.4, la 2e valeur 14,2) : {11.65,14.2,16.05,16.25,…,18.2} → {11.65,14.2,16.05,16.35,…,18.4} ; ×2,21 au plus juste,
   // ×8,3 au plus large après six heures.
   check(Math.abs(S0.marathon.total / 3.9649e17 - 1) < 0.01 && Math.abs(off / 6.1894e17 - 1) < 0.01, `sans la recette du jour, le marathon : ${HT.fmt(S0.marathon.total)} (${HT.fmt(off)} Sortilèges offerts ; 148 Bd et 284 Bd en v6.3, 88 Bd et 97,8 Bd avant, 76,5 Bd et 88,6 Bd sans les paliers intercalés ni les recettes d’après le maître)`);
-  check(Math.abs(SM.marathon.total / 4.5509e17 - 1) < 0.02, `avec elle, jouée au mieux : ${HT.fmt(SM.marathon.total)} (×${(SM.marathon.total / S0.marathon.total).toFixed(2).replace('.', ',')})`);
+  // (la part 0,25, master du 20 octobre : 799 Bd ; 455 Bd à la part 0,04)
+  check(Math.abs(SM.marathon.total / 7.99e17 - 1) < 0.02, `avec elle, jouée au mieux : ${HT.fmt(SM.marathon.total)} (×${(SM.marathon.total / S0.marathon.total).toFixed(2).replace('.', ',')})`);
   // lot 6 (19 octobre) : le ×6 qui s'endort (le marathon touche toujours : rien ne change pour lui) et les activités du Manoir (clients,
   // fournées parfaites, apparitions, commandes de la nuit), jouées au mieux : ×1,20 (545 Bd, 811 Bd Sortilèges offerts). La table de
   // fournil_evts() élargie de même (scratchpad lot5/tables-lot6.js, la méthode de la v6.5 : à chaque pas de 6 h, max(v6.4, log10 du marathon
   // le plus haut des huit simulations + log10 2,2), arrondi au 0,05 supérieur, relevé là où l'interpolation passait sous ×2,2 ; la 2e valeur
   // au moins 14,2) : {11.65,14.2,16.05,16.25,…,18.2} → {11.65,14.75,16.4,16.45,…,18.3} ; ×2,21 au plus juste, ×11,8 au plus large après
   // six heures (la table v6.5 tombait à ×0,94 : les activités paient dès le premier jour, quand l'économie grimpe le plus vite).
-  check(Math.abs(S.marathon.total / 5.45e17 - 1) < 0.03 && S.marathon.total > SM.marathon.total * 1.1, `avec les activités du Manoir, jouées au mieux : ${HT.fmt(S.marathon.total)} (×${(S.marathon.total / SM.marathon.total).toFixed(2).replace('.', ',')} ; v6.5 : ${HT.fmt(SM.marathon.total)})`);
+  // v6.6 (20 octobre) : la recette du jour à la part 0,25 (799 Bd) ET les activités réglées pour le très actif (environ +27 % ; les
+  // fournées parfaites rognées en minutes du rythme, 11 l'heure) : ×1,08 au marathon (861 Bd, 1,1 Tn Sortilèges offerts). La table tirée
+  // de même (scratchpad lot5/tables-lot6.js, jamais sous la v6.5 en ligne, la 2e valeur au moins 14,2) : {11.65,14.2,16.05,16.35,…,18.4}
+  // → {11.65,14.35,16.3,16.4,…,18.4} (supabase/fournil-classement-v66.sql) ; ×2,21 au plus juste, ×11,5 au plus large après six heures
+  // (la v6.5 tombait à ×1,69, dans la première nuit).
+  check(Math.abs(S.marathon.total / 8.61e17 - 1) < 0.03 && S.marathon.total > SM.marathon.total * 1.04, `avec les activités du Manoir, jouées au mieux : ${HT.fmt(S.marathon.total)} (×${(S.marathon.total / SM.marathon.total).toFixed(2).replace('.', ',')} ; v6.5 : ${HT.fmt(SM.marathon.total)})`);
 }
 
 console.log('── lot 6 : le ×6 qui s’endort sans toucher ──');
@@ -406,6 +414,15 @@ console.log('── lot 6 : les fournées parfaites ──');
 { const { q } = prep6(T6, { vide: true }); HT.gagner(q, 1e9); HT.preparerRecette(q, T6); const L = HT.lancerRecette(q, T6), fo = q.recettes.four, w = HT.fenetreParfait(q, -1), b0 = q.billets;
   const r = HT.parfait(q, -1, fo.debut + (w.debut + 0.05) * (fo.fin - fo.debut));
   check(L.ok && w && r.parfait && r.prime === fo.gain && q.billets === b0 + fo.gain && HT.fenetreParfait(q, 'recette').parfait, `la recette du jour (${L.r.temps} s) aussi : parfaite, +${HT.fmt(r.prime)} tout de suite (×2), la fournée sort ensuite comme d’habitude`); }
+{ // le double rogné en minutes du rythme (20 octobre) : une fournée de la recette du jour à la part 0,25 vaut plusieurs minutes ; au plus
+  // PARFAIT.minutes l'heure (PARFAIT.minutesJour le jour) : la dernière parfaite de l'heure paie ce qui reste, les suivantes rien
+  const { q } = prep6(T6, { vide: true }); HT.gagner(q, 1e9); HT.preparerRecette(q, T6); HT.lancerRecette(q, T6); const fo = q.recettes.four, w = HT.fenetreParfait(q, -1), M = q.manoir;
+  HT.plafondsManoir(q, T6); M.h.minParfaits = HT.PARFAIT.minutes - 0.001; const r60 = HT.rythme(q) * 60, b0 = q.billets;
+  const r = HT.parfait(q, -1, fo.debut + (w.debut + 0.05) * (fo.fin - fo.debut)), pl = HT.plafondsManoir(q, q.now).parfaits;
+  check(HT.PARFAIT.minutes === 11 && HT.PARFAIT.minutesJour === 80 && fo.gain > r60 * 0.001 && r.parfait && r.plafond && r.prime === HT.arrondi(Math.max(1, r60 * 0.001)) && q.billets === b0 + r.prime && pl.plein && Math.abs(pl.minutes - HT.PARFAIT.minutes) < 1e-9,
+    `au plus ${HT.PARFAIT.minutes} min du rythme l’heure (${HT.PARFAIT.minutesJour} le jour) : la fournée de la recette (${HT.fmt(fo.gain)}) ne double plus que de ce qui reste (+${HT.fmt(r.prime)}), et le plafond est plein`);
+  const vieux = JSON.parse(JSON.stringify(M)); delete vieux.h.minParfaits; delete vieux.j.minParfaits; const q2 = { ...q, manoir: vieux }; HT.reparerManoir(q2, q.now);
+  check(vieux.h.minParfaits === 0 && vieux.j.minParfaits === 0, 'une sauvegarde d’avant ce plafond : ses compteurs en minutes repartent de zéro'); }
 
 console.log('── lot 6 : les apparitions ──');
 { const { q } = prep6(T6); const nees = [], perdues = [];
@@ -471,8 +488,14 @@ console.log('── lot 6 : la simulation (le marathon et le très actif jouent 
   check(TAp.clients.h >= 15 && TAp.clients.h <= HT.CLIENTS.parHeure && TAp.apparitions.h >= 10 && TAp.apparitions.h <= HT.APPARITIONS.parHeure && TAp.parfaits.h >= 5 && TAp.commandes.h >= 5 && TAp.commandes.h <= HT.COMMANDES.parHeure
     && Object.values(TAp).every((x) => x.part >= 0.01 && x.part <= 0.1) && tq.clientsPartis === 0,
     `le très actif, par heure jouée : ${txt(TAp)} (en minutes du rythme, et la part de ses bonbons)`);
-  const T0 = SM.tresactif.paliersJour, T1 = S.tresactif.paliersJour, r = S.tresactif.total / SM.tresactif.total;
-  check(r > 1.1 && r < 1.6 && [13, 16, 19].every((k) => (T1[k] || 99) <= (T0[k] || 99)) && !T1[20], `avec les activités, le très actif gagne ×${r.toFixed(2).replace('.', ',')} (${HT.fmt(SM.tresactif.total)} → ${HT.fmt(S.tresactif.total)}) : 13e le ${T0[13]}e → ${T1[13]}e jour, 16e le ${T0[16]}e → ${T1[16]}e, 19e le ${T0[19]}e → ${T1[19]}e ; le 20e reste aux marathoniens`);
+  // l'équilibre du 20 octobre (la recette du jour à la part 0,25 : +22 à +41 % par session) : le joueur a décidé que la recette ouvre le
+  // 20e au très actif, mais seulement au DERNIER jour. Avant ce réglage, les activités lui ajoutaient ×1,81 (64,1 → 116 Bd ; 20e le 6e
+  // jour), les fournées parfaites à elles seules 63 % (100 min/h : le double d'une fournée de la recette du jour, sans plafond en
+  // minutes). Réglées (CLIENTS 0,014 min par friandise, APPARITIONS 0,09, COMMANDES 0,12 min par minute, PARFAIT rogné à 11 min l'heure ;
+  // les plafonds à l'avenant) : ensemble +25 à +35 % (×1,27), aucune plus de 40 % de leur gain, et le 20e au 7e jour au plus tôt.
+  const T0 = SM.tresactif.paliersJour, T1 = S.tresactif.paliersJour, r = S.tresactif.total / SM.tresactif.total, BT = S.tresactif.q.manoir.bilan, gA = Object.values(BT).reduce((a, b) => a + b.gain, 0), partsA = Object.entries(BT).map(([k, b]) => [k, b.gain / gA]);
+  check(r >= 1.25 && r <= 1.35 && [13, 16, 19].every((k) => (T1[k] || 99) <= (T0[k] || 99)) && (!T1[20] || T1[20] >= 7) && partsA.every(([, x]) => x <= 0.4),
+    `avec les activités, le très actif gagne ×${r.toFixed(2).replace('.', ',')} (${HT.fmt(SM.tresactif.total)} → ${HT.fmt(S.tresactif.total)} ; visé +25 à +35 %) : 13e le ${T0[13]}e → ${T1[13]}e jour, 16e le ${T0[16]}e → ${T1[16]}e, 19e le ${T0[19]}e → ${T1[19]}e, 20e ${T0[20] ? `le ${T0[20]}e` : 'jamais'} → ${T1[20] ? `le ${T1[20]}e` : 'jamais'} (le dernier jour au plus tôt) ; leur gain : ${partsA.map(([k, x]) => `${k} ${(x * 100).toFixed(0)} %`).join(', ')} (40 % au plus chacune)`);
   const a = S.assidu.q.stats, ra = S.assidu.total / A0.assidu.total, rq = S.quotidien.total / A0.quotidien.total;
   check(a.clientsPartis > 0 && a.apparitionsRatees > 0 && a.clientsServis > a.clientsPartis && ra > 0.85 && ra < 1.25 && rq > 0.85 && rq < 1.25,
     `l’assidu et le quotidien ont des trous (le ×6 s’endort ; des clients partis, des apparitions manquées) : ce que leur rapportent les activités compense à peu près (×${ra.toFixed(2).replace('.', ',')} et ×${rq.toFixed(2).replace('.', ',')} de la v6.5)`); }
