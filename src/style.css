@@ -992,7 +992,7 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 #hantee .pq-solde > div:not(.mh-eveil) { flex: 1 1 0; }
 .mh-eveil, #hantee .pq-solde > .mh-eveil { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 0 100%; padding-left: 46px; } /* une ligne à elle, sous le ×6 */
 .mh-eveil[hidden] { display: none; }
-.mh-eveil-jauge { position: relative; flex: 0 1 132px; min-width: 70px; height: 8px; border-radius: 999px; background: var(--mh-violet-clair); box-shadow: inset 0 0 0 1px rgba(106, 61, 209, .15); overflow: hidden; }
+.mh-eveil-jauge { position: relative; flex: 0 1 112px; min-width: 70px; height: 8px; border-radius: 999px; background: var(--mh-violet-clair); box-shadow: inset 0 0 0 1px rgba(106, 61, 209, .15); overflow: hidden; }
 .mh-eveil-jauge b { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--mh-violet), var(--mh-orange)); transition: width .5s linear; }
 .mh-eveil-txt { min-width: 0; font: 800 11px/1.1 var(--texte-font); color: var(--mh-texte2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mh-eveil-txt::before { content: 'z'; display: inline-block; margin-right: 3px; font: 700 12px/1 var(--titre); color: var(--mh-violet); transform: rotate(-12deg); }
@@ -1035,7 +1035,7 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .mh-bulle { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 44px; min-height: 44px; padding: 4px 6px 5px; border: 0; border-radius: 14px;
   background: #fff; color: var(--mh-texte); box-shadow: 0 3px 0 rgba(61, 39, 72, .22), 0 4px 10px rgba(21, 17, 31, .25); pointer-events: auto; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .mh-bulle[hidden] { display: none; }
-.mh-bulle::after { content: ''; position: absolute; left: 50%; bottom: -6px; width: 12px; height: 12px; margin-left: -6px; background: #fff; transform: rotate(45deg); border-radius: 0 0 3px 0; }
+.mh-bulle::after { content: ''; position: absolute; left: calc(50% + var(--mh-pointe, 0px)); bottom: -6px; width: 12px; height: 12px; margin-left: -6px; background: #fff; transform: rotate(45deg); border-radius: 0 0 3px 0; }
 .mh-bulle.choisi { box-shadow: 0 0 0 3px var(--mh-violet), 0 3px 0 rgba(61, 39, 72, .22), 0 6px 16px rgba(142, 92, 247, .45); z-index: 2; }
 .mh-bulle.choisi::after { box-shadow: 3px 3px 0 0 var(--mh-violet); }
 .mh-bulle-lignes { position: relative; z-index: 1; display: flex; gap: 2px; }
@@ -1063,12 +1063,14 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 @keyframes mhSortContent { to { opacity: 0; translate: 0 -24px; scale: 1.15; } }
 @keyframes mhSortFache { to { opacity: 0; scale: .6; } }
 /* la fenêtre « parfait » sur la barre de cuisson d'une fournée à la main (6 s et plus) : elle s'allume quand la fournée y passe */
-.carte .barre .mh-fenetre { position: absolute; top: 2px; bottom: 2px; border-radius: 6px; background: rgba(142, 92, 247, .22); box-shadow: inset 0 0 0 2px var(--mh-violet); pointer-events: none; }
+.carte .barre .mh-fenetre { position: absolute; top: 1px; bottom: 1px; min-width: 14px; border-radius: 7px; pointer-events: none; z-index: 1;
+  background: repeating-linear-gradient(-45deg, rgba(255, 255, 255, .55) 0 4px, rgba(142, 92, 247, .28) 4px 8px); box-shadow: inset 0 0 0 2px var(--mh-violet), 0 0 0 1px rgba(255, 255, 255, .7); }
 .carte .barre .mh-fenetre[hidden] { display: none; }
-.carte .barre .mh-fenetre.fait { background: rgba(95, 211, 164, .45); box-shadow: inset 0 0 0 2px var(--menthe-sombre); }
-.carte .barre .mh-fenetre.rate { background: rgba(179, 156, 191, .25); box-shadow: inset 0 0 0 2px var(--mh-gris); }
+.carte .barre .mh-fenetre.fait { background: var(--menthe); box-shadow: inset 0 0 0 2px var(--menthe-sombre), 0 0 0 1px #fff; }
+.carte .barre .mh-fenetre.fait::after { content: '✓'; position: absolute; inset: 0; display: grid; place-items: center; font: 800 14px/1 var(--titre); color: #fff; }
+.carte .barre .mh-fenetre.rate { background: rgba(255, 255, 255, .55); box-shadow: inset 0 0 0 2px var(--mh-gris); opacity: .7; }
 #hantee .carte.pq[data-mh~="brille"] { box-shadow: 0 0 0 3px var(--mh-violet), 0 6px 18px rgba(142, 92, 247, .45); }
-#hantee .carte.pq[data-mh~="brille"] .mh-fenetre { background: rgba(255, 138, 31, .55); box-shadow: inset 0 0 0 2px var(--mh-orange-sombre), 0 0 10px rgba(255, 138, 31, .8); }
+#hantee .carte.pq[data-mh~="brille"] .mh-fenetre { background: var(--mh-violet); box-shadow: inset 0 0 0 2px #fff, 0 0 12px rgba(142, 92, 247, .9); animation: pulse .5s ease-in-out infinite; } /* (violet sur l'orange de la barre : on la voit) */
 #hantee .carte.pq[data-mh~="voulu"] { box-shadow: 0 0 0 3px var(--mh-orange), var(--mh-ombre-carte); }
 #hantee .carte.pq[data-mh~="voulu"] .icone { animation: pulse .9s ease-in-out infinite; }
 #hantee .carte.pq[data-mh~="ok"] { animation: memPose .35s ease-out; box-shadow: 0 0 0 3px var(--menthe), var(--mh-ombre-carte); }

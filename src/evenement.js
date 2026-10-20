@@ -1439,8 +1439,9 @@ const EVENEMENTS = (() => {
       t: {
         lieu, premier: txt('premier', `Touche les ${HR && HR.PRODUITS[0] ? HR.PRODUITS[0].nom.toLowerCase() : 'bonbons acidulés'} pour vendre ta première friandise !`), ferme: txt('ferme', `${nom} ferme ses portes. Bouh !`), reste: 'Ferme dans',
         absence: typeof T.absence === 'function' ? T.absence : (duree, m) => `Pendant ton absence (${duree}) : +${m}, au ralenti sans toi.`,
-        // (le ×6 de présence en court : la jauge « Le boss s'endort… » est juste dessous, et il retombe à ×1 sans toucher)
-        taux: (m, pres) => `<b>+${m}</b>/s · <b class="mh-pres">×${pres}</b> avec toi`, tauxVide: (pres) => `Touche une friandise · <b class="mh-pres">×${pres}</b> avec toi`,
+        // (le ×6 de présence en court, sans « avec toi » : la ligne tient à côté de « Ferme dans » ; la jauge juste dessous le dit, « Réveillé :
+        // ×6 avec toi », « Le boss s'endort… », et il retombe à ×1 sans toucher)
+        taux: (m, pres) => `<b>+${m}</b>/s · <b class="mh-pres">×${pres}</b>`, tauxVide: (pres) => `Touche une friandise · <b class="mh-pres">×${pres}</b>`,
         nouveau: (n) => `${n} : nouvelle friandise au manoir !`, embauche: (n) => `${n} rejoint l’équipe du manoir !`,
         decoDon: Object.assign({}, HF.decos || {}, { citrouilles: 'des citrouilles-lanternes dans la boutique', toiles: 'des toiles d’araignée (gentilles) aux coins de la boutique', chaudron: 'un chaudron qui bouillonne près du four', fantome: 'un petit fantôme qui flotte dans la boutique', chauvesouris: 'des chauves-souris en papier au plafond', lanternes: 'des lanternes sur le comptoir' }, T.decoDon || {}), decoDefaut: (k) => `${k} pour la boutique`,
         vetementNom: (v) => v, tenueComplete: ' : la tenue d’Halloween est complète !',

@@ -555,6 +555,10 @@ const BOUTIQUE_HANTEE = (() => {
     const tr = SCENE.trois, K = VIE.K || 1; if (!tr) return [];
     return APP.map((a) => { const p = tr.ecran(a.o.position.x, a.o.position.y + 12 * K, a.o.position.z); return { id: a.id, type: a.type, x: Math.round(p.x), y: Math.round(p.y), r: Math.round(Math.max(32, 32 * K)) }; }); // (une cible qui bouge : un rayon de 32 px au moins, le doigt arrive toujours un peu après)
   }
+  function ecranApp(a, t) { // le centre de touche de l'apparition a à l'instant t de sa traversée (le chemin de majApp, sans rien bouger), en pixels
+    const u = Math.min(1, Math.max(0, t) / a.duree), K = VIE.K || 1;
+    return SCENE.trois.ecran(a.x0 + (a.x1 - a.x0) * u, a.haut + Math.sin(t * 2.2 + a.ph) * 8 * K + 12 * K, a.z + Math.sin(t * 0.9 + a.ph) * 10 * K);
+  }
   function retirer(id) { const a = APP.find((x) => x.id === id); if (!a) return false; retirerApp(a); return true; } // une apparition qui s'échappe (les règles l'ont perdue) : elle s'efface, sans éclat
   function attraper(id) {
     const a = APP.find((x) => x.id === id); if (!a) return false;
@@ -575,7 +579,12 @@ const BOUTIQUE_HANTEE = (() => {
   const surToucher = (cb) => { cbToucher = typeof cb === 'function' ? cb : null; };
   function toucher(e) { // un toucher sur la fenêtre de la scène : une apparition (la plus proche, rayon d'au moins 22 px), un client (44 × 44 au moins), ou le vide
     if (!cbToucher) return; const x = e.clientX, y = e.clientY;
-    let best = null, bd = 1e9; for (const a of apparitions()) { const d = Math.hypot(a.x - x, a.y - y); if (d <= Math.max(a.r, 22) && d < bd) { bd = d; best = a; } }
+    // (une cible qui file : le doigt vise là où il l'a vue, un peu avant ; on mesure la distance au bout de chemin des 0,35 dernières secondes)
+    let best = null, bd = 1e9; const r = Math.max(32, 32 * (VIE.K || 1));
+    if (SCENE.trois) for (const a of APP) {
+      const p1 = ecranApp(a, a.t), p0 = ecranApp(a, a.t - 0.35), vx = p1.x - p0.x, vy = p1.y - p0.y, l2 = vx * vx + vy * vy, k = l2 > 0 ? Math.max(0, Math.min(1, ((x - p0.x) * vx + (y - p0.y) * vy) / l2)) : 1;
+      const d = Math.hypot(p0.x + vx * k - x, p0.y + vy * k - y); if (d <= r && d < bd) { bd = d; best = a; }
+    }
     if (best) { cbToucher({ genre: 'apparition', id: best.id }); return; }
     let cl = null, cd = 1e9;
     for (const a of acteurs()) {

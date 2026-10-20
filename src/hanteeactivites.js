@@ -37,7 +37,7 @@ const HANTEE_ACTIVITES = (() => {
     // ─── chaque toucher utile sur l'écran (la scène, les cartes, la commande, les coups de pouce, les activités, les achats) réveille le Manoir ───
     el.addEventListener('pointerdown', (e) => {
       if (!ouvert || el.dataset.ecran !== F.ecran || e.target.closest('[data-pq="fermer"], .pq-mini')) return;
-      const avant = Q.eveil(qq(), maint()); Q.toucher(qq(), maint()); if (avant < 1) majEveil(true);
+      const avant = Q.eveil(qq(), maint()); Q.toucher(qq(), maint()); if (avant < 1) { majEveil(true); X.hud(); } // (réveillé : la jauge, la lumière et le ×6 tout de suite)
     }, true);
     // la commande de la nuit : son bouton (Livrer quand tout est prêt)
     el.addEventListener('click', (e) => { const b = e.target.closest('[data-a="mh-commande"]'); if (!b || !ouvert) return; e.stopPropagation(); livrer(b); });
@@ -94,7 +94,7 @@ const HANTEE_ACTIVITES = (() => {
     function majEveil(force) {
       const e = eveilEl(); if (!e || !Q.presence) return;
       const p = Q.presence(qq(), maint()), part = p.eveil;
-      const txt = part >= 1 ? (T.jauge || 'Le Manoir est réveillé') : part <= 0 ? 'Le boss dort : touche le Manoir !' : 'Le boss s’endort…';
+      const txt = part >= 1 ? (T.jauge || 'Réveillé : ×6 avec toi') : part <= 0 ? (T.jaugeDort || 'Le boss dort : touche !') : (T.jaugeBasse || 'Le boss s’endort…'); // (courts : la ligne tient sous le solde, 11 px)
       const cle = `${Math.round(part * 100)}|${txt}`;
       if (force || cle !== lastEveil) {
         lastEveil = cle; e.hidden = false; e.innerHTML = F.gabarits.eveil(part, txt); e.dataset.niveau = part < 0.35 ? 'bas' : part < 1 ? 'moyen' : 'plein';
@@ -143,10 +143,10 @@ const HANTEE_ACTIVITES = (() => {
       const M = manoir(), c = choisi != null && M ? M.file.find((x) => x.id === choisi) : null; voulu = new Set(c ? c.commande.filter((l) => !l.servi).map((l) => l.i) : []);
       for (const o of clients.values()) if (o.bulle) o.bulle.classList.toggle('choisi', o.id === choisi);
     }
-    function toucherBulle(id, i) { // toucher la bulle sert : la friandise touchée, sinon la première pas encore servie
+    function toucherBulle(id, i) { // toucher la bulle sert : la friandise touchée, sinon (le vide, ou une déjà servie) la première pas encore servie
       const M = manoir(), c = M && M.file.find((x) => x.id === id); if (!c) return;
-      const l = i != null ? c.commande.find((x) => x.i === i && !x.servi) : c.commande.find((x) => !x.servi);
-      servirLigne(id, l ? l.i : i);
+      const l = (i != null && c.commande.find((x) => x.i === i && !x.servi)) || c.commande.find((x) => !x.servi);
+      if (l) servirLigne(id, l.i);
     }
     function servirLigne(id, i) {
       const q = qq(), o = clients.get(id), r = Q.servir(q, id, i);
@@ -289,7 +289,10 @@ const HANTEE_ACTIVITES = (() => {
     function livrer(b) {
       const q = qq(), c = Q.commandeManoir(q); if (!c) return;
       const r = Q.livrerCommande(q);
-      if (!r.ok) { d.son.non(); d.toast(`${T.commandeTitre || 'La commande de la nuit'} : encore ${Q.fmt(c.n - c.fait)} ${Q.PRODUITS[c.i].pl} à vendre${q.postes[c.i].staff ? '' : ' (touche la carte !)'}`); return; }
+      if (!r.ok) { // pas prête : un mot sur le bouton, tout de suite (le toast, lui, peut attendre son tour derrière un autre)
+        const r1 = b.getBoundingClientRect(); d.son.non(); d.buzz(30); flotter({ x: r1.left + r1.width / 2, y: r1.top }, `Encore ${Q.fmt(c.n - c.fait)} à vendre`, 'non');
+        d.toast(`${T.commandeTitre || 'La commande de la nuit'} : encore ${Q.fmt(c.n - c.fait)} ${Q.PRODUITS[c.i].pl} à vendre${q.postes[c.i].staff ? '' : ' (touche la carte !)'}`); return;
+      }
       const r0 = b.getBoundingClientRect(), pos = { x: r0.left + r0.width / 2, y: r0.top };
       d.son.deblocage(); d.buzz([10, 30, 10]); if (S()) S().jeuSon('cloche', { vol: 0.45 });
       d.toast(T.commandeLivree ? T.commandeLivree(X.fmt(r.prime)) : `Commande livrée : +${X.fmt(r.prime)}`);
@@ -303,12 +306,21 @@ const HANTEE_ACTIVITES = (() => {
       if (!ouvert || !couche) return;
       const q = qq(), M = manoir(); if (!M) return;
       if (mode === 'scene' && B()) {
-        const r = couche.getBoundingClientRect(), vus = new Map(); for (const a of B().acteurs()) if (a.role === 'client') vus.set(a.id, a);
+        const r = couche.getBoundingClientRect(), vus = new Map(), vis = []; for (const a of B().acteurs()) if (a.role === 'client') vus.set(a.id, a);
         for (const o of clients.values()) {
           const b = o.bulle; if (!b) continue; const a = o.sid ? vus.get(o.sid) : null;
           if (!a || a.etat === 'sort' || a.y < r.top - 10 || a.y > r.bottom + 10) { if (!b.hidden) b.hidden = true; continue; }
           if (b.hidden) b.hidden = false;
-          b.style.transform = `translate(${(a.x - r.left).toFixed(1)}px, ${(a.y - r.top - 6).toFixed(1)}px) translate(-50%, -100%)`;
+          vis.push({ b, x: a.x - r.left, y: a.y - r.top - 6, w: b.offsetWidth, h: b.offsetHeight });
+        }
+        // la file au comptoir : des têtes proches, des bulles qui se chevaucheraient. De gauche à droite, deux bulles à la même hauteur (à une
+        // demi-bulle près) s'écartent l'une de l'autre, puis chacune reste dans la scène ; leur pointe suit la tête (--mh-pointe)
+        vis.sort((p, v) => p.x - v.x); for (const v of vis) v.cx = v.x;
+        for (let tour = 0; tour < 4; tour++) for (let i = 1; i < vis.length; i++) { const p = vis[i - 1], v = vis[i]; if (Math.abs(p.y - v.y) >= (p.h + v.h) / 2) continue; const min = (p.w + v.w) / 2 + 6, d = v.cx - p.cx; if (d < min) { p.cx -= (min - d) / 2; v.cx += (min - d) / 2; } }
+        for (const v of vis) {
+          v.cx = Math.max(v.w / 2 + 4, Math.min(r.width - v.w / 2 - 4, v.cx));
+          v.b.style.transform = `translate(${v.cx.toFixed(1)}px, ${v.y.toFixed(1)}px) translate(-50%, -100%)`;
+          const pointe = Math.max(-v.w / 2 + 14, Math.min(v.w / 2 - 14, v.x - v.cx)).toFixed(0) + 'px'; if (v.b.style.getPropertyValue('--mh-pointe') !== pointe) v.b.style.setProperty('--mh-pointe', pointe);
         }
       } else for (const o of apps.values()) placerApp(o, q.now);
     }

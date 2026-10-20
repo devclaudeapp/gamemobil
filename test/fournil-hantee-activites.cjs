@@ -2,7 +2,7 @@
 // scène de src/boutiquehantee.js et à l'écran de src/evenement.js), sur la vraie page du Fournil, téléphone en portrait (390 × 844),
 // le mercredi 28 octobre 2026 à 11 h (la Maison hantée est ouverte). En haute (la HD de la boutique hantée), puis en éco (le repli
 // procédural), on joue au doigt :
-// · l'ouverture : la jauge « Le boss s'endort… » sous le ×6, pleine ; « ×6 avec toi » ;
+// · l'ouverture : la jauge sous le ×6, pleine (« Réveillé : ×6 avec toi ») ;
 // · servir un client-monstre : il entre (un acteur de la scène, sa bulle au-dessus de la tête : ce qu'il commande, sa patience) ; le
 //   toucher le choisit, la carte de chaque friandise de sa commande le sert ; servi, il repart content (la scène), son pourboire vole
 //   jusqu'au solde ; un deuxième, servi en touchant sa bulle ; une mauvaise carte : « Ce n'est pas sa commande ! » ;
@@ -42,7 +42,8 @@ function faux(d) {
   window.Date = F; performance.now = () => pn() + plus; window.__avancer = (ms) => { plus += ms; return plus; };
   // avancer de total ms, pas ms à chaque image (la page tourne entre deux pas ; plus de 5 s d'un coup, le jeu croirait qu'elle a gelé)
   window.__avancerParImage = (total, pas) => new Promise((ok) => { let fait = 0; const un = () => { if (fait >= total) { ok(plus); return; } const p = Math.min(pas, total - fait); plus += p; fait += p; requestAnimationFrame(un); }; requestAnimationFrame(un); });
-  window.__toasts = []; window.__flottes = []; window.__voles = 0;
+  window.__toasts = []; window.__flottes = []; window.__voles = 0; window.__pd = [];
+  document.addEventListener('pointerdown', (e) => { window.__pd.push([Math.round(e.clientX), Math.round(e.clientY), e.target && e.target.className, e.pointerType]); if (window.__pd.length > 20) window.__pd.shift(); }, true);
   new MutationObserver((l) => { for (const m of l) for (const n of m.addedNodes) { if (!n.classList) continue; if (n.classList.contains('mh-flotte')) window.__flottes.push(n.textContent); if (n.classList.contains('mh-vole')) window.__voles++; }
     const t = document.querySelector('.toast'); if (t && window.__toasts[window.__toasts.length - 1] !== t.textContent) window.__toasts.push(t.textContent); }).observe(document, { childList: true, subtree: true, characterData: true });
 }
@@ -65,7 +66,8 @@ function faux(d) {
     for (let k = 0; k < 2; k++) { await ev(() => { const b = document.querySelector('#feuille [data-a="pq-tard"], #feuille [data-a="close"], #feuille [data-a="pq-ok"]'); if (b) b.click(); }); await sleep(300); }
     return { ctx, page, erreurs, ev };
   }
-  const shot = async (page, nom) => { await page.evaluate(() => { for (const t of document.querySelectorAll('.toast')) t.style.visibility = 'hidden'; }); const f = path.join(out, nom + '.png'); await page.screenshot({ path: f }); if (out2) fs.copyFileSync(f, path.join(out2, 'final-' + nom + '.png')); await page.evaluate(() => { for (const t of document.querySelectorAll('.toast')) t.style.visibility = ''; }); };
+  const shot = async (page, nom) => { await page.evaluate(() => { for (const t of document.querySelectorAll('.toast')) t.style.visibility = 'hidden'; }); const f = path.join(out, nom + '.png'); await page.screenshot({ path: f }); if (out2) fs.copyFileSync(f, path.join(out2, 'final-' + nom + '.png')); await page.evaluate(() => { for (const t of document.querySelectorAll('.toast')) t.style.visibility = ''; });
+    await page.evaluate(() => new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)))); await sleep(200); }; // (en haute, juste après une capture, le premier toucher pouvait se perdre : deux images d'abord)
 
   for (const qual of (process.env.QUALITES || 'haute,eco').split(',')) {
     console.log(`── qualité ${qual} : les activités de la Maison hantée, au doigt ──`);
@@ -101,7 +103,7 @@ function faux(d) {
     if (await toucherClient(c1)) choisi = c1.id;
     if (choisi !== c1.id) console.log('   (diagnostic)', JSON.stringify(await act()), JSON.stringify(await ev(() => BOUTIQUE_HANTEE.acteurs())));
     check(choisi === c1.id && await ev((id) => document.querySelector(`.mh-bulle[data-client="${id}"]`).classList.contains('choisi'), c1.id), 'toucher le monstre le choisit : sa bulle s’allume');
-    const voulus = await attendre(() => ev(() => [...document.querySelectorAll('#ht-cartes .carte[data-mh~="voulu"]')].map((c) => +c.dataset.i)), 3000);
+    const voulus = await attendre(() => ev(() => { const l = [...document.querySelectorAll('#ht-cartes .carte[data-mh~="voulu"]')].map((c) => +c.dataset.i); return l.length ? l : null; }), 5000);
     check(voulus && voulus.length === c1.commande.length && c1.commande.every((l) => voulus.includes(l.i)), `les cartes de sa commande sont marquées (${voulus})`);
     // une mauvaise carte : refusée (et le choix tombe) ; on le rechoisit
     const autre = [0, 1, 2, 3, 4].find((i) => !c1.commande.some((l) => l.i === i));
@@ -123,6 +125,7 @@ function faux(d) {
     if (c2) {
       for (let k = 0; k < c2.commande.length; k++) { const e = await act(), c = e.clients.find((x) => x.id === c2.id); if (!c || !c.bulle) break; await page.touchscreen.tap(c.bulle.x, c.bulle.y); await sleep(350); }
       R = await regles();
+      if (R.file.some((c) => c.id === c2.id)) console.log('   (diagnostic)', JSON.stringify(R.file.find((c) => c.id === c2.id)), JSON.stringify((await act()).clients.find((c) => c.id === c2.id)), JSON.stringify(await ev(() => window.__pd.slice(-3))), JSON.stringify((await flottes()).slice(-3)));
       check(!R.file.some((c) => c.id === c2.id) && R.stats.clientsServis === s0.clientsServis + 2, `un deuxième (${c2.sorte}), servi en touchant sa bulle (${c2.commande.length} touche${c2.commande.length > 1 ? 's' : ''})`);
     } else check(false, 'un deuxième client entre');
 
@@ -158,7 +161,9 @@ function faux(d) {
       const w = await attendre(() => ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), w = F.evHantee.R.fenetreParfait(q, 3), f = document.querySelector('#ht-cartes .carte[data-i="3"] .mh-fenetre'); return w && f && !f.hidden ? { w, left: parseFloat(f.style.left), width: parseFloat(f.style.width) } : null; }), 3000);
       if (!w) { check(false, 'la fenêtre « parfait » est dessinée sur la barre'); break; }
       if (essai === 0) check(Math.abs(w.left - w.w.debut * 100) < 0.2 && Math.abs(w.width - (w.w.fin - w.w.debut) * 100) < 0.2, `lancée à la main : la fenêtre « parfait » dessinée sur sa barre (${w.left.toFixed(0)} % → ${(w.left + w.width).toFixed(0)} %)`);
-      const dedans = await attendre(() => ev((x) => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), p = q.postes[3].prog / 12; return p >= x.debut + 0.025 && p < x.fin - 0.04 ? document.querySelector('#ht-cartes .carte[data-i="3"]').dataset.mh || 'non' : null; }, w.w), 15000, 40);
+      const dedans = await ev((x) => new Promise((ok) => { let vu = ''; const t0 = performance.now(), un = () => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), p = q.postes[3].prog / 12, m = document.querySelector('#ht-cartes .carte[data-i="3"]').dataset.mh || '';
+        if (p >= x.debut && p < x.fin && /brille/.test(m)) vu = m;
+        if (p >= x.debut + 0.02 && p < x.fin - 0.05 && vu) ok(vu); else if (p >= x.fin - 0.05 || performance.now() - t0 > 15000) ok(vu || (p >= x.debut && p < x.fin ? m || 'non' : null)); else setTimeout(un, 15); }; un(); }), w.w); // (attendue dans la page : en haute, un aller-retour de Playwright dure plus que la fenêtre)
       await page.touchscreen.tap(bb.x + bb.width * 0.5, bb.y + bb.height / 2); await sleep(250);
       const r = await regles();
       if (r.stats.parfaits > pf0) parfait = { brille: dedans, fl: await flottes(), vert: await attendre(() => ev(() => document.querySelector('#ht-cartes .carte[data-i="3"] .mh-fenetre.fait') !== null), 4000, 100) };
@@ -169,16 +174,21 @@ function faux(d) {
     check(parfait && parfait.vert, 'la fenêtre réussie passe au vert');
 
     // ─── les apparitions : les attraper au doigt, trois d'affilée (la série) ───
+    const dansScene = (x0, x1) => attendre(async () => { const e = await act(); const r = await ev(() => { const c = document.querySelector('.mh-couche').getBoundingClientRect(); return { t: c.top, b: c.bottom }; }); return e.apps.find((x) => x.x > x0 && x.x < x1 && x.y > r.t + 10 && x.y < r.b - 10) || null; }, 15000, 100);
+    { // la capture d'abord, sur une apparition qu'on laisse filer (en haute, une capture dure plusieurs secondes : celle-ci s'échappe, et sa série avec)
+      await pousser('app'); const ap = await dansScene(90, 300);
+      check(!!ap && ap.sid != null && !ap.dom && (await ev((s) => BOUTIQUE_HANTEE.apparitions().some((x) => x.id === s), ap.sid)), `une apparition des règles (${ap && ap.type}) traverse la scène de la boutique`);
+      if (ap) await shot(page, `${qual}-apparition`);
+      await attendre(async () => (await regles()).apps.length === 0, 15000); }
     const ap0 = (await regles()).stats.apparitions;
     for (let k = 1; k <= 3; k++) {
       await pousser('app');
-      const ap = await attendre(async () => { const e = await act(); const r = await ev(() => { const c = document.querySelector('.mh-couche').getBoundingClientRect(); return { t: c.top, b: c.bottom }; }); return e.apps.find((x) => x.x > 30 && x.x < 360 && x.y > r.t + 10 && x.y < r.b - 10) || null; }, 15000, 100);
+      const ap = await dansScene(30, 360);
       if (!ap) { check(false, `l’apparition ${k} traverse la scène`); break; }
-      if (k === 1) { check(ap.sid != null && !ap.dom && (await ev((s) => BOUTIQUE_HANTEE.apparitions().some((x) => x.id === s), ap.sid)), `une apparition des règles (${ap.type}) traverse la scène de la boutique`); await shot(page, `${qual}-apparition`); }
       const p = (await act()).apps.find((x) => x.id === ap.id) || ap;
       await page.touchscreen.tap(p.x, p.y); await sleep(300);
       const r = await regles();
-      if (r.serie !== k) console.log('   (diagnostic)', JSON.stringify(p), JSON.stringify((await act()).recus), JSON.stringify(await ev(() => BOUTIQUE_HANTEE.apparitions())));
+      if (r.serie !== k) console.log('   (diagnostic)', JSON.stringify(p), JSON.stringify((await act()).recus), JSON.stringify(await ev(() => BOUTIQUE_HANTEE.apparitions())), await ev((pt) => { const e = document.elementFromPoint(pt.x, pt.y); return e ? `${e.tagName}.${e.className}#${e.id}` : '-'; }, p), JSON.stringify(await ev(() => window.__pd.slice(-3))));
       check(r.stats.apparitions === ap0 + k && r.serie === k && !(await ev((s) => BOUTIQUE_HANTEE.apparitions().some((x) => x.id === s), ap.sid)), `apparition ${k} (${ap.type}) attrapée au doigt : elle éclate, série ×${r.serie}`);
     }
     const se = await ev(() => { const e = document.querySelector('#ht-serie'); return { vu: !e.hidden, txt: e.innerText.replace(/\s+/g, ' ') }; });
@@ -190,7 +200,8 @@ function faux(d) {
     check(!!cm && (await toasts()).some((t) => /commande de la nuit/i.test(t)), `une commande de la nuit arrive : sa carte en tête du tiroir (« ${cm} »)`);
     check(await ev(() => !!document.querySelector('#ht-commande .mh-commande-temps b') && document.querySelector('#ht-commande .btn').classList.contains('non')), 'sa jauge de temps, son bouton pas encore prêt');
     await page.locator('#ht-commande [data-a="mh-commande"]').tap(); await sleep(300);
-    const tt = await toasts(); check(tt.some((t) => /encore .* à vendre/.test(t)), `pas prête : le bouton dit ce qu’il reste à vendre (« ${tt[tt.length - 1]} »)`);
+    const fl = await attendre(async () => (await flottes()).find((t) => /Encore \S+ à vendre/.test(t)), 3000, 100), tt = await attendre(async () => (await toasts()).find((t) => /encore .* à vendre/.test(t)), 8000);
+    check(!!fl && !!tt, `pas prête : le bouton dit tout de suite ce qu’il reste à vendre (« ${fl} »), le toast aussi (« ${tt} »)`);
     await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), c = q.manoir.commande; c.i = 0; c.fait = 0; c.n = 3; }); // (trois sachets de bonbons acidulés : Hubert les vend tout seul)
     await shot(page, `${qual}-commande`);
     const prete = await attendre(() => ev(() => document.querySelector('#ht-commande .btn.menthe')?.innerText.replace(/\s+/g, ' ')), 15000);
@@ -213,6 +224,7 @@ function faux(d) {
     check(ambs.length > 3 && ambs[ambs.length - 1] === 0 && ambs.some((x) => x > 0 && x < 1), `la lumière de la scène baisse avec la jauge (ambiance ${ambs.slice(-4).map((x) => x.toFixed(2)).join(' → ')})`);
     await shot(page, `${qual}-boss-endormi`);
     await page.touchscreen.tap(195, await ev(() => { const r = document.querySelector('.mh-couche').getBoundingClientRect(); return r.top + 20; })); await sleep(500);
+    await attendre(() => ev(() => /×6/.test(document.querySelector('#ht-taux').innerText)), 3000);
     const reveil = await ev(() => { const e = document.querySelector('#ht-eveil'); return { p: window.__fournil.HT.presence(window.__fournil.st.hantee, HORLOGE.maintenant()), niveau: e.dataset.niveau, taux: document.querySelector('#ht-taux').innerText, amb: window.__amb[window.__amb.length - 1] }; });
     check(reveil.p.eveil === 1 && reveil.niveau === 'plein' && /×6/.test(reveil.taux) && reveil.amb === 1, `un toucher sur la scène : réveillé (${reveil.taux}), la lumière revient (${reveil.amb})`);
 
@@ -240,7 +252,12 @@ function faux(d) {
     await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); q.manoir.prochaineApp = HORLOGE.maintenant() - 1; });
     const ap = await attendre(async () => { const e = await act(); return e.apps.find((x) => x.dom && x.x > 40 && x.x < 350) || null; }, 15000, 100);
     check(!!ap, `une apparition traverse la scène en image (${ap && ap.type})`);
-    if (ap) { await shot(page, 'repli-dom'); const p = (await act()).apps.find((x) => x.id === ap.id) || ap; await page.touchscreen.tap(p.x, p.y); await sleep(300); const n = await ev(() => window.__fournil.st.hantee.stats.apparitions); check(n === 1, 'un toucher dessus l’attrape'); }
+    if (ap) {
+      await shot(page, 'repli-dom'); await attendre(async () => (await act()).apps.length === 0, 15000); // (celle de la capture s'échappe ; une autre)
+      await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); q.manoir.prochaineApp = HORLOGE.maintenant() - 1; });
+      const ap2 = await attendre(async () => { const e = await act(); return e.apps.find((x) => x.dom && x.x > 40 && x.x < 350) || null; }, 15000, 100);
+      const p = ap2 && ((await act()).apps.find((x) => x.id === ap2.id) || ap2); if (p) { await page.touchscreen.tap(p.x, p.y); await sleep(300); }
+      const n = await ev(() => window.__fournil.st.hantee.stats.apparitions); check(n === 1, 'un toucher dessus l’attrape'); }
     check(erreurs.length === 0, `aucune erreur dans la page${erreurs.length ? ' : ' + erreurs.slice(0, 3).join(' | ') : ''}`);
     await ctx.close();
   }

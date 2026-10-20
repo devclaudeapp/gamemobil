@@ -1015,7 +1015,7 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 #hantee .pq-solde > div:not(.mh-eveil) { flex: 1 1 0; }
 .mh-eveil, #hantee .pq-solde > .mh-eveil { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1 0 100%; padding-left: 46px; } /* une ligne à elle, sous le ×6 */
 .mh-eveil[hidden] { display: none; }
-.mh-eveil-jauge { position: relative; flex: 0 1 132px; min-width: 70px; height: 8px; border-radius: 999px; background: var(--mh-violet-clair); box-shadow: inset 0 0 0 1px rgba(106, 61, 209, .15); overflow: hidden; }
+.mh-eveil-jauge { position: relative; flex: 0 1 112px; min-width: 70px; height: 8px; border-radius: 999px; background: var(--mh-violet-clair); box-shadow: inset 0 0 0 1px rgba(106, 61, 209, .15); overflow: hidden; }
 .mh-eveil-jauge b { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--mh-violet), var(--mh-orange)); transition: width .5s linear; }
 .mh-eveil-txt { min-width: 0; font: 800 11px/1.1 var(--texte-font); color: var(--mh-texte2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mh-eveil-txt::before { content: 'z'; display: inline-block; margin-right: 3px; font: 700 12px/1 var(--titre); color: var(--mh-violet); transform: rotate(-12deg); }
@@ -1058,7 +1058,7 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .mh-bulle { position: absolute; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 3px; min-width: 44px; min-height: 44px; padding: 4px 6px 5px; border: 0; border-radius: 14px;
   background: #fff; color: var(--mh-texte); box-shadow: 0 3px 0 rgba(61, 39, 72, .22), 0 4px 10px rgba(21, 17, 31, .25); pointer-events: auto; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 .mh-bulle[hidden] { display: none; }
-.mh-bulle::after { content: ''; position: absolute; left: 50%; bottom: -6px; width: 12px; height: 12px; margin-left: -6px; background: #fff; transform: rotate(45deg); border-radius: 0 0 3px 0; }
+.mh-bulle::after { content: ''; position: absolute; left: calc(50% + var(--mh-pointe, 0px)); bottom: -6px; width: 12px; height: 12px; margin-left: -6px; background: #fff; transform: rotate(45deg); border-radius: 0 0 3px 0; }
 .mh-bulle.choisi { box-shadow: 0 0 0 3px var(--mh-violet), 0 3px 0 rgba(61, 39, 72, .22), 0 6px 16px rgba(142, 92, 247, .45); z-index: 2; }
 .mh-bulle.choisi::after { box-shadow: 3px 3px 0 0 var(--mh-violet); }
 .mh-bulle-lignes { position: relative; z-index: 1; display: flex; gap: 2px; }
@@ -1086,12 +1086,14 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 @keyframes mhSortContent { to { opacity: 0; translate: 0 -24px; scale: 1.15; } }
 @keyframes mhSortFache { to { opacity: 0; scale: .6; } }
 /* la fenêtre « parfait » sur la barre de cuisson d'une fournée à la main (6 s et plus) : elle s'allume quand la fournée y passe */
-.carte .barre .mh-fenetre { position: absolute; top: 2px; bottom: 2px; border-radius: 6px; background: rgba(142, 92, 247, .22); box-shadow: inset 0 0 0 2px var(--mh-violet); pointer-events: none; }
+.carte .barre .mh-fenetre { position: absolute; top: 1px; bottom: 1px; min-width: 14px; border-radius: 7px; pointer-events: none; z-index: 1;
+  background: repeating-linear-gradient(-45deg, rgba(255, 255, 255, .55) 0 4px, rgba(142, 92, 247, .28) 4px 8px); box-shadow: inset 0 0 0 2px var(--mh-violet), 0 0 0 1px rgba(255, 255, 255, .7); }
 .carte .barre .mh-fenetre[hidden] { display: none; }
-.carte .barre .mh-fenetre.fait { background: rgba(95, 211, 164, .45); box-shadow: inset 0 0 0 2px var(--menthe-sombre); }
-.carte .barre .mh-fenetre.rate { background: rgba(179, 156, 191, .25); box-shadow: inset 0 0 0 2px var(--mh-gris); }
+.carte .barre .mh-fenetre.fait { background: var(--menthe); box-shadow: inset 0 0 0 2px var(--menthe-sombre), 0 0 0 1px #fff; }
+.carte .barre .mh-fenetre.fait::after { content: '✓'; position: absolute; inset: 0; display: grid; place-items: center; font: 800 14px/1 var(--titre); color: #fff; }
+.carte .barre .mh-fenetre.rate { background: rgba(255, 255, 255, .55); box-shadow: inset 0 0 0 2px var(--mh-gris); opacity: .7; }
 #hantee .carte.pq[data-mh~="brille"] { box-shadow: 0 0 0 3px var(--mh-violet), 0 6px 18px rgba(142, 92, 247, .45); }
-#hantee .carte.pq[data-mh~="brille"] .mh-fenetre { background: rgba(255, 138, 31, .55); box-shadow: inset 0 0 0 2px var(--mh-orange-sombre), 0 0 10px rgba(255, 138, 31, .8); }
+#hantee .carte.pq[data-mh~="brille"] .mh-fenetre { background: var(--mh-violet); box-shadow: inset 0 0 0 2px #fff, 0 0 12px rgba(142, 92, 247, .9); animation: pulse .5s ease-in-out infinite; } /* (violet sur l'orange de la barre : on la voit) */
 #hantee .carte.pq[data-mh~="voulu"] { box-shadow: 0 0 0 3px var(--mh-orange), var(--mh-ombre-carte); }
 #hantee .carte.pq[data-mh~="voulu"] .icone { animation: pulse .9s ease-in-out infinite; }
 #hantee .carte.pq[data-mh~="ok"] { animation: memPose .35s ease-out; box-shadow: 0 0 0 3px var(--menthe), var(--mh-ombre-carte); }
@@ -1977,7 +1979,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'e753488de245';</script>
+<script>window.FOURNIL_VERSION = 'b4fe2ce5638b';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -11947,7 +11949,7 @@ const GARDEROBE_UI = (() => {
       sortes: NOMS_SORTES,
       apparitions: { fantome: 'Un petit fantôme', citrouille: 'Une citrouille volante', 'chauve-souris': 'Une chauve-souris' },
       textes: {
-        jauge: 'Le Manoir est réveillé', jaugeBasse: 'Le Manoir s’endort… touche-le !', jaugeNote: 'Tant que tu touches, tout se vend ×6. Sans toi, ça retombe peu à peu.',
+        jauge: 'Réveillé : ×6 avec toi', jaugeBasse: 'Le boss s’endort…', jaugeDort: 'Le boss dort : touche !', jaugeNote: 'Tant que tu touches, tout se vend ×6. Sans toi, ça retombe peu à peu.',
         clients: 'Les clients-monstres', servi: (m) => `Merci ! +${m}`, parti: 'Il en a eu assez d’attendre.', faux: 'Ce n’est pas sa commande !',
         parfait: 'Fournée parfaite ! ×2', parfaitRate: 'Pas cette fois : la prochaine sera la bonne.', parfaitNote: 'Touche la fournée quand elle brille.',
         apparition: 'Attrape-la !', serie: (n) => `Série de ${n} : ×1,5`, attrape: (m) => `Attrapée ! +${m}`,
@@ -12563,6 +12565,10 @@ const BOUTIQUE_HANTEE = (() => {
     const tr = SCENE.trois, K = VIE.K || 1; if (!tr) return [];
     return APP.map((a) => { const p = tr.ecran(a.o.position.x, a.o.position.y + 12 * K, a.o.position.z); return { id: a.id, type: a.type, x: Math.round(p.x), y: Math.round(p.y), r: Math.round(Math.max(32, 32 * K)) }; }); // (une cible qui bouge : un rayon de 32 px au moins, le doigt arrive toujours un peu après)
   }
+  function ecranApp(a, t) { // le centre de touche de l'apparition a à l'instant t de sa traversée (le chemin de majApp, sans rien bouger), en pixels
+    const u = Math.min(1, Math.max(0, t) / a.duree), K = VIE.K || 1;
+    return SCENE.trois.ecran(a.x0 + (a.x1 - a.x0) * u, a.haut + Math.sin(t * 2.2 + a.ph) * 8 * K + 12 * K, a.z + Math.sin(t * 0.9 + a.ph) * 10 * K);
+  }
   function retirer(id) { const a = APP.find((x) => x.id === id); if (!a) return false; retirerApp(a); return true; } // une apparition qui s'échappe (les règles l'ont perdue) : elle s'efface, sans éclat
   function attraper(id) {
     const a = APP.find((x) => x.id === id); if (!a) return false;
@@ -12583,7 +12589,12 @@ const BOUTIQUE_HANTEE = (() => {
   const surToucher = (cb) => { cbToucher = typeof cb === 'function' ? cb : null; };
   function toucher(e) { // un toucher sur la fenêtre de la scène : une apparition (la plus proche, rayon d'au moins 22 px), un client (44 × 44 au moins), ou le vide
     if (!cbToucher) return; const x = e.clientX, y = e.clientY;
-    let best = null, bd = 1e9; for (const a of apparitions()) { const d = Math.hypot(a.x - x, a.y - y); if (d <= Math.max(a.r, 22) && d < bd) { bd = d; best = a; } }
+    // (une cible qui file : le doigt vise là où il l'a vue, un peu avant ; on mesure la distance au bout de chemin des 0,35 dernières secondes)
+    let best = null, bd = 1e9; const r = Math.max(32, 32 * (VIE.K || 1));
+    if (SCENE.trois) for (const a of APP) {
+      const p1 = ecranApp(a, a.t), p0 = ecranApp(a, a.t - 0.35), vx = p1.x - p0.x, vy = p1.y - p0.y, l2 = vx * vx + vy * vy, k = l2 > 0 ? Math.max(0, Math.min(1, ((x - p0.x) * vx + (y - p0.y) * vy) / l2)) : 1;
+      const d = Math.hypot(p0.x + vx * k - x, p0.y + vy * k - y); if (d <= r && d < bd) { bd = d; best = a; }
+    }
     if (best) { cbToucher({ genre: 'apparition', id: best.id }); return; }
     let cl = null, cd = 1e9;
     for (const a of acteurs()) {
@@ -12680,7 +12691,7 @@ const HANTEE_ACTIVITES = (() => {
     // ─── chaque toucher utile sur l'écran (la scène, les cartes, la commande, les coups de pouce, les activités, les achats) réveille le Manoir ───
     el.addEventListener('pointerdown', (e) => {
       if (!ouvert || el.dataset.ecran !== F.ecran || e.target.closest('[data-pq="fermer"], .pq-mini')) return;
-      const avant = Q.eveil(qq(), maint()); Q.toucher(qq(), maint()); if (avant < 1) majEveil(true);
+      const avant = Q.eveil(qq(), maint()); Q.toucher(qq(), maint()); if (avant < 1) { majEveil(true); X.hud(); } // (réveillé : la jauge, la lumière et le ×6 tout de suite)
     }, true);
     // la commande de la nuit : son bouton (Livrer quand tout est prêt)
     el.addEventListener('click', (e) => { const b = e.target.closest('[data-a="mh-commande"]'); if (!b || !ouvert) return; e.stopPropagation(); livrer(b); });
@@ -12737,7 +12748,7 @@ const HANTEE_ACTIVITES = (() => {
     function majEveil(force) {
       const e = eveilEl(); if (!e || !Q.presence) return;
       const p = Q.presence(qq(), maint()), part = p.eveil;
-      const txt = part >= 1 ? (T.jauge || 'Le Manoir est réveillé') : part <= 0 ? 'Le boss dort : touche le Manoir !' : 'Le boss s’endort…';
+      const txt = part >= 1 ? (T.jauge || 'Réveillé : ×6 avec toi') : part <= 0 ? (T.jaugeDort || 'Le boss dort : touche !') : (T.jaugeBasse || 'Le boss s’endort…'); // (courts : la ligne tient sous le solde, 11 px)
       const cle = `${Math.round(part * 100)}|${txt}`;
       if (force || cle !== lastEveil) {
         lastEveil = cle; e.hidden = false; e.innerHTML = F.gabarits.eveil(part, txt); e.dataset.niveau = part < 0.35 ? 'bas' : part < 1 ? 'moyen' : 'plein';
@@ -12786,10 +12797,10 @@ const HANTEE_ACTIVITES = (() => {
       const M = manoir(), c = choisi != null && M ? M.file.find((x) => x.id === choisi) : null; voulu = new Set(c ? c.commande.filter((l) => !l.servi).map((l) => l.i) : []);
       for (const o of clients.values()) if (o.bulle) o.bulle.classList.toggle('choisi', o.id === choisi);
     }
-    function toucherBulle(id, i) { // toucher la bulle sert : la friandise touchée, sinon la première pas encore servie
+    function toucherBulle(id, i) { // toucher la bulle sert : la friandise touchée, sinon (le vide, ou une déjà servie) la première pas encore servie
       const M = manoir(), c = M && M.file.find((x) => x.id === id); if (!c) return;
-      const l = i != null ? c.commande.find((x) => x.i === i && !x.servi) : c.commande.find((x) => !x.servi);
-      servirLigne(id, l ? l.i : i);
+      const l = (i != null && c.commande.find((x) => x.i === i && !x.servi)) || c.commande.find((x) => !x.servi);
+      if (l) servirLigne(id, l.i);
     }
     function servirLigne(id, i) {
       const q = qq(), o = clients.get(id), r = Q.servir(q, id, i);
@@ -12932,7 +12943,10 @@ const HANTEE_ACTIVITES = (() => {
     function livrer(b) {
       const q = qq(), c = Q.commandeManoir(q); if (!c) return;
       const r = Q.livrerCommande(q);
-      if (!r.ok) { d.son.non(); d.toast(`${T.commandeTitre || 'La commande de la nuit'} : encore ${Q.fmt(c.n - c.fait)} ${Q.PRODUITS[c.i].pl} à vendre${q.postes[c.i].staff ? '' : ' (touche la carte !)'}`); return; }
+      if (!r.ok) { // pas prête : un mot sur le bouton, tout de suite (le toast, lui, peut attendre son tour derrière un autre)
+        const r1 = b.getBoundingClientRect(); d.son.non(); d.buzz(30); flotter({ x: r1.left + r1.width / 2, y: r1.top }, `Encore ${Q.fmt(c.n - c.fait)} à vendre`, 'non');
+        d.toast(`${T.commandeTitre || 'La commande de la nuit'} : encore ${Q.fmt(c.n - c.fait)} ${Q.PRODUITS[c.i].pl} à vendre${q.postes[c.i].staff ? '' : ' (touche la carte !)'}`); return;
+      }
       const r0 = b.getBoundingClientRect(), pos = { x: r0.left + r0.width / 2, y: r0.top };
       d.son.deblocage(); d.buzz([10, 30, 10]); if (S()) S().jeuSon('cloche', { vol: 0.45 });
       d.toast(T.commandeLivree ? T.commandeLivree(X.fmt(r.prime)) : `Commande livrée : +${X.fmt(r.prime)}`);
@@ -12946,12 +12960,21 @@ const HANTEE_ACTIVITES = (() => {
       if (!ouvert || !couche) return;
       const q = qq(), M = manoir(); if (!M) return;
       if (mode === 'scene' && B()) {
-        const r = couche.getBoundingClientRect(), vus = new Map(); for (const a of B().acteurs()) if (a.role === 'client') vus.set(a.id, a);
+        const r = couche.getBoundingClientRect(), vus = new Map(), vis = []; for (const a of B().acteurs()) if (a.role === 'client') vus.set(a.id, a);
         for (const o of clients.values()) {
           const b = o.bulle; if (!b) continue; const a = o.sid ? vus.get(o.sid) : null;
           if (!a || a.etat === 'sort' || a.y < r.top - 10 || a.y > r.bottom + 10) { if (!b.hidden) b.hidden = true; continue; }
           if (b.hidden) b.hidden = false;
-          b.style.transform = `translate(${(a.x - r.left).toFixed(1)}px, ${(a.y - r.top - 6).toFixed(1)}px) translate(-50%, -100%)`;
+          vis.push({ b, x: a.x - r.left, y: a.y - r.top - 6, w: b.offsetWidth, h: b.offsetHeight });
+        }
+        // la file au comptoir : des têtes proches, des bulles qui se chevaucheraient. De gauche à droite, deux bulles à la même hauteur (à une
+        // demi-bulle près) s'écartent l'une de l'autre, puis chacune reste dans la scène ; leur pointe suit la tête (--mh-pointe)
+        vis.sort((p, v) => p.x - v.x); for (const v of vis) v.cx = v.x;
+        for (let tour = 0; tour < 4; tour++) for (let i = 1; i < vis.length; i++) { const p = vis[i - 1], v = vis[i]; if (Math.abs(p.y - v.y) >= (p.h + v.h) / 2) continue; const min = (p.w + v.w) / 2 + 6, d = v.cx - p.cx; if (d < min) { p.cx -= (min - d) / 2; v.cx += (min - d) / 2; } }
+        for (const v of vis) {
+          v.cx = Math.max(v.w / 2 + 4, Math.min(r.width - v.w / 2 - 4, v.cx));
+          v.b.style.transform = `translate(${v.cx.toFixed(1)}px, ${v.y.toFixed(1)}px) translate(-50%, -100%)`;
+          const pointe = Math.max(-v.w / 2 + 14, Math.min(v.w / 2 - 14, v.x - v.cx)).toFixed(0) + 'px'; if (v.b.style.getPropertyValue('--mh-pointe') !== pointe) v.b.style.setProperty('--mh-pointe', pointe);
         }
       } else for (const o of apps.values()) placerApp(o, q.now);
     }
@@ -14426,8 +14449,9 @@ const EVENEMENTS = (() => {
       t: {
         lieu, premier: txt('premier', `Touche les ${HR && HR.PRODUITS[0] ? HR.PRODUITS[0].nom.toLowerCase() : 'bonbons acidulés'} pour vendre ta première friandise !`), ferme: txt('ferme', `${nom} ferme ses portes. Bouh !`), reste: 'Ferme dans',
         absence: typeof T.absence === 'function' ? T.absence : (duree, m) => `Pendant ton absence (${duree}) : +${m}, au ralenti sans toi.`,
-        // (le ×6 de présence en court : la jauge « Le boss s'endort… » est juste dessous, et il retombe à ×1 sans toucher)
-        taux: (m, pres) => `<b>+${m}</b>/s · <b class="mh-pres">×${pres}</b> avec toi`, tauxVide: (pres) => `Touche une friandise · <b class="mh-pres">×${pres}</b> avec toi`,
+        // (le ×6 de présence en court, sans « avec toi » : la ligne tient à côté de « Ferme dans » ; la jauge juste dessous le dit, « Réveillé :
+        // ×6 avec toi », « Le boss s'endort… », et il retombe à ×1 sans toucher)
+        taux: (m, pres) => `<b>+${m}</b>/s · <b class="mh-pres">×${pres}</b>`, tauxVide: (pres) => `Touche une friandise · <b class="mh-pres">×${pres}</b>`,
         nouveau: (n) => `${n} : nouvelle friandise au manoir !`, embauche: (n) => `${n} rejoint l’équipe du manoir !`,
         decoDon: Object.assign({}, HF.decos || {}, { citrouilles: 'des citrouilles-lanternes dans la boutique', toiles: 'des toiles d’araignée (gentilles) aux coins de la boutique', chaudron: 'un chaudron qui bouillonne près du four', fantome: 'un petit fantôme qui flotte dans la boutique', chauvesouris: 'des chauves-souris en papier au plafond', lanternes: 'des lanternes sur le comptoir' }, T.decoDon || {}), decoDefaut: (k) => `${k} pour la boutique`,
         vetementNom: (v) => v, tenueComplete: ' : la tenue d’Halloween est complète !',
