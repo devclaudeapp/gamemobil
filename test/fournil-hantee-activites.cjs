@@ -66,8 +66,9 @@ function faux(d) {
     await page.goto(`http://localhost:${PORT}/fournil/${requete}`); await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 }); await sleep(900);
     const ev = (fn, arg) => page.evaluate(fn, arg);
     // la Maison hantée déjà annoncée ; cinq postes ouverts : les trois premiers avec leur monstre, les toiles (12 s) et les potions (24 s) à la main
+    // six paliers franchis (v6.7 : 2e12 bonbons passent le 6e palier, ouvert le 28 ; marqué pour que sa feuille ne couvre pas les captures)
     await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); q.annonce = true; q.billets = 5e9; q.total = 2e12;
-      [[60, 1], [40, 1], [25, 1], [12, 0], [6, 0]].forEach(([n, s], i) => { q.postes[i].niv = n; q.postes[i].staff = !!s; q.postes[i].actif = !!s; }); q.paliers = [1, 2, 3, 4, 5]; F.save(); });
+      [[60, 1], [40, 1], [25, 1], [12, 0], [6, 0]].forEach(([n, s], i) => { q.postes[i].niv = n; q.postes[i].staff = !!s; q.postes[i].actif = !!s; }); q.paliers = [1, 2, 3, 4, 5, 6]; F.save(); });
     for (let k = 0; k < 2; k++) { await ev(() => { const b = document.querySelector('#feuille [data-a="pq-tard"], #feuille [data-a="close"], #feuille [data-a="pq-ok"]'); if (b) b.click(); }); await sleep(300); }
     return { ctx, page, erreurs, ev };
   }

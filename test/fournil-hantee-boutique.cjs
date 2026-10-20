@@ -44,9 +44,10 @@ const EQUIPE = ['fantome2', 'momie2', 'squelette', 'vampire2', 'sorciere2', 'cit
     await page.goto(`http://localhost:${PORT}/fournil/${requete}`); await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 }); await sleep(900);
     const ev = (fn, arg) => page.evaluate(fn, arg);
     const fermerFeuille = () => ev(() => { const b = document.querySelector('#feuille [data-a="pq-tard"], #feuille [data-a="close"], #feuille [data-a="pq-ok"]'); if (b) b.click(); });
-    // la Maison hantée déjà annoncée, cinq postes ouverts (le 4e sans son monstre), cinq paliers franchis
+    // la Maison hantée déjà annoncée, cinq postes ouverts (le 4e sans son monstre), six paliers franchis
+    // (v6.7 : 2e12 bonbons passent le 6e palier, ouvert le 28 ; il est marqué pour que sa feuille ne vienne pas couvrir la scène)
     await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); q.annonce = true; q.billets = 5e9; q.total = 2e12;
-      [[60, 1], [40, 1], [25, 1], [12, 0], [6, 1]].forEach(([n, s], i) => { q.postes[i].niv = n; q.postes[i].staff = !!s; q.postes[i].actif = !!s; }); q.paliers = [1, 2, 3, 4, 5]; F.save(); });
+      [[60, 1], [40, 1], [25, 1], [12, 0], [6, 1]].forEach(([n, s], i) => { q.postes[i].niv = n; q.postes[i].staff = !!s; q.postes[i].actif = !!s; }); q.paliers = [1, 2, 3, 4, 5, 6]; F.save(); });
     await fermerFeuille(); await sleep(300); await fermerFeuille();
     return { ctx, page, erreurs, ev };
   }
