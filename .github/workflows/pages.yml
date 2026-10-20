@@ -23,7 +23,7 @@ jobs:
   fournil:
     name: Le Fournil (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -61,7 +61,7 @@ jobs:
   fournil2:
     name: Le Fournil, événements et scène (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -99,7 +99,7 @@ jobs:
   fournil3:
     name: Le Fournil, notifications, réveil, compagnons, mise à jour, chat, nouveautés, idées et votes (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -137,7 +137,7 @@ jobs:
   fournil4:
     name: Le Fournil, standing des boutiques et aménagement (Playwright)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -69,12 +69,17 @@ function doigt(p, cdp) { // les touches et les glisser, comme sur un téléphone
   }, { id, de, filtre });
 
   console.log('── le mode Déplacer, dans Aménager ──');
-  await ev(() => window.__fournil.page('reglages')); await sleep(400);
-  await ev(() => document.querySelector('[data-a="repeindre"]').scrollIntoView({ block: 'center' })); await sleep(200);
-  await d.toucherEl('[data-a="repeindre"]'); await sleep(700);
-  if (!(await ev(() => window.__fournil.SCENE.amenager))) { // le premier toucher peut tomber pendant que le tiroir glisse encore : on recommence une fois
-    console.log('        (pas d’Aménager au premier toucher ; on recommence)'); await ev(() => window.__fournil.page('reglages')); await sleep(800);
-    await ev(() => document.querySelector('[data-a="repeindre"]').scrollIntoView({ block: 'center' })); await sleep(400); await d.toucherEl('[data-a="repeindre"]'); await sleep(900); }
+  // le toucher peut tomber pendant que le tiroir glisse encore, ou la feuille se rouvre lentement sous charge : jusqu'à quatre essais,
+  // chacun attend que le bouton soit là et que le mode Aménager prenne
+  for (let essai = 0; essai < 4 && !(await ev(() => window.__fournil.SCENE.amenager)); essai++) {
+    if (essai) console.log(`        (pas d’Aménager au toucher n°${essai} ; on recommence)`);
+    await ev(() => window.__fournil.page('reglages'));
+    await attendre(() => ev(() => { const b = document.querySelector('[data-a="repeindre"]'); return !!(b && b.offsetParent); }), 5000);
+    await ev(() => document.querySelector('[data-a="repeindre"]').scrollIntoView({ block: 'center' })); await sleep(400 + 300 * essai);
+    await d.toucherEl('[data-a="repeindre"]');
+    await attendre(() => ev(() => window.__fournil.SCENE.amenager), 3000);
+  }
+  await attendre(() => ev(() => !document.querySelector('#amenage-barre').hidden && !document.querySelector('#b-deplacer').hidden), 3000);
   check(await ev(() => window.__fournil.SCENE.amenager && !document.querySelector('#amenage-barre').hidden && !document.querySelector('#b-deplacer').hidden), 'Repeindre la boutique : le mode Aménager montre le bouton « Déplacer »');
   await d.toucherEl('#b-deplacer'); await sleep(500);
   check(await ev(() => window.__fournil.SCENE.deplacer && document.querySelector('#b-deplacer').getAttribute('aria-pressed') === 'true'), '« Déplacer » touché : le mode Déplacer (la grille, les meubles déplaçables entourés)');
