@@ -508,6 +508,9 @@ const VIE = (() => {
     const taux = G.tauxParSeconde(st);
     rang = G.rangTitre(st); pts = G.ptsTalents(st); affl = G.talent(st, 'affluence');
     vueEv = st.vueEv || null; // la boutique hantée : le décor et les saisons de l'événement, pas ceux du quartier
+    // un client né entre la bascule et cette image (une vente juste après setEvenement : vueEv n'était pas encore lu) s'habille ici, avant
+    // que la scène ne le bâtisse : jamais un client « sans déguisement » dans la boutique hantée, même dans l'image où il naît
+    if (modeVie !== '' && vueEv && vueEv.deguisements) for (const c of clients) if (!c.deg && !c.or) c.deg = vueEv.deguisements[Math.floor(Math.random() * vueEv.deguisements.length)];
     Q = vueEv && DECORS[vueEv.decor] ? DECORS[vueEv.decor] : decor(G.QUARTIERS[G.quartier(st)], G.standing ? G.standing(st) : 0); tags = force.saison || (vueEv && vueEv.tags) || G.saison(now);
     if (st.amenagement !== amenRef) { amenRef = st.amenagement; const n = G.nettoyerAmenagement ? G.nettoyerAmenagement(st.amenagement) : null, c = n ? G.codeAmenagement(n) : ''; if (c !== codeDemande) { codeDemande = c; amenDemande = n; calculer(true); } } // un meuble déplacé (ou une autre boutique) : le plan suit
     for (const id of ['bar', 'banquette', 'terrasse']) crans[id] = G.mobilierCran(st, id); // (avant que GAME.MOBILIER les connaisse : cran 0)

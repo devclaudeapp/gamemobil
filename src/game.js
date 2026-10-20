@@ -367,7 +367,7 @@
   // st.chat reste LE compagnon (nom, caresses, chance du client mystère, trophée Ronron), quel que soit l'animal. st.compagnon : l'id de
   // l'animal montré (null avant le premier compagnon ; une vieille sauvegarde : le chat roux, ou noir s'il l'avait choisi) ; st.compagnons :
   // les ids ACHETÉS, à vie (une nouvelle boutique n'y touche pas). Les gratuits sont à tout le monde ; le chat noir se gagne à la Maison
-  // hantée (st.chatNoir), le chien du quartier au palier 11 du Quartier (st.quartier). Les payants coûtent des minutes des gains de la boutique, comme les primes : max(plancher, rythme × 60 × minutes),
+  // hantée (st.chatNoir), le chien du quartier au palier 11 du Quartier (st.quartier), la chauve-souris au bestiaire du Manoir (st.hantee). Les payants coûtent des minutes des gains de la boutique, comme les primes : max(plancher, rythme × 60 × minutes),
   // arrondi. Le plancher (COMPAGNON_PLANCHER € par minute de prix) tient le tout début, quand le rythme ne vaut que quelques euros par
   // seconde : la poule y coûte 20 000 €, à peu près l'embauche d'Inès (22 500 €), le mini-dragon 480 000 € ; passé ~17 €/s de rythme
   // (la première heure), seul compte le temps de gains. Aucun point de boulanger : un compagnon fait de la compagnie, et donne son petit bonus (bonus, plus bas).
@@ -380,12 +380,16 @@
   // le chien du quartier : gagné au palier 11 du Quartier (src/quartier.js : la déco « chien », ou le palier marqué). Lu sur st.quartier, qui
   // reste dans la sauvegarde après l'événement : qui a fini le Quartier avant cette version l'a aussi, sans rien refaire.
   const chienDuQuartier = (st) => { const q = st && st.quartier; return !!q && typeof q === 'object' && ((Array.isArray(q.decos) && q.decos.includes('chien')) || (Array.isArray(q.paliers) && q.paliers.includes(11))); };
+  // la chauve-souris : gagnée au bestiaire de la Maison hantée (src/hantee.js : les neuf sortes de clients-monstres servies dix fois, q.chauvesouris).
+  // Lue sur st.hantee, qui reste dans la sauvegarde après l'événement (et dans une nouvelle boutique), comme le chien du quartier.
+  const chauveSourisDuManoir = (st) => { const q = st && st.hantee; return !!q && typeof q === 'object' && q.chauvesouris === true; };
   const COMPAGNONS = [
     { id: 'chat-roux', nom: 'Chat roux', espece: 'chat', prix: null, condition: null, nomDefaut: 'Brioche', cri: null, bonus: { pourboire: 5 }, phrase: 'Le chat de toujours : il dort sur le comptoir et ronronne pour un rien.' },
     { id: 'chien', nom: 'Chien', espece: 'chien', prix: null, condition: null, nomDefaut: 'Biscotte', cri: 'wouf', bonus: { absence: 0.5 }, phrase: 'Un petit corniaud beige. Il remue tout l’arrière-train quand on entre.' },
     { id: 'lapin', nom: 'Lapin', espece: 'lapin', prix: null, condition: null, nomDefaut: 'Pompon', cri: 'couic', bonus: { vitesse: 2 }, phrase: 'Il sautille entre les tables et grignote les miettes de pain d’épices.' },
     { id: 'chat-noir', nom: 'Chat noir', espece: 'chat', prix: null, condition: (st) => !!st.chatNoir, gagne: 'Gagné à la Maison hantée', verrou: 'Pendant Halloween', nomDefaut: 'Réglisse', cri: null, bonus: { gains: { pct: 2 } }, phrase: 'Robe noire, yeux jaunes : le souvenir de la Maison hantée.' },
     { id: 'chien-quartier', nom: 'Chien du quartier', espece: 'chien', prix: null, condition: chienDuQuartier, gagne: 'Gagné au Quartier', verrou: 'Au palier 11 du Quartier', nomDefaut: 'Caïd', cri: 'woufgrave', bonus: { gains: { pct: 5 } }, phrase: 'Bandana, chaîne en or et regard de videur : il garde la vitrine, et il n’a jamais rendu une baballe.' },
+    { id: 'chauve-souris', nom: 'Chauve-souris', espece: 'chauve-souris', prix: null, condition: chauveSourisDuManoir, gagne: 'Gagnée au bestiaire du Manoir', verrou: 'Les neuf monstres du bestiaire', nomDefaut: 'Myrtille', cri: 'couic', bonus: { absence: 1 }, phrase: 'Toute ronde, des oreilles immenses et deux petits crocs : elle tourne sous le plafond et veille sur la boutique la nuit.' },
     { id: 'poule', nom: 'Poule', espece: 'poule', prix: 20, condition: null, nomDefaut: 'Cocotte', cri: 'cotcot', bonus: { gains: { pct: 2 } }, phrase: 'Elle picore les miettes et surveille le four d’un œil sévère.' },
     { id: 'canard', nom: 'Canard', espece: 'canard', prix: 30, condition: null, nomDefaut: 'Coincoin', cri: 'coincoin', bonus: { pourboire: 10 }, phrase: 'Il cancane à chaque client. On dit qu’il préfère la brioche.' },
     { id: 'herisson', nom: 'Hérisson', espece: 'herisson', prix: 45, condition: null, nomDefaut: 'Châtaigne', cri: null, bonus: { absence: 1 }, phrase: 'Tout rond, tout piquant : il se roule en boule sous les tables.' },

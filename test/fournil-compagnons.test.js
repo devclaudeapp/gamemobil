@@ -95,6 +95,26 @@ console.log('── le chien du quartier : gagné au palier 11 du Quartier ─�
   check(G.compagnonActif(sansQ) === 'chat-roux' && sansQ.chat && sansQ.chat.nom === 'Caïd', 'sans st.quartier (une sauvegarde abîmée) : le choix est oublié, retour au chat roux (le nom reste)');
 }
 
+console.log('── la chauve-souris : gagnée au bestiaire de la Maison hantée ──');
+{
+  const HT = require('../src/hantee.js'), c = G.compagnon('chauve-souris');
+  check(c && c.prix === null && typeof c.condition === 'function' && c.espece === 'chauve-souris' && /bestiaire/.test(c.gagne) && /neuf monstres/.test(c.verrou) && c.cri === 'couic' && c.nomDefaut === 'Myrtille' && c.phrase.length > 30, `au catalogue : « ${c && c.nom} », ${c && c.gagne}, « ${c && c.phrase} » (cri ${c && c.cri})`);
+  check(!G.estChat('chauve-souris') && G.prixCompagnon(G.newState(T0), 'chauve-souris') === null && G.acheterCompagnon(G.newState(T0), 'chauve-souris').raison === 'gratuit', 'pas un chat, et elle ne s’achète pas : elle se gagne');
+  const s = G.newState(T0), t = HT.DEBUT + 864e5, q = HT.etat(s, t); q.now = t; HT.gagner(q, 1e6);
+  check(!G.aCompagnon(s, 'chauve-souris') && !G.choisirCompagnon(s, 'chauve-souris').ok, 'une boutique neuve : verrouillée');
+  let id = 0; const servir = (k) => { q.manoir.file.push({ id: ++id, sorte: k, commande: [{ i: 0, n: 1, servi: false }], arrive: q.now }); return HT.servir(q, id, 0); };
+  for (const k of HT.SORTES.slice(0, 8)) for (let n = 0; n < 10; n++) servir(k);
+  for (let n = 0; n < 9; n++) servir('loup');
+  check(!G.aCompagnon(s, 'chauve-souris'), 'huit sortes et neuf loups-garous : toujours verrouillée');
+  servir('loup');
+  check(q.chauvesouris && G.aCompagnon(s, 'chauve-souris'), 'le dixième loup-garou (les neuf sortes complètes) : la chauve-souris est à soi');
+  const r = G.choisirCompagnon(s, 'chauve-souris');
+  check(r.ok && r.adopte && s.chat.nom === 'Myrtille' && G.modeleCompagnon(s, true) === 'chauve-souris', 'choisie : adoptée sous le nom « Myrtille », elle-même pendant la Maison hantée');
+  const sv = JSON.parse(JSON.stringify(s)); G.compagnons(sv); sv.lifetimeRun = 1e15;
+  check(G.compagnonActif(sv) === 'chauve-souris' && G.nouvelleBoutique(sv, T0).ok && G.compagnonActif(sv) === 'chauve-souris', 'la sauvegarde (JSON) la garde, une nouvelle boutique aussi (st.hantee reste)');
+  check(!G.aCompagnon({ hantee: { chauvesouris: 'oui' } }, 'chauve-souris') && !G.aCompagnon({ hantee: null }, 'chauve-souris') && !G.aCompagnon({}, 'chauve-souris') && G.aCompagnon({ hantee: { chauvesouris: true } }, 'chauve-souris'), 'une sauvegarde abîmée ou sans Manoir ne la donne pas');
+}
+
 console.log('── la nouvelle boutique ──');
 st.lifetimeRun = 1e15; st.compagnons.push('dragon'); G.compagnons(st); G.choisirCompagnon(st, 'dragon'); const avant = JSON.stringify([st.compagnons, st.compagnon, st.chat]);
 check(G.nouvelleBoutique(st, st.now).ok && JSON.stringify([st.compagnons, st.compagnon, st.chat]) === avant && st.coins === 0 && G.compagnonActif(st) === 'dragon', 'une nouvelle boutique : les compagnons achetés, l’animal choisi et son nom restent (pour toujours)');
@@ -116,12 +136,13 @@ console.log('── les bonus : seulement le compagnon montré ──');
   const base = () => { const b = G.newState(T0); for (let i = 0; i < 4; i++) { b.stations[i].niv = 50; b.stations[i].staff = true; } return b; };
   const sans = base(); // pas encore de compagnon : aucun bonus
   check(JSON.stringify(G.bonusCompagnon(sans)) === '{}' && G.compagnonGains(sans) === 1, 'pas encore adopté : aucun bonus');
-  const avec = (id) => { const b = base(); b.coins = 1e12; b.lifetimeRun = 0; if (G.compagnon(id).prix != null) G.acheterCompagnon(b, id); else if (id === 'chien-quartier') b.quartier = { paliers: [11], decos: ['chien'] }; else if (id === 'chat-noir') b.chatNoir = true; G.choisirCompagnon(b, id); return b; };
+  const avec = (id) => { const b = base(); b.coins = 1e12; b.lifetimeRun = 0; if (G.compagnon(id).prix != null) G.acheterCompagnon(b, id); else if (id === 'chien-quartier') b.quartier = { paliers: [11], decos: ['chien'] }; else if (id === 'chat-noir') b.chatNoir = true; else if (id === 'chauve-souris') b.hantee = { chauvesouris: true }; G.choisirCompagnon(b, id); return b; };
   const r0 = G.rythme(sans), h0 = G.heuresAbsence(sans), p0 = G.pourboire(sans);
   const cq = avec('chien-quartier'), dr = avec('dragon'), ch = avec('chien'), ca = avec('canard');
   check(Math.abs(G.rythme(cq) / r0 - 1.05) < 1e-9, `le chien du quartier : tous les gains +5 % (${G.fmtEur(r0)}/s → ${G.fmtEur(G.rythme(cq))}/s)`);
   check(Math.abs(G.rythme(dr) / r0 - 1 / 0.93) < 1e-9, `le mini-dragon : cuisson 7 % plus rapide (rythme ×${(G.rythme(dr) / r0).toFixed(3)})`);
   check(G.heuresAbsence(ch) === h0 + 0.5 && G.rythme(ch) === r0, `le chien : +0,5 h d’absence (${h0} h → ${G.heuresAbsence(ch)} h), le rythme ne bouge pas`);
+  const cs = avec('chauve-souris'); check(G.compagnonActif(cs) === 'chauve-souris' && G.heuresAbsence(cs) === h0 + 1 && G.rythme(cs) === r0, `la chauve-souris : +1 h d’absence (elle veille la nuit : ${G.heuresAbsence(cs)} h), le rythme ne bouge pas`);
   check(G.pourboire(ca) > p0 * 1.05 && G.pourboire(ca) <= p0 * 1.11, `le canard : pourboires +10 % (${G.fmtEur(p0)} → ${G.fmtEur(G.pourboire(ca))})`);
   G.choisirCompagnon(dr, 'chat-roux');
   check(G.rythme(dr) === r0 && G.pourboire(dr) > p0 && G.pourboire(dr) <= p0 * 1.06 && G.bonusCompagnon(dr).pourboire === 5, 'le mini-dragon gardé mais le chat roux montré : seul le bonus du chat (pourboires +5 %) compte');

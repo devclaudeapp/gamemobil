@@ -286,6 +286,8 @@ const SCENE = (() => {
     { id: 'chien', cle: () => (QDECO.chien && MEUBLES.chien && modeleComp !== 'chien-quartier' ? '1' : null), faire: (k, c) => MEUBLES.chien(c) },
     // les décos de la Maison hantée (src/hantee.js, gagnées aux paliers, à vie) : citrouilles-lanternes, toiles d'araignée, chaudron, petit fantôme
     ...['citrouilles', 'toiles', 'chaudron', 'fantome'].map((id) => ({ id: 'ht-' + id, cle: () => (htDeco(id) && MEUBLES[id] ? '1' : null), faire: (k, c) => MEUBLES[id](c) })),
+    // l'étagère aux bocaux de monstres (le bestiaire de la Maison hantée, à la 5e sorte complétée) : seulement gagnée, dans les deux boutiques
+    { id: 'ht-bestiaire', cle: () => (HDECO.bestiaire && MEUBLES.bocaux ? '1' : null), faire: (k, c) => MEUBLES.bocaux(c) },
     // la toque de la recette du jour (src/activites.js : la 500e fournée, à vie), accrochée à la porte de l'arrière-boutique : celle de la Planque, celle du Manoir plus bas si les deux sont là
     { id: 'toque-or', cle: () => (QDECO['toque-or'] && MEUBLES.toqueRecette ? '1' : null), faire: (k, c) => MEUBLES.toqueRecette(c, 'or', false) },
     { id: 'ht-toque-citrouille', cle: () => (HDECO['toque-citrouille'] && MEUBLES.toqueRecette ? (QDECO['toque-or'] ? 'deux' : 'seule') : null), faire: (k, c) => MEUBLES.toqueRecette(c, 'citrouille', k === 'deux') },
@@ -319,7 +321,7 @@ const SCENE = (() => {
   const REC = { tenue: null, coupe: null, coupes: [], equipe: false }, METAUX = ['or', 'argent', 'bronze'];
   const QDECO = { graffiti: false, neon: false, scooter: false, chien: false, 'toque-or': false }; // les décos du quartier posées dans la boutique (et la toque de la recette du jour)
   function decosQuartier(liste) { const l = Array.isArray(liste) ? liste : []; for (const k of Object.keys(QDECO)) QDECO[k] = l.includes(k); ext.der = -1; }
-  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false, 'toque-citrouille': false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
+  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false, 'toque-citrouille': false, bestiaire: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
   const ALIAS_HT = { citrouille: 'citrouilles', lanternes: 'citrouilles', toile: 'toiles', araignees: 'toiles', chaudrons: 'chaudron', fantomes: 'fantome' };
   function decosHantee(liste) { const l = (Array.isArray(liste) ? liste : []).map((k) => ALIAS_HT[k] || k); for (const k of Object.keys(HDECO)) HDECO[k] = l.includes(k); }
   // le compagnon de la boutique (GAME.COMPAGNONS : le chat roux, le chat noir, le chien… le mini-dragon ; ui.js dit lequel, noir d'office pour
@@ -647,7 +649,7 @@ const SCENE = (() => {
     oChat.etat = ETAT_CHAT[c.etat] || 'assis'; oChat.phase = c.phase; oChat.t = E.t; (PERSOS.animerCompagnon || PERSOS.animerChat)(chatG, oChat);
   }
   function zoneChat() { // un rectangle autour du chat (il bouge : rien en cache)
-    if (!chatG) return null; const K = V.K, sx = chatG.position.x, sy = projeterY(chatG.position.y, chatG.position.z);
+    if (!chatG) return null; const K = V.K, sx = chatG.position.x, sy = projeterY(chatG.position.y + (chatG.userData.vol ? chatG.userData.vol[0] : 0) * chatG.scale.y, chatG.position.z); // (la chauve-souris en vol : la zone monte avec elle)
     const c = V.chat;
     if (c && c.haut && c.etat === 'dort') return { x: sx - 18 * K, y: sy - 16 * K, w: 36 * K, h: 20 * K }; // roulé en boule sur le comptoir : une zone plate, qui laisse le buste du boulanger à lui
     return { x: sx - 22 * K, y: sy - 30 * K, w: 44 * K, h: 36 * K };
@@ -890,7 +892,7 @@ const SCENE = (() => {
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
     get decosHanteeVues() { return Object.keys(HDECO).filter((k) => HDECO[k] && groupes['ht-' + k]); }, // les décos de la Maison hantée posées (pour les tests)
     get chatVu() { const m = chatG ? chatG.userData.modele : null; return m === 'chat-noir' ? 'noir' : m === 'chat-roux' ? 'roux' : m; }, // le pelage du chat dans la boutique, ou l'id d'un autre compagnon (pour les tests)
-    get compagnonVu() { if (!chatG) return null; let appels = 0; chatG.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) appels++; }); return { id: chatG.userData.modele, appels, x: chatG.position.x, y: chatG.position.y, z: chatG.position.z }; }, // le compagnon bâti dans la boutique et ses appels de dessin (pour les tests)
+    get compagnonVu() { if (!chatG) return null; let appels = 0; chatG.traverse((o) => { if ((o.isMesh || o.isInstancedMesh) && o.visible) appels++; }); return { id: chatG.userData.modele, appels, x: chatG.position.x, y: chatG.position.y, z: chatG.position.z, vol: chatG.userData.vol ? chatG.userData.vol[0] : 0 }; }, // le compagnon bâti dans la boutique et ses appels de dessin ; vol : la hauteur de vol de la chauve-souris (pour les tests)
     precharger(lot) { // en arrière-plan, si le palier le permet ; la Maison hantée : le lot de la boutique hantée (le défaut), ses personnages préparés ensuite
       if (typeof HDM === 'undefined' || !webgl || !HDM.permis(renderer)) return false;
       if (lot === 'hantee' && BH() && BH().demande()) { HDM.charger('hantee3').then((ok) => { if (ok) setTimeout(() => BH().HD.preparer(), 400); }); return true; }

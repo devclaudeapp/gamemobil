@@ -585,6 +585,25 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       q1: null, q2: null,
       patte: () => [M.part(pendu(0.55, 4.2, 0.2), L), M.part(M.sphere(1.15, 8), BLANC_C, { y: 0.45 - 5.5, z: 0.5, sy: 0.7, sz: 1.5 })], // des jambes fines et de petites baskets
     },
+    // la chauve-souris (gagnée au bestiaire de la Maison hantée) : une boule de poils prune au ventre lavande, une grosse tête, deux immenses
+    // oreilles roses dedans, de grands yeux brillants, deux petits crocs ; ses ailes (un seul maillage, comme celles du mini-dragon) battent
+    // par leur échelle. Elle vole en petits cercles près du plafond (VOL_CS, animerCompagnon) ; endormie, elle se pose (sur le comptoir),
+    // les ailes repliées. Sans pattes ni queue : 3 appels de dessin (corps, tête, ailes).
+    'chauve-souris': {
+      lp: 0, py: -4.6, hanches: [], tp: [6.4, 0.4], queue: null, lq1: 0, q2r: null, demiH: 4.6, assis: 'debout', dort: 'debout', ailesP: [0, 1.6, -0.6], echelle: 1.5,
+      corps: () => [M.part(M.sphere(4.6, 14), '#6A57A0', { sy: 1.05 }), M.part(M.sphere(3.3, 12), '#B9A6E8', { y: -0.5, z: 2.3, sy: 1.1, sz: 0.65 }),
+        M.part(M.sphere(0.9, 8), '#3A2E58', { x: -1.4, y: -4.4, z: 0.6, sz: 1.3 }), M.part(M.sphere(0.9, 8), '#3A2E58', { x: 1.4, y: -4.4, z: 0.6, sz: 1.3 })], // (les petits pieds griffus)
+      tete: (f) => { const robe = '#6A57A0', p = [M.part(M.sphere(4.3, 14), robe, { sx: 1.1 }), M.part(M.sphere(1.5, 10), '#7A68A6', { y: -1.5, z: 3.5, sx: 1.35, sy: 0.85 }), M.part(M.sphere(0.5, 6), L, { y: -1.05, z: 4.9, sx: 1.3 })];
+        for (const sx of [-1, 1]) p.push(M.part(M.cone(2.1, 5.6, 8), robe, { x: sx * 2.7, y: 4.8, z: -0.5, rz: -sx * 0.38, sz: 0.55 }), M.part(M.cone(1.2, 3.8, 8), '#F2A7C3', { x: sx * 2.62, y: 4.5, z: 0.1, rz: -sx * 0.38, sz: 0.3 }), // les grandes oreilles, roses dedans
+          M.part(M.cone(0.36, 1, 5), BLANC_C, { x: sx * 0.62, y: -2.55, z: 4.05, rx: Math.PI })); // les deux petits crocs
+        yeux(p, 1.75, 0.75, 3.55, 1, f, { pastille: '#FFE7A3', arc: L }); joues(p, 3, -1.3, 3.1, 0.85); return p; },
+      q1: null, q2: null, patte: null,
+      ailes: () => { const p = []; for (const sx of [-1, 1]) {
+        p.push(M.part(M.sphere(3.3, 10), '#46386E', { x: sx * 4.6, y: 0.9, sx: 1.45, sy: 0.95, sz: 0.16, rz: sx * 0.28 }), M.part(M.sphere(2.7, 10), '#46386E', { x: sx * 8.4, y: 1.7, sx: 1.15, sy: 1.05, sz: 0.16, rz: sx * 0.5 }), // la membrane, festonnée
+          M.part(M.sphere(2.3, 10), '#7A62B0', { x: sx * 5.2, y: 0.5, z: 0.3, sx: 1.4, sy: 0.7, sz: 0.1, rz: sx * 0.28 }), // son dessous plus clair
+          M.part(M.capsule(0.42, 8.8, 5), '#3A2E58', { x: sx * 5.4, y: 2.9, rz: sx * (HP - 0.22) }), M.part(M.cone(0.5, 1.4, 5), '#3A2E58', { x: sx * 9.9, y: 4.1, rz: -sx * 0.5 })); // l'os de l'aile, sa griffe
+      } return p; },
+    },
     dragon: {
       lp: 7, py: -3, hanches: [[-2.8, 6.2], [2.8, 6.2], [-2.8, -6.2], [2.8, -6.2]], tp: [5.4, 11.8], queue: [2.2, -10, -0.95], lq1: 0, q2r: null, R: 5, D: 10.5, demiH: 4.3, assis: 'assis', a: -0.4, dort: 'couche',
       corps: () => { const p = [M.part(M.capsule(5, 11, 12), '#5FD3A4', { rx: HP }), M.part(arcCyl(5.1, 11, 1.9, 0), '#FFF3C4', { rx: HP })]; for (const z of [-5, -2, 1, 4]) p.push(M.part(M.cone(1, 2.4, 5), '#FFC84A', { y: 4.6, z, rx: -0.3, sx: 0.5 })); return p; }, // les crêtes du dos
@@ -596,6 +615,8 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
       ailes: () => { const p = []; for (const sx of [-1, 1]) { const rz = -sx * (HP - 0.6); p.push(M.part(M.cone(3.2, 9, 3), '#9A84F0', { x: sx * 1.2, rz, sz: 0.18 }), M.part(M.capsule(0.45, 8.4, 5), '#C7B8FF', { x: sx * (1.2 + Math.sin(-rz) * 4.6), y: Math.cos(rz) * 4.6, z: 0.5, rz })); } return p; },
     },
   };
+  const AILES_P = [0, 4, 1.5]; // la place des ailes sur la racine (le mini-dragon ; la chauve-souris a la sienne, ailesP)
+  const VOL_CS = 105, CS_R = 9; // la chauve-souris en vol : sa hauteur au-dessus du sol (près du plafond) et le rayon de ses petits cercles
   const geoEspece = (id, k, f) => memo(`comp|${id}|${k}`, () => M.assembler(f()));
   const BORNES_ESP = {}; // les bornes figées du tampon des pattes, par espèce
   const tourneX = (y, z, a) => [y * Math.cos(a) - z * Math.sin(a), y * Math.sin(a) + z * Math.cos(a)]; // (y, z) tourné autour de X
@@ -631,14 +652,15 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     if (!E) { const c = chat(id === 'chat-noir' ? Object.assign({}, CHAT_NOIR) : {}); c.userData.espece = id === 'chat-noir' ? 'chat-noir' : 'chat-roux'; return c; } // les deux chats (un id inconnu : le roux)
     if (!E.poses) { E.id = id; E.poses = posesEspece(E); E.q2p = [0, E.lq1, 0]; }
     const g = new THREE.Group(), racine = new THREE.Group(), P = { racine, queue: [], pattes: [], esp: E };
-    g.add(racine); g.userData.parts = P; g.userData.espece = id;
+    g.add(racine); g.userData.parts = P; g.userData.espece = id; if (E.echelle) racine.scale.setScalar(E.echelle); // (la chauve-souris, plus grosse que nature : on la voit voler)
     P.corps = M.mesh(geoEspece(id, 'corps', E.corps), M.MAT.vertex); racine.add(P.corps);
     const geos = [geoEspece(id, 'tete0', () => E.tete(false)), geoEspece(id, 'tete1', () => E.tete(true))];
     P.tete = M.mesh(geos[0], M.MAT.vertex); P.tete.userData.geos = geos; racine.add(P.tete);
     const q1 = E.q1 ? M.mesh(geoEspece(id, 'q1', E.q1), M.MAT.vertex) : new THREE.Object3D(), q2 = E.q2 ? M.mesh(geoEspece(id, 'q2', E.q2), M.MAT.vertex) : new THREE.Object3D(); // sans queue : des pivots vides
     q1.add(q2); racine.add(q1); P.queue.push(q1, q2);
     for (let k = 0; k < 4; k++) { const p = new THREE.Object3D(); P.pattes.push(p); racine.add(p); }
-    if (E.ailes) { P.ailes = M.mesh(geoEspece(id, 'ailes', E.ailes), M.MAT.vertex); P.ailes.position.set(0, 4, 1.5); racine.add(P.ailes); }
+    if (E.ailes) { P.ailes = M.mesh(geoEspece(id, 'ailes', E.ailes), M.MAT.vertex); P.ailes.position.fromArray(E.ailesP || AILES_P); racine.add(P.ailes); }
+    if (id === 'chauve-souris') g.userData.vol = P.vol = new Float64Array(1); // sa hauteur de vol, lue par la scène (un tableau typé : l'écrire n'alloue rien)
     if (E.patte) {
       materiauxPattes();
       const im = P.pattesMaille = new THREE.InstancedMesh(geoEspece(id, 'patte', E.patte), matPattes, 4);
@@ -667,6 +689,21 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     const geo = h.userData.geos[e === 'dort' ? 1 : 0]; if (h.geometry !== geo) h.geometry = geo;
     if (ai) ai.scale.set(1, 1, 1);
     const chien = id === 'chien' || id === 'teckel' || id === 'chien-quartier';
+    if (id === 'chauve-souris') { // la chauve-souris : endormie, elle se pose (sur le comptoir : la scène l'y met), les ailes repliées, et respire ;
+      // sinon elle vole en petits cercles près du plafond au-dessus de sa place (plus vite quand le compagnon se promène), penchée dans le virage,
+      // les ailes qui battent. P.vol[0] (g.userData.vol) : sa hauteur de vol, que la scène ajoute à la zone de la caresse (un tableau typé : rien
+      // n'est alloué ; écrit ici, pas dans une fonction à part, qui mettrait ses nombres en boîte tant qu'elle n'est pas optimisée). Sans pattes.
+      if (e === 'dort') {
+        const b = Math.sin(t * 1.5) * 0.03; c.scale.y *= 1 + b; h.position.y += b * 3; h.rotation._x = 0.3 + Math.sin(t * 0.9) * 0.05; tourner(h);
+        ai.scale.set(0.4, 0.7, 1); P.vol[0] = 0; return;
+      }
+      const a = t * (e === 'marche' ? 2.3 : 1.5), haut = VOL_CS + Math.sin(t * 3.1) * 1.8;
+      r.position.x = Math.cos(a) * CS_R; r.position.z = Math.sin(a) * CS_R; r.position.y = A.r[1] + haut;
+      r.rotation._x = 0.12; r.rotation._y = -a; r.rotation._z = 0.3; tourner(r); // de face dans le sens du vol, penchée vers le centre du cercle
+      h.rotation._x = -0.12 + Math.sin(t * 2.2) * 0.06; tourner(h);
+      ai.scale.y = Math.cos(t * 17); ai.scale.x = 1 - 0.12 * Math.abs(Math.sin(t * 17));
+      P.vol[0] = haut; return;
+    }
     if (e === 'dort') { // la respiration lente ; les ailes repliées, la queue qui frémit
       const b = Math.sin(t * 1.5) * 0.03; c.scale.y *= 1 + b; h.position.y += b * 3;
       if (ai) { ai.scale.y = 0.2; ai.scale.x = 0.75; }

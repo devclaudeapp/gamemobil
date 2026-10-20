@@ -553,6 +553,57 @@ console.log('── lot 6 : déterminisme, absence, sorties ──');
 { const q = HT.etat({}, HT.FIN - 5000); HT.gagner(q, 1e6); q.now = HT.FIN + 1000; q.manoir.file.push({ id: 1, sorte: 'momie', commande: [{ i: 0, n: 1, servi: false }], arrive: HT.FIN - 2000 }); const r = HT.servir(q, 1, 0), o = HT.tick(q, 1, HT.FIN + 2000, () => 0.5);
   check(r.ok && r.prime === 0 && o.manoir.arrives.length === 0 && o.manoir.apparitions.length === 0, 'après la fermeture : plus rien ne paie, plus personne n’entre'); }
 
+console.log('── lot 6 : le bestiaire (dix servis par sorte ; des étoiles, le décor au 5e, la chauve-souris au 9e) ──');
+{ const B = HT.BESTIAIRE, ET = B.etoiles.reduce((a, x) => a + x, 0);
+  check(B.par === 10 && B.etoiles.length === 9 && B.etoiles.every((x) => x === 1 || x === 2) && ET === 11 && B.deco === 5 && B.compagnon === 9, `les règles : ${B.par} servis par sorte ; ${B.etoiles.join(', ')} étoile(s) selon le rang (${ET} en tout) ; le décor au ${B.deco}e, la chauve-souris au ${B.compagnon}e`);
+  // une vieille sauvegarde (lot 6 d'avant le bestiaire) : des clients déjà servis, pas de q.bestiaire
+  const { st, q } = prep6(T6, { vide: true }); q.stats.clientsServis = 57; delete q.bestiaire; delete q.bestiaireFaits; delete q.bestiaireAVerser; delete q.chauvesouris;
+  const v = HT.etat(JSON.parse(JSON.stringify(st)), T6), bv = HT.bestiaire(v);
+  check(HT.SORTES.every((k) => v.bestiaire[k] === 0) && v.bestiaireFaits.length === 0 && v.bestiaireAVerser === 0 && v.chauvesouris === false && bv.faits === 0 && bv.sortes.length === 9 && bv.sortes.every((x) => x.n === 0 && !x.fait),
+    'une vieille sauvegarde (q.bestiaire absent, 57 clients déjà servis) : un bestiaire vide, rien d’inventé');
+  HT.etat(st, T6); let id = 5e6; const e0 = q.etoiles || 0; // (la nôtre, remise d'aplomb de même)
+  const client = (sorte, lignes) => { const c = { id: ++id, sorte, commande: (lignes || [[0, 1]]).map(([i, n]) => ({ i, n, servi: false })), arrive: q.now }; q.manoir.file.push(c); return c; };
+  const servirTout = (sorte, lignes) => { const c = client(sorte, lignes); let r; for (const l of c.commande) r = HT.servir(q, c.id, l.i); return r; };
+  { const c = client('zombie', [[0, 1], [1, 2]]), f = HT.servir(q, c.id, 3), r1 = HT.servir(q, c.id, 0);
+    check(!f.ok && !r1.fini && !r1.bestiaire && q.bestiaire.zombie === 0, 'une mauvaise friandise, puis une ligne sur deux : rien ne compte encore');
+    const b0 = q.billets, r2 = HT.servir(q, c.id, 1);
+    check(r2.fini && r2.bestiaire && r2.bestiaire.sorte === 'zombie' && r2.bestiaire.n === 1 && r2.bestiaire.par === 10 && !r2.bestiaire.complete && q.bestiaire.zombie === 1 && q.billets - b0 === r2.prime,
+      `la dernière ligne servie : le zombie compte (1/10) ; seul le pourboire tombe en bonbons (+${HT.fmt(r2.prime)})`); }
+  for (let k = 2; k <= 9; k++) servirTout('zombie');
+  check(q.bestiaire.zombie === 9 && !q.bestiaireFaits.length && (q.etoiles || 0) === e0, 'neuf zombies : pas encore complété, aucune étoile');
+  let r = servirTout('zombie');
+  check(r.bestiaire.n === 10 && r.bestiaire.complete && r.bestiaire.complete.sorte === 'zombie' && r.bestiaire.complete.rang === 1 && r.bestiaire.complete.etoiles === 1 && q.etoiles === e0 + 1 && q.bestiaireAVerser === 1 && q.bestiaireFaits.join() === 'zombie',
+    'le dixième : le zombie est complété (1/9), +1 étoile pour la boulangerie (q.etoiles, à verser)');
+  check(HT.verserBestiaire(q) === 1 && q.bestiaireAVerser === 0 && HT.verserBestiaire(q) === 0, 'l’écran verse l’étoile une fois (verserBestiaire remet à zéro)');
+  r = servirTout('zombie'); const bz = HT.bestiaire(q).sortes.find((x) => x.sorte === 'zombie');
+  check(!r.bestiaire.complete && q.etoiles === e0 + 1 && q.bestiaireAVerser === 0 && bz.n === 10 && bz.fait && q.bestiaire.zombie === 11, 'un onzième zombie : rien de plus (l’écran montre 10/10)');
+  // quatre sortes de plus, servies au-delà du plafond de l'heure (le pourboire ne paie plus) : le bestiaire compte quand même
+  q.manoir.h.clients = HT.CLIENTS.parHeure; q.manoir.j.clients = HT.CLIENTS.parJour;
+  const etapes = []; for (const k of ['momie', 'fantome', 'vampire', 'loup']) for (let n = 0; n < 10; n++) { const x = servirTout(k); if (x.bestiaire.complete) etapes.push([x.prime, x.bestiaire.complete]); }
+  const cinq = etapes[3][1];
+  check(etapes.length === 4 && etapes.every(([p]) => p === 0) && etapes.map(([, c]) => c.etoiles).join() === '1,1,1,2' && cinq.rang === 5 && cinq.deco === 'bestiaire' && q.decos.filter((d) => d === 'bestiaire').length === 1 && !q.chauvesouris,
+    `plafond de l’heure atteint (pourboire 0) : les sortes se complètent quand même ; la 5e (${cinq.sorte}) donne 2 étoiles et le décor « bestiaire » (q.decos, une fois)`);
+  check(q.etoiles === e0 + 6 && q.bestiaireAVerser === 5, `cinq sortes : ${q.etoiles - e0} étoiles en tout (5 à verser)`);
+  const s0 = JSON.parse(JSON.stringify(st)); s0.hantee.bestiaire.fantome = 12; s0.hantee.bestiaireFaits = s0.hantee.bestiaireFaits.filter((k) => k !== 'fantome'); // (une sauvegarde où une sorte complète n'a pas été payée)
+  const qs = HT.etat(s0, T6), ds = HT.bestiaireDus(qs), ds2 = HT.bestiaireDus(qs);
+  check(ds.length === 1 && ds[0].sorte === 'fantome' && ds[0].rang === 5 && !ds[0].deco && ds2.length === 0 && qs.decos.filter((d) => d === 'bestiaire').length === 1, 'une sorte arrivée à dix sans être payée : payée une fois (le décor, déjà là, n’est pas redonné)');
+  const G0 = G.newState(T6); G0.hantee = q;
+  check(!G.aCompagnon(G0, 'chauve-souris'), 'à cinq sortes : la chauve-souris n’est pas encore à soi');
+  for (const k of ['squelette', 'squelette-sorcier', 'citrouille']) for (let n = 0; n < 10; n++) servirTout(k);
+  check(q.bestiaireFaits.length === 8 && !q.chauvesouris && !G.aCompagnon(G0, 'chauve-souris'), 'huit sortes : pas encore');
+  for (let n = 0; n < 9; n++) servirTout('sorciere');
+  r = servirTout('sorciere');
+  check(r.bestiaire.complete && r.bestiaire.complete.rang === 9 && r.bestiaire.complete.compagnon && r.bestiaire.complete.etoiles === 2 && q.chauvesouris === true && q.etoiles === e0 + ET && q.decos.filter((d) => d === 'bestiaire').length === 1,
+    `la neuvième (la sorcière) : +2 étoiles (${q.etoiles - e0} en tout), et la chauve-souris (q.chauvesouris)`);
+  check(G.aCompagnon(G0, 'chauve-souris') && G.choisirCompagnon(G0, 'chauve-souris').ok && G.compagnonActif(G0) === 'chauve-souris' && G0.chat.nom === 'Myrtille', 'GAME : la chauve-souris est à soi, choisie, adoptée sous le nom « Myrtille »');
+  const relu = HT.etat(JSON.parse(JSON.stringify({ hantee: q })), T6), e1 = relu.etoiles;
+  check(HT.bestiaireDus(relu).length === 0 && relu.etoiles === e1 && relu.bestiaireFaits.length === 9 && relu.chauvesouris && HT.verserBestiaire(relu) === ET - 1, 'la sauvegarde relue : rien n’est redonné ; reste à verser ce qui ne l’a pas été (une fois)');
+  // abîmée : des sortes inconnues, des doublons, des comptes qui ne sont pas des nombres
+  const ab = HT.etat({ hantee: Object.assign(JSON.parse(JSON.stringify(q)), { bestiaire: { zombie: 25, licorne: 3, momie: 'x', fantome: -2 }, bestiaireFaits: ['zombie', 'zombie', 'licorne'], bestiaireAVerser: NaN, chauvesouris: 'oui' }) }, T6);
+  check(ab.bestiaire.zombie === 25 && !('licorne' in ab.bestiaire) && ab.bestiaire.momie === 0 && ab.bestiaire.fantome === 0 && ab.bestiaireFaits.join() === 'zombie' && ab.bestiaireAVerser === 0 && ab.chauvesouris === false, 'une sauvegarde abîmée : remise d’aplomb (inconnues et doublons retirés, comptes à zéro), rien d’inventé'); }
+{ const m = S.marathon.q, a = S.assidu.q;
+  check(m.bestiaireFaits.length === 9 && m.chauvesouris && m.decos.includes('bestiaire') && a.bestiaireFaits.length >= 5, `la simulation : le marathon complète le bestiaire (${HT.SORTES.map((k) => m.bestiaire[k]).join(', ')} servis), l’assidu ${a.bestiaireFaits.length} sortes sur 9 (${a.stats.clientsServis} clients servis)`); }
+
 console.log('── lot 6 : la simulation (le marathon et le très actif jouent tout, les autres ont des trous) ──');
 { const heures = (p) => { let h = 0; for (let j = 0; j < 7; j++) for (const [hh, mn] of HT.PROFILS[p].sessions) { const d = HT.DEBUT - 12 * 3600e3 + j * 864e5 + hh * 3600e3; if (d >= HT.DEBUT && d < HT.FIN) h += Math.min(mn * 60e3, HT.FIN - d) / 3600e3; } return h; };
   const parH = (p, s) => { const o = {}; for (const [k, b] of Object.entries(s.q.manoir.bilan)) o[k] = { h: b.min / heures(p), part: b.gain / s.total }; return o; };

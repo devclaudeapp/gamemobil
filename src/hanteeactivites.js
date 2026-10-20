@@ -8,6 +8,10 @@
    · l'écran de l'événement (src/evenement.js, la fiche de la Maison hantée : F.activites) : il crée le contrôleur à son init et l'appelle
      à l'entrée (ouvrir), à la sortie et au bilan (fermer), à chaque pas des règles (pas : out.manoir), à chaque image (image), au toucher
      d'une carte (carte : servir le client choisi, tenter la fournée parfaite) et en dessinant les barres de cuisson (barre).
+   Le bestiaire (src/hantee.js, BESTIAIRE) : sa carte en tête du tiroir (#ht-bestiaire : les neuf monstres, sombres tant qu'aucun n'est
+   servi, colorés à dix) ouvre sa feuille (les neuf, « 3/10 », les récompenses à venir) ; chaque client servi qui le fait avancer, un petit
+   mot sur la scène (« Zombie 4/10 ») ; chaque sorte complétée, une feuille de fête (et au 5e le décor, au 9e la chauve-souris) ; les étoiles
+   gagnées sont versées dans la boulangerie tout de suite (verserBestiaire : une fois). Les gabarits : F.gabarits (src/evenement.js).
    Les liens : un id des règles ↔ un id de la scène (clients : 'c12' ; apparitions : un nombre), tenus ici et remis d'aplomb à chaque pas
    (réconciliés sur l'état des règles : une file vidée par une absence, une apparition perdue, une sauvegarde rechargée). Sans la scène de la
    boutique hantée (?boutique=0, le Manoir d'avant ; ou pas de WebGL), le repli est en DOM : la file en bas de la scène (un monstre, sa
@@ -30,7 +34,8 @@ const HANTEE_ACTIVITES = (() => {
     let ouvert = false, recus = {}, mode = '', scene3 = null, astuce = false, voulu = new Set(), flash = { i: null, jusqua: 0 }, couche = null, fileDom = null, choisi = null, tMaj = 0, lastEveil = '', lastAmb = -1, lastCmd = '', lastSerie = '', dernierEveil = 1;
     const clients = new Map(); // id des règles → { id, sid (l'id de la scène, 'c12' ; null : pas encore entré), sorte, bulle, monstre (repli), cle }
     const apps = new Map(); // id des règles → { id, sid (scène) ou img (repli), type, debut, fin, sens, y0 }
-    const eveilEl = () => el.querySelector('#ht-eveil'), serieEl = () => el.querySelector('#ht-serie'), cmdEl = () => el.querySelector('#ht-commande'), sceneEl = () => el.querySelector('.pq-scene');
+    const eveilEl = () => el.querySelector('#ht-eveil'), serieEl = () => el.querySelector('#ht-serie'), cmdEl = () => el.querySelector('#ht-commande'), bestEl = () => el.querySelector('#ht-bestiaire'), sceneEl = () => el.querySelector('.pq-scene');
+    let lastBest = '', fetes = [], btEl = null, btT = 0; // le bestiaire : la carte du tiroir (sa clé), les feuilles de fête en attente, le petit mot sur la scène
     const qq = () => X.q(), maint = () => X.now();
     const manoir = () => { const q = qq(); return q.manoir || (Q.reparerManoir ? Q.reparerManoir(q, maint()) : null); };
 
@@ -39,12 +44,13 @@ const HANTEE_ACTIVITES = (() => {
       if (!ouvert || el.dataset.ecran !== F.ecran || e.target.closest('[data-pq="fermer"], .pq-mini')) return;
       const avant = Q.eveil(qq(), maint()); Q.toucher(qq(), maint()); if (avant < 1) { majEveil(true); X.hud(); } // (réveillé : la jauge, la lumière et le ×6 tout de suite)
     }, true);
-    // la commande de la nuit : son bouton (Livrer quand tout est prêt)
+    // la commande de la nuit : son bouton (Livrer quand tout est prêt) ; la carte du bestiaire : sa feuille
     el.addEventListener('click', (e) => { const b = e.target.closest('[data-a="mh-commande"]'); if (!b || !ouvert) return; e.stopPropagation(); livrer(b); });
+    el.addEventListener('click', (e) => { const b = e.target.closest('[data-a="mh-bestiaire"]'); if (!b || !ouvert) return; e.stopPropagation(); d.audio(); d.son.tap(); feuilleBestiaire(); });
 
     // ─── ouvrir, fermer ───
     function ouvrir() {
-      ouvert = true; choisi = null; lastEveil = ''; lastCmd = ''; lastSerie = ''; lastAmb = -1; tMaj = 0;
+      ouvert = true; choisi = null; lastEveil = ''; lastCmd = ''; lastSerie = ''; lastAmb = -1; tMaj = 0; lastBest = '';
       const sc = sceneEl(); if (sc && !couche) {
         couche = document.createElement('div'); couche.className = 'mh-couche'; sc.appendChild(couche);
         const z = document.createElement('div'); z.className = 'mh-dodo'; z.hidden = true; z.setAttribute('aria-hidden', 'true'); z.textContent = T.reveil || 'Zzz… touche le Manoir pour le réveiller'; couche.appendChild(z); // (le boss dort : le mot sur la scène, et le voile)
@@ -55,8 +61,9 @@ const HANTEE_ACTIVITES = (() => {
     function fermer() {
       ouvert = false; vider(); choisi = null; majChoix();
       if (couche) { couche.remove(); couche = null; fileDom = null; }
-      for (const e of [eveilEl(), serieEl(), cmdEl()]) if (e) { e.hidden = true; if (e === cmdEl()) e.innerHTML = ''; }
-      lastCmd = ''; mode = ''; scene3 = null;
+      for (const e of [eveilEl(), serieEl(), cmdEl(), bestEl()]) if (e) { e.hidden = true; if (e === cmdEl() || e === bestEl()) e.innerHTML = ''; }
+      if (btEl) { btEl.remove(); btEl = null; }
+      lastCmd = ''; lastBest = ''; mode = ''; scene3 = null;
     }
     function vider() { // les liens tombent (la scène est détruite, ou on change de mode) : rien ne reste à l'écran
       for (const o of clients.values()) { if (o.bulle) o.bulle.remove(); if (o.monstre) o.monstre.remove(); }
@@ -90,8 +97,10 @@ const HANTEE_ACTIVITES = (() => {
       for (const a of M.apps) if (a.fin > q.now && !apps.has(a.id)) creerApp(a, q);
       for (const o of apps.values()) if (!M.apps.some((x) => x.id === o.id && x.fin > q.now)) retirerApp(o);
       if (performance.now() - tMaj > 200) { tMaj = performance.now(); majTout(); }
+      if (q.bestiaireAVerser > 0) verserBestiaire(); // (une étoile du bestiaire pas encore versée : une sauvegarde rechargée)
+      if (fetes.length) montrerFete();
     }
-    function majTout() { majEveil(); majSerie(); majCommande(); }
+    function majTout() { majEveil(); majSerie(); majCommande(); majBestiaire(); }
 
     // ─── 1. le ×6 qui s'endort : la jauge sous le ×6 (#ht-eveil), la lumière de la scène ───
     function majEveil(force) {
@@ -161,6 +170,7 @@ const HANTEE_ACTIVITES = (() => {
       if (choisi === id) choisi = null; majChoix();
       d.son.pourboire(); d.buzz([10, 20, 10]);
       if (r.prime > 0) voler(pos, `+${X.prix(r.prime)}`); flotter(pos, r.plafond && !(r.prime > 0) ? (T.plafond || 'Merci !') : T.servi ? T.servi(X.fmt(r.prime)) : 'Merci !', 'oui');
+      if (r.bestiaire) avancerBestiaire(r.bestiaire);
       X.hud(); X.save(); return r;
     }
     function partir(o, servi) { // il s'en va sans être servi (sa patience est finie, ou la file a été vidée) : il repart fâché
@@ -306,6 +316,60 @@ const HANTEE_ACTIVITES = (() => {
       lastCmd = ''; majCommande(); X.hud(); X.save();
     }
 
+    // ─── 6. le bestiaire : sa carte en tête du tiroir, sa feuille, le petit mot à chaque servi, la fête d'une sorte complétée ───
+    const icoMonstre = (k) => (typeof ICONS !== 'undefined' && ICONS.HANTEE && ICONS.HANTEE.monstres && ICONS.HANTEE.monstres[k]) || icoHt(ICO_SORTE[k] || 'livrer');
+    const court = (k) => (M0.courts && M0.courts[k]) || nomSorte(k);
+    const etatSorte = (s) => (s.fait ? 'fait' : s.n > 0 ? 'encours' : 'vide'); // sombre (aucun servi), en cours, coloré (complété)
+    function donneesBestiaire() { // l'état des règles, prêt pour les gabarits (src/evenement.js, F.gabarits.bestiaire*)
+      const b = Q.bestiaire(qq()), B0 = Q.BESTIAIRE, et = B0.etoiles.reduce((a, x) => a + x, 0), gagnees = B0.etoiles.slice(0, b.faits).reduce((a, x) => a + x, 0);
+      return { faits: b.faits, total: b.total, deco: b.deco, chauvesouris: b.chauvesouris, par: B0.par, etoiles: et, gagnees, rangDeco: B0.deco, rangCompagnon: B0.compagnon, rangs: B0.etoiles,
+        sortes: b.sortes.map((x) => ({ sorte: x.sorte, nom: x.nom, court: court(x.sorte), n: x.n, par: x.par, fait: x.fait, etat: etatSorte(x), ico: icoMonstre(x.sorte) })),
+        ico: icoHt('bestiaire'), icoDeco: icoHt('bestiaire'), icoCompagnon: (typeof ICONS !== 'undefined' && ICONS.compagnon ? ICONS.compagnon('chauve-souris') : ''), textes: T };
+    }
+    function majBestiaire(force) { // la carte du tiroir : redessinée quand un compte change
+      const e = bestEl(); if (!e || !Q.bestiaire || !F.gabarits || !F.gabarits.bestiaire) return;
+      const b = Q.bestiaire(qq()), cle = b.sortes.map((x) => `${x.n}${x.fait ? '*' : ''}`).join(',');
+      if (!force && cle === lastBest && !e.hidden) return; lastBest = cle;
+      e.hidden = false; e.innerHTML = F.gabarits.bestiaire(donneesBestiaire());
+    }
+    function verserBestiaire() { // les étoiles des sortes complétées, dans la boulangerie (une fois : verserBestiaire remet à zéro) ; le décor posé
+      const q = qq(); if (!Q.verserBestiaire || !(q.bestiaireAVerser > 0)) return 0;
+      const n = Q.verserBestiaire(q), s = d.st(); if (s && n > 0) { s.etoiles += n; if (G && G.gagnerXp) G.gagnerXp(s, 10); }
+      if (F.decos) F.decos(q.decos); X.save(); if (d.apres) d.apres(); return n;
+    }
+    function avancerBestiaire(be) { // un client servi en entier : le petit mot (« Zombie 4/10 ») ; sa sorte complétée : les étoiles, la fête
+      const sc = sceneEl(); lastBest = '';
+      if (sc && F.gabarits && F.gabarits.bestiaireMot) {
+        if (!btEl || !btEl.isConnected) { btEl = document.createElement('div'); btEl.className = 'mh-bt'; btEl.setAttribute('role', 'status'); sc.appendChild(btEl); }
+        const n = Math.min(be.n, be.par);
+        btEl.innerHTML = F.gabarits.bestiaireMot({ ico: icoMonstre(be.sorte), texte: T.bestiaireAvance ? T.bestiaireAvance(court(be.sorte), n, be.par) : `${court(be.sorte)} ${n}/${be.par}`, part: n / be.par, fait: n >= be.par });
+        btEl.classList.toggle('fait', n >= be.par); btEl.classList.remove('mh-bt-vu'); void btEl.offsetWidth; btEl.classList.add('mh-bt-vu'); btEl.hidden = false;
+        clearTimeout(btT); btT = setTimeout(() => { if (btEl) btEl.hidden = true; }, 2200);
+      }
+      const faites = be.completes && be.completes.length ? be.completes : be.complete ? [be.complete] : [];
+      if (faites.length) { verserBestiaire(); for (const x of faites) fetes.push(x); montrerFete(); }
+      majBestiaire(true);
+    }
+    const libre = () => document.querySelector('#feuille').hidden && !(X.mini && X.mini());
+    function montrerFete() { // une sorte complétée : sa feuille de fête, quand la feuille est libre (jamais par-dessus une autre)
+      if (!fetes.length || !ouvert || !libre() || !F.gabarits || !F.gabarits.bestiaireFete) return;
+      const x = fetes.shift(), b = Q.bestiaire(qq()), G0 = G || {};
+      const dons = [`+${x.etoiles} étoile${x.etoiles > 1 ? 's' : ''} pour ta boulangerie${G0.ETOILE_BONUS ? ` (+${Math.round(x.etoiles * G0.ETOILE_BONUS * 100)} % de gains, pour toujours)` : ''}`];
+      if (x.deco) dons.push(T.bestiaireDeco || 'l’étagère aux bocaux de monstres, pour ta boutique');
+      if (x.compagnon) dons.push(T.bestiaireCompagnon || 'la chauve-souris, un compagnon pour ta boutique');
+      d.son.deblocage(); d.buzz([10, 30, 10, 30, 10]); if (d.fete) d.fete(); if (d.confettis) d.confettis(0.8);
+      const s3 = X.scene(); if (s3 && s3.fete) s3.fete();
+      d.openSheet(F.gabarits.bestiaireFete({ sorte: x.sorte, nom: nomSorte(x.sorte), court: court(x.sorte), titre: T.bestiaireFait ? T.bestiaireFait(nomSorte(x.sorte)) : `${nomSorte(x.sorte)} rejoint le bestiaire !`, rang: x.rang, total: b.total, dons, deco: !!x.deco, compagnon: !!x.compagnon, ico: icoMonstre(x.sorte), icoCompagnon: (typeof ICONS !== 'undefined' && ICONS.compagnon ? ICONS.compagnon('chauve-souris') : ''), reste: b.total - b.faits, rangDeco: Q.BESTIAIRE.deco }));
+      d.on('[data-a="mh-best-ok"]', () => { d.son.tap(); d.closeSheet(); });
+      d.on('[data-a="mh-best-voir"]', () => { d.son.tap(); feuilleBestiaire(); });
+      d.on('[data-a="mh-best-choisir"]', (bt) => { const s = d.st(), r = G && G.choisirCompagnon ? G.choisirCompagnon(s, 'chauve-souris') : { ok: false }; if (r.ok) { X.save(); d.son.achat(); bt.disabled = true; bt.innerHTML = '<b>Elle t’attend dans la boutique ✓</b>'; } else d.son.non(); });
+    }
+    function feuilleBestiaire() { // la feuille : les neuf monstres (« 3/10 »), les récompenses à venir
+      if (!F.gabarits || !F.gabarits.bestiaireFeuille) return;
+      d.openSheet(F.gabarits.bestiaireFeuille(donneesBestiaire()));
+      d.on('[data-a="mh-best-ok"]', () => { d.son.tap(); d.closeSheet(); });
+    }
+
     // ─── chaque image : les bulles suivent les têtes, les apparitions du repli traversent ───
     function image() {
       if (!ouvert || !couche) return;
@@ -316,16 +380,28 @@ const HANTEE_ACTIVITES = (() => {
           const b = o.bulle; if (!b) continue; const a = o.sid ? vus.get(o.sid) : null;
           if (!a || a.etat === 'sort' || a.y < r.top - 10 || a.y > r.bottom + 10) { if (!b.hidden) b.hidden = true; continue; }
           if (b.hidden) b.hidden = false;
-          vis.push({ b, x: a.x - r.left, y: a.y - r.top - 6, w: b.offsetWidth, h: b.offsetHeight });
+          vis.push({ b, o, x: a.x - r.left, hy: a.y - r.top, y: a.y - r.top - 6, w: b.offsetWidth, h: b.offsetHeight });
         }
         // la file au comptoir : des têtes proches, des bulles qui se chevaucheraient. De gauche à droite, deux bulles à la même hauteur (à une
         // demi-bulle près) s'écartent l'une de l'autre, puis chacune reste dans la scène ; leur pointe suit la tête (--mh-pointe)
         vis.sort((p, v) => p.x - v.x); for (const v of vis) v.cx = v.x;
         for (let tour = 0; tour < 4; tour++) for (let i = 1; i < vis.length; i++) { const p = vis[i - 1], v = vis[i]; if (Math.abs(p.y - v.y) >= (p.h + v.h) / 2) continue; const min = (p.w + v.w) / 2 + 6, d = v.cx - p.cx; if (d < min) { p.cx -= (min - d) / 2; v.cx += (min - d) / 2; } }
+        // La pointe part du bas de la bulle (sa base, bornée à ±(largeur/2 − 14) px) et montre la tête de SON monstre : une bulle écartée de
+        // sa tête monte d'autant (la moitié de l'écart qui dépasse, 26 px au plus) et sa pointe s'allonge en biais jusqu'à la tête
+        // (--mh-queue : sa longueur, --mh-biais : son angle). Borne haute : une bulle ne passe jamais sous l'en-tête du Manoir (le haut de
+        // la fenêtre de la scène) : un client qui entre par la porte du fond garde la sienne entière ; tout près du bord, sa pointe se cache.
         for (const v of vis) {
           v.cx = Math.max(v.w / 2 + 4, Math.min(r.width - v.w / 2 - 4, v.cx));
+          const base = Math.max(-v.w / 2 + 14, Math.min(v.w / 2 - 14, v.x - v.cx)), reste = v.x - v.cx - base;
+          v.y = Math.max(v.h + 4, v.y - Math.min(26, Math.abs(reste) * 0.5));
+          const dy = v.hy - v.y, lg = dy > 3 ? Math.hypot(reste, dy) + 2 : 0, biais = lg ? -Math.atan2(reste, dy) * 180 / Math.PI : 0;
           v.b.style.transform = `translate(${v.cx.toFixed(1)}px, ${v.y.toFixed(1)}px) translate(-50%, -100%)`;
-          const pointe = Math.max(-v.w / 2 + 14, Math.min(v.w / 2 - 14, v.x - v.cx)).toFixed(0) + 'px'; if (v.b.style.getPropertyValue('--mh-pointe') !== pointe) v.b.style.setProperty('--mh-pointe', pointe);
+          const pointe = base.toFixed(0) + 'px', queue = lg.toFixed(0) + 'px', angle = biais.toFixed(1) + 'deg';
+          if (v.b.style.getPropertyValue('--mh-pointe') !== pointe) v.b.style.setProperty('--mh-pointe', pointe);
+          if (v.b.style.getPropertyValue('--mh-queue') !== queue) v.b.style.setProperty('--mh-queue', queue);
+          if (v.b.style.getPropertyValue('--mh-biais') !== angle) v.b.style.setProperty('--mh-biais', angle);
+          v.o.bout = lg ? { x: r.left + v.cx + base - Math.sin(biais * Math.PI / 180) * lg, y: r.top + v.y + Math.cos(biais * Math.PI / 180) * lg } : null; // (le bout de la pointe, en pixels de la page : pour les tests)
+          v.o.haut = r.top + v.y - v.h;
         }
         // le halo de chaque apparition de la scène : une cible qu'on voit, même sombre sur le carrelage de nuit (le toucher, lui, va à la scène)
         const l = apps.size ? B().apparitions() : [];
@@ -357,11 +433,12 @@ const HANTEE_ACTIVITES = (() => {
     function etat() {
       const M = manoir(), q = qq();
       return { ouvert, mode, choisi, recus: Object.assign({}, recus),
-        clients: [...clients.values()].map((o) => { const ac = o.sid && B() ? B().client(o.sid) : null, b = o.bulle, r = b && !b.hidden && b.isConnected ? b.getBoundingClientRect() : null; const c = M && M.file.find((x) => x.id === o.id); return { id: o.id, sid: o.sid, sorte: o.sorte, etat: ac ? ac.etat : null, bulle: r ? { x: r.left + r.width / 2, y: r.top + r.height / 2, l: r.width, h: r.height } : null, commande: c ? c.commande.map((l) => ({ i: l.i, n: l.n, servi: l.servi })) : [], reste: c ? Math.max(0, PATIENCE - (q.now - c.arrive)) : 0 }; }),
+        clients: [...clients.values()].map((o) => { const ac = o.sid && B() ? B().client(o.sid) : null, b = o.bulle, r = b && !b.hidden && b.isConnected ? b.getBoundingClientRect() : null; const c = M && M.file.find((x) => x.id === o.id); return { id: o.id, sid: o.sid, sorte: o.sorte, etat: ac ? ac.etat : null, bulle: r ? { x: r.left + r.width / 2, y: r.top + r.height / 2, l: r.width, h: r.height, haut: r.top } : null, bout: r && o.bout ? Object.assign({}, o.bout) : null, commande: c ? c.commande.map((l) => ({ i: l.i, n: l.n, servi: l.servi })) : [], reste: c ? Math.max(0, PATIENCE - (q.now - c.arrive)) : 0 }; }),
         apps: [...apps.values()].map((o) => { let p = null; if (o.sid != null && B()) p = B().apparitions().find((x) => x.id === o.sid) || null; else if (o.img) { const r = o.img.getBoundingClientRect(); p = { x: r.left + r.width / 2, y: r.top + r.height / 2, r: r.width / 2 }; } return { id: o.id, sid: o.sid, type: o.type, dom: !!o.img, x: p ? p.x : null, y: p ? p.y : null, r: p ? p.r : null }; }),
-        serie: M ? M.serie : 0, record: M ? M.record || 0 : 0, eveil: Q.presence ? Q.presence(q, maint()) : null };
+        serie: M ? M.serie : 0, record: M ? M.record || 0 : 0, eveil: Q.presence ? Q.presence(q, maint()) : null,
+        bestiaire: Q.bestiaire ? Q.bestiaire(q) : null, fetes: fetes.length, mot: btEl && !btEl.hidden ? btEl.textContent.trim() : '' };
     }
-    return { ouvrir, fermer, pas, image, carte, barre, choisir, attraper, servirLigne, etat };
+    return { ouvrir, fermer, pas, image, carte, barre, choisir, attraper, servirLigne, etat, feuilleBestiaire };
   }
   return { creer };
 })();

@@ -14,6 +14,10 @@
 // · la commande de la nuit : sa carte en tête du tiroir, sa jauge, son bouton ; pas prête, le bouton le dit ; prête, Livrer la paie ;
 // · le ×6 qui s'endort : quatre minutes sans toucher (l'horloge avancée de 1,5 s à chaque image : la page tourne), la jauge se vide, la lumière de
 //   la scène baisse, « ×1 » ; un toucher sur la scène, et tout revient ;
+// · le bestiaire : chaque client servi fait avancer sa sorte (un petit mot sur la scène, « Zombie 4/10 », la carte du tiroir) ; une sorte
+//   complétée (la sauvegarde préparée : la 5e) : la feuille de fête, les étoiles versées une fois dans la boulangerie, le décor posé ; la
+//   feuille du bestiaire (les neuf, « 3/10 », les récompenses) ; en éco, la 9e : la chauve-souris, choisie depuis la fête ;
+// · les bulles : leur pointe montre la tête de leur monstre (même écartées), et elles ne passent jamais sous l'en-tête (borne haute) ;
 // puis le soir (21 h 15, haute et éco : la file avec ses bulles, une apparition ; des captures), et, avec ?boutique=0 (le Manoir d'avant :
 // pas de scène de boutique), le repli en DOM : la file en bas de la scène, une apparition en image. Aucune erreur dans la page. Captures dans test/shots/hantee-activites/ (et dans SHOTS_HANTEE_ACTIVITES, préfixées « final- »).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-hantee-activites.cjs
@@ -23,6 +27,7 @@ const http = require('http'), fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..'), PORT = +process.env.PORT_HANTEE_ACTIVITES || 8881;
 const out = path.join(__dirname, 'shots', 'hantee-activites'); fs.mkdirSync(out, { recursive: true });
 const out2 = process.env.SHOTS_HANTEE_ACTIVITES ? (fs.mkdirSync(process.env.SHOTS_HANTEE_ACTIVITES, { recursive: true }), process.env.SHOTS_HANTEE_ACTIVITES) : null;
+const out3 = process.env.SHOTS_BESTIAIRE ? (fs.mkdirSync(process.env.SHOTS_BESTIAIRE, { recursive: true }), process.env.SHOTS_BESTIAIRE) : null; // les captures du bestiaire (« bestiaire-… »)
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg', '.webmanifest': 'application/manifest+json' };
 const DEPART = new Date('2026-10-28T11:00:00+01:00').getTime(), SOIR = new Date('2026-10-28T21:15:00+01:00').getTime(); let decal = DEPART - Date.now(); // (le soir : les captures de 21 h 15)
 let plus = 0; // l'avance de l'horloge de la page (window.__avancer), que le serveur suit aussi (l'en-tête Date)
@@ -99,6 +104,8 @@ function faux(d) {
     check(ic === c1.commande.length && c1.reste > 0 && c1.reste <= 40000, `la bulle : les ${ic} friandises de sa commande, sa patience (${(c1.reste / 1000).toFixed(0)} s)`);
     // le toucher (le milieu du corps) le choisit
     let choisi = null;
+    // la bulle d'un client, une fois posée (deux lectures à 250 ms qui tombent au même pixel : il ne glisse plus vers sa place) ; null : parti
+    const bullePosee = async (id) => { const r = await attendre(async () => { const a1 = (await act()).clients.find((x) => x.id === id); if (!a1) return 'parti'; if (!a1.bulle) return null; await sleep(250); const a2 = (await act()).clients.find((x) => x.id === id); if (!a2) return 'parti'; return a2.bulle && Math.abs(a2.bulle.x - a1.bulle.x) < 1 && Math.abs(a2.bulle.y - a1.bulle.y) < 1 ? a2 : null; }, 6000, 50); return r === 'parti' ? null : r; }; // (servi, ou parti : tout de suite null)
     const toucherClient = async (c) => { for (let k = 0; k < 4; k++) { const x = await acteur(c.sid); if (!x) return false; await page.touchscreen.tap(x.x, x.y + Math.max(20, x.h * 0.6)); await sleep(250); const e = await act(); if (e.choisi === c.id) return true; if (e.choisi != null) { await page.touchscreen.tap(x.x, x.y + Math.max(20, x.h * 0.6)); await sleep(250); } } return false; };
     if (await toucherClient(c1)) choisi = c1.id;
     if (choisi !== c1.id) console.log('   (diagnostic)', JSON.stringify(await act()), JSON.stringify(await ev(() => BOUTIQUE_HANTEE.acteurs())));
@@ -119,11 +126,16 @@ function faux(d) {
     check(vie1 && vie1.etat === 'sort' && vie1.humeur === 'content', `dans la scène, il repart content (${vie1 && `${vie1.etat}, ${vie1.humeur}`})`);
     check((await ev(() => window.__voles)) > v0 && (await flottes()).some((t) => /Merci/.test(t)), 'son pourboire vole jusqu’au solde, « Merci ! »');
     check(!(await act()).clients.some((c) => c.id === c1.id) && (await act()).choisi == null, 'sa bulle est partie, plus personne de choisi');
+    { // le bestiaire : sa sorte avance d'un, le petit mot sur la scène, la carte du tiroir
+      const e = await act(), b = e.bestiaire, s1 = b.sortes.find((x) => x.sorte === c1.sorte), court = await ev((k) => window.__fournil.HT.NOMS_COURTS[k], c1.sorte);
+      const mini = await ev((k) => { const i = document.querySelector(`#ht-bestiaire .mh-best-mini i[data-sorte="${k}"]`); return i ? i.className : null; }, c1.sorte);
+      check(s1 && s1.n === 1 && e.mot.startsWith(`${court} 1/10`) && mini === 'encours' && await ev(() => !document.querySelector('#ht-bestiaire').hidden), `servi, il fait avancer le bestiaire : « ${e.mot} » sur la scène, sa miniature passe de la silhouette à « en cours » dans la carte du tiroir`);
+    }
     // un deuxième, servi en touchant sa bulle
     await pousser('client');
     const c2 = await attendre(async () => { const e = await act(); return e.clients.find((c) => c.id !== c1.id && c.bulle && c.sid && c.etat === 'file') || null; }, 25000); // (arrivé au comptoir : sa bulle ne bouge plus)
     if (c2) {
-      for (let k = 0; k < c2.commande.length; k++) { const e = await act(), c = e.clients.find((x) => x.id === c2.id); if (!c || !c.bulle) break; await page.touchscreen.tap(c.bulle.x, c.bulle.y); await sleep(350); }
+      for (let k = 0; k < c2.commande.length + 2; k++) { const c = await bullePosee(c2.id); if (!c) break; await page.touchscreen.tap(c.bulle.x, c.bulle.y); await sleep(350); }
       R = await regles();
       if (R.file.some((c) => c.id === c2.id)) console.log('   (diagnostic)', JSON.stringify(R.file.find((c) => c.id === c2.id)), JSON.stringify((await act()).clients.find((c) => c.id === c2.id)), JSON.stringify(await ev(() => window.__pd.slice(-3))), JSON.stringify((await flottes()).slice(-3)));
       check(!R.file.some((c) => c.id === c2.id) && R.stats.clientsServis === s0.clientsServis + 2, `un deuxième (${c2.sorte}), servi en touchant sa bulle (${c2.commande.length} touche${c2.commande.length > 1 ? 's' : ''})`);
@@ -134,7 +146,7 @@ function faux(d) {
     const c3 = await attendre(async () => { const e = await act(); return e.clients.find((c) => c.id !== c1.id && (!c2 || c.id !== c2.id) && c.bulle && c.sid) || null; }, 25000);
     if (c3) {
       const p0 = (await regles()).stats.clientsPartis, b3 = (await regles()).billets;
-      await ev((id) => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), c = q.manoir.file.find((x) => x.id === id); c.arrive -= 30000; }, c3.id); // (il attendait déjà depuis 30 s : 10 s de patience)
+      await ev((id) => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), c = q.manoir.file.find((x) => x.id === id); c.arrive = q.now - 30000; }, c3.id); // (il attend depuis 30 s tout juste : 10 s de patience, même s'il était entré bien avant)
       const bas = await attendre(() => ev((id) => document.querySelector(`.mh-bulle[data-client="${id}"]`)?.classList.contains('presse'), c3.id), 4000, 100);
       const fin = await attendre(async () => { const r = await regles(); return !r.file.some((c) => c.id === c3.id) ? r : null; }, 15000);
       const vie3 = await ev((sid) => { const c = VIE.clients.find((x) => 'c' + x.id === sid); return c ? { etat: VIE.etatClient(c), humeur: c.humeur } : null; }, c3.sid);
@@ -148,6 +160,21 @@ function faux(d) {
     await attendre(async () => (await act()).clients.filter((c) => c.bulle).length >= 3, 20000);
     await sleep(800); await shot(page, `${qual}-file`);
     a = await act(); check(a.clients.filter((c) => c.bulle).length >= 2, `la file des règles en scène : ${a.clients.filter((c) => c.bulle).length} monstres avec leur bulle`);
+    { // les bulles écartées : chaque pointe montre la tête de SON monstre ; aucune ne passe sous l'en-tête du Manoir (le haut de la couche)
+      let n = 0, ecartees = 0, pire = 0, marge = Infinity, mauvais = '';
+      for (let k = 0; k < 25; k++) {
+        const r = await ev(() => { const e = window.__fournil.evHantee.act.etat(), ac = BOUTIQUE_HANTEE.acteurs(), c = document.querySelector('.mh-couche').getBoundingClientRect(); return { cl: e.clients.filter((x) => x.bulle).map((x) => ({ x, a: ac.find((y) => y.id === x.sid) })), haut: c.top }; });
+        for (const { x, a: ta } of r.cl) {
+          marge = Math.min(marge, x.bulle.haut - r.haut);
+          if (!ta || !x.bout) continue; n++; const d = Math.hypot(x.bout.x - ta.x, x.bout.y - ta.y); if (d > pire) { pire = d; mauvais = `${x.sorte} : bout ${x.bout.x.toFixed(0)},${x.bout.y.toFixed(0)}, tête ${ta.x.toFixed(0)},${ta.y.toFixed(0)}`; }
+          if (Math.abs(x.bulle.x - ta.x) > x.bulle.l / 2 - 14) ecartees++;
+        }
+        if (k === 8) await pousser('client');
+        await sleep(160);
+      }
+      check(n > 10 && pire < 8, `chaque pointe montre la tête de son monstre (${n} mesures, ${ecartees} bulles écartées au-delà de l’ancienne borne ; au pire ${pire.toFixed(1)} px${pire >= 8 ? ' — ' + mauvais : ''})`);
+      check(marge >= -0.5, `aucune bulle ne passe sous l’en-tête du Manoir (au plus près : ${marge.toFixed(1)} px sous le haut de la scène)`);
+    }
 
     // ─── une fournée parfaite : les toiles d'araignée en sucre (12 s, à la main) ───
     await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); q.manoir.file = []; q.manoir.prochainClient = HORLOGE.maintenant() + 600e3; }); // (la file vidée : rien ne vient se mettre entre le doigt et la carte)
@@ -217,6 +244,43 @@ function faux(d) {
     await page.locator('#ht-commande [data-a="mh-commande"]').tap(); await sleep(400);
     R = await regles();
     check(R.stats.commandes === cmd0 + 1 && R.billets > bc && !R.commande && await ev(() => document.querySelector('#ht-commande').hidden) && (await toasts()).some((t) => /Commande livrée/.test(t)), `Livrer : payée (+${Math.round(R.billets - bc)}), la carte s’en va`);
+
+    // ─── le bestiaire : une sorte complétée (la sauvegarde préparée : quatre déjà faites, neuf servis partout) ───
+    await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); q.manoir.file = []; q.manoir.prochainClient = HORLOGE.maintenant() - 1; q.manoir.prochaineApp = HORLOGE.maintenant() + 600e3; F.save(); });
+    const cb = await attendre(async () => { const e = await act(); return e.clients.find((c) => c.bulle && c.sid && c.etat === 'file') || null; }, 30000);
+    if (cb) await ev((sorte) => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); for (const k of F.HT.SORTES) q.bestiaire[k] = 9; // (la sauvegarde préparée : quatre autres sortes déjà faites, la sienne à 9)
+      q.bestiaireFaits = F.HT.SORTES.filter((k) => k !== sorte).slice(0, 4); for (const k of q.bestiaireFaits) q.bestiaire[k] = 10; F.save(); }, cb.sorte);
+    if (cb) {
+      const avant = await ev(() => ({ et: window.__fournil.st.etoiles, decos: window.__fournil.st.hantee.decos.slice(), vues: window.__fournil.SCENE.decosHanteeVues.slice() }));
+      let mot = ''; for (let k = 0; k < cb.commande.length + 3; k++) { const c = await bullePosee(cb.id); if (!c) break; await page.touchscreen.tap(c.bulle.x, c.bulle.y); await sleep(350); mot = (await act()).mot || mot; }
+      const fete = await attendre(() => ev(() => { const f = document.querySelector('#feuille'), x = f && !f.hidden && f.querySelector('[data-bestiaire-fete]'); return x ? { sorte: x.dataset.bestiaireFete, txt: x.innerText.replace(/\s+/g, ' ') } : null; }), 8000);
+      const apres = await ev(() => { const F = window.__fournil, q = F.st.hantee; return { et: F.st.etoiles, decos: q.decos.slice(), aVerser: q.bestiaireAVerser, faits: q.bestiaireFaits.slice() }; }); apres.mot = mot;
+      check(!!fete && fete.sorte === cb.sorte && /rejoint le bestiaire/.test(fete.txt) && /5\/9/.test(fete.txt), `le dixième ${cb.sorte} servi au doigt : la feuille de fête (« ${fete && fete.txt.slice(0, 70)}… »)`);
+      check(apres.et === avant.et + 2 && apres.aVerser === 0 && apres.faits.length === 5, `la 5e sorte : +2 étoiles versées tout de suite dans la boulangerie (${avant.et} → ${apres.et}), une fois (plus rien à verser)`);
+      check(!avant.decos.includes('bestiaire') && apres.decos.includes('bestiaire') && !!fete && /étagère aux bocaux/.test(fete.txt) && await attendre(() => ev(() => window.__fournil.SCENE.decosHanteeVues.includes('bestiaire') || !!(window.__fournil.SCENE.evenement && window.__fournil.SCENE.evenement.hd)), 4000), 'et le décor : l’étagère aux bocaux de monstres, posée dans la boutique (q.decos ; la scène, en éco : en haute, le décor cuit de la boutique hantée la remplace, elle revient avec la boutique)');
+      check(/10\/10/.test(apres.mot), `le petit mot sur la scène : « ${apres.mot} »`);
+      await sleep(900); await shot(page, `${qual}-bestiaire-fete`); if (out3 && qual === 'haute') fs.copyFileSync(path.join(out, `${qual}-bestiaire-fete.png`), path.join(out3, 'bestiaire-sorte-completee.png'));
+      if (fete) { await page.locator('#feuille [data-a="mh-best-voir"]').tap(); await sleep(500); } else await ev(() => window.__fournil.evHantee.act.feuilleBestiaire());
+      const fe = await ev(() => { const x = document.querySelector('#feuille [data-bestiaire]'); return x ? { cases: [...x.querySelectorAll('.mh-best-case')].map((c) => ({ sorte: c.dataset.sorte, cls: c.className, txt: c.innerText.replace(/\s+/g, ' ') })), recomp: [...x.querySelectorAll('.mh-best-recomp li')].map((l) => ({ fait: l.classList.contains('fait'), txt: l.innerText.replace(/\s+/g, ' ') })) } : null; });
+      check(fe && fe.cases.length === 9 && fe.cases.filter((c) => /fait/.test(c.cls)).length === 5 && fe.cases.filter((c) => /encours/.test(c.cls) && /9\/10/.test(c.txt)).length === 4, `« Le bestiaire » : la feuille, les neuf (${fe && fe.cases.map((c) => c.txt).join(' · ')})`);
+      check(fe && fe.recomp.length === 3 && !fe.recomp[0].fait && /6\/11/.test(fe.recomp[0].txt) && fe.recomp[1].fait && !fe.recomp[2].fait && /5\/9/.test(fe.recomp[2].txt) && /chauve-souris/.test(fe.recomp[2].txt), `les récompenses à venir : ${fe && fe.recomp.map((r) => (r.fait ? '✓ ' : '') + r.txt).join(' | ')}`);
+      await sleep(400); await shot(page, `${qual}-bestiaire-feuille`); if (out3 && qual === 'haute') fs.copyFileSync(path.join(out, `${qual}-bestiaire-feuille.png`), path.join(out3, 'bestiaire-feuille.png'));
+      await ev(() => { const b = document.querySelector('#feuille [data-a="mh-best-ok"]'); if (b) b.click(); }); await sleep(500);
+      await page.locator('#ht-bestiaire [data-a="mh-bestiaire"]').scrollIntoViewIfNeeded(); await page.locator('#ht-bestiaire [data-a="mh-bestiaire"]').tap(); await sleep(500);
+      check(await ev(() => !document.querySelector('#feuille').hidden && !!document.querySelector('#feuille [data-bestiaire]')), 'la carte du bestiaire, dans le tiroir, ouvre la même feuille');
+      if (out3 && qual === 'haute') { await ev(() => { document.querySelector('#feuille [data-a="mh-best-ok"]').click(); }); await sleep(500); await ev(() => document.querySelector('#ht-bestiaire').scrollIntoView({ block: 'center' })); await sleep(300); await shot(page, `${qual}-bestiaire-carte`); fs.copyFileSync(path.join(out, `${qual}-bestiaire-carte.png`), path.join(out3, 'bestiaire-carte.png')); }
+      else await ev(() => { const b = document.querySelector('#feuille [data-a="mh-best-ok"]'); if (b) b.click(); });
+      await sleep(400);
+      if (qual === 'eco') { // la 9e : la chauve-souris, choisie depuis la fête
+        const r9 = await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); q.bestiaireFaits = F.HT.SORTES.filter((k) => k !== 'loup'); for (const k of q.bestiaireFaits) q.bestiaire[k] = 10; q.bestiaire.loup = 9;
+          const id = 880001; q.manoir.file.push({ id, sorte: 'loup', commande: [{ i: 0, n: 1, servi: false }], arrive: q.now }); const e0 = F.st.etoiles, r = F.evHantee.act.servirLigne(id, 0); return { c: r.bestiaire && r.bestiaire.complete, de: F.st.etoiles - e0, cs: q.chauvesouris }; });
+        const f9 = await attendre(() => ev(() => { const x = document.querySelector('#feuille [data-bestiaire-fete="loup"]'); return x ? x.innerText.replace(/\s+/g, ' ') : null; }), 6000);
+        check(r9.c && r9.c.rang === 9 && r9.de === 2 && r9.cs && /Myrtille/.test(f9 || ''), `la 9e sorte (le loup-garou) : +2 étoiles, la chauve-souris ; la fête le dit (« ${(f9 || '').slice(0, 90)}… »)`);
+        if (f9) { await page.locator('#feuille [data-a="mh-best-choisir"]').tap(); await sleep(300); }
+        check(await ev(() => window.__fournil.st.compagnon === 'chauve-souris' && window.__fournil.G.aCompagnon(window.__fournil.st, 'chauve-souris')), '« Choisir Myrtille tout de suite » : la chauve-souris devient le compagnon de la boutique');
+        await ev(() => { const b = document.querySelector('#feuille [data-a="mh-best-ok"]'); if (b) b.click(); }); await sleep(400);
+      }
+    } else check(false, 'un client entre pour compléter une sorte du bestiaire');
 
     // ─── le ×6 qui s'endort : quatre minutes sans toucher (l'horloge avancée de 1,5 s à chaque image : la page tourne), puis un toucher ───
     await page.touchscreen.tap(195, await ev(() => { const r = document.querySelector('.mh-couche').getBoundingClientRect(); return r.top + 20; })); await sleep(300); // (un dernier toucher : le plein)
