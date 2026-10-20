@@ -99,7 +99,9 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
     await sleep(3500); await photoR(page, 'hantee-carte-apres-palier-13');
     await ev(() => document.querySelector('#ht-cartes').scrollTo(0, 0)); await sleep(150); }
   check(await attendre(async () => { const x = await manoir(); return x.hd && x.hd.actif && x.hd.persos >= 1; }, 30000), 'les modèles HD arrivent : le salon KayKit, le jardin par la fenêtre, la patronne en Mini Character');
-  const poids = demandes.filter((d) => /hd\/hantee\//.test(d)).reduce((a, d) => a + fs.statSync(path.join(root, d)).size, 0);
+  // (chaque fichier une fois : le premier lancement de ce test a pu montrer l'annonce, qui précharge déjà la HD du Manoir ; le rechargement
+  // les redemande, ce que le service worker, coupé ici, servirait de son cache)
+  const poids = [...new Set(demandes.filter((d) => /hd\/hantee\//.test(d)))].reduce((a, d) => a + fs.statSync(path.join(root, d)).size, 0);
   check(poids > 0 && poids < 700e3, `les modèles du manoir pèsent ${Math.round(poids / 1024)} Ko (meshopt, < 700 Ko)`);
   await page.evaluate(() => { const b = document.querySelector('#ht-cartes .carte[data-i] .barre'); b.dispatchEvent(new MouseEvent('click', { bubbles: true })); });
   await attendre(async () => (await hst()).stats.ventes >= 1, 10000); // (le rendu logiciel de la HD est lent : le temps du jeu avance moins vite)
