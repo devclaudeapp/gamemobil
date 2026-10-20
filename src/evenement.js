@@ -51,7 +51,7 @@ const EVENEMENTS = (() => {
       const ico = el.querySelector('.pq-ico'); if (ico) ico.innerHTML = F.ico.devise;
       if (F.habiller) F.habiller(el); // le gabarit propre à l'événement (la Maison hantée : ses touches d'Halloween et les places de ses activités)
       if (F.activites) act = F.activites.creer({ el, Q, F, d, q, now, scene: () => scene3, carte: (i) => (i === -1 ? carteRj : cartes[i]), fmt, prix, ico: (i) => F.ico.produit(Q.PRODUITS[i], i),
-        hud: () => { lastHud = ''; hud(); }, save: () => d.save() });
+        hud: () => { lastHud = ''; hud(); }, save: () => d.save(), mini: () => miniOuvert() });
       if (F.couleurs) for (const [k, v] of Object.entries(F.couleurs)) if (/^#[0-9a-f]{3,8}$/i.test(String(v))) el.style.setProperty('--evt-' + k, v);
       el.querySelector('[data-pq="fermer"]').addEventListener('click', () => { d.audio(); d.son.tap(); fermer(); });
       el.querySelector('[data-pq="classement"]').addEventListener('click', () => { d.audio(); d.son.tap(); if (d.classement) d.classement(); });
@@ -82,6 +82,7 @@ const EVENEMENTS = (() => {
       const qq = q();
       if (typeof G.donnerVetement === 'function') for (const v of qq.vetements) { try { G.donnerVetement(s, v); } catch (e) { /* un id que la garde-robe ne connaît pas encore */ } }
       if (Q.verserRecette) { const n = Q.verserRecette(qq); if (n > 0) { s.etoiles += n; d.save(); } } // la recette du jour : des étoiles d'étape pas encore versées (une étape franchie dans l'absence de la fin)
+      if (Q.verserBestiaire) { const n = Q.verserBestiaire(qq); if (n > 0) { s.etoiles += n; d.save(); } } // le bestiaire du Manoir : des étoiles d'une sorte complétée pas encore versées (l'appli fermée juste après)
       F.decos(qq.decos); if (F.synchro) F.synchro(s, qq);
       // la revue des récompenses (version 2) : une sauvegarde qui avait déjà franchi des paliers ou acheté des combines « après le boss »
       // reçoit la différence UNE FOIS (q.recompensesV2, posé par les règles), versée tout de suite ; la feuille qui le dit attend annoncer()
@@ -1386,6 +1387,34 @@ const EVENEMENTS = (() => {
         <ul class="mh-commande-lignes">${(o.lignes || []).map((l) => `<li class="${l.fait >= l.n ? 'fait' : ''}"><i>${l.ico || ''}</i><span>${l.fait || 0}/${l.n}</span></li>`).join('')}</ul>
         <i class="mh-commande-temps"><b style="width:${Math.round(Math.max(0, Math.min(1, 1 - (o.part || 0))) * 100)}%"></b></i></div>
       <button type="button" class="btn ${o.prete ? 'menthe' : 'non'}" data-a="mh-commande"><small>${o.prete ? esc(o.bouton || 'Servir') : esc(o.reste || 'En cours')}</small><b>${o.prime || ''}</b></button></article>`,
+    // le bestiaire (src/hanteeactivites.js le remplit ; o : { faits, total, par, etoiles, gagnees, deco, chauvesouris, rangDeco, rangCompagnon, rangs,
+    // sortes: [{ sorte, nom, court, n, par, fait, etat ('vide' | 'encours' | 'fait'), ico }], ico, icoDeco, icoCompagnon, textes }) : la carte du
+    // tiroir (les neuf en miniature, sombres tant qu'aucun n'est servi), sa feuille, le petit mot sur la scène, la feuille de fête
+    bestiaire: (o) => `<button type="button" class="mh-bestiaire" data-a="mh-bestiaire" aria-label="${esc(`${(o.textes && o.textes.bestiaire) || 'Le bestiaire'} : ${o.faits} sorte${o.faits > 1 ? 's' : ''} sur ${o.total}`)}">
+      <span class="mh-best-pic" aria-hidden="true">${o.ico}</span>
+      <span class="mh-best-corps"><span class="mh-best-tete"><b>${esc((o.textes && o.textes.bestiaire) || 'Le bestiaire')}</b><small>${o.faits}/${o.total} monstres</small></span>
+        <span class="mh-best-mini" aria-hidden="true">${o.sortes.map((s) => `<i class="${s.etat}" data-sorte="${esc(s.sorte)}" style="--p:${(s.n / s.par).toFixed(2)}">${s.ico}</i>`).join('')}</span></span>
+      <span class="mh-best-fleche" aria-hidden="true">›</span></button>`,
+    bestiaireFeuille: (o) => {
+      const prochaine = o.faits < o.total ? o.rangs[o.faits] : 0, li = (fait, ico, titre, sous, fin) => `<li class="${fait ? 'fait' : ''}"><span class="mh-best-r-ico">${ico}</span><div><b>${esc(titre)}</b><small>${esc(sous)}</small></div><em>${esc(fin)}</em></li>`;
+      return `<div class="pq-sheet ht mh-best-feuille" data-bestiaire="1"><div class="pq-palier-tete"><span class="pq-pic">${o.ico}</span><div><h2>${esc((o.textes && o.textes.bestiaire) || 'Le bestiaire')} du Manoir</h2><p class="sous">${esc((o.textes && o.textes.bestiaireSous) || 'Sers dix clients de chaque sorte de monstre pour les ajouter au bestiaire.')} ${o.faits}/${o.total}.</p></div></div>
+        <div class="mh-best-grille">${o.sortes.map((s) => `<div class="mh-best-case ${s.etat}" data-sorte="${esc(s.sorte)}"><span class="mh-best-por">${s.ico}${s.fait ? '<b class="mh-best-et" aria-hidden="true">★</b>' : ''}</span><b>${esc(s.n > 0 || s.fait ? s.court : '???')}</b><small>${s.fait ? 'au complet' : `${s.n}/${s.par}`}</small><i class="mh-best-barre"><b style="width:${Math.round(s.n / s.par * 100)}%"></b></i></div>`).join('')}</div>
+        <h3 class="titre-section">Les récompenses</h3>
+        <ul class="mh-best-recomp">
+          ${li(o.faits >= o.total, '<b class="mh-best-r-et">★</b>', 'Chaque sorte complétée : des étoiles', `+1 ★ pour ta boulangerie, +2 à la ${o.rangDeco}e et à la ${o.rangCompagnon}e (${o.etoiles} ★ en tout)${prochaine ? ` · la prochaine : +${prochaine} ★` : ''}`, `${o.gagnees}/${o.etoiles} ★`)}
+          ${li(o.deco, o.icoDeco, `${o.rangDeco} sortes : l’étagère aux bocaux de monstres`, 'Un décor pour ta boutique, à vie', o.deco ? 'gagnée ✓' : `${Math.min(o.faits, o.rangDeco)}/${o.rangDeco}`)}
+          ${li(o.chauvesouris, o.icoCompagnon, `Les ${o.total} : Myrtille la chauve-souris`, 'Un compagnon pour ta boutique, à vie : elle tourne sous le plafond (+1 h d’absence)', o.chauvesouris ? 'gagnée ✓' : `${o.faits}/${o.total}`)}
+        </ul>
+        <p class="note centre">Pas de bonbons ici : tout va à ta boulangerie, et le bestiaire reste après Halloween.</p>
+        <button type="button" class="btn large ht-btn" data-a="mh-best-ok" style="margin-top:12px"><b>Retour au Manoir</b></button></div>`;
+    },
+    bestiaireMot: (o) => `<span class="mh-bt-ico" aria-hidden="true">${o.ico}</span><span class="mh-bt-corps"><b>${esc(o.texte)}</b><i class="mh-bt-barre"><b style="width:${Math.round(Math.max(0, Math.min(1, o.part)) * 100)}%"></b></i></span>${o.fait ? '<span class="mh-bt-et" aria-hidden="true">★</span>' : ''}`,
+    bestiaireFete: (o) => `<div class="pq-sheet ht mh-best-fete" data-bestiaire-fete="${esc(o.sorte)}"><div class="mh-best-fete-pic" aria-hidden="true">${o.ico}<b>★</b></div>
+      <h2>${esc(o.titre)}</h2><p class="sous">${o.rang}/${o.total} monstres au bestiaire · dix servis</p>
+      <ul class="pq-dons">${o.dons.map((t) => `<li>${esc(t)}</li>`).join('')}</ul>
+      ${o.compagnon ? `<div class="mh-best-cs"><span>${o.icoCompagnon}</span><p>Le bestiaire est complet ! Myrtille t’attend dans « Les compagnons » (la garde-robe ou les Réglages).</p></div><button type="button" class="btn large menthe" data-a="mh-best-choisir" style="margin-top:10px"><b>Choisir Myrtille tout de suite</b></button>`
+        : `<p class="encadre">${o.deco ? 'L’étagère aux bocaux de monstres est accrochée dans ta boutique. ' : ''}${o.reste > 0 ? `Encore ${o.reste} sorte${o.reste > 1 ? 's' : ''} de monstre${o.reste > 1 ? 's' : ''} : ${o.rang < o.rangDeco ? `à ${o.rangDeco}, un décor pour ta boutique ; ` : ''}aux ${o.total}, une chauve-souris de compagnie.` : ''}</p>`}
+      <div class="mh-best-fete-boutons"><button type="button" class="btn large clair" data-a="mh-best-voir"><b>Le bestiaire</b></button><button type="button" class="btn large beurre" data-a="mh-best-ok"><b>Trop chouette</b></button></div></div>`,
   };
   function ficheHantee() {
     const HF = (HR && HR.FICHE) || {}, T = HF.textes || {}, dv = HF.devise || {}, nomDevise = dv.nom || 'bonbons', un = dv.un || 'bonbon';
@@ -1421,7 +1450,8 @@ const EVENEMENTS = (() => {
       // l'habillage de l'écran : le style du Fournil (en-tête crème, scène pleine largeur, tiroir à poignée, cartes blanches) en orange citrouille
       // et violet (src/style.css, #hantee et classes .mh-*) ; ici, ses touches d'Halloween (une toile dans l'en-tête, deux chauves-souris près de
       // la poignée du tiroir) et les places, cachées, de ses activités : la jauge « Le boss s'endort… » sous le ×6 (#ht-eveil), la série
-      // d'apparitions sur la scène (#ht-serie), la commande de la nuit en tête du tiroir (#ht-commande). F.gabarits donne leur HTML ;
+      // d'apparitions sur la scène (#ht-serie), la commande de la nuit en tête du tiroir (#ht-commande), la carte du bestiaire juste dessous
+      // (#ht-bestiaire). F.gabarits donne leur HTML ;
       // src/hanteeactivites.js (F.activites) les remplit
       habiller: (el) => {
         if (el.querySelector('.mh-deco')) return;
@@ -1429,10 +1459,10 @@ const EVENEMENTS = (() => {
         const tiroir = el.querySelector('.pq-scene + *'); if (tiroir) tiroir.insertAdjacentHTML('afterbegin', '<span class="mh-vol" aria-hidden="true"><i class="mh-cs a"></i><i class="mh-cs b"></i></span>'); // le haut du tiroir, à gauche de la poignée
         const solde = el.querySelector('.pq-solde'); if (solde) solde.insertAdjacentHTML('beforeend', `<div id="ht-eveil" class="mh-eveil" role="meter" aria-label="Le boss s’endort" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100" hidden>${gabarits.eveil(1)}</div>`);
         const sc = el.querySelector('.pq-scene'); if (sc) sc.insertAdjacentHTML('beforeend', `<div id="ht-serie" class="mh-serie" aria-live="polite" hidden>${gabarits.serie(0)}</div>`);
-        const ca = el.querySelector('#ht-cartes'); if (ca) ca.insertAdjacentHTML('beforebegin', '<div id="ht-commande" class="mh-commande-place" hidden></div>');
+        const ca = el.querySelector('#ht-cartes'); if (ca) ca.insertAdjacentHTML('beforebegin', '<div id="ht-commande" class="mh-commande-place" hidden></div><div id="ht-bestiaire" class="mh-bestiaire-place" hidden></div>');
       },
       gabarits,
-      bilanPlus: (qq) => (st0() && (st0().chatNoir || (!G.donnerChatNoir && qq.total > 0)) ? ['le chat noir de la boutique, au choix dans la garde-robe'] : []),
+      bilanPlus: (qq) => (st0() && (st0().chatNoir || (!G.donnerChatNoir && qq.total > 0)) ? ['le chat noir de la boutique, au choix dans la garde-robe'] : []).concat(qq.chauvesouris ? ['Myrtille la chauve-souris, gagnée au bestiaire : un compagnon de la boutique, à vie'] : []),
       // un palier qui donne le chat noir (p.chat === 'noir' : GAME.donnerChatNoir, src/game.js)
       apresPalier: (s, p, dons) => { if (p.chat === 'noir' && typeof G.donnerChatNoir === 'function') { G.donnerChatNoir(s); dons.push('le chat noir : le chat de la boutique peut porter une robe noire aux yeux jaunes, au choix, à vie'); } },
       synchro: (s, qq) => { if (typeof G.donnerChatNoir === 'function' && HR.PALIERS.some((p) => p.chat === 'noir' && qq.paliers.includes(p.n))) G.donnerChatNoir(s); },

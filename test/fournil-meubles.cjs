@@ -7,13 +7,15 @@
 // 1 ter) Les constats de la relecture du lot 4 : le doigt au centre d'un meuble le prend (pas celui de dessous), le coin du chat loin de l'allée,
 //    le chat et le client en route recasés quand un meuble bouge, un plan qui ne tient pas sur l'écran (Déplacer part du plan affiché),
 //    un écran large (grille bornée au code compact), les colonnes et les cordons du trottoir sans recouvrement.
-// Captures 390×844 dans test/shots/meubles/.
+// Les décos de la Maison hantée gagnées (citrouilles, toiles, chaudron, fantôme, toque, et l'étagère aux bocaux de monstres du bestiaire)
+// posées en plus, tout au max : le budget tient encore. Captures 390×844 dans test/shots/meubles/ (et, celle des bocaux, dans SHOTS_BESTIAIRE).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-meubles.cjs   (--plan : la partie 1 seule)
 'use strict';
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const root = path.join(__dirname, '..'), PORT = +process.env.PORT_MEUBLES || 8870;
 const out = path.join(__dirname, 'shots', 'meubles'); fs.mkdirSync(out, { recursive: true });
+const out3 = process.env.SHOTS_BESTIAIRE ? (fs.mkdirSync(process.env.SHOTS_BESTIAIRE, { recursive: true }), process.env.SHOTS_BESTIAIRE) : null;
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.mp3': 'audio/mpeg', '.glb': 'model/gltf-binary', '.json': 'application/json', '.webmanifest': 'application/manifest+json' };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
@@ -256,6 +258,16 @@ const server = http.createServer((req, res) => {
   await page.screenshot({ path: path.join(out, 'apres-clients-eco.png') });
   const ap = await ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return { decor, salle: a.tables + a.bar + a.banquette + a.terrasse + a.couverts }; });
   check(ap.decor <= 72 && ap.salle <= 7, `éco, tout au max : ${ap.decor} appels de dessin pour le décor (≤ 72), dont ${ap.salle} pour les tables, le bar, le salon, la terrasse et tous les couverts`);
+  { // les décos de la Maison hantée, toutes gagnées (le bestiaire compris : l'étagère aux bocaux de monstres), en plus de tout le reste
+    await ev(() => window.__fournil.SCENE.decosHantee(['citrouilles', 'toiles', 'chaudron', 'fantome', 'toque-citrouille', 'bestiaire'])); await sleep(1500);
+    const aph = await ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return { decor, bocaux: a['ht-bestiaire'] || 0, vues: window.__fournil.SCENE.decosHanteeVues }; });
+    check(aph.vues.includes('bestiaire') && aph.bocaux > 0 && aph.bocaux <= 2 && aph.decor <= 72, `éco, tout au max avec les décos de la Maison hantée : ${aph.decor} appels de dessin pour le décor (≤ 72), dont ${aph.bocaux} pour l’étagère aux bocaux de monstres (${aph.vues.join(', ')})`);
+    const fz = await ev(() => { const r = document.querySelector('#scene').getBoundingClientRect(), L = VIE.LAY.fenetre; return { x: r.left + L.x, y: r.top, w: L.w }; });
+    await page.screenshot({ path: path.join(out, 'decos-hantee-eco.png') });
+    await page.screenshot({ path: path.join(out, 'bocaux-eco.png'), clip: { x: 0, y: Math.max(0, fz.y), width: 260, height: 160 } });
+    if (out3) { fs.copyFileSync(path.join(out, 'decos-hantee-eco.png'), path.join(out3, 'bestiaire-decor-boutique.png')); fs.copyFileSync(path.join(out, 'bocaux-eco.png'), path.join(out3, 'bestiaire-decor.png')); }
+    await ev(() => window.__fournil.SCENE.decosHantee([])); await sleep(500);
+  }
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
   await ctx.close();
 

@@ -40,7 +40,9 @@
    guet », « Le compte », « La tournée », les contrats de la nuit, les opérations) ; leur API est exportée telle quelle, comme au Quartier.
    Lot 6 (19 octobre), le Manoir « qui choque » : des choses à FAIRE dans la boutique hantée (voir « des choses à FAIRE », plus bas) : le ×6
    de présence s'endort sans toucher (toucher, eveil, presence), les clients-monstres (servir), les fournées parfaites (parfait), les
-   apparitions (attraper(q, id)), les commandes de la nuit (livrerCommande) ; FICHE.manoir, leurs mots ; SORTES, les neuf clients. */
+   apparitions (attraper(q, id)), les commandes de la nuit (livrerCommande) ; FICHE.manoir, leurs mots ; SORTES, les neuf clients.
+   Lot 6, le bestiaire (20 octobre) : les clients-monstres servis remplissent un bestiaire (BESTIAIRE, bestiaire, verserBestiaire, plus bas) ;
+   dix servis d'une sorte la complètent (des étoiles pour la boulangerie), cinq sortes : un décor pour la boutique, les neuf : la chauve-souris. */
 (function (root, factory) {
   if (typeof module === 'object' && module.exports) module.exports = factory(require('./activites.js'));
   else root.HANTEE = factory(root.ACTIVITES);
@@ -355,6 +357,14 @@
   //      acidulés en 10 min » : ce que le poste fait dans ce temps, ×0,6 avec son monstre, ×0,3 à la main), comptée sur les ventes (comme
   //      le cortège) ; livrée au bouton avant l'heure : la prime (COMMANDES.part minute du rythme par minute de commande) ; ratée : rien,
   //      et la suivante une à trois minutes plus tard. Plafonds à l'heure et au jour.
+  //   6. LE BESTIAIRE (BESTIAIRE, bestiaire, verserBestiaire) : chaque client servi en entier (servir : sa dernière ligne, payée ou non
+  //      par les plafonds) compte pour sa sorte, q.bestiaire[sorte] += 1 ; à BESTIAIRE.par servis, la sorte est complétée. Chaque sorte
+  //      complétée, dans l'ordre (q.bestiaireFaits fait foi : jamais deux fois), donne des étoiles POUR LA BOULANGERIE, 1 ou 2 selon son rang
+  //      (BESTIAIRE.etoiles : 2 pour la 5e et la 9e, 11 en tout), comptées dans q.etoiles (le bilan) et dans q.bestiaireAVerser, que l'écran
+  //      verse dans la boulangerie puis remet à zéro (verserBestiaire, comme les étapes de la recette du jour) ; à la 5e, un décor pour la
+  //      boutique (q.decos : 'bestiaire', l'étagère aux bocaux de monstres, posée comme ceux des paliers) ; aux neuf, le compagnon
+  //      chauve-souris (q.chauvesouris : GAME.COMPAGNONS, « chauve-souris », le lit). Aucun bonbon : l'enveloppe du serveur ne bouge pas.
+  //      Vieille sauvegarde : q.bestiaire absent → vide (rien n'est inventé ; les servis d'avant ne comptent pas).
   // L'état : q.manoir = { graine, tirages, file, prochainClient, seqClient, apps, prochaineApp, seqApp, serie, commande, prochaineCommande,
   // seqCommande, heure, jour, h, j (ce que chacune a payé cette heure et ce jour, en minutes du rythme ; les parfaites, en fournées, et
   // minParfaits, leurs minutes),
@@ -363,6 +373,7 @@
   const EVEIL = { plein: 60, sommeil: 180 }; // secondes : le plein après le dernier toucher, puis la descente jusqu'à ×1
   const SORTES = ['squelette', 'squelette-sorcier', 'zombie', 'citrouille', 'fantome', 'momie', 'sorciere', 'vampire', 'loup']; // les mêmes que la scène (BOUTIQUE_HANTEE.SORTES)
   const NOMS_SORTES = { squelette: 'Le squelette', 'squelette-sorcier': 'Le squelette sorcier', zombie: 'Le zombie', citrouille: 'La tête-citrouille', fantome: 'Le fantôme', momie: 'La momie', sorciere: 'La sorcière', vampire: 'Le vampire', loup: 'Le loup-garou' };
+  const NOMS_COURTS = { squelette: 'Squelette', 'squelette-sorcier': 'Squelette sorcier', zombie: 'Zombie', citrouille: 'Tête-citrouille', fantome: 'Fantôme', momie: 'Momie', sorciere: 'Sorcière', vampire: 'Vampire', loup: 'Loup-garou' }; // (le bestiaire : « Zombie 4/10 »)
   const CLIENTS = { file: 3, arrivee: [8, 20], patience: 40, lignes: 3, minutes: 0.014, vite: 0.5, parHeure: 22, parJour: 170 };
   const PARFAIT = { tempsMin: 6, largeur: 0.15, de: [0.3, 0.75], parHeure: 40, minutes: 11, minutesJour: 80 };
   const TYPES_APPARITION = ['fantome', 'citrouille', 'chauve-souris'];
@@ -370,6 +381,7 @@
   const COMMANDES = { durees: [5, 10, 15], part: 0.12, pause: [60, 180], premiere: 90, staff: 0.6, main: 0.3, parHeure: 18, parJour: 120 };
   const PLAFONDS = { clients: CLIENTS, apparitions: APPARITIONS, commandes: COMMANDES };
   const ACTIVITES_MANOIR = ['clients', 'apparitions', 'parfaits', 'commandes'];
+  const BESTIAIRE = { par: 10, etoiles: [1, 1, 1, 1, 2, 1, 1, 1, 2], deco: 5, decoId: 'bestiaire', compagnon: 9 }; // etoiles : par rang de la sorte complétée (11 en tout)
   const STATS_MANOIR = ['clientsServis', 'clientsPartis', 'apparitions', 'apparitionsRatees', 'parfaits', 'parfaitsRates', 'commandes', 'commandesRatees'];
   function statsManoir() { const o = {}; for (const k of STATS_MANOIR) o[k] = 0; return o; }
   const compteursNeufs = () => ({ clients: 0, apparitions: 0, parfaits: 0, commandes: 0, minParfaits: 0 }); // (parfaits : des fournées ; minParfaits : ce qu'elles ont payé, en minutes)
@@ -394,7 +406,17 @@
     for (const c of M.file) for (const l of c.commande) l.servi = !!l.servi;
     M.apps = (Array.isArray(M.apps) ? M.apps : []).filter((a) => a && typeof a === 'object' && fini(a.id) && TYPES_APPARITION.includes(a.type) && fini(a.debut) && fini(a.fin)).slice(0, 3);
     const c = M.commande; if (c !== null && !(c && typeof c === 'object' && posteOk(c.i) && c.n >= 1 && fini(c.fait) && fini(c.debut) && fini(c.fin) && COMMANDES.durees.includes(c.duree))) M.commande = null;
+    reparerBestiaire(q);
     return M;
+  }
+  function reparerBestiaire(q) { // le bestiaire : absent (une vieille sauvegarde) → vide ; des comptes abîmés → 0 ; les sortes faites, sans doublon ni inconnue
+    const b = q.bestiaire && typeof q.bestiaire === 'object' && !Array.isArray(q.bestiaire) ? q.bestiaire : (q.bestiaire = {});
+    for (const k of Object.keys(b)) if (!SORTES.includes(k)) delete b[k];
+    for (const k of SORTES) b[k] = Number.isFinite(b[k]) && b[k] > 0 ? Math.floor(b[k]) : 0;
+    const vus = new Set(); q.bestiaireFaits = (Array.isArray(q.bestiaireFaits) ? q.bestiaireFaits : []).filter((k) => SORTES.includes(k) && !vus.has(k) && (vus.add(k), true));
+    if (!(q.bestiaireAVerser >= 0) || !Number.isFinite(q.bestiaireAVerser)) q.bestiaireAVerser = 0;
+    q.chauvesouris = q.chauvesouris === true;
+    return b;
   }
   function hasard(M) { return ACT.alea(M.graine, M.tirages++); } // le hasard du Manoir : la graine de la partie et son compteur (sauvegardés)
   const entre = (M, ab) => ab[0] + (ab[1] - ab[0]) * hasard(M);
@@ -450,9 +472,36 @@
     l.servi = true; toucher(q, q.now);
     const reste = c.commande.filter((x) => !x.servi).length; if (reste > 0) return { ok: true, fini: false, reste, client: c };
     const min = pourboire(q, c); M.file.splice(M.file.indexOf(c), 1); q.stats.clientsServis++;
-    const p = payerMinutes(q, 'clients', min);
-    return { ok: true, fini: true, prime: p.gain, plafond: p.plafond, client: c };
+    const p = payerMinutes(q, 'clients', min), be = compterBestiaire(q, c.sorte);
+    return { ok: true, fini: true, prime: p.gain, plafond: p.plafond, client: c, bestiaire: be };
   }
+
+  // ─── 6. le bestiaire ───
+  function compterBestiaire(q, sorte) { // un client de cette sorte servi en entier → { sorte, n, par, complete: null | { sorte, rang, etoiles, deco, compagnon } }
+    const b = reparerBestiaire(q); if (!SORTES.includes(sorte)) return null;
+    b[sorte]++;
+    const dus = bestiaireDus(q);
+    return { sorte, n: b[sorte], par: BESTIAIRE.par, complete: dus.find((x) => x.sorte === sorte) || dus[0] || null, completes: dus };
+  }
+  function bestiaireDus(q) { // les sortes arrivées à BESTIAIRE.par et pas encore payées : payées ici, une fois, dans l'ordre (q.bestiaireFaits fait foi)
+    const b = reparerBestiaire(q), dus = [];
+    for (const k of SORTES) {
+      if (b[k] < BESTIAIRE.par || q.bestiaireFaits.includes(k)) continue;
+      q.bestiaireFaits.push(k); const rang = q.bestiaireFaits.length, et = BESTIAIRE.etoiles[rang - 1] || 1;
+      q.etoiles = (q.etoiles || 0) + et; q.bestiaireAVerser += et; // (le bilan, et ce que l'écran doit verser dans la boulangerie)
+      const x = { sorte: k, rang, etoiles: et, deco: null, compagnon: false };
+      if (rang === BESTIAIRE.deco && !q.decos.includes(BESTIAIRE.decoId)) { q.decos.push(BESTIAIRE.decoId); x.deco = BESTIAIRE.decoId; }
+      if (rang === BESTIAIRE.compagnon && !q.chauvesouris) { q.chauvesouris = true; x.compagnon = true; }
+      note(q, `Bestiaire : ${NOMS_COURTS[k]}, ${rang}/${SORTES.length} sortes, +${et} ★`);
+      dus.push(x);
+    }
+    return dus;
+  }
+  function bestiaire(q) { // pour l'écran : { sortes: [{ sorte, nom, court, n (0..par), par, fait }], faits, total (9), deco, chauvesouris, aVerser }
+    const b = reparerBestiaire(q), sortes = SORTES.map((k) => ({ sorte: k, nom: NOMS_SORTES[k], court: NOMS_COURTS[k], n: Math.min(BESTIAIRE.par, b[k]), par: BESTIAIRE.par, fait: q.bestiaireFaits.includes(k) }));
+    return { sortes, faits: q.bestiaireFaits.length, total: SORTES.length, deco: q.decos.includes(BESTIAIRE.decoId), chauvesouris: q.chauvesouris, aVerser: q.bestiaireAVerser };
+  }
+  function verserBestiaire(q) { reparerBestiaire(q); const n = q.bestiaireAVerser; q.bestiaireAVerser = 0; return n; } // les étoiles du bestiaire, à verser dans la boulangerie (l'écran)
 
   // ─── 3. les fournées parfaites ───
   function fenetreParfait(q, i) { // → { debut, fin (parts de la durée), duree (s), essai, parfait } ou null (pas une fournée à la main d'au moins 6 s en cours)
@@ -551,7 +600,7 @@
     return p;
   }
   const ensembleComplet = (q) => VETEMENTS.every((v) => q.vetements.includes(v));
-  const NOMS_DECOS = { citrouilles: 'des citrouilles sur le perron', toiles: 'des toiles d’araignée aux fenêtres', chaudron: 'un chaudron qui bouillonne' };
+  const NOMS_DECOS = { citrouilles: 'des citrouilles sur le perron', toiles: 'des toiles d’araignée aux fenêtres', chaudron: 'un chaudron qui bouillonne', bestiaire: 'l’étagère aux bocaux de monstres (le bestiaire)' };
   const NOMS_VETEMENTS = { 'hantee-chapeau': 'chapeau pointu de sorcière', 'hantee-cape': 'cape de minuit', 'hantee-bottes': 'bottes qui claquent', 'hantee-lanterne': 'citrouille-lanterne (la tenue complète)', 'hantee-lueur-chapeau': 'le chapeau phosphorescent (le trophée)' };
   function phrasePalier(p) { // ce que donne un palier, en une ligne
     const l = [];
@@ -773,7 +822,7 @@
     // lot 6 : les mots des activités du Manoir (le ×6 qui s'endort, les clients-monstres, les fournées parfaites, les apparitions, les
     // commandes de la nuit) ; sortes : les neuf clients (les mêmes clés que la scène), apparitions : les trois qui traversent la boutique
     manoir: {
-      sortes: NOMS_SORTES,
+      sortes: NOMS_SORTES, courts: NOMS_COURTS,
       apparitions: { fantome: 'Un petit fantôme', citrouille: 'Une citrouille volante', 'chauve-souris': 'Une chauve-souris' },
       textes: {
         jauge: 'Réveillé : ×6 avec toi', jaugeBasse: 'Le boss s’endort…', jaugeDort: 'Le boss dort : touche !', reveil: 'Zzz… touche le Manoir pour le réveiller', jaugeNote: 'Tant que tu touches, tout se vend ×6. Sans toi, ça retombe peu à peu.',
@@ -783,6 +832,10 @@
         commandeTitre: 'La commande de la nuit', commande: (c) => `${fmt(c.n)} ${PRODUITS[c.i] ? PRODUITS[c.i].pl : 'friandises'} en ${c.duree} min`, livrer: 'Livrer !',
         commandeLivree: (m) => `Commande livrée : +${m}`, commandeRatee: 'Trop tard : la commande est partie chez les voisins.',
         plafond: 'Pour le plaisir : le plein de l’heure est fait',
+        // le bestiaire (6) : la carte du tiroir, sa feuille, le petit mot à chaque servi, la fête d'une sorte complétée
+        bestiaire: 'Le bestiaire', bestiaireSous: 'Sers dix clients de chaque sorte de monstre pour les ajouter au bestiaire.',
+        bestiaireAvance: (nom, n, par) => `${nom} ${n}/${par}`, bestiaireFait: (nom) => `${nom} rejoint le bestiaire !`,
+        bestiaireDeco: 'l’étagère aux bocaux de monstres, accrochée au mur de ta boutique', bestiaireCompagnon: 'Myrtille la chauve-souris, un compagnon pour ta boutique (à choisir dans « Les compagnons »)',
       },
     },
     // les activités (src/activites.js) : l'habillage d'Halloween ; les réglages des gains sont ceux du moteur commun (l'enveloppe du serveur)
@@ -830,6 +883,7 @@
     gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, chasser: planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
     PROFILS, simuler, decider, fmt, fmtEur, fmtDevise, fmtDuree, fmtChrono, fmtReste,
     // lot 6 : le Manoir « qui choque » (voir plus haut, « des choses à FAIRE »)
-    EVEIL, SORTES, NOMS_SORTES, CLIENTS, PARFAIT, TYPES_APPARITION, APPARITIONS, COMMANDES, JEU_MANOIR, manoirNeuf, reparerManoir, eveil, toucher, presence, plafondsManoir,
-    clientsManoir, pourboire, servir, fenetreParfait, parfait, attraperApparition, lancerCommande, commandeManoir, primeCommande, livrerCommande, pasManoir };
+    EVEIL, SORTES, NOMS_SORTES, NOMS_COURTS, CLIENTS, PARFAIT, TYPES_APPARITION, APPARITIONS, COMMANDES, JEU_MANOIR, manoirNeuf, reparerManoir, eveil, toucher, presence, plafondsManoir,
+    clientsManoir, pourboire, servir, fenetreParfait, parfait, attraperApparition, lancerCommande, commandeManoir, primeCommande, livrerCommande, pasManoir,
+    BESTIAIRE, bestiaire, verserBestiaire, bestiaireDus, reparerBestiaire };
 });
