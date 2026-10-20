@@ -203,6 +203,17 @@ const S = {}; for (const prof of ['assidu', 'quotidien', 'occasionnel', 'maratho
 const S0 = { marathon: HT.simuler('marathon', 7, { recette: false, manoir: false }) };
 // lot 6 : SM, comme en v6.5 (la recette du jour, mais ni le ×6 qui s'endort ni les activités du Manoir : manoir: false) ; S, le jeu livré
 const SM = { marathon: HT.simuler('marathon', 7, { manoir: false }), tresactif: HT.simuler('tresactif', 7, { manoir: false }) };
+// revue du 20 octobre : l'enveloppe et l'équilibre des activités ne se jugent plus sur un seul tirage des coups de pouce (Math.random chez
+// un vrai joueur) : d'autres graines, simulées en parallèle (test/fournil-hantee-graines.js, une par cœur). GRAINES_ENV : le marathon,
+// Sortilèges achetés et offerts (les quatre d'avant, puis les plus justes des 120 graines de scratchpad lot5/tables-lot6.js : 13, 17, 29
+// et 59 sous l'ancienne table, 48 et 117 sous la nouvelle) ; GRAINES_TA : le très actif, avec et sans le Manoir.
+const GRAINES_ENV = [7, 1, 2, 3, 13, 17, 29, 48, 59, 117], GRAINES_TA = [1, 2, 3, 4, 5, 6, 7, 8];
+const PAR = (() => { const taches = [];
+  for (const g of GRAINES_ENV) for (const offertes of [false, true]) if (g !== 7 || offertes) taches.push({ cle: `m${g}${offertes ? 'o' : ''}`, profil: 'marathon', graine: g, offertes, trace: true });
+  for (const g of GRAINES_TA) if (g !== 7) for (const manoir of [true, false]) taches.push({ cle: `t${g}${manoir ? '' : 's'}`, profil: 'tresactif', graine: g, manoir });
+  const res = JSON.parse(require('child_process').execFileSync(process.execPath, [path.join(__dirname, 'fournil-hantee-graines.js')], { input: JSON.stringify(taches), encoding: 'utf8', maxBuffer: 1 << 30 }));
+  const o = { m7: { total: S.marathon.total, paliersJour: S.marathon.paliersJour, trace: S.marathon.trace.map((x) => [x.t, x.total]) } }; // (la graine 7 du très actif : S.tresactif et SM.tresactif, plus bas)
+  taches.forEach((t, k) => { o[t.cle] = res[k]; }); return o; })();
 const jourDe = (prof, k) => S[prof].paliersJour[k] || Infinity;
 const haut = (s) => Math.max(0, ...Object.keys(s.paliersJour).map(Number));
 console.log('  ' + Object.keys(S).map((k) => `${k} : ${HT.fmtEur(S[k].total)}, paliers ${JSON.stringify(S[k].paliersJour)}`).join('\n  '));
@@ -300,10 +311,11 @@ if (mEvt) {
   check(table.length >= Math.ceil((HT.FIN - HT.DEBUT) / 864e5 / pasJ) + 1 && table.every((v, k) => k === 0 || v >= table[k - 1]), `une table croissante qui couvre toute la fenêtre (${table.length} valeurs, un pas de ${mEvt[3]} h)`);
   const borne = (t) => { const j = Math.min(t / pasJ, table.length - 1), k = Math.floor(j); return k >= table.length - 1 ? table[table.length - 1] : table[k] + (table[k + 1] - table[k]) * (j - k); }; // log10, t en jours depuis l'ouverture
   let minM = Infinity, maxM = -Infinity;
-  for (const g of [7, 1, 2, 3]) for (const offertes of [false, true]) { const s = g === 7 && !offertes ? S.marathon : HT.simuler('marathon', 7, { graine: g, offertes }); // offertes : le pire cas, tous les Sortilèges d'après le maître dès le 12e
-    for (const x of s.trace) if (x.total > 0) { const m = borne(x.t) - Math.log10(x.total); minM = Math.min(minM, m); if (x.t > 0.25) maxM = Math.max(maxM, m); } }
-  check(minM >= Math.log10(2.2) - 1e-9, `le marathon 24 h/24 (quatre graines, minute par minute, Sortilèges en plus achetés ou offerts dès le 12e, la recette du jour et les activités du Manoir au mieux) reste sous l’enveloppe avec au moins ×2,2 de marge (×${Math.pow(10, minM).toFixed(2)} au plus juste) — la table du lot 6 de fournil_evts()`);
-  check(maxM <= Math.log10(20), `mais pas plus de ×20 après les six premières heures (×${Math.pow(10, maxM).toFixed(1)} au plus large) : un tricheur ne s’envole pas`);
+  let ouMin = '';
+  for (const g of GRAINES_ENV) for (const offertes of [false, true]) { const s = PAR[`m${g}${offertes ? 'o' : ''}`]; // offertes : le pire cas, tous les Sortilèges d'après le maître dès le 12e
+    for (const [t, v] of s.trace) if (v > 0) { const m = borne(t) - Math.log10(v); if (m < minM) { minM = m; ouMin = `graine ${g}${offertes ? ', Sortilèges offerts' : ''}, ${t.toFixed(2).replace('.', ',')} j`; } if (t > 0.25) maxM = Math.max(maxM, m); } }
+  check(minM >= Math.log10(2.2) - 1e-9, `le marathon 24 h/24 (${GRAINES_ENV.length} graines, minute par minute, Sortilèges en plus achetés ou offerts dès le 12e, la recette du jour et les activités du Manoir au mieux) reste sous l’enveloppe avec au moins ×2,2 de marge (×${Math.pow(10, minM).toFixed(2).replace('.', ',')} au plus juste : ${ouMin}) — la table v6.6 de fournil_evts(), calée à ×2,3 sur 80 graines`);
+  check(maxM <= Math.log10(20), `mais pas plus de ×20 après les six premières heures (×${Math.pow(10, maxM).toFixed(1).replace('.', ',')} au plus large) : un tricheur ne s’envole pas`);
   check(S.assidu.trace.every((x) => x.total === 0 || borne(x.t) - Math.log10(x.total) >= 1), 'un assidu honnête est toujours au moins dix fois sous l’enveloppe');
   // avec les recettes d'après le maître et le Marché des sorcières (16 octobre) : les recettes prennent leur part des bonbons (le marathon
   // simulé achète d'abord le niveau le moins cher), ce qui compense le Marché ; la pleine lune du Sortilège « Nuages » passe à 2 min 30
@@ -334,11 +346,15 @@ if (mEvt) {
   // le plus haut des huit simulations + log10 2,2), arrondi au 0,05 supérieur, relevé là où l'interpolation passait sous ×2,2 ; la 2e valeur
   // au moins 14,2) : {11.65,14.2,16.05,16.25,…,18.2} → {11.65,14.75,16.4,16.45,…,18.3} ; ×2,21 au plus juste, ×11,8 au plus large après
   // six heures (la table v6.5 tombait à ×0,94 : les activités paient dès le premier jour, quand l'économie grimpe le plus vite).
-  // v6.6 (20 octobre) : la recette du jour à la part 0,25 (799 Bd) ET les activités réglées pour le très actif (environ +27 % ; les
-  // fournées parfaites rognées en minutes du rythme, 11 l'heure) : ×1,08 au marathon (861 Bd, 1,1 Tn Sortilèges offerts). La table tirée
-  // de même (scratchpad lot5/tables-lot6.js, jamais sous la v6.5 en ligne, la 2e valeur au moins 14,2) : {11.65,14.2,16.05,16.35,…,18.4}
-  // → {11.65,14.35,16.3,16.4,…,18.4} (supabase/fournil-classement-v66.sql) ; ×2,21 au plus juste, ×11,5 au plus large après six heures
-  // (la v6.5 tombait à ×1,69, dans la première nuit).
+  // v6.6 (20 octobre) : la recette du jour à la part 0,25 (799 Bd) ET les activités réglées pour le très actif (environ +21 %, médiane de
+  // huit graines ; les fournées parfaites rognées en minutes du rythme, 11 l'heure) : ×1,08 au marathon (861 Bd, 1,1 Tn Sortilèges
+  // offerts). La table tirée de même (scratchpad lot5/tables-lot6.js, jamais sous la v6.5 en ligne, la 2e valeur au moins 14,2) :
+  // {11.65,14.2,16.05,16.35,…,18.4} → {11.65,14.35,16.3,16.4,…,18.4} ; ×2,21 au plus juste… sur les quatre graines qui l'avaient faite.
+  // La revue l'a vue tomber à ×2,06 sur la graine 13 (Sortilèges offerts), et une table calée sur vingt graines à ×2,00 sur la 59e (au
+  // début de la première nuit, quand un coup de pouce chanceux pèse le plus). Elle est donc calée sur 80 graines (1 à 80, achetés et
+  // offerts : 160 marathons) à ×2,3, pour que ×2,2 tienne sur celles qu'elle n'a pas vues : {11.65,14.5,16.35,16.45,16.9,…,18.45}
+  // (supabase/fournil-classement-v66.sql) ; ×2,30 au plus juste sur les 80, ×2,30 aussi sur les graines 81 à 120 qu'elle n'a pas vues,
+  // ×13,6 au plus large après six heures (la v6.5 tombait à ×1,69, dans la première nuit).
   check(Math.abs(S.marathon.total / 8.61e17 - 1) < 0.03 && S.marathon.total > SM.marathon.total * 1.04, `avec les activités du Manoir, jouées au mieux : ${HT.fmt(S.marathon.total)} (×${(S.marathon.total / SM.marathon.total).toFixed(2).replace('.', ',')} ; v6.5 : ${HT.fmt(SM.marathon.total)})`);
 }
 
@@ -492,10 +508,20 @@ console.log('── lot 6 : la simulation (le marathon et le très actif jouent 
   // 20e au très actif, mais seulement au DERNIER jour. Avant ce réglage, les activités lui ajoutaient ×1,81 (64,1 → 116 Bd ; 20e le 6e
   // jour), les fournées parfaites à elles seules 63 % (100 min/h : le double d'une fournée de la recette du jour, sans plafond en
   // minutes). Réglées (CLIENTS 0,014 min par friandise, APPARITIONS 0,09, COMMANDES 0,12 min par minute, PARFAIT rogné à 11 min l'heure ;
-  // les plafonds à l'avenant) : ensemble +25 à +35 % (×1,27), aucune plus de 40 % de leur gain, et le 20e au 7e jour au plus tôt.
-  const T0 = SM.tresactif.paliersJour, T1 = S.tresactif.paliersJour, r = S.tresactif.total / SM.tresactif.total, BT = S.tresactif.q.manoir.bilan, gA = Object.values(BT).reduce((a, b) => a + b.gain, 0), partsA = Object.entries(BT).map(([k, b]) => [k, b.gain / gA]);
-  check(r >= 1.25 && r <= 1.35 && [13, 16, 19].every((k) => (T1[k] || 99) <= (T0[k] || 99)) && (!T1[20] || T1[20] >= 7) && partsA.every(([, x]) => x <= 0.4),
-    `avec les activités, le très actif gagne ×${r.toFixed(2).replace('.', ',')} (${HT.fmt(SM.tresactif.total)} → ${HT.fmt(S.tresactif.total)} ; visé +25 à +35 %) : 13e le ${T0[13]}e → ${T1[13]}e jour, 16e le ${T0[16]}e → ${T1[16]}e, 19e le ${T0[19]}e → ${T1[19]}e, 20e ${T0[20] ? `le ${T0[20]}e` : 'jamais'} → ${T1[20] ? `le ${T1[20]}e` : 'jamais'} (le dernier jour au plus tôt) ; leur gain : ${partsA.map(([k, x]) => `${k} ${(x * 100).toFixed(0)} %`).join(', ')} (40 % au plus chacune)`);
+  // les plafonds à l'avenant) : aucune plus de 40 % de leur gain, le 20e au 7e jour au plus tôt, et ensemble ×1,27… sur la graine 7, celle
+  // du réglage. La revue (24 graines) : ×1,10 à ×1,28, ×1,21 en médiane ; +25 % en médiane est hors d'atteinte tant que le 20e reste au
+  // dernier jour. Sans le Manoir, le très actif finit le 6e jour (son dernier soir, t = 5,46 j) à 76-84 % du seuil du 20e selon la graine :
+  // les activités ne peuvent donc lui ajouter que ×1,19 à ×1,31 avant que le 20e ne tombe le 6e soir, et ×1,24 au mieux en médiane (sans
+  // aucun écart d'une graine à l'autre) ; réglées ainsi, la graine la plus proche finit déjà le 6e jour à 99 % du seuil. Essayé : ×1,2 sur
+  // les clients, les apparitions et les commandes → médiane ×1,23, le 20e le 6e jour pour 3 graines sur 24 ; plafonds relevés en plus →
+  // médiane ×1,27, le 6e jour pour 10 graines sur 12. Le dernier jour (la décision du joueur) l'emporte : le réglage reste, et l'on vérifie
+  // la médiane sur huit graines (de ×1,15 à ×1,30) et le 20e au 7e jour sur chacune.
+  const T0 = SM.tresactif.paliersJour, T1 = S.tresactif.paliersJour, BT = S.tresactif.q.manoir.bilan, gA = Object.values(BT).reduce((a, b) => a + b.gain, 0), partsA = Object.entries(BT).map(([k, b]) => [k, b.gain / gA]);
+  const TA = GRAINES_TA.map((g) => { const avec = g === 7 ? S.tresactif : PAR[`t${g}`], sans = g === 7 ? SM.tresactif : PAR[`t${g}s`]; return { g, r: avec.total / sans.total, P1: avec.paliersJour, P0: sans.paliersJour }; });
+  const rs = TA.map((x) => x.r).sort((a, b) => a - b), med = (rs[(rs.length - 1) >> 1] + rs[rs.length >> 1]) / 2, r7 = TA.find((x) => x.g === 7).r;
+  const plusTot = TA.every((x) => [13, 16, 19].every((k) => (x.P1[k] || 99) <= (x.P0[k] || 99))), j20 = TA.map((x) => x.P1[20] || 0);
+  check(med >= 1.15 && med <= 1.30 && rs[0] >= 1.05 && plusTot && j20.every((j) => !j || j >= 7) && partsA.every(([, x]) => x <= 0.4),
+    `avec les activités, le très actif gagne ×${med.toFixed(2).replace('.', ',')} en médiane sur ${TA.length} graines (de ×${rs[0].toFixed(2).replace('.', ',')} à ×${rs[rs.length - 1].toFixed(2).replace('.', ',')} ; ×${r7.toFixed(2).replace('.', ',')} sur la graine 7 : ${HT.fmt(SM.tresactif.total)} → ${HT.fmt(S.tresactif.total)}) ; ses paliers jamais plus tard (graine 7 : 13e le ${T0[13]}e → ${T1[13]}e jour, 16e le ${T0[16]}e → ${T1[16]}e, 19e le ${T0[19]}e → ${T1[19]}e) ; le 20e ${j20.map((j) => (j ? `le ${j}e` : 'jamais')).join(', ')} (le dernier jour au plus tôt, sur chaque graine) ; leur gain : ${partsA.map(([k, x]) => `${k} ${(x * 100).toFixed(0)} %`).join(', ')} (40 % au plus chacune)`);
   const a = S.assidu.q.stats, ra = S.assidu.total / A0.assidu.total, rq = S.quotidien.total / A0.quotidien.total;
   check(a.clientsPartis > 0 && a.apparitionsRatees > 0 && a.clientsServis > a.clientsPartis && ra > 0.85 && ra < 1.25 && rq > 0.85 && rq < 1.25,
     `l’assidu et le quotidien ont des trous (le ×6 s’endort ; des clients partis, des apparitions manquées) : ce que leur rapportent les activités compense à peu près (×${ra.toFixed(2).replace('.', ',')} et ×${rq.toFixed(2).replace('.', ',')} de la v6.5)`); }

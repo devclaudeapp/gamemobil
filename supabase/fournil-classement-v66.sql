@@ -16,7 +16,8 @@
 --  Ce qu'il fait, et rien d'autre :
 --    · fournil_evts() : la ligne 'hantee', même fenêtre (du mardi 27 octobre 2026 à midi au lundi 2 novembre 2026 à 20 h, heure
 --      de Paris), même pas de 6 heures, ses 27 log10 (la recette du jour à la part 0,25 et les activités, jouées au mieux, minute par
---      minute ; ×2,21 de marge au plus juste, ×11,5 au plus large après six heures) ;
+--      minute, sur 80 tirages du hasard des coups de pouce, Sortilèges achetés et offerts : ×2,30 de marge au plus juste, et encore
+--      ×2,30 sur 40 autres tirages qu'elle n'a pas vus ; ×13,6 au plus large après six heures) ;
 --    · chaque nouvelle valeur est supérieure ou égale à celle de la 6.5, au même pas : personne n'est plafonné plus bas qu'avant ;
 --    · la même signature, le même langage, la même volatilité, le même search_path que la version 6 ; les mêmes droits (fonction
 --      interne : ni anon ni authenticated). fournil_evt_borne lit cette table : elle suit d'elle-même. Le Quartier ne change pas.
@@ -36,7 +37,7 @@ immutable
 set search_path = ''
 as $$
   values ('hantee'::text, '2026-10-27 12:00:00 Europe/Paris'::timestamptz, '2026-11-02 20:00:00 Europe/Paris'::timestamptz, 6::double precision,
-          '{11.65,14.35,16.3,16.4,16.85,17.05,17.2,17.35,17.5,17.6,17.65,17.75,17.85,17.9,17.95,18,18.05,18.1,18.15,18.2,18.25,18.3,18.3,18.35,18.35,18.4,18.4}'::double precision[])
+          '{11.65,14.5,16.35,16.45,16.9,17.05,17.25,17.4,17.5,17.65,17.7,17.8,17.85,17.9,17.95,18.05,18.1,18.15,18.2,18.2,18.25,18.3,18.35,18.35,18.4,18.4,18.45}'::double precision[])
 $$;
 
 -- les droits : comme en version 6, une fonction interne (personne d'autre que le propriétaire ne l'appelle)

@@ -1993,7 +1993,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '8ce008164b92';</script>
+<script>window.FOURNIL_VERSION = '9f57eb6114a9';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -11532,9 +11532,11 @@ const GARDEROBE_UI = (() => {
   //      tout de suite) ; dehors : rien de perdu, mais un seul essai par fournée. Plafonds : PARFAIT.parHeure fournées parfaites par heure,
   //      et leur double rogné à PARFAIT.minutes minutes du rythme l'heure, PARFAIT.minutesJour le jour (une fournée de la recette du jour,
   //      à la part 0,25, vaut plusieurs minutes : sans ce plafond, les parfaites pesaient 12 % des bonbons du très actif).
-  //   L'équilibre (20 octobre, la recette du jour à la part 0,25) : ensemble, les quatre activités ajoutent environ +27 % au très actif
-  //   (64 → 82 Bd), aucune plus de 40 % de ce qu'elles rapportent (clients 33 %, apparitions 26 %, parfaites 22 %, commandes 19 %), et son
-  //   20e reste au 7e et dernier jour (test/fournil-hantee.test.js).
+  //   L'équilibre (20 octobre, la recette du jour à la part 0,25) : ensemble, les quatre activités ajoutent environ +21 % au très actif
+  //   (médiane de huit graines, de +10 % à +28 % selon le hasard des coups de pouce ; +27 % sur la graine 7 : 64 → 82 Bd), aucune plus de
+  //   40 % de ce qu'elles rapportent (clients 33 %, apparitions 26 %, parfaites 22 %, commandes 19 %), et son 20e reste au 7e et dernier
+  //   jour sur chaque graine (test/fournil-hantee.test.js). Pas plus : sans elles, il finit le 6e jour à 76-84 % du seuil du 20e ; au-delà
+  //   de +24 % environ, le 20e tomberait le 6e soir pour une partie des joueurs.
   //   4. LES APPARITIONS (APPARITIONS, TYPES_APPARITION, attraper(q, id)) : une toutes les 20 à 60 s ('fantome', 'citrouille',
   //      'chauve-souris'), qui vit 6 à 10 s ; attrapée : APPARITIONS.minutes minutes du rythme, ×1,5 dès la troisième d'affilée (une qui
   //      s'échappe casse la série) ; plafonds à l'heure et au jour. attraper(q) sans id reste le balai de la sorcière (le coup de pouce).
