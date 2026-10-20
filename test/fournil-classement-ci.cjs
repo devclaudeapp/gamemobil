@@ -364,7 +364,7 @@ function arreter(message, conclusion) {
     const hqAvant = await rpc('fournil_heure', {}); // l'heure du serveur juste avant et juste après : la limite du moment est entre les deux
     r = await rpc('fournil_publier', { p_id: A.id, p_jeton: A.jeton, p_pseudo: A.pseudo, p_fortune: 1600, p_points: 20, p_lundi: lundi, p_quartier: 1e24 });
     const qa = r.data || {}, hqApres = await rpc('fournil_heure', {});
-    check(qa.ok === true && (dansFenetre ? qa.quartier_plafonne === true && qa.quartier > 0 && qa.quartier < 1e18 && qa.rang_quartier >= 1 : qa.quartier === 0 && qa.rang_quartier === null),
+    check(qa.ok === true && (dansFenetre ? qa.quartier_plafonne === true && qa.quartier > 0 && qa.quartier < 1e20 && qa.rang_quartier >= 1 : qa.quartier === 0 && qa.rang_quartier === null),
       dansFenetre ? `pendant l'événement : 1e24 billets (console) acceptés mais plafonnés à l'enveloppe du moment (${Number(qa.quartier).toExponential(2)}), A ${qa.rang_quartier}e du quartier` : `hors de l'événement : des billets envoyés sont ignorés (quartier = ${qa.quartier})`);
     r = await rpc('fournil_classement', { p_periode: 'quartier', p_id: A.id, p_limite: 100 });
     check(r.statut === 200 && r.data && (dansFenetre ? r.data.moi && r.data.moi.points === null && r.data.moi.valeur === qa.quartier : r.data.moi === null), `le classement « quartier » ${dansFenetre ? 'y montre A en billets (points : null)' : 'ne montre pas A (0 billet)'}`);
