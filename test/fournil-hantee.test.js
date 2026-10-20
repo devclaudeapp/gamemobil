@@ -232,11 +232,16 @@ check(HT.simuler('assidu', 7, { graine: 7 }).total === S.assidu.total, 'la simul
   const TA = SM.tresactif;
   console.log(`  très actif : ${HT.fmtEur(S.tresactif.total)}, paliers ${JSON.stringify(T)}, ${S.tresactif.q.recettes.fournees} fournées de la recette du jour (sans elle : ${HT.fmtEur(S0.tresactif.total)}, paliers ${JSON.stringify(S0.tresactif.paliersJour)})`);
   const jours = [12, 13, 14, 15, 16, 17, 18].map((k) => T[k] || Infinity), ecarts = jours.slice(1).map((j, k) => j - jours[k]);
-  check(T[12] <= 2 && T[18] <= 7 && ecarts.every((e) => e >= 0 && e <= 2) && !T[20], `le très actif : le 12e le ${T[12]}e jour, puis un bonus par jour ou presque (13e le ${T[13]}e, 15e le ${T[15]}e, 16e le ${T[16]}e, 17e le ${T[17]}e, 18e le ${T[18]}e) ; le 20e reste aux marathoniens`);
+  // le 20e : sans la recette du jour (S0), jamais pour le très actif. À la part 0,25 (+22 à +41 % par session jouée, src/activites.js), la
+  // recette jouée sans arrêt double presque ses gains (×1,96 : 64 Bd) : 16e le 3e jour (4e), 19e le 5e (7e), et le 20e le 7e, le dernier
+  // jour (jamais à la part 0,04). Borne : avec elle, le 20e au dernier jour seulement ; sans elle, jamais.
+  check(T[12] <= 2 && T[18] <= 7 && ecarts.every((e) => e >= 0 && e <= 2) && (!T[20] || T[20] >= 7) && !S0.tresactif.paliersJour[20], `le très actif : le 12e le ${T[12]}e jour, puis un bonus par jour ou presque (13e le ${T[13]}e, 15e le ${T[15]}e, 16e le ${T[16]}e, 17e le ${T[17]}e, 18e le ${T[18]}e) ; le 20e ${T[20] ? `le ${T[20]}e jour seulement, avec la recette du jour` : 'jamais'} (jamais sans elle)`);
   // v6.3 (les gâteaux et les œufs en vraies recettes) : le très actif ne bouge presque pas (13e le 2e jour, 16e le 4e, comme avant ; il touche
   // le 19e le 7e jour, qu'il n'atteignait pas ; le 20e jamais) ; le marathon atteint le 20e le 5e jour (6e avant). Borne : 6e-7e → 5e-7e.
   // v6.4 (les gâteaux ×4, les œufs ×1,5) : le très actif ne bouge pas ; le marathon atteint le 20e le 4e jour (5e en v6.3). Borne : 4e-7e.
-  check(jourDe('marathon', 20) >= 4 && jourDe('marathon', 20) <= 7, `le marathon n’atteint le 20e que le ${jourDe('marathon', 20)}e jour sur 7 (visé : 4e-7e ; le 5e en v6.3, le 6e avant)`);
+  // v6.5 (la recette du jour à la part 0,25, jouée sans arrêt) : le marathon atteint le 20e le 3e jour (4e sans elle et à la part 0,04).
+  // Borne : 4e-7e → 3e-7e ; sans elle, toujours 4e-7e.
+  check(jourDe('marathon', 20) >= 3 && jourDe('marathon', 20) <= 7 && S0.marathon.paliersJour[20] >= 4 && S0.marathon.paliersJour[20] <= 7, `le marathon n’atteint le 20e que le ${jourDe('marathon', 20)}e jour sur 7 avec la recette du jour (visé : 3e-7e), le ${S0.marathon.paliersJour[20]}e sans elle (visé : 4e-7e ; le 5e en v6.3, le 6e avant)`);
   // le temps d'un niveau (le moins cher : son prix, remise comprise, ÷ le taux du Manoir ouvert) : 30 min au 6e jour et 25 min au 7e avant
   const tNiv = (d) => Math.min(...d.niv.map((n, i) => (n > 0 ? HT.coutNiveau(i, n) * (d.remise || 1) / d.taux : Infinity))) / 60, t6 = tNiv(TA.parJour[5]), t7 = tNiv(TA.parJour[6]);
   check(t6 < 15 && t7 < 15, `le très actif attend moins pour un niveau : ${t6.toFixed(0)} min au 6e jour (30 avant), ${t7.toFixed(0)} min au 7e (25 avant)`);
@@ -262,13 +267,24 @@ check(HT.simuler('assidu', 7, { graine: 7 }).total === S.assidu.total, 'la simul
   const gc = dP.map((d) => fois(d, 6)), gcSans = dP.map((d) => fois(d, 6, 'pelle')), od = dO.map((d) => fois(d, 7));
   check(jP >= 3 && dP.length >= 3 && gc.every((v) => v <= 1.5) && gcSans.every((v) => v <= 4.5),
     `un niveau de gâteaux, Pelle achetée (${jP}e jour), se rembourse à peu près comme un niveau de citrouilles, ou mieux : ${bornes(gc)} jusqu’au dernier jour (sans elle ${bornes(gcSans)})`);
-  check(j16 >= 3 && dO.length >= 2 && od.every((v) => v >= 1 / 1.5 && v <= 1.5),
-    `les œufs, sans le Nid : ${bornes(od)} du ${j16 + 1}e jour au dernier (visé ±×1,5)`);
+  // le réglage des produits (±×1,5) se vérifie sur le très actif SANS la recette du jour (S0 : exactement la partie de la v6.4, où il a été
+  // fait) ; avec elle (part 0,25), il est deux fois plus riche, ouvre les œufs un jour plus tôt (16e le 3e jour) et les monte bien plus
+  // haut : un niveau d'œufs se rembourse alors plus vite qu'un niveau de citrouilles, ×0,33 à ×1,05. Borne avec elle : ×0,3 à ×1,5.
+  const PJ0 = S0.tresactif.parJour, j16s = S0.tresactif.paliersJour[16], od0 = PJ0.filter((d) => d.j > j16s && net(d, 7)).map((d) => fois(d, 7));
+  check(j16s >= 3 && od0.length >= 2 && od0.every((v) => v >= 1 / 1.5 && v <= 1.5),
+    `les œufs, sans le Nid (très actif sans la recette du jour) : ${bornes(od0)} du ${j16s + 1}e jour au dernier (visé ±×1,5)`);
+  check(j16 >= 3 && dO.length >= 2 && od.every((v) => v >= 0.3 && v <= 1.5),
+    `avec la recette du jour (part 0,25) : ${bornes(od)} du ${j16 + 1}e jour au dernier (visé ×0,3 à ×1,5 : les œufs rentables plus tôt)`);
   // leur part des gains à la fin : 29 % en v6.3. Avec la Pelle, les gâteaux absorbent l'essentiel des bonbons du très actif (2 % de plus
   // par niveau) : le visé (~45 % au plus) ne tient pas en même temps que le ±×1,5 sans combine ; borne : 60 %.
-  const qf = TA.q, taux = qf.postes.map((s, i) => (s.niv > 0 ? HT.revenuBase(qf, i) / HT.temps(qf, i) : 0)), tot = taux.reduce((a, b) => a + b, 0), part = taux.map((t) => t / tot);
-  check(part[6] >= 0.2 && part[7] >= 0.1 && part[6] + part[7] <= 0.6,
-    `montées, elles font ${((part[6] + part[7]) * 100).toFixed(0)} % de ses gains à la fin (gâteaux ${(part[6] * 100).toFixed(1).replace('.', ',')} %, œufs ${(part[7] * 100).toFixed(1).replace('.', ',')} %, citrouilles ${(part[5] * 100).toFixed(0)} % ; 29 % en v6.3, 1,2 % avant)`);
+  // Sans la recette du jour (S0, le réglage de la v6.4) : 60 % au plus. Avec elle (part 0,25), le très actif deux fois plus riche monte
+  // surtout les œufs (42 %) : 73 % ; borne avec elle : 80 %.
+  const parts = (qf) => { const taux = qf.postes.map((s, i) => (s.niv > 0 ? HT.revenuBase(qf, i) / HT.temps(qf, i) : 0)), tot = taux.reduce((a, b) => a + b, 0); return taux.map((t) => t / tot); };
+  const pc = (v) => (v * 100).toFixed(1).replace('.', ',') + ' %', part0 = parts(S0.tresactif.q), part = parts(TA.q);
+  check(part0[6] >= 0.2 && part0[7] >= 0.1 && part0[6] + part0[7] <= 0.6,
+    `montées, elles font ${((part0[6] + part0[7]) * 100).toFixed(0)} % de ses gains à la fin sans la recette du jour (gâteaux ${pc(part0[6])}, œufs ${pc(part0[7])}, citrouilles ${(part0[5] * 100).toFixed(0)} % ; 29 % en v6.3, 1,2 % avant)`);
+  check(part[6] >= 0.2 && part[7] >= 0.1 && part[6] + part[7] <= 0.8,
+    `avec elle : ${((part[6] + part[7]) * 100).toFixed(0)} % (gâteaux ${pc(part[6])}, œufs ${pc(part[7])}, citrouilles ${(part[5] * 100).toFixed(0)} % ; visé : 80 % au plus)`);
   check(jourDe('assidu', 13) >= 6 && !S.quotidien.paliersJour[13], `le quotidien ne voit pas les paliers bonus ; l’assidu touche le 13e en toute fin (${jourDe('assidu', 13) === Infinity ? 'jamais' : jourDe('assidu', 13) + 'e jour'} ; jamais avant les paliers intercalés)`); }
 
 console.log('── l’enveloppe du serveur (fournil_evts, version 5 du SQL) ──');
@@ -304,6 +320,9 @@ if (mEvt) {
   // chaque pas de 6 h, max(v6.4, log10 du marathon le plus haut des huit simulations + log10 2,2), arrondi au 0,05 supérieur, relevé là où
   // l'interpolation passait sous ×2,2 ; la 2e valeur au moins 14,2) : {11.65,14.05,16.05,16.2,…,18.15} → {11.65,14.2,16.05,16.25,…,18.2} ;
   // ×2,21 au plus juste, ×8,3 au plus large après six heures (la v6.4 tombait à ×2,02 avec la recette).
+  // La part passée à 0,25 (+22 à +41 % par session jouée) : ×2,01 au marathon (799 Bd, 1 Tn Sortilèges offerts) ; la table tirée de même
+  // (jamais sous la v6.4, la 2e valeur 14,2) : {11.65,14.2,16.05,16.25,…,18.2} → {11.65,14.2,16.05,16.35,…,18.4} ; ×2,21 au plus juste,
+  // ×8,3 au plus large après six heures.
   check(Math.abs(S0.marathon.total / 3.9649e17 - 1) < 0.01 && Math.abs(off / 6.1894e17 - 1) < 0.01, `sans la recette du jour, le marathon : ${HT.fmt(S0.marathon.total)} (${HT.fmt(off)} Sortilèges offerts ; 148 Bd et 284 Bd en v6.3, 88 Bd et 97,8 Bd avant, 76,5 Bd et 88,6 Bd sans les paliers intercalés ni les recettes d’après le maître)`);
   check(Math.abs(SM.marathon.total / 4.5509e17 - 1) < 0.02, `avec elle, jouée au mieux : ${HT.fmt(SM.marathon.total)} (×${(SM.marathon.total / S0.marathon.total).toFixed(2).replace('.', ',')})`);
   // lot 6 (19 octobre) : le ×6 qui s'endort (le marathon touche toujours : rien ne change pour lui) et les activités du Manoir (clients,

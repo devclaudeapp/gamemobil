@@ -348,7 +348,7 @@ const EVENEMENTS = (() => {
       if (qq.recettes.aVerser > 0) verserMaitrise(sortie ? sortie.etapes : null); // une étape franchie (ici, ou pendant l'absence)
       const e = Q.etatRecette(qq, t), T = TA(), r = e.four ? e.fr : e.r, M = e.maitrise, ok = qq.billets >= e.prix && e.ouverte;
       const reperes = e.etapes.filter((x) => x.n < M).map((x) => `<b class="rj-repere${x.faite ? ' fait' : ''}" style="left:${(x.n / M * 100).toFixed(1)}%"></b>`).join('');
-      const maitrise = `<div class="palier rj-maitrise"><span>Maîtrise <b>${Math.min(e.fournees, M)}</b>/${M}</span><span>${e.prochaine ? `+${e.prochaine.etoiles} ★` : 'maîtrisée'}</span><i style="width:${(Math.min(e.fournees, M) / M * 100).toFixed(1)}%"></i>${reperes}</div>`;
+      const maitrise = `<div class="palier rj-maitrise"><span>${esc(T.maitriseCarte || T.maitrise || 'Maîtrise')} <b>${Math.min(e.fournees, M)}</b>/${M}</span><span>${e.prochaine ? `+${e.prochaine.etoiles} ★` : 'maîtrisée'}</span><i style="width:${(Math.min(e.fournees, M) / M * 100).toFixed(1)}%"></i>${reperes}</div>`;
       const cuisson = e.niv > 0 && e.ouverte ? `<div class="barre"><i></i><span class="rev">+${prix(e.four ? e.four.gain : e.gain)}</span>${e.four ? `<span class="tps">${G.fmtDuree(e.reste / 1000)}</span>` : '<span class="cuire">Touche !</span>'}</div>`
         : `<p class="rj-desc">${esc(!e.ouverte ? 'La cuisine ouvre demain, à minuit.' : r.desc)}</p>`;
       const bouton = e.max ? '<div class="staff-ok pq"><span>Niveau max</span></div>'
@@ -372,11 +372,11 @@ const EVENEMENTS = (() => {
       const deco = (etapes || []).find((x) => x.deco) || (!etapes && qq.recettes.etapes.includes(Q.RECETTE_JOUR.etapes[Q.RECETTE_JOUR.etapes.length - 1].n) && Q.DECO_RECETTE ? { deco: Q.DECO_RECETTE } : null);
       const dons = [`${n} étoile${n > 1 ? 's' : ''} (+${Math.round(n * G.ETOILE_BONUS * 100)} % de gains, pour toujours)`];
       if (deco) dons.push(F.t.decoDon[deco.deco] || Q.DECO_RECETTE_TXT || F.t.decoDefaut(deco.deco));
-      const quoi = etapes && etapes.length ? `${etapes[etapes.length - 1].n} fournées` : 'une étape de plus';
+      const quoi = etapes && etapes.length ? `${etapes[etapes.length - 1].n} ${TA().unite || 'fournées'}` : 'une étape de plus';
       d.son.deblocage(); d.buzz([10, 30, 10, 30, 10]); if (d.confettis) d.confettis(0.8); d.save(); d.apres();
       if (!$('#feuille').hidden || sheetOuverte || miniOuvert()) { d.toast(`${TA().recette || 'La recette du jour'} : ${quoi}, +${n} ★ pour la boulangerie`); return; }
       sheetOuverte = true;
-      d.openSheet(`<div class="pq-sheet ${F.classe}" data-rj-maitrise="1"><div class="pq-palier-tete"><span class="pq-pic">${(typeof ICONS !== 'undefined' && ICONS.RECETTES_JOUR && ICONS.RECETTES_JOUR.maitrise) || F.ico.palier}</span><div><h2>Maîtrise : ${esc(quoi)}</h2><p class="sous">${esc(TA().recette || 'La recette du jour')}, toutes recettes confondues</p></div></div>
+      d.openSheet(`<div class="pq-sheet ${F.classe}" data-rj-maitrise="1"><div class="pq-palier-tete"><span class="pq-pic">${(typeof ICONS !== 'undefined' && ICONS.RECETTES_JOUR && ICONS.RECETTES_JOUR.maitrise) || F.ico.palier}</span><div><h2>${esc(TA().maitrise || 'Maîtrise')} : ${esc(quoi)}</h2><p class="sous">${esc(TA().recette || 'La recette du jour')}, ${esc(TA().toutes || 'toutes recettes confondues')}</p></div></div>
         <ul class="pq-dons">${dons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
         <button type="button" class="btn large beurre" data-a="pq-ok" style="margin-top:14px"><b>${esc(F.t.palierOk)}</b></button></div>`);
       d.on('[data-a="pq-ok"]', () => { d.son.tap(); d.closeSheet(); });

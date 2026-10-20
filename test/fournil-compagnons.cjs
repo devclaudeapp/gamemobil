@@ -95,7 +95,9 @@ const TOUS = ['chat-roux', 'chien', 'lapin', 'chat-noir', 'chien-quartier'].conc
   check(vus1.every((v, k) => v && v.id === TOUS[k] && v.appels <= 5), `chacun bâti à son tour, 5 appels de dessin au plus (${vus1.map((v) => `${v.id} ${v.appels}`).join(', ')})`);
   const vus2 = await tour(); await tour(); const st2 = await ev(() => window.__fournil.stats()), cache2 = await ev(() => [...MODELES.GEOS.keys()].filter((k) => /^persos\|(comp\||chat-)/.test(k)).length);
   check(vus2.every((v, k) => v && v.id === TOUS[k]) && cache2 === cache1, `deux tours de plus : aucune géométrie nouvelle en cache (${cache1} → ${cache2}), tout est repris`);
-  check(st2.geometries <= st1.geometries + 2 && st2.textures === st1.textures, `et les géométries (${st1.geometries} → ${st2.geometries}, les clients vont et viennent) et textures (${st1.textures} → ${st2.textures}) du rendu ne grandissent pas`);
+  // les clients qui entrent et sortent pendant ces tours ajoutent ou retirent leurs maillages (jusqu'à 4 ou 5 sur une machine lente : 106 → 110 en CI) ;
+  // la fuite d'un animal se voit plus haut, au cache des géométries (cache1 === cache2)
+  check(st2.geometries <= st1.geometries + 6 && st2.textures === st1.textures, `et les géométries (${st1.geometries} → ${st2.geometries}, les clients vont et viennent) et textures (${st1.textures} → ${st2.textures}) du rendu ne grandissent pas`);
   check(st2.calls <= 160, `le budget d’appels de dessin de la boutique tient (${st2.calls})`);
   { // l'animation n'alloue rien : le profileur d'allocations de Chromium, objets ramassés compris, sur 13 animaux × 5 états
     const cdp = await ctx.newCDPSession(page);

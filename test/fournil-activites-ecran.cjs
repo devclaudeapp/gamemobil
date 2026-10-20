@@ -21,7 +21,12 @@ module.exports = async function parcoursActivites(o) {
   const touche = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y]) => ({ x, y, id: 1, radiusX: 6, radiusY: 6, force: 1 })) });
   const toucher = async (x, y) => { await touche('touchStart', [[x, y]]); await touche('touchEnd', []); };
   const centre = (sel) => p.evaluate((s) => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2, w: b.width, h: b.height, r: b.right, bas: b.bottom }; }, sel);
-  const toucherEl = async (sel) => { let c = null; for (let k = 0; k < 40 && !c; k++) { c = await centre(sel); if (!c) await sleep(50); } if (!c) { await p.screenshot({ path: path.join(o.dirs[0], `${o.prefixe}echec.png`) }); throw new Error('introuvable : ' + sel); } await toucher(c.x, c.y); return c; };
+  const toucherEl = async (sel) => { let c = null; for (let k = 0; k < 40 && !c; k++) { c = await centre(sel); if (!c) await sleep(50); } if (!c) { await p.screenshot({ path: path.join(o.dirs[0], `${o.prefixe}echec.png`) }); throw new Error('introuvable : ' + sel); }
+    // un bouton de la feuille : d'abord la fin de sa montée (l'animation « monte », 0,25 s, qui part de 40 px plus bas et prend du retard sur
+    // une machine chargée) ; touché à la place mesurée au début, le doigt tomberait sous le bouton une fois la feuille arrivée
+    if (await ev((s) => { const f = document.querySelector('#feuille'), e = document.querySelector(s); return !!(f && e && f.contains(e) && f.getAnimations().length); }, sel)) {
+      await attendre(() => ev(() => !document.querySelector('#feuille').getAnimations().length), 4000); c = (await centre(sel)) || c; }
+    await toucher(c.x, c.y); return c; };
   const glisser = async (pts) => { await touche('touchStart', [pts[0]]); for (let k = 1; k < pts.length; k++) { await touche('touchMove', [pts[k]]); if (k % 4 === 0) await sleep(1); } await touche('touchEnd', []); };
   const ev = (fn, arg) => p.evaluate(fn, arg);
   const shot = async (nom) => { const f = path.join(o.dirs[0], `${o.prefixe}${nom}.png`); await p.screenshot({ path: f }); for (const d of o.dirs.slice(1)) fs.copyFileSync(f, path.join(d, `${o.prefixe}${nom}.png`)); };
@@ -135,7 +140,7 @@ module.exports = async function parcoursActivites(o) {
       debord: [...c.querySelectorAll('h3, .rj-tag, .rj-demain, .palier span')].some((x) => x.scrollWidth > x.clientWidth + 1) }; }, racine);
   const etatRj = () => ev(([e, c]) => { const F = window.__fournil, R = F[e].R, q = F.st[c], t = HORLOGE.maintenant(); return { r: R.recetteDuJour(t).nom, demain: R.recetteDemain(t).nom, rc: JSON.parse(JSON.stringify(q.recettes)), billets: q.billets, total: q.total, etoiles: F.st.etoiles, prix: R.prixRecette(q) }; }, [o.ev, cle]);
   let e0 = await etatRj(), c1 = await carteRj();
-  check(c1 && c1.premier && c1.txt.includes(e0.r) && c1.txt.includes(`Demain : ${e0.demain}`) && /Maîtrise 0\/500/.test(c1.txt) && c1.reperes === 2 && /Préparer/.test(c1.btn), `la carte, en tête des cartes : « ${e0.r} », « Demain : ${e0.demain} », la maîtrise 0/500 (repères 100 et 250), « ${c1 && c1.btn} »`);
+  check(c1 && c1.premier && c1.txt.includes(e0.r) && c1.txt.includes(`Demain : ${e0.demain}`) && /(Maîtrise|Pochons) 0\/500/.test(c1.txt) && c1.reperes === 2 && /Préparer/.test(c1.btn), `la carte, en tête des cartes : « ${e0.r} », « Demain : ${e0.demain} », la maîtrise 0/500 (repères 100 et 250), « ${c1 && c1.btn} »`);
   check(c1 && c1.g >= 0 && c1.d <= 390 && !c1.debord, `dans l’écran de 390 px, rien de coupé (${c1 && `${c1.g}–${c1.d} × ${c1.h}`})`);
   await shotRj('r1-carte');
   await toucherEl(`${racine} .rj-carte [data-a="rj-niv"]`); await sleep(400); let e1 = await etatRj(); c1 = await carteRj();
@@ -145,21 +150,21 @@ module.exports = async function parcoursActivites(o) {
   await shotRj('r2-cuisson');
   const g1 = e1.rc.four.gain, t1 = e1.total; await ev(([c]) => { const q = window.__fournil.st[c]; q.recettes.four.fin = HORLOGE.maintenant() - 1; }, [cle]); // la fin de la cuisson (sans attendre 20 à 90 s)
   await attendre(async () => (await etatRj()).rc.fournees === 1, 3000); let e2 = await etatRj(); c1 = await carteRj();
-  check(e2.rc.fournees === 1 && e2.rc.four === null && e2.total >= t1 + g1 * 0.999 && /Touche/.test(c1.txt) && /Maîtrise 1\/500/.test(c1.txt), `sortie : +${Math.round(g1)}, la maîtrise passe à 1/500, « Touche ! » de nouveau (rien ne se relance seul)`);
+  check(e2.rc.fournees === 1 && e2.rc.four === null && e2.total >= t1 + g1 * 0.999 && /Touche/.test(c1.txt) && /(Maîtrise|Pochons) 1\/500/.test(c1.txt), `sortie : +${Math.round(g1)}, la maîtrise passe à 1/500, « Touche ! » de nouveau (rien ne se relance seul)`);
   // l'étape des 100 fournées : sa feuille, ses étoiles dans la boulangerie
   await ev(([c]) => { window.__fournil.st[c].recettes.fournees = 99; }, [cle]); const et0 = (await etatRj()).etoiles;
   await toucherEl(`${racine} .rj-carte .barre`); await sleep(300); await ev(([c]) => { const q = window.__fournil.st[c]; if (q.recettes.four) q.recettes.four.fin = HORLOGE.maintenant() - 1; }, [cle]);
-  check(await attendre(async () => /Maîtrise : 100 fournées/.test(await feuille()), 4000), 'à la 100e fournée : la feuille de la maîtrise'); await sleep(450);
+  check(await attendre(async () => /(Maîtrise|Conditionnement) : 100 (fournées|pochons)/.test(await feuille()), 4000), 'à la 100e fournée : la feuille de la maîtrise'); await sleep(450);
   const e3 = await etatRj(), f3 = await feuille();
   check(e3.rc.etapes.join() === '100' && e3.etoiles === et0 + 2 && e3.rc.aVerser === 0 && /2 étoiles/.test(f3), `+2 étoiles versées dans la boulangerie (${et0} → ${e3.etoiles}), une fois`);
   if (rjDir) { const f = path.join(rjDir, `${o.rj || cle}-r3-maitrise.png`); await p.screenshot({ path: f }); }
   await toucherEl('#feuille [data-a="pq-ok"]'); await sleep(400); c1 = await carteRj();
-  check((await feuille()) === '' && /Maîtrise 100\/500/.test(c1.txt) && /\+3 ★/.test(c1.txt) && !c1.debord, `la carte : « Maîtrise 100/500 », la prochaine étape « +3 ★ » (le repère de 100 allumé), rien de coupé`);
+  check((await feuille()) === '' && /(Maîtrise|Pochons) 100\/500/.test(c1.txt) && /\+3 ★/.test(c1.txt) && !c1.debord, `la carte : « Maîtrise 100/500 », la prochaine étape « +3 ★ » (le repère de 100 allumé), rien de coupé`);
   await shotRj('r4-maitrise-100');
   // la 500e : ses étoiles, et la toque pour la boutique (q.decos), posée dans la boulangerie au retour
   await ev(([c]) => { const r = window.__fournil.st[c].recettes; r.fournees = 499; r.etapes = [100, 250]; }, [cle]); const et5 = (await etatRj()).etoiles;
   await toucherEl(`${racine} .rj-carte .barre`); await sleep(300); await ev(([c]) => { const q = window.__fournil.st[c]; if (q.recettes.four) q.recettes.four.fin = HORLOGE.maintenant() - 1; }, [cle]);
-  check(await attendre(async () => /Maîtrise : 500 fournées/.test(await feuille()), 4000), 'à la 500e fournée : la feuille de la maîtrise'); await sleep(450);
+  check(await attendre(async () => /(Maîtrise|Conditionnement) : 500 (fournées|pochons)/.test(await feuille()), 4000), 'à la 500e fournée : la feuille de la maîtrise'); await sleep(450);
   const e5 = await etatRj(), f5 = await feuille(), deco = await ev(([e]) => window.__fournil[e].R.DECO_RECETTE, [o.ev]);
   check(e5.etoiles === et5 + 5 && /toque/.test(f5) && await ev(([c, dd]) => window.__fournil.st[c].decos.includes(dd), [cle, deco]), `+5 étoiles et « ${f5.split('\n').find((l) => /toque/.test(l)) || '?'} »`);
   await toucherEl('#feuille [data-a="pq-ok"]'); await sleep(300); await toucherEl(`${racine} [data-pq="fermer"]`); await sleep(500);

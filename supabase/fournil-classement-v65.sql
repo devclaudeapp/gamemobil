@@ -350,7 +350,7 @@ language sql
 immutable
 set search_path = ''
 as $$
-  select '{12.5,16.7,16.95,17.35,17.55,17.75,17.9,18,18.1,18.2,18.25,18.35,18.4,18.45,18.45}'::double precision[]
+  select '{12.5,16.8,17.1,17.55,17.75,17.9,18.05,18.2,18.3,18.35,18.45,18.5,18.6,18.65,18.7}'::double precision[]
 $$;
 
 -- les événements génériques : 'hantee', « La Maison hantée » (src/hantee.js, test/fournil-hantee.test.js) ; un pas de 6 heures
@@ -363,7 +363,7 @@ immutable
 set search_path = ''
 as $$
   values ('hantee'::text, '2026-10-27 12:00:00 Europe/Paris'::timestamptz, '2026-11-02 20:00:00 Europe/Paris'::timestamptz, 6::double precision,
-          '{11.65,14.75,16.4,16.45,16.85,17.05,17.2,17.3,17.45,17.5,17.6,17.65,17.75,17.8,17.85,17.9,17.95,18,18.05,18.05,18.1,18.15,18.2,18.2,18.25,18.25,18.3}'::double precision[])
+          '{11.65,14.2,16.05,16.35,16.75,17,17.15,17.35,17.45,17.55,17.65,17.75,17.8,17.85,17.9,18,18.05,18.1,18.15,18.15,18.2,18.25,18.3,18.3,18.35,18.4,18.4}'::double precision[])
 $$;
 
 -- les droits : comme en version 6, les fonctions internes (personne d'autre que le propriétaire ne les appelle) ; les fonctions du

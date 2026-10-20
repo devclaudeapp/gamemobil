@@ -1977,7 +1977,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '80314f05f97c';</script>
+<script>window.FOURNIL_VERSION = 'dc6d770da920';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -10376,12 +10376,16 @@ const GARDEROBE_UI = (() => {
   // relance seul. La maîtrise compte les fournées de toutes les recettes (q.recettes.fournees) : trois étapes, chacune donnée une fois
   // (q.recettes.etapes) : des étoiles pour la boulangerie (comme une combine : q.etoiles pour le bilan, q.recettes.aVerser que l'écran
   // verse et remet à zéro) et, à la dernière, le décor de la fiche (q.decos, comme un palier). Ces étoiles ne touchent pas aux billets.
-  // La part : 0,04, et non 1 comme la saison. Ici, la présence (boostMult) multiplie déjà les ventes par 6 : à la part 1, la recette jouée
-  // sans arrêt triplait les gains de la session (×5,9 en quatorze jours de marathon ; le très actif au 20e palier le 7e jour). À 0,04, elle
-  // ajoute ~8 % (0,04 × 1,9 × 6 = 0,46 rythme, contre ~6 pour les postes) : le 20e reste hors de portée du très actif (106 Bd pour 110 Bd
-  // au Quartier ; 95,9 Bd sans elle). Ce qu'elle paie surtout, c'est la maîtrise (les étoiles, le décor). Le prix suit la part (coutSec :
-  // 300 × 0,04 = 12 s du rythme) : un niveau se rembourse en autant de fournées qu'à la saison.
-  const RECETTE_JOUR = { part: 0.04, pas: 0.1, coutSec: 12, croiss: 1.5, nivMax: 10, tempsMin: 20, tempsMax: 90,
+  // La part : 0,25, et non 1 comme la saison. Ici, la présence (boostMult) multiplie déjà les ventes par 6 : à la part 1, la recette jouée
+  // sans arrêt triplait les gains de la session (×5,9 en quatorze jours de marathon) ; à 0,04, elle n'ajoutait que ~7 %. Le réglage choisi
+  // (« Moyen ») : jouée sans arrêt pendant une session de la Planque ou du Manoir (deux heures, niveau fixe, sans achats, les trois autres
+  // activités jouées), elle ajoute +22 % aux gains de la session au niveau 1, +30 % au niveau 5, +41 % au niveau 10 (0,25 × 1,9 × 6 =
+  // 2,85 rythme par seconde, contre ~7 pour les postes et les activités ; +40 % encore au 12e jour). Comme ces gains se réinvestissent, ça
+  // se compose sur l'événement : au Quartier, le marathon ×1,96 en quatorze jours (1,65 Tn ; 844 Bd sans elle), le très actif ×1,94
+  // (186 Bd) : le 12e un jour plus tôt (le 2e), le 16e le 4e (5e), le 20e le 12e jour (jamais sans elle) ; au Manoir, ×2,0 et ×1,96 en sept
+  // jours, le 20e du très actif le 7e (jamais sans elle). Le prix suit la part (coutSec : 300 × 0,25 = 75 s du rythme) : un niveau se
+  // rembourse en autant de fournées qu'à la saison.
+  const RECETTE_JOUR = { part: 0.25, pas: 0.1, coutSec: 75, croiss: 1.5, nivMax: 10, tempsMin: 20, tempsMax: 90,
     etapes: [{ n: 100, etoiles: 2 }, { n: 250, etoiles: 3 }, { n: 500, etoiles: 5, deco: true }] };
   // les modèles de contrats : une statistique de q.stats, trois exigences (facile, moyen, dur) ; « vente » vise un des trois premiers produits
   const MODELES = {
@@ -11139,7 +11143,7 @@ const GARDEROBE_UI = (() => {
         { id: 'moyen', nom: 'La livraison du bâtiment C', desc: 'Un quart d’heure dans les escaliers : l’ascenseur est en panne.' },
         { id: 'long', nom: 'Le gros coup du PMU', desc: 'Une heure dans l’arrière-salle : le meilleur gain, le plus de risque.' },
       ],
-      textes: { saisie: 'Contrôle de police', saisieTxt: (m) => `Contrôle de police : ${m} saisis.`, operation: 'Opération', enCours: 'L’équipe est sur le coup', recette: 'La recette du jour', cuisine: 'La cuisine de la Planque' },
+      textes: { saisie: 'Contrôle de police', saisieTxt: (m) => `Contrôle de police : ${m} saisis.`, operation: 'Opération', enCours: 'L’équipe est sur le coup', recette: 'Mise en pochon du jour', maitrise: 'Conditionnement', maitriseCarte: 'Pochons', toutes: 'tous pochons confondus', unite: 'pochons', cuisine: 'La cuisine de la Planque' },
       // la recette du jour (src/activites.js, RECETTE_JOUR) : la cuisine de la Planque, une recette par jour, de 20 à 90 s ; à la 500e fournée, la toque en or
       recettes: [
         { id: 'the-menthe', nom: 'Le thé à la menthe du hall', desc: 'Très sucré, versé de très haut, servi sur les marches du bâtiment B.', temps: 20, icone: 'the-menthe' },
@@ -13322,7 +13326,7 @@ const EVENEMENTS = (() => {
       if (qq.recettes.aVerser > 0) verserMaitrise(sortie ? sortie.etapes : null); // une étape franchie (ici, ou pendant l'absence)
       const e = Q.etatRecette(qq, t), T = TA(), r = e.four ? e.fr : e.r, M = e.maitrise, ok = qq.billets >= e.prix && e.ouverte;
       const reperes = e.etapes.filter((x) => x.n < M).map((x) => `<b class="rj-repere${x.faite ? ' fait' : ''}" style="left:${(x.n / M * 100).toFixed(1)}%"></b>`).join('');
-      const maitrise = `<div class="palier rj-maitrise"><span>Maîtrise <b>${Math.min(e.fournees, M)}</b>/${M}</span><span>${e.prochaine ? `+${e.prochaine.etoiles} ★` : 'maîtrisée'}</span><i style="width:${(Math.min(e.fournees, M) / M * 100).toFixed(1)}%"></i>${reperes}</div>`;
+      const maitrise = `<div class="palier rj-maitrise"><span>${esc(T.maitriseCarte || T.maitrise || 'Maîtrise')} <b>${Math.min(e.fournees, M)}</b>/${M}</span><span>${e.prochaine ? `+${e.prochaine.etoiles} ★` : 'maîtrisée'}</span><i style="width:${(Math.min(e.fournees, M) / M * 100).toFixed(1)}%"></i>${reperes}</div>`;
       const cuisson = e.niv > 0 && e.ouverte ? `<div class="barre"><i></i><span class="rev">+${prix(e.four ? e.four.gain : e.gain)}</span>${e.four ? `<span class="tps">${G.fmtDuree(e.reste / 1000)}</span>` : '<span class="cuire">Touche !</span>'}</div>`
         : `<p class="rj-desc">${esc(!e.ouverte ? 'La cuisine ouvre demain, à minuit.' : r.desc)}</p>`;
       const bouton = e.max ? '<div class="staff-ok pq"><span>Niveau max</span></div>'
@@ -13346,11 +13350,11 @@ const EVENEMENTS = (() => {
       const deco = (etapes || []).find((x) => x.deco) || (!etapes && qq.recettes.etapes.includes(Q.RECETTE_JOUR.etapes[Q.RECETTE_JOUR.etapes.length - 1].n) && Q.DECO_RECETTE ? { deco: Q.DECO_RECETTE } : null);
       const dons = [`${n} étoile${n > 1 ? 's' : ''} (+${Math.round(n * G.ETOILE_BONUS * 100)} % de gains, pour toujours)`];
       if (deco) dons.push(F.t.decoDon[deco.deco] || Q.DECO_RECETTE_TXT || F.t.decoDefaut(deco.deco));
-      const quoi = etapes && etapes.length ? `${etapes[etapes.length - 1].n} fournées` : 'une étape de plus';
+      const quoi = etapes && etapes.length ? `${etapes[etapes.length - 1].n} ${TA().unite || 'fournées'}` : 'une étape de plus';
       d.son.deblocage(); d.buzz([10, 30, 10, 30, 10]); if (d.confettis) d.confettis(0.8); d.save(); d.apres();
       if (!$('#feuille').hidden || sheetOuverte || miniOuvert()) { d.toast(`${TA().recette || 'La recette du jour'} : ${quoi}, +${n} ★ pour la boulangerie`); return; }
       sheetOuverte = true;
-      d.openSheet(`<div class="pq-sheet ${F.classe}" data-rj-maitrise="1"><div class="pq-palier-tete"><span class="pq-pic">${(typeof ICONS !== 'undefined' && ICONS.RECETTES_JOUR && ICONS.RECETTES_JOUR.maitrise) || F.ico.palier}</span><div><h2>Maîtrise : ${esc(quoi)}</h2><p class="sous">${esc(TA().recette || 'La recette du jour')}, toutes recettes confondues</p></div></div>
+      d.openSheet(`<div class="pq-sheet ${F.classe}" data-rj-maitrise="1"><div class="pq-palier-tete"><span class="pq-pic">${(typeof ICONS !== 'undefined' && ICONS.RECETTES_JOUR && ICONS.RECETTES_JOUR.maitrise) || F.ico.palier}</span><div><h2>${esc(TA().maitrise || 'Maîtrise')} : ${esc(quoi)}</h2><p class="sous">${esc(TA().recette || 'La recette du jour')}, ${esc(TA().toutes || 'toutes recettes confondues')}</p></div></div>
         <ul class="pq-dons">${dons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
         <button type="button" class="btn large beurre" data-a="pq-ok" style="margin-top:14px"><b>${esc(F.t.palierOk)}</b></button></div>`);
       d.on('[data-a="pq-ok"]', () => { d.son.tap(); d.closeSheet(); });
@@ -15730,6 +15734,16 @@ const RETOURS = (() => {
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
   const NOUVEAUTES = [
+    {
+      id: '2026-10-20-a', date: '2026-10-20', titre: 'La recette du jour, et des récompenses jusqu’au 15e',
+      points: [
+        'Dans la Planque, la « Mise en pochon du jour » : une recette qui change chaque jour, à lancer à la main. Prépare-la, améliore-la jusqu’au niveau 10 : jouée sans arrêt, elle ajoute jusqu’à 40 % à tes gains.',
+        'Conditionne 100, 250 puis 500 pochons (toutes recettes confondues) : des étoiles pour ta boulangerie, et un décor à la fin. La Maison hantée aura la sienne dès le 27.',
+        'Chaque lundi, les quinze premiers du classement de la semaine sont récompensés : des étoiles et un boost, et toujours la tenue et la coupe pour le podium. Une feuille te dit ta place.',
+        'Corrigé : une fin d’événement Planque ouverte paie bien ton absence ; un boost de la réserve fini pendant ton absence compte ; tes objectifs du jour finis sont réclamés avant une nouvelle boutique ; une main de BlackJack en cours ne suit plus dans la nouvelle boutique ; les pourboires ne se perdent plus quand le réseau coupe.',
+        'L’interrupteur « Décors en HD » est maintenant dans Réglages › Le jeu.',
+      ],
+    },
     {
       id: '2026-10-18-b', date: '2026-10-18', titre: 'Le Sirop violet et le Cristal bleu, encore plus forts',
       points: [
