@@ -45,7 +45,10 @@ const HANTEE_ACTIVITES = (() => {
     // ─── ouvrir, fermer ───
     function ouvrir() {
       ouvert = true; choisi = null; lastEveil = ''; lastCmd = ''; lastSerie = ''; lastAmb = -1; tMaj = 0;
-      const sc = sceneEl(); if (sc && !couche) { couche = document.createElement('div'); couche.className = 'mh-couche'; sc.appendChild(couche); }
+      const sc = sceneEl(); if (sc && !couche) {
+        couche = document.createElement('div'); couche.className = 'mh-couche'; sc.appendChild(couche);
+        const z = document.createElement('div'); z.className = 'mh-dodo'; z.hidden = true; z.setAttribute('aria-hidden', 'true'); z.textContent = T.reveil || 'Zzz… touche le Manoir pour le réveiller'; couche.appendChild(z); // (le boss dort : le mot sur la scène, et le voile)
+      }
       if (Q.reparerManoir) Q.reparerManoir(qq(), maint());
       majTout();
     }
@@ -57,7 +60,7 @@ const HANTEE_ACTIVITES = (() => {
     }
     function vider() { // les liens tombent (la scène est détruite, ou on change de mode) : rien ne reste à l'écran
       for (const o of clients.values()) { if (o.bulle) o.bulle.remove(); if (o.monstre) o.monstre.remove(); }
-      for (const a of apps.values()) if (a.img) a.img.remove();
+      for (const a of apps.values()) { if (a.img) a.img.remove(); if (a.halo) a.halo.remove(); }
       clients.clear(); apps.clear();
     }
 
@@ -100,6 +103,7 @@ const HANTEE_ACTIVITES = (() => {
         lastEveil = cle; e.hidden = false; e.innerHTML = F.gabarits.eveil(part, txt); e.dataset.niveau = part < 0.35 ? 'bas' : part < 1 ? 'moyen' : 'plein';
         e.setAttribute('aria-valuenow', String(Math.round(part * 100))); e.setAttribute('aria-valuetext', `${txt} Tout se vend ×${presTxt(p.mult)}.`);
       }
+      if (couche) { const v = (1 - part).toFixed(2); if (couche.style.getPropertyValue('--mh-sommeil') !== v) couche.style.setProperty('--mh-sommeil', v); const z = couche.querySelector('.mh-dodo'); if (z && z.hidden !== part > 0) z.hidden = part > 0; } // le voile de la scène (en haute comme en éco)
       if (B() && (Math.abs(part - lastAmb) > 0.01 || (part !== lastAmb && (part === 0 || part === 1)))) { lastAmb = part; B().ambiance({ actif: part }); } // (jusqu'au bout : 0 et 1 exactement)
       if (part >= 1 && dernierEveil <= 0 && S()) S().jeuSon('chat', { vol: 0.3 }); // réveillé d'un coup : le chat noir miaule
       dernierEveil = part;
@@ -233,7 +237,7 @@ const HANTEE_ACTIVITES = (() => {
       const x = o.sens > 0 ? -30 + u * (W + 60) : W + 30 - u * (W + 60), y = H * o.y0 + Math.sin(u * 14 + o.id) * 10;
       im.style.transform = `translate(${(x - 28).toFixed(1)}px, ${(y - 28).toFixed(1)}px) rotate(${(Math.sin(u * 9 + o.id) * 10).toFixed(1)}deg)`;
     }
-    function retirerApp(o) { if (o.sid != null && B()) B().retirer(o.sid); if (o.img) { o.img.classList.add('mh-sort-fache'); const im = o.img; setTimeout(() => im.remove(), 300); } apps.delete(o.id); }
+    function retirerApp(o) { if (o.sid != null && B()) B().retirer(o.sid); for (const im of [o.img, o.halo]) if (im) { im.classList.add('mh-sort-fache'); setTimeout(() => im.remove(), 300); } apps.delete(o.id); }
     function attraper(id) {
       const o = apps.get(id); if (!o) return null;
       let pos = null;
@@ -242,6 +246,7 @@ const HANTEE_ACTIVITES = (() => {
       const r = Q.attraper(qq(), id);
       if (!r.ok) { retirerApp(o); return r; }
       if (o.sid != null && B()) B().attraper(o.sid); // la petite explosion d'étincelles
+      if (o.halo) { const h = o.halo; h.classList.add('mh-attrape'); setTimeout(() => h.remove(), 500); }
       if (o.img) { o.img.classList.add('mh-attrape'); o.img.style.pointerEvents = 'none'; const im = o.img; setTimeout(() => im.remove(), 500); }
       apps.delete(id);
       const M = manoir(); if (M) M.record = Math.max(M.record || 0, r.serie || 0);
@@ -321,6 +326,14 @@ const HANTEE_ACTIVITES = (() => {
           v.cx = Math.max(v.w / 2 + 4, Math.min(r.width - v.w / 2 - 4, v.cx));
           v.b.style.transform = `translate(${v.cx.toFixed(1)}px, ${v.y.toFixed(1)}px) translate(-50%, -100%)`;
           const pointe = Math.max(-v.w / 2 + 14, Math.min(v.w / 2 - 14, v.x - v.cx)).toFixed(0) + 'px'; if (v.b.style.getPropertyValue('--mh-pointe') !== pointe) v.b.style.setProperty('--mh-pointe', pointe);
+        }
+        // le halo de chaque apparition de la scène : une cible qu'on voit, même sombre sur le carrelage de nuit (le toucher, lui, va à la scène)
+        const l = apps.size ? B().apparitions() : [];
+        for (const o of apps.values()) {
+          if (o.sid == null) continue; const p = l.find((x) => x.id === o.sid);
+          if (!o.halo) { o.halo = document.createElement('i'); o.halo.className = 'mh-halo'; o.halo.dataset.type = o.type; o.halo.setAttribute('aria-hidden', 'true'); couche.appendChild(o.halo); }
+          if (!p) { o.halo.hidden = true; continue; } o.halo.hidden = false;
+          o.halo.style.transform = `translate(${(p.x - r.left).toFixed(1)}px, ${(p.y - r.top).toFixed(1)}px) translate(-50%, -50%)`;
         }
       } else for (const o of apps.values()) placerApp(o, q.now);
     }

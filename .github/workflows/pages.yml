@@ -71,13 +71,14 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
-      - name: Le Quartier, la Maison hantée, l'arrière-salle, la HD, les sons, les personnages, les meubles de la salle
+      - name: Le Quartier, la Maison hantée (et ses activités), l'arrière-salle, la HD, les sons, les personnages, les meubles de la salle
         run: |
           node build.js
           node test/fournil-quartier.test.js
           node test/fournil-hantee.test.js
           node test/fournil-quartier.cjs
           node test/fournil-hantee.cjs
+          node test/fournil-hantee-activites.cjs
           node test/fournil-blackjack.test.js
           node test/fournil-blackjack.cjs
           node test/fournil-hd.cjs
@@ -94,6 +95,7 @@ jobs:
           PORT_QUARTIER: '8865'
           PORT_BLACKJACK: '8866'
           PORT_MEUBLES: '8870'
+          PORT_HANTEE_ACTIVITES: '8881'
   # Une troisième tâche en parallèle (la première dépassait les 20 minutes) : les notifications, le réveil, les compagnons, la mise à jour, le chat, les nouveautés,
   # les recettes de boutique et le parcours du boulanger.
   fournil3:

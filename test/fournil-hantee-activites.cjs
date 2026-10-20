@@ -12,19 +12,19 @@
 // · les apparitions : la scène les fait traverser ; un toucher dessus les attrape (l'éclat de particules), trois d'affilée : la série ×1,5
 //   et son compteur sur la scène ;
 // · la commande de la nuit : sa carte en tête du tiroir, sa jauge, son bouton ; pas prête, le bouton le dit ; prête, Livrer la paie ;
-// · le ×6 qui s'endort : quatre minutes sans toucher (l'horloge avancée de 2,5 s à chaque image : la page tourne), la jauge se vide, la lumière de
+// · le ×6 qui s'endort : quatre minutes sans toucher (l'horloge avancée de 1,5 s à chaque image : la page tourne), la jauge se vide, la lumière de
 //   la scène baisse, « ×1 » ; un toucher sur la scène, et tout revient ;
-// puis, avec ?boutique=0 (le Manoir d'avant : pas de scène de boutique), le repli en DOM : la file en bas de la scène, une apparition en
-// image. Aucune erreur dans la page. Captures dans test/shots/hantee-activites/ (et dans SHOTS_HANTEE_ACTIVITES, préfixées « final- »).
+// puis le soir (21 h 15, haute et éco : la file avec ses bulles, une apparition ; des captures), et, avec ?boutique=0 (le Manoir d'avant :
+// pas de scène de boutique), le repli en DOM : la file en bas de la scène, une apparition en image. Aucune erreur dans la page. Captures dans test/shots/hantee-activites/ (et dans SHOTS_HANTEE_ACTIVITES, préfixées « final- »).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-hantee-activites.cjs
 'use strict';
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
-const root = path.join(__dirname, '..'), PORT = +process.env.PORT_HANTEE_ACTIVITES || 8922;
+const root = path.join(__dirname, '..'), PORT = +process.env.PORT_HANTEE_ACTIVITES || 8881;
 const out = path.join(__dirname, 'shots', 'hantee-activites'); fs.mkdirSync(out, { recursive: true });
 const out2 = process.env.SHOTS_HANTEE_ACTIVITES ? (fs.mkdirSync(process.env.SHOTS_HANTEE_ACTIVITES, { recursive: true }), process.env.SHOTS_HANTEE_ACTIVITES) : null;
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.glb': 'model/gltf-binary', '.mp3': 'audio/mpeg', '.webmanifest': 'application/manifest+json' };
-const DEPART = new Date('2026-10-28T11:00:00+01:00').getTime(), decal = DEPART - Date.now();
+const DEPART = new Date('2026-10-28T11:00:00+01:00').getTime(), SOIR = new Date('2026-10-28T21:15:00+01:00').getTime(); let decal = DEPART - Date.now(); // (le soir : les captures de 21 h 15)
 let plus = 0; // l'avance de l'horloge de la page (window.__avancer), que le serveur suit aussi (l'en-tête Date)
 const server = http.createServer((req, res) => {
   res.setHeader('Date', new Date(Date.now() + decal + plus).toUTCString());
@@ -50,8 +50,8 @@ function faux(d) {
 
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }); // WebGL2 : la HD en haute
-  async function ouvrir(requete) {
-    plus = 0;
+  async function ouvrir(requete, depart) {
+    plus = 0; decal = (depart || DEPART) - Date.now();
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
     await ctx.addInitScript(faux, decal);
     await ctx.route(/supabase\.co/, (r) => r.abort());
@@ -134,7 +134,7 @@ function faux(d) {
     const c3 = await attendre(async () => { const e = await act(); return e.clients.find((c) => c.id !== c1.id && (!c2 || c.id !== c2.id) && c.bulle && c.sid) || null; }, 25000);
     if (c3) {
       const p0 = (await regles()).stats.clientsPartis, b3 = (await regles()).billets;
-      await ev((id) => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), c = q.manoir.file.find((x) => x.id === id); c.arrive -= 34000; }, c3.id); // (il attendait déjà depuis 34 s)
+      await ev((id) => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), c = q.manoir.file.find((x) => x.id === id); c.arrive -= 30000; }, c3.id); // (il attendait déjà depuis 30 s : 10 s de patience)
       const bas = await attendre(() => ev((id) => document.querySelector(`.mh-bulle[data-client="${id}"]`)?.classList.contains('presse'), c3.id), 4000, 100);
       const fin = await attendre(async () => { const r = await regles(); return !r.file.some((c) => c.id === c3.id) ? r : null; }, 15000);
       const vie3 = await ev((sid) => { const c = VIE.clients.find((x) => 'c' + x.id === sid); return c ? { etat: VIE.etatClient(c), humeur: c.humeur } : null; }, c3.sid);
@@ -161,11 +161,16 @@ function faux(d) {
       const w = await attendre(() => ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), w = F.evHantee.R.fenetreParfait(q, 3), f = document.querySelector('#ht-cartes .carte[data-i="3"] .mh-fenetre'); return w && f && !f.hidden ? { w, left: parseFloat(f.style.left), width: parseFloat(f.style.width) } : null; }), 3000);
       if (!w) { check(false, 'la fenêtre « parfait » est dessinée sur la barre'); break; }
       if (essai === 0) check(Math.abs(w.left - w.w.debut * 100) < 0.2 && Math.abs(w.width - (w.w.fin - w.w.debut) * 100) < 0.2, `lancée à la main : la fenêtre « parfait » dessinée sur sa barre (${w.left.toFixed(0)} % → ${(w.left + w.width).toFixed(0)} %)`);
+      // (la fournée amenée juste au bord de la fenêtre : en haute, une image peut durer plus d'une seconde, la fenêtre passerait entre deux)
+      await ev((x) => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), s = q.postes[3]; if (s.prog / 12 < x.debut - 0.03) s.prog = (x.debut - 0.03) * 12; }, w.w);
       const dedans = await ev((x) => new Promise((ok) => { let vu = ''; const t0 = performance.now(), un = () => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), p = q.postes[3].prog / 12, m = document.querySelector('#ht-cartes .carte[data-i="3"]').dataset.mh || '';
         if (p >= x.debut && p < x.fin && /brille/.test(m)) vu = m;
         if (p >= x.debut + 0.02 && p < x.fin - 0.05 && vu) ok(vu); else if (p >= x.fin - 0.05 || performance.now() - t0 > 15000) ok(vu || (p >= x.debut && p < x.fin ? m || 'non' : null)); else setTimeout(un, 15); }; un(); }), w.w); // (attendue dans la page : en haute, un aller-retour de Playwright dure plus que la fenêtre)
+      await ev(() => { window.__garder = true; if (!window.__rm) { const rm = window.__rm = Element.prototype.remove; Element.prototype.remove = function () { if (window.__garder && this.classList && this.classList.contains('mh-flotte')) return; return rm.call(this); }; } }); // (pour la capture : « Parfait ! ×2 » reste)
       await page.touchscreen.tap(bb.x + bb.width * 0.5, bb.y + bb.height / 2); await sleep(250);
       const r = await regles();
+      if (r.stats.parfaits > pf0) { await ev(() => { for (const f of document.querySelectorAll('.mh-flotte')) { f.style.animation = 'none'; f.style.opacity = '1'; if (!/Parfait/.test(f.textContent)) f.style.display = 'none'; } }); await sleep(300); await shot(page, `${qual}-parfait`); }
+      await ev(() => { window.__garder = false; for (const f of document.querySelectorAll('.mh-flotte')) f.remove(); });
       if (r.stats.parfaits > pf0) parfait = { brille: dedans, fl: await flottes(), vert: await attendre(() => ev(() => document.querySelector('#ht-cartes .carte[data-i="3"] .mh-fenetre.fait') !== null), 4000, 100) };
       else console.log(`  (essai ${essai + 1} : le doigt est arrivé hors de la fenêtre, on recommence à la fournée suivante)`);
     }
@@ -178,6 +183,8 @@ function faux(d) {
     { // la capture d'abord, sur une apparition qu'on laisse filer (en haute, une capture dure plusieurs secondes : celle-ci s'échappe, et sa série avec)
       await pousser('app'); const ap = await dansScene(90, 300);
       check(!!ap && ap.sid != null && !ap.dom && (await ev((s) => BOUTIQUE_HANTEE.apparitions().some((x) => x.id === s), ap.sid)), `une apparition des règles (${ap && ap.type}) traverse la scène de la boutique`);
+      const halo = ap && await attendre(() => ev((s) => { const a = BOUTIQUE_HANTEE.apparitions().find((x) => x.id === s), h = document.querySelector('.mh-halo:not([hidden])'); if (!a || !h) return null; const r = h.getBoundingClientRect(); return Math.hypot(r.left + r.width / 2 - a.x, r.top + r.height / 2 - a.y) < 30 ? Math.round(r.width) : null; }, ap.sid), 3000, 50);
+      check(!!halo, `son halo la suit (une cible de ${halo} px, qu’on voit même sombre sur le carrelage)`);
       if (ap) await shot(page, `${qual}-apparition`);
       await attendre(async () => (await regles()).apps.length === 0, 15000); }
     const ap0 = (await regles()).stats.apparitions;
@@ -211,14 +218,16 @@ function faux(d) {
     R = await regles();
     check(R.stats.commandes === cmd0 + 1 && R.billets > bc && !R.commande && await ev(() => document.querySelector('#ht-commande').hidden) && (await toasts()).some((t) => /Commande livrée/.test(t)), `Livrer : payée (+${Math.round(R.billets - bc)}), la carte s’en va`);
 
-    // ─── le ×6 qui s'endort : quatre minutes sans toucher (l'horloge avancée de 2,5 s à chaque image : la page tourne), puis un toucher ───
+    // ─── le ×6 qui s'endort : quatre minutes sans toucher (l'horloge avancée de 1,5 s à chaque image : la page tourne), puis un toucher ───
     await page.touchscreen.tap(195, await ev(() => { const r = document.querySelector('.mh-couche').getBoundingClientRect(); return r.top + 20; })); await sleep(300); // (un dernier toucher : le plein)
     const amb0 = (await ev(() => window.__amb.length));
     let mi = null;
-    for (const k of [0, 1]) { plus += 120e3; await ev(() => window.__avancerParImage(120e3, 2500)); await sleep(500); if (k === 0) mi = await ev(() => ({ e: window.__fournil.HT.presence(window.__fournil.st.hantee, HORLOGE.maintenant()), txt: document.querySelector('#ht-eveil').innerText, taux: document.querySelector('#ht-taux').innerText })); }
+    for (const k of [0, 1]) { plus += 120e3; await ev(() => window.__avancerParImage(120e3, 1500)); await sleep(500); if (k === 0) mi = await ev(() => ({ e: window.__fournil.HT.presence(window.__fournil.st.hantee, HORLOGE.maintenant()), txt: document.querySelector('#ht-eveil').innerText, taux: document.querySelector('#ht-taux').innerText })); }
     await sleep(800);
     check(mi && mi.e.eveil > 0 && mi.e.eveil < 1 && /s’endort/.test(mi.txt), `au bout de 2 min : la jauge baisse (${mi && Math.round(mi.e.eveil * 100)} %, « ${mi && mi.txt.trim()} », ${mi && mi.taux})`);
     const dort = await ev(() => { const e = document.querySelector('#ht-eveil'); return { p: window.__fournil.HT.presence(window.__fournil.st.hantee, HORLOGE.maintenant()), txt: e.innerText, niveau: e.dataset.niveau, jauge: e.querySelector('.mh-eveil-jauge b').style.width, taux: document.querySelector('#ht-taux').innerText, amb: window.__amb.slice() }; });
+    const voile = await ev(() => { const c = document.querySelector('.mh-couche'), z = c && c.querySelector('.mh-dodo'); return { s: c && c.style.getPropertyValue('--mh-sommeil'), z: z && !z.hidden && z.getBoundingClientRect().width > 0 ? z.textContent : null }; });
+    check(voile.s === '1.00' && /Zzz/.test(voile.z || ''), `la scène se voile (--mh-sommeil ${voile.s}) et dit « ${voile.z} »`);
     check(dort.p.dort && dort.p.mult === 1 && dort.niveau === 'bas' && dort.jauge === '0%' && /×1 /.test(dort.taux + ' ') && /dort/.test(dort.txt), `4 min sans toucher : le boss dort (« ${dort.txt.trim()} », jauge ${dort.jauge}), « ${dort.taux} »`);
     const ambs = dort.amb.slice(amb0);
     check(ambs.length > 3 && ambs[ambs.length - 1] === 0 && ambs.some((x) => x > 0 && x < 1), `la lumière de la scène baisse avec la jauge (ambiance ${ambs.slice(-4).map((x) => x.toFixed(2)).join(' → ')})`);
@@ -226,8 +235,27 @@ function faux(d) {
     await page.touchscreen.tap(195, await ev(() => { const r = document.querySelector('.mh-couche').getBoundingClientRect(); return r.top + 20; })); await sleep(500);
     await attendre(() => ev(() => /×6/.test(document.querySelector('#ht-taux').innerText)), 3000);
     const reveil = await ev(() => { const e = document.querySelector('#ht-eveil'); return { p: window.__fournil.HT.presence(window.__fournil.st.hantee, HORLOGE.maintenant()), niveau: e.dataset.niveau, taux: document.querySelector('#ht-taux').innerText, amb: window.__amb[window.__amb.length - 1] }; });
-    check(reveil.p.eveil === 1 && reveil.niveau === 'plein' && /×6/.test(reveil.taux) && reveil.amb === 1, `un toucher sur la scène : réveillé (${reveil.taux}), la lumière revient (${reveil.amb})`);
+    check(reveil.p.eveil === 1 && reveil.niveau === 'plein' && /×6/.test(reveil.taux) && reveil.amb === 1 && await ev(() => document.querySelector('.mh-dodo').hidden), `un toucher sur la scène : réveillé (${reveil.taux}), la lumière revient (${reveil.amb})`);
 
+    check(erreurs.length === 0, `aucune erreur dans la page${erreurs.length ? ' : ' + erreurs.slice(0, 3).join(' | ') : ''}`);
+    await ctx.close();
+  }
+
+  // ─── le soir (21 h 15) : la file avec ses bulles et une apparition, pour les captures (haute et éco) ───
+  for (const qual of (process.env.QUALITES || 'haute,eco').split(',')) {
+    console.log(`── le soir, qualité ${qual} ──`);
+    const { ctx, page, erreurs, ev } = await ouvrir(`?qualite=${qual}`, SOIR);
+    const act = () => ev(() => window.__fournil.evHantee.act.etat());
+    if (qual === 'haute') { await ev(() => window.__fournil.SCENE.precharger('hantee')); await attendre(() => ev(() => HDM.pret('hantee3')), 60000); await sleep(1200); }
+    await ev(() => document.querySelector('#b-hantee').click());
+    await attendre(() => ev(() => { const e = window.__fournil.SCENE.evenement; return !!e && e.apprentis.length >= 3; }), 30000); await sleep(1500);
+    for (let k = 0; k < 3; k++) { await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); q.manoir.prochainClient = HORLOGE.maintenant() - 1; }); await sleep(900); }
+    const n = await attendre(async () => { const e = await act(); const b = e.clients.filter((c) => c.bulle && c.etat === 'file').length; return b >= 2 ? b : null; }, 30000);
+    await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); q.manoir.prochaineApp = HORLOGE.maintenant() - 1; });
+    const ap = await attendre(async () => (await act()).apps.find((x) => x.x > 90 && x.x < 300) || null, 15000, 100);
+    const h = await ev(() => new Date(HORLOGE.maintenant()).toLocaleTimeString('fr-FR', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit' }));
+    await shot(page, `soir-${qual}`);
+    check(!!n && !!ap, `le soir (${h}) : ${n} monstres au comptoir avec leur bulle, une apparition (${ap && ap.type}) ; capture soir-${qual}`);
     check(erreurs.length === 0, `aucune erreur dans la page${erreurs.length ? ' : ' + erreurs.slice(0, 3).join(' | ') : ''}`);
     await ctx.close();
   }

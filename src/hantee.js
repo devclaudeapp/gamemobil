@@ -774,7 +774,7 @@
       sortes: NOMS_SORTES,
       apparitions: { fantome: 'Un petit fantôme', citrouille: 'Une citrouille volante', 'chauve-souris': 'Une chauve-souris' },
       textes: {
-        jauge: 'Réveillé : ×6 avec toi', jaugeBasse: 'Le boss s’endort…', jaugeDort: 'Le boss dort : touche !', jaugeNote: 'Tant que tu touches, tout se vend ×6. Sans toi, ça retombe peu à peu.',
+        jauge: 'Réveillé : ×6 avec toi', jaugeBasse: 'Le boss s’endort…', jaugeDort: 'Le boss dort : touche !', reveil: 'Zzz… touche le Manoir pour le réveiller', jaugeNote: 'Tant que tu touches, tout se vend ×6. Sans toi, ça retombe peu à peu.',
         clients: 'Les clients-monstres', servi: (m) => `Merci ! +${m}`, parti: 'Il en a eu assez d’attendre.', faux: 'Ce n’est pas sa commande !',
         parfait: 'Fournée parfaite ! ×2', parfaitRate: 'Pas cette fois : la prochaine sera la bonne.', parfaitNote: 'Touche la fournée quand elle brille.',
         apparition: 'Attrape-la !', serie: (n) => `Série de ${n} : ×1,5`, attrape: (m) => `Attrapée ! +${m}`,
