@@ -427,6 +427,10 @@ const VIE = (() => {
     c.humeur = content ? 'content' : 'fache'; c.joie = content ? 1.2 : 0; c.pris = true;
     return true;
   }
+  // la boutique hantée (src/boutiquehantee.js : entrer) : un client-monstre de la file des règles (src/hantee.js, servir) entre, de la sorte
+  // donnée, et attend au comptoir qu'on le serve (congedier 'content') ou qu'il s'en aille (congedier 'fache') : personne ne le sert à sa
+  // place. Rend son id (null : pas encore de plan)
+  function accueillir(sorte) { if (!LAY) return null; const c = spawn(); if (sorte) c.deg = sorte; c.garde = true; c.wait = Infinity; return c.id; }
   // l'état d'un client pour l'écran de l'événement : 'entre' (il arrive), 'file' (il attend au comptoir), 'assis' (installé ou en route vers sa place), 'sort'
   const etatClient = (c) => (c.etat === 'attend' ? 'file' : c.etat === 'assis' || c.etat === 'vaTable' ? 'assis' : c.etat === 'sort' || c.etat === 'parti' ? 'sort' : 'entre');
   function majClients(st, dt) {
@@ -613,7 +617,7 @@ const VIE = (() => {
   // un meuble acheté : les tables 1..n, le bar et le coin salon dès le cran 1, les tables de la terrasse 1..n
   function mobileAchete(m) { const k = crans[m.type] || 0; return m.type === 'tables' || m.type === 'terrasse' ? m.i < k : k > 0; }
 
-  const API = { hautBloc, resize, frame, basculer, congedier, etatClient, installer, valider, proposer, mobileSous, mobileAchete, caseDe, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
+  const API = { hautBloc, resize, frame, basculer, congedier, accueillir, etatClient, installer, valider, proposer, mobileSous, mobileAchete, caseDe, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
     DECORS, decor, PASTEL, PEAUX6, HAUTS6, CHEVEUX, TAU,
     get LAY() { return LAY; }, get amenagementApplique() { return LAY ? LAY.sig : ''; }, get amenagementDemande() { return codeDemande; }, get K() { return K; }, get W() { return W; }, get H() { return H; }, get t() { return t; }, get rush() { return rush; }, get Q() { return Q; }, get tags() { return tags; }, get force() { return force; }, get etat() { return etat; }, get mode() { return modeVie; }, get vueEv() { return vueEv; },
     get clients() { return clients; }, get apprentis() { return apprentis; }, get textes() { return textes; }, get vapeurs() { return vapeurs; }, get confetti() { return confetti; }, get flocons() { return flocons; }, get passants() { return passants; }, get chat() { return chat; }, get crans() { return crans; }, get places() { return places; }, get abordables() { return abordables; }, get prixDe() { return prixDe; },

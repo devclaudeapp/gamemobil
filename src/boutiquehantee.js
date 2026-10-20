@@ -19,7 +19,8 @@
      boutique, ses boutons et son tiroir sont masqués dessous. Une feuille de style ajoutée une fois porte ces règles (classes
      .ht-boutique sur #hantee et sur body).
    · L'API des activités (les monstres à servir, les apparitions à attraper, la lumière qui baisse quand le ×6 s'endort) : acteurs, client,
-     servir, fache, apparition, apparitions, attraper, surToucher, fete, ambiance (voir plus bas). */
+     entrer, servir, fache, apparition, apparitions, attraper, retirer, surToucher, fete, ambiance (voir plus bas) ; l'écran les relie aux
+     règles dans src/hanteeactivites.js. */
 const BOUTIQUE_HANTEE = (() => {
   'use strict';
   const G = typeof GAME !== 'undefined' ? GAME : null;
@@ -517,11 +518,11 @@ const BOUTIQUE_HANTEE = (() => {
     }
     return g;
   }
-  function apparition(type) { // une apparition qui traverse la salle, d'un bord à l'autre ; rend son id (null : pas d'écran ouvert)
+  function apparition(type, duree) { // une apparition qui traverse la salle, d'un bord à l'autre (en duree s si donnée, sinon 6 à 10 s) ; rend son id (null : pas d'écran ouvert)
     const tr = SCENE.trois, L = VIE.LAY; if (!tr || !courant || !L) return null; type = ['fantome', 'citrouille', 'chauve-souris'].includes(type) ? type : 'fantome';
     const W = VIE.W, K = VIE.K, sens = Math.random() < 0.5 ? 1 : -1, o = objetApparition(type); if (!o) return null;
     const cad = courant.vue.cadre, bas = Math.min(L.devanture.y - 20 * K, (cad.bas ? cad.bas - cad.haut : L.T) - 40 * K), y0 = L.murH + 36 * K + Math.random() * Math.max(10, bas - L.murH - 46 * K);
-    const a = { id: idApp++, type, o, t: 0, duree: 6 + Math.random() * 4, x0: sens > 0 ? -30 * K : W + 30 * K, x1: sens > 0 ? W + 30 * K : -30 * K, z: (y0 - L.murH) / Math.sin(52 * Math.PI / 180), haut: (type === 'chauve-souris' ? 60 : 30) * K, ph: Math.random() * 6, sens };
+    const a = { id: idApp++, type, o, t: 0, duree: duree > 0 ? duree : 6 + Math.random() * 4, x0: sens > 0 ? -30 * K : W + 30 * K, x1: sens > 0 ? W + 30 * K : -30 * K, z: (y0 - L.murH) / Math.sin(52 * Math.PI / 180), haut: (type === 'chauve-souris' ? 60 : 30) * K, ph: Math.random() * 6, sens };
     if (!SCENE.hd3 || type === 'chauve-souris') o.scale.setScalar(K * (type === 'chauve-souris' ? 1.4 : 1.1)); tr.scene.add(o); APP.push(a); majApp(a, 0); return a.id;
   }
   function majApp(a, dt) {
@@ -552,8 +553,9 @@ const BOUTIQUE_HANTEE = (() => {
   }
   function apparitions() { // [{ id, type, x, y, r }] : le centre et le rayon de touche, en pixels de la fenêtre
     const tr = SCENE.trois, K = VIE.K || 1; if (!tr) return [];
-    return APP.map((a) => { const p = tr.ecran(a.o.position.x, a.o.position.y + 12 * K, a.o.position.z); return { id: a.id, type: a.type, x: Math.round(p.x), y: Math.round(p.y), r: Math.round(Math.max(22, 26 * K)) }; });
+    return APP.map((a) => { const p = tr.ecran(a.o.position.x, a.o.position.y + 12 * K, a.o.position.z); return { id: a.id, type: a.type, x: Math.round(p.x), y: Math.round(p.y), r: Math.round(Math.max(32, 32 * K)) }; }); // (une cible qui bouge : un rayon de 32 px au moins, le doigt arrive toujours un peu après)
   }
+  function retirer(id) { const a = APP.find((x) => x.id === id); if (!a) return false; retirerApp(a); return true; } // une apparition qui s'échappe (les règles l'ont perdue) : elle s'efface, sans éclat
   function attraper(id) {
     const a = APP.find((x) => x.id === id); if (!a) return false;
     exploser({ x: a.o.position.x, y: a.o.position.y + 12 * (VIE.K || 1), z: a.o.position.z }, a.type === 'citrouille' ? '#FF9A3C' : a.type === 'chauve-souris' ? '#C48BFF' : '#DCE4FF'); retirerApp(a); return true;
@@ -567,6 +569,7 @@ const BOUTIQUE_HANTEE = (() => {
   const client = (id) => acteurs().find((a) => a.id === id && a.role === 'client') || null;
   const numero = (id) => (typeof id === 'string' && /^c\d+$/.test(id) ? +id.slice(1) : typeof id === 'number' ? id : null);
   const servir = (id) => { const n = numero(id); return n != null && !!courant && VIE.congedier(n, 'content'); }; // il repart content : il fête son achat (Cheer), puis la sortie
+  const entrer = (sorte) => { if (!courant || !VIE.accueillir) return null; const n = VIE.accueillir(SORTES.includes(sorte) ? sorte : null); return n == null ? null : 'c' + n; }; // un client de la file des règles : il entre et attend qu'on le serve
   const fache = (id) => { const n = numero(id); return n != null && !!courant && VIE.congedier(n, 'fache'); }; // il repart sans payer
   let cbToucher = null;
   const surToucher = (cb) => { cbToucher = typeof cb === 'function' ? cb : null; };
@@ -625,6 +628,6 @@ const BOUTIQUE_HANTEE = (() => {
     };
     courant = s3; return s3;
   }
-  return { actif, demande, scene, etatVue, stations, mobilier, EQUIPE, CLIENTS, SORTES, GARDE, HD, acteurs, client, servir, fache, apparition, apparitions, attraper, surToucher, fete, ambiance, get ouverte() { return !!courant; } };
+  return { actif, demande, scene, etatVue, stations, mobilier, EQUIPE, CLIENTS, SORTES, GARDE, HD, acteurs, client, entrer, servir, fache, apparition, apparitions, attraper, retirer, surToucher, fete, ambiance, get ouverte() { return !!courant; } };
 })();
 if (typeof module !== 'undefined') module.exports = BOUTIQUE_HANTEE;

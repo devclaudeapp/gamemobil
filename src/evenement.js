@@ -34,6 +34,7 @@ const EVENEMENTS = (() => {
   function fabriquer(F) {
     const Q = F.R;
     let d = null, el, cartesEl, evEl, cartes = [], lastHud = '', lastEv = '', ecran = '', scene3 = null, dernierSave = 0, fileSheets = [], sheetOuverte = false;
+    let act = null; // les activités propres à l'événement (la Maison hantée : src/hanteeactivites.js, F.activites), reliées aux règles et à la scène
     const id = (s) => el.querySelector(`#${F.p}-${s}`);
     const st = () => d.st();
     const now = () => d.maintenant();
@@ -48,7 +49,9 @@ const EVENEMENTS = (() => {
       d = deps; el = $(F.racine); if (!el || !Q) return false;
       cartesEl = id('cartes'); evEl = id('ev'); construireActivites();
       const ico = el.querySelector('.pq-ico'); if (ico) ico.innerHTML = F.ico.devise;
-      if (F.habiller) F.habiller(el); // le gabarit propre à l'événement (la Maison hantée : ses touches d'Halloween et les places des activités à venir)
+      if (F.habiller) F.habiller(el); // le gabarit propre à l'événement (la Maison hantée : ses touches d'Halloween et les places de ses activités)
+      if (F.activites) act = F.activites.creer({ el, Q, F, d, q, now, scene: () => scene3, carte: (i) => (i === -1 ? carteRj : cartes[i]), fmt, prix, ico: (i) => F.ico.produit(Q.PRODUITS[i], i),
+        hud: () => { lastHud = ''; hud(); }, save: () => d.save() });
       if (F.couleurs) for (const [k, v] of Object.entries(F.couleurs)) if (/^#[0-9a-f]{3,8}$/i.test(String(v))) el.style.setProperty('--evt-' + k, v);
       el.querySelector('[data-pq="fermer"]').addEventListener('click', () => { d.audio(); d.son.tap(); fermer(); });
       el.querySelector('[data-pq="classement"]').addEventListener('click', () => { d.audio(); d.son.tap(); if (d.classement) d.classement(); });
@@ -146,6 +149,7 @@ const EVENEMENTS = (() => {
       if (!f.ouvert || (qq && (qq.masque || qq.annonce)) || !$('#feuille').hidden || ouvert()) return false;
       const neuf = q(); neuf.annonce = true; d.save();
       d.openSheet(F.t.annonce(f));
+      if (F.prechargerAnnonce && typeof SCENE !== 'undefined' && SCENE.precharger) { try { SCENE.precharger(F.lot); } catch (e) { /* rien : elle se chargera à l'ouverture */ } } // la Maison hantée : sa HD se charge pendant qu'on lit l'annonce
       d.on('[data-a="pq-entrer"]', () => { d.son.tap(); d.closeSheet(); ouvrir(); });
       d.on('[data-a="pq-tard"]', () => { d.son.tap(); d.closeSheet(); });
       return true;
@@ -194,6 +198,7 @@ const EVENEMENTS = (() => {
       if (abs.total > 0 && abs.secs > 90) d.toast(F.t.absence(G.fmtDuree(abs.secs), fmt(abs.total)));
       else if (qq.stats.taps === 0) d.toast(F.t.premier);
       lastAct = ''; ramasser(true); majActivites(true); // une opération finie pendant l'absence : ramassée à l'ouverture, avec sa feuille
+      if (act) act.ouvrir(); // la Maison hantée : la jauge du ×6, la file des clients-monstres, les apparitions, la commande de la nuit
       dernierSave = performance.now();
     }
     function fermer() {
@@ -202,6 +207,7 @@ const EVENEMENTS = (() => {
       if (ecran === F.ecran) { const qq = q(); qq.lastSeen = now(); d.save(); }
       if (ecran === 'bilan') { const qq = q(); qq.bilan = true; d.save(); }
       if (F.sons && typeof SONS !== 'undefined') SONS.jeu(null); // la musique s'arrête avec l'écran
+      if (act) act.fermer();
       liberer3();
       el.hidden = true; ecran = ''; el.dataset.ecran = ''; cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
       calmeJusqua = performance.now() + 20e3;
@@ -231,6 +237,7 @@ const EVENEMENTS = (() => {
       if (f.fini) { cloturer(); return; }
       if (miniOuvert()) { qq.evTimer = Math.max(qq.evTimer, 5); if (qq.ev && genre(qq.ev) !== 'mult' && Q.pauseCoup) Q.pauseCoup(qq, dt * 1000); } // une partie de mini-jeu : le coup de pouce à toucher attend, aucun ne surgit
       const out = Q.tick(qq, dt, t);
+      if (act) act.pas(out.manoir || null); // les clients-monstres, les apparitions, la commande de la nuit : ce que les règles ont changé
       if (avecAct() && performance.now() - tAct > 400) { tAct = performance.now(); if (qq.operation && qq.operation.fin <= t) ramasser(!miniOuvert()); majActivites(); }
       if (out.ventes.length) { const gros = out.ventes.reduce((a, v) => a + v.montant, 0); if (Math.random() < 0.2 || out.ventes.some((v) => Q.PRODUITS[v.i].temps >= 12)) { d.son.vente(gros); if (scene3) scene3.vente(gros); } }
       if (out.nouvelEv) { const c = coup(out.nouvelEv); if (c.son === 'sirene' && d.son.sirene) d.son.sirene(); else d.son.evenement(); d.buzz([15, 40, 15]); d.toast(c.debut); if (scene3 && scene3.coup) scene3.coup(genre(out.nouvelEv)); }
@@ -240,15 +247,17 @@ const EVENEMENTS = (() => {
       if (!scene3 && essais3 > 0 && essais3 < 6 && performance.now() - tEssai3 > 1000) creer3(true); // le contexte avait été refusé : on réessaie
       if (scene3 && scene3.perdu && performance.now() - scene3.perdu > 1000) { liberer3(); creer3(false); } // perdu en route et pas revenu : une scène neuve
       if (scene3 && !scene3.perdu && !miniOuvert()) scene3.frame(dt, qq); // sous un mini-jeu, la 3D attend (la boutique, elle, continue de vendre)
+      if (act && !miniOuvert()) act.image(); // les bulles suivent les têtes des monstres
       if (performance.now() - dernierSave > 5000) { dernierSave = performance.now(); qq.lastSeen = t; d.save(); }
     }
     function hud() {
       const qq = q(), taux = Q.tauxParSeconde(qq), f = fen(), nb = Q.paliersAtteints(qq).length;
       const cl = d.rang ? d.rang() : null; // le classement de l'événement : null s'il n'existe pas (pas de serveur), sinon son rang (0 : pas encore classé)
-      const cle = `${fmt(qq.billets)}|${fmt(taux)}|${Q.fmtReste(f.reste)}|${nb}|${f.jour}|${cl}`;
+      const pres = Q.presence ? presTxt(Q.presence(qq, now()).mult) : Q.PRESENCE; // la Maison hantée : le ×6 qui s'endort sans toucher (×1 endormi)
+      const cle = `${fmt(qq.billets)}|${fmt(taux)}|${Q.fmtReste(f.reste)}|${nb}|${f.jour}|${cl}|${pres}`;
       if (cle === lastHud) return; lastHud = cle;
       id('billets').innerHTML = F.solde(qq.billets);
-      id('taux').innerHTML = taux > 0 ? F.t.taux(prix(taux), Q.PRESENCE) : F.t.tauxVide(Q.PRESENCE);
+      id('taux').innerHTML = taux > 0 ? F.t.taux(prix(taux), pres) : F.t.tauxVide(pres);
       id('reste').textContent = `${F.t.reste} ${Q.fmtReste(f.reste)}`;
       id('sous').textContent = `Jour ${f.jour} sur ${f.jours}`;
       const bc = el.querySelector('[data-pq="classement"]'); bc.hidden = cl == null; bc.querySelector('b').textContent = cl ? (cl === 1 ? '1er' : cl + 'e') : 'Top';
@@ -258,6 +267,7 @@ const EVENEMENTS = (() => {
 
     // ─── les cartes des produits (même grammaire que la boulangerie) : les six du début, puis les deux recettes « après le boss »,
     //     montrées verrouillées (« Après le palier 13 ») tant que leur palier n'est pas franchi ───
+    const presTxt = (m) => { const r = Math.round(m * 10) / 10; return Number.isInteger(r) ? String(r) : r.toFixed(1).replace('.', ','); }; // ×6, ×3,5, ×1
     const multTxt = (m) => (Math.abs(m - Math.round(m)) < 0.005 ? String(Math.round(m)) : m.toFixed(2).replace('.', ',')); // ×2, ×1,41, ×1,19
     const paliersDe = (i) => (Q.paliersPoste ? Q.paliersPoste(i) : Q.PALIERS_POSTE);
     const gainPal = (pal, i) => (Q.gainPalier ? Q.gainPalier(pal, i) : 2); // ce que ce palier ajoute (le vrai rapport : ×2 aux anciens paliers, ×1,41 ou ×1,19 aux intercalés)
@@ -294,6 +304,7 @@ const EVENEMENTS = (() => {
         if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); }
         else if (c.el.className !== cls) c.el.className = cls;
         if (c.bar && !c.bar.classList.contains('rapide')) c.bar.style.width = (s.niv > 0 && s.actif ? Math.min(100, s.prog / Q.temps(qq, i) * 100) : 0).toFixed(1) + '%';
+        if (act) act.barre(c, i); // la fenêtre « parfait » sur la barre de cuisson, la carte voulue par le client choisi
       });
     }
     function onCarte(e) {
@@ -316,6 +327,7 @@ const EVENEMENTS = (() => {
           renderCartes(true); lastHud = ''; hud(); d.save(); return;
         }
       }
+      if (act && act.carte(i, e)) return; // la Maison hantée : servir le client choisi, ou la fournée parfaite (un toucher dans sa fenêtre)
       if (qq.postes[i].niv > 0 && !qq.postes[i].staff) { if (Q.lancer(qq, i)) { d.son.tap(); d.buzz(6); renderCartes(); } }
     }
 
@@ -349,6 +361,7 @@ const EVENEMENTS = (() => {
       if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); }
       else if (c.el.className !== cls) c.el.className = cls;
       if (c.bar) c.bar.style.width = ((e.four ? e.part : 0) * 100).toFixed(1) + '%';
+      if (act) act.barre(c, -1);
     }
     function recetteSortie(o) { // une fournée sortie, l'écran ouvert : le son et le petit « + » de la scène
       d.son.vente(o.gain); if (scene3) scene3.vente(o.gain); lastHud = ''; hud(); d.save();
@@ -378,6 +391,7 @@ const EVENEMENTS = (() => {
         if (r.niv === 1) { d.son.deblocage(); d.buzz([10, 30, 10]); d.toast(`${Q.recetteDuJour(t).nom} : la cuisine est prête ! Touche la carte pour en cuire.`); } else { d.son.achat(); d.buzz(8); }
         renderRecette(true); lastHud = ''; hud(); d.save(); return;
       }
+      if (act && act.carte(-1, e)) return; // la fournée parfaite de la recette du jour
       const r = Q.lancerRecette(qq, t);
       if (r.ok) { d.son.tap(); d.buzz(6); renderRecette(true); d.save(); }
       else if (r.tard) { d.son.non(); d.toast('Trop tard : l’événement ferme avant qu’elle sorte du four.'); }
@@ -448,6 +462,7 @@ const EVENEMENTS = (() => {
     function montrerBilan() {
       const qq = q(); ecran = 'bilan'; el.dataset.ecran = ecran;
       if (F.sons && typeof SONS !== 'undefined') SONS.jeu(null);
+      if (act) act.fermer();
       liberer3();
       cartes = []; cartesEl.innerHTML = ''; evEl.hidden = true; evEl.innerHTML = '';
       // parti avant la fermeture, revenu après : les apprentis ont travaillé jusqu'à la fermeture (une fois, au ralenti, plafonné comme toute absence)
@@ -783,7 +798,7 @@ const EVENEMENTS = (() => {
 
     return { init, ouvrir, fermer, annoncer, frame, retour, visible, masquer, majeur, bilanEnAttente, synchroniserRecompenses, donnerPalier, sheetPaliers, cle: F.cle, R: Q, F,
       mini: etatMini, ouvrirMini, fermerMini, sheetMini, sheetContrats, sheetOperation, majActivites,
-      fenetre: () => (Q && d ? fen() : null), get ouvert() { return ouvert(); }, get ecran() { return ecran; }, get scene() { return scene3; } };
+      fenetre: () => (Q && d ? fen() : null), get ouvert() { return ouvert(); }, get ecran() { return ecran; }, get scene() { return scene3; }, get act() { return act; } };
   }
 
   // ─── les outils 3D partagés par les deux décors ───
@@ -1358,11 +1373,11 @@ const EVENEMENTS = (() => {
   // la Maison hantée : HANTEE (src/hantee.js, groupe H1) et sa fiche ; ici, les valeurs par défaut de l'écran (textes, icônes, couleurs)
   const HR = typeof HANTEE !== 'undefined' ? HANTEE : typeof MAISON_HANTEE !== 'undefined' ? MAISON_HANTEE : null; // eslint-disable-line no-undef
   let st0 = () => null; // l'état du jeu, pour les textes de la fiche (posé par init)
-  // les gabarits des activités à venir de la Maison hantée (HTML seul, sans logique ; les classes dans src/style.css, .mh-*) :
+  // les gabarits des activités de la Maison hantée (HTML seul, sans logique ; les classes dans src/style.css, .mh-* ; remplis par src/hanteeactivites.js) :
   // · eveil(part, texte) : l'intérieur de #ht-eveil, la jauge sous le ×6 (part : 1 réveillé → 0 endormi ; data-niveau sur #ht-eveil : 'bas' sous 0,35) ;
   // · serie(n, record) : l'intérieur de #ht-serie, le compteur de la série d'apparitions attrapées (classe .chaude sur #ht-serie à partir de 5) ;
   // · commande(o) : la carte « Commande de la nuit », à poser dans #ht-commande : o = { client, sorte, lignes: [{ ico, nom, n, fait }], prime (HTML),
-  //   reste (texte : « 2 min 10 »), part (0..1 du temps écoulé), prete } ; son bouton porte data-a="mh-commande".
+  //   reste (texte : « 2 min 10 »), part (0..1 du temps écoulé), prete, bouton (le mot du bouton prêt : « Livrer ! ») } ; son bouton porte data-a="mh-commande".
   const gabarits = {
     eveil: (part, texte) => `<i class="mh-eveil-jauge"><b style="width:${Math.round(Math.max(0, Math.min(1, part)) * 100)}%"></b></i><span class="mh-eveil-txt">${esc(texte || 'Le boss s’endort…')}</span>`,
     serie: (n, record) => `<span class="mh-serie-ico">${(typeof ICONS !== 'undefined' && ICONS.HANTEE && ICONS.HANTEE.attraper) || ''}</span><b>×${Math.max(0, n | 0)}</b><small>${record ? `record ×${record}` : 'série'}</small>`,
@@ -1370,7 +1385,7 @@ const EVENEMENTS = (() => {
       <div class="mh-commande-corps"><small class="mh-commande-tag">Commande de la nuit</small><b>${esc(o.client || 'Un client du Manoir')}</b>
         <ul class="mh-commande-lignes">${(o.lignes || []).map((l) => `<li class="${l.fait >= l.n ? 'fait' : ''}"><i>${l.ico || ''}</i><span>${l.fait || 0}/${l.n}</span></li>`).join('')}</ul>
         <i class="mh-commande-temps"><b style="width:${Math.round(Math.max(0, Math.min(1, 1 - (o.part || 0))) * 100)}%"></b></i></div>
-      <button type="button" class="btn ${o.prete ? 'menthe' : 'non'}" data-a="mh-commande"><small>${o.prete ? 'Servir' : esc(o.reste || 'En cours')}</small><b>${o.prime || ''}</b></button></article>`,
+      <button type="button" class="btn ${o.prete ? 'menthe' : 'non'}" data-a="mh-commande"><small>${o.prete ? esc(o.bouton || 'Servir') : esc(o.reste || 'En cours')}</small><b>${o.prime || ''}</b></button></article>`,
   };
   function ficheHantee() {
     const HF = (HR && HR.FICHE) || {}, T = HF.textes || {}, dv = HF.devise || {}, nomDevise = dv.nom || 'bonbons', un = dv.un || 'bonbon';
@@ -1399,13 +1414,15 @@ const EVENEMENTS = (() => {
         attraper: { cls: 'scooter', titre: 'Chauve-souris !', bouton: 'Attraper', detail: (ev, f) => `Attrape-la avant qu’elle s’envole : <b>${f(ev.prime)}</b>`, reussite: (m) => `La chauve-souris lâche ${m}`, debut: 'Une chauve-souris passe avec un sac de bonbons : attrape-la !', fin: 'La chauve-souris s’est envolée.' },
       },
       stats: HE ? [['Ventes', 'ventes'], ['Chauves-souris chassées', 'descentes'], ['Cortèges servis', 'grosClients'], ['Sacs attrapés', 'scooters']] : [['Ventes', 'ventes'], ['Petits monstres servis', ['servis', 'monstres', 'sorts', 'descentes']], ['Commandes du bal', ['bals', 'commandes', 'grosClients']], ['Chauves-souris', ['chauvesSouris', 'chauves', 'scooters']]],
-      scene: (cv, X) => (typeof BOUTIQUE_HANTEE !== 'undefined' && BOUTIQUE_HANTEE.actif(cv) ? BOUTIQUE_HANTEE.scene(cv, Object.assign({ st: st0 }, X)) : sceneManoir(cv, X)), // ?boutique=1 : la vraie boutique, hantée (src/boutiquehantee.js)
+      scene: (cv, X) => (typeof BOUTIQUE_HANTEE !== 'undefined' && BOUTIQUE_HANTEE.actif(cv) ? BOUTIQUE_HANTEE.scene(cv, Object.assign({ st: st0 }, X)) : sceneManoir(cv, X)), // la vraie boutique, hantée (src/boutiquehantee.js) ; ?boutique=0 : le Manoir d'avant
       sons: 'hantee', // le jeu de sons de l'écran (src/sons.js, JEUX.hantee : fournil/sons/hantee/)
+      activites: typeof HANTEE_ACTIVITES !== 'undefined' ? HANTEE_ACTIVITES : null, // les choses à FAIRE du Manoir (src/hanteeactivites.js) : le ×6 qui s'endort, les clients-monstres, les fournées parfaites, les apparitions, la commande de la nuit
+      prechargerAnnonce: true,
       // l'habillage de l'écran : le style du Fournil (en-tête crème, scène pleine largeur, tiroir à poignée, cartes blanches) en orange citrouille
       // et violet (src/style.css, #hantee et classes .mh-*) ; ici, ses touches d'Halloween (une toile dans l'en-tête, deux chauves-souris près de
-      // la poignée du tiroir) et les places, cachées, des activités à venir : la jauge « Le boss s'endort… » sous le ×6 (#ht-eveil), la série
-      // d'apparitions sur la scène (#ht-serie), la commande de la nuit en tête du tiroir (#ht-commande). Rien ne les remplit ici : F.gabarits
-      // donne leur HTML, il suffit de l'y poser
+      // la poignée du tiroir) et les places, cachées, de ses activités : la jauge « Le boss s'endort… » sous le ×6 (#ht-eveil), la série
+      // d'apparitions sur la scène (#ht-serie), la commande de la nuit en tête du tiroir (#ht-commande). F.gabarits donne leur HTML ;
+      // src/hanteeactivites.js (F.activites) les remplit
       habiller: (el) => {
         if (el.querySelector('.mh-deco')) return;
         el.querySelector('.at-haut').insertAdjacentHTML('afterbegin', '<span class="mh-deco" aria-hidden="true"><i class="mh-toile"></i></span>');
@@ -1422,7 +1439,8 @@ const EVENEMENTS = (() => {
       t: {
         lieu, premier: txt('premier', `Touche les ${HR && HR.PRODUITS[0] ? HR.PRODUITS[0].nom.toLowerCase() : 'bonbons acidulés'} pour vendre ta première friandise !`), ferme: txt('ferme', `${nom} ferme ses portes. Bouh !`), reste: 'Ferme dans',
         absence: typeof T.absence === 'function' ? T.absence : (duree, m) => `Pendant ton absence (${duree}) : +${m}, au ralenti sans toi.`,
-        taux: (m, pres) => `<b>+${m}</b>/s · tu es là ×${pres}`, tauxVide: (pres) => `Touche une friandise pour la vendre · tu es là ×${pres}`,
+        // (le ×6 de présence en court : la jauge « Le boss s'endort… » est juste dessous, et il retombe à ×1 sans toucher)
+        taux: (m, pres) => `<b>+${m}</b>/s · <b class="mh-pres">×${pres}</b> avec toi`, tauxVide: (pres) => `Touche une friandise · <b class="mh-pres">×${pres}</b> avec toi`,
         nouveau: (n) => `${n} : nouvelle friandise au manoir !`, embauche: (n) => `${n} rejoint l’équipe du manoir !`,
         decoDon: Object.assign({}, HF.decos || {}, { citrouilles: 'des citrouilles-lanternes dans la boutique', toiles: 'des toiles d’araignée (gentilles) aux coins de la boutique', chaudron: 'un chaudron qui bouillonne près du four', fantome: 'un petit fantôme qui flotte dans la boutique', chauvesouris: 'des chauves-souris en papier au plafond', lanternes: 'des lanternes sur le comptoir' }, T.decoDon || {}), decoDefaut: (k) => `${k} pour la boutique`,
         vetementNom: (v) => v, tenueComplete: ' : la tenue d’Halloween est complète !',
