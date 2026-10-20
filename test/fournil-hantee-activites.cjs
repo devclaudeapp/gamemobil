@@ -105,7 +105,7 @@ function faux(d) {
     // le toucher (le milieu du corps) le choisit
     let choisi = null;
     // la bulle d'un client, une fois posée (deux lectures à 250 ms qui tombent au même pixel : il ne glisse plus vers sa place) ; null : parti
-    const bullePosee = async (id) => attendre(async () => { const a1 = (await act()).clients.find((x) => x.id === id); if (!a1 || !a1.bulle) return null; await sleep(250); const a2 = (await act()).clients.find((x) => x.id === id); return a2 && a2.bulle && Math.abs(a2.bulle.x - a1.bulle.x) < 1 && Math.abs(a2.bulle.y - a1.bulle.y) < 1 ? a2 : null; }, 6000, 50);
+    const bullePosee = async (id) => { const r = await attendre(async () => { const a1 = (await act()).clients.find((x) => x.id === id); if (!a1) return 'parti'; if (!a1.bulle) return null; await sleep(250); const a2 = (await act()).clients.find((x) => x.id === id); if (!a2) return 'parti'; return a2.bulle && Math.abs(a2.bulle.x - a1.bulle.x) < 1 && Math.abs(a2.bulle.y - a1.bulle.y) < 1 ? a2 : null; }, 6000, 50); return r === 'parti' ? null : r; }; // (servi, ou parti : tout de suite null)
     const toucherClient = async (c) => { for (let k = 0; k < 4; k++) { const x = await acteur(c.sid); if (!x) return false; await page.touchscreen.tap(x.x, x.y + Math.max(20, x.h * 0.6)); await sleep(250); const e = await act(); if (e.choisi === c.id) return true; if (e.choisi != null) { await page.touchscreen.tap(x.x, x.y + Math.max(20, x.h * 0.6)); await sleep(250); } } return false; };
     if (await toucherClient(c1)) choisi = c1.id;
     if (choisi !== c1.id) console.log('   (diagnostic)', JSON.stringify(await act()), JSON.stringify(await ev(() => BOUTIQUE_HANTEE.acteurs())));
@@ -146,7 +146,7 @@ function faux(d) {
     const c3 = await attendre(async () => { const e = await act(); return e.clients.find((c) => c.id !== c1.id && (!c2 || c.id !== c2.id) && c.bulle && c.sid) || null; }, 25000);
     if (c3) {
       const p0 = (await regles()).stats.clientsPartis, b3 = (await regles()).billets;
-      await ev((id) => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), c = q.manoir.file.find((x) => x.id === id); c.arrive -= 30000; }, c3.id); // (il attendait déjà depuis 30 s : 10 s de patience)
+      await ev((id) => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()), c = q.manoir.file.find((x) => x.id === id); c.arrive = q.now - 30000; }, c3.id); // (il attend depuis 30 s tout juste : 10 s de patience, même s'il était entré bien avant)
       const bas = await attendre(() => ev((id) => document.querySelector(`.mh-bulle[data-client="${id}"]`)?.classList.contains('presse'), c3.id), 4000, 100);
       const fin = await attendre(async () => { const r = await regles(); return !r.file.some((c) => c.id === c3.id) ? r : null; }, 15000);
       const vie3 = await ev((sid) => { const c = VIE.clients.find((x) => 'c' + x.id === sid); return c ? { etat: VIE.etatClient(c), humeur: c.humeur } : null; }, c3.sid);
