@@ -133,9 +133,9 @@ jobs:
           PORT_NOUVEAUTES: '8871'
           PORT_RETOURS: '8872'
   # Une quatrième tâche en parallèle (fournil2 prend déjà plus de 17 minutes sur 20) : le standing des boutiques (12 décors, en haute et
-  # en éco, le soir, Noël, un téléphone 360 × 640) et « tout déplaçable » (au doigt).
+  # en éco, le soir, Noël, un téléphone 360 × 640) et « tout déplaçable » (au doigt) ; la batterie (30 images/s en jouant, 10 au repos, mêmes gains).
   fournil4:
-    name: Le Fournil, standing des boutiques et aménagement (Playwright)
+    name: Le Fournil, standing des boutiques, aménagement et batterie (Playwright)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -147,16 +147,18 @@ jobs:
         run: |
           npm install --prefix "$RUNNER_TEMP/pw" --no-save --no-package-lock --no-audit --no-fund playwright@1.56.1
           "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
-      - name: Le standing des boutiques et l'aménagement libre
+      - name: Le standing des boutiques, l'aménagement libre et la batterie
         run: |
           node build.js
           node test/fournil-standing.cjs
           node test/fournil-amenage.cjs
+          node test/fournil-batterie.cjs
         env:
           TZ: Europe/Paris
           NODE_PATH: ${{ runner.temp }}/pw/node_modules
           PORT_STANDING: '8874'
           PORT_AMENAGE: '8875'
+          PORT_BATTERIE: '8876'
   deploy:
     needs: [fournil, fournil2, fournil3, fournil4]
     runs-on: ubuntu-latest

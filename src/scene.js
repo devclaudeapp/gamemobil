@@ -24,7 +24,9 @@ const SCENE = (() => {
     if (ombres) dir.shadow.mapSize.set(p.ombres, p.ombres);
     richesse(niveau);
   }
-  // l'intervalle réel entre deux images (le travail du processeur graphique compris), par fenêtres de 60 images :
+  // l'intervalle réel qui suit une image (le travail du processeur graphique compris), par fenêtres de 60 images ; ui.js le mesure : la cadence
+  // limitée (30 images/s en jouant, 10 au repos) saute volontairement des images de l'écran, ce n'est pas de la lenteur, seul compte le temps
+  // jusqu'au rafraîchissement qui suit une image faite :
   // au-dessus de 28 ms on descend d'un palier ; si la fenêtre suivante ne va pas 10 % plus vite, c'est l'écran qui plafonne la cadence (30 Hz,
   // mode économie d'énergie) : on remonte et on ne bouge plus. Sous 18 ms pendant dix fenêtres on tente de remonter, puis une minute, puis plus jamais.
   function mesurer(ms) {
@@ -528,7 +530,7 @@ const SCENE = (() => {
   }
   // ─── la frame : simuler, reconstruire ce qui a changé, éclairer, poser, rendre, puis le calque 2D ───
   const EA = { t: 0, chaud: false, caisseFlash: 0, nuit: false, lampes: 0, rush: false, d: null, sk: null, tags: [] };
-  function frame(dt, st, now) {
+  function frame(dt, st, now, msImage, espacee) { // msImage : l'intervalle qui a suivi l'image d'avant (ui.js) ; à défaut, dt. espacee : la cadence a déjà sauté des rafraîchissements
     const E = V.frame(dt, st, now); LAY = V.LAY; dernier = E;
     if (visFin && performance.now() >= visFin) { visH = visCible; visFin = 0; }
     if (!webgl) return;
@@ -542,7 +544,7 @@ const SCENE = (() => {
       poserCouverts();
       if (perdu) { if (performance.now() - perdu > 3000) panneau(true); if (visH > 48) calque(E, Math.min(H, visH + 24)); return; } // contexte perdu : on attend sa restauration ; s'il ne revient pas, on le dit
       nFrame++;
-      if (visH > 48) { mesurer(dt * 1000); if (!(PALIERS[QUAL.niveau].saute && (nFrame & 1))) rendre(E, false); }
+      if (visH > 48) { mesurer(msImage != null ? msImage : dt * 1000); if (!(PALIERS[QUAL.niveau].saute && !espacee && (nFrame & 1))) rendre(E, false); } // l'éco rend une image sur deux ; si la cadence en saute déjà, toutes
       QUAL.cpu = performance.now() - t0;
     } catch (e) { panne(e); }
   }
@@ -552,7 +554,9 @@ const SCENE = (() => {
     panneau(true);
     if (ctx2) { ctx2.setTransform(1, 0, 0, 1, 0, 0); ctx2.clearRect(0, 0, cvUi.width, cvUi.height); }
   }
+  let rendus = 0; // les images rendues (pour les tests de la cadence)
   function rendre(E, complet) {
+    rendus++;
     const hv = complet ? H : Math.min(H, visH + 24);
     renderer.setScissorTest(!complet); if (!complet) renderer.setScissor(0, H - hv, W, hv);
     if (QUAL.niveau === 'haute' && RICHE.actif && RICHE.effets && renderer.capabilities.isWebGL2) { if (!RICHE.post) RICHE.post = creerPost(); RICHE.post.rendre(hv); } // les effets : haute seulement
@@ -734,6 +738,7 @@ const SCENE = (() => {
     get standingVu() { const g = groupes.standing, E = dernier; let n = 0; if (g) g.traverse((o) => { if (o.isMesh) n++; }); const emprises = ((g && g.userData.emprises) || []).map((e) => Object.assign({}, e, { haut: projeterY(e.y1, e.z0), bas: projeterY(e.y0, e.z1) })); return { palier: E && E.Q ? E.Q.standing || 0 : 0, decor: E && E.Q ? E.Q.id : '', hd: /\|hd\|/.test(cles.standing || ''), mailles: n, emprises }; }, // le standing posé ; ses emprises (monde, et haut/bas à l'écran) (pour les tests)
     get meublesHD() { return SALLE_IDS.filter((id) => groupes[id] && /\|hd/.test(cles[id] || '')); }, // les meubles de la salle bâtis en KayKit (pour les tests)
     get amenager() { return amenager; }, get deplacer() { return deplacer; }, get glisse() { return glisse; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
-    get stats() { return { webgl, qualite: QUAL.niveau, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length, geometries: renderer ? renderer.info.memory.geometries : 0, textures: renderer ? renderer.info.memory.textures : 0, riche: RICHE.actif, effets: !!RICHE.post, kenney: typeof KENNEY !== 'undefined' && KENNEY ? { pret: KENNEY.pret, octets: KENNEY.octets, ms: KENNEY.ms, erreur: KENNEY.erreur } : null }; } };
+    get _qual() { return QUAL; }, // la mesure de la qualité (pour les tests de la cadence)
+    get stats() { return { webgl, qualite: QUAL.niveau, rendus, calls: renderer ? renderer.info.render.calls : 0, triangles: renderer ? renderer.info.render.triangles : 0, ms: QUAL.moy || 0, cpu: QUAL.cpu || 0, acteurs: acteurs.size, animes: animes.length, geometries: renderer ? renderer.info.memory.geometries : 0, textures: renderer ? renderer.info.memory.textures : 0, riche: RICHE.actif, effets: !!RICHE.post, kenney: typeof KENNEY !== 'undefined' && KENNEY ? { pret: KENNEY.pret, octets: KENNEY.octets, ms: KENNEY.ms, erreur: KENNEY.erreur } : null }; } };
   return API;
 })();

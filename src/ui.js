@@ -276,6 +276,7 @@ const UI = (() => {
   // les messages arrivés ensemble (un grade et son trophée, une maîtrise et le niveau) passent l'un après l'autre au lieu de s'écraser
   const toastFile = [];
   function montrerToast(txt) {
+    eveiller(); // un message du jeu (un événement, un client mystère, un trophée…) : la cadence de jeu revient
     let el = $('.toast'); if (!el) { el = document.createElement('div'); el.className = 'toast'; document.body.appendChild(el); }
     el.textContent = txt; clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { toastTimer = 0; if (toastFile.length) montrerToast(toastFile.shift()); else el.remove(); }, toastFile.length ? 1700 : 2400);
@@ -332,7 +333,7 @@ const UI = (() => {
       poignee.addEventListener('pointerup', fin); poignee.addEventListener('pointercancel', fin);
       poignee.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aller(pos === 'ouvert' ? 'ferme' : suivant(-1)); } });
     }
-    return { init, aller, layout, get pos() { return pos; }, get y() { return y; }, get Y() { return Y; } };
+    return { init, aller, layout, get pos() { return pos; }, get y() { return y; }, get Y() { return Y; }, get glisse() { return !!drag; } };
   })();
   // ─── pages : une seule visible ; un onglet ouvre le tiroir au moins à mi-hauteur ───
   function showPage(id) {
@@ -1736,11 +1737,33 @@ const UI = (() => {
     son.non(); toast(r.etat === 'refus' ? (r.erreur === 'trop_vite' ? 'Un essai toutes les 2 minutes au plus.' : 'L’essai n’est pas parti. Réessaie dans un moment.') : r.etat === 'pas-installe' ? 'Les notifications arrivent bientôt.' : msgReseau(r.etat));
   }
 
+  // ─── la cadence (la batterie) : 30 images/s au plus en jouant, 10 après 15 s sans toucher l'écran ni le clavier (et sans message du jeu,
+  //     ni écran ouvert ou fermé : l'Atelier, la Planque, l'arrière-salle…), 30 de nouveau au premier toucher. requestAnimationFrame garde
+  //     la synchro avec l'écran (60 Hz, 120 Hz ProMotion) : les images trop tôt ne font rien (la gigue tolérée : 33,3 ms visées, 30,3
+  //     acceptées, pour ne pas tomber à 20). G.tick reçoit toujours le vrai temps écoulé depuis la dernière image traitée : les gains ne
+  //     dépendent pas de la cadence. Pleine cadence pendant un glisser (un meuble en mode Déplacer, la poignée du tiroir) ; les mini-jeux de
+  //     l'Atelier et des événements ont leur propre boucle, jamais bridée. ?cadence=0 coupe la limite (tests, débogage).
+  const CADENCE = { jeu: 30, repos: 10, calmeMs: 15e3, gigue: 3 }, sansLimite = /[?&]cadence=0(&|$)/.test(location.search);
+  let dernierGeste = performance.now(), rafPrec = 0, apresImage = false, msImage = 0, nImages = 0, sautees = 0; // sautees : les rafraîchissements laissés passer depuis la dernière image
+  const instantsImages = new Float64Array(128); // les instants des dernières images traitées (la cadence mesurée, pour les tests ; taille fixe)
+  function eveiller() { dernierGeste = performance.now(); }
+  const auRepos = (t) => t - dernierGeste > CADENCE.calmeMs;
+  function cadenceCible(t) { if (sansLimite || glisse || tiroir.glisse) return 0; return auRepos(t) ? CADENCE.repos : CADENCE.jeu; } // 0 : pleine cadence
+  function cadence() {
+    const t = performance.now(); let n = 0; for (let k = 0; k < instantsImages.length; k++) if (instantsImages[k] > 0 && t - instantsImages[k] <= 1000) n++;
+    return { cible: cadenceCible(t), mesuree: n, repos: !sansLimite && auRepos(t), limite: !sansLimite, travail: Math.round(msImage * 10) / 10 };
+  }
+
   // ─── boucle ───
   let derniereImage = 0;
   function frame(now) {
+    // l'intervalle qui suit une image traitée : son vrai coût (rendu compris), que la qualité de la scène mesure ; les images que la cadence
+    // espace volontairement (33 ou 100 ms) ne sont pas de la lenteur
+    const ecartRaf = rafPrec ? now - rafPrec : 0; rafPrec = now; if (apresImage) { apresImage = false; msImage = ecartRaf; }
     verifierReveil(); // chaque image : la page vient-elle de dormir ?
     if (retourEnCours) { lastFrame = now; derniereImage = now; requestAnimationFrame(frame); return; } // l'absence n'est pas encore comptée : rien ne bouge
+    const cible = cadenceCible(now); if (cible && now - lastFrame < 1000 / cible - CADENCE.gigue) { sautees++; requestAnimationFrame(frame); return; } // trop tôt : cette image ne fait rien
+    instantsImages[nImages++ & 127] = now; apresImage = true; const espacee = sautees > 0; sautees = 0; // espacée par la cadence (pas par la lenteur du téléphone)
     const dt = Math.min(0.25, Math.max(0, (now - lastFrame) / 1000)); lastFrame = now;
     // le filet : plus de 5 s entre deux images sans qu'aucun retour soit parti (une page gelée que le détecteur a manquée, vue « cachée » au
     // dégel) ; on ne tique pas par-dessus (le temps serait perdu, puis lastSeen recollé à maintenant) : le retour compte l'absence depuis le
@@ -1768,14 +1791,14 @@ const UI = (() => {
     const nv = G.niveau(st);
     if (nv > lastNiveau) { lastNiveau = nv; son.deblocage(); buzz([15, 40, 15, 40, 15]); feter(); toast(`Niveau ${nv} : ${G.titre(st)} ! Un point de talent à apprendre.`); }
     renderCards(); hud(); renderObjectifs(); renderEvenement(); renderPage();
-    if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant()); // l'écran de l'Atelier (ou de l'arrière-salle) couvre la boutique : la 3D attend
-    else if (visite && visite.scene) { const t = HORLOGE.maintenant(); visite.b.st.now = t; SCENE.frame(dt, visite.b.st, t); } // la visite : la scène montre la boutique du copain (rien n'est sauvé)
+    if (!atelier) SCENE.frame(dt, st, HORLOGE.maintenant(), msImage, espacee); // l'écran de l'Atelier (ou de l'arrière-salle) couvre la boutique : la 3D attend
+    else if (visite && visite.scene) { const t = HORLOGE.maintenant(); visite.b.st.now = t; SCENE.frame(dt, visite.b.st, t, msImage, espacee); } // la visite : la scène montre la boutique du copain (rien n'est sauvé)
     else if (visite && visite.ev3) { // sa Planque : la scène de l'événement tourne sur son état rebâti (aucun tick : rien ne s'y vend, rien ne se sauve)
       const e3 = visite.ev3;
       if (!e3.perdu) { e3.frame(dt, visite.qe); visite.images++; } else if (performance.now() - e3.perdu > 1000) { libererEv3(visite); peindreVisite(); } // le contexte perdu ne revient pas : le résumé seul
     }
     if (planque) ecranEv.frame(dt, HORLOGE.maintenant()); // l'écran de l'événement (la Planque, le Manoir) vit tant qu'il est ouvert (fermé, il rattrape une absence)
-    if (++tChat > 30) { tChat = 0; majChat(); } // le chat noir arrive (ou repart) avec la Maison hantée
+    if (now - tChat > 500) { tChat = now; majChat(); } // le chat noir arrive (ou repart) avec la Maison hantée
     renderBoosts();
     indices();
     if (now - lastSave > 5000) save();
@@ -1793,7 +1816,7 @@ const UI = (() => {
   //     une app installée qu'on verrouille ne prévient pas toujours, et performance.now() (le temps du jeu) s'arrête pendant la veille.
   let reveilW = Date.now(), reveilP = performance.now();
   function reprendre(raison) {
-    reveilW = Date.now(); reveilP = performance.now(); // le détecteur repart d'ici : pas de second retour pour le même sommeil
+    reveilW = Date.now(); reveilP = performance.now(); eveiller(); // le détecteur repart d'ici : pas de second retour pour le même sommeil
     if (!st || !absencePrete || fige || retourEnCours) return false; retourEnCours = true; dernierRetour = raison;
     // en ligne, seule une heure sûre fraîche fait avancer le jeu (HORLOGE.retour) : si elle manque, on la redemande toutes les 5 s
     HORLOGE.retour().catch(() => null).then((info) => { if (!(info && info.frais) && navigator.onLine !== false) relancerHeure(); retourEnCours = false; reveilW = Date.now(); reveilP = performance.now(); const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t); absencePayee = abs.secs * 1000; if (EVS && EVS.ouvert) EVS.ouvert.retour(); const montre = abs.total > 0 && abs.secs > 90; if (montre) { sheetRetour(abs); renderCards(true); } noterRetour(raison, abs, sortie, montre, !!(info && info.frais)); lastFrame = performance.now(); save(); if (abs.secs > 60) verifierCadeaux(); });
@@ -1905,17 +1928,17 @@ const UI = (() => {
     // les événements (src/evenement.js) : « Le Quartier » (la Planque) et « La Maison hantée » (le Manoir) ; leurs paliers et récompenses, l'annonce, le bilan
     const depsEv = (cle) => ({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), sure: () => { try { const e = HORLOGE.etat(); return e ? e.sure : null; } catch (e) { return null; } }, save, toast, fete: () => SCENE.fete(), openSheet, closeSheet, on, recompenses: recVue, confettis,
       classement: () => sheetClassement(cle), rang: () => { try { if (!classement || !classement.disponible() || !periodes().some(([id]) => id === cle)) return null; const r = classement.resume(), x = r[cle] || (r.evenements && r.evenements[cle]); return r.rejoint && x ? x.rang : 0; } catch (e) { return null; } },
-      ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); majCoin(); majChat(); renderCards(true); hud(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
+      ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); majCoin(); majChat(); renderCards(true); hud(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); lastPage = ''; renderPage(true); } });
     if (EVT) EVT.init(depsEv('quartier'));
     if (HTE) HTE.init(depsEv(HTE.cle));
     majChat();
     buildCards();
     MINIJEUX.init({ st: () => st, son, buzz, audio, maintenant: () => HORLOGE.maintenant(), fete: () => SCENE.fete(),
-      ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
+      ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); save(); renderPage(true); } });
     if (AR) AR.init({ st: () => st, son, buzz, audio, save, confettis,
-      ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); renderCards(true); hud(); lastPage = ''; renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
+      ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); renderCards(true); hud(); lastPage = ''; renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { hud(); } });
     document.querySelectorAll('.modes button').forEach((b) => { b.classList.toggle('actif', String(st.mode) === b.dataset.mode); b.addEventListener('click', () => { st.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; document.querySelectorAll('.modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCards(true); save(); }); });
     $('#cartes').addEventListener('click', onCardClick);
@@ -1947,6 +1970,7 @@ const UI = (() => {
     for (const ev of ['focus', 'resume']) (ev === 'resume' ? document : window).addEventListener(ev, verifierReveil);
     setInterval(verifierReveil, 1000);
     document.addEventListener('pointerdown', () => { dernierToucher = performance.now(); }, true);
+    for (const ev of ['pointerdown', 'touchstart', 'keydown']) document.addEventListener(ev, eveiller, { capture: true, passive: true }); // un geste : la cadence de jeu (30 images/s) revient
     document.addEventListener('pointerdown', () => { try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {}); } catch (e) { /* rien */ } }, { once: true });
     window.addEventListener('pagehide', save);
     window.addEventListener('beforeunload', save);
@@ -1974,8 +1998,8 @@ const UI = (() => {
     const pleineA = () => (st ? HORLOGE.maintenant() + G.heuresAbsence(st) * 3600e3 : null);
     try { classement = CLM ? CLM.navigateur({ fortune: () => (st ? st.lifetime : NaN), points: () => (st ? mesPoints() : null), quartier: () => (st && st.quartier && QT && QT.envoiBillets(HORLOGE.maintenant()) ? st.quartier.total : null), ...envoiHantee(), maintenant: () => HORLOGE.maintenant(), photo, pleineA }) : null; } catch (e) { classement = null; }
     // le chat des boulangers : son bouton rond sous les icônes des événements (seulement avec la configuration), la pastille des non-lus, sa feuille plein écran
-    if (TC) TC.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); }, rejoindre: () => sheetClassement() });
-    if (RT) RT.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); }, ferme: () => { lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), quartier: () => { const q = G.QUARTIERS[G.quartier(st)]; return q ? q.nom : ''; } });
+    if (TC) TC.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement() });
+    if (RT) RT.init({ classement: () => classement, st: () => st, save, son, buzz, audio, ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); }, rejoindre: () => sheetClassement(), quartier: () => { const q = G.QUARTIERS[G.quartier(st)]; return q ? q.nom : ''; } });
     try { // le coin se resserre au besoin (serrerCoin)
       const mo = new MutationObserver(serrerCoinBientot);
       mo.observe($('#coin'), { subtree: true, attributes: true, attributeFilter: ['hidden'] });
@@ -1995,7 +2019,7 @@ const UI = (() => {
     requestAnimationFrame(frame);
     window.__fournil = { get st() { return st; }, get retour() { return { enCours: retourEnCours, dernier: dernierRetour }; }, journalRetours: sheetJournalRetours, nouveautes: sheetNouveautes, cadeaux: verifierCadeaux, G, SCENE, save, son, confettis, audio, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, ficheMeuble: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
-      chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), parcours: sheetParcours, etoiles: sheetEtoiles, monteeGamme: sheetMonteeGamme, recapParcours: sheetRecapParcours, caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden, hantee: !$('#b-hantee').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
+      chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), parcours: sheetParcours, etoiles: sheetEtoiles, monteeGamme: sheetMonteeGamme, recapParcours: sheetRecapParcours, caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, cadence, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden, hantee: !$('#b-hantee').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
       quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT,
       hantee: () => (HTE ? HTE.ouvrir() : false), fermerHantee: () => { if (HTE) HTE.fermer(); }, evHantee: HTE, HT, annoncerEvenements: (f) => (EVS ? EVS.annoncer(f !== false) : false), chatNoir, choisirPelage, compagnons: (retour) => sheetCompagnons(retour), choisirCompagnon: (id) => { const r = G.choisirCompagnon(st, id); if (r.ok) { save(); majChat(); } return r; }, modeleVu, majChat, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin,
       visiter: (p, ev) => visiter(p, true, ev), finVisite, visite: () => (visite ? { pseudo: visite.pseudo, scene: visite.scene, charge: visite.charge, etat: visite.etat, nom: visite.b ? visite.b.nom : null, ev: visite.E ? visite.E.cle : null, ev3: !!visite.ev3, images: visite.images, calls: visite.ev3 ? visite.ev3.calls : 0, q: visite.qe ? { postes: visite.qe.postes.map((x) => [x.niv, x.staff]), paliers: visite.qe.paliers.length, total: visite.qe.total, decos: visite.qe.decos.slice() } : null } : null), // classement v6 (pour les tests)

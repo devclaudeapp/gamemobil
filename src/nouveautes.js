@@ -16,6 +16,14 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-10-20-b', date: '2026-10-20', titre: 'Le jeu consomme moins de batterie',
+      points: [
+        'La boutique se dessine 30 fois par seconde au plus pendant que tu joues (au lieu de 60, voire 120 sur les iPhone récents), et 10 fois après 15 secondes sans toucher l’écran. Elle reprend aussitôt au premier toucher.',
+        'Tes gains ne changent pas : tes apprentis vendent exactement autant, quelle que soit la cadence.',
+        'Les mini-jeux de l’Atelier et des événements, et le meuble que tu fais glisser en mode Déplacer, restent bien fluides.',
+      ],
+    },
+    {
       id: '2026-10-20-a', date: '2026-10-20', titre: 'La recette du jour, et des récompenses jusqu’au 15e',
       points: [
         'Dans la Planque, la « Mise en pochon du jour » : une recette qui change chaque jour, à lancer à la main. Prépare-la, améliore-la jusqu’au niveau 10 : jouée sans arrêt, elle ajoute jusqu’à 40 % à tes gains.',
