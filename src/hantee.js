@@ -209,6 +209,7 @@
     if (!q.ameliorations || typeof q.ameliorations !== 'object') q.ameliorations = {};
     if (!(q.billets >= 0)) q.billets = 0; if (!(q.total >= 0)) q.total = 0;
     q.majeur = true; // pas de porte : tous âges
+    if (Number.isFinite(now) && !(q.vuLe >= now)) q.vuLe = now; // v6.7 : la dernière heure où l'écran a lu l'état (un palier qui s'ouvre se voit dès le retour, avant le premier pas de jeu ; atteint)
     A.reparer(q); // les activités : q.mini, q.contrats, q.operation, et leurs compteurs (une vieille sauvegarde n'en a pas)
     reparerManoir(q, now); // lot 6 : q.actif (absent : actif maintenant), q.manoir (clients, apparitions, commande, plafonds) et ses compteurs
     return q;
@@ -559,7 +560,7 @@
     if (palierOuvert(p, now)) return ''; const d = paris(ouverturePalier(p)), j = d.getUTCDate();
     return `s’ouvre ${NOMS_JOURS[d.getUTCDay()]} ${j === 1 ? '1er' : j}`;
   }
-  const atteint = (q, p) => q.total >= p.total && palierOuvert(p, q.now);
+  const atteint = (q, p) => q.total >= p.total && palierOuvert(p, Math.max(q.now || 0, q.vuLe || 0)); // (q.now : le dernier pas de jeu ; q.vuLe : la dernière lecture, etat)
   const paliersAtteints = (q) => PALIERS.filter((p) => atteint(q, p));
   function paliersDus(q) { return PALIERS.filter((p) => atteint(q, p) && !q.paliers.includes(p.n)); }
   function marquerPalier(q, n) { // le palier n est réclamé : on note ce qu'il donne (l'interface le distribue dans la boulangerie)

@@ -144,7 +144,12 @@ check(HT.PALIERS.map((p) => p.total).join() === [5e7, 5e9, 5e10, 2.5e11, 8e11, 1
   qj.now = mardi - 1; const avant = HT.tick(qj, 1, mardi - 1000, () => 0.5).paliers.length, o = HT.tick(qj, 1, mardi + 1000, () => 0.5);
   check(avant === 4 && o.paliers.map((p) => p.n).join() === '1,2,3,4,5,6,7' && HT.ouvrePalier(HT.PALIERS[4], qj.now) === '' && HT.ouvrePalier(HT.PALIERS[7], qj.now) === 's’ouvre jeudi 29', 'à minuit, le pas de jeu donne les trois du mercredi (le 8e attend jeudi)');
   qj.now = now7; const qa = HT.etat({ hantee: JSON.parse(JSON.stringify(qj)) }, HT.FIN); qa.now = HT.FIN + 864e5;
-  check(HT.paliersDus(qj).length === 12 && HT.paliersDus(qa).length === 12, 'le dernier jour (et après la fermeture), tous ouverts'); }
+  check(HT.paliersDus(qj).length === 12 && HT.paliersDus(qa).length === 12, 'le dernier jour (et après la fermeture), tous ouverts');
+  // la sauvegarde d'un samedi, relue le lundi : les paliers ouverts entre-temps sont dus dès la lecture (etat note l'heure : q.vuLe), avant
+  // le premier pas de jeu (l'écran les annonce dans la boutique sans ouvrir le Manoir)
+  const sam = HT.etat({}, HT.parisMs(2026, 10, 31, 10)); HT.gagner(sam, 1e17); HT.paliersDus(sam).forEach((x) => HT.marquerPalier(sam, x.n));
+  const lun = HT.etat({ hantee: JSON.parse(JSON.stringify(sam)) }, HT.parisMs(2026, 11, 2, 10));
+  check(sam.paliers.length === 16 && lun.now === sam.now && HT.paliersDus(lun).map((x) => x.n).join() === '17,18,19,20', `relue deux jours plus tard : ${HT.paliersDus(lun).map((x) => x.n).join(', ')} dus tout de suite`); }
 check(HT.PALIERS.every((p) => HT.phrasePalier(p).length > 3) && /chat noir/.test(HT.phrasePalier(HT.PALIERS[3])), 'chaque palier se décrit en une ligne');
 check(HT.VETEMENTS.concat(HT.VETEMENTS_OR).every((id) => G.vetement(id) && G.vetement(id).collection === (id.startsWith('hantee-or') ? 'hantee-or' : 'hantee')) && HT.VETEMENTS.every((id) => F.vetements[id] && F.vetements[id].forme === G.vetement(id).forme), 'chaque pièce existe dans la garde-robe de src/game.js (collections hantee et hantee-or), de la forme que dit la fiche');
 q = HT.etat({}, now0);
@@ -186,7 +191,7 @@ check(ev.n === 8 && ev.enjeu === Math.floor(q.billets * 0.05) && evS.fin - evS.d
   check(GC.rev === 72000 && OD.rev === 1050000 && GC.cout === 1e12 && GC.croiss === 1.02 && GC.debloquer === 2e13 && GC.staff === 5e13 && OD.cout === 1e13 && OD.croiss === 1.025 && OD.debloquer === 2e14 && OD.staff === 5e14,
     `v6.4 : les gâteaux ×72 (rev 1 000 → 18 000 en v6.3 → ${GC.rev}), les œufs ×131,25 (8 000 → 700 000 → ${OD.rev}) ; les mêmes prix qu’avant`);
   const r0 = HT.acheter(qr, 6); check(!r0.ok && r0.verrou && r0.apres === 13 && qr.postes[6].niv === 0, 'avant le 13e : les gâteaux du cimetière restent fermés (« Après le palier 13 »)');
-  { const qf = HT.etat({ hantee: JSON.parse(JSON.stringify(qr)) }, now0); qf.now = now0; HT.gagner(qf, 1e16); check(HT.acheter(qf, 6).verrou && HT.acheter(qf, 7).verrou, 'v6.7 : le premier jour, même au-delà du 16e, elles attendent l’ouverture de leur palier (le vendredi 30 et le samedi 31)'); }
+  { const qf = HT.etat({ hantee: JSON.parse(JSON.stringify(qr)) }, now0); qf.now = now0; qf.vuLe = now0; HT.gagner(qf, 1e16); check(HT.acheter(qf, 6).verrou && HT.acheter(qf, 7).verrou, 'v6.7 : le premier jour, même au-delà du 16e, elles attendent l’ouverture de leur palier (le vendredi 30 et le samedi 31)'); }
   HT.gagner(qr, 3e14); check(HT.acheter(qr, 6).ok && qr.postes[6].niv === 1 && HT.acheter(qr, 7).verrou && HT.embaucher(qr, 6).ok, 'le 13e franchi : ils se débloquent, Gaston s’embauche ; les œufs de dragon attendent le 16e');
   const vieille = { hantee: JSON.parse(JSON.stringify(HT.etat({}, now7))) }; vieille.hantee.postes = vieille.hantee.postes.slice(0, 6); vieille.hantee.postes.forEach((x) => { x.niv = 60; x.staff = true; }); vieille.hantee.total = 8e15;
   const qv = HT.etat(vieille, now7); qv.billets = 1e15; qv.mode = 1;

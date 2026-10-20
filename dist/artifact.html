@@ -11382,6 +11382,7 @@ const GARDEROBE_UI = (() => {
     if (!q.ameliorations || typeof q.ameliorations !== 'object') q.ameliorations = {};
     if (!(q.billets >= 0)) q.billets = 0; if (!(q.total >= 0)) q.total = 0;
     q.majeur = true; // pas de porte : tous âges
+    if (Number.isFinite(now) && !(q.vuLe >= now)) q.vuLe = now; // v6.7 : la dernière heure où l'écran a lu l'état (un palier qui s'ouvre se voit dès le retour, avant le premier pas de jeu ; atteint)
     A.reparer(q); // les activités : q.mini, q.contrats, q.operation, et leurs compteurs (une vieille sauvegarde n'en a pas)
     reparerManoir(q, now); // lot 6 : q.actif (absent : actif maintenant), q.manoir (clients, apparitions, commande, plafonds) et ses compteurs
     return q;
@@ -11732,7 +11733,7 @@ const GARDEROBE_UI = (() => {
     if (palierOuvert(p, now)) return ''; const d = paris(ouverturePalier(p)), j = d.getUTCDate();
     return `s’ouvre ${NOMS_JOURS[d.getUTCDay()]} ${j === 1 ? '1er' : j}`;
   }
-  const atteint = (q, p) => q.total >= p.total && palierOuvert(p, q.now);
+  const atteint = (q, p) => q.total >= p.total && palierOuvert(p, Math.max(q.now || 0, q.vuLe || 0)); // (q.now : le dernier pas de jeu ; q.vuLe : la dernière lecture, etat)
   const paliersAtteints = (q) => PALIERS.filter((p) => atteint(q, p));
   function paliersDus(q) { return PALIERS.filter((p) => atteint(q, p) && !q.paliers.includes(p.n)); }
   function marquerPalier(q, n) { // le palier n est réclamé : on note ce qu'il donne (l'interface le distribue dans la boulangerie)
@@ -13493,7 +13494,7 @@ const EVENEMENTS = (() => {
     }
     function sheetPaliers() { // (la Maison hantée, v6.7 : un palier pas encore ouvert dit son jour, Q.ouvrePalier)
       const qq = q(), nb = Q.paliersAtteints(qq).length;
-      const ligne = (p) => { const ouvre = Q.ouvrePalier ? Q.ouvrePalier(p, qq.now) : '', atteint = qq.total >= p.total && !ouvre, recu = qq.paliers.includes(p.n); return `<div class="pq-palier ${atteint ? 'atteint' : ''}${p.bonus ? ' bonus' : ''}"><span class="pq-num">${p.n}</span><div><b>${esc(p.titre)} <small>${prix(p.total)}</small></b><span>${esc(Q.phrasePalier(p))}${ouvre ? ` · <i>${esc(ouvre)}</i>` : ''}</span></div><span class="pq-etat">${recu ? '✓' : atteint ? '…' : ''}</span></div>`; };
+      const ligne = (p) => { const ouvre = Q.ouvrePalier ? Q.ouvrePalier(p, Math.max(qq.now || 0, qq.vuLe || 0)) : '', atteint = qq.total >= p.total && !ouvre, recu = qq.paliers.includes(p.n); return `<div class="pq-palier ${atteint ? 'atteint' : ''}${p.bonus ? ' bonus' : ''}"><span class="pq-num">${p.n}</span><div><b>${esc(p.titre)} <small>${prix(p.total)}</small></b><span>${esc(Q.phrasePalier(p))}${ouvre ? ` · <i>${esc(ouvre)}</i>` : ''}</span></div><span class="pq-etat">${recu ? '✓' : atteint ? '…' : ''}</span></div>`; };
       const bonus = Q.PALIERS.filter((p) => p.bonus); // après le boss : sous leur intertitre
       const lignes = Q.PALIERS.filter((p) => !p.bonus).map(ligne).join('') + (bonus.length ? `<h3 class="pq-inter">${esc(F.t.apresBoss)}</h3><p class="pq-inter-sous">${esc(F.t.apresBossSous)}</p>${bonus.map(ligne).join('')}` : '');
       d.openSheet(`<div class="pq-sheet ${F.classe}"><div class="pq-palier-tete"><span class="pq-pic">${F.ico.palier}</span><div><h2>Les paliers</h2><p class="sous">${esc(F.t.paliersSous(fmt(qq.total), nb, nbPaliers(qq)))}</p></div></div>

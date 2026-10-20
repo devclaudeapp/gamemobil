@@ -148,8 +148,9 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   }
 
   console.log('── les paliers et leurs récompenses pour la boulangerie ──');
-  const avant = await ev(() => ({ etoiles: window.__fournil.st.etoiles, reserve: window.__fournil.st.boosts.reserve.length }));
-  const p4 = HT.PALIERS.slice(0, 4), etoiles4 = p4.reduce((a, p) => a + (p.etoiles || 0), 0), boosts4 = p4.filter((p) => p.boost).length, decos4 = p4.filter((p) => p.deco).map((p) => p.deco), vet4 = p4.filter((p) => p.vetement).map((p) => p.vetement);
+  const avant = await ev(() => ({ etoiles: window.__fournil.st.etoiles, reserve: window.__fournil.st.boosts.reserve.length, recus: (window.__fournil.st[window.__fournil.evHantee.cle] || { paliers: [] }).paliers.slice() }));
+  // (v6.7 : le 1er palier, à 50 M, a pu tomber pendant les coups de pouce, plus haut : on attend les étoiles et boosts de ceux qui restent)
+  const p4 = HT.PALIERS.slice(0, 4).filter((p) => !avant.recus.includes(p.n)), etoiles4 = p4.reduce((a, p) => a + (p.etoiles || 0), 0), boosts4 = p4.filter((p) => p.boost).length, decos4 = p4.filter((p) => p.deco).map((p) => p.deco), vet4 = p4.filter((p) => p.vetement).map((p) => p.vetement);
   await ev((t) => { const F = window.__fournil, h = F.st[F.evHantee.cle]; h.billets += t - h.total; h.total = t; }, HT.PALIERS[3].total);
   check(await attendre(async () => /Palier 1/.test(await feuille())), 'le palier 1 est annoncé');
   await shot('05-palier');
@@ -329,9 +330,16 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
       const apres = await carte(5), pApres = await ev2(() => { const F = window.__fournil; return F.HT.prixNiveaux(F.st[F.evHantee.cle], 5, 1); });
       check(await ev2(() => { const F = window.__fournil; return F.st[F.evHantee.cle].ameliorations.marche === true; }) && pApres === pAvant / 2 && /−50 % ×1/.test(apres.petit) && apres.prix !== avant.prix, `le Marché des sorcières acheté : un niveau de citrouilles passe de « ${avant.prix} » à « ${apres.prix} » (${apres.petit})`);
       await ev2(() => document.querySelector('#ht-cartes').scrollTo(0, 0)); }
-    await ev2(() => { const F = window.__fournil, q = F.st[F.evHantee.cle]; q.total = 7e16; q.billets = 1e15; });
-    check(await attendre(async () => /Palier 15/.test(await feuille2()), 5000), 'au-delà de 60 Bd : les paliers 15 à 20 s’annoncent');
-    for (let k = 0; k < 5 && !/Palier 20/.test(await feuille2()); k++) { await clic2('#feuille [data-a="pq-ok"]'); await sleep(450); }
+    // v6.7 : les paliers 17 à 20 s'ouvrent les deux derniers jours : le téléphone passe au lundi 2 novembre, 10 h (rechargé, comme pour le
+    // bilan plus bas), avec 70 Bd de bonbons ; les paliers 15 à 20 arrivent d'eux-mêmes, comme le 13e
+    await ev2(() => { const F = window.__fournil, q = F.st[F.evHantee.cle]; q.total = 7e16; q.billets = 1e15; F.save(); });
+    decal = HT.parisMs(2026, 11, 2, 10) - Date.now();
+    await pg.evaluate((d) => localStorage.setItem('test.tel', String(d)), decal); await ev2(() => window.__fournil.save());
+    await charger2();
+    check(await attendre(async () => /Palier 15/.test(await feuille2()), 20000), 'au-delà de 24 Bd, le dernier jour : les paliers 15 à 20 s’annoncent');
+    for (let k = 0; k < 8 && !/Palier 20/.test(await feuille2()); k++) { // (une feuille après l'autre : on attend la suivante avant de toucher, pour ne pas passer le 20e)
+      const vu = (/Palier (\d+)/.exec(await feuille2()) || [])[1]; await clic2('#feuille [data-a="pq-ok"]');
+      await attendre(async () => { const n = (/Palier (\d+)/.exec(await feuille2()) || [])[1]; return n && n !== vu; }, 4000); }
     check(/Palier 20 · La légende phosphorescente/.test(await feuille2()) && /Chapeau phosphorescent/.test(await feuille2()), 'le palier 20 : le chapeau phosphorescent pour la garde-robe');
     await shot2('h4-palier-20');
     await clic2('#feuille [data-a="pq-ok"]'); await sleep(400);
