@@ -263,9 +263,11 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   await ev(() => { const F = window.__fournil; F.SCENE.decosHantee(F.st[F.evHantee.cle].decos); F.tiroir('mi'); });
 
 
-  console.log('── après le maître : une sauvegarde déjà au 12e, à la mise à jour (le 28 octobre) ──');
+  console.log('── après le maître : une sauvegarde déjà au 12e, à la mise à jour (le 31 octobre) ──');
+  // (v6.7 : les paliers s'ouvrent au fil des jours ; le samedi 31, le 5e jour, jusqu'au 16e : le 28, le 7e au plus. 1 300 Bn de bonbons : au-delà
+  // des 13e et 14e, sous le 15e, avec les seuils de la v6.7 ; 3 000 Bn avant)
   await ctx.close(); // le premier téléphone a fini (sa scène HD en rendu logiciel ne ralentit plus le second)
-  { decal = new Date('2026-10-28T10:00:00+01:00').getTime() - Date.now();
+  { decal = new Date('2026-10-31T10:00:00+01:00').getTime() - Date.now();
     const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
     await ctx2.addInitScript(fauxTelephone, decal); await ctx2.route(/supabase\.co/, (r) => r.abort());
     const pg = await ctx2.newPage(); pg.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });
@@ -277,9 +279,9 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
     // d'abord l'annonce du jour sur ce premier chargement (le minuteur de 800 ms de ui.js) : posée après l'état ci-dessous, elle donnerait
     // déjà les paliers 13 et 14 ici, avant le rechargement (une course entre ce minuteur et l'évaluation, selon la charge de la machine)
     check(await attendre(() => ev2(() => { const F = window.__fournil, qq = F.st[F.evHantee.cle]; return !!(qq && qq.annonce) && !document.querySelector('#feuille').hidden; }), 20000), 'le premier chargement : l’annonce du jour d’abord');
-    const av = await ev2(() => { const F = window.__fournil, R = F.HT, st = F.st, q = R.etat(st, HORLOGE.maintenant()); q.annonce = true; R.gagner(q, 3e15); q.billets = 1e14; for (let k = 1; k <= 12; k++) R.marquerPalier(q, k); q.lastSeen = HORLOGE.maintenant(); F.save();
+    const av = await ev2(() => { const F = window.__fournil, R = F.HT, st = F.st, q = R.etat(st, HORLOGE.maintenant()); q.annonce = true; R.gagner(q, 1.3e15); q.billets = 1e14; for (let k = 1; k <= 12; k++) R.marquerPalier(q, k); q.lastSeen = HORLOGE.maintenant(); F.save();
       return { etoiles: st.etoiles, reserve: st.boosts.reserve.length, paliers: q.paliers.length, dus: R.paliersDus(q).map((p) => p.n).join() }; });
-    check(av.paliers === 12 && av.dus === '13,14', 'la sauvegarde d’avant : douze paliers reçus, 3 000 Bn de bonbons (au-delà des 13e et 14e, pas encore donnés)');
+    check(av.paliers === 12 && av.dus === '13,14', 'la sauvegarde d’avant : douze paliers reçus, 1 300 Bn de bonbons (au-delà des 13e et 14e, pas encore donnés)');
     await charger2();
     check(await attendre(async () => /Palier 13/.test(await feuille2()), 20000), 'dans la boutique, sans ouvrir le Manoir : la feuille « Palier 13 » arrive toute seule');
     check(/huit paliers bonus/.test(await feuille2()), 'avec l’annonce des paliers bonus');
