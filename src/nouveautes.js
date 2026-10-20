@@ -16,6 +16,16 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-10-20-a', date: '2026-10-20', titre: 'La recette du jour, et des récompenses jusqu’au 15e',
+      points: [
+        'Dans la Planque, la « Mise en pochon du jour » : une recette qui change chaque jour, à lancer à la main. Prépare-la, améliore-la jusqu’au niveau 10 : jouée sans arrêt, elle ajoute jusqu’à 40 % à tes gains.',
+        'Conditionne 100, 250 puis 500 pochons (toutes recettes confondues) : des étoiles pour ta boulangerie, et un décor à la fin. La Maison hantée aura la sienne dès le 27.',
+        'Chaque lundi, les quinze premiers du classement de la semaine sont récompensés : des étoiles et un boost, et toujours la tenue et la coupe pour le podium. Une feuille te dit ta place.',
+        'Corrigé : une fin d’événement Planque ouverte paie bien ton absence ; un boost de la réserve fini pendant ton absence compte ; tes objectifs du jour finis sont réclamés avant une nouvelle boutique ; une main de BlackJack en cours ne suit plus dans la nouvelle boutique ; les pourboires ne se perdent plus quand le réseau coupe.',
+        'L’interrupteur « Décors en HD » est maintenant dans Réglages › Le jeu.',
+      ],
+    },
+    {
       id: '2026-10-18-b', date: '2026-10-18', titre: 'Le Sirop violet et le Cristal bleu, encore plus forts',
       points: [
         'Dans la Planque, le Sirop violet rapporte ×48 par niveau (4 fois plus qu’hier), le Cristal bleu ×80 (2 fois plus qu’hier) : sans ses Gobelets, un niveau de Sirop se rembourse à peu près aussi vite qu’un niveau de Spécialité ; avec, c’est la meilleure affaire.',
