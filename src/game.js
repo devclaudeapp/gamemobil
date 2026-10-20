@@ -592,7 +592,7 @@
     ajouter(vet('parcours-tablier', 'Tablier du parcours', 'haut', 'parcours', 'tablier', { gains: { produit: null, pct: 2 } }, 'epique', 'Une poche par quartier.'));
     ajouter(vet('parcours-chaussures', 'Chaussures du parcours', 'pieds', 'parcours', 'chaussures', { vitesse: 1.5 }, 'epique', 'Elles ont fait vingt-trois boutiques.'));
     ajouter(vet('parcours-foulard', 'Foulard du parcours', 'accessoire', 'parcours', 'foulard', { absence: 0.5 }, 'epique', 'Noué à la boutique n°29.'));
-    // l'événement « La Maison hantée » (src/hantee.js) : la tenue d'Halloween aux paliers 3, 6, 9 et 12, la même en or pour le podium final
+    // l'événement « La Maison hantée » (src/hantee.js) : la tenue d'Halloween aux paliers 3, 5, 7 et 9, la même en or pour le podium final
     ajouter(vet('hantee-chapeau', 'Chapeau pointu', 'tete', 'hantee', 'chapeau', { gains: { produit: 'tarte', pct: 8 } }, 'rare', 'Pointu, étoilé, et il tient même dans le vent du four.'));
     ajouter(vet('hantee-cape', 'Cape de minuit', 'haut', 'hantee', 'cape', { gains: { produit: null, pct: 2.5 } }, 'rare', 'Doublée de violet. Elle fait « whoosh » quand on se retourne.'));
     ajouter(vet('hantee-bottes', 'Bottes qui claquent', 'pieds', 'hantee', 'bottes', { vitesse: 1.5 }, 'rare', 'Clac, clac, clac : on les entend arriver du fournil.'));

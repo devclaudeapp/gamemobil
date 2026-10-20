@@ -12,12 +12,21 @@
 --  donc plus (×1,08 à la fin, mais bien plus tôt dans la première nuit), et l'ancienne table tombait à ×1,69 de marge au lieu d'au
 --  moins ×2,2. L'enveloppe du serveur (ce qu'il aurait pu gagner, avec une marge d'au moins ×2,2) doit grandir d'autant, sinon un
 --  joueur honnête et assidu serait plafonné.
+--  Mise à jour du 21 octobre (v6.7 du jeu, avant toute mise en ligne de ce patch) : les paliers de la Maison hantée réglés pour le
+--  « juste milieu » entre joueurs occasionnels et acharnés (seuils plus bas jusqu'au 12e, et chaque palier s'ouvre un jour de la
+--  semaine : quatre le premier jour, puis trois, puis deux). La réputation du Manoir (×1,5 par palier, jusqu'au 12e) suit les bonbons :
+--  le marathon l'a donc toute dès les premières heures (×3 à ×10 plus haut qu'avant entre la 2e et la 6e heure), puis il gagne moins
+--  (les recettes et Sortilèges « après le palier » attendent leur jour : 511 Bd à la fin au lieu de 861). La table monte au 1er pas
+--  (6 h : 14,5 → 16,1 ; l'interpolation depuis l'ouverture doit couvrir ces premières heures) et retombe ensuite sur la v6.5 en ligne,
+--  dont elle ne descend jamais. Avant cette mise à jour, le patch portait :
+--  {11.65,14.5,16.35,16.45,16.9,17.05,17.25,17.4,17.5,17.65,17.7,17.8,17.85,17.9,17.95,18.05,18.1,18.15,18.2,18.2,18.25,18.3,18.35,18.35,18.4,18.4,18.45}
 --
 --  Ce qu'il fait, et rien d'autre :
 --    · fournil_evts() : la ligne 'hantee', même fenêtre (du mardi 27 octobre 2026 à midi au lundi 2 novembre 2026 à 20 h, heure
 --      de Paris), même pas de 6 heures, ses 27 log10 (la recette du jour à la part 0,25 et les activités, jouées au mieux, minute par
---      minute, sur 80 tirages du hasard des coups de pouce, Sortilèges achetés et offerts : ×2,30 de marge au plus juste, et encore
---      ×2,30 sur 40 autres tirages qu'elle n'a pas vus ; ×13,6 au plus large après six heures) ;
+--      minute, sur 80 tirages du hasard des coups de pouce, Sortilèges achetés et offerts : ×2,36 de marge au plus juste, et encore
+--      ×2,33 sur 40 autres tirages qu'elle n'a pas vus ; ×34 au plus large juste après six heures, ×14,4 après sept heures, ×10,7
+--      ensuite) ;
 --    · chaque nouvelle valeur est supérieure ou égale à celle de la 6.5, au même pas : personne n'est plafonné plus bas qu'avant ;
 --    · la même signature, le même langage, la même volatilité, le même search_path que la version 6 ; les mêmes droits (fonction
 --      interne : ni anon ni authenticated). fournil_evt_borne lit cette table : elle suit d'elle-même. Le Quartier ne change pas.
@@ -37,7 +46,7 @@ immutable
 set search_path = ''
 as $$
   values ('hantee'::text, '2026-10-27 12:00:00 Europe/Paris'::timestamptz, '2026-11-02 20:00:00 Europe/Paris'::timestamptz, 6::double precision,
-          '{11.65,14.5,16.35,16.45,16.9,17.05,17.25,17.4,17.5,17.65,17.7,17.8,17.85,17.9,17.95,18.05,18.1,18.15,18.2,18.2,18.25,18.3,18.35,18.35,18.4,18.4,18.45}'::double precision[])
+          '{11.65,16.1,16.1,16.35,16.75,17,17.15,17.35,17.45,17.55,17.65,17.75,17.8,17.85,17.9,18,18.05,18.1,18.15,18.15,18.2,18.25,18.3,18.3,18.35,18.4,18.4}'::double precision[])
 $$;
 
 -- les droits : comme en version 6, une fonction interne (personne d'autre que le propriétaire ne l'appelle)

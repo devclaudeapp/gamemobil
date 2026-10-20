@@ -2579,7 +2579,7 @@ function(t,e){"object"==typeof exports&&"undefined"!=typeof module?e(exports):"f
     ajouter(vet('parcours-tablier', 'Tablier du parcours', 'haut', 'parcours', 'tablier', { gains: { produit: null, pct: 2 } }, 'epique', 'Une poche par quartier.'));
     ajouter(vet('parcours-chaussures', 'Chaussures du parcours', 'pieds', 'parcours', 'chaussures', { vitesse: 1.5 }, 'epique', 'Elles ont fait vingt-trois boutiques.'));
     ajouter(vet('parcours-foulard', 'Foulard du parcours', 'accessoire', 'parcours', 'foulard', { absence: 0.5 }, 'epique', 'Noué à la boutique n°29.'));
-    // l'événement « La Maison hantée » (src/hantee.js) : la tenue d'Halloween aux paliers 3, 6, 9 et 12, la même en or pour le podium final
+    // l'événement « La Maison hantée » (src/hantee.js) : la tenue d'Halloween aux paliers 3, 5, 7 et 9, la même en or pour le podium final
     ajouter(vet('hantee-chapeau', 'Chapeau pointu', 'tete', 'hantee', 'chapeau', { gains: { produit: 'tarte', pct: 8 } }, 'rare', 'Pointu, étoilé, et il tient même dans le vent du four.'));
     ajouter(vet('hantee-cape', 'Cape de minuit', 'haut', 'hantee', 'cape', { gains: { produit: null, pct: 2.5 } }, 'rare', 'Doublée de violet. Elle fait « whoosh » quand on se retourne.'));
     ajouter(vet('hantee-bottes', 'Bottes qui claquent', 'pieds', 'hantee', 'bottes', { vitesse: 1.5 }, 'rare', 'Clac, clac, clac : on les entend arriver du fournil.'));
@@ -11207,7 +11207,7 @@ const GARDEROBE_UI = (() => {
        vetements: { id: { nom, piece, forme } }, decos: { id: texte }, chat: 'noir',
        textes: { titre, sousTitre, annonceTitre, annonce, ouvrir, fermer, absence(dur, montant), bilanTitre, bilan, palier12,
                  paliersNote, ameliorations: 'Sortilèges', equipe: 'Les monstres', manuel: 'Touche !', ferme } }
-   Les vêtements (src/game.js, GARDEROBE) : collection 'hantee' (paliers 3, 6, 9, 12) et 'hantee-or' (le podium final), formes pour
+   Les vêtements (src/game.js, GARDEROBE) : collection 'hantee' (paliers 3, 5, 7, 9 ; v6.7) et 'hantee-or' (le podium final), formes pour
    persos.js : 'chapeau' (chapeau pointu de sorcière), 'cape', 'bottes', 'lanterne' (une petite citrouille-lanterne à la main).
    FICHE.activites : l'habillage d'Halloween des activités (src/activites.js, le moteur commun à tous les événements : les mini-jeux « Le
    guet », « Le compte », « La tournée », les contrats de la nuit, les opérations) ; leur API est exportée telle quelle, comme au Quartier.
@@ -11317,35 +11317,41 @@ const GARDEROBE_UI = (() => {
   };
 
   // ─── les douze paliers : des bonbons gagnés (total), les mêmes pour tous ; chacun donne une récompense pour la boulangerie ───
-  // Réglés sur la simulation (test/fournil-hantee.test.js) : un assidu (80 min par jour, en quatre sessions) franchit le 12e le
-  // dernier jour (le 6e ou le 7e jour de Paris) ; un quotidien (36 min) va jusqu'au 8e-9e ; un occasionnel (17 min) passe le 5e.
-  // Après le maître (bonus: true), les paliers 13 à 20 : un très actif (8 h par jour, le 12e au 2e jour) en franchit un par jour ou
-  // presque ; le marathon (24 h/24) n'atteint le 20e que le 5e jour (le 6e avant la v6.3). Ils ne font plus la réputation (REPUTATION ne compte que
-  // les douze premiers : l'enveloppe du serveur ne bouge pas) ; étoiles, boosts, primes, un titre, et au 20e le chapeau phosphorescent (un
-  // trophée de la garde-robe, distinct de la tenue en or du podium final). Version 2 des récompenses (16 octobre), les mêmes principes
-  // qu'au Quartier (src/quartier.js) : les seuils ne bougent pas ; prime : des heures du rythme de la boulangerie ; les douze premiers un
-  // peu plus généreux (10 étoiles, 16 h de primes), les huit bonus bien plus (29 étoiles, des ×5 et des ×10, 54 h de primes).
+  // Après le maître (bonus: true), les paliers 13 à 20. Ils ne font plus la réputation (REPUTATION ne compte que les douze premiers) ;
+  // étoiles, boosts, primes, un titre, et au 20e le chapeau phosphorescent (un trophée de la garde-robe, distinct de la tenue en or du
+  // podium final). Version 2 des récompenses (16 octobre), les mêmes principes qu'au Quartier (src/quartier.js) : prime : des heures du
+  // rythme de la boulangerie ; les douze premiers un peu plus généreux (10 étoiles, 16 h de primes), les huit bonus bien plus (29 étoiles,
+  // des ×5 et des ×10, 54 h de primes).
+  // v6.7 (21 octobre), le « juste milieu » voulu par le joueur, réglé sur la simulation (test/fournil-hantee.test.js, en médiane de huit
+  // graines) : un occasionnel (17 min par jour) passe le 9e ou le 10e (le 6e avant), un quotidien (36 min) le 12e ou le 13e (le 10e), un
+  // assidu (80 min) le 15e ou le 16e (le 13e) ; le très actif (8 h) et le marathon : quatre le premier jour, puis trois par jour, puis
+  // deux, le 20e le 7e jour (le très actif en avait 14 dès le 2e jour). Les seuils seuls n'y suffisaient pas (voir ouverturePalier) :
+  // chaque palier a donc son jour (p.jour). Seuils plus bas jusqu'au 12e (la réputation arrive plus tôt aux joueurs moyens : ×16 de
+  // bonbons pour l'occasionnel à la fin, ×4,4 le quotidien, ×1,5 l'assidu), plus serrés après ; le très actif et le marathon, qui
+  // attendent l'ouverture des paliers pour les recettes et les Sortilèges « après le palier », gagnent un peu moins (×0,8 et ×0,6). La tenue d'Halloween (3, 5, 7, 9) et le chat noir (4) avant le 10e, pour que l'occasionnel les ait : les
+  // mêmes récompenses en tout, les étoiles, boosts et primes à leur place (la cape a pris la place des toiles, les bottes celle de la
+  // nuit des farces, la citrouille-lanterne a quitté le 12e pour le 9e).
   const PALIERS = [
-    { n: 1, total: 4e8, etoiles: 1, boost: { mult: 2, secs: 1800 }, titre: 'Premiers bonbons' },
-    { n: 2, total: 1e10, deco: 'citrouilles', prime: 1, titre: 'Les citrouilles du perron' },
-    { n: 3, total: 1.5e11, vetement: 'hantee-chapeau', titre: 'Le chapeau pointu' },
-    { n: 4, total: 6e11, chat: 'noir', etoiles: 1, titre: 'Le chat noir' },
-    { n: 5, total: 2e12, deco: 'toiles', prime: 2, titre: 'Les toiles d’araignée' },
-    { n: 6, total: 5e12, vetement: 'hantee-cape', titre: 'La cape de minuit' },
-    { n: 7, total: 1e13, etoiles: 1, boost: { mult: 5, secs: 900 }, titre: 'La nuit des farces' },
-    { n: 8, total: 1.5e13, deco: 'chaudron', prime: 3, titre: 'Le chaudron qui bouillonne' },
-    { n: 9, total: 4e13, vetement: 'hantee-bottes', titre: 'Les bottes qui claquent' },
-    { n: 10, total: 1.2e14, etoiles: 2, boost: { mult: 2, secs: 3600 }, titre: 'Le Manoir affiche complet' },
-    { n: 11, total: 2.5e14, etoiles: 1, boost: { mult: 2, secs: 1800 }, prime: 4, titre: 'Le bal des citrouilles' },
-    { n: 12, total: 4e14, vetement: 'hantee-lanterne', etoiles: 4, boost: { mult: 5, secs: 3600 }, prime: 6, titre: 'Le maître du Manoir' },
-    { n: 13, total: 1.2e15, bonus: true, etoiles: 2, boost: { mult: 5, secs: 1800 }, prime: 4, titre: 'Hubert fait des heures sup’' },
-    { n: 14, total: 2.5e15, bonus: true, etoiles: 2, prime: 6, titre: 'Les citrouilles t’applaudissent' },
-    { n: 15, total: 4.5e15, bonus: true, etoiles: 3, boost: { mult: 5, secs: 2700 }, titre: 'Le comte Vladimir veut un autographe' },
-    { n: 16, total: 7e15, bonus: true, etoiles: 3, prime: 8, titre: 'Ramsès se déroule de joie' },
-    { n: 17, total: 1e16, bonus: true, etoiles: 3, boost: { mult: 10, secs: 1800 }, titre: 'Osvaldo en rit jusqu’aux os' },
-    { n: 18, total: 1.3e16, bonus: true, etoiles: 4, prime: 12, titre: 'Berthe chante juste (une fois)' },
-    { n: 19, total: 2.5e16, bonus: true, etoiles: 4, boost: { mult: 10, secs: 2700 }, titre: 'La lune se lève rien que pour toi' },
-    { n: 20, total: 6e16, bonus: true, vetement: 'hantee-lueur-chapeau', etoiles: 8, boost: { mult: 10, secs: 3600 }, prime: 24, titre: 'La légende phosphorescente' },
+    { n: 1, total: 5e7, jour: 1, etoiles: 1, boost: { mult: 2, secs: 1800 }, titre: 'Premiers bonbons' },
+    { n: 2, total: 5e9, jour: 1, deco: 'citrouilles', prime: 1, titre: 'Les citrouilles du perron' },
+    { n: 3, total: 5e10, jour: 1, vetement: 'hantee-chapeau', titre: 'Le chapeau pointu' },
+    { n: 4, total: 2.5e11, jour: 1, chat: 'noir', etoiles: 1, titre: 'Le chat noir' },
+    { n: 5, total: 8e11, jour: 2, vetement: 'hantee-cape', prime: 2, titre: 'La cape de minuit' },
+    { n: 6, total: 1.6e12, jour: 2, deco: 'toiles', titre: 'Les toiles d’araignée' },
+    { n: 7, total: 3e12, jour: 2, vetement: 'hantee-bottes', etoiles: 1, boost: { mult: 5, secs: 900 }, titre: 'Les bottes qui claquent' },
+    { n: 8, total: 6e12, jour: 3, deco: 'chaudron', prime: 3, titre: 'Le chaudron qui bouillonne' },
+    { n: 9, total: 1.2e13, jour: 3, vetement: 'hantee-lanterne', titre: 'La nuit des farces' },
+    { n: 10, total: 6e13, jour: 3, etoiles: 2, boost: { mult: 2, secs: 3600 }, titre: 'Le Manoir affiche complet' },
+    { n: 11, total: 2e14, jour: 4, etoiles: 1, boost: { mult: 2, secs: 1800 }, prime: 4, titre: 'Le bal des citrouilles' },
+    { n: 12, total: 4e14, jour: 4, etoiles: 4, boost: { mult: 5, secs: 3600 }, prime: 6, titre: 'Le maître du Manoir' },
+    { n: 13, total: 7e14, jour: 4, bonus: true, etoiles: 2, boost: { mult: 5, secs: 1800 }, prime: 4, titre: 'Hubert fait des heures sup’' },
+    { n: 14, total: 1.2e15, jour: 5, bonus: true, etoiles: 2, prime: 6, titre: 'Les citrouilles t’applaudissent' },
+    { n: 15, total: 1.8e15, jour: 5, bonus: true, etoiles: 3, boost: { mult: 5, secs: 2700 }, titre: 'Le comte Vladimir veut un autographe' },
+    { n: 16, total: 3e15, jour: 5, bonus: true, etoiles: 3, prime: 8, titre: 'Ramsès se déroule de joie' },
+    { n: 17, total: 5e15, jour: 6, bonus: true, etoiles: 3, boost: { mult: 10, secs: 1800 }, titre: 'Osvaldo en rit jusqu’aux os' },
+    { n: 18, total: 8e15, jour: 6, bonus: true, etoiles: 4, prime: 12, titre: 'Berthe chante juste (une fois)' },
+    { n: 19, total: 1.4e16, jour: 7, bonus: true, etoiles: 4, boost: { mult: 10, secs: 2700 }, titre: 'La lune se lève rien que pour toi' },
+    { n: 20, total: 2.4e16, jour: 7, bonus: true, vetement: 'hantee-lueur-chapeau', etoiles: 8, boost: { mult: 10, secs: 3600 }, prime: 24, titre: 'La légende phosphorescente' },
   ];
   const ANCIENS = { // les récompenses d'avant la version 2 (étoiles, boost ; aucune prime) : la revue donne la différence (ACT.RECOMPENSES.revue)
     1: { etoiles: 1, boost: { mult: 2, secs: 1800 } }, 4: { etoiles: 1 }, 7: { boost: { mult: 5, secs: 900 } }, 10: { etoiles: 2, boost: { mult: 2, secs: 3600 } }, 11: { etoiles: 1, boost: { mult: 2, secs: 1800 } },
@@ -11376,6 +11382,7 @@ const GARDEROBE_UI = (() => {
     if (!q.ameliorations || typeof q.ameliorations !== 'object') q.ameliorations = {};
     if (!(q.billets >= 0)) q.billets = 0; if (!(q.total >= 0)) q.total = 0;
     q.majeur = true; // pas de porte : tous âges
+    if (Number.isFinite(now) && !(q.vuLe >= now)) q.vuLe = now; // v6.7 : la dernière heure où l'écran a lu l'état (un palier qui s'ouvre se voit dès le retour, avant le premier pas de jeu ; atteint)
     A.reparer(q); // les activités : q.mini, q.contrats, q.operation, et leurs compteurs (une vieille sauvegarde n'en a pas)
     reparerManoir(q, now); // lot 6 : q.actif (absent : actif maintenant), q.manoir (clients, apparitions, commande, plafonds) et ses compteurs
     return q;
@@ -11392,7 +11399,7 @@ const GARDEROBE_UI = (() => {
   function ameliorationMult(q, i) { let m = 1; for (const a of AMELIORATIONS) if (q.ameliorations[a.id] && (a.cible === null || a.cible.includes(PRODUITS[i].id))) m *= a.mult; return m; }
   // en ta présence : le ×6 (×12 sous la pleine lune) tant que le Manoir est éveillé ; lot 6, il s'endort sans toucher (eveil, plus bas)
   function boostMult(q) { let m = 1 + (PRESENCE - 1) * eveil(q); if (q.ev && q.ev.type === 'soiree' && q.ev.fin > q.now) m *= EVENEMENTS.soiree.mult; return m; }
-  const reputationMult = (q) => Math.pow(REPUTATION, paliersAtteints(q).filter((p) => !p.bonus).length); // les paliers bonus ne font plus la réputation
+  const reputationMult = (q) => Math.pow(REPUTATION, PALIERS.filter((p) => !p.bonus && q.total >= p.total).length); // les paliers bonus ne font plus la réputation ; v6.7, elle suit les bonbons gagnés, même d'un palier qui attend son jour (ouverturePalier)
   const temps = (q, i) => PRODUITS[i].temps;
   const revenuBase = (q, i) => { const s = q.postes[i]; return s.niv <= 0 ? 0 : PRODUITS[i].rev * s.niv * palierMult(s.niv) * ameliorationMult(q, i) * reputationMult(q); };
   const revenu = (q, i) => revenuBase(q, i) * boostMult(q);
@@ -11405,7 +11412,7 @@ const GARDEROBE_UI = (() => {
   const maxAchetables = (q, i) => maxNiveaux(i, q.postes[i].niv, q.billets / remise(q)); // ce que les bonbons paient, remise comprise
   function quantite(q, i) { const s = q.postes[i]; if (s.niv === 0) return 1; if (q.mode === 'max') return Math.max(1, maxAchetables(q, i)); return q.mode; }
   const prixNiveaux = (q, i, n) => { const niv = q.postes[i].niv; return niv === 0 ? coutNiveaux(i, 0, n) : coutNiveaux(i, niv, n) * remise(q); };
-  const recetteOuverte = (q, i) => !PRODUITS[i].apres || q.total >= PALIERS[PRODUITS[i].apres - 1].total; // les recettes « après le maître » : une fois leur palier franchi
+  const recetteOuverte = (q, i) => !PRODUITS[i].apres || atteint(q, PALIERS[PRODUITS[i].apres - 1]); // les recettes « après le maître » : une fois leur palier franchi (et ouvert, v6.7)
   const prixStaff = (q, i) => PRODUITS[i].staff;
   function tauxBase(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenuBase(q, i) / temps(q, i); }); return t; }
   function tauxParSeconde(q) { let t = 0; q.postes.forEach((s, i) => { if (s.staff && s.niv > 0) t += revenu(q, i) / temps(q, i); }); return t; }
@@ -11435,7 +11442,7 @@ const GARDEROBE_UI = (() => {
     const s = q.postes[i]; if (s.niv <= 0 || s.actif) return false;
     s.actif = true; s.prog = 0; s.lance = Number.isFinite(q.now) ? q.now : 0; s.essai = false; s.parfait = false; q.stats.taps++; return true;
   }
-  const combineOuverte = (q, a) => !a.apres || q.total >= PALIERS[a.apres - 1].total; // les Sortilèges « après le maître » : une fois le palier franchi
+  const combineOuverte = (q, a) => !a.apres || atteint(q, PALIERS[a.apres - 1]); // les Sortilèges « après le maître » : une fois le palier franchi (et ouvert, v6.7)
   function amelioration(q, id) {
     const a = AMELIORATIONS.find((x) => x.id === id), prix = a ? a.cout : 0;
     if (a && !combineOuverte(q, a)) return { ok: false, prix, verrou: true };
@@ -11711,10 +11718,26 @@ const GARDEROBE_UI = (() => {
   }
 
   // ─── les paliers franchis : ce qu'il reste à donner (chaque palier une seule fois, dans l'ordre) ───
-  const paliersAtteints = (q) => PALIERS.filter((p) => q.total >= p.total);
-  function paliersDus(q) { return PALIERS.filter((p) => q.total >= p.total && !q.paliers.includes(p.n)); }
+  // v6.7 (21 octobre) : chaque palier s'ouvre un jour de la semaine (p.jour : 1, le mardi 27 dès l'ouverture ; les autres à minuit, heure de
+  // Paris) ; avant, ses bonbons ont beau être gagnés, il attend : ni récompense, ni recette ou Sortilège « après le palier » (la réputation,
+  // elle, suit les bonbons : la retenir aussi laissait le marathon des centaines de fois sous la table du serveur, qui ne descend jamais
+  // sous la v6.5 en ligne, et un tricheur avec lui ; reputationMult). Les seuils seuls ne pouvaient pas faire le
+  // « juste milieu » voulu : pour que l'occasionnel (17 min par jour) passe le 9e, le très actif (8 h) en franchissait plus de huit dès le
+  // premier soir ; s'ouvrant au fil des jours (quatre le premier, puis trois, puis deux), le très actif et le marathon en ont deux ou trois
+  // par jour, et les seuils se règlent pour les autres (voir PALIERS). Après le jour 7 (la fermeture), tous ouverts.
+  const OUVERTURES = PALIERS.map((p) => (!p.jour || p.jour <= 1 ? DEBUT : parisMs(2026, 10, 26 + p.jour, 0))); // le 27 + (jour − 1) à minuit (calculées une fois : la réputation les lit à chaque vente)
+  const ouverturePalier = (p) => OUVERTURES[p.n - 1];
+  const palierOuvert = (p, now) => !p.jour || p.jour <= 1 || (Number.isFinite(now) ? now : 0) >= OUVERTURES[p.n - 1];
+  const NOMS_JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  function ouvrePalier(p, now) { // pour l'écran : « s’ouvre jeudi 29 » tant que le palier attend son jour, sinon ''
+    if (palierOuvert(p, now)) return ''; const d = paris(ouverturePalier(p)), j = d.getUTCDate();
+    return `s’ouvre ${NOMS_JOURS[d.getUTCDay()]} ${j === 1 ? '1er' : j}`;
+  }
+  const atteint = (q, p) => q.total >= p.total && palierOuvert(p, Math.max(q.now || 0, q.vuLe || 0)); // (q.now : le dernier pas de jeu ; q.vuLe : la dernière lecture, etat)
+  const paliersAtteints = (q) => PALIERS.filter((p) => atteint(q, p));
+  function paliersDus(q) { return PALIERS.filter((p) => atteint(q, p) && !q.paliers.includes(p.n)); }
   function marquerPalier(q, n) { // le palier n est réclamé : on note ce qu'il donne (l'interface le distribue dans la boulangerie)
-    const p = PALIERS.find((x) => x.n === n); if (!p || q.paliers.includes(n) || q.total < p.total) return null;
+    const p = PALIERS.find((x) => x.n === n); if (!p || q.paliers.includes(n) || !atteint(q, p)) return null;
     q.paliers.push(n);
     if (p.vetement && !q.vetements.includes(p.vetement)) q.vetements.push(p.vetement);
     if (p.deco && !q.decos.includes(p.deco)) q.decos.push(p.deco);
@@ -11798,7 +11821,7 @@ const GARDEROBE_UI = (() => {
     quotidien: { sessions: [[7.75, 8], [12.5, 8], [21, 20]] },
     occasionnel: { sessions: [[8, 5], [20.5, 12]] },
     marathon: { sessions: [[0, 714], [12, 714]] }, // 23 h 48 sur 24 (deux sessions, l'une à midi) : l'enveloppe du serveur
-    tresactif: { sessions: [[7, 90], [11.5, 120], [16.5, 120], [20.5, 150]] }, // 8 h par jour : le 12e au 2e jour, comme les plus mordus (puis les paliers bonus)
+    tresactif: { sessions: [[7, 90], [11.5, 120], [16.5, 120], [20.5, 150]] }, // 8 h par jour : les plus mordus (v6.7 : les paliers dès leur ouverture, le 12e au 4e jour)
   };
   // lot 6 : comment chaque profil joue le Manoir. Le marathon et le très actif jouent tout au mieux (le pire cas de l'enveloppe) : toujours là
   // (le ×6 ne s'endort jamais), chaque client servi (reaction : secondes avant la première ligne, puis une par seconde), chaque apparition
@@ -11938,7 +11961,7 @@ const GARDEROBE_UI = (() => {
       absence: (dur, montant) => `Pendant ton absence (${dur}) : +${montant}, les monstres ont travaillé au ralenti.`,
       bilanTitre: 'Bilan de la Maison hantée', bilan: 'Le Manoir a fermé ses volets. Tout ce que tu as gagné reste à vie.',
       palier12: 'Le maître du Manoir, c’est toi. Tout ça reste à vie, même après Halloween.',
-      paliersNote: 'Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). Les heures de gains tombent tout de suite dans la caisse de la boulangerie. La tenue d’Halloween se porte depuis la garde-robe du boulanger, et le chat noir se choisit dans la garde-robe ou les Réglages.',
+      paliersNote: 'Les paliers s’ouvrent au fil de la semaine : quatre le premier jour, puis deux ou trois chaque jour (un palier fermé t’attend, avec ses bonbons). Les boosts se lancent quand tu veux dans la boutique (la pastille sous les objectifs). Les heures de gains tombent tout de suite dans la caisse de la boulangerie. La tenue d’Halloween se porte depuis la garde-robe du boulanger, et le chat noir se choisit dans la garde-robe ou les Réglages.',
       ferme: 'Le Manoir est fermé.', classementInfo: 'Les bonbons gagnés au Manoir · podium final le 2 nov. à 20 h', classementFini: 'La Maison hantée est finie : le podium final est figé',
       vide: 'Personne encore au Manoir', videSous: 'Les bonbons du Manoir arrivent avec le prochain envoi.', podium: (rang) => `${rang === 1 ? '1er' : rang + 'e'} du Manoir`,
       podiumFinal: 'Podium final de la Maison hantée : la tenue d’Halloween en or est dans ta garde-robe !',
@@ -12000,7 +12023,7 @@ const GARDEROBE_UI = (() => {
 
   return { FICHE, ...A.api, ANCIENS, phraseCombine, revueRecompenses, lotCombine: R2.lotCombine, phraseLot: R2.phraseLot, DEBUT, FIN, CLASSEMENT_JUSQUA, JOUR, JOURS, GRACE, fenetreSure, envoiBonbons, envoiBillets: envoiBonbons, ABSENCE_PART, PRESENCE, REPUTATION, reputationMult, fenetre, decalageParis, paris, parisMs, dayKey, PRODUITS, PALIERS_POSTE, AMELIORATIONS, ABSENCE_MAX_H, EVENEMENTS, PALIERS, PALIERS_BOSS, TROPHEE, VETEMENTS, VETEMENTS_OR, DECOS,
     PAUSE_EV, pauseCoup, neuf, etat, bonbons, palierMult, prochainPalier, gainPalier, exposantPalier, paliersPoste, PALIERS_EXPOSANTS, ameliorationMult, boostMult, temps, revenuBase, revenu, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, maxAchetables, recetteOuverte, quantite, prixNiveaux, prixStaff, tauxBase, tauxParSeconde, rythme, arrondi, heuresAbsence, partAbsence, effet, combineOuverte,
-    gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, chasser: planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ensembleComplet, phrasePalier,
+    gagner, acheter, embaucher, lancer, amelioration, lancerEvenement, planquer, chasser: planquer, livrer, attraper, tick, absence, paliersAtteints, paliersDus, marquerPalier, ouverturePalier, palierOuvert, ouvrePalier, ensembleComplet, phrasePalier,
     PROFILS, simuler, decider, fmt, fmtEur, fmtDevise, fmtDuree, fmtChrono, fmtReste,
     // lot 6 : le Manoir « qui choque » (voir plus haut, « des choses à FAIRE »)
     EVEIL, SORTES, NOMS_SORTES, CLIENTS, PARFAIT, TYPES_APPARITION, APPARITIONS, COMMANDES, JEU_MANOIR, manoirNeuf, reparerManoir, eveil, toucher, presence, plafondsManoir,
@@ -13469,9 +13492,9 @@ const EVENEMENTS = (() => {
         d.toast(`${r.a.nom} : ${r.a.desc}${plus}`); renderCartes(true); lastHud = ''; hud(); d.save(); sheetAmeliorations(); });
       d.on('[data-a="pq-retour"]', () => d.closeSheet());
     }
-    function sheetPaliers() {
+    function sheetPaliers() { // (la Maison hantée, v6.7 : un palier pas encore ouvert dit son jour, Q.ouvrePalier)
       const qq = q(), nb = Q.paliersAtteints(qq).length;
-      const ligne = (p) => { const atteint = qq.total >= p.total, recu = qq.paliers.includes(p.n); return `<div class="pq-palier ${atteint ? 'atteint' : ''}${p.bonus ? ' bonus' : ''}"><span class="pq-num">${p.n}</span><div><b>${esc(p.titre)} <small>${prix(p.total)}</small></b><span>${esc(Q.phrasePalier(p))}</span></div><span class="pq-etat">${recu ? '✓' : atteint ? '…' : ''}</span></div>`; };
+      const ligne = (p) => { const ouvre = Q.ouvrePalier ? Q.ouvrePalier(p, Math.max(qq.now || 0, qq.vuLe || 0)) : '', atteint = qq.total >= p.total && !ouvre, recu = qq.paliers.includes(p.n); return `<div class="pq-palier ${atteint ? 'atteint' : ''}${p.bonus ? ' bonus' : ''}"><span class="pq-num">${p.n}</span><div><b>${esc(p.titre)} <small>${prix(p.total)}</small></b><span>${esc(Q.phrasePalier(p))}${ouvre ? ` · <i>${esc(ouvre)}</i>` : ''}</span></div><span class="pq-etat">${recu ? '✓' : atteint ? '…' : ''}</span></div>`; };
       const bonus = Q.PALIERS.filter((p) => p.bonus); // après le boss : sous leur intertitre
       const lignes = Q.PALIERS.filter((p) => !p.bonus).map(ligne).join('') + (bonus.length ? `<h3 class="pq-inter">${esc(F.t.apresBoss)}</h3><p class="pq-inter-sous">${esc(F.t.apresBossSous)}</p>${bonus.map(ligne).join('')}` : '');
       d.openSheet(`<div class="pq-sheet ${F.classe}"><div class="pq-palier-tete"><span class="pq-pic">${F.ico.palier}</span><div><h2>Les paliers</h2><p class="sous">${esc(F.t.paliersSous(fmt(qq.total), nb, nbPaliers(qq)))}</p></div></div>
