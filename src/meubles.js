@@ -764,16 +764,19 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   }
   // l'étagère aux bocaux de monstres (le bestiaire de la Maison hantée : cinq sortes de clients-monstres complétées, q.decos 'bestiaire') :
   // une planche en rebord de la fenêtre (au-dessus du four : le milieu du mur passe sous l'enseigne de la boutique), quatre bocaux au couvercle de couleur, un petit monstre dans chacun (un fantôme, une
-  // tête-citrouille, une chauve-souris, un crâne), leur étiquette ; le verre luit un peu le soir. Deux appels de dessin : le bois, les
-  // couvercles et les monstres en un maillage ; les quatre verres en un second, transparent (dessiné après)
+  // tête-citrouille, une chauve-souris, un crâne), leur étiquette. Un seul appel de dessin (le budget de la boutique) : le verre n'est pas
+  // transparent, c'est le fond du bocal (un demi-cylindre bleuté, aplati contre le mur) avec ses deux cerclages et un reflet ; le petit
+  // monstre est posé devant, dedans
   function bocaux(c) {
-    const f = c.LAY.fenetre, K = c.K, g = grp('bocaux'), pr = [], verre = [], n = 4, ys = f.y + f.h + 1, Yp = murY(c, ys);
+    const f = c.LAY.fenetre, K = c.K, g = grp('bocaux'), pr = [], n = 4, ys = f.y + f.h + 1, Yp = murY(c, ys);
     const cx = f.x + f.w / 2, w = f.w - 6, pas = w / n, r = Math.min(6.4 * K, pas * 0.36), hj = c.wy(17), Q = c.Q;
     pr.push(P(bo(w, 2.4, 10, 0.8), Q.bois, { x: cx, y: Yp - 2.4, z: 5.5 }), P(bo(2, 6, 6, 0.6), Q.bois, { x: cx - w / 2 + 4, y: Yp - 8, z: 3.2 }), P(bo(2, 6, 6, 0.6), Q.bois, { x: cx + w / 2 - 4, y: Yp - 8, z: 3.2 })); // la planche, ses deux équerres
     const couv = ['#8E5CF7', '#FF8A1F', '#5FD3A4', '#E1496C'];
     for (let i = 0; i < n; i++) {
       const x = cx - w / 2 + pas * (i + 0.5), z = 5.5, y0 = Yp, ym = y0 + hj * 0.42, rm = r * 0.55;
-      verre.push(P(M.cylindre(r, r, hj, 12), '#DDEBFF', { x, y: y0 + hj / 2, z }), P(M.sphere(r, 12), '#DDEBFF', { x, y: y0 + hj, z, sy: 0.35 })); // le bocal (son épaule arrondie)
+      pr.push(P(M.cylindre(r, r, hj, 12), '#CFE3F4', { x, y: y0 + hj / 2, z: z - r * 0.45, sz: 0.55 }), P(M.sphere(r, 12), '#CFE3F4', { x, y: y0 + hj, z: z - r * 0.45, sy: 0.35, sz: 0.55 }), // le fond du bocal (son épaule arrondie)
+        P(M.tore(r, 0.45, TAU, 5, 14), '#A9C8E2', { x, y: y0 + 0.5, z, rx: HP }), P(M.tore(r * 0.86, 0.45, TAU, 5, 14), '#A9C8E2', { x, y: y0 + hj + 0.4, z, rx: HP }), // ses deux cerclages
+        P(bo(0.9, hj * 0.55, 0.4, 0.2), '#FFFFFF', { x: x - r * 0.6, y: y0 + hj * 0.55, z: z + r * 0.75 })); // un reflet
       pr.push(P(M.cylindre(r * 0.82, r * 0.82, 2.2, 12), couv[i], { x, y: y0 + hj + 1.2, z }), P(M.sphere(0.9, 6), couv[i], { x, y: y0 + hj + 2.6, z })); // le couvercle et son bouton
       pr.push(P(bo(r * 1.1, c.wy(3.4), 0.5, 0.2), '#FFF3DC', { x, y: y0 + hj * 0.18, z: z + r + 0.2 })); // l'étiquette
       if (i === 0) pr.push(P(M.sphere(rm, 10), '#FFFFFF', { x, y: ym, z, sy: 1.25 }), P(M.sphere(rm * 0.2, 6), L, { x: x - rm * 0.35, y: ym + rm * 0.2, z: z + rm * 0.85 }), P(M.sphere(rm * 0.2, 6), L, { x: x + rm * 0.35, y: ym + rm * 0.2, z: z + rm * 0.85 })); // le petit fantôme
@@ -782,8 +785,6 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       else pr.push(P(M.sphere(rm, 10), '#F4F0E6', { x, y: ym, z }), P(M.sphere(rm * 0.27, 6), '#3A2E46', { x: x - rm * 0.38, y: ym + rm * 0.1, z: z + rm * 0.84 }), P(M.sphere(rm * 0.27, 6), '#3A2E46', { x: x + rm * 0.38, y: ym + rm * 0.1, z: z + rm * 0.84 }), P(bo(rm * 0.9, rm * 0.55, rm * 0.7, 0.2), '#F4F0E6', { x, y: ym - rm * 0.8, z: z + rm * 0.2 })); // le petit crâne
     }
     g.add(M.maille(pr, { ombre: false }));
-    const v = M.maille(verre, { ombre: false }); v.material = propre({ vertexColors: true, transparent: true, opacity: 0.38, depthWrite: false, emissive: '#B9A6E8', emissiveIntensity: 0.15 }); v.renderOrder = 2; g.add(v);
-    g.userData.anime = (E) => { v.material.emissiveIntensity = 0.12 + 0.45 * E.lampes; };
     return g;
   }
   // la toque de la recette du jour (src/activites.js : la 500e fournée d'un événement, q.decos) : une petite plaque accrochée à la porte de

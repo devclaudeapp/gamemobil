@@ -246,17 +246,18 @@ function faux(d) {
     check(R.stats.commandes === cmd0 + 1 && R.billets > bc && !R.commande && await ev(() => document.querySelector('#ht-commande').hidden) && (await toasts()).some((t) => /Commande livrée/.test(t)), `Livrer : payée (+${Math.round(R.billets - bc)}), la carte s’en va`);
 
     // ─── le bestiaire : une sorte complétée (la sauvegarde préparée : quatre déjà faites, neuf servis partout) ───
-    await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); for (const k of F.HT.SORTES) q.bestiaire[k] = 9; q.bestiaireFaits = ['squelette', 'zombie', 'momie', 'fantome']; for (const k of q.bestiaireFaits) q.bestiaire[k] = 10;
-      q.manoir.file = []; q.manoir.prochainClient = HORLOGE.maintenant() - 1; q.manoir.prochaineApp = HORLOGE.maintenant() + 600e3; F.save(); });
+    await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); q.manoir.file = []; q.manoir.prochainClient = HORLOGE.maintenant() - 1; q.manoir.prochaineApp = HORLOGE.maintenant() + 600e3; F.save(); });
     const cb = await attendre(async () => { const e = await act(); return e.clients.find((c) => c.bulle && c.sid && c.etat === 'file') || null; }, 30000);
+    if (cb) await ev((sorte) => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); for (const k of F.HT.SORTES) q.bestiaire[k] = 9; // (la sauvegarde préparée : quatre autres sortes déjà faites, la sienne à 9)
+      q.bestiaireFaits = F.HT.SORTES.filter((k) => k !== sorte).slice(0, 4); for (const k of q.bestiaireFaits) q.bestiaire[k] = 10; F.save(); }, cb.sorte);
     if (cb) {
       const avant = await ev(() => ({ et: window.__fournil.st.etoiles, decos: window.__fournil.st.hantee.decos.slice(), vues: window.__fournil.SCENE.decosHanteeVues.slice() }));
-      for (let k = 0; k < cb.commande.length + 3; k++) { const c = await bullePosee(cb.id); if (!c) break; await page.touchscreen.tap(c.bulle.x, c.bulle.y); await sleep(350); }
+      let mot = ''; for (let k = 0; k < cb.commande.length + 3; k++) { const c = await bullePosee(cb.id); if (!c) break; await page.touchscreen.tap(c.bulle.x, c.bulle.y); await sleep(350); mot = (await act()).mot || mot; }
       const fete = await attendre(() => ev(() => { const f = document.querySelector('#feuille'), x = f && !f.hidden && f.querySelector('[data-bestiaire-fete]'); return x ? { sorte: x.dataset.bestiaireFete, txt: x.innerText.replace(/\s+/g, ' ') } : null; }), 8000);
-      const apres = await ev(() => { const F = window.__fournil, q = F.st.hantee; return { et: F.st.etoiles, decos: q.decos.slice(), aVerser: q.bestiaireAVerser, faits: q.bestiaireFaits.slice(), mot: F.evHantee.act.etat().mot }; });
+      const apres = await ev(() => { const F = window.__fournil, q = F.st.hantee; return { et: F.st.etoiles, decos: q.decos.slice(), aVerser: q.bestiaireAVerser, faits: q.bestiaireFaits.slice() }; }); apres.mot = mot;
       check(!!fete && fete.sorte === cb.sorte && /rejoint le bestiaire/.test(fete.txt) && /5\/9/.test(fete.txt), `le dixième ${cb.sorte} servi au doigt : la feuille de fête (« ${fete && fete.txt.slice(0, 70)}… »)`);
       check(apres.et === avant.et + 2 && apres.aVerser === 0 && apres.faits.length === 5, `la 5e sorte : +2 étoiles versées tout de suite dans la boulangerie (${avant.et} → ${apres.et}), une fois (plus rien à verser)`);
-      check(!avant.decos.includes('bestiaire') && apres.decos.includes('bestiaire') && /étagère aux bocaux/.test(fete.txt) && await attendre(() => ev(() => window.__fournil.SCENE.decosHanteeVues.includes('bestiaire')), 4000), 'et le décor : l’étagère aux bocaux de monstres, posée dans la boutique (q.decos, la scène)');
+      check(!avant.decos.includes('bestiaire') && apres.decos.includes('bestiaire') && !!fete && /étagère aux bocaux/.test(fete.txt) && await attendre(() => ev(() => window.__fournil.SCENE.decosHanteeVues.includes('bestiaire') || !!(window.__fournil.SCENE.evenement && window.__fournil.SCENE.evenement.hd)), 4000), 'et le décor : l’étagère aux bocaux de monstres, posée dans la boutique (q.decos ; la scène, en éco : en haute, le décor cuit de la boutique hantée la remplace, elle revient avec la boutique)');
       check(/10\/10/.test(apres.mot), `le petit mot sur la scène : « ${apres.mot} »`);
       await sleep(900); await shot(page, `${qual}-bestiaire-fete`); if (out3 && qual === 'haute') fs.copyFileSync(path.join(out, `${qual}-bestiaire-fete.png`), path.join(out3, 'bestiaire-sorte-completee.png'));
       if (fete) { await page.locator('#feuille [data-a="mh-best-voir"]').tap(); await sleep(500); } else await ev(() => window.__fournil.evHantee.act.feuilleBestiaire());

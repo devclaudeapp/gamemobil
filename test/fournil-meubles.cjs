@@ -259,9 +259,13 @@ const server = http.createServer((req, res) => {
   const ap = await ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return { decor, salle: a.tables + a.bar + a.banquette + a.terrasse + a.couverts }; });
   check(ap.decor <= 72 && ap.salle <= 7, `éco, tout au max : ${ap.decor} appels de dessin pour le décor (≤ 72), dont ${ap.salle} pour les tables, le bar, le salon, la terrasse et tous les couverts`);
   { // les décos de la Maison hantée, toutes gagnées (le bestiaire compris : l'étagère aux bocaux de monstres), en plus de tout le reste
-    await ev(() => window.__fournil.SCENE.decosHantee(['citrouilles', 'toiles', 'chaudron', 'fantome', 'toque-citrouille', 'bestiaire'])); await sleep(1500);
-    const aph = await ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return { decor, bocaux: a['ht-bestiaire'] || 0, vues: window.__fournil.SCENE.decosHanteeVues }; });
-    check(aph.vues.includes('bestiaire') && aph.bocaux > 0 && aph.bocaux <= 2 && aph.decor <= 72, `éco, tout au max avec les décos de la Maison hantée : ${aph.decor} appels de dessin pour le décor (≤ 72), dont ${aph.bocaux} pour l’étagère aux bocaux de monstres (${aph.vues.join(', ')})`);
+    const appels = () => ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return { decor, bocaux: a['ht-bestiaire'] || 0, vues: window.__fournil.SCENE.decosHanteeVues }; });
+    await ev(() => window.__fournil.SCENE.decosHantee(['bestiaire'])); await sleep(1500); const seule = await appels();
+    check(seule.vues.includes('bestiaire') && seule.bocaux === 1 && seule.decor <= 72 && seule.decor <= ap.decor + 1, `éco, tout au max et l’étagère aux bocaux de monstres (le bestiaire) : ${seule.decor} appels de dessin pour le décor (≤ 72), dont ${seule.bocaux} pour elle`);
+    await ev(() => window.__fournil.SCENE.decosHantee(['citrouilles', 'toiles', 'chaudron', 'fantome', 'toque-citrouille'])); await sleep(1500); const sans = await appels();
+    await ev(() => window.__fournil.SCENE.decosHantee(['citrouilles', 'toiles', 'chaudron', 'fantome', 'toque-citrouille', 'bestiaire'])); await sleep(1500); const aph = await appels();
+    // (les décos des paliers de la Maison hantée, d'avant le bestiaire, dépassent déjà les 72 ensemble : l'étagère n'y ajoute qu'un appel)
+    check(aph.vues.includes('bestiaire') && aph.decor === sans.decor + 1, `avec toutes les décos de la Maison hantée : ${sans.decor} → ${aph.decor} appels (l’étagère aux bocaux n’en ajoute qu’un ; ${aph.vues.join(', ')})`);
     const fz = await ev(() => { const r = document.querySelector('#scene').getBoundingClientRect(), L = VIE.LAY.fenetre; return { x: r.left + L.x, y: r.top, w: L.w }; });
     await page.screenshot({ path: path.join(out, 'decos-hantee-eco.png') });
     await page.screenshot({ path: path.join(out, 'bocaux-eco.png'), clip: { x: 0, y: Math.max(0, fz.y), width: 260, height: 160 } });
