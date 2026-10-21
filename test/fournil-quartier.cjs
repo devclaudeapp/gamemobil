@@ -88,7 +88,7 @@ async function gerer(route) {
   const req = route.request();
   if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
   const nom = req.url().split('/rpc/')[1]; let corps = null; try { corps = req.postDataJSON(); } catch (e) { corps = null; }
-  faux.appels.push({ nom, corps });
+  faux.appels.push({ nom, corps, t: Date.now() });
   if (!RPC[nom] || !corps) return route.fulfill({ status: 404, headers: CORS, contentType: 'application/json', body: JSON.stringify({ code: 'PGRST202' }) });
   return route.fulfill({ status: 200, headers: CORS, contentType: 'application/json', body: JSON.stringify(RPC[nom](corps)) });
 }
@@ -239,7 +239,33 @@ async function gerer(route) {
     const b2 = (await qst()).billets;
     check(r && Math.abs(r.secs - 7200) < 5 && r.total > 0 && b2 >= b1 + r.total * 0.99, `retour dans le jeu, Planque ouverte : 2 h payées au ralenti (+${Q.fmt(r ? r.total : 0)} €)`);
   }
+  { // l'heure sûre fait sauter le jeu de 2 h, Planque ouverte (le serveur a avancé : HORLOGE.synchroniser lit son en-tête Date) : ui.js payerSaut
+    // paie la boulangerie, et l'écran ouvert aussi (evenement.saut) : 2 h au ralenti, comme une absence ; avant, la Planque ne touchait qu'un pas
+    await ev(() => { const e = window.__fournil.evenement, s0 = e.saut; window.__sautEv = null; window.__sautAvant = s0; e.saut = (ms) => { const r = s0(ms); window.__sautEv = r && { secs: r.secs, total: r.total, ms }; return r; }; });
+    const b1 = (await qst()).billets, tauxS = await ev(() => window.__fournil.Q.tauxBase(window.__fournil.st.quartier));
+    decal += 2 * HEURE; const lu = await ev(() => HORLOGE.synchroniser()); await sleep(600);
+    const r = await ev(() => window.__sautEv), b2 = (await qst()).billets, attendu2 = tauxS * 2 * 3600 * Q.ABSENCE_PART;
+    check(lu && r && Math.abs(r.ms - 2 * HEURE) < 10e3 && Math.abs(r.secs - 7200) < 10 && Math.abs(r.total - attendu2) / attendu2 < 0.05 && b2 >= b1 + r.total * 0.99,
+      `un saut de l’heure sûre de 2 h, Planque ouverte : la Planque est payée elle aussi, au ralenti (+${Q.fmt(r ? r.total : 0)} €, ${Q.fmt(attendu2)} attendus)`);
+    const jr = await ev(() => (window.__fournil.st.journalRetours || []).slice(-1)[0]);
+    check(jr && jr.r === 'heure' && Math.abs(jr.s - 7200) < 10 && (await planque()).ecran === 'planque', `la boulangerie aussi, pour le même temps (le journal des retours : « heure », ${jr && Math.round(jr.s / 60)} min), et la Planque reste ouverte`);
+    await ev(() => { window.__fournil.evenement.saut = window.__sautAvant; const b = document.querySelector('#feuille [data-a="close"]'); if (b && !document.querySelector('#feuille').hidden) b.click(); }); await sleep(400); }
   await clic('[data-pq="fermer"]'); await sleep(300);
+
+  console.log('── l’événement de la boutique en pause sous la Planque ──');
+  { // un pétrissage (20 s) lancé, la Planque ouverte 30 s puis refermée : il a encore son temps (en pause sous l'écran, comme une courte
+    // sortie) ; le coup de feu, lui, ne demande rien : il continue de s'écouler (ses ventes ×3 ont lieu sous l'écran)
+    const evB = () => ev(() => { const st = window.__fournil.st; return st.ev ? { type: st.ev.type, reste: st.ev.fin - HORLOGE.maintenant() } : null; });
+    await ev(() => { const st = window.__fournil.st; st.ev = null; st.evTimer = 9999; window.__fournil.ev('petrissage'); });
+    const e0 = await evB();
+    await ev(() => window.__fournil.quartier()); await sleep(30000);
+    check((await planque()).ecran === 'planque', 'la Planque est restée ouverte 30 s');
+    await clic('[data-pq="fermer"]'); const e1 = await evB();
+    check(e0 && e0.type === 'petrissage' && e1 && e1.type === 'petrissage' && e1.reste > e0.reste - 3000, `le pétrissage a encore son temps en sortant de la Planque (${e0 && Math.round(e0.reste / 1000)} s avant, ${e1 && Math.round(e1.reste / 1000)} s après 30 s dessous)`);
+    await ev(() => { const st = window.__fournil.st; st.ev = null; window.__fournil.ev('rush'); });
+    const r0 = await evB(); await ev(() => window.__fournil.quartier()); await sleep(4000); await clic('[data-pq="fermer"]'); const r1 = await evB();
+    check(r0 && r0.type === 'rush' && r1 && r1.type === 'rush' && r0.reste - r1.reste >= 3500, `le coup de feu, lui, s’écoule sous l’écran (${Math.round(r0.reste / 1000)} s, puis ${r1 && Math.round(r1.reste / 1000)} s)`);
+    await ev(() => { const st = window.__fournil.st; st.ev = null; st.evTimer = 200; }); await sleep(300); }
 
   console.log('── Réglages : masquer l’événement ──');
   await ev(() => window.__fournil.page('reglages')); await sleep(300);
@@ -254,10 +280,14 @@ async function gerer(route) {
   await ev(() => window.__fournil.page('boutique'));
 
   console.log('── le classement : l’onglet Événement ──');
+  // le moteur n'envoie jamais deux fois en 15 s (REGLES.ecartMin, relu du stockage partagé par les fenêtres : remettre essai à 0 en mémoire ne
+  // suffit pas) ; un envoi périodique vient peut-être de partir (le saut de 2 h l'a rendu dû) : on attend que les 15 s soient passées
+  { const der = faux.appels.filter((a) => a.nom === 'fournil_publier').pop(); if (der) await sleep(Math.max(0, der.t + CL.REGLES.ecartMin + 1000 - Date.now())); }
   await ev(() => { window.__fournil.st.quartier.total = 7e11; const e = window.__fournil.classement().etat(); e.essai = 0; e.dernierEnvoi = 0; });
   await ev(() => window.__fournil.feuilleClassement('quartier'));
   check(await attendre(() => page.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste'))), 'la liste se charge');
-  await sleep(1500); // l'envoi de ses billets, puis la liste relue
+  // l'envoi de ses billets, puis la liste relue : on attend qu'il parte, au lieu d'un temps fixe
+  await attendre(() => faux.appels.some((a) => a.nom === 'fournil_publier' && a.corps && a.corps.p_quartier === 7e11), 15000); await sleep(500);
   let txt = await feuille();
   check(/Événement/.test(txt) && /billets/.test(txt) && /podium final le 27 oct/.test(txt), 'l’onglet Événement : les billets de la Planque, le podium final annoncé');
   const envoi = faux.appels.filter((a) => a.nom === 'fournil_publier' && a.corps && 'p_quartier' in a.corps).pop();
@@ -335,7 +365,7 @@ async function gerer(route) {
       return { etoiles: st.etoiles, reserve: st.boosts.reserve.length, paliers: q.paliers.length, dus: Qd.paliersDus(q).map((p) => p.n).join() }; });
     check(av.paliers === 12 && av.dus === '13,14', 'la sauvegarde d’avant : douze paliers reçus, 4 000 Bn de billets (au-delà des 13e et 14e, pas encore donnés)');
     await charger2();
-    check(await attendre(async () => /Palier 13/.test(await feuille2()), 8000), 'dans la boutique, sans ouvrir la Planque : la feuille « Palier 13 » arrive toute seule');
+    check(await attendre(async () => /Palier 13/.test(await feuille2()), 20000), 'dans la boutique, sans ouvrir la Planque : la feuille « Palier 13 » arrive toute seule');
     let f2 = await feuille2();
     check(/Après le boss, ça continue/.test(f2) && /boost ×5/.test(f2) && /4 h de ses gains/.test(f2), `le palier 13 (2 étoiles, un ×5, 4 h de gains) : ${f2.split('\n').slice(0, 2).join(' · ')}`);
     await shot2('b1-palier-13-boutique');

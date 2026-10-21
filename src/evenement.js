@@ -29,6 +29,9 @@ const EVENEMENTS = (() => {
   // addInitScript) : pendant leurs fenêtres, ni icône ni annonce ni bilan ne viennent couvrir ce qu'ils regardent. Personne ne le pose dans le jeu.
   const coupe = () => typeof window !== 'undefined' && !!(window.__sansQuartier || window.__sansEvenements);
   let calmeJusqua = 0; // un écran d'événement vient de se fermer : la prochaine annonce attend un peu (jamais deux annonces coup sur coup)
+  // un trou de plus de 10 s entre deux pas est une sortie, que Q.tick met lui-même en pause : la même borne que TROU dans src/quartier.js et
+  // src/hantee.js (qui ne l'exportent pas) ; sous un mini-jeu, frame ne met en pause que les écarts plus courts (pas deux fois le même temps)
+  const TROU_EV = 10000;
 
   // ─── le moteur : un écran d'événement pour une fiche ───
   function fabriquer(F) {
@@ -234,6 +237,17 @@ const EVENEMENTS = (() => {
       if (!miniOuvert()) ramasser(true);
       return abs;
     }
+    // l'heure sûre a fait sauter le jeu de ms vers l'avant, l'écran ouvert (ui.js payerSaut, avant l'image suivante) : la boulangerie est payée
+    // pour ce temps, l'événement aussi, comme une absence (au ralenti, plafonnée par Q.absence). La boucle a payé jusqu'à son dernier pas
+    // (qq.now) ; on paie de là, sans dépasser ms (ce que la boulangerie a payé : le même plafond), une fois (Q.absence remet lastSeen et now à t)
+    function saut(ms) {
+      if (ecran !== F.ecran || !(ms > 0)) return null;
+      const qq = q(), t = now(); if (Q.fenetre(t).fini) { cloturer(); return null; } // le saut passe la fermeture : payé jusqu'à elle seulement, puis le bilan
+      qq.lastSeen = Math.max(Number.isFinite(qq.now) ? qq.now : 0, t - ms);
+      const abs = Q.absence(qq, t); lastHud = ''; renderEv();
+      if (abs.total > 0 && abs.secs > 90) d.toast(F.t.absence(G.fmtDuree(abs.secs), fmt(abs.total)));
+      d.save(); return abs;
+    }
     // la fermeture de l'événement, l'écran ouvert (en jouant, ou au retour d'un sommeil) : la boucle a payé jusqu'à son dernier pas (qq.now) ;
     // l'absence se paie de là jusqu'à la fermeture, une fois (montrerBilan, qq.absenceFin), jamais au-delà ; puis les activités s'arrêtent et le bilan
     function cloturer() {
@@ -246,7 +260,10 @@ const EVENEMENTS = (() => {
       if (ecran !== F.ecran) return;
       const qq = q(), f = Q.fenetre(t);
       if (f.fini) { cloturer(); return; }
-      if (miniOuvert()) { qq.evTimer = Math.max(qq.evTimer, 5); if (qq.ev && genre(qq.ev) !== 'mult' && Q.pauseCoup) Q.pauseCoup(qq, dt * 1000); } // une partie de mini-jeu : le coup de pouce à toucher attend, aucun ne surgit
+      // une partie de mini-jeu : le coup de pouce à toucher attend, aucun ne surgit. La pause suit le vrai temps écoulé depuis le dernier pas
+      // (t − qq.now), pas dt, plafonné à 0,25 s par ui.js (un téléphone qui rame laissait filer l'échéance) ; au-delà de TROU_EV, Q.tick met
+      // déjà le coup de pouce en pause (une courte sortie) : on ne le décale pas deux fois
+      if (miniOuvert()) { qq.evTimer = Math.max(qq.evTimer, 5); const ecart = Math.max(0, t - (qq.now || t)); if (qq.ev && genre(qq.ev) !== 'mult' && Q.pauseCoup && ecart <= TROU_EV) Q.pauseCoup(qq, ecart); }
       const out = Q.tick(qq, dt, t);
       if (act) act.pas(out.manoir || null); // les clients-monstres, les apparitions, la commande de la nuit : ce que les règles ont changé
       if (avecAct() && performance.now() - tAct > 400) { tAct = performance.now(); if (qq.operation && qq.operation.fin <= t) ramasser(!miniOuvert()); majActivites(); }
@@ -811,7 +828,7 @@ const EVENEMENTS = (() => {
     }
     const etatMini = () => ({ ouvert: miniOuvert(), ecran: miniEcran, jeu: miniJeu && miniJeu.id, partie: partie && partie.etat ? partie.etat() : null, resultat: resultatMini });
 
-    return { init, ouvrir, fermer, annoncer, frame, retour, visible, masquer, majeur, bilanEnAttente, synchroniserRecompenses, donnerPalier, sheetPaliers, cle: F.cle, R: Q, F,
+    return { init, ouvrir, fermer, annoncer, frame, retour, saut, visible, masquer, majeur, bilanEnAttente, synchroniserRecompenses, donnerPalier, sheetPaliers, cle: F.cle, R: Q, F,
       mini: etatMini, ouvrirMini, fermerMini, sheetMini, sheetContrats, sheetOperation, majActivites,
       fenetre: () => (Q && d ? fen() : null), get ouvert() { return ouvert(); }, get ecran() { return ecran; }, get scene() { return scene3; }, get act() { return act; } };
   }

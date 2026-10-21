@@ -286,6 +286,16 @@ function faux(d) {
       }
     } else check(false, 'un client entre pour compléter une sorte du bestiaire');
 
+    // ─── un coup de pouce sous un mini-jeu : en pause selon le vrai temps. Des images espacées de 0,8 s (l'horloge avancée à chaque image,
+    //     comme un téléphone qui rame : ui.js plafonne son dt à 0,25 s) ; l'échéance recule d'autant, le temps restant ne bouge pas ───
+    const coupMini = () => ev(() => { const F = window.__fournil, q = F.st.hantee; return { type: q.ev && q.ev.type, reste: q.ev ? q.ev.fin - q.now : 0, mini: F.evHantee.mini().ouvert }; });
+    await ev(() => { const F = window.__fournil, q = F.evHantee.R.etat(F.st, HORLOGE.maintenant()); window.__evTimer = q.evTimer; q.ev = null; q.evTimer = 9999; F.evHantee.R.lancerEvenement(q, Math.random, 'descente'); F.evHantee.ouvrirMini('guet'); });
+    await sleep(300); const cm0 = await coupMini();
+    plus += 8000; await ev(() => window.__avancerParImage(8000, 800)); await sleep(300); const cm1 = await coupMini();
+    check(cm0.type === 'descente' && cm0.mini && cm1.mini && cm1.type === 'descente' && Math.abs(cm1.reste - cm0.reste) < 300,
+      `les chauves-souris attendent la fin de la partie : 8 s d’images espacées de 0,8 s, ${Math.round(cm0.reste / 100) / 10} s restantes avant, ${Math.round(cm1.reste / 100) / 10} s après`);
+    await ev(() => { const F = window.__fournil; F.evHantee.fermerMini(); F.st.hantee.ev = null; F.st.hantee.evTimer = window.__evTimer; }); await sleep(300);
+
     // ─── le ×6 qui s'endort : quatre minutes sans toucher (l'horloge avancée de 1,5 s à chaque image : la page tourne), puis un toucher ───
     await page.touchscreen.tap(195, await ev(() => { const r = document.querySelector('.mh-couche').getBoundingClientRect(); return r.top + 20; })); await sleep(300); // (un dernier toucher : le plein)
     const amb0 = (await ev(() => window.__amb.length));

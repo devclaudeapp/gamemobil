@@ -36,6 +36,8 @@
     boostObjectif: [5, 900], // l'objectif commun réussi (et qu'on y a contribué) : un boost ×5 de 15 min, et le badge « Esprit d'équipe »
     objectif: 60e3, // l'objectif commun relu une fois par minute au plus
     chatLimite: 50, // le chat général : les 50 derniers messages au plus par lecture
+    fortuneMax: 1e24, // la borne de fournil_publier (supabase/fournil-classement.sql) pour p_fortune, p_quartier et p_score : au-delà, l'envoi
+    // entier serait refusé (« valeur »), pour toujours ; on envoie donc la borne (un cadeau énorme ne bloque plus rien)
   };
 
   // ─── le lundi de la semaine, heure de Paris (règle européenne : l'heure d'été va du dernier dimanche de mars au dernier dimanche d'octobre, à 1 h UTC) ───
@@ -709,10 +711,10 @@
     const config = () => { try { return lireConfig(E.config ? E.config() : null); } catch (e) { return null; } };
     const sauver = () => { ecrit = ecrireEtat(E.stockage, etat); return ecrit; };
     const prevenir = () => { for (const f of ecouteurs.slice()) { try { f(); } catch (e) { /* l'interface ne casse pas le moteur */ } } };
-    const fortune = () => { try { const v = E.fortune(); return typeof v === 'number' ? Math.floor(v) : NaN; } catch (e) { return NaN; } };
+    const fortune = () => { try { const v = E.fortune(); return typeof v === 'number' ? (Number.isFinite(v) ? Math.min(REGLES.fortuneMax, Math.floor(v)) : v) : NaN; } catch (e) { return NaN; } };
     const points = () => { try { const p = E.points(); return ptsOk(p) ? { points: p.points, lundi: p.lundi } : null; } catch (e) { return null; } };
-    const quartier = () => { try { const v = E.quartier(); return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : null; } catch (e) { return null; } }; // ses billets : seulement s'il y en a
-    const evenement = () => { try { const v = E.evenement(); return v && typeof v === 'object' && evtOk(v.id) && typeof v.score === 'number' && Number.isFinite(v.score) && v.score > 0 ? { id: v.id, score: Math.floor(v.score) } : null; } catch (e) { return null; } }; // son score d'événement : seulement s'il y en a
+    const quartier = () => { try { const v = E.quartier(); return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(REGLES.fortuneMax, Math.floor(v)) : null; } catch (e) { return null; } }; // ses billets : seulement s'il y en a (plafonnés à la borne du serveur)
+    const evenement = () => { try { const v = E.evenement(); return v && typeof v === 'object' && evtOk(v.id) && typeof v.score === 'number' && Number.isFinite(v.score) && v.score > 0 ? { id: v.id, score: Math.min(REGLES.fortuneMax, Math.floor(v.score)) } : null; } catch (e) { return null; } }; // son score d'événement : seulement s'il y en a (plafonné)
     const rpc = (nom, corps, o) => appeler(config(), nom, corps, { fetch: E.fetch, enLigne: E.enLigne, delaiMax: (o && o.delaiMax) || E.delaiMax, keepalive: o && o.keepalive }); // delaiMax : plus long pour une image du chat
 
     // une autre fenêtre (l'appli installée et l'onglet du navigateur partagent le même stockage) a pu écrire :
