@@ -27,6 +27,10 @@ const outA = process.env.SHOTS_ACHARNES ? (fs.mkdirSync(process.env.SHOTS_ACHARN
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
 const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { try { if (await fn()) return true; } catch (e) { /* la page se recharge */ } await sleep(100); } return false; };
+// les messages passent l'un après l'autre (une recette de saison peut s'annoncer au même moment, selon la vraie date) : on note tous ceux
+// qui passent à partir de maintenant, puis on attend celui qu'on guette (rend la liste des messages vus)
+const guetterToasts = (p) => p.evaluate(() => { const vus = window.__toastsVus = []; const noter = () => { const t = document.querySelector('.toast'), x = t ? t.textContent : ''; if (x && vus[vus.length - 1] !== x) vus.push(x); }; noter(); new MutationObserver(noter).observe(document.body, { childList: true, subtree: true, characterData: true }); });
+const attendreToast = async (p, re) => { await attendre(() => p.evaluate((src) => (window.__toastsVus || []).some((x) => new RegExp(src).test(x)), re.source)); return p.evaluate(() => (window.__toastsVus || []).slice()); };
 
 // ─── le faux Supabase, contrat v2 ───
 const sha = (t) => crypto.createHash('sha256').update(String(t), 'utf8').digest('hex');
@@ -217,9 +221,10 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
   check(lu.h2 === 'Tu as fini 7e cette semaine sur 12' && lu.phrase === '+2 étoiles et un boost ×2 de 30 min' && /quinze premiers/.test(lu.sous), `« ${lu.h2} » « ${lu.phrase} »`);
   check(lu.btn.length === 1 && lu.btn[0][0] === 'Récupérer' && lu.btn[0][1] >= 44 && lu.confettis >= 1 && lu.e === 0 && lu.res === 0 && lu.large, `un seul bouton « Récupérer » (${lu.btn[0] && lu.btn[0][1]} px), des confettis ; rien de versé avant de toucher ; rien ne dépasse de l’écran`);
   await p.screenshot({ path: out + '/11-lundi-7e.png' });
-  await p.tap('#feuille [data-a="pl-recuperer"]'); await sleep(700);
-  const ap = await p.evaluate(() => ({ f: document.querySelector('#feuille').hidden, e: window.__fournil.st.etoiles, res: window.__fournil.boosts().reserve.map((x) => `${x.mult}:${x.secs}`), toast: (document.querySelector('.toast') || {}).textContent || '', save: JSON.parse(localStorage.getItem('fournil.v2')).etoiles }));
-  check(ap.f && ap.e === 2 && ap.save === 2 && JSON.stringify(ap.res) === JSON.stringify(['2:1800']) && /^Récupéré : \+2 étoiles et un boost ×2 de 30 min \(le boost attend dans ta réserve\) !$/.test(ap.toast), `« Récupérer » : +2 étoiles (sauvées), un boost ×2 de 30 min dans la réserve (${ap.res.join(', ')}) ; « ${ap.toast} »`);
+  await guetterToasts(p); await p.tap('#feuille [data-a="pl-recuperer"]'); await sleep(700);
+  const vus1 = await attendreToast(p, /^Récupéré : \+2 étoiles et un boost ×2 de 30 min \(le boost attend dans ta réserve\) !$/);
+  const ap = await p.evaluate(() => ({ f: document.querySelector('#feuille').hidden, e: window.__fournil.st.etoiles, res: window.__fournil.boosts().reserve.map((x) => `${x.mult}:${x.secs}`), save: JSON.parse(localStorage.getItem('fournil.v2')).etoiles }));
+  check(ap.f && ap.e === 2 && ap.save === 2 && JSON.stringify(ap.res) === JSON.stringify(['2:1800']) && vus1.some((x) => /^Récupéré : \+2 étoiles et un boost ×2 de 30 min \(le boost attend dans ta réserve\) !$/.test(x)), `« Récupérer » : +2 étoiles (sauvées), un boost ×2 de 30 min dans la réserve (${ap.res.join(', ')}) ; « ${vus1.join(' » puis « ')} »`);
   check(JSON.stringify((await local(p)).recompenses.payees) === JSON.stringify([semaineAvant(1)]), 'la semaine est notée payée sur le téléphone');
   await p.evaluate(() => window.__fournil.tiroir('ferme')); await sleep(400);
   await p.evaluate(() => window.__fournil.recompenses()); await sleep(500);
@@ -258,9 +263,10 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
     check(ev.h2 === 'Tu as fini 7e de la Maison hantée sur 12' && ev.phrase === '+3 étoiles et un boost ×3 de 30 min' && /quinze premiers du classement final/.test(ev.sous), `« ${ev.h2} » « ${ev.phrase} »`);
     check(ev.btn.length === 1 && ev.btn[0][0] === 'Récupérer' && ev.btn[0][1] >= 44 && ev.e === 0 && ev.res === 0 && ev.large, `un seul bouton « Récupérer » (${ev.btn[0] && ev.btn[0][1]} px) ; rien de versé avant de toucher ; rien ne dépasse de l’écran`);
     await p.screenshot({ path: outA + '/acharnes-feuille-7e.png' });
-    await p.tap('#feuille [data-a="ev-recuperer"]'); await sleep(700);
-    const ap2 = await p.evaluate(() => ({ f: document.querySelector('#feuille').hidden, e: window.__fournil.st.etoiles, res: window.__fournil.boosts().reserve.map((x) => `${x.mult}:${x.secs}`), toast: (document.querySelector('.toast') || {}).textContent || '', save: JSON.parse(localStorage.getItem('fournil.v2')).etoiles, payes: JSON.parse(localStorage.getItem('fournil.classement')).recompenses.evtPayes }));
-    check(ap2.f && ap2.e === 3 && ap2.save === 3 && JSON.stringify(ap2.res) === '["3:1800"]' && JSON.stringify(ap2.payes) === '["hantee"]' && /^Récupéré : \+3 étoiles et un boost ×3 de 30 min/.test(ap2.toast), `« Récupérer » : +3 étoiles (sauvées), un boost ×3 de 30 min dans la réserve, l’événement noté payé ; « ${ap2.toast} »`);
+    await guetterToasts(p); await p.tap('#feuille [data-a="ev-recuperer"]'); await sleep(700);
+    const vus2 = await attendreToast(p, /^Récupéré : \+3 étoiles et un boost ×3 de 30 min/);
+    const ap2 = await p.evaluate(() => ({ f: document.querySelector('#feuille').hidden, e: window.__fournil.st.etoiles, res: window.__fournil.boosts().reserve.map((x) => `${x.mult}:${x.secs}`), save: JSON.parse(localStorage.getItem('fournil.v2')).etoiles, payes: JSON.parse(localStorage.getItem('fournil.classement')).recompenses.evtPayes }));
+    check(ap2.f && ap2.e === 3 && ap2.save === 3 && JSON.stringify(ap2.res) === '["3:1800"]' && JSON.stringify(ap2.payes) === '["hantee"]' && vus2.some((x) => /^Récupéré : \+3 étoiles et un boost ×3 de 30 min/.test(x)), `« Récupérer » : +3 étoiles (sauvées), un boost ×3 de 30 min dans la réserve, l’événement noté payé ; « ${vus2.join(' » puis « ')} »`);
     await p.evaluate(() => window.__fournil.tiroir('ferme')); await sleep(400);
     await p.evaluate(() => window.__fournil.recompenses()); await sleep(500);
     const me = await p.evaluate(() => ({ evts: [...document.querySelectorAll('.rec-coupes[aria-label^="Mes places au classement final"] .rec-carte')].map((c) => c.innerText.replace(/\s+/g, ' ').trim()), titres: [...document.querySelectorAll('#feuille-contenu .titre-section')].map((h) => h.textContent), recup: !!document.querySelector('[data-a="rec-recuperer"]') }));

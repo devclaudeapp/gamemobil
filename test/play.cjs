@@ -1,12 +1,12 @@
 // Parcours automatique du Fournil sur un iPhone simulé : touches, améliorations, embauche, feuilles, absence, nouvelle boutique.
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
-const root = path.join(__dirname, '..');
+const root = path.join(__dirname, '..'), PORT = +process.env.PORT_PLAY || 8781; // PORT_PLAY pour changer de port
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };
 const server = http.createServer((req, res) => {
   let p = decodeURIComponent(req.url.split('?')[0]); if (p.endsWith('/')) p += 'index.html';
   fs.readFile(path.join(root, p), (err, d) => { if (err) { res.writeHead(404); res.end(); return; } res.writeHead(200, { 'content-type': types[path.extname(p)] || 'application/octet-stream' }); res.end(d); });
-}).listen(8781);
+}).listen(PORT);
 const out = path.join(__dirname, 'shots'); fs.mkdirSync(out, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let page;
@@ -26,7 +26,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   page.on('console', (m) => { if (m.type() === 'error' && !/ERR_CERT|googleapis|gstatic|404/.test(m.text() + (m.location() && m.location().url))) errors.push(m.text() + ' @ ' + (m.location() && m.location().url)); });
   const versSupabase = []; context.on('request', (r) => { if (/supabase\.co/.test(r.url())) versSupabase.push(r.url()); }); // le classement en ligne : rien ne part tant qu'on ne l'a pas rejoint
   // l'écran d'accueil du dépôt : la liste des jeux ; Le Fournil s'ouvre depuis sa carte
-  await page.goto('http://localhost:8781/'); await sleep(600);
+  await page.goto(`http://localhost:${PORT}/`); await sleep(600);
   const accueil = await page.evaluate(() => ({ titre: document.title, jeux: document.querySelectorAll('a.jeu').length, bientot: document.querySelectorAll('.jeu.bientot').length, carte: (document.querySelector('[data-jeu="fournil"]') || {}).innerText || '', poncin: (document.querySelector('[data-jeu="poncin"]') || {}).innerText || '', large: document.documentElement.scrollWidth <= innerWidth + 1 }));
   check(accueil.titre === 'Salle de jeux' && accueil.jeux === 2 && accueil.bientot === 1 && /Le Fournil/.test(accueil.carte) && /Nouvelle partie/.test(accueil.carte) && /Jouer/.test(accueil.carte) && /Opération Poncin/.test(accueil.poncin) && accueil.large, 'l’écran d’accueil : Le Fournil (nouvelle partie), Opération Poncin et une place pour le prochain jeu');
   await page.screenshot({ path: out + '/00-accueil.png' });
@@ -388,7 +388,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   await page.screenshot({ path: out + '/11-accueil-reprise.png' });
   // petit écran
   const p2 = await (await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR' })).newPage();
-  await p2.goto('http://localhost:8781/fournil/'); await sleep(700); await p2.screenshot({ path: out + '/10-petit-ecran.png' });
+  await p2.goto(`http://localhost:${PORT}/fournil/`); await sleep(700); await p2.screenshot({ path: out + '/10-petit-ecran.png' });
   const overflow = await p2.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
   check(!overflow, 'pas de défilement horizontal à 360 px');
   const dans = await p2.evaluate(() => { const c = document.querySelector('.carte[data-i="0"]').getBoundingClientRect(); return [...document.querySelectorAll('.carte[data-i="0"] .corps, .carte[data-i="0"] .corps > *, .carte[data-i="0"] .boutons')].every((el) => el.getBoundingClientRect().right <= c.right + 0.5) && document.querySelector('.carte[data-i="0"] .corps').getBoundingClientRect().right < document.querySelector('.carte[data-i="0"] .boutons').getBoundingClientRect().left; });
@@ -403,7 +403,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   { const nc = b3.newContext.bind(b3); b3.newContext = async (o) => { const c = await nc(o); await c.addInitScript(() => { window.__sansQuartier = true; }); return c; }; } // pendant sa fenêtre, l'événement « Le Quartier » (icône, annonce) ne vient pas couvrir ce test (src/evenement.js)
   const p3 = await (await b3.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR' })).newPage();
   const err3 = []; p3.on('pageerror', (e) => err3.push(e.message));
-  await p3.goto('http://localhost:8781/fournil/'); await sleep(1500);
+  await p3.goto(`http://localhost:${PORT}/fournil/`); await sleep(1500);
   const sans = await p3.evaluate(() => ({ webgl: window.__fournil.stats().webgl, panneau: !document.querySelector('#sans-3d').hidden, cartes: document.querySelectorAll('.carte[data-i]').length, coins: window.__fournil.st.coins }));
   await p3.tap('.carte[data-i="0"] .barre'); await sleep(1300);
   const vendu = await p3.evaluate(() => window.__fournil.st.stats.ventes);
@@ -413,7 +413,7 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
   const p4 = await (await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true, locale: 'fr-FR' })).newPage();
   const err4 = []; p4.on('pageerror', (e) => err4.push(e.message));
   await p4.route('**/vendor/three.min.js', (r) => r.abort());
-  await p4.goto('http://localhost:8781/fournil/'); await sleep(1500);
+  await p4.goto(`http://localhost:${PORT}/fournil/`); await sleep(1500);
   const sansThree = await p4.evaluate(() => ({ ok: !!window.__fournil, webgl: window.__fournil && window.__fournil.stats().webgl, panneau: !document.querySelector('#sans-3d').hidden, cartes: document.querySelectorAll('.carte[data-i]').length }));
   check(sansThree.ok && !sansThree.webgl && sansThree.panneau && sansThree.cartes === 16 && !err4.length, `sans Three.js : le jeu démarre, panneau affiché, seize cartes (dont les recettes de boutique)${err4.length ? ' — ' + err4[0] : ''}`);
   // l'écran d'accueil installé, et les vieilles icônes : redirections sans boucle, note iPhone, nom par défaut, 320 px, IndexedDB jamais créée
@@ -422,10 +422,10 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
     const c5 = await browser.newContext(iphone);
     await c5.addInitScript(() => Object.defineProperty(Navigator.prototype, 'standalone', { get: () => true })); // une icône de l'écran d'accueil sur iPhone
     const p5 = await c5.newPage(); const err5 = []; p5.on('pageerror', (e) => err5.push(e.message));
-    await p5.goto('http://localhost:8781/'); await p5.waitForURL(/\/fournil\/$/, { timeout: 5000 }).catch(() => {});
+    await p5.goto(`http://localhost:${PORT}/`); await p5.waitForURL(/\/fournil\/$/, { timeout: 5000 }).catch(() => {});
     check(/\/fournil\/$/.test(new URL(p5.url()).pathname), 'une vieille icône du Fournil (racine, plein écran) mène droit au jeu : ' + new URL(p5.url()).pathname);
     await sleep(1200); await p5.evaluate(() => window.__fournil.save());
-    await p5.goto('http://localhost:8781/?app=accueil'); await sleep(600);
+    await p5.goto(`http://localhost:${PORT}/?app=accueil`); await sleep(600);
     const ip = await p5.evaluate(() => ({ chemin: location.pathname, note: !document.querySelector('#note-iphone').hidden, carte: document.querySelector('[data-jeu="fournil"]').innerText }));
     check(ip.chemin === '/' && !ip.note && /Continuer/.test(ip.carte), 'l’accueil installé (?app=accueil) reste sur l’accueil ; il voit la partie ouverte depuis l’icône, pas de note');
     await p5.evaluate(() => { localStorage.clear(); return new Promise((r) => { const d = indexedDB.deleteDatabase('fournil'); d.onsuccess = d.onerror = d.onblocked = () => r(); }); });
@@ -444,10 +444,10 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
     await p5.screenshot({ path: out + '/12b-accueil-320.png' });
     // la sauvegarde seulement dans IndexedDB (localStorage vidé par le système) : l'accueil la retrouve
     await p5.evaluate(() => localStorage.clear());
-    await p5.goto('http://localhost:8781/fournil/'); await sleep(1500);
+    await p5.goto(`http://localhost:${PORT}/fournil/`); await sleep(1500);
     await p5.evaluate(() => window.__fournil.save()); await sleep(400);
     await p5.evaluate(() => localStorage.removeItem('fournil.v2'));
-    await p5.goto('http://localhost:8781/?app=accueil'); await sleep(900);
+    await p5.goto(`http://localhost:${PORT}/?app=accueil`); await sleep(900);
     check(/Continuer/.test(await p5.evaluate(() => document.querySelector('[data-jeu="fournil"]').innerText)), 'localStorage vidé : l’accueil retrouve la partie dans IndexedDB');
     // l'accueil enregistre son service worker et celui du jeu (qui marche donc hors ligne même jamais ouvert)
     const portees = await p5.evaluate(async () => { await navigator.serviceWorker.ready; await new Promise((r) => setTimeout(r, 300)); return (await navigator.serviceWorker.getRegistrations()).map((g) => new URL(g.scope).pathname).sort().join(' '); });
@@ -460,21 +460,21 @@ let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL 
     const p6 = await c6.newPage();
     const accueilHtml = fs.readFileSync(path.join(root, 'index.html'), 'utf8'), sousFournil = (u) => u.pathname === '/fournil/';
     await p6.route(sousFournil, (r) => r.fulfill({ status: 200, contentType: 'text/html', body: accueilHtml }));
-    await p6.goto('http://localhost:8781/fournil/'); await sleep(900);
+    await p6.goto(`http://localhost:${PORT}/fournil/`); await sleep(900);
     const boucle = await p6.evaluate(() => ({ chemin: location.pathname, titre: document.title }));
     check(boucle.chemin === '/fournil/' && boucle.titre === 'Salle de jeux', 'l’accueil servi par erreur sous fournil/ ne boucle pas vers fournil/fournil/ (' + boucle.chemin + ')');
     await p6.unroute(sousFournil);
     const jeuHtml = fs.readFileSync(path.join(root, 'fournil', 'index.html'), 'utf8'), racine = (u) => u.pathname === '/';
     await p6.route(racine, (r) => r.fulfill({ status: 200, contentType: 'text/html', body: jeuHtml }));
-    await p6.goto('http://localhost:8781/?app=accueil'); await p6.waitForURL(/\/fournil\/$/, { timeout: 5000 }).catch(() => {});
+    await p6.goto(`http://localhost:${PORT}/?app=accueil`); await p6.waitForURL(/\/fournil\/$/, { timeout: 5000 }).catch(() => {});
     check(/\/fournil\/$/.test(new URL(p6.url()).pathname), 'la page du jeu servie à la racine retourne d’elle-même dans fournil/');
     await c6.close();
     // hors ligne : le jeu jamais ouvert s'ouvre quand même, grâce au service worker que l'accueil a installé
     const c7 = await browser.newContext(iphone), p7 = await c7.newPage();
-    await p7.goto('http://localhost:8781/'); await sleep(500);
+    await p7.goto(`http://localhost:${PORT}/`); await sleep(500);
     const pret = await p7.evaluate(async () => { for (let k = 0; k < 50; k++) { const g = await navigator.serviceWorker.getRegistration('fournil/'); if (g && g.active) return true; await new Promise((r) => setTimeout(r, 200)); } return false; });
     await c7.setOffline(true);
-    await p7.goto('http://localhost:8781/fournil/').catch(() => {}); await sleep(1500);
+    await p7.goto(`http://localhost:${PORT}/fournil/`).catch(() => {}); await sleep(1500);
     const horsLigne = await p7.evaluate(() => !!window.__fournil && document.querySelectorAll('.carte[data-i]').length === 16).catch(() => false);
     check(pret && horsLigne, 'hors ligne, Le Fournil s’ouvre depuis l’accueil sans avoir jamais été ouvert');
     await c7.setOffline(false); await c7.close();
