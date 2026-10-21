@@ -9,7 +9,7 @@ const MINIJEUX = (() => {
   'use strict';
   const G = GAME, $ = (s) => document.querySelector(s);
   let d = null, el, zone, titre, sous, chrono, bandeau, consigne;
-  let ecran = '', jeu = null, partie = null, raf = 0, horloge = 0, resultat = null;
+  let ecran = '', jeu = null, partie = null, raf = 0, horloge = 0, resultat = null, vues = 0; // vues : les images dessinées (pleine cadence, pour les tests)
   const PAS = 1 / 60, TROU = 1; // le pas logique (s), et le trou au-delà duquel le temps écoulé est une pause (arrière-plan)
   const reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -64,7 +64,7 @@ const MINIJEUX = (() => {
       if (!partie) return;
       rattraper(performance.now());
       if (partie && partie.termine) { terminer(partie.score, partie.bilan()); return; }
-      partie.vue();
+      partie.vue(); vues++;
       raf = requestAnimationFrame(boucle);
     };
     raf = requestAnimationFrame(boucle);
@@ -380,7 +380,7 @@ const MINIJEUX = (() => {
 
   return {
     init, ouvrir, fermer, get ouvert() { return ouvert(); },
-    etat: () => ({ ouvert: ouvert(), ecran, jeu: jeu && jeu.id, partie: partie && partie.etat ? partie.etat() : null, resultat }),
+    etat: () => ({ ouvert: ouvert(), ecran, jeu: jeu && jeu.id, partie: partie && partie.etat ? partie.etat() : null, resultat, vues }),
     teinte, reduceMotion,
   };
 })();
