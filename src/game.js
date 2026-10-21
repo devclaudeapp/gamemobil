@@ -258,7 +258,7 @@
     const pe = Math.min(1, gain / conseil), part = defi ? (pe + defi.part) / 2 : pe;
     return { n, fini: n > PARCOURS_FIN, recompense: recompenseBoutique(n), quartier: QUARTIERS[quartierDe(n)], defi, defiSuivant: defiDe(n), gain, conseil, partEtoiles: pe, part, pret: gain > 0 && (!defi || defi.fait) };
   }
-  function parcoursListe(st) { // les trente boutiques : numéro, quartier, récompense, défi, et où on en est (passee, actuelle, avenir)
+  function parcoursListe(st) { // les boutiques du parcours (PARCOURS_FIN) : numéro, quartier, récompense, défi, et où on en est (passee, actuelle, avenir)
     // la boutique en cours : seulement le défi réellement posé (st.defi) ; une boutique ouverte avant le parcours n'en a pas
     const b = st.boutiques || 1, out = [];
     for (let n = 1; n <= PARCOURS_FIN; n++) { const r = recompenseBoutique(n), d = n === b ? st.defi || null : defiDe(n); out.push({ n, etat: n < b ? 'passee' : n === b ? 'actuelle' : 'avenir', quartier: QUARTIERS[n === b ? quartier(st) : quartierDe(n)], recompense: r, texte: texteRecompense(r), defi: d, defiTxt: d ? texteDefi(d, d.cible) : '' }); }
@@ -1424,14 +1424,16 @@
   }
 
   // ─── un pas de jeu ; rend {ventes, nouvelEv, finEv, mystere} ───
-  function tick(st, dt, nowMs, rnd) {
+  // pause : l'événement est en pause sous un écran (la Planque, l'Atelier, une visite : ui.js) ; comme pendant une courte sortie (absence),
+  // une panne en pause n'arrête pas son four : le poste cuit et vend, seule l'échéance de la prime attend
+  function tick(st, dt, nowMs, rnd, pause) {
     st.now = nowMs; rnd = rnd || Math.random;
     const out = { ventes: [], nouvelEv: null, finEv: null, mystere: false, habitue: null, trophees: [], grades: [], chat: false, saison: null, venteSaison: null, maitrise: null };
     objectifsDuJour(st, nowMs);
     if (st.saison && st.saisonAnnoncee !== st.saison.id + ':' + st.saison.annee) { st.saisonAnnoncee = st.saison.id + ':' + st.saison.annee; out.saison = recetteSaison(st); } // une nouvelle recette de saison, annoncée une fois (même à l'ouverture du jeu)
     st.stations.forEach((s, i) => {
       if (s.niv <= 0 || !s.actif) return;
-      if (st.ev && st.ev.type === 'panne' && st.ev.i === i) return; // le four est en panne
+      if (!pause && st.ev && st.ev.type === 'panne' && st.ev.i === i) return; // le four est en panne
       const T = temps(st, i);
       s.prog += dt;
       if (s.prog < T) return;

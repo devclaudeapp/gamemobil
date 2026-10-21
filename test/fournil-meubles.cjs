@@ -333,6 +333,8 @@ const server = http.createServer((req, res) => {
     check(seul.neon && !seul.bocaux && deux.neon && deux.bocaux && !recoupe(deux.neon, deux.bocaux) && deux.neon.y1 <= deux.bocaux.y0,
       `le néon et les bocaux du bestiaire, tous deux gagnés : le néon (${txt(deux.neon)}) au-dessus des bocaux (${txt(deux.bocaux)}), sans recouvrement à l’écran (néon seul : ${txt(seul.neon)})`);
     const fz = await ev(() => { const r = document.querySelector('#scene').getBoundingClientRect(), L = VIE.LAY.fenetre; return { y: r.top + L.y }; });
+    // et le néon reste dans la fenêtre : son fond noir ne passe pas au-dessus du cadre, sur le mur (seul, ou remonté au-dessus des bocaux)
+    check(seul.neon && deux.neon && seul.neon.y0 >= fz.y && deux.neon.y0 >= fz.y, `le néon reste dans la fenêtre (haut de la vitre à ${Math.round(fz.y)} px ; néon seul de ${txt(seul.neon)}, avec les bocaux de ${txt(deux.neon)})`);
     await page.screenshot({ path: path.join(out, 'neon-bocaux-eco.png') });
     await page.screenshot({ path: path.join(out, 'neon-bocaux-fenetre-eco.png'), clip: { x: 0, y: Math.max(0, fz.y - 10), width: 220, height: 150 } });
     await ev(() => { window.__fournil.SCENE.decosQuartier([]); window.__fournil.SCENE.decosHantee([]); }); await sleep(500);

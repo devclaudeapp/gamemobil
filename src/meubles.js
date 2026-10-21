@@ -696,7 +696,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       s = Math.min(s, (plafond - couvercles) / 1.9); y = plafond - 0.95 * s;
     }
     const g = grp('neon', x, y, 3), pr = [];
-    pr.push(P(bo(s * 1.6, s * 1.9, 1.2, 1), '#2E2B3A', { z: -0.8 })); // le fond noir mat
+    pr.push(P(bo(s * 1.6, s * 1.9, 1.2, 1), '#2E2B3A', { y: -0.95 * s, z: -0.8 })); // le fond noir mat, centré derrière les tubes (une boîte est posée : sa base en y)
     g.add(M.maille(pr, { ombre: false }));
     const zig = [[-0.25, 0.75], [0.1, 0.1], [-0.08, 0.1], [0.25, -0.75]].map(([u, v]) => [u * s, v * s]), tubes = [];
     for (let k = 0; k < zig.length - 1; k++) { const [x0, y0] = zig[k], [x1, y1] = zig[k + 1], l = Math.hypot(x1 - x0, y1 - y0); tubes.push(P(M.capsule(0.9, l, 6), '#FF6B8B', { x: (x0 + x1) / 2, y: (y0 + y1) / 2, z: 0.6, rz: Math.atan2(y1 - y0, x1 - x0) - Math.PI / 2 })); }

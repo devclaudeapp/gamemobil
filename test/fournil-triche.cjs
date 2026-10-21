@@ -212,14 +212,16 @@ function fauxTelephone(decalDepart) {
   const lancement = vrai();
   const lance = await p5.evaluate(() => { const f = window.__fournil, s = f.st, G = f.G;
     window.__deriver(40 * 60e3); s.now = HORLOGE.maintenant(); // le jeu a 40 min d'avance, et on lance aussitôt :
-    G.donnerBoostReserve(s, 2, 3600); const r = G.lancerBoostReserve(s, s.boosts.reserve.length - 1); // un ×2 d'1 h de la réserve
+    G.donnerBoostReserve(s, 2, 3600); const r = G.lancerBoostReserve(s, s.boosts.reserve.length - 1); // un ×2 d'1 h de la réserve,
+    if (r.ok) { s.boosts.actif.debut -= 10 * 60e3; s.boosts.actif.fin -= 10 * 60e3; } // lancé 10 min plus tôt : 10 min de jeu déjà passées sous lui quand l'heure sûre revient
     G.donnerBoost(s, 3, 600); // et le coup de feu d'une critique (×3, 10 min)
     return { jeu: s.now, ok: r.ok, actif: s.boosts.actif && s.boosts.actif.fin, boost: s.boost && s.boost.fin }; });
-  check(lance.ok && Math.abs(lance.jeu - lancement - 40 * 60e3) < 30e3, `le boost est lancé quand le jeu a ${Math.round((lance.jeu - lancement) / 60e3)} min d’avance (il finirait ${Math.round((lance.actif - lancement) / 60e3)} min après la vraie heure de lancement)`);
+  check(lance.ok && Math.abs(lance.jeu - lancement - 40 * 60e3) < 30e3, `le boost est lancé quand le jeu a ${Math.round((lance.jeu - lancement) / 60e3)} min d’avance (il finirait ${Math.round((lance.actif - lancement + 10 * 60e3) / 60e3)} min après la vraie heure de lancement)`);
   check(await attendre5(p5), 'l’heure sûre ramène le jeu à l’heure (« Horloge du jeu remise à l’heure »)');
   await sleep(1500);
   const recule = await p5.evaluate(() => { const s = window.__fournil.st; return { now: s.now, actif: s.boosts.actif && s.boosts.actif.fin, boost: s.boost && s.boost.fin }; });
-  check(Math.abs(recule.now - vrai()) < 10e3 && recule.actif && Math.abs(recule.actif - lancement - 3600e3) < 30e3, `le boost de la réserve finit 1 h après la vraie heure de lancement (${Math.round((recule.actif - lancement) / 60e3)} min ; 1 h 40 avant la correction)`);
+  // lancé 10 min de jeu avant le recul : il garde le temps qui lui restait (50 min), pas sa durée entière (il durerait 1 h 10)
+  check(Math.abs(recule.now - vrai()) < 10e3 && recule.actif && Math.abs(recule.actif - (lancement - 10 * 60e3) - 3600e3) < 30e3, `le boost de la réserve, lancé 10 min de jeu avant le recul, finit 1 h après la vraie heure de lancement (${Math.round((recule.actif - lancement + 10 * 60e3) / 60e3)} min ; 1 h 40 avant le constat 16, 1 h 10 avant ce correctif)`);
   check(recule.boost && Math.abs(recule.boost - lancement - 600e3) < 30e3, `le coup de feu aussi : ${Math.round((recule.boost - lancement) / 60e3)} min (10 min)`);
   await c5.close();
   check(!errors.length, 'aucune erreur dans la page (réseau revenu, fuseaux, boost ramené)' + (errors.length ? ' : ' + errors[0] : ''));

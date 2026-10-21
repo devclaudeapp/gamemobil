@@ -166,6 +166,8 @@ const QS = [['village', 0], ['capitale', G.QUARTIERS.findIndex((q) => q.id === '
     await ev(() => { document.querySelector('#feuille [data-a="ok"]').click(); }); await sleep(300);
     await ev(() => window.__fournil.parcours()); await sleep(400); t = await lire();
     check(/Standing\s*Belle boutique/.test(t) && /n°11/.test(t), 'la feuille du parcours montre le standing et le prochain palier (n°11)');
+    { const fin = await ev(() => window.__fournil.G.PARCOURS_FIN); // le nombre de boutiques lu dans les règles, jamais écrit en dur
+      check(new RegExp(`${fin} boutiques, une récompense à chacune`).test(t) && !/Trente boutiques/.test(t), `le sous-titre du parcours : « ${fin} boutiques, une récompense à chacune » (G.PARCOURS_FIN)`); }
     await page.screenshot({ path: path.join(out, 'parcours-standing.png') });
     await ev(() => { const f = window.__fournil; f.st.boutiques = 29; f.st.quartierFixe = 9; f.monteeGamme(); }); await sleep(500);
     await page.screenshot({ path: path.join(out, 'annonce-palier-5.png') });

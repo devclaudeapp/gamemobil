@@ -55,7 +55,7 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
     f.lancerBoost(); const fe = document.querySelector('#feuille-contenu').textContent.replace(/\s+/g, ' '); document.querySelector('#feuille [data-a="close"]').click();
     st.boosts.reserve.length = 0; f.renderBoosts(); return { un, deux, fe }; });
   check(/En réserve : lance-le quand tu veux/.test(boosts.un) && /2 boosts en réserve/.test(boosts.deux) && !/Quartier/.test(boosts.un + boosts.deux), `le ticket de la réserve, neutre : « ${boosts.un} » puis « ${boosts.deux} »`);
-  check(/paliers des événements/.test(boosts.fe) && /parcours du boulanger/.test(boosts.fe) && /contrats de la nuit/.test(boosts.fe) && /pourboires des copains/.test(boosts.fe) && /objectif commun/.test(boosts.fe), 'la feuille de la réserve : les événements, le parcours du boulanger, les contrats de la nuit, les copains et l’objectif commun');
+  check(/paliers des événements/.test(boosts.fe) && /parcours du boulanger/.test(boosts.fe) && /contrats de la nuit/.test(boosts.fe) && /pourboires des copains/.test(boosts.fe) && /objectif commun/.test(boosts.fe) && /classement/.test(boosts.fe), 'la feuille de la réserve : les événements, le parcours du boulanger, les contrats de la nuit, le classement, les copains et l’objectif commun');
 
   // ─── 2. des pièces gagnées (podium d'or, le quartier) et des étoiles : la feuille ───
   const dons = await p.evaluate(() => { const f = window.__fournil, G = f.G; const n = ['or', 'quartier'].reduce((k, c) => k + G.donnerCollection(f.st, c).length, 0); f.vetement('bronze-toque'); f.st.etoiles = 12; f.rafraichir(); return { n, stats: f.st.stats.vetements }; });

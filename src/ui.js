@@ -679,7 +679,7 @@ const UI = (() => {
     const b = st.boosts; if (!b || (b.actif && b.actif.fin > st.now)) { toast('Un boost tourne déjà : attends la fin.'); return; }
     if (!b.reserve.length) return;
     if (b.reserve.length === 1) { const r = G.lancerBoostReserve(st, 0); if (r.ok) reussite(`Boost ×${r.boost.mult} lancé : toutes les ventes ×${r.boost.mult} pendant ${G.fmtDuree((r.boost.fin - st.now) / 1000)} !`); return; }
-    openSheet(`<h2>La réserve de boosts</h2><p class="sous">Gagnés aux paliers des événements, sur le parcours du boulanger, aux contrats de la nuit, avec les pourboires des copains et l’objectif commun. Un seul à la fois ; il tourne sur l'horloge, même la boutique fermée.</p><div class="liste-am">${b.reserve.map((x, k) => `<div class="am"><div><h3>Boost ×${x.mult}</h3><p>Toutes les ventes ×${x.mult} pendant ${G.fmtDuree(x.secs)}</p></div><button type="button" class="btn beurre" data-k="${k}"><small>Lancer</small><b>×${x.mult}</b></button></div>`).join('')}</div>${btnRetour()}`);
+    openSheet(`<h2>La réserve de boosts</h2><p class="sous">Gagnés aux paliers des événements, sur le parcours du boulanger, aux contrats de la nuit, à ta place au classement (chaque lundi, et à la fin des événements), avec les pourboires des copains et l’objectif commun. Un seul à la fois ; il tourne sur l'horloge, même la boutique fermée.</p><div class="liste-am">${b.reserve.map((x, k) => `<div class="am"><div><h3>Boost ×${x.mult}</h3><p>Toutes les ventes ×${x.mult} pendant ${G.fmtDuree(x.secs)}</p></div><button type="button" class="btn beurre" data-k="${k}"><small>Lancer</small><b>×${x.mult}</b></button></div>`).join('')}</div>${btnRetour()}`);
     on('[data-a="close"]', closeSheet);
     on('[data-k]', (el) => { const r = G.lancerBoostReserve(st, +el.dataset.k); closeSheet(); if (r.ok) reussite(`Boost ×${r.boost.mult} lancé : toutes les ventes ×${r.boost.mult} pendant ${G.fmtDuree((r.boost.fin - st.now) / 1000)} !`); else son.non(); });
   }
@@ -928,7 +928,7 @@ const UI = (() => {
     const ligne = (x) => `<li class="pc-ligne ${x.etat}"><span class="pc-n">${x.n}</span><span class="pc-ico">${x.n === 1 ? icoQuartier(x.quartier) : icoRecompense(x.recompense)}</span>
       <span class="pc-txt"><b>${x.n === 1 ? 'Ta première boutique' : esc(x.texte || '—')}</b><small>${esc(x.quartier ? x.quartier.nom : '')}${x.etat === 'actuelle' ? ' · tu es ici' : ''}</small>${x.defi && x.etat !== 'passee' ? `<small class="pc-defi">Pour ouvrir la n°${x.n + 1} : ${esc(x.defiTxt)}</small>` : ''}</span>
       ${x.etat === 'passee' ? `<i class="pc-ok">${ICONS.UI.coche || '✓'}</i>` : ''}</li>`;
-    openSheet(`<h2>Le parcours du boulanger</h2><p class="sous">Trente boutiques, une récompense à chacune : des recettes, des quartiers, une tenue, des bonus. Dès la boutique n°6, ouvrir la suivante demande aussi un défi de passage.${G.titreParcours(st) ? ` Ton titre : <b>${esc(G.titreParcours(st))}</b>.` : ''}</p>
+    openSheet(`<h2>Le parcours du boulanger</h2><p class="sous">${G.PARCOURS_FIN} boutiques, une récompense à chacune : des recettes, des quartiers, une tenue, des bonus. Dès la boutique n°6, ouvrir la suivante demande aussi un défi de passage.${G.titreParcours(st) ? ` Ton titre : <b>${esc(G.titreParcours(st))}</b>.` : ''}</p>
       ${b.fini ? `<div class="encadre doux"><b>Parcours terminé, félicitations !</b> Les ${G.PARCOURS_FIN} boutiques sont ouvertes.${b.defi ? `<br>Pour ouvrir la suivante, le défi de passage : ${esc(b.defi.txt)} · ${G.fmt(b.defi.progres)}/${G.fmt(b.defi.cible)}${b.defi.fait ? ' ✓' : ''}` : ''}</div>` : ''}
       ${ligneStanding()}
       <ol class="pc-liste">${liste.map(ligne).join('')}</ol>${btnRetour()}`);
@@ -1896,7 +1896,7 @@ const UI = (() => {
     // (prête, elle attend déjà sa livraison ; en pause, elle aurait tout le temps de se remplir)
     const tPas = HORLOGE.maintenant(), ecoule = tPas - st.now, evPause = atelier && st.ev && ['critique', 'petrissage', 'panne'].includes(st.ev.type) && ecoule > 0 && ecoule <= G.PAUSE_EV * 1000 ? st.ev : null;
     if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); if (evPause) for (const k of ['debut', 'fin']) if (Number.isFinite(evPause[k])) evPause[k] += ecoule; }
-    const out = G.tick(st, dt, tPas, atelier ? () => 0.999 : undefined);
+    const out = G.tick(st, dt, tPas, atelier ? () => 0.999 : undefined, !!evPause); // la panne en pause n'arrête pas son four (G.tick)
     if (out.ventes.length) {
       const gros = out.ventes.reduce((a, v) => a + v.montant, 0), first = out.ventes[0];
       if (!visite && (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15)) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), !st.stations[first.i].staff); son.vente(gros); } // en visite : ses ventes ne s'affichent pas chez le copain
@@ -1981,7 +1981,7 @@ const UI = (() => {
   // (e) l'heure sûre a ramené le jeu de ms en arrière. Le départ de l'absence (lastSeen) revient à la vraie heure de la dernière sauvegarde :
   // une avance prise avant cette sauvegarde est rendue, une avance prise après (le compteur qui saute en pleine partie) ne crée pas de
   // fausse absence. Ce qui a commencé « dans le futur » (un coup de feu, une
-  // opération lancés pendant l'avance) revient à maintenant, en gardant sa durée ; les absences recomptent aussitôt
+  // opération lancés pendant l'avance) revient à maintenant, avec le temps qui lui restait ; les absences recomptent aussitôt
   function reculer(ms) {
     if (!st || !(ms > 0)) return;
     const t = HORLOGE.maintenant(), avant = st.lastSeen;
@@ -1991,12 +1991,14 @@ const UI = (() => {
     const est = Number.isFinite(st.vuTel) ? st.vuTel : st.horloge && Number.isFinite(st.horloge.sure) ? st.horloge.sure : avant - ms;
     const base = Number.isFinite(avant) ? Math.min(t, avant, est) : t;
     const rendu = Number.isFinite(avant) ? Math.max(0, avant - base) : 0;
-    const dec = (o) => { if (!o || typeof o !== 'object') return; if (Number.isFinite(o.debut) && o.debut > t) { const d = o.debut - t; o.debut -= d; if (Number.isFinite(o.fin)) o.fin -= d; } };
-    const etat = (o, r) => { if (!o || typeof o !== 'object') return; if (Number.isFinite(o.lastSeen)) o.lastSeen = Math.min(o.lastSeen - r, t); if (Number.isFinite(o.now)) o.now = Math.min(o.now, t); dec(o.ev); dec(o.boost); dec(o.operation); };
+    // ce qui a commencé dans le futur revient à maintenant avec le temps qui lui RESTAIT à l'heure du jeu (ref : son ancien now), pas sa durée
+    // entière : l'heure sûre peut n'arriver que des minutes après le lancement (relue toutes les 30 min), ce temps-là est déjà joué
+    const dec = (o, ref) => { if (!o || typeof o !== 'object') return; if (Number.isFinite(o.debut) && o.debut > t) { if (Number.isFinite(o.fin)) o.fin = t + Math.max(0, o.fin - (Number.isFinite(ref) ? Math.max(ref, o.debut) : o.debut)); o.debut = t; } };
+    const etat = (o, r) => { if (!o || typeof o !== 'object') return; if (Number.isFinite(o.lastSeen)) o.lastSeen = Math.min(o.lastSeen - r, t); const ref = o.now; if (Number.isFinite(o.now)) o.now = Math.min(o.now, t); dec(o.ev, ref); dec(o.boost, ref); dec(o.operation, ref); };
     if (Number.isFinite(avant)) st.lastSeen = base;
-    // les boosts aussi (le coup de feu d'une critique, celui de la réserve) : lancés pendant l'avance, ils gardent leur durée à partir de maintenant
+    // les boosts aussi (le coup de feu d'une critique, celui de la réserve) : lancés pendant l'avance, ils gardent à partir de maintenant le temps qui leur restait
     // (un boost d'avant cette version, sans debut, reste tel quel)
-    if (Number.isFinite(st.now)) st.now = Math.min(st.now, t); dec(st.ev); dec(st.boost); dec(st.boosts && st.boosts.actif);
+    const ref = st.now; if (Number.isFinite(st.now)) st.now = Math.min(st.now, t); dec(st.ev, ref); dec(st.boost, ref); dec(st.boosts && st.boosts.actif, ref);
     for (const k of ['quartier', HTE && HTE.cle]) if (k && st[k]) etat(st[k], rendu);
     noterJournal({ t, r: 'recul', o: Math.round(ms / 1000), s: Math.round(rendu / 1000), g: 0, n: 'recul', ...horlogeVue() });
   }

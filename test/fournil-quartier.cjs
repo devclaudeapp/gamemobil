@@ -262,6 +262,14 @@ async function gerer(route) {
     check((await planque()).ecran === 'planque', 'la Planque est restée ouverte 30 s');
     await clic('[data-pq="fermer"]'); const e1 = await evB();
     check(e0 && e0.type === 'petrissage' && e1 && e1.type === 'petrissage' && e1.reste > e0.reste - 3000, `le pétrissage a encore son temps en sortant de la Planque (${e0 && Math.round(e0.reste / 1000)} s avant, ${e1 && Math.round(e1.reste / 1000)} s après 30 s dessous)`);
+    // une panne lancée juste avant d'ouvrir la Planque : en pause elle aussi (sa prime attend), mais elle n'arrête pas son four sous l'écran
+    // (comme une courte sortie, G.absence) : le poste en panne a cuit et vendu pendant les 30 s, et la panne a encore son temps en sortant
+    const xpP = () => ev(() => { const f = window.__fournil, st = f.st, ev0 = st.ev; return ev0 && ev0.type === 'panne' ? { i: ev0.i, xp: ((st.apprentis || {})[f.G.PRODUITS[ev0.i].id] || { xp: 0 }).xp, reste: ev0.fin - HORLOGE.maintenant() } : null; });
+    await ev(() => { const f = window.__fournil, st = f.st; st.ev = null; st.evTimer = 9999; const s0 = st.stations[0]; window.__poste0 = { ...s0 }; s0.niv = Math.max(1, s0.niv); s0.staff = true; s0.actif = true; f.G.lancerPanne(st, () => 0); });
+    const p0 = await xpP(); await ev(() => window.__fournil.quartier()); await sleep(30000);
+    await clic('[data-pq="fermer"]'); const p1 = await xpP();
+    check(p0 && p1 && p1.i === p0.i && p1.xp > p0.xp && p1.reste > p0.reste - 3000, `une panne puis 30 s de Planque : le poste en panne a vendu dessous (expérience de l’apprenti ${p0 && Math.round(p0.xp)} → ${p1 && Math.round(p1.xp)}), et la panne a encore son temps (${p0 && Math.round(p0.reste / 1000)} s, puis ${p1 && Math.round(p1.reste / 1000)} s)`);
+    await ev(() => { const st = window.__fournil.st; Object.assign(st.stations[0], window.__poste0); }); // le poste tel qu'il était : la suite (l'absence, le bilan) ne change pas
     await ev(() => { const st = window.__fournil.st; st.ev = null; window.__fournil.ev('rush'); });
     const r0 = await evB(); await ev(() => window.__fournil.quartier()); await sleep(4000); await clic('[data-pq="fermer"]'); const r1 = await evB();
     check(r0 && r0.type === 'rush' && r1 && r1.type === 'rush' && r0.reste - r1.reste >= 3500, `le coup de feu, lui, s’écoule sous l’écran (${Math.round(r0.reste / 1000)} s, puis ${r1 && Math.round(r1.reste / 1000)} s)`);
