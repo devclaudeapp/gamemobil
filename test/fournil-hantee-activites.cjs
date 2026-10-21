@@ -131,6 +131,9 @@ function faux(d) {
       const e = await act(), b = e.bestiaire, s1 = b.sortes.find((x) => x.sorte === c1.sorte), court = await ev((k) => window.__fournil.HT.NOMS_COURTS[k], c1.sorte);
       const mini = await ev((k) => { const i = document.querySelector(`#ht-bestiaire .mh-best-mini i[data-sorte="${k}"]`); return i ? i.className : null; }, c1.sorte);
       check(s1 && s1.n === 1 && e.mot.startsWith(`${court} 1/10`) && mini === 'encours' && await ev(() => !document.querySelector('#ht-bestiaire').hidden), `servi, il fait avancer le bestiaire : « ${e.mot} » sur la scène, sa miniature passe de la silhouette à « en cours » dans la carte du tiroir`);
+      const tailles = await ev(() => [...document.querySelectorAll('#ht-bestiaire .mh-best-mini i')].map((i) => { const r = i.querySelector('svg').getBoundingClientRect(), c = i.getBoundingClientRect(); return { etat: i.className, k: Math.min(r.width, r.height) / c.width }; }));
+      const vides = tailles.filter((t) => t.etat === 'vide'), pire = Math.min(...tailles.map((t) => t.k));
+      check(vides.length > 0 && pire > 0.7, `les silhouettes des monstres pas encore servis sont aussi grandes que les autres miniatures (${vides.length} silhouettes ; la plus petite : ${(pire * 100).toFixed(0)} % de sa case)`);
     }
     // un deuxième, servi en touchant sa bulle
     await pousser('client');

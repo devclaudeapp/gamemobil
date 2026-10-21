@@ -167,6 +167,19 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
   await clic('#hantee [data-pq="paliers"]'); await sleep(300);
   check(/Les paliers/.test(await feuille()) && (await feuille()).split('✓').length === 5, 'la feuille des paliers : quatre cochés');
   await shot('06-paliers'); await clic('#feuille [data-a="pq-retour"]'); await sleep(200);
+  { // v6.7 : les bonbons du 6e palier gagnés dès le premier jour ; les 5e et 6e attendent mercredi, et ne se confondent pas avec le 7e, encore loin
+    const t0 = (await hst()).total;
+    await ev((t) => { const F = window.__fournil, h = F.st[F.evHantee.cle]; h.total = t; }, HT.PALIERS[5].total);
+    await clic('#hantee [data-pq="paliers"]'); await sleep(300);
+    const l = await ev(() => [...document.querySelectorAll('#feuille .pq-palier')].slice(4, 7).map((e) => ({ c: e.className, t: e.innerText.replace(/\s+/g, ' '), etat: e.querySelector('.pq-etat').textContent, fond: getComputedStyle(e).backgroundColor, op: getComputedStyle(e).opacity })));
+    check(l[0].c.includes('attend') && l[1].c.includes('attend') && !l[2].c.includes('attend') && l.slice(0, 2).every((x) => /gagné, s’ouvre mercredi 28/.test(x.t) && x.etat === '☾' && x.op === '1') && /s’ouvre mercredi 28/.test(l[2].t) && !/gagné/.test(l[2].t) && l[2].fond !== l[0].fond && l[2].op !== '1',
+      `un palier gagné qui attend son jour se distingue (${l.map((x) => `${x.c.trim()} « ${x.t.slice(-28)} » ${x.etat}`).join(' ; ')})`);
+    check((await hst()).paliers.join() === '1,2,3,4', 'et il ne se donne pas avant son jour');
+    await shot('06-paliers-attente'); await clic('#feuille [data-a="pq-retour"]'); await sleep(200);
+    const solde = await ev(() => { const b = document.querySelector('#hantee .pq-solde > div:not(.mh-eveil) > b'), m = b.querySelector('.bb-mot').getBoundingClientRect(), r = document.querySelector('#hantee .pq-reste').getBoundingClientRect(), bb = b.getBoundingClientRect(); return { txt: b.textContent, cache: m.top >= bb.bottom, dr: m.right, g: r.left }; });
+    check(solde.cache || solde.dr <= solde.g - 2, `le solde « ${solde.txt} » ne passe pas sous « Ferme dans… » (le mot ${solde.cache ? 'caché quand il ne tient pas' : `finit à ${Math.round(solde.dr)} px, la pastille commence à ${Math.round(solde.g)}`})`);
+    await ev((t) => { const F = window.__fournil, h = F.st[F.evHantee.cle]; h.total = t; }, t0);
+  }
 
   console.log('── les gains d’absence : plafonnés, au ralenti ; le retour écran ouvert ──');
   await clic('#hantee [data-pq="fermer"]'); await sleep(900);

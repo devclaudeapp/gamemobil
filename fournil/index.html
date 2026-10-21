@@ -918,6 +918,7 @@ button.gr-piece { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 10px; mi
 #hantee .pq-solde small { color: var(--mh-texte2); }
 #hantee .pq-solde small b { color: var(--menthe-sombre); }
 #hantee .bb-mot { display: inline !important; margin-left: 5px; font: 700 14px/1 var(--titre) !important; color: var(--mh-orange-texte) !important; }
+#hantee .pq-solde > div:not(.mh-eveil) > b { display: flex; flex-wrap: wrap; align-items: baseline; max-height: 1.3em; padding-bottom: .3em; margin-bottom: -.3em; row-gap: 1em; overflow: hidden; } /* un grand nombre (255 Md) : le mot « bonbons » passe à la ligne, cachée, plutôt que sous « Ferme dans… » */
 #hantee .pq-reste { background: var(--mh-violet-clair); color: var(--mh-violet-sombre); box-shadow: none; }
 /* la toile dans le coin de l'en-tête ; les deux chauves-souris qui battent des ailes près de la poignée du tiroir */
 .mh-deco { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
@@ -1138,7 +1139,7 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .mh-best-tete b { font: 700 16px/1.1 var(--titre); }
 .mh-best-tete small { font: 800 12px/1 var(--texte-font); color: var(--mh-orange-texte); white-space: nowrap; }
 .mh-best-mini { display: grid; grid-template-columns: repeat(9, minmax(0, 1fr)); gap: 3px; }
-.mh-best-mini i { position: relative; display: grid; place-items: center; aspect-ratio: 1; max-width: 30px; border-radius: 8px; background: var(--mh-creme2); padding-bottom: 3px; }
+.mh-best-mini i { position: relative; display: grid; place-items: center; aspect-ratio: 1; max-width: 30px; border-radius: 8px; background: var(--mh-creme2); padding: 0 0 3px; } /* (le padding entier : la classe d'état « vide » croise .vide, l'état vide des pages, et son padding écrasait l'ombre du monstre) */
 .mh-best-mini i svg { width: 88%; height: 88%; }
 .mh-best-mini i::after { content: ''; position: absolute; left: 3px; bottom: 2px; height: 3px; width: calc((100% - 6px) * var(--p, 0)); border-radius: 2px; background: var(--mh-orange); }
 .mh-best-mini i.vide { background: #EFE6F5; }
@@ -1216,6 +1217,12 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .pq-sheet.ht .pq-palier.bonus .pq-num { background: #2E2547; box-shadow: inset 0 0 0 2px #5FD3A4; }
 .pq-sheet.ht .pq-palier.bonus.atteint { background: #E3FBE9; box-shadow: inset 0 0 0 2px #3FBF7F; }
 .pq-sheet.ht .pq-palier.bonus.atteint .pq-num { background: #3FBF7F; color: #10261A; box-shadow: none; }
+.pq-sheet.ht .pq-palier b small { white-space: nowrap; } /* le seuil et son bonbon sur la même ligne */
+/* un palier gagné qui attend son jour (v6.7) : violet de nuit, la lune, « gagné, s’ouvre jeudi 29 » */
+.pq-sheet.ht .pq-palier.attend { opacity: 1; background: #F3ECFB; box-shadow: inset 0 0 0 2px #B794E6; }
+.pq-sheet.ht .pq-palier.attend .pq-num { background: #8A5CC8; color: #fff; box-shadow: none; }
+.pq-sheet.ht .pq-palier.attend div > span i { font-weight: 800; color: #6B3FA6; }
+.pq-sheet.ht .pq-palier.attend .pq-etat { color: #8A5CC8; font-size: 20px; }
 .pq-sheet.ht .am.bonus:not(.fait) { box-shadow: inset 0 0 0 2px #3FBF7F, var(--ombre-carte); }
 .ht-annonce { text-align: center; }
 .ht-annonce-scene { position: relative; display: grid; place-items: center; height: 132px; margin: 0 auto 10px; border-radius: 24px; overflow: hidden; background: linear-gradient(180deg, #1B1438 0%, #3B2A66 78%, #2A2140 100%); }
@@ -2076,7 +2083,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '9b061d6ed416';</script>
+<script>window.FOURNIL_VERSION = 'db4b312aeb5b';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -13819,7 +13826,8 @@ const EVENEMENTS = (() => {
     }
     function sheetPaliers() { // (la Maison hantée, v6.7 : un palier pas encore ouvert dit son jour, Q.ouvrePalier)
       const qq = q(), nb = Q.paliersAtteints(qq).length;
-      const ligne = (p) => { const ouvre = Q.ouvrePalier ? Q.ouvrePalier(p, Math.max(qq.now || 0, qq.vuLe || 0)) : '', atteint = qq.total >= p.total && !ouvre, recu = qq.paliers.includes(p.n); return `<div class="pq-palier ${atteint ? 'atteint' : ''}${p.bonus ? ' bonus' : ''}"><span class="pq-num">${p.n}</span><div><b>${esc(p.titre)} <small>${prix(p.total)}</small></b><span>${esc(Q.phrasePalier(p))}${ouvre ? ` · <i>${esc(ouvre)}</i>` : ''}</span></div><span class="pq-etat">${recu ? '✓' : atteint ? '…' : ''}</span></div>`; };
+      // attend : ses bonbons sont gagnés, mais son jour n'est pas venu (il se donne à minuit, sans rien refaire) : il ne se confond pas avec un palier encore loin
+      const ligne = (p) => { const ouvre = Q.ouvrePalier ? Q.ouvrePalier(p, Math.max(qq.now || 0, qq.vuLe || 0)) : '', gagne = qq.total >= p.total, atteint = gagne && !ouvre, attend = gagne && !!ouvre, recu = qq.paliers.includes(p.n); return `<div class="pq-palier ${atteint ? 'atteint' : ''}${attend ? 'attend' : ''}${p.bonus ? ' bonus' : ''}"><span class="pq-num">${p.n}</span><div><b>${esc(p.titre)} <small>${prix(p.total)}</small></b><span>${esc(Q.phrasePalier(p))}${ouvre ? ` · <i>${esc(attend ? `gagné, ${ouvre}` : ouvre)}</i>` : ''}</span></div><span class="pq-etat">${recu ? '✓' : atteint ? '…' : attend ? '☾' : ''}</span></div>`; };
       const bonus = Q.PALIERS.filter((p) => p.bonus); // après le boss : sous leur intertitre
       const lignes = Q.PALIERS.filter((p) => !p.bonus).map(ligne).join('') + (bonus.length ? `<h3 class="pq-inter">${esc(F.t.apresBoss)}</h3><p class="pq-inter-sous">${esc(F.t.apresBossSous)}</p>${bonus.map(ligne).join('')}` : '');
       d.openSheet(`<div class="pq-sheet ${F.classe}"><div class="pq-palier-tete"><span class="pq-pic">${F.ico.palier}</span><div><h2>Les paliers</h2><p class="sous">${esc(F.t.paliersSous(fmt(qq.total), nb, nbPaliers(qq)))}</p></div></div>
