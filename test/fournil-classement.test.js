@@ -470,6 +470,20 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const r = CL.nettoyerRecompensesServeur({ ok: true, podiums: [], derniere: null, quartier: 7, quartier_podium: [{ rang: 1, pseudo: 'A', valeur: 'x' }, { rang: 4, pseudo: 'B', valeur: 1 }] });
     check(r.quartier === null && r.quartierPodium.length === 1 && r.quartierPodium[0].valeur === 0, 'un rang absurde est écarté, le podium garde les rangs 1 à 3 (valeur illisible → 0)');
     check(CL.nettoyerRecompensesServeur({ ok: true, podiums: [] }).quartierPodium === null && CL.nettoyerRecompenses({ podiums: [], quartier: 1, quartierPodium: 'x' }).quartier === 1, 'un serveur v3 : pas de podium (null) ; un état local avec son rang : gardé'); }
+  console.log('── la borne du serveur (1e24) : plafonner plutôt que se faire refuser ──');
+  { // fournil_publier refuse (« valeur ») toute fortune, tous billets ou tout score au-dessus de 1e24 (supabase/fournil-classement.sql) : un
+    // cadeau énorme bloquait pour toujours tous les envois ; le moteur envoie la borne. Le faux serveur suit ce contrat à la lettre
+    horloge = Date.UTC(2026, 9, 26, 12); const vieux = fortune; fortune = 1e26;
+    const borne = (c) => ['p_fortune', 'p_quartier', 'p_score'].every((k) => !(k in c) || (c[k] >= 0 && c[k] <= 1e24));
+    const r = faux(async (url, init, c) => rep(200, url.endsWith('/fournil_publier')
+      ? (borne(c) ? { ok: true, erreur: null, version: 5, rang_semaine: 1, rang_total: 1, joueurs: 3, semaine: '2026-10-26', points_semaine: c.p_points, points_total: 3, compte: 0, quartier: c.p_quartier || null, evt: c.p_evt || null, evt_score: c.p_score || null, rang_evt: c.p_evt ? 1 : null } : { ok: false, erreur: 'valeur', rang_semaine: null, rang_total: null, joueurs: 3 })
+      : { version: 5, semaine: '2026-10-26', joueurs: 1, lignes: [], moi: null }));
+    const m = moteur(r, { points: () => ({ points: 3, lundi: '2026-10-26' }), quartier: () => 3e25, evenement: () => ({ id: 'hantee', score: 5e27 }) });
+    const res = await m.choisirPseudo('Crésus'), c = r.appels[0].corps;
+    check(res.etat === 'ok' && m.resume().rejoint && c.p_fortune === 1e24 && c.p_quartier === 1e24 && c.p_score === 1e24 && CL.REGLES.fortuneMax === 1e24, 'une fortune de 1e26 (des billets à 3e25, un score à 5e27) part à la borne, 1e24, et l’envoi est accepté');
+    fortune = Infinity; horloge += 20e3; const ri = await m.envoyer('feuille');
+    check(ri.etat !== 'ok' && r.appels.every((a) => borne(a.corps)), 'une fortune infinie (sauvegarde abîmée) ne se déguise pas en 1e24 : rien d’absurde ne part');
+    fortune = vieux; }
   console.log('── La Maison hantée (contrat v5 : p_evt, période « hantee ») et « en ligne » (fournil_vu) ──');
   { // un serveur v5 : les bonbons partent avec p_evt / p_score, la période « hantee », le podium final gardé à vie, le battement
     horloge = Date.UTC(2026, 9, 28, 12); let bonbons = 5e6, cache = true, enLigneNav = true; const vus = [];
