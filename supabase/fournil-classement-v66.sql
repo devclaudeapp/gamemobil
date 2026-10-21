@@ -34,7 +34,8 @@
 --    · fournil_recompenses : evenements.<evt> = { rang: 1 à 15 | null, joueurs, podium: les trois premiers seulement, comme avant } (un
 --      téléphone d'avant ne lit que les rangs 1 à 3 ; le reste de la réponse est le même) ;
 --    · fournil_classement : titre sur chaque ligne et dans moi (le champ ti de la photo de sa boutique, s'il a la forme d'un identifiant ;
---      null sinon) ; la médaille du podium final d'un événement (podium) reste aux trois premiers ; : la ligne 'hantee', même fenêtre (du mardi 27 octobre 2026 à midi au lundi 2 novembre 2026 à 20 h, heure
+--      null sinon) ; la médaille du podium final d'un événement (podium) reste aux trois premiers ;
+--    · fournil_evts() : la ligne 'hantee', même fenêtre (du mardi 27 octobre 2026 à midi au lundi 2 novembre 2026 à 20 h, heure
 --      de Paris), même pas de 6 heures, ses 27 log10 (la recette du jour à la part 0,25 et les activités, jouées au mieux, minute par
 --      minute, sur 80 tirages du hasard des coups de pouce, Sortilèges achetés et offerts : ×2,36 de marge au plus juste, et encore
 --      ×2,33 sur 40 autres tirages qu'elle n'a pas vus ; ×34 au plus large juste après six heures, ×14,4 après sept heures, ×10,7
