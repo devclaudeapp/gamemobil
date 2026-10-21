@@ -1,4 +1,4 @@
-// Captures de la maquette HD : node capture-hd.cjs <sortie> <port> [hd=1|0] ; TIROIR=mi|ferme, HEURE=13, VIDEO=1 (30 images pour une vidéo)
+// Captures de la maquette HD : node capture-hd.cjs <sortie> <port> [hd=1|0] (les outils complets, effets compris : node construire.cjs www/maquette-outils.min.js maquette) ; TIROIR=mi|ferme, HEURE=13, VIDEO=1 (30 images pour une vidéo)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path');
 const ROOT = '/home/user/gamemobil-hd', HDW = path.join(__dirname, 'www');
@@ -20,7 +20,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   await page.evaluate((h) => { const f = window.__fournil, G = f.G, st = f.st; f.give(1e12); for (let i = 1; i < 4; i++) G.acheter(st, i); for (let i = 0; i < 4; i++) G.embaucher(st, i); for (const m of G.MOBILIER) while (G.mobilierCran(st, m.id) < m.max) f.meuble(m.id); st.tuto = 99; for (let k = 0; k < 6; k++) if (st.stations[k]) st.stations[k].niv = Math.max(st.stations[k].niv, 25); f.scene({ heure: h, assis: true }); }, +(process.env.HEURE || 13));
   await page.evaluate((t) => window.__fournil.tiroir(t), process.env.TIROIR || 'mi');
   if (hd) {
-    await page.addScriptTag({ url: '/hd/fournil-hd.min.js' }); await page.addScriptTag({ url: '/hd/maquette-hd.js' });
+    await page.addScriptTag({ url: '/hd/maquette-outils.min.js' }); await page.addScriptTag({ url: '/hd/maquette-hd.js' });
     await page.waitForFunction(() => window.__hd && (window.__hd.pret || window.__hd.err), null, { timeout: 120000 });
   }
   await sleep(9000);

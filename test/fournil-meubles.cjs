@@ -225,6 +225,39 @@ const server = http.createServer((req, res) => {
     return { ctx, page, erreurs, ev: (f, a) => page.evaluate(f, a) };
   }
   const attendre = async (f, ms) => { const t0 = Date.now(); while (Date.now() - t0 < (ms || 5000)) { try { if (await f()) return true; } catch (e) { /* rien */ } await sleep(250); } return false; };
+  // le constat 17 de la relecture : chaque couvert repose sur le dessus réel de son plateau (MEUBLES.HAUT, la même mesure pour bâtir le meuble et
+  // poser les couverts). Un client à chaque place, puis, sous l'assiette et sous la tasse de chaque couvert, un rayon vertical lancé d'un peu
+  // au-dessus : il doit toucher le plateau (tables, bar, table basse, terrasse) à HAUT ± 0,3 (ni couvert qui flotte, ni couvert enfoncé)
+  // la scène 3D de la boutique et sa caméra (que SCENE ne montre pas) : prises au vol à la prochaine image, quand le renderer met à jour leurs matrices
+  const prendreScene = (ev) => ev(() => {
+    const O = THREE.Object3D.prototype, u = O.updateMatrixWorld; let vue = false; window.__scene3 = window.__camera3 = null; window.__scenesVues = 0;
+    O.updateMatrixWorld = function (...a) {
+      if (this.isScene) window.__scenesVues++;
+      if (this.isScene && this.children.some((g) => g.userData.nom === 'couverts')) { window.__scene3 = this; vue = true; } else if (vue && (this.isOrthographicCamera || this.isPerspectiveCamera)) { window.__camera3 = this; O.updateMatrixWorld = u; }
+      return u.apply(this, a);
+    };
+  });
+  async function plateaux(ev, nom) {
+    await ev(() => { for (let k = 0; k < VIE.LAY.sieges.length; k++) if (!window.__fournil.SCENE.installer(null, 600)) break; });
+    await prendreScene(ev); await attendre(() => ev(() => !!(window.__scene3 && window.__camera3)), 10000); await sleep(300);
+    const r = await ev(() => {
+      const S = window.__scene3, L = VIE.LAY, H = MEUBLES.HAUT, K = L.K, g = (n) => S && S.children.find((x) => x.userData.nom === n);
+      if (!g('couverts')) return { n: 0, ko: [`scène introuvable (${window.__scenesVues} scènes mises à jour, page ${window.__fournil.page ? '' : '?'}${document.querySelector('#feuille').hidden ? 'sans feuille' : 'feuille ouverte'})`], zones: {} };
+      const im = g('couverts').userData.im, cibles = ['tables', 'bar', 'banquette', 'terrasse'].map(g).filter(Boolean);
+      const rc = new THREE.Raycaster(), m = new THREE.Matrix4(), v = new THREE.Vector3(), bas = new THREE.Vector3(0, -1, 0), res = { n: 0, ko: [], zones: {} };
+      L.sieges.forEach((s, i) => {
+        if (i >= im.count) return; im.getMatrixAt(i, m); const e = m.elements; if (Math.abs(e[0]) + Math.abs(e[2]) < 1e-6) return; // personne : couvert caché
+        const y0 = e[13]; res.n++; res.zones[s.zone] = (res.zones[s.zone] || 0) + 1;
+        for (const [lx, lz, quoi] of [[-5 * K, 0, 'assiette'], [4 * K, -3 * K, 'tasse']]) {
+          v.set(lx, 0, lz).applyMatrix4(m); rc.set(new THREE.Vector3(v.x, y0 + 1, v.z), bas);
+          const h = rc.intersectObjects(cibles, true)[0], y = h ? h.point.y : null;
+          if (y0 !== H[s.zone] || y === null || Math.abs(y - y0) > 0.3) res.ko.push(`${s.id} (${quoi}) posé à ${y0}, plateau à ${y === null ? 'rien' : y.toFixed(2)}`);
+        }
+      });
+      return res;
+    });
+    check(r.n >= 20 && r.ko.length === 0, `${nom} : les ${r.n} couverts reposent sur leur plateau, à MEUBLES.HAUT ± 0,3 (${JSON.stringify(r.zones)}) ${r.ko.slice(0, 4).join(' | ')}`);
+  }
 
   console.log('── éco : acheter, s’asseoir ──');
   let { ctx, page, erreurs, ev } = await ouvrir('eco');
@@ -282,6 +315,38 @@ const server = http.createServer((req, res) => {
       const dir = process.env.SHOTS_ACHARNES; if (dir) { fs.mkdirSync(dir, { recursive: true }); await page.screenshot({ path: path.join(dir, 'acharnes-decos-toutes.png') }); await page.screenshot({ path: path.join(dir, 'acharnes-lanterne.png'), clip: { x: 0, y: Math.max(0, L.top + L.murH - 40), width: 200, height: 170 } }); } }
     await ev(() => window.__fournil.SCENE.decosHantee([])); await sleep(500);
   }
+  { // § 2.b de la base saine : l'enseigne néon (le Quartier) et l'étagère aux bocaux (le bestiaire) partagent la fenêtre ; les deux gagnées, le néon
+    // remonte au-dessus des couvercles. Les boîtes des deux groupes, projetées à l'écran par la vraie caméra, ne se recoupent pas
+    const boites = async () => {
+      await prendreScene(ev); await attendre(() => ev(() => !!(window.__scene3 && window.__camera3)), 10000);
+      return ev(() => {
+        const S = window.__scene3, cam = window.__camera3, r = document.querySelector('#scene').getBoundingClientRect(), b = new THREE.Box3(), v = new THREE.Vector3();
+        const ecran = (nom) => { const g = S && S.children.find((x) => x.userData.nom === nom); if (!g || !cam) return null; b.setFromObject(g); let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+          for (let i = 0; i < 8; i++) { v.set(i & 1 ? b.max.x : b.min.x, i & 2 ? b.max.y : b.min.y, i & 4 ? b.max.z : b.min.z).project(cam); const px = r.left + (v.x + 1) / 2 * r.width, py = r.top + (1 - v.y) / 2 * r.height; x0 = Math.min(x0, px); x1 = Math.max(x1, px); y0 = Math.min(y0, py); y1 = Math.max(y1, py); }
+          return { x0, y0, x1, y1 }; };
+        return { neon: ecran('neon'), bocaux: ecran('bocaux') };
+      });
+    };
+    const recoupe = (a, b) => !!(a && b) && a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1, txt = (a) => (a ? `${Math.round(a.y0)}-${Math.round(a.y1)} px` : 'absent');
+    await ev(() => { window.__fournil.SCENE.decosQuartier(['neon']); window.__fournil.SCENE.decosHantee([]); }); await sleep(1200); const seul = await boites();
+    await ev(() => window.__fournil.SCENE.decosHantee(['bestiaire'])); await sleep(1500); const deux = await boites();
+    check(seul.neon && !seul.bocaux && deux.neon && deux.bocaux && !recoupe(deux.neon, deux.bocaux) && deux.neon.y1 <= deux.bocaux.y0,
+      `le néon et les bocaux du bestiaire, tous deux gagnés : le néon (${txt(deux.neon)}) au-dessus des bocaux (${txt(deux.bocaux)}), sans recouvrement à l’écran (néon seul : ${txt(seul.neon)})`);
+    const fz = await ev(() => { const r = document.querySelector('#scene').getBoundingClientRect(), L = VIE.LAY.fenetre; return { y: r.top + L.y }; });
+    await page.screenshot({ path: path.join(out, 'neon-bocaux-eco.png') });
+    await page.screenshot({ path: path.join(out, 'neon-bocaux-fenetre-eco.png'), clip: { x: 0, y: Math.max(0, fz.y - 10), width: 220, height: 150 } });
+    await ev(() => { window.__fournil.SCENE.decosQuartier([]); window.__fournil.SCENE.decosHantee([]); }); await sleep(500);
+  }
+  check(await attendre(() => ev(() => typeof KENNEY !== 'undefined' && KENNEY && KENNEY.pret), 30000), 'éco : les meubles Kenney sont là');
+  await plateaux(ev, 'éco, meubles Kenney');
+  check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
+  await ctx.close();
+
+  console.log('── éco sans Kenney (?kenney=0) : les meubles faits main ──');
+  ({ ctx, page, erreurs, ev } = await ouvrir('eco&kenney=0'));
+  await ev(() => { const f = window.__fournil; for (const m of f.G.MOBILIER) for (let k = 0; k < m.max; k++) f.meuble(m.id); /* tout le mobilier au max */ }); await sleep(1200);
+  check(await ev(() => !(typeof KENNEY !== 'undefined' && KENNEY && KENNEY.pret) && window.__fournil.SCENE.meublesHD.length === 0), 'ni Kenney ni KayKit : les meubles faits main');
+  await plateaux(ev, 'éco, meubles faits main');
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
   await ctx.close();
 
@@ -295,6 +360,7 @@ const server = http.createServer((req, res) => {
   const aph = await ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return { decor, salle: a.tables + a.bar + a.banquette + a.terrasse + a.couverts }; });
   check(aph.decor <= 80 && aph.salle <= 7, `haute, tout au max : ${aph.decor} appels de dessin pour le décor (≤ 80, décors HD compris), ${aph.salle} pour la salle et les couverts`);
   await page.screenshot({ path: path.join(out, 'apres-clients-haute.png') });
+  await plateaux(ev, 'haute, meubles KayKit');
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
   await ctx.close();
 

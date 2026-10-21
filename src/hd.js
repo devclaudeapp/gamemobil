@@ -1,6 +1,6 @@
 /* LE FOURNIL — les modèles HD : KayKit (CC0, Kay Lousberg : Furniture, City Builder, Halloween, Restaurant Bits) et les Mini Characters de
    Kenney (CC0, riggés et animés : l'équipe de la Planque), compressés en meshopt dans fournil/hd/, chargés par vendor/fournil-hd.min.js (GLTFLoader, SkeletonUtils,
-   MeshoptDecoder de three r158 ; postprocessing 6.33.4 ; n8ao 1.8.4). La Planque y prend ses meubles, sa rue de nuit et son équipe animée ; la
+   MeshoptDecoder de three r158 ; construit par outils/maquette-hd/construire.cjs). La Planque y prend ses meubles, sa rue de nuit et son équipe animée ; la
    boutique garde ses personnages et reçoit quelques décors ; la boutique hantée (src/boutiquehantee.js) prend tout son lot « hantee3 » : le
    pack décor, ses neuf monstres et son équipe (KayKit Skeletons, Adventurers, Mystery Series 4, Asset Quest), les clips partagés. En qualité
    éco, sans WebGL2, dans l'artefact ou avec ?hd=0 : le rendu habituel. */
@@ -45,11 +45,16 @@ const HDM = (() => {
     return e.promesse;
   }
   const pret = (lot) => !!(etat[lot] && etat[lot].pret);
-  // coupé sur ce téléphone : par le joueur (Réglages) ou par la Planque qui a vu un écran noir ; gardé d'une visite à l'autre
+  // coupé sur ce téléphone : par le joueur (Réglages) ou par la Planque qui a vu un écran noir ; gardé d'une visite à l'autre, avec sa raison
+  // ('non:écran noir', 'non:joueur' ; un ancien 'non' tout court vaut 'joueur'), pour que le petit texte des Réglages reste juste après un rechargement
   let coupeMem = null; const CLE = 'fournil.hd';
-  const coupe = () => { if (coupeMem === null) { try { coupeMem = localStorage.getItem(CLE) === 'non'; } catch (e) { coupeMem = false; } } return coupeMem; };
-  const couper = (raison) => { coupeMem = true; API.raison = raison || 'joueur'; try { localStorage.setItem(CLE, 'non'); } catch (e) { /* rien */ } API.version++; };
+  const coupe = () => {
+    if (coupeMem === null) { let v = null; try { v = localStorage.getItem(CLE); } catch (e) { /* rien */ } coupeMem = v === 'non' || /^non:/.test(v || ''); API.raison = coupeMem ? v.slice(4) || 'joueur' : ''; }
+    return coupeMem;
+  };
+  const couper = (raison) => { coupeMem = true; API.raison = raison || 'joueur'; try { localStorage.setItem(CLE, 'non:' + API.raison); } catch (e) { /* rien */ } API.version++; };
   const remettre = () => { coupeMem = false; API.raison = ''; try { localStorage.removeItem(CLE); } catch (e) { /* rien */ } API.version++; };
+  coupe(); // dès le chargement : API.raison est lue par les Réglages avant tout appel à coupe()
   const permis = (renderer) => { try { return !coupe() && !!(renderer && renderer.capabilities.isWebGL2 && !(typeof SCENE !== 'undefined' && SCENE.stats && SCENE.stats.qualite === 'eco')); } catch (e) { return false; } };
 
   // un meuble : cloné, à l'échelle s (unités KayKit → unités du monde), posé pied au sol, centré en x/z sur sa boîte
@@ -115,16 +120,6 @@ const HDM = (() => {
   }
   function liberer(a) { a.mixer.stopAllAction(); a.mixer.uncacheRoot(a.g); a.g.traverse((m) => { if (m.isMesh && m.geometry && !m.isSkinnedMesh) m.geometry.dispose(); }); }
 
-  // ─── la passe d'effets : occlusion N8AO (optionnelle), SMAA, halo ; sortie sRGB ───
-  function effets(renderer, scene, camera, W, H, dpr, o = {}) {
-    let flottant = false; try { flottant = renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float'); } catch (e) { /* non */ }
-    const c = new X.EffectComposer(renderer, { frameBufferType: flottant ? THREE.HalfFloatType : THREE.UnsignedByteType }); // tampons flottants seulement s'ils sont rendables c.addPass(new X.RenderPass(scene, camera));
-    let n8 = null;
-    if (o.ao !== false) { n8 = new X.N8AOPostPass(scene, camera, W * dpr, H * dpr); Object.assign(n8.configuration, { aoRadius: o.rayon || 40, distanceFalloff: 1, intensity: o.ao || 2.6, color: new THREE.Color(o.aoCouleur || '#3A2418'), halfRes: true, aoSamples: 12, denoiseSamples: 8 }); c.addPass(n8); }
-    const fx = [new X.SMAAEffect()]; if (o.halo !== 0) fx.push(new X.BloomEffect({ intensity: o.halo || 0.3, luminanceThreshold: o.seuil || 0.85, mipmapBlur: true }));
-    c.addPass(new X.EffectPass(camera, ...fx)); c.setSize(W, H);
-    return { rendre: (dt) => c.render(dt), liberer: () => c.dispose(), n8 };
-  }
-  return Object.assign(API, { pret, permis, charger, etat, H3, coupe, couper, remettre, modele, cuit, part, mini, MINI, jouer, liberer, effets });
+  return Object.assign(API, { pret, permis, charger, etat, H3, coupe, couper, remettre, modele, cuit, part, mini, MINI, jouer, liberer });
 })();
 if (typeof module !== 'undefined') module.exports = HDM;

@@ -19,6 +19,7 @@ const NAV = { pas: 1.5, marge: 0.45 };
 const d = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 // les budgets de préparation sont ceux d'une machine au repos : quand d'autres tests tournent en même temps (charge > nombre de cœurs),
 // ils suivent la charge
+const cpu = (a) => (typeof process.threadCpuUsage === 'function' ? process.threadCpuUsage(a) : process.cpuUsage(a)); // le temps de calcul du fil principal
 const os = require('os'), CHARGE = Math.max(1, Math.min(3, os.loadavg()[0] / Math.max(1, os.cpus().length)));
 
 titre('PMONDE.limiteDe : les formes');
@@ -81,14 +82,17 @@ for (const [nom, carte, vraie] of cartes) {
   }
 
   titre(`Les six zones sur la ${nom}`);
+  // une préparation de chauffe, non comptée : la première compile tout le code de la préparation (le JIT de V8), quelle que soit la zone
+  PZ.preparer(carte, PM.creer(carte), null, R.SALON.zones[0], rndZone(graine), { armes: R.DEFAUT_REGLAGES.armes });
   for (const id of R.SALON.zones) {
-    // un monde neuf : la navigation est construite dans la préparation (comptée dans le temps) ; le temps de calcul (process.cpuUsage :
-    // d'autres tests peuvent tourner en même temps sur la machine), le meilleur de deux préparations
+    // un monde neuf : la navigation est construite dans la préparation (comptée dans le temps) ; le temps de calcul du fil principal
+    // (process.threadCpuUsage : ni les fils du ramasse-miettes et du compilateur de V8, ni les autres tests qui tournent en même temps sur
+    // la machine ; process.cpuUsage, tout le processus, sur un Node qui ne l'a pas), le meilleur de trois préparations
     let monde = null, z = null, ms = Infinity;
-    for (let essai = 0; essai < 2; essai++) {
-      monde = PM.creer(carte); const c0 = process.cpuUsage();
+    for (let essai = 0; essai < 3; essai++) {
+      monde = PM.creer(carte); const c0 = cpu();
       z = PZ.preparer(carte, monde, null, id, rndZone(graine), { armes: R.DEFAUT_REGLAGES.armes });
-      const c = process.cpuUsage(c0); ms = Math.min(ms, (c.user + c.system) / 1000);
+      const c = cpu(c0); ms = Math.min(ms, (c.user + c.system) / 1000);
     }
     const budget = (id === 'tout' || id === 'rivieres' ? 500 : 150) * CHARGE;
     const nav = PN.creer(monde, NAV), lim = z.limite;

@@ -28,7 +28,23 @@ function doigt(p, cdp) { // les touches et les glisser, comme sur un téléphone
   const ev = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts.map(([x, y]) => ({ x, y, id: 1, radiusX: 6, radiusY: 6, force: 1 })) });
   const toucher = async (x, y) => { await ev('touchStart', [[x, y]]); await ev('touchEnd', []); };
   const centre = (sel) => p.evaluate((s) => { const e = document.querySelector(s); if (!e) return null; const b = e.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2, w: b.width, h: b.height }; }, sel);
-  const toucherEl = async (sel) => { const c = await centre(sel); if (!c) throw new Error('introuvable : ' + sel); await toucher(c.x, c.y); return c; };
+  // avant de toucher un élément : attendre qu'il soit immobile (deux images de suite à la même place : sous charge, le tiroir glisse encore,
+  // transition CSS, quand tiroir() dit déjà 'mi'), entièrement dans la fenêtre, et que ce soit bien lui sous le doigt (elementFromPoint) ;
+  // une feuille ouverte entre-temps par-dessus (une annonce, un retour) est refermée. Au bout de 5 s, on touche quand même : l'appelant vérifie
+  const pret = (sel) => p.evaluate((s) => new Promise((ok) => {
+    const t0 = performance.now(); let avant = null;
+    const tour = () => {
+      const e = document.querySelector(s); if (!e) { ok(null); return; }
+      const f = document.querySelector('#feuille'); if (f && !f.hidden && !f.contains(e)) { const x = f.querySelector('[data-a="close"]'); if (x) x.click(); }
+      const b = e.getBoundingClientRect(), c = { x: b.left + b.width / 2, y: b.top + b.height / 2, w: b.width, h: b.height };
+      const fixe = !!avant && avant.x === c.x && avant.y === c.y, dedans = b.width > 0 && b.top >= 0 && b.left >= 0 && b.bottom <= innerHeight && b.right <= innerWidth;
+      const sous = dedans ? document.elementFromPoint(c.x, c.y) : null, lui = !!sous && (sous === e || e.contains(sous));
+      if ((fixe && dedans && lui) || performance.now() - t0 > 5000) { ok(c); return; }
+      avant = c; requestAnimationFrame(tour);
+    };
+    requestAnimationFrame(tour);
+  }), sel);
+  const toucherEl = async (sel) => { const c = await pret(sel); if (!c) throw new Error('introuvable : ' + sel); await toucher(c.x, c.y); return c; };
   // un glisser : on pose le doigt, on le traîne en n pas, on attend (pendant : appelé doigt posé, au bout du chemin), on lève
   async function glisser(de, vers, o = {}) {
     const n = o.pas || 12; await ev('touchStart', [[de.x, de.y]]); await sleep(60);
@@ -69,14 +85,14 @@ function doigt(p, cdp) { // les touches et les glisser, comme sur un téléphone
   }, { id, de, filtre });
 
   console.log('── le mode Déplacer, dans Aménager ──');
-  // le toucher peut tomber pendant que le tiroir glisse encore, ou la feuille se rouvre lentement sous charge : jusqu'à quatre essais,
-  // chacun attend que le bouton soit là et que le mode Aménager prenne
+  // sous charge, la page des Réglages arrive lentement et le tiroir glisse encore : jusqu'à quatre essais, chacun attend que le bouton soit là
+  // (toucherEl : immobile, dans l'écran, sous le doigt) et que le mode Aménager prenne
   for (let essai = 0; essai < 4 && !(await ev(() => window.__fournil.SCENE.amenager)); essai++) {
     if (essai) console.log(`        (pas d’Aménager au toucher n°${essai} ; on recommence)`);
     await ev(() => window.__fournil.page('reglages'));
     await attendre(() => ev(() => { const b = document.querySelector('[data-a="repeindre"]'); return !!(b && b.offsetParent); }), 5000);
-    await ev(() => document.querySelector('[data-a="repeindre"]').scrollIntoView({ block: 'center' })); await sleep(400 + 300 * essai);
-    await d.toucherEl('[data-a="repeindre"]');
+    await ev(() => document.querySelector('[data-a="repeindre"]').scrollIntoView({ block: 'center' }));
+    await d.toucherEl('[data-a="repeindre"]'); // (toucherEl attend que le bouton soit immobile, dans l'écran, et bien sous le doigt)
     await attendre(() => ev(() => window.__fournil.SCENE.amenager), 3000);
   }
   await attendre(() => ev(() => !document.querySelector('#amenage-barre').hidden && !document.querySelector('#b-deplacer').hidden), 3000);
