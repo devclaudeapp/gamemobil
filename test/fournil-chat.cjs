@@ -139,13 +139,17 @@ let gifPng = []; // des images (PNG, servies comme GIF : le navigateur lit le co
 
   // des messages déjà là : un bonjour d'hier, une photo, un GIF, et un message piégé
   const mamie = autre('Mamie Jo'), tonton = autre('Tonton Jo'), petit = autre('Petit Jo'), pirate = autre('Pirate');
-  const hier = Date.now() - 26 * 3600e3;
+  // les jours se comptent à l'heure de Paris (le contexte du navigateur) : « hier » à midi, et ceux d'aujourd'hui jamais avant minuit,
+  // pour que le test passe à toute heure (lancé vers 1 h du matin, « il y a 26 h » tombait avant-hier, « il y a 20 min » la veille)
+  const hms = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Paris', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).formatToParts(new Date()).filter((x) => x.type !== 'literal').map((x) => [x.type, +x.value]));
+  const minuit = Date.now() - ((hms.hour * 60 + hms.minute) * 60 + hms.second) * 1000 - 1000, hier = minuit - 12 * 3600e3;
+  const ilYa = (min) => Math.max(minuit + (30 - min) * 1000, Date.now() - min * 60e3); // il y a min minutes, mais aujourd'hui (et dans l'ordre)
   ecrire(mamie, { texte: 'Bonjour à tous !' }, hier);
   ecrire(mamie, { texte: 'Quelqu’un a débloqué les éclairs ?' }, hier + 60e3);
-  ecrire(tonton, { texte: 'Oui, au niveau 4 du four 😊 Regardez ma vitrine :', image: faites.photo }, Date.now() - 20 * 60e3);
-  const nGif = ecrire(petit, { gif: 'abcDEF123' }, Date.now() - 12 * 60e3);
-  const nPiege = ecrire(pirate, { texte: '<img src=x onerror="window.__pirate=1">salut <b>gras</b>' }, Date.now() - 6 * 60e3);
-  ecrire(mamie, { texte: 'Haha 🥐 trop bien' }, Date.now() - 3 * 60e3);
+  ecrire(tonton, { texte: 'Oui, au niveau 4 du four 😊 Regardez ma vitrine :', image: faites.photo }, ilYa(20));
+  const nGif = ecrire(petit, { gif: 'abcDEF123' }, ilYa(12));
+  const nPiege = ecrire(pirate, { texte: '<img src=x onerror="window.__pirate=1">salut <b>gras</b>' }, ilYa(6));
+  ecrire(mamie, { texte: 'Haha 🥐 trop bien' }, ilYa(3));
 
   const ctx = await nouveau();
   const page = await ctx.newPage(); suivre(page);
