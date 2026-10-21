@@ -23,7 +23,6 @@ body { font: 700 15px/1.35 var(--texte-font); -webkit-font-smoothing: antialiase
   display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 3px solid var(--lavande); outline-offset: 2px; }
-#probe { position: fixed; left: -9999px; top: 0; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 svg { display: block; }
 .ico { display: inline-grid; place-items: center; flex: 0 0 auto; }
 .ico svg { width: 24px; height: 24px; }

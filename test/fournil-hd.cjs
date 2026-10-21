@@ -60,7 +60,9 @@ async function calme(page) {
   check(await page.evaluate(() => typeof FOURNIL_HD.GLTFLoader === 'function' && typeof FOURNIL_HD.EffectComposer === 'undefined' && typeof FOURNIL_HD.N8AOPostPass === 'undefined' && typeof HDM.effets === 'undefined') && paquet < 100e3,
     `le paquet du jeu n'embarque que le chargeur (sans postprocessing ni n8ao, réservés à la maquette) : ${Math.round(paquet / 1024)} Ko (< 100 Ko)`);
   check(await attendre(() => page.evaluate(() => SCENE.decorHD > 0)), 'après les premières images, la boutique reçoit ses décors HD');
-  check(await page.evaluate(() => window.__fournil.stats().acteurs > 0 || true) && demandes.every((d) => !/(persos|mini)\//.test(d)), `la boutique ne charge aucun personnage HD (${demandes.length} modèles demandés, tous des décors)`);
+  // les personnages de la boutique restent ceux de toujours (PERSOS) : ils arrivent (clients) alors qu'aucun modèle de personnage HD n'est demandé
+  const acteurs = await attendre(() => page.evaluate(() => window.__fournil.stats().acteurs > 0), 20000), nActeurs = await page.evaluate(() => window.__fournil.stats().acteurs);
+  check(acteurs && demandes.every((d) => !/(persos|mini)\//.test(d)), `la boutique ne charge aucun personnage HD : ${nActeurs} personnage(s) habituel(s) dans la salle, ${demandes.length} modèles demandés, tous des décors`);
   const poidsB = demandes.reduce((s, d) => s + fs.statSync(path.join(root, d)).size, 0); check(poidsB < 400e3, `les décors de la boutique pèsent ${Math.round(poidsB / 1024)} Ko (< 400 Ko)`);
 
   console.log('── qualité haute : la Planque ──');

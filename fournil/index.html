@@ -46,7 +46,6 @@ body { font: 700 15px/1.35 var(--texte-font); -webkit-font-smoothing: antialiase
   display: flex; flex-direction: column; padding-top: env(safe-area-inset-top, 0px); }
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
 :focus-visible { outline: 3px solid var(--lavande); outline-offset: 2px; }
-#probe { position: fixed; left: -9999px; top: 0; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 svg { display: block; }
 .ico { display: inline-grid; place-items: center; flex: 0 0 auto; }
 .ico svg { width: 24px; height: 24px; }
@@ -129,9 +128,14 @@ body[data-tiroir="ouvert"] #coin, body[data-tiroir="ouvert"] #b-fini { opacity: 
 #poignee i { width: 56px; height: 5px; border-radius: 3px; background: var(--gris-sombre); }
 #poignee:active { cursor: grabbing; }
 #tiroir[data-pos="ouvert"] #evenement { opacity: 0; pointer-events: none; }
-#enseigne { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 2; display: inline-flex; align-items: center; gap: 6px; max-width: 70%; min-height: 34px; padding: 0 14px; border-radius: 999px;
+#enseigne { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 2; display: inline-flex; align-items: center; gap: 6px; max-width: min(70%, calc(100% - 120px)); min-height: 34px; padding: 0 14px; border-radius: 999px;
   background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 15px/1 var(--titre); color: var(--texte); white-space: nowrap; transition: opacity .2s, transform .2s; }
 #enseigne span { overflow: hidden; text-overflow: ellipsis; }
+/* l'enseigne fait 70 % au plus, mais ne passe jamais sous la colonne des boutons ronds de droite (#coin : 10 + 44 px, et 6 px d'air,
+   des deux côtés puisqu'elle est centrée). Un nom trop long pour la largeur (la Capitale à 360 px, ui.js majEnseigne) : en petit, sur deux lignes serrées ; width: max-content,
+   sinon la boîte, placée à left: 50 %, se replierait à la moitié de l'écran au lieu de sa largeur maximale */
+#enseigne.long { width: max-content; padding: 3px 14px; font-size: 13px; line-height: 1.05; white-space: normal; text-align: center; }
+#enseigne.long span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 #enseigne:active { transform: translateX(-50%) translateY(3px); box-shadow: none; }
 
 /* ─── pages ─── */
@@ -1917,7 +1921,6 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 </style>
 </head>
 <body>
-<div id="probe" aria-hidden="true"></div>
 <header id="haut">
   <div class="solde">
     <span class="piece" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="20" cy="22" r="17" fill="#E0A61E"/><circle cx="20" cy="19" r="17" fill="#FFC84A"/><circle cx="20" cy="19" r="12" fill="none" stroke="#E0A61E" stroke-width="2.5"/><text x="20" y="25" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-weight="700" font-size="16" fill="#8C6F62">€</text></svg></span>
@@ -2097,7 +2100,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'd9219e88f1d6';</script>
+<script>window.FOURNIL_VERSION = '000898a1d6aa';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -2312,7 +2315,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
   // les défis de passage, de la boutique n°6 à la n°29 (au-delà, celui de la n°29) : connus à l'avance, ils durcissent au fil des boutiques.
   // Chacun est réglé sur test/longevite.js pour un joueur régulier (36 min par jour) : une à trois journées de jeu en plus au plus.
   //   palier : une recette au niveau niv ; meubles : n meubles au cran maximum ; recette : la recette i débloquée dans cette boutique ;
-  //   commandes : n commandes spéciales livrées dans cette boutique ; etoiles : récolter d'un coup pct % des étoiles qu'on a en ouvrant ;
+  //   etoiles : récolter d'un coup pct % des étoiles qu'on a en ouvrant ;
   //   grades : n apprentis au grade g (ou plus) ; evenements : n événements réussis dans cette boutique (commandes, critiques, pétrissages,
   //   pannes réparées, pourboires du client mystère : une quinzaine par jour pour le régulier, moins soumis au hasard que les seules commandes).
   const DEFIS_PASSAGE = {
@@ -2324,14 +2327,15 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     26: { type: 'palier', niv: 600 }, 27: { type: 'evenements', n: 35 }, 28: { type: 'recette', i: 15 }, 29: { type: 'etoiles', pct: 30 },
   };
   const DEFI_DEBUT = 6;
-  const evenementsReussis = (st) => { const x = st.stats || {}; return (x.commandes || 0) + (x.critiques || 0) + (x.petrissages || 0) + (x.pannes || 0) + (x.pourboires || 0); };
+  // les événements qui comptent comme « réussis », une seule liste : le défi de passage (evenementsReussis) et le défi de la semaine (noterSemaine)
+  const EVENEMENTS_REUSSIS = ['commandes', 'critiques', 'petrissages', 'pannes', 'pourboires'];
+  const evenementsReussis = (st) => { const x = st.stats || {}; return EVENEMENTS_REUSSIS.reduce((a, k) => a + (x[k] || 0), 0); };
   const defiDe = (n) => (n >= DEFI_DEBUT ? DEFIS_PASSAGE[Math.min(n, 29)] || null : null);
   function texteDefi(d, cible) { // « Une recette au niveau 300 »…
     if (!d) return '';
     if (d.type === 'palier') return `Une recette au niveau ${d.niv}`;
     if (d.type === 'meubles') return `${d.n} meubles au cran maximum`;
     if (d.type === 'recette') return `Débloque ${PRODUITS[d.i] ? PRODUITS[d.i].nom : 'la recette'} dans cette boutique`;
-    if (d.type === 'commandes') return `Livre ${d.n} commandes spéciales dans cette boutique`;
     if (d.type === 'etoiles') return cible ? `Récolte +${fmt(cible)} étoiles d’un coup` : `Récolte d’un coup ${d.pct} % de tes étoiles`;
     if (d.type === 'grades') return `${d.n} apprentis au grade ${d.g}`;
     if (d.type === 'evenements') return `Réussis ${d.n} événements dans cette boutique`;
@@ -2340,7 +2344,6 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
   function creerDefi(st, n) { // le défi de la boutique n, posé à son ouverture (les compteurs partent de là)
     const d = defiDe(n); if (!d) return null;
     const o = Object.assign({ n }, d);
-    if (d.type === 'commandes') o.base = (st.stats && st.stats.commandes) || 0;
     if (d.type === 'evenements') o.base = evenementsReussis(st);
     if (d.type === 'etoiles') o.cible = Math.max(5, Math.ceil(st.etoiles * d.pct / 100));
     return o;
@@ -2351,7 +2354,6 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     if (d.type === 'palier') { cible = d.niv; for (const s of st.stations) progres = Math.max(progres, s.niv); }
     else if (d.type === 'meubles') { cible = d.n; progres = MOBILIER.filter((m) => mobilierCran(st, m.id) >= m.max).length; }
     else if (d.type === 'recette') { progres = st.stations[d.i] && st.stations[d.i].niv > 0 ? 1 : 0; }
-    else if (d.type === 'commandes') { cible = d.n; progres = Math.max(0, ((st.stats && st.stats.commandes) || 0) - (d.base || 0)); }
     else if (d.type === 'etoiles') { cible = d.cible || 1; progres = etoilesGagnables(st); }
     else if (d.type === 'evenements') { cible = d.n; progres = Math.max(0, evenementsReussis(st) - (d.base || 0)); }
     else if (d.type === 'grades') { cible = d.n; progres = PRODUITS.filter((p, i) => gradeApprenti(st, i) >= d.g).length; }
@@ -2367,8 +2369,9 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     return { n, fini: n > PARCOURS_FIN, recompense: recompenseBoutique(n), quartier: QUARTIERS[quartierDe(n)], defi, defiSuivant: defiDe(n), gain, conseil, partEtoiles: pe, part, pret: gain > 0 && (!defi || defi.fait) };
   }
   function parcoursListe(st) { // les trente boutiques : numéro, quartier, récompense, défi, et où on en est (passee, actuelle, avenir)
+    // la boutique en cours : seulement le défi réellement posé (st.defi) ; une boutique ouverte avant le parcours n'en a pas
     const b = st.boutiques || 1, out = [];
-    for (let n = 1; n <= PARCOURS_FIN; n++) { const r = recompenseBoutique(n), d = defiDe(n); out.push({ n, etat: n < b ? 'passee' : n === b ? 'actuelle' : 'avenir', quartier: QUARTIERS[n === b ? quartier(st) : quartierDe(n)], recompense: r, texte: texteRecompense(r), defi: d, defiTxt: n === b && st.defi ? texteDefi(st.defi, st.defi.cible) : texteDefi(d) }); }
+    for (let n = 1; n <= PARCOURS_FIN; n++) { const r = recompenseBoutique(n), d = n === b ? st.defi || null : defiDe(n); out.push({ n, etat: n < b ? 'passee' : n === b ? 'actuelle' : 'avenir', quartier: QUARTIERS[n === b ? quartier(st) : quartierDe(n)], recompense: r, texte: texteRecompense(r), defi: d, defiTxt: d ? texteDefi(d, d.cible) : '' }); }
     return out;
   }
   function saison(ms) {
@@ -2390,14 +2393,15 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
   const TITRES = [[1, 'Apprenti'], [4, 'Mitron'], [8, 'Boulanger'], [13, 'Compagnon'], [19, 'Maître boulanger'], [26, 'Meilleur Ouvrier de France']];
   const XP_NIVEAU = (n) => Math.round(40 * Math.pow(n, 1.4)); // savoir-faire pour passer du niveau n au suivant
   const TALENTS = [
-    { id: 'affluence', nom: 'Bouche-à-oreille', max: 4, desc: (k) => `Les fournées cuites à la main servent plus de clients : ×${1 + k * 0.5}`.replace('.', ',') },
+    { id: 'affluence', nom: 'Bouche-à-oreille', max: 4, desc: (k) => `Les fournées cuites à la main servent ${k * 50} % de clients en plus` }, // s'ajoute à la vitrine, au bar et à la terrasse (affluenceMult)
     { id: 'mains', nom: 'Mains rapides', max: 5, desc: (k) => `Toutes les fournées cuisent ${k * 5} % plus vite` },
     { id: 'memoire', nom: 'Mémoire des recettes', max: 4, desc: (k) => `Chaque nouvelle boutique démarre avec ${k + 1} recette${k ? 's' : ''}` },
     { id: 'levetot', nom: 'Lève-tôt', max: 4, desc: (k) => `Les apprentis travaillent ${k} h de plus pendant ton absence` },
     { id: 'zele', nom: 'Apprentis zélés', max: 4, desc: (k) => `Embauches ${k * 10} % moins chères` },
     { id: 'negoce', nom: 'Négociateur', max: 4, desc: (k) => `Bonus ${k * 8} % moins chers` },
-    { id: 'charme', nom: 'Charme', max: 3, desc: (k) => `Événements ${k * 12} % plus fréquents, primes +${k * 25} %` },
-    { id: 'pourboire', nom: 'Pourboires', max: 3, desc: (k) => `Client mystère ${k * 50} % plus généreux, ${k * 15} % plus fréquent` },
+    // « X % plus tôt » : l'attente jusqu'au suivant baisse de X % (tick : evTimer, mystereTimer), soit une fréquence ×1/(1 − X %)
+    { id: 'charme', nom: 'Charme', max: 3, desc: (k) => `Événements ${k * 12} % plus tôt, primes +${k * 25} %` },
+    { id: 'pourboire', nom: 'Pourboires', max: 3, desc: (k) => `Client mystère ${k * 50} % plus généreux, ${k * 15} % plus tôt` },
     { id: 'carnet', nom: 'Carnet de commandes', max: 3, desc: (k) => `Primes des défis du jour +${k * 50} %` },
   ];
   const talent = (st, id) => (st.talents && st.talents[id]) || 0;
@@ -2405,7 +2409,9 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
   const niveau = (st) => niveauPour(st.xp).n;
   function titre(st) { const n = niveau(st); let t = TITRES[0]; for (const x of TITRES) if (n >= x[0]) t = x; return t[1]; }
   const rangTitre = (st) => { const n = niveau(st); let r = 0; TITRES.forEach((x, k) => { if (n >= x[0]) r = k; }); return r; };
-  const ptsTalents = (st) => Math.max(0, niveau(st) - 1 - Object.values(st.talents || {}).reduce((a, b) => a + b, 0));
+  // les points à dépenser : un par niveau, mais jamais plus que ce qui reste à apprendre (les talents se remplissent en 34 points :
+  // passé le niveau 35, plus de badge, de bulle ni de « N points à dépenser » quand tout est appris)
+  const ptsTalents = (st) => { const appris = Object.values(st.talents || {}).reduce((a, b) => a + b, 0), reste = TALENTS.reduce((a, t) => a + t.max - talent(st, t.id), 0); return Math.max(0, Math.min(niveau(st) - 1 - appris, reste)); };
   function gagnerXp(st, n) { const avant = niveau(st); st.xp = (st.xp || 0) + n; return { xp: n, niveau: niveau(st), monte: niveau(st) > avant }; }
   function apprendre(st, id) {
     const t = TALENTS.find((x) => x.id === id);
@@ -2436,7 +2442,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     st.apprentis = st.apprentis || {}; const a = st.apprentis[PRODUITS[i].id] || (st.apprentis[PRODUITS[i].id] = { xp: 0 });
     const avant = gradeApprenti(st, i); a.xp += n * temps(st, i) * (part == null ? 1 : part); const niv = gradeApprenti(st, i);
     if (niv <= avant) return null;
-    gagnerXp(st, 10 * niv); inc(st, 'gradesApprentis');
+    gagnerXp(st, 10 * niv);
     note(st, `${APPRENTIS[i].prenom} passe au grade ${niv}${niv === 3 ? ' : ' + APPRENTIS[i].talent : ''}`);
     return { i, niv, talent: niv === 3 };
   }
@@ -2578,7 +2584,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     st.coins -= prix; s.niv++; noter(st, 'niveaux', 1); if (s.niv === 1) gagnerXp(st, 6);
     return { ok: true, prix, niv: s.niv, points };
   }
-  function lancerSaison(st) { const s = st.saison; if (!s || s.niv <= 0 || s.actif) return false; s.actif = true; s.prog = 0; st.stats.taps++; noter(st, 'mains', 1); return true; }
+  function lancerSaison(st) { const s = st.saison; if (!s || s.niv <= 0 || s.actif) return false; s.actif = true; s.prog = 0; noter(st, 'mains', 1); return true; }
   function cuireSaison(st, out, differe) { // une fournée de saison sortie du four : gains (sauf si l'absence les compte elle-même), collection, maîtrise
     const s = st.saison, r = recetteSaison(st), m = revenuSaison(st);
     s.prog = 0; s.actif = false; if (!differe) gagner(st, m); st.stats.ventes++; inc(st, 'fourneesSaison');
@@ -2600,9 +2606,9 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     { id: 'tables', nom: 'Tables et chaises', max: 6, cout: 6000, croiss: 40, phrase: 'On s’attarde autour d’un café et d’un croissant.', desc: (k) => `Salon de thé : ${k} table${k > 1 ? 's' : ''}, tous les gains ×${virg(1 + 0.08 * k)}` },
     { id: 'four', nom: 'Four', max: 4, cout: 20000, croiss: 40, phrase: 'Le cœur de la boutique, chaud dès l’aube.', desc: (k) => `Toutes les fournées cuisent ${3 * k} % plus vite` },
     { id: 'vitrine', nom: 'Vitrine', max: 3, cout: 30000, croiss: 40, phrase: 'Tout ce qui sort du four, bien en vue depuis la rue.', desc: (k) => `Les fournées à la main servent ${25 * k} % de clients en plus` },
-    { id: 'caisse', nom: 'Caisse enregistreuse', max: 3, cout: 120000, croiss: 50, phrase: 'Elle tinte à chaque pourboire.', desc: (k) => `Pourboires ×${virg(1 + 0.3 * k)}, client mystère ${8 * k} % plus fréquent` },
+    { id: 'caisse', nom: 'Caisse enregistreuse', max: 3, cout: 120000, croiss: 50, phrase: 'Elle tinte à chaque pourboire.', desc: (k) => `Pourboires ×${virg(1 + 0.3 * k)}, client mystère ${8 * k} % plus tôt` },
     { id: 'froid', nom: 'Chambre froide', max: 3, cout: 600000, croiss: 50, phrase: 'La pâte y repose la nuit, pendant que les apprentis travaillent.', desc: (k) => `Les apprentis travaillent ${k} h de plus pendant ton absence` },
-    { id: 'deco', nom: 'Décoration', max: 4, cout: 300000, croiss: 40, phrase: 'Des cadres, des plantes, des fleurs : on a envie d’entrer.', desc: (k) => `Primes des événements et des défis +${15 * k} %` },
+    { id: 'deco', nom: 'Décoration', max: 4, cout: 300000, croiss: 40, phrase: 'Des cadres, des plantes, des fleurs : on a envie d’entrer.', desc: (k) => `Primes des événements et des défis du jour +${15 * k} %` },
     { id: 'bar', nom: 'Bar et tabourets', max: 3, cout: 60000, croiss: 40, phrase: 'Un café au comptoir, debout ou perché : on boit et on repart vite.', desc: (k) => `${k + 1} tabourets : pourboires +${10 * k} %, clients à la main +${5 * k} %` },
     { id: 'banquette', nom: 'Coin salon', max: 3, cout: 1.5e6, croiss: 50, phrase: 'Le coin préféré des habitués, pour lire le journal au chaud.', desc: (k) => `${BANQUETTE[Math.min(k, 3) - 1]} : habitués ${20 * k} % plus vite, cadeaux +${30 * k} %` },
     { id: 'terrasse', nom: 'Terrasse', max: 3, cout: 6e6, croiss: 50, phrase: 'Quelques tables dehors, devant la vitrine, pour les beaux jours.', desc: (k) => `${2 * k} places dehors : clients à la main +${10 * k} % (+${5 * k} % en semaine d’octobre à mars)` },
@@ -2846,7 +2852,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
       v: 2, coins: 0, lifetime: 0, lifetimeRun: 0, etoiles: 0, boutiques: 1, recettesBoutique: [], defi: null, xp: 0, talents: {}, nomBoutique: '',
       stations: stationsNeuves(), ameliorations: {}, mobilier: {}, tuto: 0, lastSeen: nowMs, created: nowMs, son: true, vibre: true, mode: 1, now: nowMs,
       qualite: 'auto', images: 'economie', // Réglages › Le jeu : la qualité graphique (auto, haute, moyenne, eco) et les images par seconde (economie, fluide, max) ; sans effet sur les gains
-      stats: { taps: 0, ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false, meubles: 0 },
+      stats: { ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false, meubles: 0 },
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null, tiroir: 'mi',
       apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, chatNoir: false, chatPelage: 'roux', compagnons: [], compagnon: null, saison: null, saisonAnnoncee: '', collection: {},
@@ -2964,7 +2970,13 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     const rnd = mulberry32(hashStr(key + ':' + st.boutiques + ':' + st.created)), r = rythme(st);
     const choix = ['gagner'], pool = ['vendre', 'niveaux', 'clients', 'mains', 'embaucher', 'bonus', 'recette', 'meuble'];
     while (choix.length < 3 && pool.length) { const k = pool.splice(Math.floor(rnd() * pool.length), 1)[0]; if (TYPES_OBJ[k](st, r, rnd)) choix.push(k); }
-    return choix.map((type) => { const o = TYPES_OBJ[type](st, r, rnd); return { type, i: o.i, cible: o.cible, txt: o.txt(o.cible), progres: 0, fait: false, reclame: false, prime: arrondi(Math.max(40, r * 600) * (1 + 0.5 * talent(st, 'carnet')) * (1 + 0.15 * mobilierCran(st, 'deco'))) }; });
+    const base = Math.max(40, r * 600); // la prime de base (non arrondie), fixée au tirage ; le Carnet et la Décoration s'y ajoutent à chaque pas (primeObjectif)
+    return choix.map((type) => { const o = TYPES_OBJ[type](st, r, rnd); return { type, i: o.i, cible: o.cible, txt: o.txt(o.cible), progres: 0, fait: false, reclame: false, base, prime: primeObjectif(st, base) }; });
+  }
+  // la prime d'un objectif du jour : sa base, avec le Carnet et la Décoration d'aujourd'hui (un cran acheté dans la journée compte tout de suite)
+  const primeObjectif = (st, base) => arrondi(base * (1 + 0.5 * talent(st, 'carnet')) * (1 + 0.15 * mobilierCran(st, 'deco')));
+  function majPrimes(st) { // les objectifs pas encore réclamés suivent les bonus ; une vieille sauvegarde sans base garde sa prime telle quelle
+    for (const o of st.jour.objectifs) if (!o.reclame && Number.isFinite(o.base)) o.prime = primeObjectif(st, o.base);
   }
   function possible(st, o) {
     if (o.type === 'mains' || o.type === 'embaucher') return st.stations.some((s) => s.niv > 0 && !s.staff);
@@ -2994,7 +3006,10 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     const key = dayKey(nowMs);
     if (!st.jour || st.jour.date !== key) st.jour = { date: key, objectifs: tirerObjectifs(st, key), etoileDonnee: false, pain: painDuJour(st, key) };
     if (st.jour.pain == null) st.jour.pain = painDuJour(st, key);
+    const bases = st.jour.objectifs.map((o) => o.base);
     remplacerImpossibles(st);
+    st.jour.objectifs.forEach((o, k) => { if (o.base == null && bases[k] != null) o.base = bases[k]; }); // un objectif remplacé garde la base de sa place (comme sa prime)
+    majPrimes(st);
     semaineEnCours(st, nowMs);
     saisonDuJour(st, nowMs);
     return st.jour;
@@ -3019,7 +3034,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
   }
   function noterSemaine(st, type, n) {
     const sm = st.semaine; if (!sm || sm.fait) return;
-    if (sm.type === type || (sm.type === 'evenements' && ['commandes', 'critiques', 'petrissages', 'pannes'].includes(type))) { sm.progres = Math.min(sm.cible, sm.progres + (n == null ? 1 : n)); if (sm.progres >= sm.cible) sm.fait = true; }
+    if (sm.type === type || (sm.type === 'evenements' && EVENEMENTS_REUSSIS.includes(type))) { sm.progres = Math.min(sm.cible, sm.progres + (n == null ? 1 : n)); if (sm.progres >= sm.cible) sm.fait = true; }
   }
   function reclamerSemaine(st) {
     const sm = st.semaine; if (!sm || !sm.fait || sm.reclame) return { ok: false };
@@ -3038,6 +3053,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
   function reclamer(st, k) {
     const o = st.jour && st.jour.objectifs[k];
     if (!o || !o.fait || o.reclame) return { ok: false };
+    majPrimes(st); // un cran acheté juste avant, sans pas de jeu entre les deux
     o.reclame = true; gagner(st, o.prime, true); gagnerXp(st, 15);
     let etoile = false, points = 0;
     if (st.jour.objectifs.every((x) => x.reclame) && !st.jour.etoileDonnee) {
@@ -3199,7 +3215,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     for (const t of TROPHEES) if (!st.trophees[t.id] && t.cond(st)) { st.trophees[t.id] = st.now; gagnerXp(st, t.xp); note(st, `Trophée : ${t.nom}`); neufs.push(t); }
     return neufs;
   }
-  function donnerBoost(st, mult, secs) { st.boost = { mult, fin: st.now + secs * 1000 }; }
+  function donnerBoost(st, mult, secs) { st.boost = { mult, debut: st.now, fin: st.now + secs * 1000 }; } // debut : l'heure sûre qui recule le ramène à l'heure (ui.js, reculer)
   // ─── la réserve de boosts : des ×2 et des ×5 gagnés aux paliers de l'événement « Le Quartier » (src/quartier.js), à lancer quand on veut ───
   // dans la boulangerie, un seul à la fois ; il tourne sur l'horloge du jeu (une absence plus courte que lui en profite, une plus longue en profite au prorata de son temps restant, puis l'éteint)
   const boostsNeufs = () => ({ reserve: [], actif: null });
@@ -3215,7 +3231,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
   function lancerBoostReserve(st, k) {
     const b = boosts(st), o = b.reserve[k];
     if (!o || (b.actif && b.actif.fin > st.now)) return { ok: false };
-    b.reserve.splice(k, 1); b.actif = { mult: o.mult, fin: st.now + o.secs * 1000 }; note(st, `Boost ×${o.mult} lancé pour ${fmtDuree(o.secs)}`);
+    b.reserve.splice(k, 1); b.actif = { mult: o.mult, debut: st.now, fin: st.now + o.secs * 1000 }; note(st, `Boost ×${o.mult} lancé pour ${fmtDuree(o.secs)}`);
     return { ok: true, boost: b.actif };
   }
 
@@ -3474,7 +3490,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
   function lancer(st, i) {
     const s = st.stations[i];
     if (s.niv <= 0 || s.actif) return false;
-    s.actif = true; s.prog = 0; st.stats.taps++; noter(st, 'mains', 1);
+    s.actif = true; s.prog = 0; noter(st, 'mains', 1);
     return true;
   }
   function amelioration(st, id) {
@@ -3604,18 +3620,18 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
   const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
   return { APPRENTIS, APPRENTI_NIVEAUX, APPRENTI_VITESSE, APPRENTI_ABSENCE, xpApprenti, gradeApprenti, progresApprenti, creditApprenti, apprentiTempsMult, apprentiRevMult, effetTalentApprenti,
-    CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, PELAGES, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
+    CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
     COMPAGNONS, COMPAGNON_PLANCHER, compagnon, estChat, prixCompagnon, aCompagnon, compagnonActif, bonusCompagnon, compagnonGains, modeleCompagnon, compagnons, choisirCompagnon, acheterCompagnon,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
-    PRODUITS, RECETTES_BASE, recetteGagnee, recettesBoutique, recettesConnues, prochaineRecetteBoutique, ameliorationOuverte, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, places, AMEN_MAX, nettoyerAmenagement, codeAmenagement, amenagementDepuisCode, belleSaison, terrassePleine, QUARTIERS_BASE, quartierDe, PARCOURS_FIN, recompenseBoutique, texteRecompense, parcours, donnerRecompense, rattraperParcours, gainsParcours, titreParcours, DEFIS_PASSAGE, DEFI_DEBUT, defiDe, texteDefi, creerDefi, defiPassage, passageOk, ETOILES_CONSEIL, butParcours, parcoursListe, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, STANDINGS, STANDING_PAS, standing, standingDe, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
-    palierMult, expoPalier, fmtMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
+    PRODUITS, RECETTES_BASE, recetteGagnee, recettesBoutique, recettesConnues, prochaineRecetteBoutique, ameliorationOuverte, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, places, AMEN_MAX, nettoyerAmenagement, codeAmenagement, amenagementDepuisCode, belleSaison, terrassePleine, quartierDe, PARCOURS_FIN, recompenseBoutique, texteRecompense, parcours, rattraperParcours, titreParcours, DEFIS_PASSAGE, defiDe, texteDefi, creerDefi, defiPassage, passageOk, butParcours, parcoursListe, ETOILE_BONUS, ETOILE_BASE, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, STANDINGS, STANDING_PAS, standing, standingDe, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
+    palierMult, fmtMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables, prochaineEtoile,
-    objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, boostsNeufs, donnerBoostReserve, PRIME_HEURE_PLANCHER, primeHeures, donnerPrimeHeures, lancerBoostReserve,
+    objectifsDuJour, noter, reclamer, serieEnCours, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, donnerBoostReserve, PRIME_HEURE_PLANCHER, primeHeures, donnerPrimeHeures, lancerBoostReserve,
     gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, annulerMainArriere, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono,
-    ATELIER, JEUX_ATELIER, jeuAtelier, atelierDuJour, qualiteAtelier, primePleineAtelier, primeAtelier, restantesAtelier, finirAtelier,
+    ATELIER, JEUX_ATELIER, jeuAtelier, atelierDuJour, primePleineAtelier, primeAtelier, restantesAtelier, finirAtelier,
     FOUR, fourNiveau, fourNouveau, fourAvancer, fourToucher, FACONNAGE, MODELES_FACONNAGE, reechantillonner, noterFaconnage, ajouterTrait, couvertureFaconnage,
     INGREDIENTS, MEMOIRE, memoireMontre, memoireRecette, memoireSaisir, memoireScore,
-    POINTS, pointsDuJour, pointsAtelier, pointsSemaine, pointsTotal, detailPoints, marquerJournee, marquerDefi, marquerEvenement, marquerAtelier, marquerAmelioration,
+    POINTS, pointsAtelier, pointsSemaine, detailPoints, marquerJournee, marquerDefi, marquerEvenement, marquerAtelier, marquerAmelioration,
     GARDEROBE, garderobe, garderobeNeuve, vetement, possede, niveauVetement, donnerVetement, donnerCollection, equiper, equiperCollection, coutVetement, ameliorerVetement, bonusPiece, ensembleComplet, bonusGardeRobe, garderobeMult, texteBonus, tenueBoulanger, toqueMetal, garderobeCle,
     AURAS, donnerAura, porterAura, DISTINCTIONS, distinctions, donnerDistinction };
 });
@@ -4060,6 +4076,8 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     boostObjectif: [5, 900], // l'objectif commun réussi (et qu'on y a contribué) : un boost ×5 de 15 min, et le badge « Esprit d'équipe »
     objectif: 60e3, // l'objectif commun relu une fois par minute au plus
     chatLimite: 50, // le chat général : les 50 derniers messages au plus par lecture
+    fortuneMax: 1e24, // la borne de fournil_publier (supabase/fournil-classement.sql) pour p_fortune, p_quartier et p_score : au-delà, l'envoi
+    // entier serait refusé (« valeur »), pour toujours ; on envoie donc la borne (un cadeau énorme ne bloque plus rien)
   };
 
   // ─── le lundi de la semaine, heure de Paris (règle européenne : l'heure d'été va du dernier dimanche de mars au dernier dimanche d'octobre, à 1 h UTC) ───
@@ -4733,10 +4751,10 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     const config = () => { try { return lireConfig(E.config ? E.config() : null); } catch (e) { return null; } };
     const sauver = () => { ecrit = ecrireEtat(E.stockage, etat); return ecrit; };
     const prevenir = () => { for (const f of ecouteurs.slice()) { try { f(); } catch (e) { /* l'interface ne casse pas le moteur */ } } };
-    const fortune = () => { try { const v = E.fortune(); return typeof v === 'number' ? Math.floor(v) : NaN; } catch (e) { return NaN; } };
+    const fortune = () => { try { const v = E.fortune(); return typeof v === 'number' ? (Number.isFinite(v) ? Math.min(REGLES.fortuneMax, Math.floor(v)) : v) : NaN; } catch (e) { return NaN; } };
     const points = () => { try { const p = E.points(); return ptsOk(p) ? { points: p.points, lundi: p.lundi } : null; } catch (e) { return null; } };
-    const quartier = () => { try { const v = E.quartier(); return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : null; } catch (e) { return null; } }; // ses billets : seulement s'il y en a
-    const evenement = () => { try { const v = E.evenement(); return v && typeof v === 'object' && evtOk(v.id) && typeof v.score === 'number' && Number.isFinite(v.score) && v.score > 0 ? { id: v.id, score: Math.floor(v.score) } : null; } catch (e) { return null; } }; // son score d'événement : seulement s'il y en a
+    const quartier = () => { try { const v = E.quartier(); return typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.min(REGLES.fortuneMax, Math.floor(v)) : null; } catch (e) { return null; } }; // ses billets : seulement s'il y en a (plafonnés à la borne du serveur)
+    const evenement = () => { try { const v = E.evenement(); return v && typeof v === 'object' && evtOk(v.id) && typeof v.score === 'number' && Number.isFinite(v.score) && v.score > 0 ? { id: v.id, score: Math.min(REGLES.fortuneMax, Math.floor(v.score)) } : null; } catch (e) { return null; } }; // son score d'événement : seulement s'il y en a (plafonné)
     const rpc = (nom, corps, o) => appeler(config(), nom, corps, { fetch: E.fetch, enLigne: E.enLigne, delaiMax: (o && o.delaiMax) || E.delaiMax, keepalive: o && o.keepalive }); // delaiMax : plus long pour une image du chat
 
     // une autre fenêtre (l'appli installée et l'onglet du navigateur partagent le même stockage) a pu écrire :
@@ -5491,7 +5509,6 @@ const ICONS = (() => {
     glace: S(`<path d="M10 22l6 20 6-20z" fill="#E8B46A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M26 22l6 20 6-20z" fill="#E8B46A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="16" cy="18" r="7" fill="#9BE8C2" stroke="${L}" stroke-width="2"/><circle cx="32" cy="18" r="7" fill="#FF9FB2" stroke="${L}" stroke-width="2"/><path d="M13 27l6 3M29 27l6 3" stroke="#C8863A" stroke-width="1.4"/>`),
   };
   const CHAT = S(`<path d="M10 20l3-12 8 7M38 20l-3-12-8 7" fill="#F2A65A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="24" cy="27" rx="15" ry="13" fill="#F2A65A" stroke="${L}" stroke-width="2"/><path d="M20 16l1 5M24 15v5M28 16l-1 5" stroke="#D9853B" stroke-width="2" stroke-linecap="round"/><ellipse cx="24" cy="32" rx="7" ry="5" fill="#FFE3C9"/><path d="M17 26c1.5-1.5 3.5-1.5 5 0M26 26c1.5-1.5 3.5-1.5 5 0" stroke="${L}" stroke-width="2" stroke-linecap="round" fill="none"/><path d="M22 31l2 1.5 2-1.5" fill="#FF9FB2" stroke="${L}" stroke-width="1.2" stroke-linejoin="round"/><path d="M8 30h7M8 34l7-1M40 30h-7M40 34l-7-1" stroke="${L}" stroke-width="1.2" stroke-linecap="round"/>`);
-  const CIBLE = `<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="#FF6B8B" stroke-width="2.5"/><circle cx="12" cy="12" r="4.5" fill="none" stroke="#FF6B8B" stroke-width="2.5"/><circle cx="12" cy="12" r="1.5" fill="#FF6B8B"/></svg>`;
   const FEU = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M24 4c2 8 10 12 10 22a10 10 0 01-20 0c0-5 3-8 4-12 2 3 4 4 6 3-1-5 0-9 0-13z" fill="#FF9F4A" stroke="#4A3328" stroke-width="2" stroke-linejoin="round"/><path d="M24 22c1 4 5 6 5 10a5 5 0 01-10 0c0-3 2-4 2-7 1 1 2 1 3-3z" fill="#FFD36B"/></svg>`;
   const CRITIQUE = `<svg viewBox="0 0 48 48" aria-hidden="true"><rect x="10" y="8" width="26" height="32" rx="4" fill="#fff" stroke="${L}" stroke-width="2"/><path d="M16 16h14M16 22h14M16 28h9" stroke="#B8A6FF" stroke-width="2.5" stroke-linecap="round"/><path d="M30 36l8-14 3 2-8 14z" fill="#FFC84A" stroke="${L}" stroke-width="1.6" stroke-linejoin="round"/></svg>`;
   const SAC = `<svg viewBox="0 0 48 48" aria-hidden="true"><path d="M14 16c-4 8-4 16-2 24h24c2-8 2-16-2-24z" fill="#F4E4C8" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M16 10h16l2 6H14z" fill="#E8B46A" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M19 26c2-3 8-3 10 0" stroke="#C8863A" stroke-width="2" stroke-linecap="round" fill="none"/><circle cx="24" cy="31" r="2" fill="#C8863A"/></svg>`;
@@ -5802,7 +5819,7 @@ const ICONS = (() => {
     dragon: S(`<path d="M8 22c-5-2-7-8-5-12 4 2 8 3 10 7z" fill="#9A84F0" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M40 22c5-2 7-8 5-12-4 2-8 3-10 7z" fill="#9A84F0" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><path d="M15 15l-2-8 6 5M33 15l2-8-6 5" fill="#FFF3C4" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><ellipse cx="24" cy="26" rx="14" ry="13" fill="#5FD3A4" stroke="${L}" stroke-width="2"/><ellipse cx="24" cy="33" rx="8" ry="5.5" fill="#86E0BC"/>${yx(18.5, 23)}${yx(29.5, 23)}<circle cx="21.5" cy="32" r="1" fill="#3FB889"/><circle cx="26.5" cy="32" r="1" fill="#3FB889"/><circle cx="38" cy="38" r="3.4" fill="#fff" stroke="#E8DCCB" stroke-width="1.2"/><circle cx="42.5" cy="35.5" r="2.4" fill="#fff" stroke="#E8DCCB" stroke-width="1.2"/><circle cx="43" cy="41" r="2" fill="#fff" stroke="#E8DCCB" stroke-width="1.2"/>`),
   };
   const compagnon = (id) => COMPAGNONS[id] || CHAT;
-  return { PRODUITS, SAISON, CHAT, CHAT_NOIR, COMPAGNONS, compagnon, QUARTIER, HANTEE, ACTIVITES, RECETTES_JOUR, apprenti, boulanger, vetement, TENUES, toque, coupe, METAL, AMELIORATION, ETOILE, CIBLE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES, INGREDIENTS, ATELIER };
+  return { PRODUITS, SAISON, CHAT, CHAT_NOIR, COMPAGNONS, compagnon, QUARTIER, HANTEE, ACTIVITES, RECETTES_JOUR, apprenti, boulanger, vetement, TENUES, toque, coupe, METAL, AMELIORATION, ETOILE, FEU, CRITIQUE, SAC, PATE, PANNE, BALLON, UI, MEUBLES, INGREDIENTS, ATELIER };
 })();
 
 /* ── vie.js ── */
@@ -6161,7 +6178,6 @@ const VIE = (() => {
   }
   const mystereEnAttente = () => clients.find((c) => c.or && !c.pris && c.etat === 'attend') || null;
   function toucherMystere(c) { c.pris = true; c.wait = 0.2; }
-  function hitBoulanger(x, y) { if (!LAY) return false; const b = LAY.boulanger; return Math.abs(x - b.x) < 26 * K && y > b.y - 64 * K && y < b.y + 4; }
   function hit(x, y) {
     for (const c of clients) {
       if (!c.or || c.pris || c.etat !== 'attend') continue;
@@ -6323,11 +6339,10 @@ const VIE = (() => {
     if (st.amenagement !== amenRef) { amenRef = st.amenagement; const n = G.nettoyerAmenagement ? G.nettoyerAmenagement(st.amenagement) : null, c = n ? G.codeAmenagement(n) : ''; if (c !== codeDemande) { codeDemande = c; amenDemande = n; calculer(true); } } // un meuble déplacé (ou une autre boutique) : le plan suit
     for (const id of ['bar', 'banquette', 'terrasse']) crans[id] = G.mobilierCran(st, id); // (avant que GAME.MOBILIER les connaisse : cran 0)
     for (const m of G.MOBILIER) { crans[m.id] = G.mobilierCran(st, m.id); prixDe[m.id] = G.prixMeuble(st, m.id); abordables[m.id] = crans[m.id] < m.max && st.coins >= prixDe[m.id]; }
-    places = G.places ? G.places(st) : { tables: crans.tables, bar: crans.bar ? crans.bar + 1 : 0, banquette: crans.banquette >= 3 ? 3 : crans.banquette ? 2 : 0, terrasse: 2 * crans.terrasse };
+    places = G.places(st);
     activer();
     // la terrasse : personne dehors la nuit ni sous la neige ; les beaux jours (belle saison, jours de marché : GAME.terrassePleine), elle se remplit
-    { const beau = G.terrassePleine ? G.terrassePleine(st) : (() => { const m = d.getUTCMonth() + 1, j = d.getUTCDay(); return (m >= 4 && m <= 9) || j === 0 || j === 6; })();
-      dehors = hour < 8 || hour >= 21 || tags.includes('neige') ? 0 : beau || force.zone === 'terrasse' ? 1 : 0.15; }
+    dehors = hour < 8 || hour >= 21 || tags.includes('neige') ? 0 : G.terrassePleine(st) || force.zone === 'terrasse' ? 1 : 0.15;
     panneI = st.ev && st.ev.type === 'panne' && st.ev.fin > st.now ? st.ev.i : -1;
     nextSpawn -= dt;
     if (nextSpawn <= 0) {
@@ -6428,7 +6443,7 @@ const VIE = (() => {
   // un meuble acheté : les tables 1..n, le bar et le coin salon dès le cran 1, les tables de la terrasse 1..n
   function mobileAchete(m) { const k = crans[m.type] || 0; return m.type === 'tables' || m.type === 'terrasse' ? m.i < k : k > 0; }
 
-  const API = { hautBloc, resize, frame, basculer, congedier, accueillir, etatClient, installer, valider, proposer, mobileSous, mobileAchete, caseDe, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
+  const API = { hautBloc, resize, frame, basculer, congedier, accueillir, etatClient, installer, valider, proposer, mobileSous, mobileAchete, caseDe, vente, texte, tap, fete, setRush, mystere, habitue, hit, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
     DECORS, decor, PASTEL, PEAUX6, HAUTS6, CHEVEUX, TAU,
     get LAY() { return LAY; }, get amenagementApplique() { return LAY ? LAY.sig : ''; }, get amenagementDemande() { return codeDemande; }, get K() { return K; }, get W() { return W; }, get H() { return H; }, get t() { return t; }, get rush() { return rush; }, get Q() { return Q; }, get tags() { return tags; }, get force() { return force; }, get etat() { return etat; }, get mode() { return modeVie; }, get vueEv() { return vueEv; },
     get clients() { return clients; }, get apprentis() { return apprentis; }, get textes() { return textes; }, get vapeurs() { return vapeurs; }, get confetti() { return confetti; }, get flocons() { return flocons; }, get passants() { return passants; }, get chat() { return chat; }, get crans() { return crans; }, get places() { return places; }, get abordables() { return abordables; }, get prixDe() { return prixDe; },
@@ -7000,31 +7015,33 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   // HDM.part : couleurs de sommets, pas de texture) ; sinon (éco, artefact, HD coupée), les pièces faites main (et celles de Kenney quand
   // elles sont chargées). Les couverts ne sont pas ici : un seul maillage instancié pour toutes les places (SCENE, MEUBLES.couverts).
   const hdp = (c, nom, o, col) => (c.hd && typeof HDM !== 'undefined' && HDM.part ? HDM.part('meubles2/' + nom, o, col) : null); // une pièce KayKit, ou null
-  const HAUT = { table: 29, bar: 25, banquette: 11, terrasse: 29 }; // la hauteur des plateaux où l'on pose les couverts, par coin
+  // le dessus réel des plateaux, par coin : chaque meuble est bâti pour y arriver (fait main, Kenney ou KayKit, avec ou sans nappe), et les
+  // couverts (SCENE, poserCouverts) comme les bougies de la boutique hantée (hantee) s'y posent : une seule mesure, rien ne flotte
+  const HAUT = { table: 29, bar: 24, banquette: 10, terrasse: 28 };
   function pointilles(pr, r, c) { // l'emplacement d'un meuble pas encore acheté : un rectangle de tirets au sol (r : rectangle du plan, en pixels)
     const z0 = c.wz(r.y), z1 = c.wz(r.y + r.h), n = Math.max(2, Math.round(r.w / 14)), m = Math.max(2, Math.round((z1 - z0) / 14));
     for (let i = 0; i < n; i++) for (const z of [z0, z1]) pr.push(P(M.boiteSimple(r2(r.w / n * 0.55), 0.4, 1.4), '#FFFFFF', { x: r.x + (i + 0.5) * r.w / n, y: 0.3, z }));
     for (let i = 0; i < m; i++) for (const x of [r.x, r.x + r.w]) pr.push(P(M.boiteSimple(1.4, 0.4, r2((z1 - z0) / m * 0.55)), '#FFFFFF', { x, y: 0.3, z: z0 + (i + 0.5) * (z1 - z0) / m }));
   }
   function maillePointillee(pr, g) { const m = M.maille(pr, { ombre: false }); m.material = M.MAT.pointille; g.add(m); return g; }
-  function tableRonde(pr, x, z, R, Ht, Q, c, nappe) { // une table ronde : KayKit, Kenney ou faite main ; son plateau aux couleurs du quartier
-    const k = hdp(c, 'table_round_A_small', { w: 2 * R, d: 2 * R, h: Ht - 1, x, z, teinte: Q.comptoir }); if (k) { pr.push(k); if (nappe) pr.push(P(M.cylindre(R * 0.8, R * 0.8, 0.8, 20), Q.accent, { x, y: Ht - 1, z })); return; }
-    if (KN()) { pr.push(kp('tableRound', { w: 2 * R, d: 2 * R, h: Ht, x, z }, { wood: Q.comptoir }), P(M.cylindre(R - 1.2, R - 1.2, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht - 0.4, z })); return; }
-    pr.push(P(M.cylindre(6.5 * c.K, 7.5 * c.K, 2, 14), Q.bois, { x, z }), P(M.cylindre(2.4, 2.4, Ht - 5, 8), Q.bois, { x, y: 2, z }));
-    pr.push(P(M.cylindre(R, R - 1.5, 3, 22), Q.comptoir, { x, y: Ht - 3, z }), P(M.cylindre(R - 0.3, R - 0.3, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht, z }));
+  function tableRonde(pr, x, z, R, Ht, Q, c, nappe) { // une table ronde : KayKit, Kenney ou faite main ; son plateau aux couleurs du quartier ; Ht : son dessus (nappe comprise)
+    const k = hdp(c, 'table_round_A_small', { w: 2 * R, d: 2 * R, h: nappe ? Ht - 0.8 : Ht, x, z, teinte: Q.comptoir }); if (k) { pr.push(k); if (nappe) pr.push(P(M.cylindre(R - 1.2, R - 1.2, 0.8, 20), Q.accent, { x, y: Ht - 0.8, z })); return; } // (la nappe couvre tout le plateau, comme chez Kenney : les couverts sont dessus)
+    if (KN()) { pr.push(kp('tableRound', { w: 2 * R, d: 2 * R, h: Ht - 0.6, x, z }, { wood: Q.comptoir }), P(M.cylindre(R - 1.2, R - 1.2, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht - 1, z })); return; }
+    pr.push(P(M.cylindre(6.5 * c.K, 7.5 * c.K, 2, 14), Q.bois, { x, z }), P(M.cylindre(2.4, 2.4, Ht - 6, 8), Q.bois, { x, y: 2, z }));
+    pr.push(P(M.cylindre(R, R - 1.5, 3, 22), Q.comptoir, { x, y: Ht - 4, z }), P(M.cylindre(R - 0.3, R - 0.3, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht - 1, z }));
   }
   // ─── les tables du salon de thé : deux rangées de trois sous la file, deux chaises chacune ───
   function tables(k, c) {
     const { LAY, K, Q } = c, g = grp('tables'); g.userData.zone = 'tables';
     if (k === 0) { const tb = LAY.tables[0]; g.add(M.mesh(M.anneau(14 * K, 16 * K, 32), M.MAT.pointille, { x: tb.x, y: 0.4, z: c.wz(tb.y - 8 * K) }, { ombre: false })); return g; }
-    const R = 16 * K, Ht = HAUT.table - 1, pr = [], fl = [], nappe = k >= 4;
+    const R = 16 * K, Ht = HAUT.table, pr = [], fl = [], nappe = k >= 4; // Ht : le dessus de la table (nappe comprise), où l'on pose les couverts
     for (let i = 0; i < Math.min(k, LAY.tables.length); i++) {
       const tb = LAY.tables[i], x = tb.x, z = c.wz(tb.y);
       tableRonde(pr, x, z, R, Ht, Q, c, nappe);
-      if (nappe) pr.push(P(M.cylindre(R * 0.62, R * 0.62, 0.6, 18), '#FFFFFF', { x, y: Ht + 1, z }));
+      if (nappe) pr.push(P(M.cylindre(R * 0.62, R * 0.62, 0.1, 18), '#FFFFFF', { x, y: Ht, z })); // le napperon, au milieu : un tissu (0,1), les assiettes posées au bord ne s'y enfoncent pas
       for (const s of tb.sieges) chaise(pr, s.x, c.wz(s.y), s.dir, K, Q, k >= 3, c);
-      if (k >= 4 || c.crans.deco >= 3) pr.push(P(bo(4, 6, 4, 1.5), '#9BD0FF', { x, y: Ht + 1, z }), P(M.sphere(2.6, 8), ['#FF6B8B', '#FFC84A', '#B8A6FF'][i % 3], { x, y: Ht + 9, z }));
-      if (c.crans.deco >= 4) { pr.push(P(M.cylindre(1.6, 1.8, 6, 8), '#FFFDF5', { x: x + 7 * K, y: Ht + 1, z: z - 2 })); fl.push(P(M.sphere(1.5, 8), '#FFC84A', { x: x + 7 * K, y: Ht + 8.5, z: z - 2, sy: 1.5 })); } // les bougies du salon
+      if (k >= 4 || c.crans.deco >= 3) pr.push(P(bo(4, 6, 4, 1.5), '#9BD0FF', { x, y: Ht, z }), P(M.sphere(2.6, 8), ['#FF6B8B', '#FFC84A', '#B8A6FF'][i % 3], { x, y: Ht + 8, z }));
+      if (c.crans.deco >= 4) { pr.push(P(M.cylindre(1.6, 1.8, 6, 8), '#FFFDF5', { x: x + 7 * K, y: Ht, z: z - 2 })); fl.push(P(M.sphere(1.5, 8), '#FFC84A', { x: x + 7 * K, y: Ht + 7.5, z: z - 2, sy: 1.5 })); } // les bougies du salon
     }
     g.add(M.maille(pr, { recoit: true }));
     if (fl.length) { const flammes = M.maille(fl, { ombre: false }); flammes.material = propre({ vertexColors: true, emissive: '#FFC84A', emissiveIntensity: 0.3 }); g.add(flammes); g.userData.anime = (E) => { flammes.material.emissiveIntensity = 0.3 + E.lampes * (0.8 + 0.2 * Math.sin(E.t * 9)); }; } // toutes les flammes : un seul maillage
@@ -7043,7 +7060,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   function bar(k, c) {
     const { LAY, K, Q } = c, b = LAY.bar, g = grp('bar'); g.userData.zone = 'bar'; const pr = [];
     if (k === 0) { pointilles(pr, LAY.emplacements.bar, c); return maillePointillee(pr, g); }
-    const n = Math.min(4, k + 1), Hb = HAUT.bar - 1, w = b.x1 - b.x0, xc = (b.x0 + b.x1) / 2, zc = c.wz(b.y - 2 * K), d = 15 * K;
+    const n = Math.min(4, k + 1), Hb = HAUT.bar, w = b.x1 - b.x0, xc = (b.x0 + b.x1) / 2, zc = c.wz(b.y - 2 * K), d = 15 * K;
     // le comptoir : le corps, le dessus clair qui déborde côté clients, la barre de pieds dorée (côté tabourets)
     pr.push(P(bo(w, Hb - 3, d - 4, 2), Q.comptoir, { x: xc, z: zc + 1 }), P(bo(w + 4, 3, d + 2, 1.2), Q.comptoir2, { x: xc, y: Hb - 3, z: zc - 0.5 }));
     for (let i = 1; i < 4; i++) pr.push(P(bo(1, Hb - 8, 0.6, 0.3), M.assombrir(Q.comptoir, 0.15), { x: b.x0 + i * w / 4, y: 3, z: zc + d / 2 - 1.6 })); // les panneaux de la face
@@ -7075,8 +7092,8 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       const kr = hdp(c, 'rug_rectangle_stripes_A', { w: t.w, d: c.wd(t.h), h: 0.8, x: t.x, z: c.wz(t.y), teinte: M.eclaircir(Q.accent, 0.35) });
       pr.push(kr || P(bo(t.w, 0.8, c.wd(t.h), 0.4), M.eclaircir(Q.accent, 0.45), { x: t.x, z: c.wz(t.y) }));
       if (!kr) pr.push(P(bo(t.w - 8, 0.6, c.wd(t.h) - 8, 0.2), '#FFFFFF', { x: t.x, y: 0.5, z: c.wz(t.y) }), P(bo(t.w - 12, 0.7, c.wd(t.h) - 12, 0.2), M.eclaircir(Q.accent, 0.45), { x: t.x, y: 0.6, z: c.wz(t.y) }));
-      const kt = hdp(c, 'table_low', { w: 28 * K, d: 16 * K, h: HAUT.banquette - 1, x: xt, z: zt });
-      if (kt) pr.push(kt); else { pr.push(P(bo(28 * K, 2.5, 16 * K, 1), Q.comptoir2, { x: xt, y: HAUT.banquette - 3.5, z: zt })); for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(bo(2, HAUT.banquette - 3, 2, 0.5), Q.bois, { x: xt + sx * 12 * K, z: zt + sz * 6 * K })); }
+      const kt = hdp(c, 'table_low', { w: 28 * K, d: 16 * K, h: HAUT.banquette, x: xt, z: zt });
+      if (kt) pr.push(kt); else { pr.push(P(bo(28 * K, 2.5, 16 * K, 1), Q.comptoir2, { x: xt, y: HAUT.banquette - 2.5, z: zt })); for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(bo(2, HAUT.banquette - 2, 2, 0.5), Q.bois, { x: xt + sx * 12 * K, z: zt + sz * 6 * K })); }
     }
     if (k >= 3) { // la lampe sur pied (l'abat-jour s'allume le soir : la lumière du salon) et le fauteuil, tourné vers la table basse
       const l = bq.lampe, zl = c.wz(l.y), kl = hdp(c, 'lamp_standing', { w: 14 * K, d: 14 * K, h: 58, x: l.x, z: zl });
@@ -7092,7 +7109,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   function terrasse(k, c) {
     const { LAY, K, Q, W } = c, g = grp('terrasse'); g.userData.zone = 'terrasse'; const pr = [];
     if (k === 0) { const t = LAY.terrasse[0]; pointilles(pr, { x: t.x - 34 * K, y: t.y - 20 * K, w: 68 * K, h: 34 * K }, c); return maillePointillee(pr, g); } // la place de la première table
-    const R = 12 * K, Ht = HAUT.terrasse - 1, metal = '#4A4A55';
+    const R = 12 * K, Ht = HAUT.terrasse, metal = '#4A4A55';
     for (let i = 0; i < Math.min(k, LAY.terrasse.length); i++) {
       const tb = LAY.terrasse[i], x = tb.x, z = c.wz(tb.y);
       const kt = hdp(c, 'table_round_A_small', { w: 2 * R, d: 2 * R, h: Ht, x, z, teinte: '#F4EFE6' });
@@ -7357,8 +7374,15 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     return g;
   }
   // l'enseigne néon : un éclair rose et un tube menthe suspendus dans la fenêtre, qui grésillent le soir (un maillage, deux matériaux)
-  function neon(c) {
-    const { LAY, W } = c, f = LAY.fenetre, x = f.x + f.w * 0.5, y = murY(c, f.y + f.h * 0.5), g = grp('neon', x, y, 3), pr = [], s = Math.max(10, Math.min(16, f.h * 0.3));
+  // haut : l'étagère aux bocaux du bestiaire (bocaux) est posée aussi, sur le rebord de la même fenêtre, et ses bocaux montent dans sa moitié
+  // basse ; le néon remonte alors contre le haut de la fenêtre, et rapetisse s'il le faut, pour finir au-dessus des couvercles (les bocaux ne bougent pas)
+  function neon(c, haut) {
+    const { LAY } = c, f = LAY.fenetre, x = f.x + f.w * 0.5; let y = murY(c, f.y + f.h * 0.5), s = Math.max(10, Math.min(16, f.h * 0.3));
+    if (haut) { // le haut de la fenêtre ; le haut des bocaux (la planche au rebord, leur hauteur wy(17), le couvercle et son bouton : 3,5), et un jour de 1,5
+      const plafond = murY(c, f.y) - 1, couvercles = murY(c, f.y + f.h + 1) + c.wy(17) + 3.5 + 1.5;
+      s = Math.min(s, (plafond - couvercles) / 1.9); y = plafond - 0.95 * s;
+    }
+    const g = grp('neon', x, y, 3), pr = [];
     pr.push(P(bo(s * 1.6, s * 1.9, 1.2, 1), '#2E2B3A', { z: -0.8 })); // le fond noir mat
     g.add(M.maille(pr, { ombre: false }));
     const zig = [[-0.25, 0.75], [0.1, 0.1], [-0.08, 0.1], [0.25, -0.75]].map(([u, v]) => [u * s, v * s]), tubes = [];
@@ -7510,7 +7534,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     // une bougie au milieu de chaque table achetée, deux sur le bar, une sur le plan de travail
     const surTable = (x, y, z) => { pr.push(P(M.cylindre(2.6, 2.9, 1, 10), fer, { x, y, z })); bougie(x, y + 1, z, 4.4 * K, 1.2); };
     for (let i = 0; i < Math.min(c.crans.tables || 0, LAY.tables.length); i++) { const t = LAY.tables[i]; surTable(t.x, HAUT.table, c.wz(t.y)); }
-    if ((c.crans.bar || 0) > 0) { const b = LAY.bar; for (const u of [0.2, 0.8]) surTable(b.x0 + (b.x1 - b.x0) * u, HAUT.bar + 1.5, c.wz(b.y - 4 * K)); }
+    if ((c.crans.bar || 0) > 0) { const b = LAY.bar; for (const u of [0.2, 0.8]) surTable(b.x0 + (b.x1 - b.x0) * u, HAUT.bar, c.wz(b.y - 4 * K)); }
     const pl = LAY.plan;
     bougie(pl.x + pl.w * 0.78, c.wy(pl.h * 0.55), c.wz(pl.y + pl.h * 0.6), 5 * K, 1.4);
     // les deux lanternes de la porte du fond, posées au sol de part et d'autre, dans la salle (jamais dans le passage : l'allée entre au milieu)
@@ -8124,7 +8148,6 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   }
   const joues = (p, x, y, z, r) => { for (const sx of [-1, 1]) p.push(M.part(M.sphere(r || 0.95, 8), JOUE, { x: sx * x, y, z, sy: 0.7, sz: 0.5 })); };
   const pattePendue = (r, lp, col, pied, o) => [M.part(pendu(r, lp - (o && o.court != null ? o.court : 2), 0.2), col), M.part(M.sphere((o && o.rp) || r * 1.1, 8), pied, { y: (o && o.py != null ? o.py : 1.15) - lp, z: (o && o.pz) || 0.45, sx: (o && o.sx) || 1, sy: (o && o.sy) || 0.6, sz: (o && o.sz) || 1.2 })];
-  const E3 = (y, z) => [0, y, z];
   // une espèce : lp (longueur des pattes, de la hanche au sol), py (hauteur des hanches sous la racine), hanches ([x, z] ; 4, 2 ou 0),
   // tp (la tête : [y, z]), queue [y, z, inclinaison] (null : sans queue), lq1 (longueur du premier segment), q2r (l'inclinaison du second),
   // R / D (rayon et demi-longueur du corps : l'assise), demiH (la demi-hauteur du corps : couché, il touche le sol), assis
@@ -8302,10 +8325,9 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     if (E.assis === 'couche') { couche(assis, true); if (n > 0) { assis.pv = true; for (let k = 0; k < 4; k++) { const avant = k < 2; assis.pp[k] = [hanche(k)[0] * (avant ? 1 : 1.25), E.demiH * 0.45, hanche(k)[2]]; assis.pr[k] = [avant ? -1.35 : -1.45, 0, 0]; assis.ps[k] = avant ? [1, 0.8, 1] : [1.2, 0.6, 1]; } } }
     else if (E.assis === 'assis') { // l'arrière-train au sol : le corps raccourci et incliné de a (nez en l'air), pattes avant droites, cuisses repliées devant, la queue au sol
       const a = E.a, D = E.D * 0.85, ys = E.R * Math.cos(a) - D * Math.sin(a) + 0.3, av = tourneX(E.py, E.hanches[0][1], a), ar = tourneX(E.py, E.hanches[2][1], a);
-      const hAv = ys + av[0], hAr = ys + ar[0], lAr = E.lp * 0.85, th = Math.acos(Math.max(0, Math.min(1, hAr / lAr))), tq = tourneX(Q[0], Q[1], a), th0 = tourneX(T[0], T[1] * 0.92, a);
+      const hAv = ys + av[0], hAr = ys + ar[0], lAr = E.lp * 0.85, th = Math.acos(Math.max(0, Math.min(1, hAr / lAr)));
       assis.r = [0, ys, 0]; assis.rr = [a, 0, 0]; assis.cs = [1, 1, 0.85]; assis.h = [0, T[0], T[1] * 0.92]; assis.hr = [-a - 0.1, 0, 0]; assis.qr = [-2 - a, 0, 0]; assis.q2r = [0.5, 0, 0];
       for (let k = 0; k < 4; k++) { const avant = k < 2; assis.pr[k] = avant ? [-a, 0, 0] : [-a - th, 0, 0]; assis.ps[k] = avant ? [1, hAv / E.lp, 1] : [1.3, 0.85, 1]; }
-      E.assisHaut = [ys + th0[0], tq[0] + ys]; // (hauteur de la tête, de la queue : pour les tests)
     }
     return { marche, saut, dort, assis };
   }
@@ -8648,7 +8670,7 @@ if (typeof module !== 'undefined') module.exports = PERSOS;
 /* ── hd.js ── */
 /* LE FOURNIL — les modèles HD : KayKit (CC0, Kay Lousberg : Furniture, City Builder, Halloween, Restaurant Bits) et les Mini Characters de
    Kenney (CC0, riggés et animés : l'équipe de la Planque), compressés en meshopt dans fournil/hd/, chargés par vendor/fournil-hd.min.js (GLTFLoader, SkeletonUtils,
-   MeshoptDecoder de three r158 ; postprocessing 6.33.4 ; n8ao 1.8.4). La Planque y prend ses meubles, sa rue de nuit et son équipe animée ; la
+   MeshoptDecoder de three r158 ; construit par outils/maquette-hd/construire.cjs). La Planque y prend ses meubles, sa rue de nuit et son équipe animée ; la
    boutique garde ses personnages et reçoit quelques décors ; la boutique hantée (src/boutiquehantee.js) prend tout son lot « hantee3 » : le
    pack décor, ses neuf monstres et son équipe (KayKit Skeletons, Adventurers, Mystery Series 4, Asset Quest), les clips partagés. En qualité
    éco, sans WebGL2, dans l'artefact ou avec ?hd=0 : le rendu habituel. */
@@ -8693,11 +8715,16 @@ const HDM = (() => {
     return e.promesse;
   }
   const pret = (lot) => !!(etat[lot] && etat[lot].pret);
-  // coupé sur ce téléphone : par le joueur (Réglages) ou par la Planque qui a vu un écran noir ; gardé d'une visite à l'autre
+  // coupé sur ce téléphone : par le joueur (Réglages) ou par la Planque qui a vu un écran noir ; gardé d'une visite à l'autre, avec sa raison
+  // ('non:écran noir', 'non:joueur' ; un ancien 'non' tout court vaut 'joueur'), pour que le petit texte des Réglages reste juste après un rechargement
   let coupeMem = null; const CLE = 'fournil.hd';
-  const coupe = () => { if (coupeMem === null) { try { coupeMem = localStorage.getItem(CLE) === 'non'; } catch (e) { coupeMem = false; } } return coupeMem; };
-  const couper = (raison) => { coupeMem = true; API.raison = raison || 'joueur'; try { localStorage.setItem(CLE, 'non'); } catch (e) { /* rien */ } API.version++; };
+  const coupe = () => {
+    if (coupeMem === null) { let v = null; try { v = localStorage.getItem(CLE); } catch (e) { /* rien */ } coupeMem = v === 'non' || /^non:/.test(v || ''); API.raison = coupeMem ? v.slice(4) || 'joueur' : ''; }
+    return coupeMem;
+  };
+  const couper = (raison) => { coupeMem = true; API.raison = raison || 'joueur'; try { localStorage.setItem(CLE, 'non:' + API.raison); } catch (e) { /* rien */ } API.version++; };
   const remettre = () => { coupeMem = false; API.raison = ''; try { localStorage.removeItem(CLE); } catch (e) { /* rien */ } API.version++; };
+  coupe(); // dès le chargement : API.raison est lue par les Réglages avant tout appel à coupe()
   const permis = (renderer) => { try { return !coupe() && !!(renderer && renderer.capabilities.isWebGL2 && !(typeof SCENE !== 'undefined' && SCENE.stats && SCENE.stats.qualite === 'eco')); } catch (e) { return false; } };
 
   // un meuble : cloné, à l'échelle s (unités KayKit → unités du monde), posé pied au sol, centré en x/z sur sa boîte
@@ -8763,17 +8790,7 @@ const HDM = (() => {
   }
   function liberer(a) { a.mixer.stopAllAction(); a.mixer.uncacheRoot(a.g); a.g.traverse((m) => { if (m.isMesh && m.geometry && !m.isSkinnedMesh) m.geometry.dispose(); }); }
 
-  // ─── la passe d'effets : occlusion N8AO (optionnelle), SMAA, halo ; sortie sRGB ───
-  function effets(renderer, scene, camera, W, H, dpr, o = {}) {
-    let flottant = false; try { flottant = renderer.extensions.has('EXT_color_buffer_float') || renderer.extensions.has('EXT_color_buffer_half_float'); } catch (e) { /* non */ }
-    const c = new X.EffectComposer(renderer, { frameBufferType: flottant ? THREE.HalfFloatType : THREE.UnsignedByteType }); // tampons flottants seulement s'ils sont rendables c.addPass(new X.RenderPass(scene, camera));
-    let n8 = null;
-    if (o.ao !== false) { n8 = new X.N8AOPostPass(scene, camera, W * dpr, H * dpr); Object.assign(n8.configuration, { aoRadius: o.rayon || 40, distanceFalloff: 1, intensity: o.ao || 2.6, color: new THREE.Color(o.aoCouleur || '#3A2418'), halfRes: true, aoSamples: 12, denoiseSamples: 8 }); c.addPass(n8); }
-    const fx = [new X.SMAAEffect()]; if (o.halo !== 0) fx.push(new X.BloomEffect({ intensity: o.halo || 0.3, luminanceThreshold: o.seuil || 0.85, mipmapBlur: true }));
-    c.addPass(new X.EffectPass(camera, ...fx)); c.setSize(W, H);
-    return { rendre: (dt) => c.render(dt), liberer: () => c.dispose(), n8 };
-  }
-  return Object.assign(API, { pret, permis, charger, etat, H3, coupe, couper, remettre, modele, cuit, part, mini, MINI, jouer, liberer, effets });
+  return Object.assign(API, { pret, permis, charger, etat, H3, coupe, couper, remettre, modele, cuit, part, mini, MINI, jouer, liberer });
 })();
 if (typeof module !== 'undefined') module.exports = HDM;
 
@@ -9073,7 +9090,8 @@ const SCENE = (() => {
     { id: 'lampe', cle: (E) => (E.niv[2] > 0 || objet(E, 'lampe') ? '1' : null), faire: (k, c) => MEUBLES.lampe(c) },
     // les décos de l'événement « Le Quartier » (src/quartier.js, gagnées aux paliers, à vie) : le tag sur la porte, l'enseigne néon, le chien ; le scooter est peint dehors (peindreExterieur)
     { id: 'graffiti', cle: () => (QDECO.graffiti && MEUBLES.graffiti ? '1' : null), faire: (k, c) => MEUBLES.graffiti(c) },
-    { id: 'neon', cle: () => (QDECO.neon && MEUBLES.neon ? '1' : null), faire: (k, c) => MEUBLES.neon(c) },
+    // (le néon remonte au-dessus des bocaux du bestiaire quand l'étagère est là aussi : même fenêtre ; dans la boutique hantée, pas de néon)
+    { id: 'neon', cle: () => (QDECO.neon && MEUBLES.neon ? (HDECO.bestiaire ? 'haut' : '1') : null), faire: (k, c) => MEUBLES.neon(c, k === 'haut') },
     // le chien : couché dans son coin, SAUF quand il est le compagnon de la boutique (« chien-quartier », GAME.COMPAGNONS) : c'est le même
     // chien, il s'est levé pour te suivre ; pas deux chiens identiques dans la salle. Un autre compagnon choisi : il retourne se coucher.
     { id: 'chien', cle: () => (QDECO.chien && MEUBLES.chien && modeleComp !== 'chien-quartier' ? '1' : null), faire: (k, c) => MEUBLES.chien(c) },
@@ -9486,7 +9504,9 @@ const SCENE = (() => {
     im.visible = cle.includes('1'); // personne d'assis : pas même un appel de dessin
     LAY.sieges.forEach((s, i) => {
       if (i >= im.count) return; if (cle[i] !== '1') { im.setMatrixAt(i, ZERO4); return; }
-      const t = s.table || s, k = s.zone === 'bar' ? 0 : s.zone === 'banquette' ? 0.3 : 0.45, x = t.x + (s.x - t.x) * k, y = s.zone === 'bar' ? LAY.bar.y - 4 * V.K : t.y + (s.y - t.y) * k;
+      const t = s.table || s, k = s.zone === 'bar' ? 0 : s.zone === 'banquette' || s.zone === 'terrasse' ? 0.3 : 0.45, x = t.x + (s.x - t.x) * k; // (la table bistrot de la terrasse est plus petite : 12 de rayon contre 16)
+      // (la table basse du coin salon n'a que 16 de fond : le couvert de la banquette reste à 3 du milieu en profondeur, sur le plateau, au lieu de déborder dans le vide)
+      const dy = (s.y - t.y) * k, y = s.zone === 'bar' ? LAY.bar.y - 4 * V.K : t.y + (s.zone === 'banquette' ? Math.max(-3 * V.K * SY, Math.min(3 * V.K * SY, dy)) : dy);
       _m4.makeRotationY(s.dir === 1 ? Math.PI / 2 : s.dir === -1 ? -Math.PI / 2 : 0).setPosition(x, MEUBLES.HAUT[s.zone] || 29, wz(y)); im.setMatrixAt(i, _m4);
     });
     im.instanceMatrix.needsUpdate = true;
@@ -10464,7 +10484,7 @@ const GARDEROBE_UI = (() => {
     const cases = PIECES.map(([p, nom]) => { const v = G.vetement(g.equipe[p]); return `<button type="button" class="gr-case" data-gr-ouvrir="${p}" aria-label="${nom} : ${v ? esc(v.nom) : 'rien'}"><span class="gr-ico">${v ? icone(v) : ICONS.UI[p]}</span><small>${nom}</small><b>${v ? esc(v.nom) : 'Rien'}</b>${v && v.collection !== 'base' ? `<i class="gr-niv">${g.objets[v.id].niv}</i>` : ''}</button>`; }).join('');
     return `<div class="card gr-carte" data-garderobe><div class="c-tete"><span class="pic peche">${ICONS.UI.garderobe}</span><h3>Garde-robe</h3><span class="compte ${ens ? 'or' : ''}">${ens ? esc(GR.ensembles[ens].nom) : n ? `${n} pièce${n > 1 ? 's' : ''}` : 'tenue de toujours'}</span></div>
       <div class="gr-cases">${cases}</div>
-      <p class="gr-bonus">${bonus.length ? bonus.join(' · ') : 'Pas encore de bonus : les tenues des podiums et des événements en donnent.'}</p>
+      <p class="gr-bonus">${bonus.length ? bonus.join(' · ') : 'Pas encore de bonus : les tenues des podiums, des événements et du parcours du boulanger en donnent.'}</p>
       <button type="button" class="btn large clair" data-gr-ouvrir="tete"><b>Ouvrir la garde-robe</b></button></div>`;
   }
   // ─── la feuille : la pièce choisie en segments, ce qu'on possède, porter, améliorer, puis les ensembles ───
@@ -10495,7 +10515,7 @@ const GARDEROBE_UI = (() => {
       return `<div class="gr-piece ${actuel ? 'porte' : ''} ${v.collection}"><button type="button" class="gr-choisir" data-gr-porter="${v.id}" aria-pressed="${actuel}"><span class="gr-ico">${icone(v)}</span><span class="gr-txt"><b>${esc(v.nom)}</b><small>${esc(COLLECTION[v.collection] || v.collection)}${base ? '' : ` · ${RARETE[v.rarete] || v.rarete}`}</small>${base ? '' : `<small class="gr-etoiles" aria-label="niveau ${o.niv} sur ${GR.nivMax}">${etoiles(o.niv)}</small>`}<small class="gr-b">${base ? esc(v.desc) : now.join(' · ')}</small>${suivant.length ? `<small class="gr-suivant">Niveau ${o.niv + 1} : ${suivant.join(' · ')}</small>` : ''}</span>${actuel ? '<span class="gr-ok">Porté ✓</span>' : ''}</button>
         ${base ? '' : max ? '<span class="gr-max">Niveau max ✓</span>' : `<button type="button" class="btn ${ok ? 'beurre' : 'non'} gr-ameliorer" data-gr-ameliorer="${v.id}" aria-label="Améliorer ${esc(v.nom)} : ${cout} étoile${cout > 1 ? 's' : ''}"><small>Améliorer</small><b>${cout} ★</b></button>`}</div>`;
     }).join('');
-    const indice = liste.length <= 1 && p !== 'accessoire' ? `<p class="note centre">Une seule pièce ici pour l’instant. Les podiums du classement et les événements en offrent d’autres.</p>` : '';
+    const indice = liste.length <= 1 && p !== 'accessoire' ? `<p class="note centre">Une seule pièce ici pour l’instant. Les podiums du classement, les événements et le parcours du boulanger en offrent d’autres.</p>` : '';
     const ensembles = Object.keys(GR.ensembles).map((c) => {
       const pieces = Object.values(GR.objets).filter((v) => v.collection === c), eues = pieces.filter((v) => g.objets[v.id]).length, portees = pieces.filter((v) => g.equipe[v.piece] === v.id).length, complet = ens === c;
       return `<div class="gr-ensemble ${c} ${complet ? 'complet' : ''} ${eues ? '' : 'absent'}"><span class="gr-minis" aria-hidden="true">${pieces.map((v) => `<i class="${g.objets[v.id] ? '' : 'manque'}">${icone(v)}</i>`).join('')}</span><span class="gr-txt"><b>${esc(GR.ensembles[c].nom)}</b><small>${complet ? 'Ensemble complet porté : ' + G.texteBonus(GR.ensembles[c].bonus).join(' · ') : eues ? `${eues === 4 ? `${portees}/4 portée${portees > 1 ? 's' : ''}` : `${eues}/4 pièce${eues > 1 ? 's' : ''}`} · au complet : ${G.texteBonus(GR.ensembles[c].bonus).join(' · ').toLowerCase()}` : esc(QUELLE[c] || '')}</small></span>${eues === 4 && !complet ? `<button type="button" class="btn clair gr-tout" data-gr-ensemble="${c}"><b>Tout porter</b></button>` : complet ? '<span class="gr-ok">✓</span>' : ''}</div>`;
@@ -10769,8 +10789,9 @@ const GARDEROBE_UI = (() => {
     const jeuMini = (jid) => MINI.jeux.find((j) => j.id === jid) || null;
     const arrondi = R.arrondi || ((n) => Math.round(n));
     // le jour de l'ouverture (une demi-journée), les activités ne paient pas encore : c'est là que l'économie de l'événement grimpe le plus
-    // vite (tout le monde part de zéro), et le moindre gain en plus s'y multiplie (l'enveloppe du serveur) ; elles ouvrent le lendemain à minuit
-    const ouvertes = (now) => !R.fenetre || R.fenetre(Number.isFinite(now) ? now : 0).jour >= MINI.desLeJour;
+    // vite (tout le monde part de zéro), et le moindre gain en plus s'y multiplie (l'enveloppe du serveur) ; elles ouvrent le lendemain à minuit.
+    // Elles ferment avec l'événement : après la fin (fenetre.fini, où jour vaut le dernier jour), une partie ou un contrat ne paie plus rien
+    const ouvertes = (now) => { if (!R.fenetre) return true; const f = R.fenetre(Number.isFinite(now) ? now : 0); return f.jour >= MINI.desLeJour && !f.fini; };
     const minutesDe = (q, minutes) => arrondi(Math.max(MINI.plancher, R.rythme(q) * minutes * 60)); // N minutes du rythme de référence, maintenant
 
     // ─── l'état : q.mini, q.contrats, q.operation, et les compteurs de q.stats (une vieille sauvegarde se relit sans rien perdre) ───
@@ -11336,7 +11357,7 @@ const GARDEROBE_UI = (() => {
     if (p.boost) l.push(`boost ×${p.boost.mult} ${fmtDuree(p.boost.secs)}`);
     if (p.prime) l.push(`${p.prime} h de gains`);
     if (p.deco) l.push({ graffiti: 'graffiti sur le mur', neon: 'enseigne néon', scooter: 'scooter devant la porte', chien: 'le chien du quartier (et un compagnon)' }[p.deco]);
-    if (p.vetement) l.push({ 'quartier-casquette': 'casquette du quartier', 'quartier-sweat': 'sweat à capuche', 'quartier-baskets': 'baskets', 'quartier-chaine': 'chaîne en or (l’ensemble complet)', 'quartier-neon-casquette': 'la casquette néon (le trophée)' }[p.vetement]);
+    if (p.vetement) l.push({ 'quartier-casquette': 'casquette du quartier', 'quartier-sweat': 'sweat à capuche', 'quartier-baskets': 'baskets', 'quartier-chaine': 'chaîne du quartier (l’ensemble complet)', 'quartier-neon-casquette': 'la casquette néon (le trophée)' }[p.vetement]);
     return l.join(' · ');
   }
 
@@ -13564,6 +13585,9 @@ const EVENEMENTS = (() => {
   // addInitScript) : pendant leurs fenêtres, ni icône ni annonce ni bilan ne viennent couvrir ce qu'ils regardent. Personne ne le pose dans le jeu.
   const coupe = () => typeof window !== 'undefined' && !!(window.__sansQuartier || window.__sansEvenements);
   let calmeJusqua = 0; // un écran d'événement vient de se fermer : la prochaine annonce attend un peu (jamais deux annonces coup sur coup)
+  // un trou de plus de 10 s entre deux pas est une sortie, que Q.tick met lui-même en pause : la même borne que TROU dans src/quartier.js et
+  // src/hantee.js (qui ne l'exportent pas) ; sous un mini-jeu, frame ne met en pause que les écarts plus courts (pas deux fois le même temps)
+  const TROU_EV = 10000;
 
   // ─── le moteur : un écran d'événement pour une fiche ───
   function fabriquer(F) {
@@ -13769,6 +13793,17 @@ const EVENEMENTS = (() => {
       if (!miniOuvert()) ramasser(true);
       return abs;
     }
+    // l'heure sûre a fait sauter le jeu de ms vers l'avant, l'écran ouvert (ui.js payerSaut, avant l'image suivante) : la boulangerie est payée
+    // pour ce temps, l'événement aussi, comme une absence (au ralenti, plafonnée par Q.absence). La boucle a payé jusqu'à son dernier pas
+    // (qq.now) ; on paie de là, sans dépasser ms (ce que la boulangerie a payé : le même plafond), une fois (Q.absence remet lastSeen et now à t)
+    function saut(ms) {
+      if (ecran !== F.ecran || !(ms > 0)) return null;
+      const qq = q(), t = now(); if (Q.fenetre(t).fini) { cloturer(); return null; } // le saut passe la fermeture : payé jusqu'à elle seulement, puis le bilan
+      qq.lastSeen = Math.max(Number.isFinite(qq.now) ? qq.now : 0, t - ms);
+      const abs = Q.absence(qq, t); lastHud = ''; renderEv();
+      if (abs.total > 0 && abs.secs > 90) d.toast(F.t.absence(G.fmtDuree(abs.secs), fmt(abs.total)));
+      d.save(); return abs;
+    }
     // la fermeture de l'événement, l'écran ouvert (en jouant, ou au retour d'un sommeil) : la boucle a payé jusqu'à son dernier pas (qq.now) ;
     // l'absence se paie de là jusqu'à la fermeture, une fois (montrerBilan, qq.absenceFin), jamais au-delà ; puis les activités s'arrêtent et le bilan
     function cloturer() {
@@ -13781,7 +13816,10 @@ const EVENEMENTS = (() => {
       if (ecran !== F.ecran) return;
       const qq = q(), f = Q.fenetre(t);
       if (f.fini) { cloturer(); return; }
-      if (miniOuvert()) { qq.evTimer = Math.max(qq.evTimer, 5); if (qq.ev && genre(qq.ev) !== 'mult' && Q.pauseCoup) Q.pauseCoup(qq, dt * 1000); } // une partie de mini-jeu : le coup de pouce à toucher attend, aucun ne surgit
+      // une partie de mini-jeu : le coup de pouce à toucher attend, aucun ne surgit. La pause suit le vrai temps écoulé depuis le dernier pas
+      // (t − qq.now), pas dt, plafonné à 0,25 s par ui.js (un téléphone qui rame laissait filer l'échéance) ; au-delà de TROU_EV, Q.tick met
+      // déjà le coup de pouce en pause (une courte sortie) : on ne le décale pas deux fois
+      if (miniOuvert()) { qq.evTimer = Math.max(qq.evTimer, 5); const ecart = Math.max(0, t - (qq.now || t)); if (qq.ev && genre(qq.ev) !== 'mult' && Q.pauseCoup && ecart <= TROU_EV) Q.pauseCoup(qq, ecart); }
       const out = Q.tick(qq, dt, t);
       if (act) act.pas(out.manoir || null); // les clients-monstres, les apparitions, la commande de la nuit : ce que les règles ont changé
       if (avecAct() && performance.now() - tAct > 400) { tAct = performance.now(); if (qq.operation && qq.operation.fin <= t) ramasser(!miniOuvert()); majActivites(); }
@@ -14346,7 +14384,7 @@ const EVENEMENTS = (() => {
     }
     const etatMini = () => ({ ouvert: miniOuvert(), ecran: miniEcran, jeu: miniJeu && miniJeu.id, partie: partie && partie.etat ? partie.etat() : null, resultat: resultatMini });
 
-    return { init, ouvrir, fermer, annoncer, frame, retour, visible, masquer, majeur, bilanEnAttente, synchroniserRecompenses, donnerPalier, sheetPaliers, cle: F.cle, R: Q, F,
+    return { init, ouvrir, fermer, annoncer, frame, retour, saut, visible, masquer, majeur, bilanEnAttente, synchroniserRecompenses, donnerPalier, sheetPaliers, cle: F.cle, R: Q, F,
       mini: etatMini, ouvrirMini, fermerMini, sheetMini, sheetContrats, sheetOperation, majActivites,
       fenetre: () => (Q && d ? fen() : null), get ouvert() { return ouvert(); }, get ecran() { return ecran; }, get scene() { return scene3; }, get act() { return act; } };
   }
@@ -14979,7 +15017,6 @@ const EVENEMENTS = (() => {
     // l'habillage des coups de pouce donné par H1 (FICHE.evenements : nom, annonce, bouton, detail, fin) → les champs de la bannière
     const HE = HF.evenements || null, coupsType = {};
     if (HE) for (const [type, e] of Object.entries(HE)) { if (!e) continue; const x = {}; if (e.nom) x.titre = e.nom; if (e.annonce) x.debut = e.annonce; if (e.bouton) x.bouton = e.bouton; if (e.fin) { x.fin = e.fin; x.perte = (m) => `${e.fin} (−${m})`; } if (typeof e.detail === 'function') x.detail = (ev) => esc(e.detail(ev)); coupsType[type] = x; }
-    const fmtDon = (v) => v;
     const F = {
       cle, p: 'ht', racine: '#hantee', ecran: 'manoir', classe: 'ht', R: HR, nom, lieu, porte: false, lot: 'hantee', couleurs,
       fmt: bonbons, fmtPhrase: bonbons, prix: (n) => `${nombre(n)}<i class="bb" aria-hidden="true"></i>`, solde: (n) => `${nombre(n)}<small class="bb-mot">${nomDevise}</small>`,
@@ -16692,6 +16729,8 @@ const UI = (() => {
     if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); } else if (c.el.className !== cls) c.el.className = cls;
     if (c.bar) c.bar.style.width = (s.actif ? Math.min(100, s.prog / Math.max(0.01, G.tempsSaison(st)) * 100) : 0).toFixed(1) + '%';
   }
+  // le vrai gain de la première fournée, au niveau 1 et à la main (étoiles, bonus, mobilier… compris), comme premiereVente de src/evenement.js
+  const premiereFournee = (i) => G.revenuFournee(Object.assign({}, st, { stations: st.stations.map((x, k) => (k === i ? Object.assign({}, x, { niv: 1, staff: false }) : x)) }), i);
   function renderCards(force) {
     renderSaison(force);
     const remise = G.remise(st), critique = st.ev && st.ev.type === 'critique' ? st.ev.restants : [];
@@ -16705,12 +16744,12 @@ const UI = (() => {
         const q = p.quartier ? G.QUARTIERS.find((x) => x.id === p.quartier) : null;
         cls = 'carte verrou boutique';
         html = `<div class="icone">${ICONS.PRODUITS[p.id]}<span class="cadenas" aria-hidden="true">${ICONS.UI.cadenas}</span></div><div class="corps"><h3>${esc(p.nom)} <span class="tag boutique">boutique n°${p.boutique}</span></h3>
-          <p class="but">Ouvre la boutique n°${p.boutique} pour la débloquer</p><p>${esc(p.desc)}${q ? ` La recette de ${esc(q.nom)}.` : ''} Rapporte ${G.fmtEur(p.rev)} la fournée.</p>
+          <p class="but">Ouvre la boutique n°${p.boutique} pour la débloquer</p><p>${esc(p.desc)}${q ? ` La recette de ${esc(q.nom)}.` : ''} Rapporte ${G.fmtEur(premiereFournee(i))} la fournée.</p>
           <button type="button" class="btn lavande" data-a="parcours"><small>Le parcours du boulanger</small><b>Voir ce qui t’attend</b></button></div>`;
       } else if (s.niv === 0) {
         const prev = i === 0 || st.stations[i - 1].niv > 0, ok = st.coins >= p.debloquer * remise;
         cls = 'carte verrou' + (prev ? '' : ' secret');
-        html = `<div class="icone">${ICONS.PRODUITS[p.id]}</div><div class="corps"><h3>${esc(p.nom)}</h3><p>${esc(p.desc)} Rapporte ${G.fmtEur(p.rev)} la fournée.</p>
+        html = `<div class="icone">${ICONS.PRODUITS[p.id]}</div><div class="corps"><h3>${esc(p.nom)}</h3><p>${esc(p.desc)} Rapporte ${G.fmtEur(premiereFournee(i))} la fournée.</p>
           <button type="button" class="btn ${ok ? 'menthe' : 'non'}" data-a="debloquer"><small>${remise < 1 ? `Débloquer −${Math.round((1 - remise) * 100)} %` : 'Débloquer'}</small><b>${G.fmtEur(p.debloquer * remise)}</b></button></div>`;
       } else {
         const n = G.quantite(st, i), prix = G.prixNiveaux(st, i, n), ok = st.coins >= prix, pal = G.prochainPalier(s.niv);
@@ -16820,9 +16859,18 @@ const UI = (() => {
   const NVS = typeof NV !== 'undefined' ? NV : null;
   const nouveautesNonVues = () => (NVS && st ? NVS.nonVues(st.nouveautesVues).length : 0);
   const primesAReclamer = () => { const j = G.objectifsDuJour(st, st.now), sm = st.semaine; return j.objectifs.filter((o) => o.fait && !o.reclame).length + (sm && sm.fait && !sm.reclame ? 1 : 0); };
+  const etoilesPretes = (st, gain) => gain >= 3 && G.passageOk(st); // la pastille ★ clignote : 3 étoiles au moins, et le défi de passage fait
   function badge(el, n, cls) { const b = el.querySelector('.badge'); if (!b) return; b.hidden = !n; b.textContent = n > 0 && cls !== 'point' ? n : ''; b.className = 'badge' + (cls ? ' ' + cls : ''); }
+  // l'enseigne : un nom trop long pour la largeur (« Le Grand Fournil de la Capitale » à 360 px) passe en petit, sur deux lignes ;
+  // mesuré seulement quand le nom, la largeur ou les polices changent
+  let enseigneVue = '';
+  function majEnseigne(nom) {
+    const cle = `${nom}|${innerWidth}|${document.fonts ? document.fonts.status : ''}`; if (cle === enseigneVue) return; enseigneVue = cle;
+    const e = $('#enseigne'), s = e.querySelector('span'); s.textContent = nom; e.classList.remove('long');
+    if (s.scrollWidth > s.clientWidth + 1) e.classList.add('long');
+  }
   function hud() {
-    const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st), marche = G.jourDeMarche(st.now), boost = st.boost && st.boost.fin > st.now ? st.boost.mult : 0;
+    const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st), pret = etoilesPretes(st, gain), marche = G.jourDeMarche(st.now), boost = st.boost && st.boost.fin > st.now ? st.boost.mult : 0;
     const bonus = G.AMELIORATIONS.filter((a) => !st.ameliorations[a.id] && G.ameliorationOuverte(st, a) && st.coins >= G.prixBonus(st, a)).length + G.MOBILIER.filter((m) => G.mobilierCran(st, m.id) < m.max && st.coins >= G.prixMeuble(st, m.id)).length, primes = primesAReclamer(), pts = G.ptsTalents(st);
     if (pageActive === 'journal' && tiroir.pos !== 'ferme' && nonLues()) marquerLu(); // une nouvelle arrivée pendant qu'on lit le Journal est lue aussitôt
     const nouveaux = nonLues(), nom = G.nomBoutique(st), ev = st.ev ? st.ev.type : '', nv = nouveautesNonVues();
@@ -16830,14 +16878,14 @@ const UI = (() => {
     // la ligne du rythme et les badges s'y relaient toutes les 4 s, à hauteur constante
     const br = st.boosts && st.boosts.actif && st.boosts.actif.fin > st.now ? st.boosts.actif.mult : 0; // un boost de la réserve (l'événement du quartier)
     const extras = [marche && 'Marché ×1,5', boost && `Bonne critique ×${boost}`, br && `Boost ×${br}`].filter(Boolean), tour = extras.length ? Math.floor(performance.now() / 4000) % (extras.length + 1) : 0;
-    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}|${br}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}|${tour}|${nv}`;
+    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${pret}|${marche}|${boost}|${br}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}|${tour}|${nv}`;
+    majEnseigne(nom); // avant le raccourci : les polices arrivent sans que rien d'autre ne change
     if (key === lastHud) return; lastHud = key;
     $('#coins').textContent = G.fmtEur(st.coins);
     $('#taux').innerHTML = `<span${tour ? ' style="display:none"' : ''}>${taux > 0 ? `<b>+${G.fmtEur(taux)}</b><span class="ps"> par seconde</span><span class="ps-c"> / s</span>` : 'Touche la baguette !'}</span>` + extras.map((t, k) => `<span class="marche" style="margin:0;padding:1px 7px;vertical-align:top${tour === k + 1 ? '' : ';display:none'}">${t}</span>`).join('');
     $('#etoiles-n').innerHTML = gain > 0 ? `${st.etoiles}<small><i> · </i>+${gain}</small>` : st.etoiles; // sur un téléphone, le « +gain » passe sous le compte (style.css)
-    $('#b-etoiles').classList.toggle('pret', gain >= 3);
+    $('#b-etoiles').classList.toggle('pret', pret);
     $('#b-ameliorations').classList.toggle('pret', bonus > 0); badge($('#b-ameliorations'), bonus);
-    $('#enseigne span').textContent = nom;
     $('#b-cloche').classList.toggle('actif', !!ev); $('#b-cloche .point').hidden = !ev && !nouveaux; // la cloche : l'événement en cours, sinon les nouvelles pas lues
     $('#b-cloche').setAttribute('aria-label', ev ? 'Événement en cours' : nouveaux ? `${nouveaux} nouvelle${nouveaux > 1 ? 's' : ''} dans le Journal` : 'Le Journal');
     $('#b-nouveautes .point').hidden = !nv; // le cadeau : une mise à jour pas encore vue
@@ -17151,6 +17199,7 @@ const UI = (() => {
     html: () => {
       const q = G.QUARTIERS[G.quartier(st)], cr = classement ? classement.resume() : null;
       const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
+      const info = (ico, titre, sous) => `<div class="reglage info"><i class="ico">${ico}</i><span><b>${titre}</b><small>${sous}</small></span><span></span></div>`; // une ligne qui informe, sans action
       const sw = (on) => `<span class="interrupteur" role="switch" aria-checked="${on}"></span>`, chev = `<i class="ico chev">${ICONS.UI.chevron}</i>`;
       const groupe = (titre, lignes) => `<h3 class="titre-section"><span>${titre}</span></h3><div class="card reglages">${lignes}</div>`;
       const choix = (cle, ico, titre, aide, options) => `<div class="reglage choix" data-choix="${cle}"><i class="ico">${ico}</i><span><b id="rg-${cle}">${titre}</b><small id="rg-${cle}-aide">${aide}</small></span><span></span>`
@@ -17163,8 +17212,8 @@ const UI = (() => {
           + (typeof HDM !== 'undefined' && HDM.actif ? ligne('hd', ICONS.UI.amenager, 'Décors en HD', HDM.raison === 'écran noir' ? 'Coupés : l’écran restait noir sur ce téléphone. Touche pour réessayer' : st.qualite === 'eco' && !HDM.coupe() ? 'En qualité Éco, ils ne se chargent pas : choisis Auto, Haute ou Moyenne pour les voir' : 'Boutique et événements : meubles, rue de nuit et équipe animée (à couper si l’écran reste noir)', sw(!HDM.coupe())) : ''))}
         ${groupe('La boutique', ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)
           + ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés, leurs crans et leurs prix : touche-les pour les améliorer', chev)
-          + (st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, ''))
-          + ligne('compagnons', ICONS.UI.patte, 'Le compagnon', st.chat ? `${esc(st.chat.nom)}, ${esc(G.compagnon(modeleVu()).nom.toLowerCase())} · treize animaux au choix, du chat au mini-dragon` : 'Choisis l’animal de la boutique : du chat roux au mini-dragon', chev)
+          + (st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : info(ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`))
+          + ligne('compagnons', ICONS.UI.patte, 'Le compagnon', st.chat ? `${esc(st.chat.nom)}, ${esc(G.compagnon(modeleVu()).nom.toLowerCase())} · ${G.COMPAGNONS.length} animaux au choix, du chat au mini-dragon` : 'Choisis l’animal de la boutique : du chat roux au mini-dragon', chev)
           + (st.chat ? ligne('chat', ICONS.UI.chat, `Renommer ${esc(st.chat.nom)}`, 'Le compagnon de la boutique', chev) : ''))}
         ${cr && cr.rejoint ? groupe('Classement', ligne('cl-quitter', ICONS.UI.quitter, 'Quitter le classement', `Ton pseudo « ${esc(cr.pseudo)} » et tes points disparaissent du classement`, chev)) : ''}
         ${blocNotifs(ligne, sw)}
@@ -17224,7 +17273,7 @@ const UI = (() => {
       <span class="tk-pill">${aReclamer ? 'Prime !' : `<i class="ico">${ICONS.UI.chevron}</i>`}</span>`;
   }
 
-  // ─── la réserve de boosts (les paliers de l'événement du quartier) : une pastille sous les objectifs, à lancer quand on veut ───
+  // ─── la réserve de boosts (les paliers des événements, le parcours, les contrats de la nuit, les copains) : une pastille sous les objectifs, à lancer quand on veut ───
   let lastBoosts = '';
   function renderBoosts() {
     const el = $('#boosts'); if (!el) return;
@@ -17233,13 +17282,13 @@ const UI = (() => {
     const reste = actif ? G.fmtChrono((actif.fin - st.now) / 1000) : '', key = `${actif ? actif.mult + reste : ''}|${reserve.map((x) => x.mult + ':' + x.secs).join(',')}`;
     if (key === lastBoosts) return; lastBoosts = key; el.hidden = false;
     el.className = 'ticket boosts' + (actif ? ' actif' : '');
-    el.innerHTML = `<i class="ico">${ICONS.UI.eclair}</i><span class="tk-txt"><b>${actif ? `Boost ×${actif.mult} en cours` : `Boost ×${reserve[0].mult} · ${G.fmtDuree(reserve[0].secs)}`}</b><small>${actif ? `Toutes les ventes ×${actif.mult}${reserve.length ? ` · encore ${reserve.length} en réserve` : ''}` : reserve.length > 1 ? `${reserve.length} boosts en réserve, gagnés au Quartier` : 'Gagné au Quartier : lance-le quand tu veux'}</small></span><span class="tk-pill">${actif ? reste : 'Lancer'}</span>`;
+    el.innerHTML = `<i class="ico">${ICONS.UI.eclair}</i><span class="tk-txt"><b>${actif ? `Boost ×${actif.mult} en cours` : `Boost ×${reserve[0].mult} · ${G.fmtDuree(reserve[0].secs)}`}</b><small>${actif ? `Toutes les ventes ×${actif.mult}${reserve.length ? ` · encore ${reserve.length} en réserve` : ''}` : reserve.length > 1 ? `${reserve.length} boosts en réserve` : 'En réserve : lance-le quand tu veux'}</small></span><span class="tk-pill">${actif ? reste : 'Lancer'}</span>`;
   }
   function lancerBoost() {
     const b = st.boosts; if (!b || (b.actif && b.actif.fin > st.now)) { toast('Un boost tourne déjà : attends la fin.'); return; }
     if (!b.reserve.length) return;
     if (b.reserve.length === 1) { const r = G.lancerBoostReserve(st, 0); if (r.ok) reussite(`Boost ×${r.boost.mult} lancé : toutes les ventes ×${r.boost.mult} pendant ${G.fmtDuree((r.boost.fin - st.now) / 1000)} !`); return; }
-    openSheet(`<h2>La réserve de boosts</h2><p class="sous">Gagnés aux paliers des événements, avec les pourboires des copains et l’objectif commun. Un seul à la fois ; il tourne sur l'horloge, même la boutique fermée.</p><div class="liste-am">${b.reserve.map((x, k) => `<div class="am"><div><h3>Boost ×${x.mult}</h3><p>Toutes les ventes ×${x.mult} pendant ${G.fmtDuree(x.secs)}</p></div><button type="button" class="btn beurre" data-k="${k}"><small>Lancer</small><b>×${x.mult}</b></button></div>`).join('')}</div>${btnRetour()}`);
+    openSheet(`<h2>La réserve de boosts</h2><p class="sous">Gagnés aux paliers des événements, sur le parcours du boulanger, aux contrats de la nuit, avec les pourboires des copains et l’objectif commun. Un seul à la fois ; il tourne sur l'horloge, même la boutique fermée.</p><div class="liste-am">${b.reserve.map((x, k) => `<div class="am"><div><h3>Boost ×${x.mult}</h3><p>Toutes les ventes ×${x.mult} pendant ${G.fmtDuree(x.secs)}</p></div><button type="button" class="btn beurre" data-k="${k}"><small>Lancer</small><b>×${x.mult}</b></button></div>`).join('')}</div>${btnRetour()}`);
     on('[data-a="close"]', closeSheet);
     on('[data-k]', (el) => { const r = G.lancerBoostReserve(st, +el.dataset.k); closeSheet(); if (r.ok) reussite(`Boost ×${r.boost.mult} lancé : toutes les ventes ×${r.boost.mult} pendant ${G.fmtDuree((r.boost.fin - st.now) / 1000)} !`); else son.non(); });
   }
@@ -17412,7 +17461,8 @@ const UI = (() => {
       <button type="button" class="btn large beurre" data-a="ok" style="margin-top:12px"><b>${nouvelle ? 'C’est parti !' : 'Garder ce nom'}</b></button>
       ${nouvelle ? '' : '<button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Annuler</b></button>'}`);
     const champ = fc.querySelector('.champ');
-    const valider = () => { G.renommer(st, champ.value); if (choixSpe && spe != null) G.choisirSpecialite(st, spe); save(); renderCards(true); hud(); closeSheet(); renderPage(true); toast(`${G.nomBoutique(st)} : bienvenue !${choixSpe && spe != null ? ` Spécialité : ${G.PRODUITS[spe].pl}.` : ''}`); };
+    // le nom proposé (l'enseigne du quartier) n'est pas stocké : G.renommer le couperait à 24 caractères (« Le Grand Fournil de la C »)
+    const valider = () => { const v = champ.value.replace(/\s+/g, ' ').trim(); G.renommer(st, v === q.enseigne ? '' : v); if (choixSpe && spe != null) G.choisirSpecialite(st, spe); save(); renderCards(true); hud(); closeSheet(); renderPage(true); toast(`${G.nomBoutique(st)} : bienvenue !${choixSpe && spe != null ? ` Spécialité : ${G.PRODUITS[spe].pl}.` : ''}`); };
     on('[data-a="ok"]', valider); on('[data-a="non"]', closeSheet);
     on('[data-s]', (b) => { spe = +b.dataset.s; fc.querySelectorAll('[data-s]').forEach((x) => x.classList.toggle('actif', x === b)); son.tap(); });
     champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') valider(); });
@@ -17470,23 +17520,25 @@ const UI = (() => {
     return ICONS.ETOILE;
   }
   const leRecompense = (r) => (!r ? '' : r.type === 'recette' ? `le ${r.p.nom}`.replace(/^le ([AEÉIOU])/, 'l’$1').replace(/^le Tarte/, 'la Tarte') : G.texteRecompense(r)); // « le Paris-Brest », « l’Opéra », « la Tarte aux myrtilles »
+  // le défi de passage, encore exigé après la n°30 (celui de la n°29) : sa ligne sous « Parcours terminé », texte et progression
+  const ligneDefiFin = (d) => (d ? `<p class="note">${d.fait ? '✓ ' : ''}Défi de passage : ${esc(d.txt)} · ${G.fmt(d.progres)}/${G.fmt(d.cible)}</p><div class="mini xp"><i style="width:${Math.floor(d.part * 100)}%"></i></div>` : '');
   // la carte en haut de l'onglet Défis : « Objectif : boutique n°6 · Canelé · 52 % »
   function carteParcours() {
     const b = G.butParcours(st);
-    if (b.fini) return `<div class="card parcours fini" data-a="parcours" role="button" tabindex="0"><div class="c-tete"><span class="pic or">${ICONS.UI.parcours}</span><h3>Parcours terminé, félicitations !</h3><span class="compte or">30/30</span></div><p class="note">Les trente boutiques sont ouvertes${G.titreParcours(st) ? ` : te voilà « ${esc(G.titreParcours(st))} »` : ''}. Touche pour revoir ton parcours.</p></div>`;
+    if (b.fini) return `<div class="card parcours fini" data-a="parcours" role="button" tabindex="0"><div class="c-tete"><span class="pic or">${ICONS.UI.parcours}</span><h3>Parcours terminé, félicitations !</h3><span class="compte or">${G.PARCOURS_FIN}/${G.PARCOURS_FIN}</span></div><p class="note">Les ${G.PARCOURS_FIN} boutiques sont ouvertes${G.titreParcours(st) ? ` : te voilà « ${esc(G.titreParcours(st))} »` : ''}. Touche pour revoir ton parcours.</p>${ligneDefiFin(b.defi)}</div>`;
     const r = b.recompense, pc = Math.floor(b.part * 100);
     return `<div class="card parcours ${b.pret ? 'pret' : ''}" data-a="parcours" role="button" tabindex="0" aria-label="Le parcours du boulanger : objectif boutique n°${b.n}, ${pc} %">
       <div class="c-tete"><span class="pic lav">${icoRecompense(r)}</span><h3>Objectif : boutique n°${b.n}${r ? ` · ${esc(r.type === 'recette' ? r.p.nom : r.type === 'quartier' ? r.quartier.nom : G.texteRecompense(r))}` : ''}</h3><span class="compte ${b.pret ? 'ok' : ''}">${pc} %</span></div>
       <div class="mini xp"><i style="width:${pc}%"></i></div>
-      <p class="note">${b.pret ? 'Prête à ouvrir : touche ★ en haut.' : `Étoiles : +${G.fmt(b.gain)} sur +${G.fmt(b.conseil)} conseillées${b.defi ? ` · Défi : ${esc(b.defi.txt)} (${G.fmt(b.defi.progres)}/${G.fmt(b.defi.cible)})` : ''}`}</p></div>`;
+      <p class="note">${b.pret ? (etoilesPretes(st, b.gain) ? 'Prête à ouvrir : touche ★ en haut.' : 'Prête à ouvrir : ouvre la feuille ★.') : `Étoiles : +${G.fmt(b.gain)} sur +${G.fmt(b.conseil)} conseillées${b.defi ? ` · Défi : ${esc(b.defi.txt)} (${G.fmt(b.defi.progres)}/${G.fmt(b.defi.cible)})` : ''}`}</p></div>`;
   }
-  function sheetParcours() { // les trente boutiques : passées, actuelle, à venir ; leur quartier, leur récompense, leur défi
+  function sheetParcours() { // les boutiques du parcours (G.PARCOURS_FIN) : passées, actuelle, à venir ; leur quartier, leur récompense, leur défi
     const liste = G.parcoursListe(st), b = G.butParcours(st);
     const ligne = (x) => `<li class="pc-ligne ${x.etat}"><span class="pc-n">${x.n}</span><span class="pc-ico">${x.n === 1 ? icoQuartier(x.quartier) : icoRecompense(x.recompense)}</span>
       <span class="pc-txt"><b>${x.n === 1 ? 'Ta première boutique' : esc(x.texte || '—')}</b><small>${esc(x.quartier ? x.quartier.nom : '')}${x.etat === 'actuelle' ? ' · tu es ici' : ''}</small>${x.defi && x.etat !== 'passee' ? `<small class="pc-defi">Pour ouvrir la n°${x.n + 1} : ${esc(x.defiTxt)}</small>` : ''}</span>
       ${x.etat === 'passee' ? `<i class="pc-ok">${ICONS.UI.coche || '✓'}</i>` : ''}</li>`;
     openSheet(`<h2>Le parcours du boulanger</h2><p class="sous">Trente boutiques, une récompense à chacune : des recettes, des quartiers, une tenue, des bonus. Dès la boutique n°6, ouvrir la suivante demande aussi un défi de passage.${G.titreParcours(st) ? ` Ton titre : <b>${esc(G.titreParcours(st))}</b>.` : ''}</p>
-      ${b.fini ? '<div class="encadre doux"><b>Parcours terminé, félicitations !</b> Les trente boutiques sont ouvertes.</div>' : ''}
+      ${b.fini ? `<div class="encadre doux"><b>Parcours terminé, félicitations !</b> Les ${G.PARCOURS_FIN} boutiques sont ouvertes.${b.defi ? `<br>Pour ouvrir la suivante, le défi de passage : ${esc(b.defi.txt)} · ${G.fmt(b.defi.progres)}/${G.fmt(b.defi.cible)}${b.defi.fait ? ' ✓' : ''}` : ''}</div>` : ''}
       ${ligneStanding()}
       <ol class="pc-liste">${liste.map(ligne).join('')}</ol>${btnRetour()}`);
     on('[data-a="close"]', closeSheet);
@@ -17513,9 +17565,10 @@ const UI = (() => {
     on('[data-a="ok"]', () => { son.tap(); if (suite) suite(); else closeSheet(); });
   }
   function butEtoiles() { // la feuille Étoiles : ce que la prochaine boutique apporte, et son défi de passage
-    const b = G.butParcours(st); if (b.fini) return '<div class="et-but fini"><b>Parcours terminé, félicitations !</b><small>Les trente boutiques du parcours sont ouvertes.</small></div>';
+    const b = G.butParcours(st), ligneDefi = b.defi ? `<span class="et-defi ${b.defi.fait ? 'fait' : ''}">${b.defi.fait ? '✓ ' : ''}Défi de passage : ${esc(b.defi.txt)} · ${G.fmt(b.defi.progres)}/${G.fmt(b.defi.cible)}</span>` : '';
+    if (b.fini) return `<div class="et-but fini"><b>Parcours terminé, félicitations !</b><small>Les ${G.PARCOURS_FIN} boutiques du parcours sont ouvertes.</small>${ligneDefi}</div>`;
     const r = b.recompense;
-    return `<button type="button" class="et-but" data-a="parcours"><span class="et-but-ico">${icoRecompense(r)}</span><span class="et-but-txt"><small>Ta prochaine boutique débloque</small><b>${esc(r ? leRecompense(r) : `la boutique n°${b.n}`)}</b>${b.defi ? `<span class="et-defi ${b.defi.fait ? 'fait' : ''}">${b.defi.fait ? '✓ ' : ''}Défi de passage : ${esc(b.defi.txt)} · ${G.fmt(b.defi.progres)}/${G.fmt(b.defi.cible)}</span>` : ''}</span><i class="ico chev">${ICONS.UI.chevron}</i></button>`;
+    return `<button type="button" class="et-but" data-a="parcours"><span class="et-but-ico">${icoRecompense(r)}</span><span class="et-but-txt"><small>Ta prochaine boutique débloque</small><b>${esc(r ? leRecompense(r) : `la boutique n°${b.n}`)}</b>${ligneDefi}</span><i class="ico chev">${ICONS.UI.chevron}</i></button>`;
   }
   function sheetEtoiles() {
     const gain = G.etoilesGagnables(st), bonus = Math.round(st.etoiles * G.ETOILE_BONUS * 100), q = G.QUARTIERS[G.quartier(st)], defi = G.defiPassage(st), bloque = !!(defi && !defi.fait), titre = G.titreParcours(st);
@@ -17524,7 +17577,7 @@ const UI = (() => {
       <div class="encadre doux">Ouvrir une <b>nouvelle boutique</b> remet les produits et les euros à zéro, mais tu gardes tes étoiles pour toujours. Chaque étoile : <b>+${Math.round(G.ETOILE_BONUS * 100)} %</b> de gains. Plus tu as gagné dans cette boutique, plus tu en récoltes. Les objectifs du jour en donnent une aussi.</div>
       <div class="grand-nombre">+${gain} ★</div><p class="sous">à récolter maintenant (${G.fmtEur(st.lifetimeRun)} gagnés dans cette boutique)</p>
       ${jaugeEtoile()}
-      <button type="button" class="btn large ${gain > 0 && !bloque ? 'beurre' : 'non'}" data-a="prestige"${bloque ? ' aria-disabled="true"' : ''}><small>${bloque ? 'D’abord le défi de passage' : gain > 0 ? 'Repartir avec' : 'Pas encore'}</small><b>${bloque ? `Défi : ${G.fmt(defi.progres)} / ${G.fmt(defi.cible)}` : gain > 0 ? `+${gain} étoile${gain > 1 ? 's' : ''}` : 'Vends encore un peu'}</b></button>
+      <button type="button" class="btn large ${gain > 0 && !bloque ? 'beurre' : 'non'}" data-a="prestige"${bloque ? ' aria-disabled="true"' : ''}><small>${bloque ? `Défi de passage : ${esc(defi.txt)}` : gain > 0 ? 'Repartir avec' : 'Pas encore'}</small><b>${bloque ? `${G.fmt(defi.progres)} / ${G.fmt(defi.cible)}` : gain > 0 ? `+${gain} étoile${gain > 1 ? 's' : ''}` : 'Vends encore un peu'}</b></button>
       <h3 class="titre-section">Ta boutique</h3>
       ${ligneStanding()}
       <div class="stat"><span>Fournées vendues</span><b>${G.fmt(st.stats.ventes)}</b></div><div class="stat"><span>Clients servis</span><b>${G.fmt(st.stats.clients)}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(st.lifetime)}</b></div>
@@ -17534,7 +17587,7 @@ const UI = (() => {
     on('[data-a="prestige"]', () => {
       const dp = G.defiPassage(st); if (dp && !dp.fait) { son.non(); toast(`D’abord le défi de passage : ${dp.txt}.`); return; }
       if (G.etoilesGagnables(st) <= 0) { son.non(); return; }
-      openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les bonus achetés sont perdus.</p>
+      openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les bonus et le mobilier achetés sont perdus (les places des meubles restent). Tes objectifs du jour réussis sont récupérés d’office.</p>
         <button type="button" class="btn large beurre" data-a="oui"><b>Ouvrir la boutique n°${st.boutiques + 1}</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Rester ici</b></button>`);
       on('[data-a="non"]', sheetEtoiles);
       on('[data-a="oui"]', () => { const avant = G.standing ? G.standing(st) : 0, r = G.nouvelleBoutique(st, HORLOGE.maintenant()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); confettis(1.6); const rec = r.recompenses && r.recompenses.find((x) => x.n === st.boutiques); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★${rec ? ` · ${rec.texte}` : ''}`); st.tuto = Math.max(st.tuto, INDICES.length); amenager(false); renderCards(true); hud(); save(); showPage('boutique'); if (G.standing && G.standing(st) > avant) sheetMonteeGamme(() => sheetNom(true)); else sheetNom(true); } }); // un nouveau palier de standing : l'annonce d'abord, puis le nom
@@ -17640,7 +17693,7 @@ const UI = (() => {
   function sheetRetour(abs) {
     const detail = abs.detail.slice().sort((a, b) => b.m - a.m).map((d) => `<li><span>${esc(d.nom || G.PRODUITS[d.i].nom)} × ${G.fmt(d.n)}</span><b>${G.fmtEur(d.m)}</b></li>`).join('');
     const grades = (abs.grades || []).map((g) => `${G.APPRENTIS[g.i].prenom} passe au grade ${g.niv}`).join(' · ');
-    openSheet(`<h2>Pendant ton absence</h2><p class="sous">${G.fmtDuree(abs.secs)}${abs.secs >= G.heuresAbsence(st) * 3600 ? ` (les apprentis s’arrêtent après ${G.heuresAbsence(st)} h)` : ''}</p>
+    openSheet(`<h2>Pendant ton absence</h2><p class="sous">${G.fmtDuree(abs.secs)}${abs.secs >= G.heuresAbsence(st) * 3600 ? ` (les apprentis s’arrêtent après ${G.fmtDuree(G.heuresAbsence(st) * 3600)})` : ''}</p>
       <div class="grand-nombre">+${G.fmtEur(abs.total)}</div><p class="sous">vendus par tes apprentis</p><ul class="detail">${detail}</ul>${grades ? `<p class="sous">${esc(grades)} !</p>` : ''}
       <button type="button" class="btn large menthe" data-a="close"><b>Super !</b></button>`);
     on('[data-a="close"]', closeSheet);
@@ -17667,7 +17720,6 @@ const UI = (() => {
   function chatNoirDispo() { return !!(st && st.chat && G.aCompagnon(st, 'chat-noir')); } // gagné à un palier (GAME.donnerChatNoir)
   const modeleVu = () => (st && st.chat ? G.modeleCompagnon(st, chatNoirForce()) : 'chat-roux'); // l'animal montré dans la boutique
   function chatNoir() { return !!(st && st.chat) && modeleVu() === 'chat-noir'; }
-  function choisirPelage(p) { if (!st || !st.chat) return false; G.choisirPelage(st, p); save(); majChat(); return chatNoir(); } // l'ancien choix (tests, garde-robe d'avant)
   function majChat() { const id = modeleVu(); if (id !== dernierModele) { dernierModele = id; if (SCENE.compagnon) SCENE.compagnon(id); else if (SCENE.pelageChat) SCENE.pelageChat(id === 'chat-noir' ? 'noir' : 'roux'); } }
   const CRIS = { wouf: 'Wouf !', woufgrave: 'WOUF.', cotcot: 'Cot cot !', coincoin: 'Coin coin !', couic: 'Couic !', couac: 'Couac !' };
   function criCompagnon(id) { // la caresse : le cri d'un animal simple (src/sons.js, sinon un bip à sa hauteur), le ronron pour les autres
@@ -17719,7 +17771,6 @@ const UI = (() => {
   const periodes = () => { let p = QT && QT.fenetre(HORLOGE.maintenant()).classement && !(st && st.quartier && st.quartier.masque) ? PERIODES.concat([['quartier', 'Événement']]) : PERIODES; if (ongletHantee()) p = p.concat([[HTE.cle, 'Halloween']]); return p.length > 3 ? p.map(([id, t]) => [id, { semaine: 'Semaine', total: 'Tous', quartier: 'Quartier' }[id] || t]) : p; }; // quatre onglets (les deux semaines du podium du Quartier et Halloween) : des noms courts, lisibles sur un iPhone
   const MSG_RESEAU = { 'hors-ligne': 'Pas de réseau : réessaie quand le téléphone est connecté.', 'lent': 'Le classement est lent à répondre : réessaie dans un instant.', 'pas-ouvert': 'Le classement ouvre bientôt : reviens dans quelques jours.' };
   const msgReseau = (e) => MSG_RESEAU[e] || 'Le classement ne répond pas. Réessaie dans un moment.';
-  function cleClassement() { if (!classement) return ''; const r = classement.resume(); return `${r.rejoint}|${r.pseudo}|${r.semaine ? r.semaine.rang + '/' + r.semaine.joueurs : ''}|${r.total ? r.total.rang + '/' + r.total.joueurs : ''}|${classement.recompenses().podiums.length}|${G.pointsSemaine(st)}`; }
   // ses points de boulanger de la semaine, tels qu'ils partent au classement
   function mesPoints() { const d = G.detailPoints(st); return { points: d.total, lundi: d.semaine }; }
   const pts = (n) => `${G.fmt(n)} pt${n > 1 ? 's' : ''}`;
@@ -18447,8 +18498,14 @@ const UI = (() => {
     const trou = derniereImage ? now - derniereImage : 0; derniereImage = now;
     if (absencePrete && trou > 5000 && reprendre('saut')) { requestAnimationFrame(frame); return; }
     const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert); // pendant l'Atelier, la Planque ou une visite : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
-    if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); }
-    const out = G.tick(st, dt, HORLOGE.maintenant(), atelier ? () => 0.999 : undefined);
+    // sous l'écran, l'événement de la boutique qui se joue au doigt (le critique, le pétrissage, la panne) est EN PAUSE, comme pendant une
+    // courte sortie (G.absence) : ses échéances avancent du vrai temps écoulé depuis le dernier pas (un trou de plus de PAUSE_EV ne se compte
+    // pas ici) ; on le retrouve en refermant. Les autres continuent : le coup de feu, le meunier et l'anniversaire ne demandent rien (les ventes
+    // de dessous l'écran en profitent déjà : en pause, ils dureraient autant qu'on reste dans la Planque), et la commande se remplit seule
+    // (prête, elle attend déjà sa livraison ; en pause, elle aurait tout le temps de se remplir)
+    const tPas = HORLOGE.maintenant(), ecoule = tPas - st.now, evPause = atelier && st.ev && ['critique', 'petrissage', 'panne'].includes(st.ev.type) && ecoule > 0 && ecoule <= G.PAUSE_EV * 1000 ? st.ev : null;
+    if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); if (evPause) for (const k of ['debut', 'fin']) if (Number.isFinite(evPause[k])) evPause[k] += ecoule; }
+    const out = G.tick(st, dt, tPas, atelier ? () => 0.999 : undefined);
     if (out.ventes.length) {
       const gros = out.ventes.reduce((a, v) => a + v.montant, 0), first = out.ventes[0];
       if (!visite && (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15)) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), !st.stations[first.i].staff); son.vente(gros); } // en visite : ses ventes ne s'affichent pas chez le copain
@@ -18544,9 +18601,11 @@ const UI = (() => {
     const base = Number.isFinite(avant) ? Math.min(t, avant, est) : t;
     const rendu = Number.isFinite(avant) ? Math.max(0, avant - base) : 0;
     const dec = (o) => { if (!o || typeof o !== 'object') return; if (Number.isFinite(o.debut) && o.debut > t) { const d = o.debut - t; o.debut -= d; if (Number.isFinite(o.fin)) o.fin -= d; } };
-    const etat = (o, r) => { if (!o || typeof o !== 'object') return; if (Number.isFinite(o.lastSeen)) o.lastSeen = Math.min(o.lastSeen - r, t); if (Number.isFinite(o.now)) o.now = Math.min(o.now, t); dec(o.ev); dec(o.operation); };
+    const etat = (o, r) => { if (!o || typeof o !== 'object') return; if (Number.isFinite(o.lastSeen)) o.lastSeen = Math.min(o.lastSeen - r, t); if (Number.isFinite(o.now)) o.now = Math.min(o.now, t); dec(o.ev); dec(o.boost); dec(o.operation); };
     if (Number.isFinite(avant)) st.lastSeen = base;
-    if (Number.isFinite(st.now)) st.now = Math.min(st.now, t); dec(st.ev);
+    // les boosts aussi (le coup de feu d'une critique, celui de la réserve) : lancés pendant l'avance, ils gardent leur durée à partir de maintenant
+    // (un boost d'avant cette version, sans debut, reste tel quel)
+    if (Number.isFinite(st.now)) st.now = Math.min(st.now, t); dec(st.ev); dec(st.boost); dec(st.boosts && st.boosts.actif);
     for (const k of ['quartier', HTE && HTE.cle]) if (k && st[k]) etat(st[k], rendu);
     noterJournal({ t, r: 'recul', o: Math.round(ms / 1000), s: Math.round(rendu / 1000), g: 0, n: 'recul', ...horlogeVue() });
   }
@@ -18561,6 +18620,7 @@ const UI = (() => {
     st.lastSeen = now - paye;
     const abs = G.absence(st, now);
     absencePayee += abs.secs * 1000;
+    if (EVS && EVS.ouvert && EVS.ouvert.saut) EVS.ouvert.saut(paye); // l'écran d'un événement ouvert (la Planque, le Manoir) : ses apprentis aussi, pour le même temps
     const montre = abs.total > 0 && abs.secs > 90;
     if (montre) { sheetRetour(abs); renderCards(true); }
     noterRetour('heure', abs, paye, montre, true);
@@ -18655,11 +18715,12 @@ const UI = (() => {
     window.addEventListener('blur', save);
     window.addEventListener('resize', layout);
     document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { if (visite && $('#feuille').hidden) finVisite(); else closeSheet(); } });
+    // le parcours du boulanger : une sauvegarde déjà avancée reçoit une fois les récompenses des boutiques passées, AVANT l'absence (ses bonus de
+    // gains et ses étoiles comptent dès cette absence) ; la feuille « Ton parcours » vient après (après celle du retour, si elle est ouverte)
+    const rattrape = fresh ? [] : G.rattraperParcours(st);
     if (!fresh) { const t = HORLOGE.maintenant(), sortie = t - st.lastSeen, abs = G.absence(st, t); absencePayee = abs.secs * 1000; const montre = abs.total > 0 && abs.secs > 90; if (montre) sheetRetour(abs); noterRetour('lancement', abs, sortie, montre, HORLOGE.info().source !== 'telephone'); }
     absencePrete = true;
-    // le parcours du boulanger : une sauvegarde déjà avancée reçoit une fois les récompenses des boutiques passées, puis la feuille « Ton parcours »
-    // (après celle du retour, si elle est ouverte)
-    { const rattrape = fresh ? [] : G.rattraperParcours(st); if (rattrape.length) { save(); const montrer = () => { sheetRecapParcours(rattrape); renderCards(true); hud(); }; if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); } } }
+    if (rattrape.length) { save(); const montrer = () => { sheetRecapParcours(rattrape); renderCards(true); hud(); }; if ($('#feuille').hidden) montrer(); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); montrer(); } }, 1000); } }
     HORLOGE.surSaut(payerSaut);
     if (EVS) { setTimeout(() => { if ($('#feuille').hidden) EVS.annoncer(true); else { const t = setInterval(() => { if ($('#feuille').hidden) { clearInterval(t); EVS.annoncer(true); } }, 1500); } }, 800); } // l'annonce d'un événement (ou son bilan) attend que la feuille du retour soit refermée ; le bilan du Quartier passe avant l'annonce de la Maison hantée
     // l'écran d'un événement se prépare en arrière-plan (5 s après le lancement) pour qui y est déjà entré : il s'ouvrira directement en HD
@@ -18694,16 +18755,16 @@ const UI = (() => {
     renderCards(true); hud(); renderObjectifs(); renderEvenement();
     lastFrame = performance.now();
     requestAnimationFrame(frame);
-    window.__fournil = { get st() { return st; }, get retour() { return { enCours: retourEnCours, dernier: dernierRetour }; }, journalRetours: sheetJournalRetours, nouveautes: sheetNouveautes, cadeaux: verifierCadeaux, G, SCENE, save, son, confettis, audio, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, ficheMeuble: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), tiroirY: () => tiroir.y, amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), nommer: (n) => G.renommer(st, n), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)), partager,
+    window.__fournil = { get st() { return st; }, get retour() { return { enCours: retourEnCours, dernier: dernierRetour }; }, journalRetours: sheetJournalRetours, nouveautes: sheetNouveautes, cadeaux: verifierCadeaux, G, SCENE, save, son, confettis, audio, reset: () => { fige = true; return effacer().then(() => location.reload()); }, absence: (ms) => { st.lastSeen = HORLOGE.maintenant() - ms; const abs = G.absence(st, HORLOGE.maintenant()); sheetRetour(abs); renderCards(true); return abs; }, give: (n) => { G.gagner(st, n, true); renderCards(true); hud(); }, rush: () => G.lancerRush(st), commande: () => G.lancerCommande(st, Math.random), ev: (type) => G.lancerEvenement(st, Math.random, type), mystere: () => SCENE.mystere(), xp: (n) => G.gagnerXp(st, n), meuble: (id) => { const r = G.ameliorerMeuble(st, id); renderCards(true); hud(); save(); return r; }, fiche: sheetMeuble, ficheMeuble: sheetMeuble, tiroir: (p) => (p ? tiroir.aller(p, false) : tiroir.pos), amenager: (on) => { amenager(on); return SCENE.amenager; }, page: showPage, boulanger: () => showPage('boulanger'), scene: (o) => SCENE.forcer(o), journal: () => showPage('journal'), classement: () => classement, feuilleClassement: sheetClassement, recompenses: sheetRecompenses, majRecompenses, habitue: (id) => SCENE.habitue(G.HABITUES.find((h) => h.id === id)),
       apprentiXp: (i, sec) => { const g = G.creditApprenti(st, i, sec / G.temps(st, i)); if (g) annoncerGrade(g); renderCards(true); return G.gradeApprenti(st, i); },
-      chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), parcours: sheetParcours, etoiles: sheetEtoiles, monteeGamme: sheetMonteeGamme, recapParcours: sheetRecapParcours, caresser: caresserChat, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, cadence, qualite: (q) => SCENE.qualite(q), atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden, hantee: !$('#b-hantee').hidden }; }, repeindre, feuilleAtelier: () => sheetAtelier(),
-      quartier: () => (EVT ? EVT.ouvrir() : false), fermerQuartier: () => { if (EVT) EVT.fermer(); }, evenement: EVT, Q: QT,
-      hantee: () => (HTE ? HTE.ouvrir() : false), fermerHantee: () => { if (HTE) HTE.fermer(); }, evHantee: HTE, HT, annoncerEvenements: (f) => (EVS ? EVS.annoncer(f !== false) : false), chatNoir, choisirPelage, compagnons: (retour) => sheetCompagnons(retour), choisirCompagnon: (id) => { const r = G.choisirCompagnon(st, id); if (r.ok) { save(); majChat(); } return r; }, modeleVu, majChat, boosts: () => st.boosts, lancerBoost, renderBoosts, annoncerQuartier: () => (EVT ? EVT.annoncer() : false), majCoin,
+      chat: () => sheetChat(), ficheApprenti: (i) => sheetApprenti(i), parcours: sheetParcours, etoiles: sheetEtoiles, monteeGamme: sheetMonteeGamme, saison: (id) => { G.forcerRecette(id); G.objectifsDuJour(st, HORLOGE.maintenant()); renderCards(true); return st.saison; }, stats: () => SCENE.stats, cadence, atelier: () => MINIJEUX.etat(), ouvrirAtelier: (id) => MINIJEUX.ouvrir(id), fermerAtelier: () => MINIJEUX.fermer(), points: () => G.detailPoints(st), garderobe: (piece) => { if (GRU) GRU.ouvrir(ctxGarderobe(), piece); }, vetement: (id) => { const r = G.donnerVetement(st, id); save(); lastPage = ''; renderPage(true); return r; }, rafraichir: () => { renderCards(true); hud(); save(); lastPage = ''; renderPage(true); }, coin: () => { majCoin(); const b = $('#b-classement'), p = b.querySelector('.rang-pastille'); return { classement: !b.hidden, pastille: p.hidden ? '' : p.textContent, label: b.getAttribute('aria-label'), quartier: !$('#b-quartier').hidden, hantee: !$('#b-hantee').hidden }; },
+      quartier: () => (EVT ? EVT.ouvrir() : false), evenement: EVT, Q: QT,
+      hantee: () => (HTE ? HTE.ouvrir() : false), fermerHantee: () => { if (HTE) HTE.fermer(); }, evHantee: HTE, HT, annoncerEvenements: (f) => (EVS ? EVS.annoncer(f !== false) : false), chatNoir, compagnons: (retour) => sheetCompagnons(retour), choisirCompagnon: (id) => { const r = G.choisirCompagnon(st, id); if (r.ok) { save(); majChat(); } return r; }, boosts: () => st.boosts, lancerBoost, renderBoosts,
       visiter: (p, ev) => visiter(p, true, ev), finVisite, visite: () => (visite ? { pseudo: visite.pseudo, scene: visite.scene, charge: visite.charge, etat: visite.etat, nom: visite.b ? visite.b.nom : null, ev: visite.E ? visite.E.cle : null, ev3: !!visite.ev3, images: visite.images, calls: visite.ev3 ? visite.ev3.calls : 0, q: visite.qe ? { postes: visite.qe.postes.map((x) => [x.niv, x.staff]), paliers: visite.qe.paliers.length, total: visite.qe.total, decos: visite.qe.decos.slice() } : null } : null), // classement v6 (pour les tests)
-      fiche: () => (fiche ? { pseudo: fiche.pseudo, charge: fiche.charge, etat: fiche.etat, photo: !!(fiche.data && fiche.data.photo), stats: !!(fiche.b && fiche.b.stats) } : null), ficheCopain, tenterCopains,
+      fiche: () => (fiche ? { pseudo: fiche.pseudo, charge: fiche.charge, etat: fiche.etat, photo: !!(fiche.data && fiche.data.photo), stats: !!(fiche.b && fiche.b.stats) } : null),
       tchat: TC,
-      retours: RT, serrerCoin,
-      arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false), fermerArriere: () => { if (AR) AR.fermer(); }, BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
+      retours: RT,
+      arriere: () => (AR ? AR.etat() : null), ouvrirArriere: () => (AR ? AR.ouvrir() : false), BJ: typeof BLACKJACK !== 'undefined' ? BLACKJACK : null, zonePorte: () => (SCENE.zoneArriere ? SCENE.zoneArriere() : null) };
   }
   document.addEventListener('DOMContentLoaded', boot);
   if (document.readyState !== 'loading') setTimeout(boot, 0);

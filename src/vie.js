@@ -353,7 +353,6 @@ const VIE = (() => {
   }
   const mystereEnAttente = () => clients.find((c) => c.or && !c.pris && c.etat === 'attend') || null;
   function toucherMystere(c) { c.pris = true; c.wait = 0.2; }
-  function hitBoulanger(x, y) { if (!LAY) return false; const b = LAY.boulanger; return Math.abs(x - b.x) < 26 * K && y > b.y - 64 * K && y < b.y + 4; }
   function hit(x, y) {
     for (const c of clients) {
       if (!c.or || c.pris || c.etat !== 'attend') continue;
@@ -515,11 +514,10 @@ const VIE = (() => {
     if (st.amenagement !== amenRef) { amenRef = st.amenagement; const n = G.nettoyerAmenagement ? G.nettoyerAmenagement(st.amenagement) : null, c = n ? G.codeAmenagement(n) : ''; if (c !== codeDemande) { codeDemande = c; amenDemande = n; calculer(true); } } // un meuble déplacé (ou une autre boutique) : le plan suit
     for (const id of ['bar', 'banquette', 'terrasse']) crans[id] = G.mobilierCran(st, id); // (avant que GAME.MOBILIER les connaisse : cran 0)
     for (const m of G.MOBILIER) { crans[m.id] = G.mobilierCran(st, m.id); prixDe[m.id] = G.prixMeuble(st, m.id); abordables[m.id] = crans[m.id] < m.max && st.coins >= prixDe[m.id]; }
-    places = G.places ? G.places(st) : { tables: crans.tables, bar: crans.bar ? crans.bar + 1 : 0, banquette: crans.banquette >= 3 ? 3 : crans.banquette ? 2 : 0, terrasse: 2 * crans.terrasse };
+    places = G.places(st);
     activer();
     // la terrasse : personne dehors la nuit ni sous la neige ; les beaux jours (belle saison, jours de marché : GAME.terrassePleine), elle se remplit
-    { const beau = G.terrassePleine ? G.terrassePleine(st) : (() => { const m = d.getUTCMonth() + 1, j = d.getUTCDay(); return (m >= 4 && m <= 9) || j === 0 || j === 6; })();
-      dehors = hour < 8 || hour >= 21 || tags.includes('neige') ? 0 : beau || force.zone === 'terrasse' ? 1 : 0.15; }
+    dehors = hour < 8 || hour >= 21 || tags.includes('neige') ? 0 : G.terrassePleine(st) || force.zone === 'terrasse' ? 1 : 0.15;
     panneI = st.ev && st.ev.type === 'panne' && st.ev.fin > st.now ? st.ev.i : -1;
     nextSpawn -= dt;
     if (nextSpawn <= 0) {
@@ -620,7 +618,7 @@ const VIE = (() => {
   // un meuble acheté : les tables 1..n, le bar et le coin salon dès le cran 1, les tables de la terrasse 1..n
   function mobileAchete(m) { const k = crans[m.type] || 0; return m.type === 'tables' || m.type === 'terrasse' ? m.i < k : k > 0; }
 
-  const API = { hautBloc, resize, frame, basculer, congedier, accueillir, etatClient, installer, valider, proposer, mobileSous, mobileAchete, caseDe, vente, texte, tap, fete, setRush, mystere, habitue, hit, hitBoulanger, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
+  const API = { hautBloc, resize, frame, basculer, congedier, accueillir, etatClient, installer, valider, proposer, mobileSous, mobileAchete, caseDe, vente, texte, tap, fete, setRush, mystere, habitue, hit, zones, forcer, hauteurUtile, ciel, toucherMystere, mystereEnAttente, ronron, souffle, piedComptoir, surServi: null,
     DECORS, decor, PASTEL, PEAUX6, HAUTS6, CHEVEUX, TAU,
     get LAY() { return LAY; }, get amenagementApplique() { return LAY ? LAY.sig : ''; }, get amenagementDemande() { return codeDemande; }, get K() { return K; }, get W() { return W; }, get H() { return H; }, get t() { return t; }, get rush() { return rush; }, get Q() { return Q; }, get tags() { return tags; }, get force() { return force; }, get etat() { return etat; }, get mode() { return modeVie; }, get vueEv() { return vueEv; },
     get clients() { return clients; }, get apprentis() { return apprentis; }, get textes() { return textes; }, get vapeurs() { return vapeurs; }, get confetti() { return confetti; }, get flocons() { return flocons; }, get passants() { return passants; }, get chat() { return chat; }, get crans() { return crans; }, get places() { return places; }, get abordables() { return abordables; }, get prixDe() { return prixDe; },

@@ -205,7 +205,7 @@
   // les défis de passage, de la boutique n°6 à la n°29 (au-delà, celui de la n°29) : connus à l'avance, ils durcissent au fil des boutiques.
   // Chacun est réglé sur test/longevite.js pour un joueur régulier (36 min par jour) : une à trois journées de jeu en plus au plus.
   //   palier : une recette au niveau niv ; meubles : n meubles au cran maximum ; recette : la recette i débloquée dans cette boutique ;
-  //   commandes : n commandes spéciales livrées dans cette boutique ; etoiles : récolter d'un coup pct % des étoiles qu'on a en ouvrant ;
+  //   etoiles : récolter d'un coup pct % des étoiles qu'on a en ouvrant ;
   //   grades : n apprentis au grade g (ou plus) ; evenements : n événements réussis dans cette boutique (commandes, critiques, pétrissages,
   //   pannes réparées, pourboires du client mystère : une quinzaine par jour pour le régulier, moins soumis au hasard que les seules commandes).
   const DEFIS_PASSAGE = {
@@ -226,7 +226,6 @@
     if (d.type === 'palier') return `Une recette au niveau ${d.niv}`;
     if (d.type === 'meubles') return `${d.n} meubles au cran maximum`;
     if (d.type === 'recette') return `Débloque ${PRODUITS[d.i] ? PRODUITS[d.i].nom : 'la recette'} dans cette boutique`;
-    if (d.type === 'commandes') return `Livre ${d.n} commandes spéciales dans cette boutique`;
     if (d.type === 'etoiles') return cible ? `Récolte +${fmt(cible)} étoiles d’un coup` : `Récolte d’un coup ${d.pct} % de tes étoiles`;
     if (d.type === 'grades') return `${d.n} apprentis au grade ${d.g}`;
     if (d.type === 'evenements') return `Réussis ${d.n} événements dans cette boutique`;
@@ -235,7 +234,6 @@
   function creerDefi(st, n) { // le défi de la boutique n, posé à son ouverture (les compteurs partent de là)
     const d = defiDe(n); if (!d) return null;
     const o = Object.assign({ n }, d);
-    if (d.type === 'commandes') o.base = (st.stats && st.stats.commandes) || 0;
     if (d.type === 'evenements') o.base = evenementsReussis(st);
     if (d.type === 'etoiles') o.cible = Math.max(5, Math.ceil(st.etoiles * d.pct / 100));
     return o;
@@ -246,7 +244,6 @@
     if (d.type === 'palier') { cible = d.niv; for (const s of st.stations) progres = Math.max(progres, s.niv); }
     else if (d.type === 'meubles') { cible = d.n; progres = MOBILIER.filter((m) => mobilierCran(st, m.id) >= m.max).length; }
     else if (d.type === 'recette') { progres = st.stations[d.i] && st.stations[d.i].niv > 0 ? 1 : 0; }
-    else if (d.type === 'commandes') { cible = d.n; progres = Math.max(0, ((st.stats && st.stats.commandes) || 0) - (d.base || 0)); }
     else if (d.type === 'etoiles') { cible = d.cible || 1; progres = etoilesGagnables(st); }
     else if (d.type === 'evenements') { cible = d.n; progres = Math.max(0, evenementsReussis(st) - (d.base || 0)); }
     else if (d.type === 'grades') { cible = d.n; progres = PRODUITS.filter((p, i) => gradeApprenti(st, i) >= d.g).length; }
@@ -335,7 +332,7 @@
     st.apprentis = st.apprentis || {}; const a = st.apprentis[PRODUITS[i].id] || (st.apprentis[PRODUITS[i].id] = { xp: 0 });
     const avant = gradeApprenti(st, i); a.xp += n * temps(st, i) * (part == null ? 1 : part); const niv = gradeApprenti(st, i);
     if (niv <= avant) return null;
-    gagnerXp(st, 10 * niv); inc(st, 'gradesApprentis');
+    gagnerXp(st, 10 * niv);
     note(st, `${APPRENTIS[i].prenom} passe au grade ${niv}${niv === 3 ? ' : ' + APPRENTIS[i].talent : ''}`);
     return { i, niv, talent: niv === 3 };
   }
@@ -477,7 +474,7 @@
     st.coins -= prix; s.niv++; noter(st, 'niveaux', 1); if (s.niv === 1) gagnerXp(st, 6);
     return { ok: true, prix, niv: s.niv, points };
   }
-  function lancerSaison(st) { const s = st.saison; if (!s || s.niv <= 0 || s.actif) return false; s.actif = true; s.prog = 0; st.stats.taps++; noter(st, 'mains', 1); return true; }
+  function lancerSaison(st) { const s = st.saison; if (!s || s.niv <= 0 || s.actif) return false; s.actif = true; s.prog = 0; noter(st, 'mains', 1); return true; }
   function cuireSaison(st, out, differe) { // une fournée de saison sortie du four : gains (sauf si l'absence les compte elle-même), collection, maîtrise
     const s = st.saison, r = recetteSaison(st), m = revenuSaison(st);
     s.prog = 0; s.actif = false; if (!differe) gagner(st, m); st.stats.ventes++; inc(st, 'fourneesSaison');
@@ -745,7 +742,7 @@
       v: 2, coins: 0, lifetime: 0, lifetimeRun: 0, etoiles: 0, boutiques: 1, recettesBoutique: [], defi: null, xp: 0, talents: {}, nomBoutique: '',
       stations: stationsNeuves(), ameliorations: {}, mobilier: {}, tuto: 0, lastSeen: nowMs, created: nowMs, son: true, vibre: true, mode: 1, now: nowMs,
       qualite: 'auto', images: 'economie', // Réglages › Le jeu : la qualité graphique (auto, haute, moyenne, eco) et les images par seconde (economie, fluide, max) ; sans effet sur les gains
-      stats: { taps: 0, ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false, meubles: 0 },
+      stats: { ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false, meubles: 0 },
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null, tiroir: 'mi',
       apprentis: {}, chat: null, chatRefuse: '', chatAttente: 45, chatNoir: false, chatPelage: 'roux', compagnons: [], compagnon: null, saison: null, saisonAnnoncee: '', collection: {},
@@ -1383,7 +1380,7 @@
   function lancer(st, i) {
     const s = st.stations[i];
     if (s.niv <= 0 || s.actif) return false;
-    s.actif = true; s.prog = 0; st.stats.taps++; noter(st, 'mains', 1);
+    s.actif = true; s.prog = 0; noter(st, 'mains', 1);
     return true;
   }
   function amelioration(st, id) {
@@ -1513,18 +1510,18 @@
   const fmtChrono = (s) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
 
   return { APPRENTIS, APPRENTI_NIVEAUX, APPRENTI_VITESSE, APPRENTI_ABSENCE, xpApprenti, gradeApprenti, progresApprenti, creditApprenti, apprentiTempsMult, apprentiRevMult, effetTalentApprenti,
-    CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, PELAGES, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
+    CHAT, chatPossible, adopterChat, refuserChat, renommerChat, caresser, donnerChatNoir, choisirPelage, pelagesChat, pelageChat,
     COMPAGNONS, COMPAGNON_PLANCHER, compagnon, estChat, prixCompagnon, aCompagnon, compagnonActif, bonusCompagnon, compagnonGains, modeleCompagnon, compagnons, choisirCompagnon, acheterCompagnon,
     RECETTES_SAISON, SAISON, recetteDeSaison, forcerRecette, recetteSaison, saisonDuJour, tempsSaison, revenuSaison, coutSaison, preparerSaison, lancerSaison,
-    PRODUITS, RECETTES_BASE, recetteGagnee, recettesBoutique, recettesConnues, prochaineRecetteBoutique, ameliorationOuverte, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, places, AMEN_MAX, nettoyerAmenagement, codeAmenagement, amenagementDepuisCode, belleSaison, terrassePleine, QUARTIERS_BASE, quartierDe, PARCOURS_FIN, recompenseBoutique, texteRecompense, parcours, donnerRecompense, rattraperParcours, gainsParcours, titreParcours, DEFIS_PASSAGE, DEFI_DEBUT, defiDe, texteDefi, creerDefi, defiPassage, passageOk, ETOILES_CONSEIL, butParcours, parcoursListe, ETOILE_BONUS, ETOILE_BASE, ETOILE_FREIN, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, STANDINGS, STANDING_PAS, standing, standingDe, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, SPECIALITE_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, MARCHE_MULT, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
-    palierMult, expoPalier, fmtMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
+    PRODUITS, RECETTES_BASE, recetteGagnee, recettesBoutique, recettesConnues, prochaineRecetteBoutique, ameliorationOuverte, PALIERS, AMELIORATIONS, MOBILIER, mobilierCran, prixMeuble, mobilierMult, ameliorerMeuble, places, AMEN_MAX, nettoyerAmenagement, codeAmenagement, amenagementDepuisCode, belleSaison, terrassePleine, quartierDe, PARCOURS_FIN, recompenseBoutique, texteRecompense, parcours, rattraperParcours, titreParcours, DEFIS_PASSAGE, defiDe, texteDefi, creerDefi, defiPassage, passageOk, butParcours, parcoursListe, ETOILE_BONUS, ETOILE_BASE, ABSENCE_MAX_H, PAUSE_EV, TITRES, TALENTS, XP_NIVEAU, QUARTIERS, quartier, nomBoutique, STANDINGS, STANDING_PAS, standing, standingDe, renommer, saison, HABITUES, TROPHEES, PAIN_DU_JOUR_MULT, RUSH, COMMANDE, CRITIQUE, MEUNIER, PETRISSAGE, PANNE, ANNIVERSAIRE, EVENEMENTS, newState, dayKey, paris, heureParis, jourDeMarche, heureDePointe, arrondi,
+    palierMult, fmtMult, prochainPalier, ameliorationMult, etoileMult, boostMult, revenu, revenuBase, revenuFournee, coutNiveau, coutNiveaux, maxNiveaux, remise, prixNiveaux, prixStaff, prixBonus, primeMult, temps, tempsMult, heuresAbsence, affluenceMult, quantite,
     talent, niveauPour, niveau, titre, rangTitre, ptsTalents, gagnerXp, apprendre, tauxParSeconde, tauxBase, rythme, etoilesPour, etoilesGagnables, prochaineEtoile,
-    objectifsDuJour, noter, reclamer, serieEnCours, painDuJour, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, boostsNeufs, donnerBoostReserve, PRIME_HEURE_PLANCHER, primeHeures, donnerPrimeHeures, lancerBoostReserve,
+    objectifsDuJour, noter, reclamer, serieEnCours, semaineKey, semaineEnCours, noterSemaine, reclamerSemaine, habitueAttendu, servirHabitue, choisirSpecialite, verifierTrophees, lancerEvenement, lancerRush, lancerCommande, lancerCritique, lancerMeunier, lancerPetrissage, lancerPanne, lancerAnniversaire, livrer, servir, petrir, reparer, pourboire, encaisserPourboire, donnerBoost, donnerBoostReserve, PRIME_HEURE_PLANCHER, primeHeures, donnerPrimeHeures, lancerBoostReserve,
     gagner, acheter, embaucher, lancer, amelioration, nouvelleBoutique, annulerMainArriere, tick, absence, fmt, fmtEur, fmtDuree, fmtChrono,
-    ATELIER, JEUX_ATELIER, jeuAtelier, atelierDuJour, qualiteAtelier, primePleineAtelier, primeAtelier, restantesAtelier, finirAtelier,
+    ATELIER, JEUX_ATELIER, jeuAtelier, atelierDuJour, primePleineAtelier, primeAtelier, restantesAtelier, finirAtelier,
     FOUR, fourNiveau, fourNouveau, fourAvancer, fourToucher, FACONNAGE, MODELES_FACONNAGE, reechantillonner, noterFaconnage, ajouterTrait, couvertureFaconnage,
     INGREDIENTS, MEMOIRE, memoireMontre, memoireRecette, memoireSaisir, memoireScore,
-    POINTS, pointsDuJour, pointsAtelier, pointsSemaine, pointsTotal, detailPoints, marquerJournee, marquerDefi, marquerEvenement, marquerAtelier, marquerAmelioration,
+    POINTS, pointsAtelier, pointsSemaine, detailPoints, marquerJournee, marquerDefi, marquerEvenement, marquerAtelier, marquerAmelioration,
     GARDEROBE, garderobe, garderobeNeuve, vetement, possede, niveauVetement, donnerVetement, donnerCollection, equiper, equiperCollection, coutVetement, ameliorerVetement, bonusPiece, ensembleComplet, bonusGardeRobe, garderobeMult, texteBonus, tenueBoulanger, toqueMetal, garderobeCle,
     AURAS, donnerAura, porterAura, DISTINCTIONS, distinctions, donnerDistinction };
 });
