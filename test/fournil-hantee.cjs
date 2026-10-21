@@ -391,6 +391,14 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
     const bil = await ev2(() => document.querySelector('#ht-corps').innerText);
     check(/20\/20 paliers/.test(bil) && /Chapeau phosphorescent/.test(bil), `le bilan compte jusqu’à 20 : ${bil.split('\n').filter((l) => /paliers|reste/.test(l)).join(' / ')}`);
     await shot2('h5-bilan-20');
+    { // un 7e du classement final (v6.6 : rangés du 1er au 15e) : ses étoiles et son boost au bilan, pas la tenue en or (le podium seulement ; relecture du 21 oct.)
+      const CL = require('../src/classement.js'), rec = Object.assign(CL.recompensesNeuves(), { evenements: { hantee: { rang: 7, joueurs: 12, podium: [] } } });
+      await pg.evaluate(([c, e]) => localStorage.setItem(c, e), [CL.CLE, JSON.stringify({ ...CL.etatNeuf(), id: '11111111-2222-4333-8444-555555555555', jeton: 'a'.repeat(64), pseudo: 'Paulo', rejoint: true, recompenses: rec })]);
+      await charger2(); await ev2(() => window.__fournil.hantee());
+      check(await attendre(() => pg.evaluate(() => document.querySelector('#hantee').dataset.ecran === 'bilan'), 6000), '7e du classement final : le bilan se rouvre');
+      const b7 = await ev2(() => document.querySelector('#ht-corps').innerText), or7 = await ev2(() => window.__fournil.G.possede(window.__fournil.st, 'hantee-or-chapeau'));
+      check(/7e du classement final : 3 étoiles et un boost ×3 de 30 min/.test(b7) && !/tenue d’Halloween en or/.test(b7) && !/podium final/.test(b7) && !or7, `7e : le bilan ne promet pas la tenue en or (« ${(b7.split('\n').find((l) => /reste à vie/.test(l)) || '').trim()} »)`);
+      await sleep(900); await shot2('h5-bilan-7e'); } // (le temps que l'écran finisse d'apparaître)
     await ctx2.close(); }
 
   // les activités (src/activites.js) dans un troisième téléphone, le mercredi 28 octobre à 15 h (2e jour) : la barre, les trois mini-jeux au

@@ -2092,7 +2092,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '9ede2bd7f0b3';</script>
+<script>window.FOURNIL_VERSION = '9656350ddcd5';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -14010,7 +14010,10 @@ const EVENEMENTS = (() => {
       if (tenue.length) dons.push(`${tenue.length} pièce${tenue.length > 1 ? 's' : ''} ${F.t.bilanTenue}${Q.ensembleComplet(qq) ? ' (complète)' : ''}`);
       for (const v of trophees) { const o = typeof G.vetement === 'function' ? G.vetement(v) : null; dons.push(`${o ? o.nom : v} (le trophée du palier ${Q.PALIERS.length})`); }
       if (F.bilanPlus) for (const t of F.bilanPlus(qq)) dons.push(t);
-      if (rang) dons.push(`${rang === 1 ? '1er' : rang + 'e'} du podium final : ${F.t.bilanOr}`);
+      // la tenue en or : le podium final seulement (majRecompenses, src/ui.js, ne la donne qu'aux rangs 1 à 3) ; du 4e au 15e (classement v6.6), ses étoiles et son boost
+      const rf = rang > 3 && F.recompenseFinale ? F.recompenseFinale(rang) : null;
+      if (rang && rang <= 3) dons.push(`${rang === 1 ? '1er' : rang + 'e'} du podium final : ${F.t.bilanOr}`);
+      else if (rf) dons.push(`${rang}e du classement final : ${rf.etoiles} étoile${rf.etoiles > 1 ? 's' : ''} et un boost ×${rf.mult} de ${G.fmtDuree(rf.secs)}`);
       const stats = F.stats.map(([nom, cles]) => { const k = [].concat(cles).find((x) => qq.stats[x] != null); const v = k ? qq.stats[k] : 0; return `<span><small>${esc(nom)}</small><b>${k === 'ventes' ? Q.fmt(v) : v}</b></span>`; }).join('');
       id('corps').innerHTML = `<div class="at-carte pq-bilan ${F.classe}"><span class="pq-pic grand">${F.ico.bilan}</span>
         <h2>${esc(F.t.bilanH2)}</h2>
@@ -14962,6 +14965,7 @@ const EVENEMENTS = (() => {
       ico: { devise: ICONS.HANTEE.bonbon, palier: ICONS.HANTEE.palier, bilan: ICONS.HANTEE.citrouille, produit: (p, i) => ico(p.id, i), coup: (type, g) => ((HE ? ICONS.HANTEE.H1[type] : ICONS.HANTEE[type]) || ICONS.HANTEE[g] || ICONS.HANTEE.citrouille) },
       decos: (l) => { if (typeof SCENE !== 'undefined' && SCENE.decosHantee) SCENE.decosHantee(l); },
       rangFinal: (rec) => { const x = rec[cle] || (rec.evenements && rec.evenements[cle]); return typeof x === 'number' ? x : x && x.rang ? x.rang : null; }, // classement v5 : recompenses().evenements.hantee = { rang, podium }
+      recompenseFinale: (rang) => (typeof CLASSEMENT !== 'undefined' && CLASSEMENT.recompenseEvt ? CLASSEMENT.recompenseEvt(rang) : null), // v6.6 : du 1er au 15e, des étoiles et un boost (src/classement.js, RECOMPENSES_EVT)
       genres: Object.assign({ descente: 'taper', grosclient: 'livrer', soiree: 'mult', scooter: 'attraper' }, HF.genres || {}), actions: Object.assign({ taper: 'taper', livrer: 'livrer', attraper: 'attraper' }, HF.actions || {}),
       coupsType: HE ? coupsType : HF.coups || null, // { [type]: { titre, debut, fin, bouton, detail… } } : l'habillage de H1
       coups: {
@@ -17862,8 +17866,10 @@ const UI = (() => {
     const k = `${r.portee}|${r.coupe}|${r.coupes.join(',')}|${r.badge ? 'e' : ''}`;
     if (k !== derniereRecScene) { derniereRecScene = k; SCENE.recompenses({ tenue: r.portee, coupe: r.coupe, coupes: r.coupes, equipe: !!r.badge }); if (pageActive === 'boulanger') renderPage(); }
     if (r.annonce && !annonceOuverte) tenterAnnonce();
-    else if (!r.annonce && r.aPayer && r.aPayer.length && !lundiOuvert) tenterLundi();
-    else if (!r.annonce && r.evtAPayer && r.evtAPayer.length && !evtOuvert) tenterEvt();
+    else { // la feuille du lundi et celle de l'événement, chacune tentée : la garde de tenterEvt fait passer le lundi d'abord ; un lundi refermé sans « Récupérer » (aPayer reste plein) ne bloque plus celle de l'événement
+      if (r.aPayer && r.aPayer.length && !lundiOuvert) tenterLundi();
+      if (r.evtAPayer && r.evtAPayer.length && !evtOuvert) tenterEvt();
+    }
   }
   function tenterAnnonce() { // au premier lancement après un podium, une fois la feuille du retour (gains d'absence) refermée
     clearTimeout(annonceMinuteur); annonceMinuteur = 0;
@@ -17949,11 +17955,11 @@ const UI = (() => {
     return g;
   }
   let evtOuvert = false, evtMinuteur = 0, evtMontre = ''; // evtMontre : la feuille montrée une fois par lancement (la récompense reste dans « Mes récompenses »)
-  function tenterEvt() { // une fois les autres feuilles refermées (l'annonce du podium de la semaine, la feuille du lundi passent avant)
+  function tenterEvt() { // une fois les autres feuilles refermées (l'annonce du podium de la semaine, la feuille du lundi passent avant : tant qu'elle est ouverte, on réessaie toutes les 1,5 s)
     clearTimeout(evtMinuteur); evtMinuteur = 0;
-    const r = recVue(); if (!r || r.annonce || !r.evtAPayer || !r.evtAPayer.length || evtOuvert || lundiOuvert || annonceOuverte) return;
+    const r = recVue(); if (!r || r.annonce || !r.evtAPayer || !r.evtAPayer.length || evtOuvert || annonceOuverte) return;
     const p = r.evtAPayer[0]; if (evtMontre === p.id) return;
-    if (!feuille.hidden || document.hidden || visite || copainsOuvert || retourEnCours || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert) || (r.aPayer && r.aPayer.length && lundiMontre !== r.aPayer[r.aPayer.length - 1].semaine)) { evtMinuteur = setTimeout(tenterEvt, 1500); return; }
+    if (lundiOuvert || !feuille.hidden || document.hidden || visite || copainsOuvert || retourEnCours || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert) || (r.aPayer && r.aPayer.length && lundiMontre !== r.aPayer[r.aPayer.length - 1].semaine)) { evtMinuteur = setTimeout(tenterEvt, 1500); return; }
     sheetEvt();
   }
   const NOM_EVT_LONG = { hantee: 'la Maison hantée' };

@@ -9,7 +9,8 @@
 // dans la réserve, une seule fois), et « Mes places » dans « Mes récompenses ».
 // Version 6.6, les acharnés de la Maison hantée : la feuille « Tu as fini 7e de la Maison hantée sur 12 » (« Récupérer », 3 étoiles et un
 // boost ×3 de 30 min, une seule fois), « Mes événements » dans « Mes récompenses » ; un 2e : la tenue d'Halloween en or en plus ; un
-// serveur d'avant la 6.6 (podium à trois, sans le nombre de joueurs) reste servi. Captures acharnes-*.png dans SHOTS_ACHARNES s'il est donné.
+// serveur d'avant la 6.6 (podium à trois, sans le nombre de joueurs) reste servi ; la feuille du lundi refermée sans « Récupérer » laisse passer
+// celle de l'événement. Captures acharnes-*.png dans SHOTS_ACHARNES s'il est donné.
 // Lancer : NODE_PATH=/opt/node22/lib/node_modules node test/fournil-recompenses.cjs   (captures dans test/shots/recompenses/ ; PORT_RECOMPENSES pour changer de port)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
@@ -280,6 +281,27 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
     check(ok && d2.h2 === 'Tu as fini 2e de la Maison hantée' && /^\+6 étoiles et un boost ×5 de 1 h, et la tenue d’Halloween en or$/.test(d2.phrase) && d2.or === 4, `2e (un serveur d’avant la 6.6) : « ${d2.h2} » « ${d2.phrase} » ; les quatre pièces en or dans la garde-robe (${d2.or})`);
     await p.tap('#feuille [data-a="ev-recuperer"]'); await sleep(600);
     check((await p.evaluate(() => window.__fournil.st.etoiles)) === 6 && (await p.evaluate(() => JSON.stringify(window.__fournil.boosts().reserve.map((x) => `${x.mult}:${x.secs}`)))) === '["5:3600"]', '« Récupérer » : +6 étoiles, un boost ×5 d’une heure');
+    await ctx.close(); }
+
+  // ─── 8 quater. une place de la semaine ET une place de la Maison hantée : la feuille du lundi refermée d'un toucher sur le voile, sans
+  // « Récupérer » (la place de la semaine attend), ne bloque plus celle de l'événement ; relancé, pareil (relecture du 21 oct.) ───
+  { semer(); faux.palmares = faux.palmares.filter((x) => x.id !== MOI.id); faux.places = [{ semaine: semaineAvant(1), rang: 12, joueurs: 12, id: MOI.id }]; faux.evenements = { hantee: { rang: 7, joueurs: 12, podium: [] } };
+    ({ ctx, p } = await nouveau());
+    await preparer(p, etatInscrit());
+    const evtOuverte = () => p.evaluate(() => !document.querySelector('#feuille').hidden && !!document.querySelector('#feuille-contenu [data-cl="evt-place"]'));
+    const lundiPuisEvt = async (quand) => {
+      check(await attendre(() => p.evaluate(() => !!document.querySelector('#feuille-contenu [data-cl="semaine-place"]')), 9000), `${quand} : la feuille du lundi s’ouvre d’abord`);
+      await sleep(600); await p.mouse.click(195, 100); await sleep(500); // un toucher sur le voile : refermée sans « Récupérer »
+      const fe = await p.evaluate(() => document.querySelector('#feuille').hidden || !!document.querySelector('#feuille-contenu [data-cl="evt-place"]')), l = await local(p);
+      check(fe && !(l.recompenses.payees || []).length && (await p.evaluate(() => window.__fournil.st.etoiles)) === 0, `${quand} : la feuille du lundi refermée sans « Récupérer » (rien de versé, la place attend)`);
+      let ok = await attendre(evtOuverte, 10000); if (!ok) { console.log('        (la feuille de l’événement tarde : on attend encore une fois)'); ok = await attendre(evtOuverte, 10000); }
+      check(ok && (await p.evaluate(() => document.querySelector('#feuille-contenu h2').textContent)) === 'Tu as fini 7e de la Maison hantée sur 12', `${quand} : puis la feuille « Tu as fini 7e de la Maison hantée sur 12 » s’ouvre, sans attendre la minute`);
+    };
+    await p.goto(BASE + '/fournil/');
+    await lundiPuisEvt('au lancement');
+    await p.mouse.click(195, 100); await sleep(500);
+    await p.reload(); await sleep(1000);
+    await lundiPuisEvt('relancé');
     await ctx.close(); }
 
   // ─── 9. un podium plus ancien (il y a deux semaines) : annoncé, mais rien d'office ───

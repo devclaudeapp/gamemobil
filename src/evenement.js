@@ -493,7 +493,10 @@ const EVENEMENTS = (() => {
       if (tenue.length) dons.push(`${tenue.length} pièce${tenue.length > 1 ? 's' : ''} ${F.t.bilanTenue}${Q.ensembleComplet(qq) ? ' (complète)' : ''}`);
       for (const v of trophees) { const o = typeof G.vetement === 'function' ? G.vetement(v) : null; dons.push(`${o ? o.nom : v} (le trophée du palier ${Q.PALIERS.length})`); }
       if (F.bilanPlus) for (const t of F.bilanPlus(qq)) dons.push(t);
-      if (rang) dons.push(`${rang === 1 ? '1er' : rang + 'e'} du podium final : ${F.t.bilanOr}`);
+      // la tenue en or : le podium final seulement (majRecompenses, src/ui.js, ne la donne qu'aux rangs 1 à 3) ; du 4e au 15e (classement v6.6), ses étoiles et son boost
+      const rf = rang > 3 && F.recompenseFinale ? F.recompenseFinale(rang) : null;
+      if (rang && rang <= 3) dons.push(`${rang === 1 ? '1er' : rang + 'e'} du podium final : ${F.t.bilanOr}`);
+      else if (rf) dons.push(`${rang}e du classement final : ${rf.etoiles} étoile${rf.etoiles > 1 ? 's' : ''} et un boost ×${rf.mult} de ${G.fmtDuree(rf.secs)}`);
       const stats = F.stats.map(([nom, cles]) => { const k = [].concat(cles).find((x) => qq.stats[x] != null); const v = k ? qq.stats[k] : 0; return `<span><small>${esc(nom)}</small><b>${k === 'ventes' ? Q.fmt(v) : v}</b></span>`; }).join('');
       id('corps').innerHTML = `<div class="at-carte pq-bilan ${F.classe}"><span class="pq-pic grand">${F.ico.bilan}</span>
         <h2>${esc(F.t.bilanH2)}</h2>
@@ -1445,6 +1448,7 @@ const EVENEMENTS = (() => {
       ico: { devise: ICONS.HANTEE.bonbon, palier: ICONS.HANTEE.palier, bilan: ICONS.HANTEE.citrouille, produit: (p, i) => ico(p.id, i), coup: (type, g) => ((HE ? ICONS.HANTEE.H1[type] : ICONS.HANTEE[type]) || ICONS.HANTEE[g] || ICONS.HANTEE.citrouille) },
       decos: (l) => { if (typeof SCENE !== 'undefined' && SCENE.decosHantee) SCENE.decosHantee(l); },
       rangFinal: (rec) => { const x = rec[cle] || (rec.evenements && rec.evenements[cle]); return typeof x === 'number' ? x : x && x.rang ? x.rang : null; }, // classement v5 : recompenses().evenements.hantee = { rang, podium }
+      recompenseFinale: (rang) => (typeof CLASSEMENT !== 'undefined' && CLASSEMENT.recompenseEvt ? CLASSEMENT.recompenseEvt(rang) : null), // v6.6 : du 1er au 15e, des étoiles et un boost (src/classement.js, RECOMPENSES_EVT)
       genres: Object.assign({ descente: 'taper', grosclient: 'livrer', soiree: 'mult', scooter: 'attraper' }, HF.genres || {}), actions: Object.assign({ taper: 'taper', livrer: 'livrer', attraper: 'attraper' }, HF.actions || {}),
       coupsType: HE ? coupsType : HF.coups || null, // { [type]: { titre, debut, fin, bouton, detail… } } : l'habillage de H1
       coups: {

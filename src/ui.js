@@ -1332,8 +1332,10 @@ const UI = (() => {
     const k = `${r.portee}|${r.coupe}|${r.coupes.join(',')}|${r.badge ? 'e' : ''}`;
     if (k !== derniereRecScene) { derniereRecScene = k; SCENE.recompenses({ tenue: r.portee, coupe: r.coupe, coupes: r.coupes, equipe: !!r.badge }); if (pageActive === 'boulanger') renderPage(); }
     if (r.annonce && !annonceOuverte) tenterAnnonce();
-    else if (!r.annonce && r.aPayer && r.aPayer.length && !lundiOuvert) tenterLundi();
-    else if (!r.annonce && r.evtAPayer && r.evtAPayer.length && !evtOuvert) tenterEvt();
+    else { // la feuille du lundi et celle de l'événement, chacune tentée : la garde de tenterEvt fait passer le lundi d'abord ; un lundi refermé sans « Récupérer » (aPayer reste plein) ne bloque plus celle de l'événement
+      if (r.aPayer && r.aPayer.length && !lundiOuvert) tenterLundi();
+      if (r.evtAPayer && r.evtAPayer.length && !evtOuvert) tenterEvt();
+    }
   }
   function tenterAnnonce() { // au premier lancement après un podium, une fois la feuille du retour (gains d'absence) refermée
     clearTimeout(annonceMinuteur); annonceMinuteur = 0;
@@ -1419,11 +1421,11 @@ const UI = (() => {
     return g;
   }
   let evtOuvert = false, evtMinuteur = 0, evtMontre = ''; // evtMontre : la feuille montrée une fois par lancement (la récompense reste dans « Mes récompenses »)
-  function tenterEvt() { // une fois les autres feuilles refermées (l'annonce du podium de la semaine, la feuille du lundi passent avant)
+  function tenterEvt() { // une fois les autres feuilles refermées (l'annonce du podium de la semaine, la feuille du lundi passent avant : tant qu'elle est ouverte, on réessaie toutes les 1,5 s)
     clearTimeout(evtMinuteur); evtMinuteur = 0;
-    const r = recVue(); if (!r || r.annonce || !r.evtAPayer || !r.evtAPayer.length || evtOuvert || lundiOuvert || annonceOuverte) return;
+    const r = recVue(); if (!r || r.annonce || !r.evtAPayer || !r.evtAPayer.length || evtOuvert || annonceOuverte) return;
     const p = r.evtAPayer[0]; if (evtMontre === p.id) return;
-    if (!feuille.hidden || document.hidden || visite || copainsOuvert || retourEnCours || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert) || (r.aPayer && r.aPayer.length && lundiMontre !== r.aPayer[r.aPayer.length - 1].semaine)) { evtMinuteur = setTimeout(tenterEvt, 1500); return; }
+    if (lundiOuvert || !feuille.hidden || document.hidden || visite || copainsOuvert || retourEnCours || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert) || (r.aPayer && r.aPayer.length && lundiMontre !== r.aPayer[r.aPayer.length - 1].semaine)) { evtMinuteur = setTimeout(tenterEvt, 1500); return; }
     sheetEvt();
   }
   const NOM_EVT_LONG = { hantee: 'la Maison hantée' };
