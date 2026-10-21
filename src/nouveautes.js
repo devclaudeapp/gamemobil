@@ -16,6 +16,16 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-10-21-c', date: '2026-10-21', titre: 'Un grand ménage : les chiffres disent vrai',
+      points: [
+        'Les cartes, les talents et les meubles affichent leurs vrais effets : le gain réel d’une recette, les vraies fréquences, « 8 h 30 » au lieu de « 8.5 h ». Les primes de la Décoration et du Carnet comptent dès le jour de l’achat.',
+        'Après la boutique n°30, le défi de passage est enfin affiché, avec sa progression. La pastille ★ ne clignote plus quand le défi n’est pas fait, et les points de talent ne restent plus affichés une fois tous les talents au maximum.',
+        'Les pourboires du client mystère comptent aussi pour le défi de la semaine. Le nom de la boutique de la Capitale tient en entier.',
+        'Les événements s’arrêtent proprement : un mini-jeu ou un contrat ne paie plus après la fermeture, une pause dure le vrai temps, et rien de la boutique ne s’écoule pendant que tu es dans la Planque ou le Manoir.',
+        'Dans la boutique, les couverts sont bien posés sur les tables, et le néon du Quartier ne chevauche plus l’étagère aux bocaux. Les décors HD se chargent un peu plus vite.',
+      ],
+    },
+    {
       id: '2026-10-21-b', date: '2026-10-21', titre: 'La Maison hantée arrive le 27 à midi',
       points: [
         'Du mardi 27 octobre à midi au lundi 2 novembre à 20 h : ta boutique, entièrement hantée. Murs, meubles, bougies et brume ; les clients sont des monstres, du squelette au loup-garou.',
