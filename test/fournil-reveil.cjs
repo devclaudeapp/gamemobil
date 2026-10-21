@@ -183,6 +183,27 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 200) {
     await p2.screenshot({ path: path.join(process.env.CAPTURES_REVEIL || require('os').tmpdir(), 'journal-recul.png') });
     await ctx2.close();
   }
+  console.log('── une vieille sauvegarde à la boutique n°14, sans parcours, partie depuis 8 h : le parcours d’abord, l’absence ensuite ──');
+  {
+    const G = require('../src/game.js'), srv = Date.now() + decalServeur;
+    const raw = await page.evaluate((srv) => { const s = JSON.parse(localStorage.getItem('fournil.v2')), parti = srv - 8 * 3600e3; s.boutiques = 14; delete s.parcours; s.lastSeen = parti; s.vuTel = parti; s.horloge = { sure: parti, jeu: parti }; s.journalRetours = []; return JSON.stringify(s); }, srv);
+    const ctx4 = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+    await ctx4.addInitScript(([r, d0]) => { const D = Date; class F extends D { constructor(...a) { if (a.length) super(...a); else super(D.now() + d0); } static now() { return D.now() + d0; } } window.Date = F; window.__sansQuartier = false; if (!sessionStorage.getItem('graine')) { sessionStorage.setItem('graine', '1'); localStorage.setItem('fournil.v2', r); localStorage.setItem('fournil.horloge', JSON.stringify(JSON.parse(r).horloge)); } }, [raw, decalServeur]);
+    await ctx4.route(/supabase\.co/, (r) => r.abort());
+    const p4 = await ctx4.newPage(); p4.on('pageerror', (e) => erreurs.push(e.message));
+    await p4.goto(`http://localhost:${PORT}/fournil/?qualite=eco`); await p4.waitForFunction(() => window.__fournil && window.__fournil.st && (window.__fournil.st.journalRetours || []).some((e) => e.r === 'lancement'), null, { timeout: 30000 }); await sleep(1500);
+    const lc = await p4.evaluate(() => window.__fournil.st.journalRetours.find((e) => e.r === 'lancement'));
+    const txt4 = await p4.evaluate(() => (document.querySelector('#feuille').hidden ? '' : document.querySelector('#feuille-contenu').innerText.replace(/\s+/g, ' ')));
+    // ce que vaut cette absence, au moteur du jeu : avec les récompenses des boutiques n°2 à 14 (+2 % de gains, 50 étoiles…), et sans
+    const avec = JSON.parse(raw), sans = JSON.parse(raw), rc4 = G.rattraperParcours(avec), fin4 = avec.lastSeen + lc.s * 1000;
+    const gAvec = G.absence(avec, fin4).total, gSans = G.absence(sans, fin4).total;
+    check(rc4.length === 13 && lc.s > 8 * 3600 - 60 && /Pendant ton absence/.test(txt4), `8 h d’absence payées au lancement, avec la feuille (${Math.round(lc.s / 60)} min ; ${txt4.slice(0, 30)})`);
+    check(gAvec > gSans * 1.02 && Math.abs(lc.g - gAvec) <= gAvec * 0.005, `l’absence compte le parcours : ${Math.round(lc.g)} € payés, ${Math.round(gAvec)} € attendus avec le parcours (${Math.round(gSans)} € sans lui : +${((gAvec / gSans - 1) * 100).toFixed(1)} %)`);
+    await p4.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); });
+    check(await attendre(() => p4.evaluate(() => !document.querySelector('#feuille').hidden && /Ton parcours/.test(document.querySelector('#feuille-contenu').innerText)), 8000), 'puis, la feuille du retour refermée, le récapitulatif « Ton parcours »');
+    check(await p4.evaluate(() => { const p = window.__fournil.st.parcours; return !!p && p.recus.length === 13 && p.gains === 2; }), 'les récompenses des boutiques n°2 à 14 sont reçues une fois (+2 % de gains)');
+    await ctx4.close();
+  }
   console.log('── la Planque ouverte, le téléphone verrouillé 3 h avant la fermeture, rouvert après : payée jusqu’à la fermeture, puis le bilan ──');
   {
     const Q = require('../src/quartier.js');

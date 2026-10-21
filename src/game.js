@@ -217,7 +217,9 @@
     26: { type: 'palier', niv: 600 }, 27: { type: 'evenements', n: 35 }, 28: { type: 'recette', i: 15 }, 29: { type: 'etoiles', pct: 30 },
   };
   const DEFI_DEBUT = 6;
-  const evenementsReussis = (st) => { const x = st.stats || {}; return (x.commandes || 0) + (x.critiques || 0) + (x.petrissages || 0) + (x.pannes || 0) + (x.pourboires || 0); };
+  // les événements qui comptent comme « réussis », une seule liste : le défi de passage (evenementsReussis) et le défi de la semaine (noterSemaine)
+  const EVENEMENTS_REUSSIS = ['commandes', 'critiques', 'petrissages', 'pannes', 'pourboires'];
+  const evenementsReussis = (st) => { const x = st.stats || {}; return EVENEMENTS_REUSSIS.reduce((a, k) => a + (x[k] || 0), 0); };
   const defiDe = (n) => (n >= DEFI_DEBUT ? DEFIS_PASSAGE[Math.min(n, 29)] || null : null);
   function texteDefi(d, cible) { // « Une recette au niveau 300 »…
     if (!d) return '';
@@ -283,14 +285,15 @@
   const TITRES = [[1, 'Apprenti'], [4, 'Mitron'], [8, 'Boulanger'], [13, 'Compagnon'], [19, 'Maître boulanger'], [26, 'Meilleur Ouvrier de France']];
   const XP_NIVEAU = (n) => Math.round(40 * Math.pow(n, 1.4)); // savoir-faire pour passer du niveau n au suivant
   const TALENTS = [
-    { id: 'affluence', nom: 'Bouche-à-oreille', max: 4, desc: (k) => `Les fournées cuites à la main servent plus de clients : ×${1 + k * 0.5}`.replace('.', ',') },
+    { id: 'affluence', nom: 'Bouche-à-oreille', max: 4, desc: (k) => `Les fournées cuites à la main servent ${k * 50} % de clients en plus` }, // s'ajoute à la vitrine, au bar et à la terrasse (affluenceMult)
     { id: 'mains', nom: 'Mains rapides', max: 5, desc: (k) => `Toutes les fournées cuisent ${k * 5} % plus vite` },
     { id: 'memoire', nom: 'Mémoire des recettes', max: 4, desc: (k) => `Chaque nouvelle boutique démarre avec ${k + 1} recette${k ? 's' : ''}` },
     { id: 'levetot', nom: 'Lève-tôt', max: 4, desc: (k) => `Les apprentis travaillent ${k} h de plus pendant ton absence` },
     { id: 'zele', nom: 'Apprentis zélés', max: 4, desc: (k) => `Embauches ${k * 10} % moins chères` },
     { id: 'negoce', nom: 'Négociateur', max: 4, desc: (k) => `Bonus ${k * 8} % moins chers` },
-    { id: 'charme', nom: 'Charme', max: 3, desc: (k) => `Événements ${k * 12} % plus fréquents, primes +${k * 25} %` },
-    { id: 'pourboire', nom: 'Pourboires', max: 3, desc: (k) => `Client mystère ${k * 50} % plus généreux, ${k * 15} % plus fréquent` },
+    // « X % plus tôt » : l'attente jusqu'au suivant baisse de X % (tick : evTimer, mystereTimer), soit une fréquence ×1/(1 − X %)
+    { id: 'charme', nom: 'Charme', max: 3, desc: (k) => `Événements ${k * 12} % plus tôt, primes +${k * 25} %` },
+    { id: 'pourboire', nom: 'Pourboires', max: 3, desc: (k) => `Client mystère ${k * 50} % plus généreux, ${k * 15} % plus tôt` },
     { id: 'carnet', nom: 'Carnet de commandes', max: 3, desc: (k) => `Primes des défis du jour +${k * 50} %` },
   ];
   const talent = (st, id) => (st.talents && st.talents[id]) || 0;
@@ -298,7 +301,9 @@
   const niveau = (st) => niveauPour(st.xp).n;
   function titre(st) { const n = niveau(st); let t = TITRES[0]; for (const x of TITRES) if (n >= x[0]) t = x; return t[1]; }
   const rangTitre = (st) => { const n = niveau(st); let r = 0; TITRES.forEach((x, k) => { if (n >= x[0]) r = k; }); return r; };
-  const ptsTalents = (st) => Math.max(0, niveau(st) - 1 - Object.values(st.talents || {}).reduce((a, b) => a + b, 0));
+  // les points à dépenser : un par niveau, mais jamais plus que ce qui reste à apprendre (les talents se remplissent en 34 points :
+  // passé le niveau 35, plus de badge, de bulle ni de « N points à dépenser » quand tout est appris)
+  const ptsTalents = (st) => { const appris = Object.values(st.talents || {}).reduce((a, b) => a + b, 0), reste = TALENTS.reduce((a, t) => a + t.max - talent(st, t.id), 0); return Math.max(0, Math.min(niveau(st) - 1 - appris, reste)); };
   function gagnerXp(st, n) { const avant = niveau(st); st.xp = (st.xp || 0) + n; return { xp: n, niveau: niveau(st), monte: niveau(st) > avant }; }
   function apprendre(st, id) {
     const t = TALENTS.find((x) => x.id === id);
@@ -493,9 +498,9 @@
     { id: 'tables', nom: 'Tables et chaises', max: 6, cout: 6000, croiss: 40, phrase: 'On s’attarde autour d’un café et d’un croissant.', desc: (k) => `Salon de thé : ${k} table${k > 1 ? 's' : ''}, tous les gains ×${virg(1 + 0.08 * k)}` },
     { id: 'four', nom: 'Four', max: 4, cout: 20000, croiss: 40, phrase: 'Le cœur de la boutique, chaud dès l’aube.', desc: (k) => `Toutes les fournées cuisent ${3 * k} % plus vite` },
     { id: 'vitrine', nom: 'Vitrine', max: 3, cout: 30000, croiss: 40, phrase: 'Tout ce qui sort du four, bien en vue depuis la rue.', desc: (k) => `Les fournées à la main servent ${25 * k} % de clients en plus` },
-    { id: 'caisse', nom: 'Caisse enregistreuse', max: 3, cout: 120000, croiss: 50, phrase: 'Elle tinte à chaque pourboire.', desc: (k) => `Pourboires ×${virg(1 + 0.3 * k)}, client mystère ${8 * k} % plus fréquent` },
+    { id: 'caisse', nom: 'Caisse enregistreuse', max: 3, cout: 120000, croiss: 50, phrase: 'Elle tinte à chaque pourboire.', desc: (k) => `Pourboires ×${virg(1 + 0.3 * k)}, client mystère ${8 * k} % plus tôt` },
     { id: 'froid', nom: 'Chambre froide', max: 3, cout: 600000, croiss: 50, phrase: 'La pâte y repose la nuit, pendant que les apprentis travaillent.', desc: (k) => `Les apprentis travaillent ${k} h de plus pendant ton absence` },
-    { id: 'deco', nom: 'Décoration', max: 4, cout: 300000, croiss: 40, phrase: 'Des cadres, des plantes, des fleurs : on a envie d’entrer.', desc: (k) => `Primes des événements et des défis +${15 * k} %` },
+    { id: 'deco', nom: 'Décoration', max: 4, cout: 300000, croiss: 40, phrase: 'Des cadres, des plantes, des fleurs : on a envie d’entrer.', desc: (k) => `Primes des événements et des défis du jour +${15 * k} %` },
     { id: 'bar', nom: 'Bar et tabourets', max: 3, cout: 60000, croiss: 40, phrase: 'Un café au comptoir, debout ou perché : on boit et on repart vite.', desc: (k) => `${k + 1} tabourets : pourboires +${10 * k} %, clients à la main +${5 * k} %` },
     { id: 'banquette', nom: 'Coin salon', max: 3, cout: 1.5e6, croiss: 50, phrase: 'Le coin préféré des habitués, pour lire le journal au chaud.', desc: (k) => `${BANQUETTE[Math.min(k, 3) - 1]} : habitués ${20 * k} % plus vite, cadeaux +${30 * k} %` },
     { id: 'terrasse', nom: 'Terrasse', max: 3, cout: 6e6, croiss: 50, phrase: 'Quelques tables dehors, devant la vitrine, pour les beaux jours.', desc: (k) => `${2 * k} places dehors : clients à la main +${10 * k} % (+${5 * k} % en semaine d’octobre à mars)` },
@@ -857,7 +862,13 @@
     const rnd = mulberry32(hashStr(key + ':' + st.boutiques + ':' + st.created)), r = rythme(st);
     const choix = ['gagner'], pool = ['vendre', 'niveaux', 'clients', 'mains', 'embaucher', 'bonus', 'recette', 'meuble'];
     while (choix.length < 3 && pool.length) { const k = pool.splice(Math.floor(rnd() * pool.length), 1)[0]; if (TYPES_OBJ[k](st, r, rnd)) choix.push(k); }
-    return choix.map((type) => { const o = TYPES_OBJ[type](st, r, rnd); return { type, i: o.i, cible: o.cible, txt: o.txt(o.cible), progres: 0, fait: false, reclame: false, prime: arrondi(Math.max(40, r * 600) * (1 + 0.5 * talent(st, 'carnet')) * (1 + 0.15 * mobilierCran(st, 'deco'))) }; });
+    const base = Math.max(40, r * 600); // la prime de base (non arrondie), fixée au tirage ; le Carnet et la Décoration s'y ajoutent à chaque pas (primeObjectif)
+    return choix.map((type) => { const o = TYPES_OBJ[type](st, r, rnd); return { type, i: o.i, cible: o.cible, txt: o.txt(o.cible), progres: 0, fait: false, reclame: false, base, prime: primeObjectif(st, base) }; });
+  }
+  // la prime d'un objectif du jour : sa base, avec le Carnet et la Décoration d'aujourd'hui (un cran acheté dans la journée compte tout de suite)
+  const primeObjectif = (st, base) => arrondi(base * (1 + 0.5 * talent(st, 'carnet')) * (1 + 0.15 * mobilierCran(st, 'deco')));
+  function majPrimes(st) { // les objectifs pas encore réclamés suivent les bonus ; une vieille sauvegarde sans base garde sa prime telle quelle
+    for (const o of st.jour.objectifs) if (!o.reclame && Number.isFinite(o.base)) o.prime = primeObjectif(st, o.base);
   }
   function possible(st, o) {
     if (o.type === 'mains' || o.type === 'embaucher') return st.stations.some((s) => s.niv > 0 && !s.staff);
@@ -887,7 +898,10 @@
     const key = dayKey(nowMs);
     if (!st.jour || st.jour.date !== key) st.jour = { date: key, objectifs: tirerObjectifs(st, key), etoileDonnee: false, pain: painDuJour(st, key) };
     if (st.jour.pain == null) st.jour.pain = painDuJour(st, key);
+    const bases = st.jour.objectifs.map((o) => o.base);
     remplacerImpossibles(st);
+    st.jour.objectifs.forEach((o, k) => { if (o.base == null && bases[k] != null) o.base = bases[k]; }); // un objectif remplacé garde la base de sa place (comme sa prime)
+    majPrimes(st);
     semaineEnCours(st, nowMs);
     saisonDuJour(st, nowMs);
     return st.jour;
@@ -912,7 +926,7 @@
   }
   function noterSemaine(st, type, n) {
     const sm = st.semaine; if (!sm || sm.fait) return;
-    if (sm.type === type || (sm.type === 'evenements' && ['commandes', 'critiques', 'petrissages', 'pannes'].includes(type))) { sm.progres = Math.min(sm.cible, sm.progres + (n == null ? 1 : n)); if (sm.progres >= sm.cible) sm.fait = true; }
+    if (sm.type === type || (sm.type === 'evenements' && EVENEMENTS_REUSSIS.includes(type))) { sm.progres = Math.min(sm.cible, sm.progres + (n == null ? 1 : n)); if (sm.progres >= sm.cible) sm.fait = true; }
   }
   function reclamerSemaine(st) {
     const sm = st.semaine; if (!sm || !sm.fait || sm.reclame) return { ok: false };
@@ -931,6 +945,7 @@
   function reclamer(st, k) {
     const o = st.jour && st.jour.objectifs[k];
     if (!o || !o.fait || o.reclame) return { ok: false };
+    majPrimes(st); // un cran acheté juste avant, sans pas de jeu entre les deux
     o.reclame = true; gagner(st, o.prime, true); gagnerXp(st, 15);
     let etoile = false, points = 0;
     if (st.jour.objectifs.every((x) => x.reclame) && !st.jour.etoileDonnee) {
@@ -1092,7 +1107,7 @@
     for (const t of TROPHEES) if (!st.trophees[t.id] && t.cond(st)) { st.trophees[t.id] = st.now; gagnerXp(st, t.xp); note(st, `Trophée : ${t.nom}`); neufs.push(t); }
     return neufs;
   }
-  function donnerBoost(st, mult, secs) { st.boost = { mult, fin: st.now + secs * 1000 }; }
+  function donnerBoost(st, mult, secs) { st.boost = { mult, debut: st.now, fin: st.now + secs * 1000 }; } // debut : l'heure sûre qui recule le ramène à l'heure (ui.js, reculer)
   // ─── la réserve de boosts : des ×2 et des ×5 gagnés aux paliers de l'événement « Le Quartier » (src/quartier.js), à lancer quand on veut ───
   // dans la boulangerie, un seul à la fois ; il tourne sur l'horloge du jeu (une absence plus courte que lui en profite, une plus longue en profite au prorata de son temps restant, puis l'éteint)
   const boostsNeufs = () => ({ reserve: [], actif: null });
@@ -1108,7 +1123,7 @@
   function lancerBoostReserve(st, k) {
     const b = boosts(st), o = b.reserve[k];
     if (!o || (b.actif && b.actif.fin > st.now)) return { ok: false };
-    b.reserve.splice(k, 1); b.actif = { mult: o.mult, fin: st.now + o.secs * 1000 }; note(st, `Boost ×${o.mult} lancé pour ${fmtDuree(o.secs)}`);
+    b.reserve.splice(k, 1); b.actif = { mult: o.mult, debut: st.now, fin: st.now + o.secs * 1000 }; note(st, `Boost ×${o.mult} lancé pour ${fmtDuree(o.secs)}`);
     return { ok: true, boost: b.actif };
   }
 

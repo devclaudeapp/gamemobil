@@ -170,8 +170,13 @@ function capturer(profil) { // la partie du profil, rejouée depuis le 5 octobre
   } catch (e) { if (e.message !== 'fin') throw e; }
   return out;
 }
+// Les mêmes tirages pour tous (st.created = t0, comme le débutant, newState(t0)) : le défi de la semaine, le pain du jour et la graine des objectifs
+// se tirent sur st.created. Sans cela, le joueur comparé tirait un autre défi de la semaine que le débutant (« Ouvre une nouvelle boutique »,
+// impossible ici, contre « Reçois 12 pourboires ») : 30 points de hasard, sans rapport avec l'équité, qui faisaient basculer le contrôle à 90 %
+// au moindre changement de règle (les pourboires comptés dans « Réussis 15 événements » : ×0,88 une semaine). Vérifié sur huit captures du
+// régulier (graines 11 à 18), avant et après ce changement de règle : de ×0,98 à ×1,27, toutes au-dessus de 0,9 (contre ×0,88 à ×1,27 avant).
 function semaine(profil, t0, depart, prestige) { // une semaine de jeu, du lundi au dimanche ; rend le détail des points
-  let st; if (depart) { st = clone(depart.st); st.lastSeen = t0; st.now = t0; }
+  let st; if (depart) { st = clone(depart.st); st.lastSeen = t0; st.now = t0; st.created = t0; }
   const r = LG.simuler(profil, 7, { t0, st, prestige, seed: 7 });
   r.st.now = t0 + 7 * 24 * H - 1000; return G.detailPoints(r.st);
 }
