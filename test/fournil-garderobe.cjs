@@ -41,10 +41,21 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
   await p.evaluate(() => window.__fournil.page('boulanger')); await sleep(400);
   const carte = await p.evaluate(() => { const c = document.querySelector('[data-garderobe]'); return c ? { cases: [...c.querySelectorAll('.gr-case')].map((b) => [b.querySelector('small').textContent, b.querySelector('b').textContent, Math.round(b.getBoundingClientRect().height)]), bonus: c.querySelector('.gr-bonus').textContent, compte: c.querySelector('.compte').textContent, btn: c.querySelector('[data-gr-ouvrir]') ? c.querySelectorAll('[data-gr-ouvrir]').length : 0 } : null; });
   check(!!carte && JSON.stringify(carte.cases.map((c) => c.slice(0, 2))) === JSON.stringify([['Couvre-chef', 'Toque blanche'], ['Haut', 'Tablier blanc'], ['Chaussures', 'Sabots de bois'], ['Accessoire', 'Rien']]) && carte.cases.every((c) => c[2] >= 44), 'la carte Garde-robe de l’onglet Boulanger : quatre emplacements, la tenue de toujours, rien au cou');
-  check(!!carte && /Pas encore de bonus/.test(carte.bonus) && carte.compte === 'tenue de toujours' && carte.btn === 5, `« ${carte && carte.bonus} » · « ${carte && carte.compte} »`);
+  check(!!carte && /Pas encore de bonus/.test(carte.bonus) && /podiums, des événements et du parcours du boulanger/.test(carte.bonus) && carte.compte === 'tenue de toujours' && carte.btn === 5, `« ${carte && carte.bonus} » · « ${carte && carte.compte} »`);
   check(JSON.stringify(await equipe(p)) === JSON.stringify({ tete: 'toque-blanche', haut: 'tablier-blanc', pieds: 'sabots', accessoire: null }) && (await vues(p)).tenue === null, 'l’état : la tenue de base équipée, le boulanger en 3D sans toque de podium');
   await p.evaluate(() => { const el = document.querySelector('[data-garderobe]'); el.scrollIntoView({ block: 'center' }); }); await sleep(200);
   await p.screenshot({ path: out + '/01-carte-boulanger.png' });
+  // la garde-robe et la réserve de boosts citent toutes leurs sources (relecture, constat 7) : le parcours du boulanger aussi, et plus seulement le Quartier
+  await p.evaluate(() => window.__fournil.garderobe('tete')); await sleep(300);
+  const indice = await p.evaluate(() => { const n = document.querySelector('#feuille-contenu [data-cl="garderobe"] .note.centre'); return n ? n.textContent : ''; });
+  check(/Les podiums du classement, les événements et le parcours du boulanger en offrent d’autres/.test(indice), `la feuille, une seule pièce : « ${indice} »`);
+  await p.evaluate(() => document.querySelector('#feuille [data-a="gr-fermer"]').click()); await sleep(300);
+  const boosts = await p.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st, lire = () => document.querySelector('#boosts').textContent.replace(/\s+/g, ' ').trim();
+    G.donnerBoostReserve(st, 2, 1800); f.renderBoosts(); const un = lire(); G.donnerBoostReserve(st, 3, 900); f.renderBoosts(); const deux = lire();
+    f.lancerBoost(); const fe = document.querySelector('#feuille-contenu').textContent.replace(/\s+/g, ' '); document.querySelector('#feuille [data-a="close"]').click();
+    st.boosts.reserve.length = 0; f.renderBoosts(); return { un, deux, fe }; });
+  check(/En réserve : lance-le quand tu veux/.test(boosts.un) && /2 boosts en réserve/.test(boosts.deux) && !/Quartier/.test(boosts.un + boosts.deux), `le ticket de la réserve, neutre : « ${boosts.un} » puis « ${boosts.deux} »`);
+  check(/paliers des événements/.test(boosts.fe) && /parcours du boulanger/.test(boosts.fe) && /contrats de la nuit/.test(boosts.fe) && /pourboires des copains/.test(boosts.fe) && /objectif commun/.test(boosts.fe), 'la feuille de la réserve : les événements, le parcours du boulanger, les contrats de la nuit, les copains et l’objectif commun');
 
   // ─── 2. des pièces gagnées (podium d'or, le quartier) et des étoiles : la feuille ───
   const dons = await p.evaluate(() => { const f = window.__fournil, G = f.G; const n = ['or', 'quartier'].reduce((k, c) => k + G.donnerCollection(f.st, c).length, 0); f.vetement('bronze-toque'); f.st.etoiles = 12; f.rafraichir(); return { n, stats: f.st.stats.vetements }; });
@@ -133,6 +144,14 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
   await p.tap('[data-gr-ameliorer="quartier-or-chaine"]'); await sleep(300); await p.tap('[data-gr-ameliorer="quartier-or-chaine"]'); await sleep(300); await p.tap('[data-gr-ameliorer="quartier-or-chaine"]'); await sleep(400);
   check(await p.evaluate(() => window.__fournil.st.etoiles === 1 && window.__fournil.G.niveauVetement(window.__fournil.st, 'quartier-or-chaine') === 3 && /2 ★/.test(document.querySelector('[data-gr-ameliorer="quartier-or-chaine"]').innerText) && document.querySelector('[data-gr-ameliorer="quartier-or-chaine"]').classList.contains('non') && !!document.querySelector('.toast')), 'trois touches : niveaux 2 et 3 (1 + 1 étoile), la troisième refusée (le niveau 4 coûte 2 ★, il en reste 1), le bouton grisé, un message');
   await p.screenshot({ path: out + '/12-accessoire-360.png' });
+  { // tous les talents appris au niveau 60 : plus de point à dépenser, ni badge sur l'onglet (relecture, constat 10 : le calcul, GAME.ptsTalents)
+    const tal = await p.evaluate(() => new Promise((ok) => { const f = window.__fournil, G = f.G, st = f.st; let xp = 0; for (let n = 1; n < 60; n++) xp += G.XP_NIVEAU(n); st.xp = xp; st.talents = {}; for (const t of G.TALENTS) st.talents[t.id] = t.max;
+      document.querySelector('#feuille [data-a="gr-fermer"]').click(); f.page('boulanger'); f.rafraichir();
+      const lire = () => { const b = document.querySelector('#onglets [data-page="boulanger"] .badge'); return { niv: G.niveau(st), badge: b.hidden ? '' : b.textContent, page: document.querySelector('#page-boulanger').textContent.replace(/\s+/g, ' ') }; };
+      requestAnimationFrame(() => { const tout = lire(); st.talents.carnet -= 1; f.rafraichir(); requestAnimationFrame(() => { const moins = lire(); st.talents.carnet += 1; f.rafraichir(); ok({ tout, moins }); }); }); }));
+    check(tal.tout.niv === 60 && tal.tout.badge === '' && !/à dépenser/.test(tal.tout.page), `niveau ${tal.tout.niv}, tous les talents au maximum : pas de badge sur l’onglet Boulanger (« ${tal.tout.badge} »), pas de « à dépenser »`);
+    check(tal.moins.badge === '1' && /1 point à dépenser/.test(tal.moins.page), `un cran de Carnet en moins : le badge dit 1 (« ${tal.moins.badge} »), « 1 point à dépenser »`);
+  }
   await ctx.close();
 
   // ─── 7. l'artefact Claude : tout marche hors ligne, sans classement ───
