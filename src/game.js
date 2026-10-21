@@ -262,8 +262,9 @@
     return { n, fini: n > PARCOURS_FIN, recompense: recompenseBoutique(n), quartier: QUARTIERS[quartierDe(n)], defi, defiSuivant: defiDe(n), gain, conseil, partEtoiles: pe, part, pret: gain > 0 && (!defi || defi.fait) };
   }
   function parcoursListe(st) { // les trente boutiques : numéro, quartier, récompense, défi, et où on en est (passee, actuelle, avenir)
+    // la boutique en cours : seulement le défi réellement posé (st.defi) ; une boutique ouverte avant le parcours n'en a pas
     const b = st.boutiques || 1, out = [];
-    for (let n = 1; n <= PARCOURS_FIN; n++) { const r = recompenseBoutique(n), d = defiDe(n); out.push({ n, etat: n < b ? 'passee' : n === b ? 'actuelle' : 'avenir', quartier: QUARTIERS[n === b ? quartier(st) : quartierDe(n)], recompense: r, texte: texteRecompense(r), defi: d, defiTxt: n === b && st.defi ? texteDefi(st.defi, st.defi.cible) : texteDefi(d) }); }
+    for (let n = 1; n <= PARCOURS_FIN; n++) { const r = recompenseBoutique(n), d = n === b ? st.defi || null : defiDe(n); out.push({ n, etat: n < b ? 'passee' : n === b ? 'actuelle' : 'avenir', quartier: QUARTIERS[n === b ? quartier(st) : quartierDe(n)], recompense: r, texte: texteRecompense(r), defi: d, defiTxt: d ? texteDefi(d, d.cible) : '' }); }
     return out;
   }
   function saison(ms) {

@@ -120,6 +120,8 @@ const UI = (() => {
     if (force || html !== c.html) { c.html = html; c.el.className = cls; c.el.innerHTML = html; c.bar = c.el.querySelector('.barre i'); } else if (c.el.className !== cls) c.el.className = cls;
     if (c.bar) c.bar.style.width = (s.actif ? Math.min(100, s.prog / Math.max(0.01, G.tempsSaison(st)) * 100) : 0).toFixed(1) + '%';
   }
+  // le vrai gain de la première fournée, au niveau 1 et à la main (étoiles, bonus, mobilier… compris), comme premiereVente de src/evenement.js
+  const premiereFournee = (i) => G.revenuFournee(Object.assign({}, st, { stations: st.stations.map((x, k) => (k === i ? Object.assign({}, x, { niv: 1, staff: false }) : x)) }), i);
   function renderCards(force) {
     renderSaison(force);
     const remise = G.remise(st), critique = st.ev && st.ev.type === 'critique' ? st.ev.restants : [];
@@ -133,12 +135,12 @@ const UI = (() => {
         const q = p.quartier ? G.QUARTIERS.find((x) => x.id === p.quartier) : null;
         cls = 'carte verrou boutique';
         html = `<div class="icone">${ICONS.PRODUITS[p.id]}<span class="cadenas" aria-hidden="true">${ICONS.UI.cadenas}</span></div><div class="corps"><h3>${esc(p.nom)} <span class="tag boutique">boutique n°${p.boutique}</span></h3>
-          <p class="but">Ouvre la boutique n°${p.boutique} pour la débloquer</p><p>${esc(p.desc)}${q ? ` La recette de ${esc(q.nom)}.` : ''} Rapporte ${G.fmtEur(p.rev)} la fournée.</p>
+          <p class="but">Ouvre la boutique n°${p.boutique} pour la débloquer</p><p>${esc(p.desc)}${q ? ` La recette de ${esc(q.nom)}.` : ''} Rapporte ${G.fmtEur(premiereFournee(i))} la fournée.</p>
           <button type="button" class="btn lavande" data-a="parcours"><small>Le parcours du boulanger</small><b>Voir ce qui t’attend</b></button></div>`;
       } else if (s.niv === 0) {
         const prev = i === 0 || st.stations[i - 1].niv > 0, ok = st.coins >= p.debloquer * remise;
         cls = 'carte verrou' + (prev ? '' : ' secret');
-        html = `<div class="icone">${ICONS.PRODUITS[p.id]}</div><div class="corps"><h3>${esc(p.nom)}</h3><p>${esc(p.desc)} Rapporte ${G.fmtEur(p.rev)} la fournée.</p>
+        html = `<div class="icone">${ICONS.PRODUITS[p.id]}</div><div class="corps"><h3>${esc(p.nom)}</h3><p>${esc(p.desc)} Rapporte ${G.fmtEur(premiereFournee(i))} la fournée.</p>
           <button type="button" class="btn ${ok ? 'menthe' : 'non'}" data-a="debloquer"><small>${remise < 1 ? `Débloquer −${Math.round((1 - remise) * 100)} %` : 'Débloquer'}</small><b>${G.fmtEur(p.debloquer * remise)}</b></button></div>`;
       } else {
         const n = G.quantite(st, i), prix = G.prixNiveaux(st, i, n), ok = st.coins >= prix, pal = G.prochainPalier(s.niv);
@@ -248,9 +250,18 @@ const UI = (() => {
   const NVS = typeof NV !== 'undefined' ? NV : null;
   const nouveautesNonVues = () => (NVS && st ? NVS.nonVues(st.nouveautesVues).length : 0);
   const primesAReclamer = () => { const j = G.objectifsDuJour(st, st.now), sm = st.semaine; return j.objectifs.filter((o) => o.fait && !o.reclame).length + (sm && sm.fait && !sm.reclame ? 1 : 0); };
+  const etoilesPretes = (st, gain) => gain >= 3 && G.passageOk(st); // la pastille ★ clignote : 3 étoiles au moins, et le défi de passage fait
   function badge(el, n, cls) { const b = el.querySelector('.badge'); if (!b) return; b.hidden = !n; b.textContent = n > 0 && cls !== 'point' ? n : ''; b.className = 'badge' + (cls ? ' ' + cls : ''); }
+  // l'enseigne : un nom trop long pour la largeur (« Le Grand Fournil de la Capitale » à 360 px) passe en petit, sur deux lignes ;
+  // mesuré seulement quand le nom, la largeur ou les polices changent
+  let enseigneVue = '';
+  function majEnseigne(nom) {
+    const cle = `${nom}|${innerWidth}|${document.fonts ? document.fonts.status : ''}`; if (cle === enseigneVue) return; enseigneVue = cle;
+    const e = $('#enseigne'), s = e.querySelector('span'); s.textContent = nom; e.classList.remove('long');
+    if (s.scrollWidth > s.clientWidth + 1) e.classList.add('long');
+  }
   function hud() {
-    const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st), marche = G.jourDeMarche(st.now), boost = st.boost && st.boost.fin > st.now ? st.boost.mult : 0;
+    const taux = G.tauxParSeconde(st), gain = G.etoilesGagnables(st), pret = etoilesPretes(st, gain), marche = G.jourDeMarche(st.now), boost = st.boost && st.boost.fin > st.now ? st.boost.mult : 0;
     const bonus = G.AMELIORATIONS.filter((a) => !st.ameliorations[a.id] && G.ameliorationOuverte(st, a) && st.coins >= G.prixBonus(st, a)).length + G.MOBILIER.filter((m) => G.mobilierCran(st, m.id) < m.max && st.coins >= G.prixMeuble(st, m.id)).length, primes = primesAReclamer(), pts = G.ptsTalents(st);
     if (pageActive === 'journal' && tiroir.pos !== 'ferme' && nonLues()) marquerLu(); // une nouvelle arrivée pendant qu'on lit le Journal est lue aussitôt
     const nouveaux = nonLues(), nom = G.nomBoutique(st), ev = st.ev ? st.ev.type : '', nv = nouveautesNonVues();
@@ -258,14 +269,14 @@ const UI = (() => {
     // la ligne du rythme et les badges s'y relaient toutes les 4 s, à hauteur constante
     const br = st.boosts && st.boosts.actif && st.boosts.actif.fin > st.now ? st.boosts.actif.mult : 0; // un boost de la réserve (l'événement du quartier)
     const extras = [marche && 'Marché ×1,5', boost && `Bonne critique ×${boost}`, br && `Boost ×${br}`].filter(Boolean), tour = extras.length ? Math.floor(performance.now() / 4000) % (extras.length + 1) : 0;
-    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${marche}|${boost}|${br}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}|${tour}|${nv}`;
+    const key = `${G.fmtEur(st.coins)}|${G.fmtEur(taux)}|${st.etoiles}|${gain}|${pret}|${marche}|${boost}|${br}|${bonus}|${primes}|${pts}|${nouveaux}|${nom}|${ev}|${tour}|${nv}`;
+    majEnseigne(nom); // avant le raccourci : les polices arrivent sans que rien d'autre ne change
     if (key === lastHud) return; lastHud = key;
     $('#coins').textContent = G.fmtEur(st.coins);
     $('#taux').innerHTML = `<span${tour ? ' style="display:none"' : ''}>${taux > 0 ? `<b>+${G.fmtEur(taux)}</b><span class="ps"> par seconde</span><span class="ps-c"> / s</span>` : 'Touche la baguette !'}</span>` + extras.map((t, k) => `<span class="marche" style="margin:0;padding:1px 7px;vertical-align:top${tour === k + 1 ? '' : ';display:none'}">${t}</span>`).join('');
     $('#etoiles-n').innerHTML = gain > 0 ? `${st.etoiles}<small><i> · </i>+${gain}</small>` : st.etoiles; // sur un téléphone, le « +gain » passe sous le compte (style.css)
-    $('#b-etoiles').classList.toggle('pret', gain >= 3);
+    $('#b-etoiles').classList.toggle('pret', pret);
     $('#b-ameliorations').classList.toggle('pret', bonus > 0); badge($('#b-ameliorations'), bonus);
-    $('#enseigne span').textContent = nom;
     $('#b-cloche').classList.toggle('actif', !!ev); $('#b-cloche .point').hidden = !ev && !nouveaux; // la cloche : l'événement en cours, sinon les nouvelles pas lues
     $('#b-cloche').setAttribute('aria-label', ev ? 'Événement en cours' : nouveaux ? `${nouveaux} nouvelle${nouveaux > 1 ? 's' : ''} dans le Journal` : 'Le Journal');
     $('#b-nouveautes .point').hidden = !nv; // le cadeau : une mise à jour pas encore vue
@@ -579,6 +590,7 @@ const UI = (() => {
     html: () => {
       const q = G.QUARTIERS[G.quartier(st)], cr = classement ? classement.resume() : null;
       const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
+      const info = (ico, titre, sous) => `<div class="reglage info"><i class="ico">${ico}</i><span><b>${titre}</b><small>${sous}</small></span><span></span></div>`; // une ligne qui informe, sans action
       const sw = (on) => `<span class="interrupteur" role="switch" aria-checked="${on}"></span>`, chev = `<i class="ico chev">${ICONS.UI.chevron}</i>`;
       const groupe = (titre, lignes) => `<h3 class="titre-section"><span>${titre}</span></h3><div class="card reglages">${lignes}</div>`;
       const choix = (cle, ico, titre, aide, options) => `<div class="reglage choix" data-choix="${cle}"><i class="ico">${ico}</i><span><b id="rg-${cle}">${titre}</b><small id="rg-${cle}-aide">${aide}</small></span><span></span>`
@@ -591,8 +603,8 @@ const UI = (() => {
           + (typeof HDM !== 'undefined' && HDM.actif ? ligne('hd', ICONS.UI.amenager, 'Décors en HD', HDM.raison === 'écran noir' ? 'Coupés : l’écran restait noir sur ce téléphone. Touche pour réessayer' : st.qualite === 'eco' && !HDM.coupe() ? 'En qualité Éco, ils ne se chargent pas : choisis Auto, Haute ou Moyenne pour les voir' : 'Boutique et événements : meubles, rue de nuit et équipe animée (à couper si l’écran reste noir)', sw(!HDM.coupe())) : ''))}
         ${groupe('La boutique', ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)
           + ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés, leurs crans et leurs prix : touche-les pour les améliorer', chev)
-          + (st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, ''))
-          + ligne('compagnons', ICONS.UI.patte, 'Le compagnon', st.chat ? `${esc(st.chat.nom)}, ${esc(G.compagnon(modeleVu()).nom.toLowerCase())} · treize animaux au choix, du chat au mini-dragon` : 'Choisis l’animal de la boutique : du chat roux au mini-dragon', chev)
+          + (st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : info(ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`))
+          + ligne('compagnons', ICONS.UI.patte, 'Le compagnon', st.chat ? `${esc(st.chat.nom)}, ${esc(G.compagnon(modeleVu()).nom.toLowerCase())} · ${G.COMPAGNONS.length} animaux au choix, du chat au mini-dragon` : 'Choisis l’animal de la boutique : du chat roux au mini-dragon', chev)
           + (st.chat ? ligne('chat', ICONS.UI.chat, `Renommer ${esc(st.chat.nom)}`, 'Le compagnon de la boutique', chev) : ''))}
         ${cr && cr.rejoint ? groupe('Classement', ligne('cl-quitter', ICONS.UI.quitter, 'Quitter le classement', `Ton pseudo « ${esc(cr.pseudo)} » et tes points disparaissent du classement`, chev)) : ''}
         ${blocNotifs(ligne, sw)}
@@ -652,7 +664,7 @@ const UI = (() => {
       <span class="tk-pill">${aReclamer ? 'Prime !' : `<i class="ico">${ICONS.UI.chevron}</i>`}</span>`;
   }
 
-  // ─── la réserve de boosts (les paliers de l'événement du quartier) : une pastille sous les objectifs, à lancer quand on veut ───
+  // ─── la réserve de boosts (les paliers des événements, le parcours, les contrats de la nuit, les copains) : une pastille sous les objectifs, à lancer quand on veut ───
   let lastBoosts = '';
   function renderBoosts() {
     const el = $('#boosts'); if (!el) return;
@@ -661,13 +673,13 @@ const UI = (() => {
     const reste = actif ? G.fmtChrono((actif.fin - st.now) / 1000) : '', key = `${actif ? actif.mult + reste : ''}|${reserve.map((x) => x.mult + ':' + x.secs).join(',')}`;
     if (key === lastBoosts) return; lastBoosts = key; el.hidden = false;
     el.className = 'ticket boosts' + (actif ? ' actif' : '');
-    el.innerHTML = `<i class="ico">${ICONS.UI.eclair}</i><span class="tk-txt"><b>${actif ? `Boost ×${actif.mult} en cours` : `Boost ×${reserve[0].mult} · ${G.fmtDuree(reserve[0].secs)}`}</b><small>${actif ? `Toutes les ventes ×${actif.mult}${reserve.length ? ` · encore ${reserve.length} en réserve` : ''}` : reserve.length > 1 ? `${reserve.length} boosts en réserve, gagnés au Quartier` : 'Gagné au Quartier : lance-le quand tu veux'}</small></span><span class="tk-pill">${actif ? reste : 'Lancer'}</span>`;
+    el.innerHTML = `<i class="ico">${ICONS.UI.eclair}</i><span class="tk-txt"><b>${actif ? `Boost ×${actif.mult} en cours` : `Boost ×${reserve[0].mult} · ${G.fmtDuree(reserve[0].secs)}`}</b><small>${actif ? `Toutes les ventes ×${actif.mult}${reserve.length ? ` · encore ${reserve.length} en réserve` : ''}` : reserve.length > 1 ? `${reserve.length} boosts en réserve` : 'En réserve : lance-le quand tu veux'}</small></span><span class="tk-pill">${actif ? reste : 'Lancer'}</span>`;
   }
   function lancerBoost() {
     const b = st.boosts; if (!b || (b.actif && b.actif.fin > st.now)) { toast('Un boost tourne déjà : attends la fin.'); return; }
     if (!b.reserve.length) return;
     if (b.reserve.length === 1) { const r = G.lancerBoostReserve(st, 0); if (r.ok) reussite(`Boost ×${r.boost.mult} lancé : toutes les ventes ×${r.boost.mult} pendant ${G.fmtDuree((r.boost.fin - st.now) / 1000)} !`); return; }
-    openSheet(`<h2>La réserve de boosts</h2><p class="sous">Gagnés aux paliers des événements, avec les pourboires des copains et l’objectif commun. Un seul à la fois ; il tourne sur l'horloge, même la boutique fermée.</p><div class="liste-am">${b.reserve.map((x, k) => `<div class="am"><div><h3>Boost ×${x.mult}</h3><p>Toutes les ventes ×${x.mult} pendant ${G.fmtDuree(x.secs)}</p></div><button type="button" class="btn beurre" data-k="${k}"><small>Lancer</small><b>×${x.mult}</b></button></div>`).join('')}</div>${btnRetour()}`);
+    openSheet(`<h2>La réserve de boosts</h2><p class="sous">Gagnés aux paliers des événements, sur le parcours du boulanger, aux contrats de la nuit, avec les pourboires des copains et l’objectif commun. Un seul à la fois ; il tourne sur l'horloge, même la boutique fermée.</p><div class="liste-am">${b.reserve.map((x, k) => `<div class="am"><div><h3>Boost ×${x.mult}</h3><p>Toutes les ventes ×${x.mult} pendant ${G.fmtDuree(x.secs)}</p></div><button type="button" class="btn beurre" data-k="${k}"><small>Lancer</small><b>×${x.mult}</b></button></div>`).join('')}</div>${btnRetour()}`);
     on('[data-a="close"]', closeSheet);
     on('[data-k]', (el) => { const r = G.lancerBoostReserve(st, +el.dataset.k); closeSheet(); if (r.ok) reussite(`Boost ×${r.boost.mult} lancé : toutes les ventes ×${r.boost.mult} pendant ${G.fmtDuree((r.boost.fin - st.now) / 1000)} !`); else son.non(); });
   }
@@ -840,7 +852,8 @@ const UI = (() => {
       <button type="button" class="btn large beurre" data-a="ok" style="margin-top:12px"><b>${nouvelle ? 'C’est parti !' : 'Garder ce nom'}</b></button>
       ${nouvelle ? '' : '<button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Annuler</b></button>'}`);
     const champ = fc.querySelector('.champ');
-    const valider = () => { G.renommer(st, champ.value); if (choixSpe && spe != null) G.choisirSpecialite(st, spe); save(); renderCards(true); hud(); closeSheet(); renderPage(true); toast(`${G.nomBoutique(st)} : bienvenue !${choixSpe && spe != null ? ` Spécialité : ${G.PRODUITS[spe].pl}.` : ''}`); };
+    // le nom proposé (l'enseigne du quartier) n'est pas stocké : G.renommer le couperait à 24 caractères (« Le Grand Fournil de la C »)
+    const valider = () => { const v = champ.value.replace(/\s+/g, ' ').trim(); G.renommer(st, v === q.enseigne ? '' : v); if (choixSpe && spe != null) G.choisirSpecialite(st, spe); save(); renderCards(true); hud(); closeSheet(); renderPage(true); toast(`${G.nomBoutique(st)} : bienvenue !${choixSpe && spe != null ? ` Spécialité : ${G.PRODUITS[spe].pl}.` : ''}`); };
     on('[data-a="ok"]', valider); on('[data-a="non"]', closeSheet);
     on('[data-s]', (b) => { spe = +b.dataset.s; fc.querySelectorAll('[data-s]').forEach((x) => x.classList.toggle('actif', x === b)); son.tap(); });
     champ.addEventListener('keydown', (e) => { if (e.key === 'Enter') valider(); });
@@ -898,15 +911,17 @@ const UI = (() => {
     return ICONS.ETOILE;
   }
   const leRecompense = (r) => (!r ? '' : r.type === 'recette' ? `le ${r.p.nom}`.replace(/^le ([AEÉIOU])/, 'l’$1').replace(/^le Tarte/, 'la Tarte') : G.texteRecompense(r)); // « le Paris-Brest », « l’Opéra », « la Tarte aux myrtilles »
+  // le défi de passage, encore exigé après la n°30 (celui de la n°29) : sa ligne sous « Parcours terminé », texte et progression
+  const ligneDefiFin = (d) => (d ? `<p class="note">${d.fait ? '✓ ' : ''}Défi de passage : ${esc(d.txt)} · ${G.fmt(d.progres)}/${G.fmt(d.cible)}</p><div class="mini xp"><i style="width:${Math.floor(d.part * 100)}%"></i></div>` : '');
   // la carte en haut de l'onglet Défis : « Objectif : boutique n°6 · Canelé · 52 % »
   function carteParcours() {
     const b = G.butParcours(st);
-    if (b.fini) return `<div class="card parcours fini" data-a="parcours" role="button" tabindex="0"><div class="c-tete"><span class="pic or">${ICONS.UI.parcours}</span><h3>Parcours terminé, félicitations !</h3><span class="compte or">30/30</span></div><p class="note">Les trente boutiques sont ouvertes${G.titreParcours(st) ? ` : te voilà « ${esc(G.titreParcours(st))} »` : ''}. Touche pour revoir ton parcours.</p></div>`;
+    if (b.fini) return `<div class="card parcours fini" data-a="parcours" role="button" tabindex="0"><div class="c-tete"><span class="pic or">${ICONS.UI.parcours}</span><h3>Parcours terminé, félicitations !</h3><span class="compte or">${G.PARCOURS_FIN}/${G.PARCOURS_FIN}</span></div><p class="note">Les trente boutiques sont ouvertes${G.titreParcours(st) ? ` : te voilà « ${esc(G.titreParcours(st))} »` : ''}. Touche pour revoir ton parcours.</p>${ligneDefiFin(b.defi)}</div>`;
     const r = b.recompense, pc = Math.floor(b.part * 100);
     return `<div class="card parcours ${b.pret ? 'pret' : ''}" data-a="parcours" role="button" tabindex="0" aria-label="Le parcours du boulanger : objectif boutique n°${b.n}, ${pc} %">
       <div class="c-tete"><span class="pic lav">${icoRecompense(r)}</span><h3>Objectif : boutique n°${b.n}${r ? ` · ${esc(r.type === 'recette' ? r.p.nom : r.type === 'quartier' ? r.quartier.nom : G.texteRecompense(r))}` : ''}</h3><span class="compte ${b.pret ? 'ok' : ''}">${pc} %</span></div>
       <div class="mini xp"><i style="width:${pc}%"></i></div>
-      <p class="note">${b.pret ? 'Prête à ouvrir : touche ★ en haut.' : `Étoiles : +${G.fmt(b.gain)} sur +${G.fmt(b.conseil)} conseillées${b.defi ? ` · Défi : ${esc(b.defi.txt)} (${G.fmt(b.defi.progres)}/${G.fmt(b.defi.cible)})` : ''}`}</p></div>`;
+      <p class="note">${b.pret ? (etoilesPretes(st, b.gain) ? 'Prête à ouvrir : touche ★ en haut.' : 'Prête à ouvrir : ouvre la feuille ★.') : `Étoiles : +${G.fmt(b.gain)} sur +${G.fmt(b.conseil)} conseillées${b.defi ? ` · Défi : ${esc(b.defi.txt)} (${G.fmt(b.defi.progres)}/${G.fmt(b.defi.cible)})` : ''}`}</p></div>`;
   }
   function sheetParcours() { // les trente boutiques : passées, actuelle, à venir ; leur quartier, leur récompense, leur défi
     const liste = G.parcoursListe(st), b = G.butParcours(st);
@@ -914,7 +929,7 @@ const UI = (() => {
       <span class="pc-txt"><b>${x.n === 1 ? 'Ta première boutique' : esc(x.texte || '—')}</b><small>${esc(x.quartier ? x.quartier.nom : '')}${x.etat === 'actuelle' ? ' · tu es ici' : ''}</small>${x.defi && x.etat !== 'passee' ? `<small class="pc-defi">Pour ouvrir la n°${x.n + 1} : ${esc(x.defiTxt)}</small>` : ''}</span>
       ${x.etat === 'passee' ? `<i class="pc-ok">${ICONS.UI.coche || '✓'}</i>` : ''}</li>`;
     openSheet(`<h2>Le parcours du boulanger</h2><p class="sous">Trente boutiques, une récompense à chacune : des recettes, des quartiers, une tenue, des bonus. Dès la boutique n°6, ouvrir la suivante demande aussi un défi de passage.${G.titreParcours(st) ? ` Ton titre : <b>${esc(G.titreParcours(st))}</b>.` : ''}</p>
-      ${b.fini ? '<div class="encadre doux"><b>Parcours terminé, félicitations !</b> Les trente boutiques sont ouvertes.</div>' : ''}
+      ${b.fini ? `<div class="encadre doux"><b>Parcours terminé, félicitations !</b> Les trente boutiques sont ouvertes.${b.defi ? `<br>Pour ouvrir la suivante, le défi de passage : ${esc(b.defi.txt)} · ${G.fmt(b.defi.progres)}/${G.fmt(b.defi.cible)}${b.defi.fait ? ' ✓' : ''}` : ''}</div>` : ''}
       ${ligneStanding()}
       <ol class="pc-liste">${liste.map(ligne).join('')}</ol>${btnRetour()}`);
     on('[data-a="close"]', closeSheet);
@@ -941,9 +956,10 @@ const UI = (() => {
     on('[data-a="ok"]', () => { son.tap(); if (suite) suite(); else closeSheet(); });
   }
   function butEtoiles() { // la feuille Étoiles : ce que la prochaine boutique apporte, et son défi de passage
-    const b = G.butParcours(st); if (b.fini) return '<div class="et-but fini"><b>Parcours terminé, félicitations !</b><small>Les trente boutiques du parcours sont ouvertes.</small></div>';
+    const b = G.butParcours(st), ligneDefi = b.defi ? `<span class="et-defi ${b.defi.fait ? 'fait' : ''}">${b.defi.fait ? '✓ ' : ''}Défi de passage : ${esc(b.defi.txt)} · ${G.fmt(b.defi.progres)}/${G.fmt(b.defi.cible)}</span>` : '';
+    if (b.fini) return `<div class="et-but fini"><b>Parcours terminé, félicitations !</b><small>Les trente boutiques du parcours sont ouvertes.</small>${ligneDefi}</div>`;
     const r = b.recompense;
-    return `<button type="button" class="et-but" data-a="parcours"><span class="et-but-ico">${icoRecompense(r)}</span><span class="et-but-txt"><small>Ta prochaine boutique débloque</small><b>${esc(r ? leRecompense(r) : `la boutique n°${b.n}`)}</b>${b.defi ? `<span class="et-defi ${b.defi.fait ? 'fait' : ''}">${b.defi.fait ? '✓ ' : ''}Défi de passage : ${esc(b.defi.txt)} · ${G.fmt(b.defi.progres)}/${G.fmt(b.defi.cible)}</span>` : ''}</span><i class="ico chev">${ICONS.UI.chevron}</i></button>`;
+    return `<button type="button" class="et-but" data-a="parcours"><span class="et-but-ico">${icoRecompense(r)}</span><span class="et-but-txt"><small>Ta prochaine boutique débloque</small><b>${esc(r ? leRecompense(r) : `la boutique n°${b.n}`)}</b>${ligneDefi}</span><i class="ico chev">${ICONS.UI.chevron}</i></button>`;
   }
   function sheetEtoiles() {
     const gain = G.etoilesGagnables(st), bonus = Math.round(st.etoiles * G.ETOILE_BONUS * 100), q = G.QUARTIERS[G.quartier(st)], defi = G.defiPassage(st), bloque = !!(defi && !defi.fait), titre = G.titreParcours(st);
@@ -952,7 +968,7 @@ const UI = (() => {
       <div class="encadre doux">Ouvrir une <b>nouvelle boutique</b> remet les produits et les euros à zéro, mais tu gardes tes étoiles pour toujours. Chaque étoile : <b>+${Math.round(G.ETOILE_BONUS * 100)} %</b> de gains. Plus tu as gagné dans cette boutique, plus tu en récoltes. Les objectifs du jour en donnent une aussi.</div>
       <div class="grand-nombre">+${gain} ★</div><p class="sous">à récolter maintenant (${G.fmtEur(st.lifetimeRun)} gagnés dans cette boutique)</p>
       ${jaugeEtoile()}
-      <button type="button" class="btn large ${gain > 0 && !bloque ? 'beurre' : 'non'}" data-a="prestige"${bloque ? ' aria-disabled="true"' : ''}><small>${bloque ? 'D’abord le défi de passage' : gain > 0 ? 'Repartir avec' : 'Pas encore'}</small><b>${bloque ? `Défi : ${G.fmt(defi.progres)} / ${G.fmt(defi.cible)}` : gain > 0 ? `+${gain} étoile${gain > 1 ? 's' : ''}` : 'Vends encore un peu'}</b></button>
+      <button type="button" class="btn large ${gain > 0 && !bloque ? 'beurre' : 'non'}" data-a="prestige"${bloque ? ' aria-disabled="true"' : ''}><small>${bloque ? `Défi de passage : ${esc(defi.txt)}` : gain > 0 ? 'Repartir avec' : 'Pas encore'}</small><b>${bloque ? `${G.fmt(defi.progres)} / ${G.fmt(defi.cible)}` : gain > 0 ? `+${gain} étoile${gain > 1 ? 's' : ''}` : 'Vends encore un peu'}</b></button>
       <h3 class="titre-section">Ta boutique</h3>
       ${ligneStanding()}
       <div class="stat"><span>Fournées vendues</span><b>${G.fmt(st.stats.ventes)}</b></div><div class="stat"><span>Clients servis</span><b>${G.fmt(st.stats.clients)}</b></div><div class="stat"><span>Gagné depuis le début</span><b>${G.fmtEur(st.lifetime)}</b></div>
@@ -962,7 +978,7 @@ const UI = (() => {
     on('[data-a="prestige"]', () => {
       const dp = G.defiPassage(st); if (dp && !dp.fait) { son.non(); toast(`D’abord le défi de passage : ${dp.txt}.`); return; }
       if (G.etoilesGagnables(st) <= 0) { son.non(); return; }
-      openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les bonus achetés sont perdus.</p>
+      openSheet(`<h2>Nouvelle boutique ?</h2><p class="sous">Tu repars de la première baguette avec <b>${st.etoiles + gain} étoiles</b> (+${Math.round((st.etoiles + gain) * G.ETOILE_BONUS * 100)} % de gains). Les bonus et le mobilier achetés sont perdus (les places des meubles restent). Tes objectifs du jour réussis sont récupérés d’office.</p>
         <button type="button" class="btn large beurre" data-a="oui"><b>Ouvrir la boutique n°${st.boutiques + 1}</b></button><button type="button" class="btn large non" data-a="non" style="margin-top:8px"><b>Rester ici</b></button>`);
       on('[data-a="non"]', sheetEtoiles);
       on('[data-a="oui"]', () => { const avant = G.standing ? G.standing(st) : 0, r = G.nouvelleBoutique(st, HORLOGE.maintenant()); if (r.ok) { son.deblocage(); buzz([20, 40, 20]); SCENE.fete(); confettis(1.6); const rec = r.recompenses && r.recompenses.find((x) => x.n === st.boutiques); toast(`Boutique n°${st.boutiques} ouverte : +${r.gain} ★${rec ? ` · ${rec.texte}` : ''}`); st.tuto = Math.max(st.tuto, INDICES.length); amenager(false); renderCards(true); hud(); save(); showPage('boutique'); if (G.standing && G.standing(st) > avant) sheetMonteeGamme(() => sheetNom(true)); else sheetNom(true); } }); // un nouveau palier de standing : l'annonce d'abord, puis le nom
@@ -1068,7 +1084,7 @@ const UI = (() => {
   function sheetRetour(abs) {
     const detail = abs.detail.slice().sort((a, b) => b.m - a.m).map((d) => `<li><span>${esc(d.nom || G.PRODUITS[d.i].nom)} × ${G.fmt(d.n)}</span><b>${G.fmtEur(d.m)}</b></li>`).join('');
     const grades = (abs.grades || []).map((g) => `${G.APPRENTIS[g.i].prenom} passe au grade ${g.niv}`).join(' · ');
-    openSheet(`<h2>Pendant ton absence</h2><p class="sous">${G.fmtDuree(abs.secs)}${abs.secs >= G.heuresAbsence(st) * 3600 ? ` (les apprentis s’arrêtent après ${G.heuresAbsence(st)} h)` : ''}</p>
+    openSheet(`<h2>Pendant ton absence</h2><p class="sous">${G.fmtDuree(abs.secs)}${abs.secs >= G.heuresAbsence(st) * 3600 ? ` (les apprentis s’arrêtent après ${G.fmtDuree(G.heuresAbsence(st) * 3600)})` : ''}</p>
       <div class="grand-nombre">+${G.fmtEur(abs.total)}</div><p class="sous">vendus par tes apprentis</p><ul class="detail">${detail}</ul>${grades ? `<p class="sous">${esc(grades)} !</p>` : ''}
       <button type="button" class="btn large menthe" data-a="close"><b>Super !</b></button>`);
     on('[data-a="close"]', closeSheet);

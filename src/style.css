@@ -106,9 +106,14 @@ body[data-tiroir="ouvert"] #coin, body[data-tiroir="ouvert"] #b-fini { opacity: 
 #poignee i { width: 56px; height: 5px; border-radius: 3px; background: var(--gris-sombre); }
 #poignee:active { cursor: grabbing; }
 #tiroir[data-pos="ouvert"] #evenement { opacity: 0; pointer-events: none; }
-#enseigne { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 2; display: inline-flex; align-items: center; gap: 6px; max-width: 70%; min-height: 34px; padding: 0 14px; border-radius: 999px;
+#enseigne { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); z-index: 2; display: inline-flex; align-items: center; gap: 6px; max-width: min(70%, calc(100% - 120px)); min-height: 34px; padding: 0 14px; border-radius: 999px;
   background: #fff; box-shadow: 0 3px 0 var(--gris-sombre); font: 700 15px/1 var(--titre); color: var(--texte); white-space: nowrap; transition: opacity .2s, transform .2s; }
 #enseigne span { overflow: hidden; text-overflow: ellipsis; }
+/* l'enseigne fait 70 % au plus, mais ne passe jamais sous la colonne des boutons ronds de droite (#coin : 10 + 44 px, et 6 px d'air,
+   des deux côtés puisqu'elle est centrée). Un nom trop long pour la largeur (la Capitale à 360 px, ui.js majEnseigne) : en petit, sur deux lignes serrées ; width: max-content,
+   sinon la boîte, placée à left: 50 %, se replierait à la moitié de l'écran au lieu de sa largeur maximale */
+#enseigne.long { width: max-content; padding: 3px 14px; font-size: 13px; line-height: 1.05; white-space: normal; text-align: center; }
+#enseigne.long span { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 #enseigne:active { transform: translateX(-50%) translateY(3px); box-shadow: none; }
 
 /* ─── pages ─── */

@@ -120,6 +120,11 @@ titre('les défis de passage');
   check(e.boutiques === 10 && e.defi.type === 'etoiles' && e.defi.cible === Math.ceil(e.etoiles * 0.25), `la n°10 : récolter +${e.defi.cible} étoiles d’un coup (25 % de celles qu’on a en ouvrant)`);
   const liste = G.parcoursListe(e);
   check(liste.length === 30 && liste[9].etat === 'actuelle' && liste[5].defiTxt && liste.filter((x) => x.etat === 'passee').length === 9, 'la liste du parcours : trente boutiques, passées, actuelle, à venir, leur défi');
+  check(liste[9].defi === e.defi && liste[9].defiTxt === G.texteDefi(e.defi, e.defi.cible), `la boutique en cours : le défi réellement posé, avec sa cible (« ${liste[9].defiTxt} »)`);
+  // une boutique ouverte avant le parcours (n°8, sans st.defi) : la liste n'annonce aucun défi pour ouvrir la n°9, puisque rien n'est exigé
+  const v = G.newState(T); v.now = T; v.boutiques = 8; v.defi = null;
+  const l8 = G.parcoursListe(v)[7];
+  check(l8.etat === 'actuelle' && l8.defi === null && l8.defiTxt === '' && G.passageOk(v) && G.parcoursListe(v)[8].defiTxt, `la n°8 sans défi posé : aucun défi annoncé pour ouvrir la n°9 (« ${l8.defiTxt} »), la n°9 garde le sien`);
 }
 
 console.log(`\n${n - fails}/${n} vérifications.`);

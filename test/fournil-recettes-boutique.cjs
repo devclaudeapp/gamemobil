@@ -4,6 +4,10 @@
 //    recettes d'après cachées ; la feuille Étoiles annonce le but ; la carte « Objectif » en haut des Défis et la feuille du parcours.
 // 2. Le défi de passage : à la boutique n°7, le bouton « Repartir » est verrouillé tant que le défi n'est pas fait, puis s'ouvre.
 // 3. Les pâtisseries 3D : dans la vitrine (gros plan) et dans l'atelier 3D (les huit côte à côte).
+// 4. La relecture (constats 4, 8, 9, 11, 12 et l'enseigne) : la pastille ★ attend le défi de passage ; la boutique n°30 ouverte par
+//    l'interface garde le nom complet de la Capitale, qui tient sur l'enseigne à 390 et à 360 × 640 ; après la n°30, le défi de passage
+//    est décrit sur la carte des Défis, la feuille Étoiles, son bouton et le parcours ; la carte à débloquer, l'absence, les compagnons,
+//    la ligne Spécialité des Réglages (une information, plus un bouton).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-recettes-boutique.cjs
 //   (captures dans test/shots/recettes-boutique/ ; PORT_RECETTES pour changer de port)
 'use strict';
@@ -89,13 +93,15 @@ function vieilleSauvegarde() {
 
   // ─── 2. le défi de passage : le bouton verrouillé, puis ouvert ───
   const d1 = await page.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st; st.boutiques = 7; st.quartierFixe = G.quartierDe(7); st.lifetimeRun = 1e18; st.mobilier = {}; st.defi = G.creerDefi(st, 7); G.rattraperParcours(st); f.save(); f.etoiles(); const b = document.querySelector('#feuille [data-a="prestige"]'); return { cls: b.className, aria: b.getAttribute('aria-disabled'), txt: b.textContent, defi: G.defiPassage(st) }; });
-  check(/non/.test(d1.cls) && d1.aria === 'true' && /défi de passage/.test(d1.txt) && /0 \/ 5/.test(d1.txt), `boutique n°7 : « Repartir » verrouillé (${d1.txt.replace(/\s+/g, ' ').trim()})`);
+  check(/non/.test(d1.cls) && d1.aria === 'true' && /Défi de passage : 5 meubles au cran maximum/.test(d1.txt) && /0 \/ 5/.test(d1.txt), `boutique n°7 : « Repartir » verrouillé, le bouton nomme le défi (${d1.txt.replace(/\s+/g, ' ').trim()})`);
   await page.screenshot({ path: `${out}/7-defi-verrou.png` });
   await page.evaluate(() => document.querySelector('#feuille [data-a="prestige"]').click()); await sleep(300);
   check(await page.evaluate(() => window.__fournil.st.boutiques === 7), 'toucher le bouton verrouillé n’ouvre rien');
   const d2 = await page.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st; for (const m of G.MOBILIER) st.mobilier[m.id] = m.max; document.querySelector('#feuille [data-a="close"]').click(); f.etoiles(); const b = document.querySelector('#feuille [data-a="prestige"]'); return { cls: b.className, txt: b.textContent }; });
   check(/beurre/.test(d2.cls) && /Repartir avec/.test(d2.txt), 'le défi fait (six meubles au maximum) : le bouton s’ouvre');
   await page.evaluate(() => document.querySelector('#feuille [data-a="prestige"]').click()); await sleep(300);
+  const conf = await page.evaluate(() => document.querySelector('#feuille-contenu').textContent.replace(/\s+/g, ' '));
+  check(/Les bonus et le mobilier achetés sont perdus \(les places des meubles restent\)/.test(conf) && /Tes objectifs du jour réussis sont récupérés d’office/.test(conf), 'la confirmation dit ce qui se perd : les bonus et le mobilier (pas les places), et que les objectifs réussis sont récupérés');
   await page.evaluate(() => document.querySelector('#feuille [data-a="oui"]').click()); await sleep(600);
   const d3 = await page.evaluate(() => { const st = window.__fournil.st; return { b: st.boutiques, defi: st.defi && st.defi.type, q: window.__fournil.G.quartier(st) }; });
   check(d3.b === 8 && d3.defi === 'evenements', `boutique n°8 ouverte, avec son propre défi (${d3.defi})`);
@@ -128,6 +134,85 @@ function vieilleSauvegarde() {
     await p4.screenshot({ path: `${out}/8-vitrine-gros-plan.png`, clip: { x: Math.max(0, v4.x - 6), y: Math.max(0, v4.y - 30), width: v4.w + 16, height: v4.h + 40 } });
     await ctx4.close();
   }
+  // ─── 4. la pastille ★, la fin du parcours, l'enseigne de la Capitale, les petits textes (relecture : constats 4, 8, 9, 11, 12) ───
+  // les gains de la boutique réglés pour récolter exactement g étoiles (par dichotomie sur GAME.etoilesGagnables)
+  const reglerGain = (g) => page.evaluate((g) => { const f = window.__fournil, G = f.G, st = f.st; let lo = 1, hi = 1e60; for (let k = 0; k < 400; k++) { const m = Math.sqrt(lo * hi); st.lifetimeRun = m; if (G.etoilesGagnables(st) >= g) hi = m; else lo = m; } st.lifetimeRun = hi; return G.etoilesGagnables(st); }, g);
+  const pastille = () => page.evaluate(() => new Promise((ok) => { window.__fournil.rafraichir(); requestAnimationFrame(() => ok(document.querySelector('#b-etoiles').classList.contains('pret'))); }));
+  const noteDefis = () => page.evaluate(() => { const f = window.__fournil; f.rafraichir(); const c = document.querySelector('#page-defis .card.parcours'); return c ? c.textContent.replace(/\s+/g, ' ').trim() : ''; });
+  await page.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st; const o = document.querySelector('#feuille [data-a="close"]'); if (o) o.click(); st.boutiques = 6; st.quartierFixe = G.quartierDe(6); st.etoiles = 1000; for (const s of st.stations) s.niv = Math.min(s.niv, 300); st.defi = G.creerDefi(st, 6); f.page('defis'); f.tiroir('ouvert'); });
+  const g3 = await reglerGain(3);
+  const p1 = await pastille(), n1 = await noteDefis();
+  check(g3 === 3 && !p1 && !/touche ★ en haut/.test(n1) && /Défi : Une recette au niveau 375/.test(n1), `boutique n°6, +3 ★ à récolter mais le défi pas fait : la pastille ★ reste éteinte (« ${n1.slice(-70)} »)`);
+  await page.evaluate(() => { window.__fournil.st.stations[0].niv = 375; });
+  const p2 = await pastille(), n2 = await noteDefis();
+  check(p2 && /Prête à ouvrir : touche ★ en haut/.test(n2), `le défi fait : la pastille s'allume, la carte dit « touche ★ en haut »`);
+  await reglerGain(1);
+  const p3 = await pastille(), n3 = await noteDefis();
+  check(!p3 && /Prête à ouvrir : ouvre la feuille ★/.test(n3) && !/touche ★ en haut/.test(n3), `+1 ★ seulement : la pastille éteinte, la carte ne parle pas d'elle (« ${n3.slice(-40)} »)`);
+
+  // la n°30 ouverte depuis la n°29, par l'interface : le nom proposé (l'enseigne de la Capitale, 31 caractères) n'est pas stocké, donc pas coupé
+  await page.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st; st.boutiques = 29; st.quartierFixe = G.quartierDe(29); st.defi = null; st.nomBoutique = ''; st.specialite = null; f.page('boutique'); f.tiroir('mi'); });
+  await reglerGain(50);
+  await page.evaluate(() => { window.__fournil.etoiles(); document.querySelector('#feuille [data-a="prestige"]').click(); }); await sleep(300);
+  await page.evaluate(() => document.querySelector('#feuille [data-a="oui"]').click()); await sleep(600);
+  const nom = await page.evaluate(() => { const c = document.querySelector('#feuille .champ'); return c ? c.value : null; });
+  await page.evaluate(() => document.querySelector('#feuille [data-a="ok"]').click()); await sleep(400);
+  const en = await page.evaluate(() => { const f = window.__fournil, st = f.st, s = document.querySelector('#enseigne span'); return { b: st.boutiques, nom: st.nomBoutique, aff: s.textContent, spe: st.specialite, defi: f.G.defiPassage(st) }; });
+  check(en.b === 30 && nom === 'Le Grand Fournil de la Capitale' && en.nom === '' && en.aff === 'Le Grand Fournil de la Capitale', `la boutique n°30 : le nom proposé (« ${nom} ») validé tel quel n'est pas stocké (« ${en.nom} ») ; l'enseigne montre le nom complet (« ${en.aff} »)`);
+  const enseigne = (w, h) => page.evaluate(() => new Promise((ok) => requestAnimationFrame(() => { window.__fournil.rafraichir(); requestAnimationFrame(() => { const e = document.querySelector('#enseigne'), s = e.querySelector('span'), r = e.getBoundingClientRect(); const c = document.querySelector('#coin').getBoundingClientRect(); ok({ sw: s.scrollWidth, cw: s.clientWidth, sh: s.scrollHeight, ch: s.clientHeight, long: e.classList.contains('long'), g: r.left, d: c.left - r.right, h: r.height, txt: s.textContent }); }); })));
+  const clipEnseigne = () => page.evaluate(() => { const r = document.querySelector('#enseigne').getBoundingClientRect(); return { x: 0, y: 0, width: innerWidth, height: Math.ceil(r.bottom + 12) }; });
+  await attendre(() => page.evaluate(() => !document.querySelector('.toast')), 20000); // les messages de l'ouverture passent sur l'enseigne : la capture attend qu'ils s'en aillent
+  const e390 = await enseigne();
+  check(e390.sw <= e390.cw + 1 && e390.sh <= e390.ch + 1 && e390.long && e390.g >= 8 && e390.d >= 4, `à 390 px : « ${e390.txt} » tient en entier sur l'enseigne (${e390.sw} ≤ ${e390.cw} px, sur ${Math.round(e390.h)} px de haut), à ${Math.round(e390.d)} px des boutons ronds`);
+  await page.screenshot({ path: `${out}/10-enseigne-capitale-390.png`, clip: await clipEnseigne() });
+  await page.setViewportSize({ width: 360, height: 640 }); await sleep(400);
+  const e360 = await enseigne();
+  check(e360.sw <= e360.cw + 1 && e360.sh <= e360.ch + 1 && e360.long && e360.g >= 8 && e360.d >= 4, `à 360 × 640 : l'enseigne de la Capitale tient en entier (${e360.sw} ≤ ${e360.cw} px), sans ellipse, à ${Math.round(e360.d)} px des boutons ronds`);
+  await page.screenshot({ path: `${out}/11-enseigne-capitale-360.png`, clip: await clipEnseigne() });
+  await page.evaluate(() => { const f = window.__fournil; f.G.renommer(f.st, 'Aux Délices de Mamie Lou'); }); await sleep(100);
+  const eLong = await enseigne();
+  check(eLong.txt === 'Aux Délices de Mamie Lou' && eLong.sw <= eLong.cw + 1 && eLong.sh <= eLong.ch + 1 && eLong.g >= 8 && eLong.d >= 4, `à 360 × 640, un nom de 24 caractères (« ${eLong.txt} ») tient lui aussi, sans toucher les boutons ronds`);
+  await page.screenshot({ path: `${out}/12-enseigne-nom-long-360.png`, clip: await clipEnseigne() });
+  await page.evaluate(() => { const f = window.__fournil; f.G.renommer(f.st, 'Chez Lou'); }); await sleep(100);
+  const eCourt = await enseigne();
+  check(eCourt.txt === 'Chez Lou' && !eCourt.long, 'un nom court : l’enseigne reprend sa grande taille');
+  await page.setViewportSize({ width: 390, height: 844 }); await page.evaluate(() => { const f = window.__fournil; f.G.renommer(f.st, ''); }); await sleep(300);
+
+  // la n°30 : le parcours est fini, mais le défi de passage (celui de la n°29) reste exigé ; il est décrit partout
+  await reglerGain(Math.round(en.defi.cible / 4));
+  await page.evaluate(() => { const f = window.__fournil; f.page('defis'); f.tiroir('ouvert'); f.rafraichir(); }); await sleep(400);
+  const fin = await page.evaluate(() => { const f = window.__fournil, G = f.G, d = G.defiPassage(f.st), c = document.querySelector('#page-defis .card.parcours'); return { d: { txt: d.txt, p: G.fmt(d.progres), c: G.fmt(d.cible), fait: d.fait }, txt: c.textContent.replace(/\s+/g, ' ').trim(), jauge: !!c.querySelector('.mini.xp i'), compte: c.querySelector('.compte').textContent }; });
+  check(/Parcours terminé/.test(fin.txt) && fin.txt.includes(`Défi de passage : ${fin.d.txt} · ${fin.d.p}/${fin.d.c}`) && fin.jauge && fin.compte === '30/30' && !fin.d.fait, `la carte des Défis à la n°30 : « Parcours terminé », puis le défi, sa progression et sa jauge (« ${fin.txt.slice(fin.txt.indexOf('Défi'))} »)`);
+  await page.evaluate(() => document.querySelector('#page-defis .card.parcours').scrollIntoView({ block: 'start' })); await sleep(200);
+  await page.screenshot({ path: `${out}/13-defis-n30.png` });
+  await page.evaluate(() => { window.__fournil.tiroir('mi'); window.__fournil.etoiles(); }); await sleep(400);
+  const fe30 = await page.evaluate(() => { const b = document.querySelector('#feuille .et-but.fini'), bt = document.querySelector('#feuille [data-a="prestige"]'); return { but: b ? b.textContent.replace(/\s+/g, ' ').trim() : '', petit: bt.querySelector('small').textContent, gros: bt.querySelector('b').textContent, aria: bt.getAttribute('aria-disabled') }; });
+  check(/Parcours terminé/.test(fe30.but) && fe30.but.includes(`Défi de passage : ${fin.d.txt} · ${fin.d.p}/${fin.d.c}`), `la feuille Étoiles à la n°30 : le défi sous « Parcours terminé » (« ${fe30.but.slice(fe30.but.indexOf('Défi'))} »)`);
+  check(fe30.petit === `Défi de passage : ${fin.d.txt}` && fe30.gros === `${fin.d.p} / ${fin.d.c}` && fe30.aria === 'true', `le bouton nomme le défi : « ${fe30.petit} » · « ${fe30.gros} »`);
+  await page.screenshot({ path: `${out}/14-etoiles-n30.png` });
+  await page.evaluate(() => { document.querySelector('#feuille .et-but.fini') && window.__fournil.parcours(); }); await sleep(400);
+  const pc30 = await page.evaluate(() => { const e = document.querySelector('#feuille .encadre'); return e ? e.textContent.replace(/\s+/g, ' ') : ''; });
+  check(/Parcours terminé/.test(pc30) && pc30.includes(fin.d.txt) && pc30.includes(`${fin.d.p}/${fin.d.c}`), 'la feuille du parcours, à la fin : le défi de passage dans l’encadré');
+  await page.evaluate(() => document.querySelector('#feuille [data-a="close"]').click()); await sleep(200);
+
+  // les petits textes : la carte à débloquer (le vrai gain au niveau 1), l'absence en heures et minutes, les compagnons comptés, la spécialité
+  await page.evaluate(() => { const f = window.__fournil; f.page('boutique'); f.tiroir('ouvert'); f.rafraichir(); }); await sleep(300);
+  const deb = await page.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st, i = st.stations.findIndex((s, k) => s.niv === 0 && G.recetteGagnee(st, k) && (k === 0 || st.stations[k - 1].niv > 0)), c = document.querySelector(`#cartes .carte[data-i="${i}"]`);
+    const vrai = G.revenuFournee(Object.assign({}, st, { stations: st.stations.map((x, k) => (k === i ? Object.assign({}, x, { niv: 1, staff: false }) : x)) }), i);
+    const net = (t) => t.replace(/\s+/g, ' '); // (les espaces insécables de fmtEur aussi)
+    return { i, txt: c ? net(c.textContent) : '', vrai: net(G.fmtEur(vrai)), base: net(G.fmtEur(G.PRODUITS[i].rev)), plus: vrai > G.PRODUITS[i].rev * 2 }; });
+  check(deb.i >= 0 && deb.txt.includes(`Rapporte ${deb.vrai} la fournée`) && deb.plus && !deb.txt.includes(`Rapporte ${deb.base} la fournée`), `la carte à débloquer annonce le vrai gain au niveau 1 : « Rapporte ${deb.vrai} la fournée », pas le prix de base (${deb.base})`);
+  const abs = await page.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st; G.donnerVetement(st, 'quartier-or-chaine'); G.equiper(st, 'accessoire', 'quartier-or-chaine'); f.absence(30 * 3600e3); return { h: G.heuresAbsence(st), txt: document.querySelector('#feuille-contenu').textContent.replace(/\s+/g, ' ') }; });
+  check(abs.h % 1 === 0.5 && new RegExp(`les apprentis s’arrêtent après ${Math.floor(abs.h)} h 30\\)`).test(abs.txt) && !/\d\.\d h/.test(abs.txt), `la feuille d'absence : « après ${Math.floor(abs.h)} h 30 », pas « ${abs.h} h »`);
+  await page.evaluate(() => document.querySelector('#feuille [data-a="close"]').click()); await sleep(200);
+  await page.evaluate(() => { const f = window.__fournil, G = f.G, st = f.st; if (!st.chat) G.adopterChat(st, 'Brioche'); if (st.specialite == null) G.choisirSpecialite(st, 0); f.page('reglages'); f.tiroir('ouvert'); f.rafraichir(); }); await sleep(400);
+  const rg = await page.evaluate(() => { const f = window.__fournil, sec = document.querySelector('#page-reglages'), lignes = [...sec.querySelectorAll('.reglage')], spe = lignes.find((x) => /^Spécialité/.test(x.querySelector('b') ? x.querySelector('b').textContent : '')), comp = sec.querySelector('[data-a="compagnons"]');
+    return { spe: spe ? { tag: spe.tagName, cls: spe.className, a: spe.getAttribute('data-a'), chev: !!spe.querySelector('.chev'), txt: spe.textContent } : null, comp: comp ? comp.textContent : '', n: f.G.COMPAGNONS.length, okAvant: !!sec.querySelector('[data-a="specialite-ok"]') }; });
+  check(rg.spe && rg.spe.tag === 'DIV' && /\binfo\b/.test(rg.spe.cls) && !rg.spe.a && !rg.spe.chev && !rg.okAvant, `la ligne Spécialité des Réglages : une ligne d'information (${rg.spe && rg.spe.tag}.${rg.spe && rg.spe.cls}), plus un bouton sans action`);
+  check(rg.comp.includes(`${rg.n} animaux au choix`) && !/treize/.test(rg.comp), `le compagnon : « ${rg.n} animaux au choix » (GAME.COMPAGNONS), plus « treize »`);
+  await page.evaluate(() => { const l = [...document.querySelectorAll('#page-reglages .reglage')].find((x) => /^Spécialité/.test(x.querySelector('b') ? x.querySelector('b').textContent : '')); l.scrollIntoView({ block: 'center' }); }); await sleep(200);
+  await page.screenshot({ path: `${out}/15-reglages-specialite.png` });
+
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
 
   // l'atelier 3D : les huit pâtisseries de boutique côte à côte, grossies
