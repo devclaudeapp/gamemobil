@@ -2076,7 +2076,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '276b257d714f';</script>
+<script>window.FOURNIL_VERSION = '9b061d6ed416';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -12897,10 +12897,10 @@ const BOUTIQUE_HANTEE = (() => {
       get hd() { const e = SCENE.evenement; return { actif: !!(e && e.hd), boutique: true, persos: e ? e.apprentis.length : 0, costumes: e ? e.apprentis.map((a) => a.costume) : [] }; },
       get vue() { return vue; }, get etat() { return st; },
       redim,
-      frame(dt, qq) {
+      frame(dt, qq, msImage, espacee) { // msImage, espacee : la cadence de ui.js (30 images/s en jouant, 10 au repos), que la qualité de la scène doit connaître
         if (fini) return; stations(st, qq || q0);
         if ((tCadre -= dt) <= 0) { tCadre = 0.5; redim(); } // la fenêtre suit la mise en page (le tiroir des activités, une rotation)
-        const t = (qq && qq.now) || Date.now(); st.now = t; SCENE.frame(dt, st, t);
+        const t = (qq && qq.now) || Date.now(); st.now = t; SCENE.frame(dt, st, t, msImage, espacee);
         for (let k = APP.length - 1; k >= 0; k--) if (majApp(APP[k], dt)) retirerApp(APP[k]); // une apparition qui a fini sa traversée s'en va
         majExpl(dt);
       },
@@ -13602,7 +13602,7 @@ const EVENEMENTS = (() => {
       d.toast(F.t.ferme); montrerBilan();
     }
     // ─── la boucle : appelée chaque image par ui.js tant que l'écran est ouvert ───
-    function frame(dt, t) {
+    function frame(dt, t, msImage, espacee) { // msImage, espacee : la cadence de ui.js (la boutique hantée les passe à SCENE.frame)
       if (ecran !== F.ecran) return;
       const qq = q(), f = Q.fenetre(t);
       if (f.fini) { cloturer(); return; }
@@ -13617,7 +13617,7 @@ const EVENEMENTS = (() => {
       if (!miniOuvert()) { montrerSheetsEnAttente(); hud(); renderCartes(); renderEv(); } // sous un mini-jeu : un palier franchi attend la fin de la partie pour sa feuille, et l'écran caché n'est pas redessiné
       if (!scene3 && essais3 > 0 && essais3 < 6 && performance.now() - tEssai3 > 1000) creer3(true); // le contexte avait été refusé : on réessaie
       if (scene3 && scene3.perdu && performance.now() - scene3.perdu > 1000) { liberer3(); creer3(false); } // perdu en route et pas revenu : une scène neuve
-      if (scene3 && !scene3.perdu && !miniOuvert()) scene3.frame(dt, qq); // sous un mini-jeu, la 3D attend (la boutique, elle, continue de vendre)
+      if (scene3 && !scene3.perdu && !miniOuvert()) scene3.frame(dt, qq, msImage, espacee); // sous un mini-jeu, la 3D attend (la boutique, elle, continue de vendre)
       if (act && !miniOuvert()) act.image(); // les bulles suivent les têtes des monstres
       if (performance.now() - dernierSave > 5000) { dernierSave = performance.now(); qq.lastSeen = t; d.save(); }
     }
@@ -18193,7 +18193,7 @@ const UI = (() => {
       const e3 = visite.ev3;
       if (!e3.perdu) { e3.frame(dt, visite.qe); visite.images++; } else if (performance.now() - e3.perdu > 1000) { libererEv3(visite); peindreVisite(); } // le contexte perdu ne revient pas : le résumé seul
     }
-    if (planque) ecranEv.frame(dt, HORLOGE.maintenant()); // l'écran de l'événement (la Planque, le Manoir) vit tant qu'il est ouvert (fermé, il rattrape une absence)
+    if (planque) ecranEv.frame(dt, HORLOGE.maintenant(), msImage, espacee); // l'écran de l'événement (la Planque, le Manoir) vit tant qu'il est ouvert (fermé, il rattrape une absence) ; la boutique hantée mesure sa qualité comme la boutique
     if (now - tChat > 500) { tChat = now; majChat(); } // le chat noir arrive (ou repart) avec la Maison hantée
     renderBoosts();
     indices();

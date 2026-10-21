@@ -617,10 +617,10 @@ const BOUTIQUE_HANTEE = (() => {
       get hd() { const e = SCENE.evenement; return { actif: !!(e && e.hd), boutique: true, persos: e ? e.apprentis.length : 0, costumes: e ? e.apprentis.map((a) => a.costume) : [] }; },
       get vue() { return vue; }, get etat() { return st; },
       redim,
-      frame(dt, qq) {
+      frame(dt, qq, msImage, espacee) { // msImage, espacee : la cadence de ui.js (30 images/s en jouant, 10 au repos), que la qualité de la scène doit connaître
         if (fini) return; stations(st, qq || q0);
         if ((tCadre -= dt) <= 0) { tCadre = 0.5; redim(); } // la fenêtre suit la mise en page (le tiroir des activités, une rotation)
-        const t = (qq && qq.now) || Date.now(); st.now = t; SCENE.frame(dt, st, t);
+        const t = (qq && qq.now) || Date.now(); st.now = t; SCENE.frame(dt, st, t, msImage, espacee);
         for (let k = APP.length - 1; k >= 0; k--) if (majApp(APP[k], dt)) retirerApp(APP[k]); // une apparition qui a fini sa traversée s'en va
         majExpl(dt);
       },

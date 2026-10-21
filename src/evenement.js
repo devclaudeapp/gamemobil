@@ -232,7 +232,7 @@ const EVENEMENTS = (() => {
       d.toast(F.t.ferme); montrerBilan();
     }
     // ─── la boucle : appelée chaque image par ui.js tant que l'écran est ouvert ───
-    function frame(dt, t) {
+    function frame(dt, t, msImage, espacee) { // msImage, espacee : la cadence de ui.js (la boutique hantée les passe à SCENE.frame)
       if (ecran !== F.ecran) return;
       const qq = q(), f = Q.fenetre(t);
       if (f.fini) { cloturer(); return; }
@@ -247,7 +247,7 @@ const EVENEMENTS = (() => {
       if (!miniOuvert()) { montrerSheetsEnAttente(); hud(); renderCartes(); renderEv(); } // sous un mini-jeu : un palier franchi attend la fin de la partie pour sa feuille, et l'écran caché n'est pas redessiné
       if (!scene3 && essais3 > 0 && essais3 < 6 && performance.now() - tEssai3 > 1000) creer3(true); // le contexte avait été refusé : on réessaie
       if (scene3 && scene3.perdu && performance.now() - scene3.perdu > 1000) { liberer3(); creer3(false); } // perdu en route et pas revenu : une scène neuve
-      if (scene3 && !scene3.perdu && !miniOuvert()) scene3.frame(dt, qq); // sous un mini-jeu, la 3D attend (la boutique, elle, continue de vendre)
+      if (scene3 && !scene3.perdu && !miniOuvert()) scene3.frame(dt, qq, msImage, espacee); // sous un mini-jeu, la 3D attend (la boutique, elle, continue de vendre)
       if (act && !miniOuvert()) act.image(); // les bulles suivent les têtes des monstres
       if (performance.now() - dernierSave > 5000) { dernierSave = performance.now(); qq.lastSeen = t; d.save(); }
     }

@@ -82,6 +82,19 @@ const EQUIPE = ['fantome2', 'momie2', 'squelette', 'vampire2', 'sorciere2', 'cit
     check(v.ouvert && v.ecran === 'manoir' && v.classe && v.corps, `l’écran de la Maison hantée est ouvert en mode boutique, sans ?boutique=1 (écran ${v.ecran}, classes posées)`);
     check(v.ev.theme === 'hantee' && v.mode === 'hantee' && v.stats.webgl && v.stats.calls > 0, `la scène tourne au thème « hantee » (${v.stats.calls} appels de dessin, vie en mode ${v.mode})`);
     const t1 = v.t; check(await attendre(async () => (await vue(ev)).t > t1 + 0.1, 8000), 'la vie de la boutique hantée avance');
+    if (qual === 'eco') { // la cadence de la batterie (ui.js : 30 images/s en jouant, 10 au repos) passe par l'écran de l'événement jusqu'à SCENE.frame :
+      // l'éco rend chaque image traitée (la cadence en saute déjà), et la qualité mesure l'intervalle réel des rafraîchissements, pas les 33 ou 100 ms voulus.
+      // Le temps de la mesure, le dessin WebGL est neutralisé (comme test/fournil-batterie.cjs : c'est la boucle qu'on mesure, pas SwiftShader), puis rendu.
+      await ev(() => { window.__dessin = []; for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) if (C) for (const m of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements']) if (C.prototype[m]) { window.__dessin.push([C, m, C.prototype[m]]); C.prototype[m] = function () {}; } });
+      await sleep(600);
+      await ev(() => { if (!window.__sonde) { window.__sonde = 1; const s = () => { window.__sonde++; requestAnimationFrame(s); }; requestAnimationFrame(s); } const q = SCENE._qual; q.fixe = false; q.mesures = 0; q.somme = 0; q.verif = null; q.moy = 0; q.echecs = {}; q.calme = 0; document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Shift' })); }); // en jeu : 30 images/s
+      const lire = () => ev(() => [SCENE.stats.rendus, performance.now(), window.__sonde]), a = await lire(), vues = [];
+      for (let t = 0; t < 4500; t += 500) { await sleep(500); vues.push((await ev(() => window.__fournil.cadence())).mesuree); }
+      const b = await lire(), q = await ev(() => { const q = SCENE._qual, r = { moy: q.moy, niveau: SCENE.stats.qualite }; q.fixe = true; for (const [C, m, f] of window.__dessin) C.prototype[m] = f; return r; });
+      const rendus = (b[0] - a[0]) / (b[1] - a[1]) * 1000, images = vues.reduce((s, x) => s + x, 0) / vues.length, raf = (b[2] - a[2]) / (b[1] - a[1]) * 1000, brut = 1000 / Math.max(1, raf);
+      const charge = raf < 50 ? ` — machine chargée (${raf.toFixed(1)} rafraîchissements/s) : non exigé` : '';
+      check(raf < 50 || (rendus >= images * 0.8 && q.moy > 0 && q.moy < 28 && q.niveau === 'eco'), `la cadence de la batterie : ${rendus.toFixed(1)} rendus/s pour ${images.toFixed(1)} images/s traitées, fenêtre mesurée ${q.moy.toFixed(1)} ms pour des rafraîchissements de ${brut.toFixed(1)} ms (qualité ${q.niveau})${charge}`);
+    }
     check(v.canvasManoir === 'hidden' && v.tiroir === 'hidden', `le canvas du Manoir et le tiroir de la boutique sont masqués (${v.canvasManoir}, ${v.tiroir})`);
     check(v.cartes === 9, `les cartes des friandises (8) et la recette du jour restent dans la liste de l’écran (${v.cartes})`);
     check(v.clientsVie.length > 0 && v.clientsVie.every((d) => SORTES.includes(d)) && v.ev.deguises === v.ev.clients, `les clients sont des monstres des neuf sortes (${v.clientsVie.join(', ')}), bâtis ainsi (${v.ev.deguises}/${v.ev.clients})`);
