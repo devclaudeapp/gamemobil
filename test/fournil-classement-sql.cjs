@@ -25,9 +25,11 @@
 //     (test/fournil-classement-v64-complet.sql + le patch v6.4) : les places jusqu'au 15e (une vieille semaine figée à trois reste
 //     lisible), les pourboires et l'objectif rendus tant qu'ils ne sont pas accusés, la notification 'semaine', puis le fichier complet
 //     recollé : le même code ; et dans le fichier complet, seize joueurs, des ex æquo (au 2e et au 15e rang), la notification du lundi.
-//   · le patch v6.6 (supabase/fournil-classement-v66.sql, la limite de la Maison hantée relevée pour ses activités ; fournil_evts() seule)
+//   · le patch v6.6 (supabase/fournil-classement-v66.sql, la limite de la Maison hantée relevée pour ses activités, et ses acharnés)
 //     collé deux fois par-dessus la v6.5 telle que sur Supabase : bornes jamais plus basses, les valeurs exactes, un score entre l'ancienne
-//     et la nouvelle borne compté, rien d'autre ne bouge ; le fichier complet porte le même tableau.
+//     et la nouvelle borne compté, aucune donnée ne bouge ; le fichier complet porte le même tableau et le même code ; une Maison hantée déjà
+//     figée à trois sous la v6.5 reste lisible (joueurs : null) ; et dans le fichier complet, le classement final de l'événement jusqu'au
+//     15e : dix-sept joueurs, des ex æquo (au 2e et au 15e rang), le nombre de joueurs, le podium rendu à trois, le titre de la photo.
 //   · le chat (supabase/fournil-chat.sql, collé par-dessus la v6) : chaque erreur de l'envoi, 3 s et 60 par heure, le masquage au
 //     3e signalement, l'effacement, le bannissement, le ménage (images de 7 jours, au-delà des 2 000), la cascade du retrait, les droits.
 //   · les idées, les bugs et les votes (supabase/fournil-retours.sql, collé par-dessus la v6, les cadeaux et le chat) : chaque erreur
@@ -244,7 +246,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     check(cols.length === 19 && cols.every((c) => attendu[c.c] === c.t && c.n === (c.c === 'points_jour' || c.c === 'quartier_maj' || c.c === 'vu' ? 'YES' : 'NO')), `fournil_joueurs a les 19 colonnes du contrat (points de la semaine, depuis l'arrivée, jour du dernier envoi de points, billets du quartier et leur dernier envoi, dernier signe de vie, points des pourboires donnés), toutes « not null » sauf points_jour, quartier_maj et vu, sans l'ancienne base de la semaine (${cols.map((c) => c.c).join(', ')})`);
     const colsDe = async (t) => (await sup(`select column_name as c from information_schema.columns where table_schema = 'public' and table_name = $1 order by ordinal_position`, [t])).map((c) => c.c).join();
     const colsP = await colsDe('fournil_palmares'), colsS = await colsDe('fournil_semaines'), colsPo = await colsDe('fournil_portes'), colsQ = await colsDe('fournil_quartier_podium'), colsE = await colsDe('fournil_evenements'), colsES = await colsDe('fournil_evt_scores'), colsEP = await colsDe('fournil_evt_podium');
-    check(colsP === 'semaine,rang,id,pseudo,valeur,points' && colsS === 'semaine,figee,joueurs' && colsPo === 'empreinte,quand' && colsQ === 'id,rang,pseudo,valeur' && colsE === 'nom,figee' && colsES === 'evt,id,valeur,maj' && colsEP === 'evt,id,rang,pseudo,valeur', `le palmarès (${colsP}), les semaines figées (${colsS}), les portes : une empreinte et une heure seulement (${colsPo}), le podium du quartier (${colsQ}), les événements figés (${colsE}), les scores des événements (${colsES}) et leurs podiums (${colsEP})`);
+    check(colsP === 'semaine,rang,id,pseudo,valeur,points' && colsS === 'semaine,figee,joueurs' && colsPo === 'empreinte,quand' && colsQ === 'id,rang,pseudo,valeur' && colsE === 'nom,figee,joueurs' && colsES === 'evt,id,valeur,maj' && colsEP === 'evt,id,rang,pseudo,valeur', `le palmarès (${colsP}), les semaines figées (${colsS}), les portes : une empreinte et une heure seulement (${colsPo}), le podium du quartier (${colsQ}), les événements figés (${colsE}), les scores des événements (${colsES}) et leurs podiums (${colsEP})`);
     { const c6 = {}; for (const t of ['fournil_photos', 'fournil_pourboires', 'fournil_objectif', 'fournil_objectif_gagnants', 'fournil_abonnements', 'fournil_notif_prefs', 'fournil_notifs', 'fournil_annonces']) c6[t] = await colsDe(t);
       check(c6.fournil_photos === 'id,photo,maj' && c6.fournil_pourboires === 'de,a,jour,quand,vu' && c6.fournil_objectif === 'semaine,but,total,joueurs,reussi,fige' && c6.fournil_objectif_gagnants === 'semaine,id,recu'
         && c6.fournil_abonnements === 'endpoint,joueur,p256dh,auth,cree' && c6.fournil_notif_prefs === 'id,pleine,evenements,pourboires,objectif,maj' && c6.fournil_notifs === 'id,joueur,type,titre,texte,url,due,envoyee,cree,prise' && c6.fournil_annonces === 'cle,quand',
@@ -775,7 +777,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
   r = garde(await classement('total', Au.id));
   const toques = Object.fromEntries(r.lignes.map((x) => [x.pseudo, x.podium]));
   check(JSON.stringify(toques) === JSON.stringify({ Aurore: 1, Bastien: 2, Capucine: 2, 'Désiré': null, 'Églantine': null }) && r.moi.podium === 1, `chaque ligne porte le podium de la semaine passée : ${JSON.stringify(toques)} ; « moi » aussi`);
-  check(r.lignes.every((x) => Object.keys(x).sort().join() === 'en_ligne,moi,podium,points,pseudo,rang,valeur' && r.lignes.every((x) => typeof x.en_ligne === 'boolean')), 'chaque ligne : rang, pseudo, points, valeur, moi, podium, en_ligne (un booléen, jamais l’heure) — rien d’autre');
+  check(r.lignes.every((x) => Object.keys(x).sort().join() === 'en_ligne,moi,podium,points,pseudo,rang,titre,valeur' && r.lignes.every((x) => typeof x.en_ligne === 'boolean')), 'chaque ligne : rang, pseudo, points, valeur, moi, podium, en_ligne (un booléen, jamais l’heure), titre (version 6.6) — rien d’autre');
   r = await classement('semaine', Au.id);
   check(r.lignes.length === 1 && r.lignes[0].pseudo === 'Désiré' && r.lignes[0].podium === null && r.moi === null, 'cette semaine : seul Désiré a envoyé ; Aurore n’y est pas encore');
   r = garde(await recompenses(Au));
@@ -1436,7 +1438,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     await v4(Ali, noms[0], 1e9 + 2e6, 10, '2026-10-19', 3e8);
     await horloge4('2026-10-27T12:30:00Z'); // mardi 27, 13 h 30 à Paris : le Quartier est fini depuis 1 h 30 (grâce passée), la Maison hantée ouverte depuis 1 h 30
     await c4('select public.fournil_heure() as r'); // le podium final du Quartier est figé
-    const photo = async () => JSON.stringify([await s4('select id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj, points, points_total, points_jour, quartier, quartier_maj from public.fournil_joueurs order by id'), await s4('select semaine, rang, id, pseudo, valeur, points from public.fournil_palmares order by semaine, id'), await s4('select semaine, figee from public.fournil_semaines order by semaine'), await s4('select * from public.fournil_quartier_podium order by id'), await s4('select * from public.fournil_evenements order by nom')]);
+    const photo = async () => JSON.stringify([await s4('select id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj, points, points_total, points_jour, quartier, quartier_maj from public.fournil_joueurs order by id'), await s4('select semaine, rang, id, pseudo, valeur, points from public.fournil_palmares order by semaine, id'), await s4('select semaine, figee from public.fournil_semaines order by semaine'), await s4('select * from public.fournil_quartier_podium order by id'), await s4('select nom, figee from public.fournil_evenements order by nom')]);
     const avant = await photo(), podQ = (await s4('select rang, pseudo, valeur from public.fournil_quartier_podium order by rang')).map((x) => `${x.rang} ${x.pseudo} ${x.valeur}`).join(', ');
     check(podQ === '1 Ali 300000000, 2 Béa 40000000, 3 Cyril 20000000', `en version 4 : des points, un palmarès, des billets, et le podium final du Quartier figé (${podQ})`);
     try { await coller4(SQL); check(true, `la version ${V} se colle telle quelle par-dessus la version 4`); } catch (err) { check(false, `la version ${V} se colle par-dessus la version 4 : ` + err.message); }
@@ -1515,7 +1517,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       `après la grâce, la première requête fige le podium final : ${pod.map((x) => `${x.rang} ${x.pseudo} ${e(x.valeur)}`).join(', ')}`);
     check(r.ok && r.evt_score === null && r.evt_plafonne === null, 'Mathis envoie des bonbons trop tard : rien');
     r = garde(await recompenses(Lo));
-    check(r.ok && r.evenements.hantee && r.evenements.hantee.rang === 2 && JSON.stringify(r.evenements.hantee.podium.map((x) => [x.rang, x.pseudo])) === JSON.stringify([[1, 'Karim'], [2, 'Louna']]) && r.quartier === null, `Louna lit ses récompenses : 2e de la Maison hantée, et le podium final (${JSON.stringify(r.evenements)})`);
+    check(r.ok && r.evenements.hantee && r.evenements.hantee.rang === 2 && r.evenements.hantee.joueurs === 2 && JSON.stringify(r.evenements.hantee.podium.map((x) => [x.rang, x.pseudo])) === JSON.stringify([[1, 'Karim'], [2, 'Louna']]) && r.quartier === null, `Louna lit ses récompenses : 2e de la Maison hantée sur 2, et le podium final (${JSON.stringify(r.evenements)})`);
     r = garde(await recompenses(Ma));
     check(r.ok && r.evenements.hantee.rang === null && r.evenements.hantee.podium.length === 2, 'Mathis : pas de rang, mais le podium final');
     r = await recompenses({ id: Ma.id, jeton: Ka.jeton });
@@ -1605,7 +1607,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     for (const [k, j] of [Ali, Bea, Cyr].entries()) await v5(j, noms[k], 1e9 + 1e6, 20 + 10 * k, '2026-10-12', 2e7 * (3 - k), null, null);
     await horloge5('2026-10-28T10:00:00Z'); // la Maison hantée est ouverte, le Quartier fini et figé, deux semaines figées
     for (const [k, j] of [Ali, Bea, Cyr].entries()) await v5(j, noms[k], 1e9 + 2e6, 5 * (k + 1), '2026-10-26', null, 'hantee', 1e6 * (k + 1));
-    const photo = async () => JSON.stringify([await s5('select id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj, points, points_total, points_jour, quartier, quartier_maj, vu from public.fournil_joueurs order by id'), await s5('select * from public.fournil_palmares order by semaine, id'), await s5('select semaine, figee from public.fournil_semaines order by semaine'), await s5('select * from public.fournil_quartier_podium order by id'), await s5('select * from public.fournil_evenements order by nom'), await s5('select * from public.fournil_evt_scores order by evt, id'), await s5('select * from public.fournil_evt_podium order by evt, id')]);
+    const photo = async () => JSON.stringify([await s5('select id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj, points, points_total, points_jour, quartier, quartier_maj, vu from public.fournil_joueurs order by id'), await s5('select * from public.fournil_palmares order by semaine, id'), await s5('select semaine, figee from public.fournil_semaines order by semaine'), await s5('select * from public.fournil_quartier_podium order by id'), await s5('select nom, figee from public.fournil_evenements order by nom'), await s5('select * from public.fournil_evt_scores order by evt, id'), await s5('select * from public.fournil_evt_podium order by evt, id')]);
     const avant = await photo(), nPal = (await s5('select count(*)::int as n from public.fournil_palmares'))[0].n, nQ = (await s5('select count(*)::int as n from public.fournil_quartier_podium'))[0].n;
     check(nPal >= 3 && nQ === 3 && (await s5('select count(*)::int as n from public.fournil_evt_scores'))[0].n === 3, `en version 5 : des joueurs, un palmarès (${nPal} lignes), le podium du Quartier, des bonbons`);
     try { await coller5(SQL); check(true, 'la version 6 se colle telle quelle par-dessus la version 5'); } catch (err) { check(false, 'la version 6 se colle par-dessus la version 5 : ' + err.message); }
@@ -1868,6 +1870,41 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     check((await palmares('2027-11-15')).length === 4 && (await file()).filter((x) => x.type === 'semaine').length === avantN, 'une semaine rattrapée deux semaines plus tard est figée (ses 4 joueurs), sans notification de lundi périmée');
   }
 
+  // ─── 30 ter. les acharnés de la Maison hantée (version 6.6) : le classement final de l'événement jusqu'au 15e, le titre de la photo ───
+  titre('les acharnés de la Maison hantée : le classement final jusqu’au 15e, le titre (version 6.6)');
+  {
+    const HT = require('../src/hantee.js');
+    await vider(); await entetes(null);
+    await heure(HT.DEBUT + 3 * 864e5); // le vendredi 30 octobre à midi : la Maison hantée est ouverte
+    const N = ['Abel', 'Berthe', 'Camille', 'Dorian', 'Edmée', 'Fanny', 'Gaston', 'Hélène', 'Igor', 'Jeanne', 'Kevin', 'Lucie', 'Maurice', 'Noémie', 'Octave', 'Pépin', 'Quentin'];
+    const SC = [100, 90, 90, 80, 75, 70, 65, 60, 55, 50, 45, 40, 35, 30, 25, 25, 20].map((x) => x * 1e12); // Berthe et Camille ex æquo 2es ; Octave et Pépin ex æquo 15es ; Quentin 17e
+    const J = N.map(() => joueur()), ZERO = joueur();
+    const publierE = (j, pseudo, score, photo) => appelle('fournil_publier', { p_id: j.id, p_jeton: j.jeton, p_pseudo: pseudo, p_fortune: 1000, p_points: 10, p_lundi: lundiDe(horloge), p_evt: 'hantee', p_score: score, ...(photo ? { p_photo: photo } : {}) });
+    for (const [k, j] of J.entries()) { const r = await publierE(j, N[k], SC[k], k === 6 ? { v: 1, nom: 'Chez Gaston', ti: 'legende-manoir' } : k === 1 ? { v: 1, nom: 'Chez Berthe', ti: '<b>Reine</b>' } : undefined); if (!(r.ok && r.evt_score === SC[k])) check(false, `${N[k]} : ${JSON.stringify(r)}`); }
+    await publierE(ZERO, 'Zéro', 0); // inscrite, 0 bonbon : pas classée
+    let r = await classement('hantee', J[6].id);
+    check(r.joueurs === 17 && r.lignes.find((x) => x.pseudo === 'Gaston').titre === 'legende-manoir' && r.moi.titre === 'legende-manoir' && r.lignes.find((x) => x.pseudo === 'Berthe').titre === null && r.lignes.find((x) => x.pseudo === 'Abel').titre === null,
+      `le classement porte le titre de la photo : Gaston « legende-manoir » (sa ligne et moi) ; Berthe, dont la photo porte du HTML, aucun ; Abel, sans photo, aucun (${JSON.stringify(r.lignes.filter((x) => x.titre).map((x) => [x.pseudo, x.titre]))})`);
+    check((await classement('total', J[6].id)).moi.titre === 'legende-manoir' && (await classement('semaine')).lignes.find((x) => x.pseudo === 'Gaston').titre === 'legende-manoir', 'le titre se voit aussi dans « Cette semaine » et « Tous les temps »');
+    await heure(HT.FIN + 3600e3 + 1000); // la grâce passée : la première requête fige le podium final
+    await heureServeur();
+    const pod = await sup(`select rang, pseudo from public.fournil_evt_podium where evt = 'hantee' order by rang, lower(pseudo)`);
+    check(pod.length === 16 && pod.slice(0, 4).map((x) => `${x.rang} ${x.pseudo}`).join(', ') === '1 Abel, 2 Berthe, 2 Camille, 4 Dorian' && pod.filter((x) => x.rang === 15).map((x) => x.pseudo).join() === 'Octave,Pépin' && !pod.some((x) => x.pseudo === 'Quentin' || x.pseudo === 'Zéro'),
+      `dix-sept joueurs classés : les quinze premiers figés, ex æquo au même rang (${pod.map((x) => x.rang).join(',')}) ; Octave et Pépin, 15es ex æquo, y sont tous les deux ; Quentin (17e) et Zéro (0 bonbon) n’y sont pas`);
+    check((await sup(`select joueurs from public.fournil_evenements where nom = 'hantee'`))[0].joueurs === 17, 'l’événement figé garde ses 17 joueurs classés (« 7e sur 17 »)');
+    r = await recompenses(J[6]);
+    check(r.ok && r.evenements.hantee.rang === 7 && r.evenements.hantee.joueurs === 17 && JSON.stringify(r.evenements.hantee.podium.map((x) => `${x.rang} ${x.pseudo}`)) === JSON.stringify(['1 Abel', '2 Berthe', '2 Camille']) && Object.keys(r.evenements.hantee).sort().join() === 'joueurs,podium,rang',
+      `Gaston, 7e : evenements.hantee = { rang: 7, joueurs: 17, podium : les trois premiers seulement (ex æquo compris) } (${JSON.stringify(r.evenements.hantee)})`);
+    check((await recompenses(J[2])).evenements.hantee.rang === 2 && (await recompenses(J[15])).evenements.hantee.rang === 15 && (await recompenses(J[16])).evenements.hantee.rang === null && (await recompenses(J[16])).evenements.hantee.joueurs === 17 && (await recompenses(ZERO)).evenements.hantee.rang === null,
+      'Camille, 2e ex æquo : rang 2 ; Pépin, 15e ex æquo : rang 15 ; Quentin (17e) et Zéro : aucun rang, mais le nombre de joueurs et le podium');
+    r = await classement('hantee', J[6].id);
+    const med = Object.fromEntries(r.lignes.map((x) => [x.pseudo, x.podium]));
+    check(med.Abel === 1 && med.Berthe === 2 && med.Camille === 2 && med.Dorian === null && med.Gaston === null && med.Octave === null && r.moi.podium === null, 'le classement « hantee » figé : la médaille du podium final reste aux trois premiers (Dorian, 4e, et Gaston, 7e, n’en ont pas)');
+    check(JSON.stringify(r.lignes.map((x) => x.rang)) === JSON.stringify([1, 2, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 15, 17]), 'le classement lui-même ne change pas : tous les joueurs, aux mêmes rangs');
+    const qc = (await sup(`select pg_get_constraintdef(c.oid) as d from pg_constraint c where c.conname = 'fournil_quartier_podium_rang_check'`))[0];
+    check(qc && /rang <= 3/.test(qc.d) && Array.isArray((await recompenses(J[0])).quartier_podium), `le Quartier ne change pas : son podium final garde trois rangs (${qc && qc.d})`);
+  }
+
   // ─── 31. les notifications (version 6) : abonnements, préférences, file, fonction d'envoi ───
   titre('les notifications (version 6) : abonner, planifier, essai, la file');
   {
@@ -2097,6 +2134,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       return { q: tab(q), h: tab(h), qBrut: q && q[1], hBrut: h && h[1] };
     };
     const T62 = lireTables(P62), T63 = lireTables(P63), T64 = lireTables(P64), TF = lireTables(SQL);
+    const V66_FNS = ['fournil_classement', 'fournil_evt_figer', 'fournil_recompenses']; // les fonctions que la v6.6 remplace, en plus de fournil_evts() (les acharnés de la Maison hantée)
     const memes = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, k) => x === b[k]);
     const SQL6 = TF.qBrut && TF.hBrut ? SQL.split(`'${TF.qBrut}'`).join(`'{${Q6.join(',')}}'`).split(`'${TF.hBrut}'`).join(`'{${H6.join(',')}}'`) : SQL;
     const JOUR = 86400e3, PAS_H = 6 * 3600e3;
@@ -2105,16 +2143,24 @@ function trajectoirePoints(profil, jours, t0, cadence) {
 
     // un patch : v (« 6.2 »), son texte, ses tableaux, ceux d'avant (vieux, nommés vNom), les patchs déjà collés avant lui (sur la v6
     // telle que collée sur Supabase, SQL6 ; ou, base, la suite de textes qui donne la version d'avant) ; seulFevts : le patch ne porte que
-    // fournil_evts() (la v6.6 : la Maison hantée seule ; le Quartier garde son tableau)
-    const patchLimite = async ({ v, texte, T, vieux, vNom, avant, base, seulFevts }) => {
+    // fournil_evts() (la v6.6 : la Maison hantée seule ; le Quartier garde son tableau) ; autres : les fonctions que le patch remplace en plus
+    // (la v6.6 : les acharnés de la Maison hantée, V66_FNS), éprouvées à part : leur code n'est pas comparé ici, et le patch peut alors
+    // ajouter des contraintes, une colonne et redonner leurs droits (jamais d'écriture de données hors du code des fonctions)
+    const patchLimite = async ({ v, texte, T, vieux, vNom, avant, base, seulFevts, autres }) => {
       titre(`la version ${v} : la limite des événements, collée par-dessus la ${vNom}`);
-      const nF = seulFevts ? 1 : 2, Tq = seulFevts ? vieux.q : T.q;
+      const AU = autres || [], nF = (seulFevts ? 1 : 2) + AU.length, Tq = seulFevts ? vieux.q : T.q;
       if (seulFevts) check(T.q === null && T.h && T.h.length === 27, `le patch v${v} ne porte que le tableau de la Maison hantée (27 valeurs) ; celui du Quartier ne change pas`);
       else check(T.q && T.q.length === 15 && T.h && T.h.length === 27, `le patch v${v} porte les deux tableaux : 15 valeurs pour le Quartier, 27 pour la Maison hantée`);
       check(Tq && T.h && Tq.every((x, k) => x >= vieux.q[k] && (k === 0 || x >= Tq[k - 1])) && T.h.every((x, k) => x >= vieux.h[k] && (k === 0 || x >= T.h[k - 1])),
         `chaque valeur de la v${v} est ≥ à celle de la ${vNom}, au même pas, et les tableaux sont croissants (Quartier : jusqu’à +${Tq ? Math.max(...Tq.map((x, k) => x - vieux.q[k])).toFixed(2) : '?'} en log10 ; Maison hantée : jusqu’à +${T.h ? Math.max(...T.h.map((x, k) => x - vieux.h[k])).toFixed(2) : '?'})`);
-      check(!/\b(insert|update|delete|truncate|drop|alter|grant)\b/i.test(texte.replace(/--[^\n]*/g, '')) && (texte.match(/create or replace function/gi) || []).length === nF && !/create\s+(table|index|schema|role|trigger|policy)/i.test(texte),
+      if (!AU.length) check(!/\b(insert|update|delete|truncate|drop|alter|grant)\b/i.test(texte.replace(/--[^\n]*/g, '')) && (texte.match(/create or replace function/gi) || []).length === nF && !/create\s+(table|index|schema|role|trigger|policy)/i.test(texte),
         `le patch ne touche que ${nF === 1 ? 'une fonction' : 'deux fonctions'} : ni table, ni donnée, ni droit accordé, rien de supprimé`);
+      else { const hors = texte.replace(/--[^\n]*/g, '').replace(/create or replace function[\s\S]*?\n\$\$;/g, ''), fns = [...texte.matchAll(/create or replace function public\.(\w+)\(/g)].map((m) => m[1]).sort();
+        const alters = hors.match(/alter table[^;]*;/gi) || [], grants = hors.match(/\bgrant [^;]*;/gi) || [];
+        check(JSON.stringify(fns) === JSON.stringify(['fournil_evts', ...AU].sort()) && !/\b(insert|update|delete|truncate|drop table|drop function)\b/i.test(hors) && !/create\s+(table|index|schema|role|trigger|policy)/i.test(hors)
+          && alters.every((a) => /^alter table public\.fournil_evt_podium (drop constraint if exists|add constraint) fournil_evt_podium_rang_check/i.test(a) || /^alter table public\.fournil_evenements add column if not exists joueurs integer;$/i.test(a)) && alters.length === 3
+          && grants.every((g) => /to anon, authenticated;$/.test(g) && /fournil_(classement|recompenses)\(/.test(g)),
+          `le patch remplace fournil_evts() et ${AU.join(', ')} (${fns.length} fonctions), ajoute la contrainte des quinze rangs et la colonne joueurs (${alters.length} alter), redonne leurs droits aux fonctions du jeu (${grants.length} grant) ; hors du code des fonctions, aucune donnée écrite, rien de supprimé`); }
       const db62 = await PGlite.create();
       const s62 = async (sql, p) => (await db62.query(sql, p)).rows;
       const c62 = async (sql, p, role = 'anon') => { await db62.exec(`set role ${role}`); try { return (await db62.query(sql, p)).rows[0].r; } finally { await db62.exec('reset role'); } };
@@ -2161,14 +2207,14 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       let r = await pub(Ali, noms[0], 1e9 + 3e6, 15, X);
       if (plusQ) check(r.ok === true && r.quartier_plafonne === true && proche(r.quartier, vieuxQ, 1e-9), `en ${vNom}, au jour ${kQ} du Quartier : Ali envoie ${e(X)} billets (entre l’ancienne borne ${e(vieuxQ)} et la nouvelle ${e(neufQ)}) : plafonné à l’ancienne (${e(r.quartier)})`);
       else check(r.ok === true && proche(r.quartier, X, 1e-9), `en ${vNom}, au jour ${kQ} du Quartier : la v${v} ne change pas la borne des jours 6 à 14 (${e(vieuxQ)}) : Ali envoie ${e(X)} billets, comptés`);
-      const photo = async () => { const o = {}; for (const t of TABLES) o[t] = (await s62(`select coalesce(json_agg(x order by x::text), '[]')::text as j from public.${t} x`))[0].j; return JSON.stringify(o); };
+      const photo = async () => { const o = {}; for (const t of TABLES) o[t] = (await s62(`select coalesce(json_agg(x order by x::text), '[]')::text as j from (select ${t === 'fournil_evenements' ? 'nom, figee' : '*'} from public.${t}) x`))[0].j; return JSON.stringify(o); }; // (fournil_evenements.joueurs : la colonne de la v6.6)
       const contrat = async () => JSON.stringify(await s62(`select p.proname as nom, pg_get_function_identity_arguments(p.oid) as args, pg_get_function_result(p.oid) as rend, l.lanname as langage, p.provolatile as vol, p.prosecdef as definer,
           array_to_string(p.proconfig, ',') as conf, p.proacl::text as acl, pg_get_userbyid(p.proowner) as proprio, has_function_privilege('anon', p.oid, 'execute') as anon,
           has_function_privilege('authenticated', p.oid, 'execute') as auth, has_function_privilege('service_role', p.oid, 'execute') as service
         from pg_proc p join pg_language l on l.oid = p.prolang where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' order by 1, 2`));
       const ouvertes = async () => (await s62(`select string_agg(p.proname, ',' order by p.proname) as l from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and has_function_privilege('anon', p.oid, 'execute')`))[0].l;
       const fenetres = async () => JSON.stringify(await s62('select nom, debut, fin, pas from public.fournil_evts() order by nom'));
-      const corps = async () => JSON.stringify(await s62(`select proname, md5(prosrc) as m from pg_proc where pronamespace = 'public'::regnamespace and proname like 'fournil%' and proname not in ('fournil_quartier_table', 'fournil_evts') order by 1`));
+      const corps = async () => JSON.stringify(await s62(`select proname, md5(prosrc) as m from pg_proc where pronamespace = 'public'::regnamespace and proname like 'fournil%' and proname not in ('fournil_quartier_table', 'fournil_evts'${AU.map((n) => `, '${n}'`).join('')}) order by 1`));
       const compte = async (t) => (await s62(`select count(*)::int as n from public.${t}`))[0].n;
       const nPal = await compte('fournil_palmares'), nPho = await compte('fournil_photos'), nPb = await compte('fournil_pourboires'), nJ = await compte('fournil_joueurs');
       check(nJ === 3 && nPal >= 1 && nPho === 1 && nPb === 1, `en ${vNom} : trois joueurs avec des points et des billets, une semaine au palmarès (${nPal} lignes), une photo, un pourboire`);
@@ -2179,7 +2225,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       check(await photo() === dAvant, `rien ne bouge dans les données : les ${TABLES.length} tables sont identiques (joueurs, points, billets, palmarès, photos, pourboires…)`);
       check(await contrat() === cAvant, 'le contrat des fonctions est inchangé : la même liste, les mêmes signatures et types rendus, langage, volatilité, search_path, propriétaire et droits (anon, authenticated, service_role)');
       check(await ouvertes() === aAvant, `anon appelle toujours les mêmes fonctions, ni plus ni moins (${aAvant.split(',').length} : ${aAvant.replace(/fournil_/g, '')})`);
-      check(await corps() === bAvant && await fenetres() === fAvant, 'les autres fonctions gardent leur code, la Maison hantée sa fenêtre et son pas de 6 h');
+      check(await corps() === bAvant && await fenetres() === fAvant, `les autres fonctions${AU.length ? ` (hors ${AU.join(', ')}, éprouvées à part)` : ''} gardent leur code, la Maison hantée sa fenêtre et son pas de 6 h`);
       check(await refus62('anon', 'select public.fournil_quartier_table() as r') && await refus62('anon', 'select count(*) as r from public.fournil_evts()') && await refus62('authenticated', 'select public.fournil_quartier_table() as r'), 'fournil_quartier_table et fournil_evts restent fermées à anon et authenticated');
       // les tableaux et les bornes
       const tq = (await s62('select public.fournil_quartier_table() as t'))[0].t, th = (await s62(`select tableau as t from public.fournil_evts() where nom = 'hantee'`))[0].t;
@@ -2192,8 +2238,9 @@ function trajectoirePoints(profil, jours, t0, cadence) {
         check(ok && eg && (await borneH(HT.DEBUT - 1)) === 0, `la borne de la Maison hantée, à chacun des 27 pas de 6 h (et au milieu de chaque pas) : ≥ à celle de la ${vNom}, = 10^(la v${v}) ; 0 avant l’ouverture${d.length ? ' — en dessous aux pas ' + d.join(', ') : ''}`); }
       // la requête de contrôle, au bas du patch
       if (seulFevts) { const ctl = res && res[res.length - 1], l = ctl && ctl.rows && ctl.rows[0], bh = (await s62(`select public.fournil_evt_borne('hantee', now()) as b`))[0].b;
-        check(!!l && ctl.rows.length === 1 && Object.keys(l).join() === 'hantee,borne_hantee,borne_hantee_log10' && memes(l.hantee, NH) && proche(l.borne_hantee, bh, 1e-3) && (l.borne_hantee === 0 || Math.abs(Number(l.borne_hantee_log10) - Math.log10(l.borne_hantee)) <= 0.005),
-          `la requête de contrôle rend une ligne : le tableau de la Maison hantée et sa borne maintenant (${l ? `${e(l.borne_hantee)}, log10 ${l.borne_hantee_log10}` : '?'})`); }
+        check(!!l && ctl.rows.length === 1 && Object.keys(l).join() === (AU.length ? 'hantee,borne_hantee,borne_hantee_log10,evt_podium_rangs,evenements_joueurs' : 'hantee,borne_hantee,borne_hantee_log10') && memes(l.hantee, NH) && proche(l.borne_hantee, bh, 1e-3) && (l.borne_hantee === 0 || Math.abs(Number(l.borne_hantee_log10) - Math.log10(l.borne_hantee)) <= 0.005)
+          && (!AU.length || (/rang >= 1/.test(l.evt_podium_rangs) && /rang <= 15/.test(l.evt_podium_rangs) && l.evenements_joueurs === true)),
+          `la requête de contrôle rend une ligne : le tableau de la Maison hantée et sa borne maintenant (${l ? `${e(l.borne_hantee)}, log10 ${l.borne_hantee_log10}` : '?'})${AU.length ? `, les rangs du podium des événements (${l && l.evt_podium_rangs}), la colonne joueurs` : ''}`); }
       else { const ctl = res && res[res.length - 1], l = ctl && ctl.rows && ctl.rows[0];
         check(!!l && ctl.rows.length === 1 && Object.keys(l).join() === 'quartier,hantee,borne_quartier,borne_quartier_log10' && memes(l.quartier, NQ) && memes(l.hantee, NH) && proche(l.borne_quartier, (await s62('select public.fournil_quartier_borne(now()) as b'))[0].b, 1e-3) && (l.borne_quartier === 0 || Math.abs(Number(l.borne_quartier_log10) - Math.log10(l.borne_quartier)) <= 0.005), // (now() : l'heure vraie, quelques millisecondes plus tard)
           `la requête de contrôle rend une ligne : les deux tableaux et la borne du Quartier maintenant (${l ? `${e(l.borne_quartier)}, log10 ${l.borne_quartier_log10}` : '?'})`); }
@@ -2261,11 +2308,11 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       const rec = (j, role = 'anon') => c5('select public.fournil_recompenses(p_id => $1, p_jeton => $2) as r', [j.id, j.jeton], role);
       const ab = (j, k) => c5('select public.fournil_abonner(p_id => $1, p_jeton => $2, p_sub => $3::jsonb) as r', [j.id, j.jeton, JSON.stringify({ endpoint: `https://fcm.googleapis.com/fcm/send/v65-${k}`, keys: { p256dh: 'B' + 'Q'.repeat(86), auth: 'a'.repeat(22) } })]);
       const pal5 = async (s) => (await s5(`select rang, pseudo from public.fournil_palmares where semaine = $1 order by rang, lower(pseudo)`, [s])).map((x) => `${x.rang} ${x.pseudo}`).join(', ');
-      const photo5 = async () => { const o = {}; for (const t of TABLES) o[t] = (await s5(`select coalesce(json_agg(x order by x::text), '[]')::text as j from (select ${t === 'fournil_semaines' ? 'semaine, figee' : '*'} from public.${t}) x`))[0].j; return JSON.stringify(o); };
+      const photo5 = async () => { const o = {}; for (const t of TABLES) o[t] = (await s5(`select coalesce(json_agg(x order by x::text), '[]')::text as j from (select ${t === 'fournil_semaines' ? 'semaine, figee' : t === 'fournil_evenements' ? 'nom, figee' : '*'} from public.${t}) x`))[0].j; return JSON.stringify(o); }; // (fournil_evenements.joueurs : la colonne de la v6.6, que le fichier complet ajoute)
       const ouvertes5 = async () => (await s5(`select string_agg(p.proname, ',' order by p.proname) as l from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and has_function_privilege('anon', p.oid, 'execute')`))[0].l;
       const corps5 = async () => JSON.stringify(await s5(`select p.proname, pg_get_function_identity_arguments(p.oid) as args, md5(p.prosrc) as m, p.provolatile as vol, p.prosecdef as definer, array_to_string(p.proconfig, ',') as conf,
           has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth
-        from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and p.proname not in ('fournil_quartier_table', 'fournil_evts', 'fournil_maintenant') order by 1, 2`)); // (fournil_maintenant : l'horloge du banc d'essai)
+        from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and p.proname not in ('fournil_quartier_table', 'fournil_evts', 'fournil_maintenant', ${V66_FNS.map((n) => `'${n}'`).join(', ')}) order by 1, 2`)); // (fournil_maintenant : l'horloge du banc d'essai ; les fonctions que la v6.6 remplace : comparées plus bas, au patch v6.6)
       try { await coller5(V64C); await coller5(P64); check(true, 'la v6.4 telle que sur Supabase s’installe (le fichier complet d’avant la 6.5, puis le patch v6.4)'); } catch (err) { check(false, 'la v6.4 s’installe : ' + err.message); }
       // sous la v6.4 : cinq joueurs, une semaine figée à trois, un pourboire et un objectif réussi pas encore lus
       await horloge5('2027-03-03T10:00:00Z'); // mercredi, la semaine du lundi 1er mars (heure d'hiver)
@@ -2319,7 +2366,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       // le fichier complet recollé par-dessus : le même code (sauf les deux tables, à l'agent des événements), les mêmes données
       const [codeAvant, donnees2] = [await corps5(), await photo5()];
       try { await coller5(SQL); check(true, 'puis le fichier complet (supabase/fournil-classement.sql) se colle par-dessus la v6.5'); } catch (err) { check(false, 'le fichier complet se colle par-dessus la v6.5 : ' + err.message); }
-      check(await corps5() === codeAvant, 'le fichier complet et le patch v6.5 installent le même code : chaque fonction (hors fournil_quartier_table et fournil_evts, à l’agent des événements), ses paramètres, sa volatilité, ses droits');
+      check(await corps5() === codeAvant, `le fichier complet et le patch v6.5 installent le même code : chaque fonction (hors fournil_quartier_table et fournil_evts, à l’agent des événements, et ${V66_FNS.join(', ')}, que la v6.6 remplace), ses paramètres, sa volatilité, ses droits`);
       await horloge5(h5);
       check(await photo5() === donnees2, 'et les données ne bougent pas');
       await d5.close();
@@ -2335,9 +2382,78 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       // la v6.5 en ligne (le 20 octobre : la recette du jour à la part 0,25) : la v6.6 ne descend sous aucune de ses valeurs
       const H65 = [11.65, 14.2, 16.05, 16.35, 16.75, 17, 17.15, 17.35, 17.45, 17.55, 17.65, 17.75, 17.8, 17.85, 17.9, 18, 18.05, 18.1, 18.15, 18.15, 18.2, 18.25, 18.3, 18.3, 18.35, 18.4, 18.4];
       check(memes(T65.h, H65) && /^-- ═+\n--  Le Fournil — le classement, version 6\.6/.test(P66) && /^begin;$/m.test(P66) && /^commit;$/m.test(P66) && /revoke all on function public\.fournil_evts\(\) from public, anon, authenticated;/.test(P66),
-        'le patch v6.6 : l’en-tête, begin/commit, fournil_evts() seule et ses droits (fonction interne) ; la v6.5 qu’il remplace est celle en ligne');
-      await patchLimite({ v: '6.6', texte: P66, T: T66, vieux: { q: T65.q, h: T65.h }, vNom: 'v6.5', seulFevts: true,
+        'le patch v6.6 : l’en-tête, begin/commit, fournil_evts() et ses droits (fonction interne) ; la v6.5 qu’il remplace est celle en ligne');
+      await patchLimite({ v: '6.6', texte: P66, T: T66, vieux: { q: T65.q, h: T65.h }, vNom: 'v6.5', seulFevts: true, autres: V66_FNS,
         base: [['6.4 (le fichier complet d’avant la 6.5)', V64C], ['6.4', P64], ['6.5', P65]] });
+    }
+
+    // ─── la version 6.6, les acharnés de la Maison hantée : collée deux fois par-dessus la v6.5 telle qu'elle est sur Supabase, alors que la
+    // Maison hantée est déjà finie et figée à trois (un projet où la v6.6 arriverait trop tard) : le vieux podium reste lisible tel quel ;
+    // puis le fichier complet recollé par-dessus installe le même code
+    {
+      const HT = require('../src/hantee.js');
+      const P65 = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v65.sql'), 'utf8'), P66 = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v66.sql'), 'utf8');
+      const V64C = fs.readFileSync(path.join(__dirname, 'fournil-classement-v64-complet.sql'), 'utf8');
+      titre('la version 6.6 : les acharnés de la Maison hantée, collée par-dessus la v6.5 (un podium d’événement déjà figé à trois)');
+      check(/^-- ═+\n--  Le Fournil — le classement, version 6\.6/.test(P66) && /^begin;$/m.test(P66) && /^commit;$/m.test(P66) && /RECOMPENSES_EVT/.test(P66), 'le patch v6.6 : l’en-tête (les acharnés et RECOMPENSES_EVT nommés), begin/commit');
+      const d6 = await PGlite.create();
+      const s6 = async (sql, p) => (await d6.query(sql, p)).rows;
+      const c6 = async (sql, p, role = 'anon') => { await d6.exec(`set role ${role}`); try { return (await d6.query(sql, p)).rows[0].r; } finally { await d6.exec('reset role'); } };
+      const coller6 = async (t) => { await d6.exec('set role proprio'); try { return await d6.exec(t); } finally { await d6.exec('reset role'); } };
+      await d6.exec(`
+        create role anon nologin noinherit; create role authenticated nologin noinherit; create role service_role nologin noinherit bypassrls;
+        create role proprio nologin createrole;
+        grant usage, create on schema public to proprio;
+        grant usage on schema public to anon, authenticated, service_role;
+        set role proprio;
+        alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+        alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+        alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+        reset role;
+        create schema banc; create table banc.horloge (t timestamptz); insert into banc.horloge values (null);
+        grant usage on schema banc to proprio; grant select on banc.horloge to proprio;`);
+      let h6 = 0;
+      const horloge6 = async (ms) => { h6 = ms; await s6(`create or replace function public.fournil_maintenant() returns timestamptz language sql stable set search_path = '' as $$ select coalesce((select t from banc.horloge limit 1), now()) $$`); await s6('update banc.horloge set t = $1', [new Date(ms).toISOString()]); };
+      const pubE = (j, pseudo, score, photo) => c6('select public.fournil_publier(p_id => $1, p_jeton => $2, p_pseudo => $3, p_fortune => $4, p_points => $5, p_lundi => $6, p_evt => $7, p_score => $8, p_photo => $9::jsonb) as r', [j.id, j.jeton, pseudo, '1000', '10', lundiDe(h6), 'hantee', String(score), photo ? JSON.stringify(photo) : null]);
+      const rec6 = (j) => c6('select public.fournil_recompenses(p_id => $1, p_jeton => $2) as r', [j.id, j.jeton]);
+      const cl6 = (j) => c6('select public.fournil_classement(p_periode => $1, p_id => $2) as r', ['hantee', j.id]);
+      const photo6 = async () => { const o = {}; for (const t of TABLES) o[t] = (await s6(`select coalesce(json_agg(x order by x::text), '[]')::text as j from (select ${t === 'fournil_evenements' ? 'nom, figee' : '*'} from public.${t}) x`))[0].j; return JSON.stringify(o); };
+      const corps6 = async () => JSON.stringify(await s6(`select p.proname, pg_get_function_identity_arguments(p.oid) as args, md5(p.prosrc) as m, p.provolatile as vol, p.prosecdef as definer, array_to_string(p.proconfig, ',') as conf,
+          has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth
+        from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and p.proname not in ('fournil_maintenant', 'fournil_quartier_table', 'fournil_evts') order by 1, 2`)); // (les deux tableaux : comparés plus haut, valeur par valeur)
+      try { await coller6(V64C); await coller6(P64); await coller6(P65); check(true, 'la v6.5 telle que sur Supabase s’installe (le fichier complet d’avant la 6.5, les patchs v6.4 et v6.5)'); } catch (err) { check(false, 'la v6.5 s’installe : ' + err.message); }
+      // sous la v6.5 : cinq joueurs dans la Maison hantée, figée après la fin à trois
+      await horloge6(HT.DEBUT + 2 * 864e5);
+      const [Ar, Bo, Ce, Do, Ed] = [joueur(), joueur(), joueur(), joueur(), joueur()], NO = ['Arthur', 'Bob', 'Cécile', 'Doris', 'Édith'];
+      for (const [k, j] of [Ar, Bo, Ce, Do, Ed].entries()) await pubE(j, NO[k], (5 - k) * 1e12, k === 1 ? { v: 1, nom: 'Chez Bob', ti: 'legende-manoir' } : null);
+      await horloge6(HT.FIN + 2 * 3600e3);
+      await c6('select public.fournil_heure() as r');
+      const pod6 = async () => (await s6(`select rang, pseudo from public.fournil_evt_podium where evt = 'hantee' order by rang`)).map((x) => `${x.rang} ${x.pseudo}`).join(', ');
+      check(await pod6() === '1 Arthur, 2 Bob, 3 Cécile', `en v6.5, la Maison hantée figée à trois (${await pod6()}) ; Doris (4e) et Édith (5e) n’y sont pas`);
+      const donnees = await photo6();
+      let res = null;
+      try { res = await coller6(P66); res = await coller6(P66); check(true, 'le patch v6.6 se colle par-dessus la v6.5, puis se recolle sans casse (rôle propriétaire, droits par défaut de Supabase)'); } catch (err) { check(false, 'le patch v6.6 se colle par-dessus la v6.5 : ' + err.message); }
+      check(await photo6() === donnees && (await s6(`select joueurs from public.fournil_evenements where nom = 'hantee'`))[0].joueurs === null, `rien ne bouge dans les données (les ${TABLES.length} tables), et la Maison hantée figée avant la 6.6 n’a pas de nombre de joueurs (null)`);
+      let r = await rec6(Bo);
+      check(r.ok && JSON.stringify(r.evenements.hantee) === JSON.stringify({ rang: 2, joueurs: null, podium: [{ rang: 1, pseudo: 'Arthur', valeur: 5e12 }, { rang: 2, pseudo: 'Bob', valeur: 4e12 }, { rang: 3, pseudo: 'Cécile', valeur: 3e12 }] }),
+        `le vieux podium à trois reste lisible : Bob 2e, joueurs inconnu (null), les trois premiers (${JSON.stringify(r.evenements.hantee)})`);
+      check((await rec6(Do)).evenements.hantee.rang === null, 'Doris (4e, pas gardée par la v6.5) : aucun rang, rien d’inventé');
+      r = await cl6(Bo);
+      check(r.lignes.map((x) => `${x.rang} ${x.pseudo} ${x.podium} ${x.titre}`).join(', ') === '1 Arthur 1 null, 2 Bob 2 legende-manoir, 3 Cécile 3 null, 4 Doris null null, 5 Édith null null' && r.moi.titre === 'legende-manoir',
+        `le classement « hantee » : les médailles du vieux podium, et le titre de la photo de Bob, déjà sur le serveur (${r.lignes.map((x) => `${x.rang} ${x.pseudo} ${x.podium} ${x.titre}`).join(' · ')})`);
+      { const l = res && res[res.length - 1] && res[res.length - 1].rows[0];
+        check(!!l && /rang <= 15/.test(l.evt_podium_rangs) && l.evenements_joueurs === true, `la requête de contrôle : les quinze rangs (${l && l.evt_podium_rangs}), la colonne joueurs`); }
+      try { await s6(`insert into public.fournil_evt_podium (evt, id, rang, pseudo, valeur) values ('essai', gen_random_uuid(), 15, 'Quinze', 1)`); check(true, 'la table accepte maintenant un 15e'); } catch (err) { check(false, 'la table accepte un 15e : ' + err.message); }
+      let refuse = false; try { await s6(`insert into public.fournil_evt_podium (evt, id, rang, pseudo, valeur) values ('essai', gen_random_uuid(), 16, 'Seize', 1)`); } catch (err) { refuse = true; }
+      check(refuse, 'et refuse un 16e rang');
+      await s6(`delete from public.fournil_evt_podium where evt = 'essai'`);
+      // le fichier complet recollé par-dessus : le même code (fournil_quartier_table et fournil_evts compris), les mêmes données
+      const [codeAvant, donnees2] = [await corps6(), await photo6()];
+      try { await coller6(SQL); check(true, 'puis le fichier complet (supabase/fournil-classement.sql) se colle par-dessus la v6.6'); } catch (err) { check(false, 'le fichier complet se colle par-dessus la v6.6 : ' + err.message); }
+      await horloge6(h6);
+      check(await corps6() === codeAvant, `le fichier complet et la v6.5 + v6.6 installent le même code : chaque fonction (${V66_FNS.join(', ')} compris), ses paramètres, sa volatilité, ses droits`);
+      check(await photo6() === donnees2, 'et les données ne bougent pas');
+      await d6.close();
     }
   }
 

@@ -1,6 +1,10 @@
 #!/usr/bin/env node
 // Le Fournil : le classement en ligne éprouvé POUR DE VRAI contre le projet Supabase du jeu (sur GitHub Actions :
 // le conteneur de Claude ne peut pas joindre Supabase). Node 22, fetch, la clé PUBLIQUE seulement.
+//  0 ter. version 6.6, les acharnés de la Maison hantée (supabase/fournil-classement-v66.sql) : si elle est collée, chaque ligne du classement
+//     porte titre (null, ou le titre que montre la photo de sa boutique : A envoie ti = 'legende-manoir', sa ligne le rend), et la forme des
+//     places de l'événement est vérifiée quand il est figé (evenements.hantee = { rang 1 à 15 | null, joueurs, podium : trois premiers au
+//     plus }) ; sinon, le test le dit (« v6.6 pas encore collée ») ;
 //  0 bis. version 6.5 (supabase/fournil-classement-v65.sql : les places de la semaine jusqu'au 15e, les pourboires et l'objectif accusés par
 //     le téléphone) : si elle est collée, fournil_recompenses rend places (rangs 1 à 15, un joueur de test n'en a pas encore), les
 //     pourboires reçus reviennent tant qu'ils ne sont pas accusés, fournil_vu_objectif répond ; sinon, le test le dit clairement
@@ -124,6 +128,8 @@ const ENTETES_JEU = BEARER ? 'apikey + Authorization' : 'apikey seul'; // ce que
 let entetes = ENTETES[ENTETES_JEU]; // ajusté après l'essai des en-têtes
 const durees = [];
 let sourceConclusion = ''; // ce que la sonde dit de la limite d'inscriptions par source
+const V66_MANQUE = '**v6.6 pas encore collée** : colle `supabase/fournil-classement-v66.sql` (la limite de la Maison hantée, ses acharnés jusqu’au 15e, le titre « Légende du Manoir » dans la liste).';
+let V66 = false; // version 6.6 : les lignes du classement portent titre (les acharnés de la Maison hantée)
 let VERSION = 0, V6 = false, V65 = false, versionConclusion = ''; // la version du SQL installée (5 ou 6) ; V6 : les copains et les notifications ; V65 : les places et les accusés (6.5)
 async function appel(methode, chemin, corps, h = entetes) {
   const t0 = Date.now();
@@ -255,6 +261,14 @@ function arreter(message, conclusion) {
     versionConclusion = (versionConclusion ? versionConclusion + '\n\n' : '') + '**v6.5 pas encore collée** : colle `supabase/fournil-classement-v65.sql` dans le SQL Editor (les places de la semaine jusqu’au 15e, les pourboires et l’objectif accusés par le téléphone). Le reste est vérifié comme en v6.';
     log('  ATTENTION v6.5 pas encore collée (fournil_recompenses ne rend pas places) : colle supabase/fournil-classement-v65.sql ; les places du 4e au 15e ne sont pas encore figées, le reste est vérifié comme en v6');
   }
+  // version 6.6 : la forme des places de l'événement (seulement une fois la Maison hantée figée, après le 2 novembre à 21 h) ; et le titre des lignes
+  { const ev = r.data && r.data.evenements ? r.data.evenements : {};
+    for (const [id, x] of Object.entries(ev)) check(x && (x.rang === null || (Number.isInteger(x.rang) && x.rang >= 1 && x.rang <= 15)) && Array.isArray(x.podium) && x.podium.length >= 0 && x.podium.every((p) => [1, 2, 3].includes(p.rang) && typeof p.pseudo === 'string' && Object.keys(p).sort().join() === 'pseudo,rang,valeur') && (!('joueurs' in x) || x.joueurs === null || (Number.isInteger(x.joueurs) && x.joueurs >= x.podium.length)),
+      `l’événement « ${id} » figé : rang ${x && x.rang} (1 à 15 ou rien), joueurs ${x && x.joueurs}, le podium : les trois premiers seulement (${JSON.stringify(x).slice(0, 160)})`);
+    V66 = !!(c0.lignes && c0.lignes.length && 'titre' in c0.lignes[0]);
+    if (!V66 && c0.lignes && c0.lignes.length) { versionConclusion = (versionConclusion ? versionConclusion + '\n\n' : '') + V66_MANQUE;
+      log('  ATTENTION v6.6 pas encore collée (les lignes du classement ne portent pas titre) : colle supabase/fournil-classement-v66.sql'); }
+    else if (!V66) log('  (le classement de la semaine est vide : la v6.6 se vérifie après l’envoi de la photo de A)'); }
 
   // ─── 3. l'heure du serveur ───
   log('\n── l’heure du serveur ──');
@@ -324,9 +338,9 @@ function arreter(message, conclusion) {
     r = await rpc('fournil_classement', { p_periode: 'total', p_id: A.id, p_limite: 100 });
     const t = r.data || {}, tl = t.lignes || [];
     check(r.statut === 200 && t.version === VERSION && t.moi && t.moi.points === 12 && t.moi.valeur === 0 && t.moi.podium === null && t.joueurs >= 2 && tl.length <= 100, `tous les temps : A s'y retrouve avec 12 points et 0 € (son arrivée), sans toque (« moi » = ${JSON.stringify(t.moi)}, ${t.joueurs} joueurs)`);
-    check(tl.every((x) => Object.keys(x).sort().join() === 'en_ligne,moi,podium,points,pseudo,rang,valeur' && typeof x.en_ligne === 'boolean' && Number.isInteger(x.points) && (x.podium === null || [1, 2, 3].includes(x.podium)))
+    check(tl.every((x) => ['en_ligne,moi,podium,points,pseudo,rang,valeur', 'en_ligne,moi,podium,points,pseudo,rang,titre,valeur'].includes(Object.keys(x).sort().join()) && typeof x.en_ligne === 'boolean' && Number.isInteger(x.points) && (x.podium === null || [1, 2, 3].includes(x.podium)) && (x.titre == null || /^[a-z0-9-]{1,24}$/.test(x.titre)))
       && tl.every((x, k) => k === 0 || tl[k - 1].points >= x.points)
-      && !/"jeton"|"id"/.test(r.texte) && !r.texte.includes(A.id) && !r.texte.includes(A.jeton), 'les lignes : rang, pseudo, points, valeur, moi, podium (1, 2, 3 ou rien), en_ligne (un booléen), rangées aux points — ni identifiant ni jeton');
+      && !/"jeton"|"id"/.test(r.texte) && !r.texte.includes(A.id) && !r.texte.includes(A.jeton), 'les lignes : rang, pseudo, points, valeur, moi, podium (1, 2, 3 ou rien), en_ligne (un booléen), titre (v6.6 : un identifiant ou rien), rangées aux points — ni identifiant ni jeton');
     check(t.moi.en_ligne === true && Number.isInteger(t.en_ligne_n) && t.en_ligne_n >= 1, `A vient d'envoyer : en ligne (${t.en_ligne_n} en ligne en tout)`);
     { const v = await rpc('fournil_vu', { p_id: A.id, p_jeton: A.jeton }), w = await rpc('fournil_vu', { p_id: A.id, p_jeton: B.jeton });
       check(v.statut === 200 && v.data && v.data.ok === true && w.statut === 200 && w.data && w.data.ok === false && w.data.erreur === 'jeton', `fournil_vu : A bat avec son jeton (${v.texte}), le jeton de B est refusé (${w.texte})`); }
@@ -403,10 +417,13 @@ function arreter(message, conclusion) {
     if (V6) {
       log('\n── les copains et les notifications (version 6) ──');
       await attendre(10500);
-      r = await rpc('fournil_publier', { p_id: A.id, p_jeton: A.jeton, p_pseudo: A.pseudo, p_fortune: 1600, p_points: 20, p_lundi: lundi, p_photo: { v: 1, nom: 'Boutique de test', postes: [{ n: 3, a: 1 }] } });
+      r = await rpc('fournil_publier', { p_id: A.id, p_jeton: A.jeton, p_pseudo: A.pseudo, p_fortune: 1600, p_points: 20, p_lundi: lundi, p_photo: { v: 1, nom: 'Boutique de test', postes: [{ n: 3, a: 1 }], ti: 'legende-manoir' } });
       check(r.data && r.data.ok === true && r.data.version === 6 && typeof r.data.photo_maj === 'string' && Math.abs(Date.parse(r.data.photo_maj) - Date.now()) < 120e3, `A envoie la photo de sa boutique : gardée (photo_maj ${r.data && r.data.photo_maj})`);
       r = await rpc('fournil_boutique', { p_pseudo: A.pseudo.toUpperCase() });
       check(r.statut === 200 && r.data && r.data.ok === true && r.data.pseudo === A.pseudo && r.data.photo && r.data.photo.nom === 'Boutique de test' && r.data.en_ligne === true && !r.texte.includes(A.id) && !/"id"|"jeton"/.test(r.texte), `la boutique de A, lue par tous (pseudo en majuscules) : sa photo, en ligne, ni identifiant ni jeton (${r.texte.slice(0, 120)})`);
+      { const c = await rpc('fournil_classement', { p_periode: 'total', p_id: A.id, p_limite: 100 }), mo = c.data && c.data.moi;
+        if (mo && 'titre' in mo) { V66 = true; check(mo.titre === 'legende-manoir' && (c.data.lignes || []).every((x) => x.titre === null || x.titre === 'legende-manoir' || /^[a-z0-9-]{1,24}$/.test(x.titre)), `v6.6 : la photo de A porte ti = « legende-manoir » : sa ligne du classement rend titre (${JSON.stringify(mo)})`); }
+        else { log('  ATTENTION v6.6 pas encore collée : le titre de la photo de A n’est pas encore rendu dans le classement'); if (!versionConclusion.includes(V66_MANQUE)) versionConclusion = (versionConclusion ? versionConclusion + '\n\n' : '') + V66_MANQUE; } }
       r = await rpc('fournil_boutique', { p_pseudo: 'test-ci-' + hasard(4) });
       check(r.data && r.data.ok === false && r.data.erreur === 'inconnu', `un pseudo inconnu : « inconnu » (${r.texte})`);
       r = await rpc('fournil_boutique', { p_pseudo: B.pseudo, p_id: A.id, p_jeton: A.jeton });

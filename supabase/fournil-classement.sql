@@ -7,6 +7,17 @@
 --  les points, les billets, les bonbons et les podiums restent, les fonctions sont remplacées par la nouvelle version, les droits
 --  sont remis d'aplomb.
 --
+--  Version 6.6 (21 oct. 2026) : LES ACHARNÉS DE LA MAISON HANTÉE (le même code que le patch supabase/fournil-classement-v66.sql, qui porte
+--  aussi la limite de la Maison hantée relevée pour ses activités). Collée par-dessus la v6.5 : rien ne se perd.
+--    · le podium final d'un événement générique garde les QUINZE premiers (score > 0, ex æquo au même rang ; fournil_evt_podium accepte
+--      les rangs 1 à 15) et fournil_evenements le nombre de joueurs classés à la fin (joueurs : « 7e sur 12 ») ; fournil_recompenses rend
+--      evenements.hantee = { rang (1 à 15), joueurs, podium (les trois premiers, comme avant) }. Les étoiles et le boost de chaque place
+--      sont donnés par le téléphone (src/classement.js, RECOMPENSES_EVT), une fois ; les trois premiers gardent la tenue d'Halloween en
+--      or. Un téléphone d'avant ne lit que les rangs 1 à 3. Le Quartier (son podium final, figé le 27 octobre) ne change pas ;
+--    · fournil_classement rend sur chaque ligne le titre que montre la photo de sa boutique (titre : « legende-manoir », la Légende du
+--      Manoir, gagnée au 20e palier de la Maison hantée ; null sinon), et la médaille du podium final d'un événement reste aux trois
+--      premiers.
+--
 --  Version 6.5 (19 oct. 2026) : LES PLACES DE LA SEMAINE, jusqu'au 15e, et les récompenses qui ne se perdent plus en route
 --  (le même code que le patch supabase/fournil-classement-v65.sql). Collée par-dessus la v6 (ou la 6.2 à 6.4) : rien ne se perd.
 --    · le palmarès de chaque semaine finie garde les QUINZE premiers (points > 0, ex æquo au même rang), et fournil_semaines le
@@ -86,7 +97,7 @@
 --    · public.fournil_quartier_podium : les trois premiers de l'événement « Le Quartier », figés après sa fin ;
 --    · public.fournil_evenements : les événements dont le podium est figé ;
 --    · public.fournil_evt_scores : le score de chaque joueur à chaque événement générique (version 5) ;
---    · public.fournil_evt_podium : les podiums finaux des événements génériques, figés après leur fin ;
+--    · public.fournil_evt_podium : les podiums finaux des événements génériques (les quinze premiers depuis la version 6.6), figés après leur fin ;
 --    · version 6 : public.fournil_photos, fournil_pourboires, fournil_objectif, fournil_objectif_gagnants, fournil_abonnements,
 --      fournil_notif_prefs, fournil_notifs (la file des notifications), fournil_annonces (les événements déjà annoncés) ;
 --    · les fonctions appelées par le jeu : fournil_publier, fournil_classement, fournil_retirer, fournil_recompenses,
@@ -256,8 +267,10 @@ comment on table public.fournil_quartier_podium is
   'Le Fournil : le podium final de l’événement « Le Quartier », figé une fois. Accès uniquement par les fonctions du jeu.';
 create table if not exists public.fournil_evenements (
   nom   text primary key,
-  figee timestamptz not null
+  figee timestamptz not null,
+  joueurs integer                                      -- version 6.6 : les joueurs classés à l'événement (score > 0) quand il a été figé (« 7e sur 12 ») ; null avant
 );
+alter table public.fournil_evenements add column if not exists joueurs integer;
 comment on table public.fournil_evenements is
   'Le Fournil : les événements dont le podium est figé. Accès uniquement par les fonctions du jeu.';
 
@@ -276,11 +289,14 @@ comment on table public.fournil_evt_scores is
 create table if not exists public.fournil_evt_podium (
   evt    text not null,
   id     uuid not null,                                -- le joueur (jamais renvoyé au jeu)
-  rang   integer not null check (rang between 1 and 3),
+  rang   integer not null check (rang between 1 and 15),
   pseudo text not null,
   valeur double precision not null,                    -- son score à la fin
   primary key (evt, id)
 );
+-- version 6.6 : du 1er au 15e, comme le palmarès de la semaine (une table d'avant n'acceptait que 1 à 3 ; ses lignes restent telles quelles)
+alter table public.fournil_evt_podium drop constraint if exists fournil_evt_podium_rang_check;
+alter table public.fournil_evt_podium add constraint fournil_evt_podium_rang_check check (rang between 1 and 15);
 create index if not exists fournil_evt_podium_id on public.fournil_evt_podium (id);
 comment on table public.fournil_evt_podium is
   'Le Fournil : les podiums finaux des événements, figés une fois. Accès uniquement par les fonctions du jeu.';
@@ -850,8 +866,9 @@ begin
 end
 $$;
 
--- les podiums finaux : chaque événement fini (après son heure de grâce) est figé une fois, à la première requête qui suit (les trois
--- premiers au score, ex æquo au même rang, score > 0). La ligne de fournil_evenements fait verrou, comme pour le Quartier.
+-- les podiums finaux : chaque événement fini (après son heure de grâce) est figé une fois, à la première requête qui suit (les quinze
+-- premiers au score, ex æquo au même rang, score > 0 ; les trois premiers avant la version 6.6), avec le nombre de joueurs classés (« 7e
+-- sur 12 »). La ligne de fournil_evenements fait verrou, comme pour le Quartier (dont le podium final, figé à part, garde ses trois).
 create or replace function public.fournil_evt_figer(p_maintenant timestamptz)
 returns void
 language plpgsql
@@ -861,6 +878,7 @@ as $$
 declare
   e record;
   v_n integer;
+  v_j integer;
 begin
   for e in select x.nom from public.fournil_evts() x
             where p_maintenant >= x.fin + interval '1 hour'
@@ -873,8 +891,12 @@ begin
         from (select s.id, j.pseudo, s.valeur, rank() over (order by s.valeur desc)::int as rang
                 from public.fournil_evt_scores s join public.fournil_joueurs j on j.id = s.id
                where s.evt = e.nom and s.valeur > 0) r
-       where r.rang <= 3
+       where r.rang <= 15
       on conflict (evt, id) do nothing;
+      -- version 6.6 : combien de joueurs étaient classés à la fin (score > 0)
+      select count(*)::int into v_j from public.fournil_evt_scores s join public.fournil_joueurs j on j.id = s.id
+       where s.evt = e.nom and s.valeur > 0;
+      update public.fournil_evenements set joueurs = v_j where nom = e.nom;
     end if;
   end loop;
 end
@@ -1471,11 +1493,15 @@ $$;
 -- p_id : son propre identifiant (facultatif), pour se retrouver même hors des premiers.
 -- p_limite : le nombre de lignes (50 par défaut, 100 au plus).
 -- Réponse : { version: 6, semaine: 'AAAA-MM-JJ', periode, joueurs, en_ligne_n,
---             lignes: [{ rang, pseudo, points, valeur, moi, podium, en_ligne }], moi: { rang, points, valeur, podium, en_ligne } | null }
+--             lignes: [{ rang, pseudo, points, valeur, moi, podium, en_ligne, titre }], moi: { rang, points, valeur, podium, en_ligne, titre } | null }
 -- Le rang se fait sur les POINTS (de la semaine, ou depuis l'arrivée) ; valeur : l'argent gagné sur la même période, pour
 -- information (un téléphone de la version 2 l'affiche encore comme avant, dans l'ordre des points).
 -- podium : 1, 2 ou 3 si ce joueur était sur le podium de la semaine PASSÉE (sa toque à côté du pseudo), sinon null (version 6.5 : le
--- palmarès garde les quinze premiers, mais seuls les trois premiers ont une toque).
+-- palmarès garde les quinze premiers, mais seuls les trois premiers ont une toque ; version 6.6 : de même pour le podium final d'un
+-- événement, qui garde lui aussi les quinze premiers).
+-- titre (version 6.6) : le titre gagné que montre sa photo (fournil_photos, champ ti : « legende-manoir », la Légende du Manoir, le 20e
+-- palier de la Maison hantée), s'il a la forme d'un identifiant (lettres minuscules, chiffres, tirets, 24 au plus), sinon null. Il vient
+-- de son téléphone : le jeu ne montre que les titres qu'il connaît, comme du texte.
 -- en_ligne : vrai si ce joueur a donné signe de vie il y a moins de 4 minutes (un envoi accepté, ou fournil_vu) ; en_ligne_n :
 -- combien de joueurs de toute cette liste (pas seulement des lignes rendues) sont en ligne. Jamais l'heure elle-même.
 -- Les ex æquo ont le même rang (puis l'ordre des pseudos) ; jamais d'identifiant ni de jeton dans la réponse.
@@ -1504,16 +1530,18 @@ begin
            case when p_periode = 'semaine' then j.points when p_periode = 'total' then j.points_total else null end as points,
            case when p_periode = 'semaine' then j.gain when p_periode = 'total' then j.total when p_periode = 'quartier' then j.quartier else s.valeur end as valeur,
            case when p_periode = 'quartier' then q.rang when v_evt then e.rang else p.rang end as podium,
-           coalesce(j.vu > v_maintenant - interval '4 minutes' and j.vu <= v_maintenant + interval '1 minute', false) as en_ligne
+           coalesce(j.vu > v_maintenant - interval '4 minutes' and j.vu <= v_maintenant + interval '1 minute', false) as en_ligne,
+           case when f.photo ->> 'ti' ~ '^[a-z0-9-]{1,24}$' then f.photo ->> 'ti' end as titre
       from public.fournil_joueurs j
       left join public.fournil_palmares p on p.id = j.id and p.semaine = v_lundi - 7 and p.rang <= 3
       left join public.fournil_quartier_podium q on q.id = j.id
       left join public.fournil_evt_scores s on v_evt and s.evt = p_periode and s.id = j.id
-      left join public.fournil_evt_podium e on v_evt and e.evt = p_periode and e.id = j.id
+      left join public.fournil_evt_podium e on v_evt and e.evt = p_periode and e.id = j.id and e.rang <= 3
+      left join public.fournil_photos f on f.id = j.id
      where (p_periode = 'total') or (p_periode = 'semaine' and j.semaine = v_lundi) or (p_periode = 'quartier' and j.quartier > 0)
         or (v_evt and s.valeur > 0)
   ), rangs as (
-    select id, pseudo, points, valeur, podium, en_ligne,
+    select id, pseudo, points, valeur, podium, en_ligne, titre,
            rank() over (order by case when p_periode = 'quartier' or v_evt then valeur else points::double precision end desc)::int as rang,
            row_number() over (order by case when p_periode = 'quartier' or v_evt then valeur else points::double precision end desc, lower(pseudo), id) as ordre
       from valeurs
@@ -1525,10 +1553,10 @@ begin
            'joueurs', (select count(*)::int from rangs),
            'en_ligne_n', (select count(*)::int from rangs where en_ligne),
            'lignes', coalesce((select json_agg(json_build_object('rang', r.rang, 'pseudo', r.pseudo, 'points', r.points, 'valeur', r.valeur,
-                                                                 'moi', coalesce(r.id = p_id, false), 'podium', r.podium, 'en_ligne', r.en_ligne)
+                                                                 'moi', coalesce(r.id = p_id, false), 'podium', r.podium, 'en_ligne', r.en_ligne, 'titre', r.titre)
                                                order by r.ordre)
                                  from rangs r where r.ordre <= v_limite), '[]'::json),
-           'moi', (select json_build_object('rang', r.rang, 'points', r.points, 'valeur', r.valeur, 'podium', r.podium, 'en_ligne', r.en_ligne) from rangs r where r.id = p_id)
+           'moi', (select json_build_object('rang', r.rang, 'points', r.points, 'valeur', r.valeur, 'podium', r.podium, 'en_ligne', r.en_ligne, 'titre', r.titre) from rangs r where r.id = p_id)
          )
     into v_res;
   return v_res;
@@ -1581,8 +1609,10 @@ $$;
 --             les trois premiers seulement),
 --             quartier: 1 | 2 | 3 | null (son rang au podium FINAL de l'événement « Le Quartier », une fois figé),
 --             quartier_podium: [{ rang, pseudo, valeur }] | null (le podium final, figé ; null tant que l'événement n'est pas fini),
---             evenements: { <evt>: { rang: 1 | 2 | 3 | null, podium: [{ rang, pseudo, valeur }] } } (version 5 : un champ par événement
---             générique dont le podium final est figé, 'hantee' compris ; {} tant qu'aucun n'est fini),
+--             evenements: { <evt>: { rang: 1 à 15 | null, joueurs: les joueurs classés à la fin | null, podium: [{ rang, pseudo, valeur }] } }
+--             (version 5 : un champ par événement générique dont le podium final est figé, 'hantee' compris ; {} tant qu'aucun n'est fini ;
+--             version 6.6 : rang de 1 à 15 (sa place au classement final ; 1 à 3 avant) et joueurs (null : figé avant la 6.6) ; podium : les
+--             trois premiers seulement, comme avant ; un téléphone d'avant ne lit que les rangs 1 à 3),
 --             pourboires: [{ de: pseudo, quand: ISO }] (version 6 : les pourboires reçus pas encore accusés, du plus ancien au plus
 --             récent, les 20 plus récents au plus ; version 6.5 : la lecture ne les marque plus, le téléphone les accuse avec
 --             fournil_vu_pourboires une fois rangés et sauvés : une réponse perdue les rend de nouveau à la lecture suivante),
@@ -1652,8 +1682,9 @@ begin
     'evenements', coalesce((
       select json_object_agg(x.nom, json_build_object(
                'rang', (select e.rang from public.fournil_evt_podium e where v_inscrit and e.evt = x.nom and e.id = p_id),
+               'joueurs', (select f.joueurs from public.fournil_evenements f where f.nom = x.nom),
                'podium', coalesce((select json_agg(json_build_object('rang', e.rang, 'pseudo', e.pseudo, 'valeur', e.valeur) order by e.rang, lower(e.pseudo))
-                                     from public.fournil_evt_podium e where e.evt = x.nom), '[]'::json)))
+                                     from public.fournil_evt_podium e where e.evt = x.nom and e.rang <= 3), '[]'::json)))
         from public.fournil_evts() x
        where exists (select 1 from public.fournil_evenements f where f.nom = x.nom)), '{}'::json),
     'pourboires', v_pourboires,

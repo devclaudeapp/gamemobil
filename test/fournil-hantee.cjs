@@ -7,7 +7,9 @@
 // chat noir dans la boutique, « Masquer la Maison hantée » dans les Réglages ; le décor éco (chibis costumés) ; puis la fin : le Manoir
 // fermé, le bilan, l'icône partie, le chat noir au choix. Puis, dans un second téléphone, « après le maître » : une sauvegarde déjà au 12e
 // reçoit les paliers bonus déjà dépassés, une fois ; la liste « Après le maître du Manoir » (13 à 20) lisible à 390 px ; les Sortilèges en
-// plus ; le 20e et son chapeau phosphorescent ; le bilan qui compte jusqu'à 20. Enfin, dans un troisième téléphone, les activités
+// plus ; le 20e et son chapeau phosphorescent ; les acharnés (lot 6) : au 20e, l'aura phosphorescente autour du boulanger (un sprite qui
+// respire, portée d'office, retirée et remise dans la garde-robe), le titre « Légende du Manoir », la lanterne de la légende dans la boutique
+// (deux appels de dessin ; captures acharnes-*.png dans SHOTS_ACHARNES) ; le bilan qui compte jusqu'à 20. Enfin, dans un troisième téléphone, les activités
 // (test/fournil-activites-ecran.cjs) : la barre des trois boutons, une partie de chaque mini-jeu au doigt, un contrat, une opération.
 // Captures dans test/shots/hantee/ (et dans le dossier donné par SHOTS_HANTEE).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-hantee.cjs
@@ -21,6 +23,7 @@ const outR = path.join(__dirname, 'shots', 'recettes'); fs.mkdirSync(outR, { rec
 const photoR = async (pg, nom) => { await pg.evaluate(() => { for (const t of document.querySelectorAll('.toast')) t.style.visibility = 'hidden'; }); await pg.screenshot({ path: path.join(outR, nom + '.png') }); await pg.evaluate(() => { for (const t of document.querySelectorAll('.toast')) t.style.visibility = ''; }); }; // sans le toast du moment (une capture par écran) d'après le maître
 const out = path.join(__dirname, 'shots', 'hantee'); fs.mkdirSync(out, { recursive: true });
 const out2 = process.env.SHOTS_HANTEE ? (fs.mkdirSync(process.env.SHOTS_HANTEE, { recursive: true }), process.env.SHOTS_HANTEE) : null;
+const outA = process.env.SHOTS_ACHARNES ? (fs.mkdirSync(process.env.SHOTS_ACHARNES, { recursive: true }), process.env.SHOTS_ACHARNES) : null; // les acharnés (lot 6) : le palier 20, l'aura, la lanterne
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.svg': 'image/svg+xml', '.png': 'image/png', '.glb': 'model/gltf-binary', '.webmanifest': 'application/manifest+json' };
 const HEURE = 3600e3;
 // le « vrai » temps du test : mardi 27 octobre 2026, 13 h à Paris (le Quartier a fermé à midi, la Maison hantée vient d'ouvrir)
@@ -354,9 +357,33 @@ function fauxTelephone(decalDepart) { // avant tout script de la page : une faus
       const vu = (/Palier (\d+)/.exec(await feuille2()) || [])[1]; await clic2('#feuille [data-a="pq-ok"]');
       await attendre(async () => { const n = (/Palier (\d+)/.exec(await feuille2()) || [])[1]; return n && n !== vu; }, 4000); }
     check(/Palier 20 · La légende phosphorescente/.test(await feuille2()) && /Chapeau phosphorescent/.test(await feuille2()), 'le palier 20 : le chapeau phosphorescent pour la garde-robe');
+    { const f20 = await feuille2(); check(/Aura phosphorescente autour du boulanger/.test(f20) && /Légende du Manoir/.test(f20) && /lanterne de la légende/.test(f20), 'le palier 20 des acharnés : l’aura phosphorescente (portée d’office), le titre « Légende du Manoir », la lanterne de la légende pour la boutique'); }
     await shot2('h4-palier-20');
+    if (outA) await pg.screenshot({ path: path.join(outA, 'acharnes-palier-20.png') });
     await clic2('#feuille [data-a="pq-ok"]'); await sleep(400);
     check(await ev2(() => { const F = window.__fournil; return F.G.possede(F.st, 'hantee-lueur-chapeau') && !F.G.possede(F.st, 'hantee-or-chapeau'); }), 'le chapeau phosphorescent est dans la garde-robe (pas le doré du podium)');
+    { // les acharnés (lot 6) : au 20e, à vie, l'aura phosphorescente (portée d'office, à retirer dans la garde-robe), le titre, la lanterne de la légende
+      const d20 = await ev2(() => { const F = window.__fournil, G = F.G, st = F.st, q = st[F.evHantee.cle]; return { aura: G.garderobe(st).aura, titres: G.distinctions(st).join(), decos: q.decos.slice(), cle: G.tenueBoulanger(st).cle }; });
+      check(d20.aura === 'lueur' && d20.titres === 'legende-manoir' && d20.decos.includes('legende') && /\|aura:lueur$/.test(d20.cle), `donnés : l’aura (portée), le titre, la lanterne (q.decos : ${d20.decos.join(', ')})`);
+      await ev2(() => window.__fournil.tiroir('ferme'));
+      let vu = null; const vuOk = await attendre(async () => { vu = await ev2(() => window.__fournil.SCENE.boulangerVu); return vu && vu.aura && /aura:lueur/.test(vu.tenue); }, 8000);
+      await sleep(700); const vu2 = await ev2(() => window.__fournil.SCENE.boulangerVu);
+      check(vuOk && vu.sprites === 1 && vu2.sprites === 1 && vu2.opacite > 0.15 && vu2.opacite < 0.6 && (vu2.opacite !== vu.opacite || vu2.haut !== vu.haut), `le boulanger porte l’aura : un seul sprite (un appel de dessin), douce (opacité ${vu && vu.opacite} → ${vu2.opacite}), qui respire (${vu && vu.haut} → ${vu2.haut})`);
+      check(await attendre(() => ev2(() => window.__fournil.SCENE.decosHanteeVues.includes('legende')), 6000) && (await ev2(() => window.__fournil.SCENE.appelsParGroupe['ht-legende'])) === 2, `la lanterne de la légende est posée dans la boutique : ${await ev2(() => window.__fournil.SCENE.appelsParGroupe['ht-legende'])} appels de dessin (le fer, la flamme)`);
+      if (outA) { await pg.screenshot({ path: path.join(outA, 'acharnes-boutique-aura-lanterne.png') });
+        const z = await ev2(() => { const r = document.querySelector('#scene').getBoundingClientRect(), L = VIE.LAY; return { x: Math.max(0, r.left), y: Math.max(0, r.top + L.murH - 20), w: Math.min(390, r.width), h: 150 }; });
+        await pg.screenshot({ path: path.join(outA, 'acharnes-boutique-zoom.png'), clip: { x: z.x, y: z.y, width: z.w, height: z.h } }); }
+      await ev2(() => window.__fournil.tiroir('mi')); await ev2(() => window.__fournil.garderobe('tete')); await sleep(500);
+      const gr = await ev2(() => { const b = document.querySelector('#feuille [data-gr-auras]'); if (b) b.scrollIntoView({ block: 'center' }); const p = b && b.querySelector('.gr-aura'); return { txt: b ? b.innerText.replace(/\s+/g, ' ') : '', porte: p ? p.getAttribute('aria-pressed') : '', h: p ? Math.round(p.getBoundingClientRect().height) : 0, large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1 }; });
+      check(/Aura phosphorescente/.test(gr.txt) && /Portée ✓/.test(gr.txt) && gr.porte === 'true' && gr.h >= 44 && gr.large, `la garde-robe : la section « L’aura », portée (« ${gr.txt.slice(0, 80)}… »), un bouton de ${gr.h} px`);
+      await sleep(300); if (outA) await pg.screenshot({ path: path.join(outA, 'acharnes-garderobe-aura.png') });
+      await clic2('#feuille [data-gr-aura]'); await sleep(500);
+      const off = await ev2(() => ({ aura: window.__fournil.G.garderobe(window.__fournil.st).aura, txt: document.querySelector('#feuille [data-gr-auras]').innerText }));
+      const offScene = await attendre(() => ev2(() => { const v = window.__fournil.SCENE.boulangerVu; return v && !v.aura && v.sprites === 0; }), 6000);
+      check(off.aura === null && /touche pour la porter/.test(off.txt) && offScene, 'touchée : l’aura est retirée (gardée dans la garde-robe), le boulanger de la boutique ne la porte plus');
+      await clic2('#feuille [data-gr-aura]'); await sleep(500);
+      check(await ev2(() => window.__fournil.G.garderobe(window.__fournil.st).aura === 'lueur') && await attendre(() => ev2(() => window.__fournil.SCENE.boulangerVu.aura), 6000), 'touchée encore : remise');
+      await ev2(() => { const b = document.querySelector('#feuille [data-a="gr-fermer"]'); if (b) b.click(); }); await sleep(300); }
     decal = HT.FIN + 3 * HEURE - Date.now();
     await pg.evaluate((d) => localStorage.setItem('test.tel', String(d)), decal); await ev2(() => window.__fournil.save());
     await charger2();

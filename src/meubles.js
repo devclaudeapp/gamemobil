@@ -787,6 +787,27 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     g.add(M.maille(pr, { ombre: false }));
     return g;
   }
+  // la lanterne de la légende (le 20e palier de la Maison hantée, q.decos 'legende', à vie) : un petit réverbère de fer forgé posé au pied
+  // du fournil, à gauche (entre le chaudron et le plan de travail : hors de l'allée, des apprentis et de la grille des meubles), son toit
+  // pointu et sa boule dorée, une citrouille à son pied ; dans sa cage, une flamme verte phosphorescente qui respire et vacille, plus
+  // vive le soir. Deux appels de dessin (le fer, la flamme), comme les citrouilles-lanternes
+  function lanterneLegende(c) {
+    const { LAY, W, K: K0 } = c, K = K0 * 1.65, g = grp('legende', W * 0.05, 0, c.wz(LAY.murH + 78 * K0)), fer = '#2B2533', fer2 = '#4A3D63', or = '#FFC84A', pr = []; // (K : sa propre échelle, un peu plus grande que celle de la salle)
+    const hc = 21 * K, cg = 8.5 * K, l = 3.2 * K; // le haut du poteau (le bas de la cage), la hauteur de la cage, sa demi-largeur
+    pr.push(P(M.cylindre(3.4 * K, 4 * K, 1.6 * K, 10), fer, { y: 0.8 * K }), P(M.cylindre(0.75 * K, 0.9 * K, hc, 8), fer, { y: hc / 2 }), // le pied, le poteau
+      P(M.tore(1.3 * K, 0.4 * K, TAU, 5, 12), or, { y: hc * 0.55, rx: HP }), P(M.sphere(1.3 * K, 8), fer2, { y: hc - 0.4 * K }), // la bague dorée, le col
+      P(bo(2 * l + 1.6 * K, 1.2 * K, 2 * l + 1.6 * K, 0.4), fer2, { y: hc + 0.6 * K }), P(bo(2 * l + 0.8 * K, 1 * K, 2 * l + 0.8 * K, 0.3), fer2, { y: hc + cg + 0.5 * K })); // le plancher, le plafond de la cage
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(bo(0.8 * K, cg, 0.8 * K, 0.2), fer, { x: sx * l, y: hc + 1.2 * K + cg / 2, z: sz * l })); // les quatre montants (pas de vitre devant : la flamme se voit)
+    pr.push(P(M.cone(l * 1.65, 5 * K, 4), fer, { y: hc + cg + 3.4 * K, ry: Math.PI / 4 }), P(M.sphere(1 * K, 8), or, { y: hc + cg + 6.4 * K }), // le toit pointu, la boule dorée
+      P(M.tore(1.1 * K, 0.35 * K, TAU, 5, 10), fer, { y: hc + cg + 7.6 * K })); // l'anneau du sommet
+    pr.push(...partsCitrouille(5.6 * K, 0, 0.6 * K, 3 * K), ...partsVisageCitrouille(5.6 * K, 0, 0.6 * K, 3 * K)); // la petite citrouille du pied, à côté (pas devant : le plan de travail est juste en dessous)
+    g.add(M.maille(pr));
+    const flamme = M.maille([P(M.sphere(2.3 * K, 10), '#C6FF8F', { sy: 1.15 }), P(M.cone(1.8 * K, 4 * K, 8), '#C6FF8F', { y: 2.9 * K }), P(M.sphere(1 * K, 8), '#F2FFE0', { y: -0.2 * K, z: 1 * K })], { ombre: false });
+    flamme.material = propre({ vertexColors: true, emissive: '#7CFF6B', emissiveIntensity: 1 }); flamme.position.y = hc + 1.2 * K + cg * 0.42; g.add(flamme);
+    const y0 = flamme.position.y;
+    g.userData.anime = (E) => { const k = Math.sin(E.t * 2.3), v = Math.sin(E.t * 11) * Math.sin(E.t * 7.3); flamme.material.emissiveIntensity = 0.95 + 0.6 * E.lampes + 0.2 * k; flamme.scale.y = 1 + 0.1 * k + 0.05 * v; flamme.scale.x = flamme.scale.z = 1 - 0.04 * k; flamme.position.y = y0 + 0.3 * K * k; };
+    return g;
+  }
   // la toque de la recette du jour (src/activites.js : la 500e fournée d'un événement, q.decos) : une petite plaque accrochée à la porte de
   // l'arrière-boutique (au-dessus, l'enseigne de la boutique la cacherait), sa toque devant ; 'or' (la Planque) : la toque dorée sur fond
   // nuit ; 'citrouille' (le Manoir) : une citrouille qui porte la toque. bas : la seconde place, plus bas sur la porte (les deux gagnées).
@@ -953,6 +974,6 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     if (c.Q && c.Q.standing) out.push(standing(c));
     return out;
   }
-  return { get sallesEnCache() { return [...TEX.keys()].filter((k) => /^(sol|mur)/.test(k)).length; }, textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome, bocaux, toqueRecette, hantee, standing, coinsStanding };
+  return { get sallesEnCache() { return [...TEX.keys()].filter((k) => /^(sol|mur)/.test(k)).length; }, textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome, bocaux, lanterneLegende, toqueRecette, hantee, standing, coinsStanding };
 })();
 if (typeof module !== 'undefined') module.exports = MEUBLES;

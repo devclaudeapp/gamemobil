@@ -7,7 +7,10 @@
    page est visible, et chaque ligne du classement porte enLigne (booléen), la liste enLigneN ; un serveur encore en version 4, 3 ou 2 reste servi ;
    version 6.5 : les places de la semaine jusqu'au 15e (recompenses().places, RECOMPENSES_RANG : des étoiles et un boost par place, une fois par
    semaine), et les pourboires reçus et la récompense de l'objectif commun accusés au serveur (fournil_vu_pourboires, fournil_vu_objectif)
-   seulement une fois rangés et sauvés : une réponse perdue les fait revenir, sans les payer deux fois).
+   seulement une fois rangés et sauvés : une réponse perdue les fait revenir, sans les payer deux fois) ; version 6.6, les acharnés de la Maison
+   hantée : sa place au classement final de l'événement jusqu'au 15e (recompenses().evenements.hantee = { rang, joueurs, podium }, RECOMPENSES_EVT :
+   des étoiles et un boost, une fois ; les trois premiers gardent la tenue en or), et le titre gagné (« Légende du Manoir ») porté par la photo de
+   sa boutique (ti) et rendu par le serveur sur chaque ligne du classement (titre)).
    Une partie pure, testée dans Node (lundi de Paris, pseudo, rangs, décision d'envoi, état local), et une partie réseau : de simples POST
    vers les fonctions Supabase du classement (PostgREST, /rest/v1/rpc/…), avec la clé PUBLIQUE de fournil/config.js. Aucune erreur ne remonte
    jamais au jeu : chaque appel rend un état ('ok', 'hors-ligne', 'lent' (pas de réponse en 8 s), 'pas-ouvert', 'erreur', 'absent'). Sans configuration (l'artefact Claude), rien ne part. */
@@ -127,7 +130,7 @@
   const METAUX = ['or', 'argent', 'bronze'], JOUR = /^\d{4}-\d{2}-\d{2}$/;
   const metal = (rang) => METAUX[rang - 1] || null; // 1 → 'or', 2 → 'argent', 3 → 'bronze'
   const NOMS_METAL = { or: 'd’or', argent: 'd’argent', bronze: 'de bronze' }; // « la tenue d’or », « la coupe de bronze »
-  const recompensesNeuves = () => ({ podiums: [], tenue: 'auto', vu: '', quartier: null, quartierPodium: null, evenements: {}, equipe: [], equipeAttente: '', places: [], payees: [], depuis: '' }); // quartier : son rang au podium final de l'événement « Le Quartier » (1, 2, 3), quartierPodium : les trois premiers ; evenements : { hantee: { rang: 1 | 2 | 3 | null, podium: [{ rang, pseudo, valeur }] } } (version 5) ; places, payees, depuis : version 6.5 (ci-dessous)
+  const recompensesNeuves = () => ({ podiums: [], tenue: 'auto', vu: '', quartier: null, quartierPodium: null, evenements: {}, equipe: [], equipeAttente: '', places: [], payees: [], depuis: '', evtPayes: [] }); // quartier : son rang au podium final de l'événement « Le Quartier » (1, 2, 3), quartierPodium : les trois premiers ; evenements : { hantee: { rang: 1 à 15 | null, joueurs, podium: [{ rang, pseudo, valeur }] } } (version 5 ; 6.6 : jusqu'au 15e) ; places, payees, depuis : version 6.5 (ci-dessous) ; evtPayes : version 6.6 (ci-dessous)
   // ─── version 6.5 : les places de la semaine, du 1er au 15e (points > 0, ex æquo au même rang) ───
   // places : [{ semaine, rang: 1 à 15, joueurs: les classés de cette semaine-là | null }] (les podiums y sont aussi) ; payees : les semaines dont la
   // récompense est versée ; depuis : la première semaine payable (la semaine passée, à la première lecture des récompenses par ce téléphone :
@@ -146,6 +149,37 @@
     const r = Number.isInteger(rang) ? RECOMPENSES_RANG.find((x) => rang >= x.de && rang <= x.a) : null;
     return r ? { rang, etoiles: r.etoiles, mult: r.mult, secs: r.secs, tenue: rang <= 3 } : null;
   }
+  // ─── version 6.6 : les acharnés des événements génériques (la Maison hantée) : sa place au classement FINAL, du 1er au 15e ───
+  // Chaque place donne, une fois par événement (evtPayes : les événements dont la récompense est versée), des étoiles et un boost dans la
+  // réserve, un peu plus que la même place de la semaine (un événement dure une semaine et se joue plus fort) ; les trois premiers gardent en
+  // plus la tenue de l'événement en or (ui.js, comme avant). Le Quartier (son podium final, figé à trois) n'en a pas.
+  const RECOMPENSES_EVT = [
+    { de: 1, a: 1, etoiles: 7, mult: 5, secs: 3600 }, // 1er : la tenue en or, 7 étoiles, un boost ×5 d'une heure
+    { de: 2, a: 2, etoiles: 6, mult: 5, secs: 3600 }, // 2e : la tenue en or, 6 étoiles, un boost ×5 d'une heure
+    { de: 3, a: 3, etoiles: 5, mult: 5, secs: 3600 }, // 3e : la tenue en or, 5 étoiles, un boost ×5 d'une heure
+    { de: 4, a: 6, etoiles: 4, mult: 3, secs: 3600 }, // 4e à 6e : 4 étoiles, un boost ×3 d'une heure
+    { de: 7, a: 10, etoiles: 3, mult: 3, secs: 1800 }, // 7e à 10e : 3 étoiles, un boost ×3 de 30 min
+    { de: 11, a: 15, etoiles: 2, mult: 2, secs: 1800 }, // 11e à 15e : 2 étoiles, un boost ×2 de 30 min
+  ];
+  const NOMS_EVT = { hantee: 'la Maison hantée' }; // « Tu as fini 7e de la Maison hantée sur 12 »
+  function recompenseEvt(rang) { // { rang, etoiles, mult, secs, tenue } ; null hors du 1er au 15e
+    const r = Number.isInteger(rang) ? RECOMPENSES_EVT.find((x) => rang >= x.de && rang <= x.a) : null;
+    return r ? { rang, etoiles: r.etoiles, mult: r.mult, secs: r.secs, tenue: rang <= 3 } : null;
+  }
+  const evtsOk = (l) => (Array.isArray(l) ? [...new Set(l.filter((x) => evtOk(x)))] : []);
+  // les places d'événement dont la récompense attend (figées, du 1er au 15e, pas encore versées), chacune avec sa récompense
+  function evtAPayer(rec) {
+    if (!rec || !rec.evenements) return [];
+    return EVTS.filter((id) => rec.evenements[id] && recompenseEvt(rec.evenements[id].rang) && !(rec.evtPayes || []).includes(id))
+      .map((id) => ({ id, rang: rec.evenements[id].rang, joueurs: rec.evenements[id].joueurs || null, recompense: recompenseEvt(rec.evenements[id].rang) }));
+  }
+  function phraseEvt(p) { // « Tu as fini 7e de la Maison hantée sur 12 »
+    if (!p || !rangOk(p.rang) || !NOMS_EVT[p.id]) return '';
+    return `Tu as fini ${rangTexte(p.rang)} de ${NOMS_EVT[p.id]}${rangOk(p.joueurs) ? ` sur ${Math.max(p.joueurs, p.rang)}` : ''}`;
+  }
+  // ─── version 6.6 : les titres gagnés, à vie (le 20e palier de la Maison hantée : « Légende du Manoir »), montrés à côté du pseudo ───
+  const TITRES = { 'legende-manoir': 'Légende du Manoir' };
+  const titreOk = (t) => typeof t === 'string' && Object.prototype.hasOwnProperty.call(TITRES, t);
   const parSemaine = (a, b) => (a.semaine < b.semaine ? -1 : a.semaine > b.semaine ? 1 : 0);
   function nettoyerPlaces(liste) { // une place par semaine (la meilleure ; à rang égal, celle qui sait combien de joueurs), triées, les 200 dernières
     const par = new Map();
@@ -182,15 +216,18 @@
     o.equipeAttente = typeof r.equipeAttente === 'string' && JOUR.test(r.equipeAttente) && !o.equipe.includes(r.equipeAttente) ? r.equipeAttente : ''; // sa récompense pas encore annoncée
     o.places = nettoyerPlaces((Array.isArray(r.places) ? r.places : []).concat(o.podiums)); // version 6.5 (une sauvegarde d'avant : ses podiums)
     o.payees = semainesOk(r.payees, 200); o.depuis = typeof r.depuis === 'string' && JOUR.test(r.depuis) ? r.depuis : '';
+    o.evtPayes = evtsOk(r.evtPayes); // version 6.6
     return o;
   }
-  // les podiums finaux des événements génériques : { id: { rang: 1 | 2 | 3 | null, podium: [...] } }, seulement les événements connus
+  // les podiums finaux des événements génériques : { id: { rang: 1 à 15 | null, joueurs: entier | null, podium: [...] } }, seulement les événements
+  // connus (version 6.6 : sa place jusqu'au 15e et le nombre de joueurs classés ; un serveur d'avant : 1 à 3, sans joueurs ; le podium : les trois premiers)
   function nettoyerEvenements(e) {
     const o = {};
     if (!e || typeof e !== 'object' || Array.isArray(e)) return o;
     for (const id of EVTS) {
       const x = e[id]; if (!x || typeof x !== 'object' || Array.isArray(x)) continue;
-      o[id] = { rang: [1, 2, 3].includes(x.rang) ? x.rang : null, podium: Array.isArray(x.podium) ? nettoyerPodiumQuartier(x.podium) : [] };
+      const rang = Number.isInteger(x.rang) && x.rang >= 1 && x.rang <= RANG_MAX ? x.rang : null;
+      o[id] = { rang, joueurs: Number.isInteger(x.joueurs) && x.joueurs >= 1 && x.joueurs >= (rang || 1) ? Math.min(x.joueurs, 1e6) : null, podium: Array.isArray(x.podium) ? nettoyerPodiumQuartier(x.podium) : [] };
     }
     return o;
   }
@@ -198,7 +235,7 @@
     const o = {};
     for (const id of EVTS) {
       const x = a && a[id], y = b && b[id]; if (!x && !y) continue;
-      o[id] = { rang: (y && y.rang) || (x && x.rang) || null, podium: (y && y.podium && y.podium.length ? y.podium : x && x.podium) || [] };
+      o[id] = { rang: (y && y.rang) || (x && x.rang) || null, joueurs: (y && y.joueurs) || (x && x.joueurs) || null, podium: (y && y.podium && y.podium.length ? y.podium : x && x.podium) || [] };
     }
     return o;
   }
@@ -332,11 +369,12 @@
         const v = Number(l.valeur);
         const ligne = { rang: l.rang, pseudo: String(l.pseudo == null ? '' : l.pseudo).slice(0, 40), points: pts(l.points), valeur: Number.isFinite(v) ? v : 0, moi: l.moi === true, podium: [1, 2, 3].includes(l.podium) ? l.podium : null, toque: toqueOk(l.toque) };
         if (typeof l.en_ligne === 'boolean') ligne.enLigne = l.en_ligne; // version 5 : « en ligne » (absent avec un serveur plus ancien)
+        if (titreOk(l.titre)) ligne.titre = l.titre; // version 6.6 : le titre que montre la photo de sa boutique (seulement ceux que le jeu connaît)
         o.lignes.push(ligne);
       }
     }
     o.joueurs = Math.max(entier(d.joueurs) || 0, o.lignes.length);
-    if (d.moi && typeof d.moi === 'object' && entier(d.moi.rang)) { const v = Number(d.moi.valeur); o.moi = { rang: d.moi.rang, points: pts(d.moi.points), valeur: Number.isFinite(v) ? v : 0, podium: [1, 2, 3].includes(d.moi.podium) ? d.moi.podium : null, toque: toqueOk(d.moi.toque) }; if (typeof d.moi.en_ligne === 'boolean') o.moi.enLigne = d.moi.en_ligne; o.joueurs = Math.max(o.joueurs, o.moi.rang); }
+    if (d.moi && typeof d.moi === 'object' && entier(d.moi.rang)) { const v = Number(d.moi.valeur); o.moi = { rang: d.moi.rang, points: pts(d.moi.points), valeur: Number.isFinite(v) ? v : 0, podium: [1, 2, 3].includes(d.moi.podium) ? d.moi.podium : null, toque: toqueOk(d.moi.toque) }; if (typeof d.moi.en_ligne === 'boolean') o.moi.enLigne = d.moi.en_ligne; if (titreOk(d.moi.titre)) o.moi.titre = d.moi.titre; o.joueurs = Math.max(o.joueurs, o.moi.rang); }
     if (Number.isInteger(d.en_ligne_n) && d.en_ligne_n >= 0) o.enLigneN = Math.min(d.en_ligne_n, o.joueurs); // combien de joueurs de cette liste sont en ligne (version 5)
     return o;
   }
@@ -376,7 +414,9 @@
   //     x (optionnel, absent chez les vieux téléphones) : ses statistiques pour la fiche « Tous les temps » { e: étoiles, b: numéro de boutique,
   //       v: fournées vendues, tr: trophées obtenus, s: meilleure série de jours, f: fortune de toujours (st.lifetime, 4 chiffres, pour l'affichage) },
   //     e (optionnel) : l'événement EN COURS, s'il y est entré, pour la visite de sa Planque (ou de son Manoir) { id: 'quartier' | 'hantee',
-  //       p: [[niveau, apprenti 0/1], …] (ses postes), d: les décos gagnées, pa: les paliers atteints, t: le total gagné (billets, bonbons) } }.
+  //       p: [[niveau, apprenti 0/1], …] (ses postes), d: les décos gagnées, pa: les paliers atteints, t: le total gagné (billets, bonbons) },
+  //     ti (optionnel, version 6.6) : le titre gagné, à vie, qu'il montre à côté de son pseudo (TITRES : 'legende-manoir', « Légende du
+  //       Manoir », le 20e palier de la Maison hantée) ; le serveur v6.6 le rend aussi sur sa ligne du classement (titre) }.
   // Trop grosse : le nom raccourci et les coupes retirées (comme avant), puis e.d, puis e. Le serveur la garde telle quelle (≤ 3 Ko) : x et e
   // n'ont demandé aucun changement du SQL. Celle d'un autre joueur vient du réseau : relue champ par champ (nettoyerPhoto), jamais crue.
   const PHOTO = { max: 2048, ecart: 10 * 60e3, refaire: 6 * 3600e3 };
@@ -415,6 +455,7 @@
       p.x = { e: borne(st.etoiles, 0, 1e9), b: borne(st.boutiques, 1, 1e6), v: borne(S.ventes, 0, 1e15), tr: borne(tr, 0, 999), s: borne(S.serieMax, 0, 99999), f: fortune4(st.lifetime) };
       const q = o.ev && o.ev.q, e = q && Array.isArray(q.postes) ? evPhoto({ id: o.ev.id, p: q.postes.slice(0, 16).map((s) => [s && s.niv, s && s.staff]), d: q.decos, pa: Array.isArray(q.paliers) ? q.paliers.length : 0, t: q.total }) : null;
       if (e) p.e = e;
+      { const ti = titreOk(o.titre) ? o.titre : typeof G.distinctions === 'function' ? (G.distinctions(st) || []).find(titreOk) : null; if (ti) p.ti = ti; } // version 6.6 : le titre gagné (24 octets au plus : gardé quoi qu'il arrive)
       if (octetsJson(p) > PHOTO.max) { p.k = []; p.nom = p.nom.slice(0, 12); } // trop grosse : d'abord le repli d'avant,
       if (octetsJson(p) > PHOTO.max && p.e) delete p.e.d; // puis les décos de l'événement,
       if (octetsJson(p) > PHOTO.max) delete p.e; // puis l'événement
@@ -436,6 +477,7 @@
     if (x && typeof x === 'object' && !Array.isArray(x)) o.x = { e: borne(x.e, 0, 1e9), b: borne(x.b, 1, 1e6), v: borne(x.v, 0, 1e15), tr: borne(x.tr, 0, 999), s: borne(x.s, 0, 99999), f: fortune4(x.f) };
     const e = evPhoto(p.e); if (e) o.e = e; // l'événement en cours (absent, ou d'un id inconnu : pas de Planque à visiter)
     if (codeAOk(p.a)) o.a = p.a; // son aménagement : un code bien formé (GAME.codeAmenagement), sinon le plan d'origine
+    if (titreOk(p.ti)) o.ti = p.ti; // version 6.6 : son titre, seulement s'il est l'un de ceux que ce jeu connaît (absent d'une photo d'avant)
     return o;
   }
   // la clé qui dit si la photo a changé (photoAEnvoyer) : sans les compteurs qui bougent à chaque fournée (x.v les ventes, x.f la fortune,
@@ -485,7 +527,7 @@
     let xp = 0; for (let n = 1; n < Math.min(p.g, 400); n++) xp += G.XP_NIVEAU(n); st.xp = xp;
     st.evTimer = 1e9; st.mystereTimer = 1e9; st.chatAttente = null; // rien ne surgit dans la boutique d'un autre
     const q = G.QUARTIERS[G.quartier(st)];
-    return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o, stats: p.x || null };
+    return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o, stats: p.x || null, titre: p.ti ? TITRES[p.ti] : null }; // titre : « Légende du Manoir » (version 6.6), sinon null
   }
   // la réponse de fournil_boutique(pseudo)
   function nettoyerBoutique(d) {
@@ -685,7 +727,7 @@
       const rec = { podiums: nettoyerPodiums(etat.recompenses.podiums.concat(f.recompenses.podiums)), tenue: f.recompenses.tenue, vu: f.recompenses.vu > etat.recompenses.vu ? f.recompenses.vu : etat.recompenses.vu, quartier: f.recompenses.quartier || etat.recompenses.quartier, quartierPodium: f.recompenses.quartierPodium || etat.recompenses.quartierPodium, evenements: fusionnerEvenements(etat.recompenses.evenements, f.recompenses.evenements),
         equipe, equipeAttente: [f.recompenses.equipeAttente, etat.recompenses.equipeAttente].find((x) => x && !equipe.includes(x)) || '',
         places: nettoyerPlaces(etat.recompenses.places.concat(f.recompenses.places)), payees: semainesOk(etat.recompenses.payees.concat(f.recompenses.payees), 200), // version 6.5 : une récompense versée dans l'autre fenêtre ne l'est pas ici
-        depuis: [etat.recompenses.depuis, f.recompenses.depuis].filter(Boolean).sort()[0] || '' };
+        depuis: [etat.recompenses.depuis, f.recompenses.depuis].filter(Boolean).sort()[0] || '', evtPayes: evtsOk(etat.recompenses.evtPayes.concat(f.recompenses.evtPayes)) }; // version 6.6 : de même pour la place à l'événement
       if (f.id !== etat.id || f.jeton !== etat.jeton || f.rejoint !== etat.rejoint || f.pseudo !== etat.pseudo) { etat = f; etat.recompenses = rec; viderCache(); prevenir(); return true; }
       // version 6 : les pourboires accueillis dans l'autre fenêtre ne reviennent pas ici ; ses dons du jour et ses notifications (écrits aussitôt) font foi
       // (version 6.5 : les pourboires rangés des deux fenêtres, et les étoiles du jour déjà versées, s'additionnent : rien n'est rangé ni versé deux fois)
@@ -951,7 +993,15 @@
       const rec = etat.recompenses, l = lundi();
       return { podiums: rec.podiums.slice(), tenue: rec.tenue, vu: rec.vu, lundi: l, portee: tenuePortee(rec, l), coupe: coupeDuComptoir(rec, l), coupes: rec.podiums.map((p) => metal(p.rang)), gagnees: tenuesGagnees(rec), annonce: aAnnoncer(rec, l), derniere, quartier: rec.quartier, quartierPodium: rec.quartierPodium, evenements: JSON.parse(JSON.stringify(rec.evenements || {})),
         equipe: rec.equipe.slice(), badge: rec.equipe.length > 0, objectifAnnonce: rec.equipeAttente || null, // version 6 : le badge « Esprit d'équipe », la récompense de l'objectif à annoncer
-        places: rec.places.map((p) => Object.assign({}, p, { recompense: recompenseRang(p.rang), payee: rec.payees.includes(p.semaine) })), aPayer: placesAPayer(rec, l) }; // version 6.5
+        places: rec.places.map((p) => Object.assign({}, p, { recompense: recompenseRang(p.rang), payee: rec.payees.includes(p.semaine) })), aPayer: placesAPayer(rec, l), // version 6.5
+        evtPlaces: EVTS.filter((id) => rec.evenements[id] && rec.evenements[id].rang).map((id) => ({ id, rang: rec.evenements[id].rang, joueurs: rec.evenements[id].joueurs || null, recompense: recompenseEvt(rec.evenements[id].rang), payee: rec.evtPayes.includes(id) })),
+        evtAPayer: evtAPayer(rec) }; // version 6.6 : sa place au classement final des événements, et celles dont la récompense attend
+    }
+    // version 6.6 : la récompense d'une place à un événement versée (rend true la première fois seulement) : l'interface donne alors les étoiles et le boost
+    function evtPaye(id) {
+      resynchroniser(); const r = etat.recompenses;
+      if (!evtAPayer(r).some((p) => p.id === id)) return false;
+      r.evtPayes = evtsOk(r.evtPayes.concat([id])); sauver(); prevenir(); return true;
     }
     // version 6.5 : la récompense d'une place versée (rend true la première fois seulement) : l'interface donne alors les étoiles et le boost
     function placePayee(semaine) {
@@ -1290,7 +1340,7 @@
     return {
       disponible: () => !!config(), etat: () => etat, resume, version: () => version, cache: (p) => cache[periodeDe(p)], enChargement: (p) => charge[periodeDe(p)],
       envoyer, charger, ouvrir, choisirPseudo, quitter, demarrer, arreter, ecouter: (f) => { ecouteurs.push(f); },
-      chargerRecompenses, recompenses, choisirTenue, annonceFaite, placePayee, lundi, battre, cadeaux, cadeauRecu,
+      chargerRecompenses, recompenses, choisirTenue, annonceFaite, placePayee, evtPaye, lundi, battre, cadeaux, cadeauRecu,
       copains: () => !!config() && !ancien(), boutique, dons, pourboire, objectif, objectifVu: () => objCache, pourboiresRecus, accueillirPourboires, objectifFait,
       notifsPossibles, notifs, abonner, desabonner, planifier, essai,
       chatLire, chatImage, chatEnvoyer, chatSignaler, chatEffacer,
@@ -1369,7 +1419,7 @@
   return { CLE, REGLES, PERIODES, EVTS, ongletsEvenements, nettoyerEvenements, PSEUDO_MIN, PSEUDO_MAX, lundiParis, decalageParis, dateCourte, normaliserPseudo, verifierPseudo, messagePseudo, rangTexte, rangPhrase, boulangers,
     etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur,
     METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce,
-    RANG_MAX, RECOMPENSES_RANG, recompenseRang, nettoyerPlaces, placesAPayer, phrasePlace,
+    RANG_MAX, RECOMPENSES_RANG, recompenseRang, nettoyerPlaces, placesAPayer, phrasePlace, RECOMPENSES_EVT, NOMS_EVT, recompenseEvt, evtAPayer, phraseEvt, TITRES, titreOk,
     PHOTO, EV_PHOTO, photo, nettoyerPhoto, clePhoto, boutiqueDepuisPhoto, evenementDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson,
     CHAT_TEXTE, CHAT_IMAGE, chatImageOk, chatGifOk, nettoyerChat,
     RET_TEXTE, RET_NOTE, RET_INFOS, VOTE_QUESTION, VOTE_OPTION, retImageOk, retInfosOk, nettoyerVote, nettoyerVotes, nettoyerRetour, nettoyerRetours };

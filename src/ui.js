@@ -1229,7 +1229,7 @@ const UI = (() => {
     if (!d.lignes.length) return `${tete}<div class="cl-etat"><span class="pic">${ICONS.UI.podium}</span><b>${hantee ? 'Personne encore au manoir' : quartier ? 'Personne encore au Quartier' : semaine ? 'Personne encore cette semaine' : 'Personne encore'}</b><span>${hantee ? 'Les bonbons du manoir arrivent avec le prochain envoi.' : quartier ? 'Les billets de la Planque arrivent avec le prochain envoi.' : r.rejoint ? 'Tes points arrivent dans un instant.' : 'Rejoins le classement et ouvre le bal !'}</span></div>`;
     const visites = classement.copains(); // classement v6 : toucher la ligne d'un copain ouvre sa boutique (semaine), sa fiche (tous les temps), sa Planque (événement)
     const evL = evDe(ongletCl), quoi = ongletCl === 'total' ? 'Voir les statistiques de' : evL ? `Visiter ${lieuDe(evL).le} de` : 'Visiter la boutique de';
-    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : visites ? ' visitable' : ''}"${moi ? ' aria-current="true"' : visites ? ` data-visite="${esc(l.pseudo)}" role="button" tabindex="0" aria-label="${quoi} ${esc(l.pseudo)}"` : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom">${l.enLigne || (moi && d.enLigneN > 0) ? '<i class="cl-en-ligne" role="img" aria-label="en ligne" title="En ligne"></i>' : ''}<span>${esc(l.pseudo)}</span>${quartier ? (l.podium ? `<i class="tag">${rangDe(l.podium)} ${hantee ? 'du manoir' : 'du Quartier'}</i>` : '') : toqueDe(l.podium, l.toque, moi)}${moi ? '<i class="tag">toi</i>' : ''}</span>${val(l)}${!moi && visites ? `<i class="cl-chev" aria-hidden="true">${ICONS.UI.chevron}</i>` : ''}</li>`;
+    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : visites ? ' visitable' : ''}"${moi ? ' aria-current="true"' : visites ? ` data-visite="${esc(l.pseudo)}" role="button" tabindex="0" aria-label="${quoi} ${esc(l.pseudo)}"` : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom">${l.enLigne || (moi && d.enLigneN > 0) ? '<i class="cl-en-ligne" role="img" aria-label="en ligne" title="En ligne"></i>' : ''}<span>${esc(l.pseudo)}</span>${etiquetteTitre(titreDe(l, moi))}${quartier ? (l.podium ? `<i class="tag">${rangDe(l.podium)} ${hantee ? 'du manoir' : 'du Quartier'}</i>` : '') : toqueDe(l.podium, l.toque, moi)}${moi ? '<i class="tag">toi</i>' : ''}</span>${val(l)}${!moi && visites ? `<i class="cl-chev" aria-hidden="true">${ICONS.UI.chevron}</i>` : ''}</li>`;
     let html = d.lignes.map((l) => ligne(l, l.moi && r.rejoint)).join('');
     if (r.rejoint && d.moi && !d.lignes.some((l) => l.moi)) html += `<li class="cl-sep" aria-hidden="true"><i></i><i></i><i></i></li>${ligne({ rang: d.moi.rang, pseudo: r.pseudo, points: d.moi.points, valeur: d.moi.valeur, podium: d.moi.podium }, true)}`; // loin derrière : sa ligne quand même, sous les 50 premiers
     const absent = r.rejoint && !d.moi ? `<p class="note">${semaine ? 'Tu n’apparais pas encore cette semaine : tes points partent dès que le réseau le permet.' : 'Tes points ne sont pas encore arrivés : ils partent dès que le réseau le permet.'}</p>` : '';
@@ -1333,6 +1333,7 @@ const UI = (() => {
     if (k !== derniereRecScene) { derniereRecScene = k; SCENE.recompenses({ tenue: r.portee, coupe: r.coupe, coupes: r.coupes, equipe: !!r.badge }); if (pageActive === 'boulanger') renderPage(); }
     if (r.annonce && !annonceOuverte) tenterAnnonce();
     else if (!r.annonce && r.aPayer && r.aPayer.length && !lundiOuvert) tenterLundi();
+    else if (!r.annonce && r.evtAPayer && r.evtAPayer.length && !evtOuvert) tenterEvt();
   }
   function tenterAnnonce() { // au premier lancement après un podium, une fois la feuille du retour (gains d'absence) refermée
     clearTimeout(annonceMinuteur); annonceMinuteur = 0;
@@ -1406,13 +1407,58 @@ const UI = (() => {
     });
     const surFermeture = setInterval(() => { if (feuille.hidden || vueCl !== 'semaine-place') { fin(); clearInterval(surFermeture); } }, 500);
   }
+  // ─── version 6.6 : les acharnés des événements (la Maison hantée) : sa place au classement FINAL, du 1er au 15e (src/classement.js,
+  // RECOMPENSES_EVT) : des étoiles et un boost, une fois (classement.evtPaye) ; les trois premiers ont en plus la tenue en or (majRecompenses) ───
+  function payerEvt(liste) { // verse les places d'événement pas encore payées (le moteur le note avant : jamais deux fois) ; rend { n, etoiles, boosts }
+    const g = { n: 0, etoiles: 0, boosts: [] };
+    for (const p of liste || []) {
+      const x = p.recompense; if (!x || !classement.evtPaye(p.id)) continue;
+      st.etoiles += x.etoiles; G.donnerBoostReserve(st, x.mult, x.secs); g.n++; g.etoiles += x.etoiles; g.boosts.push({ mult: x.mult, secs: x.secs });
+    }
+    if (g.n) { save(); hud(); renderBoosts(); }
+    return g;
+  }
+  let evtOuvert = false, evtMinuteur = 0, evtMontre = ''; // evtMontre : la feuille montrée une fois par lancement (la récompense reste dans « Mes récompenses »)
+  function tenterEvt() { // une fois les autres feuilles refermées (l'annonce du podium de la semaine, la feuille du lundi passent avant)
+    clearTimeout(evtMinuteur); evtMinuteur = 0;
+    const r = recVue(); if (!r || r.annonce || !r.evtAPayer || !r.evtAPayer.length || evtOuvert || lundiOuvert || annonceOuverte) return;
+    const p = r.evtAPayer[0]; if (evtMontre === p.id) return;
+    if (!feuille.hidden || document.hidden || visite || copainsOuvert || retourEnCours || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert) || (r.aPayer && r.aPayer.length && lundiMontre !== r.aPayer[r.aPayer.length - 1].semaine)) { evtMinuteur = setTimeout(tenterEvt, 1500); return; }
+    sheetEvt();
+  }
+  const NOM_EVT_LONG = { hantee: 'la Maison hantée' };
+  function sheetEvt() {
+    const r = recVue(), l = r && r.evtAPayer ? r.evtAPayer : []; if (!l.length) return;
+    const p = l[0], x = p.recompense, tenue = p.rang <= 3;
+    evtOuvert = true; evtMontre = p.id;
+    openSheet(`<div class="cl rec-annonce cp-annonce mh-acharne" data-cl="evt-place"><div class="rec-scene ${tenue ? 'or' : 'equipe'}" aria-hidden="true"><i class="rec-rayons"></i><span class="rec-coupe">${p.rang <= 3 ? ICONS.coupe(CLM.metal(p.rang)) : ICONS.UI.hantee || ICONS.UI.podium}</span></div>
+      <h2>${esc(CLM.phraseEvt(p))}</h2>
+      <p class="rec-phrase">${x.etoiles > 1 ? `+${x.etoiles} étoiles` : '+1 étoile'} et ${boostTexte(x)}${tenue ? ', et la tenue d’Halloween en or' : ''}</p>
+      <p class="sous">${tenue ? 'Sur le podium final : les quatre pièces de la tenue d’Halloween en or sont dans ta garde-robe, à vie. ' : ''}À la fin de ${esc(NOM_EVT_LONG[p.id] || 'l’événement')}, les quinze premiers du classement final sont récompensés. Les étoiles, c’est +${Math.round(G.ETOILE_BONUS * 100)} % de gains chacune, pour toujours ; le boost attend dans ta réserve, lance-le quand tu veux.</p>
+      <button type="button" class="btn large beurre" data-a="ev-recuperer"><b>Récupérer</b></button></div>`);
+    vueCl = 'evt-place';
+    let touche = true; try { touche = !navigator.userActivation || navigator.userActivation.hasBeenActive; } catch (e) { /* rien */ }
+    son.deblocage(); if (touche) buzz([20, 40, 20]); confettis(1);
+    const fin = () => { evtOuvert = false; };
+    on('[data-a="ev-recuperer"]', () => {
+      const g = payerEvt(recVue().evtAPayer); fin(); closeSheet();
+      if (g.n) { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); confettis(0.8); toast(`Récupéré : ${texteGain(g)} (le boost attend dans ta réserve) !`); }
+      setTimeout(tenterCopains, 400);
+    });
+    const surFermeture = setInterval(() => { if (feuille.hidden || vueCl !== 'evt-place') { fin(); clearInterval(surFermeture); } }, 500);
+  }
+  // le titre gagné (« Légende du Manoir », le 20e palier de la Maison hantée) : une petite étiquette à côté du pseudo (la liste du classement, la
+  // visite) ; le sien se lit sur le téléphone, celui des autres vient du serveur (classement v6.6) ou de la photo de leur boutique
+  const titreDe = (l, moi) => { const t = moi ? (G.distinctions ? G.distinctions(st).find(CLM.titreOk) : null) || l.titre : l.titre; return t && CLM.titreOk && CLM.titreOk(t) ? t : null; };
+  const LANTERNE_TITRE = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1v2" stroke="#2B2533" stroke-width="1.4" stroke-linecap="round"/><path d="M3.6 6 8 2.6 12.4 6z" fill="#2B2533"/><rect x="4.4" y="6" width="7.2" height="7" rx="1" fill="#3A2E46"/><path d="M8 7.2c1.5 1.6 2.1 2.8 2.1 3.7a2.1 2.1 0 0 1-4.2 0c0-.9.6-2.1 2.1-3.7z" fill="#7CFF6B"/><rect x="3.6" y="13" width="8.8" height="1.6" rx=".8" fill="#2B2533"/></svg>'; // la lanterne de la légende, en tout petit
+  const etiquetteTitre = (t) => (t ? `<i class="cl-titre" title="${esc(CLM.TITRES[t])}">${LANTERNE_TITRE}<span>${esc(CLM.TITRES[t])}</span></i>` : '');
   // l'entrée « Mes récompenses », en tête de la feuille du classement et dans l'onglet Boulanger (seulement après un premier podium)
-  const cleRecompenses = () => { const r = recVue(); return r ? `${r.podiums.length}|${(r.places || []).length}|${(r.aPayer || []).length}|${G.toqueMetal(st)}` : ''; };
+  const cleRecompenses = () => { const r = recVue(); return r ? `${r.podiums.length}|${(r.places || []).length}|${(r.aPayer || []).length}|${(r.evtPlaces || []).length}|${(r.evtAPayer || []).length}|${G.toqueMetal(st)}` : ''; };
   function carteRecompenses() {
-    const r = recVue(), places = r && r.places ? r.places : []; if (!r || (!r.podiums.length && !places.length)) return '';
+    const r = recVue(), places = r && r.places ? r.places : [], evp = r && r.evtPlaces ? r.evtPlaces : []; if (!r || (!r.podiums.length && !places.length && !evp.length)) return '';
     const n = r.podiums.length, dernieres = n ? r.podiums.slice(-5).map((p) => `<i class="rec-mini">${ICONS.coupe(CLM.metal(p.rang))}</i>`).join('') : `<i class="rec-mini">${ICONS.UI.podium}</i>`;
     const tm = G.toqueMetal(st), porte = tm ? `toque ${DE_METAL[tm]}` : 'toque blanche', np = places.length;
-    const quoi = (r.aPayer || []).length ? 'une récompense t’attend' : n ? `${n} coupe${n > 1 ? 's' : ''} · ${porte}` : `${np} place${np > 1 ? 's' : ''} au classement`;
+    const quoi = (r.aPayer || []).length || (r.evtAPayer || []).length ? 'une récompense t’attend' : n ? `${n} coupe${n > 1 ? 's' : ''} · ${porte}` : np ? `${np} place${np > 1 ? 's' : ''} au classement` : `${rangDe(evp[0].rang)} de ${NOM_EVT_LONG[evp[0].id] || 'l’événement'}`;
     return `<button type="button" class="rec-entree" data-a="cl-recompenses"><span class="rec-minis" aria-hidden="true">${dernieres}</span><span><b>Mes récompenses</b><small>${quoi}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>`;
   }
   // la collection : chaque coupe et sa tenue, avec sa semaine ; la tenue se choisit pièce par pièce dans la garde-robe (onglet Boulanger)
@@ -1421,21 +1467,23 @@ const UI = (() => {
     const r = recVue(), tm = G.toqueMetal(st), tenue = tenueVue();
     for (const m of r.coupes) G.donnerCollection(st, m); // au cas où la garde-robe n'aurait pas encore reçu un podium
     const coupes = r.podiums.slice().reverse().map((p) => { const m = CLM.metal(p.rang); return `<li class="rec-carte ${m}"><span class="rec-icone">${ICONS.coupe(m)}</span><b>${rangDe(p.rang)}</b><small>Coupe et tenue ${DE_METAL[m]}</small><small>Semaine du ${CLM.dateCourte(p.semaine)}</small></li>`; }).join('');
-    const places = r.places || [], aPayer = r.aPayer || [];
-    const vide = !r.podiums.length && !places.length ? '<div class="cl-etat"><span class="pic">' + ICONS.coupe('or') + '</span><b>Pas encore de récompense</b><span>Termine la semaine dans les quinze premiers du classement : des étoiles et un boost t’attendent ; dans les trois premiers, une tenue et une coupe en plus.</span></div>' : '';
+    const places = r.places || [], aPayer = r.aPayer || [], evp = r.evtPlaces || [], evtAP = r.evtAPayer || [];
+    const vide = !r.podiums.length && !places.length && !evp.length ? '<div class="cl-etat"><span class="pic">' + ICONS.coupe('or') + '</span><b>Pas encore de récompense</b><span>Termine la semaine dans les quinze premiers du classement : des étoiles et un boost t’attendent ; dans les trois premiers, une tenue et une coupe en plus.</span></div>' : '';
     // version 6.5 : l'historique des places, la plus récente d'abord (sa récompense : versée, à récupérer, ou d'avant les récompenses des places)
     const insec = (s) => String(s).replace(/ /g, '\u00A0'); // « 12 oct. », « 30 min » : sans coupure
     const etatPlace = (p) => (p.payee ? 'Récupérée' : aPayer.some((x) => x.semaine === p.semaine) ? 'À récupérer' : p.rang <= 3 ? 'Tenue et coupe' : 'Avant les récompenses');
     const lignesPlaces = places.slice().reverse().slice(0, 30).map((p) => `<li class="rec-carte${p.rang <= 3 ? ' ' + CLM.metal(p.rang) : ''}"><b>${rangDe(p.rang)}</b><small>${p.joueurs ? `sur ${p.joueurs}` : '&nbsp;'}</small><small>Semaine du ${insec(CLM.dateCourte(p.semaine))}</small>${p.recompense && (p.payee || aPayer.some((x) => x.semaine === p.semaine)) ? `<small>+${p.recompense.etoiles}\u00A0★ · ×${p.recompense.mult}\u00A0${insec(G.fmtDuree(p.recompense.secs))}</small>` : ''}<small><i>${etatPlace(p)}</i></small></li>`).join('');
+    // version 6.6 : ses places au classement final des événements (la Maison hantée), leur récompense : versée ou à récupérer
+    const lignesEvt = evp.map((p) => `<li class="rec-carte mh-acharne${p.rang <= 3 ? ' or' : ''}"><b>${rangDe(p.rang)}</b><small>${p.joueurs ? `sur ${p.joueurs}` : '&nbsp;'}</small><small>${esc((NOM_EVT_LONG[p.id] || '').replace(/^la /, 'La '))}</small>${p.recompense ? `<small>+${p.recompense.etoiles}\u00A0★ · ×${p.recompense.mult}\u00A0${insec(G.fmtDuree(p.recompense.secs))}${p.rang <= 3 ? ' · tenue en or' : ''}</small>` : ''}<small><i>${p.payee ? 'Récupérée' : evtAP.some((x) => x.id === p.id) ? 'À récupérer' : ''}</i></small></li>`).join('');
     const pieces = tenue ? ['tete', 'haut', 'pieds', 'accessoire'].map((p) => { const v = G.vetement(G.garderobe(st).equipe[p]); return v ? esc(v.nom.toLowerCase()) : null; }).filter(Boolean).join(', ') : '';
-    openSheet(`<div class="cl" data-cl="recompenses"><div class="cl-tete"><span class="pic">${ICONS.coupe(r.coupes.length ? r.coupes[r.coupes.length - 1] : 'or')}</span><div><h2>Mes récompenses</h2><p class="sous">Chaque semaine, les quinze premiers gagnent des étoiles et un boost ; les trois premiers, en plus, une tenue (toque, tablier, chaussures, foulard) et une coupe, à garder pour toujours.</p></div></div>
-      ${vide}${aPayer.length ? `<button type="button" class="btn large beurre" data-a="rec-recuperer"><b>Récupérer ma récompense</b></button>` : ''}${places.length ? `<h3 class="titre-section">Mes places</h3><ul class="rec-coupes" aria-label="Mes places au classement de la semaine">${lignesPlaces}</ul>` : ''}${r.podiums.length ? `<h3 class="titre-section">La vitrine des trophées</h3><ul class="rec-coupes" aria-label="Mes coupes">${coupes}</ul>
+    openSheet(`<div class="cl" data-cl="recompenses"><div class="cl-tete"><span class="pic">${ICONS.coupe(r.coupes.length ? r.coupes[r.coupes.length - 1] : 'or')}</span><div><h2>Mes récompenses</h2><p class="sous">Chaque semaine, les quinze premiers gagnent des étoiles et un boost ; les trois premiers, en plus, une tenue (toque, tablier, chaussures, foulard) et une coupe, à garder pour toujours.${evp.length ? ' À la fin d’un événement, ses quinze premiers aussi.' : ''}</p></div></div>
+      ${vide}${aPayer.length || evtAP.length ? `<button type="button" class="btn large beurre" data-a="rec-recuperer"><b>Récupérer ma récompense</b></button>` : ''}${evp.length ? `<h3 class="titre-section">Mes événements</h3><ul class="rec-coupes" aria-label="Mes places au classement final des événements">${lignesEvt}</ul>` : ''}${places.length ? `<h3 class="titre-section">Mes places</h3><ul class="rec-coupes" aria-label="Mes places au classement de la semaine">${lignesPlaces}</ul>` : ''}${r.podiums.length ? `<h3 class="titre-section">La vitrine des trophées</h3><ul class="rec-coupes" aria-label="Mes coupes">${coupes}</ul>
       <h3 class="titre-section" id="rec-titre-tenue">La tenue du boulanger</h3>
       <div class="rec-apercu" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), tenue)}<span>${tm ? `Il porte la toque ${DE_METAL[tm]}` : 'Il porte la toque blanche'}${pieces ? ` : ${pieces}.` : '.'}</span></div>
       <button type="button" class="btn large clair" data-a="rec-garderobe" style="margin-top:8px"><b>Ouvrir la garde-robe</b></button>` : ''}
       ${depuisCl ? '<button type="button" class="btn large sombre" data-a="cl-retour" style="margin-top:14px"><b>Retour au classement</b></button>' : btnRetour()}</div>`);
     vueCl = 'recompenses';
-    on('[data-a="rec-recuperer"]', () => { const g = payerPlaces(recVue().aPayer); if (g.n) { son.deblocage(); buzz([10, 30, 10]); confettis(0.8); toast(`Récupéré : ${texteGain(g)} (le boost attend dans ta réserve) !`); } sheetRecompenses(depuisCl); });
+    on('[data-a="rec-recuperer"]', () => { const g = payerPlaces(recVue().aPayer), ge = payerEvt(recVue().evtAPayer); g.n += ge.n; g.etoiles += ge.etoiles; g.boosts.push(...ge.boosts); if (g.n) { son.deblocage(); buzz([10, 30, 10]); confettis(0.8); toast(`Récupéré : ${texteGain(g)} (le boost attend dans ta réserve) !`); } sheetRecompenses(depuisCl); });
     on('[data-a="rec-garderobe"]', () => { son.tap(); if (GRU) GRU.ouvrir(ctxGarderobe(), 'tete'); });
     on('[data-a="cl-retour"]', () => { son.tap(); sheetClassement(); });
     on('[data-a="close"]', closeSheet);
@@ -1570,6 +1618,7 @@ const UI = (() => {
     if (!v.b) return carte(ICONS.UI.boutique, 'Pas encore ouverte aux visites', `La boutique de ${esc(v.pseudo)} apparaîtra après sa prochaine partie. Tu peux déjà lui laisser un pourboire.`);
     const s = v.b.st, { postes, apprentis, crans, max } = resumeBoutique(s);
     const li = [`Niveau ${G.niveau(s)} · ${esc(G.titre(s))}`, `${postes} recette${postes > 1 ? 's' : ''} au four · ${apprentis} apprenti${apprentis > 1 ? 's' : ''}`, `Mobilier : ${crans} cran${crans > 1 ? 's' : ''} sur ${max}`];
+    if (v.b.titre) li.push(`Le titre « ${esc(v.b.titre)} »`);
     if (s.chat) li.push(`Le compagnon : ${esc(s.chat.nom)}`); if (v.b.coupes.length) li.push(`${v.b.coupes.length} coupe${v.b.coupes.length > 1 ? 's' : ''} en vitrine`); if (v.b.badge) li.push('Le badge « Esprit d’équipe »');
     return carte(ICONS.UI.boutique, esc(v.b.nom), esc(nomQuartier(ph.q)), `<ul>${li.map((x) => `<li>${x}</li>`).join('')}</ul>`);
   }
@@ -1637,7 +1686,8 @@ const UI = (() => {
     $('#vi-sous').textContent = v.charge ? 'On frappe à la porte…' : d ? `${d.enLigne ? 'En ligne · ' : ''}${v.b ? `${v.b.nom} · ${nomQuartier(ph.q)}` : 'Visite'}` : '';
     $('#vi-ligne').hidden = !(d && d.enLigne);
     vue.classList.toggle('carte', !v.scene);
-    vue.innerHTML = v.scene ? `<span class="vi-enseigne">${esc(v.b.nom)}</span><span class="vi-lecture"><i class="ico">${ICONS.UI.oeil}</i>Tu visites : rien ne change chez ${esc(v.pseudo)}</span>` : carteVisite(v);
+    const ti = v.b && v.b.titre && d && d.photo ? d.photo.ti : null; // son titre (« Légende du Manoir »), lu dans sa photo : sous son enseigne
+    vue.innerHTML = v.scene ? `<span class="vi-enseigne">${esc(v.b.nom)}</span>${ti ? `<span class="vi-titre">${etiquetteTitre(ti)}</span>` : ''}<span class="vi-lecture"><i class="ico">${ICONS.UI.oeil}</i>Tu visites : rien ne change chez ${esc(v.pseudo)}</span>` : carteVisite(v);
     $('#vi-bas').innerHTML = basVisite(v);
     document.querySelectorAll('#visite [data-vi]').forEach((b) => { b.onclick = () => clicVisite(b); });
   }

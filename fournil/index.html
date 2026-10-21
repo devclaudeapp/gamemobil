@@ -555,6 +555,15 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 /* ─── les récompenses du podium : la toque à côté du pseudo, l'entrée « Mes récompenses », l'annonce, la collection ─── */
 .cl-toque { flex: 0 0 auto; display: inline-grid; width: 22px; height: 22px; place-items: center; }
 .cl-toque svg { width: 22px; height: 22px; }
+/* le titre gagné (« Légende du Manoir », le 20e palier de la Maison hantée) : une petite étiquette phosphorescente à côté du pseudo ; faute de
+   place, elle passe sous le pseudo plutôt que de le couper */
+.cl-titre { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 4px; border-radius: 999px; background: #2E2547; color: #B8FF9E; font: 700 11px/1.25 var(--titre); font-style: normal; white-space: nowrap; box-shadow: 0 0 0 1px rgba(124, 255, 107, .45), 0 0 8px rgba(124, 255, 107, .35); }
+.cl-titre svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.cl-nom:has(.cl-titre) { flex-wrap: wrap; row-gap: 3px; }
+.vi-titre { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); pointer-events: none; } /* sous l'enseigne de la boutique visitée */
+.vi-titre .cl-titre { font-size: 13px; padding: 4px 10px 4px 6px; } .vi-titre .cl-titre svg { width: 16px; height: 16px; }
+.rec-carte.mh-acharne { background: #EFE8FF; } .rec-carte.mh-acharne.or { background: #FFF3C4; box-shadow: inset 0 0 0 2px #8E6BD8; } /* ses places au classement final de la Maison hantée */
+.gr-piece.gr-aura .gr-ico { background: #1B1530; } /* l'aura phosphorescente : sur fond de nuit, comme le chapeau du palier 20 */
 .rec-entree { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; min-height: 60px; margin: 0; padding: 8px 10px 8px 12px; border-radius: var(--r-carte); text-align: left; background: var(--carte); box-shadow: var(--ombre-carte), inset 0 0 0 2px #FFE6A0; }
 .cl .rec-entree { margin: 0 0 12px; } /* en tête de la feuille du classement */
 .rec-entree:active { background: var(--creme); }
@@ -2083,7 +2092,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = 'db4b312aeb5b';</script>
+<script>window.FOURNIL_VERSION = '9ede2bd7f0b3';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -2713,8 +2722,14 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     return { pieces: GR_PIECES, objets, ensembles, niveaux: GR_NIVEAUX, couts: GR_COUTS, nivMax: GR_NIV_MAX, base: GR_BASE };
   })();
   const vetement = (id) => (id && GARDEROBE.objets[id]) || null;
+  // les auras (le 20e palier de la Maison hantée : l'aura phosphorescente) : une lueur douce autour du boulanger, sans bonus, gagnée à vie ;
+  // elle se porte ou se retire dans la garde-robe (g.auras : celles gagnées, g.aura : celle portée, null : aucune), en plus des quatre pièces
+  const AURAS = { lueur: { id: 'lueur', nom: 'Aura phosphorescente', couleur: '#7CFF6B', desc: 'Le 20e palier du Manoir. Une lueur verte, douce, qui respire autour du boulanger.' } };
+  // les distinctions gagnées, à vie (st.distinctions) : un titre montré à côté du pseudo dans le classement et dans la visite de sa boutique
+  // (src/classement.js, TITRES ; la photo de la boutique le porte, champ ti)
+  const DISTINCTIONS = { 'legende-manoir': { id: 'legende-manoir', nom: 'Légende du Manoir', desc: 'Le 20e palier de la Maison hantée.' } };
   const IDS_BASE = Object.keys(GARDEROBE.objets).filter((id) => GARDEROBE.objets[id].collection === 'base');
-  const garderobeNeuve = () => { const o = {}; for (const id of IDS_BASE) o[id] = { niv: 1, depuis: 0 }; return { v: 0, objets: o, equipe: Object.assign({}, GR_BASE) }; };
+  const garderobeNeuve = () => { const o = {}; for (const id of IDS_BASE) o[id] = { niv: 1, depuis: 0 }; return { v: 0, objets: o, equipe: Object.assign({}, GR_BASE), auras: [], aura: null }; };
   function garderobe(st) { // la garde-robe remise d'aplomb (une vieille sauvegarde, un id disparu, une pièce portée qu'on n'a pas)
     let g = st.garderobe;
     if (!g || typeof g !== 'object' || Array.isArray(g)) g = st.garderobe = garderobeNeuve();
@@ -2724,7 +2739,27 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     for (const id of IDS_BASE) if (!g.objets[id]) g.objets[id] = { niv: 1, depuis: 0 };
     for (const id of Object.keys(g.objets)) { const o = g.objets[id]; if (!vetement(id) || !o || typeof o !== 'object') { delete g.objets[id]; continue; } o.niv = Math.max(1, Math.min(GR_NIV_MAX, Math.floor(Number(o.niv)) || 1)); }
     for (const p of GR_PIECES) { const id = g.equipe[p], v = vetement(id); if (id != null && (!v || v.piece !== p || !g.objets[id])) g.equipe[p] = GR_BASE[p]; if (g.equipe[p] === undefined) g.equipe[p] = GR_BASE[p]; }
+    if (!Array.isArray(g.auras) || g.auras.some((a) => !AURAS[a])) g.auras = Array.isArray(g.auras) ? [...new Set(g.auras.filter((a) => AURAS[a]))] : []; // (une sauvegarde d'avant les auras : aucune)
+    if (g.aura !== null && !g.auras.includes(g.aura)) g.aura = null;
     return g;
+  }
+  function donnerAura(st, id) { // l'aura gagnée (le 20e palier de la Maison hantée) : portée d'office la première fois ; déjà gagnée : rien ne change
+    if (!AURAS[id]) return { nouveau: false, aura: null };
+    const g = garderobe(st); if (g.auras.includes(id)) return { nouveau: false, aura: AURAS[id] };
+    g.auras.push(id); g.aura = id; g.v++; note(st, `Garde-robe : ${AURAS[id].nom}`);
+    return { nouveau: true, aura: AURAS[id] };
+  }
+  function porterAura(st, id) { // porter une aura gagnée, ou aucune (null)
+    const g = garderobe(st); if (id != null && !g.auras.includes(id)) return { ok: false };
+    const cible = id == null ? null : id; if (g.aura !== cible) { g.aura = cible; g.v++; }
+    return { ok: true, aura: cible };
+  }
+  const distinctions = (st) => (Array.isArray(st.distinctions) ? st.distinctions.filter((t) => DISTINCTIONS[t]) : []); // les distinctions gagnées, à vie
+  function donnerDistinction(st, id) { // rend { nouveau, distinction } ; déjà gagnée : rien ne change
+    if (!DISTINCTIONS[id]) return { nouveau: false, distinction: null };
+    if (!Array.isArray(st.distinctions)) st.distinctions = [];
+    if (st.distinctions.includes(id)) return { nouveau: false, distinction: DISTINCTIONS[id] };
+    st.distinctions.push(id); note(st, `Titre : ${DISTINCTIONS[id].nom}`); return { nouveau: true, distinction: DISTINCTIONS[id] };
   }
   const possede = (st, id) => !!garderobe(st).objets[id];
   const niveauVetement = (st, id) => { const o = garderobe(st).objets[id]; return o ? o.niv : 0; };
@@ -2783,10 +2818,10 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     if (x && x.pourboire) t.push(`Pourboires +${v(x.pourboire)} %`);
     return t;
   }
-  function tenueBoulanger(st) { // ce que porte le boulanger, pour persos.js et les icônes : { tete, haut, pieds, accessoire: { forme, metal } | null, cle }
+  function tenueBoulanger(st) { // ce que porte le boulanger, pour persos.js et les icônes : { tete, haut, pieds, accessoire: { forme, metal } | null, aura: id | null, cle }
     const g = garderobe(st), t = {}, cle = [];
     for (const p of GR_PIECES) { const v = vetement(g.equipe[p]); t[p] = v ? { forme: v.forme, metal: v.collection === 'base' ? null : v.collection } : null; cle.push(g.equipe[p] || ''); }
-    t.cle = cle.join('|'); return t;
+    t.aura = g.aura || null; t.cle = cle.join('|') + (t.aura ? `|aura:${t.aura}` : ''); return t; // (la clé d'avant les auras, inchangée sans aura)
   }
   const toqueMetal = (st) => { const v = vetement(garderobe(st).equipe.tete); return v && METAUX_PODIUM[v.collection] ? v.collection : null; }; // la toque du podium portée, vue des autres (null : pas une toque de podium)
   const garderobeCle = (st) => { const g = garderobe(st); return `${g.v}|${st.etoiles}|${Object.keys(g.objets).length}`; }; // pour redessiner la page quand elle change
@@ -3575,7 +3610,8 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     FOUR, fourNiveau, fourNouveau, fourAvancer, fourToucher, FACONNAGE, MODELES_FACONNAGE, reechantillonner, noterFaconnage, ajouterTrait, couvertureFaconnage,
     INGREDIENTS, MEMOIRE, memoireMontre, memoireRecette, memoireSaisir, memoireScore,
     POINTS, pointsDuJour, pointsAtelier, pointsSemaine, pointsTotal, detailPoints, marquerJournee, marquerDefi, marquerEvenement, marquerAtelier, marquerAmelioration,
-    GARDEROBE, garderobe, garderobeNeuve, vetement, possede, niveauVetement, donnerVetement, donnerCollection, equiper, equiperCollection, coutVetement, ameliorerVetement, bonusPiece, ensembleComplet, bonusGardeRobe, garderobeMult, texteBonus, tenueBoulanger, toqueMetal, garderobeCle };
+    GARDEROBE, garderobe, garderobeNeuve, vetement, possede, niveauVetement, donnerVetement, donnerCollection, equiper, equiperCollection, coutVetement, ameliorerVetement, bonusPiece, ensembleComplet, bonusGardeRobe, garderobeMult, texteBonus, tenueBoulanger, toqueMetal, garderobeCle,
+    AURAS, donnerAura, porterAura, DISTINCTIONS, distinctions, donnerDistinction };
 });
 
 /* ── blackjack.js ── */
@@ -3989,7 +4025,10 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
    page est visible, et chaque ligne du classement porte enLigne (booléen), la liste enLigneN ; un serveur encore en version 4, 3 ou 2 reste servi ;
    version 6.5 : les places de la semaine jusqu'au 15e (recompenses().places, RECOMPENSES_RANG : des étoiles et un boost par place, une fois par
    semaine), et les pourboires reçus et la récompense de l'objectif commun accusés au serveur (fournil_vu_pourboires, fournil_vu_objectif)
-   seulement une fois rangés et sauvés : une réponse perdue les fait revenir, sans les payer deux fois).
+   seulement une fois rangés et sauvés : une réponse perdue les fait revenir, sans les payer deux fois) ; version 6.6, les acharnés de la Maison
+   hantée : sa place au classement final de l'événement jusqu'au 15e (recompenses().evenements.hantee = { rang, joueurs, podium }, RECOMPENSES_EVT :
+   des étoiles et un boost, une fois ; les trois premiers gardent la tenue en or), et le titre gagné (« Légende du Manoir ») porté par la photo de
+   sa boutique (ti) et rendu par le serveur sur chaque ligne du classement (titre)).
    Une partie pure, testée dans Node (lundi de Paris, pseudo, rangs, décision d'envoi, état local), et une partie réseau : de simples POST
    vers les fonctions Supabase du classement (PostgREST, /rest/v1/rpc/…), avec la clé PUBLIQUE de fournil/config.js. Aucune erreur ne remonte
    jamais au jeu : chaque appel rend un état ('ok', 'hors-ligne', 'lent' (pas de réponse en 8 s), 'pas-ouvert', 'erreur', 'absent'). Sans configuration (l'artefact Claude), rien ne part. */
@@ -4109,7 +4148,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
   const METAUX = ['or', 'argent', 'bronze'], JOUR = /^\d{4}-\d{2}-\d{2}$/;
   const metal = (rang) => METAUX[rang - 1] || null; // 1 → 'or', 2 → 'argent', 3 → 'bronze'
   const NOMS_METAL = { or: 'd’or', argent: 'd’argent', bronze: 'de bronze' }; // « la tenue d’or », « la coupe de bronze »
-  const recompensesNeuves = () => ({ podiums: [], tenue: 'auto', vu: '', quartier: null, quartierPodium: null, evenements: {}, equipe: [], equipeAttente: '', places: [], payees: [], depuis: '' }); // quartier : son rang au podium final de l'événement « Le Quartier » (1, 2, 3), quartierPodium : les trois premiers ; evenements : { hantee: { rang: 1 | 2 | 3 | null, podium: [{ rang, pseudo, valeur }] } } (version 5) ; places, payees, depuis : version 6.5 (ci-dessous)
+  const recompensesNeuves = () => ({ podiums: [], tenue: 'auto', vu: '', quartier: null, quartierPodium: null, evenements: {}, equipe: [], equipeAttente: '', places: [], payees: [], depuis: '', evtPayes: [] }); // quartier : son rang au podium final de l'événement « Le Quartier » (1, 2, 3), quartierPodium : les trois premiers ; evenements : { hantee: { rang: 1 à 15 | null, joueurs, podium: [{ rang, pseudo, valeur }] } } (version 5 ; 6.6 : jusqu'au 15e) ; places, payees, depuis : version 6.5 (ci-dessous) ; evtPayes : version 6.6 (ci-dessous)
   // ─── version 6.5 : les places de la semaine, du 1er au 15e (points > 0, ex æquo au même rang) ───
   // places : [{ semaine, rang: 1 à 15, joueurs: les classés de cette semaine-là | null }] (les podiums y sont aussi) ; payees : les semaines dont la
   // récompense est versée ; depuis : la première semaine payable (la semaine passée, à la première lecture des récompenses par ce téléphone :
@@ -4128,6 +4167,37 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     const r = Number.isInteger(rang) ? RECOMPENSES_RANG.find((x) => rang >= x.de && rang <= x.a) : null;
     return r ? { rang, etoiles: r.etoiles, mult: r.mult, secs: r.secs, tenue: rang <= 3 } : null;
   }
+  // ─── version 6.6 : les acharnés des événements génériques (la Maison hantée) : sa place au classement FINAL, du 1er au 15e ───
+  // Chaque place donne, une fois par événement (evtPayes : les événements dont la récompense est versée), des étoiles et un boost dans la
+  // réserve, un peu plus que la même place de la semaine (un événement dure une semaine et se joue plus fort) ; les trois premiers gardent en
+  // plus la tenue de l'événement en or (ui.js, comme avant). Le Quartier (son podium final, figé à trois) n'en a pas.
+  const RECOMPENSES_EVT = [
+    { de: 1, a: 1, etoiles: 7, mult: 5, secs: 3600 }, // 1er : la tenue en or, 7 étoiles, un boost ×5 d'une heure
+    { de: 2, a: 2, etoiles: 6, mult: 5, secs: 3600 }, // 2e : la tenue en or, 6 étoiles, un boost ×5 d'une heure
+    { de: 3, a: 3, etoiles: 5, mult: 5, secs: 3600 }, // 3e : la tenue en or, 5 étoiles, un boost ×5 d'une heure
+    { de: 4, a: 6, etoiles: 4, mult: 3, secs: 3600 }, // 4e à 6e : 4 étoiles, un boost ×3 d'une heure
+    { de: 7, a: 10, etoiles: 3, mult: 3, secs: 1800 }, // 7e à 10e : 3 étoiles, un boost ×3 de 30 min
+    { de: 11, a: 15, etoiles: 2, mult: 2, secs: 1800 }, // 11e à 15e : 2 étoiles, un boost ×2 de 30 min
+  ];
+  const NOMS_EVT = { hantee: 'la Maison hantée' }; // « Tu as fini 7e de la Maison hantée sur 12 »
+  function recompenseEvt(rang) { // { rang, etoiles, mult, secs, tenue } ; null hors du 1er au 15e
+    const r = Number.isInteger(rang) ? RECOMPENSES_EVT.find((x) => rang >= x.de && rang <= x.a) : null;
+    return r ? { rang, etoiles: r.etoiles, mult: r.mult, secs: r.secs, tenue: rang <= 3 } : null;
+  }
+  const evtsOk = (l) => (Array.isArray(l) ? [...new Set(l.filter((x) => evtOk(x)))] : []);
+  // les places d'événement dont la récompense attend (figées, du 1er au 15e, pas encore versées), chacune avec sa récompense
+  function evtAPayer(rec) {
+    if (!rec || !rec.evenements) return [];
+    return EVTS.filter((id) => rec.evenements[id] && recompenseEvt(rec.evenements[id].rang) && !(rec.evtPayes || []).includes(id))
+      .map((id) => ({ id, rang: rec.evenements[id].rang, joueurs: rec.evenements[id].joueurs || null, recompense: recompenseEvt(rec.evenements[id].rang) }));
+  }
+  function phraseEvt(p) { // « Tu as fini 7e de la Maison hantée sur 12 »
+    if (!p || !rangOk(p.rang) || !NOMS_EVT[p.id]) return '';
+    return `Tu as fini ${rangTexte(p.rang)} de ${NOMS_EVT[p.id]}${rangOk(p.joueurs) ? ` sur ${Math.max(p.joueurs, p.rang)}` : ''}`;
+  }
+  // ─── version 6.6 : les titres gagnés, à vie (le 20e palier de la Maison hantée : « Légende du Manoir »), montrés à côté du pseudo ───
+  const TITRES = { 'legende-manoir': 'Légende du Manoir' };
+  const titreOk = (t) => typeof t === 'string' && Object.prototype.hasOwnProperty.call(TITRES, t);
   const parSemaine = (a, b) => (a.semaine < b.semaine ? -1 : a.semaine > b.semaine ? 1 : 0);
   function nettoyerPlaces(liste) { // une place par semaine (la meilleure ; à rang égal, celle qui sait combien de joueurs), triées, les 200 dernières
     const par = new Map();
@@ -4164,15 +4234,18 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     o.equipeAttente = typeof r.equipeAttente === 'string' && JOUR.test(r.equipeAttente) && !o.equipe.includes(r.equipeAttente) ? r.equipeAttente : ''; // sa récompense pas encore annoncée
     o.places = nettoyerPlaces((Array.isArray(r.places) ? r.places : []).concat(o.podiums)); // version 6.5 (une sauvegarde d'avant : ses podiums)
     o.payees = semainesOk(r.payees, 200); o.depuis = typeof r.depuis === 'string' && JOUR.test(r.depuis) ? r.depuis : '';
+    o.evtPayes = evtsOk(r.evtPayes); // version 6.6
     return o;
   }
-  // les podiums finaux des événements génériques : { id: { rang: 1 | 2 | 3 | null, podium: [...] } }, seulement les événements connus
+  // les podiums finaux des événements génériques : { id: { rang: 1 à 15 | null, joueurs: entier | null, podium: [...] } }, seulement les événements
+  // connus (version 6.6 : sa place jusqu'au 15e et le nombre de joueurs classés ; un serveur d'avant : 1 à 3, sans joueurs ; le podium : les trois premiers)
   function nettoyerEvenements(e) {
     const o = {};
     if (!e || typeof e !== 'object' || Array.isArray(e)) return o;
     for (const id of EVTS) {
       const x = e[id]; if (!x || typeof x !== 'object' || Array.isArray(x)) continue;
-      o[id] = { rang: [1, 2, 3].includes(x.rang) ? x.rang : null, podium: Array.isArray(x.podium) ? nettoyerPodiumQuartier(x.podium) : [] };
+      const rang = Number.isInteger(x.rang) && x.rang >= 1 && x.rang <= RANG_MAX ? x.rang : null;
+      o[id] = { rang, joueurs: Number.isInteger(x.joueurs) && x.joueurs >= 1 && x.joueurs >= (rang || 1) ? Math.min(x.joueurs, 1e6) : null, podium: Array.isArray(x.podium) ? nettoyerPodiumQuartier(x.podium) : [] };
     }
     return o;
   }
@@ -4180,7 +4253,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     const o = {};
     for (const id of EVTS) {
       const x = a && a[id], y = b && b[id]; if (!x && !y) continue;
-      o[id] = { rang: (y && y.rang) || (x && x.rang) || null, podium: (y && y.podium && y.podium.length ? y.podium : x && x.podium) || [] };
+      o[id] = { rang: (y && y.rang) || (x && x.rang) || null, joueurs: (y && y.joueurs) || (x && x.joueurs) || null, podium: (y && y.podium && y.podium.length ? y.podium : x && x.podium) || [] };
     }
     return o;
   }
@@ -4314,11 +4387,12 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
         const v = Number(l.valeur);
         const ligne = { rang: l.rang, pseudo: String(l.pseudo == null ? '' : l.pseudo).slice(0, 40), points: pts(l.points), valeur: Number.isFinite(v) ? v : 0, moi: l.moi === true, podium: [1, 2, 3].includes(l.podium) ? l.podium : null, toque: toqueOk(l.toque) };
         if (typeof l.en_ligne === 'boolean') ligne.enLigne = l.en_ligne; // version 5 : « en ligne » (absent avec un serveur plus ancien)
+        if (titreOk(l.titre)) ligne.titre = l.titre; // version 6.6 : le titre que montre la photo de sa boutique (seulement ceux que le jeu connaît)
         o.lignes.push(ligne);
       }
     }
     o.joueurs = Math.max(entier(d.joueurs) || 0, o.lignes.length);
-    if (d.moi && typeof d.moi === 'object' && entier(d.moi.rang)) { const v = Number(d.moi.valeur); o.moi = { rang: d.moi.rang, points: pts(d.moi.points), valeur: Number.isFinite(v) ? v : 0, podium: [1, 2, 3].includes(d.moi.podium) ? d.moi.podium : null, toque: toqueOk(d.moi.toque) }; if (typeof d.moi.en_ligne === 'boolean') o.moi.enLigne = d.moi.en_ligne; o.joueurs = Math.max(o.joueurs, o.moi.rang); }
+    if (d.moi && typeof d.moi === 'object' && entier(d.moi.rang)) { const v = Number(d.moi.valeur); o.moi = { rang: d.moi.rang, points: pts(d.moi.points), valeur: Number.isFinite(v) ? v : 0, podium: [1, 2, 3].includes(d.moi.podium) ? d.moi.podium : null, toque: toqueOk(d.moi.toque) }; if (typeof d.moi.en_ligne === 'boolean') o.moi.enLigne = d.moi.en_ligne; if (titreOk(d.moi.titre)) o.moi.titre = d.moi.titre; o.joueurs = Math.max(o.joueurs, o.moi.rang); }
     if (Number.isInteger(d.en_ligne_n) && d.en_ligne_n >= 0) o.enLigneN = Math.min(d.en_ligne_n, o.joueurs); // combien de joueurs de cette liste sont en ligne (version 5)
     return o;
   }
@@ -4358,7 +4432,9 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
   //     x (optionnel, absent chez les vieux téléphones) : ses statistiques pour la fiche « Tous les temps » { e: étoiles, b: numéro de boutique,
   //       v: fournées vendues, tr: trophées obtenus, s: meilleure série de jours, f: fortune de toujours (st.lifetime, 4 chiffres, pour l'affichage) },
   //     e (optionnel) : l'événement EN COURS, s'il y est entré, pour la visite de sa Planque (ou de son Manoir) { id: 'quartier' | 'hantee',
-  //       p: [[niveau, apprenti 0/1], …] (ses postes), d: les décos gagnées, pa: les paliers atteints, t: le total gagné (billets, bonbons) } }.
+  //       p: [[niveau, apprenti 0/1], …] (ses postes), d: les décos gagnées, pa: les paliers atteints, t: le total gagné (billets, bonbons) },
+  //     ti (optionnel, version 6.6) : le titre gagné, à vie, qu'il montre à côté de son pseudo (TITRES : 'legende-manoir', « Légende du
+  //       Manoir », le 20e palier de la Maison hantée) ; le serveur v6.6 le rend aussi sur sa ligne du classement (titre) }.
   // Trop grosse : le nom raccourci et les coupes retirées (comme avant), puis e.d, puis e. Le serveur la garde telle quelle (≤ 3 Ko) : x et e
   // n'ont demandé aucun changement du SQL. Celle d'un autre joueur vient du réseau : relue champ par champ (nettoyerPhoto), jamais crue.
   const PHOTO = { max: 2048, ecart: 10 * 60e3, refaire: 6 * 3600e3 };
@@ -4397,6 +4473,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
       p.x = { e: borne(st.etoiles, 0, 1e9), b: borne(st.boutiques, 1, 1e6), v: borne(S.ventes, 0, 1e15), tr: borne(tr, 0, 999), s: borne(S.serieMax, 0, 99999), f: fortune4(st.lifetime) };
       const q = o.ev && o.ev.q, e = q && Array.isArray(q.postes) ? evPhoto({ id: o.ev.id, p: q.postes.slice(0, 16).map((s) => [s && s.niv, s && s.staff]), d: q.decos, pa: Array.isArray(q.paliers) ? q.paliers.length : 0, t: q.total }) : null;
       if (e) p.e = e;
+      { const ti = titreOk(o.titre) ? o.titre : typeof G.distinctions === 'function' ? (G.distinctions(st) || []).find(titreOk) : null; if (ti) p.ti = ti; } // version 6.6 : le titre gagné (24 octets au plus : gardé quoi qu'il arrive)
       if (octetsJson(p) > PHOTO.max) { p.k = []; p.nom = p.nom.slice(0, 12); } // trop grosse : d'abord le repli d'avant,
       if (octetsJson(p) > PHOTO.max && p.e) delete p.e.d; // puis les décos de l'événement,
       if (octetsJson(p) > PHOTO.max) delete p.e; // puis l'événement
@@ -4418,6 +4495,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     if (x && typeof x === 'object' && !Array.isArray(x)) o.x = { e: borne(x.e, 0, 1e9), b: borne(x.b, 1, 1e6), v: borne(x.v, 0, 1e15), tr: borne(x.tr, 0, 999), s: borne(x.s, 0, 99999), f: fortune4(x.f) };
     const e = evPhoto(p.e); if (e) o.e = e; // l'événement en cours (absent, ou d'un id inconnu : pas de Planque à visiter)
     if (codeAOk(p.a)) o.a = p.a; // son aménagement : un code bien formé (GAME.codeAmenagement), sinon le plan d'origine
+    if (titreOk(p.ti)) o.ti = p.ti; // version 6.6 : son titre, seulement s'il est l'un de ceux que ce jeu connaît (absent d'une photo d'avant)
     return o;
   }
   // la clé qui dit si la photo a changé (photoAEnvoyer) : sans les compteurs qui bougent à chaque fournée (x.v les ventes, x.f la fortune,
@@ -4467,7 +4545,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     let xp = 0; for (let n = 1; n < Math.min(p.g, 400); n++) xp += G.XP_NIVEAU(n); st.xp = xp;
     st.evTimer = 1e9; st.mystereTimer = 1e9; st.chatAttente = null; // rien ne surgit dans la boutique d'un autre
     const q = G.QUARTIERS[G.quartier(st)];
-    return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o, stats: p.x || null };
+    return { st, nom: G.nomBoutique(st), quartier: q ? q.nom : '', decosQuartier: p.dq, decosHantee: p.dh, pelage: p.c ? p.c.p : 'roux', coupes: p.k, badge: !!p.o, stats: p.x || null, titre: p.ti ? TITRES[p.ti] : null }; // titre : « Légende du Manoir » (version 6.6), sinon null
   }
   // la réponse de fournil_boutique(pseudo)
   function nettoyerBoutique(d) {
@@ -4667,7 +4745,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
       const rec = { podiums: nettoyerPodiums(etat.recompenses.podiums.concat(f.recompenses.podiums)), tenue: f.recompenses.tenue, vu: f.recompenses.vu > etat.recompenses.vu ? f.recompenses.vu : etat.recompenses.vu, quartier: f.recompenses.quartier || etat.recompenses.quartier, quartierPodium: f.recompenses.quartierPodium || etat.recompenses.quartierPodium, evenements: fusionnerEvenements(etat.recompenses.evenements, f.recompenses.evenements),
         equipe, equipeAttente: [f.recompenses.equipeAttente, etat.recompenses.equipeAttente].find((x) => x && !equipe.includes(x)) || '',
         places: nettoyerPlaces(etat.recompenses.places.concat(f.recompenses.places)), payees: semainesOk(etat.recompenses.payees.concat(f.recompenses.payees), 200), // version 6.5 : une récompense versée dans l'autre fenêtre ne l'est pas ici
-        depuis: [etat.recompenses.depuis, f.recompenses.depuis].filter(Boolean).sort()[0] || '' };
+        depuis: [etat.recompenses.depuis, f.recompenses.depuis].filter(Boolean).sort()[0] || '', evtPayes: evtsOk(etat.recompenses.evtPayes.concat(f.recompenses.evtPayes)) }; // version 6.6 : de même pour la place à l'événement
       if (f.id !== etat.id || f.jeton !== etat.jeton || f.rejoint !== etat.rejoint || f.pseudo !== etat.pseudo) { etat = f; etat.recompenses = rec; viderCache(); prevenir(); return true; }
       // version 6 : les pourboires accueillis dans l'autre fenêtre ne reviennent pas ici ; ses dons du jour et ses notifications (écrits aussitôt) font foi
       // (version 6.5 : les pourboires rangés des deux fenêtres, et les étoiles du jour déjà versées, s'additionnent : rien n'est rangé ni versé deux fois)
@@ -4933,7 +5011,15 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
       const rec = etat.recompenses, l = lundi();
       return { podiums: rec.podiums.slice(), tenue: rec.tenue, vu: rec.vu, lundi: l, portee: tenuePortee(rec, l), coupe: coupeDuComptoir(rec, l), coupes: rec.podiums.map((p) => metal(p.rang)), gagnees: tenuesGagnees(rec), annonce: aAnnoncer(rec, l), derniere, quartier: rec.quartier, quartierPodium: rec.quartierPodium, evenements: JSON.parse(JSON.stringify(rec.evenements || {})),
         equipe: rec.equipe.slice(), badge: rec.equipe.length > 0, objectifAnnonce: rec.equipeAttente || null, // version 6 : le badge « Esprit d'équipe », la récompense de l'objectif à annoncer
-        places: rec.places.map((p) => Object.assign({}, p, { recompense: recompenseRang(p.rang), payee: rec.payees.includes(p.semaine) })), aPayer: placesAPayer(rec, l) }; // version 6.5
+        places: rec.places.map((p) => Object.assign({}, p, { recompense: recompenseRang(p.rang), payee: rec.payees.includes(p.semaine) })), aPayer: placesAPayer(rec, l), // version 6.5
+        evtPlaces: EVTS.filter((id) => rec.evenements[id] && rec.evenements[id].rang).map((id) => ({ id, rang: rec.evenements[id].rang, joueurs: rec.evenements[id].joueurs || null, recompense: recompenseEvt(rec.evenements[id].rang), payee: rec.evtPayes.includes(id) })),
+        evtAPayer: evtAPayer(rec) }; // version 6.6 : sa place au classement final des événements, et celles dont la récompense attend
+    }
+    // version 6.6 : la récompense d'une place à un événement versée (rend true la première fois seulement) : l'interface donne alors les étoiles et le boost
+    function evtPaye(id) {
+      resynchroniser(); const r = etat.recompenses;
+      if (!evtAPayer(r).some((p) => p.id === id)) return false;
+      r.evtPayes = evtsOk(r.evtPayes.concat([id])); sauver(); prevenir(); return true;
     }
     // version 6.5 : la récompense d'une place versée (rend true la première fois seulement) : l'interface donne alors les étoiles et le boost
     function placePayee(semaine) {
@@ -5272,7 +5358,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     return {
       disponible: () => !!config(), etat: () => etat, resume, version: () => version, cache: (p) => cache[periodeDe(p)], enChargement: (p) => charge[periodeDe(p)],
       envoyer, charger, ouvrir, choisirPseudo, quitter, demarrer, arreter, ecouter: (f) => { ecouteurs.push(f); },
-      chargerRecompenses, recompenses, choisirTenue, annonceFaite, placePayee, lundi, battre, cadeaux, cadeauRecu,
+      chargerRecompenses, recompenses, choisirTenue, annonceFaite, placePayee, evtPaye, lundi, battre, cadeaux, cadeauRecu,
       copains: () => !!config() && !ancien(), boutique, dons, pourboire, objectif, objectifVu: () => objCache, pourboiresRecus, accueillirPourboires, objectifFait,
       notifsPossibles, notifs, abonner, desabonner, planifier, essai,
       chatLire, chatImage, chatEnvoyer, chatSignaler, chatEffacer,
@@ -5351,7 +5437,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
   return { CLE, REGLES, PERIODES, EVTS, ongletsEvenements, nettoyerEvenements, PSEUDO_MIN, PSEUDO_MAX, lundiParis, decalageParis, dateCourte, normaliserPseudo, verifierPseudo, messagePseudo, rangTexte, rangPhrase, boulangers,
     etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur,
     METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce,
-    RANG_MAX, RECOMPENSES_RANG, recompenseRang, nettoyerPlaces, placesAPayer, phrasePlace,
+    RANG_MAX, RECOMPENSES_RANG, recompenseRang, nettoyerPlaces, placesAPayer, phrasePlace, RECOMPENSES_EVT, NOMS_EVT, recompenseEvt, evtAPayer, phraseEvt, TITRES, titreOk,
     PHOTO, EV_PHOTO, photo, nettoyerPhoto, clePhoto, boutiqueDepuisPhoto, evenementDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson,
     CHAT_TEXTE, CHAT_IMAGE, chatImageOk, chatGifOk, nettoyerChat,
     RET_TEXTE, RET_NOTE, RET_INFOS, VOTE_QUESTION, VOTE_OPTION, retImageOk, retInfosOk, nettoyerVote, nettoyerVotes, nettoyerRetour, nettoyerRetours };
@@ -5433,7 +5519,8 @@ const ICONS = (() => {
       ? `<path d="M12 14c0-7 5.5-11 12-11s12 4 12 11v2H12z" fill="${cT[0]}" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><rect x="11" y="13" width="26" height="4" rx="2" fill="${cT[0]}" stroke="${L}" stroke-width="2"/><path d="M12 10c-4-1-7 0-9 2 2 2 5 3 9 3z" fill="${cT[1]}" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="24" cy="3.5" r="1.6" fill="${cT[1]}"/>`
       : `<rect x="13" y="${14 - th}" width="22" height="${th}" rx="${rang === 0 ? 3 : 6}" fill="${tissuT}" stroke="${L}" stroke-width="2"/><rect x="12" y="12" width="24" height="4" rx="2" fill="${tissuT}" stroke="${L}" stroke-width="2"/>
       ${rang >= 4 || tT ? `<rect x="12" y="12" width="24" height="2" rx="1" fill="${tT ? tT[1] : '#FFC84A'}"/>` : ''}${tT && th >= 9 ? `<path d="M24 ${14 - th * 0.62}l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4z" fill="${tT[1]}"/>` : ''}`;
-    return S(`${corps}
+    const aura = gd && gd.aura ? '<ellipse cx="24" cy="27" rx="23.5" ry="23" fill="#7CFF6B" opacity=".16"/><ellipse cx="24" cy="27" rx="18.5" ry="19.5" fill="#B8FF9E" opacity=".24"/>' : ''; // l'aura phosphorescente (le 20e palier de la Maison hantée), derrière lui
+    return S(`${aura}${corps}
       ${rang >= 5 ? `<rect x="10" y="30" width="9" height="5" rx="2" fill="#2B5BD7"/><rect x="19.5" y="30" width="9" height="5" rx="2" fill="#fff" stroke="${L}" stroke-width=".8"/><rect x="29" y="30" width="9" height="5" rx="2" fill="#E1496C"/>` : ''}
       ${foulard ? `<rect x="15" y="27" width="18" height="5" rx="2.5" fill="${foulard}"/>` : ''}${acc === 'chaine' ? `<path d="M15 28c3 5 6 7 9 7s6-2 9-7" fill="none" stroke="${tA ? tA[1] : '#FFC84A'}" stroke-width="2" stroke-dasharray="2 1.4" stroke-linecap="round"/><circle cx="24" cy="36" r="2.4" fill="${tA ? tA[1] : '#FFC84A'}" stroke="${L}" stroke-width="1.2"/>` : ''}
       <circle cx="24" cy="21" r="10" fill="#FFD7B5" stroke="${L}" stroke-width="2"/>
@@ -7366,6 +7453,27 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     g.add(M.maille(pr, { ombre: false }));
     return g;
   }
+  // la lanterne de la légende (le 20e palier de la Maison hantée, q.decos 'legende', à vie) : un petit réverbère de fer forgé posé au pied
+  // du fournil, à gauche (entre le chaudron et le plan de travail : hors de l'allée, des apprentis et de la grille des meubles), son toit
+  // pointu et sa boule dorée, une citrouille à son pied ; dans sa cage, une flamme verte phosphorescente qui respire et vacille, plus
+  // vive le soir. Deux appels de dessin (le fer, la flamme), comme les citrouilles-lanternes
+  function lanterneLegende(c) {
+    const { LAY, W, K: K0 } = c, K = K0 * 1.65, g = grp('legende', W * 0.05, 0, c.wz(LAY.murH + 78 * K0)), fer = '#2B2533', fer2 = '#4A3D63', or = '#FFC84A', pr = []; // (K : sa propre échelle, un peu plus grande que celle de la salle)
+    const hc = 21 * K, cg = 8.5 * K, l = 3.2 * K; // le haut du poteau (le bas de la cage), la hauteur de la cage, sa demi-largeur
+    pr.push(P(M.cylindre(3.4 * K, 4 * K, 1.6 * K, 10), fer, { y: 0.8 * K }), P(M.cylindre(0.75 * K, 0.9 * K, hc, 8), fer, { y: hc / 2 }), // le pied, le poteau
+      P(M.tore(1.3 * K, 0.4 * K, TAU, 5, 12), or, { y: hc * 0.55, rx: HP }), P(M.sphere(1.3 * K, 8), fer2, { y: hc - 0.4 * K }), // la bague dorée, le col
+      P(bo(2 * l + 1.6 * K, 1.2 * K, 2 * l + 1.6 * K, 0.4), fer2, { y: hc + 0.6 * K }), P(bo(2 * l + 0.8 * K, 1 * K, 2 * l + 0.8 * K, 0.3), fer2, { y: hc + cg + 0.5 * K })); // le plancher, le plafond de la cage
+    for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(bo(0.8 * K, cg, 0.8 * K, 0.2), fer, { x: sx * l, y: hc + 1.2 * K + cg / 2, z: sz * l })); // les quatre montants (pas de vitre devant : la flamme se voit)
+    pr.push(P(M.cone(l * 1.65, 5 * K, 4), fer, { y: hc + cg + 3.4 * K, ry: Math.PI / 4 }), P(M.sphere(1 * K, 8), or, { y: hc + cg + 6.4 * K }), // le toit pointu, la boule dorée
+      P(M.tore(1.1 * K, 0.35 * K, TAU, 5, 10), fer, { y: hc + cg + 7.6 * K })); // l'anneau du sommet
+    pr.push(...partsCitrouille(5.6 * K, 0, 0.6 * K, 3 * K), ...partsVisageCitrouille(5.6 * K, 0, 0.6 * K, 3 * K)); // la petite citrouille du pied, à côté (pas devant : le plan de travail est juste en dessous)
+    g.add(M.maille(pr));
+    const flamme = M.maille([P(M.sphere(2.3 * K, 10), '#C6FF8F', { sy: 1.15 }), P(M.cone(1.8 * K, 4 * K, 8), '#C6FF8F', { y: 2.9 * K }), P(M.sphere(1 * K, 8), '#F2FFE0', { y: -0.2 * K, z: 1 * K })], { ombre: false });
+    flamme.material = propre({ vertexColors: true, emissive: '#7CFF6B', emissiveIntensity: 1 }); flamme.position.y = hc + 1.2 * K + cg * 0.42; g.add(flamme);
+    const y0 = flamme.position.y;
+    g.userData.anime = (E) => { const k = Math.sin(E.t * 2.3), v = Math.sin(E.t * 11) * Math.sin(E.t * 7.3); flamme.material.emissiveIntensity = 0.95 + 0.6 * E.lampes + 0.2 * k; flamme.scale.y = 1 + 0.1 * k + 0.05 * v; flamme.scale.x = flamme.scale.z = 1 - 0.04 * k; flamme.position.y = y0 + 0.3 * K * k; };
+    return g;
+  }
   // la toque de la recette du jour (src/activites.js : la 500e fournée d'un événement, q.decos) : une petite plaque accrochée à la porte de
   // l'arrière-boutique (au-dessus, l'enseigne de la boutique la cacherait), sa toque devant ; 'or' (la Planque) : la toque dorée sur fond
   // nuit ; 'citrouille' (le Manoir) : une citrouille qui porte la toque. bas : la seconde place, plus bas sur la porte (les deux gagnées).
@@ -7532,7 +7640,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     if (c.Q && c.Q.standing) out.push(standing(c));
     return out;
   }
-  return { get sallesEnCache() { return [...TEX.keys()].filter((k) => /^(sol|mur)/.test(k)).length; }, textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome, bocaux, toqueRecette, hantee, standing, coinsStanding };
+  return { get sallesEnCache() { return [...TEX.keys()].filter((k) => /^(sol|mur)/.test(k)).length; }, textureSol, textureMur, salle, froid, four, comptoir, caisse, tables, bar, banquette, terrasse, couverts, HAUT, deco, plan, presentoir, ardoise, plante, fleurs, chat, paillasson, sapin, guirlande, fanions, coeurs, etagere, cadre, horloge, diplome, lampe, propSaison, surDessus, dimsComptoir, vitrineDemo, tout, coupe, trophees, partsCoupe, METAL, graffiti, neon, chien, citrouilles, toiles, chaudron, fantome, bocaux, lanterneLegende, toqueRecette, hantee, standing, coinsStanding };
 })();
 if (typeof module !== 'undefined') module.exports = MEUBLES;
 
@@ -7544,7 +7652,8 @@ if (typeof module !== 'undefined') module.exports = MEUBLES;
    transparente), deux bras, et les accessoires (sac, plateau + pâtisserie fusionnés, clé, halo). Aucune échelle n'est appliquée :
    les cotes sont exprimées directement en unités monde, les proportions du dessin 2D y sont intégrées (73 de haut ≈ 45 px à
    l'écran en plongée 52°, tête r = 10, corps 22 de large). Budget : ≤ 8 appels de dessin par personnage (7 de base + 1 accessoire),
-   à tous les grades d'apprenti ; le chat de la boutique : 5 ; une pâtisserie, de la carte ou de saison : 1. */
+   à tous les grades d'apprenti ; le boulanger qui porte l'aura phosphorescente (le 20e palier de la Maison hantée) : + 1, un sprite ; le chat
+   de la boutique : 5 ; une pâtisserie, de la carte ou de saison : 1. */
 const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (fichier non chargé), le module vaut null et le jeu démarre sans 3D
   'use strict';
   const M = MODELES, TAU = Math.PI * 2, HP = Math.PI / 2, CY = Math.cos(52 * Math.PI / 180);
@@ -7597,11 +7706,19 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   }
   const VISAGES = []; // les 8 cases déjà construites : visage() les reprend ici sans recomposer la clé du cache (une chaîne allouée à chaque clignement)
   const geoVisage = (k) => VISAGES[k] || (VISAGES[k] = memo('visage|' + k, () => { const g = new THREE.SphereGeometry(RV, 10, 8, HP - PHI / 2, PHI, TH0, THL), uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, (k + uv.getX(i)) / NCEL); return g; }));
+  function haloTex() { // le dégradé radial blanc, partagé (jamais libéré) : le halo du mystère et l'aura du boulanger le teintent
+    if (!texHalo) { texHalo = M.texture((c, w, h) => { const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h); }, 64, 64); texHalo.userData.partagee = true; }
+    return texHalo;
+  }
   function haloMat() { // un dégradé radial doré pour le client mystère : la TEXTURE est partagée (jamais libérée), le SpriteMaterial est propre à chaque personnage (MODELES.dispose le libère sans toucher aux autres) ; en Node, le halo carré de MODELES
     if (typeof document === 'undefined') return M.MAT.halo;
-    if (!texHalo) { texHalo = M.texture((c, w, h) => { const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h); }, 64, 64); texHalo.userData.partagee = true; }
-    return new THREE.SpriteMaterial({ map: texHalo, color: OR, transparent: true, opacity: 0.6, depthWrite: false });
+    return new THREE.SpriteMaterial({ map: haloTex(), color: OR, transparent: true, opacity: 0.6, depthWrite: false });
   }
+  // l'aura phosphorescente du boulanger (le 20e palier de la Maison hantée, portée depuis la garde-robe : GAME.tenueBoulanger(st).aura) : le
+  // même dégradé teinté de vert, un sprite propre à ce boulanger (animerBoulanger fait varier son opacité et sa taille, sans allocation) ;
+  // en Node (sans canvas), un sprite sans texture, propre lui aussi (jamais le matériau partagé : on l'anime)
+  const AURA = { lueur: '#7CFF6B' };
+  function auraMat(id) { return new THREE.SpriteMaterial({ map: typeof document === 'undefined' ? null : haloTex(), color: AURA[id] || AURA.lueur, transparent: true, opacity: 0.44, depthWrite: false }); }
   // ─── un personnage : jambes, buste, tête, visage, bras, accessoires ───
   // Hiérarchie : g (lacet par la scène) > racine (échelle ×1,25 du patron, saut) > jambes ; racine > haut (rebond, respiration, assise) >
   // corps, cou > (tête, visage), bras, accessoires. userData.parts = { racine, haut, jambes[2], corps, cou, tete, visage, bras[2], sac?, plateau?, cle?,
@@ -7790,7 +7907,10 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     rang = rang || 0; const th = rang === 0 ? 10 : rang === 1 ? 22 : 22 + Math.min(14, (rang - 1) * 5);
     const garde = tenue && typeof tenue === 'object' ? tenue : null, metal = garde ? (garde.tete && METAUX_PODIUM.includes(garde.tete.metal) ? garde.tete.metal : null) : TENUES[tenue] ? tenue : null;
     const g = construire({ haut: '#FF6B8B', peau: '#FFD7B5', tablier: 'large', toque: th, lisere: rang >= 4, foulard: rang >= 3, moustache: rang >= 3, col: rang >= 5, sueur: true, tenue: garde ? null : TENUES[tenue] || null, garde });
-    g.userData.parts.racine.scale.setScalar(1.25); g.userData.rang = rang; g.userData.tenue = metal; g.userData.garde = garde; return g; // userData.tenue : le métal du podium porté sur la tête (ce que les autres voient), sinon null
+    const P = g.userData.parts;
+    // l'aura (garde.aura) : un seul sprite dressé derrière le buste, un peu plus grand que le boulanger ; un appel de dessin de plus, au plus
+    if (garde && garde.aura && AURA[garde.aura]) { P.aura = new THREE.Sprite(auraMat(garde.aura)); P.aura.position.set(0, 38, -7); P.aura.scale.set(68, 90, 1); P.aura.renderOrder = -1; P.aura.castShadow = false; P.racine.add(P.aura); }
+    P.racine.scale.setScalar(1.25); g.userData.rang = rang; g.userData.tenue = metal; g.userData.garde = garde; return g; // userData.tenue : le métal du podium porté sur la tête (ce que les autres voient), sinon null
   }
   // DÉPENDANCE DE VERSION (Three r158) : on écrit les champs privés d'Euler (_x, _y, _z) sans passer par le setter, puis tourner()
   // recale le quaternion comme le ferait Euler._onChangeCallback. Si une mise à jour de Three renomme ces champs ou change ce rappel,
@@ -7861,6 +7981,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     bg.rotation._x = bgx; bd.rotation._x = bdx; bg.rotation._z = bgz; bd.rotation._z = bdz; tourner(bg); tourner(bd);
     cou.rotation._x = cx; cou.rotation._z = cz; tourner(cou);
     if (P.sueur) P.sueur.visible = !!o.rush;
+    if (P.aura) { const k = Math.sin(t * 1.4), k2 = Math.sin(t * 0.53 + 1); P.aura.material.opacity = 0.44 + 0.1 * k + 0.04 * k2; P.aura.scale.x = 68 + 3 * k; P.aura.scale.y = 90 + 4 * k + 2 * k2; } // l'aura respire, doucement (deux sinus : jamais tout à fait le même battement)
     visage(P, o.blink > 3.25 ? 3 : 1);
   }
   // ─── le chat de la boutique : un roux tigré, même grammaire que les personnages (volumes ronds, couleurs plates, petits yeux) ───
@@ -8943,6 +9064,8 @@ const SCENE = (() => {
     ...['citrouilles', 'toiles', 'chaudron', 'fantome'].map((id) => ({ id: 'ht-' + id, cle: () => (htDeco(id) && MEUBLES[id] ? '1' : null), faire: (k, c) => MEUBLES[id](c) })),
     // l'étagère aux bocaux de monstres (le bestiaire de la Maison hantée, à la 5e sorte complétée) : seulement gagnée, dans les deux boutiques
     { id: 'ht-bestiaire', cle: () => (HDECO.bestiaire && MEUBLES.bocaux ? '1' : null), faire: (k, c) => MEUBLES.bocaux(c) },
+    // la lanterne de la légende (le 20e palier de la Maison hantée) : seulement gagnée, dans les deux boutiques, comme l'étagère aux bocaux
+    { id: 'ht-legende', cle: () => (HDECO.legende && MEUBLES.lanterneLegende ? '1' : null), faire: (k, c) => MEUBLES.lanterneLegende(c) },
     // la toque de la recette du jour (src/activites.js : la 500e fournée, à vie), accrochée à la porte de l'arrière-boutique : celle de la Planque, celle du Manoir plus bas si les deux sont là
     { id: 'toque-or', cle: () => (QDECO['toque-or'] && MEUBLES.toqueRecette ? '1' : null), faire: (k, c) => MEUBLES.toqueRecette(c, 'or', false) },
     { id: 'ht-toque-citrouille', cle: () => (HDECO['toque-citrouille'] && MEUBLES.toqueRecette ? (QDECO['toque-or'] ? 'deux' : 'seule') : null), faire: (k, c) => MEUBLES.toqueRecette(c, 'citrouille', k === 'deux') },
@@ -8976,7 +9099,7 @@ const SCENE = (() => {
   const REC = { tenue: null, coupe: null, coupes: [], equipe: false }, METAUX = ['or', 'argent', 'bronze'];
   const QDECO = { graffiti: false, neon: false, scooter: false, chien: false, 'toque-or': false }; // les décos du quartier posées dans la boutique (et la toque de la recette du jour)
   function decosQuartier(liste) { const l = Array.isArray(liste) ? liste : []; for (const k of Object.keys(QDECO)) QDECO[k] = l.includes(k); ext.der = -1; }
-  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false, 'toque-citrouille': false, bestiaire: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
+  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false, 'toque-citrouille': false, bestiaire: false, legende: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
   const ALIAS_HT = { citrouille: 'citrouilles', lanternes: 'citrouilles', toile: 'toiles', araignees: 'toiles', chaudrons: 'chaudron', fantomes: 'fantome' };
   function decosHantee(liste) { const l = (Array.isArray(liste) ? liste : []).map((k) => ALIAS_HT[k] || k); for (const k of Object.keys(HDECO)) HDECO[k] = l.includes(k); }
   // le compagnon de la boutique (GAME.COMPAGNONS : le chat roux, le chat noir, le chien… le mini-dragon ; ui.js dit lequel, noir d'office pour
@@ -9575,6 +9698,7 @@ const SCENE = (() => {
     get couverts() { return (couvertsCle.match(/1/g) || []).length; }, // les couverts posés (un par client assis ; pour les tests)
     get assisEn() { return { table: V.assisEn('table'), bar: V.assisEn('bar'), banquette: V.assisEn('banquette'), terrasse: V.assisEn('terrasse') }; }, // les clients assis par coin (pour les tests)
     get standingVu() { const g = groupes.standing, E = dernier; let n = 0; if (g) g.traverse((o) => { if (o.isMesh) n++; }); const emprises = ((g && g.userData.emprises) || []).map((e) => Object.assign({}, e, { haut: projeterY(e.y1, e.z0), bas: projeterY(e.y0, e.z1) })); return { palier: E && E.Q ? E.Q.standing || 0 : 0, decor: E && E.Q ? E.Q.id : '', hd: /\|hd\|/.test(cles.standing || ''), mailles: n, emprises }; }, // le standing posé ; ses emprises (monde, et haut/bas à l'écran) (pour les tests)
+    get boulangerVu() { const g = groupes.boulanger, P = g && g.userData.parts; if (!g) return null; let maillages = 0, sprites = 0; g.traverse((o) => { if (!o.visible) return; if (o.isMesh) maillages++; else if (o.isSprite) sprites++; }); return { tenue: (g.userData.garde && g.userData.garde.cle) || '', aura: !!(P && P.aura), opacite: P && P.aura ? +P.aura.material.opacity.toFixed(3) : 0, haut: P && P.aura ? +P.aura.scale.y.toFixed(2) : 0, maillages, sprites }; }, // le boulanger posé : sa tenue, son aura (un sprite) et ses appels de dessin (pour les tests)
     get meublesHD() { return SALLE_IDS.filter((id) => groupes[id] && /\|hd/.test(cles[id] || '')); }, // les meubles de la salle bâtis en KayKit (pour les tests)
     get amenager() { return amenager; }, get deplacer() { return deplacer; }, get glisse() { return glisse; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
     get _qual() { return QUAL; }, // la mesure de la qualité (pour les tests de la cadence)
@@ -10334,6 +10458,14 @@ const GARDEROBE_UI = (() => {
     const id = c.id(), comp = G.compagnon(id);
     return `<h3 class="titre-section">Le compagnon de la boutique</h3><div class="gr-liste"><button type="button" class="gr-piece gr-chat" data-gr-compagnons><span class="gr-ico">${ICONS.compagnon(id)}</span><span class="gr-txt"><b>${esc(c.nom())}, ${esc(comp ? comp.nom.toLowerCase() : 'chat roux')}</b><small>Changer de compagnon : du chat roux au mini-dragon</small></span><span class="gr-ok">›</span></button></div>${c.force() ? '<p class="note centre">Pendant la Maison hantée, un chat de la boutique est noir. Le choix revient après.</p>' : ''}`;
   }
+  // l'aura (le 20e palier de la Maison hantée : l'aura phosphorescente, GAME.AURAS) : sans bonus, à porter ou retirer d'un toucher, en plus des
+  // quatre pièces ; la section n'apparaît qu'une fois une aura gagnée
+  const AURA_ICO = (c) => `<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="21" fill="${c}" opacity=".22"/><circle cx="24" cy="24" r="14" fill="${c}" opacity=".4"/><circle cx="24" cy="24" r="7.5" fill="#F2FFE0"/><path d="M24 15.5c3 3.6 4.4 6.4 4.4 8.6a4.4 4.4 0 0 1-8.8 0c0-2.2 1.4-5 4.4-8.6z" fill="${c}"/></svg>`;
+  function blocAura(st) {
+    const g = G.garderobe(st); if (!G.AURAS || !g.auras || !g.auras.length) return '';
+    const l = g.auras.map((id) => { const a = G.AURAS[id], porte = g.aura === id; return `<button type="button" class="gr-piece gr-aura ${porte ? 'porte' : ''}" data-gr-aura="${porte ? '' : id}" aria-pressed="${porte}" aria-label="${esc(a.nom)} : ${porte ? 'portée, toucher pour la retirer' : 'toucher pour la porter'}"><span class="gr-ico">${AURA_ICO(a.couleur)}</span><span class="gr-txt"><b>${esc(a.nom)}</b><small>${esc(a.desc)}</small><small class="gr-b">${porte ? 'Portée : touche pour la retirer' : 'Rangée : touche pour la porter'}</small></span>${porte ? '<span class="gr-ok">Portée ✓</span>' : ''}</button>`; }).join('');
+    return `<h3 class="titre-section">L’aura</h3><div class="gr-liste" data-gr-auras>${l}</div>`;
+  }
   function html(st) {
     const g = G.garderobe(st), p = pieceOuverte, porte = g.equipe[p], bonus = resumeBonus(st), ens = G.ensembleComplet(st);
     const seg = `<div class="segments gr-seg" role="tablist" aria-label="Emplacement">${PIECES.map(([id, , court]) => `<button type="button" role="tab" data-gr-piece="${id}" aria-selected="${p === id}" class="${p === id ? 'actif' : ''}">${court}</button>`).join('')}</div>`;
@@ -10353,7 +10485,7 @@ const GARDEROBE_UI = (() => {
     return `<div class="cl gr" data-cl="garderobe"><div class="cl-tete"><span class="pic">${ICONS.UI.garderobe}</span><div><h2>Garde-robe</h2><p class="sous">Choisis ce que porte ton boulanger, pièce par pièce. Les étoiles améliorent chaque pièce (niveaux 1 à 5).</p></div></div>
       <div class="gr-tete"><span class="gr-portrait" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), G.tenueBoulanger(st))}</span><div><b>${bonus.length ? bonus.join(' · ') : 'Aucun bonus porté'}</b><small>${ens ? `${esc(GR.ensembles[ens].nom)} au complet.` : 'Les quatre pièces d’une même collection : un bonus d’ensemble en plus.'}</small><small class="gr-solde">${G.fmt(st.etoiles)} étoile${st.etoiles > 1 ? 's' : ''} à dépenser · une étoile dépensée ne compte plus dans les +5 % par étoile</small></div></div>
       ${seg}<div class="gr-liste" role="list" aria-label="${esc(NOM_PIECE[p])}">${rien}${cartes}</div>${indice}
-      <h3 class="titre-section">Les ensembles</h3><div class="gr-ensembles">${ensembles}</div>${blocCompagnon(st, ctxComp)}
+      ${blocAura(st)}<h3 class="titre-section">Les ensembles</h3><div class="gr-ensembles">${ensembles}</div>${blocCompagnon(st, ctxComp)}
       <button type="button" class="btn large sombre" data-a="gr-fermer" style="margin-top:14px"><b>Retour</b></button></div>`;
   }
   function ouvrir(ctx, piece) {
@@ -10376,6 +10508,10 @@ const GARDEROBE_UI = (() => {
       const id = b.dataset.grAmeliorer, r = G.ameliorerVetement(st, id);
       if (!r.ok) { ctx.son.non(); ctx.toast(r.max ? 'Cette pièce est déjà au niveau maximum.' : `Il faut ${r.cout} étoile${r.cout > 1 ? 's' : ''} : tu en as ${G.fmt(st.etoiles)}.`); return; }
       ctx.son.deblocage(); ctx.buzz([10, 30, 10]); ctx.toast(`${r.objet.nom} au niveau ${r.niv} : ${G.texteBonus(G.bonusPiece(id, r.niv)).join(', ')}`); ctx.save(); ctx.apres(); redessiner(ctx, `[data-gr-ameliorer="${id}"]`);
+    });
+    ctx.on('[data-gr-aura]', (b) => { // porter l'aura, ou la retirer (data-gr-aura vide)
+      const id = b.dataset.grAura || null, r = G.porterAura(st, id); if (!r.ok) { ctx.son.non(); return; }
+      ctx.son.tap(); ctx.buzz(8); ctx.toast(id ? `${G.AURAS[id].nom} : portée.` : 'Aura retirée : elle reste dans ta garde-robe.'); ctx.save(); ctx.apres(); redessiner(ctx, '[data-gr-aura]');
     });
     ctx.on('[data-gr-ensemble]', (b) => { const n = G.equiperCollection(st, b.dataset.grEnsemble); if (!n) { ctx.son.non(); return; } ctx.son.deblocage(); ctx.buzz([10, 30, 10]); ctx.toast(`${GR.ensembles[b.dataset.grEnsemble].nom} : les quatre pièces portées.`); ctx.save(); ctx.apres(); redessiner(ctx); });
     ctx.on('[data-a="gr-fermer"]', () => { ctx.son.tap(); ctx.closeSheet(); });
@@ -11553,7 +11689,8 @@ const GARDEROBE_UI = (() => {
     { n: 17, total: 5e15, jour: 6, bonus: true, etoiles: 3, boost: { mult: 10, secs: 1800 }, titre: 'Osvaldo en rit jusqu’aux os' },
     { n: 18, total: 8e15, jour: 6, bonus: true, etoiles: 4, prime: 12, titre: 'Berthe chante juste (une fois)' },
     { n: 19, total: 1.4e16, jour: 7, bonus: true, etoiles: 4, boost: { mult: 10, secs: 2700 }, titre: 'La lune se lève rien que pour toi' },
-    { n: 20, total: 2.4e16, jour: 7, bonus: true, vetement: 'hantee-lueur-chapeau', etoiles: 8, boost: { mult: 10, secs: 3600 }, prime: 24, titre: 'La légende phosphorescente' },
+    { n: 20, total: 2.4e16, jour: 7, bonus: true, vetement: 'hantee-lueur-chapeau', etoiles: 8, boost: { mult: 10, secs: 3600 }, prime: 24, titre: 'La légende phosphorescente',
+      deco: 'legende', aura: 'lueur', distinction: 'legende-manoir' }, // lot 6, les acharnés : la lanterne de la légende (la boutique), l'aura phosphorescente (la garde-robe), le titre « Légende du Manoir » (le classement), à vie
   ];
   const ANCIENS = { // les récompenses d'avant la version 2 (étoiles, boost ; aucune prime) : la revue donne la différence (ACT.RECOMPENSES.revue)
     1: { etoiles: 1, boost: { mult: 2, secs: 1800 } }, 4: { etoiles: 1 }, 7: { boost: { mult: 5, secs: 900 } }, 10: { etoiles: 2, boost: { mult: 2, secs: 3600 } }, 11: { etoiles: 1, boost: { mult: 2, secs: 1800 } },
@@ -11996,7 +12133,8 @@ const GARDEROBE_UI = (() => {
     return p;
   }
   const ensembleComplet = (q) => VETEMENTS.every((v) => q.vetements.includes(v));
-  const NOMS_DECOS = { citrouilles: 'des citrouilles sur le perron', toiles: 'des toiles d’araignée aux fenêtres', chaudron: 'un chaudron qui bouillonne', bestiaire: 'l’étagère aux bocaux de monstres (le bestiaire)' };
+  const NOMS_DECOS = { citrouilles: 'des citrouilles sur le perron', toiles: 'des toiles d’araignée aux fenêtres', chaudron: 'un chaudron qui bouillonne', bestiaire: 'l’étagère aux bocaux de monstres (le bestiaire)', legende: 'la lanterne de la légende' };
+  const NOMS_AURAS = { lueur: 'l’aura phosphorescente' }, NOMS_DISTINCTIONS = { 'legende-manoir': 'le titre « Légende du Manoir »' }; // le 20e palier (src/game.js : AURAS, DISTINCTIONS)
   const NOMS_VETEMENTS = { 'hantee-chapeau': 'chapeau pointu de sorcière', 'hantee-cape': 'cape de minuit', 'hantee-bottes': 'bottes qui claquent', 'hantee-lanterne': 'citrouille-lanterne (la tenue complète)', 'hantee-lueur-chapeau': 'le chapeau phosphorescent (le trophée)' };
   function phrasePalier(p) { // ce que donne un palier, en une ligne
     const l = [];
@@ -12006,6 +12144,8 @@ const GARDEROBE_UI = (() => {
     if (p.chat) l.push('le chat noir');
     if (p.deco) l.push(NOMS_DECOS[p.deco]);
     if (p.vetement) l.push(NOMS_VETEMENTS[p.vetement]);
+    if (p.aura) l.push(NOMS_AURAS[p.aura] || p.aura);
+    if (p.distinction) l.push(NOMS_DISTINCTIONS[p.distinction] || p.distinction);
     return l.join(' · ');
   }
 
@@ -13458,6 +13598,7 @@ const EVENEMENTS = (() => {
       const s = st(); if (!s || !s[F.cle]) return;
       const qq = q();
       if (typeof G.donnerVetement === 'function') for (const v of qq.vetements) { try { G.donnerVetement(s, v); } catch (e) { /* un id que la garde-robe ne connaît pas encore */ } }
+      for (const p of Q.PALIERS || []) if (qq.paliers.includes(p.n)) donnerDistinctions(s, p); // l'aura et le titre d'un palier déjà réclamé (une autre fenêtre, une sauvegarde rechargée) : une fois
       if (Q.verserRecette) { const n = Q.verserRecette(qq); if (n > 0) { s.etoiles += n; d.save(); } } // la recette du jour : des étoiles d'étape pas encore versées (une étape franchie dans l'absence de la fin)
       if (Q.verserBestiaire) { const n = Q.verserBestiaire(qq); if (n > 0) { s.etoiles += n; d.save(); } } // le bestiaire du Manoir : des étoiles d'une sorte complétée pas encore versées (l'appli fermée juste après)
       F.decos(qq.decos); if (F.synchro) F.synchro(s, qq);
@@ -13490,6 +13631,14 @@ const EVENEMENTS = (() => {
       d.on('[data-a="pq-ok"]', () => { d.son.tap(); d.closeSheet(); });
       const surFermeture = setInterval(() => { if ($('#feuille').hidden) { sheetOuverte = false; clearInterval(surFermeture); montrerSheetsEnAttente(); } }, 300);
     }
+    // l'aura (la garde-robe) et le titre (le classement) d'un palier (le 20e de la Maison hantée) : rend les lignes de la feuille du palier,
+    // [] s'ils étaient déjà là (donnerAura et donnerDistinction ne redonnent rien)
+    function donnerDistinctions(s, p) {
+      const l = [];
+      if (p.aura && typeof G.donnerAura === 'function') { const r = G.donnerAura(s, p.aura); if (r.nouveau) l.push(`${r.aura.nom} autour du boulanger : portée d’office, elle se retire dans la garde-robe`); }
+      if (p.distinction && typeof G.donnerDistinction === 'function') { const r = G.donnerDistinction(s, p.distinction); if (r.nouveau) l.push(`le titre « ${r.distinction.nom} », à côté de ton pseudo dans le classement et quand on visite ta boutique`); }
+      return l;
+    }
     function donnerPalier(p) {
       const s = st(), qq = q(), fait = Q.marquerPalier(qq, p.n); if (!fait) return null;
       const dons = [];
@@ -13498,6 +13647,7 @@ const EVENEMENTS = (() => {
       if (p.prime && typeof G.donnerPrimeHeures === 'function') { const x = G.donnerPrimeHeures(s, p.prime); dons.push(`${G.fmtEur(x)} pour la boulangerie : ${p.prime} h de ses gains, d’un coup`); }
       if (p.deco) { F.decos(qq.decos); dons.push(F.t.decoDon[p.deco] || F.t.decoDefaut(p.deco)); }
       if (p.vetement) { let r = null; if (typeof G.donnerVetement === 'function') { try { r = G.donnerVetement(s, p.vetement); } catch (e) { r = null; } } const v = typeof G.vetement === 'function' ? G.vetement(p.vetement) : null; dons.push(`${v ? v.nom : F.t.vetementNom(p.vetement)} pour la garde-robe du boulanger${Q.ensembleComplet(qq) ? F.t.tenueComplete : ''}${r && r.nouveau === false ? ' (déjà là)' : ''}`); }
+      dons.push(...donnerDistinctions(s, p));
       if (F.apresPalier) F.apresPalier(s, p, dons);
       G.gagnerXp(s, 20);
       fileSheets.push({ p, dons }); d.save(); d.apres();
@@ -14851,7 +15001,7 @@ const EVENEMENTS = (() => {
         // ×6 avec toi », « Le boss s'endort… », et il retombe à ×1 sans toucher)
         taux: (m, pres) => `<b>+${m}</b>/s · <b class="mh-pres">×${pres}</b>`, tauxVide: (pres) => `Touche une friandise · <b class="mh-pres">×${pres}</b>`,
         nouveau: (n) => `${n} : nouvelle friandise au manoir !`, embauche: (n) => `${n} rejoint l’équipe du manoir !`,
-        decoDon: Object.assign({}, HF.decos || {}, { citrouilles: 'des citrouilles-lanternes dans la boutique', toiles: 'des toiles d’araignée (gentilles) aux coins de la boutique', chaudron: 'un chaudron qui bouillonne près du four', fantome: 'un petit fantôme qui flotte dans la boutique', chauvesouris: 'des chauves-souris en papier au plafond', lanternes: 'des lanternes sur le comptoir' }, T.decoDon || {}), decoDefaut: (k) => `${k} pour la boutique`,
+        decoDon: Object.assign({}, HF.decos || {}, { citrouilles: 'des citrouilles-lanternes dans la boutique', toiles: 'des toiles d’araignée (gentilles) aux coins de la boutique', chaudron: 'un chaudron qui bouillonne près du four', fantome: 'un petit fantôme qui flotte dans la boutique', chauvesouris: 'des chauves-souris en papier au plafond', lanternes: 'des lanternes sur le comptoir', legende: 'la lanterne de la légende, sa flamme verte au pied du fournil' }, T.decoDon || {}), decoDefaut: (k) => `${k} pour la boutique`,
         vetementNom: (v) => v, tenueComplete: ' : la tenue d’Halloween est complète !',
         palierSous: (m) => `${m} gagnés au manoir. Pour la boulangerie :`, palierFinal: txt('palier12', txt('palierFinal', 'La reine de la nuit, c’est toi. Tout ça reste à vie, même après la fermeture du manoir.')), palierOk: 'Trop chouette',
         amTitre: typeof T.ameliorations === 'string' ? `Les ${T.ameliorations.toLowerCase()}` : txt('amTitre', 'Les sortilèges'), amSous: txt('amSous', 'Des sorts qui multiplient les ventes du manoir, jusqu’à la fin de l’événement.'),
@@ -17609,7 +17759,7 @@ const UI = (() => {
     if (!d.lignes.length) return `${tete}<div class="cl-etat"><span class="pic">${ICONS.UI.podium}</span><b>${hantee ? 'Personne encore au manoir' : quartier ? 'Personne encore au Quartier' : semaine ? 'Personne encore cette semaine' : 'Personne encore'}</b><span>${hantee ? 'Les bonbons du manoir arrivent avec le prochain envoi.' : quartier ? 'Les billets de la Planque arrivent avec le prochain envoi.' : r.rejoint ? 'Tes points arrivent dans un instant.' : 'Rejoins le classement et ouvre le bal !'}</span></div>`;
     const visites = classement.copains(); // classement v6 : toucher la ligne d'un copain ouvre sa boutique (semaine), sa fiche (tous les temps), sa Planque (événement)
     const evL = evDe(ongletCl), quoi = ongletCl === 'total' ? 'Voir les statistiques de' : evL ? `Visiter ${lieuDe(evL).le} de` : 'Visiter la boutique de';
-    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : visites ? ' visitable' : ''}"${moi ? ' aria-current="true"' : visites ? ` data-visite="${esc(l.pseudo)}" role="button" tabindex="0" aria-label="${quoi} ${esc(l.pseudo)}"` : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom">${l.enLigne || (moi && d.enLigneN > 0) ? '<i class="cl-en-ligne" role="img" aria-label="en ligne" title="En ligne"></i>' : ''}<span>${esc(l.pseudo)}</span>${quartier ? (l.podium ? `<i class="tag">${rangDe(l.podium)} ${hantee ? 'du manoir' : 'du Quartier'}</i>` : '') : toqueDe(l.podium, l.toque, moi)}${moi ? '<i class="tag">toi</i>' : ''}</span>${val(l)}${!moi && visites ? `<i class="cl-chev" aria-hidden="true">${ICONS.UI.chevron}</i>` : ''}</li>`;
+    const ligne = (l, moi) => `<li class="cl-ligne${moi ? ' moi' : visites ? ' visitable' : ''}"${moi ? ' aria-current="true"' : visites ? ` data-visite="${esc(l.pseudo)}" role="button" tabindex="0" aria-label="${quoi} ${esc(l.pseudo)}"` : ''}><span class="cl-rang${l.rang <= 3 ? ' r' + l.rang : ''}">${l.rang}<small>${l.rang === 1 ? 'er' : 'e'}</small></span><span class="cl-nom">${l.enLigne || (moi && d.enLigneN > 0) ? '<i class="cl-en-ligne" role="img" aria-label="en ligne" title="En ligne"></i>' : ''}<span>${esc(l.pseudo)}</span>${etiquetteTitre(titreDe(l, moi))}${quartier ? (l.podium ? `<i class="tag">${rangDe(l.podium)} ${hantee ? 'du manoir' : 'du Quartier'}</i>` : '') : toqueDe(l.podium, l.toque, moi)}${moi ? '<i class="tag">toi</i>' : ''}</span>${val(l)}${!moi && visites ? `<i class="cl-chev" aria-hidden="true">${ICONS.UI.chevron}</i>` : ''}</li>`;
     let html = d.lignes.map((l) => ligne(l, l.moi && r.rejoint)).join('');
     if (r.rejoint && d.moi && !d.lignes.some((l) => l.moi)) html += `<li class="cl-sep" aria-hidden="true"><i></i><i></i><i></i></li>${ligne({ rang: d.moi.rang, pseudo: r.pseudo, points: d.moi.points, valeur: d.moi.valeur, podium: d.moi.podium }, true)}`; // loin derrière : sa ligne quand même, sous les 50 premiers
     const absent = r.rejoint && !d.moi ? `<p class="note">${semaine ? 'Tu n’apparais pas encore cette semaine : tes points partent dès que le réseau le permet.' : 'Tes points ne sont pas encore arrivés : ils partent dès que le réseau le permet.'}</p>` : '';
@@ -17713,6 +17863,7 @@ const UI = (() => {
     if (k !== derniereRecScene) { derniereRecScene = k; SCENE.recompenses({ tenue: r.portee, coupe: r.coupe, coupes: r.coupes, equipe: !!r.badge }); if (pageActive === 'boulanger') renderPage(); }
     if (r.annonce && !annonceOuverte) tenterAnnonce();
     else if (!r.annonce && r.aPayer && r.aPayer.length && !lundiOuvert) tenterLundi();
+    else if (!r.annonce && r.evtAPayer && r.evtAPayer.length && !evtOuvert) tenterEvt();
   }
   function tenterAnnonce() { // au premier lancement après un podium, une fois la feuille du retour (gains d'absence) refermée
     clearTimeout(annonceMinuteur); annonceMinuteur = 0;
@@ -17786,13 +17937,58 @@ const UI = (() => {
     });
     const surFermeture = setInterval(() => { if (feuille.hidden || vueCl !== 'semaine-place') { fin(); clearInterval(surFermeture); } }, 500);
   }
+  // ─── version 6.6 : les acharnés des événements (la Maison hantée) : sa place au classement FINAL, du 1er au 15e (src/classement.js,
+  // RECOMPENSES_EVT) : des étoiles et un boost, une fois (classement.evtPaye) ; les trois premiers ont en plus la tenue en or (majRecompenses) ───
+  function payerEvt(liste) { // verse les places d'événement pas encore payées (le moteur le note avant : jamais deux fois) ; rend { n, etoiles, boosts }
+    const g = { n: 0, etoiles: 0, boosts: [] };
+    for (const p of liste || []) {
+      const x = p.recompense; if (!x || !classement.evtPaye(p.id)) continue;
+      st.etoiles += x.etoiles; G.donnerBoostReserve(st, x.mult, x.secs); g.n++; g.etoiles += x.etoiles; g.boosts.push({ mult: x.mult, secs: x.secs });
+    }
+    if (g.n) { save(); hud(); renderBoosts(); }
+    return g;
+  }
+  let evtOuvert = false, evtMinuteur = 0, evtMontre = ''; // evtMontre : la feuille montrée une fois par lancement (la récompense reste dans « Mes récompenses »)
+  function tenterEvt() { // une fois les autres feuilles refermées (l'annonce du podium de la semaine, la feuille du lundi passent avant)
+    clearTimeout(evtMinuteur); evtMinuteur = 0;
+    const r = recVue(); if (!r || r.annonce || !r.evtAPayer || !r.evtAPayer.length || evtOuvert || lundiOuvert || annonceOuverte) return;
+    const p = r.evtAPayer[0]; if (evtMontre === p.id) return;
+    if (!feuille.hidden || document.hidden || visite || copainsOuvert || retourEnCours || MINIJEUX.ouvert || (EVS && EVS.ouvert) || (AR && AR.ouvert) || (r.aPayer && r.aPayer.length && lundiMontre !== r.aPayer[r.aPayer.length - 1].semaine)) { evtMinuteur = setTimeout(tenterEvt, 1500); return; }
+    sheetEvt();
+  }
+  const NOM_EVT_LONG = { hantee: 'la Maison hantée' };
+  function sheetEvt() {
+    const r = recVue(), l = r && r.evtAPayer ? r.evtAPayer : []; if (!l.length) return;
+    const p = l[0], x = p.recompense, tenue = p.rang <= 3;
+    evtOuvert = true; evtMontre = p.id;
+    openSheet(`<div class="cl rec-annonce cp-annonce mh-acharne" data-cl="evt-place"><div class="rec-scene ${tenue ? 'or' : 'equipe'}" aria-hidden="true"><i class="rec-rayons"></i><span class="rec-coupe">${p.rang <= 3 ? ICONS.coupe(CLM.metal(p.rang)) : ICONS.UI.hantee || ICONS.UI.podium}</span></div>
+      <h2>${esc(CLM.phraseEvt(p))}</h2>
+      <p class="rec-phrase">${x.etoiles > 1 ? `+${x.etoiles} étoiles` : '+1 étoile'} et ${boostTexte(x)}${tenue ? ', et la tenue d’Halloween en or' : ''}</p>
+      <p class="sous">${tenue ? 'Sur le podium final : les quatre pièces de la tenue d’Halloween en or sont dans ta garde-robe, à vie. ' : ''}À la fin de ${esc(NOM_EVT_LONG[p.id] || 'l’événement')}, les quinze premiers du classement final sont récompensés. Les étoiles, c’est +${Math.round(G.ETOILE_BONUS * 100)} % de gains chacune, pour toujours ; le boost attend dans ta réserve, lance-le quand tu veux.</p>
+      <button type="button" class="btn large beurre" data-a="ev-recuperer"><b>Récupérer</b></button></div>`);
+    vueCl = 'evt-place';
+    let touche = true; try { touche = !navigator.userActivation || navigator.userActivation.hasBeenActive; } catch (e) { /* rien */ }
+    son.deblocage(); if (touche) buzz([20, 40, 20]); confettis(1);
+    const fin = () => { evtOuvert = false; };
+    on('[data-a="ev-recuperer"]', () => {
+      const g = payerEvt(recVue().evtAPayer); fin(); closeSheet();
+      if (g.n) { son.deblocage(); buzz([10, 30, 10]); SCENE.fete(); confettis(0.8); toast(`Récupéré : ${texteGain(g)} (le boost attend dans ta réserve) !`); }
+      setTimeout(tenterCopains, 400);
+    });
+    const surFermeture = setInterval(() => { if (feuille.hidden || vueCl !== 'evt-place') { fin(); clearInterval(surFermeture); } }, 500);
+  }
+  // le titre gagné (« Légende du Manoir », le 20e palier de la Maison hantée) : une petite étiquette à côté du pseudo (la liste du classement, la
+  // visite) ; le sien se lit sur le téléphone, celui des autres vient du serveur (classement v6.6) ou de la photo de leur boutique
+  const titreDe = (l, moi) => { const t = moi ? (G.distinctions ? G.distinctions(st).find(CLM.titreOk) : null) || l.titre : l.titre; return t && CLM.titreOk && CLM.titreOk(t) ? t : null; };
+  const LANTERNE_TITRE = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1v2" stroke="#2B2533" stroke-width="1.4" stroke-linecap="round"/><path d="M3.6 6 8 2.6 12.4 6z" fill="#2B2533"/><rect x="4.4" y="6" width="7.2" height="7" rx="1" fill="#3A2E46"/><path d="M8 7.2c1.5 1.6 2.1 2.8 2.1 3.7a2.1 2.1 0 0 1-4.2 0c0-.9.6-2.1 2.1-3.7z" fill="#7CFF6B"/><rect x="3.6" y="13" width="8.8" height="1.6" rx=".8" fill="#2B2533"/></svg>'; // la lanterne de la légende, en tout petit
+  const etiquetteTitre = (t) => (t ? `<i class="cl-titre" title="${esc(CLM.TITRES[t])}">${LANTERNE_TITRE}<span>${esc(CLM.TITRES[t])}</span></i>` : '');
   // l'entrée « Mes récompenses », en tête de la feuille du classement et dans l'onglet Boulanger (seulement après un premier podium)
-  const cleRecompenses = () => { const r = recVue(); return r ? `${r.podiums.length}|${(r.places || []).length}|${(r.aPayer || []).length}|${G.toqueMetal(st)}` : ''; };
+  const cleRecompenses = () => { const r = recVue(); return r ? `${r.podiums.length}|${(r.places || []).length}|${(r.aPayer || []).length}|${(r.evtPlaces || []).length}|${(r.evtAPayer || []).length}|${G.toqueMetal(st)}` : ''; };
   function carteRecompenses() {
-    const r = recVue(), places = r && r.places ? r.places : []; if (!r || (!r.podiums.length && !places.length)) return '';
+    const r = recVue(), places = r && r.places ? r.places : [], evp = r && r.evtPlaces ? r.evtPlaces : []; if (!r || (!r.podiums.length && !places.length && !evp.length)) return '';
     const n = r.podiums.length, dernieres = n ? r.podiums.slice(-5).map((p) => `<i class="rec-mini">${ICONS.coupe(CLM.metal(p.rang))}</i>`).join('') : `<i class="rec-mini">${ICONS.UI.podium}</i>`;
     const tm = G.toqueMetal(st), porte = tm ? `toque ${DE_METAL[tm]}` : 'toque blanche', np = places.length;
-    const quoi = (r.aPayer || []).length ? 'une récompense t’attend' : n ? `${n} coupe${n > 1 ? 's' : ''} · ${porte}` : `${np} place${np > 1 ? 's' : ''} au classement`;
+    const quoi = (r.aPayer || []).length || (r.evtAPayer || []).length ? 'une récompense t’attend' : n ? `${n} coupe${n > 1 ? 's' : ''} · ${porte}` : np ? `${np} place${np > 1 ? 's' : ''} au classement` : `${rangDe(evp[0].rang)} de ${NOM_EVT_LONG[evp[0].id] || 'l’événement'}`;
     return `<button type="button" class="rec-entree" data-a="cl-recompenses"><span class="rec-minis" aria-hidden="true">${dernieres}</span><span><b>Mes récompenses</b><small>${quoi}</small></span><i class="ico chev">${ICONS.UI.chevron}</i></button>`;
   }
   // la collection : chaque coupe et sa tenue, avec sa semaine ; la tenue se choisit pièce par pièce dans la garde-robe (onglet Boulanger)
@@ -17801,21 +17997,23 @@ const UI = (() => {
     const r = recVue(), tm = G.toqueMetal(st), tenue = tenueVue();
     for (const m of r.coupes) G.donnerCollection(st, m); // au cas où la garde-robe n'aurait pas encore reçu un podium
     const coupes = r.podiums.slice().reverse().map((p) => { const m = CLM.metal(p.rang); return `<li class="rec-carte ${m}"><span class="rec-icone">${ICONS.coupe(m)}</span><b>${rangDe(p.rang)}</b><small>Coupe et tenue ${DE_METAL[m]}</small><small>Semaine du ${CLM.dateCourte(p.semaine)}</small></li>`; }).join('');
-    const places = r.places || [], aPayer = r.aPayer || [];
-    const vide = !r.podiums.length && !places.length ? '<div class="cl-etat"><span class="pic">' + ICONS.coupe('or') + '</span><b>Pas encore de récompense</b><span>Termine la semaine dans les quinze premiers du classement : des étoiles et un boost t’attendent ; dans les trois premiers, une tenue et une coupe en plus.</span></div>' : '';
+    const places = r.places || [], aPayer = r.aPayer || [], evp = r.evtPlaces || [], evtAP = r.evtAPayer || [];
+    const vide = !r.podiums.length && !places.length && !evp.length ? '<div class="cl-etat"><span class="pic">' + ICONS.coupe('or') + '</span><b>Pas encore de récompense</b><span>Termine la semaine dans les quinze premiers du classement : des étoiles et un boost t’attendent ; dans les trois premiers, une tenue et une coupe en plus.</span></div>' : '';
     // version 6.5 : l'historique des places, la plus récente d'abord (sa récompense : versée, à récupérer, ou d'avant les récompenses des places)
     const insec = (s) => String(s).replace(/ /g, '\u00A0'); // « 12 oct. », « 30 min » : sans coupure
     const etatPlace = (p) => (p.payee ? 'Récupérée' : aPayer.some((x) => x.semaine === p.semaine) ? 'À récupérer' : p.rang <= 3 ? 'Tenue et coupe' : 'Avant les récompenses');
     const lignesPlaces = places.slice().reverse().slice(0, 30).map((p) => `<li class="rec-carte${p.rang <= 3 ? ' ' + CLM.metal(p.rang) : ''}"><b>${rangDe(p.rang)}</b><small>${p.joueurs ? `sur ${p.joueurs}` : '&nbsp;'}</small><small>Semaine du ${insec(CLM.dateCourte(p.semaine))}</small>${p.recompense && (p.payee || aPayer.some((x) => x.semaine === p.semaine)) ? `<small>+${p.recompense.etoiles}\u00A0★ · ×${p.recompense.mult}\u00A0${insec(G.fmtDuree(p.recompense.secs))}</small>` : ''}<small><i>${etatPlace(p)}</i></small></li>`).join('');
+    // version 6.6 : ses places au classement final des événements (la Maison hantée), leur récompense : versée ou à récupérer
+    const lignesEvt = evp.map((p) => `<li class="rec-carte mh-acharne${p.rang <= 3 ? ' or' : ''}"><b>${rangDe(p.rang)}</b><small>${p.joueurs ? `sur ${p.joueurs}` : '&nbsp;'}</small><small>${esc((NOM_EVT_LONG[p.id] || '').replace(/^la /, 'La '))}</small>${p.recompense ? `<small>+${p.recompense.etoiles}\u00A0★ · ×${p.recompense.mult}\u00A0${insec(G.fmtDuree(p.recompense.secs))}${p.rang <= 3 ? ' · tenue en or' : ''}</small>` : ''}<small><i>${p.payee ? 'Récupérée' : evtAP.some((x) => x.id === p.id) ? 'À récupérer' : ''}</i></small></li>`).join('');
     const pieces = tenue ? ['tete', 'haut', 'pieds', 'accessoire'].map((p) => { const v = G.vetement(G.garderobe(st).equipe[p]); return v ? esc(v.nom.toLowerCase()) : null; }).filter(Boolean).join(', ') : '';
-    openSheet(`<div class="cl" data-cl="recompenses"><div class="cl-tete"><span class="pic">${ICONS.coupe(r.coupes.length ? r.coupes[r.coupes.length - 1] : 'or')}</span><div><h2>Mes récompenses</h2><p class="sous">Chaque semaine, les quinze premiers gagnent des étoiles et un boost ; les trois premiers, en plus, une tenue (toque, tablier, chaussures, foulard) et une coupe, à garder pour toujours.</p></div></div>
-      ${vide}${aPayer.length ? `<button type="button" class="btn large beurre" data-a="rec-recuperer"><b>Récupérer ma récompense</b></button>` : ''}${places.length ? `<h3 class="titre-section">Mes places</h3><ul class="rec-coupes" aria-label="Mes places au classement de la semaine">${lignesPlaces}</ul>` : ''}${r.podiums.length ? `<h3 class="titre-section">La vitrine des trophées</h3><ul class="rec-coupes" aria-label="Mes coupes">${coupes}</ul>
+    openSheet(`<div class="cl" data-cl="recompenses"><div class="cl-tete"><span class="pic">${ICONS.coupe(r.coupes.length ? r.coupes[r.coupes.length - 1] : 'or')}</span><div><h2>Mes récompenses</h2><p class="sous">Chaque semaine, les quinze premiers gagnent des étoiles et un boost ; les trois premiers, en plus, une tenue (toque, tablier, chaussures, foulard) et une coupe, à garder pour toujours.${evp.length ? ' À la fin d’un événement, ses quinze premiers aussi.' : ''}</p></div></div>
+      ${vide}${aPayer.length || evtAP.length ? `<button type="button" class="btn large beurre" data-a="rec-recuperer"><b>Récupérer ma récompense</b></button>` : ''}${evp.length ? `<h3 class="titre-section">Mes événements</h3><ul class="rec-coupes" aria-label="Mes places au classement final des événements">${lignesEvt}</ul>` : ''}${places.length ? `<h3 class="titre-section">Mes places</h3><ul class="rec-coupes" aria-label="Mes places au classement de la semaine">${lignesPlaces}</ul>` : ''}${r.podiums.length ? `<h3 class="titre-section">La vitrine des trophées</h3><ul class="rec-coupes" aria-label="Mes coupes">${coupes}</ul>
       <h3 class="titre-section" id="rec-titre-tenue">La tenue du boulanger</h3>
       <div class="rec-apercu" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), tenue)}<span>${tm ? `Il porte la toque ${DE_METAL[tm]}` : 'Il porte la toque blanche'}${pieces ? ` : ${pieces}.` : '.'}</span></div>
       <button type="button" class="btn large clair" data-a="rec-garderobe" style="margin-top:8px"><b>Ouvrir la garde-robe</b></button>` : ''}
       ${depuisCl ? '<button type="button" class="btn large sombre" data-a="cl-retour" style="margin-top:14px"><b>Retour au classement</b></button>' : btnRetour()}</div>`);
     vueCl = 'recompenses';
-    on('[data-a="rec-recuperer"]', () => { const g = payerPlaces(recVue().aPayer); if (g.n) { son.deblocage(); buzz([10, 30, 10]); confettis(0.8); toast(`Récupéré : ${texteGain(g)} (le boost attend dans ta réserve) !`); } sheetRecompenses(depuisCl); });
+    on('[data-a="rec-recuperer"]', () => { const g = payerPlaces(recVue().aPayer), ge = payerEvt(recVue().evtAPayer); g.n += ge.n; g.etoiles += ge.etoiles; g.boosts.push(...ge.boosts); if (g.n) { son.deblocage(); buzz([10, 30, 10]); confettis(0.8); toast(`Récupéré : ${texteGain(g)} (le boost attend dans ta réserve) !`); } sheetRecompenses(depuisCl); });
     on('[data-a="rec-garderobe"]', () => { son.tap(); if (GRU) GRU.ouvrir(ctxGarderobe(), 'tete'); });
     on('[data-a="cl-retour"]', () => { son.tap(); sheetClassement(); });
     on('[data-a="close"]', closeSheet);
@@ -17950,6 +18148,7 @@ const UI = (() => {
     if (!v.b) return carte(ICONS.UI.boutique, 'Pas encore ouverte aux visites', `La boutique de ${esc(v.pseudo)} apparaîtra après sa prochaine partie. Tu peux déjà lui laisser un pourboire.`);
     const s = v.b.st, { postes, apprentis, crans, max } = resumeBoutique(s);
     const li = [`Niveau ${G.niveau(s)} · ${esc(G.titre(s))}`, `${postes} recette${postes > 1 ? 's' : ''} au four · ${apprentis} apprenti${apprentis > 1 ? 's' : ''}`, `Mobilier : ${crans} cran${crans > 1 ? 's' : ''} sur ${max}`];
+    if (v.b.titre) li.push(`Le titre « ${esc(v.b.titre)} »`);
     if (s.chat) li.push(`Le compagnon : ${esc(s.chat.nom)}`); if (v.b.coupes.length) li.push(`${v.b.coupes.length} coupe${v.b.coupes.length > 1 ? 's' : ''} en vitrine`); if (v.b.badge) li.push('Le badge « Esprit d’équipe »');
     return carte(ICONS.UI.boutique, esc(v.b.nom), esc(nomQuartier(ph.q)), `<ul>${li.map((x) => `<li>${x}</li>`).join('')}</ul>`);
   }
@@ -18017,7 +18216,8 @@ const UI = (() => {
     $('#vi-sous').textContent = v.charge ? 'On frappe à la porte…' : d ? `${d.enLigne ? 'En ligne · ' : ''}${v.b ? `${v.b.nom} · ${nomQuartier(ph.q)}` : 'Visite'}` : '';
     $('#vi-ligne').hidden = !(d && d.enLigne);
     vue.classList.toggle('carte', !v.scene);
-    vue.innerHTML = v.scene ? `<span class="vi-enseigne">${esc(v.b.nom)}</span><span class="vi-lecture"><i class="ico">${ICONS.UI.oeil}</i>Tu visites : rien ne change chez ${esc(v.pseudo)}</span>` : carteVisite(v);
+    const ti = v.b && v.b.titre && d && d.photo ? d.photo.ti : null; // son titre (« Légende du Manoir »), lu dans sa photo : sous son enseigne
+    vue.innerHTML = v.scene ? `<span class="vi-enseigne">${esc(v.b.nom)}</span>${ti ? `<span class="vi-titre">${etiquetteTitre(ti)}</span>` : ''}<span class="vi-lecture"><i class="ico">${ICONS.UI.oeil}</i>Tu visites : rien ne change chez ${esc(v.pseudo)}</span>` : carteVisite(v);
     $('#vi-bas').innerHTML = basVisite(v);
     document.querySelectorAll('#visite [data-vi]').forEach((b) => { b.onclick = () => clicVisite(b); });
   }

@@ -8,7 +8,8 @@
 //    le chat et le client en route recasés quand un meuble bouge, un plan qui ne tient pas sur l'écran (Déplacer part du plan affiché),
 //    un écran large (grille bornée au code compact), les colonnes et les cordons du trottoir sans recouvrement.
 // Les décos de la Maison hantée gagnées (citrouilles, toiles, chaudron, fantôme, toque, et l'étagère aux bocaux de monstres du bestiaire)
-// posées en plus, tout au max : le budget tient encore. Captures 390×844 dans test/shots/meubles/ (et, celle des bocaux, dans SHOTS_BESTIAIRE).
+// posées en plus, tout au max : le budget tient encore ; et la lanterne de la légende (le 20e palier, lot 6) : deux appels de plus, au plus
+// (captures acharnes-*.png dans SHOTS_ACHARNES). Captures 390×844 dans test/shots/meubles/ (et, celle des bocaux, dans SHOTS_BESTIAIRE).
 // Lancer : node build.js && NODE_PATH=/opt/node22/lib/node_modules TZ=Europe/Paris node test/fournil-meubles.cjs   (--plan : la partie 1 seule)
 'use strict';
 const { chromium } = require('playwright');
@@ -270,6 +271,15 @@ const server = http.createServer((req, res) => {
     await page.screenshot({ path: path.join(out, 'decos-hantee-eco.png') });
     await page.screenshot({ path: path.join(out, 'bocaux-eco.png'), clip: { x: 0, y: Math.max(0, fz.y), width: 260, height: 160 } });
     if (out3) { fs.copyFileSync(path.join(out, 'decos-hantee-eco.png'), path.join(out3, 'bestiaire-decor-boutique.png')); fs.copyFileSync(path.join(out, 'bocaux-eco.png'), path.join(out3, 'bestiaire-decor.png')); }
+    // les acharnés (lot 6) : la lanterne de la légende (le 20e palier de la Maison hantée), seule puis avec toutes les autres : deux appels de plus
+    const appelsL = () => ev(() => { const a = window.__fournil.SCENE.appelsParGroupe; let decor = 0; for (const [k, v] of Object.entries(a)) if (k !== 'acteurs' && k !== 'chat') decor += v; return { decor, lanterne: a['ht-legende'] || 0, vues: window.__fournil.SCENE.decosHanteeVues }; });
+    await ev(() => window.__fournil.SCENE.decosHantee(['legende'])); await sleep(1500); const leg = await appelsL();
+    check(leg.vues.includes('legende') && leg.lanterne === 2 && leg.decor <= 72 && leg.decor <= ap.decor + 2, `éco, tout au max et la lanterne de la légende : ${leg.decor} appels de dessin pour le décor (≤ 72), dont ${leg.lanterne} pour elle (le fer, la flamme)`);
+    await ev(() => window.__fournil.SCENE.decosHantee(['citrouilles', 'toiles', 'chaudron', 'fantome', 'toque-citrouille', 'bestiaire', 'legende'])); await sleep(1500); const tout = await appelsL();
+    check(tout.vues.includes('legende') && tout.decor === aph.decor + 2, `avec toutes les décos de la Maison hantée et la lanterne : ${aph.decor} → ${tout.decor} appels (la lanterne n’en ajoute que deux)`);
+    { const L = await ev(() => { const r = document.querySelector('#scene').getBoundingClientRect(), l = VIE.LAY, li = VIE.LAY.lanes; return { top: r.top, murH: l.murH, plan: l.plan, lanes: li, fs: l.fourSlots, grille: l.grille.y0 }; });
+      check(L.plan.y > L.murH + 60 && L.grille > L.murH + 80 && L.fs[0] > 390 * 0.045 + 25, `la lanterne (au pied du fournil, à gauche) : hors de la grille des meubles (qui commence à ${Math.round(L.grille)} px) et loin des apprentis (le premier four à ${Math.round(L.fs[0])} px)`);
+      const dir = process.env.SHOTS_ACHARNES; if (dir) { fs.mkdirSync(dir, { recursive: true }); await page.screenshot({ path: path.join(dir, 'acharnes-decos-toutes.png') }); await page.screenshot({ path: path.join(dir, 'acharnes-lanterne.png'), clip: { x: 0, y: Math.max(0, L.top + L.murH - 40), width: 200, height: 170 } }); } }
     await ev(() => window.__fournil.SCENE.decosHantee([])); await sleep(500);
   }
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);

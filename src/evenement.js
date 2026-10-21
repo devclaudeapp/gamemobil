@@ -81,6 +81,7 @@ const EVENEMENTS = (() => {
       const s = st(); if (!s || !s[F.cle]) return;
       const qq = q();
       if (typeof G.donnerVetement === 'function') for (const v of qq.vetements) { try { G.donnerVetement(s, v); } catch (e) { /* un id que la garde-robe ne connaît pas encore */ } }
+      for (const p of Q.PALIERS || []) if (qq.paliers.includes(p.n)) donnerDistinctions(s, p); // l'aura et le titre d'un palier déjà réclamé (une autre fenêtre, une sauvegarde rechargée) : une fois
       if (Q.verserRecette) { const n = Q.verserRecette(qq); if (n > 0) { s.etoiles += n; d.save(); } } // la recette du jour : des étoiles d'étape pas encore versées (une étape franchie dans l'absence de la fin)
       if (Q.verserBestiaire) { const n = Q.verserBestiaire(qq); if (n > 0) { s.etoiles += n; d.save(); } } // le bestiaire du Manoir : des étoiles d'une sorte complétée pas encore versées (l'appli fermée juste après)
       F.decos(qq.decos); if (F.synchro) F.synchro(s, qq);
@@ -113,6 +114,14 @@ const EVENEMENTS = (() => {
       d.on('[data-a="pq-ok"]', () => { d.son.tap(); d.closeSheet(); });
       const surFermeture = setInterval(() => { if ($('#feuille').hidden) { sheetOuverte = false; clearInterval(surFermeture); montrerSheetsEnAttente(); } }, 300);
     }
+    // l'aura (la garde-robe) et le titre (le classement) d'un palier (le 20e de la Maison hantée) : rend les lignes de la feuille du palier,
+    // [] s'ils étaient déjà là (donnerAura et donnerDistinction ne redonnent rien)
+    function donnerDistinctions(s, p) {
+      const l = [];
+      if (p.aura && typeof G.donnerAura === 'function') { const r = G.donnerAura(s, p.aura); if (r.nouveau) l.push(`${r.aura.nom} autour du boulanger : portée d’office, elle se retire dans la garde-robe`); }
+      if (p.distinction && typeof G.donnerDistinction === 'function') { const r = G.donnerDistinction(s, p.distinction); if (r.nouveau) l.push(`le titre « ${r.distinction.nom} », à côté de ton pseudo dans le classement et quand on visite ta boutique`); }
+      return l;
+    }
     function donnerPalier(p) {
       const s = st(), qq = q(), fait = Q.marquerPalier(qq, p.n); if (!fait) return null;
       const dons = [];
@@ -121,6 +130,7 @@ const EVENEMENTS = (() => {
       if (p.prime && typeof G.donnerPrimeHeures === 'function') { const x = G.donnerPrimeHeures(s, p.prime); dons.push(`${G.fmtEur(x)} pour la boulangerie : ${p.prime} h de ses gains, d’un coup`); }
       if (p.deco) { F.decos(qq.decos); dons.push(F.t.decoDon[p.deco] || F.t.decoDefaut(p.deco)); }
       if (p.vetement) { let r = null; if (typeof G.donnerVetement === 'function') { try { r = G.donnerVetement(s, p.vetement); } catch (e) { r = null; } } const v = typeof G.vetement === 'function' ? G.vetement(p.vetement) : null; dons.push(`${v ? v.nom : F.t.vetementNom(p.vetement)} pour la garde-robe du boulanger${Q.ensembleComplet(qq) ? F.t.tenueComplete : ''}${r && r.nouveau === false ? ' (déjà là)' : ''}`); }
+      dons.push(...donnerDistinctions(s, p));
       if (F.apresPalier) F.apresPalier(s, p, dons);
       G.gagnerXp(s, 20);
       fileSheets.push({ p, dons }); d.save(); d.apres();
@@ -1474,7 +1484,7 @@ const EVENEMENTS = (() => {
         // ×6 avec toi », « Le boss s'endort… », et il retombe à ×1 sans toucher)
         taux: (m, pres) => `<b>+${m}</b>/s · <b class="mh-pres">×${pres}</b>`, tauxVide: (pres) => `Touche une friandise · <b class="mh-pres">×${pres}</b>`,
         nouveau: (n) => `${n} : nouvelle friandise au manoir !`, embauche: (n) => `${n} rejoint l’équipe du manoir !`,
-        decoDon: Object.assign({}, HF.decos || {}, { citrouilles: 'des citrouilles-lanternes dans la boutique', toiles: 'des toiles d’araignée (gentilles) aux coins de la boutique', chaudron: 'un chaudron qui bouillonne près du four', fantome: 'un petit fantôme qui flotte dans la boutique', chauvesouris: 'des chauves-souris en papier au plafond', lanternes: 'des lanternes sur le comptoir' }, T.decoDon || {}), decoDefaut: (k) => `${k} pour la boutique`,
+        decoDon: Object.assign({}, HF.decos || {}, { citrouilles: 'des citrouilles-lanternes dans la boutique', toiles: 'des toiles d’araignée (gentilles) aux coins de la boutique', chaudron: 'un chaudron qui bouillonne près du four', fantome: 'un petit fantôme qui flotte dans la boutique', chauvesouris: 'des chauves-souris en papier au plafond', lanternes: 'des lanternes sur le comptoir', legende: 'la lanterne de la légende, sa flamme verte au pied du fournil' }, T.decoDon || {}), decoDefaut: (k) => `${k} pour la boutique`,
         vetementNom: (v) => v, tenueComplete: ' : la tenue d’Halloween est complète !',
         palierSous: (m) => `${m} gagnés au manoir. Pour la boulangerie :`, palierFinal: txt('palier12', txt('palierFinal', 'La reine de la nuit, c’est toi. Tout ça reste à vie, même après la fermeture du manoir.')), palierOk: 'Trop chouette',
         amTitre: typeof T.ameliorations === 'string' ? `Les ${T.ameliorations.toLowerCase()}` : txt('amTitre', 'Les sortilèges'), amSous: txt('amSous', 'Des sorts qui multiplient les ventes du manoir, jusqu’à la fin de l’événement.'),

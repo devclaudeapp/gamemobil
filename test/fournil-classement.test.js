@@ -301,7 +301,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   check(CL.decalerSemaine('2026-10-12', -1) === '2026-10-05' && CL.decalerSemaine('2027-01-04', -1) === '2026-12-28' && CL.decalerSemaine('2026-10-19', 1) === '2026-10-26' && CL.decalerSemaine('2027-03-22', 1) === '2027-03-29' && CL.decalerSemaine('n’importe', 1) === '', 'la semaine d’avant, d’après (passage de l’année et changements d’heure compris)');
   { const r = CL.nettoyerRecompenses({ podiums: [{ semaine: '2026-10-05', rang: 2 }, { semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 3 }, { semaine: 'hier', rang: 1 }, { semaine: '2026-09-21', rang: 4 }, null, { semaine: '2026-09-14', rang: '1' }], tenue: 'platine', vu: 12 });
     check(egal(r, { podiums: [{ semaine: '2026-09-28', rang: 1 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '', quartier: null, quartierPodium: null, evenements: {}, equipe: [], equipeAttente: '',
-      places: [{ semaine: '2026-09-28', rang: 1, joueurs: null }, { semaine: '2026-10-05', rang: 2, joueurs: null }], payees: [], depuis: '' }), 'récompenses nettoyées : une coupe par semaine (la meilleure), triées, rangs 1 à 3 seulement ; tenue inconnue → automatique ; une sauvegarde d’avant la 6.5 : ses podiums deviennent ses places, rien de payable (depuis vide)'); }
+      places: [{ semaine: '2026-09-28', rang: 1, joueurs: null }, { semaine: '2026-10-05', rang: 2, joueurs: null }], payees: [], depuis: '', evtPayes: [] }), 'récompenses nettoyées : une coupe par semaine (la meilleure), triées, rangs 1 à 3 seulement ; tenue inconnue → automatique ; une sauvegarde d’avant la 6.5 : ses podiums deviennent ses places, rien de payable (depuis vide)'); }
   console.log('── les places de la semaine, du 1er au 15e (version 6.5) ──');
   { const R = (n) => CL.recompenseRang(n), court = (x) => (x ? `${x.etoiles}★ ×${x.mult} ${x.secs}s${x.tenue ? ' tenue' : ''}` : '—');
     check([1, 2, 3, 4, 6, 7, 10, 11, 15].map((n) => court(R(n))).join(' | ') === '5★ ×5 1800s tenue | 4★ ×5 1800s tenue | 3★ ×5 1800s tenue | 3★ ×3 1800s | 3★ ×3 1800s | 2★ ×2 1800s | 2★ ×2 1800s | 1★ ×2 900s | 1★ ×2 900s',
@@ -315,6 +315,26 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const rec = Object.assign(CL.recompensesNeuves(), { places: p.concat([{ semaine: '2026-10-12', rang: 3, joueurs: 12 }]), depuis: '2026-09-21', payees: ['2026-09-21'] });
     check(egal(CL.placesAPayer(rec, '2026-10-12').map((x) => [x.semaine, x.recompense.etoiles]), [['2026-10-05', 2]]) && CL.placesAPayer(Object.assign({}, rec, { depuis: '' }), '2026-10-19').length === 0,
       'à payer : depuis la première semaine payable, avant la semaine en cours, pas encore payée (sans « depuis » : rien)'); }
+  console.log('── les acharnés de la Maison hantée : la place au classement final de l’événement, du 1er au 15e (version 6.6) ──');
+  { const R = (n) => CL.recompenseEvt(n), S = (n) => CL.recompenseRang(n), court = (x) => (x ? `${x.etoiles}★ ×${x.mult} ${x.secs}s${x.tenue ? ' tenue' : ''}` : '—');
+    check([1, 2, 3, 4, 6, 7, 10, 11, 15].map((n) => court(R(n))).join(' | ') === '7★ ×5 3600s tenue | 6★ ×5 3600s tenue | 5★ ×5 3600s tenue | 4★ ×3 3600s | 4★ ×3 3600s | 3★ ×3 1800s | 3★ ×3 1800s | 2★ ×2 1800s | 2★ ×2 1800s',
+      `RECOMPENSES_EVT : 1er/2e/3e 7/6/5 étoiles + ×5 1 h (et la tenue en or) ; 4e-6e 4 + ×3 1 h ; 7e-10e 3 + ×3 30 min ; 11e-15e 2 + ×2 30 min`);
+    check(R(16) === null && R(0) === null && R(null) === null && R(2.5) === null && CL.RECOMPENSES_EVT.every((x, k, l) => x.de <= x.a && (k === 0 ? x.de === 1 : x.de === l[k - 1].a + 1)) && CL.RECOMPENSES_EVT[CL.RECOMPENSES_EVT.length - 1].a === 15
+      && CL.RECOMPENSES_EVT.every((x, k, l) => k === 0 || (x.etoiles <= l[k - 1].etoiles && x.mult * x.secs <= l[k - 1].mult * l[k - 1].secs)), 'la table couvre 1 à 15 sans trou, ne récompense jamais mieux une place plus basse ; au-delà du 15e ou absurde : rien');
+    { const ko = []; for (let n = 1; n <= 15; n++) { const e = R(n), w = S(n); if (!(e.etoiles > w.etoiles && e.mult * e.secs > w.mult * w.secs && e.tenue === w.tenue)) ko.push(n); }
+      check(!ko.length, `à chaque place, un peu plus fort que la même place de la semaine (plus d’étoiles, un boost plus gros) ; la tenue aux trois premiers seulement${ko.length ? ' — sauf ' + ko.join(', ') : ''}`); }
+    const ev = CL.nettoyerEvenements({ hantee: { rang: 7, joueurs: 12, podium: [{ rang: 1, pseudo: 'A', valeur: 3 }, { rang: 2, pseudo: 'B', valeur: 2 }, { rang: 3, pseudo: 'C', valeur: 1 }, { rang: 7, pseudo: 'G', valeur: 0.5 }] } });
+    check(egal(ev, { hantee: { rang: 7, joueurs: 12, podium: [{ rang: 1, pseudo: 'A', valeur: 3 }, { rang: 2, pseudo: 'B', valeur: 2 }, { rang: 3, pseudo: 'C', valeur: 1 }] } }), `relu : rang 7, 12 joueurs, le podium des trois premiers (${JSON.stringify(ev)})`);
+    const vieux = CL.nettoyerEvenements({ hantee: { rang: 2, podium: [] } }), absurdes = [{ rang: 16, joueurs: 20 }, { rang: 7, joueurs: 3 }, { rang: '7', joueurs: 'douze' }, { rang: 0 }].map((x) => CL.nettoyerEvenements({ hantee: x }).hantee);
+    check(egal(vieux.hantee, { rang: 2, joueurs: null, podium: [] }) && absurdes[0].rang === null && absurdes[1].rang === 7 && absurdes[1].joueurs === null && absurdes[2].rang === null && absurdes[2].joueurs === null && absurdes[3].rang === null,
+      'un serveur d’avant (rang 1 à 3, sans joueurs) : lu tel quel ; un rang au-delà de 15, des joueurs moins nombreux que le rang, des types faux : écartés');
+    check(CL.phraseEvt({ id: 'hantee', rang: 7, joueurs: 12 }) === 'Tu as fini 7e de la Maison hantée sur 12' && CL.phraseEvt({ id: 'hantee', rang: 1, joueurs: null }) === 'Tu as fini 1er de la Maison hantée' && CL.phraseEvt({ id: 'noel', rang: 1 }) === '', '« Tu as fini 7e de la Maison hantée sur 12 »');
+    const rec = Object.assign(CL.recompensesNeuves(), { evenements: ev });
+    check(egal(CL.evtAPayer(rec), [{ id: 'hantee', rang: 7, joueurs: 12, recompense: R(7) }]) && CL.evtAPayer(Object.assign({}, rec, { evtPayes: ['hantee'] })).length === 0 && CL.evtAPayer(Object.assign(CL.recompensesNeuves(), { evenements: { hantee: { rang: null, joueurs: 12, podium: [] } } })).length === 0,
+      'à payer : une place figée du 1er au 15e, pas encore payée (payée, ou sans rang : rien)');
+    check(egal(CL.nettoyerRecompenses({ evtPayes: ['hantee', 'hantee', 'quartier', 3, null] }).evtPayes, ['hantee']), 'evtPayes relu : les événements connus, sans doublon (le Quartier n’en a pas)');
+    const cl = CL.nettoyerClassement({ version: 6, lignes: [{ rang: 1, pseudo: 'Jo', valeur: 5, titre: 'legende-manoir' }, { rang: 2, pseudo: 'Lu', valeur: 4, titre: '<b>roi</b>' }, { rang: 3, pseudo: 'Mo', valeur: 3, titre: null }], moi: { rang: 1, valeur: 5, titre: 'legende-manoir' } });
+    check(cl.lignes[0].titre === 'legende-manoir' && !('titre' in cl.lignes[1]) && !('titre' in cl.lignes[2]) && cl.moi.titre === 'legende-manoir' && CL.TITRES['legende-manoir'] === 'Légende du Manoir', 'la liste (serveur v6.6) : le titre « Légende du Manoir » gardé ; un titre inconnu ou du HTML : écarté'); }
   check(CL.nettoyerRecompenses({ tenue: null }).tenue === null && CL.nettoyerRecompenses({ tenue: 'bronze' }).tenue === 'bronze' && egal(CL.nettoyerRecompenses('abîmé'), CL.recompensesNeuves()), 'tenue « aucune » (null) gardée ; réponse absurde : rien');
   { const rec = { podiums: [{ semaine: '2026-09-21', rang: 3 }, { semaine: '2026-10-05', rang: 2 }], tenue: 'auto', vu: '' }, L = '2026-10-12';
     check(CL.tenuePortee(rec, L) === 'argent' && CL.coupeDuComptoir(rec, L) === 'argent', 'automatique : la semaine qui suit le podium, la tenue et la coupe d’argent');
@@ -526,7 +546,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   { // l'état local : le dernier score d'événement et le rang d'Halloween se relisent ; les absurdités sont écartées
     const e = CL.nettoyerEtat({ id: '0b9a3e4c-1d2e-4f50-8a6b-7c8d9e0f1a2b', jeton: 'b'.repeat(64), pseudo: 'Léa', rejoint: true, evt: { id: 'hantee', valeur: 12 }, dernier: { hantee: { rang: 4, joueurs: 9 }, quand: 5 }, recompenses: { podiums: [], evenements: { hantee: { rang: 2, podium: [{ rang: 1, pseudo: 'Jo', valeur: 3 }] }, autre: { rang: 1 } } } });
     check(egal(e.evt, { id: 'hantee', valeur: 12 }) && e.dernier && e.dernier.hantee.rang === 4 && e.recompenses.evenements.hantee.rang === 2 && !('autre' in e.recompenses.evenements), 'le score envoyé, le rang et le podium final d’Halloween se relisent');
-    const f = CL.nettoyerEtat({ evt: { id: 'quartier', valeur: 3 }, recompenses: { evenements: { hantee: { rang: 9, podium: 'x' } } } });
+    const f = CL.nettoyerEtat({ evt: { id: 'quartier', valeur: 3 }, recompenses: { evenements: { hantee: { rang: 16, podium: 'x' } } } }); // (version 6.6 : de 1 à 15 ; 16, absurde)
     check(f.evt === null && f.recompenses.evenements.hantee.rang === null && egal(f.recompenses.evenements.hantee.podium, []), 'un événement inconnu ou un rang absurde : écartés'); }
   { // les onglets d'événement du classement (pour l'interface)
     const Q = require('../src/quartier.js'), H = require('../src/hantee.js');
@@ -595,9 +615,10 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     pire.stations.forEach((x) => { x.niv = 1e9; x.staff = true; }); for (const m of G.MOBILIER) pire.mobilier[m.id] = m.max; pire.amenagement = { v: 1, tables: Array.from({ length: 6 }, (_, i) => [35 - i, 35]), bar: [35, 35], salon: [35, 35], terrasse: [35, 35, 35] }; pire.chat = { nom: 'Ω'.repeat(40) }; pire.saison = { id: G.RECETTES_SAISON[0].id, niv: 3 };
     pire.etoiles = 1e12; pire.boutiques = 1e9; pire.stats.ventes = 1e20; pire.stats.serieMax = 1e9; pire.lifetime = 1.23456789e300; for (const t of G.TROPHEES) pire.trophees[t.id] = T; pire.xp = 1e15;
     const qp = Q.neuf(T); qp.postes = Array.from({ length: 30 }, () => ({ niv: 1e9, staff: true })); qp.decos = Q.DECOS.concat(H.DECOS, ['fantome', 'chauvesouris', 'lanternes']); qp.paliers = Array.from({ length: 40 }, (_, k) => k + 1); qp.total = 1e30;
-    const tous = { G, coupes: Array(40).fill('bronze'), badge: true, dq: Q.DECOS.concat(['a', 'b', 'c', 'd', 'e']), dh: H.DECOS.concat(['fantome', 'chauvesouris', 'lanternes', 'x', 'y']), ev: { id: 'quartier', q: qp } };
+    pire.distinctions = ['legende-manoir']; // version 6.6 : le titre gagné au 20e palier de la Maison hantée (ti)
+    const tous = { G, coupes: Array(40).fill('bronze'), badge: true, dq: Q.DECOS.concat(['a', 'b', 'c', 'd', 'e']), dh: H.DECOS.concat(['bestiaire', 'legende', 'fantome', 'x', 'y']), ev: { id: 'quartier', q: qp } };
     const pp = CL.photo(pire, tous), op = CL.octetsJson(pp);
-    check(pp && op <= 2048 && pp.p.length === 16 && pp.k.length === 12 && pp.e && pp.e.p.length === 16 && pp.e.d.length === 8 && pp.x.f === 1e30 && pp.x.v === 1e15, `le pire cas (16 postes, toutes les décos, 12 coupes, un nom long, un événement à 16 postes) : ${op} octets ≤ 2048, rien de retiré`);
+    check(pp && op <= 2048 && pp.p.length === 16 && pp.k.length === 12 && pp.e && pp.e.p.length === 16 && pp.e.d.length === 8 && pp.x.f === 1e30 && pp.x.v === 1e15 && pp.ti === 'legende-manoir', `le pire cas (16 postes, toutes les décos, 12 coupes, un nom long, un événement à 16 postes, le titre) : ${op} octets ≤ 2048, rien de retiré`);
     check(pp && pp.a === 'zzyzxzwzvzuzzzzzzzz' && G.codeAmenagement(G.amenagementDepuisCode(pp.a)) === pp.a, `a : l’aménagement le plus long (tout déplacé) tient en ${pp && pp.a ? pp.a.length : 0} caractères, relu tel quel`);
     console.log(`       (taille au pire cas : ${op} octets)`);
     // le standing (17 octobre) : le champ l (palier 0 à 5) est dans le pire cas ; relu borné ; une vieille photo sans l → palier 0
@@ -638,6 +659,12 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     const nv = CL.nettoyerPhoto(vieille), bv = CL.boutiqueDepuisPhoto(vieille, { G, maintenant: T });
     check(nv && !('x' in nv) && !('e' in nv) && nv.m.four === 3 && bv && bv.stats === null && bv.nom === 'Chez Lucas' && CL.evenementDepuisPhoto(vieille, { R: Q, id: 'quartier', maintenant: T }) === null, 'une vieille photo sans x ni e : acceptée, sa boutique se rebâtit, pas de statistiques ni de Planque');
     check(egal(CL.boutiqueDepuisPhoto(p, { G, maintenant: T }).stats, p.x), 'la boutique rebâtie porte ses statistiques (pour la fiche « Tous les temps »)');
+    // version 6.6 : le titre (ti) : absent sans distinction ; relu seulement s'il est connu ; une vieille photo sans ti reste valable
+    { const s0 = G.newState(T); check(!('ti' in CL.photo(s0, { G })) && CL.photo(Object.assign(G.newState(T), { distinctions: ['legende-manoir'] }), { G }).ti === 'legende-manoir' && CL.photo(Object.assign(G.newState(T), { distinctions: ['roi-du-monde'] }), { G }).ti === undefined,
+        'ti : absent sans titre gagné ; « legende-manoir » une fois gagné (G.distinctions) ; un titre inconnu n’est pas envoyé');
+      const avec = CL.nettoyerPhoto(Object.assign({}, vieille, { ti: 'legende-manoir' })), faux = ['<b>Roi</b>', 'roi-du-monde', 42, { a: 1 }, 'legende-manoir'.repeat(3)].map((x) => CL.nettoyerPhoto(Object.assign({}, vieille, { ti: x })));
+      check(avec.ti === 'legende-manoir' && CL.boutiqueDepuisPhoto(avec, { G, maintenant: T }).titre === 'Légende du Manoir' && faux.every((o) => o && !('ti' in o)) && !('ti' in nv) && CL.boutiqueDepuisPhoto(vieille, { G, maintenant: T }).titre === null,
+        'ti relu : « Légende du Manoir » dans la visite ; du HTML, un titre inconnu, un mauvais type : écartés (la photo reste) ; une vieille photo sans ti : pas de titre'); }
     // la Planque rebâtie depuis e
     const r = CL.evenementDepuisPhoto(p, { R: Q, id: 'quartier', maintenant: T });
     check(r && r.id === 'quartier' && r.q.postes.length === Q.PRODUITS.length && r.q.postes[0].niv === 60 && r.q.postes[0].staff && r.q.postes[1].niv === 12 && !r.q.postes[1].staff && egal(r.q.decos, ['graffiti', 'neon']) && egal(r.q.paliers, [1, 2, 3, 4]) && r.q.total === Q.PALIERS[3].total + 5 && r.q.billets === 0 && r.equipe === 1 && r.postes === 2 && r.q.visite && Q.paliersAtteints(r.q).length === 4,
@@ -666,7 +693,7 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
       if (x.v5 && (NOUVELLES.includes(nom) || (nom === 'fournil_publier' && 'p_photo' in c))) return rep(404, { code: 'PGRST202' });
       if (x.v64 && nom === 'fournil_vu_objectif') return rep(404, { code: 'PGRST202' }); // la v6.4 : pas de fournil_vu_objectif
       if (nom === 'fournil_recompenses' && x.v64) { const o2 = { ok: true, podiums: [], derniere: null, pourboires: x.pourboires, objectif: x.recompense }; x.pourboires = []; x.recompense = null; return rep(200, o2); } // la v6.4 : la lecture marque tout
-      if (nom === 'fournil_recompenses') return rep(200, { ok: true, podiums: x.places.filter((p) => p.rang <= 3).map((p) => ({ semaine: p.semaine, rang: p.rang })), places: x.places, derniere: null, pourboires: x.pourboires.slice(), objectif: x.recompense });
+      if (nom === 'fournil_recompenses') return rep(200, { ok: true, podiums: x.places.filter((p) => p.rang <= 3).map((p) => ({ semaine: p.semaine, rang: p.rang })), places: x.places, derniere: null, pourboires: x.pourboires.slice(), objectif: x.recompense, evenements: x.evenements || {} }); // (x.evenements : le podium final des événements, version 6.6 : jusqu'au 15e)
       if (nom === 'fournil_vu_objectif') { x.vuObj = c.p_semaine; if (x.recompense && x.recompense.semaine <= c.p_semaine) x.recompense = null; return rep(200, { ok: true, erreur: null }); }
       if (nom === 'fournil_publier') { if ('p_photo' in c) x.photos++; return rep(200, { ok: true, erreur: null, version: x.v5 ? 5 : 6, rang_semaine: 1, rang_total: 1, joueurs: 3, ...(x.v5 ? {} : { photo_maj: new Date(horloge).toISOString() }) }); }
       if (nom === 'fournil_classement') return rep(200, { version: x.v5 ? 5 : 6, semaine: '2026-10-05', joueurs: 2, lignes: [{ rang: 1, pseudo: 'Lucas', points: 40, valeur: 1, moi: false }], moi: null });
@@ -822,6 +849,20 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     check(egal(rv.aPayer.map((p) => [p.semaine, p.rang, p.recompense.etoiles, p.recompense.mult, p.recompense.tenue]), [['2026-10-05', 1, 5, 5, true]]) && rv.annonce && rv.annonce.semaine === '2026-10-05' && rv.podiums.length === 2,
       'le lundi suivant, 1er : à payer (5 étoiles, ×5, la tenue) et le podium à annoncer, comme avant');
     check(CL.lireEtat(s).recompenses.depuis === '2026-09-28', '« depuis » ne bouge plus'); }
+  { // les acharnés de la Maison hantée (version 6.6) : sa place au classement final de l'événement, payée une fois, même d'une autre fenêtre
+    horloge = Date.UTC(2026, 10, 3, 9); const sv = serveur6(), s = inscrit(), m = moteur(faux(sv.gerer), { stockage: s });
+    const POD = [{ rang: 1, pseudo: 'Abel', valeur: 9e16 }, { rang: 2, pseudo: 'Berthe', valeur: 8e16 }, { rang: 3, pseudo: 'Camille', valeur: 7e16 }];
+    sv.evenements = { hantee: { rang: 7, joueurs: 12, podium: POD } };
+    await m.chargerRecompenses({ ecart: 0 });
+    let rv = m.recompenses();
+    check(egal(rv.evtAPayer.map((p) => [p.id, p.rang, p.joueurs, p.recompense.etoiles, p.recompense.mult, p.recompense.secs, p.recompense.tenue]), [['hantee', 7, 12, 3, 3, 1800, false]]) && egal(rv.evtPlaces.map((p) => [p.id, p.rang, p.payee]), [['hantee', 7, false]]) && CL.phraseEvt(rv.evtAPayer[0]) === 'Tu as fini 7e de la Maison hantée sur 12' && rv.evenements.hantee.podium.length === 3,
+      `7e de la Maison hantée sur 12 : à payer (3 étoiles, un boost ×3 de 30 min), le podium des trois premiers gardé (${JSON.stringify(rv.evtAPayer)})`);
+    check(m.evtPaye('hantee') === true && m.evtPaye('hantee') === false && m.evtPaye('quartier') === false && m.recompenses().evtAPayer.length === 0 && m.recompenses().evtPlaces[0].payee === true && egal(CL.lireEtat(s).recompenses.evtPayes, ['hantee']), 'payée une fois (true, puis false), notée dans le stockage ; le Quartier : rien');
+    const m2 = moteur(faux(sv.gerer), { stockage: s }); check(m2.recompenses().evtAPayer.length === 0 && m2.evtPaye('hantee') === false, 'une autre fenêtre (le même stockage) ne la paie pas une seconde fois');
+    await m.chargerRecompenses({ ecart: 0 }); check(m.recompenses().evtAPayer.length === 0 && m.recompenses().evenements.hantee.rang === 7 && m.recompenses().evenements.hantee.joueurs === 12, 'relue au lancement suivant : toujours payée, rien de neuf');
+    const s2 = inscrit(), sv2 = serveur6(), m3 = moteur(faux(sv2.gerer), { stockage: s2 }); sv2.evenements = { hantee: { rang: 2, podium: POD } }; // un serveur d'avant la 6.6 (podium à trois, sans joueurs)
+    await m3.chargerRecompenses({ ecart: 0 }); const a = m3.recompenses().evtAPayer;
+    check(a.length === 1 && a[0].rang === 2 && a[0].joueurs === null && a[0].recompense.tenue === true && a[0].recompense.etoiles === 6 && CL.phraseEvt(a[0]) === 'Tu as fini 2e de la Maison hantée', `un serveur d’avant la 6.6 (2e, sans le nombre de joueurs) : la tenue en or et 6 étoiles, « ${CL.phraseEvt(a[0])} »`); }
   { // les notifications
     horloge = T; const sv = serveur6(), r = faux(sv.gerer);
     const push = { possible: () => true, abonner: async (cle) => { push.cle = cle; return push.reponse || { sub: { endpoint: 'https://push.exemple/abc', keys: { p256dh: 'BP' + 'x'.repeat(85), auth: 'y'.repeat(22) } } }; }, desabonner: async () => ({ endpoint: 'https://push.exemple/abc' }) };

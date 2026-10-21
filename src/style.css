@@ -532,6 +532,15 @@ h2 { margin: 0 0 4px; font: 700 24px/1.12 var(--titre); letter-spacing: -.01em; 
 /* ─── les récompenses du podium : la toque à côté du pseudo, l'entrée « Mes récompenses », l'annonce, la collection ─── */
 .cl-toque { flex: 0 0 auto; display: inline-grid; width: 22px; height: 22px; place-items: center; }
 .cl-toque svg { width: 22px; height: 22px; }
+/* le titre gagné (« Légende du Manoir », le 20e palier de la Maison hantée) : une petite étiquette phosphorescente à côté du pseudo ; faute de
+   place, elle passe sous le pseudo plutôt que de le couper */
+.cl-titre { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 3px; padding: 2px 8px 2px 4px; border-radius: 999px; background: #2E2547; color: #B8FF9E; font: 700 11px/1.25 var(--titre); font-style: normal; white-space: nowrap; box-shadow: 0 0 0 1px rgba(124, 255, 107, .45), 0 0 8px rgba(124, 255, 107, .35); }
+.cl-titre svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.cl-nom:has(.cl-titre) { flex-wrap: wrap; row-gap: 3px; }
+.vi-titre { position: absolute; top: 52px; left: 50%; transform: translateX(-50%); pointer-events: none; } /* sous l'enseigne de la boutique visitée */
+.vi-titre .cl-titre { font-size: 13px; padding: 4px 10px 4px 6px; } .vi-titre .cl-titre svg { width: 16px; height: 16px; }
+.rec-carte.mh-acharne { background: #EFE8FF; } .rec-carte.mh-acharne.or { background: #FFF3C4; box-shadow: inset 0 0 0 2px #8E6BD8; } /* ses places au classement final de la Maison hantée */
+.gr-piece.gr-aura .gr-ico { background: #1B1530; } /* l'aura phosphorescente : sur fond de nuit, comme le chapeau du palier 20 */
 .rec-entree { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; min-height: 60px; margin: 0; padding: 8px 10px 8px 12px; border-radius: var(--r-carte); text-align: left; background: var(--carte); box-shadow: var(--ombre-carte), inset 0 0 0 2px #FFE6A0; }
 .cl .rec-entree { margin: 0 0 12px; } /* en tête de la feuille du classement */
 .rec-entree:active { background: var(--creme); }

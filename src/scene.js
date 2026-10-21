@@ -290,6 +290,8 @@ const SCENE = (() => {
     ...['citrouilles', 'toiles', 'chaudron', 'fantome'].map((id) => ({ id: 'ht-' + id, cle: () => (htDeco(id) && MEUBLES[id] ? '1' : null), faire: (k, c) => MEUBLES[id](c) })),
     // l'étagère aux bocaux de monstres (le bestiaire de la Maison hantée, à la 5e sorte complétée) : seulement gagnée, dans les deux boutiques
     { id: 'ht-bestiaire', cle: () => (HDECO.bestiaire && MEUBLES.bocaux ? '1' : null), faire: (k, c) => MEUBLES.bocaux(c) },
+    // la lanterne de la légende (le 20e palier de la Maison hantée) : seulement gagnée, dans les deux boutiques, comme l'étagère aux bocaux
+    { id: 'ht-legende', cle: () => (HDECO.legende && MEUBLES.lanterneLegende ? '1' : null), faire: (k, c) => MEUBLES.lanterneLegende(c) },
     // la toque de la recette du jour (src/activites.js : la 500e fournée, à vie), accrochée à la porte de l'arrière-boutique : celle de la Planque, celle du Manoir plus bas si les deux sont là
     { id: 'toque-or', cle: () => (QDECO['toque-or'] && MEUBLES.toqueRecette ? '1' : null), faire: (k, c) => MEUBLES.toqueRecette(c, 'or', false) },
     { id: 'ht-toque-citrouille', cle: () => (HDECO['toque-citrouille'] && MEUBLES.toqueRecette ? (QDECO['toque-or'] ? 'deux' : 'seule') : null), faire: (k, c) => MEUBLES.toqueRecette(c, 'citrouille', k === 'deux') },
@@ -323,7 +325,7 @@ const SCENE = (() => {
   const REC = { tenue: null, coupe: null, coupes: [], equipe: false }, METAUX = ['or', 'argent', 'bronze'];
   const QDECO = { graffiti: false, neon: false, scooter: false, chien: false, 'toque-or': false }; // les décos du quartier posées dans la boutique (et la toque de la recette du jour)
   function decosQuartier(liste) { const l = Array.isArray(liste) ? liste : []; for (const k of Object.keys(QDECO)) QDECO[k] = l.includes(k); ext.der = -1; }
-  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false, 'toque-citrouille': false, bestiaire: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
+  const HDECO = { citrouilles: false, toiles: false, chaudron: false, fantome: false, 'toque-citrouille': false, bestiaire: false, legende: false }; // les décos de la Maison hantée posées dans la boutique (d'autres noms : ignorés)
   const ALIAS_HT = { citrouille: 'citrouilles', lanternes: 'citrouilles', toile: 'toiles', araignees: 'toiles', chaudrons: 'chaudron', fantomes: 'fantome' };
   function decosHantee(liste) { const l = (Array.isArray(liste) ? liste : []).map((k) => ALIAS_HT[k] || k); for (const k of Object.keys(HDECO)) HDECO[k] = l.includes(k); }
   // le compagnon de la boutique (GAME.COMPAGNONS : le chat roux, le chat noir, le chien… le mini-dragon ; ui.js dit lequel, noir d'office pour
@@ -922,6 +924,7 @@ const SCENE = (() => {
     get couverts() { return (couvertsCle.match(/1/g) || []).length; }, // les couverts posés (un par client assis ; pour les tests)
     get assisEn() { return { table: V.assisEn('table'), bar: V.assisEn('bar'), banquette: V.assisEn('banquette'), terrasse: V.assisEn('terrasse') }; }, // les clients assis par coin (pour les tests)
     get standingVu() { const g = groupes.standing, E = dernier; let n = 0; if (g) g.traverse((o) => { if (o.isMesh) n++; }); const emprises = ((g && g.userData.emprises) || []).map((e) => Object.assign({}, e, { haut: projeterY(e.y1, e.z0), bas: projeterY(e.y0, e.z1) })); return { palier: E && E.Q ? E.Q.standing || 0 : 0, decor: E && E.Q ? E.Q.id : '', hd: /\|hd\|/.test(cles.standing || ''), mailles: n, emprises }; }, // le standing posé ; ses emprises (monde, et haut/bas à l'écran) (pour les tests)
+    get boulangerVu() { const g = groupes.boulanger, P = g && g.userData.parts; if (!g) return null; let maillages = 0, sprites = 0; g.traverse((o) => { if (!o.visible) return; if (o.isMesh) maillages++; else if (o.isSprite) sprites++; }); return { tenue: (g.userData.garde && g.userData.garde.cle) || '', aura: !!(P && P.aura), opacite: P && P.aura ? +P.aura.material.opacity.toFixed(3) : 0, haut: P && P.aura ? +P.aura.scale.y.toFixed(2) : 0, maillages, sprites }; }, // le boulanger posé : sa tenue, son aura (un sprite) et ses appels de dessin (pour les tests)
     get meublesHD() { return SALLE_IDS.filter((id) => groupes[id] && /\|hd/.test(cles[id] || '')); }, // les meubles de la salle bâtis en KayKit (pour les tests)
     get amenager() { return amenager; }, get deplacer() { return deplacer; }, get glisse() { return glisse; }, get clients() { return V.nClients; }, get apprentis() { return V.nApprentis; }, get assis() { return V.assis; }, get mystereVisible() { return V.mystereVisible; }, get webgl() { return webgl; },
     get _qual() { return QUAL; }, // la mesure de la qualité (pour les tests de la cadence)

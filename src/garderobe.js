@@ -51,6 +51,14 @@ const GARDEROBE_UI = (() => {
     const id = c.id(), comp = G.compagnon(id);
     return `<h3 class="titre-section">Le compagnon de la boutique</h3><div class="gr-liste"><button type="button" class="gr-piece gr-chat" data-gr-compagnons><span class="gr-ico">${ICONS.compagnon(id)}</span><span class="gr-txt"><b>${esc(c.nom())}, ${esc(comp ? comp.nom.toLowerCase() : 'chat roux')}</b><small>Changer de compagnon : du chat roux au mini-dragon</small></span><span class="gr-ok">›</span></button></div>${c.force() ? '<p class="note centre">Pendant la Maison hantée, un chat de la boutique est noir. Le choix revient après.</p>' : ''}`;
   }
+  // l'aura (le 20e palier de la Maison hantée : l'aura phosphorescente, GAME.AURAS) : sans bonus, à porter ou retirer d'un toucher, en plus des
+  // quatre pièces ; la section n'apparaît qu'une fois une aura gagnée
+  const AURA_ICO = (c) => `<svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="21" fill="${c}" opacity=".22"/><circle cx="24" cy="24" r="14" fill="${c}" opacity=".4"/><circle cx="24" cy="24" r="7.5" fill="#F2FFE0"/><path d="M24 15.5c3 3.6 4.4 6.4 4.4 8.6a4.4 4.4 0 0 1-8.8 0c0-2.2 1.4-5 4.4-8.6z" fill="${c}"/></svg>`;
+  function blocAura(st) {
+    const g = G.garderobe(st); if (!G.AURAS || !g.auras || !g.auras.length) return '';
+    const l = g.auras.map((id) => { const a = G.AURAS[id], porte = g.aura === id; return `<button type="button" class="gr-piece gr-aura ${porte ? 'porte' : ''}" data-gr-aura="${porte ? '' : id}" aria-pressed="${porte}" aria-label="${esc(a.nom)} : ${porte ? 'portée, toucher pour la retirer' : 'toucher pour la porter'}"><span class="gr-ico">${AURA_ICO(a.couleur)}</span><span class="gr-txt"><b>${esc(a.nom)}</b><small>${esc(a.desc)}</small><small class="gr-b">${porte ? 'Portée : touche pour la retirer' : 'Rangée : touche pour la porter'}</small></span>${porte ? '<span class="gr-ok">Portée ✓</span>' : ''}</button>`; }).join('');
+    return `<h3 class="titre-section">L’aura</h3><div class="gr-liste" data-gr-auras>${l}</div>`;
+  }
   function html(st) {
     const g = G.garderobe(st), p = pieceOuverte, porte = g.equipe[p], bonus = resumeBonus(st), ens = G.ensembleComplet(st);
     const seg = `<div class="segments gr-seg" role="tablist" aria-label="Emplacement">${PIECES.map(([id, , court]) => `<button type="button" role="tab" data-gr-piece="${id}" aria-selected="${p === id}" class="${p === id ? 'actif' : ''}">${court}</button>`).join('')}</div>`;
@@ -70,7 +78,7 @@ const GARDEROBE_UI = (() => {
     return `<div class="cl gr" data-cl="garderobe"><div class="cl-tete"><span class="pic">${ICONS.UI.garderobe}</span><div><h2>Garde-robe</h2><p class="sous">Choisis ce que porte ton boulanger, pièce par pièce. Les étoiles améliorent chaque pièce (niveaux 1 à 5).</p></div></div>
       <div class="gr-tete"><span class="gr-portrait" aria-hidden="true">${ICONS.boulanger(G.rangTitre(st), G.tenueBoulanger(st))}</span><div><b>${bonus.length ? bonus.join(' · ') : 'Aucun bonus porté'}</b><small>${ens ? `${esc(GR.ensembles[ens].nom)} au complet.` : 'Les quatre pièces d’une même collection : un bonus d’ensemble en plus.'}</small><small class="gr-solde">${G.fmt(st.etoiles)} étoile${st.etoiles > 1 ? 's' : ''} à dépenser · une étoile dépensée ne compte plus dans les +5 % par étoile</small></div></div>
       ${seg}<div class="gr-liste" role="list" aria-label="${esc(NOM_PIECE[p])}">${rien}${cartes}</div>${indice}
-      <h3 class="titre-section">Les ensembles</h3><div class="gr-ensembles">${ensembles}</div>${blocCompagnon(st, ctxComp)}
+      ${blocAura(st)}<h3 class="titre-section">Les ensembles</h3><div class="gr-ensembles">${ensembles}</div>${blocCompagnon(st, ctxComp)}
       <button type="button" class="btn large sombre" data-a="gr-fermer" style="margin-top:14px"><b>Retour</b></button></div>`;
   }
   function ouvrir(ctx, piece) {
@@ -93,6 +101,10 @@ const GARDEROBE_UI = (() => {
       const id = b.dataset.grAmeliorer, r = G.ameliorerVetement(st, id);
       if (!r.ok) { ctx.son.non(); ctx.toast(r.max ? 'Cette pièce est déjà au niveau maximum.' : `Il faut ${r.cout} étoile${r.cout > 1 ? 's' : ''} : tu en as ${G.fmt(st.etoiles)}.`); return; }
       ctx.son.deblocage(); ctx.buzz([10, 30, 10]); ctx.toast(`${r.objet.nom} au niveau ${r.niv} : ${G.texteBonus(G.bonusPiece(id, r.niv)).join(', ')}`); ctx.save(); ctx.apres(); redessiner(ctx, `[data-gr-ameliorer="${id}"]`);
+    });
+    ctx.on('[data-gr-aura]', (b) => { // porter l'aura, ou la retirer (data-gr-aura vide)
+      const id = b.dataset.grAura || null, r = G.porterAura(st, id); if (!r.ok) { ctx.son.non(); return; }
+      ctx.son.tap(); ctx.buzz(8); ctx.toast(id ? `${G.AURAS[id].nom} : portée.` : 'Aura retirée : elle reste dans ta garde-robe.'); ctx.save(); ctx.apres(); redessiner(ctx, '[data-gr-aura]');
     });
     ctx.on('[data-gr-ensemble]', (b) => { const n = G.equiperCollection(st, b.dataset.grEnsemble); if (!n) { ctx.son.non(); return; } ctx.son.deblocage(); ctx.buzz([10, 30, 10]); ctx.toast(`${GR.ensembles[b.dataset.grEnsemble].nom} : les quatre pièces portées.`); ctx.save(); ctx.apres(); redessiner(ctx); });
     ctx.on('[data-a="gr-fermer"]', () => { ctx.son.tap(); ctx.closeSheet(); });

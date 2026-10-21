@@ -180,7 +180,8 @@
     { n: 17, total: 5e15, jour: 6, bonus: true, etoiles: 3, boost: { mult: 10, secs: 1800 }, titre: 'Osvaldo en rit jusqu’aux os' },
     { n: 18, total: 8e15, jour: 6, bonus: true, etoiles: 4, prime: 12, titre: 'Berthe chante juste (une fois)' },
     { n: 19, total: 1.4e16, jour: 7, bonus: true, etoiles: 4, boost: { mult: 10, secs: 2700 }, titre: 'La lune se lève rien que pour toi' },
-    { n: 20, total: 2.4e16, jour: 7, bonus: true, vetement: 'hantee-lueur-chapeau', etoiles: 8, boost: { mult: 10, secs: 3600 }, prime: 24, titre: 'La légende phosphorescente' },
+    { n: 20, total: 2.4e16, jour: 7, bonus: true, vetement: 'hantee-lueur-chapeau', etoiles: 8, boost: { mult: 10, secs: 3600 }, prime: 24, titre: 'La légende phosphorescente',
+      deco: 'legende', aura: 'lueur', distinction: 'legende-manoir' }, // lot 6, les acharnés : la lanterne de la légende (la boutique), l'aura phosphorescente (la garde-robe), le titre « Légende du Manoir » (le classement), à vie
   ];
   const ANCIENS = { // les récompenses d'avant la version 2 (étoiles, boost ; aucune prime) : la revue donne la différence (ACT.RECOMPENSES.revue)
     1: { etoiles: 1, boost: { mult: 2, secs: 1800 } }, 4: { etoiles: 1 }, 7: { boost: { mult: 5, secs: 900 } }, 10: { etoiles: 2, boost: { mult: 2, secs: 3600 } }, 11: { etoiles: 1, boost: { mult: 2, secs: 1800 } },
@@ -623,7 +624,8 @@
     return p;
   }
   const ensembleComplet = (q) => VETEMENTS.every((v) => q.vetements.includes(v));
-  const NOMS_DECOS = { citrouilles: 'des citrouilles sur le perron', toiles: 'des toiles d’araignée aux fenêtres', chaudron: 'un chaudron qui bouillonne', bestiaire: 'l’étagère aux bocaux de monstres (le bestiaire)' };
+  const NOMS_DECOS = { citrouilles: 'des citrouilles sur le perron', toiles: 'des toiles d’araignée aux fenêtres', chaudron: 'un chaudron qui bouillonne', bestiaire: 'l’étagère aux bocaux de monstres (le bestiaire)', legende: 'la lanterne de la légende' };
+  const NOMS_AURAS = { lueur: 'l’aura phosphorescente' }, NOMS_DISTINCTIONS = { 'legende-manoir': 'le titre « Légende du Manoir »' }; // le 20e palier (src/game.js : AURAS, DISTINCTIONS)
   const NOMS_VETEMENTS = { 'hantee-chapeau': 'chapeau pointu de sorcière', 'hantee-cape': 'cape de minuit', 'hantee-bottes': 'bottes qui claquent', 'hantee-lanterne': 'citrouille-lanterne (la tenue complète)', 'hantee-lueur-chapeau': 'le chapeau phosphorescent (le trophée)' };
   function phrasePalier(p) { // ce que donne un palier, en une ligne
     const l = [];
@@ -633,6 +635,8 @@
     if (p.chat) l.push('le chat noir');
     if (p.deco) l.push(NOMS_DECOS[p.deco]);
     if (p.vetement) l.push(NOMS_VETEMENTS[p.vetement]);
+    if (p.aura) l.push(NOMS_AURAS[p.aura] || p.aura);
+    if (p.distinction) l.push(NOMS_DISTINCTIONS[p.distinction] || p.distinction);
     return l.join(' · ');
   }
 

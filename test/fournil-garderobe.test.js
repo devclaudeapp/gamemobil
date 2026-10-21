@@ -90,6 +90,20 @@ check(G.tauxBase(ref) === tauxRef && G.heuresAbsence(ref) === absRef, 'l’état
 { // l'absence : les heures en plus se paient vraiment
   const s = boutique(); G.donnerCollection(s, 'or'); G.equiperCollection(s, 'or'); s.lastSeen = T0; const a = G.absence(s, T0 + 24 * 3600e3); const s2 = boutique(); s2.lastSeen = T0; const a2 = G.absence(s2, T0 + 24 * 3600e3);
   check(a.secs === (G.ABSENCE_MAX_H + 1.5) * 3600 && a2.secs === G.ABSENCE_MAX_H * 3600 && a.total > a2.total, `une nuit d’absence : ${a.secs / 3600} h payées en tenue d’or (niveau 1 : foulard +0,5 h, ensemble +1 h) contre ${a2.secs / 3600} h`); }
+{ // l'aura phosphorescente et le titre (le 20e palier de la Maison hantée, les acharnés) : à vie, sans bonus ; l'aura se porte et se retire
+  const s = boutique(), t0 = G.tauxBase(s), k0 = G.tenueBoulanger(s).cle;
+  check(G.tenueBoulanger(s).aura === null && !/aura/.test(k0) && G.garderobe(s).auras.length === 0 && G.porterAura(s, 'lueur').ok === false, 'au départ : aucune aura (la clé de la tenue est celle d’avant les auras), et on ne porte pas une aura qu’on n’a pas');
+  const r1 = G.donnerAura(s, 'lueur'), r2 = G.donnerAura(s, 'lueur');
+  check(r1.nouveau && !r2.nouveau && G.tenueBoulanger(s).aura === 'lueur' && G.tenueBoulanger(s).cle === k0 + '|aura:lueur' && G.tauxBase(s) === t0 && G.donnerAura(s, 'arc-en-ciel').aura === null,
+    'gagnée : portée d’office, une seule fois ; la clé de la tenue change (la scène rebâtit le boulanger) ; aucun bonus ; une aura inconnue : rien');
+  check(G.porterAura(s, null).ok && G.tenueBoulanger(s).aura === null && G.tenueBoulanger(s).cle === k0 && G.garderobe(s).auras.includes('lueur') && G.porterAura(s, 'lueur').ok && G.tenueBoulanger(s).aura === 'lueur', 'retirée (elle reste gagnée), puis remise');
+  const vieille = JSON.parse(JSON.stringify(s)); delete vieille.garderobe.auras; delete vieille.garderobe.aura;
+  const bidouille = JSON.parse(JSON.stringify(s)); bidouille.garderobe.auras = ['lueur', 'lueur', 'licorne', 3]; bidouille.garderobe.aura = 'licorne';
+  check(G.tenueBoulanger(vieille).aura === null && egalAuras(G.garderobe(vieille)) && egalAuras(G.garderobe(bidouille), ['lueur']) && G.garderobe(bidouille).aura === null, 'une sauvegarde d’avant les auras : aucune ; une liste abîmée : remise d’aplomb (sans doublon ni inconnue, rien de porté qu’on n’a pas)');
+  const d1 = G.donnerDistinction(s, 'legende-manoir'), d2 = G.donnerDistinction(s, 'legende-manoir');
+  check(d1.nouveau && !d2.nouveau && G.distinctions(s).join() === 'legende-manoir' && G.DISTINCTIONS['legende-manoir'].nom === 'Légende du Manoir' && G.donnerDistinction(s, 'roi').distinction === null && G.distinctions(G.newState(T0)).length === 0 && G.distinctions({ distinctions: ['legende-manoir', 'roi'] }).join() === 'legende-manoir',
+    'le titre « Légende du Manoir » : gagné une fois, à vie (st.distinctions) ; un titre inconnu : rien'); }
+function egalAuras(g, l) { return JSON.stringify(g.auras) === JSON.stringify(l || []); }
 
 console.log(fails ? `${fails} échec(s) sur ${n}` : `Tout passe (${n} vérifications).`);
 process.exit(fails ? 1 : 0);

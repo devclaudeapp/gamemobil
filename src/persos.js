@@ -5,7 +5,8 @@
    transparente), deux bras, et les accessoires (sac, plateau + pâtisserie fusionnés, clé, halo). Aucune échelle n'est appliquée :
    les cotes sont exprimées directement en unités monde, les proportions du dessin 2D y sont intégrées (73 de haut ≈ 45 px à
    l'écran en plongée 52°, tête r = 10, corps 22 de large). Budget : ≤ 8 appels de dessin par personnage (7 de base + 1 accessoire),
-   à tous les grades d'apprenti ; le chat de la boutique : 5 ; une pâtisserie, de la carte ou de saison : 1. */
+   à tous les grades d'apprenti ; le boulanger qui porte l'aura phosphorescente (le 20e palier de la Maison hantée) : + 1, un sprite ; le chat
+   de la boutique : 5 ; une pâtisserie, de la carte ou de saison : 1. */
 const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (fichier non chargé), le module vaut null et le jeu démarre sans 3D
   'use strict';
   const M = MODELES, TAU = Math.PI * 2, HP = Math.PI / 2, CY = Math.cos(52 * Math.PI / 180);
@@ -58,11 +59,19 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
   }
   const VISAGES = []; // les 8 cases déjà construites : visage() les reprend ici sans recomposer la clé du cache (une chaîne allouée à chaque clignement)
   const geoVisage = (k) => VISAGES[k] || (VISAGES[k] = memo('visage|' + k, () => { const g = new THREE.SphereGeometry(RV, 10, 8, HP - PHI / 2, PHI, TH0, THL), uv = g.attributes.uv; for (let i = 0; i < uv.count; i++) uv.setX(i, (k + uv.getX(i)) / NCEL); return g; }));
+  function haloTex() { // le dégradé radial blanc, partagé (jamais libéré) : le halo du mystère et l'aura du boulanger le teintent
+    if (!texHalo) { texHalo = M.texture((c, w, h) => { const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h); }, 64, 64); texHalo.userData.partagee = true; }
+    return texHalo;
+  }
   function haloMat() { // un dégradé radial doré pour le client mystère : la TEXTURE est partagée (jamais libérée), le SpriteMaterial est propre à chaque personnage (MODELES.dispose le libère sans toucher aux autres) ; en Node, le halo carré de MODELES
     if (typeof document === 'undefined') return M.MAT.halo;
-    if (!texHalo) { texHalo = M.texture((c, w, h) => { const g = c.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, w / 2); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(0.45, 'rgba(255,255,255,.45)'); g.addColorStop(1, 'rgba(255,255,255,0)'); c.fillStyle = g; c.fillRect(0, 0, w, h); }, 64, 64); texHalo.userData.partagee = true; }
-    return new THREE.SpriteMaterial({ map: texHalo, color: OR, transparent: true, opacity: 0.6, depthWrite: false });
+    return new THREE.SpriteMaterial({ map: haloTex(), color: OR, transparent: true, opacity: 0.6, depthWrite: false });
   }
+  // l'aura phosphorescente du boulanger (le 20e palier de la Maison hantée, portée depuis la garde-robe : GAME.tenueBoulanger(st).aura) : le
+  // même dégradé teinté de vert, un sprite propre à ce boulanger (animerBoulanger fait varier son opacité et sa taille, sans allocation) ;
+  // en Node (sans canvas), un sprite sans texture, propre lui aussi (jamais le matériau partagé : on l'anime)
+  const AURA = { lueur: '#7CFF6B' };
+  function auraMat(id) { return new THREE.SpriteMaterial({ map: typeof document === 'undefined' ? null : haloTex(), color: AURA[id] || AURA.lueur, transparent: true, opacity: 0.44, depthWrite: false }); }
   // ─── un personnage : jambes, buste, tête, visage, bras, accessoires ───
   // Hiérarchie : g (lacet par la scène) > racine (échelle ×1,25 du patron, saut) > jambes ; racine > haut (rebond, respiration, assise) >
   // corps, cou > (tête, visage), bras, accessoires. userData.parts = { racine, haut, jambes[2], corps, cou, tete, visage, bras[2], sac?, plateau?, cle?,
@@ -251,7 +260,10 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     rang = rang || 0; const th = rang === 0 ? 10 : rang === 1 ? 22 : 22 + Math.min(14, (rang - 1) * 5);
     const garde = tenue && typeof tenue === 'object' ? tenue : null, metal = garde ? (garde.tete && METAUX_PODIUM.includes(garde.tete.metal) ? garde.tete.metal : null) : TENUES[tenue] ? tenue : null;
     const g = construire({ haut: '#FF6B8B', peau: '#FFD7B5', tablier: 'large', toque: th, lisere: rang >= 4, foulard: rang >= 3, moustache: rang >= 3, col: rang >= 5, sueur: true, tenue: garde ? null : TENUES[tenue] || null, garde });
-    g.userData.parts.racine.scale.setScalar(1.25); g.userData.rang = rang; g.userData.tenue = metal; g.userData.garde = garde; return g; // userData.tenue : le métal du podium porté sur la tête (ce que les autres voient), sinon null
+    const P = g.userData.parts;
+    // l'aura (garde.aura) : un seul sprite dressé derrière le buste, un peu plus grand que le boulanger ; un appel de dessin de plus, au plus
+    if (garde && garde.aura && AURA[garde.aura]) { P.aura = new THREE.Sprite(auraMat(garde.aura)); P.aura.position.set(0, 38, -7); P.aura.scale.set(68, 90, 1); P.aura.renderOrder = -1; P.aura.castShadow = false; P.racine.add(P.aura); }
+    P.racine.scale.setScalar(1.25); g.userData.rang = rang; g.userData.tenue = metal; g.userData.garde = garde; return g; // userData.tenue : le métal du podium porté sur la tête (ce que les autres voient), sinon null
   }
   // DÉPENDANCE DE VERSION (Three r158) : on écrit les champs privés d'Euler (_x, _y, _z) sans passer par le setter, puis tourner()
   // recale le quaternion comme le ferait Euler._onChangeCallback. Si une mise à jour de Three renomme ces champs ou change ce rappel,
@@ -322,6 +334,7 @@ const PERSOS = typeof THREE === 'undefined' ? null : (() => { // sans Three.js (
     bg.rotation._x = bgx; bd.rotation._x = bdx; bg.rotation._z = bgz; bd.rotation._z = bdz; tourner(bg); tourner(bd);
     cou.rotation._x = cx; cou.rotation._z = cz; tourner(cou);
     if (P.sueur) P.sueur.visible = !!o.rush;
+    if (P.aura) { const k = Math.sin(t * 1.4), k2 = Math.sin(t * 0.53 + 1); P.aura.material.opacity = 0.44 + 0.1 * k + 0.04 * k2; P.aura.scale.x = 68 + 3 * k; P.aura.scale.y = 90 + 4 * k + 2 * k2; } // l'aura respire, doucement (deux sinus : jamais tout à fait le même battement)
     visage(P, o.blink > 3.25 ? 3 : 1);
   }
   // ─── le chat de la boutique : un roux tigré, même grammaire que les personnages (volumes ronds, couleurs plates, petits yeux) ───

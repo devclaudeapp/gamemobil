@@ -620,8 +620,14 @@
     return { pieces: GR_PIECES, objets, ensembles, niveaux: GR_NIVEAUX, couts: GR_COUTS, nivMax: GR_NIV_MAX, base: GR_BASE };
   })();
   const vetement = (id) => (id && GARDEROBE.objets[id]) || null;
+  // les auras (le 20e palier de la Maison hantée : l'aura phosphorescente) : une lueur douce autour du boulanger, sans bonus, gagnée à vie ;
+  // elle se porte ou se retire dans la garde-robe (g.auras : celles gagnées, g.aura : celle portée, null : aucune), en plus des quatre pièces
+  const AURAS = { lueur: { id: 'lueur', nom: 'Aura phosphorescente', couleur: '#7CFF6B', desc: 'Le 20e palier du Manoir. Une lueur verte, douce, qui respire autour du boulanger.' } };
+  // les distinctions gagnées, à vie (st.distinctions) : un titre montré à côté du pseudo dans le classement et dans la visite de sa boutique
+  // (src/classement.js, TITRES ; la photo de la boutique le porte, champ ti)
+  const DISTINCTIONS = { 'legende-manoir': { id: 'legende-manoir', nom: 'Légende du Manoir', desc: 'Le 20e palier de la Maison hantée.' } };
   const IDS_BASE = Object.keys(GARDEROBE.objets).filter((id) => GARDEROBE.objets[id].collection === 'base');
-  const garderobeNeuve = () => { const o = {}; for (const id of IDS_BASE) o[id] = { niv: 1, depuis: 0 }; return { v: 0, objets: o, equipe: Object.assign({}, GR_BASE) }; };
+  const garderobeNeuve = () => { const o = {}; for (const id of IDS_BASE) o[id] = { niv: 1, depuis: 0 }; return { v: 0, objets: o, equipe: Object.assign({}, GR_BASE), auras: [], aura: null }; };
   function garderobe(st) { // la garde-robe remise d'aplomb (une vieille sauvegarde, un id disparu, une pièce portée qu'on n'a pas)
     let g = st.garderobe;
     if (!g || typeof g !== 'object' || Array.isArray(g)) g = st.garderobe = garderobeNeuve();
@@ -631,7 +637,27 @@
     for (const id of IDS_BASE) if (!g.objets[id]) g.objets[id] = { niv: 1, depuis: 0 };
     for (const id of Object.keys(g.objets)) { const o = g.objets[id]; if (!vetement(id) || !o || typeof o !== 'object') { delete g.objets[id]; continue; } o.niv = Math.max(1, Math.min(GR_NIV_MAX, Math.floor(Number(o.niv)) || 1)); }
     for (const p of GR_PIECES) { const id = g.equipe[p], v = vetement(id); if (id != null && (!v || v.piece !== p || !g.objets[id])) g.equipe[p] = GR_BASE[p]; if (g.equipe[p] === undefined) g.equipe[p] = GR_BASE[p]; }
+    if (!Array.isArray(g.auras) || g.auras.some((a) => !AURAS[a])) g.auras = Array.isArray(g.auras) ? [...new Set(g.auras.filter((a) => AURAS[a]))] : []; // (une sauvegarde d'avant les auras : aucune)
+    if (g.aura !== null && !g.auras.includes(g.aura)) g.aura = null;
     return g;
+  }
+  function donnerAura(st, id) { // l'aura gagnée (le 20e palier de la Maison hantée) : portée d'office la première fois ; déjà gagnée : rien ne change
+    if (!AURAS[id]) return { nouveau: false, aura: null };
+    const g = garderobe(st); if (g.auras.includes(id)) return { nouveau: false, aura: AURAS[id] };
+    g.auras.push(id); g.aura = id; g.v++; note(st, `Garde-robe : ${AURAS[id].nom}`);
+    return { nouveau: true, aura: AURAS[id] };
+  }
+  function porterAura(st, id) { // porter une aura gagnée, ou aucune (null)
+    const g = garderobe(st); if (id != null && !g.auras.includes(id)) return { ok: false };
+    const cible = id == null ? null : id; if (g.aura !== cible) { g.aura = cible; g.v++; }
+    return { ok: true, aura: cible };
+  }
+  const distinctions = (st) => (Array.isArray(st.distinctions) ? st.distinctions.filter((t) => DISTINCTIONS[t]) : []); // les distinctions gagnées, à vie
+  function donnerDistinction(st, id) { // rend { nouveau, distinction } ; déjà gagnée : rien ne change
+    if (!DISTINCTIONS[id]) return { nouveau: false, distinction: null };
+    if (!Array.isArray(st.distinctions)) st.distinctions = [];
+    if (st.distinctions.includes(id)) return { nouveau: false, distinction: DISTINCTIONS[id] };
+    st.distinctions.push(id); note(st, `Titre : ${DISTINCTIONS[id].nom}`); return { nouveau: true, distinction: DISTINCTIONS[id] };
   }
   const possede = (st, id) => !!garderobe(st).objets[id];
   const niveauVetement = (st, id) => { const o = garderobe(st).objets[id]; return o ? o.niv : 0; };
@@ -690,10 +716,10 @@
     if (x && x.pourboire) t.push(`Pourboires +${v(x.pourboire)} %`);
     return t;
   }
-  function tenueBoulanger(st) { // ce que porte le boulanger, pour persos.js et les icônes : { tete, haut, pieds, accessoire: { forme, metal } | null, cle }
+  function tenueBoulanger(st) { // ce que porte le boulanger, pour persos.js et les icônes : { tete, haut, pieds, accessoire: { forme, metal } | null, aura: id | null, cle }
     const g = garderobe(st), t = {}, cle = [];
     for (const p of GR_PIECES) { const v = vetement(g.equipe[p]); t[p] = v ? { forme: v.forme, metal: v.collection === 'base' ? null : v.collection } : null; cle.push(g.equipe[p] || ''); }
-    t.cle = cle.join('|'); return t;
+    t.aura = g.aura || null; t.cle = cle.join('|') + (t.aura ? `|aura:${t.aura}` : ''); return t; // (la clé d'avant les auras, inchangée sans aura)
   }
   const toqueMetal = (st) => { const v = vetement(garderobe(st).equipe.tete); return v && METAUX_PODIUM[v.collection] ? v.collection : null; }; // la toque du podium portée, vue des autres (null : pas une toque de podium)
   const garderobeCle = (st) => { const g = garderobe(st); return `${g.v}|${st.etoiles}|${Object.keys(g.objets).length}`; }; // pour redessiner la page quand elle change
@@ -1482,5 +1508,6 @@
     FOUR, fourNiveau, fourNouveau, fourAvancer, fourToucher, FACONNAGE, MODELES_FACONNAGE, reechantillonner, noterFaconnage, ajouterTrait, couvertureFaconnage,
     INGREDIENTS, MEMOIRE, memoireMontre, memoireRecette, memoireSaisir, memoireScore,
     POINTS, pointsDuJour, pointsAtelier, pointsSemaine, pointsTotal, detailPoints, marquerJournee, marquerDefi, marquerEvenement, marquerAtelier, marquerAmelioration,
-    GARDEROBE, garderobe, garderobeNeuve, vetement, possede, niveauVetement, donnerVetement, donnerCollection, equiper, equiperCollection, coutVetement, ameliorerVetement, bonusPiece, ensembleComplet, bonusGardeRobe, garderobeMult, texteBonus, tenueBoulanger, toqueMetal, garderobeCle };
+    GARDEROBE, garderobe, garderobeNeuve, vetement, possede, niveauVetement, donnerVetement, donnerCollection, equiper, equiperCollection, coutVetement, ameliorerVetement, bonusPiece, ensembleComplet, bonusGardeRobe, garderobeMult, texteBonus, tenueBoulanger, toqueMetal, garderobeCle,
+    AURAS, donnerAura, porterAura, DISTINCTIONS, distinctions, donnerDistinction };
 });

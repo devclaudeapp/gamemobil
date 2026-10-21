@@ -73,7 +73,8 @@ const ICONS = (() => {
       ? `<path d="M12 14c0-7 5.5-11 12-11s12 4 12 11v2H12z" fill="${cT[0]}" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><rect x="11" y="13" width="26" height="4" rx="2" fill="${cT[0]}" stroke="${L}" stroke-width="2"/><path d="M12 10c-4-1-7 0-9 2 2 2 5 3 9 3z" fill="${cT[1]}" stroke="${L}" stroke-width="2" stroke-linejoin="round"/><circle cx="24" cy="3.5" r="1.6" fill="${cT[1]}"/>`
       : `<rect x="13" y="${14 - th}" width="22" height="${th}" rx="${rang === 0 ? 3 : 6}" fill="${tissuT}" stroke="${L}" stroke-width="2"/><rect x="12" y="12" width="24" height="4" rx="2" fill="${tissuT}" stroke="${L}" stroke-width="2"/>
       ${rang >= 4 || tT ? `<rect x="12" y="12" width="24" height="2" rx="1" fill="${tT ? tT[1] : '#FFC84A'}"/>` : ''}${tT && th >= 9 ? `<path d="M24 ${14 - th * 0.62}l1.2 2.4 2.6.4-1.9 1.8.5 2.6-2.4-1.3-2.4 1.3.5-2.6-1.9-1.8 2.6-.4z" fill="${tT[1]}"/>` : ''}`;
-    return S(`${corps}
+    const aura = gd && gd.aura ? '<ellipse cx="24" cy="27" rx="23.5" ry="23" fill="#7CFF6B" opacity=".16"/><ellipse cx="24" cy="27" rx="18.5" ry="19.5" fill="#B8FF9E" opacity=".24"/>' : ''; // l'aura phosphorescente (le 20e palier de la Maison hantée), derrière lui
+    return S(`${aura}${corps}
       ${rang >= 5 ? `<rect x="10" y="30" width="9" height="5" rx="2" fill="#2B5BD7"/><rect x="19.5" y="30" width="9" height="5" rx="2" fill="#fff" stroke="${L}" stroke-width=".8"/><rect x="29" y="30" width="9" height="5" rx="2" fill="#E1496C"/>` : ''}
       ${foulard ? `<rect x="15" y="27" width="18" height="5" rx="2.5" fill="${foulard}"/>` : ''}${acc === 'chaine' ? `<path d="M15 28c3 5 6 7 9 7s6-2 9-7" fill="none" stroke="${tA ? tA[1] : '#FFC84A'}" stroke-width="2" stroke-dasharray="2 1.4" stroke-linecap="round"/><circle cx="24" cy="36" r="2.4" fill="${tA ? tA[1] : '#FFC84A'}" stroke="${L}" stroke-width="1.2"/>` : ''}
       <circle cx="24" cy="21" r="10" fill="#FFD7B5" stroke="${L}" stroke-width="2"/>

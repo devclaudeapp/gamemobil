@@ -85,7 +85,8 @@ const RPC = {
     v.sort((a, b) => b[cle] - a[cle] || a.pseudo.toLowerCase().localeCompare(b.pseudo.toLowerCase()));
     v.forEach((x) => { x.rang = v.filter((y) => y[cle] > x[cle]).length + 1; });
     const lim = Math.min(100, Math.max(1, c.p_limite || 50)), moi = v.find((x) => x.id === c.p_id);
-    const ligne = (x) => (faux.v2 ? { rang: x.rang, pseudo: x.pseudo, valeur: x.valeur, moi: x.id === c.p_id, podium: x.podium } : { rang: x.rang, pseudo: x.pseudo, points: x.points, valeur: x.valeur, moi: x.id === c.p_id, podium: x.podium });
+    const titreDe = (id) => (faux.v6 ? { titre: faux.photos.has(id) && /^[a-z0-9-]{1,24}$/.test(String(faux.photos.get(id).ti || '')) ? faux.photos.get(id).ti : null } : {}); // v6.6 : le titre que montre sa photo
+    const ligne = (x) => (faux.v2 ? { rang: x.rang, pseudo: x.pseudo, valeur: x.valeur, moi: x.id === c.p_id, podium: x.podium } : { rang: x.rang, pseudo: x.pseudo, points: x.points, valeur: x.valeur, moi: x.id === c.p_id, podium: x.podium, ...titreDe(x.id) });
     return { ...(faux.v2 ? {} : { version: versionFaux() }), semaine: l, periode: c.p_periode, joueurs: v.length, lignes: v.slice(0, lim).map(ligne), moi: moi ? (faux.v2 ? { rang: moi.rang, valeur: moi.valeur, podium: moi.podium } : { rang: moi.rang, points: moi.points, valeur: moi.valeur, podium: moi.podium }) : null };
   },
   fournil_retirer: (c) => { const j = faux.joueurs.get(c.p_id); if (!j) return { ok: true, erreur: null }; if (j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: 'jeton' }; faux.joueurs.delete(c.p_id); faux.palmares.delete(c.p_id); return { ok: true, erreur: null }; },
@@ -477,6 +478,7 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
       s.etoiles = 37; s.stats.ventes = 123456; s.stats.serieMax = 6; s.lifetime = 4.2e9; s.trophees = { premiere: 1, cent: 1, dixmille: 1 };
       const qm = Q.neuf(Date.now()); qm.majeur = true; qm.ouvertLe = Date.now(); [[210, 1], [200, 1], [190, 1], [180, 1], [170, 1], [160, 1], [120, 1], [40, 0]].forEach(([n, a], i) => { qm.postes[i].niv = n; qm.postes[i].staff = !!a; }); // ses huit postes : jusqu'au cristal bleu (après le palier 16)
       qm.decos = ['graffiti', 'neon']; qm.paliers = Q.PALIERS.slice(0, 16).map((p) => p.n); qm.total = Q.PALIERS[15].total + 1234;
+      s.distinctions = ['legende-manoir']; // v6.6 : Mamie Jo est une acharnée de la Maison hantée (le 20e palier) : sa photo porte son titre (ti)
       faux.photos.set(mamie, CL.photo(s, { G, coupes: ['or', 'argent'], badge: true, dq: ['neon'], dh: ['citrouilles'], ev: { id: 'quartier', q: qm } }));
       mamieTitre = G.titre(s); mamieNiveau = G.niveau(s); }
     { const petit = [...faux.joueurs.entries()].find(([, a]) => a.pseudo === 'Petit Jo')[0], s = G.newState(Date.now()); s.nomBoutique = 'Au Petit Jo'; s.stations[0].niv = 30;
@@ -497,6 +499,11 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     check(/Objectif commun/.test(v1.obj) && /À nous tous : 1\s234 \/ 2\s400 croissants/.test(v1.obj) && parseFloat(v1.jauge) === 51 && v1.avant, `l’objectif commun en tête de la feuille, avant ses points : « ${v1.obj.slice(0, 90)}… », jauge ${v1.jauge}`);
     check(v1.n > 40 && v1.vis === v1.n - 1 && !v1.moiVis && v1.label === 'Visiter la boutique de Mamie Jo', `chaque ligne d’un copain se touche (${v1.vis} sur ${v1.n}), pas la sienne ; « ${v1.label} »`);
     await capture(p6, '5-objectif-commun');
+    { // v6.6 : le titre « Légende du Manoir » à côté du pseudo de Mamie Jo (le serveur le rend sur sa ligne, lu dans sa photo) ; aucun aux autres
+      const t = await p6.evaluate(() => { const l = document.querySelector('#feuille [data-visite="Mamie Jo"]'), e = l && l.querySelector('.cl-titre'), r = e && e.getBoundingClientRect(), lr = l && l.getBoundingClientRect(); return { txt: e ? e.innerText.trim() : '', svg: !!(e && e.querySelector('svg')), autres: document.querySelectorAll('#feuille .cl-titre').length, dedans: !!(r && r.right <= lr.right + 1 && r.left >= lr.left), large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1 }; });
+      check(t.txt === 'Légende du Manoir' && t.svg && t.autres === 1 && t.dedans && t.large, `la liste : « ${t.txt} » à côté du pseudo de Mamie Jo (sa petite lanterne), et à elle seule (${t.autres}) ; rien ne déborde`);
+      await p6.evaluate(() => { const l = document.querySelector('#feuille [data-visite="Mamie Jo"]'); l.scrollIntoView({ block: 'center' }); }); await sleep(250);
+      if (process.env.SHOTS_ACHARNES) { fs.mkdirSync(process.env.SHOTS_ACHARNES, { recursive: true }); await p6.screenshot({ path: path.join(process.env.SHOTS_ACHARNES, 'acharnes-titre-liste.png') }); } }
     await p6.evaluate(() => { const f = document.querySelector('#feuille'), l = document.querySelector('#feuille .cl-liste'); f.scrollTop = l.offsetTop - 120; }); await sleep(250);
     await capture(p6, '1-liste-ligne-touchable');
     // l'état du joueur avant la visite (rien ne doit bouger chez lui)
@@ -510,6 +517,8 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     check(vis.rec.equipe && vis.rec.coupes === 2 && vis.rec.coupe === null && vis.tiroir === 'ferme', 'la scène montre SA boutique : ses deux coupes en vitrine, son badge « Esprit d’équipe » au mur, le tiroir replié');
     check(/Laisser un pourboire/.test(vis.pb) && /encore 3 aujourd’hui/.test(vis.pb), `le bouton « ${vis.pb.replace(/\s+/g, ' ')} » montre les restants du jour`);
     await capture(p6, '2-boutique-copain');
+    check(await p6.evaluate(() => { const e = document.querySelector('#vi-vue .vi-titre .cl-titre'), n = document.querySelector('#vi-vue .vi-enseigne'); if (!e || !n) return false; const r = e.getBoundingClientRect(), rn = n.getBoundingClientRect(); return e.innerText.trim() === 'Légende du Manoir' && r.left >= 0 && r.right <= innerWidth && r.top >= rn.bottom - 1; }), 'v6.6 : la visite montre son titre « Légende du Manoir » sous l’enseigne de sa boutique (lu dans sa photo), entier, dans l’écran');
+    if (process.env.SHOTS_ACHARNES) await p6.screenshot({ path: path.join(process.env.SHOTS_ACHARNES, 'acharnes-titre-visite.png') });
     // « Ses recettes » : ses recettes ouvertes, leur niveau, leurs apprentis
     await p6.tap('[data-vi="recettes"]'); await sleep(200);
     const rec = await p6.evaluate(() => [...document.querySelectorAll('#vi-bas .vi-recettes li')].map((li) => li.innerText.replace(/\s+/g, ' ')));

@@ -7,6 +7,9 @@
 // d'office) ; 360 × 640 ; l'artefact Claude sans classement.
 // Version 6.5 : l'annonce du podium donne aussi ses étoiles et son boost ; la feuille du lundi d'un 7e sur 12 (« Récupérer », les étoiles, le boost
 // dans la réserve, une seule fois), et « Mes places » dans « Mes récompenses ».
+// Version 6.6, les acharnés de la Maison hantée : la feuille « Tu as fini 7e de la Maison hantée sur 12 » (« Récupérer », 3 étoiles et un
+// boost ×3 de 30 min, une seule fois), « Mes événements » dans « Mes récompenses » ; un 2e : la tenue d'Halloween en or en plus ; un
+// serveur d'avant la 6.6 (podium à trois, sans le nombre de joueurs) reste servi. Captures acharnes-*.png dans SHOTS_ACHARNES s'il est donné.
 // Lancer : NODE_PATH=/opt/node22/lib/node_modules node test/fournil-recompenses.cjs   (captures dans test/shots/recompenses/ ; PORT_RECOMPENSES pour changer de port)
 const { chromium } = require('playwright');
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
@@ -19,6 +22,7 @@ const server = http.createServer((req, res) => {
   fs.readFile(path.join(root, p), (err, d) => { if (err) { res.writeHead(404, { 'content-type': 'text/html' }); res.end('<!doctype html><title>vide</title>'); return; } res.writeHead(200, { 'content-type': types[path.extname(p)] || 'application/octet-stream' }); res.end(req.method === 'HEAD' ? undefined : d); });
 }).listen(PORT);
 const out = path.join(__dirname, 'shots', 'recompenses'); fs.mkdirSync(out, { recursive: true });
+const outA = process.env.SHOTS_ACHARNES ? (fs.mkdirSync(process.env.SHOTS_ACHARNES, { recursive: true }), process.env.SHOTS_ACHARNES) : out; // les captures des acharnés
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
 const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { try { if (await fn()) return true; } catch (e) { /* la page se recharge */ } await sleep(100); } return false; };
@@ -26,10 +30,10 @@ const attendre = async (fn, ms = 8000) => { for (let t = 0; t < ms; t += 100) { 
 // ─── le faux Supabase, contrat v2 ───
 const sha = (t) => crypto.createHash('sha256').update(String(t), 'utf8').digest('hex');
 const lundi = () => CL.lundiParis(Date.now()), semaineAvant = (k) => CL.decalerSemaine(lundi(), -k);
-const faux = { joueurs: new Map(), palmares: [], appels: [], places: [] }; // palmares : [{ semaine, rang, id, pseudo, valeur }] ; places (version 6.5) : [{ semaine, rang, joueurs, id }]
+const faux = { joueurs: new Map(), palmares: [], appels: [], places: [], evenements: null }; // evenements (version 6.6) : { hantee: { rang, joueurs, podium } } rendu par fournil_recompenses // palmares : [{ semaine, rang, id, pseudo, valeur }] ; places (version 6.5) : [{ semaine, rang, joueurs, id }]
 const MOI = { id: crypto.randomUUID(), jeton: crypto.randomBytes(32).toString('hex'), pseudo: 'Paulo' };
 function semer() {
-  faux.joueurs.clear(); faux.palmares = []; faux.places = []; faux.appels.length = 0;
+  faux.joueurs.clear(); faux.palmares = []; faux.places = []; faux.evenements = null; faux.appels.length = 0;
   const noms = ['Mamie Jo', 'Tonton Brioche', 'Petit Levain', 'Chef Fougasse', 'Super Éclair'];
   noms.forEach((pseudo, i) => { const id = crypto.randomUUID(); faux.joueurs.set(id, { jeton: sha('x' + i), pseudo, sommet: 1e12, total: 9e9 / (i + 1), gain: 3e8 / (i + 1), semaine: lundi(), maj: 0 }); if (i === 0) faux.palmares.push({ semaine: semaineAvant(1), rang: 1, id, pseudo, valeur: 4e8 }); if (i === 1) faux.palmares.push({ semaine: semaineAvant(1), rang: 3, id, pseudo, valeur: 1e8 }); });
   faux.joueurs.set(MOI.id, { jeton: sha(MOI.jeton), pseudo: MOI.pseudo, sommet: 1e6, total: 2e9, gain: 1e8, semaine: lundi(), maj: 0 });
@@ -58,7 +62,8 @@ const RPC = {
     const j = faux.joueurs.get(c.p_id); if (j && j.jeton !== sha(c.p_jeton)) return { ok: false, erreur: 'jeton', podiums: [], derniere: null };
     const podium = faux.palmares.filter((p) => p.semaine === semaineAvant(1)).sort((a, b) => a.rang - b.rang).map((p) => ({ rang: p.rang, pseudo: p.pseudo, valeur: p.valeur }));
     return { ok: true, erreur: null, podiums: j ? faux.palmares.filter((p) => p.id === c.p_id).sort((a, b) => (a.semaine < b.semaine ? -1 : 1)).map((p) => ({ semaine: p.semaine, rang: p.rang })) : [], derniere: podium.length ? { semaine: semaineAvant(1), podium } : null,
-      ...(faux.places.length ? { places: faux.places.filter((p) => p.id === c.p_id).map(({ semaine, rang, joueurs }) => ({ semaine, rang, joueurs })) } : {}) }; // version 6.5
+      ...(faux.places.length ? { places: faux.places.filter((p) => p.id === c.p_id).map(({ semaine, rang, joueurs }) => ({ semaine, rang, joueurs })) } : {}), // version 6.5
+      ...(faux.evenements ? { evenements: faux.evenements } : {}) }; // version 6.6 : le classement final de la Maison hantée, jusqu'au 15e
   },
   fournil_heure: () => ({ ms: Date.now() }),
 };
@@ -237,6 +242,45 @@ const etatInscrit = (rec) => JSON.stringify({ ...CL.etatNeuf(), id: MOI.id, jeto
   check((await p.evaluate(() => window.__fournil.st.etoiles)) === 1 && (await p.evaluate(() => JSON.stringify(window.__fournil.boosts().reserve.map((x) => `${x.mult}:${x.secs}`)))) === '["2:900"]' && /Récupérée/.test(await p.evaluate(() => (document.querySelector('.rec-coupes[aria-label^="Mes places"] .rec-carte') || {}).innerText || '')) && !(await p.evaluate(() => !!document.querySelector('[data-a="rec-recuperer"]'))),
     'touché : +1 étoile, un boost ×2 de 15 min, la place est « Récupérée »');
   await ctx.close();
+
+  // ─── 8 ter. version 6.6 : 7e sur 12 de la Maison hantée (le classement final de l'événement), la feuille « Récupérer », une fois ───
+  { const POD = [{ rang: 1, pseudo: 'Mamie Jo', valeur: 9e16 }, { rang: 2, pseudo: 'Tonton Brioche', valeur: 8e16 }, { rang: 3, pseudo: 'Petit Levain', valeur: 7e16 }];
+    semer(); faux.palmares = faux.palmares.filter((x) => x.id !== MOI.id); faux.evenements = { hantee: { rang: 7, joueurs: 12, podium: POD } };
+    ({ ctx, p } = await nouveau());
+    await preparer(p, etatInscrit());
+    await p.goto(BASE + '/fournil/');
+    let ok = await attendre(() => p.evaluate(() => !!document.querySelector('#feuille-contenu [data-cl="evt-place"]')), 9000);
+    if (!ok) { console.log('        (la feuille de l’événement tarde : on attend encore une fois)'); ok = await attendre(() => p.evaluate(() => !!document.querySelector('#feuille-contenu [data-cl="evt-place"]')), 9000); }
+    check(ok, 'au lancement, la feuille de la Maison hantée s’ouvre (7e sur 12 au classement final)');
+    await sleep(900);
+    const ev = await p.evaluate(() => { const f = document.querySelector('#feuille-contenu'); return { h2: f.querySelector('h2').textContent, phrase: f.querySelector('.rec-phrase').textContent, sous: f.querySelector('.sous').textContent, btn: [...f.querySelectorAll('button')].map((b) => [b.innerText.trim(), Math.round(b.getBoundingClientRect().height)]), e: window.__fournil.st.etoiles, res: window.__fournil.boosts().reserve.length, large: document.querySelector('#feuille').scrollWidth <= document.querySelector('#feuille').clientWidth + 1 && document.documentElement.scrollWidth <= innerWidth + 1 }; });
+    check(ev.h2 === 'Tu as fini 7e de la Maison hantée sur 12' && ev.phrase === '+3 étoiles et un boost ×3 de 30 min' && /quinze premiers du classement final/.test(ev.sous), `« ${ev.h2} » « ${ev.phrase} »`);
+    check(ev.btn.length === 1 && ev.btn[0][0] === 'Récupérer' && ev.btn[0][1] >= 44 && ev.e === 0 && ev.res === 0 && ev.large, `un seul bouton « Récupérer » (${ev.btn[0] && ev.btn[0][1]} px) ; rien de versé avant de toucher ; rien ne dépasse de l’écran`);
+    await p.screenshot({ path: outA + '/acharnes-feuille-7e.png' });
+    await p.tap('#feuille [data-a="ev-recuperer"]'); await sleep(700);
+    const ap2 = await p.evaluate(() => ({ f: document.querySelector('#feuille').hidden, e: window.__fournil.st.etoiles, res: window.__fournil.boosts().reserve.map((x) => `${x.mult}:${x.secs}`), toast: (document.querySelector('.toast') || {}).textContent || '', save: JSON.parse(localStorage.getItem('fournil.v2')).etoiles, payes: JSON.parse(localStorage.getItem('fournil.classement')).recompenses.evtPayes }));
+    check(ap2.f && ap2.e === 3 && ap2.save === 3 && JSON.stringify(ap2.res) === '["3:1800"]' && JSON.stringify(ap2.payes) === '["hantee"]' && /^Récupéré : \+3 étoiles et un boost ×3 de 30 min/.test(ap2.toast), `« Récupérer » : +3 étoiles (sauvées), un boost ×3 de 30 min dans la réserve, l’événement noté payé ; « ${ap2.toast} »`);
+    await p.evaluate(() => window.__fournil.tiroir('ferme')); await sleep(400);
+    await p.evaluate(() => window.__fournil.recompenses()); await sleep(500);
+    const me = await p.evaluate(() => ({ evts: [...document.querySelectorAll('.rec-coupes[aria-label^="Mes places au classement final"] .rec-carte')].map((c) => c.innerText.replace(/\s+/g, ' ').trim()), titres: [...document.querySelectorAll('#feuille-contenu .titre-section')].map((h) => h.textContent), recup: !!document.querySelector('[data-a="rec-recuperer"]') }));
+    check(me.evts.length === 1 && /^7e sur 12 La Maison hantée \+3 ★ · ×3 30 min Récupérée$/.test(me.evts[0]) && me.titres.includes('Mes événements') && !me.recup, `« Mes récompenses » montre « Mes événements » : « ${me.evts[0]} »`);
+    await p.screenshot({ path: outA + '/acharnes-mes-recompenses.png' });
+    await p.evaluate(() => { document.querySelector('#feuille').hidden = true; document.querySelector('#voile').hidden = true; });
+    await p.reload(); await sleep(3500);
+    check(!(await p.evaluate(() => !!document.querySelector('#feuille-contenu [data-cl="evt-place"]'))) && (await p.evaluate(() => window.__fournil.st.etoiles)) === 3 && (await p.evaluate(() => window.__fournil.boosts().reserve.length)) === 1, 'relancé : la feuille ne revient pas, rien n’est versé deux fois');
+    await ctx.close();
+    // 2e, servi par un serveur d'avant la 6.6 (podium à trois, sans le nombre de joueurs) : la tenue d'Halloween en or en plus, comme avant
+    semer(); faux.palmares = faux.palmares.filter((x) => x.id !== MOI.id); faux.evenements = { hantee: { rang: 2, podium: POD } };
+    ({ ctx, p } = await nouveau());
+    await preparer(p, etatInscrit());
+    await p.goto(BASE + '/fournil/');
+    ok = await attendre(() => p.evaluate(() => !!document.querySelector('#feuille-contenu [data-cl="evt-place"]')), 9000);
+    if (!ok) ok = await attendre(() => p.evaluate(() => !!document.querySelector('#feuille-contenu [data-cl="evt-place"]')), 9000);
+    const d2 = ok ? await p.evaluate(() => { const f = document.querySelector('#feuille-contenu'); return { h2: f.querySelector('h2').textContent, phrase: f.querySelector('.rec-phrase').textContent, or: Object.keys(window.__fournil.G.garderobe(window.__fournil.st).objets).filter((id) => /^hantee-or-/.test(id)).length }; }) : {};
+    check(ok && d2.h2 === 'Tu as fini 2e de la Maison hantée' && /^\+6 étoiles et un boost ×5 de 1 h, et la tenue d’Halloween en or$/.test(d2.phrase) && d2.or === 4, `2e (un serveur d’avant la 6.6) : « ${d2.h2} » « ${d2.phrase} » ; les quatre pièces en or dans la garde-robe (${d2.or})`);
+    await p.tap('#feuille [data-a="ev-recuperer"]'); await sleep(600);
+    check((await p.evaluate(() => window.__fournil.st.etoiles)) === 6 && (await p.evaluate(() => JSON.stringify(window.__fournil.boosts().reserve.map((x) => `${x.mult}:${x.secs}`)))) === '["5:3600"]', '« Récupérer » : +6 étoiles, un boost ×5 d’une heure');
+    await ctx.close(); }
 
   // ─── 9. un podium plus ancien (il y a deux semaines) : annoncé, mais rien d'office ───
   semer(); faux.palmares = faux.palmares.filter((x) => x.id !== MOI.id); faux.palmares.push({ semaine: semaineAvant(2), rang: 1, id: MOI.id, pseudo: MOI.pseudo, valeur: 1e9 });
