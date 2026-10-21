@@ -18,6 +18,13 @@ const server = http.createServer((req, res) => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
 const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 200) { try { if (await fn()) return true; } catch (e) { /* rien */ } await sleep(200); } return false; };
+// avant un rechargement : attendre qu'aucun lot HD ne soit en vol. Une page rechargée pendant qu'un modèle texturé se décode coupe le fetch(blob:)
+// du GLTFLoader, qui l'écrit en console.error depuis l'ancienne page (« THREE.GLTFLoader: Couldn't load texture blob:… » : reproduit en
+// rechargeant à un instant tiré au hasard pendant les lots planque et hantee) ; c'était l'erreur de page qui revenait de temps en temps
+async function calme(page) {
+  const enVol = () => page.evaluate(() => Object.keys(HDM.etat).filter((l) => !HDM.etat[l].pret && !HDM.etat[l].erreur)), avant = await enVol();
+  check(await attendre(async () => (await enVol()).length === 0, 30000), `avant de recharger, aucun lot HD en vol (attendus : ${avant.join(', ') || 'aucun'})`);
+}
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   async function ouvrir(requete) {
@@ -49,6 +56,9 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 200) {
   demandes.length = 0;
   let { ctx, page, erreurs } = await ouvrir('?qualite=haute');
   check(await page.evaluate(() => typeof HDM !== 'undefined' && HDM.actif), 'le module HD est là (vendor/fournil-hd.min.js chargé)');
+  const paquet = fs.statSync(path.join(root, 'vendor/fournil-hd.min.js')).size;
+  check(await page.evaluate(() => typeof FOURNIL_HD.GLTFLoader === 'function' && typeof FOURNIL_HD.EffectComposer === 'undefined' && typeof FOURNIL_HD.N8AOPostPass === 'undefined' && typeof HDM.effets === 'undefined') && paquet < 100e3,
+    `le paquet du jeu n'embarque que le chargeur (sans postprocessing ni n8ao, réservés à la maquette) : ${Math.round(paquet / 1024)} Ko (< 100 Ko)`);
   check(await attendre(() => page.evaluate(() => SCENE.decorHD > 0)), 'après les premières images, la boutique reçoit ses décors HD');
   check(await page.evaluate(() => window.__fournil.stats().acteurs > 0 || true) && demandes.every((d) => !/(persos|mini)\//.test(d)), `la boutique ne charge aucun personnage HD (${demandes.length} modèles demandés, tous des décors)`);
   const poidsB = demandes.reduce((s, d) => s + fs.statSync(path.join(root, d)).size, 0); check(poidsB < 400e3, `les décors de la boutique pèsent ${Math.round(poidsB / 1024)} Ko (< 400 Ko)`);
@@ -72,20 +82,25 @@ const attendre = async (fn, ms = 30000) => { for (let t = 0; t < ms; t += 200) {
   console.log('── un téléphone où la HD reste noire : retour au décor classique, interrupteur dans les Réglages ──');
   await page.evaluate(() => { window.__hdNoir = true; window.__fournil.quartier(); });
   check(await attendre(() => page.evaluate(() => HDM.coupe() && !window.__fournil.evenement.scene.hd.actif), 8000), 'écran noir détecté : la Planque repasse au décor classique d’elle-même');
-  check(await page.evaluate(() => localStorage.getItem('fournil.hd') === 'non' && window.__fournil.evenement.scene.calls > 1), 'et ce téléphone le retient (la Planque classique tourne)');
+  check(await page.evaluate(() => localStorage.getItem('fournil.hd') === 'non:écran noir' && window.__fournil.evenement.scene.calls > 1), 'et ce téléphone le retient (la Planque classique tourne)');
   await page.evaluate(() => { window.__hdNoir = false; document.querySelector('[data-pq="fermer"]').click(); }); await sleep(300);
   await page.evaluate(() => window.__fournil.page('reglages')); await sleep(400);
   const ligneHd = await page.evaluate(() => { const b = document.querySelector('[data-a="hd"]'); return b ? b.innerText : ''; });
   check(/Décors en HD/.test(ligneHd) && /écran restait noir/.test(ligneHd), `Réglages : « Décors en HD » dit pourquoi ils sont coupés (${ligneHd.replace(/\s+/g, ' ').slice(0, 80)})`);
   const groupeHd = await page.evaluate(() => { const b = document.querySelector('[data-a="hd"]'), c = b && b.closest('.card'), h = c && c.previousElementSibling; return h ? h.textContent.trim() : ''; });
   check(groupeHd === 'Le jeu', `rangé dans le groupe « Le jeu » des Réglages (il vaut pour la boutique aussi, et reste après les événements) : « ${groupeHd} »`);
+  // la raison survit au rechargement (gardée avec la coupure) : le petit texte dit encore pourquoi
+  await calme(page); await page.reload(); await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 });
+  await page.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); window.__fournil.page('reglages'); }); await sleep(400);
+  const ligneHd2 = await page.evaluate(() => { const b = document.querySelector('[data-a="hd"]'); return (b ? b.innerText : '') + ' | ' + HDM.raison; });
+  check(/écran restait noir/.test(ligneHd2) && await page.evaluate(() => HDM.coupe()), `après un rechargement, la ligne dit toujours « l’écran restait noir » (${ligneHd2.replace(/\s+/g, ' ').slice(0, 80)})`);
   await page.evaluate(() => document.querySelector('[data-a="hd"]').click()); await sleep(300);
   check(await page.evaluate(() => !HDM.coupe() && localStorage.getItem('fournil.hd') === null), 'un toucher la remet (réessayer)');
   await page.evaluate(() => document.querySelector('[data-a="hd"]').click()); await sleep(300);
   check(await page.evaluate(() => HDM.coupe()), 'et un autre la coupe à la main');
   await page.evaluate(() => { document.querySelector('[data-a="hd"]').click(); window.__fournil.page('boutique'); }); await sleep(300);
   console.log('── la Planque préchargée en arrière-plan (déjà entré une fois) ──');
-  demandes.length = 0; await page.reload(); await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 });
+  await calme(page); demandes.length = 0; await page.reload(); await page.waitForFunction(() => window.__fournil && window.__fournil.st, null, { timeout: 30000 });
   await page.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b) b.click(); });
   check(await attendre(() => page.evaluate(() => HDM.pret('planque')), 20000), 'quelques secondes après le lancement, les modèles de la Planque sont déjà là (sans l’ouvrir)');
   check(demandes.some((d) => /mini\//.test(d)), `préchargés en arrière-plan (${demandes.filter((d) => /mini\//.test(d)).length} personnages)`);
