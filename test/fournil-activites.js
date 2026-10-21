@@ -118,6 +118,16 @@ module.exports = function verifierActivites(M, check, o) {
     check(M.rythme(qb) > M.rythme(qa) * 1.5 && M.primePleineMini(qb) > M.primePleineMini(qa) * 1.5 && M.gainOperation(qb, M.OPERATIONS[2]) > M.gainOperation(qa, M.OPERATIONS[2]) * 1.5, 'les gains suivent le rythme de l’équipe (rythme(q), sans la présence)'); }
   for (const [p, s] of Object.entries(S)) if (s && s.q) check(s.q.stats.miniParties > 0 && s.q.stats.operations > 0 && s.q.stats.contrats > 0, `la simulation (${p}) joue les trois activités : ${s.q.stats.miniParties} parties, ${s.q.stats.operations + s.q.stats.operationsSaisies} opérations (${s.q.stats.operationsSaisies} saisies), ${s.q.stats.contrats} contrats`);
 
+  console.log(`── ${nom} : à la fermeture, les activités s'arrêtent ──`);
+  { // fenetre(FIN).jour vaut le dernier jour (>= desLeJour) : seule la fin (fenetre.fini) les ferme ; une prime après le bilan ne serait jamais comptée
+    const avant = M.FIN - MIN, apres = M.FIN + 1000, { q } = prep(avant), c = M.etatContrats(q, avant)[0], plein = M.jeuMini('guet').plein;
+    if (c.produit != null) q.stats.vendus[c.produit] += c.n; else q.stats[c.stat] += c.n;
+    check(M.activitesOuvertes(avant) && M.etatContrats(q, avant)[0].pret && M.jetonsMini(q, avant).payable && M.fenetre(apres).jour >= MI.desLeJour, 'une minute avant la fin : un contrat prêt, une partie payée en attente');
+    const t0 = q.total, j0 = q.mini.jetons, r = M.finirMini(q, 'guet', plein, apres), rc = M.reclamerContrat(q, c.k, apres);
+    check(!M.activitesOuvertes(apres) && r.ok && r.prime === 0 && r.record && q.mini.jetons === j0 && !rc.ok && q.total === t0 && M.etatContrats(q, apres).length === 0 && M.aReclamer(q, apres) === 0,
+      'une seconde après la fin : la partie ne paie plus (le record seul), le contrat ne se réclame plus, le total ne bouge pas');
+    check(!M.lancerOperation(q, 'court', apres).ok && !M.lancerRecette(q, apres).ok && !M.jetonsMini(q, apres).payable, '… et ni opération ni recette du jour ne partent'); }
+
   console.log(`── ${nom} : la recette du jour ──`);
   { const RJ = M.RECETTE_JOUR, L = M.RECETTES_JOUR, JOUR = 24 * H;
     check(L.length === 7 && new Set(L.map((r) => r.id)).size === 7 && L.every((r) => r.nom && r.desc && r.icone && r.temps >= 20 && r.temps <= 90), `sept recettes de 20 à 90 s : ${L.map((r) => `« ${r.nom} » (${r.temps} s)`).join(', ')}`);

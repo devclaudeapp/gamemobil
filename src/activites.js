@@ -227,8 +227,9 @@
     const jeuMini = (jid) => MINI.jeux.find((j) => j.id === jid) || null;
     const arrondi = R.arrondi || ((n) => Math.round(n));
     // le jour de l'ouverture (une demi-journée), les activités ne paient pas encore : c'est là que l'économie de l'événement grimpe le plus
-    // vite (tout le monde part de zéro), et le moindre gain en plus s'y multiplie (l'enveloppe du serveur) ; elles ouvrent le lendemain à minuit
-    const ouvertes = (now) => !R.fenetre || R.fenetre(Number.isFinite(now) ? now : 0).jour >= MINI.desLeJour;
+    // vite (tout le monde part de zéro), et le moindre gain en plus s'y multiplie (l'enveloppe du serveur) ; elles ouvrent le lendemain à minuit.
+    // Elles ferment avec l'événement : après la fin (fenetre.fini, où jour vaut le dernier jour), une partie ou un contrat ne paie plus rien
+    const ouvertes = (now) => { if (!R.fenetre) return true; const f = R.fenetre(Number.isFinite(now) ? now : 0); return f.jour >= MINI.desLeJour && !f.fini; };
     const minutesDe = (q, minutes) => arrondi(Math.max(MINI.plancher, R.rythme(q) * minutes * 60)); // N minutes du rythme de référence, maintenant
 
     // ─── l'état : q.mini, q.contrats, q.operation, et les compteurs de q.stats (une vieille sauvegarde se relit sans rien perdre) ───

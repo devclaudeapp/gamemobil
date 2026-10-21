@@ -1875,8 +1875,14 @@ const UI = (() => {
     const trou = derniereImage ? now - derniereImage : 0; derniereImage = now;
     if (absencePrete && trou > 5000 && reprendre('saut')) { requestAnimationFrame(frame); return; }
     const ecranEv = EVS ? EVS.ouvert : null, planque = !!ecranEv, atelier = MINIJEUX.ouvert || planque || !!(AR && AR.ouvert) || !!visite || !!(TC && TC.ouvert); // pendant l'Atelier, la Planque ou une visite : pas d'événement, de client mystère, d'habitué ni de chat qui surgissent sous l'écran
-    if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); }
-    const out = G.tick(st, dt, HORLOGE.maintenant(), atelier ? () => 0.999 : undefined);
+    // sous l'écran, l'événement de la boutique qui se joue au doigt (le critique, le pétrissage, la panne) est EN PAUSE, comme pendant une
+    // courte sortie (G.absence) : ses échéances avancent du vrai temps écoulé depuis le dernier pas (un trou de plus de PAUSE_EV ne se compte
+    // pas ici) ; on le retrouve en refermant. Les autres continuent : le coup de feu, le meunier et l'anniversaire ne demandent rien (les ventes
+    // de dessous l'écran en profitent déjà : en pause, ils dureraient autant qu'on reste dans la Planque), et la commande se remplit seule
+    // (prête, elle attend déjà sa livraison ; en pause, elle aurait tout le temps de se remplir)
+    const tPas = HORLOGE.maintenant(), ecoule = tPas - st.now, evPause = atelier && st.ev && ['critique', 'petrissage', 'panne'].includes(st.ev.type) && ecoule > 0 && ecoule <= G.PAUSE_EV * 1000 ? st.ev : null;
+    if (atelier) { st.evTimer = Math.max(st.evTimer, 5); st.mystereTimer = Math.max(st.mystereTimer, 5); if (st.chatAttente != null) st.chatAttente = Math.max(st.chatAttente, 5); if (evPause) for (const k of ['debut', 'fin']) if (Number.isFinite(evPause[k])) evPause[k] += ecoule; }
+    const out = G.tick(st, dt, tPas, atelier ? () => 0.999 : undefined);
     if (out.ventes.length) {
       const gros = out.ventes.reduce((a, v) => a + v.montant, 0), first = out.ventes[0];
       if (!visite && (G.PRODUITS[first.i].temps >= 3 || Math.random() < 0.15)) { SCENE.vente(first.i, gros, '+' + G.fmtEur(gros), !st.stations[first.i].staff); son.vente(gros); } // en visite : ses ventes ne s'affichent pas chez le copain
@@ -1989,6 +1995,7 @@ const UI = (() => {
     st.lastSeen = now - paye;
     const abs = G.absence(st, now);
     absencePayee += abs.secs * 1000;
+    if (EVS && EVS.ouvert && EVS.ouvert.saut) EVS.ouvert.saut(paye); // l'écran d'un événement ouvert (la Planque, le Manoir) : ses apprentis aussi, pour le même temps
     const montre = abs.total > 0 && abs.secs > 90;
     if (montre) { sheetRetour(abs); renderCards(true); }
     noterRetour('heure', abs, paye, montre, true);
