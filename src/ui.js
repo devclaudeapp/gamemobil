@@ -42,6 +42,7 @@ const UI = (() => {
       const s = JSON.parse(raw); if (!s || s.v !== 2 || !Array.isArray(s.stations)) return null;
       const fresh = G.newState(HORLOGE.maintenant());
       for (const k in fresh) if (!(k in s)) s[k] = fresh[k];
+      if (!QUALITES.some((q) => q[0] === s.qualite)) s.qualite = 'auto'; if (!Object.prototype.hasOwnProperty.call(IMAGES, s.images)) s.images = 'economie'; // un réglage inconnu (une sauvegarde abîmée) : celui par défaut
       while (s.stations.length < G.PRODUITS.length) s.stations.push({ niv: 0, staff: false, prog: 0, actif: false });
       G.parcours(s); // les recettes de boutique (recalculées depuis st.boutiques), le quartier de la boutique en cours, pas de défi pour une boutique ouverte avant
       G.compagnons(s); // une vieille sauvegarde : son chat adopté devient le compagnon « chat-roux » (ou « chat-noir »)
@@ -558,18 +559,35 @@ const UI = (() => {
     },
     bind: (sec) => { onIn(sec, '[data-arriere]', () => { son.tap(); if (AR) AR.ouvrir(); }); },
   };
+  // Réglages › Le jeu : la qualité graphique (st.qualite) et les images par seconde (st.images), en boutons segmentés (un groupe radio :
+  // les flèches passent d'un choix à l'autre) ; la ligne d'aide dit ce que fait le choix en cours. Les gains n'en dépendent pas.
+  const QUALITES = [['auto', 'Auto'], ['haute', 'Haute'], ['moyenne', 'Moyenne'], ['eco', 'Éco']];
+  const NOM_PALIER = { haute: 'Haute', moyenne: 'Moyenne', eco: 'Éco' };
+  const AIDE_QUALITE = { haute: 'Ombres fines, lumière douce et effets : le plus beau, le plus gourmand', moyenne: 'Ombres et lumière douce, sans les effets', eco: 'Sans ombres ni décors HD : le plus léger pour le téléphone' };
+  const CHOIX_IMAGES = [['economie', 'Économie'], ['fluide', 'Fluide'], ['max', 'Maximum']];
+  const AIDE_IMAGES = { economie: 'Économie : la batterie dure le plus longtemps (30 images/s, 10 au repos)', fluide: 'Fluide : plus doux, la batterie baisse un peu plus vite (60 images/s, 20 au repos)', max: 'Maximum : la vitesse de l’écran (jusqu’à 120 sur iPhone Pro), même au repos ; la batterie baisse le plus vite' };
+  const palierScene = () => (typeof SCENE !== 'undefined' && SCENE.palier) || '';
+  const aideQualite = () => (st.qualite === 'auto' ? `S’adapte à ton téléphone${NOM_PALIER[palierScene()] ? ` (en ce moment\u00a0: ${NOM_PALIER[palierScene()]})` : ''}` : AIDE_QUALITE[st.qualite]);
+  function choisirReglage(sec, cle, v) { // cle : 'qualite' ou 'images' ; appliqué tout de suite, sauvé
+    if (st[cle] === v) return; st[cle] = v; son.tap(); // (le toucher a déjà réveillé la cadence)
+    if (cle === 'qualite') SCENE.choisirQualite(v); // la scène change de palier sans recharger (la HD suit : pas en éco)
+    save(); renderPage(true); const b = sec.querySelector(`[data-${cle}="${v}"]`); if (b) b.focus(); // le focus reste sur le choix (le clavier, VoiceOver)
+  }
   // Réglages : rangés par groupe ; ce qui sert peu vit ici (repeindre, masquer l'événement, quitter le classement, sauvegarde, partage)
   const pageReglages = {
-    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}`,
+    key: () => `${st.son}|${st.vibre}|${st.qualite}|${st.images}|${st.qualite === 'auto' ? palierScene() : ''}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}`,
     html: () => {
       const q = G.QUARTIERS[G.quartier(st)], cr = classement ? classement.resume() : null;
       const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
       const sw = (on) => `<span class="interrupteur" role="switch" aria-checked="${on}"></span>`, chev = `<i class="ico chev">${ICONS.UI.chevron}</i>`;
       const groupe = (titre, lignes) => `<h3 class="titre-section"><span>${titre}</span></h3><div class="card reglages">${lignes}</div>`;
+      const choix = (cle, ico, titre, aide, options) => `<div class="reglage choix" data-choix="${cle}"><i class="ico">${ico}</i><span><b id="rg-${cle}">${titre}</b><small id="rg-${cle}-aide">${aide}</small></span><span></span>`
+        + `<div class="segments" role="radiogroup" aria-labelledby="rg-${cle}" aria-describedby="rg-${cle}-aide">${options.map(([v, t]) => { const on = st[cle] === v; return `<button type="button" role="radio" data-${cle}="${v}" aria-checked="${on}" tabindex="${on ? 0 : -1}" class="${on ? 'actif' : ''}">${t}</button>`; }).join('')}</div></div>`;
       return `${PAGE_HEAD('reglages', 'Réglages')}
       <div class="bloc">
         ${groupe('Le jeu', ligne('son', st.son ? ICONS.UI.son : ICONS.UI.sonOff, 'Sons', 'Petites notes à chaque vente et achat', sw(st.son)) + ligne('vibre', ICONS.UI.vibre, 'Vibrations', 'Un léger retour sous le doigt', sw(st.vibre))
-          + (typeof HDM !== 'undefined' && HDM.actif ? ligne('hd', ICONS.UI.amenager, 'Décors en HD', HDM.raison === 'écran noir' ? 'Coupés : l’écran restait noir sur ce téléphone. Touche pour réessayer' : 'Boutique et événements : meubles, rue de nuit et équipe animée (à couper si l’écran reste noir)', sw(!HDM.coupe())) : ''))}
+          + choix('qualite', ICONS.UI.oeil, 'Qualité graphique', aideQualite(), QUALITES) + choix('images', ICONS.UI.eclair, 'Images par seconde', AIDE_IMAGES[st.images] || AIDE_IMAGES.economie, CHOIX_IMAGES)
+          + (typeof HDM !== 'undefined' && HDM.actif ? ligne('hd', ICONS.UI.amenager, 'Décors en HD', HDM.raison === 'écran noir' ? 'Coupés : l’écran restait noir sur ce téléphone. Touche pour réessayer' : st.qualite === 'eco' && !HDM.coupe() ? 'En qualité Éco, ils ne se chargent pas : choisis Auto, Haute ou Moyenne pour les voir' : 'Boutique et événements : meubles, rue de nuit et équipe animée (à couper si l’écran reste noir)', sw(!HDM.coupe())) : ''))}
         ${groupe('La boutique', ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)
           + ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés, leurs crans et leurs prix : touche-les pour les améliorer', chev)
           + (st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, ''))
@@ -596,6 +614,11 @@ const UI = (() => {
       onIn(sec, '[data-a="compagnons"]', () => { son.tap(); sheetCompagnons(); });
       onIn(sec, '[data-a="specialite"]', sheetSpecialite);
       onIn(sec, '[data-a="sauvegarde"]', sheetSauvegarde);
+      for (const cle of ['qualite', 'images']) {
+        onIn(sec, `[data-${cle}]`, (b) => choisirReglage(sec, cle, b.dataset[cle]));
+        const grp = sec.querySelector(`[data-choix="${cle}"] [role="radiogroup"]`); // les flèches : le choix voisin (le motif « groupe radio »)
+        if (grp) grp.addEventListener('keydown', (e) => { const d = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]; if (!d) return; e.preventDefault(); const bs = [...grp.querySelectorAll('[role="radio"]')], k = bs.indexOf(document.activeElement); const b = bs[((k < 0 ? 0 : k) + d + bs.length) % bs.length]; audio(); choisirReglage(sec, cle, b.dataset[cle]); });
+      }
       onIn(sec, '[data-a="hd"]', () => { if (typeof HDM === 'undefined') return; if (HDM.coupe()) HDM.remettre(); else HDM.couper('joueur'); son.tap(); renderPage(true); });
       onIn(sec, '[data-a="quartier"]', () => { if (!EVT) return; EVT.masquer(!(st.quartier && st.quartier.masque)); son.tap(); majCoin(); renderPage(true); });
       onIn(sec, '[data-a="hantee"]', () => { if (!HTE) return; HTE.masquer(!(st[HTE.cle] && st[HTE.cle].masque)); son.tap(); majCoin(); majChat(); renderPage(true); });
@@ -1743,15 +1766,20 @@ const UI = (() => {
   //     acceptées, pour ne pas tomber à 20). G.tick reçoit toujours le vrai temps écoulé depuis la dernière image traitée : les gains ne
   //     dépendent pas de la cadence. Pleine cadence pendant un glisser (un meuble en mode Déplacer, la poignée du tiroir) ; les mini-jeux de
   //     l'Atelier et des événements ont leur propre boucle, jamais bridée. ?cadence=0 coupe la limite (tests, débogage).
+  //     Le joueur choisit (Réglages › Le jeu › Images par seconde, st.images) : Économie (30 puis 10, par défaut), Fluide (60 puis 20) ou
+  //     Maximum (la vitesse de l'écran, 60 à 120, sans ralentir au repos). Le choix s'applique à l'image suivante.
   const CADENCE = { jeu: 30, repos: 10, calmeMs: 15e3, gigue: 3 }, sansLimite = /[?&]cadence=0(&|$)/.test(location.search);
+  const IMAGES = { economie: { jeu: CADENCE.jeu, repos: CADENCE.repos }, fluide: { jeu: 60, repos: 20 }, max: { jeu: 0, repos: 0 } }; // 0 : pas de limite
+  const modeImages = () => (st && Object.prototype.hasOwnProperty.call(IMAGES, st.images) ? IMAGES[st.images] : IMAGES.economie);
   let dernierGeste = performance.now(), rafPrec = 0, apresImage = false, msImage = 0, nImages = 0, sautees = 0; // sautees : les rafraîchissements laissés passer depuis la dernière image
   const instantsImages = new Float64Array(128); // les instants des dernières images traitées (la cadence mesurée, pour les tests ; taille fixe)
   function eveiller() { dernierGeste = performance.now(); }
   const auRepos = (t) => t - dernierGeste > CADENCE.calmeMs;
-  function cadenceCible(t) { if (sansLimite || glisse || tiroir.glisse) return 0; return auRepos(t) ? CADENCE.repos : CADENCE.jeu; } // 0 : pleine cadence
+  function cadenceCible(t) { const m = modeImages(); if (sansLimite || glisse || tiroir.glisse || !m.jeu) return 0; return auRepos(t) ? m.repos : m.jeu; } // 0 : pleine cadence
   function cadence() {
     const t = performance.now(); let n = 0; for (let k = 0; k < instantsImages.length; k++) if (instantsImages[k] > 0 && t - instantsImages[k] <= 1000) n++;
-    return { cible: cadenceCible(t), mesuree: n, repos: !sansLimite && auRepos(t), limite: !sansLimite, travail: Math.round(msImage * 10) / 10 };
+    const limite = !sansLimite && modeImages().jeu > 0;
+    return { cible: cadenceCible(t), mesuree: n, repos: limite && auRepos(t), limite, mode: st.images, travail: Math.round(msImage * 10) / 10 };
   }
 
   // ─── boucle ───
@@ -1906,6 +1934,7 @@ const UI = (() => {
     if (st.vu.journal == null) { const c = st.carnetEv || []; st.vu.journal = fresh ? 0 : c.length ? c[c.length - 1].t : 0; } // une ancienne sauvegarde : son carnet compte comme lu
     if (NVS && typeof st.nouveautesVues !== 'string') st.nouveautesVues = NVS.vueNeuve(); // une sauvegarde neuve, ou d'avant les nouveautés : tout est vu, sauf la plus récente
     document.querySelectorAll('[data-ico]').forEach((el) => { el.innerHTML = ICONS.UI[el.dataset.ico] || ''; });
+    SCENE.choisirQualite(st.qualite); // Réglages › Qualité graphique : la scène naît à ce palier (Auto : la mesure décide)
     if (!SCENE.init($('#scene'), $('#scene-ui'))) $('#sans-3d').hidden = false; // sans WebGL : la boutique vit quand même, sans image
     SCENE.surServi = (r) => { if (visite) return; if (r.cadeau) { reussite(`${r.hb.nom}, fidèle depuis ${r.jours} jours, t’offre ${G.fmtEur(r.cadeau)} !`); } else if (r.jours > 1) toast(`${r.hb.nom} : ${r.jours}e jour de suite !`); };
     tiroir.init();

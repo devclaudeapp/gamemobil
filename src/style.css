@@ -183,6 +183,11 @@ body[data-tiroir="ouvert"] #coin, body[data-tiroir="ouvert"] #b-fini { opacity: 
 .reglage > span b { display: block; font: 700 16px/1.15 var(--titre); }
 .reglage > span small { display: block; margin-top: 2px; font-size: 12px; line-height: 1.3; color: var(--texte-2); }
 .reglage .chev { width: 24px; height: 24px; background: none; opacity: .5; }
+/* un choix en boutons segmentés (Réglages › Le jeu : la qualité graphique, les images par seconde) : le titre et l'aide, les choix dessous, toute la largeur */
+.reglage.choix { row-gap: 8px; padding-bottom: 12px; cursor: default; }
+.reglage.choix:active { background: none; }
+.reglage.choix .segments { grid-column: 1 / -1; margin: 0; background: var(--creme); box-shadow: inset 0 0 0 1px var(--ligne); }
+.reglage.choix .segments button, .reglage.choix .segments button:first-child:nth-last-child(4), .reglage.choix .segments button:first-child:nth-last-child(4) ~ button { flex: 1 1 0; padding: 0 2px; font-size: 15px; } /* des choix de même largeur */
 
 /* ─── barre d'onglets ─── */
 #onglets { flex: 0 0 auto; z-index: 5; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 6px 6px calc(env(safe-area-inset-bottom, 0px) + 6px); background: var(--carte);

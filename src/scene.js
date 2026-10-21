@@ -12,7 +12,7 @@ const SCENE = (() => {
   const projeterY = (Y, Z) => LAY.murH - Y * CY + Z * SY; // la hauteur d'écran d'un point monde (son X est son x d'écran)
   // ─── la qualité : trois paliers, adaptés au temps de frame mesuré ───
   const PALIERS = { haute: { dpr: 2, ombres: 1024, saute: false }, moyenne: { dpr: 1.5, ombres: 512, saute: false }, eco: { dpr: 1, ombres: 0, saute: true } };
-  const QUAL = { niveau: 'haute', fixe: false, mesures: 0, somme: 0, calme: 0, echecs: {}, verif: null };
+  const QUAL = { niveau: 'haute', fixe: false, mesures: 0, somme: 0, calme: 0, echecs: {}, verif: null, choix: 'auto', depart: null };
   const ORDRE_Q = ['eco', 'moyenne', 'haute'];
   const recompiler = () => scene.traverse((o) => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; }); // les tableaux de matériaux (le mur) compris
   function qualite(niveau) {
@@ -24,8 +24,17 @@ const SCENE = (() => {
     if (ombres) dir.shadow.mapSize.set(p.ombres, p.ombres);
     richesse(niveau);
   }
+  // le choix du joueur (Réglages › Le jeu › Qualité graphique, st.qualite) : 'auto' (la mesure ci-dessous choisit le palier), ou un palier
+  // fixe ('haute', 'moyenne', 'eco') que la mesure ne touche plus. Revenir à Auto rend la main à la mesure, remise à zéro, depuis le palier
+  // en cours (pas de matériaux à recompiler : elle descend si le téléphone peine, remonte s'il suit) ; un rendu logiciel revient à son éco
+  // figée. Au lancement, la scène naît au palier choisi. ?qualite= l'emporte sur le choix (tests, débogage).
+  function choisirQualite(choix) {
+    QUAL.choix = PALIERS[choix] ? choix : 'auto'; if (!QUAL.depart || QUAL.depart.url) return; // avant init (ou ?qualite=) : retenu seulement
+    QUAL.mesures = 0; QUAL.somme = 0; QUAL.calme = 0; QUAL.echecs = {}; QUAL.verif = null; QUAL.moy = 0;
+    if (QUAL.choix !== 'auto') { qualite(QUAL.choix); QUAL.fixe = true; } else if (QUAL.depart.fixe) { qualite(QUAL.depart.niveau); QUAL.fixe = true; } else QUAL.fixe = false;
+  }
   // l'intervalle réel qui suit une image (le travail du processeur graphique compris), par fenêtres de 60 images ; ui.js le mesure : la cadence
-  // limitée (30 images/s en jouant, 10 au repos) saute volontairement des images de l'écran, ce n'est pas de la lenteur, seul compte le temps
+  // limitée (30 images/s en jouant, 10 au repos ; 60 et 20 en Fluide) saute volontairement des images de l'écran, ce n'est pas de la lenteur, seul compte le temps
   // jusqu'au rafraîchissement qui suit une image faite :
   // au-dessus de 28 ms on descend d'un palier ; si la fenêtre suivante ne va pas 10 % plus vite, c'est l'écran qui plafonne la cadence (30 Hz,
   // mode économie d'énergie) : on remonte et on ne bouge plus. Sous 18 ms pendant dix fenêtres on tente de remonter, puis une minute, puis plus jamais.
@@ -177,6 +186,8 @@ const SCENE = (() => {
     const dbg = gl.getExtension('WEBGL_debug_renderer_info'), nom = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
     const q = /[?&]qualite=(haute|moyenne|eco)/.exec(location.search);
     if (q) { QUAL.niveau = q[1]; QUAL.fixe = true; } else if (/SwiftShader|llvmpipe|Software/i.test(nom)) { QUAL.niveau = 'eco'; QUAL.fixe = true; } // un rendu logiciel reste en éco
+    QUAL.depart = { niveau: QUAL.niveau, fixe: QUAL.fixe, url: !!q }; // Auto au lancement (figé : un rendu logiciel) ; un palier choisi par le joueur s'impose ensuite
+    if (!q && QUAL.choix !== 'auto') { QUAL.niveau = QUAL.choix; QUAL.fixe = true; } // choisi avant init : la scène naît à ce palier
     cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); perdu = performance.now(); });
     cv.addEventListener('webglcontextrestored', () => { perdu = 0; panneau(false); if (RICHE.post) { RICHE.post.liberer(); RICHE.post = null; } if (RICHE.env) { RICHE.env = null; if (RICHE.actif) scene.environment = envMap(); } toutRebatir(); });
     _c1 = new THREE.Color(); _c2 = new THREE.Color(); _v = new THREE.Vector3(); _b = new THREE.Box3();
@@ -718,7 +729,8 @@ const SCENE = (() => {
     }
   }
 
-  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitArriere, zoneArriere, hitChat, hitTrophees, recompenses, decosQuartier, decosHantee, pelageChat, compagnon, ronron, souffle, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, setDeplacer, glisser, qualite,
+  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitArriere, zoneArriere, hitChat, hitTrophees, recompenses, decosQuartier, decosHantee, pelageChat, compagnon, ronron, souffle, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, setDeplacer, glisser, qualite, choisirQualite,
+    get palier() { return QUAL.niveau; }, get choixQualite() { return QUAL.choix; }, // le palier rendu, le choix du joueur (Réglages)
     installer: (zone, duree) => webgl && V.installer(zone, duree), vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)

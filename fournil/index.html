@@ -206,6 +206,11 @@ body[data-tiroir="ouvert"] #coin, body[data-tiroir="ouvert"] #b-fini { opacity: 
 .reglage > span b { display: block; font: 700 16px/1.15 var(--titre); }
 .reglage > span small { display: block; margin-top: 2px; font-size: 12px; line-height: 1.3; color: var(--texte-2); }
 .reglage .chev { width: 24px; height: 24px; background: none; opacity: .5; }
+/* un choix en boutons segmentés (Réglages › Le jeu : la qualité graphique, les images par seconde) : le titre et l'aide, les choix dessous, toute la largeur */
+.reglage.choix { row-gap: 8px; padding-bottom: 12px; cursor: default; }
+.reglage.choix:active { background: none; }
+.reglage.choix .segments { grid-column: 1 / -1; margin: 0; background: var(--creme); box-shadow: inset 0 0 0 1px var(--ligne); }
+.reglage.choix .segments button, .reglage.choix .segments button:first-child:nth-last-child(4), .reglage.choix .segments button:first-child:nth-last-child(4) ~ button { flex: 1 1 0; padding: 0 2px; font-size: 15px; } /* des choix de même largeur */
 
 /* ─── barre d'onglets ─── */
 #onglets { flex: 0 0 auto; z-index: 5; display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; padding: 6px 6px calc(env(safe-area-inset-bottom, 0px) + 6px); background: var(--carte);
@@ -1813,7 +1818,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
 <div id="voile" hidden></div>
 <div id="feuille" role="dialog" aria-modal="true" hidden><div class="poignee" aria-hidden="true"></div><div id="feuille-contenu" class="inner"></div></div>
 
-<script>window.FOURNIL_VERSION = '1550341768a5';</script>
+<script>window.FOURNIL_VERSION = '9ebb6501c687';</script>
 <script>window.FOURNIL_ACCUEIL = '../';</script>
 <script src="../vendor/three.min.js"></script>
 <script src="../vendor/fournil-hd.min.js"></script>
@@ -2531,6 +2536,7 @@ body[data-tiroir="ouvert"] #amenage-barre { opacity: 0; pointer-events: none; }
     return {
       v: 2, coins: 0, lifetime: 0, lifetimeRun: 0, etoiles: 0, boutiques: 1, recettesBoutique: [], defi: null, xp: 0, talents: {}, nomBoutique: '',
       stations: stationsNeuves(), ameliorations: {}, mobilier: {}, tuto: 0, lastSeen: nowMs, created: nowMs, son: true, vibre: true, mode: 1, now: nowMs,
+      qualite: 'auto', images: 'economie', // Réglages › Le jeu : la qualité graphique (auto, haute, moyenne, eco) et les images par seconde (economie, fluide, max) ; sans effet sur les gains
       stats: { taps: 0, ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false, meubles: 0 },
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null, tiroir: 'mi',
@@ -8149,7 +8155,7 @@ const SCENE = (() => {
   const projeterY = (Y, Z) => LAY.murH - Y * CY + Z * SY; // la hauteur d'écran d'un point monde (son X est son x d'écran)
   // ─── la qualité : trois paliers, adaptés au temps de frame mesuré ───
   const PALIERS = { haute: { dpr: 2, ombres: 1024, saute: false }, moyenne: { dpr: 1.5, ombres: 512, saute: false }, eco: { dpr: 1, ombres: 0, saute: true } };
-  const QUAL = { niveau: 'haute', fixe: false, mesures: 0, somme: 0, calme: 0, echecs: {}, verif: null };
+  const QUAL = { niveau: 'haute', fixe: false, mesures: 0, somme: 0, calme: 0, echecs: {}, verif: null, choix: 'auto', depart: null };
   const ORDRE_Q = ['eco', 'moyenne', 'haute'];
   const recompiler = () => scene.traverse((o) => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; }); // les tableaux de matériaux (le mur) compris
   function qualite(niveau) {
@@ -8161,8 +8167,17 @@ const SCENE = (() => {
     if (ombres) dir.shadow.mapSize.set(p.ombres, p.ombres);
     richesse(niveau);
   }
+  // le choix du joueur (Réglages › Le jeu › Qualité graphique, st.qualite) : 'auto' (la mesure ci-dessous choisit le palier), ou un palier
+  // fixe ('haute', 'moyenne', 'eco') que la mesure ne touche plus. Revenir à Auto rend la main à la mesure, remise à zéro, depuis le palier
+  // en cours (pas de matériaux à recompiler : elle descend si le téléphone peine, remonte s'il suit) ; un rendu logiciel revient à son éco
+  // figée. Au lancement, la scène naît au palier choisi. ?qualite= l'emporte sur le choix (tests, débogage).
+  function choisirQualite(choix) {
+    QUAL.choix = PALIERS[choix] ? choix : 'auto'; if (!QUAL.depart || QUAL.depart.url) return; // avant init (ou ?qualite=) : retenu seulement
+    QUAL.mesures = 0; QUAL.somme = 0; QUAL.calme = 0; QUAL.echecs = {}; QUAL.verif = null; QUAL.moy = 0;
+    if (QUAL.choix !== 'auto') { qualite(QUAL.choix); QUAL.fixe = true; } else if (QUAL.depart.fixe) { qualite(QUAL.depart.niveau); QUAL.fixe = true; } else QUAL.fixe = false;
+  }
   // l'intervalle réel qui suit une image (le travail du processeur graphique compris), par fenêtres de 60 images ; ui.js le mesure : la cadence
-  // limitée (30 images/s en jouant, 10 au repos) saute volontairement des images de l'écran, ce n'est pas de la lenteur, seul compte le temps
+  // limitée (30 images/s en jouant, 10 au repos ; 60 et 20 en Fluide) saute volontairement des images de l'écran, ce n'est pas de la lenteur, seul compte le temps
   // jusqu'au rafraîchissement qui suit une image faite :
   // au-dessus de 28 ms on descend d'un palier ; si la fenêtre suivante ne va pas 10 % plus vite, c'est l'écran qui plafonne la cadence (30 Hz,
   // mode économie d'énergie) : on remonte et on ne bouge plus. Sous 18 ms pendant dix fenêtres on tente de remonter, puis une minute, puis plus jamais.
@@ -8314,6 +8329,8 @@ const SCENE = (() => {
     const dbg = gl.getExtension('WEBGL_debug_renderer_info'), nom = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : '';
     const q = /[?&]qualite=(haute|moyenne|eco)/.exec(location.search);
     if (q) { QUAL.niveau = q[1]; QUAL.fixe = true; } else if (/SwiftShader|llvmpipe|Software/i.test(nom)) { QUAL.niveau = 'eco'; QUAL.fixe = true; } // un rendu logiciel reste en éco
+    QUAL.depart = { niveau: QUAL.niveau, fixe: QUAL.fixe, url: !!q }; // Auto au lancement (figé : un rendu logiciel) ; un palier choisi par le joueur s'impose ensuite
+    if (!q && QUAL.choix !== 'auto') { QUAL.niveau = QUAL.choix; QUAL.fixe = true; } // choisi avant init : la scène naît à ce palier
     cv.addEventListener('webglcontextlost', (e) => { e.preventDefault(); perdu = performance.now(); });
     cv.addEventListener('webglcontextrestored', () => { perdu = 0; panneau(false); if (RICHE.post) { RICHE.post.liberer(); RICHE.post = null; } if (RICHE.env) { RICHE.env = null; if (RICHE.actif) scene.environment = envMap(); } toutRebatir(); });
     _c1 = new THREE.Color(); _c2 = new THREE.Color(); _v = new THREE.Vector3(); _b = new THREE.Box3();
@@ -8855,7 +8872,8 @@ const SCENE = (() => {
     }
   }
 
-  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitArriere, zoneArriere, hitChat, hitTrophees, recompenses, decosQuartier, decosHantee, pelageChat, compagnon, ronron, souffle, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, setDeplacer, glisser, qualite,
+  const API = { init, resize, frame, zones, hit, hitBoulanger, hitMeuble, hitArriere, zoneArriere, hitChat, hitTrophees, recompenses, decosQuartier, decosHantee, pelageChat, compagnon, ronron, souffle, forcer, hautBloc: V.hautBloc, visible, rendu, hauteurUtile, setAmenager, setDeplacer, glisser, qualite, choisirQualite,
+    get palier() { return QUAL.niveau; }, get choixQualite() { return QUAL.choix; }, // le palier rendu, le choix du joueur (Réglages)
     installer: (zone, duree) => webgl && V.installer(zone, duree), vente: V.vente, texte: V.texte, tap: V.tap, fete: V.fete, setRush: V.setRush, mystere: () => webgl && V.mystere(), habitue: V.habitue,
     get surServi() { return V.surServi; }, set surServi(f) { V.surServi = f; },
     get decosVues() { return Object.keys(QDECO).filter((k) => QDECO[k] && (k === 'scooter' || groupes[k])); }, // les décos du quartier posées (pour les tests)
@@ -12047,6 +12065,9 @@ const EVENEMENTS = (() => {
   const oAnim = { marche: false, phase: 0, assis: false, dir: 0, sac: false, or: false, pris: false, attend: true, plateau: false, produit: null, cle: false, t: 0, blink: 0, expression: 'neutre', joie: 0, attente: 0, geste: '', graine: 0, rush: false };
   function animerChibi(p, t, fete) { oAnim.phase = t * 2 + p.phase; oAnim.assis = p.assis; oAnim.dir = p.dir; oAnim.t = t; oAnim.blink = (t + p.phase) % 3.4; oAnim.expression = fete > 0 ? 'sourire' : 'neutre'; oAnim.attend = !p.assis; oAnim.graine = p.phase; oAnim.joie = fete > 0 && !p.assis ? (t * 1.4 + p.phase) % 1 : 0; try { PERSOS.animer(p.g, oAnim); } catch (e) { /* un personnage sans ce champ */ } }
   const YAW = { 0: 0, 1: Math.PI / 2, '-1': -Math.PI / 2, 2: Math.PI }, MINI_ECHELLE = 82, MINI_ASSIS_Y = 12; // un Mini Character fait 0,67 unité : × 100, la taille d'un chibi
+  // la finesse d'un décor (sa densité de pixels) suit le palier de la boutique (Réglages › Qualité graphique, ou la mesure en Auto) :
+  // 1 en éco, 1,5 au-dessus ; les modèles HD, eux, suivent HDM.permis (jamais en éco). Le palier change : le décor se redimensionne.
+  const finesse = () => Math.min(typeof SCENE !== 'undefined' && SCENE.palier === 'eco' ? 1 : 1.5, window.devicePixelRatio || 1);
   function rendu3(cv, fond) { // le renderer d'un décor ; null si le téléphone refuse le contexte
     let renderer; try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: false, powerPreference: 'low-power' }); } catch (e) { return null; }
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.shadowMap.enabled = false; renderer.setClearColor(fond); return renderer;
@@ -12069,7 +12090,7 @@ const EVENEMENTS = (() => {
     const rose = new THREE.PointLight('#FF6B8B', 90, 600, 1), vert = new THREE.PointLight('#5FD3A4', 60, 500, 1); scene.add(rose, vert);
     const G3 = new THREE.Group(); scene.add(G3);
     const animes = [], persos = [], lum = (hex, k) => new THREE.MeshLambertMaterial({ color: hex, emissive: hex, emissiveIntensity: k == null ? 1 : k });
-    let W = 1, H = 1, murH = 1, t = 0, fete = 0, hdVu = 0, rue = null, verifs = 0, tVerif = 0, noirs = 0;
+    let W = 1, H = 1, DPRe = 1, murH = 1, t = 0, fete = 0, hdVu = 0, rue = null, verifs = 0, tVerif = 0, noirs = 0;
     const wz = (ys) => (ys - murH) / SY, wy = (px) => px / CY, wd = (px) => px / SY;
     function batir() {
       while (G3.children.length) { const o = G3.children[0]; G3.remove(o); M.dispose(o); }
@@ -12168,9 +12189,9 @@ const EVENEMENTS = (() => {
         liberer() { rt.dispose(); sc.traverse((o) => { if (o.isMesh && o.geometry) o.geometry.dispose(); }); } };
     }
     function redim() {
-      const w = Math.max(1, cv.clientWidth), h = Math.max(1, cv.clientHeight); if (w === W && h === H && G3.children.length) return;
-      W = w; H = h; murH = Math.round(h * 0.42);
-      renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1)); renderer.setSize(W, H, false);
+      const w = Math.max(1, cv.clientWidth), h = Math.max(1, cv.clientHeight), f = finesse(); if (w === W && h === H && f === DPRe && G3.children.length) return;
+      W = w; H = h; DPRe = f; murH = Math.round(h * 0.42);
+      renderer.setPixelRatio(DPRe); renderer.setSize(W, H, false);
       camera.left = -W / 2; camera.right = W / 2; camera.top = H / 2; camera.bottom = -H / 2; camera.updateProjectionMatrix();
       const Zc = (H / 2 - murH) / SY; camera.position.set(W / 2, 1500 * SY, Zc + 1500 * CY); camera.up.set(0, 1, 0); camera.lookAt(W / 2, 0, Zc); camera.updateMatrixWorld();
       dir.position.set(W * 0.7, 700, Zc + 400); dir.target.position.set(W / 2, 0, Zc); dir.target.updateMatrixWorld();
@@ -12220,7 +12241,7 @@ const EVENEMENTS = (() => {
     const feu = new THREE.PointLight('#FF9A3D', 70, 520, 1), chaud = new THREE.PointLight('#8FE36B', 40, 300, 1), bougie = new THREE.PointLight('#FFC873', 45, 380, 1); scene.add(feu, chaud, bougie);
     const G3 = new THREE.Group(); scene.add(G3);
     const animes = [], persos = [], sprites = [], lum = (hex, k) => new THREE.MeshLambertMaterial({ color: hex, emissive: hex, emissiveIntensity: k == null ? 1 : k });
-    let W = 1, H = 1, murH = 1, t = 0, fete = 0, frisson = 0, hdVu = 0, jardin = null, verifs = 0, tVerif = 0, noirs = 0, Kc = 1;
+    let W = 1, H = 1, DPRe = 1, murH = 1, t = 0, fete = 0, frisson = 0, hdVu = 0, jardin = null, verifs = 0, tVerif = 0, noirs = 0, Kc = 1;
     const wz = (ys) => (ys - murH) / SY, wy = (px) => px / CY, wd = (px) => px / SY;
     const ajHalo = (c, taille, force, x, y, z) => { const h = halo(c, taille, force); h.position.set(x, y, z); G3.add(h); sprites.push(h); return h; };
     function batir() {
@@ -12405,9 +12426,9 @@ const EVENEMENTS = (() => {
       return { mats, ajouts };
     }
     function redim() {
-      const w = Math.max(1, cv.clientWidth), h = Math.max(1, cv.clientHeight); if (w === W && h === H && G3.children.length) return;
-      W = w; H = h; murH = Math.round(h * 0.44);
-      renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1)); renderer.setSize(W, H, false);
+      const w = Math.max(1, cv.clientWidth), h = Math.max(1, cv.clientHeight), f = finesse(); if (w === W && h === H && f === DPRe && G3.children.length) return;
+      W = w; H = h; DPRe = f; murH = Math.round(h * 0.44);
+      renderer.setPixelRatio(DPRe); renderer.setSize(W, H, false);
       camera.left = -W / 2; camera.right = W / 2; camera.top = H / 2; camera.bottom = -H / 2; camera.updateProjectionMatrix();
       const Zc = (H / 2 - murH) / SY; camera.position.set(W / 2, 1500 * SY, Zc + 1500 * CY); camera.up.set(0, 1, 0); camera.lookAt(W / 2, 0, Zc); camera.updateMatrixWorld();
       dir.position.set(W * 0.5, 600, Zc - 200); dir.target.position.set(W / 2, 0, Zc); dir.target.updateMatrixWorld();
@@ -13828,6 +13849,14 @@ const RETOURS = (() => {
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-10-21-a', date: '2026-10-21', titre: 'Choisis ta qualité et tes images par seconde',
+      points: [
+        'Dans Réglages › Le jeu, « Qualité graphique » : Auto (le jeu s’adapte à ton téléphone, comme avant), Haute, Moyenne ou Éco. Un choix fixe ne bouge plus ; il vaut aussi pour la Planque et la Maison hantée. En Éco, les décors HD ne se chargent pas.',
+        '« Images par seconde » : Économie (30 en jouant, 10 au repos : la batterie dure le plus longtemps), Fluide (60, puis 20 au repos) ou Maximum (la vitesse de ton écran, jusqu’à 120 sur iPhone Pro).',
+        'Tes choix s’appliquent tout de suite et sont gardés. Tes gains ne changent pas : tes apprentis vendent exactement autant.',
+      ],
+    },
+    {
       id: '2026-10-20-b', date: '2026-10-20', titre: 'Le jeu consomme moins de batterie',
       points: [
         'La boutique se dessine 30 fois par seconde au plus pendant que tu joues (au lieu de 60, voire 120 sur les iPhone récents), et 10 fois après 15 secondes sans toucher l’écran. Elle reprend aussitôt au premier toucher.',
@@ -14084,6 +14113,7 @@ const UI = (() => {
       const s = JSON.parse(raw); if (!s || s.v !== 2 || !Array.isArray(s.stations)) return null;
       const fresh = G.newState(HORLOGE.maintenant());
       for (const k in fresh) if (!(k in s)) s[k] = fresh[k];
+      if (!QUALITES.some((q) => q[0] === s.qualite)) s.qualite = 'auto'; if (!Object.prototype.hasOwnProperty.call(IMAGES, s.images)) s.images = 'economie'; // un réglage inconnu (une sauvegarde abîmée) : celui par défaut
       while (s.stations.length < G.PRODUITS.length) s.stations.push({ niv: 0, staff: false, prog: 0, actif: false });
       G.parcours(s); // les recettes de boutique (recalculées depuis st.boutiques), le quartier de la boutique en cours, pas de défi pour une boutique ouverte avant
       G.compagnons(s); // une vieille sauvegarde : son chat adopté devient le compagnon « chat-roux » (ou « chat-noir »)
@@ -14600,18 +14630,35 @@ const UI = (() => {
     },
     bind: (sec) => { onIn(sec, '[data-arriere]', () => { son.tap(); if (AR) AR.ouvrir(); }); },
   };
+  // Réglages › Le jeu : la qualité graphique (st.qualite) et les images par seconde (st.images), en boutons segmentés (un groupe radio :
+  // les flèches passent d'un choix à l'autre) ; la ligne d'aide dit ce que fait le choix en cours. Les gains n'en dépendent pas.
+  const QUALITES = [['auto', 'Auto'], ['haute', 'Haute'], ['moyenne', 'Moyenne'], ['eco', 'Éco']];
+  const NOM_PALIER = { haute: 'Haute', moyenne: 'Moyenne', eco: 'Éco' };
+  const AIDE_QUALITE = { haute: 'Ombres fines, lumière douce et effets : le plus beau, le plus gourmand', moyenne: 'Ombres et lumière douce, sans les effets', eco: 'Sans ombres ni décors HD : le plus léger pour le téléphone' };
+  const CHOIX_IMAGES = [['economie', 'Économie'], ['fluide', 'Fluide'], ['max', 'Maximum']];
+  const AIDE_IMAGES = { economie: 'Économie : la batterie dure le plus longtemps (30 images/s, 10 au repos)', fluide: 'Fluide : plus doux, la batterie baisse un peu plus vite (60 images/s, 20 au repos)', max: 'Maximum : la vitesse de l’écran (jusqu’à 120 sur iPhone Pro), même au repos ; la batterie baisse le plus vite' };
+  const palierScene = () => (typeof SCENE !== 'undefined' && SCENE.palier) || '';
+  const aideQualite = () => (st.qualite === 'auto' ? `S’adapte à ton téléphone${NOM_PALIER[palierScene()] ? ` (en ce moment\u00a0: ${NOM_PALIER[palierScene()]})` : ''}` : AIDE_QUALITE[st.qualite]);
+  function choisirReglage(sec, cle, v) { // cle : 'qualite' ou 'images' ; appliqué tout de suite, sauvé
+    if (st[cle] === v) return; st[cle] = v; son.tap(); // (le toucher a déjà réveillé la cadence)
+    if (cle === 'qualite') SCENE.choisirQualite(v); // la scène change de palier sans recharger (la HD suit : pas en éco)
+    save(); renderPage(true); const b = sec.querySelector(`[data-${cle}="${v}"]`); if (b) b.focus(); // le focus reste sur le choix (le clavier, VoiceOver)
+  }
   // Réglages : rangés par groupe ; ce qui sert peu vit ici (repeindre, masquer l'événement, quitter le classement, sauvegarde, partage)
   const pageReglages = {
-    key: () => `${st.son}|${st.vibre}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}`,
+    key: () => `${st.son}|${st.vibre}|${st.qualite}|${st.images}|${st.qualite === 'auto' ? palierScene() : ''}|${st.specialite}|${st.nomBoutique}|${st.boutiques}|${st.chat ? st.chat.nom : ''}|${modeleVu()}|${st.quartier ? st.quartier.masque : ''}|${QT ? QT.fenetre(st.now).classement : ''}|${HTE ? `${HTE.visible()}${st[HTE.cle] ? st[HTE.cle].masque : ''}${chatNoir()}${chatNoirDispo()}` : ''}|${classement ? classement.resume().rejoint + classement.resume().pseudo : ''}|${cleNotifs()}`,
     html: () => {
       const q = G.QUARTIERS[G.quartier(st)], cr = classement ? classement.resume() : null;
       const ligne = (a, ico, titre, sous, droite) => `<button type="button" class="reglage" data-a="${a}"><i class="ico">${ico}</i><span><b>${titre}</b>${sous ? `<small>${sous}</small>` : ''}</span>${droite}</button>`;
       const sw = (on) => `<span class="interrupteur" role="switch" aria-checked="${on}"></span>`, chev = `<i class="ico chev">${ICONS.UI.chevron}</i>`;
       const groupe = (titre, lignes) => `<h3 class="titre-section"><span>${titre}</span></h3><div class="card reglages">${lignes}</div>`;
+      const choix = (cle, ico, titre, aide, options) => `<div class="reglage choix" data-choix="${cle}"><i class="ico">${ico}</i><span><b id="rg-${cle}">${titre}</b><small id="rg-${cle}-aide">${aide}</small></span><span></span>`
+        + `<div class="segments" role="radiogroup" aria-labelledby="rg-${cle}" aria-describedby="rg-${cle}-aide">${options.map(([v, t]) => { const on = st[cle] === v; return `<button type="button" role="radio" data-${cle}="${v}" aria-checked="${on}" tabindex="${on ? 0 : -1}" class="${on ? 'actif' : ''}">${t}</button>`; }).join('')}</div></div>`;
       return `${PAGE_HEAD('reglages', 'Réglages')}
       <div class="bloc">
         ${groupe('Le jeu', ligne('son', st.son ? ICONS.UI.son : ICONS.UI.sonOff, 'Sons', 'Petites notes à chaque vente et achat', sw(st.son)) + ligne('vibre', ICONS.UI.vibre, 'Vibrations', 'Un léger retour sous le doigt', sw(st.vibre))
-          + (typeof HDM !== 'undefined' && HDM.actif ? ligne('hd', ICONS.UI.amenager, 'Décors en HD', HDM.raison === 'écran noir' ? 'Coupés : l’écran restait noir sur ce téléphone. Touche pour réessayer' : 'Boutique et événements : meubles, rue de nuit et équipe animée (à couper si l’écran reste noir)', sw(!HDM.coupe())) : ''))}
+          + choix('qualite', ICONS.UI.oeil, 'Qualité graphique', aideQualite(), QUALITES) + choix('images', ICONS.UI.eclair, 'Images par seconde', AIDE_IMAGES[st.images] || AIDE_IMAGES.economie, CHOIX_IMAGES)
+          + (typeof HDM !== 'undefined' && HDM.actif ? ligne('hd', ICONS.UI.amenager, 'Décors en HD', HDM.raison === 'écran noir' ? 'Coupés : l’écran restait noir sur ce téléphone. Touche pour réessayer' : st.qualite === 'eco' && !HDM.coupe() ? 'En qualité Éco, ils ne se chargent pas : choisis Auto, Haute ou Moyenne pour les voir' : 'Boutique et événements : meubles, rue de nuit et équipe animée (à couper si l’écran reste noir)', sw(!HDM.coupe())) : ''))}
         ${groupe('La boutique', ligne('nom', ICONS.UI.crayon, 'Renommer la boutique', `${esc(G.nomBoutique(st))} · ${esc(q.nom)}`, chev)
           + ligne('repeindre', ICONS.UI.amenager, 'Repeindre la boutique', 'Les meubles entourés, leurs crans et leurs prix : touche-les pour les améliorer', chev)
           + (st.specialite == null ? ligne('specialite', ICONS.UI.specialite, 'Choisir la spécialité', 'Un produit fétiche ×2 pour cette boutique', chev) : ligne('specialite-ok', ICONS.UI.specialite, 'Spécialité', `${esc(G.PRODUITS[st.specialite].nom)} ×2, pour cette boutique`, ''))
@@ -14638,6 +14685,11 @@ const UI = (() => {
       onIn(sec, '[data-a="compagnons"]', () => { son.tap(); sheetCompagnons(); });
       onIn(sec, '[data-a="specialite"]', sheetSpecialite);
       onIn(sec, '[data-a="sauvegarde"]', sheetSauvegarde);
+      for (const cle of ['qualite', 'images']) {
+        onIn(sec, `[data-${cle}]`, (b) => choisirReglage(sec, cle, b.dataset[cle]));
+        const grp = sec.querySelector(`[data-choix="${cle}"] [role="radiogroup"]`); // les flèches : le choix voisin (le motif « groupe radio »)
+        if (grp) grp.addEventListener('keydown', (e) => { const d = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key]; if (!d) return; e.preventDefault(); const bs = [...grp.querySelectorAll('[role="radio"]')], k = bs.indexOf(document.activeElement); const b = bs[((k < 0 ? 0 : k) + d + bs.length) % bs.length]; audio(); choisirReglage(sec, cle, b.dataset[cle]); });
+      }
       onIn(sec, '[data-a="hd"]', () => { if (typeof HDM === 'undefined') return; if (HDM.coupe()) HDM.remettre(); else HDM.couper('joueur'); son.tap(); renderPage(true); });
       onIn(sec, '[data-a="quartier"]', () => { if (!EVT) return; EVT.masquer(!(st.quartier && st.quartier.masque)); son.tap(); majCoin(); renderPage(true); });
       onIn(sec, '[data-a="hantee"]', () => { if (!HTE) return; HTE.masquer(!(st[HTE.cle] && st[HTE.cle].masque)); son.tap(); majCoin(); majChat(); renderPage(true); });
@@ -15785,15 +15837,20 @@ const UI = (() => {
   //     acceptées, pour ne pas tomber à 20). G.tick reçoit toujours le vrai temps écoulé depuis la dernière image traitée : les gains ne
   //     dépendent pas de la cadence. Pleine cadence pendant un glisser (un meuble en mode Déplacer, la poignée du tiroir) ; les mini-jeux de
   //     l'Atelier et des événements ont leur propre boucle, jamais bridée. ?cadence=0 coupe la limite (tests, débogage).
+  //     Le joueur choisit (Réglages › Le jeu › Images par seconde, st.images) : Économie (30 puis 10, par défaut), Fluide (60 puis 20) ou
+  //     Maximum (la vitesse de l'écran, 60 à 120, sans ralentir au repos). Le choix s'applique à l'image suivante.
   const CADENCE = { jeu: 30, repos: 10, calmeMs: 15e3, gigue: 3 }, sansLimite = /[?&]cadence=0(&|$)/.test(location.search);
+  const IMAGES = { economie: { jeu: CADENCE.jeu, repos: CADENCE.repos }, fluide: { jeu: 60, repos: 20 }, max: { jeu: 0, repos: 0 } }; // 0 : pas de limite
+  const modeImages = () => (st && Object.prototype.hasOwnProperty.call(IMAGES, st.images) ? IMAGES[st.images] : IMAGES.economie);
   let dernierGeste = performance.now(), rafPrec = 0, apresImage = false, msImage = 0, nImages = 0, sautees = 0; // sautees : les rafraîchissements laissés passer depuis la dernière image
   const instantsImages = new Float64Array(128); // les instants des dernières images traitées (la cadence mesurée, pour les tests ; taille fixe)
   function eveiller() { dernierGeste = performance.now(); }
   const auRepos = (t) => t - dernierGeste > CADENCE.calmeMs;
-  function cadenceCible(t) { if (sansLimite || glisse || tiroir.glisse) return 0; return auRepos(t) ? CADENCE.repos : CADENCE.jeu; } // 0 : pleine cadence
+  function cadenceCible(t) { const m = modeImages(); if (sansLimite || glisse || tiroir.glisse || !m.jeu) return 0; return auRepos(t) ? m.repos : m.jeu; } // 0 : pleine cadence
   function cadence() {
     const t = performance.now(); let n = 0; for (let k = 0; k < instantsImages.length; k++) if (instantsImages[k] > 0 && t - instantsImages[k] <= 1000) n++;
-    return { cible: cadenceCible(t), mesuree: n, repos: !sansLimite && auRepos(t), limite: !sansLimite, travail: Math.round(msImage * 10) / 10 };
+    const limite = !sansLimite && modeImages().jeu > 0;
+    return { cible: cadenceCible(t), mesuree: n, repos: limite && auRepos(t), limite, mode: st.images, travail: Math.round(msImage * 10) / 10 };
   }
 
   // ─── boucle ───
@@ -15948,6 +16005,7 @@ const UI = (() => {
     if (st.vu.journal == null) { const c = st.carnetEv || []; st.vu.journal = fresh ? 0 : c.length ? c[c.length - 1].t : 0; } // une ancienne sauvegarde : son carnet compte comme lu
     if (NVS && typeof st.nouveautesVues !== 'string') st.nouveautesVues = NVS.vueNeuve(); // une sauvegarde neuve, ou d'avant les nouveautés : tout est vu, sauf la plus récente
     document.querySelectorAll('[data-ico]').forEach((el) => { el.innerHTML = ICONS.UI[el.dataset.ico] || ''; });
+    SCENE.choisirQualite(st.qualite); // Réglages › Qualité graphique : la scène naît à ce palier (Auto : la mesure décide)
     if (!SCENE.init($('#scene'), $('#scene-ui'))) $('#sans-3d').hidden = false; // sans WebGL : la boutique vit quand même, sans image
     SCENE.surServi = (r) => { if (visite) return; if (r.cadeau) { reussite(`${r.hb.nom}, fidèle depuis ${r.jours} jours, t’offre ${G.fmtEur(r.cadeau)} !`); } else if (r.jours > 1) toast(`${r.hb.nom} : ${r.jours}e jour de suite !`); };
     tiroir.init();

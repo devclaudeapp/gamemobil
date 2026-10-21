@@ -708,6 +708,7 @@
     return {
       v: 2, coins: 0, lifetime: 0, lifetimeRun: 0, etoiles: 0, boutiques: 1, recettesBoutique: [], defi: null, xp: 0, talents: {}, nomBoutique: '',
       stations: stationsNeuves(), ameliorations: {}, mobilier: {}, tuto: 0, lastSeen: nowMs, created: nowMs, son: true, vibre: true, mode: 1, now: nowMs,
+      qualite: 'auto', images: 'economie', // Réglages › Le jeu : la qualité graphique (auto, haute, moyenne, eco) et les images par seconde (economie, fluide, max) ; sans effet sur les gains
       stats: { taps: 0, ventes: 0, clients: 0, embauches: 0, commandes: 0, critiques: 0, petrissages: 0, pannes: 0, pourboires: 0, petrissageRecord: 0, meilleurPourboire: 0, meilleureCommande: 0, serieMax: 0, semaines: 0, recetteMax: 0, franchise: false, meubles: 0 },
       jour: null, serie: 0, dernierJourComplet: '', ev: null, evTimer: 180, dernierEv: '', boost: null, mystereTimer: 150, carnetEv: [],
       semaine: null, trophees: {}, habitues: {}, specialite: null, tiroir: 'mi',
