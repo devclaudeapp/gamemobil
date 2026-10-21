@@ -98,6 +98,17 @@ console.log('── objectifs du jour ──');
   const r3 = G.nouvelleBoutique(s3, T0);
   check((r3.reclames || []).length === 3 && s3.jour.etoileDonnee && s3.etoiles === e3 + g3 + 1 && s3.jour.objectifs.every((o) => o.reclame), 'les trois réussis : réclamés, l’étoile du jour donnée une fois');
 }
+{ // le Carnet et la Décoration comptent dès l'achat : les objectifs pas encore réclamés suivent, un objectif réclamé garde sa prime
+  const st = G.newState(T0); st.now = T0; st.coins = 1e9; for (const i of [1, 2, 3]) G.acheter(st, i); const j = G.objectifsDuJour(st, T0);
+  const o0 = j.objectifs[0]; o0.progres = o0.cible; o0.fait = true; const r0 = G.reclamer(st, 0), p0 = o0.prime, avant = j.objectifs.map((o) => o.prime);
+  check(r0.ok && j.objectifs.every((o) => Number.isFinite(o.base) && o.base >= 40), `chaque objectif garde sa prime de base (${G.fmtEur(o0.base)})`);
+  st.talents.carnet = 1; G.objectifsDuJour(st, T0 + 1000);
+  check(o0.prime === p0 && j.objectifs.slice(1).every((o, k) => o.prime > avant[k + 1] && o.prime === G.arrondi(o.base * 1.5)), `un cran de Carnet appris dans la journée : les deux objectifs en cours passent à +50 % (${avant.slice(1).map(G.fmtEur).join(', ')} → ${j.objectifs.slice(1).map((o) => G.fmtEur(o.prime)).join(', ')}) ; le réclamé ne bouge pas (${G.fmtEur(p0)})`);
+  st.mobilier.deco = 2; const o1 = j.objectifs[1]; o1.progres = o1.cible; o1.fait = true; const c1 = st.coins, r1 = G.reclamer(st, 1); // réclamé tout de suite après l'achat, sans pas de jeu
+  check(r1.ok && r1.prime === G.arrondi(o1.base * 1.5 * 1.3) && st.coins - c1 === r1.prime, `la Décoration achetée juste avant de réclamer compte aussi : ${G.fmtEur(r1.prime)} (+50 % puis +30 %)`);
+  const o2 = j.objectifs[2]; delete o2.base; o2.prime = 123; G.objectifsDuJour(st, T0 + 2000);
+  check(o2.prime === 123, 'une vieille sauvegarde (objectif sans base) garde sa prime telle quelle');
+}
 console.log('── événements ──');
 {
   const st = G.newState(T0); st.now = T0; st.stations[1].niv = 5; st.stations[1].staff = true; st.stations[1].actif = true;
@@ -152,6 +163,21 @@ console.log('── le boulanger ──');
   check(G.TALENTS.every((t) => G.talent(st, t.id) === t.max) && !G.apprendre(st, 'mains').ok, 'tous les talents au maximum, plus rien à apprendre');
   check(Math.abs(G.tempsMult(st) - 0.75) < 1e-9 && G.heuresAbsence(st) === 12 && Math.abs(G.affluenceMult(st) - 3) < 1e-9, 'au maximum : fournées −25 %, absence 12 h, fournées à la main ×3');
   check(Math.abs(G.prixStaff(st, 0) / PRODUITS[0].staff - 0.6) < 1e-9 && Math.abs(G.prixBonus(st, G.AMELIORATIONS[0]) / G.AMELIORATIONS[0].cout - 0.68) < 1e-9 && Math.abs(G.primeMult(st) - 1.75) < 1e-9, 'embauches −40 %, bonus −32 %, primes d’événement +75 %');
+  { // plus de points à dépenser quand tout est appris (34 points remplissent les neuf talents) : le badge, la bulle et la mention suivent G.ptsTalents
+    const s60 = G.newState(T0); let xp = 0; for (let n = 1; n < 60; n++) xp += G.XP_NIVEAU(n); s60.xp = xp; const plein = G.TALENTS.reduce((a, t) => a + t.max, 0);
+    for (const t of G.TALENTS) s60.talents[t.id] = t.max;
+    check(G.niveau(s60) === 60 && plein === 34 && G.ptsTalents(s60) === 0 && !G.apprendre(s60, 'mains').ok, `niveau 60, les ${plein} points appris : 0 point à dépenser (25 avant la correction)`);
+    s60.talents.carnet = 2; check(G.ptsTalents(s60) === 1 && G.apprendre(s60, 'carnet').ok && G.ptsTalents(s60) === 0, 'niveau 60, un cran manquant : 1 point, et une fois appris, 0');
+    const s5 = G.newState(T0); s5.xp = G.XP_NIVEAU(1) + G.XP_NIVEAU(2) + G.XP_NIVEAU(3) + G.XP_NIVEAU(4); check(G.niveau(s5) === 5 && G.ptsTalents(s5) === 4, 'niveau 5, rien d’appris : 4 points, comme avant');
+  }
+  { // les textes disent les vrais chiffres : « X % plus tôt » (l'attente baisse de X %), « +50 % de clients » (s'ajoute à la vitrine), « défis du jour »
+    const d = (id, k) => G.TALENTS.find((t) => t.id === id).desc(k), m = (id, k) => G.MOBILIER.find((x) => x.id === id).desc(k);
+    check(d('charme', 3) === 'Événements 36 % plus tôt, primes +75 %' && d('pourboire', 3) === 'Client mystère 150 % plus généreux, 45 % plus tôt' && m('caisse', 3) === 'Pourboires ×1,9, client mystère 24 % plus tôt', `charme, pourboires et caisse : « ${d('charme', 3)} », « ${d('pourboire', 3)} », « ${m('caisse', 3)} »`);
+    check(d('affluence', 4) === 'Les fournées cuites à la main servent 200 % de clients en plus' && d('affluence', 1) === 'Les fournées cuites à la main servent 50 % de clients en plus', `bouche-à-oreille : « ${d('affluence', 1)} », comme la vitrine (« ${m('vitrine', 1)} »)`);
+    check(m('deco', 2) === 'Primes des événements et des défis du jour +30 %' && d('carnet', 1) === 'Primes des défis du jour +50 %', `décoration : « ${m('deco', 2)} » (le défi de la semaine n’en profite pas)`);
+    const Q = require('../src/quartier.js'), p12 = Q.PALIERS.find((p) => p.n === 12), ph = Q.phrasePalier(p12), v = G.vetement(p12.vetement);
+    check(/chaîne du quartier \(l’ensemble complet\)/.test(ph) && !/chaîne en or/.test(ph) && v && v.nom === 'Chaîne du quartier', `le palier 12 du Quartier nomme la pièce donnée : « ${ph} »`);
+  }
   st.lifetimeRun = 1e12; G.nouvelleBoutique(st, T0); check(st.stations.filter((s) => s.niv > 0).length === 5 && G.talent(st, 'mains') === 5 && st.xp > 1e6, 'nouvelle boutique : 5 recettes d’emblée, talents gardés, savoir-faire gagné');
   st.stations[0].actif = true; st.stations[0].prog = 0.99; const avant = st.coins; G.tick(st, 0.02, T0 + 20);
   check(Math.abs(st.coins - avant - G.revenu(st, 0) * 3) < 1e-6, 'bouche-à-oreille : la fournée à la main rapporte ×3');
@@ -237,6 +263,11 @@ console.log('── pain du jour, défi de la semaine, habitués, spécialité, 
   check(G.semaineKey(Date.UTC(2026, 9, 11, 20, 0)) === '2026-10-05' && G.semaineKey(Date.UTC(2026, 9, 12, 6, 0)) === '2026-10-12', 'la semaine va du lundi au dimanche');
   sm.type = 'commandes'; sm.cible = 2; sm.progres = 0; G.noterSemaine(st, 'commandes'); G.noterSemaine(st, 'critiques'); check(sm.progres === 1 && !sm.fait, 'seul le type du défi compte'); G.noterSemaine(st, 'commandes'); check(sm.fait, 'défi réussi');
   const et = st.etoiles, c0 = st.coins, r = G.reclamerSemaine(st); check(r.ok && st.etoiles === et + 1 && st.coins > c0 && !G.reclamerSemaine(st).ok && st.stats.semaines === 1, `récompense : +1 étoile, ${G.fmtEur(r.prime)}, une seule fois`);
+  { // une seule liste des événements réussis : les pourboires du client mystère comptent pour le défi de la semaine comme pour le défi de passage
+    const s8 = G.newState(T0); s8.now = T0; s8.boutiques = 8; s8.defi = G.creerDefi(s8, 8); const ws = G.semaineEnCours(s8, T0); ws.type = 'evenements'; ws.txt = 'Réussis 15 événements'; ws.cible = 15; ws.progres = 0; ws.fait = false;
+    for (let k = 0; k < 5; k++) G.encaisserPourboire(s8);
+    const dp = G.defiPassage(s8); check(s8.defi.type === 'evenements' && dp.progres === 5 && ws.progres === 5 && s8.stats.pourboires === 5, `5 pourboires : défi de la semaine « ${ws.txt} » ${ws.progres}/${ws.cible}, défi de passage « ${dp.txt} » ${dp.progres}/${dp.cible}`);
+  }
   // les habitués
   const h8 = Date.UTC(2026, 9, 7, 6, 30); st.now = h8; const hb = G.habitueAttendu(st, h8); check(hb && hb.id === 'dupuis', 'à 8 h 30, Mme Dupuis est attendue');
   check(G.habitueAttendu(st, Date.UTC(2026, 9, 7, 9, 0)) === null, 'à 11 h, personne');

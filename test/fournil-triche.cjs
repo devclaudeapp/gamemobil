@@ -23,6 +23,7 @@ const server = http.createServer((req, res) => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let fails = 0; const check = (ok, m) => { console.log((ok ? '  ok   ' : '  FAIL ') + m); if (!ok) fails++; };
 const fmtH = (ms) => `${(ms / HEURE).toFixed(1)} h`;
+const attendre5 = async (p, ms = 15000) => { for (let t = 0; t < ms; t += 200) { if (await p.evaluate(() => (window.__fournil.st.journalRetours || []).some((e) => e.r === 'recul')).catch(() => false)) return true; await sleep(200); } return false; }; // le recul noté au journal
 
 // avant tout script de la page : une fausse heure du téléphone (décalage gardé d'un chargement à l'autre) et une visibilité qu'on pilote
 function fauxTelephone(decalDepart) {
@@ -198,7 +199,30 @@ function fauxTelephone(decalDepart) {
   }
   check(z0.jour === '2026-10-09' && z0.donnee && !fuseaux.some((f) => /ÉCART/.test(f)), `fuseau du téléphone changé 5 fois (${fuseaux.join(' ; ')}) : même journée, même semaine, ni étoile ni série en plus, pas de marché, Léna ne revient pas`);
   await c4.close();
-  check(!errors.length, 'aucune erreur dans la page (réseau revenu, fuseaux)' + (errors.length ? ' : ' + errors[0] : ''));
+
+  // ─── un boost lancé pendant une avance du jeu (le compteur du téléphone a couru 40 min trop vite), puis l'heure sûre le ramène : le boost aussi ───
+  decalServeur = DEPART - Date.now();
+  const c5 = await browser.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+  await c5.addInitScript(fauxTelephone, decalServeur);
+  // performance.now() (et les images) avancent d'un coup, pas l'heure du téléphone : le jeu prend de l'avance sans que le téléphone l'y mène (test/fournil-reveil.cjs)
+  await c5.addInitScript(() => { let dp = 0; const pn = performance.now.bind(performance), raf = window.requestAnimationFrame.bind(window); performance.now = () => pn() + dp; window.requestAnimationFrame = (cb) => raf((t) => cb(t + dp)); window.__deriver = (ms) => { dp += ms; }; });
+  const p5 = await c5.newPage(); p5.on('pageerror', (e) => { errors.push(e.message); console.log('PAGEERROR', e.message); });
+  await p5.goto(URL_JEU); await p5.waitForFunction(() => window.__fournil && window.__fournil.st && HORLOGE.info().source === 'page', null, { timeout: 15000 }); await sleep(800);
+  await p5.evaluate(() => { const b = document.querySelector('#feuille [data-a="close"]'); if (b && !document.querySelector('#feuille').hidden) b.click(); window.__fournil.st.tuto = 99; window.__fournil.save(); }); await sleep(6000); // une sauvegarde à l'heure juste avant
+  const lancement = vrai();
+  const lance = await p5.evaluate(() => { const f = window.__fournil, s = f.st, G = f.G;
+    window.__deriver(40 * 60e3); s.now = HORLOGE.maintenant(); // le jeu a 40 min d'avance, et on lance aussitôt :
+    G.donnerBoostReserve(s, 2, 3600); const r = G.lancerBoostReserve(s, s.boosts.reserve.length - 1); // un ×2 d'1 h de la réserve
+    G.donnerBoost(s, 3, 600); // et le coup de feu d'une critique (×3, 10 min)
+    return { jeu: s.now, ok: r.ok, actif: s.boosts.actif && s.boosts.actif.fin, boost: s.boost && s.boost.fin }; });
+  check(lance.ok && Math.abs(lance.jeu - lancement - 40 * 60e3) < 30e3, `le boost est lancé quand le jeu a ${Math.round((lance.jeu - lancement) / 60e3)} min d’avance (il finirait ${Math.round((lance.actif - lancement) / 60e3)} min après la vraie heure de lancement)`);
+  check(await attendre5(p5), 'l’heure sûre ramène le jeu à l’heure (« Horloge du jeu remise à l’heure »)');
+  await sleep(1500);
+  const recule = await p5.evaluate(() => { const s = window.__fournil.st; return { now: s.now, actif: s.boosts.actif && s.boosts.actif.fin, boost: s.boost && s.boost.fin }; });
+  check(Math.abs(recule.now - vrai()) < 10e3 && recule.actif && Math.abs(recule.actif - lancement - 3600e3) < 30e3, `le boost de la réserve finit 1 h après la vraie heure de lancement (${Math.round((recule.actif - lancement) / 60e3)} min ; 1 h 40 avant la correction)`);
+  check(recule.boost && Math.abs(recule.boost - lancement - 600e3) < 30e3, `le coup de feu aussi : ${Math.round((recule.boost - lancement) / 60e3)} min (10 min)`);
+  await c5.close();
+  check(!errors.length, 'aucune erreur dans la page (réseau revenu, fuseaux, boost ramené)' + (errors.length ? ' : ' + errors[0] : ''));
 
   // ─── un samedi à 360×640 : le badge « Marché ×1,5 » ne repousse plus la boutique ───
   decalServeur = new Date('2026-10-10T10:00:00+02:00').getTime() - Date.now();
