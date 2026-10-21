@@ -16,6 +16,15 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-10-21-b', date: '2026-10-21', titre: 'La Maison hantée arrive le 27 à midi',
+      points: [
+        'Du mardi 27 octobre à midi au lundi 2 novembre à 20 h : ta boutique, entièrement hantée. Murs, meubles, bougies et brume ; les clients sont des monstres, du squelette au loup-garou.',
+        'Sers les monstres qui commandent, réussis tes fournées parfaites, attrape les apparitions et livre les commandes de la nuit. Le ×6 s’endort si tu ne touches plus l’écran : un toucher le réveille.',
+        'Le bestiaire : sers dix fois chacun des neuf monstres pour des étoiles, un décor et une chauve-souris compagnon. Et la recette du jour, comme dans la Planque.',
+        '20 paliers, qui s’ouvrent au fil des jours. Les quinze premiers du classement de l’événement sont récompensés ; au 20e palier, le titre « Légende du Manoir », une aura phosphorescente et une lanterne pour ta boutique.',
+      ],
+    },
+    {
       id: '2026-10-21-a', date: '2026-10-21', titre: 'Choisis ta qualité et tes images par seconde',
       points: [
         'Dans Réglages › Le jeu, « Qualité graphique » : Auto (le jeu s’adapte à ton téléphone, comme avant), Haute, Moyenne ou Éco. Un choix fixe ne bouge plus ; il vaut aussi pour la Planque et la Maison hantée. En Éco, les décors HD ne se chargent pas.',
