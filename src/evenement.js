@@ -854,6 +854,9 @@ const EVENEMENTS = (() => {
   const oAnim = { marche: false, phase: 0, assis: false, dir: 0, sac: false, or: false, pris: false, attend: true, plateau: false, produit: null, cle: false, t: 0, blink: 0, expression: 'neutre', joie: 0, attente: 0, geste: '', graine: 0, rush: false };
   function animerChibi(p, t, fete) { oAnim.phase = t * 2 + p.phase; oAnim.assis = p.assis; oAnim.dir = p.dir; oAnim.t = t; oAnim.blink = (t + p.phase) % 3.4; oAnim.expression = fete > 0 ? 'sourire' : 'neutre'; oAnim.attend = !p.assis; oAnim.graine = p.phase; oAnim.joie = fete > 0 && !p.assis ? (t * 1.4 + p.phase) % 1 : 0; try { PERSOS.animer(p.g, oAnim); } catch (e) { /* un personnage sans ce champ */ } }
   const YAW = { 0: 0, 1: Math.PI / 2, '-1': -Math.PI / 2, 2: Math.PI }, MINI_ECHELLE = 82, MINI_ASSIS_Y = 12; // un Mini Character fait 0,67 unité : × 100, la taille d'un chibi
+  // la finesse d'un décor (sa densité de pixels) suit le palier de la boutique (Réglages › Qualité graphique, ou la mesure en Auto) :
+  // 1 en éco, 1,5 au-dessus ; les modèles HD, eux, suivent HDM.permis (jamais en éco). Le palier change : le décor se redimensionne.
+  const finesse = () => Math.min(typeof SCENE !== 'undefined' && SCENE.palier === 'eco' ? 1 : 1.5, window.devicePixelRatio || 1);
   function rendu3(cv, fond) { // le renderer d'un décor ; null si le téléphone refuse le contexte
     let renderer; try { renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: false, powerPreference: 'low-power' }); } catch (e) { return null; }
     renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.shadowMap.enabled = false; renderer.setClearColor(fond); return renderer;
@@ -876,7 +879,7 @@ const EVENEMENTS = (() => {
     const rose = new THREE.PointLight('#FF6B8B', 90, 600, 1), vert = new THREE.PointLight('#5FD3A4', 60, 500, 1); scene.add(rose, vert);
     const G3 = new THREE.Group(); scene.add(G3);
     const animes = [], persos = [], lum = (hex, k) => new THREE.MeshLambertMaterial({ color: hex, emissive: hex, emissiveIntensity: k == null ? 1 : k });
-    let W = 1, H = 1, murH = 1, t = 0, fete = 0, hdVu = 0, rue = null, verifs = 0, tVerif = 0, noirs = 0;
+    let W = 1, H = 1, DPRe = 1, murH = 1, t = 0, fete = 0, hdVu = 0, rue = null, verifs = 0, tVerif = 0, noirs = 0;
     const wz = (ys) => (ys - murH) / SY, wy = (px) => px / CY, wd = (px) => px / SY;
     function batir() {
       while (G3.children.length) { const o = G3.children[0]; G3.remove(o); M.dispose(o); }
@@ -975,9 +978,9 @@ const EVENEMENTS = (() => {
         liberer() { rt.dispose(); sc.traverse((o) => { if (o.isMesh && o.geometry) o.geometry.dispose(); }); } };
     }
     function redim() {
-      const w = Math.max(1, cv.clientWidth), h = Math.max(1, cv.clientHeight); if (w === W && h === H && G3.children.length) return;
-      W = w; H = h; murH = Math.round(h * 0.42);
-      renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1)); renderer.setSize(W, H, false);
+      const w = Math.max(1, cv.clientWidth), h = Math.max(1, cv.clientHeight), f = finesse(); if (w === W && h === H && f === DPRe && G3.children.length) return;
+      W = w; H = h; DPRe = f; murH = Math.round(h * 0.42);
+      renderer.setPixelRatio(DPRe); renderer.setSize(W, H, false);
       camera.left = -W / 2; camera.right = W / 2; camera.top = H / 2; camera.bottom = -H / 2; camera.updateProjectionMatrix();
       const Zc = (H / 2 - murH) / SY; camera.position.set(W / 2, 1500 * SY, Zc + 1500 * CY); camera.up.set(0, 1, 0); camera.lookAt(W / 2, 0, Zc); camera.updateMatrixWorld();
       dir.position.set(W * 0.7, 700, Zc + 400); dir.target.position.set(W / 2, 0, Zc); dir.target.updateMatrixWorld();
@@ -1027,7 +1030,7 @@ const EVENEMENTS = (() => {
     const feu = new THREE.PointLight('#FF9A3D', 70, 520, 1), chaud = new THREE.PointLight('#8FE36B', 40, 300, 1), bougie = new THREE.PointLight('#FFC873', 45, 380, 1); scene.add(feu, chaud, bougie);
     const G3 = new THREE.Group(); scene.add(G3);
     const animes = [], persos = [], sprites = [], lum = (hex, k) => new THREE.MeshLambertMaterial({ color: hex, emissive: hex, emissiveIntensity: k == null ? 1 : k });
-    let W = 1, H = 1, murH = 1, t = 0, fete = 0, frisson = 0, hdVu = 0, jardin = null, verifs = 0, tVerif = 0, noirs = 0, Kc = 1;
+    let W = 1, H = 1, DPRe = 1, murH = 1, t = 0, fete = 0, frisson = 0, hdVu = 0, jardin = null, verifs = 0, tVerif = 0, noirs = 0, Kc = 1;
     const wz = (ys) => (ys - murH) / SY, wy = (px) => px / CY, wd = (px) => px / SY;
     const ajHalo = (c, taille, force, x, y, z) => { const h = halo(c, taille, force); h.position.set(x, y, z); G3.add(h); sprites.push(h); return h; };
     function batir() {
@@ -1212,9 +1215,9 @@ const EVENEMENTS = (() => {
       return { mats, ajouts };
     }
     function redim() {
-      const w = Math.max(1, cv.clientWidth), h = Math.max(1, cv.clientHeight); if (w === W && h === H && G3.children.length) return;
-      W = w; H = h; murH = Math.round(h * 0.44);
-      renderer.setPixelRatio(Math.min(1.5, window.devicePixelRatio || 1)); renderer.setSize(W, H, false);
+      const w = Math.max(1, cv.clientWidth), h = Math.max(1, cv.clientHeight), f = finesse(); if (w === W && h === H && f === DPRe && G3.children.length) return;
+      W = w; H = h; DPRe = f; murH = Math.round(h * 0.44);
+      renderer.setPixelRatio(DPRe); renderer.setSize(W, H, false);
       camera.left = -W / 2; camera.right = W / 2; camera.top = H / 2; camera.bottom = -H / 2; camera.updateProjectionMatrix();
       const Zc = (H / 2 - murH) / SY; camera.position.set(W / 2, 1500 * SY, Zc + 1500 * CY); camera.up.set(0, 1, 0); camera.lookAt(W / 2, 0, Zc); camera.updateMatrixWorld();
       dir.position.set(W * 0.5, 600, Zc - 200); dir.target.position.set(W / 2, 0, Zc); dir.target.updateMatrixWorld();

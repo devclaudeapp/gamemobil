@@ -3,6 +3,11 @@
 // en portrait : la cadence à l'ouverture, au repos, après un toucher ; pleine cadence quand on tire le tiroir ; un mini-jeu de l'Atelier
 // (sa propre boucle) à pleine cadence ; la qualité de la scène ne prend pas la limite pour de la lenteur ; le détecteur de gel ne voit pas de
 // gel à 10 images/s ; les gains d'une minute de jeu identiques (±1 %) à ceux d'une page sans limite (?cadence=0) ; aucune erreur.
+// Les choix du joueur (Réglages › Le jeu) : « Images par seconde » (Économie 30/10, Fluide 60/20, Maximum sans limite) et « Qualité
+// graphique » (Auto, Haute, Moyenne, Éco : un palier fixe que la mesure ne touche plus, Auto qui la rétablit) ; gardés après un
+// rechargement ; une vieille sauvegarde (sans ces champs, ou avec des valeurs inconnues) revient à Auto et Économie. Pour la qualité, la
+// page se fait passer pour un vrai processeur graphique (SwiftShader figerait Auto en éco) ; une « charge » (40 ms de calcul à chaque
+// rafraîchissement) simule un téléphone lent, qui fait descendre Auto et pas un palier fixe.
 // Le dessin WebGL est neutralisé (drawArrays / drawElements sans effet) : SwiftShader, sur une machine chargée, ne tient pas toujours 30 images/s,
 // et c'est la boucle qu'on mesure ici, pas le processeur graphique. Une sonde compte les rafraîchissements que la page reçoit vraiment
 // (requestAnimationFrame) : si la machine n'en donne pas 55 par seconde, les fourchettes de cadence ne sont pas exigées (on le dit).
@@ -24,9 +29,10 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 100) {
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ouverts = [];
-  async function ouvrir(requete) {
+  async function ouvrir(requete, gpu) {
     const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
     await ctx.addInitScript(() => { window.__sonde = 0; const sonde = () => { window.__sonde++; requestAnimationFrame(sonde); }; requestAnimationFrame(sonde); for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) if (C) for (const m of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements']) if (C.prototype[m]) C.prototype[m] = function () {}; });
+    if (gpu) await ctx.addInitScript((nom) => { for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) if (C) { const gp = C.prototype.getParameter; C.prototype.getParameter = function (k) { return k === 0x9246 ? nom : gp.call(this, k); }; } }, gpu); // UNMASKED_RENDERER_WEBGL
     await ctx.route(/supabase\.co/, (r) => r.abort());
     const page = await ctx.newPage(), erreurs = [];
     page.on('pageerror', (e) => erreurs.push(e.message));
@@ -157,6 +163,81 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 100) {
   await A.page.evaluate(() => window.__fournil.xp(1e9)); // un niveau gagné : un message du jeu
   check(await attendre(async () => (await cadence(A.page)).cible === 30, 2000), 'une action du jeu (un niveau gagné, son message) ramène aussi les 30 images/s');
   check(A.erreurs.length === 0 && B.erreurs.length === 0, `aucune erreur dans les pages (${A.erreurs.concat(B.erreurs).slice(0, 3).join(' | ')})`);
+  await A.ctx.close(); await B.ctx.close();
+
+  console.log('── Réglages › Le jeu : les deux choix ──');
+  ({ page, erreurs, cdp, ctx } = await ouvrir('?hd=0', 'Apple GPU'));
+  await page.evaluate(() => window.__fournil.page('reglages')); await sleep(500);
+  const reglages = await page.evaluate(() => {
+    const q = document.querySelector('#page-reglages [data-choix="qualite"]'), im = document.querySelector('#page-reglages [data-choix="images"]'), carte = q && q.closest('.card');
+    const radios = (el) => [...el.querySelectorAll('[role="radio"]')].map((b) => `${b.textContent}${b.getAttribute('aria-checked') === 'true' ? '*' : ''}`).join(' · ');
+    return { groupe: carte && carte.previousElementSibling ? carte.previousElementSibling.textContent.trim() : '', memeCarte: !!im && im.closest('.card') === carte, sons: !!(carte && carte.querySelector('[data-a="son"]')), q: q ? radios(q) : '', im: im ? radios(im) : '', aide: im ? im.querySelector('small').textContent : '', titres: [q, im].map((e) => (e ? e.querySelector('b').textContent : '')).join(' / '), large: document.documentElement.scrollWidth <= 390 };
+  });
+  check(reglages.groupe === 'Le jeu' && reglages.memeCarte && reglages.sons, `les deux choix sont dans Réglages › Le jeu, avec les sons (${reglages.titres})`);
+  check(reglages.q === 'Auto* · Haute · Moyenne · Éco' && reglages.im === 'Économie* · Fluide · Maximum', `par défaut : Auto et Économie (${reglages.q} | ${reglages.im})`);
+  check(/batterie dure le plus longtemps/.test(reglages.aide) && reglages.large, `la ligne d'aide : « ${reglages.aide} » ; rien ne déborde à 390 px`);
+  const choisir = (cle, v) => page.evaluate(([c, x]) => { document.querySelector(`#page-reglages [data-${c}="${x}"]`).click(); const b = document.querySelector(`#page-reglages [data-${c}="${x}"]`); return { st: window.__fournil.st[c], coche: b.getAttribute('aria-checked'), focus: document.activeElement === b, aide: b.closest('.reglage').querySelector('small').textContent }; }, [cle, v]);
+  const [gx, gy] = await centre(page, '#coins');
+  console.log('── Réglages › Le jeu : la qualité graphique ──');
+  const qual = () => page.evaluate(() => { const q = SCENE._qual; return { palier: SCENE.palier, choix: SCENE.choixQualite, fixe: q.fixe, mesures: q.mesures, moy: q.moy || 0 }; });
+  const charger = (on) => page.evaluate((on) => { window.__charge = on; if (!on) return; const f = () => { if (!window.__charge) return; const t = performance.now(); while (performance.now() - t < 40) { /* un téléphone lent */ } requestAnimationFrame(f); }; requestAnimationFrame(f); }, on);
+  await sleep(3000); let q0 = await qual(); // plus de 60 images : une fenêtre mesurée
+  check(q0.choix === 'auto' && (q0.moy > 0 || q0.mesures > 0), `Auto au lancement (un vrai processeur graphique) : la mesure tourne et choisit le palier (${JSON.stringify(q0)})`);
+  let r = await choisir('qualite', 'eco'); await sleep(300); q0 = await qual();
+  check(r.st === 'eco' && r.coche === 'true' && q0.palier === 'eco' && q0.choix === 'eco' && q0.fixe, `Éco : la scène passe au palier éco tout de suite (${JSON.stringify(q0)}) ; aide : « ${r.aide} »`);
+  await page.evaluate(() => { const q = SCENE._qual; q.moy = 0; q.mesures = 0; q.somme = 0; });
+  await sleep(4000); q0 = await qual(); // plus de 60 images : la mesure aurait rendu son verdict
+  check(q0.palier === 'eco' && q0.fixe && q0.mesures === 0 && q0.moy === 0, `et n'en bouge plus : la mesure est arrêtée (${JSON.stringify(q0)})`);
+  r = await choisir('qualite', 'haute'); await toucher(cdp, gx, gy); await charger(true);
+  const vusH = new Set(); for (let t = 0; t < 6000; t += 200) { vusH.add((await qual()).palier); await sleep(200); }
+  q0 = await qual();
+  check(r.st === 'haute' && [...vusH].join() === 'haute' && q0.fixe, `Haute, sur un téléphone lent (40 ms par rafraîchissement, 6 s) : le palier reste haute (vus : ${[...vusH].join(', ')})`);
+  await charger(false); await sleep(500);
+  r = await choisir('qualite', 'auto'); q0 = await qual();
+  check(r.st === 'auto' && q0.choix === 'auto' && !q0.fixe && q0.palier === 'haute' && /S’adapte à ton téléphone/.test(r.aide), `Auto : la mesure reprend, du palier en cours (${JSON.stringify(q0)}) ; aide : « ${r.aide} »`);
+  await toucher(cdp, gx, gy); await charger(true);
+  const vusA = new Set(); for (let t = 0; t < 12000 && vusA.size < 2; t += 200) { vusA.add((await qual()).palier); await sleep(200); }
+  await charger(false);
+  check(vusA.size >= 2, `et le téléphone lent la fait descendre (vus : ${[...vusA].join(', ')} ; ${JSON.stringify(await qual())})`);
+  await choisir('qualite', 'eco');
+
+  console.log('── Réglages › Le jeu : les images par seconde ──');
+  await sleep(1500); // (la boucle mesurée, pas le rendu : la scène reste en éco, choisie juste avant)
+  r = await choisir('images', 'fluide'); await toucher(cdp, gx, gy);
+  const cFl = await cadence(page);
+  check(r.st === 'fluide' && r.coche === 'true' && r.focus && cFl.cible === 60 && cFl.mode === 'fluide' && !cFl.repos, `Fluide : coché, la cible passe à 60 images/s tout de suite (${JSON.stringify(cFl)}) ; aide : « ${r.aide} »`);
+  const fl = await mesurer(page, 3000);
+  check(fl.images <= 63 && (fl.raf < 55 || fl.images >= 50), `en jouant, ~60 images traitées par seconde (${fmt(fl)})${charge(fl, 55)}`);
+  check(await attendre(async () => (await cadence(page)).repos, 25000), 'puis au repos (15 s sans toucher)');
+  await sleep(1000);
+  const flR = await mesurer(page, 3000), cFlR = await cadence(page);
+  check(cFlR.cible === 20 && flR.images <= 21.5 && (flR.raf < 25 || flR.images >= 16), `Fluide au repos : ~20 images/s (${fmt(flR)})${charge(flR, 25)}`);
+  r = await choisir('images', 'max'); // (un clic sans toucher : la page reste « au repos » côté gestes)
+  const cMax = await cadence(page), mx = await mesurer(page, 2000);
+  check(r.st === 'max' && cMax.cible === 0 && !cMax.limite && !cMax.repos && mx.images >= mx.raf * 0.85 && (mx.raf < 40 || mx.images > 40), `Maximum : aucune limite, même 15 s après le dernier toucher ; chaque rafraîchissement est traité (${fmt(mx)})`);
+  r = await choisir('images', 'economie'); await sleep(1200); // (la fenêtre d'une seconde des images comptées : sans celles d'avant)
+  const cEco = await cadence(page), ecoR = await mesurer(page, 2000);
+  check(r.st === 'economie' && cEco.cible === 10 && cEco.repos && ecoR.images <= 11 && (ecoR.raf < 15 || ecoR.images >= 8), `Économie, toujours au repos : 10 images/s (${fmt(ecoR)})${charge(ecoR, 15)}`);
+  await toucher(cdp, gx, gy);
+  const ecoJ = await mesurer(page, 2000), cEcoJ = await cadence(page);
+  check(cEcoJ.cible === 30 && ecoJ.images <= 32 && (ecoJ.raf < 55 || ecoJ.images >= 25), `Économie en jouant : 30 images/s (${fmt(ecoJ)})${charge(ecoJ, 55)}`);
+
+  console.log('── gardés après un rechargement ; une vieille sauvegarde : Auto et Économie ──');
+  await choisir('qualite', 'moyenne'); await choisir('images', 'fluide');
+  await page.evaluate(() => window.__fournil.save()); await sleep(500);
+  const relancer = async () => { await page.reload(); await page.waitForFunction(() => window.__fournil && window.__fournil.st && SCENE.webgl, null, { timeout: 30000 }); await page.evaluate(() => window.__fournil.page('reglages')); await sleep(800); };
+  const etat = () => page.evaluate(() => { const coche = (c) => { const b = document.querySelector(`#page-reglages [data-${c}][aria-checked="true"]`); return b ? b.textContent : ''; }; return { qualite: window.__fournil.st.qualite, images: window.__fournil.st.images, palier: SCENE.palier, choix: SCENE.choixQualite, fixe: SCENE._qual.fixe, cible: window.__fournil.cadence().cible, cases: `${coche('qualite')} · ${coche('images')}` }; });
+  await relancer(); await toucher(cdp, gx, gy);
+  let e = await etat();
+  check(e.qualite === 'moyenne' && e.images === 'fluide' && e.palier === 'moyenne' && e.choix === 'moyenne' && e.fixe && e.cible === 60 && e.cases === 'Moyenne · Fluide', `après rechargement : Moyenne et Fluide, appliqués dès le lancement (${JSON.stringify(e)})`);
+  await page.evaluate(() => { const st = window.__fournil.st; delete st.qualite; delete st.images; window.__fournil.save(); }); await sleep(500);
+  await relancer(); await toucher(cdp, gx, gy);
+  e = await etat();
+  check(e.qualite === 'auto' && e.images === 'economie' && e.choix === 'auto' && e.cible === 30 && e.cases === 'Auto · Économie', `une sauvegarde sans ces champs : Auto et Économie (${JSON.stringify(e)})`);
+  await page.evaluate(() => { const st = window.__fournil.st; st.qualite = 'ultra'; st.images = 'turbo'; window.__fournil.save(); }); await sleep(500);
+  await relancer(); e = await etat();
+  check(e.qualite === 'auto' && e.images === 'economie' && e.choix === 'auto', `des valeurs inconnues : réparées en Auto et Économie (${JSON.stringify(e)})`);
+  check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
 
   for (const o of ouverts) await o.ctx.close().catch(() => {});
   await browser.close(); server.close();

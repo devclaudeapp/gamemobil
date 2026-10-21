@@ -16,6 +16,14 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-10-21-a', date: '2026-10-21', titre: 'Choisis ta qualité et tes images par seconde',
+      points: [
+        'Dans Réglages › Le jeu, « Qualité graphique » : Auto (le jeu s’adapte à ton téléphone, comme avant), Haute, Moyenne ou Éco. Un choix fixe ne bouge plus ; il vaut aussi pour la Planque et la Maison hantée. En Éco, les décors HD ne se chargent pas.',
+        '« Images par seconde » : Économie (30 en jouant, 10 au repos : la batterie dure le plus longtemps), Fluide (60, puis 20 au repos) ou Maximum (la vitesse de ton écran, jusqu’à 120 sur iPhone Pro).',
+        'Tes choix s’appliquent tout de suite et sont gardés. Tes gains ne changent pas : tes apprentis vendent exactement autant.',
+      ],
+    },
+    {
       id: '2026-10-20-b', date: '2026-10-20', titre: 'Le jeu consomme moins de batterie',
       points: [
         'La boutique se dessine 30 fois par seconde au plus pendant que tu joues (au lieu de 60, voire 120 sur les iPhone récents), et 10 fois après 15 secondes sans toucher l’écran. Elle reprend aussitôt au premier toucher.',
