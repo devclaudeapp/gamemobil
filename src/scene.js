@@ -293,7 +293,8 @@ const SCENE = (() => {
     { id: 'lampe', cle: (E) => (E.niv[2] > 0 || objet(E, 'lampe') ? '1' : null), faire: (k, c) => MEUBLES.lampe(c) },
     // les décos de l'événement « Le Quartier » (src/quartier.js, gagnées aux paliers, à vie) : le tag sur la porte, l'enseigne néon, le chien ; le scooter est peint dehors (peindreExterieur)
     { id: 'graffiti', cle: () => (QDECO.graffiti && MEUBLES.graffiti ? '1' : null), faire: (k, c) => MEUBLES.graffiti(c) },
-    { id: 'neon', cle: () => (QDECO.neon && MEUBLES.neon ? '1' : null), faire: (k, c) => MEUBLES.neon(c) },
+    // (le néon remonte au-dessus des bocaux du bestiaire quand l'étagère est là aussi : même fenêtre ; dans la boutique hantée, pas de néon)
+    { id: 'neon', cle: () => (QDECO.neon && MEUBLES.neon ? (HDECO.bestiaire ? 'haut' : '1') : null), faire: (k, c) => MEUBLES.neon(c, k === 'haut') },
     // le chien : couché dans son coin, SAUF quand il est le compagnon de la boutique (« chien-quartier », GAME.COMPAGNONS) : c'est le même
     // chien, il s'est levé pour te suivre ; pas deux chiens identiques dans la salle. Un autre compagnon choisi : il retourne se coucher.
     { id: 'chien', cle: () => (QDECO.chien && MEUBLES.chien && modeleComp !== 'chien-quartier' ? '1' : null), faire: (k, c) => MEUBLES.chien(c) },
@@ -706,7 +707,9 @@ const SCENE = (() => {
     im.visible = cle.includes('1'); // personne d'assis : pas même un appel de dessin
     LAY.sieges.forEach((s, i) => {
       if (i >= im.count) return; if (cle[i] !== '1') { im.setMatrixAt(i, ZERO4); return; }
-      const t = s.table || s, k = s.zone === 'bar' ? 0 : s.zone === 'banquette' ? 0.3 : 0.45, x = t.x + (s.x - t.x) * k, y = s.zone === 'bar' ? LAY.bar.y - 4 * V.K : t.y + (s.y - t.y) * k;
+      const t = s.table || s, k = s.zone === 'bar' ? 0 : s.zone === 'banquette' || s.zone === 'terrasse' ? 0.3 : 0.45, x = t.x + (s.x - t.x) * k; // (la table bistrot de la terrasse est plus petite : 12 de rayon contre 16)
+      // (la table basse du coin salon n'a que 16 de fond : le couvert de la banquette reste à 3 du milieu en profondeur, sur le plateau, au lieu de déborder dans le vide)
+      const dy = (s.y - t.y) * k, y = s.zone === 'bar' ? LAY.bar.y - 4 * V.K : t.y + (s.zone === 'banquette' ? Math.max(-3 * V.K * SY, Math.min(3 * V.K * SY, dy)) : dy);
       _m4.makeRotationY(s.dir === 1 ? Math.PI / 2 : s.dir === -1 ? -Math.PI / 2 : 0).setPosition(x, MEUBLES.HAUT[s.zone] || 29, wz(y)); im.setMatrixAt(i, _m4);
     });
     im.instanceMatrix.needsUpdate = true;

@@ -328,31 +328,33 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   // HDM.part : couleurs de sommets, pas de texture) ; sinon (éco, artefact, HD coupée), les pièces faites main (et celles de Kenney quand
   // elles sont chargées). Les couverts ne sont pas ici : un seul maillage instancié pour toutes les places (SCENE, MEUBLES.couverts).
   const hdp = (c, nom, o, col) => (c.hd && typeof HDM !== 'undefined' && HDM.part ? HDM.part('meubles2/' + nom, o, col) : null); // une pièce KayKit, ou null
-  const HAUT = { table: 29, bar: 25, banquette: 11, terrasse: 29 }; // la hauteur des plateaux où l'on pose les couverts, par coin
+  // le dessus réel des plateaux, par coin : chaque meuble est bâti pour y arriver (fait main, Kenney ou KayKit, avec ou sans nappe), et les
+  // couverts (SCENE, poserCouverts) comme les bougies de la boutique hantée (hantee) s'y posent : une seule mesure, rien ne flotte
+  const HAUT = { table: 29, bar: 24, banquette: 10, terrasse: 28 };
   function pointilles(pr, r, c) { // l'emplacement d'un meuble pas encore acheté : un rectangle de tirets au sol (r : rectangle du plan, en pixels)
     const z0 = c.wz(r.y), z1 = c.wz(r.y + r.h), n = Math.max(2, Math.round(r.w / 14)), m = Math.max(2, Math.round((z1 - z0) / 14));
     for (let i = 0; i < n; i++) for (const z of [z0, z1]) pr.push(P(M.boiteSimple(r2(r.w / n * 0.55), 0.4, 1.4), '#FFFFFF', { x: r.x + (i + 0.5) * r.w / n, y: 0.3, z }));
     for (let i = 0; i < m; i++) for (const x of [r.x, r.x + r.w]) pr.push(P(M.boiteSimple(1.4, 0.4, r2((z1 - z0) / m * 0.55)), '#FFFFFF', { x, y: 0.3, z: z0 + (i + 0.5) * (z1 - z0) / m }));
   }
   function maillePointillee(pr, g) { const m = M.maille(pr, { ombre: false }); m.material = M.MAT.pointille; g.add(m); return g; }
-  function tableRonde(pr, x, z, R, Ht, Q, c, nappe) { // une table ronde : KayKit, Kenney ou faite main ; son plateau aux couleurs du quartier
-    const k = hdp(c, 'table_round_A_small', { w: 2 * R, d: 2 * R, h: Ht - 1, x, z, teinte: Q.comptoir }); if (k) { pr.push(k); if (nappe) pr.push(P(M.cylindre(R * 0.8, R * 0.8, 0.8, 20), Q.accent, { x, y: Ht - 1, z })); return; }
-    if (KN()) { pr.push(kp('tableRound', { w: 2 * R, d: 2 * R, h: Ht, x, z }, { wood: Q.comptoir }), P(M.cylindre(R - 1.2, R - 1.2, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht - 0.4, z })); return; }
-    pr.push(P(M.cylindre(6.5 * c.K, 7.5 * c.K, 2, 14), Q.bois, { x, z }), P(M.cylindre(2.4, 2.4, Ht - 5, 8), Q.bois, { x, y: 2, z }));
-    pr.push(P(M.cylindre(R, R - 1.5, 3, 22), Q.comptoir, { x, y: Ht - 3, z }), P(M.cylindre(R - 0.3, R - 0.3, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht, z }));
+  function tableRonde(pr, x, z, R, Ht, Q, c, nappe) { // une table ronde : KayKit, Kenney ou faite main ; son plateau aux couleurs du quartier ; Ht : son dessus (nappe comprise)
+    const k = hdp(c, 'table_round_A_small', { w: 2 * R, d: 2 * R, h: nappe ? Ht - 0.8 : Ht, x, z, teinte: Q.comptoir }); if (k) { pr.push(k); if (nappe) pr.push(P(M.cylindre(R - 1.2, R - 1.2, 0.8, 20), Q.accent, { x, y: Ht - 0.8, z })); return; } // (la nappe couvre tout le plateau, comme chez Kenney : les couverts sont dessus)
+    if (KN()) { pr.push(kp('tableRound', { w: 2 * R, d: 2 * R, h: Ht - 0.6, x, z }, { wood: Q.comptoir }), P(M.cylindre(R - 1.2, R - 1.2, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht - 1, z })); return; }
+    pr.push(P(M.cylindre(6.5 * c.K, 7.5 * c.K, 2, 14), Q.bois, { x, z }), P(M.cylindre(2.4, 2.4, Ht - 6, 8), Q.bois, { x, y: 2, z }));
+    pr.push(P(M.cylindre(R, R - 1.5, 3, 22), Q.comptoir, { x, y: Ht - 4, z }), P(M.cylindre(R - 0.3, R - 0.3, 1, 22), nappe ? Q.accent : Q.comptoir2, { x, y: Ht - 1, z }));
   }
   // ─── les tables du salon de thé : deux rangées de trois sous la file, deux chaises chacune ───
   function tables(k, c) {
     const { LAY, K, Q } = c, g = grp('tables'); g.userData.zone = 'tables';
     if (k === 0) { const tb = LAY.tables[0]; g.add(M.mesh(M.anneau(14 * K, 16 * K, 32), M.MAT.pointille, { x: tb.x, y: 0.4, z: c.wz(tb.y - 8 * K) }, { ombre: false })); return g; }
-    const R = 16 * K, Ht = HAUT.table - 1, pr = [], fl = [], nappe = k >= 4;
+    const R = 16 * K, Ht = HAUT.table, pr = [], fl = [], nappe = k >= 4; // Ht : le dessus de la table (nappe comprise), où l'on pose les couverts
     for (let i = 0; i < Math.min(k, LAY.tables.length); i++) {
       const tb = LAY.tables[i], x = tb.x, z = c.wz(tb.y);
       tableRonde(pr, x, z, R, Ht, Q, c, nappe);
-      if (nappe) pr.push(P(M.cylindre(R * 0.62, R * 0.62, 0.6, 18), '#FFFFFF', { x, y: Ht + 1, z }));
+      if (nappe) pr.push(P(M.cylindre(R * 0.62, R * 0.62, 0.1, 18), '#FFFFFF', { x, y: Ht, z })); // le napperon, au milieu : un tissu (0,1), les assiettes posées au bord ne s'y enfoncent pas
       for (const s of tb.sieges) chaise(pr, s.x, c.wz(s.y), s.dir, K, Q, k >= 3, c);
-      if (k >= 4 || c.crans.deco >= 3) pr.push(P(bo(4, 6, 4, 1.5), '#9BD0FF', { x, y: Ht + 1, z }), P(M.sphere(2.6, 8), ['#FF6B8B', '#FFC84A', '#B8A6FF'][i % 3], { x, y: Ht + 9, z }));
-      if (c.crans.deco >= 4) { pr.push(P(M.cylindre(1.6, 1.8, 6, 8), '#FFFDF5', { x: x + 7 * K, y: Ht + 1, z: z - 2 })); fl.push(P(M.sphere(1.5, 8), '#FFC84A', { x: x + 7 * K, y: Ht + 8.5, z: z - 2, sy: 1.5 })); } // les bougies du salon
+      if (k >= 4 || c.crans.deco >= 3) pr.push(P(bo(4, 6, 4, 1.5), '#9BD0FF', { x, y: Ht, z }), P(M.sphere(2.6, 8), ['#FF6B8B', '#FFC84A', '#B8A6FF'][i % 3], { x, y: Ht + 8, z }));
+      if (c.crans.deco >= 4) { pr.push(P(M.cylindre(1.6, 1.8, 6, 8), '#FFFDF5', { x: x + 7 * K, y: Ht, z: z - 2 })); fl.push(P(M.sphere(1.5, 8), '#FFC84A', { x: x + 7 * K, y: Ht + 7.5, z: z - 2, sy: 1.5 })); } // les bougies du salon
     }
     g.add(M.maille(pr, { recoit: true }));
     if (fl.length) { const flammes = M.maille(fl, { ombre: false }); flammes.material = propre({ vertexColors: true, emissive: '#FFC84A', emissiveIntensity: 0.3 }); g.add(flammes); g.userData.anime = (E) => { flammes.material.emissiveIntensity = 0.3 + E.lampes * (0.8 + 0.2 * Math.sin(E.t * 9)); }; } // toutes les flammes : un seul maillage
@@ -371,7 +373,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   function bar(k, c) {
     const { LAY, K, Q } = c, b = LAY.bar, g = grp('bar'); g.userData.zone = 'bar'; const pr = [];
     if (k === 0) { pointilles(pr, LAY.emplacements.bar, c); return maillePointillee(pr, g); }
-    const n = Math.min(4, k + 1), Hb = HAUT.bar - 1, w = b.x1 - b.x0, xc = (b.x0 + b.x1) / 2, zc = c.wz(b.y - 2 * K), d = 15 * K;
+    const n = Math.min(4, k + 1), Hb = HAUT.bar, w = b.x1 - b.x0, xc = (b.x0 + b.x1) / 2, zc = c.wz(b.y - 2 * K), d = 15 * K;
     // le comptoir : le corps, le dessus clair qui déborde côté clients, la barre de pieds dorée (côté tabourets)
     pr.push(P(bo(w, Hb - 3, d - 4, 2), Q.comptoir, { x: xc, z: zc + 1 }), P(bo(w + 4, 3, d + 2, 1.2), Q.comptoir2, { x: xc, y: Hb - 3, z: zc - 0.5 }));
     for (let i = 1; i < 4; i++) pr.push(P(bo(1, Hb - 8, 0.6, 0.3), M.assombrir(Q.comptoir, 0.15), { x: b.x0 + i * w / 4, y: 3, z: zc + d / 2 - 1.6 })); // les panneaux de la face
@@ -403,8 +405,8 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
       const kr = hdp(c, 'rug_rectangle_stripes_A', { w: t.w, d: c.wd(t.h), h: 0.8, x: t.x, z: c.wz(t.y), teinte: M.eclaircir(Q.accent, 0.35) });
       pr.push(kr || P(bo(t.w, 0.8, c.wd(t.h), 0.4), M.eclaircir(Q.accent, 0.45), { x: t.x, z: c.wz(t.y) }));
       if (!kr) pr.push(P(bo(t.w - 8, 0.6, c.wd(t.h) - 8, 0.2), '#FFFFFF', { x: t.x, y: 0.5, z: c.wz(t.y) }), P(bo(t.w - 12, 0.7, c.wd(t.h) - 12, 0.2), M.eclaircir(Q.accent, 0.45), { x: t.x, y: 0.6, z: c.wz(t.y) }));
-      const kt = hdp(c, 'table_low', { w: 28 * K, d: 16 * K, h: HAUT.banquette - 1, x: xt, z: zt });
-      if (kt) pr.push(kt); else { pr.push(P(bo(28 * K, 2.5, 16 * K, 1), Q.comptoir2, { x: xt, y: HAUT.banquette - 3.5, z: zt })); for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(bo(2, HAUT.banquette - 3, 2, 0.5), Q.bois, { x: xt + sx * 12 * K, z: zt + sz * 6 * K })); }
+      const kt = hdp(c, 'table_low', { w: 28 * K, d: 16 * K, h: HAUT.banquette, x: xt, z: zt });
+      if (kt) pr.push(kt); else { pr.push(P(bo(28 * K, 2.5, 16 * K, 1), Q.comptoir2, { x: xt, y: HAUT.banquette - 2.5, z: zt })); for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) pr.push(P(bo(2, HAUT.banquette - 2, 2, 0.5), Q.bois, { x: xt + sx * 12 * K, z: zt + sz * 6 * K })); }
     }
     if (k >= 3) { // la lampe sur pied (l'abat-jour s'allume le soir : la lumière du salon) et le fauteuil, tourné vers la table basse
       const l = bq.lampe, zl = c.wz(l.y), kl = hdp(c, 'lamp_standing', { w: 14 * K, d: 14 * K, h: 58, x: l.x, z: zl });
@@ -420,7 +422,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
   function terrasse(k, c) {
     const { LAY, K, Q, W } = c, g = grp('terrasse'); g.userData.zone = 'terrasse'; const pr = [];
     if (k === 0) { const t = LAY.terrasse[0]; pointilles(pr, { x: t.x - 34 * K, y: t.y - 20 * K, w: 68 * K, h: 34 * K }, c); return maillePointillee(pr, g); } // la place de la première table
-    const R = 12 * K, Ht = HAUT.terrasse - 1, metal = '#4A4A55';
+    const R = 12 * K, Ht = HAUT.terrasse, metal = '#4A4A55';
     for (let i = 0; i < Math.min(k, LAY.terrasse.length); i++) {
       const tb = LAY.terrasse[i], x = tb.x, z = c.wz(tb.y);
       const kt = hdp(c, 'table_round_A_small', { w: 2 * R, d: 2 * R, h: Ht, x, z, teinte: '#F4EFE6' });
@@ -685,8 +687,15 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     return g;
   }
   // l'enseigne néon : un éclair rose et un tube menthe suspendus dans la fenêtre, qui grésillent le soir (un maillage, deux matériaux)
-  function neon(c) {
-    const { LAY, W } = c, f = LAY.fenetre, x = f.x + f.w * 0.5, y = murY(c, f.y + f.h * 0.5), g = grp('neon', x, y, 3), pr = [], s = Math.max(10, Math.min(16, f.h * 0.3));
+  // haut : l'étagère aux bocaux du bestiaire (bocaux) est posée aussi, sur le rebord de la même fenêtre, et ses bocaux montent dans sa moitié
+  // basse ; le néon remonte alors contre le haut de la fenêtre, et rapetisse s'il le faut, pour finir au-dessus des couvercles (les bocaux ne bougent pas)
+  function neon(c, haut) {
+    const { LAY } = c, f = LAY.fenetre, x = f.x + f.w * 0.5; let y = murY(c, f.y + f.h * 0.5), s = Math.max(10, Math.min(16, f.h * 0.3));
+    if (haut) { // le haut de la fenêtre ; le haut des bocaux (la planche au rebord, leur hauteur wy(17), le couvercle et son bouton : 3,5), et un jour de 1,5
+      const plafond = murY(c, f.y) - 1, couvercles = murY(c, f.y + f.h + 1) + c.wy(17) + 3.5 + 1.5;
+      s = Math.min(s, (plafond - couvercles) / 1.9); y = plafond - 0.95 * s;
+    }
+    const g = grp('neon', x, y, 3), pr = [];
     pr.push(P(bo(s * 1.6, s * 1.9, 1.2, 1), '#2E2B3A', { z: -0.8 })); // le fond noir mat
     g.add(M.maille(pr, { ombre: false }));
     const zig = [[-0.25, 0.75], [0.1, 0.1], [-0.08, 0.1], [0.25, -0.75]].map(([u, v]) => [u * s, v * s]), tubes = [];
@@ -838,7 +847,7 @@ const MEUBLES = typeof THREE === 'undefined' ? null : (() => { // sans Three.js 
     // une bougie au milieu de chaque table achetée, deux sur le bar, une sur le plan de travail
     const surTable = (x, y, z) => { pr.push(P(M.cylindre(2.6, 2.9, 1, 10), fer, { x, y, z })); bougie(x, y + 1, z, 4.4 * K, 1.2); };
     for (let i = 0; i < Math.min(c.crans.tables || 0, LAY.tables.length); i++) { const t = LAY.tables[i]; surTable(t.x, HAUT.table, c.wz(t.y)); }
-    if ((c.crans.bar || 0) > 0) { const b = LAY.bar; for (const u of [0.2, 0.8]) surTable(b.x0 + (b.x1 - b.x0) * u, HAUT.bar + 1.5, c.wz(b.y - 4 * K)); }
+    if ((c.crans.bar || 0) > 0) { const b = LAY.bar; for (const u of [0.2, 0.8]) surTable(b.x0 + (b.x1 - b.x0) * u, HAUT.bar, c.wz(b.y - 4 * K)); }
     const pl = LAY.plan;
     bougie(pl.x + pl.w * 0.78, c.wy(pl.h * 0.55), c.wz(pl.y + pl.h * 0.6), 5 * K, 1.4);
     // les deux lanternes de la porte du fond, posées au sol de part et d'autre, dans la salle (jamais dans le passage : l'allée entre au milieu)
