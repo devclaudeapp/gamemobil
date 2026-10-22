@@ -274,7 +274,7 @@
     const r = ideal === 'separer' || ideal === 'doubler' ? coupTable(cartes, up, peutDoubler(st), peutSeparer(st)) : regles; // puis la caisse
     const coup = COUPS[r.code];
     const v = valeur(cartes), contre = up === 11 ? 'un as' : `un ${up}`;
-    const quoi = regles.cle.startsWith('paire') ? `paire de ${pts(cartes[0]) === 1 ? 'as' : pts(cartes[0])}` : `${v.total} ${v.souple ? 'souple' : 'dur'}`;
+    const quoi = regles.cle.startsWith('paire') ? (pts(cartes[0]) === 1 ? 'paire d’as' : `paire de ${pts(cartes[0])}`) : `${v.total} ${v.souple ? 'souple' : 'dur'}`;
     let texte = `${VERBES[coup]} : ${quoi} contre ${contre}.`;
     if (coup !== ideal) texte = `${VERBES[coup]} (${ideal === 'doubler' ? 'doubler' : 'séparer'} si la caisse suivait) : ${quoi} contre ${contre}.`;
     return { coup, ideal, texte: texte.slice(0, 70), cle: regles.cle };

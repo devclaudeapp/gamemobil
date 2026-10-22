@@ -2,6 +2,9 @@
 // L'arrière-salle du Fournil (src/blackjack.js) : le BlackJack caché, ses règles pures. Valeurs des mains (as 1/11), BlackJack naturel,
 // le croupier (tire jusqu'à 17, reste sur 17 souple), les paiements (3 pour 2, 1 pour 1, égalité rendue), doubler, chaque mise annexe
 // (Perfect Pairs, 21+3), les mises bornées à la caisse (tapis compris), le sabot de 6 jeux re-mélangé à 75 %, le hasard sans horloge,
+// Lot 7 : Séparer une paire (variante C : une fois, as séparés une carte chacun, pas de double après partage, 21 après partage payé 1 pour 1),
+// le croupier après un partage, une vieille main ou de vieilles statistiques, « Le bon coup » situation par situation (contre la table du
+// repérage et blackjack-strategy 1.4.0 s'il est là), et le rendement simulé avec le moteur réel (2 millions de mains : −0,60 % attendu).
 // et surtout : AUCUNE incidence sur la fortune (lifetime, lifetimeRun), les étoiles, les objectifs, les défis ou les points de boulanger.
 // Lancer : TZ=Europe/Paris node test/fournil-blackjack.test.js
 'use strict';
@@ -164,6 +167,122 @@ console.log('── une main en cours et une nouvelle boutique ──');
   const s2 = boutique(1000); s2.lifetimeRun = 1e15; empiler(s2, '10♠ 6♥ 10♦ R♣'); B.distribuer(s2, { main: 100 }); B.rester(s2); const fin = JSON.stringify(B.etat(s2).main);
   check(G.nouvelleBoutique(s2, T0).ok && JSON.stringify(B.etat(s2).main) === fin, 'une main déjà finie reste telle quelle (le résultat affiché)');
   check(G.nouvelleBoutique({ ...G.newState(T0), lifetimeRun: 1e15 }, T0).ok, 'sans arrière-salle (jamais trouvée) : rien ne change');
+}
+console.log('── séparer une paire (lot 7, variante C) ──');
+{ const st = boutique(1000); empiler(st, '8♠ 10♥ 8♦ 7♣ 3♥ 10♠ R♦'); B.distribuer(st, { main: 100 });
+  check(B.peutSeparer(st) && B.conseil(st).coup === 'separer', 'une paire de 8 contre un 10 : Séparer possible, et conseillé');
+  const r = B.separer(st), h = B.etat(st).main;
+  check(r.ok && h.separee && h.mains.length === 2 && proche(h.mise, 200) && proche(st.coins, 800) && h.mains.every((m) => proche(m.mise, 100) && m.cartes.length === 2), 'séparer : deux mains de 100 (la seconde mise prise dans la caisse), chacune reçoit sa deuxième carte tout de suite');
+  check(h.joueur.join() === cartes('8♠ 8♦').join() && B.valeur(h.mains[0].cartes).total === 11 && B.valeur(h.mains[1].cartes).total === 18, 'h.joueur garde la paire d’origine ; main 1 : 8 + 3, main 2 : 8 + 10');
+  check(!B.peutDoubler(st) && !B.doubler(st).ok && proche(st.coins, 800), 'pas de double après partage (même sur 11)');
+  check(!B.peutSeparer(st) && B.separer(st).raison === 'deja', 'une seule fois');
+  check(B.mainActive(h) === 0 && B.mains(h).length === 2 && B.mains(h)[0].active && !B.mains(h)[1].active && B.mains(h)[0].resultat === null, 'B.mains : deux mains, la première active, pas encore de résultat');
+  B.tirer(st);
+  check(B.valeur(h.mains[0].cartes).total === 21 && h.mains[0].fin && B.mainActive(h) === 1 && !h.fin, 'main 1 : 21 (8 + 3 + roi), on reste d’office ; on passe à la main 2');
+  B.rester(st);
+  check(h.fin && h.croupier.length === 2 && h.mains.every((m) => m.resultat === 'gagne' && proche(m.gain, 200)) && h.resultat === 'gagne' && proche(h.gain, 400) && proche(st.coins, 1200) && proche(h.net, 200),
+    'le croupier reste sur 17 : les deux mains gagnent 1 pour 1 (la caisse : 1 000 → 1 200)');
+  const M = B.mains(h); check(M.length === 2 && M.every((m) => m.fin && !m.active && m.resultat === 'gagne' && proche(m.gain, 200) && m.double === false && m.as === false), 'B.mains après la main : chaque résultat et chaque gain');
+  const S = B.etat(st).stats; check(S.separees === 1 && S.mains === 1 && S.gagnees === 1 && S.serie === 1 && S.meilleureSerie === 1, 'les statistiques : un partage, une main gagnée (la série à 1)'); }
+{ const st = boutique(1000); empiler(st, 'V♠ 10♥ R♦ 7♣'); B.distribuer(st, { main: 100 }); check(B.peutSeparer(st) && B.conseil(st).coup === 'rester', 'valet et roi : même valeur, ils se séparent (mais le bon coup dit de rester sur 20)'); }
+{ const st = boutique(1000); empiler(st, '7♠ 10♥ 8♦ 7♣'); B.distribuer(st, { main: 100 }); const r = B.separer(st);
+  check(!B.peutSeparer(st) && !r.ok && r.raison === 'paire' && proche(st.coins, 900), '7 et 8 : pas une paire, rien ne bouge'); }
+{ const st = boutique(1000); empiler(st, '8♠ 10♥ 8♦ 7♣ 8♥ 8♣'); B.distribuer(st, { main: 100 }); B.separer(st); const h = B.etat(st).main;
+  check(B.valeur(h.mains[0].cartes).total === 16 && !B.peutSeparer(st) && B.separer(st).raison === 'deja' && h.mains.length === 2, 'une nouvelle paire après partage (8 + 8) ne se sépare plus : deux mains au plus'); }
+{ const st = boutique(150); empiler(st, '8♠ 10♥ 8♦ 7♣'); B.distribuer(st, { main: 100 }); const r = B.separer(st);
+  check(!B.peutSeparer(st) && r.raison === 'caisse' && proche(st.coins, 50) && !B.etat(st).main.separee, 'caisse trop courte (50 € pour une seconde mise de 100) : pas de partage');
+  const c = B.conseil(st); check(c.ideal === 'separer' && c.coup === 'tirer' && /séparer si la caisse suivait/.test(c.texte), `le bon coup suit la caisse : 16 dur contre un 10, tirer (« ${c.texte} »)`); }
+{ const st = boutique(1000); check(B.separer(st).raison === 'main' && !B.peutSeparer(st) && B.conseil(st) === null, 'sans main en cours : ni partage ni conseil'); }
+{ const st = boutique(1000); empiler(st, '8♠ 10♥ 8♦ 7♣'); B.distribuer(st, { main: 100 }); const h = B.etat(st).main; h.double = true; // un double déjà posé (une main à deux cartes, cas d'école)
+  check(!B.peutSeparer(st) && B.separer(st).raison === 'double', 'jamais après avoir doublé'); }
+
+console.log('── as séparés : une carte chacun ; 21 après partage payé 1 pour 1 ──');
+{ const st = boutique(1000); empiler(st, 'A♠ 10♥ A♦ 7♣ R♥ 9♠'); B.distribuer(st, { main: 100 }); const r = B.separer(st), h = B.etat(st).main;
+  check(r.ok && h.fin && h.mains.every((m) => m.as && m.cartes.length === 2), 'deux as séparés : une carte chacun, la main est jouée d’office');
+  check(h.mains[0].resultat === 'gagne' && proche(h.mains[0].gain, 200) && h.mains[1].resultat === 'gagne' && proche(st.coins, 1200) && B.etat(st).stats.blackjacks === 0,
+    'as + roi après partage : 21 payé 1 pour 1 (200 rendus pour 100), jamais un BlackJack (3 pour 2)'); }
+{ const st = boutique(1000); empiler(st, 'A♠ 10♥ A♦ 7♣ 2♥ 3♠'); B.distribuer(st, { main: 100 }); B.separer(st); const h = B.etat(st).main;
+  check(h.fin && !B.tirer(st).ok && h.mains.every((m) => m.cartes.length === 2 && m.resultat === 'perdu') && proche(st.coins, 800), 'as + 2 et as + 3 (13 et 14 souples) : pas de troisième carte, perdues contre 17'); }
+
+console.log('── le croupier après un partage ──');
+{ const st = boutique(1000); empiler(st, '8♠ 10♥ 8♦ 6♣ 5♥ 6♠ R♦ R♣ 5♣'); B.distribuer(st, { main: 100 }); B.separer(st); B.tirer(st); B.tirer(st); const h = B.etat(st).main;
+  check(h.fin && h.mains.every((m) => m.resultat === 'brule') && h.croupier.length === 2 && h.resultat === 'perdu' && proche(st.coins, 800), 'les deux mains brûlent : le croupier ne tire pas (il garde 16)'); }
+{ const st = boutique(1000); empiler(st, '8♠ 10♥ 8♦ 6♣ 5♥ 10♠ R♦ R♣'); B.distribuer(st, { main: 100 }); B.separer(st); B.tirer(st); B.rester(st); const h = B.etat(st).main;
+  check(h.fin && h.mains[0].resultat === 'brule' && h.croupier.length === 3 && h.mains[1].resultat === 'croupierBrule' && h.resultat === 'egalite' && proche(st.coins, 1000) && proche(h.net, 0),
+    'une main brûle, l’autre tient (18) : le croupier tire (16 + roi, brûlé) ; une perdue, une gagnée : égalité au bilan'); }
+{ const st = boutique(1000); empiler(st, '9♠ 10♥ 9♦ 7♣ 2♥ 9♣ R♠'); B.distribuer(st, { main: 100 }); B.separer(st); const h = B.etat(st).main;
+  check(B.valeur(h.mains[0].cartes).total === 11 && B.conseil(st).coup === 'tirer' && B.conseil(st).ideal === 'tirer', 'le bon coup après partage : 11 contre un 7 → tirer (pas de double après partage)');
+  B.tirer(st); B.rester(st); check(h.fin && h.mains[0].resultat === 'gagne' && h.mains[1].resultat === 'gagne' && proche(st.coins, 1200), '21 (9 + 2 + roi) et 18 contre 17 : les deux gagnent'); }
+{ // le partage survit à la sauvegarde ; une nouvelle boutique rend la mise des deux mains
+  const st = boutique(1000); empiler(st, '8♠ 10♥ 8♦ 7♣ 3♥ 10♠ R♦'); B.distribuer(st, { main: 100 }); B.separer(st);
+  const st2 = JSON.parse(JSON.stringify(st)); B.tirer(st2); B.rester(st2); check(B.etat(st2).main.fin && proche(st2.coins, 1200), 'un partage en cours survit à la sauvegarde et se rejoue');
+  st.lifetimeRun = 1e15; const r = G.nouvelleBoutique(st, T0); check(r.ok && r.main && r.main.mise === 200, 'GAME.annulerMainArriere : la mise des deux mains (200) rendue à la caisse d’avant');
+  const st3 = boutique(1000); empiler(st3, '8♠ 10♥ 8♦ 7♣ 3♥ 10♠'); B.distribuer(st3, { main: 100 }); B.separer(st3); B.etat(st3).main.mains = [1, 2]; check(B.etat(st3).main === null, 'un partage abîmé dans la sauvegarde : la main est écartée'); }
+{ // une main d'une vieille sauvegarde (sans caisse, separee, active) se joue jusqu'au bout comme avant
+  const st = boutique(1000); empiler(st, '10♠ 10♥ 6♦ 7♣ 3♥'); B.distribuer(st, { main: 100 }); const h = B.etat(st).main; delete h.caisse; delete h.separee; delete h.active;
+  const st2 = JSON.parse(JSON.stringify(st)); check(B.mains(B.etat(st2).main).length === 1 && B.mainActive(B.etat(st2).main) === 0 && B.peutDoubler(st2) && !B.peutSeparer(st2), 'une vieille main : une seule main, doubler possible, pas de paire');
+  B.tirer(st2); B.rester(st2); check(B.etat(st2).main.fin && B.etat(st2).main.resultat === 'gagne' && proche(st2.coins, 1100), 'elle se finit comme avant (19 contre 17)'); }
+{ // les statistiques d'une vieille sauvegarde : les compteurs du lot 7 à zéro, les anciens gardés
+  const st = boutique(1000); st.arriere = { stats: { mains: 12, gagnees: 5, perdues: 6, egalites: 1, blackjacks: 1, annexes: 0, plusGrosGain: 300, solde: -200 } }; const S = B.etat(st).stats;
+  check(S.mains === 12 && S.solde === -200 && B.STATS.every((k) => Number.isFinite(S[k])) && S.serie === 0 && S.meilleureSerie === 0 && S.separees === 0 && S.doubles === 0 && S.cinqCartes === 0, 'vieille sauvegarde : serie, meilleureSerie, separees, doubles, cinqCartes à zéro, le reste gardé'); }
+{ // la série (une égalité ne la casse pas), les doubles, le 21 à cinq cartes
+  const st = boutique(1e6); const S = B.etat(st).stats;
+  const jouer = (ordre, coups) => { empiler(st, ordre); B.distribuer(st, { main: 100 }); for (const c of coups) B[c](st); return B.etat(st).main; };
+  jouer('10♠ 10♥ 9♦ 7♣', ['rester']); jouer('10♠ 10♥ 8♦ 8♣', ['rester']); jouer('6♠ 10♥ 5♦ 7♣ R♦', ['doubler']);
+  check(S.serie === 2 && S.meilleureSerie === 2 && S.egalites === 1 && S.doubles === 1, 'gagné, égalité, gagné (doublé) : la série à 2, l’égalité ne la casse pas ; un double compté');
+  jouer('10♠ 10♥ 7♦ 9♣', ['rester']); check(S.serie === 0 && S.meilleureSerie === 2, 'une main perdue casse la série ; la meilleure reste 2');
+  const h = jouer('2♠ 10♥ 3♦ 7♣ 4♥ 5♠ 7♦', ['tirer', 'tirer', 'tirer']); check(h.fin && h.joueur.length === 5 && h.resultat === 'gagne' && S.cinqCartes === 1, '2 + 3 + 4 + 5 + 7 : 21 à cinq cartes, compté'); }
+
+console.log('── le bon coup : la stratégie de base, situation par situation ──');
+{ // la table recopiée du repérage (bjsplit.js : DUR, SOUPLE, PAIRES_NODAS) ; et la bibliothèque blackjack-strategy 1.4.0, si elle est là
+  const DUR = { 5: 'HHHHHHHHHH', 6: 'HHHHHHHHHH', 7: 'HHHHHHHHHH', 8: 'HHHHHHHHHH', 9: 'HDDDDHHHHH', 10: 'DDDDDDDDHH', 11: 'DDDDDDDDDH', 12: 'HHSSSHHHHH', 13: 'SSSSSHHHHH', 14: 'SSSSSHHHHH', 15: 'SSSSSHHHHH', 16: 'SSSSSHHHHH', 17: 'SSSSSSSSSS' };
+  const SOUPLE = { 13: 'HHHDDHHHHH', 14: 'HHHDDHHHHH', 15: 'HHDDDHHHHH', 16: 'HHDDDHHHHH', 17: 'HDDDDHHHHH', 18: 'STTTTSSHHH', 19: 'SSSSSSSSSS', 20: 'SSSSSSSSSS' };
+  const PAIRES = { 1: 'PPPPPPPPPP', 2: 'HHPPPPHHHH', 3: 'HHPPPPHHHH', 4: '----------', 5: '----------', 6: 'HPPPPHHHHH', 7: 'PPPPPPHHHH', 8: 'PPPPPPPPPP', 9: 'PPPPPSPPSS', 10: '----------' };
+  const NOM = { H: 'tirer', S: 'rester', D: 'doubler', P: 'separer' };
+  const attendu = (c, up, deux) => { const v = B.valeur(c), k = up - 2;
+    if (deux && B.points(c[0]) === B.points(c[1]) && PAIRES[B.points(c[0])][k] === 'P') return 'P';
+    const x = v.souple && v.total >= 13 && v.total <= 20 ? SOUPLE[v.total][k] : v.souple ? (v.total < 13 ? 'H' : 'S') : DUR[Math.max(5, Math.min(17, v.total))][k];
+    return x === 'D' ? (deux ? 'D' : 'H') : x === 'T' ? (deux ? 'D' : 'S') : x; };
+  let lib = null; try { lib = require('/tmp/claude-0/-home-user-gamemobil/41d35c83-7751-5490-8f33-9fca376790e6/scratchpad/casino/ref/node_modules/blackjack-strategy'); } catch (e) { lib = null; }
+  const opt = { hitSoft17: false, surrender: 'none', double: 'any', doubleAfterSplit: false, resplitAces: false, offerInsurance: false, numberOfDecks: 6, maxSplitHands: 2, strategyComplexity: 'advanced' };
+  const LIB = { hit: 'tirer', stand: 'rester', double: 'doubler', split: 'separer' };
+  const parRang = (r) => (r === 1 ? 0 : r === 10 ? 12 : r - 1); // un rang 1…10 → une carte de pique (10 : le roi)
+  const mains = []; for (let x = 1; x <= 10; x++) for (let y = x; y <= 10; y++) mains.push([x, y]);
+  for (let x = 2; x <= 10; x++) for (let y = x; y <= 10; y++) for (let z = 1; z <= 10; z++) mains.push([x, y, z]);
+  let n0 = 0, ecartsTable = 0, ecartsLib = 0, nLib = 0, textes = 0, cles = 0; const exemples = [];
+  for (const m of mains) for (let up = 1; up <= 10; up++) {
+    const c = m.map(parRang), v = B.valeur(c); if (v.total >= 21 || v.blackjack) continue;
+    const st = boutique(1e6); B.etat(st).main = { joueur: c, croupier: [parRang(up), parRang(5)], mise: 100, mises: { paires: 0, plus3: 0 }, double: false, cachee: true, fin: false, resultat: null, gain: 0, annexes: [], caisse: 1e6 + 100, separee: false, active: 0 };
+    const k = B.conseil(st), u = up === 1 ? 11 : up; n0++;
+    if (k.coup !== NOM[attendu(c, u, m.length === 2)] || k.coup !== k.ideal) { ecartsTable++; if (exemples.length < 5) exemples.push(`${m.join('-')} contre ${up} : ${k.coup}`); }
+    if (k.texte.length <= 70 && /^(Tire|Reste|Double|Sépare)/.test(k.texte)) textes++;
+    if (/^(dur-\d+|souple-\d+|paire-(A|\d+))-(A|\d+)$/.test(k.cle)) cles++;
+    if (lib) { const ref = lib.GetRecommendedPlayerAction(m, up, 1, true, opt); if (ref === 'insurance' || ref === 'noinsurance') continue; nLib++; if (LIB[ref] !== k.coup) { ecartsLib++; if (exemples.length < 5) exemples.push(`lib ${m.join('-')} contre ${up} : ${ref} / ${k.coup}`); } }
+  }
+  check(n0 === 3760 && ecartsTable === 0, `le bon coup = la table du repérage sur ${n0} situations (2 et 3 cartes, contre 2 … as) ${exemples.join(' ; ')}`);
+  if (lib) check(nLib === 3760 && ecartsLib === 0, `le bon coup = blackjack-strategy 1.4.0 (6 jeux, S17, pas de double après partage) : ${ecartsLib} écart sur ${nLib} situations`);
+  else check(ecartsTable === 0, 'blackjack-strategy introuvable ici : la comparaison s’est faite à la table recopiée (même table, vérifiée 0 écart sur 7 520 situations)');
+  check(textes === n0 && cles === n0, 'chaque conseil a son texte (70 caractères au plus) et sa clé (dur-12-2, souple-18-9, paire-8-10)');
+  check(B.TABLE && Object.isFrozen(B.TABLE) && B.TABLE.paires[8].join('') === 'PPPPPPPPPP' && B.TABLE.souple[18].join('') === 'STTTTSSHHH' && B.TABLE.dur[12].join('') === 'HHSSSHHHHH', 'B.TABLE : la table en lecture seule (dur, souple, paires)');
+}
+{ const st = boutique(1000); empiler(st, '6♠ 10♥ 5♦ 6♣'); B.distribuer(st, { main: 100 }); const k = B.conseil(st);
+  check(k.coup === 'doubler' && k.ideal === 'doubler' && k.cle === 'dur-11-10' && k.texte === 'Double : 11 dur contre un 10.', `11 dur contre un 10 : doubler (« ${k.texte} »)`);
+  st.coins = 50; const k2 = B.conseil(st); check(k2.coup === 'tirer' && k2.ideal === 'doubler', 'caisse trop courte pour doubler : D → tirer'); }
+{ const st = boutique(1000); empiler(st, 'A♠ 4♥ 7♦ 6♣'); B.distribuer(st, { main: 100 }); check(B.conseil(st).coup === 'doubler' && B.conseil(st).cle === 'souple-18-4', '18 souple contre un 4 : doubler');
+  st.coins = 0; const k = B.conseil(st); check(k.coup === 'rester' && k.ideal === 'doubler', 'caisse vide : Ds → rester'); }
+{ const st = boutique(1000); empiler(st, 'A♠ 4♥ A♦ 6♣'); B.distribuer(st, { main: 100 }); const k = B.conseil(st); check(k.coup === 'separer' && k.cle === 'paire-A-4' && k.texte === 'Sépare : paire d’as contre un 4.', `deux as : séparer (« ${k.texte} »)`); }
+
+console.log('── le rendement avec Séparer et le bon coup (le moteur réel, 2 millions de mains) ──');
+{ // un générateur à graine fixe (sfc32) pour un résultat reproductible ; le jeu, lui, tire crypto.getRandomValues
+  const sfc32 = (a, b, c, d) => () => { a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0; let t = (a + b) | 0; a = b ^ (b >>> 9); b = (c + (c << 3)) | 0; c = (c << 21) | (c >>> 11); d = (d + 1) | 0; t = (t + d) | 0; c = (c + t) | 0; return (t >>> 0) / 4294967296; };
+  const rng = sfc32(0x9e3779b9, 0x243f6a88, 0xb7e15162, 7), N = 2e6, st = boutique(1e15); B.etat(st).sabot = B.nouveauSabot(rng);
+  const F = { tirer: B.tirer, rester: B.rester, doubler: B.doubler, separer: B.separer };
+  const avant = empreinte(st), c0 = st.coins; let partages = 0, doubles = 0;
+  for (let i = 0; i < N; i++) { B.distribuer(st, { main: 100 }, rng); let g = 0; while (B.enCours(st) && g++ < 30) { const k = B.conseil(st); if (k.coup === 'separer') partages++; if (k.coup === 'doubler') doubles++; F[k.coup](st, rng); } }
+  const rend = (st.coins - c0) / (N * 100), se = 1.96 * 1.15 / Math.sqrt(N);
+  check(rend > -0.0085 && rend < -0.0035, `rendement : ${(100 * rend).toFixed(3)} % ± ${(100 * se).toFixed(2)} (attendu −0,60 %, repérage sur 40 millions de mains ; sans partage −0,97 %)`);
+  check(partages / N > 0.015 && partages / N < 0.03 && doubles / N > 0.08 && doubles / N < 0.11, `partages ${(100 * partages / N).toFixed(2)} % des mains, doubles ${(100 * doubles / N).toFixed(2)} % (repérage : 2,18 % et 9,54 %)`);
+  check(empreinte(st) === avant && B.etat(st).stats.separees === partages && B.etat(st).stats.mains === N, '2 millions de mains, partages compris : rien d’autre que st.coins (et st.arriere) ne bouge');
 }
 { // la page : blackjack.js est assemblé dans le jeu, avant l'interface
   const build = require('fs').readFileSync(require('path').join(__dirname, '..', 'build.js'), 'utf8');
