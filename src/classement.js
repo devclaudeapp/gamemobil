@@ -10,7 +10,10 @@
    seulement une fois rangés et sauvés : une réponse perdue les fait revenir, sans les payer deux fois) ; version 6.6, les acharnés de la Maison
    hantée : sa place au classement final de l'événement jusqu'au 15e (recompenses().evenements.hantee = { rang, joueurs, podium }, RECOMPENSES_EVT :
    des étoiles et un boost, une fois ; les trois premiers gardent la tenue en or), et le titre gagné (« Légende du Manoir ») porté par la photo de
-   sa boutique (ti) et rendu par le serveur sur chaque ligne du classement (titre)).
+   sa boutique (ti) et rendu par le serveur sur chaque ligne du classement (titre)) ; version 6.7 : le barème du lot 7 (le plafond du serveur
+   relevé à 137 par jour et 989 par semaine) et la SÉRIE de jours de suite, comptée par le serveur (+10 au 3e jour, +20 au 7e, puis à chaque tour
+   de 7) : la réponse de fournil_publier porte serie, serie_auj et serie_bonus, rangés dans etat.dernier.serie et lus par resume().serie
+   (SERIE, serieProchaine) ; un serveur d'avant la 6.7 n'en dit rien : resume().serie reste null).
    Une partie pure, testée dans Node (lundi de Paris, pseudo, rangs, décision d'envoi, état local), et une partie réseau : de simples POST
    vers les fonctions Supabase du classement (PostgREST, /rest/v1/rpc/…), avec la clé PUBLIQUE de fournil/config.js. Aucune erreur ne remonte
    jamais au jeu : chaque appel rend un état ('ok', 'hors-ligne', 'lent' (pas de réponse en 8 s), 'pas-ouvert', 'erreur', 'absent'). Sans configuration (l'artefact Claude), rien ne part. */
@@ -298,7 +301,8 @@
       const d = { semaine: nettoyerRang(s.dernier.semaine, true), total: nettoyerRang(s.dernier.total), quand: fini(s.dernier.quand) }, q = nettoyerRang(s.dernier.quartier);
       if (q) d.quartier = q; // son rang à l'événement « Le Quartier » (version 4)
       let ev = false; for (const id of EVTS) { const r = nettoyerRang(s.dernier[id]); if (r) { d[id] = r; ev = true; } } // son rang aux événements génériques (version 5)
-      if (d.semaine || d.total || q || ev) e.dernier = d;
+      const se = nettoyerSerie(s.dernier.serie); if (se) d.serie = se; // la série de jours de suite (version 6.7)
+      if (d.semaine || d.total || q || ev || se) e.dernier = d;
     }
     e.recompenses = nettoyerRecompenses(s.recompenses);
     e.photoQuand = fini(s.photoQuand); e.photoCle = typeof s.photoCle === 'string' ? s.photoCle.slice(0, 4096) : '';
@@ -618,6 +622,37 @@
   }
   // le jour de Paris ('AAAA-MM-JJ') : les quotas de pourboires (3 donnés, 3 boosts reçus) repartent chaque jour, comme au serveur
   function jourParis(ms) { const t = Number.isFinite(ms) ? ms : Date.now(); return new Date(t + decalageParis(t)).toISOString().slice(0, 10); }
+  // ─── la série de jours de suite (version 6.7 du SQL, comptée par le serveur : fournil_serie_bonus) ───
+  // un jour compte dès son premier envoi de points (heure de Paris) ; +10 au 3e jour de suite, +20 au 7e, puis à chaque tour de 7 (10e, 14e…)
+  const SERIE = { 3: 10, 7: 20 };
+  const SERIE_MAX = 10000, SERIE_BONUS_MAX = 1000; // les bornes de ce qu'on garde de la réponse du serveur
+  function serieBonus(n) { return Number.isInteger(n) && n > 0 ? (n % 7 === 3 ? SERIE[3] : n % 7 === 0 ? SERIE[7] : 0) : 0; }
+  function veille(jour) { return new Date(Date.parse(jour + 'T00:00:00Z') - 864e5).toISOString().slice(0, 10); } // 'AAAA-MM-JJ' → la veille (sans heure d'été)
+  // le prochain jour à bonus : jours = la série (jusqu'à aujourd'hui si aujourdhui, sinon jusqu'à hier) ; { jour: son numéro (3, 7, 10, 14…),
+  // points: 10 ou 20, dans: les jours qui restent (0 : aujourd'hui, s'il ne compte pas encore) }
+  function serieProchaine(jours, aujourdhui) {
+    const j = borne(jours, 0, SERIE_MAX); let k = j + 1;
+    while (!serieBonus(k)) k++;
+    return { jour: k, points: serieBonus(k), dans: k - j - (aujourdhui ? 0 : 1) };
+  }
+  // la série rangée dans l'état (etat.dernier.serie) : { jours, auj, bonus, lundi, jour, quand } ; null si illisible
+  function nettoyerSerie(s) {
+    if (!s || typeof s !== 'object' || !JOUR.test(String(s.jour || ''))) return null;
+    return { jours: borne(s.jours, 0, SERIE_MAX), auj: s.auj === true, bonus: borne(s.bonus, 0, SERIE_BONUS_MAX), lundi: JOUR.test(String(s.lundi || '')) ? String(s.lundi).slice(0, 10) : '', jour: s.jour, quand: fini(s.quand) };
+  }
+  // la série d'une réponse de fournil_publier (acceptée ou « trop_vite »), au jour de Paris t ; null : un serveur d'avant la 6.7 (pas de serie)
+  function serieDeReponse(d, t, lundi) {
+    if (!d || typeof d !== 'object' || !Number.isInteger(d.serie)) return null;
+    return nettoyerSerie({ jours: d.serie, auj: d.serie_auj === true, bonus: Number.isInteger(d.serie_bonus) ? d.serie_bonus : 0, lundi, jour: jourParis(t), quand: t });
+  }
+  // la série vue à l'instant t : reçue aujourd'hui, ou hier (aujourd'hui ne compte pas encore), sinon cassée (0) ; les points de série de la semaine
+  // seulement si c'est cette semaine ; { jours, aujourdhui, bonus, prochain: { jour, points, dans } }, ou null (rien de reçu)
+  function serieVue(s, t) {
+    const n = nettoyerSerie(s); if (!n) return null;
+    const auj = jourParis(t), dernier = n.auj ? n.jour : n.jours > 0 ? veille(n.jour) : ''; // le dernier jour qui a compté, selon le serveur
+    const aujourdhui = !!dernier && dernier >= auj, jours = aujourdhui || dernier === veille(auj) ? n.jours : 0;
+    return { jours, aujourdhui, bonus: n.lundi && n.lundi >= lundiParis(t) ? n.bonus : 0, prochain: serieProchaine(jours, aujourdhui) };
+  }
   // les préférences des notifications : les quatre cas (a) boutique pleine, (b) ouverture et fin d'un événement, (c) pourboire, (d) objectif commun
   const PREFS = ['pleine', 'evenements', 'pourboires', 'objectif'];
   function nettoyerPrefs(p) { const o = {}; for (const k of PREFS) o[k] = !(p && typeof p === 'object' && p[k] === false); return o; }
@@ -762,9 +797,16 @@
       if (semaine || total || q || ev) {
         const n = { semaine, total, quartier: q, quand: maintenant };
         for (const id of EVTS) if (avant[id] && !(ev && d.evt === id)) n[id] = avant[id]; // les rangs des autres événements restent
+        if (avant.serie) n.serie = avant.serie; // la série (version 6.7) : notée à part, juste après
         if (ev) n[d.evt] = ev;
         etat.dernier = n;
       }
+    }
+    // la série de jours de suite (version 6.7) : notée à chaque réponse qui la porte (envoi accepté, ou « trop_vite »)
+    function noterSerie(d, t) {
+      const lundi = typeof d.semaine === 'string' && JOUR.test(d.semaine.slice(0, 10)) ? d.semaine.slice(0, 10) : lundiParis(t);
+      const s = serieDeReponse(d, t, lundi); if (!s) return;
+      etat.dernier = Object.assign(etat.dernier || { semaine: null, total: null, quartier: null, quand: t }, { serie: s });
     }
     // la photo à joindre au prochain envoi, ou null (serveur trop ancien, envoyée il y a moins de 10 min, inchangée depuis moins de 6 h)
     function photoAEnvoyer() {
@@ -812,11 +854,12 @@
         if (avecEvt && version >= 5) { etat.evt = { id: ev.id, valeur: ev.score }; }
         if (version >= 5) dernierVu = t; // un envoi accepté par la version 5 est aussi un signe de vie
         if (photoPartie && (d.photo_maj !== undefined || version >= 6)) { etat.photoQuand = t; etat.photoCle = photoPartie.cle; } // la photo est gardée par le serveur (version 6)
-        noterRangs(d, t); sauver();
+        noterRangs(d, t); noterSerie(d, t); sauver();
         for (const p of PERIODES) if (cache[p]) cache[p].quand = 0; // les listes gardées ne montrent plus la bonne fortune : à relire au prochain coup d'œil
         prevenir();
         return { etat: 'ok', data: d };
       }
+      if (d.erreur === 'trop_vite') { noterSerie(d, E.maintenant()); sauver(); } // version 6.7 : « trop_vite » redonne aussi la série
       prevenir();
       return { etat: 'refus', erreur: typeof d.erreur === 'string' ? d.erreur : 'inconnue', data: d };
     }
@@ -1337,7 +1380,8 @@
     function arreter() { if (minuteur) clearInterval(minuteur); minuteur = 0; demarre = false; }
     function resume() { // pour l'interface : rejoint, pseudo, et les dernières places connues (celle de la semaine seulement si c'est cette semaine, ou une plus récente : le téléphone peut retarder sur le serveur)
       const t = E.maintenant(), d = etat.dernier || {}, lundi = lundiParis(t);
-      return { disponible: !!config(), rejoint: etat.rejoint, pseudo: etat.pseudo, semaine: d.semaine && typeof d.semaine.lundi === 'string' && d.semaine.lundi >= lundi ? d.semaine : null, total: d.total || null, quartier: d.quartier || null, hantee: d.hantee || null, quand: d.quand || 0, statut, version };
+      return { disponible: !!config(), rejoint: etat.rejoint, pseudo: etat.pseudo, semaine: d.semaine && typeof d.semaine.lundi === 'string' && d.semaine.lundi >= lundi ? d.semaine : null, total: d.total || null, quartier: d.quartier || null, hantee: d.hantee || null, quand: d.quand || 0, statut, version,
+        serie: etat.rejoint ? serieVue(d.serie, t) : null }; // version 6.7 : { jours, aujourdhui, bonus, prochain: { jour, points, dans } }, ou null (serveur d'avant, rien reçu, pas rejoint)
     }
     return {
       disponible: () => !!config(), etat: () => etat, resume, version: () => version, cache: (p) => cache[periodeDe(p)], enChargement: (p) => charge[periodeDe(p)],
@@ -1422,7 +1466,7 @@
     etatNeuf, nettoyerEtat, lireEtat, ecrireEtat, nouvelId, nouveauJeton, deciderEnvoi, nettoyerClassement, lireConfig, appeler, creerMoteur, navigateur,
     METAUX, NOMS_METAL, metal, decalerSemaine, recompensesNeuves, nettoyerRecompenses, nettoyerPodiums, nettoyerRecompensesServeur, tenuePortee, coupeDuComptoir, aAnnoncer, tenuesGagnees, phraseAnnonce,
     RANG_MAX, RECOMPENSES_RANG, recompenseRang, nettoyerPlaces, placesAPayer, phrasePlace, RECOMPENSES_EVT, NOMS_EVT, recompenseEvt, evtAPayer, phraseEvt, TITRES, titreOk,
-    PHOTO, EV_PHOTO, photo, nettoyerPhoto, clePhoto, boutiqueDepuisPhoto, evenementDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson,
+    PHOTO, EV_PHOTO, photo, nettoyerPhoto, clePhoto, boutiqueDepuisPhoto, evenementDepuisPhoto, nettoyerBoutique, nettoyerObjectif, nettoyerPourboires, jourParis, SERIE, serieBonus, serieProchaine, nettoyerSerie, serieDeReponse, serieVue, PREFS, nettoyerPrefs, cleVapid, pushNavigateur, iosHorsEcran, octetsJson,
     CHAT_TEXTE, CHAT_IMAGE, chatImageOk, chatGifOk, nettoyerChat,
     RET_TEXTE, RET_NOTE, RET_INFOS, VOTE_QUESTION, VOTE_OPTION, retImageOk, retInfosOk, nettoyerVote, nettoyerVotes, nettoyerRetour, nettoyerRetours };
 });

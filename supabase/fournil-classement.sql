@@ -7,6 +7,15 @@
 --  les points, les billets, les bonbons et les podiums restent, les fonctions sont remplacées par la nouvelle version, les droits
 --  sont remis d'aplomb.
 --
+--  Version 6.7 (22 oct. 2026) : LES POINTS CONTINUENT AU-DELÀ D'UNE HEURE DE JEU, ET LA SÉRIE DE JOURS DE SUITE (le même code que le
+--  patch supabase/fournil-classement-v67.sql). Collée par-dessus la v6.6 : rien ne se perd. À coller AVANT la mise en ligne du jeu du
+--  lot 7 (sinon son téléphone est plafonné à 60 × jours + 100, et ce qui dépasse est perdu le dimanche soir).
+--    · le plafond des points suit le nouveau barème (« Les points », plus bas) : fournil_points_plafond = least(989, 137 × jours + 50),
+--      soit 187, 324, 461, 598, 735, 872, 989 ;
+--    · la colonne fournil_joueurs.serie et fournil_serie_bonus (interne) : la série de jours de suite avec un envoi de points,
+--      comptée dans fournil_publier au premier envoi de points du jour (+10 au 3e jour, +20 au 7e, puis à chaque tour de 7), et
+--      rangée dans points_bonus ; fournil_reponse rend serie (0 si elle est cassée), serie_auj et serie_bonus ; version reste 6.
+--
 --  Version 6.6 (21 oct. 2026) : LES ACHARNÉS DE LA MAISON HANTÉE (le même code que le patch supabase/fournil-classement-v66.sql, qui porte
 --  aussi la limite de la Maison hantée relevée pour ses activités). Collée par-dessus la v6.5 : rien ne se perd.
 --    · le podium final d'un événement générique garde les QUINZE premiers (score > 0, ex æquo au même rang ; fournil_evt_podium accepte
@@ -107,21 +116,31 @@
 --  Personne ne lit ni n'écrit les tables directement : tout passe par ces fonctions, qui vérifient tout.
 --
 --  Les points (ce qui classe) :
---    · le jeu compte ses points de boulanger (src/game.js), du lundi au dimanche, heure de Paris : journée complète (les trois
---      objectifs du jour) 10 ; défi de la semaine 30 ; événement réussi (pétrissage, commande livrée, four réparé, bonne
---      critique, pourboire du client mystère) 2, au plus 20 par jour ; Atelier : le meilleur score de la semaine de chaque
---      mini-jeu, de 0 à 20 points ; améliorations : 1 point par tranche d'achats valant 10 minutes de SES PROPRES gains,
---      + 5 par palier ×2 franchi, au plus 30 par jour. Au plus 60 points par jour, 510 par semaine (7 × 60 + 30 + 3 × 20) ;
+--    · le jeu compte ses points de boulanger (src/game.js, POINTS), du lundi au dimanche, heure de Paris (version 6.7, le lot 7) :
+--      chaque jour, un BRUT : journée complète (les trois objectifs du jour) 10 ; événement réussi (pétrissage, commande livrée,
+--      four réparé, bonne critique, pourboire du client mystère) 2, au plus 20 par jour ; améliorations : 1 point par tranche
+--      d'achats valant 10 minutes de SES PROPRES gains, + 5 par palier ×2 franchi, au plus 30 par jour ; chaque objectif du jour
+--      réclamé 2 (6 par jour) ; la présence : pétrissage gagné 4 (48 par jour), client mystère servi 1 (80), grosse commande
+--      livrée 4 (48), descente évitée 4 (48) ; palier d'événement franchi 3 (12 par jour). Ce brut compte plein jusqu'à 60, pour
+--      moitié de 60 à 160, pour un quart de 160 à 220, puis plus rien : 125 au plus par jour (la DÉGRESSIVITÉ). Hors
+--      dégressivité : l'Atelier, chaque jour (le meilleur score du jour de chaque mini-jeu, 0 à 4 points, 12 par jour) et le défi
+--      de la semaine (30, une fois). Au plus 137 points par jour, 989 par semaine (7 × 137 + 30) ;
+--      (version 6.6 et avant : au plus 60 par jour, 510 par semaine, l'Atelier de 0 à 20 par mini-jeu et par semaine)
+--    · LA SÉRIE (version 6.7, comptée par le serveur) : un jour compte dès son premier envoi de points (heure de Paris) ; +10 au
+--      3e jour de suite, +20 au 7e, puis à chaque tour de 7 (10e, 14e…) ; un jour sans envoi la casse (elle repart à 1). Ses points
+--      vont dans « Cette semaine » et « Tous les temps », et à part dans points_bonus (le téléphone, qui renvoie son total, ne les
+--      absorbe pas) : 30 au plus par semaine. La réponse de fournil_publier rend serie, serie_auj et serie_bonus ;
 --    · le téléphone envoie ses points de la semaine (p_points) avec le lundi de cette semaine (p_lundi) : seule la semaine du
 --      serveur compte (un téléphone en retard ou en avance de quelques minutes sur minuit ne mélange pas deux semaines) ;
 --    · le serveur ne compte que ce qui DÉPASSE les points déjà comptés cette semaine, et pas au-delà des plafonds :
---        - depuis lundi : 60 × (jours de la semaine commencés, heure de Paris) + 100 (le défi et l'Atelier, 90, peuvent tomber
---          dès le premier jour), et 510 au plus (le barème d'une semaine entière : le jeu lui-même ne compte jamais plus) ;
---          c'est ce plafond qui borne la croissance par le temps réel (l'horloge du serveur) : 160 le lundi, 220 le mardi… ;
+--        - depuis lundi : 137 × (jours de la semaine commencés, heure de Paris) + 50 (le défi, 30, peut tomber dès le premier
+--          jour, plus 20 de marge), et 989 au plus (le barème d'une semaine entière : le jeu lui-même ne compte jamais plus) ;
+--          c'est ce plafond qui borne la croissance par le temps réel (l'horloge du serveur) : 187 le lundi, 324 le mardi… ;
+--          la série s'y ajoute ;
 --      l'envoi est accepté, le compte plafonné ; comme le téléphone renvoie chaque fois son total de la semaine, ce qui dépasse
 --      se compte plus tard, quand le plafond a grandi (un joueur honnête n'y perd rien : test/fournil-classement-sql.cjs
 --      rejoue ceux de test/longevite.js, jamais plafonnés). Un tricheur qui bricole ses points depuis la console ne fait donc
---      jamais mieux que le meilleur joueur possible : au plus 510, ex æquo avec lui ;
+--      jamais mieux que le meilleur joueur possible : au plus 989 + 30 de série = 1 019, ex æquo avec lui ;
 --    · « Cette semaine » = les points depuis lundi (le podium, la tenue et la coupe se jouent là-dessus) ;
 --    · « Tous les temps » = tous les points comptés depuis l'arrivée au classement (la semaine d'arrivée comprise) ;
 --    · un ancien téléphone (sans p_points) est toujours accepté : sa fortune compte, ses points ne bougent pas.
@@ -219,6 +238,8 @@ alter table public.fournil_joueurs add column if not exists vu           timesta
 -- version 6 : les points de la semaine gagnés en donnant des pourboires (déjà comptés dans points et points_total) ; à part, pour que
 -- l'envoi suivant du téléphone (qui ne les connaît pas) ne les absorbe pas
 alter table public.fournil_joueurs add column if not exists points_bonus integer not null default 0;
+-- version 6.7 : la série, les jours de suite avec un envoi de points (heure de Paris) ; son bonus est compté dans points_bonus
+alter table public.fournil_joueurs add column if not exists serie integer not null default 0;
 
 comment on table public.fournil_joueurs is
   'Le Fournil : le classement entre amis. Accès uniquement par les fonctions du jeu (fournil_publier, fournil_classement, fournil_retirer, fournil_recompenses, fournil_vu, fournil_boutique, fournil_pourboire…).';
@@ -501,17 +522,29 @@ as $$
 $$;
 
 -- le plafond des points : ce que le barème permet en p_jours jours commencés (heure de Paris), avec une petite marge.
--- Le barème (src/game.js, POINTS) : au plus 60 points par jour (journée 10, événements 20, améliorations 30) ; une fois par
--- semaine, le défi (30) et l'Atelier (3 × 20) ; soit 510 sur une semaine. Jour par jour : 60 × jours + 100 (le défi et
--- l'Atelier peuvent tomber dès le premier jour, plus 10 de marge pour un minuit approximatif) ; sur la semaine : 510 tout
--- rond, sans marge (le jeu plafonne lui-même ses points à 510 : un tricheur ne peut au mieux qu'égaler le joueur parfait).
+-- Le barème (src/game.js, POINTS ; version 6.7) : au plus 137 points par jour (125 après la dégressivité, + l'Atelier du jour, 12) ;
+-- une fois par semaine, le défi (30) ; soit 989 sur une semaine. Jour par jour : 137 × jours + 50 (le défi peut tomber dès le
+-- premier jour, plus 20 de marge pour un minuit approximatif) ; sur la semaine : 989 tout rond, sans marge (le jeu plafonne
+-- lui-même ses points à 989 : un tricheur ne peut au mieux qu'égaler le joueur parfait). La série (fournil_serie_bonus) s'y ajoute.
+-- (version 6.6 et avant : least(510, 60 × jours + 100))
 create or replace function public.fournil_points_plafond(p_jours integer)
 returns integer
 language sql
 immutable
 set search_path = ''
 as $$
-  select least(510, 60 * least(greatest(coalesce(p_jours, 1), 1), 7) + 100)
+  select least(989, 137 * least(greatest(coalesce(p_jours, 1), 1), 7) + 50)
+$$;
+
+-- le bonus de la série (version 6.7) : un jour compte dès son premier envoi de points (heure de Paris) ; +10 au 3e jour de suite,
+-- +20 au 7e, puis à chaque tour de 7 (10e, 14e…) ; 0 sinon. Au plus 30 sur une semaine (un 3e et un 7e jour, ou un 10e et un 14e).
+create or replace function public.fournil_serie_bonus(p_serie integer)
+returns integer
+language sql
+immutable
+set search_path = ''
+as $$
+  select case when coalesce(p_serie, 0) <= 0 then 0 when p_serie % 7 = 3 then 10 when p_serie % 7 = 0 then 20 else 0 end
 $$;
 
 -- le pseudo nettoyé, ou null s'il n'est pas valable :
@@ -1150,7 +1183,9 @@ $$;
 -- la réponse de fournil_publier : ok/erreur, et, si p_id est donné, les rangs de ce joueur (en points), ses points, ce qui a été
 -- compté (argent et points), ses billets de l'événement « Le Quartier » (quartier, rang_quartier, quartier_plafonne), et son score à
 -- l'événement générique envoyé (evt, evt_score, rang_evt, evt_plafonne ; null sans p_evt) ; version 6 : photo_maj, l'heure de la
--- photo de sa boutique gardée sur le serveur (null : aucune)
+-- photo de sa boutique gardée sur le serveur (null : aucune) ;
+-- version 6.7 : serie (les jours de suite avec un envoi de points ; 0 si la série est cassée), serie_auj (aujourd'hui compte déjà),
+-- serie_bonus (les points de série de la semaine : points_bonus)
 create or replace function public.fournil_reponse(p_erreur text, p_id uuid, p_lundi date,
                                                   p_compte double precision, p_plafonne boolean,
                                                   p_points_comptes integer, p_points_plafonnes boolean,
@@ -1195,6 +1230,12 @@ as $$
     'points_total', (select m.points_total from public.fournil_joueurs m where m.id = p_id),
     'points_comptes', p_points_comptes,
     'points_plafonnes', p_points_plafonnes,
+    -- version 6.7 : la série de jours de suite (0 si elle est cassée : le dernier jour d'envoi de points est avant-hier ou plus ancien),
+    -- serie_auj : aujourd'hui compte déjà ; serie_bonus : les points de série de la semaine (points_bonus)
+    'serie', (select case when m.points_jour >= public.fournil_jour(public.fournil_maintenant()) - 1 then m.serie else 0 end
+              from public.fournil_joueurs m where m.id = p_id),
+    'serie_auj', (select coalesce(m.points_jour = public.fournil_jour(public.fournil_maintenant()), false) from public.fournil_joueurs m where m.id = p_id),
+    'serie_bonus', (select m.points_bonus from public.fournil_joueurs m where m.id = p_id and m.semaine = p_lundi),
     'compte', p_compte,
     'plafonne', p_plafonne
   )
@@ -1221,12 +1262,16 @@ $$;
 --             rang_semaine, rang_total (en points), joueurs et joueurs_total (tous les temps), joueurs_semaine, semaine: 'AAAA-MM-JJ',
 --             points_semaine, points_total : ses points comptés ; points_comptes : les points comptés par cet envoi,
 --             points_plafonnes : vrai si une partie n'a pas été comptée ;
---             compte : l'argent compté par cet envoi (null si refusé), plafonne : vrai si une partie n'a pas été comptée }
+--             compte : l'argent compté par cet envoi (null si refusé), plafonne : vrai si une partie n'a pas été comptée ;
+--             version 6.7 : serie : les jours de suite avec un envoi de points (0 si la série est cassée), serie_auj : aujourd'hui
+--             compte déjà, serie_bonus : les points de série de la semaine }
 -- Premier envoi d'un identifiant : le joueur est inscrit ; aucun argent n'est compté (on part de zéro, sa fortune sert
 -- d'échelle) ; ses points de la semaine, eux, comptent (dans les plafonds) : la semaine d'arrivée fait partie de « Tous les temps ».
 -- Envois suivants : le jeton doit correspondre ; le pseudo peut changer (s'il est libre) ;
 --   · les points comptés : min( p_points, plafond depuis lundi ) − points déjà comptés (jamais négatif), seulement si p_lundi
 --     est la semaine du serveur ;
+--   · version 6.7 : la série. Au premier envoi de points d'un jour (heure de Paris), la série avance (+1 si le jour d'avant avait un
+--     envoi de points, sinon elle repart à 1) ; son bonus (fournil_serie_bonus) s'ajoute à points, points_total et points_bonus.
 --   · le gain compté vaut min( fortune − sommet (jamais négatif) , ce que l'enveloppe ajoute en (réserve + temps réel écoulé
 --     depuis l'envoi précédent) ).
 -- Un identifiant effacé par le ménage (90 jours sans nouvelles) repasse simplement par l'inscription.
@@ -1261,6 +1306,7 @@ declare
   v_pts_cible  integer;
   v_pts_compte integer;
   v_pts_plaf   boolean;
+  v_bonus      integer;                              -- version 6.7 : les points de la série comptés par cet envoi
   v_q          boolean;                              -- ses billets du quartier comptent-ils à cet envoi ? (un nombre donné, dans la fenêtre)
   v_q_borne    double precision;
   v_q_plaf     boolean;
@@ -1284,7 +1330,7 @@ begin
   if p_fortune is null or not (p_fortune >= 0 and p_fortune <= 1e24) then
     return public.fournil_reponse('valeur', null, v_lundi, null, null, null, null);
   end if;
-  -- les points : un nombre entier positif, sous 100 000 (le barème en permet 510 par semaine)
+  -- les points : un nombre entier positif, sous 100 000 (le barème en permet 989 par semaine, 1 019 avec la série)
   if p_points is not null and not (p_points >= 0 and p_points <= 100000) then
     return public.fournil_reponse('valeur', null, v_lundi, null, null, null, null);
   end if;
@@ -1364,6 +1410,15 @@ begin
       v_pts_plaf := p_points > (j.points - j.points_bonus) + v_pts_compte;
       j.points := j.points + v_pts_compte;
       j.points_total := j.points_total + v_pts_compte;
+      -- version 6.7 : la série de jours de suite ; un jour compte dès son premier envoi de points (heure de Paris) ; +10 au 3e jour,
+      -- +20 au 7e, puis à chaque tour de 7 (10e, 14e…) ; ces points du serveur vont aussi dans points_bonus (le téléphone ne les connaît pas)
+      if j.points_jour is distinct from v_jour then
+        j.serie := case when j.points_jour = v_jour - 1 then j.serie + 1 else 1 end;
+        v_bonus := public.fournil_serie_bonus(j.serie);
+        j.points := j.points + v_bonus;
+        j.points_total := j.points_total + v_bonus;
+        j.points_bonus := j.points_bonus + v_bonus;
+      end if;
       j.points_jour := v_jour;
     end if;
     -- ce qui peut compter : seulement ce qui dépasse la plus haute fortune déjà envoyée…
@@ -1395,7 +1450,7 @@ begin
       update public.fournil_joueurs
          set pseudo = v_pseudo, fortune = v_fortune, sommet = j.sommet, plausible = j.plausible, reserve = j.reserve,
              total = j.total, gain = j.gain, semaine = j.semaine, maj = v_maintenant,
-             points = j.points, points_total = j.points_total, points_jour = j.points_jour, points_bonus = j.points_bonus,
+             points = j.points, points_total = j.points_total, points_jour = j.points_jour, points_bonus = j.points_bonus, serie = j.serie,
              quartier = j.quartier, quartier_maj = j.quartier_maj, vu = v_maintenant
        where id = p_id;
     exception when unique_violation then
@@ -1445,11 +1500,12 @@ begin
         v_q_plaf := p_quartier > v_q_borne;
       end if;
       insert into public.fournil_joueurs (id, jeton, pseudo, fortune, sommet, plausible, reserve, total, gain, semaine, cree, maj,
-                                          points, points_total, points_jour, quartier, quartier_maj, vu)
+                                          points, points_total, points_jour, quartier, quartier_maj, vu, serie)
       values (p_id, v_empreinte, v_pseudo, v_fortune, v_fortune, least(v_fortune, 1e20), 86400, 0, 0,
               v_lundi, v_maintenant, v_maintenant,
               v_pts_compte, v_pts_compte, case when v_pts then v_jour end,
-              case when v_q then least(p_quartier, v_q_borne) else 0 end, case when v_q then v_maintenant end, v_maintenant);
+              case when v_q then least(p_quartier, v_q_borne) else 0 end, case when v_q then v_maintenant end, v_maintenant,
+              case when v_pts then 1 else 0 end);
       if v_porte is not null then
         insert into public.fournil_portes (empreinte, quand) values (v_porte, v_maintenant);
       end if;
@@ -2186,6 +2242,7 @@ revoke all on function public.fournil_maintenant() from public, anon, authentica
 revoke all on function public.fournil_lundi(timestamptz) from public, anon, authenticated;
 revoke all on function public.fournil_jour(timestamptz) from public, anon, authenticated;
 revoke all on function public.fournil_points_plafond(integer) from public, anon, authenticated;
+revoke all on function public.fournil_serie_bonus(integer) from public, anon, authenticated; -- version 6.7
 revoke all on function public.fournil_pseudo_propre(text) from public, anon, authenticated;
 revoke all on function public.fournil_jeton_valable(text) from public, anon, authenticated;
 revoke all on function public.fournil_empreinte(text) from public, anon, authenticated;
