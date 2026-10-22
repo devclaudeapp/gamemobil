@@ -1,0 +1,2 @@
+MAQUETTE (?clients=b) : Kenney, Animated Characters « Protagonists » 1.1 (CC0, kenney.nl) : le maillage et trois peaux (256 px).
+anims-b.glb : Idle, Walk, Sit_Down, Sit_Idle, Cheer, reciblés hors ligne depuis les clips de l'UACP de Quaternius (CC0) ; le pack n'a que idle/run/jump.

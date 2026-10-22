@@ -1,0 +1,2 @@
+MAQUETTE (?clients=a) : Quaternius, Ultimate Animated Character Pack (CC0, quaternius.com ; source : le dépôt dancerphil/games).
+Un personnage par fichier (meshopt, sans clips), anims-a.glb : Idle, Walk, SitDown, Victory (le rig commun de 23 os).

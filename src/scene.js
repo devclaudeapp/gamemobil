@@ -13,6 +13,8 @@
 const SCENE = (() => {
   'use strict';
   const G = GAME, V = VIE, M = MODELES;
+  // la MAQUETTE des clients 3D et de la caméra basse (src/clients3d.js) : seulement avec ?clients=a|b|c ou ?cam=basse dans l'adresse ; sinon null, rien ne change
+  const C3 = typeof CLIENTS3D !== 'undefined' && CLIENTS3D && CLIENTS3D.actif ? CLIENTS3D : null, CAMB = typeof CLIENTS3D !== 'undefined' && CLIENTS3D ? CLIENTS3D.cameraBasse : null;
   const TAU = Math.PI * 2, PITCH = 52 * Math.PI / 180, SY = Math.sin(PITCH), CY = Math.cos(PITCH), L = '#4A3328';
   let cv, cvUi, ctx2, renderer, scene, camera, hemi, dir, W = 1, H = 1, DPR = 1, DPRui = 1, LAY = null, visH = 1e9, amenager = false, webgl = false, perdu = 0, nFrame = 0, dernier = null;
   const wz = (ys) => (ys - LAY.murH) / SY, wy = (px) => px / CY, wd = (px) => px / SY;
@@ -220,9 +222,11 @@ const SCENE = (() => {
   const decalage = () => (EVV && EVV.cadre ? Math.round(EVV.cadre.haut || 0) : 0); // la scène descend de tant de px dans son canvas (la fenêtre de l'écran de l'événement)
   const visible3 = () => (EVV && EVV.cadre ? Math.max(0, EVV.cadre.bas - decalage()) : visH); // la hauteur de plan visible (sous le tiroir, ou dans la fenêtre)
   function cadrer() { // la caméra : le plan tombe à son pixel, descendu de decalage()
-    if (!camera) return; const dy = decalage();
+    if (!camera) return; if (CAMB) { camBasse(); return; } const dy = decalage();
     camera.left = -W / 2; camera.right = W / 2; camera.top = H / 2 + dy; camera.bottom = -H / 2 + dy; camera.updateProjectionMatrix(); zonesCache = null;
   }
+  let camBasseVis = -1; // (la maquette ?cam=basse : le bas visible pour lequel la caméra est cadrée)
+  function camBasse() { if (!LAY) return; camBasseVis = visible3(); CAMB(camera, { W, H, murH: LAY.murH, wy, wz, bas: camBasseVis }); zonesCache = null; }
   function setEvenement(v) {
     v = v || null; const avant = EVV; EVV = v;
     if (!!avant !== !!v) {
@@ -246,6 +250,7 @@ const SCENE = (() => {
     cadrer();
     const Zc = (H / 2 - LAY.murH) / SY;
     camera.position.set(W / 2, 1500 * SY, Zc + 1500 * CY); camera.up.set(0, 1, 0); camera.lookAt(W / 2, 0, Zc); camera.updateMatrixWorld();
+    if (CAMB) camBasse(); // (la maquette : la caméra basse remplace ce cadrage)
     dir.position.set(W * 0.78, 900, Zc + 520); dir.target.position.set(W / 2, 0, Zc); dir.target.updateMatrixWorld();
     const sc = dir.shadow.camera; sc.left = -W * 0.75; sc.right = W * 0.75; sc.top = 650; sc.bottom = -650; sc.near = 10; sc.far = 3000; sc.updateProjectionMatrix();
     toutRebatir();
@@ -610,7 +615,7 @@ const SCENE = (() => {
   const angleCourt = (a) => Math.atan2(Math.sin(a), Math.cos(a));
   const cleClient = (c) => `${c.haut}|${c.peau}|${c.cheveux}|${c.coiffure}|${c.bonnet}|${c.lunettes ? 1 : 0}|${c.or ? 1 : 0}|${c.mariniere ? 1 : 0}|${c.hab || ''}|${c.deg || ''}`;
   function prendre(cle, fabrique) { const l = pool.get(cle); if (l && l.length) return l.pop(); const g = fabrique(); g.userData.cle = cle; g.userData.yaw = 0; return g; }
-  function rendreAuPool(g) { if (g.userData.hd3) { rendreMonstre(g); return; } const k = g.userData.cle; if (!/^apprenti/.test(k)) { M.dispose(g); return; } const l = pool.get(k) || []; if (l.length < 1) { l.push(g); pool.set(k, l); } else M.dispose(g); } // les clients sont presque tous uniques : on les libère ; un apprenti par produit est gardé
+  function rendreAuPool(g) { if (g.userData.c3d) { C3.rendre(g.userData.c3d); return; } if (g.userData.hd3) { rendreMonstre(g); return; } const k = g.userData.cle; if (!/^apprenti/.test(k)) { M.dispose(g); return; } const l = pool.get(k) || []; if (l.length < 1) { l.push(g); pool.set(k, l); } else M.dispose(g); } // les clients sont presque tous uniques : on les libère ; un apprenti par produit est gardé
   // ─── les décors HD (src/hd.js) : chargés après le premier rendu si le palier le permet ; la boutique garde ses personnages ───
   let hdDecor = null, hdCle = '', hdDemande = false;
   // des plantes, des bocaux sur le plan de travail ; en octobre, des citrouilles
@@ -629,13 +634,17 @@ const SCENE = (() => {
     if (E.tags.includes('halloween')) { pose('pumpkin_orange_jackolantern', LAY.entree.x - 30 * K, 0, wz(LAY.murH + 22 * K), { s: 0.45 }); pose('pumpkin_orange', LAY.entree.x - 48 * K, 0, wz(LAY.murH + 30 * K), { s: 0.35 }); pose('pumpkin_yellow_small', LAY.devanture.porte.x1 + 22, 0, wz(LAY.devanture.y + 9 * K), { s: 0.6 }); /* dehors, à droite de la porte, au-delà de la colonne droite du portique (x1 + 9 ± 5 : src/meubles.js standing, mêmes mesures) et de son cordon (x1 + 3) */ }
     habiller(g); scene.add(g);
   }
+  const ctxC3 = { wz, K: 1 }; // (la maquette : le contexte passé à CLIENTS3D.poser)
   function synchroniser(E, dt) {
     if (modeHD) { synchroniserHD(E, dt); return; }
     vus.clear();
+    const c3 = C3 && C3.pret && C3.permis(renderer) ? C3 : null; ctxC3.K = V.K; // la maquette : les clients en GLB animés, quand le pack est là (sinon les chibis)
     for (const c of V.clients) {
       let g = acteurs.get(c.id);
+      if (C3 && g && !!g.userData.c3d !== !!c3) { scene.remove(g); rendreAuPool(g); acteurs.delete(c.id); g = null; }
+      if (!g && c3) { const a = c3.acteur(c); if (a) { g = a.g; habiller(g); scene.add(g); acteurs.set(c.id, g); } }
       if (!g) { g = prendre(cleClient(c), () => PERSOS.creer({ haut: c.haut, peau: c.peau, cheveux: c.cheveux, coiffure: c.coiffure, bonnet: c.bonnet, lunettes: c.lunettes, or: c.or, mariniere: c.mariniere, sac: true, sacCol: c.sacCol, taille: c.taille, deguisement: c.deg })); g.userData.deg = c.deg || ''; g.userData.yaw = YAW[c.dir] || 0; habiller(g); scene.add(g); acteurs.set(c.id, g); }
-      vus.add(c.id); poser(g, c, E, dt);
+      vus.add(c.id); if (g.userData.c3d) c3.poser(g.userData.c3d, c, E, dt, ctxC3); else poser(g, c, E, dt);
     }
     for (const a of V.apprentis) {
       const id = 'a' + a.i; let g = acteurs.get(id);
@@ -723,6 +732,8 @@ const SCENE = (() => {
     const t0 = performance.now();
     try {
       if (EVV && HDM.permis(renderer) && !HDM.pret('hantee3')) HDM.charger('hantee3'); // la boutique hantée : son lot HD (charger ne recharge pas ; préchargé d'habitude)
+      if (C3 && C3.permis(renderer)) C3.charger(); // (la maquette : le pack de clients 3D demandé ; charger ne recharge pas)
+      if (CAMB && LAY && Math.abs(visible3() - camBasseVis) > 2) camBasse(); // (la maquette : la caméra basse suit le bas visible)
       construire(E); if (HDM.pret('boutique')) { decorHD(E); if (E.Q.standing && HDM.permis(renderer)) for (const l of lotsLuxe(E.Q.standing)) HDM.charger(l); } else if (!hdDemande && nFrame > 30 && HDM.permis(renderer)) { hdDemande = true; HDM.charger('boutique'); } // les lots du standing : après ceux de la boutique, seulement ceux du palier (charger ne recharge pas)
       eclairer(E); peindreExterieur(now, E); peindreAO();
       synchroniser(E, dt);
