@@ -149,6 +149,12 @@ const ICONS = (() => {
     // l'arrière-salle : la petite porte cintrée du fond (l'accent : le vert du tapis de jeu), et deux cartes pour le tableau des gains
     arriere: U(`<path d="M6 20.5V9.5a6 6 0 0112 0v11z" fill="${A.menthe}"/><path d="M3.5 20.5h17"/><path d="M9.5 20.5V11a2.5 2.5 0 015 0v9.5"/><path d="M15.8 15.2v.1"/>`),
     cartes: U(`<rect x="3.6" y="6" width="9.5" height="13.5" rx="2" transform="rotate(-12 8.35 12.75)"/><rect x="10.9" y="4.5" width="9.5" height="13.5" rx="2" fill="${A.fraise}"/><path d="M15.65 14.2s-2.5-1.5-2.5-3.1c0-.8.6-1.5 1.4-1.5.5 0 .9.3 1.1.7.2-.4.6-.7 1.1-.7.8 0 1.4.7 1.4 1.5 0 1.6-2.5 3.1-2.5 3.1z" fill="${L}" stroke-width="1"/>`),
+    // l'arrière-salle, lot 7 : la roulette (la roue vue de dessus, le zéro en accent), le carnet du croupier, le jeton d'or des mini-objectifs,
+    // l'ampoule du « bon coup »
+    roulette: U(`<circle cx="12" cy="12" r="8.6"/><circle cx="12" cy="12" r="5.2" fill="${A.menthe}"/><path d="M12 3.4v3.4M12 17.2v3.4M3.4 12h3.4M17.2 12h3.4M5.9 5.9l2.4 2.4M15.7 15.7l2.4 2.4M5.9 18.1l2.4-2.4M15.7 8.3l2.4-2.4"/><circle cx="12" cy="12" r="1.4"/><circle cx="16.4" cy="6.6" r="1.1" fill="${L}"/>`),
+    carnet: U(`<rect x="5" y="3.5" width="14" height="17" rx="2.2" fill="${A.menthe}"/><path d="M5 7.5H3.5M5 12H3.5M5 16.5H3.5"/><path d="M9 8h6M9 11.5h6M9 15h3.5"/>`),
+    jetonOr: U(`<circle cx="12" cy="12" r="8.4" fill="${A.beurre}"/><circle cx="12" cy="12" r="5" stroke-dasharray="2.2 2.2"/><path d="M12 9.6l.8 1.6 1.7.2-1.3 1.2.3 1.7-1.5-.8-1.5.8.3-1.7-1.3-1.2 1.7-.2z" stroke-width="1.2"/>`),
+    conseil: U(`<path d="M9 16.5c0-2.3-3-3.6-3-7.2a6 6 0 0112 0c0 3.6-3 4.9-3 7.2z" fill="${A.beurre}"/><path d="M9.5 19.5h5M10.5 22h3"/>`),
     // le classement : un podium, la plus haute marche en accent ; le nuage barré quand le réseau manque
     podium: U(`<path d="M9 9.5h6V20H9z" fill="${A.beurre}"/><path d="M3.5 13.5H9V20H3.5zM15 15.5h5.5V20H15z"/><path d="M12 3.2l.9 1.8 2 .3-1.4 1.4.3 2-1.8-.9-1.8.9.3-2-1.4-1.4 2-.3z"/>`),
     horsLigne: U(`<path d="M7 18.5a4.2 4.2 0 01-.7-8.4 6 6 0 0111.6-.6 4.5 4.5 0 01-.4 9z" fill="${A.ciel}"/><path d="M4 4l16 16"/>`),

@@ -1253,6 +1253,7 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 /* ─── l'arrière-salle (src/arriere.js) : le BlackJack caché. Lumière tamisée d'une lampe basse, tapis vert feutré cerclé de bois,
    cartes dessinées en SVG, jetons pastel à liseré pointillé ; mêmes rondeurs et boutons à épaisseur que le reste du Fournil ─── */
 #arriere { --cw: clamp(52px, min(16.4vw, 8vh), 70px); --nuit: #1C2420; --nuit-2: #26302B; --creme-t: #FFF1D6;
+  --f1: #2E8C63; --f2: #227252; --f3: #18563D; --bois: #7A4E33; --bois-2: #4E3122; --dos: #FF8FA6; --dos-trait: #E1496C; --dos-motif: rgba(255, 255, 255, .26); --dos-coeur: var(--beurre);
   position: fixed; inset: 0; z-index: 10; display: flex; flex-direction: column; color: var(--creme-t); touch-action: manipulation;
   background: radial-gradient(130% 55% at 50% -12%, rgba(255, 205, 120, .30), rgba(255, 205, 120, 0) 62%), linear-gradient(#24302A, #171D1A 70%);
   padding: env(safe-area-inset-top, 0px) 0 0; animation: atEntre .22s ease-out; overflow: hidden; }
@@ -1266,19 +1267,61 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .ar-caisse .piece { width: 34px; height: 34px; flex: 0 0 auto; }
 .ar-caisse b { display: block; font: 700 clamp(22px, 6.6vw, 27px)/1 var(--titre); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .ar-caisse small { display: block; margin-top: 2px; font-size: 12.5px; color: #C9D6CE; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.ar-caisse > div { min-width: 0; }
+.ar-caisse > div { min-width: 0; flex: 1 1 auto; }
+/* la bascule BlackJack / roulette, à droite de la caisse */
+.ar-bascule { flex: 0 0 auto; display: flex; padding: 2px; border-radius: 999px; background: rgba(10, 20, 15, .45); box-shadow: inset 0 0 0 1.5px rgba(255, 241, 214, .14); }
+.ar-bascule button { display: flex; align-items: center; gap: 5px; min-height: 44px; min-width: 48px; padding: 0 10px; border-radius: 999px; color: #C9D6CE; font: 700 14px/1 var(--titre); white-space: nowrap; }
+.ar-bascule .ico svg { width: 24px; height: 24px; display: block; stroke: currentColor; }
+@media (max-width: 420px) { .ar-bascule button span { display: none; } .ar-bascule button { justify-content: center; padding: 0 10px; } }
+.ar-bascule button[aria-selected="true"] { background: var(--creme-t); color: var(--texte); box-shadow: 0 2px 0 rgba(0, 0, 0, .35); }
+.ar-bascule button.non { opacity: .4; }
+.ar-caisse > .ar-bascule { flex: 0 0 auto; }
+.ar-rond { position: relative; }
+.ar-pastille { position: absolute; top: 4px; right: 4px; width: 11px; height: 11px; border-radius: 50%; background: var(--beurre); box-shadow: 0 0 0 2px #34413A; }
+#arriere .at-haut .ar-rond + .ar-rond { margin-left: -4px; }
+/* le croupier, en SVG (sa tenue est un skin) */
+.ar-perso { display: inline-block; width: 22px; height: 22px; vertical-align: -6px; margin-right: 5px; border-radius: 50%; background: rgba(255, 241, 214, .14); overflow: hidden; }
+.ar-perso svg { width: 100%; height: 100%; display: block; }
+.ar-perso.grand { position: absolute; left: 6px; top: 6px; width: 40px; height: 40px; margin: 0; z-index: 2; background: rgba(255, 241, 214, .16); box-shadow: inset 0 0 0 1.5px rgba(255, 241, 214, .25); }
 /* le tapis : du feutre vert (un grain fin), éclairé par la lampe, cerclé d'un bourrelet de bois à épaisseur */
 .ar-table { position: relative; flex: 1 1 auto; min-height: 0; margin: 0 10px; padding: 12px 10px 14px; display: flex; flex-direction: column; justify-content: space-between; align-items: center;
-  border: 9px solid #7A4E33; border-radius: 30px 30px 44% 44% / 30px 30px 12% 12%;
+  border: 9px solid var(--bois); border-radius: 30px 30px 44% 44% / 30px 30px 12% 12%;
   background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .11 0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23f)'/%3E%3C/svg%3E"),
-    radial-gradient(70% 45% at 50% 30%, rgba(255, 228, 160, .22), rgba(255, 228, 160, 0) 70%), radial-gradient(120% 90% at 50% 40%, #2E8C63 0%, #227252 55%, #18563D 100%);
-  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .18), inset 0 0 50px rgba(0, 0, 0, .42), 0 6px 0 #4E3122, 0 14px 30px rgba(0, 0, 0, .45); }
+    radial-gradient(70% 45% at 50% 30%, rgba(255, 228, 160, .22), rgba(255, 228, 160, 0) 70%), radial-gradient(120% 90% at 50% 40%, var(--f1) 0%, var(--f2) 55%, var(--f3) 100%);
+  box-shadow: inset 0 0 0 2px rgba(0, 0, 0, .18), inset 0 0 50px rgba(0, 0, 0, .42), 0 6px 0 var(--bois-2), 0 14px 30px rgba(0, 0, 0, .45); }
+/* les skins du tapis (le carnet du croupier) : le feutre et le bois qui le cercle */
+#arriere[data-tapis="bordeaux"], .ap[data-tapis="bordeaux"] { --f1: #A63A4E; --f2: #86283B; --f3: #5E1828; }
+#arriere[data-tapis="bleu-nuit"], .ap[data-tapis="bleu-nuit"] { --f1: #335A9A; --f2: #26457C; --f3: #182E57; }
+#arriere[data-tapis="noir-or"], .ap[data-tapis="noir-or"] { --f1: #333230; --f2: #242321; --f3: #151413; --bois: #B8913A; --bois-2: #7C5F1F; }
+#arriere[data-tapis="prune"], .ap[data-tapis="prune"] { --f1: #84559A; --f2: #67407A; --f3: #472A57; }
+/* les skins du dos des cartes : la couleur, le trait, le motif, le médaillon */
+#arriere[data-dos="or"], .ap[data-dos="or"] { --dos: #E7BE4E; --dos-trait: #A87A16; --dos-motif: rgba(255, 250, 220, .34); --dos-coeur: #FFF3C4; }
+#arriere[data-dos="fournil"], .ap[data-dos="fournil"] { --dos: #F0D2A0; --dos-trait: #B9732A; --dos-motif: rgba(185, 115, 42, .16); --dos-coeur: #E8A54A; }
+#arriere[data-dos="damier"], .ap[data-dos="damier"] { --dos: #B8A6FF; --dos-trait: #7E66E0; --dos-motif: rgba(255, 255, 255, .34); --dos-coeur: #FFFDF8; }
+/* les skins des jetons : les couleurs des jetons rapides et du jeton posé sur la mise */
+#arriere[data-jetons="nacre"] .ar-jeton, .ap-jeton[data-jetons="nacre"] { --c: #F4F1EC; --c2: #C9C2B8; --bord: rgba(180, 160, 200, .9); --txt: #6B5A7A; }
+#arriere[data-jetons="nacre"] .ar-jeton.ciel { --c: #EEF3FA; } #arriere[data-jetons="nacre"] .ar-jeton.lavande { --c: #F3EEFA; } #arriere[data-jetons="nacre"] .ar-jeton.tapis { --c: #FAEEF0; --c2: #D8B7BE; }
+#arriere[data-jetons="pastel"] .ar-jeton, .ap-jeton[data-jetons="pastel"] { --c: #FFD3B8; --c2: #E8A985; --bord: rgba(140, 111, 98, .75); --txt: #6B4632; }
+#arriere[data-jetons="pastel"] .ar-jeton.ciel { --c: #CDE8FF; --c2: #93C4EC; } #arriere[data-jetons="pastel"] .ar-jeton.lavande { --c: #E3DAFF; --c2: #B3A2EA; } #arriere[data-jetons="pastel"] .ar-jeton.tapis { --c: #FFC9D4; --c2: #E897A8; }
 .ar-sabot { position: absolute; top: 8px; right: 10px; width: 40px; height: 50px; border-radius: 8px; background: #3B2A22; box-shadow: 0 3px 0 #1E1511; }
-.ar-sabot i { position: absolute; left: 6px; width: 26px; height: 36px; border-radius: 4px; background: #FF8FA6; box-shadow: inset 0 0 0 2px #FFFDF8; }
+.ar-sabot i { position: absolute; left: 6px; width: 26px; height: 36px; border-radius: 4px; background: var(--dos); box-shadow: inset 0 0 0 2px #FFFDF8; }
 .ar-sabot i:nth-child(1) { top: 4px; left: 9px; } .ar-sabot i:nth-child(2) { top: 6px; left: 8px; } .ar-sabot i:nth-child(3) { top: 8px; left: 7px; }
 .ar-zone { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; }
 .ar-zone > small { font: 700 11px/1 var(--titre); letter-spacing: .08em; text-transform: uppercase; color: rgba(255, 241, 214, .55); }
 .ar-main { display: flex; justify-content: center; min-height: calc(var(--cw) * 1.4); }
+.ar-mains { display: flex; justify-content: center; align-items: flex-start; gap: 14px; width: 100%; }
+.ar-mains.deux { --cw: clamp(44px, min(13vw, 6.6vh), 58px); gap: 10px; }
+.ar-mains.deux .ar-boite-main { flex: 1 1 0; min-width: 0; padding: 14px 6px 12px; border-radius: 18px; transition: box-shadow .2s, background .2s; }
+.ar-mains.deux .ar-boite-main.active { background: rgba(255, 214, 107, .1); box-shadow: 0 0 0 2.5px var(--beurre), 0 0 18px rgba(255, 200, 74, .4); }
+.ar-mains.deux .ar-total { right: auto; left: 2px; top: -4px; transform: none; padding: 4px 9px; font-size: 14px; }
+.ar-mains.deux .ar-main.serre .ar-carte + .ar-carte { margin-left: calc(var(--cw) * -.66); }
+.ar-mains.deux .ar-main.tres-serre .ar-carte + .ar-carte { margin-left: calc(var(--cw) * -.74); }
+.ar-mains.coupe .ar-boite-main { animation: arCoupe .38s cubic-bezier(.2, .8, .3, 1.2) both; }
+.ar-mains.coupe .ar-boite-main + .ar-boite-main { animation-name: arCoupe2; }
+@keyframes arCoupe { from { transform: translateX(40%); } to { transform: none; } }
+@keyframes arCoupe2 { from { transform: translateX(-40%); } to { transform: none; } }
+.ar-etiquette { position: absolute; left: 50%; bottom: -6px; transform: translateX(-50%); z-index: 3; padding: 3px 10px; border-radius: 999px; font: 700 13px/1.1 var(--titre); white-space: nowrap; font-variant-numeric: tabular-nums; box-shadow: 0 2px 0 rgba(0, 0, 0, .3); }
+.ar-etiquette.gagne { background: var(--menthe); color: #fff; } .ar-etiquette.egal { background: var(--lavande); color: #fff; } .ar-etiquette.perdu { background: #2B2320; color: #FF9FB2; }
 .ar-boite-main { position: relative; display: flex; justify-content: center; }
 .ar-boite-main .ar-total { position: absolute; right: calc(100% + 10px); top: 50%; transform: translateY(-50%); white-space: nowrap; z-index: 2; }
 .ar-boite-main.large .ar-total { right: auto; left: -8px; top: -12px; transform: none; box-shadow: inset 0 0 0 1.5px rgba(255, 241, 214, .25), 0 2px 6px rgba(0, 0, 0, .3); }
@@ -1296,9 +1339,11 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .ar-main.tres-serre .ar-carte + .ar-carte { margin-left: calc(var(--cw) * -.68); }
 .ar-carte .recto, .ar-carte .verso { position: absolute; inset: 0; border-radius: calc(var(--cw) * .14); backface-visibility: hidden; -webkit-backface-visibility: hidden; transition: transform .42s cubic-bezier(.3, .7, .3, 1); }
 .ar-carte .recto { background: #FFFDF8; border: 1px solid #E6D9CB; box-shadow: 0 2px 0 rgba(0, 0, 0, .3), -2px 3px 8px rgba(0, 0, 0, .22); overflow: hidden; }
-.ar-carte .verso { transform: rotateY(180deg); background: repeating-linear-gradient(45deg, rgba(255, 255, 255, .26) 0 3px, rgba(255, 255, 255, 0) 3px 8px), repeating-linear-gradient(-45deg, rgba(255, 255, 255, .26) 0 3px, rgba(255, 255, 255, 0) 3px 8px), #FF8FA6;
-  box-shadow: inset 0 0 0 3px #FFFDF8, inset 0 0 0 4.5px #E1496C, 0 2px 0 rgba(0, 0, 0, .3), -2px 3px 8px rgba(0, 0, 0, .22); }
-.ar-carte .verso::after { content: ''; position: absolute; left: 50%; top: 50%; width: 42%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: var(--beurre); box-shadow: 0 0 0 3px #FFFDF8, 0 0 0 4.5px #E1496C; }
+.ar-carte .verso, .ap-dos .verso { transform: rotateY(180deg); background: repeating-linear-gradient(45deg, var(--dos-motif) 0 3px, transparent 3px 8px), repeating-linear-gradient(-45deg, var(--dos-motif) 0 3px, transparent 3px 8px), var(--dos);
+  box-shadow: inset 0 0 0 3px #FFFDF8, inset 0 0 0 4.5px var(--dos-trait), 0 2px 0 rgba(0, 0, 0, .3), -2px 3px 8px rgba(0, 0, 0, .22); }
+#arriere[data-dos="damier"] .verso, .ap[data-dos="damier"] .verso { background: conic-gradient(var(--dos-motif) 25%, transparent 0 50%, var(--dos-motif) 0 75%, transparent 0) 0 0 / 9px 9px, var(--dos); }
+.ar-carte .verso::after, .ap-dos .verso::after { content: ''; position: absolute; left: 50%; top: 50%; width: 42%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; background: var(--dos-coeur); box-shadow: 0 0 0 3px #FFFDF8, 0 0 0 4.5px var(--dos-trait); }
+#arriere[data-dos="fournil"] .verso::after, .ap[data-dos="fournil"] .verso::after { border-radius: 50% 50% 46% 46% / 62% 62% 38% 38%; }
 .ar-carte.cachee .recto { transform: rotateY(-180deg); }
 .ar-carte.cachee .verso { transform: rotateY(0); }
 .ar-carte .ix { position: absolute; top: calc(var(--cw) * .06); left: calc(var(--cw) * .07); display: flex; flex-direction: column; align-items: center; gap: 1px; }
@@ -1352,17 +1397,19 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .ar-resultat.perdu b { color: #FF9FB2; }
 @keyframes arPose { from { transform: translateY(-40%) scale(.8); opacity: 0; } to { transform: translateY(-50%) scale(1); opacity: 1; } }
 /* le panneau du bas : les jetons rapides, le réglage fin, distribuer ; pendant la main, tirer / rester / doubler */
-.ar-panneau { flex: 0 0 auto; display: grid; align-content: end; min-height: var(--panneau-h, 218px); gap: 10px; padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 12px); }
+.ar-panneau { flex: 0 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); align-content: end; min-height: var(--panneau-h, 218px); gap: 10px; padding: 12px 12px calc(env(safe-area-inset-bottom, 0px) + 12px); }
 .ar-panneau.jeu { align-content: space-between; }
 .ar-panneau.attente { opacity: .55; pointer-events: none; }
 .ar-jetons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .ar-jeton { --c: var(--menthe); --c2: var(--menthe-sombre); display: grid; justify-items: center; gap: 4px; min-height: 44px; min-width: 0; }
-.ar-jeton span { display: grid; place-items: center; white-space: nowrap; width: 54px; height: 54px; border-radius: 50%; border: 4px dashed rgba(255, 255, 255, .95); color: #fff; font: 700 15px/1 var(--titre); text-shadow: 0 1px 0 rgba(0, 0, 0, .22);
+.ar-jeton span { display: grid; place-items: center; white-space: nowrap; width: 54px; height: 54px; border-radius: 50%; border: 4px dashed var(--bord, rgba(255, 255, 255, .95)); color: var(--txt, #fff); font: 700 15px/1 var(--titre); text-shadow: 0 1px 0 rgba(0, 0, 0, .22);
   background: radial-gradient(circle, var(--c) 0 50%, rgba(255, 255, 255, .5) 52% 56%, var(--c) 58%); box-shadow: 0 4px 0 var(--c2); }
 .ar-jeton small { max-width: 100%; font: 800 11.5px/1.1 var(--texte-font); color: #C9D6CE; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-variant-numeric: tabular-nums; }
 .ar-jeton:active span { transform: translateY(4px); box-shadow: none; }
 .ar-jeton:disabled { opacity: .35; cursor: default; } .ar-jeton:disabled:active span { transform: none; box-shadow: 0 4px 0 var(--c2); }
 .ar-jeton.ciel { --c: #6CB8FF; --c2: #3E8FD6; } .ar-jeton.lavande { --c: var(--lavande); --c2: var(--lavande-sombre); } .ar-jeton.tapis { --c: var(--fraise); --c2: var(--fraise-sombre); }
+.ar-jeton.en-main span { outline: 3px solid var(--creme-t); outline-offset: 3px; }
+.ar-jeton.en-main small { color: var(--creme-t); }
 .ar-jeton.tapis span { font-size: 14px; }
 .ar-fin { display: grid; grid-template-columns: 48px minmax(0, 1fr) 48px auto; align-items: center; gap: 8px; }
 .ar-pm { width: 48px; height: 48px; border-radius: 50%; background: #34413A; box-shadow: 0 3px 0 #0F1411; color: var(--creme-t); font: 700 26px/1 var(--titre); }
@@ -1375,6 +1422,21 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 .ar-donner b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .ar-panneau .btn.non { box-shadow: 0 4px 0 #0F1411; background: #34413A; color: rgba(255, 241, 214, .55); }
 .ar-actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding-bottom: 2px; }
+.ar-actions.quatre { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.ar-actions.quatre .ar-act b { font-size: 17px; }
+.ar-act.peche { background: #FF9F7A; color: #fff; box-shadow: 0 4px 0 #E07A52; }
+.ar-act.conseille { outline: 3px solid var(--beurre); outline-offset: 3px; animation: arConseil 1.6s ease-in-out infinite; }
+@keyframes arConseil { 50% { outline-color: rgba(255, 200, 74, .35); } }
+.ar-conseil { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; min-height: 48px; padding: 6px 12px; border-radius: 16px; text-align: left; color: var(--creme-t); background: rgba(255, 241, 214, .06); box-shadow: inset 0 0 0 1.5px rgba(255, 241, 214, .14); }
+.ar-conseil .ico svg { width: 24px; height: 24px; display: block; }
+.ar-conseil > span:not(.ar-inter) { flex: 1 1 auto; min-width: 0; }
+.ar-conseil b { display: block; font: 700 14px/1.15 var(--titre); }
+.ar-conseil small { display: block; font-size: 12.5px; line-height: 1.25; color: #C9D6CE; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ar-conseil.on { background: rgba(255, 214, 107, .14); box-shadow: inset 0 0 0 1.5px rgba(255, 214, 107, .55); }
+.ar-conseil.on small { color: #FFE7A8; font-weight: 700; white-space: normal; }
+.ar-inter { flex: 0 0 auto; position: relative; width: 42px; height: 26px; border-radius: 999px; background: #34413A; box-shadow: inset 0 0 0 1.5px rgba(255, 241, 214, .2); transition: background .15s; }
+.ar-inter::after { content: ''; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--creme-t); transition: transform .15s; }
+.ar-conseil.on .ar-inter { background: var(--menthe); } .ar-conseil.on .ar-inter::after { transform: translateX(16px); }
 .ar-act { min-height: 78px; border-radius: 20px; }
 .ar-infos-main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .ar-infos-main span { min-width: 0; padding: 8px 6px; border-radius: 16px; background: rgba(255, 241, 214, .08); box-shadow: inset 0 0 0 1.5px rgba(255, 241, 214, .12); text-align: center; }
@@ -1415,6 +1477,113 @@ body #hantee.ht-boutique > .pq-solde { box-shadow: 0 6px 14px rgba(61, 39, 72, .
 @media (max-height: 760px) { .ar-panneau { min-height: var(--panneau-h, 206px); } #arriere { --cw: clamp(48px, min(14vw, 8vh), 60px); } .ar-resultat { padding: 9px 16px; } .ar-resultat b { font-size: 24px; } .ar-resultat.bj b { font-size: 26px; } .ar-resultat i { font-size: 17px; } .ar-rond-mise { width: 54px; height: 54px; } .ar-case.principale .ar-rond-mise { width: 66px; height: 66px; } .ar-jeton span { width: 48px; height: 48px; } .ar-act { min-height: 62px; } .ar-infos-main span { padding: 5px 6px; } .ar-infos-main b { font-size: 15px; } .ar-feutre { font-size: 9.5px; } .ar-feutre span:first-child { font-size: 11px; } .ar-table { padding-top: 8px; padding-bottom: 10px; } .ar-panneau { gap: 8px; padding-top: 10px; } }
 @media (max-height: 700px) { #arriere { --cw: clamp(44px, min(13vw, 7.4vh), 52px); } .ar-rond-mise { width: 46px; height: 46px; } .ar-case.principale .ar-rond-mise { width: 56px; height: 56px; } .ar-cases { margin-top: 6px; } .ar-case { gap: 3px; } .ar-table { padding-bottom: 16px; border-radius: 26px 26px 34% 34% / 26px 26px 9% 9%; } .ar-jeton span { width: 46px; height: 46px; font-size: 13.5px; border-width: 3.5px; } .ar-jeton.tapis span { font-size: 12.5px; } }
 @media (max-height: 640px) { .ar-zone > small, .ar-feutre span:last-child { display: none; } .ar-caisse { padding-bottom: 4px; } .ar-caisse .piece { width: 28px; height: 28px; } }
+/* la roulette (lot 7) : la roue en 3D en haut du tapis, les derniers numéros, le tapis de mises (chances, puis la grille des pleins) */
+.ar-table.ar-roul { justify-content: flex-start; align-items: stretch; gap: 8px; padding: 8px 8px 10px; border-radius: 30px 30px 26px 26px; }
+.ar-roue { position: relative; flex: 0 0 auto; height: clamp(110px, 21vh, 190px); border-radius: 22px; overflow: hidden; transition: height .35s ease; }
+.ar-roul.tourne .ar-roue { flex: 1 1 auto; height: auto; }
+.ar-roul.tourne .ar-tapis { display: none; }
+.ar-roue-3d { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.ar-roue-2d { position: absolute; left: 50%; top: 50%; height: 92%; aspect-ratio: 1; transform: translate(-50%, -50%); border-radius: 50%; border: 6px solid #6B3A1E; box-shadow: 0 4px 0 #3B2014, 0 10px 24px rgba(0, 0, 0, .4); }
+.ar-numero { position: absolute; right: 8px; bottom: 8px; z-index: 3; display: flex; align-items: center; gap: 8px; padding: 5px 12px 5px 5px; border-radius: 999px; background: rgba(12, 22, 17, .82); color: var(--creme-t); box-shadow: 0 3px 10px rgba(0, 0, 0, .35); }
+.ar-numero > b { display: grid; place-items: center; min-width: 38px; height: 38px; padding: 0 6px; border-radius: 50%; color: #fff; font: 700 20px/1 var(--titre); font-variant-numeric: tabular-nums; box-shadow: inset 0 0 0 2px rgba(255, 255, 255, .7); }
+.ar-numero.rouge > b { background: #C8283A; } .ar-numero.noir > b { background: #1E1E1E; } .ar-numero.vert > b { background: #1E8A45; }
+.ar-numero span { display: grid; gap: 1px; } .ar-numero em { font: 700 12px/1 var(--texte-font); font-style: normal; color: #C9D6CE; }
+.ar-numero i { font: 700 16px/1.1 var(--titre); font-style: normal; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ar-numero.gagne i { color: #8FF0C6; } .ar-numero.perdu i { color: #FF9FB2; }
+.ar-roul.tourne .ar-numero.pose { right: 50%; bottom: 50%; transform: translate(50%, 50%) scale(1.25); animation: arPose2 .35s cubic-bezier(.2, .9, .3, 1.3) both; }
+@keyframes arPose2 { from { opacity: 0; transform: translate(50%, 50%) scale(.6); } to { opacity: 1; transform: translate(50%, 50%) scale(1.25); } }
+.ar-histo { list-style: none; margin: 0; padding: 0 2px; display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; min-height: 28px; flex: 0 0 auto; }
+.ar-histo::-webkit-scrollbar { display: none; }
+.ar-histo li { flex: 0 0 auto; display: grid; place-items: center; min-width: 28px; height: 28px; padding: 0 5px; border-radius: 50%; color: #fff; font: 700 13px/1 var(--titre); font-variant-numeric: tabular-nums; opacity: .8; }
+.ar-histo li.rouge { background: #C8283A; } .ar-histo li.noir { background: #1E1E1E; } .ar-histo li.vert { background: #1E8A45; }
+.ar-histo li.dernier { opacity: 1; box-shadow: 0 0 0 2px var(--beurre); }
+.ar-histo li.vide { min-width: 0; border-radius: 999px; padding: 0 10px; background: rgba(10, 20, 15, .3); color: rgba(255, 241, 214, .6); font: 700 12px/1 var(--texte-font); opacity: 1; }
+.ar-tapis { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.ar-onglets { display: grid; grid-template-columns: repeat(var(--n, 2), minmax(0, 1fr)); gap: 4px; padding: 3px; border-radius: 999px; background: rgba(10, 20, 15, .4); }
+.ar-onglets button { min-height: 36px; border-radius: 999px; color: #C9D6CE; font: 700 13.5px/1 var(--titre); }
+.ar-onglets button[aria-selected="true"] { background: rgba(255, 241, 214, .92); color: var(--texte); }
+.ar-onglets button i { font-style: normal; display: inline-grid; place-items: center; min-width: 18px; height: 18px; margin-left: 4px; border-radius: 999px; background: var(--beurre); color: var(--texte); font-size: 11px; }
+.ar-onglets button i:empty { display: none; }
+.ar-grille { flex: 1 1 auto; min-height: 0; display: grid; gap: 5px; }
+.ar-grille.chances { grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(44px, 1fr); }
+.ar-grille.numeros { grid-template-columns: repeat(6, minmax(0, 1fr)); grid-auto-rows: minmax(34px, 1fr); }
+.ar-grille[hidden] { display: none; }
+.ar-cell { position: relative; display: grid; place-items: center; align-content: center; gap: 1px; min-width: 0; padding: 4px 2px; border-radius: 12px; color: var(--creme-t); background: rgba(10, 30, 20, .25); box-shadow: inset 0 0 0 1.5px rgba(255, 241, 214, .4); transition: transform .08s; }
+.ar-cell:active { transform: scale(.96); }
+.ar-cell .nom { display: flex; align-items: center; gap: 5px; font: 700 15px/1 var(--titre); white-space: nowrap; }
+.ar-cell small { font: 700 10.5px/1 var(--texte-font); color: rgba(255, 241, 214, .62); white-space: nowrap; }
+.ar-cell .puce-coul { flex: 0 0 auto; width: 13px; height: 13px; border-radius: 50%; box-shadow: 0 0 0 1.5px rgba(255, 255, 255, .8); }
+.ar-cell .puce-coul.rouge { background: #C8283A; } .ar-cell .puce-coul.noir { background: #1E1E1E; }
+.ar-cell.num { padding: 2px; border-radius: 10px; }
+.ar-cell.num.rouge { background: #B3202A; } .ar-cell.num.noir { background: #1E1E1E; } .ar-cell.num.vert { background: #1E7A3A; grid-column: 1 / -1; }
+.ar-cell.num .nom { font-size: 15px; }
+.ar-cell .jet { position: absolute; top: -6px; right: -3px; z-index: 2; max-width: calc(100% + 2px); padding: 2px 6px; border-radius: 999px; background: var(--beurre); color: var(--texte); font: 700 11px/1.1 var(--titre); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 2px 0 var(--beurre-sombre); font-variant-numeric: tabular-nums; }
+.ar-cell .jet:empty { display: none; }
+.ar-cell.pleine { box-shadow: inset 0 0 0 2.5px var(--beurre), 0 0 12px rgba(255, 200, 74, .35); }
+.ar-cell.sort { box-shadow: inset 0 0 0 2.5px #8FF0C6; }
+.ar-cell.gagnee .jet { background: var(--menthe); color: #fff; box-shadow: 0 2px 0 var(--menthe-sombre); }
+.ar-cell.perdue .jet { background: #2B2320; color: #FF9FB2; box-shadow: none; text-decoration: line-through; }
+.ar-cell:disabled { cursor: default; }
+.ar-fin.r { grid-template-columns: auto minmax(0, 1fr) auto; }
+.ar-rien-ne-va { margin: 0; align-self: center; display: grid; gap: 4px; padding: 14px; border-radius: 18px; background: rgba(255, 241, 214, .08); text-align: center; box-shadow: inset 0 0 0 1.5px rgba(255, 241, 214, .14); }
+.ar-rien-ne-va b { font: 700 22px/1.1 var(--titre); }
+.ar-rien-ne-va small { color: #C9D6CE; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.ar-panneau.tour { align-content: center; }
+/* les bulles du casino : un trophée, un mini-objectif réussi (en haut, par-dessus la table) */
+.ar-bulles { position: absolute; left: 12px; right: 12px; top: calc(env(safe-area-inset-top, 0px) + 58px); z-index: 5; display: grid; gap: 6px; pointer-events: none; }
+.ar-bulle { display: flex; align-items: center; gap: 10px; padding: 9px 14px 9px 10px; border-radius: 18px; background: var(--creme); color: var(--texte); box-shadow: 0 4px 0 rgba(0, 0, 0, .25), 0 10px 24px rgba(0, 0, 0, .35); animation: arBulle 4.2s ease both; }
+.ar-bulle .ico svg { width: 30px; height: 30px; display: block; }
+.ar-bulle b { display: block; font: 700 15px/1.2 var(--titre); }
+.ar-bulle small { display: block; font-size: 12.5px; color: var(--texte-2); }
+.ar-bulle.trophee { background: var(--or-clair); }
+@keyframes arBulle { 0% { opacity: 0; transform: translateY(-12px) scale(.96); } 8%, 86% { opacity: 1; transform: none; } 100% { opacity: 0; transform: translateY(-8px); } }
+/* le carnet du croupier : quatre onglets (objectifs, trophées, statistiques, skins) */
+.ar-boite.calepin { text-align: left; padding-top: 16px; display: flex; flex-direction: column; overflow: hidden; }
+.ar-boite.calepin .ar-carnet { flex: 1 1 auto; min-height: 0; overflow-y: auto; margin: 0 -6px; padding: 2px 6px 4px; overscroll-behavior: contain; }
+.ar-boite.calepin .ar-onglets { --n: 4; flex: 0 0 auto; margin: 4px 0 10px; background: #F3E9DC; }
+.ar-boite.calepin .ar-onglets button { color: var(--texte-2); min-height: 40px; }
+.ar-boite.calepin .ar-onglets button[aria-selected="true"] { background: var(--carte); color: var(--texte); box-shadow: 0 2px 0 var(--gris-sombre); }
+.ar-boite.calepin h4 { margin: 12px 0 6px; font: 700 16px/1.2 var(--titre); }
+.ar-or { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; background: var(--or-clair); }
+.ar-or .ico svg { width: 34px; height: 34px; display: block; }
+.ar-or b { display: block; font: 700 17px/1.2 var(--titre); }
+.ar-or small { display: block; font-size: 12.5px; color: var(--texte-2); }
+.ar-objs, .ar-trophs { list-style: none; margin: 10px 0; padding: 0; display: grid; gap: 8px; }
+.ar-objs li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 16px; background: var(--carte); box-shadow: var(--ombre-carte); }
+.ar-objs li .t { flex: 1 1 auto; min-width: 0; display: grid; gap: 6px; }
+.ar-objs li .t b { font: 700 14.5px/1.25 var(--titre); }
+.ar-objs .mini { display: block; height: 8px; border-radius: 999px; background: var(--creme); overflow: hidden; }
+.ar-objs .mini i { display: block; height: 100%; border-radius: 999px; background: var(--menthe); }
+.ar-objs li .n { flex: 0 0 auto; min-width: 44px; text-align: center; font: 700 15px/1 var(--titre); font-variant-numeric: tabular-nums; color: var(--texte-2); }
+.ar-objs li.fait { background: var(--menthe-clair); }
+.ar-objs li .n .ico svg { width: 26px; height: 26px; stroke: var(--menthe-sombre); }
+.ar-trophs li { display: flex; gap: 10px; padding: 10px 12px; border-radius: 16px; background: var(--creme); color: var(--texte-2); }
+.ar-trophs li .pic { flex: 0 0 auto; display: grid; place-items: center; width: 36px; height: 36px; border-radius: var(--r-pic); background: var(--gris); opacity: .55; }
+.ar-trophs li .pic svg { width: 22px; height: 22px; }
+.ar-trophs li.gagne { background: var(--or-clair); color: var(--texte); }
+.ar-trophs li.gagne .pic { background: var(--beurre); opacity: 1; }
+.ar-trophs li b { display: block; font: 700 14.5px/1.2 var(--titre); }
+.ar-trophs li small { display: block; font-size: 12.5px; line-height: 1.3; }
+.ar-trophs li em { display: block; margin-top: 3px; font: 700 12px/1.3 var(--texte-font); font-style: normal; color: var(--lavande-sombre); }
+.ar-stats li > b.plus { color: var(--menthe-sombre); background: var(--menthe-clair); } .ar-stats li > b.moins { color: var(--fraise-sombre); background: var(--rose-clair); }
+.ar-skins { display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; }
+.ar-skin { display: grid; justify-items: center; gap: 4px; min-height: 44px; padding: 8px 4px; border-radius: 16px; background: var(--carte); box-shadow: var(--ombre-carte); text-align: center; color: var(--texte); }
+.ar-skin b { font: 700 13px/1.15 var(--titre); }
+.ar-skin small { font: 700 11px/1.2 var(--texte-font); color: var(--texte-2); }
+.ar-skin.choisi { box-shadow: 0 0 0 2.5px var(--menthe-sombre), var(--ombre-carte); background: var(--menthe-clair); }
+.ar-skin.choisi small { color: var(--menthe-sombre); }
+.ar-skin.verrou .ap { filter: grayscale(.85) brightness(.9); opacity: .6; }
+.ap { display: block; width: 46px; height: 46px; border-radius: 12px; position: relative; }
+.ap-tapis { --f1: #2E8C63; --f2: #227252; --f3: #18563D; --bois: #7A4E33; background: radial-gradient(120% 90% at 50% 40%, var(--f1), var(--f3)); box-shadow: inset 0 0 0 4px var(--bois); border-radius: 14px; }
+.ap-dos { --dos: #FF8FA6; --dos-trait: #E1496C; --dos-motif: rgba(255, 255, 255, .26); --dos-coeur: var(--beurre); width: 34px; border-radius: 6px; }
+.ap-dos .verso { position: absolute; inset: 0; border-radius: 6px; transform: none; }
+.ap-jeton { --c: var(--menthe); --c2: var(--menthe-sombre); border-radius: 50%; }
+.ap-jeton i { position: absolute; inset: 3px; border-radius: 50%; border: 3.5px dashed var(--bord, rgba(255, 255, 255, .95)); background: radial-gradient(circle, var(--c) 0 50%, rgba(255, 255, 255, .5) 52% 56%, var(--c) 58%); box-shadow: 0 3px 0 var(--c2); }
+.ap-roue { border-radius: 50%; background: radial-gradient(circle, var(--b) 0 28%, var(--m) 29% 32%, transparent 33%), conic-gradient(var(--v) 0 10deg, var(--r) 0 30deg, var(--n) 0 50deg, var(--r) 0 70deg, var(--n) 0 90deg, var(--r) 0 110deg, var(--n) 0 130deg, var(--r) 0 150deg, var(--n) 0 170deg, var(--r) 0 190deg, var(--n) 0 210deg, var(--r) 0 230deg, var(--n) 0 250deg, var(--r) 0 270deg, var(--n) 0 290deg, var(--r) 0 310deg, var(--n) 0 330deg, var(--r) 0 350deg, var(--n) 0); box-shadow: 0 0 0 4px var(--b); }
+.ap-croupier { border-radius: 50%; background: #34413A; overflow: hidden; }
+.ap-croupier svg { width: 100%; height: 100%; display: block; }
+@media (max-height: 760px) { .ar-roul.vue-numeros:not(.tourne) .ar-roue { height: 0; } .ar-grille.numeros { gap: 4px; grid-auto-rows: minmax(26px, 1fr); } .ar-roue { height: clamp(90px, 17vh, 130px); } .ar-grille.chances { grid-auto-rows: minmax(42px, 1fr); } }
+@media (max-height: 700px) { .ar-act small { font-size: 12px; letter-spacing: -.01em; } .ar-conseil { min-height: 40px; padding: 3px 10px; } .ar-conseil:not(.on) small { display: none; } .ar-conseil .ico svg { width: 20px; height: 20px; } .ar-roue { height: clamp(64px, 12vh, 84px); } .ar-perso.grand { width: 30px; height: 30px; } .ar-grille.chances { grid-auto-rows: minmax(38px, 1fr); } .ar-grille.numeros { grid-auto-rows: minmax(26px, 1fr); } .ar-onglets-mise button { min-height: 32px; } .ar-histo li { min-width: 24px; height: 24px; font-size: 12px; } .ar-histo { min-height: 24px; } .ar-mains.deux .ar-boite-main { padding-top: 12px; } }
 /* le Journal : la carte discrète qui ramène à l'arrière-salle */
 .card.arriere-carte { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 56px; padding: 10px 12px; text-align: left; background: #F3F6F2; box-shadow: none; border: 1.5px dashed #C9DCCF; }
 .card.arriere-carte .pic { width: 36px; height: 36px; border-radius: var(--r-pic); display: grid; place-items: center; flex: 0 0 auto; background: var(--menthe-clair); }

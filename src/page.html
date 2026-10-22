@@ -67,29 +67,37 @@
   <div id="at-zone"></div>
   <p id="at-consigne" class="at-consigne" aria-live="polite"></p>
 </div>
-<div id="arriere" role="dialog" aria-modal="true" aria-labelledby="ar-titre" hidden>
+<div id="arriere" role="dialog" aria-modal="true" aria-labelledby="ar-titre" data-table="blackjack" hidden>
   <div class="at-haut">
     <button type="button" class="at-fermer" data-ar="fermer" aria-label="Quitter l’arrière-salle"><i class="ico" data-ico="fermer"></i></button>
-    <div class="at-titre"><b id="ar-titre">L’arrière-salle</b><small>BlackJack · sabot de 6 jeux</small></div>
+    <div class="at-titre"><b id="ar-titre">L’arrière-salle</b><small id="ar-sous">BlackJack · sabot de 6 jeux</small></div>
+    <button type="button" class="ar-rond" data-ar="carnet" aria-label="Le carnet du croupier"><i class="ico" data-ico="carnet"></i><span class="ar-pastille" id="ar-pastille" hidden></span></button>
     <button type="button" class="ar-rond" data-ar="gains" aria-label="Le tableau des gains"><i class="ico" data-ico="cartes"></i></button>
   </div>
-  <div class="ar-caisse"><span class="piece" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="20" cy="22" r="17" fill="#E0A61E"/><circle cx="20" cy="19" r="17" fill="#FFC84A"/><circle cx="20" cy="19" r="12" fill="none" stroke="#E0A61E" stroke-width="2.5"/><text x="20" y="25" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-weight="700" font-size="16" fill="#8C6F62">€</text></svg></span><div><b id="ar-coins">0 €</b><small id="ar-mise">dans la caisse</small></div></div>
+  <div class="ar-caisse"><span class="piece" aria-hidden="true"><svg viewBox="0 0 40 40"><circle cx="20" cy="22" r="17" fill="#E0A61E"/><circle cx="20" cy="19" r="17" fill="#FFC84A"/><circle cx="20" cy="19" r="12" fill="none" stroke="#E0A61E" stroke-width="2.5"/><text x="20" y="25" text-anchor="middle" font-family="Fredoka, Nunito, sans-serif" font-weight="700" font-size="16" fill="#8C6F62">€</text></svg></span><div><b id="ar-coins">0 €</b><small id="ar-mise">dans la caisse</small></div>
+    <div class="ar-bascule" role="tablist" aria-label="La table"><button type="button" role="tab" data-table="blackjack" aria-selected="true" aria-label="BlackJack"><i class="ico" data-ico="cartes"></i><span>BlackJack</span></button><button type="button" role="tab" data-table="roulette" aria-selected="false" aria-label="Roulette"><i class="ico" data-ico="roulette"></i><span>Roulette</span></button></div></div>
   <div id="ar-table" class="ar-table">
     <div class="ar-sabot" aria-hidden="true"><i></i><i></i><i></i></div>
-    <div class="ar-zone ar-croupier"><small>Le croupier</small><div class="ar-boite-main"><span class="ar-total" id="ar-tc" hidden></span><div class="ar-main" id="ar-croupier"></div></div></div>
+    <div class="ar-zone ar-croupier"><small><span class="ar-perso" aria-hidden="true"></span>Le croupier</small><div class="ar-boite-main"><span class="ar-total" id="ar-tc" hidden></span><div class="ar-main" id="ar-croupier"></div></div></div>
     <div class="ar-milieu">
       <p class="ar-feutre" aria-hidden="true"><span>BlackJack payé 3 pour 2</span><span>Le croupier tire jusqu’à 17</span></p>
       <div id="ar-annonce" class="ar-annonce" aria-live="polite" hidden></div>
       <div id="ar-resultat" class="ar-resultat" aria-live="polite" hidden></div>
     </div>
-    <div class="ar-zone ar-joueur"><div class="ar-boite-main"><span class="ar-total" id="ar-tj" hidden></span><div class="ar-main" id="ar-joueur"></div></div></div>
+    <div class="ar-zone ar-joueur"><div class="ar-mains" id="ar-mains"></div></div>
     <div class="ar-cases" role="group" aria-label="Les mises">
       <button type="button" class="ar-case annexe" data-case="paires" aria-label="Perfect Pairs"><small class="ar-nom">Perfect Pairs</small><span class="ar-rond-mise"></span><b>—</b></button>
       <button type="button" class="ar-case principale" data-case="main" aria-label="La mise"><small class="ar-nom">Mise</small><span class="ar-rond-mise"></span><b>—</b></button>
       <button type="button" class="ar-case annexe" data-case="plus3" aria-label="21+3"><small class="ar-nom">21+3</small><span class="ar-rond-mise"></span><b>—</b></button>
     </div>
   </div>
+  <div id="ar-roulette" class="ar-table ar-roul" hidden>
+    <div id="ar-roue" class="ar-roue"><span class="ar-perso grand" aria-hidden="true"></span><div id="ar-roue-2d" class="ar-roue-2d" aria-hidden="true" hidden></div><div id="ar-numero" class="ar-numero" aria-live="polite" hidden></div></div>
+    <ol id="ar-histo" class="ar-histo" aria-label="Les derniers numéros"></ol>
+    <div id="ar-tapis" class="ar-tapis"></div>
+  </div>
   <div id="ar-panneau" class="ar-panneau"></div>
+  <div id="ar-bulles" class="ar-bulles" aria-live="polite"></div>
   <div id="ar-dialogue" class="ar-dialogue" hidden><div class="ar-boite" role="alertdialog" aria-modal="true"></div></div>
 </div>
 <div id="planque" role="dialog" aria-modal="true" aria-labelledby="pq-titre" data-ecran="" hidden>
