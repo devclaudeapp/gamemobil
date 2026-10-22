@@ -17819,6 +17819,13 @@ const RETOURS = (() => {
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-10-22-b', date: '2026-10-22', titre: 'L’arrière-salle reste fluide',
+      points: [
+        'Au BlackJack et à la roulette, le jeu ne ralentit plus jamais pour ménager la batterie : toutes les images, même en Économie et en qualité Éco, même sans toucher l’écran.',
+        'La boutique, cachée derrière, se met en pause pendant que tu joues ; elle reprend dès que tu reviens. La roue de la roulette reste nette, quelle que soit la qualité graphique.',
+      ],
+    },
+    {
       id: '2026-10-22-a', date: '2026-10-22', titre: 'Un classement plus juste, et du nouveau au fond',
       points: [
         'À partir du lundi 26 octobre, jouer plus longtemps rapporte enfin plus de points : au-delà d’une heure, tes points continuent (de moins en moins vite), et réussir un pétrissage, éviter une descente, servir un client mystère, livrer une grosse commande, réclamer un objectif du jour ou franchir un palier d’événement en rapportent. L’Atelier compte chaque jour.',
@@ -19958,7 +19965,7 @@ const UI = (() => {
   //     la synchro avec l'écran (60 Hz, 120 Hz ProMotion) : les images trop tôt ne font rien (la gigue tolérée : 33,3 ms visées, 30,3
   //     acceptées, pour ne pas tomber à 20). G.tick reçoit toujours le vrai temps écoulé depuis la dernière image traitée : les gains ne
   //     dépendent pas de la cadence. Pleine cadence pendant un glisser (un meuble en mode Déplacer, la poignée du tiroir) ; les mini-jeux de
-  //     l'Atelier et des événements ont leur propre boucle, jamais bridée. ?cadence=0 coupe la limite (tests, débogage).
+  //     l'Atelier et des événements ont leur propre boucle, jamais bridée ; l'arrière-salle (BlackJack, roulette) passe la boucle à pleine cadence. ?cadence=0 coupe la limite (tests, débogage).
   //     Le joueur choisit (Réglages › Le jeu › Images par seconde, st.images) : Économie (30 puis 10, par défaut), Fluide (60 puis 20) ou
   //     Maximum (la vitesse de l'écran, 60 à 120, sans ralentir au repos). Le choix s'applique à l'image suivante.
   const CADENCE = { jeu: 30, repos: 10, calmeMs: 15e3, gigue: 3 }, sansLimite = /[?&]cadence=0(&|$)/.test(location.search);
@@ -19968,11 +19975,14 @@ const UI = (() => {
   const instantsImages = new Float64Array(128); // les instants des dernières images traitées (la cadence mesurée, pour les tests ; taille fixe)
   function eveiller() { dernierGeste = performance.now(); }
   const auRepos = (t) => t - dernierGeste > CADENCE.calmeMs;
-  function cadenceCible(t) { const m = modeImages(); if (sansLimite || glisse || tiroir.glisse || !m.jeu) return 0; return auRepos(t) ? m.repos : m.jeu; } // 0 : pleine cadence
+  // l'arrière-salle (le BlackJack, la roulette) n'est jamais bridée : tant qu'elle est ouverte, pleine cadence et pas de repos, quel que soit le
+  // choix des images par seconde (la boutique, cachée derrière, ne se dessine pas : la 3D attend, sa passe d'effets est rendue)
+  const arriereOuverte = () => !!(AR && AR.ouvert);
+  function cadenceCible(t) { const m = modeImages(); if (sansLimite || glisse || tiroir.glisse || arriereOuverte() || !m.jeu) return 0; return auRepos(t) ? m.repos : m.jeu; } // 0 : pleine cadence
   function cadence() {
     const t = performance.now(); let n = 0; for (let k = 0; k < instantsImages.length; k++) if (instantsImages[k] > 0 && t - instantsImages[k] <= 1000) n++;
     const limite = !sansLimite && modeImages().jeu > 0;
-    return { cible: cadenceCible(t), mesuree: n, repos: limite && auRepos(t), limite, mode: st.images, travail: Math.round(msImage * 10) / 10 };
+    return { cible: cadenceCible(t), mesuree: n, repos: limite && !arriereOuverte() && auRepos(t), limite, mode: st.images, travail: Math.round(msImage * 10) / 10 };
   }
 
   // ─── boucle ───
@@ -20171,7 +20181,7 @@ const UI = (() => {
       ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { renderCards(true); hud(); save(); renderPage(true); } });
     if (AR) AR.init({ st: () => st, son, buzz, audio, save, confettis,
-      ouvert: () => { closeSheet(); eveiller(); }, ferme: () => { eveiller(); lastFrame = performance.now(); renderCards(true); hud(); lastPage = ''; renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
+      ouvert: () => { closeSheet(); eveiller(); if (SCENE.alleger) SCENE.alleger(); }, // la boutique, cachée, rend sa passe d'effets (recréée au retour) ferme: () => { eveiller(); lastFrame = performance.now(); renderCards(true); hud(); lastPage = ''; renderPage(true); if (feteEnAttente) { feteEnAttente = false; SCENE.fete(); } },
       apres: () => { hud(); } });
     document.querySelectorAll('.modes button').forEach((b) => { b.classList.toggle('actif', String(st.mode) === b.dataset.mode); b.addEventListener('click', () => { st.mode = b.dataset.mode === 'max' ? 'max' : +b.dataset.mode; document.querySelectorAll('.modes button').forEach((x) => x.classList.toggle('actif', x === b)); renderCards(true); save(); }); });
     $('#cartes').addEventListener('click', onCardClick);

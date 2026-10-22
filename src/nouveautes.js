@@ -16,6 +16,13 @@
   'use strict';
   const NOUVEAUTES = [
     {
+      id: '2026-10-22-b', date: '2026-10-22', titre: 'L’arrière-salle reste fluide',
+      points: [
+        'Au BlackJack et à la roulette, le jeu ne ralentit plus jamais pour ménager la batterie : toutes les images, même en Économie et en qualité Éco, même sans toucher l’écran.',
+        'La boutique, cachée derrière, se met en pause pendant que tu joues ; elle reprend dès que tu reviens. La roue de la roulette reste nette, quelle que soit la qualité graphique.',
+      ],
+    },
+    {
       id: '2026-10-22-a', date: '2026-10-22', titre: 'Un classement plus juste, et du nouveau au fond',
       points: [
         'À partir du lundi 26 octobre, jouer plus longtemps rapporte enfin plus de points : au-delà d’une heure, tes points continuent (de moins en moins vite), et réussir un pétrissage, éviter une descente, servir un client mystère, livrer une grosse commande, réclamer un objectif du jour ou franchir un palier d’événement en rapportent. L’Atelier compte chaque jour.',

@@ -7,7 +7,9 @@
 // graphique » (Auto, Haute, Moyenne, Éco : un palier fixe que la mesure ne touche plus, Auto qui la rétablit) ; gardés après un
 // rechargement ; une vieille sauvegarde (sans ces champs, ou avec des valeurs inconnues) revient à Auto et Économie. Pour la qualité, la
 // page se fait passer pour un vrai processeur graphique (SwiftShader figerait Auto en éco) ; une « charge » (40 ms de calcul à chaque
-// rafraîchissement) simule un téléphone lent, qui fait descendre Auto et pas un palier fixe.
+// rafraîchissement) simule un téléphone lent, qui fait descendre Auto et pas un palier fixe. L'arrière-salle (BlackJack, roulette) n'est
+// jamais bridée : en Économie et en qualité Éco, salle ouverte, la boucle traite chaque rafraîchissement (pas de repos à 10), la boutique
+// cachée ne se dessine pas, la roue garde sa finesse (2 pixels par point) ; refermée, la boutique reprend 30 images/s, puis son repos.
 // Les mesures « au repos » se font dans une boutique calme : un message du jeu (un événement, un client mystère, un habitué à son créneau
 // du matin, du midi ou du soir, le chat à la porte) ramène les 30 images/s, comme il se doit ; ces sources tirées au hasard ou à l'heure
 // sont repoussées dès l'ouverture (window.__fournil.st, comme la mesure des gains), et un journal des messages est cité dans chaque mesure.
@@ -32,8 +34,8 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 100) {
 (async () => {
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const ouverts = [];
-  async function ouvrir(requete, gpu) {
-    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
+  async function ouvrir(requete, gpu, finesse) {
+    const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, ...(finesse ? { deviceScaleFactor: finesse } : {}), hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Europe/Paris', serviceWorkers: 'block' });
     // le journal des messages du jeu (chacun ramène la cadence de jeu) : cité dans les mesures, pour savoir qui a réveillé la boucle
     await ctx.addInitScript(() => { window.__messages = []; let der = ''; new MutationObserver(() => { const t = document.querySelector('.toast'); if (t && t.textContent !== der) { der = t.textContent; window.__messages.push(`${Math.round(performance.now())} ms : ${der}`); } else if (!t) der = ''; }).observe(document, { subtree: true, childList: true, characterData: true }); });
     await ctx.addInitScript(() => { window.__sonde = 0; const sonde = () => { window.__sonde++; requestAnimationFrame(sonde); }; requestAnimationFrame(sonde); for (const C of [window.WebGLRenderingContext, window.WebGL2RenderingContext]) if (C) for (const m of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced', 'drawRangeElements']) if (C.prototype[m]) C.prototype[m] = function () {}; });
@@ -254,6 +256,48 @@ const attendre = async (fn, ms = 10000) => { for (let t = 0; t < ms; t += 100) {
   await page.evaluate(() => { const st = window.__fournil.st; st.qualite = 'ultra'; st.images = 'turbo'; window.__fournil.save(); }); await sleep(500);
   await relancer(); e = await etat();
   check(e.qualite === 'auto' && e.images === 'economie' && e.choix === 'auto', `des valeurs inconnues : réparées en Auto et Économie (${JSON.stringify(e)})`);
+  check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
+
+  await ctx.close();
+
+  console.log('── l\'arrière-salle (BlackJack, roulette) : jamais bridée, même en Économie et en qualité Éco ──');
+  // un iPhone (finesse 3) en Économie (30 puis 10 images/s) et en qualité Éco (la boutique à 1 pixel par point), choisis dans les Réglages
+  ({ page, erreurs, cdp, ctx } = await ouvrir('?hd=0', null, 3));
+  await page.evaluate(() => window.__fournil.page('reglages')); await sleep(400);
+  await page.evaluate(() => { document.querySelector('#page-reglages [data-qualite="eco"]').click(); document.querySelector('#page-reglages [data-images="economie"]').click(); window.__fournil.page('boutique'); });
+  const vueScene = () => page.evaluate(() => { const c = document.querySelector('#scene'); return { palier: SCENE.palier || SCENE.stats.qualite, finesse: c.clientWidth ? c.width / c.clientWidth : 0 }; });
+  const sc0 = await vueScene();
+  check(await page.evaluate(() => window.__fournil.st.qualite === 'eco' && window.__fournil.st.images === 'economie') && sc0.palier === 'eco' && Math.abs(sc0.finesse - 1) < 0.02, `Économie et Éco choisis : la boutique est à 1 pixel par point (${JSON.stringify(sc0)})`);
+  check(await attendre(async () => (await cadence(page)).repos, 25000), 'la boutique passe au repos (10 images/s) après 15 s sans toucher');
+  const cR0 = await cadence(page);
+  check(cR0.cible === 10 && cR0.repos, `au repos dans la boutique : 10 images/s (${JSON.stringify(cR0)})`);
+  // la salle trouvée (la petite porte), le mot de la première fois lu au doigt
+  await page.evaluate(() => window.__fournil.ouvrirArriere()); await sleep(300);
+  if (await page.evaluate(() => !!document.querySelector('[data-ar="asseoir"]'))) { const [ax, ay] = await centre(page, '[data-ar="asseoir"]'); await toucher(cdp, ax, ay); await sleep(300); }
+  const cAr = await cadence(page);
+  check((await page.evaluate(() => window.__fournil.arriere().ouvert)) && cAr.cible === 0 && !cAr.repos, `la salle ouverte : aucune limite, pas de repos (${JSON.stringify(cAr)})`);
+  // sans toucher l'écran plus de 15 s : toujours à pleine cadence ; la boutique, cachée, ne se dessine pas
+  await sleep(16000);
+  const ar = await mesurer(page, 3000), cAr2 = await cadence(page);
+  check(cAr2.cible === 0 && !cAr2.repos && ar.images >= ar.raf * 0.85 && (ar.raf < 40 || ar.images > 40), `16 s sans toucher dans la salle : chaque rafraîchissement est traité, ~60 images/s, pas de repos à 10 (${fmt(ar)})`);
+  check(ar.rendus === 0, `la boutique cachée derrière ne se dessine pas (${ar.rendus.toFixed(1)} rendus/s) ; sa passe d'effets est rendue (${JSON.stringify(await page.evaluate(() => SCENE.stats.effets))})`);
+  // la roulette : sa roue 3D garde sa pleine finesse (2 pixels par point au plus, comme toujours), même en qualité Éco
+  { const [bx, by] = await centre(page, '.ar-bascule [data-table="roulette"]'); await toucher(cdp, bx, by); }
+  check(await attendre(() => page.evaluate(() => { const e = window.__fournil.arriere(); return e.table === 'roulette' && e.roulette.rendu === 'webgl'; }), 8000), 'la roulette ouverte, sa roue 3D bâtie');
+  await sleep(500);
+  const roue = await page.evaluate(() => { const c = document.querySelector('#ar-roue canvas'); return c ? { w: c.width, h: c.height, cw: c.clientWidth, ch: c.clientHeight, dpr: devicePixelRatio } : null; });
+  const sc1 = await vueScene();
+  check(roue && roue.cw > 100 && roue.w === Math.round(roue.cw * Math.min(2, roue.dpr)) && roue.h === Math.round(roue.ch * Math.min(2, roue.dpr)) && sc1.palier === 'eco', `la roue est nette : ${roue && `${roue.w} × ${roue.h} pixels pour ${roue.cw} × ${roue.ch} points (finesse ${roue.dpr})`}, la boutique restant en Éco (${JSON.stringify(sc1)})`);
+  const cAr3 = await cadence(page), arR = await mesurer(page, 2000);
+  check(cAr3.cible === 0 && !cAr3.repos && arR.images >= arR.raf * 0.85 && (arR.raf < 40 || arR.images > 40), `à la roulette aussi, pleine cadence (${fmt(arR)})`);
+  // refermée : la boutique reprend sa cadence (30 images/s en jouant, la scène de nouveau dessinée), puis son repos à 10
+  { const [fx, fy] = await centre(page, '#arriere [data-ar="fermer"]'); await toucher(cdp, fx, fy); } await sleep(300);
+  const cF = await cadence(page);
+  check(!(await page.evaluate(() => window.__fournil.arriere().ouvert)) && cF.cible === 30 && !cF.repos, `la salle refermée : la boutique revient à 30 images/s (${JSON.stringify(cF)})`);
+  await sleep(1200); // (la fenêtre d'une seconde des images comptées : sans celles de la salle, à pleine cadence)
+  const bq = await mesurer(page, 2000);
+  check(bq.rendus > 0 && bq.rendus <= 32 && bq.images <= 32 && (bq.raf < 55 || bq.rendus >= 25), `et la scène de la boutique est de nouveau rendue ~30 fois par seconde (${fmt(bq)})${charge(bq, 55)}`);
+  check(await attendre(async () => (await cadence(page)).repos, 25000) && (await cadence(page)).cible === 10, 'puis, 15 s sans toucher, son repos à 10 images/s');
   check(erreurs.length === 0, `aucune erreur dans la page (${erreurs.slice(0, 3).join(' | ')})`);
 
   for (const o of ouverts) await o.ctx.close().catch(() => {});
