@@ -53,8 +53,15 @@ function rangs(id) {
   return { rang_semaine: j.semaine === l ? tous.filter((a) => a.semaine === l && a.points > j.points).length + 1 : null, rang_total: tous.filter((a) => a.ptsTotal > j.ptsTotal).length + 1, points_semaine: j.semaine === l ? j.points : null, points_total: j.ptsTotal };
 }
 const versionFaux = () => (faux.v2 ? undefined : faux.v6 ? 6 : 3);
-function reponse(erreur, id) { const l = lundi(); return { ok: !erreur, erreur: erreur || null, version: versionFaux(), ...(erreur ? { rang_semaine: null, rang_total: null } : rangs(id)), joueurs: faux.joueurs.size, joueurs_total: faux.joueurs.size, joueurs_semaine: [...faux.joueurs.values()].filter((a) => a.semaine === l).length, semaine: l }; }
-const ptsDe = (c) => (Number.isInteger(c.p_points) && c.p_lundi === lundi() ? Math.min(510, c.p_points) : null); // les points de la semaine du serveur (les vrais plafonds : test SQL)
+// version 6.7 : la série de jours de suite (le jour de Paris du dernier envoi de points, jourPts ; ses points à part, bonus), rendue par la réponse
+const aujParis = () => CL.jourParis(Date.now()), hierParis = () => CL.jourParis(Date.parse(aujParis() + 'T12:00:00Z') - 864e5);
+const serieRep = (j) => (faux.v6 && j ? { serie: j.jourPts && j.jourPts >= hierParis() ? j.serie : 0, serie_auj: j.jourPts === aujParis(), serie_bonus: j.semaine === lundi() ? j.bonus || 0 : 0 } : {});
+function reponse(erreur, id) { const l = lundi(); return { ok: !erreur, erreur: erreur || null, version: versionFaux(), ...(erreur ? { rang_semaine: null, rang_total: null } : rangs(id)), joueurs: faux.joueurs.size, joueurs_total: faux.joueurs.size, joueurs_semaine: [...faux.joueurs.values()].filter((a) => a.semaine === l).length, semaine: l, ...(id ? serieRep(faux.joueurs.get(id)) : {}) }; }
+// les points de la semaine du serveur, sous le plafond du jour de la version 6.7 (137 × jours commencés + 50, 989 au plus ; les vrais plafonds : test SQL)
+const jourSemaine = () => Math.round((Date.parse(aujParis() + 'T12:00:00Z') - Date.parse(lundi() + 'T12:00:00Z')) / 864e5) + 1;
+const ptsDe = (c) => (Number.isInteger(c.p_points) && c.p_lundi === lundi() ? Math.min(989, 137 * jourSemaine() + 50, c.p_points) : null);
+// la série au premier envoi de points du jour : +1 si la veille avait un envoi, sinon 1 ; +10 au 3e jour, +20 au 7e, puis à chaque tour de 7 (CL.serieBonus)
+function serieAvance(j) { const a = aujParis(); if (j.jourPts === a) return; j.serie = j.jourPts === hierParis() ? (j.serie || 0) + 1 : 1; j.jourPts = a; const b = CL.serieBonus(j.serie); j.points += b; j.ptsTotal += b; j.bonus = (j.bonus || 0) + b; }
 const RPC = {
   fournil_publier: (c) => {
     if (!c.p_id || !/^[0-9A-Za-z_-]{32,128}$/.test(c.p_jeton || '')) return reponse('jeton');
@@ -65,16 +72,18 @@ const RPC = {
       if (j.jeton !== sha(c.p_jeton)) return reponse('jeton');
       if (Date.now() < j.maj + 10e3) return { ...reponse(null, c.p_id), ok: false, erreur: 'trop_vite' };
       if (pris(c.p_id)) return reponse('pseudo_pris');
-      if (j.semaine !== l) { j.gain = 0; j.points = 0; j.semaine = l; }
+      if (j.semaine !== l) { j.gain = 0; j.points = 0; j.bonus = 0; j.semaine = l; }
       const compte = Math.max(0, c.p_fortune - j.sommet); // (le vrai serveur plafonne aussi par le temps réel écoulé : test/fournil-classement-sql.cjs)
-      const p = faux.v2 ? null : ptsDe(c), pc = p == null ? 0 : Math.max(0, p - j.points);
+      const p = faux.v2 ? null : ptsDe(c), pc = p == null ? 0 : Math.max(0, p - (j.points - (j.bonus || 0))); // (les points de série, à part : le téléphone ne les connaît pas)
       j.sommet = Math.max(j.sommet, c.p_fortune); j.total += compte; j.gain += compte; j.points += pc; j.ptsTotal += pc; j.pseudo = pseudo; j.maj = Date.now();
+      if (p != null && faux.v6) serieAvance(j);
       if (faux.v6 && c.p_photo && JSON.stringify(c.p_photo).length <= 3072) faux.photos.set(c.p_id, c.p_photo); // gardée telle quelle (≤ 3 Ko), x et e compris
       return { ...reponse(null, c.p_id), compte, plafonne: false, points_comptes: pc, points_plafonnes: false, ...(faux.v6 ? { photo_maj: new Date().toISOString() } : {}) };
     }
     if (pris(null)) return reponse('pseudo_pris');
     const p0 = faux.v2 ? 0 : ptsDe(c) || 0;
     faux.joueurs.set(c.p_id, { jeton: sha(c.p_jeton), pseudo, sommet: c.p_fortune, total: 0, gain: 0, semaine: l, maj: Date.now(), points: p0, ptsTotal: p0 }); // l'argent part de zéro à l'arrivée, les points de la semaine comptent
+    if (faux.v6 && !faux.v2 && ptsDe(c) != null) serieAvance(faux.joueurs.get(c.p_id)); // version 6.7 : la série démarre à 1
     if (faux.v6 && c.p_photo && JSON.stringify(c.p_photo).length <= 3072) faux.photos.set(c.p_id, c.p_photo);
     return { ...reponse(null, c.p_id), compte: 0, plafonne: false, points_comptes: p0, points_plafonnes: false };
   },
@@ -511,6 +520,10 @@ const publies = () => faux.appels.filter((a) => a.nom === 'fournil_publier');
     await p6.evaluate(() => { window.__fournil.give(5e5); window.__fournil.meuble('four'); });
     const rj = await p6.evaluate(() => window.__fournil.classement().choisirPseudo('Lucas').then((r) => r.etat));
     const moiId = await p6.evaluate(() => window.__fournil.classement().etat().id);
+    { // version 6.7 : la série de jours de suite, comptée par le serveur, rendue par fournil_publier et lue par le vrai moteur dans la page
+      const se = await p6.evaluate(() => ({ r: window.__fournil.classement().resume().serie, e: window.__fournil.classement().etat().dernier.serie })), j = faux.joueurs.get(moiId);
+      check(rj === 'ok' && JSON.stringify(se.r) === JSON.stringify({ jours: 1, aujourdhui: true, bonus: 0, prochain: { jour: 3, points: 10, dans: 2 } }) && se.e && se.e.jours === 1 && se.e.auj === true && j && j.serie === 1,
+        `v6.7 : après l’envoi qui rejoint, __fournil.classement().resume().serie = ${JSON.stringify(se.r)} (le 1er jour de la série, le +10 au 3e jour dans 2 jours)`); }
     check(rj === 'ok' && faux.photos.has(moiId) && faux.photos.get(moiId).v === 1 && faux.photos.get(moiId).m.four >= 1 && CL.octetsJson(faux.photos.get(moiId)) <= 2048, `v6 : rejoindre envoie aussi la photo de sa boutique (p_photo, ${CL.octetsJson(faux.photos.get(moiId) || {})} octets ≤ 2 Ko)`);
     await p6.evaluate(() => window.__fournil.feuilleClassement('semaine'));
     await attendre(() => p6.evaluate(() => !!document.querySelector('#feuille-contenu .cl-liste') && !!document.querySelector('#feuille .obj-carte')));

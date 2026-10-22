@@ -30,6 +30,12 @@
 //     et la nouvelle borne compté, aucune donnée ne bouge ; le fichier complet porte le même tableau et le même code ; une Maison hantée déjà
 //     figée à trois sous la v6.5 reste lisible (joueurs : null) ; et dans le fichier complet, le classement final de l'événement jusqu'au
 //     15e : dix-sept joueurs, des ex æquo (au 2e et au 15e rang), le nombre de joueurs, le podium rendu à trois, le titre de la photo.
+//   · le patch v6.7 (supabase/fournil-classement-v67.sql, le barème du lot 7 : 137 points par jour, 989 la semaine, et la série de jours de
+//     suite comptée par le serveur) collé deux fois par-dessus la v6.6 telle que sur Supabase (test/fournil-classement-v66-complet.sql) :
+//     aucune donnée ne bouge, la requête de contrôle, la série jour par jour (deux envois le même jour, le 3e jour, un jour manqué, dimanche →
+//     lundi, « trop_vite », une autre semaine, sans points, l'inscription), les points de série jamais absorbés et comptés au rang, le
+//     tricheur borné à 1 019, ex æquo avec la joueuse parfaite ; puis le fichier complet recollé : le même code. Les joueurs honnêtes de
+//     test/longevite.js (rejoués avec G.pointsSemaine, plus haut) ne sont jamais plafonnés, la série en plus.
 //   · le chat (supabase/fournil-chat.sql, collé par-dessus la v6) : chaque erreur de l'envoi, 3 s et 60 par heure, le masquage au
 //     3e signalement, l'effacement, le bannissement, le ménage (images de 7 jours, au-delà des 2 000), la cascade du retrait, les droits.
 //   · les idées, les bugs et les votes (supabase/fournil-retours.sql, collé par-dessus la v6, les cadeaux et le chat) : chaque erreur
@@ -235,15 +241,15 @@ function trajectoirePoints(profil, jours, t0, cadence) {
   const CHAT_JEU = ['fournil_chat_effacer', 'fournil_chat_envoyer', 'fournil_chat_image', 'fournil_chat_lire', 'fournil_chat_signaler']; // le chat (supabase/fournil-chat.sql)
   const RETOURS_JEU = ['fournil_admin_moi', 'fournil_admin_retour_etat', 'fournil_admin_retour_image', 'fournil_admin_retours', 'fournil_admin_vote_creer', 'fournil_admin_vote_fermer',
     'fournil_retour_envoyer', 'fournil_voter', 'fournil_votes_ouverts']; // les idées, les bugs et les votes (supabase/fournil-retours.sql)
-  const INTERNES = ['fournil_borne', 'fournil_duree', 'fournil_empreinte', 'fournil_evt_borne', 'fournil_evt_figer', 'fournil_evts', 'fournil_figer', 'fournil_jeton_valable', 'fournil_jour', 'fournil_lundi', 'fournil_maintenant', 'fournil_paliers', 'fournil_points_plafond', 'fournil_pseudo_propre', 'fournil_quartier_borne', 'fournil_quartier_fenetre', 'fournil_quartier_figer', 'fournil_quartier_table', 'fournil_reponse', 'fournil_segment',
+  const INTERNES = ['fournil_borne', 'fournil_duree', 'fournil_empreinte', 'fournil_evt_borne', 'fournil_evt_figer', 'fournil_evts', 'fournil_figer', 'fournil_jeton_valable', 'fournil_jour', 'fournil_lundi', 'fournil_maintenant', 'fournil_paliers', 'fournil_points_plafond', 'fournil_pseudo_propre', 'fournil_serie_bonus', 'fournil_quartier_borne', 'fournil_quartier_fenetre', 'fournil_quartier_figer', 'fournil_quartier_table', 'fournil_reponse', 'fournil_segment',
     'fournil_annoncer', 'fournil_endpoint_valable', 'fournil_evt_titre', 'fournil_iso', 'fournil_joueur_verifie', 'fournil_notif_mettre', 'fournil_notif_permise', 'fournil_objectif_but', 'fournil_objectif_figer'];
   const TABLES = ['fournil_joueurs', 'fournil_palmares', 'fournil_semaines', 'fournil_portes', 'fournil_quartier_podium', 'fournil_evenements', 'fournil_evt_scores', 'fournil_evt_podium',
     'fournil_photos', 'fournil_pourboires', 'fournil_objectif', 'fournil_objectif_gagnants', 'fournil_abonnements', 'fournil_notif_prefs', 'fournil_notifs', 'fournil_annonces'];
   async function structure(quand) {
     titre(`structure et droits (${quand})`);
     const cols = await sup(`select column_name as c, data_type as t, is_nullable as n from information_schema.columns where table_schema = 'public' and table_name = 'fournil_joueurs' order by ordinal_position`);
-    const attendu = { id: 'uuid', jeton: 'text', pseudo: 'text', fortune: 'double precision', sommet: 'double precision', plausible: 'double precision', reserve: 'double precision', total: 'double precision', gain: 'double precision', semaine: 'date', cree: 'timestamp with time zone', maj: 'timestamp with time zone', points: 'integer', points_total: 'integer', points_jour: 'date', quartier: 'double precision', quartier_maj: 'timestamp with time zone', vu: 'timestamp with time zone', points_bonus: 'integer' };
-    check(cols.length === 19 && cols.every((c) => attendu[c.c] === c.t && c.n === (c.c === 'points_jour' || c.c === 'quartier_maj' || c.c === 'vu' ? 'YES' : 'NO')), `fournil_joueurs a les 19 colonnes du contrat (points de la semaine, depuis l'arrivée, jour du dernier envoi de points, billets du quartier et leur dernier envoi, dernier signe de vie, points des pourboires donnés), toutes « not null » sauf points_jour, quartier_maj et vu, sans l'ancienne base de la semaine (${cols.map((c) => c.c).join(', ')})`);
+    const attendu = { id: 'uuid', jeton: 'text', pseudo: 'text', fortune: 'double precision', sommet: 'double precision', plausible: 'double precision', reserve: 'double precision', total: 'double precision', gain: 'double precision', semaine: 'date', cree: 'timestamp with time zone', maj: 'timestamp with time zone', points: 'integer', points_total: 'integer', points_jour: 'date', quartier: 'double precision', quartier_maj: 'timestamp with time zone', vu: 'timestamp with time zone', points_bonus: 'integer', serie: 'integer' };
+    check(cols.length === 20 && cols.every((c) => attendu[c.c] === c.t && c.n === (c.c === 'points_jour' || c.c === 'quartier_maj' || c.c === 'vu' ? 'YES' : 'NO')), `fournil_joueurs a les 20 colonnes du contrat (points de la semaine, depuis l'arrivée, jour du dernier envoi de points, billets du quartier et leur dernier envoi, dernier signe de vie, points des pourboires donnés, et depuis la version 6.7 la série de jours de suite), toutes « not null » sauf points_jour, quartier_maj et vu, sans l'ancienne base de la semaine (${cols.map((c) => c.c).join(', ')})`);
     const colsDe = async (t) => (await sup(`select column_name as c from information_schema.columns where table_schema = 'public' and table_name = $1 order by ordinal_position`, [t])).map((c) => c.c).join();
     const colsP = await colsDe('fournil_palmares'), colsS = await colsDe('fournil_semaines'), colsPo = await colsDe('fournil_portes'), colsQ = await colsDe('fournil_quartier_podium'), colsE = await colsDe('fournil_evenements'), colsES = await colsDe('fournil_evt_scores'), colsEP = await colsDe('fournil_evt_podium');
     check(colsP === 'semaine,rang,id,pseudo,valeur,points' && colsS === 'semaine,figee,joueurs' && colsPo === 'empreinte,quand' && colsQ === 'id,rang,pseudo,valeur' && colsE === 'nom,figee,joueurs' && colsES === 'evt,id,valeur,maj' && colsEP === 'evt,id,rang,pseudo,valeur', `le palmarès (${colsP}), les semaines figées (${colsS}), les portes : une empreinte et une heure seulement (${colsPo}), le podium du quartier (${colsQ}), les événements figés (${colsE}), les scores des événements (${colsES}) et leurs podiums (${colsEP})`);
@@ -634,7 +640,8 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     const plafond = async (n) => (await sup('select public.fournil_points_plafond($1) as p', [n]))[0].p;
     check(await jourSQL('2026-10-11T21:59:59Z') === '2026-10-11' && await jourSQL('2026-10-11T22:00:00Z') === '2026-10-12' && await jourSQL('2026-10-25T22:59:59Z') === '2026-10-25' && await jourSQL('2026-10-25T23:00:00Z') === '2026-10-26', 'le jour se compte à Paris, heure d’été comme d’hiver');
     const pl = []; for (const k of [null, -3, 0, 1, 2, 3, 4, 5, 6, 7, 8, 30]) pl.push(await plafond(k));
-    check(JSON.stringify(pl) === JSON.stringify([160, 160, 160, 160, 220, 280, 340, 400, 460, 510, 510, 510]), `plafond du barème : 60 par jour commencé + 100 (défi 30 + Atelier 60 + marge 10), 510 au plus sur une semaine, sans marge : le maximum du jeu (${pl.join(', ')})`);
+    // (version 6.7, le barème du lot 7 : avant, 60 par jour commencé + 100, 510 au plus : 160, 220, 280, 340, 400, 460, 510)
+    check(JSON.stringify(pl) === JSON.stringify([187, 187, 187, 187, 324, 461, 598, 735, 872, 989, 989, 989]), `plafond du barème (version 6.7) : 137 par jour commencé + 50 (défi 30 + marge 20), 989 au plus sur une semaine, sans marge : le maximum du jeu (${pl.join(', ')})`);
     await vider();
     await heure('2026-10-12T08:00:00Z'); // lundi 12 octobre, 10 h à Paris
     const Pi = joueur(), Pr = joueur(), Pc = joueur(), Po = joueur(), Ph = joueur(), Pv = joueur();
@@ -648,16 +655,16 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     await avancer(11);
     r = await publierP(Pi, 'Pierre', 1e6, 500);
     l = await ligne(Pi.id);
-    check(r.ok && r.points_comptes === 120 && r.points_plafonnes === true && l.points === 160 && l.points_total === 160, `500 points un lundi : plafonnés à 160 (le maximum du barème sur un jour, défi et Atelier compris, + 10) (${l.points})`);
+    check(r.ok && r.points_comptes === 147 && r.points_plafonnes === true && l.points === 187 && l.points_total === 187, `500 points un lundi : plafonnés à 187 (le maximum du barème sur un jour, défi compris, + 20) (${l.points})`);
     await heure('2026-10-13T06:00:00Z'); // mardi 8 h
     r = await publierP(Pi, 'Pierre', 1e6, 500);
-    check(r.points_comptes === 60 && (await ligne(Pi.id)).points === 220, 'mardi, le même total renvoyé : le plafond a grandi d’un jour (220), le reste se compte au fil des jours');
+    check(r.points_comptes === 137 && (await ligne(Pi.id)).points === 324, 'mardi, le même total renvoyé : le plafond a grandi d’un jour (324), le reste se compte au fil des jours');
     await avancer(11);
     r = await publier(Pi, 'Pierre', 1e6 + 500, 'anon', pts(500, '2026-10-05'));
-    check(r.ok && r.points_comptes === 0 && r.compte === 500 && (await ligne(Pi.id)).points === 220, 'des points d’une autre semaine (téléphone en retard sur minuit) : ignorés ; son argent compte quand même');
+    check(r.ok && r.points_comptes === 0 && r.compte === 500 && (await ligne(Pi.id)).points === 324, 'des points d’une autre semaine (téléphone en retard sur minuit) : ignorés ; son argent compte quand même');
     await avancer(11);
     r = await publier(Pi, 'Pierre', 1e6 + 500, 'anon', pts(500, '2026-10-19'));
-    check(r.ok && r.points_comptes === 0 && (await ligne(Pi.id)).points === 220, 'des points de la semaine suivante (téléphone en avance) : ignorés');
+    check(r.ok && r.points_comptes === 0 && (await ligne(Pi.id)).points === 324, 'des points de la semaine suivante (téléphone en avance) : ignorés');
     await avancer(11);
     r = await publier(Pi, 'Pierre', 1e6 + 500, 'anon', pts(null, '2026-10-12'));
     check(r.ok && r.points_comptes === 0, 'un lundi sans points : rien');
@@ -667,40 +674,40 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     for (const [v, quoi] of [[-1, 'négatifs'], [100001, 'absurdes (100 001)']]) {
       await avancer(11);
       r = await publierP(Pi, 'Pierre', 1e6 + 600, v);
-      check(r.ok === false && r.erreur === 'valeur' && (await ligne(Pi.id)).points === 220, `des points ${quoi} : refusés (« valeur »), rien ne change`);
+      check(r.ok === false && r.erreur === 'valeur' && (await ligne(Pi.id)).points === 324, `des points ${quoi} : refusés (« valeur »), rien ne change`);
     }
     r = await refus('anon', `select public.fournil_publier(p_id => gen_random_uuid(), p_jeton => repeat('a', 64), p_pseudo => 'Flottant', p_fortune => 1, p_points => 12.5)`);
     check(r === 'accepté' || r === '22P02' || r === '42883', `des points à virgule : arrondis par Postgres ou refusés, jamais une erreur cachée (${r})`);
     await avancer(11);
     r = await publier(Pi, 'Pierre', 1e6 + 700);
-    check(r.ok && r.points_comptes === 0 && r.points_semaine === 220 && (await ligne(Pi.id)).points === 220, 'un téléphone de la version 2 (sans points) : ses points restent');
+    check(r.ok && r.points_comptes === 0 && r.points_semaine === 324 && (await ligne(Pi.id)).points === 324, 'un téléphone de la version 2 (sans points) : ses points restent');
     // seul le plafond depuis lundi borne la croissance : des envois rapprochés n'y ajoutent rien (pas de plafond « par envoi »
-    // qui se remettrait à zéro à chaque envoi), et un mardi on ne dépasse jamais 220, quel que soit le nombre d'envois
+    // qui se remettrait à zéro à chaque envoi), et un mardi on ne dépasse jamais 324, quel que soit le nombre d'envois
     await heure('2026-10-12T09:00:00Z');
     await publierP(Pr, 'Prudence', 10, 0);
     await heure('2026-10-13T09:00:00Z'); // mardi
     const vus = []; for (let k = 0; k < 4; k++) { await avancer(11); vus.push((await publierP(Pr, 'Prudence', 10, 400)).points_semaine); }
-    check(JSON.stringify(vus) === JSON.stringify([220, 220, 220, 220]), `0 point lundi, 400 mardi envoyés quatre fois de suite : 220 dès le premier envoi, jamais plus ce jour-là (${vus.join(', ')})`);
+    check(JSON.stringify(vus) === JSON.stringify([324, 324, 324, 324]), `0 point lundi, 400 mardi envoyés quatre fois de suite : 324 dès le premier envoi, jamais plus ce jour-là (${vus.join(', ')})`);
     await heure('2026-10-16T09:00:00Z'); // vendredi
     r = await publierP(Pr, 'Prudence', 10, 400);
-    check(r.points_comptes === 180 && r.points_plafonnes === false && r.points_semaine === 400, `vendredi, le reste se compte (plafond du vendredi : 400) (${r.points_semaine})`);
+    check(r.points_comptes === 76 && r.points_plafonnes === false && r.points_semaine === 400, `vendredi, le reste se compte (plafond du vendredi : 735) (${r.points_semaine})`);
     // toute une semaine hors ligne : rien n'est perdu
     await heure('2026-10-12T09:30:00Z');
     await publierP(Pc, 'Camille', 10, 5);
     await heure('2026-10-18T21:00:00Z'); // dimanche 23 h
-    r = await publierP(Pc, 'Camille', 10, 510);
-    check(r.points_comptes === 505 && r.points_plafonnes === false && (await ligne(Pc.id)).points === 510, 'une semaine entière sans réseau, le maximum du barème (510) envoyé dimanche soir : tout compte');
+    r = await publierP(Pc, 'Camille', 10, 989);
+    check(r.points_comptes === 984 && r.points_plafonnes === false && (await ligne(Pc.id)).points === 989, 'une semaine entière sans réseau, le maximum du barème (989) envoyé dimanche soir : tout compte');
     await avancer(11);
     r = await publierP(Pc, 'Camille', 10, 99999);
-    check(r.points_comptes === 0 && r.points_plafonnes === true && (await ligne(Pc.id)).points === 510, 'au-delà : jamais plus de 510 dans la semaine (le maximum du jeu)');
+    check(r.points_comptes === 0 && r.points_plafonnes === true && (await ligne(Pc.id)).points === 989, 'au-delà : jamais plus de 989 dans la semaine (le maximum du jeu ; la série de Camille est cassée : pas de bonus)');
     await heure('2026-10-19T07:00:00Z'); // lundi suivant
     r = await publierP(Pc, 'Camille', 10, 12);
     l = await ligne(Pc.id);
-    check(r.ok && l.points === 12 && l.points_total === 522 && l.semaine === '2026-10-19' && r.rang_semaine === 1, 'le lundi suivant : la semaine repart de 12 points, « Tous les temps » en compte 522');
+    check(r.ok && l.points === 12 && l.points_total === 1001 && l.semaine === '2026-10-19' && r.rang_semaine === 1, 'le lundi suivant : la semaine repart de 12 points, « Tous les temps » en compte 1 001');
     // arriver en milieu de semaine
     await heure('2026-10-22T10:00:00Z'); // jeudi
     r = await publierP(Po, 'Odile', 5, 300);
-    check(r.ok && r.points_comptes === 300 && r.points_total === 300, 'arriver un jeudi avec 300 points de la semaine : comptés (sous le plafond du jeudi, 340), « Tous les temps » compris');
+    check(r.ok && r.points_comptes === 300 && r.points_total === 300, 'arriver un jeudi avec 300 points de la semaine : comptés (sous le plafond du jeudi, 598), « Tous les temps » compris');
     await avancer(5);
     r = await publier(Ph, 'Hector', 5, 'anon', pts(300, '2026-10-12'));
     check(r.ok && r.points_comptes === 0 && (await ligne(Ph.id)).points === 0, 'arriver avec des points d’une semaine finie : rien');
@@ -720,15 +727,16 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     const Tri = joueur(), Max = joueur();
     await publierP(Tri, 'Tricheur', 5, 1e5);
     const suite = [];
-    for (let d = 0; d < 7; d++) { for (let k = 0; k < 6; k++) { await heure(Date.parse('2026-10-25T23:00:30Z') + d * 864e5 + k * 4 * 3600e3); r = await publierP(Tri, 'Tricheur', 5, 1e5); } suite.push((await ligne(Tri.id)).points); }
+    // (version 6.7 : la joueuse parfaite envoie chaque jour le maximum honnête, 137 par jour + le défi ; sa série compte comme celle du tricheur)
+    for (let d = 0; d < 7; d++) { for (let k = 0; k < 6; k++) { await heure(Date.parse('2026-10-25T23:00:30Z') + d * 864e5 + k * 4 * 3600e3); r = await publierP(Tri, 'Tricheur', 5, 1e5); if (k === 3) await publierP(Max, 'Parfaite', 5, Math.min(989, 137 * (d + 1) + 30)); } suite.push((await ligne(Tri.id)).points); }
     await heure('2026-11-01T22:00:00Z'); // dimanche 23 h
-    await publierP(Max, 'Parfaite', 5, 510);
+    await publierP(Max, 'Parfaite', 5, 989);
     const fin = await classement('semaine');
     // le même tricheur, avec une identité neuve, le dimanche soir : pas mieux
     const Tri2 = joueur();
     await heure('2026-11-01T22:00:30Z');
     r = await publierP(Tri2, 'Dimanche', 5, 99999);
-    check(r.ok && r.points_semaine === 510 && r.rang_semaine === 1 && (await classement('semaine')).lignes.every((x) => x.rang === 1 && x.points === 510), `inscrit le dimanche soir avec 99 999 points : 510, ex æquo avec la joueuse parfaite, jamais devant (${r.points_semaine})`);
+    check(r.ok && r.points_semaine === 989 && r.rang_semaine === 3 && (await classement('semaine')).lignes.map((x) => `${x.rang} ${x.points}`).join(', ') === '1 1019, 1 1019, 3 989', `inscrit le dimanche soir avec 99 999 points : 989 (le maximum du jeu, sans série), jamais devant la joueuse parfaite (${r.points_semaine})`);
     // des joueurs honnêtes (test/longevite.js), Atelier parfait le lundi matin : jamais plafonnés
     for (const [profil, t0, cadence] of [['assidu', Date.UTC(2026, 9, 11, 22), 300], ['regulier', Date.UTC(2027, 2, 21, 23), 60]]) {
       await vider();
@@ -742,11 +750,13 @@ function trajectoirePoints(profil, jours, t0, cadence) {
         if (lundi !== semAvant) { semAvant = lundi; } maxSem = Math.max(maxSem, points);
         void lundi; attendu = points;
       }
-      const fin = await ligne(Hj.id);
-      check(n > 50 && refus === 0 && plafonnes === 0 && fin.points === attendu, `${profil} (${LG_PROFILS[profil]} par jour, 14 jours dès le ${new Date(t0 + 12 * 3600e3).toISOString().slice(0, 10)}), envois toutes les ${cadence / 60} min : ${n} envois, aucun plafonné, ${fin.points_total} points comptés depuis l'arrivée (jusqu'à ${maxSem} dans une semaine)`);
+      const fin = await ligne(Hj.id), bonus = (await sup('select points_bonus as b, serie as s from public.fournil_joueurs where id = $1', [Hj.id]))[0];
+      // (version 6.7 : les points de la série, comptés par le serveur, sont à part dans points_bonus ; le téléphone renvoie les siens tels quels)
+      check(n > 50 && refus === 0 && plafonnes === 0 && fin.points - bonus.b === attendu && bonus.s === 14, `${profil} (${LG_PROFILS[profil]} par jour, 14 jours dès le ${new Date(t0 + 12 * 3600e3).toISOString().slice(0, 10)}), envois toutes les ${cadence / 60} min : ${n} envois, aucun plafonné, ${fin.points_total} points comptés depuis l'arrivée, série de 14 jours comprise (jusqu'à ${maxSem} dans une semaine, sans la série)`);
     }
-    check(JSON.stringify(suite) === JSON.stringify([160, 220, 280, 340, 400, 460, 510]) && fin.lignes.map((x) => `${x.rang} ${x.points}`).join(', ') === '1 510, 1 510',
-      `un tricheur qui envoie 100 000 points toutes les 4 h : ${suite.join(', ')} jour après jour, au mieux ex æquo avec la joueuse parfaite (${fin.lignes.map((x) => `${x.rang} ${x.pseudo} ${x.points}`).join(', ')})`);
+    // (version 6.7 : 137 par jour + 50, la série en plus : +10 le mercredi, +20 le dimanche ; avant : 160, 220, 280, 340, 400, 460, 510)
+    check(JSON.stringify(suite) === JSON.stringify([187, 324, 471, 608, 745, 882, 1019]) && fin.lignes.map((x) => `${x.rang} ${x.points}`).join(', ') === '1 1019, 1 1019',
+      `un tricheur qui envoie 100 000 points toutes les 4 h : ${suite.join(', ')} jour après jour, au mieux ex æquo avec la joueuse parfaite à 1 019 (989 + la série) (${fin.lignes.map((x) => `${x.rang} ${x.pseudo} ${x.points}`).join(', ')})`);
   }
 
   // ─── 13. le palmarès, les récompenses, la toque du podium ───
@@ -1053,7 +1063,7 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       [`insert into public.fournil_palmares (semaine, rang, id, pseudo, valeur) values (current_date, 1, gen_random_uuid(), 'Intrus', 1)`, 'se mettre au palmarès'],
     ];
     for (const t of TABLES) essais.push([`select * from public.${t}`, `lire ${t}`], [`delete from public.${t}`, `effacer dans ${t}`]);
-    for (const f of ['fournil_maintenant()', 'fournil_lundi(now())', `fournil_pseudo_propre('x')`, `fournil_jeton_valable('x')`, `fournil_empreinte('x')`, 'fournil_paliers()', 'fournil_segment(1)', 'fournil_duree(1, 2)', 'fournil_borne(1, 2)', 'fournil_figer(current_date)', 'fournil_reponse(null, null, current_date, null, null, null, null)', 'fournil_jour(now())', 'fournil_points_plafond(1)'])
+    for (const f of ['fournil_maintenant()', 'fournil_lundi(now())', `fournil_pseudo_propre('x')`, `fournil_jeton_valable('x')`, `fournil_empreinte('x')`, 'fournil_paliers()', 'fournil_segment(1)', 'fournil_duree(1, 2)', 'fournil_borne(1, 2)', 'fournil_figer(current_date)', 'fournil_reponse(null, null, current_date, null, null, null, null)', 'fournil_jour(now())', 'fournil_points_plafond(1)', 'fournil_serie_bonus(3)'])
       essais.push([`select public.${f}`, `appeler ${f.replace(/\(.*/, '')}`]);
     for (const [sql, quoi] of essais) {
       const err = await refus(role, sql);
@@ -1174,6 +1184,15 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     check(c.etat === 'ok' && c.data.version === V && lA && lA.points === 40 && lA.valeur === 5000 && lA.moi === true && lA.podium === null && c.data.moi && c.data.moi.rang === 1 && c.data.moi.points === 40 && c.data.moi.podium === null && c.data.semaine === '2027-05-31',
       `« Tous les temps » lu par le téléphone : A 1er avec 40 points (et 5 000 € gagnés depuis l’arrivée), pas encore de toque, semaine du ${c.data && c.data.semaine}`);
     check(A.resume().semaine && A.resume().semaine.rang === 1 && A.resume().semaine.points === 40 && B.resume().semaine.rang === 2, 'le résumé du téléphone (ce que montre l’icône du classement) : A 1er cette semaine avec 40 points, B 2e');
+    // version 6.7 : la série de jours de suite, comptée par le serveur, lue par le vrai moteur (resume().serie, que montre la feuille des points)
+    check(JSON.stringify(A.resume().serie) === JSON.stringify({ jours: 1, aujourdhui: true, bonus: 0, prochain: { jour: 3, points: 10, dans: 2 } }) && JSON.stringify(A.etat().dernier.serie) === JSON.stringify({ jours: 1, auj: true, bonus: 0, lundi: '2027-05-31', jour: '2027-06-02', quand: horloge }),
+      `la série lue par le vrai moteur après un envoi : resume().serie = ${JSON.stringify(A.resume().serie)} (1er jour, le +10 au 3e jour, dans 2 jours)`);
+    await heure('2027-06-03T09:00:00Z'); points.A = 60;
+    a = await A.envoyer('feuille');
+    await heure('2027-06-04T09:00:00Z'); points.A = 80;
+    a = await A.envoyer('feuille');
+    check(a.etat === 'ok' && a.data.serie === 3 && a.data.serie_auj === true && a.data.serie_bonus === 10 && a.data.points_semaine === 90 && JSON.stringify(A.resume().serie) === JSON.stringify({ jours: 3, aujourdhui: true, bonus: 10, prochain: { jour: 7, points: 20, dans: 4 } }) && A.resume().semaine.points === 90,
+      `jeudi et vendredi : le 3e jour de suite, +10 comptés par le serveur (80 points du téléphone + 10 = ${a.data.points_semaine}) ; resume().serie = ${JSON.stringify(A.resume().serie)}`);
     // la semaine finit : au lundi, le palmarès est figé ; le téléphone lit ses récompenses, sa tenue, sa coupe, et la toque dans la liste
     await heure('2027-06-07T08:00:00Z');
     const rA = await A.chargerRecompenses({ ecart: 0 }), rB = await B.chargerRecompenses({ ecart: 0 });
@@ -2135,6 +2154,9 @@ function trajectoirePoints(profil, jours, t0, cadence) {
     };
     const T62 = lireTables(P62), T63 = lireTables(P63), T64 = lireTables(P64), TF = lireTables(SQL);
     const V66_FNS = ['fournil_classement', 'fournil_evt_figer', 'fournil_recompenses']; // les fonctions que la v6.6 remplace, en plus de fournil_evts() (les acharnés de la Maison hantée)
+    const V67_FNS = ['fournil_points_plafond', 'fournil_publier', 'fournil_reponse', 'fournil_serie_bonus']; // celles que la v6.7 remplace ou ajoute (le barème du lot 7 et la série), comparées à part, au patch v6.7
+    // la ligne d'un joueur sans la colonne serie (version 6.7) : le fichier complet recollé par-dessus une version d'avant l'ajoute (0 pour tous), rien d'autre ne bouge
+    const sansSerie = (t) => (t === 'fournil_joueurs' ? `to_jsonb(x) - 'serie'` : 'x');
     const memes = (a, b) => Array.isArray(a) && Array.isArray(b) && a.length === b.length && a.every((x, k) => x === b[k]);
     const SQL6 = TF.qBrut && TF.hBrut ? SQL.split(`'${TF.qBrut}'`).join(`'{${Q6.join(',')}}'`).split(`'${TF.hBrut}'`).join(`'{${H6.join(',')}}'`) : SQL;
     const JOUR = 86400e3, PAS_H = 6 * 3600e3;
@@ -2308,11 +2330,11 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       const rec = (j, role = 'anon') => c5('select public.fournil_recompenses(p_id => $1, p_jeton => $2) as r', [j.id, j.jeton], role);
       const ab = (j, k) => c5('select public.fournil_abonner(p_id => $1, p_jeton => $2, p_sub => $3::jsonb) as r', [j.id, j.jeton, JSON.stringify({ endpoint: `https://fcm.googleapis.com/fcm/send/v65-${k}`, keys: { p256dh: 'B' + 'Q'.repeat(86), auth: 'a'.repeat(22) } })]);
       const pal5 = async (s) => (await s5(`select rang, pseudo from public.fournil_palmares where semaine = $1 order by rang, lower(pseudo)`, [s])).map((x) => `${x.rang} ${x.pseudo}`).join(', ');
-      const photo5 = async () => { const o = {}; for (const t of TABLES) o[t] = (await s5(`select coalesce(json_agg(x order by x::text), '[]')::text as j from (select ${t === 'fournil_semaines' ? 'semaine, figee' : t === 'fournil_evenements' ? 'nom, figee' : '*'} from public.${t}) x`))[0].j; return JSON.stringify(o); }; // (fournil_evenements.joueurs : la colonne de la v6.6, que le fichier complet ajoute)
+      const photo5 = async () => { const o = {}; for (const t of TABLES) o[t] = (await s5(`select coalesce(json_agg(${sansSerie(t)} order by x::text), '[]')::text as j from (select ${t === 'fournil_semaines' ? 'semaine, figee' : t === 'fournil_evenements' ? 'nom, figee' : '*'} from public.${t}) x`))[0].j; return JSON.stringify(o); }; // (fournil_evenements.joueurs : la colonne de la v6.6, que le fichier complet ajoute)
       const ouvertes5 = async () => (await s5(`select string_agg(p.proname, ',' order by p.proname) as l from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and has_function_privilege('anon', p.oid, 'execute')`))[0].l;
       const corps5 = async () => JSON.stringify(await s5(`select p.proname, pg_get_function_identity_arguments(p.oid) as args, md5(p.prosrc) as m, p.provolatile as vol, p.prosecdef as definer, array_to_string(p.proconfig, ',') as conf,
           has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth
-        from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and p.proname not in ('fournil_quartier_table', 'fournil_evts', 'fournil_maintenant', ${V66_FNS.map((n) => `'${n}'`).join(', ')}) order by 1, 2`)); // (fournil_maintenant : l'horloge du banc d'essai ; les fonctions que la v6.6 remplace : comparées plus bas, au patch v6.6)
+        from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and p.proname not in ('fournil_quartier_table', 'fournil_evts', 'fournil_maintenant', ${[...V66_FNS, ...V67_FNS].map((n) => `'${n}'`).join(', ')}) order by 1, 2`)); // (fournil_maintenant : l'horloge du banc d'essai ; les fonctions que la v6.6 et la v6.7 remplacent : comparées plus bas, aux patchs v6.6 et v6.7)
       try { await coller5(V64C); await coller5(P64); check(true, 'la v6.4 telle que sur Supabase s’installe (le fichier complet d’avant la 6.5, puis le patch v6.4)'); } catch (err) { check(false, 'la v6.4 s’installe : ' + err.message); }
       // sous la v6.4 : cinq joueurs, une semaine figée à trois, un pourboire et un objectif réussi pas encore lus
       await horloge5('2027-03-03T10:00:00Z'); // mercredi, la semaine du lundi 1er mars (heure d'hiver)
@@ -2366,9 +2388,9 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       // le fichier complet recollé par-dessus : le même code (sauf les deux tables, à l'agent des événements), les mêmes données
       const [codeAvant, donnees2] = [await corps5(), await photo5()];
       try { await coller5(SQL); check(true, 'puis le fichier complet (supabase/fournil-classement.sql) se colle par-dessus la v6.5'); } catch (err) { check(false, 'le fichier complet se colle par-dessus la v6.5 : ' + err.message); }
-      check(await corps5() === codeAvant, `le fichier complet et le patch v6.5 installent le même code : chaque fonction (hors fournil_quartier_table et fournil_evts, à l’agent des événements, et ${V66_FNS.join(', ')}, que la v6.6 remplace), ses paramètres, sa volatilité, ses droits`);
+      check(await corps5() === codeAvant, `le fichier complet et le patch v6.5 installent le même code : chaque fonction (hors fournil_quartier_table et fournil_evts, à l’agent des événements, et ${V66_FNS.join(', ')}, que la v6.6 remplace), ses paramètres, sa volatilité, ses droits (et ${V67_FNS.join(', ')}, que la v6.7 remplace ou ajoute)`);
       await horloge5(h5);
-      check(await photo5() === donnees2, 'et les données ne bougent pas');
+      check(await photo5() === donnees2 && (await s5('select count(*)::int as n from public.fournil_joueurs where serie <> 0'))[0].n === 0, 'et les données ne bougent pas (la colonne serie de la v6.7 en plus, à 0)');
       await d5.close();
     }
 
@@ -2417,10 +2439,10 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       const pubE = (j, pseudo, score, photo) => c6('select public.fournil_publier(p_id => $1, p_jeton => $2, p_pseudo => $3, p_fortune => $4, p_points => $5, p_lundi => $6, p_evt => $7, p_score => $8, p_photo => $9::jsonb) as r', [j.id, j.jeton, pseudo, '1000', '10', lundiDe(h6), 'hantee', String(score), photo ? JSON.stringify(photo) : null]);
       const rec6 = (j) => c6('select public.fournil_recompenses(p_id => $1, p_jeton => $2) as r', [j.id, j.jeton]);
       const cl6 = (j) => c6('select public.fournil_classement(p_periode => $1, p_id => $2) as r', ['hantee', j.id]);
-      const photo6 = async () => { const o = {}; for (const t of TABLES) o[t] = (await s6(`select coalesce(json_agg(x order by x::text), '[]')::text as j from (select ${t === 'fournil_evenements' ? 'nom, figee' : '*'} from public.${t}) x`))[0].j; return JSON.stringify(o); };
+      const photo6 = async () => { const o = {}; for (const t of TABLES) o[t] = (await s6(`select coalesce(json_agg(${sansSerie(t)} order by x::text), '[]')::text as j from (select ${t === 'fournil_evenements' ? 'nom, figee' : '*'} from public.${t}) x`))[0].j; return JSON.stringify(o); };
       const corps6 = async () => JSON.stringify(await s6(`select p.proname, pg_get_function_identity_arguments(p.oid) as args, md5(p.prosrc) as m, p.provolatile as vol, p.prosecdef as definer, array_to_string(p.proconfig, ',') as conf,
           has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth
-        from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and p.proname not in ('fournil_maintenant', 'fournil_quartier_table', 'fournil_evts') order by 1, 2`)); // (les deux tableaux : comparés plus haut, valeur par valeur)
+        from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and p.proname not in ('fournil_maintenant', 'fournil_quartier_table', 'fournil_evts', ${V67_FNS.map((n) => `'${n}'`).join(', ')}) order by 1, 2`)); // (les deux tableaux : comparés plus haut, valeur par valeur ; les fonctions de la v6.7 : comparées au patch v6.7)
       try { await coller6(V64C); await coller6(P64); await coller6(P65); check(true, 'la v6.5 telle que sur Supabase s’installe (le fichier complet d’avant la 6.5, les patchs v6.4 et v6.5)'); } catch (err) { check(false, 'la v6.5 s’installe : ' + err.message); }
       // sous la v6.5 : cinq joueurs dans la Maison hantée, figée après la fin à trois
       await horloge6(HT.DEBUT + 2 * 864e5);
@@ -2451,9 +2473,134 @@ function trajectoirePoints(profil, jours, t0, cadence) {
       const [codeAvant, donnees2] = [await corps6(), await photo6()];
       try { await coller6(SQL); check(true, 'puis le fichier complet (supabase/fournil-classement.sql) se colle par-dessus la v6.6'); } catch (err) { check(false, 'le fichier complet se colle par-dessus la v6.6 : ' + err.message); }
       await horloge6(h6);
-      check(await corps6() === codeAvant, `le fichier complet et la v6.5 + v6.6 installent le même code : chaque fonction (${V66_FNS.join(', ')} compris), ses paramètres, sa volatilité, ses droits`);
-      check(await photo6() === donnees2, 'et les données ne bougent pas');
+      check(await corps6() === codeAvant, `le fichier complet et la v6.5 + v6.6 installent le même code : chaque fonction (${V66_FNS.join(', ')} compris ; hors ${V67_FNS.join(', ')}, que la v6.7 remplace ou ajoute), ses paramètres, sa volatilité, ses droits`);
+      check(await photo6() === donnees2 && (await s6('select count(*)::int as n from public.fournil_joueurs where serie <> 0'))[0].n === 0, 'et les données ne bougent pas (la colonne serie de la v6.7 en plus, à 0)');
       await d6.close();
+    }
+
+    // ─── la version 6.7 (supabase/fournil-classement-v67.sql) : le barème du lot 7 (137 par jour, 989 la semaine) et la série de jours de
+    // suite, collée deux fois par-dessus la v6.6 telle qu'elle est sur Supabase (test/fournil-classement-v66-complet.sql, le fichier complet
+    // d'avant la 6.7) : aucune donnée ne bouge, la série se construit aux envois suivants ; puis le fichier complet recollé : le même code
+    {
+      const P67 = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'fournil-classement-v67.sql'), 'utf8');
+      const V66C = fs.readFileSync(path.join(__dirname, 'fournil-classement-v66-complet.sql'), 'utf8');
+      titre('la version 6.7 : les points au-delà d’une heure de jeu et la série de jours de suite, collée par-dessus la v6.6');
+      check(/^-- ═+\n--  Le Fournil — le classement, version 6\.7/.test(P67) && /^begin;$/m.test(P67) && /^commit;$/m.test(P67) && /À coller AVANT la mise en ligne du jeu du lot 7/.test(P67),
+        'le patch v6.7 : l’en-tête (à coller AVANT la mise en ligne du jeu du lot 7), begin/commit');
+      { const hors = P67.replace(/--[^\n]*/g, '').replace(/create or replace function[\s\S]*?\n\$\$;/g, ''), fns = [...P67.matchAll(/create or replace function public\.(\w+)\(/g)].map((m) => m[1]).sort();
+        const alters = hors.match(/alter table[^;]*;/gi) || [], grants = hors.match(/\bgrant [^;]*;/gi) || [], revokes = hors.match(/\brevoke [^;]*;/gi) || [];
+        check(JSON.stringify(fns) === JSON.stringify([...V67_FNS].sort()) && !/\b(insert|update|delete|truncate|drop)\b/i.test(hors) && !/create\s+(table|index|schema|role|trigger|policy)/i.test(hors)
+          && alters.length === 1 && /^alter table public\.fournil_joueurs add column if not exists serie integer not null default 0;$/.test(alters[0])
+          && grants.length === 1 && /fournil_publier\(.*\) to anon, authenticated;$/.test(grants[0]) && revokes.length === 4,
+          `le patch remplace ${fns.join(', ')} (${fns.length} fonctions), ajoute la colonne serie (${alters.length} alter), ferme les fonctions internes et redonne fournil_publier à anon et authenticated (${revokes.length} revoke, ${grants.length} grant) ; hors du code des fonctions, aucune donnée écrite, rien de supprimé`); }
+      const d7 = await PGlite.create();
+      const s7 = async (sql, p) => (await d7.query(sql, p)).rows;
+      const c7 = async (sql, p, role = 'anon') => { await d7.exec(`set role ${role}`); try { return (await d7.query(sql, p)).rows[0].r; } finally { await d7.exec('reset role'); } };
+      const refus7 = async (role, sql) => { try { await c7(sql, [], role); return false; } catch (err) { return true; } };
+      const coller7 = async (t) => { await d7.exec('set role proprio'); try { return await d7.exec(t); } finally { await d7.exec('reset role'); } };
+      await d7.exec(`
+        create role anon nologin noinherit; create role authenticated nologin noinherit; create role service_role nologin noinherit bypassrls;
+        create role proprio nologin createrole;
+        grant usage, create on schema public to proprio;
+        grant usage on schema public to anon, authenticated, service_role;
+        set role proprio;
+        alter default privileges in schema public grant all on tables to anon, authenticated, service_role;
+        alter default privileges in schema public grant all on functions to anon, authenticated, service_role;
+        alter default privileges in schema public grant all on sequences to anon, authenticated, service_role;
+        reset role;
+        create schema banc; create table banc.horloge (t timestamptz); insert into banc.horloge values (null);
+        grant usage on schema banc to proprio; grant select on banc.horloge to proprio;`);
+      let h7 = 0;
+      const horloge7 = async (ms) => { h7 = ms; await s7(`create or replace function public.fournil_maintenant() returns timestamptz language sql stable set search_path = '' as $$ select coalesce((select t from banc.horloge limit 1), now()) $$`); await s7('update banc.horloge set t = $1', [new Date(ms).toISOString()]); };
+      // un envoi du téléphone : ses points de la semaine (null : un vieux téléphone, sans points) et le lundi de ces points (par défaut : celui de l'horloge)
+      const pub7 = (j, pseudo, points, lundi) => c7('select public.fournil_publier(p_id => $1, p_jeton => $2, p_pseudo => $3, p_fortune => $4, p_points => $5, p_lundi => $6) as r',
+        [j.id, j.jeton, pseudo, '1000', points == null ? null : String(points), points == null ? null : lundi || lundiDe(h7)]);
+      const cl7 = (j, periode = 'semaine') => c7('select public.fournil_classement(p_periode => $1, p_id => $2) as r', [periode, j.id]);
+      const photo7 = async (sans) => { const o = {}; for (const t of TABLES) o[t] = (await s7(`select coalesce(json_agg(${sans ? sansSerie(t) : 'x'} order by x::text), '[]')::text as j from (select * from public.${t}) x`))[0].j; return JSON.stringify(o); };
+      const contrat7 = async (sans) => JSON.stringify(await s7(`select p.proname as nom, pg_get_function_identity_arguments(p.oid) as args, pg_get_function_result(p.oid) as rend, l.lanname as langage, p.provolatile as vol, p.prosecdef as definer,
+          array_to_string(p.proconfig, ',') as conf, pg_get_userbyid(p.proowner) as proprio, has_function_privilege('anon', p.oid, 'execute') as anon,
+          has_function_privilege('authenticated', p.oid, 'execute') as auth, has_function_privilege('service_role', p.oid, 'execute') as service
+        from pg_proc p join pg_language l on l.oid = p.prolang where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' ${sans ? `and p.proname <> '${sans}'` : ''} order by 1, 2`));
+      const corps7 = async () => JSON.stringify(await s7(`select p.proname, pg_get_function_identity_arguments(p.oid) as args, md5(p.prosrc) as m, p.provolatile as vol, p.prosecdef as definer, array_to_string(p.proconfig, ',') as conf,
+          has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth
+        from pg_proc p where p.pronamespace = 'public'::regnamespace and p.proname like 'fournil%' and p.proname <> 'fournil_maintenant' order by 1, 2`)); // (fournil_maintenant : l'horloge du banc d'essai)
+      const ligne7 = async (j) => (await s7('select points, points_total, points_bonus, points_jour::text as jour, serie from public.fournil_joueurs where id = $1', [j.id]))[0];
+      try { await coller7(V66C); check(true, 'la v6.6 telle que sur Supabase s’installe (le fichier complet d’avant la 6.7)'); } catch (err) { check(false, 'la v6.6 s’installe : ' + err.message); }
+      // sous la v6.6 : trois joueurs, des points lundi et mardi (Ana plafonnée à 220 par l'ancien barème), une semaine figée, une photo, un pourboire
+      const L7 = Date.parse('2026-11-01T23:00:00Z'); // lundi 2 novembre 2026, minuit à Paris (heure d'hiver)
+      const [An, Ba7, Co] = [joueur(), joueur(), joueur()];
+      await horloge7(L7 - 3 * 864e5 + 9 * 3600e3); for (const [j, p, k] of [[An, 'Ana', 50], [Ba7, 'Basile', 40], [Co, 'Coline', 30]]) await pub7(j, p, k); // le vendredi d'avant : une semaine au palmarès
+      await horloge7(L7 + 9 * 3600e3); for (const [j, p, k] of [[An, 'Ana', 100], [Ba7, 'Basile', 80], [Co, 'Coline', 60]]) await pub7(j, p, k);
+      await c7('select public.fournil_publier(p_id => $1, p_jeton => $2, p_pseudo => $3, p_fortune => $4, p_photo => $5::jsonb) as r', [Ba7.id, Ba7.jeton, 'Basile', '1000', JSON.stringify({ nom: 'Chez Basile' })]);
+      await c7('select public.fournil_pourboire(p_id => $1, p_jeton => $2, p_pour => $3) as r', [An.id, An.jeton, 'Basile']);
+      await horloge7(L7 + 864e5 + 9 * 3600e3); let r = await pub7(An, 'Ana', 400);
+      check(r.ok && r.points_semaine === 220 && r.points_plafonnes === true && r.serie === undefined && (await s7('select count(*)::int as n from public.fournil_palmares'))[0].n === 3,
+        `en v6.6, mardi : Ana envoie 400 points, plafonnés à 220 par l’ancien barème (60 × 2 + 100) ; la réponse ne connaît pas la série ; une semaine au palmarès`);
+      const [dAvant, cAvant] = [await photo7(true), await contrat7()]; // (sans la colonne serie, que le patch ajoute)
+      let res = null;
+      try { res = await coller7(P67); res = await coller7(P67); check(true, 'le patch v6.7 se colle par-dessus la v6.6, puis se recolle sans casse (rôle propriétaire, droits par défaut de Supabase)'); } catch (err) { check(false, 'le patch v6.7 se colle par-dessus la v6.6 : ' + err.message); }
+      check(await photo7(true) === dAvant && (await s7('select count(*)::int as n from public.fournil_joueurs where serie <> 0'))[0].n === 0, `rien ne bouge dans les données (les ${TABLES.length} tables : joueurs, points, palmarès, photo, pourboire…), aucun point effacé ; la colonne serie part de 0 pour tous`);
+      check(await contrat7('fournil_serie_bonus') === cAvant, 'le contrat des fonctions est inchangé (les mêmes signatures, types rendus, langage, volatilité, search_path, propriétaire et droits), fournil_serie_bonus en plus');
+      { const b = (await s7(`select p.provolatile as vol, p.prosecdef as definer, array_to_string(p.proconfig, ',') as conf, has_function_privilege('anon', p.oid, 'execute') as anon, has_function_privilege('authenticated', p.oid, 'execute') as auth from pg_proc p where p.proname = 'fournil_serie_bonus'`))[0];
+        check(b && b.vol === 'i' && b.conf === 'search_path=""' && !b.anon && !b.auth && await refus7('anon', 'select public.fournil_serie_bonus(3) as r') && await refus7('authenticated', 'select public.fournil_points_plafond(1) as r') && await refus7('anon', 'select public.fournil_reponse(null, null, current_date, null, null, null, null) as r'),
+          'fournil_serie_bonus : immutable, search_path fixé, interne (refusée à anon et authenticated, comme fournil_points_plafond et fournil_reponse)'); }
+      { const l = res && res[res.length - 1] && res[res.length - 1].rows[0];
+        check(!!l && res[res.length - 1].rows.length === 1 && Object.keys(l).join() === 'plafond_lundi,plafond_semaine,colonne_serie,bonus_serie_1_a_14,joueurs_en_serie' && l.plafond_lundi === 187 && l.plafond_semaine === 989 && l.colonne_serie === true
+          && JSON.stringify(l.bonus_serie_1_a_14) === JSON.stringify([0, 0, 10, 0, 0, 0, 20, 0, 0, 10, 0, 0, 0, 20]) && Number(l.joueurs_en_serie) === 0,
+          `la requête de contrôle rend une ligne : plafond_lundi 187, plafond_semaine 989, colonne_serie, bonus_serie_1_a_14 {${l && l.bonus_serie_1_a_14}}, joueurs_en_serie ${l && l.joueurs_en_serie}`); }
+      // mardi encore, sous la v6.7 : le reste d'Ana se compte (le plafond du mardi est 324) ; la série démarre à son envoi suivant
+      await horloge7(L7 + 864e5 + 15 * 3600e3); r = await pub7(An, 'Ana', 400);
+      check(r.ok && r.points_semaine === 324 && r.points_comptes === 104 && r.points_plafonnes === true && r.serie === 0 && r.serie_auj === true && r.serie_bonus === 0,
+        `mardi après-midi, en v6.7 : le même total renvoyé, 324 (le nouveau plafond du mardi) ; mardi a déjà eu son envoi de points sous la v6.6 : la série, partie de 0, ne compte pas ce jour-là (${JSON.stringify({ s: r.points_semaine, serie: r.serie })})`);
+      await horloge7(L7 + 2 * 864e5 + 9 * 3600e3); r = await pub7(An, 'Ana', 400);
+      check(r.ok && r.points_semaine === 400 && r.serie === 1 && r.serie_auj === true, `mercredi : le reste compte (400, sous le plafond du mercredi, 461) et sa série démarre (${r.serie})`);
+      // la série d'une joueuse honnête : lundi, mardi, mercredi (+10), jeudi, (vendredi absente), samedi (repart à 1), dimanche, lundi suivant…
+      const L8 = L7 + 7 * 864e5, H = joueur(), vus = [];
+      for (const [d, p] of [[0, 50], [1, 120], [2, 200], [3, 260], [5, 300], [6, 350], [7, 40], [8, 90], [9, 150]]) {
+        await horloge7(L8 + d * 864e5 + 9 * 3600e3); await pub7(H, 'Honnête', p);
+        await horloge7(L8 + d * 864e5 + 15 * 3600e3); const r2 = await pub7(H, 'Honnête', p + 5); vus.push(`${r2.serie}${r2.serie_auj ? '' : '?'}:${r2.points_semaine}/${r2.serie_bonus}`);
+      }
+      check(vus.join(' ') === '1:55/0 2:125/0 3:215/10 4:275/10 1:315/10 2:365/10 3:55/10 4:105/10 5:165/10',
+        `la série jour par jour (série : points de la semaine / points de série) : ${vus.join('  ')} — +10 au 3e jour (une fois, malgré deux envois par jour), cassée par un vendredi sans envoi (elle repart à 1 samedi), elle continue de dimanche à lundi et le +10 tombe dans la nouvelle semaine ; le téléphone qui renvoie son total n’absorbe pas les points de série`);
+      { const l = await ligne7(H), G7 = joueur(); await pub7(G7, 'Gaspard', 160); const c = await cl7(H), t = await cl7(H, 'total');
+        check(l.points === 165 && l.points_bonus === 10 && l.points_total === 530 && l.serie === 5 && c.moi.rang === 1 && c.moi.points === 165 && c.lignes.map((x) => `${x.rang} ${x.pseudo} ${x.points}`).join(', ') === '1 Honnête 165, 2 Gaspard 160' && t.moi.points === 530,
+          `les points de série comptent au classement : Honnête 155 du téléphone + 10 de série = 165, devant Gaspard (160) ; « Tous les temps » 530 (365 + 165) (${c.lignes.map((x) => `${x.rang} ${x.pseudo} ${x.points}`).join(', ')})`); }
+      // ce qui ne fait pas avancer la série : un envoi « trop_vite », des points d'une autre semaine, un vieux téléphone sans points
+      r = await pub7(H, 'Honnête', 1000);
+      check(r.ok === false && r.erreur === 'trop_vite' && r.serie === 5 && r.serie_auj === true && r.serie_bonus === 10 && (await ligne7(H)).serie === 5 && (await ligne7(H)).points === 165, `« trop_vite » (moins de 10 s après) : rien ne bouge, la réponse redonne la série (${r.serie})`);
+      await horloge7(L8 + 10 * 864e5 + 9 * 3600e3); r = await pub7(H, 'Honnête', 900, '2026-11-09');
+      check(r.ok && r.points_comptes === 0 && r.serie === 5 && r.serie_auj === false && (await ligne7(H)).jour === '2026-11-18', `jeudi, des points d’une autre semaine (téléphone en retard) : ignorés, la série n’avance pas (5, pas encore aujourd’hui)`);
+      await horloge7(h7 + 20e3); r = await pub7(H, 'Honnête', null);
+      check(r.ok && r.serie === 5 && r.serie_auj === false && (await ligne7(H)).serie === 5, 'un vieux téléphone (sans points) : la série n’avance pas');
+      await horloge7(h7 + 20e3); r = await pub7(H, 'Honnête', 200);
+      check(r.ok && r.serie === 6 && r.serie_auj === true && r.points_semaine === 210, `puis de vrais points : 6e jour de suite (${r.serie}), 200 + 10 = ${r.points_semaine}`);
+      await horloge7(L8 + 13 * 864e5 + 9 * 3600e3); r = await pub7(H, 'Honnête', null);
+      check(r.ok && r.serie === 0 && r.serie_auj === false && r.serie_bonus === 10 && (await ligne7(H)).serie === 6 && (await ligne7(H)).points === 210, 'deux jours sans points (vendredi et samedi), dimanche : la réponse dit 0 (série cassée), sans rien retirer (les points restent, la colonne garde 6 jusqu’au prochain envoi de points)');
+      await horloge7(h7 + 20e3); r = await pub7(H, 'Honnête', 220);
+      check(r.ok && r.serie === 1 && r.serie_auj === true && r.points_semaine === 230, 'puis elle repart à 1 au premier envoi de points');
+      // l'inscription : avec des points, la série démarre à 1 ; sans points (vieux téléphone), à 0
+      { const N1 = joueur(), N2 = joueur(); const a = await pub7(N1, 'Nouvelle', 30), b = await pub7(N2, 'Ancien', null);
+        check(a.ok && a.serie === 1 && a.serie_auj === true && a.serie_bonus === 0 && b.ok && b.serie === 0 && b.serie_auj === false, `l’inscription : avec des points, la série démarre à 1 (${a.serie}) ; sans points, à 0 (${b.serie})`); }
+      // le tricheur (100 000 points toutes les 4 h) et la joueuse parfaite (le maximum honnête chaque jour : 137 par jour + le défi) : ex æquo à 1 019
+      { const L9 = L7 + 21 * 864e5, Tr = joueur(), Pa = joueur(), suite = [];
+        for (let d = 0; d < 7; d++) { for (let k = 0; k < 6; k++) { await horloge7(L9 + d * 864e5 + 30e3 + k * 4 * 3600e3); await pub7(Tr, 'Tricheur', 1e5); if (k === 3) await pub7(Pa, 'Parfaite', Math.min(989, 137 * (d + 1) + 30)); } suite.push((await ligne7(Tr)).points); }
+        const c = await cl7(Tr);
+        check(JSON.stringify(suite) === JSON.stringify([187, 324, 471, 608, 745, 882, 1019]) && c.lignes.map((x) => `${x.rang} ${x.pseudo} ${x.points}`).join(', ') === '1 Parfaite 1019, 1 Tricheur 1019',
+          `le tricheur, jour après jour : ${suite.join(', ')} (137 × jours + 50, la série en plus) ; au mieux ex æquo avec la joueuse parfaite (${c.lignes.map((x) => `${x.rang} ${x.pseudo} ${x.points}`).join(', ')})`); }
+      // le fichier complet recollé par-dessus : le même code (chaque fonction, celles de la v6.7 comprises), les mêmes données
+      const [codeAvant, donnees2] = [await corps7(), await photo7(false)];
+      try { await coller7(SQL); check(true, 'puis le fichier complet (supabase/fournil-classement.sql) se colle par-dessus la v6.7'); } catch (err) { check(false, 'le fichier complet se colle par-dessus la v6.7 : ' + err.message); }
+      await horloge7(h7);
+      check(await corps7() === codeAvant, `le fichier complet et la v6.6 + v6.7 installent le même code : chaque fonction (${V67_FNS.join(', ')} comprises), ses paramètres, sa volatilité, ses droits`);
+      check(await photo7(false) === donnees2, 'et les données ne bougent pas (la série comprise)');
+      { const code = async (nom) => (await s7('select md5(prosrc) as m from pg_proc where proname = $1', [nom]))[0].m, P = {};
+        const d8 = await PGlite.create(); await d8.exec(`create role anon nologin noinherit; create role authenticated nologin noinherit; create role service_role nologin noinherit bypassrls; create role proprio nologin createrole; grant usage, create on schema public to proprio; grant usage on schema public to anon, authenticated, service_role;`);
+        await d8.exec('set role proprio'); await d8.exec(V66C); await d8.exec(P67); await d8.exec('reset role');
+        for (const n of V67_FNS) P[n] = (await d8.query('select md5(prosrc) as m from pg_proc where proname = $1', [n])).rows[0].m;
+        await d8.close();
+        let memes = true; for (const n of V67_FNS) if (P[n] !== await code(n)) memes = false;
+        check(memes, `le patch v6.7 et le fichier complet : le corps de ${V67_FNS.join(', ')} identique, caractère pour caractère`); }
+      await d7.close();
     }
   }
 

@@ -904,6 +904,59 @@ const egal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
     push.reponse = null; const m4 = mN({ stockage: memoire() });
     check((await m4.abonner()).etat === 'pas-rejoint', 'pas rejoint : on ne peut pas s’abonner (il faut une ligne au classement)'); }
   check(CL.jourParis(Date.UTC(2026, 9, 9, 21, 59)) === '2026-10-09' && CL.jourParis(Date.UTC(2026, 9, 9, 22, 0)) === '2026-10-10', 'le jour de Paris : minuit à 22 h UTC en été');
+
+  console.log('── la série de jours de suite (version 6.7 du SQL, comptée par le serveur) ──');
+  { const b = []; for (let k = -1; k <= 22; k++) b.push(CL.serieBonus(k));
+    check(egal(CL.SERIE, { 3: 10, 7: 20 }) && egal(b, [0, 0, 0, 0, 10, 0, 0, 0, 20, 0, 0, 10, 0, 0, 0, 20, 0, 0, 10, 0, 0, 0, 20, 0]) && CL.serieBonus(2.5) === 0 && CL.serieBonus('3') === 0,
+      `SERIE = { 3: 10, 7: 20 } ; le bonus du jour -1 à 22, comme fournil_serie_bonus : ${b.join(',')}`);
+    const P = (j, a) => { const p = CL.serieProchaine(j, a); return `${p.jour}/${p.points}/${p.dans}`; };
+    const vus = [P(0, false), P(1, true), P(1, false), P(2, true), P(2, false), P(3, true), P(6, false), P(6, true), P(7, true), P(9, false), P(13, true), P(14, true)];
+    check(vus.join(' ') === '3/10/2 3/10/2 3/10/1 3/10/1 3/10/0 7/20/4 7/20/0 7/20/1 10/10/3 10/10/0 14/20/1 17/10/3',
+      `serieProchaine(jours, aujourdhui) → { jour, points, dans } (0 : aujourd’hui, s’il ne compte pas encore) : ${vus.join(' · ')}`);
+    check(egal(CL.serieProchaine(-5, false), CL.serieProchaine(0, false)) && egal(CL.serieProchaine('n’importe quoi', true), CL.serieProchaine(0, true)) && CL.serieProchaine(1e9, true).jour === 10003, 'des valeurs absurdes : bornées (0 à 10 000), jamais d’exception ni de boucle sans fin'); }
+  { const J = (iso, h = 10) => Date.parse(iso + 'T00:00:00Z') + h * 3600e3; // vers 11 h ou midi à Paris
+    const s = { jours: 4, auj: true, bonus: 10, lundi: '2026-10-19', jour: '2026-10-22', quand: J('2026-10-22') };
+    check(egal(CL.serieVue(s, J('2026-10-22', 20)), { jours: 4, aujourdhui: true, bonus: 10, prochain: { jour: 7, points: 20, dans: 3 } }), 'reçue aujourd’hui (jeudi, 4e jour) : 4 jours, aujourd’hui compte, +10 cette semaine, le prochain bonus au 7e jour, dans 3 jours');
+    check(egal(CL.serieVue(s, J('2026-10-23')), { jours: 4, aujourdhui: false, bonus: 10, prochain: { jour: 7, points: 20, dans: 2 } }), 'le lendemain, avant tout envoi : la série tient encore (4), aujourd’hui ne compte pas encore');
+    check(egal(CL.serieVue(s, J('2026-10-24')), { jours: 0, aujourdhui: false, bonus: 10, prochain: { jour: 3, points: 10, dans: 2 } }), 'deux jours plus tard : cassée (0), le prochain bonus au 3e jour');
+    check(CL.serieVue(s, J('2026-10-26')).bonus === 0 && CL.serieVue(s, J('2026-10-25', 22)).bonus === 10, 'les points de série : ceux de la semaine en cours seulement (0 le lundi suivant)');
+    const h = { jours: 2, auj: false, bonus: 0, lundi: '2026-10-19', jour: '2026-10-22', quand: 0 }; // le serveur a répondu jeudi « 2, pas encore aujourd’hui » : le dernier jour qui a compté est mercredi
+    check(CL.serieVue(h, J('2026-10-22')).jours === 2 && CL.serieVue(h, J('2026-10-22')).prochain.dans === 0 && CL.serieVue(h, J('2026-10-23')).jours === 0, 'une réponse « pas encore aujourd’hui » (2 jours jusqu’à hier) : 2 le jour même, avec le bonus du 3e jour à prendre aujourd’hui ; cassée le lendemain');
+    const ete = { jours: 6, auj: true, bonus: 10, lundi: '2026-10-19', jour: '2026-10-24', quand: 0 };
+    check(CL.serieVue(ete, Date.UTC(2026, 9, 25, 22, 30)).jours === 6 && CL.serieVue(ete, Date.UTC(2026, 9, 25, 22, 30)).aujourdhui === false && CL.serieVue(ete, Date.UTC(2026, 9, 25, 23, 30)).jours === 0,
+      'la nuit du passage à l’heure d’hiver (le dimanche a 25 h) : reçue samedi, la série tient tout dimanche jusqu’à minuit à Paris, cassée lundi');
+    check(CL.serieVue(null, T) === null && CL.serieVue({ jours: 3 }, T) === null && CL.serieVue({ jours: 3, jour: 'hier' }, T) === null, 'rien de reçu, ou une série illisible : null');
+    check(egal(CL.nettoyerSerie({ jours: 1e9, auj: 'oui', bonus: -4, lundi: 'lundi', jour: '2026-10-22', quand: NaN }), { jours: 10000, auj: false, bonus: 0, lundi: '', jour: '2026-10-22', quand: 0 }), 'une série abîmée : bornée champ par champ (0…10 000 jours, 0…1 000 points)');
+    check(CL.serieDeReponse({ ok: true, version: 6 }, T, '2026-10-05') === null && egal(CL.serieDeReponse({ ok: true, serie: 3, serie_auj: true, serie_bonus: 10 }, T, '2026-10-05'), { jours: 3, auj: true, bonus: 10, lundi: '2026-10-05', jour: '2026-10-09', quand: T }),
+      'une réponse sans serie (un serveur d’avant la 6.7) : rien ; avec : { jours, auj, bonus, lundi, jour, quand }'); }
+  { // la série par le moteur, avec un faux serveur qui la rend
+    const st = memoire(); let serie = null;
+    const r = faux(async (url) => {
+      if (url.endsWith('/fournil_retirer')) return rep(200, { ok: true });
+      if (!url.endsWith('/fournil_publier')) return rep(404, { code: 'PGRST202' });
+      const d = { ok: true, erreur: null, version: 6, rang_semaine: 1, rang_total: 1, joueurs: 3, semaine: CL.lundiParis(horloge), points_semaine: 40 };
+      if (serie && serie.tropVite) return rep(200, Object.assign({}, d, { ok: false, erreur: 'trop_vite', serie: serie.jours, serie_auj: true, serie_bonus: serie.bonus }));
+      return rep(200, serie ? Object.assign(d, { serie: serie.jours, serie_auj: serie.auj, serie_bonus: serie.bonus }) : d);
+    });
+    horloge = Date.UTC(2026, 9, 20, 9); // mardi 20 octobre, 11 h à Paris
+    const m = moteur(r, { stockage: st });
+    check(m.resume().serie === null, 'pas rejoint : resume().serie = null');
+    await m.choisirPseudo('Sérieuse');
+    check(m.resume().rejoint && m.resume().serie === null && !CL.lireEtat(st).dernier.serie, 'un serveur d’avant la 6.7 (pas de serie dans la réponse) : resume().serie = null, rien de rangé');
+    serie = { jours: 1, auj: true, bonus: 0 }; horloge += 20e3; fortune += 100; await m.envoyer('feuille');
+    check(egal(m.resume().serie, { jours: 1, aujourdhui: true, bonus: 0, prochain: { jour: 3, points: 10, dans: 2 } }) && egal(CL.lireEtat(st).dernier.serie, { jours: 1, auj: true, bonus: 0, lundi: '2026-10-19', jour: '2026-10-20', quand: horloge }),
+      `la 6.7 : la réponse porte la série, rangée dans etat.dernier.serie = { jours, auj, bonus, lundi, jour, quand } ; resume().serie = ${JSON.stringify(m.resume().serie)}`);
+    check(m.resume().semaine.rang === 1 && m.resume().semaine.points === 40, 'les rangs restent à côté de la série');
+    horloge = Date.UTC(2026, 9, 22, 8); serie = { jours: 3, auj: true, bonus: 10, tropVite: true }; await m.envoyer('fond');
+    check(m.resume().serie.jours === 3 && m.resume().serie.bonus === 10 && m.resume().serie.prochain.jour === 7, 'une réponse « trop_vite » redonne aussi la série : rangée (3 jours, +10 cette semaine)');
+    serie = { jours: 3, auj: true, bonus: 10 }; horloge += 20e3; fortune += 100; await m.envoyer('feuille');
+    check(m.resume().serie.jours === 3 && CL.lireEtat(st).dernier.serie.jours === 3 && m.etat().dernier.semaine.rang === 1, 'un envoi accepté ensuite : les rangs de la réponse sont notés, la série reste (noterRangs ne l’efface pas)');
+    horloge = Date.UTC(2026, 9, 23, 8);
+    check(m.resume().serie.jours === 3 && m.resume().serie.aujourdhui === false && m.resume().serie.prochain.dans === 3, 'le lendemain, avant d’envoyer : 3 jours, aujourd’hui ne compte pas encore, le +20 dans 3 jours');
+    horloge = Date.UTC(2026, 9, 24, 8);
+    check(m.resume().serie.jours === 0 && m.resume().serie.bonus === 10, 'deux jours sans envoi : la série affichée retombe à 0 (les points de la semaine restent)');
+    const m2 = moteur(r, { stockage: st }); check(m2.resume().serie.jours === 0 && CL.lireEtat(st).dernier.serie.jours === 3, 'relue depuis le stockage (une autre fenêtre) : la même vue');
+    horloge += 20e3; const q = await m.quitter(); check(q.etat === 'ok' && !m.resume().rejoint && m.resume().serie === null, 'après avoir quitté : null'); }
   console.log(echecs ? `${echecs} échec(s)` : 'Tout passe.');
   process.exit(echecs ? 1 : 0);
 })().catch((e) => { console.error('FAIL', e); process.exit(1); });

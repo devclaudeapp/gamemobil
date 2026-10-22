@@ -1,6 +1,12 @@
 #!/usr/bin/env node
 // Le Fournil : le classement en ligne éprouvé POUR DE VRAI contre le projet Supabase du jeu (sur GitHub Actions :
 // le conteneur de Claude ne peut pas joindre Supabase). Node 22, fetch, la clé PUBLIQUE seulement.
+//  0 quater. version 6.7, le barème du lot 7 et la série de jours de suite (supabase/fournil-classement-v67.sql, à coller AVANT la mise en
+//     ligne du jeu du lot 7) : si elle est collée, la réponse de fournil_publier porte serie, serie_auj et serie_bonus (A, inscrit avec des
+//     points : 1er jour, aujourd'hui compte, aucun point de série), 99 999 points sont plafonnés par la nouvelle formule (137 × jours + 50,
+//     989 au plus), et un deuxième envoi le même jour ne change ni la série ni ses points ; sinon, le test le dit clairement (« v6.7 pas
+//     encore collée ») et vérifie le plafond de la v6.6 (60 × jours + 100, 510 au plus), SANS échouer : le client du lot 7 n'est pas
+//     encore en ligne ;
 //  0 ter. version 6.6, les acharnés de la Maison hantée (supabase/fournil-classement-v66.sql) : si elle est collée, chaque ligne du classement
 //     porte titre (null, ou le titre que montre la photo de sa boutique : A envoie ti = 'legende-manoir', sa ligne le rend), et la forme des
 //     places de l'événement est vérifiée quand il est figé (evenements.hantee = { rang 1 à 15 | null, joueurs, podium : trois premiers au
@@ -130,6 +136,8 @@ const durees = [];
 let sourceConclusion = ''; // ce que la sonde dit de la limite d'inscriptions par source
 const V66_MANQUE = '**v6.6 pas encore collée** : colle `supabase/fournil-classement-v66.sql` (la limite de la Maison hantée, ses acharnés jusqu’au 15e, le titre « Légende du Manoir » dans la liste).';
 let V66 = false; // version 6.6 : les lignes du classement portent titre (les acharnés de la Maison hantée)
+const V67_MANQUE = '**v6.7 pas encore collée** : colle `supabase/fournil-classement-v67.sql` dans le SQL Editor AVANT de mettre en ligne le jeu du lot 7 (le barème relevé à 137 points par jour et 989 la semaine, la série de jours de suite). En attendant, le plafond de la v6.6 est vérifié.';
+let V67 = false; // version 6.7 : la réponse de fournil_publier porte la série (serie, serie_auj, serie_bonus)
 let VERSION = 0, V6 = false, V65 = false, versionConclusion = ''; // la version du SQL installée (5 ou 6) ; V6 : les copains et les notifications ; V65 : les places et les accusés (6.5)
 async function appel(methode, chemin, corps, h = entetes) {
   const t0 = Date.now();
@@ -313,7 +321,8 @@ function arreter(message, conclusion) {
   if (lundiParis(Date.now() + 10 * 60e3) !== lundi || lundiParis(Date.now() - 10 * 60e3) !== lundi) arreter('trop près de minuit le lundi (heure de Paris) : le palmarès de la semaine va se figer, relance ce test dans un quart d’heure');
   const pts = (points, l = lundi) => ({ points, lundi: l });
   const jourSemaine = Math.round((Date.parse(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date()) + 'T12:00:00Z') - Date.parse(lundi + 'T12:00:00Z')) / 864e5) + 1; // 1 = lundi … 7 = dimanche
-  const plafondDuJour = Math.min(510, 60 * jourSemaine + 100);
+  // le plafond des points du jour : celui de la v6.7 (137 × jours + 50, 989 au plus) si elle est collée, sinon celui de la v6.6 (60 × jours + 100, 510 au plus)
+  const plafond = () => (V67 ? { n: Math.min(989, 137 * jourSemaine + 50), formule: `v6.7 : 137 × ${jourSemaine} + 50, 989 au plus` } : { n: Math.min(510, 60 * jourSemaine + 100), formule: `v6.6 : 60 × ${jourSemaine} + 100, 510 au plus` });
   try {
     r = await publier(A, 1000, A.pseudo, null, pts(12));
     const a1 = r.data || {};
@@ -321,6 +330,10 @@ function arreter(message, conclusion) {
       && a1.compte === 0 && a1.plafonne === false && a1.points_comptes === 12 && a1.points_semaine === 12 && a1.points_total === 12, `A s'inscrit avec 12 points et 1 000 € de fortune : ses points de la semaine comptent, l'argent part de zéro (${r.texte})`);
     if (a1.erreur === 'trop_vite') throw new Error("inscription de A refusée (« trop_vite ») : cette machine a déjà inscrit 10 joueurs dans l'heure ou 20 dans la journée (d'autres lancements du test ?), ou 60 joueurs se sont inscrits dans l'heure ; relancer plus tard");
     if (!a1.ok) throw new Error('inscription de A refusée : ' + r.texte);
+    // version 6.7 : la série de jours de suite, dans la réponse (le téléphone la reconnaît à la présence de serie ; version reste 6)
+    V67 = Number.isInteger(a1.serie);
+    if (V67) check(a1.serie === 1 && a1.serie_auj === true && a1.serie_bonus === 0, `la version 6.7 est collée : la réponse porte la série ; A, inscrit avec des points, en est au 1er jour, aujourd’hui compte, aucun point de série (${JSON.stringify({ serie: a1.serie, serie_auj: a1.serie_auj, serie_bonus: a1.serie_bonus })})`);
+    else { log('  ATTENTION v6.7 pas encore collée (la réponse de fournil_publier ne porte pas serie) : colle supabase/fournil-classement-v67.sql AVANT de mettre en ligne le jeu du lot 7 ; le plafond de la v6.6 est vérifié en attendant'); versionConclusion = (versionConclusion ? versionConclusion + '\n\n' : '') + V67_MANQUE; }
     r = await publier(B, 2, B.pseudo, null, pts(0));
     const b1 = r.data || {};
     check(r.statut === 200 && b1.ok === true && b1.joueurs === a1.joueurs + 1 && b1.compte === 0 && b1.points_semaine === 0, `B s'inscrit avec 0 point et 2 € : ${r.texte}`);
@@ -495,14 +508,16 @@ function arreter(message, conclusion) {
     log('\n── les plafonds : points du barème, gains plausibles ──');
     await attendre(10500);
     r = await publier(A, 1600, A.pseudo, null, pts(99999));
-    check(r.data && r.data.ok === true && r.data.points_plafonnes === true && r.data.points_semaine === plafondDuJour + bonusA, `A envoie 99 999 points (console) : acceptés mais plafonnés au barème du jour ${jourSemaine} de la semaine (60 × ${jourSemaine} + 100, 510 au plus${bonusA ? ', plus 1 point de pourboire' : ''}) : ${r.data && r.data.points_semaine} (${r.texte.slice(0, 160)})`);
+    check(r.data && r.data.ok === true && r.data.points_plafonnes === true && r.data.points_semaine === plafond().n + bonusA, `A envoie 99 999 points (console) : acceptés mais plafonnés au barème du jour ${jourSemaine} de la semaine (${plafond().formule}${bonusA ? ', plus 1 point de pourboire' : ''}) : ${r.data && r.data.points_semaine} (${r.texte.slice(0, 160)})`);
+    if (V67) check(r.data && r.data.serie === 1 && r.data.serie_auj === true && r.data.serie_bonus === 0, `v6.7 : la série de A n’a pas bougé (plusieurs envois le même jour comptent une fois) : ${JSON.stringify(r.data && { serie: r.data.serie, serie_auj: r.data.serie_auj, serie_bonus: r.data.serie_bonus })}`);
     await attendre(10500);
     r = await publier(A, 1e24, A.pseudo, null, pts(99999));
     const p = r.data || {};
     check(p.ok === true && p.plafonne === true && Number.isFinite(p.compte) && p.compte > 0 && p.compte < 1e22,
       `A envoie 1e24 € (fortune inventée) : accepté mais plafonné, ${Number(p.compte).toExponential(2)} € comptés (${r.texte})`);
+    if (V67) check(p.serie === 1 && p.serie_bonus === 0 && p.points_semaine === plafond().n + bonusA && p.points_comptes === 0, `v6.7 : un deuxième envoi de 99 999 points le même jour ne change rien (série ${p.serie}, ${p.points_semaine} points, aucun point de série)`);
     r = await rpc('fournil_classement', { p_periode: 'total', p_id: A.id, p_limite: 1 });
-    check(r.data && r.data.moi && Math.abs(r.data.moi.valeur - (600 + p.compte)) <= 1e-9 * r.data.moi.valeur && r.data.moi.points === plafondDuJour + bonusA, `tous les temps : A a ${r.data && r.data.moi && r.data.moi.valeur.toExponential(2)} € (600 + le compté), pas 1e24 ; ${r.data && r.data.moi && r.data.moi.points} points, pas 99 999`);
+    check(r.data && r.data.moi && Math.abs(r.data.moi.valeur - (600 + p.compte)) <= 1e-9 * r.data.moi.valeur && r.data.moi.points === plafond().n + bonusA, `tous les temps : A a ${r.data && r.data.moi && r.data.moi.valeur.toExponential(2)} € (600 + le compté), pas 1e24 ; ${r.data && r.data.moi && r.data.moi.points} points, pas 99 999`);
 
     r = await rpc('fournil_retirer', { p_id: A.id, p_jeton: B.jeton });
     check(r.data && r.data.ok === false, `retirer A avec le jeton de B : refusé (${r.texte})`);
