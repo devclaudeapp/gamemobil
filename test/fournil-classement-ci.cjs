@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // Le Fournil : le classement en ligne éprouvé POUR DE VRAI contre le projet Supabase du jeu (sur GitHub Actions :
 // le conteneur de Claude ne peut pas joindre Supabase). Node 22, fetch, la clé PUBLIQUE seulement.
-//  0 quater. version 6.7, le barème du lot 7 et la série de jours de suite (supabase/fournil-classement-v67.sql, à coller AVANT la mise en
-//     ligne du jeu du lot 7) : si elle est collée, la réponse de fournil_publier porte serie, serie_auj et serie_bonus (A, inscrit avec des
-//     points : 1er jour, aujourd'hui compte, aucun point de série), 99 999 points sont plafonnés par la nouvelle formule (137 × jours + 50,
-//     989 au plus), et un deuxième envoi le même jour ne change ni la série ni ses points ; sinon, le test le dit clairement (« v6.7 pas
-//     encore collée ») et vérifie le plafond de la v6.6 (60 × jours + 100, 510 au plus), SANS échouer : le client du lot 7 n'est pas
-//     encore en ligne ;
+//  0 quater. versions 6.7 et 6.7.1, le barème du lot 7 et la série de jours de suite (supabase/fournil-classement-v67.sql, puis
+//     supabase/fournil-classement-v671.sql : ils démarrent ENSEMBLE le lundi 26 octobre 2026 à 0 h, heure de Paris). L'attente dépend de la
+//     date réelle (la semaine du serveur) : AVANT le 26, la réponse de fournil_publier porte serie 0, serie_auj false, serie_bonus 0 (A,
+//     inscrit avec des points, n'a pas de série) et 99 999 points sont plafonnés par l'ancienne formule (60 × jours + 100, 510 au plus) ;
+//     À PARTIR du 26, serie 1 (1er jour), serie_auj true, serie_bonus 0, et la nouvelle formule (137 × jours + 50, 989 au plus). Un deuxième
+//     envoi le même jour ne change ni la série ni ses points. Une réponse sans serie : « v6.7 pas encore collée » ; avant le 26, une série
+//     déjà à 1 : « v6.7.1 pas encore collée » ; l'un comme l'autre, le test échoue en le disant clairement (colle tel fichier) ;
 //  0 ter. version 6.6, les acharnés de la Maison hantée (supabase/fournil-classement-v66.sql) : si elle est collée, chaque ligne du classement
 //     porte titre (null, ou le titre que montre la photo de sa boutique : A envoie ti = 'legende-manoir', sa ligne le rend), et la forme des
 //     places de l'événement est vérifiée quand il est figé (evenements.hantee = { rang 1 à 15 | null, joueurs, podium : trois premiers au
@@ -136,7 +137,9 @@ const durees = [];
 let sourceConclusion = ''; // ce que la sonde dit de la limite d'inscriptions par source
 const V66_MANQUE = '**v6.6 pas encore collée** : colle `supabase/fournil-classement-v66.sql` (la limite de la Maison hantée, ses acharnés jusqu’au 15e, le titre « Légende du Manoir » dans la liste).';
 let V66 = false; // version 6.6 : les lignes du classement portent titre (les acharnés de la Maison hantée)
-const V67_MANQUE = '**v6.7 pas encore collée** : colle `supabase/fournil-classement-v67.sql` dans le SQL Editor AVANT de mettre en ligne le jeu du lot 7 (le barème relevé à 137 points par jour et 989 la semaine, la série de jours de suite). En attendant, le plafond de la v6.6 est vérifié.';
+const V67_MANQUE = '**v6.7 pas encore collée** : colle `supabase/fournil-classement-v67.sql`, puis `supabase/fournil-classement-v671.sql`, dans le SQL Editor (le barème du lot 7 et la série de jours de suite, qui démarrent le lundi 26 octobre 2026).';
+const V671_MANQUE = '**v6.7.1 pas encore collée** : colle `supabase/fournil-classement-v671.sql` dans le SQL Editor (le nouveau barème et la série démarrent ensemble le lundi 26 octobre 2026 ; avec la v6.7 seule, la série compte déjà et le plafond est déjà relevé).';
+const DEPART_LOT7 = '2026-10-26'; // le lundi (heure de Paris) où démarrent le barème du lot 7 et la série (src/game.js, BAREME_DEPUIS ; SQL v6.7.1)
 let V67 = false; // version 6.7 : la réponse de fournil_publier porte la série (serie, serie_auj, serie_bonus)
 let VERSION = 0, V6 = false, V65 = false, versionConclusion = ''; // la version du SQL installée (5 ou 6) ; V6 : les copains et les notifications ; V65 : les places et les accusés (6.5)
 async function appel(methode, chemin, corps, h = entetes) {
@@ -321,8 +324,11 @@ function arreter(message, conclusion) {
   if (lundiParis(Date.now() + 10 * 60e3) !== lundi || lundiParis(Date.now() - 10 * 60e3) !== lundi) arreter('trop près de minuit le lundi (heure de Paris) : le palmarès de la semaine va se figer, relance ce test dans un quart d’heure');
   const pts = (points, l = lundi) => ({ points, lundi: l });
   const jourSemaine = Math.round((Date.parse(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Paris' }).format(new Date()) + 'T12:00:00Z') - Date.parse(lundi + 'T12:00:00Z')) / 864e5) + 1; // 1 = lundi … 7 = dimanche
-  // le plafond des points du jour : celui de la v6.7 (137 × jours + 50, 989 au plus) si elle est collée, sinon celui de la v6.6 (60 × jours + 100, 510 au plus)
-  const plafond = () => (V67 ? { n: Math.min(989, 137 * jourSemaine + 50), formule: `v6.7 : 137 × ${jourSemaine} + 50, 989 au plus` } : { n: Math.min(510, 60 * jourSemaine + 100), formule: `v6.6 : 60 × ${jourSemaine} + 100, 510 au plus` });
+  // le plafond des points du jour selon la date réelle (v6.7.1) : à partir de la semaine du lundi 26 octobre 2026, celui du lot 7 (137 × jours + 50,
+  // 989 au plus) ; avant, l'ancien (60 × jours + 100, 510 au plus) ; la série aussi ne compte qu'à partir du 26
+  const nouveauBareme = lundi >= DEPART_LOT7, serieAttendue = nouveauBareme ? 1 : 0;
+  const plafond = () => (nouveauBareme ? { n: Math.min(989, 137 * jourSemaine + 50), formule: `barème du lot 7, depuis le 26 octobre : 137 × ${jourSemaine} + 50, 989 au plus` } : { n: Math.min(510, 60 * jourSemaine + 100), formule: `barème d’avant, jusqu’au 25 octobre : 60 × ${jourSemaine} + 100, 510 au plus` });
+  log(`  la semaine du ${lundi} : ${nouveauBareme ? 'le barème du lot 7 et la série (depuis le lundi 26 octobre 2026)' : 'le barème d’avant, sans série (le nouveau et la série démarrent le lundi 26 octobre 2026)'}`);
   try {
     r = await publier(A, 1000, A.pseudo, null, pts(12));
     const a1 = r.data || {};
@@ -332,8 +338,11 @@ function arreter(message, conclusion) {
     if (!a1.ok) throw new Error('inscription de A refusée : ' + r.texte);
     // version 6.7 : la série de jours de suite, dans la réponse (le téléphone la reconnaît à la présence de serie ; version reste 6)
     V67 = Number.isInteger(a1.serie);
-    if (V67) check(a1.serie === 1 && a1.serie_auj === true && a1.serie_bonus === 0, `la version 6.7 est collée : la réponse porte la série ; A, inscrit avec des points, en est au 1er jour, aujourd’hui compte, aucun point de série (${JSON.stringify({ serie: a1.serie, serie_auj: a1.serie_auj, serie_bonus: a1.serie_bonus })})`);
-    else { log('  ATTENTION v6.7 pas encore collée (la réponse de fournil_publier ne porte pas serie) : colle supabase/fournil-classement-v67.sql AVANT de mettre en ligne le jeu du lot 7 ; le plafond de la v6.6 est vérifié en attendant'); versionConclusion = (versionConclusion ? versionConclusion + '\n\n' : '') + V67_MANQUE; }
+    if (!V67) { check(false, 'v6.7 pas encore collée (la réponse de fournil_publier ne porte pas serie) : colle supabase/fournil-classement-v67.sql, puis supabase/fournil-classement-v671.sql, dans le SQL Editor'); versionConclusion = (versionConclusion ? versionConclusion + '\n\n' : '') + V67_MANQUE; }
+    else if (!nouveauBareme && a1.serie !== 0) { check(false, `v6.7.1 pas encore collée : avant le lundi 26 octobre 2026, la série compte déjà (A inscrit avec des points : serie ${a1.serie}) ; colle supabase/fournil-classement-v671.sql dans le SQL Editor`); versionConclusion = (versionConclusion ? versionConclusion + '\n\n' : '') + V671_MANQUE; }
+    else check(a1.serie === serieAttendue && a1.serie_auj === nouveauBareme && a1.serie_bonus === 0, nouveauBareme
+      ? `la v6.7 (et la v6.7.1) : la réponse porte la série ; depuis le 26 octobre, A, inscrit avec des points, en est au 1er jour, aujourd’hui compte, aucun point de série (${JSON.stringify({ serie: a1.serie, serie_auj: a1.serie_auj, serie_bonus: a1.serie_bonus })})`
+      : `la v6.7.1 est collée : avant le lundi 26 octobre 2026, la réponse porte la série, mais rien ne compte (serie 0, serie_auj false, serie_bonus 0 : ${JSON.stringify({ serie: a1.serie, serie_auj: a1.serie_auj, serie_bonus: a1.serie_bonus })})`);
     r = await publier(B, 2, B.pseudo, null, pts(0));
     const b1 = r.data || {};
     check(r.statut === 200 && b1.ok === true && b1.joueurs === a1.joueurs + 1 && b1.compte === 0 && b1.points_semaine === 0, `B s'inscrit avec 0 point et 2 € : ${r.texte}`);
@@ -509,13 +518,13 @@ function arreter(message, conclusion) {
     await attendre(10500);
     r = await publier(A, 1600, A.pseudo, null, pts(99999));
     check(r.data && r.data.ok === true && r.data.points_plafonnes === true && r.data.points_semaine === plafond().n + bonusA, `A envoie 99 999 points (console) : acceptés mais plafonnés au barème du jour ${jourSemaine} de la semaine (${plafond().formule}${bonusA ? ', plus 1 point de pourboire' : ''}) : ${r.data && r.data.points_semaine} (${r.texte.slice(0, 160)})`);
-    if (V67) check(r.data && r.data.serie === 1 && r.data.serie_auj === true && r.data.serie_bonus === 0, `v6.7 : la série de A n’a pas bougé (plusieurs envois le même jour comptent une fois) : ${JSON.stringify(r.data && { serie: r.data.serie, serie_auj: r.data.serie_auj, serie_bonus: r.data.serie_bonus })}`);
+    if (V67) check(r.data && r.data.serie === serieAttendue && r.data.serie_auj === nouveauBareme && r.data.serie_bonus === 0, `v6.7 : la série de A n’a pas bougé (${nouveauBareme ? 'plusieurs envois le même jour comptent une fois' : 'avant le 26 octobre, elle ne compte pas'}) : ${JSON.stringify(r.data && { serie: r.data.serie, serie_auj: r.data.serie_auj, serie_bonus: r.data.serie_bonus })}`);
     await attendre(10500);
     r = await publier(A, 1e24, A.pseudo, null, pts(99999));
     const p = r.data || {};
     check(p.ok === true && p.plafonne === true && Number.isFinite(p.compte) && p.compte > 0 && p.compte < 1e22,
       `A envoie 1e24 € (fortune inventée) : accepté mais plafonné, ${Number(p.compte).toExponential(2)} € comptés (${r.texte})`);
-    if (V67) check(p.serie === 1 && p.serie_bonus === 0 && p.points_semaine === plafond().n + bonusA && p.points_comptes === 0, `v6.7 : un deuxième envoi de 99 999 points le même jour ne change rien (série ${p.serie}, ${p.points_semaine} points, aucun point de série)`);
+    if (V67) check(p.serie === serieAttendue && p.serie_bonus === 0 && p.points_semaine === plafond().n + bonusA && p.points_comptes === 0, `v6.7 : un deuxième envoi de 99 999 points le même jour ne change rien (série ${p.serie}, ${p.points_semaine} points, aucun point de série)`);
     r = await rpc('fournil_classement', { p_periode: 'total', p_id: A.id, p_limite: 1 });
     check(r.data && r.data.moi && Math.abs(r.data.moi.valeur - (600 + p.compte)) <= 1e-9 * r.data.moi.valeur && r.data.moi.points === plafond().n + bonusA, `tous les temps : A a ${r.data && r.data.moi && r.data.moi.valeur.toExponential(2)} € (600 + le compté), pas 1e24 ; ${r.data && r.data.moi && r.data.moi.points} points, pas 99 999`);
 

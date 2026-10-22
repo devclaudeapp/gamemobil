@@ -7,6 +7,15 @@
 --  les points, les billets, les bonbons et les podiums restent, les fonctions sont remplacées par la nouvelle version, les droits
 --  sont remis d'aplomb.
 --
+--  Version 6.7.1 (22 oct. 2026) : LE NOUVEAU BARÈME ET LA SÉRIE DÉMARRENT ENSEMBLE LE LUNDI 26 OCTOBRE 2026 À 0 H (heure de Paris ;
+--  le même code que le patch supabase/fournil-classement-v671.sql, collé par-dessus la v6.7). La semaine du 19 au 25 octobre finit avec
+--  les règles d'avant, comme le jeu (src/game.js, BAREME_DEPUIS) :
+--    · fournil_points_plafond devient « stable » : avant la semaine du 26, l'ancienne formule least(510, 60 × jours + 100) ; ensuite,
+--      least(989, 137 × jours + 50) ;
+--    · fournil_publier : la série (son avance, son bonus, le 1 de l'inscription) n'agit qu'à partir de la semaine du 26 ; fournil_reponse
+--      rend serie 0, serie_auj false, serie_bonus 0 avant ;
+--    · la série déjà comptée par la v6.7 est remise à zéro si on est encore avant le 26 (recollé après, rien n'est effacé).
+--
 --  Version 6.7 (22 oct. 2026) : LES POINTS CONTINUENT AU-DELÀ D'UNE HEURE DE JEU, ET LA SÉRIE DE JOURS DE SUITE (le même code que le
 --  patch supabase/fournil-classement-v67.sql). Collée par-dessus la v6.6 : rien ne se perd. À coller AVANT la mise en ligne du jeu du
 --  lot 7 (sinon son téléphone est plafonné à 60 × jours + 100, et ce qui dépasse est perdu le dimanche soir).
@@ -126,6 +135,8 @@
 --      dégressivité : l'Atelier, chaque jour (le meilleur score du jour de chaque mini-jeu, 0 à 4 points, 12 par jour) et le défi
 --      de la semaine (30, une fois). Au plus 137 points par jour, 989 par semaine (7 × 137 + 30) ;
 --      (version 6.6 et avant : au plus 60 par jour, 510 par semaine, l'Atelier de 0 à 20 par mini-jeu et par semaine)
+--    · ce barème et la série démarrent le lundi 26 octobre 2026 à 0 h, heure de Paris (version 6.7.1) ; la semaine du 19 au 25 octobre
+--      finit avec les règles d'avant (60 par jour, 510 par semaine, sans série) ;
 --    · LA SÉRIE (version 6.7, comptée par le serveur) : un jour compte dès son premier envoi de points (heure de Paris) ; +10 au
 --      3e jour de suite, +20 au 7e, puis à chaque tour de 7 (10e, 14e…) ; un jour sans envoi la casse (elle repart à 1). Ses points
 --      vont dans « Cette semaine » et « Tous les temps », et à part dans points_bonus (le téléphone, qui renvoie son total, ne les
@@ -240,6 +251,17 @@ alter table public.fournil_joueurs add column if not exists vu           timesta
 alter table public.fournil_joueurs add column if not exists points_bonus integer not null default 0;
 -- version 6.7 : la série, les jours de suite avec un envoi de points (heure de Paris) ; son bonus est compté dans points_bonus
 alter table public.fournil_joueurs add column if not exists serie integer not null default 0;
+-- version 6.7.1 : la série comptée par la v6.7 avant le lundi 26 octobre 2026 (le départ du nouveau barème et de la série) est remise à
+-- zéro, seulement si on est encore avant le 26 : recollé après, rien n'est effacé (le même effet que le patch v6.7.1). Ici, avant que ce
+-- fichier ne remplace les fonctions de l'heure ; au premier collage, elles n'existent pas encore : rien à faire.
+do $$
+begin
+  if to_regprocedure('public.fournil_maintenant()') is not null and to_regprocedure('public.fournil_lundi(timestamp with time zone)') is not null then
+    execute $q$update public.fournil_joueurs set serie = 0
+ where serie <> 0 and public.fournil_lundi(public.fournil_maintenant()) < date '2026-10-26'$q$;
+  end if;
+end
+$$;
 
 comment on table public.fournil_joueurs is
   'Le Fournil : le classement entre amis. Accès uniquement par les fonctions du jeu (fournil_publier, fournil_classement, fournil_retirer, fournil_recompenses, fournil_vu, fournil_boutique, fournil_pourboire…).';
@@ -526,14 +548,18 @@ $$;
 -- une fois par semaine, le défi (30) ; soit 989 sur une semaine. Jour par jour : 137 × jours + 50 (le défi peut tomber dès le
 -- premier jour, plus 20 de marge pour un minuit approximatif) ; sur la semaine : 989 tout rond, sans marge (le jeu plafonne
 -- lui-même ses points à 989 : un tricheur ne peut au mieux qu'égaler le joueur parfait). La série (fournil_serie_bonus) s'y ajoute.
--- (version 6.6 et avant : least(510, 60 × jours + 100))
+-- Version 6.7.1 : ce barème démarre le lundi 26 octobre 2026 (heure de Paris), avec la série ; tant que la semaine du serveur commence
+-- avant, l'ancienne formule (version 6.6 et avant) : least(510, 60 × jours + 100). D'où « stable » : la fonction lit l'heure du serveur.
 create or replace function public.fournil_points_plafond(p_jours integer)
 returns integer
 language sql
-immutable
+stable
 set search_path = ''
 as $$
-  select least(989, 137 * least(greatest(coalesce(p_jours, 1), 1), 7) + 50)
+  select case when public.fournil_lundi(public.fournil_maintenant()) < date '2026-10-26'
+              then least(510, 60 * least(greatest(coalesce(p_jours, 1), 1), 7) + 100)   -- le barème d'avant (version 6.6), jusqu'au dimanche 25 octobre 2026
+              else least(989, 137 * least(greatest(coalesce(p_jours, 1), 1), 7) + 50)  -- le barème du lot 7, depuis le lundi 26 octobre 2026
+         end
 $$;
 
 -- le bonus de la série (version 6.7) : un jour compte dès son premier envoi de points (heure de Paris) ; +10 au 3e jour de suite,
@@ -1232,10 +1258,15 @@ as $$
     'points_plafonnes', p_points_plafonnes,
     -- version 6.7 : la série de jours de suite (0 si elle est cassée : le dernier jour d'envoi de points est avant-hier ou plus ancien),
     -- serie_auj : aujourd'hui compte déjà ; serie_bonus : les points de série de la semaine (points_bonus)
-    'serie', (select case when m.points_jour >= public.fournil_jour(public.fournil_maintenant()) - 1 then m.serie else 0 end
+    -- version 6.7.1 : rien avant le lundi 26 octobre 2026 (serie 0, serie_auj false, serie_bonus 0 : la série n'a pas commencé)
+    'serie', (select case when public.fournil_lundi(public.fournil_maintenant()) < date '2026-10-26' then 0
+                          when m.points_jour >= public.fournil_jour(public.fournil_maintenant()) - 1 then m.serie else 0 end
               from public.fournil_joueurs m where m.id = p_id),
-    'serie_auj', (select coalesce(m.points_jour = public.fournil_jour(public.fournil_maintenant()), false) from public.fournil_joueurs m where m.id = p_id),
-    'serie_bonus', (select m.points_bonus from public.fournil_joueurs m where m.id = p_id and m.semaine = p_lundi),
+    'serie_auj', (select coalesce(m.points_jour = public.fournil_jour(public.fournil_maintenant()), false)
+                         and public.fournil_lundi(public.fournil_maintenant()) >= date '2026-10-26'
+                  from public.fournil_joueurs m where m.id = p_id),
+    'serie_bonus', (select case when public.fournil_lundi(public.fournil_maintenant()) < date '2026-10-26' then 0 else m.points_bonus end
+                    from public.fournil_joueurs m where m.id = p_id and m.semaine = p_lundi),
     'compte', p_compte,
     'plafonne', p_plafonne
   )
@@ -1411,8 +1442,9 @@ begin
       j.points := j.points + v_pts_compte;
       j.points_total := j.points_total + v_pts_compte;
       -- version 6.7 : la série de jours de suite ; un jour compte dès son premier envoi de points (heure de Paris) ; +10 au 3e jour,
-      -- +20 au 7e, puis à chaque tour de 7 (10e, 14e…) ; ces points du serveur vont aussi dans points_bonus (le téléphone ne les connaît pas)
-      if j.points_jour is distinct from v_jour then
+      -- +20 au 7e, puis à chaque tour de 7 (10e, 14e…) ; ces points du serveur vont aussi dans points_bonus (le téléphone ne les connaît pas).
+      -- Version 6.7.1 : seulement à partir de la semaine du lundi 26 octobre 2026 ; avant, points_jour se met à jour comme en 6.6, serie ne bouge pas
+      if v_lundi >= date '2026-10-26' and j.points_jour is distinct from v_jour then
         j.serie := case when j.points_jour = v_jour - 1 then j.serie + 1 else 1 end;
         v_bonus := public.fournil_serie_bonus(j.serie);
         j.points := j.points + v_bonus;
@@ -1505,7 +1537,7 @@ begin
               v_lundi, v_maintenant, v_maintenant,
               v_pts_compte, v_pts_compte, case when v_pts then v_jour end,
               case when v_q then least(p_quartier, v_q_borne) else 0 end, case when v_q then v_maintenant end, v_maintenant,
-              case when v_pts then 1 else 0 end);
+              case when v_pts and v_lundi >= date '2026-10-26' then 1 else 0 end); -- version 6.7.1 : la série démarre le lundi 26 octobre 2026
       if v_porte is not null then
         insert into public.fournil_portes (empreinte, quand) values (v_porte, v_maintenant);
       end if;
